@@ -1,0 +1,12 @@
+<project name="zs-epub">
+<body>
+<menu name="ドキュメント">
+<item name="説明" href="index.html"/>
+<item name="ライセンス" href="license.html"/>
+</menu>
+<menu name="開発">
+<item name="ソースの取得方法" href="source-repository.html"/>
+<item name="Javadoc" href="apidocs"/>
+</menu>
+</body>
+</project>

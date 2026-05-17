@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
+<head>
+<title>Homare</title>
+</head>
+<body>
+	<h2>説明</h2>
+	<p>Homareはページ分割に適したHTML/CSSレンダリングエンジンです。
+		CSS2.1サポートし、CSS3の一部を実装しています。</p>
+
+	<h2>使用方法</h2>
+	<p>
+		<a href="source-repository.html">ソース</a>を取得し、
+	</p>
+	<pre>mvn package dependency:copy-dependencies</pre>
+	<p>
+		でビルドした後、homare/targetおよびhomare/target/dependencyに生成されたjarをアプリケーションにリンクしてください。
+	</p>
+
+	<h2>ドキュメント</h2>
+	<p>
+		現在、ドキュメントは充実しているとは言えませんが、以下のサンプルプログラムと、 <a
+			href="http://copper-pdf.com/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/">Copper
+			PDFのドキュメント</a> がいくぶんか役に立つと思います。
+	</p>
+
+	<h2>サンプルプログラム</h2>
+	<dl>
+		<dt>
+			<a
+				href="http://svn.sourceforge.jp/svnroot/copper/copper/trunk/homare/src/example/java/jp/cssj/homare/example/Transcode.java">Transcode.java</a>
+		</dt>
+		<dd>java.awt.Graphics2Dのブリッジを利用してPDFを出力します。</dd>
+	</dl>
+
+</body>
+</html>

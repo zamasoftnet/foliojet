@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
+<head>
+<title>Copper PDF オープンソースプロジェクト</title>
+</head>
+<body>
+	<h2>Copper PDF オープンソースプロジェクト</h2>
+	<p>
+		<a href="http://copper-pdf.com/" target="_blank">HTML-PDF変換ミドルウェアCopper
+			PDF</a> のオープンソース版です。
+	</p>
+	<p>
+		公開したソースの利用条件は、商用利用しやすい<a
+			href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache
+			License, Version 2.0</a>としています。
+	</p>
+
+	<h2>ソースの取得とビルド</h2>
+	<p>
+		ソースはSubversionで公開しています。 アクセス方法は<a href="source-repository.html">こちら</a>をご覧ください。
+	</p>
+	<p>
+		ソースのビルドには<a href="http://maven.apache.org/" target="_blank">Apache
+			Maven2</a>が必要です。 例えばUbuntuでは次のコマンドでインストールしてください。
+	</p>
+	<pre>sudo apt-get install maven2</pre>
+	<p>ソースを取得した後、copperディレクトリ内で</p>
+	<pre>mvn package</pre>
+	<p>を実行することで全てのプロジェクトをビルドすることができます。 JARは各プロジェクトのtargetディレクトリに生成されます。
+		ライブラリが必要とする全てのJARを取得するには</p>
+	<pre>mvn package dependency:copy-dependencies</pre>
+	<p>を実行してください。全てのJARが各プロジェクトのtarget/dependencyに置かれた状態になります。</p>
+
+	<h2>主なプロジェクト</h2>
+	<p>サンプルコード等はリンク先をご覧ください。</p>
+	<dl>
+		<dt>
+			<a href="/sakae">Sakae</a>
+		</dt>
+		<dd>縦書き対応のPDF出力ライブラリです。 Graphics2Dへの出力をPDF化できること、高速で省メモリなのが特徴です。</dd>
+
+		<dt>
+			<a href="/homare">Homare</a>
+		</dt>
+		<dd>ページ分割に適したHTML/CSSレンダリングエンジンです。</dd>
+	</dl>
+
+	<h2>開発者への連絡</h2>
+	<p>
+		バグ報告、パッチの提供などは<a href="http://sourceforge.jp/projects/copper/"
+			target="_blank">SourceForgeのプロジェクトページ</a>からお願い致します。 著作権は<a
+			href="http://zamasoft.net/" target="_blank">座間ソフト</a>・<a
+			href="https://twitter.com/miyabet">宮部龍彦</a>(tatsuhiko at miya dot
+		be)が保有しています。
+	</p>
+</body>
+</html>
