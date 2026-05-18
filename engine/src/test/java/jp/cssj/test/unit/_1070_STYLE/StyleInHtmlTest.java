@@ -1,0 +1,28 @@
+package jp.cssj.test.unit._1070_STYLE;
+
+import java.io.File;
+
+import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.IBox;
+import jp.cssj.test.unit.AbstractTestCase;
+
+public class StyleInHtmlTest extends AbstractTestCase {
+	public StyleInHtmlTest(String name) {
+		super(name);
+	}
+
+	protected void transcode() throws Exception {
+		File file = new File("files/unittest/1070-STYLE/style-in-html.html");
+		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
+	}
+
+	public boolean check_a(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == IBox.TYPE_BLOCK) {
+			System.out.println(x + "/" + y);
+			assertEquals(6, x, 0);
+			assertEquals(6, y, 0);
+			return true;
+		}
+		return false;
+	}
+}

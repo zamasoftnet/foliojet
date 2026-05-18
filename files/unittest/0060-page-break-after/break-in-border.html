@@ -1,0 +1,37 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="50pt"?>
+<?jp.cssj.property name="output.page-height" value="40pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title></title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,h4 {
+	margin: 0;
+	font: 10pt/1 monospace;
+}
+
+.a {
+	page-break-after: avoid;
+}
+
+.b {
+	border: 5pt solid Yellow;
+}
+</style>
+</head>
+
+<body>
+<h4>見出し</h4>
+<div class="a" id="a">a<br />
+b</div>
+<div>
+<div class="b" id="b">TEXT1</div>
+</div>
+<span id="c">TEXT2</span>
+</body>
+</html>

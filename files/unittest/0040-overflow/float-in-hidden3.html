@@ -1,0 +1,44 @@
+<?jp.cssj.property name="output.page-width" value="176mm"?>
+<?jp.cssj.property name="output.page-height" value="128mm"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style type="text/css">
+body {
+	border: 1px solid Black;
+	text-align: justify;
+}
+
+div {
+	border: 3pt solid Red;
+}
+
+.a {
+	height: 30pt;
+	overflow: hidden;
+}
+
+.b {
+	float: left;
+	width: 100pt;
+	height: 60pt;
+}
+
+.c {
+	clear: both;
+}
+
+.d {
+	float: left;
+}
+</style>
+</head>
+<body>
+	<div class="d">
+		<div class="a">
+			<div class="b">FLOAT</div>
+		</div>
+	</div>
+	<div class="c" id="a">TEST</div>
+</body>
+</html>

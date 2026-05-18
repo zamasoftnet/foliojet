@@ -1,0 +1,97 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+body, td {
+	margin: 0;
+	font: 10pt/1 monospace;
+    padding: 0;
+}
+div.abs {
+	position: absolute;
+	top: 10pt;
+	border: 5pt solid Blue;
+	width: 100pt;
+}
+
+div.a1 {
+	left: 10pt;
+}
+
+div.a2 {
+	left: 130pt;
+}
+
+div.a2 div {
+	position: static;
+}
+
+div.flow {
+	border: Green 5pt solid;
+	margin: 1em;
+	padding: 1em;
+}
+
+.a {
+	position: relative;
+	top: 10pt;
+	left: 10pt;
+	border: Red 5pt solid;
+}
+
+.b {
+	position: relative;
+	bottom: 50%;
+	border: Yellow 5pt solid;
+}
+
+.c {
+	position: relative;
+	top: 50%;
+	border: Brown 5pt solid;
+}
+
+.d {
+	position: relative;
+	bottom: 10pt;
+	border: Pink 5pt solid;
+}
+img {
+	width: 10pt;
+	height: 10pt;
+}
+</style>
+</head>
+
+<body>
+<div class="abs a1">
+<div class="flow">
+フロー
+<div class="a" id="aa">10pt右下</div>
+<div class="b" id="ab">50%上</div>
+</div>
+フロー
+<div class="c" id="ac">50%下</div>
+<div class="d" id="ad">10pt上</div>
+</div>
+
+<div class="abs a2">
+<div class="flow">
+フロー
+<div class="a" id="ba">10pt右下</div>
+<div class="b" id="bb">50%上</div>
+</div>
+フロー
+<div class="c" id="bc">50%下</div>
+<div class="d" id="bd">10pt上</div>
+</div>
+</body>
+
+</html>

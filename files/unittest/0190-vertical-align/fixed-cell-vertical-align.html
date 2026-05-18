@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="600pt"?>
+<?jp.cssj.property name="output.page-height" value="800pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>TEST</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+	border-collapse: separate;
+	border-spacing: 5pt;
+	table-layout: fixed;
+	width: 400pt;
+}
+
+table td,table th {
+	border: 5pt Gray solid;
+	padding: 0;
+	font: 10pt/1 monospace;
+	height: 100pt;
+}
+
+tr.top td {
+	vertical-align: top;
+}
+
+tr.middle td {
+	vertical-align: middle;
+}
+
+tr.bottom td {
+	vertical-align: bottom;
+}
+
+tr.baseline td {
+	vertical-align: baseline;
+}
+
+tr.text-bottom td {
+	vertical-align: text-bottom;
+}
+
+tr.em td {
+	vertical-align: 1em;
+}
+
+td.large {
+	font-size: 14pt;
+}
+</style>
+</head>
+
+<body>
+<table id="a">
+	<tbody>
+		<tr>
+			<td><span id="aa">指定なし</span></td>
+			<td><img src="../trans.png" id="ab"><span id="ac">真ん中に</span></td>
+			<td class="large"><span id="ad">そろえる</span></td>
+		</tr>
+		<tr class="top">
+			<td><span id="ba">vertical</span><br>
+			align<br>
+			top</td>
+			<td><img src="../trans.png" id="bb"><span id="bc">上に</span></td>
+			<td class="large"><span id="bd">つける</span></td>
+		</tr>
+		<tr class="middle">
+			<td><span id="ca">vertical</span><br>
+			align<br>
+			middle</td>
+			<td><img src="../trans.png" id="cb"><span id="cc">真ん中に</span></td>
+			<td class="large"><span id="cd">そろえる</span></td>
+		</tr>
+		<tr class="bottom">
+			<td><span id="da">vertical</span><br>
+			align<br>
+			bottom</td>
+			<td><img src="../trans.png" id="db"><span id="dc">下に</span></td>
+			<td class="large"><span id="dd">つける</span></td>
+		</tr>
+		<tr class="baseline">
+			<td><span id="ea">vertical</span><br>
+			align<br>
+			baseline</td>
+			<td><img src="../trans.png" id="eb"><span id="ec">基底線に</span></td>
+			<td class="large"><span id="ed">合わせる</span></td>
+		</tr>
+		<tr class="text-bottom">
+			<td><span id="fa">vertical</span><br>
+			align<br>
+			text-bottom</td>
+			<td><img src="../trans.png" id="fb"><span id="fc">指定は無効で</span></td>
+			<td><span id="fd">baselineと同じ</span></td>
+		</tr>
+		<tr class="em">
+			<td><span id="ga">vertical</span><br>
+			align<br>
+			1em</td>
+			<td><img src="../trans.png" id="gb"><span id="gc">指定は無効で</span></td>
+			<td><span id="gd">baselineと同じ</span></td>
+		</tr>
+	</tbody>
+</table>
+
+</body>
+</html>

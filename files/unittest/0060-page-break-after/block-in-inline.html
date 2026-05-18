@@ -1,0 +1,34 @@
+<?jp.cssj.property name="output.page-width" value="300px"?>
+<?jp.cssj.property name="output.page-height" value="150px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font: 10pt monospace;
+      }
+      div{
+        width: 100pt;
+        background-color: Yellow;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="a">ブロック<br />ブロック<br />ブロック</div>
+    <div id="b" style="page-break-after: avoid;">直後の改ページ禁止</div>
+    <div style="background-color: blue;">
+    <p>
+    <span id="c">
+    <center><span id="d"><img src="../blue.png" /></span></center>
+    </span>
+    </p>
+    </div>
+  </body>
+
+</html>

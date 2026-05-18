@@ -1,0 +1,52 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<title>Column</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+@page {
+	margin: 0;
+	counter-increment: page;
+}
+
+body {
+	margin: 0;
+}
+div:before {
+	content: counter(page);
+}
+div#b {
+	counter-reset: page 10;
+}
+</style>
+</head>
+<body>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div id="a">page</div>
+<div id="b">page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div>page</div>
+<div id="c">page</div>
+</body>
+</html>

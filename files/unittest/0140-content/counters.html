@@ -1,0 +1,58 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="500pt"?>
+<html>
+<head>
+<title>Column</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body {
+	margin: 0;
+}
+
+ol {
+	counter-reset: section;
+	list-style-type: none;
+}
+
+li:before {
+	counter-increment: section;
+	content: counters(section, ".") " ";
+}
+</style>
+</head>
+<body>
+<ol>
+  <li>item</li>          <!-- 1     -->
+  <li>item               <!-- 2     -->
+    <ol>
+      <li id="a">item</li>      <!-- 2.1   -->
+      <li>item</li>      <!-- 2.2   -->
+      <li>item           <!-- 2.3   -->
+        <ol>
+          <li>item</li>  <!-- 2.3.1 -->
+          <li>item</li>  <!-- 2.3.2 -->
+        </ol>
+        <ol>
+          <li id="b">item</li>  <!-- 2.3.1 -->
+          <li>item</li>  <!-- 2.3.2 -->
+          <li>item</li>  <!-- 2.3.3 -->
+        </ol>
+      </li>
+      <li>item</li>      <!-- 2.4   -->
+    </ol>
+  </li>
+  <li>item</li>          <!-- 3     -->
+  <li>item</li>          <!-- 4     -->
+</ol>
+<ol>
+  <li id="c">item</li>          <!-- 1     -->
+  <li>item</li>          <!-- 2     -->
+</ol>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="250pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0;
+}
+body {
+	font: normal 10pt/1 serif;
+	-cssj-writing-mode: tb-rl;
+	writing-mode: tb-rl;
+}
+table {
+	border: 30pt solid Blue;
+	border-top: 40pt solid Black;
+	margin: 20pt;
+	table-layout: fixed;
+	height: 300pt;
+}
+td {
+	border: 20pt solid Green;
+	border-top: 40pt solid Black;
+}
+th {
+	border: 10pt solid LightBlue;
+}
+col.y {
+	background-color: Yellow;
+}
+col.p {
+	background-color: Pink;
+}
+
+</style>
+</head>
+<body>
+縦テーブル
+<table>
+<colgroup>
+  <col class="y" id="a"/>
+  <col class="p"/>
+</colgroup>
+<thead>
+<tr>
+  <th id="b">ｈｅａｄ</th>
+  <th>ｈｅａｄ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <th>１１１</th>
+  <th>２２２</th>
+</tr>
+<tr>
+  <td>３３３</td>
+  <td>４４４</td>
+</tr>
+<tr>
+  <th id="c">５５５</th>
+  <th>６６６</th>
+</tr>
+<tr>
+  <td>７７７</td>
+  <td>８８８</td>
+</tr>
+<tr>
+  <th>９９９</th>
+  <th>０００</th>
+</tr>
+<tr>
+  <td id="d">ａａａ</td>
+  <td>ｂｂｂ</td>
+</tr>
+<tr>
+  <th>ｃｃｃ</th>
+  <th>ｄｄｄ</th>
+</tr>
+<tr>
+  <td>ｅｅｅ</td>
+  <td id="e">ｆｆｆ</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

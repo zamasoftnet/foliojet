@@ -1,0 +1,47 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt/1 monospace;
+}
+div.float {
+	float: left;
+	width: 50pt;
+	border: 1pt solid Red;
+}
+span.block {
+	clear: both;
+	display: block;
+}
+h3 {
+	margin: 0;
+}
+     </style>
+  </head>
+
+  <body>
+<p>テキスト</p>
+<h3 id="a">見出し</h3>
+<div class="float">
+浮動ボックス浮動ボックス浮動ボックス浮動ボックス浮動ボックス
+浮動ボックス浮動ボックス浮動ボックス浮動ボックス浮動ボックス
+浮動ボックス浮動ボックス浮動ボックス浮動ボックス浮動ボックス
+浮動ボックス浮動ボックス浮動ボックス浮動ボックス浮動ボックス
+</div>
+<div>
+<span>
+<span class="block"></span>
+</span>
+</div>
+  </body>
+
+</html>

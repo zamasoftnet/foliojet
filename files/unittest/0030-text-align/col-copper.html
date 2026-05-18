@@ -1,0 +1,46 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>カラムのアラインメント</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      td {
+        padding: 0;
+        border: 1pt solid Black;
+        width: 100pt;
+      }
+      colgroup, col {
+        text-align: right;
+      }
+      span {
+        border: 1pt solid Red;
+        font-size: 10pt;
+      }
+    </style>
+  </head>
+
+  <body>
+    <table>
+    <colgroup span="3">
+      <col span="2">
+    </colgroup>
+    <tbody>
+      <tr>
+        <td><span id="a">あ</span></td>
+        <td><span id="b">あ</span></td>
+        <td><span id="c">あ</span></td>
+      </tr>
+    </tbody>
+    </table>
+  </body>
+
+</html>

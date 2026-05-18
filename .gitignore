@@ -4,5 +4,6 @@ build/
 bin/
 target/
 .settings/
+.vscode/
 .project
 .classpath

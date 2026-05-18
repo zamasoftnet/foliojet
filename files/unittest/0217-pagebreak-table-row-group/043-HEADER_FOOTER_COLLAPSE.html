@@ -1,0 +1,74 @@
+<?jp.cssj.property name="output.page-width" value="500px"?>
+<?jp.cssj.property name="output.page-height" value="500px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>テーブルの境界</title>
+    <style type="text/css">
+      body {
+        background-image: url(../blue.png);
+        margin: 0;
+      }
+      table {
+        border-collapse: collapse;
+        border: 25px solid Red;
+        border-spacing: 25px 25px;
+        padding: 25px;
+      }
+      tr {
+        page-break-inside: avoid;
+      }
+      td {
+        border: 25px solid Blue;
+        vertical-align: top;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>テーブルの境界</h1>
+<table>
+  <thead>
+    <tr>
+      <td>HEAD</td>
+      <td style="border-top: 50px solid Red">上50px</td>
+      <td style="border-left: 50px solid Yellow; border-bottom: 50px solid Yellow;">左下50px</td>
+    </tr>
+  </thead>
+  <tfoot>
+    <tr>
+      <td style="border-left: 50px solid Yellow; border-bottom: 50px solid Yellow;">左下50px</td>
+      <td style="border-top: 50px solid Red;">上50px</td>
+      <td>FOOT</td>
+    </tr>
+  </tfoot>
+  <tbody>
+    <tr>
+      <td>BODY1</td>
+      <td style="border-top: 50px solid Red;">上50px</td>
+      <td style="border-right: 50px solid Red;">右50px</td>
+    </tr>
+    <tr>
+      <td>BODY2</td>
+      <td style="border-top: 50px solid Red;">上50px</td>
+      <td style="border-right: 50px solid Red;">右50px</td>
+    </tr>
+    <tr>
+      <td>BODY3</td>
+      <td style="border-top: 50px solid Red;">上50px</td>
+      <td style="border-right: 50px solid Red;">右50px</td>
+    </tr>
+    <tr>
+      <td>BODY4</td>
+      <td style="border-top: 50px solid Red;">上50px</td>
+      <td style="border-right: 50px solid Red;">右50px</td>
+    </tr>
+    <tr>
+      <td>BODY5</td>
+      <td style="border-top: 50px solid Red;">上50px</td>
+      <td style="border-right: 50px solid Red;">右50px</td>
+    </tr>
+  </tbody>
+</table>
+  </body>
+</html>

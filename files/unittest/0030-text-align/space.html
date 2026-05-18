@@ -1,0 +1,62 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>カラムのアラインメント</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 10pt;
+        font: 10pt/1 monospace;
+      }
+      div {
+         background-color: Yellow;
+      }
+      .a {
+        width: 50pt;
+      }
+      .b {
+        width: 41pt;
+      }
+      .c {
+        text-align: justify;
+        color: Blue;
+      }
+      .d {
+        text-align: right;
+        color: Red;
+      }
+      span {
+        background-color: Pink;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="a">
+あいう<span id="g">え</span> <span id="a">お</span>かきくけ
+    </div>
+    <div class="b">
+あいうえ <span id="b">お</span>かきくけ
+    </div>
+    
+    <div class="a c">
+あいう<span id="h">え</span> <span id="c">お</span>かきくけ
+    </div>
+    <div class="b c">
+あいうえ <span id="d">お</span>かきくけ
+    </div>
+    
+    <div class="a d">
+あいう<span id="i">え</span> <span id="e">お</span>かきくけ
+    </div>
+    <div class="b d">
+あいうえ <span id="f">お</span>かきくけ
+    </div>
+  </body>
+
+</html>

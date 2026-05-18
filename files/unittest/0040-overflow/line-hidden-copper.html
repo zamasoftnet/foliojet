@@ -1,0 +1,39 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>overflow: visible;</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font: 10pt monospace;
+      }
+      div{
+        overflow: hidden;
+        width: 25pt;
+        background-color: Yellow;
+      }
+      .a {
+        float: left;
+      }
+      .b {
+        position: absolute;
+        top: 50pt;
+      }
+      #c {
+        background-color: Red;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="a">XXXXXXXXXX</div>
+    <div id="b" class="a">XXXXXXXXXX</div>
+    <div id="c" class="a">YYYYYYYYYY</div>
+    <div id="d" class="b">ZZZZZZZZZZ</div>
+  </body>
+
+</html>

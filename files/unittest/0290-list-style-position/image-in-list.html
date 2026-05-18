@@ -1,0 +1,51 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 20pt;
+        font: normal 30pt/1 monospace;
+      }
+      div {
+        display: list-item;
+        list-style-type: disc;
+      }
+      div.a {
+        list-style-position: outside;
+      }
+      div.b {
+        list-style-position: inside;
+      }
+      span {
+        border: 1pt solid Red;
+      }
+      img {
+      	width: 20pt;
+      }
+      img.b {
+        display: inline-block;
+      }
+      div.c:before {
+      	content: 'text';
+      }
+    </style>
+  </head>
+
+<body>
+<div class="a"><span id="a">outside</span></div>
+<div class="b"><span id="b">inside</span></div>
+<div class="a"><img class="a" src="../blue.png" /><span id="c">outside</span></div>
+<div class="b"><img class="a" src="../red.png" /><span id="d">inside</span></div>
+<div class="a"><img class="b" src="../blue.png" /><span id="e">outside</span></div>
+<div class="b"><img class="b" src="../red.png" /><span id="f">inside</span></div>
+<div class="a c"><span id="g">outside</span></div>
+<div class="b c"><span id="h">inside</span></div>
+</body>
+</html>

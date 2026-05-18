@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title></title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+}
+
+body {
+	margin: 0;
+	padding: 10pt;
+	width: 200pt;
+	border: 1pt solid Blue;
+}
+
+div.a {
+	border: 11pt solid Red;
+	width: 100pt;
+}
+
+table {
+	table-layout: auto;
+	border-collapse: collapse;
+	border: 20pt solid Yellow;
+}
+
+td.b {
+	border: 10pt solid Blue;
+}
+</style>
+</head>
+<body>
+<div class="a">
+<table>
+	<tr>
+		<td class="b" id="a">A</td>
+		<td>B</td>
+	</tr>
+	<tr>
+		<td>C</td>
+		<td>D</td>
+	</tr>
+</table>
+</div>
+<div class="a" style="table-layout: fixed;">
+<table>
+	<tr>
+		<td class="b" id="b">A</td>
+		<td>B</td>
+	</tr>
+	<tr>
+		<td>C</td>
+		<td>D</td>
+	</tr>
+</table>
+</div>
+
+</body>
+</html>

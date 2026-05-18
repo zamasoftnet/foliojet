@@ -1,0 +1,65 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value=copper"?>
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="500pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+	border: 5pt solid Yellow;
+	border-collapse: collapse;
+}
+
+td {
+	border: 2pt solid Black;
+	padding: 0;
+}
+</style>
+</head>
+<body>
+<table id="a">
+	<tr>
+		<td>TEXT</td>
+		<td colspan="2" rowspan="2" style="border: 6pt solid Blue;">SPAN</td>
+	</tr>
+	<tr style="border: 10pt solid Red;">
+		<td>TEXT</td>
+	</tr>
+	<tr>
+		<td>TEXT</td>
+		<td>TEXT</td>
+		<td>TEXT</td>
+	</tr>
+</table>
+
+<table style="table-layout: fixed;" id="b">
+	<tr>
+		<td>TEXT</td>
+		<td colspan="2" rowspan="2" style="border: 6pt solid Blue;">SPAN</td>
+	</tr>
+	<tr style="border: 10pt solid Red;">
+		<td>TEXT</td>
+	</tr>
+	<tr>
+		<td>TEXT</td>
+		<td>TEXT</td>
+		<td>TEXT</td>
+	</tr>
+</table>
+<br>
+
+</body>
+</html>

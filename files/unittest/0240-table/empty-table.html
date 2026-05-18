@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+table.a {
+	border: 1px solid Red;
+	background-color: Yellow;
+	width: 50pt;
+	height: 50pt;
+	margin: 10pt;
+}
+table.b {
+	border: 1px solid Red;
+	background-color: Yellow;
+	width: 100pt;
+	table-layout: fixed;
+	margin: 10pt;
+}
+</style>
+</head>
+<body>
+
+<table class="a" id="a"></table>
+
+<table class="a" id="b"><tr></tr></table>
+
+<table class="a" id="c"><td></td></table>
+
+<table class="b" id="d"></table>
+
+<table class="b" id="e"><tr></tr></table>
+
+<table class="b" id="f"><td></td></table>
+
+</body>
+</html>

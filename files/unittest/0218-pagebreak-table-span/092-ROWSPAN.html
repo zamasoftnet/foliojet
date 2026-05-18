@@ -1,0 +1,77 @@
+<?jp.cssj.property name="output.page-width" value="300px"?>
+<?jp.cssj.property name="output.page-height" value="120px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行内改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      border: 20px solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10px solid Black;
+    }
+    table {
+      border: 2px solid Blue;
+      border: 3px solid Blue;
+      border-collapse: separate;
+    }
+    td {
+      border: 3px solid Green;
+    }
+    td.a {
+      background-color: Pink;
+    }
+    td.b {
+      background-color: YellowGreen;
+    }
+    td.c {
+      background-color: LightBlue;
+    }
+    td.d {
+      background-color: Yellow;
+    }
+    td.e {
+      background-color: LightGray;
+    }
+    td.f {
+      background-color: Violet;
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <table>
+    <tr>
+      <td rowspan="3" class="a">
+青葉しげれる桜井の　里のわたりの夕まぐれ<br />
+木下陰に駒とめて　世の行く末をつくづくと<br />
+偲ぶ鎧の袖の上に　散るは涙か　はた露か
+      </td>
+      <td class="b">x</td>
+    </tr>
+    <tr>
+      <td class="c">x</td>
+    </tr>
+    <tr>
+      <td rowspan="3" class="d">
+正成涙を打ち払い　我が子正行呼び寄せて<br />
+父は兵庫に赴かん　彼方の浦にて討ち死にせん<br />
+今しは　ここまで来つれども　とくとく帰れ故郷へ
+      </td>
+    </tr>
+    <tr>
+      <td class="e">x</td>
+    </tr>
+    <tr>
+      <td class="f">x</td>
+    </tr>
+  </table>
+</div>
+  </body>
+</html>

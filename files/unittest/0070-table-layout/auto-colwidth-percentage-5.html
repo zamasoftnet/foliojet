@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="350pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+	width: 350pt;
+}
+
+table {
+	border: 1pt solid Yellow;
+	border-spacing: 0pt;
+	table-layout: auto;
+}
+
+td {
+	border: 1pt solid Blue;
+}
+</style>
+</head>
+<body>
+<table id="a">
+  <col style="width: 60%;">
+  <col style="background-color: Gray;">
+  <col style="width: 40%;">
+  <tr>
+    <td colspan="3">xxx</td>
+  </tr>
+  <tr>
+    <td id="a">xxx</td>
+    <td colspan="2" id="b">xxx</td>
+  </tr>
+</table>
+
+<table>
+  <col style="width: 60%;">
+  <col style="width: 40%;background-color: Gray;">
+  <col style="width: auto;">
+  <tr>
+    <td colspan="3">xxx</td>
+  </tr>
+  <tr>
+    <td id="c">xxx</td>
+    <td colspan="2" id="d">xxx</td>
+  </tr>
+</table>
+
+<table>
+  <col style="width: 60%;">
+  <col style="background-color: Gray;">
+  <col style="width: 10pt;">
+  <tr>
+    <td colspan="3">xxx</td>
+  </tr>
+  <tr>
+    <td style="width: 75%;" id="e">xxx</td>
+    <td colspan="2" id="f">xxx</td>
+  </tr>
+</table>
+
+<table>
+  <col style="width: 100pt;">
+  <col style="background-color: Gray;">
+  <col style="width: 80pt;">
+  <tr>
+    <td>xxx</td><td></td><td></td>
+  </tr>
+  <tr>
+    <td style="width: 100pt;" id="g">xxx</td>
+    <td colspan="2" id="h">xxxxxxxxxxxxxxx</td>
+  </tr>
+</table>
+
+<table>
+  <col style="width: 100pt;">
+  <col style="background-color: Gray;">
+  <col>
+  <tr>
+    <td>xxx</td><td id="i">う</td><td id="j">うぽつ</td>
+  </tr>
+  <tr>
+    <td style="width: 100pt;" id="k">xxx</td>
+    <td colspan="2">xxxxxxxxxxxxxxx</td>
+  </tr>
+</table>
+
+</body>
+</html>

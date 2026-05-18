@@ -1,0 +1,51 @@
+<?jp.cssj.property name="output.page-width" value="200px"?>
+<?jp.cssj.property name="output.page-height" value="100px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行内改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      border: 20px solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10px solid Black;
+    }
+    table {
+      border: 2px solid Blue;
+      border: 3px solid Blue;
+      background-color: LightBlue;
+    }
+    td {
+      page-break-inside: auto;
+    }
+    td {
+      border: 3px solid Green;
+    }
+    span {
+      border: 3px solid Red;
+      background-color: Yellow;  
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <table>
+    <tr>
+      <td>
+textテキストtextテキスト<span>textテキスト
+textテキストtextテキスト</span>textテキスト
+textテキストtextテキストtextテキスト
+textテキストtext<span>テキストtext</span>テキスト
+textテキストtext<span>テキストtext</span>テキスト
+</td>
+    </tr>
+  </table>
+</div>
+  </body>
+</html>

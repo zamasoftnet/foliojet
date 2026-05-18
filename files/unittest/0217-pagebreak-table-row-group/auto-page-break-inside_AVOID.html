@@ -1,0 +1,114 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>行グループ間改ページ</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+}
+
+body {
+	border: 20pt solid Red;
+	margin: 0;
+}
+
+div {
+	border: 10pt solid Black;
+}
+
+table {
+	border: 2pt solid Blue;
+	border: 3pt solid Blue;
+	background-color: LightBlue;
+}
+
+td {
+	border: 2pt solid Black;
+}
+
+tbody.a {
+	page-break-inside: avoid;
+	background-color: Yellow;
+}
+</style>
+</head>
+
+<body>
+<div>
+<p>背景が黄色い部分で改ページは行われません。</p>
+<table>
+	<thead>
+		<tr>
+			<td>x</td>
+			<td>thead</td>
+			<td>x</td>
+		</tr>
+	</thead>
+	<tfoot>
+		<tr>
+			<td>x</td>
+			<td>tfoot</td>
+			<td>x</td>
+		</tr>
+	</tfoot>
+	<tbody>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+	</tbody>
+	<tbody class="a" id="a">
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+	</tbody>
+	<tbody>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+		<tr>
+			<td>x</td>
+			<td>tbody</td>
+			<td>x</td>
+		</tr>
+	</tbody>
+</table>
+</div>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="450pt"?>
+<?jp.cssj.property name="output.auto-height" value="true"?>
+
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+}
+
+body {
+	margin: 0;
+	padding: 10pt;
+	width: 400pt;
+	border: 1pt solid Blue;
+}
+
+table {
+	table-layout: fixed;
+	width: 100%;
+	border: 10pt solid Green;
+	border-spacing: 20pt;
+}
+
+.a0 {
+	width: 70%;
+}
+
+td {
+	border: 20pt solid Pink;
+	padding: 0pt;
+}
+
+</style>
+</head>
+<body>
+
+<table style="table-layout: auto;">
+	<tr>
+		<td class="a0">テキスト0-1</td>
+		<td id="a">テキスト</td>
+	</tr>
+</table>
+<table style="table-layout: auto;">
+	<tr>
+		<td style="width: 200pt;">テキスト0-2</td>
+		<td id="b">テキスト</td>
+	</tr>
+</table>
+<table>
+    <col class="a0">
+    <col>
+	<tr>
+		<td>テキスト1-1</td>
+		<td id="c">テキスト</td>
+	</tr>
+</table>
+<table>
+	<tr>
+		<td class="a0">テキスト1-2</td>
+		<td id="d">テキスト</td>
+	</tr>
+</table>
+<table>
+	<tr>
+		<td style="width: 200pt;">テキスト1-3</td>
+		<td id="e">テキスト</td>
+	</tr>
+</table>
+<div style="float: left; width: 400pt;">
+<table>
+    <col class="a0">
+    <col>
+	<tr>
+		<td>テキスト2-1</td>
+		<td id="f">テキスト</td>
+	</tr>
+</table>
+<table>
+	<tr>
+		<td class="a0">テキスト2-2</td>
+		<td id="g">テキスト</td>
+	</tr>
+</table>
+<table>
+	<tr>
+		<td style="width: 200pt;">テキスト2-3</td>
+		<td id="h">テキスト</td>
+	</tr>
+</table>
+</div>
+</body>
+</html>

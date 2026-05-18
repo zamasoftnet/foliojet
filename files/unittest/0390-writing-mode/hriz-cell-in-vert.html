@@ -1,0 +1,51 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 10mm;
+}
+body {
+	font: normal 10pt/1 serif;
+	-cssj-writing-mode: tb-rl;
+	-webkit-writing-mode: vertical-rl;
+}
+table {
+	border: 10pt solid Blue;
+}
+td {
+	border: 10pt solid Green;
+}
+th {
+	border: 10pt solid LightBlue;
+}
+.h {
+	-cssj-writing-mode: lr-tb;
+	-webkit-writing-mode: horizontal-tb;
+}
+.v {
+	-cssj-writing-mode: tb-rl;
+	-webkit-writing-mode: vertical-rl;
+	border-color: Red;
+}
+
+</style>
+</head>
+<body>
+縦テーブル
+<table>
+<tr>
+  <th class="v" id="a">縦ヘッダ1</th>
+  <th class="h" id="b">横ヘッダ2横ヘッダ2横ヘッダ2</th>
+</tr>
+<tr>
+  <td class="h" id="c">横セル3横セル3横セル3</td>
+  <td class="v" id="d">縦セル4</td>
+</tr>
+</table>
+</body>
+</html>

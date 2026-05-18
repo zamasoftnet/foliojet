@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="800pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+	border: 5pt solid Yellow;
+	border-spacing: 5pt;
+	table-layout: auto;
+}
+
+td {
+	border: 5pt solid Blue;
+}
+</style>
+</head>
+<body>
+
+<table style="width: 300pt;">
+	<tr>
+		<td colspan="2" style="width: 50%;">TEXT</td>
+		<td style="width: 5%;"></td>
+		<td id="a"></td>
+	</tr>
+	<tr>
+		<td style="width: 5%;">TEXT</td>
+		<td id="b">TEXT</td>
+		<td colspan="2" style="width: 50%;">TEXT</td>
+	</tr>
+</table>
+<table id="c">
+	<tr>
+		<td colspan="2" style="width: 200pt;">TEXT</td>
+		<td style="width: 10pt;"></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td style="width: 10pt;">TEXT</td>
+		<td style="width: 10pt;">TEXT</td>
+		<td colspan="2" style="width: 200pt;">TEXT</td>
+	</tr>
+</table>
+<table id="d">
+	<tr>
+		<td colspan="2">テキストテキストテキストテキストテキスト</td>
+		<td style="width: 10pt;"></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td style="width: 10pt;">TEXT</td>
+		<td style="width: 10pt;">TEXT</td>
+		<td colspan="2" style="width: 200pt;">TEXT</td>
+	</tr>
+</table>
+
+</body>
+</html>

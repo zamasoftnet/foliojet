@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html> 
+<head> 
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0;
+}
+body {
+	font: normal 30pt/1 times monospace;
+	text-align: justify;
+	margin: 0;
+	-cssj-writing-mode: tb-rl;
+	line-height: 2;
+}
+span#a, span#b {
+	color: Red;
+}
+span.tcy {
+	writing-mode: lr-tb;
+	line-height: 1;
+}
+</style>
+<title>TEST</title> 
+</head> 
+<body>
+「ああ<span class="tcy">!?</span>」「ああ」「<span id="a">ああ</span>」「ああ」「ああ」「ああ」「ああ」「あ あ」「ああ」「ああ」 「ああ」「ああ」「ああ」「ああ」「<span id="b">ああ</span>」「ああ」「ああ」「ああ」
+</body>
+</html>

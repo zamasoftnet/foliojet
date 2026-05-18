@@ -1,0 +1,36 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="600pt"?>
+<?jp.cssj.property name="output.page-height" value="800pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	font-size: 24pt;
+}
+span.large {
+	font-size: 2em;
+}
+span.small {
+	font-size: 0.5em;
+}
+     </style>
+  </head>
+
+  <body>
+<p>test<span class="large" style="vertical-align: baseline;">Baseline</span>test</p>
+<p>test<span class="large" style="vertical-align: top;">Top</span>test</p>
+<p>test<span class="large" style="vertical-align: bottom;">Bottom</span>test</p>
+<p><span class="large" style="vertical-align: top;">Top</span>test<span class="large" style="vertical-align: bottom;">Bottom</span></p>
+<p>test<span class="large" style="vertical-align: text-top;">Text Top</span>test</p>
+<p>test<span class="large" style="vertical-align: text-bottom;">Text Bottom</span>test</p>
+<p>test<span class="small" style="vertical-align: text-top;">Text Top</span>test</p>
+<p>test<span class="small" style="vertical-align: text-bottom;">Text Bottom</span>test</p>
+<p><span id="a" class="large" style="vertical-align: text-top;">TT</span>test<span id="b" class="large" style="vertical-align: text-bottom;">TB</span></p>
+  </body>
+
+</html>

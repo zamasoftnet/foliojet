@@ -1,0 +1,25 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>120ptのテキストです。１ページ目が「テキ」２ページ目が「スト」</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      margin: 0;
+      line-height: 1;
+      font-size: 120pt;
+      widows: 4;
+      orphans: 4;
+    }
+    </style>
+  </head>
+
+  <body>
+<span id="a">テキ</span><span id="b">スト</span>
+テキ<br />スト
+  </body>
+</html>

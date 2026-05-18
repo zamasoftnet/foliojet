@@ -1,0 +1,68 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: normal 10pt/1 'ヒラギノ角ゴ6';
+	padding: 0;
+}
+
+body {
+	margin: 0;
+}
+ol#a {
+	list-style-type: cjk-ideographic;
+}
+ol#b {
+	list-style-type: -cssj-decimal-full-width;
+}
+ul {
+	counter-reset: a 12345678;
+}
+ul#c li:after {
+	counter-increment: a;
+	content: counter(a, cjk-ideographic);
+}
+ul#d li:after {
+	counter-increment: a;
+	content: counter(a, -cssj-decimal-full-width);
+}
+
+</style>
+</head>
+<body>
+<ol id="a">
+  <li>A</li>
+  <li>B</li>
+  <li>C</li>
+  <li>D</li>
+</ol>
+<ol id="b">
+  <li>A</li>
+  <li>B</li>
+  <li>C</li>
+  <li>D</li>
+</ol>
+<ul id="c">
+  <li>A</li>
+  <li>B</li>
+  <li>C</li>
+  <li>D</li>
+</ul>
+<ul id="d">
+  <li>A</li>
+  <li>B</li>
+  <li>C</li>
+  <li>D</li>
+</ul>
+</body>
+</html>

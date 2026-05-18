@@ -1,0 +1,90 @@
+<?jp.cssj.property name="output.page-width" value="300px"?>
+<?jp.cssj.property name="output.page-height" value="100px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>1行だけのセル</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      border: 20px solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10px solid Black;
+    }
+    table {
+      border: 2px solid Blue;
+      border: 3px solid Blue;
+      background-color: LightBlue;
+    }
+    td {
+      page-break-inside: auto;
+    }
+    tr.a td {
+      border: 2px solid Black;
+    }
+    tr.b td {
+      border: 3px solid Green;
+      background-color: GreenYellow;
+    }
+    tr.c td {
+      border: 3px solid Red;
+      background-color: Pink;
+    }
+    col.a {
+      border: 3px solid Yellow;
+      background-color: Khaki;
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <table>
+    <col>
+    <col>
+    <col class="a">
+    <col>
+    <col>
+    <tr class="a">
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+    </tr>
+    <tr class="b">
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+    </tr>
+    <tr class="a">
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr class="c">
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+    </tr>
+    <tr class="a">
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+    </tr>
+  </table>
+</div>
+  </body>
+</html>

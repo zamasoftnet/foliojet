@@ -1,0 +1,69 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+      table {
+        table-layout: auto;
+        width: 80%;
+        font-size: 10pt;
+        border-spacing: 4pt;
+      }
+      table, table td {
+        border: 1pt solid Black;
+        padding: 0;
+      }
+      .break {
+        page-break-after: always;
+        background-color: Pink;
+      }
+    </style>
+  </head>
+
+  <body>
+    <table>
+    <tbody class="break">
+      <tr>
+        <td id="a">セル１</td>
+        <td>セル</td>
+      </tr>
+      <tr>
+        <td>セル</td>
+        <td>セル２</td>
+      </tr>
+    </tbody>
+    <tbody>
+      <tr>
+        <td id="b">セル３</td>
+        <td>セル</td>
+      </tr>
+      <tr>
+        <td>セル</td>
+        <td>セル４</td>
+      </tr>
+    </tbody>
+    <tbody class="break">
+      <tr>
+        <td>セル５</td>
+        <td>セル</td>
+      </tr>
+    </tbody>
+    <tbody>
+      <tr>
+        <td id="c">セル</td>
+        <td>セル６</td>
+      </tr>
+    </tbody>
+    </table>
+  </body>
+
+</html>

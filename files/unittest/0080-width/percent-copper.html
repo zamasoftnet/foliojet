@@ -1,0 +1,42 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>パーセント幅</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body, td {
+	margin: 0;
+	font: 10pt monospace;
+}
+div.a {
+	width: 200pt;
+	border: 10pt solid Red;
+	height: 30pt;
+}
+div#a {
+	width: 0%;
+	border: 10pt solid Blue;
+	height: 10pt;
+}
+div#b {
+	width: 50%;
+	border: 10pt solid Blue;
+	height: 10pt;
+}
+div#c {
+	width: 100%;
+	border: 10pt solid Blue;
+	height: 10pt;
+}
+    </style>
+  </head>
+
+  <body>
+    <div class="a"><div id="a"></div></div>
+    <div class="a"><div id="b"></div></div>
+    <div class="a"><div id="c"></div></div>
+  </body>
+</html>

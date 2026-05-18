@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0mm;
+}
+body {
+	margin: 30pt;
+	font: normal 10pt/1 serif;
+}
+.box {
+	height: 50pt;
+	border: 1pt solid Blue;
+}
+.empty1 {
+	height: 10pt;
+	background: Red;
+	margin-bottom: -20pt;
+}
+
+.empty2 {
+	margin: 30pt 0;
+	height: 10%;
+}
+.empty2 div {
+	margin-bottom: -30pt;
+}
+
+</style>
+</head>
+<body>
+
+<div class="box"><span id="a">111111</span>
+<div class="empty1">X<br/>Y</div>
+<span id="b">222222</span></div>
+
+<div class="box"><span id="c">111111</span>
+<div class="empty2"><div></div></div>
+<span id="d">222222</span></div>
+
+</body>
+</html>

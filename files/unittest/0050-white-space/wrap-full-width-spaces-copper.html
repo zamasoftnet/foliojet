@@ -1,0 +1,49 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<?jp.cssj.property name="output.pdf.font.policy" value="cid-keyed"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body, td {
+        margin: 0;
+        font: 10pt/1 monospace;
+      }
+      table {
+        border-spacing: 0;
+        padding: 0;
+        border: 1pt solid Black;
+      }
+      td,div {
+        width: 50pt;
+        background-color: Yellow;
+      }
+      div.z {
+        font-family: Times Mincho;
+        width: 1pt;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="a">あああ。。。。。。。。。。ううう</div>
+    <div id="b"><span id="c" style="background-color: Red;">あああ　　　　　　　　　　</span>ううう</div>
+    <table>
+    <tr>
+      <td id="d">あああ。。。。。。。。。。ううう</td>
+    </tr>
+    </table>
+    <table>
+    <tr>
+      <td id="e">あああ　　　　　　　　　　ううう</td>
+    </tr>
+    <div class="z">a　</div>
+    </table>
+  </body>
+
+</html>

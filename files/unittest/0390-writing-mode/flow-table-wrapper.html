@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0;
+}
+body {
+	font: normal 10pt/1 serif;
+	margin: 5pt;
+	-cssj-writing-mode: tb-rl;
+	x-cssj-writing-mode: lr-tb;
+}
+div {
+	border: 10pt solid Red;
+	xfloat: left;
+	text-indent: 3em;
+}
+
+</style>
+</head>
+<body>
+<div>
+あばばばばばばばばばばばばば
+あばばばばばばばばばばばばば
+あばばばばばばばばばばばばば
+</div>
+<div style="border-color: Blue;" id="a">
+<table border="1">
+<tr>
+<td>１２３</td>
+<td>１２３</td>
+</tr>
+<tr>
+<td rowspan="2">１２３</td>
+<td>１２３</td>
+</tr>
+<tr>
+<td>１２３</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

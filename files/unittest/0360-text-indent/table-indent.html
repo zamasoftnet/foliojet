@@ -1,0 +1,66 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+	border: 1pt solid Red;
+	border-spacing: 5pt;
+}
+td {
+	border: 1pt solid Blue;
+}
+</style>
+</head>
+<body>
+
+<p style="text-indent: 10pt;">
+<table>
+<tr>
+<td id="a">テキスト</td>
+</tr>
+</table>
+</p>
+
+<p>
+<table>
+<tr>
+<td id="b" style="text-indent: 10pt;">テキスト</td>
+</tr>
+</table>
+</p>
+
+<p>
+<table>
+<tr>
+<td id="c" style="text-indent: 10pt;">テキスト<br>テキスト</td>
+</tr>
+</table>
+</p>
+
+<p>
+<table>
+<tr>
+<td id="d"><div style="text-indent: 10pt;">テキスト</div>テキスト</td>
+</tr>
+</table>
+</p>
+
+</body>
+</html>

@@ -1,0 +1,114 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title></title>
+    <style type="text/css">
+/** 以下の部分はそのままにしてください **/
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+}
+body, td {
+	font-family: monospace;
+	line-height: 1;
+	font-size: 10pt;
+}
+
+/** 以下の部分を修正してください **/
+table {
+	table-layout: fixed;
+	border: 5pt solid Blue;
+}
+td {
+	border: 5pt solid Red;
+}
+div {
+	float: left;
+}
+    </style>
+  </head>
+
+<body>
+<table style="width: 50pt;">
+<col>
+<col style="width: 100pt;">
+<col style="width: 50pt;">
+<tbody>
+  <tr>
+    <td id="aa">BODY 1</td>
+    <td id="ab">BODY 2</td>
+    <td id="ac">BODY 3</td>
+  </tr>
+</tbody>
+</table>
+<table style="width: 50pt;">
+<col>
+<col>
+<col>
+<tbody>
+  <tr>
+    <td id="ad">BODY 1</td>
+    <td id="ae" style="width: 100pt;">BODY 2</td>
+    <td id="af" style="width: 50pt;">BODY 3</td>
+  </tr>
+</tbody>
+</table>
+<table style="width: 200pt;">
+<col style="width: 50pt;">
+<col style="width: 30pt;">
+<col style="width: 50pt;">
+<tbody>
+  <tr>
+    <td id="ag">BODY 1</td>
+    <td id="ah">BODY 2</td>
+    <td id="ai">BODY 3</td>
+  </tr>
+</tbody>
+</table>
+
+<div>
+<table style="width: 50pt;">
+<col>
+<col style="width: 100pt;">
+<col style="width: 50pt;">
+<tbody>
+  <tr>
+    <td id="ba">BODY 1</td>
+    <td id="bb">BODY 2</td>
+    <td id="bc">BODY 3</td>
+  </tr>
+</tbody>
+</table>
+<table style="width: 50pt;">
+<col>
+<col>
+<col>
+<tbody>
+  <tr>
+    <td id="bd">BODY 1</td>
+    <td id="be" style="width: 100pt;">BODY 2</td>
+    <td id="bf" style="width: 50pt;">BODY 3</td>
+  </tr>
+</tbody>
+</table>
+<table style="width: 200pt;">
+<col style="width: 50pt;">
+<col style="width: 30pt;">
+<col style="width: 50pt;">
+<tbody>
+  <tr>
+    <td id="bg">BODY 1</td>
+    <td id="bh">BODY 2</td>
+    <td id="bi">BODY 3</td>
+  </tr>
+</tbody>
+</table>
+</div>
+
+</body>
+</html>

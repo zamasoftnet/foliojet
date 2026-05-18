@@ -1,0 +1,46 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html xmlns:html="http://www.w3.org/1999/xhtml"
+      xmlns:qr="http://www.cssj.jp/ns/qrcode">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0mm;
+}
+body {
+	margin: 0;
+}
+
+.box {
+	float: left;
+	height: 150pt;
+	page-break-inside: avoid;
+}
+.mark {
+	float: right;
+	width: 20pt;
+	height: 20pt;
+	background-color: Red;
+}
+
+</style>
+</head>
+<body>
+
+<div class="box">
+<div>テキスト1</div>
+<div>テキストテキストテキストテキストテキストテキストテキスト</div>
+<div class="mark" id="a"></div>
+</div>
+
+<div class="box">
+<div>テキスト2</div>
+<div>テキストテキストテキストテキストテキストテキストテキスト</div>
+<div class="mark" id="b"></div>
+</div>
+
+</body>
+</html>

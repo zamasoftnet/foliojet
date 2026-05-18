@@ -1,0 +1,51 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>負のマージンのつぶし</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+}
+    </style>
+  </head>
+
+  <body>
+<div id="a" style="border-top: 3pt solid Red;border-bottom: 3pt solid Yellow;">
+  <div style="margin-top: 50pt;">
+    <div style="margin-top: 20pt;">
+      <div style="margin-top: -20pt;">
+        <div style="margin-top: -50pt;">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="b" style="border-top: 3pt solid Red;border-bottom: 3pt solid Yellow;">
+  <div style="margin-bottom: 50pt;">
+    <div style="margin-bottom: 20pt;">
+      <div style="margin-bottom: -20pt;">
+        <div style="margin-bottom: -50pt;">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="c" style="border-top: 3pt solid Red;border-bottom: 3pt solid Yellow;">
+  <div style="margin-top: -50pt; margin-bottom: 50pt;">
+    <div style="margin-top: -20pt; margin-bottom: 20pt;">
+      <div style="margin-top: 20pt; margin-bottom: -20pt;">
+        <div style="margin-top: 50pt; margin-bottom: -50pt;">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  </body>
+
+</html>

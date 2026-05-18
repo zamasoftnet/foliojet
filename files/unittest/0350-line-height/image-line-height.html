@@ -1,0 +1,52 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body {
+	margin: 0;
+}
+
+.image-height-test {
+	font: 100pt serif;
+	border: 1pt solid Blue;
+}
+	
+.image-height-test table {
+	font: 100pt serif;
+}
+
+table {
+	margin: 0;
+	border-spacing: 0;
+	border: 1pt solid Green;
+}
+
+td {
+	padding: 0;
+}
+</style>
+</head>
+<body>
+<div class="image-height-test" id="a">
+<table>
+	<tr>
+		<td><img
+			src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAFSDNYfAAAAaklEQVR42u3XQQrAIAwAQeP%2F%2F6wf8CJBJTK9lnQ7FpHGaOurt1I34nfH9pMMZAZ8BwMGEvvh%2BBsJCAgICLwIOA8EBAQEBAQEBAQEBK79H5RfIQAAAAAAAAAAAAAAAAAAAAAAAAAAAID%2FABMSqAfj%2FsLmvAAAAABJRU5ErkJggg%3D%3D"
+			alt=""></td>
+	</tr>
+</table>
+</div>
+
+<div class="image-height-test" id="b">
+<img
+			src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAFSDNYfAAAAaklEQVR42u3XQQrAIAwAQeP%2F%2F6wf8CJBJTK9lnQ7FpHGaOurt1I34nfH9pMMZAZ8BwMGEvvh%2BBsJCAgICLwIOA8EBAQEBAQEBAQEBK79H5RfIQAAAAAAAAAAAAAAAAAAAAAAAAAAAID%2FABMSqAfj%2FsLmvAAAAABJRU5ErkJggg%3D%3D"
+			alt=""></div>
+</body>
+</html>

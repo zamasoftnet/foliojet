@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="800pt"?>
+
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+	width: 400pt;
+}
+
+table {
+	border: 5pt solid Yellow;
+	border-spacing: 5pt;
+	table-layout: fixed;
+	width: 100pt;
+	border-collapse: separate;
+}
+
+td {
+	border: 5pt solid Blue;
+}
+</style>
+</head>
+<body>
+
+<table>
+	<tr>
+		<td><img id="a" src="../blue.png"></td>
+		<td style="padding-top: 50pt; "><img id="b" src="../red.png" style="float: left;"></td>
+	</tr>
+</table>
+<table>
+	<tr>
+		<td style="padding-top: 50pt;"><img id="c" src="../blue.png"></td>
+		<td style="position: relative; top: 10pt; left: 10pt;"><img id="d" src="../red.png" style=" float: left;"></td>
+	</tr>
+</table>
+<table>
+	<tr>
+		<td style="padding-top: 50pt;"><img id="e" src="../blue.png" style=" float: left;"></td>
+		<td style="top: 10pt; left: 10pt;"><img id="f" src="../red.png"></td>
+	</tr>
+</table>
+
+</body>
+</html>

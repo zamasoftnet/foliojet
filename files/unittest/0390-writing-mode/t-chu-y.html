@@ -1,0 +1,41 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0mm;
+}
+body {
+	font: normal 10pt/1 serif;
+}
+div#a {
+	-cssj-writing-mode: tb-rl;
+	writing-mode: tb-rl;
+	border: 10pt solid Red;
+	height: 10em;
+}
+span#b {
+	-cssj-writing-mode: lr-tb;
+	writing-mode: lr-tb;
+	border: 10pt solid Blue;
+}
+span#c {
+	-cssj-writing-mode: tb-rl;
+	writing-mode: tb-rl;
+	border: 10pt solid Blue;
+}
+</style>
+</head>
+<body>
+横書きの文書。横書きの文書。横書きの文書。横書きの文書。
+<div id="a">
+横書き中の縦書きブロック。横書き中の縦書きブロック。<span id="b">縦中横</span>横書き中の縦書きブロック。横書き中の縦書きブロック。
+</div>
+横書きの文書。横書きの文書。<span id="c">横中縦</span>横書きの文書。横書きの文書。
+</body>
+</html>

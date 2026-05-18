@@ -1,0 +1,35 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title></title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	font: 10pt/1 monospace;
+}
+span.a:before {
+	content: open-quote;
+}
+span.a:after {
+	content: close-quote;
+}
+span.b:before {
+	content: open-quote close-quote;
+}
+span.b:after {
+	content: close-quote;
+}
+    </style>
+  </head>
+
+  <body>
+<div id="a">テキスト<span class="a">引用</span>テキスト</div>
+<div id="b">テキスト<span class="b">引用</span>テキスト</div>
+  </body>
+
+</html>

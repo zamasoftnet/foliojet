@@ -1,0 +1,40 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 30pt;
+        font: normal 10pt/1 monospace;
+      }
+      div {
+        display: list-item;
+        list-style-type: lower-roman;
+      }
+      .a {
+        list-style-position: outside;
+      }
+      .b {
+        list-style-position: inside;
+      }
+      .c {
+        list-style-position: 1;
+      }
+      span {
+        border: 1pt solid Red;
+      }
+    </style>
+  </head>
+
+<body>
+<div class="a"><span id="a">1</span></div>
+<div class="b"><span id="b">2</span></div>
+<div class="c"><span id="c">3</span></div>
+</body>
+</html>

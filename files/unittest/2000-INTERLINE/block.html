@@ -1,0 +1,31 @@
+<?jp.cssj.property name="output.page-width" value="300px"?>
+<?jp.cssj.property name="output.page-height" value="60px"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>行間での改ページ</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body {
+	border: 5px solid Blue;
+	margin: 0;
+	widows: 2;
+	orphans: 2;
+}
+
+div {
+	background-color: Yellow;
+}
+</style>
+</head>
+
+<body>
+<div><span id="a">ページの高さは5emです。</span>１ページに３行しか入りません。
+ページの高さは5emです。１ページに３行しか入りません。 <span id="b">ページの高さは5emです。</span>１ページに３行しか入りません。
+ページの高さは5emです。１ページに３行しか入りません。 ページの高さは5emです。１ページに３行しか入りません。 <span id="c">ページの高さは5emです。</span>１ページに３行しか入りません。
+</div>
+</body>
+</html>

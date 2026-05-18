@@ -1,0 +1,221 @@
+<?jp.cssj.property name="output.page-width" value="400px"?>
+<?jp.cssj.property name="output.page-height" value="400px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行間改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 5pc 4pc;
+    }
+
+    @page :left {
+      margin-right: 5pc;
+    }
+
+    @page :right {
+      margin-left: 5pc;
+    }
+    body {
+      border: 1px dotted Black;
+    }
+    caption {
+      font-weight: bold;
+      padding: 4pt;
+      padding-top: 1em;
+      text-align: left;
+    }
+    caption:before {
+      counter-increment: table;
+      content: '表 ' counter(chapter) '.' counter(table) ' ';
+    }
+    table {
+      border-collapse: collapse;
+      margin-top: 2em;
+      margin-bottom: 2em;
+      border: 5px solid Blue;
+    }
+    table,caption {
+      margin-left: auto;
+      margin-right: auto;
+    }
+    tr {
+      page-break-inside: avoid;
+    }
+    tr.a td {
+      border: 5px solid Black;
+    }
+    tr.b td {
+      border: 10px solid Green;
+    }
+    tr.c td {
+      border: 10px solid Pink;
+    }
+    tfoot td, thead td {
+      border: 10px solid Blue;
+      background-color: Yellow;
+    }
+    div {
+      width: 150px;
+      border: 1px solid Red;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    </style>
+  </head>
+
+  <body>
+  <table>
+    <caption>中央配置</caption>
+    <col>
+    <col>
+    <col style="border: 20px solid Red">
+    <col>
+    <col>
+    <thead>
+    <tr>
+      <td>へ</td>
+      <td>ッ</td>
+      <td>ダ</td>
+      <td>ー</td>
+      <td>ー</td>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+      <td>フ</td>
+      <td>ッ</td>
+      <td>タ</td>
+      <td>ー</td>
+      <td>ー</td>
+    </tr>
+    </tfoot>
+    <tr class="a">
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+    </tr>
+    <tr class="b">
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+    </tr>
+    <tr class="a">
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr class="c">
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+    </tr>
+    <tr class="a">
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+    </tr>
+  </table>
+  <div>
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+固定幅中央配置ブロック
+  </div>
+  <table>
+    <caption>中央配置</caption>
+    <col>
+    <col>
+    <col style="border: 20px solid Red">
+    <col>
+    <col>
+    <thead>
+    <tr>
+      <td>へ</td>
+      <td>ッ</td>
+      <td>ダ</td>
+      <td>ー</td>
+      <td>ー</td>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+      <td>フ</td>
+      <td>ッ</td>
+      <td>タ</td>
+      <td>ー</td>
+      <td>ー</td>
+    </tr>
+    </tfoot>
+    <tr class="a">
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+    </tr>
+    <tr class="b">
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+    </tr>
+    <tr class="a">
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr class="c">
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+    </tr>
+    <tr class="a">
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+    </tr>
+  </table>
+  </body>
+</html>

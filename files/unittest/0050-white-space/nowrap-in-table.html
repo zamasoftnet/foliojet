@@ -1,0 +1,41 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="380pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+      span {
+        white-space: nowrap;
+        background-color: Red;
+      }
+      table td {
+        padding: 0;
+        vertical-align: top;
+        font: 12pt/1 monospace;
+      }
+      table {
+        border-collapse: collapse;
+      }
+    </style>
+  </head>
+
+  <body>
+    <table>
+    <td width="100%" id="a">
+改行許可<span id="c">改行禁止改行禁止改行禁止</span><span id="d">改行禁止</span></div>
+    </td>
+    <td id="b">
+改行許可<span id="e">改行禁止改行禁止改行禁止</span><span id="f">改行禁止</span></div>
+	</td>
+    </table>
+  </body>
+
+</html>

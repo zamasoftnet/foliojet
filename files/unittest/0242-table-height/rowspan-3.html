@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="600pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+
+	border: 5pt solid Yellow;
+	border-spacing: 5pt;
+	table-layout: auto;
+}
+
+td {
+	border: 5pt solid Blue;
+}
+</style>
+</head>
+<body>
+<table>
+  <tr style="height: 5pt;" id="aa">
+    <td rowspan="3">xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx</td>
+    <td>xxx</td>
+  </tr>
+  <tr id="ab">
+   <td>xxx</td>
+  </tr>
+  <tr id="ac">
+    <td>xxx</td>
+  </tr>
+</table>
+
+<table>
+  <tr id="ba">
+    <td>xxx</td>
+    <td rowspan="2">xxx</td>
+  </tr>
+  <tr style="height: 5pt;" id="bb">
+    <td rowspan="3">xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx</td>
+  </tr>
+  <tr id="bc">
+   <td>xxx</td>
+  </tr>
+  <tr id="bd">
+    <td>xxx</td>
+  </tr>
+</table>
+<table style="table-layout: fixed;">
+  <tr style="height: 5pt;" id="ca">
+    <td rowspan="3">xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx</td>
+    <td>xxx</td>
+  </tr>
+  <tr id="cb">
+   <td>xxx</td>
+  </tr>
+  <tr id="cc">
+    <td>xxx</td>
+  </tr>
+</table>
+
+<table style="table-layout: fixed;">
+  <tr id="da">
+    <td>xxx</td>
+    <td rowspan="2">xxx</td>
+  </tr>
+  <tr style="height: 5pt;" id="db">
+    <td rowspan="3">xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx<br>xxx</td>
+  </tr>
+  <tr id="dc">
+   <td>xxx</td>
+  </tr>
+  <tr id="dd">
+    <td>xxx</td>
+  </tr>
+</table>
+</body>
+</html>

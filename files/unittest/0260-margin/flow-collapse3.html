@@ -1,0 +1,70 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="600pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0mm;
+}
+
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+}
+
+.nose {
+	margin-bottom: -10pt;
+	height: 20pt;
+	background: Yellow;
+}
+.empty {
+	margin: 60pt;
+	height: 10%;
+	background-color: Blue;
+}
+.empty div {
+	margin-bottom: -60pt;
+}
+.smile {
+	margin-top: 50pt;
+	background: black;
+	height: 20pt;
+}
+.box1 {
+	border: 3pt solid Red;
+	height: 10%;
+}
+.box2 {
+	border: 3pt solid Green;
+	height: 100pt;
+}
+</style>
+</head>
+<body>
+
+<div class="box1">
+<div class="nose" id="a"></div>
+<div class="empty"><div></div></div>
+<div class="smile" id="b"></div>
+</div>
+
+<div class="box2">
+<div class="nose" id="c"></div>
+<div class="empty"><div></div></div>
+<div class="smile" id="d"></div>
+</div>
+
+<div class="box2">
+<div class="box1">
+<div class="nose" id="e"></div>
+<div class="empty"><div></div></div>
+<div class="smile" id="f"></div>
+</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="Shift_JIS"?>
+<?xml-stylesheet href="xml-to-html.xsl" type="text/xsl"?>
+
+<data>
+  <item>アイテム1</item>
+  <item>アイテム2</item>
+  <item>アイテム3</item>
+  <item>アイテム4</item>
+  <item>アイテム5</item>
+</data>

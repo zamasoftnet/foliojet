@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="800pt"?>
+
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+	width: 400pt;
+}
+
+table {
+	border: 5pt solid Yellow;
+	border-spacing: 5pt;
+	table-layout: fixed;
+	width: 200pt;
+}
+
+td {
+	border: 5pt solid Blue;
+	font-size: 150pt;
+	line-height: 10pt;
+	background-color: LightGray;
+}
+td div {
+	border: 5pt solid Red;
+}
+span {
+	border: 5pt solid Green;
+}
+</style>
+</head>
+<body>
+
+<table>
+	<tr>
+		<td><img id="a" src="../blue.png"></td>
+		<td><div><span id="b">あ</span></div></td>
+		<td><img id="c" src="../blue.png"></td>
+	</tr>
+	<tr>
+		<td><img id="d" src="../blue.png"></td>
+		<td><div id="e" style="color: Pink;">い</div></td>
+		<td><img id="f" src="../blue.png"></td>
+	</tr>
+</table>
+
+<table style="border-collapse: collapse;">
+	<tr>
+		<td><img id="g" src="../blue.png"></td>
+		<td><div><span id="h">あ</span></div></td>
+		<td><img id="i" src="../blue.png"></td>
+	</tr>
+	<tr>
+		<td><img id="j" src="../blue.png"></td>
+		<td><div id="k" style="color: Pink;">い</div></td>
+		<td><img id="l" src="../blue.png"></td>
+	</tr>
+</table>
+
+</body>
+</html>

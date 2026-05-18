@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body {
+	margin: 0;
+}
+
+.abs1 {
+	width: 100pt;
+	height: 100pt;
+	background-color: Red;
+	position: absolute;
+}
+.fix {
+	width: 100pt;
+	height: 100pt;
+	background-color: Blue;
+	position: fixed;
+	left: 10pt;
+}
+.abs2 {
+	width: 100pt;
+	height: 100pt;
+	background-color: Yellow;
+	position: absolute;
+	left: 20pt;
+}
+
+</style>
+</head>
+<body>
+いいいい<br/>
+<div class="abs2" id="a">
+ああああ<br/>
+<div class="fix" id="b">
+</div>
+</div>
+
+</body>
+</html>

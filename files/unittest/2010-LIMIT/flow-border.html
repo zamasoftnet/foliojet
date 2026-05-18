@@ -1,0 +1,24 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>200ptの赤と黒境界があるブロックがあります。1ページ目は赤、2ページ目は黒です。</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      margin: 0;
+    }
+    div {
+      border-top: 200pt Red solid;
+      border-bottom: 200pt Black solid;
+    }
+    </style>
+  </head>
+
+  <body id="a">
+<div id="b"></div>
+  </body>
+</html>

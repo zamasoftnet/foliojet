@@ -1,0 +1,42 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>テーブル前の強制改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body, td {
+    	font: 10pt/1 monospace;
+    }
+    body {
+      border: 20pt solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10pt solid Black;
+    }
+    table {
+      border: 2pt solid Blue;
+      page-break-before: always;
+    }
+    td {
+      border: 2pt solid Black;
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <table align="center" id="a">
+    <caption>キャプションの前で改ページされます</caption>
+    <tr>
+      <td>キャプションの前で</td>
+      <td>改ページされます</td>
+    </tr>
+  </table>
+</div>
+  </body>
+</html>

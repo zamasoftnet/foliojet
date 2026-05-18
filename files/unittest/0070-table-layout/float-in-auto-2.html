@@ -1,0 +1,65 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="500pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+	border: 10pt solid Yellow;
+}
+
+td.a {
+	border: 10pt solid Black;
+	width: 200pt;
+}
+
+td.b {
+	border: 10pt solid Black;
+}
+
+div.c {
+	float: left;
+	border: 10pt solid Red;
+	width: 200pt;
+}
+</style>
+</head>
+<body>
+
+<table>
+	<tr>
+		<td class="b" id="a">
+		<div>ブロック</div>
+		<img align='left' src='../blue.png'>
+		<img align='right' src='../red.png'>TEXT</td>
+	</tr>
+</table>
+
+<table>
+	<tr>
+		<td class="a" id="b">
+		<div>ブロック</div>
+		<img align='left' src='../blue.png'>TEXT</td>
+	</tr>
+</table>
+
+<div class="c" id="c">
+<div>ブロック</div>
+<img align='left' src='../blue.png'>TEXT</div>
+
+</body>
+</html>

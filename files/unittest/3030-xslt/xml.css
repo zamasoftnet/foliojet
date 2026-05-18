@@ -1,0 +1,23 @@
+@page {
+	margin: 0;
+}
+p, h1 {
+  display: block;
+  font: 10pt/1 monospace;
+}
+
+h1 {
+  font-size: 64pt;
+}
+
+p {
+  color: Red;
+}
+
+q {
+  color: Blue;
+}
+
+r {
+  color: Yellow;
+}

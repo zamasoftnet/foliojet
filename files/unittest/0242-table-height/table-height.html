@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="800pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+	width: 400pt;
+}
+
+table {
+	border: 5pt solid Yellow;
+	border-spacing: 0;
+	width: 200pt;
+}
+
+td {
+	border: 5pt solid Black;
+}
+</style>
+</head>
+<body>
+
+<table id="a" style="height: 200pt;">
+	<tr id="aa">
+		<td rowspan="2">H<br/>H</td>
+		<td colspan="2">テキスト</td>
+	    <td rowspan="2">H</td>
+	    <td rowspan="4"></td>
+	</tr>
+	<tr id="ab">
+	    <td colspan="2" rowspan="2" id="b">テキスト</td>
+	</tr>
+	<tr id="ac">
+		<td rowspan="2">H</td>
+	    <td rowspan="2">H</td>
+	</tr>
+	<tr id="ad">
+	    <td colspan="2">テキスト</td>
+	</tr>
+</table>
+
+<table id="b" style="height: 200pt; table-layout: fixed;">
+	<tr id="ba">
+		<td rowspan="2">H<br/>H</td>
+		<td colspan="2">テキスト</td>
+	    <td rowspan="2">H</td>
+	    <td rowspan="4"></td>
+	</tr>
+	<tr id="bb">
+	    <td colspan="2" rowspan="2" id="b">テキスト</td>
+	</tr>
+	<tr id="bc">
+		<td rowspan="2">H</td>
+	    <td rowspan="2">H</td>
+	</tr>
+	<tr id="bd">
+	    <td colspan="2">テキスト</td>
+	</tr>
+</table>
+
+</body>
+</html>

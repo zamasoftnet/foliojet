@@ -1,0 +1,38 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=UTF-8">
+<title>tableTest</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body, td {
+	margin: 0;
+	font: 10pt/1 monospace;
+    padding: 0;
+}
+table {
+  width: 420px;
+  table-layout: fixed;
+  border-spacing: 0;
+}
+span.break {
+  border: 1pt solid Red;
+}
+     </style>
+</head>
+<body>
+<br>
+<table id="a">
+  <tr><td>FIXED TABLE</td></tr>
+</table>
+<span class="break"><span id="b">INLINE</span>
+<table>
+  <tr><td>FIXED TABLE</td></tr>
+</table>
+<span id="c">INLINE</span></span>
+</body>
+</html>

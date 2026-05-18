@@ -1,0 +1,67 @@
+<?jp.cssj.property name="output.page-width" value="400px"?>
+<?jp.cssj.property name="output.page-height" value="200px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>テーブルの中のテーブル</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      border: 20px solid Red;
+      margin: 0;
+    }
+    table {
+      border: 2px solid Blue;
+      border: 3px solid Blue;
+      background-color: LightBlue;
+    }
+    td {
+      page-break-inside: auto;
+    }
+    td {
+      border: 3px solid Green;
+    }
+    </style>
+  </head>
+
+  <body>
+
+  <table>
+    <tr>
+      <td>
+  <table>
+    <tr>
+      <td>
+青葉しげれる桜井の　里のわたりの夕まぐれ<br />
+木下陰に駒とめて　世の行く末をつくづくと<br />
+偲ぶ鎧の袖の上に　散るは涙か　はた露か
+      </td>
+      <td>
+青葉しげれる桜井の　里のわたりの夕まぐれ<br />
+木下陰に駒とめて　世の行く末をつくづくと<br />
+偲ぶ鎧の袖の上に　散るは涙か　はた露か
+      </td>
+    </tr>
+  </table>
+      </td>
+      <td>
+  <table>
+    <tr>
+      <td>
+●
+      </td>
+      <td>
+青葉しげれる桜井の　里のわたりの夕まぐれ<br />
+木下陰に駒とめて　世の行く末をつくづくと<br />
+偲ぶ鎧の袖の上に　散るは涙か　はた露か
+      </td>
+    </tr>
+  </table>
+      </td>
+    </tr>
+  </table>
+
+  </body>
+</html>

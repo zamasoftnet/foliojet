@@ -1,0 +1,48 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>overflow: visible;</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font: 10pt/1 monospace;
+      }
+      div{
+        overflow: hidden;
+        height: 20pt;
+        width: 50pt;
+      }
+      .a {
+        float: left;
+      }
+      .b {
+        position: absolute;
+        top: 50pt;
+      }
+      #a {
+        background-color: Yellow;
+      }
+      #b {
+        background-color: Blue;
+      }
+      #c {
+        background-color: Red;
+      }
+      #d {
+        background-color: Green;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="a">テキスト１テキスト２テキスト３テキスト４</div>
+    <div id="b" class="a">テキスト１テキスト２テキスト３テキスト４</div>
+    <div id="c" class="a">テキスト１テキスト２テキスト３テキスト４</div>
+    <div id="d" class="b">テキスト１テキスト２テキスト３テキスト４</div>
+  </body>
+
+</html>

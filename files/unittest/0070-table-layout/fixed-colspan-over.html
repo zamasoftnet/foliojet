@@ -1,0 +1,45 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: normal 10pt/1 monospace;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+}
+
+table {
+	table-layout: fixed;
+	width: 250pt;
+}
+td {
+	border: 1pt solid Black;
+}
+</style>
+</head>
+<body>
+
+<table>
+  <col width="50">
+  <col span="2" width="100">
+  <tr>
+    <td>A</td><td>B</td>
+  </tr>
+  <tr>
+    <td>A</td><td>B</td><td id="a">C</td>
+  </tr>
+</table>
+
+</body>
+</html>

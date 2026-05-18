@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3c.org/TR/1999/REC-html401-19991224/loose.dtd">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<?jp.cssj.property name="output.page-width" value="150pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 10pt;
+}
+body {
+	font: normal 12pt/1 serif;
+}
+span {
+	position: relative;
+	border: 1pt solid Blue;
+}
+span span {
+	position: absolute;
+	left: 0;
+	width: 100%;
+	border: 1pt solid Red;
+}
+
+</style>
+</head>
+<body>
+ああ<span id="a">アアア<span id="b">xxx</span></span>ああ
+</body>
+</html>

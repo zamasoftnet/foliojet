@@ -1,0 +1,25 @@
+package jp.cssj.test.unit._0100_widows_orphans;
+
+import java.io.File;
+
+import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.IBox;
+import jp.cssj.test.unit.AbstractTestCase;
+
+public class BreakInBorderTest extends AbstractTestCase {
+	public BreakInBorderTest(String name) {
+		super(name);
+	}
+
+	protected void transcode() throws Exception {
+		File file = new File(
+				"files/unittest/0100-widows-orphans/break-in-border.html");
+		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
+	}
+
+	public boolean check_a(IBox box, int pageNumber, double x, double y) {
+		assertEquals(y, 10, 1);
+		assertEquals(2, pageNumber);
+		return true;
+	}
+}

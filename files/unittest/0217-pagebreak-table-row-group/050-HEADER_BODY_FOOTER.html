@@ -1,0 +1,114 @@
+<?jp.cssj.property name="output.page-width" value="300px"?>
+<?jp.cssj.property name="output.page-height" value="200px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行間改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      border: 20px solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10px solid Black;
+    }
+    table {
+      border: 2px solid Blue;
+    }
+    tr {
+      page-break-inside: avoid;
+    }
+    td {
+      border: 2px solid Black;
+    }
+    tfoot td, thead td {
+      background-color: Yellow;
+    }
+    tbody.a td {
+      background-color: Pink;
+    }
+    tbody.b td {
+      background-color: LightBlue;
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <table>
+    <thead>
+    <tr>
+      <td>へ</td>
+      <td>ッ</td>
+      <td>ダ</td>
+      <td>ー</td>
+      <td rowspan="2">ー</td>
+    </tr>
+    <tr>
+      <td>へ</td>
+      <td>ッ</td>
+      <td>ダ</td>
+      <td>ー</td>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+      <td>フ</td>
+      <td>ッ</td>
+      <td>タ</td>
+      <td>ー</td>
+      <td rowspan="2">ー</td>
+    </tr>
+    <tr>
+      <td>フ</td>
+      <td>ッ</td>
+      <td>タ</td>
+      <td>ー</td>
+    </tr>
+    </tfoot>
+    <tbody class="a">
+    <tr>
+      <td>ボ</td>
+      <td>デ</td>
+      <td>ィ</td>
+      <td>・</td>
+      <td>１</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+    </tr>
+    </tbody>
+    <tr>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tbody class="b">
+    <tr>
+      <td>ボ</td>
+      <td>デ</td>
+      <td>ィ</td>
+      <td>・</td>
+      <td>２</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+  </body>
+</html>

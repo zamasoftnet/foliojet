@@ -1,0 +1,52 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="80pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+    margin: 0;
+    font: 10pt/1 monospace;
+}
+div.a {
+    text-align: justify;
+}
+div.b {
+    text-align-last: justify;
+}
+div.c {
+    text-align: center;
+    text-align-last: auto;
+}
+div.d {
+    text-align: right;
+    text-align-last: left;
+}
+body > div {
+	color: Red;
+	border: 1pt solid Blue;
+}
+    </style>
+  </head>
+
+  <body>
+<div class="a">
+このテキストは<span id="aa">、</span>末尾は均等配置されていません<span id="a">。</span>
+</div>
+<div class="b">
+このテキストは<span id="bb">、</span>末尾が均等配置されています<span id="b">。</span>
+</div>
+<div class="c">
+このテキストは<span id="cc">、</span>センタリングされています<span id="c">。</span>
+</div>
+<div class="d">
+このテキストは<span id="dd">、</span>場所によって配置が違います<span id="d">。</span>
+</div>
+  </body>
+
+</html>

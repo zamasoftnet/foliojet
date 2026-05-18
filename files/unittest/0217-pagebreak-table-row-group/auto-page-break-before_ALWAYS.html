@@ -1,0 +1,98 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行グループ間改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body, td {
+    	font: 10pt/1 monospace;
+    }
+    body {
+      border: 20pt solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10pt solid Black;
+    }
+    table {
+      border: 2pt solid Blue;
+      border: 3pt solid Blue;
+      background-color: LightBlue;
+    }
+    td {
+      border: 2pt solid Black;
+    }
+    tr.a {
+      background-color: Yellow;
+    }
+    tbody.a {
+      page-break-before: always;
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <p>
+背景が黄色い列の前で強制改ページします。
+ただし、一番先頭の列は除きます。
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <td>x</td>
+        <td>thead</td>
+        <td>x</td>
+      </tr>
+    </thead>
+    <tfoot>
+      <tr>
+        <td>x</td>
+        <td>tfoot</td>
+        <td>x</td>
+      </tr>
+    </tfoot>
+    <tbody class="a">
+      <tr class="a">
+        <td>x</td>
+        <td>tbody 1-1</td>
+        <td>x</td>
+      </tr>
+      <tr id="a">
+        <td>x</td>
+        <td>tbody 1-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+    <tbody class="a">
+      <tr id="b" class="a">
+        <td>x</td>
+        <td>tbody 2-1</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>x</td>
+        <td>tbody 2-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+    <tbody class="a">
+      <tr id="c" class="a">
+        <td>x</td>
+        <td>tbody 3-1</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>x</td>
+        <td>tbody 3-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+  </body>
+</html>

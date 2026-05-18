@@ -1,0 +1,75 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>ページ参照</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+	counter-increment: page;
+}
+body {
+	line-height: 1;
+}
+h2 {
+	font: 10pt/1 monospace;
+}
+h2:after {
+	counter-increment: a;
+	content: counter(a, katakana-iroha);
+}
+a {
+	display: block;
+}
+a:before {
+	content: -cssj-page-ref(attr(href), page);
+}
+a.multi:before {
+	content: -cssj-page-ref(attr(href), page, decimal, ',');
+}
+#n {
+	-cssj-page-content: n;
+	bottom: 0;
+}
+#n:before {
+	content: counter(page);
+}
+    </style>
+  </head>
+
+  <body>
+    <span id="n"></span>
+    <cssj:make-toc xmlns:cssj="http://www.cssj.jp/ns/cssjml"
+                   counter="page" type="decimal"/>
+    <h2 id="a">見出し</h2>
+    <h2 id="b">見出し</h2>
+    <h2 id="c">見出し</h2>
+    <h2 id="d">見出し</h2>
+    <h2 id="e">見出し</h2>
+    <h2 id="f">見出し</h2>
+    <h2 id="g">見出し</h2>
+    <h2 id="h">見出し</h2>
+    <h2 id="i">見出し</h2>
+    <h2 id="j">見出し</h2>
+    <h2 id="k">見出し</h2>
+    <a href="#a"></a>
+    <a href="#b"></a>
+    <a href="#c"></a>
+    <a href="#d" class="multi" id="aa"></a>
+    <a href="#e" class="multi" id="bb"></a>
+    <a href="#f"></a>
+    <a href="#g"></a>
+    <a href="#h"></a>
+    <a href="#i"></a>
+    <a href="#j"></a>
+    <a href="#k" id="cc"></a>
+    <h2 id="a">見出し</h2>
+    <h2 id="b">見出し</h2>
+    <h2 id="c">見出し</h2>
+    <h2 id="d">見出し</h2>
+    <h2 id="e">見出し</h2>
+  </body>
+
+</html>

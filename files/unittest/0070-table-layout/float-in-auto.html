@@ -1,0 +1,50 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=UTF-8">
+<title>tableTest</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,td {
+	margin: 0;
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+table {
+	border-collapse: collapse;
+}
+td {
+	border: 1pt solid Black;
+}
+.left {
+	float: left;
+	border: 1pt solid Red;
+}
+</style>
+</head>
+<body>
+<table id="a">
+	<tr>
+		<td id="b">AUTO TABLE</td>
+		<td id="c">AUTO TABLE</td>
+	</tr>
+	<tr>
+		<td>
+<div class="left" id="d">左浮動</div>
+<br />
+<nobr id="e">テーブルに続くテキスト</nobr></td>
+		<td>AUTO TABLE</td>
+	</tr>
+	<tr>
+		<td>AUTO TABLE</td>
+		<td>AUTO TABLE</td>
+	</tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="600pt"?>
+<html>
+<head>
+<title>Column</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	border: 5pt solid Red;
+}
+div.a {
+	-webkit-column-count: 2;
+	-webkit-column-fill: auto;
+	column-count: 2;
+	column-fill: auto;
+}
+h1, img, table {
+	-webkit-column-span: all;
+	column-span: all;
+	display: block;
+	border: 5pt solid Blue;
+}
+</style>
+</head>
+<body>
+<div class="a">
+<div class="b">
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+<span id="a">ははははははははははは</span>
+<h1>見出し</h1>
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+<span id="b">ははははははははははは</span>
+<img src="../red.png"/>
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+<span id="c">ははははははははははは</span>
+<table>
+  <tr>
+    <td>TABLE1</td>
+    <td>TABLE2</td>
+  </tr>
+  <tr>
+    <td>TABLE3</td>
+    <td>TABLE4</td>
+  </tr>
+</table>
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+いいいいいいいいいいい
+ろろろろろろろろろろろ
+ははははははははははは
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="150pt"?>
+<?jp.cssj.property name="output.page-height" value="56pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title></title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+      table {
+      	border-collapse: separate;
+      	border-spacing: 5pt;
+      }
+      td {
+        padding: 0;
+        border: 5pt solid Black;
+        font: 10pt/1 monospace;
+      }
+      thead td {
+        border-color: Red;
+        background-color: Yellow;
+      }
+      tfoot td {
+        border-color: Blue;
+        background-color: LightGreen;
+      }
+    </style>
+  </head>
+
+<body>
+<table>
+<thead>
+  <tr>
+  <td>HEAD</td>
+  <td>HEAD</td>
+  <td>HEAD</td>
+  </tr>
+</thead>
+<tfoot>
+  <tr>
+  <td>TFOOT</td>
+  <td>TFOOT</td>
+  <td>TFOOT</td>
+  </tr>
+</tfoot>
+<tbody>
+  <tr>
+  <td id="a">テキスト</td>
+  <td colspan="2" rowspan="2" id="b">テキスト</td>
+  </tr>
+  <tr>
+  <td>テキスト</td>
+  </tr>
+</tbody>
+</table>
+
+</body>
+</html>

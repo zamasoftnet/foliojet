@@ -1,0 +1,81 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="150pt"?>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=UTF-8">
+<title>tableTest</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,td {
+	margin: 0;
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+table {
+	border-collapse: collapse;
+	table-layout: fixed;
+	width: 280pt;
+}
+td {
+	border: 1pt solid Black;
+}
+</style>
+</head>
+<body>
+<table id="a">
+  <col style="width: 10pt;" />
+  <col style="width: 10pt;" />
+  <col style="width: 10pt;" />
+  <tbody>
+	<tr>
+		<td id="aa">FIXED TABLE</td>
+		<td id="ab">FIXED TABLE</td>
+		<td id="ac">FIXED TABLE</td>
+	</tr>
+	<tr>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+	</tr>
+  </tbody>
+</table>
+<table id="b">
+  <col style="width: 50pt;" />
+  <col style="width: 130pt;" />
+  <col style="width: 100pt;" />
+  <tbody>
+	<tr>
+		<td id="ba">FIXED TABLE</td>
+		<td id="bb">FIXED TABLE</td>
+		<td id="bc">FIXED TABLE</td>
+	</tr>
+	<tr>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+	</tr>
+  </tbody>
+</table>
+<table id="c">
+  <col span="2" style="width: 50pt;" />
+  <col />
+  <tbody>
+	<tr>
+		<td id="ca">FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+	</tr>
+	<tr>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+		<td>FIXED TABLE</td>
+	</tr>
+  </tbody>
+</table>
+</body>
+</html>

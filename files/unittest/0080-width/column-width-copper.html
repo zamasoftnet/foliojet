@@ -1,0 +1,42 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="320pt"?>
+<?jp.cssj.property name="output.page-height" value="220pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>パーセント幅</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body, td {
+	margin: 0;
+	padding: 0;
+	font: 10pt/1 monospace;
+}
+table {
+  border-spacing: 0;
+  border: 1pt solid Black;
+}
+td {
+  border: 1pt solid Yellow;
+}
+    </style>
+  </head>
+
+  <body>
+    <table>
+    <col style="width: 180pt; color: Red">
+    <col style="width: 60pt;">
+    <col style="width: 20pt;">
+    <tr>
+      <td id="a" rowspan="2">テキスト</td>
+      <td colspan="2">テキスト</td>
+    </tr>
+    <tr>
+      <td id="b">テキストテキストテキストテキストテキスト</td>
+      <td id="c">テキスト</td>
+    </tr>
+    </table>
+  </body>
+</html>

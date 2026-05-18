@@ -1,0 +1,54 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=UTF-8">
+<title>tableTest</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,td {
+	margin: 0;
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+table {
+	border-collapse: collapse;
+	width: 100%;
+}
+td {
+	border: 1pt solid Black;
+}
+span {
+	display: inline-block;
+	border: 1pt solid Red;
+	width: 20%;
+}
+</style>
+</head>
+<body>
+<table style="width: 200pt; margin: 0 auto;"><tr><td>
+<table id="a">
+	<tr>
+		<td id="b">AUTO TABLE</td>
+		<td id="c">AUTO TABLE</td>
+	</tr>
+	<tr>
+		<td>
+<span id="d">左</span>
+<span id="e">右</span>
+</td>
+		<td>AUTO TABLE</td>
+	</tr>
+	<tr>
+		<td>AUTO TABLE</td>
+		<td>AUTO TABLE</td>
+	</tr>
+</table>
+</td></tr></table>
+</body>
+</html>

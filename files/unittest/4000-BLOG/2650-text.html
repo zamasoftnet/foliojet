@@ -1,0 +1,387 @@
+<?jp.cssj.property name="output.page-width" value="127mm"?>
+<?jp.cssj.property name="output.page-height" value="188mm"?>
+<html xmlns:xsltutils="jp.cssj.print.core.util.XSLTUtils" xmlns:cssj="http://www.cssj.jp/ns/cssjml" xmlns="http://www.w3.org/1999/xhtml"><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <title>title </title>
+      <style type="text/css">
+/* ページのマージン */
+
+@page :first {
+  margin: 4pc 4pc 4pc 5pc;
+}
+@page :left {
+  margin: 4pc 5pc 4pc 3pc;
+}
+@page :right {
+  margin: 4pc 3pc 4pc 5pc;
+}
+  
+
+/* 基本 */
+
+/* アイコン */
+img.emoji, img.gaiji {
+  display: inline-block ! important;
+  position: static ! important;
+  float: none ! important;
+  clear: none ! important;
+  margin: 0 ! important;
+}
+img.emoji {
+  vertical-align: middle ! important;
+}
+img.gaiji {
+  vertical-align: -0.12em ! important;
+}
+
+/* 擬似ヘッダ */
+div.pseudo-h1 {
+	page-break-after: avoid;
+	font-weight: bolder;
+	font-size: 2em;
+	margin: .67em 0;
+}
+div.pseudo-h2 {
+	page-break-after: avoid;
+	font-weight: bolder;
+	font-size: 1.5em;
+	margin: .75em 0;
+}
+div.pseudo-h3 {
+	page-break-after: avoid;
+	font-weight: bolder;
+	font-size: 1.17em;
+	margin: .83em 0;
+}
+div.pseudo-h4 {
+	page-break-after: avoid;
+	font-weight: bolder;
+	margin: 1.12em 0;
+}
+div.pseudo-h5 {
+	page-break-after: avoid;
+	font-weight: bolder;
+	font-size: .83em;
+	margin: 1.5em 0;
+}
+div.pseudo-h6 {
+	page-break-after: avoid;
+	font-weight: bolder;
+	font-size: .75em;
+	margin: 1.67em 0;
+}
+
+
+
+/* 日付 */
+.date {
+  page-break-after: avoid;
+}
+
+/* 記事 */
+.entry, .body, .more, .comment {
+  clear: both;
+}
+
+
+/* ノンブル */
+.header {
+  -cssj-regeneratable: header;
+  top: -2em;
+  text-align: center;
+}
+
+:left .header:after {
+  
+  content: -cssj-heading(2);
+    
+}
+:right .header:after {
+  content: -cssj-heading(3);
+}
+
+.clear-header {
+  -cssj-regeneratable: header;
+}
+
+.footer {
+  -cssj-regeneratable: footer;
+  bottom: -2em;
+  counter-increment: page;
+}
+:left .footer {
+  text-align: left;
+}
+:right .footer {
+  text-align: right;
+}
+.footer .page:before {
+  content: counter(page);
+}
+:left .footer .heading2 {
+  position: absolute;
+  width: 2cm;
+  height: 0.5em;
+  left: -2.2cm;
+  border-bottom: 0.5pt solid Black;
+}
+:right .footer .heading1 {
+  position: absolute;
+  width: 2cm;
+  height: 0.5em;
+  right: -2.2cm;
+  border-bottom: 0.5pt solid Black;
+}
+.footer, .header {
+  width: 100%;
+}
+
+/* フォントサイズ関連 */
+
+ul.cssj-toc li, ul.cssj-toc ul li, .footer, .header {
+  font-family: 'ヒラギノ角ゴ';
+}
+.toc, .footer, .header {
+font-size: 10pt;
+}
+.toc .title {
+  font-size: 16pt;
+}
+
+h2, h3, .date {
+font-size: 16pt;
+}
+
+.body, .more, caption, th, td {
+font-size: 10pt;
+}
+.comment {
+font-family: 'ヒラギノ角ゴ';font-size: 9pt;
+}
+.colophon .title {
+  font-size: 14pt;
+}
+
+/* 見出し */
+h1, h2, h3, h4, h5, h6, .date, .semihead, .cover {
+  font-family: 'ヒラギノ角ゴ';
+}
+h1, h2, h3, h4, h5, h6, .date, .semihead {
+  font-weight: bold;
+  page-break-inside: avoid;
+  margin: 1em 0;
+}
+
+/* 改ページの前後に必要な行数 */
+* {
+  widows: 3;
+  orphans: 3;
+}
+
+/* テキストの揃え方 */
+.entry {
+  margin: 1em 0;
+}
+.entry,.more {
+  text-align: justify;
+}
+hr {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+ hr {
+  margin-top: 0.5em;
+  border-top: 0.5pt dashed;
+  padding-top: 0.5em;
+}
+h1, h2, h3, h4, h5, h6, .date {
+  clear: both;
+  text-indent: 0;
+}
+p {
+  
+    text-align: justify;
+    
+}
+p {
+  
+    margin: 1em 0;
+    
+}
+
+/* イメージ */
+img {
+
+  max-width: 60mm;
+
+  max-height: 130mm;
+
+  clear: both;
+  
+
+  display: block;
+  float: none ! important;
+  margin: 0.5em auto;
+
+  -cssj-preserve-aspect-ratio: fixed;
+}
+
+
+
+/* 見たままのテキスト */
+xmp, pre, plaintext {
+  white-space: pre-wrap;
+  widows: 15;
+  orphans: 15;
+  font-family: 'ヒラギノ角ゴ等幅';
+}
+
+/* リンク */
+:link {
+  color: Black;
+  text-decoration: none;
+}
+
+/* 表紙 */
+.cover div {
+  padding-top: 3em;
+  font-family: 'ヒラギノ角ゴ';
+}
+.cover {
+  page-break-after: always;
+  text-align: center;
+  font-family: 'ヒラギノ角ゴ';
+}
+.cover .title {
+  font-size: 18pt;
+  font-weight: bold;
+}
+.cover .description {
+  margin-top: 1em;
+  font-size: 10pt;
+}
+.cover .author {
+  margin-top: 2em;
+  font-size: 12pt;
+}
+
+/* 目次 */
+.toc-footer:before {
+  content: counter(page, lower-roman);
+}
+
+
+/* 内容
+   .content   内容全体
+   .entry     エントリ全体
+   .date      日付
+   .datebreak 日付ごとの改ページ用ブロック
+   .body      本文
+   .more      追伸
+   .comment   コメント
+   .posted    投稿者
+*/
+.content {
+  
+  counter-reset: page 1;
+  
+}
+.body {
+  page-break-before: avoid;
+}
+.body, .more, .comment {
+  line-height: 1.4;
+  font-family: 'ヒラギノ角ゴ';
+}
+
+
+.comment {
+  margin: 0.2em;
+  padding: 0.2em;
+  border: 0.5pt solid;
+}
+.posted {
+  font-style: italic;
+  text-decoration: underline;
+  page-break-before: avoid;
+  page-break-after: avoid;
+}
+
+/* 奥付 */
+.colophon-break {
+  page-break-before: left;
+}
+.colophon {
+  -cssj-regeneratable: footer;
+  bottom: 0;
+  width: 100%;
+  font-family: 'ヒラギノ明朝体';
+}
+
+.colophon .title {
+  border-bottom: 2pt solid;
+  padding-bottom: 0.2em;
+}
+.colophon table {
+  margin: 1em;
+}
+.colophon th {
+  vertical-align: top;
+  text-align: left;
+  padding-right: 1em;
+  font-family: 'ヒラギノ明朝体';
+  font-weight: bold;
+}
+.colophon .credit {
+  border-top: 1pt solid;
+  padding-top: 0.2em;
+}
+
+/* 基本 */
+
+table,tbody,thead,tfoot,tr,th,td {
+  display: block;
+  width: auto ! important;
+}
+.colophon table {
+  display: table;
+}
+.colophon tr {
+  display: table-row;
+}
+.colophon td,.colophon th {
+  display: table-cell;
+  white-space: nowrap;
+}
+</style>
+   </head><body>
+      <div class="content">
+         <div cssj:annot="A" class="entry datebreak">
+            <div class="body">
+
+               <img src="../red.png" alt="" class="pict" width="226" height="170">
+
+               <br>
+
+               <br>
+本文<br>
+本文<br>
+本文<br>
+本文<br>
+本文<br>
+本文<br>
+本文<br>
+本文<br>
+
+               <br>
+
+               <img id="a" src="../blue.png" alt="" class="pict" width="226" height="170">
+
+            </div>
+         </div>
+         <div cssj:annot="B" class="entry">
+            <h3 id="b">見出し</h3>
+         </div>
+      </div>
+   </body></html>

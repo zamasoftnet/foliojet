@@ -1,0 +1,25 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>ブロックの不可視化</title>
+    <style type="text/css">
+    </style>
+  </head>
+
+  <body>
+    <h1>ブロックの不可視化</h1>
+    <p>以下にボックスがありますが、見えません。赤い枠で囲まれたインラインとボックスだけが見えます</p>
+    <div style="visibility: hidden; border: 1px solid Blue;" id="a">
+不可視不可視不可視不可視不可視不可視
+不可視不可視<span style="visibility: visible; border: 1px solid Red;" id="b">このインラインだけ可視</span>不可視不可視
+不可視不可視不可視不可視不可視不可視
+<div style="visibility: visible; border: 1px solid Red;" id="c">
+このボックスだけ可視
+</div>
+不可視不可視不可視不可視不可視不可視
+不可視不可視不可視不可視不可視不可視
+不可視不可視不可視不可視不可視不可視
+    </div>
+  </body>
+
+</html>

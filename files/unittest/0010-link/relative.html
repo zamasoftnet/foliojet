@@ -1,0 +1,38 @@
+<?jp.cssj.property name="output.pdf.hyperlinks.href" value="relative"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <base href="http://copper-pdf.com/">
+    <title>絶対リンクモード</title>
+    <style type="text/css">
+    </style>
+  </head>
+
+  <body>
+    <h1>絶対リンクモード</h1>
+    <p>
+      <a href="http://www.yahoo.co.jp/" id="a">Yahoo! Japanへの絶対リンク</a>
+    </p>
+    <p>
+      <a href="http://www.w3.org/TR/CSS21/page.html#page-breaks" id="b">CSS 2.1 13.3 Page breaksへのリンク</a>
+    </p>
+    <a name="prev">
+    <p style="page-break-after: always;">
+      <a href="#next" id="c">次のページへのリンク</a>
+    </p>
+    <p>
+      <a href="#hoge" id="d">これはリンク切れです</a>
+    </p>
+    <p>
+      <a href="relative.html" id="e">relative.htmlへの相対リンク</a>
+    </p>
+    <p>
+      <a href="http://copper-pdf.com/relative.html#tag" id="g">relative.htmlへの相対リンク</a>
+    </p>
+    
+    <a name="next">
+    <p>
+      <a href="http://copper-pdf.com/#prev" id="f">前のページへのリンク</a>
+    </p>
+  </body>
+</html>

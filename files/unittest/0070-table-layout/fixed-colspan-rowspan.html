@@ -1,0 +1,44 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=UTF-8">
+<title>tableTest</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+
+body,td {
+	margin: 0;
+	font: 10pt/1 monospace;
+	padding: 0;
+}
+
+table {
+	table-layout: fixed;
+	width: 60pt;
+}
+td {
+	border: 1pt solid Black;
+}
+</style>
+</head>
+<body>
+<table>
+<tr>
+  <td colspan='2' rowspan='2' id="a">あ</td>
+  <td id="b">い</td>
+ </tr>
+ <tr>
+  <td id="c">う</td>
+ </tr>
+ <tr>
+  <td>え</td>
+  <td>お</td>
+  <td>か</td>
+ </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+      div {
+      	border: 1pt solid Blue;
+      }
+      div.a {
+      	width: 50pt;
+      	height: 50pt;
+      	overflow: hidden;
+      	position: relative;
+      }
+      div.a img {
+        position: absolute;
+      }
+      div.b {
+      	width: 50pt;
+      	height: 50pt;
+      	overflow: hidden;
+      	position: relative;
+      }
+      div.b img {
+        float: left;
+      }
+  </style>
+</head>
+<body>
+<div class="a">
+<img src="../red.png"/>
+</div>
+<div class="b">
+<img src="../red.png"/>
+</div>
+<div class="c">
+ああ<span id="a">ああ</span>ああ
+</div>
+</body>
+</html>

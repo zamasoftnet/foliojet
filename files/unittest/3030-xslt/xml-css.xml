@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="Shift_JIS"?>
+<?xml-stylesheet type="text/css" href="xml.css"?>
+
+<root>
+	<h1>64ポイント</h1>
+	<p>
+		赤いテキスト
+    </p>
+	<q>
+		青いテキスト
+    </q>
+    <?xml-stylesheet href="xml-to-html.xsl" type="text/xsl"?>
+	<r>
+		黄色いテキスト
+    </r>
+</root>

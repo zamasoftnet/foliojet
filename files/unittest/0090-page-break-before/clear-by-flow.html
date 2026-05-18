@@ -1,0 +1,34 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="85pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt/1 monospace;
+}
+img {
+	clear: both;
+	float: left;
+}
+div#c {
+	clear: both;
+	page-break-before: always;
+}
+     </style>
+  </head>
+
+  <body>
+    <h3>テキスト</h3>
+    <div id="a" style="border: 1px solid Red;">テキスト</div>
+    <img id="b" src="../blue.png" style="width: 50pt; height: 50pt;" />
+    <div id="c">浮動ボックスをクリア</div>
+  </body>
+
+</html>

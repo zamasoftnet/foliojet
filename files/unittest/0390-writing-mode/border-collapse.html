@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 10mm;
+}
+body {
+	font: normal 10pt/1 serif;
+	-cssj-writing-mode: tb-rl;
+	writing-mode: tb-rl;
+}
+table {
+	border: 30pt solid Blue;
+	border-top: 40pt solid Black;
+	border-collapse: collapse;
+	margin: 20pt;
+}
+td {
+	border: 20pt solid Green;
+	border-top-color: Black;
+}
+th {
+	border: 10pt solid LightBlue;
+}
+col#a {
+	border-bottom: 30pt solid Red;
+}
+
+</style>
+</head>
+<body>
+縦テーブル
+<table id="b">
+<col/>
+<col id="a"/>
+<col/>
+<tr>
+  <th>１</th>
+  <th>２</th>
+  <th>３</th>
+</tr>
+<tr>
+  <td>４</td>
+  <td>５</td>
+  <td>６</td>
+</tr>
+<tr>
+  <td>７</td>
+  <td>８</td>
+  <td>９</td>
+</tr>
+</table>
+</body>
+</html>

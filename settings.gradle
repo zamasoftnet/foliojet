@@ -1,15 +1,12 @@
 rootProject.name = 'foliojet'
 
-includeBuild 'F:/dev/mimidesunya-public/pdfg2d'
-includeBuild 'F:/dev/zamasoftnet-public/zstream'
-includeBuild 'F:/dev/zamasoftnet-public/cti.java'
+includeBuild '../pdfg2d'
+includeBuild '../zstream'
+includeBuild '../cti.java'
 
-include 'zs-plugin'
+include 'engine'
 
-include 'homare'
-
-include 'zs-balancer'
-include 'zs-epub'
-include 'zs-sac'
+include 'html-balancer'
+include 'sac'
 
 

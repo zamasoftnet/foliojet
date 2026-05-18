@@ -1,0 +1,83 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>test</title>
+<style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt/1 monospace;
+    padding: 0;
+}
+.a {
+	position: fixed;
+	top: 10pt;
+	right: 10pt;
+	border: Red 5pt solid;
+	font-size: 10pt;
+}
+
+.b {
+	position: fixed;
+	top: 10pt;
+	left: 10pt;
+	border: Yellow 5pt solid;
+	font-size: 10pt;
+}
+
+.c {
+	position: fixed;
+	bottom: 10pt;
+	left: 10pt;
+	border: Brown 5pt solid;
+}
+
+.d {
+	position: fixed;
+	bottom: 10pt;
+	right: 10pt;
+	border: Pink 5pt solid;
+}
+img {
+	width: 10pt;
+	height: 10pt;
+}
+div.abs {
+	border: 5pt solid Blue;
+	width: 100pt;
+	height: 100pt;
+	position: absolute;
+	top: 50pt;
+	left: 50pt;
+}
+</style>
+</head>
+
+<body>
+フロー
+<div id="a" class="a">右上</div>
+<div id="b" class="b">左上</div>
+フロー
+<div class="abs">
+<div id="c" class="c">左下</div>
+<div id="d" class="d">右下</div>
+</div>
+<br style="page-break-after: always;" />
+フロー
+<div class="abs">
+<img src="../red.png" id="a" class="a" />
+<img src="../blue.png" id="b" class="b" />
+</div>
+フロー
+<img src="../red.png" id="c" class="c" />
+<img src="../blue.png" id="d" class="d" />
+<br style="page-break-after: always;" />
+xxx
+</body>
+
+</html>

@@ -1,0 +1,51 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title></title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+      }
+      div {
+        float: right;
+      }
+      table {
+      	border-collapse: collapse;
+      	caption-side: bottom;
+      }
+      table,tr,td {
+        padding: 0;
+       }
+      td {
+        page-break-inside: avoid;
+        border-bottom: 100pt solid Red;
+      }
+    </style>
+  </head>
+
+<body>
+<div>
+FLOAT RIGHT<br/>
+FLOAT RIGHT<br/>
+FLOAT RIGHT<br/>
+FLOAT RIGHT<br/>
+FLOAT RIGHT<br/>
+FLOAT RIGHT<br/>
+FLOAT RIGHT<br/>
+<span id="a">FLOAT RIGHT</span><br/>
+</div>
+<table width="50%" id="b">
+<tbody>
+  <tr>
+<td>C</td>
+  </tr>
+</tbody>
+</table>
+</body>
+</html>

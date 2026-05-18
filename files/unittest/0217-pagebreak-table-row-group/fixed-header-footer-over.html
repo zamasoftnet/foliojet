@@ -1,0 +1,109 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="140pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行グループ間改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body, td {
+    	font: 10pt/1 monospace;
+    }
+    body {
+       margin: 0;
+    }
+    table {
+      border: 5pt solid Blue;
+      background-color: LightBlue;
+      table-layout: fixed;
+      width: 100%;
+    }
+    td {
+      border: 5pt solid Black;
+    }
+    thead, tfoot {
+    	background-color: yellow;
+    }
+    </style>
+  </head>
+
+  <body id="e">
+<div>
+ヘッダとフッタを合わせてもページに収まらないので改ページしない
+  <table>
+    <thead>
+      <tr id="a">
+        <td>x</td>
+        <td>thead</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>x</td>
+        <td>thead</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>x</td>
+        <td>thead</td>
+        <td>x</td>
+      </tr>
+    </thead>
+    <tfoot>
+      <tr>
+        <td>x</td>
+        <td>tfoot</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>x</td>
+        <td>tfoot</td>
+        <td>x</td>
+      </tr>
+      <tr id="b">
+        <td>x</td>
+        <td>tfoot</td>
+        <td>x</td>
+      </tr>
+    </tfoot>
+    <tbody class="a">
+      <tr id="c">
+        <td>x</td>
+        <td>tbody 1-1</td>
+        <td>x</td>
+      </tr>
+      <tr class="a">
+        <td>x</td>
+        <td>tbody 1-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+    <tbody class="a">
+      <tr>
+        <td>x</td>
+        <td>tbody 2-1</td>
+        <td>x</td>
+      </tr>
+      <tr class="a">
+        <td>x</td>
+        <td>tbody 2-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+    <tbody>
+      <tr id="d">
+        <td>x</td>
+        <td>tbody 3-1</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>x</td>
+        <td>tbody 3-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+  </body>
+</html>

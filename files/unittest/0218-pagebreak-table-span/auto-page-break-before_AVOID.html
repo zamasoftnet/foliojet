@@ -1,0 +1,142 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="210mm"?>
+<?jp.cssj.property name="output.page-height" value="130mm"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>請求書</title>
+    <style type="text/css">
+    {literal}
+      body {
+        font-family: serif;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 1em 0;
+      }
+      th, td {
+        border: 1px solid Black;
+        padding: 0.5em;
+        font-size: 8pt;
+      }
+      th {
+        white-space: nowrap;
+      }
+      .noborder {
+        border-bottom: hidden;
+      }
+      .number,.money {
+        white-space: nowrap;
+        font-family: monospace;
+        text-align: right;
+      }
+      .money:before {
+        content: '￥';
+      }
+    {/literal}
+    </style>
+  </head>
+  <body class="invoice">
+    <table>
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>書籍名</th>
+           <th>注文日</th>
+          <th>発送日</th>
+          <th>送料</th>
+          <th>製本費</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr id="a">
+          <td class="number">{$order.serial_number}</td>
+          <td>{$order.title|escape}</td>
+          <td nowrap>{$order.received|date}</td>
+          <td nowrap>{$order.shipped|date}</td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr style="page-break-before: avoid;">
+          <td colspan="2" rowspan="3"></td>
+          <td colspan="2" align="right" class="noborder">
+（小計）
+          </td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td colspan="2" align="right" class="noborder">
+（その他費用※）
+          </td>
+          <td></td>
+          <td class="money">100</td>
+        </tr>
+        <tr>
+          <td colspan="2" align="right">
+（消費税）（合計）
+          </td>
+          <td class="money">100</td>
+          <td class="money">100</td>
+        </tr>
+      </tbody>
+    </table>
+    <div
+         style="page-break-before: avoid; page-break-inside: avoid; border: 1pt solid; margin: .5em; padding: .5em;">
+<small>※その他費用内訳</small><br>
+{$misc_note|escape}
+    </div>
+
+<div style="page-break-before: avoid; font-weight:bold; font-size: 14pt; text-align: right;"><br>
+合計金額： <span style="text-decoration: underline;">{$total|number_format}円</span>
+</div>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+net.zamasoft.foliojet.impl.formatter.image.ImageFormatter
+net.zamasoft.foliojet.impl.formatter.epub.EPubFormatter
+net.zamasoft.foliojet.impl.formatter.document.DocumentFormatter

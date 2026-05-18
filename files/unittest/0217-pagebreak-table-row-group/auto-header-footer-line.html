@@ -1,0 +1,75 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="130pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body, td {
+    	font: 10pt/1 monospace;
+    }
+    body {
+      border: 20pt solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10pt solid Black;
+    }
+    table {
+      border: 5pt solid Blue;
+    }
+    td {
+      border: 5pt solid Black;
+      page-break-inside: auto;
+    }
+    tr {
+      page-break-inside: avoid;
+    }
+    thead, tfoot {
+    	background-color: transparent;
+    }
+    tbody td {
+          background-color: LightBlue;
+     }
+    </style>
+  </head>
+
+  <body>
+TEST
+<div>
+  <table>
+    <thead>
+      <tr>
+        <td>x</td>
+        <td>thead</td>
+        <td>x</td>
+      </tr>
+    </thead>
+    <tfoot>
+      <tr>
+        <td>x</td>
+        <td>tfoot</td>
+        <td>x</td>
+      </tr>
+    </tfoot>
+    <tbody class="a">
+      <tr>
+        <td id="a">x</td>
+        <td id="b" colspan="2" rowspan="2">tbody 1-1</td>
+      </tr>
+      <tr class="a">
+        <td id="c">y</td>
+      </tr>
+      <tr>
+        <td>z</td>
+        <td>tbody 1-2</td>
+        <td>x</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+  </body>
+</html>

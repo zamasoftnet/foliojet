@@ -1,0 +1,29 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="110pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+span {
+	background-color: Red;
+}
+     </style>
+  </head>
+
+  <body>
+    <p>段落</p>
+    <p id="a">段落<br />段落<br />段落<br />段落<br />段落<br /></p>
+    <span id="b">段落間</span>
+    <div id="c" style="page-break-before: always;">直前で改ページ</div>
+  </body>
+
+</html>

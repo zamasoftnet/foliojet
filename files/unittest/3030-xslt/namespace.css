@@ -1,0 +1,26 @@
+@namespace "urn:a";
+@namespace a "urn:b";
+@namespace b "";
+@page {
+	margin: 0;
+}
+*|p, *|h1 {
+  display: block;
+  font: 10pt/1 monospace;
+}
+
+b|h1 {
+  font-size: 64pt;
+}
+
+b|p {
+  color: Red;
+}
+
+|p {
+  color: Blue;
+}
+
+a|p {
+  color: Yellow;
+}

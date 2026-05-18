@@ -1,0 +1,40 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0;
+}
+body {
+	font: normal 10pt/1 serif;
+	margin: 5pt;
+	-epub-writing-mode: vertical-rl;
+	word-wrap: break-word;
+}
+div {
+	border: 10pt solid Red;
+	text-indent: 3em;
+}
+div#a {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+}
+
+</style>
+</head>
+<body>
+縦書きテキスト
+<ul>
+  <li id="a">アイテム１</li>
+  <li>アイテム２</li>
+  <li>アイテム３</li>
+</ul>
+<span style="text-decoration: underline overline line-through;">縦書きテキスト</span>ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<span id="b">ABC</span>DEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+</body>
+</html>

@@ -1,0 +1,83 @@
+<?jp.cssj.property name="output.page-width" value="300px"?>
+<?jp.cssj.property name="output.page-height" value="100px"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>行間改ページ</title>
+    <style type="text/css">
+    @page {
+      margin: 0;
+    }
+    body {
+      border: 20px solid Red;
+      margin: 0;
+    }
+    div {
+      border: 10px solid Black;
+    }
+    table {
+      border: 2px solid Blue;
+    }
+    tr {
+      page-break-inside: avoid;
+    }
+    td {
+      border: 2px solid Black;
+    }
+    thead td {
+      background-color: Yellow;
+    }
+    </style>
+  </head>
+
+  <body>
+<div>
+  <table>
+    <thead>
+    <tr>
+      <td>へ</td>
+      <td>ッ</td>
+      <td>ダ</td>
+      <td>ー</td>
+      <td>ー</td>
+    </tr>
+    </thead>
+    <tr>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+      <td>3</td>
+      <td>4</td>
+    </tr>
+  </table>
+</div>
+  </body>
+</html>

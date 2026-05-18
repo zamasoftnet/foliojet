@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0;
+}
+body {
+	font: normal 10pt/1 serif;
+	text-align: justify;
+	margin: 0;
+}
+img {
+	display: block;
+	float: left;
+}
+div {
+	width: 100px;
+	height: 100px;
+	float: left;
+}
+.a {
+	page-break-before: always;
+}
+.b {
+	page-break-after: always;
+}
+b
+</style>
+</head>
+<body>
+
+<img src="../red.png" class="a"/>
+あああ
+<img src="../red.png" class="a"/>
+いいい
+<img src="../red.png" class="a"/>
+
+<img src="../red.png" class="b"/>
+あああ
+<img src="../red.png" class="b"/>
+いいい
+<img src="../red.png" class="b" id="a"/>
+
+<div class="a"> </div>
+あああ
+<div class="a"> </div>
+いいい
+<div class="a"> </div>
+
+<div class="b"> </div>
+あああ
+<div class="b"> </div>
+いいい
+<div class="b" id="b"> </div>
+
+</body>
+</html>

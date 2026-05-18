@@ -1,0 +1,46 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 0;
+}
+
+body {
+	margin: 0;
+	writing-mode: tb-rl;
+}
+div {
+	border: 1pt solid Red;
+}
+
+</style>
+</head>
+<body>
+
+<div style="page-break-before: left">
+<span id="a">左</span>
+</div>
+<div style="page-break-before: right">
+<span id="b">右</span>
+</div>
+<div style="page-break-before: verso">
+<span id="c">偶数</span>
+</div>
+<div style="page-break-before: recto">
+<span id="d">奇数</span>
+</div>
+
+<div style="-cssj-direction-mode: logical;">
+<div style="page-break-before: left">
+<span id="e">偶数</span>
+</div>
+<div style="page-break-before: right">
+<span id="f">奇数</span>
+</div>
+</div>
+
+</body>
+</html>
