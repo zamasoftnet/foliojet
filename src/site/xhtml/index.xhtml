@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
 <head>
-<title>FolioJet Engine</title>
+<title>FolioJet</title>
 </head>
 <body>
 	<h2>説明</h2>
-	<p>FolioJet Engineはページ分割に適したHTML/CSSレンダリングエンジンです。
+	<p>FolioJetはページ分割に適したHTML/CSSレンダリングライブラリです。
 		CSS2.1サポートし、CSS3の一部を実装しています。</p>
 
 	<h2>使用方法</h2>
 	<p>
 		<a href="source-repository.html">ソース</a>を取得し、
 	</p>
-	<pre>mvn package dependency:copy-dependencies</pre>
+	<pre>./gradlew build</pre>
 	<p>
-		でビルドした後、engine/buildおよびengine/build/dependenciesに生成されたjarをアプリケーションにリンクしてください。
+		でビルドした後、buildおよびbuild/dependenciesに生成されたjarをアプリケーションにリンクしてください。
 	</p>
 
 	<h2>ドキュメント</h2>
@@ -28,7 +28,7 @@
 	<dl>
 		<dt>
 			<a
-				href="https://github.com/zamasoftnet/foliojet/blob/main/engine/src/example/java/net/zamasoft/foliojet/example/Transcode.java">Transcode.java</a>
+				href="https://github.com/zamasoftnet/foliojet/blob/main/src/example/java/net/zamasoft/foliojet/example/Transcode.java">Transcode.java</a>
 		</dt>
 		<dd>java.awt.Graphics2Dのブリッジを利用してPDFを出力します。</dd>
 	</dl>

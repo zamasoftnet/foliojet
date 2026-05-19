@@ -2,13 +2,14 @@
 
 HTML/CSS などのページング処理を担う公開ライブラリです。
 
-Gradle ベースのマルチプロジェクト構成です。ビルドは `./gradlew build` を使います。
+Gradle ベースの単一プロジェクト構成です。ビルドは `./gradlew build` を使います。
 
 ## ビルドに必要なリポジトリ
 
 このリポジトリは Gradle の composite build で次の兄弟ディレクトリを参照します。
 
 - `../cti.java` - https://github.com/zamasoftnet/cti.java
+- `../html-balancer` - https://github.com/zamasoftnet/html-balancer
 - `../pdfg2d` - https://github.com/zamasoftnet/pdfg2d
 - `../zstream` - https://github.com/zamasoftnet/zstream
 
@@ -16,6 +17,7 @@ Gradle ベースのマルチプロジェクト構成です。ビルドは `./gra
 
 ```sh
 git clone https://github.com/zamasoftnet/cti.java.git
+git clone https://github.com/zamasoftnet/html-balancer.git
 git clone https://github.com/zamasoftnet/pdfg2d.git
 git clone https://github.com/zamasoftnet/zstream.git
 git clone https://github.com/zamasoftnet/foliojet.git
@@ -35,8 +37,8 @@ cd foliojet
 - Apache Batik (`batik-svggen`, `batik-script`, `batik-ext`, `batik-bridge`, `batik-gvt`, `batik-anim`) 1.14
 - Apache HttpComponents (`httpclient`, `httpcore`, `httpcore-nio`, `httpmime`)
 - Apache Commons (`commons-collections`, `commons-io`, `commons-primitives`)
-- XML/CSS (`xml-apis`, `xercesImpl`, `org.w3c.css:sac`, `nekohtml`)
+- XML/CSS (`xml-apis`, `xercesImpl`, `htmlunit-cssparser`, `html-balancer`)
 - 画像・メタデータ (`metadata-extractor`, `imageio-jpeg`)
-- その他 (`barcode4j`, `jeuclid-core`, `avalon-framework-impl`, `engine/lib/Qrcode.jar`)
+- その他 (`barcode4j`, `jeuclid-core`, `avalon-framework-impl`, `lib/Qrcode.jar`)
 
 Maven の `pom.xml` と Eclipse のプロジェクトメタデータには依存しません。

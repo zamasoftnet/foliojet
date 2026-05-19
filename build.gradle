@@ -1,13 +1,12 @@
 import org.gradle.api.tasks.Sync
-import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.wrapper.Wrapper
 
+plugins {
+    id 'java-library'
+}
 
-def moduleVersions = [
-    foliojet         : '4.0.0-SNAPSHOT',
-    engine           : '4.0.0-SNAPSHOT',
-    'html-balancer'  : '1.1.0'
-]
+group = 'net.zamasoft'
+version = '4.0.0-SNAPSHOT'
 
 def dependencyVersions = [
     cti              : '2.2.3',
@@ -23,183 +22,141 @@ def dependencyVersions = [
     metadataExtractor: '2.19.0',
     imageioJpeg      : '[3.12.0,)',
     htmlunitCssParser: '4.21.0',
+    htmlBalancer     : '1.1.0',
     xmlApis          : '1.4.01',
     xerces           : '2.11.0',
     avalon           : '4.3',
     barcode4j        : '2.1',
-    jeuclid          : '3.1.11',
-    nekohtml         : '1.9.18'
+    jeuclid          : '3.1.11'
 ]
 
-def javaProjectPaths = [
-    ':engine',
-    ':html-balancer'
-] as Set
+repositories {
+    mavenCentral()
+}
 
-def runtimeDependencyCopyProjectPaths = [
-    ':engine',
-] as Set
+configurations.configureEach {
+    resolutionStrategy.force "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
+}
 
-def native2AsciiProjectPaths = [
-    ':engine'
-] as Set
-
-allprojects {
-    group = 'net.zamasoft'
-    version = moduleVersions[project.name] ?: moduleVersions.foliojet
-
-    repositories {
-        mavenCentral()
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
-allprojects {
-    configurations.configureEach {
-        resolutionStrategy.force "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+    options.charSet = 'UTF-8'
+    options.docEncoding = 'UTF-8'
+    options.links('https://docs.oracle.com/javase/jp/8/docs/api/')
+    options.addStringOption('Xdoclint:none', '-quiet')
+    destinationDir = new File(System.getProperty('java.io.tmpdir'), 'foliojet-javadocs/root')
+    doFirst {
+        destinationDir.mkdirs()
     }
 }
 
-configure([rootProject]) {
-    apply plugin: 'base'
-}
+tasks.named('processResources').configure {
+    filteringCharset = 'UTF-8'
 
-configure(subprojects.findAll { javaProjectPaths.contains(it.path) }) {
-    apply plugin: 'java-library'
-
-    java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(21)
-        }
-    }
-
-    tasks.withType(JavaCompile).configureEach {
-        options.encoding = 'UTF-8'
-    }
-
-    tasks.withType(Javadoc).configureEach {
-        options.encoding = 'UTF-8'
-        options.charSet = 'UTF-8'
-        options.docEncoding = 'UTF-8'
-        options.links('https://docs.oracle.com/javase/jp/8/docs/api/')
-        options.addStringOption('Xdoclint:none', '-quiet')
-        destinationDir = new File(System.getProperty('java.io.tmpdir'), 'foliojet-javadocs/' + project.path.replace(':', '_'))
-        doFirst {
-            destinationDir.mkdirs()
-        }
-    }
-
-    tasks.named('processResources').configure {
-        filteringCharset = 'UTF-8'
-    }
-
-    if (runtimeDependencyCopyProjectPaths.contains(path)) {
-        def copyRuntimeDependencies = tasks.register('copyRuntimeDependencies', Sync) {
-            from configurations.runtimeClasspath
-            into layout.buildDirectory.dir('dependencies')
+    doLast {
+        def outputDir = destinationDir
+        if (outputDir == null || !outputDir.exists()) {
+            return
         }
 
-        tasks.named('assemble').configure {
-            dependsOn copyRuntimeDependencies
+        def propertyFiles = fileTree(outputDir) {
+            include '**/*.properties'
         }
-    }
+        if (propertyFiles.isEmpty()) {
+            return
+        }
 
-    if (native2AsciiProjectPaths.contains(path)) {
-        tasks.named('processResources').configure {
-            doLast {
-                def outputDir = destinationDir
-                if (outputDir == null || !outputDir.exists()) {
-                    return
-                }
-
-                def propertyFiles = fileTree(outputDir) {
-                    include '**/*.properties'
-                }
-                if (propertyFiles.isEmpty()) {
-                    return
-                }
-
-                def tempDir = new File(temporaryDir, 'native2ascii')
-                project.delete(tempDir)
-                ant.native2ascii(src: outputDir, dest: tempDir, encoding: 'UTF-8', includes: '**/*.properties')
-                copy {
-                    from tempDir
-                    into outputDir
-                    include '**/*.properties'
-                    includeEmptyDirs = false
-                }
-            }
+        def tempDir = new File(temporaryDir, 'native2ascii')
+        project.delete(tempDir)
+        ant.native2ascii(src: outputDir, dest: tempDir, encoding: 'UTF-8', includes: '**/*.properties')
+        copy {
+            from tempDir
+            into outputDir
+            include '**/*.properties'
+            includeEmptyDirs = false
         }
     }
 }
 
-project(':engine') {
-    dependencies {
-        api "net.zamasoft:cti-if:${dependencyVersions.cti}"
-        runtimeOnly "net.zamasoft:cti-driver-rest:${dependencyVersions.cti}"
-        runtimeOnly "net.zamasoft:cti-server-rest:${dependencyVersions.cti}"
-        api "io.github.mimidesunya:pdfg2d-core:${dependencyVersions.pdfg2d}"
-        api "io.github.mimidesunya:pdfg2d-font:${dependencyVersions.pdfg2d}"
-        api "net.zamasoft:zstream-io:${dependencyVersions.zstream}"
-        api "io.github.mimidesunya:pdfg2d-pdf:${dependencyVersions.pdfg2d}"
-        api "net.zamasoft:zstream-resolver:${dependencyVersions.zstream}"
-        api "io.github.mimidesunya:pdfg2d-svg:${dependencyVersions.pdfg2d}"
-        api project(':html-balancer')
-        api "commons-collections:commons-collections:${dependencyVersions.commonsCollections}"
-        api "commons-io:commons-io:${dependencyVersions.commonsIo}"
-        api "commons-primitives:commons-primitives:${dependencyVersions.commonsPrimitives}"
-        api "org.apache.xmlgraphics:batik-svggen:${dependencyVersions.batik}"
-        api "org.apache.xmlgraphics:batik-script:${dependencyVersions.batik}"
-        api "org.apache.xmlgraphics:batik-ext:${dependencyVersions.batik}"
-        api "org.apache.xmlgraphics:batik-bridge:${dependencyVersions.batik}"
-        api "org.apache.xmlgraphics:batik-gvt:${dependencyVersions.batik}"
-        api "org.apache.xmlgraphics:batik-anim:${dependencyVersions.batik}"
-        api "org.apache.httpcomponents:httpclient:${dependencyVersions.httpclient}"
-        api "org.apache.httpcomponents:httpcore:${dependencyVersions.httpcore}"
-        api "org.apache.httpcomponents:httpcore-nio:${dependencyVersions.httpcore}"
-        api "org.apache.httpcomponents:httpmime:${dependencyVersions.httpmime}"
-        api "com.drewnoakes:metadata-extractor:${dependencyVersions.metadataExtractor}"
-        api "com.twelvemonkeys.imageio:imageio-jpeg:${dependencyVersions.imageioJpeg}"
-        api "org.htmlunit:htmlunit-cssparser:${dependencyVersions.htmlunitCssParser}"
-        api "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
-        api "xerces:xercesImpl:${dependencyVersions.xerces}"
-        api "avalon-framework:avalon-framework-impl:${dependencyVersions.avalon}"
-        api "net.sf.barcode4j:barcode4j:${dependencyVersions.barcode4j}"
-        api files('lib/Qrcode.jar')
-        api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
-        testImplementation 'junit:junit:4.13.2'
-    }
-
-    tasks.named('test') {
-        useJUnit()
-        enableAssertions = true
-        maxHeapSize = '256m'
-        jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
-        workingDir = rootProject.projectDir
-        exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'
-        exclude 'jp/cssj/test/unit/_0360_text_indent/PageBreakByWrapTest.class'
-        exclude 'jp/cssj/test/unit/_0410_column_width/FlowTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclMetaTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/DoubleMetaTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/HTMLEUCTest.class'
-        exclude 'jp/cssj/test/unit/_3000_SELECTOR/NameTest.class'
-
-        systemProperty 'java.io.tmpdir', 'local'
-        systemProperty 'java.awt.headless', 'true'
-        systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
-        systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath
-
-        doFirst {
-            new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
-        }
-    }
+def copyRuntimeDependencies = tasks.register('copyRuntimeDependencies', Sync) {
+    from configurations.runtimeClasspath
+    into layout.buildDirectory.dir('dependencies')
 }
 
-project(':html-balancer') {
-    dependencies {
-        api "net.sourceforge.nekohtml:nekohtml:${dependencyVersions.nekohtml}"
+tasks.named('assemble').configure {
+    dependsOn copyRuntimeDependencies
+}
+
+dependencies {
+    api "net.zamasoft:cti-if:${dependencyVersions.cti}"
+    runtimeOnly "net.zamasoft:cti-driver-rest:${dependencyVersions.cti}"
+    runtimeOnly "net.zamasoft:cti-server-rest:${dependencyVersions.cti}"
+    api "io.github.mimidesunya:pdfg2d-core:${dependencyVersions.pdfg2d}"
+    api "io.github.mimidesunya:pdfg2d-font:${dependencyVersions.pdfg2d}"
+    api "net.zamasoft:zstream-io:${dependencyVersions.zstream}"
+    api "io.github.mimidesunya:pdfg2d-pdf:${dependencyVersions.pdfg2d}"
+    api "net.zamasoft:zstream-resolver:${dependencyVersions.zstream}"
+    api "io.github.mimidesunya:pdfg2d-svg:${dependencyVersions.pdfg2d}"
+    api "net.zamasoft:html-balancer:${dependencyVersions.htmlBalancer}"
+    api "commons-collections:commons-collections:${dependencyVersions.commonsCollections}"
+    api "commons-io:commons-io:${dependencyVersions.commonsIo}"
+    api "commons-primitives:commons-primitives:${dependencyVersions.commonsPrimitives}"
+    api "org.apache.xmlgraphics:batik-svggen:${dependencyVersions.batik}"
+    api "org.apache.xmlgraphics:batik-script:${dependencyVersions.batik}"
+    api "org.apache.xmlgraphics:batik-ext:${dependencyVersions.batik}"
+    api "org.apache.xmlgraphics:batik-bridge:${dependencyVersions.batik}"
+    api "org.apache.xmlgraphics:batik-gvt:${dependencyVersions.batik}"
+    api "org.apache.xmlgraphics:batik-anim:${dependencyVersions.batik}"
+    api "org.apache.httpcomponents:httpclient:${dependencyVersions.httpclient}"
+    api "org.apache.httpcomponents:httpcore:${dependencyVersions.httpcore}"
+    api "org.apache.httpcomponents:httpcore-nio:${dependencyVersions.httpcore}"
+    api "org.apache.httpcomponents:httpmime:${dependencyVersions.httpmime}"
+    api "com.drewnoakes:metadata-extractor:${dependencyVersions.metadataExtractor}"
+    api "com.twelvemonkeys.imageio:imageio-jpeg:${dependencyVersions.imageioJpeg}"
+    api "org.htmlunit:htmlunit-cssparser:${dependencyVersions.htmlunitCssParser}"
+    api "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
+    api "xerces:xercesImpl:${dependencyVersions.xerces}"
+    api "avalon-framework:avalon-framework-impl:${dependencyVersions.avalon}"
+    api "net.sf.barcode4j:barcode4j:${dependencyVersions.barcode4j}"
+    api files('lib/Qrcode.jar')
+    api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.named('test') {
+    useJUnit()
+    enableAssertions = true
+    maxHeapSize = '256m'
+    jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
+    workingDir = rootProject.projectDir
+    exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'
+    exclude 'jp/cssj/test/unit/_0360_text_indent/PageBreakByWrapTest.class'
+    exclude 'jp/cssj/test/unit/_0410_column_width/FlowTest.class'
+    exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclMetaTest.class'
+    exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclTest.class'
+    exclude 'jp/cssj/test/unit/_1060_META/DoubleMetaTest.class'
+    exclude 'jp/cssj/test/unit/_1060_META/HTMLEUCTest.class'
+    exclude 'jp/cssj/test/unit/_3000_SELECTOR/NameTest.class'
+
+    systemProperty 'java.io.tmpdir', 'local'
+    systemProperty 'java.awt.headless', 'true'
+    systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
+    systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath
+
+    doFirst {
+        new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
     }
 }
 
@@ -207,9 +164,3 @@ tasks.named('wrapper', Wrapper).configure {
     gradleVersion = '8.9'
     distributionType = Wrapper.DistributionType.BIN
 }
-
-
-
-
-
-

@@ -3,8 +3,4 @@ rootProject.name = 'foliojet'
 includeBuild '../pdfg2d'
 includeBuild '../zstream'
 includeBuild '../cti.java'
-
-include 'engine'
-
-include 'html-balancer'
-
+includeBuild '../html-balancer'
