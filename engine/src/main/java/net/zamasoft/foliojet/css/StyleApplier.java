@@ -19,9 +19,9 @@ import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
-import net.zamasoft.sac.css.CSSException;
-import net.zamasoft.sac.css.InputSource;
-import net.zamasoft.sac.parser.Parser;
+import net.zamasoft.foliojet.css.parser.InputSource;
+import net.zamasoft.foliojet.css.parser.Parser;
+import org.htmlunit.cssparser.parser.CSSException;
 
 /**
  * CSSに関する処理命令を処理します。
@@ -86,6 +86,7 @@ public class StyleApplier {
 			inlineStyleDecl = ce.atts.getValue(XHTML.URI, XHTML.STYLE_ATTR.lName);
 		}
 		if (inlineStyleDecl != null) {
+			inlineStyleDecl = inlineStyleDecl.trim();
 			try {
 				this.declParser.parseStyleDeclaration(new InputSource(new StringReader(inlineStyleDecl)));
 				declaration = this.declBuilder.getDeclaration();

@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.impl.css.property.BorderRightColor;
 import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderRightWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

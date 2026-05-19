@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.property;
 import java.net.URI;
 
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * プロパティ情報と解析のためのオブジェクトです。

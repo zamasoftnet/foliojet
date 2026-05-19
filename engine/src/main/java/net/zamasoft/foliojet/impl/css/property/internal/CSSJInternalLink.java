@@ -10,7 +10,7 @@ import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * 画像(置換ボックス)の内部特性です。

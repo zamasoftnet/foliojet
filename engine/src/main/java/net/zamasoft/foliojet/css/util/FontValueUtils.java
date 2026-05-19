@@ -20,7 +20,7 @@ import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList.FontPolicy;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

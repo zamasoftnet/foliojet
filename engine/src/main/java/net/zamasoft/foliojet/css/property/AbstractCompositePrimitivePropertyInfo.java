@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
 import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * 複合特性です。

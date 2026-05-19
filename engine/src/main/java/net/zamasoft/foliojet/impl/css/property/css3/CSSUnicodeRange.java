@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.css3.UnicodeRangeValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.UnicodeRange;
 import net.zamasoft.pdfg2d.gc.font.UnicodeRangeList;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

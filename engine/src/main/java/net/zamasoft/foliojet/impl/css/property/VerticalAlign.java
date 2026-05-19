@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.style.box.content.FractionalVerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.content.VerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.params.Types;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align">

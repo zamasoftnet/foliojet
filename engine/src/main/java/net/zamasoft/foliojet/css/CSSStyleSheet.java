@@ -7,8 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import net.zamasoft.sac.css.Selector;
-import net.zamasoft.sac.css.SelectorList;
+import org.htmlunit.cssparser.parser.selector.Selector;
+import org.htmlunit.cssparser.parser.selector.SelectorList;
 
 /**
  * スタイルシートは、与えられた要素に対して適用される宣言を返します。
@@ -83,8 +83,7 @@ public class CSSStyleSheet implements Serializable, Cloneable {
 		if (declaration == null) {
 			return;
 		}
-		for (int i = 0; i < selectors.getLength(); ++i) {// ループすることに注意！
-			Selector selector = selectors.item(i);
+		for (Selector selector : selectors) {// ループすることに注意！
 			String selectorString = selector.toString();
 
 			Rule rule = (Rule) this.selectorToRule.get(selectorString);

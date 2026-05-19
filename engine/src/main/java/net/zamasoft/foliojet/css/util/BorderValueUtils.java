@@ -4,7 +4,7 @@ import net.zamasoft.foliojet.css.value.BorderStyleValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

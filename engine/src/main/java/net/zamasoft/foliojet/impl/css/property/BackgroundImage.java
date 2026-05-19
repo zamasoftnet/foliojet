@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

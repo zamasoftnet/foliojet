@@ -8,8 +8,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.text.ParseException;
 
+import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.zstream.resolver.Source;
-import net.zamasoft.sac.css.InputSource;
 
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.DefaultHandler;
@@ -28,31 +28,32 @@ public final class XMLUtils {
 
 	public static InputSource toSACInputSource(Source source, String charset, String mediaTypes, String title)
 			throws IOException {
-		InputSource inputSource = new InputSource();
 		String encoding = source.getEncoding();
+		Reader reader;
 		if (encoding != null) {
-			inputSource.setEncoding(encoding);
 			if (source.isReader()) {
-				inputSource.setCharacterStream(source.getReader());
+				reader = source.getReader();
 			} else {
-				inputSource.setByteStream(source.getInputStream());
+				reader = new InputStreamReader(source.getInputStream(), encoding);
 			}
 		} else {
 			if (charset != null) {
-				inputSource.setEncoding(charset);
+				encoding = charset;
 				if (source.isReader()) {
-					inputSource.setCharacterStream(source.getReader());
+					reader = source.getReader();
 				} else {
-					inputSource.setCharacterStream(new InputStreamReader(source.getInputStream(), charset));
+					reader = new InputStreamReader(source.getInputStream(), charset);
 				}
 			} else {
 				if (source.isReader()) {
-					inputSource.setCharacterStream(source.getReader());
+					reader = source.getReader();
 				} else {
-					inputSource.setByteStream(source.getInputStream());
+					reader = new InputStreamReader(source.getInputStream());
 				}
 			}
 		}
+		InputSource inputSource = new InputSource(reader);
+		inputSource.setEncoding(encoding);
 		inputSource.setMedia(mediaTypes);
 		inputSource.setTitle(title);
 		inputSource.setURI(source.getURI().toString());

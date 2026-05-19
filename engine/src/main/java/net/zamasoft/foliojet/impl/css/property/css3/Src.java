@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.value.css3.SrcValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.util.URIHelper;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

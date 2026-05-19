@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.css.value.CaptionSideValue;
 import net.zamasoft.foliojet.css.value.EmptyCellsValue;
 import net.zamasoft.foliojet.css.value.TableLayoutValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

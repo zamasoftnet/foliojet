@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.CSSColor;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

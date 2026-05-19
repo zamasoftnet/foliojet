@@ -9,16 +9,17 @@ import java.util.StringTokenizer;
 
 import net.zamasoft.foliojet.css.CSSStyleSheet.PageContent;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
-import net.zamasoft.sac.css.AttributeCondition;
-import net.zamasoft.sac.css.CombinatorCondition;
-import net.zamasoft.sac.css.Condition;
-import net.zamasoft.sac.css.ConditionalSelector;
-import net.zamasoft.sac.css.DescendantSelector;
-import net.zamasoft.sac.css.ElementSelector;
-import net.zamasoft.sac.css.LangCondition;
-import net.zamasoft.sac.css.Selector;
-import net.zamasoft.sac.css.SiblingSelector;
-import net.zamasoft.sac.css.SimpleSelector;
+import org.htmlunit.cssparser.parser.condition.AttributeCondition;
+import org.htmlunit.cssparser.parser.condition.Condition;
+import org.htmlunit.cssparser.parser.condition.LangCondition;
+import org.htmlunit.cssparser.parser.selector.ChildSelector;
+import org.htmlunit.cssparser.parser.selector.DescendantSelector;
+import org.htmlunit.cssparser.parser.selector.DirectAdjacentSelector;
+import org.htmlunit.cssparser.parser.selector.ElementSelector;
+import org.htmlunit.cssparser.parser.selector.PseudoElementSelector;
+import org.htmlunit.cssparser.parser.selector.Selector;
+import org.htmlunit.cssparser.parser.selector.SelectorSpecificity;
+import org.htmlunit.cssparser.parser.selector.SimpleSelector;
 
 public class StyleContext {
 
@@ -130,8 +131,8 @@ public class StyleContext {
 				}
 				switch (selector.getSelectorType()) {
 				// 子セレクタ
-				case Selector.SAC_CHILD_SELECTOR: {
-					DescendantSelector descendantSelector = (DescendantSelector) selector;
+				case CHILD_SELECTOR: {
+					ChildSelector descendantSelector = (ChildSelector) selector;
 					SimpleSelector simpleSelector = descendantSelector.getSimpleSelector();
 					if (evaluateSimpleSelector(simpleSelector, ce)) {
 						selector = descendantSelector.getAncestorSelector();
@@ -143,12 +144,12 @@ public class StyleContext {
 					break;
 
 				// 子孫セレクタ
-				case Selector.SAC_DESCENDANT_SELECTOR: {
+				case DESCENDANT_SELECTOR: {
 					DescendantSelector descendantSelector = (DescendantSelector) selector;
 					SimpleSelector simpleSelector = descendantSelector.getSimpleSelector();
 					if (evaluateSimpleSelector(simpleSelector, ce)) {
 						selector = descendantSelector.getAncestorSelector();
-						child = false;
+						child = simpleSelector.getSelectorType() == Selector.SelectorType.PSEUDO_ELEMENT_SELECTOR;
 					} else if (first || (!ce.isPseudoElement() && child)) {
 						break NEXT_RULE;
 					}
@@ -156,9 +157,9 @@ public class StyleContext {
 					break;
 
 				// 隣接セレクタ
-				case Selector.SAC_DIRECT_ADJACENT_SELECTOR: {
-					SiblingSelector siblingSelector = (SiblingSelector) selector;
-					SimpleSelector simpleSelector = siblingSelector.getSiblingSelector();
+				case DIRECT_ADJACENT_SELECTOR: {
+					DirectAdjacentSelector siblingSelector = (DirectAdjacentSelector) selector;
+					SimpleSelector simpleSelector = siblingSelector.getSimpleSelector();
 					if (evaluateSimpleSelector(simpleSelector, ce)) {
 						selector = siblingSelector.getSelector();
 						child = true;
@@ -176,7 +177,7 @@ public class StyleContext {
 
 				// 単純セレクタ
 				default: {
-					SimpleSelector simpleSelector = (SimpleSelector) selector;
+					SimpleSelector simpleSelector = selector.getSimpleSelector();
 					if (evaluateSimpleSelector(simpleSelector, ce)) {
 						if (result == null) {
 							result = new ArrayList<Rule>();
@@ -216,55 +217,42 @@ public class StyleContext {
 	private static boolean evaluateSimpleSelector(SimpleSelector selector, CSSElement ce) {
 		switch (selector.getSelectorType()) {
 		// 要素セレクタ
-		case Selector.SAC_ELEMENT_NODE_SELECTOR: {
+		case ELEMENT_NODE_SELECTOR: {
 			ElementSelector elementSelector = (ElementSelector) selector;
 			if (ce.isPseudoElement()) {
 				return false;
 			}
 
-			String uri = elementSelector.getNamespaceURI();
 			String name = elementSelector.getLocalName();
-
-			if (uri == null) {
-				if (name == null) {
-					return true;
-				}
-				if (ce.uri == null) {
-					return false;
-				}
-				if (ce.uri.equals(XHTML.URI)) {
+			if (name != null) {
+				if (ce.uri != null && ce.uri.equals(XHTML.URI)) {
 					name = name.toLowerCase();
 				}
-				return name.equals(ce.lName);
+				if (!name.equals(ce.lName)) {
+					return false;
+				}
 			}
-
-			return ((name == null || name.equals(ce.lName)) && uri.equals(ce.uri));
+			if (elementSelector.getConditions() != null) {
+				for (Condition condition : elementSelector.getConditions()) {
+					if (!evaluateCondition(condition, ce)) {
+						return false;
+					}
+				}
+			}
+			return true;
 		}
 
 		// 擬似要素セレクタ
-		case Selector.SAC_PSEUDO_ELEMENT_SELECTOR: {
+		case PSEUDO_ELEMENT_SELECTOR: {
 			if (!ce.isPseudoElement()) {
 				return false;
 			}
-			ElementSelector elementSelector = (ElementSelector) selector;
+			PseudoElementSelector elementSelector = (PseudoElementSelector) selector;
 			String name = elementSelector.getLocalName();
 			return name.equals(ce.lName);
 		}
 
-		// 条件セレクタ
-		case Selector.SAC_CONDITIONAL_SELECTOR: {
-			ConditionalSelector conditionalSelector = (ConditionalSelector) selector;
-			return evaluateCondition(conditionalSelector.getCondition(), ce)
-					&& evaluateSimpleSelector(conditionalSelector.getSimpleSelector(), ce);
-		}
-
 		// Not Implemented in CSS2.
-		// case Selector.SAC_ANY_NODE_SELECTOR:
-		// case Selector.SAC_ROOT_NODE_SELECTOR:
-		// case Selector.SAC_CDATA_SECTION_NODE_SELECTOR:
-		// case Selector.SAC_COMMENT_NODE_SELECTOR:
-		// case Selector.SAC_NEGATIVE_SELECTOR:
-		// case Selector.SAC_TEXT_NODE_SELECTOR:
 		default:
 			throw new IllegalStateException(String.valueOf(selector.getSelectorType()));
 		}
@@ -272,24 +260,15 @@ public class StyleContext {
 
 	private static boolean evaluateCondition(Condition condition, CSSElement ce) {
 		switch (condition.getConditionType()) {
-		// AND条件
-		case Condition.SAC_AND_CONDITION: {
-			CombinatorCondition combinatorCondition = (CombinatorCondition) condition;
-			return evaluateCondition(combinatorCondition.getFirstCondition(), ce)
-					&& evaluateCondition(combinatorCondition.getSecondCondition(), ce);
-		}
-
 		// クラス条件
-		case Condition.SAC_CLASS_CONDITION: {
-			AttributeCondition classCondition = (AttributeCondition) condition;
-			String styleClass = classCondition.getValue();
+		case CLASS_CONDITION: {
+			String styleClass = condition.getValue();
 			return ce.isStyleClass(styleClass);
 		}
 
 		// 擬似クラス条件
-		case Condition.SAC_PSEUDO_CLASS_CONDITION: {
-			AttributeCondition classCondition = (AttributeCondition) condition;
-			String pseudoClass = classCondition.getValue();
+		case PSEUDO_CLASS_CONDITION: {
+			String pseudoClass = condition.getValue();
 			if (pseudoClass == null || pseudoClass.length() == 0) {
 				return false;
 			}
@@ -325,48 +304,34 @@ public class StyleContext {
 		}
 
 		// ID条件
-		case Condition.SAC_ID_CONDITION: {
-			AttributeCondition classCondition = (AttributeCondition) condition;
-			String id = classCondition.getValue();
+		case ID_CONDITION: {
+			String id = condition.getValue();
 			return id.equalsIgnoreCase(ce.id);
 		}
 
 		// 属性条件
-		case Condition.SAC_ATTRIBUTE_CONDITION: {
+		case ATTRIBUTE_CONDITION: {
 			if (ce.atts == null) {
 				return false;
 			}
 			AttributeCondition attrCondition = (AttributeCondition) condition;
-			String uri = attrCondition.getNamespaceURI();
 			String name = attrCondition.getLocalName();
-			if (attrCondition.getSpecified()) {
+			if (attrCondition.getValue() != null) {
 				String value = attrCondition.getValue();
-				if (uri == null) {
-					return value.equalsIgnoreCase(ce.atts.getValue(name));
-				}
-				return value.equalsIgnoreCase(ce.atts.getValue(uri, name));
+				return value.equalsIgnoreCase(ce.atts.getValue(name));
 			}
-			if (uri == null) {
-				return ce.atts.getValue(name) != null;
-			}
-			return ce.atts.getValue(uri, name) != null;
+			return ce.atts.getValue(name) != null;
 		}
 
 		// スペース区切り属性値条件
-		case Condition.SAC_ONE_OF_ATTRIBUTE_CONDITION: {
+		case ONE_OF_ATTRIBUTE_CONDITION: {
 			if (ce.atts == null) {
 				return false;
 			}
 			AttributeCondition attrCondition = (AttributeCondition) condition;
-			String uri = attrCondition.getNamespaceURI();
 			String name = attrCondition.getLocalName();
 			String value = attrCondition.getValue();
-			String values;
-			if (uri == null) {
-				values = ce.atts.getValue(name);
-			} else {
-				values = ce.atts.getValue(uri, name);
-			}
+			String values = ce.atts.getValue(name);
 			if (values == null) {
 				return false;
 			}
@@ -379,20 +344,14 @@ public class StyleContext {
 			return false;
 
 		// ハイフン区切り属性値条件
-		case Condition.SAC_BEGIN_HYPHEN_ATTRIBUTE_CONDITION: {
+		case BEGIN_HYPHEN_ATTRIBUTE_CONDITION: {
 			if (ce.atts == null) {
 				return false;
 			}
 			AttributeCondition attrCondition = (AttributeCondition) condition;
-			String uri = attrCondition.getNamespaceURI();
 			String name = attrCondition.getLocalName();
 			String value = attrCondition.getValue();
-			String lang;
-			if (uri == null) {
-				lang = ce.atts.getValue(name);
-			} else {
-				lang = ce.atts.getValue(uri, name);
-			}
+			String lang = ce.atts.getValue(name);
 			if (lang == null) {
 				return false;
 			}
@@ -406,9 +365,9 @@ public class StyleContext {
 		}
 
 		// 言語条件
-		case Condition.SAC_LANG_CONDITION: {
+		case LANG_CONDITION: {
 			LangCondition langCondition = (LangCondition) condition;
-			String value = langCondition.getLang();
+			String value = langCondition.getValue();
 			if (ce.lang == null) {
 				return false;
 			}
@@ -417,13 +376,6 @@ public class StyleContext {
 		}
 
 		// Not Implemented in CSS2.
-		// case Condition.SAC_OR_CONDITION:
-		// case Condition.SAC_NEGATIVE_CONDITION:
-		// case Condition.SAC_CONTENT_CONDITION:
-		// case Condition.SAC_ONLY_CHILD_CONDITION:
-		// case Condition.SAC_ONLY_TYPE_CONDITION:
-		// case Condition.SAC_POSITIONAL_CONDITION:
-
 		default:
 			throw new IllegalStateException(String.valueOf(condition.getConditionType()));
 		}
@@ -452,9 +404,9 @@ class RuleComparator implements Comparator<Object> {
 	public int compare(Object o1, Object o2) {
 		Rule rule1 = (Rule) o1;
 		Rule rule2 = (Rule) o2;
-		int a = rule1.getSpecificity();
-		int b = rule2.getSpecificity();
-		return (a == b) ? 0 : (a < b) ? -1 : 1;
+		SelectorSpecificity a = rule1.getSpecificity();
+		SelectorSpecificity b = rule2.getSpecificity();
+		return a.compareTo(b);
 	}
 
 }

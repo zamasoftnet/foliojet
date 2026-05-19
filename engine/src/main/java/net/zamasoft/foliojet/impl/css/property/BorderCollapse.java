@@ -10,7 +10,7 @@ import net.zamasoft.foliojet.css.util.TableValueUtils;
 import net.zamasoft.foliojet.css.value.BorderCollapseValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

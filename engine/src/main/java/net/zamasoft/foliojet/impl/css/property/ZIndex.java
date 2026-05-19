@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

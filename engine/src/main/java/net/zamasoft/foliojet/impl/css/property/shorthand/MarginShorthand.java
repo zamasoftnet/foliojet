@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.impl.css.property.MarginLeft;
 import net.zamasoft.foliojet.impl.css.property.MarginRight;
 import net.zamasoft.foliojet.impl.css.property.MarginTop;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

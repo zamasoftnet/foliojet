@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.impl.css.property.Direction;
 import net.zamasoft.foliojet.impl.css.property.LineHeight;
 import net.zamasoft.foliojet.impl.css.property.TextIndent;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

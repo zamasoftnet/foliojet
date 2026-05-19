@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

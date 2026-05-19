@@ -6,8 +6,7 @@ import org.gradle.api.tasks.wrapper.Wrapper
 def moduleVersions = [
     foliojet         : '4.0.0-SNAPSHOT',
     engine           : '4.0.0-SNAPSHOT',
-    'html-balancer'  : '1.1.0',
-    'sac'         : '1.3.0'
+    'html-balancer'  : '1.1.0'
 ]
 
 def dependencyVersions = [
@@ -23,7 +22,7 @@ def dependencyVersions = [
     httpmime         : '[4.5.4,)',
     metadataExtractor: '2.19.0',
     imageioJpeg      : '[3.12.0,)',
-    sac              : '1.3',
+    htmlunitCssParser: '4.21.0',
     xmlApis          : '1.4.01',
     xerces           : '2.11.0',
     avalon           : '4.3',
@@ -34,8 +33,7 @@ def dependencyVersions = [
 
 def javaProjectPaths = [
     ':engine',
-    ':html-balancer',
-    ':sac'
+    ':html-balancer'
 ] as Set
 
 def runtimeDependencyCopyProjectPaths = [
@@ -148,7 +146,6 @@ project(':engine') {
         api "net.zamasoft:zstream-resolver:${dependencyVersions.zstream}"
         api "io.github.mimidesunya:pdfg2d-svg:${dependencyVersions.pdfg2d}"
         api project(':html-balancer')
-        api project(':sac')
         api "commons-collections:commons-collections:${dependencyVersions.commonsCollections}"
         api "commons-io:commons-io:${dependencyVersions.commonsIo}"
         api "commons-primitives:commons-primitives:${dependencyVersions.commonsPrimitives}"
@@ -164,7 +161,7 @@ project(':engine') {
         api "org.apache.httpcomponents:httpmime:${dependencyVersions.httpmime}"
         api "com.drewnoakes:metadata-extractor:${dependencyVersions.metadataExtractor}"
         api "com.twelvemonkeys.imageio:imageio-jpeg:${dependencyVersions.imageioJpeg}"
-        api "org.w3c.css:sac:${dependencyVersions.sac}"
+        api "org.htmlunit:htmlunit-cssparser:${dependencyVersions.htmlunitCssParser}"
         api "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
         api "xerces:xercesImpl:${dependencyVersions.xerces}"
         api "avalon-framework:avalon-framework-impl:${dependencyVersions.avalon}"
@@ -203,11 +200,6 @@ project(':engine') {
 project(':html-balancer') {
     dependencies {
         api "net.sourceforge.nekohtml:nekohtml:${dependencyVersions.nekohtml}"
-    }
-}
-
-project(':sac') {
-    dependencies {
     }
 }
 

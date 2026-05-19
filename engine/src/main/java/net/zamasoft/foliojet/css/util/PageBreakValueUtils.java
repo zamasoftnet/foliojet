@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.util;
 
 import net.zamasoft.foliojet.css.value.PageBreakValue;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
 import net.zamasoft.foliojet.impl.css.property.PaddingRight;
 import net.zamasoft.foliojet.impl.css.property.PaddingTop;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

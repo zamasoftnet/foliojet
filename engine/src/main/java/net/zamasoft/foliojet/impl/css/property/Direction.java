@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

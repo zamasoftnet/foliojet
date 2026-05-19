@@ -16,7 +16,7 @@ import net.zamasoft.foliojet.impl.css.property.ListStylePosition;
 import net.zamasoft.foliojet.impl.css.property.ListStyleType;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

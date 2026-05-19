@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
 import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-top"> border-top

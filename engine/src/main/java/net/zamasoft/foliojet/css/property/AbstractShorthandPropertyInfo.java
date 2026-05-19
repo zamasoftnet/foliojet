@@ -7,7 +7,7 @@ import java.util.List;
 import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * Shorthand特性です。

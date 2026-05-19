@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.style.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko

@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.Width;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * HTMLの水平アラインメント相当する内部特性です。

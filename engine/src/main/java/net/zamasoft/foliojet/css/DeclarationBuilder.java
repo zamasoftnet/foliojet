@@ -4,13 +4,15 @@ import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.Property;
 import net.zamasoft.foliojet.css.property.PropertySet;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnits;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.CSSException;
-import net.zamasoft.sac.css.DocumentHandler;
-import net.zamasoft.sac.css.InputSource;
-import net.zamasoft.sac.css.LexicalUnit;
-import net.zamasoft.sac.css.SACMediaList;
-import net.zamasoft.sac.css.SelectorList;
+import org.htmlunit.cssparser.parser.CSSException;
+import org.htmlunit.cssparser.parser.HandlerBase;
+import org.htmlunit.cssparser.parser.InputSource;
+import org.htmlunit.cssparser.parser.Locator;
+import org.htmlunit.cssparser.parser.media.MediaQueryList;
+import org.htmlunit.cssparser.parser.selector.SelectorList;
 
 /**
  * SACイベントからDeclarationオブジェクトを構築します。
@@ -18,7 +20,7 @@ import net.zamasoft.sac.css.SelectorList;
  * @author MIYABE Tatsuhiko
  * @version $Id: DeclarationBuilder.java 1554 2018-04-26 03:34:02Z miyabe $
  */
-public class DeclarationBuilder implements DocumentHandler {
+public class DeclarationBuilder extends HandlerBase {
 	private final UserAgent ua;
 
 	private PropertySet propertySet;
@@ -79,15 +81,15 @@ public class DeclarationBuilder implements DocumentHandler {
 		// ignore
 	}
 
-	public void importStyle(String uri, SACMediaList media, String defaultNamespaceURI) throws CSSException {
+	public void importStyle(String uri, MediaQueryList media, String defaultNamespaceURI) throws CSSException {
 		// ignore
 	}
 
-	public void startMedia(SACMediaList media) throws CSSException {
+	public void startMedia(MediaQueryList media) throws CSSException {
 		// ignore
 	}
 
-	public void endMedia(SACMediaList media) throws CSSException {
+	public void endMedia(MediaQueryList media) throws CSSException {
 		// ignore
 	}
 
@@ -128,6 +130,10 @@ public class DeclarationBuilder implements DocumentHandler {
 			this.declaration.addProperty(property);
 			// System.out.println(property);
 		}
+	}
+
+	public void property(String name, org.htmlunit.cssparser.parser.LexicalUnit value, boolean important, Locator locator) {
+		this.property(name, LexicalUnits.wrap(value), important);
 	}
 
 	protected boolean inProperMedia() {

@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * HTMLの水平アラインメント相当する内部特性です。

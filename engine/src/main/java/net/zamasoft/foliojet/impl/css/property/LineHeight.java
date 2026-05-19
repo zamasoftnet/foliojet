@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-line-height"> line-

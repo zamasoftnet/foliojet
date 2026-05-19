@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageContentValue;
 import net.zamasoft.foliojet.style.util.ByteList;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.sac.css.LexicalUnit;
+import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko
