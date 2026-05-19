@@ -23,6 +23,7 @@ import net.zamasoft.foliojet.impl.ua.AbstractUserAgent;
 import net.zamasoft.foliojet.impl.ua.NopVisitor;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.style.util.IntList;
 import net.zamasoft.foliojet.style.visitor.Visitor;
 import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
@@ -68,9 +69,6 @@ import net.zamasoft.pdfg2d.pdf.params.V1EncryptionParams;
 import net.zamasoft.pdfg2d.pdf.params.V2EncryptionParams;
 import net.zamasoft.pdfg2d.pdf.params.V4EncryptionParams;
 import net.zamasoft.pdfg2d.pdf.params.ViewerPreferences;
-
-import org.apache.commons.collections.primitives.ArrayIntList;
-import org.apache.commons.collections.primitives.IntList;
 
 public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private static final Logger LOG = Logger.getLogger(PDFUserAgent.class.getName());
@@ -521,7 +519,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		String pageRange = UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_PAGE_RANGE.getString(this);
 		if (pageRange != null) {
 			if (params.version().v >= PDFParams.Version.V_1_7.v) {
-				IntList ranges = new ArrayIntList();
+				IntList ranges = new IntList();
 				try {
 					for (StringTokenizer st = new StringTokenizer(pageRange, ", "); st.hasMoreTokens();) {
 						String token = st.nextToken();

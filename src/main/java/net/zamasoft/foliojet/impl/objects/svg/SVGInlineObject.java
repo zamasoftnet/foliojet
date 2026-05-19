@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.impl.ua.svg.SVGImageLoader;
 import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.xml.xerces.Xerces2Parser;
+import net.zamasoft.foliojet.xml.util.XMLParsers;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 
@@ -33,7 +33,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory implements InlineObje
 			}
 		}
 		try {
-			this.parser = Xerces2Parser.createXMLReader();
+			this.parser = XMLParsers.createXMLReader();
 		} catch (Exception e) {
 			// ignore
 		}

@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.ErrorListener;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
@@ -35,7 +37,6 @@ import net.zamasoft.foliojet.xml.util.XMLUtils;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 
-import org.apache.xerces.parsers.DOMParser;
 import org.w3c.dom.Document;
 import org.xml.sax.Attributes;
 import org.xml.sax.Locator;
@@ -108,25 +109,31 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 			// 後で不定期にアクセスされることがあるので、メモリにキャッシュする
 			Source source = this.ua.resolve(uri);
 			try {
-				DOMParser parser = new DOMParser();
-				parser.setFeature("http://xml.org/sax/features/external-general-entities", false);
-				parser.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-				parser.setFeature("http://xml.org/sax/features/namespaces", true);
-				parser.setFeature("http://xml.org/sax/features/validation", false);
-				try {
-					parser.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-				} catch (Exception e) {
-					LOG.log(Level.WARNING, "Xercesではありません", e);
-				}
+				DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+				factory.setNamespaceAware(true);
+				factory.setValidating(false);
+				this.setFeature(factory, "http://xml.org/sax/features/external-general-entities", false);
+				this.setFeature(factory, "http://xml.org/sax/features/external-parameter-entities", false);
+				this.setFeature(factory, "http://xml.org/sax/features/namespaces", true);
+				this.setFeature(factory, "http://xml.org/sax/features/validation", false);
+				this.setFeature(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
 
-				parser.parse(XMLUtils.toSAXInputSource(source));
-				Document doc = parser.getDocument();
+				DocumentBuilder parser = factory.newDocumentBuilder();
+				Document doc = parser.parse(XMLUtils.toSAXInputSource(source));
 				return new DOMSource(doc, uri.toString());
 			} finally {
 				this.ua.release(source);
 			}
 		} catch (Exception e) {
 			throw new TransformerException(e);
+		}
+	}
+
+	private void setFeature(DocumentBuilderFactory factory, String key, boolean value) {
+		try {
+			factory.setFeature(key, value);
+		} catch (Exception e) {
+			LOG.log(Level.FINE, "サポートされない機能です", e);
 		}
 	}
 
@@ -223,11 +230,7 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 	}
 
 	private void applyXSLT(URI uri) throws SAXException, IOException, TransformerConfigurationException {
-		SAXTransformerFactory tf;
-		// tf = (SAXTransformerFactory)
-		// javax.xml.transform.TransformerFactory.newInstance();
-		tf = new org.apache.xalan.processor.TransformerFactoryImpl();
-		// tf = new net.sf.saxon.TransformerFactoryImpl();
+		SAXTransformerFactory tf = XSLTUtils.createTransformerFactory();
 		if (LOG.isLoggable(Level.FINE)) {
 			LOG.fine("Using transformer: " + tf);
 		}

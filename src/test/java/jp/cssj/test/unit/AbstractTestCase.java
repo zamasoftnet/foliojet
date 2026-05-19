@@ -26,14 +26,9 @@ import net.zamasoft.zstream.io.FragmentedOutput;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import junit.framework.TestCase;
 
-import org.apache.xerces.parsers.XML11Configuration;
-
 public abstract class AbstractTestCase extends TestCase implements
 		MessageHandler {
 	static {
-		System.setProperty(
-				"org.apache.xerces.xni.parser.XMLParserConfiguration",
-				XML11Configuration.class.getName());
 		System.setProperty("jp.cssj.copper.config",
 				System.getProperty("jp.cssj.copper.config", "build/conf"));
 		System.setProperty("jp.cssj.driver.default",

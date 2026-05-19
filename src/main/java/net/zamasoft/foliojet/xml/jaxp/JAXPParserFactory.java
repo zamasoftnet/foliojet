@@ -1,14 +1,13 @@
-package net.zamasoft.foliojet.xml.xerces;
+package net.zamasoft.foliojet.xml.jaxp;
 
 import jp.cssj.cti2.helpers.MimeTypeHelper;
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
 
 /**
- * @author MIYABE Tatsuhiko
- * @version $Id: XMLParserFactory.java 1552 2018-04-26 01:43:24Z miyabe $
+ * 標準JAXPによるXMLパーサーファクトリです。
  */
-public class XMLParserFactory implements ParserFactory {
+public class JAXPParserFactory implements ParserFactory {
 	public boolean match(String key) {
 		String mimeType = (String) key;
 		if (MimeTypeHelper.equals("text/xml", mimeType) || MimeTypeHelper.equals("application/xml", mimeType)
@@ -20,6 +19,6 @@ public class XMLParserFactory implements ParserFactory {
 	}
 
 	public Parser createParser() {
-		return new Xerces2Parser();
+		return new JAXPParser();
 	}
 }

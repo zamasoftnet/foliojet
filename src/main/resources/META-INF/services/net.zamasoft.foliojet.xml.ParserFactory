@@ -1,2 +1,2 @@
-net.zamasoft.foliojet.xml.xerces.XMLParserFactory
+net.zamasoft.foliojet.xml.jaxp.JAXPParserFactory
 net.zamasoft.foliojet.xml.html.HTMLParserFactory

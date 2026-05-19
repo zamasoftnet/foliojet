@@ -3,45 +3,41 @@ package net.zamasoft.foliojet.driver;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.Authenticator;
+import java.net.CookieManager;
+import java.net.HttpCookie;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.ProxySelector;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.Charset;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.http.Header;
-import org.apache.http.HttpException;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.AuthState;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.impl.cookie.BasicClientCookie;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.protocol.HttpContext;
+import java.util.Map.Entry;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Base64;
 
 import net.zamasoft.foliojet.message.MessageHandler;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.SourceResolver;
+import net.zamasoft.zstream.resolver.SourceValidity;
 import net.zamasoft.zstream.resolver.cache.CachedSourceResolver;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
+import net.zamasoft.zstream.resolver.util.AbstractSource;
 import net.zamasoft.zstream.resolver.util.SourceWrapper;
-import net.zamasoft.zstream.resolver.protocol.http.HTTPSource;
-import net.zamasoft.zstream.resolver.protocol.http.HTTPSourceResolver;
 import net.zamasoft.zstream.resolver.restricted.RestrictedSourceResolver;
 
 class MySourceResolver implements SourceResolver {
@@ -67,54 +63,27 @@ class MySourceResolver implements SourceResolver {
 			httpResolver.addHeader(name, value);
 		}
 
-		RequestConfig.Builder config = httpResolver.config;
-		CredentialsProvider credsProvider = httpResolver.credsProvider;
-		config.setConnectionRequestTimeout(UAProps.INPUT_HTTP_CONNECTION_TIMEOUT.getInteger(props, mh));
-		config.setSocketTimeout(UAProps.INPUT_HTTP_SOCKET_TIMEOUT.getInteger(props, mh));
+		httpResolver.setConnectionTimeout(UAProps.INPUT_HTTP_CONNECTION_TIMEOUT.getInteger(props, mh));
+		httpResolver.setRequestTimeout(UAProps.INPUT_HTTP_SOCKET_TIMEOUT.getInteger(props, mh));
 
 		// プロクシ
 		String proxyHost = UAProps.INPUT_HTTP_PROXY_HOST.getString(props);
 		if (proxyHost != null) {
 			int proxyPort = UAProps.INPUT_HTTP_PROXY_PORT.getInteger(props, mh);
-			HttpHost proxy = new HttpHost(proxyHost, proxyPort);
-			config.setProxy(proxy);
+			httpResolver.setProxy(proxyHost, proxyPort);
 			String user = UAProps.INPUT_HTTP_PROXY_AUTHENTICATION_USER.getString(props);
 			String password = UAProps.INPUT_HTTP_PROXY_AUTHENTICATION_PASSWORD.getString(props);
 			if (password == null) {
 				password = "";
 			}
 			if (user != null) {
-				Credentials credentials = new UsernamePasswordCredentials(user, password);
-				credsProvider.setCredentials(new AuthScope(proxyHost, proxyPort), credentials);
+				httpResolver.addAuthentication(proxyHost, proxyPort, user, password);
 			}
 		}
 
 		// 認証
-		httpResolver.preemptiveAuth = null;
 		boolean preemptive = UAProps.INPUT_HTTP_AUTHENTICATION_PREEMPTIVE.getBoolean(props, mh);
-		if (preemptive) {
-			HttpRequestInterceptor preemptiveAuth = new HttpRequestInterceptor() {
-				public void process(final HttpRequest request, final HttpContext context)
-						throws HttpException, IOException {
-					HttpClientContext clientContext = (HttpClientContext) context;
-					AuthState authState = clientContext.getTargetAuthState();
-					CredentialsProvider credsProvider = clientContext.getCredentialsProvider();
-					HttpHost targetHost = clientContext.getTargetHost();
-					// If not auth scheme has been initialized yet
-					if (authState.getAuthScheme() == null) {
-						AuthScope authScope = new AuthScope(targetHost.getHostName(), targetHost.getPort());
-						// Obtain credentials matching the target host
-						Credentials creds = credsProvider.getCredentials(authScope);
-						// If found, generate BasicScheme preemptively
-						if (creds != null) {
-							authState.update(new BasicScheme(), creds);
-						}
-					}
-				}
-
-			};
-			httpResolver.preemptiveAuth = preemptiveAuth;
-		}
+		httpResolver.setPreemptiveAuthentication(preemptive);
 		for (int i = 0;; ++i) {
 			String prefix = UAProps.INPUT_HTTP_AUTHENTICATION + i + ".";
 			String host = (String) props.get(prefix + "host");
@@ -136,16 +105,12 @@ class MySourceResolver implements SourceResolver {
 					port = -1;
 				}
 			}
-			String realm = (String) props.get(prefix + "realm");
-			String scheme = (String) props.get(prefix + "scheme");
 			String password = (String) props.get(prefix + "password");
 			if (password == null) {
 				password = "";
 			}
 
-			AuthScope authScope = new AuthScope(host, port, realm, scheme);
-			Credentials credentials = new UsernamePasswordCredentials(user, password);
-			credsProvider.setCredentials(authScope, credentials);
+			httpResolver.addAuthentication(host, port, user, password);
 		}
 
 		// Cookie
@@ -168,11 +133,7 @@ class MySourceResolver implements SourceResolver {
 				path = "/";
 			}
 
-			BasicClientCookie cookie = new BasicClientCookie(name, value);
-			cookie.setDomain(domain);
-			cookie.setPath(path);
-			cookie.setSecure(false);
-			httpResolver.cookieStore.addCookie(cookie);
+			httpResolver.addCookie(domain, path, name, value);
 		}
 
 		resolver.addSourceResolver("http", httpResolver);
@@ -253,14 +214,17 @@ class MySource extends SourceWrapper {
 	}
 }
 
-class MyHttpSourceResolver extends HTTPSourceResolver {
-	protected RequestConfig.Builder config = RequestConfig.custom();
-	protected CredentialsProvider credsProvider = new BasicCredentialsProvider();
-	protected CookieStore cookieStore = new BasicCookieStore();
-	protected HttpRequestInterceptor preemptiveAuth = null;
+class MyHttpSourceResolver implements SourceResolver {
+	private int connectionTimeout = 0;
+	private int requestTimeout = 0;
+	private String proxyHost = null;
+	private int proxyPort = -1;
+	private final CookieManager cookieManager = new CookieManager();
+	private final List<HttpCredential> credentials = new ArrayList<HttpCredential>();
+	private boolean preemptiveAuth = false;
 	protected URI refURI = null;
 
-	protected List<Header> headers = null;
+	protected List<Entry<String, String>> headers = null;
 
 	public void setReferer(URI refURI) {
 		this.refURI = refURI;
@@ -268,48 +232,283 @@ class MyHttpSourceResolver extends HTTPSourceResolver {
 
 	public void addHeader(String name, String value) {
 		if (this.headers == null) {
-			this.headers = new ArrayList<Header>();
+			this.headers = new ArrayList<Entry<String, String>>();
 		}
-		this.headers.add(new BasicHeader(name, value));
+		this.headers.add(new SimpleImmutableEntry<String, String>(name, value));
 	}
 
-	protected CloseableHttpClient createHttpClient() {
-		HttpClientBuilder builder = HttpClientBuilder.create();
-		final PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
-		builder.setConnectionManager(cm);
-		builder.setDefaultRequestConfig(this.config.build());
-		builder.setDefaultCredentialsProvider(this.credsProvider);
-		builder.setDefaultCookieStore(this.cookieStore);
-		if (this.preemptiveAuth != null) {
-			builder.addInterceptorFirst(this.preemptiveAuth);
+	public void setConnectionTimeout(int timeout) {
+		this.connectionTimeout = timeout;
+	}
+
+	public void setRequestTimeout(int timeout) {
+		this.requestTimeout = timeout;
+	}
+
+	public void setProxy(String host, int port) {
+		this.proxyHost = host;
+		this.proxyPort = port;
+	}
+
+	public void addAuthentication(String host, int port, String user, String password) {
+		this.credentials.add(new HttpCredential(host, port, user, password));
+	}
+
+	public void setPreemptiveAuthentication(boolean preemptiveAuth) {
+		this.preemptiveAuth = preemptiveAuth;
+	}
+
+	public void addCookie(String domain, String path, String name, String value) {
+		HttpCookie cookie = new HttpCookie(name, value);
+		cookie.setDomain(domain);
+		cookie.setPath(path);
+		this.cookieManager.getCookieStore().add(URI.create("http://" + domain), cookie);
+	}
+
+	protected HttpClient createHttpClient() {
+		HttpClient.Builder builder = HttpClient.newBuilder();
+		if (this.connectionTimeout > 0) {
+			builder.connectTimeout(Duration.ofMillis(this.connectionTimeout));
 		}
-		final CloseableHttpClient client = builder.build();
-		return client;
+		if (this.proxyHost != null) {
+			builder.proxy(ProxySelector.of(new InetSocketAddress(this.proxyHost, this.proxyPort)));
+		}
+		builder.cookieHandler(this.cookieManager);
+		if (!this.credentials.isEmpty()) {
+			builder.authenticator(new Authenticator() {
+				protected PasswordAuthentication getPasswordAuthentication() {
+					for (HttpCredential credential : credentials) {
+						if (credential.matches(this.getRequestingHost(), this.getRequestingPort())) {
+							return new PasswordAuthentication(credential.user, credential.password.toCharArray());
+						}
+					}
+					return null;
+				}
+			});
+		}
+		return builder.build();
 	}
 
 	public Source resolve(URI uri) throws IOException {
-		final CloseableHttpClient client = this.createHttpClient();
-		final MyHttpSource source = new MyHttpSource(uri, client);
-		return source;
+		return new MyHttpSource(uri, this.createHttpClient());
 	}
 
-	class MyHttpSource extends HTTPSource {
-		public MyHttpSource(URI uri, CloseableHttpClient httpClient) {
-			super(uri, httpClient);
+	public void release(Source source) {
+		try {
+			source.close();
+		} catch (IOException e) {
+			// ignore
+		}
+	}
+
+	private HttpRequest createHttpRequest(URI uri) {
+		HttpRequest.Builder builder = HttpRequest.newBuilder(uri).GET();
+		if (this.requestTimeout > 0) {
+			builder.timeout(Duration.ofMillis(this.requestTimeout));
+		}
+		if (this.preemptiveAuth) {
+			HttpCredential credential = this.findCredential(uri.getHost(), uri.getPort());
+			if (credential != null) {
+				String raw = credential.user + ":" + credential.password;
+				builder.header("Authorization", "Basic " + Base64.getEncoder().encodeToString(raw.getBytes(Charset.forName("ISO-8859-1"))));
+			}
+		}
+		if (refURI != null && !refURI.equals(uri)) {
+			builder.header("Referer", refURI.toASCIIString());
+		}
+		if (headers != null) {
+			for (int i = 0; i < headers.size(); ++i) {
+				Entry<String, String> header = headers.get(i);
+				builder.header(header.getKey(), header.getValue());
+			}
+		}
+		return builder.build();
+	}
+
+	private HttpCredential findCredential(String host, int port) {
+		for (HttpCredential credential : this.credentials) {
+			if (credential.matches(host, port)) {
+				return credential;
+			}
+		}
+		return null;
+	}
+
+	private static class HttpCredential {
+		final String host;
+		final int port;
+		final String user;
+		final String password;
+
+		HttpCredential(String host, int port, String user, String password) {
+			this.host = host;
+			this.port = port;
+			this.user = user;
+			this.password = password;
 		}
 
-		protected HttpUriRequest createHttpRequest() {
-			HttpUriRequest req = super.createHttpRequest();
-			if (refURI != null && !refURI.equals(this.uri)) {
-				req.addHeader("Referer", refURI.toASCIIString());
+		boolean matches(String host, int port) {
+			return this.host.equalsIgnoreCase(host) && (this.port == -1 || this.port == port);
+		}
+	}
+
+	class MyHttpSource extends AbstractSource {
+		private final HttpClient httpClient;
+		private HttpResponse<InputStream> response;
+		private InputStream in;
+		private String mimeType;
+		private String encoding;
+		private boolean exists;
+		private long lastModified = -1;
+		private long contentLength = -1;
+
+		MyHttpSource(URI uri, HttpClient httpClient) {
+			super(uri);
+			this.httpClient = httpClient;
+		}
+
+		public String getMimeType() throws IOException {
+			this.tryConnect();
+			return this.mimeType;
+		}
+
+		public String getEncoding() throws IOException {
+			this.tryConnect();
+			return this.encoding;
+		}
+
+		public long getLength() throws IOException {
+			this.tryConnect();
+			return this.contentLength;
+		}
+
+		public boolean exists() throws IOException {
+			this.tryConnect();
+			return this.exists;
+		}
+
+		public boolean isInputStream() throws IOException {
+			return true;
+		}
+
+		public boolean isReader() throws IOException {
+			this.tryConnect();
+			return this.encoding != null;
+		}
+
+		public synchronized InputStream getInputStream() throws IOException {
+			this.close();
+			this.tryConnect();
+			this.in = this.response.body();
+			if (this.in == null) {
+				throw new FileNotFoundException();
 			}
-			if (headers != null) {
-				for (int i = 0; i < headers.size(); ++i) {
-					Header header = (Header) headers.get(i);
-					req.addHeader(header);
+			return this.in;
+		}
+
+		public Reader getReader() throws IOException {
+			this.tryConnect();
+			if (this.encoding == null) {
+				throw new UnsupportedOperationException("Encoding not set");
+			}
+			return new InputStreamReader(this.getInputStream(), this.encoding);
+		}
+
+		public File getFile() {
+			throw new UnsupportedOperationException();
+		}
+
+		public SourceValidity getValidity() {
+			return new HttpValidity(this.lastModified);
+		}
+
+		public synchronized void close() throws IOException {
+			if (this.in != null) {
+				this.in.close();
+			} else if (this.response != null && this.response.body() != null) {
+				this.response.body().close();
+			}
+			this.in = null;
+			this.response = null;
+		}
+
+		private void tryConnect() throws IOException {
+			if (this.response != null) {
+				return;
+			}
+			try {
+				this.response = this.httpClient.send(createHttpRequest(this.uri), HttpResponse.BodyHandlers.ofInputStream());
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IOException(e);
+			}
+			this.exists = this.response.statusCode() != 404;
+			this.mimeType = this.response.headers().firstValue("Content-Type").orElse(null);
+			this.encoding = parseCharset(this.mimeType);
+			this.contentLength = this.response.headers().firstValueAsLong("Content-Length").orElse(-1);
+			this.lastModified = parseLastModified(this.response.headers().firstValue("Last-Modified").orElse(null));
+		}
+
+		private String parseCharset(String contentType) {
+			if (contentType == null) {
+				return null;
+			}
+			String[] parts = contentType.split(";");
+			for (int i = 1; i < parts.length; ++i) {
+				String part = parts[i].trim();
+				int eq = part.indexOf('=');
+				if (eq != -1 && part.substring(0, eq).trim().equalsIgnoreCase("charset")) {
+					String charset = part.substring(eq + 1).trim();
+					if (charset.length() >= 2 && charset.startsWith("\"") && charset.endsWith("\"")) {
+						charset = charset.substring(1, charset.length() - 1);
+					}
+					try {
+						if (!charset.equalsIgnoreCase("ISO-8859-1") && Charset.isSupported(charset)) {
+							return charset;
+						}
+					} catch (Exception e) {
+						return null;
+					}
 				}
 			}
-			return req;
+			return null;
+		}
+
+		private long parseLastModified(String lastModified) {
+			if (lastModified == null) {
+				return -1;
+			}
+			try {
+				return Date.from(ZonedDateTime.parse(lastModified, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant())
+						.getTime();
+			} catch (Exception e) {
+				return -1;
+			}
+		}
+	}
+
+	private static class HttpValidity implements SourceValidity {
+		private static final long serialVersionUID = 0;
+
+		private final long lastModified;
+
+		HttpValidity(long lastModified) {
+			this.lastModified = lastModified;
+		}
+
+		public Validity getValid() {
+			return Validity.UNKNOWN;
+		}
+
+		public Validity getValid(SourceValidity validity) {
+			if (!(validity instanceof HttpValidity)) {
+				return Validity.UNKNOWN;
+			}
+			long other = ((HttpValidity) validity).lastModified;
+			if (this.lastModified == -1 || other == -1) {
+				return Validity.UNKNOWN;
+			}
+			return this.lastModified == other ? Validity.VALID : Validity.INVALID;
 		}
 	}
 }

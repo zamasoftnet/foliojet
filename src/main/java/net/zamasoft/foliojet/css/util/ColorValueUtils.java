@@ -7,14 +7,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections.primitives.ArrayDoubleList;
-
 import net.zamasoft.foliojet.css.value.BackgroundAttachmentValue;
 import net.zamasoft.foliojet.css.value.BackgroundRepeatValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.css.value.css3.BackgroundClipValue;
 import net.zamasoft.foliojet.css.value.css3.LinearGradientValue;
+import net.zamasoft.foliojet.style.util.DoubleList;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.CMYKColor;
 import net.zamasoft.pdfg2d.gc.paint.Color;
@@ -1241,7 +1240,7 @@ public final class ColorValueUtils {
 			}
 
 			List<Color> colors = new ArrayList<Color>();
-			ArrayDoubleList fracs = new ArrayDoubleList();
+			DoubleList fracs = new DoubleList();
 
 			for (;;) {
 				if (lu.getLexicalUnitType() == LexicalUnit.SAC_PERCENTAGE || lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_COMMA) {

@@ -19,7 +19,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /* NoAndroid begin */
-import org.apache.xerces.xni.XMLLocator;
 import org.xml.sax.Attributes;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
@@ -40,6 +39,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPdfHyperlinksHref;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.Constants;
+import net.zamasoft.foliojet.xml.SourceLocator;
 import net.zamasoft.foliojet.xml.StyleSheetSelector;
 import net.zamasoft.foliojet.xml.XMLHandler;
 import net.zamasoft.foliojet.xml.ext.CSSJML;
@@ -113,7 +113,7 @@ public class CSSProcessor implements XMLHandler {
 
 	private Map<String, String> namespaces = new HashMap<String, String>();
 
-	private XMLLocator xniLocator;
+	private SourceLocator sourceLocator;
 
 	private Locator saxLocator;
 
@@ -228,8 +228,7 @@ public class CSSProcessor implements XMLHandler {
 	}
 
 	public void setDocumentLocator(Locator locator) {
-		// SAXのLocatorではCharacterOffsetを取得できないのでJNIのLocatorを使う
-		this.xniLocator = net.zamasoft.foliojet.xml.Parser.XML_LOCATOR.get();
+		this.sourceLocator = net.zamasoft.foliojet.xml.Parser.SOURCE_LOCATOR.get();
 		this.saxLocator = locator;
 	}
 
@@ -381,7 +380,7 @@ public class CSSProcessor implements XMLHandler {
 		// System.err.println("CSSP: "+qName);
 		this.requireBuilder();
 
-		int charOffset = this.xniLocator.getCharacterOffset();
+		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
 		// System.out.println(charOffset+"/"+qName);
 
 		if (this.events != null) {
@@ -398,7 +397,10 @@ public class CSSProcessor implements XMLHandler {
 			return;
 		}
 
-		int charOffset = this.xniLocator.getCharacterOffset() - len;
+		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
+		if (charOffset != -1) {
+			charOffset -= len;
+		}
 		// System.out.println(charOffset+"/"+new String(ch, off, len));
 
 		if (this.events != null) {

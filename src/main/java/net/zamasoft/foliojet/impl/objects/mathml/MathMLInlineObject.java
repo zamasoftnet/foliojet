@@ -10,7 +10,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import net.zamasoft.foliojet.css.InlineObject;
 import net.zamasoft.foliojet.impl.ua.svg.SVGImageLoader;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.xml.xerces.Xerces2Parser;
+import net.zamasoft.foliojet.xml.util.XMLParsers;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 import net.sourceforge.jeuclid.MathMLParserSupport;
@@ -27,7 +27,7 @@ public class MathMLInlineObject extends SAXDocumentFactory implements InlineObje
 		super(MathMLParserSupport.createDocumentBuilder().getDOMImplementation(),
 				XMLResourceDescriptor.getXMLParserClassName());
 		try {
-			this.parser = Xerces2Parser.createXMLReader();
+			this.parser = XMLParsers.createXMLReader();
 		} catch (Exception e) {
 			// ignore
 		}

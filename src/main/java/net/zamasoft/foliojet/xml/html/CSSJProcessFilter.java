@@ -2,12 +2,12 @@ package net.zamasoft.foliojet.xml.html;
 
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
 
-import org.apache.xerces.xni.Augmentations;
-import org.apache.xerces.xni.QName;
-import org.apache.xerces.xni.XMLAttributes;
-import org.apache.xerces.xni.XMLString;
-import org.apache.xerces.xni.XNIException;
-import org.cyberneko.html.filters.DefaultFilter;
+import org.htmlunit.cyberneko.xerces.xni.Augmentations;
+import org.htmlunit.cyberneko.xerces.xni.QName;
+import org.htmlunit.cyberneko.xerces.xni.XMLAttributes;
+import org.htmlunit.cyberneko.xerces.xni.XMLString;
+import org.htmlunit.cyberneko.xerces.xni.XNIException;
+import org.htmlunit.cyberneko.filters.DefaultFilter;
 
 /**
  * STYLEの中身はテキストとして解釈する。 lNameが空の場合は適当な値を入れる
@@ -22,26 +22,40 @@ class CSSJPreprocessFilter extends DefaultFilter {
 
 	public void startElement(QName element, XMLAttributes atts, Augmentations augs) throws XNIException {
 		// System.out.println(element);
-		if (XHTML.STYLE_ELEM.equals(element.uri, element.localpart)) {
+		if (XHTML.STYLE_ELEM.equals(element.getUri(), element.getLocalpart())) {
 			this.inStyle = true;
 		}
-		if (element.localpart.length() == 0) {
-			element.localpart = DEFAULT;
-			element.rawname += element.localpart;
+		if (element.getLocalpart().length() == 0) {
+			element.setValues(element.getPrefix(), DEFAULT, element.getRawname() + DEFAULT, element.getUri());
 		}
 		for (int i = 0; i < atts.getLength(); ++i) {
-			if (atts.getLocalName(i).length() == 0) {
-				QName qName = new QName();
-				qName.prefix = atts.getPrefix(i);
-				qName.localpart = DEFAULT;
-				if (qName.prefix.length() == 0) {
-					qName.rawname = qName.localpart;
-				} else {
-					qName.rawname = qName.prefix + ":" + qName.localpart;
-				}
-				qName.uri = atts.getURI(i);
-				atts.setName(i, qName);
+			QName attrName = atts.getName(i);
+			String prefix = attrName.getPrefix();
+			if (prefix == null) {
+				prefix = "";
 			}
+			String localName = attrName.getLocalpart();
+			if (localName == null) {
+				localName = "";
+			}
+			String rawName = attrName.getRawname();
+			if (rawName == null) {
+				rawName = localName;
+			}
+			String uri = attrName.getUri();
+			if (uri == null) {
+				uri = "";
+			}
+			if (localName.length() == 0) {
+				if (prefix.length() == 0) {
+					rawName = DEFAULT;
+				} else {
+					rawName = prefix + ":" + DEFAULT;
+				}
+				localName = DEFAULT;
+			}
+			attrName.setValues(prefix, localName, rawName, uri);
+			atts.setName(i, attrName);
 		}
 		super.startElement(element, atts, augs);
 	}
@@ -56,9 +70,8 @@ class CSSJPreprocessFilter extends DefaultFilter {
 
 	public void endElement(QName element, Augmentations augs) throws XNIException {
 		this.inStyle = false;
-		if (element.localpart.length() == 0) {
-			element.localpart = DEFAULT;
-			element.rawname += element.localpart;
+		if (element.getLocalpart().length() == 0) {
+			element.setValues(element.getPrefix(), DEFAULT, element.getRawname() + DEFAULT, element.getUri());
 		}
 		super.endElement(element, augs);
 	}

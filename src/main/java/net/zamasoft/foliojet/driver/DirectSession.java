@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -29,7 +30,6 @@ import java.util.logging.Logger;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 
@@ -53,6 +53,7 @@ import net.zamasoft.foliojet.ua.UserAgentFactory;
 import net.zamasoft.foliojet.ua.UserAgentFactory.Type;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
+import net.zamasoft.foliojet.xml.xslt.XSLTUtils;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.SourceResolver;
@@ -65,7 +66,6 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.pdf.font.ConfigurablePDFFontSourceManager;
 import net.zamasoft.pdfg2d.pdf.font.PDFFontSource;
 
-import org.apache.commons.collections.map.LRUMap;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.input.TeeInputStream;
@@ -115,8 +115,8 @@ public class DirectSession extends AbstractCTISession
 
 	private File profileFile;
 
-	@SuppressWarnings("unchecked")
-	private static final Map<File, FontSourceManager> FONT_CACHE = Collections.synchronizedMap(new LRUMap());
+	private static final Map<File, FontSourceManager> FONT_CACHE = Collections
+			.synchronizedMap(new LRUCache<File, FontSourceManager>(32));
 
 	private UserAgent ua;
 
@@ -132,10 +132,25 @@ public class DirectSession extends AbstractCTISession
 		// ignore
 	}
 
+	private static class LRUCache<K, V> extends LinkedHashMap<K, V> {
+		private static final long serialVersionUID = 0;
+
+		private final int maxEntries;
+
+		LRUCache(int maxEntries) {
+			super(maxEntries + 1, 0.75f, true);
+			this.maxEntries = maxEntries;
+		}
+
+		protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+			return this.size() > this.maxEntries;
+		}
+	}
+
 	public InputStream getServerInfo(URI uri) throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		try {
-			TransformerHandler handler = (TransformerHandler) SAXTransformerFactory.newInstance().newTransformer();
+			TransformerHandler handler = XSLTUtils.createIdentityTransformerHandler();
 			handler.setResult(new StreamResult(out));
 			Transformer tr = handler.getTransformer();
 			tr.setOutputProperty(OutputKeys.METHOD, "xml");

@@ -4,6 +4,9 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.sax.SAXTransformerFactory;
+import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamSource;
 
 import net.zamasoft.zstream.resolver.Source;
@@ -26,6 +29,14 @@ public final class XSLTUtils {
 			traxSource = new StreamSource(source.getInputStream(), source.getURI().toString());
 		}
 		return traxSource;
+	}
+
+	public static SAXTransformerFactory createTransformerFactory() {
+		return new net.sf.saxon.TransformerFactoryImpl();
+	}
+
+	public static TransformerHandler createIdentityTransformerHandler() throws TransformerConfigurationException {
+		return createTransformerFactory().newTransformerHandler();
 	}
 
 	public static StreamSource toStreamSource(Source source) throws IOException {

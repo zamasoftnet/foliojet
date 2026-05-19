@@ -5,13 +5,6 @@ import java.io.IOException;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.Source;
 
-/* NoAndroid begin */
-import org.apache.xerces.xni.XMLLocator;
-/* NoAndroid end */
-/* Android begin *//*
-					import mf.org.apache.xerces.xni.XMLLocator;
-					*//* Android end */
-
 import org.xml.sax.SAXException;
 
 /**
@@ -21,7 +14,7 @@ import org.xml.sax.SAXException;
  * @version $Id: Parser.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface Parser {
-	public static final ThreadLocal<XMLLocator> XML_LOCATOR = new ThreadLocal<XMLLocator>();
+	public static final ThreadLocal<SourceLocator> SOURCE_LOCATOR = new ThreadLocal<SourceLocator>();
 
 	/**
 	 * ドキュメントを解析してSAXイベントを生成します。
