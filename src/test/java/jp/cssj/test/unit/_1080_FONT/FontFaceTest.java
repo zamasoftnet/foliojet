@@ -21,7 +21,10 @@ public class FontFaceTest extends AbstractTestCase {
 			System.err.println("x/"+x);
 			System.err.println("width/"+box.getWidth());
 			assertEquals(186, x, 1);
-			assertEquals(245, box.getWidth(), 1);
+			// 14文字 × 18pt (36ptフォントの半角0.5em)。
+			// 旧値245はTrueTypeGlyphListのarraycopy不具合でグリフ取得が
+			// 失敗していた時期の値。
+			assertEquals(252, box.getWidth(), 1);
 			return true;
 		}
 		return false;
