@@ -8,16 +8,15 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -80,8 +79,7 @@ public class DirectSession extends AbstractCTISession
 		implements CTISession, MessageHandler, net.zamasoft.foliojet.message.MessageHandler {
 	private static final Logger LOG = Logger.getLogger(DirectSession.class.getName());
 
-	private static final Set<String> SPECIAL_PROPERTIES = new HashSet<String>(
-			Arrays.asList(new String[] { UAProps.INPUT_INCLUDE, UAProps.INPUT_EXCLUDE }));
+	private static final Set<String> SPECIAL_PROPERTIES = Set.of(UAProps.INPUT_INCLUDE, UAProps.INPUT_EXCLUDE);
 
 	/** バージョン情報のURIです。 */
 	private static final URI VERSION_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/version");
@@ -91,6 +89,8 @@ public class DirectSession extends AbstractCTISession
 
 	/** 利用可能なフォント情報のURIです。 */
 	private static final URI FONTS_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/fonts");
+
+	private static final int PIPE_BUFFER_SIZE = 64 * 1024;
 
 	private Results results = null;
 
@@ -102,16 +102,11 @@ public class DirectSession extends AbstractCTISession
 
 	private final MySourceResolver resolver = new MySourceResolver();
 
-	private class PipeThread extends Thread {
-		IOException exception;
-		final PipedOutputStream out;
+	private Thread pipeThread = null;
 
-		PipeThread(PipedOutputStream out) {
-			this.out = out;
-		}
-	}
+	private PipedOutputStream pipeOut = null;
 
-	private PipeThread th = null;
+	private IOException pipeException = null;
 
 	private File profileFile;
 
@@ -232,45 +227,21 @@ public class DirectSession extends AbstractCTISession
 					}
 					atts.addAttribute("", "weight", "weight", "CDATA", String.valueOf(font.getWeight()));
 					if (font instanceof PDFFontSource) {
-						String typeStr;
-						PDFFontSource.Type type = ((PDFFontSource) font).getType();
-						switch (type) {
-						case MISSING:
-							typeStr = "missing";
-							break;
-						case EMBEDDED:
-							typeStr = "embedded";
-							break;
-						case CORE:
-							typeStr = "core";
-							break;
-						case CID_KEYED:
-							typeStr = "cid-keyed";
-							break;
-						case CID_IDENTITY:
-							typeStr = "cid-identity";
-							break;
-						default:
-							throw new IllegalStateException();
-						}
+						String typeStr = switch (((PDFFontSource) font).getType()) {
+						case MISSING -> "missing";
+						case EMBEDDED -> "embedded";
+						case CORE -> "core";
+						case CID_KEYED -> "cid-keyed";
+						case CID_IDENTITY -> "cid-identity";
+						};
 						atts.addAttribute("", "type", "type", "CDATA", String.valueOf(typeStr));
 					}
 
-					String directionStr;
-					FontStyle.Direction direction = font.getDirection();
-					switch (direction) {
-					case LTR:
-						directionStr = "ltr";
-						break;
-					case RTL:
-						directionStr = "rtl";
-						break;
-					case TB:
-						directionStr = "tb";
-						break;
-					default:
-						throw new IllegalStateException();
-					}
+					String directionStr = switch (font.getDirection()) {
+					case LTR -> "ltr";
+					case RTL -> "rtl";
+					case TB -> "tb";
+					};
 					atts.addAttribute("", "direction", "direction", "CDATA", String.valueOf(directionStr));
 
 					handler.startElement("", "font", "font", atts);
@@ -437,25 +408,24 @@ public class DirectSession extends AbstractCTISession
 			}
 		};
 		final String outputType = UAProps.OUTPUT_TYPE.getString(this.props);
-		final PipedInputStream in = new PipedInputStream(out);
-		this.th = new PipeThread(out) {
-			public void run() {
-				try {
-					InputStream xin = in;
-					if (DirectSession.this.progressListener != null) {
-						if (metaSource.getLength() != -1L) {
-							DirectSession.this.progressListener.sourceLength(metaSource.getLength());
-						}
-						xin = new BufferedInputStream(new ProgressInputStream(in, DirectSession.this.progressListener));
+		final PipedInputStream in = new PipedInputStream(out, PIPE_BUFFER_SIZE);
+		this.pipeOut = out;
+		this.pipeException = null;
+		this.pipeThread = Thread.ofVirtual().name("foliojet-direct-session").start(() -> {
+			try {
+				InputStream xin = in;
+				if (DirectSession.this.progressListener != null) {
+					if (metaSource.getLength() != -1L) {
+						DirectSession.this.progressListener.sourceLength(metaSource.getLength());
 					}
-					Source source = new StreamSource(metaSource.getURI(), xin, outputType, metaSource.getEncoding());
-					DirectSession.this.transcode(source);
-				} catch (IOException e) {
-					this.exception = e;
+					xin = new BufferedInputStream(new ProgressInputStream(in, DirectSession.this.progressListener));
 				}
+				Source source = new StreamSource(metaSource.getURI(), xin, outputType, metaSource.getEncoding());
+				DirectSession.this.transcode(source);
+			} catch (IOException e) {
+				DirectSession.this.pipeException = e;
 			}
-		};
-		this.th.start();
+		});
 		return out;
 	}
 
@@ -609,18 +579,25 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	protected void flush() throws IOException, TranscoderException {
-		if (this.th != null) {
+		Thread thread = this.pipeThread;
+		if (thread != null) {
 			try {
-				this.th.join();
+				thread.join();
 			} catch (InterruptedException e) {
-				// ignore
+				Thread.currentThread().interrupt();
+				InterruptedIOException ioe = new InterruptedIOException("Interrupted while waiting for transcode pipe");
+				ioe.initCause(e);
+				throw ioe;
+			} finally {
+				this.pipeThread = null;
+				this.pipeOut = null;
 			}
 			try {
-				if (this.th.exception != null) {
-					throw this.th.exception;
+				if (this.pipeException != null) {
+					throw this.pipeException;
 				}
 			} finally {
-				this.th = null;
+				this.pipeException = null;
 			}
 		}
 	}
@@ -657,8 +634,9 @@ public class DirectSession extends AbstractCTISession
 		try {
 			if (this.ua != null) {
 				this.abort(ABORT_FORCE);
-				if (this.th != null) {
-					this.th.out.close();
+				PipedOutputStream out = this.pipeOut;
+				if (out != null) {
+					out.close();
 				}
 			}
 		} finally {
