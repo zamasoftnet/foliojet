@@ -7,3 +7,6 @@ target/
 .vscode/
 .project
 .classpath
+# AIエージェント用ローカルガイド（git管理外）
+AGENTS.md
+CLAUDE.md
