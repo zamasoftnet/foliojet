@@ -81,7 +81,7 @@ public class Declaration implements Serializable, Cloneable {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for (int i = 0; i < this.properties.size(); ++i) {
 			buff.append(this.properties.get(i));
 			buff.append(";\n");

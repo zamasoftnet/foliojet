@@ -249,7 +249,7 @@ public class CSSStyle {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer(super.toString());
+		StringBuilder buff = new StringBuilder(super.toString());
 		buff.append("\n").append(this.ce).append("\n");
 		if (this.values != null) {
 			buff.append("values[");
@@ -281,8 +281,8 @@ public class CSSStyle {
 
 	public String path() {
 		// String disp = this.get(Display.INFO).toString();
-		// StringBuffer disp = new StringBuffer(this.ce.toString());
-		StringBuffer disp = new StringBuffer(String.valueOf(this.ce.lName));
+		// StringBuilder disp = new StringBuilder(this.ce.toString());
+		StringBuilder disp = new StringBuilder(String.valueOf(this.ce.lName));
 		if (this.isAnonStyle()) {
 			disp.insert(0, '(');
 			disp.append(')');

@@ -43,7 +43,7 @@ public class StyleContext {
 	}
 
 	private static String elementStr(CSSElement ce) {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		if (ce.lName != null) {
 			buff.append(ce.lName);
 		} else {

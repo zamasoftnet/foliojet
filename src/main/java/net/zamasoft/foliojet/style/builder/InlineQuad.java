@@ -160,7 +160,7 @@ public abstract class InlineQuad extends Quad {
 
 		public String getString() {
 			if (this.text == null) {
-				StringBuffer textBuff = new StringBuffer();
+				StringBuilder textBuff = new StringBuilder();
 				this.box.getText(textBuff);
 				this.text = textBuff.toString();
 			}

@@ -18,7 +18,7 @@ public class QuotesTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			System.err.println(text);
 			assertEquals("テキスト「引用」テキスト", text.toString());
@@ -29,7 +29,7 @@ public class QuotesTest extends AbstractTestCase {
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			System.err.println(text);
 			assertEquals("テキスト「」引用テキスト", text.toString());

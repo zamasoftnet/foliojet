@@ -77,7 +77,7 @@ public class Insets {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		buff.append("[top=");
 		switch (this.getTopType()) {
 		case TYPE_ABSOLUTE:

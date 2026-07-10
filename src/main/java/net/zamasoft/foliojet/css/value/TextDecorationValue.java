@@ -47,7 +47,7 @@ public class TextDecorationValue implements Value {
 		if (this.flags == 0) {
 			return "none";
 		}
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		if ((this.flags & UNDERLINE) != 0) {
 			buff.append("underline ");
 		}

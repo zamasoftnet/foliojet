@@ -19,7 +19,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer textBuff = new StringBuffer();
+			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
 			System.out.println(text);
@@ -31,7 +31,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer textBuff = new StringBuffer();
+			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
 			System.out.println(text);
@@ -43,7 +43,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer textBuff = new StringBuffer();
+			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
 			System.out.println(text);
@@ -57,7 +57,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer textBuff = new StringBuffer();
+			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
 			System.out.println(text);

@@ -183,7 +183,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 	}
 
-	public final void getText(StringBuffer textBuff) {
+	public final void getText(StringBuilder textBuff) {
 		if (this.rows == null) {
 			return;
 		}

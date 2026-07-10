@@ -168,7 +168,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
-	public final void getText(StringBuffer textBuff) {
+	public final void getText(StringBuilder textBuff) {
 		for (int i = 0; i < this.lines.size(); ++i) {
 			Line line = (Line) this.lines.get(i);
 			line.box.getText(textBuff);

@@ -253,7 +253,7 @@ public abstract class AbstractVisitor implements Visitor {
 					int level = Integer.parseInt(header);
 					SectionState state = this.ua.getPassContext().getSectionState();
 
-					StringBuffer textBuff = new StringBuffer();
+					StringBuilder textBuff = new StringBuilder();
 					box.getText(textBuff);
 					String title;
 					if (textBuff.length() == 0) {

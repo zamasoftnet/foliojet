@@ -702,7 +702,7 @@ public final class HTMLStyleUtils {
 		} catch (Exception e) {
 			// ignore
 		}
-		StringBuffer buff = new StringBuffer(str.length());
+		StringBuilder buff = new StringBuilder(str.length());
 		int i = 0;
 		for (; i < str.length(); ++i) {
 			char c = str.charAt(i);

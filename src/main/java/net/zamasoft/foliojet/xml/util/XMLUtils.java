@@ -122,7 +122,7 @@ public final class XMLUtils {
 			if (in.read() != ' ') {
 				continue;
 			}
-			StringBuffer buff = new StringBuffer();
+			StringBuilder buff = new StringBuilder();
 			for (; i < 80; ++i) {
 				int c = in.read();
 				if (c != '>') {
@@ -174,7 +174,7 @@ public final class XMLUtils {
 	 * @return
 	 */
 	public static String parsePseudoAttributes(char[] ch, int off, int len, AttributesImpl atts) throws ParseException {
-		StringBuffer data = null, name = null, value = null, escape = null;
+		StringBuilder data = null, name = null, value = null, escape = null;
 		short state = 0;
 		char delim = '"';
 		for (int i = 0; i < len; ++i) {
@@ -182,10 +182,10 @@ public final class XMLUtils {
 			switch (state) {
 			case 0:// 初期状態
 				if (c == '[') {
-					data = new StringBuffer();
+					data = new StringBuilder();
 					state = 9;
 				} else if (!Character.isWhitespace(c) && c != ',') {
-					name = new StringBuffer();
+					name = new StringBuilder();
 					name.append(c);
 					state = 1;
 				}
@@ -193,7 +193,7 @@ public final class XMLUtils {
 
 			case 1:// 名前を解析中
 				if (c == '=') {
-					value = new StringBuffer();
+					value = new StringBuilder();
 					state = 2;
 				} else if (!Character.isWhitespace(c)) {
 					name.append(c);
@@ -218,7 +218,7 @@ public final class XMLUtils {
 					name = value = null;
 					state = 0;
 				} else if (c == '&') {
-					escape = new StringBuffer();
+					escape = new StringBuilder();
 					state = 4;
 				} else {
 					value.append(c);
@@ -332,7 +332,7 @@ public final class XMLUtils {
 	 * @return
 	 */
 	public static String escapePseudeAttr(String val) {
-		StringBuffer result = new StringBuffer(val.length());
+		StringBuilder result = new StringBuilder(val.length());
 		for (int i = 0; i < val.length(); ++i) {
 			char c = val.charAt(i);
 			switch (c) {
@@ -360,7 +360,7 @@ public final class XMLUtils {
 	 * @return
 	 */
 	public static String escapePseudeData(String val) {
-		StringBuffer result = new StringBuffer(val.length());
+		StringBuilder result = new StringBuilder(val.length());
 		for (int i = 0; i < val.length(); ++i) {
 			char c = val.charAt(i);
 			switch (c) {

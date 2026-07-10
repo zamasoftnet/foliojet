@@ -30,7 +30,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 
 	private List<String[]> pis = new ArrayList<String[]>();
 
-	private StringBuffer contentBuff;
+	private StringBuilder contentBuff;
 
 	private AttributesImpl atts = new AttributesImpl();
 
@@ -186,13 +186,13 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 							media = "all";
 						}
 						if (this.ua.is(media)) {
-							this.contentBuff = new StringBuffer();
+							this.contentBuff = new StringBuilder();
 						}
 					}
 				}
 			} else if (lName.equals(XHTML.TITLE_ELEM.lName)) {
 				// タイトル
-				this.contentBuff = new StringBuffer();
+				this.contentBuff = new StringBuilder();
 			} else if (lName.equals(XHTML.META_ELEM.lName)) {
 				// 文字コード
 				final String charset = atts.getValue(XHTML.URI, "charset");
@@ -263,7 +263,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					String title = atts.getValue(XHTML.URI, "title");
 					String mediaTypes = atts.getValue(XHTML.URI, "media");
 					String charset = atts.getValue(XHTML.URI, "charset");
-					StringBuffer data = new StringBuffer();
+					StringBuilder data = new StringBuilder();
 					if (type != null) {
 						data.append(" type='");
 						data.append(XMLUtils.escapePseudeAttr(type));

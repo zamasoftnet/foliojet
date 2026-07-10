@@ -54,7 +54,7 @@ public class Offset {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		buff.append("[x=");
 		switch (this.getXType()) {
 		case TYPE_ABSOLUTE:

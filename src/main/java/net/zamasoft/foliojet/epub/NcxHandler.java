@@ -11,7 +11,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 class NcxHandler extends DefaultHandler {
 	final Toc toc = new Toc();
-	private StringBuffer textBuff = null;
+	private StringBuilder textBuff = null;
 	private boolean inText = false;
 	private final List<List<NavPoint>> stack = new ArrayList<List<NavPoint>>();
 	private final Map<String, Item> fullPathToItem;
@@ -26,7 +26,7 @@ class NcxHandler extends DefaultHandler {
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		if (uri.equals(EPubFile.NCX_URI)) {
 			if (lName.equals("text")) {
-				this.textBuff = new StringBuffer();
+				this.textBuff = new StringBuilder();
 				this.inText = true;
 			} else if (lName.equals("navPoint")) {
 				NavPoint navPoint = new NavPoint();

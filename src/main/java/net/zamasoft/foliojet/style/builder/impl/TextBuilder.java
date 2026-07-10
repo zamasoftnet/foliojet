@@ -625,7 +625,7 @@ public class TextBuilder {
 			final AbstractLineBox lineBox = this.lineBox;
 			final LineBox newLineBox = lineBox.splitLine(this.textBlockBox.getBlockParams());
 
-			// StringBuffer text = new StringBuffer();
+			// StringBuilder text = new StringBuilder();
 			// lineBox.getText(text);
 			// System.out.println("endLine: " + this.maxLineAxis+"/"+text);
 

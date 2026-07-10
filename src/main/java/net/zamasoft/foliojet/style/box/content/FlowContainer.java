@@ -1062,7 +1062,7 @@ public class FlowContainer implements Container {
 		return nextBox;
 	}
 
-	public final void getText(StringBuffer textBuff) {
+	public final void getText(StringBuilder textBuff) {
 		if (this.flows == null) {
 			return;
 		}

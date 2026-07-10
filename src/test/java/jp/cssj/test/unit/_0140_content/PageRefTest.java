@@ -20,7 +20,7 @@ public class PageRefTest extends AbstractTestCase {
 
 	public boolean check_aa(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			assertEquals("4,8", text.toString());
 			return true;
@@ -30,7 +30,7 @@ public class PageRefTest extends AbstractTestCase {
 
 	public boolean check_bb(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			assertEquals("4,8", text.toString());
 			return true;
@@ -40,7 +40,7 @@ public class PageRefTest extends AbstractTestCase {
 
 	public boolean check_cc(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			assertEquals("6", text.toString());
 			return true;

@@ -22,7 +22,7 @@ public class Version {
 				this.version = in.readLine();
 				this.build = in.readLine();
 				this.copyrights = in.readLine();
-				StringBuffer credits = new StringBuffer();
+				StringBuilder credits = new StringBuilder();
 				String line;
 				while ((line = in.readLine()) != null) {
 					credits.append(line);

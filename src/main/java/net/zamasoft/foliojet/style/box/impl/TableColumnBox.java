@@ -64,7 +64,7 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		drawer.visitDrawable(drawable, x, y);
 	}
 
-	public final void getText(final StringBuffer textBuff) {
+	public final void getText(final StringBuilder textBuff) {
 		// ignore
 	}
 

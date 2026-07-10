@@ -436,7 +436,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
-	public final void getText(final StringBuffer textBuff) {
+	public final void getText(final StringBuilder textBuff) {
 		if (this.headerGroupBox != null) {
 			this.headerGroupBox.getText(textBuff);
 		}

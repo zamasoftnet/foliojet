@@ -109,7 +109,7 @@ public interface IBox {
 	/**
 	 * 内部のテキストを返します。
 	 */
-	public void getText(StringBuffer textBuff);
+	public void getText(StringBuilder textBuff);
 
 	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d);
 }

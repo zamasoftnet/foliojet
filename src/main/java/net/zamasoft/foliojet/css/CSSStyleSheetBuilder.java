@@ -386,11 +386,11 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 	}
 
 	private static String toMediaTypes(MediaQueryList media) {
-		StringBuffer buff = null;
+		StringBuilder buff = null;
 		for (MediaQuery query : media.getMediaQueries()) {
 			String medium = query.getMedia();
 			if (buff == null) {
-				buff = new StringBuffer(medium);
+				buff = new StringBuilder(medium);
 			} else {
 				buff.append(' ');
 				buff.append(medium);

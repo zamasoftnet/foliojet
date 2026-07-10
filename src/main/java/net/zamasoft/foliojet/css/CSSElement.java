@@ -207,7 +207,7 @@ public class CSSElement {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		buff.append(super.toString());
 		buff.append("@uri='");
 		buff.append(this.uri);

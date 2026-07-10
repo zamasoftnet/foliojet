@@ -1732,7 +1732,7 @@ public class StyleBuilder implements PageGenerator {
 						counts.add(count);
 					}
 				}
-				StringBuffer buff = new StringBuffer();
+				StringBuilder buff = new StringBuilder();
 				for (int j = 0; j < counts.size(); ++j) {
 					if (buff.length() > 0) {
 						buff.append(sep);

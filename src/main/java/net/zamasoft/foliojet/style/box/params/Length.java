@@ -41,7 +41,7 @@ public class Length {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		buff.append("[length=");
 		switch (this.getType()) {
 		case TYPE_ABSOLUTE:

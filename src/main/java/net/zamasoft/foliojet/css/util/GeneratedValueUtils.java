@@ -296,7 +296,7 @@ public final class GeneratedValueUtils {
 		}
 
 		String numstr = String.valueOf(number);
-		StringBuffer result = new StringBuffer();
+		StringBuilder result = new StringBuilder();
 		// generation
 		for (int i = 0; i < numstr.length(); i++) {
 			result.append(ROMAN_TABLE[numstr.length() - i - 1][Integer.parseInt(String.valueOf(numstr.charAt(i)))]);
@@ -328,7 +328,7 @@ public final class GeneratedValueUtils {
 		}
 
 		String numstr = String.valueOf(number);
-		StringBuffer result = new StringBuffer();
+		StringBuilder result = new StringBuilder();
 		// generation
 		for (int i = 0; i < numstr.length(); i++) {
 			result.append(KANSUJI_TABLE[numstr.length() - i - 1][Integer.parseInt(String.valueOf(numstr.charAt(i)))]);

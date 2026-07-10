@@ -11,7 +11,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 class NavHandler extends DefaultHandler {
 	final Toc toc = new Toc();
-	private StringBuffer textBuff = null;
+	private StringBuilder textBuff = null;
 	private final List<List<NavPoint>> stack = new ArrayList<List<NavPoint>>();
 	private final Map<String, Item> fullPathToItem;
 	private final URI base;
@@ -35,13 +35,13 @@ class NavHandler extends DefaultHandler {
 						this.navDepth = 1;
 					}
 				} else if (lName.equals("title")) {
-					this.textBuff = new StringBuffer();
+					this.textBuff = new StringBuilder();
 				}
 			} else {
 				if (lName.equals("a")) {
 					String href = atts.getValue("href");
 					if (href != null) {
-						this.textBuff = new StringBuffer();
+						this.textBuff = new StringBuilder();
 						List<NavPoint> list = this.stack.get(this.stack.size() - 2);
 						NavPoint navPoint = list.get(list.size() - 1);
 						navPoint.uri = this.base.resolve(href);

@@ -18,7 +18,7 @@ class OpfHandler extends DefaultHandler {
 	Contents contents = new Contents();
 
 	boolean inMetadata = false;
-	StringBuffer textBuff = null;
+	StringBuilder textBuff = null;
 	String uniqueIdentifier, id, refines, propkey;
 
 	Map<String, String> meta = new HashMap<String, String>();
@@ -36,7 +36,7 @@ class OpfHandler extends DefaultHandler {
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		if (this.inMetadata) {
-			this.textBuff = new StringBuffer();
+			this.textBuff = new StringBuilder();
 			this.id = atts.getValue("id");
 			this.refines = atts.getValue("refines");
 			if (uri.equals(EPubFile.OPF_URI)) {

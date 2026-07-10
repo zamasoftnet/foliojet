@@ -18,7 +18,7 @@ public class CountersTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_TEXT_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			System.err.println(text);
 			assertEquals("2.1 item", text.toString());
@@ -29,7 +29,7 @@ public class CountersTest extends AbstractTestCase {
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_TEXT_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			System.err.println(text);
 			assertEquals("2.3.1 item", text.toString());
@@ -40,7 +40,7 @@ public class CountersTest extends AbstractTestCase {
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_TEXT_BLOCK) {
-			StringBuffer text = new StringBuffer();
+			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			System.err.println(text);
 			assertEquals("1 item", text.toString());

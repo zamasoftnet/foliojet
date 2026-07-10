@@ -51,7 +51,7 @@ public class Dimension {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		buff.append("[width=");
 		switch (this.getWidthType()) {
 		case TYPE_ABSOLUTE:

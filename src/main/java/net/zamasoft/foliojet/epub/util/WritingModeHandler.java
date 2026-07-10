@@ -74,13 +74,13 @@ public class WritingModeHandler extends XMLFilterImpl {
 			this.attsi.setAttributes(atts);
 			atts = this.attsi;
 			int classIndex = this.attsi.getIndex("", "class");
-			StringBuffer classBuff;
+			StringBuilder classBuff;
 			if (classIndex != -1) {
-				classBuff = new StringBuffer(this.attsi.getValue(classIndex));
+				classBuff = new StringBuilder(this.attsi.getValue(classIndex));
 				this.attsi.removeAttribute(classIndex);
 				classBuff.append(' ');
 			} else {
-				classBuff = new StringBuffer();
+				classBuff = new StringBuilder();
 			}
 			classBuff.append("x-epub-").append(type);
 			this.attsi.addAttribute("", "class", "class", "CDATA", classBuff.toString());

@@ -70,7 +70,7 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 	}
 
 	public String toString() {
-		StringBuffer str = new StringBuffer();
+		StringBuilder str = new StringBuilder();
 		str.append(this.getLength(this.getUnitType()));
 		switch (this.getUnitType()) {
 		case UNIT_IN:

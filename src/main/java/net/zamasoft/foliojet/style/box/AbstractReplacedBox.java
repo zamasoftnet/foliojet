@@ -286,7 +286,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 	}
 
-	public final void getText(final StringBuffer textBuff) {
+	public final void getText(final StringBuilder textBuff) {
 		String str = this.getReplacedParams().image.getAltString();
 		if (str != null) {
 			textBuff.append(str);

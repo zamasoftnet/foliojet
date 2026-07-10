@@ -20,7 +20,7 @@ public class ImageMap extends ArrayList<Area> {
 		}
 		
 		public String toString() {
-			StringBuffer buff = new StringBuffer();
+			StringBuilder buff = new StringBuilder();
 			buff.append("href="+this.href);
 			buff.append(";shape="+this.shape);
 			return buff.toString();

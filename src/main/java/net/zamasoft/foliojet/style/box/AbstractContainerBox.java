@@ -324,7 +324,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.splitPage(nextContainer, pageLimit, flags);
 	}
 
-	public final void getText(StringBuffer textBuff) {
+	public final void getText(StringBuilder textBuff) {
 		this.container.getText(textBuff);
 	}
 	

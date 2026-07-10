@@ -64,7 +64,7 @@ public interface Container {
 
 	public Floatings splitFloatings(double pageLimit, byte flags);
 
-	public void getText(StringBuffer textBuff);
+	public void getText(StringBuilder textBuff);
 
 	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y);
 

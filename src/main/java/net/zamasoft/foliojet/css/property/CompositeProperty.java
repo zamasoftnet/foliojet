@@ -75,7 +75,7 @@ public class CompositeProperty implements Property {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer(this.name + ":");
+		StringBuilder buff = new StringBuilder(this.name + ":");
 		for (int i = 0; i < this.entries.length; ++i) {
 			Entry entry = this.entries[i];
 			buff.append(' ');

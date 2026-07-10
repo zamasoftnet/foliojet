@@ -310,7 +310,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		}
 	}
 
-	public final void getText(StringBuffer textBuff) {
+	public final void getText(StringBuilder textBuff) {
 		if (this.cells == null) {
 			return;
 		}

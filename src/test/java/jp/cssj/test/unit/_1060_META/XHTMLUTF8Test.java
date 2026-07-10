@@ -18,7 +18,7 @@ public class XHTMLUTF8Test extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == IBox.TYPE_BLOCK) {
-			StringBuffer buff = new StringBuffer();
+			StringBuilder buff = new StringBuilder();
 			box.getText(buff);
 			assertEquals("テスト", buff.toString().trim());
 			return true;

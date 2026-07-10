@@ -460,7 +460,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 		private void missingFont(Text text) {
 			final String c = new String(text.getChars(), 0, text.getCharCount());
-			final StringBuffer codes = new StringBuffer();
+			final StringBuilder codes = new StringBuilder();
 			for (int j = 0; j < c.length(); ++j) {
 				codes.append("[").append(Integer.toHexString(c.charAt(j))).append("]");
 			}
@@ -633,7 +633,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				this.descent);
 	}
 
-	public final void getText(final StringBuffer textBuff) {
+	public final void getText(final StringBuilder textBuff) {
 		if (this.types != null && !this.types.isEmpty()) {
 			for (int i = 0; i < this.types.size(); ++i) {
 				switch (this.types.get(i)) {
@@ -873,7 +873,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	private void missingFontOutline(final PageBox pageBox, final Text text) {
 		final String c = new String(text.getChars(), 0, text.getCharCount());
-		final StringBuffer codes = new StringBuffer();
+		final StringBuilder codes = new StringBuilder();
 		for (int j = 0; j < c.length(); ++j) {
 			codes.append("[").append(Integer.toHexString(c.charAt(j))).append("]");
 		}
@@ -1112,7 +1112,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public String toString() {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		if (this.contents != null) {
 			for (int i = 0; i < this.contents.size(); ++i) {
 				buff.append(this.contents.get(i));

@@ -374,7 +374,7 @@ public final class FontValueUtils {
 	public static FontFamilyValue toFontFamily(String str) {
 		List<FontFamily> list = new ArrayList<FontFamily>();
 		int state = 0;
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for (int i = 0; i <= str.length(); ++i) {
 			String ident;
 			if (i < str.length()) {
@@ -398,7 +398,7 @@ public final class FontValueUtils {
 				case 1:
 					if (c == '\'') {
 						ident = buff.toString().trim();
-						buff = new StringBuffer();
+						buff = new StringBuilder();
 						state = 0;
 						break;
 					}
@@ -407,7 +407,7 @@ public final class FontValueUtils {
 				case 2:
 					if (c == '\"') {
 						ident = buff.toString().trim();
-						buff = new StringBuffer();
+						buff = new StringBuilder();
 						state = 0;
 						break;
 					}
@@ -416,7 +416,7 @@ public final class FontValueUtils {
 				case 3:
 					if (Character.isWhitespace(c)) {
 						ident = buff.toString().trim();
-						buff = new StringBuffer();
+						buff = new StringBuilder();
 						state = 0;
 						break;
 					}

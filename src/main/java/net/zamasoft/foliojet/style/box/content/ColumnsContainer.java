@@ -217,7 +217,7 @@ public class ColumnsContainer implements Container {
 		}
 	}
 
-	public void getText(StringBuffer textBuff) {
+	public void getText(StringBuilder textBuff) {
 		for (int i = 0; i < this.columns.size(); ++i) {
 			FlowContainer container = (FlowContainer) this.columns.get(i);
 			container.getText(textBuff);

@@ -44,7 +44,7 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 		}
 
 		public String toString() {
-			StringBuffer buff = new StringBuffer();
+			StringBuilder buff = new StringBuilder();
 			for (int i = 0; i < this.entries.size(); ++i) {
 				Entry e = (Entry) this.entries.get(i);
 				buff.append(e).append(' ');
