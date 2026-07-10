@@ -4,7 +4,6 @@ import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -136,8 +135,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 		if (this.props == null) {
 			return null;
 		}
-		String value = (String) this.props.get(name);
-		return value;
+		return this.props.get(name);
 	}
 
 	public final void setProperty(String name, String value) {
@@ -146,7 +144,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			if (value == null || value.length() == 0) {
 				return;
 			}
-			this.props = new HashMap<String, String>();
+			this.props = new HashMap<>();
 		}
 		if (value == null || value.length() == 0) {
 			this.props.remove(name);
@@ -157,20 +155,19 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	public final void setProperties(Map<String, String> props) {
 		this.props = null;
-		for (Iterator<Entry<String, String>> i = props.entrySet().iterator(); i.hasNext();) {
-			Entry<String, String> e = i.next();
-			this.setProperty((String) e.getKey(), (String) e.getValue());
+		for (Entry<String, String> e : props.entrySet()) {
+			this.setProperty(e.getKey(), e.getValue());
 		}
 
 		// メタ情報
 		if (this.props != null) {
 			for (int i = 0;; ++i) {
 				String prefix = UAProps.OUTPUT_META + i + ".";
-				String name = (String) this.props.get(prefix + "name");
+				String name = this.props.get(prefix + "name");
 				if (name == null) {
 					break;
 				}
-				String value = (String) this.props.get(prefix + "value");
+				String value = this.props.get(prefix + "value");
 				this.meta(name, value);
 			}
 		}
@@ -262,30 +259,16 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	public final double getFontSize(byte absoluteFontSize) {
 		double size = this.mediumFontSize.getLength();
-		switch (absoluteFontSize) {
-		case FONT_SIZE_XX_SMALL:
-			size = size * 3 / 5;
-			break;
-		case FONT_SIZE_X_SMALL:
-			size = size * 3 / 4;
-			break;
-		case FONT_SIZE_SMALL:
-			size = size * 8 / 9;
-			break;
-		case FONT_SIZE_MEDIUM:
-			break;
-		case FONT_SIZE_LARGE:
-			size = size * 6 / 5;
-			break;
-		case FONT_SIZE_X_LARGE:
-			size = size * 3 / 2;
-			break;
-		case FONT_SIZE_XX_LARGE:
-			size = size * 2;
-			break;
-		default:
-			throw new IllegalArgumentException();
-		}
+		size = switch (absoluteFontSize) {
+		case FONT_SIZE_XX_SMALL -> size * 3 / 5;
+		case FONT_SIZE_X_SMALL -> size * 3 / 4;
+		case FONT_SIZE_SMALL -> size * 8 / 9;
+		case FONT_SIZE_MEDIUM -> size;
+		case FONT_SIZE_LARGE -> size * 6 / 5;
+		case FONT_SIZE_X_LARGE -> size * 3 / 2;
+		case FONT_SIZE_XX_LARGE -> size * 2;
+		default -> throw new IllegalArgumentException();
+		};
 		return size * this.getFontMagnification();
 	}
 
@@ -482,9 +465,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	protected Image loadImage(final Source source) throws IOException {
-		final ImageLoader loader = (ImageLoader) PluginRegistry.getInstance().search(ImageLoader.class, source);
-		final Image image = loader.loadImage(this, source);
-		return image;
+		final ImageLoader loader = PluginRegistry.getInstance().search(ImageLoader.class, source);
+		if (loader == null) {
+			throw new IOException("Unsupported image source: " + source.getURI());
+		}
+		return loader.loadImage(this, source);
 	}
 
 	public Image getImage(final Source source) throws IOException {

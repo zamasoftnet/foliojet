@@ -27,6 +27,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Base64;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import net.zamasoft.foliojet.message.MessageHandler;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -44,10 +49,13 @@ class MySourceResolver implements SourceResolver {
 	protected CachedSourceResolver cachedResolver = new CachedSourceResolver();
 	protected SourceResolver userResolver = null;
 	protected RestrictedSourceResolver restrictedResolver = new RestrictedSourceResolver();
+	private MyHttpSourceResolver httpResolver = null;
 
 	public void setup(URI uri, Map<String, String> props, MessageHandler mh) {
+		this.closeHttpResolver();
 		CompositeSourceResolver resolver = CompositeSourceResolver.createGenericCompositeSourceResolver();
 		MyHttpSourceResolver httpResolver = new MyHttpSourceResolver();
+		this.httpResolver = httpResolver;
 		if (UAProps.INPUT_HTTP_REFERER.getBoolean(props, mh)) {
 			httpResolver.setReferer(uri);
 		}
@@ -159,9 +167,18 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	public void reset() {
+		this.closeHttpResolver();
 		this.restrictedResolver.reset();
 		this.cachedResolver.reset();
 		this.userResolver = null;
+	}
+
+	private void closeHttpResolver() {
+		if (this.httpResolver == null) {
+			return;
+		}
+		this.httpResolver.close();
+		this.httpResolver = null;
 	}
 
 	/**
@@ -195,10 +212,6 @@ class MySourceResolver implements SourceResolver {
 		((MySource) source).release();
 	}
 
-	protected void finalize() throws Throwable {
-		this.reset();
-		super.finalize();
-	}
 }
 
 class MySource extends SourceWrapper {
@@ -225,6 +238,8 @@ class MyHttpSourceResolver implements SourceResolver {
 	protected URI refURI = null;
 
 	protected List<Entry<String, String>> headers = null;
+	private HttpClient httpClient = null;
+	private ExecutorService executor = null;
 
 	public void setReferer(URI refURI) {
 		this.refURI = refURI;
@@ -265,8 +280,9 @@ class MyHttpSourceResolver implements SourceResolver {
 		this.cookieManager.getCookieStore().add(URI.create("http://" + domain), cookie);
 	}
 
-	protected HttpClient createHttpClient() {
+	protected HttpClient createHttpClient(ExecutorService executor) {
 		HttpClient.Builder builder = HttpClient.newBuilder();
+		builder.executor(executor);
 		if (this.connectionTimeout > 0) {
 			builder.connectTimeout(Duration.ofMillis(this.connectionTimeout));
 		}
@@ -289,8 +305,16 @@ class MyHttpSourceResolver implements SourceResolver {
 		return builder.build();
 	}
 
+	private synchronized HttpClient httpClient() {
+		if (this.httpClient == null) {
+			this.executor = Executors.newVirtualThreadPerTaskExecutor();
+			this.httpClient = this.createHttpClient(this.executor);
+		}
+		return this.httpClient;
+	}
+
 	public Source resolve(URI uri) throws IOException {
-		return new MyHttpSource(uri, this.createHttpClient());
+		return new MyHttpSource(uri, this.httpClient(), this.createHttpRequest(uri));
 	}
 
 	public void release(Source source) {
@@ -299,6 +323,14 @@ class MyHttpSourceResolver implements SourceResolver {
 		} catch (IOException e) {
 			// ignore
 		}
+	}
+
+	public synchronized void close() {
+		if (this.executor != null) {
+			this.executor.shutdownNow();
+			this.executor = null;
+		}
+		this.httpClient = null;
 	}
 
 	private HttpRequest createHttpRequest(URI uri) {
@@ -354,6 +386,8 @@ class MyHttpSourceResolver implements SourceResolver {
 
 	class MyHttpSource extends AbstractSource {
 		private final HttpClient httpClient;
+		private final HttpRequest request;
+		private CompletableFuture<HttpResponse<InputStream>> responseFuture;
 		private HttpResponse<InputStream> response;
 		private InputStream in;
 		private String mimeType;
@@ -362,9 +396,11 @@ class MyHttpSourceResolver implements SourceResolver {
 		private long lastModified = -1;
 		private long contentLength = -1;
 
-		MyHttpSource(URI uri, HttpClient httpClient) {
+		MyHttpSource(URI uri, HttpClient httpClient, HttpRequest request) {
 			super(uri);
 			this.httpClient = httpClient;
+			this.request = request;
+			this.startConnection();
 		}
 
 		public String getMimeType() throws IOException {
@@ -397,7 +433,10 @@ class MyHttpSourceResolver implements SourceResolver {
 		}
 
 		public synchronized InputStream getInputStream() throws IOException {
-			this.close();
+			if (this.response != null || this.in != null) {
+				this.close();
+				this.startConnection();
+			}
 			this.tryConnect();
 			this.in = this.response.body();
 			if (this.in == null) {
@@ -428,25 +467,43 @@ class MyHttpSourceResolver implements SourceResolver {
 			} else if (this.response != null && this.response.body() != null) {
 				this.response.body().close();
 			}
+			if (this.responseFuture != null && !this.responseFuture.isDone()) {
+				this.responseFuture.cancel(true);
+			}
 			this.in = null;
 			this.response = null;
+			this.responseFuture = null;
 		}
 
-		private void tryConnect() throws IOException {
+		private synchronized void tryConnect() throws IOException {
 			if (this.response != null) {
 				return;
 			}
+			if (this.responseFuture == null) {
+				this.startConnection();
+			}
 			try {
-				this.response = this.httpClient.send(createHttpRequest(this.uri), HttpResponse.BodyHandlers.ofInputStream());
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				throw new IOException(e);
+				this.response = this.responseFuture.join();
+			} catch (CancellationException | CompletionException e) {
+				throw this.toIOException(e);
 			}
 			this.exists = this.response.statusCode() != 404;
 			this.mimeType = this.response.headers().firstValue("Content-Type").orElse(null);
 			this.encoding = parseCharset(this.mimeType);
 			this.contentLength = this.response.headers().firstValueAsLong("Content-Length").orElse(-1);
 			this.lastModified = parseLastModified(this.response.headers().firstValue("Last-Modified").orElse(null));
+		}
+
+		private void startConnection() {
+			this.responseFuture = this.httpClient.sendAsync(this.request, HttpResponse.BodyHandlers.ofInputStream());
+		}
+
+		private IOException toIOException(RuntimeException e) {
+			Throwable cause = e instanceof CompletionException && e.getCause() != null ? e.getCause() : e;
+			if (cause instanceof IOException ioe) {
+				return ioe;
+			}
+			return new IOException(cause);
 		}
 
 		private String parseCharset(String contentType) {

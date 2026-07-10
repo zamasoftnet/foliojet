@@ -6,13 +6,12 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,11 +31,10 @@ public class PluginRegistry {
 		return INSTANCE;
 	}
 
-	private URLClassLoader classLoader;
+	private volatile State state = new State(null, EMPTY_FILES, new ConcurrentHashMap<>());
 
-	private File[] libs = EMPTY_FILES;
-
-	private final Map<Class<?>, List<?>> roles = new HashMap<Class<?>, List<?>>();
+	private record State(URLClassLoader classLoader, File[] libs, ConcurrentMap<Class<?>, List<?>> roles) {
+	}
 
 	private PluginRegistry() {
 		this.reload();
@@ -46,15 +44,14 @@ public class PluginRegistry {
 	 * プラグインディレクトリを再読み込みします。
 	 */
 	public synchronized void reload() {
-		this.closeClassLoader();
+		this.closeClassLoader(this.state.classLoader());
 		File libDir = new File(System.getProperty(PLUGIN_LIB_PROPERTY, "plugins"));
 		File[] libs = libDir.listFiles();
 		if (libs == null) {
 			libs = EMPTY_FILES;
 		}
-		List<URL> urls = new ArrayList<URL>();
-		for (int i = 0; i < libs.length; ++i) {
-			File lib = libs[i];
+		List<URL> urls = new ArrayList<>();
+		for (File lib : libs) {
 			if (lib.isFile() && lib.getName().endsWith(".jar")) {
 				try {
 					urls.add(lib.toURI().toURL());
@@ -63,22 +60,19 @@ public class PluginRegistry {
 				}
 			}
 		}
-		this.libs = libs;
-		this.classLoader = new URLClassLoader((URL[]) urls.toArray(new URL[urls.size()]),
-				PluginRegistry.class.getClassLoader());
-		this.roles.clear();
+		URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), PluginRegistry.class.getClassLoader());
+		this.state = new State(classLoader, libs.clone(), new ConcurrentHashMap<>());
 	}
 
-	private void closeClassLoader() {
-		if (this.classLoader == null) {
+	private void closeClassLoader(URLClassLoader classLoader) {
+		if (classLoader == null) {
 			return;
 		}
 		try {
-			this.classLoader.close();
+			classLoader.close();
 		} catch (IOException e) {
 			LOG.log(Level.FINE, "プラグインクラスローダーを閉じられませんでした", e);
 		}
-		this.classLoader = null;
 	}
 
 	/**
@@ -90,17 +84,14 @@ public class PluginRegistry {
 	 */
 	@SuppressWarnings("unchecked")
 	public synchronized <T> Iterator<T> plugins(Class<T> role) {
-		List<T> plugins = (List<T>) this.roles.get(role);
-		if (plugins == null) {
-			plugins = this.load(role);
-			this.roles.put(role, plugins);
-		}
+		State snapshot = this.state;
+		List<T> plugins = (List<T>) snapshot.roles().computeIfAbsent(role, key -> this.load(role, snapshot.classLoader()));
 		return plugins.iterator();
 	}
 
-	private <T> List<T> load(Class<T> role) {
-		List<T> plugins = new ArrayList<T>();
-		ServiceLoader<T> loader = ServiceLoader.load(role, this.classLoader);
+	private <T> List<T> load(Class<T> role, ClassLoader classLoader) {
+		List<T> plugins = new ArrayList<>();
+		ServiceLoader<T> loader = ServiceLoader.load(role, classLoader);
 		try {
 			for (T plugin : loader) {
 				plugins.add(plugin);
@@ -108,17 +99,13 @@ public class PluginRegistry {
 		} catch (ServiceConfigurationError e) {
 			LOG.log(Level.WARNING, "プラグインを読み込めませんでした: " + role.getName(), e);
 		}
-		plugins.sort(new Comparator<T>() {
-			public int compare(T a, T b) {
-				return Integer.compare(priority(b), priority(a));
-			}
-		});
-		return plugins;
+		plugins.sort((a, b) -> Integer.compare(priority(b), priority(a)));
+		return List.copyOf(plugins);
 	}
 
 	private static int priority(Object plugin) {
-		if (plugin instanceof Plugin<?>) {
-			return ((Plugin<?>) plugin).priority();
+		if (plugin instanceof Plugin<?> typedPlugin) {
+			return typedPlugin.priority();
 		}
 		return 0;
 	}
@@ -133,14 +120,11 @@ public class PluginRegistry {
 	 * @return プラグインの実装のオブジェクト。
 	 */
 	@SuppressWarnings("unchecked")
-	public synchronized <T> T search(Class<T> role, Object key) {
+	public <T> T search(Class<T> role, Object key) {
 		for (Iterator<T> i = this.plugins(role); i.hasNext();) {
 			T candidate = i.next();
-			if (candidate instanceof Plugin<?>) {
-				Plugin<Object> plugin = (Plugin<Object>) candidate;
-				if (plugin.match(key)) {
-					return candidate;
-				}
+			if (candidate instanceof Plugin<?> typedPlugin && ((Plugin<Object>) typedPlugin).match(key)) {
+				return candidate;
 			}
 		}
 		return null;
@@ -151,11 +135,11 @@ public class PluginRegistry {
 	 * 
 	 * @return クラスローダー。
 	 */
-	public synchronized ClassLoader getClassLoader() {
-		return this.classLoader;
+	public ClassLoader getClassLoader() {
+		return this.state.classLoader();
 	}
 
-	public synchronized File[] getPluginFiles() {
-		return (File[]) this.libs.clone();
+	public File[] getPluginFiles() {
+		return this.state.libs().clone();
 	}
 }
