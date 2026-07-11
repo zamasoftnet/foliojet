@@ -16,6 +16,7 @@ import net.zamasoft.foliojet.css.value.css3.LinearGradientValue;
 import net.zamasoft.foliojet.style.util.DoubleList;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.CMYKColor;
+import net.zamasoft.pdfg2d.gc.paint.SpotColor;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 import net.zamasoft.pdfg2d.gc.paint.RGBAColor;
@@ -1156,6 +1157,70 @@ public final class ColorValueUtils {
 		}
 	}
 
+	/**
+	 * -cssj-spot(版名, 代替色 [, 網点率%] [, standard|illustrator]) を
+	 * スポットカラーに変換します。-cssj-spot(registration) は
+	 * レジストレーションカラー("All" 版)です。
+	 * 
+	 * @param ua
+	 * @param value
+	 * @return
+	 */
+	private static ColorValue toSpotColorValue(UserAgent ua, LexicalUnit value) {
+		try {
+			// レジストレーションカラー
+			if (value.getLexicalUnitType() == LexicalUnit.SAC_IDENT
+					&& value.getStringValue().equalsIgnoreCase("registration")) {
+				return new ColorValue(SpotColor.REGISTRATION);
+			}
+
+			if (value.getLexicalUnitType() != LexicalUnit.SAC_STRING_VALUE) {
+				return null;
+			}
+			String name = value.getStringValue();
+
+			value = value.getNextLexicalUnit().getNextLexicalUnit();
+			ColorValue alternateValue = toColor(ua, value);
+			if (alternateValue == null) {
+				return null;
+			}
+			Color alternate = alternateValue.getColor();
+
+			float tint = 1;
+			byte overprint = CMYKColor.OVERPRINT_NONE;
+			value = value.getNextLexicalUnit();
+			while (value != null) {
+				value = value.getNextLexicalUnit();
+				if (value == null) {
+					break;
+				}
+				switch (value.getLexicalUnitType()) {
+				case LexicalUnit.SAC_PERCENTAGE:
+					tint = value.getFloatValue() / 100f;
+					break;
+				case LexicalUnit.SAC_REAL:
+				case LexicalUnit.SAC_INTEGER:
+					tint = toColorComponent(value);
+					break;
+				case LexicalUnit.SAC_IDENT:
+					String ident = value.getStringValue();
+					if (ident.equalsIgnoreCase("standard")) {
+						overprint = CMYKColor.OVERPRINT_STANDARD;
+					} else if (ident.equalsIgnoreCase("illustrator")) {
+						overprint = CMYKColor.OVERPRINT_ILLUSTRATOR;
+					}
+					break;
+				default:
+					break;
+				}
+				value = value.getNextLexicalUnit();
+			}
+			return new ColorValue(new SpotColor(name, alternate, tint, overprint));
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
 	private static PaintValue toLinearGradient(UserAgent ua, LexicalUnit lu) {
 		try {
 			double angle = 180 * Math.PI * 2 / 360;
@@ -1359,6 +1424,8 @@ public final class ColorValueUtils {
 			if (func.equalsIgnoreCase("-cssj-cmyk")) {
 				LexicalUnit cmyk = lu.getParameters();
 				return toCMYKColorValue(cmyk);
+			} else if (func.equalsIgnoreCase("-cssj-spot")) {
+				return toSpotColorValue(ua, lu.getParameters());
 			} else if (func.equalsIgnoreCase("-cssj-gray")) {
 				LexicalUnit gray = lu.getParameters();
 				return toGrayColorValue(gray);
