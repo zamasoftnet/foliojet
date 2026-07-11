@@ -141,21 +141,21 @@ public final class StyleUtils {
 		assert !StyleUtils.isNone(x);
 		assert !StyleUtils.isNone(y);
 		assert !StyleUtils.isNone(width);
-		gc.begin();
-		gc.transform(AffineTransform.getTranslateInstance(x, y));
+		try (final var gcState = gc.begin()) {
+			gc.transform(AffineTransform.getTranslateInstance(x, y));
 
-		PageLayoutGlyphHandler lineHandler = new PageLayoutGlyphHandler(gc);
+			PageLayoutGlyphHandler lineHandler = new PageLayoutGlyphHandler(gc);
 		lineHandler.setLineAdvance(width);
 
 		TextLayoutHandler tlf = new TextLayoutHandler(gc, TextBreakingRulesBundle.getRules(null), lineHandler);
 		tlf.setFontFamilies(FontFamilyList.SERIF);
-		tlf.setFontPolicy(fontPolicy);
-		tlf.setFontSize(fontSize);
-		tlf.characters(text);
-		tlf.flush();
+			tlf.setFontPolicy(fontPolicy);
+			tlf.setFontSize(fontSize);
+			tlf.characters(text);
+			tlf.flush();
 
-		lineHandler.close();
-		gc.end();
+			lineHandler.close();
+		}
 	}
 
 	/**

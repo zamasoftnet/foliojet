@@ -18,9 +18,9 @@ public class DebugDrawable implements Drawable {
 	}
 
 	public void draw(GC gc, double x, double y) throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(this.color);
-		gc.draw(new Rectangle2D.Double(x, y, this.width, this.height));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(this.color);
+			gc.draw(new Rectangle2D.Double(x, y, this.width, this.height));
+		}
 	}
 }

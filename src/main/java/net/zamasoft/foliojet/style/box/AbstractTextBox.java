@@ -472,27 +472,27 @@ public abstract class AbstractTextBox extends AbstractBox {
 			if (this.params.textShadows != null) {
 				for (int i = this.params.textShadows.length - 1; i >= 0; --i) {
 					TextShadow shadow = params.textShadows[i];
-					gc.begin();
-					gc.setFillPaint(shadow.color);
-					this.drawText(gc, x + shadow.x, y + shadow.y);
-					gc.end();
+					try (final var gcState = gc.begin()) {
+						gc.setFillPaint(shadow.color);
+						this.drawText(gc, x + shadow.x, y + shadow.y);
+					}
 				}
 			}
 
 			// テキスト本体
-			gc.begin();
-			if (this.params.color != null) {
-				gc.setFillPaint(this.params.color);
+			try (final var gcState = gc.begin()) {
+				if (this.params.color != null) {
+					gc.setFillPaint(this.params.color);
+				}
+				if (this.params.textStrokeWidth != 0) {
+					gc.setLineJoin(GC.LineJoin.ROUND);
+					gc.setLinePattern(GC.STROKE_SOLID);
+					gc.setLineWidth(this.params.textStrokeWidth);
+					gc.setStrokePaint(this.params.textStrokeColor);
+					gc.setTextMode(GC.TextMode.FILL_STROKE);
+				}
+				this.drawText(gc, x, y);
 			}
-			if (this.params.textStrokeWidth != 0) {
-				gc.setLineJoin(GC.LineJoin.ROUND);
-				gc.setLinePattern(GC.STROKE_SOLID);
-				gc.setLineWidth(this.params.textStrokeWidth);
-				gc.setStrokePaint(this.params.textStrokeColor);
-				gc.setTextMode(GC.TextMode.FILL_STROKE);
-			}
-			this.drawText(gc, x, y);
-			gc.end();
 		}
 
 		private void drawText(GC gc, double x, double y) {
@@ -507,10 +507,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.drawText(text, x + this.descent, y);
 					y += text.getAdvance();
 					if (DEBUG) {
-						gc.begin();
-						gc.setStrokePaint(RGBColor.create(63, 63, 63));
-						gc.draw(new Rectangle2D.Double(xx, yy, this.ascent + this.descent, y - yy));
-						gc.end();
+						try (final var gcState = gc.begin()) {
+							gc.setStrokePaint(RGBColor.create(63, 63, 63));
+							gc.draw(new Rectangle2D.Double(xx, yy, this.ascent + this.descent, y - yy));
+						}
 					}
 				}
 			} else {
@@ -523,10 +523,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.drawText(text, x, y + this.ascent);
 					x += text.getAdvance();
 					if (DEBUG) {
-						gc.begin();
-						gc.setStrokePaint(RGBColor.create(63, 63, 63));
-						gc.draw(new Rectangle2D.Double(xx, y, x - xx, this.ascent + this.descent));
-						gc.end();
+						try (final var gcState = gc.begin()) {
+							gc.setStrokePaint(RGBColor.create(63, 63, 63));
+							gc.draw(new Rectangle2D.Double(xx, y, x - xx, this.ascent + this.descent));
+						}
 					}
 				}
 			}
@@ -551,78 +551,78 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
-			gc.begin();
+			try (final var gcState = gc.begin()) {
 
-			Color color = this.params.color;
-			if (color != null) {
-				gc.setStrokePaint(color);
-				gc.setFillPaint(color);
+				Color color = this.params.color;
+				if (color != null) {
+					gc.setStrokePaint(color);
+					gc.setFillPaint(color);
+				}
+
+				// 装飾
+				double fontSize = this.params.fontStyle.getSize();
+				double strokeSize = fontSize * this.params.decorationThickness;
+				gc.setLineWidth(strokeSize);
+				if (StyleUtils.isVertical(this.params.flow)) {
+					// 縦書き進行
+					x += this.descent;
+					final double lineAxis = this.height;
+					if (this.decoration.underlineColor != null) {
+						// 下線
+						gc.setStrokePaint(this.decoration.underlineColor);
+						double lineX = x - this.params.getFontListMetrics().getMaxDescent();
+						Line2D line = new Line2D.Double(lineX, y, lineX, y + lineAxis);
+						gc.draw(line);
+
+					}
+					if (this.decoration.overlineColor != null) {
+						// 上線
+						gc.setStrokePaint(this.decoration.overlineColor);
+						double lineX = x + this.params.getFontListMetrics().getMaxAscent();
+						Line2D line = new Line2D.Double(lineX, y, lineX, y + lineAxis);
+						gc.draw(line);
+					}
+					if (this.decoration.lineThroughColor != null) {
+						// 打ち消し線
+						gc.setStrokePaint(this.decoration.lineThroughColor);
+						Line2D line = new Line2D.Double(x, y, x, y + lineAxis);
+						gc.draw(line);
+					}
+				} else {
+					// 横書き進行
+					y += this.ascent;
+					double lineAxis = this.width;
+					if (this.decoration.underlineColor != null) {
+						// 下線
+						gc.setStrokePaint(this.decoration.underlineColor);
+						double descent = this.params.getFontListMetrics().getMaxDescent();
+						double lineY = y + descent;
+						// 行の下端から線の太さだけ上がった位置で押さえる
+						lineY = Math.min(y + this.descent - strokeSize, lineY);
+						Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
+						gc.draw(line);
+					}
+					if (this.decoration.overlineColor != null) {
+						// 上線
+						gc.setStrokePaint(this.decoration.overlineColor);
+						double ascent = this.params.getFontListMetrics().getMaxAscent();
+						double lineY = y - ascent;
+						// 行の上端から線の太さだけ下がった位置で押さえる
+						lineY = Math.max(y - this.ascent + strokeSize, lineY);
+						Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
+						gc.draw(line);
+					}
+					if (this.decoration.lineThroughColor != null) {
+						// 打ち消し線
+						gc.setStrokePaint(this.decoration.lineThroughColor);
+						double xHeight = this.params.getFontListMetrics().getMaxXHeight();
+						double lineY = y - xHeight / 2.0;
+						Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
+						gc.draw(line);
+					}
+				}
+
 			}
-
-			// 装飾
-			double fontSize = this.params.fontStyle.getSize();
-			double strokeSize = fontSize * this.params.decorationThickness;
-			gc.setLineWidth(strokeSize);
-			if (StyleUtils.isVertical(this.params.flow)) {
-				// 縦書き進行
-				x += this.descent;
-				final double lineAxis = this.height;
-				if (this.decoration.underlineColor != null) {
-					// 下線
-					gc.setStrokePaint(this.decoration.underlineColor);
-					double lineX = x - this.params.getFontListMetrics().getMaxDescent();
-					Line2D line = new Line2D.Double(lineX, y, lineX, y + lineAxis);
-					gc.draw(line);
-
-				}
-				if (this.decoration.overlineColor != null) {
-					// 上線
-					gc.setStrokePaint(this.decoration.overlineColor);
-					double lineX = x + this.params.getFontListMetrics().getMaxAscent();
-					Line2D line = new Line2D.Double(lineX, y, lineX, y + lineAxis);
-					gc.draw(line);
-				}
-				if (this.decoration.lineThroughColor != null) {
-					// 打ち消し線
-					gc.setStrokePaint(this.decoration.lineThroughColor);
-					Line2D line = new Line2D.Double(x, y, x, y + lineAxis);
-					gc.draw(line);
-				}
-			} else {
-				// 横書き進行
-				y += this.ascent;
-				double lineAxis = this.width;
-				if (this.decoration.underlineColor != null) {
-					// 下線
-					gc.setStrokePaint(this.decoration.underlineColor);
-					double descent = this.params.getFontListMetrics().getMaxDescent();
-					double lineY = y + descent;
-					// 行の下端から線の太さだけ上がった位置で押さえる
-					lineY = Math.min(y + this.descent - strokeSize, lineY);
-					Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
-					gc.draw(line);
-				}
-				if (this.decoration.overlineColor != null) {
-					// 上線
-					gc.setStrokePaint(this.decoration.overlineColor);
-					double ascent = this.params.getFontListMetrics().getMaxAscent();
-					double lineY = y - ascent;
-					// 行の上端から線の太さだけ下がった位置で押さえる
-					lineY = Math.max(y - this.ascent + strokeSize, lineY);
-					Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
-					gc.draw(line);
-				}
-				if (this.decoration.lineThroughColor != null) {
-					// 打ち消し線
-					gc.setStrokePaint(this.decoration.lineThroughColor);
-					double xHeight = this.params.getFontListMetrics().getMaxXHeight();
-					double lineY = y - xHeight / 2.0;
-					Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
-					gc.draw(line);
-				}
-			}
-
-			gc.end();
 		}
 	}
 

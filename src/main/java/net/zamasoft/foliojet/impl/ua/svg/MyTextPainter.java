@@ -63,21 +63,21 @@ class MyTextPainter extends StrokingTextPainter {
 			// 描画
 			TextSpanLayout layout = textRun.getLayout();
 			Point2D position = layout.getOffset();
-			gc.begin();
-			double x = position.getX();
-			double y = position.getY();
-			AffineTransform at = AffineTransform.getTranslateInstance(x, y - fontStyle.getSize());
-			gc.transform(at);
-			PageLayoutGlyphHandler lineHandler = new PageLayoutGlyphHandler(gc);
+			try (final var gcState = gc.begin()) {
+				double x = position.getX();
+				double y = position.getY();
+				AffineTransform at = AffineTransform.getTranslateInstance(x, y - fontStyle.getSize());
+				gc.transform(at);
+				PageLayoutGlyphHandler lineHandler = new PageLayoutGlyphHandler(gc);
 			lineHandler.setDirection(fontStyle.getDirection());
 			lineHandler.setLineAdvance(Double.MAX_VALUE);
 			TextLayoutHandler tlf = new TextLayoutHandler(gc, this.rules, lineHandler);
 			tlf.setDirection(fontStyle.getDirection());
-			tlf.fontStyle(fontStyle);
-			tlf.characters(-1, ch, 0, ch.length);
-			tlf.flush();
-			lineHandler.close();
-			gc.end();
+				tlf.fontStyle(fontStyle);
+				tlf.characters(-1, ch, 0, ch.length);
+				tlf.flush();
+				lineHandler.close();
+			}
 		}
 	}
 }

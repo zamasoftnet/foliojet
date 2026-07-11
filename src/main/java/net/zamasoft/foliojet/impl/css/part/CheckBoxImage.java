@@ -34,27 +34,27 @@ public class CheckBoxImage implements Image {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		gc.begin();
+		try (final var gcState = gc.begin()) {
 
-		Shape frame = new Rectangle2D.Double(2, 2, 8, 8);
-		GeneralPath path = new GeneralPath();
-		path.moveTo(3, 5);
-		path.lineTo(6, 8);
-		path.lineTo(12, 2);
-		Shape check = path;
+			Shape frame = new Rectangle2D.Double(2, 2, 8, 8);
+			GeneralPath path = new GeneralPath();
+			path.moveTo(3, 5);
+			path.lineTo(6, 8);
+			path.lineTo(12, 2);
+			Shape check = path;
 
-		gc.setFillPaint((this.disabled ? ColorValueUtils.LIGHTGRAY : ColorValueUtils.WHITE).getColor());
-		gc.setStrokePaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
-		gc.setLineWidth(1.0);
-		gc.setLinePattern(GC.STROKE_SOLID);
-		gc.fillDraw(frame);
-
-		if (this.checked) {
-			gc.setLineWidth(2.0);
+			gc.setFillPaint((this.disabled ? ColorValueUtils.LIGHTGRAY : ColorValueUtils.WHITE).getColor());
+			gc.setStrokePaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
+			gc.setLineWidth(1.0);
 			gc.setLinePattern(GC.STROKE_SOLID);
-			gc.draw(check);
-		}
+			gc.fillDraw(frame);
 
-		gc.end();
+			if (this.checked) {
+				gc.setLineWidth(2.0);
+				gc.setLinePattern(GC.STROKE_SOLID);
+				gc.draw(check);
+			}
+
+		}
 	}
 }

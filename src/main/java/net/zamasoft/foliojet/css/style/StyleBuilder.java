@@ -2731,6 +2731,7 @@ public class StyleBuilder implements PageGenerator {
 		}
 
 		final AffineTransform marginT;
+		GC.State marginState = null;
 		if (gc != null) {
 			AbsoluteInsets margin = pageBox.getFrame().margin;
 			double xoff = margin.left;
@@ -2741,7 +2742,7 @@ public class StyleBuilder implements PageGenerator {
 				marginT = null;
 			}
 			if (marginT != null) {
-				gc.begin();
+				marginState = gc.begin();
 				gc.transform(marginT);
 			}
 		} else {
@@ -2821,8 +2822,8 @@ public class StyleBuilder implements PageGenerator {
 		// PDFでは描画処理は非常に早く終わる
 		if (gc != null) {
 			drawer.draw(gc);
-			if (marginT != null) {
-				gc.end();
+			if (marginState != null) {
+				marginState.close();
 			}
 		}
 		StyleBuilder.this.imposition.closePage();

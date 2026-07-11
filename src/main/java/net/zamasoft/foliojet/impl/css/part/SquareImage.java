@@ -35,12 +35,12 @@ public class SquareImage implements Image {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		gc.begin();
+		try (final var gcState = gc.begin()) {
 
-		gc.setFillPaint(this.color);
+			gc.setFillPaint(this.color);
 
-		double d = this.size * 0.35;
-		gc.fill(new Rectangle2D.Double(this.size / 2.0 - d / 2.0, this.size * 0.2 + this.size / 2.0 - d / 2.0, d, d));
-		gc.end();
+			double d = this.size * 0.35;
+			gc.fill(new Rectangle2D.Double(this.size / 2.0 - d / 2.0, this.size * 0.2 + this.size / 2.0 - d / 2.0, d, d));
+		}
 	}
 }

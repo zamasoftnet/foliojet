@@ -35,12 +35,12 @@ class TestInlineObject extends DefaultHandler implements InlineObject {
 		return new Image() {
 
 			public void drawTo(GC gc) throws GraphicsException {
-				gc.begin();
-				gc.setFillPaint(ColorValueUtils.RED.getColor());
-				gc.fill(new Ellipse2D.Double(25, 25, 50, 50));
-				gc.setStrokePaint(ColorValueUtils.BLACK.getColor());
-				gc.draw(new Rectangle2D.Double(0, 0, 100, 100));
-				gc.end();
+				try (final var gcState = gc.begin()) {
+					gc.setFillPaint(ColorValueUtils.RED.getColor());
+					gc.fill(new Ellipse2D.Double(25, 25, 50, 50));
+					gc.setStrokePaint(ColorValueUtils.BLACK.getColor());
+					gc.draw(new Rectangle2D.Double(0, 0, 100, 100));
+				}
 			}
 
 			public String getAltString() {

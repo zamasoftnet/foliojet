@@ -271,17 +271,17 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 					at.scale(width / imageWidth, height / imageHeight);
 					image = this.image;
 				}
-				gc.begin();
-				/* NoAndroid begin */
-				if (this.frame.frame.border.isRounded()) {
-					Shape shape = BorderRenderer.INSTANCE.getBorderShape(this.frame.frame.border, x, y, width,
-							height);
-					gc.clip(shape);
+				try (final var gcState = gc.begin()) {
+					/* NoAndroid begin */
+					if (this.frame.frame.border.isRounded()) {
+						Shape shape = BorderRenderer.INSTANCE.getBorderShape(this.frame.frame.border, x, y, width,
+								height);
+						gc.clip(shape);
+					}
+					/* NoAndroid end */
+					gc.transform(at);
+					gc.drawImage(image);
 				}
-				/* NoAndroid end */
-				gc.transform(at);
-				gc.drawImage(image);
-				gc.end();
 			}
 		}
 	}

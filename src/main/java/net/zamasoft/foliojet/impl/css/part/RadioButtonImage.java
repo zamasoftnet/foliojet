@@ -33,22 +33,22 @@ public class RadioButtonImage implements Image {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		gc.begin();
+		try (final var gcState = gc.begin()) {
 
-		Shape frame = new Ellipse2D.Double(2, 2, 8, 8);
-		Shape check = new Ellipse2D.Double(4, 4, 4, 4);
+			Shape frame = new Ellipse2D.Double(2, 2, 8, 8);
+			Shape check = new Ellipse2D.Double(4, 4, 4, 4);
 
-		gc.setFillPaint((this.disabled ? ColorValueUtils.LIGHTGRAY : ColorValueUtils.WHITE).getColor());
-		gc.setStrokePaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
-		gc.setLineWidth(1.0);
-		gc.setLinePattern(GC.STROKE_SOLID);
-		gc.fillDraw(frame);
+			gc.setFillPaint((this.disabled ? ColorValueUtils.LIGHTGRAY : ColorValueUtils.WHITE).getColor());
+			gc.setStrokePaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
+			gc.setLineWidth(1.0);
+			gc.setLinePattern(GC.STROKE_SOLID);
+			gc.fillDraw(frame);
 
-		if (this.checked) {
-			gc.setFillPaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
-			gc.fill(check);
+			if (this.checked) {
+				gc.setFillPaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
+				gc.fill(check);
+			}
+
 		}
-
-		gc.end();
 	}
 }

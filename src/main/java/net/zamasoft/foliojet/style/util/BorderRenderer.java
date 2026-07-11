@@ -72,92 +72,92 @@ public class BorderRenderer {
 			throws GraphicsException {
 		double w = border.getBottom().width / 3.0;
 		double y = height - border.getBottom().width / 2.0;
-		gc.begin();
-		gc.setStrokePaint(border.getBottom().color);
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y + w + ty,
-				width - border.getRight().width / 6.0 + tx, y + w + ty));
-		gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y - w + ty,
-				width - border.getRight().width / 6.0 + tx, y - w + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getBottom().color);
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y + w + ty,
+					width - border.getRight().width / 6.0 + tx, y + w + ty));
+			gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y - w + ty,
+					width - border.getRight().width / 6.0 + tx, y - w + ty));
+		}
 	}
 
 	protected void drawRightDoubleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
 		double w = border.getRight().width / 3f;
 		double x = width - border.getRight().width / 2.0;
-		gc.begin();
-		gc.setStrokePaint(border.getRight().color);
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.draw(new Line2D.Double(x + w + tx, border.getTop().width / 6.0 + ty, x + w + tx,
-				height - border.getBottom().width / 6.0 + ty));
-		gc.draw(new Line2D.Double(x - w + tx, border.getTop().width / 6.0 + ty, x - w + tx,
-				height - border.getBottom().width / 6.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getRight().color);
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.draw(new Line2D.Double(x + w + tx, border.getTop().width / 6.0 + ty, x + w + tx,
+					height - border.getBottom().width / 6.0 + ty));
+			gc.draw(new Line2D.Double(x - w + tx, border.getTop().width / 6.0 + ty, x - w + tx,
+					height - border.getBottom().width / 6.0 + ty));
+		}
 	}
 
 	protected void drawTopDoubleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
 		double w = border.getTop().width / 3f;
 		double y = border.getTop().width / 2.0;
-		gc.begin();
-		gc.setStrokePaint(border.getTop().color);
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y - w + ty,
-				width - border.getRight().width / 6.0 + tx, y - w + ty));
-		gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y + w + ty,
-				width - border.getRight().width / 6.0 + tx, y + w + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getTop().color);
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y - w + ty,
+					width - border.getRight().width / 6.0 + tx, y - w + ty));
+			gc.draw(new Line2D.Double(border.getLeft().width / 6.0 + tx, y + w + ty,
+					width - border.getRight().width / 6.0 + tx, y + w + ty));
+		}
 	}
 
 	protected void drawLeftDoubleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
 		double w = border.getLeft().width / 3f;
 		double x = border.getLeft().width / 2.0;
-		gc.begin();
-		gc.setStrokePaint(border.getLeft().color);
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.draw(new Line2D.Double(x - w + tx, border.getTop().width / 6.0 + ty, x - w + tx,
-				height - border.getBottom().width / 6.0 + ty));
-		gc.draw(new Line2D.Double(x + w + tx, border.getTop().width / 6.0 + ty, x + w + tx,
-				height - border.getBottom().width / 6.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getLeft().color);
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.draw(new Line2D.Double(x - w + tx, border.getTop().width / 6.0 + ty, x - w + tx,
+					height - border.getBottom().width / 6.0 + ty));
+			gc.draw(new Line2D.Double(x + w + tx, border.getTop().width / 6.0 + ty, x + w + tx,
+					height - border.getBottom().width / 6.0 + ty));
+		}
 	}
 
 	protected void drawBottomSimpleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(border.getBottom().color);
-		double y = height - border.getBottom().width / 2.0;
-		gc.draw(new Line2D.Double(tx, y + ty, width + tx, y + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getBottom().color);
+			double y = height - border.getBottom().width / 2.0;
+			gc.draw(new Line2D.Double(tx, y + ty, width + tx, y + ty));
+		}
 	}
 
 	protected void drawRightSimpleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(border.getRight().color);
-		double x = width - border.getRight().width / 2.0;
-		gc.draw(new Line2D.Double(x + tx, ty, x + tx, height + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getRight().color);
+			double x = width - border.getRight().width / 2.0;
+			gc.draw(new Line2D.Double(x + tx, ty, x + tx, height + ty));
+		}
 	}
 
 	protected void drawTopSimpleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(border.getTop().color);
-		double y = border.getTop().width / 2.0;
-		gc.draw(new Line2D.Double(tx, y + ty, width + tx, y + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getTop().color);
+			double y = border.getTop().width / 2.0;
+			gc.draw(new Line2D.Double(tx, y + ty, width + tx, y + ty));
+		}
 	}
 
 	protected void drawLeftSimpleLine(GC gc, RectBorder border, double tx, double ty, double width, double height)
 			throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(border.getLeft().color);
-		double x = border.getLeft().width / 2.0;
-		gc.draw(new Line2D.Double(x + tx, ty, x + tx, height + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.getLeft().color);
+			double x = border.getLeft().width / 2.0;
+			gc.draw(new Line2D.Double(x + tx, ty, x + tx, height + ty));
+		}
 	}
 
 	protected void drawRightGrooveLine(GC gc, RectBorder border, boolean ridge, double tx, double ty, double width,
@@ -165,27 +165,27 @@ public class BorderRenderer {
 		Color color = border.getRight().color;
 		double w = border.getRight().width / 2.0;
 		double x = width - border.getRight().width / 2.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
-		gc.draw(new Line2D.Double(x + w / 2.0 + tx, border.getTop().width / 4.0 + ty, x + w / 2.0 + tx,
-				height - border.getBottom().width / 4.0 + ty));
-		gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(x - w / 2.0 + tx, border.getTop().width / 4.0 + ty, x - w / 2.0 + tx,
-				height - border.getBottom().width / 4.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
+			gc.draw(new Line2D.Double(x + w / 2.0 + tx, border.getTop().width / 4.0 + ty, x + w / 2.0 + tx,
+					height - border.getBottom().width / 4.0 + ty));
+			gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(x - w / 2.0 + tx, border.getTop().width / 4.0 + ty, x - w / 2.0 + tx,
+					height - border.getBottom().width / 4.0 + ty));
+		}
 	}
 
 	protected void drawLeftInsetLine(GC gc, RectBorder border, boolean outset, double tx, double ty, double width,
 			double height) throws GraphicsException {
 		Color color = border.getLeft().color;
-		gc.begin();
-		setStroke(gc, border.getLeft().width, BorderRenderer.STROKE_SOLID);
-		double x = border.getLeft().width / 2.0;
-		gc.setStrokePaint(outset ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(x + tx, border.getTop().width / 2.0 + ty, x + tx,
-				height - border.getBottom().width / 2.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, border.getLeft().width, BorderRenderer.STROKE_SOLID);
+			double x = border.getLeft().width / 2.0;
+			gc.setStrokePaint(outset ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(x + tx, border.getTop().width / 2.0 + ty, x + tx,
+					height - border.getBottom().width / 2.0 + ty));
+		}
 	}
 
 	protected void drawBottomGrooveLine(GC gc, RectBorder border, boolean ridge, double tx, double ty, double width,
@@ -193,15 +193,15 @@ public class BorderRenderer {
 		Color color = border.getBottom().color;
 		double w = border.getBottom().width / 2.0;
 		double y = height - border.getBottom().width / 2.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
-		gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y + w / 2.0 + ty,
-				width - border.getRight().width / 4.0 + tx, y + w / 2.0 + ty));
-		gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y - w / 2.0 + ty,
-				width - border.getRight().width / 4.0 + tx, y - w / 2.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
+			gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y + w / 2.0 + ty,
+					width - border.getRight().width / 4.0 + tx, y + w / 2.0 + ty));
+			gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y - w / 2.0 + ty,
+					width - border.getRight().width / 4.0 + tx, y - w / 2.0 + ty));
+		}
 	}
 
 	protected void drawLeftGrooveLine(GC gc, RectBorder border, boolean ridge, double tx, double ty, double width,
@@ -209,39 +209,39 @@ public class BorderRenderer {
 		Color color = border.getLeft().color;
 		double w = border.getLeft().width / 2.0;
 		double x = border.getLeft().width / 2.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(x - w / 2.0 + tx, border.getTop().width / 4.0 + ty, x - w / 2.0 + tx,
-				height - border.getBottom().width / 4.0 + ty));
-		gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
-		gc.draw(new Line2D.Double(x + w / 2.0 + tx, border.getTop().width / 4.0 + ty, x + w / 2.0 + tx,
-				height - border.getBottom().width / 4.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(x - w / 2.0 + tx, border.getTop().width / 4.0 + ty, x - w / 2.0 + tx,
+					height - border.getBottom().width / 4.0 + ty));
+			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
+			gc.draw(new Line2D.Double(x + w / 2.0 + tx, border.getTop().width / 4.0 + ty, x + w / 2.0 + tx,
+					height - border.getBottom().width / 4.0 + ty));
+		}
 	}
 
 	protected void drawTopInsetLine(GC gc, RectBorder border, boolean outset, double tx, double ty, double width,
 			double height) throws GraphicsException {
 		Color color = border.getTop().color;
-		gc.begin();
-		setStroke(gc, border.getTop().width, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(outset ? this.brighter(color) : this.darker(color));
-		double y = border.getTop().width / 2.0;
-		gc.draw(new Line2D.Double(border.getLeft().width / 2.0 + tx, y + ty, width - border.getRight().width / 2.0 + tx,
-				y + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, border.getTop().width, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(outset ? this.brighter(color) : this.darker(color));
+			double y = border.getTop().width / 2.0;
+			gc.draw(new Line2D.Double(border.getLeft().width / 2.0 + tx, y + ty, width - border.getRight().width / 2.0 + tx,
+					y + ty));
+		}
 	}
 
 	protected void drawRightInsetLine(GC gc, RectBorder border, boolean outset, double tx, double ty, double width,
 			double height) throws GraphicsException {
 		Color color = border.getRight().color;
-		gc.begin();
-		setStroke(gc, border.getRight().width, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(outset ? this.darker(color) : this.brighter(color));
-		double x = width - border.getRight().width / 2.0;
-		gc.draw(new Line2D.Double(x + tx, border.getTop().width / 2.0 + ty, x + tx,
-				height - border.getBottom().width / 2.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, border.getRight().width, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(outset ? this.darker(color) : this.brighter(color));
+			double x = width - border.getRight().width / 2.0;
+			gc.draw(new Line2D.Double(x + tx, border.getTop().width / 2.0 + ty, x + tx,
+					height - border.getBottom().width / 2.0 + ty));
+		}
 	}
 
 	protected void drawTopGrooveLine(GC gc, RectBorder border, boolean ridge, double tx, double ty, double width,
@@ -249,27 +249,27 @@ public class BorderRenderer {
 		Color color = border.getTop().color;
 		double w = border.getTop().width / 2.0;
 		double y = border.getTop().width / 2.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y - w / 2.0 + ty,
-				width - border.getRight().width / 4.0 + tx, y - w / 2.0 + ty));
-		gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
-		gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y + w / 2.0 + ty,
-				width - border.getRight().width / 4.0 + tx, y + w / 2.0 + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y - w / 2.0 + ty,
+					width - border.getRight().width / 4.0 + tx, y - w / 2.0 + ty));
+			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
+			gc.draw(new Line2D.Double(border.getLeft().width / 4.0 + tx, y + w / 2.0 + ty,
+					width - border.getRight().width / 4.0 + tx, y + w / 2.0 + ty));
+		}
 	}
 
 	protected void drawBottomInsetLine(GC gc, RectBorder border, boolean outset, double tx, double ty, double width,
 			double height) throws GraphicsException {
 		Color color = border.getBottom().color;
-		gc.begin();
-		setStroke(gc, border.getBottom().width, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(outset ? this.darker(color) : this.brighter(color));
-		double y = height - border.getBottom().width / 2.0;
-		gc.draw(new Line2D.Double(border.getLeft().width / 2.0 + tx, y + ty, width - border.getRight().width / 2.0 + tx,
-				y + ty));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, border.getBottom().width, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(outset ? this.darker(color) : this.brighter(color));
+			double y = height - border.getBottom().width / 2.0;
+			gc.draw(new Line2D.Double(border.getLeft().width / 2.0 + tx, y + ty, width - border.getRight().width / 2.0 + tx,
+					y + ty));
+		}
 	}
 
 	protected void drawRect(GC gc, Border border, Radius radius, double x, double y, double width, double height)
@@ -277,60 +277,60 @@ public class BorderRenderer {
 		final short style = border.style;
 		final double w = border.width;
 		final Color color = border.color;
-		gc.begin();
-		switch (style) {
-		case Border.SOLID:
-			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-			break;
+		try (final var gcState = gc.begin()) {
+			switch (style) {
+			case Border.SOLID:
+				setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+				break;
 
-		case Border.DASHED:
-			setStroke(gc, w, BorderRenderer.STROKE_DASHED);
-			break;
+			case Border.DASHED:
+				setStroke(gc, w, BorderRenderer.STROKE_DASHED);
+				break;
 
-		case Border.DOTTED:
-			setStroke(gc, w, BorderRenderer.STROKE_DOTTED);
-			break;
+			case Border.DOTTED:
+				setStroke(gc, w, BorderRenderer.STROKE_DOTTED);
+				break;
 
-		case Border.DOUBLE:
-			setStroke(gc, w / 3.0, BorderRenderer.STROKE_SOLID);
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-		gc.setStrokePaint(color);
-		if (style == Border.DOUBLE) {
-			{
-				final Shape shape;
-				if (radius.hr == 0 && radius.vr == 0) {
-					shape = new Rectangle2D.Double(w / 6.0 + x, w / 6.0 + y, width - w / 3.0, height - w / 3.0);
-				} else {
-					shape = new RoundRectangle2D.Double(w / 6.0 + x, w / 6.0 + y, width - w / 3.0, height - w / 3.0,
-							radius.hr * 2 - w / 6.0, radius.vr * 2 - w / 6.0);
-				}
-				gc.draw(shape);
+			case Border.DOUBLE:
+				setStroke(gc, w / 3.0, BorderRenderer.STROKE_SOLID);
+				break;
+			default:
+				throw new IllegalStateException();
 			}
-			{
-				final Shape shape;
-				if (radius.hr == 0 && radius.vr == 0) {
-					shape = new Rectangle2D.Double(w * 5.0 / 6.0 + x, w * 5.0 / 6.0 + y, width - w * 5.0 / 3.0,
-							height - w * 5.0 / 3.0);
-				} else {
-					shape = new RoundRectangle2D.Double(w * 5.0 / 6.0 + x, w * 5.0 / 6.0 + y, width - w * 5.0 / 3.0,
-							height - w * 5.0 / 3.0, radius.hr * 2 - w * 5.0 / 6.0, radius.vr * 2 - w * 5.0 / 6.0);
+			gc.setStrokePaint(color);
+			if (style == Border.DOUBLE) {
+				{
+					final Shape shape;
+					if (radius.hr == 0 && radius.vr == 0) {
+						shape = new Rectangle2D.Double(w / 6.0 + x, w / 6.0 + y, width - w / 3.0, height - w / 3.0);
+					} else {
+						shape = new RoundRectangle2D.Double(w / 6.0 + x, w / 6.0 + y, width - w / 3.0, height - w / 3.0,
+								radius.hr * 2 - w / 6.0, radius.vr * 2 - w / 6.0);
+					}
+					gc.draw(shape);
 				}
-				gc.draw(shape);
-			}
-		} else {
-			final Shape shape;
-			if (radius.hr == 0 && radius.vr == 0) {
-				shape = new Rectangle2D.Double(w / 2.0 + x, w / 2.0 + y, width - w, height - w);
+				{
+					final Shape shape;
+					if (radius.hr == 0 && radius.vr == 0) {
+						shape = new Rectangle2D.Double(w * 5.0 / 6.0 + x, w * 5.0 / 6.0 + y, width - w * 5.0 / 3.0,
+								height - w * 5.0 / 3.0);
+					} else {
+						shape = new RoundRectangle2D.Double(w * 5.0 / 6.0 + x, w * 5.0 / 6.0 + y, width - w * 5.0 / 3.0,
+								height - w * 5.0 / 3.0, radius.hr * 2 - w * 5.0 / 6.0, radius.vr * 2 - w * 5.0 / 6.0);
+					}
+					gc.draw(shape);
+				}
 			} else {
-				shape = new RoundRectangle2D.Double(w / 2.0 + x, w / 2.0 + y, width - w, height - w,
-						radius.hr * 2 - w / 2.0, radius.vr * 2 - w / 2.0);
+				final Shape shape;
+				if (radius.hr == 0 && radius.vr == 0) {
+					shape = new Rectangle2D.Double(w / 2.0 + x, w / 2.0 + y, width - w, height - w);
+				} else {
+					shape = new RoundRectangle2D.Double(w / 2.0 + x, w / 2.0 + y, width - w, height - w,
+							radius.hr * 2 - w / 2.0, radius.vr * 2 - w / 2.0);
+				}
+				gc.draw(shape);
 			}
-			gc.draw(shape);
 		}
-		gc.end();
 	}
 
 	protected void clipTopTrapezium(GC gc, Border border, double w1, double w2, double x, double y, double length)
@@ -387,31 +387,31 @@ public class BorderRenderer {
 
 	protected void drawHorizontalSimpleLine(GC gc, Border border, double x, double y, double length)
 			throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(border.color);
-		gc.draw(new Line2D.Double(x, y, x + length, y));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.color);
+			gc.draw(new Line2D.Double(x, y, x + length, y));
+		}
 	}
 
 	protected void drawVerticalSimpleLine(GC gc, Border border, double x, double y, double length)
 			throws GraphicsException {
-		gc.begin();
-		gc.setStrokePaint(border.color);
-		gc.draw(new Line2D.Double(x, y, x, y + length));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.setStrokePaint(border.color);
+			gc.draw(new Line2D.Double(x, y, x, y + length));
+		}
 	}
 
 	protected void drawHorizontalGrooveLine(GC gc, Border border, double x, double y, double length, boolean ridge)
 			throws GraphicsException {
 		Color color = border.color;
 		double w = border.width / 2.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
-		gc.draw(new Line2D.Double(x, y + w / 2.0, x + length, y + w / 2.0));
-		gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(x, y - w / 2.0, x + length, y - w / 2.0));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
+			gc.draw(new Line2D.Double(x, y + w / 2.0, x + length, y + w / 2.0));
+			gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(x, y - w / 2.0, x + length, y - w / 2.0));
+		}
 	}
 
 	protected void drawVerticalGrooveLine(GC gc, Border border, double x, double y, double length, boolean ridge)
@@ -429,24 +429,24 @@ public class BorderRenderer {
 			throws GraphicsException {
 		Color color = border.color;
 		double w = border.width / 3.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(color);
-		gc.draw(new Line2D.Double(x, y + w, x + length, y + w));
-		gc.draw(new Line2D.Double(x, y - w, x + length, y - w));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(color);
+			gc.draw(new Line2D.Double(x, y + w, x + length, y + w));
+			gc.draw(new Line2D.Double(x, y - w, x + length, y - w));
+		}
 	}
 
 	protected void drawVerticalDoubleLine(GC gc, Border border, double x, double y, double length)
 			throws GraphicsException {
 		Color color = border.color;
 		double w = border.width / 3.0;
-		gc.begin();
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(color);
-		gc.draw(new Line2D.Double(x + w, y, x + w, y + length));
-		gc.draw(new Line2D.Double(x - w, y, x - w, y + length));
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(color);
+			gc.draw(new Line2D.Double(x + w, y, x + w, y + length));
+			gc.draw(new Line2D.Double(x - w, y, x - w, y + length));
+		}
 	}
 
 	/**
@@ -799,24 +799,24 @@ public class BorderRenderer {
 			break;
 
 		case Border.SOLID:
-			gc.begin();
-			setStroke(gc, border.width, BorderRenderer.STROKE_SOLID);
-			BorderRenderer.this.drawHorizontalSimpleLine(gc, border, x, y, l);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.width, BorderRenderer.STROKE_SOLID);
+				BorderRenderer.this.drawHorizontalSimpleLine(gc, border, x, y, l);
+			}
 			break;
 
 		case Border.DASHED:
-			gc.begin();
-			setStroke(gc, border.width, BorderRenderer.STROKE_DASHED);
-			BorderRenderer.this.drawHorizontalSimpleLine(gc, border, x, y, l);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.width, BorderRenderer.STROKE_DASHED);
+				BorderRenderer.this.drawHorizontalSimpleLine(gc, border, x, y, l);
+			}
 			break;
 
 		case Border.DOTTED:
-			gc.begin();
-			setStroke(gc, border.width, BorderRenderer.STROKE_DOTTED);
-			BorderRenderer.this.drawHorizontalSimpleLine(gc, border, x, y, l);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.width, BorderRenderer.STROKE_DOTTED);
+				BorderRenderer.this.drawHorizontalSimpleLine(gc, border, x, y, l);
+			}
 			break;
 
 		case Border.RIDGE:
@@ -850,24 +850,24 @@ public class BorderRenderer {
 			break;
 
 		case Border.SOLID:
-			gc.begin();
-			setStroke(gc, border.width, BorderRenderer.STROKE_SOLID);
-			BorderRenderer.this.drawVerticalSimpleLine(gc, border, x, y, l);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.width, BorderRenderer.STROKE_SOLID);
+				BorderRenderer.this.drawVerticalSimpleLine(gc, border, x, y, l);
+			}
 			break;
 
 		case Border.DASHED:
-			gc.begin();
-			setStroke(gc, border.width, BorderRenderer.STROKE_DASHED);
-			BorderRenderer.this.drawVerticalSimpleLine(gc, border, x, y, l);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.width, BorderRenderer.STROKE_DASHED);
+				BorderRenderer.this.drawVerticalSimpleLine(gc, border, x, y, l);
+			}
 			break;
 
 		case Border.DOTTED:
-			gc.begin();
-			setStroke(gc, border.width, BorderRenderer.STROKE_DOTTED);
-			BorderRenderer.this.drawVerticalSimpleLine(gc, border, x, y, l);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.width, BorderRenderer.STROKE_DOTTED);
+				BorderRenderer.this.drawVerticalSimpleLine(gc, border, x, y, l);
+			}
 			break;
 
 		case Border.RIDGE:
@@ -1011,90 +1011,90 @@ public class BorderRenderer {
 
 			if (left.style >= Border.DOUBLE) {
 				// 左境界
-				gc.begin();
-				final boolean tr = (topLeftHr != 0 || topLeftVr != 0);
-				final boolean br = (bottomLeftHr != 0 || bottomLeftVr != 0);
-				if (tr) {
-					drawArc(gc, left, x + left.width / 2, y + top.width / 2, topLeftHr * 2, topLeftVr * 2, 135, 45);
-				}
-				if (br) {
-					drawArc(gc, left, x + left.width / 2, y + h - bottomLeftVr * 2 - bottom.width / 2, bottomLeftHr * 2,
-							bottomLeftVr * 2, 180, 45);
-				}
+				try (final var gcState = gc.begin()) {
+					final boolean tr = (topLeftHr != 0 || topLeftVr != 0);
+					final boolean br = (bottomLeftHr != 0 || bottomLeftVr != 0);
+					if (tr) {
+						drawArc(gc, left, x + left.width / 2, y + top.width / 2, topLeftHr * 2, topLeftVr * 2, 135, 45);
+					}
+					if (br) {
+						drawArc(gc, left, x + left.width / 2, y + h - bottomLeftVr * 2 - bottom.width / 2, bottomLeftHr * 2,
+								bottomLeftVr * 2, 180, 45);
+					}
 
-				if (left.width > 1) {
-					this.clipLeftTrapezium(gc, left, tr ? 0 : top.width, br ? 0 : bottom.width, x,
-							y + (tr ? top.width / 2 : 0) + topLeftVr,
-							h - (tr ? top.width / 2 : 0) - (br ? bottom.width / 2 : 0) - topLeftVr - bottomLeftVr);
+					if (left.width > 1) {
+						this.clipLeftTrapezium(gc, left, tr ? 0 : top.width, br ? 0 : bottom.width, x,
+								y + (tr ? top.width / 2 : 0) + topLeftVr,
+								h - (tr ? top.width / 2 : 0) - (br ? bottom.width / 2 : 0) - topLeftVr - bottomLeftVr);
+					}
+					this.drawLeftBorder(gc, this, border, x, y + topLeftVr, w, h - topLeftVr - bottomLeftVr);
 				}
-				this.drawLeftBorder(gc, this, border, x, y + topLeftVr, w, h - topLeftVr - bottomLeftVr);
-				gc.end();
 			}
 		}
 		if (top.isVisible() && top.style >= Border.DOUBLE) {
 			// 上境界
-			gc.begin();
-			final boolean lr = (topLeftHr != 0 || topLeftVr != 0);
-			final boolean rr = (topRightHr != 0 || topRightVr != 0);
-			if (lr) {
-				drawArc(gc, top, x + left.width / 2, y + top.width / 2, topLeftHr * 2, topLeftVr * 2, 90, 45);
-			}
-			if (rr) {
-				drawArc(gc, top, x + w - topRightHr * 2 - right.width / 2, y + top.width / 2, topRightHr * 2,
-						topRightVr * 2, 45, 45);
-			}
+			try (final var gcState = gc.begin()) {
+				final boolean lr = (topLeftHr != 0 || topLeftVr != 0);
+				final boolean rr = (topRightHr != 0 || topRightVr != 0);
+				if (lr) {
+					drawArc(gc, top, x + left.width / 2, y + top.width / 2, topLeftHr * 2, topLeftVr * 2, 90, 45);
+				}
+				if (rr) {
+					drawArc(gc, top, x + w - topRightHr * 2 - right.width / 2, y + top.width / 2, topRightHr * 2,
+							topRightVr * 2, 45, 45);
+				}
 
-			if (top.width > 1) {
-				this.clipTopTrapezium(gc, top, lr ? 0 : left.width, rr ? 0 : right.width,
-						x + (lr ? left.width / 2 : 0) + topLeftHr, y,
-						w - (lr ? left.width / 2 : 0) - (rr ? right.width / 2 : 0) - topLeftHr - topRightHr);
+				if (top.width > 1) {
+					this.clipTopTrapezium(gc, top, lr ? 0 : left.width, rr ? 0 : right.width,
+							x + (lr ? left.width / 2 : 0) + topLeftHr, y,
+							w - (lr ? left.width / 2 : 0) - (rr ? right.width / 2 : 0) - topLeftHr - topRightHr);
+				}
+				this.drawTopBorder(gc, this, border, x + topLeftHr, y, w - topLeftHr - topRightHr, h);
 			}
-			this.drawTopBorder(gc, this, border, x + topLeftHr, y, w - topLeftHr - topRightHr, h);
-			gc.end();
 		}
 		if (right.isVisible() && right.style >= Border.DOUBLE) {
 			// 右境界
-			gc.begin();
-			final boolean tr = (topRightHr != 0 || topRightVr != 0);
-			final boolean br = (bottomRightHr != 0 || bottomRightVr != 0);
-			if (tr) {
-				drawArc(gc, right, x + w - topRightHr * 2 - right.width / 2, y + top.width / 2, topRightHr * 2,
-						topRightVr * 2, 0, 45);
-			}
-			if (br) {
-				drawArc(gc, right, x + w - bottomRightHr * 2 - right.width / 2,
-						y + h - bottomRightVr * 2 - bottom.width / 2, bottomRightHr * 2, bottomRightVr * 2, 315, 45);
-			}
+			try (final var gcState = gc.begin()) {
+				final boolean tr = (topRightHr != 0 || topRightVr != 0);
+				final boolean br = (bottomRightHr != 0 || bottomRightVr != 0);
+				if (tr) {
+					drawArc(gc, right, x + w - topRightHr * 2 - right.width / 2, y + top.width / 2, topRightHr * 2,
+							topRightVr * 2, 0, 45);
+				}
+				if (br) {
+					drawArc(gc, right, x + w - bottomRightHr * 2 - right.width / 2,
+							y + h - bottomRightVr * 2 - bottom.width / 2, bottomRightHr * 2, bottomRightVr * 2, 315, 45);
+				}
 
-			if (right.width > 1) {
-				this.clipRightTrapezium(gc, right, tr ? 0 : top.width, br ? 0 : bottom.width, x + w,
-						y + (tr ? top.width / 2 : 0) + topRightVr,
-						h - (tr ? top.width / 2 : 0) - (br ? bottom.width / 2 : 0) - topRightVr - bottomRightVr);
+				if (right.width > 1) {
+					this.clipRightTrapezium(gc, right, tr ? 0 : top.width, br ? 0 : bottom.width, x + w,
+							y + (tr ? top.width / 2 : 0) + topRightVr,
+							h - (tr ? top.width / 2 : 0) - (br ? bottom.width / 2 : 0) - topRightVr - bottomRightVr);
+				}
+				this.drawRightBorder(gc, this, border, x, y + topRightVr, w, h - topRightVr - bottomRightVr);
 			}
-			this.drawRightBorder(gc, this, border, x, y + topRightVr, w, h - topRightVr - bottomRightVr);
-			gc.end();
 		}
 		if (bottom.isVisible() && bottom.style >= Border.DOUBLE) {
 			// 下境界
-			gc.begin();
-			final boolean lr = (bottomLeftHr != 0 || bottomLeftVr != 0);
-			final boolean rr = (bottomRightHr != 0 || bottomRightVr != 0);
-			if (lr) {
-				drawArc(gc, bottom, x + left.width / 2, y + h - bottomLeftVr * 2 - bottom.width / 2, bottomLeftHr * 2,
-						bottomLeftVr * 2, 225, 45);
-			}
-			if (rr) {
-				drawArc(gc, bottom, x + w - bottomRightHr * 2 - right.width / 2,
-						y + h - bottomRightVr * 2 - bottom.width / 2, bottomRightHr * 2, bottomRightVr * 2, 270, 45);
-			}
+			try (final var gcState = gc.begin()) {
+				final boolean lr = (bottomLeftHr != 0 || bottomLeftVr != 0);
+				final boolean rr = (bottomRightHr != 0 || bottomRightVr != 0);
+				if (lr) {
+					drawArc(gc, bottom, x + left.width / 2, y + h - bottomLeftVr * 2 - bottom.width / 2, bottomLeftHr * 2,
+							bottomLeftVr * 2, 225, 45);
+				}
+				if (rr) {
+					drawArc(gc, bottom, x + w - bottomRightHr * 2 - right.width / 2,
+							y + h - bottomRightVr * 2 - bottom.width / 2, bottomRightHr * 2, bottomRightVr * 2, 270, 45);
+				}
 
-			if (bottom.width > 1) {
-				this.clipBottomTrapezium(gc, bottom, lr ? 0 : left.width, rr ? 0 : right.width,
-						x + (lr ? left.width / 2 : 0) + bottomLeftHr, y + h,
-						w - (lr ? left.width / 2 : 0) - (rr ? right.width / 2 : 0) - bottomLeftHr - bottomRightHr);
+				if (bottom.width > 1) {
+					this.clipBottomTrapezium(gc, bottom, lr ? 0 : left.width, rr ? 0 : right.width,
+							x + (lr ? left.width / 2 : 0) + bottomLeftHr, y + h,
+							w - (lr ? left.width / 2 : 0) - (rr ? right.width / 2 : 0) - bottomLeftHr - bottomRightHr);
+				}
+				this.drawBottomBorder(gc, this, border, x + bottomLeftHr, y, w - bottomLeftHr - bottomRightHr, h);
 			}
-			this.drawBottomBorder(gc, this, border, x + bottomLeftHr, y, w - bottomLeftHr - bottomRightHr, h);
-			gc.end();
 		}
 	}
 
@@ -1107,24 +1107,24 @@ public class BorderRenderer {
 
 		case Border.SOLID:
 			Border left = border.getLeft();
-			gc.begin();
-			setStroke(gc, left.width, BorderRenderer.STROKE_SOLID);
-			renderer.drawLeftSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, left.width, BorderRenderer.STROKE_SOLID);
+				renderer.drawLeftSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DASHED:
-			gc.begin();
-			setStroke(gc, border.getLeft().width, BorderRenderer.STROKE_DASHED);
-			renderer.drawLeftSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getLeft().width, BorderRenderer.STROKE_DASHED);
+				renderer.drawLeftSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DOTTED:
-			gc.begin();
-			setStroke(gc, border.getLeft().width, BorderRenderer.STROKE_DOTTED);
-			renderer.drawLeftSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getLeft().width, BorderRenderer.STROKE_DOTTED);
+				renderer.drawLeftSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.RIDGE:
@@ -1157,24 +1157,24 @@ public class BorderRenderer {
 
 		case Border.SOLID:
 			Border top = border.getTop();
-			gc.begin();
-			setStroke(gc, top.width, BorderRenderer.STROKE_SOLID);
-			renderer.drawTopSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, top.width, BorderRenderer.STROKE_SOLID);
+				renderer.drawTopSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DASHED:
-			gc.begin();
-			setStroke(gc, border.getTop().width, BorderRenderer.STROKE_DASHED);
-			renderer.drawTopSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getTop().width, BorderRenderer.STROKE_DASHED);
+				renderer.drawTopSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DOTTED:
-			gc.begin();
-			setStroke(gc, border.getTop().width, BorderRenderer.STROKE_DOTTED);
-			renderer.drawTopSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getTop().width, BorderRenderer.STROKE_DOTTED);
+				renderer.drawTopSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.RIDGE:
@@ -1207,24 +1207,24 @@ public class BorderRenderer {
 
 		case Border.SOLID:
 			Border right = border.getRight();
-			gc.begin();
-			setStroke(gc, right.width, BorderRenderer.STROKE_SOLID);
-			renderer.drawRightSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, right.width, BorderRenderer.STROKE_SOLID);
+				renderer.drawRightSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DASHED:
-			gc.begin();
-			setStroke(gc, border.getRight().width, BorderRenderer.STROKE_DASHED);
-			renderer.drawRightSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getRight().width, BorderRenderer.STROKE_DASHED);
+				renderer.drawRightSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DOTTED:
-			gc.begin();
-			setStroke(gc, border.getRight().width, BorderRenderer.STROKE_DOTTED);
-			renderer.drawRightSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getRight().width, BorderRenderer.STROKE_DOTTED);
+				renderer.drawRightSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.RIDGE:
@@ -1257,24 +1257,24 @@ public class BorderRenderer {
 
 		case Border.SOLID:
 			Border bottom = border.getBottom();
-			gc.begin();
-			setStroke(gc, bottom.width, BorderRenderer.STROKE_SOLID);
-			renderer.drawBottomSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, bottom.width, BorderRenderer.STROKE_SOLID);
+				renderer.drawBottomSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DASHED:
-			gc.begin();
-			setStroke(gc, border.getBottom().width, BorderRenderer.STROKE_DASHED);
-			renderer.drawBottomSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getBottom().width, BorderRenderer.STROKE_DASHED);
+				renderer.drawBottomSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.DOTTED:
-			gc.begin();
-			setStroke(gc, border.getBottom().width, BorderRenderer.STROKE_DOTTED);
-			renderer.drawBottomSimpleLine(gc, border, x, y, w, h);
-			gc.end();
+			try (final var gcState = gc.begin()) {
+				setStroke(gc, border.getBottom().width, BorderRenderer.STROKE_DOTTED);
+				renderer.drawBottomSimpleLine(gc, border, x, y, w, h);
+			}
 			break;
 
 		case Border.RIDGE:

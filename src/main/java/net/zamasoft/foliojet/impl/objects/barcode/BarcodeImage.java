@@ -54,20 +54,20 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		gc.begin();
-		gc.transform(AffineTransform.getScaleInstance(this.upm, this.upm));
-		Graphics2D g2d = new BridgeGraphics2D(gc);
-		try {
-			Java2DRenderer renderer = new Java2DRenderer(g2d, 1, Color.WHITE, this.color);
-			renderer.render(this.symbol);
-		} catch (Exception e) {
-			this.ua.message(MessageCodes.WARN_PLUGIN, "net.zamasoft.foliojet.impl.objects.barcode",
-					e.getLocalizedMessage());
-			StyleUtils.drawText(gc, ua.getDefaultFontPolicy().asFontPolicyList(), 5, e.getLocalizedMessage(), 3, 3,
-					this.width - 6);
-		} finally {
-			g2d.dispose();
-			gc.end();
+		try (final GC.State gcState = gc.begin()) {
+			gc.transform(AffineTransform.getScaleInstance(this.upm, this.upm));
+			Graphics2D g2d = new BridgeGraphics2D(gc);
+			try {
+				Java2DRenderer renderer = new Java2DRenderer(g2d, 1, Color.WHITE, this.color);
+				renderer.render(this.symbol);
+			} catch (Exception e) {
+				this.ua.message(MessageCodes.WARN_PLUGIN, "net.zamasoft.foliojet.impl.objects.barcode",
+						e.getLocalizedMessage());
+				StyleUtils.drawText(gc, ua.getDefaultFontPolicy().asFontPolicyList(), 5, e.getLocalizedMessage(), 3, 3,
+						this.width - 6);
+			} finally {
+				g2d.dispose();
+			}
 		}
 	}
 }

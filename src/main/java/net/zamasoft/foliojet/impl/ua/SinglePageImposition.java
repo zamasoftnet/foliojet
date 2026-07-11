@@ -19,6 +19,9 @@ import net.zamasoft.pdfg2d.gc.imposition.Trims;
 public class SinglePageImposition extends AbstractImposition {
 	protected GC gc;
 
+	/** nextPage() で開始し closePage() で復元する状態。 */
+	protected GC.State gcState;
+
 	protected double actualPageWidth, actualPageHeight;
 
 	public SinglePageImposition(UserAgent ua) {
@@ -70,7 +73,7 @@ public class SinglePageImposition extends AbstractImposition {
 		} else {
 			this.gc = this.ua.nextPage(placement.actualPaperWidth(), placement.actualPaperHeight());
 		}
-		this.gc.begin();
+		this.gcState = this.gc.begin();
 
 		if (placement.rotateContent()) {
 			AffineTransform at = AffineTransform.getRotateInstance(-Math.PI / 2.0);
@@ -131,13 +134,14 @@ public class SinglePageImposition extends AbstractImposition {
 	}
 
 	public void closePage() throws GraphicsException {
-		this.gc.end();
+		this.gcState.close();
 		try {
 			this.ua.closePage(this.gc);
 		} catch (IOException e) {
 			throw new GraphicsException(e);
 		} finally {
 			this.gc = null;
+			this.gcState = null;
 		}
 	}
 

@@ -35,54 +35,54 @@ public class SelectImage implements Image {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		gc.begin();
+		try (final var gcState = gc.begin()) {
 
-		gc.setLineWidth(1.0);
-		gc.setLinePattern(GC.STROKE_SOLID);
-		Shape frame = new Rectangle2D.Double(0, 0, 16, this.height);
-		Shape upFrame = new Rectangle2D.Double(0, 0, 16, 16);
-		Shape up, upShadow;
-		{
-			GeneralPath path = new GeneralPath();
-			path.moveTo(8, 4);
-			path.lineTo(3, 10);
-			path.lineTo(13, 10);
-			up = path;
-			path = new GeneralPath();
-			path.moveTo(16, 0);
-			path.lineTo(16, 16);
-			path.lineTo(0, 16);
-			upShadow = path;
+			gc.setLineWidth(1.0);
+			gc.setLinePattern(GC.STROKE_SOLID);
+			Shape frame = new Rectangle2D.Double(0, 0, 16, this.height);
+			Shape upFrame = new Rectangle2D.Double(0, 0, 16, 16);
+			Shape up, upShadow;
+			{
+				GeneralPath path = new GeneralPath();
+				path.moveTo(8, 4);
+				path.lineTo(3, 10);
+				path.lineTo(13, 10);
+				up = path;
+				path = new GeneralPath();
+				path.moveTo(16, 0);
+				path.lineTo(16, 16);
+				path.lineTo(0, 16);
+				upShadow = path;
+			}
+			Shape downFrame = new Rectangle2D.Double(0, this.height - 16, 16, 16);
+			Shape down, downShadow;
+			{
+				GeneralPath path = new GeneralPath();
+				path.moveTo(8, (float) (this.height - 4));
+				path.lineTo(3, (float) (this.height - 10));
+				path.lineTo(13, (float) (this.height - 10));
+				down = path;
+				path = new GeneralPath();
+				path.moveTo(16, (float) (this.height - 16));
+				path.lineTo(16, (float) this.height);
+				path.lineTo(0, (float) this.height);
+				downShadow = path;
+			}
+
+			gc.setFillPaint(ColorValueUtils.LIGHTGRAY.getColor());
+			gc.fill(frame);
+
+			gc.fill(upFrame);
+			gc.setFillPaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
+			gc.fill(up);
+			gc.draw(upShadow);
+
+			gc.setFillPaint(ColorValueUtils.LIGHTGRAY.getColor());
+			gc.fill(downFrame);
+			gc.setFillPaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
+			gc.fill(down);
+			gc.draw(downShadow);
+
 		}
-		Shape downFrame = new Rectangle2D.Double(0, this.height - 16, 16, 16);
-		Shape down, downShadow;
-		{
-			GeneralPath path = new GeneralPath();
-			path.moveTo(8, (float) (this.height - 4));
-			path.lineTo(3, (float) (this.height - 10));
-			path.lineTo(13, (float) (this.height - 10));
-			down = path;
-			path = new GeneralPath();
-			path.moveTo(16, (float) (this.height - 16));
-			path.lineTo(16, (float) this.height);
-			path.lineTo(0, (float) this.height);
-			downShadow = path;
-		}
-
-		gc.setFillPaint(ColorValueUtils.LIGHTGRAY.getColor());
-		gc.fill(frame);
-
-		gc.fill(upFrame);
-		gc.setFillPaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
-		gc.fill(up);
-		gc.draw(upShadow);
-
-		gc.setFillPaint(ColorValueUtils.LIGHTGRAY.getColor());
-		gc.fill(downFrame);
-		gc.setFillPaint((this.disabled ? ColorValueUtils.DIMGRAY : ColorValueUtils.BLACK).getColor());
-		gc.fill(down);
-		gc.draw(downShadow);
-
-		gc.end();
 	}
 }

@@ -264,15 +264,15 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (DEBUG) {
 			drawer.visitDrawable(new Drawable() {
 				public void draw(GC gc, double x, double y) throws GraphicsException {
-					gc.begin();
-					gc.setStrokePaint(RGBColor.create(127, 127, 255));
-					double width = 0;
-					for (int i = 0; i < TableRowBox.this.cells.size(); ++i) {
-						Cell cell = (Cell) TableRowBox.this.cells.get(i);
-						width += cell.getCellBox().getWidth();
+					try (final var gcState = gc.begin()) {
+						gc.setStrokePaint(RGBColor.create(127, 127, 255));
+						double width = 0;
+						for (int i = 0; i < TableRowBox.this.cells.size(); ++i) {
+							Cell cell = (Cell) TableRowBox.this.cells.get(i);
+							width += cell.getCellBox().getWidth();
+						}
+						gc.draw(new Rectangle2D.Double(x, y, width, getHeight()));
 					}
-					gc.draw(new Rectangle2D.Double(x, y, width, getHeight()));
-					gc.end();
 				}
 			}, x, y);
 		}

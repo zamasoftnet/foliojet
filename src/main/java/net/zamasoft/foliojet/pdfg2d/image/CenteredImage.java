@@ -34,10 +34,10 @@ public class CenteredImage extends WrappedImage {
 	}
 
 	public void drawTo(GC gc) {
-		gc.begin();
-		gc.transform(this.at);
-		this.image.drawTo(gc);
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			gc.transform(this.at);
+			this.image.drawTo(gc);
+		}
 	}
 
 	public String getAltString() {

@@ -24,11 +24,11 @@ public class MathMLImage implements Image {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		gc.begin();
-		Graphics2D g2d = new BridgeGraphics2D(gc);
-		this.view.draw(g2d, 0, this.view.getAscentHeight());
-		g2d.dispose();
-		gc.end();
+		try (final var gcState = gc.begin()) {
+			Graphics2D g2d = new BridgeGraphics2D(gc);
+			this.view.draw(g2d, 0, this.view.getAscentHeight());
+			g2d.dispose();
+		}
 	}
 
 	public String getAltString() {

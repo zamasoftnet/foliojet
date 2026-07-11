@@ -24,8 +24,9 @@ public abstract class AbstractDrawable implements Drawable {
 	}
 
 	public final void draw(GC gc, double x, double y) throws GraphicsException {
+		GC.State state = null;
 		if (this.clip != null || !this.transform.isIdentity()) {
-			gc.begin();
+			state = gc.begin();
 			if (this.clip != null) {
 				gc.clip(this.clip);
 			}
@@ -64,8 +65,8 @@ public abstract class AbstractDrawable implements Drawable {
 		}
 		/* NoAndroid end */
 
-		if (this.clip != null || !this.transform.isIdentity()) {
-			gc.end();
+		if (state != null) {
+			state.close();
 		}
 	}
 

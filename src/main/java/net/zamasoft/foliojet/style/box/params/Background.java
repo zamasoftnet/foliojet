@@ -157,172 +157,172 @@ public class Background {
 							 * BorderRenderer.INSTANCE.getBorderXRectF (border, x, y, width, height);
 							 * }
 							 *//* Android end */
-		gc.begin();
-		if (this.backgroundPaint != null) {
-			// 背景色
-			gc.setFillPaint(this.backgroundPaint.getPaint(shape.getBounds()));
-			gc.fill(shape);
-		}
-		if (this.backgroundImage != null) {
-			// 背景画像描画
-			double paddingWidth = width - pbLeft - pbRight;
-			double paddingHeight = height - pbTop - pbBottom;
-
-			// サイズ
-			double imageWidth = 0, imageHeight = 0;
-			Dimension size = this.backgroundImage.size;
-			switch (size.getWidthType()) {
-			case Dimension.TYPE_ABSOLUTE:
-				imageWidth = size.getWidth();
-				break;
-			case Dimension.TYPE_RELATIVE:
-				imageWidth = size.getWidth() * paddingWidth;
-				break;
-			case Dimension.TYPE_AUTO:
-				break;
-			default:
-				throw new IllegalStateException();
+		try (final var gcState = gc.begin()) {
+			if (this.backgroundPaint != null) {
+				// 背景色
+				gc.setFillPaint(this.backgroundPaint.getPaint(shape.getBounds()));
+				gc.fill(shape);
 			}
-			switch (size.getHeightType()) {
-			case Dimension.TYPE_ABSOLUTE:
-				imageHeight = size.getHeight();
-				break;
-			case Dimension.TYPE_RELATIVE:
-				imageHeight = size.getHeight() * paddingHeight;
-				break;
-			case Dimension.TYPE_AUTO:
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			if (size.getWidthType() == Dimension.TYPE_AUTO) {
-				if (size.getHeightType() == Dimension.TYPE_AUTO) {
-					throw new IllegalStateException();
-				}
-				imageWidth = imageHeight * this.backgroundImage.image.getWidth()
-						/ this.backgroundImage.image.getHeight();
-			} else if (size.getHeightType() == Dimension.TYPE_AUTO) {
-				imageHeight = imageWidth * this.backgroundImage.image.getHeight()
-						/ this.backgroundImage.image.getWidth();
-			}
+			if (this.backgroundImage != null) {
+				// 背景画像描画
+				double paddingWidth = width - pbLeft - pbRight;
+				double paddingHeight = height - pbTop - pbBottom;
 
-			if (imageWidth > 0 && imageHeight > 0) {
-				double offX = pbLeft;
-				double offY = pbTop;
-				if (this.backgroundImage.attachment == BackgroundImage.ATTACHMENT_FIXED) {
-					// 固定位置
-					offX -= x;
-					offY -= y;
-				}
-
-				// 位置
-				Offset pos = this.backgroundImage.position;
-				switch (pos.getXType()) {
+				// サイズ
+				double imageWidth = 0, imageHeight = 0;
+				Dimension size = this.backgroundImage.size;
+				switch (size.getWidthType()) {
 				case Dimension.TYPE_ABSOLUTE:
-					offX += pos.getX();
+					imageWidth = size.getWidth();
 					break;
 				case Dimension.TYPE_RELATIVE:
-					offX += pos.getX() * (paddingWidth - imageWidth);
+					imageWidth = size.getWidth() * paddingWidth;
 					break;
 				case Dimension.TYPE_AUTO:
+					break;
 				default:
 					throw new IllegalStateException();
 				}
-				switch (pos.getYType()) {
+				switch (size.getHeightType()) {
 				case Dimension.TYPE_ABSOLUTE:
-					offY += pos.getY();
+					imageHeight = size.getHeight();
 					break;
 				case Dimension.TYPE_RELATIVE:
-					offY += pos.getY() * (paddingHeight - imageHeight);
+					imageHeight = size.getHeight() * paddingHeight;
 					break;
 				case Dimension.TYPE_AUTO:
+					break;
 				default:
 					throw new IllegalStateException();
 				}
+				if (size.getWidthType() == Dimension.TYPE_AUTO) {
+					if (size.getHeightType() == Dimension.TYPE_AUTO) {
+						throw new IllegalStateException();
+					}
+					imageWidth = imageHeight * this.backgroundImage.image.getWidth()
+							/ this.backgroundImage.image.getHeight();
+				} else if (size.getHeightType() == Dimension.TYPE_AUTO) {
+					imageHeight = imageWidth * this.backgroundImage.image.getHeight()
+							/ this.backgroundImage.image.getWidth();
+				}
 
-				final double sx;
-				final double sy;
-				final Image image;
+				if (imageWidth > 0 && imageHeight > 0) {
+					double offX = pbLeft;
+					double offY = pbTop;
+					if (this.backgroundImage.attachment == BackgroundImage.ATTACHMENT_FIXED) {
+						// 固定位置
+						offX -= x;
+						offY -= y;
+					}
+
+					// 位置
+					Offset pos = this.backgroundImage.position;
+					switch (pos.getXType()) {
+					case Dimension.TYPE_ABSOLUTE:
+						offX += pos.getX();
+						break;
+					case Dimension.TYPE_RELATIVE:
+						offX += pos.getX() * (paddingWidth - imageWidth);
+						break;
+					case Dimension.TYPE_AUTO:
+					default:
+						throw new IllegalStateException();
+					}
+					switch (pos.getYType()) {
+					case Dimension.TYPE_ABSOLUTE:
+						offY += pos.getY();
+						break;
+					case Dimension.TYPE_RELATIVE:
+						offY += pos.getY() * (paddingHeight - imageHeight);
+						break;
+					case Dimension.TYPE_AUTO:
+					default:
+						throw new IllegalStateException();
+					}
+
+					final double sx;
+					final double sy;
+					final Image image;
 				
-				SVGPreserveAspectRatio preserveAspectRatio = null;
-				if (preserveAspectRatio != null && preserveAspectRatio.getAlign() == SVGPreserveAspectRatio.SVG_PRESERVEASPECTRATIO_XMIDYMID) {
-					sx = sy = 1;
-					image = new CenteredImage(this.backgroundImage.image, imageWidth, imageHeight);
-				} else {
-					sx = imageWidth / this.backgroundImage.image.getWidth();
-					sy = imageHeight / this.backgroundImage.image.getHeight();
-					image = this.backgroundImage.image;
-				}
+					SVGPreserveAspectRatio preserveAspectRatio = null;
+					if (preserveAspectRatio != null && preserveAspectRatio.getAlign() == SVGPreserveAspectRatio.SVG_PRESERVEASPECTRATIO_XMIDYMID) {
+						sx = sy = 1;
+						image = new CenteredImage(this.backgroundImage.image, imageWidth, imageHeight);
+					} else {
+						sx = imageWidth / this.backgroundImage.image.getWidth();
+						sy = imageHeight / this.backgroundImage.image.getHeight();
+						image = this.backgroundImage.image;
+					}
 
-				// 描画
-				gc.clip(shape);
-				switch (this.backgroundImage.repeat) {
-				case BackgroundImage.REPEAT_NO: {
-					// 繰り返しなし
-					double tx = x + offX;
-					double ty = y + offY;
-					AffineTransform at = new AffineTransform(sx, 0, 0, sy, tx, ty);
-					gc.begin();
-					gc.transform(at);
-					gc.drawImage(image);
-					gc.end();
-				}
-					break;
+					// 描画
+					gc.clip(shape);
+					switch (this.backgroundImage.repeat) {
+					case BackgroundImage.REPEAT_NO: {
+						// 繰り返しなし
+						double tx = x + offX;
+						double ty = y + offY;
+						AffineTransform at = new AffineTransform(sx, 0, 0, sy, tx, ty);
+					try (final var gcState2 = gc.begin()) {
+							gc.transform(at);
+							gc.drawImage(image);
+					}
+					}
+						break;
 
-				case BackgroundImage.REPEAT_X: {
-					// 横方法繰り返し
-					gc.begin();
-					double tx = (x + offX) % imageWidth;
-					double ty = y + offY;
-					AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
-					at.scale(sx, sy);
+					case BackgroundImage.REPEAT_X: {
+						// 横方法繰り返し
+					try (final var gcState2 = gc.begin()) {
+							double tx = (x + offX) % imageWidth;
+							double ty = y + offY;
+							AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
+							at.scale(sx, sy);
 
-					Pattern pattern = new Pattern(image, at);
-					gc.setFillPaint(pattern);
-					Rectangle2D rect = new Rectangle2D.Double(x, ty, width, imageHeight);
-					gc.fill(rect);
-					gc.end();
-				}
-					break;
+							Pattern pattern = new Pattern(image, at);
+							gc.setFillPaint(pattern);
+							Rectangle2D rect = new Rectangle2D.Double(x, ty, width, imageHeight);
+							gc.fill(rect);
+					}
+					}
+						break;
 
-				case BackgroundImage.REPEAT_Y: {
-					// 縦方向繰り返し
-					gc.begin();
-					double tx = x + offX;
-					double ty = (y + offY) % imageHeight;
-					AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
-					at.scale(sx, sy);
+					case BackgroundImage.REPEAT_Y: {
+						// 縦方向繰り返し
+					try (final var gcState2 = gc.begin()) {
+							double tx = x + offX;
+							double ty = (y + offY) % imageHeight;
+							AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
+							at.scale(sx, sy);
 
-					Pattern pattern = new Pattern(image, at);
-					gc.setFillPaint(pattern);
-					Rectangle2D rect = new Rectangle2D.Double(tx, y, imageWidth, height);
-					gc.fill(rect);
-					gc.end();
-				}
-					break;
+							Pattern pattern = new Pattern(image, at);
+							gc.setFillPaint(pattern);
+							Rectangle2D rect = new Rectangle2D.Double(tx, y, imageWidth, height);
+							gc.fill(rect);
+					}
+					}
+						break;
 
-				case BackgroundImage.REPEAT: {
-					// タイリング
-					gc.begin();
-					double tx = (x + offX) % imageWidth;
-					double ty = (y + offY) % imageHeight;
-					AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
-					at.scale(sx, sy);
+					case BackgroundImage.REPEAT: {
+						// タイリング
+					try (final var gcState2 = gc.begin()) {
+							double tx = (x + offX) % imageWidth;
+							double ty = (y + offY) % imageHeight;
+							AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
+							at.scale(sx, sy);
 
-					Pattern pattern = new Pattern(image, at);
-					gc.setFillPaint(pattern);
-					Rectangle2D rect = new Rectangle2D.Double(x, y, width, height);
-					gc.fill(rect);
-					gc.end();
-				}
-					break;
+							Pattern pattern = new Pattern(image, at);
+							gc.setFillPaint(pattern);
+							Rectangle2D rect = new Rectangle2D.Double(x, y, width, height);
+							gc.fill(rect);
+					}
+					}
+						break;
 
-				default:
-					throw new IllegalStateException();
+					default:
+						throw new IllegalStateException();
+					}
 				}
 			}
 		}
-		gc.end();
 	}
 
 	/**
