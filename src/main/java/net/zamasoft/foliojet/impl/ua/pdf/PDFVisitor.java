@@ -257,7 +257,10 @@ public class PDFVisitor extends AbstractVisitor {
 				final RadioGroup group = new RadioGroup(e.getKey(), g.tooltip, g.selectedValue, g.disabled, false,
 						g.buttons);
 				try {
+					// All of a radio group's widgets belong to one Form element.
+					pdfOut.beginStructElement("Form");
 					pdfOut.addRadioGroup(group);
+					pdfOut.endStructElement();
 				} catch (UnsupportedOperationException ex) {
 					this.formsSupported = false;
 				} catch (IOException ex) {
@@ -274,7 +277,12 @@ public class PDFVisitor extends AbstractVisitor {
 		}
 		final PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
 		try {
+			// PDF/UA: a widget must be nested in a Form structure element. When
+			// untagged, these calls are no-ops. addFormField associates the
+			// widget with the open Form via its OBJR.
+			pdfOut.beginStructElement("Form");
 			pdfOut.addFormField(field);
+			pdfOut.endStructElement();
 		} catch (UnsupportedOperationException e) {
 			// The target profile forbids interactive forms; stop trying.
 			this.formsSupported = false;

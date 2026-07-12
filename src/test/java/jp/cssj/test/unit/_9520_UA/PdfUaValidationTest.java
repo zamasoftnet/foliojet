@@ -46,7 +46,18 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	public void testPdfUa1Compliant() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
 		this.session.property("output.pdf.tagged.lang", "ja");
-		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/9520-UA/ua.html"), "text/html", null);
+		this.validateUa("files/unittest/9520-UA/ua.html");
+	}
+
+	public void testPdfUa1WithForm() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "ja");
+		this.session.property("output.pdf.forms", "true");
+		this.validateUa("files/unittest/9520-UA/ua-form.html");
+	}
+
+	private void validateUa(final String path) throws Exception {
+		CTISessionHelper.transcodeFile(this.session, new File(path), "text/html", null);
 		this.session.close();
 		this.closed = true;
 
