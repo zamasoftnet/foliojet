@@ -16,13 +16,17 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
  */
 public final class StructDrawable implements Drawable {
 
-	private static final StructDrawable END = new StructDrawable(null);
+	private static final StructDrawable END = new StructDrawable(null, null);
 
 	/** The structure role to open, or {@code null} for the end marker. */
 	private final String role;
 
-	private StructDrawable(final String role) {
+	/** Table-header scope ({@code "Row"}/{@code "Column"}), or {@code null}. */
+	private final String scope;
+
+	private StructDrawable(final String role, final String scope) {
 		this.role = role;
+		this.scope = scope;
 	}
 
 	/**
@@ -32,7 +36,19 @@ public final class StructDrawable implements Drawable {
 	 * @return the begin marker
 	 */
 	public static StructDrawable begin(final String role) {
-		return new StructDrawable(role);
+		return new StructDrawable(role, null);
+	}
+
+	/**
+	 * Returns a marker that opens a table-header ({@code TH}) with a cell scope.
+	 *
+	 * @param role  the structure type (typically {@code "TH"})
+	 * @param scope the header scope ({@code "Row"}, {@code "Column"},
+	 *              {@code "Both"})
+	 * @return the begin marker
+	 */
+	public static StructDrawable begin(final String role, final String scope) {
+		return new StructDrawable(role, scope);
 	}
 
 	/**
@@ -47,10 +63,12 @@ public final class StructDrawable implements Drawable {
 	@Override
 	public void draw(final GC gc, final double x, final double y) throws GraphicsException {
 		if (gc instanceof PDFGC pdfgc && pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput page) {
-			if (this.role != null) {
-				page.beginStructElement(this.role);
-			} else {
+			if (this.role == null) {
 				page.endStructElement();
+			} else if (this.scope != null) {
+				page.beginStructElement(this.role, this.scope);
+			} else {
+				page.beginStructElement(this.role);
 			}
 		}
 	}

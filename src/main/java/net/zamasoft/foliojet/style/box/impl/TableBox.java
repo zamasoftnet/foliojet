@@ -282,11 +282,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			drawer = newDrawer;
 		}
 
-		final String structRole = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(pageBox.getUserAgent(),
-				this.params.element);
-		if (structRole != null) {
-			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.begin(structRole), x, y);
-		}
+		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 
 		if (this.params.frame.background.isVisible()) {
 			Drawable drawable = new BackgroundBorderDrawable(pageBox, clip, this.params.opacity, transform,
@@ -436,9 +432,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				}
 			}
 		}
-		if (structRole != null) {
-			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.end(), x, y);
-		}
+		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, 0, 1));
 			drawer.visitDrawable(drawable, x, y);

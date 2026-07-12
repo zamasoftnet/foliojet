@@ -176,6 +176,65 @@ public class PageBox extends AbstractBlockBox {
 		return this.ua;
 	}
 
+	/** Elements whose tagged-PDF structure element is currently open. */
+	private final java.util.Set<Object> openStructElements = java.util.Collections
+			.newSetFromMap(new java.util.IdentityHashMap<>());
+
+	/**
+	 * Inserts tagged-PDF structure begin markers for a box's element and
+	 * returns how many were opened (0 when tagging is off, the element is not
+	 * mappable, or the same element is already open — the outer box owns it).
+	 * A list item additionally opens an {@code LBody} wrapper.
+	 *
+	 * @param drawer  the drawer to add markers to
+	 * @param element the box's element
+	 * @param x       the box x position
+	 * @param y       the box y position
+	 * @return the number of structure elements opened (to pass to
+	 *         {@link #endStruct})
+	 */
+	public int beginStruct(final Drawer drawer, final Object element, final double x, final double y) {
+		final String role = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(this.ua, element);
+		if (role == null || !this.openStructElements.add(element)) {
+			return 0;
+		}
+		if (role.equals("TH")) {
+			// PDF/UA: a header cell needs a Scope when the table has no
+			// Headers/IDs association.
+			drawer.visitDrawable(
+					net.zamasoft.foliojet.style.draw.StructDrawable.begin("TH", net.zamasoft.foliojet.ua.props.TaggedPdf
+							.headerScope(element)),
+					x, y);
+			return 1;
+		}
+		drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.begin(role), x, y);
+		if (role.equals("LI")) {
+			// PDF/UA: an LI's content must sit in an LBody.
+			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.begin("LBody"), x, y);
+			return 2;
+		}
+		return 1;
+	}
+
+	/**
+	 * Closes the structure elements opened by a matching {@link #beginStruct}.
+	 *
+	 * @param drawer  the drawer to add markers to
+	 * @param element the box's element
+	 * @param count   the value returned by {@link #beginStruct}
+	 * @param x       the box x position
+	 * @param y       the box y position
+	 */
+	public void endStruct(final Drawer drawer, final Object element, final int count, final double x, final double y) {
+		if (count == 0) {
+			return;
+		}
+		for (int i = 0; i < count; ++i) {
+			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.end(), x, y);
+		}
+		this.openStructElements.remove(element);
+	}
+
 	public final boolean isSpecifiedPageSize() {
 		return false;
 	}

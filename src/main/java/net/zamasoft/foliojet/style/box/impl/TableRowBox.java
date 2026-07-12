@@ -284,11 +284,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
-		final String structRole = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(pageBox.getUserAgent(),
-				this.params.element);
-		if (structRole != null) {
-			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.begin(structRole), x, y);
-		}
+		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 		if (StyleUtils.isVertical(this.tableParams.flow)) {
 			// 縦書き
 			for (int i = 0; i < this.cells.size(); ++i) {
@@ -313,9 +309,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				x += cellBox.getWidth();
 			}
 		}
-		if (structRole != null) {
-			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.end(), x, y);
-		}
+		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 	}
 
 	public final void getText(StringBuilder textBuff) {

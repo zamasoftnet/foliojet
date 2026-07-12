@@ -119,12 +119,14 @@ dependencies {
     api "uk.org.okapibarcode:okapibarcode:${dependencyVersions.okapiBarcode}"
     api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
     testImplementation 'junit:junit:4.13.2'
+    // veraPDF (greenfield parser) for automated PDF/UA conformance validation
+    testImplementation 'org.verapdf:validation-model:1.26.5'
 }
 
 tasks.named('test') {
     useJUnit()
     enableAssertions = true
-    maxHeapSize = '256m'
+    maxHeapSize = '1024m'
     jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
     workingDir = rootProject.projectDir
     exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'

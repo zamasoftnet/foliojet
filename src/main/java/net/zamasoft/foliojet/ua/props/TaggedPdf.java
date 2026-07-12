@@ -49,6 +49,31 @@ public final class TaggedPdf {
 	}
 
 	/**
+	 * Returns the table-header {@code Scope} for a {@code <th>} element, from
+	 * its HTML {@code scope} attribute, defaulting to {@code "Column"} (the
+	 * common case of a heading row).
+	 *
+	 * @param element the {@code <th>} element
+	 * @return {@code "Row"}, {@code "Column"} or {@code "Both"}
+	 */
+	public static String headerScope(final Object element) {
+		if (element instanceof CSSElement ce && ce.atts != null) {
+			final String scope = ce.atts.getValue("scope");
+			if (scope != null) {
+				switch (scope.trim().toLowerCase(Locale.ROOT)) {
+				case "row":
+				case "rowgroup":
+					return "Row";
+				case "col":
+				case "colgroup":
+					return "Column";
+				}
+			}
+		}
+		return "Column";
+	}
+
+	/**
 	 * Returns the PDF structure type for a block-level HTML element, or
 	 * {@code null} when the element should not open its own structure element
 	 * (its content attaches to the enclosing element instead).
