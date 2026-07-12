@@ -60,6 +60,12 @@ public abstract class AbstractVisitor implements Visitor {
 
 	private boolean bookmarks;
 
+	private boolean forms;
+
+	/** Form controls already emitted on the current page (dedup by identity). */
+	private final java.util.Set<CSSElement> emittedControls = java.util.Collections
+			.newSetFromMap(new java.util.IdentityHashMap<>());
+
 	protected AbstractVisitor(UserAgent ua) {
 		this.ua = ua;
 		this.setProcessPageReference(UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua));
@@ -68,6 +74,18 @@ public abstract class AbstractVisitor implements Visitor {
 	protected abstract void addFragment(String id, Point2D location);
 
 	protected abstract void addLink(Shape s, URI uri, CSSElement ce);
+
+	/**
+	 * Emits an interactive PDF form field for an HTML form control. The default
+	 * implementation does nothing; PDF output overrides it.
+	 *
+	 * @param rect the widget rectangle in page coordinates
+	 * @param box  the control's box (for reading textarea content)
+	 * @param ce   the control element (input/textarea/select)
+	 */
+	protected void addFormField(Shape rect, IBox box, CSSElement ce) {
+		// no-op by default
+	}
 
 	protected abstract void endBookmark();
 
@@ -97,12 +115,21 @@ public abstract class AbstractVisitor implements Visitor {
 		return hyperlinks;
 	}
 
+	public boolean isForms() {
+		return forms;
+	}
+
+	public void setForms(boolean forms) {
+		this.forms = forms;
+	}
+
 	public boolean isProcessPageReference() {
 		return processPageReference;
 	}
 
 	public void nextPage() {
 		this.counters = null;
+		this.emittedControls.clear();
 	}
 
 	public void setBookmarks(boolean bookmarks) {
@@ -218,6 +245,20 @@ public abstract class AbstractVisitor implements Visitor {
 						this.addLink(s, link.href, null);
 					}
 				}
+			}
+		}
+
+		// フォーム部品（input/textarea）を対話フォームフィールドとして出力
+		if (this.forms && (type == IBox.TYPE_REPLACED || type == IBox.TYPE_BLOCK) && ce.lName != null) {
+			final String lName = ce.lName.toLowerCase(java.util.Locale.ROOT);
+			if ((lName.equals("input") || lName.equals("textarea")) && this.emittedControls.add(ce)) {
+				double width = box.getWidth();
+				double height = box.getHeight();
+				Shape s = new Rectangle2D.Double(x, y, width, height);
+				if (!transform.isIdentity()) {
+					s = transform.createTransformedShape(s);
+				}
+				this.addFormField(s, box, ce);
 			}
 		}
 

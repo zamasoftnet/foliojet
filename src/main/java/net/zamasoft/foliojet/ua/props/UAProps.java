@@ -354,6 +354,14 @@ public interface UAProps {
 	public static final StringPropManager OUTPUT_PDF_TAGGED_LANG = new StringPropManager("output.pdf.tagged.lang", null);
 
 	/**
+	 * HTML フォーム部品（input/textarea/select）を入力可能な PDF フォーム
+	 * フィールド（AcroForm）として出力するかどうか。有効にするとフォーム部品の
+	 * 見た目が対話ウィジェットの外観に変わる（フォームを含まない文書の出力は不変）。
+	 * PDF/X ではフォームが禁止されているため出力されない。
+	 */
+	public static final BooleanPropManager OUTPUT_PDF_FORMS = new BooleanPropManager("output.pdf.forms", false);
+
+	/**
 	 * 暗号のユーザーパスワードです。
 	 */
 	public static final StringPropManager OUTPUT_PDF_ENCRYPTION_USER_PASSWORD = new StringPropManager(
