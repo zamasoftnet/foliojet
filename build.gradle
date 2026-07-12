@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'net.zamasoft'
-version = '4.0.0-SNAPSHOT'
+version = '3.5.0-SNAPSHOT'
 
 def dependencyVersions = [
     cti              : '2.2.3',
