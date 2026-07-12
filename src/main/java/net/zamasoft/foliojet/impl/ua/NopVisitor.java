@@ -15,7 +15,7 @@ public class NopVisitor extends AbstractVisitor {
 	protected void addFragment(String id, Point2D location) {
 	}
 
-	protected void addLink(Shape rect, URI uri, CSSElement ce) {
+	protected void addLink(Shape rect, URI uri, CSSElement ce, String contents) {
 	}
 
 	protected void endBookmark() {

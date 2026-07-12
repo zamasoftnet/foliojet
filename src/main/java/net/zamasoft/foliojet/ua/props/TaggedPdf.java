@@ -114,7 +114,12 @@ public final class TaggedPdf {
 		case "blockquote":
 			return "BlockQuote";
 		case "caption":
+		case "figcaption":
 			return "Caption";
+		case "img":
+		case "svg":
+		case "object":
+			return "Figure";
 		case "table":
 			return "Table";
 		case "tr":

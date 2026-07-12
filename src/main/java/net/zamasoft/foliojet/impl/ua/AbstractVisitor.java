@@ -82,7 +82,7 @@ public abstract class AbstractVisitor implements Visitor {
 
 	protected abstract void addFragment(String id, Point2D location);
 
-	protected abstract void addLink(Shape s, URI uri, CSSElement ce);
+	protected abstract void addLink(Shape s, URI uri, CSSElement ce, String contents);
 
 	/**
 	 * Emits an interactive PDF form field for a simple HTML form control
@@ -243,7 +243,11 @@ public abstract class AbstractVisitor implements Visitor {
 				if (!transform.isIdentity()) {
 					s = transform.createTransformedShape(s);
 				}
-				this.addLink(s, uri, ce);
+				// The link text becomes the annotation's alt description (PDF/UA).
+				final StringBuilder tb = new StringBuilder();
+				box.getText(tb);
+				String contents = tb.toString().trim();
+				this.addLink(s, uri, ce, contents.isEmpty() ? null : contents);
 			}
 			
 			if (type == IBox.TYPE_REPLACED) {
@@ -264,7 +268,7 @@ public abstract class AbstractVisitor implements Visitor {
 							if (!transform.isIdentity()) {
 								s = transform.createTransformedShape(s);
 							}
-							this.addLink(s, area.href, null);
+							this.addLink(s, area.href, null, null);
 						}
 					}
 				}
@@ -283,7 +287,7 @@ public abstract class AbstractVisitor implements Visitor {
 						if (!transform.isIdentity()) {
 							s = transform.createTransformedShape(s);
 						}
-						this.addLink(s, link.href, null);
+						this.addLink(s, link.href, null, null);
 					}
 				}
 			}

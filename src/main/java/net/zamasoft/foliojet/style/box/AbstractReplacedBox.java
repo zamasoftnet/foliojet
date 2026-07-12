@@ -313,9 +313,14 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		visitor.visitBox(transform, this, x, y);
 
 		if (this.params.opacity != 0) {
+			// Tagged PDF: wrap an image in a Figure element so its alternate
+			// text attaches to the figure rather than the enclosing block.
+			// No-op for non-image replaced content and when untagged.
+			final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 			final Drawable drawable = new ReplacedBoxDrawable(pageBox, clip, this.params.opacity, transform, this.frame,
 					this.params.image, this.getWidth(), this.getHeight());
 			drawer.visitDrawable(drawable, x, y);
+			pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 		}
 	}
 }

@@ -56,6 +56,17 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		this.validateUa("files/unittest/9520-UA/ua-form.html");
 	}
 
+	public void testPdfUa1WithMedia() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "ja");
+		this.session.property("output.pdf.hyperlinks", "true");
+		this.validateUa("files/unittest/9520-UA/ua-media.html");
+		final String pdf = new String(java.nio.file.Files.readAllBytes(this.file.toPath()),
+				java.nio.charset.StandardCharsets.ISO_8859_1);
+		assertTrue("the image must become a Figure structure element", pdf.contains("/S /Figure"));
+		assertTrue("the link must become a Link structure element", pdf.contains("/S /Link"));
+	}
+
 	private void validateUa(final String path) throws Exception {
 		CTISessionHelper.transcodeFile(this.session, new File(path), "text/html", null);
 		this.session.close();

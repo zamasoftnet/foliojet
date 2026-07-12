@@ -111,7 +111,7 @@ public class PDFVisitor extends AbstractVisitor {
 		this.setForms(forms);
 	}
 
-	protected void addLink(Shape s, URI uri, CSSElement ce) {
+	protected void addLink(Shape s, URI uri, CSSElement ce, String contents) {
 		PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
 		AffineTransform at = this.gc.getTransform();
 		if (at != null) {
@@ -121,8 +121,15 @@ public class PDFVisitor extends AbstractVisitor {
 		LinkAnnot link = new LinkAnnot();
 		link.setShape(s);
 		link.setURI(uri);
+		// PDF/UA: a link annotation needs an alternate description (/Contents);
+		// fall back to the target URI when there is no link text.
+		link.setContents((contents != null && !contents.isEmpty()) ? contents : uri.toString());
 		try {
+			// PDF/UA: the annotation must sit in a Link structure element.
+			// No-op when untagged.
+			pdfOut.beginStructElement("Link");
 			pdfOut.addAnnotation(link);
+			pdfOut.endStructElement();
 		} catch (IOException e) {
 			throw new GraphicsException(e);
 		}
