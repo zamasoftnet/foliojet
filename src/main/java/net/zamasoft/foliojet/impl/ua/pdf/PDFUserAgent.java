@@ -192,8 +192,54 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		case OutputPdfVersion.V1_7:
 			params = params.withVersion(PDFParams.Version.V_1_7);
 			break;
+		case OutputPdfVersion.V1_7A2:
+			params = params.withVersion(PDFParams.Version.V_PDFA2B);
+			break;
+		case OutputPdfVersion.V1_7A2U:
+			params = params.withVersion(PDFParams.Version.V_PDFA2U);
+			break;
+		case OutputPdfVersion.V1_7A2A:
+			params = params.withVersion(PDFParams.Version.V_PDFA2A);
+			break;
+		case OutputPdfVersion.V1_7A3:
+			params = params.withVersion(PDFParams.Version.V_PDFA3B);
+			break;
+		case OutputPdfVersion.V1_7A3A:
+			params = params.withVersion(PDFParams.Version.V_PDFA3A);
+			break;
+		case OutputPdfVersion.V2_0A4:
+			params = params.withVersion(PDFParams.Version.V_PDFA4);
+			break;
+		case OutputPdfVersion.V1_6X4:
+			params = params.withVersion(PDFParams.Version.V_PDFX4);
+			break;
+		case OutputPdfVersion.V2_0X6:
+			params = params.withVersion(PDFParams.Version.V_PDFX6);
+			break;
+		case OutputPdfVersion.V1_7UA1:
+			params = params.withVersion(PDFParams.Version.V_1_7);
+			break;
+		case OutputPdfVersion.V2_0:
+			params = params.withVersion(PDFParams.Version.V_2_0);
+			break;
 		default:
 			throw new IllegalStateException();
+		}
+
+		// タグ付き PDF / PDF/UA。level A の PDF/A（A-2a/A-3a）と PDF/UA-1 は
+		// 論理構造が必須なので自動で有効化し、それ以外は output.pdf.tagged で選ぶ。
+		{
+			final int versionCode = UAProps.OUTPUT_PDF_VERSION.getCode(this);
+			final boolean pdfua = versionCode == OutputPdfVersion.V1_7UA1;
+			final boolean forceTagged = pdfua
+					|| versionCode == OutputPdfVersion.V1_7A2A
+					|| versionCode == OutputPdfVersion.V1_7A3A;
+			if (forceTagged || UAProps.OUTPUT_PDF_TAGGED.getBoolean(this)) {
+				String lang = UAProps.OUTPUT_PDF_TAGGED_LANG.getString(this);
+				params = params.withTagged(pdfua
+						? net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua(lang)
+						: new net.zamasoft.pdfg2d.pdf.params.TaggedParams(lang, false));
+			}
 		}
 
 		// ファイルID
@@ -434,6 +480,25 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			} else {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
 						"1.4");
+			}
+			break;
+
+		case OutputPdfEncryption.V5:
+			// AES-256 (V5/R6)。PDF 1.7 以上が必要。PDF/A・PDF/X では暗号化不可。
+			if (params.version().isPdfA() || params.version().isPdfX()) {
+				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v5",
+						params.version().isPdfA() ? "PDF/A" : "PDF/X");
+			} else if (params.version().v >= PDFParams.Version.V_1_7.v) {
+				net.zamasoft.pdfg2d.pdf.params.V5EncryptionParams v5Params =
+						new net.zamasoft.pdfg2d.pdf.params.V5EncryptionParams();
+				this.applyEncryptionParams(v5Params);
+				R3Permissions r3p = v5Params.getPermissions();
+				this.applyR2Permissions(r3p);
+				this.applyR3Permissions(r3p);
+				params = params.withEncryption(v5Params);
+			} else {
+				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v5",
+						"1.6");
 			}
 			break;
 

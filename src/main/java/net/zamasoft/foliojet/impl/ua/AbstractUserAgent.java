@@ -241,7 +241,19 @@ public abstract class AbstractUserAgent implements UserAgent {
 		if (this.fontPolicy == null) {
 			String s = UAProps.OUTPUT_PDF_FONTS_POLICY.getString(this);
 			int pdfVersion = UAProps.OUTPUT_PDF_VERSION.getCode(this);
-			if (pdfVersion == OutputPdfVersion.V1_4A1 || pdfVersion == OutputPdfVersion.V1_4X1) {
+			// PDF/A・PDF/X・PDF/UA はいずれもフォント埋め込みが必須。
+			final boolean embedRequired = pdfVersion == OutputPdfVersion.V1_4A1
+					|| pdfVersion == OutputPdfVersion.V1_4X1
+					|| pdfVersion == OutputPdfVersion.V1_7A2
+					|| pdfVersion == OutputPdfVersion.V1_7A2U
+					|| pdfVersion == OutputPdfVersion.V1_7A2A
+					|| pdfVersion == OutputPdfVersion.V1_7A3
+					|| pdfVersion == OutputPdfVersion.V1_7A3A
+					|| pdfVersion == OutputPdfVersion.V2_0A4
+					|| pdfVersion == OutputPdfVersion.V1_6X4
+					|| pdfVersion == OutputPdfVersion.V2_0X6
+					|| pdfVersion == OutputPdfVersion.V1_7UA1;
+			if (embedRequired) {
 				this.fontPolicy = FontValueUtils.toFontPolicyA1(s);
 				if (this.fontPolicy == null) {
 					this.fontPolicy = CSSJFontPolicyValue.PDFA1_VALUE;

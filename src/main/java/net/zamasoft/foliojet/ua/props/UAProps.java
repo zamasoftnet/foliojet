@@ -332,13 +332,26 @@ public interface UAProps {
 	 * PDFバージョンです。
 	 */
 	public static final CodePropManager OUTPUT_PDF_VERSION = new CodePropManager("output.pdf.version",
-			new String[] { "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.4A-1", "1.4X-1" }, OutputPdfVersion.V1_5);
+			new String[] { "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.4A-1", "1.4X-1",
+					"1.7A-2", "1.7A-2u", "1.7A-2a", "1.7A-3", "1.7A-3a", "2.0A-4",
+					"1.6X-4", "2.0X-6", "1.7UA-1", "2.0" },
+			OutputPdfVersion.V1_5);
 
 	/**
 	 * 暗号化方法です。
 	 */
 	public static final CodePropManager OUTPUT_PDF_ENCRYPTION = new CodePropManager("output.pdf.encryption",
-			new String[] { "none", "v1", "v2", "v4" }, OutputPdfEncryption.NONE);
+			new String[] { "none", "v1", "v2", "v4", "v5" }, OutputPdfEncryption.NONE);
+
+	/**
+	 * タグ付き PDF（論理構造）を出力するかどうか。
+	 */
+	public static final BooleanPropManager OUTPUT_PDF_TAGGED = new BooleanPropManager("output.pdf.tagged", false);
+
+	/**
+	 * タグ付き PDF / PDF/UA の言語（BCP 47、例 "ja"）。
+	 */
+	public static final StringPropManager OUTPUT_PDF_TAGGED_LANG = new StringPropManager("output.pdf.tagged.lang", null);
 
 	/**
 	 * 暗号のユーザーパスワードです。
