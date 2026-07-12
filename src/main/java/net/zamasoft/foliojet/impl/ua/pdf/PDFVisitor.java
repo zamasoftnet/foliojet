@@ -21,8 +21,10 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
 import net.zamasoft.pdfg2d.pdf.annot.LinkAnnot;
 import net.zamasoft.pdfg2d.pdf.form.CheckBoxField;
+import net.zamasoft.pdfg2d.pdf.form.ChoiceField;
 import net.zamasoft.pdfg2d.pdf.form.FormField;
 import net.zamasoft.pdfg2d.pdf.form.PushButtonField;
+import net.zamasoft.pdfg2d.pdf.form.RadioGroup;
 import net.zamasoft.pdfg2d.pdf.form.TextField;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
@@ -34,6 +36,55 @@ public class PDFVisitor extends AbstractVisitor {
 
 	/** Cleared once the target profile is found to reject forms (PDF/X). */
 	private boolean formsSupported = true;
+
+	/** {@code <select>} controls awaiting their options before emission. */
+	private final java.util.List<SelectBuilder> pendingSelects = new java.util.ArrayList<>();
+
+	/** Radio buttons grouped by field name, awaiting emission at page end. */
+	private final java.util.Map<String, RadioBuilder> pendingRadios = new java.util.LinkedHashMap<>();
+
+	/** Accumulates the buttons of one radio group (shared field name). */
+	private static final class RadioBuilder {
+		final String tooltip;
+		final boolean disabled;
+		String selectedValue;
+		final java.util.List<net.zamasoft.pdfg2d.pdf.form.RadioGroup.Button> buttons = new java.util.ArrayList<>();
+
+		RadioBuilder(String tooltip, boolean disabled) {
+			this.tooltip = tooltip;
+			this.disabled = disabled;
+		}
+	}
+
+	private void addRadioButton(String name, Rectangle2D.Double rect, String value, boolean checked, String tooltip,
+			boolean disabled) {
+		final RadioBuilder group = this.pendingRadios.computeIfAbsent(name, n -> new RadioBuilder(tooltip, disabled));
+		// Each button needs a distinct on-value; fall back to its index.
+		final String onValue = (value != null && !value.isEmpty()) ? value : String.valueOf(group.buttons.size());
+		group.buttons.add(new net.zamasoft.pdfg2d.pdf.form.RadioGroup.Button(rect, onValue));
+		if (checked) {
+			group.selectedValue = onValue;
+		}
+	}
+
+	/** Accumulates a {@code <select>} and its {@code <option>} children. */
+	private static final class SelectBuilder {
+		final String name;
+		final Rectangle2D.Double rect;
+		final String tooltip;
+		final boolean disabled;
+		final boolean combo;
+		final java.util.List<String> options = new java.util.ArrayList<>();
+		String selected;
+
+		SelectBuilder(String name, Rectangle2D.Double rect, String tooltip, boolean disabled, boolean combo) {
+			this.name = name;
+			this.rect = rect;
+			this.tooltip = tooltip;
+			this.disabled = disabled;
+			this.combo = combo;
+		}
+	}
 
 	protected PDFVisitor(UserAgent ua) {
 		super(ua);
@@ -82,7 +133,6 @@ public class PDFVisitor extends AbstractVisitor {
 		if (!this.formsSupported) {
 			return;
 		}
-		final PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
 		final Rectangle2D b = rectShape.getBounds2D();
 		final Rectangle2D.Double rect = new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
 
@@ -112,9 +162,9 @@ public class PDFVisitor extends AbstractVisitor {
 						false);
 				break;
 			case "radio":
-				field = new CheckBoxField(name, rect, value != null ? value : "On", checked, true, tooltip, disabled,
-						false);
-				break;
+				// Collected and emitted as one grouped field at page end.
+				this.addRadioButton(name, rect, value, checked, tooltip, disabled);
+				return;
 			case "submit":
 			case "reset":
 			case "button":
@@ -139,6 +189,90 @@ public class PDFVisitor extends AbstractVisitor {
 				field = new TextField(name, rect, value, tooltip, 0, false, maxLen, disabled, false);
 			}
 		}
+		this.emit(field);
+	}
+
+	@Override
+	protected void beginSelect(Shape rectShape, CSSElement ce) {
+		if (!this.formsSupported) {
+			return;
+		}
+		final Attributes atts = ce.atts;
+		final Rectangle2D b = rectShape.getBounds2D();
+		final Rectangle2D.Double rect = new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
+		String name = atts.getValue("name");
+		if (name == null || name.isEmpty()) {
+			name = "field" + (++this.fieldSeq);
+		}
+		// A list box has size>1 or is multiple; otherwise it is a drop-down.
+		boolean combo = atts.getValue("multiple") == null;
+		final String size = atts.getValue("size");
+		if (size != null) {
+			try {
+				if (Integer.parseInt(size.trim()) > 1) {
+					combo = false;
+				}
+			} catch (NumberFormatException e) {
+				// ignore a malformed size
+			}
+		}
+		this.pendingSelects
+				.add(new SelectBuilder(name, rect, atts.getValue("title"), atts.getValue("disabled") != null, combo));
+	}
+
+	@Override
+	protected void addSelectOption(CSSElement optionCe, IBox optionBox) {
+		if (this.pendingSelects.isEmpty()) {
+			return;
+		}
+		final SelectBuilder select = this.pendingSelects.get(this.pendingSelects.size() - 1);
+		final StringBuilder sb = new StringBuilder();
+		optionBox.getText(sb);
+		// Collapse whitespace so the option label matches its visible text.
+		final String label = sb.toString().trim().replaceAll("\\s+", " ");
+		final String value = optionCe.atts.getValue("value");
+		final String option = (value != null) ? value : label;
+		select.options.add(option);
+		if (optionCe.atts.getValue("selected") != null) {
+			select.selected = option;
+		}
+	}
+
+	@Override
+	protected void flushForms() {
+		for (final SelectBuilder s : this.pendingSelects) {
+			// Default the selection to the first option, as an HTML drop-down does.
+			String selected = s.selected;
+			if (selected == null && s.combo && !s.options.isEmpty()) {
+				selected = s.options.get(0);
+			}
+			this.emit(new ChoiceField(s.name, s.rect, s.options, selected, s.combo, s.tooltip, 0, s.disabled, false));
+		}
+		this.pendingSelects.clear();
+
+		if (!this.pendingRadios.isEmpty() && this.formsSupported) {
+			final PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
+			for (final java.util.Map.Entry<String, RadioBuilder> e : this.pendingRadios.entrySet()) {
+				final RadioBuilder g = e.getValue();
+				final RadioGroup group = new RadioGroup(e.getKey(), g.tooltip, g.selectedValue, g.disabled, false,
+						g.buttons);
+				try {
+					pdfOut.addRadioGroup(group);
+				} catch (UnsupportedOperationException ex) {
+					this.formsSupported = false;
+				} catch (IOException ex) {
+					throw new GraphicsException(ex);
+				}
+			}
+			this.pendingRadios.clear();
+		}
+	}
+
+	private void emit(FormField field) {
+		if (!this.formsSupported) {
+			return;
+		}
+		final PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
 		try {
 			pdfOut.addFormField(field);
 		} catch (UnsupportedOperationException e) {

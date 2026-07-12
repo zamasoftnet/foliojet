@@ -56,6 +56,10 @@ public class FormFieldTest extends AbstractTestCase {
 		assertTrue("text input and textarea must be text fields", pdf.contains("/FT /Tx"));
 		assertTrue("checkbox/radio/submit must be button fields", pdf.contains("/FT /Btn"));
 		assertTrue("the text input's maxlength must reach the field", pdf.contains("/MaxLen 40"));
+		assertTrue("select must become a choice field", pdf.contains("/FT /Ch"));
+		assertTrue("the select must carry its options", pdf.contains("/Opt"));
+		assertTrue("radios must be grouped into one field with kids", pdf.contains("/Kids"));
+		assertTrue("radio widgets must reference their parent field", pdf.contains("/Parent"));
 	}
 
 	// Override the geometry driver: this suite checks PDF bytes instead.

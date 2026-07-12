@@ -38,6 +38,15 @@ public abstract class AbstractVisitor implements Visitor {
 		return false;
 	}
 
+	/** The page-space rectangle of a box's border edge (top-left origin). */
+	private static Shape controlRect(AffineTransform transform, IBox box, double x, double y) {
+		Shape s = new Rectangle2D.Double(x, y, box.getWidth(), box.getHeight());
+		if (!transform.isIdentity()) {
+			s = transform.createTransformedShape(s);
+		}
+		return s;
+	}
+
 	private static boolean isMarkupBox(short type) {
 		switch (type) {
 		case IBox.TYPE_PAGE:
@@ -76,14 +85,43 @@ public abstract class AbstractVisitor implements Visitor {
 	protected abstract void addLink(Shape s, URI uri, CSSElement ce);
 
 	/**
-	 * Emits an interactive PDF form field for an HTML form control. The default
-	 * implementation does nothing; PDF output overrides it.
+	 * Emits an interactive PDF form field for a simple HTML form control
+	 * (input/textarea). The default implementation does nothing; PDF output
+	 * overrides it.
 	 *
 	 * @param rect the widget rectangle in page coordinates
 	 * @param box  the control's box (for reading textarea content)
-	 * @param ce   the control element (input/textarea/select)
+	 * @param ce   the control element (input/textarea)
 	 */
 	protected void addFormField(Shape rect, IBox box, CSSElement ce) {
+		// no-op by default
+	}
+
+	/**
+	 * Begins collecting a {@code <select>} control; its {@code <option>}
+	 * children are reported by {@link #addSelectOption} and the field is emitted
+	 * at {@link #flushForms}. No-op by default.
+	 *
+	 * @param rect the widget rectangle in page coordinates
+	 * @param ce   the select element
+	 */
+	protected void beginSelect(Shape rect, CSSElement ce) {
+		// no-op by default
+	}
+
+	/**
+	 * Reports an {@code <option>} belonging to the most recently begun
+	 * {@code <select>}. No-op by default.
+	 *
+	 * @param optionCe  the option element
+	 * @param optionBox the option box (for its label text)
+	 */
+	protected void addSelectOption(CSSElement optionCe, IBox optionBox) {
+		// no-op by default
+	}
+
+	/** Emits any pending {@code <select>} fields collected on this page. */
+	protected void flushForms() {
 		// no-op by default
 	}
 
@@ -155,6 +193,9 @@ public abstract class AbstractVisitor implements Visitor {
 	}
 
 	public void endPage() {
+		if (this.forms) {
+			this.flushForms();
+		}
 		if (this.bookmarks || this.processPageReference) {
 			SectionState state = this.ua.getPassContext().getSectionState();
 			for (int i = 0; i < state.firstChangedSections.length; ++i) {
@@ -248,17 +289,16 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 		}
 
-		// フォーム部品（input/textarea）を対話フォームフィールドとして出力
-		if (this.forms && (type == IBox.TYPE_REPLACED || type == IBox.TYPE_BLOCK) && ce.lName != null) {
+		// フォーム部品を対話フォームフィールドとして出力
+		if (this.forms && (type == IBox.TYPE_REPLACED || type == IBox.TYPE_BLOCK) && ce.lName != null
+				&& this.emittedControls.add(ce)) {
 			final String lName = ce.lName.toLowerCase(java.util.Locale.ROOT);
-			if ((lName.equals("input") || lName.equals("textarea")) && this.emittedControls.add(ce)) {
-				double width = box.getWidth();
-				double height = box.getHeight();
-				Shape s = new Rectangle2D.Double(x, y, width, height);
-				if (!transform.isIdentity()) {
-					s = transform.createTransformedShape(s);
-				}
-				this.addFormField(s, box, ce);
+			if (lName.equals("input") || lName.equals("textarea")) {
+				this.addFormField(controlRect(transform, box, x, y), box, ce);
+			} else if (lName.equals("select")) {
+				this.beginSelect(controlRect(transform, box, x, y), ce);
+			} else if (lName.equals("option")) {
+				this.addSelectOption(ce, box);
 			}
 		}
 
