@@ -35,7 +35,10 @@ public class FontFaceTest extends AbstractTestCase {
 			System.err.println("x/"+x);
 			System.err.println("width/"+box.getWidth());
 			assertEquals(186, x, 1);
-			assertEquals(222, box.getWidth(), 1);
+			// MinionPro-Regular. Narrower than the earlier 222 because pdfg2d
+			// now applies GSUB standard ligatures (fj/fi/ff) and GPOS pair
+			// kerning (VA, Va) to the run.
+			assertEquals(210.85, box.getWidth(), 1);
 			return true;
 		}
 		return false;
