@@ -63,6 +63,24 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		final String pdf = this.transcodeAndRead();
 		assertTrue("output.pdf.tagged=true must emit a structure tree", pdf.contains("/StructTreeRoot"));
 		assertTrue("MarkInfo must declare the file as tagged", pdf.contains("/Marked true"));
+		// The HTML structure (h1, p) must reach the tag tree.
+		assertTrue("the <h1> must become an H1 structure element", pdf.contains("/S /H1"));
+		assertTrue("the <p> must become a P structure element", pdf.contains("/S /P"));
+	}
+
+	public void testTaggedStructureRoles() throws Exception {
+		this.session.property("output.pdf.tagged", "true");
+		this.session.property("output.pdf.tagged.lang", "ja");
+		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/9500-PROFILE/structure.html"),
+				"text/html", null);
+		this.session.close();
+		this.closed = true;
+		final String pdf = new String(Files.readAllBytes(this.file.toPath()), StandardCharsets.ISO_8859_1);
+		// Headings, lists and tables must all reach the structure tree.
+		for (final String role : new String[] { "/S /H1", "/S /P", "/S /L", "/S /LI", "/S /Table", "/S /TR",
+				"/S /TH", "/S /TD" }) {
+			assertTrue("missing structure element " + role, pdf.contains(role));
+		}
 	}
 
 	public void testPdfUa1AutoEnablesTagging() throws Exception {

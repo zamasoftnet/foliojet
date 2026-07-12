@@ -17,6 +17,8 @@ import net.zamasoft.foliojet.style.draw.AbsoluteRectFrameDrawable;
 import net.zamasoft.foliojet.style.draw.DebugDrawable;
 import net.zamasoft.foliojet.style.draw.Drawable;
 import net.zamasoft.foliojet.style.draw.Drawer;
+import net.zamasoft.foliojet.style.draw.StructDrawable;
+import net.zamasoft.foliojet.ua.props.TaggedPdf;
 import net.zamasoft.foliojet.style.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.style.visitor.Visitor;
@@ -177,12 +179,25 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			contextX = x - this.frame.padding.left;
 			contextY = y - this.frame.padding.top;
 		}
+
+		// Tagged PDF: open a structure element for a mappable HTML block so the
+		// content drawn inside attaches to it. Zero-size markers, no-op when
+		// untagged or non-PDF; see StructDrawable.
+		final String structRole = TaggedPdf.roleIfActive(pageBox.getUserAgent(), this.params.element);
+		if (structRole != null) {
+			drawer.visitDrawable(StructDrawable.begin(structRole), x, y);
+		}
+
 		this.container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 		this.container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 		if (!contextBox) {
 			clip = null;
 		}
 		this.container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+
+		if (structRole != null) {
+			drawer.visitDrawable(StructDrawable.end(), x, y);
+		}
 	}
 
 	protected abstract AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize,

@@ -165,6 +165,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.rows == null) {
 			return;
 		}
+		final String structRole = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(pageBox.getUserAgent(),
+				this.params.element);
+		if (structRole != null) {
+			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.begin(structRole), x, y);
+		}
 		if (StyleUtils.isVertical(this.tableParams.flow)) {
 			// 縦書き
 			x += this.pageSize;
@@ -180,6 +185,9 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				row.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 				y += row.getPageSize();
 			}
+		}
+		if (structRole != null) {
+			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.end(), x, y);
 		}
 	}
 

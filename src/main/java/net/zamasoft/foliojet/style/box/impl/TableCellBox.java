@@ -307,6 +307,12 @@ public class TableCellBox extends AbstractContainerBox {
 			y += this.verticalAlign;
 		}
 
+		final String structRole = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(pageBox.getUserAgent(),
+				this.params.element);
+		if (structRole != null) {
+			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.begin(structRole), x, y);
+		}
+
 		final boolean contextBox = this.isContextBox();
 		if (contextBox) {
 			contextX = x;
@@ -318,6 +324,10 @@ public class TableCellBox extends AbstractContainerBox {
 			clip = null;
 		}
 		this.container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+
+		if (structRole != null) {
+			drawer.visitDrawable(net.zamasoft.foliojet.style.draw.StructDrawable.end(), x, y);
+		}
 	}
 
 	private final boolean draw() {

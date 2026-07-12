@@ -231,10 +231,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		{
 			final int versionCode = UAProps.OUTPUT_PDF_VERSION.getCode(this);
 			final boolean pdfua = versionCode == OutputPdfVersion.V1_7UA1;
-			final boolean forceTagged = pdfua
-					|| versionCode == OutputPdfVersion.V1_7A2A
-					|| versionCode == OutputPdfVersion.V1_7A3A;
-			if (forceTagged || UAProps.OUTPUT_PDF_TAGGED.getBoolean(this)) {
+			if (net.zamasoft.foliojet.ua.props.TaggedPdf.isActive(this)) {
 				String lang = UAProps.OUTPUT_PDF_TAGGED_LANG.getString(this);
 				params = params.withTagged(pdfua
 						? net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua(lang)
