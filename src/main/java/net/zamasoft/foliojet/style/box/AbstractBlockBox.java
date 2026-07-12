@@ -158,7 +158,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 		transform = this.transform(transform, x, y);
 
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(0, 0, 1));

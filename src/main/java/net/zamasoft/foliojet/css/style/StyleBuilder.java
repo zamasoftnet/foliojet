@@ -2751,8 +2751,8 @@ public class StyleBuilder implements PageGenerator {
 
 		Visitor visitor = this.ua.getVisitor(gc);
 		visitor = new VisitorWrapper(visitor) {
-			public void visitBox(AffineTransform transform, IBox box, double x, double y) {
-				super.visitBox(transform, box, x, y);
+			public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
+				super.visitBox(transform, box, drawer, x, y);
 				Object key = box.getParams().element;
 				String[] pageContentClearNames = (String[]) StyleBuilder.this.toPageContentClear.remove(key);
 				if (pageContentClearNames != null) {

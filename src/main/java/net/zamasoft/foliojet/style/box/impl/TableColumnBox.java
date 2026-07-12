@@ -75,7 +75,7 @@ public class TableColumnBox extends AbstractInnerTableBox {
 
 	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 	}
 
 	public TableColumnBox splitPageAxis(double prevPageSize, double nextPageSize) {

@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.visitor;
 import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.style.draw.Drawer;
 
 /**
  * Visitorのラッパークラスです。
@@ -25,10 +26,10 @@ public class VisitorWrapper implements Visitor {
 		this.visitor.endPage();
 	}
 
-	public void visitBox(AffineTransform transform, IBox box, double x, double y) {
+	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
 		if (this.visitor == null) {
 			return;
 		}
-		this.visitor.visitBox(transform, box, x, y);
+		this.visitor.visitBox(transform, box, drawer, x, y);
 	}
 }

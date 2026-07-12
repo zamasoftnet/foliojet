@@ -229,7 +229,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			throw new IllegalStateException();
 		}
 
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), GrayColor.create(.5f));

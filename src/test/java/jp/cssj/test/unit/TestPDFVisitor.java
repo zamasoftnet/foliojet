@@ -33,8 +33,9 @@ public class TestPDFVisitor extends PDFVisitor {
 		++this.pageNumber;
 	}
 
-	public void visitBox(AffineTransform transform, IBox box, double x, double y) {
-		super.visitBox(transform, box, x, y);
+	public void visitBox(AffineTransform transform, IBox box, net.zamasoft.foliojet.style.draw.Drawer drawer,
+			double x, double y) {
+		super.visitBox(transform, box, drawer, x, y);
 		int pc = this.ua.getUAContext().getPassCount();
 		if (pc > 1) {
 			return;

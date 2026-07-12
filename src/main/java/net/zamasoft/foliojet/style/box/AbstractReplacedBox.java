@@ -310,7 +310,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 
 		transform = this.transform(transform, x, y);
 
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (this.params.opacity != 0) {
 			// Tagged PDF: wrap an image in a Figure element so its alternate

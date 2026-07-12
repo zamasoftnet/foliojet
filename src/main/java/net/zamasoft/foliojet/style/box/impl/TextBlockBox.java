@@ -208,7 +208,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			double contextX, double contextY, double x, double y) {
 		assert !StyleUtils.isNone(x);
 		assert !StyleUtils.isNone(y);
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, .5f, 1));

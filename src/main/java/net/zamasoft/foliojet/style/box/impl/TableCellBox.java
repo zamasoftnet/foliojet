@@ -286,7 +286,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 		transform = this.transform(transform, x, y);
 
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (this.params.opacity == 0) {
 			return;

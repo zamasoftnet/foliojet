@@ -58,12 +58,33 @@ public class PDFVisitor extends AbstractVisitor {
 
 	private void addRadioButton(String name, Rectangle2D.Double rect, String value, boolean checked, String tooltip,
 			boolean disabled) {
-		final RadioBuilder group = this.pendingRadios.computeIfAbsent(name, n -> new RadioBuilder(tooltip, disabled));
+		final boolean[] created = { false };
+		final RadioBuilder group = this.pendingRadios.computeIfAbsent(name, n -> {
+			created[0] = true;
+			return new RadioBuilder(tooltip, disabled);
+		});
 		// Each button needs a distinct on-value; fall back to its index.
 		final String onValue = (value != null && !value.isEmpty()) ? value : String.valueOf(group.buttons.size());
 		group.buttons.add(new net.zamasoft.pdfg2d.pdf.form.RadioGroup.Button(rect, onValue));
 		if (checked) {
 			group.selectedValue = onValue;
+		}
+		if (created[0]) {
+			// Emit the whole group (all buttons collected by paint time) at the
+			// position of its first button, wrapped in one Form element.
+			final String fieldName = name;
+			this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+				final RadioGroup rg = new RadioGroup(fieldName, group.tooltip, group.selectedValue, group.disabled,
+						false, group.buttons);
+				out.beginStructElement("Form");
+				try {
+					out.addRadioGroup(rg);
+				} catch (UnsupportedOperationException e) {
+					this.formsSupported = false;
+				} finally {
+					out.endStructElement();
+				}
+			}), 0, 0);
 		}
 	}
 
@@ -112,27 +133,28 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	protected void addLink(Shape s, URI uri, CSSElement ce, String contents) {
-		PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
 		AffineTransform at = this.gc.getTransform();
 		if (at != null) {
 			s = at.createTransformedShape(s);
 		}
 
-		LinkAnnot link = new LinkAnnot();
+		final LinkAnnot link = new LinkAnnot();
 		link.setShape(s);
 		link.setURI(uri);
 		// PDF/UA: a link annotation needs an alternate description (/Contents);
 		// fall back to the target URI when there is no link text.
 		link.setContents((contents != null && !contents.isEmpty()) ? contents : uri.toString());
-		try {
-			// PDF/UA: the annotation must sit in a Link structure element.
-			// No-op when untagged.
-			pdfOut.beginStructElement("Link");
-			pdfOut.addAnnotation(link);
-			pdfOut.endStructElement();
-		} catch (IOException e) {
-			throw new GraphicsException(e);
-		}
+		// Emit at paint time and in document order so that, when tagged, the
+		// annotation nests in a Link structure element under the enclosing block
+		// rather than at the document root. No-op when untagged.
+		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+			out.beginStructElement("Link");
+			try {
+				out.addAnnotation(link);
+			} finally {
+				out.endStructElement();
+			}
+		}), 0, 0);
 	}
 
 	@Override
@@ -223,8 +245,26 @@ public class PDFVisitor extends AbstractVisitor {
 				// ignore a malformed size
 			}
 		}
-		this.pendingSelects
-				.add(new SelectBuilder(name, rect, atts.getValue("title"), atts.getValue("disabled") != null, combo));
+		final SelectBuilder select = new SelectBuilder(name, rect, atts.getValue("title"),
+				atts.getValue("disabled") != null, combo);
+		this.pendingSelects.add(select);
+		// Emit at paint time; the option list is complete by then.
+		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+			String selected = select.selected;
+			if (selected == null && select.combo && !select.options.isEmpty()) {
+				selected = select.options.get(0);
+			}
+			final ChoiceField field = new ChoiceField(select.name, select.rect, select.options, selected, select.combo,
+					select.tooltip, 0, select.disabled, false);
+			out.beginStructElement("Form");
+			try {
+				out.addFormField(field);
+			} catch (UnsupportedOperationException e) {
+				this.formsSupported = false;
+			} finally {
+				out.endStructElement();
+			}
+		}), 0, 0);
 	}
 
 	@Override
@@ -245,57 +285,23 @@ public class PDFVisitor extends AbstractVisitor {
 		}
 	}
 
-	@Override
-	protected void flushForms() {
-		for (final SelectBuilder s : this.pendingSelects) {
-			// Default the selection to the first option, as an HTML drop-down does.
-			String selected = s.selected;
-			if (selected == null && s.combo && !s.options.isEmpty()) {
-				selected = s.options.get(0);
-			}
-			this.emit(new ChoiceField(s.name, s.rect, s.options, selected, s.combo, s.tooltip, 0, s.disabled, false));
-		}
-		this.pendingSelects.clear();
-
-		if (!this.pendingRadios.isEmpty() && this.formsSupported) {
-			final PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
-			for (final java.util.Map.Entry<String, RadioBuilder> e : this.pendingRadios.entrySet()) {
-				final RadioBuilder g = e.getValue();
-				final RadioGroup group = new RadioGroup(e.getKey(), g.tooltip, g.selectedValue, g.disabled, false,
-						g.buttons);
-				try {
-					// All of a radio group's widgets belong to one Form element.
-					pdfOut.beginStructElement("Form");
-					pdfOut.addRadioGroup(group);
-					pdfOut.endStructElement();
-				} catch (UnsupportedOperationException ex) {
-					this.formsSupported = false;
-				} catch (IOException ex) {
-					throw new GraphicsException(ex);
-				}
-			}
-			this.pendingRadios.clear();
-		}
-	}
-
 	private void emit(FormField field) {
 		if (!this.formsSupported) {
 			return;
 		}
-		final PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
-		try {
-			// PDF/UA: a widget must be nested in a Form structure element. When
-			// untagged, these calls are no-ops. addFormField associates the
-			// widget with the open Form via its OBJR.
-			pdfOut.beginStructElement("Form");
-			pdfOut.addFormField(field);
-			pdfOut.endStructElement();
-		} catch (UnsupportedOperationException e) {
-			// The target profile forbids interactive forms; stop trying.
-			this.formsSupported = false;
-		} catch (IOException e) {
-			throw new GraphicsException(e);
-		}
+		// Emit at paint time and in document order so the widget nests in a Form
+		// structure element under the enclosing block (PDF/UA). No-op untagged.
+		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+			out.beginStructElement("Form");
+			try {
+				out.addFormField(field);
+			} catch (UnsupportedOperationException e) {
+				// The target profile forbids interactive forms; stop trying.
+				this.formsSupported = false;
+			} finally {
+				out.endStructElement();
+			}
+		}), 0, 0);
 	}
 
 	protected void addFragment(String id, Point2D location) {
@@ -335,6 +341,11 @@ public class PDFVisitor extends AbstractVisitor {
 
 	public void nextPage(PDFGC gc) {
 		super.nextPage();
+		// Per-page form collections; their builders live on until the page is
+		// painted (paint-time drawables hold direct references), so clearing at
+		// the start of the next page is safe.
+		this.pendingSelects.clear();
+		this.pendingRadios.clear();
 		this.gc = gc;
 	}
 };

@@ -148,7 +148,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (this.params.opacity == 0) {
 			return;

@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.params.ReplacedParams;
+import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.visitor.Visitor;
 import net.zamasoft.foliojet.ua.Counter;
 import net.zamasoft.foliojet.ua.CounterScope;
@@ -70,6 +71,9 @@ public abstract class AbstractVisitor implements Visitor {
 	private boolean bookmarks;
 
 	private boolean forms;
+
+	/** The drawer for the box currently being visited (set in visitBox). */
+	protected Drawer drawer;
 
 	/** Form controls already emitted on the current page (dedup by identity). */
 	private final java.util.Set<CSSElement> emittedControls = java.util.Collections
@@ -205,7 +209,8 @@ public abstract class AbstractVisitor implements Visitor {
 		}
 	}
 
-	public void visitBox(AffineTransform transform, IBox box, double x, double y) {
+	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
+		this.drawer = drawer;
 		final CSSElement ce = (CSSElement) box.getParams().element;
 		if (ce == null || ce.atts == null) {
 			return;

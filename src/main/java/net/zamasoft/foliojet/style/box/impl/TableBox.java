@@ -268,7 +268,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		x += this.offsetX;
 		y += this.offsetY;
 
-		visitor.visitBox(transform, this, x, y);
+		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (this.params.opacity == 0) {
 			return;
