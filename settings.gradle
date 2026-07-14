@@ -1,6 +1,6 @@
 rootProject.name = 'foliojet'
 
-includeBuild '../pdfg2d'
-includeBuild '../zstream'
-includeBuild '../cti.java'
-includeBuild '../html-balancer'
+includeBuild '../../../zamasoftnet-public/pdfg2d'
+includeBuild '../../../zamasoftnet-public/zstream'
+includeBuild '../../../zamasoftnet-public/cti.java'
+includeBuild '../../../zamasoftnet-public/html-balancer'
