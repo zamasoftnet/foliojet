@@ -8,10 +8,10 @@ Gradle ベースの単一プロジェクト構成です。ビルドは `./gradle
 
 このリポジトリは Gradle の composite build で次の兄弟ディレクトリを参照します。
 
-- `../cti.java` - https://github.com/zamasoftnet/cti.java
-- `../html-balancer` - https://github.com/zamasoftnet/html-balancer
-- `../pdfg2d` - https://github.com/zamasoftnet/pdfg2d
-- `../zstream` - https://github.com/zamasoftnet/zstream
+- `../../../zamasoftnet-public/cti.java` - https://github.com/zamasoftnet/cti.java
+- `../../../zamasoftnet-public/html-balancer` - https://github.com/zamasoftnet/html-balancer
+- `../../../zamasoftnet-public/pdfg2d` - https://github.com/zamasoftnet/pdfg2d
+- `../../../zamasoftnet-public/zstream` - https://github.com/zamasoftnet/zstream
 
 例:
 
@@ -25,7 +25,7 @@ cd foliojet
 ./gradlew build
 ```
 
-`pdfg2d` の Maven group は現時点では `io.github.mimidesunya` のため、`build.gradle` の `io.github.mimidesunya:pdfg2d-*` 依存はそのままにしています。ローカル開発時は `settings.gradle` の composite build により `../pdfg2d` が使われます。
+`pdfg2d` の Maven group は現時点では `io.github.mimidesunya` のため、`build.gradle` の `io.github.mimidesunya:pdfg2d-*` 依存はそのままにしています。ローカル開発時は `settings.gradle` の composite build により `../../../zamasoftnet-public/pdfg2d` が使われます。
 
 ## 主な依存ライブラリ
 
