@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0240_table;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class AbsoluteInFloatInCellTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(x + "/" + y);
 			assertEquals(117, x, 1);
 			assertEquals(53, y, 1);
@@ -29,7 +30,7 @@ public class AbsoluteInFloatInCellTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(x + "/" + y);
 			assertEquals(425, x, 0);
 			assertEquals(0, y, 0);

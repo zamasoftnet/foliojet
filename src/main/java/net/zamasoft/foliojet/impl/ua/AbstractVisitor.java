@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.util.LengthUtils;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.params.ReplacedParams;
 import net.zamasoft.foliojet.style.draw.Drawer;
@@ -30,11 +31,11 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.foliojet.css.token.Unit;
 
 public abstract class AbstractVisitor implements Visitor {
-	private static boolean isHyperlinkBox(short type) {
+	private static boolean isHyperlinkBox(BoxType type) {
 		switch (type) {
-		case IBox.TYPE_LINE:
-		case IBox.TYPE_REPLACED:
-		case IBox.TYPE_INLINE:
+		case LINE:
+		case REPLACED:
+		case INLINE:
 			return true;
 		}
 		return false;
@@ -49,14 +50,14 @@ public abstract class AbstractVisitor implements Visitor {
 		return s;
 	}
 
-	private static boolean isMarkupBox(short type) {
+	private static boolean isMarkupBox(BoxType type) {
 		switch (type) {
-		case IBox.TYPE_PAGE:
-		case IBox.TYPE_TEXT_BLOCK:
-		case IBox.TYPE_LINE:
-		case IBox.TYPE_TABLE:
-		case IBox.TYPE_TABLE_COLUMN_GROUP:
-		case IBox.TYPE_TABLE_COLUMN:
+		case PAGE:
+		case TEXT_BLOCK:
+		case LINE:
+		case TABLE:
+		case TABLE_COLUMN_GROUP:
+		case TABLE_COLUMN:
 			return false;
 		}
 		return true;
@@ -224,7 +225,7 @@ public abstract class AbstractVisitor implements Visitor {
 			pageRef = null;
 		}
 
-		final short type = box.getType();
+		final BoxType type = box.getType();
 		// ハイパーリンク
 		if (this.hyperlinks && isHyperlinkBox(type)) {
 			// Anchor tag
@@ -256,7 +257,7 @@ public abstract class AbstractVisitor implements Visitor {
 				this.addLink(s, uri, ce, contents.isEmpty() ? null : contents);
 			}
 			
-			if (type == IBox.TYPE_REPLACED) {
+			if (type == BoxType.REPLACED) {
 				// Image map
 				String usemap = XHTML.USEMAP_ATTR.getValue(ce.atts);
 				if (usemap != null && usemap.startsWith("#")) {
@@ -300,7 +301,7 @@ public abstract class AbstractVisitor implements Visitor {
 		}
 
 		// フォーム部品を対話フォームフィールドとして出力
-		if (this.forms && (type == IBox.TYPE_REPLACED || type == IBox.TYPE_BLOCK) && ce.lName != null
+		if (this.forms && (type == BoxType.REPLACED || type == BoxType.BLOCK) && ce.lName != null
 				&& this.emittedControls.add(ce)) {
 			final String lName = ce.lName.toLowerCase(java.util.Locale.ROOT);
 			if (lName.equals("input") || lName.equals("textarea")) {

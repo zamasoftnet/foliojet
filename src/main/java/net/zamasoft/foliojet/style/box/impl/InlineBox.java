@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.box.impl;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractTextBox;
 import net.zamasoft.foliojet.style.box.IBox;
@@ -62,8 +63,8 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 
 	}
 
-	public final byte getType() {
-		return IBox.TYPE_INLINE;
+	public final BoxType getType() {
+		return BoxType.INLINE;
 	}
 
 	public final Params getParams() {

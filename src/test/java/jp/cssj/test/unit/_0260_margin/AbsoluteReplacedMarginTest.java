@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0260_margin;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class AbsoluteReplacedMarginTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(x + "/" + y + "/" + box.getWidth() + "/"
 					+ box.getHeight());
 			assertEquals(5, x, 0);

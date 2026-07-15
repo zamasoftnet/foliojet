@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0215_pagebreak_table;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class CenterAlignTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE) {
+		if (box.getType() == BoxType.TABLE) {
 			System.out.println(x);
 			System.out.println(box.getWidth());
 			assertEquals(117.25, x, 0);

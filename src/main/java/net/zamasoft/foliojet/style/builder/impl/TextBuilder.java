@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.builder.impl;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractLineBox;
 import net.zamasoft.foliojet.style.box.AbstractTextBox;
@@ -344,7 +345,7 @@ public class TextBuilder {
 		}
 
 		switch (box.getType()) {
-		case IBox.TYPE_INLINE: {
+		case INLINE: {
 			InlineBox inlineBox = (InlineBox) box;
 			InlineParams params = inlineBox.getInlineParams();
 			InlinePos pos = box.getInlinePos();
@@ -389,8 +390,8 @@ public class TextBuilder {
 		}
 			break;
 
-		case IBox.TYPE_REPLACED:
-		case IBox.TYPE_BLOCK: {
+		case REPLACED:
+		case BLOCK: {
 			final IInlineBox inlineBox = box;
 			final double advance;
 			final AbstractLineParams lineParams = this.lineBox.getLineParams();
@@ -409,7 +410,7 @@ public class TextBuilder {
 
 			final InlinePos pos = box.getInlinePos();
 			double descent, ascent;
-			if (box.getType() == IBox.TYPE_BLOCK) {
+			if (box.getType() == BoxType.BLOCK) {
 				// インラインブロック・テーブルの基底線
 				final AbstractContainerBox inlineBlockBox = (AbstractContainerBox) box;
 				final BlockParams params = inlineBlockBox.getBlockParams();
@@ -466,7 +467,7 @@ public class TextBuilder {
 			final double verticalAlign = pos.verticalAlign.getVerticalAlign(textBox, this.lineBox, ascent, descent,
 					pos.lineHeight, baseline);
 
-			if (box.getType() == IBox.TYPE_BLOCK) {
+			if (box.getType() == BoxType.BLOCK) {
 				// line-heightの適用
 				double lineHeight = pos.lineHeight;
 				lineHeight = Math.max(this.lineBox.getLineParams().lineHeight, lineHeight);

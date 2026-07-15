@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0430_direction_mode;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class PositionTest extends AbstractTestCase {
 	}
 
 	public boolean check_ca(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			System.err.println("x: " + x);
 			System.err.println("y: " + y);
 			assertEquals(67, x, 1);
@@ -28,7 +29,7 @@ public class PositionTest extends AbstractTestCase {
 	}
 
 	public boolean check_cb(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			System.err.println("x: " + x);
 			System.err.println("y: " + y);
 			assertEquals(43, x, 1);

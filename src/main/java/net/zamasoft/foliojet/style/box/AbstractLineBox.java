@@ -42,8 +42,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 	public abstract AbstractLineParams getLineParams();
 
-	public byte getType() {
-		return TYPE_LINE;
+	public BoxType getType() {
+		return BoxType.LINE;
 	}
 
 	public Pos getPos() {

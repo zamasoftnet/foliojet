@@ -5,6 +5,8 @@ import java.text.Normalizer.Form;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxSubtype;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
@@ -173,7 +175,7 @@ public class DocumentBuilder {
 
 		for (int i = this.boxStack.size() - 1; i >= 0; --i) {
 			final IBox box = (IBox) this.boxStack.get(i);
-			if (box.getType() != IBox.TYPE_INLINE) {
+			if (box.getType() != BoxType.INLINE) {
 				break;
 			}
 			this.endBox();
@@ -339,7 +341,7 @@ public class DocumentBuilder {
 
 		case Pos.TYPE_INLINE: {
 			// インライン
-			if (box.getType() == IBox.TYPE_INLINE) {
+			if (box.getType() == BoxType.INLINE) {
 				final InlineBox inlineBox = (InlineBox) box;
 				this.containerBuilder().getStyledTextUnitizer().startInline(inlineBox);
 			} else {
@@ -360,7 +362,7 @@ public class DocumentBuilder {
 
 			if (!this.boxStack.isEmpty()) {
 				final IBox parentBox = (IBox) this.boxStack.get(this.boxStack.size() - 1);
-				if (parentBox.getSubtype() == IBox.SUBTYPE_RUBY && blockBox.getSubtype() == IBox.SUBTYPE_RUBY_BODY
+				if (parentBox.getSubtype() == BoxSubtype.RUBY && blockBox.getSubtype() == BoxSubtype.RUBY_BODY
 						&& this.containerBuilder().builder.isTwoPass()) {
 					TwoPassBlockBuilder builder = (TwoPassBlockBuilder) this.containerBuilder().builder;
 					if (!builder.isEmpty()) {
@@ -486,7 +488,7 @@ public class DocumentBuilder {
 			break;
 
 		case Pos.TYPE_INLINE: {
-			if (box.getType() == IBox.TYPE_INLINE) {
+			if (box.getType() == BoxType.INLINE) {
 				// インライン
 				this.containerBuilder().getStyledTextUnitizer().endInline();
 			} else {

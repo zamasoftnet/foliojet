@@ -5,6 +5,7 @@ import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.IFramedBox;
@@ -44,8 +45,8 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		this.pos = pos;
 	}
 
-	public final byte getType() {
-		return IBox.TYPE_TABLE_ROW_GROUP;
+	public final BoxType getType() {
+		return BoxType.TABLE_ROW_GROUP;
 	}
 
 	public final Pos getPos() {

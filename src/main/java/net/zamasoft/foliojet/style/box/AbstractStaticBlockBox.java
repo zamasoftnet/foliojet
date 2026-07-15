@@ -53,7 +53,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		} else {
 			containerBox = layoutStack.getFlowBox();
 		}
-		if (!table && containerBox.getType() == IBox.TYPE_TABLE_CELL) {
+		if (!table && containerBox.getType() == BoxType.TABLE_CELL) {
 			table = true;
 		}
 		final BlockParams cParams = containerBox.getBlockParams();
@@ -101,7 +101,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			}
 			if ((this.size.getHeightType() == Dimension.TYPE_AUTO) &&
 			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
-					containerBox.getSubtype() != SUBTYPE_RUBY_BODY) {
+					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
 				double limitHeight;
 				if (StyleUtils.isVertical(cParams.flow) || containerBox.isSpecifiedPageSize()) {
 					limitHeight = cHeight - this.frame.getFrameHeight();
@@ -201,7 +201,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			}
 			if ((this.size.getWidthType() == Dimension.TYPE_AUTO) &&
 			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
-					containerBox.getSubtype() != SUBTYPE_RUBY_BODY) {
+					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
 				double limitWidth;
 				if (!StyleUtils.isVertical(cParams.flow) || containerBox.isSpecifiedPageSize()) {
 					limitWidth = cWidth - this.frame.getFrameWidth();

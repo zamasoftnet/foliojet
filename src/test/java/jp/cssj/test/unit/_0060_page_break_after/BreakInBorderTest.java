@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0060_page_break_after;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -24,7 +25,7 @@ public class BreakInBorderTest extends AbstractTestCase {
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		assertEquals(2, pageNumber);
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(y, 0, 0);
 		}
 		return true;

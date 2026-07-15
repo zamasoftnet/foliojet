@@ -164,7 +164,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 	 * @param box
 	 */
 	public final void addInline(IInlineBox box) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			assert this.getParams().element != box.getParams().element
 					: (box.getParams().element + "\n" + this.getParams() + "\n" + box.getParams());
 			InlineBox inline = (InlineBox) box;
@@ -218,7 +218,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 			case Inline content -> {
 				// インライン
-				if (content.box.getType() == IBox.TYPE_INLINE) {
+				if (content.box.getType() == BoxType.INLINE) {
 					InlineBox inline = (InlineBox) content.box;
 					count += inline.countJustificationPoints(state);
 				}
@@ -272,7 +272,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 			case Inline inline -> {
 				// インライン
-				if (inline.box.getType() == IBox.TYPE_INLINE) {
+				if (inline.box.getType() == BoxType.INLINE) {
 					InlineBox inlineBox = (InlineBox) inline.box;
 					da = inlineBox.getLineSize();
 					inlineBox.justify(unitSpacing, state);
@@ -337,14 +337,14 @@ public abstract class AbstractTextBox extends AbstractBox {
 				double ascent;
 				double descent;
 				switch (inlineBox.getType()) {
-				case IBox.TYPE_INLINE: {
+				case INLINE: {
 					// 普通のインライン
 					final InlineBox box = (InlineBox) inlineBox;
 					ascent = box.getAscent();
 					descent = box.getDescent();
 				}
 					break;
-				case IBox.TYPE_BLOCK: {
+				case BLOCK: {
 					// インラインブロック
 					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
 					final BlockParams params = box.getBlockParams();
@@ -375,7 +375,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 				}
 					break;
-				case IBox.TYPE_REPLACED: {
+				case REPLACED: {
 					// 画像
 					if (StyleUtils.isVertical(lineParams.flow)) {
 						// 縦書き
@@ -392,7 +392,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 				inline.verticalAlign = pos.verticalAlign.getVerticalAlign(this, lineBox, ascent, descent,
 						pos.lineHeight, baseline);
-				if (inlineBox.getType() == IBox.TYPE_INLINE) {
+				if (inlineBox.getType() == BoxType.INLINE) {
 					((InlineBox) inlineBox).verticalAlign(lineBox, baseline + inline.verticalAlign);
 				}
 			}
@@ -680,13 +680,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 				final IInlineBox inlineBox = inline.box;
 				double ascent;
 				switch (inlineBox.getType()) {
-				case IBox.TYPE_INLINE: {
+				case INLINE: {
 					// 普通のインライン
 					final InlineBox box = (InlineBox) inlineBox;
 					ascent = box.getAscent();
 				}
 					break;
-				case IBox.TYPE_BLOCK: {
+				case BLOCK: {
 					// インラインブロック
 					double descent;
 					AbstractContainerBox box = (AbstractContainerBox) inlineBox;
@@ -718,7 +718,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 				}
 					break;
-				case IBox.TYPE_REPLACED: {
+				case REPLACED: {
 					// 画像
 					if (vertical) {
 						// 縦書き
@@ -865,13 +865,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 				final IInlineBox inlineBox = inline.box;
 				double ascent;
 				switch (inlineBox.getType()) {
-				case IBox.TYPE_INLINE: {
+				case INLINE: {
 					// 普通のインライン
 					final InlineBox box = (InlineBox) inlineBox;
 					ascent = box.getAscent();
 				}
 					break;
-				case IBox.TYPE_BLOCK: {
+				case BLOCK: {
 					// インラインブロック
 					double descent;
 					AbstractContainerBox box = (AbstractContainerBox) inlineBox;
@@ -903,7 +903,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 				}
 					break;
-				case IBox.TYPE_REPLACED: {
+				case REPLACED: {
 					// 画像
 					if (vertical) {
 						// 縦書き
@@ -980,20 +980,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Inline content -> {
 				// インライン
 				switch (content.box.getType()) {
-				case IBox.TYPE_INLINE: {
+				case INLINE: {
 					final InlineBox inlineBox = (InlineBox) content.box;
 					inlineBox.restyle(gh, widow && i == 0);
 				}
 					break;
 
-				case IBox.TYPE_REPLACED: {
+				case REPLACED: {
 					final AbstractReplacedBox replacedBox = (AbstractReplacedBox) content.box;
 					final InlineQuad quad = InlineQuad.createReplacedBoxQuad(replacedBox);
 					gh.control(quad);
 				}
 					break;
 
-				case IBox.TYPE_BLOCK: {
+				case BLOCK: {
 					final InlineBlockBox inlineBox = (InlineBlockBox) content.box;
 					final InlineQuad quad = InlineQuad.createInlineBlockBoxQuad(inlineBox);
 					gh.control(quad);

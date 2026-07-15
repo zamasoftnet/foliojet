@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0140_content;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -19,7 +20,7 @@ public class PageRefTest extends AbstractTestCase {
 	}
 
 	public boolean check_aa(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			assertEquals("4,8", text.toString());
@@ -29,7 +30,7 @@ public class PageRefTest extends AbstractTestCase {
 	}
 
 	public boolean check_bb(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			assertEquals("4,8", text.toString());
@@ -39,7 +40,7 @@ public class PageRefTest extends AbstractTestCase {
 	}
 
 	public boolean check_cc(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder text = new StringBuilder();
 			box.getText(text);
 			assertEquals("6", text.toString());

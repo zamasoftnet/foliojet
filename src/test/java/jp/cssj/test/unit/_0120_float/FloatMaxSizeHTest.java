@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0120_float;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class FloatMaxSizeHTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(box.getWidth());
 			assertEquals(284, box.getWidth(), 1);
 			System.out.println(box.getHeight());

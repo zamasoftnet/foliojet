@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0170_position;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -43,14 +44,14 @@ public class FixedOrderTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(4, ++i);
 		}
 		return true;
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(6, ++i);
 		}
 		return true;

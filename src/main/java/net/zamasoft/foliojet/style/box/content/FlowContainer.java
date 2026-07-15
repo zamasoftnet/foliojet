@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
@@ -126,7 +127,7 @@ public class FlowContainer implements Container {
 
 		double ascent;
 		switch (flow.box.getType()) {
-		case IBox.TYPE_BLOCK: {
+		case BLOCK: {
 			AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
 			double firstAscent = containerBox.getFirstAscent();
 			if (StyleUtils.isNone(firstAscent)) {
@@ -136,15 +137,15 @@ public class FlowContainer implements Container {
 		}
 			break;
 
-		case IBox.TYPE_TEXT_BLOCK: {
+		case TEXT_BLOCK: {
 			TextBlockBox textBox = (TextBlockBox) flow.box;
 			double firstAscent = textBox.getFirstAscent();
 			ascent = firstAscent;
 		}
 			break;
 
-		case IBox.TYPE_REPLACED:
-		case IBox.TYPE_TABLE:
+		case REPLACED:
+		case TABLE:
 			ascent = flow.box.getHeight();
 			break;
 		default:
@@ -178,7 +179,7 @@ public class FlowContainer implements Container {
 
 		double descent;
 		switch (flow.box.getType()) {
-		case IBox.TYPE_BLOCK: {
+		case BLOCK: {
 			final AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
 			final double lastDescent = containerBox.getLastDescent();
 			if (StyleUtils.isNone(lastDescent)) {
@@ -188,15 +189,15 @@ public class FlowContainer implements Container {
 		}
 			break;
 
-		case IBox.TYPE_TEXT_BLOCK: {
+		case TEXT_BLOCK: {
 			final TextBlockBox textBox = (TextBlockBox) flow.box;
 			double lastDescent = textBox.getLastDescent();
 			descent = lastDescent;
 		}
 			break;
 
-		case IBox.TYPE_REPLACED:
-		case IBox.TYPE_TABLE:
+		case REPLACED:
+		case TABLE:
 			descent = 0;
 			break;
 		default:
@@ -242,7 +243,7 @@ public class FlowContainer implements Container {
 					final Flow flow = (Flow) this.flows.get(i);
 					final double bottom = flow.pageAxis + flow.box.getWidth();
 					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
-						if (flow.box.getType() == IBox.TYPE_BLOCK) {
+						if (flow.box.getType() == BoxType.BLOCK) {
 							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
 							if (blockBox.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
 								pageAxis = bottom;
@@ -252,7 +253,7 @@ public class FlowContainer implements Container {
 									+ blockBox.getContainer()
 											.getCutPoint(pageAxis - flow.pageAxis - blockBox.getFrame().getFrameRight())
 									+ blockBox.getFrame().getFrameWidth();
-						} else if (flow.box.getType() == IBox.TYPE_TEXT_BLOCK) {
+						} else if (flow.box.getType() == BoxType.TEXT_BLOCK) {
 							final TextBlockBox blockBox = (TextBlockBox) flow.box;
 							pageAxis = flow.pageAxis + blockBox.getCutPoint(pageAxis - flow.pageAxis);
 						} else {
@@ -279,7 +280,7 @@ public class FlowContainer implements Container {
 					final Flow flow = (Flow) this.flows.get(i);
 					final double bottom = flow.pageAxis + flow.box.getHeight();
 					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
-						if (flow.box.getType() == IBox.TYPE_BLOCK) {
+						if (flow.box.getType() == BoxType.BLOCK) {
 							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
 							if (blockBox.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
 								pageAxis = bottom;
@@ -289,7 +290,7 @@ public class FlowContainer implements Container {
 									+ blockBox.getContainer()
 											.getCutPoint(pageAxis - flow.pageAxis - blockBox.getFrame().getFrameTop())
 									+ blockBox.getFrame().getFrameHeight();
-						} else if (flow.box.getType() == IBox.TYPE_TEXT_BLOCK) {
+						} else if (flow.box.getType() == BoxType.TEXT_BLOCK) {
 							final TextBlockBox blockBox = (TextBlockBox) flow.box;
 							pageAxis = flow.pageAxis + blockBox.getCutPoint(pageAxis - flow.pageAxis);
 						} else {
@@ -396,7 +397,7 @@ public class FlowContainer implements Container {
 			// 通常のフロー
 			for (int i = 0; i < this.flows.size(); ++i) {
 				Flow c = (Flow) this.flows.get(i);
-				if (c.box.getType() == IBox.TYPE_BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
+				if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
 					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
 					blockBox.frames(pageBox, drawer, clip, transform, x, y + c.pageAxis);
 				}
@@ -409,7 +410,7 @@ public class FlowContainer implements Container {
 			for (int i = 0; i < this.flows.size(); ++i) {
 				// 通常のフロー
 				Flow c = (Flow) this.flows.get(i);
-				if (c.box.getType() == IBox.TYPE_BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
+				if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
 					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
 					blockBox.frames(pageBox, drawer, clip, transform, x - c.pageAxis + -blockBox.getWidth(), y);
 				}
@@ -619,7 +620,7 @@ public class FlowContainer implements Container {
 		for (lastOrphan = this.flows.size() - 1; lastOrphan >= 0; --lastOrphan) {
 			Flow flow = (Flow) this.flows.get(lastOrphan);
 			double lastBottom = flow.pageAxis;
-			if (flow.box.getType() == IBox.TYPE_BLOCK) {
+			if (flow.box.getType() == BoxType.BLOCK) {
 				FlowBlockBox flowBlock = (FlowBlockBox) flow.box;
 				switch (params.flow) {
 				case AbstractTextParams.FLOW_TB: {
@@ -713,13 +714,13 @@ public class FlowContainer implements Container {
 
 			IFlowBox nextFlowBox;
 			switch (prevFlow.box.getType()) {
-			case IBox.TYPE_TABLE:
-			case IBox.TYPE_TEXT_BLOCK: {
+			case TABLE:
+			case TEXT_BLOCK: {
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 				nextFlowBox = (IFlowBox) prevFlowBox.splitPageAxis(splitLine, mode, xflags);
 			}
 				break;
-			case IBox.TYPE_BLOCK:
+			case BLOCK:
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
 				// 改ページ禁止でかつページの頭でない場合、またはページ進行方向が違う場合は内部で改ページしない
 				if ((cParams.pageBreakInside != Types.PAGE_BREAK_AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
@@ -733,7 +734,7 @@ public class FlowContainer implements Container {
 					nextFlowBox = prevFlow.box;
 					break;
 				}
-			case IBox.TYPE_REPLACED: {
+			case REPLACED: {
 				// 置換されたボックス
 				double prevFlowPageSize;
 				if (vertical) {
@@ -850,7 +851,7 @@ public class FlowContainer implements Container {
 								if (StyleUtils.compare(floating.pageAxis + floatPageSize, pageLimit) <= 0) {
 									continue;
 								}
-								if (floating.box.getType() == IBox.TYPE_REPLACED) {
+								if (floating.box.getType() == BoxType.REPLACED) {
 									continue;
 								}
 								if (((AbstractContainerBox) floating.box)
@@ -871,12 +872,12 @@ public class FlowContainer implements Container {
 						pageLimit = beforeFlow.pageAxis - StyleUtils.THRESHOLD * 2;
 						if (vertical) {
 							pageLimit += beforeFlow.box.getWidth();
-							if (beforeFlow.box.getType() == IBox.TYPE_BLOCK) {
+							if (beforeFlow.box.getType() == BoxType.BLOCK) {
 								pageLimit -= ((AbstractContainerBox) beforeFlow.box).getFrame().getFrameLeft();
 							}
 						} else {
 							pageLimit += beforeFlow.box.getHeight();
-							if (beforeFlow.box.getType() == IBox.TYPE_BLOCK) {
+							if (beforeFlow.box.getType() == BoxType.BLOCK) {
 								pageLimit -= ((AbstractContainerBox) beforeFlow.box).getFrame().getFrameBottom();
 							}
 						}
@@ -1007,7 +1008,7 @@ public class FlowContainer implements Container {
 				lflags ^= IPageBreakableBox.FLAGS_LAST;
 			}
 			switch (flow.box.getType()) {
-			case IBox.TYPE_BLOCK:
+			case BLOCK:
 				AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
 				if (StyleUtils.isVertical(blockBox.getBlockParams().flow)) {
@@ -1120,7 +1121,7 @@ public class FlowContainer implements Container {
 			for (int i = 0; i < size; ++i) {
 				BoxHolder holder = (BoxHolder) items.get(i);
 				switch (holder.getBox().getType()) {
-				case IBox.TYPE_TEXT_BLOCK: {
+				case TEXT_BLOCK: {
 					// テキストブロックボックス
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
 					textBlock.restyle(builder);
@@ -1130,7 +1131,7 @@ public class FlowContainer implements Container {
 					}
 				}
 					break;
-				case IBox.TYPE_BLOCK: {
+				case BLOCK: {
 					if (holder.getBox().getPos().getType() != Pos.TYPE_FLOAT) {
 						AbstractContainerBox containerBox = (AbstractContainerBox) holder.getBox();
 						if (StyleUtils.isVertical(containerBox.getBlockParams().flow) != StyleUtils
@@ -1153,13 +1154,13 @@ public class FlowContainer implements Container {
 				}
 					break;
 
-				case IBox.TYPE_TABLE: {
+				case TABLE: {
 					// テーブル
 					TableBox tableBox = (TableBox) holder.getBox();
 					builder.addBound(tableBox);
 				}
 					break;
-				case IBox.TYPE_REPLACED: {
+				case REPLACED: {
 					// 置換されたボックス
 					AbstractReplacedBox replacedBox = (AbstractReplacedBox) holder.getBox();
 					if (replacedBox.getPos().getType() != Pos.TYPE_FLOAT) {

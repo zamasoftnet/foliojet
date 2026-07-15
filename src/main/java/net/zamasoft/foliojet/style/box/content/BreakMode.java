@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.style.box.content;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.params.Types;
@@ -97,8 +98,8 @@ public abstract class BreakMode {
 
 		public TableForceBreakMode(AbstractInnerTableBox box, byte breakType, int rowGroup, int row) {
 			super(box, breakType);
-			assert row == -1 || box.getType() == IBox.TYPE_TABLE_ROW;
-			assert row != -1 || box.getType() == IBox.TYPE_TABLE_ROW_GROUP;
+			assert row == -1 || box.getType() == BoxType.TABLE_ROW;
+			assert row != -1 || box.getType() == BoxType.TABLE_ROW_GROUP;
 			this.rowGroup = rowGroup;
 			this.row = row;
 		}

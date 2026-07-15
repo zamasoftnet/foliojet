@@ -5,6 +5,7 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.style.box.IBox;
@@ -479,14 +480,14 @@ public final class StyleUtils {
 				box = builder.getFixedWidthFlowBox();
 			}
 			if (box == null) {
-				if (builder.getContextBox().getType() == IBox.TYPE_TABLE_CELL && builder instanceof BlockBuilder) {
+				if (builder.getContextBox().getType() == BoxType.TABLE_CELL && builder instanceof BlockBuilder) {
 					// セル内でページ送りされた場合
 					return;
 				}
 				refMaxWidth = refWidth = StyleUtils.NONE;
 				refMaxHeight = refHeight = StyleUtils.NONE;
 			} else {
-				refWidth = box.getType()== IBox.TYPE_PAGE ? StyleUtils.NONE : box.getInnerWidth();
+				refWidth = box.getType()== BoxType.PAGE ? StyleUtils.NONE : box.getInnerWidth();
 				refMaxWidth = box.getInnerWidth();
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
@@ -517,14 +518,14 @@ public final class StyleUtils {
 				box = builder.getFixedHeightFlowBox();
 			}
 			if (box == null) {
-				if (builder.getContextBox().getType() == IBox.TYPE_TABLE_CELL && builder instanceof BlockBuilder) {
+				if (builder.getContextBox().getType() == BoxType.TABLE_CELL && builder instanceof BlockBuilder) {
 					// セル内でページ送りされた場合
 					return;
 				}
 				refMaxHeight = refHeight = StyleUtils.NONE;
 				refMaxWidth = refWidth = StyleUtils.NONE;
 			} else {
-				refHeight = box.getType()== IBox.TYPE_PAGE ? StyleUtils.NONE : box.getInnerHeight();
+				refHeight = box.getType()== BoxType.PAGE ? StyleUtils.NONE : box.getInnerHeight();
 				refMaxHeight = box.getInnerHeight();
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {

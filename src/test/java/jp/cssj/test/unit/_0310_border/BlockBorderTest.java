@@ -4,6 +4,7 @@ import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.style.box.params.Border;
@@ -21,7 +22,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -42,7 +43,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -63,7 +64,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -84,7 +85,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -105,7 +106,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -126,7 +127,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -147,7 +148,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_g(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);
@@ -168,7 +169,7 @@ public class BlockBorderTest extends AbstractTestCase {
 	}
 
 	public boolean check_h(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			FlowBlockBox flowBox = (FlowBlockBox) box;
 			RectBorder border = flowBox.getFrame().frame.border;
 			assertEquals(1, border.getLeft().width, 0);

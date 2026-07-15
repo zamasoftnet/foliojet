@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0390_writing_mode;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.impl.TableBox;
 import net.zamasoft.foliojet.style.part.TableCollapsedBorders;
@@ -20,7 +21,7 @@ public class FixedBorderCollapseTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_COLUMN) {
+		if (box.getType() == BoxType.TABLE_COLUMN) {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
@@ -33,7 +34,7 @@ public class FixedBorderCollapseTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE) {
+		if (box.getType() == BoxType.TABLE) {
 			TableBox table = (TableBox) box;
 			TableCollapsedBorders borders = table.getCollapsedBorders();
 			System.out.println(borders.getVBorder(0, 0).width);

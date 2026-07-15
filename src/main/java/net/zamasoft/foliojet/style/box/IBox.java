@@ -11,30 +11,15 @@ import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.visitor.Visitor;
 
 public interface IBox {
-	public static final byte TYPE_PAGE = 1;
-	public static final byte TYPE_TEXT_BLOCK = 2;
-	public static final byte TYPE_LINE = 3;
-	public static final byte TYPE_INLINE = 4;
-	public static final byte TYPE_BLOCK = 5;
-	public static final byte TYPE_REPLACED = 6;
-	public static final byte TYPE_TABLE = 7;
-	public static final byte TYPE_TABLE_COLUMN_GROUP = 8;
-	public static final byte TYPE_TABLE_COLUMN = 9;
-	public static final byte TYPE_TABLE_ROW_GROUP = 10;
-	public static final byte TYPE_TABLE_ROW = 11;
-	public static final byte TYPE_TABLE_CELL = 12;
-
-	public static final byte SUBTYPE_RUBY = 1;
-	public static final byte SUBTYPE_RUBY_BODY = 2;
 
 	/**
 	 * ボックスのタイプを返します。
 	 * 
 	 * @return
 	 */
-	public byte getType();
+	public BoxType getType();
 
-	public byte getSubtype();
+	public BoxSubtype getSubtype();
 
 	/**
 	 * 内容のパラメータを返します。

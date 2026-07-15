@@ -4,6 +4,7 @@ import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.impl.InlineBox;
 import jp.cssj.test.unit.AbstractTestCase;
@@ -19,7 +20,7 @@ public class PlusTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			assertEquals(ColorValueUtils.RED, ((InlineBox) box)
 					.getInlineParams().color);
 			return true;
@@ -28,7 +29,7 @@ public class PlusTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			assertEquals(ColorValueUtils.BLUE, ((InlineBox) box)
 					.getInlineParams().color);
 			return true;

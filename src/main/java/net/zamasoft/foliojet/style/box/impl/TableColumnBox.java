@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.box.impl;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.IFramedBox;
@@ -28,8 +29,8 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		this.pos = pos;
 	}
 
-	public byte getType() {
-		return IBox.TYPE_TABLE_COLUMN;
+	public BoxType getType() {
+		return BoxType.TABLE_COLUMN;
 	}
 
 	public final Pos getPos() {

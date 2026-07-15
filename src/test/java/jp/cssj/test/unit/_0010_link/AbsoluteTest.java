@@ -4,6 +4,7 @@ import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.xml.Constants;
 import jp.cssj.test.unit.AbstractTestCase;
@@ -19,7 +20,7 @@ public class AbsoluteTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			CSSElement ce = (CSSElement) box.getParams().element;
 			String link = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
 			assertEquals("http://www.yahoo.co.jp/", link);
@@ -29,7 +30,7 @@ public class AbsoluteTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			CSSElement ce = (CSSElement) box.getParams().element;
 			String link = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
 			assertEquals("http://www.w3.org/TR/CSS21/page.html#page-breaks",
@@ -40,7 +41,7 @@ public class AbsoluteTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			CSSElement ce = (CSSElement) box.getParams().element;
 			String link = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
 			assertEquals("#next", link);
@@ -50,7 +51,7 @@ public class AbsoluteTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			CSSElement ce = (CSSElement) box.getParams().element;
 			String link = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
 			assertEquals("#hoge", link);
@@ -60,7 +61,7 @@ public class AbsoluteTest extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			CSSElement ce = (CSSElement) box.getParams().element;
 			String link = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
 			assertEquals("http://copper-pdf.com/relative.html", link);
@@ -70,7 +71,7 @@ public class AbsoluteTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			CSSElement ce = (CSSElement) box.getParams().element;
 			String link = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
 			assertEquals("http://copper-pdf.com/#prev", link);

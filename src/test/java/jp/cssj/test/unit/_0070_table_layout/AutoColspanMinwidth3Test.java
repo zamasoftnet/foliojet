@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0070_table_layout;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(67.5, box.getWidth(), 0);
 			return true;
@@ -27,7 +28,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(67.5, box.getWidth(), 0);
 			return true;
@@ -36,7 +37,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(60, box.getWidth(), 0);
 			return true;
@@ -45,7 +46,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(15, box.getWidth(), 0);
 			return true;
@@ -54,7 +55,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(60, box.getWidth(), 0);
 			return true;
@@ -63,7 +64,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(67.5, box.getWidth(), 0);
 			return true;
@@ -72,7 +73,7 @@ public class AutoColspanMinwidth3Test extends AbstractTestCase {
 	}
 
 	public boolean check_g(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(67.5, box.getWidth(), 0);
 			return true;

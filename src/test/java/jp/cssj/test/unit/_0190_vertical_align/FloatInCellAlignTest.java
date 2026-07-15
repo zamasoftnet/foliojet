@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0190_vertical_align;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class FloatInCellAlignTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(y);
 			assertEquals(11, y, 1);
 			return true;
@@ -27,7 +28,7 @@ public class FloatInCellAlignTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(y);
 			assertEquals(68, y, 1);
 			return true;
@@ -36,7 +37,7 @@ public class FloatInCellAlignTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(y);
 			assertEquals(125, y, 1);
 			return true;

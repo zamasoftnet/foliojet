@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0070_table_layout;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(93, box.getWidth(), 1);
 			return true;
@@ -27,7 +28,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(43, box.getWidth(), 1);
 			return true;
@@ -36,7 +37,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(51.5, box.getWidth(), 1);
 			return true;
@@ -45,7 +46,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(105, box.getWidth(), 1);
 			return true;
@@ -54,7 +55,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(43, box.getWidth(), 1);
 			return true;
@@ -63,7 +64,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(63.75, box.getWidth(), 1);
 			return true;
@@ -72,7 +73,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_g(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(223.25, box.getWidth(), 1);
 			return true;
@@ -81,7 +82,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_h(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(33.0, box.getWidth(), 1);
 			return true;
@@ -90,7 +91,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_i(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(33, box.getWidth(), 1);
 			return true;
@@ -99,7 +100,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_j(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(72, box.getWidth(), 1);
 			return true;
@@ -108,7 +109,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_k(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(33, box.getWidth(), 0);
 			return true;
@@ -117,7 +118,7 @@ public class AutoColwidthPercentageTest extends AbstractTestCase {
 	}
 
 	public boolean check_l(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth());
 			assertEquals(33, box.getWidth(), 1);
 			return true;

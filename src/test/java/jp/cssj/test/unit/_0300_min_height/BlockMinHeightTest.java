@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0300_min_height;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class BlockMinHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			System.out.println(y);
 			assertEquals(3, pageNumber, 0);
 			assertEquals(4.5, y, 1);

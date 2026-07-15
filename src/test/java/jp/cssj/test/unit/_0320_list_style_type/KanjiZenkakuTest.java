@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0320_list_style_type;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
@@ -30,7 +31,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
@@ -42,7 +43,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();
@@ -56,7 +57,7 @@ public class KanjiZenkakuTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			StringBuilder textBuff = new StringBuilder();
 			box.getText(textBuff);
 			String text = textBuff.toString();

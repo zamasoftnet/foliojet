@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.BoxSubtype;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.content.Container;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
@@ -12,8 +13,8 @@ public class RubyBodyBox extends FlowBlockBox {
 		super(params, pos);
 	}
 
-	public byte getSubtype() {
-		return SUBTYPE_RUBY_BODY;
+	public BoxSubtype getSubtype() {
+		return BoxSubtype.RUBY_BODY;
 	}
 
 	protected RubyBodyBox(BlockParams params, FlowPos pos, Dimension size, Dimension minSize, AbsoluteRectFrame frame,

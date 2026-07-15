@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0242_table_height;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE) {
+		if (box.getType() == BoxType.TABLE) {
 			System.out.println(box.getHeight());
 			assertEquals(200, box.getHeight(), 1);
 			return true;
@@ -27,7 +28,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_aa(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(63, box.getHeight(), 1);
 			return true;
@@ -36,7 +37,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_ab(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(47, box.getHeight(), 1);
 			return true;
@@ -45,7 +46,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_ac(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(15, box.getHeight(), 1);
 			return true;
@@ -54,7 +55,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_ad(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(63, box.getHeight(), 1);
 			return true;
@@ -63,7 +64,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE) {
+		if (box.getType() == BoxType.TABLE) {
 			System.out.println(box.getHeight());
 			assertEquals(200, box.getHeight(), 1);
 			return true;
@@ -72,7 +73,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_ba(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(63, box.getHeight(), 1);
 			return true;
@@ -81,7 +82,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_bb(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(47, box.getHeight(), 1);
 			return true;
@@ -90,7 +91,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_bc(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(15, box.getHeight(), 1);
 			return true;
@@ -99,7 +100,7 @@ public class TableHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_bd(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_ROW) {
+		if (box.getType() == BoxType.TABLE_ROW) {
 			System.out.println(box.getHeight());
 			assertEquals(63, box.getHeight(), 1);
 			return true;

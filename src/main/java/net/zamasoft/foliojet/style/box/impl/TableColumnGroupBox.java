@@ -5,6 +5,7 @@ import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.params.InnerTableParams;
 import net.zamasoft.foliojet.style.box.params.TableColumnPos;
@@ -25,8 +26,8 @@ public class TableColumnGroupBox extends TableColumnBox {
 		super(params, pos);
 	}
 
-	public final byte getType() {
-		return IBox.TYPE_TABLE_COLUMN_GROUP;
+	public final BoxType getType() {
+		return BoxType.TABLE_COLUMN_GROUP;
 	}
 
 	public final void addTableColumn(TableColumnBox column) {

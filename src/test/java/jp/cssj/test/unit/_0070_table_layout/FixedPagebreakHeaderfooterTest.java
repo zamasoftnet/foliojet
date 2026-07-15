@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0070_table_layout;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -33,7 +34,7 @@ public class FixedPagebreakHeaderfooterTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(x + "/" + y);
 			assertEquals(3, x, 0);
 			assertEquals(3, y, 0);
@@ -43,7 +44,7 @@ public class FixedPagebreakHeaderfooterTest extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(x + "/" + y);
 			assertEquals(3, x, 0);
 			assertEquals(57, y, 0);

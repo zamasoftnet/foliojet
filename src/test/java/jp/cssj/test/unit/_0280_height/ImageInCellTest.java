@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0280_height;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class ImageInCellTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(2, pageNumber);
 			assertEquals(75, box.getWidth(), 0);

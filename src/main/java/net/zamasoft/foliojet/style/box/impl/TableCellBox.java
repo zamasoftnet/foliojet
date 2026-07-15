@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.box.impl;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.IPageBreakableBox;
@@ -62,8 +63,8 @@ public class TableCellBox extends AbstractContainerBox {
 		this.frame = frame;
 	}
 
-	public final byte getType() {
-		return IBox.TYPE_TABLE_CELL;
+	public final BoxType getType() {
+		return BoxType.TABLE_CELL;
 	}
 
 	public final Params getParams() {

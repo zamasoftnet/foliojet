@@ -5,8 +5,8 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.style.box.params.Offset;
 
 public abstract class AbstractBox implements IBox {
-	public byte getSubtype() {
-		return 0;
+	public BoxSubtype getSubtype() {
+		return BoxSubtype.NONE;
 	}
 
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {

@@ -3,6 +3,7 @@ package jp.cssj.test.unit._3060_RUBY;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(43, x, 1);
 			assertEquals(9, y, 1);
@@ -28,7 +29,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(43, x, 1);
 			assertEquals(9, y, 1);
@@ -39,7 +40,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(126, x, 1);
 			assertEquals(67, y, 1);
@@ -50,7 +51,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(126, x, 1);
 			assertEquals(67, y, 1);
@@ -61,7 +62,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(43, x, 1);
 			assertEquals(87, y, 1);
@@ -72,7 +73,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(126, x, 1);
 			assertEquals(145, y, 1);

@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.builder.impl;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
@@ -183,7 +184,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		boolean canBreakAfter = false;
 		switch (flowBox.getType()) {
-		case IBox.TYPE_BLOCK:
+		case BLOCK:
 			AbstractBlockBox blockBox = flowBox;
 			// 境界前でのpage-break-afterの適用を許す
 			if (StyleUtils.isVertical(this.getRootBox().getBlockParams().flow)) {
@@ -384,7 +385,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		super.addBound(box);
 		if (!this.restyling) {
 			switch (box.getType()) {
-			case IBox.TYPE_TABLE:
+			case TABLE:
 				TableBox tableBox = (TableBox) box;
 				if (!StyleUtils.isTwoPassTable(tableBox)) {
 					// fixedレイアウトの場合は
@@ -422,9 +423,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					continue;
 				}
 				break;
-			case IBox.TYPE_BLOCK:
+			case BLOCK:
 				break;
-			case IBox.TYPE_REPLACED: {
+			case REPLACED: {
 				if (box.getPos().getType() != Pos.TYPE_FLOW) {
 					break;
 				}
@@ -448,7 +449,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				throw new IllegalStateException();
 			}
 		} else {
-			if (box.getType() == IBox.TYPE_TABLE) {
+			if (box.getType() == BoxType.TABLE) {
 				this.lastTableBox = (TableBox) box;
 			}
 		}
@@ -584,7 +585,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		boolean canBreakAfter = false;
 		switch (flow.box.getType()) {
-		case IBox.TYPE_BLOCK:
+		case BLOCK:
 			AbstractBlockBox blockBox = (AbstractBlockBox) flow.box;
 			// 境界直後でのpage-break-afterによる強制改ページを許す
 			if (StyleUtils.isVertical(this.getRootBox().getBlockParams().flow)) {
@@ -820,7 +821,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		boolean transfer;
 		switch (box.getType()) {
-		case IBox.TYPE_BLOCK:
+		case BLOCK:
 			this.breakFloats |= box.getFloatPos().floating;
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
 			if (containerBox.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
@@ -844,7 +845,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// }
 			break;
 
-		case IBox.TYPE_REPLACED:
+		case REPLACED:
 			if (StyleUtils.compare(pageStart, 0) <= 0) {
 				// ページ先頭の場合残す
 				transfer = false;

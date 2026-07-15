@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0430_direction_mode;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.style.box.params.Border;
@@ -20,7 +21,7 @@ public class BorderStyleTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(36, box.getWidth(), 1);
@@ -31,7 +32,7 @@ public class BorderStyleTest extends AbstractTestCase {
 	}
 
 	public boolean check_cc(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			InlineReplacedBox img = (InlineReplacedBox)box;
 			RectBorder border = img.getFrame().frame.border;
 			System.err.println("top: " + border.getTop().style);

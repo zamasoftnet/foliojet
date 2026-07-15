@@ -48,8 +48,8 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		this.frame = new AbsoluteRectFrame(params.frame);
 	}
 
-	public final byte getType() {
-		return TYPE_REPLACED;
+	public final BoxType getType() {
+		return BoxType.REPLACED;
 	}
 
 	public final Params getParams() {

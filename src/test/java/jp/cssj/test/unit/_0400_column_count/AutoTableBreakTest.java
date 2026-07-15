@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0400_column_count;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class AutoTableBreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("pageNumber: " + pageNumber);

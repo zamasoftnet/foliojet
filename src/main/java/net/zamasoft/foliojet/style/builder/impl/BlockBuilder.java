@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
@@ -129,7 +130,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		AbstractContainerBox box = this.getRootBox();
 		if (box.getBlockParams().size.getWidthType() != Dimension.TYPE_AUTO) {
 			if (box.getBlockParams().size.getWidthType() != Dimension.TYPE_RELATIVE
-					|| (box.getType() <= IBox.TYPE_TABLE || box.getType() > IBox.TYPE_TABLE_CELL)) {
+					|| !box.getType().isTableInternal()) {
 				return box;
 			}
 		}
@@ -154,7 +155,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		AbstractContainerBox box = this.getRootBox();
 		if (box.getBlockParams().size.getHeightType() != Dimension.TYPE_AUTO) {
 			if (box.getBlockParams().size.getHeightType() != Dimension.TYPE_RELATIVE
-					|| (box.getType() <= IBox.TYPE_TABLE || box.getType() > IBox.TYPE_TABLE_CELL)) {
+					|| !box.getType().isTableInternal()) {
 				return box;
 			}
 		}
@@ -601,7 +602,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			AbsoluteRectFrame frame;
 			byte clear, align;
 			switch (box.getType()) {
-			case IBox.TYPE_REPLACED: {
+			case REPLACED: {
 				AbstractReplacedBox replacedBox = (AbstractReplacedBox) flowBox;
 				StyleUtils.calclateReplacedSize(this, replacedBox);
 				frame = replacedBox.getFrame();
@@ -610,7 +611,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				align = pos.align;
 			}
 				break;
-			case IBox.TYPE_BLOCK: {
+			case BLOCK: {
 				AbstractBlockBox blockBox = (AbstractBlockBox) flowBox;
 				frame = blockBox.getFrame();
 				FlowPos pos = (FlowPos) flowBox.getPos();
@@ -618,7 +619,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				align = pos.align;
 			}
 				break;
-			case IBox.TYPE_TABLE: {
+			case TABLE: {
 				TableBox tableBox = (TableBox) flowBox;
 				frame = tableBox.getFrame();
 				clear = Types.CLEAR_NONE;
@@ -797,7 +798,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			break;
 
 		case Pos.TYPE_FLOAT: {
-			if (box.getType() == IBox.TYPE_REPLACED) {
+			if (box.getType() == BoxType.REPLACED) {
 				AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
 				StyleUtils.calclateReplacedSize(this, replacedBox);
 			}
@@ -842,7 +843,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			default:
 				throw new IllegalStateException();
 			}
-			if (box.getType() == IBox.TYPE_REPLACED) {
+			if (box.getType() == BoxType.REPLACED) {
 				final AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
 				replacedBox.calculateFrame(contextBox.getLineSize());
 			}
@@ -1341,7 +1342,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			case InlineQuad.INLINE_ABSOLUTE:
 				final InlineAbsoluteQuad inlineAbsoluteQuad = (InlineAbsoluteQuad) inlineQuad;
-				if (inlineAbsoluteQuad.box.getType() == IBox.TYPE_REPLACED) {
+				if (inlineAbsoluteQuad.box.getType() == BoxType.REPLACED) {
 					StyleUtils.calclateReplacedSize(this, (AbstractReplacedBox) inlineAbsoluteQuad.box);
 				}
 				break;

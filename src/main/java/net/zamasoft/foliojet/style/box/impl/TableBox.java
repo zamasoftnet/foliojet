@@ -6,6 +6,7 @@ import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.AbstractBox;
 import net.zamasoft.foliojet.style.box.IBox;
@@ -79,8 +80,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		this.frame = frame;
 	}
 
-	public final byte getType() {
-		return IBox.TYPE_TABLE;
+	public final BoxType getType() {
+		return BoxType.TABLE;
 	}
 
 	public final Pos getPos() {
@@ -519,7 +520,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			int rowGroup = force.rowGroup;
 			int row = force.row;
 			if (row != -1) {
-				assert force.box.getType() == IBox.TYPE_TABLE_ROW || force.box.getType() == IBox.TYPE_TABLE_ROW_GROUP;
+				assert force.box.getType() == BoxType.TABLE_ROW || force.box.getType() == BoxType.TABLE_ROW_GROUP;
 				TableRowGroupBox rowGroupBox = (TableRowGroupBox) this.bodyGroups.get(rowGroup);
 				TableRowGroupBox newRowGroupBox = (TableRowGroupBox) rowGroupBox.splitPageAxis(pageLimit, mode,
 						(byte) 0);

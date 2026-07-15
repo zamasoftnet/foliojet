@@ -4,6 +4,7 @@ import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.IAbsoluteBox;
 import net.zamasoft.foliojet.style.box.IBox;
@@ -164,8 +165,8 @@ public class PageBox extends AbstractBlockBox {
 		}
 	}
 
-	public final byte getType() {
-		return TYPE_PAGE;
+	public final BoxType getType() {
+		return BoxType.PAGE;
 	}
 
 	public final Pos getPos() {

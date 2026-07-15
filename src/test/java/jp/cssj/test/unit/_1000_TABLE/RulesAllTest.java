@@ -3,6 +3,7 @@ package jp.cssj.test.unit._1000_TABLE;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class RulesAllTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE) {
+		if (box.getType() == BoxType.TABLE) {
 			System.out.println(box.getWidth());
 			assertEquals(72, box.getWidth(), 0);
 			return true;

@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
@@ -181,8 +182,8 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 
 		box.setTableParams(this.tableBox.getTableParams());
 		switch (box.getType()) {
-		case IBox.TYPE_TABLE_COLUMN:
-		case IBox.TYPE_TABLE_COLUMN_GROUP: {
+		case TABLE_COLUMN:
+		case TABLE_COLUMN_GROUP: {
 			// 列
 			final TableColumnBox column = (TableColumnBox) box;
 			if (this.innerTableStack.isEmpty()) {
@@ -198,7 +199,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			}
 		}
 			break;
-		case IBox.TYPE_TABLE_ROW_GROUP: {
+		case TABLE_ROW_GROUP: {
 			// 行グループ
 			final TableRowGroupBox rowGroup = (TableRowGroupBox) box;
 			this.rowGroupToRows.put(rowGroup, new ArrayList<TableRowBox>());
@@ -218,7 +219,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		}
 			break;
 
-		case IBox.TYPE_TABLE_ROW: {
+		case TABLE_ROW: {
 			// 行
 			final TableRowGroupBox rowGroup = (TableRowGroupBox) this.innerTableStack
 					.get(this.innerTableStack.size() - 1);
@@ -240,18 +241,18 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		// System.out.println("/"+box.getClass());
 
 		switch (box.getType()) {
-		case IBox.TYPE_TABLE_COLUMN:
-		case IBox.TYPE_TABLE_COLUMN_GROUP: {
+		case TABLE_COLUMN:
+		case TABLE_COLUMN_GROUP: {
 			// 列
 		}
 			break;
-		case IBox.TYPE_TABLE_ROW_GROUP: {
+		case TABLE_ROW_GROUP: {
 			// 行グループ
 			this.upperRow = null;
 		}
 			break;
 
-		case IBox.TYPE_TABLE_ROW: {
+		case TABLE_ROW: {
 			// 行
 			final TableRowBox rowBox = (TableRowBox) box;
 			this.complementRowspan(rowBox);
@@ -287,7 +288,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	public final Builder newContext(AbstractContainerBox box) {
 		final Builder builder = new TwoPassBlockBuilder(this.layoutStack, box);
 		switch (box.getType()) {
-		case IBox.TYPE_BLOCK: {
+		case BLOCK: {
 			// キャプション
 			switch (((TableCaptionPos) box.getPos()).captionSide) {
 			case Types.CAPTION_SIDE_BEFORE:
@@ -304,7 +305,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		}
 			break;
 
-		case IBox.TYPE_TABLE_CELL: {
+		case TABLE_CELL: {
 			// セル
 			// TODO よこテーブルに縦がある場合は、BlockBuilderで行幅を制限してやらないといけない
 			final TableRowBox rowBox = (TableRowBox) this.innerTableStack.get(this.innerTableStack.size() - 1);
@@ -360,7 +361,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						TableColumnPos colPos = column.getTableColumnPos();
 						InnerTableParams colParams = column.getInnerTableParams();
 						int colspan;
-						if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+						if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 								&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 							colspan = ((TableColumnGroupBox) column).getTableColumnCount();
 						} else {
@@ -379,7 +380,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							// 行グループ右
 							borders.collapseVBorder(j, col + colspan, colParams.border.getBottom());
 						}
-						if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+						if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 								&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 							stack.add(columnGroup);
 							stack.add(NumberUtils.intValue(i + 1));
@@ -524,7 +525,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						TableColumnPos colPos = column.getTableColumnPos();
 						InnerTableParams colParams = column.getInnerTableParams();
 						int colspan;
-						if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+						if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 								&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 							colspan = ((TableColumnGroupBox) column).getTableColumnCount();
 						} else {
@@ -543,7 +544,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							// 行グループ右
 							borders.collapseVBorder(j, col + colspan, colParams.border.getRight());
 						}
-						if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+						if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 								&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 							stack.add(columnGroup);
 							stack.add(NumberUtils.intValue(i + 1));
@@ -698,7 +699,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				for (; i < colgroup.getTableColumnCount(); ++i) {
 					TableColumnBox column = colgroup.getTableColumn(i);
 					TableColumnPos colPos = column.getTableColumnPos();
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						stack.add(colgroup);
 						stack.add(NumberUtils.intValue(i + 1));
@@ -786,7 +787,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					TableColumnPos colPos = column.getTableColumnPos();
 					InnerTableParams colParams = column.getInnerTableParams();
 					int span;
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						span = ((TableColumnGroupBox) column).getTableColumnCount();
 					} else {
@@ -846,7 +847,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 					}
 
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						stack.add(colgroup);
 						stack.add(NumberUtils.intValue(i + 1));
@@ -1374,7 +1375,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						TableColumnBox column = colgroup.getTableColumn(i);
 						TableColumnPos colPos = column.getTableColumnPos();
 						InnerTableParams colParams = column.getInnerTableParams();
-						if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+						if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 								&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 							stack.add(colgroup);
 							stack.add(NumberUtils.intValue(i + 1));
@@ -2318,7 +2319,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					TableColumnPos colPos = column.getTableColumnPos();
 
 					int span;
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						span = ((TableColumnGroupBox) column).getTableColumnCount();
 					} else {
@@ -2331,7 +2332,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					column.setLineSize(size);
 					column.setPageSize(pageSize);
 
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						stack.add(colgroup);
 						stack.add(NumberUtils.intValue(i + 1));

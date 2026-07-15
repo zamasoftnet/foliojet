@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.style.box.IBox;
@@ -146,8 +147,8 @@ public class OnePassTableBuilder implements TableBuilder {
 	public void startInnerTable(AbstractInnerTableBox box) {
 		box.setTableParams(this.tableBox.getTableParams());
 		switch (box.getType()) {
-		case IBox.TYPE_TABLE_COLUMN:
-		case IBox.TYPE_TABLE_COLUMN_GROUP: {
+		case TABLE_COLUMN:
+		case TABLE_COLUMN_GROUP: {
 			// 列
 			final TableColumnBox column = (TableColumnBox) box;
 			if (this.innerTableStack.isEmpty()) {
@@ -163,7 +164,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			}
 		}
 			break;
-		case IBox.TYPE_TABLE_ROW_GROUP: {
+		case TABLE_ROW_GROUP: {
 			// 行グループ
 			this.rowGroupBox = (TableRowGroupBox) box;
 			if (this.bindRowGroupBox == null) {
@@ -172,7 +173,7 @@ public class OnePassTableBuilder implements TableBuilder {
 		}
 			break;
 
-		case IBox.TYPE_TABLE_ROW: {
+		case TABLE_ROW: {
 			// 行
 			this.rowBox = (TableRowBox) box;
 			this.cells = new ArrayList<CellContent>();
@@ -273,7 +274,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				for (; i < colgroup.getTableColumnCount(); ++i) {
 					TableColumnBox column = colgroup.getTableColumn(i);
 					TableColumnPos colParams = column.getTableColumnPos();
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						stack.add(colgroup);
 						stack.add(NumberUtils.intValue(i + 1));
@@ -308,7 +309,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					TableColumnBox column = colgroup.getTableColumn(i);
 					InnerTableParams colParams = column.getInnerTableParams();
 					TableColumnPos colPos = column.getTableColumnPos();
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						stack.add(colgroup);
 						stack.add(NumberUtils.intValue(i + 1));
@@ -569,7 +570,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					TableColumnPos colPos = column.getTableColumnPos();
 
 					int span;
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						span = ((TableColumnGroupBox) column).getTableColumnCount();
 					} else {
@@ -580,7 +581,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						size += this.columnSizes[col + j];
 					}
 					column.setLineSize(size);
-					if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 						stack.add(colgroup);
 						stack.add(NumberUtils.intValue(i + 1));
@@ -604,18 +605,18 @@ public class OnePassTableBuilder implements TableBuilder {
 		final AbstractInnerTableBox box = (AbstractInnerTableBox) this.innerTableStack
 				.remove(this.innerTableStack.size() - 1);
 		switch (box.getType()) {
-		case IBox.TYPE_TABLE_COLUMN:
-		case IBox.TYPE_TABLE_COLUMN_GROUP: {
+		case TABLE_COLUMN:
+		case TABLE_COLUMN_GROUP: {
 			// 列
 		}
 			break;
-		case IBox.TYPE_TABLE_ROW_GROUP: {
+		case TABLE_ROW_GROUP: {
 			// 行グループ
 			this.rowGroupBox = null;
 		}
 			break;
 
-		case IBox.TYPE_TABLE_ROW: {
+		case TABLE_ROW: {
 			// 行
 			final boolean firstRow = (this.columnSizes == null);
 			if (firstRow) {
@@ -666,7 +667,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			for (; i < colgroup.getTableColumnCount(); ++i) {
 				TableColumnBox column = colgroup.getTableColumn(i);
 				column.setPageSize(pageSize);
-				if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+				if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 						&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 					stack.add(colgroup);
 					stack.add(NumberUtils.intValue(i + 1));
@@ -791,7 +792,7 @@ public class OnePassTableBuilder implements TableBuilder {
 								InnerTableParams colParams = column.getInnerTableParams();
 								TableColumnPos colPos = column.getTableColumnPos();
 								int colspan;
-								if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 									colspan = ((TableColumnGroupBox) column).getTableColumnCount();
 								} else {
@@ -819,7 +820,7 @@ public class OnePassTableBuilder implements TableBuilder {
 								// 行グループ右
 								lineBorder[col + colspan] = TableCollapsedBorders
 										.collapseBorder(lineBorder[col + colspan], colParams.border.getBottom());
-								if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 									stack.add(columnGroup);
 									stack.add(NumberUtils.intValue(i + 1));
@@ -1000,7 +1001,7 @@ public class OnePassTableBuilder implements TableBuilder {
 								InnerTableParams colParams = column.getInnerTableParams();
 								TableColumnPos colPos = column.getTableColumnPos();
 								int colspan;
-								if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 									colspan = ((TableColumnGroupBox) column).getTableColumnCount();
 								} else {
@@ -1028,7 +1029,7 @@ public class OnePassTableBuilder implements TableBuilder {
 								// 行グループ右
 								lineBorder[col + colspan] = TableCollapsedBorders
 										.collapseBorder(lineBorder[col + colspan], colParams.border.getRight());
-								if (column.getType() == IBox.TYPE_TABLE_COLUMN_GROUP
+								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 									stack.add(columnGroup);
 									stack.add(NumberUtils.intValue(i + 1));
@@ -1842,7 +1843,7 @@ public class OnePassTableBuilder implements TableBuilder {
 	public Builder newContext(AbstractContainerBox box) {
 		Builder builder;
 		switch (box.getType()) {
-		case IBox.TYPE_BLOCK: {
+		case BLOCK: {
 			// キャプション
 			FlowBlockBox caption = (FlowBlockBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, caption);
@@ -1861,7 +1862,7 @@ public class OnePassTableBuilder implements TableBuilder {
 		}
 			break;
 
-		case IBox.TYPE_TABLE_CELL: {
+		case TABLE_CELL: {
 			// セル
 			TableCellBox cellBox = (TableCellBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, cellBox);

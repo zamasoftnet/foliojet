@@ -6,6 +6,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.IFramedBox;
@@ -129,8 +130,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		this.pos = pos;
 	}
 
-	public final byte getType() {
-		return IBox.TYPE_TABLE_ROW;
+	public final BoxType getType() {
+		return BoxType.TABLE_ROW;
 	}
 
 	public final Pos getPos() {

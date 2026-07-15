@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0430_direction_mode;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_aa(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(87, box.getWidth(), 1);
@@ -28,7 +29,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_ab(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(30, box.getWidth(), 1);
@@ -39,7 +40,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_ac(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(14, box.getWidth(), 1);
@@ -50,7 +51,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_ba(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(172, box.getWidth(), 1);
@@ -61,7 +62,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_bb(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(58, box.getWidth(), 1);
@@ -72,7 +73,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_bc(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(14, box.getWidth(), 1);
@@ -83,7 +84,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_ca(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(172, box.getWidth(), 1);
@@ -94,7 +95,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_cb(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(58, box.getWidth(), 1);
@@ -105,7 +106,7 @@ public class MaxTest extends AbstractTestCase {
 	}
 
 	public boolean check_cc(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(14, box.getWidth(), 1);

@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0390_writing_mode;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class TablePagebreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_COLUMN) {
+		if (box.getType() == BoxType.TABLE_COLUMN) {
 			System.out.println("y: " + y);
 			System.out.println("height: " + box.getHeight());
 			assertEquals(66.75, y, 0);
@@ -29,7 +30,7 @@ public class TablePagebreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println("y: " + y);
 			System.out.println("height: " + box.getHeight());
 			assertEquals(66.75, y, 0);
@@ -40,7 +41,7 @@ public class TablePagebreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println("pageNumber: " + pageNumber);
 			assertEquals(1, pageNumber);
 			return true;
@@ -49,7 +50,7 @@ public class TablePagebreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println("pageNumber: " + pageNumber);
 			assertEquals(2, pageNumber);
 			return true;
@@ -58,7 +59,7 @@ public class TablePagebreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE_CELL) {
+		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println("pageNumber: " + pageNumber);
 			assertEquals(3, pageNumber);
 			return true;

@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0415_column_fill;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class FloatHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			System.out.println("width: " + box.getWidth());
 			System.out.println("height: " + box.getHeight());
 			assertEquals(48, box.getWidth(), 0);
@@ -29,7 +30,7 @@ public class FloatHeightTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			assertEquals(232, x, 1);

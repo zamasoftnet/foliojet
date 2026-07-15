@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0415_column_fill;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -20,7 +21,7 @@ public class FloatInFlowTest extends AbstractTestCase {
 	int i = 0;
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("i: " + i);
 			System.err.println("x: " + x);
 			System.err.println("y: " + y);
@@ -44,7 +45,7 @@ public class FloatInFlowTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.err.println("i: " + i);
 			System.err.println("x: " + x);
 			System.err.println("y: " + y);

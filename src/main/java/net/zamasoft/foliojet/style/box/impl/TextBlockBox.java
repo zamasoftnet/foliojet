@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.impl.css.lang.CSSJTextUnitizer;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractBox;
 import net.zamasoft.foliojet.style.box.AbstractLineBox;
 import net.zamasoft.foliojet.style.box.IFlowBox;
@@ -83,8 +84,8 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		this.textState = textState;
 	}
 
-	public final byte getType() {
-		return TYPE_TEXT_BLOCK;
+	public final BoxType getType() {
+		return BoxType.TEXT_BLOCK;
 	}
 
 	public final Params getParams() {

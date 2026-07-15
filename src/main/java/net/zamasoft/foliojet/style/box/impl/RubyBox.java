@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.BoxSubtype;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.content.FlowContainer;
@@ -18,8 +20,8 @@ public class RubyBox extends InlineBlockBox {
 		params.lineHeight = this.params.fontStyle.getSize();
 	}
 
-	public byte getSubtype() {
-		return SUBTYPE_RUBY;
+	public BoxSubtype getSubtype() {
+		return BoxSubtype.RUBY;
 	}
 
 	public void setPageAxis(double newSize) {
@@ -44,7 +46,7 @@ class RubyContainer extends FlowContainer {
 		if (flow == null) {
 			return StyleUtils.NONE;
 		}
-		if (flow.box.getType() != IBox.TYPE_BLOCK) {
+		if (flow.box.getType() != BoxType.BLOCK) {
 			return super.getLastDescent();
 		}
 

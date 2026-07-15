@@ -55,8 +55,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		assert this.params.fontStyle != null;
 	}
 
-	public byte getType() {
-		return IBox.TYPE_BLOCK;
+	public BoxType getType() {
+		return BoxType.BLOCK;
 	}
 
 	public Params getParams() {

@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0240_table;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class FloatBreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_INLINE) {
+		if (box.getType() == BoxType.INLINE) {
 			assertEquals(2, pageNumber);
 			return true;
 		}
@@ -25,7 +26,7 @@ public class FloatBreakTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_TABLE) {
+		if (box.getType() == BoxType.TABLE) {
 			assertEquals(1, pageNumber);
 			System.out.println(x + "/" + y + "/" + box.getHeight());
 			assertEquals(0, x, 1);

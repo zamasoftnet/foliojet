@@ -3,6 +3,7 @@ package jp.cssj.test.unit._3050_IMG;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -17,7 +18,7 @@ public class DataTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.err.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(120, box.getWidth(), 0);
 			assertEquals(15, box.getHeight(), 0);
@@ -27,7 +28,7 @@ public class DataTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_REPLACED) {
+		if (box.getType() == BoxType.REPLACED) {
 			System.err.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(120, box.getWidth(), 0);
 			assertEquals(15, box.getHeight(), 0);

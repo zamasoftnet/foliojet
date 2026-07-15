@@ -48,7 +48,7 @@ public class Floatings {
 
 		public void restyle(BlockBuilder builder) {
 			switch (this.box.getType()) {
-			case IBox.TYPE_BLOCK: {
+			case BLOCK: {
 				// ブロックボックス
 				// 匿名ボックス
 				AbstractContainerBox floatBox = (AbstractContainerBox) this.box;
@@ -58,7 +58,7 @@ public class Floatings {
 				builder.addBound(floatBox);
 			}
 				break;
-			case IBox.TYPE_REPLACED: {
+			case REPLACED: {
 				// 置換されたボックス
 				AbstractReplacedBox floatBox = (AbstractReplacedBox) this.box;
 				builder.addBound(floatBox);
@@ -146,7 +146,7 @@ public class Floatings {
 				nextBox = floating.box;
 			} else {
 				switch (floating.box.getType()) {
-				case IBox.TYPE_BLOCK: {
+				case BLOCK: {
 					// ブロックボックス
 					// 匿名ボックス
 					final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
@@ -161,7 +161,7 @@ public class Floatings {
 					}
 					// 改ページ禁止されていた場合、ページ進行方向が違う場合は置換されたボックスと同じ処理
 				}
-				case IBox.TYPE_REPLACED: {
+				case REPLACED: {
 					// 置換されたボックス
 					nextBox = first ? null : floating.box;
 				}

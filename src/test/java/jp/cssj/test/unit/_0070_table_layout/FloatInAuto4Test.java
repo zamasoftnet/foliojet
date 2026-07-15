@@ -3,6 +3,7 @@ package jp.cssj.test.unit._0070_table_layout;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
+import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
@@ -18,7 +19,7 @@ public class FloatInAuto4Test extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(376.0, box.getWidth(), 0);
 			assertEquals(124.5, box.getHeight(), 0);
@@ -28,7 +29,7 @@ public class FloatInAuto4Test extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(414.5, box.getWidth(), 0);
 			assertEquals(94.5, box.getHeight(), 0);
@@ -38,7 +39,7 @@ public class FloatInAuto4Test extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(276.0, box.getWidth(), 0);
 			assertEquals(154.5, box.getHeight(), 0);
@@ -48,7 +49,7 @@ public class FloatInAuto4Test extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == IBox.TYPE_BLOCK) {
+		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
 			assertEquals(216.0, box.getWidth(), 0);
 			assertEquals(104.5, box.getHeight(), 0);
