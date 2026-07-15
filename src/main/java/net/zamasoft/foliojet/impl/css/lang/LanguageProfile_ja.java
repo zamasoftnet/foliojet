@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.css.value.css3.WordBreakValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJBreakRuleValue;
-import net.zamasoft.foliojet.impl.css.property.css3.WordBreak;
+import net.zamasoft.foliojet.impl.css.property.text.WordBreak;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJNoBreakCharacters;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;

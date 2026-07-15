@@ -28,7 +28,7 @@ import jp.cssj.cti2.helpers.MimeTypeHelper;
 import net.zamasoft.foliojet.css.html.HTMLStyleUtils;
 import net.zamasoft.foliojet.css.style.StyleBuilder;
 import net.zamasoft.foliojet.css.value.DisplayValue;
-import net.zamasoft.foliojet.impl.css.property.Display;
+import net.zamasoft.foliojet.impl.css.property.box.Display;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalLink;
 import net.zamasoft.foliojet.message.MessageCodes;

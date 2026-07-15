@@ -7,14 +7,12 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomColor;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftColor;
-import net.zamasoft.foliojet.impl.css.property.BorderRightColor;
-import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -28,10 +26,10 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BorderLeftColor.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderTopColor.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderRightColor.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderBottomColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderColor.LEFT, KeywordValue.INHERIT);
+			primitives.set(BorderColor.TOP, KeywordValue.INHERIT);
+			primitives.set(BorderColor.RIGHT, KeywordValue.INHERIT);
+			primitives.set(BorderColor.BOTTOM, KeywordValue.INHERIT);
 			return;
 		}
 		final Value color1 = nextColor(tokens, ua);
@@ -39,10 +37,10 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(BorderLeftColor.INFO, color1);
-			primitives.set(BorderTopColor.INFO, color1);
-			primitives.set(BorderRightColor.INFO, color1);
-			primitives.set(BorderBottomColor.INFO, color1);
+			primitives.set(BorderColor.LEFT, color1);
+			primitives.set(BorderColor.TOP, color1);
+			primitives.set(BorderColor.RIGHT, color1);
+			primitives.set(BorderColor.BOTTOM, color1);
 			return;
 		}
 		final Value color2 = nextColor(tokens, ua);
@@ -50,10 +48,10 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(BorderLeftColor.INFO, color2);
-			primitives.set(BorderTopColor.INFO, color1);
-			primitives.set(BorderRightColor.INFO, color2);
-			primitives.set(BorderBottomColor.INFO, color1);
+			primitives.set(BorderColor.LEFT, color2);
+			primitives.set(BorderColor.TOP, color1);
+			primitives.set(BorderColor.RIGHT, color2);
+			primitives.set(BorderColor.BOTTOM, color1);
 			return;
 		}
 		final Value color3 = nextColor(tokens, ua);
@@ -61,20 +59,20 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(BorderLeftColor.INFO, color2);
-			primitives.set(BorderTopColor.INFO, color1);
-			primitives.set(BorderRightColor.INFO, color2);
-			primitives.set(BorderBottomColor.INFO, color3);
+			primitives.set(BorderColor.LEFT, color2);
+			primitives.set(BorderColor.TOP, color1);
+			primitives.set(BorderColor.RIGHT, color2);
+			primitives.set(BorderColor.BOTTOM, color3);
 			return;
 		}
 		final Value color4 = nextColor(tokens, ua);
 		if (color4 == null) {
 			throw new PropertyException();
 		}
-		primitives.set(BorderLeftColor.INFO, color4);
-		primitives.set(BorderTopColor.INFO, color1);
-		primitives.set(BorderRightColor.INFO, color2);
-		primitives.set(BorderBottomColor.INFO, color3);
+		primitives.set(BorderColor.LEFT, color4);
+		primitives.set(BorderColor.TOP, color1);
+		primitives.set(BorderColor.RIGHT, color2);
+		primitives.set(BorderColor.BOTTOM, color3);
 	}
 
 	private static Value nextColor(TokenStream tokens, UserAgent ua) {

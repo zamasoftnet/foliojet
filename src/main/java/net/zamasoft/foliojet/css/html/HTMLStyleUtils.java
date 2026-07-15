@@ -22,29 +22,17 @@ import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
-import net.zamasoft.foliojet.impl.css.property.BackgroundColor;
-import net.zamasoft.foliojet.impl.css.property.BackgroundImage;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderRightWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
-import net.zamasoft.foliojet.impl.css.property.CSSColor;
-import net.zamasoft.foliojet.impl.css.property.CSSFloat;
-import net.zamasoft.foliojet.impl.css.property.CSSFontFamily;
-import net.zamasoft.foliojet.impl.css.property.FontSize;
-import net.zamasoft.foliojet.impl.css.property.Height;
-import net.zamasoft.foliojet.impl.css.property.MarginBottom;
-import net.zamasoft.foliojet.impl.css.property.MarginLeft;
-import net.zamasoft.foliojet.impl.css.property.MarginRight;
-import net.zamasoft.foliojet.impl.css.property.MarginTop;
-import net.zamasoft.foliojet.impl.css.property.TextAlign;
-import net.zamasoft.foliojet.impl.css.property.VerticalAlign;
-import net.zamasoft.foliojet.impl.css.property.Width;
-import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundColor;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundImage;
+import net.zamasoft.foliojet.impl.css.property.text.CSSColor;
+import net.zamasoft.foliojet.impl.css.property.box.CSSFloat;
+import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
+import net.zamasoft.foliojet.impl.css.property.font.FontSize;
+import net.zamasoft.foliojet.impl.css.property.box.Height;
+import net.zamasoft.foliojet.impl.css.property.text.TextAlign;
+import net.zamasoft.foliojet.impl.css.property.box.VerticalAlign;
+import net.zamasoft.foliojet.impl.css.property.box.Width;
+import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.message.MessageCodes;
@@ -54,6 +42,10 @@ import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.token.Unit;
+import net.zamasoft.foliojet.impl.css.property.box.Margin;
+import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
+import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
 
 public final class HTMLStyleUtils {
 	private HTMLStyleUtils() {
@@ -142,10 +134,10 @@ public final class HTMLStyleUtils {
 				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
-			style.set(MarginTop.INFO, length);
+			style.set(Margin.TOP, length);
 		} else {
 			// 横書き
-			style.set(MarginLeft.INFO, length);
+			style.set(Margin.LEFT, length);
 		}
 	}
 
@@ -161,12 +153,12 @@ public final class HTMLStyleUtils {
 				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
-			style.set(MarginTop.INFO, length);
-			style.set(MarginBottom.INFO, length);
+			style.set(Margin.TOP, length);
+			style.set(Margin.BOTTOM, length);
 		} else {
 			// 横書き
-			style.set(MarginLeft.INFO, length);
-			style.set(MarginRight.INFO, length);
+			style.set(Margin.LEFT, length);
+			style.set(Margin.RIGHT, length);
 		}
 	}
 
@@ -219,8 +211,8 @@ public final class HTMLStyleUtils {
 				if (length.isNegative()) {
 					throw new NumberFormatException();
 				}
-				style.set(MarginLeft.INFO, length);
-				style.set(MarginRight.INFO, length);
+				style.set(Margin.LEFT, length);
+				style.set(Margin.RIGHT, length);
 			} catch (Exception e) {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "hspace", hspace);
 			}
@@ -232,8 +224,8 @@ public final class HTMLStyleUtils {
 				if (length.isNegative()) {
 					throw new NumberFormatException();
 				}
-				style.set(MarginTop.INFO, length);
-				style.set(MarginBottom.INFO, length);
+				style.set(Margin.TOP, length);
+				style.set(Margin.BOTTOM, length);
 			} catch (Exception e) {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "vspace", vspace);
 			}
@@ -256,8 +248,8 @@ public final class HTMLStyleUtils {
 					if (length.isNegative()) {
 						throw new NumberFormatException();
 					}
-					style.set(MarginLeft.INFO, length);
-					style.set(MarginRight.INFO, length);
+					style.set(Margin.LEFT, length);
+					style.set(Margin.RIGHT, length);
 				} catch (Exception e) {
 					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "marginwidth", str);
 				}
@@ -271,8 +263,8 @@ public final class HTMLStyleUtils {
 					if (length.isNegative()) {
 						throw new NumberFormatException();
 					}
-					style.set(MarginTop.INFO, length);
-					style.set(MarginBottom.INFO, length);
+					style.set(Margin.TOP, length);
+					style.set(Margin.BOTTOM, length);
 				} catch (Exception e) {
 					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "marginheight", str);
 				}
@@ -306,14 +298,14 @@ public final class HTMLStyleUtils {
 			}
 		}
 		if (!width.isZero()) {
-			style.set(BorderTopWidth.INFO, width);
-			style.set(BorderRightWidth.INFO, width);
-			style.set(BorderBottomWidth.INFO, width);
-			style.set(BorderLeftWidth.INFO, width);
-			style.set(BorderTopStyle.INFO, BorderStyleValue.SOLID_VALUE);
-			style.set(BorderRightStyle.INFO, BorderStyleValue.SOLID_VALUE);
-			style.set(BorderBottomStyle.INFO, BorderStyleValue.SOLID_VALUE);
-			style.set(BorderLeftStyle.INFO, BorderStyleValue.SOLID_VALUE);
+			style.set(BorderWidth.TOP, width);
+			style.set(BorderWidth.RIGHT, width);
+			style.set(BorderWidth.BOTTOM, width);
+			style.set(BorderWidth.LEFT, width);
+			style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
+			style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
+			style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
+			style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
 		}
 	}
 
@@ -404,8 +396,8 @@ public final class HTMLStyleUtils {
 				case 'c':
 				case 'C':
 					if (align.equalsIgnoreCase("center")) {
-						style.set(MarginLeft.INFO, KeywordValue.AUTO);
-						style.set(MarginRight.INFO, KeywordValue.AUTO);
+						style.set(Margin.LEFT, KeywordValue.AUTO);
+						style.set(Margin.RIGHT, KeywordValue.AUTO);
 					}
 					break;
 				case 'l':

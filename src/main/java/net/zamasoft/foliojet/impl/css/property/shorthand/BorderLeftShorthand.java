@@ -8,13 +8,14 @@ import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftColor;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
+import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -28,9 +29,9 @@ public class BorderLeftShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BorderLeftWidth.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderLeftStyle.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderLeftColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderWidth.LEFT, KeywordValue.INHERIT);
+			primitives.set(BorderStyle.LEFT, KeywordValue.INHERIT);
+			primitives.set(BorderColor.LEFT, KeywordValue.INHERIT);
 			return;
 		}
 
@@ -64,9 +65,9 @@ public class BorderLeftShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 
-		primitives.set(BorderLeftWidth.INFO, width);
-		primitives.set(BorderLeftStyle.INFO, styleValue);
-		primitives.set(BorderLeftColor.INFO, color);
+		primitives.set(BorderWidth.LEFT, width);
+		primitives.set(BorderStyle.LEFT, styleValue);
+		primitives.set(BorderColor.LEFT, color);
 	}
 
 }

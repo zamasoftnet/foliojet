@@ -49,104 +49,76 @@ import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageRefValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
-import net.zamasoft.foliojet.impl.css.property.BackgroundAttachment;
-import net.zamasoft.foliojet.impl.css.property.BackgroundColor;
-import net.zamasoft.foliojet.impl.css.property.BackgroundImage;
-import net.zamasoft.foliojet.impl.css.property.BackgroundPosition;
-import net.zamasoft.foliojet.impl.css.property.BackgroundRepeat;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomColor;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderCollapse;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftColor;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderRightColor;
-import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderRightWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderSpacing;
-import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
-import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
-import net.zamasoft.foliojet.impl.css.property.Bottom;
-import net.zamasoft.foliojet.impl.css.property.CSSColor;
-import net.zamasoft.foliojet.impl.css.property.CSSFloat;
-import net.zamasoft.foliojet.impl.css.property.CSSPosition;
-import net.zamasoft.foliojet.impl.css.property.CaptionSide;
-import net.zamasoft.foliojet.impl.css.property.Clear;
-import net.zamasoft.foliojet.impl.css.property.Content;
-import net.zamasoft.foliojet.impl.css.property.CounterIncrement;
-import net.zamasoft.foliojet.impl.css.property.CounterReset;
-import net.zamasoft.foliojet.impl.css.property.Direction;
-import net.zamasoft.foliojet.impl.css.property.Display;
-import net.zamasoft.foliojet.impl.css.property.EmptyCells;
-import net.zamasoft.foliojet.impl.css.property.FontSize;
-import net.zamasoft.foliojet.impl.css.property.Height;
-import net.zamasoft.foliojet.impl.css.property.Left;
-import net.zamasoft.foliojet.impl.css.property.LetterSpacing;
-import net.zamasoft.foliojet.impl.css.property.LineHeight;
-import net.zamasoft.foliojet.impl.css.property.ListStyleImage;
-import net.zamasoft.foliojet.impl.css.property.ListStylePosition;
-import net.zamasoft.foliojet.impl.css.property.ListStyleType;
-import net.zamasoft.foliojet.impl.css.property.MarginBottom;
-import net.zamasoft.foliojet.impl.css.property.MarginLeft;
-import net.zamasoft.foliojet.impl.css.property.MarginRight;
-import net.zamasoft.foliojet.impl.css.property.MarginTop;
-import net.zamasoft.foliojet.impl.css.property.MaxHeight;
-import net.zamasoft.foliojet.impl.css.property.MaxWidth;
-import net.zamasoft.foliojet.impl.css.property.MinHeight;
-import net.zamasoft.foliojet.impl.css.property.MinWidth;
-import net.zamasoft.foliojet.impl.css.property.Orphans;
-import net.zamasoft.foliojet.impl.css.property.Overflow;
-import net.zamasoft.foliojet.impl.css.property.PaddingBottom;
-import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
-import net.zamasoft.foliojet.impl.css.property.PaddingRight;
-import net.zamasoft.foliojet.impl.css.property.PaddingTop;
-import net.zamasoft.foliojet.impl.css.property.PageBreakAfter;
-import net.zamasoft.foliojet.impl.css.property.PageBreakBefore;
-import net.zamasoft.foliojet.impl.css.property.PageBreakInside;
-import net.zamasoft.foliojet.impl.css.property.Quotes;
-import net.zamasoft.foliojet.impl.css.property.Right;
-import net.zamasoft.foliojet.impl.css.property.TableLayout;
-import net.zamasoft.foliojet.impl.css.property.TextAlign;
-import net.zamasoft.foliojet.impl.css.property.TextDecoration;
-import net.zamasoft.foliojet.impl.css.property.TextIndent;
-import net.zamasoft.foliojet.impl.css.property.TextTransform;
-import net.zamasoft.foliojet.impl.css.property.Top;
-import net.zamasoft.foliojet.impl.css.property.VerticalAlign;
-import net.zamasoft.foliojet.impl.css.property.Visibility;
-import net.zamasoft.foliojet.impl.css.property.WhiteSpace;
-import net.zamasoft.foliojet.impl.css.property.Widows;
-import net.zamasoft.foliojet.impl.css.property.Width;
-import net.zamasoft.foliojet.impl.css.property.WordSpacing;
-import net.zamasoft.foliojet.impl.css.property.ZIndex;
-import net.zamasoft.foliojet.impl.css.property.css3.BackgroundClip;
-import net.zamasoft.foliojet.impl.css.property.css3.BackgroundSize;
-import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
-import net.zamasoft.foliojet.impl.css.property.css3.BorderBottomLeftRadius;
-import net.zamasoft.foliojet.impl.css.property.css3.BorderBottomRightRadius;
-import net.zamasoft.foliojet.impl.css.property.css3.BorderTopLeftRadius;
-import net.zamasoft.foliojet.impl.css.property.css3.BorderTopRightRadius;
-import net.zamasoft.foliojet.impl.css.property.css3.BoxSizing;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnCount;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnFill;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnGap;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnRuleColor;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnRuleStyle;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnRuleWidth;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnSpan;
-import net.zamasoft.foliojet.impl.css.property.css3.ColumnWidth;
-import net.zamasoft.foliojet.impl.css.property.css3.Opacity;
-import net.zamasoft.foliojet.impl.css.property.css3.TextAlignLast;
-import net.zamasoft.foliojet.impl.css.property.css3.TextEmphasisColor;
-import net.zamasoft.foliojet.impl.css.property.css3.TextEmphasisStyle;
-import net.zamasoft.foliojet.impl.css.property.css3.TextFillColor;
-import net.zamasoft.foliojet.impl.css.property.css3.TextShadow;
-import net.zamasoft.foliojet.impl.css.property.css3.TextStrokeColor;
-import net.zamasoft.foliojet.impl.css.property.css3.TextStrokeWidth;
-import net.zamasoft.foliojet.impl.css.property.css3.Transform;
-import net.zamasoft.foliojet.impl.css.property.css3.TransformOrigin;
-import net.zamasoft.foliojet.impl.css.property.css3.WordWrap;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundAttachment;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundColor;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundImage;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundPosition;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundRepeat;
+import net.zamasoft.foliojet.impl.css.property.table.BorderCollapse;
+import net.zamasoft.foliojet.impl.css.property.table.BorderSpacing;
+import net.zamasoft.foliojet.impl.css.property.text.CSSColor;
+import net.zamasoft.foliojet.impl.css.property.box.CSSFloat;
+import net.zamasoft.foliojet.impl.css.property.box.CSSPosition;
+import net.zamasoft.foliojet.impl.css.property.table.CaptionSide;
+import net.zamasoft.foliojet.impl.css.property.box.Clear;
+import net.zamasoft.foliojet.impl.css.property.content.Content;
+import net.zamasoft.foliojet.impl.css.property.content.CounterIncrement;
+import net.zamasoft.foliojet.impl.css.property.content.CounterReset;
+import net.zamasoft.foliojet.impl.css.property.text.Direction;
+import net.zamasoft.foliojet.impl.css.property.box.Display;
+import net.zamasoft.foliojet.impl.css.property.table.EmptyCells;
+import net.zamasoft.foliojet.impl.css.property.font.FontSize;
+import net.zamasoft.foliojet.impl.css.property.box.Height;
+import net.zamasoft.foliojet.impl.css.property.text.LetterSpacing;
+import net.zamasoft.foliojet.impl.css.property.font.LineHeight;
+import net.zamasoft.foliojet.impl.css.property.content.ListStyleImage;
+import net.zamasoft.foliojet.impl.css.property.content.ListStylePosition;
+import net.zamasoft.foliojet.impl.css.property.content.ListStyleType;
+import net.zamasoft.foliojet.impl.css.property.box.MaxHeight;
+import net.zamasoft.foliojet.impl.css.property.box.MaxWidth;
+import net.zamasoft.foliojet.impl.css.property.box.MinHeight;
+import net.zamasoft.foliojet.impl.css.property.box.MinWidth;
+import net.zamasoft.foliojet.impl.css.property.page.Orphans;
+import net.zamasoft.foliojet.impl.css.property.box.Overflow;
+import net.zamasoft.foliojet.impl.css.property.page.PageBreakAfter;
+import net.zamasoft.foliojet.impl.css.property.page.PageBreakBefore;
+import net.zamasoft.foliojet.impl.css.property.page.PageBreakInside;
+import net.zamasoft.foliojet.impl.css.property.content.Quotes;
+import net.zamasoft.foliojet.impl.css.property.table.TableLayout;
+import net.zamasoft.foliojet.impl.css.property.text.TextAlign;
+import net.zamasoft.foliojet.impl.css.property.text.TextDecoration;
+import net.zamasoft.foliojet.impl.css.property.text.TextIndent;
+import net.zamasoft.foliojet.impl.css.property.text.TextTransform;
+import net.zamasoft.foliojet.impl.css.property.box.VerticalAlign;
+import net.zamasoft.foliojet.impl.css.property.box.Visibility;
+import net.zamasoft.foliojet.impl.css.property.text.WhiteSpace;
+import net.zamasoft.foliojet.impl.css.property.page.Widows;
+import net.zamasoft.foliojet.impl.css.property.box.Width;
+import net.zamasoft.foliojet.impl.css.property.text.WordSpacing;
+import net.zamasoft.foliojet.impl.css.property.box.ZIndex;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundClip;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundSize;
+import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
+import net.zamasoft.foliojet.impl.css.property.box.BoxSizing;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnCount;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnFill;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnGap;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnRuleColor;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnRuleStyle;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnRuleWidth;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnSpan;
+import net.zamasoft.foliojet.impl.css.property.column.ColumnWidth;
+import net.zamasoft.foliojet.impl.css.property.box.Opacity;
+import net.zamasoft.foliojet.impl.css.property.text.TextAlignLast;
+import net.zamasoft.foliojet.impl.css.property.text.TextEmphasisColor;
+import net.zamasoft.foliojet.impl.css.property.text.TextEmphasisStyle;
+import net.zamasoft.foliojet.impl.css.property.text.TextFillColor;
+import net.zamasoft.foliojet.impl.css.property.text.TextShadow;
+import net.zamasoft.foliojet.impl.css.property.text.TextStrokeColor;
+import net.zamasoft.foliojet.impl.css.property.text.TextStrokeWidth;
+import net.zamasoft.foliojet.impl.css.property.box.Transform;
+import net.zamasoft.foliojet.impl.css.property.box.TransformOrigin;
+import net.zamasoft.foliojet.impl.css.property.text.WordWrap;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContent;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContentClear;
@@ -238,6 +210,15 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
+import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
+import net.zamasoft.foliojet.impl.css.property.border.BorderRadius;
+import net.zamasoft.foliojet.impl.css.property.box.Padding;
+import net.zamasoft.foliojet.impl.css.property.box.Margin;
+import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
+import net.zamasoft.foliojet.impl.css.property.box.Inset;
+import net.zamasoft.foliojet.impl.css.property.border.Corner;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -437,10 +418,10 @@ public class StyleBuilder implements PageGenerator {
 	 * @param style
 	 */
 	private void setupAbsolutePos(AbsolutePos pos, CSSStyle style) {
-		Value top = Top.get(style);
-		Value right = Right.get(style);
-		Value bottom = Bottom.get(style);
-		Value left = Left.get(style);
+		Value top = Inset.get(style, Side.TOP);
+		Value right = Inset.get(style, Side.RIGHT);
+		Value bottom = Inset.get(style, Side.BOTTOM);
+		Value left = Inset.get(style, Side.LEFT);
 		pos.location = BoxValueUtils.toInsets(top, right, bottom, left);
 
 		switch (CSSPosition.get(style)) {
@@ -825,19 +806,19 @@ public class StyleBuilder implements PageGenerator {
 	 * @return
 	 */
 	private RectBorder createRectBorder(CSSStyle style) {
-		final Border top = Border.create(BorderTopStyle.get(style), BorderTopWidth.get(style),
-				BorderTopColor.get(style));
-		final Border right = Border.create(BorderRightStyle.get(style), BorderRightWidth.get(style),
-				BorderRightColor.get(style));
-		final Border bottom = Border.create(BorderBottomStyle.get(style), BorderBottomWidth.get(style),
-				BorderBottomColor.get(style));
-		final Border left = Border.create(BorderLeftStyle.get(style), BorderLeftWidth.get(style),
-				BorderLeftColor.get(style));
+		final Border top = Border.create(BorderStyle.get(style, Side.TOP), BorderWidth.get(style, Side.TOP),
+				BorderColor.get(style, Side.TOP));
+		final Border right = Border.create(BorderStyle.get(style, Side.RIGHT), BorderWidth.get(style, Side.RIGHT),
+				BorderColor.get(style, Side.RIGHT));
+		final Border bottom = Border.create(BorderStyle.get(style, Side.BOTTOM), BorderWidth.get(style, Side.BOTTOM),
+				BorderColor.get(style, Side.BOTTOM));
+		final Border left = Border.create(BorderStyle.get(style, Side.LEFT), BorderWidth.get(style, Side.LEFT),
+				BorderColor.get(style, Side.LEFT));
 
-		final Radius topLeft = BorderTopLeftRadius.get(style);
-		final Radius topRight = BorderTopRightRadius.get(style);
-		final Radius bottomLeft = BorderBottomLeftRadius.get(style);
-		final Radius bottomRight = BorderBottomRightRadius.get(style);
+		final Radius topLeft = BorderRadius.get(style, Corner.TOP_LEFT);
+		final Radius topRight = BorderRadius.get(style, Corner.TOP_RIGHT);
+		final Radius bottomLeft = BorderRadius.get(style, Corner.BOTTOM_LEFT);
+		final Radius bottomRight = BorderRadius.get(style, Corner.BOTTOM_RIGHT);
 
 		final RectBorder border = RectBorder.create(top, right, bottom, left, topLeft, topRight, bottomLeft,
 				bottomRight);
@@ -871,20 +852,20 @@ public class StyleBuilder implements PageGenerator {
 		// マージン
 		final Insets margin;
 		{
-			Value top = MarginTop.get(style);
-			Value right = MarginRight.get(style);
-			Value bottom = MarginBottom.get(style);
-			Value left = MarginLeft.get(style);
+			Value top = Margin.get(style, Side.TOP);
+			Value right = Margin.get(style, Side.RIGHT);
+			Value bottom = Margin.get(style, Side.BOTTOM);
+			Value left = Margin.get(style, Side.LEFT);
 			margin = BoxValueUtils.toInsets(top, right, bottom, left);
 		}
 
 		// パディング
 		final Insets padding;
 		{
-			Value top = PaddingTop.get(style);
-			Value right = PaddingRight.get(style);
-			Value bottom = PaddingBottom.get(style);
-			Value left = PaddingLeft.get(style);
+			Value top = Padding.get(style, Side.TOP);
+			Value right = Padding.get(style, Side.RIGHT);
+			Value bottom = Padding.get(style, Side.BOTTOM);
+			Value left = Padding.get(style, Side.LEFT);
 			padding = BoxValueUtils.toInsets(top, right, bottom, left);
 		}
 		RectFrame frame = RectFrame.create(margin, border, background, padding);
@@ -898,10 +879,10 @@ public class StyleBuilder implements PageGenerator {
 	 * @return
 	 */
 	private Offset createRelativeOffset(CSSStyle style) {
-		Value top = Top.get(style);
-		Value right = Right.get(style);
-		Value bottom = Bottom.get(style);
-		Value left = Left.get(style);
+		Value top = Inset.get(style, Side.TOP);
+		Value right = Inset.get(style, Side.RIGHT);
+		Value bottom = Inset.get(style, Side.BOTTOM);
+		Value left = Inset.get(style, Side.LEFT);
 
 		final double x, y;
 		final short xType, yType;
@@ -2285,10 +2266,10 @@ public class StyleBuilder implements PageGenerator {
 					et.set(FontSize.INFO, PercentageValue.HALF);
 					if (logVert) {
 						et.set(Height.INFO, PercentageValue.FULL);
-						et.set(Left.INFO, EM_1_4);
+						et.set(Inset.LEFT, EM_1_4);
 					} else {
 						et.set(Width.INFO, PercentageValue.FULL);
-						et.set(Bottom.INFO, EM_1_4);
+						et.set(Inset.BOTTOM, EM_1_4);
 					}
 					et.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 					this._startStyle(et);
@@ -2561,28 +2542,28 @@ public class StyleBuilder implements PageGenerator {
 		if (this.margins != null) {
 			switch (this.margins.length) {
 			case 1:
-				pageStyle.set(MarginTop.INFO, this.margins[0]);
-				pageStyle.set(MarginRight.INFO, this.margins[0]);
-				pageStyle.set(MarginBottom.INFO, this.margins[0]);
-				pageStyle.set(MarginLeft.INFO, this.margins[0]);
+				pageStyle.set(Margin.TOP, this.margins[0]);
+				pageStyle.set(Margin.RIGHT, this.margins[0]);
+				pageStyle.set(Margin.BOTTOM, this.margins[0]);
+				pageStyle.set(Margin.LEFT, this.margins[0]);
 				break;
 			case 2:
-				pageStyle.set(MarginTop.INFO, this.margins[0]);
-				pageStyle.set(MarginRight.INFO, this.margins[1]);
-				pageStyle.set(MarginBottom.INFO, this.margins[0]);
-				pageStyle.set(MarginLeft.INFO, this.margins[1]);
+				pageStyle.set(Margin.TOP, this.margins[0]);
+				pageStyle.set(Margin.RIGHT, this.margins[1]);
+				pageStyle.set(Margin.BOTTOM, this.margins[0]);
+				pageStyle.set(Margin.LEFT, this.margins[1]);
 				break;
 			case 3:
-				pageStyle.set(MarginTop.INFO, this.margins[1]);
-				pageStyle.set(MarginRight.INFO, this.margins[2]);
-				pageStyle.set(MarginBottom.INFO, this.margins[3]);
-				pageStyle.set(MarginLeft.INFO, this.margins[2]);
+				pageStyle.set(Margin.TOP, this.margins[1]);
+				pageStyle.set(Margin.RIGHT, this.margins[2]);
+				pageStyle.set(Margin.BOTTOM, this.margins[3]);
+				pageStyle.set(Margin.LEFT, this.margins[2]);
 				break;
 			case 4:
-				pageStyle.set(MarginTop.INFO, this.margins[0]);
-				pageStyle.set(MarginRight.INFO, this.margins[1]);
-				pageStyle.set(MarginBottom.INFO, this.margins[2]);
-				pageStyle.set(MarginLeft.INFO, this.margins[3]);
+				pageStyle.set(Margin.TOP, this.margins[0]);
+				pageStyle.set(Margin.RIGHT, this.margins[1]);
+				pageStyle.set(Margin.BOTTOM, this.margins[2]);
+				pageStyle.set(Margin.LEFT, this.margins[3]);
 				break;
 			}
 		}
@@ -2643,10 +2624,10 @@ public class StyleBuilder implements PageGenerator {
 		params.overflow = Types.OVERFLOW_VISIBLE;
 
 		// マージン
-		Value marginTop = MarginTop.get(pageStyle);
-		Value marginRight = MarginRight.get(pageStyle);
-		Value marginBottom = MarginBottom.get(pageStyle);
-		Value marginLeft = MarginLeft.get(pageStyle);
+		Value marginTop = Margin.get(pageStyle, Side.TOP);
+		Value marginRight = Margin.get(pageStyle, Side.RIGHT);
+		Value marginBottom = Margin.get(pageStyle, Side.BOTTOM);
+		Value marginLeft = Margin.get(pageStyle, Side.LEFT);
 		Insets margin = BoxValueUtils.toInsets(marginTop, marginRight, marginBottom, marginLeft);
 
 		params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER, this.background, Insets.NULL_INSETS);

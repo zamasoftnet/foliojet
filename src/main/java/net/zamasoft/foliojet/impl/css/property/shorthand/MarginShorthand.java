@@ -7,13 +7,11 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.impl.css.property.MarginBottom;
-import net.zamasoft.foliojet.impl.css.property.MarginLeft;
-import net.zamasoft.foliojet.impl.css.property.MarginRight;
-import net.zamasoft.foliojet.impl.css.property.MarginTop;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.impl.css.property.box.Margin;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -31,17 +29,17 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (margin1 == KeywordValue.INHERIT) {
-			primitives.set(MarginTop.INFO, KeywordValue.INHERIT);
-			primitives.set(MarginRight.INFO, KeywordValue.INHERIT);
-			primitives.set(MarginBottom.INFO, KeywordValue.INHERIT);
-			primitives.set(MarginLeft.INFO, KeywordValue.INHERIT);
+			primitives.set(Margin.TOP, KeywordValue.INHERIT);
+			primitives.set(Margin.RIGHT, KeywordValue.INHERIT);
+			primitives.set(Margin.BOTTOM, KeywordValue.INHERIT);
+			primitives.set(Margin.LEFT, KeywordValue.INHERIT);
 			return;
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(MarginTop.INFO, margin1);
-			primitives.set(MarginRight.INFO, margin1);
-			primitives.set(MarginBottom.INFO, margin1);
-			primitives.set(MarginLeft.INFO, margin1);
+			primitives.set(Margin.TOP, margin1);
+			primitives.set(Margin.RIGHT, margin1);
+			primitives.set(Margin.BOTTOM, margin1);
+			primitives.set(Margin.LEFT, margin1);
 			return;
 		}
 		final Value margin2 = BoxValueUtils.toMarginWidth(ua, tokens.next());
@@ -49,10 +47,10 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(MarginTop.INFO, margin1);
-			primitives.set(MarginRight.INFO, margin2);
-			primitives.set(MarginBottom.INFO, margin1);
-			primitives.set(MarginLeft.INFO, margin2);
+			primitives.set(Margin.TOP, margin1);
+			primitives.set(Margin.RIGHT, margin2);
+			primitives.set(Margin.BOTTOM, margin1);
+			primitives.set(Margin.LEFT, margin2);
 			return;
 		}
 		final Value margin3 = BoxValueUtils.toMarginWidth(ua, tokens.next());
@@ -60,20 +58,20 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(MarginTop.INFO, margin1);
-			primitives.set(MarginRight.INFO, margin2);
-			primitives.set(MarginBottom.INFO, margin3);
-			primitives.set(MarginLeft.INFO, margin2);
+			primitives.set(Margin.TOP, margin1);
+			primitives.set(Margin.RIGHT, margin2);
+			primitives.set(Margin.BOTTOM, margin3);
+			primitives.set(Margin.LEFT, margin2);
 			return;
 		}
 		final Value margin4 = BoxValueUtils.toMarginWidth(ua, tokens.next());
 		if (margin4 == null) {
 			throw new PropertyException();
 		}
-		primitives.set(MarginTop.INFO, margin1);
-		primitives.set(MarginRight.INFO, margin2);
-		primitives.set(MarginBottom.INFO, margin3);
-		primitives.set(MarginLeft.INFO, margin4);
+		primitives.set(Margin.TOP, margin1);
+		primitives.set(Margin.RIGHT, margin2);
+		primitives.set(Margin.BOTTOM, margin3);
+		primitives.set(Margin.LEFT, margin4);
 		return;
 	}
 

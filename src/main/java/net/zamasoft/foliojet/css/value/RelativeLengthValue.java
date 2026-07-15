@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.Unit;
-import net.zamasoft.foliojet.impl.css.property.FontSize;
+import net.zamasoft.foliojet.impl.css.property.font.FontSize;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;

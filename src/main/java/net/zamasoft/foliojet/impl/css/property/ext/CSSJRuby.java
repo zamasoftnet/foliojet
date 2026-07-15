@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
-import net.zamasoft.foliojet.impl.css.property.Display;
+import net.zamasoft.foliojet.impl.css.property.box.Display;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;

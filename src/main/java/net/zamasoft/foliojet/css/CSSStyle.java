@@ -3,10 +3,10 @@ package net.zamasoft.foliojet.css;
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.impl.css.property.CSSFontFamily;
-import net.zamasoft.foliojet.impl.css.property.CSSFontStyle;
-import net.zamasoft.foliojet.impl.css.property.FontSize;
-import net.zamasoft.foliojet.impl.css.property.FontWeight;
+import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
+import net.zamasoft.foliojet.impl.css.property.font.CSSFontStyle;
+import net.zamasoft.foliojet.impl.css.property.font.FontSize;
+import net.zamasoft.foliojet.impl.css.property.font.FontWeight;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJFontPolicy;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -240,7 +240,7 @@ public class CSSStyle {
 		double size = FontSize.get(this);
 		Style style = CSSFontStyle.get(this);
 		Weight weight = FontWeight.get(this);
-		Direction direction = net.zamasoft.foliojet.impl.css.property.Direction.getFontDirection(this);
+		Direction direction = net.zamasoft.foliojet.impl.css.property.text.Direction.getFontDirection(this);
 		FontPolicyList policy = CSSJFontPolicy.get(this);
 
 		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy);

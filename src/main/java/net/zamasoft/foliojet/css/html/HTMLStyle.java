@@ -57,58 +57,36 @@ import net.zamasoft.foliojet.impl.css.part.NullImage;
 import net.zamasoft.foliojet.impl.css.part.RadioButtonImage;
 import net.zamasoft.foliojet.impl.css.part.SelectImage;
 import net.zamasoft.foliojet.impl.css.part.UnprintBrokenImage;
-import net.zamasoft.foliojet.impl.css.property.BackgroundAttachment;
-import net.zamasoft.foliojet.impl.css.property.BackgroundColor;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomColor;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderBottomWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderCollapse;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftColor;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderLeftWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderRightColor;
-import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderRightWidth;
-import net.zamasoft.foliojet.impl.css.property.BorderSpacing;
-import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
-import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
-import net.zamasoft.foliojet.impl.css.property.CSSColor;
-import net.zamasoft.foliojet.impl.css.property.CSSFontFamily;
-import net.zamasoft.foliojet.impl.css.property.CSSFontStyle;
-import net.zamasoft.foliojet.impl.css.property.CSSPosition;
-import net.zamasoft.foliojet.impl.css.property.CaptionSide;
-import net.zamasoft.foliojet.impl.css.property.Clear;
-import net.zamasoft.foliojet.impl.css.property.Content;
-import net.zamasoft.foliojet.impl.css.property.Direction;
-import net.zamasoft.foliojet.impl.css.property.Display;
-import net.zamasoft.foliojet.impl.css.property.FontSize;
-import net.zamasoft.foliojet.impl.css.property.FontWeight;
-import net.zamasoft.foliojet.impl.css.property.Height;
-import net.zamasoft.foliojet.impl.css.property.LineHeight;
-import net.zamasoft.foliojet.impl.css.property.ListStyleType;
-import net.zamasoft.foliojet.impl.css.property.MarginBottom;
-import net.zamasoft.foliojet.impl.css.property.MarginLeft;
-import net.zamasoft.foliojet.impl.css.property.MarginRight;
-import net.zamasoft.foliojet.impl.css.property.MarginTop;
-import net.zamasoft.foliojet.impl.css.property.Overflow;
-import net.zamasoft.foliojet.impl.css.property.PaddingBottom;
-import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
-import net.zamasoft.foliojet.impl.css.property.PaddingRight;
-import net.zamasoft.foliojet.impl.css.property.PaddingTop;
-import net.zamasoft.foliojet.impl.css.property.PageBreakAfter;
-import net.zamasoft.foliojet.impl.css.property.PageBreakBefore;
-import net.zamasoft.foliojet.impl.css.property.PageBreakInside;
-import net.zamasoft.foliojet.impl.css.property.Right;
-import net.zamasoft.foliojet.impl.css.property.TextAlign;
-import net.zamasoft.foliojet.impl.css.property.TextDecoration;
-import net.zamasoft.foliojet.impl.css.property.TextIndent;
-import net.zamasoft.foliojet.impl.css.property.Top;
-import net.zamasoft.foliojet.impl.css.property.UnicodeBidi;
-import net.zamasoft.foliojet.impl.css.property.VerticalAlign;
-import net.zamasoft.foliojet.impl.css.property.WhiteSpace;
-import net.zamasoft.foliojet.impl.css.property.Width;
-import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundAttachment;
+import net.zamasoft.foliojet.impl.css.property.background.BackgroundColor;
+import net.zamasoft.foliojet.impl.css.property.table.BorderCollapse;
+import net.zamasoft.foliojet.impl.css.property.table.BorderSpacing;
+import net.zamasoft.foliojet.impl.css.property.text.CSSColor;
+import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
+import net.zamasoft.foliojet.impl.css.property.font.CSSFontStyle;
+import net.zamasoft.foliojet.impl.css.property.box.CSSPosition;
+import net.zamasoft.foliojet.impl.css.property.table.CaptionSide;
+import net.zamasoft.foliojet.impl.css.property.box.Clear;
+import net.zamasoft.foliojet.impl.css.property.content.Content;
+import net.zamasoft.foliojet.impl.css.property.text.Direction;
+import net.zamasoft.foliojet.impl.css.property.box.Display;
+import net.zamasoft.foliojet.impl.css.property.font.FontSize;
+import net.zamasoft.foliojet.impl.css.property.font.FontWeight;
+import net.zamasoft.foliojet.impl.css.property.box.Height;
+import net.zamasoft.foliojet.impl.css.property.font.LineHeight;
+import net.zamasoft.foliojet.impl.css.property.content.ListStyleType;
+import net.zamasoft.foliojet.impl.css.property.box.Overflow;
+import net.zamasoft.foliojet.impl.css.property.page.PageBreakAfter;
+import net.zamasoft.foliojet.impl.css.property.page.PageBreakBefore;
+import net.zamasoft.foliojet.impl.css.property.page.PageBreakInside;
+import net.zamasoft.foliojet.impl.css.property.text.TextAlign;
+import net.zamasoft.foliojet.impl.css.property.text.TextDecoration;
+import net.zamasoft.foliojet.impl.css.property.text.TextIndent;
+import net.zamasoft.foliojet.impl.css.property.text.UnicodeBidi;
+import net.zamasoft.foliojet.impl.css.property.box.VerticalAlign;
+import net.zamasoft.foliojet.impl.css.property.text.WhiteSpace;
+import net.zamasoft.foliojet.impl.css.property.box.Width;
+import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJAutoWidth;
@@ -133,6 +111,13 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
+import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
+import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
+import net.zamasoft.foliojet.impl.css.property.box.Padding;
+import net.zamasoft.foliojet.impl.css.property.box.Margin;
+import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
+import net.zamasoft.foliojet.impl.css.property.box.Inset;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
 
 public class HTMLStyle {
 	private static final Logger LOG = Logger.getLogger(HTMLStyle.class.getName());
@@ -217,9 +202,9 @@ public class HTMLStyle {
 			double size = LengthUtils.convert(ua, Height.getLength(parent).getLength(), Unit.PT,
 					Unit.PX);
 			style.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
-			double border = BorderTopWidth.get(parent);
-			style.set(Top.INFO, AbsoluteLengthValue.create(ua, -border * 2));
-			style.set(Right.INFO, AbsoluteLengthValue.create(ua, -Height.getLength(parent).getLength() - border));
+			double border = BorderWidth.get(parent, Side.TOP);
+			style.set(Inset.TOP, AbsoluteLengthValue.create(ua, -border * 2));
+			style.set(Inset.RIGHT, AbsoluteLengthValue.create(ua, -Height.getLength(parent).getLength() - border));
 			CSSJInternalImage.setImage(style, new SelectImage(parentCe.atts.getValue("disabled") != null, size));
 			style.set(Content.INFO, EMPTY);
 		}
@@ -302,18 +287,18 @@ public class HTMLStyle {
 		style.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 		style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
 		AbsoluteLengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-		style.set(BorderTopStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderTopWidth.INFO, thin);
-		style.set(BorderLeftStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderLeftWidth.INFO, thin);
-		style.set(BorderBottomStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderBottomWidth.INFO, thin);
-		style.set(BorderRightStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderRightWidth.INFO, thin);
-		style.set(PaddingTop.INFO, thin);
-		style.set(PaddingBottom.INFO, thin);
-		style.set(PaddingLeft.INFO, thin);
-		style.set(PaddingRight.INFO, thin);
+		style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.TOP, thin);
+		style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.LEFT, thin);
+		style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.BOTTOM, thin);
+		style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.RIGHT, thin);
+		style.set(Padding.TOP, thin);
+		style.set(Padding.BOTTOM, thin);
+		style.set(Padding.LEFT, thin);
+		style.set(Padding.RIGHT, thin);
 		style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 	}
 
@@ -366,12 +351,12 @@ public class HTMLStyle {
 				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
-			style.set(MarginLeft.INFO, length);
-			style.set(MarginRight.INFO, length);
+			style.set(Margin.LEFT, length);
+			style.set(Margin.RIGHT, length);
 		} else {
 			// 横書き
-			style.set(MarginTop.INFO, length);
-			style.set(MarginBottom.INFO, length);
+			style.set(Margin.TOP, length);
+			style.set(Margin.BOTTOM, length);
 		}
 	}
 
@@ -419,10 +404,10 @@ public class HTMLStyle {
 			style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 		}
 		LengthValue cellpadding = CSSJHtmlCellPadding.get(style);
-		style.set(PaddingTop.INFO, cellpadding, CSSStyle.MODE_WEAK);
-		style.set(PaddingRight.INFO, cellpadding, CSSStyle.MODE_WEAK);
-		style.set(PaddingBottom.INFO, cellpadding, CSSStyle.MODE_WEAK);
-		style.set(PaddingLeft.INFO, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.TOP, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.RIGHT, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.BOTTOM, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.LEFT, cellpadding, CSSStyle.MODE_WEAK);
 		CSSJHtmlTableBorderValue border = CSSJHtmlTableBorder.get(style);
 		if (!border.getWidth().isZero()) {
 			ColorValue borderColor = border.getColor();
@@ -431,20 +416,20 @@ public class HTMLStyle {
 				borderStyle = BorderStyleValue.INSET_VALUE;
 			} else {
 				borderStyle = BorderStyleValue.SOLID_VALUE;
-				style.set(BorderTopColor.INFO, borderColor);
-				style.set(BorderRightColor.INFO, borderColor);
-				style.set(BorderBottomColor.INFO, borderColor);
-				style.set(BorderLeftColor.INFO, borderColor);
+				style.set(BorderColor.TOP, borderColor);
+				style.set(BorderColor.RIGHT, borderColor);
+				style.set(BorderColor.BOTTOM, borderColor);
+				style.set(BorderColor.LEFT, borderColor);
 			}
 			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-			style.set(BorderTopStyle.INFO, borderStyle);
-			style.set(BorderTopWidth.INFO, thin);
-			style.set(BorderRightStyle.INFO, borderStyle);
-			style.set(BorderRightWidth.INFO, thin);
-			style.set(BorderBottomStyle.INFO, borderStyle);
-			style.set(BorderBottomWidth.INFO, thin);
-			style.set(BorderLeftStyle.INFO, borderStyle);
-			style.set(BorderLeftWidth.INFO, thin);
+			style.set(BorderStyle.TOP, borderStyle);
+			style.set(BorderWidth.TOP, thin);
+			style.set(BorderStyle.RIGHT, borderStyle);
+			style.set(BorderWidth.RIGHT, thin);
+			style.set(BorderStyle.BOTTOM, borderStyle);
+			style.set(BorderWidth.BOTTOM, thin);
+			style.set(BorderStyle.LEFT, borderStyle);
+			style.set(BorderWidth.LEFT, thin);
 		}
 		HTMLStyleUtils.applyBlockAlign(elem, style);
 		CSSStyle parent = style.getParentStyle();
@@ -454,26 +439,26 @@ public class HTMLStyle {
 				String rules = parentCe.atts.getValue("rules");
 				if (rules != null) {
 					if (rules.equalsIgnoreCase("all")) {
-						style.set(BorderRightStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderRightWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderLeftWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderTopStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderTopWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderBottomWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.RIGHT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.LEFT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.TOP, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
 					} else if (rules.equalsIgnoreCase("cols")) {
-						style.set(BorderRightStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderRightWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderLeftWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.RIGHT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.LEFT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
 					} else {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
 					}
 				}
 				break;
@@ -501,10 +486,10 @@ public class HTMLStyle {
 		HTMLStyleUtils.applyVAlign(elem, style, ce.atts.getValue("valign"));
 
 		LengthValue cellpadding = CSSJHtmlCellPadding.get(style);
-		style.set(PaddingTop.INFO, cellpadding, CSSStyle.MODE_WEAK);
-		style.set(PaddingRight.INFO, cellpadding, CSSStyle.MODE_WEAK);
-		style.set(PaddingBottom.INFO, cellpadding, CSSStyle.MODE_WEAK);
-		style.set(PaddingLeft.INFO, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.TOP, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.RIGHT, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.BOTTOM, cellpadding, CSSStyle.MODE_WEAK);
+		style.set(Padding.LEFT, cellpadding, CSSStyle.MODE_WEAK);
 	}
 
 	private static void applyTableRows(String elem, CSSStyle style) {
@@ -519,10 +504,10 @@ public class HTMLStyle {
 				CSSElement parentCe = parent.getCSSElement();
 				if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
 					if ("groups".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderTopWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderBottomWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.TOP, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
 					}
 					break;
 				}
@@ -550,18 +535,18 @@ public class HTMLStyle {
 			style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 		}
 		LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-		style.set(BorderTopStyle.INFO, BorderStyleValue.INSET_VALUE);
-		style.set(BorderTopWidth.INFO, thin);
-		style.set(BorderLeftStyle.INFO, BorderStyleValue.INSET_VALUE);
-		style.set(BorderLeftWidth.INFO, thin);
-		style.set(BorderBottomStyle.INFO, BorderStyleValue.INSET_VALUE);
-		style.set(BorderBottomWidth.INFO, thin);
-		style.set(BorderRightStyle.INFO, BorderStyleValue.INSET_VALUE);
-		style.set(BorderRightWidth.INFO, thin);
-		style.set(PaddingTop.INFO, thin);
-		style.set(PaddingBottom.INFO, thin);
-		style.set(PaddingLeft.INFO, thin);
-		style.set(PaddingRight.INFO, thin);
+		style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
+		style.set(BorderWidth.TOP, thin);
+		style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
+		style.set(BorderWidth.LEFT, thin);
+		style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
+		style.set(BorderWidth.BOTTOM, thin);
+		style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
+		style.set(BorderWidth.RIGHT, thin);
+		style.set(Padding.TOP, thin);
+		style.set(Padding.BOTTOM, thin);
+		style.set(Padding.LEFT, thin);
+		style.set(Padding.RIGHT, thin);
 		style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 	}
 
@@ -773,17 +758,17 @@ public class HTMLStyle {
 			// text link -vlink -alink>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			AbsoluteLengthValue px8 = AbsoluteLengthValue.create(ua, 8, Unit.PX);
-			style.set(MarginTop.INFO, px8);
-			style.set(MarginRight.INFO, px8);
-			style.set(MarginBottom.INFO, px8);
-			style.set(MarginLeft.INFO, px8);
+			style.set(Margin.TOP, px8);
+			style.set(Margin.RIGHT, px8);
+			style.set(Margin.BOTTOM, px8);
+			style.set(Margin.LEFT, px8);
 			HTMLStyleUtils.applyMarginWidthMarginHeight("BODY", style);
 			{
 				String str = ce.atts.getValue("topmargin");
 				if (str != null) {
 					try {
 						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(MarginTop.INFO, length);
+						style.set(Margin.TOP, length);
 					} catch (Exception e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "topmargin", str);
 					}
@@ -794,7 +779,7 @@ public class HTMLStyle {
 				if (str != null) {
 					try {
 						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(MarginRight.INFO, length);
+						style.set(Margin.RIGHT, length);
 					} catch (Exception e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "rightmargin", str);
 					}
@@ -805,7 +790,7 @@ public class HTMLStyle {
 				if (str != null) {
 					try {
 						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(MarginLeft.INFO, length);
+						style.set(Margin.LEFT, length);
 					} catch (Exception e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "leftmargin", str);
 					}
@@ -816,7 +801,7 @@ public class HTMLStyle {
 				if (str != null) {
 					try {
 						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(MarginBottom.INFO, length);
+						style.set(Margin.BOTTOM, length);
 					} catch (Exception e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "bottommargin", str);
 					}
@@ -914,10 +899,10 @@ public class HTMLStyle {
 
 					if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
 						if ("groups".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
-							style.set(BorderRightStyle.INFO, BorderStyleValue.SOLID_VALUE);
-							style.set(BorderRightWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-							style.set(BorderLeftStyle.INFO, BorderStyleValue.SOLID_VALUE);
-							style.set(BorderLeftWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+							style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
+							style.set(BorderWidth.RIGHT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+							style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
+							style.set(BorderWidth.LEFT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
 						}
 						break;
 					}
@@ -1012,20 +997,20 @@ public class HTMLStyle {
 			// <FIELDSET align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
-			style.set(PaddingTop.INFO, EM__5);
-			style.set(PaddingRight.INFO, EM__5);
-			style.set(PaddingBottom.INFO, EM__5);
-			style.set(PaddingLeft.INFO, EM__5);
+			style.set(Padding.TOP, EM__5);
+			style.set(Padding.RIGHT, EM__5);
+			style.set(Padding.BOTTOM, EM__5);
+			style.set(Padding.LEFT, EM__5);
 			HTMLStyleUtils.applyBlockAlign("FIELDSET", style);
 			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-			style.set(BorderTopStyle.INFO, BorderStyleValue.GROOVE_VALUE);
-			style.set(BorderTopWidth.INFO, thin);
-			style.set(BorderRightStyle.INFO, BorderStyleValue.GROOVE_VALUE);
-			style.set(BorderRightWidth.INFO, thin);
-			style.set(BorderBottomStyle.INFO, BorderStyleValue.GROOVE_VALUE);
-			style.set(BorderBottomWidth.INFO, thin);
-			style.set(BorderLeftStyle.INFO, BorderStyleValue.GROOVE_VALUE);
-			style.set(BorderLeftWidth.INFO, thin);
+			style.set(BorderStyle.TOP, BorderStyleValue.GROOVE_VALUE);
+			style.set(BorderWidth.TOP, thin);
+			style.set(BorderStyle.RIGHT, BorderStyleValue.GROOVE_VALUE);
+			style.set(BorderWidth.RIGHT, thin);
+			style.set(BorderStyle.BOTTOM, BorderStyleValue.GROOVE_VALUE);
+			style.set(BorderWidth.BOTTOM, thin);
+			style.set(BorderStyle.LEFT, BorderStyleValue.GROOVE_VALUE);
+			style.set(BorderWidth.LEFT, thin);
 		}
 			break;
 		case HTMLCodes.FONT: {
@@ -1174,14 +1159,14 @@ public class HTMLStyle {
 			final CSSStyle pStyle = style.getParentStyle();
 			if (ce.atts.getValue("noshade") == null && color == null) {
 				LengthValue border = AbsoluteLengthValue.create(ua, 1, Unit.PX);
-				style.set(BorderTopStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderTopWidth.INFO, border);
-				style.set(BorderRightStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderRightWidth.INFO, border);
-				style.set(BorderBottomStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderBottomWidth.INFO, border);
-				style.set(BorderLeftStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderLeftWidth.INFO, border);
+				style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.TOP, border);
+				style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.RIGHT, border);
+				style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.BOTTOM, border);
+				style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.LEFT, border);
 
 				if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
 						&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
@@ -1207,24 +1192,24 @@ public class HTMLStyle {
 						&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
 						|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 					// 縦書き
-					style.set(BorderLeftStyle.INFO, BorderStyleValue.SOLID_VALUE);
+					style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
 					if (size != null) {
-						style.set(BorderLeftWidth.INFO, size);
+						style.set(BorderWidth.LEFT, size);
 					}
 					if (color != null) {
-						style.set(BorderLeftColor.INFO, color);
+						style.set(BorderColor.LEFT, color);
 					}
 					if (width != null) {
 						style.set(Height.INFO, width);
 					}
 				} else {
 					// 横書き
-					style.set(BorderBottomStyle.INFO, BorderStyleValue.SOLID_VALUE);
+					style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
 					if (size != null) {
-						style.set(BorderBottomWidth.INFO, size);
+						style.set(BorderWidth.BOTTOM, size);
 					}
 					if (color != null) {
-						style.set(BorderBottomColor.INFO, color);
+						style.set(BorderColor.BOTTOM, color);
 					}
 					if (width != null) {
 						style.set(Width.INFO, width);
@@ -1234,12 +1219,12 @@ public class HTMLStyle {
 
 			String align = ce.atts.getValue("align");
 			if ("right".equalsIgnoreCase(align)) {
-				style.set(MarginLeft.INFO, KeywordValue.AUTO);
+				style.set(Margin.LEFT, KeywordValue.AUTO);
 			} else if ("left".equalsIgnoreCase(align)) {
-				style.set(MarginRight.INFO, KeywordValue.AUTO);
+				style.set(Margin.RIGHT, KeywordValue.AUTO);
 			} else {
-				style.set(MarginLeft.INFO, KeywordValue.AUTO);
-				style.set(MarginRight.INFO, KeywordValue.AUTO);
+				style.set(Margin.LEFT, KeywordValue.AUTO);
+				style.set(Margin.RIGHT, KeywordValue.AUTO);
 			}
 		}
 			break;
@@ -1278,14 +1263,14 @@ public class HTMLStyle {
 			}
 			if (border) {
 				LengthValue medium = ua.getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
-				style.set(BorderTopStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderTopWidth.INFO, medium);
-				style.set(BorderLeftStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderLeftWidth.INFO, medium);
-				style.set(BorderBottomStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderBottomWidth.INFO, medium);
-				style.set(BorderRightStyle.INFO, BorderStyleValue.INSET_VALUE);
-				style.set(BorderRightWidth.INFO, medium);
+				style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.TOP, medium);
+				style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.LEFT, medium);
+				style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.BOTTOM, medium);
+				style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
+				style.set(BorderWidth.RIGHT, medium);
 			}
 		}
 			break;
@@ -1376,7 +1361,7 @@ public class HTMLStyle {
 		case HTMLCodes.LEGEND: {
 			// <LEGEND>
 			style.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
-			style.set(MarginTop.INFO, _EM_1);
+			style.set(Margin.TOP, _EM_1);
 			CSSStyle parent = style;
 			for (;;) {
 				Value color = parent.get(BackgroundColor.INFO);
@@ -1509,7 +1494,7 @@ public class HTMLStyle {
 		case HTMLCodes.OPTGROUP: {
 			// <OPTGROUP>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			style.set(MarginLeft.INFO, EM_1);
+			style.set(Margin.LEFT, EM_1);
 		}
 			break;
 		case HTMLCodes.OPTION: {
@@ -1624,11 +1609,11 @@ public class HTMLStyle {
 					&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
 					|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 				// 縦書き
-				style.set(MarginRight.INFO, _EM__9);
+				style.set(Margin.RIGHT, _EM__9);
 				style.set(Width.INFO, AbsoluteLengthValue.ZERO);
 			} else {
 				// 横書き
-				style.set(MarginTop.INFO, _EM__9);
+				style.set(Margin.TOP, _EM__9);
 				style.set(Height.INFO, AbsoluteLengthValue.ZERO);
 			}
 		}
@@ -1679,19 +1664,19 @@ public class HTMLStyle {
 				style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 			}
 			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-			style.set(BorderTopStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderTopWidth.INFO, thin);
-			style.set(BorderLeftStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderLeftWidth.INFO, thin);
-			style.set(BorderBottomStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderBottomWidth.INFO, thin);
-			style.set(BorderRightStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderRightWidth.INFO, thin);
-			style.set(PaddingTop.INFO, thin, CSSStyle.MODE_IMPORTANT);
-			style.set(PaddingRight.INFO, AbsoluteLengthValue.create(ua, Height.getLength(style).getLength()),
+			style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.TOP, thin);
+			style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.LEFT, thin);
+			style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.BOTTOM, thin);
+			style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.RIGHT, thin);
+			style.set(Padding.TOP, thin, CSSStyle.MODE_IMPORTANT);
+			style.set(Padding.RIGHT, AbsoluteLengthValue.create(ua, Height.getLength(style).getLength()),
 					CSSStyle.MODE_IMPORTANT);
-			style.set(PaddingBottom.INFO, thin, CSSStyle.MODE_IMPORTANT);
-			style.set(PaddingLeft.INFO, thin, CSSStyle.MODE_IMPORTANT);
+			style.set(Padding.BOTTOM, thin, CSSStyle.MODE_IMPORTANT);
+			style.set(Padding.LEFT, thin, CSSStyle.MODE_IMPORTANT);
 			style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 		}
 			break;
@@ -1788,40 +1773,40 @@ public class HTMLStyle {
 				String str = ce.atts.getValue("frame");
 				if (str != null) {
 					if (str.equalsIgnoreCase("void")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
 					} else if (str.equalsIgnoreCase("above")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
 					} else if (str.equalsIgnoreCase("below")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
 					} else if (str.equalsIgnoreCase("hsides")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
 					} else if (str.equalsIgnoreCase("vsides")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
 					} else if (str.equalsIgnoreCase("lhs")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
 					} else if (str.equalsIgnoreCase("rhs")) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderRightStyle.INFO, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.NONE_VALUE);
-						style.set(BorderLeftStyle.INFO, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
+						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
 					}
 				}
 			}
@@ -1860,21 +1845,21 @@ public class HTMLStyle {
 					borderStyle = BorderStyleValue.OUTSET_VALUE;
 				} else {
 					borderStyle = BorderStyleValue.SOLID_VALUE;
-					style.set(BorderTopColor.INFO, borderColor);
-					style.set(BorderRightColor.INFO, borderColor);
-					style.set(BorderBottomColor.INFO, borderColor);
-					style.set(BorderLeftColor.INFO, borderColor);
+					style.set(BorderColor.TOP, borderColor);
+					style.set(BorderColor.RIGHT, borderColor);
+					style.set(BorderColor.BOTTOM, borderColor);
+					style.set(BorderColor.LEFT, borderColor);
 				}
 				CSSJHtmlTableBorder.set(style, new CSSJHtmlTableBorderValue(borderWidth, borderColor));
 
-				style.set(BorderTopStyle.INFO, borderStyle);
-				style.set(BorderTopWidth.INFO, borderWidth);
-				style.set(BorderRightStyle.INFO, borderStyle);
-				style.set(BorderRightWidth.INFO, borderWidth);
-				style.set(BorderBottomStyle.INFO, borderStyle);
-				style.set(BorderBottomWidth.INFO, borderWidth);
-				style.set(BorderLeftStyle.INFO, borderStyle);
-				style.set(BorderLeftWidth.INFO, borderWidth);
+				style.set(BorderStyle.TOP, borderStyle);
+				style.set(BorderWidth.TOP, borderWidth);
+				style.set(BorderStyle.RIGHT, borderStyle);
+				style.set(BorderWidth.RIGHT, borderWidth);
+				style.set(BorderStyle.BOTTOM, borderStyle);
+				style.set(BorderWidth.BOTTOM, borderWidth);
+				style.set(BorderStyle.LEFT, borderStyle);
+				style.set(BorderWidth.LEFT, borderWidth);
 			}
 
 			{
@@ -1948,10 +1933,10 @@ public class HTMLStyle {
 				CSSElement parentCe = parent.getCSSElement();
 				if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
 					if ("rows".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
-						style.set(BorderTopStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderTopWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
-						style.set(BorderBottomStyle.INFO, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderBottomWidth.INFO, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.TOP, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
+						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
 					}
 					break;
 				}
@@ -1993,18 +1978,18 @@ public class HTMLStyle {
 			}
 			style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-			style.set(BorderTopStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderTopWidth.INFO, thin);
-			style.set(BorderLeftStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderLeftWidth.INFO, thin);
-			style.set(BorderBottomStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderBottomWidth.INFO, thin);
-			style.set(BorderRightStyle.INFO, BorderStyleValue.INSET_VALUE);
-			style.set(BorderRightWidth.INFO, thin);
-			style.set(PaddingTop.INFO, thin);
-			style.set(PaddingRight.INFO, thin);
-			style.set(PaddingBottom.INFO, thin);
-			style.set(PaddingLeft.INFO, thin);
+			style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.TOP, thin);
+			style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.LEFT, thin);
+			style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.BOTTOM, thin);
+			style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
+			style.set(BorderWidth.RIGHT, thin);
+			style.set(Padding.TOP, thin);
+			style.set(Padding.RIGHT, thin);
+			style.set(Padding.BOTTOM, thin);
+			style.set(Padding.LEFT, thin);
 			if (ce.atts.getValue("wrap") != null) {
 				style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_WRAP_VALUE);
 			} else {

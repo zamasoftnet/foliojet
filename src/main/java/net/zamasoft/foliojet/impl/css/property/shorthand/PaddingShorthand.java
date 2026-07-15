@@ -7,13 +7,11 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.impl.css.property.PaddingBottom;
-import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
-import net.zamasoft.foliojet.impl.css.property.PaddingRight;
-import net.zamasoft.foliojet.impl.css.property.PaddingTop;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.impl.css.property.box.Padding;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -31,17 +29,17 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (padding1 == KeywordValue.INHERIT) {
-			primitives.set(PaddingLeft.INFO, KeywordValue.INHERIT);
-			primitives.set(PaddingTop.INFO, KeywordValue.INHERIT);
-			primitives.set(PaddingRight.INFO, KeywordValue.INHERIT);
-			primitives.set(PaddingBottom.INFO, KeywordValue.INHERIT);
+			primitives.set(Padding.LEFT, KeywordValue.INHERIT);
+			primitives.set(Padding.TOP, KeywordValue.INHERIT);
+			primitives.set(Padding.RIGHT, KeywordValue.INHERIT);
+			primitives.set(Padding.BOTTOM, KeywordValue.INHERIT);
 			return;
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(PaddingLeft.INFO, padding1);
-			primitives.set(PaddingTop.INFO, padding1);
-			primitives.set(PaddingRight.INFO, padding1);
-			primitives.set(PaddingBottom.INFO, padding1);
+			primitives.set(Padding.LEFT, padding1);
+			primitives.set(Padding.TOP, padding1);
+			primitives.set(Padding.RIGHT, padding1);
+			primitives.set(Padding.BOTTOM, padding1);
 			return;
 		}
 		final Value padding2 = BoxValueUtils.toPositiveLength(ua, tokens.next());
@@ -49,10 +47,10 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(PaddingLeft.INFO, padding2);
-			primitives.set(PaddingTop.INFO, padding1);
-			primitives.set(PaddingRight.INFO, padding2);
-			primitives.set(PaddingBottom.INFO, padding1);
+			primitives.set(Padding.LEFT, padding2);
+			primitives.set(Padding.TOP, padding1);
+			primitives.set(Padding.RIGHT, padding2);
+			primitives.set(Padding.BOTTOM, padding1);
 			return;
 		}
 		final Value padding3 = BoxValueUtils.toPositiveLength(ua, tokens.next());
@@ -60,20 +58,20 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
-			primitives.set(PaddingLeft.INFO, padding2);
-			primitives.set(PaddingTop.INFO, padding1);
-			primitives.set(PaddingRight.INFO, padding2);
-			primitives.set(PaddingBottom.INFO, padding3);
+			primitives.set(Padding.LEFT, padding2);
+			primitives.set(Padding.TOP, padding1);
+			primitives.set(Padding.RIGHT, padding2);
+			primitives.set(Padding.BOTTOM, padding3);
 			return;
 		}
 		final Value padding4 = BoxValueUtils.toPositiveLength(ua, tokens.next());
 		if (padding4 == null) {
 			throw new PropertyException();
 		}
-		primitives.set(PaddingLeft.INFO, padding4);
-		primitives.set(PaddingTop.INFO, padding1);
-		primitives.set(PaddingRight.INFO, padding2);
-		primitives.set(PaddingBottom.INFO, padding3);
+		primitives.set(Padding.LEFT, padding4);
+		primitives.set(Padding.TOP, padding1);
+		primitives.set(Padding.RIGHT, padding2);
+		primitives.set(Padding.BOTTOM, padding3);
 	}
 
 }

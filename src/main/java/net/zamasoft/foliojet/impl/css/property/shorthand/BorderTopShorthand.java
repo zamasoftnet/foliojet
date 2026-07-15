@@ -8,13 +8,14 @@ import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
-import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
-import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
+import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-top"> border-top
@@ -31,9 +32,9 @@ public class BorderTopShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BorderTopWidth.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderTopStyle.INFO, KeywordValue.INHERIT);
-			primitives.set(BorderTopColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderWidth.TOP, KeywordValue.INHERIT);
+			primitives.set(BorderStyle.TOP, KeywordValue.INHERIT);
+			primitives.set(BorderColor.TOP, KeywordValue.INHERIT);
 			return;
 		}
 
@@ -67,9 +68,9 @@ public class BorderTopShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 
-		primitives.set(BorderTopWidth.INFO, width);
-		primitives.set(BorderTopStyle.INFO, styleValue);
-		primitives.set(BorderTopColor.INFO, color);
+		primitives.set(BorderWidth.TOP, width);
+		primitives.set(BorderStyle.TOP, styleValue);
+		primitives.set(BorderColor.TOP, color);
 	}
 
 }
