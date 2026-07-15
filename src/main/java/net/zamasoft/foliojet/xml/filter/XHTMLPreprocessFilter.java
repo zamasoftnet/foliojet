@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.xhtml;
+package net.zamasoft.foliojet.xml.filter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.Constants;
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
-import net.zamasoft.foliojet.xml.ext.CSSJML;
+import net.zamasoft.foliojet.xml.vocab.CSSJML;
 import net.zamasoft.foliojet.xml.util.SAXEventRecorder;
 import net.zamasoft.foliojet.xml.util.SAXEventRecorder.SAXEvent;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
@@ -17,6 +17,7 @@ import net.zamasoft.foliojet.xml.util.XMLUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	/** ドキュメントのデフォルトのスタイル付け方式。 */

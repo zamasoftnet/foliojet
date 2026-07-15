@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.html;
+package net.zamasoft.foliojet.xml.parser;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -60,7 +60,7 @@ public class HTMLParser implements Parser {
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext namespaceContext,
 					Augmentations augs) throws XNIException {
 				super.startDocument(locator, encoding, namespaceContext, augs);
-				Parser.SOURCE_LOCATOR.set(new HTMLSourceLocator(locator));
+				xmlHandler.setDocumentLocator(new HTMLSourceLocator(locator));
 			}
 
 			public void startElement(QName element, XMLAttributes attributes, Augmentations augs) throws XNIException {

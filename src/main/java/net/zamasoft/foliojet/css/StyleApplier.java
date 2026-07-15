@@ -16,7 +16,7 @@ import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
-import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 import net.zamasoft.foliojet.css.parser.CSSException;
 
 /**

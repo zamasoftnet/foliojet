@@ -1,10 +1,11 @@
-package net.zamasoft.foliojet.xml.xhtml;
+package net.zamasoft.foliojet.xml.filter;
 
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 /**
  * デフォルトの名前空間の要素、およびそれに属するデフォルトの名前空間の属性をXHTML名前空間にします。

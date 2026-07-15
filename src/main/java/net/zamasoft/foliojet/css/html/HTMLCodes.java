@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.html;
 
 import net.zamasoft.foliojet.css.CSSElement;
-import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 final public class HTMLCodes {
 	private HTMLCodes() {

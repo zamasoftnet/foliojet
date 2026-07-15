@@ -24,8 +24,8 @@ import net.zamasoft.foliojet.ua.SectionState;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.Constants;
-import net.zamasoft.foliojet.xml.ext.CSSJML;
-import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.xml.vocab.CSSJML;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.foliojet.css.token.Unit;
 

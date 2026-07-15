@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.jaxp;
+package net.zamasoft.foliojet.xml.parser;
 
 import jp.cssj.cti2.helpers.MimeTypeHelper;
 import net.zamasoft.foliojet.xml.Parser;

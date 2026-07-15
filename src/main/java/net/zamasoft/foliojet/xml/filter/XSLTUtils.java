@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.xslt;
+package net.zamasoft.foliojet.xml.filter;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;

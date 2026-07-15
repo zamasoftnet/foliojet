@@ -30,7 +30,6 @@ import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
 import net.zamasoft.foliojet.xml.XMLHandler;
-import net.zamasoft.foliojet.xml.XMLHandlerWrapper;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.foliojet.epub.Container;
 import net.zamasoft.foliojet.epub.Container.Rootfile;
@@ -230,7 +229,7 @@ public class EPubFormatter implements Formatter {
 							entryPoint = new LinkHandler(entryPoint, ir.item, fullPathToItem);
 							boolean replaceNumbers = REPLACE_NUMBERS.getBoolean(ua);
 							WritingModeHandler xhandler = new WritingModeHandler(entryPoint, ir.item, replaceNumbers);
-							entryPoint = new XMLHandlerWrapper(xhandler, null);
+							entryPoint = XMLHandler.of(xhandler, null);
 							parser.parse(ua, zSource, entryPoint);
 						} else {
 							Formatter formatter = (Formatter) PluginRegistry.getInstance().search(Formatter.class,

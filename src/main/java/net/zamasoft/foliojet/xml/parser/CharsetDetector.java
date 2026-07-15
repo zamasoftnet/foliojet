@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.html;
+package net.zamasoft.foliojet.xml.parser;
 
 import java.io.IOException;
 import java.io.InputStream;

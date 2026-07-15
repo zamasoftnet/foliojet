@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.ext;
+package net.zamasoft.foliojet.xml.filter;
 
 import jp.cssj.cti2.helpers.CTIMessageCodes;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
@@ -11,6 +11,7 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
+import net.zamasoft.foliojet.xml.vocab.CSSJML;
 
 /**
  * 拡張マークアップのためのフィルタです。

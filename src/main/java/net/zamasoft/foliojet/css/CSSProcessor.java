@@ -41,9 +41,9 @@ import net.zamasoft.foliojet.xml.Constants;
 import net.zamasoft.foliojet.xml.SourceLocator;
 import net.zamasoft.foliojet.xml.StyleSheetSelector;
 import net.zamasoft.foliojet.xml.XMLHandler;
-import net.zamasoft.foliojet.xml.ext.CSSJML;
+import net.zamasoft.foliojet.xml.vocab.CSSJML;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
-import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
@@ -207,7 +207,9 @@ public class CSSProcessor implements XMLHandler {
 	}
 
 	public void setDocumentLocator(Locator locator) {
-		this.sourceLocator = net.zamasoft.foliojet.xml.Parser.SOURCE_LOCATOR.get();
+		if (locator instanceof SourceLocator source) {
+			this.sourceLocator = source;
+		}
 		this.saxLocator = locator;
 	}
 

@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.xslt;
+package net.zamasoft.foliojet.xml.filter;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +32,6 @@ import net.zamasoft.foliojet.xml.Constants;
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import net.zamasoft.foliojet.xml.StyleSheetSelector;
 import net.zamasoft.foliojet.xml.XMLHandler;
-import net.zamasoft.foliojet.xml.XMLHandlerWrapper;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
@@ -254,7 +253,7 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 		}
 		assert this.outHandler != null;
 		th.setResult(new SAXResult(this.outHandler));
-		this.outHandler = new XMLHandlerWrapper(th, th);
+		this.outHandler = XMLHandler.of(th, th);
 		assert this.locator != null;
 		th.setDocumentLocator(this.locator);
 		th.startDocument();

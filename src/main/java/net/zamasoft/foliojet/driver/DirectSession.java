@@ -52,7 +52,7 @@ import net.zamasoft.foliojet.ua.UserAgentFactory;
 import net.zamasoft.foliojet.ua.UserAgentFactory.Type;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
-import net.zamasoft.foliojet.xml.xslt.XSLTUtils;
+import net.zamasoft.foliojet.xml.filter.XSLTUtils;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.SourceResolver;

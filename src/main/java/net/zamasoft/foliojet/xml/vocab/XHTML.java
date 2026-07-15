@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.xhtml;
+package net.zamasoft.foliojet.xml.vocab;
 
 import net.zamasoft.foliojet.xml.AttributeNode;
 import net.zamasoft.foliojet.xml.ElementNode;

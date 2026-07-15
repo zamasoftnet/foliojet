@@ -202,7 +202,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPageLimitAbort;
 import net.zamasoft.foliojet.ua.props.OutputPrintMode;
 import net.zamasoft.foliojet.ua.props.UAProps;
-import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.GC;

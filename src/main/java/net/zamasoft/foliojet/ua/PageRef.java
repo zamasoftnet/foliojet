@@ -10,8 +10,7 @@ import java.util.Map;
 
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.xml.Constants;
-import net.zamasoft.foliojet.xml.util.MultiMap;
-import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -27,7 +26,7 @@ public class PageRef {
 
 	private final List<Section> sectionStack = new ArrayList<Section>();
 
-	private final MultiMap<URI, Fragment> uriToFragments = new MultiMap<URI, Fragment>();
+	private final Map<URI, List<Fragment>> uriToFragments = new HashMap<URI, List<Fragment>>();
 
 	private final Map<URI, int[]> uriToSeq = new HashMap<URI, int[]>();
 
@@ -69,7 +68,7 @@ public class PageRef {
 			}
 		}
 		Fragment fragment = new Fragment(seq[0], uri, counters);
-		this.uriToFragments.put(fragment.uri, fragment);
+		this.uriToFragments.computeIfAbsent(fragment.uri, k -> new ArrayList<Fragment>()).add(fragment);
 	}
 
 	/**
@@ -114,8 +113,7 @@ public class PageRef {
 	 * @return
 	 */
 	public Collection<?> getFragments(URI uri) {
-		Collection<?> col = (Collection<?>) this.uriToFragments.get(uri);
-		return col;
+		return this.uriToFragments.get(uri);
 	}
 
 	/**

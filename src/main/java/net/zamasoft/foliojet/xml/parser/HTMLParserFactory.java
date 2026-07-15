@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.html;
+package net.zamasoft.foliojet.xml.parser;
 
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;

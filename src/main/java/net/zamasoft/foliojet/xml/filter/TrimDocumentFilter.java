@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.xslt;
+package net.zamasoft.foliojet.xml.filter;
 
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import net.zamasoft.foliojet.xml.XMLHandler;

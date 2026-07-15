@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.xml.jaxp;
+package net.zamasoft.foliojet.xml.parser;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -40,8 +40,7 @@ public class JAXPParser implements Parser {
 		reader.setProperty("http://xml.org/sax/properties/lexical-handler", xmlHandler);
 		reader.setContentHandler(new DefaultXMLHandlerFilter(xmlHandler) {
 			public void setDocumentLocator(Locator locator) {
-				super.setDocumentLocator(locator);
-				Parser.SOURCE_LOCATOR.set(new SAXSourceLocator(locator));
+				super.setDocumentLocator(new SAXSourceLocator(locator));
 				try {
 					if (locator instanceof Locator2) {
 						String encoding = ((Locator2) locator).getEncoding();
@@ -56,11 +55,7 @@ public class JAXPParser implements Parser {
 				}
 			}
 		});
-		try {
-			reader.parse(inputSource);
-		} finally {
-			Parser.SOURCE_LOCATOR.remove();
-		}
+		reader.parse(inputSource);
 	}
 
 	private static class SAXSourceLocator implements SourceLocator {

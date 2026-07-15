@@ -18,14 +18,12 @@ import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import net.zamasoft.foliojet.xml.StyleSheetSelector;
 import net.zamasoft.foliojet.xml.XMLHandlerFilter;
-import net.zamasoft.foliojet.xml.ext.CSSJML;
-import net.zamasoft.foliojet.xml.ext.CSSJMLHandlerFilter;
+import net.zamasoft.foliojet.xml.vocab.CSSJML;
+import net.zamasoft.foliojet.xml.filter.CSSJMLHandlerFilter;
+import net.zamasoft.foliojet.xml.filter.DocumentFilters;
 import net.zamasoft.foliojet.xml.util.SAXEventRecorder;
 import net.zamasoft.foliojet.xml.util.SAXEventRecorder.SAXEvent;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
-import net.zamasoft.foliojet.xml.xhtml.XHTMLNSFilter;
-import net.zamasoft.foliojet.xml.xhtml.XHTMLPreprocessFilter;
-import net.zamasoft.foliojet.xml.xslt.XSLTProcessorFilter;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.Locator;
@@ -208,28 +206,13 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 			String filters = UAProps.INPUT_FILTERS.getString(this.ua);
 			for (StringTokenizer i = new StringTokenizer(filters); i.hasMoreTokens();) {
 				String filter = i.nextToken();
-				if (filter.equals("loose-html")) {
-					// html補正
-					XMLHandlerFilter htmlFilter = new XHTMLPreprocessFilter(this.ua);
-					exitPoint.setXMLHandler(htmlFilter);
-					exitPoint = htmlFilter;
-				} else if (filter.equals("xslt")) {
-					// XSLT
-					XSLTProcessorFilter xsltFilter = new XSLTProcessorFilter();
-					xsltFilter.setup(this.ua);
-					if (ssh != null) {
-						xsltFilter.setStyleSheetSelector(ssh);
-					}
-					exitPoint.setXMLHandler(xsltFilter);
-					exitPoint = xsltFilter;
-				} else if (filter.equals("default-to-xhtml")) {
-					// namespace置き換え
-					XHTMLNSFilter xhtmlnsFilter = new XHTMLNSFilter();
-					exitPoint.setXMLHandler(xhtmlnsFilter);
-					exitPoint = xhtmlnsFilter;
-				} else {
+				XMLHandlerFilter handlerFilter = DocumentFilters.create(filter, this.ua, ssh);
+				if (handlerFilter == null) {
 					this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.INPUT_FILTERS.name, filters);
+					continue;
 				}
+				exitPoint.setXMLHandler(handlerFilter);
+				exitPoint = handlerFilter;
 			}
 
 			// CSSの処理

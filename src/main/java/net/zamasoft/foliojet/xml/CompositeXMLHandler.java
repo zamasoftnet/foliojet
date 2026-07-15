@@ -11,14 +11,13 @@ import org.xml.sax.ext.LexicalHandler;
  * ContentHandlerのフィルタです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: XMLHandlerWrapper.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class XMLHandlerWrapper implements XMLHandler {
+class CompositeXMLHandler implements XMLHandler {
 	protected final LexicalHandler lexicalHandler;
 	protected final ContentHandler contentHandler;
 	protected static final DefaultHandler2 DEFAULT_HANDLER = new DefaultHandler2();
 
-	public XMLHandlerWrapper(ContentHandler contentHandler, LexicalHandler lexicalHandler) {
+	CompositeXMLHandler(ContentHandler contentHandler, LexicalHandler lexicalHandler) {
 		if (lexicalHandler == null) {
 			lexicalHandler = DEFAULT_HANDLER;
 		}
@@ -27,11 +26,6 @@ public class XMLHandlerWrapper implements XMLHandler {
 		}
 		this.lexicalHandler = lexicalHandler;
 		this.contentHandler = contentHandler;
-	}
-
-	public XMLHandlerWrapper(XMLHandler xmlHandler) {
-		this.lexicalHandler = xmlHandler;
-		this.contentHandler = xmlHandler;
 	}
 
 	public void comment(char[] ch, int off, int len) throws SAXException {
