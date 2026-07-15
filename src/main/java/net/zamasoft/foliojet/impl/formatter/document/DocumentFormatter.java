@@ -33,7 +33,7 @@ public class DocumentFormatter implements Formatter {
 	public void format(Source source, UserAgent ua) throws AbortException, TranscoderException {
 		try {
 			String mimeType = source.getMimeType();
-			ParserFactory pf = (ParserFactory) PluginRegistry.getInstance().search(ParserFactory.class, mimeType);
+			ParserFactory pf = PluginRegistry.getInstance().search(ParserFactory.class, mimeType);
 			Parser parser = pf.createParser();
 			XMLHandler entryPoint = new TranscoderHandler(ua);
 			parser.parse(ua, source, entryPoint);

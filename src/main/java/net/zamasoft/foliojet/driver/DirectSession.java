@@ -197,8 +197,7 @@ public class DirectSession extends AbstractCTISession
 				// 出力形式
 				handler.startDocument();
 				handler.startElement("", "output-types", "output-types", atts);
-				for (Iterator<?> i = PluginRegistry.getInstance().plugins(UserAgentFactory.class); i.hasNext();) {
-					UserAgentFactory uaf = (UserAgentFactory) i.next();
+				for (UserAgentFactory uaf : PluginRegistry.getInstance().plugins(UserAgentFactory.class)) {
 					for (Iterator<?> j = uaf.types(); j.hasNext();) {
 						Type type = (Type) j.next();
 						atts.addAttribute("", "name", "name", "CDATA", type.name);
@@ -568,7 +567,7 @@ public class DirectSession extends AbstractCTISession
 		this.aborted = false;
 
 		final String outputType = UAProps.OUTPUT_TYPE.getString(this.props);
-		UserAgentFactory factory = (UserAgentFactory) PluginRegistry.getInstance().search(UserAgentFactory.class,
+		UserAgentFactory factory = PluginRegistry.getInstance().search(UserAgentFactory.class,
 				outputType);
 		if (factory != null) {
 			this.ua = factory.createUserAgent();
@@ -660,7 +659,7 @@ public class DirectSession extends AbstractCTISession
 	 */
 	protected void format(Source source) throws AbortException, TranscoderException {
 		// @format
-		final Formatter formatter = (Formatter) PluginRegistry.getInstance().search(Formatter.class, source);
+		final Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, source);
 		Results results = this.results;
 		long limit = UAProps.OUTPUT_SIZE_LIMIT.getLong(this.ua);
 		if (limit != -1L) {

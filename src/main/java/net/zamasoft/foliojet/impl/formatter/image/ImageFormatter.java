@@ -29,7 +29,7 @@ public class ImageFormatter implements Formatter {
 			if (mimeType != null && !mimeType.startsWith("image/")) {
 				return false;
 			}
-			final ImageLoader loader = (ImageLoader) PluginRegistry.getInstance().search(ImageLoader.class, source);
+			final ImageLoader loader = PluginRegistry.getInstance().search(ImageLoader.class, source);
 			if (loader instanceof RasterImageLoader) {
 				return ((RasterImageLoader) loader).available(source);
 			}

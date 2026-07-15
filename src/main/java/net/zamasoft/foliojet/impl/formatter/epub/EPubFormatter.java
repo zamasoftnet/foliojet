@@ -222,7 +222,7 @@ public class EPubFormatter implements Formatter {
 						final Source zSource = new ZIPFileSource(zip, path, ir.item.mediaType);
 						final String mimeType = zSource.getMimeType();
 						if (mimeType.equals("application/xhtml+xml")) {
-							ParserFactory pf = (ParserFactory) PluginRegistry.getInstance()
+							ParserFactory pf = PluginRegistry.getInstance()
 									.search(ParserFactory.class, mimeType);
 							Parser parser = pf.createParser();
 							XMLHandler entryPoint = new TranscoderHandler(ua);
@@ -232,7 +232,7 @@ public class EPubFormatter implements Formatter {
 							entryPoint = XMLHandler.of(xhandler, null);
 							parser.parse(ua, zSource, entryPoint);
 						} else {
-							Formatter formatter = (Formatter) PluginRegistry.getInstance().search(Formatter.class,
+							Formatter formatter = PluginRegistry.getInstance().search(Formatter.class,
 									zSource);
 							formatter.format(zSource, ua);
 						}

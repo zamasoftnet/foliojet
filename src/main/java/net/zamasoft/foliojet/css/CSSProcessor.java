@@ -524,8 +524,7 @@ public class CSSProcessor implements XMLHandler {
 		}
 
 		// インラインオブジェクト
-		InlineObjectFactory factory = (InlineObjectFactory) PluginRegistry.getInstance()
-				.search(InlineObjectFactory.class, ce);
+		InlineObjectFactory factory = PluginRegistry.getInstance().search(InlineObjectFactory.class, ce);
 		if (factory != null) {
 			if (this.inlineObject == null) {
 				this.inlineObject = factory.createInlineObject();

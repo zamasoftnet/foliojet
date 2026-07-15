@@ -1,12 +1,10 @@
 package net.zamasoft.foliojet.plugin;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -17,34 +15,30 @@ import java.util.logging.Logger;
 
 /**
  * ServiceLoaderを使ってプラグインを管理します。
- * 
+ * プラグインは起動時に一度だけ読み込まれ、以後の検索はロックフリーです。
+ *
  * @author MIYABE Tatsuhiko
  */
-public class PluginRegistry {
+public final class PluginRegistry {
 	private static final Logger LOG = Logger.getLogger(PluginRegistry.class.getName());
+
 	private static final File[] EMPTY_FILES = new File[0];
-	private static final PluginRegistry INSTANCE = new PluginRegistry();
 
 	public static final String PLUGIN_LIB_PROPERTY = "net.zamasoft.foliojet.plugin.lib";
+
+	private static final PluginRegistry INSTANCE = new PluginRegistry();
 
 	public static PluginRegistry getInstance() {
 		return INSTANCE;
 	}
 
-	private volatile State state = new State(null, EMPTY_FILES, new ConcurrentHashMap<>());
+	private final ClassLoader classLoader;
 
-	private record State(URLClassLoader classLoader, File[] libs, ConcurrentMap<Class<?>, List<?>> roles) {
-	}
+	private final File[] libs;
+
+	private final ConcurrentMap<Class<?>, List<?>> roles = new ConcurrentHashMap<>();
 
 	private PluginRegistry() {
-		this.reload();
-	}
-
-	/**
-	 * プラグインディレクトリを再読み込みします。
-	 */
-	public synchronized void reload() {
-		this.closeClassLoader(this.state.classLoader());
 		File libDir = new File(System.getProperty(PLUGIN_LIB_PROPERTY, "plugins"));
 		File[] libs = libDir.listFiles();
 		if (libs == null) {
@@ -60,38 +54,24 @@ public class PluginRegistry {
 				}
 			}
 		}
-		URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), PluginRegistry.class.getClassLoader());
-		this.state = new State(classLoader, libs.clone(), new ConcurrentHashMap<>());
-	}
-
-	private void closeClassLoader(URLClassLoader classLoader) {
-		if (classLoader == null) {
-			return;
-		}
-		try {
-			classLoader.close();
-		} catch (IOException e) {
-			LOG.log(Level.FINE, "プラグインクラスローダーを閉じられませんでした", e);
-		}
+		this.libs = libs;
+		this.classLoader = urls.isEmpty() ? PluginRegistry.class.getClassLoader()
+				: new URLClassLoader(urls.toArray(URL[]::new), PluginRegistry.class.getClassLoader());
 	}
 
 	/**
-	 * プラグインの全ての実装を返します。
-	 * 
-	 * @param role
-	 *            プラグインの種類です。これはインターフェースの名前です。
-	 * @return プラグインの全ての実装のオブジェクトを返すIterator。
+	 * プラグインの全ての実装を優先順位の高い順で返します。
+	 *
+	 * @param role プラグインの種類です。これはインターフェースの名前です。
 	 */
 	@SuppressWarnings("unchecked")
-	public synchronized <T> Iterator<T> plugins(Class<T> role) {
-		State snapshot = this.state;
-		List<T> plugins = (List<T>) snapshot.roles().computeIfAbsent(role, key -> this.load(role, snapshot.classLoader()));
-		return plugins.iterator();
+	public <T> List<T> plugins(Class<T> role) {
+		return (List<T>) this.roles.computeIfAbsent(role, key -> this.load(role));
 	}
 
-	private <T> List<T> load(Class<T> role, ClassLoader classLoader) {
+	private <T> List<T> load(Class<T> role) {
 		List<T> plugins = new ArrayList<>();
-		ServiceLoader<T> loader = ServiceLoader.load(role, classLoader);
+		ServiceLoader<T> loader = ServiceLoader.load(role, this.classLoader);
 		try {
 			for (T plugin : loader) {
 				plugins.add(plugin);
@@ -111,19 +91,15 @@ public class PluginRegistry {
 	}
 
 	/**
-	 * プラグインを検索します。
-	 * 
-	 * @param role
-	 *            プラグインの種類です。これはインターフェースの名前です。
-	 * @param key
-	 *            プラグインを選択するためのキーです。このオブジェクトの種類はプラグインの種類に依存します。
-	 * @return プラグインの実装のオブジェクト。
+	 * キーに対応するプラグインを検索します。
+	 *
+	 * @param role プラグインの種類です。これはインターフェースの名前です。
+	 * @param key  プラグインを選択するためのキーです。
+	 * @return 最初にマッチしたプラグイン。なければnull。
 	 */
-	@SuppressWarnings("unchecked")
-	public <T> T search(Class<T> role, Object key) {
-		for (Iterator<T> i = this.plugins(role); i.hasNext();) {
-			T candidate = i.next();
-			if (candidate instanceof Plugin<?> typedPlugin && ((Plugin<Object>) typedPlugin).match(key)) {
+	public <T extends Plugin<? super K>, K> T search(Class<T> role, K key) {
+		for (T candidate : this.plugins(role)) {
+			if (candidate.match(key)) {
 				return candidate;
 			}
 		}
@@ -132,14 +108,12 @@ public class PluginRegistry {
 
 	/**
 	 * プラグインの読み込みに使われるクラスローダーを返します。
-	 * 
-	 * @return クラスローダー。
 	 */
 	public ClassLoader getClassLoader() {
-		return this.state.classLoader();
+		return this.classLoader;
 	}
 
 	public File[] getPluginFiles() {
-		return this.state.libs().clone();
+		return this.libs.clone();
 	}
 }
