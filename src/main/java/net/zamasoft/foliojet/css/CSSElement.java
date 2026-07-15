@@ -20,11 +20,6 @@ public class CSSElement {
 	public static final byte PC_FIRST_CHILD = 6;
 	public static final byte PC_LINK = 7;
 	public static final byte PC_ROOT = 8;
-	
-	/**
-	 * 前に文字列がないfirst-childです。
-	 */
-	public static final byte PC_CSSJ_FIRST_CHILD = 101;
 
 	/**
 	 * at-page 左綴じ両面の最初のページです。

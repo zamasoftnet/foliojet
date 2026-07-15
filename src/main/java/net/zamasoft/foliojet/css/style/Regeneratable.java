@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * 再生成ボックスです。
- * 
+ *
  * @author MIYABE Tatsuhiko
  */
 class Regeneratable extends PageContent {
@@ -26,20 +26,19 @@ class Regeneratable extends PageContent {
 		StyleApplier applier = new StyleApplier(builder.getUserAgent(), this.styleContext);
 		CSSElement page = builder.getPageElement();
 		this.styleContext.startElement(page);
-		int j = 0;
-		for (int i = 0; i < this.types.size(); ++i) {
-			switch (this.types.get(i)) {
-			case START: {
-				CSSStyle style = (CSSStyle) this.contents.get(j++);
-				CSSElement ce = style.getCSSElement();
+		int i = 0;
+		for (Item item : this.items) {
+			switch (item) {
+			case Start(CSSStyle recorded) -> {
+				CSSElement ce = recorded.getCSSElement();
 				if (!ce.isPseudoElement()) {
 					CSSStyle parentStyle;
 					if (i == 0) {
-						parentStyle = style.getParentStyle();
+						parentStyle = recorded.getParentStyle();
 					} else {
 						parentStyle = builder.getCurrentStyle();
 					}
-					style = CSSStyle.getCSSStyle(style.getUserAgent(), parentStyle, ce);
+					CSSStyle style = CSSStyle.getCSSStyle(recorded.getUserAgent(), parentStyle, ce);
 					applier.startStyle(style);
 					if (i == 0) {
 						style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
@@ -47,30 +46,18 @@ class Regeneratable extends PageContent {
 						style.set(CSSJRegeneratable.INFO, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
 						style.set(CSSPosition.INFO, PositionValue._CSSJ_CURRENT_PAGE_VALUE, CSSStyle.MODE_IMPORTANT);
 					}
-					// System.out.println("start: "+ce.lName);
 					builder.startStyle(style);
 				}
 			}
-				break;
-			case CHARACTERS: {
-				int charOffset = (Integer) this.contents.get(j++);
-				char[] chars = (char[]) this.contents.get(j++);
-				builder.characters(charOffset, chars, 0, chars.length);
-			}
-				break;
-			case END: {
-				CSSStyle style = (CSSStyle) this.contents.get(j++);
-				CSSElement ce = style.getCSSElement();
-				if (!ce.isPseudoElement()) {
+			case Chars(int charOffset, char[] ch) -> builder.characters(charOffset, ch, 0, ch.length);
+			case End(CSSStyle recorded) -> {
+				if (!recorded.getCSSElement().isPseudoElement()) {
 					builder.endStyle();
 					applier.endStyle();
-					// System.out.println("/end: "+ce.lName);
 				}
 			}
-				break;
-			default:
-				throw new IllegalStateException();
 			}
+			++i;
 		}
 		this.styleContext.endElement();
 	}

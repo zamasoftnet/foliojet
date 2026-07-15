@@ -25,7 +25,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 import jp.cssj.cti2.helpers.MimeTypeHelper;
-import net.zamasoft.foliojet.css.html.HTMLCodes;
 import net.zamasoft.foliojet.css.html.HTMLStyleUtils;
 import net.zamasoft.foliojet.css.style.StyleBuilder;
 import net.zamasoft.foliojet.css.value.DisplayValue;
@@ -90,15 +89,6 @@ public class CSSProcessor implements XMLHandler {
 	private StyleBuilder builder = null;
 
 	private int noneStack = 0;
-
-	// Legacy
-	private List<Event> events = null;
-
-	private List<StartElement> eventStack = null;
-
-	private int eventIndex;
-
-	private boolean cssjFirstChild = false;
 
 	// インラインオブジェクト
 	private InlineObject inlineObject = null;
@@ -365,78 +355,9 @@ public class CSSProcessor implements XMLHandler {
 	}
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
-		// System.err.println("CSSP: "+qName);
 		this.requireBuilder();
 
 		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
-		// System.out.println(charOffset+"/"+qName);
-
-		if (this.events != null) {
-			StartElement e = new StartElement(charOffset, uri, lName, qName, atts);
-			this.eventStack.add(e);
-			this.events.add(e);
-		} else {
-			this._startElement(charOffset, uri, lName, qName, atts);
-		}
-	}
-
-	public void characters(char[] ch, int off, int len) throws SAXException {
-		if (len == 0) {
-			return;
-		}
-
-		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
-		if (charOffset != -1) {
-			charOffset -= len;
-		}
-		// System.out.println(charOffset+"/"+new String(ch, off, len));
-
-		if (this.events != null) {
-			this.events.add(new Characters(charOffset, ch, off, len));
-		} else {
-			this._characters(charOffset, ch, off, len);
-		}
-	}
-
-	public void endElement(String uri, String lName, String qName) throws SAXException {
-		// System.err.println("CSSP: /"+qName);
-		if (this.events != null) {
-			if (this.eventStack.size() == 1) {
-				for (this.eventIndex = 0; this.eventIndex < this.events.size(); ++this.eventIndex) {
-					Event e = (Event) this.events.get(this.eventIndex);
-					e.doEvent(this);
-				}
-				this._endElement(uri, lName, qName);
-				this.events = null;
-				this.eventStack = null;
-			} else {
-				StartElement e = (StartElement) this.eventStack.remove(this.eventStack.size() - 1);
-				e.endIndex = this.events.size();
-				this.events.add(new EndElement(e));
-			}
-		} else {
-			this._endElement(uri, lName, qName);
-		}
-	}
-
-	public void startPrefixMapping(String prefix, String uri) throws SAXException {
-		if (this.events != null) {
-			this.events.add(new StartPrefixMapping(prefix, uri));
-		} else {
-			this._startPrefixMapping(prefix, uri);
-		}
-	}
-
-	public void endPrefixMapping(String prefix) throws SAXException {
-		if (this.events != null) {
-			this.events.add(new EndPrefixMapping(prefix));
-		} else {
-			this._endPrefixMapping(prefix);
-		}
-	}
-
-	void _startElement(int charOffset, String uri, String lName, String qName, Attributes atts) throws SAXException {
-		// System.err.println("CSSP_: "+lName+"/"+qName);
 
 		// None
 		if (this.noneStack > 0) {
@@ -488,9 +409,6 @@ public class CSSProcessor implements XMLHandler {
 			if (href != null) {
 				++len;
 			}
-			if (this.cssjFirstChild) {
-				++len;
-			}
 			if (len == 0) {
 				pseudoClasses = null;
 			} else {
@@ -505,9 +423,6 @@ public class CSSProcessor implements XMLHandler {
 			}
 			if (href != null) {
 				pseudoClasses[--len] = CSSElement.PC_LINK;
-			}
-			if (this.cssjFirstChild) {
-				pseudoClasses[--len] = CSSElement.PC_CSSJ_FIRST_CHILD;
 			}
 		}
 		this.firstChild = true;
@@ -653,8 +568,14 @@ public class CSSProcessor implements XMLHandler {
 		}
 	}
 
-	void _characters(int charOffset, char[] ch, int off, int len) throws SAXException {
-		assert len > 0;
+	public void characters(char[] ch, int off, int len) throws SAXException {
+		if (len == 0) {
+			return;
+		}
+		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
+		if (charOffset != -1) {
+			charOffset -= len;
+		}
 		if (this.inlineObjectDepth > 0) {
 			// SVG等のインラインマークアップ
 			try {
@@ -665,22 +586,13 @@ public class CSSProcessor implements XMLHandler {
 			}
 		} else if (this.noneStack <= 0 && len > 0) {
 			// 通常のテキスト
-			if (this.cssjFirstChild) {
-				for (int i = 0; i < len; ++i) {
-					if (!Character.isWhitespace(ch[i + off])) {
-						this.cssjFirstChild = true;
-						break;
-					}
-				}
-			}
 			if (this.builder != null) {
 				this.builder.characters(charOffset, ch, off, len);
 			}
 		}
 	}
 
-	void _endElement(String uri, String lName, String qName) throws SAXException {
-		// System.err.println("CSSP_: /"+lName+"/"+this.ignoreIndex);
+	public void endElement(String uri, String lName, String qName) throws SAXException {
 		if (this.inlineObjectDepth > 0) {
 			try {
 				this.inlineObject.endElement(uri, lName, qName);
@@ -732,10 +644,9 @@ public class CSSProcessor implements XMLHandler {
 		this.applier.endStyle();
 		this.precedingElement = currentStyle.getExplicitStyle().getCSSElement();
 		this.firstChild = false;
-		this.cssjFirstChild = false;
 	}
 
-	void _startPrefixMapping(String prefix, String uri) throws SAXException {
+	public void startPrefixMapping(String prefix, String uri) throws SAXException {
 		this.namespaces.put(prefix, uri);
 		if (this.inlineObjectDepth > 0) {
 			try {
@@ -747,7 +658,7 @@ public class CSSProcessor implements XMLHandler {
 		}
 	}
 
-	void _endPrefixMapping(String prefix) throws SAXException {
+	public void endPrefixMapping(String prefix) throws SAXException {
 		this.namespaces.remove(prefix);
 		if (this.inlineObjectDepth > 0) {
 			try {
@@ -759,246 +670,5 @@ public class CSSProcessor implements XMLHandler {
 		}
 	}
 
-	/**
-	 * MSIEがタグを無視する条件 TODO: タグバランサに移行
-	 * 
-	 * @param parentStyle
-	 * @param ce
-	 * @return
-	 */
-	static boolean msieIgnore(CSSStyle parentStyle, CSSElement ce) {
-		if (parentStyle == null) {
-			return false;
-		}
-		short code = HTMLCodes.code(ce);
-		if (code == HTMLCodes.ANY) {
-			return true;
-		}
-		switch (code) {
-		case HTMLCodes.IMG:
-		case HTMLCodes.OBJECT:
-		case HTMLCodes.EMBED:
-		case HTMLCodes.INPUT:
-		case HTMLCodes.FORM:
-		case HTMLCodes.SELECT:
-		case HTMLCodes.TEXTAREA:
-			return false;
-		}
-		switch (Display.get(parentStyle)) {
-		case DisplayValue.INLINE_TABLE:
-		case DisplayValue.TABLE:
-			switch (code) {
-			case HTMLCodes.CAPTION:
-			case HTMLCodes.COLGROUP:
-			case HTMLCodes.COL:
-			case HTMLCodes.TBODY:
-			case HTMLCodes.THEAD:
-			case HTMLCodes.TFOOT:
-			case HTMLCodes.TR:
-			case HTMLCodes.TH:
-			case HTMLCodes.TD:
-				return false;
-			default:
-				return true;
-			}
 
-		case DisplayValue.TABLE_ROW_GROUP:
-		case DisplayValue.TABLE_HEADER_GROUP:
-		case DisplayValue.TABLE_FOOTER_GROUP:
-			switch (code) {
-			case HTMLCodes.CAPTION:
-			case HTMLCodes.TR:
-			case HTMLCodes.TH:
-			case HTMLCodes.TD:
-				return false;
-			default:
-				return true;
-			}
-
-		case DisplayValue.TABLE_COLUMN_GROUP:
-		case DisplayValue.TABLE_COLUMN:
-			switch (code) {
-			case HTMLCodes.CAPTION:
-			case HTMLCodes.COL:
-			case HTMLCodes.COLGROUP:
-				return false;
-			default:
-				return true;
-			}
-
-		case DisplayValue.TABLE_ROW:
-			switch (code) {
-			case HTMLCodes.CAPTION:
-			case HTMLCodes.TD:
-			case HTMLCodes.TH:
-				return false;
-			default:
-				return true;
-			}
-		}
-		switch (code) {
-		case HTMLCodes.TD:
-		case HTMLCodes.TH:
-			switch (Display.get(parentStyle)) {
-			case DisplayValue.INLINE_TABLE:
-			case DisplayValue.TABLE:
-			case DisplayValue.TABLE_ROW_GROUP:
-			case DisplayValue.TABLE_HEADER_GROUP:
-			case DisplayValue.TABLE_FOOTER_GROUP:
-			case DisplayValue.TABLE_ROW:
-				return false;
-			default:
-				return true;
-
-			}
-		case HTMLCodes.TR:
-			switch (Display.get(parentStyle)) {
-			case DisplayValue.INLINE_TABLE:
-			case DisplayValue.TABLE:
-			case DisplayValue.TABLE_ROW_GROUP:
-			case DisplayValue.TABLE_HEADER_GROUP:
-			case DisplayValue.TABLE_FOOTER_GROUP:
-				return false;
-			default:
-				return true;
-
-			}
-		case HTMLCodes.TBODY:
-		case HTMLCodes.THEAD:
-		case HTMLCodes.TFOOT:
-			switch (Display.get(parentStyle)) {
-			case DisplayValue.INLINE_TABLE:
-			case DisplayValue.TABLE:
-				return false;
-			default:
-				return true;
-
-			}
-		case HTMLCodes.COL:
-		case HTMLCodes.COLGROUP:
-			switch (Display.get(parentStyle)) {
-			case DisplayValue.INLINE_TABLE:
-			case DisplayValue.TABLE:
-			case DisplayValue.TABLE_COLUMN_GROUP:
-			case DisplayValue.TABLE_COLUMN:
-				return false;
-			default:
-				return true;
-
-			}
-		}
-		return false;
-	}
-
-	static interface Event {
-		static final byte START_ELEMENT = 1;
-		static final byte CHARACTERS = 2;
-		static final byte END_ELEMENT = 3;
-		static final byte START_PREFIX_MAPPING = 4;
-		static final byte END_PREFIX_MAPPING = 5;
-
-		byte getType();
-
-		void doEvent(CSSProcessor p) throws SAXException;
-	}
-
-	static class StartElement implements Event {
-		final int charOffset;
-		final String uri, lName, qName;
-		final Attributes atts;
-		int endIndex;
-
-		StartElement(int charOffset, String uri, String lName, String qName, Attributes atts) {
-			this.charOffset = charOffset;
-			this.uri = uri;
-			this.lName = lName;
-			this.qName = qName;
-			this.atts = atts.getLength() == 0 ? EMPTY_ATTRS : new AttributesImpl(atts);
-		}
-
-		public void doEvent(CSSProcessor p) throws SAXException {
-			p._startElement(this.charOffset, this.uri, this.lName, this.qName, this.atts);
-		}
-
-		public byte getType() {
-			return START_ELEMENT;
-		}
-	}
-
-	static class Characters implements Event {
-		final int charOffset;
-		final char[] ch;
-
-		Characters(int charOffset, char[] ch, int off, int len) {
-			this.charOffset = charOffset;
-			this.ch = new char[len];
-			System.arraycopy(ch, off, this.ch, 0, len);
-		}
-
-		public void doEvent(CSSProcessor p) throws SAXException {
-			p._characters(this.charOffset, this.ch, 0, this.ch.length);
-		}
-
-		public boolean isWhitespace() {
-			for (int i = 0; i < this.ch.length; ++i) {
-				if (!Character.isWhitespace(this.ch[i])) {
-					return false;
-				}
-			}
-			return true;
-		}
-
-		public byte getType() {
-			return CHARACTERS;
-		}
-	}
-
-	static class EndElement implements Event {
-		final StartElement e;
-
-		EndElement(StartElement e) {
-			this.e = e;
-		}
-
-		public void doEvent(CSSProcessor p) throws SAXException {
-			p._endElement(e.uri, e.lName, e.qName);
-		}
-
-		public byte getType() {
-			return END_ELEMENT;
-		}
-	}
-
-	static class StartPrefixMapping implements Event {
-		final String prefix, uri;
-
-		StartPrefixMapping(String prefix, String uri) {
-			this.uri = uri;
-			this.prefix = prefix;
-		}
-
-		public void doEvent(CSSProcessor p) throws SAXException {
-			p._startPrefixMapping(this.prefix, this.uri);
-		}
-
-		public byte getType() {
-			return START_PREFIX_MAPPING;
-		}
-	}
-
-	static class EndPrefixMapping implements Event {
-		final String prefix;
-
-		EndPrefixMapping(String prefix) {
-			this.prefix = prefix;
-		}
-
-		public void doEvent(CSSProcessor p) throws SAXException {
-			p._endPrefixMapping(this.prefix);
-		}
-
-		public byte getType() {
-			return END_PREFIX_MAPPING;
-		}
-	}
 }
