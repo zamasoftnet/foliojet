@@ -6,8 +6,6 @@ import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.style.util.ByteList;
-
 import net.zamasoft.foliojet.style.box.content.JustificationState;
 import net.zamasoft.foliojet.style.box.impl.LineBox;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
@@ -77,7 +75,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	 */
 	public void align(double textIndent, double offset, double maxLineAxis, boolean last) {
 		// 行方向アラインメント
-		assert this.types != null && !this.types.isEmpty();
+		assert this.contents != null && !this.contents.isEmpty();
 		// Unicode 双方向テキスト(UAX #9)の視覚順並べ替え。純 LTR 行では
 		// no-op となり既存の出力を変えない。
 		this.reorderBidi();
@@ -160,22 +158,21 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	 * すべて左横書き(LTR)なら何もしないため、既存の LTR 文書の出力は変わりません。
 	 */
 	private void reorderBidi() {
-		if (this.types == null || this.types.size() == 0) {
+		if (this.contents == null || this.contents.isEmpty()) {
 			return;
 		}
 		// 横書きのみを対象とする(縦書きの双方向は将来対応)。
 		if (StyleUtils.isVertical(this.getLineParams().flow)) {
 			return;
 		}
-		final int n = this.types.size();
+		final int n = this.contents.size();
 
 		// 行の論理順テキストを構築(非テキストは中立オブジェクト U+FFFC)。
 		final StringBuilder logical = new StringBuilder();
 		final int[] itemStart = new int[n];
 		for (int i = 0; i < n; ++i) {
 			itemStart[i] = logical.length();
-			if (this.types.get(i) == TYPE_TEXT) {
-				final net.zamasoft.pdfg2d.gc.text.Text text = (net.zamasoft.pdfg2d.gc.text.Text) this.contents.get(i);
+			if (this.contents.get(i) instanceof net.zamasoft.pdfg2d.gc.text.Text text) {
 				logical.append(text.getChars(), 0, text.getCharCount());
 			} else {
 				logical.append('￼');
@@ -195,20 +192,15 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		final int[] order = net.zamasoft.pdfg2d.gc.text.pipeline.Itemizer.reorderVisual(levels);
 
 		final List<Object> newContents = new ArrayList<Object>(n);
-		final ByteList newTypes = new ByteList();
 		for (final int idx : order) {
-			final byte type = this.types.get(idx);
 			Object content = this.contents.get(idx);
 			// RTL テキストランはグリフを視覚順に反転する。
-			if (type == TYPE_TEXT && (levels[idx] & 1) != 0
-					&& content instanceof net.zamasoft.pdfg2d.gc.text.TextImpl ti) {
+			if ((levels[idx] & 1) != 0 && content instanceof net.zamasoft.pdfg2d.gc.text.TextImpl ti) {
 				content = ti.reverse();
 			}
 			newContents.add(content);
-			newTypes.add(type);
 		}
 		this.contents = newContents;
-		this.types = newTypes;
 	}
 
 	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,

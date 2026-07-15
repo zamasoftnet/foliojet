@@ -25,7 +25,6 @@ import net.zamasoft.foliojet.style.builder.InlineQuad;
 import net.zamasoft.foliojet.style.draw.AbstractDrawable;
 import net.zamasoft.foliojet.style.draw.Drawable;
 import net.zamasoft.foliojet.style.draw.Drawer;
-import net.zamasoft.foliojet.style.util.ByteList;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.style.visitor.Visitor;
 import net.zamasoft.pdfg2d.font.Font;
@@ -67,22 +66,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
-	public static final byte TYPE_TEXT = 1;
-	public static final byte TYPE_CONTROL = 2;
-	public static final byte TYPE_INLINE = 3;
-	public static final byte TYPE_ABSOLUTE = 4;
-
 	protected Decoration decoration;
 
 	/**
-	 * 内部に含まれるテキストとインラインボックスです。
+	 * 内部に含まれるテキストとインラインボックスです。 要素は Text, Control, Inline, IAbsoluteBox のいずれかです。
 	 */
 	protected List<Object> contents = null;
-
-	/**
-	 * コンテンツのタイプのリストです。
-	 */
-	protected ByteList types = null;
 
 	protected double ascent = 0;
 
@@ -114,17 +103,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.decoration = new Decoration(underline, overline, lineThrough);
 	}
 
-	protected final void add(Object content, byte type) {
-		assert type != TYPE_TEXT || content instanceof Text;
-		assert type != TYPE_CONTROL || content instanceof Control;
-		assert type != TYPE_INLINE || content instanceof Inline;
-		assert type != TYPE_ABSOLUTE || content instanceof IAbsoluteBox;
-		if (this.types == null) {
+	protected final void add(Object content) {
+		assert content instanceof Text || content instanceof Control || content instanceof Inline
+				|| content instanceof IAbsoluteBox;
+		if (this.contents == null) {
 			this.contents = new ArrayList<Object>();
-			this.types = new ByteList();
 		}
 		this.contents.add(content);
-		this.types.add(type);
 	}
 
 	public final double getLineSize() {
@@ -165,12 +150,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	public final void addText(Text text) {
 		assert text.getGlyphCount() > 0;
-		this.add(text, TYPE_TEXT);
+		this.add(text);
 	}
 
 	public final void addControl(Control control) {
 		// System.out.println(control);
-		this.add(control, TYPE_CONTROL);
+		this.add(control);
 	}
 
 	/**
@@ -185,11 +170,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 			InlineBox inline = (InlineBox) box;
 			inline.setDecoration(this.decoration);
 		}
-		this.add(new Inline(box), TYPE_INLINE);
+		this.add(new Inline(box));
 	}
 
 	public final void addAbsolute(IAbsoluteBox box) {
-		this.add(box, TYPE_ABSOLUTE);
+		this.add(box);
 	}
 
 	public final void addAdvance(double advance) {
@@ -204,16 +189,15 @@ public abstract class AbstractTextBox extends AbstractBox {
 	 * @return
 	 */
 	protected final int countJustificationPoints(JustificationState state) {
-		if (this.types == null) {
+		if (this.contents == null) {
 			return 0;
 		}
 		Hyphenation hyph = this.getTextParams().hyphenation;
 		int count = 0;
-		for (int i = 0; i < this.types.size(); ++i) {
-			switch (this.types.get(i)) {
-			case TYPE_TEXT:
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> {
 				// テキスト
-				Text text = (Text) this.contents.get(i);
 				int glen = text.getGlyphCount();
 				if (glen <= 0) {
 					break;
@@ -230,43 +214,42 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					state.prevChar = c2;
 				}
-				break;
+			}
 
-			case TYPE_INLINE:
+			case Inline content -> {
 				// インライン
-				Inline content = (Inline) this.contents.get(i);
 				if (content.box.getType() == IBox.TYPE_INLINE) {
 					InlineBox inline = (InlineBox) content.box;
 					count += inline.countJustificationPoints(state);
 				}
-				break;
+			}
 
-			case TYPE_CONTROL:
+			case Control ctrl -> {
 				if (i > 0) {
-					Control ctrl = (Control) this.contents.get(i);
 					state.prevChar = ctrl.getControlChar();
 				}
-			case TYPE_ABSOLUTE:
-				break;
+			}
 
-			default:
-				throw new IllegalStateException();
+			case IAbsoluteBox absoluteBox -> {
+				// 位置に影響しない
+			}
+
+			default -> throw new IllegalStateException();
 			}
 		}
 		return count;
 	}
 
 	protected final void justify(double unitSpacing, JustificationState state) {
-		if (this.types == null) {
+		if (this.contents == null) {
 			return;
 		}
 		Hyphenation hyph = this.getTextParams().hyphenation;
-		for (int i = 0; i < this.types.size(); ++i) {
+		for (int i = 0; i < this.contents.size(); ++i) {
 			double da = 0;
-			switch (this.types.get(i)) {
-			case TYPE_TEXT: {
+			switch (this.contents.get(i)) {
+			case Text text -> {
 				// テキスト
-				Text text = (Text) this.contents.get(i);
 				int glen = text.getGlyphCount();
 				if (glen <= 0) {
 					break;
@@ -286,11 +269,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 					state.prevChar = c2;
 				}
 			}
-				break;
 
-			case TYPE_INLINE: {
+			case Inline inline -> {
 				// インライン
-				Inline inline = (Inline) this.contents.get(i);
 				if (inline.box.getType() == IBox.TYPE_INLINE) {
 					InlineBox inlineBox = (InlineBox) inline.box;
 					da = inlineBox.getLineSize();
@@ -298,18 +279,18 @@ public abstract class AbstractTextBox extends AbstractBox {
 					da = inlineBox.getLineSize() - da;
 				}
 			}
-				break;
 
-			case TYPE_CONTROL:
+			case Control ctrl -> {
 				if (i > 0) {
-					Control ctrl = (Control) this.contents.get(i);
 					state.prevChar = ctrl.getControlChar();
 				}
-			case TYPE_ABSOLUTE:
-				break;
+			}
 
-			default:
-				throw new IllegalStateException();
+			case IAbsoluteBox absoluteBox -> {
+				// 位置に影響しない
+			}
+
+			default -> throw new IllegalStateException();
 			}
 			if (da != 0) {
 				this.addAdvance(da);
@@ -320,55 +301,37 @@ public abstract class AbstractTextBox extends AbstractBox {
 	public abstract boolean isContextBox();
 
 	public void finishLayout(IFramedBox containerBox) {
-		if (this.types == null) {
+		if (this.contents == null) {
 			return;
 		}
 		if (this.isContextBox()) {
 			containerBox = (IFramedBox) this;
 		}
-		for (int i = 0; i < this.types.size(); ++i) {
-			switch (this.types.get(i)) {
-			case TYPE_TEXT:
-			case TYPE_CONTROL:
-				// テキスト
-				break;
-			case TYPE_ABSOLUTE: {
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case IAbsoluteBox absoluteBox ->
 				// 絶対配置
-				final IAbsoluteBox absoluteBox = (IAbsoluteBox) this.contents.get(i);
 				absoluteBox.finishLayout(containerBox);
-			}
-				break;
 
-			case TYPE_INLINE: {
+			case Inline inline ->
 				// インライン
-				final Inline inline = (Inline) this.contents.get(i);
-				final IInlineBox inlineBox = inline.box;
-				inlineBox.finishLayout(containerBox);
-			}
-				break;
+				inline.box.finishLayout(containerBox);
 
-			default:
-				throw new IllegalStateException();
+			default -> {
+				// テキスト
+			}
 			}
 		}
 	}
 
 	protected void verticalAlign(AbstractLineBox lineBox, double baseline) {
-		if (this.types == null) {
+		if (this.contents == null) {
 			return;
 		}
 		final AbstractLineParams lineParams = lineBox.getLineParams();
-		for (int i = 0; i < this.types.size(); ++i) {
-			switch (this.types.get(i)) {
-			case TYPE_TEXT:
-			case TYPE_CONTROL:
-			case TYPE_ABSOLUTE:
-				// テキスト
-				break;
-
-			case TYPE_INLINE: {
+		for (int i = 0; i < this.contents.size(); ++i) {
+			if (this.contents.get(i) instanceof Inline inline) {
 				// インライン
-				final Inline inline = (Inline) this.contents.get(i);
 				final IInlineBox inlineBox = inline.box;
 				final InlinePos pos = inlineBox.getInlinePos();
 				double ascent;
@@ -432,11 +395,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (inlineBox.getType() == IBox.TYPE_INLINE) {
 					((InlineBox) inlineBox).verticalAlign(lineBox, baseline + inline.verticalAlign);
 				}
-			}
-				break;
-
-			default:
-				throw new IllegalStateException();
 			}
 		}
 	}
@@ -645,44 +603,25 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public final void getText(final StringBuilder textBuff) {
-		if (this.types != null && !this.types.isEmpty()) {
-			for (int i = 0; i < this.types.size(); ++i) {
-				switch (this.types.get(i)) {
-				case TYPE_TEXT: {
-					Text text = (Text) this.contents.get(i);
-					textBuff.append(text.getChars(), 0, text.getCharCount());
-				}
-					break;
-
-				case TYPE_INLINE: {
-					Inline inline = (Inline) this.contents.get(i);
-					inline.box.getText(textBuff);
-				}
-					break;
-
-				case TYPE_ABSOLUTE: {
-					IAbsoluteBox absoluteBox = (IAbsoluteBox) this.contents.get(i);
-					absoluteBox.getText(textBuff);
-				}
-					break;
-
-				case TYPE_CONTROL: {
-					// 空白
-					Control control = (Control) this.contents.get(i);
-					textBuff.append(control.getControlChar());
-				}
-					break;
-
-				default:
-					throw new IllegalStateException();
-				}
+		if (this.contents == null) {
+			return;
+		}
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> textBuff.append(text.getChars(), 0, text.getCharCount());
+			case Inline inline -> inline.box.getText(textBuff);
+			case IAbsoluteBox absoluteBox -> absoluteBox.getText(textBuff);
+			case Control control ->
+				// 空白
+				textBuff.append(control.getControlChar());
+			default -> throw new IllegalStateException();
 			}
 		}
 	}
 
 	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		if (this.types == null || this.types.isEmpty()) {
+		if (this.contents == null || this.contents.isEmpty()) {
 			return;
 		}
 		int off = 0;
@@ -695,9 +634,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 		final AbstractTextParams lineParams = this.getTextParams();
 		final boolean vertical = StyleUtils.isVertical(lineParams.flow);
 		// テキストとインラインの描画
-		for (int i = 0; i < this.types.size(); ++i) {
-			switch (this.types.get(i)) {
-			case TYPE_TEXT: {
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> {
 				// テキスト
 				if (len == 0) {
 					off = i;
@@ -709,7 +648,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 					dy = yy;
 					decoration = true;
 				}
-				Text text = (Text) this.contents.get(i);
 				++len;
 				if (vertical) {
 					// 縦書き
@@ -719,9 +657,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					xx += text.getAdvance();
 				}
 			}
-				break;
 
-			case TYPE_INLINE: {
+			case Inline inline -> {
 				// インライン
 				if (lineParams.opacity != 0 && len > 0) {
 					drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
@@ -740,7 +677,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					decoration = false;
 				}
-				final Inline inline = (Inline) this.contents.get(i);
 				final IInlineBox inlineBox = inline.box;
 				double ascent;
 				switch (inlineBox.getType()) {
@@ -816,16 +752,14 @@ public abstract class AbstractTextBox extends AbstractBox {
 					xx += inlineBox.getWidth();
 				}
 			}
-				break;
 
-			case TYPE_ABSOLUTE: {
+			case IAbsoluteBox absoluteBox -> {
 				// 絶対配置
 				if (lineParams.opacity != 0 && len > 0) {
 					drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
 					len = 0;
 				}
 				double xxx, yyy;
-				final IAbsoluteBox absoluteBox = (IAbsoluteBox) this.contents.get(i);
 				final AbsolutePos pos = absoluteBox.getAbsolutePos();
 				if (pos.location.getLeftType() != Insets.TYPE_AUTO || pos.location.getRightType() != Insets.TYPE_AUTO) {
 					xxx = contextX;
@@ -839,9 +773,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 				absoluteBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yyy);
 			}
-				break;
 
-			case TYPE_CONTROL: {
+			case Control control -> {
 				// 空白
 				if (lineParams.opacity != 0 && len > 0) {
 					drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
@@ -852,7 +785,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 					dy = yy;
 					decoration = true;
 				}
-				Control control = (Control) this.contents.get(i);
 				if (vertical) {
 					// 縦書き
 					yy += control.getAdvance();
@@ -861,10 +793,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					xx += control.getAdvance();
 				}
 			}
-				break;
 
-			default:
-				throw new IllegalStateException();
+			default -> throw new IllegalStateException();
 			}
 		}
 		if (lineParams.opacity != 0 && len > 0) {
@@ -892,7 +822,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
-		if (this.types == null || this.types.isEmpty()) {
+		if (this.contents == null || this.contents.isEmpty()) {
 			return;
 		}
 		double xx = x, yy = y;
@@ -900,11 +830,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 		final AbstractTextParams lineParams = this.getTextParams();
 		final boolean vertical = StyleUtils.isVertical(lineParams.flow);
 		// テキストとインラインの描画
-		for (int i = 0; i < this.types.size(); ++i) {
-			switch (this.types.get(i)) {
-			case TYPE_TEXT: {
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> {
 				// テキスト
-				Text text = (Text) this.contents.get(i);
 				Font font = ((FontMetricsImpl) text.getFontMetrics()).getFont();
 				if (vertical) {
 					// 縦書き
@@ -930,11 +859,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 					xx += text.getAdvance();
 				}
 			}
-				break;
 
-			case TYPE_INLINE: {
+			case Inline inline -> {
 				// インライン
-				final Inline inline = (Inline) this.contents.get(i);
 				final IInlineBox inlineBox = inline.box;
 				double ascent;
 				switch (inlineBox.getType()) {
@@ -1008,17 +935,14 @@ public abstract class AbstractTextBox extends AbstractBox {
 					xx += inlineBox.getWidth();
 				}
 			}
-				break;
 
-			case TYPE_ABSOLUTE: {
+			case IAbsoluteBox absoluteBox -> {
 				// 絶対配置
 				// ignore
 			}
-				break;
 
-			case TYPE_CONTROL: {
+			case Control control -> {
 				// 空白
-				Control control = (Control) this.contents.get(i);
 				if (vertical) {
 					// 縦書き
 					yy += control.getAdvance();
@@ -1027,10 +951,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					xx += control.getAdvance();
 				}
 			}
-				break;
 
-			default:
-				throw new IllegalStateException();
+			default -> throw new IllegalStateException();
 			}
 		}
 	}
@@ -1044,23 +966,19 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public void restyle(final GlyphHandler gh, final boolean widow) {
-		if (this.types == null) {
+		if (this.contents == null) {
 			return;
 		}
-		for (int i = 0; i < this.types.size(); ++i) {
-			// System.err.println(this.contents.get(i));
-			switch (this.types.get(i)) {
-			case TYPE_TEXT: {
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> {
 				// テキスト
-				final Text text = (Text) this.contents.get(i);
 				assert text.getGlyphCount() > 0;
 				text.toGlyphs(gh);
 			}
-				break;
 
-			case TYPE_INLINE: {
+			case Inline content -> {
 				// インライン
-				final Inline content = (Inline) this.contents.get(i);
 				switch (content.box.getType()) {
 				case IBox.TYPE_INLINE: {
 					final InlineBox inlineBox = (InlineBox) content.box;
@@ -1086,23 +1004,15 @@ public abstract class AbstractTextBox extends AbstractBox {
 					throw new IllegalStateException();
 				}
 			}
-				break;
 
-			case TYPE_ABSOLUTE: {
-				final IAbsoluteBox absoluteBox = (IAbsoluteBox) this.contents.get(i);
+			case IAbsoluteBox absoluteBox -> {
 				final InlineQuad quad = InlineQuad.createInlineAbsoluteBoxQuad(absoluteBox);
 				gh.control(quad);
 			}
-				break;
 
-			case TYPE_CONTROL: {
-				final Control control = (Control) this.contents.get(i);
-				gh.control(control);
-			}
-				break;
+			case Control control -> gh.control(control);
 
-			default:
-				throw new IllegalStateException();
+			default -> throw new IllegalStateException();
 			}
 		}
 	}
@@ -1111,15 +1021,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 		return this.contents.get(ix);
 	}
 
-	public final byte getContentType(int ix) {
-		return this.types.get(ix);
-	}
-
 	public final int getContentCount() {
-		if (this.types == null) {
+		if (this.contents == null) {
 			return 0;
 		}
-		return this.types.size();
+		return this.contents.size();
 	}
 
 	public String toString() {
