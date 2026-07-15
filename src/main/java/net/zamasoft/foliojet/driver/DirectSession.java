@@ -69,10 +69,10 @@ import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.input.TeeInputStream;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
+import net.zamasoft.foliojet.ua.PrepareMode;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: DirectSession.java 1577 2018-12-21 02:07:20Z miyabe $
  */
 public class DirectSession extends AbstractCTISession
 		implements CTISession, MessageHandler, net.zamasoft.foliojet.message.MessageHandler {
@@ -278,7 +278,7 @@ public class DirectSession extends AbstractCTISession
 		this.profileFile = profileFile;
 	}
 
-	public void message(short code, String[] args) {
+	public void message(short code, String... args) {
 		this.message(code, args, null);
 	}
 
@@ -670,10 +670,10 @@ public class DirectSession extends AbstractCTISession
 		try {
 			if (passCount == 1) {
 				// 1パス
-				byte mode = UserAgent.PREPARE_DOCUMENT;
+				PrepareMode mode = PrepareMode.DOCUMENT;
 				boolean middlePath = UAProps.PROCESSING_MIDDLE_PASS.getBoolean(this.ua);
 				if (this.middlePath != middlePath) {
-					mode = middlePath ? UserAgent.PREPARE_MIDDLE_PASS : UserAgent.PREPARE_LAST_PASS;
+					mode = middlePath ? PrepareMode.MIDDLE_PASS : PrepareMode.LAST_PASS;
 					if (middlePath) {
 						((RandomResultUserAgent) this.ua).setResults(results);
 					}
@@ -694,7 +694,7 @@ public class DirectSession extends AbstractCTISession
 				try {
 					tmpFile = File.createTempFile("copper", ".tmp");
 					// 保存
-					this.ua.prepare(UserAgent.PREPARE_MIDDLE_PASS);
+					this.ua.prepare(PrepareMode.MIDDLE_PASS);
 					this.ua.getDocumentContext().setBaseURI(source.getURI());
 					this.ua.getUAContext().setPassCount(passCount);
 					this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
@@ -706,7 +706,7 @@ public class DirectSession extends AbstractCTISession
 					}
 					// 中間処理
 					for (--passCount; passCount > 1; --passCount) {
-						this.ua.prepare(UserAgent.PREPARE_MIDDLE_PASS);
+						this.ua.prepare(PrepareMode.MIDDLE_PASS);
 						this.ua.getDocumentContext().setBaseURI(source.getURI());
 						this.ua.getUAContext().setPassCount(passCount);
 						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
@@ -717,7 +717,7 @@ public class DirectSession extends AbstractCTISession
 						}
 					}
 					// 目的物生成
-					this.ua.prepare(UserAgent.PREPARE_LAST_PASS);
+					this.ua.prepare(PrepareMode.LAST_PASS);
 					this.ua.getDocumentContext().setBaseURI(source.getURI());
 					try (final InputStream in = new FileInputStream(tmpFile)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),

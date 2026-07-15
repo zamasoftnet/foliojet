@@ -79,10 +79,10 @@ public class EPubFormatter implements Formatter {
 
 	private CSSElement getPageSide(UserAgent ua, boolean leftBind) {
 		CSSElement pageElement = ua.getPassContext().getPageSide();
-		switch (UAProps.OUTPUT_PRINT_MODE.getCode(ua)) {
-		case OutputPrintMode.DOUBLE_SIDE:
-		case OutputPrintMode.LEFT_SIDE:
-		case OutputPrintMode.RIGHT_SIDE:
+		switch (UAProps.OUTPUT_PRINT_MODE.get(ua)) {
+		case DOUBLE_SIDE:
+		case LEFT_SIDE:
+		case RIGHT_SIDE:
 			// 両面
 			if (leftBind) {
 				// 横書き
@@ -109,7 +109,7 @@ public class EPubFormatter implements Formatter {
 			}
 			break;
 
-		case OutputPrintMode.SINGLE_SIDE:
+		case SINGLE_SIDE:
 			// 片面
 			if (pageElement == null) {
 				pageElement = CSSElement.PAGE_SINGLE_FIRST;

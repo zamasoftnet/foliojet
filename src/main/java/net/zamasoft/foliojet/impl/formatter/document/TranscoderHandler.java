@@ -29,12 +29,12 @@ import org.xml.sax.Attributes;
 import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
+import net.zamasoft.foliojet.ua.CompatibleMode;
 
 /**
  * 
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: TranscoderHandler.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	protected final UserAgent ua;
@@ -186,7 +186,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		if (this.events != null) {
 			// 設定の適用
-			this.ua.getDocumentContext().setCompatibleMode(DocumentContext.CM_NORMAL);
+			this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.NORMAL);
 
 			// フィルタ
 			XMLHandlerFilter entryPoint = new CSSJMLHandlerFilter(this.ua);
@@ -223,7 +223,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				int nUp = UAProps.OUTPUT_N_UP.getInteger(this.ua);
 				if (nUp > 1) {
 					imposition = new NUpImposition(this.ua, nUp,
-							(short) UAProps.OUTPUT_N_UP_ORDER.getCode(this.ua));
+							UAProps.OUTPUT_N_UP_ORDER.get(this.ua));
 				} else {
 					if (nUp < 1) {
 						this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_N_UP.name,

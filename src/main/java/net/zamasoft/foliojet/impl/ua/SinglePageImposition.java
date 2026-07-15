@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.impl.ua;
 
+import net.zamasoft.foliojet.ua.props.OutputAutoRotate;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
@@ -35,11 +36,11 @@ public class SinglePageImposition extends AbstractImposition {
 
 	private PagePlacement.Align alignValue() {
 		switch (this.align) {
-		case ALIGN_CENTER:
+		case FALSE:
 			return PagePlacement.Align.CENTER;
-		case ALIGN_FIT_TO_PAPER:
+		case TRUE:
 			return PagePlacement.Align.FIT_TO_PAPER;
-		case ALIGN_PRESERVE_ASPECT_RATIO:
+		case PRESERVE_ASPECT_RATIO:
 			return PagePlacement.Align.PRESERVE_ASPECT_RATIO;
 		default:
 			throw new IllegalStateException();
@@ -48,11 +49,11 @@ public class SinglePageImposition extends AbstractImposition {
 
 	private PagePlacement.AutoRotate autoRotateValue() {
 		switch (this.autoRotate) {
-		case AUTO_ROTATE_NONE:
+		case NONE:
 			return PagePlacement.AutoRotate.NONE;
-		case AUTO_ROTATE_CONTENT:
+		case CONTENT:
 			return PagePlacement.AutoRotate.CONTENT;
-		case AUTO_ROTATE_PAPER:
+		case PAPER:
 			return PagePlacement.AutoRotate.PAPER;
 		default:
 			throw new IllegalStateException();
@@ -68,7 +69,7 @@ public class SinglePageImposition extends AbstractImposition {
 		this.actualPageHeight = placement.actualPageHeight();
 
 		// AUTO_ROTATE_CONTENT では設定どおりの用紙のまま内容を回転する
-		if (this.autoRotate == AUTO_ROTATE_CONTENT) {
+		if (this.autoRotate == OutputAutoRotate.CONTENT) {
 			this.gc = this.ua.nextPage(this.paperWidth, this.paperHeight);
 		} else {
 			this.gc = this.ua.nextPage(placement.actualPaperWidth(), placement.actualPaperHeight());
@@ -103,15 +104,15 @@ public class SinglePageImposition extends AbstractImposition {
 		double bgH = this.pageHeight + this.cuttingMargin * 2.0;
 
 		switch (this.align) {
-		case ALIGN_CENTER: {
+		case FALSE: {
 			// 描画可能領域のクリッピング
 			if (this.clip) {
 				this.gc.clip(new Rectangle2D.Double(bgX, bgY, bgW, bgH));
 			}
 		}
 			break;
-		case ALIGN_FIT_TO_PAPER:
-		case ALIGN_PRESERVE_ASPECT_RATIO: {
+		case TRUE:
+		case PRESERVE_ASPECT_RATIO: {
 			double hscale = placement.hscale();
 			double vscale = placement.vscale();
 

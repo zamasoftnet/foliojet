@@ -8,7 +8,6 @@ import net.zamasoft.foliojet.plugin.Plugin;
  * 出力形式のMIME型に応じたUAを生成します。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: UserAgentFactory.java 1566 2018-07-04 11:52:15Z miyabe $
  */
 public interface UserAgentFactory extends Plugin<String> {
 	public static final class Type {

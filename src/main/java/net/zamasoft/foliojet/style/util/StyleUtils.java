@@ -576,8 +576,8 @@ public final class StyleUtils {
 	}
 
 	public static void setupImposition(final UserAgent ua, final Imposition imposition) {
-		imposition.setAutoRotate((byte) UAProps.OUTPUT_AUTO_ROTATE.getCode(ua));
-		imposition.setAlign((byte) UAProps.OUTPUT_FIT_TO_PAPER.getCode(ua));
+		imposition.setAutoRotate(UAProps.OUTPUT_AUTO_ROTATE.get(ua));
+		imposition.setAlign(UAProps.OUTPUT_FIT_TO_PAPER.get(ua));
 
 		// 左右断ちしろ
 		{
@@ -640,26 +640,26 @@ public final class StyleUtils {
 		}
 
 		// トンボ
-		switch (UAProps.OUTPUT_MARKS.getCode(ua)) {
-		case OutputMarks.NONE:
+		switch (UAProps.OUTPUT_MARKS.get(ua)) {
+		case NONE:
 			imposition.setTrims(0, 0, 0, 0);
 			imposition.setCuttingMargin(0);
 			imposition.setNote(null);
 			break;
-		case OutputMarks.CROP:
+		case CROP:
 			imposition.setCrop(true);
 			imposition.setNote("page {0}");
 			break;
-		case OutputMarks.CROSS:
+		case CROSS:
 			imposition.setCross(true);
 			imposition.setNote("page {0}");
 			break;
-		case OutputMarks.BOTH:
+		case BOTH:
 			imposition.setCrop(true);
 			imposition.setCross(true);
 			imposition.setNote("page {0}");
 			break;
-		case OutputMarks.HIDDEN:
+		case HIDDEN:
 			imposition.setNote("page {0}");
 			break;
 		default:

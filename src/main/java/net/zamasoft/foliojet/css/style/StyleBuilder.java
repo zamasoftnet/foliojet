@@ -219,6 +219,8 @@ import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
 import net.zamasoft.foliojet.impl.css.property.box.Inset;
 import net.zamasoft.foliojet.impl.css.property.border.Corner;
 import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
+import net.zamasoft.foliojet.ua.BoundSide;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -528,7 +530,7 @@ public class StyleBuilder implements PageGenerator {
 		params.wordWrap = WordWrap.get(style);
 		params.color = TextFillColor.get(style);
 		params.decoration = TextDecoration.get(style);
-		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(UserAgent.FONT_SIZE_MEDIUM) / 2.0;
+		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(AbsoluteFontSize.MEDIUM) / 2.0;
 		params.textStrokeWidth = TextStrokeWidth.get(style);
 		params.textStrokeColor = TextStrokeColor.get(style);
 		params.textShadows = TextShadow.get(style);
@@ -949,7 +951,7 @@ public class StyleBuilder implements PageGenerator {
 			this.progression = progression;
 			// 右とじ
 			boolean right;
-			int printMode = UAProps.OUTPUT_PRINT_MODE.getCode(this.ua);
+			OutputPrintMode printMode = UAProps.OUTPUT_PRINT_MODE.get(this.ua);
 			if (printMode == OutputPrintMode.LEFT_SIDE) {
 				right = false;
 			} else if (printMode == OutputPrintMode.RIGHT_SIDE) {
@@ -958,7 +960,7 @@ public class StyleBuilder implements PageGenerator {
 				right = direction == AbstractTextParams.DIRECTION_RTL || progression == AbstractTextParams.FLOW_RL;
 			}
 			if (right) {
-				this.imposition.setBoundSide(Imposition.BOUND_SIDE_RIGHT);
+				this.imposition.setBoundSide(BoundSide.RIGHT);
 				this.rightSide = true;
 			}
 			if (this.htmlRootBlock != null) {
@@ -2611,7 +2613,7 @@ public class StyleBuilder implements PageGenerator {
 		double height = this.imposition.getPageHeight();
 
 		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
-			if (this.imposition.getBoundSide() == Imposition.BOUND_SIDE_LEFT) {
+			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
 				// 横書き
 				params.size = Dimension.create(width, height, Dimension.TYPE_ABSOLUTE, Dimension.TYPE_AUTO);
 			} else {
@@ -2637,7 +2639,7 @@ public class StyleBuilder implements PageGenerator {
 			short code = MessageCodes.ERROR_OUT_OF_PAGE_LIMIT;
 			String[] args = new String[] { String.valueOf(this.maxPageNumber) };
 			ua.message(code, args);
-			if (UAProps.OUTPUT_PAGE_LIMIT_ABORT.getCode(ua) == OutputPageLimitAbort.NORMAL) {
+			if (UAProps.OUTPUT_PAGE_LIMIT_ABORT.get(ua) == OutputPageLimitAbort.NORMAL) {
 				throw new AbortException(AbortException.ABORT_NORMAL);
 			}
 			throw new AbortException(AbortException.ABORT_FORCE);

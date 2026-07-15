@@ -109,7 +109,7 @@ public class PDFVisitor extends AbstractVisitor {
 
 	protected PDFVisitor(UserAgent ua) {
 		super(ua);
-		final short version = UAProps.OUTPUT_PDF_VERSION.getCode(this.ua);
+		OutputPdfVersion version = UAProps.OUTPUT_PDF_VERSION.get(this.ua);
 		final boolean pdfx = version == OutputPdfVersion.V1_4X1 || version == OutputPdfVersion.V1_6X4
 				|| version == OutputPdfVersion.V2_0X6;
 		boolean links = UAProps.OUTPUT_PDF_HYPERLINKS.getBoolean(this.ua);

@@ -6,6 +6,7 @@ import net.zamasoft.foliojet.css.value.BorderStyleValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -22,11 +23,11 @@ public final class BorderValueUtils {
 		if (token instanceof CssToken.Ident ident) {
 			switch (ident.lower()) {
 			case "thin":
-				return ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+				return ua.getBorderWidth(BorderWidthKeyword.THIN);
 			case "medium":
-				return ua.getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
+				return ua.getBorderWidth(BorderWidthKeyword.MEDIUM);
 			case "thick":
-				return ua.getBorderWidth(UserAgent.BORDER_WIDTH_THICK);
+				return ua.getBorderWidth(BorderWidthKeyword.THICK);
 			default:
 				return null;
 			}

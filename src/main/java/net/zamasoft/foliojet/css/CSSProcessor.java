@@ -50,6 +50,7 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
+import net.zamasoft.foliojet.ua.CompatibleMode;
 
 /**
  * CSSに関する処理命令を処理します。
@@ -230,7 +231,7 @@ public class CSSProcessor implements XMLHandler {
 		}
 		if (this.builder == null) {
 			if (DTDs.contains(publicId.toLowerCase())) {
-				this.ua.getDocumentContext().setCompatibleMode(DocumentContext.CM_STRICT);
+				this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.STRICT);
 			}
 		}
 	}
@@ -450,7 +451,7 @@ public class CSSProcessor implements XMLHandler {
 		CSSStyle parentStyle = this.builder.getCurrentStyle();
 		if (href != null) {
 			try {
-				short conf = UAProps.OUTPUT_PDF_HYPERLINKS_HREF.getCode(ua);
+				OutputPdfHyperlinksHref conf = UAProps.OUTPUT_PDF_HYPERLINKS_HREF.get(ua);
 				if (conf == OutputPdfHyperlinksHref.RELATIVE || href.startsWith("#")) {
 					// 相対アドレス
 					link = URIHelper.create(this.ua.getDocumentContext().getEncoding(), href);

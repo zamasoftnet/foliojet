@@ -46,6 +46,8 @@ import net.zamasoft.foliojet.impl.css.property.box.Margin;
 import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
 import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
 import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
+import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 
 public final class HTMLStyleUtils {
 	private HTMLStyleUtils() {
@@ -292,7 +294,7 @@ public final class HTMLStyleUtils {
 			for (CSSStyle parentStyle = style.getParentStyle(); parentStyle != null; parentStyle = parentStyle
 					.getParentStyle()) {
 				if (parentStyle.getCSSElement().isPseudoClass(CSSElement.PC_LINK)) {
-					width = ua.getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
+					width = ua.getBorderWidth(BorderWidthKeyword.MEDIUM);
 					break;
 				}
 			}
@@ -492,7 +494,7 @@ public final class HTMLStyleUtils {
 			try {
 				if (size.startsWith("+")) {
 					int sizeNum = Integer.parseInt(size.substring(1));
-					double normal = ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM);
+					double normal = ua.getFontSize(AbsoluteFontSize.MEDIUM);
 					switch (sizeNum) {
 					case 1:
 						style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, normal * 1.2));
@@ -516,7 +518,7 @@ public final class HTMLStyleUtils {
 					}
 				} else if (size.startsWith("-")) {
 					int sizeNum = Integer.parseInt(size.substring(1));
-					double normal = ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM);
+					double normal = ua.getFontSize(AbsoluteFontSize.MEDIUM);
 					switch (sizeNum) {
 					case 1:
 						style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, normal * .83));
@@ -543,28 +545,28 @@ public final class HTMLStyleUtils {
 					switch (sizeNum) {
 					case 1:
 						style.set(FontSize.INFO,
-								AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_XX_SMALL)));
+								AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.XX_SMALL)));
 						break;
 					case 2:
 						style.set(FontSize.INFO,
-								AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_SMALL)));
+								AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.SMALL)));
 						break;
 					case 3:
 						style.set(FontSize.INFO,
-								AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
+								AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 						break;
 					case 4:
 						style.set(FontSize.INFO,
-								AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_LARGE)));
+								AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.LARGE)));
 						break;
 					case 5:
 						style.set(FontSize.INFO,
-								AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_X_LARGE)));
+								AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.X_LARGE)));
 						break;
 					case 6:
 					case 7:
 						style.set(FontSize.INFO,
-								AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_XX_LARGE)));
+								AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.XX_LARGE)));
 					default:
 						break;
 					}

@@ -6,40 +6,42 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.message.MessageHandler;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-public class CodePropManager extends AbstractPropManager {
-	public final String[] idents;
-	public final short defaultCode;
+/**
+ * 選択肢から1つを選ぶプロパティです。
+ */
+public final class CodePropManager<E extends Enum<E> & PropCode> extends AbstractPropManager {
+	private final Class<E> type;
 
-	public CodePropManager(String name, String[] idents, short defaultCode) {
+	private final E defaultValue;
+
+	public CodePropManager(String name, Class<E> type, E defaultValue) {
 		super(name);
-		this.idents = idents;
-		this.defaultCode = defaultCode;
+		this.type = type;
+		this.defaultValue = defaultValue;
 	}
 
 	public String getDefaultString() {
-		return this.idents[this.defaultCode - 1];
+		return this.defaultValue.ident();
 	}
 
-	public short getCode(UserAgent ua) {
-		String str = ua.getProperty(this.name);
-		return this.getCode(str, ua);
+	public E get(UserAgent ua) {
+		return this.get(ua.getProperty(this.name), ua);
 	}
 
-	public short getCode(Map<String, String> props, MessageHandler mh) {
-		String str = (String) props.get(this.name);
-		return this.getCode(str, mh);
+	public E get(Map<String, String> props, MessageHandler mh) {
+		return this.get(props.get(this.name), mh);
 	}
 
-	private short getCode(String str, MessageHandler mh) {
+	private E get(String str, MessageHandler mh) {
 		if (str == null) {
-			return this.defaultCode;
+			return this.defaultValue;
 		}
-		for (short i = 0; i < this.idents.length; ++i) {
-			if (str.equalsIgnoreCase(this.idents[i])) {
-				return (short) (i + 1);
+		for (E e : this.type.getEnumConstants()) {
+			if (str.equalsIgnoreCase(e.ident())) {
+				return e;
 			}
 		}
-		mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, new String[] { this.name, str });
-		return this.defaultCode;
+		mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, this.name, str);
+		return this.defaultValue;
 	}
 }

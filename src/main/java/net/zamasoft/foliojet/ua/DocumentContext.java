@@ -5,15 +5,11 @@ import java.net.URI;
 import java.nio.charset.Charset;
 
 public class DocumentContext {
-	public static final byte CM_STRICT = 1;
-
-	public static final byte CM_NORMAL = 2;
-
 	private URI baseURI;
 
 	private String encoding = "ISO-8859-1";
 
-	private byte compatibleMode = CM_NORMAL;
+	private CompatibleMode compatibleMode = CompatibleMode.NORMAL;
 
 	public void setBaseURI(URI baseURI) {
 		this.baseURI = baseURI;
@@ -23,11 +19,11 @@ public class DocumentContext {
 		return this.baseURI;
 	}
 
-	public byte getCompatibleMode() {
+	public CompatibleMode getCompatibleMode() {
 		return this.compatibleMode;
 	}
 
-	public void setCompatibleMode(byte compatibleMode) {
+	public void setCompatibleMode(CompatibleMode compatibleMode) {
 		this.compatibleMode = compatibleMode;
 	}
 

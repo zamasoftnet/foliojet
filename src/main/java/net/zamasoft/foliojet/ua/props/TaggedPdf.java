@@ -27,10 +27,7 @@ public final class TaggedPdf {
 	 * @return {@code true} if a structure tree is being produced
 	 */
 	public static boolean isActive(final UserAgent ua) {
-		final short version = UAProps.OUTPUT_PDF_VERSION.getCode(ua);
-		final boolean forced = version == OutputPdfVersion.V1_7A2A || version == OutputPdfVersion.V1_7A3A
-				|| version == OutputPdfVersion.V1_7UA1;
-		return forced || UAProps.OUTPUT_PDF_TAGGED.getBoolean(ua);
+		return UAProps.OUTPUT_PDF_VERSION.get(ua).requiresTagging() || UAProps.OUTPUT_PDF_TAGGED.getBoolean(ua);
 	}
 
 	/**

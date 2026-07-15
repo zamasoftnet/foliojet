@@ -20,6 +20,7 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -299,19 +300,19 @@ public final class FontValueUtils {
 			case "smaller":
 				return RelativeSizeValue.SMALLER_VALUE;
 			case "xx-small":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_XX_SMALL));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.XX_SMALL));
 			case "x-small":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_X_SMALL));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.X_SMALL));
 			case "small":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_SMALL));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.SMALL));
 			case "medium":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM));
 			case "large":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_LARGE));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.LARGE));
 			case "x-large":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_X_LARGE));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.X_LARGE));
 			case "xx-large":
-				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_XX_LARGE));
+				return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.XX_LARGE));
 			}
 			return null;
 		}

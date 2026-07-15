@@ -4,23 +4,26 @@ import java.text.MessageFormat;
 
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.props.OutputAutoRotate;
+import net.zamasoft.foliojet.ua.props.OutputFitToPaper;
 import net.zamasoft.foliojet.ua.props.OutputPrintMode;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.pdf.util.PDFUtils;
+import net.zamasoft.foliojet.ua.BoundSide;
 
 public abstract class AbstractImposition implements Imposition {
 	protected final UserAgent ua;
 
 	protected int pageNumber = 0;
 
-	protected byte boundSide = BOUND_SIDE_LEFT;
+	protected BoundSide boundSide = BoundSide.LEFT;
 
-	protected byte printMode;
+	protected OutputPrintMode printMode;
 
-	protected byte align = ALIGN_CENTER;
+	protected OutputFitToPaper align = OutputFitToPaper.FALSE;
 
-	protected byte autoRotate = AUTO_ROTATE_NONE;
+	protected OutputAutoRotate autoRotate = OutputAutoRotate.NONE;
 
 	/** クロップマーク(コーナートンボ)。 */
 	protected boolean crop = false;
@@ -63,17 +66,17 @@ public abstract class AbstractImposition implements Imposition {
 		this.ua = ua;
 		this.paperWidth = this.pageHeight;
 		this.paperHeight = this.pageHeight;
-		this.printMode = (byte) UAProps.OUTPUT_PRINT_MODE.getCode(ua);
+		this.printMode = UAProps.OUTPUT_PRINT_MODE.get(ua);
 	}
 
 	public CSSElement nextPageSide() {
 		CSSElement pageElement = this.ua.getPassContext().getPageSide();
 		switch (this.printMode) {
-		case OutputPrintMode.DOUBLE_SIDE:
-		case OutputPrintMode.LEFT_SIDE:
-		case OutputPrintMode.RIGHT_SIDE:
+		case DOUBLE_SIDE:
+		case LEFT_SIDE:
+		case RIGHT_SIDE:
 			// 両面
-			if (this.getBoundSide() == Imposition.BOUND_SIDE_LEFT) {
+			if (this.getBoundSide() == BoundSide.LEFT) {
 				// 左綴じ
 				if (pageElement == null) {
 					pageElement = CSSElement.PAGE_FIRST_RIGHT;
@@ -98,7 +101,7 @@ public abstract class AbstractImposition implements Imposition {
 			}
 			break;
 
-		case OutputPrintMode.SINGLE_SIDE:
+		case SINGLE_SIDE:
 			// 片面
 			if (pageElement == null) {
 				pageElement = CSSElement.PAGE_SINGLE_FIRST;
@@ -114,27 +117,27 @@ public abstract class AbstractImposition implements Imposition {
 		return pageElement;
 	}
 
-	public final byte getBoundSide() {
+	public final BoundSide getBoundSide() {
 		return this.boundSide;
 	}
 
-	public final void setBoundSide(byte boundSide) {
+	public final void setBoundSide(BoundSide boundSide) {
 		this.boundSide = boundSide;
 		switch (this.printMode) {
-		case OutputPrintMode.DOUBLE_SIDE:
-		case OutputPrintMode.LEFT_SIDE:
-		case OutputPrintMode.RIGHT_SIDE:
+		case DOUBLE_SIDE:
+		case LEFT_SIDE:
+		case RIGHT_SIDE:
 			// 両面
-			if (this.getBoundSide() == Imposition.BOUND_SIDE_LEFT) {
+			if (this.getBoundSide() == BoundSide.LEFT) {
 				// 横書き
-				this.ua.setBoundSide(UserAgent.BOUND_SIDE_LEFT);
+				this.ua.setBoundSide(BoundSide.LEFT);
 			} else {
 				// 縦書き
-				this.ua.setBoundSide(UserAgent.BOUND_SIDE_RIGHT);
+				this.ua.setBoundSide(BoundSide.RIGHT);
 			}
 			break;
 
-		case OutputPrintMode.SINGLE_SIDE:
+		case SINGLE_SIDE:
 			break;
 
 		default:
@@ -142,19 +145,19 @@ public abstract class AbstractImposition implements Imposition {
 		}
 	}
 
-	public final byte getAlign() {
+	public final OutputFitToPaper getAlign() {
 		return this.align;
 	}
 
-	public final void setAlign(byte align) {
+	public final void setAlign(OutputFitToPaper align) {
 		this.align = align;
 	}
 
-	public final byte getAutoRotate() {
+	public final OutputAutoRotate getAutoRotate() {
 		return this.autoRotate;
 	}
 
-	public final void setAutoRotate(byte autoRotate) {
+	public final void setAutoRotate(OutputAutoRotate autoRotate) {
 		this.autoRotate = autoRotate;
 	}
 

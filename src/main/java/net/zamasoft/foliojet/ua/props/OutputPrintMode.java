@@ -1,8 +1,11 @@
 package net.zamasoft.foliojet.ua.props;
 
-public interface OutputPrintMode {
-	public static final short SINGLE_SIDE = 1;
-	public static final short DOUBLE_SIDE = 2;
-	public static final short LEFT_SIDE = 3;
-	public static final short RIGHT_SIDE = 4;
+public enum OutputPrintMode implements PropCode {
+	SINGLE_SIDE,
+
+	DOUBLE_SIDE,
+
+	LEFT_SIDE,
+
+	RIGHT_SIDE;
 }

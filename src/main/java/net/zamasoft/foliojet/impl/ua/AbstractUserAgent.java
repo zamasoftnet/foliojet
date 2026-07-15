@@ -39,10 +39,13 @@ import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
+import net.zamasoft.foliojet.ua.BorderWidthKeyword;
+import net.zamasoft.foliojet.ua.BoundSide;
+import net.zamasoft.foliojet.ua.PrepareMode;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: AbstractUserAgent.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public abstract class AbstractUserAgent implements UserAgent {
 	private UAContext context = new UAContext();
@@ -95,7 +98,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	// *Watermark
 
-	private byte boundSide = BOUND_SIDE_SINGLE;
+	private BoundSide boundSide = BoundSide.SINGLE;
 
 	protected double pageWidth, pageHeight;
 
@@ -218,8 +221,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.defaultMarkerOffset;
 	}
 
-	public AbsoluteLengthValue getBorderWidth(byte type) {
-		return this.borderTable[type - 1];
+	public AbsoluteLengthValue getBorderWidth(BorderWidthKeyword keyword) {
+		return this.borderTable[keyword.ordinal()];
 	}
 
 	public ColorValue getDefaultColor() {
@@ -241,20 +244,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 	public CSSJFontPolicyValue getDefaultFontPolicy() {
 		if (this.fontPolicy == null) {
 			String s = UAProps.OUTPUT_PDF_FONTS_POLICY.getString(this);
-			int pdfVersion = UAProps.OUTPUT_PDF_VERSION.getCode(this);
 			// PDF/A・PDF/X・PDF/UA はいずれもフォント埋め込みが必須。
-			final boolean embedRequired = pdfVersion == OutputPdfVersion.V1_4A1
-					|| pdfVersion == OutputPdfVersion.V1_4X1
-					|| pdfVersion == OutputPdfVersion.V1_7A2
-					|| pdfVersion == OutputPdfVersion.V1_7A2U
-					|| pdfVersion == OutputPdfVersion.V1_7A2A
-					|| pdfVersion == OutputPdfVersion.V1_7A3
-					|| pdfVersion == OutputPdfVersion.V1_7A3A
-					|| pdfVersion == OutputPdfVersion.V2_0A4
-					|| pdfVersion == OutputPdfVersion.V1_6X4
-					|| pdfVersion == OutputPdfVersion.V2_0X6
-					|| pdfVersion == OutputPdfVersion.V1_7UA1;
-			if (embedRequired) {
+			if (UAProps.OUTPUT_PDF_VERSION.get(this).requiresFontEmbedding()) {
 				this.fontPolicy = FontValueUtils.toFontPolicyA1(s);
 				if (this.fontPolicy == null) {
 					this.fontPolicy = CSSJFontPolicyValue.PDFA1_VALUE;
@@ -270,19 +261,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.fontPolicy;
 	}
 
-	public final double getFontSize(byte absoluteFontSize) {
-		double size = this.mediumFontSize.getLength();
-		size = switch (absoluteFontSize) {
-		case FONT_SIZE_XX_SMALL -> size * 3 / 5;
-		case FONT_SIZE_X_SMALL -> size * 3 / 4;
-		case FONT_SIZE_SMALL -> size * 8 / 9;
-		case FONT_SIZE_MEDIUM -> size;
-		case FONT_SIZE_LARGE -> size * 6 / 5;
-		case FONT_SIZE_X_LARGE -> size * 3 / 2;
-		case FONT_SIZE_XX_LARGE -> size * 2;
-		default -> throw new IllegalArgumentException();
-		};
-		return size * this.getFontMagnification();
+	public final double getFontSize(AbsoluteFontSize absoluteFontSize) {
+		return this.mediumFontSize.getLength() * absoluteFontSize.ratio() * this.getFontMagnification();
 	}
 
 	public double getFontMagnification() {
@@ -402,48 +382,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 		this.messageHandler = messageHandler;
 	}
 
-	public final void message(short code, String[] args) {
+	public final void message(short code, String... args) {
 		if (this.messageHandler == null) {
 			return;
 		}
-		this.messageHandler.message(code, args, null);
-	}
-
-	public final void message(short code) {
-		this.message(code, (String[]) null);
-	}
-
-	private String[] args1 = null;
-
-	public final void message(short code, String arg0) {
-		if (this.args1 == null) {
-			this.args1 = new String[1];
-		}
-		this.args1[0] = arg0;
-		this.message(code, this.args1);
-	}
-
-	private String[] args2 = null;
-
-	public final void message(short code, String arg0, String arg1) {
-		if (this.args2 == null) {
-			this.args2 = new String[2];
-		}
-		this.args2[0] = arg0;
-		this.args2[1] = arg1;
-		this.message(code, this.args2);
-	}
-
-	private String[] args3 = null;
-
-	public final void message(short code, String arg0, String arg1, String arg2) {
-		if (this.args3 == null) {
-			this.args3 = new String[3];
-		}
-		this.args3[0] = arg0;
-		this.args3[1] = arg1;
-		this.args3[2] = arg2;
-		this.message(code, this.args3);
+		this.messageHandler.message(code, args.length == 0 ? null : args, null);
 	}
 
 	public void setSourceResolver(SourceResolver resolver) {
@@ -494,11 +437,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return image;
 	}
 
-	public void setBoundSide(byte boundSide) {
+	public void setBoundSide(BoundSide boundSide) {
 		this.boundSide = boundSide;
 	}
 
-	public byte getBoundSide() {
+	public BoundSide getBoundSide() {
 		return this.boundSide;
 	}
 
@@ -518,11 +461,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 		// NOP
 	}
 
-	public void prepare(byte mode) {
+	public void prepare(PrepareMode mode) {
 		this.fontMagnification = -1;
 		this.pixelsPerInch = -1;
 		this.pixelToUnit = null;
-		if (mode != PREPARE_DOCUMENT) {
+		if (mode != PrepareMode.DOCUMENT) {
 			int pages = this.getPassContext().getPageNumber();
 			this.passContext = new PassContext();
 			this.getUAContext().getPageRef().reset();

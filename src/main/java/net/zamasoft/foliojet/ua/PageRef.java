@@ -20,7 +20,6 @@ import org.xml.sax.helpers.AttributesImpl;
  * ページ参照用のデータです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: PageRef.java 1566 2018-07-04 11:52:15Z miyabe $
  */
 public class PageRef {
 
@@ -173,7 +172,6 @@ public class PageRef {
 	 * フラグメントです。
 	 * 
 	 * @author MIYABE Tatsuhiko
-	 * @version $Id: PageRef.java 1566 2018-07-04 11:52:15Z miyabe $
 	 */
 	public static class Fragment {
 		public int uid;
@@ -206,7 +204,6 @@ public class PageRef {
 	 * セクションです。
 	 * 
 	 * @author MIYABE Tatsuhiko
-	 * @version $Id: PageRef.java 1566 2018-07-04 11:52:15Z miyabe $
 	 */
 	static class Section extends Fragment {
 		public String title;

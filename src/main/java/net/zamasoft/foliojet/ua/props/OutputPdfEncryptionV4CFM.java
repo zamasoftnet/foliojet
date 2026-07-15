@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.ua.props;
 
-public interface OutputPdfEncryptionV4CFM {
-	public static final short V2 = 1;
-	public static final short AESV2 = 2;
+public enum OutputPdfEncryptionV4CFM implements PropCode {
+	V2,
+
+	AESV2;
 }

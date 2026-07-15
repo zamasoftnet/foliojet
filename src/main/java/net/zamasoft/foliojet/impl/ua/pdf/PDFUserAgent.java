@@ -69,6 +69,8 @@ import net.zamasoft.pdfg2d.pdf.params.V1EncryptionParams;
 import net.zamasoft.pdfg2d.pdf.params.V2EncryptionParams;
 import net.zamasoft.pdfg2d.pdf.params.V4EncryptionParams;
 import net.zamasoft.pdfg2d.pdf.params.ViewerPreferences;
+import net.zamasoft.foliojet.ua.BoundSide;
+import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private static final Logger LOG = Logger.getLogger(PDFUserAgent.class.getName());
@@ -93,12 +95,12 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.results = results;
 	}
 
-	public void prepare(byte mode) {
+	public void prepare(PrepareMode mode) {
 		super.prepare(mode);
 		switch (mode) {
-		case PREPARE_DOCUMENT:
+		case DOCUMENT:
 			break;
-		case PREPARE_MIDDLE_PASS:
+		case MIDDLE_PASS:
 			if (this.results != NopResults.SHARED_INSTANCE) {
 				this.xresults = this.results;
 				this.results = NopResults.SHARED_INSTANCE;
@@ -107,7 +109,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 			this.reset();
 			break;
-		case PREPARE_LAST_PASS:
+		case LAST_PASS:
 			this.results = this.xresults;
 			this.xresults = null;
 			if (this.xpdfWriter != null) {
@@ -139,17 +141,17 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.pdfWriter = null;
 	}
 
-	public void setBoundSide(byte boundSide) {
+	public void setBoundSide(BoundSide boundSide) {
 		super.setBoundSide(boundSide);
 
 		// 綴じ方向
-		if (this.getBoundSide() != BOUND_SIDE_SINGLE && this.pdfWriter != null) {
+		if (this.getBoundSide() != BoundSide.SINGLE && this.pdfWriter != null) {
 			ViewerPreferences vp = this.pdfWriter.getParams().viewerPreferences();
 			switch (this.getBoundSide()) {
-			case BOUND_SIDE_LEFT:
+			case LEFT:
 				vp.setDirection(ViewerPreferences.Direction.L2R);
 				break;
-			case BOUND_SIDE_RIGHT:
+			case RIGHT:
 				vp.setDirection(ViewerPreferences.Direction.R2L);
 				break;
 			default:
@@ -167,59 +169,59 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		params = params.withFontSourceManager(this.getUAContext().getFontSourceManager());
 
 		// バージョン
-		switch (UAProps.OUTPUT_PDF_VERSION.getCode(this)) {
-		case OutputPdfVersion.V1_2:
+		switch (UAProps.OUTPUT_PDF_VERSION.get(this)) {
+		case V1_2:
 			params = params.withVersion(PDFParams.Version.V_1_2);
 			break;
-		case OutputPdfVersion.V1_3:
+		case V1_3:
 			params = params.withVersion(PDFParams.Version.V_1_3);
 			break;
-		case OutputPdfVersion.V1_4:
+		case V1_4:
 			params = params.withVersion(PDFParams.Version.V_1_4);
 			break;
-		case OutputPdfVersion.V1_4A1:
+		case V1_4A1:
 			params = params.withVersion(PDFParams.Version.V_PDFA1B);
 			break;
-		case OutputPdfVersion.V1_4X1:
+		case V1_4X1:
 			params = params.withVersion(PDFParams.Version.V_PDFX1A);
 			break;
-		case OutputPdfVersion.V1_5:
+		case V1_5:
 			params = params.withVersion(PDFParams.Version.V_1_5);
 			break;
-		case OutputPdfVersion.V1_6:
+		case V1_6:
 			params = params.withVersion(PDFParams.Version.V_1_6);
 			break;
-		case OutputPdfVersion.V1_7:
+		case V1_7:
 			params = params.withVersion(PDFParams.Version.V_1_7);
 			break;
-		case OutputPdfVersion.V1_7A2:
+		case V1_7A2:
 			params = params.withVersion(PDFParams.Version.V_PDFA2B);
 			break;
-		case OutputPdfVersion.V1_7A2U:
+		case V1_7A2U:
 			params = params.withVersion(PDFParams.Version.V_PDFA2U);
 			break;
-		case OutputPdfVersion.V1_7A2A:
+		case V1_7A2A:
 			params = params.withVersion(PDFParams.Version.V_PDFA2A);
 			break;
-		case OutputPdfVersion.V1_7A3:
+		case V1_7A3:
 			params = params.withVersion(PDFParams.Version.V_PDFA3B);
 			break;
-		case OutputPdfVersion.V1_7A3A:
+		case V1_7A3A:
 			params = params.withVersion(PDFParams.Version.V_PDFA3A);
 			break;
-		case OutputPdfVersion.V2_0A4:
+		case V2_0A4:
 			params = params.withVersion(PDFParams.Version.V_PDFA4);
 			break;
-		case OutputPdfVersion.V1_6X4:
+		case V1_6X4:
 			params = params.withVersion(PDFParams.Version.V_PDFX4);
 			break;
-		case OutputPdfVersion.V2_0X6:
+		case V2_0X6:
 			params = params.withVersion(PDFParams.Version.V_PDFX6);
 			break;
-		case OutputPdfVersion.V1_7UA1:
+		case V1_7UA1:
 			params = params.withVersion(PDFParams.Version.V_1_7);
 			break;
-		case OutputPdfVersion.V2_0:
+		case V2_0:
 			params = params.withVersion(PDFParams.Version.V_2_0);
 			break;
 		default:
@@ -229,7 +231,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		// タグ付き PDF / PDF/UA。level A の PDF/A（A-2a/A-3a）と PDF/UA-1 は
 		// 論理構造が必須なので自動で有効化し、それ以外は output.pdf.tagged で選ぶ。
 		{
-			final int versionCode = UAProps.OUTPUT_PDF_VERSION.getCode(this);
+			OutputPdfVersion versionCode = UAProps.OUTPUT_PDF_VERSION.get(this);
 			final boolean pdfua = versionCode == OutputPdfVersion.V1_7UA1;
 			if (net.zamasoft.foliojet.ua.props.TaggedPdf.isActive(this)) {
 				String lang = UAProps.OUTPUT_PDF_TAGGED_LANG.getString(this);
@@ -310,19 +312,19 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		}
 
 		// カラー
-		int color = UAProps.OUTPUT_COLOR.getCode(this);
+		OutputColor color = UAProps.OUTPUT_COLOR.get(this);
 		if (params.version() == PDFParams.Version.V_PDFX1A && color == OutputColor.RGB) {
 			this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_COLOR.name, "rgb", "PDF/X-1a");
 			color = OutputColor.CMYK;
 		}
 		switch (color) {
-		case OutputColor.RGB:
+		case RGB:
 			params = params.withColorMode(PDFParams.ColorMode.PRESERVE);
 			break;
-		case OutputColor.GRAY:
+		case GRAY:
 			params = params.withColorMode(PDFParams.ColorMode.GRAY);
 			break;
-		case OutputColor.CMYK:
+		case CMYK:
 			params = params.withColorMode(PDFParams.ColorMode.CMYK);
 			break;
 		default:
@@ -330,14 +332,14 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		}
 
 		// 圧縮
-		switch (UAProps.OUTPUT_PDF_COMPRESSION.getCode(this)) {
-		case OutputPdfCompression.NONE:
+		switch (UAProps.OUTPUT_PDF_COMPRESSION.get(this)) {
+		case NONE:
 			params = params.withCompression(PDFParams.Compression.NONE);
 			break;
-		case OutputPdfCompression.ASCII:
+		case ASCII:
 			params = params.withCompression(PDFParams.Compression.ASCII);
 			break;
-		case OutputPdfCompression.BINARY:
+		case BINARY:
 			params = params.withCompression(PDFParams.Compression.BINARY);
 			break;
 		default:
@@ -350,12 +352,12 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		}
 
 		// JPEG画像
-		switch (UAProps.OUTPUT_PDF_JPEG_IMAGE.getCode(this)) {
-		case OutputPdfJpegImage.RAW:
+		switch (UAProps.OUTPUT_PDF_JPEG_IMAGE.get(this)) {
+		case RAW:
 			params = params.withJPEGImage(PDFParams.JPEGImage.RAW);
 			break;
-		case OutputPdfJpegImage.TO_FLATE:
-		case OutputPdfJpegImage.TO_RECOMPRESS:
+		case TO_FLATE:
+		case RECOMPRESS:
 			params = params.withJPEGImage(PDFParams.JPEGImage.RECOMPRESS);
 			break;
 		default:
@@ -363,14 +365,14 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		}
 
 		// JPEG圧縮
-		switch (UAProps.OUTPUT_PDF_IMAGE_COMPRESSION.getCode(this)) {
-		case OutputPdfImageCompression.FLATE:
+		switch (UAProps.OUTPUT_PDF_IMAGE_COMPRESSION.get(this)) {
+		case FLATE:
 			params = params.withImageCompression(PDFParams.ImageCompression.FLATE);
 			break;
-		case OutputPdfImageCompression.JPEG:
+		case JPEG:
 			params = params.withImageCompression(PDFParams.ImageCompression.JPEG);
 			break;
-		case OutputPdfImageCompression.JPEG2000:
+		case JPEG2000:
 			params = params.withImageCompression(PDFParams.ImageCompression.JPEG2000);
 			break;
 		default:
@@ -388,11 +390,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		params = params.withPlatformEncoding(UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getString(this));
 
 		// 暗号化
-		switch (UAProps.OUTPUT_PDF_ENCRYPTION.getCode(this)) {
-		case OutputPdfEncryption.NONE:
+		switch (UAProps.OUTPUT_PDF_ENCRYPTION.get(this)) {
+		case NONE:
 			break;
 
-		case OutputPdfEncryption.V1:
+		case V1:
 			// v1暗号化
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v1",
@@ -409,7 +411,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 			break;
 
-		case OutputPdfEncryption.V2:
+		case V2:
 			// v2暗号化
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v2",
@@ -437,7 +439,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 			break;
 
-		case OutputPdfEncryption.V4:
+		case V4:
 			// v4暗号化
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
@@ -448,11 +450,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			} else if (params.version().v >= PDFParams.Version.V_1_5.v) {
 				V4EncryptionParams v4Params = new V4EncryptionParams();
 				this.applyEncryptionParams(v4Params);
-				switch (UAProps.OUTPUT_PDF_ENCRYPTION_V4_CFM.getCode(this)) {
-				case OutputPdfEncryptionV4CFM.V2:
+				switch (UAProps.OUTPUT_PDF_ENCRYPTION_V4_CFM.get(this)) {
+				case V2:
 					v4Params.setCFM(V4EncryptionParams.CFM.V2);
 					break;
-				case OutputPdfEncryptionV4CFM.AESV2:
+				case AESV2:
 					if (params.version().v >= PDFParams.Version.V_1_6.v) {
 						v4Params.setCFM(V4EncryptionParams.CFM.AESV2);
 					} else {
@@ -480,7 +482,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 			break;
 
-		case OutputPdfEncryption.V5:
+		case V5:
 			// AES-256 (V5/R6)。PDF 1.7 以上が必要。PDF/A・PDF/X では暗号化不可。
 			if (params.version().isPdfA() || params.version().isPdfX()) {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v5",
@@ -518,24 +520,24 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 		}
 
-		switch (UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE.getCode(this)) {
-		case OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_NONE:
+		switch (UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE.get(this)) {
+		case USE_NONE:
 			vp.setNonFullScreenPageMode(ViewerPreferences.NonFullScreenPageMode.NONE);
 			break;
-		case OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_OUTLINES:
+		case USE_OUTLINES:
 			vp.setNonFullScreenPageMode(ViewerPreferences.NonFullScreenPageMode.OUTLINES);
 			break;
-		case OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_THUMBS:
+		case USE_THUMBS:
 			vp.setNonFullScreenPageMode(ViewerPreferences.NonFullScreenPageMode.THUMBS);
 			break;
-		case OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_OC:
+		case USE_OC:
 			vp.setNonFullScreenPageMode(ViewerPreferences.NonFullScreenPageMode.OC);
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 
-		short printScaling = (short) UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_SCALING.getCode(this);
+		OutputPdfViewerPreferencesPrintScaling printScaling = UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_SCALING.get(this);
 		if (printScaling != OutputPdfViewerPreferencesPrintScaling.APP_DEFAULT) {
 			if (params.version().v >= PDFParams.Version.V_1_6.v) {
 				vp.setPrintScaling(ViewerPreferences.PrintScaling.NONE);
@@ -546,17 +548,17 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 		}
 
-		short duplex = (short) UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_DUPLEX.getCode(this);
+		OutputPdfViewerPreferencesDuplex duplex = UAProps.OUTPUT_PDF_VIEWER_PREFERENCES_DUPLEX.get(this);
 		if (duplex != OutputPdfViewerPreferencesDuplex.NONE) {
 			if (params.version().v >= PDFParams.Version.V_1_7.v) {
 				switch (duplex) {
-				case OutputPdfViewerPreferencesDuplex.SIMPLEX:
+				case SIMPLEX:
 					vp.setDuplex(ViewerPreferences.Duplex.SIMPLEX);
 					break;
-				case OutputPdfViewerPreferencesDuplex.FLIP_SHORT_EDGE:
+				case FLIP_SHORT_EDGE:
 					vp.setDuplex(ViewerPreferences.Duplex.FLIP_SHORT_EDGE);
 					break;
-				case OutputPdfViewerPreferencesDuplex.FLIP_LONG_EDGE:
+				case FLIP_LONG_EDGE:
 					vp.setDuplex(ViewerPreferences.Duplex.FLIP_LONG_EDGE);
 					break;
 				default:
@@ -764,7 +766,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			this.pageGenerated = true;
 			if (this.watermark != null) {
 				// 背面
-				short mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.getCode(this);
+				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
 				if (mode == OutputPdfWatermarkMode.BACK) {
 					if (this.watermarkGroup == null) {
 						PDFPageOutput out = (PDFPageOutput) gc.getPDFGraphicsOutput();
@@ -824,7 +826,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		final PDFGC pdfGc = (PDFGC) gc;
 		try (final PDFPageOutput out = (PDFPageOutput) pdfGc.getPDFGraphicsOutput()) {
 			if (this.watermark != null) {
-				final short mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.getCode(this);
+				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
 				if (mode == OutputPdfWatermarkMode.FRONT) {
 					// 前面
 					Rectangle2D rect = new Rectangle2D.Double(0, 0, this.pageWidth, this.pageHeight);

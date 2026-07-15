@@ -4,7 +4,6 @@ package net.zamasoft.foliojet.ua;
  * カウンタのスコープです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CounterScope.java 1566 2018-07-04 11:52:15Z miyabe $
  */
 public class CounterScope {
 	private Counter[] counters = null;

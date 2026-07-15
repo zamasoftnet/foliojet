@@ -4,7 +4,6 @@ package net.zamasoft.foliojet.message;
  * メッセージコード一覧です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: MessageCodes.java 1631 2022-05-15 05:43:49Z miyabe $
  */
 public interface MessageCodes {
 	public static final short INFO_PAGE_NUMBER = 0x1801;

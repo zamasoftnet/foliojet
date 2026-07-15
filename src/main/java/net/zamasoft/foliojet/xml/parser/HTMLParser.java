@@ -34,6 +34,7 @@ import org.htmlunit.cyberneko.xerces.xni.parser.XMLDocumentFilter;
 import org.htmlunit.cyberneko.filters.DefaultFilter;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import net.zamasoft.foliojet.ua.CompatibleMode;
 
 /**
  * NekoHTMLによりHTMLを解析します。
@@ -72,7 +73,7 @@ public class HTMLParser implements Parser {
 				super.startElement(element, attributes, augs);
 				if (this.firstElement && element.getLocalpart().equalsIgnoreCase("body")) {
 					// 標準モードへの切り替え
-					if (ua.getDocumentContext().getCompatibleMode() <= DocumentContext.CM_STRICT) {
+					if (ua.getDocumentContext().getCompatibleMode() == CompatibleMode.STRICT) {
 						balancer.setElementProps(ElementProps.getElementProps("html4.xml"));
 					}
 					this.firstElement = false;

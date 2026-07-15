@@ -4,6 +4,9 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.foliojet.ua.BoundSide;
+import net.zamasoft.foliojet.ua.props.OutputAutoRotate;
+import net.zamasoft.foliojet.ua.props.OutputFitToPaper;
 
 /**
  * 面付けを行うインターフェースです。
@@ -14,70 +17,29 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
  * </p>
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: Imposition.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public interface Imposition {
-	/**
-	 * 左綴じ。
-	 */
-	public static final byte BOUND_SIDE_LEFT = UserAgent.BOUND_SIDE_LEFT;
-
-	/**
-	 * 右綴じ。
-	 */
-	public static final byte BOUND_SIDE_RIGHT = UserAgent.BOUND_SIDE_RIGHT;
-
-	/**
-	 * 中央配置。
-	 */
-	public static final byte ALIGN_CENTER = 1;
-
-	/**
-	 * 用紙にあわせて拡大。
-	 */
-	public static final byte ALIGN_FIT_TO_PAPER = 2;
-
-	/**
-	 * アスペクト比維持拡大
-	 */
-	public static final byte ALIGN_PRESERVE_ASPECT_RATIO = 3;
-
-	/**
-	 * 回転なし。
-	 */
-	public static final byte AUTO_ROTATE_NONE = 1;
-
-	/**
-	 * 内容を回転。
-	 */
-	public static final byte AUTO_ROTATE_CONTENT = 2;
-
-	/**
-	 * 用紙を回転。
-	 */
-	public static final byte AUTO_ROTATE_PAPER = 3;
-
 	/**
 	 * 綴じ方向を返します。
 	 * 
 	 * @return
 	 */
-	public byte getBoundSide();
+	public BoundSide getBoundSide();
 
 	/**
 	 * 綴じ方向を設定します。
 	 * 
 	 * @param boundSide
 	 */
-	public void setBoundSide(byte boundSide);
+	public void setBoundSide(BoundSide boundSide);
 
-	public byte getAlign();
+	public OutputFitToPaper getAlign();
 
-	public void setAlign(byte align);
+	public void setAlign(OutputFitToPaper align);
 
-	public byte getAutoRotate();
+	public OutputAutoRotate getAutoRotate();
 
-	public void setAutoRotate(byte autoRotate);
+	public void setAutoRotate(OutputAutoRotate autoRotate);
 
 	public double getTrimTop();
 

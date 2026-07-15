@@ -33,6 +33,7 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
+import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private Results results, xresults;
@@ -51,17 +52,17 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.results = results;
 	}
 
-	public void prepare(byte mode) {
+	public void prepare(PrepareMode mode) {
 		super.prepare(mode);
 		switch (mode) {
-		case PREPARE_MIDDLE_PASS:
+		case MIDDLE_PASS:
 			if (this.results != NopResults.SHARED_INSTANCE) {
 				this.xresults = this.results;
 				this.results = NopResults.SHARED_INSTANCE;
 			}
 			this.reset();
 			break;
-		case PREPARE_LAST_PASS:
+		case LAST_PASS:
 			this.results = this.xresults;
 			this.reset();
 			break;

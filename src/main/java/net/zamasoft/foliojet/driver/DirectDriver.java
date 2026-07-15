@@ -10,7 +10,6 @@ import jp.cssj.cti2.CTISession;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: DirectDriver.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class DirectDriver implements CTIDriver {
 	protected static final URI DIRECT_URI = URI.create("copper:direct:");

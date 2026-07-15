@@ -23,6 +23,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -53,7 +54,7 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(FontVariant.INFO, FontVariantValue.NORMAL_VALUE);
 				primitives.set(FontWeight.INFO, FontWeightValue.NORMAL_VALUE);
 				primitives.set(FontSize.INFO,
-						AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
+						AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 				primitives.set(LineHeight.INFO, KeywordValue.NORMAL);
 				primitives.set(CSSFontFamily.INFO, defaultFamily);
 				return;

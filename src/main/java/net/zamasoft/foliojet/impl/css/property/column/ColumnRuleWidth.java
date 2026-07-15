@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-left-width">
@@ -33,7 +34,7 @@ public class ColumnRuleWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return style.getUserAgent().getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
+		return style.getUserAgent().getBorderWidth(BorderWidthKeyword.MEDIUM);
 	}
 
 	public boolean isInherited() {

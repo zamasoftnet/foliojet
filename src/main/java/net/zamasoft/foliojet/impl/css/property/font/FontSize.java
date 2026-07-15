@@ -15,6 +15,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -32,7 +33,7 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 
 	public Value getDefault(CSSStyle style) {
 		UserAgent ua = style.getUserAgent();
-		return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM));
+		return AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM));
 	}
 
 	public boolean isInherited() {

@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 
 /**
  * border-top-width / border-right-width / border-bottom-width /
@@ -41,7 +42,7 @@ public final class BorderWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return style.getUserAgent().getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
+		return style.getUserAgent().getBorderWidth(BorderWidthKeyword.MEDIUM);
 	}
 
 	public boolean isInherited() {

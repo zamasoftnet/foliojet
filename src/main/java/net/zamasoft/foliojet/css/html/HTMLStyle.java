@@ -118,6 +118,9 @@ import net.zamasoft.foliojet.impl.css.property.box.Margin;
 import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
 import net.zamasoft.foliojet.impl.css.property.box.Inset;
 import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
+import net.zamasoft.foliojet.ua.BorderWidthKeyword;
+import net.zamasoft.foliojet.ua.CompatibleMode;
 
 public class HTMLStyle {
 	private static final Logger LOG = Logger.getLogger(HTMLStyle.class.getName());
@@ -249,25 +252,25 @@ public class HTMLStyle {
 
 	private static void applyBrokenImage(CSSStyle style, String alt) {
 		UserAgent ua = style.getUserAgent();
-		int brokenimage = UAProps.OUTPUT_BROKEN_IMAGE.getCode(ua);
+		OutputBrokenImage brokenimage = UAProps.OUTPUT_BROKEN_IMAGE.get(ua);
 		if (brokenimage == OutputBrokenImage.ANNOTATION
-				&& UAProps.OUTPUT_PDF_VERSION.getCode(ua) == OutputPdfVersion.V1_4X1) {
+				&& UAProps.OUTPUT_PDF_VERSION.get(ua) == OutputPdfVersion.V1_4X1) {
 			ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_BROKEN_IMAGE.name, "annotation",
 					"PDF/X-1a");
 			brokenimage = OutputBrokenImage.CROSS;
 		}
 
 		switch (brokenimage) {
-		case OutputBrokenImage.ANNOTATION:
+		case ANNOTATION:
 			CSSJInternalImage.setImage(style, new UnprintBrokenImage(ua, alt));
 			return;
-		case OutputBrokenImage.CROSS:
+		case CROSS:
 			CSSJInternalImage.setImage(style, new BrokenImage(ua, alt));
 			return;
-		case OutputBrokenImage.HIDDEN:
+		case HIDDEN:
 			CSSJInternalImage.setImage(style, new NullImage(alt));
 			return;
-		case OutputBrokenImage.NONE:
+		case NONE:
 			if (alt != null) {
 				CSSJInternalImage.setText(style, alt);
 			}
@@ -286,7 +289,7 @@ public class HTMLStyle {
 		}
 		style.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 		style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
-		AbsoluteLengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+		AbsoluteLengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 		style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
 		style.set(BorderWidth.TOP, thin);
 		style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
@@ -421,7 +424,7 @@ public class HTMLStyle {
 				style.set(BorderColor.BOTTOM, borderColor);
 				style.set(BorderColor.LEFT, borderColor);
 			}
-			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(BorderStyle.TOP, borderStyle);
 			style.set(BorderWidth.TOP, thin);
 			style.set(BorderStyle.RIGHT, borderStyle);
@@ -440,18 +443,18 @@ public class HTMLStyle {
 				if (rules != null) {
 					if (rules.equalsIgnoreCase("all")) {
 						style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.RIGHT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.RIGHT, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.LEFT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.LEFT, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.TOP, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.TOP, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(BorderWidthKeyword.THIN));
 					} else if (rules.equalsIgnoreCase("cols")) {
 						style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.RIGHT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.RIGHT, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.LEFT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.LEFT, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
 						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
 					} else {
@@ -505,9 +508,9 @@ public class HTMLStyle {
 				if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
 					if ("groups".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
 						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.TOP, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.TOP, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(BorderWidthKeyword.THIN));
 					}
 					break;
 				}
@@ -534,7 +537,7 @@ public class HTMLStyle {
 		} else {
 			style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 		}
-		LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+		LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 		style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
 		style.set(BorderWidth.TOP, thin);
 		style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
@@ -852,7 +855,7 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.BUTTON: {
 			// <BUTTON disabled>
-			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
+			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 			HTMLStyle.applyButton(style, ce.atts.getValue("disabled") != null);
 		}
 			break;
@@ -900,9 +903,9 @@ public class HTMLStyle {
 					if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
 						if ("groups".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
 							style.set(BorderStyle.RIGHT, BorderStyleValue.SOLID_VALUE);
-							style.set(BorderWidth.RIGHT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+							style.set(BorderWidth.RIGHT, ua.getBorderWidth(BorderWidthKeyword.THIN));
 							style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
-							style.set(BorderWidth.LEFT, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+							style.set(BorderWidth.LEFT, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						}
 						break;
 					}
@@ -1002,7 +1005,7 @@ public class HTMLStyle {
 			style.set(Padding.BOTTOM, EM__5);
 			style.set(Padding.LEFT, EM__5);
 			HTMLStyleUtils.applyBlockAlign("FIELDSET", style);
-			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(BorderStyle.TOP, BorderStyleValue.GROOVE_VALUE);
 			style.set(BorderWidth.TOP, thin);
 			style.set(BorderStyle.RIGHT, BorderStyleValue.GROOVE_VALUE);
@@ -1262,7 +1265,7 @@ public class HTMLStyle {
 				}
 			}
 			if (border) {
-				LengthValue medium = ua.getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
+				LengthValue medium = ua.getBorderWidth(BorderWidthKeyword.MEDIUM);
 				style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
 				style.set(BorderWidth.TOP, medium);
 				style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
@@ -1288,7 +1291,7 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.INPUT: {
 			// <INPUT type disabled size src border width height align>
-			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
+			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 			byte type = HTMLStyleUtils.getInputType(ce.atts.getValue("type"));
 			switch (type) {
 			case HTMLStyleUtils.INPUT_BUTTON:
@@ -1642,7 +1645,7 @@ public class HTMLStyle {
 			// <SELECT size>
 			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
 			style.set(CSSPosition.INFO, PositionValue.RELATIVE_VALUE);
-			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
+			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 			style.set(Height.INFO, EM_1);
 			{
 				String str = ce.atts.getValue("size");
@@ -1663,7 +1666,7 @@ public class HTMLStyle {
 			} else {
 				style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 			}
-			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
 			style.set(BorderWidth.TOP, thin);
 			style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
@@ -1753,12 +1756,12 @@ public class HTMLStyle {
 				String str = ce.atts.getValue("border");
 				if (str != null) {
 					if (str.length() == 0) {
-						borderWidth = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+						borderWidth = ua.getBorderWidth(BorderWidthKeyword.THIN);
 					} else {
 						borderWidth = ValueUtils.toLength(ua, true, str);
 						if (borderWidth == null) {
 							ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TABLE", "border", str);
-							borderWidth = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+							borderWidth = ua.getBorderWidth(BorderWidthKeyword.THIN);
 						}
 					}
 				}
@@ -1811,8 +1814,8 @@ public class HTMLStyle {
 				}
 			}
 			style.set(TextAlign.INFO, TextAlignValue.LEFT_VALUE);
-			if (style.getUserAgent().getDocumentContext().getCompatibleMode() >= DocumentContext.CM_NORMAL) {
-				style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
+			if (style.getUserAgent().getDocumentContext().getCompatibleMode() == CompatibleMode.NORMAL) {
+				style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 			}
 			style.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 			LengthValue cellpadding = null;
@@ -1934,9 +1937,9 @@ public class HTMLStyle {
 				if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
 					if ("rows".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
 						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.TOP, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.TOP, ua.getBorderWidth(BorderWidthKeyword.THIN));
 						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN));
+						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(BorderWidthKeyword.THIN));
 					}
 					break;
 				}
@@ -1977,7 +1980,7 @@ public class HTMLStyle {
 				style.set(CSSColor.INFO, ColorValueUtils.GRAY);
 			}
 			style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
-			LengthValue thin = ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
+			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
 			style.set(BorderWidth.TOP, thin);
 			style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);

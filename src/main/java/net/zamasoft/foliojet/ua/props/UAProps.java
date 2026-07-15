@@ -4,9 +4,12 @@ package net.zamasoft.foliojet.ua.props;
  * 利用可能なパラメータ名です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: UAProps.java 1622 2022-05-02 06:22:56Z miyabe $
  */
-public interface UAProps {
+public final class UAProps {
+	private UAProps() {
+		// constants
+	}
+
 	/**
 	 * PIでのプロパティの上書き許可です。
 	 */
@@ -148,8 +151,7 @@ public interface UAProps {
 	/**
 	 * 印刷モードです。
 	 */
-	public static final CodePropManager OUTPUT_PRINT_MODE = new CodePropManager("output.print-mode",
-			new String[] { "single-side", "double-side", "left-side", "right-side" }, OutputPrintMode.DOUBLE_SIDE);
+	public static final CodePropManager<OutputPrintMode> OUTPUT_PRINT_MODE = new CodePropManager<>("output.print-mode", OutputPrintMode.class, OutputPrintMode.DOUBLE_SIDE);
 
 	/**
 	 * 1枚の用紙に面付けする論理ページ数(N-up)です。1で面付けなし。
@@ -159,9 +161,7 @@ public interface UAProps {
 	/**
 	 * N-up面付けのページの並び順です。
 	 */
-	public static final CodePropManager OUTPUT_N_UP_ORDER = new CodePropManager("output.n-up.order",
-			new String[] { "horizontal", "horizontal-reverse", "vertical", "vertical-reverse" },
-			OutputNUpOrder.HORIZONTAL);
+	public static final CodePropManager<OutputNUpOrder> OUTPUT_N_UP_ORDER = new CodePropManager<>("output.n-up.order", OutputNUpOrder.class, OutputNUpOrder.HORIZONTAL);
 
 	/**
 	 * 水平方向の断ち代の幅です。
@@ -181,14 +181,12 @@ public interface UAProps {
 	/**
 	 * 内容を用紙に合わせて拡大します。
 	 */
-	public static final CodePropManager OUTPUT_FIT_TO_PAPER = new CodePropManager("output.fit-to-paper",
-			new String[] { "false", "true", "preserve-aspect-ratio" }, OutputFitToPaper.FALSE);
+	public static final CodePropManager<OutputFitToPaper> OUTPUT_FIT_TO_PAPER = new CodePropManager<>("output.fit-to-paper", OutputFitToPaper.class, OutputFitToPaper.FALSE);
 
 	/**
 	 * 内容または用紙を自動回転します
 	 */
-	public static final CodePropManager OUTPUT_AUTO_ROTATE = new CodePropManager("output.auto-rotate",
-			new String[] { "none", "content", "paper" }, OutputAutoRotate.NONE);
+	public static final CodePropManager<OutputAutoRotate> OUTPUT_AUTO_ROTATE = new CodePropManager<>("output.auto-rotate", OutputAutoRotate.class, OutputAutoRotate.NONE);
 
 	/**
 	 * トンボの内部をクリップします。
@@ -249,14 +247,12 @@ public interface UAProps {
 	/**
 	 * ページ数の限界に達した場合の処理です。
 	 */
-	public static final CodePropManager OUTPUT_PAGE_LIMIT_ABORT = new CodePropManager("output.page-limit.abort",
-			new String[] { "force", "normal" }, OutputPageLimitAbort.FORCE);
+	public static final CodePropManager<OutputPageLimitAbort> OUTPUT_PAGE_LIMIT_ABORT = new CodePropManager<>("output.page-limit.abort", OutputPageLimitAbort.class, OutputPageLimitAbort.FORCE);
 
 	/**
 	 * トンボの形式です。
 	 */
-	public static final CodePropManager OUTPUT_MARKS = new CodePropManager("output.marks",
-			new String[] { "none", "crop", "cross", "both", "hidden" }, OutputMarks.NONE);
+	public static final CodePropManager<OutputMarks> OUTPUT_MARKS = new CodePropManager<>("output.marks", OutputMarks.class, OutputMarks.NONE);
 
 	/**
 	 * 適用するCSSのメディアタイプです。
@@ -267,14 +263,12 @@ public interface UAProps {
 	/**
 	 * 表示できない画像の扱いです。
 	 */
-	public static final CodePropManager OUTPUT_BROKEN_IMAGE = new CodePropManager("output.broken-image",
-			new String[] { "none", "hidden", "cross", "annotation" }, OutputBrokenImage.NONE);
+	public static final CodePropManager<OutputBrokenImage> OUTPUT_BROKEN_IMAGE = new CodePropManager<>("output.broken-image", OutputBrokenImage.class, OutputBrokenImage.NONE);
 
 	/**
 	 * カラー出力です。
 	 */
-	public static final CodePropManager OUTPUT_COLOR = new CodePropManager("output.color",
-			new String[] { "rgb", "gray", "cmyk" }, OutputColor.RGB);
+	public static final CodePropManager<OutputColor> OUTPUT_COLOR = new CodePropManager<>("output.color", OutputColor.class, OutputColor.RGB);
 
 	/**
 	 * pxを計算する際の解像度です。
@@ -307,15 +301,12 @@ public interface UAProps {
 	/**
 	 * 全体の圧縮方法です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_COMPRESSION = new CodePropManager("output.pdf.compression",
-			new String[] { "none", "ascii", "binary" }, OutputPdfCompression.BINARY);
+	public static final CodePropManager<OutputPdfCompression> OUTPUT_PDF_COMPRESSION = new CodePropManager<>("output.pdf.compression", OutputPdfCompression.class, OutputPdfCompression.BINARY);
 
 	/**
 	 * 画像の圧縮方法です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_IMAGE_COMPRESSION = new CodePropManager(
-			"output.pdf.image.compression", new String[] { "flate", "jpeg", "jpeg2000" },
-			OutputPdfImageCompression.FLATE);
+	public static final CodePropManager<OutputPdfImageCompression> OUTPUT_PDF_IMAGE_COMPRESSION = new CodePropManager<>("output.pdf.image.compression", OutputPdfImageCompression.class, OutputPdfImageCompression.FLATE);
 
 	/**
 	 * ロスレス圧縮を適用する画像サイズの閾値です。
@@ -343,17 +334,12 @@ public interface UAProps {
 	/**
 	 * PDFバージョンです。
 	 */
-	public static final CodePropManager OUTPUT_PDF_VERSION = new CodePropManager("output.pdf.version",
-			new String[] { "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.4A-1", "1.4X-1",
-					"1.7A-2", "1.7A-2u", "1.7A-2a", "1.7A-3", "1.7A-3a", "2.0A-4",
-					"1.6X-4", "2.0X-6", "1.7UA-1", "2.0" },
-			OutputPdfVersion.V1_5);
+	public static final CodePropManager<OutputPdfVersion> OUTPUT_PDF_VERSION = new CodePropManager<>("output.pdf.version", OutputPdfVersion.class, OutputPdfVersion.V1_5);
 
 	/**
 	 * 暗号化方法です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_ENCRYPTION = new CodePropManager("output.pdf.encryption",
-			new String[] { "none", "v1", "v2", "v4", "v5" }, OutputPdfEncryption.NONE);
+	public static final CodePropManager<OutputPdfEncryption> OUTPUT_PDF_ENCRYPTION = new CodePropManager<>("output.pdf.encryption", OutputPdfEncryption.class, OutputPdfEncryption.NONE);
 
 	/**
 	 * タグ付き PDF（論理構造）を出力するかどうか。
@@ -423,8 +409,7 @@ public interface UAProps {
 	/**
 	 * リンクの方法です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_HYPERLINKS_HREF = new CodePropManager("output.pdf.hyperlinks.href",
-			new String[] { "relative", "absolute" }, OutputPdfHyperlinksHref.RELATIVE);
+	public static final CodePropManager<OutputPdfHyperlinksHref> OUTPUT_PDF_HYPERLINKS_HREF = new CodePropManager<>("output.pdf.hyperlinks.href", OutputPdfHyperlinksHref.class, OutputPdfHyperlinksHref.RELATIVE);
 
 	/**
 	 * リンクの基点です。
@@ -441,8 +426,7 @@ public interface UAProps {
 	/**
 	 * JPEG画像の圧縮方法です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_JPEG_IMAGE = new CodePropManager("output.pdf.jpeg-image",
-			new String[] { "raw", "to-flate", "recompress" }, OutputPdfJpegImage.RAW);
+	public static final CodePropManager<OutputPdfJpegImage> OUTPUT_PDF_JPEG_IMAGE = new CodePropManager<>("output.pdf.jpeg-image", OutputPdfJpegImage.class, OutputPdfJpegImage.RAW);
 
 	/**
 	 * PDF内部の名前リテラルのエンコーディングです。
@@ -498,8 +482,7 @@ public interface UAProps {
 	/**
 	 * CFM暗号化です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_ENCRYPTION_V4_CFM = new CodePropManager(
-			"output.pdf.encryption.v4.cfm", new String[] { "v2", "aesv2" }, OutputPdfEncryptionV4CFM.V2);
+	public static final CodePropManager<OutputPdfEncryptionV4CFM> OUTPUT_PDF_ENCRYPTION_V4_CFM = new CodePropManager<>("output.pdf.encryption.v4.cfm", OutputPdfEncryptionV4CFM.class, OutputPdfEncryptionV4CFM.V2);
 
 	/**
 	 * すかし画像です。
@@ -510,8 +493,7 @@ public interface UAProps {
 	/**
 	 * すかし画像の配置方法です。
 	 */
-	public static final CodePropManager OUTPUT_PDF_WATERMARK_MODE = new CodePropManager("output.pdf.watermark.mode",
-			new String[] { "back", "front" }, OutputPdfWatermarkMode.BACK);
+	public static final CodePropManager<OutputPdfWatermarkMode> OUTPUT_PDF_WATERMARK_MODE = new CodePropManager<>("output.pdf.watermark.mode", OutputPdfWatermarkMode.class, OutputPdfWatermarkMode.BACK);
 
 	/**
 	 * すかし画像の不透明度です。
@@ -550,19 +532,11 @@ public interface UAProps {
 	public static final BooleanPropManager OUTPUT_PDF_VIEWER_PREFERENCES_DISPLAY_DOC_TITLE = new BooleanPropManager(
 			"output.pdf.viewer-preferences.display-doc-title", false);
 
-	public static final CodePropManager OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE = new CodePropManager(
-			"output.pdf.viewer-preferences.non-full-screen-page-mode",
-			new String[] { "use-none", "use-outlines", "use-thumbs", "use-oc" },
-			OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_NONE);
+	public static final CodePropManager<OutputPdfViewerPreferencesNoneFullScreenPageMode> OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE = new CodePropManager<>("output.pdf.viewer-preferences.non-full-screen-page-mode", OutputPdfViewerPreferencesNoneFullScreenPageMode.class, OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_NONE);
 
-	public static final CodePropManager OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_SCALING = new CodePropManager(
-			"output.pdf.viewer-preferences.print-scaling", new String[] { "scaling-none", "app-default" },
-			OutputPdfViewerPreferencesPrintScaling.APP_DEFAULT);
+	public static final CodePropManager<OutputPdfViewerPreferencesPrintScaling> OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_SCALING = new CodePropManager<>("output.pdf.viewer-preferences.print-scaling", OutputPdfViewerPreferencesPrintScaling.class, OutputPdfViewerPreferencesPrintScaling.APP_DEFAULT);
 
-	public static final CodePropManager OUTPUT_PDF_VIEWER_PREFERENCES_DUPLEX = new CodePropManager(
-			"output.pdf.viewer-preferences.duplex",
-			new String[] { "none", "simplex", "flip-short-edge", "flip-long-edge", },
-			OutputPdfViewerPreferencesDuplex.NONE);
+	public static final CodePropManager<OutputPdfViewerPreferencesDuplex> OUTPUT_PDF_VIEWER_PREFERENCES_DUPLEX = new CodePropManager<>("output.pdf.viewer-preferences.duplex", OutputPdfViewerPreferencesDuplex.class, OutputPdfViewerPreferencesDuplex.NONE);
 
 	public static final BooleanPropManager OUTPUT_PDF_VIEWER_PREFERENCES_PICK_TRAY_BY_PDF_SIZE = new BooleanPropManager(
 			"output.pdf.viewer-preferences.pick-tray-by-pdf-size", false);
@@ -583,4 +557,117 @@ public interface UAProps {
 	 * 文書情報を設定するmeta, titleタグを解釈します。
 	 */
 	public static final BooleanPropManager OUTPUT_USE_META_INFO = new BooleanPropManager("output.use-meta-info", true);
+
+	private static final java.util.List<PropManager> ALL = java.util.List.of(
+			INPUT_PROPERTY_PI,
+			INPUT_FILTERS,
+			INPUT_CHANGE_DEFAULT_NAMESPACE,
+			INPUT_STYLESHEET_TITLES,
+			INPUT_NORMALIZE_TEXT,
+			INPUT_DEFAULT_ENCODING,
+			INPUT_DEFAULT_STYLESHEET,
+			INPUT_XSLT_DEFAULT_STYLESHEET,
+			INPUT_HTTP_REFERER,
+			INPUT_HTTP_CONNECTION_TIMEOUT,
+			INPUT_HTTP_SOCKET_TIMEOUT,
+			INPUT_HTTP_PROXY_HOST,
+			INPUT_HTTP_PROXY_PORT,
+			INPUT_HTTP_PROXY_AUTHENTICATION_USER,
+			INPUT_HTTP_PROXY_AUTHENTICATION_PASSWORD,
+			INPUT_HTTP_AUTHENTICATION_PREEMPTIVE,
+			INPUT_VIEWPORT,
+			OUTPUT_PAGE_WIDTH,
+			OUTPUT_PAGE_HEIGHT,
+			OUTPUT_PAGE_MARGINS,
+			OUTPUT_PAPER_WIDTH,
+			OUTPUT_PAPER_HEIGHT,
+			OUTPUT_PRINT_MODE,
+			OUTPUT_N_UP,
+			OUTPUT_N_UP_ORDER,
+			OUTPUT_HTRIM,
+			OUTPUT_VTRIM,
+			OUTPUT_TRIMS,
+			OUTPUT_FIT_TO_PAPER,
+			OUTPUT_AUTO_ROTATE,
+			OUTPUT_CLIP,
+			OUTPUT_DEFAULT_FONT_FAMILY,
+			OUTPUT_TEXT_SIZE,
+			OUTPUT_AUTO_HEIGHT,
+			OUTPUT_EXPAND_WITH_CONTENT,
+			OUTPUT_NO_PAGE_BREAK,
+			OUTPUT_TYPE,
+			OUTPUT_SIZE_LIMIT,
+			OUTPUT_PAGE_LIMIT,
+			OUTPUT_PAGE_LIMIT_ABORT,
+			OUTPUT_MARKS,
+			OUTPUT_MEDIA_TYPES,
+			OUTPUT_BROKEN_IMAGE,
+			OUTPUT_COLOR,
+			OUTPUT_RESOLUTION,
+			OUTPUT_IMAGE_RESOLUTION,
+			OUTPUT_IMAGE_ANTIALIAS,
+			OUTPUT_PDF_FONTS_POLICY,
+			OUTPUT_PDF_COMPRESSION,
+			OUTPUT_PDF_IMAGE_COMPRESSION,
+			OUTPUT_PDF_IMAGE_COMPRESSION_LOSSLESS,
+			OUTPUT_PDF_IMAGE_MAX_WIDTH,
+			OUTPUT_PDF_IMAGE_MAX_HEIGHT,
+			OUTPUT_PDF_VERSION,
+			OUTPUT_PDF_ENCRYPTION,
+			OUTPUT_PDF_TAGGED,
+			OUTPUT_PDF_TAGGED_LANG,
+			OUTPUT_PDF_FORMS,
+			OUTPUT_PDF_ENCRYPTION_USER_PASSWORD,
+			OUTPUT_PDF_ENCRYPTION_OWNER_PASSWORD,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_PRINT,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_MODIFY,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_COPY,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_ADD,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_FILL,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_EXTRACT,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_ASSEMBLE,
+			OUTPUT_PDF_ENCRYPTION_PERMISSIONS_PRINT_HIGH,
+			OUTPUT_PDF_ENCRYPTION_LENGTH,
+			OUTPUT_PDF_BOOKMARKS,
+			OUTPUT_PDF_HYPERLINKS,
+			OUTPUT_PDF_HYPERLINKS_HREF,
+			OUTPUT_PDF_HYPERLINKS_BASE,
+			OUTPUT_PDF_HYPERLINKS_FRAGMENT,
+			OUTPUT_PDF_JPEG_IMAGE,
+			OUTPUT_PDF_PLATFORM_ENCODING,
+			PROCESSING_PASS_COUNT,
+			PROCESSING_MIDDLE_PASS,
+			PROCESSING_PAGE_REFERENCES,
+			PROCESSING_FAIL_ON_FATAL_ERROR,
+			OUTPUT_PDF_FILE_ID,
+			OUTPUT_PDF_META_CREATION_DATE,
+			OUTPUT_PDF_META_MOD_DATE,
+			OUTPUT_MARKS_SPINE_WIDTH,
+			OUTPUT_PDF_ENCRYPTION_V4_CFM,
+			OUTPUT_PDF_WATERMARK_URI,
+			OUTPUT_PDF_WATERMARK_MODE,
+			OUTPUT_PDF_WATERMARK_OPACITY,
+			OUTPUT_PDF_WATERMARK_VIEW,
+			OUTPUT_PDF_WATERMARK_PRINT,
+			OUTPUT_PDF_VIEWER_PREFERENCES_HIDE_TOOLBAR,
+			OUTPUT_PDF_VIEWER_PREFERENCES_HIDE_MENUBAR,
+			OUTPUT_PDF_VIEWER_PREFERENCES_HIDE_WINDOWUI,
+			OUTPUT_PDF_VIEWER_PREFERENCES_FIT_WINDOW,
+			OUTPUT_PDF_VIEWER_PREFERENCES_CENTER_WINDOW,
+			OUTPUT_PDF_VIEWER_PREFERENCES_DISPLAY_DOC_TITLE,
+			OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE,
+			OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_SCALING,
+			OUTPUT_PDF_VIEWER_PREFERENCES_DUPLEX,
+			OUTPUT_PDF_VIEWER_PREFERENCES_PICK_TRAY_BY_PDF_SIZE,
+			OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_PAGE_RANGE,
+			OUTPUT_PDF_VIEWER_PREFERENCES_NUM_COPIES,
+			OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT,
+			OUTPUT_USE_META_INFO);
+
+	/**
+	 * 定義済みの全プロパティを返します。
+	 */
+	public static java.util.List<PropManager> all() {
+		return ALL;
+	}
 }

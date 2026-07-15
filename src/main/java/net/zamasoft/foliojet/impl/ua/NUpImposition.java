@@ -24,7 +24,7 @@ import net.zamasoft.pdfg2d.gc.imposition.Trims;
 public class NUpImposition extends AbstractImposition {
 	private final int pagesPerSheet;
 
-	private final short order;
+	private final OutputNUpOrder order;
 
 	private GC gc;
 
@@ -43,7 +43,7 @@ public class NUpImposition extends AbstractImposition {
 
 	private double montageWidth, montageHeight;
 
-	public NUpImposition(UserAgent ua, int pagesPerSheet, short order) {
+	public NUpImposition(UserAgent ua, int pagesPerSheet, OutputNUpOrder order) {
 		super(ua);
 		assert pagesPerSheet >= 2;
 		this.pagesPerSheet = pagesPerSheet;
@@ -60,15 +60,15 @@ public class NUpImposition extends AbstractImposition {
 		final int index = this.cell++;
 		final int col, row;
 		switch (this.order) {
-		case OutputNUpOrder.HORIZONTAL_REVERSE:
+		case HORIZONTAL_REVERSE:
 			row = index / this.cols;
 			col = this.cols - 1 - index % this.cols;
 			break;
-		case OutputNUpOrder.VERTICAL:
+		case VERTICAL:
 			col = index / this.rows;
 			row = index % this.rows;
 			break;
-		case OutputNUpOrder.VERTICAL_REVERSE:
+		case VERTICAL_REVERSE:
 			col = this.cols - 1 - index / this.rows;
 			row = index % this.rows;
 			break;
