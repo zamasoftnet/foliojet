@@ -513,7 +513,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				origBodyRowCount += this.getTableBody(i).getTableRowCount();
 			}
 		}
-		if (mode.getType() == BreakMode.FORCE) {
+		if (mode instanceof BreakMode.ForceBreakMode) {
 			// 行間強制改ページ
 			TableForceBreakMode force = (TableForceBreakMode) mode;
 			TableBox nextTable = this.splitTableBox();

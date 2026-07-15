@@ -250,7 +250,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		// System.err.println("TBB A: " +flags + "/" + mode + "/" + pageLimit
 		// + "/" + this.getHeight() + "/" + this.lines.size() + "/"
 		// + this.params.augmentation);
-		assert mode.getType() != BreakMode.FORCE;
+		assert !(mode instanceof BreakMode.ForceBreakMode);
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// FLAGS_LASTは実際の要素に対するもので、仮想的なテキストブロックには適用しない
 

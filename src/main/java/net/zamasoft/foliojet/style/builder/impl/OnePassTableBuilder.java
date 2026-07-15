@@ -1772,7 +1772,7 @@ public class OnePassTableBuilder implements TableBuilder {
 		this.updateColumnHeights();
 		this.tableBox = this.tableBox.splitTableBox();
 		byte breakMode = Types.PAGE_BREAK_COLUMN;
-		if (mode.getType() == BreakMode.FORCE) {
+		if (mode instanceof BreakMode.ForceBreakMode) {
 			if (((ForceBreakMode) mode).breakType != Types.PAGE_BREAK_COLUMN) {
 				breakMode = Types.PAGE_BREAK_PAGE;
 			}

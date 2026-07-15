@@ -132,7 +132,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		// 左右改ページ
-		if (mode.getType() == BreakMode.FORCE) {
+		if (mode instanceof BreakMode.ForceBreakMode) {
 			ForceBreakMode force = (ForceBreakMode) mode;
 			if ((force.breakType == Types.PAGE_BREAK_VERSO || force.breakType == Types.PAGE_BREAK_RECTO)
 					&& (this.pageSide == Types.PAGE_BREAK_VERSO || this.pageSide == Types.PAGE_BREAK_RECTO)) {

@@ -75,10 +75,6 @@ public class FlowContainer implements Container {
 		// default
 	}
 
-	public final byte getType() {
-		return TYPE_FLOW;
-	}
-
 	public final void setBox(AbstractContainerBox box) {
 		this.box = box;
 	}
@@ -515,7 +511,7 @@ public class FlowContainer implements Container {
 		// pageInnerSize
 		// + "/flows.size=" + (this.flows == null ? 0 : this.flows.size())
 		// + "/" + this.box.getParams().element);
-		if (mode.getType() == BreakMode.FORCE) {
+		if (mode instanceof BreakMode.ForceBreakMode) {
 			// 強制改ページが指定されている場合
 			FlowContainer nextBox;
 			ForceBreakMode force = (ForceBreakMode) mode;

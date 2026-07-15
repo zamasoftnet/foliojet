@@ -12,14 +12,6 @@ import net.zamasoft.foliojet.style.box.params.Types;
  * @version $Id: BreakMode.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public abstract class BreakMode {
-	/** 切断線の位置とorphans,widowsにより、残すか、切断するか、後に送るかを自動的に判断します。 */
-	public static final byte AUTO = 0;
-
-	/** 指定されたボックスの現在の位置で強制改ページします。 */
-	public static final byte FORCE = 1;
-
-	public abstract byte getType();
-
 	/**
 	 * 指定線上での自動改ページです。
 	 */
@@ -33,10 +25,6 @@ public abstract class BreakMode {
 
 		private AutoBreakMode() {
 			this.box = null;
-		}
-
-		public byte getType() {
-			return AUTO;
 		}
 
 		public String toString() {
@@ -65,10 +53,6 @@ public abstract class BreakMode {
 					|| breakType == Types.PAGE_BREAK_VERSO || breakType == Types.PAGE_BREAK_RECTO;
 			this.box = box;
 			this.breakType = breakType;
-		}
-
-		public byte getType() {
-			return FORCE;
 		}
 
 		public String toString() {

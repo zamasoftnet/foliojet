@@ -61,10 +61,6 @@ public class ColumnsContainer implements Container {
 		this.columns.add(container);
 	}
 
-	public final byte getType() {
-		return TYPE_COLUMNS;
-	}
-
 	public int getColumnCount() {
 		return this.columns.size();
 	}

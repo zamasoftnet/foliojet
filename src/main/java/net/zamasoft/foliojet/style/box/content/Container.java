@@ -15,11 +15,6 @@ import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.visitor.Visitor;
 
 public interface Container {
-	public static final byte TYPE_FLOW = 1;
-	public static final byte TYPE_COLUMNS = 2;
-
-	public byte getType();
-
 	public void setBox(AbstractContainerBox box);
 
 	public void addFlow(IFlowBox box, double pageAxis);

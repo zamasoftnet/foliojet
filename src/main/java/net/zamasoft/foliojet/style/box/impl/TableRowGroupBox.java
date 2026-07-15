@@ -202,7 +202,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		// System.err.println("TRG A:" + pageLimit + "/" + mode
 		// + "/" + flags+"/"+this.getHeight() + "/"
 		// + (this.rows == null ? 0 : this.rows.size()));
-		if (mode.getType() == BreakMode.FORCE) {
+		if (mode instanceof BreakMode.ForceBreakMode) {
 			// 強制改ページ
 			TableForceBreakMode force = (TableForceBreakMode) mode;
 			TableRowGroupBox nextRowGroup = this.splitTableRowGroup();

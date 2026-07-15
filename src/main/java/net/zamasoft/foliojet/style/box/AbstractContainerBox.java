@@ -146,11 +146,10 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	protected int getActualColumnCount() {
-		if (this.container.getType() == Container.TYPE_FLOW) {
-			return 1;
+		if (this.container instanceof ColumnsContainer columns) {
+			return columns.getColumnCount();
 		}
-		ColumnsContainer columns = (ColumnsContainer) this.container;
-		return columns.getColumnCount();
+		return 1;
 	}
 
 	public final boolean isFixedMulcolumn() {
@@ -284,8 +283,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 			return null;
 		}
 		final ColumnsContainer columns;
-		if (this.container.getType() == Container.TYPE_COLUMNS) {
-			columns = (ColumnsContainer) this.container;
+		if (this.container instanceof ColumnsContainer cc) {
+			columns = cc;
 			if (newContainer == columns.getLastColumn()) {
 				return null;
 			}
