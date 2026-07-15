@@ -13,7 +13,7 @@ public class LinePos implements Pos {
 		// private
 	}
 
-	public byte getType() {
-		return TYPE_LINE;
+	public PosType getType() {
+		return PosType.LINE;
 	}
 }

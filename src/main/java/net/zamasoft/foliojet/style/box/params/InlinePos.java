@@ -17,8 +17,8 @@ public class InlinePos extends AbstractStaticPos implements Pos {
 
 	public double lineHeight = 1.0;
 
-	public byte getType() {
-		return TYPE_INLINE;
+	public PosType getType() {
+		return PosType.INLINE;
 	}
 
 	public String toString() {

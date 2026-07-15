@@ -23,6 +23,8 @@ import net.zamasoft.foliojet.style.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowBox.Cell;
 import net.zamasoft.foliojet.style.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Border;
 import net.zamasoft.foliojet.style.box.params.Dimension;
@@ -190,32 +192,32 @@ public class OnePassTableBuilder implements TableBuilder {
 		double rowSize;
 		InnerTableParams rowParams = rowBox.getInnerTableParams();
 		switch (rowParams.size.getType()) {
-		case Length.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			rowSize = rowParams.size.getLength();
 			break;
-		case Length.TYPE_RELATIVE:
-		case Length.TYPE_AUTO:
+		case RELATIVE:
+		case AUTO:
 			rowSize = 0;
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 		switch (rowParams.minSize.getType()) {
-		case Length.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			rowSize = Math.max(rowParams.minSize.getLength(), rowSize);
 			break;
-		case Length.TYPE_RELATIVE:
-		case Length.TYPE_AUTO:
+		case RELATIVE:
+		case AUTO:
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 		switch (rowParams.maxSize.getType()) {
-		case Length.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			rowSize = Math.min(rowParams.maxSize.getLength(), rowSize);
 			break;
-		case Length.TYPE_RELATIVE:
-		case Length.TYPE_AUTO:
+		case RELATIVE:
+		case AUTO:
 			break;
 		default:
 			throw new IllegalStateException();
@@ -318,12 +320,12 @@ public class OnePassTableBuilder implements TableBuilder {
 						continue RECURSE;
 					} else {
 						switch (colParams.size.getType()) {
-						case Length.TYPE_AUTO:
+						case AUTO:
 							for (int j = 0; j < colPos.span; ++j) {
 								columnSizeList[k++] = null;
 							}
 							break;
-						case Length.TYPE_ABSOLUTE: {
+						case ABSOLUTE: {
 							double fix = colParams.size.getLength();
 							if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
 								// 分離境界
@@ -335,7 +337,7 @@ public class OnePassTableBuilder implements TableBuilder {
 							}
 						}
 							break;
-						case Length.TYPE_RELATIVE: {
+						case RELATIVE: {
 							double fix = refSize * colParams.size.getLength();
 							if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
 								// 分離境界
@@ -385,7 +387,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				final TableCellBox cellBox = cell.getCellBox();
 				final BlockParams cellParams = cellBox.getBlockParams();
 				if (this.vertical) {
-					if (cellParams.size.getHeightType() != Dimension.TYPE_AUTO) {
+					if (cellParams.size.getHeightType() != LengthType.AUTO) {
 						// パディングの％を無視してセルの外周を計算
 						double space;
 						if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
@@ -397,10 +399,10 @@ public class OnePassTableBuilder implements TableBuilder {
 						cellBox.prepareLayout(containerBox.getLineSize(), this.tableBox, cellSpacing);
 					}
 					switch (cellParams.size.getHeightType()) {
-					case Dimension.TYPE_AUTO:
+					case AUTO:
 						size = null;
 						break;
-					case Dimension.TYPE_ABSOLUTE: {
+					case ABSOLUTE: {
 						double fix = cellParams.size.getHeight();
 						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameHeight();
@@ -409,7 +411,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						size = new ColumnSize(fix, false);
 					}
 						break;
-					case Dimension.TYPE_RELATIVE: {
+					case RELATIVE: {
 						double fix = refSize * cellParams.size.getHeight();
 						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameHeight();
@@ -422,7 +424,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						throw new IllegalStateException();
 					}
 				} else {
-					if (cellParams.size.getWidthType() != Dimension.TYPE_AUTO) {
+					if (cellParams.size.getWidthType() != LengthType.AUTO) {
 						// パディングの％を無視してセルの外周を計算
 						double space;
 						if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
@@ -434,10 +436,10 @@ public class OnePassTableBuilder implements TableBuilder {
 						cellBox.prepareLayout(containerBox.getLineSize(), this.tableBox, cellSpacing);
 					}
 					switch (cellParams.size.getWidthType()) {
-					case Dimension.TYPE_AUTO:
+					case AUTO:
 						size = null;
 						break;
-					case Dimension.TYPE_ABSOLUTE: {
+					case ABSOLUTE: {
 						double fix = cellParams.size.getWidth();
 						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameWidth();
@@ -446,7 +448,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						size = new ColumnSize(fix, false);
 					}
 						break;
-					case Dimension.TYPE_RELATIVE: {
+					case RELATIVE: {
 						double fix = refSize * cellParams.size.getWidth();
 						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameWidth();
@@ -623,7 +625,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				this.firstLayout();
 			}
 			InnerTableParams rowGroupParams = this.bindRowGroupBox.getInnerTableParams();
-			if (rowGroupParams.size.getType() == Length.TYPE_ABSOLUTE) {
+			if (rowGroupParams.size.getType() == LengthType.ABSOLUTE) {
 				if (this.rowGroupBox != this.bindRowGroupBox) {
 					this.bindTableRow(false);
 				}
@@ -1291,13 +1293,13 @@ public class OnePassTableBuilder implements TableBuilder {
 				double cellSize;
 				if (this.vertical) {
 					cellSize = cellBox.getWidth();
-					if (cellParams.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+					if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 						double width = cellParams.size.getWidth();
 						cellSize = Math.max(cellSize, width);
 					}
 				} else {
 					cellSize = cellBox.getHeight();
-					if (cellParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+					if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 						double height = cellParams.size.getHeight();
 						cellSize = Math.max(cellSize, height);
 					}
@@ -1339,7 +1341,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
 				InnerTableParams rowParams = rowBox.getInnerTableParams();
 				double rowSize = this.getSpecificRowSize(rowBox);
-				if (rowParams.size.getType() == Length.TYPE_AUTO) {
+				if (rowParams.size.getType() == LengthType.AUTO) {
 					autoRows[row] = true;
 				}
 				double rowAscent = 0;
@@ -1365,7 +1367,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					cellBox.baseline(rowAscent);
 					final BlockParams cellParams = cellBox.getBlockParams();
 					double cellSize = cellBox.getHeight();
-					if (cellParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+					if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 						double height = cellParams.size.getHeight();
 						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 							height += cellBox.getFrame().getFrameHeight();
@@ -1423,7 +1425,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						}
 						// %の適用
 						TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(kk);
-						if (rowBox.getInnerTableParams().size.getType() == Length.TYPE_RELATIVE) {
+						if (rowBox.getInnerTableParams().size.getType() == LengthType.RELATIVE) {
 							double diff = minRem * rowBox.getInnerTableParams().size.getLength();
 							minRem -= diff;
 							rowBox.setPageSize(rowBox.getPageSize() + diff);
@@ -1474,7 +1476,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			}
 
 			// 行グループ高さ
-			if (rowGroupParams.size.getType() == Length.TYPE_ABSOLUTE) {
+			if (rowGroupParams.size.getType() == LengthType.ABSOLUTE) {
 				double rowSizeSum = 0;
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
 					TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
@@ -1890,7 +1892,7 @@ public class OnePassTableBuilder implements TableBuilder {
 	}
 
 	public void startLayout(RootBuilder builder) {
-		assert this.tableBox.getBlockBox().getPos().getType() == Pos.TYPE_FLOW;
+		assert this.tableBox.getBlockBox().getPos().getType() == PosType.FLOW;
 		FlowBlockBox flowBox = (FlowBlockBox) this.tableBox.getBlockBox();
 		this.builder = builder;
 		this.builder.startFlowBlock(flowBox);
@@ -2001,7 +2003,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			this.builder.endFlowBlock();
 		}
 
-		assert this.tableBox.getBlockBox().getPos().getType() == Pos.TYPE_FLOW;
+		assert this.tableBox.getBlockBox().getPos().getType() == PosType.FLOW;
 		this.builder.endFlowBlock();
 	}
 

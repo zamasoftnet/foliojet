@@ -153,13 +153,13 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			// 縦書き
 			double top, bottom;
 			switch (rframe.margin.getTopType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				top = rframe.margin.getTop();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				top = rframe.margin.getTop() * lineSize;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				top = 0;
 				break;
 			default:
@@ -167,13 +167,13 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			}
 
 			switch (rframe.margin.getBottomType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				bottom = rframe.margin.getBottom();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				bottom = rframe.margin.getBottom() * lineSize;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				bottom = 0;
 				break;
 			default:
@@ -187,26 +187,26 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			// 横書き
 			double left, right;
 			switch (rframe.margin.getLeftType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				left = rframe.margin.getLeft();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				left = rframe.margin.getLeft() * lineSize;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				left = 0;
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (rframe.margin.getRightType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				right = rframe.margin.getRight();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				right = rframe.margin.getRight() * lineSize;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				right = 0;
 				break;
 			default:

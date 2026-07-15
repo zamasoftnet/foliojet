@@ -22,8 +22,8 @@ public class AbsolutePos implements Pos {
 	 */
 	public byte fiducial = Types.FODUCIAL_CONTEXT;
 
-	public byte getType() {
-		return TYPE_ABSOLUTE;
+	public PosType getType() {
+		return PosType.ABSOLUTE;
 	}
 
 	public String toString() {

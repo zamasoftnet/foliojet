@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.box.impl;
 import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.style.box.IAbsoluteBox;
 import net.zamasoft.foliojet.style.box.IFramedBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Pos;
@@ -46,8 +47,8 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		// 横書き
 		double left = StyleUtils.computeInsetsLeft(this.pos.location, cWidth);
 		double right = StyleUtils.computeInsetsRight(this.pos.location, cWidth);
-		double marginLeft = margin.getLeftType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.left;
-		double marginRight = margin.getRightType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.right;
+		double marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
+		double marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
 		if (!StyleUtils.isNone(left) && !StyleUtils.isNone(right)) {
 			if (StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
 				marginLeft = marginRight = (cWidth - left - right - this.width - this.frame.getFrameWidth()) / 2.0;
@@ -86,8 +87,8 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 
 		double top = StyleUtils.computeInsetsTop(this.pos.location, cHeight);
 		double bottom = StyleUtils.computeInsetsBottom(this.pos.location, cHeight);
-		double marginTop = margin.getTopType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.top;
-		double marginBottom = margin.getBottomType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.bottom;
+		double marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
+		double marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
 		if (!StyleUtils.isNone(top) && !StyleUtils.isNone(bottom)) {
 			if (StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
 				marginTop = marginBottom = (cHeight - top - bottom - this.height - this.frame.getFrameHeight()) / 2.0;

@@ -13,7 +13,7 @@ public class PagePos implements Pos {
 		// private
 	}
 
-	public byte getType() {
-		return TYPE_PAGE;
+	public PosType getType() {
+		return PosType.PAGE;
 	}
 }

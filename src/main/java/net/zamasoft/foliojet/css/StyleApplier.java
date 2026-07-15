@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.impl.css.property.text.WhiteSpace;
 import net.zamasoft.foliojet.impl.css.property.box.Width;
 import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -90,7 +91,7 @@ public class StyleApplier {
 		}
 
 		short display = Display.get(style);
-		if (display == DisplayValue.TABLE_CELL && Width.getLength(style).getType() == Length.TYPE_ABSOLUTE) {
+		if (display == DisplayValue.TABLE_CELL && Width.getLength(style).getType() == LengthType.ABSOLUTE) {
 			// 幅指定されている場合はwhite-space: normal;を適用する
 			Length length;
 			final CSSStyle pStyle = style.getParentStyle();
@@ -99,7 +100,7 @@ public class StyleApplier {
 			} else {
 				length = Width.getLength(style);
 			}
-			if (length.getType() == Length.TYPE_ABSOLUTE) {
+			if (length.getType() == LengthType.ABSOLUTE) {
 				style.set(WhiteSpace.INFO, WhiteSpaceValue.NORMAL_VALUE);
 			}
 		}

@@ -19,20 +19,20 @@ public abstract class AbstractBox implements IBox {
 		double ay = y;
 		Offset offset = this.getParams().transformOrigin;
 		switch (offset.getXType()) {
-		case Offset.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			ax += offset.getX();
 			break;
-		case Offset.TYPE_RELATIVE:
+		case RELATIVE:
 			ax += this.getWidth() * offset.getX();
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 		switch (offset.getXType()) {
-		case Offset.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			ay += offset.getY();
 			break;
-		case Offset.TYPE_RELATIVE:
+		case RELATIVE:
 			ay += this.getHeight() * offset.getY();
 			break;
 		default:

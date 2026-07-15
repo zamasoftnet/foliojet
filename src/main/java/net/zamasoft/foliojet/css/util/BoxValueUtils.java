@@ -7,6 +7,7 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Length;
@@ -72,15 +73,15 @@ public final class BoxValueUtils {
 				dimensionType(heightValue));
 	}
 
-	private static byte dimensionType(Value value) {
+	private static LengthType dimensionType(Value value) {
 		if (value instanceof AbsoluteLengthValue) {
-			return Dimension.TYPE_ABSOLUTE;
+			return LengthType.ABSOLUTE;
 		}
 		if (value instanceof PercentageValue) {
-			return Dimension.TYPE_RELATIVE;
+			return LengthType.RELATIVE;
 		}
 		if (value == KeywordValue.NONE || value == KeywordValue.AUTO) {
-			return Dimension.TYPE_AUTO;
+			return LengthType.AUTO;
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}
@@ -93,10 +94,10 @@ public final class BoxValueUtils {
 			return Length.AUTO_LENGTH;
 		}
 		if (value instanceof PercentageValue percentage) {
-			return Length.create(percentage.getRatio(), Length.TYPE_RELATIVE);
+			return Length.create(percentage.getRatio(), LengthType.RELATIVE);
 		}
 		if (value instanceof AbsoluteLengthValue length) {
-			return Length.create(length.getLength(), Length.TYPE_ABSOLUTE);
+			return Length.create(length.getLength(), LengthType.ABSOLUTE);
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}
@@ -150,15 +151,15 @@ public final class BoxValueUtils {
 				insetsType(right), insetsType(bottom), insetsType(left));
 	}
 
-	private static short insetsType(Value value) {
+	private static LengthType insetsType(Value value) {
 		if (value instanceof AbsoluteLengthValue) {
-			return Insets.TYPE_ABSOLUTE;
+			return LengthType.ABSOLUTE;
 		}
 		if (value instanceof PercentageValue) {
-			return Insets.TYPE_RELATIVE;
+			return LengthType.RELATIVE;
 		}
 		if (value == KeywordValue.AUTO) {
-			return Insets.TYPE_AUTO;
+			return LengthType.AUTO;
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}
@@ -167,15 +168,15 @@ public final class BoxValueUtils {
 		return Offset.create(quantity(xValue), quantity(yValue), offsetType(xValue), offsetType(yValue));
 	}
 
-	private static short offsetType(Value value) {
+	private static LengthType offsetType(Value value) {
 		if (value instanceof AbsoluteLengthValue) {
-			return Offset.TYPE_ABSOLUTE;
+			return LengthType.ABSOLUTE;
 		}
 		if (value instanceof PercentageValue) {
-			return Offset.TYPE_RELATIVE;
+			return LengthType.RELATIVE;
 		}
 		if (value == KeywordValue.AUTO) {
-			return Offset.TYPE_AUTO;
+			return LengthType.AUTO;
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}

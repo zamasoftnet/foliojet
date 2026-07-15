@@ -1,6 +1,8 @@
 package net.zamasoft.foliojet.style.box;
 
 import net.zamasoft.foliojet.style.box.content.Container;
+import net.zamasoft.foliojet.style.box.params.LengthType;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
@@ -41,7 +43,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 
 	public void shrinkToFit(LayoutStack layoutStack, double minLineAxis, double maxLineAxis, boolean table) {
 		final AbstractContainerBox containerBox;
-		if (this.getPos().getType() == Pos.TYPE_FLOW) {
+		if (this.getPos().getType() == PosType.FLOW) {
 			if (table) {
 				// テーブル
 				BlockBuilder builder = (BlockBuilder) layoutStack;
@@ -60,14 +62,14 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double lineSize = containerBox.getLineSize();
 		if (StyleUtils.isVertical(this.params.flow)) {
 			// 縦書き
-			this.specifiedPageAxis = this.params.size.getWidthType() == Dimension.TYPE_ABSOLUTE
-					|| (this.params.size.getWidthType() == Dimension.TYPE_RELATIVE && (!table
-							&& (this.getPos().getType() == Pos.TYPE_INLINE || containerBox.isSpecifiedPageSize())));
+			this.specifiedPageAxis = this.params.size.getWidthType() == LengthType.ABSOLUTE
+					|| (this.params.size.getWidthType() == LengthType.RELATIVE && (!table
+							&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
 		} else {
 			// 横書き
-			this.specifiedPageAxis = this.params.size.getHeightType() == Dimension.TYPE_ABSOLUTE
-					|| (this.params.size.getHeightType() == Dimension.TYPE_RELATIVE && (!table
-							&& (this.getPos().getType() == Pos.TYPE_INLINE || containerBox.isSpecifiedPageSize())));
+			this.specifiedPageAxis = this.params.size.getHeightType() == LengthType.ABSOLUTE
+					|| (this.params.size.getHeightType() == LengthType.RELATIVE && (!table
+							&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
 		}
 
 		//
@@ -99,7 +101,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					this.height -= this.frame.getBorderHeight();
 				}
 			}
-			if ((this.size.getHeightType() == Dimension.TYPE_AUTO) &&
+			if ((this.size.getHeightType() == LengthType.AUTO) &&
 			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
 					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
 				double limitHeight;
@@ -122,15 +124,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 
 			double minWidth;
 			switch (this.minSize.getWidthType()) {
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				if (!table && this.isSpecifiedPageSize()) {
 					minWidth = this.minSize.getWidth() * cWidth;
 					break;
 				}
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				minWidth = 0;
 				break;
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				minWidth = this.minSize.getWidth();
 				break;
 			default:
@@ -138,22 +140,22 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			}
 			double maxWidth;
 			switch (this.params.maxSize.getWidthType()) {
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				if (!table && this.isSpecifiedPageSize()) {
 					maxWidth = params.maxSize.getWidth() * cWidth;
 					break;
 				}
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				maxWidth = Double.MAX_VALUE;
 				break;
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				maxWidth = this.params.maxSize.getWidth();
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (this.size.getWidthType()) {
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				if (!table && this.isSpecifiedPageSize()) {
 					this.width = this.size.getWidth() * cWidth;
 					this.width = Math.max(this.width, minWidth);
@@ -164,12 +166,12 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					minWidth = maxWidth = this.width;
 					break;
 				}
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				if (!table) {
 					this.width = 0;
 				}
 				break;
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				this.width = this.size.getWidth();
 				this.width = Math.max(this.width, minWidth);
 				this.width = Math.min(this.width, maxWidth);
@@ -199,7 +201,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					this.width -= this.frame.getBorderWidth();
 				}
 			}
-			if ((this.size.getWidthType() == Dimension.TYPE_AUTO) &&
+			if ((this.size.getWidthType() == LengthType.AUTO) &&
 			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
 					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
 				double limitWidth;
@@ -222,15 +224,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 
 			double minHeight;
 			switch (this.minSize.getHeightType()) {
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				if (!table && this.isSpecifiedPageSize()) {
 					minHeight = this.minSize.getHeight() * cHeight;
 					break;
 				}
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				minHeight = 0;
 				break;
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				minHeight = this.minSize.getHeight();
 				break;
 			default:
@@ -238,22 +240,22 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			}
 			double maxHeight;
 			switch (this.params.maxSize.getHeightType()) {
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				if (!table && this.isSpecifiedPageSize()) {
 					maxHeight = this.params.maxSize.getHeight() * cHeight;
 					break;
 				}
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				maxHeight = Double.MAX_VALUE;
 				break;
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				maxHeight = this.params.maxSize.getHeight();
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (this.size.getHeightType()) {
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				if (!table && this.isSpecifiedPageSize()) {
 					this.height = this.size.getHeight() * cHeight;
 					this.height = Math.max(this.height, minHeight);
@@ -265,10 +267,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					maxHeight = this.height;
 					break;
 				}
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				this.height = 0;
 				break;
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				this.height = this.size.getHeight();
 				this.height = Math.max(this.height, minHeight);
 				this.height = Math.min(this.height, maxHeight);

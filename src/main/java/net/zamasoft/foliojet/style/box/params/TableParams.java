@@ -21,8 +21,8 @@ public class TableParams extends BlockParams {
 
 	public byte layout = LAYOUT_AUTO;
 
-	public byte getType() {
-		return TYPE_TABLE;
+	public ParamsType getType() {
+		return ParamsType.TABLE;
 	}
 
 	public String toString() {

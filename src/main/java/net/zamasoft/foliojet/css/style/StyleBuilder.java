@@ -153,6 +153,8 @@ import net.zamasoft.foliojet.style.box.impl.TableColumnBox;
 import net.zamasoft.foliojet.style.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.style.box.params.AbstractStaticPos;
@@ -888,23 +890,23 @@ public class StyleBuilder implements PageGenerator {
 		Value left = Inset.get(style, Side.LEFT);
 
 		final double x, y;
-		final short xType, yType;
+		final LengthType xType, yType;
 
 		if (top instanceof AbsoluteLengthValue length) {
-			yType = Insets.TYPE_ABSOLUTE;
+			yType = LengthType.ABSOLUTE;
 			y = length.getLength();
 		} else if (top instanceof PercentageValue percentage) {
-			yType = Insets.TYPE_RELATIVE;
+			yType = LengthType.RELATIVE;
 			y = percentage.getRatio();
 		} else if (top == KeywordValue.AUTO) {
 			if (bottom instanceof AbsoluteLengthValue length) {
-				yType = Insets.TYPE_ABSOLUTE;
+				yType = LengthType.ABSOLUTE;
 				y = -length.getLength();
 			} else if (bottom instanceof PercentageValue percentage) {
-				yType = Insets.TYPE_RELATIVE;
+				yType = LengthType.RELATIVE;
 				y = -percentage.getRatio();
 			} else if (bottom == KeywordValue.AUTO) {
-				yType = Insets.TYPE_AUTO;
+				yType = LengthType.AUTO;
 				y = 0;
 			} else {
 				throw new IllegalStateException(String.valueOf(bottom));
@@ -914,20 +916,20 @@ public class StyleBuilder implements PageGenerator {
 		}
 
 		if (left instanceof AbsoluteLengthValue length) {
-			xType = Insets.TYPE_ABSOLUTE;
+			xType = LengthType.ABSOLUTE;
 			x = length.getLength();
 		} else if (left instanceof PercentageValue percentage) {
-			xType = Insets.TYPE_RELATIVE;
+			xType = LengthType.RELATIVE;
 			x = percentage.getRatio();
 		} else if (left == KeywordValue.AUTO) {
 			if (right instanceof AbsoluteLengthValue length) {
-				xType = Insets.TYPE_ABSOLUTE;
+				xType = LengthType.ABSOLUTE;
 				x = -length.getLength();
 			} else if (right instanceof PercentageValue percentage) {
-				xType = Insets.TYPE_RELATIVE;
+				xType = LengthType.RELATIVE;
 				x = -percentage.getRatio();
 			} else if (right == KeywordValue.AUTO) {
-				xType = Insets.TYPE_AUTO;
+				xType = LengthType.AUTO;
 				x = 0;
 			} else {
 				throw new IllegalStateException(String.valueOf(right));
@@ -1222,8 +1224,8 @@ public class StyleBuilder implements PageGenerator {
 							params.direction = Direction.get(style);
 							params.flow = BlockFlow.get(style);
 							params.element = ce;
-							final Insets margin = Insets.create(0, 0, -LineHeight.get(style), 0, Insets.TYPE_ABSOLUTE,
-									Insets.TYPE_ABSOLUTE, Insets.TYPE_ABSOLUTE, Insets.TYPE_ABSOLUTE);
+							final Insets margin = Insets.create(0, 0, -LineHeight.get(style), 0, LengthType.ABSOLUTE,
+									LengthType.ABSOLUTE, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 							params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER,
 									Background.NULL_BACKGROUND, Insets.NULL_INSETS);
 							// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
@@ -1722,14 +1724,14 @@ public class StyleBuilder implements PageGenerator {
 			this.setupBlockParams(mcParams, mc);
 			this.setupFlowPos(mcPos, mc);
 			mcParams.columns = params.columns;
-			if (params.size.getWidthType() != Dimension.TYPE_AUTO) {
-				if (params.size.getHeightType() != Dimension.TYPE_AUTO) {
-					mcParams.size = Dimension.create(1, 1, Dimension.TYPE_RELATIVE, Dimension.TYPE_RELATIVE);
+			if (params.size.getWidthType() != LengthType.AUTO) {
+				if (params.size.getHeightType() != LengthType.AUTO) {
+					mcParams.size = Dimension.create(1, 1, LengthType.RELATIVE, LengthType.RELATIVE);
 				} else {
-					mcParams.size = Dimension.create(1, 0, Dimension.TYPE_RELATIVE, Dimension.TYPE_AUTO);
+					mcParams.size = Dimension.create(1, 0, LengthType.RELATIVE, LengthType.AUTO);
 				}
-			} else if (params.size.getHeightType() != Dimension.TYPE_AUTO) {
-				mcParams.size = Dimension.create(0, 1, Dimension.TYPE_AUTO, Dimension.TYPE_RELATIVE);
+			} else if (params.size.getHeightType() != LengthType.AUTO) {
+				mcParams.size = Dimension.create(0, 1, LengthType.AUTO, LengthType.RELATIVE);
 			}
 			final MulticolumnBlockBox mcBox = new MulticolumnBlockBox(mcParams, mcPos);
 			this.doc.startBox(mcBox);
@@ -1950,12 +1952,12 @@ public class StyleBuilder implements PageGenerator {
 				this.setupBlockParams(params, style);
 				final AbstractBlockBox blockBox = this.createBlockBox(style, params, position, display, floating);
 				// HTMLのルートは出力を保留する
-				if (blockBox.getPos().getType() == Pos.TYPE_FLOW && htmlRoot) {
+				if (blockBox.getPos().getType() == PosType.FLOW && htmlRoot) {
 					this.htmlRootBlock = (FlowBlockBox) blockBox;
 					break;
 				}
 				this.requireRoot(params.direction, params.flow);
-				if (blockBox.getPos().getType() == Pos.TYPE_INLINE) {
+				if (blockBox.getPos().getType() == PosType.INLINE) {
 					this.checkMarker();
 				}
 				this.doc.startBox(blockBox);
@@ -2006,7 +2008,7 @@ public class StyleBuilder implements PageGenerator {
 			final TableParams params = new TableParams();
 			this.setupTableParams(params, style);
 			final AbstractBlockBox blockBox = this.createBlockBox(style, params, position, display, floating);
-			if (blockBox.getPos().getType() == Pos.TYPE_FLOW) {
+			if (blockBox.getPos().getType() == PosType.FLOW) {
 				if (CSSJHtmlAlign.get(style) == Types.ALIGN_CENTER) {
 					((FlowPos) blockBox.getPos()).align = Types.ALIGN_CENTER;
 				}
@@ -2616,13 +2618,13 @@ public class StyleBuilder implements PageGenerator {
 		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
 			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
 				// 横書き
-				params.size = Dimension.create(width, height, Dimension.TYPE_ABSOLUTE, Dimension.TYPE_AUTO);
+				params.size = Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.AUTO);
 			} else {
 				// 縦書き
-				params.size = Dimension.create(width, height, Dimension.TYPE_AUTO, Dimension.TYPE_ABSOLUTE);
+				params.size = Dimension.create(width, height, LengthType.AUTO, LengthType.ABSOLUTE);
 			}
 		} else {
-			params.size = Dimension.create(width, height, Dimension.TYPE_ABSOLUTE, Dimension.TYPE_ABSOLUTE);
+			params.size = Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 		}
 		params.overflow = Types.OVERFLOW_VISIBLE;
 

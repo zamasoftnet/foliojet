@@ -10,8 +10,8 @@ public class FirstLineParams extends AbstractLineParams {
 
 	public Background background = Background.NULL_BACKGROUND;
 
-	public byte getType() {
-		return TYPE_FIRST_LINE;
+	public ParamsType getType() {
+		return ParamsType.FIRST_LINE;
 	}
 
 	public String toString() {

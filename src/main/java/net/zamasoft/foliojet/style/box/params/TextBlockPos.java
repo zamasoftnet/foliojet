@@ -13,7 +13,7 @@ public class TextBlockPos implements Pos {
 		// private
 	}
 
-	public byte getType() {
-		return TYPE_TEXT_BLOCK;
+	public PosType getType() {
+		return PosType.TEXT_BLOCK;
 	}
 }

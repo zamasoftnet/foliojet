@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.style.box.impl.TableBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.FloatPos;
 import net.zamasoft.foliojet.style.box.params.FlowPos;
@@ -314,7 +315,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		byte pageBreakBefore, pageBreakAfter;
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			// 通常のフロー
 			assert this.textBuilder == null;
 			final FlowPos pos = (FlowPos) box.getPos();
@@ -325,19 +326,19 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				;
 			break;
 		}
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			// 浮動ボックス
 			final FloatPos pos = (FloatPos) box.getPos();
 			pageBreakBefore = pos.pageBreakBefore;
 			pageBreakAfter = pos.pageBreakAfter;
 			break;
 		}
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			// 絶対配置
 			super.addBound(box);
 			return;
 		}
-		case Pos.TYPE_TABLE: {
+		case TABLE: {
 			pageBreakAfter = pageBreakBefore = Types.PAGE_BREAK_AUTO;
 			break;
 		}
@@ -426,7 +427,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			case BLOCK:
 				break;
 			case REPLACED: {
-				if (box.getPos().getType() != Pos.TYPE_FLOW) {
+				if (box.getPos().getType() != PosType.FLOW) {
 					break;
 				}
 				for (;;) {

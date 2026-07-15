@@ -9,8 +9,8 @@ package net.zamasoft.foliojet.style.box.params;
 public class FloatPos extends AbstractNormalFlowPos implements Pos {
 	public byte floating = Types.FLOATING_START;
 
-	public byte getType() {
-		return TYPE_FLOAT;
+	public PosType getType() {
+		return PosType.FLOAT;
 	}
 
 	public String toString() {

@@ -24,6 +24,7 @@ import net.zamasoft.foliojet.style.box.impl.InlineBox;
 import net.zamasoft.foliojet.style.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.style.box.impl.RubyBox;
 import net.zamasoft.foliojet.style.box.impl.TableBox;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Columns;
@@ -276,13 +277,13 @@ public class DocumentBuilder {
 		}
 		this.requirePage();
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_TABLE: {
+		case TABLE: {
 			// テーブル
 			final TableBox tableBox = (TableBox) box;
 			final TableParams tableParams = tableBox.getTableParams();
 			final Builder builder = this.containerBuilder().builder;
 			switch (tableBox.getBlockBox().getPos().getType()) {
-			case Pos.TYPE_FLOW:
+			case FLOW:
 				this.closeInlines(tableParams);
 				this.endContainer();
 				this.startContainer();
@@ -302,8 +303,8 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_TABLE_CELL:
-		case Pos.TYPE_TABLE_CAPTION: {
+		case TABLE_CELL:
+		case TABLE_CAPTION: {
 			// テーブルセル
 			// キャプション
 			final TableBuilder tableBuiler = this.tableBuilder();
@@ -319,9 +320,9 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_TABLE_COLUMN:
-		case Pos.TYPE_TABLE_ROW_GROUP:
-		case Pos.TYPE_TABLE_ROW: {
+		case TABLE_COLUMN:
+		case TABLE_ROW_GROUP:
+		case TABLE_ROW: {
 			// テーブルカラムグループ
 			// テーブルカラム
 			// テーブル行グループ
@@ -339,7 +340,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_INLINE: {
+		case INLINE: {
 			// インライン
 			if (box.getType() == BoxType.INLINE) {
 				final InlineBox inlineBox = (InlineBox) box;
@@ -355,7 +356,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			// 通常のフローのボックス
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
 			final BlockParams params = blockBox.getBlockParams();
@@ -395,14 +396,14 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_FLOAT:
+		case FLOAT:
 			// 浮動体
 			this.containerBuilder().getStyledTextUnitizer().flushText();
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			// 絶対位置指定
 			final AbstractBlockBox stfBox = (AbstractBlockBox) box;
 			final Builder builder = this.contextBuilder().builder;
-			if (box.getPos().getType() == Pos.TYPE_ABSOLUTE) {
+			if (box.getPos().getType() == PosType.ABSOLUTE) {
 				final AbsolutePos pos = (AbsolutePos) stfBox.getPos();
 				if (pos.autoPosition == Types.AUTO_POSITION_INLINE) {
 					this.containerBuilder().getStyledTextUnitizer().flushText();
@@ -427,17 +428,17 @@ public class DocumentBuilder {
 			System.err.println("endBox: " + box.getParams().element);
 		}
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_TABLE: {
+		case TABLE: {
 			// テーブル
 			final TableBuilder tableBuilder = this.endTableBuilder();
 			final TableBox tableBox = tableBuilder.getTableBox();
 			final TableParams tableParams = tableBox.getTableParams();
 			switch (tableBox.getBlockBox().getPos().getType()) {
-			case Pos.TYPE_FLOW:
+			case FLOW:
 				this.closeInlines(tableBox.getBlockBox().getParams());
 				this.endContainer();
 				break;
-			case Pos.TYPE_FLOAT:
+			case FLOAT:
 				this.containerBuilder().getStyledTextUnitizer().flushText();
 				break;
 			}
@@ -451,14 +452,14 @@ public class DocumentBuilder {
 				fixedTableBuilder.endLayout();
 			}
 			switch (tableBox.getBlockBox().getPos().getType()) {
-			case Pos.TYPE_FLOW:
+			case FLOW:
 				this.startContainer();
 				this.restoreInlines(tableParams);
 				break;
-			case Pos.TYPE_INLINE:
+			case INLINE:
 				this.containerBuilder().getStyledTextUnitizer().addInlineBlock((InlineBlockBox) tableBox.getBlockBox());
 				break;
-			case Pos.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) tableBox.getBlockBox();
 				if (absoluteBox.getAbsolutePos().autoPosition == Types.AUTO_POSITION_INLINE) {
 					this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
@@ -467,8 +468,8 @@ public class DocumentBuilder {
 			}
 		}
 			break;
-		case Pos.TYPE_TABLE_CELL:
-		case Pos.TYPE_TABLE_CAPTION: {
+		case TABLE_CELL:
+		case TABLE_CAPTION: {
 			// テーブルセル
 			// キャプション
 			this.endContainer();
@@ -476,9 +477,9 @@ public class DocumentBuilder {
 			assert this.builderStack.size() != 1;
 		}
 			break;
-		case Pos.TYPE_TABLE_COLUMN:
-		case Pos.TYPE_TABLE_ROW_GROUP:
-		case Pos.TYPE_TABLE_ROW: {
+		case TABLE_COLUMN:
+		case TABLE_ROW_GROUP:
+		case TABLE_ROW: {
 			// テーブル列グループ
 			// テーブル列
 			// テーブル行グループ
@@ -487,7 +488,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_INLINE: {
+		case INLINE: {
 			if (box.getType() == BoxType.INLINE) {
 				// インライン
 				this.containerBuilder().getStyledTextUnitizer().endInline();
@@ -511,7 +512,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			// 通常のフロー
 			this.endContainer();
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
@@ -547,7 +548,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			// 浮動体
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
@@ -587,7 +588,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			// 絶対位置指定
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
@@ -634,7 +635,7 @@ public class DocumentBuilder {
 		this.requirePage();
 
 		switch (replacedBox.getPos().getType()) {
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			// 通常のフロー
 			// ぶちぬき
 			final FlowPos pos = ((FlowReplacedBox) replacedBox).getFlowPos();
@@ -656,7 +657,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			// 浮動体
 			final Builder context = this.containerBuilder().builder;
 			final FloatPos pos = (FloatPos) replacedBox.getPos();
@@ -676,7 +677,7 @@ public class DocumentBuilder {
 			}
 		}
 			break;
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			// 絶対位置指定
 			final Builder context = this.containerBuilder().builder;
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) replacedBox;
@@ -693,7 +694,7 @@ public class DocumentBuilder {
 		}
 			break;
 
-		case Pos.TYPE_INLINE: {
+		case INLINE: {
 			// インライン
 			this.containerBuilder().getStyledTextUnitizer().addInlineReplaced(replacedBox);
 		}

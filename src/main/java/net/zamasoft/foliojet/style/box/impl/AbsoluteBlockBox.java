@@ -7,6 +7,7 @@ import net.zamasoft.foliojet.style.box.AbstractBlockBox;
 import net.zamasoft.foliojet.style.box.IAbsoluteBox;
 import net.zamasoft.foliojet.style.box.IFramedBox;
 import net.zamasoft.foliojet.style.box.content.Container;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
@@ -107,8 +108,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				left = StyleUtils.computeInsetsLeft(pos.location, cWidth);
 				double right = StyleUtils.computeInsetsRight(pos.location, cWidth);
 				if (!StyleUtils.isNone(left) && !StyleUtils.isNone(right) && !StyleUtils.isNone(width)) {
-					marginLeft = margin.getLeftType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.left;
-					marginRight = margin.getRightType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.right;
+					marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
+					marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
 					if (StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
 						marginLeft = marginRight = (cWidth - left - right - width - this.frame.getFrameWidth()) / 2.0;
 					}
@@ -172,8 +173,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 					break;
 				}
 			}
-			marginTop = margin.getTopType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.top;
-			marginBottom = margin.getBottomType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.bottom;
+			marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
+			marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
 			assert !StyleUtils.isNone(left);
 			this.offsetX = left;
 			this.frame.margin.top = marginTop;
@@ -197,8 +198,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				top = StyleUtils.computeInsetsTop(pos.location, cHeight);
 				double bottom = StyleUtils.computeInsetsBottom(pos.location, cHeight);
 				if (!StyleUtils.isNone(top) && !StyleUtils.isNone(bottom) && !StyleUtils.isNone(height)) {
-					marginTop = margin.getTopType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.top;
-					marginBottom = margin.getBottomType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.bottom;
+					marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
+					marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
 					if (StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
 						marginTop = marginBottom = (cHeight - top - bottom - height - this.frame.getFrameHeight())
 								/ 2.0;
@@ -263,8 +264,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 					break;
 				}
 			}
-			marginLeft = margin.getLeftType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.left;
-			marginRight = margin.getRightType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.right;
+			marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
+			marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
 			assert !StyleUtils.isNone(top);
 			this.offsetY = top;
 			this.frame.margin.top = marginTop;

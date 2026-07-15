@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.style.box.IPageBreakableBox;
 import net.zamasoft.foliojet.style.box.content.BreakMode;
 import net.zamasoft.foliojet.style.box.content.Container;
 import net.zamasoft.foliojet.style.box.content.FlowContainer;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
@@ -74,8 +75,8 @@ public class PageBox extends AbstractBlockBox {
 
 	public PageBox(BlockParams params, UserAgent ua, Container container) {
 		super(params, params.size, params.minSize, new AbsoluteRectFrame(params.frame), container);
-		assert this.size.getWidthType() != Dimension.TYPE_RELATIVE;
-		assert this.size.getHeightType() != Dimension.TYPE_RELATIVE;
+		assert this.size.getWidthType() != LengthType.RELATIVE;
+		assert this.size.getHeightType() != LengthType.RELATIVE;
 
 		this.ua = ua;
 
@@ -83,13 +84,13 @@ public class PageBox extends AbstractBlockBox {
 		switch (params.flow) {
 		case AbstractTextParams.FLOW_TB:
 			// 横書き
-			assert this.size.getWidthType() == Dimension.TYPE_ABSOLUTE;
+			assert this.size.getWidthType() == LengthType.ABSOLUTE;
 			lineWidth = this.size.getWidth();
 			break;
 		case AbstractTextParams.FLOW_LR:
 		case AbstractTextParams.FLOW_RL:
 			// 縦書き
-			assert this.size.getHeightType() == Dimension.TYPE_ABSOLUTE;
+			assert this.size.getHeightType() == LengthType.ABSOLUTE;
 			lineWidth = this.size.getHeight();
 			break;
 		default:
@@ -101,52 +102,52 @@ public class PageBox extends AbstractBlockBox {
 			Insets insets = frame.margin;
 			double top, right, bottom, left;
 			switch (insets.getTopType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				top = insets.getTop();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				top = insets.getTop() * lineWidth;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				top = 0;
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (insets.getBottomType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				bottom = insets.getBottom();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				bottom = insets.getBottom() * lineWidth;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				bottom = 0;
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (insets.getLeftType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				left = insets.getLeft();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				left = insets.getLeft() * lineWidth;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				left = 0;
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (insets.getRightType()) {
-			case Insets.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				right = insets.getRight();
 				break;
-			case Insets.TYPE_RELATIVE:
+			case RELATIVE:
 				right = insets.getRight() * lineWidth;
 				break;
-			case Insets.TYPE_AUTO:
+			case AUTO:
 				right = 0;
 				break;
 			default:
@@ -156,10 +157,10 @@ public class PageBox extends AbstractBlockBox {
 			this.frame.margin.right = right;
 			this.frame.margin.bottom = bottom;
 			this.frame.margin.left = left;
-			if (this.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+			if (this.size.getWidthType() == LengthType.ABSOLUTE) {
 				this.visualWidth = this.width = this.size.getWidth() - this.frame.getFrameWidth();
 			}
-			if (this.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+			if (this.size.getHeightType() == LengthType.ABSOLUTE) {
 				this.visualHeight = this.height = this.size.getHeight() - this.frame.getFrameHeight();
 			}
 		}
@@ -251,7 +252,7 @@ public class PageBox extends AbstractBlockBox {
 		case AbstractTextParams.FLOW_TB: {
 			// 横書き
 			this.visualHeight = Math.max(this.visualHeight, newSize);
-			if (this.size.getHeightType() != Dimension.TYPE_AUTO || newSize <= this.height) {
+			if (this.size.getHeightType() != LengthType.AUTO || newSize <= this.height) {
 				return;
 			}
 			this.height = Math.max(this.minPageAxis, newSize);
@@ -262,7 +263,7 @@ public class PageBox extends AbstractBlockBox {
 		case AbstractTextParams.FLOW_RL: {
 			// 縦書き
 			this.visualWidth = Math.max(this.visualWidth, newSize);
-			if (this.size.getWidthType() != Dimension.TYPE_AUTO || newSize <= this.width) {
+			if (this.size.getWidthType() != LengthType.AUTO || newSize <= this.width) {
 				return;
 			}
 			this.width = Math.max(this.minPageAxis, newSize);
@@ -284,10 +285,10 @@ public class PageBox extends AbstractBlockBox {
 
 	public final void addFixed(Drawer drawer, Visitor visitor, IAbsoluteBox box, double x, double y) {
 		AbsolutePos pos = box.getAbsolutePos();
-		if (pos.location.getLeftType() != Insets.TYPE_AUTO || pos.location.getRightType() != Insets.TYPE_AUTO) {
+		if (pos.location.getLeftType() != LengthType.AUTO || pos.location.getRightType() != LengthType.AUTO) {
 			x = 0;
 		}
-		if (pos.location.getTopType() != Insets.TYPE_AUTO || pos.location.getBottomType() != Insets.TYPE_AUTO) {
+		if (pos.location.getTopType() != LengthType.AUTO || pos.location.getBottomType() != LengthType.AUTO) {
 			y = 0;
 		}
 		box.finishLayout(this);

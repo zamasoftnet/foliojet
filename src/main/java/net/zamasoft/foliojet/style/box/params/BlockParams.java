@@ -29,8 +29,8 @@ public class BlockParams extends AbstractLineParams {
 
 	public Columns columns = Columns.NONE_COLUMNS;
 
-	public byte getType() {
-		return TYPE_BLOCK;
+	public ParamsType getType() {
+		return ParamsType.BLOCK;
 	}
 
 	public String toString() {

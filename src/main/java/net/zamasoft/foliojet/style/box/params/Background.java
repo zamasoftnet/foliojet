@@ -170,36 +170,36 @@ public class Background {
 				double imageWidth = 0, imageHeight = 0;
 				Dimension size = this.backgroundImage.size;
 				switch (size.getWidthType()) {
-				case Dimension.TYPE_ABSOLUTE:
+				case ABSOLUTE:
 					imageWidth = size.getWidth();
 					break;
-				case Dimension.TYPE_RELATIVE:
+				case RELATIVE:
 					imageWidth = size.getWidth() * paddingWidth;
 					break;
-				case Dimension.TYPE_AUTO:
+				case AUTO:
 					break;
 				default:
 					throw new IllegalStateException();
 				}
 				switch (size.getHeightType()) {
-				case Dimension.TYPE_ABSOLUTE:
+				case ABSOLUTE:
 					imageHeight = size.getHeight();
 					break;
-				case Dimension.TYPE_RELATIVE:
+				case RELATIVE:
 					imageHeight = size.getHeight() * paddingHeight;
 					break;
-				case Dimension.TYPE_AUTO:
+				case AUTO:
 					break;
 				default:
 					throw new IllegalStateException();
 				}
-				if (size.getWidthType() == Dimension.TYPE_AUTO) {
-					if (size.getHeightType() == Dimension.TYPE_AUTO) {
+				if (size.getWidthType() == LengthType.AUTO) {
+					if (size.getHeightType() == LengthType.AUTO) {
 						throw new IllegalStateException();
 					}
 					imageWidth = imageHeight * this.backgroundImage.image.getWidth()
 							/ this.backgroundImage.image.getHeight();
-				} else if (size.getHeightType() == Dimension.TYPE_AUTO) {
+				} else if (size.getHeightType() == LengthType.AUTO) {
 					imageHeight = imageWidth * this.backgroundImage.image.getHeight()
 							/ this.backgroundImage.image.getWidth();
 				}
@@ -216,24 +216,24 @@ public class Background {
 					// 位置
 					Offset pos = this.backgroundImage.position;
 					switch (pos.getXType()) {
-					case Dimension.TYPE_ABSOLUTE:
+					case ABSOLUTE:
 						offX += pos.getX();
 						break;
-					case Dimension.TYPE_RELATIVE:
+					case RELATIVE:
 						offX += pos.getX() * (paddingWidth - imageWidth);
 						break;
-					case Dimension.TYPE_AUTO:
+					case AUTO:
 					default:
 						throw new IllegalStateException();
 					}
 					switch (pos.getYType()) {
-					case Dimension.TYPE_ABSOLUTE:
+					case ABSOLUTE:
 						offY += pos.getY();
 						break;
-					case Dimension.TYPE_RELATIVE:
+					case RELATIVE:
 						offY += pos.getY() * (paddingHeight - imageHeight);
 						break;
-					case Dimension.TYPE_AUTO:
+					case AUTO:
 					default:
 						throw new IllegalStateException();
 					}

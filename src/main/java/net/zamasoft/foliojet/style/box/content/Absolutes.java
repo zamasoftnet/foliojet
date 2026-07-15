@@ -7,6 +7,7 @@ import java.util.List;
 
 import net.zamasoft.foliojet.style.box.IAbsoluteBox;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Types;
@@ -58,10 +59,10 @@ public class Absolutes {
 		assert !StyleUtils.isNone(staticX) : "Undefined x";
 		assert !StyleUtils.isNone(staticY) : "Undefined y";
 		AbsolutePos pos = box.getAbsolutePos();
-		if (pos.location.getLeftType() != Insets.TYPE_AUTO || pos.location.getRightType() != Insets.TYPE_AUTO) {
+		if (pos.location.getLeftType() != LengthType.AUTO || pos.location.getRightType() != LengthType.AUTO) {
 			staticX = StyleUtils.NONE;
 		}
-		if (pos.location.getTopType() != Insets.TYPE_AUTO || pos.location.getBottomType() != Insets.TYPE_AUTO) {
+		if (pos.location.getTopType() != LengthType.AUTO || pos.location.getBottomType() != LengthType.AUTO) {
 			staticY = StyleUtils.NONE;
 		}
 		Absolute absolute = new Absolute(box, staticX, staticY);

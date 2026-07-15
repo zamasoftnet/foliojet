@@ -11,12 +11,6 @@ import net.zamasoft.foliojet.css.CSSElement;
  * @version $Id: Params.java 1587 2019-06-10 01:42:25Z miyabe $
  */
 public abstract class Params {
-	public static final byte TYPE_FIRST_LINE = 1;
-	public static final byte TYPE_INLINE = 2;
-	public static final byte TYPE_BLOCK = 3;
-	public static final byte TYPE_REPLACED = 4;
-	public static final byte TYPE_TABLE = 5;
-	public static final byte TYPE_INNER_TABLE = 6;
 
 	public static final byte Z_INDEX_AUTO = 0;
 	public static final byte Z_INDEX_SPECIFIED = 1;
@@ -42,7 +36,7 @@ public abstract class Params {
 	public AffineTransform transform = IDENTITY_TRANSFORM;
 	public Offset transformOrigin = Offset.HALF_OFFSET;
 
-	public abstract byte getType();
+	public abstract ParamsType getType();
 
 	public String toString() {
 		return super.toString() + "[element=" + this.element + ",zIndex=" + this.zIndexValue + ",opacity="

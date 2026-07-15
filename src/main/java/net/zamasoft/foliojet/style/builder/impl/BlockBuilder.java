@@ -20,6 +20,7 @@ import net.zamasoft.foliojet.style.box.IFlowBox;
 import net.zamasoft.foliojet.style.box.impl.AbsoluteBlockBox;
 import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.style.box.impl.TableBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Columns;
@@ -128,8 +129,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	public AbstractContainerBox getFixedWidthContextBox() {
 		AbstractContainerBox box = this.getRootBox();
-		if (box.getBlockParams().size.getWidthType() != Dimension.TYPE_AUTO) {
-			if (box.getBlockParams().size.getWidthType() != Dimension.TYPE_RELATIVE
+		if (box.getBlockParams().size.getWidthType() != LengthType.AUTO) {
+			if (box.getBlockParams().size.getWidthType() != LengthType.RELATIVE
 					|| !box.getType().isTableInternal()) {
 				return box;
 			}
@@ -138,13 +139,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return null;
 		}
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_FLOW:
-		case Pos.TYPE_FLOAT:
-		case Pos.TYPE_INLINE:
-		case Pos.TYPE_TABLE_CELL:
+		case FLOW:
+		case FLOAT:
+		case INLINE:
+		case TABLE_CELL:
 			return this.layoutStack.getFixedWidthFlowBox();
 
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return this.layoutStack.getFixedWidthContextBox();
 		default:
 			throw new IllegalStateException();
@@ -153,8 +154,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	public AbstractContainerBox getFixedHeightContextBox() {
 		AbstractContainerBox box = this.getRootBox();
-		if (box.getBlockParams().size.getHeightType() != Dimension.TYPE_AUTO) {
-			if (box.getBlockParams().size.getHeightType() != Dimension.TYPE_RELATIVE
+		if (box.getBlockParams().size.getHeightType() != LengthType.AUTO) {
+			if (box.getBlockParams().size.getHeightType() != LengthType.RELATIVE
 					|| !box.getType().isTableInternal()) {
 				return box;
 			}
@@ -163,13 +164,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return null;
 		}
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_FLOW:
-		case Pos.TYPE_FLOAT:
-		case Pos.TYPE_INLINE:
-		case Pos.TYPE_TABLE_CELL:
+		case FLOW:
+		case FLOAT:
+		case INLINE:
+		case TABLE_CELL:
 			return this.layoutStack.getFixedHeightFlowBox();
 
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return this.layoutStack.getFixedHeightContextBox();
 		default:
 			throw new IllegalStateException(String.valueOf(box.getClass()));
@@ -535,7 +536,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			double width = flowBox.getInnerWidth();
 			if (flowBox.getContentSize() != width || bordered) {
 				this.pageAxis = flow.pageAxis + width;
-				if (params.size.getWidthType() == Dimension.TYPE_ABSOLUTE && width > 0) {
+				if (params.size.getWidthType() == LengthType.ABSOLUTE && width > 0) {
 					bordered = true;
 				}
 			}
@@ -549,7 +550,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			double height = flowBox.getInnerHeight();
 			if (flowBox.getContentSize() != height || bordered) {
 				this.pageAxis = flow.pageAxis + height;
-				if (params.size.getHeightType() == Dimension.TYPE_ABSOLUTE && height > 0) {
+				if (params.size.getHeightType() == LengthType.ABSOLUTE && height > 0) {
 					bordered = true;
 				}
 			}
@@ -589,8 +590,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	public void addBound(IBox box) {
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_FLOW:
-		case Pos.TYPE_TABLE: {
+		case FLOW:
+		case TABLE: {
 			// 通常のフロー
 			assert this.textBuilder == null;
 			IFlowBox flowBox = (IFlowBox) box;
@@ -717,12 +718,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 				double frameSize, marginStart, marginEnd;
 				if (vertical) {
 					frameSize = frame.getFrameHeight();
-					marginStart = margin.getTopType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.top;
-					marginEnd = margin.getBottomType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.bottom;
+					marginStart = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
+					marginEnd = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
 				} else {
 					frameSize = frame.getFrameWidth();
-					marginStart = margin.getLeftType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.left;
-					marginEnd = margin.getRightType() == Insets.TYPE_AUTO ? StyleUtils.NONE : amargin.right;
+					marginStart = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
+					marginEnd = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
 				}
 				lineSize -= frameSize;
 				if (StyleUtils.isNone(marginStart) && StyleUtils.isNone(marginEnd)) {
@@ -797,7 +798,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 			break;
 
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			if (box.getType() == BoxType.REPLACED) {
 				AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
 				StyleUtils.calclateReplacedSize(this, replacedBox);
@@ -813,7 +814,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 			break;
 
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			// 絶対位置
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) box;
 			final AbsolutePos pos = absoluteBox.getAbsolutePos();
@@ -1213,8 +1214,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final Builder builder;
 		AbstractContainerBox containerBox;
 		switch (blockBox.getPos().getType()) {
-		case Pos.TYPE_FLOW:
-		case Pos.TYPE_TABLE_CAPTION:
+		case FLOW:
+		case TABLE_CAPTION:
 			if (blockBox.isFixedMulcolumn()) {
 				final FlowBlockBox flowBox = (FlowBlockBox) blockBox;
 				containerBox = this.getFlowBox();
@@ -1222,8 +1223,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 				return new ColumnBuilder(this, blockBox);
 			}
 			// フロー（ページ進行方向が違う場合）
-		case Pos.TYPE_FLOAT:
-		case Pos.TYPE_INLINE: {
+		case FLOAT:
+		case INLINE: {
 			// 浮動体
 			// インライン配置
 			final AbstractStaticBlockBox staticBlockBox = (AbstractStaticBlockBox) blockBox;
@@ -1245,7 +1246,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 			break;
 
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) blockBox;
 			if (absoluteBox.getAbsolutePos().fiducial != Types.FODUCIAL_CONTEXT) {
 				// 固定配置

@@ -21,8 +21,8 @@ public class ReplacedParams extends AbstractTextParams {
 	 */
 	public double lineHeight = StyleUtils.NONE;
 
-	public byte getType() {
-		return TYPE_REPLACED;
+	public ParamsType getType() {
+		return ParamsType.REPLACED;
 	}
 
 	public String toString() {

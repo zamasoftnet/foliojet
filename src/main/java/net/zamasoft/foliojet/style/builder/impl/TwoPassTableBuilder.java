@@ -23,6 +23,7 @@ import net.zamasoft.foliojet.style.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowBox;
 import net.zamasoft.foliojet.style.box.impl.TableRowBox.Cell;
 import net.zamasoft.foliojet.style.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Border;
 import net.zamasoft.foliojet.style.box.params.Dimension;
@@ -138,17 +139,17 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		this.vertical = StyleUtils.isVertical(tableParams.flow);
 		this.fixed = tableParams.layout == TableParams.LAYOUT_FIXED
 				&& ((this.vertical ? tableParams.size.getHeightType()
-						: tableParams.size.getWidthType()) != Dimension.TYPE_AUTO);
+						: tableParams.size.getWidthType()) != LengthType.AUTO);
 	}
 
 	public final double getMinLineSize() {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		if (this.vertical) {
-			if (tableParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+			if (tableParams.size.getHeightType() == LengthType.ABSOLUTE) {
 				return Math.max(this.minLineSize, tableParams.size.getHeight());
 			}
 		} else {
-			if (tableParams.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+			if (tableParams.size.getWidthType() == LengthType.ABSOLUTE) {
 				return Math.max(this.minLineSize, tableParams.size.getWidth());
 			}
 		}
@@ -158,11 +159,11 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	public final double getMaxLineSize() {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		if (this.vertical) {
-			if (tableParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+			if (tableParams.size.getHeightType() == LengthType.ABSOLUTE) {
 				return Math.max(this.maxLineSize, tableParams.size.getHeight());
 			}
 		} else {
-			if (tableParams.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+			if (tableParams.size.getWidthType() == LengthType.ABSOLUTE) {
 				return Math.max(this.maxLineSize, tableParams.size.getWidth());
 			}
 		}
@@ -794,7 +795,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						span = colPos.span;
 					}
 					switch (colParams.size.getType()) {
-					case Length.TYPE_ABSOLUTE: {
+					case ABSOLUTE: {
 						double fix = colParams.size.getLength();
 						fix += lineBorderSpacing;
 						for (int s = 0; s < span; ++s) {
@@ -810,7 +811,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 					}
 						break;
-					case Length.TYPE_RELATIVE: {
+					case RELATIVE: {
 						double pct = colParams.size.getLength();
 						for (int s = 0; s < span; ++s) {
 							int k = col + s;
@@ -827,18 +828,18 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							}
 						}
 					}
-					case Dimension.TYPE_AUTO:
+					case AUTO:
 						// ignore
 						break;
 					default:
 						throw new IllegalStateException();
 					}
-					if (colParams.minSize.getType() == Length.TYPE_ABSOLUTE) {
+					if (colParams.minSize.getType() == LengthType.ABSOLUTE) {
 						double minSize = colParams.minSize.getLength();
 						this.columnMins[col] = Math.max(minSize, this.columnMins[col]);
 						this.columnDeses[col] = Math.max(minSize, this.columnDeses[col]);
 					}
-					if (colParams.maxSize.getType() == Length.TYPE_ABSOLUTE) {
+					if (colParams.maxSize.getType() == LengthType.ABSOLUTE) {
 						double maxSize = colParams.maxSize.getLength();
 						this.columnMins[col] = Math.min(maxSize, this.columnMins[col]);
 						if (this.columnTypes[col] == COLUMN_TYPE_FIX) {
@@ -945,26 +946,26 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 
 					if (this.vertical) {
 						switch (cellParams.size.getHeightType()) {
-						case Dimension.TYPE_ABSOLUTE:
+						case ABSOLUTE:
 							type = COLUMN_TYPE_FIX;
 							spec = cellParams.size.getHeight() + cellFrame;
 							break;
-						case Dimension.TYPE_RELATIVE:
+						case RELATIVE:
 							type = COLUMN_TYPE_PCT;
 							spec = cellParams.size.getHeight();
 							break;
-						case Dimension.TYPE_AUTO:
+						case AUTO:
 							spec = des;
 							break;
 						default:
 							throw new IllegalStateException();
 						}
-						if (cellParams.minSize.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+						if (cellParams.minSize.getHeightType() == LengthType.ABSOLUTE) {
 							double minSize = cellParams.minSize.getHeight() + cellFrame;
 							min = Math.max(minSize, min);
 							des = Math.max(minSize, des);
 						}
-						if (cellParams.maxSize.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+						if (cellParams.maxSize.getHeightType() == LengthType.ABSOLUTE) {
 							double maxSize = cellParams.maxSize.getHeight() + cellFrame;
 							min = Math.min(maxSize, min);
 							des = Math.min(maxSize, des);
@@ -974,26 +975,26 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 					} else {
 						switch (cellParams.size.getWidthType()) {
-						case Dimension.TYPE_ABSOLUTE:
+						case ABSOLUTE:
 							type = COLUMN_TYPE_FIX;
 							spec = cellParams.size.getWidth() + cellFrame;
 							break;
-						case Dimension.TYPE_RELATIVE:
+						case RELATIVE:
 							type = COLUMN_TYPE_PCT;
 							spec = cellParams.size.getWidth();
 							break;
-						case Dimension.TYPE_AUTO:
+						case AUTO:
 							spec = des;
 							break;
 						default:
 							throw new IllegalStateException();
 						}
-						if (cellParams.minSize.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+						if (cellParams.minSize.getWidthType() == LengthType.ABSOLUTE) {
 							double minSize = cellParams.minSize.getWidth() + cellFrame;
 							min = Math.max(minSize, min);
 							des = Math.max(minSize, des);
 						}
-						if (cellParams.maxSize.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+						if (cellParams.maxSize.getWidthType() == LengthType.ABSOLUTE) {
 							double maxSize = cellParams.maxSize.getWidth() + cellFrame;
 							min = Math.min(maxSize, min);
 							des = Math.min(maxSize, des);
@@ -1291,7 +1292,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			if (!StyleUtils.isNone(maxSize) && !StyleUtils.isNone(tableSize)) {
 				tableSize = Math.min(maxSize, tableSize);
 			}
-			if (tableParams.size.getHeightType() != Dimension.TYPE_AUTO) {
+			if (tableParams.size.getHeightType() != LengthType.AUTO) {
 				tableSize += this.tableBox.getFrame().margin.getFrameHeight();
 			}
 			tableFrame = this.tableBox.getFrame().getFrameHeight();
@@ -1305,7 +1306,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			if (!StyleUtils.isNone(maxSize) && !StyleUtils.isNone(tableSize)) {
 				tableSize = Math.min(maxSize, tableSize);
 			}
-			if (tableParams.size.getWidthType() != Dimension.TYPE_AUTO) {
+			if (tableParams.size.getWidthType() != LengthType.AUTO) {
 				tableSize += this.tableBox.getFrame().margin.getFrameWidth();
 			}
 			tableFrame = this.tableBox.getFrame().getFrameWidth();
@@ -1316,25 +1317,25 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		final AbstractBlockBox blockBox = this.tableBox.getBlockBox();
 		BlockBuilder anonBuilder = null;
 		switch (blockBox.getPos().getType()) {
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			FlowBlockBox flowBox = (FlowBlockBox) blockBox;
 			builder.startFlowBlock(flowBox);
 			anonBuilder = builder;
 		}
 			break;
-		case Pos.TYPE_INLINE: {
+		case INLINE: {
 			InlineBlockBox inlineBox = (InlineBlockBox) blockBox;
 			anonBuilder = new BlockBuilder(this.layoutStack, inlineBox);
 			inlineBox.shrinkToFit(builder, lineSize, lineSize, false);
 		}
 			break;
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			FloatBlockBox floatingBox = (FloatBlockBox) blockBox;
 			anonBuilder = new BlockBuilder(this.layoutStack, floatingBox);
 			floatingBox.shrinkToFit(builder, lineSize, lineSize, false);
 		}
 			break;
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) blockBox;
 			anonBuilder = new BlockBuilder(this.layoutStack, absoluteBox);
 			final AbstractContainerBox cBox;
@@ -1384,12 +1385,12 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							continue RECURSE;
 						} else {
 							switch (colParams.size.getType()) {
-							case Length.TYPE_AUTO:
+							case AUTO:
 								for (int j = 0; j < colPos.span; ++j) {
 									columnSizeList[k++] = null;
 								}
 								break;
-							case Length.TYPE_ABSOLUTE: {
+							case ABSOLUTE: {
 								double fix = colParams.size.getLength();
 								if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
 									// 分離境界
@@ -1401,7 +1402,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 								}
 							}
 								break;
-							case Length.TYPE_RELATIVE: {
+							case RELATIVE: {
 								double fix = refSize * colParams.size.getLength();
 								if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
 									// 分離境界
@@ -1452,10 +1453,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					BlockParams cellParams = cellBox.getBlockParams();
 					if (this.vertical) {
 						switch (cellParams.size.getHeightType()) {
-						case Dimension.TYPE_AUTO:
+						case AUTO:
 							size = null;
 							break;
-						case Dimension.TYPE_ABSOLUTE: {
+						case ABSOLUTE: {
 							double fix = cellParams.size.getHeight();
 							if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 								fix += cellBox.getFrame().getFrameHeight();
@@ -1464,7 +1465,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							size = new ColumnSize(fix, false);
 						}
 							break;
-						case Dimension.TYPE_RELATIVE: {
+						case RELATIVE: {
 							double fix = refSize * cellParams.size.getHeight();
 							if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 								fix += cellBox.getFrame().getFrameHeight();
@@ -1478,10 +1479,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 					} else {
 						switch (cellParams.size.getWidthType()) {
-						case Dimension.TYPE_AUTO:
+						case AUTO:
 							size = null;
 							break;
-						case Dimension.TYPE_ABSOLUTE: {
+						case ABSOLUTE: {
 							double fix = cellParams.size.getWidth();
 							if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 								fix += cellBox.getFrame().getFrameWidth();
@@ -1490,7 +1491,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							size = new ColumnSize(fix, false);
 						}
 							break;
-						case Dimension.TYPE_RELATIVE: {
+						case RELATIVE: {
 							double fix = refSize * cellParams.size.getWidth();
 							if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 								fix += cellBox.getFrame().getFrameWidth();
@@ -1769,14 +1770,14 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		if (this.vertical) {
 			// 縦書き
 			switch (tableParams.size.getWidthType()) {
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				specifiedPageSize = tableParams.size.getWidth() - this.tableBox.getFrame().getFrameWidth();
 				break;
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				specifiedPageSize = StyleUtils.computeDimensionWidth(tableParams.size,
 						this.layoutStack.getFixedWidth());
 				break;
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				specifiedPageSize = 0;
 				break;
 			default:
@@ -1785,14 +1786,14 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		} else {
 			// 横書き
 			switch (tableParams.size.getHeightType()) {
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				specifiedPageSize = tableParams.size.getHeight() - this.tableBox.getFrame().getFrameHeight();
 				break;
-			case Dimension.TYPE_RELATIVE:
+			case RELATIVE:
 				specifiedPageSize = StyleUtils.computeDimensionHeight(tableParams.size,
 						this.layoutStack.getFixedHeight());
 				break;
-			case Dimension.TYPE_AUTO:
+			case AUTO:
 				specifiedPageSize = 0;
 				break;
 			default:
@@ -1803,22 +1804,22 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 
 		assert !StyleUtils.isNone(tableSize);
 		switch (blockBox.getPos().getType()) {
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			FlowBlockBox flowBox = (FlowBlockBox) blockBox;
 			flowBox.shrinkToFit(builder, tableSize, tableSize, true);
 			break;
 		}
-		case Pos.TYPE_INLINE: {
+		case INLINE: {
 			InlineBlockBox inlineBox = (InlineBlockBox) blockBox;
 			inlineBox.shrinkToFit(builder, tableSize, tableSize, true);
 		}
 			break;
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			FloatBlockBox floatingBox = (FloatBlockBox) blockBox;
 			floatingBox.shrinkToFit(builder, tableSize, tableSize, true);
 		}
 			break;
-		case Pos.TYPE_ABSOLUTE: {
+		case ABSOLUTE: {
 			AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) blockBox;
 			final AbstractContainerBox cBox;
 			if (absoluteBox.getAbsolutePos().fiducial != Types.FODUCIAL_CONTEXT) {
@@ -1874,16 +1875,16 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					// 指定された行高さの計算
 					InnerTableParams rowParams = rowBox.getInnerTableParams();
 					switch (rowParams.size.getType()) {
-					case Length.TYPE_ABSOLUTE:
+					case ABSOLUTE:
 						rowSize = rowParams.size.getLength();
 						break;
-					case Length.TYPE_RELATIVE:
+					case RELATIVE:
 						rowRatios[rowIndex] = rowParams.size.getLength();
 						if (rowRatios[rowIndex] > 0) {
 							rowSize = 0;
 							break;
 						}
-					case Length.TYPE_AUTO:
+					case AUTO:
 						++autoRowCount;
 						autoRows[j] = true;
 						rowSize = 0;
@@ -1892,21 +1893,21 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						throw new IllegalStateException();
 					}
 					switch (rowParams.minSize.getType()) {
-					case Length.TYPE_ABSOLUTE:
+					case ABSOLUTE:
 						rowSize = Math.max(rowParams.minSize.getLength(), rowSize);
 						break;
-					case Length.TYPE_RELATIVE:
-					case Length.TYPE_AUTO:
+					case RELATIVE:
+					case AUTO:
 						break;
 					default:
 						throw new IllegalStateException();
 					}
 					switch (rowParams.maxSize.getType()) {
-					case Length.TYPE_ABSOLUTE:
+					case ABSOLUTE:
 						rowSize = Math.min(rowParams.maxSize.getLength(), rowSize);
 						break;
-					case Length.TYPE_RELATIVE:
-					case Length.TYPE_AUTO:
+					case RELATIVE:
+					case AUTO:
 						break;
 					default:
 						throw new IllegalStateException();
@@ -1927,7 +1928,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 						final BlockParams cellParams = cellBox.getBlockParams();
 						if (this.vertical) {
-							if (cellParams.size.getWidthType() == Dimension.TYPE_RELATIVE) {
+							if (cellParams.size.getWidthType() == LengthType.RELATIVE) {
 								int rowspan = Math.min(rows.size() - j, cellBox.getTableCellPos().rowspan);
 								for (int l = 0; l < rowspan; ++l) {
 									rowRatios[rowIndex + l] = Math.max(rowRatios[rowIndex + l],
@@ -1935,7 +1936,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 								}
 							}
 						} else {
-							if (cellParams.size.getHeightType() == Dimension.TYPE_RELATIVE) {
+							if (cellParams.size.getHeightType() == LengthType.RELATIVE) {
 								int rowspan = Math.min(rows.size() - j, cellBox.getTableCellPos().rowspan);
 								for (int l = 0; l < rowspan; ++l) {
 									rowRatios[rowIndex + l] = Math.max(rowRatios[rowIndex + l],
@@ -1984,7 +1985,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							double cellSize;
 							if (this.vertical) {
 								cellSize = cellBox.getWidth();
-								if (cellParams.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 									double width = cellParams.size.getWidth();
 									if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 										width += cellBox.getFrame().getFrameWidth();
@@ -1993,7 +1994,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 								}
 							} else {
 								cellSize = cellBox.getHeight();
-								if (cellParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+								if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 									double height = cellParams.size.getHeight();
 									if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
 										height += cellBox.getFrame().getFrameHeight();
@@ -2019,13 +2020,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							double cellSize;
 							if (this.vertical) {
 								cellSize = cellBox.getWidth();
-								if (cellParams.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 									double width = cellParams.size.getWidth();
 									cellSize = Math.max(cellSize, width);
 								}
 							} else {
 								cellSize = cellBox.getHeight();
-								if (cellParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+								if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 									double height = cellParams.size.getHeight();
 									cellSize = Math.max(cellSize, height);
 								}
@@ -2154,7 +2155,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
 			InnerTableParams params = rowGroupBox.getInnerTableParams();
-			if (params.size.getType() != Length.TYPE_ABSOLUTE) {
+			if (params.size.getType() != LengthType.ABSOLUTE) {
 				continue;
 			}
 			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
@@ -2192,7 +2193,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					for (int j = 0; j < rows.size(); ++j) {
 						TableRowBox rowBox = (TableRowBox) rows.get(j);
 						InnerTableParams params = rowBox.getInnerTableParams();
-						if (params.size.getType() == Length.TYPE_AUTO) {
+						if (params.size.getType() == LengthType.AUTO) {
 							continue;
 						}
 						rowSizeSum -= rowBox.getPageSize();
@@ -2204,7 +2205,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					for (int j = 0; j < rows.size(); ++j) {
 						TableRowBox rowBox = (TableRowBox) rows.get(j);
 						InnerTableParams params = rowBox.getInnerTableParams();
-						if (params.size.getType() != Length.TYPE_AUTO) {
+						if (params.size.getType() != LengthType.AUTO) {
 							continue;
 						}
 						double rowSize = rowBox.getPageSize();
@@ -2379,18 +2380,18 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		}
 
 		switch (blockBox.getPos().getType()) {
-		case Pos.TYPE_FLOW:
+		case FLOW:
 			builder.endFlowBlock();
 			break;
-		case Pos.TYPE_INLINE:
+		case INLINE:
 			anonBuilder.close();
 			// DocumentBuilderで追加
 			break;
-		case Pos.TYPE_FLOAT:
+		case FLOAT:
 			anonBuilder.close();
 			builder.addBound(blockBox);
 			break;
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			anonBuilder.close();
 			final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) blockBox;
 			switch (absoluteBox.getAbsolutePos().autoPosition) {

@@ -18,6 +18,7 @@ import net.zamasoft.foliojet.style.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.style.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.style.box.impl.InlineBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
@@ -119,19 +120,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public AbstractContainerBox getFixedWidthContextBox() {
 		AbstractContainerBox box = this.getContextBox();
-		if (box.getBlockParams().size.getWidthType() != Dimension.TYPE_AUTO) {
+		if (box.getBlockParams().size.getWidthType() != LengthType.AUTO) {
 			return box;
 		}
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_PAGE:
-		case Pos.TYPE_INLINE:
-		case Pos.TYPE_FLOW:
-		case Pos.TYPE_FLOAT:
-		case Pos.TYPE_TABLE_CELL:
-		case Pos.TYPE_TABLE_CAPTION:
+		case PAGE:
+		case INLINE:
+		case FLOW:
+		case FLOAT:
+		case TABLE_CELL:
+		case TABLE_CAPTION:
 			return this.layoutStack.getFixedWidthFlowBox();
 
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return this.layoutStack.getFixedWidthContextBox();
 		default:
 			throw new IllegalStateException();
@@ -140,19 +141,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public AbstractContainerBox getFixedHeightContextBox() {
 		AbstractContainerBox box = this.getContextBox();
-		if (box.getBlockParams().size.getHeightType() != Dimension.TYPE_AUTO) {
+		if (box.getBlockParams().size.getHeightType() != LengthType.AUTO) {
 			return box;
 		}
 		switch (box.getPos().getType()) {
-		case Pos.TYPE_PAGE:
-		case Pos.TYPE_INLINE:
-		case Pos.TYPE_FLOW:
-		case Pos.TYPE_FLOAT:
-		case Pos.TYPE_TABLE_CELL:
-		case Pos.TYPE_TABLE_CAPTION:
+		case PAGE:
+		case INLINE:
+		case FLOW:
+		case FLOAT:
+		case TABLE_CELL:
+		case TABLE_CAPTION:
 			return this.layoutStack.getFixedHeightFlowBox();
 
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return this.layoutStack.getFixedHeightContextBox();
 		default:
 			throw new IllegalStateException(String.valueOf(box.getPos().getType()));
@@ -164,7 +165,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		for (int i = this.flowStack.size() - 1; i >= 1; --i) {
 			AbstractContainerBox flowBox = (AbstractContainerBox) this.flowStack.get(i);
 			frameWidth += flowBox.getFrame().getFrameWidth();
-			if (flowBox.getBlockParams().size.getWidthType() != Dimension.TYPE_AUTO) {
+			if (flowBox.getBlockParams().size.getWidthType() != LengthType.AUTO) {
 				return flowBox.getWidth() - frameWidth;
 			}
 		}
@@ -178,7 +179,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public AbstractContainerBox getFixedWidthFlowBox() {
 		for (int i = this.flowStack.size() - 1; i >= 1; --i) {
 			AbstractContainerBox flowBox = (AbstractContainerBox) this.flowStack.get(i);
-			if (flowBox.getBlockParams().size.getWidthType() != Dimension.TYPE_AUTO) {
+			if (flowBox.getBlockParams().size.getWidthType() != LengthType.AUTO) {
 				return flowBox;
 			}
 		}
@@ -190,7 +191,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		for (int i = this.flowStack.size() - 1; i >= 1; --i) {
 			AbstractContainerBox flowBox = (AbstractContainerBox) this.flowStack.get(i);
 			flowHeight += flowBox.getFrame().getFrameHeight();
-			if (flowBox.getBlockParams().size.getHeightType() != Dimension.TYPE_AUTO) {
+			if (flowBox.getBlockParams().size.getHeightType() != LengthType.AUTO) {
 				return flowBox.getHeight() - flowHeight;
 			}
 		}
@@ -204,7 +205,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public AbstractContainerBox getFixedHeightFlowBox() {
 		for (int i = this.flowStack.size() - 1; i >= 1; --i) {
 			AbstractContainerBox flowBox = (AbstractContainerBox) this.flowStack.get(i);
-			if (flowBox.getBlockParams().size.getHeightType() != Dimension.TYPE_AUTO) {
+			if (flowBox.getBlockParams().size.getHeightType() != LengthType.AUTO) {
 				return flowBox;
 			}
 		}
@@ -343,7 +344,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 横書き
 			this.lineFrame -= flowBox.getFrame().getFrameWidth();
 			this.pageFrame -= flowBox.getFrame().getFrameHeight();
-			if (flowParams.size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+			if (flowParams.size.getWidthType() == LengthType.ABSOLUTE) {
 				// 固定幅フロー
 				this.maxLineSize = this.minLineSize = flowBox.getWidth();
 			}
@@ -353,7 +354,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 縦書き
 			this.lineFrame -= flowBox.getFrame().getFrameHeight();
 			this.pageFrame -= flowBox.getFrame().getFrameWidth();
-			if (flowParams.size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+			if (flowParams.size.getHeightType() == LengthType.ABSOLUTE) {
 				// 固定幅フロー
 				this.maxLineSize = this.minLineSize = flowBox.getHeight();
 			}
@@ -375,7 +376,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public void addBound(IBox box) {
 		AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
 		switch (replacedBox.getPos().getType()) {
-		case Pos.TYPE_FLOW: {
+		case FLOW: {
 			// 静的・相対配置
 			AbstractContainerBox containerBox = this.getFlowBox();
 			IFlowBox flowBox = (IFlowBox) replacedBox;
@@ -389,14 +390,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// 縦書き
 				minLineAxis = replacedBox.getHeight();
 				minPageAxis = replacedBox.getWidth();
-				if (replacedBox.getReplacedParams().size.getHeightType() == Length.TYPE_ABSOLUTE) {
+				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
 				}
 			} else {
 				// 横書き
 				minLineAxis = replacedBox.getWidth();
 				minPageAxis = replacedBox.getHeight();
-				if (replacedBox.getReplacedParams().size.getWidthType() == Length.TYPE_ABSOLUTE) {
+				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
 				}
 			}
@@ -419,7 +420,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 		}
 			break;
-		case Pos.TYPE_FLOAT: {
+		case FLOAT: {
 			// 浮動体
 			AbstractContainerBox containerBox = this.getFlowBox();
 			IFloatBox floatingBox = (IFloatBox) replacedBox;
@@ -432,14 +433,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// 縦書き
 				minLineAxis = replacedBox.getHeight();
 				minPageAxis = replacedBox.getWidth();
-				if (replacedBox.getReplacedParams().size.getHeightType() == Length.TYPE_ABSOLUTE) {
+				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
 				}
 			} else {
 				// 横書き
 				minLineAxis = replacedBox.getWidth();
 				minPageAxis = replacedBox.getHeight();
-				if (replacedBox.getReplacedParams().size.getWidthType() == Length.TYPE_ABSOLUTE) {
+				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
 				}
 			}
@@ -475,7 +476,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 			break;
 
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			// 絶対配置
 			AbstractContainerBox contextBox;
 			switch (((AbsoluteReplacedBox) replacedBox).getAbsolutePos().fiducial) {
@@ -516,7 +517,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.recordTypes.add(TYPE_TABLE);
 		this.recordObjects.add(tableBuilder);
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {
-		case Pos.TYPE_INLINE:
+		case INLINE:
 			this.recordInlineBlocks.add(autoTableBuilder);
 			break;
 		}
@@ -530,21 +531,21 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final AbstractContainerBox box = this.getFlowBox();
 		stfBox.firstPassLayout(box);
 		switch (stfBox.getPos().getType()) {
-		case Pos.TYPE_FLOW:
+		case FLOW:
 			// 書字方向が違う
-		case Pos.TYPE_FLOAT:
+		case FLOAT:
 			// 浮動体
 			this.recordTypes.add(TYPE_STF_BLOCK);
 			this.recordObjects.add(builder);
 			break;
 
-		case Pos.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			// 絶対配置
 			this.recordTypes.add(TYPE_ABSOLUTE_BLOCK);
 			this.recordObjects.add(builder);
 			break;
 
-		case Pos.TYPE_INLINE:
+		case INLINE:
 			// インラインブロック
 			this.recordInlineBlocks.add(builder);
 			break;
@@ -564,7 +565,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		double minLineAxis, maxLineAxis;
 		if (StyleUtils.isVertical(flowParams.flow)) {
 			// 縦書き
-			if (params.size.getHeightType() != Dimension.TYPE_AUTO) {
+			if (params.size.getHeightType() != LengthType.AUTO) {
 				minLineAxis = maxLineAxis = floatingBox.getHeight();
 			} else {
 				minLineAxis = childBuilder.getMinLineSize() + floatingBox.getFrame().getFrameWidth();
@@ -572,7 +573,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 		} else {
 			// 横書き
-			if (params.size.getWidthType() != Dimension.TYPE_AUTO) {
+			if (params.size.getWidthType() != LengthType.AUTO) {
 				minLineAxis = maxLineAxis = floatingBox.getWidth();
 			} else {
 				minLineAxis = childBuilder.getMinLineSize() + floatingBox.getFrame().getFrameWidth();
@@ -691,8 +692,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				}
 				final IBox replacedBox = (IBox) k.next();
 				switch (replacedBox.getPos().getType()) {
-				case Pos.TYPE_FLOAT:
-				case Pos.TYPE_FLOW:
+				case FLOAT:
+				case FLOW:
 					if (textUnitizer != null) {
 						textUnitizer.flush();
 					}
@@ -760,8 +761,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				}
 				TwoPassTableBuilder tableBuilder = (TwoPassTableBuilder) k.next();
 				switch (tableBuilder.getTableBox().getBlockBox().getPos().getType()) {
-				case Pos.TYPE_FLOAT:
-				case Pos.TYPE_FLOW:
+				case FLOAT:
+				case FLOW:
 					if (textUnitizer != null) {
 						textUnitizer.flush();
 					}
@@ -827,11 +828,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				minAdvance = 0;
 				if (StyleUtils.isVertical(cParams.flow)) {
 					// 縦書き
-					if (box.getReplacedParams().size.getHeightType() != Dimension.TYPE_RELATIVE
-							&& box.getReplacedParams().maxSize.getHeightType() != Dimension.TYPE_RELATIVE) {
+					if (box.getReplacedParams().size.getHeightType() != LengthType.RELATIVE
+							&& box.getReplacedParams().maxSize.getHeightType() != LengthType.RELATIVE) {
 						minAdvance = maxAdvance;
 					}
-					if (box.getReplacedParams().size.getHeightType() == Dimension.TYPE_ABSOLUTE) {
+					if (box.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
 						if(box.getReplacedParams().size.getHeight() > maxAdvance) {
 							maxAdvance = box.getReplacedParams().size.getHeight();
 						}
@@ -839,11 +840,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					pageSize = box.getWidth();
 				} else {
 					// 横書き
-					if (box.getReplacedParams().size.getWidthType() != Dimension.TYPE_RELATIVE
-							&& box.getReplacedParams().maxSize.getWidthType() != Dimension.TYPE_RELATIVE) {
+					if (box.getReplacedParams().size.getWidthType() != LengthType.RELATIVE
+							&& box.getReplacedParams().maxSize.getWidthType() != LengthType.RELATIVE) {
 						minAdvance = maxAdvance;
 					}
-					if (box.getReplacedParams().size.getWidthType() == Dimension.TYPE_ABSOLUTE) {
+					if (box.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
 						if(box.getReplacedParams().size.getWidth() > maxAdvance) {
 							maxAdvance = box.getReplacedParams().size.getWidth();
 						}

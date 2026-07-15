@@ -15,8 +15,8 @@ public class TableCellPos extends AbstractBlockLevelPos {
 
 	public byte verticalAlign = Types.VERTICAL_ALIGN_BASELINE;
 
-	public byte getType() {
-		return TYPE_TABLE_CELL;
+	public PosType getType() {
+		return PosType.TABLE_CELL;
 	}
 
 	public String toString() {

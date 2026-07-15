@@ -10,6 +10,7 @@ import net.zamasoft.foliojet.style.box.content.ColumnsContainer;
 import net.zamasoft.foliojet.style.box.content.Container;
 import net.zamasoft.foliojet.style.box.content.FlowContainer;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.style.box.params.Length;
@@ -158,11 +159,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 		BlockParams params = this.getBlockParams();
 		if (StyleUtils.isVertical(params.flow)) {
-			if (this.size.getWidthType() == Dimension.TYPE_AUTO) {
+			if (this.size.getWidthType() == LengthType.AUTO) {
 				return false;
 			}
 		} else {
-			if (this.size.getHeightType() == Dimension.TYPE_AUTO) {
+			if (this.size.getHeightType() == LengthType.AUTO) {
 				return false;
 			}
 		}
@@ -223,10 +224,10 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final double textIndent;
 		final BlockParams params = this.getBlockParams();
 		switch (params.textIndent.getType()) {
-		case Length.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			textIndent = params.textIndent.getLength();
 			break;
-		case Length.TYPE_RELATIVE:
+		case RELATIVE:
 			textIndent = params.textIndent.getLength() * this.getLineSize();
 			break;
 		default:

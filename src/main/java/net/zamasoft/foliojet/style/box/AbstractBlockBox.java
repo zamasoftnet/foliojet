@@ -7,6 +7,8 @@ import java.awt.geom.GeneralPath;
 import net.zamasoft.foliojet.style.box.content.Container;
 import net.zamasoft.foliojet.style.box.content.FlowContainer;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
+import net.zamasoft.foliojet.style.box.params.ParamsType;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.Background;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
@@ -34,11 +36,11 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	protected final BlockParams params;
 
 	public AbstractBlockBox(final BlockParams params) {
-		super(params.getType() == Params.TYPE_TABLE ? Dimension.AUTO_DIMENSION : params.size,
-				params.getType() == Params.TYPE_TABLE ? Dimension.ZERO_DIMENSION : params.minSize, new FlowContainer());
+		super(params.getType() == ParamsType.TABLE ? Dimension.AUTO_DIMENSION : params.size,
+				params.getType() == ParamsType.TABLE ? Dimension.ZERO_DIMENSION : params.minSize, new FlowContainer());
 		this.params = params;
 		final RectFrame frame;
-		if (params.getType() == Params.TYPE_TABLE) {
+		if (params.getType() == ParamsType.TABLE) {
 			frame = RectFrame.NULL_FRAME;
 		} else {
 			frame = params.frame;
@@ -216,16 +218,16 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			if (this.isSpecifiedPageSize()) {
 				// 幅指定
 				final double width = Math.max(0, this.width - pageLimit);
-				nextSize = Dimension.create(width, this.size.getHeight(), Dimension.TYPE_ABSOLUTE,
+				nextSize = Dimension.create(width, this.size.getHeight(), LengthType.ABSOLUTE,
 						this.size.getHeightType());
 			} else {
 				nextSize = this.size;
 			}
 
-			if (this.minSize.getWidthType() != Dimension.TYPE_AUTO) {
+			if (this.minSize.getWidthType() != LengthType.AUTO) {
 				// 幅指定
 				final double width = Math.max(0, Math.min(this.minSize.getWidth(), this.width) - pageLimit);
-				nextMinSize = Dimension.create(width, this.minSize.getHeight(), Dimension.TYPE_ABSOLUTE,
+				nextMinSize = Dimension.create(width, this.minSize.getHeight(), LengthType.ABSOLUTE,
 						this.minSize.getHeightType());
 			} else {
 				nextMinSize = this.minSize;
@@ -249,15 +251,15 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				// 指定高さを分割
 				final double height = Math.max(0, this.height - pageLimit);
 				nextSize = Dimension.create(this.size.getWidth(), height, this.size.getWidthType(),
-						Dimension.TYPE_ABSOLUTE);
+						LengthType.ABSOLUTE);
 			} else {
 				nextSize = this.size;
 			}
-			if (this.minSize.getHeightType() != Dimension.TYPE_AUTO) {
+			if (this.minSize.getHeightType() != LengthType.AUTO) {
 				// 最小高さを分割
 				final double height = Math.max(0, Math.min(this.minSize.getHeight(), this.height) - pageLimit);
 				nextMinSize = Dimension.create(this.minSize.getWidth(), height, this.minSize.getWidthType(),
-						Dimension.TYPE_ABSOLUTE);
+						LengthType.ABSOLUTE);
 			} else {
 				nextMinSize = this.minSize;
 			}

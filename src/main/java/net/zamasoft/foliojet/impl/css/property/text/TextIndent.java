@@ -10,6 +10,7 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -24,10 +25,10 @@ public class TextIndent extends AbstractPrimitivePropertyInfo {
 	public static Length get(CSSStyle style) {
 		Value value = style.get(INFO);
 		if (value instanceof PercentageValue percentage) {
-			return Length.create(percentage.getRatio(), Length.TYPE_RELATIVE);
+			return Length.create(percentage.getRatio(), LengthType.RELATIVE);
 		}
 		if (value instanceof AbsoluteLengthValue length) {
-			return Length.create(length.getLength(), Length.TYPE_ABSOLUTE);
+			return Length.create(length.getLength(), LengthType.ABSOLUTE);
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}

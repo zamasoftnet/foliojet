@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.image.Image;
@@ -36,38 +37,38 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	public static Dimension get(CSSStyle style, Image image) {
 		Value widthValue = style.get(INFO_WIDTH);
 		Value heightValue = style.get(INFO_HEIGHT);
-		byte widthType;
+		LengthType widthType;
 		double width;
 		if (widthValue instanceof AbsoluteLengthValue length) {
-			widthType = Dimension.TYPE_ABSOLUTE;
+			widthType = LengthType.ABSOLUTE;
 			width = length.getLength();
 		} else if (widthValue instanceof PercentageValue percentage) {
-			widthType = Dimension.TYPE_RELATIVE;
+			widthType = LengthType.RELATIVE;
 			width = percentage.getRatio();
 		} else if (widthValue == KeywordValue.AUTO) {
-			widthType = Dimension.TYPE_AUTO;
+			widthType = LengthType.AUTO;
 			width = 0;
 		} else {
 			throw new IllegalStateException(String.valueOf(widthValue));
 		}
 
-		byte heightType;
+		LengthType heightType;
 		double height;
 		if (heightValue instanceof AbsoluteLengthValue length) {
-			heightType = Dimension.TYPE_ABSOLUTE;
+			heightType = LengthType.ABSOLUTE;
 			height = length.getLength();
 		} else if (heightValue instanceof PercentageValue percentage) {
-			heightType = Dimension.TYPE_RELATIVE;
+			heightType = LengthType.RELATIVE;
 			height = percentage.getRatio();
 		} else if (heightValue == KeywordValue.AUTO) {
-			heightType = Dimension.TYPE_AUTO;
+			heightType = LengthType.AUTO;
 			height = 0;
 		} else {
 			throw new IllegalStateException(String.valueOf(heightValue));
 		}
 
-		if (widthType == Dimension.TYPE_AUTO && heightType == Dimension.TYPE_AUTO) {
-			widthType = heightType = Dimension.TYPE_ABSOLUTE;
+		if (widthType == LengthType.AUTO && heightType == LengthType.AUTO) {
+			widthType = heightType = LengthType.ABSOLUTE;
 			width = image.getWidth();
 			height = image.getHeight();
 		}

@@ -9,8 +9,8 @@ package net.zamasoft.foliojet.style.box.params;
 public class TableCaptionPos extends FlowPos {
 	public byte captionSide = Types.CAPTION_SIDE_BEFORE;
 
-	public byte getType() {
-		return TYPE_TABLE_CAPTION;
+	public PosType getType() {
+		return PosType.TABLE_CAPTION;
 	}
 
 	public String toString() {

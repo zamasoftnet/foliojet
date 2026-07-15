@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.style.box.params;
 public class InlineParams extends AbstractTextParams {
 	public RectFrame frame = RectFrame.NULL_FRAME;
 
-	public byte getType() {
-		return TYPE_INLINE;
+	public ParamsType getType() {
+		return ParamsType.INLINE;
 	}
 
 	public String toString() {

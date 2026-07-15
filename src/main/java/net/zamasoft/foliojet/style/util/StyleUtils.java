@@ -10,6 +10,8 @@ import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.impl.TableBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
@@ -81,21 +83,21 @@ public final class StyleUtils {
 	 * @return
 	 */
 	public static final boolean isFixedLineAxis(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
-		if (blockBox.getPos().getType() == Pos.TYPE_ABSOLUTE) {
+		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
 			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
 				// 縦書き
-				return blockBox.getBlockParams().size.getHeightType() == Dimension.TYPE_ABSOLUTE;
+				return blockBox.getBlockParams().size.getHeightType() == LengthType.ABSOLUTE;
 			} else {
 				// 横書き
-				return blockBox.getBlockParams().size.getWidthType() == Dimension.TYPE_ABSOLUTE;
+				return blockBox.getBlockParams().size.getWidthType() == LengthType.ABSOLUTE;
 			}
 		} else {
 			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
 				// 縦書き
-				return blockBox.getBlockParams().size.getHeightType() != Dimension.TYPE_AUTO;
+				return blockBox.getBlockParams().size.getHeightType() != LengthType.AUTO;
 			} else {
 				// 横書き
-				return blockBox.getBlockParams().size.getWidthType() != Dimension.TYPE_AUTO;
+				return blockBox.getBlockParams().size.getWidthType() != LengthType.AUTO;
 			}
 		}
 	}
@@ -108,21 +110,21 @@ public final class StyleUtils {
 	 * @return
 	 */
 	public static final boolean isFixedLineAxis(AbstractContainerBox containerBox, AbstractReplacedBox replacedBox) {
-		if (replacedBox.getPos().getType() == Pos.TYPE_ABSOLUTE) {
+		if (replacedBox.getPos().getType() == PosType.ABSOLUTE) {
 			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
 				// 縦書き
-				return replacedBox.getReplacedParams().size.getHeightType() == Dimension.TYPE_ABSOLUTE;
+				return replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE;
 			} else {
 				// 横書き
-				return replacedBox.getReplacedParams().size.getWidthType() == Dimension.TYPE_ABSOLUTE;
+				return replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE;
 			}
 		} else {
 			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
 				// 縦書き
-				return replacedBox.getReplacedParams().size.getHeightType() != Dimension.TYPE_AUTO;
+				return replacedBox.getReplacedParams().size.getHeightType() != LengthType.AUTO;
 			} else {
 				// 横書き
-				return replacedBox.getReplacedParams().size.getWidthType() != Dimension.TYPE_AUTO;
+				return replacedBox.getReplacedParams().size.getWidthType() != LengthType.AUTO;
 			}
 		}
 	}
@@ -168,11 +170,11 @@ public final class StyleUtils {
 	 */
 	public static double computeLength(Length length, double ref) {
 		switch (length.getType()) {
-		case Length.TYPE_RELATIVE:
+		case RELATIVE:
 			return length.getLength() * ref;
-		case Length.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return length.getLength();
-		case Length.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -189,13 +191,13 @@ public final class StyleUtils {
 	public static void computeMarginsAutoToZero(AbsoluteInsets ainsets, Insets insets, double refSize) {
 		double top, right, bottom, left;
 		switch (insets.getTopType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			top = insets.getTop();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			top = insets.getTop() * refSize;
 			break;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			top = 0;
 			break;
 		default:
@@ -203,13 +205,13 @@ public final class StyleUtils {
 		}
 
 		switch (insets.getRightType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			right = insets.getRight();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			right = insets.getRight() * refSize;
 			break;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			right = 0;
 			break;
 		default:
@@ -217,13 +219,13 @@ public final class StyleUtils {
 		}
 
 		switch (insets.getBottomType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			bottom = insets.getBottom();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			bottom = insets.getBottom() * refSize;
 			break;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			bottom = 0;
 			break;
 		default:
@@ -231,13 +233,13 @@ public final class StyleUtils {
 		}
 
 		switch (insets.getLeftType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			left = insets.getLeft();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			left = insets.getLeft() * refSize;
 			break;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			left = 0;
 			break;
 		default:
@@ -252,10 +254,10 @@ public final class StyleUtils {
 	public static void computePaddings(AbsoluteInsets ainsets, Insets insets, double refSize) {
 		double top, right, bottom, left;
 		switch (insets.getTopType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			top = insets.getTop();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			top = insets.getTop() * refSize;
 			break;
 		default:
@@ -263,10 +265,10 @@ public final class StyleUtils {
 		}
 
 		switch (insets.getRightType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			right = insets.getRight();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			right = insets.getRight() * refSize;
 			break;
 		default:
@@ -274,10 +276,10 @@ public final class StyleUtils {
 		}
 
 		switch (insets.getBottomType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			bottom = insets.getBottom();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			bottom = insets.getBottom() * refSize;
 			break;
 		default:
@@ -285,10 +287,10 @@ public final class StyleUtils {
 		}
 
 		switch (insets.getLeftType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			left = insets.getLeft();
 			break;
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			left = insets.getLeft() * refSize;
 			break;
 		default:
@@ -309,14 +311,14 @@ public final class StyleUtils {
 	 */
 	public static double computeDimensionWidth(Dimension size, double ref) {
 		switch (size.getWidthType()) {
-		case Dimension.TYPE_RELATIVE:
+		case RELATIVE:
 			if (ref == StyleUtils.NONE) {
 				return StyleUtils.NONE;
 			}
 			return size.getWidth() * ref;
-		case Dimension.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return size.getWidth();
-		case Dimension.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -332,14 +334,14 @@ public final class StyleUtils {
 	 */
 	public static double computeDimensionHeight(Dimension size, double ref) {
 		switch (size.getHeightType()) {
-		case Dimension.TYPE_RELATIVE:
+		case RELATIVE:
 			if (ref == StyleUtils.NONE) {
 				return StyleUtils.NONE;
 			}
 			return size.getHeight() * ref;
-		case Dimension.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return size.getHeight();
-		case Dimension.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -348,11 +350,11 @@ public final class StyleUtils {
 
 	public static double computeInsetsTop(Insets insets, double ref) {
 		switch (insets.getTopType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return insets.getTop();
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			return insets.getTop() * ref;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -361,11 +363,11 @@ public final class StyleUtils {
 
 	public static double computeInsetsLeft(Insets insets, double ref) {
 		switch (insets.getLeftType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return insets.getLeft();
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			return insets.getLeft() * ref;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -374,11 +376,11 @@ public final class StyleUtils {
 
 	public static double computeInsetsRight(Insets insets, double ref) {
 		switch (insets.getRightType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return insets.getRight();
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			return insets.getRight() * ref;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -387,11 +389,11 @@ public final class StyleUtils {
 
 	public static double computeInsetsBottom(Insets insets, double ref) {
 		switch (insets.getBottomType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return insets.getBottom();
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			return insets.getBottom() * ref;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			return StyleUtils.NONE;
 		default:
 			throw new IllegalStateException();
@@ -404,16 +406,16 @@ public final class StyleUtils {
 			// 自動レイアウトは2パス
 			return true;
 		}
-		if (box.getBlockBox().getPos().getType() != Pos.TYPE_FLOW) {
+		if (box.getBlockBox().getPos().getType() != PosType.FLOW) {
 			// 通常のフローにない場合は2パス
 			return true;
 		}
 		boolean vertical = StyleUtils.isVertical(params.flow);
-		if ((vertical ? params.size.getWidthType() : params.size.getHeightType()) != Dimension.TYPE_AUTO) {
+		if ((vertical ? params.size.getWidthType() : params.size.getHeightType()) != LengthType.AUTO) {
 			// 高さが指定された場合は2パス
 			return true;
 		}
-		if ((vertical ? params.size.getHeightType() : params.size.getWidthType()) == Dimension.TYPE_AUTO) {
+		if ((vertical ? params.size.getHeightType() : params.size.getWidthType()) == LengthType.AUTO) {
 			// 自動幅の場合は2パス
 			return true;
 		}
@@ -422,12 +424,12 @@ public final class StyleUtils {
 
 	public static double computeOffsetX(Offset offset, IBox containerBox) {
 		switch (offset.getXType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return offset.getX();
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			// this.offsetX = pos.offset.getX() * container.getInnerWidth();
 			// break;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			return 0;
 		default:
 			throw new IllegalStateException();
@@ -436,12 +438,12 @@ public final class StyleUtils {
 
 	public static double computeOffsetY(Offset offset, IBox containerBox) {
 		switch (offset.getYType()) {
-		case Insets.TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			return offset.getY();
-		case Insets.TYPE_RELATIVE:
+		case RELATIVE:
 			// this.offsetY = pos.offset.getY() * container.getInnerWidth();
 			// break;
-		case Insets.TYPE_AUTO:
+		case AUTO:
 			return 0;
 		default:
 			throw new IllegalStateException();
@@ -492,9 +494,9 @@ public final class StyleUtils {
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
 					refMaxHeight =refHeight = StyleUtils.NONE;
-				} else if (containerBox.getPos().getType() != Pos.TYPE_FLOW
-						&& containerBox.getPos().getType() != Pos.TYPE_FLOAT
-						&& containerBox.getPos().getType() != Pos.TYPE_TABLE_CELL) {
+				} else if (containerBox.getPos().getType() != PosType.FLOW
+						&& containerBox.getPos().getType() != PosType.FLOAT
+						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
 					if (containerBox == builder.getContextBox()) {
 						box = builder.getFixedHeightContextBox();
 					} else {
@@ -530,9 +532,9 @@ public final class StyleUtils {
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
 					refMaxWidth = refWidth = StyleUtils.NONE;
-				} else if (containerBox.getPos().getType() != Pos.TYPE_FLOW
-						&& containerBox.getPos().getType() != Pos.TYPE_FLOAT
-						&& containerBox.getPos().getType() != Pos.TYPE_TABLE_CELL) {
+				} else if (containerBox.getPos().getType() != PosType.FLOW
+						&& containerBox.getPos().getType() != PosType.FLOAT
+						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
 					if (containerBox == builder.getContextBox()) {
 						box = builder.getFixedWidthContextBox();
 					} else {

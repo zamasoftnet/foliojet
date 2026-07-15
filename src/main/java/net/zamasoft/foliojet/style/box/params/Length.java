@@ -2,37 +2,32 @@ package net.zamasoft.foliojet.style.box.params;
 
 /**
  * 長さを表すオブジェクトです。
- * 
+ *
  * @author MIYABE Tatsuhiko
- * @version $Id: Length.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Length {
-	public static final byte TYPE_ABSOLUTE = 1;
-	public static final byte TYPE_RELATIVE = 2;
-	public static final byte TYPE_AUTO = 3;
-
-	public static final Length ZERO_LENGTH = new Length(0, TYPE_ABSOLUTE);
-	public static final Length AUTO_LENGTH = new Length(0, TYPE_AUTO);
+	public static final Length ZERO_LENGTH = new Length(0, LengthType.ABSOLUTE);
+	public static final Length AUTO_LENGTH = new Length(0, LengthType.AUTO);
 
 	private final double length;
-	private final byte type;
+	private final LengthType type;
 
-	public static Length create(double length, byte type) {
-		if (type == TYPE_AUTO) {
+	public static Length create(double length, LengthType type) {
+		if (type == LengthType.AUTO) {
 			return AUTO_LENGTH;
 		}
-		if (type != TYPE_AUTO && length == 0) {
+		if (length == 0) {
 			return ZERO_LENGTH;
 		}
 		return new Length(length, type);
 	}
 
-	private Length(double length, byte type) {
+	private Length(double length, LengthType type) {
 		this.length = length;
 		this.type = type;
 	}
 
-	public byte getType() {
+	public LengthType getType() {
 		return this.type;
 	}
 
@@ -44,13 +39,13 @@ public class Length {
 		StringBuilder buff = new StringBuilder();
 		buff.append("[length=");
 		switch (this.getType()) {
-		case TYPE_ABSOLUTE:
+		case ABSOLUTE:
 			buff.append(this.length);
 			break;
-		case TYPE_RELATIVE:
+		case RELATIVE:
 			buff.append(this.length * 100).append('%');
 			break;
-		case TYPE_AUTO:
+		case AUTO:
 			buff.append("auto");
 			break;
 		default:

@@ -9,8 +9,8 @@ package net.zamasoft.foliojet.style.box.params;
 public class TableRowGroupPos extends AbstractBlockLevelPos {
 	public byte rowGroupType = Types.ROW_GROUP_TYPE_BODY;
 
-	public byte getType() {
-		return TYPE_TABLE_ROW_GROUP;
+	public PosType getType() {
+		return PosType.TABLE_ROW_GROUP;
 	}
 
 	public String toString() {

@@ -25,6 +25,7 @@ import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
 import net.zamasoft.foliojet.style.box.impl.TableBox;
 import net.zamasoft.foliojet.style.box.impl.TextBlockBox;
+import net.zamasoft.foliojet.style.box.params.PosType;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.FlowPos;
@@ -1132,7 +1133,7 @@ public class FlowContainer implements Container {
 				}
 					break;
 				case BLOCK: {
-					if (holder.getBox().getPos().getType() != Pos.TYPE_FLOAT) {
+					if (holder.getBox().getPos().getType() != PosType.FLOAT) {
 						AbstractContainerBox containerBox = (AbstractContainerBox) holder.getBox();
 						if (StyleUtils.isVertical(containerBox.getBlockParams().flow) != StyleUtils
 								.isVertical(builder.getRootBox().getBlockParams().flow)) {
@@ -1163,7 +1164,7 @@ public class FlowContainer implements Container {
 				case REPLACED: {
 					// 置換されたボックス
 					AbstractReplacedBox replacedBox = (AbstractReplacedBox) holder.getBox();
-					if (replacedBox.getPos().getType() != Pos.TYPE_FLOAT) {
+					if (replacedBox.getPos().getType() != PosType.FLOAT) {
 						builder.addBound(replacedBox);
 					} else {
 						((Floating) holder).restyle(builder);

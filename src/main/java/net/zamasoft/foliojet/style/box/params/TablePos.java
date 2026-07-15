@@ -13,7 +13,7 @@ public class TablePos implements Pos {
 		// private
 	}
 
-	public byte getType() {
-		return TYPE_TABLE;
+	public PosType getType() {
+		return PosType.TABLE;
 	}
 }

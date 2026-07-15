@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.style.box.IBox;
 import net.zamasoft.foliojet.style.box.IPageBreakableBox;
 import net.zamasoft.foliojet.style.box.content.BreakMode;
 import net.zamasoft.foliojet.style.box.content.Container;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.Background;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
@@ -147,22 +148,22 @@ public class TableCellBox extends AbstractContainerBox {
 
 		if (StyleUtils.isVertical(this.params.flow)) {
 			switch (this.minSize.getWidthType()) {
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				this.minPageAxis = this.minSize.getWidth();
 				break;
-			case Dimension.TYPE_RELATIVE:
-			case Dimension.TYPE_AUTO:
+			case RELATIVE:
+			case AUTO:
 				this.minPageAxis = 0;
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (params.maxSize.getWidthType()) {
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				this.maxPageAxis = this.params.maxSize.getWidth();
 				break;
-			case Dimension.TYPE_RELATIVE:
-			case Dimension.TYPE_AUTO:
+			case RELATIVE:
+			case AUTO:
 				this.maxPageAxis = Double.MAX_VALUE;
 				break;
 			default:
@@ -171,22 +172,22 @@ public class TableCellBox extends AbstractContainerBox {
 			this.width = this.minPageAxis;
 		} else {
 			switch (this.minSize.getHeightType()) {
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				this.minPageAxis = this.minSize.getHeight();
 				break;
-			case Dimension.TYPE_RELATIVE:
-			case Dimension.TYPE_AUTO:
+			case RELATIVE:
+			case AUTO:
 				this.minPageAxis = 0;
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 			switch (params.maxSize.getHeightType()) {
-			case Dimension.TYPE_ABSOLUTE:
+			case ABSOLUTE:
 				this.maxPageAxis = this.params.maxSize.getHeight();
 				break;
-			case Dimension.TYPE_RELATIVE:
-			case Dimension.TYPE_AUTO:
+			case RELATIVE:
+			case AUTO:
 				this.maxPageAxis = Double.MAX_VALUE;
 				break;
 			default:
@@ -383,37 +384,37 @@ public class TableCellBox extends AbstractContainerBox {
 		final Dimension nextSize, nextMinSize;
 		final AbsoluteRectFrame nextFrame;
 		if (vertical) {
-			if (this.size.getWidthType() != Dimension.TYPE_AUTO) {
+			if (this.size.getWidthType() != LengthType.AUTO) {
 				// 高さ指定
 				double width = Math.max(0, this.width - pageLimit);
 				nextSize = Dimension.create(this.size.getHeight(), width, this.size.getHeightType(),
-						Dimension.TYPE_ABSOLUTE);
+						LengthType.ABSOLUTE);
 			} else {
 				nextSize = this.size;
 			}
-			if (this.minSize.getWidthType() != Dimension.TYPE_AUTO) {
+			if (this.minSize.getWidthType() != LengthType.AUTO) {
 				// 高さ指定
 				double width = Math.max(0, this.width - pageLimit);
 				nextMinSize = Dimension.create(this.minSize.getHeight(), width, this.minSize.getHeightType(),
-						Dimension.TYPE_ABSOLUTE);
+						LengthType.ABSOLUTE);
 			} else {
 				nextMinSize = this.minSize;
 			}
 			nextFrame = this.frame.cut(true, false, true, true);
 		} else {
-			if (this.size.getHeightType() != Dimension.TYPE_AUTO) {
+			if (this.size.getHeightType() != LengthType.AUTO) {
 				// 高さ指定
 				double height = Math.max(0, this.height - pageLimit);
 				nextSize = Dimension.create(this.size.getWidth(), height, this.size.getWidthType(),
-						Dimension.TYPE_ABSOLUTE);
+						LengthType.ABSOLUTE);
 			} else {
 				nextSize = this.size;
 			}
-			if (this.minSize.getHeightType() != Dimension.TYPE_AUTO) {
+			if (this.minSize.getHeightType() != LengthType.AUTO) {
 				// 高さ指定
 				double height = Math.max(0, this.height - pageLimit);
 				nextMinSize = Dimension.create(this.minSize.getWidth(), height, this.minSize.getWidthType(),
-						Dimension.TYPE_ABSOLUTE);
+						LengthType.ABSOLUTE);
 			} else {
 				nextMinSize = this.minSize;
 			}

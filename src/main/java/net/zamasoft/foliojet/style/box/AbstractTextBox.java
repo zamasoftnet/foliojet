@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.style.box.content.JustificationState;
 import net.zamasoft.foliojet.style.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.style.box.impl.InlineBox;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
+import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
@@ -761,12 +762,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 				double xxx, yyy;
 				final AbsolutePos pos = absoluteBox.getAbsolutePos();
-				if (pos.location.getLeftType() != Insets.TYPE_AUTO || pos.location.getRightType() != Insets.TYPE_AUTO) {
+				if (pos.location.getLeftType() != LengthType.AUTO || pos.location.getRightType() != LengthType.AUTO) {
 					xxx = contextX;
 				} else {
 					xxx = xx;
 				}
-				if (pos.location.getTopType() != Insets.TYPE_AUTO || pos.location.getBottomType() != Insets.TYPE_AUTO) {
+				if (pos.location.getTopType() != LengthType.AUTO || pos.location.getBottomType() != LengthType.AUTO) {
 					yyy = contextY;
 				} else {
 					yyy = yy;

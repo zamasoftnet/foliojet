@@ -20,8 +20,8 @@ public class FlowPos extends AbstractNormalFlowPos implements Pos {
 	 */
 	public byte columnSpan = COLUMN_SPAN_SINGLE;
 
-	public byte getType() {
-		return TYPE_FLOW;
+	public PosType getType() {
+		return PosType.FLOW;
 	}
 
 	public String toString() {

@@ -19,8 +19,8 @@ public class InnerTableParams extends Params {
 
 	public byte pageBreakInside = Types.PAGE_BREAK_AUTO;
 
-	public byte getType() {
-		return TYPE_INNER_TABLE;
+	public ParamsType getType() {
+		return ParamsType.INNER_TABLE;
 	}
 
 	public String toString() {

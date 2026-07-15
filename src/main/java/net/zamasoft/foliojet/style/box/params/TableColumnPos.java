@@ -9,8 +9,8 @@ package net.zamasoft.foliojet.style.box.params;
 public class TableColumnPos implements Pos {
 	public int span = 1;
 
-	public byte getType() {
-		return TYPE_TABLE_COLUMN;
+	public PosType getType() {
+		return PosType.TABLE_COLUMN;
 	}
 
 	public String toString() {
