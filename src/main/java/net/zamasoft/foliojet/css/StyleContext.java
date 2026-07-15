@@ -6,12 +6,16 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.StringTokenizer;
+import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSStyleSheet.PageContent;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
 import org.htmlunit.cssparser.parser.condition.AttributeCondition;
 import org.htmlunit.cssparser.parser.condition.Condition;
+import org.htmlunit.cssparser.parser.condition.IsPseudoClassCondition;
 import org.htmlunit.cssparser.parser.condition.LangCondition;
+import org.htmlunit.cssparser.parser.condition.NotPseudoClassCondition;
+import org.htmlunit.cssparser.parser.condition.WherePseudoClassCondition;
 import org.htmlunit.cssparser.parser.selector.ChildSelector;
 import org.htmlunit.cssparser.parser.selector.DescendantSelector;
 import org.htmlunit.cssparser.parser.selector.DirectAdjacentSelector;
@@ -22,6 +26,8 @@ import org.htmlunit.cssparser.parser.selector.SelectorSpecificity;
 import org.htmlunit.cssparser.parser.selector.SimpleSelector;
 
 public class StyleContext {
+
+	private static final Logger LOG = Logger.getLogger(StyleContext.class.getName());
 
 	private static final boolean DEBUG = false;
 
@@ -252,9 +258,10 @@ public class StyleContext {
 			return name.equals(ce.lName);
 		}
 
-		// Not Implemented in CSS2.
+		// 未対応のセレクタは変換を止めず不一致として扱う
 		default:
-			throw new IllegalStateException(String.valueOf(selector.getSelectorType()));
+			LOG.warning("未対応のセレクタです: " + selector.getSelectorType() + " " + selector);
+			return false;
 		}
 	}
 
@@ -375,9 +382,68 @@ public class StyleContext {
 			return lang.equalsIgnoreCase(value);
 		}
 
-		// Not Implemented in CSS2.
+		// 前方一致・後方一致・部分一致属性値条件
+		case PREFIX_ATTRIBUTE_CONDITION:
+		case SUFFIX_ATTRIBUTE_CONDITION:
+		case SUBSTRING_ATTRIBUTE_CONDITION: {
+			if (ce.atts == null) {
+				return false;
+			}
+			AttributeCondition attrCondition = (AttributeCondition) condition;
+			String value = attrCondition.getValue();
+			String attr = ce.atts.getValue(attrCondition.getLocalName());
+			if (attr == null || value == null || value.isEmpty()) {
+				return false;
+			}
+			attr = attr.toLowerCase();
+			value = value.toLowerCase();
+			switch (condition.getConditionType()) {
+			case PREFIX_ATTRIBUTE_CONDITION:
+				return attr.startsWith(value);
+			case SUFFIX_ATTRIBUTE_CONDITION:
+				return attr.endsWith(value);
+			default:
+				return attr.contains(value);
+			}
+		}
+
+		// :not擬似クラス条件
+		case NOT_PSEUDO_CLASS_CONDITION: {
+			for (Selector selector : ((NotPseudoClassCondition) condition).getSelectors()) {
+				if (selector instanceof SimpleSelector) {
+					if (evaluateSimpleSelector((SimpleSelector) selector, ce)) {
+						return false;
+					}
+				} else {
+					LOG.warning(":not内の複合セレクタは未対応です: " + condition);
+					return false;
+				}
+			}
+			return true;
+		}
+
+		// :is/:where擬似クラス条件(固有性の違いはSelectorSpecificity側の扱い)
+		case IS_PSEUDO_CLASS_CONDITION:
+		case WHERE_PSEUDO_CLASS_CONDITION: {
+			List<Selector> selectors = condition instanceof IsPseudoClassCondition
+					? ((IsPseudoClassCondition) condition).getSelectors()
+					: ((WherePseudoClassCondition) condition).getSelectors();
+			for (Selector selector : selectors) {
+				if (selector instanceof SimpleSelector) {
+					if (evaluateSimpleSelector((SimpleSelector) selector, ce)) {
+						return true;
+					}
+				} else {
+					LOG.warning(":is/:where内の複合セレクタは未対応です: " + condition);
+				}
+			}
+			return false;
+		}
+
+		// 未対応の条件は変換を止めず不一致として扱う
 		default:
-			throw new IllegalStateException(String.valueOf(condition.getConditionType()));
+			LOG.warning("未対応のセレクタ条件です: " + condition.getConditionType() + " " + condition);
+			return false;
 		}
 	}
 }
