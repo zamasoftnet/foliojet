@@ -152,6 +152,18 @@ public interface UAProps {
 			new String[] { "single-side", "double-side", "left-side", "right-side" }, OutputPrintMode.DOUBLE_SIDE);
 
 	/**
+	 * 1枚の用紙に面付けする論理ページ数(N-up)です。1で面付けなし。
+	 */
+	public static final IntegerPropManager OUTPUT_N_UP = new IntegerPropManager("output.n-up", 1);
+
+	/**
+	 * N-up面付けのページの並び順です。
+	 */
+	public static final CodePropManager OUTPUT_N_UP_ORDER = new CodePropManager("output.n-up.order",
+			new String[] { "horizontal", "horizontal-reverse", "vertical", "vertical-reverse" },
+			OutputNUpOrder.HORIZONTAL);
+
+	/**
 	 * 水平方向の断ち代の幅です。
 	 */
 	public static final StringPropManager OUTPUT_HTRIM = new StringPropManager("output.htrim", "1cm");
