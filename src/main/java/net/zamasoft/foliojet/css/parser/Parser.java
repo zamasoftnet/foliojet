@@ -2,24 +2,38 @@ package net.zamasoft.foliojet.css.parser;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.htmlunit.cssparser.parser.CSSErrorHandler;
-import org.htmlunit.cssparser.parser.CSSException;
-import org.htmlunit.cssparser.parser.CSSParseException;
-import org.htmlunit.cssparser.parser.DocumentHandler;
-import org.htmlunit.cssparser.parser.javacc.CSS3Parser;
+import com.helger.css.decl.CSSDeclaration;
+import com.helger.css.decl.CSSDeclarationList;
+import com.helger.css.decl.CSSFontFaceRule;
+import com.helger.css.decl.CSSImportRule;
+import com.helger.css.decl.CSSMediaQuery;
+import com.helger.css.decl.CSSMediaRule;
+import com.helger.css.decl.CSSPageRule;
+import com.helger.css.decl.CSSSelector;
+import com.helger.css.decl.CSSStyleRule;
+import com.helger.css.decl.CascadingStyleSheet;
+import com.helger.css.decl.ICSSPageRuleMember;
+import com.helger.css.decl.ICSSTopLevelRule;
+import com.helger.css.reader.CSSReader;
+import com.helger.css.reader.CSSReaderDeclarationList;
+import com.helger.css.reader.CSSReaderSettings;
+import com.helger.css.reader.errorhandler.DoNothingCSSParseErrorHandler;
 
+import net.zamasoft.foliojet.css.selector.Selector;
+
+/**
+ * CSSパーサー。構文解析は ph-css が行い、解析結果を StyleSheetHandler のイベントに変換します。
+ */
 public class Parser {
-	private final CSS3Parser parser = new CSS3Parser();
+	private StyleSheetHandler handler;
+
 	private String defaultCharset;
 
-	public Parser() {
-		this.parser.setErrorHandler(new ThrowingErrorHandler());
-	}
-
-	public void setDocumentHandler(DocumentHandler handler) {
-		this.parser.setDocumentHandler(handler);
+	public void setDocumentHandler(StyleSheetHandler handler) {
+		this.handler = handler;
 	}
 
 	public void setDefaultCharset(String defaultCharset) {
@@ -30,31 +44,135 @@ public class Parser {
 		return this.defaultCharset;
 	}
 
+	private static CSSReaderSettings settings() {
+		return new CSSReaderSettings().setBrowserCompliantMode(true)
+				.setCustomErrorHandler(new DoNothingCSSParseErrorHandler());
+	}
+
 	public void parseStyleSheet(InputSource source) throws IOException, CSSException {
-		this.parser.parseStyleSheet(normalizeStyleSheet(source));
+		String css = read(source.getReader());
+		css = css.replace("{literal}", "").replace("{/literal}", "");
+		CascadingStyleSheet sheet = CSSReader.readFromStringReader(css, settings());
+		if (sheet == null) {
+			throw new CSSException("スタイルシートを解析できません");
+		}
+		this.handler.startDocument(source);
+		try {
+			for (CSSImportRule importRule : sheet.getAllImportRules()) {
+				this.handler.importStyle(importRule.getLocationString(),
+						toMediaTypes(importRule.getAllMediaQueries()));
+			}
+			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
+				this.walkRule(rule);
+			}
+		} finally {
+			this.handler.endDocument(source);
+		}
 	}
 
 	public void parseStyleDeclaration(InputSource source) throws IOException, CSSException {
-		this.parser.parseStyleDeclaration(normalizeStyleDeclaration(source));
+		String css = read(source.getReader()).trim();
+		CSSDeclarationList declarations = CSSReaderDeclarationList.readFromString(css, settings());
+		if (declarations == null) {
+			throw new CSSException("スタイル宣言を解析できません");
+		}
+		for (CSSDeclaration declaration : declarations.getAllDeclarations()) {
+			this.property(declaration);
+		}
 	}
 
-	private static InputSource normalizeStyleSheet(InputSource source) throws IOException {
-		String css = read(source.getReader());
-		css = css.replace("{literal}", "").replace("{/literal}", "");
-		return copySource(source, css);
+	private void walkRule(ICSSTopLevelRule rule) {
+		if (rule instanceof CSSStyleRule) {
+			CSSStyleRule styleRule = (CSSStyleRule) rule;
+			final List<Selector> selectors;
+			try {
+				selectors = convertSelectors(styleRule.getAllSelectors());
+			} catch (CSSException e) {
+				// 解釈できないセレクタを含む規則は無視する
+				return;
+			}
+			this.handler.startSelector(selectors);
+			for (CSSDeclaration declaration : styleRule.getAllDeclarations()) {
+				this.property(declaration);
+			}
+			this.handler.endSelector(selectors);
+		} else if (rule instanceof CSSMediaRule) {
+			CSSMediaRule mediaRule = (CSSMediaRule) rule;
+			List<String> media = new ArrayList<String>();
+			for (CSSMediaQuery query : mediaRule.getAllMediaQueries()) {
+				String medium = query.getMedium();
+				if (medium == null) {
+					medium = "all";
+				}
+				media.add(query.isNot() ? "not " + medium : medium);
+			}
+			this.handler.startMedia(media);
+			try {
+				for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
+					this.walkRule(inner);
+				}
+			} finally {
+				this.handler.endMedia();
+			}
+		} else if (rule instanceof CSSPageRule) {
+			CSSPageRule pageRule = (CSSPageRule) rule;
+			String name = null, pseudoPage = null;
+			List<String> selectors = pageRule.getAllSelectors();
+			if (!selectors.isEmpty()) {
+				String selector = selectors.get(0);
+				int colon = selector.indexOf(':');
+				if (colon == -1) {
+					name = selector;
+				} else {
+					if (colon > 0) {
+						name = selector.substring(0, colon);
+					}
+					pseudoPage = selector.substring(colon + 1);
+				}
+			}
+			this.handler.startPage(name, pseudoPage);
+			for (ICSSPageRuleMember member : pageRule.getAllMembers()) {
+				if (member instanceof CSSDeclaration) {
+					this.property((CSSDeclaration) member);
+				}
+				// ページマージンボックス(@top-center等)は現段階では未対応
+			}
+			this.handler.endPage(name, pseudoPage);
+		} else if (rule instanceof CSSFontFaceRule) {
+			this.handler.startFontFace();
+			for (CSSDeclaration declaration : ((CSSFontFaceRule) rule).getAllDeclarations()) {
+				this.property(declaration);
+			}
+			this.handler.endFontFace();
+		}
+		// その他(@keyframes, @supports, @namespace, 未知のat-rule)は無視する
 	}
 
-	private static InputSource normalizeStyleDeclaration(InputSource source) throws IOException {
-		return copySource(source, read(source.getReader()).trim());
+	private void property(CSSDeclaration declaration) {
+		LexicalUnit lu = LexicalUnits.fromExpression(declaration.getExpression());
+		if (lu == null) {
+			return;
+		}
+		this.handler.property(declaration.getProperty(), lu, declaration.isImportant());
 	}
 
-	private static InputSource copySource(InputSource source, String css) {
-		InputSource copy = new InputSource(new StringReader(css));
-		copy.setEncoding(source.getEncoding());
-		copy.setURI(source.getURI());
-		copy.setMedia(source.getMedia());
-		copy.setTitle(source.getTitle());
-		return copy;
+	private static List<Selector> convertSelectors(List<CSSSelector> selectors) throws CSSException {
+		return SelectorConverter.convertList(selectors);
+	}
+
+	private static String toMediaTypes(List<CSSMediaQuery> queries) {
+		StringBuilder buff = new StringBuilder();
+		for (CSSMediaQuery query : queries) {
+			String medium = query.getMedium();
+			if (medium == null) {
+				continue;
+			}
+			if (buff.length() > 0) {
+				buff.append(' ');
+			}
+			buff.append(medium);
+		}
+		return buff.toString();
 	}
 
 	private static String read(Reader reader) throws IOException {
@@ -64,19 +182,5 @@ public class Parser {
 			builder.append(buffer, 0, len);
 		}
 		return builder.toString();
-	}
-
-	private static class ThrowingErrorHandler implements CSSErrorHandler {
-		public void warning(CSSParseException exception) throws CSSException {
-			// The legacy parser reported recoverable warnings through events only.
-		}
-
-		public void error(CSSParseException exception) throws CSSException {
-			throw exception;
-		}
-
-		public void fatalError(CSSParseException exception) throws CSSException {
-			throw exception;
-		}
 	}
 }

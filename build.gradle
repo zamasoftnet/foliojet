@@ -16,7 +16,7 @@ def dependencyVersions = [
     batik            : '1.19',
     metadataExtractor: '2.20.0',
     imageioJpeg      : '3.13.1',
-    htmlunitCssParser: '4.21.0',
+    phCss            : '8.2.1',
     htmlBalancer     : '1.1.0',
     saxon            : '12.9',
     xmlApis          : '1.4.01',
@@ -113,7 +113,7 @@ dependencies {
     api "org.apache.xmlgraphics:batik-anim:${dependencyVersions.batik}"
     api "com.drewnoakes:metadata-extractor:${dependencyVersions.metadataExtractor}"
     api "com.twelvemonkeys.imageio:imageio-jpeg:${dependencyVersions.imageioJpeg}"
-    api "org.htmlunit:htmlunit-cssparser:${dependencyVersions.htmlunitCssParser}"
+    api "com.helger:ph-css:${dependencyVersions.phCss}"
     api "net.sf.saxon:Saxon-HE:${dependencyVersions.saxon}"
     api "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
     api "uk.org.okapibarcode:okapibarcode:${dependencyVersions.okapiBarcode}"

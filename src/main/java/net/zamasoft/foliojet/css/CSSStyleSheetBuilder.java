@@ -13,10 +13,12 @@ import java.util.logging.Logger;
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.FontFacePropertySet;
 import net.zamasoft.foliojet.css.property.PagePropertySet;
+import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.parser.LexicalUnit;
-import net.zamasoft.foliojet.css.parser.LexicalUnits;
 import net.zamasoft.foliojet.css.parser.Parser;
+import net.zamasoft.foliojet.css.parser.StyleSheetHandler;
+import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.impl.css.property.CSSFontFamily;
 import net.zamasoft.foliojet.impl.css.property.CSSFontStyle;
 import net.zamasoft.foliojet.impl.css.property.FontWeight;
@@ -29,20 +31,14 @@ import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.font.FontFace;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
-import org.htmlunit.cssparser.parser.CSSException;
-import org.htmlunit.cssparser.parser.HandlerBase;
-import org.htmlunit.cssparser.parser.Locator;
-import org.htmlunit.cssparser.parser.media.MediaQuery;
-import org.htmlunit.cssparser.parser.media.MediaQueryList;
-import org.htmlunit.cssparser.parser.selector.SelectorList;
 
 /**
- * SACイベントからCSSStyleSheetオブジェクトを構築します。
- * 
+ * 解析イベントからCSSStyleSheetオブジェクトを構築します。
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: CSSStyleSheetBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSStyleSheetBuilder extends HandlerBase {
+public class CSSStyleSheetBuilder implements StyleSheetHandler {
 	private static final Logger LOG = Logger.getLogger(CSSStyleSheetBuilder.class.getName());
 
 	private static final boolean DEBUG = false;
@@ -100,22 +96,6 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		return this.cssStyleSheet;
 	}
 
-	public void comment(String text) throws CSSException {
-		// ignore
-	}
-
-	public void ignorableAtRule(String atRule) throws CSSException {
-		// ignore
-	}
-
-	public void ignorableAtRule(String atRule, Locator locator) throws CSSException {
-		this.ignorableAtRule(atRule);
-	}
-
-	public void namespaceDeclaration(String prefix, String uri) throws CSSException {
-		// ignore
-	}
-
 	public void property(String name, LexicalUnit lu, boolean important) throws CSSException {
 		switch (this.state) {
 		case NONE:
@@ -130,13 +110,9 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		}
 	}
 
-	public void property(String name, org.htmlunit.cssparser.parser.LexicalUnit value, boolean important, Locator locator) {
-		this.property(name, LexicalUnits.wrap(value), important);
-	}
-
-	public void startDocument(org.htmlunit.cssparser.parser.InputSource source) throws CSSException {
+	public void startDocument(InputSource source) throws CSSException {
 		URI uri = URI.create(source.getURI());
-		this.sourceStack.add((InputSource) source);
+		this.sourceStack.add(source);
 		this.uriStack.add(uri);
 		this.declBuilder.setURI(uri);
 		this.pageContentDeclBuilder.setURI(uri);
@@ -145,7 +121,7 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		}
 	}
 
-	public void endDocument(org.htmlunit.cssparser.parser.InputSource source) throws CSSException {
+	public void endDocument(InputSource source) throws CSSException {
 		this.sourceStack.remove(this.sourceStack.size() - 1);
 		this.uriStack.remove(this.uriStack.size() - 1);
 		if (!this.uriStack.isEmpty()) {
@@ -162,12 +138,10 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		return (InputSource) this.sourceStack.get(this.sourceStack.size() - 1);
 	}
 
-	public void importStyle(String href, MediaQueryList media, String defaultNamespaceURI, Locator locator) throws CSSException {
+	public void importStyle(String href, String mediaTypes) throws CSSException {
 		if (DEBUG) {
 			System.out.println("import:" + href);
 		}
-		String mediaTypes = toMediaTypes(media);
-		// System.out.println(href+"/"+media);
 		if (this.ua.is(mediaTypes)) {
 			if (this.sourceStack.size() > MAX_DEPTH) {
 				URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
@@ -211,11 +185,9 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		}
 	}
 
-	public void startMedia(MediaQueryList media, Locator locator) throws CSSException {
-		// System.out.println(media);
-		for (MediaQuery query : media.getMediaQueries()) {
-			String medium = query.getMedia().toLowerCase();
-			if (this.ua.is(medium)) {
+	public void startMedia(List<String> mediaTypes) throws CSSException {
+		for (String medium : mediaTypes) {
+			if (this.ua.is(medium.toLowerCase())) {
 				this.mediaStack.add(Boolean.TRUE);
 				return;
 			}
@@ -223,8 +195,7 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		this.mediaStack.add(Boolean.FALSE);
 	}
 
-	public void endMedia(MediaQueryList media) throws CSSException {
-		// System.out.println("/"+media);
+	public void endMedia() throws CSSException {
 		this.mediaStack.remove(this.mediaStack.size() - 1);
 	}
 
@@ -259,10 +230,6 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		}
 	}
 
-	public void startPage(String name, String pseudoPage, Locator locator) throws CSSException {
-		this.startPage(name, pseudoPage);
-	}
-
 	public void endPage(String name, String pseudoPage) throws CSSException {
 		if ("-cssj-page-content".equalsIgnoreCase(pseudoPage)) {
 			if (this.inProperMedia()) {
@@ -291,10 +258,6 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		this.state = IN_FONT_FACE;
 		this.declBuilder.setDeclaration(null);
 		this.declBuilder.setPropertySet(FontFacePropertySet.getInstance());
-	}
-
-	public void startFontFace(Locator locator) throws CSSException {
-		this.startFontFace();
 	}
 
 	public void endFontFace() throws CSSException {
@@ -358,7 +321,7 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		this.declBuilder.setPropertySet(ElementPropertySet.getInstance());
 	}
 
-	public void startSelector(SelectorList selectors) throws CSSException {
+	public void startSelector(List<Selector> selectors) throws CSSException {
 		if (DEBUG) {
 			System.out.println(selectors);
 		}
@@ -373,29 +336,11 @@ public class CSSStyleSheetBuilder extends HandlerBase {
 		}
 	}
 
-	public void startSelector(SelectorList selectors, Locator locator) throws CSSException {
-		this.startSelector(selectors);
-	}
-
-	public void endSelector(SelectorList selectors) throws CSSException {
+	public void endSelector(List<Selector> selectors) throws CSSException {
 		if (this.inProperMedia()) {
 			this.cssStyleSheet.addRule(selectors, this.declBuilder.getDeclaration());
 			// 宣言の構築を終了した
 			this.state = NONE;
 		}
-	}
-
-	private static String toMediaTypes(MediaQueryList media) {
-		StringBuilder buff = null;
-		for (MediaQuery query : media.getMediaQueries()) {
-			String medium = query.getMedia();
-			if (buff == null) {
-				buff = new StringBuilder(medium);
-			} else {
-				buff.append(' ');
-				buff.append(medium);
-			}
-		}
-		return buff == null ? "" : buff.toString();
 	}
 }

@@ -2,12 +2,12 @@ package net.zamasoft.foliojet.css;
 
 import java.io.Serializable;
 
-import org.htmlunit.cssparser.parser.selector.Selector;
-import org.htmlunit.cssparser.parser.selector.SelectorSpecificity;
+import net.zamasoft.foliojet.css.selector.Selector;
+import net.zamasoft.foliojet.css.selector.Specificity;
 
 /**
  * CSS規則です。 規則は、選択子とそれに対応するスタイル宣言のペアです。
- * 
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: Rule.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -18,7 +18,7 @@ public class Rule implements Cloneable, Serializable {
 
 	private final Declaration declaration;
 
-	private SelectorSpecificity specificity = null;
+	private Specificity specificity = null;
 
 	public Rule(Selector selector, Declaration declaration) {
 		this.selector = selector;
@@ -31,7 +31,7 @@ public class Rule implements Cloneable, Serializable {
 
 	/**
 	 * 選択子を返します。
-	 * 
+	 *
 	 * @return
 	 */
 	public Selector getSelector() {
@@ -40,7 +40,7 @@ public class Rule implements Cloneable, Serializable {
 
 	/**
 	 * スタイル宣言を返します。
-	 * 
+	 *
 	 * @return
 	 */
 	public Declaration getDeclaration() {
@@ -49,12 +49,12 @@ public class Rule implements Cloneable, Serializable {
 
 	/**
 	 * 選択子の固有性を返します。
-	 * 
+	 *
 	 * @return
 	 */
-	public SelectorSpecificity getSpecificity() {
+	public Specificity getSpecificity() {
 		if (this.specificity == null) {
-			this.specificity = this.selector.getSelectorSpecificity();
+			this.specificity = this.selector.getSpecificity();
 		}
 		return this.specificity;
 	}

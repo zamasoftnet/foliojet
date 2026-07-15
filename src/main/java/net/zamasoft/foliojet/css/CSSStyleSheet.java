@@ -7,8 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.htmlunit.cssparser.parser.selector.Selector;
-import org.htmlunit.cssparser.parser.selector.SelectorList;
+import net.zamasoft.foliojet.css.selector.Selector;
 
 /**
  * スタイルシートは、与えられた要素に対して適用される宣言を返します。
@@ -79,7 +78,7 @@ public class CSSStyleSheet implements Serializable, Cloneable {
 	 * @param selectors
 	 * @param declaration
 	 */
-	public void addRule(SelectorList selectors, Declaration declaration) {
+	public void addRule(List<Selector> selectors, Declaration declaration) {
 		if (declaration == null) {
 			return;
 		}

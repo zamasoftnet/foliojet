@@ -1,183 +1,276 @@
 package net.zamasoft.foliojet.css.parser;
 
-import org.htmlunit.cssparser.parser.LexicalUnit.LexicalUnitType;
+import java.util.Locale;
 
+import com.helger.css.decl.CSSExpression;
+import com.helger.css.decl.CSSExpressionMemberFunction;
+import com.helger.css.decl.CSSExpressionMemberMath;
+import com.helger.css.decl.CSSExpressionMemberTermSimple;
+import com.helger.css.decl.CSSExpressionMemberTermURI;
+import com.helger.css.decl.ECSSExpressionOperator;
+import com.helger.css.decl.ICSSExpressionMember;
+import com.helger.css.writer.CSSWriterSettings;
+
+/**
+ * ph-css の式(CSSExpression)を内部 LexicalUnit 連鎖に変換します。
+ */
 public final class LexicalUnits {
+	private static final CSSWriterSettings WRITER_SETTINGS = new CSSWriterSettings();
+
 	private LexicalUnits() {
 		// utility
 	}
 
-	public static LexicalUnit wrap(org.htmlunit.cssparser.parser.LexicalUnit unit) {
-		return unit == null ? null : new Adapter(unit);
+	/**
+	 * 式を LexicalUnit 連鎖に変換します。空の式は null を返します。
+	 */
+	public static LexicalUnit fromExpression(CSSExpression expression) {
+		if (expression == null) {
+			return null;
+		}
+		LexicalUnitImpl head = null, tail = null;
+		for (ICSSExpressionMember member : expression.getAllMembers()) {
+			LexicalUnitImpl lu = convert(member);
+			if (lu == null) {
+				continue;
+			}
+			if (head == null) {
+				head = tail = lu;
+			} else {
+				tail = tail.append(lu);
+			}
+		}
+		return head;
 	}
 
-	private static final class Adapter implements LexicalUnit {
-		private final org.htmlunit.cssparser.parser.LexicalUnit unit;
-
-		Adapter(org.htmlunit.cssparser.parser.LexicalUnit unit) {
-			this.unit = unit;
+	private static LexicalUnitImpl convert(ICSSExpressionMember member) {
+		if (member instanceof CSSExpressionMemberTermSimple) {
+			return convertTerm((CSSExpressionMemberTermSimple) member);
 		}
-
-		public short getLexicalUnitType() {
-			return toLegacyType(this.unit.getLexicalUnitType());
+		if (member instanceof CSSExpressionMemberTermURI) {
+			return LexicalUnitImpl.string(LexicalUnit.SAC_URI,
+					((CSSExpressionMemberTermURI) member).getURIString());
 		}
-
-		public LexicalUnit getNextLexicalUnit() {
-			return wrap(this.unit.getNextLexicalUnit());
+		if (member instanceof CSSExpressionMemberFunction) {
+			return convertFunction((CSSExpressionMemberFunction) member);
 		}
-
-		public LexicalUnit getPreviousLexicalUnit() {
-			return wrap(this.unit.getPreviousLexicalUnit());
+		if (member instanceof ECSSExpressionOperator) {
+			switch ((ECSSExpressionOperator) member) {
+			case COMMA:
+				return new LexicalUnitImpl(LexicalUnit.SAC_OPERATOR_COMMA);
+			case SLASH:
+				return new LexicalUnitImpl(LexicalUnit.SAC_OPERATOR_SLASH);
+			default:
+				return LexicalUnitImpl.string(LexicalUnit.SAC_IDENT, "=");
+			}
 		}
-
-		public int getIntegerValue() {
-			return this.unit.getIntegerValue();
+		if (member instanceof CSSExpressionMemberMath) {
+			// calc() 等の数式は汎用関数として渡す(未対応プロパティでは無効値として扱われる)
+			LexicalUnitImpl param = LexicalUnitImpl.string(LexicalUnit.SAC_IDENT,
+					((CSSExpressionMemberMath) member).getAsCSSString(WRITER_SETTINGS, 0));
+			return LexicalUnitImpl.function(LexicalUnit.SAC_FUNCTION, "calc", param);
 		}
-
-		public float getFloatValue() {
-			return (float) this.unit.getDoubleValue();
-		}
-
-		public String getDimensionUnitText() {
-			return this.unit.getDimensionUnitText();
-		}
-
-		public String getFunctionName() {
-			return this.unit.getFunctionName();
-		}
-
-		public LexicalUnit getParameters() {
-			return wrap(this.unit.getParameters());
-		}
-
-		public String getStringValue() {
-			return this.unit.getStringValue();
-		}
-
-		public LexicalUnit getSubValues() {
-			return wrap(this.unit.getSubValues());
-		}
-
-		public String toString() {
-			return this.unit.toString();
-		}
+		// 未知のメンバーは無視する
+		return null;
 	}
 
-	private static short toLegacyType(LexicalUnitType type) {
-		switch (type) {
-		case OPERATOR_COMMA:
-			return LexicalUnit.SAC_OPERATOR_COMMA;
-		case OPERATOR_PLUS:
-			return LexicalUnit.SAC_OPERATOR_PLUS;
-		case OPERATOR_MINUS:
-			return LexicalUnit.SAC_OPERATOR_MINUS;
-		case OPERATOR_MULTIPLY:
-			return LexicalUnit.SAC_OPERATOR_MULTIPLY;
-		case OPERATOR_SLASH:
-			return LexicalUnit.SAC_OPERATOR_SLASH;
-		case OPERATOR_MOD:
-			return LexicalUnit.SAC_OPERATOR_MOD;
-		case OPERATOR_EXP:
-			return LexicalUnit.SAC_OPERATOR_EXP;
-		case OPERATOR_LT:
-			return LexicalUnit.SAC_OPERATOR_LT;
-		case OPERATOR_GT:
-			return LexicalUnit.SAC_OPERATOR_GT;
-		case OPERATOR_LE:
-			return LexicalUnit.SAC_OPERATOR_LE;
-		case OPERATOR_GE:
-			return LexicalUnit.SAC_OPERATOR_GE;
-		case OPERATOR_TILDE:
-			return LexicalUnit.SAC_OPERATOR_TILDE;
-		case INHERIT:
-			return LexicalUnit.SAC_INHERIT;
-		case INTEGER:
-			return LexicalUnit.SAC_INTEGER;
-		case REAL:
-			return LexicalUnit.SAC_REAL;
-		case EM:
-			return LexicalUnit.SAC_EM;
-		case EX:
-			return LexicalUnit.SAC_EX;
-		case REM:
-			return LexicalUnit.SAC_REM;
-		case CH:
-			return LexicalUnit.SAC_CH;
-		case PIXEL:
-			return LexicalUnit.SAC_PIXEL;
-		case INCH:
-			return LexicalUnit.SAC_INCH;
-		case CENTIMETER:
-			return LexicalUnit.SAC_CENTIMETER;
-		case MILLIMETER:
-			return LexicalUnit.SAC_MILLIMETER;
-		case POINT:
-			return LexicalUnit.SAC_POINT;
-		case PICA:
-			return LexicalUnit.SAC_PICA;
-		case PERCENTAGE:
-			return LexicalUnit.SAC_PERCENTAGE;
-		case URI:
-			return LexicalUnit.SAC_URI;
-		case COUNTER_FUNCTION:
-			return LexicalUnit.SAC_COUNTER_FUNCTION;
-		case COUNTERS_FUNCTION:
-			return LexicalUnit.SAC_COUNTERS_FUNCTION;
-		case RGBCOLOR:
-			return LexicalUnit.SAC_RGBCOLOR;
-		case DEGREE:
-			return LexicalUnit.SAC_DEGREE;
-		case GRADIAN:
-			return LexicalUnit.SAC_GRADIAN;
-		case RADIAN:
-			return LexicalUnit.SAC_RADIAN;
-		case MILLISECOND:
-			return LexicalUnit.SAC_MILLISECOND;
-		case SECOND:
-			return LexicalUnit.SAC_SECOND;
-		case HERTZ:
-			return LexicalUnit.SAC_HERTZ;
-		case KILOHERTZ:
-			return LexicalUnit.SAC_KILOHERTZ;
-		case IDENT:
-			return LexicalUnit.SAC_IDENT;
-		case STRING_VALUE:
-			return LexicalUnit.SAC_STRING_VALUE;
-		case ATTR:
-			return LexicalUnit.SAC_ATTR;
-		case RECT_FUNCTION:
-			return LexicalUnit.SAC_RECT_FUNCTION;
-		case UNICODERANGE:
-			return LexicalUnit.SAC_UNICODERANGE;
-		case FUNCTION:
-		case FUNCTION_CALC:
-		case HSLCOLOR:
-		case HWBCOLOR:
-		case LABCOLOR:
-		case LCHCOLOR:
-			return LexicalUnit.SAC_FUNCTION;
-		case DIMENSION:
-		case VW:
-		case VH:
-		case VMIN:
-		case VMAX:
-		case DVW:
-		case DVH:
-		case DVMIN:
-		case DVMAX:
-		case LVW:
-		case LVH:
-		case LVMIN:
-		case LVMAX:
-		case SVW:
-		case SVH:
-		case SVMIN:
-		case SVMAX:
-		case QUATER:
-		case TURN:
-			return LexicalUnit.SAC_DIMENSION;
+	private static LexicalUnitImpl convertTerm(CSSExpressionMemberTermSimple term) {
+		String value = term.getValue().trim();
+		if (term.isStringLiteral()) {
+			return LexicalUnitImpl.string(LexicalUnit.SAC_STRING_VALUE, unquote(value));
+		}
+		if (value.isEmpty()) {
+			return null;
+		}
+		if (value.equalsIgnoreCase("inherit")) {
+			return new LexicalUnitImpl(LexicalUnit.SAC_INHERIT);
+		}
+		if (value.charAt(0) == '#') {
+			LexicalUnitImpl color = parseHexColor(value);
+			if (color != null) {
+				return color;
+			}
+			return LexicalUnitImpl.string(LexicalUnit.SAC_IDENT, value);
+		}
+		LexicalUnitImpl number = parseNumber(value);
+		if (number != null) {
+			return number;
+		}
+		if (value.length() > 2 && (value.charAt(0) == 'U' || value.charAt(0) == 'u') && value.charAt(1) == '+') {
+			return LexicalUnitImpl.string(LexicalUnit.SAC_UNICODERANGE, value);
+		}
+		return LexicalUnitImpl.string(LexicalUnit.SAC_IDENT, value);
+	}
+
+	private static LexicalUnitImpl convertFunction(CSSExpressionMemberFunction function) {
+		String name = function.getFunctionName();
+		LexicalUnit params = fromExpression(function.getExpression());
+		String lower = name.toLowerCase(Locale.ROOT);
+		switch (lower) {
+		case "rgb":
+			return LexicalUnitImpl.function(LexicalUnit.SAC_RGBCOLOR, name, params);
+		case "counter":
+			return LexicalUnitImpl.function(LexicalUnit.SAC_COUNTER_FUNCTION, name, params);
+		case "counters":
+			return LexicalUnitImpl.function(LexicalUnit.SAC_COUNTERS_FUNCTION, name, params);
+		case "rect":
+			return LexicalUnitImpl.function(LexicalUnit.SAC_RECT_FUNCTION, name, params);
+		case "attr": {
+			String attrName = params != null && params.getLexicalUnitType() == LexicalUnit.SAC_IDENT
+					? params.getStringValue()
+					: (params != null ? params.getStringValue() : null);
+			return LexicalUnitImpl.string(LexicalUnit.SAC_ATTR, attrName);
+		}
 		default:
-			return LexicalUnit.SAC_IDENT;
+			return LexicalUnitImpl.function(LexicalUnit.SAC_FUNCTION, name, params);
 		}
+	}
+
+	private static LexicalUnitImpl parseHexColor(String value) {
+		String hex = value.substring(1);
+		int r, g, b;
+		try {
+			if (hex.length() == 3) {
+				r = Integer.parseInt(hex.substring(0, 1), 16) * 17;
+				g = Integer.parseInt(hex.substring(1, 2), 16) * 17;
+				b = Integer.parseInt(hex.substring(2, 3), 16) * 17;
+			} else if (hex.length() == 6) {
+				r = Integer.parseInt(hex.substring(0, 2), 16);
+				g = Integer.parseInt(hex.substring(2, 4), 16);
+				b = Integer.parseInt(hex.substring(4, 6), 16);
+			} else {
+				return null;
+			}
+		} catch (NumberFormatException e) {
+			return null;
+		}
+		LexicalUnitImpl red = LexicalUnitImpl.number(LexicalUnit.SAC_INTEGER, r, null);
+		red.append(new LexicalUnitImpl(LexicalUnit.SAC_OPERATOR_COMMA))
+				.append(LexicalUnitImpl.number(LexicalUnit.SAC_INTEGER, g, null))
+				.append(new LexicalUnitImpl(LexicalUnit.SAC_OPERATOR_COMMA))
+				.append(LexicalUnitImpl.number(LexicalUnit.SAC_INTEGER, b, null));
+		return LexicalUnitImpl.function(LexicalUnit.SAC_RGBCOLOR, "rgb", red);
+	}
+
+	private static LexicalUnitImpl parseNumber(String value) {
+		int unitStart = value.length();
+		boolean digit = false, dot = false;
+		for (int i = 0; i < value.length(); ++i) {
+			char c = value.charAt(i);
+			if ((c == '+' || c == '-') && i == 0) {
+				continue;
+			}
+			if (c >= '0' && c <= '9') {
+				digit = true;
+				continue;
+			}
+			if (c == '.' && !dot) {
+				dot = true;
+				continue;
+			}
+			unitStart = i;
+			break;
+		}
+		if (!digit) {
+			return null;
+		}
+		String numberPart = value.substring(0, unitStart);
+		String unit = value.substring(unitStart).toLowerCase(Locale.ROOT);
+		final float number;
+		try {
+			number = Float.parseFloat(numberPart);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+		switch (unit) {
+		case "":
+			return LexicalUnitImpl.number(dot ? LexicalUnit.SAC_REAL : LexicalUnit.SAC_INTEGER, number, null);
+		case "%":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_PERCENTAGE, number, "%");
+		case "em":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_EM, number, unit);
+		case "ex":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_EX, number, unit);
+		case "rem":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_REM, number, unit);
+		case "ch":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_CH, number, unit);
+		case "px":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_PIXEL, number, unit);
+		case "in":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_INCH, number, unit);
+		case "cm":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_CENTIMETER, number, unit);
+		case "mm":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_MILLIMETER, number, unit);
+		case "pt":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_POINT, number, unit);
+		case "pc":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_PICA, number, unit);
+		case "deg":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_DEGREE, number, unit);
+		case "grad":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_GRADIAN, number, unit);
+		case "rad":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_RADIAN, number, unit);
+		case "ms":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_MILLISECOND, number, unit);
+		case "s":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_SECOND, number, unit);
+		case "hz":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_HERTZ, number, unit);
+		case "khz":
+			return LexicalUnitImpl.number(LexicalUnit.SAC_KILOHERTZ, number, unit);
+		default:
+			// 単位がCSS識別子でない場合は数値として扱わない
+			for (int i = 0; i < unit.length(); ++i) {
+				char c = unit.charAt(i);
+				if ((c < 'a' || c > 'z') && c != '-' && c != '_' && (c < '0' || c > '9')) {
+					return null;
+				}
+			}
+			return LexicalUnitImpl.number(LexicalUnit.SAC_DIMENSION, number, unit);
+		}
+	}
+
+	private static String unquote(String value) {
+		if (value.length() >= 2) {
+			char first = value.charAt(0);
+			if ((first == '"' || first == '\'') && value.charAt(value.length() - 1) == first) {
+				value = value.substring(1, value.length() - 1);
+			}
+		}
+		if (value.indexOf('\\') == -1) {
+			return value;
+		}
+		StringBuilder buff = new StringBuilder(value.length());
+		for (int i = 0; i < value.length(); ++i) {
+			char c = value.charAt(i);
+			if (c != '\\' || i + 1 >= value.length()) {
+				buff.append(c);
+				continue;
+			}
+			char next = value.charAt(i + 1);
+			if (isHexDigit(next)) {
+				// CSSの16進エスケープ(最大6桁+空白1つ)
+				int end = i + 1;
+				while (end < value.length() && end - i <= 6 && isHexDigit(value.charAt(end))) {
+					++end;
+				}
+				buff.appendCodePoint(Integer.parseInt(value.substring(i + 1, end), 16));
+				if (end < value.length() && value.charAt(end) == ' ') {
+					++end;
+				}
+				i = end - 1;
+			} else {
+				buff.append(next);
+				++i;
+			}
+		}
+		return buff.toString();
+	}
+
+	private static boolean isHexDigit(char c) {
+		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 	}
 }

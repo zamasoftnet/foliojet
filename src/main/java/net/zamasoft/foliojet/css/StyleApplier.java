@@ -19,9 +19,9 @@ import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
+import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.parser.Parser;
-import org.htmlunit.cssparser.parser.CSSException;
 
 /**
  * CSSに関する処理命令を処理します。

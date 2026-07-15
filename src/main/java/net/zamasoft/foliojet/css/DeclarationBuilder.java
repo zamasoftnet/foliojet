@@ -1,26 +1,24 @@
 package net.zamasoft.foliojet.css;
 
 import java.net.URI;
+import java.util.List;
 
 import net.zamasoft.foliojet.css.property.Property;
 import net.zamasoft.foliojet.css.property.PropertySet;
+import net.zamasoft.foliojet.css.parser.CSSException;
+import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.parser.LexicalUnit;
-import net.zamasoft.foliojet.css.parser.LexicalUnits;
+import net.zamasoft.foliojet.css.parser.StyleSheetHandler;
+import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.ua.UserAgent;
-import org.htmlunit.cssparser.parser.CSSException;
-import org.htmlunit.cssparser.parser.HandlerBase;
-import org.htmlunit.cssparser.parser.InputSource;
-import org.htmlunit.cssparser.parser.Locator;
-import org.htmlunit.cssparser.parser.media.MediaQueryList;
-import org.htmlunit.cssparser.parser.selector.SelectorList;
 
 /**
- * SACイベントからDeclarationオブジェクトを構築します。
- * 
+ * 解析イベントからDeclarationオブジェクトを構築します。
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: DeclarationBuilder.java 1554 2018-04-26 03:34:02Z miyabe $
  */
-public class DeclarationBuilder extends HandlerBase {
+public class DeclarationBuilder implements StyleSheetHandler {
 	private final UserAgent ua;
 
 	private PropertySet propertySet;
@@ -36,7 +34,7 @@ public class DeclarationBuilder extends HandlerBase {
 
 	/**
 	 * 宣言の存在するスタイルシートのURIを設定します。
-	 * 
+	 *
 	 * @param uri
 	 */
 	public void setURI(URI uri) {
@@ -69,31 +67,19 @@ public class DeclarationBuilder extends HandlerBase {
 		// ignore
 	}
 
-	public void comment(String text) throws CSSException {
+	public void importStyle(String href, String mediaTypes) throws CSSException {
 		// ignore
 	}
 
-	public void ignorableAtRule(String atRule) throws CSSException {
+	public void startMedia(List<String> mediaTypes) throws CSSException {
 		// ignore
 	}
 
-	public void namespaceDeclaration(String prefix, String uri) throws CSSException {
+	public void endMedia() throws CSSException {
 		// ignore
 	}
 
-	public void importStyle(String uri, MediaQueryList media, String defaultNamespaceURI) throws CSSException {
-		// ignore
-	}
-
-	public void startMedia(MediaQueryList media) throws CSSException {
-		// ignore
-	}
-
-	public void endMedia(MediaQueryList media) throws CSSException {
-		// ignore
-	}
-
-	public void startPage(String name, String pseudo_page) throws CSSException {
+	public void startPage(String name, String pseudoPage) throws CSSException {
 		// ignore
 	}
 
@@ -109,11 +95,11 @@ public class DeclarationBuilder extends HandlerBase {
 		// ignore
 	}
 
-	public void startSelector(SelectorList selectors) throws CSSException {
+	public void startSelector(List<Selector> selectors) throws CSSException {
 		// ignore
 	}
 
-	public void endSelector(SelectorList selectors) throws CSSException {
+	public void endSelector(List<Selector> selectors) throws CSSException {
 		// ignore
 	}
 
@@ -130,10 +116,6 @@ public class DeclarationBuilder extends HandlerBase {
 			this.declaration.addProperty(property);
 			// System.out.println(property);
 		}
-	}
-
-	public void property(String name, org.htmlunit.cssparser.parser.LexicalUnit value, boolean important, Locator locator) {
-		this.property(name, LexicalUnits.wrap(value), important);
 	}
 
 	protected boolean inProperMedia() {

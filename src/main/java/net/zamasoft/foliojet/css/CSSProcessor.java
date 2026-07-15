@@ -49,9 +49,9 @@ import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.parser.Parser;
-import org.htmlunit.cssparser.parser.CSSException;
 
 /**
  * CSSに関する処理命令を処理します。
