@@ -467,6 +467,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 			this.pageBox.getUserAgent().message(MessageCodes.WARN_MISSING_FONT, c + codes.toString());
 		}
 
+		public String describe() {
+			final StringBuilder text = new StringBuilder();
+			for (int i = this.off; i < this.off + this.len; ++i) {
+				if (this.contents.get(i) instanceof Text t) {
+					text.append(t.getChars(), 0, t.getCharCount());
+				}
+			}
+			return String.format(java.util.Locale.ROOT, "Text[\"%s\" asc=%.2f desc=%.2f]", text, this.ascent,
+					this.descent);
+		}
+
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			// 影
 			if (this.params.textShadows != null) {

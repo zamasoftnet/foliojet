@@ -25,4 +25,9 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 	public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 		this.frame.draw(gc, x, y, this.width, this.height, this.textClip);
 	}
+
+	@Override
+	public String describe() {
+		return String.format(java.util.Locale.ROOT, "AbsoluteRectFrame[w=%.2f h=%.2f]", this.width, this.height);
+	}
 }

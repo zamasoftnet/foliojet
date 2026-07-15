@@ -1,0 +1,12 @@
+drawer z=0
+  x=522.58 y=6.00 Text["縦テーブル" asc=5.00 desc=5.00]
+  x=398.08 y=26.00 CollapsedBordersDrawable
+  x=476.83 y=49.25 Text["１" asc=5.00 desc=5.00]
+  x=476.83 y=75.75 Text["２" asc=5.00 desc=5.00]
+  x=476.83 y=119.75 Text["３" asc=5.00 desc=5.00]
+  x=445.33 y=46.75 Text["４" asc=5.00 desc=5.00]
+  x=445.33 y=78.25 Text["５" asc=5.00 desc=5.00]
+  x=445.33 y=119.75 Text["６" asc=5.00 desc=5.00]
+  x=413.83 y=46.75 Text["７" asc=5.00 desc=5.00]
+  x=413.83 y=78.25 Text["８" asc=5.00 desc=5.00]
+  x=413.83 y=119.75 Text["９" asc=5.00 desc=5.00]

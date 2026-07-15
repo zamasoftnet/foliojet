@@ -26,6 +26,11 @@ public class BackgroundBorderDrawable extends AbstractDrawable {
 		this.padding = padding;
 	}
 
+	@Override
+	public String describe() {
+		return String.format(java.util.Locale.ROOT, "BackgroundBorder[w=%.2f h=%.2f]", this.width, this.height);
+	}
+
 	public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 		this.background.draw(gc, x, y, this.width, this.height, this.border, this.padding, null); // TODO text clip
 	}

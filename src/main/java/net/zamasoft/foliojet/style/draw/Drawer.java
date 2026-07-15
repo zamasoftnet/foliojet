@@ -88,4 +88,25 @@ public class Drawer implements Comparable<Drawer> {
 		long s2 = a2.z;
 		return s1 < s2 ? -1 : s1 > s2 ? 1 : 0;
 	}
+
+	/**
+	 * 表示リストをテキストとしてダンプします。draw()と同じ順序で出力します。
+	 */
+	public void dump(StringBuilder sb, String indent) {
+		sb.append(indent).append("drawer z=").append(this.z).append('\n');
+		if (this.drawables != null) {
+			for (int i = 0; i < this.drawables.size(); ++i) {
+				ArrangedDrawable drawable = this.drawables.get(i);
+				sb.append(indent).append("  ")
+						.append(String.format(java.util.Locale.ROOT, "x=%.2f y=%.2f ", drawable.x, drawable.y))
+						.append(drawable.drawable.describe()).append('\n');
+			}
+		}
+		if (this.drawers != null) {
+			Collections.sort(this.drawers);
+			for (int i = 0; i < this.drawers.size(); ++i) {
+				this.drawers.get(i).dump(sb, indent + "  ");
+			}
+		}
+	}
 }

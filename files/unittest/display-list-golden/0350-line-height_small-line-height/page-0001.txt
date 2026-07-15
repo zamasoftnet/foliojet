@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=61.42]
+  x=5.00 y=-77.58 AbsoluteRectFrame[w=160.00 h=175.17]
+  x=10.00 y=-77.58 Text["あ" asc=134.00 desc=41.17]

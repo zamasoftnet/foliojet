@@ -23,4 +23,9 @@ public class BackgroundDrawable extends AbstractDrawable {
 	public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 		this.background.draw(gc, x, y, this.width, this.height, null, null, null);// TODO text clip
 	}
+
+	@Override
+	public String describe() {
+		return String.format(java.util.Locale.ROOT, "Background[w=%.2f h=%.2f]", this.width, this.height);
+	}
 }

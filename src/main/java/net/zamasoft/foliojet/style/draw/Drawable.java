@@ -5,19 +5,21 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
  * 描画可能なオブジェクトです。
- * 
+ *
  * @author MIYABE Tatsuhiko
- * @version $Id: Drawable.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface Drawable {
 	/**
 	 * オブジェクトを描画します。
-	 * 
-	 * @param gc
-	 * @param x
-	 * @param y
-	 * @throws GraphicsException
-	 *             TODO
 	 */
 	public void draw(GC gc, double x, double y) throws GraphicsException;
+
+	/**
+	 * 表示リストダンプ用の1行表現を返します。
+	 * 回帰検証(golden比較)に使うため、内容を特定できる決定的な文字列を返してください。
+	 */
+	public default String describe() {
+		String name = this.getClass().getSimpleName();
+		return name.isEmpty() ? this.getClass().getName() : name;
+	}
 }

@@ -473,6 +473,11 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			this.border.draw(gc, x, y, this.width, this.height);
 		}
+
+		@Override
+		public String describe() {
+			return String.format(java.util.Locale.ROOT, "TableBorder[w=%.2f h=%.2f]", this.width, this.height);
+		}
 	}
 
 	protected static class CollapsedBordersDrawable extends AbstractDrawable {

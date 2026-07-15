@@ -184,6 +184,7 @@ import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.style.box.params.TableRowPos;
 import net.zamasoft.foliojet.style.box.params.Types;
 import net.zamasoft.foliojet.style.builder.PageGenerator;
+import net.zamasoft.foliojet.style.draw.DisplayListDumper;
 import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.imposition.Imposition;
 import net.zamasoft.foliojet.style.part.AbsoluteInsets;
@@ -2777,6 +2778,7 @@ public class StyleBuilder implements PageGenerator {
 		// 描画処理を非同期で実行
 		// PDFでは描画処理は非常に早く終わる
 		if (gc != null) {
+			DisplayListDumper.dumpPage(drawer, this.pageNumber);
 			drawer.draw(gc);
 			if (marginState != null) {
 				marginState.close();
