@@ -12,7 +12,8 @@ import net.zamasoft.foliojet.css.value.css3.UnicodeRangeValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.UnicodeRange;
 import net.zamasoft.pdfg2d.gc.font.UnicodeRangeList;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -41,28 +42,20 @@ public class CSSUnicodeRange extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		List<UnicodeRange> list = new ArrayList<UnicodeRange>();
-		do {
-			if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_COMMA) {
-				lu = lu.getNextLexicalUnit();
-				if (lu == null) {
-					break;
-				}
-			}
-			if (lu.getLexicalUnitType() != LexicalUnit.SAC_UNICODERANGE) {
+		for (CssToken lu : tokens.restIgnoringCommas()) {
+			if (!(lu instanceof CssToken.UnicodeRange range)) {
 				throw new PropertyException();
 			}
-			String str = lu.getStringValue();
-			UnicodeRange unicodeRange;
+			final UnicodeRange unicodeRange;
 			try {
-				unicodeRange = UnicodeRange.parseRange(str);
+				unicodeRange = UnicodeRange.parseRange(range.text());
 			} catch (NumberFormatException e) {
 				throw new PropertyException();
 			}
 			list.add(unicodeRange);
-			lu = lu.getNextLexicalUnit();
-		} while (lu != null);
+		}
 		return new UnicodeRangeValue((UnicodeRange[]) list.toArray(new UnicodeRange[list.size()]));
 	}
 

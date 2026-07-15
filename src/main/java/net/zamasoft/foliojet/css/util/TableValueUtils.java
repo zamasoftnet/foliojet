@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.css.util;
 
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.BorderCollapseValue;
 import net.zamasoft.foliojet.css.value.CaptionSideValue;
 import net.zamasoft.foliojet.css.value.EmptyCellsValue;
 import net.zamasoft.foliojet.css.value.TableLayoutValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -18,90 +18,65 @@ public final class TableValueUtils {
 
 	/**
 	 * caption-side を値に変換します。SPEC CSS2 17.4.1
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static Value toCaptionSide(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("top")) {
+	public static Value toCaptionSide(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "top":
 				return CaptionSideValue.TOP_VALUE;
-			} else if (ident.equals("bottom")) {
+			case "bottom":
 				return CaptionSideValue.BOTTOM_VALUE;
-			} else if (ident.equals("before")) {
+			case "before":
 				return CaptionSideValue.BEFORE_VALUE;
-			} else if (ident.equals("after")) {
+			case "after":
 				return CaptionSideValue.AFTER_VALUE;
 			}
-
-		default:
-			return null;
 		}
+		return null;
 	}
 
 	/**
 	 * table-layout を値に変換します。(CSS2 17.5.2)
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static Value toTableLayout(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("auto")) {
+	public static Value toTableLayout(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "auto":
 				return TableLayoutValue.AUTO_VALUE;
-			} else if (ident.equals("fixed")) {
+			case "fixed":
 				return TableLayoutValue.FIXED_VALUE;
 			}
-		default:
-			return null;
 		}
+		return null;
 	}
 
 	/**
 	 * border-collapse を値に変換します。(CSS2 17.6)
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static Value toBorderCollapse(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("collapse")) {
+	public static Value toBorderCollapse(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "collapse":
 				return BorderCollapseValue.COLLAPSE_VALUE;
-			} else if (ident.equals("separate")) {
+			case "separate":
 				return BorderCollapseValue.SEPARATE_VALUE;
 			}
-		default:
-			return null;
 		}
+		return null;
 	}
 
 	/**
 	 * empty-cells を値に変換します。(CSS2 17.6.1)
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static Value toEmptyCells(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("show")) {
+	public static Value toEmptyCells(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "show":
 				return EmptyCellsValue.SHOW_VALUE;
-			} else if (ident.equals("hide")) {
+			case "hide":
 				return EmptyCellsValue.HIDE_VALUE;
 			}
-		default:
-			return null;
 		}
+		return null;
 	}
 }

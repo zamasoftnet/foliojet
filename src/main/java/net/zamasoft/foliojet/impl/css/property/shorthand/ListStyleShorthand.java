@@ -16,7 +16,8 @@ import net.zamasoft.foliojet.impl.css.property.ListStylePosition;
 import net.zamasoft.foliojet.impl.css.property.ListStyleType;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -29,43 +30,36 @@ public class ListStyleShorthand extends AbstractShorthandPropertyInfo {
 		super("list-style");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(ListStyleType.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(ListStyleImage.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(ListStylePosition.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
 
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_URI: {
-				final URIValue imageUri;
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			if (lu instanceof CssToken.Uri uriToken) {
 				try {
-					imageUri = ValueUtils.toURI(ua, uri, lu);
+					final URIValue imageUri = ValueUtils.toURI(ua, uri, lu);
 					primitives.set(ListStyleImage.INFO, imageUri);
 				} catch (URISyntaxException e) {
-					ua.message(MessageCodes.WARN_BAD_LINK_URI, lu.getStringValue());
+					ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
 				}
-			}
-				break;
-
-			case LexicalUnit.SAC_IDENT: {
-				final Value styleType = GeneratedValueUtils.toListStyleType(lu.getStringValue());
+			} else if (lu instanceof CssToken.Ident ident) {
+				final Value styleType = GeneratedValueUtils.toListStyleType(ident.name());
 				if (styleType != null) {
 					primitives.set(ListStyleType.INFO, styleType);
-					break;
+					continue;
 				}
 
-				final Value position = GeneratedValueUtils.toListStylePosition(lu.getStringValue());
+				final Value position = GeneratedValueUtils.toListStylePosition(ident.name());
 				if (position == null) {
 					throw new PropertyException();
 				}
 				primitives.set(ListStylePosition.INFO, position);
-			}
-				break;
-
-			default:
+			} else {
 				throw new PropertyException();
 			}
 		}

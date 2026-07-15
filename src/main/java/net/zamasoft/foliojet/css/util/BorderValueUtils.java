@@ -1,10 +1,11 @@
 package net.zamasoft.foliojet.css.util;
 
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -17,83 +18,77 @@ public final class BorderValueUtils {
 
 	/**
 	 * &lt;border-width&gt; を値に変換します。
-	 * 
-	 * @param ua
-	 * @param lu
-	 * @return
 	 */
-	public static LengthValue toBorderWidth(UserAgent ua, LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("thin")) {
+	public static LengthValue toBorderWidth(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "thin":
 				return ua.getBorderWidth(UserAgent.BORDER_WIDTH_THIN);
-			} else if (ident.equals("medium")) {
+			case "medium":
 				return ua.getBorderWidth(UserAgent.BORDER_WIDTH_MEDIUM);
-			} else if (ident.equals("thick")) {
+			case "thick":
 				return ua.getBorderWidth(UserAgent.BORDER_WIDTH_THICK);
+			default:
+				return null;
 			}
-			break;
-
-		default:
-			LengthValue length = ValueUtils.toLength(ua, lu);
-			if (length != null && length.isNegative()) {
-				break;
-			}
-			return length;
 		}
-		return null;
+		LengthValue length = ValueUtils.toLength(ua, token);
+		if (length != null && length.isNegative()) {
+			return null;
+		}
+		return length;
 	}
 
 	/**
 	 * &lt;border-style&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static BorderStyleValue toBorderStyle(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("none")) {
+	public static BorderStyleValue toBorderStyle(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "none":
 				return BorderStyleValue.NONE_VALUE;
-			} else if (ident.equals("hidden")) {
+			case "hidden":
 				return BorderStyleValue.HIDDEN_VALUE;
-			} else if (ident.equals("dotted")) {
+			case "dotted":
 				return BorderStyleValue.DOTTED_VALUE;
-			} else if (ident.equals("dashed")) {
+			case "dashed":
 				return BorderStyleValue.DASHED_VALUE;
-			} else if (ident.equals("solid")) {
+			case "solid":
 				return BorderStyleValue.SOLID_VALUE;
-			} else if (ident.equals("double")) {
+			case "double":
 				return BorderStyleValue.DOUBLE_VALUE;
-			} else if (ident.equals("groove")) {
+			case "groove":
 				return BorderStyleValue.GROOVE_VALUE;
-			} else if (ident.equals("ridge")) {
+			case "ridge":
 				return BorderStyleValue.RIDGE_VALUE;
-			} else if (ident.equals("inset")) {
+			case "inset":
 				return BorderStyleValue.INSET_VALUE;
-			} else if (ident.equals("outset")) {
+			case "outset":
 				return BorderStyleValue.OUTSET_VALUE;
 			}
 		}
 		return null;
 	}
 
-	public static BorderRadiusValue toBorderRadius(UserAgent ua, LexicalUnit lu) {
-		LengthValue hr = ValueUtils.toLength(ua, lu);
+	/**
+	 * &lt;border-radius&gt;(水平半径 [垂直半径])を値に変換します。残りトークンを消費します。
+	 */
+	public static BorderRadiusValue toBorderRadius(UserAgent ua, TokenStream tokens) {
+		CssToken first = tokens.next();
+		if (first == null) {
+			return null;
+		}
+		LengthValue hr = ValueUtils.toLength(ua, first);
 		if (hr == null) {
 			return null;
 		}
-		lu = lu.getNextLexicalUnit();
 		LengthValue vr;
-		if (lu != null) {
-			if (lu.getNextLexicalUnit() != null) {
+		if (tokens.hasNext()) {
+			CssToken second = tokens.next();
+			if (tokens.hasNext()) {
 				return null;
 			}
-			vr = ValueUtils.toLength(ua, lu);
+			vr = ValueUtils.toLength(ua, second);
 			if (vr == null) {
 				return null;
 			}

@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -44,23 +45,13 @@ public class Opacity extends AbstractPrimitivePropertyInfo {
 		return RealValue.create(Opacity.get(parent) * real.getReal());
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_INTEGER: {
-			float op = lu.getIntegerValue();
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Num num) {
+			float op = (float) num.value();
 			if (op >= 0 && op <= 1) {
 				return RealValue.create(op);
 			}
-			throw new PropertyException();
-		}
-		case LexicalUnit.SAC_REAL: {
-			float op = lu.getFloatValue();
-			if (op >= 0 && op <= 1) {
-				return RealValue.create(op);
-			}
-			throw new PropertyException();
-		}
 		}
 		throw new PropertyException();
 	}

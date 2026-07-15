@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,8 +40,8 @@ public class CSSFontFamily extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		final FontFamilyValue fontFamily = FontValueUtils.toFontFamily(ua, lu);
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final FontFamilyValue fontFamily = FontValueUtils.toFontFamily(ua, tokens);
 		if (fontFamily == null) {
 			throw new PropertyException();
 		}

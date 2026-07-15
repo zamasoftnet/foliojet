@@ -14,7 +14,8 @@ import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -53,34 +54,27 @@ public class CSSJPageContentClear extends AbstractPrimitivePropertyInfo {
 		return false;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return InheritValue.INHERIT_VALUE;
 		}
 		final List<Value> list = new ArrayList<Value>();
-		Value value;
-		do {
-			short luType = lu.getLexicalUnitType();
-			switch (luType) {
-			case LexicalUnit.SAC_IDENT:
-				String ident = lu.getStringValue().toLowerCase();
-				if (ident.equals("none")) {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			final Value value;
+			if (lu instanceof CssToken.Ident ident) {
+				if (ident.is("none")) {
 					value = NoneValue.NONE_VALUE;
 				} else {
-					value = new StringValue(lu.getStringValue());
+					value = new StringValue(ident.name());
 				}
-				break;
-
-			case LexicalUnit.SAC_STRING_VALUE:
-				value = new StringValue(lu.getStringValue());
-				break;
-
-			default:
+			} else if (lu instanceof CssToken.Str str) {
+				value = new StringValue(str.value());
+			} else {
 				throw new PropertyException();
 			}
 			list.add(value);
-			lu = lu.getNextLexicalUnit();
-		} while (lu != null);
+		}
 
 		return new ValueListValue((Value[]) list.toArray(new Value[list.size()]));
 	}

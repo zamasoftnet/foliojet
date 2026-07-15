@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.EmLengthValue;
 import net.zamasoft.foliojet.css.value.ExLengthValue;
@@ -16,7 +17,6 @@ import net.zamasoft.foliojet.css.value.css3.CSS3Value;
 import net.zamasoft.foliojet.css.value.css3.ChLengthValue;
 import net.zamasoft.foliojet.css.value.css3.RemLengthValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 
 /**
@@ -29,69 +29,56 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * auto であればtrueを返します。
-	 * 
-	 * @param lu
-	 * @return
+	 * 識別子キーワード(大文字小文字無視)であれば true を返します。
 	 */
-	public static boolean isAuto(LexicalUnit lu) {
-		return (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT && lu.getStringValue().equalsIgnoreCase("auto"));
+	public static boolean isKeyword(CssToken token, String keyword) {
+		return token instanceof CssToken.Ident ident && ident.is(keyword);
+	}
+
+	/**
+	 * auto であればtrueを返します。
+	 */
+	public static boolean isAuto(CssToken token) {
+		return isKeyword(token, "auto");
 	}
 
 	/**
 	 * none であればtrueを返します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static boolean isNone(LexicalUnit lu) {
-		return (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT && lu.getStringValue().equalsIgnoreCase("none"));
+	public static boolean isNone(CssToken token) {
+		return isKeyword(token, "none");
 	}
 
 	/**
 	 * normal であればtrueを返します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static boolean isNormal(LexicalUnit lu) {
-		return (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT && lu.getStringValue().equalsIgnoreCase("normal"));
+	public static boolean isNormal(CssToken token) {
+		return isKeyword(token, "normal");
 	}
 
 	/**
 	 * &lt;length&gt; を値に変換します。
-	 * 
-	 * @param ua
-	 * @param lu
-	 * @return
 	 */
-	public static LengthValue toLength(UserAgent ua, LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_EM:
-			return EmLengthValue.create(lu.getFloatValue());
-
-		case LexicalUnit.SAC_EX:
-			return ExLengthValue.create(lu.getFloatValue());
-
-		case LexicalUnit.SAC_REM:
-			return RemLengthValue.create(lu.getFloatValue());
-
-		case LexicalUnit.SAC_CH:
-			return ChLengthValue.create(lu.getFloatValue());
-
-		default:
-			return toAbsoluteLength(ua, lu);
+	public static LengthValue toLength(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Dim dim) {
+			switch (dim.unit()) {
+			case EM:
+				return EmLengthValue.create(dim.value());
+			case EX:
+				return ExLengthValue.create(dim.value());
+			case REM:
+				return RemLengthValue.create(dim.value());
+			case CH:
+				return ChLengthValue.create(dim.value());
+			default:
+				break;
+			}
 		}
+		return toAbsoluteLength(ua, token);
 	}
 
 	/**
 	 * 文字列表現を長さに変換します。
-	 * 
-	 * @param ua
-	 * @param legacy
-	 * @param s
-	 * @return
 	 */
 	public static LengthValue toLength(UserAgent ua, boolean legacy, String s) {
 		try {
@@ -118,11 +105,6 @@ public final class ValueUtils {
 
 	/**
 	 * 文字列表現を長さに変換します。
-	 * 
-	 * @param ua
-	 * @param legacy
-	 * @param s
-	 * @return
 	 */
 	public static AbsoluteLengthValue toAbsoluteLength(UserAgent ua, boolean legacy, String s) {
 		if (s == null) {
@@ -165,10 +147,6 @@ public final class ValueUtils {
 
 	/**
 	 * valueがEM_LENGTHかEX_LENGTHならstyleのフォント情報を基準に絶対長さに変換します。
-	 * 
-	 * @param value
-	 * @param style
-	 * @return
 	 */
 	public static Value emExToAbsoluteLength(Value value, CSSStyle style) {
 		switch (value.getValueType()) {
@@ -197,85 +175,67 @@ public final class ValueUtils {
 
 	/**
 	 * フォント相対長さ以外の &lt;length&gt; を値に変換します。
-	 * 
-	 * @param ua
-	 * @param lu
-	 * @return
 	 */
-	public static AbsoluteLengthValue toAbsoluteLength(UserAgent ua, LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_INCH:
-		case LexicalUnit.SAC_CENTIMETER:
-		case LexicalUnit.SAC_MILLIMETER:
-		case LexicalUnit.SAC_POINT:
-		case LexicalUnit.SAC_PICA:
-		case LexicalUnit.SAC_PIXEL:
-			return AbsoluteLengthValue.create(ua, lu.getFloatValue(), luType);
-
-		case LexicalUnit.SAC_INTEGER: {
-			int val = lu.getIntegerValue();
-			if (val == 0) {
-				return AbsoluteLengthValue.create(ua, val, LengthValue.UNIT_PX);
+	public static AbsoluteLengthValue toAbsoluteLength(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Dim dim) {
+			final short unit;
+			switch (dim.unit()) {
+			case IN:
+				unit = LengthValue.UNIT_IN;
+				break;
+			case CM:
+				unit = LengthValue.UNIT_CM;
+				break;
+			case MM:
+				unit = LengthValue.UNIT_MM;
+				break;
+			case PT:
+				unit = LengthValue.UNIT_PT;
+				break;
+			case PC:
+				unit = LengthValue.UNIT_PC;
+				break;
+			case PX:
+				unit = LengthValue.UNIT_PX;
+				break;
+			default:
+				return null;
 			}
-			return null;
+			return AbsoluteLengthValue.create(ua, dim.value(), unit);
 		}
-
-		case LexicalUnit.SAC_REAL: {
-			double val = lu.getFloatValue();
-			if (val == 0) {
-				return AbsoluteLengthValue.create(ua, val, LengthValue.UNIT_PX);
-			}
-			return null;
+		if (token instanceof CssToken.Num num && num.value() == 0) {
+			return AbsoluteLengthValue.create(ua, 0, LengthValue.UNIT_PX);
 		}
-
-		default:
-			return null;
-		}
+		return null;
 	}
 
 	/**
 	 * &lt;percentage&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static PercentageValue toPercentage(LexicalUnit lu) {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_PERCENTAGE) {
-			return PercentageValue.create(lu.getFloatValue());
+	public static PercentageValue toPercentage(CssToken token) {
+		if (token instanceof CssToken.Percent percent) {
+			return PercentageValue.create(percent.value());
 		}
 		return null;
-
 	}
 
 	/**
 	 * &lt;number&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static RealValue toReal(LexicalUnit lu) {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_REAL) {
-			return RealValue.create(lu.getFloatValue());
-		} else if (lu.getLexicalUnitType() == LexicalUnit.SAC_INTEGER) {
-			return RealValue.create(lu.getIntegerValue());
-		} else {
-			return null;
+	public static RealValue toReal(CssToken token) {
+		if (token instanceof CssToken.Num num) {
+			return RealValue.create(num.value());
 		}
+		return null;
 	}
 
 	/**
 	 * &lt;uri&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static URIValue toURI(UserAgent ua, URI baseURI, LexicalUnit lu) throws URISyntaxException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_URI) {
-			String href = lu.getStringValue();
-			return URIUtils.createURIValue(ua.getDocumentContext().getEncoding(), baseURI, href);
+	public static URIValue toURI(UserAgent ua, URI baseURI, CssToken token) throws URISyntaxException {
+		if (token instanceof CssToken.Uri uri) {
+			return URIUtils.createURIValue(ua.getDocumentContext().getEncoding(), baseURI, uri.uri());
 		}
 		return null;
-
 	}
 }

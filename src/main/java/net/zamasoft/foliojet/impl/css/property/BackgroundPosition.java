@@ -18,7 +18,8 @@ import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/colors.html#propdef-background-position">
@@ -104,26 +105,27 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	protected Entry[] parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return new Entry[] { new Entry(BackgroundPosition.INFO_X, InheritValue.INHERIT_VALUE),
 					new Entry(BackgroundPosition.INFO_Y, InheritValue.INHERIT_VALUE) };
 		}
 		Value x, y;
 
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-			String kw1 = lu.getStringValue().toLowerCase();
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident ident1) {
+			String kw1 = ident1.lower();
 			if (!(kw1.equals("top") || kw1.equals("bottom") || kw1.equals("center") || kw1.equals("left")
 					|| kw1.equals("right"))) {
 				throw new PropertyException();
 			}
 			String kw2;
-			lu = lu.getNextLexicalUnit();
-			if (lu == null || lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-				if (lu == null) {
+			final CssToken second = tokens.next();
+			if (second == null || second instanceof CssToken.Ident) {
+				if (second == null) {
 					kw2 = null;
 				} else {
-					kw2 = lu.getStringValue().toLowerCase();
+					kw2 = ((CssToken.Ident) second).lower();
 					if (!(kw2.equals("top") || kw2.equals("bottom") || kw2.equals("center") || kw2.equals("left")
 							|| kw2.equals("right"))) {
 						throw new PropertyException();
@@ -167,9 +169,9 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 				return new Entry[] { new Entry(BackgroundPosition.INFO_X, x), new Entry(BackgroundPosition.INFO_Y, y) };
 			}
 
-			y = ValueUtils.toPercentage(lu);
+			y = ValueUtils.toPercentage(second);
 			if (y == null) {
-				y = ValueUtils.toLength(ua, lu);
+				y = ValueUtils.toLength(ua, second);
 			}
 			if (y == null) {
 				throw new PropertyException();
@@ -195,15 +197,15 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 			throw new PropertyException();
 		}
 
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		final CssToken second = tokens.next();
+		if (second == null) {
 			y = x;
 			return new Entry[] { new Entry(BackgroundPosition.INFO_X, x), new Entry(BackgroundPosition.INFO_Y, y) };
 
 		}
 
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-			String kw2 = lu.getStringValue().toLowerCase();
+		if (second instanceof CssToken.Ident ident2) {
+			String kw2 = ident2.lower();
 			if (kw2.equals("top")) {
 				y = PercentageValue.ZERO;
 			} else if (kw2.equals("center")) {
@@ -214,9 +216,9 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 				throw new PropertyException();
 			}
 		} else {
-			y = ValueUtils.toPercentage(lu);
+			y = ValueUtils.toPercentage(second);
 			if (y == null) {
-				y = ValueUtils.toLength(ua, lu);
+				y = ValueUtils.toLength(ua, second);
 			}
 			if (y == null) {
 				throw new PropertyException();

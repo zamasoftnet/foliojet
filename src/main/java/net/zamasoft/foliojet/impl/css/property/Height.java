@@ -17,7 +17,8 @@ import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-height"> height 特性
@@ -88,7 +89,8 @@ public class Height extends AbstractPrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
 			return AutoValue.AUTO_VALUE;
 		}

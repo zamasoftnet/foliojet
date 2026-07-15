@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.foliojet.css.CSSStyle;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+
 
 /**
  * @author MIYABE Tatsuhiko
@@ -9,21 +9,21 @@ import net.zamasoft.foliojet.css.parser.LexicalUnit;
  */
 public interface LengthValue extends Value, QuantityValue {
 	// 絶対
-	public static final short UNIT_IN = LexicalUnit.SAC_INCH;
+	public static final short UNIT_IN = 18; // 旧SAC_INCH
 
-	public static final short UNIT_CM = LexicalUnit.SAC_CENTIMETER;
+	public static final short UNIT_CM = 19; // 旧SAC_CENTIMETER
 
-	public static final short UNIT_MM = LexicalUnit.SAC_MILLIMETER;
+	public static final short UNIT_MM = 20; // 旧SAC_MILLIMETER
 
-	public static final short UNIT_PT = LexicalUnit.SAC_POINT;
+	public static final short UNIT_PT = 21; // 旧SAC_POINT
 
-	public static final short UNIT_PC = LexicalUnit.SAC_PICA;
+	public static final short UNIT_PC = 22; // 旧SAC_PICA
 
 	// デバイス相対
-	public static final short UNIT_PX = LexicalUnit.SAC_PIXEL;
+	public static final short UNIT_PX = 17; // 旧SAC_PIXEL
 
 	// フォント相対
-	public static final short UNIT_FR = LexicalUnit.SAC_EM;
+	public static final short UNIT_FR = 15; // 旧SAC_EM
 
 	public short getUnitType();
 

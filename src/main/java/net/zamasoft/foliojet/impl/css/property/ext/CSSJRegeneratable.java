@@ -11,7 +11,8 @@ import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -44,31 +45,20 @@ public class CSSJRegeneratable extends AbstractPrimitivePropertyInfo {
 		return false;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return InheritValue.INHERIT_VALUE;
 		}
-		final Value name;
-		{
-			short luType = lu.getLexicalUnitType();
-			switch (luType) {
-			case LexicalUnit.SAC_IDENT:
-				String ident = lu.getStringValue().toLowerCase();
-				if (ident.equals("none")) {
-					name = NoneValue.NONE_VALUE;
-				} else {
-					name = new StringValue(lu.getStringValue());
-				}
-				break;
-
-			case LexicalUnit.SAC_STRING_VALUE:
-				name = new StringValue(lu.getStringValue());
-				break;
-
-			default:
-				throw new PropertyException();
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident ident) {
+			if (ident.is("none")) {
+				return NoneValue.NONE_VALUE;
 			}
+			return new StringValue(ident.name());
 		}
-		return name;
+		if (lu instanceof CssToken.Str str) {
+			return new StringValue(str.value());
+		}
+		throw new PropertyException();
 	}
 }

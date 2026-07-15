@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
 import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * 複合特性です。
@@ -24,12 +24,12 @@ public abstract class AbstractCompositePrimitivePropertyInfo extends AbstractPro
 
 	protected abstract PrimitivePropertyInfo[] getPrimitives();
 
-	protected abstract Entry[] parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException;
+	protected abstract Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException;
 
-	public final Property parseProperty(LexicalUnit lu, UserAgent ua, URI uri, boolean important)
+	public final Property parse(TokenStream tokens, UserAgent ua, URI uri, boolean important)
 			throws PropertyException {
 		Entry[] entries;
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+		if (tokens.isInherit()) {
 			// 継承
 			PrimitivePropertyInfo[] primitives = this.getPrimitives();
 			entries = new Entry[primitives.length];
@@ -37,7 +37,7 @@ public abstract class AbstractCompositePrimitivePropertyInfo extends AbstractPro
 				entries[i] = new Entry(primitives[i], InheritValue.INHERIT_VALUE);
 			}
 		} else {
-			entries = this.parseProperty(lu, ua, uri);
+			entries = this.parseValues(tokens, ua, uri);
 		}
 		return new CompositeProperty(this.getName(), entries, uri, important);
 	}

@@ -7,7 +7,7 @@ import java.util.List;
 import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * Shorthand特性です。
@@ -53,9 +53,9 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 		}
 	}
 
-	public Property parseProperty(LexicalUnit lu, UserAgent ua, URI uri, boolean important) throws PropertyException {
+	public Property parse(TokenStream tokens, UserAgent ua, URI uri, boolean important) throws PropertyException {
 		Primitives primitives = new Primitives();
-		this.parseProperty(lu, ua, uri, primitives);
+		this.parseValues(tokens, ua, uri, primitives);
 		Entry[] entries = (Entry[]) primitives.entries.toArray(new Entry[primitives.entries.size()]);
 		return new CompositeProperty(this.getName(), entries, uri, important);
 	}
@@ -68,6 +68,9 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 	 * @param primitives
 	 * @throws PropertyException
 	 */
-	public abstract void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives)
+	/**
+	 * 宣言値のトークン列を分解し、対応する単純プロパティ群を設定します。
+	 */
+	public abstract void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives)
 			throws PropertyException;
 }

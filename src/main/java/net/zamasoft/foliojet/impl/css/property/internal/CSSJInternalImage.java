@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.css.value.internal.CSSJImageValue;
 import net.zamasoft.foliojet.css.value.internal.InternalValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * 画像(置換ボックス)の内部特性です。
@@ -64,7 +65,8 @@ public class CSSJInternalImage extends AbstractPrimitivePropertyInfo {
 		return false;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		throw new UnsupportedOperationException();
 	}
 }

@@ -17,7 +17,8 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -66,7 +67,8 @@ public class ListStyleImage extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isNone(lu)) {
 			return NoneValue.NONE_VALUE;
 		}
@@ -77,7 +79,7 @@ public class ListStyleImage extends AbstractPrimitivePropertyInfo {
 				return value;
 			}
 		} catch (URISyntaxException e) {
-			ua.message(MessageCodes.WARN_BAD_LINK_URI, lu.getStringValue());
+			ua.message(MessageCodes.WARN_BAD_LINK_URI, ((CssToken.Uri) lu).uri());
 		}
 		throw new PropertyException();
 	}

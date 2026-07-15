@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.css.property.Property;
 import net.zamasoft.foliojet.css.property.PropertySet;
 import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.parser.StyleSheetHandler;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -103,10 +103,10 @@ public class DeclarationBuilder implements StyleSheetHandler {
 		// ignore
 	}
 
-	public void property(String name, LexicalUnit lu, boolean important) throws CSSException {
-		assert name != null && this.uri != null && lu != null;
+	public void property(String name, java.util.List<CssToken> value, boolean important) throws CSSException {
+		assert name != null && this.uri != null && value != null;
 		if (this.inProperMedia()) {
-			Property property = this.propertySet.parseDeclaration(name, lu, this.ua, this.uri, important);
+			Property property = this.propertySet.parseDeclaration(name, value, this.ua, this.uri, important);
 			if (property == null) {
 				return;
 			}

@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.RectValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -43,57 +44,37 @@ public class Clip extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
 			return AutoValue.AUTO_VALUE;
 		}
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_RECT_FUNCTION) {
-			LengthValue top, left, bottom, right;
-			lu = lu.getParameters();
-
-			if (ValueUtils.isAuto(lu)) {
-				top = AbsoluteLengthValue.ZERO;
-			} else {
-				top = ValueUtils.toLength(ua, lu);
-			}
-			if (top == null) {
-				throw new PropertyException(String.valueOf(lu));
-			}
-
-			lu = lu.getNextLexicalUnit().getNextLexicalUnit();
-			if (ValueUtils.isAuto(lu)) {
-				left = AbsoluteLengthValue.ZERO;
-			} else {
-				left = ValueUtils.toLength(ua, lu);
-			}
-			if (left == null) {
-				throw new PropertyException(String.valueOf(lu));
-			}
-
-			lu = lu.getNextLexicalUnit().getNextLexicalUnit();
-			if (ValueUtils.isAuto(lu)) {
-				bottom = AbsoluteLengthValue.ZERO;
-			} else {
-				bottom = ValueUtils.toLength(ua, lu);
-			}
-			if (bottom == null) {
-				throw new PropertyException(String.valueOf(lu));
-			}
-
-			lu = lu.getNextLexicalUnit().getNextLexicalUnit();
-			if (ValueUtils.isAuto(lu)) {
-				right = AbsoluteLengthValue.ZERO;
-			} else {
-				right = ValueUtils.toLength(ua, lu);
-			}
-			if (right == null) {
-				throw new PropertyException(String.valueOf(lu));
-			}
-
+		if (lu instanceof CssToken.Func func && func.is("rect")) {
+			final TokenStream params = func.argStream();
+			final LengthValue top = toSide(ua, params);
+			final LengthValue left = toSide(ua, params);
+			final LengthValue bottom = toSide(ua, params);
+			final LengthValue right = toSide(ua, params);
 			final RectValue rect = new RectValue(top, left, bottom, right);
 			return rect;
 		}
 		throw new PropertyException(String.valueOf(lu));
+	}
+
+	private static LengthValue toSide(UserAgent ua, TokenStream params) throws PropertyException {
+		params.eatComma();
+		final CssToken token = params.next();
+		if (token == null) {
+			throw new PropertyException("rectの値が不足しています");
+		}
+		if (ValueUtils.isAuto(token)) {
+			return AbsoluteLengthValue.ZERO;
+		}
+		final LengthValue length = ValueUtils.toLength(ua, token);
+		if (length == null) {
+			throw new PropertyException(String.valueOf(token));
+		}
+		return length;
 	}
 
 }

@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.BlockFlowValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -38,10 +39,10 @@ public class BlockFlow extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("tb")) {
 				return BlockFlowValue.TB_VALUE;
 			} else if (ident.equals("rl")) {
@@ -49,10 +50,8 @@ public class BlockFlow extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("lr")) {
 				return BlockFlowValue.LR_VALUE;
 			}
-
-		default:
-			throw new PropertyException();
 		}
+		throw new PropertyException();
 	}
 
 }

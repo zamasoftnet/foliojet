@@ -27,7 +27,8 @@ import net.zamasoft.foliojet.impl.css.property.css3.BackgroundClip;
 import net.zamasoft.foliojet.impl.css.property.css3.BackgroundSize;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,8 +41,8 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		super("background");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(BackgroundColor.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BackgroundImage.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BackgroundAttachment.INFO, InheritValue.INHERIT_VALUE);
@@ -64,7 +65,8 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(BackgroundSize.INFO_HEIGHT, AutoValue.AUTO_VALUE);
 		primitives.set(BackgroundClip.INFO, BackgroundClipValue.BORDER_BOX_VALUE);
 		boolean color = false, none = false, uriValue = false, repeat = false, attachment = false, position = false, size = false, clip = false;
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
 			if (ColorValueUtils.isTransparent(lu)) {
 				primitives.set(BackgroundColor.INFO, TransparentValue.TRANSPARENT_VALUE);
 				continue;
@@ -99,7 +101,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				}
 			} catch (URISyntaxException e) {
 				uriValue = true;
-				ua.message(MessageCodes.WARN_BAD_LINK_URI, lu.getStringValue());
+				ua.message(MessageCodes.WARN_BAD_LINK_URI, ((CssToken.Uri) lu).uri());
 				continue;
 			}
 			value = ColorValueUtils.toBackgroundRepeat(lu);
@@ -120,7 +122,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(BackgroundAttachment.INFO, value);
 				continue;
 			}
-			
+
 			value = ColorValueUtils.toBackgroundClip(lu);
 			if (value != null) {
 				if (clip) {
@@ -130,22 +132,22 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(BackgroundClip.INFO, value);
 				continue;
 			}
-			
-			if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_SLASH) {
+
+			if (lu == CssToken.Op.SLASH) {
 				if (size) {
 					throw new PropertyException("sizeが2度指定されています");
 				}
 				size = true;
-				
+
 				Value w, h;
 
-				lu = lu.getNextLexicalUnit();
-				if (ValueUtils.isAuto(lu)) {
+				final CssToken wToken = tokens.next();
+				if (ValueUtils.isAuto(wToken)) {
 					w = AutoValue.AUTO_VALUE;
 				} else {
-					w = ValueUtils.toPercentage(lu);
+					w = ValueUtils.toPercentage(wToken);
 					if (w == null) {
-						w = ValueUtils.toLength(ua, lu);
+						w = ValueUtils.toLength(ua, wToken);
 						if (w == null || ((LengthValue) w).isNegative()) {
 							throw new PropertyException();
 						}
@@ -154,20 +156,20 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					}
 				}
 
-				lu = lu.getNextLexicalUnit();
-				if (lu == null) {
+				if (!tokens.hasNext()) {
 					h = AutoValue.AUTO_VALUE;
 					primitives.set(BackgroundSize.INFO_WIDTH, w);
 					primitives.set(BackgroundSize.INFO_HEIGHT, h);
 					continue;
 				}
 
-				if (ValueUtils.isAuto(lu)) {
+				final CssToken hToken = tokens.next();
+				if (ValueUtils.isAuto(hToken)) {
 					h = AutoValue.AUTO_VALUE;
 				} else {
-					h = ValueUtils.toPercentage(lu);
+					h = ValueUtils.toPercentage(hToken);
 					if (h == null) {
-						h = ValueUtils.toLength(ua, lu);
+						h = ValueUtils.toLength(ua, hToken);
 						if (h != null && ((LengthValue) h).isNegative()) {
 							throw new PropertyException();
 						}
@@ -189,23 +191,21 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 			position = true;
 
 			Value x, y;
-			if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-				String kw1 = lu.getStringValue().toLowerCase();
-				if (!(kw1.equals("top") || kw1.equals("bottom") || kw1.equals("center") || kw1.equals("left")
-						|| kw1.equals("right"))) {
+			if (lu instanceof CssToken.Ident ident1) {
+				String kw1 = ident1.lower();
+				if (!isPositionKeyword(kw1)) {
 					throw new PropertyException();
 				}
-				String kw2;
-				LexicalUnit nextlu = lu.getNextLexicalUnit();
+				String kw2 = null;
+				final CssToken nextlu = tokens.peek();
 				if (nextlu == null) {
 					kw2 = null;
-				} else if (nextlu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-					kw2 = nextlu.getStringValue().toLowerCase();
-					if (!(kw2.equals("top") || kw2.equals("bottom") || kw2.equals("center") || kw2.equals("left")
-							|| kw2.equals("right"))) {
+				} else if (nextlu instanceof CssToken.Ident ident2) {
+					kw2 = ident2.lower();
+					if (!isPositionKeyword(kw2)) {
 						kw2 = null;
 					} else {
-						lu = nextlu;
+						tokens.next();
 					}
 				} else {
 					y = ValueUtils.toPercentage(nextlu);
@@ -215,7 +215,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					if (y == null) {
 						kw2 = null;
 					} else {
-						lu = nextlu;
+						tokens.next();
 
 						if (kw1.equals("left")) {
 							x = PercentageValue.ZERO;
@@ -280,7 +280,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				throw new PropertyException();
 			}
 
-			LexicalUnit nextlu = lu.getNextLexicalUnit();
+			final CssToken nextlu = tokens.peek();
 			if (nextlu == null) {
 				y = x;
 				primitives.set(BackgroundPosition.INFO_X, x);
@@ -288,16 +288,16 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				continue;
 			}
 
-			if (nextlu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-				String kw2 = nextlu.getStringValue().toLowerCase();
+			if (nextlu instanceof CssToken.Ident ident2) {
+				String kw2 = ident2.lower();
 				if (kw2.equals("top")) {
-					lu = nextlu;
+					tokens.next();
 					y = PercentageValue.ZERO;
 				} else if (kw2.equals("center")) {
-					lu = nextlu;
+					tokens.next();
 					y = PercentageValue.HALF;
 				} else if (kw2.equals("bottom")) {
-					lu = nextlu;
+					tokens.next();
 					y = PercentageValue.FULL;
 				} else {
 					y = x;
@@ -310,12 +310,17 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				if (y == null) {
 					y = x;
 				} else {
-					lu = nextlu;
+					tokens.next();
 				}
 			}
 			primitives.set(BackgroundPosition.INFO_X, x);
 			primitives.set(BackgroundPosition.INFO_Y, y);
 		}
+	}
+
+	private static boolean isPositionKeyword(String kw) {
+		return kw.equals("top") || kw.equals("bottom") || kw.equals("center") || kw.equals("left")
+				|| kw.equals("right");
 	}
 
 }

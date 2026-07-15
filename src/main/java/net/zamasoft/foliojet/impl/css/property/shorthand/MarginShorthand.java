@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.impl.css.property.MarginLeft;
 import net.zamasoft.foliojet.impl.css.property.MarginRight;
 import net.zamasoft.foliojet.impl.css.property.MarginTop;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -26,8 +27,8 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 		super("margin");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		final Value margin1 = BoxValueUtils.toMarginWidth(ua, lu);
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final Value margin1 = BoxValueUtils.toMarginWidth(ua, tokens.next());
 		if (margin1 == null) {
 			throw new PropertyException();
 		}
@@ -38,39 +39,36 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(MarginLeft.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(MarginTop.INFO, margin1);
 			primitives.set(MarginRight.INFO, margin1);
 			primitives.set(MarginBottom.INFO, margin1);
 			primitives.set(MarginLeft.INFO, margin1);
 			return;
 		}
-		final Value margin2 = BoxValueUtils.toMarginWidth(ua, lu);
+		final Value margin2 = BoxValueUtils.toMarginWidth(ua, tokens.next());
 		if (margin2 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(MarginTop.INFO, margin1);
 			primitives.set(MarginRight.INFO, margin2);
 			primitives.set(MarginBottom.INFO, margin1);
 			primitives.set(MarginLeft.INFO, margin2);
 			return;
 		}
-		final Value margin3 = BoxValueUtils.toMarginWidth(ua, lu);
+		final Value margin3 = BoxValueUtils.toMarginWidth(ua, tokens.next());
 		if (margin3 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(MarginTop.INFO, margin1);
 			primitives.set(MarginRight.INFO, margin2);
 			primitives.set(MarginBottom.INFO, margin3);
 			primitives.set(MarginLeft.INFO, margin2);
 			return;
 		}
-		final Value margin4 = BoxValueUtils.toMarginWidth(ua, lu);
+		final Value margin4 = BoxValueUtils.toMarginWidth(ua, tokens.next());
 		if (margin4 == null) {
 			throw new PropertyException();
 		}

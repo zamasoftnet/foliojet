@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -43,10 +43,10 @@ public class CSSJFontPolicy extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		// @parseProperty
 
-		final CSSJFontPolicyValue fontPolicy = FontValueUtils.toFontPolicy(lu);
+		final CSSJFontPolicyValue fontPolicy = FontValueUtils.toFontPolicy(tokens);
 		if (fontPolicy == null) {
 			throw new PropertyException();
 		}

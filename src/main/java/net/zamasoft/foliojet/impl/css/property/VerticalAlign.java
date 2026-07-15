@@ -17,7 +17,8 @@ import net.zamasoft.foliojet.style.box.content.FractionalVerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.content.VerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.params.Types;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align">
@@ -83,11 +84,10 @@ public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("baseline")) {
 				return VerticalAlignValue.BASELINE_VALUE;
 			} else if (ident.equals("middle")) {
@@ -106,14 +106,12 @@ public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 				return VerticalAlignValue.BOTTOM_VALUE;
 			}
 			throw new PropertyException();
-
-		default:
-			Value value = ValueUtils.toLength(ua, lu);
-			if (value == null) {
-				return ValueUtils.toPercentage(lu);
-			}
-			return value;
 		}
+		Value value = ValueUtils.toLength(ua, lu);
+		if (value == null) {
+			return ValueUtils.toPercentage(lu);
+		}
+		return value;
 	}
 
 }

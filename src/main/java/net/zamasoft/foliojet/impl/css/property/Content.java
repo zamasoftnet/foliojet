@@ -25,7 +25,8 @@ import net.zamasoft.foliojet.css.value.ext.CSSJPageRefValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -58,220 +59,192 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-			String ident = lu.getStringValue();
-			if (ident.equalsIgnoreCase("none") || ident.equalsIgnoreCase("normal")) {
-				if (lu.getNextLexicalUnit() != null) {
-					throw new PropertyException();
-				}
-				return NoneValue.NONE_VALUE;
-			}
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.size() == 1 && (tokens.eat("none") || tokens.eat("normal"))) {
+			return NoneValue.NONE_VALUE;
 		}
 
 		ArrayList<Value> values = new ArrayList<Value>();
-		while (lu != null) {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_STRING_VALUE: {// <string>
-				values.add(new StringValue(lu.getStringValue()));
-			}
-				break;
-
-			case LexicalUnit.SAC_URI: {// <uri> values.add(new
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			if (lu instanceof CssToken.Str str) {// <string>
+				values.add(new StringValue(str.value()));
+			} else if (lu instanceof CssToken.Uri uriToken) {// <uri>
 				try {
 					values.add(ValueUtils.toURI(ua, uri, lu));
 				} catch (URISyntaxException e) {
-					ua.message(MessageCodes.WARN_BAD_LINK_URI, lu.getStringValue());
+					ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
 				}
-			}
-				break;
-
-			case LexicalUnit.SAC_COUNTER_FUNCTION: {// <counter>
-				CounterValue counter;
-				LexicalUnit param = lu.getParameters();
-				String id = param.getStringValue();
-				param = param.getNextLexicalUnit();
-				if (param == null) {
-					counter = new CounterValue(id);
-				} else {
-					param = param.getNextLexicalUnit();
-					switch (param.getLexicalUnitType()) {
-					case LexicalUnit.SAC_IDENT:
-					case LexicalUnit.SAC_STRING_VALUE:
-						break;
-					default:
-						throw new PropertyException();
-					}
-					String listStyle = param.getStringValue();
-					final ListStyleTypeValue styleType = GeneratedValueUtils.toListStyleType(listStyle);
-					if (styleType == null) {
-						throw new PropertyException();
-					}
-					counter = new CounterValue(id, styleType.getListStyleType());
-				}
-				values.add(counter);
-			}
-				break;
-
-			case LexicalUnit.SAC_COUNTERS_FUNCTION: {// <counter>
-				CountersValue counters;
-				LexicalUnit param = lu.getParameters();
-				String id = param.getStringValue();
-				param = param.getNextLexicalUnit();
-				param = param.getNextLexicalUnit();
-				String delimiter = param.getStringValue();
-				param = param.getNextLexicalUnit();
-				if (param == null) {
-					counters = new CountersValue(id, delimiter);
-				} else {
-					param = param.getNextLexicalUnit();
-					String listStyle = param.getStringValue();
-					final ListStyleTypeValue styleType = GeneratedValueUtils.toListStyleType(listStyle);
-					if (styleType == null) {
-						throw new PropertyException();
-					}
-					counters = new CountersValue(id, delimiter, styleType);
-				}
-				values.add(counters);
-			}
-				break;
-
-			case LexicalUnit.SAC_ATTR: {// attr(x)
-				values.add(new AttrValue(lu.getStringValue()));
-			}
-				break;
-
-			case LexicalUnit.SAC_IDENT: {// quote
-				String ident = lu.getStringValue();
-				ident = ident.toLowerCase();
-				if (ident.equals("open-quote")) {
+			} else if (lu instanceof CssToken.Ident ident) {// quote
+				switch (ident.lower()) {
+				case "open-quote":
 					values.add(QuoteValue.OPEN_QUOTE_VALUE);
-				} else if (ident.equals("close-quote")) {
+					break;
+				case "close-quote":
 					values.add(QuoteValue.CLOSE_QUOTE_VALUE);
-				} else if (ident.equals("no-open-quote")) {
+					break;
+				case "no-open-quote":
 					values.add(QuoteValue.NO_OPEN_QUOTE_VALUE);
-				} else if (ident.equals("no-close-quote")) {
+					break;
+				case "no-close-quote":
 					values.add(QuoteValue.NO_CLOSE_QUOTE_VALUE);
-				} else if (ident.equals("-cssj-title")) {
+					break;
+				case "-cssj-title":
 					values.add(CSSJTitleValue.CSSJ_TITLE_VALUE);
+					break;
+				default:
+					throw new PropertyException();
+				}
+			} else if (lu instanceof CssToken.Func func) {
+				if (func.is("counter")) {// <counter>
+					values.add(parseCounter(func.argStream()));
+				} else if (func.is("counters")) {// <counters>
+					values.add(parseCounters(func.argStream()));
+				} else if (func.is("attr")) {// attr(x)
+					final TokenStream params = func.argStream();
+					final String name = params.ident();
+					if (name == null || params.hasNext()) {
+						throw new PropertyException();
+					}
+					values.add(new AttrValue(name));
+				} else if (func.is("-cssj-heading") || func.is("-cssj-last-heading")) {
+					values.add(new CSSJLastHeadingValue(parseHeadingLevel(func.argStream())));
+				} else if (func.is("-cssj-first-heading")) {
+					values.add(new CSSJFirstHeadingValue(parseHeadingLevel(func.argStream())));
+				} else if (func.is("-cssj-page-ref")) {
+					values.add(parsePageRef(func.argStream()));
 				} else {
 					throw new PropertyException();
 				}
-			}
-				break;
-
-			case LexicalUnit.SAC_FUNCTION:
-				String funcName = lu.getFunctionName();
-				if (funcName.equalsIgnoreCase("-cssj-heading") || funcName.equalsIgnoreCase("-cssj-last-heading")) {
-					// -cssj-heading
-					CSSJLastHeadingValue heading;
-					LexicalUnit param = lu.getParameters();
-					if (param == null) {
-						heading = new CSSJLastHeadingValue(1);
-					} else {
-						if (param.getLexicalUnitType() != LexicalUnit.SAC_INTEGER
-								|| param.getNextLexicalUnit() != null) {
-							throw new PropertyException();
-						}
-						int level = param.getIntegerValue();
-						heading = new CSSJLastHeadingValue(level);
-					}
-					values.add(heading);
-					break;
-				} else if (funcName.equalsIgnoreCase("-cssj-first-heading")) {
-					// -cssj-first-heading
-					CSSJFirstHeadingValue heading;
-					LexicalUnit param = lu.getParameters();
-					if (param == null) {
-						heading = new CSSJFirstHeadingValue(1);
-					} else {
-						if (param.getLexicalUnitType() != LexicalUnit.SAC_INTEGER
-								|| param.getNextLexicalUnit() != null) {
-							throw new PropertyException();
-						}
-						int level = param.getIntegerValue();
-						heading = new CSSJFirstHeadingValue(level);
-					}
-					values.add(heading);
-					break;
-				} else if (funcName.equalsIgnoreCase("-cssj-page-ref")) {
-					CSSJPageRefValue pageRef;
-					LexicalUnit param = lu.getParameters();
-					if (param == null) {
-						throw new PropertyException();
-					}
-					byte type;
-					switch (param.getLexicalUnitType()) {
-					case LexicalUnit.SAC_STRING_VALUE:
-					case LexicalUnit.SAC_IDENT: {
-						type = CSSJPageRefValue.REF;
-					}
-						break;
-					case LexicalUnit.SAC_ATTR: {
-						type = CSSJPageRefValue.ATTR;
-					}
-						break;
-					default:
-						throw new PropertyException("IDが必要です");
-					}
-					String ref = param.getStringValue();
-					param = param.getNextLexicalUnit();
-					if (param == null || param.getLexicalUnitType() != LexicalUnit.SAC_OPERATOR_COMMA) {
-						throw new PropertyException("カンマが必要です");
-					}
-					param = param.getNextLexicalUnit();
-					if (param == null || (param.getLexicalUnitType() != LexicalUnit.SAC_IDENT
-							&& param.getLexicalUnitType() != LexicalUnit.SAC_STRING_VALUE)) {
-						throw new PropertyException("カウンタ名が必要です");
-					}
-					String counter = param.getStringValue();
-					short numberStyleType;
-					String separator = null;
-					param = param.getNextLexicalUnit();
-					if (param == null) {
-						numberStyleType = ListStyleTypeValue.DECIMAL;
-					} else {
-						if (param.getLexicalUnitType() != LexicalUnit.SAC_OPERATOR_COMMA) {
-							throw new PropertyException("カンマが必要です");
-						}
-						param = param.getNextLexicalUnit();
-						if (param == null || param.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
-							throw new PropertyException("数字タイプが必要です");
-						} else {
-							String typeStr = param.getStringValue();
-							ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
-							if (typeValue == null) {
-								throw new PropertyException("数字タイプが不正です");
-							}
-							numberStyleType = typeValue.getListStyleType();
-						}
-						param = param.getNextLexicalUnit();
-						if (param != null) {
-							if (param.getLexicalUnitType() != LexicalUnit.SAC_OPERATOR_COMMA) {
-								throw new PropertyException("カンマが必要です");
-							}
-							param = param.getNextLexicalUnit();
-
-							if (param == null || param.getLexicalUnitType() != LexicalUnit.SAC_STRING_VALUE)
-								throw new PropertyException("区切り文字が必要です");
-							separator = param.getStringValue();
-						}
-					}
-
-					pageRef = new CSSJPageRefValue(type, ref, counter, numberStyleType, separator);
-					values.add(pageRef);
-					break;
-				}
-
-			default:
+			} else {
 				throw new PropertyException();
 			}
-
-			lu = lu.getNextLexicalUnit();
 		}
 		if (values.isEmpty()) {
 			throw new PropertyException();
 		}
 		return new ValueListValue((Value[]) values.toArray(new Value[values.size()]));
+	}
+
+	private static CounterValue parseCounter(TokenStream params) throws PropertyException {
+		final String id = params.ident();
+		if (id == null) {
+			throw new PropertyException();
+		}
+		if (!params.hasNext()) {
+			return new CounterValue(id);
+		}
+		params.eatComma();
+		final String listStyle = identOrString(params);
+		if (listStyle == null || params.hasNext()) {
+			throw new PropertyException();
+		}
+		final ListStyleTypeValue styleType = GeneratedValueUtils.toListStyleType(listStyle);
+		if (styleType == null) {
+			throw new PropertyException();
+		}
+		return new CounterValue(id, styleType.getListStyleType());
+	}
+
+	private static CountersValue parseCounters(TokenStream params) throws PropertyException {
+		final String id = params.ident();
+		if (id == null) {
+			throw new PropertyException();
+		}
+		params.eatComma();
+		final String delimiter = params.string();
+		if (delimiter == null) {
+			throw new PropertyException();
+		}
+		if (!params.hasNext()) {
+			return new CountersValue(id, delimiter);
+		}
+		params.eatComma();
+		final String listStyle = identOrString(params);
+		if (listStyle == null || params.hasNext()) {
+			throw new PropertyException();
+		}
+		final ListStyleTypeValue styleType = GeneratedValueUtils.toListStyleType(listStyle);
+		if (styleType == null) {
+			throw new PropertyException();
+		}
+		return new CountersValue(id, delimiter, styleType);
+	}
+
+	private static int parseHeadingLevel(TokenStream params) throws PropertyException {
+		if (!params.hasNext()) {
+			return 1;
+		}
+		final CssToken.Num num = params.number();
+		if (num == null || !num.integer() || params.hasNext()) {
+			throw new PropertyException();
+		}
+		return num.intValue();
+	}
+
+	private static CSSJPageRefValue parsePageRef(TokenStream params) throws PropertyException {
+		final CssToken first = params.next();
+		final byte type;
+		final String ref;
+		if (first instanceof CssToken.Ident ident) {
+			type = CSSJPageRefValue.REF;
+			ref = ident.name();
+		} else if (first instanceof CssToken.Str str) {
+			type = CSSJPageRefValue.REF;
+			ref = str.value();
+		} else if (first instanceof CssToken.Func attr && attr.is("attr")) {
+			type = CSSJPageRefValue.ATTR;
+			final TokenStream attrParams = attr.argStream();
+			ref = attrParams.ident();
+			if (ref == null || attrParams.hasNext()) {
+				throw new PropertyException("IDが必要です");
+			}
+		} else {
+			throw new PropertyException("IDが必要です");
+		}
+		if (!params.eatComma()) {
+			throw new PropertyException("カンマが必要です");
+		}
+		final String counter = identOrString(params);
+		if (counter == null) {
+			throw new PropertyException("カウンタ名が必要です");
+		}
+		short numberStyleType = ListStyleTypeValue.DECIMAL;
+		String separator = null;
+		if (params.hasNext()) {
+			if (!params.eatComma()) {
+				throw new PropertyException("カンマが必要です");
+			}
+			final String typeStr = params.ident();
+			if (typeStr == null) {
+				throw new PropertyException("数字タイプが必要です");
+			}
+			final ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
+			if (typeValue == null) {
+				throw new PropertyException("数字タイプが不正です");
+			}
+			numberStyleType = typeValue.getListStyleType();
+			if (params.hasNext()) {
+				if (!params.eatComma()) {
+					throw new PropertyException("カンマが必要です");
+				}
+				separator = params.string();
+				if (separator == null) {
+					throw new PropertyException("区切り文字が必要です");
+				}
+			}
+		}
+		return new CSSJPageRefValue(type, ref, counter, numberStyleType, separator);
+	}
+
+	private static String identOrString(TokenStream params) {
+		final CssToken token = params.next();
+		if (token instanceof CssToken.Ident ident) {
+			return ident.name();
+		}
+		if (token instanceof CssToken.Str str) {
+			return str.value();
+		}
+		return null;
 	}
 }

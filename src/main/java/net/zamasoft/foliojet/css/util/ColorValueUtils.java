@@ -21,7 +21,9 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 import net.zamasoft.pdfg2d.gc.paint.RGBAColor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -1072,21 +1074,13 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * rgbcolor をRGBColorValueに変換します。
-	 * 
-	 * @param value
-	 * @return
+	 * rgb の引数をRGBColorValueに変換します。
 	 */
-	private static ColorValue toRGBColorValue(LexicalUnit value) {
+	private static ColorValue toRGBColorValue(TokenStream args) {
 		try {
-			float red = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float green = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float blue = toColorComponent(value);
-
+			float red = toColorComponent(nextComponent(args));
+			float green = toColorComponent(nextComponent(args));
+			float blue = toColorComponent(nextComponent(args));
 			return fromRGBComponents(red, green, blue);
 		} catch (IllegalArgumentException e) {
 			return null;
@@ -1094,24 +1088,14 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * rgba をRGBAColorValueに変換します。
-	 * 
-	 * @param value
-	 * @return
+	 * rgba の引数をRGBAColorValueに変換します。
 	 */
-	private static ColorValue toRGBAColorValue(LexicalUnit value) {
+	private static ColorValue toRGBAColorValue(TokenStream args) {
 		try {
-			float red = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float green = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float blue = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float alpha = toColorComponent(value);
-
+			float red = toColorComponent(nextComponent(args));
+			float green = toColorComponent(nextComponent(args));
+			float blue = toColorComponent(nextComponent(args));
+			float alpha = toColorComponent(nextComponent(args));
 			return fromRGBAComponents(red, green, blue, alpha);
 		} catch (IllegalArgumentException e) {
 			return null;
@@ -1119,35 +1103,22 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * -cssj-cmyk をCMYKColorValueに変換します。
-	 * 
-	 * @param value
-	 * @return
+	 * -cssj-cmyk の引数をCMYKColorValueに変換します。
 	 */
-	private static ColorValue toCMYKColorValue(LexicalUnit value) {
+	private static ColorValue toCMYKColorValue(TokenStream args) {
 		try {
-			float cyan = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float magenta = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float yellow = toColorComponent(value);
-
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			float black = toColorComponent(value);
+			float cyan = toColorComponent(nextComponent(args));
+			float magenta = toColorComponent(nextComponent(args));
+			float yellow = toColorComponent(nextComponent(args));
+			float black = toColorComponent(nextComponent(args));
 
 			byte overprint = CMYKColor.OVERPRINT_NONE;
-			value = value.getNextLexicalUnit();
-			if (value != null) {
-				value = value.getNextLexicalUnit();
-				if (value.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-					String ident = value.getStringValue();
-					if (ident.equalsIgnoreCase("standard")) {
-						overprint = CMYKColor.OVERPRINT_STANDARD;
-					} else if (ident.equalsIgnoreCase("illustrator")) {
-						overprint = CMYKColor.OVERPRINT_ILLUSTRATOR;
-					}
+			CssToken token = nextComponent(args);
+			if (token instanceof CssToken.Ident ident) {
+				if (ident.is("standard")) {
+					overprint = CMYKColor.OVERPRINT_STANDARD;
+				} else if (ident.is("illustrator")) {
+					overprint = CMYKColor.OVERPRINT_ILLUSTRATOR;
 				}
 			}
 
@@ -1161,180 +1132,108 @@ public final class ColorValueUtils {
 	 * -cssj-spot(版名, 代替色 [, 網点率%] [, standard|illustrator]) を
 	 * スポットカラーに変換します。-cssj-spot(registration) は
 	 * レジストレーションカラー("All" 版)です。
-	 * 
-	 * @param ua
-	 * @param value
-	 * @return
 	 */
-	private static ColorValue toSpotColorValue(UserAgent ua, LexicalUnit value) {
+	private static ColorValue toSpotColorValue(UserAgent ua, TokenStream args) {
 		try {
+			CssToken first = nextComponent(args);
 			// レジストレーションカラー
-			if (value.getLexicalUnitType() == LexicalUnit.SAC_IDENT
-					&& value.getStringValue().equalsIgnoreCase("registration")) {
+			if (first instanceof CssToken.Ident ident && ident.is("registration")) {
 				return new ColorValue(SpotColor.REGISTRATION);
 			}
-
-			if (value.getLexicalUnitType() != LexicalUnit.SAC_STRING_VALUE) {
+			if (!(first instanceof CssToken.Str str)) {
 				return null;
 			}
-			String name = value.getStringValue();
+			String name = str.value();
 
-			value = value.getNextLexicalUnit().getNextLexicalUnit();
-			ColorValue alternateValue = toColor(ua, value);
+			CssToken alternate = nextComponent(args);
+			ColorValue alternateValue = alternate == null ? null : toColor(ua, alternate);
 			if (alternateValue == null) {
 				return null;
 			}
-			Color alternate = alternateValue.getColor();
+			Color alternateColor = alternateValue.getColor();
 
 			float tint = 1;
 			byte overprint = CMYKColor.OVERPRINT_NONE;
-			value = value.getNextLexicalUnit();
-			while (value != null) {
-				value = value.getNextLexicalUnit();
-				if (value == null) {
-					break;
-				}
-				switch (value.getLexicalUnitType()) {
-				case LexicalUnit.SAC_PERCENTAGE:
-					tint = value.getFloatValue() / 100f;
-					break;
-				case LexicalUnit.SAC_REAL:
-				case LexicalUnit.SAC_INTEGER:
-					tint = toColorComponent(value);
-					break;
-				case LexicalUnit.SAC_IDENT:
-					String ident = value.getStringValue();
-					if (ident.equalsIgnoreCase("standard")) {
+			for (CssToken token = nextComponent(args); token != null; token = nextComponent(args)) {
+				if (token instanceof CssToken.Percent percent) {
+					tint = (float) (percent.value() / 100.0);
+				} else if (token instanceof CssToken.Num) {
+					tint = toColorComponent(token);
+				} else if (token instanceof CssToken.Ident ident) {
+					if (ident.is("standard")) {
 						overprint = CMYKColor.OVERPRINT_STANDARD;
-					} else if (ident.equalsIgnoreCase("illustrator")) {
+					} else if (ident.is("illustrator")) {
 						overprint = CMYKColor.OVERPRINT_ILLUSTRATOR;
 					}
-					break;
-				default:
-					break;
 				}
-				value = value.getNextLexicalUnit();
 			}
-			return new ColorValue(new SpotColor(name, alternate, tint, overprint));
+			return new ColorValue(new SpotColor(name, alternateColor, tint, overprint));
 		} catch (RuntimeException e) {
 			return null;
 		}
 	}
 
-	private static PaintValue toLinearGradient(UserAgent ua, LexicalUnit lu) {
+	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args) {
 		try {
 			double angle = 180 * Math.PI * 2 / 360;
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_DEGREE:
-				angle = lu.getFloatValue() * Math.PI * 2 / 360;
-				lu = lu.getNextLexicalUnit().getNextLexicalUnit();
-				break;
-			case LexicalUnit.SAC_IDENT:
-				if (!lu.getStringValue().equalsIgnoreCase("to")) {
-					break;
-				}
-				lu = lu.getNextLexicalUnit();
-				if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
+			// 方向指定(<angle> | to <side> [<side>])
+			CssToken first = args.peek();
+			if (first instanceof CssToken.Dim dim && dim.unit() == Unit.DEG) {
+				args.next();
+				angle = dim.value() * Math.PI * 2 / 360;
+				args.eatComma();
+			} else if (args.eat("to")) {
+				String a = args.ident();
+				if (a == null) {
 					throw new IllegalArgumentException();
 				}
-				String ident = lu.getStringValue();
-				if (ident.equalsIgnoreCase("top")) {
-					lu = lu.getNextLexicalUnit();
-					if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
-						angle = 0 * Math.PI * 2 / 360;
-						break;
+				String b = null;
+				int mark = args.position();
+				String cand = args.ident();
+				if (cand != null) {
+					if (isGradientSide(cand)) {
+						b = cand;
+					} else {
+						args.rewind(mark);
 					}
-					ident = lu.getStringValue();
-					lu = lu.getNextLexicalUnit();
-					if (ident.equalsIgnoreCase("left")) {
-						angle = 315 * Math.PI * 2 / 360;
-					}
-					else if (ident.equalsIgnoreCase("right")) {
-						angle = 45 * Math.PI * 2 / 360;
-					}
-					break;
 				}
-				else if (ident.equalsIgnoreCase("bottom")) {
-					lu = lu.getNextLexicalUnit();
-					if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
-						angle = 180 * Math.PI * 2 / 360;
-						break;
-					}
-					ident = lu.getStringValue();
-					lu = lu.getNextLexicalUnit();
-					if (ident.equalsIgnoreCase("left")) {
-						angle = 225 * Math.PI * 2 / 360;
-					}
-					else if (ident.equalsIgnoreCase("right")) {
-						angle = 135 * Math.PI * 2 / 360;
-					}
-					break;
-				}
-				else if (ident.equalsIgnoreCase("left")) {
-					lu = lu.getNextLexicalUnit();
-					if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
-						angle = 270 * Math.PI * 2 / 360;
-						break;
-					}
-					ident = lu.getStringValue();
-					lu = lu.getNextLexicalUnit();
-					if (ident.equalsIgnoreCase("top")) {
-						angle = 315 * Math.PI * 2 / 360;
-					}
-					else if (ident.equalsIgnoreCase("bottom")) {
-						angle = 225 * Math.PI * 2 / 360;
-					}
-					break;
-				}
-				else if (ident.equalsIgnoreCase("right")) {
-					lu = lu.getNextLexicalUnit();
-					if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
-						angle = 90 * Math.PI * 2 / 360;
-						break;
-					}
-					ident = lu.getStringValue();
-					lu = lu.getNextLexicalUnit();
-					if (ident.equalsIgnoreCase("top")) {
-						angle = 45 * Math.PI * 2 / 360;
-					}
-					else if (ident.equalsIgnoreCase("bottom")) {
-						angle = 135 * Math.PI * 2 / 360;
-					}
-					break;
-				}
+				angle = gradientAngle(a, b);
+				args.eatComma();
 			}
 
 			List<Color> colors = new ArrayList<Color>();
 			DoubleList fracs = new DoubleList();
 
-			for (;;) {
-				if (lu.getLexicalUnitType() == LexicalUnit.SAC_PERCENTAGE || lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_COMMA) {
-					lu = lu.getNextLexicalUnit();
+			for (TokenStream group : args.splitComma()) {
+				// 旧実装の寛容さを踏襲: 色の前のパーセント値は読み飛ばす
+				while (group.peek() instanceof CssToken.Percent) {
+					group.next();
+				}
+				CssToken colorToken = group.next();
+				if (colorToken == null) {
 					continue;
 				}
-				ColorValue cv = toColor(ua, lu);
+				ColorValue cv = toColor(ua, colorToken);
 				if (cv == null) {
 					throw new IllegalArgumentException();
 				}
 				Color color = cv.getColor();
-				lu = lu.getNextLexicalUnit();
-				if (lu == null || lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_COMMA) {
+				if (!group.hasNext()) {
 					colors.add(color);
 					fracs.add(-1);
 				} else {
-					while (lu != null && lu.getLexicalUnitType() != LexicalUnit.SAC_OPERATOR_COMMA) {
-						if (lu.getLexicalUnitType() != LexicalUnit.SAC_PERCENTAGE) {
+					while (group.hasNext()) {
+						CssToken stop = group.next();
+						if (!(stop instanceof CssToken.Percent percent)) {
 							throw new IllegalArgumentException();
 						}
 						colors.add(color);
-						fracs.add(lu.getFloatValue() / 100f);
-						lu = lu.getNextLexicalUnit();
+						fracs.add(percent.value() / 100.0);
 					}
 				}
-				if (lu == null) {
-					break;
-				}
-				lu = lu.getNextLexicalUnit();
+			}
+			if (colors.isEmpty()) {
+				throw new IllegalArgumentException();
 			}
 			double[] ds = fracs.toArray();
 			if (ds[0] == -1) {
@@ -1362,122 +1261,131 @@ public final class ColorValueUtils {
 		}
 	}
 
-	private static ColorValue toGrayColorValue(LexicalUnit value) {
+	private static boolean isGradientSide(String ident) {
+		switch (ident.toLowerCase()) {
+		case "top":
+		case "bottom":
+		case "left":
+		case "right":
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/**
+	 * linear-gradient の to 方向を角度(ラジアン)に変換します。
+	 */
+	private static double gradientAngle(String a, String b) {
+		final int deg;
+		switch (a.toLowerCase()) {
+		case "top":
+			deg = b == null ? 0 : (b.equalsIgnoreCase("left") ? 315 : b.equalsIgnoreCase("right") ? 45 : 0);
+			break;
+		case "bottom":
+			deg = b == null ? 180 : (b.equalsIgnoreCase("left") ? 225 : b.equalsIgnoreCase("right") ? 135 : 180);
+			break;
+		case "left":
+			deg = b == null ? 270 : (b.equalsIgnoreCase("top") ? 315 : b.equalsIgnoreCase("bottom") ? 225 : 270);
+			break;
+		case "right":
+			deg = b == null ? 90 : (b.equalsIgnoreCase("top") ? 45 : b.equalsIgnoreCase("bottom") ? 135 : 90);
+			break;
+		default:
+			deg = 180;
+			break;
+		}
+		return deg * Math.PI * 2 / 360;
+	}
+
+	private static ColorValue toGrayColorValue(TokenStream args) {
 		try {
-			return fromGrayComponent(toColorComponent(value));
+			return fromGrayComponent(toColorComponent(nextComponent(args)));
 		} catch (IllegalArgumentException e) {
 			return null;
 		}
 	}
 
-	private static float toColorComponent(LexicalUnit value) throws IllegalArgumentException {
-		if (value == null) {
-			throw new IllegalArgumentException();
+	/** 引数列からコンマを読み飛ばして次のトークンを返します。 */
+	private static CssToken nextComponent(TokenStream args) {
+		while (args.eatComma()) {
+			// skip
 		}
-		float a;
-		switch (value.getLexicalUnitType()) {
-		case LexicalUnit.SAC_PERCENTAGE:
-			a = value.getFloatValue() / 100f;
-			break;
-		case LexicalUnit.SAC_REAL:
-			a = value.getFloatValue();
-			break;
-		case LexicalUnit.SAC_INTEGER:
-			a = (float) value.getIntegerValue() / 255f;
-			break;
-		default:
-			throw new IllegalArgumentException();
+		return args.next();
+	}
+
+	private static float toColorComponent(CssToken token) throws IllegalArgumentException {
+		if (token instanceof CssToken.Percent percent) {
+			return (float) (percent.value() / 100.0);
 		}
-		return a;
+		if (token instanceof CssToken.Num num) {
+			// 整数表記は0〜255、実数表記は0〜1として扱う(旧実装と同じ)
+			return num.integer() ? (float) (num.value() / 255.0) : (float) num.value();
+		}
+		throw new IllegalArgumentException();
 	}
 
 	/**
 	 * transparent であればtrueを返します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static boolean isTransparent(LexicalUnit lu) {
-		return (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT
-				&& lu.getStringValue().equalsIgnoreCase("transparent"));
+	public static boolean isTransparent(CssToken token) {
+		return token instanceof CssToken.Ident ident && ident.is("transparent");
 	}
 
 	/**
 	 * &lt;color&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static ColorValue toColor(UserAgent ua, LexicalUnit lu) {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String colorName = lu.getStringValue();
-			ColorValue color = toColorValue(colorName);
-			return color;
-
-		case LexicalUnit.SAC_RGBCOLOR:
-			LexicalUnit rgb = lu.getParameters();
-			return toRGBColorValue(rgb);
-
-		case LexicalUnit.SAC_FUNCTION:
-			String func = lu.getFunctionName();
-			if (func.equalsIgnoreCase("-cssj-cmyk")) {
-				LexicalUnit cmyk = lu.getParameters();
-				return toCMYKColorValue(cmyk);
-			} else if (func.equalsIgnoreCase("-cssj-spot")) {
-				return toSpotColorValue(ua, lu.getParameters());
-			} else if (func.equalsIgnoreCase("-cssj-gray")) {
-				LexicalUnit gray = lu.getParameters();
-				return toGrayColorValue(gray);
-			} else if (func.equalsIgnoreCase("rgba")) {
-				LexicalUnit gray = lu.getParameters();
-				return toRGBAColorValue(gray);
+	public static ColorValue toColor(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			return toColorValue(ident.name());
+		}
+		if (token instanceof CssToken.Func func) {
+			if (func.is("rgb")) {
+				return toRGBColorValue(func.argStream());
 			}
-			break;
+			if (func.is("rgba")) {
+				return toRGBAColorValue(func.argStream());
+			}
+			if (func.is("-cssj-cmyk")) {
+				return toCMYKColorValue(func.argStream());
+			}
+			if (func.is("-cssj-spot")) {
+				return toSpotColorValue(ua, func.argStream());
+			}
+			if (func.is("-cssj-gray")) {
+				return toGrayColorValue(func.argStream());
+			}
 		}
 		return null;
 	}
 
 	/**
 	 * &lt;background-color&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static PaintValue toPaint(UserAgent ua, LexicalUnit lu) {
-		PaintValue value = toColor(ua, lu);
+	public static PaintValue toPaint(UserAgent ua, CssToken token) {
+		PaintValue value = toColor(ua, token);
 		if (value != null) {
 			return value;
 		}
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_FUNCTION:
-			String func = lu.getFunctionName();
-			if (func.equalsIgnoreCase("linear-gradient")) {
-				LexicalUnit lg = lu.getParameters();
-				return toLinearGradient(ua, lg);
-			}
-			break;
+		if (token instanceof CssToken.Func func && func.is("linear-gradient")) {
+			return toLinearGradient(ua, func.argStream());
 		}
 		return null;
 	}
 
 	/**
 	 * &lt;background-repeat&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static BackgroundRepeatValue toBackgroundRepeat(LexicalUnit lu) {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("repeat")) {
+	public static BackgroundRepeatValue toBackgroundRepeat(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "repeat":
 				return BackgroundRepeatValue.REPEAT_VALUE;
-			} else if (ident.equals("repeat-x")) {
+			case "repeat-x":
 				return BackgroundRepeatValue.REPEAT_X_VALUE;
-			} else if (ident.equals("repeat-y")) {
+			case "repeat-y":
 				return BackgroundRepeatValue.REPEAT_Y_VALUE;
-			} else if (ident.equals("no-repeat")) {
+			case "no-repeat":
 				return BackgroundRepeatValue.NO_REPEAT_VALUE;
 			}
 		}
@@ -1485,18 +1393,14 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;background-attachment を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
+	 * &lt;background-attachment&gt; を値に変換します。
 	 */
-	public static BackgroundAttachmentValue toBackgroundAttachment(LexicalUnit lu) {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("scroll")) {
+	public static BackgroundAttachmentValue toBackgroundAttachment(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "scroll":
 				return BackgroundAttachmentValue.SCROLL_VALUE;
-			} else if (ident.equals("fixed")) {
+			case "fixed":
 				return BackgroundAttachmentValue.FIXED_VALUE;
 			}
 		}
@@ -1505,21 +1409,17 @@ public final class ColorValueUtils {
 
 	/**
 	 * &lt;background-clip&gt; を値に変換します。
-	 * 
-	 * @param lu
-	 * @return
 	 */
-	public static BackgroundClipValue toBackgroundClip(LexicalUnit lu) {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("border-box")) {
+	public static BackgroundClipValue toBackgroundClip(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "border-box":
 				return BackgroundClipValue.BORDER_BOX_VALUE;
-			} else if (ident.equals("padding-box")) {
+			case "padding-box":
 				return BackgroundClipValue.PADDING_BOX_VALUE;
-			} else if (ident.equals("content-box")) {
+			case "content-box":
 				return BackgroundClipValue.CONTENT_BOX_VALUE;
-			} else if (ident.equals("text")) {
+			case "text":
 				return BackgroundClipValue.TEXT_VALUE;
 			}
 		}

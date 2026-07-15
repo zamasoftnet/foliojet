@@ -12,7 +12,8 @@ import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -72,18 +73,18 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		byte fill = 0, type = 0;
-		do {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_IDENT:
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			if (lu instanceof CssToken.Ident luIdent) {
 				if (ValueUtils.isNone(lu)) {
-					if (lu.getNextLexicalUnit() != null) {
+					if (tokens.hasNext()) {
 						throw new PropertyException();
 					}
 					return NoneValue.NONE_VALUE;
 				}
-				String ident = lu.getStringValue().toLowerCase();
+				String ident = luIdent.lower();
 				if (ident.equals("filled")) {
 					if (fill != 0) {
 						throw new PropertyException();
@@ -122,18 +123,15 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 				} else {
 					throw new PropertyException();
 				}
-				break;
-			case LexicalUnit.SAC_STRING_VALUE:
-				if (fill != 0 || lu.getNextLexicalUnit() != null) {
+			} else if (lu instanceof CssToken.Str str) {
+				if (fill != 0 || tokens.hasNext()) {
 					throw new PropertyException();
 				}
-				return new StringValue(lu.getStringValue());
-
-			default:
+				return new StringValue(str.value());
+			} else {
 				throw new PropertyException();
 			}
-			lu = lu.getNextLexicalUnit();
-		} while (lu != null);
+		}
 		if (type == 0) {
 			type = -1;
 		}

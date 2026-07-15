@@ -14,7 +14,8 @@ import net.zamasoft.foliojet.impl.css.property.BorderLeftColor;
 import net.zamasoft.foliojet.impl.css.property.BorderRightColor;
 import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -27,71 +28,48 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 		super("border-color");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(BorderLeftColor.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderTopColor.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderRightColor.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderBottomColor.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
-		final Value color1;
-		if (ColorValueUtils.isTransparent(lu)) {
-			color1 = TransparentValue.TRANSPARENT_VALUE;
-		} else {
-			color1 = ColorValueUtils.toColor(ua, lu);
-		}
+		final Value color1 = nextColor(tokens, ua);
 		if (color1 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftColor.INFO, color1);
 			primitives.set(BorderTopColor.INFO, color1);
 			primitives.set(BorderRightColor.INFO, color1);
 			primitives.set(BorderBottomColor.INFO, color1);
 			return;
 		}
-		final Value color2;
-		if (ColorValueUtils.isTransparent(lu)) {
-			color2 = TransparentValue.TRANSPARENT_VALUE;
-		} else {
-			color2 = ColorValueUtils.toColor(ua, lu);
-		}
+		final Value color2 = nextColor(tokens, ua);
 		if (color2 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftColor.INFO, color2);
 			primitives.set(BorderTopColor.INFO, color1);
 			primitives.set(BorderRightColor.INFO, color2);
 			primitives.set(BorderBottomColor.INFO, color1);
 			return;
 		}
-		final Value color3;
-		if (ColorValueUtils.isTransparent(lu)) {
-			color3 = TransparentValue.TRANSPARENT_VALUE;
-		} else {
-			color3 = ColorValueUtils.toColor(ua, lu);
-		}
+		final Value color3 = nextColor(tokens, ua);
 		if (color3 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftColor.INFO, color2);
 			primitives.set(BorderTopColor.INFO, color1);
 			primitives.set(BorderRightColor.INFO, color2);
 			primitives.set(BorderBottomColor.INFO, color3);
 			return;
 		}
-		final Value color4;
-		if (ColorValueUtils.isTransparent(lu)) {
-			color4 = TransparentValue.TRANSPARENT_VALUE;
-		} else {
-			color4 = ColorValueUtils.toColor(ua, lu);
-		}
+		final Value color4 = nextColor(tokens, ua);
 		if (color4 == null) {
 			throw new PropertyException();
 		}
@@ -99,5 +77,13 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(BorderTopColor.INFO, color1);
 		primitives.set(BorderRightColor.INFO, color2);
 		primitives.set(BorderBottomColor.INFO, color3);
+	}
+
+	private static Value nextColor(TokenStream tokens, UserAgent ua) {
+		final CssToken token = tokens.next();
+		if (ColorValueUtils.isTransparent(token)) {
+			return TransparentValue.TRANSPARENT_VALUE;
+		}
+		return ColorValueUtils.toColor(ua, token);
 	}
 }

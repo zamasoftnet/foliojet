@@ -22,7 +22,8 @@ import net.zamasoft.foliojet.impl.css.property.FontVariant;
 import net.zamasoft.foliojet.impl.css.property.FontWeight;
 import net.zamasoft.foliojet.impl.css.property.LineHeight;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -35,8 +36,8 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 		super("font");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(CSSFontStyle.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(FontVariant.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(FontWeight.INFO, InheritValue.INHERIT_VALUE);
@@ -44,8 +45,8 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(LineHeight.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(CSSFontFamily.INFO, InheritValue.INHERIT_VALUE);
 			return;
-		} else if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-			String ident = lu.getStringValue().toLowerCase();
+		} else if (tokens.peek() instanceof CssToken.Ident systemFont) {
+			String ident = systemFont.lower();
 			if (ident.equals("caption") || ident.equals("icon") || ident.equals("menu") || ident.equals("message-box")
 					|| ident.equals("small-caption") || ident.equals("status-bar")) {
 				// あまり重要ではない
@@ -64,52 +65,50 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 		FontStyleValue fontStyle = null;
 		FontVariantValue fontVariant = null;
 		FontWeightValue fontWeight = null;
-		do {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.peek();
 			if (fontStyle == null) {
 				fontStyle = FontValueUtils.toFontStyle(lu);
 				if (fontStyle != null) {
-					lu = lu.getNextLexicalUnit();
+					tokens.next();
 					continue;
 				}
 			}
 			if (fontVariant == null) {
 				fontVariant = FontValueUtils.toFontVariant(lu);
 				if (fontVariant != null) {
-					lu = lu.getNextLexicalUnit();
+					tokens.next();
 					continue;
 				}
 			}
 			if (fontWeight == null) {
 				fontWeight = FontValueUtils.toFontWeight(lu);
 				if (fontWeight != null) {
-					lu = lu.getNextLexicalUnit();
+					tokens.next();
 					continue;
 				}
 			}
 			break;
-		} while (lu != null);
+		}
 
 		final Value fontSize;
-		if (lu == null || (fontSize = FontValueUtils.toFontSize(ua, lu)) == null) {
+		if (!tokens.hasNext() || (fontSize = FontValueUtils.toFontSize(ua, tokens.next())) == null) {
 			throw new PropertyException("フォントサイズが未指定です");
 		}
-		lu = lu.getNextLexicalUnit();
 
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			throw new PropertyException("フォントファミリが未指定です");
 		}
 
 		Value lineHeight = null;
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_SLASH) {
-			lu = lu.getNextLexicalUnit();
-			if (lu == null || (lineHeight = BoxValueUtils.toLineHeight(ua, lu)) == null) {
+		if (tokens.eatSlash()) {
+			if (!tokens.hasNext() || (lineHeight = BoxValueUtils.toLineHeight(ua, tokens.next())) == null) {
 				throw new PropertyException("行高さが不正です");
 			}
-			lu = lu.getNextLexicalUnit();
 		}
 
 		final FontFamilyValue fontFamily;
-		if (lu == null || (fontFamily = FontValueUtils.toFontFamily(ua, lu)) == null) {
+		if (!tokens.hasNext() || (fontFamily = FontValueUtils.toFontFamily(ua, tokens)) == null) {
 			throw new PropertyException("フォントファミリが未指定です");
 		}
 

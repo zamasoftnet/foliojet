@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.property.FontFacePropertySet;
 import net.zamasoft.foliojet.css.property.PagePropertySet;
 import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.parser.Parser;
 import net.zamasoft.foliojet.css.parser.StyleSheetHandler;
 import net.zamasoft.foliojet.css.selector.Selector;
@@ -96,16 +96,16 @@ public class CSSStyleSheetBuilder implements StyleSheetHandler {
 		return this.cssStyleSheet;
 	}
 
-	public void property(String name, LexicalUnit lu, boolean important) throws CSSException {
+	public void property(String name, java.util.List<CssToken> value, boolean important) throws CSSException {
 		switch (this.state) {
 		case NONE:
 			// 無視
 			break;
 		case IN_PAGE_CONTENT:
-			this.pageContentDeclBuilder.property(name, lu, important);
+			this.pageContentDeclBuilder.property(name, value, important);
 			break;
 		default:
-			this.declBuilder.property(name, lu, important);
+			this.declBuilder.property(name, value, important);
 			break;
 		}
 	}

@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
 import net.zamasoft.foliojet.impl.css.property.PaddingRight;
 import net.zamasoft.foliojet.impl.css.property.PaddingTop;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -26,8 +27,8 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 		super("padding");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		final Value padding1 = BoxValueUtils.toPositiveLength(ua, lu);
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final Value padding1 = BoxValueUtils.toPositiveLength(ua, tokens.next());
 		if (padding1 == null) {
 			throw new PropertyException();
 		}
@@ -38,39 +39,36 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(PaddingBottom.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(PaddingLeft.INFO, padding1);
 			primitives.set(PaddingTop.INFO, padding1);
 			primitives.set(PaddingRight.INFO, padding1);
 			primitives.set(PaddingBottom.INFO, padding1);
 			return;
 		}
-		final Value padding2 = BoxValueUtils.toPositiveLength(ua, lu);
+		final Value padding2 = BoxValueUtils.toPositiveLength(ua, tokens.next());
 		if (padding2 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(PaddingLeft.INFO, padding2);
 			primitives.set(PaddingTop.INFO, padding1);
 			primitives.set(PaddingRight.INFO, padding2);
 			primitives.set(PaddingBottom.INFO, padding1);
 			return;
 		}
-		final Value padding3 = BoxValueUtils.toPositiveLength(ua, lu);
+		final Value padding3 = BoxValueUtils.toPositiveLength(ua, tokens.next());
 		if (padding3 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(PaddingLeft.INFO, padding2);
 			primitives.set(PaddingTop.INFO, padding1);
 			primitives.set(PaddingRight.INFO, padding2);
 			primitives.set(PaddingBottom.INFO, padding3);
 			return;
 		}
-		final Value padding4 = BoxValueUtils.toPositiveLength(ua, lu);
+		final Value padding4 = BoxValueUtils.toPositiveLength(ua, tokens.next());
 		if (padding4 == null) {
 			throw new PropertyException();
 		}

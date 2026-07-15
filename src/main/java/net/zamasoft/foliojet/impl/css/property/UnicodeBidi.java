@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.UnicodeBidiValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,11 +40,10 @@ public class UnicodeBidi extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("normal")) {
 				return UnicodeBidiValue.NORMAL_VALUE;
 			} else if (ident.equals("embed")) {
@@ -51,9 +51,8 @@ public class UnicodeBidi extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("bidi-override")) {
 				return UnicodeBidiValue.BIDI_OVERRIDE_VALUE;
 			}
-		default:
-			throw new PropertyException();
 		}
+		throw new PropertyException();
 	}
 
 }

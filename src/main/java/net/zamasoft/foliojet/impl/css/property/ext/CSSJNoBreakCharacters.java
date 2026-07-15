@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJBreakRuleValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,35 +40,25 @@ public class CSSJNoBreakCharacters extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_STRING_VALUE:
-			String head = lu.getStringValue();
-			String tail;
-			lu = lu.getNextLexicalUnit();
-			if (lu == null) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Str str) {
+			final String head = str.value();
+			final String tail;
+			if (!tokens.hasNext()) {
 				tail = "";
-			} else if (lu.getLexicalUnitType() == LexicalUnit.SAC_STRING_VALUE) {
-				tail = lu.getStringValue();
-				lu = lu.getNextLexicalUnit();
-				if (lu != null) {
+			} else {
+				tail = tokens.string();
+				if (tail == null || tokens.hasNext()) {
 					throw new PropertyException();
 				}
-			} else {
-				throw new PropertyException();
 			}
 			return new CSSJBreakRuleValue(head, tail);
-
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("none")) {
-				return CSSJBreakRuleValue.NONE_VALUE;
-			}
-
-		default:
-			throw new PropertyException();
 		}
+		if (lu instanceof CssToken.Ident ident && ident.is("none")) {
+			return CSSJBreakRuleValue.NONE_VALUE;
+		}
+		throw new PropertyException();
 	}
 
 }

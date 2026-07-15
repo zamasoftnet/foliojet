@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.ColumnFillValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,19 +41,17 @@ public class ColumnFill extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("auto")) {
 				return ColumnFillValue.AUTO_VALUE;
 			} else if (ident.equals("balance")) {
 				return ColumnFillValue.BALANCE_VALUE;
 			}
-
-		default:
-			throw new PropertyException();
 		}
+		throw new PropertyException();
 	}
 
 }

@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -8,7 +7,7 @@ import net.zamasoft.foliojet.css.parser.LexicalUnit;
  */
 public interface Value {
 	// RGBカラー
-	public static final short TYPE_COLOR = LexicalUnit.SAC_RGBCOLOR;
+	public static final short TYPE_COLOR = 27; // 旧SAC_RGBCOLOR
 
 	// 絶対/デバイス相対
 	public static final short TYPE_ABSOLUTE_LENGTH = 1000;
@@ -19,7 +18,7 @@ public interface Value {
 	public static final short TYPE_EX_LENGTH = TYPE_EM_LENGTH + 1;
 
 	// パーセント
-	public static final short TYPE_PERCENTAGE = LexicalUnit.SAC_PERCENTAGE;
+	public static final short TYPE_PERCENTAGE = 23; // 旧SAC_PERCENTAGE
 
 	// 継承
 	public static final short TYPE_INHERIT = TYPE_EX_LENGTH + 1;

@@ -12,7 +12,8 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.NormalValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -49,7 +50,8 @@ public class WordSpacing extends AbstractPrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isNormal(lu)) {
 			return NormalValue.NORMAL_VALUE;
 		}

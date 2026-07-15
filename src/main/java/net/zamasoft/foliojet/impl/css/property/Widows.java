@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.IntegerValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,16 +40,12 @@ public class Widows extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_INTEGER: {
-			final int a = lu.getIntegerValue();
-			return IntegerValue.create(a);
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Num num && num.integer()) {
+			return IntegerValue.create(num.intValue());
 		}
-
-		default:
-			throw new PropertyException();
-		}
+		throw new PropertyException();
 	}
 
 }

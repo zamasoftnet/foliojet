@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.IntegerValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,20 +41,18 @@ public class ColumnCount extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
 			return IntegerValue.ZERO;
 		}
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_INTEGER: {
-			final int a = lu.getIntegerValue();
+		if (lu instanceof CssToken.Num num && num.integer()) {
+			final int a = num.intValue();
 			if (a >= 1) {
 				return IntegerValue.create(a);
 			}
 		}
-		default:
-			throw new PropertyException();
-		}
+		throw new PropertyException();
 	}
 
 }

@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.impl.css.property.Direction;
 import net.zamasoft.foliojet.impl.css.property.LineHeight;
 import net.zamasoft.foliojet.impl.css.property.TextIndent;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -26,10 +27,10 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 		super("-cssj-text-combine");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-			String ident = lu.getStringValue();
-			if (ident.equals("horizontal")) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident ident) {
+			if (ident.is("horizontal")) {
 				primitives.set(Direction.INFO, DirectionValue.LTR_VALUE);
 				primitives.set(BlockFlow.INFO, BlockFlowValue.TB_VALUE);
 				primitives.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
@@ -37,7 +38,7 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 			} else {
 				throw new PropertyException();
 			}
-			if (lu.getNextLexicalUnit() != null) {
+			if (tokens.hasNext()) {
 				throw new PropertyException();
 			}
 		} else {

@@ -17,7 +17,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href=
@@ -108,13 +109,14 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	protected Entry[] parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, InheritValue.INHERIT_VALUE),
 					new Entry(BackgroundSize.INFO_HEIGHT, InheritValue.INHERIT_VALUE) };
 		}
 		Value w, h;
 
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
 			w = AutoValue.AUTO_VALUE;
 		} else {
@@ -129,18 +131,18 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 			}
 		}
 
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			h = AutoValue.AUTO_VALUE;
 			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, w), new Entry(BackgroundSize.INFO_HEIGHT, h) };
 		}
 
-		if (ValueUtils.isAuto(lu)) {
+		final CssToken hToken = tokens.next();
+		if (ValueUtils.isAuto(hToken)) {
 			h = AutoValue.AUTO_VALUE;
 		} else {
-			h = ValueUtils.toPercentage(lu);
+			h = ValueUtils.toPercentage(hToken);
 			if (h == null) {
-				h = ValueUtils.toLength(ua, lu);
+				h = ValueUtils.toLength(ua, hToken);
 				if (h != null && ((LengthValue) h).isNegative()) {
 					throw new PropertyException();
 				}

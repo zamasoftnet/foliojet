@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.util.FontValueUtils;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,7 +40,8 @@ public class FontVariant extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		final FontVariantValue fontVariant = FontValueUtils.toFontVariant(lu);
 		if (fontVariant == null) {
 			throw new PropertyException();

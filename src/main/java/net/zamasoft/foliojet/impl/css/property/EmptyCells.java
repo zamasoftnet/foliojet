@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.util.TableValueUtils;
 import net.zamasoft.foliojet.css.value.EmptyCellsValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,7 +41,8 @@ public class EmptyCells extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		final Value value = TableValueUtils.toEmptyCells(lu);
 		if (value == null) {
 			throw new PropertyException();

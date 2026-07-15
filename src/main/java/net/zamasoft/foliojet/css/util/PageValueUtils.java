@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.util;
 
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -14,26 +14,12 @@ public final class PageValueUtils {
 	}
 
 	/**
-	 * &lt;margin-width&gt;|inherit を値に変換します。
-	 * 
-	 * @param ua
-	 * @param lu
-	 * @return
+	 * &lt;margin-width&gt; を値に変換します(emやexなどのフォント相対長さは不可)。
 	 */
-	public static Value toMarginWidth(UserAgent ua, LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_INHERIT:
-		case LexicalUnit.SAC_IDENT:
-		case LexicalUnit.SAC_EM:
-		case LexicalUnit.SAC_EX:
-			return null;
-
-		case LexicalUnit.SAC_PERCENTAGE:
-			return ValueUtils.toPercentage(lu);
-
-		default:
-			return ValueUtils.toLength(ua, lu);
+	public static Value toMarginWidth(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Percent percent) {
+			return ValueUtils.toPercentage(percent);
 		}
+		return ValueUtils.toAbsoluteLength(ua, token);
 	}
 }

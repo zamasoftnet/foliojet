@@ -14,7 +14,8 @@ import net.zamasoft.foliojet.impl.css.property.BorderRightColor;
 import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderRightWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -27,8 +28,8 @@ public class BorderRightShorthand extends AbstractShorthandPropertyInfo {
 		super("border-right");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(BorderRightWidth.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderRightStyle.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderRightColor.INFO, InheritValue.INHERIT_VALUE);
@@ -38,7 +39,8 @@ public class BorderRightShorthand extends AbstractShorthandPropertyInfo {
 		Value width = null;
 		Value styleValue = null;
 		Value color = null;
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
 			if (width == null) {
 				width = BorderValueUtils.toBorderWidth(ua, lu);
 				if (width != null) {

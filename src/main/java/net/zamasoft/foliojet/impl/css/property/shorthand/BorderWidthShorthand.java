@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.impl.css.property.BorderLeftWidth;
 import net.zamasoft.foliojet.impl.css.property.BorderRightWidth;
 import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -26,8 +27,8 @@ public class BorderWidthShorthand extends AbstractShorthandPropertyInfo {
 		super("border-width");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		final Value width1 = BorderValueUtils.toBorderWidth(ua, lu);
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final Value width1 = BorderValueUtils.toBorderWidth(ua, tokens.next());
 		if (width1 == null) {
 			throw new PropertyException();
 		}
@@ -38,39 +39,36 @@ public class BorderWidthShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderBottomWidth.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftWidth.INFO, width1);
 			primitives.set(BorderTopWidth.INFO, width1);
 			primitives.set(BorderRightWidth.INFO, width1);
 			primitives.set(BorderBottomWidth.INFO, width1);
 			return;
 		}
-		final Value width2 = BorderValueUtils.toBorderWidth(ua, lu);
+		final Value width2 = BorderValueUtils.toBorderWidth(ua, tokens.next());
 		if (width2 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftWidth.INFO, width2);
 			primitives.set(BorderTopWidth.INFO, width1);
 			primitives.set(BorderRightWidth.INFO, width2);
 			primitives.set(BorderBottomWidth.INFO, width1);
 			return;
 		}
-		final Value width3 = BorderValueUtils.toBorderWidth(ua, lu);
+		final Value width3 = BorderValueUtils.toBorderWidth(ua, tokens.next());
 		if (width3 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftWidth.INFO, width2);
 			primitives.set(BorderTopWidth.INFO, width1);
 			primitives.set(BorderRightWidth.INFO, width2);
 			primitives.set(BorderBottomWidth.INFO, width3);
 			return;
 		}
-		final Value width4 = BorderValueUtils.toBorderWidth(ua, lu);
+		final Value width4 = BorderValueUtils.toBorderWidth(ua, tokens.next());
 		if (width4 == null) {
 			throw new PropertyException();
 		}

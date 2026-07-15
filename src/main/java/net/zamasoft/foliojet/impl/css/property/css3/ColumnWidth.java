@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-left-width">
@@ -49,7 +50,8 @@ public class ColumnWidth extends AbstractPrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
 			return AutoValue.AUTO_VALUE;
 		}

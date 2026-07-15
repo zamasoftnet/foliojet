@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.TextAlign;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -55,21 +56,19 @@ public class TextAlignLast extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
 			return AutoValue.AUTO_VALUE;
 		}
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			TextAlignValue value = TextValueUtils.toTextAlign(ident);
 			if (value != null) {
 				return value;
 			}
-
-		default:
-			throw new PropertyException();
 		}
+		throw new PropertyException();
 	}
 
 }

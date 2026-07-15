@@ -20,7 +20,8 @@ import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList.FontPolicy;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -37,41 +38,40 @@ public final class FontValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static FontFamilyValue toFontFamily(UserAgent ua, LexicalUnit lu) {
+	public static FontFamilyValue toFontFamily(UserAgent ua, TokenStream tokens) {
 		List<FontFamily> list = new ArrayList<FontFamily>();
-		do {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_IDENT:
-				String ident = lu.getStringValue().toLowerCase();
-				if (ident.equalsIgnoreCase("cursive")) {
+		while (tokens.hasNext()) {
+			CssToken token = tokens.next();
+			if (token instanceof CssToken.Ident ident) {
+				switch (ident.lower()) {
+				case "cursive":
 					list.add(FontFamily.CURSIVE_VALUE);
 					break;
-				} else if (ident.equalsIgnoreCase("fantasy")) {
+				case "fantasy":
 					list.add(FontFamily.FANTASY_VALUE);
 					break;
-				} else if (ident.equalsIgnoreCase("monospace")) {
+				case "monospace":
 					list.add(FontFamily.MONOSPACE_VALUE);
 					break;
-				} else if (ident.equalsIgnoreCase("sans-serif")) {
+				case "sans-serif":
 					list.add(FontFamily.SANS_SERIF_VALUE);
 					break;
-				} else if (ident.equalsIgnoreCase("serif")) {
+				case "serif":
 					list.add(FontFamily.SERIF_VALUE);
 					break;
+				default:
+					// 一般のファミリ名
+					list.add(new FontFamily(ident.name()));
+					break;
 				}
-
-			case LexicalUnit.SAC_STRING_VALUE:
-				list.add(new FontFamily(lu.getStringValue()));
-				break;
-
-			default:
-				break;
+			} else if (token instanceof CssToken.Str str) {
+				list.add(new FontFamily(str.value()));
 			}
-			while ((lu = lu.getNextLexicalUnit()) != null
-					&& lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_COMMA) {
+			// コンマ区切り・空白区切りのどちらも許容する
+			while (tokens.eatComma()) {
 				// do nothing
 			}
-		} while (lu != null);
+		}
 		if (list.isEmpty()) {
 			return null;
 		}
@@ -88,18 +88,16 @@ public final class FontValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static FontStyleValue toFontStyle(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		if (luType != LexicalUnit.SAC_IDENT) {
-			return null;
-		}
-		String ident = lu.getStringValue().toLowerCase();
-		if (ident.equals("normal")) {
-			return FontStyleValue.NORMAL_VALUE;
-		} else if (ident.equals("italic")) {
-			return FontStyleValue.ITALIC_VALUE;
-		} else if (ident.equals("oblique")) {
-			return FontStyleValue.OBLIQUE_VALUE;
+	public static FontStyleValue toFontStyle(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "normal":
+				return FontStyleValue.NORMAL_VALUE;
+			case "italic":
+				return FontStyleValue.ITALIC_VALUE;
+			case "oblique":
+				return FontStyleValue.OBLIQUE_VALUE;
+			}
 		}
 		return null;
 	}
@@ -110,50 +108,63 @@ public final class FontValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static CSSJFontPolicyValue toFontPolicy(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		if (luType != LexicalUnit.SAC_IDENT) {
+	public static CSSJFontPolicyValue toFontPolicy(TokenStream tokens) {
+		String first = tokens.ident();
+		if (first == null) {
 			return null;
 		}
-		if (lu.getNextLexicalUnit() == null) {
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("generic") || ident.equals("cid-keyed")) {
+		if (!tokens.hasNext()) {
+			switch (first.toLowerCase()) {
+			case "generic":
+			case "cid-keyed":
 				return CSSJFontPolicyValue.CORE_CID_KEYED_VALUE;
-			} else if (ident.equals("external") || ident.equals("cid-identity")) {
+			case "external":
+			case "cid-identity":
 				return CSSJFontPolicyValue.CORE_CID_IDENTITY_VALUE;
-			} else if (ident.equals("embed") || ident.equals("embedded")) {
+			case "embed":
+			case "embedded":
 				return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
-			} else if (ident.equals("outlines")) {
+			case "outlines":
 				return CSSJFontPolicyValue.OUTLINES_VALUE;
-			} else {
+			default:
 				return null;
 			}
 		}
 		List<FontPolicy> codes = new ArrayList<FontPolicy>();
 		codes.add(FontPolicy.CORE);
+		String ident = first;
 		for (;;) {
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("generic") || ident.equals("cid-keyed")) {
+			switch (ident.toLowerCase()) {
+			case "generic":
+			case "cid-keyed":
 				codes.add(FontPolicy.CID_KEYED);
-			} else if (ident.equals("external") || ident.equals("cid-identity")) {
-				codes.add(FontPolicy.CID_IDENTITY);
-			} else if (ident.equals("embed") || ident.equals("embedded")) {
-				codes.add(FontPolicy.EMBEDDED);
-			} else if (ident.equals("-core")) {
-				codes.remove(FontPolicy.CORE);
-			} else if (ident.equals("core")) {
-				codes.add(FontPolicy.CORE);
-			} else if (ident.equals("outlines")) {
-				codes.add(FontPolicy.OUTLINES);
-			} else {
-				return null;
-			}
-			lu = lu.getNextLexicalUnit();
-			if (luType != LexicalUnit.SAC_IDENT) {
-				return null;
-			}
-			if (lu == null) {
 				break;
+			case "external":
+			case "cid-identity":
+				codes.add(FontPolicy.CID_IDENTITY);
+				break;
+			case "embed":
+			case "embedded":
+				codes.add(FontPolicy.EMBEDDED);
+				break;
+			case "-core":
+				codes.remove(FontPolicy.CORE);
+				break;
+			case "core":
+				codes.add(FontPolicy.CORE);
+				break;
+			case "outlines":
+				codes.add(FontPolicy.OUTLINES);
+				break;
+			default:
+				return null;
+			}
+			if (!tokens.hasNext()) {
+				break;
+			}
+			ident = tokens.ident();
+			if (ident == null) {
+				return null;
 			}
 		}
 		return new CSSJFontPolicyValue(codes.toArray(new FontPolicy[codes.size()]));
@@ -235,16 +246,14 @@ public final class FontValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static FontVariantValue toFontVariant(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		if (luType != LexicalUnit.SAC_IDENT) {
-			return null;
-		}
-		String ident = lu.getStringValue().toLowerCase();
-		if (ident.equals("normal")) {
-			return FontVariantValue.NORMAL_VALUE;
-		} else if (ident.equals("small-caps")) {
-			return FontVariantValue.SMALL_CAPS_VALUE;
+	public static FontVariantValue toFontVariant(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "normal":
+				return FontVariantValue.NORMAL_VALUE;
+			case "small-caps":
+				return FontVariantValue.SMALL_CAPS_VALUE;
+			}
 		}
 		return null;
 	}
@@ -255,26 +264,23 @@ public final class FontValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static FontWeightValue toFontWeight(LexicalUnit lu) {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("normal")) {
+	public static FontWeightValue toFontWeight(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "normal":
 				return FontWeightValue.NORMAL_VALUE;
-			} else if (ident.equals("bold")) {
+			case "bold":
 				return FontWeightValue.BOLD_VALUE;
-			} else if (ident.equals("bolder")) {
+			case "bolder":
 				return FontWeightValue.BOLDER_VALUE;
-			} else if (ident.equals("lighter")) {
+			case "lighter":
 				return FontWeightValue.LIGHTER_VALUE;
 			}
-			break;
-
-		case LexicalUnit.SAC_INTEGER:
-			int a = lu.getIntegerValue();
+			return null;
+		}
+		if (token instanceof CssToken.Num num && num.integer()) {
 			try {
-				return FontWeightValue.create(a);
+				return FontWeightValue.create(num.intValue());
 			} catch (IllegalArgumentException e) {
 				return null;
 			}
@@ -288,81 +294,57 @@ public final class FontValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static Value toFontSize(UserAgent ua, LexicalUnit lu) {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("larger")) {
+	public static Value toFontSize(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "larger":
 				return RelativeSizeValue.LARGER_VALUE;
-			} else if (ident.equals("smaller")) {
+			case "smaller":
 				return RelativeSizeValue.SMALLER_VALUE;
-			} else if (ident.equals("xx-small")) {
+			case "xx-small":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_XX_SMALL));
-			} else if (ident.equals("x-small")) {
+			case "x-small":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_X_SMALL));
-			} else if (ident.equals("small")) {
+			case "small":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_SMALL));
-			} else if (ident.equals("medium")) {
+			case "medium":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM));
-			} else if (ident.equals("large")) {
+			case "large":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_LARGE));
-			} else if (ident.equals("x-large")) {
+			case "x-large":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_X_LARGE));
-			} else if (ident.equals("xx-large")) {
+			case "xx-large":
 				return AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_XX_LARGE));
 			}
 			return null;
-
-		case LexicalUnit.SAC_PERCENTAGE:
-			PercentageValue per = ValueUtils.toPercentage(lu);
+		}
+		if (token instanceof CssToken.Percent) {
+			PercentageValue per = ValueUtils.toPercentage(token);
 			if (per != null && per.isNegative()) {
 				return null;
 			}
 			return per;
-
-		default:
-			short luType = lu.getLexicalUnitType();
-			switch (luType) {
-			case LexicalUnit.SAC_EM:
-				return EmLengthValue.create(lu.getFloatValue());
-
-			case LexicalUnit.SAC_EX:
-				return ExLengthValue.create(lu.getFloatValue());
-
-			case LexicalUnit.SAC_REM:
-				return RemLengthValue.create(lu.getFloatValue());
-
-			case LexicalUnit.SAC_CH:
-				return ChLengthValue.create(lu.getFloatValue());
-
-			case LexicalUnit.SAC_INCH:
-			case LexicalUnit.SAC_CENTIMETER:
-			case LexicalUnit.SAC_MILLIMETER:
-			case LexicalUnit.SAC_POINT:
-			case LexicalUnit.SAC_PICA:
-			case LexicalUnit.SAC_PIXEL:
-				return AbsoluteLengthValue.create(ua, lu.getFloatValue() * ua.getFontMagnification(), luType);
-
-			case LexicalUnit.SAC_INTEGER: {
-				int val = lu.getIntegerValue();
-				if (val == 0) {
-					return AbsoluteLengthValue.create(ua, val * ua.getFontMagnification(), LengthValue.UNIT_PX);
-				}
-				return null;
-			}
-
-			case LexicalUnit.SAC_REAL: {
-				double val = lu.getFloatValue();
-				if (val == 0) {
-					return AbsoluteLengthValue.create(ua, val * ua.getFontMagnification(), LengthValue.UNIT_PX);
-				}
-				return null;
-			}
-
+		}
+		if (token instanceof CssToken.Dim dim) {
+			switch (dim.unit()) {
+			case EM:
+				return EmLengthValue.create(dim.value());
+			case EX:
+				return ExLengthValue.create(dim.value());
+			case REM:
+				return RemLengthValue.create(dim.value());
+			case CH:
+				return ChLengthValue.create(dim.value());
 			default:
-				return null;
+				// 絶対長さはフォント倍率を適用する
+				return ValueUtils.toAbsoluteLength(ua,
+						new CssToken.Dim(dim.value() * ua.getFontMagnification(), dim.unit(), dim.unitText()));
 			}
 		}
+		if (token instanceof CssToken.Num num && num.value() == 0) {
+			return AbsoluteLengthValue.create(ua, 0, LengthValue.UNIT_PX);
+		}
+		return null;
 	}
 
 	/**

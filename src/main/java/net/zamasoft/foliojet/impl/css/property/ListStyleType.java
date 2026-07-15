@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,15 +41,17 @@ public class ListStyleType extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT:
-		case LexicalUnit.SAC_STRING_VALUE:
-			break;
-		default:
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		final String text;
+		if (lu instanceof CssToken.Ident ident) {
+			text = ident.name();
+		} else if (lu instanceof CssToken.Str str) {
+			text = str.value();
+		} else {
 			throw new PropertyException();
 		}
-		final Value value = GeneratedValueUtils.toListStyleType(lu.getStringValue());
+		final Value value = GeneratedValueUtils.toListStyleType(text);
 		if (value == null) {
 			throw new PropertyException();
 		}

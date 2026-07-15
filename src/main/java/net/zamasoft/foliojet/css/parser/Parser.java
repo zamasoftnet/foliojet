@@ -23,6 +23,8 @@ import com.helger.css.reader.CSSReaderSettings;
 import com.helger.css.reader.errorhandler.DoNothingCSSParseErrorHandler;
 
 import net.zamasoft.foliojet.css.selector.Selector;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.Tokens;
 
 /**
  * CSSパーサー。構文解析は ph-css が行い、解析結果を StyleSheetHandler のイベントに変換します。
@@ -149,11 +151,11 @@ public class Parser {
 	}
 
 	private void property(CSSDeclaration declaration) {
-		LexicalUnit lu = LexicalUnits.fromExpression(declaration.getExpression());
-		if (lu == null) {
+		List<CssToken> tokens = Tokens.fromExpression(declaration.getExpression());
+		if (tokens.isEmpty()) {
 			return;
 		}
-		this.handler.property(declaration.getProperty(), lu, declaration.isImportant());
+		this.handler.property(declaration.getProperty(), tokens, declaration.isImportant());
 	}
 
 	private static List<Selector> convertSelectors(List<CSSSelector> selectors) throws CSSException {

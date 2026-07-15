@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.style.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -32,24 +32,14 @@ public final class BoxValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static Value toMarginWidth(UserAgent ua, LexicalUnit lu) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("auto")) {
-				return AutoValue.AUTO_VALUE;
-			}
-			break;
-
-		case LexicalUnit.SAC_PERCENTAGE:
-			return ValueUtils.toPercentage(lu);
-
-		default:
-			return ValueUtils.toLength(ua, lu);
+	public static Value toMarginWidth(UserAgent ua, CssToken token) throws PropertyException {
+		if (token instanceof CssToken.Ident ident) {
+			return ident.is("auto") ? AutoValue.AUTO_VALUE : null;
 		}
-
-		return null;
+		if (token instanceof CssToken.Percent percent) {
+			return ValueUtils.toPercentage(percent);
+		}
+		return ValueUtils.toLength(ua, token);
 	}
 
 	/**
@@ -59,8 +49,8 @@ public final class BoxValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static Value toTRLB(UserAgent device, LexicalUnit lu) throws PropertyException {
-		return toMarginWidth(device, lu);
+	public static Value toTRLB(UserAgent device, CssToken token) throws PropertyException {
+		return toMarginWidth(device, token);
 	}
 
 	/**
@@ -139,18 +129,12 @@ public final class BoxValueUtils {
 	 * @param lu
 	 * @return
 	 */
-	public static QuantityValue toPositiveLength(UserAgent ua, LexicalUnit lu) {
+	public static QuantityValue toPositiveLength(UserAgent ua, CssToken token) {
 		QuantityValue value;
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-
-		case LexicalUnit.SAC_PERCENTAGE:
-			value = ValueUtils.toPercentage(lu);
-			break;
-
-		default:
-			value = ValueUtils.toLength(ua, lu);
-			break;
+		if (token instanceof CssToken.Percent percent) {
+			value = ValueUtils.toPercentage(percent);
+		} else {
+			value = ValueUtils.toLength(ua, token);
 		}
 		if (value != null && value.isNegative()) {
 			return null;
@@ -158,39 +142,27 @@ public final class BoxValueUtils {
 		return value;
 	}
 
-	public static Value toLineHeight(UserAgent ua, LexicalUnit lu) {
-		if (ValueUtils.isNormal(lu)) {
+	public static Value toLineHeight(UserAgent ua, CssToken token) {
+		if (ValueUtils.isNormal(token)) {
 			return NormalValue.NORMAL_VALUE;
 		}
-
-		Value lineHeight;
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_INTEGER:
-		case LexicalUnit.SAC_REAL: {
-			lineHeight = ValueUtils.toReal(lu);
+		final Value lineHeight;
+		if (token instanceof CssToken.Num) {
+			lineHeight = ValueUtils.toReal(token);
 			if (lineHeight == null || ((RealValue) lineHeight).isNegative()) {
 				return null;
 			}
-		}
-			break;
-
-		case LexicalUnit.SAC_PERCENTAGE: {
-			lineHeight = ValueUtils.toPercentage(lu);
+		} else if (token instanceof CssToken.Percent) {
+			lineHeight = ValueUtils.toPercentage(token);
 			if (lineHeight == null || ((PercentageValue) lineHeight).isNegative()) {
 				return null;
 			}
-		}
-			break;
-
-		default: {
-			lineHeight = ValueUtils.toLength(ua, lu);
+		} else {
+			lineHeight = ValueUtils.toLength(ua, token);
 			if (lineHeight == null || ((LengthValue) lineHeight).isNegative()) {
 				return null;
 			}
-			break;
 		}
-		}
-
 		return lineHeight;
 	}
 

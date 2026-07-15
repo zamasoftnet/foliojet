@@ -12,7 +12,8 @@ import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -25,8 +26,8 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 		super("-cssj-text-emphasis");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(TextEmphasisStyle.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(TextEmphasisColor.INFO, InheritValue.INHERIT_VALUE);
 			return;
@@ -35,18 +36,18 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 		Value color = null;
 		boolean none = false;
 		String str = null;
-		do {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_IDENT:
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			if (lu instanceof CssToken.Ident luIdent) {
 				if (ValueUtils.isNone(lu)) {
 					if (type != 0 || fill != 0 || str != null || none) {
 						throw new PropertyException();
 					}
 					primitives.set(TextEmphasisStyle.INFO, NoneValue.NONE_VALUE);
 					none = true;
-					break;
+					continue;
 				}
-				String ident = lu.getStringValue().toLowerCase();
+				String ident = luIdent.lower();
 				if (ident.equals("filled")) {
 					if (fill != 0 || str != null || none) {
 						throw new PropertyException();
@@ -91,15 +92,12 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 						throw new PropertyException();
 					}
 				}
-				break;
-			case LexicalUnit.SAC_STRING_VALUE:
+			} else if (lu instanceof CssToken.Str luStr) {
 				if (fill != 0 || str != null) {
 					throw new PropertyException();
 				}
-				str = lu.getStringValue();
-				break;
-
-			default:
+				str = luStr.value();
+			} else {
 				if (color != null) {
 					throw new PropertyException();
 				}
@@ -107,10 +105,8 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 				if (color == null) {
 					throw new PropertyException();
 				}
-				break;
 			}
-			lu = lu.getNextLexicalUnit();
-		} while (lu != null);
+		}
 		if (str != null) {
 			primitives.set(TextEmphasisStyle.INFO, new StringValue(str));
 		} else if (!none) {

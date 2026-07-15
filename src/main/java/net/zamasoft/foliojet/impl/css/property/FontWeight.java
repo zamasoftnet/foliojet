@@ -11,7 +11,8 @@ import net.zamasoft.foliojet.css.value.FontWeightValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Weight;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -54,7 +55,8 @@ public class FontWeight extends AbstractPrimitivePropertyInfo {
 		return fontWeight;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		final FontWeightValue fontWeight = FontValueUtils.toFontWeight(lu);
 		if (fontWeight == null) {
 			throw new PropertyException();

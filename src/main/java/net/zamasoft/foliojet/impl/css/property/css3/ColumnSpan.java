@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.ColumnSpanValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,24 +41,18 @@ public class ColumnSpan extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_INTEGER:
-			if (lu.getIntegerValue() == 1) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Num num && num.integer()) {
+			if (num.intValue() == 1) {
 				return ColumnSpanValue.SINGLE_VALUE;
 			}
-			throw new PropertyException();
-
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("all")) {
+		} else if (lu instanceof CssToken.Ident ident) {
+			if (ident.is("all")) {
 				return ColumnSpanValue.ALL_VALUE;
 			}
-			throw new PropertyException();
-
-		default:
-			throw new PropertyException();
 		}
+		throw new PropertyException();
 	}
 
 }

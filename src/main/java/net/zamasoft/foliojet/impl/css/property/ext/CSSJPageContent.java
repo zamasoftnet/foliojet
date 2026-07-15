@@ -15,7 +15,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageContentValue;
 import net.zamasoft.foliojet.style.util.ByteList;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -63,62 +64,53 @@ public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 		return PRIMITIVES;
 	}
 
-	protected Entry[] parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return new Entry[] { new Entry(CSSJPageContent.INFO_NAME, InheritValue.INHERIT_VALUE),
 					new Entry(CSSJPageContent.INFO_PAGE, InheritValue.INHERIT_VALUE) };
 		}
 		final Value name, page;
 		{
-			short luType = lu.getLexicalUnitType();
-			switch (luType) {
-			case LexicalUnit.SAC_IDENT:
-				String ident = lu.getStringValue().toLowerCase();
-				if (ident.equals("none")) {
+			final CssToken lu = tokens.next();
+			if (lu instanceof CssToken.Ident ident) {
+				if (ident.is("none")) {
 					name = NoneValue.NONE_VALUE;
 				} else {
-					name = new StringValue(lu.getStringValue());
+					name = new StringValue(ident.name());
 				}
-				break;
-
-			case LexicalUnit.SAC_STRING_VALUE:
-				name = new StringValue(lu.getStringValue());
-				break;
-
-			default:
+			} else if (lu instanceof CssToken.Str str) {
+				name = new StringValue(str.value());
+			} else {
 				throw new PropertyException();
 			}
 		}
 		{
-			lu = lu.getNextLexicalUnit();
-			if (lu == null) {
+			if (!tokens.hasNext()) {
 				page = NoneValue.NONE_VALUE;
 			} else {
 				ByteList list = new ByteList();
 				do {
-					short luType = lu.getLexicalUnitType();
-					switch (luType) {
-					case LexicalUnit.SAC_IDENT:
-						String ident = lu.getStringValue().toLowerCase();
-						if (ident.equals("first")) {
-							list.add(CSSElement.PC_FIRST);
-							break;
-						} else if (ident.equals("right")) {
-							list.add(CSSElement.PC_RIGHT);
-							break;
-						} else if (ident.equals("left")) {
-							list.add(CSSElement.PC_LEFT);
-							break;
-						} else if (ident.equals("single")) {
-							list.add((byte) 0);
-							break;
-						}
-
+					final String ident = tokens.ident();
+					if (ident == null) {
+						throw new PropertyException();
+					}
+					switch (ident.toLowerCase()) {
+					case "first":
+						list.add(CSSElement.PC_FIRST);
+						break;
+					case "right":
+						list.add(CSSElement.PC_RIGHT);
+						break;
+					case "left":
+						list.add(CSSElement.PC_LEFT);
+						break;
+					case "single":
+						list.add((byte) 0);
+						break;
 					default:
 						throw new PropertyException();
 					}
-					lu = lu.getNextLexicalUnit();
-				} while (lu != null);
+				} while (tokens.hasNext());
 				page = new CSSJPageContentValue(list.toArray());
 			}
 		}

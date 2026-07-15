@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.impl.css.property.Direction;
 import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -23,11 +24,10 @@ public class WritingModeShorthand extends AbstractShorthandPropertyInfo {
 		super("-cssj-writing-mode");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("lr-tb") || ident.equals("lr") || ident.equals("horizontal-tb")) {
 				primitives.set(Direction.INFO, DirectionValue.LTR_VALUE);
 				primitives.set(BlockFlow.INFO, BlockFlowValue.TB_VALUE);
@@ -43,10 +43,9 @@ public class WritingModeShorthand extends AbstractShorthandPropertyInfo {
 			} else {
 				throw new PropertyException();
 			}
-			break;
-		default:
-			throw new PropertyException();
+			return;
 		}
+		throw new PropertyException();
 	}
 
 }

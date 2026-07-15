@@ -15,7 +15,8 @@ import net.zamasoft.foliojet.css.value.css3.SrcValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.util.URIHelper;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -49,37 +50,38 @@ public class Src extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		List<URI> list = new ArrayList<URI>();
-		do {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_URI:
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			if (lu instanceof CssToken.Uri uriToken) {
 				try {
-					final URI uriv = URIHelper.resolve(ua.getDocumentContext().getEncoding(), uri, lu.getStringValue());
+					final URI uriv = URIHelper.resolve(ua.getDocumentContext().getEncoding(), uri, uriToken.uri());
 					list.add(uriv);
 				} catch (URISyntaxException e) {
-					ua.message(MessageCodes.WARN_BAD_LINK_URI, lu.getStringValue());
+					ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
 				}
-				break;
-			case LexicalUnit.SAC_FUNCTION:
-				if (lu.getFunctionName().equalsIgnoreCase("local")) {
-					LexicalUnit param = lu.getParameters();
-					while (param != null) {
-						String name = param.getStringValue();
-						try {
-							list.add(URIHelper.create("UTF-8", "local-font:" + name));
-						} catch (URISyntaxException e) {
-							throw new PropertyException();
-						}
-						param = param.getNextLexicalUnit();
+			} else if (lu instanceof CssToken.Func func && func.is("local")) {
+				final TokenStream params = func.argStream();
+				while (params.hasNext()) {
+					final CssToken param = params.next();
+					final String name;
+					if (param instanceof CssToken.Str str) {
+						name = str.value();
+					} else if (param instanceof CssToken.Ident ident) {
+						name = ident.name();
+					} else {
+						continue;
+					}
+					try {
+						list.add(URIHelper.create("UTF-8", "local-font:" + name));
+					} catch (URISyntaxException e) {
+						throw new PropertyException();
 					}
 				}
-				break;
-			default:
-				break;
 			}
-			lu = lu.getNextLexicalUnit();
-		} while (lu != null);
+			// その他のトークン(コンマ等)は無視
+		}
 		return new SrcValue((URI[]) list.toArray(new URI[list.size()]));
 	}
 

@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.IntegerValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -23,9 +24,10 @@ public class ColumnsShorthand extends AbstractShorthandPropertyInfo {
 		super("-cssj-columns");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		LexicalUnit lu2 = lu.getNextLexicalUnit();
-		if (lu2 != null && lu2.getNextLexicalUnit() != null) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final CssToken lu = tokens.next();
+		final CssToken lu2 = tokens.next();
+		if (tokens.hasNext()) {
 			throw new PropertyException();
 		}
 		if (ValueUtils.isAuto(lu)) {
@@ -34,9 +36,9 @@ public class ColumnsShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(ColumnCount.INFO, IntegerValue.create(1));
 				return;
 			}
-			if (lu2.getLexicalUnitType() == LexicalUnit.SAC_INTEGER) {
+			if (lu2 instanceof CssToken.Num num2 && num2.integer()) {
 				primitives.set(ColumnWidth.INFO, AutoValue.AUTO_VALUE);
-				primitives.set(ColumnCount.INFO, IntegerValue.create(lu2.getIntegerValue()));
+				primitives.set(ColumnCount.INFO, IntegerValue.create(num2.intValue()));
 				return;
 			}
 			LengthValue value = ValueUtils.toLength(ua, lu2);
@@ -47,16 +49,16 @@ public class ColumnsShorthand extends AbstractShorthandPropertyInfo {
 			}
 			throw new PropertyException();
 		}
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INTEGER) {
+		if (lu instanceof CssToken.Num num && num.integer()) {
 			if (lu2 == null || ValueUtils.isAuto(lu2)) {
 				primitives.set(ColumnWidth.INFO, AutoValue.AUTO_VALUE);
-				primitives.set(ColumnCount.INFO, IntegerValue.create(lu.getIntegerValue()));
+				primitives.set(ColumnCount.INFO, IntegerValue.create(num.intValue()));
 				return;
 			}
 			LengthValue value = ValueUtils.toLength(ua, lu2);
 			if (value != null) {
 				primitives.set(ColumnWidth.INFO, value);
-				primitives.set(ColumnCount.INFO, IntegerValue.create(lu.getIntegerValue()));
+				primitives.set(ColumnCount.INFO, IntegerValue.create(num.intValue()));
 				return;
 			}
 			throw new PropertyException();
@@ -70,9 +72,9 @@ public class ColumnsShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(ColumnCount.INFO, IntegerValue.create(1));
 			return;
 		}
-		if (lu2.getLexicalUnitType() == LexicalUnit.SAC_INTEGER) {
+		if (lu2 instanceof CssToken.Num num2 && num2.integer()) {
 			primitives.set(ColumnWidth.INFO, value);
-			primitives.set(ColumnCount.INFO, IntegerValue.create(lu2.getIntegerValue()));
+			primitives.set(ColumnCount.INFO, IntegerValue.create(num2.intValue()));
 			return;
 		}
 		throw new PropertyException();

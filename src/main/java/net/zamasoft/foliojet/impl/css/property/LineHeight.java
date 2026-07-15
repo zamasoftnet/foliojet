@@ -14,7 +14,8 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-line-height"> line-
@@ -63,7 +64,8 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		final Value lineHeight = BoxValueUtils.toLineHeight(ua, lu);
 		if (lineHeight == null) {
 			throw new PropertyException();

@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.impl.css.property.BorderLeftStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -26,8 +27,8 @@ public class BorderStyleShorthand extends AbstractShorthandPropertyInfo {
 		super("border-style");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		final Value style1 = BorderValueUtils.toBorderStyle(lu);
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		final Value style1 = BorderValueUtils.toBorderStyle(tokens.next());
 		if (style1 == null) {
 			throw new PropertyException();
 		}
@@ -38,39 +39,36 @@ public class BorderStyleShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderBottomStyle.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftStyle.INFO, style1);
 			primitives.set(BorderTopStyle.INFO, style1);
 			primitives.set(BorderRightStyle.INFO, style1);
 			primitives.set(BorderBottomStyle.INFO, style1);
 			return;
 		}
-		final Value style2 = BorderValueUtils.toBorderStyle(lu);
+		final Value style2 = BorderValueUtils.toBorderStyle(tokens.next());
 		if (style2 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftStyle.INFO, style2);
 			primitives.set(BorderTopStyle.INFO, style1);
 			primitives.set(BorderRightStyle.INFO, style2);
 			primitives.set(BorderBottomStyle.INFO, style1);
 			return;
 		}
-		final Value style3 = BorderValueUtils.toBorderStyle(lu);
+		final Value style3 = BorderValueUtils.toBorderStyle(tokens.next());
 		if (style3 == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			primitives.set(BorderLeftStyle.INFO, style2);
 			primitives.set(BorderTopStyle.INFO, style1);
 			primitives.set(BorderRightStyle.INFO, style2);
 			primitives.set(BorderBottomStyle.INFO, style3);
 			return;
 		}
-		final Value style4 = BorderValueUtils.toBorderStyle(lu);
+		final Value style4 = BorderValueUtils.toBorderStyle(tokens.next());
 		if (style4 == null) {
 			throw new PropertyException();
 		}

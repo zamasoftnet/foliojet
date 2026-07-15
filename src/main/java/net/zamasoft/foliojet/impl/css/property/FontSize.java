@@ -17,7 +17,8 @@ import net.zamasoft.foliojet.css.value.css3.CSS3Value;
 import net.zamasoft.foliojet.css.value.css3.ChLengthValue;
 import net.zamasoft.foliojet.css.value.css3.RemLengthValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -115,7 +116,8 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		final Value value = FontValueUtils.toFontSize(ua, lu);
 		if (value == null) {
 			throw new PropertyException();

@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.TextDecorationValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,10 +40,11 @@ public class TextDecoration extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
 		TextDecorationValue value;
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-			String ident = lu.getStringValue().toLowerCase();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("none")) {
 				value = TextDecorationValue.NONE_DECORATION;
 			} else {
@@ -60,14 +62,14 @@ public class TextDecoration extends AbstractPrimitivePropertyInfo {
 						throw new PropertyException();
 					}
 
-					lu = lu.getNextLexicalUnit();
-					if (lu == null) {
+					if (!tokens.hasNext()) {
 						break;
 					}
-					if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
+					ident = tokens.ident();
+					if (ident == null) {
 						throw new PropertyException();
 					}
-					ident = lu.getStringValue().toLowerCase();
+					ident = ident.toLowerCase();
 				}
 				value = TextDecorationValue.create(flags);
 			}

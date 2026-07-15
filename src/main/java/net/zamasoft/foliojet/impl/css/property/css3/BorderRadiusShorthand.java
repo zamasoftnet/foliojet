@@ -11,7 +11,8 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -24,22 +25,21 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 		super("border-radius");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		final LengthValue tlh, trh, brh, blh;
-
-		tlh = ValueUtils.toLength(ua, lu);
-		if (tlh == null) {
-			throw new PropertyException();
-		}
-		if (tlh.getValueType() == Value.TYPE_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(BorderTopLeftRadius.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderTopRightRadius.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderBottomRightRadius.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderBottomLeftRadius.INFO, InheritValue.INHERIT_VALUE);
 			return;
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		final LengthValue tlh, trh, brh, blh;
+
+		tlh = ValueUtils.toLength(ua, tokens.next());
+		if (tlh == null) {
+			throw new PropertyException();
+		}
+		if (!tokens.hasNext()) {
 			final BorderRadiusValue tl = BorderRadiusValue.create(tlh, tlh);
 			primitives.set(BorderTopLeftRadius.INFO, tl);
 			primitives.set(BorderTopRightRadius.INFO, tl);
@@ -47,17 +47,16 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderBottomLeftRadius.INFO, tl);
 			return;
 		}
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_SLASH) {
+		if (tokens.eatSlash()) {
 			trh = brh = blh = tlh;
-			parseVertical(lu, ua, primitives, tlh, trh, brh, blh);
+			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
-		trh = ValueUtils.toLength(ua, lu);
+		trh = ValueUtils.toLength(ua, tokens.next());
 		if (trh == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			final BorderRadiusValue tl = BorderRadiusValue.create(tlh, tlh);
 			final BorderRadiusValue tr = BorderRadiusValue.create(trh, trh);
 			primitives.set(BorderTopLeftRadius.INFO, tl);
@@ -66,18 +65,17 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderBottomLeftRadius.INFO, tr);
 			return;
 		}
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_SLASH) {
+		if (tokens.eatSlash()) {
 			brh = tlh;
 			blh = trh;
-			parseVertical(lu, ua, primitives, tlh, trh, brh, blh);
+			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
-		brh = ValueUtils.toLength(ua, lu);
+		brh = ValueUtils.toLength(ua, tokens.next());
 		if (brh == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			final BorderRadiusValue tl = BorderRadiusValue.create(tlh, tlh);
 			final BorderRadiusValue tr = BorderRadiusValue.create(trh, trh);
 			final BorderRadiusValue br = BorderRadiusValue.create(brh, brh);
@@ -87,17 +85,16 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderBottomLeftRadius.INFO, tr);
 			return;
 		}
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_SLASH) {
+		if (tokens.eatSlash()) {
 			blh = trh;
-			parseVertical(lu, ua, primitives, tlh, trh, brh, blh);
+			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
-		blh = ValueUtils.toLength(ua, lu);
+		blh = ValueUtils.toLength(ua, tokens.next());
 		if (blh == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			final BorderRadiusValue tl = BorderRadiusValue.create(tlh, tlh);
 			final BorderRadiusValue tr = BorderRadiusValue.create(trh, trh);
 			final BorderRadiusValue br = BorderRadiusValue.create(brh, brh);
@@ -108,51 +105,47 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderBottomLeftRadius.INFO, bl);
 			return;
 		}
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_SLASH) {
-			parseVertical(lu, ua, primitives, tlh, trh, brh, blh);
+		if (tokens.eatSlash()) {
+			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
 		throw new PropertyException();
 	}
 
-	public void parseVertical(LexicalUnit lu, final UserAgent ua, final Primitives primitives, final LengthValue tlh,
-			final LengthValue trh, final LengthValue brh, final LengthValue blh) throws PropertyException {
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+	private void parseVertical(TokenStream tokens, final UserAgent ua, final Primitives primitives,
+			final LengthValue tlh, final LengthValue trh, final LengthValue brh, final LengthValue blh)
+			throws PropertyException {
+		if (!tokens.hasNext()) {
 			throw new PropertyException();
 		}
 		final LengthValue tlv, trv, brv, blv;
-		tlv = ValueUtils.toLength(ua, lu);
+		tlv = ValueUtils.toLength(ua, tokens.next());
 		if (tlv == null) {
 			throw new PropertyException();
 		}
-		lu = lu.getNextLexicalUnit();
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			trv = brv = blv = tlv;
 		} else {
-			trv = ValueUtils.toLength(ua, lu);
+			trv = ValueUtils.toLength(ua, tokens.next());
 			if (trv == null) {
 				throw new PropertyException();
 			}
-			lu = lu.getNextLexicalUnit();
-			if (lu == null) {
+			if (!tokens.hasNext()) {
 				brv = tlv;
 				blv = trv;
 			} else {
-				brv = ValueUtils.toLength(ua, lu);
+				brv = ValueUtils.toLength(ua, tokens.next());
 				if (brv == null) {
 					throw new PropertyException();
 				}
-				lu = lu.getNextLexicalUnit();
-				if (lu == null) {
+				if (!tokens.hasNext()) {
 					blv = trv;
 				} else {
-					blv = ValueUtils.toLength(ua, lu);
+					blv = ValueUtils.toLength(ua, tokens.next());
 					if (blv == null) {
 						throw new PropertyException();
 					}
-					lu = lu.getNextLexicalUnit();
-					if (lu != null) {
+					if (tokens.hasNext()) {
 						throw new PropertyException();
 					}
 				}

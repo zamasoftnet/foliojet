@@ -20,7 +20,8 @@ import net.zamasoft.foliojet.css.value.css3.TextShadowValue.Shadow;
 import net.zamasoft.foliojet.impl.css.property.CSSColor;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -76,16 +77,17 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (ValueUtils.isNone(lu)) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (ValueUtils.isNone(tokens.peek())) {
 			return TextShadowValue.EMPTY_TEXT_SHADOW;
 		}
 		List<Shadow> shadows = null;
 		LengthValue x = null;
 		LengthValue y = null;
 		Value color = null;
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
-			if (lu.getLexicalUnitType() == LexicalUnit.SAC_OPERATOR_COMMA) {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
+			if (lu == CssToken.Op.COMMA) {
 				if (color == null || color != TransparentValue.TRANSPARENT_VALUE) {
 					if (shadows == null) {
 						shadows = new ArrayList<Shadow>();

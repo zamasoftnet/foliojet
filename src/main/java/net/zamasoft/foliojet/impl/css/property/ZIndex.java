@@ -12,7 +12,8 @@ import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -50,18 +51,14 @@ public class ZIndex extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
-			if (ident.equals("auto")) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident ident) {
+			if (ident.is("auto")) {
 				return IntegerValue.ZERO;
 			}
-			break;
-
-		case LexicalUnit.SAC_INTEGER:
-			return IntegerValue.create(lu.getIntegerValue());
+		} else if (lu instanceof CssToken.Num num && num.integer()) {
+			return IntegerValue.create(num.intValue());
 		}
 		throw new PropertyException();
 	}

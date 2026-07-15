@@ -11,7 +11,8 @@ import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -24,8 +25,8 @@ public class TextStrokeShorthand extends AbstractShorthandPropertyInfo {
 		super("-cssj-text-stroke");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(TextStrokeWidth.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(TextStrokeColor.INFO, InheritValue.INHERIT_VALUE);
 			return;
@@ -33,7 +34,8 @@ public class TextStrokeShorthand extends AbstractShorthandPropertyInfo {
 
 		Value width = null;
 		Value color = null;
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
 			if (width == null) {
 				width = BorderValueUtils.toBorderWidth(ua, lu);
 				if (width != null) {

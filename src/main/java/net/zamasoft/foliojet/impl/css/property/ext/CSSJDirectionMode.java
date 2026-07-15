@@ -10,7 +10,8 @@ import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -40,14 +41,13 @@ public class CSSJDirectionMode extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return InheritValue.INHERIT_VALUE;
 		}
-		short luType = lu.getLexicalUnitType();
-		switch (luType) {
-		case LexicalUnit.SAC_IDENT:
-			String ident = lu.getStringValue().toLowerCase();
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident) {
+			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("physical")) {
 				return CSSJDirectionModeValue.PHYSICAL_VALUE;
 			} else if (ident.equals("logical") || ident.equals("horizontal-tb")) {
@@ -55,7 +55,6 @@ public class CSSJDirectionMode extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("vertical-rl")) {
 				return CSSJDirectionModeValue.VERTICAL_RL_VALUE;
 			}
-			break;
 		}
 		throw new PropertyException();
 	}

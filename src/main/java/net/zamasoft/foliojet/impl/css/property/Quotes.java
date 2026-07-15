@@ -15,7 +15,8 @@ import net.zamasoft.foliojet.css.value.QuotesValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -49,34 +50,26 @@ public class Quotes extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT: {// none
-			if (ValueUtils.isNone(lu)) {
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.peek() instanceof CssToken.Ident) {// none
+			if (ValueUtils.isNone(tokens.next())) {
 				return NoneValue.NONE_VALUE;
 			}
 			throw new PropertyException();
 		}
-		}
 
 		ArrayList<QuotesValue> values = new ArrayList<QuotesValue>();
 
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
-			switch (lu.getLexicalUnitType()) {
-			case LexicalUnit.SAC_STRING_VALUE: {// <string>
-				String open = lu.getStringValue();
-				lu = lu.getNextLexicalUnit();
-				if (lu != null && lu.getLexicalUnitType() == LexicalUnit.SAC_STRING_VALUE) {
-					values.add(new QuotesValue(open, lu.getStringValue()));
-				} else {
-					throw new PropertyException();
-				}
-			}
-				break;
-
-			default:
+		while (tokens.hasNext()) {// <string> <string> ...
+			final String open = tokens.string();
+			if (open == null) {
 				throw new PropertyException();
 			}
+			final String close = tokens.string();
+			if (close == null) {
+				throw new PropertyException();
+			}
+			values.add(new QuotesValue(open, close));
 		}
 		if (values.isEmpty()) {
 			return NoneValue.NONE_VALUE;

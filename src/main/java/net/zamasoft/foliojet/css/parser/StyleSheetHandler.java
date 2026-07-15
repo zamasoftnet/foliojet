@@ -3,10 +3,11 @@ package net.zamasoft.foliojet.css.parser;
 import java.util.List;
 
 import net.zamasoft.foliojet.css.selector.Selector;
+import net.zamasoft.foliojet.css.token.CssToken;
 
 /**
  * スタイルシートの解析イベントを受け取るハンドラです。
- * 旧SAC DocumentHandlerの置き換えで、Parser(ph-cssブリッジ)から呼び出されます。
+ * Parser(ph-cssブリッジ)から呼び出されます。
  */
 public interface StyleSheetHandler {
 	public void startDocument(InputSource source);
@@ -17,7 +18,11 @@ public interface StyleSheetHandler {
 
 	public void endSelector(List<Selector> selectors);
 
-	public void property(String name, LexicalUnit value, boolean important);
+	/**
+	 * @param name  プロパティ名
+	 * @param value 宣言値のトークン列(空にはならない)
+	 */
+	public void property(String name, List<CssToken> value, boolean important);
 
 	/**
 	 * @param href       インポート先

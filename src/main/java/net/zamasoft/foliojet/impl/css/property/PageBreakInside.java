@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.PageBreakInsideValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -39,10 +40,10 @@ public class PageBreakInside extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT: {
-			String ident = lu.getStringValue().toLowerCase();
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Ident luIdent) {
+			String ident = luIdent.lower();
 			if (ident.equals("auto")) {
 				return PageBreakInsideValue.AUTO_VALUE;
 			} else if (ident.equals("avoid")) {
@@ -53,10 +54,7 @@ public class PageBreakInside extends AbstractPrimitivePropertyInfo {
 				// return PageBreakInsideValue.AVOID_COLUMN_VALUE;
 			}
 		}
-
-		default:
-			throw new PropertyException();
-		}
+		throw new PropertyException();
 	}
 
 }

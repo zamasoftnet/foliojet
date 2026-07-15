@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.util;
 
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.PageBreakValue;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -12,42 +12,41 @@ public final class PageBreakValueUtils {
 		// unused
 	}
 
-	public static PageBreakValue parsePageBreak(LexicalUnit lu) {
-		if (lu.getLexicalUnitType() != LexicalUnit.SAC_IDENT) {
+	public static PageBreakValue parsePageBreak(CssToken token) {
+		if (!(token instanceof CssToken.Ident ident)) {
 			return null;
 		}
-		String ident = lu.getStringValue().toLowerCase();
-		if (ident.equals("auto")) {
-			return (PageBreakValue.AUTO_VALUE);
-		} else if (ident.equals("always")) {
-			return (PageBreakValue.ALWAYS_VALUE);
-		} else if (ident.equals("avoid")) {
-			return (PageBreakValue.AVOID_VALUE);
-		} else if (ident.equals("left")) {
-			return (PageBreakValue.LEFT_VALUE);
-		} else if (ident.equals("right")) {
-			return (PageBreakValue.RIGHT_VALUE);
-		} else if (ident.equals("page")) {
-			return (PageBreakValue.PAGE_VALUE);
-		} else if (ident.equals("column")) {
-			return (PageBreakValue.COLUMN_VALUE);
-			// } else if (ident.equals("avoid-page")) {
-			// return (PageBreakValue.AVOID_PAGE_VALUE);
-			// } else if (ident.equals("avoid-column")) {
-			// return (PageBreakValue.AVOID_COLUMN_VALUE);
-		} else if (ident.equals("verso") || ident.equals("even")) {
-			return (PageBreakValue.VERSO_VALUE);
-		} else if (ident.equals("recto") || ident.equals("odd")) {
-			return (PageBreakValue.RECTO_VALUE);
-		} else if (ident.equals("if-left")) {
-			return (PageBreakValue.IF_LEFT_VALUE);
-		} else if (ident.equals("if-right")) {
-			return (PageBreakValue.IF_RIGHT_VALUE);
-		} else if (ident.equals("if-verso")) {
-			return (PageBreakValue.IF_VERSO_VALUE);
-		} else if (ident.equals("if-recto")) {
-			return (PageBreakValue.IF_RECTO_VALUE);
+		switch (ident.lower()) {
+		case "auto":
+			return PageBreakValue.AUTO_VALUE;
+		case "always":
+			return PageBreakValue.ALWAYS_VALUE;
+		case "avoid":
+			return PageBreakValue.AVOID_VALUE;
+		case "left":
+			return PageBreakValue.LEFT_VALUE;
+		case "right":
+			return PageBreakValue.RIGHT_VALUE;
+		case "page":
+			return PageBreakValue.PAGE_VALUE;
+		case "column":
+			return PageBreakValue.COLUMN_VALUE;
+		case "verso":
+		case "even":
+			return PageBreakValue.VERSO_VALUE;
+		case "recto":
+		case "odd":
+			return PageBreakValue.RECTO_VALUE;
+		case "if-left":
+			return PageBreakValue.IF_LEFT_VALUE;
+		case "if-right":
+			return PageBreakValue.IF_RIGHT_VALUE;
+		case "if-verso":
+			return PageBreakValue.IF_VERSO_VALUE;
+		case "if-recto":
+			return PageBreakValue.IF_RECTO_VALUE;
+		default:
+			return null;
 		}
-		return null;
 	}
 }

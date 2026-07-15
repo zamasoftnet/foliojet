@@ -14,7 +14,8 @@ import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
 import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderTopWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-top"> border-top
@@ -30,8 +31,8 @@ public class BorderTopShorthand extends AbstractShorthandPropertyInfo {
 		super("border-top");
 	}
 
-	public void parseProperty(LexicalUnit lu, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
+		if (tokens.isInherit()) {
 			primitives.set(BorderTopWidth.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderTopStyle.INFO, InheritValue.INHERIT_VALUE);
 			primitives.set(BorderTopColor.INFO, InheritValue.INHERIT_VALUE);
@@ -41,7 +42,8 @@ public class BorderTopShorthand extends AbstractShorthandPropertyInfo {
 		Value width = null;
 		Value styleValue = null;
 		Value color = null;
-		for (; lu != null; lu = lu.getNextLexicalUnit()) {
+		while (tokens.hasNext()) {
+			final CssToken lu = tokens.next();
 			if (width == null) {
 				width = BorderValueUtils.toBorderWidth(ua, lu);
 				if (width != null) {

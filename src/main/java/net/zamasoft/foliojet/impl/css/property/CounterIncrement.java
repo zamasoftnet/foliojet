@@ -14,7 +14,8 @@ import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -47,30 +48,22 @@ public class CounterIncrement extends AbstractPrimitivePropertyInfo {
 		return false;
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		switch (lu.getLexicalUnitType()) {
-		case LexicalUnit.SAC_IDENT: {// none
-			if (ValueUtils.isNone(lu) && lu.getNextLexicalUnit() == null) {
-				return NoneValue.NONE_VALUE;
-			}
-		}
-			break;
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.size() == 1 && ValueUtils.isNone(tokens.peek())) {// none
+			return NoneValue.NONE_VALUE;
 		}
 
 		List<CounterSetValue> values = new ArrayList<CounterSetValue>();
 
-		while (lu != null) {
-			String ident;
-			int delta;
-			if (lu.getLexicalUnitType() == LexicalUnit.SAC_IDENT) {
-				ident = lu.getStringValue();
-				lu = lu.getNextLexicalUnit();
-			} else {
+		while (tokens.hasNext()) {
+			final String ident = tokens.ident();
+			if (ident == null) {
 				throw new PropertyException();
 			}
-			if (lu != null && lu.getLexicalUnitType() == LexicalUnit.SAC_INTEGER) {
-				delta = lu.getIntegerValue();
-				lu = lu.getNextLexicalUnit();
+			final int delta;
+			if (tokens.peek() instanceof CssToken.Num num && num.integer()) {
+				tokens.next();
+				delta = num.intValue();
 			} else {
 				delta = 1;
 			}

@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -55,18 +56,17 @@ public class BorderSpacing extends AbstractCompositePrimitivePropertyInfo {
 		return PRIMITIVES;
 	}
 
-	protected Entry[] parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		if (lu.getLexicalUnitType() == LexicalUnit.SAC_INHERIT) {
+	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (tokens.isInherit()) {
 			return new Entry[] { new Entry(BorderSpacing.INFO_H, InheritValue.INHERIT_VALUE),
 					new Entry(BorderSpacing.INFO_V, InheritValue.INHERIT_VALUE) };
 		}
-		LengthValue h = ValueUtils.toLength(ua, lu);
-		lu = lu.getNextLexicalUnit();
+		LengthValue h = ValueUtils.toLength(ua, tokens.next());
 		LengthValue v;
-		if (lu == null) {
+		if (!tokens.hasNext()) {
 			v = h;
 		} else {
-			v = ValueUtils.toLength(ua, lu);
+			v = ValueUtils.toLength(ua, tokens.next());
 		}
 		if (h != null && v != null) {
 			return new Entry[] { new Entry(BorderSpacing.INFO_H, h), new Entry(BorderSpacing.INFO_V, v) };

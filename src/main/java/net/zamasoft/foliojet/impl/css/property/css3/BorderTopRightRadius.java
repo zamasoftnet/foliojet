@@ -16,7 +16,8 @@ import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.RectBorder.Radius;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.parser.LexicalUnit;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -81,8 +82,8 @@ public class BorderTopRightRadius extends AbstractPrimitivePropertyInfo {
 		return BorderRadiusValue.create(hr, vr);
 	}
 
-	public Value parseProperty(LexicalUnit lu, UserAgent ua, URI uri) throws PropertyException {
-		final BorderRadiusValue value = BorderValueUtils.toBorderRadius(ua, lu);
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final BorderRadiusValue value = BorderValueUtils.toBorderRadius(ua, tokens);
 		if (value == null) {
 			throw new PropertyException();
 		}
