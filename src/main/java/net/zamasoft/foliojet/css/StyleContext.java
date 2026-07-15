@@ -116,10 +116,17 @@ public class StyleContext {
 			System.out.println();
 		}
 
+		if (this.elementStack.isEmpty()) {
+			return declaration;
+		}
+		// 右端セレクタの索引から候補規則だけを照合する
+		final CSSElement top = (CSSElement) this.elementStack.get(this.elementStack.size() - 1);
+		final List<List<Rule>> buckets = this.styleSheet.candidateBuckets(top);
+
 		// 結果が確定したもの
 		List<Rule> result = null;
-		for (Iterator<?> i = this.styleSheet.selectorToRule.values().iterator(); i.hasNext();) {
-			Rule rule = (Rule) i.next();
+		for (List<Rule> bucket : buckets) {
+		for (Rule rule : bucket) {
 			Selector selector = rule.getSelector();
 			boolean first = true;// 最初のセレクタのため、該当する要素が直ちにあらわれなければならない。
 			boolean child = false;// 子セレクタのため、擬似要素をのぞいて該当する要素が直ちにあらわれなければならない。
@@ -218,6 +225,7 @@ public class StyleContext {
 				first = false;
 			}
 		}
+		}
 
 		if (result == null) {
 			return declaration;
@@ -226,8 +234,8 @@ public class StyleContext {
 			declaration = new Declaration();
 		}
 
-		// 固有性の順に整列
-		// このソートは安定なので(Javadocより)文書中の順序(SPEC CSS2 6.4.1)に影響はありません。
+		// 固有性→文書内の出現順で整列(SPEC CSS2 6.4.1)。
+		// 候補はバケット横断で順不同に集まるため、出現順(Rule.order)を明示的に比較する。
 		Collections.sort(result, RuleComparator.INSTANCE);
 
 		// 合成
@@ -477,14 +485,16 @@ class RuleComparator implements Comparator<Object> {
 	}
 
 	/**
-	 * o1の固有性がo2より大きい場合は1、同じなら0、小さい場合は-1を返します。
+	 * 固有性の昇順、固有性が等しい場合はスタイルシート内の出現順で比較します。
 	 */
 	public int compare(Object o1, Object o2) {
 		Rule rule1 = (Rule) o1;
 		Rule rule2 = (Rule) o2;
-		Specificity a = rule1.getSpecificity();
-		Specificity b = rule2.getSpecificity();
-		return a.compareTo(b);
+		int specificity = rule1.getSpecificity().compareTo(rule2.getSpecificity());
+		if (specificity != 0) {
+			return specificity;
+		}
+		return Integer.compare(rule1.getOrder(), rule2.getOrder());
 	}
 
 }

@@ -7,26 +7,27 @@ import net.zamasoft.foliojet.css.selector.Specificity;
 
 /**
  * CSS規則です。 規則は、選択子とそれに対応するスタイル宣言のペアです。
+ * スタイルシート構築後は不変であり、複数スレッドから共有できます。
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: Rule.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class Rule implements Cloneable, Serializable {
+public class Rule implements Serializable {
 	private static final long serialVersionUID = 0;
 
 	private final Selector selector;
 
 	private final Declaration declaration;
 
-	private Specificity specificity = null;
+	/** スタイルシート内の出現順。固有性が等しい規則の優先順位を決める。 */
+	private final int order;
 
-	public Rule(Selector selector, Declaration declaration) {
+	private transient Specificity specificity = null;
+
+	public Rule(Selector selector, Declaration declaration, int order) {
 		this.selector = selector;
 		this.declaration = declaration;
-	}
-
-	public Object clone() {
-		return new Rule(this.selector, (Declaration) this.declaration.clone());
+		this.order = order;
 	}
 
 	/**
@@ -45,6 +46,15 @@ public class Rule implements Cloneable, Serializable {
 	 */
 	public Declaration getDeclaration() {
 		return this.declaration;
+	}
+
+	/**
+	 * スタイルシート内の出現順を返します。
+	 *
+	 * @return
+	 */
+	public int getOrder() {
+		return this.order;
 	}
 
 	/**
