@@ -17,7 +17,6 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGroupImage;
  * 印刷には現われない、バッテン画像です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: UnprintBrokenImage.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class UnprintBrokenImage extends BrokenImage {
 	public UnprintBrokenImage(UserAgent ua, String alt) {

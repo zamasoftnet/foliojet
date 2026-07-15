@@ -8,8 +8,6 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.ColorValue;
-import net.zamasoft.foliojet.css.value.DefaultValue;
-import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
@@ -18,10 +16,10 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderLeftColor.java 1624 2022-05-02 08:59:55Z miyabe $
  */
 public class BorderLeftColor extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderLeftColor();
@@ -60,7 +58,7 @@ public class BorderLeftColor extends AbstractPrimitivePropertyInfo {
 			throw new IllegalStateException();
 		}
 		Value value = style.get(info);
-		if (value.getValueType() == Value.TYPE_TRANSPARENT) {
+		if (value == KeywordValue.TRANSPARENT) {
 			return null;
 		}
 		return ((ColorValue) value).getColor();
@@ -71,7 +69,7 @@ public class BorderLeftColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return DefaultValue.DEFAULT_VALUE;
+		return KeywordValue.DEFAULT;
 	}
 
 	public boolean isInherited() {
@@ -79,7 +77,7 @@ public class BorderLeftColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		if (value == DefaultValue.DEFAULT_VALUE) {
+		if (value == KeywordValue.DEFAULT) {
 			value = style.get(CSSColor.INFO);
 		}
 		return value;
@@ -88,7 +86,7 @@ public class BorderLeftColor extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ColorValueUtils.isTransparent(lu)) {
-			return TransparentValue.TRANSPARENT_VALUE;
+			return KeywordValue.TRANSPARENT;
 		}
 		Value value = ColorValueUtils.toColor(ua, lu);
 		if (value == null) {

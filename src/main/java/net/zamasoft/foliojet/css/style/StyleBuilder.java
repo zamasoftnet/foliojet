@@ -30,12 +30,8 @@ import net.zamasoft.foliojet.css.value.CaptionSideValue;
 import net.zamasoft.foliojet.css.value.CounterSetValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
-import net.zamasoft.foliojet.css.value.DefaultValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
-import net.zamasoft.foliojet.css.value.EmLengthValue;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.ListStylePositionValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.PageBreakValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
@@ -52,7 +48,7 @@ import net.zamasoft.foliojet.css.value.ext.CSSJFirstHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageRefValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
-import net.zamasoft.foliojet.css.value.ext.ExtValue;
+import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
 import net.zamasoft.foliojet.impl.css.property.BackgroundAttachment;
 import net.zamasoft.foliojet.impl.css.property.BackgroundColor;
 import net.zamasoft.foliojet.impl.css.property.BackgroundImage;
@@ -240,10 +236,11 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: StyleBuilder.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class StyleBuilder implements PageGenerator {
 	private static final boolean DEBUG = false;
@@ -251,9 +248,9 @@ public class StyleBuilder implements PageGenerator {
 
 	private static final ValueListValue LF = new ValueListValue(new Value[] { new StringValue("\n") });
 
-	private static final EmLengthValue EM_1_618 = EmLengthValue.create(1.618);
-	private static final EmLengthValue EM_1_414 = EmLengthValue.create(1.414);
-	private static final EmLengthValue EM_1_4 = EmLengthValue.create(1.4);
+	private static final RelativeLengthValue EM_1_618 = RelativeLengthValue.em(1.618);
+	private static final RelativeLengthValue EM_1_414 = RelativeLengthValue.em(1.414);
+	private static final RelativeLengthValue EM_1_4 = RelativeLengthValue.em(1.4);
 
 	private final UserAgent ua;
 	private final DocumentBuilder doc;
@@ -377,8 +374,8 @@ public class StyleBuilder implements PageGenerator {
 		for (CSSStyleSheet.PageContent cpc : this.styleContext.getPageContents()) {
 			CSSStyle style = CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE);
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
-			style.set(CSSJPageContent.INFO_NAME, NoneValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
-			style.set(CSSJRegeneratable.INFO, NoneValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
+			style.set(CSSJPageContent.INFO_NAME, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
+			style.set(CSSJRegeneratable.INFO, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
 			style.set(CSSPosition.INFO, PositionValue._CSSJ_CURRENT_PAGE_VALUE, CSSStyle.MODE_IMPORTANT);
 			byte[] pages = null;
 			if (cpc.pseudoPage != null) {
@@ -906,69 +903,53 @@ public class StyleBuilder implements PageGenerator {
 		Value bottom = Bottom.get(style);
 		Value left = Left.get(style);
 
-		double x, y;
-		short xType, yType;
+		final double x, y;
+		final short xType, yType;
 
-		switch (top.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
+		if (top instanceof AbsoluteLengthValue length) {
 			yType = Insets.TYPE_ABSOLUTE;
-			y = ((AbsoluteLengthValue) top).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
+			y = length.getLength();
+		} else if (top instanceof PercentageValue percentage) {
 			yType = Insets.TYPE_RELATIVE;
-			y = ((PercentageValue) top).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			switch (bottom.getValueType()) {
-			case Value.TYPE_ABSOLUTE_LENGTH:
+			y = percentage.getRatio();
+		} else if (top == KeywordValue.AUTO) {
+			if (bottom instanceof AbsoluteLengthValue length) {
 				yType = Insets.TYPE_ABSOLUTE;
-				y = -((AbsoluteLengthValue) bottom).getLength();
-				break;
-			case Value.TYPE_PERCENTAGE:
+				y = -length.getLength();
+			} else if (bottom instanceof PercentageValue percentage) {
 				yType = Insets.TYPE_RELATIVE;
-				y = -((PercentageValue) bottom).getRatio();
-				break;
-			case Value.TYPE_AUTO:
+				y = -percentage.getRatio();
+			} else if (bottom == KeywordValue.AUTO) {
 				yType = Insets.TYPE_AUTO;
 				y = 0;
-				break;
-			default:
-				throw new IllegalStateException();
+			} else {
+				throw new IllegalStateException(String.valueOf(bottom));
 			}
-			break;
-		default:
-			throw new IllegalStateException();
+		} else {
+			throw new IllegalStateException(String.valueOf(top));
 		}
 
-		switch (left.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
+		if (left instanceof AbsoluteLengthValue length) {
 			xType = Insets.TYPE_ABSOLUTE;
-			x = ((AbsoluteLengthValue) left).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
+			x = length.getLength();
+		} else if (left instanceof PercentageValue percentage) {
 			xType = Insets.TYPE_RELATIVE;
-			x = ((PercentageValue) left).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			switch (right.getValueType()) {
-			case Value.TYPE_ABSOLUTE_LENGTH:
+			x = percentage.getRatio();
+		} else if (left == KeywordValue.AUTO) {
+			if (right instanceof AbsoluteLengthValue length) {
 				xType = Insets.TYPE_ABSOLUTE;
-				x = -((AbsoluteLengthValue) right).getLength();
-				break;
-			case Value.TYPE_PERCENTAGE:
+				x = -length.getLength();
+			} else if (right instanceof PercentageValue percentage) {
 				xType = Insets.TYPE_RELATIVE;
-				x = -((PercentageValue) right).getRatio();
-				break;
-			case Value.TYPE_AUTO:
+				x = -percentage.getRatio();
+			} else if (right == KeywordValue.AUTO) {
 				xType = Insets.TYPE_AUTO;
 				x = 0;
-				break;
-			default:
-				throw new IllegalStateException();
+			} else {
+				throw new IllegalStateException(String.valueOf(right));
 			}
-			break;
-		default:
-			throw new IllegalStateException();
+		} else {
+			throw new IllegalStateException(String.valueOf(left));
 		}
 
 		return Offset.create(x, y, xType, yType);
@@ -1132,8 +1113,8 @@ public class StyleBuilder implements PageGenerator {
 				if (regenerate) {
 					pageContent = new Regeneratable(this.styleContext.copy(1));
 				} else {
-					style.set(CSSJPageContent.INFO_NAME, NoneValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
-					style.set(CSSJRegeneratable.INFO, NoneValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
+					style.set(CSSJPageContent.INFO_NAME, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
+					style.set(CSSJRegeneratable.INFO, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
 					style.set(CSSPosition.INFO, PositionValue._CSSJ_CURRENT_PAGE_VALUE, CSSStyle.MODE_IMPORTANT);
 					pageContent = new PageContent(this.styleContext.copy(1), CSSJPageContent.getPages(style),
 							pageContentName);
@@ -1413,10 +1394,10 @@ public class StyleBuilder implements PageGenerator {
 						if (contents != null) {
 							for (int i = 0; i < contents.length; ++i) {
 								final Value v = contents[i];
-								switch (v.getValueType()) {
-								case Value.TYPE_STRING: {
+								switch (v) {
+								case StringValue stringValue: {
 									// 文字列
-									String str = ((StringValue) v).getString();
+									String str = stringValue.getString();
 									if (str.length() > 0) {
 										char[] ch = str.toCharArray();
 										this.checkMarker();
@@ -1424,9 +1405,8 @@ public class StyleBuilder implements PageGenerator {
 									}
 								}
 									break;
-								case Value.TYPE_URI: {
+								case URIValue uriValue: {
 									// 画像
-									URIValue uriValue = (URIValue) v;
 									URI uri = uriValue.getURI();
 									try {
 										Source source = this.ua.resolve(uri);
@@ -1449,9 +1429,8 @@ public class StyleBuilder implements PageGenerator {
 								}
 									break;
 
-								case Value.TYPE_COUNTER: {
+								case CounterValue counter: {
 									// カウンタ
-									final CounterValue counter = (CounterValue) v;
 									final String name = counter.getName();
 									final short counterStyle = counter.getStyle();
 									int number = 0;
@@ -1467,9 +1446,8 @@ public class StyleBuilder implements PageGenerator {
 								}
 									break;
 
-								case Value.TYPE_COUNTERS: {
+								case CountersValue counters: {
 									// カウンタ
-									final CountersValue counters = (CountersValue) v;
 									final String name = counters.getName();
 									final String delim = counters.getDelimiter();
 									final short counterStyle = counters.getStyle();
@@ -1491,9 +1469,8 @@ public class StyleBuilder implements PageGenerator {
 								}
 									break;
 
-								case Value.TYPE_QUOTE: {
+								case QuoteValue quote: {
 									// 引用符
-									QuoteValue quote = (QuoteValue) v;
 									Value[] quotesList = Quotes.get(style);
 
 									switch (quote.getQuote()) {
@@ -1544,9 +1521,8 @@ public class StyleBuilder implements PageGenerator {
 									}
 								}
 									break;
-								case Value.TYPE_ATTR: {
+								case AttrValue attr: {
 									// 属性
-									AttrValue attr = (AttrValue) v;
 									CSSElement parentCe = style.getParentStyle().getCSSElement();
 									if (parentCe.atts != null) {
 										String str = parentCe.atts.getValue(attr.getName());
@@ -1558,9 +1534,8 @@ public class StyleBuilder implements PageGenerator {
 									}
 								}
 									break;
-								case ExtValue.TYPE_CSSJ_LAST_HEADING: {
+								case CSSJLastHeadingValue header: {
 									// ヘッダ
-									CSSJLastHeadingValue header = (CSSJLastHeadingValue) v;
 									SectionState state = this.ua.getPassContext().getSectionState();
 									int level = header.getLevel() - 1;
 									String str = state.lastSections[level >= state.lastSections.length
@@ -1573,9 +1548,8 @@ public class StyleBuilder implements PageGenerator {
 									}
 								}
 									break;
-								case ExtValue.TYPE_CSSJ_FIRST_HEADING: {
+								case CSSJFirstHeadingValue header: {
 									// ヘッダ
-									CSSJFirstHeadingValue header = (CSSJFirstHeadingValue) v;
 									SectionState state = this.ua.getPassContext().getSectionState();
 									int level = header.getLevel() - 1;
 									String str = state.firstSections[level >= state.firstSections.length
@@ -1588,7 +1562,7 @@ public class StyleBuilder implements PageGenerator {
 									}
 								}
 									break;
-								case ExtValue.TYPE_CSSJ_TITLE: {
+								case CSSJTitleValue title: {
 									// タイトル
 									SectionState state = this.ua.getPassContext().getSectionState();
 									String str = state.title;
@@ -1599,9 +1573,8 @@ public class StyleBuilder implements PageGenerator {
 									}
 								}
 									break;
-								case ExtValue.TYPE_CSSJ_PAGE_REF: {
+								case CSSJPageRefValue pageRefFunc: {
 									// ページ番号
-									CSSJPageRefValue pageRefFunc = (CSSJPageRefValue) v;
 									switch (pageRefFunc.getType()) {
 									case CSSJPageRefValue.ATTR: {
 										// 属性から
@@ -2290,7 +2263,7 @@ public class StyleBuilder implements PageGenerator {
 				final boolean logVert = (CSSJDirectionMode.get(this.currentStyle) == CSSJDirectionModeValue.PHYSICAL
 						&& vert) || CSSJDirectionMode.get(this.currentStyle) == CSSJDirectionModeValue.VERTICAL_RL;
 				Value color = this.currentStyle.get(TextEmphasisColor.INFO);
-				if (color == DefaultValue.DEFAULT_VALUE) {
+				if (color == KeywordValue.DEFAULT) {
 					color = this.currentStyle.get(CSSColor.INFO);
 				}
 				for (int i = 0; i < len; ++i) {
@@ -2462,7 +2435,7 @@ public class StyleBuilder implements PageGenerator {
 				HTMLStyle.applyAfterStyle(afterStyle);
 				if (br) {
 					afterStyle.set(Content.INFO, LF);
-					afterStyle.set(Clear.INFO, InheritValue.INHERIT_VALUE);
+					afterStyle.set(Clear.INFO, KeywordValue.INHERIT);
 				}
 				if (afterDeclaration != null) {
 					afterDeclaration.applyProperties(afterStyle);

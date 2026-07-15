@@ -1,10 +1,11 @@
 package net.zamasoft.foliojet.css.value.ext;
 
+import net.zamasoft.foliojet.css.value.Value;
+
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJPageRefValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSJPageRefValue implements ExtValue {
+public class CSSJPageRefValue implements Value {
 	public static final byte REF = 1;
 	public static final byte ATTR = 2;
 
@@ -20,10 +21,6 @@ public class CSSJPageRefValue implements ExtValue {
 		this.counter = counter;
 		this.numberStyleType = numberStyleType;
 		this.separator = separator;
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_PAGE_REF;
 	}
 
 	public byte getType() {

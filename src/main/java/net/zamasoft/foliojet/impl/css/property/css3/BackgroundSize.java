@@ -9,8 +9,6 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.AutoValue;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -19,6 +17,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * <a href=
@@ -26,7 +25,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * backgropund-size 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: BackgroundSize.java 1633 2023-02-12 03:22:32Z miyabe $
  */
 public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_WIDTH = new BackgroundSize();
@@ -40,42 +38,34 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		Value heightValue = style.get(INFO_HEIGHT);
 		byte widthType;
 		double width;
-		switch (widthValue.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
+		if (widthValue instanceof AbsoluteLengthValue length) {
 			widthType = Dimension.TYPE_ABSOLUTE;
-			width = ((AbsoluteLengthValue) widthValue).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
+			width = length.getLength();
+		} else if (widthValue instanceof PercentageValue percentage) {
 			widthType = Dimension.TYPE_RELATIVE;
-			width = ((PercentageValue) widthValue).getRatio();
-			break;
-		case Value.TYPE_AUTO:
+			width = percentage.getRatio();
+		} else if (widthValue == KeywordValue.AUTO) {
 			widthType = Dimension.TYPE_AUTO;
 			width = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		} else {
+			throw new IllegalStateException(String.valueOf(widthValue));
 		}
-		
+
 		byte heightType;
 		double height;
-		switch (heightValue.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
+		if (heightValue instanceof AbsoluteLengthValue length) {
 			heightType = Dimension.TYPE_ABSOLUTE;
-			height = ((AbsoluteLengthValue) heightValue).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
+			height = length.getLength();
+		} else if (heightValue instanceof PercentageValue percentage) {
 			heightType = Dimension.TYPE_RELATIVE;
-			height = ((PercentageValue) heightValue).getRatio();
-			break;
-		case Value.TYPE_AUTO:
+			height = percentage.getRatio();
+		} else if (heightValue == KeywordValue.AUTO) {
 			heightType = Dimension.TYPE_AUTO;
 			height = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		} else {
+			throw new IllegalStateException(String.valueOf(heightValue));
 		}
-		
+
 		if (widthType == Dimension.TYPE_AUTO && heightType == Dimension.TYPE_AUTO) {
 			widthType = heightType = Dimension.TYPE_ABSOLUTE;
 			width = image.getWidth();
@@ -91,7 +81,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return AutoValue.AUTO_VALUE;
+		return KeywordValue.AUTO;
 	}
 
 	public boolean isInherited() {
@@ -111,14 +101,14 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, InheritValue.INHERIT_VALUE),
-					new Entry(BackgroundSize.INFO_HEIGHT, InheritValue.INHERIT_VALUE) };
+			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, KeywordValue.INHERIT),
+					new Entry(BackgroundSize.INFO_HEIGHT, KeywordValue.INHERIT) };
 		}
 		Value w, h;
 
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
-			w = AutoValue.AUTO_VALUE;
+			w = KeywordValue.AUTO;
 		} else {
 			w = ValueUtils.toPercentage(lu);
 			if (w == null) {
@@ -132,13 +122,13 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		}
 
 		if (!tokens.hasNext()) {
-			h = AutoValue.AUTO_VALUE;
+			h = KeywordValue.AUTO;
 			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, w), new Entry(BackgroundSize.INFO_HEIGHT, h) };
 		}
 
 		final CssToken hToken = tokens.next();
 		if (ValueUtils.isAuto(hToken)) {
-			h = AutoValue.AUTO_VALUE;
+			h = KeywordValue.AUTO;
 		} else {
 			h = ValueUtils.toPercentage(hToken);
 			if (h == null) {
@@ -151,7 +141,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 			}
 		}
 		if (h == null) {
-			h = AutoValue.AUTO_VALUE;
+			h = KeywordValue.AUTO;
 		}
 		return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, w), new Entry(BackgroundSize.INFO_HEIGHT, h) };
 	}

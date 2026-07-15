@@ -7,7 +7,6 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ColorValue.java 1632 2022-06-16 01:22:06Z miyabe $
  */
 public class ColorValue implements PaintValue {
 	protected final Color color;
@@ -24,9 +23,6 @@ public class ColorValue implements PaintValue {
 		return this.color;
 	}
 
-	public final short getValueType() {
-		return Value.TYPE_COLOR;
-	}
 	public Paint.Type getPaintType() {
 		return this.color.getPaintType();
 	}

@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.css;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,11 +28,8 @@ import net.zamasoft.foliojet.css.selector.SimpleSelector;
  * </p>
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSStyleSheet.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSStyleSheet implements Serializable {
-	private static final long serialVersionUID = 0;
-
+public class CSSStyleSheet {
 	/** 全規則(文書順)。 */
 	final List<Rule> rules = new ArrayList<Rule>();
 

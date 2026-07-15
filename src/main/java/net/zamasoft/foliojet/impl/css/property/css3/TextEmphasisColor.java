@@ -8,24 +8,23 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.ColorValue;
-import net.zamasoft.foliojet.css.value.DefaultValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.CSSColor;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextEmphasisColor.java 1624 2022-05-02 08:59:55Z miyabe $
  */
 public class TextEmphasisColor extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextEmphasisColor();
 
 	public static Color get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value == DefaultValue.DEFAULT_VALUE) {
+		if (value == KeywordValue.DEFAULT) {
 			value = style.get(CSSColor.INFO);
 		}
 		return ((ColorValue) value).getColor();
@@ -36,7 +35,7 @@ public class TextEmphasisColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return DefaultValue.DEFAULT_VALUE;
+		return KeywordValue.DEFAULT;
 	}
 
 	public boolean isInherited() {

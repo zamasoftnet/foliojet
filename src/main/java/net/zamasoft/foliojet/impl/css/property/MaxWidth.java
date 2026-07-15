@@ -18,10 +18,10 @@ import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: MaxWidth.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class MaxWidth extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaxWidth();
@@ -74,7 +74,7 @@ public class MaxWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	private Value getDefault(UserAgent ua) {
-		// return NoneValue.NONE_VALUE;
+		// return KeywordValue.NONE;
 		return ua.getMaxSize();
 	}
 

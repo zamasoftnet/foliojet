@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.css;
 
-import java.io.Serializable;
 
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Specificity;
@@ -10,11 +9,8 @@ import net.zamasoft.foliojet.css.selector.Specificity;
  * スタイルシート構築後は不変であり、複数スレッドから共有できます。
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: Rule.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class Rule implements Serializable {
-	private static final long serialVersionUID = 0;
-
+public class Rule {
 	private final Selector selector;
 
 	private final Declaration declaration;

@@ -6,7 +6,6 @@ import net.zamasoft.foliojet.css.CSSStyle;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: Property.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface Property {
 	public boolean isImportant();

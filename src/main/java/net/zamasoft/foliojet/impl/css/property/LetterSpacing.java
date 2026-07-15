@@ -8,33 +8,32 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.NormalValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: LetterSpacing.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class LetterSpacing extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new LetterSpacing();
 
 	public static Length get(CSSStyle style) {
 		Value value = style.get(INFO);
-		switch (value.getValueType()) {
-		case Value.TYPE_NORMAL:
+		if (value == KeywordValue.NORMAL) {
 			return Length.create(0, Length.TYPE_ABSOLUTE);
-		case Value.TYPE_PERCENTAGE:
-			return Length.create(((PercentageValue) value).getRatio(), Length.TYPE_RELATIVE);
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			return Length.create(((AbsoluteLengthValue) value).getLength(), Length.TYPE_ABSOLUTE);
-		default:
-			throw new IllegalStateException();
 		}
+		if (value instanceof PercentageValue percentage) {
+			return Length.create(percentage.getRatio(), Length.TYPE_RELATIVE);
+		}
+		if (value instanceof AbsoluteLengthValue length) {
+			return Length.create(length.getLength(), Length.TYPE_ABSOLUTE);
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	protected LetterSpacing() {
@@ -42,7 +41,7 @@ public class LetterSpacing extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NormalValue.NORMAL_VALUE;
+		return KeywordValue.NORMAL;
 	}
 
 	public boolean isInherited() {
@@ -56,7 +55,7 @@ public class LetterSpacing extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isNormal(lu)) {
-			return NormalValue.NORMAL_VALUE;
+			return KeywordValue.NORMAL;
 		}
 		final Value value;
 		value = ValueUtils.toLength(ua, lu);

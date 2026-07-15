@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PageBreakValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class PageBreakValue implements Value {
 	public static final byte PAGE_BREAK_AUTO = 0;
@@ -56,10 +55,6 @@ public class PageBreakValue implements Value {
 
 	private PageBreakValue(byte pageBreak) {
 		this.pageBreak = pageBreak;
-	}
-
-	public short getValueType() {
-		return TYPE_PAGE_BREAK;
 	}
 
 	public byte getPageBreak() {

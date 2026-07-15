@@ -15,10 +15,8 @@ import net.zamasoft.foliojet.css.util.FontValueUtils;
 import net.zamasoft.foliojet.css.util.LengthUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
-import net.zamasoft.foliojet.css.value.ExLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.message.MessageCodes;
@@ -38,6 +36,9 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -76,7 +77,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	private LengthValue minSize;
 
-	private Value maxSize = NoneValue.NONE_VALUE;
+	private Value maxSize = KeywordValue.NONE;
 
 	private double pixelsPerInch = -1, fontMagnification = -1;
 
@@ -101,11 +102,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 	public AbstractUserAgent() {
 		this.setDefaultLocale(Locale.getDefault());
 		this.setNormalLineHeight(1.2);
-		this.setDefaultMarkerOffset(ExLengthValue.create(1));
+		this.setDefaultMarkerOffset(RelativeLengthValue.ex(1));
 
 		this.setMinSize(AbsoluteLengthValue.ZERO);
 		// 14400はPDFの限界サイズ
-		this.setMaxSize(AbsoluteLengthValue.create(this, 14400, LengthValue.UNIT_PT));
+		this.setMaxSize(AbsoluteLengthValue.create(this, 14400, Unit.PT));
 		this.setBorderTable(new AbsoluteLengthValue[] { AbsoluteLengthValue.create(this, 1),
 				AbsoluteLengthValue.create(this, 2), AbsoluteLengthValue.create(this, 3) });
 		this.setFontScaleRatio(1.2);
@@ -387,7 +388,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	protected AffineTransform getPixelToUnit() {
 		if (this.pixelToUnit == null) {
-			double scale = LengthUtils.convert(this, 1.0, LengthValue.UNIT_PX, LengthValue.UNIT_PT);
+			double scale = LengthUtils.convert(this, 1.0, Unit.PX, Unit.PT);
 			if (scale == 0) {
 				this.pixelToUnit = IDENTITY_AT;
 			} else {

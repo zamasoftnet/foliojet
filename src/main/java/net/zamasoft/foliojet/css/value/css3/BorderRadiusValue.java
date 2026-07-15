@@ -2,14 +2,14 @@ package net.zamasoft.foliojet.css.value.css3;
 
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * Unicode-Range です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderRadiusValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class BorderRadiusValue implements CSS3Value {
+public class BorderRadiusValue implements Value {
 	public static final BorderRadiusValue ZERO_RADIUS = new BorderRadiusValue(AbsoluteLengthValue.ZERO,
 			AbsoluteLengthValue.ZERO);
 
@@ -27,7 +27,4 @@ public class BorderRadiusValue implements CSS3Value {
 		this.vr = vr;
 	}
 
-	public short getValueType() {
-		return TYPE_RADIUS;
-	}
 }

@@ -12,12 +12,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * HTMLのテーブルcellpaddingに相当する内部特性です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJHtmlCellPadding.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJHtmlCellPadding();
@@ -40,7 +40,7 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return AbsoluteLengthValue.create(style.getUserAgent(), 1, LengthValue.UNIT_PX);
+		return AbsoluteLengthValue.create(style.getUserAgent(), 1, Unit.PX);
 	}
 
 	public boolean isInherited() {

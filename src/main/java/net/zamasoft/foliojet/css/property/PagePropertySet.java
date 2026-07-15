@@ -1,9 +1,5 @@
 package net.zamasoft.foliojet.css.property;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 import net.zamasoft.foliojet.impl.css.property.BackgroundAttachment;
 import net.zamasoft.foliojet.impl.css.property.BackgroundColor;
 import net.zamasoft.foliojet.impl.css.property.BackgroundImage;
@@ -46,70 +42,25 @@ import net.zamasoft.foliojet.impl.css.property.shorthand.PaddingShorthand;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PagePropertySet.java 1633 2023-02-12 03:22:32Z miyabe $
  */
 public final class PagePropertySet extends PropertySet {
-	private Map<String, PropertyInfo> nameToInfo;
-
-	private void put(PropertyInfo p) {
-		this.nameToInfo.put(p.getName(), p);
-	}
-
-	{
-		this.nameToInfo = new HashMap<String, PropertyInfo>();
-		this.put(MarginShorthand.INFO);
-		this.put(MarginTop.INFO);
-		this.put(MarginLeft.INFO);
-		this.put(MarginRight.INFO);
-		this.put(MarginBottom.INFO);
-		this.put(BorderShorthand.INFO);
-		this.put(BorderTopShorthand.INFO);
-		this.put(BorderLeftShorthand.INFO);
-		this.put(BorderRightShorthand.INFO);
-		this.put(BorderBottomShorthand.INFO);
-		this.put(BorderColorShorthand.INFO);
-		this.put(BorderTopColor.INFO);
-		this.put(BorderLeftColor.INFO);
-		this.put(BorderRightColor.INFO);
-		this.put(BorderBottomColor.INFO);
-		this.put(BorderStyleShorthand.INFO);
-		this.put(BorderTopStyle.INFO);
-		this.put(BorderLeftStyle.INFO);
-		this.put(BorderRightStyle.INFO);
-		this.put(BorderBottomStyle.INFO);
-		this.put(BorderWidthShorthand.INFO);
-		this.put(BorderTopWidth.INFO);
-		this.put(BorderLeftWidth.INFO);
-		this.put(BorderRightWidth.INFO);
-		this.put(BorderBottomWidth.INFO);
-		this.put(PaddingShorthand.INFO);
-		this.put(PaddingTop.INFO);
-		this.put(PaddingLeft.INFO);
-		this.put(PaddingRight.INFO);
-		this.put(PaddingBottom.INFO);
-		this.put(BackgroundColor.INFO);
-		this.put(BackgroundImage.INFO);
-		this.put(BackgroundRepeat.INFO);
-		this.put(BackgroundAttachment.INFO);
-		this.put(BackgroundPosition.INFO_X);
-		this.put(BackgroundPosition.INFO_Y);
-		this.put(BackgroundShorthand.INFO);
-		this.put(CounterIncrement.INFO);
-		this.put(CounterReset.INFO);
-
-		this.put(BackgroundSize.INFO_WIDTH);
-		this.put(BackgroundSize.INFO_HEIGHT);
-		this.nameToInfo = Collections.unmodifiableMap(this.nameToInfo);
-	}
-
 	private static final PropertySet INSTANCE = new PagePropertySet();
 
 	private PagePropertySet() {
-		// ignore
-	}
-
-	protected PropertyInfo getPropertyParser(String name) {
-		return (PropertyInfo) nameToInfo.get(name);
+		put(MarginShorthand.INFO, MarginTop.INFO, MarginLeft.INFO, MarginRight.INFO, MarginBottom.INFO);
+		put(BorderShorthand.INFO, BorderTopShorthand.INFO, BorderLeftShorthand.INFO, BorderRightShorthand.INFO,
+				BorderBottomShorthand.INFO);
+		put(BorderColorShorthand.INFO, BorderTopColor.INFO, BorderLeftColor.INFO, BorderRightColor.INFO,
+				BorderBottomColor.INFO);
+		put(BorderStyleShorthand.INFO, BorderTopStyle.INFO, BorderLeftStyle.INFO, BorderRightStyle.INFO,
+				BorderBottomStyle.INFO);
+		put(BorderWidthShorthand.INFO, BorderTopWidth.INFO, BorderLeftWidth.INFO, BorderRightWidth.INFO,
+				BorderBottomWidth.INFO);
+		put(PaddingShorthand.INFO, PaddingTop.INFO, PaddingLeft.INFO, PaddingRight.INFO, PaddingBottom.INFO);
+		put(BackgroundShorthand.INFO, BackgroundColor.INFO, BackgroundImage.INFO, BackgroundRepeat.INFO,
+				BackgroundAttachment.INFO, BackgroundPosition.INFO_X, BackgroundPosition.INFO_Y);
+		put(CounterIncrement.INFO, CounterReset.INFO);
+		put(BackgroundSize.INFO_WIDTH, BackgroundSize.INFO_HEIGHT);
 	}
 
 	public static PropertySet getInstance() {

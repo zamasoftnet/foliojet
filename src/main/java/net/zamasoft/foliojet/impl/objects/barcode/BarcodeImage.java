@@ -17,6 +17,7 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import uk.org.okapibarcode.backend.Symbol;
 import uk.org.okapibarcode.graphics.Color;
 import uk.org.okapibarcode.output.Java2DRenderer;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * OkapiBarcodeを描画します。
@@ -32,7 +33,7 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 		this.ua = ua;
 		this.symbol = symbol;
 		this.message = message;
-		this.upm = LengthUtils.convert(ua, 1.0, LengthValue.UNIT_MM, LengthValue.UNIT_PT);
+		this.upm = LengthUtils.convert(ua, 1.0, Unit.MM, Unit.PT);
 		this.width = Math.max(1, symbol.getWidth()) * this.upm;
 		this.height = Math.max(1, symbol.getHeight()) * this.upm;
 	}

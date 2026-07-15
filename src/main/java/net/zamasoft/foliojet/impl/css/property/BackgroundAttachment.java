@@ -19,7 +19,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * backgropund-attachment 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: BackgroundAttachment.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BackgroundAttachment extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundAttachment();

@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -27,17 +26,17 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: Content.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Content extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Content();
 
 	public static Value[] get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((ValueListValue) value).getValues();
@@ -48,7 +47,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -61,7 +60,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.size() == 1 && (tokens.eat("none") || tokens.eat("normal"))) {
-			return NoneValue.NONE_VALUE;
+			return KeywordValue.NONE;
 		}
 
 		ArrayList<Value> values = new ArrayList<Value>();

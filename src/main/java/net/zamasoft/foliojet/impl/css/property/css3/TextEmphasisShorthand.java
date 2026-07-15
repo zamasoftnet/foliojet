@@ -7,17 +7,15 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextEmphasisShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new TextEmphasisShorthand();
@@ -28,8 +26,8 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(TextEmphasisStyle.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(TextEmphasisColor.INFO, InheritValue.INHERIT_VALUE);
+			primitives.set(TextEmphasisStyle.INFO, KeywordValue.INHERIT);
+			primitives.set(TextEmphasisColor.INFO, KeywordValue.INHERIT);
 			return;
 		}
 		byte fill = 0, type = 0;
@@ -43,7 +41,7 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 					if (type != 0 || fill != 0 || str != null || none) {
 						throw new PropertyException();
 					}
-					primitives.set(TextEmphasisStyle.INFO, NoneValue.NONE_VALUE);
+					primitives.set(TextEmphasisStyle.INFO, KeywordValue.NONE);
 					none = true;
 					continue;
 				}

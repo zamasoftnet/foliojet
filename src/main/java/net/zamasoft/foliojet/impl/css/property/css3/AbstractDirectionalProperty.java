@@ -6,7 +6,6 @@ import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: AbstractDirectionalProperty.java 3804 2012-07-10 06:53:45Z
  *          miyabe $
  */
 public abstract class AbstractDirectionalProperty extends AbstractPrimitivePropertyInfo {

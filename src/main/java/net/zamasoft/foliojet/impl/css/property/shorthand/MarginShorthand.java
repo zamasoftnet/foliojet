@@ -6,19 +6,17 @@ import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.MarginBottom;
 import net.zamasoft.foliojet.impl.css.property.MarginLeft;
 import net.zamasoft.foliojet.impl.css.property.MarginRight;
 import net.zamasoft.foliojet.impl.css.property.MarginTop;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: MarginShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class MarginShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new MarginShorthand();
@@ -32,11 +30,11 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 		if (margin1 == null) {
 			throw new PropertyException();
 		}
-		if (margin1.getValueType() == Value.TYPE_INHERIT) {
-			primitives.set(MarginTop.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(MarginRight.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(MarginBottom.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(MarginLeft.INFO, InheritValue.INHERIT_VALUE);
+		if (margin1 == KeywordValue.INHERIT) {
+			primitives.set(MarginTop.INFO, KeywordValue.INHERIT);
+			primitives.set(MarginRight.INFO, KeywordValue.INHERIT);
+			primitives.set(MarginBottom.INFO, KeywordValue.INHERIT);
+			primitives.set(MarginLeft.INFO, KeywordValue.INHERIT);
 			return;
 		}
 		if (!tokens.hasNext()) {

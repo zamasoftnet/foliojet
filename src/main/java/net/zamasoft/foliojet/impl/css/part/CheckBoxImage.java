@@ -11,7 +11,6 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CheckBoxImage.java 1632 2022-06-16 01:22:06Z miyabe $
  */
 public class CheckBoxImage implements Image {
 	private final boolean checked, disabled;

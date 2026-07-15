@@ -5,7 +5,6 @@ import net.zamasoft.foliojet.css.value.PageBreakValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PageBreakValueUtils.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public final class PageBreakValueUtils {
 	private PageBreakValueUtils() {

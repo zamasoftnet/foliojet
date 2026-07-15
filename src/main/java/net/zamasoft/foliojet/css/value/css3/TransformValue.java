@@ -1,14 +1,14 @@
 package net.zamasoft.foliojet.css.value.css3;
 
 import java.awt.geom.AffineTransform;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * transform です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: TransformValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class TransformValue implements CSS3Value {
+public class TransformValue implements Value {
 	public static final TransformValue IDENTITY_TRANSFORM_VALUE = new TransformValue(new AffineTransform());
 
 	private final AffineTransform transform;
@@ -28,7 +28,4 @@ public class TransformValue implements CSS3Value {
 		return this.transform;
 	}
 
-	public short getValueType() {
-		return TYPE_TRANSFORM;
-	}
 }

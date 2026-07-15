@@ -9,29 +9,27 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.NormalValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: WordSpacing.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class WordSpacing extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new WordSpacing();
 
 	public static double get(CSSStyle style) {
 		Value value = style.get(INFO);
-		switch (value.getValueType()) {
-		case Value.TYPE_NORMAL:
+		if (value == KeywordValue.NORMAL) {
 			return 0;
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			return ((AbsoluteLengthValue) value).getLength();
-		default:
-			throw new IllegalStateException();
 		}
+		if (value instanceof AbsoluteLengthValue length) {
+			return length.getLength();
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	protected WordSpacing() {
@@ -39,7 +37,7 @@ public class WordSpacing extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NormalValue.NORMAL_VALUE;
+		return KeywordValue.NORMAL;
 	}
 
 	public boolean isInherited() {
@@ -53,7 +51,7 @@ public class WordSpacing extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isNormal(lu)) {
-			return NormalValue.NORMAL_VALUE;
+			return KeywordValue.NORMAL;
 		}
 		final LengthValue value = ValueUtils.toLength(ua, lu);
 		if (value != null) {

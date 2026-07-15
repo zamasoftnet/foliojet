@@ -16,7 +16,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * HTMLの水平アラインメント相当する内部特性です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJHtmlAlign.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJHtmlAlign extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJHtmlAlign();

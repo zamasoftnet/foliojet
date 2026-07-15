@@ -2,14 +2,14 @@ package net.zamasoft.foliojet.css.value.css3;
 
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * transform です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: TextShadowValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class TextShadowValue implements CSS3Value {
+public class TextShadowValue implements Value {
 	public static final TextShadowValue EMPTY_TEXT_SHADOW = new TextShadowValue(new Shadow[0]);
 
 	public static class Shadow {
@@ -43,7 +43,4 @@ public class TextShadowValue implements CSS3Value {
 		return this.shadows;
 	}
 
-	public short getValueType() {
-		return TYPE_TEXT_SHADOW;
-	}
 }

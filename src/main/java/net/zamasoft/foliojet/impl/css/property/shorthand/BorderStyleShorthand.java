@@ -6,19 +6,17 @@ import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.BorderBottomStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderLeftStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderRightStyle;
 import net.zamasoft.foliojet.impl.css.property.BorderTopStyle;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderStyleShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderStyleShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new BorderStyleShorthand();
@@ -32,11 +30,11 @@ public class BorderStyleShorthand extends AbstractShorthandPropertyInfo {
 		if (style1 == null) {
 			throw new PropertyException();
 		}
-		if (style1.getValueType() == Value.TYPE_INHERIT) {
-			primitives.set(BorderLeftStyle.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderTopStyle.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderRightStyle.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderBottomStyle.INFO, InheritValue.INHERIT_VALUE);
+		if (style1 == KeywordValue.INHERIT) {
+			primitives.set(BorderLeftStyle.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderTopStyle.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderRightStyle.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderBottomStyle.INFO, KeywordValue.INHERIT);
 			return;
 		}
 		if (!tokens.hasNext()) {

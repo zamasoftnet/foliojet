@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
  * 各言語のための固有の機能です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: LanguageProfile.java 1570 2018-07-11 05:50:15Z miyabe $
  */
 public interface LanguageProfile {
 	/**

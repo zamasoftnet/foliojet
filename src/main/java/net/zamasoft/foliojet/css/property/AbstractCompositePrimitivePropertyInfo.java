@@ -4,15 +4,14 @@ import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * 複合特性です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: AbstractCompositePrimitivePropertyInfo.java 3806 2012-07-10
  *          07:03:19Z miyabe $
  */
 public abstract class AbstractCompositePrimitivePropertyInfo extends AbstractPropertyInfo
@@ -34,7 +33,7 @@ public abstract class AbstractCompositePrimitivePropertyInfo extends AbstractPro
 			PrimitivePropertyInfo[] primitives = this.getPrimitives();
 			entries = new Entry[primitives.length];
 			for (int i = 0; i < entries.length; ++i) {
-				entries[i] = new Entry(primitives[i], InheritValue.INHERIT_VALUE);
+				entries[i] = new Entry(primitives[i], KeywordValue.INHERIT);
 			}
 		} else {
 			entries = this.parseValues(tokens, ua, uri);

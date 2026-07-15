@@ -5,18 +5,17 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.StyleApplier;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.value.DisplayValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.impl.css.property.CSSPosition;
 import net.zamasoft.foliojet.impl.css.property.Display;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContent;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJRegeneratable;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * 再生成ボックスです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: Regeneratable.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 class Regeneratable extends PageContent {
 	public Regeneratable(StyleContext styleContext) {
@@ -44,8 +43,8 @@ class Regeneratable extends PageContent {
 					applier.startStyle(style);
 					if (i == 0) {
 						style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
-						style.set(CSSJPageContent.INFO_NAME, NoneValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
-						style.set(CSSJRegeneratable.INFO, NoneValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
+						style.set(CSSJPageContent.INFO_NAME, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
+						style.set(CSSJRegeneratable.INFO, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
 						style.set(CSSPosition.INFO, PositionValue._CSSJ_CURRENT_PAGE_VALUE, CSSStyle.MODE_IMPORTANT);
 					}
 					// System.out.println("start: "+ce.lName);

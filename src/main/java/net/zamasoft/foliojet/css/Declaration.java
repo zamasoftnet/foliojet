@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.css;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,26 +13,9 @@ import net.zamasoft.foliojet.css.property.Property;
  * </p>
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: Declaration.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class Declaration implements Serializable, Cloneable {
-	private static final long serialVersionUID = 0;
-
-	private List<Property> properties = new ArrayList<Property>();
-
-	public Declaration() {
-		// default constructor
-	}
-
-	public Declaration(Declaration declaration) {
-		this.merge(declaration);
-	}
-
-	public Object clone() {
-		Declaration declaration = new Declaration();
-		declaration.properties = new ArrayList<Property>(this.properties);
-		return declaration;
-	}
+public class Declaration {
+	private final List<Property> properties = new ArrayList<Property>();
 
 	/**
 	 * スタイル宣言を合成します。

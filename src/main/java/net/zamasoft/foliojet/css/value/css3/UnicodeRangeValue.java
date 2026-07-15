@@ -2,14 +2,14 @@ package net.zamasoft.foliojet.css.value.css3;
 
 import net.zamasoft.pdfg2d.gc.font.UnicodeRange;
 import net.zamasoft.pdfg2d.gc.font.UnicodeRangeList;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * Unicode-Range です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: UnicodeRangeValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class UnicodeRangeValue implements CSS3Value {
+public class UnicodeRangeValue implements Value {
 	public static final UnicodeRangeValue EMPTY = new UnicodeRangeValue(new UnicodeRange[0]);
 
 	private final UnicodeRangeList list;
@@ -28,10 +28,6 @@ public class UnicodeRangeValue implements CSS3Value {
 
 	public boolean isEmpty() {
 		return this.list.isEmpty();
-	}
-
-	public short getValueType() {
-		return TYPE_UNICODE_RANGE;
 	}
 
 	@Override

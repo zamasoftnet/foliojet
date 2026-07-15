@@ -2,16 +2,12 @@ package net.zamasoft.foliojet.css.value;
 
 import java.io.Serializable;
 
-import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Weight;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: FontWeightValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class FontWeightValue implements Value, Serializable {
-	private static final long serialVersionUID = 0;
-
 	public static final short NORMAL = 400;
 
 	public static final short BOLD = 700;
@@ -78,10 +74,6 @@ public class FontWeightValue implements Value, Serializable {
 
 	private FontWeightValue(short fontWeight) {
 		this.fontWeight = fontWeight;
-	}
-
-	public short getValueType() {
-		return TYPE_FONT_WEIGHT;
 	}
 
 	/**

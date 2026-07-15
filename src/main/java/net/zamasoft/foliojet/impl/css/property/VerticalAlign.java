@@ -25,32 +25,27 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * vertical-align 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: VerticalAlign.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new VerticalAlign();
 
 	public static VerticalAlignPolicy getForInline(CSSStyle style) {
 		Value value = style.get(INFO);
-		switch (value.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			return new AbsoluteVerticalAlignPolicy(((AbsoluteLengthValue) value).getLength());
-
-		case Value.TYPE_PERCENTAGE:
-			return new FractionalVerticalAlignPolicy(((PercentageValue) value).getRatio());
-
-		case Value.TYPE_VERTICAL_ALIGN:
-			return (VerticalAlignPolicy) value;
-		default:
-			throw new IllegalStateException();
+		if (value instanceof AbsoluteLengthValue length) {
+			return new AbsoluteVerticalAlignPolicy(length.getLength());
 		}
+		if (value instanceof PercentageValue percentage) {
+			return new FractionalVerticalAlignPolicy(percentage.getRatio());
+		}
+		if (value instanceof VerticalAlignValue) {
+			return (VerticalAlignPolicy) value;
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	public static byte getForTableCell(CSSStyle style) {
 		Value value = style.get(INFO);
-		switch (value.getValueType()) {
-		case Value.TYPE_VERTICAL_ALIGN:
-			CSSVerticalAlignPolicy va = (CSSVerticalAlignPolicy) value;
+		if (value instanceof VerticalAlignValue va) {
 			switch (va.getVerticalAlignType()) {
 			case CSSVerticalAlignPolicy.TOP:
 				return Types.VERTICAL_ALIGN_START;
@@ -58,14 +53,14 @@ public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 				return Types.VERTICAL_ALIGN_MIDDLE;
 			case CSSVerticalAlignPolicy.BOTTOM:
 				return Types.VERTICAL_ALIGN_END;
+			default:
+				return Types.VERTICAL_ALIGN_BASELINE;
 			}
-
-		case Value.TYPE_ABSOLUTE_LENGTH:
-		case Value.TYPE_PERCENTAGE:
-			return Types.VERTICAL_ALIGN_BASELINE;
-		default:
-			throw new IllegalStateException();
 		}
+		if (value instanceof AbsoluteLengthValue || value instanceof PercentageValue) {
+			return Types.VERTICAL_ALIGN_BASELINE;
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	protected VerticalAlign() {

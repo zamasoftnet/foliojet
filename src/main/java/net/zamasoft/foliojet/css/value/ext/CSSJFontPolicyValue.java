@@ -2,12 +2,12 @@ package net.zamasoft.foliojet.css.value.ext;
 
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList.FontPolicy;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJFontPolicyValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSJFontPolicyValue implements ExtValue {
+public class CSSJFontPolicyValue implements Value {
 	private static final long serialVersionUID = 1L;
 
 	public static final CSSJFontPolicyValue CORE_CID_KEYED_VALUE = new CSSJFontPolicyValue(
@@ -41,10 +41,6 @@ public class CSSJFontPolicyValue implements ExtValue {
 
 	public FontPolicy get(int index) {
 		return this.list.get(index);
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_FONT_POLICY;
 	}
 
 	@Override

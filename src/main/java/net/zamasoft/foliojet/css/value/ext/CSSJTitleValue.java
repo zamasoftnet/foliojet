@@ -1,18 +1,15 @@
 package net.zamasoft.foliojet.css.value.ext;
 
+import net.zamasoft.foliojet.css.value.Value;
+
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJHeadingValue.java 1034 2013-10-23 05:51:57Z miyabe $
  */
-public class CSSJTitleValue implements ExtValue {
-	public static final CSSJTitleValue CSSJ_TITLE_VALUE = new CSSJTitleValue();
+public enum CSSJTitleValue implements Value {
+	CSSJ_TITLE_VALUE;
 
 	private CSSJTitleValue() {
 		// singleton
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_TITLE;
 	}
 
 	public String toString() {

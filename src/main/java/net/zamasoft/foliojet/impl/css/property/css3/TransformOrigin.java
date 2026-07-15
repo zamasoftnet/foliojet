@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
@@ -19,11 +18,11 @@ import net.zamasoft.foliojet.style.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: TransformOrigin.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_X = new TransformOrigin();
@@ -40,11 +39,8 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 			// 縦書き
 			switch (BlockFlow.get(style)) {
 			case AbstractTextParams.FLOW_RL:
-				switch (yValue.getValueType()) {
-				case Value.TYPE_PERCENTAGE:
-					PercentageValue y = (PercentageValue) yValue;
+				if (yValue instanceof PercentageValue y) {
 					yValue = PercentageValue.create(100 - y.getPercentage());
-					break;
 				}
 			case AbstractTextParams.FLOW_LR: {
 				Value x = xValue;
@@ -59,11 +55,8 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 			// 縦書き
 			switch (BlockFlow.get(style)) {
 			case AbstractTextParams.FLOW_TB:
-				switch (yValue.getValueType()) {
-				case Value.TYPE_PERCENTAGE:
-					PercentageValue y = (PercentageValue) yValue;
+				if (yValue instanceof PercentageValue y) {
 					yValue = PercentageValue.create(100 - y.getPercentage());
-					break;
 				}
 				Value x = xValue;
 				xValue = yValue;
@@ -104,8 +97,8 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return new Entry[] { new Entry(TransformOrigin.INFO_X, InheritValue.INHERIT_VALUE),
-					new Entry(TransformOrigin.INFO_Y, InheritValue.INHERIT_VALUE) };
+			return new Entry[] { new Entry(TransformOrigin.INFO_X, KeywordValue.INHERIT),
+					new Entry(TransformOrigin.INFO_Y, KeywordValue.INHERIT) };
 		}
 		Value x, y;
 

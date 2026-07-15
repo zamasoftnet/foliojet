@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: QuotesValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class QuotesValue implements Value {
 	private final String open, close;
@@ -10,10 +9,6 @@ public class QuotesValue implements Value {
 	public QuotesValue(String open, String close) {
 		this.open = open;
 		this.close = close;
-	}
-
-	public short getValueType() {
-		return TYPE_QUOTES;
 	}
 
 	public String getOpen() {

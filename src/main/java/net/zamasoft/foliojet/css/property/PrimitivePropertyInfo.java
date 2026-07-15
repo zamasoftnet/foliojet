@@ -7,7 +7,6 @@ import net.zamasoft.foliojet.css.value.Value;
  * 分解不可能なプロパティです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: PrimitivePropertyInfo.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface PrimitivePropertyInfo extends PropertyInfo {
 	/**

@@ -8,7 +8,6 @@ import org.xml.sax.Attributes;
  * CSS要素の情報です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSElement.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class CSSElement {
 	private static final boolean DEBUG_CHAIN = false;

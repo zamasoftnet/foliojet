@@ -21,6 +21,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.util.XMLParsers;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
+import net.zamasoft.foliojet.css.token.Unit;
 
 public class SVGInlineObject extends SAXSVGDocumentFactory implements InlineObject {
 	protected SVGImageLoader loader = null;
@@ -70,7 +71,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory implements InlineObje
 		doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", path);
 		doc.setParsedURL(new ParsedURL(uri.toString()));
 		Image image = this.loader.getImage(uri.toString(), doc, ua);
-		double scale = LengthUtils.convert(ua, 1.0, LengthValue.UNIT_PX, LengthValue.UNIT_PT);
+		double scale = LengthUtils.convert(ua, 1.0, Unit.PX, Unit.PT);
 		if (scale != 1) {
 			ImageMap map = ua.getUAContext().getImageMaps().remove(image);
 			AffineTransform at = AffineTransform.getScaleInstance(scale, scale);

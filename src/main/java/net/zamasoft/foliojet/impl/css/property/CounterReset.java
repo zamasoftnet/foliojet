@@ -10,23 +10,22 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.CounterSetValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CounterReset.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CounterReset extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CounterReset();
 
 	public static Value[] get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((ValueListValue) value).getValues();
@@ -41,7 +40,7 @@ public class CounterReset extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -50,7 +49,7 @@ public class CounterReset extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.size() == 1 && ValueUtils.isNone(tokens.peek())) {// none
-			return NoneValue.NONE_VALUE;
+			return KeywordValue.NONE;
 		}
 
 		List<CounterSetValue> values = new ArrayList<CounterSetValue>();
@@ -70,7 +69,7 @@ public class CounterReset extends AbstractPrimitivePropertyInfo {
 			values.add(new CounterSetValue(ident, value));
 		}
 		if (values.isEmpty()) {
-			return NoneValue.NONE_VALUE;
+			return KeywordValue.NONE;
 		}
 
 		final ValueListValue fvalues = new ValueListValue((Value[]) values.toArray(new Value[values.size()]));

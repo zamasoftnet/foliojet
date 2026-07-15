@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css;
 
-import java.io.IOException;
-import java.io.StringReader;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.html.HTMLStyle;
@@ -20,38 +18,27 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
 import net.zamasoft.foliojet.css.parser.CSSException;
-import net.zamasoft.foliojet.css.parser.InputSource;
-import net.zamasoft.foliojet.css.parser.Parser;
 
 /**
  * CSSに関する処理命令を処理します。
- * 
+ *
  * @author MIYABE Tatsuhiko
- * @version $Id: StyleApplier.java 1608 2021-04-18 03:57:50Z miyabe $
  */
 public class StyleApplier {
 	private final UserAgent ua;
 
 	private final StyleContext styleContext;
 
-	private final Parser declParser;
-
-	private final DeclarationBuilder declBuilder;
-
 	private final HTMLStyle html;
 
 	private final boolean changeDefaultNamespace;
+
+	private URI baseURI;
 
 	public StyleApplier(UserAgent ua, StyleContext styleContext) {
 		this.html = new HTMLStyle();
 		this.ua = ua;
 		this.styleContext = styleContext;
-
-		this.declBuilder = new DeclarationBuilder(ua);
-		this.declBuilder.setPropertySet(ElementPropertySet.getInstance());
-
-		this.declParser = new Parser();
-		this.declParser.setDocumentHandler(this.declBuilder);
 
 		this.changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
 
@@ -64,11 +51,11 @@ public class StyleApplier {
 
 	public void setBaseURI(URI uri) {
 		assert uri != null;
-		this.declBuilder.setURI(uri);
+		this.baseURI = uri;
 	}
 
 	public URI getBaseURI() {
-		return this.declBuilder.getURI();
+		return this.baseURI;
 	}
 
 	public void startStyle(CSSStyle style) {
@@ -78,7 +65,6 @@ public class StyleApplier {
 		Declaration declaration = this.styleContext.merge(null);
 
 		// インラインスタイル宣言
-		this.declBuilder.setDeclaration(declaration);
 		String inlineStyleDecl;
 		if (this.changeDefaultNamespace) {
 			inlineStyleDecl = ce.atts.getValue(XHTML.STYLE_ATTR.lName);
@@ -88,12 +74,10 @@ public class StyleApplier {
 		if (inlineStyleDecl != null) {
 			inlineStyleDecl = inlineStyleDecl.trim();
 			try {
-				this.declParser.parseStyleDeclaration(new InputSource(new StringReader(inlineStyleDecl)));
-				declaration = this.declBuilder.getDeclaration();
+				declaration = DeclarationParser.parseInline(inlineStyleDecl, declaration,
+						ElementPropertySet.getInstance(), this.ua, this.baseURI);
 			} catch (CSSException e) {
 				this.ua.message(MessageCodes.WARN_BAD_INLINE_CSS, inlineStyleDecl, e.getMessage());
-			} catch (IOException e) {
-				throw new RuntimeException(e);
 			}
 		}
 

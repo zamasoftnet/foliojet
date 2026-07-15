@@ -6,22 +6,19 @@ import java.net.URISyntaxException;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.EmLengthValue;
-import net.zamasoft.foliojet.css.value.ExLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.value.css3.CSS3Value;
-import net.zamasoft.foliojet.css.value.css3.ChLengthValue;
-import net.zamasoft.foliojet.css.value.css3.RemLengthValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.util.NumberUtils;
+import net.zamasoft.zstream.resolver.util.URIHelper;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ValueUtils.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public final class ValueUtils {
 	private ValueUtils() {
@@ -63,13 +60,13 @@ public final class ValueUtils {
 		if (token instanceof CssToken.Dim dim) {
 			switch (dim.unit()) {
 			case EM:
-				return EmLengthValue.create(dim.value());
+				return RelativeLengthValue.em(dim.value());
 			case EX:
-				return ExLengthValue.create(dim.value());
+				return RelativeLengthValue.ex(dim.value());
 			case REM:
-				return RemLengthValue.create(dim.value());
+				return RelativeLengthValue.rem(dim.value());
 			case CH:
-				return ChLengthValue.create(dim.value());
+				return RelativeLengthValue.ch(dim.value());
 			default:
 				break;
 			}
@@ -85,16 +82,16 @@ public final class ValueUtils {
 			s = s.toLowerCase().trim();
 			if (s.endsWith("em")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return EmLengthValue.create(len);
+				return RelativeLengthValue.em(len);
 			} else if (s.endsWith("ex")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return ExLengthValue.create(len);
+				return RelativeLengthValue.ex(len);
 			} else if (s.endsWith("ch")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return ChLengthValue.create(len);
+				return RelativeLengthValue.ch(len);
 			} else if (s.endsWith("rem")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 3));
-				return RemLengthValue.create(len);
+				return RelativeLengthValue.rem(len);
 			} else {
 				return toAbsoluteLength(ua, legacy, s);
 			}
@@ -114,29 +111,29 @@ public final class ValueUtils {
 		try {
 			if (s.endsWith("mm")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_MM);
+				return AbsoluteLengthValue.create(ua, len, Unit.MM);
 			} else if (s.endsWith("cm")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_CM);
+				return AbsoluteLengthValue.create(ua, len, Unit.CM);
 			} else if (s.endsWith("pt")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_PT);
+				return AbsoluteLengthValue.create(ua, len, Unit.PT);
 			} else if (s.endsWith("px")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_PX);
+				return AbsoluteLengthValue.create(ua, len, Unit.PX);
 			} else if (s.endsWith("pc")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_PC);
+				return AbsoluteLengthValue.create(ua, len, Unit.PC);
 			} else if (s.endsWith("in")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-				return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_IN);
+				return AbsoluteLengthValue.create(ua, len, Unit.IN);
 			} else {
 				double len = NumberUtils.parseDouble(s);
 				if (len == 0) {
 					return AbsoluteLengthValue.ZERO;
 				}
 				if (legacy) {
-					return AbsoluteLengthValue.create(ua, len, LengthValue.UNIT_PX);
+					return AbsoluteLengthValue.create(ua, len, Unit.PX);
 				}
 				return null;
 			}
@@ -149,26 +146,8 @@ public final class ValueUtils {
 	 * valueがEM_LENGTHかEX_LENGTHならstyleのフォント情報を基準に絶対長さに変換します。
 	 */
 	public static Value emExToAbsoluteLength(Value value, CSSStyle style) {
-		switch (value.getValueType()) {
-		case Value.TYPE_EM_LENGTH:
-			EmLengthValue em = (EmLengthValue) value;
-			value = em.toAbsoluteLength(style);
-			break;
-
-		case Value.TYPE_EX_LENGTH:
-			ExLengthValue ex = (ExLengthValue) value;
-			value = ex.toAbsoluteLength(style);
-			break;
-
-		case CSS3Value.TYPE_REM_LENGTH:
-			RemLengthValue rem = (RemLengthValue) value;
-			value = rem.toAbsoluteLength(style);
-			break;
-
-		case CSS3Value.TYPE_CH_LENGTH:
-			ChLengthValue ch = (ChLengthValue) value;
-			value = ch.toAbsoluteLength(style);
-			break;
+		if (value instanceof RelativeLengthValue relative) {
+			return relative.toAbsoluteLength(style);
 		}
 		return value;
 	}
@@ -178,33 +157,20 @@ public final class ValueUtils {
 	 */
 	public static AbsoluteLengthValue toAbsoluteLength(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Dim dim) {
-			final short unit;
 			switch (dim.unit()) {
 			case IN:
-				unit = LengthValue.UNIT_IN;
-				break;
 			case CM:
-				unit = LengthValue.UNIT_CM;
-				break;
 			case MM:
-				unit = LengthValue.UNIT_MM;
-				break;
 			case PT:
-				unit = LengthValue.UNIT_PT;
-				break;
 			case PC:
-				unit = LengthValue.UNIT_PC;
-				break;
 			case PX:
-				unit = LengthValue.UNIT_PX;
-				break;
+				return AbsoluteLengthValue.create(ua, dim.value(), dim.unit());
 			default:
 				return null;
 			}
-			return AbsoluteLengthValue.create(ua, dim.value(), unit);
 		}
 		if (token instanceof CssToken.Num num && num.value() == 0) {
-			return AbsoluteLengthValue.create(ua, 0, LengthValue.UNIT_PX);
+			return AbsoluteLengthValue.ZERO;
 		}
 		return null;
 	}
@@ -234,8 +200,16 @@ public final class ValueUtils {
 	 */
 	public static URIValue toURI(UserAgent ua, URI baseURI, CssToken token) throws URISyntaxException {
 		if (token instanceof CssToken.Uri uri) {
-			return URIUtils.createURIValue(ua.getDocumentContext().getEncoding(), baseURI, uri.uri());
+			return createURIValue(ua.getDocumentContext().getEncoding(), baseURI, uri.uri());
 		}
 		return null;
+	}
+
+	/**
+	 * 参照文字列を基底URIで解決してURI値にします。
+	 */
+	public static URIValue createURIValue(String encoding, URI baseURI, String href) throws URISyntaxException {
+		URI uri = URIHelper.resolve(encoding, baseURI, href);
+		return URIValue.create(uri);
 	}
 }

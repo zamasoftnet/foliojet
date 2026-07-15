@@ -8,14 +8,10 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.BackgroundAttachmentValue;
 import net.zamasoft.foliojet.css.value.BackgroundRepeatValue;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
-import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BackgroundClipValue;
 import net.zamasoft.foliojet.impl.css.property.BackgroundAttachment;
@@ -29,10 +25,10 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BackgroundShorthand.java 1628 2022-05-11 04:05:01Z miyabe $
  */
 public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new BackgroundShorthand();
@@ -43,32 +39,32 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BackgroundColor.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundImage.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundAttachment.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundRepeat.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundPosition.INFO_X, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundPosition.INFO_Y, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundSize.INFO_WIDTH, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundSize.INFO_HEIGHT, InheritValue.INHERIT_VALUE);
-			primitives.set(BackgroundClip.INFO, InheritValue.INHERIT_VALUE);
+			primitives.set(BackgroundColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BackgroundImage.INFO, KeywordValue.INHERIT);
+			primitives.set(BackgroundAttachment.INFO, KeywordValue.INHERIT);
+			primitives.set(BackgroundRepeat.INFO, KeywordValue.INHERIT);
+			primitives.set(BackgroundPosition.INFO_X, KeywordValue.INHERIT);
+			primitives.set(BackgroundPosition.INFO_Y, KeywordValue.INHERIT);
+			primitives.set(BackgroundSize.INFO_WIDTH, KeywordValue.INHERIT);
+			primitives.set(BackgroundSize.INFO_HEIGHT, KeywordValue.INHERIT);
+			primitives.set(BackgroundClip.INFO, KeywordValue.INHERIT);
 			return;
 		}
 
-		primitives.set(BackgroundColor.INFO, TransparentValue.TRANSPARENT_VALUE);
-		primitives.set(BackgroundImage.INFO, NoneValue.NONE_VALUE);
+		primitives.set(BackgroundColor.INFO, KeywordValue.TRANSPARENT);
+		primitives.set(BackgroundImage.INFO, KeywordValue.NONE);
 		primitives.set(BackgroundAttachment.INFO, BackgroundAttachmentValue.SCROLL_VALUE);
 		primitives.set(BackgroundRepeat.INFO, BackgroundRepeatValue.REPEAT_VALUE);
 		primitives.set(BackgroundPosition.INFO_X, PercentageValue.ZERO);
 		primitives.set(BackgroundPosition.INFO_Y, PercentageValue.ZERO);
-		primitives.set(BackgroundSize.INFO_WIDTH, AutoValue.AUTO_VALUE);
-		primitives.set(BackgroundSize.INFO_HEIGHT, AutoValue.AUTO_VALUE);
+		primitives.set(BackgroundSize.INFO_WIDTH, KeywordValue.AUTO);
+		primitives.set(BackgroundSize.INFO_HEIGHT, KeywordValue.AUTO);
 		primitives.set(BackgroundClip.INFO, BackgroundClipValue.BORDER_BOX_VALUE);
 		boolean color = false, none = false, uriValue = false, repeat = false, attachment = false, position = false, size = false, clip = false;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
 			if (ColorValueUtils.isTransparent(lu)) {
-				primitives.set(BackgroundColor.INFO, TransparentValue.TRANSPARENT_VALUE);
+				primitives.set(BackgroundColor.INFO, KeywordValue.TRANSPARENT);
 				continue;
 			}
 			Value value = ColorValueUtils.toPaint(ua, lu);
@@ -86,7 +82,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					throw new PropertyException("noneが2度指定されています");
 				}
 				none = true;
-				primitives.set(BackgroundImage.INFO, NoneValue.NONE_VALUE);
+				primitives.set(BackgroundImage.INFO, KeywordValue.NONE);
 				continue;
 			}
 			try {
@@ -143,7 +139,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 
 				final CssToken wToken = tokens.next();
 				if (ValueUtils.isAuto(wToken)) {
-					w = AutoValue.AUTO_VALUE;
+					w = KeywordValue.AUTO;
 				} else {
 					w = ValueUtils.toPercentage(wToken);
 					if (w == null) {
@@ -157,7 +153,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				}
 
 				if (!tokens.hasNext()) {
-					h = AutoValue.AUTO_VALUE;
+					h = KeywordValue.AUTO;
 					primitives.set(BackgroundSize.INFO_WIDTH, w);
 					primitives.set(BackgroundSize.INFO_HEIGHT, h);
 					continue;
@@ -165,7 +161,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 
 				final CssToken hToken = tokens.next();
 				if (ValueUtils.isAuto(hToken)) {
-					h = AutoValue.AUTO_VALUE;
+					h = KeywordValue.AUTO;
 				} else {
 					h = ValueUtils.toPercentage(hToken);
 					if (h == null) {
@@ -178,7 +174,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					}
 				}
 				if (h == null) {
-					h = AutoValue.AUTO_VALUE;
+					h = KeywordValue.AUTO;
 				}
 				primitives.set(BackgroundSize.INFO_WIDTH, w);
 				primitives.set(BackgroundSize.INFO_HEIGHT, h);

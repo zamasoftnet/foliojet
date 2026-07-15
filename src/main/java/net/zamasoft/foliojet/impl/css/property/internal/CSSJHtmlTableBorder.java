@@ -16,7 +16,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * HTMLのテーブルborderに相当する内部特性です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJHtmlTableBorder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJHtmlTableBorder();

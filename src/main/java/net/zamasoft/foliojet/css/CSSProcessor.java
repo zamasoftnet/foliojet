@@ -51,13 +51,11 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
-import net.zamasoft.foliojet.css.parser.Parser;
 
 /**
  * CSSに関する処理命令を処理します。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSProcessor.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class CSSProcessor implements XMLHandler {
 	private static final Logger LOG = Logger.getLogger(CSSProcessor.class.getName());
@@ -73,8 +71,6 @@ public class CSSProcessor implements XMLHandler {
 	private final Imposition imposition;
 
 	private final CSSStyleSheetBuilder styleSheetBuilder;
-
-	private final Parser styleSheetParser;
 
 	private final StyleApplier applier;
 
@@ -126,8 +122,6 @@ public class CSSProcessor implements XMLHandler {
 		this.styleSheetBuilder.setCSSStyleSheet(styleContext.styleSheet);
 
 		this.applier = new StyleApplier(ua, styleContext);
-		this.styleSheetParser = new Parser();
-		this.styleSheetParser.setDocumentHandler(this.styleSheetBuilder);
 
 		// デフォルトのスタイルシート
 		String defaultStyle = UAProps.INPUT_DEFAULT_STYLESHEET.getString(this.ua);
@@ -136,10 +130,9 @@ public class CSSProcessor implements XMLHandler {
 				URI defaultStyleURI = URIHelper.create(this.ua.getDocumentContext().getEncoding(), defaultStyle);
 				Source styleSource = this.ua.resolve(defaultStyleURI);
 				try {
-					InputSource inputSource = XMLUtils.toSACInputSource(styleSource, styleSource.getEncoding(), null,
-							null);
+					InputSource inputSource = XMLUtils.toCSSInputSource(styleSource, styleSource.getEncoding());
 					try {
-						this.styleSheetParser.parseStyleSheet(inputSource);
+						this.styleSheetBuilder.parse(inputSource);
 					} catch (CSSException e) {
 						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, inputSource.getURI(), e.getMessage());
 					}
@@ -192,8 +185,7 @@ public class CSSProcessor implements XMLHandler {
 					if (charset == null) {
 						charset = this.ua.getDocumentContext().getEncoding();
 					}
-					this.parseStyleSheet(XMLUtils.toSACInputSource(source, source.getEncoding(), mediaTypes, title),
-							charset);
+					this.parseStyleSheet(XMLUtils.toCSSInputSource(source, charset));
 				} finally {
 					this.ua.release(source);
 				}
@@ -203,12 +195,9 @@ public class CSSProcessor implements XMLHandler {
 		}
 	}
 
-	private void parseStyleSheet(InputSource inputSource, String defaultCharset) throws IOException {
+	private void parseStyleSheet(InputSource inputSource) throws IOException {
 		try {
-			if (defaultCharset != null) {
-				this.styleSheetParser.setDefaultCharset(defaultCharset);
-			}
-			this.styleSheetParser.parseStyleSheet(inputSource);
+			this.styleSheetBuilder.parse(inputSource);
 		} catch (CSSException e) {
 			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, inputSource.getURI(), e.getMessage());
 		}
@@ -322,10 +311,9 @@ public class CSSProcessor implements XMLHandler {
 				if (type.equals(Constants.CSS_MIME_TYPE) && this.ua.is(media)) {
 					InputSource inputSource = new InputSource(new StringReader(styleSheet));
 					inputSource.setEncoding(this.ua.getDocumentContext().getEncoding());
-					inputSource.setMedia(media);
 					inputSource.setURI(this.applier.getBaseURI().toString());
 					try {
-						this.parseStyleSheet(inputSource, null);
+						this.parseStyleSheet(inputSource);
 					} catch (IOException e) {
 						throw new SAXException(e);
 					}

@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * プロパティ情報と解釈のためのオブジェクトです。
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: PropertyInfo.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface PropertyInfo {
 	/**

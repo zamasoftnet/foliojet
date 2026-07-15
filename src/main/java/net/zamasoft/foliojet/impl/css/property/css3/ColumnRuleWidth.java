@@ -20,7 +20,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * border-left-width 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: ColumnRuleWidth.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class ColumnRuleWidth extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ColumnRuleWidth();

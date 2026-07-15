@@ -21,7 +21,6 @@ import org.apache.batik.gvt.GraphicsNode;
 import org.apache.batik.util.ParsedURL;
 import org.apache.batik.util.XMLResourceDescriptor;
 import org.w3c.dom.Document;
-import org.w3c.dom.svg.SVGPreserveAspectRatio;
 import org.w3c.dom.svg.SVGRect;
 
 import net.zamasoft.foliojet.ua.ImageLoader;

@@ -17,7 +17,6 @@ import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.util.LengthUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.BackgroundAttachmentValue;
 import net.zamasoft.foliojet.css.value.BorderCollapseValue;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
@@ -26,8 +25,6 @@ import net.zamasoft.foliojet.css.value.ClearValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
-import net.zamasoft.foliojet.css.value.EmLengthValue;
-import net.zamasoft.foliojet.css.value.ExLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
@@ -94,7 +91,6 @@ import net.zamasoft.foliojet.impl.css.property.MarginBottom;
 import net.zamasoft.foliojet.impl.css.property.MarginLeft;
 import net.zamasoft.foliojet.impl.css.property.MarginRight;
 import net.zamasoft.foliojet.impl.css.property.MarginTop;
-import net.zamasoft.foliojet.impl.css.property.MinHeight;
 import net.zamasoft.foliojet.impl.css.property.Overflow;
 import net.zamasoft.foliojet.impl.css.property.PaddingBottom;
 import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
@@ -134,17 +130,20 @@ import net.zamasoft.zstream.resolver.util.SourceWrapper;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.util.NumberUtils;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.css.token.Unit;
 
 public class HTMLStyle {
 	private static final Logger LOG = Logger.getLogger(HTMLStyle.class.getName());
 
-	private static final ExLengthValue EX_20 = ExLengthValue.create(20);
-	private static final EmLengthValue EM_4 = EmLengthValue.create(4);
-	private static final EmLengthValue EM_1_12 = EmLengthValue.create(1.12);
-	private static final EmLengthValue EM_1 = EmLengthValue.create(1);
-	private static final EmLengthValue EM__5 = EmLengthValue.create(.5);
-	private static final EmLengthValue _EM_1 = EmLengthValue.create(-1);
-	private static final EmLengthValue _EM__9 = EmLengthValue.create(-.9);
+	private static final RelativeLengthValue EX_20 = RelativeLengthValue.ex(20);
+	private static final RelativeLengthValue EM_4 = RelativeLengthValue.em(4);
+	private static final RelativeLengthValue EM_1_12 = RelativeLengthValue.em(1.12);
+	private static final RelativeLengthValue EM_1 = RelativeLengthValue.em(1);
+	private static final RelativeLengthValue EM__5 = RelativeLengthValue.em(.5);
+	private static final RelativeLengthValue _EM_1 = RelativeLengthValue.em(-1);
+	private static final RelativeLengthValue _EM__9 = RelativeLengthValue.em(-.9);
 	private static final RealValue REAL_1_618 = RealValue.create(1.618);
 	private static final RealValue REAL_1_414 = RealValue.create(1.414);
 	private static final ValueListValue WBR = new ValueListValue(new Value[] { new StringValue("\u200B") });
@@ -215,8 +214,8 @@ public class HTMLStyle {
 			// <SELECT>
 			UserAgent ua = style.getUserAgent();
 			CSSStyle parent = style.getParentStyle();
-			double size = LengthUtils.convert(ua, Height.getLength(parent).getLength(), LengthValue.UNIT_PT,
-					LengthValue.UNIT_PX);
+			double size = LengthUtils.convert(ua, Height.getLength(parent).getLength(), Unit.PT,
+					Unit.PX);
 			style.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
 			double border = BorderTopWidth.get(parent);
 			style.set(Top.INFO, AbsoluteLengthValue.create(ua, -border * 2));
@@ -537,13 +536,13 @@ public class HTMLStyle {
 		style.set(CSSJAutoWidth.INFO, EX_20);
 		if (size != null) {
 			try {
-				style.set(CSSJAutoWidth.INFO, ExLengthValue.create(NumberUtils.parseDouble(size)));
+				style.set(CSSJAutoWidth.INFO, RelativeLengthValue.ex(NumberUtils.parseDouble(size)));
 			} catch (NumberFormatException e) {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "INPUT", "size", size);
 			}
 		}
 
-		style.set(Height.INFO, AutoValue.AUTO_VALUE);
+		style.set(Height.INFO, KeywordValue.AUTO);
 		if (disabled) {
 			style.set(CSSColor.INFO, ColorValueUtils.DIMGRAY);
 			style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
@@ -763,7 +762,7 @@ public class HTMLStyle {
 			// <BLOCKQUOTE>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
-			HTMLStyleUtils.applyQuoteMargins(style, AbsoluteLengthValue.create(ua, 40, AbsoluteLengthValue.UNIT_PX));
+			HTMLStyleUtils.applyQuoteMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 		}
 			break;
 		case HTMLCodes.BODY: {
@@ -773,7 +772,7 @@ public class HTMLStyle {
 			// bgcolor background bgproperties -scroll
 			// text link -vlink -alink>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			AbsoluteLengthValue px8 = AbsoluteLengthValue.create(ua, 8, AbsoluteLengthValue.UNIT_PX);
+			AbsoluteLengthValue px8 = AbsoluteLengthValue.create(ua, 8, Unit.PX);
 			style.set(MarginTop.INFO, px8);
 			style.set(MarginRight.INFO, px8);
 			style.set(MarginBottom.INFO, px8);
@@ -943,7 +942,7 @@ public class HTMLStyle {
 			// <DD>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, AbsoluteLengthValue.UNIT_PX));
+			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 		}
 			break;
 		case HTMLCodes.DEL: {
@@ -959,7 +958,7 @@ public class HTMLStyle {
 			// <DIR type -compact>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
-			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, AbsoluteLengthValue.UNIT_PX));
+			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
 			if (type != null) {
 				Value value = HTMLStyleUtils.toListStyleType(type);
@@ -1069,9 +1068,9 @@ public class HTMLStyle {
 			// <H1 align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
-			style.set(FontSize.INFO, EmLengthValue.create(2));
+			style.set(FontSize.INFO, RelativeLengthValue.em(2));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EmLengthValue.create(0.67), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.67), code);
 			HTMLStyleUtils.applyBlockAlign("H1", style);
 		}
 			break;
@@ -1079,9 +1078,9 @@ public class HTMLStyle {
 			// <H2 align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
-			style.set(FontSize.INFO, EmLengthValue.create(1.5));
+			style.set(FontSize.INFO, RelativeLengthValue.em(1.5));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EmLengthValue.create(0.75), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.75), code);
 			HTMLStyleUtils.applyBlockAlign("H2", style);
 		}
 			break;
@@ -1089,9 +1088,9 @@ public class HTMLStyle {
 			// <H3 align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
-			style.set(FontSize.INFO, EmLengthValue.create(1.17));
+			style.set(FontSize.INFO, RelativeLengthValue.em(1.17));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EmLengthValue.create(0.83), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.83), code);
 			HTMLStyleUtils.applyBlockAlign("H3", style);
 		}
 			break;
@@ -1109,8 +1108,8 @@ public class HTMLStyle {
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			style.set(FontSize.INFO, EmLengthValue.create(0.83));
-			HTMLStyle.applyParagraphMargins(style, EmLengthValue.create(1.5), code);
+			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(1.5), code);
 			HTMLStyleUtils.applyBlockAlign("H5", style);
 		}
 			break;
@@ -1118,9 +1117,9 @@ public class HTMLStyle {
 			// <H6 align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
-			style.set(FontSize.INFO, EmLengthValue.create(0.75));
+			style.set(FontSize.INFO, RelativeLengthValue.em(0.75));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EmLengthValue.create(1.67), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(1.67), code);
 			HTMLStyleUtils.applyBlockAlign("H6", style);
 		}
 			break;
@@ -1132,7 +1131,7 @@ public class HTMLStyle {
 		case HTMLCodes.HR: {
 			// <HR align color noshade size width>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			LengthValue margin = EmLengthValue.create(.5);
+			LengthValue margin = RelativeLengthValue.em(.5);
 			HTMLStyle.applyParagraphMargins(style, margin, code);
 
 			ColorValue color = null;
@@ -1174,7 +1173,7 @@ public class HTMLStyle {
 
 			final CSSStyle pStyle = style.getParentStyle();
 			if (ce.atts.getValue("noshade") == null && color == null) {
-				LengthValue border = AbsoluteLengthValue.create(ua, 1, LengthValue.UNIT_PX);
+				LengthValue border = AbsoluteLengthValue.create(ua, 1, Unit.PX);
 				style.set(BorderTopStyle.INFO, BorderStyleValue.INSET_VALUE);
 				style.set(BorderTopWidth.INFO, border);
 				style.set(BorderRightStyle.INFO, BorderStyleValue.INSET_VALUE);
@@ -1235,12 +1234,12 @@ public class HTMLStyle {
 
 			String align = ce.atts.getValue("align");
 			if ("right".equalsIgnoreCase(align)) {
-				style.set(MarginLeft.INFO, AutoValue.AUTO_VALUE);
+				style.set(MarginLeft.INFO, KeywordValue.AUTO);
 			} else if ("left".equalsIgnoreCase(align)) {
-				style.set(MarginRight.INFO, AutoValue.AUTO_VALUE);
+				style.set(MarginRight.INFO, KeywordValue.AUTO);
 			} else {
-				style.set(MarginLeft.INFO, AutoValue.AUTO_VALUE);
-				style.set(MarginRight.INFO, AutoValue.AUTO_VALUE);
+				style.set(MarginLeft.INFO, KeywordValue.AUTO);
+				style.set(MarginRight.INFO, KeywordValue.AUTO);
 			}
 		}
 			break;
@@ -1381,7 +1380,7 @@ public class HTMLStyle {
 			CSSStyle parent = style;
 			for (;;) {
 				Value color = parent.get(BackgroundColor.INFO);
-				if (color.getValueType() != Value.TYPE_TRANSPARENT) {
+				if (color != KeywordValue.TRANSPARENT) {
 					style.set(BackgroundColor.INFO, color);
 					break;
 				}
@@ -1447,7 +1446,7 @@ public class HTMLStyle {
 			// <MENU type -compact>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
-			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, AbsoluteLengthValue.UNIT_PX));
+			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 		}
 			break;
@@ -1492,7 +1491,7 @@ public class HTMLStyle {
 			// startはStyleBuilderで処理
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
-			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, AbsoluteLengthValue.UNIT_PX));
+			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
 			if (type != null) {
 				Value value = HTMLStyleUtils.toListStyleType(type);
@@ -1554,7 +1553,7 @@ public class HTMLStyle {
 				String str = ce.atts.getValue("cols");
 				if (str != null) {
 					try {
-						Value cols = EmLengthValue.create(NumberUtils.parseDouble(str));
+						Value cols = RelativeLengthValue.em(NumberUtils.parseDouble(str));
 						style.set(Width.INFO, cols);
 					} catch (Exception e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "PRE", "cols", str);
@@ -1664,7 +1663,7 @@ public class HTMLStyle {
 				String str = ce.atts.getValue("size");
 				if (str != null) {
 					try {
-						style.set(Height.INFO, EmLengthValue.create(NumberUtils.parseDouble(str)));
+						style.set(Height.INFO, RelativeLengthValue.em(NumberUtils.parseDouble(str)));
 					} catch (NumberFormatException e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "SELECT", "size", str);
 					}
@@ -1703,7 +1702,7 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.SMALL: {
 			// <SMALL>
-			style.set(FontSize.INFO, EmLengthValue.create(0.83));
+			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
 		}
 			break;
 		case HTMLCodes.SPAN: {
@@ -1727,13 +1726,13 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.SUB: {
 			// <SUB>
-			style.set(FontSize.INFO, EmLengthValue.create(0.83));
+			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
 			style.set(VerticalAlign.INFO, VerticalAlignValue.SUB_VALUE);
 		}
 			break;
 		case HTMLCodes.SUP: {
 			// <SUP>
-			style.set(FontSize.INFO, EmLengthValue.create(0.83));
+			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
 			style.set(VerticalAlign.INFO, VerticalAlignValue.SUPER_VALUE);
 		}
 			break;
@@ -1760,7 +1759,7 @@ public class HTMLStyle {
 				}
 			}
 			if (cellspacing == null) {
-				cellspacing = AbsoluteLengthValue.create(ua, 2, AbsoluteLengthValue.UNIT_PX);
+				cellspacing = AbsoluteLengthValue.create(ua, 2, Unit.PX);
 			}
 			style.set(BorderSpacing.INFO_H, cellspacing);
 			style.set(BorderSpacing.INFO_V, cellspacing);
@@ -1842,7 +1841,7 @@ public class HTMLStyle {
 				}
 			}
 			if (cellpadding == null) {
-				cellpadding = AbsoluteLengthValue.create(ua, 1, AbsoluteLengthValue.UNIT_PX);
+				cellpadding = AbsoluteLengthValue.create(ua, 1, Unit.PX);
 			}
 			CSSJHtmlCellPadding.set(style, cellpadding);
 			ColorValue borderColor = null;
@@ -1972,7 +1971,7 @@ public class HTMLStyle {
 				String str = ce.atts.getValue("cols");
 				if (str != null) {
 					try {
-						style.set(Width.INFO, ExLengthValue.create(NumberUtils.parseDouble(str)));
+						style.set(Width.INFO, RelativeLengthValue.ex(NumberUtils.parseDouble(str)));
 					} catch (NumberFormatException e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TEXTAREA", "cols", str);
 					}
@@ -1983,7 +1982,7 @@ public class HTMLStyle {
 				String str = ce.atts.getValue("rows");
 				if (str != null) {
 					try {
-						style.set(Height.INFO, EmLengthValue.create(NumberUtils.parseDouble(str)));
+						style.set(Height.INFO, RelativeLengthValue.em(NumberUtils.parseDouble(str)));
 					} catch (NumberFormatException e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TEXTAREA", "rows", str);
 					}
@@ -2036,7 +2035,7 @@ public class HTMLStyle {
 			if (depth == 0) {
 				HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
 			}
-			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, AbsoluteLengthValue.UNIT_PX));
+			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
 			if (type != null) {
 				Value value = HTMLStyleUtils.toListStyleType(type);

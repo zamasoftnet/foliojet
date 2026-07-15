@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: IntegerValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class IntegerValue implements Value, QuantityValue {
 	private final int intValue;
@@ -32,10 +31,6 @@ public class IntegerValue implements Value, QuantityValue {
 
 	private IntegerValue(int intValue) {
 		this.intValue = intValue;
-	}
-
-	public short getValueType() {
-		return Value.TYPE_INTEGER;
 	}
 
 	public boolean isNegative() {

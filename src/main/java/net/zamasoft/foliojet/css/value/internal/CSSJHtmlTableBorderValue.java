@@ -3,8 +3,9 @@ package net.zamasoft.foliojet.css.value.internal;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.value.Value;
 
-public class CSSJHtmlTableBorderValue implements InternalValue {
+public class CSSJHtmlTableBorderValue implements Value {
 	public static final CSSJHtmlTableBorderValue NULL_BORDER = new CSSJHtmlTableBorderValue(AbsoluteLengthValue.ZERO,
 			null);
 
@@ -15,10 +16,6 @@ public class CSSJHtmlTableBorderValue implements InternalValue {
 		assert width != null;
 		this.width = width;
 		this.color = color;
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_HTML_TABLE_BORDER;
 	}
 
 	public LengthValue getWidth() {

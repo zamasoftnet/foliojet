@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderValueUtils.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public final class BorderValueUtils {
 	private BorderValueUtils() {

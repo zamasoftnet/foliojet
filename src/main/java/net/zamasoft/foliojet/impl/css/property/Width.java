@@ -8,7 +8,6 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.impl.css.property.css3.BlockFlow;
@@ -20,13 +19,13 @@ import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-width"> width 特性
  * </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: Width.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Width extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Width();
@@ -79,7 +78,7 @@ public class Width extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return AutoValue.AUTO_VALUE;
+		return KeywordValue.AUTO;
 	}
 
 	public boolean isInherited() {
@@ -87,7 +86,7 @@ public class Width extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		if (value.getValueType() == Value.TYPE_AUTO) {
+		if (value == KeywordValue.AUTO) {
 			value = CSSJAutoWidth.get(style);
 		}
 		return ValueUtils.emExToAbsoluteLength(value, style);
@@ -96,7 +95,7 @@ public class Width extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
-			return AutoValue.AUTO_VALUE;
+			return KeywordValue.AUTO;
 		}
 
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);

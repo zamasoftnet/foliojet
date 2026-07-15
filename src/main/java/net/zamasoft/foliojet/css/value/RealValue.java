@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: RealValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class RealValue implements Value, QuantityValue {
 	private final double real;
@@ -34,10 +33,6 @@ public class RealValue implements Value, QuantityValue {
 
 	public double getReal() {
 		return this.real;
-	}
-
-	public short getValueType() {
-		return TYPE_REAL;
 	}
 
 	public String toString() {

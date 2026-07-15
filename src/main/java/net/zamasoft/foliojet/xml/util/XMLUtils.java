@@ -26,36 +26,21 @@ public final class XMLUtils {
 
 	public static DefaultHandler DEFAULT_HANDLER_INSTANCE = new DefaultHandler();
 
-	public static InputSource toSACInputSource(Source source, String charset, String mediaTypes, String title)
-			throws IOException {
+	public static InputSource toCSSInputSource(Source source, String charset) throws IOException {
 		String encoding = source.getEncoding();
+		if (encoding == null) {
+			encoding = charset;
+		}
 		Reader reader;
-		if (encoding != null) {
-			if (source.isReader()) {
-				reader = source.getReader();
-			} else {
-				reader = new InputStreamReader(source.getInputStream(), encoding);
-			}
+		if (source.isReader()) {
+			reader = source.getReader();
+		} else if (encoding != null) {
+			reader = new InputStreamReader(source.getInputStream(), encoding);
 		} else {
-			if (charset != null) {
-				encoding = charset;
-				if (source.isReader()) {
-					reader = source.getReader();
-				} else {
-					reader = new InputStreamReader(source.getInputStream(), charset);
-				}
-			} else {
-				if (source.isReader()) {
-					reader = source.getReader();
-				} else {
-					reader = new InputStreamReader(source.getInputStream());
-				}
-			}
+			reader = new InputStreamReader(source.getInputStream());
 		}
 		InputSource inputSource = new InputSource(reader);
 		inputSource.setEncoding(encoding);
-		inputSource.setMedia(mediaTypes);
-		inputSource.setTitle(title);
 		inputSource.setURI(source.getURI().toString());
 		return inputSource;
 	}

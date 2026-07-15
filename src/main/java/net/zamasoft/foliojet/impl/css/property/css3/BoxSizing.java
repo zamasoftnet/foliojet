@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: WordWrap.java 1485 2016-12-16 06:41:11Z miyabe $
  */
 public class BoxSizing extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BoxSizing();

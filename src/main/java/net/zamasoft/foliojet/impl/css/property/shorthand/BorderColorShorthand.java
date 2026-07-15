@@ -6,8 +6,6 @@ import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
-import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.BorderBottomColor;
 import net.zamasoft.foliojet.impl.css.property.BorderLeftColor;
@@ -16,10 +14,10 @@ import net.zamasoft.foliojet.impl.css.property.BorderTopColor;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderColorShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new BorderColorShorthand();
@@ -30,10 +28,10 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BorderLeftColor.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderTopColor.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderRightColor.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderBottomColor.INFO, InheritValue.INHERIT_VALUE);
+			primitives.set(BorderLeftColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderTopColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderRightColor.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderBottomColor.INFO, KeywordValue.INHERIT);
 			return;
 		}
 		final Value color1 = nextColor(tokens, ua);
@@ -82,7 +80,7 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 	private static Value nextColor(TokenStream tokens, UserAgent ua) {
 		final CssToken token = tokens.next();
 		if (ColorValueUtils.isTransparent(token)) {
-			return TransparentValue.TRANSPARENT_VALUE;
+			return KeywordValue.TRANSPARENT;
 		}
 		return ColorValueUtils.toColor(ua, token);
 	}

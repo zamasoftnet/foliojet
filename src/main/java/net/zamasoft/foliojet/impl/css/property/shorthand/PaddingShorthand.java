@@ -6,19 +6,17 @@ import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.PaddingBottom;
 import net.zamasoft.foliojet.impl.css.property.PaddingLeft;
 import net.zamasoft.foliojet.impl.css.property.PaddingRight;
 import net.zamasoft.foliojet.impl.css.property.PaddingTop;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PaddingShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new PaddingShorthand();
@@ -32,11 +30,11 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 		if (padding1 == null) {
 			throw new PropertyException();
 		}
-		if (padding1.getValueType() == Value.TYPE_INHERIT) {
-			primitives.set(PaddingLeft.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(PaddingTop.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(PaddingRight.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(PaddingBottom.INFO, InheritValue.INHERIT_VALUE);
+		if (padding1 == KeywordValue.INHERIT) {
+			primitives.set(PaddingLeft.INFO, KeywordValue.INHERIT);
+			primitives.set(PaddingTop.INFO, KeywordValue.INHERIT);
+			primitives.set(PaddingRight.INFO, KeywordValue.INHERIT);
+			primitives.set(PaddingBottom.INFO, KeywordValue.INHERIT);
 			return;
 		}
 		if (!tokens.hasNext()) {

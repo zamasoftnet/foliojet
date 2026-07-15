@@ -4,8 +4,6 @@ package net.zamasoft.foliojet.css.selector;
  * 属性条件([attr]、[attr=v]、[attr~=v]、[attr|=v]、[attr^=v]、[attr$=v]、[attr*=v])。
  */
 public final class AttributeCondition implements Condition {
-	private static final long serialVersionUID = 0;
-
 	private final ConditionType type;
 
 	private final String localName;

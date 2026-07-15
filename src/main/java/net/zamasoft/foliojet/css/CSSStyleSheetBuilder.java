@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.css;
 
 import java.awt.Font;
 import java.io.IOException;
+import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -10,14 +11,24 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.helger.css.decl.CSSDeclaration;
+import com.helger.css.decl.CSSFontFaceRule;
+import com.helger.css.decl.CSSImportRule;
+import com.helger.css.decl.CSSMediaQuery;
+import com.helger.css.decl.CSSMediaRule;
+import com.helger.css.decl.CSSPageRule;
+import com.helger.css.decl.CSSStyleRule;
+import com.helger.css.decl.CascadingStyleSheet;
+import com.helger.css.decl.ICSSPageRuleMember;
+import com.helger.css.decl.ICSSTopLevelRule;
+import com.helger.css.reader.CSSReader;
+
+import net.zamasoft.foliojet.css.parser.CSSException;
+import net.zamasoft.foliojet.css.parser.InputSource;
+import net.zamasoft.foliojet.css.parser.SelectorConverter;
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.FontFacePropertySet;
 import net.zamasoft.foliojet.css.property.PagePropertySet;
-import net.zamasoft.foliojet.css.parser.CSSException;
-import net.zamasoft.foliojet.css.parser.InputSource;
-import net.zamasoft.foliojet.css.token.CssToken;
-import net.zamasoft.foliojet.css.parser.Parser;
-import net.zamasoft.foliojet.css.parser.StyleSheetHandler;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.impl.css.property.CSSFontFamily;
 import net.zamasoft.foliojet.impl.css.property.CSSFontStyle;
@@ -33,59 +44,27 @@ import net.zamasoft.pdfg2d.gc.font.FontFace;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 
 /**
- * 解析イベントからCSSStyleSheetオブジェクトを構築します。
+ * ph-cssで解析したスタイルシートからCSSStyleSheetを直接構築します。
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSStyleSheetBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSStyleSheetBuilder implements StyleSheetHandler {
+public class CSSStyleSheetBuilder {
 	private static final Logger LOG = Logger.getLogger(CSSStyleSheetBuilder.class.getName());
-
-	private static final boolean DEBUG = false;
 
 	private static final int MAX_DEPTH = 10;
 
-	private static final short NONE = 1;
-
-	private static final short IN_SELECTOR = 2;
-
-	private static final short IN_PAGE = 3;
-
-	private static final short IN_FONT_FACE = 4;
-
-	private static final short IN_PAGE_CONTENT = 5;
-
 	private final UserAgent ua;
 
-	/* 現在のスタイル宣言 */
-	private final DeclarationBuilder declBuilder;
-
-	/* ページごとに生成する内容のスタイル宣言 */
-	private final DeclarationBuilder pageContentDeclBuilder;
-
-	/* 現在のページの種類 */
-	private String pseudoPage;
-
-	/** スタイルシートのソースのスタック。 */
-	private final List<InputSource> sourceStack = new ArrayList<InputSource>();
-
-	/** スタイルシートのURIのスタック。 */
+	/** スタイルシートのURIのスタック(importの深さ・循環検出)。 */
 	private final List<URI> uriStack = new ArrayList<URI>();
 
-	/** ブロックを無視するためのスタック。 */
-	private final List<Boolean> mediaStack = new ArrayList<Boolean>();
-
-	/** 状態。 */
-	private short state = NONE;
+	/** 直前に処理した@pageの擬似ページ(-cssj-page-contentが参照する。従来動作の踏襲)。 */
+	private String pseudoPage;
 
 	private CSSStyleSheet cssStyleSheet;
 
 	public CSSStyleSheetBuilder(UserAgent ua) {
 		this.ua = ua;
-		this.declBuilder = new DeclarationBuilder(ua);
-		this.declBuilder.setPropertySet(ElementPropertySet.getInstance());
-		this.pageContentDeclBuilder = new DeclarationBuilder(ua);
-		this.pageContentDeclBuilder.setPropertySet(ElementPropertySet.getInstance());
 	}
 
 	public void setCSSStyleSheet(CSSStyleSheet cssStyleSheet) {
@@ -96,172 +75,120 @@ public class CSSStyleSheetBuilder implements StyleSheetHandler {
 		return this.cssStyleSheet;
 	}
 
-	public void property(String name, java.util.List<CssToken> value, boolean important) throws CSSException {
-		switch (this.state) {
-		case NONE:
-			// 無視
-			break;
-		case IN_PAGE_CONTENT:
-			this.pageContentDeclBuilder.property(name, value, important);
-			break;
-		default:
-			this.declBuilder.property(name, value, important);
-			break;
+	/**
+	 * スタイルシートを解析して構築中のCSSStyleSheetに追加します。
+	 */
+	public void parse(InputSource source) throws IOException, CSSException {
+		String css = read(source.getReader());
+		css = css.replace("{literal}", "").replace("{/literal}", "");
+		CascadingStyleSheet sheet = CSSReader.readFromStringReader(css, DeclarationParser.settings());
+		if (sheet == null) {
+			throw new CSSException("スタイルシートを解析できません");
 		}
-	}
-
-	public void startDocument(InputSource source) throws CSSException {
-		URI uri = URI.create(source.getURI());
-		this.sourceStack.add(source);
+		final URI uri = URI.create(source.getURI());
 		this.uriStack.add(uri);
-		this.declBuilder.setURI(uri);
-		this.pageContentDeclBuilder.setURI(uri);
-		if (DEBUG) {
-			System.out.println(uri);
-		}
-	}
-
-	public void endDocument(InputSource source) throws CSSException {
-		this.sourceStack.remove(this.sourceStack.size() - 1);
-		this.uriStack.remove(this.uriStack.size() - 1);
-		if (!this.uriStack.isEmpty()) {
-			URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
-			this.declBuilder.setURI(uri);
-			this.pageContentDeclBuilder.setURI(uri);
-			if (DEBUG) {
-				System.out.println(uri);
+		try {
+			for (CSSImportRule importRule : sheet.getAllImportRules()) {
+				this.importStyle(importRule.getLocationString(), toMediaTypes(importRule.getAllMediaQueries()), uri,
+						source.getEncoding());
 			}
+			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
+				this.rule(rule, uri, true);
+			}
+		} finally {
+			this.uriStack.remove(this.uriStack.size() - 1);
 		}
 	}
 
-	protected InputSource getInputSource() {
-		return (InputSource) this.sourceStack.get(this.sourceStack.size() - 1);
-	}
-
-	public void importStyle(String href, String mediaTypes) throws CSSException {
-		if (DEBUG) {
-			System.out.println("import:" + href);
-		}
-		if (this.ua.is(mediaTypes)) {
-			if (this.sourceStack.size() > MAX_DEPTH) {
-				URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
-				this.ua.message(MessageCodes.WARN_DEEP_IMPORT, uri.toString(), String.valueOf(MAX_DEPTH));
+	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk) {
+		if (rule instanceof CSSStyleRule styleRule) {
+			if (!mediaOk) {
 				return;
 			}
-			URI baseURI = this.declBuilder.getURI();
-			URI uri;
+			final List<Selector> selectors;
 			try {
-				uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(), baseURI, href);
-			} catch (URISyntaxException e) {
-				this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, href);
-				return;
-			}
-			for (int i = 0; i < this.uriStack.size(); ++i) {
-				URI stackURI = (URI) this.uriStack.get(i);
-				if (stackURI.equals(uri)) {
-					this.ua.message(MessageCodes.WARN_LOOP_IMPORT, baseURI.toString(), uri.toString());
-					return;
-				}
-			}
-			final Parser parser = new Parser();
-			parser.setDocumentHandler(this);
-			try {
-				Source source = this.ua.resolve(uri);
-				try {
-					InputSource inputSource = XMLUtils.toSACInputSource(source, this.getInputSource().getEncoding(),
-							mediaTypes, null);
-					parser.setDefaultCharset(this.ua.getDocumentContext().getEncoding());
-					parser.parseStyleSheet(inputSource);
-				} finally {
-					this.ua.release(source);
-				}
+				selectors = SelectorConverter.convertList(styleRule.getAllSelectors());
 			} catch (CSSException e) {
-				this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), e.getMessage());
-				LOG.log(Level.FINE, "CSS文法エラー", e);
-			} catch (IOException e) {
-				this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, uri.toString());
-				LOG.log(Level.FINE, "CSS読み込みエラー", e);
-			}
-		}
-	}
-
-	public void startMedia(List<String> mediaTypes) throws CSSException {
-		for (String medium : mediaTypes) {
-			if (this.ua.is(medium.toLowerCase())) {
-				this.mediaStack.add(Boolean.TRUE);
+				// 解釈できないセレクタを含む規則は無視する
 				return;
 			}
+			Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
+					ElementPropertySet.getInstance(), this.ua, uri);
+			this.cssStyleSheet.addRule(selectors, declaration);
+		} else if (rule instanceof CSSMediaRule mediaRule) {
+			// メディア判定は最内の@mediaが優先(従来動作の踏襲)
+			boolean ok = false;
+			for (CSSMediaQuery query : mediaRule.getAllMediaQueries()) {
+				String medium = query.getMedium();
+				if (medium == null) {
+					medium = "all";
+				}
+				if (!query.isNot() && this.ua.is(medium.toLowerCase())) {
+					ok = true;
+					break;
+				}
+			}
+			for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
+				this.rule(inner, uri, ok);
+			}
+		} else if (rule instanceof CSSPageRule pageRule) {
+			this.page(pageRule, uri, mediaOk);
+		} else if (rule instanceof CSSFontFaceRule fontFaceRule) {
+			// 従来動作の踏襲: @font-faceはメディアに関係なく登録する
+			this.fontFace(fontFaceRule, uri);
 		}
-		this.mediaStack.add(Boolean.FALSE);
+		// その他(@keyframes, @supports, @namespace, 未知のat-rule)は無視する
 	}
 
-	public void endMedia() throws CSSException {
-		this.mediaStack.remove(this.mediaStack.size() - 1);
-	}
-
-	protected boolean inProperMedia() {
-		if (this.mediaStack.isEmpty()) {
-			return true;
+	private static List<CSSDeclaration> pageDeclarations(CSSPageRule pageRule) {
+		List<CSSDeclaration> declarations = new ArrayList<CSSDeclaration>();
+		for (ICSSPageRuleMember member : pageRule.getAllMembers()) {
+			if (member instanceof CSSDeclaration declaration) {
+				declarations.add(declaration);
+			}
+			// ページマージンボックス(@top-center等)は現段階では未対応
 		}
-		return ((Boolean) this.mediaStack.get(this.mediaStack.size() - 1)).booleanValue();
+		return declarations;
 	}
 
-	public void startPage(String name, String pseudoPage) throws CSSException {
-		if ("-cssj-page-content".equalsIgnoreCase(pseudoPage)) {
-			if (this.inProperMedia()) {
-				this.state = IN_PAGE_CONTENT;
+	private void page(CSSPageRule pageRule, URI uri, boolean mediaOk) {
+		String name = null, pseudo = null;
+		List<String> selectors = pageRule.getAllSelectors();
+		if (!selectors.isEmpty()) {
+			String selector = selectors.get(0);
+			int colon = selector.indexOf(':');
+			if (colon == -1) {
+				name = selector;
+			} else {
+				if (colon > 0) {
+					name = selector.substring(0, colon);
+				}
+				pseudo = selector.substring(colon + 1);
+			}
+		}
+		if ("-cssj-page-content".equalsIgnoreCase(pseudo)) {
+			if (mediaOk) {
+				Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
+						ElementPropertySet.getInstance(), this.ua, uri);
+				this.cssStyleSheet.addPageContent(name, this.pseudoPage, declaration);
 			}
 			return;
 		}
 		if (name != null) {
-			URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
 			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), "名前つきページはサポートしていません");
 			return;
 		}
-		if (this.inProperMedia()) {
-			if (this.state != NONE) {
-				URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
-				this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), "@pageルールがネストされています。");
-			}
-			this.declBuilder.setDeclaration(null);
-			this.declBuilder.setPropertySet(PagePropertySet.getInstance());
-			this.state = IN_PAGE;
-			this.pseudoPage = pseudoPage;
+		if (mediaOk) {
+			this.pseudoPage = pseudo;
+			Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
+					PagePropertySet.getInstance(), this.ua, uri);
+			this.cssStyleSheet.addPage(pseudo, declaration);
 		}
 	}
 
-	public void endPage(String name, String pseudoPage) throws CSSException {
-		if ("-cssj-page-content".equalsIgnoreCase(pseudoPage)) {
-			if (this.inProperMedia()) {
-				this.cssStyleSheet.addPageContent(name, this.pseudoPage, this.pageContentDeclBuilder.getDeclaration());
-				this.pageContentDeclBuilder.setDeclaration(null);
-			}
-			this.state = NONE;
-			return;
-		}
-		if (name != null) {
-			return;
-		}
-		if (this.inProperMedia()) {
-			this.cssStyleSheet.addPage(pseudoPage, this.declBuilder.getDeclaration());
-			this.state = NONE;
-			this.declBuilder.setDeclaration(null);
-			this.declBuilder.setPropertySet(ElementPropertySet.getInstance());
-		}
-	}
-
-	public void startFontFace() throws CSSException {
-		if (this.state != NONE) {
-			URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
-			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), "@font-faceルールがネストされています。");
-		}
-		this.state = IN_FONT_FACE;
-		this.declBuilder.setDeclaration(null);
-		this.declBuilder.setPropertySet(FontFacePropertySet.getInstance());
-	}
-
-	public void endFontFace() throws CSSException {
-		Declaration decl = this.declBuilder.getDeclaration();
+	private void fontFace(CSSFontFaceRule fontFaceRule, URI uri) {
+		Declaration decl = DeclarationParser.convert(fontFaceRule.getAllDeclarations(), null,
+				FontFacePropertySet.getInstance(), this.ua, uri);
 		if (decl == null) {
 			return;
 		}
@@ -271,22 +198,21 @@ public class CSSStyleSheetBuilder implements StyleSheetHandler {
 		if (uris != null) {
 			boolean missing = true;
 			for (int i = 0; i < uris.length; ++i) {
-				URI uri = uris[i];
+				URI srcUri = uris[i];
 				try {
 					Source src = null;
 					try {
 						FontFace face;
-						if (uri.getScheme() != null && uri.getScheme().equals("local-font")) {
-							String name = uri.getSchemeSpecificPart();
+						if (srcUri.getScheme() != null && srcUri.getScheme().equals("local-font")) {
+							String name = srcUri.getSchemeSpecificPart();
 							Font local = Font.decode(name);
-							// System.err.println(name+"/"+local);
 							if (local == null) {
 								continue;
 							}
 							face = new FontFace();
 							face.local = local;
 						} else {
-							src = this.ua.resolve(uri);
+							src = this.ua.resolve(srcUri);
 							if (!src.exists()) {
 								continue;
 							}
@@ -315,32 +241,67 @@ public class CSSStyleSheetBuilder implements StyleSheetHandler {
 				this.ua.message(MessageCodes.WARN_MISSING_FONT_FILE, Arrays.asList(uris).toString());
 			}
 		}
-
-		this.state = NONE;
-		this.declBuilder.setDeclaration(null);
-		this.declBuilder.setPropertySet(ElementPropertySet.getInstance());
 	}
 
-	public void startSelector(List<Selector> selectors) throws CSSException {
-		if (DEBUG) {
-			System.out.println(selectors);
+	private void importStyle(String href, String mediaTypes, URI baseURI, String encoding) {
+		if (!this.ua.is(mediaTypes)) {
+			return;
 		}
-		if (this.inProperMedia()) {
-			// 宣言の構築を準備する
-			if (this.state != NONE) {
-				URI uri = (URI) this.uriStack.get(this.uriStack.size() - 1);
-				this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), "セレクタがネストされています。");
+		if (this.uriStack.size() > MAX_DEPTH) {
+			this.ua.message(MessageCodes.WARN_DEEP_IMPORT, baseURI.toString(), String.valueOf(MAX_DEPTH));
+			return;
+		}
+		URI uri;
+		try {
+			uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(), baseURI, href);
+		} catch (URISyntaxException e) {
+			this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, href);
+			return;
+		}
+		for (int i = 0; i < this.uriStack.size(); ++i) {
+			if (this.uriStack.get(i).equals(uri)) {
+				this.ua.message(MessageCodes.WARN_LOOP_IMPORT, baseURI.toString(), uri.toString());
+				return;
 			}
-			this.declBuilder.setDeclaration(null);
-			this.state = IN_SELECTOR;
+		}
+		try {
+			Source source = this.ua.resolve(uri);
+			try {
+				InputSource inputSource = XMLUtils.toCSSInputSource(source, encoding);
+				this.parse(inputSource);
+			} finally {
+				this.ua.release(source);
+			}
+		} catch (CSSException e) {
+			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), e.getMessage());
+			LOG.log(Level.FINE, "CSS文法エラー", e);
+		} catch (IOException e) {
+			this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, uri.toString());
+			LOG.log(Level.FINE, "CSS読み込みエラー", e);
 		}
 	}
 
-	public void endSelector(List<Selector> selectors) throws CSSException {
-		if (this.inProperMedia()) {
-			this.cssStyleSheet.addRule(selectors, this.declBuilder.getDeclaration());
-			// 宣言の構築を終了した
-			this.state = NONE;
+	private static String toMediaTypes(List<CSSMediaQuery> queries) {
+		StringBuilder buff = new StringBuilder();
+		for (CSSMediaQuery query : queries) {
+			String medium = query.getMedium();
+			if (medium == null) {
+				continue;
+			}
+			if (buff.length() > 0) {
+				buff.append(' ');
+			}
+			buff.append(medium);
 		}
+		return buff.toString();
+	}
+
+	private static String read(Reader reader) throws IOException {
+		StringBuilder builder = new StringBuilder();
+		char[] buffer = new char[4096];
+		for (int len = reader.read(buffer); len != -1; len = reader.read(buffer)) {
+			builder.append(buffer, 0, len);
+		}
+		return builder.toString();
 	}
 }

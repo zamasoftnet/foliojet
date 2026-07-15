@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.css;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.logging.Logger;
@@ -18,7 +17,6 @@ import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
 import net.zamasoft.foliojet.css.selector.SelectorListCondition;
 import net.zamasoft.foliojet.css.selector.SimpleSelector;
-import net.zamasoft.foliojet.css.selector.Specificity;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
 
 public class StyleContext {
@@ -472,7 +470,6 @@ public class StyleContext {
  * 規則を固有性の順に整列するための比較子です。
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: StyleContext.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 class RuleComparator implements Comparator<Object> {
 	/**

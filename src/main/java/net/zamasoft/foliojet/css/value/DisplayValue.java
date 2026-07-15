@@ -2,9 +2,39 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: DisplayValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class DisplayValue implements Value {
+public enum DisplayValue implements Value {
+	NONE_VALUE(DisplayValue.NONE),
+
+	BLOCK_VALUE(DisplayValue.BLOCK),
+
+	INLINE_VALUE(DisplayValue.INLINE),
+
+	INLINE_BLOCK_VALUE(DisplayValue.INLINE_BLOCK),
+
+	LIST_ITEM_VALUE(DisplayValue.LIST_ITEM),
+
+	RUN_IN_VALUE(DisplayValue.RUN_IN),
+
+	TABLE_VALUE(DisplayValue.TABLE),
+
+	INLINE_TABLE_VALUE(DisplayValue.INLINE_TABLE),
+
+	TABLE_ROW_GROUP_VALUE(DisplayValue.TABLE_ROW_GROUP),
+
+	TABLE_COLUMN_VALUE(DisplayValue.TABLE_COLUMN),
+
+	TABLE_COLUMN_GROUP_VALUE(DisplayValue.TABLE_COLUMN_GROUP),
+
+	TABLE_HEADER_GROUP_VALUE(DisplayValue.TABLE_HEADER_GROUP),
+
+	TABLE_FOOTER_GROUP_VALUE(DisplayValue.TABLE_FOOTER_GROUP),
+
+	TABLE_ROW_VALUE(DisplayValue.TABLE_ROW),
+
+	TABLE_CELL_VALUE(DisplayValue.TABLE_CELL),
+
+	TABLE_CAPTION_VALUE(DisplayValue.TABLE_CAPTION);
 	public static final byte NONE = 0;
 
 	public static final byte BLOCK = 1;
@@ -37,46 +67,10 @@ public class DisplayValue implements Value {
 
 	public static final byte TABLE_CAPTION = 15;
 
-	public static final DisplayValue NONE_VALUE = new DisplayValue(NONE);
-
-	public static final DisplayValue BLOCK_VALUE = new DisplayValue(BLOCK);
-
-	public static final DisplayValue INLINE_VALUE = new DisplayValue(INLINE);
-
-	public static final DisplayValue INLINE_BLOCK_VALUE = new DisplayValue(INLINE_BLOCK);
-
-	public static final DisplayValue LIST_ITEM_VALUE = new DisplayValue(LIST_ITEM);
-
-	public static final DisplayValue RUN_IN_VALUE = new DisplayValue(RUN_IN);
-
-	public static final DisplayValue TABLE_VALUE = new DisplayValue(TABLE);
-
-	public static final DisplayValue INLINE_TABLE_VALUE = new DisplayValue(INLINE_TABLE);
-
-	public static final DisplayValue TABLE_ROW_GROUP_VALUE = new DisplayValue(TABLE_ROW_GROUP);
-
-	public static final DisplayValue TABLE_COLUMN_VALUE = new DisplayValue(TABLE_COLUMN);
-
-	public static final DisplayValue TABLE_COLUMN_GROUP_VALUE = new DisplayValue(TABLE_COLUMN_GROUP);
-
-	public static final DisplayValue TABLE_HEADER_GROUP_VALUE = new DisplayValue(TABLE_HEADER_GROUP);
-
-	public static final DisplayValue TABLE_FOOTER_GROUP_VALUE = new DisplayValue(TABLE_FOOTER_GROUP);
-
-	public static final DisplayValue TABLE_ROW_VALUE = new DisplayValue(TABLE_ROW);
-
-	public static final DisplayValue TABLE_CELL_VALUE = new DisplayValue(TABLE_CELL);
-
-	public static final DisplayValue TABLE_CAPTION_VALUE = new DisplayValue(TABLE_CAPTION);
-
 	private final byte display;
 
 	private DisplayValue(byte display) {
 		this.display = display;
-	}
-
-	public short getValueType() {
-		return TYPE_DISPLAY;
 	}
 
 	public byte getDisplay() {

@@ -8,25 +8,23 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.value.InheritValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJPageContentClear.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJPageContentClear extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJPageContentClear();
 
 	public static String[] get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		ValueListValue valueList = (ValueListValue) value;
@@ -47,7 +45,7 @@ public class CSSJPageContentClear extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -56,7 +54,7 @@ public class CSSJPageContentClear extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return InheritValue.INHERIT_VALUE;
+			return KeywordValue.INHERIT;
 		}
 		final List<Value> list = new ArrayList<Value>();
 		while (tokens.hasNext()) {
@@ -64,7 +62,7 @@ public class CSSJPageContentClear extends AbstractPrimitivePropertyInfo {
 			final Value value;
 			if (lu instanceof CssToken.Ident ident) {
 				if (ident.is("none")) {
-					value = NoneValue.NONE_VALUE;
+					value = KeywordValue.NONE;
 				} else {
 					value = new StringValue(ident.name());
 				}

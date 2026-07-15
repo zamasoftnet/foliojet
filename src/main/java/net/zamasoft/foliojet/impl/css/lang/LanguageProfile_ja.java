@@ -17,7 +17,6 @@ import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.JapaneseHyphenation;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: LanguageProfile_ja.java 1574 2018-10-26 02:44:00Z miyabe $
  */
 public class LanguageProfile_ja implements LanguageProfile {
 	private static final ValueListValue QUOTES = new ValueListValue(

@@ -6,7 +6,6 @@ import net.zamasoft.foliojet.impl.css.lang.LanguageProfile_ja;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: LanguageProfileBundle.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public final class LanguageProfileBundle {
 	private LanguageProfileBundle() {

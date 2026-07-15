@@ -10,12 +10,10 @@ import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSFontFamily.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSFontFamily extends AbstractPrimitivePropertyInfo {
 	public static final AbstractPrimitivePropertyInfo INFO = new CSSFontFamily();

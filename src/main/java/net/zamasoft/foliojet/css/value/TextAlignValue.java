@@ -2,9 +2,21 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextAlignValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class TextAlignValue implements Value {
+public enum TextAlignValue implements Value {
+	LEFT_VALUE(TextAlignValue.LEFT),
+
+	RIGHT_VALUE(TextAlignValue.RIGHT),
+
+	CENTER_VALUE(TextAlignValue.CENTER),
+
+	JUSTIFY_VALUE(TextAlignValue.JUSTIFY),
+
+	START_VALUE(TextAlignValue.START),
+
+	END_VALUE(TextAlignValue.END),
+
+	X_JUSTIFY_CENTER_VALUE(TextAlignValue.X_JUSTIFY_CENTER);
 	public static final byte LEFT = 1;
 
 	public static final byte RIGHT = 2;
@@ -19,27 +31,10 @@ public class TextAlignValue implements Value {
 
 	public static final byte X_JUSTIFY_CENTER = 101;
 
-	public static final TextAlignValue LEFT_VALUE = new TextAlignValue(LEFT);
-
-	public static final TextAlignValue RIGHT_VALUE = new TextAlignValue(RIGHT);
-
-	public static final TextAlignValue CENTER_VALUE = new TextAlignValue(CENTER);
-
-	public static final TextAlignValue JUSTIFY_VALUE = new TextAlignValue(JUSTIFY);
-	public static final TextAlignValue START_VALUE = new TextAlignValue(START);
-
-	public static final TextAlignValue END_VALUE = new TextAlignValue(END);
-
-	public static final TextAlignValue X_JUSTIFY_CENTER_VALUE = new TextAlignValue(X_JUSTIFY_CENTER);
-
 	private final byte textAlign;
 
 	private TextAlignValue(byte textAlign) {
 		this.textAlign = textAlign;
-	}
-
-	public short getValueType() {
-		return TYPE_TEXT_ALIGN;
 	}
 
 	public byte getTextAlign() {

@@ -21,7 +21,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderTopWidth.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderTopWidth extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderTopWidth();

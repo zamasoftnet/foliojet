@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
@@ -20,13 +19,13 @@ import net.zamasoft.foliojet.style.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/colors.html#propdef-background-position">
  * backgropund-position 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: BackgroundPosition.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_X = new BackgroundPosition();
@@ -43,11 +42,8 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 			// 縦書き
 			switch (BlockFlow.get(style)) {
 			case AbstractTextParams.FLOW_RL:
-				switch (yValue.getValueType()) {
-				case Value.TYPE_PERCENTAGE:
-					PercentageValue y = (PercentageValue) yValue;
+				if (yValue instanceof PercentageValue y) {
 					yValue = PercentageValue.create(100 - y.getPercentage());
-					break;
 				}
 			case AbstractTextParams.FLOW_LR: {
 				Value x = xValue;
@@ -62,11 +58,10 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 			// 縦書き
 			switch (BlockFlow.get(style)) {
 			case AbstractTextParams.FLOW_TB:
-				switch (yValue.getValueType()) {
-				case Value.TYPE_PERCENTAGE:
-					PercentageValue x = (PercentageValue) xValue;
-					xValue = PercentageValue.create(100 - x.getPercentage());
-					break;
+				if (yValue instanceof PercentageValue) {
+					// 従来実装踏襲: y がパーセントのとき x を反転する
+					PercentageValue px = (PercentageValue) xValue;
+					xValue = PercentageValue.create(100 - px.getPercentage());
 				}
 				Value x = xValue;
 				xValue = yValue;
@@ -107,8 +102,8 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return new Entry[] { new Entry(BackgroundPosition.INFO_X, InheritValue.INHERIT_VALUE),
-					new Entry(BackgroundPosition.INFO_Y, InheritValue.INHERIT_VALUE) };
+			return new Entry[] { new Entry(BackgroundPosition.INFO_X, KeywordValue.INHERIT),
+					new Entry(BackgroundPosition.INFO_Y, KeywordValue.INHERIT) };
 		}
 		Value x, y;
 

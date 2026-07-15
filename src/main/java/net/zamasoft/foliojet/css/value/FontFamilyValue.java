@@ -7,7 +7,6 @@ import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
  * フォントファミリーです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: FontFamilyValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class FontFamilyValue implements Value {
 	private static final long serialVersionUID = 0L;
@@ -42,10 +41,6 @@ public class FontFamilyValue implements Value {
 
 	public int getLength() {
 		return this.list.getLength();
-	}
-
-	public short getValueType() {
-		return TYPE_FONT_FAMILY;
 	}
 
 	@Override

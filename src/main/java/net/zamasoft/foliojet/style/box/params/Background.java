@@ -11,10 +11,8 @@ import net.zamasoft.foliojet.style.util.BorderRenderer;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 import net.zamasoft.foliojet.pdfg2d.image.CenteredImage;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
-import net.zamasoft.pdfg2d.svg.SVGImage;
 
 /**
  * 背景です。

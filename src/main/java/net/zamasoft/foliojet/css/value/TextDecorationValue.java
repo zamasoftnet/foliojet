@@ -4,7 +4,6 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextDecorationValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TextDecorationValue implements Value {
 	public static final TextDecorationValue NONE_DECORATION = new TextDecorationValue((byte) 0);
@@ -33,10 +32,6 @@ public class TextDecorationValue implements Value {
 
 	private TextDecorationValue(byte flags) {
 		this.flags = flags;
-	}
-
-	public short getValueType() {
-		return TYPE_TEXT_DECORATION;
 	}
 
 	public byte getFlags() {

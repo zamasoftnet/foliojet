@@ -4,25 +4,20 @@ import net.zamasoft.foliojet.style.box.params.Types;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: OverflowValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class OverflowValue implements Value {
-	public static final OverflowValue VISIBLE_VALUE = new OverflowValue(Types.OVERFLOW_VISIBLE);
+public enum OverflowValue implements Value {
+	VISIBLE_VALUE(Types.OVERFLOW_VISIBLE),
 
-	public static final OverflowValue HIDDEN_VALUE = new OverflowValue(Types.OVERFLOW_HIDDEN);
+	HIDDEN_VALUE(Types.OVERFLOW_HIDDEN),
 
-	public static final OverflowValue AUTO_VALUE = new OverflowValue(Types.OVERFLOW_SCROLL);
+	AUTO_VALUE(Types.OVERFLOW_SCROLL),
 
-	public static final OverflowValue SCROLL_VALUE = new OverflowValue(Types.OVERFLOW_AUTO);
+	SCROLL_VALUE(Types.OVERFLOW_AUTO);
 
 	private final byte overflow;
 
 	private OverflowValue(byte overflow) {
 		this.overflow = overflow;
-	}
-
-	public short getValueType() {
-		return TYPE_OVERFLOW;
 	}
 
 	public byte getOverflow() {

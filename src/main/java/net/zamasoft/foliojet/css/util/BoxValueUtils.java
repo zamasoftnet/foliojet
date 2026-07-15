@@ -2,9 +2,7 @@ package net.zamasoft.foliojet.css.util;
 
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.NormalValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.RealValue;
@@ -15,10 +13,10 @@ import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.style.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BoxValueUtils.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public final class BoxValueUtils {
 	private BoxValueUtils() {
@@ -34,7 +32,7 @@ public final class BoxValueUtils {
 	 */
 	public static Value toMarginWidth(UserAgent ua, CssToken token) throws PropertyException {
 		if (token instanceof CssToken.Ident ident) {
-			return ident.is("auto") ? AutoValue.AUTO_VALUE : null;
+			return ident.is("auto") ? KeywordValue.AUTO : null;
 		}
 		if (token instanceof CssToken.Percent percent) {
 			return ValueUtils.toPercentage(percent);
@@ -54,72 +52,53 @@ public final class BoxValueUtils {
 	}
 
 	/**
+	 * 絶対長さ・パーセントの数値部分を返します(キーワードは0)。
+	 */
+	private static double quantity(Value value) {
+		if (value instanceof AbsoluteLengthValue length) {
+			return length.getLength();
+		}
+		if (value instanceof PercentageValue percentage) {
+			return percentage.getRatio();
+		}
+		return 0;
+	}
+
+	/**
 	 * ValueからDimensionとして取得します。
-	 * 
-	 * @param widthValue
-	 * @param heightValue
-	 * @return
 	 */
 	public static Dimension toDimension(Value widthValue, Value heightValue) {
-		byte widthType;
-		double width;
-		switch (widthValue.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			widthType = Dimension.TYPE_ABSOLUTE;
-			width = ((AbsoluteLengthValue) widthValue).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			widthType = Dimension.TYPE_RELATIVE;
-			width = ((PercentageValue) widthValue).getRatio();
-			break;
-		case Value.TYPE_NONE:
-		case Value.TYPE_AUTO:
-			widthType = Dimension.TYPE_AUTO;
-			width = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		return Dimension.create(quantity(widthValue), quantity(heightValue), dimensionType(widthValue),
+				dimensionType(heightValue));
+	}
+
+	private static byte dimensionType(Value value) {
+		if (value instanceof AbsoluteLengthValue) {
+			return Dimension.TYPE_ABSOLUTE;
 		}
-		byte heightType;
-		double height;
-		switch (heightValue.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			heightType = Dimension.TYPE_ABSOLUTE;
-			height = ((AbsoluteLengthValue) heightValue).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			heightType = Dimension.TYPE_RELATIVE;
-			height = ((PercentageValue) heightValue).getRatio();
-			break;
-		case Value.TYPE_NONE:
-		case Value.TYPE_AUTO:
-			heightType = Dimension.TYPE_AUTO;
-			height = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		if (value instanceof PercentageValue) {
+			return Dimension.TYPE_RELATIVE;
 		}
-		return Dimension.create(width, height, widthType, heightType);
+		if (value == KeywordValue.NONE || value == KeywordValue.AUTO) {
+			return Dimension.TYPE_AUTO;
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	/**
 	 * ValueからLengthを生成します。
-	 * 
-	 * @param value
-	 * @return
 	 */
 	public static Length toLength(Value value) {
-		switch (value.getValueType()) {
-		case Value.TYPE_NONE:
-		case Value.TYPE_AUTO:
+		if (value == KeywordValue.NONE || value == KeywordValue.AUTO) {
 			return Length.AUTO_LENGTH;
-		case Value.TYPE_PERCENTAGE:
-			return Length.create(((PercentageValue) value).getRatio(), Length.TYPE_RELATIVE);
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			return Length.create(((AbsoluteLengthValue) value).getLength(), Length.TYPE_ABSOLUTE);
-		default:
-			throw new IllegalStateException();
 		}
+		if (value instanceof PercentageValue percentage) {
+			return Length.create(percentage.getRatio(), Length.TYPE_RELATIVE);
+		}
+		if (value instanceof AbsoluteLengthValue length) {
+			return Length.create(length.getLength(), Length.TYPE_ABSOLUTE);
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	/**
@@ -144,7 +123,7 @@ public final class BoxValueUtils {
 
 	public static Value toLineHeight(UserAgent ua, CssToken token) {
 		if (ValueUtils.isNormal(token)) {
-			return NormalValue.NORMAL_VALUE;
+			return KeywordValue.NORMAL;
 		}
 		final Value lineHeight;
 		if (token instanceof CssToken.Num) {
@@ -167,117 +146,37 @@ public final class BoxValueUtils {
 	}
 
 	public static Insets toInsets(Value top, Value right, Value bottom, Value left) {
-		double topWidth, rightWidth, bottomWidth, leftWidth;
-		short topType, rightType, bottomType, leftType;
+		return Insets.create(quantity(top), quantity(right), quantity(bottom), quantity(left), insetsType(top),
+				insetsType(right), insetsType(bottom), insetsType(left));
+	}
 
-		switch (top.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			topType = Insets.TYPE_ABSOLUTE;
-			topWidth = ((AbsoluteLengthValue) top).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			topType = Insets.TYPE_RELATIVE;
-			topWidth = ((PercentageValue) top).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			topType = Insets.TYPE_AUTO;
-			topWidth = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+	private static short insetsType(Value value) {
+		if (value instanceof AbsoluteLengthValue) {
+			return Insets.TYPE_ABSOLUTE;
 		}
-
-		switch (right.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			rightType = Insets.TYPE_ABSOLUTE;
-			rightWidth = ((AbsoluteLengthValue) right).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			rightType = Insets.TYPE_RELATIVE;
-			rightWidth = ((PercentageValue) right).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			rightType = Insets.TYPE_AUTO;
-			rightWidth = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		if (value instanceof PercentageValue) {
+			return Insets.TYPE_RELATIVE;
 		}
-
-		switch (bottom.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			bottomType = Insets.TYPE_ABSOLUTE;
-			bottomWidth = ((AbsoluteLengthValue) bottom).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			bottomType = Insets.TYPE_RELATIVE;
-			bottomWidth = ((PercentageValue) bottom).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			bottomType = Insets.TYPE_AUTO;
-			bottomWidth = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		if (value == KeywordValue.AUTO) {
+			return Insets.TYPE_AUTO;
 		}
-
-		switch (left.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			leftType = Insets.TYPE_ABSOLUTE;
-			leftWidth = ((AbsoluteLengthValue) left).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			leftType = Insets.TYPE_RELATIVE;
-			leftWidth = ((PercentageValue) left).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			leftType = Insets.TYPE_AUTO;
-			leftWidth = 0;
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-
-		return Insets.create(topWidth, rightWidth, bottomWidth, leftWidth, topType, rightType, bottomType, leftType);
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	public static Offset toOffset(Value xValue, Value yValue) {
-		short xType;
-		double x;
-		switch (xValue.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			xType = Offset.TYPE_ABSOLUTE;
-			x = ((AbsoluteLengthValue) xValue).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			xType = Offset.TYPE_RELATIVE;
-			x = ((PercentageValue) xValue).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			xType = Offset.TYPE_AUTO;
-			x = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		return Offset.create(quantity(xValue), quantity(yValue), offsetType(xValue), offsetType(yValue));
+	}
+
+	private static short offsetType(Value value) {
+		if (value instanceof AbsoluteLengthValue) {
+			return Offset.TYPE_ABSOLUTE;
 		}
-		short yType;
-		double y;
-		switch (yValue.getValueType()) {
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			yType = Offset.TYPE_ABSOLUTE;
-			y = ((AbsoluteLengthValue) yValue).getLength();
-			break;
-		case Value.TYPE_PERCENTAGE:
-			yType = Offset.TYPE_RELATIVE;
-			y = ((PercentageValue) yValue).getRatio();
-			break;
-		case Value.TYPE_AUTO:
-			yType = Offset.TYPE_AUTO;
-			y = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+		if (value instanceof PercentageValue) {
+			return Offset.TYPE_RELATIVE;
 		}
-		return Offset.create(x, y, xType, yType);
+		if (value == KeywordValue.AUTO) {
+			return Offset.TYPE_AUTO;
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 }

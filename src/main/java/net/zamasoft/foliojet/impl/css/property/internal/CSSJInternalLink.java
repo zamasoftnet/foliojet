@@ -6,25 +6,24 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * 画像(置換ボックス)の内部特性です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJInternalLink.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJInternalLink extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJInternalLink();
 
 	public static URI get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((URIValue) value).getURI();
@@ -43,7 +42,7 @@ public class CSSJInternalLink extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {

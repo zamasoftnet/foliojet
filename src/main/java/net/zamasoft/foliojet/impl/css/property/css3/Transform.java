@@ -9,16 +9,16 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.TransformValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: Transform.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Transform extends AbstractPrimitivePropertyInfo {
 
@@ -34,7 +34,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -42,7 +42,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		if (value == NoneValue.NONE_VALUE) {
+		if (value == KeywordValue.NONE) {
 			return TransformValue.IDENTITY_TRANSFORM_VALUE;
 		}
 		return value;
@@ -168,7 +168,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 			}
 		}
 		if (at == null) {
-			return NoneValue.NONE_VALUE;
+			return KeywordValue.NONE;
 		}
 		return TransformValue.create(at);
 	}
@@ -206,7 +206,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 		if (length == null) {
 			if (token instanceof CssToken.Num num) {
-				length = AbsoluteLengthValue.create(ua, num.value(), AbsoluteLengthValue.UNIT_PX);
+				length = AbsoluteLengthValue.create(ua, num.value(), Unit.PX);
 			} else {
 				throw new PropertyException();
 			}

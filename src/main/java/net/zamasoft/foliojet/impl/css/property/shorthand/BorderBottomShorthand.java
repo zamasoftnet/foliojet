@@ -7,8 +7,6 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
-import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.BorderBottomColor;
 import net.zamasoft.foliojet.impl.css.property.BorderBottomStyle;
@@ -16,10 +14,10 @@ import net.zamasoft.foliojet.impl.css.property.BorderBottomWidth;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderBottomShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderBottomShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new BorderBottomShorthand();
@@ -30,9 +28,9 @@ public class BorderBottomShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BorderBottomWidth.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderBottomStyle.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderBottomColor.INFO, InheritValue.INHERIT_VALUE);
+			primitives.set(BorderBottomWidth.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderBottomStyle.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderBottomColor.INFO, KeywordValue.INHERIT);
 			return;
 		}
 
@@ -55,7 +53,7 @@ public class BorderBottomShorthand extends AbstractShorthandPropertyInfo {
 			}
 			if (color == null) {
 				if (ColorValueUtils.isTransparent(lu)) {
-					color = TransparentValue.TRANSPARENT_VALUE;
+					color = KeywordValue.TRANSPARENT;
 				} else {
 					color = ColorValueUtils.toColor(ua, lu);
 				}

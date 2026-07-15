@@ -1,29 +1,31 @@
 package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * @author MIYABE Tatsuhiko
- * @version $Id: AbsoluteLengthValue.java 1552 2018-04-26 01:43:24Z miyabe $
+ * 絶対(デバイス相対を含む)長さです。
  */
 public abstract class AbsoluteLengthValue implements LengthValue, Comparable<AbsoluteLengthValue> {
-	public short getValueType() {
-		return Value.TYPE_ABSOLUTE_LENGTH;
-	}
+	public abstract Unit getUnit();
 
-	public abstract short getUnitType();
+	/**
+	 * 指定した単位での長さを返します。
+	 */
+	public abstract double getLength(Unit unit);
 
-	public abstract double getLength(short unitType);
-
+	/**
+	 * PT単位で長さを返します。
+	 */
 	public abstract double getLength();
 
 	public static final AbsoluteLengthValue ZERO = new AbsoluteLengthValue() {
-		public short getUnitType() {
-			return UNIT_PT;
+		public Unit getUnit() {
+			return Unit.PT;
 		}
 
-		public double getLength(short unitType) {
+		public double getLength(Unit unit) {
 			return 0;
 		}
 
@@ -31,8 +33,7 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 			return 0;
 		}
 
-		public int compareTo(AbsoluteLengthValue o) {
-			AbsoluteLengthValue length = (AbsoluteLengthValue) o;
+		public int compareTo(AbsoluteLengthValue length) {
 			if (length.isZero()) {
 				return 0;
 			}
@@ -51,18 +52,18 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 		}
 	};
 
-	public static AbsoluteLengthValue create(UserAgent ua, double value, short unitType) {
+	public static AbsoluteLengthValue create(UserAgent ua, double value, Unit unit) {
 		if (value == 0) {
 			return ZERO;
 		}
-		return new AbsoluteLengthValueImpl(ua, unitType, value);
+		return new AbsoluteLengthValueImpl(ua, unit, value);
 	}
 
 	public static AbsoluteLengthValue create(UserAgent ua, double value) {
 		if (value == 0) {
 			return ZERO;
 		}
-		return new AbsoluteLengthValueImpl(ua, value);
+		return new AbsoluteLengthValueImpl(ua, Unit.PT, value);
 	}
 
 	public AbsoluteLengthValue toAbsoluteLength(CSSStyle style) {
@@ -70,36 +71,6 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 	}
 
 	public String toString() {
-		StringBuilder str = new StringBuilder();
-		str.append(this.getLength(this.getUnitType()));
-		switch (this.getUnitType()) {
-		case UNIT_IN:
-			str.append("in");
-			break;
-
-		case UNIT_CM:
-			str.append("cm");
-			break;
-
-		case UNIT_MM:
-			str.append("mm");
-			break;
-
-		case UNIT_PT:
-			str.append("pt");
-			break;
-
-		case UNIT_PC:
-			str.append("pc");
-			break;
-
-		case UNIT_PX:
-			str.append("px");
-			break;
-
-		default:
-			throw new IllegalStateException();
-		}
-		return str.toString();
+		return this.getLength(this.getUnit()) + this.getUnit().name().toLowerCase();
 	}
 }

@@ -31,7 +31,7 @@ import net.zamasoft.foliojet.css.selector.ValueCondition;
 /**
  * ph-css のセレクタ構文木を内部セレクタモデルに変換します。
  */
-final class SelectorConverter {
+public final class SelectorConverter {
 	private static final Logger LOG = Logger.getLogger(SelectorConverter.class.getName());
 
 	private static final CSSWriterSettings WRITER_SETTINGS = new CSSWriterSettings();
@@ -154,7 +154,7 @@ final class SelectorConverter {
 		return attach(chain, pendingCombinator, localName, conditions, pseudoElement);
 	}
 
-	static List<Selector> convertList(List<CSSSelector> selectors) throws CSSException {
+	public static List<Selector> convertList(List<CSSSelector> selectors) throws CSSException {
 		List<Selector> result = new ArrayList<Selector>(selectors.size());
 		for (CSSSelector selector : selectors) {
 			result.add(convert(selector));

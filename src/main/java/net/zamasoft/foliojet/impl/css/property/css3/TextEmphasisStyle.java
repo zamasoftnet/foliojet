@@ -7,17 +7,16 @@ import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextEmphasisStyle.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 
@@ -38,7 +37,7 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 
 	public static String get(CSSStyle style) {
 		Value value = (Value) style.get(INFO);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((StringValue) value).getString();
@@ -49,7 +48,7 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -82,7 +81,7 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 					if (tokens.hasNext()) {
 						throw new PropertyException();
 					}
-					return NoneValue.NONE_VALUE;
+					return KeywordValue.NONE;
 				}
 				String ident = luIdent.lower();
 				if (ident.equals("filled")) {

@@ -27,7 +27,6 @@ import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ColorValueUtils.java 1629 2022-05-12 05:41:40Z miyabe $
  */
 public final class ColorValueUtils {
 	private ColorValueUtils() {

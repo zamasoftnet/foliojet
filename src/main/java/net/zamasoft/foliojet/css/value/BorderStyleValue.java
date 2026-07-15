@@ -6,9 +6,27 @@ import net.zamasoft.foliojet.style.box.params.Border;
  * 境界線のスタイルです。 DOUBLE以下の値はSPEC CSS2 17.6.2 規則3の順に並べられています。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderStyleValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class BorderStyleValue implements Value {
+public enum BorderStyleValue implements Value {
+	NONE_VALUE(BorderStyleValue.NONE),
+
+	HIDDEN_VALUE(BorderStyleValue.HIDDEN),
+
+	DOUBLE_VALUE(BorderStyleValue.DOUBLE),
+
+	SOLID_VALUE(BorderStyleValue.SOLID),
+
+	DASHED_VALUE(BorderStyleValue.DASHED),
+
+	DOTTED_VALUE(BorderStyleValue.DOTTED),
+
+	RIDGE_VALUE(BorderStyleValue.RIDGE),
+
+	OUTSET_VALUE(BorderStyleValue.OUTSET),
+
+	GROOVE_VALUE(BorderStyleValue.GROOVE),
+
+	INSET_VALUE(BorderStyleValue.INSET);
 	public static final short NONE = Border.NONE;
 
 	public static final short HIDDEN = Border.HIDDEN;
@@ -29,34 +47,10 @@ public class BorderStyleValue implements Value {
 
 	public static final short INSET = Border.INSET;
 
-	public static final BorderStyleValue NONE_VALUE = new BorderStyleValue(NONE);
-
-	public static final BorderStyleValue HIDDEN_VALUE = new BorderStyleValue(HIDDEN);
-
-	public static final BorderStyleValue DOUBLE_VALUE = new BorderStyleValue(DOUBLE);
-
-	public static final BorderStyleValue SOLID_VALUE = new BorderStyleValue(SOLID);
-
-	public static final BorderStyleValue DASHED_VALUE = new BorderStyleValue(DASHED);
-
-	public static final BorderStyleValue DOTTED_VALUE = new BorderStyleValue(DOTTED);
-
-	public static final BorderStyleValue RIDGE_VALUE = new BorderStyleValue(RIDGE);
-
-	public static final BorderStyleValue OUTSET_VALUE = new BorderStyleValue(OUTSET);
-
-	public static final BorderStyleValue GROOVE_VALUE = new BorderStyleValue(GROOVE);
-
-	public static final BorderStyleValue INSET_VALUE = new BorderStyleValue(INSET);
-
 	private final short borderStyle;
 
 	private BorderStyleValue(short borderStyle) {
 		this.borderStyle = borderStyle;
-	}
-
-	public short getValueType() {
-		return TYPE_BORDER_STYLE;
 	}
 
 	public short getBorderStyle() {

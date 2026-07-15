@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PercentageValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class PercentageValue implements Value, QuantityValue {
 	private final double percentage;
@@ -44,10 +43,6 @@ public class PercentageValue implements Value, QuantityValue {
 
 	public double getRatio() {
 		return this.percentage / 100.0;
-	}
-
-	public short getValueType() {
-		return TYPE_PERCENTAGE;
 	}
 
 	public String toString() {

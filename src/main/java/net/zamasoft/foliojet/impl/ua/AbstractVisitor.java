@@ -27,6 +27,7 @@ import net.zamasoft.foliojet.xml.Constants;
 import net.zamasoft.foliojet.xml.ext.CSSJML;
 import net.zamasoft.foliojet.xml.xhtml.XHTML;
 import net.zamasoft.zstream.resolver.util.URIHelper;
+import net.zamasoft.foliojet.css.token.Unit;
 
 public abstract class AbstractVisitor implements Visitor {
 	private static boolean isHyperlinkBox(short type) {
@@ -262,7 +263,7 @@ public abstract class AbstractVisitor implements Visitor {
 					usemap = usemap.substring(1);
 					ImageMap imageMap = this.ua.getUAContext().getImageMaps().get(usemap);
 					if (imageMap != null) {
-						double f = LengthUtils.convert(this.ua, 1.0, LengthValue.UNIT_PX, LengthValue.UNIT_PT);
+						double f = LengthUtils.convert(this.ua, 1.0, Unit.PX, Unit.PT);
 						AffineTransform t2 = AffineTransform.getScaleInstance(f, f);
 						t2.translate(x, y);
 						for (ImageMap.Area area : imageMap) {

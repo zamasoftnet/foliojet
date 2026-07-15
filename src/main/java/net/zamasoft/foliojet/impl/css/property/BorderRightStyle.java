@@ -19,7 +19,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderRightStyle.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderRightStyle extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderRightStyle();

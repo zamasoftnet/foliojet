@@ -17,12 +17,12 @@ import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Direction;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Style;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Weight;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * CSSスタイルです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSStyle.java 1587 2019-06-10 01:42:25Z miyabe $
  */
 public class CSSStyle {
 	public static final byte MODE_NORMAL = 0;
@@ -33,7 +33,6 @@ public class CSSStyle {
 	 * 匿名ボックスのスタイルです。
 	 * 
 	 * @author MIYABE Tatsuhiko
-	 * @version $Id: CSSStyle.java 1587 2019-06-10 01:42:25Z miyabe $
 	 */
 	static class AnonStyle extends CSSStyle {
 		AnonStyle() {
@@ -180,7 +179,7 @@ public class CSSStyle {
 		if (value != null) {
 			// 継承
 			this.values[code] = null;
-			if (value.getValueType() == Value.TYPE_INHERIT) {
+			if (value == KeywordValue.INHERIT) {
 				// 継承
 				value = (this.parentStyle != null) ? this.parentStyle.get(info) : info.getDefault(this);
 			}

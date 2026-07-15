@@ -4,8 +4,6 @@ package net.zamasoft.foliojet.css.selector;
  * 擬似要素セレクタ(::before 等)。
  */
 public final class PseudoElementSelector implements SimpleSelector {
-	private static final long serialVersionUID = 0;
-
 	private final String localName;
 
 	public PseudoElementSelector(String localName) {

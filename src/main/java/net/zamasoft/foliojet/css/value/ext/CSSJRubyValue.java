@@ -1,10 +1,18 @@
 package net.zamasoft.foliojet.css.value.ext;
 
+import net.zamasoft.foliojet.css.value.Value;
+
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJRubyValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSJRubyValue implements ExtValue {
+public enum CSSJRubyValue implements Value {
+	NONE_VALUE(CSSJRubyValue.NONE),
+
+	RUBY_VALUE(CSSJRubyValue.RUBY),
+
+	RB_VALUE(CSSJRubyValue.RB),
+
+	RT_VALUE(CSSJRubyValue.RT);
 	public static final byte NONE = 0;
 
 	public static final byte RUBY = 1;
@@ -13,22 +21,10 @@ public class CSSJRubyValue implements ExtValue {
 
 	public static final byte RT = 3;
 
-	public static final CSSJRubyValue NONE_VALUE = new CSSJRubyValue(NONE);
-
-	public static final CSSJRubyValue RUBY_VALUE = new CSSJRubyValue(RUBY);
-
-	public static final CSSJRubyValue RB_VALUE = new CSSJRubyValue(RB);
-
-	public static final CSSJRubyValue RT_VALUE = new CSSJRubyValue(RT);
-
 	private final byte ruby;
 
 	private CSSJRubyValue(byte ruby) {
 		this.ruby = ruby;
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_RUBY;
 	}
 
 	public byte getRuby() {

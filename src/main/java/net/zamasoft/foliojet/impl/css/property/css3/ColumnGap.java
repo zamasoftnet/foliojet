@@ -9,19 +9,18 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.EmLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-left-width">
  * border-left-width 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: ColumnGap.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ColumnGap();
@@ -35,7 +34,7 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return EmLengthValue.create(1).toAbsoluteLength(style);
+		return RelativeLengthValue.em(1).toAbsoluteLength(style);
 	}
 
 	public boolean isInherited() {
@@ -49,7 +48,7 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isNormal(lu)) {
-			return EmLengthValue.create(1);
+			return RelativeLengthValue.em(1);
 		}
 		LengthValue value = BorderValueUtils.toBorderWidth(ua, lu);
 		if (value == null) {

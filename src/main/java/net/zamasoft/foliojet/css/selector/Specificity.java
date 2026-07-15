@@ -1,13 +1,10 @@
 package net.zamasoft.foliojet.css.selector;
 
-import java.io.Serializable;
 
 /**
  * セレクタの固有性(specificity)です。a=ID、b=クラス・属性・擬似クラス、c=要素・擬似要素。
  */
-public final class Specificity implements Comparable<Specificity>, Serializable {
-	private static final long serialVersionUID = 0;
-
+public final class Specificity implements Comparable<Specificity> {
 	private final int a, b, c;
 
 	public Specificity(int a, int b, int c) {

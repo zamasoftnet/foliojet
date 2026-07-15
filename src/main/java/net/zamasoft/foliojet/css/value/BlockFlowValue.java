@@ -4,23 +4,18 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BlockFlowValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class BlockFlowValue implements Value {
-	public static final BlockFlowValue TB_VALUE = new BlockFlowValue(AbstractTextParams.FLOW_TB);
+public enum BlockFlowValue implements Value {
+	TB_VALUE(AbstractTextParams.FLOW_TB),
 
-	public static final BlockFlowValue RL_VALUE = new BlockFlowValue(AbstractTextParams.FLOW_RL);
+	RL_VALUE(AbstractTextParams.FLOW_RL),
 
-	public static final BlockFlowValue LR_VALUE = new BlockFlowValue(AbstractTextParams.FLOW_LR);
+	LR_VALUE(AbstractTextParams.FLOW_LR);
 
 	private final byte blockProgresion;
 
 	private BlockFlowValue(byte blockProgresion) {
 		this.blockProgresion = blockProgresion;
-	}
-
-	public short getValueType() {
-		return TYPE_BLOCK_FLOW;
 	}
 
 	public byte getBlockProgression() {

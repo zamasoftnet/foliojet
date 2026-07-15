@@ -1,24 +1,20 @@
 package net.zamasoft.foliojet.css.value.css3;
 
+import net.zamasoft.foliojet.css.value.Value;
+
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ColumnSpanValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class ColumnSpanValue implements CSS3Value {
+public enum ColumnSpanValue implements Value {
+	SINGLE_VALUE((byte) 1),
+
+	ALL_VALUE(ColumnSpanValue.ALL);
 	public static final byte ALL = -1;
-
-	public static final ColumnSpanValue SINGLE_VALUE = new ColumnSpanValue((byte) 1);
-
-	public static final ColumnSpanValue ALL_VALUE = new ColumnSpanValue(ALL);
 
 	private final byte columnSpan;
 
 	private ColumnSpanValue(byte textAlign) {
 		this.columnSpan = textAlign;
-	}
-
-	public short getValueType() {
-		return TYPE_COLUMN_SPAN;
 	}
 
 	public byte getColumnSpan() {

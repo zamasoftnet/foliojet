@@ -1,18 +1,15 @@
 package net.zamasoft.foliojet.css.value.ext;
 
+import net.zamasoft.foliojet.css.value.Value;
+
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJLastHeadingValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSJLastHeadingValue implements ExtValue {
+public class CSSJLastHeadingValue implements Value {
 	private final int level;
 
 	public CSSJLastHeadingValue(int level) {
 		this.level = level;
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_LAST_HEADING;
 	}
 
 	public int getLevel() {

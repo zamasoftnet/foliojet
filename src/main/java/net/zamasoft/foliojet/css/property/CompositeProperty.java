@@ -13,7 +13,6 @@ import net.zamasoft.foliojet.css.value.Value;
  * </p>
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: CompositeProperty.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CompositeProperty implements Property {
 	private final String name;

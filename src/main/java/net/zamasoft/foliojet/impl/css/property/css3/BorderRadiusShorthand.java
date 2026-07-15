@@ -6,17 +6,14 @@ import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderRadiusShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new BorderRadiusShorthand();
@@ -27,10 +24,10 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(BorderTopLeftRadius.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderTopRightRadius.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderBottomRightRadius.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(BorderBottomLeftRadius.INFO, InheritValue.INHERIT_VALUE);
+			primitives.set(BorderTopLeftRadius.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderTopRightRadius.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderBottomRightRadius.INFO, KeywordValue.INHERIT);
+			primitives.set(BorderBottomLeftRadius.INFO, KeywordValue.INHERIT);
 			return;
 		}
 		final LengthValue tlh, trh, brh, blh;

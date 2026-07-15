@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CountersValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CountersValue implements Value {
 	private final String name, delimiter;
@@ -17,10 +16,6 @@ public class CountersValue implements Value {
 
 	public CountersValue(String name, String delimiter) {
 		this(name, delimiter, ListStyleTypeValue.DECIMAL_VALUE);
-	}
-
-	public short getValueType() {
-		return TYPE_COUNTERS;
 	}
 
 	public String getName() {

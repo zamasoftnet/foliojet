@@ -9,16 +9,14 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderSpacing.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderSpacing extends AbstractCompositePrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_H = new BorderSpacing();
@@ -58,8 +56,8 @@ public class BorderSpacing extends AbstractCompositePrimitivePropertyInfo {
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return new Entry[] { new Entry(BorderSpacing.INFO_H, InheritValue.INHERIT_VALUE),
-					new Entry(BorderSpacing.INFO_V, InheritValue.INHERIT_VALUE) };
+			return new Entry[] { new Entry(BorderSpacing.INFO_H, KeywordValue.INHERIT),
+					new Entry(BorderSpacing.INFO_V, KeywordValue.INHERIT) };
 		}
 		LengthValue h = ValueUtils.toLength(ua, tokens.next());
 		LengthValue v;

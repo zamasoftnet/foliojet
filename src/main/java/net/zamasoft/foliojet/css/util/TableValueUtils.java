@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TableValueUtils.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public final class TableValueUtils {
 	private TableValueUtils() {

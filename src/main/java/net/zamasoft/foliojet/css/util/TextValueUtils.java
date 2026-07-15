@@ -8,7 +8,6 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextValueUtils.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public final class TextValueUtils {
 	private TextValueUtils() {

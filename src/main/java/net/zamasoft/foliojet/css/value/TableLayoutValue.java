@@ -4,21 +4,16 @@ import net.zamasoft.foliojet.style.box.params.TableParams;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TableLayoutValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class TableLayoutValue implements Value {
-	public static final TableLayoutValue AUTO_VALUE = new TableLayoutValue(TableParams.LAYOUT_AUTO);
+public enum TableLayoutValue implements Value {
+	AUTO_VALUE(TableParams.LAYOUT_AUTO),
 
-	public static final TableLayoutValue FIXED_VALUE = new TableLayoutValue(TableParams.LAYOUT_FIXED);
+	FIXED_VALUE(TableParams.LAYOUT_FIXED);
 
 	private final byte tableLayout;
 
 	private TableLayoutValue(byte tableLayout) {
 		this.tableLayout = tableLayout;
-	}
-
-	public short getValueType() {
-		return Value.TYPE_TABLE_LAYOUT;
 	}
 
 	public byte getTableLayout() {

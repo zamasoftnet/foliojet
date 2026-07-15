@@ -7,8 +7,6 @@ import java.util.List;
  * セレクタのリストを引数に取る条件(:not / :is)。
  */
 public final class SelectorListCondition implements Condition {
-	private static final long serialVersionUID = 0;
-
 	private final ConditionType type;
 
 	private final List<Selector> selectors;

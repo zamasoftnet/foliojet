@@ -10,7 +10,6 @@ import net.zamasoft.foliojet.style.util.ByteList;
  * 再生成ボックスです。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: StyleBuffer.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 class StyleBuffer {
 	protected static final byte START = 1;

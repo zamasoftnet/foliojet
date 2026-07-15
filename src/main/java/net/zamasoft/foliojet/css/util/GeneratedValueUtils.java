@@ -11,7 +11,6 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: GeneratedValueUtils.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public final class GeneratedValueUtils {
 	private GeneratedValueUtils() {

@@ -2,25 +2,19 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: FontVariantValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class FontVariantValue implements Value {
+public enum FontVariantValue implements Value {
+	NORMAL_VALUE(FontVariantValue.NORMAL),
+
+	SMALL_CAPS_VALUE(FontVariantValue.SMALL_CAPS);
 	public static final byte NORMAL = 1;
 
 	public static final byte SMALL_CAPS = 2;
-
-	public static final FontVariantValue NORMAL_VALUE = new FontVariantValue(NORMAL);
-
-	public static final FontVariantValue SMALL_CAPS_VALUE = new FontVariantValue(SMALL_CAPS);
 
 	private final byte fontVariant;
 
 	private FontVariantValue(byte fontVariant) {
 		this.fontVariant = fontVariant;
-	}
-
-	public short getValueType() {
-		return TYPE_FONT_VARIANT;
 	}
 
 	/**

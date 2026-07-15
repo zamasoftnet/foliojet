@@ -8,7 +8,6 @@ import org.xml.sax.XMLReader;
 
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.css.CSSElement;
-import net.zamasoft.foliojet.css.InlineObject;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.util.XMLParsers;
 import net.zamasoft.pdfg2d.gc.image.Image;

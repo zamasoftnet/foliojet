@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.EmLengthValue;
-import net.zamasoft.foliojet.css.value.ExLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
@@ -14,18 +12,17 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RelativeSizeValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.value.css3.ChLengthValue;
-import net.zamasoft.foliojet.css.value.css3.RemLengthValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList.FontPolicy;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.css.token.Unit;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: FontValueUtils.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public final class FontValueUtils {
 	private FontValueUtils() {
@@ -328,13 +325,13 @@ public final class FontValueUtils {
 		if (token instanceof CssToken.Dim dim) {
 			switch (dim.unit()) {
 			case EM:
-				return EmLengthValue.create(dim.value());
+				return RelativeLengthValue.em(dim.value());
 			case EX:
-				return ExLengthValue.create(dim.value());
+				return RelativeLengthValue.ex(dim.value());
 			case REM:
-				return RemLengthValue.create(dim.value());
+				return RelativeLengthValue.rem(dim.value());
 			case CH:
-				return ChLengthValue.create(dim.value());
+				return RelativeLengthValue.ch(dim.value());
 			default:
 				// 絶対長さはフォント倍率を適用する
 				return ValueUtils.toAbsoluteLength(ua,
@@ -342,7 +339,7 @@ public final class FontValueUtils {
 			}
 		}
 		if (token instanceof CssToken.Num num && num.value() == 0) {
-			return AbsoluteLengthValue.create(ua, 0, LengthValue.UNIT_PX);
+			return AbsoluteLengthValue.create(ua, 0, Unit.PX);
 		}
 		return null;
 	}

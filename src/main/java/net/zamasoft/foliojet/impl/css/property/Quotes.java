@@ -10,24 +10,23 @@ import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.QuotesValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: Quotes.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Quotes extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Quotes();
 
 	public static Value[] get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((ValueListValue) value).getValues();
@@ -53,7 +52,7 @@ public class Quotes extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.peek() instanceof CssToken.Ident) {// none
 			if (ValueUtils.isNone(tokens.next())) {
-				return NoneValue.NONE_VALUE;
+				return KeywordValue.NONE;
 			}
 			throw new PropertyException();
 		}
@@ -72,7 +71,7 @@ public class Quotes extends AbstractPrimitivePropertyInfo {
 			values.add(new QuotesValue(open, close));
 		}
 		if (values.isEmpty()) {
-			return NoneValue.NONE_VALUE;
+			return KeywordValue.NONE;
 		}
 		final ValueListValue fvalues = new ValueListValue((Value[]) values.toArray(new Value[values.size()]));
 		return fvalues;

@@ -8,10 +8,8 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
-import net.zamasoft.foliojet.css.util.URIUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
 import net.zamasoft.foliojet.css.value.CSSFloatValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
@@ -54,6 +52,8 @@ import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.util.NumberUtils;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.token.Unit;
 
 public final class HTMLStyleUtils {
 	private HTMLStyleUtils() {
@@ -287,7 +287,7 @@ public final class HTMLStyleUtils {
 		String str = ce.atts.getValue("border");
 		if (str != null) {
 			try {
-				width = AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(str), LengthValue.UNIT_PX);
+				width = AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(str), Unit.PX);
 				if (width.isNegative()) {
 					throw new NumberFormatException();
 				}
@@ -404,8 +404,8 @@ public final class HTMLStyleUtils {
 				case 'c':
 				case 'C':
 					if (align.equalsIgnoreCase("center")) {
-						style.set(MarginLeft.INFO, AutoValue.AUTO_VALUE);
-						style.set(MarginRight.INFO, AutoValue.AUTO_VALUE);
+						style.set(MarginLeft.INFO, KeywordValue.AUTO);
+						style.set(MarginRight.INFO, KeywordValue.AUTO);
 					}
 					break;
 				case 'l':
@@ -585,7 +585,7 @@ public final class HTMLStyleUtils {
 			if (pointSize != null) {
 				try {
 					style.set(FontSize.INFO,
-							AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(pointSize), LengthValue.UNIT_PT));
+							AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(pointSize), Unit.PT));
 				} catch (NumberFormatException e) {
 					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "point-size", size);
 				}
@@ -684,7 +684,7 @@ public final class HTMLStyleUtils {
 				return;
 			}
 			try {
-				style.set(BackgroundImage.INFO, URIUtils.createURIValue(ua.getDocumentContext().getEncoding(),
+				style.set(BackgroundImage.INFO, ValueUtils.createURIValue(ua.getDocumentContext().getEncoding(),
 						ua.getDocumentContext().getBaseURI(), background));
 			} catch (Exception e) {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "background", background);
@@ -718,7 +718,7 @@ public final class HTMLStyleUtils {
 				break;
 			}
 		}
-		return AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(buff.toString()), LengthValue.UNIT_PX);
+		return AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(buff.toString()), Unit.PX);
 	}
 
 	private static boolean isNumber(char c) {

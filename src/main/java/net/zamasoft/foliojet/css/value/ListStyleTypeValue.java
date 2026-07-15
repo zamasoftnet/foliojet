@@ -2,9 +2,54 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ListStyleTypeValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class ListStyleTypeValue implements Value {
+public enum ListStyleTypeValue implements Value {
+	NONE_VALUE(ListStyleTypeValue.NONE),
+
+	DISC_VALUE(ListStyleTypeValue.DISC),
+
+	CIRCLE_VALUE(ListStyleTypeValue.CIRCLE),
+
+	SQUARE_VALUE(ListStyleTypeValue.SQUARE),
+
+	DECIMAL_VALUE(ListStyleTypeValue.DECIMAL),
+
+	DECIMAL_LEADING_ZERO_VALUE(ListStyleTypeValue.DECIMAL_LEADING_ZERO),
+
+	LOWER_ROMAN_VALUE(ListStyleTypeValue.LOWER_ROMAN),
+
+	UPPER_ROMAN_VALUE(ListStyleTypeValue.UPPER_ROMAN),
+
+	LOWER_GREEK_VALUE(ListStyleTypeValue.LOWER_GREEK),
+
+	LOWER_ALPHA_VALUE(ListStyleTypeValue.LOWER_ALPHA),
+
+	LOWER_LATIN_VALUE(ListStyleTypeValue.LOWER_LATIN),
+
+	UPPER_ALPHA_VALUE(ListStyleTypeValue.UPPER_ALPHA),
+
+	UPPER_LATIN_VALUE(ListStyleTypeValue.UPPER_LATIN),
+
+	HEBREW_VALUE(ListStyleTypeValue.HEBREW),
+
+	ARMENIAN_VALUE(ListStyleTypeValue.ARMENIAN),
+
+	GEORGIAN_VALUE(ListStyleTypeValue.GEORGIAN),
+
+	CJK_IDEOGRAPHIC_VALUE(ListStyleTypeValue.CJK_IDEOGRAPHIC),
+
+	HIRAGANA_VALUE(ListStyleTypeValue.HIRAGANA),
+
+	KATAKANA_VALUE(ListStyleTypeValue.KATAKANA),
+
+	HIRAGANA_IROHA_VALUE(ListStyleTypeValue.HIRAGANA_IROHA),
+
+	KATAKANA_IROHA_VALUE(ListStyleTypeValue.KATAKANA_IROHA),
+
+	_CSSJ_FULL_WIDTH_DECIMAL_VALUE(
+			ListStyleTypeValue._CSSJ_FULL_WIDTH_DECIMAL),
+
+	_CSSJ_CJK_DECIMAL_VALUE(ListStyleTypeValue._CSSJ_CJK_DECIMAL);
 	public static final short NONE = 0;
 
 	public static final short DISC = 1;
@@ -51,61 +96,10 @@ public class ListStyleTypeValue implements Value {
 
 	public static final short _CSSJ_CJK_DECIMAL = 22;
 
-	public static final ListStyleTypeValue NONE_VALUE = new ListStyleTypeValue(NONE);
-
-	public static final ListStyleTypeValue DISC_VALUE = new ListStyleTypeValue(DISC);
-
-	public static final ListStyleTypeValue CIRCLE_VALUE = new ListStyleTypeValue(CIRCLE);
-
-	public static final ListStyleTypeValue SQUARE_VALUE = new ListStyleTypeValue(SQUARE);
-
-	public static final ListStyleTypeValue DECIMAL_VALUE = new ListStyleTypeValue(DECIMAL);
-
-	public static final ListStyleTypeValue DECIMAL_LEADING_ZERO_VALUE = new ListStyleTypeValue(DECIMAL_LEADING_ZERO);
-
-	public static final ListStyleTypeValue LOWER_ROMAN_VALUE = new ListStyleTypeValue(LOWER_ROMAN);
-
-	public static final ListStyleTypeValue UPPER_ROMAN_VALUE = new ListStyleTypeValue(UPPER_ROMAN);
-
-	public static final ListStyleTypeValue LOWER_GREEK_VALUE = new ListStyleTypeValue(LOWER_GREEK);
-
-	public static final ListStyleTypeValue LOWER_ALPHA_VALUE = new ListStyleTypeValue(LOWER_ALPHA);
-
-	public static final ListStyleTypeValue LOWER_LATIN_VALUE = new ListStyleTypeValue(LOWER_LATIN);
-
-	public static final ListStyleTypeValue UPPER_ALPHA_VALUE = new ListStyleTypeValue(UPPER_ALPHA);
-
-	public static final ListStyleTypeValue UPPER_LATIN_VALUE = new ListStyleTypeValue(UPPER_LATIN);
-
-	public static final ListStyleTypeValue HEBREW_VALUE = new ListStyleTypeValue(HEBREW);
-
-	public static final ListStyleTypeValue ARMENIAN_VALUE = new ListStyleTypeValue(ARMENIAN);
-
-	public static final ListStyleTypeValue GEORGIAN_VALUE = new ListStyleTypeValue(GEORGIAN);
-
-	public static final ListStyleTypeValue CJK_IDEOGRAPHIC_VALUE = new ListStyleTypeValue(CJK_IDEOGRAPHIC);
-
-	public static final ListStyleTypeValue HIRAGANA_VALUE = new ListStyleTypeValue(HIRAGANA);
-
-	public static final ListStyleTypeValue KATAKANA_VALUE = new ListStyleTypeValue(KATAKANA);
-
-	public static final ListStyleTypeValue HIRAGANA_IROHA_VALUE = new ListStyleTypeValue(HIRAGANA_IROHA);
-
-	public static final ListStyleTypeValue KATAKANA_IROHA_VALUE = new ListStyleTypeValue(KATAKANA_IROHA);
-
-	public static final ListStyleTypeValue _CSSJ_FULL_WIDTH_DECIMAL_VALUE = new ListStyleTypeValue(
-			_CSSJ_FULL_WIDTH_DECIMAL);
-
-	public static final ListStyleTypeValue _CSSJ_CJK_DECIMAL_VALUE = new ListStyleTypeValue(_CSSJ_CJK_DECIMAL);
-
 	private final short listStyleType;
 
 	private ListStyleTypeValue(short listStyleType) {
 		this.listStyleType = listStyleType;
-	}
-
-	public short getValueType() {
-		return TYPE_LIST_STYLE_TYPE;
 	}
 
 	public short getListStyleType() {

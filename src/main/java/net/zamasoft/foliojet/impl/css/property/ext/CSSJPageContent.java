@@ -8,8 +8,6 @@ import net.zamasoft.foliojet.css.property.AbstractCompositePrimitivePropertyInfo
 import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.value.InheritValue;
-import net.zamasoft.foliojet.css.value.NoneValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageContentValue;
@@ -17,10 +15,10 @@ import net.zamasoft.foliojet.style.util.ByteList;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJPageContent.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_NAME = new CSSJPageContent();
@@ -30,7 +28,7 @@ public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 
 	public static String getName(CSSStyle style) {
 		Value value = style.get(INFO_NAME);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((StringValue) value).getString();
@@ -38,7 +36,7 @@ public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 
 	public static byte[] getPages(CSSStyle style) {
 		Value value = style.get(INFO_PAGE);
-		if (value.getValueType() == Value.TYPE_NONE) {
+		if (value == KeywordValue.NONE) {
 			return null;
 		}
 		return ((CSSJPageContentValue) value).getPages();
@@ -53,7 +51,7 @@ public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return NoneValue.NONE_VALUE;
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -66,15 +64,15 @@ public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return new Entry[] { new Entry(CSSJPageContent.INFO_NAME, InheritValue.INHERIT_VALUE),
-					new Entry(CSSJPageContent.INFO_PAGE, InheritValue.INHERIT_VALUE) };
+			return new Entry[] { new Entry(CSSJPageContent.INFO_NAME, KeywordValue.INHERIT),
+					new Entry(CSSJPageContent.INFO_PAGE, KeywordValue.INHERIT) };
 		}
 		final Value name, page;
 		{
 			final CssToken lu = tokens.next();
 			if (lu instanceof CssToken.Ident ident) {
 				if (ident.is("none")) {
-					name = NoneValue.NONE_VALUE;
+					name = KeywordValue.NONE;
 				} else {
 					name = new StringValue(ident.name());
 				}
@@ -86,7 +84,7 @@ public class CSSJPageContent extends AbstractCompositePrimitivePropertyInfo {
 		}
 		{
 			if (!tokens.hasNext()) {
-				page = NoneValue.NONE_VALUE;
+				page = KeywordValue.NONE;
 			} else {
 				ByteList list = new ByteList();
 				do {

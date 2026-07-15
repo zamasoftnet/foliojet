@@ -4,27 +4,22 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: WhiteSpaceValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class WhiteSpaceValue implements Value {
-	public static final WhiteSpaceValue NORMAL_VALUE = new WhiteSpaceValue(AbstractTextParams.WHITE_SPACE_NORMAL);
+public enum WhiteSpaceValue implements Value {
+	NORMAL_VALUE(AbstractTextParams.WHITE_SPACE_NORMAL),
 
-	public static final WhiteSpaceValue PRE_VALUE = new WhiteSpaceValue(AbstractTextParams.WHITE_SPACE_PRE);
+	PRE_VALUE(AbstractTextParams.WHITE_SPACE_PRE),
 
-	public static final WhiteSpaceValue NOWRAP_VALUE = new WhiteSpaceValue(AbstractTextParams.WHITE_SPACE_NOWRAP);
+	NOWRAP_VALUE(AbstractTextParams.WHITE_SPACE_NOWRAP),
 
-	public static final WhiteSpaceValue PRE_WRAP_VALUE = new WhiteSpaceValue(AbstractTextParams.WHITE_SPACE_PRE_WRAP);
+	PRE_WRAP_VALUE(AbstractTextParams.WHITE_SPACE_PRE_WRAP),
 
-	public static final WhiteSpaceValue PRE_LINE_VALUE = new WhiteSpaceValue(AbstractTextParams.WHITE_SPACE_PRE_LINE);
+	PRE_LINE_VALUE(AbstractTextParams.WHITE_SPACE_PRE_LINE);
 
 	private final byte whiteSpace;
 
 	private WhiteSpaceValue(byte whiteSpace) {
 		this.whiteSpace = whiteSpace;
-	}
-
-	public short getValueType() {
-		return TYPE_WHITE_SPACE;
 	}
 
 	public byte getWhiteSpace() {

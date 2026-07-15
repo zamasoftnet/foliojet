@@ -17,21 +17,19 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextIndent.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TextIndent extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextIndent();
 
 	public static Length get(CSSStyle style) {
 		Value value = style.get(INFO);
-		switch (value.getValueType()) {
-		case Value.TYPE_PERCENTAGE:
-			return Length.create(((PercentageValue) value).getRatio(), Length.TYPE_RELATIVE);
-		case Value.TYPE_ABSOLUTE_LENGTH:
-			return Length.create(((AbsoluteLengthValue) value).getLength(), Length.TYPE_ABSOLUTE);
-		default:
-			throw new IllegalStateException();
+		if (value instanceof PercentageValue percentage) {
+			return Length.create(percentage.getRatio(), Length.TYPE_RELATIVE);
 		}
+		if (value instanceof AbsoluteLengthValue length) {
+			return Length.create(length.getLength(), Length.TYPE_ABSOLUTE);
+		}
+		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	public TextIndent() {

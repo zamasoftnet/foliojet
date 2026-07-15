@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CounterValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CounterValue implements Value {
 	private final String name;
@@ -16,10 +15,6 @@ public class CounterValue implements Value {
 
 	public CounterValue(String name) {
 		this(name, ListStyleTypeValue.DECIMAL);
-	}
-
-	public short getValueType() {
-		return TYPE_COUNTER;
 	}
 
 	public String getName() {

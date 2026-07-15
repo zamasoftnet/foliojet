@@ -4,28 +4,23 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextTransformValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class TextTransformValue implements Value {
-	public static final TextTransformValue NONE_VALUE = new TextTransformValue(AbstractTextParams.TEXT_TRANSFORM_NONE);
+public enum TextTransformValue implements Value {
+	NONE_VALUE(AbstractTextParams.TEXT_TRANSFORM_NONE),
 
-	public static final TextTransformValue CAPITALIZE_VALUE = new TextTransformValue(
-			AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE);
+	CAPITALIZE_VALUE(
+			AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE),
 
-	public static final TextTransformValue UPPERCASE_VALUE = new TextTransformValue(
-			AbstractTextParams.TEXT_TRANSFORM_UPPERCASE);
+	UPPERCASE_VALUE(
+			AbstractTextParams.TEXT_TRANSFORM_UPPERCASE),
 
-	public static final TextTransformValue LOWERCASE_VALUE = new TextTransformValue(
+	LOWERCASE_VALUE(
 			AbstractTextParams.TEXT_TRANSFORM_LOWERCASE);
 
 	private final byte textTransform;
 
 	private TextTransformValue(byte textTransform) {
 		this.textTransform = textTransform;
-	}
-
-	public short getValueType() {
-		return TYPE_TEXT_TRANSFORM;
 	}
 
 	public byte getTextTransform() {

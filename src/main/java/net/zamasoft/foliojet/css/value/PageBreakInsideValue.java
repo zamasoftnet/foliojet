@@ -4,12 +4,12 @@ import net.zamasoft.foliojet.style.box.params.Types;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PageBreakInsideValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class PageBreakInsideValue implements Value {
-	public static final PageBreakInsideValue AUTO_VALUE = new PageBreakInsideValue(Types.PAGE_BREAK_AUTO);
+public enum PageBreakInsideValue implements Value {
+	AUTO_VALUE(Types.PAGE_BREAK_AUTO),
 
-	public static final PageBreakInsideValue AVOID_VALUE = new PageBreakInsideValue(Types.PAGE_BREAK_AVOID);
+	AVOID_VALUE(Types.PAGE_BREAK_AVOID);
+
 	//
 	// public static final PageBreakInsideValue AVOID_PAGE_VALUE = new
 	// PageBreakInsideValue(
@@ -23,10 +23,6 @@ public class PageBreakInsideValue implements Value {
 
 	private PageBreakInsideValue(byte pageBreakInside) {
 		this.pageBreakInside = pageBreakInside;
-	}
-
-	public short getValueType() {
-		return TYPE_PAGE_BREAK_INSIDE;
 	}
 
 	public byte getPageBreakInside() {

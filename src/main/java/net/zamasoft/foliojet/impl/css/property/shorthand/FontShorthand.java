@@ -12,8 +12,6 @@ import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
-import net.zamasoft.foliojet.css.value.InheritValue;
-import net.zamasoft.foliojet.css.value.NormalValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.CSSFontFamily;
 import net.zamasoft.foliojet.impl.css.property.CSSFontStyle;
@@ -24,10 +22,10 @@ import net.zamasoft.foliojet.impl.css.property.LineHeight;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: FontShorthand.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class FontShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new FontShorthand();
@@ -38,12 +36,12 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		if (tokens.isInherit()) {
-			primitives.set(CSSFontStyle.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(FontVariant.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(FontWeight.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(FontSize.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(LineHeight.INFO, InheritValue.INHERIT_VALUE);
-			primitives.set(CSSFontFamily.INFO, InheritValue.INHERIT_VALUE);
+			primitives.set(CSSFontStyle.INFO, KeywordValue.INHERIT);
+			primitives.set(FontVariant.INFO, KeywordValue.INHERIT);
+			primitives.set(FontWeight.INFO, KeywordValue.INHERIT);
+			primitives.set(FontSize.INFO, KeywordValue.INHERIT);
+			primitives.set(LineHeight.INFO, KeywordValue.INHERIT);
+			primitives.set(CSSFontFamily.INFO, KeywordValue.INHERIT);
 			return;
 		} else if (tokens.peek() instanceof CssToken.Ident systemFont) {
 			String ident = systemFont.lower();
@@ -56,7 +54,7 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(FontWeight.INFO, FontWeightValue.NORMAL_VALUE);
 				primitives.set(FontSize.INFO,
 						AbsoluteLengthValue.create(ua, ua.getFontSize(UserAgent.FONT_SIZE_MEDIUM)));
-				primitives.set(LineHeight.INFO, NormalValue.NORMAL_VALUE);
+				primitives.set(LineHeight.INFO, KeywordValue.NORMAL);
 				primitives.set(CSSFontFamily.INFO, defaultFamily);
 				return;
 			}

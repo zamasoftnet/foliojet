@@ -13,7 +13,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * Shorthand特性です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: AbstractShorthandPropertyInfo.java 3806 2012-07-10 07:03:19Z
  *          miyabe $
  */
 public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo implements ShorthandPropertyInfo {
@@ -25,7 +24,6 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 	 * 最小単位の特性と値のリストです。
 	 * 
 	 * @author MIYABE Tatsuhiko
-	 * @version $Id: AbstractShorthandPropertyInfo.java 3806 2012-07-10 07:03:19Z
 	 *          miyabe $
 	 */
 	protected static final class Primitives {

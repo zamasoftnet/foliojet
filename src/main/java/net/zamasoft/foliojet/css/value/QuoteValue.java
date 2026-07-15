@@ -2,9 +2,15 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: QuoteValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class QuoteValue implements Value {
+public enum QuoteValue implements Value {
+	OPEN_QUOTE_VALUE(QuoteValue.OPEN_QUOTE),
+
+	CLOSE_QUOTE_VALUE(QuoteValue.CLOSE_QUOTE),
+
+	NO_OPEN_QUOTE_VALUE(QuoteValue.NO_OPEN_QUOTE),
+
+	NO_CLOSE_QUOTE_VALUE(QuoteValue.NO_CLOSE_QUOTE);
 	public static final short OPEN_QUOTE = 0;
 
 	public static final short CLOSE_QUOTE = OPEN_QUOTE + 1;
@@ -12,14 +18,6 @@ public class QuoteValue implements Value {
 	public static final short NO_OPEN_QUOTE = CLOSE_QUOTE + 1;
 
 	public static final short NO_CLOSE_QUOTE = NO_OPEN_QUOTE + 1;
-
-	public static final QuoteValue OPEN_QUOTE_VALUE = new QuoteValue(OPEN_QUOTE);
-
-	public static final QuoteValue CLOSE_QUOTE_VALUE = new QuoteValue(CLOSE_QUOTE);
-
-	public static final QuoteValue NO_OPEN_QUOTE_VALUE = new QuoteValue(NO_OPEN_QUOTE);
-
-	public static final QuoteValue NO_CLOSE_QUOTE_VALUE = new QuoteValue(NO_CLOSE_QUOTE);
 
 	private final short quote;
 
@@ -30,11 +28,7 @@ public class QuoteValue implements Value {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see info.port4.cssj.media.values.Value#getValueType()
 	 */
-	public short getValueType() {
-		return TYPE_QUOTE;
-	}
 
 	public short getQuote() {
 		return this.quote;

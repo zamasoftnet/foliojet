@@ -5,8 +5,6 @@ package net.zamasoft.foliojet.css.selector;
  * ancestor が左側の文脈、simple が右側の単純セレクタです。
  */
 public final class CombinatorSelector implements Selector {
-	private static final long serialVersionUID = 0;
-
 	private final SelectorType type;
 
 	private final Selector ancestor;

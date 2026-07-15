@@ -6,7 +6,6 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.IntegerValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -14,10 +13,10 @@ import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ZIndex.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class ZIndex extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ZIndex();
@@ -29,7 +28,7 @@ public class ZIndex extends AbstractPrimitivePropertyInfo {
 
 	public static byte getType(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_AUTO || CSSPosition.get(style) == PositionValue.STATIC) {
+		if (value == KeywordValue.AUTO || CSSPosition.get(style) == PositionValue.STATIC) {
 			return Params.Z_INDEX_AUTO;
 		}
 		return Params.Z_INDEX_SPECIFIED;
@@ -40,7 +39,7 @@ public class ZIndex extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return AutoValue.AUTO_VALUE;
+		return KeywordValue.AUTO;
 	}
 
 	public boolean isInherited() {

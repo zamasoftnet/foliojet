@@ -1,11 +1,10 @@
 package net.zamasoft.foliojet.css.selector;
 
-import java.io.Serializable;
 
 /**
  * 単純セレクタに付加される条件(クラス・ID・属性・擬似クラス等)。
  */
-public interface Condition extends Serializable {
+public interface Condition {
 	public enum ConditionType {
 		CLASS_CONDITION, PSEUDO_CLASS_CONDITION, ID_CONDITION, ATTRIBUTE_CONDITION,
 		ONE_OF_ATTRIBUTE_CONDITION, BEGIN_HYPHEN_ATTRIBUTE_CONDITION, PREFIX_ATTRIBUTE_CONDITION,

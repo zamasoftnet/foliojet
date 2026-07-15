@@ -3,16 +3,16 @@ package net.zamasoft.foliojet.css.property;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.property.CompositeProperty.Entry;
 import net.zamasoft.foliojet.css.token.TokenStream;
-import net.zamasoft.foliojet.css.value.InheritValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * 分解不可能なプロパティです。
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: AbstractPrimitivePropertyInfo.java 3806 2012-07-10 07:03:19Z
  *          miyabe $
  */
 public abstract class AbstractPrimitivePropertyInfo extends AbstractPropertyInfo implements PrimitivePropertyInfo {
@@ -26,11 +26,11 @@ public abstract class AbstractPrimitivePropertyInfo extends AbstractPropertyInfo
 		Value value;
 		if (tokens.isInherit()) {
 			// 継承
-			value = InheritValue.INHERIT_VALUE;
+			value = KeywordValue.INHERIT;
 		} else {
 			value = this.parseValue(tokens, ua, uri);
 		}
-		return new PrimitiveProperty(this, value, uri, important);
+		return new CompositeProperty(this.getName(), new Entry[] { new Entry(this, value) }, uri, important);
 	}
 
 	public PrimitivePropertyInfo getEffectiveInfo(CSSStyle style) {

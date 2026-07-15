@@ -1,7 +1,9 @@
 package net.zamasoft.foliojet.css.property;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -11,13 +13,34 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
+ * ある文脈(要素・@page・@font-face)で解釈可能なプロパティの集合です。
+ *
  * @author MIYABE Tatsuhiko
- * @version $Id: PropertySet.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public abstract class PropertySet {
 	private static final Logger LOG = Logger.getLogger(PropertySet.class.getName());
 
-	protected abstract PropertyInfo getPropertyParser(String name);
+	private final Map<String, PropertyInfo> nameToInfo = new HashMap<String, PropertyInfo>();
+
+	/**
+	 * プロパティを登録します。
+	 */
+	protected final void put(PropertyInfo... infos) {
+		for (PropertyInfo info : infos) {
+			this.nameToInfo.put(info.getName(), info);
+		}
+	}
+
+	/**
+	 * 別名(ベンダープレフィックス等)でプロパティを登録します。
+	 */
+	protected final void alias(String name, PropertyInfo info) {
+		this.nameToInfo.put(name, info);
+	}
+
+	protected PropertyInfo getPropertyParser(String name) {
+		return this.nameToInfo.get(name);
+	}
 
 	public final Property parseDeclaration(String name, List<CssToken> value, UserAgent ua, URI uri,
 			boolean important) {

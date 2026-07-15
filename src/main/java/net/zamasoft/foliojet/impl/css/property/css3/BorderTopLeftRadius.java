@@ -16,12 +16,10 @@ import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.RectBorder.Radius;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderTopLeftRadius.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderTopLeftRadius extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderTopLeftRadius();

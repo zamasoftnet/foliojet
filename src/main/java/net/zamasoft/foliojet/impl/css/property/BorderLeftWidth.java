@@ -24,7 +24,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
  * border-left-width 特性 </a>です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: BorderLeftWidth.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BorderLeftWidth extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderLeftWidth();

@@ -8,22 +8,21 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.PaintValue;
-import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BackgroundColor.java 1626 2022-05-03 00:35:38Z miyabe $
  */
 public class BackgroundColor extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundColor();
 
 	public static PaintValue get(CSSStyle style) {
 		Value value = style.get(INFO);
-		if (value.getValueType() == Value.TYPE_TRANSPARENT) {
+		if (value == KeywordValue.TRANSPARENT) {
 			return null;
 		}
 		return (PaintValue)value;
@@ -34,7 +33,7 @@ public class BackgroundColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return TransparentValue.TRANSPARENT_VALUE;
+		return KeywordValue.TRANSPARENT;
 	}
 
 	public boolean isInherited() {
@@ -48,7 +47,7 @@ public class BackgroundColor extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ColorValueUtils.isTransparent(lu)) {
-			return TransparentValue.TRANSPARENT_VALUE;
+			return KeywordValue.TRANSPARENT;
 		}
 		Value value = ColorValueUtils.toPaint(ua, lu);
 		if (value == null) {

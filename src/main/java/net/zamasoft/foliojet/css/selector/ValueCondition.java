@@ -4,8 +4,6 @@ package net.zamasoft.foliojet.css.selector;
  * 値のみを持つ条件(クラス・ID・擬似クラス・言語)。
  */
 public final class ValueCondition implements Condition {
-	private static final long serialVersionUID = 0;
-
 	private final ConditionType type;
 
 	private final String value;

@@ -1,20 +1,16 @@
 package net.zamasoft.foliojet.css.value.internal;
 
 import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSJImageValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class CSSJImageValue implements InternalValue {
+public class CSSJImageValue implements Value {
 	private final Image image;
 
 	public CSSJImageValue(Image image) {
 		this.image = image;
-	}
-
-	public short getValueType() {
-		return TYPE_CSSJ_IMAGE;
 	}
 
 	public Image getImage() {

@@ -1,10 +1,18 @@
 package net.zamasoft.foliojet.css.value.css3;
 
+import net.zamasoft.foliojet.css.value.Value;
+
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: ColumnFillValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class BackgroundClipValue implements CSS3Value {
+public enum BackgroundClipValue implements Value {
+	BORDER_BOX_VALUE(BackgroundClipValue.BORDER_BOX),
+
+	PADDING_BOX_VALUE(BackgroundClipValue.PADDING_BOX),
+
+	CONTENT_BOX_VALUE(BackgroundClipValue.CONTENT_BOX),
+
+	TEXT_VALUE(BackgroundClipValue.TEXT);
 	public static final byte BORDER_BOX = 1;
 
 	public static final byte PADDING_BOX = 2;
@@ -13,22 +21,10 @@ public class BackgroundClipValue implements CSS3Value {
 
 	public static final byte TEXT = 4;
 
-	public static final BackgroundClipValue BORDER_BOX_VALUE = new BackgroundClipValue(BORDER_BOX);
-
-	public static final BackgroundClipValue PADDING_BOX_VALUE = new BackgroundClipValue(PADDING_BOX);
-
-	public static final BackgroundClipValue CONTENT_BOX_VALUE = new BackgroundClipValue(CONTENT_BOX);
-
-	public static final BackgroundClipValue TEXT_VALUE = new BackgroundClipValue(TEXT);
-
 	private final byte backgroundClip;
 
 	private BackgroundClipValue(byte backgroundClip) {
 		this.backgroundClip = backgroundClip;
-	}
-
-	public short getValueType() {
-		return TYPE_BACKGROUND_CLIP;
 	}
 
 	public byte getBackgroundClip() {

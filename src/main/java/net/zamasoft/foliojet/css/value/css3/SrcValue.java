@@ -1,14 +1,14 @@
 package net.zamasoft.foliojet.css.value.css3;
 
 import java.net.URI;
+import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * Unicode-Range です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: SrcValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class SrcValue implements CSS3Value {
+public class SrcValue implements Value {
 	private final URI[] uris;
 
 	public SrcValue(URI[] uris) {
@@ -19,7 +19,4 @@ public class SrcValue implements CSS3Value {
 		return this.uris;
 	}
 
-	public short getValueType() {
-		return TYPE_SRC;
-	}
 }

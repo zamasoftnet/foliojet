@@ -23,7 +23,4 @@ public class VerticalAlignValue extends CSSVerticalAlignPolicy implements Value 
 		super(verticalAlign);
 	}
 
-	public short getValueType() {
-		return TYPE_VERTICAL_ALIGN;
-	}
 }

@@ -2,9 +2,17 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: PositionValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class PositionValue implements Value {
+public enum PositionValue implements Value {
+	STATIC_VALUE(PositionValue.STATIC),
+
+	RELATIVE_VALUE(PositionValue.RELATIVE),
+
+	ABSOLUTE_VALUE(PositionValue.ABSOLUTE),
+
+	FIXED_VALUE(PositionValue.FIXED),
+
+	_CSSJ_CURRENT_PAGE_VALUE(PositionValue._CSSJ_CURRENT_PAGE);
 	public static final byte STATIC = 0;
 
 	public static final byte RELATIVE = 1;
@@ -15,24 +23,10 @@ public class PositionValue implements Value {
 
 	public static final byte _CSSJ_CURRENT_PAGE = 4;
 
-	public static final PositionValue STATIC_VALUE = new PositionValue(STATIC);
-
-	public static final PositionValue RELATIVE_VALUE = new PositionValue(RELATIVE);
-
-	public static final PositionValue ABSOLUTE_VALUE = new PositionValue(ABSOLUTE);
-
-	public static final PositionValue FIXED_VALUE = new PositionValue(FIXED);
-
-	public static final PositionValue _CSSJ_CURRENT_PAGE_VALUE = new PositionValue(_CSSJ_CURRENT_PAGE);
-
 	private final byte position;
 
 	private PositionValue(byte position) {
 		this.position = position;
-	}
-
-	public short getValueType() {
-		return Value.TYPE_POSITION;
 	}
 
 	public byte getPosition() {

@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: WordWrap.java 1570 2018-07-11 05:50:15Z miyabe $
  */
 public class WordWrap extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new WordWrap();

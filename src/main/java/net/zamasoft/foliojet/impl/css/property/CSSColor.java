@@ -16,7 +16,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: CSSColor.java 1624 2022-05-02 08:59:55Z miyabe $
  */
 public class CSSColor extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSColor();

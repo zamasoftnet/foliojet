@@ -1,27 +1,21 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Style;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: FontStyleValue.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class FontStyleValue implements Value {
-	public static final FontStyleValue NORMAL_VALUE = new FontStyleValue(Style.NORMAL);
+public enum FontStyleValue implements Value {
+	NORMAL_VALUE(Style.NORMAL),
 
-	public static final FontStyleValue ITALIC_VALUE = new FontStyleValue(Style.ITALIC);
+	ITALIC_VALUE(Style.ITALIC),
 
-	public static final FontStyleValue OBLIQUE_VALUE = new FontStyleValue(Style.OBLIQUE);
+	OBLIQUE_VALUE(Style.OBLIQUE);
 
 	private final Style fontStyle;
 
 	private FontStyleValue(Style fontStyle) {
 		this.fontStyle = fontStyle;
-	}
-
-	public short getValueType() {
-		return TYPE_FONT_STYLE;
 	}
 
 	/**

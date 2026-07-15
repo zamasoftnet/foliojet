@@ -13,7 +13,6 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.TransparentValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.TextShadowValue;
 import net.zamasoft.foliojet.css.value.css3.TextShadowValue.Shadow;
@@ -22,10 +21,10 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: TextShadow.java 1624 2022-05-02 08:59:55Z miyabe $
  */
 public class TextShadow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextShadow();
@@ -88,7 +87,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
 			if (lu == CssToken.Op.COMMA) {
-				if (color == null || color != TransparentValue.TRANSPARENT_VALUE) {
+				if (color == null || color != KeywordValue.TRANSPARENT) {
 					if (shadows == null) {
 						shadows = new ArrayList<Shadow>();
 					}
@@ -112,7 +111,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			}
 			if (color == null) {
 				if (ColorValueUtils.isTransparent(lu)) {
-					color = TransparentValue.TRANSPARENT_VALUE;
+					color = KeywordValue.TRANSPARENT;
 				} else {
 					color = ColorValueUtils.toColor(ua, lu);
 				}
@@ -122,7 +121,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			}
 			throw new PropertyException();
 		}
-		if (color == null || color != TransparentValue.TRANSPARENT_VALUE) {
+		if (color == null || color != KeywordValue.TRANSPARENT) {
 			if (shadows == null) {
 				shadows = new ArrayList<Shadow>();
 			}

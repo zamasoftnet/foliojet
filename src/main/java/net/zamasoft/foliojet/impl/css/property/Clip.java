@@ -8,24 +8,23 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.AutoValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.RectValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: Clip.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Clip extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Clip();
 
 	public static RectValue get(CSSStyle style) {
 		Value value = style.get(INFO);
-		return value.getValueType() == Value.TYPE_AUTO ? null : (RectValue) value;
+		return value == KeywordValue.AUTO ? null : (RectValue) value;
 	}
 
 	private Clip() {
@@ -33,7 +32,7 @@ public class Clip extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return AutoValue.AUTO_VALUE;
+		return KeywordValue.AUTO;
 	}
 
 	public boolean isInherited() {
@@ -47,7 +46,7 @@ public class Clip extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isAuto(lu)) {
-			return AutoValue.AUTO_VALUE;
+			return KeywordValue.AUTO;
 		}
 		if (lu instanceof CssToken.Func func && func.is("rect")) {
 			final TokenStream params = func.argStream();

@@ -12,7 +12,6 @@ import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: BrokenImage.java 1632 2022-06-16 01:22:06Z miyabe $
  */
 public class BrokenImage implements Image {
 	protected static final double WIDTH = 40, HEIGHT = 40;

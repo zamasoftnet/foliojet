@@ -61,7 +61,6 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.zstream.resolver.protocol.stream.StreamSource;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.FontSourceManager;
-import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.pdf.font.ConfigurablePDFFontSourceManager;
 import net.zamasoft.pdfg2d.pdf.font.PDFFontSource;
 

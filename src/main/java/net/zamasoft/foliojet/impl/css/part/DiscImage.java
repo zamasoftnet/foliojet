@@ -10,7 +10,6 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
  * @author MIYABE Tatsuhiko
- * @version $Id: DiscImage.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class DiscImage implements Image {
 	protected final double size;

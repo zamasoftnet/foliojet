@@ -7,8 +7,6 @@ import java.util.List;
  * 要素セレクタ(条件つき)。localName が null の場合は全称セレクタです。
  */
 public final class ElementSelector implements SimpleSelector {
-	private static final long serialVersionUID = 0;
-
 	private final String localName;
 
 	private final List<Condition> conditions;
