@@ -86,7 +86,8 @@ div.pseudo-h6 {
 
 /* ノンブル */
 .header {
-  -cssj-regeneratable: header;
+  /* 旧: -cssj-regeneratable(4で廃止)。マージンボックス実装後に移植 */
+  display: none;
   top: -2em;
   text-align: center;
 }
@@ -101,11 +102,13 @@ div.pseudo-h6 {
 }
 
 .clear-header {
-  -cssj-regeneratable: header;
+  /* 旧: -cssj-regeneratable(4で廃止) */
+  display: none;
 }
 
 .footer {
-  -cssj-regeneratable: footer;
+  /* 旧: -cssj-regeneratable(4で廃止) */
+  display: none;
   bottom: -2em;
   counter-increment: page;
 }
@@ -313,7 +316,8 @@ xmp, pre, plaintext {
   page-break-before: left;
 }
 .colophon {
-  -cssj-regeneratable: footer;
+  /* 旧: -cssj-regeneratable(4で廃止) */
+  display: none;
   bottom: 0;
   width: 100%;
   font-family: 'ヒラギノ明朝体';

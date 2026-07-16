@@ -6,5 +6,5 @@ package net.zamasoft.foliojet.layout.box.params;
  * @author MIYABE Tatsuhiko
  */
 public enum Fiducial {
-	CONTEXT, ALL_PAGE, CURRENT_PAGE
+	CONTEXT, ALL_PAGE
 }

@@ -10,9 +10,7 @@ public enum PositionValue implements Value {
 
 	ABSOLUTE_VALUE(PositionValue.ABSOLUTE),
 
-	FIXED_VALUE(PositionValue.FIXED),
-
-	_CSSJ_CURRENT_PAGE_VALUE(PositionValue._CSSJ_CURRENT_PAGE);
+	FIXED_VALUE(PositionValue.FIXED);
 	public static final byte STATIC = 0;
 
 	public static final byte RELATIVE = 1;
@@ -20,8 +18,6 @@ public enum PositionValue implements Value {
 	public static final byte ABSOLUTE = 2;
 
 	public static final byte FIXED = 3;
-
-	public static final byte _CSSJ_CURRENT_PAGE = 4;
 
 	private final byte position;
 
@@ -46,9 +42,6 @@ public enum PositionValue implements Value {
 
 		case FIXED:
 			return "fixed";
-
-		case _CSSJ_CURRENT_PAGE:
-			return "-cssj-current-page";
 
 		default:
 			throw new IllegalStateException();

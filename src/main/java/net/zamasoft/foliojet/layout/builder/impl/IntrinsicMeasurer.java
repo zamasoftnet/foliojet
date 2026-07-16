@@ -9,14 +9,12 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
-import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.ClearMode;
-import net.zamasoft.foliojet.layout.box.params.Fiducial;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
@@ -269,24 +267,7 @@ final class IntrinsicMeasurer {
 
 		case ABSOLUTE:
 			// 絶対配置
-			AbstractContainerBox contextBox;
-			switch (((AbsoluteReplacedBox) replacedBox).getAbsolutePos().fiducial) {
-			case Fiducial.CONTEXT:
-			case Fiducial.ALL_PAGE: {
-				// 通常の絶対配置
-				// 固定配置
-				contextBox = this.builder.getFlowBox();
-			}
-				break;
-			case Fiducial.CURRENT_PAGE: {
-				// ページコンテンツ
-				contextBox = this.builder.getPageContext().getRootBox();
-			}
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			replacedBox.calculateFrame(contextBox.getLineSize());
+			replacedBox.calculateFrame(this.builder.getFlowBox().getLineSize());
 			break;
 
 		default:

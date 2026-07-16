@@ -58,9 +58,6 @@ public class CSSStyleSheetBuilder {
 	/** スタイルシートのURIのスタック(importの深さ・循環検出)。 */
 	private final List<URI> uriStack = new ArrayList<URI>();
 
-	/** 直前に処理した@pageの擬似ページ(-cssj-page-contentが参照する。従来動作の踏襲)。 */
-	private String pseudoPage;
-
 	private CSSStyleSheet cssStyleSheet;
 
 	public CSSStyleSheetBuilder(UserAgent ua) {
@@ -167,11 +164,10 @@ public class CSSStyleSheetBuilder {
 			}
 		}
 		if ("-cssj-page-content".equalsIgnoreCase(pseudo)) {
-			if (mediaOk) {
-				Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
-						ElementPropertySet.getInstance(), this.ua, uri);
-				this.cssStyleSheet.addPageContent(name, this.pseudoPage, declaration);
-			}
+			// 4で廃止された独自機能(3.xの@page :-cssj-page-content)。
+			// 標準の@pageマージンボックスへの移行を促す
+			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+					"@page :-cssj-page-content は廃止されました。@page のマージンボックスを使用してください");
 			return;
 		}
 		if (name != null) {
@@ -179,7 +175,6 @@ public class CSSStyleSheetBuilder {
 			return;
 		}
 		if (mediaOk) {
-			this.pseudoPage = pseudo;
 			Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
 					PagePropertySet.getInstance(), this.ua, uri);
 			this.cssStyleSheet.addPage(pseudo, declaration);

@@ -39,8 +39,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		switch (display) {
 		case DisplayValue.INLINE_TABLE: {
 			final byte position = CSSPosition.get(style);
-			if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED
-					|| position == PositionValue._CSSJ_CURRENT_PAGE) {
+			if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED) {
 				break;
 			}
 			if (CSSFloat.get(style) != CSSFloatValue.NONE) {
@@ -51,8 +50,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			break;
 		case DisplayValue.INLINE: {
 			final short position = CSSPosition.get(style);
-			if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED
-					|| position == PositionValue._CSSJ_CURRENT_PAGE) {
+			if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED) {
 				value = DisplayValue.INLINE_BLOCK_VALUE;
 				display = DisplayValue.INLINE_BLOCK;
 				break;
@@ -65,8 +63,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			break;
 		case DisplayValue.INLINE_BLOCK: {
 			final short position = CSSPosition.get(style);
-			if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED
-					|| position == PositionValue._CSSJ_CURRENT_PAGE) {
+			if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED) {
 				break;
 			}
 			if (CSSFloat.get(style) != CSSFloatValue.NONE) {

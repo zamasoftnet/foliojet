@@ -25,16 +25,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
-import net.zamasoft.foliojet.css.CSSStyleSheet;
 import net.zamasoft.foliojet.css.Declaration;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.html.HTMLStyle;
@@ -142,9 +139,6 @@ import net.zamasoft.foliojet.impl.css.property.box.Transform;
 import net.zamasoft.foliojet.impl.css.property.box.TransformOrigin;
 import net.zamasoft.foliojet.impl.css.property.text.WordWrap;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContent;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContentClear;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJRegeneratable;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlAlign;
@@ -154,7 +148,6 @@ import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
 import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
@@ -196,7 +189,6 @@ import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.Params;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
 import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
@@ -217,7 +209,6 @@ import net.zamasoft.foliojet.layout.util.IntList;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.foliojet.layout.visitor.VisitorWrapper;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.PageRef;
@@ -286,11 +277,6 @@ public class StyleBuilder implements PageGenerator {
 	private final List<int[]> listCounterStack = new ArrayList<int[]>();
 
 	private Marker marker = null;
-
-	private final Map<CSSElement, String[]> toPageContentClear = new HashMap<CSSElement, String[]>();
-	private final Map<CSSElement, PageContent> toPageContent = new HashMap<CSSElement, PageContent>();
-	private final Map<String, PageContent> pageContents = new HashMap<String, PageContent>();
-	private final List<PageContent> pageContentStack = new ArrayList<PageContent>();
 
 	private Segment runIn = null;
 
@@ -512,33 +498,6 @@ public class StyleBuilder implements PageGenerator {
 
 		// 最大ページ数
 		this.maxPageNumber = UAProps.OUTPUT_PAGE_LIMIT.getInteger(ua);
-
-		// ページごとに生成される内容
-		for (CSSStyleSheet.PageContent cpc : this.styleContext.getPageContents()) {
-			CSSStyle style = CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE);
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
-			style.set(CSSJPageContent.INFO_NAME, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
-			style.set(CSSJRegeneratable.INFO, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
-			style.set(CSSPosition.INFO, PositionValue._CSSJ_CURRENT_PAGE_VALUE, CSSStyle.MODE_IMPORTANT);
-			byte[] pages = null;
-			if (cpc.pseudoPage != null) {
-				String ident = cpc.pseudoPage;
-				if (ident.equals("first")) {
-					pages = new byte[] { CSSElement.PC_FIRST };
-				} else if (ident.equals("right")) {
-					pages = new byte[] { CSSElement.PC_RIGHT };
-				} else if (ident.equals("left")) {
-					pages = new byte[] { CSSElement.PC_LEFT };
-				} else if (ident.equals("single")) {
-					pages = new byte[] { (byte) 0 };
-				}
-			}
-			cpc.decleration.applyProperties(style);
-			PageContent pc = new PageContent(this.styleContext, pages, cpc.name);
-			pc.startStyle(style);
-			pc.endStyle(style);
-			this.pageContents.put(pc.name, pc);
-		}
 	}
 
 	public UserAgent getUserAgent() {
@@ -606,10 +565,6 @@ public class StyleBuilder implements PageGenerator {
 			break;
 		case PositionValue.FIXED:
 			pos.fiducial = Fiducial.ALL_PAGE;
-			pos.autoPosition = AutoPosition.BLOCK;
-			break;
-		case PositionValue._CSSJ_CURRENT_PAGE:
-			pos.fiducial = Fiducial.CURRENT_PAGE;
 			pos.autoPosition = AutoPosition.BLOCK;
 			break;
 		}
@@ -1137,8 +1092,7 @@ public class StyleBuilder implements PageGenerator {
 	private AbstractBlockBox createBlockBox(CSSStyle style, BlockParams params, byte position, byte display,
 			byte floating) {
 		final AbstractBlockBox blockBox;
-		if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED
-				|| position == PositionValue._CSSJ_CURRENT_PAGE) {
+		if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED) {
 			final AbsolutePos pos = new AbsolutePos();
 			this.setupAbsolutePos(pos, style);
 			blockBox = new AbsoluteBlockBox(params, pos);
@@ -1179,19 +1133,6 @@ public class StyleBuilder implements PageGenerator {
 			System.err.println(style.path());
 		}
 		final CSSElement ce = style.getCSSElement();
-
-		// ページごとに生成する内容
-		boolean regenerate = false;
-		String pageContentName = CSSJPageContent.getName(style);
-		if (pageContentName == null) {
-			pageContentName = CSSJRegeneratable.get(style);
-			if (pageContentName != null) {
-				regenerate = true;
-			}
-		}
-		if (pageContentName != null) {
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
-		}
 
 		short explDisplay = Display.get(style);
 
@@ -1246,45 +1187,7 @@ public class StyleBuilder implements PageGenerator {
 		}
 
 		if (!inRunIn) {
-			// ページごとに生成される内容
-			String[] pageContentClearNames = CSSJPageContentClear.get(style);
-			if (pageContentClearNames != null) {
-				this.toPageContentClear.put(ce, pageContentClearNames);
-			}
-
-			final LanguageProfile lang = LanguageProfileBundle
-					.getLanguageProfile(style.getCSSElement().lang);
-			
-			if (pageContentName != null) {
-				final PageContent pageContent;
-				if (regenerate) {
-					pageContent = new Regeneratable(this.styleContext.copy(1));
-				} else {
-					style.set(CSSJPageContent.INFO_NAME, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
-					style.set(CSSJRegeneratable.INFO, KeywordValue.NONE, CSSStyle.MODE_IMPORTANT);
-					style.set(CSSPosition.INFO, PositionValue._CSSJ_CURRENT_PAGE_VALUE, CSSStyle.MODE_IMPORTANT);
-					pageContent = new PageContent(this.styleContext.copy(1), CSSJPageContent.getPages(style),
-							pageContentName);
-				}
-				final InlinePos pos = new InlinePos();
-				final InlineParams params = new InlineParams();
-				params.element = ce;
-				params.fontStyle = style.getFontStyle();
-				params.fontManager = this.ua.getFontManager();
-				params.lineBreakRules = lang.getLineBreakRules(style);
-				final InlineBox inlineBox = new InlineBox(params, pos);
-				this.startBox(inlineBox);
-				this.endBox();
-				this.toPageContent.put(ce, pageContent);
-				this.pageContentStack.add(pageContent);
-			}
-
-			if (!this.pageContentStack.isEmpty()) {
-				// ページごとに生成される内容の記録
-				PageContent pageContent = (PageContent) this.pageContentStack.get(this.pageContentStack.size() - 1);
-				pageContent.startStyle(style);
-				this.currentStyle = style;
-			} else {
+			{
 				if (explDisplay == DisplayValue.RUN_IN) {
 					// run-inの開始
 					style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
@@ -1385,7 +1288,8 @@ public class StyleBuilder implements PageGenerator {
 							BlockParams params = new BlockParams();
 							params.fontStyle = style.getFontStyle();
 							params.fontManager = this.ua.getFontManager();
-							params.lineBreakRules = lang.getLineBreakRules(style);
+							params.lineBreakRules = LanguageProfileBundle
+									.getLanguageProfile(style.getCSSElement().lang).getLineBreakRules(style);
 							params.direction = Direction.get(style);
 							params.flow = BlockFlow.get(style);
 							params.element = ce;
@@ -2075,8 +1979,7 @@ public class StyleBuilder implements PageGenerator {
 				final AbstractReplacedBox replacedBox;
 				boolean inline = false;
 				ReplacedParams params;
-				if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED
-						|| position == PositionValue._CSSJ_CURRENT_PAGE) {
+				if (position == PositionValue.ABSOLUTE || position == PositionValue.FIXED) {
 					final AbsolutePos pos = new AbsolutePos();
 					params = new ReplacedParams();
 					this.setupReplacedParams(image, params, style);
@@ -2305,11 +2208,6 @@ public class StyleBuilder implements PageGenerator {
 			return;
 		}
 
-		if (!this.pageContentStack.isEmpty()) {
-			PageContent pageContent = (PageContent) this.pageContentStack.get(this.pageContentStack.size() - 1);
-			pageContent.characters(charOffset, ch, off, len);
-			return;
-		}
 		if (this.htmlRootBlock == null && this.currentStyle != null) {
 			// 本文の中
 			this.segment.characters(charOffset, ch, off, len); // 本流のセグメント記録(M6a)
@@ -2617,17 +2515,6 @@ public class StyleBuilder implements PageGenerator {
 			return;
 		}
 
-		if (!this.pageContentStack.isEmpty()) {
-			// ページことに生成される内容
-			PageContent pageContent = (PageContent) this.pageContentStack.get(this.pageContentStack.size() - 1);
-			pageContent.endStyle(this.currentStyle);
-			if (pageContent.getDepth() == 0) {
-				this.pageContentStack.remove(this.pageContentStack.size() - 1);
-			}
-			this.currentStyle = this.currentStyle.getParentStyle();
-			return;
-		}
-
 		// 匿名スタイルを終了
 		while (this.currentStyle.isAnonStyle()) {
 			this._endStyle();
@@ -2880,24 +2767,7 @@ public class StyleBuilder implements PageGenerator {
 			marginT = null;
 		}
 
-		Visitor visitor = this.ua.getVisitor(gc);
-		visitor = new VisitorWrapper(visitor) {
-			public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
-				super.visitBox(transform, box, drawer, x, y);
-				Object key = box.getParams().element;
-				String[] pageContentClearNames = (String[]) StyleBuilder.this.toPageContentClear.remove(key);
-				if (pageContentClearNames != null) {
-					for (int i = 0; i < pageContentClearNames.length; ++i) {
-						StyleBuilder.this.pageContents.remove(pageContentClearNames[i]);
-					}
-				}
-
-				PageContent pageContent = (PageContent) StyleBuilder.this.toPageContent.remove(key);
-				if (pageContent != null) {
-					StyleBuilder.this.pageContents.put(pageContent.name, pageContent);
-				}
-			}
-		};
+		final Visitor visitor = this.ua.getVisitor(gc);
 		visitor.startPage();
 
 		final Drawer drawer = new Drawer(0);
@@ -2908,45 +2778,7 @@ public class StyleBuilder implements PageGenerator {
 		if (gc != null) {
 			// 固定
 			pageBox.drawFixed(drawer, visitor);
-
-			// ページごとに生成される内容
-			if (!this.pageContents.isEmpty()) {
-				for (Iterator<PageContent> i = this.pageContents.values().iterator(); i.hasNext();) {
-					PageContent pageContent = (PageContent) i.next();
-					boolean apply;
-					if (pageContent.pages != null) {
-						// System.out.println(Arrays.asList(pageContent.pages));
-						// System.out.println(this.pageElement);
-						apply = false;
-						for (int j = 0; j < pageContent.pages.length; ++j) {
-							byte page = pageContent.pages[j];
-							if (page == 0 && (this.pageElement == CSSElement.PAGE_SINGLE
-									|| this.pageElement == CSSElement.PAGE_SINGLE_FIRST)) {
-								apply = true;
-								break;
-							}
-							if (this.pageElement.isPseudoClass(page)) {
-								apply = true;
-								break;
-							}
-						}
-					} else {
-						apply = true;
-					}
-					if (apply) {
-						CSSStyle style = this.currentStyle;
-						StyleContext styleContext = this.styleContext;
-						this.styleContext = pageContent.styleContext;
-						pageContent.restyle(this);
-						this.styleContext = styleContext;
-						this.currentStyle = style;
-					}
-				}
-			}
-
-			pageBox.drawPageContents(drawer, visitor);
 			visitor.endPage();
-
 		}
 
 		// 描画処理を非同期で実行

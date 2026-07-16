@@ -47,20 +47,6 @@ public class CSSStyleSheet {
 	/** ページの宣言。 */
 	Declaration page, firstPage, leftPage, rightPage;
 
-	/** ページごとに生成される内容 */
-	final List<PageContent> pageContents = new ArrayList<PageContent>();
-
-	public static class PageContent {
-		public final String name, pseudoPage;
-		public final Declaration decleration;
-
-		PageContent(String name, String pseudoPage, Declaration decleration) {
-			this.name = name;
-			this.pseudoPage = pseudoPage;
-			this.decleration = decleration;
-		}
-	}
-
 	/**
 	 * ルールを追加します。
 	 *
@@ -205,13 +191,4 @@ public class CSSStyleSheet {
 		}
 	}
 
-	/**
-	 * ページ宣言を追加します。
-	 *
-	 * @param pseudoPage
-	 * @param declaration
-	 */
-	public void addPageContent(String name, String pseudoPage, Declaration declaration) {
-		this.pageContents.add(new PageContent(name, pseudoPage, declaration));
-	}
 }

@@ -9,16 +9,13 @@ import java.util.List;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
-import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.Insets;
@@ -65,8 +62,6 @@ public class PageBox extends AbstractBlockBox {
 
 	protected List<Fixed> toAddFixeds = null;
 
-	protected List<IAbsoluteBox> pageContents = null;
-	
 	/**
 	 * 表示上のサイズ。
 	 */
@@ -306,13 +301,6 @@ public class PageBox extends AbstractBlockBox {
 		fixed.box.draw(this, drawer, visitor, null, new AffineTransform(), x, y, fixed.x, fixed.y);
 	}
 
-	public final void addPageContent(IAbsoluteBox box) {
-		if (this.pageContents == null) {
-			this.pageContents = new ArrayList<IAbsoluteBox>();
-		}
-		this.pageContents.add(box);
-	}
-
 	public final boolean isContextBox() {
 		return true;
 	}
@@ -348,18 +336,6 @@ public class PageBox extends AbstractBlockBox {
 			}
 			this.fixeds.addAll(this.toAddFixeds);
 			this.toAddFixeds.clear();
-		}
-	}
-
-	public final void drawPageContents(Drawer drawer, Visitor visitor) {
-		if (this.pageContents == null) {
-			return;
-		}
-		double x = this.offsetX + this.frame.getFrameLeft() - this.frame.margin.left;
-		double y = this.offsetY + this.frame.getFrameTop() - this.frame.margin.top;
-		for (int i = 0; i < this.pageContents.size(); ++i) {
-			IBox box = (IBox) this.pageContents.get(i);
-			box.draw(this, drawer, visitor, null, new AffineTransform(), x, y, x, y);
 		}
 	}
 

@@ -42,11 +42,9 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Columns;
-import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
@@ -820,9 +818,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) box;
 			final AbsolutePos pos = absoluteBox.getAbsolutePos();
 			final AbstractContainerBox contextBox;
-			switch (pos.fiducial) {
-			case Fiducial.CONTEXT:
-			case Fiducial.ALL_PAGE: {
+			{
 				// 通常の絶対配置
 				// 固定配置
 				final Flow flow = this.getFlow();
@@ -834,16 +830,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 					staticY += this.textBuilder.getActualPageAxis();
 				}
 				contextBox.addAbsolute(absoluteBox, staticX, staticY);
-			}
-				break;
-			case Fiducial.CURRENT_PAGE: {
-				// ページコンテンツ
-				this.getPageContext().addPageContent(absoluteBox);
-				contextBox = this.getPageContext().getRootBox();
-			}
-				break;
-			default:
-				throw new IllegalStateException();
 			}
 			if (box.getType() == BoxType.REPLACED) {
 				final AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;

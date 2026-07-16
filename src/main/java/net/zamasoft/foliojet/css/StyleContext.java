@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.logging.Logger;
 
-import net.zamasoft.foliojet.css.CSSStyleSheet.PageContent;
 import net.zamasoft.foliojet.css.selector.AttributeCondition;
 import net.zamasoft.foliojet.css.selector.CombinatorSelector;
 import net.zamasoft.foliojet.css.selector.Condition;
@@ -94,10 +93,6 @@ public class StyleContext {
 			result.merge(this.styleSheet.firstPage);
 		}
 		return result;
-	}
-
-	public List<PageContent> getPageContents() {
-		return this.styleSheet.pageContents;
 	}
 
 	/**

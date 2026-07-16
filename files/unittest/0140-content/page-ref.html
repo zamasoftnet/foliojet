@@ -30,7 +30,8 @@ a.multi:before {
 	content: -cssj-page-ref(attr(href), page, decimal, ',');
 }
 #n {
-	-cssj-page-content: n;
+	/* 旧: -cssj-page-content(4で廃止)。マージンボックス実装後に移植 */
+	display: none;
 	bottom: 0;
 }
 #n:before {

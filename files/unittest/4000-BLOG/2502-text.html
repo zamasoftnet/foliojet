@@ -87,7 +87,8 @@ div.pseudo-h6 {
 
 /* ノンブル */
 .footer {
-  -cssj-regeneratable: footer;
+  /* 旧: -cssj-regeneratable(4で廃止)。マージンボックス実装後に移植 */
+  display: none;
   bottom: -2em;
   width: 100%;
   border-top: 1pt solid;
@@ -309,7 +310,8 @@ ul.cssj-toc span.cssj-page {
   page-break-before: left;
 }
 .colophon {
-  -cssj-regeneratable: footer;
+  /* 旧: -cssj-regeneratable(4で廃止) */
+  display: none;
   bottom: 0;
   width: 100%;
   font-family: 'ヒラギノ明朝体';

@@ -8,7 +8,6 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
@@ -280,11 +279,6 @@ public class RootBuilder extends BreakableBuilder {
 		this.setBreakToken(token);
 		return net.zamasoft.foliojet.layout.SourceReplayer.replayTextTail(log, charOffset, endId, keepTextOpen, this,
 				this.pageGenerator);
-	}
-
-	public void addPageContent(IAbsoluteBox box) {
-		box.finishLayout(this.pageBox);
-		this.pageBox.addPageContent(box);
 	}
 
 	protected void finishLayout() {

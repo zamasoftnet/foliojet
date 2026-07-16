@@ -94,9 +94,6 @@ import net.zamasoft.foliojet.impl.css.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJFontPolicy;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJNoBreakCharacters;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContent;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContentClear;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJRegeneratable;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJAutoWidth;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlAlign;
@@ -353,10 +350,6 @@ public final class ElementPropertySet extends PropertySet {
 
 		// Extensions
 		reg(CSSJFontPolicy.INFO);
-		reg(CSSJPageContent.INFO_NAME);
-		regCode(CSSJPageContent.INFO_PAGE);
-		reg(CSSJRegeneratable.INFO);
-		reg(CSSJPageContentClear.INFO);
 		reg(CSSJDirectionMode.INFO);
 		reg(CSSJRuby.INFO);
 		reg(CSSJBreakCharacters.INFO);
