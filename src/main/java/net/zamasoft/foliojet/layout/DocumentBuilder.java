@@ -298,7 +298,7 @@ public class DocumentBuilder {
 				break;
 			}
 			final TableBuilder tableBuilder;
-			if (!builder.isMain() || LayoutUtils.isTwoPassTable(tableBox)) {
+			if (!builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox)) {
 				// 2パスレイアウト
 				tableBuilder = new TwoPassTableBuilder(builder, tableBox);
 			} else {
@@ -451,7 +451,7 @@ public class DocumentBuilder {
 				break;
 			}
 			final Builder builder = this.containerBuilder().builder;
-			if (!builder.isMain() || LayoutUtils.isTwoPassTable(tableBox)) {
+			if (!builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox)) {
 				// 2パスレイアウト
 				builder.addTable(tableBuilder);
 			} else {

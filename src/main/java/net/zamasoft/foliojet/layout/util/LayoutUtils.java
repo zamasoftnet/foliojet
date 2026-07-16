@@ -78,57 +78,49 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * 行方向が固定されていればtrueを返します。
-	 * 
-	 * @param containerBox
-	 * @param blockBox
-	 * @return
+	 * ボックスの行方向寸法が内容に依存する(実測パスが必要)であればtrueを返します。
+	 * 2パス化の判定はこの述語ファミリに一元化されます(ARCHITECTURE.md §5.2b)。
+	 * 絶対配置は ABSOLUTE 指定のみを固定とみなします(%やインセット由来は内容依存)。
+	 *
+	 * @param containerBox 包含ブロック(軸の判定に使用)
+	 * @param blockBox     対象ボックス
+	 * @return 実測が必要であればtrue
 	 */
-	public static final boolean isFixedLineAxis(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
+	public static boolean needsIntrinsicSizing(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
+		final LengthType lineType = blockBox.getBlockParams().size
+				.getLineType(containerBox.getBlockParams().flow);
 		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
-			if (containerBox.getBlockParams().flow.isVertical()) {
-				// 縦書き
-				return blockBox.getBlockParams().size.getHeightType() == LengthType.ABSOLUTE;
-			} else {
-				// 横書き
-				return blockBox.getBlockParams().size.getWidthType() == LengthType.ABSOLUTE;
-			}
-		} else {
-			if (containerBox.getBlockParams().flow.isVertical()) {
-				// 縦書き
-				return blockBox.getBlockParams().size.getHeightType() != LengthType.AUTO;
-			} else {
-				// 横書き
-				return blockBox.getBlockParams().size.getWidthType() != LengthType.AUTO;
-			}
+			return lineType != LengthType.ABSOLUTE;
 		}
+		return lineType == LengthType.AUTO;
 	}
 
 	/**
-	 * 行方向が固定されていればtrueを返します。
-	 * 
-	 * @param containerBox
-	 * @param replacedBox
-	 * @return
+	 * 表の列幅・寸法が内容に依存する(実測パス=TwoPassTableBuilderが必要)で
+	 * あればtrueを返します。
+	 *
+	 * @param box 表ボックス
+	 * @return 実測が必要であればtrue
 	 */
-	public static final boolean isFixedLineAxis(AbstractContainerBox containerBox, AbstractReplacedBox replacedBox) {
-		if (replacedBox.getPos().getType() == PosType.ABSOLUTE) {
-			if (containerBox.getBlockParams().flow.isVertical()) {
-				// 縦書き
-				return replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE;
-			} else {
-				// 横書き
-				return replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE;
-			}
-		} else {
-			if (containerBox.getBlockParams().flow.isVertical()) {
-				// 縦書き
-				return replacedBox.getReplacedParams().size.getHeightType() != LengthType.AUTO;
-			} else {
-				// 横書き
-				return replacedBox.getReplacedParams().size.getWidthType() != LengthType.AUTO;
-			}
+	public static boolean needsIntrinsicSizing(TableBox box) {
+		final TableParams params = box.getTableParams();
+		if (params.layout == TableParams.LAYOUT_AUTO) {
+			// 自動レイアウトは実測が必要
+			return true;
 		}
+		if (box.getBlockBox().getPos().getType() != PosType.FLOW) {
+			// 通常のフローにない場合は実測が必要
+			return true;
+		}
+		if (params.size.getPageType(params.flow) != LengthType.AUTO) {
+			// ページ方向の寸法が指定された場合は実測が必要
+			return true;
+		}
+		if (params.size.getLineType(params.flow) == LengthType.AUTO) {
+			// 自動幅の場合は実測が必要
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -443,28 +435,6 @@ public final class LayoutUtils {
 		default:
 			throw new IllegalStateException();
 		}
-	}
-
-	public static boolean isTwoPassTable(TableBox box) {
-		TableParams params = box.getTableParams();
-		if (params.layout == TableParams.LAYOUT_AUTO) {
-			// 自動レイアウトは2パス
-			return true;
-		}
-		if (box.getBlockBox().getPos().getType() != PosType.FLOW) {
-			// 通常のフローにない場合は2パス
-			return true;
-		}
-		boolean vertical = params.flow.isVertical();
-		if ((vertical ? params.size.getWidthType() : params.size.getHeightType()) != LengthType.AUTO) {
-			// 高さが指定された場合は2パス
-			return true;
-		}
-		if ((vertical ? params.size.getHeightType() : params.size.getWidthType()) == LengthType.AUTO) {
-			// 自動幅の場合は2パス
-			return true;
-		}
-		return false;
 	}
 
 	public static double computeOffsetX(Offset offset, IBox containerBox) {

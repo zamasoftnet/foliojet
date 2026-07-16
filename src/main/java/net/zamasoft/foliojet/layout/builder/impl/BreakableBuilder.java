@@ -391,7 +391,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			switch (box.getType()) {
 			case TABLE:
 				TableBox tableBox = (TableBox) box;
-				if (!LayoutUtils.isTwoPassTable(tableBox)) {
+				if (!LayoutUtils.needsIntrinsicSizing(tableBox)) {
 					// fixedレイアウトの場合は
 					// OnePassTableBuilderが再配置する
 					break;
