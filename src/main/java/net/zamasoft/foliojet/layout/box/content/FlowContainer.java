@@ -1044,7 +1044,10 @@ public class FlowContainer implements Container {
 							// テーブルキャプション
 							if (lastFlow == holder && depth >= 1) {
 								containerBox.restyle(builder, depth - 1);
-							} else {
+							} else if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
+									&& root.replayFromSource(containerBox))) {
+								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b segment-restyle)。
+								// false ならボックス再生でフォールバック
 								containerBox.restyle(builder, 0);
 							}
 						}

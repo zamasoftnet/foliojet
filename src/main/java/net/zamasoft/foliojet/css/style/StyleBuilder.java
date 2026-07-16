@@ -324,6 +324,21 @@ public class StyleBuilder implements PageGenerator {
 		return sourceIndex < this.segment.size();
 	}
 
+	public boolean replaySubtree(final int sourceEpoch, final int sourceIndex,
+			final net.zamasoft.foliojet.css.CSSElement element) {
+		if (sourceEpoch != this.segment.getEpoch() || !this.segment.isStartOf(sourceIndex, element)) {
+			// 旧世代・不整合アンカーはボックス再生へフォールバック
+			return false;
+		}
+		final int end = this.segment.endOf(sourceIndex);
+		if (end < 0) {
+			// 窓内で閉じていない部分木(切断された要素)は対象外
+			return false;
+		}
+		this.segment.replaySubtree(this, sourceIndex, end);
+		return true;
+	}
+
 	/**
 	 * ボックスの開始を本流セグメント窓の現在位置(ソースアンカー)を
 	 * 刻印してから doc に渡します(M6b)。合成ボックスは直前の記録

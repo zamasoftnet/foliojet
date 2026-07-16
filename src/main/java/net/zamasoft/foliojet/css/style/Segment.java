@@ -139,6 +139,60 @@ public class Segment {
 				&& style.getCSSElement() == element;
 	}
 
+	/**
+	 * 指定位置の Start に対応する End の位置を返します(M6b)。
+	 *
+	 * @param startIndex Start イベントの位置
+	 * @return 対応する End の位置。部分木が窓内で閉じていなければ -1
+	 */
+	public int endOf(final int startIndex) {
+		if (startIndex < 0 || startIndex >= this.items.size() || !(this.items.get(startIndex) instanceof Start)) {
+			return -1;
+		}
+		int depth = 0;
+		for (int i = startIndex; i < this.items.size(); ++i) {
+			switch (this.items.get(i)) {
+			case Start start -> ++depth;
+			case End end -> {
+				if (--depth == 0) {
+					return i;
+				}
+			}
+			case Chars chars -> {
+			}
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * 窓内の閉じた部分木 [from, to] を builder へ再駆動します(M6b)。
+	 * カウンタは from 時点のスナップショットへ巻き戻してから再生し、
+	 * 再生後に元の状態へ戻します(後続ストリームの整合のため)。
+	 * 疑似要素・匿名内容は再生中に builder が再合成します。
+	 *
+	 * @param builder 再生先
+	 * @param from    Start イベントの位置
+	 * @param to      対応する End イベントの位置(endOf の結果)
+	 */
+	public void replaySubtree(final StyleBuilder builder, final int from, final int to) {
+		assert this.items.get(from) instanceof Start;
+		final net.zamasoft.foliojet.ua.PassContext pc = builder.getUserAgent().getPassContext();
+		final CounterScope[] headCounters = pc.snapshotNonPageCounters();
+		pc.restoreNonPageCounters(((Start) this.items.get(from)).counters());
+		try {
+			for (int i = from; i <= to; ++i) {
+				switch (this.items.get(i)) {
+				case Start(CSSStyle style, CounterScope[] counters) -> builder.startStyle(style);
+				case Chars(int charOffset, char[] ch) -> builder.characters(charOffset, ch, 0, ch.length);
+				case End end -> builder.endStyle();
+				}
+			}
+		} finally {
+			pc.restoreNonPageCounters(headCounters);
+		}
+	}
+
 	public void restyle(StyleBuilder builder) {
 		for (Item item : this.items) {
 			switch (item) {

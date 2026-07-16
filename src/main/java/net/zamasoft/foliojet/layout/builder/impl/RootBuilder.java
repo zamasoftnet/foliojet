@@ -26,6 +26,19 @@ import net.zamasoft.foliojet.layout.builder.PageGenerator;
 public class RootBuilder extends BreakableBuilder {
 	private static final Logger LOG = Logger.getLogger(RootBuilder.class.getName());
 
+	/**
+	 * 改ページ残余の再構築で、丸ごと移動した閉じた部分木をボックス再生の
+	 * 代わりにソースイベントから再駆動します(M6b segment-restyle)。
+	 * 移行期間中は opt-in です。
+	 */
+	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle"); // A/B実験: 一時的に既定ON
+
+	/**
+	 * 改ページの残余再構築中だけ true(segment-restyle の適用範囲)。
+	 * 改段・バランスの再レイアウトはソース位置と対応しないため対象外。
+	 */
+	private boolean pageBreakRestyle = false;
+
 	private final PageGenerator pageGenerator;
 
 	private PageBox pageBox;
@@ -122,7 +135,12 @@ public class RootBuilder extends BreakableBuilder {
 		final int depth = this.flowStack.size();
 		this.flowStack.clear();
 		pageBox.restyle(this, 0);
-		nextRootBox.restyle(this, depth);
+		this.pageBreakRestyle = true;
+		try {
+			nextRootBox.restyle(this, depth);
+		} finally {
+			this.pageBreakRestyle = false;
+		}
 		assert this.flowStack.size() == depth : ("break flow failed. " + this.getFlowBox().getParams().element);
 
 		if (LOG.isLoggable(Level.FINE)) {
@@ -160,6 +178,22 @@ public class RootBuilder extends BreakableBuilder {
 							+ sourceIndex;
 		});
 		return true;
+	}
+
+	/**
+	 * 移動した閉じた部分木のソース再駆動を試みます(M6b)。改ページの
+	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
+	 * 再駆動されます。false ならボックス再生でフォールバックします。
+	 */
+	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box) {
+		if (!SEGMENT_RESTYLE || !this.pageBreakRestyle) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.box.params.Params params = box.getParams();
+		if (params.sourceIndex < 0 || params.element == null) {
+			return false;
+		}
+		return this.pageGenerator.replaySubtree(params.sourceEpoch, params.sourceIndex, params.element);
 	}
 
 	public void addPageContent(IAbsoluteBox box) {

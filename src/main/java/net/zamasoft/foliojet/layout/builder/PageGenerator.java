@@ -28,4 +28,21 @@ public interface PageGenerator {
 			net.zamasoft.foliojet.css.CSSElement element) {
 		return true;
 	}
+
+	/**
+	 * ソースアンカーの指す閉じた部分木をソースイベントから再駆動します
+	 * (M6b segment-restyle)。改ページ残余のうち「丸ごと次ページへ移動した
+	 * 閉じた要素」をボックス再生の代わりに再スタイル+再レイアウトします。
+	 * セグメント窓を持たない実装は常に false(非対応)を返します。
+	 *
+	 * @param sourceEpoch アンカーの窓世代
+	 * @param sourceIndex 窓内の Start イベント位置
+	 * @param element     期待される要素(整合検査)
+	 * @return 再駆動した場合 true。false なら呼び出し側がボックス再生で
+	 *         フォールバックする
+	 */
+	public default boolean replaySubtree(int sourceEpoch, int sourceIndex,
+			net.zamasoft.foliojet.css.CSSElement element) {
+		return false;
+	}
 }
