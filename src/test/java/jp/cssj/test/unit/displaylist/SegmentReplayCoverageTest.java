@@ -44,18 +44,14 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	public void testTextTailReplayFires() throws Exception {
-		if (Boolean.getBoolean("foliojet.noSegmentRestyle")) {
-			// 実験フラグOFF時は対象経路が無効(box-restyle のみ)
+		if (!Boolean.getBoolean("foliojet.segmentRestyle.textTail")) {
+			// 尾部再生は charOffset 簿記の±1問題により実験フラグ制(既定OFF)。
+			// M3b のトークン再開で置き換えたらこのゲートを外す
 			return;
 		}
-		if (true) {
-			// TODO: v1(StyleBuilder再入型)は無効化済み。テキスト尾部再開の
-			// v3(SourceReplayer拡張)が実装されたらこのガードを外す
-			return;
-		}
-		// 段落の中間で改ページされる文書
+		// avoid押し戻しで段落が中割りされ、残余に後続兄弟が入る文書
 		final long before = SourceReplayer.TEXT_TAIL_REPLAYS.get();
-		this.transcode(new File("files/unittest/0460-segment-restyle/mid-paragraph.html"), "coverage-texttail");
+		this.transcode(new File("files/unittest/0460-segment-restyle/text-tail-avoid.html"), "coverage-texttail");
 		assertTrue("切断段落の尾部ソース再駆動が一度も発火していません",
 				SourceReplayer.TEXT_TAIL_REPLAYS.get() > before);
 	}

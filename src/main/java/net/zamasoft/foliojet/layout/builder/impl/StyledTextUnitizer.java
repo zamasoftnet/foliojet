@@ -132,6 +132,13 @@ public class StyledTextUnitizer {
 		this.changeTextState(params);
 	}
 
+	/**
+	 * 配達済みソース文字の終端オフセットを返します(M6b v3)。
+	 */
+	public int getDeliveredCharEnd() {
+		return this.gh == null ? 0 : this.gh.getDeliveredCharEnd();
+	}
+
 	public void flushText() {
 		if (this.textShaper != null) {
 			this.textShaper.flush();

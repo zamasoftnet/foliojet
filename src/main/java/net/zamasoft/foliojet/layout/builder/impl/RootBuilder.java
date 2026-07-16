@@ -34,6 +34,13 @@ public class RootBuilder extends BreakableBuilder {
 	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
 
 	/**
+	 * 切断段落の尾部ソース再生の実験フラグ(M6b v3)。charOffset 座標の
+	 * 整形簿記に ±1 文字の不安定さが残るため既定 OFF。M3b の正規化
+	 * トークン再開で置き換え予定(ARCHITECTURE.md §5.6)。
+	 */
+	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");
+
+	/**
 	 * 改ページの残余再構築中だけ true(segment-restyle の適用範囲)。
 	 * 改段・バランスの再レイアウトはソース位置と対応しないため対象外。
 	 */
@@ -208,6 +215,40 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		});
 		return min[0];
+	}
+
+	/**
+	 * 切断段落の尾部再開をソース再駆動で試みます(M6b v3)。
+	 * 継続トークンが位置(charOffset)を持つ場合のみ再駆動されます。
+	 *
+	 * @param textBlock    切断残余のテキストブロック
+	 * @param endId        尾部の終端(次の兄弟の EventId。負ならログ末尾)
+	 * @param keepTextOpen 再生後もテキストを開いたままにする
+	 * @return 再駆動した場合 true
+	 */
+	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final long endId,
+			final boolean keepTextOpen) {
+		if (!TEXT_TAIL_RESTYLE || !SEGMENT_RESTYLE || !this.pageBreakRestyle) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
+		if (log == null) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.box.content.BreakToken token = textBlock.getBreakToken();
+		final int charOffset = switch (token) {
+		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidFlow(final int offset) -> offset;
+		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidLine(final int offset) -> offset;
+		default -> -1;
+		};
+		if (charOffset < 0) {
+			return false;
+		}
+		// 再駆動が作るテキストは継続(text-indent/:first-line 抑制)。
+		// TextBuilder が生成時に builder の breakToken を消費する
+		this.setBreakToken(token);
+		return net.zamasoft.foliojet.layout.SourceReplayer.replayTextTail(log, charOffset, endId, keepTextOpen, this,
+				this.pageGenerator);
 	}
 
 	public void addPageContent(IAbsoluteBox box) {

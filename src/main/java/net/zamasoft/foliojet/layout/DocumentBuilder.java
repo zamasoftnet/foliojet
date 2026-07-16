@@ -130,6 +130,26 @@ public class DocumentBuilder {
 		this.endContainer();
 	}
 
+	/**
+	 * 現在のコンテナの配達済みソース文字終端を返します(M6b v3)。
+	 * shaper 内の未配達文字はこれ以降にある。
+	 */
+	public int getDeliveredCharEnd() {
+		if (this.builderStack.isEmpty()) {
+			return 0;
+		}
+		return this.containerBuilder().getStyledTextUnitizer().getDeliveredCharEnd();
+	}
+
+	/**
+	 * ソース再生を、ビルダーのテキストブロックを開いたまま終えます
+	 * (M6b v3: 切断段落の尾部再生。続く SAX ストリームが同じ
+	 * テキストブロックへ流れ込む — box-restyle と同じ継ぎ目意味論)。
+	 */
+	public void finishReplayKeepText() {
+		this.containerBuilder().getStyledTextUnitizer().flushText();
+	}
+
 	public void setPageMode(byte pageMode) {
 		this.pageMode = pageMode;
 	}

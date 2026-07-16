@@ -42,6 +42,74 @@ public final class SourceReplayer {
 	}
 
 	/**
+	 * 切断段落の尾部(charOffset 以降)を再駆動します(M6b v3)。
+	 * ログから該当 Chars を charOffset の単調性で直接探索するため、
+	 * 分割でアンカーを失ったチェーンにも依存しません。
+	 *
+	 * @param log            ソースログ
+	 * @param charOffset     再開位置のソース文字オフセット
+	 * @param endIdExclusive 尾部の終端(次の兄弟の EventId。負ならログ末尾まで)
+	 * @param keepTextOpen   再生後もテキストブロックを開いたままにする
+	 *                       (続く SAX ストリームが流れ込む場合)
+	 * @param rootBuilder    再生先のルートビルダー
+	 * @param pageGenerator  ページ生成器
+	 * @return 再開位置を特定し再駆動した場合 true
+	 */
+	public static boolean replayTextTail(final LayoutSource log, final int charOffset, final long endIdExclusive,
+			final boolean keepTextOpen, final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
+		final long fromId = log.findCharsAt(charOffset);
+		if (fromId < 0) {
+			return false;
+		}
+		// 尾部は囲みブロックの EndBlock(=このテキストの終わり)または
+		// 次の兄弟アイテムの手前まで
+		final long cap = endIdExclusive < 0 ? log.nextId() : endIdExclusive;
+		final long toId = log.tailBound(fromId, cap) - 1;
+		if (toId < fromId || log.containsOpaque(fromId, toId)) {
+			return false;
+		}
+		// live パイプライン(shaper)が未配達のまま保留している文字は
+		// break 後に live 側から供給されるため、再生はそこで打ち切る
+		final int charEndExclusive = pageGenerator.getDeliveredCharEnd();
+		if (charEndExclusive <= charOffset) {
+			// 再開位置全体が live 保留中: 再生不要(live が全て供給する)
+			return false;
+		}
+		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
+		final boolean[] first = { true };
+		log.replay(fromId, toId, event -> {
+			switch (event) {
+			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
+					.startBox(new FlowBlockBox(params, (FlowPos) pos));
+			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
+				int skip = 0;
+				if (first[0]) {
+					first[0] = false;
+					skip = charOffset - off;
+				}
+				int len = ch.length - skip;
+				if (off >= 0 && off + skip + len > charEndExclusive) {
+					// 配達済み終端で打ち切り(以降は live が供給)
+					len = charEndExclusive - off - skip;
+				}
+				if (len > 0) {
+					doc.characters(off + skip, ch, skip, len, fixed);
+				}
+			}
+			case LayoutSource.EndBlock end -> doc.endBox();
+			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
+			}
+		});
+		if (keepTextOpen) {
+			doc.finishReplayKeepText();
+		} else {
+			doc.finishReplay();
+		}
+		TEXT_TAIL_REPLAYS.incrementAndGet();
+		return true;
+	}
+
+	/**
 	 * [fromId, toId] の閉じた部分木列を再駆動します。
 	 * 範囲は Opaque を含まないこと(呼び出し側が containsOpaque で検査)。
 	 *

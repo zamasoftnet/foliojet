@@ -184,6 +184,61 @@ public final class LayoutSource {
 	}
 
 	/**
+	 * 指定のソース文字オフセットを含む Chars イベントの id を返します
+	 * (M6b v3 テキスト尾部再開)。parser の charOffset は文書全体で
+	 * 単調のため一意です。生成内容(charOffset=-1)は対象外。
+	 *
+	 * @param charOffset ソース文字オフセット
+	 * @return 該当 Chars の id。なければ -1
+	 */
+	public long findCharsAt(final int charOffset) {
+		for (final Entry entry : this.entries) {
+			if (entry.event() instanceof Chars(final int off, final char[] ch, final boolean fixed) && off >= 0
+					&& charOffset >= off && charOffset < off + ch.length) {
+				return entry.id();
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * テキスト尾部の終端を返します(M6b v3): fromId から前方走査し、
+	 * 範囲内で開かれていない EndBlock(=囲みブロックの終了)に当たれば
+	 * その id、capExclusive まで当たらなければ capExclusive。
+	 *
+	 * @param fromId       走査開始位置
+	 * @param capExclusive 上限(これ以上は走査しない)
+	 * @return 尾部の終端(exclusive)
+	 */
+	public long tailBound(final long fromId, final long capExclusive) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return fromId;
+		}
+		int depth = 0;
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() >= capExclusive) {
+				break;
+			}
+			switch (entry.event()) {
+			case StartBlock start -> ++depth;
+			case EndBlock end -> {
+				if (depth == 0) {
+					return entry.id();
+				}
+				--depth;
+			}
+			case Chars chars -> {
+			}
+			case Opaque opaque -> {
+			}
+			}
+		}
+		return capExclusive;
+	}
+
+	/**
 	 * [fromId, toId] の範囲に Opaque(再生非対応)イベントが
 	 * 含まれていれば true を返します。
 	 */

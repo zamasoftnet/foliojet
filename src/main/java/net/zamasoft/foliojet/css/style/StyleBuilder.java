@@ -318,6 +318,10 @@ public class StyleBuilder implements PageGenerator {
 		return this.layoutSource;
 	}
 
+	public int getDeliveredCharEnd() {
+		return this.doc.getDeliveredCharEnd();
+	}
+
 	public void compactLayoutSource(final long watermark) {
 		this.layoutSource.compact(watermark == Long.MAX_VALUE ? this.layoutSource.nextId() : watermark);
 	}

@@ -287,8 +287,10 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			// 切断行以降(widows)を次ページのフラグメントに移す
 			final int firstWidow = lastLine + 1;
 			final double top = ((Line) this.lines.get(firstWidow)).pageAxis;
-			// 残余の先頭テキストのソース文字位置を継続トークンに刻む(M6b)
-			final int resumeOffset = ((Line) this.lines.get(firstWidow)).box.firstCharOffset();
+			// 再開位置 = 前断片(切断行まで)の末尾文字終端(M6b v3)。
+			// 残余先頭の firstCharOffset は行分割時の Text 分割の丸めで
+			// ずれることがあるため、残った側の終端から導出する
+			final int resumeOffset = ((Line) this.lines.get(lastLine)).box.lastCharEnd();
 			final BreakToken token = ((Line) this.lines.get(lastLine)).box.isLast()
 					? new BreakToken.MidFlow(resumeOffset)
 					: new BreakToken.MidLine(resumeOffset);

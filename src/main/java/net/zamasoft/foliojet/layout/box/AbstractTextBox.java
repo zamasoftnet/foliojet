@@ -117,6 +117,31 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
+	 * 内部の最後のテキストのソース文字終端(オフセット+文字数)を
+	 * 返します(M6b v3)。切断で前断片に残った内容の終端=残余の再開
+	 * 位置の構造的に正確な導出に使います。
+	 *
+	 * @return 最後のテキストの文字終端(テキストがなければ -1)
+	 */
+	public final int lastCharEnd() {
+		if (this.contents != null) {
+			for (int i = this.contents.size() - 1; i >= 0; --i) {
+				final Object content = this.contents.get(i);
+				if (content instanceof Text text && text.getCharOffset() >= 0) {
+					return text.getCharOffset() + text.getCharCount();
+				}
+				if (content instanceof AbstractTextBox inline) {
+					final int end = inline.lastCharEnd();
+					if (end >= 0) {
+						return end;
+					}
+				}
+			}
+		}
+		return -1;
+	}
+
+	/**
 	 * 内部の最初のテキストのソース文字オフセットを返します(M6b)。
 	 * セグメント再駆動の再開位置(BreakToken)の導出に使います。
 	 *

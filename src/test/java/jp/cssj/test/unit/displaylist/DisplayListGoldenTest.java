@@ -45,6 +45,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0120-float/float-in-moved-block.html", //
 			"0460-segment-restyle/mid-paragraph.html", //
 			"0460-segment-restyle/moved-blocks.html", //
+			"0460-segment-restyle/text-tail-avoid.html", //
 			"0240-table/z-order.html", //
 			"0240-table/absolute.html", //
 			"0390-writing-mode/border-collapse.html", //

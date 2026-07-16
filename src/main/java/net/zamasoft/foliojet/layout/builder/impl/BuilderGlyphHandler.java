@@ -104,7 +104,24 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		this.builder.startTextRun(charOffset, fontStyle, fontMetrics);
 	}
 
+	/**
+	 * これまでに配達された最後のソース文字の終端オフセットです(M6b v3)。
+	 * shaper 内に保留中(未配達)の文字はこれ以降にあり、切断段落の
+	 * 尾部再生はここで打ち切ることで live パイプラインとの二重供給を防ぐ。
+	 */
+	private int deliveredCharEnd = 0;
+
+	/**
+	 * 配達済みソース文字の終端オフセットを返します(M6b v3)。
+	 */
+	public int getDeliveredCharEnd() {
+		return this.deliveredCharEnd;
+	}
+
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
+		if (charOffset >= 0) {
+			this.deliveredCharEnd = Math.max(this.deliveredCharEnd, charOffset + clen);
+		}
 		// System.out.print(new String(ch, coff, clen));
 		this.builder.glyph(charOffset, ch, coff, clen, gid);
 	}
