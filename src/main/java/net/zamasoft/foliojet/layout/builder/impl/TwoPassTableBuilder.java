@@ -1,5 +1,9 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
+
+import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
+
 import net.zamasoft.foliojet.layout.sizing.ColumnDistribution;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
@@ -1363,232 +1367,35 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				refSize -= columnCount * lineBorderSpacing;
 			}
 			refSize = Math.max(0, refSize);
-			final ColumnSize[] columnSizeList = new ColumnSize[columnCount];
+			final FixedColumnWidths.Spec[] colgroupSpecs;
 			if (this.columnGroupBox != null) {
-				final List<Object> stack = new ArrayList<Object>();
-				TableColumnGroupBox colgroup = this.columnGroupBox;
-				this.tableBox.setTableColumnGroup(colgroup);
-				int i = 0, k = 0;
-				RECURSE: for (;;) {
-					for (; i < colgroup.getTableColumnCount(); ++i) {
-						TableColumnBox column = colgroup.getTableColumn(i);
-						TableColumnPos colPos = column.getTableColumnPos();
-						InnerTableParams colParams = column.getInnerTableParams();
-						if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-								&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-							stack.add(colgroup);
-							stack.add(NumberUtils.intValue(i + 1));
-							colgroup = (TableColumnGroupBox) column;
-							i = 0;
-							continue RECURSE;
-						} else {
-							switch (colParams.size.getType()) {
-							case AUTO:
-								for (int j = 0; j < colPos.span; ++j) {
-									columnSizeList[k++] = null;
-								}
-								break;
-							case ABSOLUTE: {
-								double fix = colParams.size.getLength();
-								if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-									// 分離境界
-									fix += tableParams.borderSpacingH;
-								}
-								ColumnSize width = new ColumnSize(fix, false);
-								for (int j = 0; j < colPos.span; ++j) {
-									columnSizeList[k++] = width;
-								}
-							}
-								break;
-							case RELATIVE: {
-								double fix = refSize * colParams.size.getLength();
-								if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-									// 分離境界
-									fix += tableParams.borderSpacingH;
-								}
-								ColumnSize size = new ColumnSize(fix, true);
-								for (int j = 0; j < colPos.span; ++j) {
-									columnSizeList[k++] = size;
-								}
-							}
-								break;
-
-							default:
-								throw new IllegalStateException();
-							}
-						}
-					}
-					if (stack.isEmpty()) {
-						break;
-					}
-					i = ((Integer) stack.remove(stack.size() - 1)).intValue();
-					colgroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
-				}
+				this.tableBox.setTableColumnGroup(this.columnGroupBox);
+				// 注: 歴史的に縦書きでも borderSpacingH を加算していた(要調査。
+				// OnePassTableBuilder は論理軸の lineBorderSpacing を使う)
+				colgroupSpecs = TableColumnSpecs.colgroupSpecs(this.columnGroupBox, columnCount, refSize,
+						tableParams.borderCollapse == TableParams.BORDER_SEPARATE ? tableParams.borderSpacingH : 0);
+			} else {
+				colgroupSpecs = new FixedColumnWidths.Spec[columnCount];
 			}
 			final List<?> cells = (List<?>) this.rowToCells.get(this.firstRowBox);
-			columnSizes = new double[columnCount];
-			int autoCount = 0;
-			double sizeSum = 0, percentSizeSum = 0;
+			final FixedColumnWidths.Spec[] cellSpecs = new FixedColumnWidths.Spec[columnCount];
 			for (int i = 0; i < columnCount; ++i) {
-				ColumnSize size;
 				if (i >= cells.size()) {
-					// table-columnによる幅指定しか存在しない場合
-					if (columnSizeList[i] == null) {
-						size = null;
-						++autoCount;
-					} else {
-						size = columnSizeList[i];
-						sizeSum += size.length;
-						if (size.percentage) {
-							percentSizeSum += size.length;
-						}
-					}
-					columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
-				} else {
-					// table-cellによる幅指定がある場合
-					CellContent cell = (CellContent) cells.get(i);
-					TableCellBox cellBox = cell.getCellBox();
-					BlockParams cellParams = cellBox.getBlockParams();
-					if (this.vertical) {
-						switch (cellParams.size.getHeightType()) {
-						case AUTO:
-							size = null;
-							break;
-						case ABSOLUTE: {
-							double fix = cellParams.size.getHeight();
-							if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-								fix += cellBox.getFrame().getFrameHeight();
-							}
-							fix /= cell.colspan;
-							size = new ColumnSize(fix, false);
-						}
-							break;
-						case RELATIVE: {
-							double fix = refSize * cellParams.size.getHeight();
-							if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-								fix += cellBox.getFrame().getFrameHeight();
-							}
-							fix /= cell.colspan;
-							size = new ColumnSize(fix, true);
-						}
-							break;
-						default:
-							throw new IllegalStateException();
-						}
-					} else {
-						switch (cellParams.size.getWidthType()) {
-						case AUTO:
-							size = null;
-							break;
-						case ABSOLUTE: {
-							double fix = cellParams.size.getWidth();
-							if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-								fix += cellBox.getFrame().getFrameWidth();
-							}
-							fix /= cell.colspan;
-							size = new ColumnSize(fix, false);
-						}
-							break;
-						case RELATIVE: {
-							double fix = refSize * cellParams.size.getWidth();
-							if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-								fix += cellBox.getFrame().getFrameWidth();
-							}
-							fix /= cell.colspan;
-							size = new ColumnSize(fix, true);
-						}
-							break;
-						default:
-							throw new IllegalStateException();
-						}
-					}
-					if (columnSizeList[i] == null) {
-						if (size == null) {
-							++autoCount;
-						} else {
-							// セルによる幅指定だけの場合
-							columnSizeList[i] = size;
-							sizeSum += size.length;
-							if (size.percentage) {
-								percentSizeSum += size.length;
-							}
-						}
-						columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
-					} else {
-						ColumnSize columnSize = columnSizeList[i];
-						columnSizes[i] = columnSize.length;
-						sizeSum += columnSize.length;
-						if (columnSize.percentage) {
-							percentSizeSum += columnSize.length;
-						}
-					}
-
-					for (int j = 1; j < cell.colspan; ++j) {
-						++i;
-						if (columnSizeList[i] == null) {
-							if (size == null) {
-								++autoCount;
-							} else {
-								columnSizeList[i] = size;
-								sizeSum += size.length;
-								if (size.percentage) {
-									percentSizeSum += size.length;
-								}
-							}
-							columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
-						} else {
-							ColumnSize columnSize = columnSizeList[i];
-							columnSizes[i] = columnSize.length;
-							sizeSum += columnSize.length;
-							if (columnSize.percentage) {
-								percentSizeSum += columnSize.length;
-							}
-						}
+					continue;
+				}
+				final CellContent cell = (CellContent) cells.get(i);
+				final FixedColumnWidths.Spec spec = this.fixedCellSpec(cell, refSize);
+				cellSpecs[i] = spec;
+				for (int j = 1; j < cell.colspan; ++j) {
+					++i;
+					if (i < columnCount) {
+						cellSpecs[i] = spec;
 					}
 				}
 			}
-			// System.err.println(autoCount + "/" + tableWidth + "/" +
-			// widthSum);
-			if (percentSizeSum > 0 && sizeSum > tableSize) {
-				// テーブル幅を超えたパーセント幅は削る
-				double removeSize = Math.min(percentSizeSum, sizeSum - tableSize);
-				for (int i = 0; i < columnCount; ++i) {
-					ColumnSize size = columnSizeList[i];
-					if (size != null && size.percentage) {
-						assert !LayoutUtils.isNone(columnSizes[i]);
-						double sizeDiff = removeSize * size.length / percentSizeSum;
-						columnSizes[i] -= sizeDiff;
-						sizeSum -= sizeDiff;
-					}
-				}
-			}
-			if (autoCount > 0) {
-				final double size;
-				if (tableSize > sizeSum) {
-					size = (tableSize - sizeSum) / autoCount;
-				} else {
-					tableSize = sizeSum;
-					size = 0;
-				}
-				for (int i = 0; i < columnCount; ++i) {
-					if (LayoutUtils.isNone(columnSizes[i])) {
-						columnSizes[i] = size;
-					}
-				}
-			} else if (tableSize > sizeSum) {
-				final double size = (tableSize - sizeSum) / columnCount;
-				for (int i = 0; i < columnCount; ++i) {
-					assert !LayoutUtils.isNone(columnSizes[i]);
-					columnSizes[i] += size;
-				}
-			} else {
-				tableSize = 0;
-				for (int i = 0; i < columnCount; ++i) {
-					assert !LayoutUtils.isNone(columnSizes[i]);
-					tableSize += columnSizes[i];
-				}
-			}
-			tableSize += tableFrame;
+			final FixedColumnWidths.Result result = FixedColumnWidths.distribute(colgroupSpecs, cellSpecs, tableSize);
+			columnSizes = result.sizes();
+			tableSize = result.innerSize() + tableFrame;
 		} else {
 			// 自動レイアウト
 			// CSS 2.1 17.5.2.2 [Column widths influence the final table width
@@ -2344,6 +2151,40 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	public boolean isOnePass() {
 		return false;
 	}
+
+	/**
+	 * 固定レイアウトでの先頭行セル由来の列指定を返します(AUTOはnull)。
+	 * 指定はセルの colspan で均等割りされます。
+	 *
+	 * @param cell    セル
+	 * @param refSize %指定の基準寸法
+	 * @return 列指定
+	 */
+	private FixedColumnWidths.Spec fixedCellSpec(final CellContent cell, final double refSize) {
+		final TableCellBox cellBox = cell.getCellBox();
+		final BlockParams cellParams = cellBox.getBlockParams();
+		final WritingMode tableFlow = this.tableBox.getTableParams().flow;
+		switch (cellParams.size.getLineType(tableFlow)) {
+		case AUTO:
+			return null;
+		case ABSOLUTE: {
+			double fix = cellParams.size.getLineLength(tableFlow);
+			if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
+				fix += cellBox.getFrame().getFrameLineExtent(tableFlow);
+			}
+			return new FixedColumnWidths.Spec(fix / cell.colspan, false);
+		}
+		case RELATIVE: {
+			double fix = refSize * cellParams.size.getLineLength(tableFlow);
+			if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
+				fix += cellBox.getFrame().getFrameLineExtent(tableFlow);
+			}
+			return new FixedColumnWidths.Spec(fix / cell.colspan, true);
+		}
+		default:
+			throw new IllegalStateException();
+		}
+	}
 }
 
 /**
@@ -2396,4 +2237,5 @@ class Colspan {
 			return 0;
 		}
 	};
+
 }

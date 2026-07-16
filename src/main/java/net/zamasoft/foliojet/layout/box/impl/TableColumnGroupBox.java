@@ -45,6 +45,24 @@ public class TableColumnGroupBox extends TableColumnBox {
 		return this.columns == null ? 0 : this.columns.size();
 	}
 
+	/**
+	 * 葉の列(および子を持たない列グループ)を文書順に走査します。
+	 * 旧来の手動スタックによる再帰走査4箇所を置き換えるためのものです。
+	 *
+	 * @param consumer 各列に適用する処理
+	 */
+	public final void forEachColumn(java.util.function.Consumer<TableColumnBox> consumer) {
+		for (int i = 0; i < this.getTableColumnCount(); ++i) {
+			final TableColumnBox column = this.getTableColumn(i);
+			if (column.getType() == BoxType.TABLE_COLUMN_GROUP
+					&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
+				((TableColumnGroupBox) column).forEachColumn(consumer);
+			} else {
+				consumer.accept(column);
+			}
+		}
+	}
+
 	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y) {
 		if (this.columns == null) {
