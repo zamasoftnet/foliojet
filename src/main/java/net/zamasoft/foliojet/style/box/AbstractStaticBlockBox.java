@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.style.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.style.box.params.Pos;
+import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import net.zamasoft.foliojet.style.builder.LayoutStack;
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
@@ -67,16 +68,11 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 		final BlockParams cParams = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
-		if (this.params.flow.isVertical()) {
-			// 縦書き
-			this.specifiedPageAxis = this.params.size.getWidthType() == LengthType.ABSOLUTE
-					|| (this.params.size.getWidthType() == LengthType.RELATIVE && (!table
-							&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
-		} else {
-			// 横書き
-			this.specifiedPageAxis = this.params.size.getHeightType() == LengthType.ABSOLUTE
-					|| (this.params.size.getHeightType() == LengthType.RELATIVE && (!table
-							&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
+		final WritingMode flow = this.params.flow;
+		{
+			final LengthType pageType = this.params.size.getPageType(flow);
+			this.specifiedPageAxis = pageType == LengthType.ABSOLUTE || (pageType == LengthType.RELATIVE && (!table
+					&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
 		}
 
 		//
@@ -91,207 +87,123 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		//
 		// ■ 行方向幅の計算
 		//
-		// 幅
-		if (this.params.flow.isVertical()) {
-			// 縦書き
-			AbstractContainerBox fixedWidthBox = layoutStack.getFixedWidthFlowBox();
-			if (fixedWidthBox == null) {
-				fixedWidthBox = containerBox;
-			}
-			double cHeight = table ? containerBox.getInnerHeight() : layoutStack.getFixedHeight();
-			double cWidth = fixedWidthBox.getInnerHeight();
-			this.height = StyleUtils.computeDimensionHeight(this.size, cHeight);
-			if (StyleUtils.isNone(this.height)) {
-				this.height = maxLineAxis;
-			} else {
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					this.height -= this.frame.getBorderHeight();
-				}
-			}
-			if ((this.size.getHeightType() == LengthType.AUTO) &&
-			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
-					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
-				double limitHeight;
-				if (cParams.flow.isVertical() || containerBox.isSpecifiedPageSize()) {
-					limitHeight = cHeight - this.frame.getFrameHeight();
-				} else {
-					// 親の幅が不確定の場合はページ高さを限度とする
-					limitHeight = layoutStack.getFixedHeight() - this.frame.getFrameHeight();
-				}
-				this.height = Sizing.fitContent(minLineAxis, this.height, limitHeight);
-			}
-			double maxHeight = StyleUtils.computeDimensionHeight(this.params.maxSize, cHeight);
-			if (!StyleUtils.isNone(maxHeight) && this.height > maxHeight) {
-				this.height = maxHeight;
-			}
-			double minHeight = StyleUtils.computeDimensionHeight(this.minSize, cHeight);
-			if (this.height < minHeight) {
-				this.height = minHeight;
-			}
+		// 論理軸(行方向/ページ方向)で計算し、末尾で物理寸法へ書き戻す。
+		// ページ方向の基準ボックス。
+		AbstractContainerBox fixedPageBox = flow.isVertical() ? layoutStack.getFixedWidthFlowBox()
+				: layoutStack.getFixedHeightFlowBox();
+		if (fixedPageBox == null) {
+			fixedPageBox = containerBox;
+		}
+		// 注: 縦書きでも InnerHeight を参照する(鏡像なら InnerWidth)。既存挙動を温存(要調査)。
+		final double cPage = fixedPageBox.getInnerHeight();
+		final double cLine = table ? containerBox.getInnerLineExtent(flow)
+				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
 
-			double minWidth;
-			switch (this.minSize.getWidthType()) {
-			case RELATIVE:
-				if (!table && this.isSpecifiedPageSize()) {
-					minWidth = this.minSize.getWidth() * cWidth;
-					break;
-				}
-			case AUTO:
-				minWidth = 0;
-				break;
-			case ABSOLUTE:
-				minWidth = this.minSize.getWidth();
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			double maxWidth;
-			switch (this.params.maxSize.getWidthType()) {
-			case RELATIVE:
-				if (!table && this.isSpecifiedPageSize()) {
-					maxWidth = params.maxSize.getWidth() * cWidth;
-					break;
-				}
-			case AUTO:
-				maxWidth = Double.MAX_VALUE;
-				break;
-			case ABSOLUTE:
-				maxWidth = this.params.maxSize.getWidth();
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			switch (this.size.getWidthType()) {
-			case RELATIVE:
-				if (!table && this.isSpecifiedPageSize()) {
-					this.width = this.size.getWidth() * cWidth;
-					this.width = Math.max(this.width, minWidth);
-					this.width = Math.min(this.width, maxWidth);
-					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-						this.width -= this.getFrame().getBorderWidth();
-					}
-					minWidth = maxWidth = this.width;
-					break;
-				}
-			case AUTO:
-				if (!table) {
-					this.width = 0;
-				}
-				break;
-			case ABSOLUTE:
-				this.width = this.size.getWidth();
-				this.width = Math.max(this.width, minWidth);
-				this.width = Math.min(this.width, maxWidth);
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					this.width -= this.getFrame().getBorderWidth();
-				}
-				minWidth = maxWidth = this.width;
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			this.minPageAxis = minWidth;
-			this.maxPageAxis = maxWidth;
+		// 行方向: fit-content と min/max クランプ
+		double lineExtent = StyleUtils.computeDimensionLine(this.size, flow, cLine);
+		if (StyleUtils.isNone(lineExtent)) {
+			lineExtent = maxLineAxis;
 		} else {
-			// 横書き
-			AbstractContainerBox fixedHeightBox = layoutStack.getFixedHeightFlowBox();
-			if (fixedHeightBox == null) {
-				fixedHeightBox = containerBox;
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+				lineExtent -= this.frame.getBorderLineExtent(flow);
 			}
-			double cHeight = fixedHeightBox.getInnerHeight();
-			double cWidth = table ? containerBox.getInnerWidth() : layoutStack.getFixedWidth();
-			this.width = StyleUtils.computeDimensionWidth(this.size, cWidth);
-			if (StyleUtils.isNone(this.width)) {
-				this.width = maxLineAxis;
+		}
+		if ((this.size.getLineType(flow) == LengthType.AUTO) &&
+		// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
+				containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
+			double limitLine;
+			if (cParams.flow.isVertical() == flow.isVertical() || containerBox.isSpecifiedPageSize()) {
+				limitLine = cLine - this.frame.getFrameLineExtent(flow);
 			} else {
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					this.width -= this.frame.getBorderWidth();
-				}
+				// 親の幅が不確定の場合はページ寸法を限度とする
+				limitLine = (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth())
+						- this.frame.getFrameLineExtent(flow);
 			}
-			if ((this.size.getWidthType() == LengthType.AUTO) &&
-			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
-					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
-				double limitWidth;
-				if (!cParams.flow.isVertical() || containerBox.isSpecifiedPageSize()) {
-					limitWidth = cWidth - this.frame.getFrameWidth();
-				} else {
-					// 親の幅が不確定の場合はページ幅を限度とする
-					limitWidth = layoutStack.getFixedWidth() - this.frame.getFrameWidth();
-				}
-				this.width = Sizing.fitContent(minLineAxis, this.width, limitWidth);
-			}
-			double maxWidth = StyleUtils.computeDimensionWidth(this.params.maxSize, cWidth);
-			if (!StyleUtils.isNone(maxWidth) && this.width > maxWidth) {
-				this.width = maxWidth;
-			}
-			double minWidth = StyleUtils.computeDimensionWidth(this.minSize, cWidth);
-			if (this.width < minWidth) {
-				this.width = minWidth;
-			}
+			lineExtent = Sizing.fitContent(minLineAxis, lineExtent, limitLine);
+		}
+		final double maxLine = StyleUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
+		if (!StyleUtils.isNone(maxLine) && lineExtent > maxLine) {
+			lineExtent = maxLine;
+		}
+		final double minLine = StyleUtils.computeDimensionLine(this.minSize, flow, cLine);
+		if (lineExtent < minLine) {
+			lineExtent = minLine;
+		}
 
-			double minHeight;
-			switch (this.minSize.getHeightType()) {
-			case RELATIVE:
-				if (!table && this.isSpecifiedPageSize()) {
-					minHeight = this.minSize.getHeight() * cHeight;
-					break;
-				}
-			case AUTO:
-				minHeight = 0;
+		// ページ方向: min/max と指定寸法
+		double minPage;
+		switch (this.minSize.getPageType(flow)) {
+		case RELATIVE:
+			if (!table && this.isSpecifiedPageSize()) {
+				minPage = this.minSize.getPageLength(flow) * cPage;
 				break;
-			case ABSOLUTE:
-				minHeight = this.minSize.getHeight();
-				break;
-			default:
-				throw new IllegalStateException();
 			}
-			double maxHeight;
-			switch (this.params.maxSize.getHeightType()) {
-			case RELATIVE:
-				if (!table && this.isSpecifiedPageSize()) {
-					maxHeight = this.params.maxSize.getHeight() * cHeight;
-					break;
-				}
-			case AUTO:
-				maxHeight = Double.MAX_VALUE;
+		case AUTO:
+			minPage = 0;
+			break;
+		case ABSOLUTE:
+			minPage = this.minSize.getPageLength(flow);
+			break;
+		default:
+			throw new IllegalStateException();
+		}
+		double maxPage;
+		switch (this.params.maxSize.getPageType(flow)) {
+		case RELATIVE:
+			if (!table && this.isSpecifiedPageSize()) {
+				maxPage = this.params.maxSize.getPageLength(flow) * cPage;
 				break;
-			case ABSOLUTE:
-				maxHeight = this.params.maxSize.getHeight();
-				break;
-			default:
-				throw new IllegalStateException();
 			}
-			switch (this.size.getHeightType()) {
-			case RELATIVE:
-				if (!table && this.isSpecifiedPageSize()) {
-					this.height = this.size.getHeight() * cHeight;
-					this.height = Math.max(this.height, minHeight);
-					this.height = Math.min(this.height, maxHeight);
-					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-						this.height -= this.getFrame().getBorderHeight();
-					}
-					minHeight = this.height;
-					maxHeight = this.height;
-					break;
-				}
-			case AUTO:
-				this.height = 0;
-				break;
-			case ABSOLUTE:
-				this.height = this.size.getHeight();
-				this.height = Math.max(this.height, minHeight);
-				this.height = Math.min(this.height, maxHeight);
+		case AUTO:
+			maxPage = Double.MAX_VALUE;
+			break;
+		case ABSOLUTE:
+			maxPage = this.params.maxSize.getPageLength(flow);
+			break;
+		default:
+			throw new IllegalStateException();
+		}
+		double pageExtent = flow.isVertical() ? this.width : this.height;
+		switch (this.size.getPageType(flow)) {
+		case RELATIVE:
+			if (!table && this.isSpecifiedPageSize()) {
+				pageExtent = this.size.getPageLength(flow) * cPage;
+				pageExtent = Math.max(pageExtent, minPage);
+				pageExtent = Math.min(pageExtent, maxPage);
 				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					this.height -= this.getFrame().getBorderHeight();
+					pageExtent -= this.getFrame().getBorderPageExtent(flow);
 				}
-				minHeight = this.height;
-				maxHeight = this.height;
+				minPage = maxPage = pageExtent;
 				break;
-			default:
-				throw new IllegalStateException();
 			}
-			this.minPageAxis = minHeight;
-			this.maxPageAxis = maxHeight;
+		case AUTO:
+			// 既存挙動: 横書きは常に0、縦書きはテーブル時のみ既値を維持
+			if (!table || !flow.isVertical()) {
+				pageExtent = 0;
+			}
+			break;
+		case ABSOLUTE:
+			pageExtent = this.size.getPageLength(flow);
+			pageExtent = Math.max(pageExtent, minPage);
+			pageExtent = Math.min(pageExtent, maxPage);
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+				pageExtent -= this.getFrame().getBorderPageExtent(flow);
+			}
+			minPage = maxPage = pageExtent;
+			break;
+		default:
+			throw new IllegalStateException();
+		}
+		this.minPageAxis = minPage;
+		this.maxPageAxis = maxPage;
+
+		// 物理寸法へ書き戻し
+		if (flow.isVertical()) {
+			this.height = lineExtent;
+			this.width = pageExtent;
+		} else {
+			this.width = lineExtent;
+			this.height = pageExtent;
 		}
 
 		assert !StyleUtils.isNone(this.width);

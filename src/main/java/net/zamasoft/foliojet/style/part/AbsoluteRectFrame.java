@@ -114,6 +114,26 @@ public class AbsoluteRectFrame {
 		return flow.isVertical() ? this.getFrameWidth() : this.getFrameHeight();
 	}
 
+	/**
+	 * 行方向のボーダー+パディング幅の合計を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向のボーダー+パディング幅
+	 */
+	public final double getBorderLineExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getBorderHeight() : this.getBorderWidth();
+	}
+
+	/**
+	 * ページ方向のボーダー+パディング幅の合計を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向のボーダー+パディング幅
+	 */
+	public final double getBorderPageExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getBorderWidth() : this.getBorderHeight();
+	}
+
 	public final double getBorderHeight() {
 		return this.frame.border.getTop().width + this.padding.top + this.frame.border.getBottom().width
 				+ this.padding.bottom;

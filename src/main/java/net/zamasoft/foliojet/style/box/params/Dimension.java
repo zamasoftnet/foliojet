@@ -45,6 +45,46 @@ public class Dimension {
 		return this.height;
 	}
 
+	/**
+	 * 与えられた書字方向での行方向寸法の型を返します(横書き=幅、縦書き=高さ)。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向寸法の型
+	 */
+	public LengthType getLineType(WritingMode flow) {
+		return flow.isVertical() ? this.getHeightType() : this.getWidthType();
+	}
+
+	/**
+	 * 与えられた書字方向でのページ方向寸法の型を返します(横書き=高さ、縦書き=幅)。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向寸法の型
+	 */
+	public LengthType getPageType(WritingMode flow) {
+		return flow.isVertical() ? this.getWidthType() : this.getHeightType();
+	}
+
+	/**
+	 * 与えられた書字方向での行方向の寸法値を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向の寸法値
+	 */
+	public double getLineLength(WritingMode flow) {
+		return flow.isVertical() ? this.getHeight() : this.getWidth();
+	}
+
+	/**
+	 * 与えられた書字方向でのページ方向の寸法値を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向の寸法値
+	 */
+	public double getPageLength(WritingMode flow) {
+		return flow.isVertical() ? this.getWidth() : this.getHeight();
+	}
+
 	public String toString() {
 		StringBuilder buff = new StringBuilder();
 		buff.append("[width=");

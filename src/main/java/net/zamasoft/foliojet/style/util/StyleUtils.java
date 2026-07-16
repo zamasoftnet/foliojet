@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.util;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.css.util.ValueUtils;
@@ -346,6 +348,18 @@ public final class StyleUtils {
 		default:
 			throw new IllegalStateException();
 		}
+	}
+
+	/**
+	 * Dimensionの行方向の寸法を計算します。 AUTOの場合はNONEを返します。
+	 *
+	 * @param size 寸法
+	 * @param flow 軸を決める書字方向
+	 * @param ref  相対値の基準
+	 * @return 行方向の寸法
+	 */
+	public static double computeDimensionLine(Dimension size, WritingMode flow, double ref) {
+		return flow.isVertical() ? computeDimensionHeight(size, ref) : computeDimensionWidth(size, ref);
 	}
 
 	public static double computeInsetsTop(Insets insets, double ref) {
