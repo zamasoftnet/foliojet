@@ -93,6 +93,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		record AbsoluteBlock(TwoPassBlockBuilder builder) implements Recorded {
 		}
 
+		/** インラインブロック(ネストした実測ビルダーを内包)。 */
+		record InlineBlockEvent(InlineBlockQuad quad, TwoPass measure) implements Recorded {
+		}
+
 		/** テーブル。 */
 		record TableEvent(TwoPassTableBuilder builder) implements Recorded {
 		}
@@ -137,7 +141,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	private final List<Recorded> records = new ArrayList<Recorded>();
 
-	private final List<TwoPass> recordInlineBlocks = new ArrayList<TwoPass>();
+	/**
+	 * 直近に作られたネスト実測ビルダー。対応する InlineBlockQuad の到着時に
+	 * InlineBlockEvent へ内包されます。
+	 */
+	private TwoPass pendingInlineBlock;
 
 	public TwoPassBlockBuilder(LayoutStack layoutStack, AbstractContainerBox containerBox) {
 		this.layoutStack = layoutStack;
@@ -524,7 +532,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.records.add(new Recorded.TableEvent(autoTableBuilder));
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 		case INLINE:
-			this.recordInlineBlocks.add(autoTableBuilder);
+			this.pendingInlineBlock = autoTableBuilder;
 			break;
 		}
 	}
@@ -551,7 +559,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 		case INLINE:
 			// インラインブロック
-			this.recordInlineBlocks.add(builder);
+			this.pendingInlineBlock = builder;
 			break;
 
 		default:
@@ -634,22 +642,27 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					text.toGlyphs(textUnitizer);
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
-					if (quad instanceof InlineBlockQuad) {
-						final TwoPass twoPass = (TwoPass) this.recordInlineBlocks.remove(0);
-						if (twoPass instanceof TwoPassBlockBuilder) {
-							final InlineBlockQuad inlineBlockQuad = (InlineBlockQuad) quad;
-							final InlineBlockBox inlineBlockBox = inlineBlockQuad.box;
-							final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) twoPass;
-							inlineBlockBox.shrinkToFit(builder, stfBuilder.getIntrinsicSizes(), false);
-							final BlockBuilder inlineBlockBuilder = new BlockBuilder(this, inlineBlockBox);
-							stfBuilder.bind(inlineBlockBuilder);
-							inlineBlockBuilder.close();
-						}
-					}
 					textUnitizer.control(quad);
 				} else {
 					throw new IllegalStateException();
 				}
+			}
+				break;
+
+			case Recorded.InlineBlockEvent inlineBlockEvent: {
+				if (textUnitizer == null) {
+					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams().lineBreakRules);
+					textUnitizer.setGlyphHandler(new BuilderGlyphHandler(builder));
+				}
+				// インラインテーブルの実測(TwoPassTableBuilder)は TableEvent 側で bind される
+				if (inlineBlockEvent.measure() instanceof TwoPassBlockBuilder stfBuilder) {
+					final InlineBlockBox inlineBlockBox = inlineBlockEvent.quad().box;
+					inlineBlockBox.shrinkToFit(builder, stfBuilder.getIntrinsicSizes(), false);
+					final BlockBuilder inlineBlockBuilder = new BlockBuilder(this, inlineBlockBox);
+					stfBuilder.bind(inlineBlockBuilder);
+					inlineBlockBuilder.close();
+				}
+				textUnitizer.control(inlineBlockEvent.quad());
 			}
 				break;
 
@@ -816,7 +829,17 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (quad instanceof LineBreak) {
 			this.toLineFeed = (LineBreak) quad;
 		}
-		this.records.add(new Recorded.ElementEvent(quad));
+		final TwoPass inlineBlockMeasure;
+		if (quad instanceof InlineBlockQuad inlineBlockQuad) {
+			// ネストした実測ビルダーをイベントに内包する(旧: recordInlineBlocks 側チャネル)
+			inlineBlockMeasure = this.pendingInlineBlock;
+			assert inlineBlockMeasure != null;
+			this.pendingInlineBlock = null;
+			this.records.add(new Recorded.InlineBlockEvent(inlineBlockQuad, inlineBlockMeasure));
+		} else {
+			inlineBlockMeasure = null;
+			this.records.add(new Recorded.ElementEvent(quad));
+		}
 
 		double minAdvance, maxAdvance, pageSize;
 		if (quad instanceof InlineQuad) {
@@ -859,7 +882,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				final double pageFrame = box.getFrame().getFramePageExtent(cParams.flow);
 				// インラインブロック
 				final BlockParams params = (BlockParams) box.getParams();
-				final TwoPass stfBuilder = (TwoPass) this.recordInlineBlocks.get(this.recordInlineBlocks.size() - 1);
+				final TwoPass stfBuilder = inlineBlockMeasure;
 				final IntrinsicSizes stfSizes = stfBuilder.getIntrinsicSizes();
 				if (cParams.flow.isVertical() == params.flow.isVertical()) {
 					minAdvance = stfSizes.minContent() + lineFrame;
