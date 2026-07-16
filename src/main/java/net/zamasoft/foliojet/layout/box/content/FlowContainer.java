@@ -1031,7 +1031,30 @@ public class FlowContainer implements Container {
 				case TEXT_BLOCK: {
 					// テキストブロックボックス
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
-					textBlock.restyle(builder);
+					boolean replayed = false;
+					if (sourceReplayable && (lastFlow != holder || depth == 1)
+							&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root) {
+						// 尾部の終端 = 次の item のソースアンカー(なければ旧窓末尾)
+						int endEpoch = -1;
+						int endIndex = -1;
+						if (i + 1 < size) {
+							final net.zamasoft.foliojet.layout.box.params.Params nextParams = ((BoxHolder) items
+									.get(i + 1)).getBox().getParams();
+							endEpoch = nextParams.sourceEpoch;
+							endIndex = nextParams.sourceIndex;
+							if (endIndex < 0) {
+								// 終端不明: フォールバック
+								endIndex = -2;
+							}
+						}
+						if (endIndex != -2) {
+							// 切断された段落の尾部をソース再駆動(M6b Phase B)
+							replayed = root.replayTextFrom(this.box, textBlock, endEpoch, endIndex);
+						}
+					}
+					if (!replayed) {
+						textBlock.restyle(builder);
+					}
 					// System.err.println("endTextBlock"+depth);
 					if (lastFlow != holder || depth != 1) {
 						builder.endTextBlock();
@@ -1048,8 +1071,16 @@ public class FlowContainer implements Container {
 							// ブロックボックス
 							// 匿名ボックス
 							// テーブルキャプション
-							if (lastFlow == holder && depth >= 1) {
+							if (lastFlow == holder && depth > 1) {
+								// 開いたままの祖先チェーン
 								containerBox.restyle(builder, depth - 1);
+							} else if (lastFlow == holder && depth == 1) {
+								// depth==1 の末尾は閉じたボックス(次段で depth-1=0)
+								if (!(sourceReplayable
+										&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
+										&& root.replayFromSource(containerBox))) {
+									containerBox.restyle(builder, 0);
+								}
 							} else if (!(sourceReplayable
 									&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
 									&& root.replayFromSource(containerBox))) {

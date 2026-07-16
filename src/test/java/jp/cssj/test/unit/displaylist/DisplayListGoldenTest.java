@@ -43,6 +43,8 @@ public class DisplayListGoldenTest extends TestCase {
 	private static final String[] DOCUMENTS = { //
 			"0120-float/auto-width.html", //
 			"0120-float/float-in-moved-block.html", //
+			"0460-segment-restyle/mid-paragraph.html", //
+			"0460-segment-restyle/moved-blocks.html", //
 			"0240-table/z-order.html", //
 			"0240-table/absolute.html", //
 			"0390-writing-mode/border-collapse.html", //
@@ -113,6 +115,7 @@ public class DisplayListGoldenTest extends TestCase {
 				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
 				CTISessionHelper.transcodeFile(session, source, "text/html", null);
 			} finally {
 				session.close();

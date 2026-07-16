@@ -93,6 +93,13 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return BoxType.TEXT_BLOCK;
 	}
 
+	/**
+	 * このテキストブロックの継続トークンを返します(M6b)。
+	 */
+	public final BreakToken getBreakToken() {
+		return this.breakToken;
+	}
+
 	public final Params getParams() {
 		return this.params;
 	}

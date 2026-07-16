@@ -45,4 +45,15 @@ public interface PageGenerator {
 			net.zamasoft.foliojet.css.CSSElement element) {
 		return false;
 	}
+
+	/**
+	 * 切断された段落の尾部(charOffset 以降)をソースイベントから
+	 * 再駆動します(M6b Phase B)。chainElement は段落を含む開いている
+	 * チェーン要素(アンカー解決は要素同一性で行い、窓世代に依存しない)。
+	 * endIndex が負なら窓末尾まで。非対応実装は false を返します。
+	 */
+	public default boolean replayTextTail(net.zamasoft.foliojet.css.CSSElement chainElement, int charOffset,
+			int endEpoch, int endIndex) {
+		return false;
+	}
 }

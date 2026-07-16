@@ -31,7 +31,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 代わりにソースイベントから再駆動します(M6b segment-restyle)。
 	 * 移行期間中は opt-in です。
 	 */
-	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
+	private static final boolean SEGMENT_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle");
 
 	/**
 	 * 改ページの残余再構築中だけ true(segment-restyle の適用範囲)。
@@ -194,6 +194,38 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		return this.pageGenerator.replaySubtree(params.sourceEpoch, params.sourceIndex, params.element);
+	}
+
+	/**
+	 * 切断された段落の尾部再開をソース再駆動で試みます(M6b Phase B)。
+	 * 改ページの残余再構築中で、継続トークンが位置(charOffset)を持ち、
+	 * 尾部の終端が特定できる場合のみ再駆動されます。
+	 *
+	 * @param chainBox  段落を含むチェーンコンテナのボックス
+	 * @param textBlock 切断残余のテキストブロック
+	 * @param endEpoch  終端アンカーの世代(終端なし時は無視)
+	 * @param endIndex  終端アンカーの位置(負なら旧窓末尾まで)
+	 * @return 再駆動した場合 true
+	 */
+	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.AbstractContainerBox chainBox,
+			final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final int endEpoch,
+			final int endIndex) {
+		if (!SEGMENT_RESTYLE || !this.pageBreakRestyle) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.box.content.BreakToken token = textBlock.getBreakToken();
+		final int charOffset = switch (token) {
+		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidFlow(final int offset) -> offset;
+		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidLine(final int offset) -> offset;
+		default -> -1;
+		};
+		if (charOffset < 0 || chainBox.getParams().element == null) {
+			return false;
+		}
+		// 再駆動が構築するテキストは継続(text-indent/:first-line 抑制)。
+		// TextBuilder が生成時に builder の breakToken を消費する
+		this.setBreakToken(token);
+		return this.pageGenerator.replayTextTail(chainBox.getParams().element, charOffset, endEpoch, endIndex);
 	}
 
 	public void addPageContent(IAbsoluteBox box) {
