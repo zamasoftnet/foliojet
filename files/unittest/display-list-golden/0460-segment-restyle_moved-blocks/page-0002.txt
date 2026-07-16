@@ -1,5 +1,8 @@
 drawer z=0
-  x=0.00 y=0.00 Text["いろはにほへとちいろ" asc=8.00 desc=2.00]
+  x=0.00 y=0.00 Text["いろは" asc=8.00 desc=2.00]
+  x=30.00 y=-0.60 AbsoluteRectFrame[w=30.00 h=12.01]
+  x=30.00 y=-0.60 Text["にほへ" asc=8.60 desc=3.41]
+  x=60.00 y=0.00 Text["とちいろ" asc=8.00 desc=2.00]
   x=0.00 y=10.00 Text["はにほへとち" asc=8.00 desc=2.00]
   x=10.00 y=20.00 Text["1." asc=8.09 desc=2.41]
   x=20.00 y=20.00 Text["りぬるをわか" asc=8.09 desc=2.41]
