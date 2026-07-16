@@ -428,6 +428,8 @@ public class TableCellBox extends AbstractContainerBox {
 			nextFrame = this.frame.cut(false, true, true, true);
 		}
 
+		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
+		this.params.sourceEventId = -1;
 		final TableCellBox cell = new TableCellBox(this.params, this.pos, nextSize, nextMinSize, nextFrame, container);
 		cell.collapse = this.collapse;
 		cell.forceDraw = this.draw();

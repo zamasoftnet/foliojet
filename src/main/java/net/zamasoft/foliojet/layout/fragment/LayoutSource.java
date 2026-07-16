@@ -47,7 +47,19 @@ public final class LayoutSource {
 		/** 浮動ブロック(FloatBlockBox)。 */
 		FLOAT_BLOCK,
 		/** インラインブロック(InlineBlockBox)。 */
-		INLINE_BLOCK;
+		INLINE_BLOCK,
+		/** テーブル(TableBox。blockBox は params 共有+pos クラスで再構成)。 */
+		TABLE,
+		/** テーブル行グループ(TableRowGroupBox)。 */
+		TABLE_ROW_GROUP,
+		/** テーブル行(TableRowBox)。 */
+		TABLE_ROW,
+		/** テーブルセル(TableCellBox)。 */
+		TABLE_CELL,
+		/** テーブル列グループ(TableColumnGroupBox)。 */
+		TABLE_COLUMN_GROUP,
+		/** テーブル列(TableColumnBox)。 */
+		TABLE_COLUMN;
 	}
 
 	/**

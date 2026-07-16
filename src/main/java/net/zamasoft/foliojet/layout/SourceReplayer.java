@@ -120,6 +120,28 @@ public final class SourceReplayer {
 				(net.zamasoft.foliojet.layout.box.params.FloatPos) start.pos());
 		case INLINE_BLOCK -> new net.zamasoft.foliojet.layout.box.impl.InlineBlockBox((BlockParams) start.params(),
 				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
+		case TABLE -> {
+			final net.zamasoft.foliojet.layout.box.params.TableParams tableParams = (net.zamasoft.foliojet.layout.box.params.TableParams) start
+					.params();
+			yield new net.zamasoft.foliojet.layout.box.impl.TableBox(tableParams,
+					new FlowBlockBox(tableParams, (FlowPos) start.pos()));
+		}
+		case TABLE_ROW_GROUP -> new net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox(
+				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.TableRowGroupPos) start.pos());
+		case TABLE_ROW -> new net.zamasoft.foliojet.layout.box.impl.TableRowBox(
+				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.TableRowPos) start.pos());
+		case TABLE_CELL -> new net.zamasoft.foliojet.layout.box.impl.TableCellBox(
+				(net.zamasoft.foliojet.layout.box.params.BlockParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.TableCellPos) start.pos(),
+				new net.zamasoft.foliojet.layout.box.content.FlowContainer());
+		case TABLE_COLUMN_GROUP -> new net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox(
+				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.TableColumnPos) start.pos());
+		case TABLE_COLUMN -> new net.zamasoft.foliojet.layout.box.impl.TableColumnBox(
+				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.TableColumnPos) start.pos());
 		};
 	}
 

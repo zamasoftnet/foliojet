@@ -385,6 +385,27 @@ public class StyleBuilder implements PageGenerator {
 		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBlockBox.class) {
 			return LayoutSource.BoxKind.INLINE_BLOCK;
 		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.TableBox.class
+				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FlowPos) {
+			// blockBox は TableParams を共有するため (params, pos) で再構成できる。
+			// 絶対配置・浮動の表は当面 Opaque(それぞれの再生設計に依存)
+			return LayoutSource.BoxKind.TABLE;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox.class) {
+			return LayoutSource.BoxKind.TABLE_ROW_GROUP;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowBox.class) {
+			return LayoutSource.BoxKind.TABLE_ROW;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.TableCellBox.class) {
+			return LayoutSource.BoxKind.TABLE_CELL;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox.class) {
+			return LayoutSource.BoxKind.TABLE_COLUMN_GROUP;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.TableColumnBox.class) {
+			return LayoutSource.BoxKind.TABLE_COLUMN;
+		}
 		return null;
 	}
 

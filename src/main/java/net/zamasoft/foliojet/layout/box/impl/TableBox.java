@@ -729,6 +729,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				nextFrame = this.frame.cut(false, true, true, true);
 			}
 		}
+		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
+		this.params.sourceEventId = -1;
 		TableBox nextTable = new TableBox(this.params, nextFrame, this.block);
 		if (vertical) {
 			nextTable.height = this.height;
