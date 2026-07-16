@@ -6,12 +6,6 @@ import net.zamasoft.foliojet.layout.box.params.Fiducial;
 
 import net.zamasoft.foliojet.layout.box.params.AutoPosition;
 
-import net.zamasoft.foliojet.layout.box.params.FloatSide;
-
-import net.zamasoft.foliojet.layout.box.params.ClearMode;
-
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,33 +15,21 @@ import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox;
 import net.zamasoft.foliojet.layout.box.IBox;
-import net.zamasoft.foliojet.layout.box.IFloatBox;
-import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
-import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
-import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineBlockQuad;
-import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
-import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
-import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.builder.TwoPass;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.Element;
@@ -55,7 +37,6 @@ import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
-import net.zamasoft.pdfg2d.gc.text.layout.control.LineBreak;
 
 public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private static final boolean DEBUG = false;
@@ -105,39 +86,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	protected final LayoutStack layoutStack;
 
 	/**
-	 * 最小行幅、最大行幅、最小ページ高さ
+	 * 固有寸法の計測器。イベントを記録(records)と同時にこちらへ流し込みます。
 	 */
-	private double minLineSize = 0, maxLineSize = 0, minPageSize = 0;
-
-	private double maxStartFloatAdvance = 0, maxEndFloatAdvance = 0;
-
-	private int columnCount = 1;
+	private final IntrinsicMeasurer measurer = new IntrinsicMeasurer(this);
 
 	private TextImpl text;
 
-	/**
-	 * 現在の行幅。
-	 */
-	private double lineAxis = 0;
-
-	private double atomicLineSize = 0;
-
-	private double letterSpacing = 0;
-
-	private double textIndent;
-
-	private boolean blockHead;
-
-	/**
-	 * 通常のフローのブロックボックスの枠部分の行方向の幅、ページ方向の幅。
-	 */
-	private double lineFrame = 0, pageFrame = 0;
-
-	private LineBreak toLineFeed = null;
-
 	private final List<AbstractContainerBox> flowStack = new ArrayList<AbstractContainerBox>();
-
-	private final List<IBox> inlineStack = new ArrayList<IBox>();
 
 	private final List<Recorded> records = new ArrayList<Recorded>();
 
@@ -150,10 +105,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public TwoPassBlockBuilder(LayoutStack layoutStack, AbstractContainerBox containerBox) {
 		this.layoutStack = layoutStack;
 		this.flowStack.add(containerBox);
-		this.textIndent = containerBox.getTextIndent();
-		this.blockHead = true;
-		this.letterSpacing = LayoutUtils.computeLength(containerBox.getBlockParams().letterSpacing,
-				this.getFlowBox().getLineSize());
+		this.measurer.start(containerBox);
 	}
 
 	public AbstractContainerBox getFixedWidthContextBox() {
@@ -259,7 +211,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public IntrinsicSizes getIntrinsicSizes() {
-		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize);
+		return this.measurer.sizes();
 	}
 
 	public boolean isMain() {
@@ -311,215 +263,28 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void startFlowBlock(final FlowBlockBox flowBox) {
 		// 通常のフローのブロックボックス
-		assert this.inlineStack.isEmpty();
 		AbstractContainerBox containerBox = this.getFlowBox();
-		BlockParams params = containerBox.getBlockParams();
-		FlowPos pos = (FlowPos) flowBox.getPos();
-		this.clearFloatAdvance(pos.clear);
-
+		// firstPassLayout は計測状態(浮動体アドバンス)を読まないため、
+		// clearFloatAdvance(計測器側)との順序入れ替えは等価。
 		flowBox.firstPassLayout(containerBox);
-		double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow);
-		this.lineFrame += flowBox.getFrame().getFrameLineExtent(params.flow);
-		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
-		assert !LayoutUtils.isNone(this.lineFrame);
-		if (flowBox.getColumnCount() > 0) {
-			this.lineFrame += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
-		}
-		this.lineFrame *= this.columnCount;
-		lineSize *= this.columnCount;
-		if (this.lineFrame > this.minLineSize) {
-			this.minLineSize = this.lineFrame;
-		}
-		if (this.pageFrame > this.minPageSize) {
-			this.minPageSize = this.pageFrame;
-		}
-		if (lineSize > this.maxLineSize) {
-			this.maxLineSize = lineSize;
-		}
-		this.textIndent = flowBox.getTextIndent();
-		this.blockHead = true;
+		this.measurer.startFlow(flowBox, containerBox);
 
 		this.flowStack.add(flowBox);
 		this.records.add(new Recorded.StartFlow(flowBox));
-		this.columnCount *= flowBox.getColumnCount();
-		this.letterSpacing = LayoutUtils.computeLength(flowBox.getBlockParams().letterSpacing,
-				this.getFlowBox().getLineSize());
 	}
 
 	public void endFlowBlock() {
 		// 通常のフローのブロックボックス
-		assert this.inlineStack.isEmpty();
 		AbstractBlockBox flowBox = (AbstractBlockBox) this.flowStack.remove(this.flowStack.size() - 1);
-		AbstractContainerBox containerBox = this.getFlowBox();
-		BlockParams params = containerBox.getBlockParams();
-		BlockParams flowParams = flowBox.getBlockParams();
-		this.columnCount /= flowBox.getColumnCount();
-		this.lineFrame /= this.columnCount;
-		if (flowBox.getColumnCount() > 0) {
-			this.lineFrame -= flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
-		}
-
-		switch (params.flow) {
-		case WritingMode.TB:
-			// 横書き
-			this.lineFrame -= flowBox.getFrame().getFrameWidth();
-			this.pageFrame -= flowBox.getFrame().getFrameHeight();
-			if (flowParams.size.getWidthType() == LengthType.ABSOLUTE) {
-				// 固定幅フロー
-				this.maxLineSize = this.minLineSize = flowBox.getWidth();
-			}
-			break;
-		case WritingMode.LR:
-		case WritingMode.RL:
-			// 縦書き
-			this.lineFrame -= flowBox.getFrame().getFrameHeight();
-			this.pageFrame -= flowBox.getFrame().getFrameWidth();
-			if (flowParams.size.getHeightType() == LengthType.ABSOLUTE) {
-				// 固定幅フロー
-				this.maxLineSize = this.minLineSize = flowBox.getHeight();
-			}
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-
-		assert !LayoutUtils.isNone(this.lineFrame);
+		// 元コードでは記録(records.add)は枠反転処理と textIndent リセットの間にあったが、
+		// 計測状態と records は独立のため 計測(末尾リセット含む)→記録 の順でも等価。
+		this.measurer.endFlow(flowBox);
 		this.records.add(new Recorded.EndFlow((FlowBlockBox) flowBox));
-
-		this.textIndent = 0;
-		this.blockHead = false;
-		this.letterSpacing = LayoutUtils.computeLength(flowBox.getBlockParams().letterSpacing,
-				this.getFlowBox().getLineSize());
 	}
 
 	public void addBound(IBox box) {
 		AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
-		switch (replacedBox.getPos().getType()) {
-		case FLOW: {
-			// 静的・相対配置
-			AbstractContainerBox containerBox = this.getFlowBox();
-			IFlowBox flowBox = (IFlowBox) replacedBox;
-			FlowPos pos = (FlowPos) flowBox.getPos();
-			this.clearFloatAdvance(pos.clear);
-			LayoutUtils.calculateReplacedSize(this, replacedBox);
-
-			double minLineAxis, maxLineAxis = 0, minPageAxis;
-			BlockParams params = containerBox.getBlockParams();
-			if (params.flow.isVertical()) {
-				// 縦書き
-				minLineAxis = replacedBox.getHeight();
-				minPageAxis = replacedBox.getWidth();
-				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
-					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
-				}
-			} else {
-				// 横書き
-				minLineAxis = replacedBox.getWidth();
-				minPageAxis = replacedBox.getHeight();
-				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
-					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
-				}
-			}
-			minPageAxis += this.pageFrame;
-			minLineAxis *= this.columnCount;
-			minLineAxis += this.lineFrame;
-			
-			maxLineAxis *= this.columnCount;
-			maxLineAxis += this.lineFrame;
-
-			assert !LayoutUtils.isNone(minLineAxis);
-			if (minLineAxis > this.minLineSize) {
-				this.minLineSize = minLineAxis;
-			}
-			if (minPageAxis > this.minPageSize) {
-				this.minPageSize = minPageAxis;
-			}
-			if (maxLineAxis > this.maxLineSize) {
-				this.maxLineSize = maxLineAxis;
-			}
-		}
-			break;
-		case FLOAT: {
-			// 浮動体
-			AbstractContainerBox containerBox = this.getFlowBox();
-			IFloatBox floatingBox = (IFloatBox) replacedBox;
-			this.clearFloatAdvance(floatingBox.getFloatPos().clear);
-			LayoutUtils.calculateReplacedSize(this, replacedBox);
-
-			double minLineAxis, minPageAxis, maxLineAxis = 0;
-			BlockParams params = containerBox.getBlockParams();
-			if (params.flow.isVertical()) {
-				// 縦書き
-				minLineAxis = replacedBox.getHeight();
-				minPageAxis = replacedBox.getWidth();
-				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
-					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
-				}
-			} else {
-				// 横書き
-				minLineAxis = replacedBox.getWidth();
-				minPageAxis = replacedBox.getHeight();
-				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
-					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
-				}
-			}
-			assert !LayoutUtils.isNone(minLineAxis);
-			if (minLineAxis > this.minLineSize) {
-				this.minLineSize = minLineAxis;
-			}
-			if (minPageAxis > this.minPageSize) {
-				this.minPageSize = minPageAxis;
-			}
-
-			switch (floatingBox.getFloatPos().floating) {
-			case FloatSide.START: {
-				this.maxStartFloatAdvance += minLineAxis;
-			}
-				break;
-			case FloatSide.END: {
-				this.maxEndFloatAdvance += minLineAxis;
-			}
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			double xmaxLineAxis = this.maxStartFloatAdvance + this.maxEndFloatAdvance;
-			if (xmaxLineAxis > maxLineAxis) {
-				maxLineAxis = xmaxLineAxis;
-			}
-			maxLineAxis *= this.columnCount;
-			maxLineAxis += this.lineFrame;
-			if (maxLineAxis > this.maxLineSize) {
-				this.maxLineSize = maxLineAxis;
-			}
-		}
-			break;
-
-		case ABSOLUTE:
-			// 絶対配置
-			AbstractContainerBox contextBox;
-			switch (((AbsoluteReplacedBox) replacedBox).getAbsolutePos().fiducial) {
-			case Fiducial.CONTEXT:
-			case Fiducial.ALL_PAGE: {
-				// 通常の絶対配置
-				// 固定配置
-				contextBox = this.getFlowBox();
-			}
-				break;
-			case Fiducial.CURRENT_PAGE: {
-				// ページコンテンツ
-				contextBox = this.getPageContext().getRootBox();
-			}
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			replacedBox.calculateFrame(contextBox.getLineSize());
-			break;
-
-		default:
-			throw new IllegalStateException();
-		}
+		this.measurer.bound(replacedBox);
 		this.records.add(new Recorded.ReplacedEvent(replacedBox));
 	}
 
@@ -527,8 +292,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		TwoPassTableBuilder autoTableBuilder = (TwoPassTableBuilder) tableBuilder;
 		autoTableBuilder.prepareLayout();
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
-		this.minLineSize = Math.max(this.minLineSize, tableSizes.minContent() * this.columnCount);
-		this.maxLineSize = Math.max(this.maxLineSize, tableSizes.maxContent() * this.columnCount);
+		this.measurer.table(tableSizes);
 		this.records.add(new Recorded.TableEvent(autoTableBuilder));
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 		case INLINE:
@@ -569,53 +333,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void fitFloating(TwoPassBlockBuilder childBuilder) {
-		FloatBlockBox floatingBox = (FloatBlockBox) childBuilder.getRootBox();
-		this.clearFloatAdvance(floatingBox.getFloatPos().clear);
-
-		BlockParams params = floatingBox.getBlockParams();
-		BlockParams flowParams = this.getFlowBox().getBlockParams();
-		double minLineAxis, maxLineAxis;
-		if (flowParams.flow.isVertical()) {
-			// 縦書き
-			if (params.size.getHeightType() != LengthType.AUTO) {
-				minLineAxis = maxLineAxis = floatingBox.getHeight();
-			} else {
-				final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
-				minLineAxis = childSizes.minContent() + floatingBox.getFrame().getFrameWidth();
-				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameHeight();
-			}
-		} else {
-			// 横書き
-			if (params.size.getWidthType() != LengthType.AUTO) {
-				minLineAxis = maxLineAxis = floatingBox.getWidth();
-			} else {
-				final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
-				minLineAxis = childSizes.minContent() + floatingBox.getFrame().getFrameWidth();
-				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameWidth();
-			}
-		}
-		assert !LayoutUtils.isNone(maxLineAxis);
-		// System.err.println(this.minLineAxis + "/" + this.maxLineAxis);
-		if (minLineAxis > this.minLineSize) {
-			this.minLineSize = minLineAxis;
-		}
-
-		switch (floatingBox.getFloatPos().floating) {
-		case FloatSide.START:
-			this.maxStartFloatAdvance += maxLineAxis;
-			break;
-		case FloatSide.END:
-			this.maxEndFloatAdvance += maxLineAxis;
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-		maxLineAxis = this.maxStartFloatAdvance + this.maxEndFloatAdvance;
-		maxLineAxis *= this.columnCount;
-		maxLineAxis += this.lineFrame;
-		if (maxLineAxis > this.maxLineSize) {
-			this.maxLineSize = maxLineAxis;
-		}
+		this.measurer.fitFloating(childBuilder);
 	}
 
 	public void bind(BlockBuilder builder) {
@@ -796,27 +514,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
-	private double getCurrentLineHeight() {
-		if (this.inlineStack.isEmpty()) {
-			return this.getFlowBox().getBlockParams().lineHeight;
-		}
-		InlineBox box = (InlineBox) this.inlineStack.get(this.inlineStack.size() - 1);
-		return box.getInlinePos().lineHeight;
-	}
-
 	public void startTextRun(int charOffset, final FontStyle fontStyle, final FontMetrics fontMetrics) {
 		this.text = new TextImpl(charOffset, fontStyle, fontMetrics);
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
+		// appendGlyph は記録用 TextImpl を構築しつつアドバンスを返すため、
+		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
 		double advance = this.text.appendGlyph(ch, coff, clen, gid);
-		advance += this.letterSpacing;
-		this.atomicLineSize += advance;
-		this.lineAxis += advance;
-		double minPageAxis = this.getCurrentLineHeight() + this.pageFrame;
-		if (minPageAxis > this.minPageSize) {
-			this.minPageSize = minPageAxis;
-		}
+		this.measurer.glyph(advance);
 	}
 
 	public void endTextRun() {
@@ -826,9 +532,6 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void control(final TextControl quad) {
-		if (quad instanceof LineBreak) {
-			this.toLineFeed = (LineBreak) quad;
-		}
 		final TwoPass inlineBlockMeasure;
 		if (quad instanceof InlineBlockQuad inlineBlockQuad) {
 			// ネストした実測ビルダーをイベントに内包する(旧: recordInlineBlocks 側チャネル)
@@ -840,127 +543,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			inlineBlockMeasure = null;
 			this.records.add(new Recorded.ElementEvent(quad));
 		}
-
-		double minAdvance, maxAdvance, pageSize;
-		if (quad instanceof InlineQuad) {
-			final InlineQuad inlineQuad = (InlineQuad) quad;
-			final BlockParams cParams = this.getFlowBox().getBlockParams();
-			if (quad instanceof InlineReplacedQuad) {
-				// 画像
-				final AbstractReplacedBox box = (AbstractReplacedBox) inlineQuad.getBox();
-				maxAdvance = quad.getAdvance();
-				minAdvance = 0;
-				if (cParams.flow.isVertical()) {
-					// 縦書き
-					if (box.getReplacedParams().size.getHeightType() != LengthType.RELATIVE
-							&& box.getReplacedParams().maxSize.getHeightType() != LengthType.RELATIVE) {
-						minAdvance = maxAdvance;
-					}
-					if (box.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
-						if(box.getReplacedParams().size.getHeight() > maxAdvance) {
-							maxAdvance = box.getReplacedParams().size.getHeight();
-						}
-					}	
-					pageSize = box.getWidth();
-				} else {
-					// 横書き
-					if (box.getReplacedParams().size.getWidthType() != LengthType.RELATIVE
-							&& box.getReplacedParams().maxSize.getWidthType() != LengthType.RELATIVE) {
-						minAdvance = maxAdvance;
-					}
-					if (box.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
-						if(box.getReplacedParams().size.getWidth() > maxAdvance) {
-							maxAdvance = box.getReplacedParams().size.getWidth();
-						}
-					}	
-					pageSize = box.getHeight();
-				}
-			} else if (quad instanceof InlineBlockQuad) {
-				// インラインブロック
-				final AbstractContainerBox box = (AbstractContainerBox) inlineQuad.getBox();
-				final double lineFrame = box.getFrame().getFrameLineExtent(cParams.flow);
-				final double pageFrame = box.getFrame().getFramePageExtent(cParams.flow);
-				// インラインブロック
-				final BlockParams params = (BlockParams) box.getParams();
-				final TwoPass stfBuilder = inlineBlockMeasure;
-				final IntrinsicSizes stfSizes = stfBuilder.getIntrinsicSizes();
-				if (cParams.flow.isVertical() == params.flow.isVertical()) {
-					minAdvance = stfSizes.minContent() + lineFrame;
-					maxAdvance = stfSizes.maxContent() + lineFrame;
-					pageSize = stfSizes.minPage() + pageFrame;
-				} else {
-					// 縦中横/横中縦
-					minAdvance = maxAdvance = stfSizes.minPage() + pageFrame;
-					pageSize = stfSizes.minContent() + lineFrame;
-				}
-				minAdvance = Math.max(minAdvance, box.getLineExtent(params.flow));
-				maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));
-				pageSize = Math.max(pageSize, box.getPageExtent(params.flow));
-			} else {
-				if (inlineQuad instanceof InlineStartQuad) {
-					this.inlineStack.add(inlineQuad.getBox());
-					final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
-					this.letterSpacing = LayoutUtils.computeLength(inlineStartQuad.box.getTextParams().letterSpacing,
-							this.getFlowBox().getLineSize());
-				} else if (inlineQuad instanceof InlineEndQuad) {
-					this.inlineStack.remove(this.inlineStack.size() - 1);
-					AbstractTextParams params;
-					if (this.inlineStack.isEmpty()) {
-						params = this.getFlowBox().getBlockParams();
-					} else {
-						final InlineBox box = (InlineBox) this.inlineStack.get(this.inlineStack.size() - 1);
-						params = box.getTextParams();
-					}
-					this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing,
-							this.getFlowBox().getLineSize());
-				}
-				minAdvance = maxAdvance = quad.getAdvance();
-				pageSize = inlineQuad.getBox().getPageExtent(cParams.flow);
-			}
-		} else {
-			minAdvance = maxAdvance = quad.getAdvance();
-			pageSize = 0;
-		}
-		pageSize = Math.max(pageSize, this.getCurrentLineHeight());
-		pageSize += this.pageFrame;
-		if (pageSize > this.minPageSize) {
-			this.minPageSize = pageSize;
-		}
-		this.atomicLineSize += minAdvance;
-		this.lineAxis += maxAdvance;
+		this.measurer.control(quad, inlineBlockMeasure);
 	}
 
 	public void flush() {
-		double minLineSize = this.atomicLineSize;
-		if (this.blockHead) {
-			minLineSize += this.textIndent;
-			this.blockHead = false;
-		}
-		minLineSize *= this.columnCount;
-		minLineSize += this.lineFrame;
-		if (minLineSize > this.minLineSize) {
-			this.minLineSize = minLineSize;
-			if (minLineSize > this.maxLineSize) {
-				this.maxLineSize = minLineSize;
-			}
-		}
-		this.atomicLineSize = 0;
-		if (this.toLineFeed != null) {
-			assert !LayoutUtils.isNone(this.lineAxis);
-			assert !LayoutUtils.isNone(this.lineFrame);
-			double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis;
-			maxLineSize *= this.columnCount;
-			maxLineSize += this.lineFrame;
-			if (maxLineSize > this.maxLineSize) {
-				this.maxLineSize = maxLineSize;
-			}
-			this.lineAxis = 0;
-			this.toLineFeed = null;
-			this.textIndent = 0;
-			this.clearFloatAdvance(ClearMode.BOTH);
-		}
+		this.measurer.flush();
 	}
-	
+
 	public void finish() {
 		this.flush();
 	}
@@ -971,45 +560,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void endTextBlock() {
 		this.records.add(Recorded.EndTextBlock.INSTANCE);
-		assert !LayoutUtils.isNone(this.lineAxis);
-		assert !LayoutUtils.isNone(this.lineFrame);
-		double minLineSize = this.atomicLineSize;
-		if (this.blockHead) {
-			minLineSize += this.textIndent;
-			this.blockHead = false;
-		}
-		minLineSize *= this.columnCount;
-		minLineSize += this.lineFrame;
-		if (minLineSize > this.minLineSize) {
-			this.minLineSize = minLineSize;
-		}
-		double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis;
-		maxLineSize *= this.columnCount;
-		maxLineSize += this.lineFrame;
-		if (maxLineSize > this.maxLineSize) {
-			this.maxLineSize = maxLineSize;
-		}
-		this.atomicLineSize = 0;
-		this.lineAxis = 0;
-	}
-
-	private void clearFloatAdvance(ClearMode clear) {
-		switch (clear) {
-		case ClearMode.BOTH:
-			this.maxStartFloatAdvance = 0;
-			this.maxEndFloatAdvance = 0;
-			break;
-		case ClearMode.START:
-			this.maxStartFloatAdvance = 0;
-			break;
-		case ClearMode.END:
-			this.maxEndFloatAdvance = 0;
-			break;
-		case ClearMode.NONE:
-			break;
-		default:
-			throw new IllegalStateException();
-		}
+		this.measurer.endTextBlock();
 	}
 
 	public boolean isEmpty() {
