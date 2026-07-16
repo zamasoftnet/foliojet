@@ -703,7 +703,7 @@ public class StyleBuilder implements PageGenerator {
 	private void setupLineParams(FirstLineParams params, CSSStyle style) {
 		this.setupAbstractLineParams(params, style);
 		if (style.getCSSElement() == CSSElement.FIRST_LINE) {
-			params.background = this.createBackground(style);
+			params.background = createBackground(style);
 		}
 	}
 
@@ -770,8 +770,8 @@ public class StyleBuilder implements PageGenerator {
 
 	private void setupInnerTableParams(InnerTableParams params, CSSStyle style) {
 		this.setupParams(params, style);
-		params.background = this.createBackground(style);
-		params.border = this.createRectBorder(style);
+		params.background = createBackground(style);
+		params.border = createRectBorder(style);
 		params.pageBreakInside = PageBreakInside.get(style);
 	}
 
@@ -901,7 +901,7 @@ public class StyleBuilder implements PageGenerator {
 	 * @param style
 	 * @return
 	 */
-	private Background createBackground(CSSStyle style) {
+	static Background createBackground(CSSStyle style) {
 		Image image = BackgroundImage.get(style);
 		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
 		if (image != null) {
@@ -920,7 +920,7 @@ public class StyleBuilder implements PageGenerator {
 	 * @param style
 	 * @return
 	 */
-	private RectBorder createRectBorder(CSSStyle style) {
+	static RectBorder createRectBorder(CSSStyle style) {
 		final Border top = Border.create(BorderStyle.get(style, Side.TOP), BorderWidth.get(style, Side.TOP),
 				BorderColor.get(style, Side.TOP));
 		final Border right = Border.create(BorderStyle.get(style, Side.RIGHT), BorderWidth.get(style, Side.RIGHT),
@@ -947,8 +947,8 @@ public class StyleBuilder implements PageGenerator {
 	 * @return
 	 */
 	private RectFrame createRectFrame(CSSStyle style) {
-		RectBorder border = this.createRectBorder(style);
-		Background background = this.createBackground(style);
+		RectBorder border = createRectBorder(style);
+		Background background = createBackground(style);
 
 		// HTML/BODYタグ
 		if (!this.inBody) {

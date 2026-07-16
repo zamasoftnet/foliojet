@@ -21,6 +21,10 @@ import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJFirstHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
+import net.zamasoft.foliojet.css.util.BoxValueUtils;
+import net.zamasoft.foliojet.impl.css.property.box.Margin;
+import net.zamasoft.foliojet.impl.css.property.box.Padding;
+import net.zamasoft.foliojet.impl.css.property.box.Side;
 import net.zamasoft.foliojet.impl.css.property.box.VerticalAlign;
 import net.zamasoft.foliojet.impl.css.property.content.Content;
 import net.zamasoft.foliojet.impl.css.property.text.Direction;
@@ -39,6 +43,7 @@ import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.CellAlign;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
@@ -62,8 +67,8 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * 現段階の対応: content の文字列・counter()/counters()(ページレベルの
  * カウンタ=page/pages と @page の counter-* によるもの)・
  * -cssj-first/last-heading・-cssj-title、フォント・色・text-align・
- * vertical-align(top/middle/bottom)。未対応(FINE ログ): url() 画像・
- * 引用符・attr()・page-ref、border/padding/background、縦書きの側面
+ * vertical-align(top/middle/bottom)、margin/border/padding/background。
+ * 未対応(FINE ログ): url() 画像・引用符・attr()・page-ref、縦書きの側面
  * ボックス。幅配分は css-page-3 §7.3 の基本形(センター優先、なければ
  * max-content 比例)。
  * </p>
@@ -225,6 +230,8 @@ final class MarginBoxes {
 			dy = Math.max(0, (h - contentH) / 2);
 			break;
 		}
+		// frames が背景・ボーダー層、draw が内容層(PageBox.drawFlow と同じ二層)
+		mini.frames(mini, drawer, null, new AffineTransform(), x, y + dy);
 		mini.draw(mini, drawer, visitor, null, new AffineTransform(), x, y + dy, x, y + dy);
 	}
 
@@ -295,6 +302,12 @@ final class MarginBoxes {
 
 			final BlockParams params = new BlockParams();
 			params.element = style.getCSSElement();
+			params.frame = RectFrame.create(
+					BoxValueUtils.toInsets(Margin.get(style, Side.TOP), Margin.get(style, Side.RIGHT),
+							Margin.get(style, Side.BOTTOM), Margin.get(style, Side.LEFT)),
+					StyleBuilder.createRectBorder(style), StyleBuilder.createBackground(style),
+					BoxValueUtils.toInsets(Padding.get(style, Side.TOP), Padding.get(style, Side.RIGHT),
+							Padding.get(style, Side.BOTTOM), Padding.get(style, Side.LEFT)));
 			params.color = TextFillColor.get(style);
 			params.fontStyle = style.getFontStyle();
 			params.fontManager = ua.getFontManager();
