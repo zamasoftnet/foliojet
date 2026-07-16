@@ -47,6 +47,55 @@ public final class SourceReplayer {
 	}
 
 	/**
+	 * ログ範囲のイベントを doc へそのまま再駆動します(共有ドライバ)。
+	 */
+	private static void drive(final DocumentBuilder doc, final LayoutSource log, final long fromId, final long toId) {
+		log.replay(fromId, toId, event -> {
+			switch (event) {
+			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
+					.startBox(newBlockBox(params, (FlowPos) pos));
+			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
+					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
+					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
+			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
+					.addReplacedBox(box);
+			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
+					.characters(charOffset, ch, 0, ch.length, fixed);
+			case LayoutSource.EndBlock end -> doc.endBox();
+			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
+			}
+		});
+	}
+
+	/**
+	 * ログ範囲を scratch ページへ再生し、実レイアウトで計測します(M2c)。
+	 * ライブの状態には一切触れず、新品のボックス木を作って測るため、
+	 * 何度でも・任意の寸法で呼べます。
+	 *
+	 * @param log      ソースログ
+	 * @param fromId   範囲の先頭 EventId
+	 * @param toId     範囲の末尾 EventId
+	 * @param template 書体等を引き継ぐ計算済みパラメータ
+	 * @param ua       ユーザーエージェント
+	 * @param width    scratch ページ幅(max-content 測定は十分大きな値)
+	 * @param height   scratch ページ高さ
+	 * @param paginate 破断を許すか(収まりのプローブは true、寸法測定は false)
+	 * @return 測定結果を保持する生成器(最終ページ・ページ数)
+	 */
+	public static MeasurePageGenerator measure(final LayoutSource log, final long fromId, final long toId,
+			final BlockParams template, final net.zamasoft.foliojet.ua.UserAgent ua, final double width,
+			final double height, final boolean paginate) {
+		final MeasurePageGenerator pg = new MeasurePageGenerator(ua, template, width, height);
+		final DocumentBuilder doc = new DocumentBuilder(pg);
+		if (!paginate) {
+			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);
+		}
+		drive(doc, log, fromId, toId);
+		doc.end();
+		return pg;
+	}
+
+	/**
 	 * 記録された params/pos から同型のブロックボックスを作ります。
 	 * マルチカラムは params の columns 指定で判別します(M6c)。
 	 */
@@ -156,21 +205,7 @@ public final class SourceReplayer {
 			return false;
 		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
-		log.replay(selfId + 1, endId - 1, event -> {
-			switch (event) {
-			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
-					.startBox(newBlockBox(params, (FlowPos) pos));
-			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
-					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
-					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
-			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
-					.addReplacedBox(box);
-			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
-					.characters(charOffset, ch, 0, ch.length, fixed);
-			case LayoutSource.EndBlock end -> doc.endBox();
-			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
-			}
-		});
+		drive(doc, log, selfId + 1, endId - 1);
 		doc.finishReplay();
 		BALANCE_REPLAYS.incrementAndGet();
 		return true;
@@ -190,21 +225,7 @@ public final class SourceReplayer {
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
 		assert !log.containsMulticol(fromId, toId);
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
-		log.replay(fromId, toId, event -> {
-			switch (event) {
-			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
-					.startBox(newBlockBox(params, (FlowPos) pos));
-			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
-					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
-					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
-			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
-					.characters(charOffset, ch, 0, ch.length, fixed);
-			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
-					.addReplacedBox(box);
-			case LayoutSource.EndBlock end -> doc.endBox();
-			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
-			}
-		});
+		drive(doc, log, fromId, toId);
 		doc.finishReplay();
 		SUBTREE_REPLAYS.incrementAndGet();
 	}
