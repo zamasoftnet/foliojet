@@ -118,22 +118,11 @@ public class ColumnsContainer implements Container {
 			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y);
 			drawer.visitDrawable(drawable, x, y);
 		}
-		if (this.box.getBlockParams().flow.isVertical()) {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					y += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawFlowFrames(pageBox, drawer, clip, transform, x, y);
-			}
-		} else {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					x += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawFlowFrames(pageBox, drawer, clip, transform, x, y);
-			}
+		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
+		for (int i = 0; i < this.columns.size(); ++i) {
+			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			container.drawFlowFrames(pageBox, drawer, clip, transform, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
 		}
 	}
 
@@ -141,22 +130,11 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		if (this.box.getBlockParams().flow.isVertical()) {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					y += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
-		} else {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					x += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
+		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
+		for (int i = 0; i < this.columns.size(); ++i) {
+			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
 		}
 	}
 
@@ -164,22 +142,11 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		if (this.box.getBlockParams().flow.isVertical()) {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					y += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
-		} else {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					x += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
+		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
+		for (int i = 0; i < this.columns.size(); ++i) {
+			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
 		}
 	}
 
@@ -187,22 +154,11 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		if (this.box.getBlockParams().flow.isVertical()) {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					y += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
-		} else {
-			for (int i = 0; i < this.columns.size(); ++i) {
-				if (i >= 1) {
-					x += columnSize;
-				}
-				FlowContainer container = (FlowContainer) this.columns.get(i);
-				container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
+		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
+		for (int i = 0; i < this.columns.size(); ++i) {
+			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
 		}
 	}
 

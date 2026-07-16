@@ -131,21 +131,14 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.rows == null) {
 			return;
 		}
-		if (this.tableParams.flow.isVertical()) {
-			// 縦書き
-			x += this.pageSize;
-			for (int i = 0; i < this.rows.size(); ++i) {
-				TableRowBox row = (TableRowBox) this.rows.get(i);
-				x -= row.getPageSize();
-				row.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
-		} else {
-			// 横書き
-			for (int i = 0; i < this.rows.size(); ++i) {
-				TableRowBox row = (TableRowBox) this.rows.get(i);
-				row.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-				y += row.getPageSize();
-			}
+		double pageStart = 0;
+		for (int i = 0; i < this.rows.size(); ++i) {
+			final TableRowBox row = (TableRowBox) this.rows.get(i);
+			final double pageEnd = pageStart + row.getPageSize();
+			row.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, pageEnd, 0),
+					LayoutUtils.drawY(this.tableParams.flow, y, pageStart, 0));
+			pageStart = pageEnd;
 		}
 	}
 
@@ -169,21 +162,14 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			return;
 		}
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
-		if (this.tableParams.flow.isVertical()) {
-			// 縦書き
-			x += this.pageSize;
-			for (int i = 0; i < this.rows.size(); ++i) {
-				TableRowBox row = (TableRowBox) this.rows.get(i);
-				x -= row.getPageSize();
-				row.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-			}
-		} else {
-			// 横書き
-			for (int i = 0; i < this.rows.size(); ++i) {
-				TableRowBox row = (TableRowBox) this.rows.get(i);
-				row.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-				y += row.getPageSize();
-			}
+		double pageStart = 0;
+		for (int i = 0; i < this.rows.size(); ++i) {
+			final TableRowBox row = (TableRowBox) this.rows.get(i);
+			final double pageEnd = pageStart + row.getPageSize();
+			row.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, pageEnd, 0),
+					LayoutUtils.drawY(this.tableParams.flow, y, pageStart, 0));
+			pageStart = pageEnd;
 		}
 		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 	}

@@ -362,6 +362,37 @@ public final class LayoutUtils {
 		return flow.isVertical() ? computeDimensionHeight(size, ref) : computeDimensionWidth(size, ref);
 	}
 
+	/**
+	 * 親の物理原点 x から、論理位置(行方向 childLineStart、ページ方向
+	 * childPageEnd)に置かれる子の物理X座標を返します。
+	 * 縦書きの内部規約(pageAxis は右→左)はこの関数と drawY に集約されます
+	 * (将来の LR 鏡映対応はここ1点で行う)。
+	 *
+	 * @param flow             書字方向
+	 * @param x                親の物理X原点
+	 * @param parentPageExtent 親のページ方向寸法
+	 * @param childPageEnd     子のページ方向終端(始端+子の寸法)
+	 * @param childLineStart   子の行方向始端
+	 * @return 子の物理X座標
+	 */
+	public static double drawX(WritingMode flow, double x, double parentPageExtent, double childPageEnd,
+			double childLineStart) {
+		return flow.isVertical() ? x + parentPageExtent - childPageEnd : x + childLineStart;
+	}
+
+	/**
+	 * 親の物理原点 y から、論理位置に置かれる子の物理Y座標を返します。
+	 *
+	 * @param flow           書字方向
+	 * @param y              親の物理Y原点
+	 * @param childPageStart 子のページ方向始端
+	 * @param childLineStart 子の行方向始端
+	 * @return 子の物理Y座標
+	 */
+	public static double drawY(WritingMode flow, double y, double childPageStart, double childLineStart) {
+		return flow.isVertical() ? y + childLineStart : y + childPageStart;
+	}
+
 	public static double computeInsetsTop(Insets insets, double ref) {
 		switch (insets.getTopType()) {
 		case ABSOLUTE:

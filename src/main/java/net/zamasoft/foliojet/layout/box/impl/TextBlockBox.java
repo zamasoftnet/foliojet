@@ -210,15 +210,10 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		for (int i = 0; i < this.lines.size(); ++i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
-			// 描画
-			if (this.params.flow.isVertical()) {
-				// 縦書き
-				lineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-						x + this.getPageSize() - line.getPageEnd(), y);
-			} else {
-				// 横書き
-				lineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y + line.pageAxis);
-			}
+			// 描画(論理→物理変換は LayoutUtils.drawX/drawY に集約)
+			lineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.getPageEnd(), 0),
+					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0));
 		}
 	}
 
@@ -226,14 +221,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		for (int i = 0; i < this.lines.size(); ++i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
-			// 描画
-			if (this.params.flow.isVertical()) {
-				// 縦書き
-				lineBox.textShape(pageBox, path, transform, x + this.getPageSize() - line.getPageEnd(), y);
-			} else {
-				// 横書き
-				lineBox.textShape(pageBox, path, transform, x, y + line.pageAxis);
-			}
+			lineBox.textShape(pageBox, path, transform,
+					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.getPageEnd(), 0),
+					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0));
 		}
 	}
 
