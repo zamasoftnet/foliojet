@@ -21,6 +21,14 @@ public abstract class Params {
 	public CSSElement element = null;
 
 	/**
+	 * 本流セグメント窓(css.style.Segment)内での、この内容を生んだ
+	 * Start イベントの位置です(M6b)。セグメント再駆動時の再開位置の
+	 * 対応付けに使います。本流以外(ページ内容・run-in 一次バッファ等)や
+	 * 匿名内容では -1 のままです。窓の刈り込み後は旧値は無効になります。
+	 */
+	public int sourceIndex = -1;
+
+	/**
 	 * ボックスの奥行きです。
 	 */
 	public int zIndexValue = 0;

@@ -309,6 +309,16 @@ public class StyleBuilder implements PageGenerator {
 		return this.segment;
 	}
 
+	/**
+	 * ボックスの開始を本流セグメント窓の現在位置(ソースアンカー)を
+	 * 刻印してから doc に渡します(M6b)。合成ボックスは直前の記録
+	 * イベントの位置を継承し、再生時に同じ位置で再合成されます。
+	 */
+	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
+		box.getParams().sourceIndex = this.segment.size() - 1;
+		this.doc.startBox(box);
+	}
+
 	private static final byte STATE_RESTYLE_RUN_IN = 1;
 
 	private byte state = 0;
@@ -1009,7 +1019,7 @@ public class StyleBuilder implements PageGenerator {
 				this.rightSide = true;
 			}
 			if (this.htmlRootBlock != null) {
-				this.doc.startBox(this.htmlRootBlock);
+				this.startBox(this.htmlRootBlock);
 				this.htmlRootBlock = null;
 			}
 		}
@@ -1154,7 +1164,7 @@ public class StyleBuilder implements PageGenerator {
 				params.fontManager = this.ua.getFontManager();
 				params.lineBreakRules = lang.getLineBreakRules(style);
 				final InlineBox inlineBox = new InlineBox(params, pos);
-				this.doc.startBox(inlineBox);
+				this.startBox(inlineBox);
 				this.doc.endBox();
 				this.toPageContent.put(ce, pageContent);
 				this.pageContentStack.add(pageContent);
@@ -1276,7 +1286,7 @@ public class StyleBuilder implements PageGenerator {
 									Background.NULL_BACKGROUND, Insets.NULL_INSETS);
 							// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
 							FlowBlockBox flowBox = new FlowBlockBox(params, pos);
-							this.doc.startBox(flowBox);
+							this.startBox(flowBox);
 							this.doc.endBox();
 						}
 					}
@@ -1780,7 +1790,7 @@ public class StyleBuilder implements PageGenerator {
 				mcParams.size = Dimension.create(0, 1, LengthType.AUTO, LengthType.RELATIVE);
 			}
 			final MulticolumnBlockBox mcBox = new MulticolumnBlockBox(mcParams, mcPos);
-			this.doc.startBox(mcBox);
+			this.startBox(mcBox);
 			style = mc;
 		}
 		return style;
@@ -2006,7 +2016,7 @@ public class StyleBuilder implements PageGenerator {
 				if (blockBox.getPos().getType() == PosType.INLINE) {
 					this.checkMarker();
 				}
-				this.doc.startBox(blockBox);
+				this.startBox(blockBox);
 
 				// 段組みの開始
 				style = this.startColumns(style, blockBox);
@@ -2034,7 +2044,7 @@ public class StyleBuilder implements PageGenerator {
 				this.setupInlinePos(pos, style);
 				InlineBox inline = new InlineBox(params, pos);
 				this.requireRoot(params.direction, params.flow);
-				this.doc.startBox(inline);
+				this.startBox(inline);
 			}
 		}
 			break;
@@ -2044,7 +2054,7 @@ public class StyleBuilder implements PageGenerator {
 			this.setupBlockParams(params, style);
 			final AbstractBlockBox listItem = this.createBlockBox(style, params, position, display, floating);
 			this.requireRoot(params.direction, params.flow);
-			this.doc.startBox(listItem);
+			this.startBox(listItem);
 		}
 			break;
 
@@ -2061,7 +2071,7 @@ public class StyleBuilder implements PageGenerator {
 			}
 			TableBox table = new TableBox(params, blockBox);
 			this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
-			this.doc.startBox(table);
+			this.startBox(table);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2085,7 +2095,7 @@ public class StyleBuilder implements PageGenerator {
 			}
 			final FlowBlockBox caption = new FlowBlockBox(params, pos);
 			this.requireRoot(params.direction, params.flow);
-			this.doc.startBox(caption);
+			this.startBox(caption);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2096,7 +2106,7 @@ public class StyleBuilder implements PageGenerator {
 			final InnerTableParams params = new InnerTableParams();
 			this.setupTableColumn(params, pos, style);
 			final TableColumnGroupBox columnGroup = new TableColumnGroupBox(params, pos);
-			this.doc.startBox(columnGroup);
+			this.startBox(columnGroup);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2107,7 +2117,7 @@ public class StyleBuilder implements PageGenerator {
 			InnerTableParams params = new InnerTableParams();
 			this.setupTableColumn(params, pos, style);
 			TableColumnBox column = new TableColumnBox(params, pos);
-			this.doc.startBox(column);
+			this.startBox(column);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2118,7 +2128,7 @@ public class StyleBuilder implements PageGenerator {
 			final InnerTableParams params = new InnerTableParams();
 			this.setupTableRowGroup(params, pos, style, RowGroupType.HEADER);
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
-			this.doc.startBox(rowGroup);
+			this.startBox(rowGroup);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2129,7 +2139,7 @@ public class StyleBuilder implements PageGenerator {
 			final InnerTableParams params = new InnerTableParams();
 			this.setupTableRowGroup(params, pos, style, RowGroupType.BODY);
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
-			this.doc.startBox(rowGroup);
+			this.startBox(rowGroup);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2140,7 +2150,7 @@ public class StyleBuilder implements PageGenerator {
 			InnerTableParams params = new InnerTableParams();
 			this.setupTableRowGroup(params, pos, style, RowGroupType.FOOTER);
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
-			this.doc.startBox(rowGroup);
+			this.startBox(rowGroup);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2151,7 +2161,7 @@ public class StyleBuilder implements PageGenerator {
 			InnerTableParams params = new InnerTableParams();
 			this.setupTableRow(params, pos, style);
 			TableRowBox row = new TableRowBox(params, pos);
-			this.doc.startBox(row);
+			this.startBox(row);
 			this.inTextBlock = false;
 		}
 			break;
@@ -2163,7 +2173,7 @@ public class StyleBuilder implements PageGenerator {
 			this.setupTableCellPos(pos, style);
 			this.setupBlockParams(params, style);
 			final TableCellBox cell = new TableCellBox(params, pos, new FlowContainer());
-			this.doc.startBox(cell);
+			this.startBox(cell);
 			this.inTextBlock = false;
 
 			// 段組みの開始
@@ -2399,7 +2409,7 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	private void marker(Marker marker) {
-		this.doc.startBox(marker.box);
+		this.startBox(marker.box);
 		if (marker.text != null) {
 			// マーカーのテキスト
 			this.doc.characters(-1, marker.text, 0, marker.text.length, false);
