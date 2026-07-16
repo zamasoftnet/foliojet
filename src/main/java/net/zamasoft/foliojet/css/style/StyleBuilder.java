@@ -20,6 +20,7 @@ import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.html.HTMLStyle;
 import net.zamasoft.foliojet.css.lang.LanguageProfile;
 import net.zamasoft.foliojet.css.lang.LanguageProfileBundle;
+import net.zamasoft.foliojet.css.lang.WordHyphenatorBundle;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
@@ -69,6 +70,7 @@ import net.zamasoft.foliojet.impl.css.property.box.Display;
 import net.zamasoft.foliojet.impl.css.property.table.EmptyCells;
 import net.zamasoft.foliojet.impl.css.property.font.FontSize;
 import net.zamasoft.foliojet.impl.css.property.box.Height;
+import net.zamasoft.foliojet.impl.css.property.text.Hyphens;
 import net.zamasoft.foliojet.impl.css.property.text.LetterSpacing;
 import net.zamasoft.foliojet.impl.css.property.font.LineHeight;
 import net.zamasoft.foliojet.impl.css.property.content.ListStyleImage;
@@ -545,6 +547,10 @@ public class StyleBuilder implements PageGenerator {
 		final LanguageProfile lang = LanguageProfileBundle
 				.getLanguageProfile(style.getCSSElement().lang);
 		params.hyphenation = lang.getHyphenation(style);
+		params.hyphens = Hyphens.get(style);
+		if (params.hyphens == AbstractTextParams.HYPHENS_AUTO) {
+			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getCSSElement().lang);
+		}
 		params.direction = Direction.get(style);
 		params.flow = BlockFlow.get(style);
 	}

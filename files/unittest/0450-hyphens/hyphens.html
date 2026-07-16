@@ -1,0 +1,42 @@
+<?jp.cssj.property name="output.page-width" value="240pt"?>
+<?jp.cssj.property name="output.page-height" value="240pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>hyphens</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font: normal 12pt/1.2 serif;
+      }
+      div {
+        width: 45pt;
+        margin-bottom: 6pt;
+        background-color: Yellow;
+      }
+      .auto {
+        hyphens: auto;
+      }
+      .manual {
+        hyphens: manual;
+      }
+      .none {
+        hyphens: none;
+      }
+      .justify {
+        text-align: justify;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="a" class="auto">hyphenation algorithm typography computer</div>
+    <div id="b" class="manual">hy&shy;phen&shy;ation al&shy;go&shy;rithm</div>
+    <div id="c" class="none">hy&shy;phen&shy;ation al&shy;go&shy;rithm</div>
+    <div id="d" class="auto justify">hyphenation algorithm typography computer</div>
+    <div id="e" class="auto">supercalifragilistic&shy;expialidocious</div>
+  </body>
+</html>

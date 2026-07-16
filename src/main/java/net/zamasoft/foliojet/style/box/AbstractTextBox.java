@@ -40,6 +40,7 @@ import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
+import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 import net.zamasoft.pdfg2d.pdf.font.cid.missing.MissingCIDFontSource;
 
 public abstract class AbstractTextBox extends AbstractBox {
@@ -226,7 +227,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Control ctrl -> {
-				if (i > 0) {
+				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
+					// 幅0のソフトハイフンは語中の伸長点を作らない
 					state.prevChar = ctrl.getControlChar();
 				}
 			}
@@ -282,7 +284,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Control ctrl -> {
-				if (i > 0) {
+				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
+					// 幅0のソフトハイフンは語中の伸長点を作らない
 					state.prevChar = ctrl.getControlChar();
 				}
 			}

@@ -5,6 +5,7 @@ import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
+import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 public abstract class AbstractTextParams extends Params {
 	public static final byte FLOW_TB = 1;
@@ -38,6 +39,12 @@ public abstract class AbstractTextParams extends Params {
 	public static final byte WORD_WRAP_NORMAL = 1;
 
 	public static final byte WORD_WRAP_BREAK_WORD = 2;
+
+	public static final byte HYPHENS_NONE = 1;
+
+	public static final byte HYPHENS_MANUAL = 2;
+
+	public static final byte HYPHENS_AUTO = 3;
 
 	public static final byte DECORATION_UNDERLINE = 0x01;
 
@@ -88,6 +95,16 @@ public abstract class AbstractTextParams extends Params {
 	 * 折り返し方法
 	 */
 	public byte wordWrap = WORD_WRAP_NORMAL;
+
+	/**
+	 * 単語内分綴(CSS hyphens)。
+	 */
+	public byte hyphens = HYPHENS_MANUAL;
+
+	/**
+	 * hyphens:auto時の言語別分綴器。パターンが無い言語ではnull。
+	 */
+	public Hyphenator hyphenator;
 
 	/**
 	 * 文字色。

@@ -494,7 +494,8 @@ public class CSSProcessor implements XMLHandler {
 
 		final Locale loca;
 		if (lang == null) {
-			loca = null;
+			// 言語は文書ツリーを継承する(xml:lang / :lang() のスコープはサブツリー)
+			loca = parentStyle == null ? null : parentStyle.getCSSElement().lang;
 		} else if (lang.equals("ja")) {
 			loca = Locale.JAPANESE;
 		} else if (lang.equals("en")) {

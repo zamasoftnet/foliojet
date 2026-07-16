@@ -38,6 +38,7 @@ import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.BitSetCharacterSet;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.CharacterSet;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
+import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Tab;
 import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 
@@ -541,7 +542,8 @@ public class TextBuilder {
 		} else if (e instanceof Control) {
 			final Control control = (Control) e;
 			textBox.addControl(control);
-			if (control.getControlChar() == ' ' && control.getAdvance() == 0) {
+			if ((control.getControlChar() == ' ' || control.getControlChar() == SoftHyphen.CHAR)
+					&& control.getAdvance() == 0) {
 				return;
 			}
 			ascent = control.getAscent();
@@ -738,7 +740,10 @@ public class TextBuilder {
 					this.addElement(e);
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
-					if (quad instanceof InlineQuad) {
+					if (!last && i == count - 1 && quad instanceof SoftHyphen) {
+						// 分割点で行が切られたのでハイフンを実体化する
+						this.addElement(((SoftHyphen) quad).getText());
+					} else if (quad instanceof InlineQuad) {
 						// インラインボックス
 						final InlineQuad inlineQuad = (InlineQuad) quad;
 						switch (inlineQuad.getType()) {
@@ -903,6 +908,9 @@ public class TextBuilder {
 			// 制御コード
 			Control control = (Control) quad;
 			switch (control.getControlChar()) {
+			case SoftHyphen.CHAR:
+				break;
+
 			case '\n':
 				// 改行文字
 				this.toLineFeed = true;
@@ -1042,6 +1050,17 @@ public class TextBuilder {
 			final boolean ret = this.newLine(true);
 			this.toLineFeed = false;
 			return ret;
+		}
+		if (!this.firstUnit && this.textBuffer.get(this.textBuffer.size() - 1) instanceof SoftHyphen) {
+			// ソフトハイフンでの分割は、ハイフンを実体化しても行が溢れない場合のみ許す。
+			// ただし手前の部分だけで既に溢れている(他に分割点が無い)場合は許容する。
+			final SoftHyphen softHyphen = (SoftHyphen) this.textBuffer.get(this.textBuffer.size() - 1);
+			final double lineAxis = this.lineAxis - this.lastSpaceAdvance;
+			final double maxLineAxis = this.maxLineSize - this.textIndent;
+			if (StyleUtils.compare(lineAxis, maxLineAxis) <= 0
+					&& StyleUtils.compare(lineAxis + softHyphen.getText().getAdvance(), maxLineAxis) > 0) {
+				return false;
+			}
 		}
 		//if (this.wrap) {
 			this.textUnitElementCount = this.textBuffer.size();

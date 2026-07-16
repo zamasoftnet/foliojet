@@ -16,6 +16,7 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
+import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 
 /**
  * 改行を処理し、インラインボックスの幅を確定します。
@@ -221,6 +222,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 
 			case '\t':
 			case '\u0020':
+			case SoftHyphen.CHAR:
 				break;
 
 			default:

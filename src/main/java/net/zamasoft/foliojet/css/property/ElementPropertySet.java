@@ -28,6 +28,7 @@ import net.zamasoft.foliojet.impl.css.property.font.FontSize;
 import net.zamasoft.foliojet.impl.css.property.font.FontVariant;
 import net.zamasoft.foliojet.impl.css.property.font.FontWeight;
 import net.zamasoft.foliojet.impl.css.property.box.Height;
+import net.zamasoft.foliojet.impl.css.property.text.Hyphens;
 import net.zamasoft.foliojet.impl.css.property.text.LetterSpacing;
 import net.zamasoft.foliojet.impl.css.property.font.LineHeight;
 import net.zamasoft.foliojet.impl.css.property.content.ListStyleImage;
@@ -272,6 +273,7 @@ public final class ElementPropertySet extends PropertySet {
 		put(WritingModeShorthand.INFO);
 		reg(WordWrap.INFO);
 		reg(WordBreak.INFO);
+		reg(Hyphens.INFO);
 		reg(ColumnCount.INFO);
 		reg(ColumnWidth.INFO);
 		reg(ColumnGap.INFO);

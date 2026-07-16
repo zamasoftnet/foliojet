@@ -70,7 +70,9 @@ public class StyledTextUnitizer {
 		}
 		final AbstractTextParams params = this.getTextParams();
 		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(params.hyphenation);
-		textUnitizer.setGlyphHandler(this.gh);
+		final FilterGlyphHandler wordHyphenator = new WordHyphenator(params);
+		wordHyphenator.setGlyphHandler(this.gh);
+		textUnitizer.setGlyphHandler(wordHyphenator);
 		this.glypher = params.fontManager.getTextShaper();
 		this.glypher.setGlyphHandler(textUnitizer);
 		this.glypher.fontStyle(params.fontStyle);
@@ -259,6 +261,20 @@ public class StyledTextUnitizer {
 					ws.setWordSpacing(this.wordSpacing);
 					this.requireGlypher();
 					this.glypher.control(ws);
+				}
+				this.followingChar = c;
+				continue;
+			}
+			if (c == '\u00AD') {
+				// ソフトハイフンは字形化せず分割機会のマーカーに変換する
+				// 1文字削除
+				if (i > ooff) {
+					this._characters(charOffset + ooff, ch, off + ooff, i - ooff);
+				}
+				ooff = i + 1;
+				if (params.hyphens != AbstractTextParams.HYPHENS_NONE) {
+					this.requireGlypher();
+					this.glypher.control(new WordHyphenator.Marker(charOffset + i));
 				}
 				this.followingChar = c;
 				continue;

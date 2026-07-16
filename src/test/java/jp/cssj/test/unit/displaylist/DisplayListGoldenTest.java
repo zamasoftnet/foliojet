@@ -49,6 +49,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0400-column-count/nest.html", //
 			"0350-line-height/small-line-height.html", //
 			"0140-content/counters.html", //
+			"0450-hyphens/hyphens.html", //
 	};
 
 	public void testDisplayLists() throws Exception {
