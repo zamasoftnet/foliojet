@@ -489,25 +489,9 @@ public class TextBuilder {
 			// System.err.println("/"+inline.box.getParams().augmentation);
 			inlineBox.closeInline();
 
-			double advance, end;
 			AbstractLineParams params = this.lineBox.getLineParams();
-			switch (params.flow) {
-			case WritingMode.TB: {
-				// 横書き
-				end = inlineBox.getFrame().getFrameRight();
-				advance = inlineBox.getWidth() + end;
-				break;
-			}
-			case WritingMode.LR:
-			case WritingMode.RL: {
-				// 縦書き
-				end = inlineBox.getFrame().getFrameBottom();
-				advance = inlineBox.getHeight() + end;
-				break;
-			}
-			default:
-				throw new IllegalStateException();
-			}
+			final double end = inlineBox.getFrame().getFrameLineEnd(params.flow);
+			final double advance = inlineBox.getLineExtent(params.flow) + end;
 			inlineBox.addAdvance(end);
 			this.lineBox.addAdvance(end);
 			AbstractTextBox textBox = this.getTextBox();

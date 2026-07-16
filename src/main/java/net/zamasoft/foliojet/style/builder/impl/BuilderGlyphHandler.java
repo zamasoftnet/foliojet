@@ -124,21 +124,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				final InlineBox inlineBox = inlineStartQuad.box;
 
-				final double startAdvance;
-				switch (this.progression) {
-				case WritingMode.TB:
-					// 横書き
-					startAdvance = inlineStartQuad.box.getFrame().getFrameLeft();
-					break;
-				case WritingMode.LR:
-				case WritingMode.RL:
-					// 縦書き
-					startAdvance = inlineStartQuad.box.getFrame().getFrameTop();
-					break;
-				default:
-					throw new IllegalStateException();
-				}
-				inlineStartQuad.advance = startAdvance;
+				inlineStartQuad.advance = inlineStartQuad.box.getFrame().getFrameLineStart(this.progression);
 
 				AbstractTextParams params = inlineBox.getTextParams();
 				this.startTextBox(params);
@@ -150,62 +136,20 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				InlineEndQuad inlineEndQuad = (InlineEndQuad) inlineQuad;
 				this.endTextBox();
 
-				double endAdvance;
-				switch (this.progression) {
-				case WritingMode.TB:
-					// 横書き
-					endAdvance = inlineEndQuad.box.getFrame().getFrameRight();
-					break;
-				case WritingMode.LR:
-				case WritingMode.RL:
-					// 縦書き
-					endAdvance = inlineEndQuad.box.getFrame().getFrameBottom();
-					break;
-				default:
-					throw new IllegalStateException();
-				}
-				inlineEndQuad.advance = endAdvance;
+				inlineEndQuad.advance = inlineEndQuad.box.getFrame().getFrameLineEnd(this.progression);
 				break;
 
 			case InlineQuad.INLINE_REPLACED: {
 				// 置換可能なインライン
 				InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
 				StyleUtils.calclateReplacedSize(this.builder, inlineReplacedQuad.box);
-				double advance;
-				switch (this.progression) {
-				case WritingMode.TB:
-					// 横書き
-					advance = inlineReplacedQuad.box.getWidth();
-					break;
-				case WritingMode.LR:
-				case WritingMode.RL:
-					// 縦書き
-					advance = inlineReplacedQuad.box.getHeight();
-					break;
-				default:
-					throw new IllegalStateException();
-				}
-				inlineReplacedQuad.advance = advance;
+				inlineReplacedQuad.advance = inlineReplacedQuad.box.getLineExtent(this.progression);
 			}
 				break;
 
 			case InlineQuad.INLINE_BLOCK:
 				// インラインブロック
-				double advance;
-				switch (this.progression) {
-				case WritingMode.TB:
-					// 横書き
-					advance = inlineQuad.getBox().getWidth();
-					break;
-				case WritingMode.LR:
-				case WritingMode.RL:
-					// 縦書き
-					advance = inlineQuad.getBox().getHeight();
-					break;
-				default:
-					throw new IllegalStateException();
-				}
-				inlineQuad.advance = advance;
+				inlineQuad.advance = inlineQuad.getBox().getLineExtent(this.progression);
 				break;
 
 			case InlineQuad.INLINE_ABSOLUTE:
