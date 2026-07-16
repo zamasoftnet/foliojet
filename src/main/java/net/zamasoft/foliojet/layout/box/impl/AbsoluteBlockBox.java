@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.box.impl;
 
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
-import net.zamasoft.foliojet.layout.sizing.Sizing;
+import net.zamasoft.foliojet.layout.sizing.AbsoluteSizing;
 
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 
@@ -96,197 +96,58 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 		}
 
-		Insets margin = this.frame.frame.margin;
-		AbsoluteInsets amargin = this.frame.margin;
-		double marginLeft, marginRight, marginTop, marginBottom;
-
-		AbsolutePos pos = this.getAbsolutePos();
+		final Insets margin = this.frame.frame.margin;
+		final AbsoluteInsets amargin = this.frame.margin;
+		final AbsolutePos pos = this.getAbsolutePos();
+		final WritingMode flow = this.params.flow;
+		final boolean vertical = flow.isVertical();
+		final double cLine = vertical ? cHeight : cWidth;
 		//
-		// ■ 絶対配置または固定配置の行方向幅の計算
+		// ■ 絶対配置または固定配置の行方向幅の計算 (CSS2.1 10.3.7)
 		//
-		switch (this.params.flow) {
-		case WritingMode.TB: {
-			// 横書き
-			double width = LayoutUtils.computeDimensionWidth(this.size, cWidth);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(width)) {
-				width -= this.frame.getBorderWidth();
-			}
-			marginLeft = marginRight = 0;
-			double left = 0;
-			for (int state = 0; state < 2; ++state) {
-				left = LayoutUtils.computeInsetsLeft(pos.location, cWidth);
-				double right = LayoutUtils.computeInsetsRight(pos.location, cWidth);
-				if (!LayoutUtils.isNone(left) && !LayoutUtils.isNone(right) && !LayoutUtils.isNone(width)) {
-					marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
-					marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
-					if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
-						marginLeft = marginRight = (cWidth - left - right - width - this.frame.getFrameWidth()) / 2.0;
-					}
-					if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
-						marginLeft = cWidth - left - right - width - this.frame.getFrameWidth();
-					}
-					if (!LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
-						marginRight = cWidth - left - right - width - this.frame.getFrameWidth();
-					} else {
-						// 制限しすぎ
-						right = 0;
-						// right = lineWidth - left - width - marginLeft
-						// - marginRight - aframe.getFrameWidth();
-					}
-				} else {
-					marginLeft = amargin.left;
-					marginRight = amargin.right;
-					if (LayoutUtils.isNone(width)) {
-						if (!LayoutUtils.isNone(left) && !LayoutUtils.isNone(right)) {
-							width = cWidth - left - right - this.frame.getFrameWidth();
-						} else {
-							width = maxLineAxis;
-							double limitWidth = cWidth - this.frame.getFrameWidth();
-							if (LayoutUtils.isNone(left) && LayoutUtils.isNone(right)) {
-								width = Sizing.fitContent(minLineAxis, width, limitWidth);
-								left = right = 0;
-							} else if (LayoutUtils.isNone(left)) {
-								width = Sizing.fitContent(minLineAxis, width, limitWidth - right);
-								left = cWidth - right - width - this.frame.getFrameWidth();
-							} else {
-								width = Sizing.fitContent(minLineAxis, width, limitWidth - left);
-								right = cWidth - left - width - this.frame.getFrameWidth();
-							}
-						}
-					} else {
-						if (LayoutUtils.isNone(right)) {
-							if (LayoutUtils.isNone(left)) {
-								left = 0;
-							}
-							right = cWidth - left - width - this.frame.getFrameWidth();
-						} else {
-							left = cWidth - right - width - this.frame.getFrameWidth();
-						}
-					}
-				}
-				switch (state) {
-				case 0:
-					double maxWidth = LayoutUtils.computeDimensionWidth(this.params.maxSize, cWidth);
-					if (!LayoutUtils.isNone(maxWidth) && width > maxWidth) {
-						width = maxWidth;
-						continue;
-					}
-					state = 1;
-				case 1:
-					double minWidth = LayoutUtils.computeDimensionWidth(this.minSize, cWidth);
-					if (width < minWidth) {
-						width = minWidth;
-						continue;
-					}
-					state = 2;
-					break;
-				}
-			}
-			marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
-			marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
-			assert !LayoutUtils.isNone(left);
-			this.offsetX = left;
-			this.frame.margin.top = marginTop;
-			this.frame.margin.right = marginRight;
-			this.frame.margin.bottom = marginBottom;
-			this.frame.margin.left = marginLeft;
-			this.width = width;
-			this.height = 0;
+		double size = LayoutUtils.computeDimensionLine(this.size, flow, cLine);
+		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(size)) {
+			size -= this.frame.getBorderLineExtent(flow);
 		}
-			break;
-		case WritingMode.RL:
-		case WritingMode.LR: {
-			// 縦書き
-			double top = 0;// TODO test box-sizing
-			double height = LayoutUtils.computeDimensionHeight(this.size, cHeight);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(height)) {
-				height -= this.frame.getBorderHeight();
-			}
-			marginTop = marginBottom = 0;
-			for (int state = 0; state < 2; ++state) {
-				top = LayoutUtils.computeInsetsTop(pos.location, cHeight);
-				double bottom = LayoutUtils.computeInsetsBottom(pos.location, cHeight);
-				if (!LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom) && !LayoutUtils.isNone(height)) {
-					marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
-					marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
-					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
-						marginTop = marginBottom = (cHeight - top - bottom - height - this.frame.getFrameHeight())
-								/ 2.0;
-					}
-					if (LayoutUtils.isNone(marginTop) && !LayoutUtils.isNone(marginBottom)) {
-						marginTop = cHeight - top - bottom - height - this.frame.getFrameHeight();
-					}
-					if (!LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
-						marginBottom = cHeight - top - bottom - height - this.frame.getFrameHeight();
-					} else {
-						// 制限しすぎ
-						bottom = 0;
-						// bottom = lineWidth - top - height - marginTop
-						// - marginBottom - aframe.getFrameHeight();
-					}
-				} else {
-					marginTop = amargin.top;
-					marginBottom = amargin.bottom;
-					if (LayoutUtils.isNone(height)) {
-						if (!LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom)) {
-							height = cHeight - top - bottom - this.frame.getFrameHeight();
-						} else {
-							height = maxLineAxis;
-							double limitHeight = cHeight - this.frame.getFrameHeight();
-							if (LayoutUtils.isNone(top) && LayoutUtils.isNone(bottom)) {
-								height = Sizing.fitContent(minLineAxis, height, limitHeight);
-								top = bottom = 0;
-							} else if (LayoutUtils.isNone(top)) {
-								height = Sizing.fitContent(minLineAxis - bottom, height, limitHeight);
-								top = cHeight - bottom - height - this.frame.getFrameHeight();
-							} else {
-								height = Sizing.fitContent(minLineAxis - top, height, limitHeight);
-								bottom = cHeight - top - height - this.frame.getFrameHeight();
-							}
-						}
-					} else {
-						if (LayoutUtils.isNone(bottom)) {
-							if (LayoutUtils.isNone(top)) {
-								top = 0;
-							}
-							bottom = cHeight - top - height - this.frame.getFrameHeight();
-						} else {
-							top = cHeight - bottom - height - this.frame.getFrameHeight();
-						}
-					}
-				}
-				switch (state) {
-				case 0:
-					double maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, cHeight);
-					if (!LayoutUtils.isNone(maxHeight) && height > maxHeight) {
-						height = maxHeight;
-						continue;
-					}
-					state = 1;
-				case 1:
-					double minHeight = LayoutUtils.computeDimensionHeight(this.minSize, cHeight);
-					if (height < minHeight) {
-						height = minHeight;
-						continue;
-					}
-					state = 2;
-					break;
-				}
-			}
-			marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
-			marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
-			assert !LayoutUtils.isNone(top);
-			this.offsetY = top;
-			this.frame.margin.top = marginTop;
-			this.frame.margin.right = marginRight;
-			this.frame.margin.bottom = marginBottom;
-			this.frame.margin.left = marginLeft;
-			this.height = height;
+		final AbsoluteSizing.Result result = AbsoluteSizing.resolve(new AbsoluteSizing.Input( //
+				cLine, size, //
+				LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine), //
+				LayoutUtils.computeDimensionLine(this.minSize, flow, cLine), //
+				vertical ? LayoutUtils.computeInsetsTop(pos.location, cLine)
+						: LayoutUtils.computeInsetsLeft(pos.location, cLine), //
+				vertical ? LayoutUtils.computeInsetsBottom(pos.location, cLine)
+						: LayoutUtils.computeInsetsRight(pos.location, cLine), //
+				vertical ? amargin.top : amargin.left, //
+				vertical ? amargin.bottom : amargin.right, //
+				(vertical ? margin.getTopType() : margin.getLeftType()) == LengthType.AUTO, //
+				(vertical ? margin.getBottomType() : margin.getRightType()) == LengthType.AUTO, //
+				this.frame.getFrameLineExtent(flow), //
+				minLineAxis, maxLineAxis, //
+				vertical));
+		// 交差軸(ページ方向)のマージン: auto は未解決(NONE)のままにする
+		final double crossStart = (vertical ? margin.getLeftType() : margin.getTopType()) == LengthType.AUTO
+				? LayoutUtils.NONE
+				: (vertical ? amargin.left : amargin.top);
+		final double crossEnd = (vertical ? margin.getRightType() : margin.getBottomType()) == LengthType.AUTO
+				? LayoutUtils.NONE
+				: (vertical ? amargin.right : amargin.bottom);
+		assert !LayoutUtils.isNone(result.insetStart());
+		if (vertical) {
+			this.offsetY = result.insetStart();
+			this.frame.margin.top = result.marginStart();
+			this.frame.margin.bottom = result.marginEnd();
+			this.frame.margin.left = crossStart;
+			this.frame.margin.right = crossEnd;
+			this.height = result.size();
 			this.width = 0;
-		}
-			break;
-		default:
-			throw new IllegalStateException();
+		} else {
+			this.offsetX = result.insetStart();
+			this.frame.margin.left = result.marginStart();
+			this.frame.margin.right = result.marginEnd();
+			this.frame.margin.top = crossStart;
+			this.frame.margin.bottom = crossEnd;
+			this.width = result.size();
+			this.height = 0;
 		}
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
