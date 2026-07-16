@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.box.content;
 
+import net.zamasoft.foliojet.layout.fragment.FlowCutter;
+
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
@@ -538,80 +540,31 @@ public class FlowContainer implements Container {
 			return nextBox;
 		}
 
-		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
-			// 切断線が内上辺以上にある場合
-			// System.err.println("B:"+flags+"/"+mode+"/"+pageLimit+"/"+this
-			// .getFrameTop());
-
-			// ** <= を使うのは、切断線と上辺が一致した場合に移動しないため **
-			// (改ページを最小限にするポリシー)
-
-			if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
-				// 先頭を切断
-				return this.cutHead(pageLimit, flags);
-			}
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				// ページ先頭にある場合
-				if (LayoutUtils.compare(frameStart, 0) > 0) {
-					// 上辺があれば切断
-					return this.cutHead(pageLimit, flags);
-				}
-				// 前ページに残す
-				return this.splitFloatings(null, pageLimit, flags);
-			}
-			// 次に送る
-			return this;
-		}
-		if ((flags & (IPageBreakableBox.FLAGS_SPLIT | IPageBreakableBox.FLAGS_LAST)) == 0
-				&& LayoutUtils.compare(pageLimit, pageSize) >= 0) {
-			// 自動改ページで切断線が内底辺以下にある場合
-			// System.err.println("AB:"+flags+"/"+mode);
-
-			// ** >= を使うのは、切断線と底辺が一致した場合に移動しないため **
-			// (改ページを最小限にするポリシー)
-
-			// 前ページに残す
-			return this.splitFloatings(null, pageLimit, flags);
-		}
 		final double prevPageSize = pageLimit;
-		if ((flags & (IPageBreakableBox.FLAGS_SPLIT | IPageBreakableBox.FLAGS_LAST)) == 0
-				&& LayoutUtils.compare(pageLimit, pageInnerSize) >= 0) {
-			pageLimit = pageInnerSize - LayoutUtils.THRESHOLD * 2;
+		// 主ループ前の判定は FlowCutter に純化されている(M4-A2)
+		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, pageSize, pageInnerSize, frameStart, flags,
+				this.flows != null && !this.flows.isEmpty());
+		if (!(pre instanceof FlowCutter.PreDecision.Proceed(final double adjustedPageLimit))) {
+			return switch (pre) {
+			case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
+			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
+			case FlowCutter.PreDecision.MoveAll moveAll -> this;
+			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this.splitFloatings(this, atLimit,
+					flags);
+			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
+			case FlowCutter.PreDecision.Proceed proceed -> throw new IllegalStateException();
+			};
 		}
-
-		// System.err.println("ACB C: flags=" + flags + "/pageLimit=" +
-		// pageLimit
-		// + "/pageInnerSize=" + pageInnerSize + "/mode=" + mode
-		// + "/flows.size=" + (this.flows == null ? 0 : this.flows.size())
-		// + "/" + this.box.getParams().augmentation);
-		if (this.flows == null || this.flows.isEmpty()) {
-			// 通常のフローが存在しない場合
-			if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
-				// 切断
-				return this.cutTail(prevPageSize, flags);
-			}
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				// 高さがなければ残す
-				if (LayoutUtils.compare(pageInnerSize, 0) > 0) {
-					return this.cutTail(prevPageSize, flags);
-				}
-				return this.splitFloatings(null, prevPageSize, flags);
-			}
-			// 高さがあれば次に送る
-			if ((flags & IPageBreakableBox.FLAGS_LAST) != 0 || LayoutUtils.compare(pageSize, 0) > 0) {
-				return this.splitFloatings(this, prevPageSize, flags);
-			}
-			return this.splitFloatings(null, prevPageSize, flags);
-		}
+		pageLimit = adjustedPageLimit;
 
 		// 通常のフローで指定位置にさしかかっているボックスを特定
 		final BlockParams params = this.box.getBlockParams();
-		int lastOrphan;
-		for (lastOrphan = this.flows.size() - 1; lastOrphan >= 0; --lastOrphan) {
-			Flow flow = (Flow) this.flows.get(lastOrphan);
+		final double[] flowBottoms = new double[this.flows.size()];
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow flow = (Flow) this.flows.get(i);
 			double lastBottom = flow.pageAxis;
 			if (flow.box.getType() == BoxType.BLOCK) {
-				FlowBlockBox flowBlock = (FlowBlockBox) flow.box;
+				final FlowBlockBox flowBlock = (FlowBlockBox) flow.box;
 				switch (params.flow) {
 				case WritingMode.TB: {
 					// 横書き
@@ -637,11 +590,9 @@ public class FlowContainer implements Container {
 			} else {
 				lastBottom += flow.box.getPageExtent(params.flow);
 			}
-			if (LayoutUtils.compare(lastBottom, pageLimit) <= 0) {
-				break;
-			}
+			flowBottoms[i] = lastBottom;
 		}
-		++lastOrphan;
+		int lastOrphan = FlowCutter.lastOrphan(flowBottoms, pageLimit);
 
 		// System.err.println("ACB E:" + flags + "/" + pageLimit + "/" + mode +
 		// "/lastOrphan=" + lastOrphan + "/" +
