@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 public class OutsideMarkerBox extends InlineBlockBox {

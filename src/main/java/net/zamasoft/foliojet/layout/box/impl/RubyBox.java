@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 public class RubyBox extends InlineBlockBox {
 	public RubyBox(BlockParams params, InlinePos pos) {
@@ -46,7 +46,7 @@ class RubyContainer extends FlowContainer {
 	public double getLastDescent() {
 		final Flow flow = this.getFirstFlow();
 		if (flow == null) {
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		}
 		if (flow.box.getType() != BoxType.BLOCK) {
 			return super.getLastDescent();
@@ -54,7 +54,7 @@ class RubyContainer extends FlowContainer {
 
 		final AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
 		final double firstAscent = containerBox.getFirstAscent();
-		if (StyleUtils.isNone(firstAscent)) {
+		if (LayoutUtils.isNone(firstAscent)) {
 			return firstAscent;
 		}
 		double descent = firstAscent;

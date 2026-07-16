@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.impl.ua.SinglePageImposition;
 import net.zamasoft.foliojet.impl.ua.image.RasterImageLoader;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.ImageLoader;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -49,7 +49,7 @@ public class ImageFormatter implements Formatter {
 			Imposition imposition = new SinglePageImposition(ua);
 			imposition.setPageWidth(iw);
 			imposition.setPageHeight(ih);
-			StyleUtils.setupImposition(ua, imposition);
+			LayoutUtils.setupImposition(ua, imposition);
 
 			final GC gc = imposition.nextPage();
 			if (gc != null) {

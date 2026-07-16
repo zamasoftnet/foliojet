@@ -33,7 +33,7 @@ import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -102,13 +102,13 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	public final void setWidth(double width) {
-		assert !StyleUtils.isNone(width);
+		assert !LayoutUtils.isNone(width);
 		this.width = width - this.frame.getFrameWidth();
 	}
 
 	public final void setHeight(double height) {
 		//System.out.println("setInnerHeight:"+this.height+"/"+height);
-		assert !StyleUtils.isNone(height);
+		assert !LayoutUtils.isNone(height);
 		this.height = height - this.frame.getFrameHeight();
 	}
 
@@ -141,7 +141,7 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	public final void prepareLayout(double lineSize, TableBox tableBox, AbsoluteInsets spacing) {
-		StyleUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
+		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		this.frame.margin = spacing;
 
 		TableParams tableParams = tableBox.getTableParams();
@@ -209,7 +209,7 @@ public class TableCellBox extends AbstractContainerBox {
 			return;
 		}
 		double firstAscent = this.getFirstAscent();
-		if (StyleUtils.isNone(firstAscent)) {
+		if (LayoutUtils.isNone(firstAscent)) {
 			return;
 		}
 		double xascent = rowAscent - firstAscent;

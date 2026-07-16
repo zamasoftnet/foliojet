@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.layout.part;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
 import net.zamasoft.foliojet.layout.box.params.Border;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * つぶし境界の実装です。
@@ -111,7 +111,7 @@ public class TableCollapsedBorders {
 	 * @param size
 	 */
 	public void setColumnSize(int col, double size) {
-		assert !StyleUtils.isNone(size);
+		assert !LayoutUtils.isNone(size);
 		this.columnSizes[col] = size;
 	}
 

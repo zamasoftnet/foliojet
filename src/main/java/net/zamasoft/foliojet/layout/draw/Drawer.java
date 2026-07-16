@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
@@ -26,8 +26,8 @@ public class Drawer implements Comparable<Drawer> {
 		private final double x, y;
 
 		public ArrangedDrawable(Drawable drawable, double x, double y) {
-			assert !StyleUtils.isNone(x) : "Undefined x";
-			assert !StyleUtils.isNone(y) : "Undefined y";
+			assert !LayoutUtils.isNone(x) : "Undefined x";
+			assert !LayoutUtils.isNone(y) : "Undefined y";
 			this.drawable = drawable;
 			this.x = x;
 			this.y = y;
@@ -47,8 +47,8 @@ public class Drawer implements Comparable<Drawer> {
 	}
 
 	public void visitDrawable(Drawable drawable, double x, double y) {
-		assert !StyleUtils.isNone(x) : "Undefined x";
-		assert !StyleUtils.isNone(y) : "Undefined y";
+		assert !LayoutUtils.isNone(x) : "Undefined x";
+		assert !LayoutUtils.isNone(y) : "Undefined y";
 		if (this.drawables == null) {
 			this.drawables = new ArrayList<ArrangedDrawable>();
 		}

@@ -19,7 +19,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 
@@ -64,7 +64,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		if (descent > this.descent) {
 			this.descent = descent;
 		}
-		assert !StyleUtils.isNone(this.ascent + this.descent);
+		assert !LayoutUtils.isNone(this.ascent + this.descent);
 	}
 
 	/**

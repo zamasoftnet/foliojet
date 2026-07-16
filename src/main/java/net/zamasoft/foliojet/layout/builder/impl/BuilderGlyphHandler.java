@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
@@ -142,7 +142,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			case InlineQuad.INLINE_REPLACED: {
 				// 置換可能なインライン
 				InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
-				StyleUtils.calclateReplacedSize(this.builder, inlineReplacedQuad.box);
+				LayoutUtils.calculateReplacedSize(this.builder, inlineReplacedQuad.box);
 				inlineReplacedQuad.advance = inlineReplacedQuad.box.getLineExtent(this.progression);
 			}
 				break;

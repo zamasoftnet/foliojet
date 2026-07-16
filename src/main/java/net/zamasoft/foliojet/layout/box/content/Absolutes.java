@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
@@ -58,14 +58,14 @@ public class Absolutes {
 	 * @param staticY
 	 */
 	public void addAbsolute(IAbsoluteBox box, double staticX, double staticY) {
-		assert !StyleUtils.isNone(staticX) : "Undefined x";
-		assert !StyleUtils.isNone(staticY) : "Undefined y";
+		assert !LayoutUtils.isNone(staticX) : "Undefined x";
+		assert !LayoutUtils.isNone(staticY) : "Undefined y";
 		AbsolutePos pos = box.getAbsolutePos();
 		if (pos.location.getLeftType() != LengthType.AUTO || pos.location.getRightType() != LengthType.AUTO) {
-			staticX = StyleUtils.NONE;
+			staticX = LayoutUtils.NONE;
 		}
 		if (pos.location.getTopType() != LengthType.AUTO || pos.location.getBottomType() != LengthType.AUTO) {
-			staticY = StyleUtils.NONE;
+			staticY = LayoutUtils.NONE;
 		}
 		Absolute absolute = new Absolute(box, staticX, staticY);
 		if (this.absolutes == null) {
@@ -76,15 +76,15 @@ public class Absolutes {
 
 	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		assert !StyleUtils.isNone(x) : "Undefined x";
-		assert !StyleUtils.isNone(y) : "Undefined y";
+		assert !LayoutUtils.isNone(x) : "Undefined x";
+		assert !LayoutUtils.isNone(y) : "Undefined y";
 		if (this.absolutes == null) {
 			return;
 		}
 		for (int i = 0; i < this.absolutes.size(); ++i) {
 			Absolute c = (Absolute) this.absolutes.get(i);
-			double xx = StyleUtils.isNone(c.x) ? contextX : x + c.x;
-			double yy = StyleUtils.isNone(c.y) ? contextY : y + c.y;
+			double xx = LayoutUtils.isNone(c.x) ? contextX : x + c.x;
+			double yy = LayoutUtils.isNone(c.y) ? contextY : y + c.y;
 			if (c.box.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 				// 固定配置
 				pageBox.addFixed(drawer, visitor, c.box, xx, yy);

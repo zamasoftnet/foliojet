@@ -47,7 +47,7 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.builder.TwoPass;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.Element;
@@ -144,7 +144,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.flowStack.add(containerBox);
 		this.textIndent = containerBox.getTextIndent();
 		this.blockHead = true;
-		this.letterSpacing = StyleUtils.computeLength(containerBox.getBlockParams().letterSpacing,
+		this.letterSpacing = LayoutUtils.computeLength(containerBox.getBlockParams().letterSpacing,
 				this.getFlowBox().getLineSize());
 	}
 
@@ -313,7 +313,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow);
 		this.lineFrame += flowBox.getFrame().getFrameLineExtent(params.flow);
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
-		assert !StyleUtils.isNone(this.lineFrame);
+		assert !LayoutUtils.isNone(this.lineFrame);
 		if (flowBox.getColumnCount() > 0) {
 			this.lineFrame += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
 		}
@@ -334,7 +334,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.flowStack.add(flowBox);
 		this.records.add(new Recorded.StartFlow(flowBox));
 		this.columnCount *= flowBox.getColumnCount();
-		this.letterSpacing = StyleUtils.computeLength(flowBox.getBlockParams().letterSpacing,
+		this.letterSpacing = LayoutUtils.computeLength(flowBox.getBlockParams().letterSpacing,
 				this.getFlowBox().getLineSize());
 	}
 
@@ -375,12 +375,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			throw new IllegalStateException();
 		}
 
-		assert !StyleUtils.isNone(this.lineFrame);
+		assert !LayoutUtils.isNone(this.lineFrame);
 		this.records.add(new Recorded.EndFlow((FlowBlockBox) flowBox));
 
 		this.textIndent = 0;
 		this.blockHead = false;
-		this.letterSpacing = StyleUtils.computeLength(flowBox.getBlockParams().letterSpacing,
+		this.letterSpacing = LayoutUtils.computeLength(flowBox.getBlockParams().letterSpacing,
 				this.getFlowBox().getLineSize());
 	}
 
@@ -393,7 +393,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			IFlowBox flowBox = (IFlowBox) replacedBox;
 			FlowPos pos = (FlowPos) flowBox.getPos();
 			this.clearFloatAdvance(pos.clear);
-			StyleUtils.calclateReplacedSize(this, replacedBox);
+			LayoutUtils.calculateReplacedSize(this, replacedBox);
 
 			double minLineAxis, maxLineAxis = 0, minPageAxis;
 			BlockParams params = containerBox.getBlockParams();
@@ -419,7 +419,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			maxLineAxis *= this.columnCount;
 			maxLineAxis += this.lineFrame;
 
-			assert !StyleUtils.isNone(minLineAxis);
+			assert !LayoutUtils.isNone(minLineAxis);
 			if (minLineAxis > this.minLineSize) {
 				this.minLineSize = minLineAxis;
 			}
@@ -436,7 +436,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			AbstractContainerBox containerBox = this.getFlowBox();
 			IFloatBox floatingBox = (IFloatBox) replacedBox;
 			this.clearFloatAdvance(floatingBox.getFloatPos().clear);
-			StyleUtils.calclateReplacedSize(this, replacedBox);
+			LayoutUtils.calculateReplacedSize(this, replacedBox);
 
 			double minLineAxis, minPageAxis, maxLineAxis = 0;
 			BlockParams params = containerBox.getBlockParams();
@@ -455,7 +455,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
 				}
 			}
-			assert !StyleUtils.isNone(minLineAxis);
+			assert !LayoutUtils.isNone(minLineAxis);
 			if (minLineAxis > this.minLineSize) {
 				this.minLineSize = minLineAxis;
 			}
@@ -586,7 +586,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameWidth();
 			}
 		}
-		assert !StyleUtils.isNone(maxLineAxis);
+		assert !LayoutUtils.isNone(maxLineAxis);
 		// System.err.println(this.minLineAxis + "/" + this.maxLineAxis);
 		if (minLineAxis > this.minLineSize) {
 			this.minLineSize = minLineAxis;
@@ -641,9 +641,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 							final InlineBlockBox inlineBlockBox = inlineBlockQuad.box;
 							final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) twoPass;
 							inlineBlockBox.shrinkToFit(builder, stfBuilder.getIntrinsicSizes(), false);
-							final BlockBuilder lnlineBlockBuilder = new BlockBuilder(this, inlineBlockBox);
-							stfBuilder.bind(lnlineBlockBuilder);
-							lnlineBlockBuilder.close();
+							final BlockBuilder inlineBlockBuilder = new BlockBuilder(this, inlineBlockBox);
+							stfBuilder.bind(inlineBlockBuilder);
+							inlineBlockBuilder.close();
 						}
 					}
 					textUnitizer.control(quad);
@@ -877,7 +877,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				if (inlineQuad instanceof InlineStartQuad) {
 					this.inlineStack.add(inlineQuad.getBox());
 					final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
-					this.letterSpacing = StyleUtils.computeLength(inlineStartQuad.box.getTextParams().letterSpacing,
+					this.letterSpacing = LayoutUtils.computeLength(inlineStartQuad.box.getTextParams().letterSpacing,
 							this.getFlowBox().getLineSize());
 				} else if (inlineQuad instanceof InlineEndQuad) {
 					this.inlineStack.remove(this.inlineStack.size() - 1);
@@ -888,7 +888,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 						final InlineBox box = (InlineBox) this.inlineStack.get(this.inlineStack.size() - 1);
 						params = box.getTextParams();
 					}
-					this.letterSpacing = StyleUtils.computeLength(params.letterSpacing,
+					this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing,
 							this.getFlowBox().getLineSize());
 				}
 				minAdvance = maxAdvance = quad.getAdvance();
@@ -923,8 +923,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 		this.atomicLineSize = 0;
 		if (this.toLineFeed != null) {
-			assert !StyleUtils.isNone(this.lineAxis);
-			assert !StyleUtils.isNone(this.lineFrame);
+			assert !LayoutUtils.isNone(this.lineAxis);
+			assert !LayoutUtils.isNone(this.lineFrame);
 			double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis;
 			maxLineSize *= this.columnCount;
 			maxLineSize += this.lineFrame;
@@ -948,8 +948,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void endTextBlock() {
 		this.records.add(Recorded.EndTextBlock.INSTANCE);
-		assert !StyleUtils.isNone(this.lineAxis);
-		assert !StyleUtils.isNone(this.lineFrame);
+		assert !LayoutUtils.isNone(this.lineAxis);
+		assert !LayoutUtils.isNone(this.lineFrame);
 		double minLineSize = this.atomicLineSize;
 		if (this.blockHead) {
 			minLineSize += this.textIndent;

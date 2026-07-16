@@ -32,7 +32,7 @@ import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
@@ -181,11 +181,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		//
 		// ■ パディングの計算
 		//
-		StyleUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
+		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
 		// ■ マージンの計算
 		//
-		StyleUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
 
 		Insets margin = this.frame.frame.margin;
 		AbsoluteInsets amargin = this.frame.margin;
@@ -196,29 +196,29 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		//
 
 		// 行方向幅の計算
-		double minWidth = StyleUtils.NONE, maxWidth = StyleUtils.NONE, minHeight = StyleUtils.NONE,
-				maxHeight = StyleUtils.NONE;
+		double minWidth = LayoutUtils.NONE, maxWidth = LayoutUtils.NONE, minHeight = LayoutUtils.NONE,
+				maxHeight = LayoutUtils.NONE;
 		if (cParams.flow.isVertical()) {
 			// 縦書きのフロー
 			marginLeft = amargin.left;
 			marginRight = amargin.right;
-			this.height = StyleUtils.computeDimensionHeight(this.size, lineSize);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(this.height)) {
+			this.height = LayoutUtils.computeDimensionHeight(this.size, lineSize);
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(this.height)) {
 				this.height -= this.frame.getBorderHeight();
 			}
 			marginTop = marginBottom = 0;
 			for (int state = 0; state < 2; ++state) {
-				if (!StyleUtils.isNone(this.height)) {
+				if (!LayoutUtils.isNone(this.height)) {
 					// 固定幅の場合
-					marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
-					marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
-					if (StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+					marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
+					marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
+					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						// 上下のマージンを同じにする
 						marginTop = marginBottom = (lineSize - this.height - this.frame.getFrameHeight()) / 2.0;
-					} else if (StyleUtils.isNone(marginTop)) {
+					} else if (LayoutUtils.isNone(marginTop)) {
 						// 上のマージンが不確定
 						marginTop = lineSize - this.height - this.frame.getFrameHeight();
-					} else if (StyleUtils.isNone(marginBottom)) {
+					} else if (LayoutUtils.isNone(marginBottom)) {
 						// 下のマージンが不確定
 						marginBottom = lineSize - marginBottom - this.frame.getFrameHeight();
 					} else {
@@ -252,8 +252,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 				switch (state) {
 				case 0:
-					maxHeight = StyleUtils.computeDimensionHeight(this.params.maxSize, lineSize);
-					if (StyleUtils.isNone(maxHeight)) {
+					maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, lineSize);
+					if (LayoutUtils.isNone(maxHeight)) {
 						maxHeight = Double.MAX_VALUE;
 					} else if (this.height > maxHeight) {
 						this.height = maxHeight;
@@ -261,7 +261,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					}
 					state = 1;
 				case 1:
-					minHeight = StyleUtils.computeDimensionHeight(this.minSize, lineSize);
+					minHeight = LayoutUtils.computeDimensionHeight(this.minSize, lineSize);
 					if (this.height < minHeight) {
 						this.height = minHeight;
 						continue;
@@ -270,8 +270,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					break;
 				}
 			}
-			assert !StyleUtils.isNone(minHeight);
-			assert !StyleUtils.isNone(maxHeight);
+			assert !LayoutUtils.isNone(minHeight);
+			assert !LayoutUtils.isNone(maxHeight);
 			switch (this.minSize.getWidthType()) {
 			case RELATIVE:
 				if (this.isSpecifiedPageSize()) {
@@ -340,24 +340,24 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// 横書きのフロー
 			marginTop = amargin.top;
 			marginBottom = amargin.bottom;
-			this.width = StyleUtils.computeDimensionWidth(this.size, lineSize);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(this.width)) {
+			this.width = LayoutUtils.computeDimensionWidth(this.size, lineSize);
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(this.width)) {
 				this.width -= this.frame.getBorderWidth();
 			}
 			marginLeft = marginRight = 0;
 			for (int state = 0; state < 2; ++state) {
-				if (!StyleUtils.isNone(this.width)) {
+				if (!LayoutUtils.isNone(this.width)) {
 					// 固定幅の場合
-					marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
-					marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
-					if (StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+					marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
+					marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
+					if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 						// 左右のマージンを同じにする
 						marginLeft = marginRight = (lineSize - this.width - this.frame.getFrameWidth()) / 2.0;
 					} else {
-						if (StyleUtils.isNone(marginLeft) && !StyleUtils.isNone(marginRight)) {
+						if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
 							// 左が不確定
 							marginLeft = lineSize - this.width - this.frame.getFrameWidth();
-						} else if (StyleUtils.isNone(marginRight)) {
+						} else if (LayoutUtils.isNone(marginRight)) {
 							// 右が不確定
 							marginRight = lineSize - this.width - this.frame.getFrameWidth();
 						} else {
@@ -392,8 +392,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 				switch (state) {
 				case 0:
-					maxWidth = StyleUtils.computeDimensionWidth(this.params.maxSize, lineSize);
-					if (StyleUtils.isNone(maxWidth)) {
+					maxWidth = LayoutUtils.computeDimensionWidth(this.params.maxSize, lineSize);
+					if (LayoutUtils.isNone(maxWidth)) {
 						maxWidth = Double.MAX_VALUE;
 					} else if (this.width > maxWidth) {
 						this.width = maxWidth;
@@ -401,7 +401,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					}
 					state = 1;
 				case 1:
-					minWidth = StyleUtils.computeDimensionWidth(this.minSize, lineSize);
+					minWidth = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
 					if (this.width < minWidth) {
 						this.width = minWidth;
 						continue;
@@ -410,8 +410,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					break;
 				}
 			}
-			assert !StyleUtils.isNone(minWidth);
-			assert !StyleUtils.isNone(maxWidth);
+			assert !LayoutUtils.isNone(minWidth);
+			assert !LayoutUtils.isNone(maxWidth);
 			switch (this.minSize.getHeightType()) {
 			case RELATIVE:
 				if (this.isSpecifiedPageSize()) {
@@ -487,16 +487,16 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			this.minPageAxis = minHeight;
 			this.maxPageAxis = maxHeight;
 		}
-		assert !StyleUtils.isNone(marginTop);
-		assert !StyleUtils.isNone(marginRight);
-		assert !StyleUtils.isNone(marginBottom);
-		assert !StyleUtils.isNone(marginLeft);
+		assert !LayoutUtils.isNone(marginTop);
+		assert !LayoutUtils.isNone(marginRight);
+		assert !LayoutUtils.isNone(marginBottom);
+		assert !LayoutUtils.isNone(marginLeft);
 		this.frame.margin.top = marginTop;
 		this.frame.margin.right = marginRight;
 		this.frame.margin.bottom = marginBottom;
 		this.frame.margin.left = marginLeft;
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
 	}
 
 	public final double getContentSize() {

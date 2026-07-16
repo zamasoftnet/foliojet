@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 public class MulticolumnBlockBox extends FlowBlockBox {
 	public MulticolumnBlockBox(BlockParams params, FlowPos pos) {
@@ -19,7 +19,7 @@ public class MulticolumnBlockBox extends FlowBlockBox {
 	}
 
 	public int getColumnCount() {
-		return StyleUtils.getColumnCount(this);
+		return LayoutUtils.getColumnCount(this);
 	}
 
 	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,

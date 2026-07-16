@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
@@ -83,15 +83,15 @@ public class Floatings {
 	 * @param floating
 	 */
 	public void addFloating(Floating floating) {
-		assert !StyleUtils.isNone(floating.pageAxis) : "Undefined pageAxis";
-		assert !StyleUtils.isNone(floating.lineAxis) : "Undefined lineAxis";
+		assert !LayoutUtils.isNone(floating.pageAxis) : "Undefined pageAxis";
+		assert !LayoutUtils.isNone(floating.lineAxis) : "Undefined lineAxis";
 		this.floatings.add(floating);
 	}
 
 	public void draw(AbstractContainerBox box, PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y) {
-		assert !StyleUtils.isNone(x) : "Undefined x";
-		assert !StyleUtils.isNone(y) : "Undefined y";
+		assert !LayoutUtils.isNone(x) : "Undefined x";
+		assert !LayoutUtils.isNone(y) : "Undefined y";
 		// 浮動体
 		boolean vertical = box.getBlockParams().flow.isVertical();
 		if (vertical) {
@@ -134,12 +134,12 @@ public class Floatings {
 			Floating floating = (Floating) this.floatings.get(i);
 			double pageEnd = floating.pageAxis + floating.box.getPageExtent(box.getBlockParams().flow);
 			final boolean first = (flags & IPageBreakableBox.FLAGS_FIRST) != 0
-					&& StyleUtils.compare(floating.pageAxis, 0) <= 0;
+					&& LayoutUtils.compare(floating.pageAxis, 0) <= 0;
 			final IFloatBox nextBox;
-			if (StyleUtils.compare(pageEnd, pageLimit) <= 0) {
+			if (LayoutUtils.compare(pageEnd, pageLimit) <= 0) {
 				// 移動なし
 				nextBox = null;
-			} else if (!first && StyleUtils.compare(pageLimit, floating.pageAxis) < 0) {
+			} else if (!first && LayoutUtils.compare(pageLimit, floating.pageAxis) < 0) {
 				nextBox = floating.box;
 			} else {
 				switch (floating.box.getType()) {

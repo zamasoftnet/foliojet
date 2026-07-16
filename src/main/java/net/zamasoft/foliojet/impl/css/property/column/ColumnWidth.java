@@ -10,7 +10,7 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -28,7 +28,7 @@ public class ColumnWidth extends AbstractPrimitivePropertyInfo {
 	public static double get(CSSStyle style) {
 		Value value = style.get(INFO);
 		if (value == KeywordValue.AUTO) {
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		}
 		return BoxValueUtils.toLength(value).getLength();
 	}

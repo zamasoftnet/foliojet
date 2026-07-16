@@ -37,7 +37,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 public class FlowContainer implements Container {
@@ -123,7 +123,7 @@ public class FlowContainer implements Container {
 	public double getFirstAscent() {
 		final Flow flow = this.getFirstFlow();
 		if (flow == null) {
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		}
 
 		double ascent;
@@ -131,7 +131,7 @@ public class FlowContainer implements Container {
 		case BLOCK: {
 			AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
 			double firstAscent = containerBox.getFirstAscent();
-			if (StyleUtils.isNone(firstAscent)) {
+			if (LayoutUtils.isNone(firstAscent)) {
 				return firstAscent;
 			}
 			ascent = firstAscent;
@@ -175,7 +175,7 @@ public class FlowContainer implements Container {
 	public double getLastDescent() {
 		final Flow flow = this.getLastFlow();
 		if (flow == null) {
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		}
 
 		double descent;
@@ -183,7 +183,7 @@ public class FlowContainer implements Container {
 		case BLOCK: {
 			final AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
 			final double lastDescent = containerBox.getLastDescent();
-			if (StyleUtils.isNone(lastDescent)) {
+			if (LayoutUtils.isNone(lastDescent)) {
 				return lastDescent;
 			}
 			descent = lastDescent;
@@ -239,7 +239,7 @@ public class FlowContainer implements Container {
 				for (int i = 0; i < this.flows.size(); ++i) {
 					final Flow flow = (Flow) this.flows.get(i);
 					final double bottom = flow.pageAxis + flow.box.getWidth();
-					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
+					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
 						if (flow.box.getType() == BoxType.BLOCK) {
 							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
 							if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
@@ -264,7 +264,7 @@ public class FlowContainer implements Container {
 				for (int i = 0; i < this.floatings.getCount(); ++i) {
 					final Floating floaing = this.floatings.getFloating(i);
 					final double bottom = floaing.pageAxis + floaing.box.getWidth();
-					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
+					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
 						pageAxis = bottom;
 						break;
 					}
@@ -276,7 +276,7 @@ public class FlowContainer implements Container {
 				for (int i = 0; i < this.flows.size(); ++i) {
 					final Flow flow = (Flow) this.flows.get(i);
 					final double bottom = flow.pageAxis + flow.box.getHeight();
-					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
+					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
 						if (flow.box.getType() == BoxType.BLOCK) {
 							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
 							if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
@@ -301,7 +301,7 @@ public class FlowContainer implements Container {
 				for (int i = 0; i < this.floatings.getCount(); ++i) {
 					final Floating floaing = this.floatings.getFloating(i);
 					final double bottom = floaing.pageAxis + floaing.box.getHeight();
-					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
+					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
 						pageAxis = bottom;
 						break;
 					}
@@ -538,7 +538,7 @@ public class FlowContainer implements Container {
 			return nextBox;
 		}
 
-		if (StyleUtils.compare(pageLimit, 0) <= 0) {
+		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
 			// 切断線が内上辺以上にある場合
 			// System.err.println("B:"+flags+"/"+mode+"/"+pageLimit+"/"+this
 			// .getFrameTop());
@@ -552,7 +552,7 @@ public class FlowContainer implements Container {
 			}
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 				// ページ先頭にある場合
-				if (StyleUtils.compare(frameStart, 0) > 0) {
+				if (LayoutUtils.compare(frameStart, 0) > 0) {
 					// 上辺があれば切断
 					return this.cutHead(pageLimit, flags);
 				}
@@ -563,7 +563,7 @@ public class FlowContainer implements Container {
 			return this;
 		}
 		if ((flags & (IPageBreakableBox.FLAGS_SPLIT | IPageBreakableBox.FLAGS_LAST)) == 0
-				&& StyleUtils.compare(pageLimit, pageSize) >= 0) {
+				&& LayoutUtils.compare(pageLimit, pageSize) >= 0) {
 			// 自動改ページで切断線が内底辺以下にある場合
 			// System.err.println("AB:"+flags+"/"+mode);
 
@@ -575,8 +575,8 @@ public class FlowContainer implements Container {
 		}
 		final double prevPageSize = pageLimit;
 		if ((flags & (IPageBreakableBox.FLAGS_SPLIT | IPageBreakableBox.FLAGS_LAST)) == 0
-				&& StyleUtils.compare(pageLimit, pageInnerSize) >= 0) {
-			pageLimit = pageInnerSize - StyleUtils.THRESHOLD * 2;
+				&& LayoutUtils.compare(pageLimit, pageInnerSize) >= 0) {
+			pageLimit = pageInnerSize - LayoutUtils.THRESHOLD * 2;
 		}
 
 		// System.err.println("ACB C: flags=" + flags + "/pageLimit=" +
@@ -592,13 +592,13 @@ public class FlowContainer implements Container {
 			}
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 				// 高さがなければ残す
-				if (StyleUtils.compare(pageInnerSize, 0) > 0) {
+				if (LayoutUtils.compare(pageInnerSize, 0) > 0) {
 					return this.cutTail(prevPageSize, flags);
 				}
 				return this.splitFloatings(null, prevPageSize, flags);
 			}
 			// 高さがあれば次に送る
-			if ((flags & IPageBreakableBox.FLAGS_LAST) != 0 || StyleUtils.compare(pageSize, 0) > 0) {
+			if ((flags & IPageBreakableBox.FLAGS_LAST) != 0 || LayoutUtils.compare(pageSize, 0) > 0) {
 				return this.splitFloatings(this, prevPageSize, flags);
 			}
 			return this.splitFloatings(null, prevPageSize, flags);
@@ -637,7 +637,7 @@ public class FlowContainer implements Container {
 			} else {
 				lastBottom += flow.box.getPageExtent(params.flow);
 			}
-			if (StyleUtils.compare(lastBottom, pageLimit) <= 0) {
+			if (LayoutUtils.compare(lastBottom, pageLimit) <= 0) {
 				break;
 			}
 		}
@@ -659,7 +659,7 @@ public class FlowContainer implements Container {
 				} else {
 					contentHeight += flow.box.getHeight();
 				}
-				if (StyleUtils.compare(pageInnerSize, contentHeight) > 0) {
+				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
 					// 自然の高さより高いボックスは切断
 					return this.cutTail(prevPageSize, flags);
 				}
@@ -682,7 +682,7 @@ public class FlowContainer implements Container {
 			Flow prevFlow = (Flow) this.flows.get(i);
 			final double splitLine = pageLimit - prevFlow.pageAxis;
 			byte lflags = (byte) 0xFF;
-			if (StyleUtils.compare(prevFlow.pageAxis, 0) > 0) {
+			if (LayoutUtils.compare(prevFlow.pageAxis, 0) > 0) {
 				// ボックスの上端がページの上部から離れている場合は、前ページに残さない。
 				lflags ^= IPageBreakableBox.FLAGS_FIRST;
 			}
@@ -724,7 +724,7 @@ public class FlowContainer implements Container {
 				// 置換されたボックス
 				double prevFlowPageSize = prevFlow.box.getPageExtent(this.box.getBlockParams().flow);
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
-						|| StyleUtils.compare(splitLine, prevFlowPageSize) >= 0) {
+						|| LayoutUtils.compare(splitLine, prevFlowPageSize) >= 0) {
 					// ページの先頭にある場合、ページ下辺にかかっていない場合は残す
 					nextFlowBox = null;
 				} else {
@@ -802,7 +802,7 @@ public class FlowContainer implements Container {
 						} else {
 							beforeBottom += beforeFlow2.box.getHeight();
 						}
-						if (StyleUtils.compare(beforeBottom, prevFlow.pageAxis) < 0) {
+						if (LayoutUtils.compare(beforeBottom, prevFlow.pageAxis) < 0) {
 							if (j == i - 1) {
 								breakAvoid = false;
 							}
@@ -819,7 +819,7 @@ public class FlowContainer implements Container {
 						if (this.floatings != null) {
 							for (int k = 0; k < this.floatings.getCount(); ++k) {
 								Floating floating = this.floatings.getFloating(k);
-								if (StyleUtils.compare(floating.pageAxis, pageLimit) >= 0) {
+								if (LayoutUtils.compare(floating.pageAxis, pageLimit) >= 0) {
 									breakAvoid = false;
 									break;
 								}
@@ -829,7 +829,7 @@ public class FlowContainer implements Container {
 								} else {
 									floatPageSize = floating.box.getHeight();
 								}
-								if (StyleUtils.compare(floating.pageAxis + floatPageSize, pageLimit) <= 0) {
+								if (LayoutUtils.compare(floating.pageAxis + floatPageSize, pageLimit) <= 0) {
 									continue;
 								}
 								if (floating.box.getType() == BoxType.REPLACED) {
@@ -850,7 +850,7 @@ public class FlowContainer implements Container {
 						// ブロック間の改ページ禁止の場合
 						assert beforeFlows >= 2;
 						i -= beforeFlows;
-						pageLimit = beforeFlow.pageAxis - StyleUtils.THRESHOLD * 2;
+						pageLimit = beforeFlow.pageAxis - LayoutUtils.THRESHOLD * 2;
 						if (vertical) {
 							pageLimit += beforeFlow.box.getWidth();
 							if (beforeFlow.box.getType() == BoxType.BLOCK) {
@@ -904,7 +904,7 @@ public class FlowContainer implements Container {
 				} else {
 					contentHeight += flow.box.getHeight();
 				}
-				if (StyleUtils.compare(pageInnerSize, contentHeight) > 0) {
+				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
 					// 自然の高さより高いボックスは切断
 					return this.cutTail(prevPageSize, flags);
 				}
@@ -940,7 +940,7 @@ public class FlowContainer implements Container {
 					return this;
 				}
 				if (nextBox == null && (flags & IPageBreakableBox.FLAGS_FIRST) == 0
-						&& StyleUtils.compare(
+						&& LayoutUtils.compare(
 								this.box.getInnerPageExtent(this.box.getBlockParams().flow),
 								0) <= 0) {
 					return this;

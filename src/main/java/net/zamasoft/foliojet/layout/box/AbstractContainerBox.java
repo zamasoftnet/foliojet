@@ -21,7 +21,7 @@ import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * 通常のフローを含むことができるボックスです。
@@ -123,7 +123,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 */
 	public final double getLineSize() {
 		final BlockParams params = this.getBlockParams();
-		double lineSize = StyleUtils.getMaxAdvance(this);
+		double lineSize = LayoutUtils.getMaxAdvance(this);
 		final int columnCount = this.getColumnCount();
 		if (columnCount >= 2) {
 			// マルチカラム

@@ -19,7 +19,7 @@ import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.BorderRenderer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -86,26 +86,26 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		//
 		// ■ パディングの計算
 		//
-		StyleUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineAxis);
+		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineAxis);
 		//
 		// ■ マージンの計算
 		//
-		StyleUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 	}
 
 	public final void calculateSize(final double refWidth, final double refHeight, final double refMaxWidth, final double refMaxHeight) {
-		double width = StyleUtils.computeDimensionWidth(this.params.size, refWidth);
-		double height = StyleUtils.computeDimensionHeight(this.params.size, refHeight);
+		double width = LayoutUtils.computeDimensionWidth(this.params.size, refWidth);
+		double height = LayoutUtils.computeDimensionHeight(this.params.size, refHeight);
 
 		if (this.params.image instanceof ReplacedBoxImage) {
 			((ReplacedBoxImage) this.params.image).setReplacedBox(this, width, height);
 		}
 		// SPEC CSS2.1 10.3.2
-		if (StyleUtils.isNone(width) && StyleUtils.isNone(height)) {
+		if (LayoutUtils.isNone(width) && LayoutUtils.isNone(height)) {
 			// 両方が不確定
 			width = this.params.image.getWidth();
 			height = this.params.image.getHeight();
-		} else if (StyleUtils.isNone(width)) {
+		} else if (LayoutUtils.isNone(width)) {
 			// 幅が不確定
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				height -= this.frame.getBorderHeight();
@@ -118,7 +118,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				// 元画像の高さがゼロの場合[最小のレイアウトにするポリシー]
 				width = 0;
 			}
-		} else if (StyleUtils.isNone(height)) {
+		} else if (LayoutUtils.isNone(height)) {
 			// 高さが不確定
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				width -= this.frame.getBorderWidth();
@@ -136,21 +136,21 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			height -= this.frame.getBorderHeight();
 		}
 
-		assert !StyleUtils.isNone(width);
-		assert !StyleUtils.isNone(height);
+		assert !LayoutUtils.isNone(width);
+		assert !LayoutUtils.isNone(height);
 
 		// SPEC CSS2.1 10.4
-		double maxWidth = StyleUtils.computeDimensionWidth(this.params.maxSize, refMaxWidth);
-		double minWidth = StyleUtils.computeDimensionWidth(this.params.minSize, refWidth);
-		double maxHeight = StyleUtils.computeDimensionHeight(this.params.maxSize, refMaxHeight);
-		double minHeight = StyleUtils.computeDimensionHeight(this.params.minSize, refHeight);
-		if (StyleUtils.isNone(maxWidth)) {
+		double maxWidth = LayoutUtils.computeDimensionWidth(this.params.maxSize, refMaxWidth);
+		double minWidth = LayoutUtils.computeDimensionWidth(this.params.minSize, refWidth);
+		double maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, refMaxHeight);
+		double minHeight = LayoutUtils.computeDimensionHeight(this.params.minSize, refHeight);
+		if (LayoutUtils.isNone(maxWidth)) {
 			maxWidth = Double.MAX_VALUE;
 		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			maxWidth -= this.frame.getBorderWidth();
 		}
 
-		if (StyleUtils.isNone(maxHeight)) {
+		if (LayoutUtils.isNone(maxHeight)) {
 			maxHeight = Double.MAX_VALUE;
 		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			maxHeight -= this.frame.getBorderHeight();
@@ -234,14 +234,14 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			//
 			// ■ 相対配置の位置の計算
 			//
-			this.offsetX = StyleUtils.computeOffsetX(pos.offset, containerBox);
-			this.offsetY = StyleUtils.computeOffsetY(pos.offset, containerBox);
+			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
+			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
 		}
 
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
-		assert !StyleUtils.isNone(this.offsetX) : "Undefined offsetX";
-		assert !StyleUtils.isNone(this.offsetY) : "Undefined offsetY";
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.offsetX) : "Undefined offsetX";
+		assert !LayoutUtils.isNone(this.offsetY) : "Undefined offsetY";
 	}
 
 	protected static class ReplacedBoxDrawable extends AbsoluteRectFrameDrawable {

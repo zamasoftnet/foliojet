@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
@@ -78,11 +78,11 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		//
 		// ■ パディングの計算
 		//
-		StyleUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
+		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
 		// ■ マージンの計算
 		//
-		StyleUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
 
 		//
 		// ■ 幅と高さの計算
@@ -90,36 +90,36 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		switch (containerParams.flow) {
 		case WritingMode.TB:
 			// 横書き
-			this.width = StyleUtils.computeDimensionWidth(this.size, lineSize);
-			if (StyleUtils.isNone(this.width)) {
+			this.width = LayoutUtils.computeDimensionWidth(this.size, lineSize);
+			if (LayoutUtils.isNone(this.width)) {
 				this.width = 0;
 			}
-			double maxWidth = StyleUtils.computeDimensionWidth(params.maxSize, lineSize);
-			if (!StyleUtils.isNone(maxWidth)) {
+			double maxWidth = LayoutUtils.computeDimensionWidth(params.maxSize, lineSize);
+			if (!LayoutUtils.isNone(maxWidth)) {
 				this.width = Math.min(this.width, maxWidth);
 			}
-			double minWidth = StyleUtils.computeDimensionWidth(this.minSize, lineSize);
+			double minWidth = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
 			this.width = Math.max(this.width, minWidth);
 			break;
 		case WritingMode.RL:
 		case WritingMode.LR:
 			// 縦書き
-			this.height = StyleUtils.computeDimensionHeight(this.size, lineSize);
-			if (StyleUtils.isNone(this.height)) {
+			this.height = LayoutUtils.computeDimensionHeight(this.size, lineSize);
+			if (LayoutUtils.isNone(this.height)) {
 				this.height = 0;
 			}
-			double maxHeight = StyleUtils.computeDimensionWidth(params.maxSize, lineSize);
-			if (!StyleUtils.isNone(maxHeight)) {
+			double maxHeight = LayoutUtils.computeDimensionWidth(params.maxSize, lineSize);
+			if (!LayoutUtils.isNone(maxHeight)) {
 				this.height = Math.min(this.height, maxHeight);
 			}
-			double minHeight = StyleUtils.computeDimensionWidth(this.minSize, lineSize);
+			double minHeight = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
 			this.height = Math.max(this.height, minHeight);
 			break;
 		default:
 			throw new IllegalStateException();
 		}
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
 	}
 
 	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
@@ -157,8 +157,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			double contextX, double contextY, double x, double y) {
 		x += this.offsetX;
 		y += this.offsetY;
-		assert !StyleUtils.isNone(x);
-		assert !StyleUtils.isNone(y);
+		assert !LayoutUtils.isNone(x);
+		assert !LayoutUtils.isNone(y);
 
 		transform = this.transform(transform, x, y);
 
@@ -173,8 +173,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		assert !StyleUtils.isNone(x);
-		assert !StyleUtils.isNone(y);
+		assert !LayoutUtils.isNone(x);
+		assert !LayoutUtils.isNone(y);
 
 		final boolean contextBox = this.isContextBox();
 		if (contextBox) {

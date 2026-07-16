@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout.part;
 
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 public class AbsoluteInsets {
 	public double top;
@@ -13,10 +13,10 @@ public class AbsoluteInsets {
 	}
 
 	public AbsoluteInsets(double top, double right, double bottom, double left) {
-		assert !StyleUtils.isNone(top);
-		assert !StyleUtils.isNone(right);
-		assert !StyleUtils.isNone(bottom);
-		assert !StyleUtils.isNone(left);
+		assert !LayoutUtils.isNone(top);
+		assert !LayoutUtils.isNone(right);
+		assert !LayoutUtils.isNone(bottom);
+		assert !LayoutUtils.isNone(left);
 		this.top = top;
 		this.right = right;
 		this.bottom = bottom;

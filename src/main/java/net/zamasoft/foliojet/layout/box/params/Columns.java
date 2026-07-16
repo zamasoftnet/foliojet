@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout.box.params;
 
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -20,7 +20,7 @@ public class Columns {
 
 	public final byte fill;
 
-	public static final Columns NONE_COLUMNS = new Columns((byte) 0, StyleUtils.NONE, 0, Border.NONE_BORDER,
+	public static final Columns NONE_COLUMNS = new Columns((byte) 0, LayoutUtils.NONE, 0, Border.NONE_BORDER,
 			FILL_BALANCE);
 
 	public Columns(byte count, double width, double gap, Border rule, byte fill) {

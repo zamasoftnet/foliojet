@@ -213,7 +213,7 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.util.IntList;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.layout.visitor.VisitorWrapper;
@@ -345,7 +345,7 @@ public class StyleBuilder implements PageGenerator {
 				this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PAGE_HEIGHT.name, s);
 			}
 		}
-		StyleUtils.setupImposition(this.ua, this.imposition);
+		LayoutUtils.setupImposition(this.ua, this.imposition);
 
 		// マージン
 		{
@@ -652,7 +652,7 @@ public class StyleBuilder implements PageGenerator {
 
 		byte columnCount = (byte) Math.min(Byte.MAX_VALUE, ColumnCount.get(style));
 		double columnWidth = ColumnWidth.get(style);
-		if (columnCount >= 2 || !StyleUtils.isNone(columnWidth)) {
+		if (columnCount >= 2 || !LayoutUtils.isNone(columnWidth)) {
 			params.columns = new Columns(columnCount, columnWidth, ColumnGap.get(style),
 					Border.create(ColumnRuleStyle.get(style), ColumnRuleWidth.get(style), ColumnRuleColor.get(style)),
 					ColumnFill.get(style));
@@ -1741,7 +1741,7 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	private CSSStyle startColumns(CSSStyle style, AbstractContainerBox box) {
-		int c = StyleUtils.getColumnCount(box);
+		int c = LayoutUtils.getColumnCount(box);
 		if (c > 1) {
 			final BlockParams params = box.getBlockParams();
 			final BlockParams mcParams = new BlockParams();

@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 public abstract class AbstractInnerTableBox extends AbstractBox implements INonReplacedBox {
 	protected final InnerTableParams params;

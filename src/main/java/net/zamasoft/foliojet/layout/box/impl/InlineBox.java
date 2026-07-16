@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
@@ -120,7 +120,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		if (descent > this.descent) {
 			this.descent = descent;
 		}
-		assert !StyleUtils.isNone(this.ascent + this.descent);
+		assert !LayoutUtils.isNone(this.ascent + this.descent);
 	}
 
 	public final void firstPassLayout(AbstractContainerBox cb) {
@@ -128,12 +128,12 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		//
 		// ■ パディングの計算
 		//
-		StyleUtils.computePaddings(this.frame.padding, rframe.padding, 0);
+		LayoutUtils.computePaddings(this.frame.padding, rframe.padding, 0);
 
 		//
 		// ■ マージンの計算
 		//
-		StyleUtils.computeMarginsAutoToZero(this.frame.margin, rframe.margin, 0);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, rframe.margin, 0);
 	}
 
 	public final void fixLineAxis(AbstractContainerBox containerBox) {
@@ -143,7 +143,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		//
 		// ■ パディングの計算
 		//
-		StyleUtils.computePaddings(this.frame.padding, rframe.padding, lineSize);
+		LayoutUtils.computePaddings(this.frame.padding, rframe.padding, lineSize);
 
 		//
 		// ■ マージンの計算
@@ -225,8 +225,8 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			//
 			// ■ 相対配置の位置の計算
 			//
-			this.offsetX = StyleUtils.computeOffsetX(pos.offset, containerBox);
-			this.offsetY = StyleUtils.computeOffsetY(pos.offset, containerBox);
+			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
+			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
 		}
 		super.finishLayout(containerBox);
 	}

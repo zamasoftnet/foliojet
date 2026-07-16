@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * 画像ボックスの実装です。
@@ -45,18 +45,18 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		AbsoluteInsets amargin = this.frame.margin;
 
 		// 横書き
-		double left = StyleUtils.computeInsetsLeft(this.pos.location, cWidth);
-		double right = StyleUtils.computeInsetsRight(this.pos.location, cWidth);
-		double marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
-		double marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
-		if (!StyleUtils.isNone(left) && !StyleUtils.isNone(right)) {
-			if (StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+		double left = LayoutUtils.computeInsetsLeft(this.pos.location, cWidth);
+		double right = LayoutUtils.computeInsetsRight(this.pos.location, cWidth);
+		double marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
+		double marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
+		if (!LayoutUtils.isNone(left) && !LayoutUtils.isNone(right)) {
+			if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 				marginLeft = marginRight = (cWidth - left - right - this.width - this.frame.getFrameWidth()) / 2.0;
 			}
-			if (StyleUtils.isNone(marginLeft) && !StyleUtils.isNone(marginRight)) {
+			if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
 				marginLeft = cWidth - left - right - this.width - this.frame.getFrameWidth();
 			}
-			if (!StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+			if (!LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 				marginRight = cWidth - left - right - this.width - this.frame.getFrameWidth();
 			} else {
 				// 制限しすぎ
@@ -65,15 +65,15 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 				// - marginRight - aframe.getFrameWidth();
 			}
 		} else {
-			if (StyleUtils.isNone(marginLeft)) {
+			if (LayoutUtils.isNone(marginLeft)) {
 				marginLeft = 0;
 			}
-			if (StyleUtils.isNone(marginRight)) {
+			if (LayoutUtils.isNone(marginRight)) {
 				marginRight = 0;
 			}
-			if (StyleUtils.isNone(left) && StyleUtils.isNone(right)) {
+			if (LayoutUtils.isNone(left) && LayoutUtils.isNone(right)) {
 				left = right = 0;
-			} else if (StyleUtils.isNone(right)) {
+			} else if (LayoutUtils.isNone(right)) {
 				right = cWidth - left - this.width - this.frame.getFrameWidth();
 			} else {
 				left = cWidth - right - this.width - this.frame.getFrameWidth();
@@ -82,21 +82,21 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		this.offsetX = left;
 		this.frame.margin.left = marginLeft;
 		this.frame.margin.right = marginRight;
-		assert !StyleUtils.isNone(marginRight);
-		assert !StyleUtils.isNone(marginLeft);
+		assert !LayoutUtils.isNone(marginRight);
+		assert !LayoutUtils.isNone(marginLeft);
 
-		double top = StyleUtils.computeInsetsTop(this.pos.location, cHeight);
-		double bottom = StyleUtils.computeInsetsBottom(this.pos.location, cHeight);
-		double marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
-		double marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
-		if (!StyleUtils.isNone(top) && !StyleUtils.isNone(bottom)) {
-			if (StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+		double top = LayoutUtils.computeInsetsTop(this.pos.location, cHeight);
+		double bottom = LayoutUtils.computeInsetsBottom(this.pos.location, cHeight);
+		double marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
+		double marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
+		if (!LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom)) {
+			if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 				marginTop = marginBottom = (cHeight - top - bottom - this.height - this.frame.getFrameHeight()) / 2.0;
 			}
-			if (StyleUtils.isNone(marginTop) && !StyleUtils.isNone(marginBottom)) {
+			if (LayoutUtils.isNone(marginTop) && !LayoutUtils.isNone(marginBottom)) {
 				marginTop = cHeight - top - bottom - this.height - this.frame.getFrameHeight();
 			}
-			if (!StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+			if (!LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 				marginBottom = cHeight - top - bottom - this.height - this.frame.getFrameHeight();
 			} else {
 				// 制限しすぎ
@@ -105,15 +105,15 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 				// - marginBottom - padding.getFrameHeight();
 			}
 		} else {
-			if (StyleUtils.isNone(marginTop)) {
+			if (LayoutUtils.isNone(marginTop)) {
 				marginTop = 0;
 			}
-			if (StyleUtils.isNone(marginBottom)) {
+			if (LayoutUtils.isNone(marginBottom)) {
 				marginBottom = 0;
 			}
-			if (StyleUtils.isNone(top) && StyleUtils.isNone(bottom)) {
+			if (LayoutUtils.isNone(top) && LayoutUtils.isNone(bottom)) {
 				top = bottom = 0;
-			} else if (StyleUtils.isNone(top)) {
+			} else if (LayoutUtils.isNone(top)) {
 				top = cHeight - bottom - this.height - marginTop - this.frame.getFrameHeight();
 			} else {
 				bottom = cHeight - top - this.height - marginTop - this.frame.getFrameHeight();
@@ -122,12 +122,12 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		this.offsetY = top;
 		this.frame.margin.top = marginTop;
 		this.frame.margin.bottom = marginBottom;
-		assert !StyleUtils.isNone(marginTop);
-		assert !StyleUtils.isNone(marginBottom);
+		assert !LayoutUtils.isNone(marginTop);
+		assert !LayoutUtils.isNone(marginBottom);
 
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
-		assert !StyleUtils.isNone(this.offsetX) : "Undefined offsetX";
-		assert !StyleUtils.isNone(this.offsetY) : "Undefined offsetY";
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.offsetX) : "Undefined offsetX";
+		assert !LayoutUtils.isNone(this.offsetY) : "Undefined offsetY";
 	}
 }

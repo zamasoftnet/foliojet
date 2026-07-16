@@ -35,7 +35,7 @@ import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * ドキュメント全体を構築します。
@@ -133,7 +133,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			for (row = 0; row < rowGroupBox.getTableRowCount(); ++row) {
 				TableRowBox rowBox = rowGroupBox.getTableRow(row);
 				last += rowBox.getPageSize();
-				if (StyleUtils.compare(last, pageLimit) > 0) {
+				if (LayoutUtils.compare(last, pageLimit) > 0) {
 					break LOOP;
 				}
 				TableRowPos pos = rowBox.getTableRowPos();
@@ -391,7 +391,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			switch (box.getType()) {
 			case TABLE:
 				TableBox tableBox = (TableBox) box;
-				if (!StyleUtils.isTwoPassTable(tableBox)) {
+				if (!LayoutUtils.isTwoPassTable(tableBox)) {
 					// fixedレイアウトの場合は
 					// OnePassTableBuilderが再配置する
 					break;
@@ -407,7 +407,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 						}
 					}
 
-					if (StyleUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
+					if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
 						break;
 					}
 
@@ -434,7 +434,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				for (;;) {
-					if (StyleUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
+					if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
 						break;
 					}
 					// 自動改ページ
@@ -517,7 +517,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 
 			// 自動改ページ
-			if (StyleUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
+			if (LayoutUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
 				// まだはみ出していない
 				continue;
 			}
@@ -551,7 +551,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			double pageLimit = this.getPageLimit();
-			if (!this.interflowBreak || StyleUtils.compare(pageLimit, this.pageAxis) >= 0) {
+			if (!this.interflowBreak || LayoutUtils.compare(pageLimit, this.pageAxis) >= 0) {
 				return;
 			}
 			// 自動改ページ
@@ -580,7 +580,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			final double lastFrame = this.lastFrame(flow, 1);
 			// System.err.println(columnLimit+"/"+
 			// this.getPageLimit()+"/"+this.flowStack.size());
-			if (StyleUtils.compare(columnLimit, this.getPageLimit() - lastFrame) > 0) {
+			if (LayoutUtils.compare(columnLimit, this.getPageLimit() - lastFrame) > 0) {
 				final BreakMode mode = new AutoBreakMode(flow.box);
 				final byte flags = IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_LAST;
 				this.columnBreak(flow, mode, flags, lastFrame, 1);
@@ -652,7 +652,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 自動改ページ
 				final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
 				// System.err.println(pageAxis+"/"+pageLimit);
-				if (StyleUtils.compare(pageAxis, pageLimit) > 0) {
+				if (LayoutUtils.compare(pageAxis, pageLimit) > 0) {
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [interflow]" + "/" + flowBox.getParams().element);
 					}
@@ -797,7 +797,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		double pageAxis = pageStart;
 		pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
-		if (StyleUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
+		if (LayoutUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
 			// 下部がはみ出していない場合は分割しない
 			return false;
 		}
@@ -810,7 +810,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			this.breakFloats.add(box.getFloatPos().floating);
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
 			if (containerBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
-				if (StyleUtils.compare(pageStart, 0) <= 0) {
+				if (LayoutUtils.compare(pageStart, 0) <= 0) {
 					// ページ先頭の場合切断
 					transfer = false;
 				} else {
@@ -831,7 +831,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			break;
 
 		case REPLACED:
-			if (StyleUtils.compare(pageStart, 0) <= 0) {
+			if (LayoutUtils.compare(pageStart, 0) <= 0) {
 				// ページ先頭の場合残す
 				transfer = false;
 				break;
@@ -933,7 +933,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// final double pageAxis = this.getPageLimit() -
 			// columnBreak.pageAxis
 			// - lastFrame;
-			// if (StyleUtils.compare(pageAxis, 0) > 0) {
+			// if (LayoutUtils.compare(pageAxis, 0) > 0) {
 			// return false;
 			// }
 		}
@@ -975,7 +975,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
 
 		// ページの先頭かどうかの判断
-		if (StyleUtils.compare(
+		if (LayoutUtils.compare(
 				breakFlow.pageAxis - breakFlow.box.getFrame().getFramePageStart(breakFlow.box.getBlockParams().flow),
 				0) > 0) {
 			flags ^= IPageBreakableBox.FLAGS_FIRST;

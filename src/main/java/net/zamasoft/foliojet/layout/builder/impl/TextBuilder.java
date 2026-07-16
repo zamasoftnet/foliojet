@@ -33,7 +33,7 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutContext.Flow;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
@@ -194,7 +194,7 @@ public class TextBuilder {
 		} else {
 			this.breakWord = AbstractTextParams.WORD_WRAP_NORMAL;
 		}
-		this.letterSpacing = StyleUtils.computeLength(params.letterSpacing, this.builder.getFlowBox().getLineSize());
+		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing, this.builder.getFlowBox().getLineSize());
 
 		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}
@@ -206,7 +206,7 @@ public class TextBuilder {
 		this.textBlockBox.addLine(lineBox, this.pageAxis);
 		final double pageAdvance = lineBox.getAscent() + lineBox.getDescent();
 		this.pageAxis += pageAdvance;
-		assert !StyleUtils.isNone(this.pageAxis);
+		assert !LayoutUtils.isNone(this.pageAxis);
 		if (pageAdvance > 0) {
 			this.builder.poLastMargin = this.builder.neLastMargin = 0;
 		}
@@ -238,12 +238,12 @@ public class TextBuilder {
 					double pageEnd = floating.pageEnd;
 					// System.out.println("TB-locateLine2:" + i + "/" +
 					// pageEnd);
-					if (StyleUtils.compare(pageStart, pageEnd) >= 0) {
+					if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
 						// 底辺より下に行がある場合
 						continue;
 					}
 					FloatPos floatingPos = floating.box.getFloatPos();
-					if (StyleUtils.compare(floating.pageStart, pageStart + lineHeight) >= 0) {
+					if (LayoutUtils.compare(floating.pageStart, pageStart + lineHeight) >= 0) {
 						// 上辺が以下にある場合
 						// 行高さを余裕高さに制限する
 						this.maxPageSize = floating.pageStart - pageStart;
@@ -252,7 +252,7 @@ public class TextBuilder {
 					switch (floatingPos.floating) {
 					case FloatSide.START:
 						double tempStart = floating.lineEnd;
-						if (StyleUtils.compare(tempStart, lineStart) >= 0) {
+						if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
 							startContent = floating;
 							lineStart = tempStart;
 						}
@@ -260,7 +260,7 @@ public class TextBuilder {
 
 					case FloatSide.END:
 						double tempEnd = floating.lineStart;
-						if (StyleUtils.compare(tempEnd, lineEnd) <= 0) {
+						if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
 							endContent = floating;
 							lineEnd = tempEnd;
 						}
@@ -271,7 +271,7 @@ public class TextBuilder {
 					}
 				}
 				this.maxLineSize = lineEnd - lineStart;
-				if (StyleUtils.compare(this.maxLineSize, this.lineAxis) >= 0) {
+				if (LayoutUtils.compare(this.maxLineSize, this.lineAxis) >= 0) {
 					// 幅に余裕がある
 					break;
 				}
@@ -295,9 +295,9 @@ public class TextBuilder {
 			}
 		}
 
-		assert StyleUtils.compare(pageStart - this.builder.pageAxis, this.pageAxis) >= 0;
+		assert LayoutUtils.compare(pageStart - this.builder.pageAxis, this.pageAxis) >= 0;
 		this.pageAxis = pageStart - this.builder.pageAxis;
-		assert !StyleUtils.isNone(this.pageAxis);
+		assert !LayoutUtils.isNone(this.pageAxis);
 		this.minLineAxis = lineStart - this.builder.lineAxis;
 		// System.out.println("NewLine:"+lineStart+"/"+this.maxLineSize);
 
@@ -412,7 +412,7 @@ public class TextBuilder {
 					// 横書き
 					if (params.flow == WritingMode.TB) {
 						descent = inlineBlockBox.getLastDescent();
-						if (StyleUtils.isNone(descent)) {
+						if (LayoutUtils.isNone(descent)) {
 							descent = 0;
 						}
 					} else {
@@ -426,7 +426,7 @@ public class TextBuilder {
 					// 縦書き
 					if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
 						descent = inlineBlockBox.getLastDescent();
-						if (StyleUtils.isNone(descent)) {
+						if (LayoutUtils.isNone(descent)) {
 							descent = inlineBox.getWidth() / 2.0;
 						}
 					} else {
@@ -514,7 +514,7 @@ public class TextBuilder {
 			textBox.addText(text);
 			ascent = text.getAscent();
 			descent = text.getDescent();
-			assert !StyleUtils.isNone(ascent + descent);
+			assert !LayoutUtils.isNone(ascent + descent);
 		} else if (e instanceof Control) {
 			final Control control = (Control) e;
 			textBox.addControl(control);
@@ -524,7 +524,7 @@ public class TextBuilder {
 			}
 			ascent = control.getAscent();
 			descent = control.getDescent();
-			assert !StyleUtils.isNone(ascent + descent);
+			assert !LayoutUtils.isNone(ascent + descent);
 		} else {
 			throw new IllegalStateException();
 		}
@@ -551,11 +551,11 @@ public class TextBuilder {
 			// 行のline-heightを適用する
 			{
 				final double textHeight = this.lineBox.getLineParams().lineHeight;
-				if (!StyleUtils.isNone(textHeight)) {
+				if (!LayoutUtils.isNone(textHeight)) {
 					lineHeight = Math.max(textHeight, lineHeight);
 				}
 			}
-			assert !StyleUtils.isNone(lineHeight);
+			assert !LayoutUtils.isNone(lineHeight);
 			final double textHeight = ascent + descent;
 			// line-heightの適用
 			if (lineHeight != textHeight) {
@@ -565,7 +565,7 @@ public class TextBuilder {
 				ascent = ascent + verticalAlign + baseline;
 				descent = descent - verticalAlign - baseline;
 			}
-			assert !StyleUtils.isNone(ascent + descent);
+			assert !LayoutUtils.isNone(ascent + descent);
 		} else {
 			double lineHeight = this.lineBox.getLineParams().lineHeight;
 			// line-heightの適用
@@ -575,7 +575,7 @@ public class TextBuilder {
 				ascent = (ascent + lineHeight);
 				descent = (descent + lineHeight);
 			}
-			assert !StyleUtils.isNone(ascent + descent);
+			assert !LayoutUtils.isNone(ascent + descent);
 		}
 		this.lineBox.addAscentDescent(ascent, descent);
 	}
@@ -834,7 +834,7 @@ public class TextBuilder {
 				lineAxis += this.text.glyphAdvance(gid);
 			}
 			final double maxLineAxis = this.maxLineSize - this.textIndent;
-			if (StyleUtils.compare(lineAxis, maxLineAxis) > 0) {
+			if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
 				this.flush();
 			}
 		}
@@ -853,7 +853,7 @@ public class TextBuilder {
 		this.lastSpaceAdvance = 0;
 		this.lineHead = false;
 
-		if (StyleUtils.compare(this.text.getAscent() + this.text.getDescent(), this.maxPageSize) > 0) {
+		if (LayoutUtils.compare(this.text.getAscent() + this.text.getDescent(), this.maxPageSize) > 0) {
 			// 行高さの制限を超えたら強制折り返し
 			this.maxLineSize = 0;
 		}
@@ -963,7 +963,7 @@ public class TextBuilder {
 			case InlineQuad.INLINE_REPLACED:
 			case InlineQuad.INLINE_BLOCK:
 				final double lineHeight = inlineQuad.getBox().getPageExtent(params.flow);
-				if (StyleUtils.compare(lineHeight, this.maxPageSize) > 0) {
+				if (LayoutUtils.compare(lineHeight, this.maxPageSize) > 0) {
 					// 行高さの制限を超えたら強制折り返し
 					this.maxLineSize = 0;
 				}
@@ -1003,7 +1003,7 @@ public class TextBuilder {
 				double lineAxis = this.lineAxis - this.lastSpaceAdvance;
 				double maxLineAxis = this.maxLineSize - this.textIndent;
 				// System.err.println("TB flush: " + lineAxis + "/" + maxLineAxis);
-				if (StyleUtils.compare(lineAxis, maxLineAxis) > 0) {
+				if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
 					// テキストブロックの途中での折り返し
 					final boolean ret = this.newLine(false);
 					return ret;
@@ -1022,8 +1022,8 @@ public class TextBuilder {
 			final SoftHyphen softHyphen = (SoftHyphen) this.textBuffer.get(this.textBuffer.size() - 1);
 			final double lineAxis = this.lineAxis - this.lastSpaceAdvance;
 			final double maxLineAxis = this.maxLineSize - this.textIndent;
-			if (StyleUtils.compare(lineAxis, maxLineAxis) <= 0
-					&& StyleUtils.compare(lineAxis + softHyphen.getText().getAdvance(), maxLineAxis) > 0) {
+			if (LayoutUtils.compare(lineAxis, maxLineAxis) <= 0
+					&& LayoutUtils.compare(lineAxis + softHyphen.getText().getAdvance(), maxLineAxis) > 0) {
 				return false;
 			}
 		}

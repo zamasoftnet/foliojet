@@ -24,7 +24,7 @@ import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -334,17 +334,17 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) == 0) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
 				// ページ頭ではない場合
-				if (StyleUtils.compare(pageLimit, 0) < 0) {
+				if (LayoutUtils.compare(pageLimit, 0) < 0) {
 					// 切断線より下にある場合
 					return this;
 				}
-				if (StyleUtils.compare(pageLimit, this.getPageSize()) >= 0) {
+				if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
 					// 切断線より上にある場合
 					// 連結されたセルによる高さを考慮するため、全てのセルの高さをチェック
 					boolean leave = true;
 					for (int i = 0; i < this.cells.size(); ++i) {
 						Cell cell = (Cell) this.cells.get(i);
-						if (StyleUtils.compare(pageLimit, cell.getCellBox().getPageExtent(this.tableParams.flow)) < 0) {
+						if (LayoutUtils.compare(pageLimit, cell.getCellBox().getPageExtent(this.tableParams.flow)) < 0) {
 							leave = false;
 							break;
 						}
@@ -378,7 +378,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 			} else {
 				// ページ頭の場合
-				if (StyleUtils.compare(pageLimit, this.getPageSize()) >= 0) {
+				if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
 					// rowspanによる連結のはみ出しがあったとしても、あとの処理で切る
 					return null;
 				}
@@ -395,7 +395,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					Cell cell = (Cell) this.cells.get(i);
 					TableCellBox cellBox = cell.getCellBox();
 					if (cellBox.getFrame().getFramePageStart(this.tableParams.flow) <= 0
-							&& StyleUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0) {
+							&& LayoutUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0) {
 						return null;
 					}
 				}

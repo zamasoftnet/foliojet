@@ -20,7 +20,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * ブロックボックスの実装です。
@@ -80,11 +80,11 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		//
 		// ■ パディングの計算
 		//
-		StyleUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
+		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
 		// ■ マージンの計算
 		//
-		StyleUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
 
 		//
 		// ■ 行方向幅の計算
@@ -94,8 +94,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double cLine = context.availableLine();
 
 		// 行方向: fit-content と min/max クランプ
-		double lineExtent = StyleUtils.computeDimensionLine(this.size, flow, cLine);
-		if (StyleUtils.isNone(lineExtent)) {
+		double lineExtent = LayoutUtils.computeDimensionLine(this.size, flow, cLine);
+		if (LayoutUtils.isNone(lineExtent)) {
 			lineExtent = maxLineAxis;
 		} else {
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
@@ -115,11 +115,11 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			}
 			lineExtent = Sizing.fitContent(minLineAxis, lineExtent, limitLine);
 		}
-		final double maxLine = StyleUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
-		if (!StyleUtils.isNone(maxLine) && lineExtent > maxLine) {
+		final double maxLine = LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
+		if (!LayoutUtils.isNone(maxLine) && lineExtent > maxLine) {
 			lineExtent = maxLine;
 		}
-		final double minLine = StyleUtils.computeDimensionLine(this.minSize, flow, cLine);
+		final double minLine = LayoutUtils.computeDimensionLine(this.minSize, flow, cLine);
 		if (lineExtent < minLine) {
 			lineExtent = minLine;
 		}
@@ -200,8 +200,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.height = pageExtent;
 		}
 
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
 	}
 
 	/**
@@ -226,7 +226,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double cLine = table ? containerBox.getInnerLineExtent(flow)
 				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
 		// ページ方向の%は基準が確定している場合のみ解決する
-		final double pagePercentBase = (!table && this.isSpecifiedPageSize()) ? cPage : StyleUtils.NONE;
+		final double pagePercentBase = (!table && this.isSpecifiedPageSize()) ? cPage : LayoutUtils.NONE;
 		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);
 	}
 
@@ -237,8 +237,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			//
 			// ■ 相対配置の位置の計算
 			//
-			this.offsetX = StyleUtils.computeOffsetX(pos.offset, containerBox);
-			this.offsetY = StyleUtils.computeOffsetY(pos.offset, containerBox);
+			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
+			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
 		}
 		super.finishLayout(containerBox);
 	}

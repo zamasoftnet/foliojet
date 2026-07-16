@@ -58,7 +58,7 @@ import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
@@ -617,7 +617,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			switch (box.getType()) {
 			case REPLACED: {
 				AbstractReplacedBox replacedBox = (AbstractReplacedBox) flowBox;
-				StyleUtils.calclateReplacedSize(this, replacedBox);
+				LayoutUtils.calculateReplacedSize(this, replacedBox);
 				frame = replacedBox.getFrame();
 				FlowPos pos = (FlowPos) flowBox.getPos();
 				clear = pos.clear;
@@ -700,7 +700,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 						xMarginStart = 0;
 						break FOR;
 					case FloatSide.END:
-						if (StyleUtils.compare(floating.lineStart - xMarginStart, lineSize) < 0) {
+						if (LayoutUtils.compare(floating.lineStart - xMarginStart, lineSize) < 0) {
 							lineEnd = lineStop;
 							break FOR;
 						}
@@ -725,21 +725,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 				double frameSize, marginStart, marginEnd;
 				if (vertical) {
 					frameSize = frame.getFrameHeight();
-					marginStart = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
-					marginEnd = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
+					marginStart = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
+					marginEnd = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
 				} else {
 					frameSize = frame.getFrameWidth();
-					marginStart = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
-					marginEnd = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
+					marginStart = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
+					marginEnd = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
 				}
 				lineSize -= frameSize;
-				if (StyleUtils.isNone(marginStart) && StyleUtils.isNone(marginEnd)) {
+				if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
 					// 左右のマージンを同じにする
 					marginStart = marginEnd = (cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd) / 2.0;
-				} else if (StyleUtils.isNone(marginStart)) {
+				} else if (LayoutUtils.isNone(marginStart)) {
 					// 左が不確定
 					marginStart = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
-				} else if (StyleUtils.isNone(marginEnd)) {
+				} else if (LayoutUtils.isNone(marginEnd)) {
 					// 右が不確定
 					marginEnd = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
 				} else {
@@ -802,7 +802,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		case FLOAT: {
 			if (box.getType() == BoxType.REPLACED) {
 				AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
-				StyleUtils.calclateReplacedSize(this, replacedBox);
+				LayoutUtils.calculateReplacedSize(this, replacedBox);
 			}
 
 			// 浮動体
@@ -893,7 +893,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				FOR: for (int i = this.floatings.size() - 1; i >= 0; --i) {
 					LayoutContext.Floating floating = (LayoutContext.Floating) this.floatings.get(i);
 					double pageEnd = floating.pageEnd;
-					if (StyleUtils.compare(pageStart, pageEnd) >= 0) {
+					if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
 						break;
 					}
 					FloatPos floatingPos = floating.box.getFloatPos();
@@ -924,7 +924,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 					switch (floatingPos.floating) {
 					case FloatSide.START:
 						double tempStart = floating.lineEnd;
-						if (StyleUtils.compare(tempStart, lineStart) >= 0) {
+						if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
 							startFloating = floating;
 							lineStart = tempStart;
 						}
@@ -932,7 +932,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 					case FloatSide.END:
 						double tempEnd = floating.lineStart;
-						if (StyleUtils.compare(tempEnd, lineEnd) <= 0) {
+						if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
 							endFloating = floating;
 							lineEnd = tempEnd;
 						}
@@ -943,7 +943,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 					}
 				}
 				double width = lineEnd - lineStart;
-				if (StyleUtils.compare(width, lineWidth) >= 0) {
+				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
 					break;
 				}
@@ -1007,7 +1007,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				FOR: for (int i = this.floatings.size() - 1; i >= 0; --i) {
 					LayoutContext.Floating floating = (LayoutContext.Floating) this.floatings.get(i);
 					double pageEnd = floating.pageEnd;
-					if (StyleUtils.compare(pageStart, pageEnd) >= 0) {
+					if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
 						break;
 					}
 					FloatPos floatingPos = floating.box.getFloatPos();
@@ -1038,7 +1038,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 					switch (floatingPos.floating) {
 					case FloatSide.START:
 						double tempStart = floating.lineEnd;
-						if (StyleUtils.compare(tempStart, lineStart) >= 0) {
+						if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
 							startFloating = floating;
 							lineStart = tempStart;
 						}
@@ -1046,7 +1046,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 					case FloatSide.END:
 						double tempEnd = floating.lineStart;
-						if (StyleUtils.compare(tempEnd, lineEnd) <= 0) {
+						if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
 							endFloating = floating;
 							lineEnd = tempEnd;
 						}
@@ -1058,7 +1058,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 				double width = lineEnd - lineStart;
 				// System.out.println(box.getWidth()+"/"+width);
-				if (StyleUtils.compare(width, lineWidth) >= 0) {
+				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
 					break;
 				}
@@ -1211,7 +1211,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// インライン配置
 			final AbstractStaticBlockBox staticBlockBox = (AbstractStaticBlockBox) blockBox;
 			containerBox = this.getFlowBox();
-			if (StyleUtils.isFixedLineAxis(containerBox, blockBox)) {
+			if (LayoutUtils.isFixedLineAxis(containerBox, blockBox)) {
 				// 固定幅
 				staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
 				if (blockBox.isFixedMulcolumn()) {
@@ -1237,7 +1237,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				// 絶対配置
 				containerBox = this.getContextBox();
 			}
-			if (StyleUtils.isFixedLineAxis(containerBox, blockBox)) {
+			if (LayoutUtils.isFixedLineAxis(containerBox, blockBox)) {
 				// 固定幅
 				absoluteBox.shrinkToFit(containerBox, IntrinsicSizes.ZERO);
 
@@ -1326,14 +1326,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 			case InlineQuad.INLINE_ABSOLUTE:
 				final InlineAbsoluteQuad inlineAbsoluteQuad = (InlineAbsoluteQuad) inlineQuad;
 				if (inlineAbsoluteQuad.box.getType() == BoxType.REPLACED) {
-					StyleUtils.calclateReplacedSize(this, (AbstractReplacedBox) inlineAbsoluteQuad.box);
+					LayoutUtils.calculateReplacedSize(this, (AbstractReplacedBox) inlineAbsoluteQuad.box);
 				}
 				break;
 
 			case InlineQuad.INLINE_REPLACED: {
 				// 置換されたインライン
 				final InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
-				StyleUtils.calclateReplacedSize(this, inlineReplacedQuad.box);
+				LayoutUtils.calculateReplacedSize(this, inlineReplacedQuad.box);
 			}
 				break;
 

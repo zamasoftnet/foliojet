@@ -40,10 +40,10 @@ import net.zamasoft.pdfg2d.gc.text.layout.PageLayoutGlyphHandler;
 /**
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: StyleUtils.java 1574 2018-10-26 02:44:00Z miyabe $
+ * @version $Id: LayoutUtils.java 1574 2018-10-26 02:44:00Z miyabe $
  */
-public final class StyleUtils {
-	private StyleUtils() {
+public final class LayoutUtils {
+	private LayoutUtils() {
 		// unused
 	}
 
@@ -143,9 +143,9 @@ public final class StyleUtils {
 	 */
 	public static void drawText(GC gc, FontPolicyList fontPolicy, double fontSize, String text, double x, double y,
 			double width) throws GraphicsException {
-		assert !StyleUtils.isNone(x);
-		assert !StyleUtils.isNone(y);
-		assert !StyleUtils.isNone(width);
+		assert !LayoutUtils.isNone(x);
+		assert !LayoutUtils.isNone(y);
+		assert !LayoutUtils.isNone(width);
 		try (final var gcState = gc.begin()) {
 			gc.transform(AffineTransform.getTranslateInstance(x, y));
 
@@ -177,7 +177,7 @@ public final class StyleUtils {
 		case ABSOLUTE:
 			return length.getLength();
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -314,14 +314,14 @@ public final class StyleUtils {
 	public static double computeDimensionWidth(Dimension size, double ref) {
 		switch (size.getWidthType()) {
 		case RELATIVE:
-			if (ref == StyleUtils.NONE) {
-				return StyleUtils.NONE;
+			if (ref == LayoutUtils.NONE) {
+				return LayoutUtils.NONE;
 			}
 			return size.getWidth() * ref;
 		case ABSOLUTE:
 			return size.getWidth();
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -337,14 +337,14 @@ public final class StyleUtils {
 	public static double computeDimensionHeight(Dimension size, double ref) {
 		switch (size.getHeightType()) {
 		case RELATIVE:
-			if (ref == StyleUtils.NONE) {
-				return StyleUtils.NONE;
+			if (ref == LayoutUtils.NONE) {
+				return LayoutUtils.NONE;
 			}
 			return size.getHeight() * ref;
 		case ABSOLUTE:
 			return size.getHeight();
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -369,7 +369,7 @@ public final class StyleUtils {
 		case RELATIVE:
 			return insets.getTop() * ref;
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -382,7 +382,7 @@ public final class StyleUtils {
 		case RELATIVE:
 			return insets.getLeft() * ref;
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -395,7 +395,7 @@ public final class StyleUtils {
 		case RELATIVE:
 			return insets.getRight() * ref;
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -408,7 +408,7 @@ public final class StyleUtils {
 		case RELATIVE:
 			return insets.getBottom() * ref;
 		case AUTO:
-			return StyleUtils.NONE;
+			return LayoutUtils.NONE;
 		default:
 			throw new IllegalStateException();
 		}
@@ -464,7 +464,7 @@ public final class StyleUtils {
 		}
 	}
 
-	public static void calclateReplacedSize(Builder builder, AbstractReplacedBox replacedBox) {
+	public static void calculateReplacedSize(Builder builder, AbstractReplacedBox replacedBox) {
 		//
 		// ■ 幅と高さの計算
 		//
@@ -486,14 +486,14 @@ public final class StyleUtils {
 					// セル内でページ送りされた場合
 					return;
 				}
-				refMaxWidth = refWidth = StyleUtils.NONE;
-				refMaxHeight = refHeight = StyleUtils.NONE;
+				refMaxWidth = refWidth = LayoutUtils.NONE;
+				refMaxHeight = refHeight = LayoutUtils.NONE;
 			} else {
-				refWidth = box.getType()== BoxType.PAGE ? StyleUtils.NONE : box.getInnerWidth();
+				refWidth = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : box.getInnerWidth();
 				refMaxWidth = box.getInnerWidth();
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
-					refMaxHeight =refHeight = StyleUtils.NONE;
+					refMaxHeight =refHeight = LayoutUtils.NONE;
 				} else if (containerBox.getPos().getType() != PosType.FLOW
 						&& containerBox.getPos().getType() != PosType.FLOAT
 						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
@@ -503,7 +503,7 @@ public final class StyleUtils {
 						box = builder.getFixedHeightFlowBox();
 					}
 					if (box == null) {
-						refMaxHeight =refHeight = StyleUtils.NONE;
+						refMaxHeight =refHeight = LayoutUtils.NONE;
 					} else {
 						refMaxHeight =refHeight = box.getLineSize();
 					}
@@ -524,14 +524,14 @@ public final class StyleUtils {
 					// セル内でページ送りされた場合
 					return;
 				}
-				refMaxHeight = refHeight = StyleUtils.NONE;
-				refMaxWidth = refWidth = StyleUtils.NONE;
+				refMaxHeight = refHeight = LayoutUtils.NONE;
+				refMaxWidth = refWidth = LayoutUtils.NONE;
 			} else {
-				refHeight = box.getType()== BoxType.PAGE ? StyleUtils.NONE : box.getInnerHeight();
+				refHeight = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : box.getInnerHeight();
 				refMaxHeight = box.getInnerHeight();
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
-					refMaxWidth = refWidth = StyleUtils.NONE;
+					refMaxWidth = refWidth = LayoutUtils.NONE;
 				} else if (containerBox.getPos().getType() != PosType.FLOW
 						&& containerBox.getPos().getType() != PosType.FLOAT
 						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
@@ -541,7 +541,7 @@ public final class StyleUtils {
 						box = builder.getFixedWidthFlowBox();
 					}
 					if (box == null) {
-						refMaxWidth = refWidth = StyleUtils.NONE;
+						refMaxWidth = refWidth = LayoutUtils.NONE;
 					} else {
 						refMaxWidth = refWidth = box.getLineSize();
 					}
@@ -568,10 +568,10 @@ public final class StyleUtils {
 
 	public static int getColumnCount(final AbstractContainerBox box) {
 		final BlockParams params = box.getBlockParams();
-		if (StyleUtils.isNone(params.columns.width)) {
+		if (LayoutUtils.isNone(params.columns.width)) {
 			return params.columns.count;
 		}
-		final double lineSize = StyleUtils.getMaxAdvance(box);
+		final double lineSize = LayoutUtils.getMaxAdvance(box);
 		if (params.columns.width >= lineSize) {
 			return 1;
 		}

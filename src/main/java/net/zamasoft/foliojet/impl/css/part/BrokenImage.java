@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.impl.css.part;
 import java.awt.geom.GeneralPath;
 
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -76,7 +76,7 @@ public class BrokenImage implements Image {
 			gc.draw(path);
 
 			if (this.alt != null) {
-				StyleUtils.drawText(gc, this.ua.getDefaultFontPolicy().asFontPolicyList(), 5, this.alt, 3, 3, WIDTH - 6);
+				LayoutUtils.drawText(gc, this.ua.getDefaultFontPolicy().asFontPolicyList(), 5, this.alt, 3, 3, WIDTH - 6);
 		}
 
 		}

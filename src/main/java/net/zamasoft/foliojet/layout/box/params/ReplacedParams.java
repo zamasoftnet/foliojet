@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout.box.params;
 
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 public class ReplacedParams extends AbstractTextParams {
@@ -19,7 +19,7 @@ public class ReplacedParams extends AbstractTextParams {
 	/**
 	 * 行の高さです。
 	 */
-	public double lineHeight = StyleUtils.NONE;
+	public double lineHeight = LayoutUtils.NONE;
 
 	public ParamsType getType() {
 		return ParamsType.REPLACED;

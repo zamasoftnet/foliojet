@@ -30,7 +30,7 @@ import net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
@@ -88,12 +88,12 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			//
 			// ■ パディングの計算
 			//
-			StyleUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineAxis);
+			LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineAxis);
 
 			//
 			// ■ マージンの計算
 			//
-			StyleUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
+			LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 		}
 
 		Insets margin = this.frame.frame.margin;
@@ -107,25 +107,25 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		switch (this.params.flow) {
 		case WritingMode.TB: {
 			// 横書き
-			double width = StyleUtils.computeDimensionWidth(this.size, cWidth);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(width)) {
+			double width = LayoutUtils.computeDimensionWidth(this.size, cWidth);
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(width)) {
 				width -= this.frame.getBorderWidth();
 			}
 			marginLeft = marginRight = 0;
 			double left = 0;
 			for (int state = 0; state < 2; ++state) {
-				left = StyleUtils.computeInsetsLeft(pos.location, cWidth);
-				double right = StyleUtils.computeInsetsRight(pos.location, cWidth);
-				if (!StyleUtils.isNone(left) && !StyleUtils.isNone(right) && !StyleUtils.isNone(width)) {
-					marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
-					marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
-					if (StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+				left = LayoutUtils.computeInsetsLeft(pos.location, cWidth);
+				double right = LayoutUtils.computeInsetsRight(pos.location, cWidth);
+				if (!LayoutUtils.isNone(left) && !LayoutUtils.isNone(right) && !LayoutUtils.isNone(width)) {
+					marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
+					marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
+					if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 						marginLeft = marginRight = (cWidth - left - right - width - this.frame.getFrameWidth()) / 2.0;
 					}
-					if (StyleUtils.isNone(marginLeft) && !StyleUtils.isNone(marginRight)) {
+					if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
 						marginLeft = cWidth - left - right - width - this.frame.getFrameWidth();
 					}
-					if (!StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+					if (!LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 						marginRight = cWidth - left - right - width - this.frame.getFrameWidth();
 					} else {
 						// 制限しすぎ
@@ -136,16 +136,16 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				} else {
 					marginLeft = amargin.left;
 					marginRight = amargin.right;
-					if (StyleUtils.isNone(width)) {
-						if (!StyleUtils.isNone(left) && !StyleUtils.isNone(right)) {
+					if (LayoutUtils.isNone(width)) {
+						if (!LayoutUtils.isNone(left) && !LayoutUtils.isNone(right)) {
 							width = cWidth - left - right - this.frame.getFrameWidth();
 						} else {
 							width = maxLineAxis;
 							double limitWidth = cWidth - this.frame.getFrameWidth();
-							if (StyleUtils.isNone(left) && StyleUtils.isNone(right)) {
+							if (LayoutUtils.isNone(left) && LayoutUtils.isNone(right)) {
 								width = Sizing.fitContent(minLineAxis, width, limitWidth);
 								left = right = 0;
-							} else if (StyleUtils.isNone(left)) {
+							} else if (LayoutUtils.isNone(left)) {
 								width = Sizing.fitContent(minLineAxis, width, limitWidth - right);
 								left = cWidth - right - width - this.frame.getFrameWidth();
 							} else {
@@ -154,8 +154,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 							}
 						}
 					} else {
-						if (StyleUtils.isNone(right)) {
-							if (StyleUtils.isNone(left)) {
+						if (LayoutUtils.isNone(right)) {
+							if (LayoutUtils.isNone(left)) {
 								left = 0;
 							}
 							right = cWidth - left - width - this.frame.getFrameWidth();
@@ -166,14 +166,14 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				}
 				switch (state) {
 				case 0:
-					double maxWidth = StyleUtils.computeDimensionWidth(this.params.maxSize, cWidth);
-					if (!StyleUtils.isNone(maxWidth) && width > maxWidth) {
+					double maxWidth = LayoutUtils.computeDimensionWidth(this.params.maxSize, cWidth);
+					if (!LayoutUtils.isNone(maxWidth) && width > maxWidth) {
 						width = maxWidth;
 						continue;
 					}
 					state = 1;
 				case 1:
-					double minWidth = StyleUtils.computeDimensionWidth(this.minSize, cWidth);
+					double minWidth = LayoutUtils.computeDimensionWidth(this.minSize, cWidth);
 					if (width < minWidth) {
 						width = minWidth;
 						continue;
@@ -182,9 +182,9 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 					break;
 				}
 			}
-			marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
-			marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
-			assert !StyleUtils.isNone(left);
+			marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
+			marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
+			assert !LayoutUtils.isNone(left);
 			this.offsetX = left;
 			this.frame.margin.top = marginTop;
 			this.frame.margin.right = marginRight;
@@ -198,25 +198,25 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		case WritingMode.LR: {
 			// 縦書き
 			double top = 0;// TODO test box-sizing
-			double height = StyleUtils.computeDimensionHeight(this.size, cHeight);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(height)) {
+			double height = LayoutUtils.computeDimensionHeight(this.size, cHeight);
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(height)) {
 				height -= this.frame.getBorderHeight();
 			}
 			marginTop = marginBottom = 0;
 			for (int state = 0; state < 2; ++state) {
-				top = StyleUtils.computeInsetsTop(pos.location, cHeight);
-				double bottom = StyleUtils.computeInsetsBottom(pos.location, cHeight);
-				if (!StyleUtils.isNone(top) && !StyleUtils.isNone(bottom) && !StyleUtils.isNone(height)) {
-					marginTop = margin.getTopType() == LengthType.AUTO ? StyleUtils.NONE : amargin.top;
-					marginBottom = margin.getBottomType() == LengthType.AUTO ? StyleUtils.NONE : amargin.bottom;
-					if (StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+				top = LayoutUtils.computeInsetsTop(pos.location, cHeight);
+				double bottom = LayoutUtils.computeInsetsBottom(pos.location, cHeight);
+				if (!LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom) && !LayoutUtils.isNone(height)) {
+					marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
+					marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
+					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						marginTop = marginBottom = (cHeight - top - bottom - height - this.frame.getFrameHeight())
 								/ 2.0;
 					}
-					if (StyleUtils.isNone(marginTop) && !StyleUtils.isNone(marginBottom)) {
+					if (LayoutUtils.isNone(marginTop) && !LayoutUtils.isNone(marginBottom)) {
 						marginTop = cHeight - top - bottom - height - this.frame.getFrameHeight();
 					}
-					if (!StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+					if (!LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						marginBottom = cHeight - top - bottom - height - this.frame.getFrameHeight();
 					} else {
 						// 制限しすぎ
@@ -227,16 +227,16 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				} else {
 					marginTop = amargin.top;
 					marginBottom = amargin.bottom;
-					if (StyleUtils.isNone(height)) {
-						if (!StyleUtils.isNone(top) && !StyleUtils.isNone(bottom)) {
+					if (LayoutUtils.isNone(height)) {
+						if (!LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom)) {
 							height = cHeight - top - bottom - this.frame.getFrameHeight();
 						} else {
 							height = maxLineAxis;
 							double limitHeight = cHeight - this.frame.getFrameHeight();
-							if (StyleUtils.isNone(top) && StyleUtils.isNone(bottom)) {
+							if (LayoutUtils.isNone(top) && LayoutUtils.isNone(bottom)) {
 								height = Sizing.fitContent(minLineAxis, height, limitHeight);
 								top = bottom = 0;
-							} else if (StyleUtils.isNone(top)) {
+							} else if (LayoutUtils.isNone(top)) {
 								height = Sizing.fitContent(minLineAxis - bottom, height, limitHeight);
 								top = cHeight - bottom - height - this.frame.getFrameHeight();
 							} else {
@@ -245,8 +245,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 							}
 						}
 					} else {
-						if (StyleUtils.isNone(bottom)) {
-							if (StyleUtils.isNone(top)) {
+						if (LayoutUtils.isNone(bottom)) {
+							if (LayoutUtils.isNone(top)) {
 								top = 0;
 							}
 							bottom = cHeight - top - height - this.frame.getFrameHeight();
@@ -257,14 +257,14 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				}
 				switch (state) {
 				case 0:
-					double maxHeight = StyleUtils.computeDimensionHeight(this.params.maxSize, cHeight);
-					if (!StyleUtils.isNone(maxHeight) && height > maxHeight) {
+					double maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, cHeight);
+					if (!LayoutUtils.isNone(maxHeight) && height > maxHeight) {
 						height = maxHeight;
 						continue;
 					}
 					state = 1;
 				case 1:
-					double minHeight = StyleUtils.computeDimensionHeight(this.minSize, cHeight);
+					double minHeight = LayoutUtils.computeDimensionHeight(this.minSize, cHeight);
 					if (height < minHeight) {
 						height = minHeight;
 						continue;
@@ -273,9 +273,9 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 					break;
 				}
 			}
-			marginLeft = margin.getLeftType() == LengthType.AUTO ? StyleUtils.NONE : amargin.left;
-			marginRight = margin.getRightType() == LengthType.AUTO ? StyleUtils.NONE : amargin.right;
-			assert !StyleUtils.isNone(top);
+			marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
+			marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
+			assert !LayoutUtils.isNone(top);
 			this.offsetY = top;
 			this.frame.margin.top = marginTop;
 			this.frame.margin.right = marginRight;
@@ -288,8 +288,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		default:
 			throw new IllegalStateException();
 		}
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
 	}
 
 	public final void finishLayout(final IFramedBox containerBox) {
@@ -315,25 +315,25 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		switch (this.params.flow) {
 		case WritingMode.TB:
 			// 横書き
-			double height = StyleUtils.computeDimensionHeight(this.size, cHeight);
+			double height = LayoutUtils.computeDimensionHeight(this.size, cHeight);
 			double marginTop = 0;
 			double marginBottom = 0;
 			double top = 0;
 			for (int state = 0; state < 2; ++state) {
 				marginTop = margin.top;
 				marginBottom = margin.bottom;
-				top = StyleUtils.computeInsetsTop(pos.location, cHeight);
-				double bottom = StyleUtils.computeInsetsBottom(pos.location, cHeight);
-				if (!StyleUtils.isNone(top) && !StyleUtils.isNone(bottom) && !StyleUtils.isNone(height)) {
-					if (StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+				top = LayoutUtils.computeInsetsTop(pos.location, cHeight);
+				double bottom = LayoutUtils.computeInsetsBottom(pos.location, cHeight);
+				if (!LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom) && !LayoutUtils.isNone(height)) {
+					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						marginTop = marginBottom = (cHeight - top - bottom - height - border.getFrameHeight()
 								- padding.getFrameHeight()) / 2.0;
 					}
-					if (StyleUtils.isNone(marginTop) && !StyleUtils.isNone(marginBottom)) {
+					if (LayoutUtils.isNone(marginTop) && !LayoutUtils.isNone(marginBottom)) {
 						marginTop = cHeight - top - bottom - height - marginBottom - border.getFrameHeight()
 								- padding.getFrameHeight();
 					}
-					if (!StyleUtils.isNone(marginTop) && StyleUtils.isNone(marginBottom)) {
+					if (!LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						marginBottom = cHeight - top - bottom - height - marginTop - border.getFrameHeight()
 								- padding.getFrameHeight();
 					} else {
@@ -343,23 +343,23 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 						// - marginBottom - padding.getFrameHeight();
 					}
 				} else {
-					if (StyleUtils.isNone(marginTop)) {
+					if (LayoutUtils.isNone(marginTop)) {
 						marginTop = 0;
 					}
-					if (StyleUtils.isNone(marginBottom)) {
+					if (LayoutUtils.isNone(marginBottom)) {
 						marginBottom = 0;
 					}
 					double contentSize = this.height;
-					if (StyleUtils.isNone(height)) {
-						if (StyleUtils.isNone(top) && StyleUtils.isNone(bottom)) {
+					if (LayoutUtils.isNone(height)) {
+						if (LayoutUtils.isNone(top) && LayoutUtils.isNone(bottom)) {
 							top = 0;
 							bottom = 0;
 							height = contentSize;
-						} else if (StyleUtils.isNone(top) && !StyleUtils.isNone(bottom)) {
+						} else if (LayoutUtils.isNone(top) && !LayoutUtils.isNone(bottom)) {
 							height = contentSize;
 							top = cHeight - bottom - height - marginTop - marginBottom - border.getFrameHeight()
 									- padding.getFrameHeight();
-						} else if (!StyleUtils.isNone(top) && StyleUtils.isNone(bottom)) {
+						} else if (!LayoutUtils.isNone(top) && LayoutUtils.isNone(bottom)) {
 							height = contentSize;
 							bottom = cHeight - top - height - marginTop - marginBottom - border.getFrameHeight()
 									- padding.getFrameHeight();
@@ -368,8 +368,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 									- padding.getFrameHeight();
 						}
 					} else {
-						if (StyleUtils.isNone(bottom)) {
-							if (StyleUtils.isNone(top)) {
+						if (LayoutUtils.isNone(bottom)) {
+							if (LayoutUtils.isNone(top)) {
 								top = 0;
 							}
 							bottom = cHeight - top - height - marginTop - marginBottom - border.getFrameHeight()
@@ -382,14 +382,14 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				}
 				switch (state) {
 				case 0:
-					double maxHeight = StyleUtils.computeDimensionHeight(this.params.maxSize, cHeight);
-					if (!StyleUtils.isNone(maxHeight) && height > maxHeight) {
+					double maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, cHeight);
+					if (!LayoutUtils.isNone(maxHeight) && height > maxHeight) {
 						height = maxHeight;
 						continue;
 					}
 					state = 1;
 				case 1:
-					double minHeight = StyleUtils.computeDimensionHeight(this.minSize, cHeight);
+					double minHeight = LayoutUtils.computeDimensionHeight(this.minSize, cHeight);
 					if (height < minHeight) {
 						height = minHeight;
 						continue;
@@ -398,15 +398,15 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 					break;
 				}
 			}
-			assert !StyleUtils.isNone(top);
+			assert !LayoutUtils.isNone(top);
 			this.offsetY = top;
-			assert !StyleUtils.isNone(margin.right);
-			assert !StyleUtils.isNone(margin.left);
-			assert !StyleUtils.isNone(marginTop);
-			assert !StyleUtils.isNone(marginBottom);
+			assert !LayoutUtils.isNone(margin.right);
+			assert !LayoutUtils.isNone(margin.left);
+			assert !LayoutUtils.isNone(marginTop);
+			assert !LayoutUtils.isNone(marginBottom);
 			this.frame.margin.top = marginTop;
 			this.frame.margin.bottom = marginBottom;
-			assert !StyleUtils.isNone(height);
+			assert !LayoutUtils.isNone(height);
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				height -= this.frame.getBorderHeight();
 			}
@@ -419,22 +419,22 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			double marginLeft = 0;
 			double marginRight = 0;
 			double left = 0;
-			double width = StyleUtils.computeDimensionWidth(this.size, cWidth);
+			double width = LayoutUtils.computeDimensionWidth(this.size, cWidth);
 			for (int state = 0; state < 2; ++state) {
 				marginLeft = margin.left;
 				marginRight = margin.right;
-				left = StyleUtils.computeInsetsLeft(pos.location, cWidth);
-				double right = StyleUtils.computeInsetsRight(pos.location, cWidth);
-				if (!StyleUtils.isNone(left) && !StyleUtils.isNone(right) && !StyleUtils.isNone(width)) {
-					if (StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+				left = LayoutUtils.computeInsetsLeft(pos.location, cWidth);
+				double right = LayoutUtils.computeInsetsRight(pos.location, cWidth);
+				if (!LayoutUtils.isNone(left) && !LayoutUtils.isNone(right) && !LayoutUtils.isNone(width)) {
+					if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 						marginLeft = marginRight = (cWidth - left - right - width - border.getFrameWidth()
 								- padding.getFrameWidth()) / 2.0;
 					}
-					if (StyleUtils.isNone(marginLeft) && !StyleUtils.isNone(marginRight)) {
+					if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
 						marginLeft = cWidth - left - right - width - marginRight - border.getFrameWidth()
 								- padding.getFrameWidth();
 					}
-					if (!StyleUtils.isNone(marginLeft) && StyleUtils.isNone(marginRight)) {
+					if (!LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 						marginRight = cWidth - left - right - width - marginLeft - border.getFrameWidth()
 								- padding.getFrameWidth();
 					} else {
@@ -444,23 +444,23 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 						// - marginRight - padding.getFrameWidth();
 					}
 				} else {
-					if (StyleUtils.isNone(marginLeft)) {
+					if (LayoutUtils.isNone(marginLeft)) {
 						marginLeft = 0;
 					}
-					if (StyleUtils.isNone(marginRight)) {
+					if (LayoutUtils.isNone(marginRight)) {
 						marginRight = 0;
 					}
 					double contentSize = this.getWidth() - this.frame.getFrameWidth();
-					if (StyleUtils.isNone(width)) {
-						if (StyleUtils.isNone(left) && StyleUtils.isNone(right)) {
+					if (LayoutUtils.isNone(width)) {
+						if (LayoutUtils.isNone(left) && LayoutUtils.isNone(right)) {
 							left = 0;
 							right = 0;
 							width = contentSize;
-						} else if (StyleUtils.isNone(left) && !StyleUtils.isNone(right)) {
+						} else if (LayoutUtils.isNone(left) && !LayoutUtils.isNone(right)) {
 							width = contentSize;
 							left = cWidth - right - width - marginLeft - marginRight - border.getFrameWidth()
 									- padding.getFrameWidth();
-						} else if (!StyleUtils.isNone(left) && StyleUtils.isNone(right)) {
+						} else if (!LayoutUtils.isNone(left) && LayoutUtils.isNone(right)) {
 							width = contentSize;
 							right = cWidth - left - width - marginLeft - marginRight - border.getFrameWidth()
 									- padding.getFrameWidth();
@@ -469,8 +469,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 									- padding.getFrameWidth();
 						}
 					} else {
-						if (StyleUtils.isNone(left)) {
-							if (StyleUtils.isNone(right)) {
+						if (LayoutUtils.isNone(left)) {
+							if (LayoutUtils.isNone(right)) {
 								right = 0;
 							}
 							left = cWidth - right - width - marginLeft - marginRight - border.getFrameWidth()
@@ -483,14 +483,14 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				}
 				switch (state) {
 				case 0:
-					double maxWidth = StyleUtils.computeDimensionWidth(params.maxSize, cWidth);
-					if (!StyleUtils.isNone(maxWidth) && width > maxWidth) {
+					double maxWidth = LayoutUtils.computeDimensionWidth(params.maxSize, cWidth);
+					if (!LayoutUtils.isNone(maxWidth) && width > maxWidth) {
 						width = maxWidth;
 						continue;
 					}
 					state = 1;
 				case 1:
-					double minWidth = StyleUtils.computeDimensionWidth(this.minSize, cWidth);
+					double minWidth = LayoutUtils.computeDimensionWidth(this.minSize, cWidth);
 					if (width < minWidth) {
 						width = minWidth;
 						continue;
@@ -499,12 +499,12 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 					break;
 				}
 			}
-			assert !StyleUtils.isNone(left);
+			assert !LayoutUtils.isNone(left);
 			this.offsetX = left;
-			assert !StyleUtils.isNone(margin.top);
-			assert !StyleUtils.isNone(margin.bottom);
-			assert !StyleUtils.isNone(marginRight);
-			assert !StyleUtils.isNone(marginLeft);
+			assert !LayoutUtils.isNone(margin.top);
+			assert !LayoutUtils.isNone(margin.bottom);
+			assert !LayoutUtils.isNone(marginRight);
+			assert !LayoutUtils.isNone(marginLeft);
 			this.frame.margin.right = marginRight;
 			this.frame.margin.left = marginLeft;
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
@@ -515,8 +515,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		default:
 			throw new IllegalStateException();
 		}
-		assert !StyleUtils.isNone(this.width);
-		assert !StyleUtils.isNone(this.height);
+		assert !LayoutUtils.isNone(this.width);
+		assert !LayoutUtils.isNone(this.height);
 		super.finishLayout(containerBox);
 	}
 

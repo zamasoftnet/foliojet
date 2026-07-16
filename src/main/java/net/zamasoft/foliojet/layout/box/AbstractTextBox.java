@@ -28,7 +28,7 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.font.Font;
 import net.zamasoft.pdfg2d.font.FontMetricsImpl;
@@ -358,7 +358,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 縦書き
 						if (params.flow.isVertical()) {
 							descent = box.getLastDescent();
-							if (StyleUtils.isNone(descent)) {
+							if (LayoutUtils.isNone(descent)) {
 								descent = inlineBox.getWidth() / 2.0;
 							}
 						} else {
@@ -373,7 +373,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 							descent = 0;
 						} else {
 							descent = box.getLastDescent();
-							if (StyleUtils.isNone(descent)) {
+							if (LayoutUtils.isNone(descent)) {
 								descent = 0;
 							}
 						}
@@ -701,7 +701,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 縦書き
 						if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
 							descent = box.getLastDescent();
-							if (StyleUtils.isNone(descent)) {
+							if (LayoutUtils.isNone(descent)) {
 								descent = inlineBox.getWidth() / 2.0;
 							}
 						} else {
@@ -713,7 +713,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 横書き
 						if (params.flow == WritingMode.TB) {
 							descent = box.getLastDescent();
-							if (StyleUtils.isNone(descent)) {
+							if (LayoutUtils.isNone(descent)) {
 								descent = 0;
 							}
 						} else {
@@ -886,7 +886,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 縦書き
 						if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
 							descent = box.getLastDescent();
-							if (StyleUtils.isNone(descent)) {
+							if (LayoutUtils.isNone(descent)) {
 								descent = inlineBox.getWidth() / 2.0;
 							}
 						} else {
@@ -898,7 +898,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 横書き
 						if (params.flow == WritingMode.TB) {
 							descent = box.getLastDescent();
-							if (StyleUtils.isNone(descent)) {
+							if (LayoutUtils.isNone(descent)) {
 								descent = 0;
 							}
 						} else {

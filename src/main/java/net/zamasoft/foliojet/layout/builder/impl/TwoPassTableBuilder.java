@@ -55,7 +55,7 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.builder.TwoPass;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 
 /**
@@ -1060,7 +1060,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						case COLUMN_TYPE_DES:
 							break;
 						case COLUMN_TYPE_FIX:
-							if (StyleUtils.isNone(colspan.fix)) {
+							if (LayoutUtils.isNone(colspan.fix)) {
 								colspan.fix = spec;
 							} else {
 								colspan.fix = Math.max(colspan.fix, spec);
@@ -1068,7 +1068,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							break;
 						case COLUMN_TYPE_PCT:
 							double pctDiff;
-							if (StyleUtils.isNone(colspan.pct)) {
+							if (LayoutUtils.isNone(colspan.pct)) {
 								pctDiff = spec;
 								colspan.pct = 0;
 							} else {
@@ -1092,7 +1092,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		for (int i = 0; i < colspanList.size(); ++i) {
 			Colspan colspan = (Colspan) colspanList.get(i);
 			// 自動幅/固定幅を分配
-			boolean fix = !StyleUtils.isNone(colspan.fix);
+			boolean fix = !LayoutUtils.isNone(colspan.fix);
 			double spec = fix ? colspan.fix : colspan.des;
 			double desSum = 0;
 			int noFixCount = 0, effCount = 0;
@@ -1209,7 +1209,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		for (int i = 0; i < colspanList.size(); ++i) {
 			Colspan colspan = (Colspan) colspanList.get(i);
 			// パーセント幅をdesの比率で分配
-			if (StyleUtils.isNone(colspan.pct)) {
+			if (LayoutUtils.isNone(colspan.pct)) {
 				continue;
 			}
 			double spec = colspan.pct;
@@ -1283,11 +1283,11 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		final double tableFrame, lineBorderSpacing;
 		if (this.vertical) {
 			// 縦書き
-			tableSize = StyleUtils.computeDimensionHeight(tableParams.size, lineSize);
-			double minSize = StyleUtils.computeDimensionHeight(tableParams.minSize, lineSize);
+			tableSize = LayoutUtils.computeDimensionHeight(tableParams.size, lineSize);
+			double minSize = LayoutUtils.computeDimensionHeight(tableParams.minSize, lineSize);
 			tableSize = Math.max(minSize, tableSize);
-			double maxSize = StyleUtils.computeDimensionHeight(tableParams.maxSize, lineSize);
-			if (!StyleUtils.isNone(maxSize) && !StyleUtils.isNone(tableSize)) {
+			double maxSize = LayoutUtils.computeDimensionHeight(tableParams.maxSize, lineSize);
+			if (!LayoutUtils.isNone(maxSize) && !LayoutUtils.isNone(tableSize)) {
 				tableSize = Math.min(maxSize, tableSize);
 			}
 			if (tableParams.size.getHeightType() != LengthType.AUTO) {
@@ -1297,11 +1297,11 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			lineBorderSpacing = tableParams.borderSpacingV;
 		} else {
 			// 横書き
-			tableSize = StyleUtils.computeDimensionWidth(tableParams.size, lineSize);
-			double minSize = StyleUtils.computeDimensionWidth(tableParams.minSize, lineSize);
+			tableSize = LayoutUtils.computeDimensionWidth(tableParams.size, lineSize);
+			double minSize = LayoutUtils.computeDimensionWidth(tableParams.minSize, lineSize);
 			tableSize = Math.max(minSize, tableSize);
-			double maxSize = StyleUtils.computeDimensionWidth(tableParams.maxSize, lineSize);
-			if (!StyleUtils.isNone(maxSize) && !StyleUtils.isNone(tableSize)) {
+			double maxSize = LayoutUtils.computeDimensionWidth(tableParams.maxSize, lineSize);
+			if (!LayoutUtils.isNone(maxSize) && !LayoutUtils.isNone(tableSize)) {
 				tableSize = Math.min(maxSize, tableSize);
 			}
 			if (tableParams.size.getWidthType() != LengthType.AUTO) {
@@ -1353,7 +1353,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		double[] columnSizes;
 		if (this.fixed) {
 			// 固定レイアウト
-			if (StyleUtils.isNone(tableSize)) {
+			if (LayoutUtils.isNone(tableSize)) {
 				tableSize = lineSize;
 			}
 			tableSize -= tableFrame;
@@ -1443,7 +1443,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							percentSizeSum += size.length;
 						}
 					}
-					columnSizes[i] = size == null ? StyleUtils.NONE : size.length;
+					columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
 				} else {
 					// table-cellによる幅指定がある場合
 					CellContent cell = (CellContent) cells.get(i);
@@ -1513,7 +1513,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 								percentSizeSum += size.length;
 							}
 						}
-						columnSizes[i] = size == null ? StyleUtils.NONE : size.length;
+						columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
 					} else {
 						ColumnSize columnSize = columnSizeList[i];
 						columnSizes[i] = columnSize.length;
@@ -1535,7 +1535,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 									percentSizeSum += size.length;
 								}
 							}
-							columnSizes[i] = size == null ? StyleUtils.NONE : size.length;
+							columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
 						} else {
 							ColumnSize columnSize = columnSizeList[i];
 							columnSizes[i] = columnSize.length;
@@ -1555,7 +1555,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				for (int i = 0; i < columnCount; ++i) {
 					ColumnSize size = columnSizeList[i];
 					if (size != null && size.percentage) {
-						assert !StyleUtils.isNone(columnSizes[i]);
+						assert !LayoutUtils.isNone(columnSizes[i]);
 						double sizeDiff = removeSize * size.length / percentSizeSum;
 						columnSizes[i] -= sizeDiff;
 						sizeSum -= sizeDiff;
@@ -1571,20 +1571,20 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					size = 0;
 				}
 				for (int i = 0; i < columnCount; ++i) {
-					if (StyleUtils.isNone(columnSizes[i])) {
+					if (LayoutUtils.isNone(columnSizes[i])) {
 						columnSizes[i] = size;
 					}
 				}
 			} else if (tableSize > sizeSum) {
 				final double size = (tableSize - sizeSum) / columnCount;
 				for (int i = 0; i < columnCount; ++i) {
-					assert !StyleUtils.isNone(columnSizes[i]);
+					assert !LayoutUtils.isNone(columnSizes[i]);
 					columnSizes[i] += size;
 				}
 			} else {
 				tableSize = 0;
 				for (int i = 0; i < columnCount; ++i) {
-					assert !StyleUtils.isNone(columnSizes[i]);
+					assert !LayoutUtils.isNone(columnSizes[i]);
 					tableSize += columnSizes[i];
 				}
 			}
@@ -1597,7 +1597,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			columnSizes = new double[columnCount];
 			if (columnCount > 0) {
 				final double maxTableSize = blockBox.getLineSize();
-				if (StyleUtils.isNone(tableSize)) {
+				if (LayoutUtils.isNone(tableSize)) {
 					tableSize = this.maxLineSize;
 					if (tableSize < maxTableSize && columnCount > 1) {
 						// パーセント幅によるテーブルの拡張
@@ -1691,7 +1691,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				}
 				columnSizes = ColumnDistribution.distribute(startSizes, this.columnSpecs, types, innerSize);
 			} else {
-				if (StyleUtils.isNone(tableSize)) {
+				if (LayoutUtils.isNone(tableSize)) {
 					tableSize = 0;
 				}
 			}
@@ -1705,7 +1705,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				specifiedPageSize = tableParams.size.getWidth() - this.tableBox.getFrame().getFrameWidth();
 				break;
 			case RELATIVE:
-				specifiedPageSize = StyleUtils.computeDimensionWidth(tableParams.size,
+				specifiedPageSize = LayoutUtils.computeDimensionWidth(tableParams.size,
 						this.layoutStack.getFixedWidth());
 				break;
 			case AUTO:
@@ -1721,7 +1721,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				specifiedPageSize = tableParams.size.getHeight() - this.tableBox.getFrame().getFrameHeight();
 				break;
 			case RELATIVE:
-				specifiedPageSize = StyleUtils.computeDimensionHeight(tableParams.size,
+				specifiedPageSize = LayoutUtils.computeDimensionHeight(tableParams.size,
 						this.layoutStack.getFixedHeight());
 				break;
 			case AUTO:
@@ -1733,7 +1733,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		}
 		final double tableInnerSize = tableSize - tableFrame;
 
-		assert !StyleUtils.isNone(tableSize);
+		assert !LayoutUtils.isNone(tableSize);
 		switch (blockBox.getPos().getType()) {
 		case FLOW: {
 			FlowBlockBox flowBox = (FlowBlockBox) blockBox;
@@ -1880,7 +1880,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						double size = columnSizes[k];
 						for (int l = 1; l < span; ++l) {
 							size += columnSizes[++k];
-							assert !StyleUtils.isNone(columnSizes[k]);
+							assert !LayoutUtils.isNone(columnSizes[k]);
 						}
 						if (this.vertical) {
 							cellBox.setHeight(size);
@@ -2186,7 +2186,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 						TableCellBox cellBox = cell.getCellBox();
 						double firstAscent = cellBox.getFirstAscent();
-						if (!StyleUtils.isNone(firstAscent) && firstAscent > rowAscent) {
+						if (!LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
 							rowAscent = firstAscent;
 						}
 					}
@@ -2286,7 +2286,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
 			// つぶし境界
 			for (int i = 0; i < columnSizes.length; ++i) {
-				assert !StyleUtils.isNone(columnSizes[i]);
+				assert !LayoutUtils.isNone(columnSizes[i]);
 				this.borders.setColumnSize(i, columnSizes[i]);
 			}
 			int row = 0;
@@ -2360,9 +2360,9 @@ class Colspan {
 	/** 最小幅 */
 	public double min = 0;
 	/* パーセント幅 */
-	public double pct = StyleUtils.NONE;
+	public double pct = LayoutUtils.NONE;
 	/** 指定幅 */
-	public double fix = StyleUtils.NONE;
+	public double fix = LayoutUtils.NONE;
 	/** 推奨幅 */
 	public double des = 0;
 

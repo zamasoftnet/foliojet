@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
@@ -222,17 +222,17 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			return nextRowGroup;
 		}
 
-		if (StyleUtils.compare(pageLimit, 0) < 0) {
+		if (LayoutUtils.compare(pageLimit, 0) < 0) {
 			// 切断線より下にある場合
 			return null;
 		}
-		if (StyleUtils.compare(pageLimit, this.getPageSize()) >= 0) {
+		if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
 			// 移動なし
 			return null;
 		}
 		InnerTableParams con = this.params;
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
-				&& (con.pageBreakInside == PageBreakMode.AVOID || StyleUtils.compare(pageLimit, 0) < 0)) {
+				&& (con.pageBreakInside == PageBreakMode.AVOID || LayoutUtils.compare(pageLimit, 0) < 0)) {
 			// 全部移動
 			return this;
 		}
@@ -256,7 +256,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		for (i = 0; i < this.rows.size(); ++i) {
 			final TableRowBox prevRow = (TableRowBox) this.rows.get(i);
 			double prevRowSize = prevRow.getPageSize();
-			if (i < this.rows.size() - 1 && StyleUtils.compare(pageLimit, prevRowSize) > 0) {
+			if (i < this.rows.size() - 1 && LayoutUtils.compare(pageLimit, prevRowSize) > 0) {
 				// 切断線がかかっている行まですすむ
 				pageLimit -= prevRowSize;
 				continue;
@@ -359,7 +359,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 							continue;
 						}
 						// 一つ戻って前の行を末尾で切る
-						pageLimit = beforeRow.getPageSize() - StyleUtils.THRESHOLD * 2;
+						pageLimit = beforeRow.getPageSize() - LayoutUtils.THRESHOLD * 2;
 						i -= 2;
 						continue;
 					}

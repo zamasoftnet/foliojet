@@ -52,7 +52,7 @@ import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.StyledTextUnitizer;
 import net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.TwoPassTableBuilder;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 
@@ -298,7 +298,7 @@ public class DocumentBuilder {
 				break;
 			}
 			final TableBuilder tableBuilder;
-			if (!builder.isMain() || StyleUtils.isTwoPassTable(tableBox)) {
+			if (!builder.isMain() || LayoutUtils.isTwoPassTable(tableBox)) {
 				// 2パスレイアウト
 				tableBuilder = new TwoPassTableBuilder(builder, tableBox);
 			} else {
@@ -451,7 +451,7 @@ public class DocumentBuilder {
 				break;
 			}
 			final Builder builder = this.containerBuilder().builder;
-			if (!builder.isMain() || StyleUtils.isTwoPassTable(tableBox)) {
+			if (!builder.isMain() || LayoutUtils.isTwoPassTable(tableBox)) {
 				// 2パスレイアウト
 				builder.addTable(tableBuilder);
 			} else {
@@ -510,9 +510,9 @@ public class DocumentBuilder {
 					// インラインブロックボックスの幅が明示されてなかった場合
 					final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
 					inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.getIntrinsicSizes(), false);
-					final BlockBuilder lnlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
-					stfBuilder.bind(lnlineBlockBuilder);
-					lnlineBlockBuilder.close();
+					final BlockBuilder inlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
+					stfBuilder.bind(inlineBlockBuilder);
+					inlineBlockBuilder.close();
 				}
 				this.containerBuilder().getStyledTextUnitizer().addInlineBlock(inlineBlockBox);
 			}

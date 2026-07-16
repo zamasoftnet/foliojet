@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.layout.builder.impl.BuilderGlyphHandler;
 import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
@@ -158,7 +158,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final void addLine(AbstractLineBox lineBox, double pageAxis) {
-		assert !StyleUtils.isNone(pageAxis);
+		assert !LayoutUtils.isNone(pageAxis);
 		this.lines.add(new Line(lineBox, pageAxis));
 		// この拡張はIE互換モードでなければ、あまり意味はない
 		this.lineSize = Math.max(lineBox.getLineSize(), this.lineSize);
@@ -185,7 +185,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		for (int i = 0; i < this.lines.size(); ++i) {
 			final Line line = (Line) this.lines.get(i);
 			final double bottom = line.pageAxis + line.box.getPageExtent(this.getBlockParams().flow);
-			if (StyleUtils.compare(bottom, pageAxis) >= 0) {
+			if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
 				pageAxis = bottom;
 				break;
 			}
@@ -196,8 +196,8 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 
 	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		assert !StyleUtils.isNone(x);
-		assert !StyleUtils.isNone(y);
+		assert !LayoutUtils.isNone(x);
+		assert !LayoutUtils.isNone(y);
 		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (DEBUG) {
@@ -244,7 +244,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		// FLAGS_LASTは実際の要素に対するもので、仮想的なテキストブロックには適用しない
 
 		final double pageSize = this.getPageExtent(this.params.flow);
-		if (StyleUtils.compare(pageLimit, pageSize) >= 0) {
+		if (LayoutUtils.compare(pageLimit, pageSize) >= 0) {
 			// 切断線が底辺以下にある場合は移動なし
 			return null;
 		}
@@ -262,7 +262,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		if (nonZeroLines >= 2) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
 				final Line line = (Line) this.lines.get(0);
-				if (StyleUtils.compare(pageLimit, line.getPageEnd()) < 0) {
+				if (LayoutUtils.compare(pageLimit, line.getPageEnd()) < 0) {
 					// 切断線が最初の行の底辺より上にある場合は全部移動
 					return this;
 				}
@@ -279,7 +279,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		int lastOrphan;
 		for (lastOrphan = this.lines.size() - 1; lastOrphan > 0; --lastOrphan) {
 			final Line line = (Line) this.lines.get(lastOrphan);
-			if (StyleUtils.compare(pageLimit, line.getPageEnd()) >= 0) {
+			if (LayoutUtils.compare(pageLimit, line.getPageEnd()) >= 0) {
 				break;
 			}
 		}

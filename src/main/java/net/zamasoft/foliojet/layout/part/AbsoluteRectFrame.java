@@ -4,7 +4,7 @@ import java.awt.Shape;
 
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
@@ -149,10 +149,10 @@ public class AbsoluteRectFrame {
 	}
 
 	public void draw(GC gc, double x, double y, double width, double height, Shape textClip) throws GraphicsException {
-		assert !StyleUtils.isNone(x) : "Undefined x";
-		assert !StyleUtils.isNone(y) : "Undefined y";
-		assert !StyleUtils.isNone(width) : "Undefined width";
-		assert !StyleUtils.isNone(height) : "Undefined height";
+		assert !LayoutUtils.isNone(x) : "Undefined x";
+		assert !LayoutUtils.isNone(y) : "Undefined y";
+		assert !LayoutUtils.isNone(width) : "Undefined width";
+		assert !LayoutUtils.isNone(height) : "Undefined height";
 		x += this.margin.left;
 		y += this.margin.top;
 		width -= this.margin.getFrameWidth();

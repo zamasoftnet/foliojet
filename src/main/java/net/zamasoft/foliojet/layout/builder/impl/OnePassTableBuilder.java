@@ -53,7 +53,7 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 import net.zamasoft.foliojet.layout.util.DoubleList;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 
 /**
@@ -252,26 +252,26 @@ public class OnePassTableBuilder implements TableBuilder {
 		if (this.vertical) {
 			tableFrame = this.tableBox.getFrame().getFrameHeight();
 			lineBorderSpacing = tableParams.borderSpacingV;
-			tableInnerSize = StyleUtils.computeDimensionHeight(flowParams.size, lineSize);
-			assert !StyleUtils.isNone(tableInnerSize);
-			double minWidth = StyleUtils.computeDimensionHeight(flowParams.minSize, lineSize);
+			tableInnerSize = LayoutUtils.computeDimensionHeight(flowParams.size, lineSize);
+			assert !LayoutUtils.isNone(tableInnerSize);
+			double minWidth = LayoutUtils.computeDimensionHeight(flowParams.minSize, lineSize);
 			tableInnerSize = Math.max(minWidth, tableInnerSize);
-			double maxWidth = StyleUtils.computeDimensionHeight(flowParams.maxSize, lineSize);
-			if (!StyleUtils.isNone(maxWidth) && !StyleUtils.isNone(tableInnerSize)) {
+			double maxWidth = LayoutUtils.computeDimensionHeight(flowParams.maxSize, lineSize);
+			if (!LayoutUtils.isNone(maxWidth) && !LayoutUtils.isNone(tableInnerSize)) {
 				tableInnerSize = Math.min(maxWidth, tableInnerSize);
 			}
 		} else {
 			tableFrame = this.tableBox.getFrame().getFrameWidth();
 			lineBorderSpacing = tableParams.borderSpacingH;
-			tableInnerSize = StyleUtils.computeDimensionWidth(flowParams.size, lineSize);
-			double minWidth = StyleUtils.computeDimensionWidth(flowParams.minSize, lineSize);
+			tableInnerSize = LayoutUtils.computeDimensionWidth(flowParams.size, lineSize);
+			double minWidth = LayoutUtils.computeDimensionWidth(flowParams.minSize, lineSize);
 			tableInnerSize = Math.max(minWidth, tableInnerSize);
-			double maxWidth = StyleUtils.computeDimensionWidth(flowParams.maxSize, lineSize);
-			if (!StyleUtils.isNone(maxWidth) && !StyleUtils.isNone(tableInnerSize)) {
+			double maxWidth = LayoutUtils.computeDimensionWidth(flowParams.maxSize, lineSize);
+			if (!LayoutUtils.isNone(maxWidth) && !LayoutUtils.isNone(tableInnerSize)) {
 				tableInnerSize = Math.min(maxWidth, tableInnerSize);
 			}
 		}
-		if (StyleUtils.isNone(tableInnerSize)) {
+		if (LayoutUtils.isNone(tableInnerSize)) {
 			tableInnerSize = flowBox.getLineSize();
 		}
 		tableInnerSize -= tableFrame;
@@ -390,7 +390,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						percentSizeSum += size.length;
 					}
 				}
-				this.columnSizes[i] = size == null ? StyleUtils.NONE : size.length;
+				this.columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
 			} else {
 				// table-cellによる幅指定がある場合
 				final CellContent cell = (CellContent) this.cells.get(i);
@@ -483,7 +483,7 @@ public class OnePassTableBuilder implements TableBuilder {
 							percentSizeSum += size.length;
 						}
 					}
-					this.columnSizes[i] = size == null ? StyleUtils.NONE : size.length;
+					this.columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
 				} else {
 					ColumnSize columnWidth = columnSizeList[i];
 					this.columnSizes[i] = columnWidth.length;
@@ -504,7 +504,7 @@ public class OnePassTableBuilder implements TableBuilder {
 								percentSizeSum += size.length;
 							}
 						}
-						this.columnSizes[i] = size == null ? StyleUtils.NONE : size.length;
+						this.columnSizes[i] = size == null ? LayoutUtils.NONE : size.length;
 					} else {
 						ColumnSize columnWidth = columnSizeList[i];
 						this.columnSizes[i] = columnWidth.length;
@@ -540,7 +540,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				size = 0;
 			}
 			for (int i = 0; i < columnCount; ++i) {
-				if (StyleUtils.isNone(this.columnSizes[i])) {
+				if (LayoutUtils.isNone(this.columnSizes[i])) {
 					this.columnSizes[i] = size;
 				}
 			}
@@ -1292,7 +1292,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				}
 				TableCellBox cellBox = cell.getCellBox();
 				double firstAscent = cellBox.getFirstAscent();
-				if (!StyleUtils.isNone(firstAscent) && firstAscent > rowAscent) {
+				if (!LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
 					rowAscent = firstAscent;
 				}
 			}
@@ -1363,7 +1363,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					}
 					TableCellBox cellBox = cell.getCellBox();
 					double firstAscent = cellBox.getFirstAscent();
-					if (!StyleUtils.isNone(firstAscent) && firstAscent > rowAscent) {
+					if (!LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
 						rowAscent = firstAscent;
 					}
 				}
@@ -1589,7 +1589,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			for (;;) {
 				double pageBottom = this.builder.getPageLimit() - this.builder.getPageAxis();
 				// System.err.println(this.pageAxis + "/" + pageBottom);
-				if (StyleUtils.compare(this.pageSize, pageBottom) > 0) {
+				if (LayoutUtils.compare(this.pageSize, pageBottom) > 0) {
 					// 行グループを分割
 					// System.out.println("A;" + this.pageAxis + "/"
 					// + this.bindRowGroupBox.getHeight() + "/"
@@ -1644,7 +1644,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			double rowSize = rowBox.getPageSize();
 			// System.err.println(row + "/" + bottom + "/" + pageLimit + "/"
 			// + rowBox.getParams().augmentation);
-			if (StyleUtils.compare(rowSize, rowSplitLine) > 0) {
+			if (LayoutUtils.compare(rowSize, rowSplitLine) > 0) {
 				break;
 			}
 			TableRowPos pos = rowBox.getTableRowPos();
@@ -1676,7 +1676,7 @@ public class OnePassTableBuilder implements TableBuilder {
 
 		// 自動改ページチェック
 		// System.err.println("OPT A: "+ pageLimit);
-		if (StyleUtils.compare(pageLimit, 0) > 0) {
+		if (LayoutUtils.compare(pageLimit, 0) > 0) {
 			// 行グループを分割
 			// System.out.println("OPT A:" + pageLimit + "/"
 			// + this.bindRowGroupBox.getHeight() + "/"
@@ -1723,7 +1723,7 @@ public class OnePassTableBuilder implements TableBuilder {
 	}
 
 	private boolean pageBreak(final BreakMode mode, double pageLimit, byte flags) {
-		if (StyleUtils.compare(this.builder.getPageAxis(), 0) > 0) {
+		if (LayoutUtils.compare(this.builder.getPageAxis(), 0) > 0) {
 			flags &= ~IPageBreakableBox.FLAGS_FIRST;
 		}
 		TableRowGroupBox rowGroupBox = this.bindRowGroupBox;

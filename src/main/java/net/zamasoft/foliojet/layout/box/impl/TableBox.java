@@ -33,7 +33,7 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 import net.zamasoft.foliojet.layout.util.BorderRenderer;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -128,13 +128,13 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final void calculateFrame(double lineSize) {
-		StyleUtils.computeMarginsAutoToZero(this.frame.margin, this.params.frame.margin, lineSize);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.params.frame.margin, lineSize);
 		if (this.params.borderCollapse == TableParams.BORDER_SEPARATE) {
 			// 分離境界モデル
 			//
 			// ■ パディングの計算
 			//
-			StyleUtils.computePaddings(this.frame.padding, this.params.frame.padding, lineSize);
+			LayoutUtils.computePaddings(this.frame.padding, this.params.frame.padding, lineSize);
 			this.frame.padding.top = params.borderSpacingV / 2.0;
 			this.frame.padding.right = params.borderSpacingH / 2.0;
 			this.frame.padding.bottom = params.borderSpacingV / 2.0;
@@ -266,8 +266,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		assert !StyleUtils.isNone(x) : "Undefined x";
-		assert !StyleUtils.isNone(y) : "Undefined y";
+		assert !LayoutUtils.isNone(x) : "Undefined x";
+		assert !LayoutUtils.isNone(y) : "Undefined y";
 		x += this.offsetX;
 		y += this.offsetY;
 
@@ -571,7 +571,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				pageLimit -= this.frame.getFrameLeft();
 			} else {
 				// 境界が下マージンに差し掛かった場合は切る
-				if (over > 0 && StyleUtils.compare(over, this.frame.margin.left) < 0) {
+				if (over > 0 && LayoutUtils.compare(over, this.frame.margin.left) < 0) {
 					pageLimit -= this.frame.margin.left;
 				}
 			}
@@ -587,7 +587,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				pageLimit -= this.frame.getFrameBottom();
 			} else {
 				// 境界が下マージンに差し掛かった場合は切る
-				if (over > 0 && StyleUtils.compare(over, this.frame.margin.bottom) < 0) {
+				if (over > 0 && LayoutUtils.compare(over, this.frame.margin.bottom) < 0) {
 					pageLimit -= this.frame.margin.bottom;
 				}
 			}
@@ -596,7 +596,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		// System.err.println("TABLE B:" +
 		// this.bodyGroups.size()+"/"+pageLimit);
 		// テーブルのヘッダとフッタがおさまらない
-		if (StyleUtils.compare(pageLimit, 0) <= 0) {
+		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 				return null;
 			}
@@ -613,7 +613,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		for (i = 0; i < this.bodyGroups.size(); ++i) {
 			final TableRowGroupBox prevRowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
 			double prevRowGroupSize = prevRowGroup.getPageSize();
-			if (i < this.bodyGroups.size() - 1 && StyleUtils.compare(pageLimit, prevRowGroupSize) > 0) {
+			if (i < this.bodyGroups.size() - 1 && LayoutUtils.compare(pageLimit, prevRowGroupSize) > 0) {
 				pageLimit -= prevRowGroupSize;
 				continue;
 			}
@@ -659,7 +659,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 					if (breakAvoid) {
 						// 行グループの改ページ禁止
 						// 一つ戻って前の行グループを末尾で切る
-						pageLimit = beforeGroup.getPageSize() - StyleUtils.THRESHOLD * 2;
+						pageLimit = beforeGroup.getPageSize() - LayoutUtils.THRESHOLD * 2;
 						i -= 2;
 						continue;
 					}

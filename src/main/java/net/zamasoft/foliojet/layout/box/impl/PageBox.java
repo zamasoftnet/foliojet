@@ -27,7 +27,7 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.UserAgent;
 
@@ -248,7 +248,7 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	public final void setPageAxis(final double newSize) {
-		assert !StyleUtils.isNone(newSize);
+		assert !LayoutUtils.isNone(newSize);
 		final BlockParams params = this.getBlockParams();
 		switch (params.flow) {
 		case WritingMode.TB: {

@@ -95,7 +95,7 @@ import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlCellPadding;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlTableBorder;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.ImageMap.Area;

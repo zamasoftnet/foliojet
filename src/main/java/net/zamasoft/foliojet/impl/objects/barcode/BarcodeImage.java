@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
-import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.g2d.gc.BridgeGraphics2D;
 import net.zamasoft.pdfg2d.gc.GC;
@@ -64,7 +64,7 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 			} catch (Exception e) {
 				this.ua.message(MessageCodes.WARN_PLUGIN, "net.zamasoft.foliojet.impl.objects.barcode",
 						e.getLocalizedMessage());
-				StyleUtils.drawText(gc, ua.getDefaultFontPolicy().asFontPolicyList(), 5, e.getLocalizedMessage(), 3, 3,
+				LayoutUtils.drawText(gc, ua.getDefaultFontPolicy().asFontPolicyList(), 5, e.getLocalizedMessage(), 3, 3,
 						this.width - 6);
 			} finally {
 				g2d.dispose();
