@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.fragment.BreakOpportunity;
+
 import net.zamasoft.foliojet.layout.box.content.BreakToken;
 
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
@@ -125,10 +127,10 @@ public class TextBuilder {
 
 	private double unitAdvance = 0;
 
-	// あとで折り返し可能な部分までの範囲
-	private int textUnitElementCount = 0;
-
-	private int textUnitGlyphCount = 0;
+	/**
+	 * 最後に収まった分割機会。
+	 */
+	private BreakOpportunity opportunity = BreakOpportunity.NONE;
 
 	public TextBuilder(BlockBuilder builder, BreakToken breakToken) {
 		this.builder = builder;
@@ -677,7 +679,7 @@ public class TextBuilder {
 		if (last) {
 			count = this.textBuffer.size();
 		} else {
-			count = this.textUnitElementCount;
+			count = this.opportunity.elementCount();
 		}
 		// TODO 本来はここで assert count > 0 が成立するようにする。
 		assert count > 0 || last;
@@ -689,7 +691,7 @@ public class TextBuilder {
 				if (e instanceof Text) {
 					final TextImpl text = (TextImpl) e;
 					if (i == count - 1) {
-						if (last || this.textUnitGlyphCount == 0 || this.textUnitGlyphCount == text.getGlyphCount()) {
+						if (last || this.opportunity.glyphCount() == 0 || this.opportunity.glyphCount() == text.getGlyphCount()) {
 							// 最後の行or
 							// テキストで終わっていない場合
 							// １ユニットしか幅がない場合
@@ -699,7 +701,7 @@ public class TextBuilder {
 							}
 						} else {
 							// 分割可能な箇所で分割
-							e = text.split(this.textUnitGlyphCount);
+							e = text.split(this.opportunity.glyphCount());
 							TextImpl prevText = (TextImpl) e;
 							// 分割部分のカーニングを取り消して位置を計算する
 							this.lineAxis += this.fontMetrics.getKerning(prevText.glyphIds[prevText.glyphCount - 1],
@@ -710,9 +712,9 @@ public class TextBuilder {
 					this.addElement(e);
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
-					if (!last && i == count - 1 && quad instanceof SoftHyphen) {
-						// 分割点で行が切られたのでハイフンを実体化する
-						this.addElement(((SoftHyphen) quad).getText());
+					if (!last && i == count - 1 && this.opportunity.hyphen() != null) {
+						// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する
+						this.addElement(this.opportunity.hyphen().getText());
 					} else if (quad instanceof InlineQuad) {
 						// インラインボックス
 						final InlineQuad inlineQuad = (InlineQuad) quad;
@@ -793,14 +795,20 @@ public class TextBuilder {
 			content = false;
 		}
 
-		this.textUnitElementCount = this.textBuffer.size();
-		if (this.text != null) {
-			this.textUnitGlyphCount = this.text.getGlyphCount();
-		} else {
-			this.textUnitGlyphCount = 0;
-		}
+		this.opportunity = this.captureOpportunity();
 		this.builder.checkFloatings();
 		return content;
+	}
+
+	/**
+	 * 現在のバッファ状態を分割機会として捕捉します。バッファ末尾がソフト
+	 * ハイフンの場合は切断時の実体化対象として保持します(残余末尾に
+	 * 持ち越された場合を含む)。
+	 */
+	private BreakOpportunity captureOpportunity() {
+		final SoftHyphen hyphen = !this.textBuffer.isEmpty()
+				&& this.textBuffer.get(this.textBuffer.size() - 1) instanceof SoftHyphen sh ? sh : null;
+		return new BreakOpportunity(this.textBuffer.size(), this.text != null ? this.text.getGlyphCount() : 0, hyphen);
 	}
 
 	FontStyle fontStyle;
@@ -999,7 +1007,7 @@ public class TextBuilder {
 				this.locateLine();
 				this.firstUnit = false;
 			}
-			if (this.textUnitElementCount > 0) {
+			if (this.opportunity.elementCount() > 0) {
 				double lineAxis = this.lineAxis - this.lastSpaceAdvance;
 				double maxLineAxis = this.maxLineSize - this.textIndent;
 				// System.err.println("TB flush: " + lineAxis + "/" + maxLineAxis);
@@ -1028,12 +1036,7 @@ public class TextBuilder {
 			}
 		}
 		//if (this.wrap) {
-			this.textUnitElementCount = this.textBuffer.size();
-			if (this.text != null) {
-				this.textUnitGlyphCount = this.text.getGlyphCount();
-			} else {
-				this.textUnitGlyphCount = 0;
-			}
+			this.opportunity = this.captureOpportunity();
 		//}
 		return false;
 	}
