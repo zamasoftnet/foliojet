@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.ua.CounterScope;
 
 /**
  * スタイルイベント列(セグメント)です。
@@ -31,7 +32,12 @@ public class Segment {
 	sealed interface Item permits Start, Chars, End {
 	}
 
-	record Start(CSSStyle style) implements Item {
+	/**
+	 * 要素の開始です。counters は開始時点のカウンタ状態
+	 * (ページカウンタ以外、なければ null)で、この位置からの再駆動時に
+	 * 巻き戻すために保持します(M6b)。
+	 */
+	record Start(CSSStyle style, CounterScope[] counters) implements Item {
 	}
 
 	record Chars(int charOffset, char[] ch) implements Item {
@@ -69,7 +75,14 @@ public class Segment {
 	}
 
 	public void startStyle(CSSStyle style) {
-		this.items.add(new Start(style));
+		this.startStyle(style, null);
+	}
+
+	/**
+	 * カウンタスナップショット付きで開始イベントを記録します(M6b)。
+	 */
+	public void startStyle(CSSStyle style, CounterScope[] counters) {
+		this.items.add(new Start(style, counters));
 		++this.depth;
 	}
 
@@ -122,13 +135,14 @@ public class Segment {
 		if (index < 0 || index >= this.items.size()) {
 			return false;
 		}
-		return this.items.get(index) instanceof Start(final CSSStyle style) && style.getCSSElement() == element;
+		return this.items.get(index) instanceof Start(final CSSStyle style, final CounterScope[] counters)
+				&& style.getCSSElement() == element;
 	}
 
 	public void restyle(StyleBuilder builder) {
 		for (Item item : this.items) {
 			switch (item) {
-			case Start(CSSStyle style) -> {
+			case Start(CSSStyle style, CounterScope[] counters) -> {
 				// 上位の匿名スタイルを除去する
 				for (;;) {
 					CSSStyle parentStyle = style.getParentStyle();

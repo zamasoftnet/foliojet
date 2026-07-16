@@ -1200,8 +1200,8 @@ public class StyleBuilder implements PageGenerator {
 					this.currentStyle = style;
 				} else {
 					if (!ce.isPseudoElement()) {
-						// 本流のセグメント記録(M6a)
-						this.segment.startStyle(style);
+						// 本流のセグメント記録(M6a)。カウンタ状態も再開用に保持(M6b)
+						this.segment.startStyle(style, this.ua.getPassContext().snapshotNonPageCounters());
 					}
 					if (this.currentStyle != null) {
 						WHILE: while (this.currentStyle.isAnonStyle()) {

@@ -29,7 +29,7 @@ class Regeneratable extends PageContent {
 		int i = 0;
 		for (Item item : this.items) {
 			switch (item) {
-			case Start(CSSStyle recorded) -> {
+			case Start(CSSStyle recorded, net.zamasoft.foliojet.ua.CounterScope[] counters) -> {
 				CSSElement ce = recorded.getCSSElement();
 				if (!ce.isPseudoElement()) {
 					CSSStyle parentStyle;

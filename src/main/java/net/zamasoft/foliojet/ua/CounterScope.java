@@ -58,6 +58,15 @@ public class CounterScope {
 		return null;
 	}
 
+	/**
+	 * スコープの複製を返します(M6b のスナップショット用)。
+	 */
+	public CounterScope copy() {
+		final CounterScope scope = new CounterScope();
+		scope.counters = this.copyCounters();
+		return scope;
+	}
+
 	public Counter[] copyCounters() {
 		if (this.counters == null) {
 			return null;
