@@ -978,10 +978,9 @@ public class FlowContainer implements Container {
 	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes) {
 		// フロートは最近接ブロック祖先のコンテナに係留されるため、移動した
 		// 部分木の内部フロートは部分木と一緒に動き、ソース再駆動でも二重
-		// 生成されない(反証実験済み: float-in-moved-block)。絶対配置は
-		// 係留先が文脈ボックス(ページ側もあり得る)で発生源が移動部分木の
-		// 内部にあり得るため、未検証の間は保守的にボックス再生へ委ねる
-		final boolean sourceReplayable = this.absolutes == null;
+		// 生成されない(golden: float-in-moved)。絶対配置ボックスの開始は
+		// Opaque として記録されるため、それを含む部分木は containsOpaque が
+		// 部分木単位で正しくフォールバックさせる — 階層単位のゲートは不要
 		List<BoxHolder> items = null;
 		if (this.floatings != null) {
 			Floatings floatings = this.floatings;
@@ -1037,7 +1036,7 @@ public class FlowContainer implements Container {
 					// live shaper の保留バッファとの境界が charOffset 座標では
 					// ±1文字の精度で切れないため、box-restyle に委ねる
 					// (M3b のトークン再開で回収予定)
-					if (!open && sourceReplayable
+					if (!open
 							&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root) {
 						// 尾部の終端 = 次の item のソースアンカー(なければログ末尾)
 						long endId = -1;
@@ -1074,18 +1073,11 @@ public class FlowContainer implements Container {
 							if (lastFlow == holder && depth > 1) {
 								// 開いたままの祖先チェーン
 								containerBox.restyle(builder, depth - 1);
-							} else if (lastFlow == holder && depth == 1) {
-								// depth==1 の末尾は閉じたボックス(次段で depth-1=0)
-								if (!(sourceReplayable
-										&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
-										&& root.replayFromSource(containerBox))) {
-									containerBox.restyle(builder, 0);
-								}
-							} else if (!(sourceReplayable
-									&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
+							} else if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
 									&& root.replayFromSource(containerBox))) {
-								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b segment-restyle)。
-								// false ならボックス再生でフォールバック
+								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b
+								// segment-restyle)。false ならボックス再生でフォールバック。
+								// lastFlow && depth==1 の末尾も閉じたボックス(次段で depth-1=0)
 								containerBox.restyle(builder, 0);
 							}
 						}
