@@ -33,11 +33,13 @@ public class RootBuilder extends BreakableBuilder {
 	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
 
 	/**
-	 * 切断段落の尾部ソース再生の実験フラグ(M6b v3)。charOffset 座標の
-	 * 整形簿記に ±1 文字の不安定さが残るため既定 OFF。M3b の正規化
-	 * トークン再開で置き換え予定(ARCHITECTURE.md §5.6)。
+	 * 切断段落の尾部ソース再生(M6b v3)。既定有効(退避フラグのみ)。
+	 * 従来 OFF の原因だった「charOffset 座標の ±1 文字の不安定さ」は、
+	 * 整形器の保留グリフ排出が次の文字のオフセットを流用していたバグ
+	 * (pdfg2d FontManagerImpl.CharacterHandler)で、修正済み(2026-07-17)。
+	 * これによりグリフのソース対応は正確な1:1になり、ログ座標と一致する。
 	 */
-	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");
+	private static final boolean TEXT_TAIL_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle.textTail");
 
 	/**
 	 * 破断(改ページ・改段)の残余再構築中だけ true(segment-restyle の

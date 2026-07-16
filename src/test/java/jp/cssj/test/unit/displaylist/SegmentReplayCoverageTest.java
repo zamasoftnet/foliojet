@@ -44,11 +44,12 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	public void testTextTailReplayFires() throws Exception {
-		if (!Boolean.getBoolean("foliojet.segmentRestyle.textTail")) {
-			// 尾部再生は charOffset 簿記の±1問題により実験フラグ制(既定OFF)。
-			// M3b のトークン再開で置き換えたらこのゲートを外す
+		if (Boolean.getBoolean("foliojet.noSegmentRestyle") || Boolean.getBoolean("foliojet.noSegmentRestyle.textTail")) {
+			// 退避フラグOFF時は対象経路が無効
 			return;
 		}
+		// 既定有効(2026-07-17)。旧±1問題は整形器の保留グリフ排出の
+		// オフセット流用バグ(pdfg2d)で、修正済み
 		// avoid押し戻しで段落が中割りされ、残余に後続兄弟が入る文書
 		final long before = SourceReplayer.TEXT_TAIL_REPLAYS.get();
 		this.transcode(new File("files/unittest/0460-segment-restyle/text-tail-avoid.html"), "coverage-texttail");
