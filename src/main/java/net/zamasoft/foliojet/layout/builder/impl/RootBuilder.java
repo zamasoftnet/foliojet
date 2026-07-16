@@ -1,12 +1,15 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
+
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
-import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
@@ -88,11 +91,10 @@ public class RootBuilder extends BreakableBuilder {
 			final double pageAxis = this.getPageLimit() - root.pageAxis - lastFrame;
 			// System.err.println("PAGE BREAK: " + pageAxis + "/"
 			// +prevRootBox.getInnerHeight() +"/"+ mode);
-			nextRootBox = (FlowBlockBox) prevRootBox.splitPageAxis(pageAxis, mode, flags);
-			// assert prevRootBox != nextRootBox && nextRootBox != null;
-			if (prevRootBox == nextRootBox || nextRootBox == null) {
-				// 改ページポイントがない場合
-				// System.err.println("RB no break");
+			if (prevRootBox.split(pageAxis, mode, flags) instanceof SplitResult.Split(final IPageBreakableBox remainder)) {
+				nextRootBox = (FlowBlockBox) remainder;
+			} else {
+				// KEEP/MOVE: 改ページポイントがない場合
 				return false;
 			}
 		}

@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.box;
 
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 
 /**
  * ページ方向に分割可能なボックスです。
@@ -62,4 +63,26 @@ public interface IPageBreakableBox extends IBox {
 	 *         残余オブジェクト(このボックスは前ページ分のみを保持するよう変異済み)。
 	 */
 	public IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags);
+
+	/**
+	 * splitPageAxis の型付きアダプタです(柱2c/M4-A1)。三義的返値
+	 * (null/this/新オブジェクト)の解釈をこの一箇所に集約します。
+	 * 実装の内部が SplitResult ネイティブになった段階(M4-A2以降)で
+	 * こちらが正になり、splitPageAxis が廃止されます。
+	 *
+	 * @param pageLimit ボックスの外辺から分割位置までの長さ
+	 * @param mode      分割モード
+	 * @param flags     FLAGS_* のビット和
+	 * @return 切断結果
+	 */
+	public default SplitResult split(double pageLimit, BreakMode mode, byte flags) {
+		final IPageBreakableBox next = this.splitPageAxis(pageLimit, mode, flags);
+		if (next == null) {
+			return SplitResult.KEEP;
+		}
+		if (next == this) {
+			return SplitResult.MOVE;
+		}
+		return new SplitResult.Split(next);
+	}
 }
