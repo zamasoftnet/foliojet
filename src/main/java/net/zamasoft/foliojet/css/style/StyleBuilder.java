@@ -291,7 +291,23 @@ public class StyleBuilder implements PageGenerator {
 	private final Map<String, PageContent> pageContents = new HashMap<String, PageContent>();
 	private final List<PageContent> pageContentStack = new ArrayList<PageContent>();
 
-	private StyleBuffer runIn = null;
+	private Segment runIn = null;
+
+	/**
+	 * 本流のスタイルイベント窓です(M6a)。改ページ再開をボックス再生から
+	 * セグメント再駆動へ置き換えるための記録で、現段階では記録のみ
+	 * (消費者なし)。疑似要素(::before/::after/::first-letter 等)の
+	 * 合成イベントは再生時に再合成されるため記録しません(ソース純度)。
+	 * 窓はページ境界で開いている要素の Start だけに刈り込まれます。
+	 */
+	private final Segment segment = new Segment();
+
+	/**
+	 * 本流のスタイルイベント窓を返します(M6a)。
+	 */
+	public Segment getSegment() {
+		return this.segment;
+	}
 
 	private static final byte STATE_RESTYLE_RUN_IN = 1;
 
@@ -1074,7 +1090,7 @@ public class StyleBuilder implements PageGenerator {
 				case DisplayValue.TABLE_ROW:
 				case DisplayValue.TABLE_CELL:
 					// テーブルがあるrun-inはブロックとして処理
-					StyleBuffer buff = this.runIn;
+					Segment buff = this.runIn;
 					this.runIn = null;
 					this.state = STATE_RESTYLE_RUN_IN;
 					buff.restyle(this);
@@ -1092,7 +1108,7 @@ public class StyleBuilder implements PageGenerator {
 				case DisplayValue.LIST_ITEM:
 				case DisplayValue.TABLE:
 					// テーブルやブロックがあるrun-inはブロックとして処理
-					StyleBuffer buff = this.runIn;
+					Segment buff = this.runIn;
 					this.runIn = null;
 					this.state = STATE_RESTYLE_RUN_IN;
 					buff.restyle(this);
@@ -1153,10 +1169,14 @@ public class StyleBuilder implements PageGenerator {
 				if (explDisplay == DisplayValue.RUN_IN) {
 					// run-inの開始
 					style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
-					this.runIn = new StyleBuffer();
+					this.runIn = new Segment();
 					this.runIn.startStyle(style);
 					this.currentStyle = style;
 				} else {
+					if (!ce.isPseudoElement()) {
+						// 本流のセグメント記録(M6a)
+						this.segment.startStyle(style);
+					}
 					if (this.currentStyle != null) {
 						WHILE: while (this.currentStyle.isAnonStyle()) {
 							// 匿名スタイルの終了
@@ -1628,7 +1648,7 @@ public class StyleBuilder implements PageGenerator {
 
 					// run-in生成
 					if (this.runIn != null) {
-						StyleBuffer buff = this.runIn;
+						Segment buff = this.runIn;
 						this.runIn = null;
 						style = this.currentStyle;
 						this.state = STATE_RESTYLE_RUN_IN;
@@ -2173,6 +2193,7 @@ public class StyleBuilder implements PageGenerator {
 		}
 		if (this.htmlRootBlock == null && this.currentStyle != null) {
 			// 本文の中
+			this.segment.characters(charOffset, ch, off, len); // 本流のセグメント記録(M6a)
 			if (!this.inTextBlock) {
 				// ブロック補完のためにテキストブロックの開始をチェック
 				// net.zamasoft.foliojet.layoutパッケージを直接利用する場合のために、
@@ -2495,6 +2516,10 @@ public class StyleBuilder implements PageGenerator {
 
 		// 明示されたスタイルを終了
 		style = this.currentStyle;
+		if (!style.getCSSElement().isPseudoElement()) {
+			// 本流のセグメント記録(M6a)
+			this.segment.endStyle(style);
+		}
 		this._endStyle();
 		if (this.currentStyle != null) {
 			short explDisplay = Display.get(style);
@@ -2564,6 +2589,8 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	public PageBox nextPage() {
+		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
+		this.segment.trimToOpenElements();
 		// ページスタイル
 		this.pageElement = this.imposition.nextPageSide();
 		Declaration declaration = this.styleContext.nextPage(this.pageElement);

@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.css.StyleContext;
  * 
  * @author MIYABE Tatsuhiko
  */
-class PageContent extends StyleBuffer {
+class PageContent extends Segment {
 	public final byte[] pages;
 	public final StyleContext styleContext;
 	public final String name;
