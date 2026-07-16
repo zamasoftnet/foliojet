@@ -19,10 +19,10 @@ public class LayoutSourceTest extends TestCase {
 		final LayoutSource log = new LayoutSource();
 		final long body = log.append(start()); // 開いたまま
 		final long p1 = log.append(start());
-		log.append(new LayoutSource.Chars(0, "aaa".toCharArray()));
+		log.append(new LayoutSource.Chars(0, "aaa".toCharArray(), false));
 		final long p1end = log.append(new LayoutSource.EndBlock());
 		final long p2 = log.append(start());
-		log.append(new LayoutSource.Chars(3, "bbb".toCharArray()));
+		log.append(new LayoutSource.Chars(3, "bbb".toCharArray(), false));
 		log.append(new LayoutSource.EndBlock());
 
 		assertEquals(p1end, log.endOf(p1));
@@ -40,7 +40,7 @@ public class LayoutSourceTest extends TestCase {
 	public void testReplayRange() {
 		final LayoutSource log = new LayoutSource();
 		log.append(start());
-		final long from = log.append(new LayoutSource.Chars(0, "xy".toCharArray()));
+		final long from = log.append(new LayoutSource.Chars(0, "xy".toCharArray(), false));
 		final long to = log.append(new LayoutSource.EndBlock());
 		log.append(start());
 
@@ -54,7 +54,7 @@ public class LayoutSourceTest extends TestCase {
 	public void testOpenSubtreeNotClosed() {
 		final LayoutSource log = new LayoutSource();
 		final long open = log.append(start());
-		log.append(new LayoutSource.Chars(0, "a".toCharArray()));
+		log.append(new LayoutSource.Chars(0, "a".toCharArray(), false));
 		assertEquals(-1, log.endOf(open));
 	}
 
@@ -66,7 +66,7 @@ public class LayoutSourceTest extends TestCase {
 		log.append(new LayoutSource.EndBlock()); // /p
 		final long div = log.append(start()); // 開いたまま
 		final long tail = log.nextId();
-		log.append(new LayoutSource.Chars(0, "t".toCharArray()));
+		log.append(new LayoutSource.Chars(0, "t".toCharArray(), false));
 
 		log.compact(tail);
 		assertNotNull(log.get(html));

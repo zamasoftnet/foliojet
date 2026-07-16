@@ -318,6 +318,10 @@ public class StyleBuilder implements PageGenerator {
 		return this.layoutSource;
 	}
 
+	public void compactLayoutSource(final long watermark) {
+		this.layoutSource.compact(watermark == Long.MAX_VALUE ? this.layoutSource.nextId() : watermark);
+	}
+
 	/**
 	 * 0 より大きい間、本流セグメント記録を抑止します(M6b Phase B:
 	 * 尾部再生での再オープンは元の開いている Start と二重記録になるため)。
@@ -441,7 +445,7 @@ public class StyleBuilder implements PageGenerator {
 			final boolean fixed) {
 		final char[] copy = new char[len];
 		System.arraycopy(ch, off, copy, 0, len);
-		this.layoutSource.append(new LayoutSource.Chars(charOffset, copy));
+		this.layoutSource.append(new LayoutSource.Chars(charOffset, copy, fixed));
 		this.doc.characters(charOffset, ch, off, len, fixed);
 	}
 
@@ -2727,9 +2731,6 @@ public class StyleBuilder implements PageGenerator {
 	public PageBox nextPage() {
 		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
 		this.segment.trimToOpenElements();
-		// レイアウトソースログの暫定 compaction(M6b v3: 記録のみの段階の
-		// メモリ有界化。v3-3 で水位を「最古の未消費再開点」に精密化する)
-		this.layoutSource.compact(this.layoutSource.nextId());
 		// ページスタイル
 		this.pageElement = this.imposition.nextPageSide();
 		Declaration declaration = this.styleContext.nextPage(this.pageElement);

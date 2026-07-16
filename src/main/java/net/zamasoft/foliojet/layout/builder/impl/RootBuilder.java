@@ -111,6 +111,11 @@ public class RootBuilder extends BreakableBuilder {
 		// 残余のソースアンカーが窓と同期しているか(M6b診断、-ea時のみ)
 		assert this.verifySourceAnchors(nextRootBox);
 
+		// ソースログの水位 = 残余の閉じたアイテムの最小 EventId(M6b v3)。
+		// これより前のイベントは確定ページに消費済みで破棄できる。
+		// 開いているチェーンの StartBlock は compaction が常に保持する
+		final long watermark = this.sourceWatermark(nextRootBox);
+
 		//
 		// 改ページ実行
 		//
@@ -141,6 +146,7 @@ public class RootBuilder extends BreakableBuilder {
 		} finally {
 			this.pageBreakRestyle = false;
 		}
+		this.pageGenerator.compactLayoutSource(watermark);
 		assert this.flowStack.size() == depth : ("break flow failed. " + this.getFlowBox().getParams().element);
 
 		if (LOG.isLoggable(Level.FINE)) {
@@ -189,11 +195,18 @@ public class RootBuilder extends BreakableBuilder {
 		if (!SEGMENT_RESTYLE || !this.pageBreakRestyle) {
 			return false;
 		}
-		final net.zamasoft.foliojet.layout.box.params.Params params = box.getParams();
-		if (params.sourceIndex < 0 || params.element == null) {
+		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
+		final long startId = box.getParams().sourceEventId;
+		if (log == null || startId < 0) {
 			return false;
 		}
-		return this.pageGenerator.replaySubtree(params.sourceEpoch, params.sourceIndex, params.element);
+		final long endId = log.endOf(startId);
+		if (endId < 0 || log.containsOpaque(startId, endId)) {
+			// 閉じていない・再生非対応イベントを含む部分木はボックス再生へ
+			return false;
+		}
+		net.zamasoft.foliojet.layout.SourceReplayer.replay(log, startId, endId, this, this.pageGenerator);
+		return true;
 	}
 
 	/**
@@ -210,6 +223,11 @@ public class RootBuilder extends BreakableBuilder {
 	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.AbstractContainerBox chainBox,
 			final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final int endEpoch,
 			final int endIndex) {
+		// v1(StyleBuilder再入型)は doc 層との再入衝突で無効化(§5.6 v3)。
+		// テキスト尾部再開は v3 の SourceReplayer 拡張で実装し直す
+		if (true) {
+			return false;
+		}
 		if (!SEGMENT_RESTYLE || !this.pageBreakRestyle) {
 			return false;
 		}
@@ -226,6 +244,25 @@ public class RootBuilder extends BreakableBuilder {
 		// TextBuilder が生成時に builder の breakToken を消費する
 		this.setBreakToken(token);
 		return this.pageGenerator.replayTextTail(chainBox.getParams().element, charOffset, endEpoch, endIndex);
+	}
+
+	/**
+	 * 残余のうち窓内で閉じているアイテムの最小 EventId を返します
+	 * (M6b v3 の compaction 水位)。なければ Long.MAX_VALUE。
+	 */
+	private long sourceWatermark(final FlowBlockBox rootBox) {
+		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
+		if (log == null) {
+			return Long.MAX_VALUE;
+		}
+		final long[] min = { Long.MAX_VALUE };
+		rootBox.getContainer().eachFlowBox(box -> {
+			final long id = box.getParams().sourceEventId;
+			if (id >= 0 && log.endOf(id) >= 0) {
+				min[0] = Math.min(min[0], id);
+			}
+		});
+		return min[0];
 	}
 
 	public void addPageContent(IAbsoluteBox box) {

@@ -111,6 +111,25 @@ public class DocumentBuilder {
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
 	}
 
+	/**
+	 * 改ページ残余のソース再生用に、既存のルートビルダーへ向けた
+	 * ドキュメントビルダーを作ります(M6b v3)。ライブの DocumentBuilder
+	 * の unitizer・コンテナ状態には一切触れず、新品の状態で記録済み
+	 * プロトコルを再駆動するためのものです。
+	 */
+	public DocumentBuilder(PageGenerator pageGenerator, BlockBuilder existingRoot) {
+		this(pageGenerator);
+		this.startContainerBuilder(existingRoot);
+		this.startContainer();
+	}
+
+	/**
+	 * ソース再生を終了し、テキスト文脈を対称に閉じます(M6b v3)。
+	 */
+	public void finishReplay() {
+		this.endContainer();
+	}
+
 	public void setPageMode(byte pageMode) {
 		this.pageMode = pageMode;
 	}

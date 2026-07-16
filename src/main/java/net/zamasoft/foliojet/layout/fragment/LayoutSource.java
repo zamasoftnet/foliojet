@@ -41,8 +41,9 @@ public final class LayoutSource {
 
 	/**
 	 * テキストです。charOffset はソース文字オフセット(生成内容は -1)。
+	 * fixed は doc プロトコルの固定テキストフラグをそのまま保持します。
 	 */
-	public record Chars(int charOffset, char[] ch) implements Event {
+	public record Chars(int charOffset, char[] ch, boolean fixed) implements Event {
 	}
 
 	/**

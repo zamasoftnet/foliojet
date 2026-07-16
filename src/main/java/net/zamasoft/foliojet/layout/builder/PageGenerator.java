@@ -56,4 +56,19 @@ public interface PageGenerator {
 			int endEpoch, int endIndex) {
 		return false;
 	}
+
+	/**
+	 * レイアウトソースログを返します(M6b v3)。持たない実装は null。
+	 */
+	public default net.zamasoft.foliojet.layout.fragment.LayoutSource getLayoutSource() {
+		return null;
+	}
+
+	/**
+	 * レイアウトソースログを水位で刈り込みます(M6b v3)。
+	 * watermark が Long.MAX_VALUE の場合は全て(開いている StartBlock を
+	 * 除く)破棄してよいことを意味します。
+	 */
+	public default void compactLayoutSource(long watermark) {
+	}
 }

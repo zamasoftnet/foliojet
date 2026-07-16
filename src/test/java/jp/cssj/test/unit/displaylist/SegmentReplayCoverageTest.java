@@ -10,6 +10,7 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.css.style.StyleBuilder;
+import net.zamasoft.foliojet.layout.SourceReplayer;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
@@ -37,15 +38,20 @@ public class SegmentReplayCoverageTest extends TestCase {
 			return;
 		}
 		// 丸ごと次ページへ移動するブロックを含む文書
-		final long before = StyleBuilder.SUBTREE_REPLAYS.get();
+		final long before = SourceReplayer.SUBTREE_REPLAYS.get();
 		this.transcode(new File("files/unittest/0460-segment-restyle/moved-blocks.html"), "coverage-subtree");
 		assertTrue("移動した閉部分木のソース再駆動が一度も発火していません",
-				StyleBuilder.SUBTREE_REPLAYS.get() > before);
+				SourceReplayer.SUBTREE_REPLAYS.get() > before);
 	}
 
 	public void testTextTailReplayFires() throws Exception {
 		if (!Boolean.getBoolean("foliojet.segmentRestyle")) {
 			// 実験フラグOFF時は対象経路が無効(box-restyle のみ)
+			return;
+		}
+		if (true) {
+			// TODO: v1(StyleBuilder再入型)は無効化済み。テキスト尾部再開の
+			// v3(SourceReplayer拡張)が実装されたらこのガードを外す
 			return;
 		}
 		// 段落の中間で改ページされる文書
