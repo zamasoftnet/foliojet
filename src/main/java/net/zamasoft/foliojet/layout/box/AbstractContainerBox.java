@@ -200,7 +200,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.setBox(this);
 
 		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this);
-		oldCont.restyle(columnBuilder, 0, true);
+		// バランス時この multicol は閉じた部分木(直後が SAX ヘッド)なので、
+		// 内容をソースから再構築できる(M6c)。ボックス再生と違い非破壊で、
+		// 将来は容量プローブの反復にも使える。範囲不明・Opaque 含み・
+		// 分割済み(アンカー無効)の場合はボックス再生へフォールバック
+		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
+		final boolean replayed = root != null && root.isSegmentRestyle()
+				&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
+						root.getPageGenerator().getLayoutSource(), this.getParams().sourceEventId, columnBuilder,
+						root.getPageGenerator());
+		if (!replayed) {
+			oldCont.restyle(columnBuilder, 0, true);
+		}
 	}
 
 	public final AbsoluteRectFrame getFrame() {

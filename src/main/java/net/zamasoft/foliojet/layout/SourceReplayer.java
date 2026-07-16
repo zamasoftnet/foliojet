@@ -33,12 +33,28 @@ public final class SourceReplayer {
 	public static final AtomicLong SUBTREE_REPLAYS = new AtomicLong();
 
 	/**
-	 * 切断段落の尾部再生の発火計測です(v3 では未実装、実装時に使用)。
+	 * 切断段落の尾部再生の発火計測です(実験フラグ制)。
 	 */
 	public static final AtomicLong TEXT_TAIL_REPLAYS = new AtomicLong();
 
+	/**
+	 * カラムバランスのソース再生の発火計測です(M6c)。
+	 */
+	public static final AtomicLong BALANCE_REPLAYS = new AtomicLong();
+
 	private SourceReplayer() {
 		// driver
+	}
+
+	/**
+	 * 記録された params/pos から同型のブロックボックスを作ります。
+	 * マルチカラムは params の columns 指定で判別します(M6c)。
+	 */
+	private static FlowBlockBox newBlockBox(final BlockParams params, final FlowPos pos) {
+		if (params.columns != null && params.columns.count > 1) {
+			return new net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox(params, pos);
+		}
+		return new FlowBlockBox(params, pos);
 	}
 
 	/**
@@ -80,7 +96,7 @@ public final class SourceReplayer {
 		log.replay(fromId, toId, event -> {
 			switch (event) {
 			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
-					.startBox(new FlowBlockBox(params, (FlowPos) pos));
+					.startBox(newBlockBox(params, (FlowPos) pos));
 			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
 					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
 					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
@@ -115,6 +131,52 @@ public final class SourceReplayer {
 	}
 
 	/**
+	 * 閉じたブロックの「子イベント範囲」を指定ビルダーへ再駆動します
+	 * (M6c: カラムバランス。multicol は endFlowBlock 時点で閉部分木
+	 * なので、その内容をソースから ColumnBuilder へ再構築できる)。
+	 *
+	 * @param log        ソースログ
+	 * @param selfId     ブロック自身の StartBlock の EventId
+	 * @param target     再生先ビルダー(ColumnBuilder 等)
+	 * @param pageGenerator ページ生成器
+	 * @return 再駆動できた場合 true(範囲不明・Opaque 含みは false)
+	 */
+	public static boolean replayChildren(final LayoutSource log, final long selfId, final BlockBuilder target,
+			final PageGenerator pageGenerator) {
+		if (log == null || selfId < 0) {
+			return false;
+		}
+		final long endId = log.endOf(selfId);
+		if (endId < 0 || endId <= selfId + 1) {
+			return false;
+		}
+		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsFloat(selfId + 1, endId - 1)
+				|| log.containsMulticol(selfId + 1, endId - 1)) {
+			// フロート係留・入れ子段組の再現は未検証のためフォールバック
+			return false;
+		}
+		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
+		log.replay(selfId + 1, endId - 1, event -> {
+			switch (event) {
+			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
+					.startBox(newBlockBox(params, (FlowPos) pos));
+			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
+					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
+					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
+			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
+					.addReplacedBox(box);
+			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
+					.characters(charOffset, ch, 0, ch.length, fixed);
+			case LayoutSource.EndBlock end -> doc.endBox();
+			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
+			}
+		});
+		doc.finishReplay();
+		BALANCE_REPLAYS.incrementAndGet();
+		return true;
+	}
+
+	/**
 	 * [fromId, toId] の閉じた部分木列を再駆動します。
 	 * 範囲は Opaque を含まないこと(呼び出し側が containsOpaque で検査)。
 	 *
@@ -126,11 +188,12 @@ public final class SourceReplayer {
 	 */
 	public static void replay(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
+		assert !log.containsMulticol(fromId, toId);
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
 		log.replay(fromId, toId, event -> {
 			switch (event) {
 			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
-					.startBox(new FlowBlockBox(params, (FlowPos) pos));
+					.startBox(newBlockBox(params, (FlowPos) pos));
 			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
 					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
 					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));

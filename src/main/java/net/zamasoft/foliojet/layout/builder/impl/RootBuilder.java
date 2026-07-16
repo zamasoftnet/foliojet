@@ -68,6 +68,20 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
+	 * ページ生成器を返します(M6c: バランスのソース再生用)。
+	 */
+	public final PageGenerator getPageGenerator() {
+		return this.pageGenerator;
+	}
+
+	/**
+	 * segment-restyle が有効かを返します(M6c)。
+	 */
+	public final boolean isSegmentRestyle() {
+		return SEGMENT_RESTYLE;
+	}
+
+	/**
 	 * 改ページの実行。
 	 * 
 	 * @param mode
@@ -190,8 +204,9 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		final long endId = log.endOf(startId);
-		if (endId < 0 || log.containsOpaque(startId, endId)) {
-			// 閉じていない・再生非対応イベントを含む部分木はボックス再生へ
+		if (endId < 0 || log.containsOpaque(startId, endId) || log.containsMulticol(startId, endId)) {
+			// 閉じていない・再生非対応・段組を含む部分木はボックス再生へ
+			// (段組内容の再生は列機構との相互作用が未検証)
 			return false;
 		}
 		net.zamasoft.foliojet.layout.SourceReplayer.replay(log, startId, endId, this, this.pageGenerator);

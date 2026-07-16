@@ -341,7 +341,8 @@ public class StyleBuilder implements PageGenerator {
 		// params/pos から再インスタンス化できるため再生可能として記録し、
 		// それ以外(inline/table/replaced/multicol 等)は Opaque として
 		// 位置だけ占有する(範囲に Opaque を含む再生はフォールバック)
-		if (box.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
+		if ((box.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
+				|| box.getClass() == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class)
 				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.BlockParams blockParams) {
 			box.getParams().sourceEventId = this.layoutSource
 					.append(new LayoutSource.StartBlock(blockParams, box.getPos()));

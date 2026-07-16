@@ -285,6 +285,56 @@ public final class LayoutSource {
 	}
 
 	/**
+	 * [fromId, toId] の範囲にマルチカラムの StartBlock が含まれていれば
+	 * true を返します(M6c: 段組内容の再生は列機構(columnBreak/balance)
+	 * との相互作用が未検証のためフォールバックさせる)。
+	 */
+	public boolean containsMulticol(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof StartBlock(final BlockParams params, final Pos pos) && params.columns != null
+					&& params.columns.count > 1) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * [fromId, toId] の範囲に浮動配置の StartBlock が含まれていれば
+	 * true を返します(M6c: バランスのソース再生はフロートの係留の
+	 * 再現が未検証のためフォールバックさせる)。
+	 */
+	public boolean containsFloat(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof StartBlock(final BlockParams params, final Pos pos)
+					&& pos.getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
+				return true;
+			}
+			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box)
+					&& box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * [fromId, toId] の範囲のイベントを順に visitor へ渡します。
 	 * 範囲内に破棄済みの穴があってはなりません(呼び出し側の契約)。
 	 */
