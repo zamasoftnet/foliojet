@@ -1,5 +1,8 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
+import net.zamasoft.foliojet.layout.fragment.LineCutter;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
+
 import net.zamasoft.foliojet.layout.box.content.BreakToken;
 
 import java.awt.Shape;
@@ -234,105 +237,64 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+	/**
+	 * 行境界でページ方向に切断します(柱2cの型付きプロトコル)。
+	 * 切断判定は {@link LineCutter} が行い、Split の場合このボックスは
+	 * 前ページ分の行のみを保持するよう変異します。
+	 *
+	 * @param pageLimit ボックスの外辺から切断線までの距離
+	 * @param flags     IPageBreakableBox.FLAGS_* のビット和
+	 * @return 切断結果
+	 */
+	public final SplitResult split(final double pageLimit, final byte flags) {
 		assert (!this.lines.isEmpty());
-		// System.err.println("TBB A: " +flags + "/" + mode + "/" + pageLimit
-		// + "/" + this.getHeight() + "/" + this.lines.size() + "/"
-		// + this.params.augmentation);
-		assert !(mode instanceof BreakMode.ForceBreakMode);
-		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// FLAGS_LASTは実際の要素に対するもので、仮想的なテキストブロックには適用しない
 
 		final double pageSize = this.getPageExtent(this.params.flow);
-		if (LayoutUtils.compare(pageLimit, pageSize) >= 0) {
-			// 切断線が底辺以下にある場合は移動なし
-			return null;
-		}
-
-		// 実質的に高さのある行をカウントする
-		int nonZeroLines = 0;
+		final double[] lineStarts = new double[this.lines.size()];
+		final double[] lineEnds = new double[this.lines.size()];
 		for (int i = 0; i < this.lines.size(); ++i) {
 			final Line line = (Line) this.lines.get(i);
-			if (line.pageAxis > 0 || line.box.getPageSize() > 0) {
-				if (++nonZeroLines >= 2) {
-					break;
-				}
-			}
+			lineStarts[i] = line.pageAxis;
+			lineEnds[i] = line.getPageEnd();
 		}
-		if (nonZeroLines >= 2) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-				final Line line = (Line) this.lines.get(0);
-				if (LayoutUtils.compare(pageLimit, line.getPageEnd()) < 0) {
-					// 切断線が最初の行の底辺より上にある場合は全部移動
-					return this;
-				}
+		final LineCutter.Decision decision = LineCutter.decide(pageLimit, pageSize, this.params.lineHeight,
+				this.params.orphans, this.params.widows, (flags & IPageBreakableBox.FLAGS_FIRST) != 0, lineStarts,
+				lineEnds);
+		switch (decision) {
+		case LineCutter.Decision.Keep keep:
+			return SplitResult.KEEP;
+		case LineCutter.Decision.Move move:
+			return SplitResult.MOVE;
+		case LineCutter.Decision.CutAfter(final int lastLine): {
+			// 切断行以降(widows)を次ページのフラグメントに移す
+			final int firstWidow = lastLine + 1;
+			final double top = ((Line) this.lines.get(firstWidow)).pageAxis;
+			final BreakToken token = ((Line) this.lines.get(lastLine)).box.isLast() ? BreakToken.MID_FLOW
+					: BreakToken.MID_LINE;
+			final TextBlockBox nextTextBlock = new TextBlockBox(this.params, token);
+			for (int i = firstWidow; i < this.lines.size(); ++i) {
+				final Line line = (Line) this.lines.get(i);
+				nextTextBlock.addLine(line.box, line.pageAxis - top);
 			}
-		} else {
-			// １行だけの場合
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-				return this;
+			while (this.lines.size() > firstWidow) {
+				this.lines.remove(this.lines.size() - 1);
 			}
-			return null;
+			assert !this.lines.isEmpty();
+			assert !nextTextBlock.lines.isEmpty();
+			return new SplitResult.Split(nextTextBlock);
 		}
+		}
+	}
 
-		// 前ページに残すことができる最後の行を求める
-		int lastOrphan;
-		for (lastOrphan = this.lines.size() - 1; lastOrphan > 0; --lastOrphan) {
-			final Line line = (Line) this.lines.get(lastOrphan);
-			if (LayoutUtils.compare(pageLimit, line.getPageEnd()) >= 0) {
-				break;
-			}
-		}
-
-		// widows, orphansは対象範囲の高さをline-heightで割った値(仮想行数)を基準に計算する
-		// widows, orphansを満たすように改ページ位置を決める
-		// 両方を満たすことができない場合、全体を次ページに送る、ただし
-		// ページの先頭ではorphansを無視し、少なくとも１行を前ページに残す
-
-		// 'widows'による制約
-		while (lastOrphan >= 0) {
-			final Line line = (Line) this.lines.get(lastOrphan);
-			double virHeight = pageSize - line.getPageEnd();
-			int virWidows = (int) Math.round(virHeight / this.params.lineHeight);
-			if (virWidows >= this.params.widows) {
-				break;
-			}
-			--lastOrphan;
-		}
-		if (lastOrphan == -1) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-				return this;
-			}
-			lastOrphan = 0;
-		}
-		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-			// 'orphans'による制約
-			final Line line = (Line) this.lines.get(lastOrphan);
-			int virOrphans = (int) Math.round(line.getPageEnd() / this.params.lineHeight);
-			if (virOrphans < this.params.orphans) {
-				return this;
-			}
-		}
-
-		// widowsを次ページに移動
-		final int firstWidow = lastOrphan + 1;
-		final double top = ((Line) this.lines.get(firstWidow)).pageAxis;
-		final BreakToken token = ((Line) this.lines.get(lastOrphan)).box.isLast() ? BreakToken.MID_FLOW
-				: BreakToken.MID_LINE;
-		final TextBlockBox nextTextBlock = new TextBlockBox(this.params, token);
-		for (int i = firstWidow; i < this.lines.size(); ++i) {
-			final Line line = (Line) this.lines.get(i);
-			nextTextBlock.addLine(line.box, line.pageAxis - top);
-		}
-		while (this.lines.size() > firstWidow) {
-			this.lines.remove(this.lines.size() - 1);
-		}
-
-		assert !this.lines.isEmpty() : mode;
-		assert !nextTextBlock.lines.isEmpty();
-		// System.err.println("TextBlockBox D: " + this.lines.size() + "/"
-		// + nextTextBlock.lines.size());
-		return nextTextBlock;
+	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+		assert !(mode instanceof BreakMode.ForceBreakMode);
+		// 旧プロトコルへの互換アダプタ(呼び出し側の移行が完了するまで)
+		return switch (this.split(pageLimit, flags)) {
+		case SplitResult.Keep keep -> null;
+		case SplitResult.Move move -> this;
+		case SplitResult.Split(final IPageBreakableBox remainder) -> remainder;
+		};
 	}
 
 	public final int getLineCount() {
