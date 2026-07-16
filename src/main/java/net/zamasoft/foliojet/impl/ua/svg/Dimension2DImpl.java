@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.pdfg2d.svg;
+package net.zamasoft.foliojet.impl.ua.svg;
 
 import java.awt.geom.Dimension2D;
 

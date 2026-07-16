@@ -1,10 +1,10 @@
 package net.zamasoft.foliojet.impl.css.lang;
 
 import net.zamasoft.foliojet.css.value.ext.CSSJBreakRuleValue;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.CharacterSet;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.JapaneseHyphenation;
+import net.zamasoft.foliojet.layout.text.breaking.CharacterSet;
+import net.zamasoft.foliojet.layout.text.breaking.JapaneseLineBreakRules;
 
-public class CSSJHyphenation extends JapaneseHyphenation {
+public class CSSJHyphenation extends JapaneseLineBreakRules {
 	final private CSSJBreakRuleValue include;
 	final private CSSJBreakRuleValue exclude;
 

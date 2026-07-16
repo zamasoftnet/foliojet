@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.pdfg2d.image;
+package net.zamasoft.foliojet.layout.part;
 
 import java.awt.geom.AffineTransform;
 

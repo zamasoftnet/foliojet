@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.lang;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.TextTransformValue;
 import net.zamasoft.foliojet.css.value.ValueListValue;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
+import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
 
 /**
  * 各言語のための固有の機能です。
@@ -62,5 +62,5 @@ public interface LanguageProfile {
 	 * @param style
 	 * @return
 	 */
-	public Hyphenation getHyphenation(final CSSStyle style);
+	public LineBreakRules getLineBreakRules(final CSSStyle style);
 }

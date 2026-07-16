@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl;
+package net.zamasoft.foliojet.layout.text.breaking;
 
 public interface CharacterSet {
 	/**

@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
-import net.zamasoft.foliojet.pdfg2d.text.Quad;
+import net.zamasoft.foliojet.layout.text.Quad;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextShaper;
 import net.zamasoft.pdfg2d.gc.text.layout.control.LineBreak;
@@ -69,7 +69,7 @@ public class StyledTextUnitizer {
 			return;
 		}
 		final AbstractTextParams params = this.getTextParams();
-		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(params.hyphenation);
+		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(params.lineBreakRules);
 		final FilterGlyphHandler wordHyphenator = new WordHyphenator(params);
 		wordHyphenator.setGlyphHandler(this.gh);
 		textUnitizer.setGlyphHandler(wordHyphenator);

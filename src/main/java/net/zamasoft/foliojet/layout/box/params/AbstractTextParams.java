@@ -4,7 +4,7 @@ import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
+import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 public abstract class AbstractTextParams extends Params {
@@ -61,9 +61,9 @@ public abstract class AbstractTextParams extends Params {
 	public FontManager fontManager;
 
 	/**
-	 * ハイフネーション。
+	 * 行分割規則(禁則)。
 	 */
-	public Hyphenation hyphenation;
+	public LineBreakRules lineBreakRules;
 
 	/**
 	 * 文字間

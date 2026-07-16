@@ -1,11 +1,11 @@
-package net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl;
+package net.zamasoft.foliojet.layout.text.breaking;
 
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
+import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
 
 /**
  * 禁則処理のためテキストを分割できないまとまりに分解すします。
@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
  *          Exp $
  */
 public class TextUnitizer implements FilterGlyphHandler {
-	protected Hyphenation hyph;
+	protected LineBreakRules hyph;
 
 	private GlyphHandler glyphHandler;
 
@@ -26,15 +26,15 @@ public class TextUnitizer implements FilterGlyphHandler {
 
 	private TextControl beforeQuad = null;
 
-	public TextUnitizer(Hyphenation hyph) {
+	public TextUnitizer(LineBreakRules hyph) {
 		this.hyph = hyph;
 	}
 
-	public Hyphenation getHyphenation() {
+	public LineBreakRules getLineBreakRules() {
 		return hyph;
 	}
 
-	public void setHyphenation(Hyphenation hyph) {
+	public void setHyphenation(LineBreakRules hyph) {
 		this.hyph = hyph;
 	}
 

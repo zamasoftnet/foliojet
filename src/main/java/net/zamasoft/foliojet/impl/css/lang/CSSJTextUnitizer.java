@@ -7,14 +7,14 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.TextUnitizer;
+import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
+import net.zamasoft.foliojet.layout.text.breaking.TextUnitizer;
 
 public class CSSJTextUnitizer extends TextUnitizer {
 
-	private List<Hyphenation> hyphStack = new ArrayList<Hyphenation>();;
+	private List<LineBreakRules> hyphStack = new ArrayList<LineBreakRules>();;
 
-	public CSSJTextUnitizer(Hyphenation hyph) {
+	public CSSJTextUnitizer(LineBreakRules hyph) {
 		super(hyph);
 		this.hyphStack.add(hyph);
 	}
@@ -26,14 +26,14 @@ public class CSSJTextUnitizer extends TextUnitizer {
 			case InlineQuad.INLINE_START: {
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				AbstractTextParams params = inlineStartQuad.box.getTextParams();
-				this.hyphStack.add(params.hyphenation);
-				this.setHyphenation(params.hyphenation);
+				this.hyphStack.add(params.lineBreakRules);
+				this.setHyphenation(params.lineBreakRules);
 			}
 				break;
 
 			case InlineQuad.INLINE_END: {
 				this.hyphStack.remove(this.hyphStack.size() - 1);
-				final Hyphenation hyph = this.hyphStack.get(this.hyphStack.size() - 1);
+				final LineBreakRules hyph = this.hyphStack.get(this.hyphStack.size() - 1);
 				this.setHyphenation(hyph);
 			}
 				break;

@@ -24,7 +24,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.pdfg2d.image.CenteredImage;
+import net.zamasoft.foliojet.layout.part.CenteredImage;
 
 /**
  * 画像ボックスの実装です。

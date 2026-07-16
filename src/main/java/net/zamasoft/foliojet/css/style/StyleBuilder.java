@@ -566,7 +566,7 @@ public class StyleBuilder implements PageGenerator {
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle
 				.getLanguageProfile(style.getCSSElement().lang);
-		params.hyphenation = lang.getHyphenation(style);
+		params.lineBreakRules = lang.getLineBreakRules(style);
 		params.hyphens = Hyphens.get(style);
 		if (params.hyphens == AbstractTextParams.HYPHENS_AUTO) {
 			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getCSSElement().lang);
@@ -1136,7 +1136,7 @@ public class StyleBuilder implements PageGenerator {
 				params.element = ce;
 				params.fontStyle = style.getFontStyle();
 				params.fontManager = this.ua.getFontManager();
-				params.hyphenation = lang.getHyphenation(style);
+				params.lineBreakRules = lang.getLineBreakRules(style);
 				final InlineBox inlineBox = new InlineBox(params, pos);
 				this.doc.startBox(inlineBox);
 				this.doc.endBox();
@@ -1246,7 +1246,7 @@ public class StyleBuilder implements PageGenerator {
 							BlockParams params = new BlockParams();
 							params.fontStyle = style.getFontStyle();
 							params.fontManager = this.ua.getFontManager();
-							params.hyphenation = lang.getHyphenation(style);
+							params.lineBreakRules = lang.getLineBreakRules(style);
 							params.direction = Direction.get(style);
 							params.flow = BlockFlow.get(style);
 							params.element = ce;
@@ -2635,7 +2635,7 @@ public class StyleBuilder implements PageGenerator {
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle
 				.getLanguageProfile(pageStyle.getCSSElement().lang);
-		params.hyphenation = lang.getHyphenation(pageStyle);
+		params.lineBreakRules = lang.getLineBreakRules(pageStyle);
 
 		// ページのサイズ
 		double width = this.imposition.getPageWidth();

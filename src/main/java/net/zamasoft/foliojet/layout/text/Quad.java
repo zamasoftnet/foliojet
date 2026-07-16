@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.pdfg2d.text;
+package net.zamasoft.foliojet.layout.text;
 
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 

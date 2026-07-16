@@ -1,12 +1,13 @@
-package net.zamasoft.foliojet.pdfg2d.text.hyphenation;
+package net.zamasoft.foliojet.layout.text.breaking;
 
 /**
- * 言語ごとのハイフネーションです。
+ * 言語ごとの行分割規則(禁則)です。分割可能位置(atomic)と
+ * 均等割りの伸長可能位置(canSeparate)を判定します。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: Hyphenation.java 1572 2018-07-11 07:22:55Z miyabe $
+ * @version $Id: LineBreakRules.java 1572 2018-07-11 07:22:55Z miyabe $
  */
-public interface Hyphenation {
+public interface LineBreakRules {
 	/**
 	 * 前後の文字が分割不可能であればtrueを返します。
 	 * @param c1

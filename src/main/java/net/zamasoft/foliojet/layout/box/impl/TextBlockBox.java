@@ -343,7 +343,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		assert (!this.lines.isEmpty());
 		builder.setBreakToken(this.breakToken);
 		final GlyphHandler gh = new BuilderGlyphHandler(builder);
-		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params.hyphenation);
+		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params.lineBreakRules);
 		textUnitizer.setGlyphHandler(gh);
 		// System.err.println("*** start");
 		for (int i = 0; i < this.lines.size(); ++i) {

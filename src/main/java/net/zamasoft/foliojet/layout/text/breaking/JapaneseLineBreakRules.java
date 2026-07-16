@@ -1,14 +1,14 @@
-package net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl;
+package net.zamasoft.foliojet.layout.text.breaking;
 
 import java.lang.Character.UnicodeBlock;
 
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
+import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
 
 /**
  * @author MIYABE Tatsuhiko
  * @version $Id: JapaneseBindingRule.java 1570 2018-07-11 05:50:15Z miyabe $
  */
-public class JapaneseHyphenation implements Hyphenation {
+public class JapaneseLineBreakRules implements LineBreakRules {
 	private static final CharacterSet ASCII = new BitSetCharacterSet(
 			"#$%&*+-/0123456789=@ABCDEFGHIJKLMNOPQRSTUVWXYZ\\^_abcdefghijklmnopqrstuvwxyz|~");
 

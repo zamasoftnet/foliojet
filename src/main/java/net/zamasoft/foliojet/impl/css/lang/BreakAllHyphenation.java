@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.impl.css.lang;
 
-import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.JapaneseHyphenation;
+import net.zamasoft.foliojet.layout.text.breaking.JapaneseLineBreakRules;
 
-public class BreakAllHyphenation extends JapaneseHyphenation {
+public class BreakAllHyphenation extends JapaneseLineBreakRules {
 	public boolean atomic(char c1, char c2) {
 		if (this.isCJK(c1) && this.isCJK(c2)) {
 			return super.atomic(c1, c2);

@@ -28,7 +28,7 @@ import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.pdfg2d.svg.Dimension2DImpl;
+import net.zamasoft.foliojet.impl.ua.svg.Dimension2DImpl;
 import net.zamasoft.pdfg2d.svg.PDFGVTBuilder;
 import net.zamasoft.pdfg2d.svg.SVGImage;
 

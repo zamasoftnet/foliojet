@@ -58,7 +58,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		this.frame = new AbsoluteRectFrame(frame);
 		this.cutHead = cut;
 		assert params.fontStyle != null;
-		assert params.hyphenation != null;
+		assert params.lineBreakRules != null;
 		assert params.fontManager != null;
 
 	}

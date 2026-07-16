@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.layout.util.BorderRenderer;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.pdfg2d.image.CenteredImage;
+import net.zamasoft.foliojet.layout.part.CenteredImage;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
 
 /**

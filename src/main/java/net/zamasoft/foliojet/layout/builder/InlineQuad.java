@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
-import net.zamasoft.foliojet.pdfg2d.text.Quad;
+import net.zamasoft.foliojet.layout.text.Quad;
 
 public abstract class InlineQuad extends Quad {
 	public static final byte INLINE_START = 1;
