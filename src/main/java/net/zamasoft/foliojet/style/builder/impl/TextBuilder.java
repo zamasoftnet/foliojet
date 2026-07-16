@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.content.BreakToken;
+
 import net.zamasoft.foliojet.style.box.params.FloatSide;
 
 import net.zamasoft.foliojet.style.box.params.WritingMode;
@@ -128,25 +130,25 @@ public class TextBuilder {
 
 	private int textUnitGlyphCount = 0;
 
-	public TextBuilder(BlockBuilder builder, byte textState) {
+	public TextBuilder(BlockBuilder builder, BreakToken breakToken) {
 		this.builder = builder;
 		final Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
-		this.textBlockBox = new TextBlockBox(params, textState);
+		this.textBlockBox = new TextBlockBox(params, breakToken);
 
-		if ((textState & BlockBuilder.TS_MIDFLOW) == 0) {
+		if (!breakToken.midFlow()) {
 			this.textIndent = flow.box.getTextIndent();
 		} else {
 			this.textIndent = 0;
 		}
 		final AbstractLineBox lineBox;
-		if ((textState & BlockBuilder.TS_MIDFLOW) == 0 && params.firstLineStyle != null) {
+		if (!breakToken.midFlow() && params.firstLineStyle != null) {
 			lineBox = new FirstLineBox(params.firstLineStyle);
 		} else {
 			lineBox = new LineBox(params);
 		}
 
-		this.last = (textState & BlockBuilder.TS_WRAP) == 0;
+		this.last = !breakToken.midLine();
 		this.lineBox = lineBox;
 		this.lineHead = this.firstUnit = true;
 		this.lastSpaceAdvance = 0;

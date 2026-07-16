@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.content.BreakToken;
+
 import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
 
 import net.zamasoft.foliojet.style.box.params.Fiducial;
@@ -76,16 +78,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected TextBuilder textBuilder = null;
 
 	/**
-	 * 次のテキストがブロックの途中であることを示すフラグ。
+	 * 次のテキストブロックの継続状態です。
 	 */
-	public static final byte TS_MIDFLOW = 1;
-
-	/**
-	 * 次のテキストが折り返しの直後にあることを示すフラグ。
-	 */
-	public static final byte TS_WRAP = 2;
-
-	protected byte textState = 0;
+	protected BreakToken breakToken = BreakToken.NONE;
 
 	protected double poLastMargin = 0, neLastMargin = 0;
 
@@ -517,7 +512,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		final Flow flow = new Flow(flowBox, this.lineAxis, this.pageAxis);
 		this.flowStack.add(flow);
-		this.textState = 0;
+		this.breakToken = BreakToken.NONE;
 	}
 
 	public void endFlowBlock() {
@@ -1279,16 +1274,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.finish();
 	}
 
-	public void setTextState(byte textState) {
-		this.textState |= textState;
+	public void setBreakToken(BreakToken breakToken) {
+		this.breakToken = this.breakToken.combine(breakToken);
 	}
 
 	protected void requireTextBlock() {
 		// 新規テキストブロック
 		// System.err.println("requireTextBlock");
 		assert this.textBuilder == null;
-		this.textBuilder = new TextBuilder(this, this.textState);
-		this.textState = TS_MIDFLOW;
+		this.textBuilder = new TextBuilder(this, this.breakToken);
+		this.breakToken = BreakToken.MID_FLOW;
 
 		final Flow flow = this.getFlow();
 		double localPageAxis = this.pageAxis - flow.pageAxis;

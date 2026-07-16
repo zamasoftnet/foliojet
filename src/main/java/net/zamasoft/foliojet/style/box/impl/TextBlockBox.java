@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.content.BreakToken;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -75,13 +77,13 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	protected double lineSize = 0;
 
 	/**
-	 * ブロックの先頭であればtrue。
+	 * このテキストブロックの継続状態です。
 	 */
-	protected final byte textState;
+	protected final BreakToken breakToken;
 
-	public TextBlockBox(final BlockParams params, final byte textState) {
+	public TextBlockBox(final BlockParams params, final BreakToken breakToken) {
 		this.params = params;
-		this.textState = textState;
+		this.breakToken = breakToken;
 	}
 
 	public final BoxType getType() {
@@ -315,14 +317,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		// widowsを次ページに移動
 		final int firstWidow = lastOrphan + 1;
 		final double top = ((Line) this.lines.get(firstWidow)).pageAxis;
-		byte textState = BlockBuilder.TS_MIDFLOW;
-		{
-			final Line line = (Line) this.lines.get(lastOrphan);
-			if (!line.box.isLast()) {
-				textState |= BlockBuilder.TS_WRAP;
-			}
-		}
-		final TextBlockBox nextTextBlock = new TextBlockBox(this.params, textState);
+		final BreakToken token = ((Line) this.lines.get(lastOrphan)).box.isLast() ? BreakToken.MID_FLOW
+				: BreakToken.MID_LINE;
+		final TextBlockBox nextTextBlock = new TextBlockBox(this.params, token);
 		for (int i = firstWidow; i < this.lines.size(); ++i) {
 			final Line line = (Line) this.lines.get(i);
 			nextTextBlock.addLine(line.box, line.pageAxis - top);
@@ -344,7 +341,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 
 	public final void restyle(final BlockBuilder builder) {
 		assert (!this.lines.isEmpty());
-		builder.setTextState(this.textState);
+		builder.setBreakToken(this.breakToken);
 		final GlyphHandler gh = new BuilderGlyphHandler(builder);
 		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params.hyphenation);
 		textUnitizer.setGlyphHandler(gh);
