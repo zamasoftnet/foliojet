@@ -219,9 +219,10 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		final long endId = log.endOf(startId);
-		if (endId < 0 || log.containsOpaque(startId, endId) || log.containsMulticol(startId, endId)) {
-			// 閉じていない・再生非対応・段組を含む部分木はボックス再生へ
-			// (段組内容の再生は列機構との相互作用が未検証)
+		if (endId < 0 || log.containsOpaque(startId, endId) || log.containsMulticol(startId, endId)
+				|| log.containsMixedFlow(startId, endId, this.getRootBox().getBlockParams().flow)) {
+			// 閉じていない・再生非対応・段組・縦横混在を含む部分木は
+			// ボックス再生へ(段組は列機構、混在はサブビルダー文脈が未検証)
 			return false;
 		}
 		net.zamasoft.foliojet.layout.SourceReplayer.replay(log, startId, endId, target, this.pageGenerator);

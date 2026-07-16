@@ -86,7 +86,18 @@ public final class SourceReplayer {
 		if (!paginate) {
 			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);
 		}
+		// 子範囲を裸のまま scratch ページ直下へ流すと、フロート等が
+		// ページボックスに係留されようとして壊れる。元のブロックに相当する
+		// ラッパーブロックで包んで、係留文脈を通常構築と同型にする
+		final BlockParams wrapperParams = new BlockParams();
+		wrapperParams.fontStyle = template.fontStyle;
+		wrapperParams.fontManager = template.fontManager;
+		wrapperParams.lineBreakRules = template.lineBreakRules;
+		wrapperParams.flow = template.flow;
+		wrapperParams.direction = template.direction;
+		doc.startBox(new FlowBlockBox(wrapperParams, new FlowPos()));
 		drive(doc, log, fromId, toId);
+		doc.endBox();
 		doc.end();
 		return pg;
 	}
@@ -202,8 +213,9 @@ public final class SourceReplayer {
 			return false;
 		}
 		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsFloat(selfId + 1, endId - 1)
-				|| log.containsMulticol(selfId + 1, endId - 1)) {
-			// フロート係留・入れ子段組の再現は未検証のためフォールバック
+				|| log.containsMulticol(selfId + 1, endId - 1)
+				|| log.containsMixedFlow(selfId + 1, endId - 1, target.getRootBox().getBlockParams().flow)) {
+			// フロート係留・入れ子段組・縦横混在の再現は未検証のためフォールバック
 			return false;
 		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);

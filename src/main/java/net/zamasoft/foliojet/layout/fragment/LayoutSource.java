@@ -317,6 +317,33 @@ public final class LayoutSource {
 	}
 
 	/**
+	 * [fromId, toId] の範囲に、指定の書字方向と異なる内容が含まれていれば
+	 * true を返します(M6b: 縦横混在の再生はサブビルダー文脈の再現が
+	 * 未設計のためフォールバックさせる)。
+	 */
+	public boolean containsMixedFlow(final long fromId, final long toId,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		final boolean vertical = rootFlow.isVertical();
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Start(final BoxKind kind,
+					final net.zamasoft.foliojet.layout.box.params.Params params, final Pos pos)
+					&& params instanceof net.zamasoft.foliojet.layout.box.params.AbstractTextParams textParams
+					&& textParams.flow.isVertical() != vertical) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * [fromId, toId] の範囲に浮動配置の Start が含まれていれば
 	 * true を返します(M6c: バランスのソース再生はフロートの係留の
 	 * 再現が未検証のためフォールバックさせる)。

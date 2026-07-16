@@ -58,7 +58,9 @@ public final class MeasuredIntrinsics {
 		if (endId < 0 || endId <= selfId + 1) {
 			return null;
 		}
-		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)) {
+		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
+				|| log.containsMixedFlow(selfId + 1, endId - 1, template.flow)) {
+			// 縦横混在の再生はサブビルダー文脈が未設計のため模倣計測へ
 			return null;
 		}
 		final WritingMode flow = template.flow;

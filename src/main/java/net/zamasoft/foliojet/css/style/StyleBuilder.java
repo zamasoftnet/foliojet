@@ -379,11 +379,12 @@ public class StyleBuilder implements PageGenerator {
 		if (type == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class) {
 			return LayoutSource.BoxKind.MARKER;
 		}
-		// FLOAT_BLOCK/INLINE_BLOCK は保留: 再生時の係留経路が通常構築と
-		// 異なる。実測(2026-07-17): 0390-writing-mode(縦横混在)で
-		// フロートが addBound 経由で flowStack 空の文脈に達し
-		// PageBox.addFloating の Unsupported。混在書字方向の再生は
-		// サブビルダー(newBuilder)文脈の再現設計が必要
+		if (type == net.zamasoft.foliojet.layout.box.impl.FloatBlockBox.class) {
+			return LayoutSource.BoxKind.FLOAT_BLOCK;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBlockBox.class) {
+			return LayoutSource.BoxKind.INLINE_BLOCK;
+		}
 		return null;
 	}
 
