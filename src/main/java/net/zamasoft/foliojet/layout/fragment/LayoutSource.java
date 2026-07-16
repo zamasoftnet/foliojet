@@ -29,7 +29,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource {
-	public sealed interface Event permits StartBlock, Chars, EndBlock, Opaque {
+	public sealed interface Event permits StartBlock, StartInline, Chars, EndBlock, Opaque {
 	}
 
 	/**
@@ -37,6 +37,14 @@ public final class LayoutSource {
 	 * できます。
 	 */
 	public record StartBlock(BlockParams params, Pos pos) implements Event {
+	}
+
+	/**
+	 * インライン要素の開始です。params/pos から同型のボックスを
+	 * 再インスタンス化できます。
+	 */
+	public record StartInline(net.zamasoft.foliojet.layout.box.params.InlineParams params,
+			net.zamasoft.foliojet.layout.box.params.InlinePos pos) implements Event {
 	}
 
 	/**
@@ -135,6 +143,7 @@ public final class LayoutSource {
 			}
 			switch (entry.event()) {
 			case StartBlock start -> open.add(entry);
+			case StartInline start -> open.add(entry);
 			case EndBlock end -> {
 				if (!open.isEmpty()) {
 					open.remove(open.size() - 1);
@@ -169,6 +178,7 @@ public final class LayoutSource {
 		for (int i = index; i < this.entries.size(); ++i) {
 			switch (this.entries.get(i).event()) {
 			case StartBlock start -> ++depth;
+			case StartInline start -> ++depth;
 			case EndBlock end -> {
 				if (--depth == 0) {
 					return this.entries.get(i).id();
@@ -223,6 +233,7 @@ public final class LayoutSource {
 			}
 			switch (entry.event()) {
 			case StartBlock start -> ++depth;
+			case StartInline start -> ++depth;
 			case EndBlock end -> {
 				if (depth == 0) {
 					return entry.id();

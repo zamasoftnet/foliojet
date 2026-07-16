@@ -81,6 +81,9 @@ public final class SourceReplayer {
 			switch (event) {
 			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
 					.startBox(new FlowBlockBox(params, (FlowPos) pos));
+			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
+					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
+					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
 			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
 				int skip = 0;
 				if (first[0]) {
@@ -126,6 +129,9 @@ public final class SourceReplayer {
 			switch (event) {
 			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
 					.startBox(new FlowBlockBox(params, (FlowPos) pos));
+			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
+					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
+					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
 			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
 					.characters(charOffset, ch, 0, ch.length, fixed);
 			case LayoutSource.EndBlock end -> doc.endBox();
