@@ -362,7 +362,7 @@ public class StyleBuilder implements PageGenerator {
 	 * 失われる(サイレントホールの防止)。
 	 */
 	private void addReplacedBox(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
-		box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Opaque());
+		box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Replaced(box));
 		this.doc.addReplacedBox(box);
 	}
 

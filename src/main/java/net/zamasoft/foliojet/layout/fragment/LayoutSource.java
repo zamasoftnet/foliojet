@@ -29,7 +29,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource {
-	public sealed interface Event permits StartBlock, StartInline, Chars, EndBlock, Opaque {
+	public sealed interface Event permits StartBlock, StartInline, Replaced, Chars, EndBlock, Opaque {
 	}
 
 	/**
@@ -45,6 +45,14 @@ public final class LayoutSource {
 	 */
 	public record StartInline(net.zamasoft.foliojet.layout.box.params.InlineParams params,
 			net.zamasoft.foliojet.layout.box.params.InlinePos pos) implements Event {
+	}
+
+	/**
+	 * 置換要素です。置換ボックスは分割で変異しない葉なので、
+	 * 同じインスタンスを再生時にそのまま doc へ渡して再配置します
+	 * (box-restyle の addBound 再利用と同じ意味論)。
+	 */
+	public record Replaced(net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) implements Event {
 	}
 
 	/**
@@ -151,6 +159,8 @@ public final class LayoutSource {
 			}
 			case Chars chars -> {
 			}
+			case Replaced replaced -> {
+			}
 			case Opaque opaque -> {
 			}
 			}
@@ -185,6 +195,8 @@ public final class LayoutSource {
 				}
 			}
 			case Chars chars -> {
+			}
+			case Replaced replaced -> {
 			}
 			case Opaque opaque -> {
 			}
@@ -241,6 +253,8 @@ public final class LayoutSource {
 				--depth;
 			}
 			case Chars chars -> {
+			}
+			case Replaced replaced -> {
 			}
 			case Opaque opaque -> {
 			}

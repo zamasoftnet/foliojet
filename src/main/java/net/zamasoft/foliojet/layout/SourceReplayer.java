@@ -99,6 +99,8 @@ public final class SourceReplayer {
 					doc.characters(off + skip, ch, skip, len, fixed);
 				}
 			}
+			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
+					.addReplacedBox(box);
 			case LayoutSource.EndBlock end -> doc.endBox();
 			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
 			}
@@ -134,6 +136,8 @@ public final class SourceReplayer {
 					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
 			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
 					.characters(charOffset, ch, 0, ch.length, fixed);
+			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
+					.addReplacedBox(box);
 			case LayoutSource.EndBlock end -> doc.endBox();
 			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
 			}
