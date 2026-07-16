@@ -42,6 +42,7 @@ public class DisplayListGoldenTest extends TestCase {
 	/** 対象文書。ブロック・フロート・テーブル・縦書き・段組・生成内容をカバーする。 */
 	private static final String[] DOCUMENTS = { //
 			"0120-float/auto-width.html", //
+			"0120-float/float-in-moved-block.html", //
 			"0240-table/z-order.html", //
 			"0240-table/absolute.html", //
 			"0390-writing-mode/border-collapse.html", //

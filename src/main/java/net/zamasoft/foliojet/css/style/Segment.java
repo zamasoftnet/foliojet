@@ -43,7 +43,12 @@ public class Segment {
 	record Chars(int charOffset, char[] ch) implements Item {
 	}
 
-	record End(CSSStyle style) implements Item {
+	/**
+	 * 要素の終了です。counters は終了時点のカウンタ状態(M6b、
+	 * 本流のみ。閉じた兄弟要素のカウンタ効果を尾部再生の巻き戻しで
+	 * 拾うために保持します)。
+	 */
+	record End(CSSStyle style, CounterScope[] counters) implements Item {
 	}
 
 	protected final List<Item> items = new ArrayList<Item>();
@@ -93,7 +98,14 @@ public class Segment {
 	}
 
 	public void endStyle(CSSStyle style) {
-		this.items.add(new End(style));
+		this.endStyle(style, null);
+	}
+
+	/**
+	 * カウンタスナップショット付きで終了イベントを記録します(M6b)。
+	 */
+	public void endStyle(CSSStyle style, CounterScope[] counters) {
+		this.items.add(new End(style, counters));
 		--this.depth;
 	}
 

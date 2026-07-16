@@ -976,6 +976,12 @@ public class FlowContainer implements Container {
 	}
 
 	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes) {
+		// フロートは最近接ブロック祖先のコンテナに係留されるため、移動した
+		// 部分木の内部フロートは部分木と一緒に動き、ソース再駆動でも二重
+		// 生成されない(反証実験済み: float-in-moved-block)。絶対配置は
+		// 係留先が文脈ボックス(ページ側もあり得る)で発生源が移動部分木の
+		// 内部にあり得るため、未検証の間は保守的にボックス再生へ委ねる
+		final boolean sourceReplayable = this.absolutes == null;
 		List<BoxHolder> items = null;
 		if (this.floatings != null) {
 			Floatings floatings = this.floatings;
@@ -1044,7 +1050,8 @@ public class FlowContainer implements Container {
 							// テーブルキャプション
 							if (lastFlow == holder && depth >= 1) {
 								containerBox.restyle(builder, depth - 1);
-							} else if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
+							} else if (!(sourceReplayable
+									&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
 									&& root.replayFromSource(containerBox))) {
 								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b segment-restyle)。
 								// false ならボックス再生でフォールバック

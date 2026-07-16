@@ -31,7 +31,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 代わりにソースイベントから再駆動します(M6b segment-restyle)。
 	 * 移行期間中は opt-in です。
 	 */
-	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle"); // A/B実験: 一時的に既定ON
+	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
 
 	/**
 	 * 改ページの残余再構築中だけ true(segment-restyle の適用範囲)。

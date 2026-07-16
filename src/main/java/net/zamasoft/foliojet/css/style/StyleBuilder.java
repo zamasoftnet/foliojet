@@ -2558,8 +2558,8 @@ public class StyleBuilder implements PageGenerator {
 		// 明示されたスタイルを終了
 		style = this.currentStyle;
 		if (!style.getCSSElement().isPseudoElement()) {
-			// 本流のセグメント記録(M6a)
-			this.segment.endStyle(style);
+			// 本流のセグメント記録(M6a)。カウンタ状態も再開用に保持(M6b)
+			this.segment.endStyle(style, this.ua.getPassContext().snapshotNonPageCounters());
 		}
 		this._endStyle();
 		if (this.currentStyle != null) {

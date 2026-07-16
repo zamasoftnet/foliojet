@@ -50,7 +50,7 @@ class Regeneratable extends PageContent {
 				}
 			}
 			case Chars(int charOffset, char[] ch) -> builder.characters(charOffset, ch, 0, ch.length);
-			case End(CSSStyle recorded) -> {
+			case End(CSSStyle recorded, net.zamasoft.foliojet.ua.CounterScope[] endCounters) -> {
 				if (!recorded.getCSSElement().isPseudoElement()) {
 					builder.endStyle();
 					applier.endStyle();
