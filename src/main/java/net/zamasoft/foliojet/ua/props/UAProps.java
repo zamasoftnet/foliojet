@@ -532,7 +532,7 @@ public final class UAProps {
 	public static final BooleanPropManager OUTPUT_PDF_VIEWER_PREFERENCES_DISPLAY_DOC_TITLE = new BooleanPropManager(
 			"output.pdf.viewer-preferences.display-doc-title", false);
 
-	public static final CodePropManager<OutputPdfViewerPreferencesNoneFullScreenPageMode> OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE = new CodePropManager<>("output.pdf.viewer-preferences.non-full-screen-page-mode", OutputPdfViewerPreferencesNoneFullScreenPageMode.class, OutputPdfViewerPreferencesNoneFullScreenPageMode.USE_NONE);
+	public static final CodePropManager<OutputPdfViewerPreferencesNonFullScreenPageMode> OUTPUT_PDF_VIEWER_PREFERENCES_NON_FULL_SCREEN_PAGE_MODE = new CodePropManager<>("output.pdf.viewer-preferences.non-full-screen-page-mode", OutputPdfViewerPreferencesNonFullScreenPageMode.class, OutputPdfViewerPreferencesNonFullScreenPageMode.USE_NONE);
 
 	public static final CodePropManager<OutputPdfViewerPreferencesPrintScaling> OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_SCALING = new CodePropManager<>("output.pdf.viewer-preferences.print-scaling", OutputPdfViewerPreferencesPrintScaling.class, OutputPdfViewerPreferencesPrintScaling.APP_DEFAULT);
 

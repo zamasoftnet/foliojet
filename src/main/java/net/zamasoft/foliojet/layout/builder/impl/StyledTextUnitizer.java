@@ -54,7 +54,7 @@ public class StyledTextUnitizer {
 	 */
 	private double wordSpacing;
 
-	private TextShaper glypher = null;
+	private TextShaper textShaper = null;
 
 	public StyledTextUnitizer(Builder builder) {
 		this.builder = builder;
@@ -64,8 +64,8 @@ public class StyledTextUnitizer {
 		return (AbstractTextParams) this.textParamsStack.get(this.textParamsStack.size() - 1);
 	}
 
-	public void requireGlypher() {
-		if (this.glypher != null) {
+	public void requireTextShaper() {
+		if (this.textShaper != null) {
 			return;
 		}
 		final AbstractTextParams params = this.getTextParams();
@@ -73,9 +73,9 @@ public class StyledTextUnitizer {
 		final FilterGlyphHandler wordHyphenator = new WordHyphenator(params);
 		wordHyphenator.setGlyphHandler(this.gh);
 		textUnitizer.setGlyphHandler(wordHyphenator);
-		this.glypher = params.fontManager.getTextShaper();
-		this.glypher.setGlyphHandler(textUnitizer);
-		this.glypher.fontStyle(params.fontStyle);
+		this.textShaper = params.fontManager.getTextShaper();
+		this.textShaper.setGlyphHandler(textUnitizer);
+		this.textShaper.fontStyle(params.fontStyle);
 	}
 
 	private void changeTextState(AbstractTextParams params) {
@@ -130,17 +130,17 @@ public class StyledTextUnitizer {
 	}
 
 	public void flushText() {
-		if (this.glypher != null) {
-			this.glypher.flush();
+		if (this.textShaper != null) {
+			this.textShaper.flush();
 		}
 	}
 
 	public void endContainer() {
 		final AbstractTextParams params = (AbstractTextParams) this.textParamsStack
 				.remove(this.textParamsStack.size() - 1);
-		if (this.glypher != null) {
-			this.glypher.close();
-			this.glypher = null;
+		if (this.textShaper != null) {
+			this.textShaper.close();
+			this.textShaper = null;
 			this.gh.builder.endTextBlock();
 		}
 		if (DEBUG) {
@@ -154,48 +154,48 @@ public class StyledTextUnitizer {
 	public void startInline(InlineBox inlineBox) {
 		AbstractContainerBox containerBox = this.gh.builder.getFlowBox();
 		inlineBox.firstPassLayout(containerBox);
-		this.requireGlypher();
+		this.requireTextShaper();
 
 		Quad end = InlineQuad.createInlineBoxEndQuad(inlineBox);
 		this.inlineQuadStack.add(end);
 		AbstractTextParams params = inlineBox.getInlineParams();
 		this.textParamsStack.add(params);
-		this.glypher.fontStyle(params.fontStyle);
+		this.textShaper.fontStyle(params.fontStyle);
 		Quad start = InlineQuad.createInlineBoxStartQuad(inlineBox);
-		this.glypher.control(start);
+		this.textShaper.control(start);
 		this.changeTextState(params);
 	}
 
 	public void endInline() {
 		// ブロックでインラインが寸断されて復帰した直後にインラインが終わるときに、ここを実行する
-		this.requireGlypher();
+		this.requireTextShaper();
 
 		Quad end = (InlineEndQuad) this.inlineQuadStack.remove(this.inlineQuadStack.size() - 1);
-		this.glypher.control(end);
+		this.textShaper.control(end);
 		this.textParamsStack.remove(this.textParamsStack.size() - 1);
 		AbstractTextParams params = this.getTextParams();
-		this.glypher.fontStyle(params.fontStyle);
+		this.textShaper.fontStyle(params.fontStyle);
 		this.changeTextState(params);
 	}
 
 	public void addInlineReplaced(AbstractReplacedBox inlineReplacedBox) {
-		this.requireGlypher();
+		this.requireTextShaper();
 		Quad quad = InlineQuad.createReplacedBoxQuad(inlineReplacedBox);
-		this.glypher.control(quad);
+		this.textShaper.control(quad);
 		this.followingChar = 'x';
 	}
 
 	public void addInlineBlock(InlineBlockBox inlineBlockBox) {
-		this.requireGlypher();
+		this.requireTextShaper();
 		final Quad quad = InlineQuad.createInlineBlockBoxQuad(inlineBlockBox);
-		this.glypher.control(quad);
+		this.textShaper.control(quad);
 		this.followingChar = 'x';
 	}
 
 	public void addInlineAbsolute(final IAbsoluteBox absoluteBox) {
-		this.requireGlypher();
+		this.requireTextShaper();
 		final Quad quad = InlineQuad.createInlineAbsoluteBoxQuad(absoluteBox);
-		this.glypher.control(quad);
+		this.textShaper.control(quad);
 	}
 
 	public void characters(int charOffset, char[] ch, final int off, final int len, boolean lineFeed) {
@@ -241,8 +241,8 @@ public class StyledTextUnitizer {
 						this._characters(charOffset + ooff, ch, off + ooff, i - ooff);
 					}
 					ooff = i + 1;
-					this.requireGlypher();
-					this.glypher.control(quad);
+					this.requireTextShaper();
+					this.textShaper.control(quad);
 					this.followingChar = c;
 					continue;
 				}
@@ -259,8 +259,8 @@ public class StyledTextUnitizer {
 					// スペースの出力
 					WhiteSpace ws = new WhiteSpace(flm, charOffset + i);
 					ws.setWordSpacing(this.wordSpacing);
-					this.requireGlypher();
-					this.glypher.control(ws);
+					this.requireTextShaper();
+					this.textShaper.control(ws);
 				}
 				this.followingChar = c;
 				continue;
@@ -273,8 +273,8 @@ public class StyledTextUnitizer {
 				}
 				ooff = i + 1;
 				if (params.hyphens != AbstractTextParams.HYPHENS_NONE) {
-					this.requireGlypher();
-					this.glypher.control(new WordHyphenator.Marker(charOffset + i));
+					this.requireTextShaper();
+					this.textShaper.control(new WordHyphenator.Marker(charOffset + i));
 				}
 				this.followingChar = c;
 				continue;
@@ -320,8 +320,8 @@ public class StyledTextUnitizer {
 		default:
 			throw new IllegalStateException();
 		}
-		this.requireGlypher();
-		this.glypher.characters(charOffset, ch, off, len);
+		this.requireTextShaper();
+		this.textShaper.characters(charOffset, ch, off, len);
 	}
 
 }

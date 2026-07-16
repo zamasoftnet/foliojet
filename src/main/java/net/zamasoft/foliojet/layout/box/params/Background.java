@@ -49,11 +49,11 @@ public class Background {
 	 */
 	public static final Background NULL_BACKGROUND = new Background(null, null, BORDER_BOX);
 
-	public static Background create(PaintValue backgroundPaint, BackgroundImage backgroundImage, byte backgroundCiip) {
+	public static Background create(PaintValue backgroundPaint, BackgroundImage backgroundImage, byte backgroundClip) {
 		if (backgroundPaint == null && backgroundImage == null) {
 			return NULL_BACKGROUND;
 		}
-		return new Background(backgroundPaint, backgroundImage, backgroundCiip);
+		return new Background(backgroundPaint, backgroundImage, backgroundClip);
 	}
 
 	private Background(PaintValue backgroundPaint, BackgroundImage backgroundImage, byte backgroundClip) {

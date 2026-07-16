@@ -15,7 +15,7 @@ class CounterContext {
 		return this.counters[level];
 	}
 	
-	public void resetExcluidePageCountes() {
+	public void resetNonPageCounters() {
 		for (int i = 1; i < MAX_DEPTH; ++i) {
 			this.counters[i] = null;
 		}

@@ -42,7 +42,7 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 
 	public SourceResolver getSourceResolver();
 
-	public void setMessageHandler(jp.cssj.cti2.message.MessageHandler messageHander);
+	public void setMessageHandler(jp.cssj.cti2.message.MessageHandler messageHandler);
 
 	/**
 	 * 処理を中断します。modeはCTISessionのABORT_*値です。

@@ -23,11 +23,11 @@ public class PassContext {
 		this.pageSide = pageSide;
 	}
 	
-	public void resetExcluidePageCountes() {
+	public void resetNonPageCounters() {
 		if (this.counterContext == null) {
 			return;
 		}
-		this.counterContext.resetExcluidePageCountes();
+		this.counterContext.resetNonPageCounters();
 	}
 
 	public CounterScope getCounterScope(int level, boolean create) {

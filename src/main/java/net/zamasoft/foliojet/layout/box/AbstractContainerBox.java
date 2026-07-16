@@ -154,7 +154,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return 1;
 	}
 
-	public final boolean isFixedMulcolumn() {
+	public final boolean isFixedMulticolumn() {
 		if (this.getColumnCount() <= 1) {
 			return false;
 		}

@@ -12,11 +12,11 @@ import net.zamasoft.foliojet.layout.text.breaking.TextUnitizer;
 
 public class CSSJTextUnitizer extends TextUnitizer {
 
-	private List<LineBreakRules> hyphStack = new ArrayList<LineBreakRules>();;
+	private List<LineBreakRules> breakRulesStack = new ArrayList<LineBreakRules>();;
 
-	public CSSJTextUnitizer(LineBreakRules hyph) {
-		super(hyph);
-		this.hyphStack.add(hyph);
+	public CSSJTextUnitizer(LineBreakRules breakRules) {
+		super(breakRules);
+		this.breakRulesStack.add(breakRules);
 	}
 
 	public void control(TextControl quad) {
@@ -26,15 +26,15 @@ public class CSSJTextUnitizer extends TextUnitizer {
 			case InlineQuad.INLINE_START: {
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				AbstractTextParams params = inlineStartQuad.box.getTextParams();
-				this.hyphStack.add(params.lineBreakRules);
-				this.setHyphenation(params.lineBreakRules);
+				this.breakRulesStack.add(params.lineBreakRules);
+				this.setLineBreakRules(params.lineBreakRules);
 			}
 				break;
 
 			case InlineQuad.INLINE_END: {
-				this.hyphStack.remove(this.hyphStack.size() - 1);
-				final LineBreakRules hyph = this.hyphStack.get(this.hyphStack.size() - 1);
-				this.setHyphenation(hyph);
+				this.breakRulesStack.remove(this.breakRulesStack.size() - 1);
+				final LineBreakRules breakRules = this.breakRulesStack.get(this.breakRulesStack.size() - 1);
+				this.setLineBreakRules(breakRules);
 			}
 				break;
 

@@ -1198,7 +1198,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		switch (blockBox.getPos().getType()) {
 		case FLOW:
 		case TABLE_CAPTION:
-			if (blockBox.isFixedMulcolumn()) {
+			if (blockBox.isFixedMulticolumn()) {
 				final FlowBlockBox flowBox = (FlowBlockBox) blockBox;
 				containerBox = this.getFlowBox();
 				flowBox.calculateSize(this, 0, containerBox.getLineSize());
@@ -1214,7 +1214,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (LayoutUtils.isFixedLineAxis(containerBox, blockBox)) {
 				// 固定幅
 				staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
-				if (blockBox.isFixedMulcolumn()) {
+				if (blockBox.isFixedMulticolumn()) {
 					// ページ方向が固定されたマルチカラム
 					builder = new ColumnBuilder(this, blockBox);
 				} else {

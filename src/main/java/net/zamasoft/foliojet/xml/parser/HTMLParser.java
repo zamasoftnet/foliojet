@@ -52,7 +52,7 @@ public class HTMLParser implements Parser {
 		parser.setFeature("http://xml.org/sax/features/namespaces", true);
 		parser.setFeature("http://cyberneko.org/html/features/scanner/cdata-sections", true);
 
-		final boolean chageDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
+		final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
 
 		final TagBalancer balancer = new TagBalancer();
 		XMLDocumentFilter[] filters = { new DefaultFilter() {
@@ -65,7 +65,7 @@ public class HTMLParser implements Parser {
 			}
 
 			public void startElement(QName element, XMLAttributes attributes, Augmentations augs) throws XNIException {
-				if (!chageDefaultNamespace) {
+				if (!changeDefaultNamespace) {
 					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
 						element.setUri(null);
 					}
@@ -81,7 +81,7 @@ public class HTMLParser implements Parser {
 			}
 
 			public void endElement(QName element, Augmentations augs) throws XNIException {
-				if (!chageDefaultNamespace) {
+				if (!changeDefaultNamespace) {
 					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
 						element.setUri(null);
 					}

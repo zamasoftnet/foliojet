@@ -315,14 +315,14 @@ public class DocumentBuilder {
 		case TABLE_CAPTION: {
 			// テーブルセル
 			// キャプション
-			final TableBuilder tableBuiler = this.tableBuilder();
-			if (tableBuiler.isOnePass()) {
-				this.closeInlines(tableBuiler.getTableBox().getParams());
+			final TableBuilder tableBuilder = this.tableBuilder();
+			if (tableBuilder.isOnePass()) {
+				this.closeInlines(tableBuilder.getTableBox().getParams());
 				this.endContainer();
 				this.startContainer();
 			}
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
-			final Builder newBuilder = tableBuiler.newContext(containerBox);
+			final Builder newBuilder = tableBuilder.newContext(containerBox);
 			this.startContainerBuilder(newBuilder);
 			this.startContainer();
 		}
@@ -335,14 +335,14 @@ public class DocumentBuilder {
 			// テーブルカラム
 			// テーブル行グループ
 			// テーブル行
-			final TableBuilder tableBuiler = this.tableBuilder();
-			if (tableBuiler.isOnePass()) {
-				this.closeInlines(tableBuiler.getTableBox().getParams());
+			final TableBuilder tableBuilder = this.tableBuilder();
+			if (tableBuilder.isOnePass()) {
+				this.closeInlines(tableBuilder.getTableBox().getParams());
 				this.endContainer();
 			}
 			final AbstractInnerTableBox innerTableBox = (AbstractInnerTableBox) box;
-			tableBuiler.startInnerTable(innerTableBox);
-			if (tableBuiler.isOnePass()) {
+			tableBuilder.startInnerTable(innerTableBox);
+			if (tableBuilder.isOnePass()) {
 				this.startContainer();
 			}
 		}
@@ -393,7 +393,7 @@ public class DocumentBuilder {
 			this.endContainer();
 			final Builder builder = this.containerBuilder().builder;
 			if (params.flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
-					&& !blockBox.isFixedMulcolumn()) {
+					&& !blockBox.isFixedMulticolumn()) {
 				builder.startFlowBlock(blockBox);
 			} else {
 				// ページ進行方向が違う場合
@@ -415,7 +415,7 @@ public class DocumentBuilder {
 				final AbsolutePos pos = (AbsolutePos) stfBox.getPos();
 				if (pos.autoPosition == AutoPosition.INLINE) {
 					this.containerBuilder().getStyledTextUnitizer().flushText();
-					this.containerBuilder().getStyledTextUnitizer().requireGlypher();
+					this.containerBuilder().getStyledTextUnitizer().requireTextShaper();
 				}
 			}
 			final Builder newBuilder = builder.newBuilder(stfBox);

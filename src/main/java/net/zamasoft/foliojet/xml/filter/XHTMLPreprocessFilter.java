@@ -208,9 +208,9 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 						// 文字コード
 						httpEquiv = httpEquiv.trim().toLowerCase();
 						if (httpEquiv.equals("content-type")) {
-							String cTcharset = MimeTypeHelper.getParameter(content, "charset");
-							if (cTcharset != null) {
-								pi = new String[] { CSSJML.PI_DEFAULT_ENCODING, cTcharset };
+							String contentTypeCharset = MimeTypeHelper.getParameter(content, "charset");
+							if (contentTypeCharset != null) {
+								pi = new String[] { CSSJML.PI_DEFAULT_ENCODING, contentTypeCharset };
 							}
 						} else if (httpEquiv.equals("content-style-type")) {
 							// デフォルトのスタイル

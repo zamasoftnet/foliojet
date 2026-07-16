@@ -217,7 +217,7 @@ public class EPubFormatter implements Formatter {
 							break;
 						}
 
-						ua.getPassContext().resetExcluidePageCountes();
+						ua.getPassContext().resetNonPageCounters();
 						final URI path = URIHelper.create("UTF-8", ir.item.fullPath);
 						ua.getDocumentContext().setBaseURI(path);
 						final Source zSource = new ZIPFileSource(zip, path, ir.item.mediaType);

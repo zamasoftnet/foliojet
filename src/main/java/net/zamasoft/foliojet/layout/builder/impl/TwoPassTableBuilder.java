@@ -128,7 +128,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	/**
 	 * 右の境界の中央から左の中央までを基準としたカラムの最小幅、指定幅、推奨幅です。
 	 */
-	private double[] columnMins, columnSpecs, columnDeses;
+	private double[] columnMins, columnSpecs, columnDesiredWidths;
 
 	/**
 	 * カラムの指定幅のタイプです。
@@ -770,7 +770,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		// CSS 2.1 17.5.2.2 [Column widths are determined as follows] #1,#2
 		this.columnMins = new double[columnCount];
 		this.columnSpecs = new double[columnCount];
-		this.columnDeses = new double[columnCount];
+		this.columnDesiredWidths = new double[columnCount];
 		this.columnTypes = new byte[columnCount];
 		Map<Colspan, Colspan> colspans = new HashMap<Colspan, Colspan>();
 		List<Colspan> colspanList = new ArrayList<Colspan>();
@@ -806,7 +806,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 								}
 								this.columnSpecs[k] = Math.max(this.columnSpecs[k], fix);
 							}
-							this.columnDeses[k] = Math.max(this.columnDeses[k], fix);
+							this.columnDesiredWidths[k] = Math.max(this.columnDesiredWidths[k], fix);
 						}
 					}
 						break;
@@ -822,7 +822,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 								if (pct > this.columnSpecs[k]) {
 									double pctDiff = pct - this.columnSpecs[k];
 									this.columnSpecs[k] += pctDiff;
-									this.columnDeses[k] = 1; // PCT指定には一応なんらかの内容があると判断させるため
+									this.columnDesiredWidths[k] = 1; // PCT指定には一応なんらかの内容があると判断させるため
 								}
 							}
 						}
@@ -836,14 +836,14 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					if (colParams.minSize.getType() == LengthType.ABSOLUTE) {
 						double minSize = colParams.minSize.getLength();
 						this.columnMins[col] = Math.max(minSize, this.columnMins[col]);
-						this.columnDeses[col] = Math.max(minSize, this.columnDeses[col]);
+						this.columnDesiredWidths[col] = Math.max(minSize, this.columnDesiredWidths[col]);
 					}
 					if (colParams.maxSize.getType() == LengthType.ABSOLUTE) {
 						double maxSize = colParams.maxSize.getLength();
 						this.columnMins[col] = Math.min(maxSize, this.columnMins[col]);
 						if (this.columnTypes[col] == COLUMN_TYPE_FIX) {
 							this.columnSpecs[col] = Math.min(maxSize, this.columnSpecs[col]);
-							this.columnDeses[col] = Math.min(maxSize, this.columnDeses[col]);
+							this.columnDesiredWidths[col] = Math.min(maxSize, this.columnDesiredWidths[col]);
 						}
 					}
 
@@ -1022,7 +1022,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 									this.columnSpecs[col] = 0;
 								}
 								this.columnSpecs[col] = Math.max(this.columnSpecs[col], spec);
-								this.columnDeses[col] = Math.max(this.columnMins[col], this.columnSpecs[col]);
+								this.columnDesiredWidths[col] = Math.max(this.columnMins[col], this.columnSpecs[col]);
 							} else {
 								des = Math.max(des, spec);
 							}
@@ -1043,7 +1043,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							throw new IllegalStateException();
 						}
 						if (this.columnTypes[col] != COLUMN_TYPE_FIX) {
-							this.columnDeses[col] = Math.max(this.columnDeses[col], des);
+							this.columnDesiredWidths[col] = Math.max(this.columnDesiredWidths[col], des);
 						}
 					} else {
 						// 連結あり
@@ -1096,10 +1096,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			double spec = fix ? colspan.fix : colspan.des;
 			double desSum = 0;
 			int noFixCount = 0, effCount = 0;
-			double noFixDesSum = 0;
+			double noFixDesiredSum = 0;
 			for (int s = 0; s < colspan.span; ++s) {
 				int k = colspan.col + s;
-				double des = this.columnDeses[k];
+				double des = this.columnDesiredWidths[k];
 				if (des == 0) {
 					continue;
 				}
@@ -1109,21 +1109,21 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					continue;
 				}
 				++noFixCount;
-				noFixDesSum += des;
+				noFixDesiredSum += des;
 			}
 			// 全てのカラムの幅が0なら幅0のカラムを無視しない
 			if (effCount == 0) {
-				noFixDesSum = 0;
+				noFixDesiredSum = 0;
 				for (int s = 0; s < colspan.span; ++s) {
 					int k = colspan.col + s;
-					double des = this.columnDeses[k];
+					double des = this.columnDesiredWidths[k];
 					++effCount;
 					desSum += des;
 					if (this.columnTypes[k] == COLUMN_TYPE_FIX) {
 						continue;
 					}
 					++noFixCount;
-					noFixDesSum += des;
+					noFixDesiredSum += des;
 				}
 			}
 			if (noFixCount == 0 && !fix) {
@@ -1135,28 +1135,28 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					effCount = colspan.span;
 				}
 				if (noFixCount == 0) {
-					noFixDesSum = desSum;
+					noFixDesiredSum = desSum;
 				}
 				double rem = spec - desSum;
 				for (int s = 0; s < colspan.span; ++s) {
 					int k = colspan.col + s;
-					if (effCount != colspan.span && this.columnDeses[k] == 0) {
+					if (effCount != colspan.span && this.columnDesiredWidths[k] == 0) {
 						continue;
 					}
 					if (noFixCount != 0 && this.columnTypes[k] == COLUMN_TYPE_FIX) {
 						continue;
 					}
 					double diff;
-					if (noFixDesSum > 0) {
-						diff = rem * this.columnDeses[k] / noFixDesSum;
+					if (noFixDesiredSum > 0) {
+						diff = rem * this.columnDesiredWidths[k] / noFixDesiredSum;
 					} else {
 						diff = rem / colspan.span;
 					}
-					this.columnDeses[k] += diff;
+					this.columnDesiredWidths[k] += diff;
 					if (this.columnTypes[k] == COLUMN_TYPE_PCT) {
 						continue;
 					}
-					this.columnSpecs[k] = Math.max(this.columnMins[k], this.columnDeses[k]);
+					this.columnSpecs[k] = Math.max(this.columnMins[k], this.columnDesiredWidths[k]);
 				}
 			}
 		}
@@ -1167,7 +1167,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			for (int s = 0; s < colspan.span; ++s) {
 				int k = colspan.col + s;
 				double min = this.columnMins[k];
-				double des = this.columnDeses[k];
+				double des = this.columnDesiredWidths[k];
 				minSum += min;
 				desSum += des;
 				diffSum += (des - min);
@@ -1179,7 +1179,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					for (int s = 0; s < colspan.span; ++s) {
 						int k = colspan.col + s;
 						double min = this.columnMins[k];
-						double des = this.columnDeses[k];
+						double des = this.columnDesiredWidths[k];
 						double diff = dist * (des - min) / diffSum;
 						min = this.columnMins[k] += diff;
 						if (this.columnTypes[k] == COLUMN_TYPE_DES) {
@@ -1190,7 +1190,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				}
 				for (int s = 0; s < colspan.span; ++s) {
 					int k = colspan.col + s;
-					double des = this.columnDeses[k];
+					double des = this.columnDesiredWidths[k];
 					double diff;
 					if (desSum > 0) {
 						diff = rem * des / desSum;
@@ -1198,7 +1198,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						diff = rem / colspan.span;
 					}
 					double min = (this.columnMins[k] += diff);
-					this.columnDeses[k] = Math.max(min, this.columnDeses[k]);
+					this.columnDesiredWidths[k] = Math.max(min, this.columnDesiredWidths[k]);
 					if (this.columnTypes[k] != COLUMN_TYPE_DES) {
 						continue;
 					}
@@ -1218,7 +1218,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			double nonPctSum = 0, desSum = 0;
 			for (int s = 0; s < colspan.span; ++s) {
 				int k = colspan.col + s;
-				double des = this.columnDeses[k];
+				double des = this.columnDesiredWidths[k];
 				desSum += des;
 				if (this.columnTypes[k] == COLUMN_TYPE_PCT) {
 					pctSum += this.columnSpecs[k];
@@ -1240,7 +1240,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					}
 					double diff;
 					if (nonPctSum > 0) {
-						diff = rem * this.columnDeses[k] / nonPctSum;
+						diff = rem * this.columnDesiredWidths[k] / nonPctSum;
 					} else {
 						diff = rem / nonPctCount;
 					}
@@ -1262,7 +1262,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				this.columnSpecs[i] = Math.min(pctRem, this.columnSpecs[i]);
 				pctRem -= this.columnSpecs[i];
 			}
-			this.maxLineSize += Math.max(this.columnMins[i], this.columnDeses[i]);
+			this.maxLineSize += Math.max(this.columnMins[i], this.columnDesiredWidths[i]);
 		}
 		this.minLineSize += tableFrame;
 		this.maxLineSize += tableFrame;
@@ -1602,16 +1602,16 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					if (tableSize < maxTableSize && columnCount > 1) {
 						// パーセント幅によるテーブルの拡張
 						int pctCount = 0, effColumnCount = 0;
-						double pctSum = 0, noPctDesSum = 0;
+						double pctSum = 0, noPctDesiredSum = 0;
 						double w = tableSize - tableFrame;
 						for (int i = 0; i < columnCount; ++i) {
-							double des = this.columnDeses[i];
+							double des = this.columnDesiredWidths[i];
 							if (this.columnTypes[i] != COLUMN_TYPE_PCT && des == 0) {
 								continue;
 							}
 							++effColumnCount;
 							if (this.columnTypes[i] != COLUMN_TYPE_PCT) {
-								noPctDesSum += des;
+								noPctDesiredSum += des;
 								continue;
 							}
 							++pctCount;
@@ -1628,8 +1628,8 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 						if (pctCount != 0 && pctCount != effColumnCount) {
 							if (pctSum != 1 && pctSum != 0) {
-								w = Math.max(w, noPctDesSum / (1 - pctSum));
-							} else if (noPctDesSum > 0) {
+								w = Math.max(w, noPctDesiredSum / (1 - pctSum));
+							} else if (noPctDesiredSum > 0) {
 								w = maxTableSize - tableFrame;
 							}
 						}

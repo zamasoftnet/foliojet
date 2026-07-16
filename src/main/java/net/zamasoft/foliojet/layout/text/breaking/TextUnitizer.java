@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
  *          Exp $
  */
 public class TextUnitizer implements FilterGlyphHandler {
-	protected LineBreakRules hyph;
+	protected LineBreakRules breakRules;
 
 	private GlyphHandler glyphHandler;
 
@@ -26,16 +26,16 @@ public class TextUnitizer implements FilterGlyphHandler {
 
 	private TextControl beforeQuad = null;
 
-	public TextUnitizer(LineBreakRules hyph) {
-		this.hyph = hyph;
+	public TextUnitizer(LineBreakRules breakRules) {
+		this.breakRules = breakRules;
 	}
 
 	public LineBreakRules getLineBreakRules() {
-		return hyph;
+		return breakRules;
 	}
 
-	public void setHyphenation(LineBreakRules hyph) {
-		this.hyph = hyph;
+	public void setLineBreakRules(LineBreakRules breakRules) {
+		this.breakRules = breakRules;
 	}
 
 	public void setGlyphHandler(GlyphHandler glyphHandler) {
@@ -139,7 +139,7 @@ public class TextUnitizer implements FilterGlyphHandler {
 	 */
 	private void nextGlyph(char c1, char c2, int charCount) {
 		if (this.prevChar != 0 && this.prevChar != '\u2060'
-				&& (this.prevChar == '\u200B' || !this.hyph.atomic(this.prevChar, c1))) {
+				&& (this.prevChar == '\u200B' || !this.breakRules.atomic(this.prevChar, c1))) {
 			this.internalFlush();
 		}
 		this.prevChar = c2;

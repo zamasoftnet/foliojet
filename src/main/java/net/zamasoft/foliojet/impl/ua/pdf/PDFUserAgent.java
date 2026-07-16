@@ -36,7 +36,7 @@ import net.zamasoft.foliojet.ua.props.OutputPdfJpegImage;
 import net.zamasoft.foliojet.ua.props.OutputPdfVersion;
 import net.zamasoft.foliojet.ua.props.OutputPdfWatermarkMode;
 import net.zamasoft.foliojet.ua.props.OutputPdfViewerPreferencesDuplex;
-import net.zamasoft.foliojet.ua.props.OutputPdfViewerPreferencesNoneFullScreenPageMode;
+import net.zamasoft.foliojet.ua.props.OutputPdfViewerPreferencesNonFullScreenPageMode;
 import net.zamasoft.foliojet.ua.props.OutputPdfViewerPreferencesPrintScaling;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.SourceMetadata;
