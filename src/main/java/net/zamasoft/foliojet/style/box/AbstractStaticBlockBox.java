@@ -3,6 +3,8 @@ package net.zamasoft.foliojet.style.box;
 import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
 
 import net.zamasoft.foliojet.style.sizing.Sizing;
+import net.zamasoft.foliojet.style.sizing.SizingContext;
+import net.zamasoft.foliojet.style.sizing.SizingMode;
 
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
 
@@ -88,16 +90,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		// ■ 行方向幅の計算
 		//
 		// 論理軸(行方向/ページ方向)で計算し、末尾で物理寸法へ書き戻す。
-		// ページ方向の基準ボックス。
-		AbstractContainerBox fixedPageBox = flow.isVertical() ? layoutStack.getFixedWidthFlowBox()
-				: layoutStack.getFixedHeightFlowBox();
-		if (fixedPageBox == null) {
-			fixedPageBox = containerBox;
-		}
-		// 注: 縦書きでも InnerHeight を参照する(鏡像なら InnerWidth)。既存挙動を温存(要調査)。
-		final double cPage = fixedPageBox.getInnerHeight();
-		final double cLine = table ? containerBox.getInnerLineExtent(flow)
-				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
+		final SizingContext context = this.fitContentContext(layoutStack, containerBox, table);
+		final double cLine = context.availableLine();
 
 		// 行方向: fit-content と min/max クランプ
 		double lineExtent = StyleUtils.computeDimensionLine(this.size, flow, cLine);
@@ -130,12 +124,12 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			lineExtent = minLine;
 		}
 
-		// ページ方向: min/max と指定寸法
+		// ページ方向: min/max と指定寸法。%は percentBasePage が確定している場合のみ解決する
 		double minPage;
 		switch (this.minSize.getPageType(flow)) {
 		case RELATIVE:
-			if (!table && this.isSpecifiedPageSize()) {
-				minPage = this.minSize.getPageLength(flow) * cPage;
+			if (context.isPagePercentDefinite()) {
+				minPage = this.minSize.getPageLength(flow) * context.percentBasePage();
 				break;
 			}
 		case AUTO:
@@ -150,8 +144,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		double maxPage;
 		switch (this.params.maxSize.getPageType(flow)) {
 		case RELATIVE:
-			if (!table && this.isSpecifiedPageSize()) {
-				maxPage = this.params.maxSize.getPageLength(flow) * cPage;
+			if (context.isPagePercentDefinite()) {
+				maxPage = this.params.maxSize.getPageLength(flow) * context.percentBasePage();
 				break;
 			}
 		case AUTO:
@@ -166,8 +160,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		double pageExtent = flow.isVertical() ? this.width : this.height;
 		switch (this.size.getPageType(flow)) {
 		case RELATIVE:
-			if (!table && this.isSpecifiedPageSize()) {
-				pageExtent = this.size.getPageLength(flow) * cPage;
+			if (context.isPagePercentDefinite()) {
+				pageExtent = this.size.getPageLength(flow) * context.percentBasePage();
 				pageExtent = Math.max(pageExtent, minPage);
 				pageExtent = Math.min(pageExtent, maxPage);
 				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
@@ -208,6 +202,32 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 
 		assert !StyleUtils.isNone(this.width);
 		assert !StyleUtils.isNone(this.height);
+	}
+
+	/**
+	 * fit-content サイズ決定のための制約空間を包含コンテキストから導出します。
+	 * 呼び出し前に specifiedPageAxis が確定している必要があります。
+	 *
+	 * @param layoutStack  レイアウトスタック
+	 * @param containerBox 包含ブロック
+	 * @param table        テーブル文脈であればtrue
+	 * @return 制約空間
+	 */
+	private SizingContext fitContentContext(LayoutStack layoutStack, AbstractContainerBox containerBox, boolean table) {
+		final WritingMode flow = this.params.flow;
+		// ページ方向の基準ボックス。
+		AbstractContainerBox fixedPageBox = flow.isVertical() ? layoutStack.getFixedWidthFlowBox()
+				: layoutStack.getFixedHeightFlowBox();
+		if (fixedPageBox == null) {
+			fixedPageBox = containerBox;
+		}
+		// 注: 縦書きでも InnerHeight を参照する(鏡像なら InnerWidth)。既存挙動を温存(要調査)。
+		final double cPage = fixedPageBox.getInnerHeight();
+		final double cLine = table ? containerBox.getInnerLineExtent(flow)
+				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
+		// ページ方向の%は基準が確定している場合のみ解決する
+		final double pagePercentBase = (!table && this.isSpecifiedPageSize()) ? cPage : StyleUtils.NONE;
+		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);
 	}
 
 	public void finishLayout(IFramedBox containerBox) {
