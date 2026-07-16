@@ -276,6 +276,21 @@ public class FlowContainer implements Container {
 		return pageAxis;
 	}
 
+	/**
+	 * 浮動体の行方向寸法の最大値を返します(M2c: 使用行寸法の読み取り用)。
+	 */
+	public double floatingsLineExtent(final WritingMode flow) {
+		double max = 0;
+		if (this.hasFloatings()) {
+			final boolean vertical = flow.isVertical();
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				final Floating floating = this.floatings.getFloating(i);
+				max = Math.max(max, vertical ? floating.box.getHeight() : floating.box.getWidth());
+			}
+		}
+		return max;
+	}
+
 	public double getCutPointBelow(final double pageAxis) {
 		final WritingMode flow = this.box.getBlockParams().flow;
 		double result = 0;

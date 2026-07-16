@@ -138,6 +138,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return 1;
 	}
 
+	/**
+	 * 行方向サイズが AUTO(内容依存)であれば true を返します(M2c)。
+	 */
+	public final boolean isAutoLineSize() {
+		return this.size.getLineType(this.getBlockParams().flow) == LengthType.AUTO;
+	}
+
 	public final boolean canColumnBreak() {
 		final int columnCount = this.getColumnCount();
 		if (columnCount < 2) {
