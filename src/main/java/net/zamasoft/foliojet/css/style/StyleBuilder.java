@@ -145,6 +145,7 @@ import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContent;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJPageContentClear;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJRegeneratable;
+import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
@@ -303,6 +304,21 @@ public class StyleBuilder implements PageGenerator {
 	private final Segment segment = new Segment();
 
 	/**
+	 * レイアウトソースプロトコルログです(M6b v3)。スタイル適用・合成後、
+	 * レイアウト前の doc 入力プロトコル(StartBlock/Chars/EndBlock)を
+	 * 記録します。改ページ残余の再生はこのログから、ライブ状態に
+	 * 無干渉な専用ドライバが行います。
+	 */
+	private final LayoutSource layoutSource = new LayoutSource();
+
+	/**
+	 * レイアウトソースログを返します(M6b v3)。
+	 */
+	public LayoutSource getLayoutSource() {
+		return this.layoutSource;
+	}
+
+	/**
 	 * 0 より大きい間、本流セグメント記録を抑止します(M6b Phase B:
 	 * 尾部再生での再オープンは元の開いている Start と二重記録になるため)。
 	 */
@@ -396,7 +412,37 @@ public class StyleBuilder implements PageGenerator {
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		box.getParams().sourceIndex = this.segment.size() - 1;
 		box.getParams().sourceEpoch = this.segment.getEpoch();
+		// レイアウトソースプロトコルの記録(M6b v3)。純粋な FlowBlockBox は
+		// params/pos から再インスタンス化できるため再生可能として記録し、
+		// それ以外(inline/table/replaced/multicol 等)は Opaque として
+		// 位置だけ占有する(範囲に Opaque を含む再生はフォールバック)
+		if (box.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
+				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.BlockParams blockParams) {
+			box.getParams().sourceEventId = this.layoutSource
+					.append(new LayoutSource.StartBlock(blockParams, box.getPos()));
+		} else {
+			box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Opaque());
+		}
 		this.doc.startBox(box);
+	}
+
+	/**
+	 * ボックスの終了をログに記録してから doc に渡します(M6b v3)。
+	 */
+	private void endBox() {
+		this.layoutSource.append(new LayoutSource.EndBlock());
+		this.doc.endBox();
+	}
+
+	/**
+	 * テキストをログに記録してから doc に渡します(M6b v3)。
+	 */
+	private void docCharacters(final int charOffset, final char[] ch, final int off, final int len,
+			final boolean fixed) {
+		final char[] copy = new char[len];
+		System.arraycopy(ch, off, copy, 0, len);
+		this.layoutSource.append(new LayoutSource.Chars(charOffset, copy));
+		this.doc.characters(charOffset, ch, off, len, fixed);
 	}
 
 	private static final byte STATE_RESTYLE_RUN_IN = 1;
@@ -1245,7 +1291,7 @@ public class StyleBuilder implements PageGenerator {
 				params.lineBreakRules = lang.getLineBreakRules(style);
 				final InlineBox inlineBox = new InlineBox(params, pos);
 				this.startBox(inlineBox);
-				this.doc.endBox();
+				this.endBox();
 				this.toPageContent.put(ce, pageContent);
 				this.pageContentStack.add(pageContent);
 			}
@@ -1367,7 +1413,7 @@ public class StyleBuilder implements PageGenerator {
 							// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
 							FlowBlockBox flowBox = new FlowBlockBox(params, pos);
 							this.startBox(flowBox);
-							this.doc.endBox();
+							this.endBox();
 						}
 					}
 
@@ -1523,7 +1569,7 @@ public class StyleBuilder implements PageGenerator {
 									if (str.length() > 0) {
 										char[] ch = str.toCharArray();
 										this.checkMarker();
-										this.doc.characters(-1, ch, 0, ch.length, true);
+										this.docCharacters(-1, ch, 0, ch.length, true);
 									}
 								}
 									break;
@@ -1581,7 +1627,7 @@ public class StyleBuilder implements PageGenerator {
 											if (!first && delim != null && delim.length() > 0) {
 												char[] ch = delim.toCharArray();
 												this.checkMarker();
-												this.doc.characters(-1, ch, 0, ch.length, true);
+												this.docCharacters(-1, ch, 0, ch.length, true);
 											}
 											first = false;
 											final int number = scope.get(name);
@@ -1603,7 +1649,7 @@ public class StyleBuilder implements PageGenerator {
 											if (str.length() > 0) {
 												char[] ch = str.toCharArray();
 												this.checkMarker();
-												this.doc.characters(-1, ch, 0, ch.length, true);
+												this.docCharacters(-1, ch, 0, ch.length, true);
 											}
 										}
 										++this.quoteLevel;
@@ -1619,7 +1665,7 @@ public class StyleBuilder implements PageGenerator {
 												if (str.length() > 0) {
 													char[] ch = str.toCharArray();
 													this.checkMarker();
-													this.doc.characters(-1, ch, 0, ch.length, true);
+													this.docCharacters(-1, ch, 0, ch.length, true);
 												}
 											}
 										}
@@ -1651,7 +1697,7 @@ public class StyleBuilder implements PageGenerator {
 										if (str != null && str.length() > 0) {
 											char[] ch = str.toCharArray();
 											this.checkMarker();
-											this.doc.characters(-1, ch, 0, ch.length, true);
+											this.docCharacters(-1, ch, 0, ch.length, true);
 										}
 									}
 								}
@@ -1666,7 +1712,7 @@ public class StyleBuilder implements PageGenerator {
 									if (str != null && str.length() > 0) {
 										char[] ch = str.toCharArray();
 										this.checkMarker();
-										this.doc.characters(-1, ch, 0, ch.length, true);
+										this.docCharacters(-1, ch, 0, ch.length, true);
 									}
 								}
 									break;
@@ -1680,7 +1726,7 @@ public class StyleBuilder implements PageGenerator {
 									if (str != null && str.length() > 0) {
 										char[] ch = str.toCharArray();
 										this.checkMarker();
-										this.doc.characters(-1, ch, 0, ch.length, true);
+										this.docCharacters(-1, ch, 0, ch.length, true);
 									}
 								}
 									break;
@@ -1691,7 +1737,7 @@ public class StyleBuilder implements PageGenerator {
 									if (str != null && str.length() > 0) {
 										char[] ch = str.toCharArray();
 										this.checkMarker();
-										this.doc.characters(-1, ch, 0, ch.length, true);
+										this.docCharacters(-1, ch, 0, ch.length, true);
 									}
 								}
 									break;
@@ -1778,7 +1824,7 @@ public class StyleBuilder implements PageGenerator {
 			char[] ch = str.toCharArray();
 			this.checkMarker();
 			// カウンタ
-			this.doc.characters(-1, ch, 0, ch.length, true);
+			this.docCharacters(-1, ch, 0, ch.length, true);
 		} else {
 			final ReplacedParams rparams = new ReplacedParams();
 			this.setupParams(rparams, style);
@@ -1844,7 +1890,7 @@ public class StyleBuilder implements PageGenerator {
 			}
 			this.checkMarker();
 			// ページ参照
-			this.doc.characters(-1, ch, 0, ch.length, true);
+			this.docCharacters(-1, ch, 0, ch.length, true);
 		} catch (URISyntaxException e) {
 			this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
 		}
@@ -2342,7 +2388,7 @@ public class StyleBuilder implements PageGenerator {
 								.getLanguageProfile(this.currentStyle.getCSSElement().lang);
 						int first = lang.countFirstLetter(ch, off, len);
 						this.checkMarker();
-						this.doc.characters(charOffset, ch, off, first, false);
+						this.docCharacters(charOffset, ch, off, first, false);
 						len -= first;
 						off += first;
 						charOffset += first;
@@ -2378,7 +2424,7 @@ public class StyleBuilder implements PageGenerator {
 
 			String em = TextEmphasisStyle.get(this.currentStyle);
 			if (em == null || em.length() == 0) {
-				this.doc.characters(charOffset, ch, off, len, false);
+				this.docCharacters(charOffset, ch, off, len, false);
 			} else {
 				// 圏点
 				final char[] emc = em.toCharArray();
@@ -2415,9 +2461,9 @@ public class StyleBuilder implements PageGenerator {
 					}
 					et.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 					this._startStyle(et);
-					this.doc.characters(-1, emc, 0, 1, false);
+					this.docCharacters(-1, emc, 0, 1, false);
 					this._endStyle();
-					this.doc.characters(charOffset, ch, i + off, 1, false);
+					this.docCharacters(charOffset, ch, i + off, 1, false);
 					this._endStyle();
 				}
 			}
@@ -2492,11 +2538,11 @@ public class StyleBuilder implements PageGenerator {
 		this.startBox(marker.box);
 		if (marker.text != null) {
 			// マーカーのテキスト
-			this.doc.characters(-1, marker.text, 0, marker.text.length, false);
+			this.docCharacters(-1, marker.text, 0, marker.text.length, false);
 		} else if (marker.imageBox != null) {
 			this.doc.addReplacedBox(marker.imageBox);
 		}
-		this.doc.endBox();
+		this.endBox();
 	}
 
 	private void _endStyle() {
@@ -2507,7 +2553,7 @@ public class StyleBuilder implements PageGenerator {
 			this._startStyle(style);
 		}
 		if (CSSJInternalImage.getImage(style) == null) {
-			this.doc.endBox();
+			this.endBox();
 		}
 		switch (Display.get(style)) {
 		case DisplayValue.TABLE:
@@ -2681,6 +2727,9 @@ public class StyleBuilder implements PageGenerator {
 	public PageBox nextPage() {
 		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
 		this.segment.trimToOpenElements();
+		// レイアウトソースログの暫定 compaction(M6b v3: 記録のみの段階の
+		// メモリ有界化。v3-3 で水位を「最古の未消費再開点」に精密化する)
+		this.layoutSource.compact(this.layoutSource.nextId());
 		// ページスタイル
 		this.pageElement = this.imposition.nextPageSide();
 		Declaration declaration = this.styleContext.nextPage(this.pageElement);

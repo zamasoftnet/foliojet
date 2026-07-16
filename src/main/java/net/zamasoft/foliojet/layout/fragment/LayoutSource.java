@@ -29,7 +29,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource {
-	public sealed interface Event permits StartBlock, Chars, EndBlock {
+	public sealed interface Event permits StartBlock, Chars, EndBlock, Opaque {
 	}
 
 	/**
@@ -49,6 +49,14 @@ public final class LayoutSource {
 	 * ブロックの終了です。
 	 */
 	public record EndBlock() implements Event {
+	}
+
+	/**
+	 * まだ再生に対応していないイベントです(置換要素・表など)。
+	 * ログの完全性(正直な全記録)のために位置だけ占有し、範囲に
+	 * これを含む再生要求はフォールバックさせます。
+	 */
+	public record Opaque() implements Event {
 	}
 
 	private record Entry(long id, Event event) {
@@ -133,6 +141,8 @@ public final class LayoutSource {
 			}
 			case Chars chars -> {
 			}
+			case Opaque opaque -> {
+			}
 			}
 		}
 		kept.addAll(open);
@@ -165,9 +175,32 @@ public final class LayoutSource {
 			}
 			case Chars chars -> {
 			}
+			case Opaque opaque -> {
+			}
 			}
 		}
 		return -1;
+	}
+
+	/**
+	 * [fromId, toId] の範囲に Opaque(再生非対応)イベントが
+	 * 含まれていれば true を返します。
+	 */
+	public boolean containsOpaque(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Opaque) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

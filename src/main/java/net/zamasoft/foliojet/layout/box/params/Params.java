@@ -36,6 +36,12 @@ public abstract class Params {
 	public int sourceEpoch = -1;
 
 	/**
+	 * この内容を生んだ LayoutSource のイベントID(M6b v3)。付与時から
+	 * 不変で、compaction 後も安定です。本流以外・記録前の内容は -1。
+	 */
+	public long sourceEventId = -1;
+
+	/**
 	 * ボックスの奥行きです。
 	 */
 	public int zIndexValue = 0;
