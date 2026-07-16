@@ -204,6 +204,11 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		if (pageLimit < 0) {
 			pageLimit = 0;
 		}
+		// 分割されたボックスの断片は「継続物」(フレーム切断・内容消費が進行)
+		// であり、ソースから新品を再生してはならない。params は断片間で共有
+		// されるためアンカーを無効化する(M6b v3。無効化しないと再生が
+		// 分割進捗を巻き戻し、収まらない内容で無限改ページに陥る)
+		this.params.sourceEventId = -1;
 		final AbsoluteRectFrame prevFrame, nextFrame;
 		final AbstractBlockBox nextBlock;
 		if (this.params.flow.isVertical()) {

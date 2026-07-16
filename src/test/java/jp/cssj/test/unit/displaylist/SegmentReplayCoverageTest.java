@@ -33,7 +33,7 @@ public class SegmentReplayCoverageTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	public void testSubtreeReplayFires() throws Exception {
-		if (!Boolean.getBoolean("foliojet.segmentRestyle")) {
+		if (Boolean.getBoolean("foliojet.noSegmentRestyle")) {
 			// 実験フラグOFF時は対象経路が無効(box-restyle のみ)
 			return;
 		}
@@ -45,7 +45,7 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	public void testTextTailReplayFires() throws Exception {
-		if (!Boolean.getBoolean("foliojet.segmentRestyle")) {
+		if (Boolean.getBoolean("foliojet.noSegmentRestyle")) {
 			// 実験フラグOFF時は対象経路が無効(box-restyle のみ)
 			return;
 		}

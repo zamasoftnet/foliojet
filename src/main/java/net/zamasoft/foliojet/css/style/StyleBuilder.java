@@ -431,6 +431,16 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	/**
+	 * 置換要素を Opaque としてログに記録してから doc に渡します(M6b v3)。
+	 * 記録しないと、置換要素を含む部分木が「再生可能」に見えて内容が
+	 * 失われる(サイレントホールの防止)。
+	 */
+	private void addReplacedBox(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
+		box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Opaque());
+		this.doc.addReplacedBox(box);
+	}
+
+	/**
 	 * ボックスの終了をログに記録してから doc に渡します(M6b v3)。
 	 */
 	private void endBox() {
@@ -1590,7 +1600,7 @@ public class StyleBuilder implements PageGenerator {
 											AbstractReplacedBox replaced = new InlineReplacedBox(rparams,
 													new InlinePos());
 											this.checkMarker();
-											this.doc.addReplacedBox(replaced);
+											this.addReplacedBox(replaced);
 										} finally {
 											this.ua.release(source);
 										}
@@ -1836,7 +1846,7 @@ public class StyleBuilder implements PageGenerator {
 			if (rparams.image != null) {
 				final AbstractReplacedBox replaced = new InlineReplacedBox(rparams, new InlinePos());
 				this.checkMarker();
-				this.doc.addReplacedBox(replaced);
+				this.addReplacedBox(replaced);
 			}
 		}
 	}
@@ -2131,7 +2141,7 @@ public class StyleBuilder implements PageGenerator {
 				if (inline) {
 					this.checkMarker();
 				}
-				this.doc.addReplacedBox(replacedBox);
+				this.addReplacedBox(replacedBox);
 			} else {
 				// ブロックボックス
 				final BlockParams params = new BlockParams();
@@ -2166,7 +2176,7 @@ public class StyleBuilder implements PageGenerator {
 				AbstractReplacedBox replaced = new InlineReplacedBox(params, pos);
 				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
 				this.checkMarker();
-				this.doc.addReplacedBox(replaced);
+				this.addReplacedBox(replaced);
 			} else {
 				// インラインボックス
 				InlineParams params = new InlineParams();
@@ -2544,7 +2554,7 @@ public class StyleBuilder implements PageGenerator {
 			// マーカーのテキスト
 			this.docCharacters(-1, marker.text, 0, marker.text.length, false);
 		} else if (marker.imageBox != null) {
-			this.doc.addReplacedBox(marker.imageBox);
+			this.addReplacedBox(marker.imageBox);
 		}
 		this.endBox();
 	}
