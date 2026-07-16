@@ -105,6 +105,10 @@ public final class SourceReplayer {
 				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
 		case MARKER -> new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox((BlockParams) start.params(),
 				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
+		case FLOAT_BLOCK -> new net.zamasoft.foliojet.layout.box.impl.FloatBlockBox((BlockParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.FloatPos) start.pos());
+		case INLINE_BLOCK -> new net.zamasoft.foliojet.layout.box.impl.InlineBlockBox((BlockParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
 		};
 	}
 

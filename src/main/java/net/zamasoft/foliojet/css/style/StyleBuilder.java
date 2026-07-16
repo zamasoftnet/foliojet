@@ -379,6 +379,10 @@ public class StyleBuilder implements PageGenerator {
 		if (type == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class) {
 			return LayoutSource.BoxKind.MARKER;
 		}
+		// FLOAT_BLOCK/INLINE_BLOCK は再生時の係留経路が通常構築と異なり
+		// 未解決(フロートは PageBox.addFloating に落ちて Unsupported、
+		// 実測: 2026-07-17)。box-restyle の Floating.restyle 経路との
+		// 整合を設計してから解禁する
 		return null;
 	}
 

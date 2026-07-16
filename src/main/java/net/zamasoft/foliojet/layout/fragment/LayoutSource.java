@@ -43,7 +43,11 @@ public final class LayoutSource {
 		/** インライン(InlineBox)。 */
 		INLINE,
 		/** 外置きリストマーカー(OutsideMarkerBox)。 */
-		MARKER;
+		MARKER,
+		/** 浮動ブロック(FloatBlockBox)。 */
+		FLOAT_BLOCK,
+		/** インラインブロック(InlineBlockBox)。 */
+		INLINE_BLOCK;
 	}
 
 	/**
