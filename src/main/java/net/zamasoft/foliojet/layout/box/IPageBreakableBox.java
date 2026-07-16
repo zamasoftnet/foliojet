@@ -45,7 +45,7 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_COLUMN = 16;
 
 	/**
-	 * ボックスをページ方向に分割します。
+	 * ボックスをページ方向に分割します(M4-A3: SplitResult ネイティブ)。
 	 *
 	 * @param pageLimit ボックスの外辺(ページ方向始端)から分割位置までの長さです。
 	 * @param mode      分割モード。自動改ページは AutoBreakMode、強制改ページは
@@ -58,31 +58,9 @@ public interface IPageBreakableBox extends IBox {
 	 *                  FLAGS_SPLIT=必ず内部で切断する。
 	 *                  FLAGS_FIRST_ROW=FLAGS_FIRST のテーブル行変種(ページ先頭行)。
 	 *                  FLAGS_COLUMN=改ページではなく改段(マルチカラム)である。
-	 * @return 分割せず前のページに残す場合は null。全体を次のページに移動する場合は
-	 *         このボックス自身(同一参照)。内部で切断した場合は次のページに送る
-	 *         残余オブジェクト(このボックスは前ページ分のみを保持するよう変異済み)。
+	 * @return 切断結果。KEEP=分割せず前のページに残す。MOVE=全体を次のページに
+	 *         移動する。Split(remainder)=内部で切断した(このボックスは前ページ分
+	 *         のみを保持するよう変異済みで、remainder を次のページに送る)。
 	 */
-	public IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags);
-
-	/**
-	 * splitPageAxis の型付きアダプタです(柱2c/M4-A1)。三義的返値
-	 * (null/this/新オブジェクト)の解釈をこの一箇所に集約します。
-	 * 実装の内部が SplitResult ネイティブになった段階(M4-A2以降)で
-	 * こちらが正になり、splitPageAxis が廃止されます。
-	 *
-	 * @param pageLimit ボックスの外辺から分割位置までの長さ
-	 * @param mode      分割モード
-	 * @param flags     FLAGS_* のビット和
-	 * @return 切断結果
-	 */
-	public default SplitResult split(double pageLimit, BreakMode mode, byte flags) {
-		final IPageBreakableBox next = this.splitPageAxis(pageLimit, mode, flags);
-		if (next == null) {
-			return SplitResult.KEEP;
-		}
-		if (next == this) {
-			return SplitResult.MOVE;
-		}
-		return new SplitResult.Split(next);
-	}
+	public SplitResult split(double pageLimit, BreakMode mode, byte flags);
 }

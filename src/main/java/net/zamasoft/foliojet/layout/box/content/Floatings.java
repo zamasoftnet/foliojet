@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 
@@ -152,8 +153,11 @@ public class Floatings {
 							&& vertical == params.flow.isVertical()) {
 						byte xflags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
 						double pageAxis = pageLimit - floating.pageAxis;
-						nextBox = (IFloatBox) containerBox.splitPageAxis(pageAxis, BreakMode.DEFAULT_BREAK_MODE,
-								xflags);
+						nextBox = switch (containerBox.split(pageAxis, BreakMode.DEFAULT_BREAK_MODE, xflags)) {
+						case SplitResult.Keep keep -> null;
+						case SplitResult.Move move -> floating.box;
+						case SplitResult.Split(final IPageBreakableBox remainder) -> (IFloatBox) remainder;
+						};
 						break;
 					}
 					// 改ページ禁止されていた場合、ページ進行方向が違う場合は置換されたボックスと同じ処理

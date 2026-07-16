@@ -16,6 +16,7 @@ import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.TableForceBreakMode;
 import net.zamasoft.foliojet.layout.box.params.Params;
@@ -500,7 +501,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// System.err.println("TABLE A: flags=" + flags + "/pageLimit=" +
 		// pageLimit
@@ -524,8 +525,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			if (row != -1) {
 				assert force.box.getType() == BoxType.TABLE_ROW || force.box.getType() == BoxType.TABLE_ROW_GROUP;
 				TableRowGroupBox rowGroupBox = (TableRowGroupBox) this.bodyGroups.get(rowGroup);
-				TableRowGroupBox newRowGroupBox = (TableRowGroupBox) rowGroupBox.splitPageAxis(pageLimit, mode,
-						(byte) 0);
+				TableRowGroupBox newRowGroupBox = (TableRowGroupBox) ((SplitResult.Split) rowGroupBox.split(pageLimit,
+						mode, (byte) 0)).remainder();
 				nextTable.addTableBody(newRowGroupBox);
 				if (vertical) {
 					this.width -= newRowGroupBox.getPageSize();
@@ -548,15 +549,15 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				// つぶし境界
 				nextTable.borders = this.borders.splitPageAxis(this, nextTable, origBodyRowCount);
 			}
-			return nextTable;
+			return new SplitResult.Split(nextTable);
 		}
 
 		if (this.bodyGroups == null || this.bodyGroups.isEmpty()) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return null;
+				return SplitResult.KEEP;
 			}
 			// 全部移動
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		if (vertical) {
@@ -598,10 +599,10 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		// テーブルのヘッダとフッタがおさまらない
 		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return null;
+				return SplitResult.KEEP;
 			}
 			// 全部移動
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		TableBox nextTable = null;
@@ -621,13 +622,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			if (i > 0) {
 				lflags ^= IPageBreakableBox.FLAGS_FIRST;
 			}
-			final TableRowGroupBox nextRowGroup = (TableRowGroupBox) prevRowGroup.splitPageAxis(pageLimit, mode,
-					(byte) (lflags & flags));
-			assert nextTable == null || nextRowGroup != null;
+			final SplitResult groupResult = prevRowGroup.split(pageLimit, mode, (byte) (lflags & flags));
+			assert nextTable == null || !(groupResult instanceof SplitResult.Keep);
 			// System.err.println("TABLE D:
 			// "+lflags+"/"+flags+"/"+index+"/"+(nextTable
 			// != null)+"/"+(nextRowGroup != null));
-			if (nextRowGroup == null) {
+			if (groupResult instanceof SplitResult.Keep) {
 				if (!ignoreBreakAvoid && i == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 					// ページ先頭の場合は改ページ禁止を無視してやりなおす
 					ignoreBreakAvoid = true;
@@ -638,11 +638,11 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				pageLimit -= prevRowGroupSize;
 				continue;
 			}
-			if (nextRowGroup == prevRowGroup) {
+			if (groupResult instanceof SplitResult.Move) {
 				if (i == 0) {
 					// 全部移動
 					assert (flags & IPageBreakableBox.FLAGS_FIRST) == 0;
-					return this;
+					return SplitResult.MOVE;
 				}
 				if (!ignoreBreakAvoid) {
 					TableRowGroupBox beforeGroup = (TableRowGroupBox) this.bodyGroups.get(i - 1);
@@ -674,16 +674,16 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			} else {
 				this.height -= prevRowGroupSize;
 			}
-			nextTable.addTableBody(nextRowGroup);
+			nextTable.addTableBody((TableRowGroupBox) ((SplitResult.Split) groupResult).remainder());
 			++i;
 			break;
 		}
 
 		if (nextTable == null) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return null;
+				return SplitResult.KEEP;
 			}
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		int remove = 0;
@@ -714,7 +714,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			// つぶし境界
 			nextTable.borders = this.borders.splitPageAxis(this, nextTable, origBodyRowCount);
 		}
-		return nextTable;
+		return new SplitResult.Split(nextTable);
 	}
 
 	public final TableBox splitTableBox() {

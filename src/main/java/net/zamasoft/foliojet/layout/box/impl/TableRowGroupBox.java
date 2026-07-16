@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
@@ -185,7 +186,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, final byte flags) {
+	public final SplitResult split(double pageLimit, BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// System.err.println("TRG A:" + pageLimit + "/" + mode
 		// + "/" + flags+"/"+this.getHeight() + "/"
@@ -205,30 +206,30 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					this.rows.remove(j);
 				}
 			}
-			return nextRowGroup;
+			return new SplitResult.Split(nextRowGroup);
 		}
 
 		if (LayoutUtils.compare(pageLimit, 0) < 0) {
 			// 切断線より下にある場合
-			return null;
+			return SplitResult.KEEP;
 		}
 		if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
 			// 移動なし
-			return null;
+			return SplitResult.KEEP;
 		}
 		InnerTableParams con = this.params;
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
 				&& (con.pageBreakInside == PageBreakMode.AVOID || LayoutUtils.compare(pageLimit, 0) < 0)) {
 			// 全部移動
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		// 空の場合
 		if (this.rows == null || this.rows.isEmpty()) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return null;
+				return SplitResult.KEEP;
 			}
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		// はみ出した行を移動
@@ -275,11 +276,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					xflags |= IPageBreakableBox.FLAGS_FIRST_ROW;
 				}
 			}
-			final TableRowBox nextRow = (TableRowBox) prevRow.splitPageAxis(pageLimit, mode, xflags);
+			final SplitResult rowResult = prevRow.split(pageLimit, mode, xflags);
 			// System.err.println("TRG C: xflags=" + xflags + "/row=" + i
 			// + "/pageLimit=" + pageLimit + "/pass="
 			// + (nextRow == prevRow) + "/leave=" + (nextRow == null));
-			if (nextRow == null) {
+			if (rowResult instanceof SplitResult.Keep) {
 				if (!ignoreBreakAvoid && i == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 					// ページ先頭の場合は改ページ禁止を無視してやりなおす
 					ignoreBreakAvoid = true;
@@ -291,11 +292,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				continue;
 			}
 			// 一度分割されたら、以降は持ち越し
-			if (nextRow == prevRow) {
+			if (rowResult instanceof SplitResult.Move) {
 				if (i == 0) {
 					// 先頭の場合は全体を移動
 					assert ((xflags & IPageBreakableBox.FLAGS_FIRST) == 0);
-					return this;
+					return SplitResult.MOVE;
 				}
 				TableRowBox beforeRow = (TableRowBox) this.rows.get(i - 1);
 				if (!ignoreBreakAvoid) {
@@ -363,7 +364,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					break;
 				}
 				if (breakAvoid) {
-					return null;
+					return SplitResult.KEEP;
 				}
 
 				// 持ち越す際に縦に連結されたセルを分割する
@@ -376,7 +377,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			this.pageSize -= prevRowSize;
 			// System.err.println("D:" + prevRow.getHeight() +"/"+
 			// nextRow.getHeight()+"/"+(nextRow == prevRow));
-			nextRowGroup.addTableRow(nextRow);
+			nextRowGroup.addTableRow((TableRowBox) ((SplitResult.Split) rowResult).remainder());
 			++i;
 			break;
 		}
@@ -384,9 +385,9 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		// this.rows.size());
 		if (nextRowGroup == null) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return null;
+				return SplitResult.KEEP;
 			}
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		int remove = 0;
@@ -399,7 +400,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		for (int j = 0; j < remove; ++j) {
 			this.rows.remove(this.rows.size() - 1);
 		}
-		return nextRowGroup;
+		return new SplitResult.Split(nextRowGroup);
 	}
 
 	private TableRowGroupBox splitTableRowGroup() {

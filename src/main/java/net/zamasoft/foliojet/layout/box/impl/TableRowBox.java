@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
@@ -325,7 +326,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		}
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// System.err.println("A:" + flags + "/" + pageLimit + "/" + mode
 		// + "/" + this.getHeight()+"/"+this.params.augmentation);
@@ -336,7 +337,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				// ページ頭ではない場合
 				if (LayoutUtils.compare(pageLimit, 0) < 0) {
 					// 切断線より下にある場合
-					return this;
+					return SplitResult.MOVE;
 				}
 				if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
 					// 切断線より上にある場合
@@ -351,7 +352,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					}
 					if (leave) {
 						// 移動なし
-						return null;
+						return SplitResult.KEEP;
 					}
 				}
 				boolean breakAvoid = false;
@@ -365,7 +366,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 						BlockParams cellParams = cell.getCellBox().getBlockParams();
 						// 書字方向が違う場合は改ページ禁止
 						if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
-							return this;
+							return SplitResult.MOVE;
 						}
 						if (cellParams.pageBreakInside == PageBreakMode.AVOID) {
 							// セルの改ページ禁止
@@ -374,20 +375,20 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					}
 				}
 				if (breakAvoid && (flags & IPageBreakableBox.FLAGS_FIRST_ROW) == 0) {
-					return this;
+					return SplitResult.MOVE;
 				}
 			} else {
 				// ページ頭の場合
 				if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
 					// rowspanによる連結のはみ出しがあったとしても、あとの処理で切る
-					return null;
+					return SplitResult.KEEP;
 				}
 				// 書字方向が違う場合は移動しない
 				for (int i = 0; i < this.cells.size(); ++i) {
 					Cell cell = (Cell) this.cells.get(i);
 					BlockParams cellParams = cell.getCellBox().getBlockParams();
 					if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
-						return null;
+						return SplitResult.KEEP;
 					}
 				}
 				// 上部境界がなく、高さがゼロのセルが存在すれば分割を諦める
@@ -396,7 +397,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					TableCellBox cellBox = cell.getCellBox();
 					if (cellBox.getFrame().getFramePageStart(this.tableParams.flow) <= 0
 							&& LayoutUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0) {
-						return null;
+						return SplitResult.KEEP;
 					}
 				}
 			}
@@ -429,20 +430,20 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 			}
 			// System.err.println(prevCellBox.getInnerHeight());
-			nextCellBox = (TableCellBox) prevCellBox.splitPageAxis(cutPageAxis, mode, xflags);
+			final SplitResult cellResult = prevCellBox.split(cutPageAxis, mode, xflags);
 			// System.err.println("TR C: " + i + "/" + xflags + "/pass="
 			// + (nextCellBox == prevCellBox) + "/leave="
 			// + (nextCellBox == null) + "/" + mode + "/" + cutPageAxis);
-			if (nextCellBox == null || nextCellBox == prevCellBox) {
+			if (cellResult instanceof SplitResult.Split(final IPageBreakableBox cellRemainder)) {
+				nextCellBox = (TableCellBox) cellRemainder;
+			} else {
 				if (nextRowBox == null) {
 					continue;
 				}
 				// 他に分割されたセルがある場合、強制切断する
-				// System.err.println("B another cell splitted =" + xflags);
 				byte xxflags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
-				nextCellBox = (TableCellBox) prevCellBox.splitPageAxis(cutPageAxis, mode, xxflags);
-				assert nextCellBox != null;
-				assert nextCellBox != prevCellBox;
+				nextCellBox = (TableCellBox) ((SplitResult.Split) prevCellBox.split(cutPageAxis, mode, xxflags))
+						.remainder();
 			}
 			// System.err.println("TR C: " + i + "/prevHeight="
 			// + prevCellBox.getInnerHeight() + "/" + cutPageAxis);
@@ -468,9 +469,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 						}
 					}
 					byte xxflags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
-					TableCellBox nextCell2 = (TableCellBox) prevCell2.splitPageAxis(cutPageAxis2, mode, xxflags);
-					assert nextCell2 != null;
-					assert nextCell2 != prevCell2;
+					TableCellBox nextCell2 = (TableCellBox) ((SplitResult.Split) prevCell2.split(cutPageAxis2, mode,
+							xxflags)).remainder();
 					// System.err.println("TR D: " + j + "/cell splitted ="
 					// + prevCell2.getInnerHeight() + "/"
 					// + nextCell2.getInnerHeight());
@@ -519,10 +519,10 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		// null)+"/"+flags);
 		if (nextRowBox == null) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return null;
+				return SplitResult.KEEP;
 			}
 			// 現在の行を持ち越す
-			return this;
+			return SplitResult.MOVE;
 		}
 
 		// 分割の後処理
@@ -542,7 +542,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				nextCell.setHeight(rowSize);
 			}
 		}
-		return nextRowBox;
+		return new SplitResult.Split(nextRowBox);
 	}
 
 	public final void cutRowspanCells() {
@@ -564,10 +564,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				cutPageAxis += xcell.getTableRow().getPageSize();
 			}
 			// System.err.println(cutPageAxis);
-			TableCellBox nextCell = (TableCellBox) prevCell.splitPageAxis(cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
-					IPageBreakableBox.FLAGS_SPLIT);
-			assert nextCell != null;
-			assert nextCell != prevCell;
+			TableCellBox nextCell = (TableCellBox) ((SplitResult.Split) prevCell.split(cutPageAxis,
+					BreakMode.DEFAULT_BREAK_MODE, IPageBreakableBox.FLAGS_SPLIT)).remainder();
 			if (vertical) {
 				prevCell.setWidth(cutPageAxis);
 			} else {

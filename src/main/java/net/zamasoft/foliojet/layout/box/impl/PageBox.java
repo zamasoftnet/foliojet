@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
@@ -316,7 +317,7 @@ public class PageBox extends AbstractBlockBox {
 		return true;
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		throw new UnsupportedOperationException();
 	}
 

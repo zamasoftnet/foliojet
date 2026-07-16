@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
@@ -444,21 +445,22 @@ public class TableCellBox extends AbstractContainerBox {
 		return cell;
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		pageLimit -= this.verticalAlign;
-		TableCellBox nextBox = (TableCellBox) super.splitPageAxis(pageLimit, mode, flags);
+		final SplitResult result = super.split(pageLimit, mode, flags);
 		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode
 		// + "/flags=" + flags + "/" + (nextBox == null) + "/"
 		// + (nextBox == this));
-		if (nextBox == null || nextBox == this) {
-			assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0 : (nextBox != null);
-			return nextBox;
+		if (!(result instanceof SplitResult.Split(final IPageBreakableBox remainder))) {
+			assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0;
+			return result;
 		}
+		final TableCellBox nextBox = (TableCellBox) remainder;
 		if (this.container.hasFloatings()) {
 			pageLimit -= this.frame.getFramePageStart(this.params.flow);
 			this.container.splitFloatings(nextBox.container, pageLimit, flags);
 		}
-		return nextBox;
+		return result;
 	}
 }

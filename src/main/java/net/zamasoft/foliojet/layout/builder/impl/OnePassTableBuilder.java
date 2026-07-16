@@ -26,6 +26,7 @@ import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.TableForceBreakMode;
@@ -1501,11 +1502,11 @@ public class OnePassTableBuilder implements TableBuilder {
 			// テーブルの改ページ禁止
 			return false;
 		}
-		TableRowGroupBox nextRowGroupBox = (TableRowGroupBox) rowGroupBox.splitPageAxis(pageLimit, mode, flags);
-		if (nextRowGroupBox == null || nextRowGroupBox == rowGroupBox) {
+		if (!(rowGroupBox.split(pageLimit, mode, flags) instanceof SplitResult.Split(final IPageBreakableBox groupRemainder))) {
 			// 分割不可能
 			return false;
 		}
+		TableRowGroupBox nextRowGroupBox = (TableRowGroupBox) groupRemainder;
 		// System.out.println("B;" + +rowGroupBox.getHeight() + "/"
 		// + rowGroupBox.getTableRowCount());
 		this.tableBox.addTableBody(rowGroupBox);

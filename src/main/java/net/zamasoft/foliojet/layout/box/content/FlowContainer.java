@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.box.content;
 
 import net.zamasoft.foliojet.layout.fragment.FlowCutter;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
@@ -570,10 +571,9 @@ public class FlowContainer implements Container {
 				}
 				Flow flow = (Flow) this.flows.get(index);
 				IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
-				IFlowBox nextFlowBox = (IFlowBox) flowBox.splitPageAxis(pageLimit - flow.pageAxis, mode,
-						(byte) (lflags & flags));
-				assert nextFlowBox != null : "force break failed";
-				assert nextFlowBox != flowBox;
+				final SplitResult forceResult = flowBox.split(pageLimit - flow.pageAxis, mode, (byte) (lflags & flags));
+				assert forceResult instanceof SplitResult.Split : "force break failed";
+				IFlowBox nextFlowBox = (IFlowBox) ((SplitResult.Split) forceResult).remainder();
 				nextBox.addFlow(flow.serial, nextFlowBox, 0);
 			} else {
 				index = this.flows == null ? 0 : this.flows.size();
@@ -733,7 +733,11 @@ public class FlowContainer implements Container {
 			case TABLE:
 			case TEXT_BLOCK: {
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-				nextFlowBox = (IFlowBox) prevFlowBox.splitPageAxis(splitLine, mode, xflags);
+				nextFlowBox = switch (prevFlowBox.split(splitLine, mode, xflags)) {
+				case SplitResult.Keep keep -> null;
+				case SplitResult.Move move -> prevFlow.box;
+				case SplitResult.Split(final IPageBreakableBox remainder) -> (IFlowBox) remainder;
+				};
 			}
 				break;
 			case BLOCK:
@@ -742,7 +746,11 @@ public class FlowContainer implements Container {
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
 						&& vertical == cParams.flow.isVertical()) {
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-					nextFlowBox = (IFlowBox) prevFlowBox.splitPageAxis(splitLine, mode, xflags);
+					nextFlowBox = switch (prevFlowBox.split(splitLine, mode, xflags)) {
+					case SplitResult.Keep keep -> null;
+					case SplitResult.Move move -> prevFlow.box;
+					case SplitResult.Split(final IPageBreakableBox remainder) -> (IFlowBox) remainder;
+					};
 					break;
 				}
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {

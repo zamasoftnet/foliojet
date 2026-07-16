@@ -20,6 +20,7 @@ import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder;
 import net.zamasoft.foliojet.layout.fragment.ColumnBalancer;
+import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -307,20 +308,21 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return newContainer;
 	}
 
-	public IPageBreakableBox splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
+	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		byte xflags = flags;
 		if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && this.getColumnCount() > 1) {
 			xflags ^= IPageBreakableBox.FLAGS_COLUMN;
 		}
+		// コンテナ側の三義的返値の解釈はここに集約(コンテナ内部の型付けは M4-A3b)
 		final Container nextContainer = this.container.splitPageAxis(pageLimit, mode, xflags);
 		if (nextContainer == null) {
-			return null;
+			return SplitResult.KEEP;
 		}
 		if (nextContainer == this.container) {
-			return this;
+			return SplitResult.MOVE;
 		}
-		return this.splitPage(nextContainer, pageLimit, flags);
+		return new SplitResult.Split(this.splitPage(nextContainer, pageLimit, flags));
 	}
 
 	public final void getText(StringBuilder textBuff) {

@@ -297,14 +297,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
-	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
+	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert !(mode instanceof BreakMode.ForceBreakMode);
-		// 旧プロトコルへの互換アダプタ(呼び出し側の移行が完了するまで)
-		return switch (this.split(pageLimit, flags)) {
-		case SplitResult.Keep keep -> null;
-		case SplitResult.Move move -> this;
-		case SplitResult.Split(final IPageBreakableBox remainder) -> remainder;
-		};
+		return this.split(pageLimit, flags);
 	}
 
 	public final int getLineCount() {
