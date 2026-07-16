@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -86,7 +88,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// ■ 幅と高さの計算
 		//
 		switch (containerParams.flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			this.width = StyleUtils.computeDimensionWidth(this.size, lineSize);
 			if (StyleUtils.isNone(this.width)) {
@@ -99,8 +101,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			double minWidth = StyleUtils.computeDimensionWidth(this.minSize, lineSize);
 			this.width = Math.max(this.width, minWidth);
 			break;
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.RL:
+		case WritingMode.LR:
 			// 縦書き
 			this.height = StyleUtils.computeDimensionHeight(this.size, lineSize);
 			if (StyleUtils.isNone(this.height)) {
@@ -204,7 +206,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		}
 		final AbsoluteRectFrame prevFrame, nextFrame;
 		final AbstractBlockBox nextBlock;
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0) {
 				// 複数カラムの場合は境界を残し、高さを内容に合わせる

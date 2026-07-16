@@ -75,7 +75,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		containerBox = builder.getFlow(builder.getFlowCount() - 2).box;
 
 		byte align = this.pos.align;
-		if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
+		if (containerBox.getBlockParams().flow.isVertical()) {
 			// 縦書き
 			if (align == Types.ALIGN_START) {
 				Insets margin = this.getBlockParams().frame.margin;
@@ -134,7 +134,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	public final void setPageAxis(final double newSize) {
 		this.contentSize = Math.max(this.contentSize, newSize);
 
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			if (newSize <= this.width) {
 				return;
@@ -160,7 +160,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	public void calculateSize(LayoutStack layoutStack, double xmargin, double lineSize) {
 		final AbstractContainerBox containerBox = layoutStack.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書きのフロー
 			this.specifiedPageAxis = this.size.getWidthType() == LengthType.ABSOLUTE
 					|| (this.size.getWidthType() == LengthType.RELATIVE && containerBox.isSpecifiedPageSize());
@@ -190,7 +190,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		// 行方向幅の計算
 		double minWidth = StyleUtils.NONE, maxWidth = StyleUtils.NONE, minHeight = StyleUtils.NONE,
 				maxHeight = StyleUtils.NONE;
-		if (StyleUtils.isVertical(cParams.flow)) {
+		if (cParams.flow.isVertical()) {
 			// 縦書きのフロー
 			marginLeft = amargin.left;
 			marginRight = amargin.right;
@@ -307,7 +307,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					break;
 				}
 			case AUTO:
-				if (!StyleUtils.isVertical(this.params.flow)) {
+				if (!this.params.flow.isVertical()) {
 					// 横書きのボックス
 					this.width = layoutStack.getFixedWidth() - this.frame.getFrameWidth();
 				} else {
@@ -448,7 +448,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					break;
 				}
 			case AUTO:
-				if (StyleUtils.isVertical(this.params.flow)) {
+				if (this.params.flow.isVertical()) {
 					// 縦書きのボックス
 					this.height = layoutStack.getFixedHeight() - this.frame.getFrameHeight();
 				} else {
@@ -472,7 +472,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			}
 			marginLeft += xmargin;
 		}
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			this.minPageAxis = minWidth;
 			this.maxPageAxis = maxWidth;
 		} else {

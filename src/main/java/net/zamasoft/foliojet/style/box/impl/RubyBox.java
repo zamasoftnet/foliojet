@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import net.zamasoft.foliojet.style.box.BoxSubtype;
 import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
@@ -59,17 +61,17 @@ class RubyContainer extends FlowContainer {
 		descent += flow.pageAxis;
 
 		switch (this.box.getBlockParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			descent = this.box.getInnerHeight() - descent;
 			descent += this.box.getFrame().getFrameBottom();
 			break;
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.RL:
 			// 縦書き(日本)
 			descent = this.box.getInnerWidth() - descent;
 			descent += this.box.getFrame().getFrameLeft();
 			break;
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.LR:
 			// 縦書き(モンゴル)
 			descent = this.box.getInnerWidth() - descent;
 			descent += this.box.getFrame().getFrameRight();

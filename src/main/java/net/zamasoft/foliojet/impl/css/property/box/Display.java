@@ -161,8 +161,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		// 縦中横/横中縦のための変換
 		if (display == DisplayValue.INLINE) {
 			CSSStyle parentStyle = style.getParentStyle();
-			if (parentStyle != null && StyleUtils.isVertical(BlockFlow.get(parentStyle)) != StyleUtils
-					.isVertical(BlockFlow.get(style))) {
+			if (parentStyle != null && BlockFlow.get(parentStyle).isVertical() != BlockFlow.get(style).isVertical()) {
 				return DisplayValue.INLINE_BLOCK_VALUE;
 			}
 		}

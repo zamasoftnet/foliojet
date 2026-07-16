@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.BlockFlowValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.style.box.params.WritingMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -18,8 +19,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class BlockFlow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BlockFlow();
 
-	public static byte get(CSSStyle style) {
-		return ((BlockFlowValue) style.get(INFO)).getBlockProgression();
+	public static WritingMode get(CSSStyle style) {
+		return ((BlockFlowValue) style.get(INFO)).getWritingMode();
 	}
 
 	protected BlockFlow() {

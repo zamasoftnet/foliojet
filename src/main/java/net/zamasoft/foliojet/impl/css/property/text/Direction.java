@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.text;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -23,7 +25,7 @@ public class Direction extends AbstractPrimitivePropertyInfo {
 
 	public static FontStyle.Direction getFontDirection(CSSStyle style) {
 		switch (BlockFlow.get(style)) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			switch (Direction.get(style)) {
 			case AbstractTextParams.DIRECTION_LTR:
@@ -33,8 +35,8 @@ public class Direction extends AbstractPrimitivePropertyInfo {
 			default:
 				throw new IllegalStateException();
 			}
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.RL:
+		case WritingMode.LR:
 			// 縦書き
 			return FontStyle.Direction.TB;
 		default:

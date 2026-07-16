@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +37,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	 * 次のインラインまたはテキストの追加で改行することを示すフラグ。
 	 */
 	private boolean toLineFeed = false, wrap;
-	private byte progression;
+	private WritingMode progression;
 
 	public BuilderGlyphHandler(Builder builder) {
 		this.builder = builder;
@@ -124,12 +126,12 @@ public class BuilderGlyphHandler implements GlyphHandler {
 
 				final double startAdvance;
 				switch (this.progression) {
-				case AbstractTextParams.FLOW_TB:
+				case WritingMode.TB:
 					// 横書き
 					startAdvance = inlineStartQuad.box.getFrame().getFrameLeft();
 					break;
-				case AbstractTextParams.FLOW_LR:
-				case AbstractTextParams.FLOW_RL:
+				case WritingMode.LR:
+				case WritingMode.RL:
 					// 縦書き
 					startAdvance = inlineStartQuad.box.getFrame().getFrameTop();
 					break;
@@ -150,12 +152,12 @@ public class BuilderGlyphHandler implements GlyphHandler {
 
 				double endAdvance;
 				switch (this.progression) {
-				case AbstractTextParams.FLOW_TB:
+				case WritingMode.TB:
 					// 横書き
 					endAdvance = inlineEndQuad.box.getFrame().getFrameRight();
 					break;
-				case AbstractTextParams.FLOW_LR:
-				case AbstractTextParams.FLOW_RL:
+				case WritingMode.LR:
+				case WritingMode.RL:
 					// 縦書き
 					endAdvance = inlineEndQuad.box.getFrame().getFrameBottom();
 					break;
@@ -171,12 +173,12 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				StyleUtils.calclateReplacedSize(this.builder, inlineReplacedQuad.box);
 				double advance;
 				switch (this.progression) {
-				case AbstractTextParams.FLOW_TB:
+				case WritingMode.TB:
 					// 横書き
 					advance = inlineReplacedQuad.box.getWidth();
 					break;
-				case AbstractTextParams.FLOW_LR:
-				case AbstractTextParams.FLOW_RL:
+				case WritingMode.LR:
+				case WritingMode.RL:
 					// 縦書き
 					advance = inlineReplacedQuad.box.getHeight();
 					break;
@@ -191,12 +193,12 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				// インラインブロック
 				double advance;
 				switch (this.progression) {
-				case AbstractTextParams.FLOW_TB:
+				case WritingMode.TB:
 					// 横書き
 					advance = inlineQuad.getBox().getWidth();
 					break;
-				case AbstractTextParams.FLOW_LR:
-				case AbstractTextParams.FLOW_RL:
+				case WritingMode.LR:
+				case WritingMode.RL:
 					// 縦書き
 					advance = inlineQuad.getBox().getHeight();
 					break;

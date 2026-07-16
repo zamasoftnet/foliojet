@@ -60,7 +60,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 		final BlockParams cParams = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			this.specifiedPageAxis = this.params.size.getWidthType() == LengthType.ABSOLUTE
 					|| (this.params.size.getWidthType() == LengthType.RELATIVE && (!table
@@ -85,7 +85,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		// ■ 行方向幅の計算
 		//
 		// 幅
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			AbstractContainerBox fixedWidthBox = layoutStack.getFixedWidthFlowBox();
 			if (fixedWidthBox == null) {
@@ -105,7 +105,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
 					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
 				double limitHeight;
-				if (StyleUtils.isVertical(cParams.flow) || containerBox.isSpecifiedPageSize()) {
+				if (cParams.flow.isVertical() || containerBox.isSpecifiedPageSize()) {
 					limitHeight = cHeight - this.frame.getFrameHeight();
 				} else {
 					// 親の幅が不確定の場合はページ高さを限度とする
@@ -205,7 +205,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
 					containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
 				double limitWidth;
-				if (!StyleUtils.isVertical(cParams.flow) || containerBox.isSpecifiedPageSize()) {
+				if (!cParams.flow.isVertical() || containerBox.isSpecifiedPageSize()) {
 					limitWidth = cWidth - this.frame.getFrameWidth();
 				} else {
 					// 親の幅が不確定の場合はページ幅を限度とする

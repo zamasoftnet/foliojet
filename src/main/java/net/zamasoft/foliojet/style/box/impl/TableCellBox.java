@@ -114,7 +114,7 @@ public class TableCellBox extends AbstractContainerBox {
 			return;
 		}
 		double pageSize;
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			pageSize = this.width;
 		} else {
 			pageSize = this.height;
@@ -146,7 +146,7 @@ public class TableCellBox extends AbstractContainerBox {
 					frame.padding);
 		}
 
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			switch (this.minSize.getWidthType()) {
 			case ABSOLUTE:
 				this.minPageAxis = this.minSize.getWidth();
@@ -209,7 +209,7 @@ public class TableCellBox extends AbstractContainerBox {
 		double xascent = rowAscent - firstAscent;
 		if (xascent > 0) {
 			this.verticalAlign += xascent;
-			if (StyleUtils.isVertical(this.params.flow)) {
+			if (this.params.flow.isVertical()) {
 				this.width += xascent;
 			} else {
 				this.height += xascent;
@@ -242,7 +242,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			x -= this.verticalAlign;
 		} else {
 			y += this.verticalAlign;
@@ -266,7 +266,7 @@ public class TableCellBox extends AbstractContainerBox {
 		}
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			x -= this.verticalAlign;
 		} else {
 			y += this.verticalAlign;
@@ -303,7 +303,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			x -= this.verticalAlign;
 		} else {
 			y += this.verticalAlign;
@@ -380,7 +380,7 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	protected final AbstractContainerBox splitPage(Container container, double pageLimit, byte flags) {
-		final boolean vertical = StyleUtils.isVertical(this.params.flow);
+		final boolean vertical = this.params.flow.isVertical();
 		final Dimension nextSize, nextMinSize;
 		final AbsoluteRectFrame nextFrame;
 		if (vertical) {
@@ -440,7 +440,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
-		boolean vertical = StyleUtils.isVertical(this.params.flow);
+		boolean vertical = this.params.flow.isVertical();
 		pageLimit -= this.verticalAlign;
 		TableCellBox nextBox = (TableCellBox) super.splitPageAxis(pageLimit, mode, flags);
 		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode

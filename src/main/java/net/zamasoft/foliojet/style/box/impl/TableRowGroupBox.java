@@ -103,7 +103,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.rows == null) {
 			return;
 		}
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
 			x += this.pageSize;
 			for (int i = 0; i < this.rows.size(); ++i) {
@@ -129,7 +129,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.rows == null) {
 			return;
 		}
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
 			x += this.pageSize;
 			for (int i = 0; i < this.rows.size(); ++i) {
@@ -167,7 +167,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			return;
 		}
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
 			x += this.pageSize;
 			for (int i = 0; i < this.rows.size(); ++i) {
@@ -323,8 +323,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 						for (int j = 0; j < beforeRow.getCellCount(); ++j) {
 							final Cell cell = beforeRow.getCell(j);
 							final BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (cellParams.pageBreakInside == Types.PAGE_BREAK_AUTO && StyleUtils
-									.isVertical(cellParams.flow) == StyleUtils.isVertical(this.tableParams.flow)) {
+							if (cellParams.pageBreakInside == Types.PAGE_BREAK_AUTO && cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
 								continue;
 							}
 							if (cell.getNextExtendedCell() != null) {
@@ -339,8 +338,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 								continue;
 							}
 							final BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (StyleUtils.isVertical(cellParams.flow) == StyleUtils
-									.isVertical(this.tableParams.flow)) {
+							if (cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
 								breakAvoid = false;
 								continue;
 							}
@@ -370,7 +368,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				for (int j = 0; j < prevRow.getCellCount(); ++j) {
 					final Cell cell = prevRow.getCell(j);
 					final BlockParams cellParams = cell.getCellBox().getBlockParams();
-					if (StyleUtils.isVertical(cellParams.flow) == StyleUtils.isVertical(this.tableParams.flow)) {
+					if (cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
 						continue;
 					}
 					breakAvoid = true;

@@ -1,36 +1,36 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 /**
  * @author MIYABE Tatsuhiko
  */
 public enum BlockFlowValue implements Value {
-	TB_VALUE(AbstractTextParams.FLOW_TB),
+	TB_VALUE(WritingMode.TB),
 
-	RL_VALUE(AbstractTextParams.FLOW_RL),
+	RL_VALUE(WritingMode.RL),
 
-	LR_VALUE(AbstractTextParams.FLOW_LR);
+	LR_VALUE(WritingMode.LR);
 
-	private final byte blockProgresion;
+	private final WritingMode writingMode;
 
-	private BlockFlowValue(byte blockProgresion) {
-		this.blockProgresion = blockProgresion;
+	private BlockFlowValue(WritingMode writingMode) {
+		this.writingMode = writingMode;
 	}
 
-	public byte getBlockProgression() {
-		return this.blockProgresion;
+	public WritingMode getWritingMode() {
+		return this.writingMode;
 	}
 
 	public String toString() {
-		switch (this.blockProgresion) {
-		case AbstractTextParams.FLOW_TB:
+		switch (this.writingMode) {
+		case TB:
 			return "tb";
 
-		case AbstractTextParams.FLOW_RL:
+		case RL:
 			return "rl";
 
-		case AbstractTextParams.FLOW_LR:
+		case LR:
 			return "lr";
 
 		default:

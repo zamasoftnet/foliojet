@@ -50,7 +50,7 @@ public class TableColumnGroupBox extends TableColumnBox {
 		if (this.columns == null) {
 			return;
 		}
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			for (int i = 0; i < this.columns.size(); ++i) {
 				TableColumnBox column = (TableColumnBox) this.columns.get(i);
 				column.frames(pageBox, drawer, clip, transform, x, y);
@@ -71,7 +71,7 @@ public class TableColumnGroupBox extends TableColumnBox {
 		if (this.columns == null) {
 			return;
 		}
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			for (int i = 0; i < this.columns.size(); ++i) {
 				TableColumnBox column = (TableColumnBox) this.columns.get(i);
 				column.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);

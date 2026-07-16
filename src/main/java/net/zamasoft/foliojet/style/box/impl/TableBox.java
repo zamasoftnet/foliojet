@@ -172,7 +172,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final void setTableHeader(TableRowGroupBox headerGroup) {
 		this.headerGroupBox = headerGroup;
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			this.width += headerGroup.getWidth();
 			if (headerGroup.getHeight() > this.height) {
 				this.height = headerGroup.getHeight();
@@ -191,7 +191,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final void setTableFooter(TableRowGroupBox footerGroup) {
 		this.footerGroupBox = footerGroup;
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			this.width += footerGroup.getWidth();
 			if (footerGroup.getHeight() > this.height) {
 				this.height = footerGroup.getHeight();
@@ -213,7 +213,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			this.bodyGroups = new ArrayList<TableRowGroupBox>();
 		}
 		this.bodyGroups.add(rowGroupBox);
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			this.width += rowGroupBox.getWidth();
 			if (rowGroupBox.getHeight() > this.height) {
 				this.height = rowGroupBox.getHeight();
@@ -253,7 +253,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		case TableParams.BORDER_COLLAPSE: {
 			// つぶし境界
 			Drawable drawable = new CollapsedBordersDrawable(pageBox, clip, this.params.opacity, transform,
-					this.borders, StyleUtils.isVertical(this.params.flow));
+					this.borders, this.params.flow.isVertical());
 			drawer.visitDrawable(drawable, xx, yy);
 		}
 			break;
@@ -292,7 +292,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			drawer.visitDrawable(drawable, xx, yy);
 		}
 
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			// 内部の境界/背景
 			{
@@ -506,7 +506,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		// + (this.bodyGroups == null ? 0 : this.bodyGroups.size()) + "/"
 		// + this.getParams().element);
 
-		final boolean vertical = StyleUtils.isVertical(this.params.flow);
+		final boolean vertical = this.params.flow.isVertical();
 		int origBodyRowCount = 0;
 		if (this.borders != null && this.bodyGroups != null) {
 			for (int i = 0; i < this.bodyGroups.size(); ++i) {
@@ -716,7 +716,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final TableBox splitTableBox() {
-		final boolean vertical = StyleUtils.isVertical(this.params.flow);
+		final boolean vertical = this.params.flow.isVertical();
 		final AbsoluteRectFrame nextFrame;
 		if (this.headerGroupBox != null) {
 			nextFrame = this.frame;

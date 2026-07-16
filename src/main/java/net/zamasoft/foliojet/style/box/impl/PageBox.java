@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,13 +84,13 @@ public class PageBox extends AbstractBlockBox {
 
 		double lineWidth;
 		switch (params.flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			assert this.size.getWidthType() == LengthType.ABSOLUTE;
 			lineWidth = this.size.getWidth();
 			break;
-		case AbstractTextParams.FLOW_LR:
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.LR:
+		case WritingMode.RL:
 			// 縦書き
 			assert this.size.getHeightType() == LengthType.ABSOLUTE;
 			lineWidth = this.size.getHeight();
@@ -249,7 +251,7 @@ public class PageBox extends AbstractBlockBox {
 		assert !StyleUtils.isNone(newSize);
 		final BlockParams params = this.getBlockParams();
 		switch (params.flow) {
-		case AbstractTextParams.FLOW_TB: {
+		case WritingMode.TB: {
 			// 横書き
 			this.visualHeight = Math.max(this.visualHeight, newSize);
 			if (this.size.getHeightType() != LengthType.AUTO || newSize <= this.height) {
@@ -259,8 +261,8 @@ public class PageBox extends AbstractBlockBox {
 			this.height = Math.min(this.maxPageAxis, this.height);
 		}
 			break;
-		case AbstractTextParams.FLOW_LR:
-		case AbstractTextParams.FLOW_RL: {
+		case WritingMode.LR:
+		case WritingMode.RL: {
 			// 縦書き
 			this.visualWidth = Math.max(this.visualWidth, newSize);
 			if (this.size.getWidthType() != LengthType.AUTO || newSize <= this.width) {

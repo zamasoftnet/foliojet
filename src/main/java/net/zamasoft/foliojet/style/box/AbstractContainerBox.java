@@ -68,7 +68,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	public void setPageAxis(final double newSize) {
 		final BlockParams params = this.getBlockParams();
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			// 縦書き
 			if (newSize <= this.width) {
 				return;
@@ -157,7 +157,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 			return false;
 		}
 		BlockParams params = this.getBlockParams();
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			if (this.size.getWidthType() == LengthType.AUTO) {
 				return false;
 			}
@@ -174,7 +174,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 		final int acc = this.getActualColumnCount();
 		double pageSize = oldCont.getContentSize();
-		if (StyleUtils.isVertical(this.getBlockParams().flow)) {
+		if (this.getBlockParams().flow.isVertical()) {
 			// 縦書き
 			if (acc >= 2) {
 				pageSize += this.width * (acc - 1);
@@ -295,7 +295,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 			this.container = columns = new ColumnsContainer((FlowContainer) this.container);
 			columns.setBox(this);
 		}
-		if (StyleUtils.isVertical(this.getBlockParams().flow)) {
+		if (this.getBlockParams().flow.isVertical()) {
 			this.width = pageLimit;
 		} else {
 			this.height = pageLimit;
@@ -305,7 +305,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	public IPageBreakableBox splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
-		if (StyleUtils.isVertical(this.getBlockParams().flow)) {
+		if (this.getBlockParams().flow.isVertical()) {
 			pageLimit -= this.frame.getFrameRight();
 		} else {
 			pageLimit -= this.frame.getFrameTop();

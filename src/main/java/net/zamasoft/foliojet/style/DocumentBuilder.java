@@ -384,7 +384,7 @@ public class DocumentBuilder {
 			this.closeInlines(params);
 			this.endContainer();
 			final Builder builder = this.containerBuilder().builder;
-			if (StyleUtils.isVertical(params.flow) == StyleUtils.isVertical(builder.getRootBox().getBlockParams().flow)
+			if (params.flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
 					&& !blockBox.isFixedMulcolumn()) {
 				builder.startFlowBlock(blockBox);
 			} else {

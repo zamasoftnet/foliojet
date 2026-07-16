@@ -136,7 +136,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		this.layoutStack = layoutStack;
 		this.tableBox = tableBox;
 		TableParams tableParams = tableBox.getTableParams();
-		this.vertical = StyleUtils.isVertical(tableParams.flow);
+		this.vertical = tableParams.flow.isVertical();
 		this.fixed = tableParams.layout == TableParams.LAYOUT_FIXED
 				&& ((this.vertical ? tableParams.size.getHeightType()
 						: tableParams.size.getWidthType()) != LengthType.AUTO);
@@ -933,7 +933,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					}
 					final TwoPassBlockBuilder builder = cell.getBuilder();
 					double min, des;
-					if (StyleUtils.isVertical(cellParams.flow) != this.vertical) {
+					if (cellParams.flow.isVertical() != this.vertical) {
 						min = des = builder.getMinPageSize();
 					} else {
 						min = builder.getMinLineSize();
@@ -1277,8 +1277,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	public void bind(final BlockBuilder builder) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final AbstractContainerBox containerBox = this.layoutStack.getFlowBox();
-		final double lineSize = StyleUtils.isVertical(containerBox.getBlockParams().flow) == StyleUtils
-				.isVertical(tableParams.flow) ? containerBox.getLineSize()
+		final double lineSize = containerBox.getBlockParams().flow.isVertical() == tableParams.flow.isVertical() ? containerBox.getLineSize()
 						: (this.vertical ? this.layoutStack.getFixedHeight() : this.layoutStack.getFixedWidth());
 		// テーブル幅
 		double tableSize;
@@ -1953,13 +1952,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						}
 						if (this.vertical) {
 							cellBox.setHeight(size);
-							if (!StyleUtils.isVertical(cellParams.flow)) {
+							if (!cellParams.flow.isVertical()) {
 								cellBox.setWidth(cell.getBuilder().getMaxLineSize() + cellBox.getFrame().getFrameWidth()
 										+ tableParams.borderSpacingH);
 							}
 						} else {
 							cellBox.setWidth(size);
-							if (StyleUtils.isVertical(cellParams.flow)) {
+							if (cellParams.flow.isVertical()) {
 								cellBox.setHeight(cell.getBuilder().getMaxLineSize()
 										+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
 							}

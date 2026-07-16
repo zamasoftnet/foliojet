@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -39,11 +41,11 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 		case CSSJDirectionModeValue.HORIZONTAL_TB:
 			// 縦書き
 			switch (BlockFlow.get(style)) {
-			case AbstractTextParams.FLOW_RL:
+			case WritingMode.RL:
 				if (yValue instanceof PercentageValue y) {
 					yValue = PercentageValue.create(100 - y.getPercentage());
 				}
-			case AbstractTextParams.FLOW_LR: {
+			case WritingMode.LR: {
 				Value x = xValue;
 				xValue = yValue;
 				yValue = x;
@@ -55,7 +57,7 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 		case CSSJDirectionModeValue.VERTICAL_RL:
 			// 縦書き
 			switch (BlockFlow.get(style)) {
-			case AbstractTextParams.FLOW_TB:
+			case WritingMode.TB:
 				if (yValue instanceof PercentageValue y) {
 					yValue = PercentageValue.create(100 - y.getPercentage());
 				}

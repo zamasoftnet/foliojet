@@ -105,7 +105,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 
 	public final void addAscentDescent(double ascent, double descent) {
 		// アセントディセントの拡大
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き(日本)
 			ascent += this.frame.getFrameRight();
 			descent += this.frame.getFrameLeft();
@@ -149,7 +149,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		// ■ マージンの計算
 		//
 		// ページ方向のマージンは適用しません
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			// 縦書き
 			double top, bottom;
 			switch (rframe.margin.getTopType()) {
@@ -254,7 +254,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 						this.frame, this.getWidth(), this.getHeight(), null); // TODO textClip
 				drawer.visitDrawable(drawable, x, y);
 			}
-			if (StyleUtils.isVertical(this.getTextParams().flow)) {
+			if (this.getTextParams().flow.isVertical()) {
 				// 縦書き
 				// 内容の上
 				y += this.frame.getFrameTop();
@@ -282,7 +282,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		if (cut) {
 			RectFrame previousFrame;
 			RectFrame nextFrame;
-			if (StyleUtils.isVertical(params.flow)) {
+			if (params.flow.isVertical()) {
 				// 縦書き
 				previousFrame = this.frame.frame.cut(true, true, false, true);
 				nextFrame = this.frame.frame.cut(false, true, true, true);
@@ -317,7 +317,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			final RectFrame nextFrame;
 			final AbsoluteInsets nextMargin;
 			final AbsoluteInsets nextPadding;
-			if (StyleUtils.isVertical(params.flow)) {
+			if (params.flow.isVertical()) {
 				// 縦書き
 				nextFrame = this.frame.frame.cut(false, true, true, true);
 				nextMargin = this.frame.margin.cut(false, true, true, true);

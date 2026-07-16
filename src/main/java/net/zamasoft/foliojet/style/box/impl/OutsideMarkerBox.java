@@ -24,7 +24,7 @@ public class OutsideMarkerBox extends InlineBlockBox {
 
 	public void firstPassLayout(AbstractContainerBox containerBox) {
 		super.firstPassLayout(containerBox);
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			this.height = 0;
 		} else {
 			this.width = 0;
@@ -35,7 +35,7 @@ public class OutsideMarkerBox extends InlineBlockBox {
 		super.shrinkToFit(builder, minLineAxis, maxLineAxis, table);
 		this.lineAxis = maxLineAxis;
 		final AbstractContainerBox containerBox = builder.getFlowBox();
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			this.lineAxis += containerBox.getFrame().getFrameTop();
 			this.height = 0;
 		} else {
@@ -46,7 +46,7 @@ public class OutsideMarkerBox extends InlineBlockBox {
 
 	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			y -= this.lineAxis;
 		} else {
 			x -= this.lineAxis;

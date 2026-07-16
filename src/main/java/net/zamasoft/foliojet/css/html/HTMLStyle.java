@@ -351,7 +351,7 @@ public class HTMLStyle {
 
 		final CSSStyle pStyle = style.getParentStyle();
 		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+				&& BlockFlow.get(pStyle).isVertical())
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
 			style.set(Margin.LEFT, length);
@@ -1172,7 +1172,7 @@ public class HTMLStyle {
 				style.set(BorderWidth.LEFT, border);
 
 				if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-						&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+						&& BlockFlow.get(pStyle).isVertical())
 						|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 					// 縦書き
 					if (size != null) {
@@ -1192,7 +1192,7 @@ public class HTMLStyle {
 				}
 			} else {
 				if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-						&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+						&& BlockFlow.get(pStyle).isVertical())
 						|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 					// 縦書き
 					style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
@@ -1574,7 +1574,7 @@ public class HTMLStyle {
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RUBY_VALUE);
 			style.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 			final CSSStyle pStyle = style.getParentStyle();
-			if (pStyle != null && StyleUtils.isVertical(BlockFlow.get(pStyle))) {
+			if (pStyle != null && BlockFlow.get(pStyle).isVertical()) {
 				// 縦書き
 				style.set(LineHeight.INFO, REAL_1_618);
 			} else {
@@ -1590,7 +1590,7 @@ public class HTMLStyle {
 			style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
 			final CSSStyle pStyle = style.getParentStyle();
 			if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-					&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+					&& BlockFlow.get(pStyle).isVertical())
 					|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 				// 縦書き
 				style.set(Width.INFO, AbsoluteLengthValue.ZERO);
@@ -1609,7 +1609,7 @@ public class HTMLStyle {
 			style.set(FontSize.INFO, PercentageValue.HALF);
 			final CSSStyle pStyle = style.getParentStyle();
 			if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-					&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+					&& BlockFlow.get(pStyle).isVertical())
 					|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 				// 縦書き
 				style.set(Margin.RIGHT, _EM__9);

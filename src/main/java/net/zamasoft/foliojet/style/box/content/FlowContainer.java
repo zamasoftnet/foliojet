@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.content;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -150,15 +152,15 @@ public class FlowContainer implements Container {
 		}
 
 		switch (this.box.getBlockParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			ascent += this.box.getFrame().getFrameTop();
 			break;
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.RL:
 			// 縦書き(モンゴル)
 			ascent += this.box.getFrame().getFrameLeft();
 			break;
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.LR:
 			// 縦書き(日本)
 			ascent += this.box.getFrame().getFrameRight();
 			break;
@@ -202,15 +204,15 @@ public class FlowContainer implements Container {
 		}
 
 		switch (this.box.getBlockParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			descent += this.box.getFrame().getFrameBottom();
 			break;
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.RL:
 			// 縦書き(日本)
 			descent += this.box.getFrame().getFrameLeft();
 			break;
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.LR:
 			// 縦書き(モンゴル)
 			descent += this.box.getFrame().getFrameRight();
 			break;
@@ -225,7 +227,7 @@ public class FlowContainer implements Container {
 		if (flow == null) {
 			return 0;
 		}
-		if (StyleUtils.isVertical(this.box.getBlockParams().flow)) {
+		if (this.box.getBlockParams().flow.isVertical()) {
 			// 縦書き
 			return flow.pageAxis + flow.box.getWidth();
 		}
@@ -233,7 +235,7 @@ public class FlowContainer implements Container {
 	}
 
 	public double getCutPoint(double pageAxis) {
-		if (StyleUtils.isVertical(this.box.getBlockParams().flow)) {
+		if (this.box.getBlockParams().flow.isVertical()) {
 			// 縦書き
 			if (this.hasFlows()) {
 				for (int i = 0; i < this.flows.size(); ++i) {
@@ -389,7 +391,7 @@ public class FlowContainer implements Container {
 			return;
 		}
 		switch (this.box.getBlockParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			// 通常のフロー
 			for (int i = 0; i < this.flows.size(); ++i) {
@@ -400,8 +402,8 @@ public class FlowContainer implements Container {
 				}
 			}
 			break;
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.RL:
+		case WritingMode.LR:
 			// 縦書き
 			x += this.box.getInnerWidth();
 			for (int i = 0; i < this.flows.size(); ++i) {
@@ -424,7 +426,7 @@ public class FlowContainer implements Container {
 			return;
 		}
 		switch (this.box.getBlockParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			// 通常のフロー
 			for (int i = 0; i < this.flows.size(); ++i) {
@@ -432,8 +434,8 @@ public class FlowContainer implements Container {
 				c.box.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y + c.pageAxis);
 			}
 			break;
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.RL:
+		case WritingMode.LR:
 			// 縦書き
 			x += this.box.getInnerWidth();
 			for (int i = 0; i < this.flows.size(); ++i) {
@@ -453,7 +455,7 @@ public class FlowContainer implements Container {
 			return;
 		}
 		switch (this.box.getBlockParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			// 通常のフロー
 			for (int i = 0; i < this.flows.size(); ++i) {
@@ -461,8 +463,8 @@ public class FlowContainer implements Container {
 				c.box.textShape(pageBox, path, transform, x, y + c.pageAxis);
 			}
 			break;
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.RL:
+		case WritingMode.LR:
 			// 縦書き
 			x += this.box.getInnerWidth();
 			for (int i = 0; i < this.flows.size(); ++i) {
@@ -494,7 +496,7 @@ public class FlowContainer implements Container {
 	}
 
 	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
-		final boolean vertical = StyleUtils.isVertical(this.box.getBlockParams().flow);
+		final boolean vertical = this.box.getBlockParams().flow.isVertical();
 		final double frameStart, pageSize, pageInnerSize;
 		if (vertical) {
 			frameStart = this.box.getFrame().getFrameRight();
@@ -620,19 +622,19 @@ public class FlowContainer implements Container {
 			if (flow.box.getType() == BoxType.BLOCK) {
 				FlowBlockBox flowBlock = (FlowBlockBox) flow.box;
 				switch (params.flow) {
-				case AbstractTextParams.FLOW_TB: {
+				case WritingMode.TB: {
 					// 横書き
 					lastBottom += Math.max(flowBlock.getInnerHeight(), flowBlock.getContentSize())
 							+ flowBlock.getFrame().getFrameTop();
 					break;
 				}
-				case AbstractTextParams.FLOW_RL: {
+				case WritingMode.RL: {
 					// 縦書き(日本語)
 					lastBottom += Math.max(flowBlock.getInnerWidth(), flowBlock.getContentSize())
 							+ flowBlock.getFrame().getFrameRight();
 					break;
 				}
-				case AbstractTextParams.FLOW_LR: {
+				case WritingMode.LR: {
 					// 縦書き(モンゴル)
 					lastBottom += Math.max(flowBlock.getInnerWidth(), flowBlock.getContentSize())
 							+ flowBlock.getFrame().getFrameLeft();
@@ -642,7 +644,7 @@ public class FlowContainer implements Container {
 					throw new IllegalStateException();
 				}
 			} else {
-				if (StyleUtils.isVertical(params.flow)) {
+				if (params.flow.isVertical()) {
 					lastBottom += flow.box.getWidth();
 				} else {
 					lastBottom += flow.box.getHeight();
@@ -721,7 +723,7 @@ public class FlowContainer implements Container {
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
 				// 改ページ禁止でかつページの頭でない場合、またはページ進行方向が違う場合は内部で改ページしない
 				if ((cParams.pageBreakInside != Types.PAGE_BREAK_AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
-						&& vertical == StyleUtils.isVertical(cParams.flow)) {
+						&& vertical == cParams.flow.isVertical()) {
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 					nextFlowBox = (IFlowBox) prevFlowBox.splitPageAxis(splitLine, mode, xflags);
 					break;
@@ -957,7 +959,7 @@ public class FlowContainer implements Container {
 				}
 				if (nextBox == null && (flags & IPageBreakableBox.FLAGS_FIRST) == 0
 						&& StyleUtils.compare(
-								StyleUtils.isVertical(this.box.getBlockParams().flow) ? this.box.getInnerWidth()
+								this.box.getBlockParams().flow.isVertical() ? this.box.getInnerWidth()
 										: this.box.getInnerHeight(),
 								0) <= 0) {
 					return this;
@@ -1008,7 +1010,7 @@ public class FlowContainer implements Container {
 			case BLOCK:
 				AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
-				if (StyleUtils.isVertical(blockBox.getBlockParams().flow)) {
+				if (blockBox.getBlockParams().flow.isVertical()) {
 					pageAxis -= blockBox.getFrame().getFrameRight();
 				} else {
 					pageAxis -= blockBox.getFrame().getFrameTop();
@@ -1131,8 +1133,7 @@ public class FlowContainer implements Container {
 				case BLOCK: {
 					if (holder.getBox().getPos().getType() != PosType.FLOAT) {
 						AbstractContainerBox containerBox = (AbstractContainerBox) holder.getBox();
-						if (StyleUtils.isVertical(containerBox.getBlockParams().flow) != StyleUtils
-								.isVertical(builder.getRootBox().getBlockParams().flow)) {
+						if (containerBox.getBlockParams().flow.isVertical() != builder.getRootBox().getBlockParams().flow.isVertical()) {
 							// 書字方向が違う場合
 							builder.addBound(containerBox);
 						} else {

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -123,7 +125,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public final double getWidth() {
-		if (StyleUtils.isVertical(this.getTextParams().flow)) {
+		if (this.getTextParams().flow.isVertical()) {
 			// 縦書き
 			return this.getPageSize();
 		} else {
@@ -133,7 +135,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public final double getHeight() {
-		if (StyleUtils.isVertical(this.getTextParams().flow)) {
+		if (this.getTextParams().flow.isVertical()) {
 			// 縦書き
 			return this.lineSize;
 		} else {
@@ -352,9 +354,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 					// インラインブロック
 					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
 					final BlockParams params = box.getBlockParams();
-					if (StyleUtils.isVertical(lineParams.flow)) {
+					if (lineParams.flow.isVertical()) {
 						// 縦書き
-						if (StyleUtils.isVertical(params.flow)) {
+						if (params.flow.isVertical()) {
 							descent = box.getLastDescent();
 							if (StyleUtils.isNone(descent)) {
 								descent = inlineBox.getWidth() / 2.0;
@@ -366,7 +368,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						ascent = inlineBox.getWidth() - descent;
 					} else {
 						// 横書き
-						if (StyleUtils.isVertical(params.flow)) {
+						if (params.flow.isVertical()) {
 							// 横中縦
 							descent = 0;
 						} else {
@@ -381,7 +383,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					break;
 				case REPLACED: {
 					// 画像
-					if (StyleUtils.isVertical(lineParams.flow)) {
+					if (lineParams.flow.isVertical()) {
 						// 縦書き
 						ascent = descent = inlineBox.getWidth() / 2.0;
 					} else {
@@ -470,7 +472,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 		private void drawText(GC gc, double x, double y) {
 			double xx = x, yy = y;
-			if (StyleUtils.isVertical(this.params.flow)) {
+			if (this.params.flow.isVertical()) {
 				// 縦書き
 				for (int i = 0; i < this.len; ++i) {
 					final Text text = (Text) this.contents.get(i + this.off);
@@ -536,7 +538,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				double fontSize = this.params.fontStyle.getSize();
 				double strokeSize = fontSize * this.params.decorationThickness;
 				gc.setLineWidth(strokeSize);
-				if (StyleUtils.isVertical(this.params.flow)) {
+				if (this.params.flow.isVertical()) {
 					// 縦書き進行
 					x += this.descent;
 					final double lineAxis = this.height;
@@ -636,7 +638,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		boolean decoration = false;
 		double dx = 0, dy = 0;
 		final AbstractTextParams lineParams = this.getTextParams();
-		final boolean vertical = StyleUtils.isVertical(lineParams.flow);
+		final boolean vertical = lineParams.flow.isVertical();
 		// テキストとインラインの描画
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
@@ -697,7 +699,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					BlockParams params = box.getBlockParams();
 					if (vertical) {
 						// 縦書き
-						if (params.flow == AbstractTextParams.FLOW_RL || params.flow == AbstractTextParams.FLOW_LR) {
+						if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
 							descent = box.getLastDescent();
 							if (StyleUtils.isNone(descent)) {
 								descent = inlineBox.getWidth() / 2.0;
@@ -709,7 +711,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						ascent = inlineBox.getWidth() - descent;
 					} else {
 						// 横書き
-						if (params.flow == AbstractTextParams.FLOW_TB) {
+						if (params.flow == WritingMode.TB) {
 							descent = box.getLastDescent();
 							if (StyleUtils.isNone(descent)) {
 								descent = 0;
@@ -832,7 +834,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		double xx = x, yy = y;
 
 		final AbstractTextParams lineParams = this.getTextParams();
-		final boolean vertical = StyleUtils.isVertical(lineParams.flow);
+		final boolean vertical = lineParams.flow.isVertical();
 		// テキストとインラインの描画
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
@@ -882,7 +884,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					BlockParams params = box.getBlockParams();
 					if (vertical) {
 						// 縦書き
-						if (params.flow == AbstractTextParams.FLOW_RL || params.flow == AbstractTextParams.FLOW_LR) {
+						if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
 							descent = box.getLastDescent();
 							if (StyleUtils.isNone(descent)) {
 								descent = inlineBox.getWidth() / 2.0;
@@ -894,7 +896,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						ascent = inlineBox.getWidth() - descent;
 					} else {
 						// 横書き
-						if (params.flow == AbstractTextParams.FLOW_TB) {
+						if (params.flow == WritingMode.TB) {
 							descent = box.getLastDescent();
 							if (StyleUtils.isNone(descent)) {
 								descent = 0;

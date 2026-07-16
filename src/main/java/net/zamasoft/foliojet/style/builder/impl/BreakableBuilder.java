@@ -99,7 +99,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		double pageLimit = this.getPageLimit();
 		double last = this.pageAxis;
-		if (StyleUtils.isVertical(tableBox.getTableParams().flow)) {
+		if (tableBox.getTableParams().flow.isVertical()) {
 			last -= tableBox.getInnerWidth() + tableBox.getFrame().getFrameLeft();
 		} else {
 			last -= tableBox.getInnerHeight() + tableBox.getFrame().getFrameBottom();
@@ -188,7 +188,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		case BLOCK:
 			AbstractBlockBox blockBox = flowBox;
 			// 境界前でのpage-break-afterの適用を許す
-			if (StyleUtils.isVertical(this.getRootBox().getBlockParams().flow)) {
+			if (this.getRootBox().getBlockParams().flow.isVertical()) {
 				canBreakAfter = !blockBox.getFrame().frame.border.getRight().isNull();
 			} else {
 				canBreakAfter = !blockBox.getFrame().frame.border.getTop().isNull();
@@ -243,8 +243,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		if (this.breakDepth == -1) {
-			if (StyleUtils.isVertical(this.getFlow().box.getBlockParams().flow) != StyleUtils
-					.isVertical(flowBox.getBlockParams().flow)) {
+			if (this.getFlow().box.getBlockParams().flow.isVertical() != flowBox.getBlockParams().flow.isVertical()) {
 				this.breakDepth = 0;
 			}
 		} else {
@@ -589,7 +588,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		case BLOCK:
 			AbstractBlockBox blockBox = (AbstractBlockBox) flow.box;
 			// 境界直後でのpage-break-afterによる強制改ページを許す
-			if (StyleUtils.isVertical(this.getRootBox().getBlockParams().flow)) {
+			if (this.getRootBox().getBlockParams().flow.isVertical()) {
 				if (!blockBox.getFrame().frame.border.getLeft().isNull()) {
 					this.canBreakBefore = true;
 					this.interflowBreak = true;
@@ -714,7 +713,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			throw new IllegalStateException();
 		}
 		if (breakFloats) {
-			boolean vertical = StyleUtils.isVertical(this.getRootBox().getBlockParams().flow);
+			boolean vertical = this.getRootBox().getBlockParams().flow.isVertical();
 			this.breakFloats |= box.getFloatPos().floating;
 			double pageStart = this.getPageLimit();
 			Flow flow = this.getFlow();
@@ -770,7 +769,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			throw new IllegalStateException();
 		}
 		if (breakFloats) {
-			boolean vertical = StyleUtils.isVertical(this.getRootBox().getBlockParams().flow);
+			boolean vertical = this.getRootBox().getBlockParams().flow.isVertical();
 			this.breakFloats |= box.getFloatPos().floating;
 			double pageStart = this.getPageLimit();
 			Flow flow = this.getFlow();
@@ -803,7 +802,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		double pageAxis = pageStart;
-		if (StyleUtils.isVertical(this.getRootBox().getBlockParams().flow)) {
+		if (this.getRootBox().getBlockParams().flow.isVertical()) {
 			pageAxis += box.getWidth();
 		} else {
 			pageAxis += box.getHeight();
@@ -814,7 +813,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		// ページをはみ出した浮動ボックスが存在する
-		if (StyleUtils.isVertical(this.getRootBox().getBlockParams().flow)) {
+		if (this.getRootBox().getBlockParams().flow.isVertical()) {
 			pageStart -= this.getFlow().box.getFrame().getFrameRight();
 		}
 		else {
@@ -869,7 +868,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final AbstractContainerBox rootBox = this.getRootBox();
 		final BlockParams params = rootBox.getBlockParams();
 		double pageLimit;
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			pageLimit = rootBox.getInnerWidth();
 		} else {
 			pageLimit = rootBox.getInnerHeight();
@@ -969,7 +968,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.flowStack == null) {
 			return lastFrame;
 		}
-		if (StyleUtils.isVertical(breakFlow.box.getBlockParams().flow)) {
+		if (breakFlow.box.getBlockParams().flow.isVertical()) {
 			for (int i = this.flowStack.size() - depth; i >= 0; --i) {
 				Flow flow = (Flow) this.flowStack.get(i);
 				lastFrame += flow.box.getFrame().getFrameLeft();
@@ -1003,7 +1002,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
 
 		// ページの先頭かどうかの判断
-		if (StyleUtils.isVertical(breakFlow.box.getBlockParams().flow)) {
+		if (breakFlow.box.getBlockParams().flow.isVertical()) {
 			if (StyleUtils.compare(breakFlow.pageAxis - breakFlow.box.getFrame().getFrameRight(), 0) > 0) {
 				flags ^= IPageBreakableBox.FLAGS_FIRST;
 			}

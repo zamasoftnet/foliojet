@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -289,7 +291,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 		flowBox.firstPassLayout(containerBox);
 		double lineSize;
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			// 縦書き
 			lineSize = this.lineFrame + flowBox.getHeight();
 			this.lineFrame += flowBox.getFrame().getFrameHeight();
@@ -340,7 +342,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		switch (params.flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			this.lineFrame -= flowBox.getFrame().getFrameWidth();
 			this.pageFrame -= flowBox.getFrame().getFrameHeight();
@@ -349,8 +351,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				this.maxLineSize = this.minLineSize = flowBox.getWidth();
 			}
 			break;
-		case AbstractTextParams.FLOW_LR:
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.LR:
+		case WritingMode.RL:
 			// 縦書き
 			this.lineFrame -= flowBox.getFrame().getFrameHeight();
 			this.pageFrame -= flowBox.getFrame().getFrameWidth();
@@ -386,7 +388,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 			double minLineAxis, maxLineAxis = 0, minPageAxis;
 			BlockParams params = containerBox.getBlockParams();
-			if (StyleUtils.isVertical(params.flow)) {
+			if (params.flow.isVertical()) {
 				// 縦書き
 				minLineAxis = replacedBox.getHeight();
 				minPageAxis = replacedBox.getWidth();
@@ -429,7 +431,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 			double minLineAxis, minPageAxis, maxLineAxis = 0;
 			BlockParams params = containerBox.getBlockParams();
-			if (StyleUtils.isVertical(params.flow)) {
+			if (params.flow.isVertical()) {
 				// 縦書き
 				minLineAxis = replacedBox.getHeight();
 				minPageAxis = replacedBox.getWidth();
@@ -563,7 +565,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		BlockParams params = floatingBox.getBlockParams();
 		BlockParams flowParams = this.getFlowBox().getBlockParams();
 		double minLineAxis, maxLineAxis;
-		if (StyleUtils.isVertical(flowParams.flow)) {
+		if (flowParams.flow.isVertical()) {
 			// 縦書き
 			if (params.size.getHeightType() != LengthType.AUTO) {
 				minLineAxis = maxLineAxis = floatingBox.getHeight();
@@ -663,8 +665,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					System.err.println("START_FLOW");
 				}
 				final FlowBlockBox flow = (FlowBlockBox) k.next();
-				if (StyleUtils.isVertical(flow.getBlockParams().flow) == StyleUtils
-						.isVertical(builder.getRootBox().getBlockParams().flow)) {
+				if (flow.getBlockParams().flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()) {
 					builder.startFlowBlock(flow);
 				} else {
 					// 書字方向が違う場合
@@ -826,7 +827,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				final AbstractReplacedBox box = (AbstractReplacedBox) inlineQuad.getBox();
 				maxAdvance = quad.getAdvance();
 				minAdvance = 0;
-				if (StyleUtils.isVertical(cParams.flow)) {
+				if (cParams.flow.isVertical()) {
 					// 縦書き
 					if (box.getReplacedParams().size.getHeightType() != LengthType.RELATIVE
 							&& box.getReplacedParams().maxSize.getHeightType() != LengthType.RELATIVE) {
@@ -855,7 +856,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// インラインブロック
 				final AbstractContainerBox box = (AbstractContainerBox) inlineQuad.getBox();
 				final double lineFrame, pageFrame;
-				if (StyleUtils.isVertical(cParams.flow)) {
+				if (cParams.flow.isVertical()) {
 					// 縦書き
 					lineFrame = box.getFrame().getFrameHeight();
 					pageFrame = box.getFrame().getFrameWidth();
@@ -867,7 +868,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// インラインブロック
 				final BlockParams params = (BlockParams) box.getParams();
 				final TwoPass stfBuilder = (TwoPass) this.recordInlineBlocks.get(this.recordInlineBlocks.size() - 1);
-				if (StyleUtils.isVertical(cParams.flow) == StyleUtils.isVertical(params.flow)) {
+				if (cParams.flow.isVertical() == params.flow.isVertical()) {
 					minAdvance = stfBuilder.getMinLineSize() + lineFrame;
 					maxAdvance = stfBuilder.getMaxLineSize() + lineFrame;
 					pageSize = stfBuilder.getMinPageSize() + pageFrame;
@@ -876,7 +877,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					minAdvance = maxAdvance = stfBuilder.getMinPageSize() + pageFrame;
 					pageSize = stfBuilder.getMinLineSize() + lineFrame;
 				}
-				if (StyleUtils.isVertical(params.flow)) {
+				if (params.flow.isVertical()) {
 					// 縦書き
 					minAdvance = Math.max(minAdvance, box.getHeight());
 					maxAdvance = Math.max(maxAdvance, box.getHeight());
@@ -906,7 +907,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 							this.getFlowBox().getLineSize());
 				}
 				minAdvance = maxAdvance = quad.getAdvance();
-				if (StyleUtils.isVertical(cParams.flow)) {
+				if (cParams.flow.isVertical()) {
 					pageSize = inlineQuad.getBox().getWidth();
 				} else {
 					pageSize = inlineQuad.getBox().getHeight();

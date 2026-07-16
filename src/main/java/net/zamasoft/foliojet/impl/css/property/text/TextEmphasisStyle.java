@@ -57,13 +57,13 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 
 	public Value getComputedValue(Value value, CSSStyle style) {
 		if (value == AUTO_FILLED) {
-			if (StyleUtils.isVertical(BlockFlow.get(style))) {
+			if (BlockFlow.get(style).isVertical()) {
 				value = FILLED_SESAME;
 			} else {
 				value = FILLED_CIRCLE;
 			}
 		} else if (value == AUTO_OPEN) {
-			if (StyleUtils.isVertical(BlockFlow.get(style))) {
+			if (BlockFlow.get(style).isVertical()) {
 				value = OPEN_SESAME;
 			} else {
 				value = OPEN_CIRCLE;

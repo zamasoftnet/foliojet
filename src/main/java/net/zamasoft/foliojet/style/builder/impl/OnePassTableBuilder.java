@@ -139,7 +139,7 @@ public class OnePassTableBuilder implements TableBuilder {
 
 	public OnePassTableBuilder(TableBox tableBox) {
 		this.tableBox = tableBox;
-		this.vertical = StyleUtils.isVertical(tableBox.getTableParams().flow);
+		this.vertical = tableBox.getTableParams().flow.isVertical();
 	}
 
 	public TableBox getTableBox() {
@@ -1252,12 +1252,12 @@ public class OnePassTableBuilder implements TableBuilder {
 				}
 				if (this.vertical) {
 					cellBox.setHeight(size);
-					if (!StyleUtils.isVertical(cellBox.getBlockParams().flow)) {
+					if (!cellBox.getBlockParams().flow.isVertical()) {
 						cellBox.setWidth(cellBox.getBlockParams().fontStyle.getSize() * 10);
 					}
 				} else {
 					cellBox.setWidth(size);
-					if (StyleUtils.isVertical(cellBox.getBlockParams().flow)) {
+					if (cellBox.getBlockParams().flow.isVertical()) {
 						cellBox.setHeight(cellBox.getBlockParams().fontStyle.getSize() * 10);
 					}
 				}
@@ -1609,7 +1609,7 @@ public class OnePassTableBuilder implements TableBuilder {
 
 	private boolean checkBreak(boolean groupLast) {
 		final double firstFrame, lastFrame;
-		if (StyleUtils.isVertical(this.tableBox.getTableParams().flow)) {
+		if (this.tableBox.getTableParams().flow.isVertical()) {
 			firstFrame = this.tableBox.getFrame().getFrameRight();
 			lastFrame = this.tableBox.getFrame().getFrameLeft();
 		} else {

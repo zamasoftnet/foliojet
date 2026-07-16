@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
@@ -68,7 +70,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
 		{
 			double lineAxis;
-			if (StyleUtils.isVertical(this.params.flow)) {
+			if (this.params.flow.isVertical()) {
 				// 縦書き
 				lineAxis = cHeight;
 			} else {
@@ -96,7 +98,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		// ■ 絶対配置または固定配置の行方向幅の計算
 		//
 		switch (this.params.flow) {
-		case AbstractTextParams.FLOW_TB: {
+		case WritingMode.TB: {
 			// 横書き
 			double width = StyleUtils.computeDimensionWidth(this.size, cWidth);
 			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX && !StyleUtils.isNone(width)) {
@@ -185,8 +187,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			this.height = 0;
 		}
 			break;
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR: {
+		case WritingMode.RL:
+		case WritingMode.LR: {
 			// 縦書き
 			double top = 0;// TODO test box-sizing
 			double height = StyleUtils.computeDimensionHeight(this.size, cHeight);
@@ -304,7 +306,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		AbsoluteInsets padding = this.frame.padding;
 		RectBorder border = this.frame.frame.border;
 		switch (this.params.flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			double height = StyleUtils.computeDimensionHeight(this.size, cHeight);
 			double marginTop = 0;
@@ -404,8 +406,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			this.height = height;
 			break;
 
-		case AbstractTextParams.FLOW_RL:
-		case AbstractTextParams.FLOW_LR:
+		case WritingMode.RL:
+		case WritingMode.LR:
 			// 縦書き
 			double marginLeft = 0;
 			double marginRight = 0;

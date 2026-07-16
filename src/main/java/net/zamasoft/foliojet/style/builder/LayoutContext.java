@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import net.zamasoft.foliojet.style.box.AbstractContainerBox;
 import net.zamasoft.foliojet.style.box.IFloatBox;
 import net.zamasoft.foliojet.style.util.StyleUtils;
@@ -15,11 +17,11 @@ public interface LayoutContext extends LayoutStack {
 		public final IFloatBox box;
 		public final double lineStart, pageStart, lineEnd, pageEnd;
 
-		public Floating(IFloatBox box, double lineStart, double pageStart, byte progression) {
+		public Floating(IFloatBox box, double lineStart, double pageStart, WritingMode progression) {
 			this.box = box;
 			this.lineStart = lineStart;
 			this.pageStart = pageStart;
-			if (StyleUtils.isVertical(progression)) {
+			if (progression.isVertical()) {
 				// 縦書き
 				this.lineEnd = lineStart + box.getHeight();
 				this.pageEnd = pageStart + box.getWidth();

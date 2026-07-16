@@ -8,12 +8,6 @@ import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 public abstract class AbstractTextParams extends Params {
-	public static final byte FLOW_TB = 1;
-
-	public static final byte FLOW_RL = 2;
-
-	public static final byte FLOW_LR = 3;
-
 	public static final byte DIRECTION_LTR = 1;
 
 	public static final byte DIRECTION_RTL = 2;
@@ -57,7 +51,7 @@ public abstract class AbstractTextParams extends Params {
 	 */
 	public FontStyle fontStyle;
 
-	public byte flow = FLOW_TB;
+	public WritingMode flow = WritingMode.TB;
 
 	public byte direction = DIRECTION_LTR;
 

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.background;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -30,8 +32,8 @@ public class BackgroundRepeat extends AbstractPrimitivePropertyInfo {
 		case CSSJDirectionModeValue.HORIZONTAL_TB:
 			// 縦書き
 			switch (BlockFlow.get(style)) {
-			case AbstractTextParams.FLOW_RL:
-			case AbstractTextParams.FLOW_LR:
+			case WritingMode.RL:
+			case WritingMode.LR:
 				switch (repeat) {
 				case BackgroundImage.REPEAT_X:
 					repeat = BackgroundImage.REPEAT_Y;
@@ -47,7 +49,7 @@ public class BackgroundRepeat extends AbstractPrimitivePropertyInfo {
 		case CSSJDirectionModeValue.VERTICAL_RL:
 			// 縦書き
 			switch (BlockFlow.get(style)) {
-			case AbstractTextParams.FLOW_TB:
+			case WritingMode.TB:
 				switch (repeat) {
 				case BackgroundImage.REPEAT_X:
 					repeat = BackgroundImage.REPEAT_Y;

@@ -84,7 +84,7 @@ public final class StyleUtils {
 	 */
 	public static final boolean isFixedLineAxis(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
 		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
-			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
+			if (containerBox.getBlockParams().flow.isVertical()) {
 				// 縦書き
 				return blockBox.getBlockParams().size.getHeightType() == LengthType.ABSOLUTE;
 			} else {
@@ -92,7 +92,7 @@ public final class StyleUtils {
 				return blockBox.getBlockParams().size.getWidthType() == LengthType.ABSOLUTE;
 			}
 		} else {
-			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
+			if (containerBox.getBlockParams().flow.isVertical()) {
 				// 縦書き
 				return blockBox.getBlockParams().size.getHeightType() != LengthType.AUTO;
 			} else {
@@ -111,7 +111,7 @@ public final class StyleUtils {
 	 */
 	public static final boolean isFixedLineAxis(AbstractContainerBox containerBox, AbstractReplacedBox replacedBox) {
 		if (replacedBox.getPos().getType() == PosType.ABSOLUTE) {
-			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
+			if (containerBox.getBlockParams().flow.isVertical()) {
 				// 縦書き
 				return replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE;
 			} else {
@@ -119,7 +119,7 @@ public final class StyleUtils {
 				return replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE;
 			}
 		} else {
-			if (StyleUtils.isVertical(containerBox.getBlockParams().flow)) {
+			if (containerBox.getBlockParams().flow.isVertical()) {
 				// 縦書き
 				return replacedBox.getReplacedParams().size.getHeightType() != LengthType.AUTO;
 			} else {
@@ -410,7 +410,7 @@ public final class StyleUtils {
 			// 通常のフローにない場合は2パス
 			return true;
 		}
-		boolean vertical = StyleUtils.isVertical(params.flow);
+		boolean vertical = params.flow.isVertical();
 		if ((vertical ? params.size.getWidthType() : params.size.getHeightType()) != LengthType.AUTO) {
 			// 高さが指定された場合は2パス
 			return true;
@@ -450,20 +450,6 @@ public final class StyleUtils {
 		}
 	}
 
-	public static boolean isVertical(byte progression) {
-		switch (progression) {
-		case AbstractTextParams.FLOW_TB:
-			// 横書き
-			return false;
-		case AbstractTextParams.FLOW_LR:
-		case AbstractTextParams.FLOW_RL:
-			// 縦書き
-			return true;
-		default:
-			throw new IllegalStateException();
-		}
-	}
-
 	public static void calclateReplacedSize(Builder builder, AbstractReplacedBox replacedBox) {
 		//
 		// ■ 幅と高さの計算
@@ -473,7 +459,7 @@ public final class StyleUtils {
 		final BlockParams params = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
 		replacedBox.calculateFrame(lineSize);
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			// 縦書き
 			AbstractContainerBox box;
 			if (containerBox == builder.getContextBox()) {
@@ -556,7 +542,7 @@ public final class StyleUtils {
 	public static double getMaxAdvance(final AbstractContainerBox box) {
 		final BlockParams params = box.getBlockParams();
 		final double lineSize;
-		if (StyleUtils.isVertical(params.flow)) {
+		if (params.flow.isVertical()) {
 			// 縦書き
 			lineSize = box.getInnerHeight();
 		} else {

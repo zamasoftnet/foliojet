@@ -133,7 +133,7 @@ public final class HTMLStyleUtils {
 	static void applyListMargins(CSSStyle style, LengthValue length) {
 		final CSSStyle pStyle = style.getParentStyle();
 		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+				&& BlockFlow.get(pStyle).isVertical())
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
 			style.set(Margin.TOP, length);
@@ -152,7 +152,7 @@ public final class HTMLStyleUtils {
 	static void applyQuoteMargins(CSSStyle style, LengthValue length) {
 		final CSSStyle pStyle = style.getParentStyle();
 		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+				&& BlockFlow.get(pStyle).isVertical())
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
 			style.set(Margin.TOP, length);

@@ -39,11 +39,11 @@ public abstract class AbstractInnerTableBox extends AbstractBox implements INonR
 	}
 
 	public final double getWidth() {
-		return StyleUtils.isVertical(this.tableParams.flow) ? this.pageSize : this.lineSize;
+		return this.tableParams.flow.isVertical() ? this.pageSize : this.lineSize;
 	}
 
 	public final double getHeight() {
-		return StyleUtils.isVertical(this.tableParams.flow) ? this.lineSize : this.pageSize;
+		return this.tableParams.flow.isVertical() ? this.lineSize : this.pageSize;
 	}
 
 	public final double getInnerWidth() {

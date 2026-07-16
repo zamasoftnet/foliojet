@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.css.style;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.geom.AffineTransform;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -252,7 +254,7 @@ public class StyleBuilder implements PageGenerator {
 
 	private FlowBlockBox htmlRootBlock = null;
 	private Background background = null;
-	private byte progression = AbstractTextParams.FLOW_TB;
+	private WritingMode progression = WritingMode.TB;
 	private boolean rightSide = false;
 	private boolean inBody = false;
 	private boolean inTextBlock = false;
@@ -695,7 +697,7 @@ public class StyleBuilder implements PageGenerator {
 
 	private void setupTableRowGroup(InnerTableParams params, TableRowGroupPos pos, CSSStyle style, byte rowGroupType) {
 		this.setupInnerTableParams(params, style);
-		if (StyleUtils.isVertical(BlockFlow.get(style.getParentStyle()))) {
+		if (BlockFlow.get(style.getParentStyle()).isVertical()) {
 			params.size = Width.getLength(style);
 			params.minSize = MinWidth.getLength(style);
 			params.maxSize = MaxWidth.getLength(style);
@@ -711,7 +713,7 @@ public class StyleBuilder implements PageGenerator {
 
 	private void setupTableColumn(InnerTableParams params, TableColumnPos pos, CSSStyle style) {
 		this.setupInnerTableParams(params, style);
-		if (StyleUtils.isVertical(BlockFlow.get(style.getParentStyle()))) {
+		if (BlockFlow.get(style.getParentStyle()).isVertical()) {
 			params.size = Height.getLength(style);
 			params.minSize = MinHeight.getLength(style);
 			params.maxSize = MaxHeight.getLength(style);
@@ -741,7 +743,7 @@ public class StyleBuilder implements PageGenerator {
 
 	private void setupTableRow(InnerTableParams params, TableRowPos pos, CSSStyle style) {
 		this.setupInnerTableParams(params, style);
-		if (StyleUtils.isVertical(BlockFlow.get(style.getParentStyle()))) {
+		if (BlockFlow.get(style.getParentStyle()).isVertical()) {
 			params.size = Width.getLength(style);
 			params.minSize = MinWidth.getLength(style);
 			params.maxSize = MaxWidth.getLength(style);
@@ -947,7 +949,7 @@ public class StyleBuilder implements PageGenerator {
 		return Offset.create(x, y, xType, yType);
 	}
 
-	private void requireRoot(byte direction, byte progression) {
+	private void requireRoot(byte direction, WritingMode progression) {
 		// 保留されたHTMLのルートを出力する
 		if (!this.inBody) {
 			this.inBody = true;
@@ -966,7 +968,7 @@ public class StyleBuilder implements PageGenerator {
 			} else if (printMode == OutputPrintMode.RIGHT_SIDE) {
 				right = true;
 			} else {
-				right = direction == AbstractTextParams.DIRECTION_RTL || progression == AbstractTextParams.FLOW_RL;
+				right = direction == AbstractTextParams.DIRECTION_RTL || progression == WritingMode.RL;
 			}
 			if (right) {
 				this.imposition.setBoundSide(BoundSide.RIGHT);
@@ -1753,7 +1755,7 @@ public class StyleBuilder implements PageGenerator {
 		style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
 		final CSSStyle pStyle = style.getParentStyle();
 		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& StyleUtils.isVertical(BlockFlow.get(pStyle)))
+				&& BlockFlow.get(pStyle).isVertical())
 				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
 			// 縦書き
 			style.set(Width.INFO, AbsoluteLengthValue.ZERO);
@@ -1947,7 +1949,7 @@ public class StyleBuilder implements PageGenerator {
 					}
 					replacedBox = new FlowReplacedBox(params, pos);
 				}
-				this.requireRoot(AbstractTextParams.DIRECTION_LTR, AbstractTextParams.FLOW_TB);
+				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
 				if (inline) {
 					this.checkMarker();
 				}
@@ -1984,7 +1986,7 @@ public class StyleBuilder implements PageGenerator {
 				this.setupReplacedParams(image, params, style);
 				this.setupInlinePos(pos, style);
 				AbstractReplacedBox replaced = new InlineReplacedBox(params, pos);
-				this.requireRoot(AbstractTextParams.DIRECTION_LTR, AbstractTextParams.FLOW_TB);
+				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
 				this.checkMarker();
 				this.doc.addReplacedBox(replaced);
 			} else {
@@ -2020,7 +2022,7 @@ public class StyleBuilder implements PageGenerator {
 				}
 			}
 			TableBox table = new TableBox(params, blockBox);
-			this.requireRoot(AbstractTextParams.DIRECTION_LTR, AbstractTextParams.FLOW_TB);
+			this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
 			this.doc.startBox(table);
 			this.inTextBlock = false;
 		}
@@ -2251,7 +2253,7 @@ public class StyleBuilder implements PageGenerator {
 			} else {
 				// 圏点
 				final char[] emc = em.toCharArray();
-				final boolean vert = StyleUtils.isVertical(BlockFlow.get(this.currentStyle));
+				final boolean vert = BlockFlow.get(this.currentStyle).isVertical();
 				final boolean logVert = (CSSJDirectionMode.get(this.currentStyle) == CSSJDirectionModeValue.PHYSICAL
 						&& vert) || CSSJDirectionMode.get(this.currentStyle) == CSSJDirectionModeValue.VERTICAL_RL;
 				Value color = this.currentStyle.get(TextEmphasisColor.INFO);

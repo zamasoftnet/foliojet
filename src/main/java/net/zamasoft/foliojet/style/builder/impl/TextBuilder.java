@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -296,7 +298,7 @@ public class TextBuilder {
 		// System.out.println("NewLine:"+lineStart+"/"+this.maxLineSize);
 
 		// 天付き
-		if (!this.last && StyleUtils.isVertical(this.lineBox.getLineParams().flow)) {
+		if (!this.last && this.lineBox.getLineParams().flow.isVertical()) {
 			for (int i = 0; i < this.textBuffer.size(); ++i) {
 				Element e = (Element) this.textBuffer.get(i);
 				if (e.getAdvance() == 0) {
@@ -357,7 +359,7 @@ public class TextBuilder {
 
 			double start;
 			AbstractTextParams textParams = textBox.getTextParams();
-			if (StyleUtils.isVertical(textParams.flow)) {
+			if (textParams.flow.isVertical()) {
 				// 縦書き
 				start = inlineBox.getFrame().getFrameTop();
 			} else {
@@ -396,7 +398,7 @@ public class TextBuilder {
 			final IInlineBox inlineBox = box;
 			final double advance;
 			final AbstractLineParams lineParams = this.lineBox.getLineParams();
-			if (StyleUtils.isVertical(lineParams.flow)) {
+			if (lineParams.flow.isVertical()) {
 				// 縦書き
 				advance = inlineBox.getHeight();
 			} else {
@@ -416,9 +418,9 @@ public class TextBuilder {
 				final AbstractContainerBox inlineBlockBox = (AbstractContainerBox) box;
 				final BlockParams params = inlineBlockBox.getBlockParams();
 				switch (lineParams.flow) {
-				case AbstractTextParams.FLOW_TB:
+				case WritingMode.TB:
 					// 横書き
-					if (params.flow == AbstractTextParams.FLOW_TB) {
+					if (params.flow == WritingMode.TB) {
 						descent = inlineBlockBox.getLastDescent();
 						if (StyleUtils.isNone(descent)) {
 							descent = 0;
@@ -429,10 +431,10 @@ public class TextBuilder {
 					}
 					ascent = inlineBox.getHeight() - descent;
 					break;
-				case AbstractTextParams.FLOW_LR:
-				case AbstractTextParams.FLOW_RL:
+				case WritingMode.LR:
+				case WritingMode.RL:
 					// 縦書き
-					if (params.flow == AbstractTextParams.FLOW_RL || params.flow == AbstractTextParams.FLOW_LR) {
+					if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
 						descent = inlineBlockBox.getLastDescent();
 						if (StyleUtils.isNone(descent)) {
 							descent = inlineBox.getWidth() / 2.0;
@@ -449,13 +451,13 @@ public class TextBuilder {
 			} else {
 				// 画像の基底線
 				switch (lineParams.flow) {
-				case AbstractTextParams.FLOW_TB:
+				case WritingMode.TB:
 					// 横書き
 					ascent = box.getHeight();
 					descent = 0;
 					break;
-				case AbstractTextParams.FLOW_LR:
-				case AbstractTextParams.FLOW_RL:
+				case WritingMode.LR:
+				case WritingMode.RL:
 					// 縦書き
 					ascent = box.getWidth();
 					descent = ascent = ascent / 2.0;
@@ -502,14 +504,14 @@ public class TextBuilder {
 			double advance, end;
 			AbstractLineParams params = this.lineBox.getLineParams();
 			switch (params.flow) {
-			case AbstractTextParams.FLOW_TB: {
+			case WritingMode.TB: {
 				// 横書き
 				end = inlineBox.getFrame().getFrameRight();
 				advance = inlineBox.getWidth() + end;
 				break;
 			}
-			case AbstractTextParams.FLOW_LR:
-			case AbstractTextParams.FLOW_RL: {
+			case WritingMode.LR:
+			case WritingMode.RL: {
 				// 縦書き
 				end = inlineBox.getFrame().getFrameBottom();
 				advance = inlineBox.getHeight() + end;
@@ -650,7 +652,7 @@ public class TextBuilder {
 				for (int i = inlineStack.size() - 1; i >= 1; --i) {
 					Inline inline = (Inline) inlineStack.get(i);
 					Inline parent = (Inline) inlineStack.get(i - 1);
-					if (StyleUtils.isVertical(lineParams.flow)) {
+					if (lineParams.flow.isVertical()) {
 						// 縦書き
 						parent.box.addAdvance(inline.box.getHeight());
 					} else {
@@ -993,7 +995,7 @@ public class TextBuilder {
 			case InlineQuad.INLINE_REPLACED:
 			case InlineQuad.INLINE_BLOCK:
 				final double lineHeight;
-				if (StyleUtils.isVertical(params.flow)) {
+				if (params.flow.isVertical()) {
 					lineHeight = inlineQuad.getBox().getWidth();
 				} else {
 					lineHeight = inlineQuad.getBox().getHeight();

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -162,7 +164,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			return;
 		}
 		// 横書きのみを対象とする(縦書きの双方向は将来対応)。
-		if (StyleUtils.isVertical(this.getLineParams().flow)) {
+		if (this.getLineParams().flow.isVertical()) {
 			return;
 		}
 		final int n = this.contents.size();
@@ -206,13 +208,13 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
 		switch (this.getLineParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			x += this.lineAlign;
 			break;
 
-		case AbstractTextParams.FLOW_LR:
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.LR:
+		case WritingMode.RL:
 			// 縦書き
 			y += this.lineAlign;
 			break;
@@ -231,13 +233,13 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
 		switch (this.getLineParams().flow) {
-		case AbstractTextParams.FLOW_TB:
+		case WritingMode.TB:
 			// 横書き
 			x += this.lineAlign;
 			break;
 
-		case AbstractTextParams.FLOW_LR:
-		case AbstractTextParams.FLOW_RL:
+		case WritingMode.LR:
+		case WritingMode.RL:
 			// 縦書き
 			y += this.lineAlign;
 			break;

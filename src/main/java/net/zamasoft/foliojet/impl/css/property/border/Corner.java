@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.border;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
@@ -38,16 +40,16 @@ public enum Corner {
 			return this;
 		case CSSJDirectionModeValue.HORIZONTAL_TB:
 			switch (BlockFlow.get(style)) {
-			case AbstractTextParams.FLOW_RL:
+			case WritingMode.RL:
 				return HTB_RL[this.ordinal()];
-			case AbstractTextParams.FLOW_LR:
+			case WritingMode.LR:
 				return HTB_LR[this.ordinal()];
 			default:
 				return this;
 			}
 		case CSSJDirectionModeValue.VERTICAL_RL:
 			switch (BlockFlow.get(style)) {
-			case AbstractTextParams.FLOW_TB:
+			case WritingMode.TB:
 				return VRL_TB[this.ordinal()];
 			default:
 				return this;

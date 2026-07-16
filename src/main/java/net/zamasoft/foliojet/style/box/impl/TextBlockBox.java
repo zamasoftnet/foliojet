@@ -128,7 +128,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final double getWidth() {
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			return this.getPageSize();
 		} else {
@@ -138,7 +138,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final double getHeight() {
-		if (StyleUtils.isVertical(this.params.flow)) {
+		if (this.params.flow.isVertical()) {
 			// 縦書き
 			return this.lineSize;
 		} else {
@@ -180,7 +180,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		if (this.lines.isEmpty()) {
 			return pageAxis;
 		}
-		if (StyleUtils.isVertical(this.getBlockParams().flow)) {
+		if (this.getBlockParams().flow.isVertical()) {
 			// 縦書き
 			for (int i = 0; i < this.lines.size(); ++i) {
 				final Line line = (Line) this.lines.get(i);
@@ -219,7 +219,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
 			// 描画
-			if (StyleUtils.isVertical(this.params.flow)) {
+			if (this.params.flow.isVertical()) {
 				// 縦書き
 				lineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
 						x + this.getPageSize() - line.getPageEnd(), y);
@@ -235,7 +235,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
 			// 描画
-			if (StyleUtils.isVertical(this.params.flow)) {
+			if (this.params.flow.isVertical()) {
 				// 縦書き
 				lineBox.textShape(pageBox, path, transform, x + this.getPageSize() - line.getPageEnd(), y);
 			} else {
@@ -254,7 +254,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// FLAGS_LASTは実際の要素に対するもので、仮想的なテキストブロックには適用しない
 
-		final boolean vertical = StyleUtils.isVertical(this.params.flow);
+		final boolean vertical = this.params.flow.isVertical();
 		final double pageSize;
 		if (vertical) {
 			pageSize = this.getWidth();

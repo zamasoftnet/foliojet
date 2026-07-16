@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.shorthand;
 
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;

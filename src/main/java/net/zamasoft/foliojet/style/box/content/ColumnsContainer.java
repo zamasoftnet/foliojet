@@ -37,7 +37,7 @@ public class ColumnsContainer implements Container {
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			final BlockParams params = ColumnsContainer.this.box.getBlockParams();
 			final double columnSize = ColumnsContainer.this.box.getLineSize() + params.columns.gap;
-			if (StyleUtils.isVertical(params.flow)) {
+			if (params.flow.isVertical()) {
 				for (int i = 1; i < ColumnsContainer.this.getColumnCount(); ++i) {
 					y += columnSize;
 					BorderRenderer.INSTANCE.drawHorizontalBorder(gc, params.columns.rule, x,
@@ -118,7 +118,7 @@ public class ColumnsContainer implements Container {
 			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y);
 			drawer.visitDrawable(drawable, x, y);
 		}
-		if (StyleUtils.isVertical(this.box.getBlockParams().flow)) {
+		if (this.box.getBlockParams().flow.isVertical()) {
 			for (int i = 0; i < this.columns.size(); ++i) {
 				if (i >= 1) {
 					y += columnSize;
@@ -141,7 +141,7 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		if (StyleUtils.isVertical(this.box.getBlockParams().flow)) {
+		if (this.box.getBlockParams().flow.isVertical()) {
 			for (int i = 0; i < this.columns.size(); ++i) {
 				if (i >= 1) {
 					y += columnSize;
@@ -164,7 +164,7 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		if (StyleUtils.isVertical(this.box.getBlockParams().flow)) {
+		if (this.box.getBlockParams().flow.isVertical()) {
 			for (int i = 0; i < this.columns.size(); ++i) {
 				if (i >= 1) {
 					y += columnSize;
@@ -187,7 +187,7 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		if (StyleUtils.isVertical(this.box.getBlockParams().flow)) {
+		if (this.box.getBlockParams().flow.isVertical()) {
 			for (int i = 0; i < this.columns.size(); ++i) {
 				if (i >= 1) {
 					y += columnSize;

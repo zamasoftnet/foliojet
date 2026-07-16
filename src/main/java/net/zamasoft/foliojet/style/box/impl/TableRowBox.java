@@ -197,7 +197,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
 			for (int i = 0; i < this.cells.size(); ++i) {
 				Cell cell = (Cell) this.cells.get(i);
@@ -229,7 +229,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			for (int i = 0; i < this.cells.size(); ++i) {
 				// 縦書き
 				Cell cell = (Cell) this.cells.get(i);
@@ -286,7 +286,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			return;
 		}
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
-		if (StyleUtils.isVertical(this.tableParams.flow)) {
+		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
 			for (int i = 0; i < this.cells.size(); ++i) {
 				Cell cell = (Cell) this.cells.get(i);
@@ -328,7 +328,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		// System.err.println("A:" + flags + "/" + pageLimit + "/" + mode
 		// + "/" + this.getHeight()+"/"+this.params.augmentation);
 
-		final boolean vertical = StyleUtils.isVertical(this.tableParams.flow);
+		final boolean vertical = this.tableParams.flow.isVertical();
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) == 0) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
 				// ページ頭ではない場合
@@ -372,7 +372,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 						Cell cell = (Cell) this.cells.get(i);
 						BlockParams cellParams = cell.getCellBox().getBlockParams();
 						// 書字方向が違う場合は改ページ禁止
-						if (StyleUtils.isVertical(cellParams.flow) != StyleUtils.isVertical(this.tableParams.flow)) {
+						if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
 							return this;
 						}
 						if (cellParams.pageBreakInside == Types.PAGE_BREAK_AVOID) {
@@ -394,7 +394,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				for (int i = 0; i < this.cells.size(); ++i) {
 					Cell cell = (Cell) this.cells.get(i);
 					BlockParams cellParams = cell.getCellBox().getBlockParams();
-					if (StyleUtils.isVertical(cellParams.flow) != StyleUtils.isVertical(this.tableParams.flow)) {
+					if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
 						return null;
 					}
 				}
@@ -573,7 +573,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 	public final void cutRowspanCells() {
 		// 連結されたセルを強制切断する
-		final boolean vertical = StyleUtils.isVertical(this.tableParams.flow);
+		final boolean vertical = this.tableParams.flow.isVertical();
 		for (int i = 0; i < this.cells.size(); ++i) {
 			Cell cell = (Cell) this.cells.get(i);
 			if (cell.isSource()) {

@@ -95,7 +95,7 @@ public class StyleApplier {
 			// 幅指定されている場合はwhite-space: normal;を適用する
 			Length length;
 			final CSSStyle pStyle = style.getParentStyle();
-			if (pStyle != null && StyleUtils.isVertical(BlockFlow.get(pStyle))) {
+			if (pStyle != null && BlockFlow.get(pStyle).isVertical()) {
 				length = Height.getLength(style);
 			} else {
 				length = Width.getLength(style);

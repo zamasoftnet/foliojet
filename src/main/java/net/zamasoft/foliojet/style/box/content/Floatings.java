@@ -91,7 +91,7 @@ public class Floatings {
 		assert !StyleUtils.isNone(x) : "Undefined x";
 		assert !StyleUtils.isNone(y) : "Undefined y";
 		// 浮動体
-		boolean vertical = StyleUtils.isVertical(box.getBlockParams().flow);
+		boolean vertical = box.getBlockParams().flow.isVertical();
 		if (vertical) {
 			x += box.getInnerWidth();
 		}
@@ -125,7 +125,7 @@ public class Floatings {
 	 */
 	public Floatings splitPageAxis(final AbstractContainerBox box, final double pageLimit, final byte flags) {
 		assert !this.floatings.isEmpty();
-		final boolean vertical = StyleUtils.isVertical(box.getBlockParams().flow);
+		final boolean vertical = box.getBlockParams().flow.isVertical();
 		Floatings nextFloatings = this;
 		// 浮動体
 		for (int i = 0; i < this.floatings.size(); ++i) {
@@ -152,7 +152,7 @@ public class Floatings {
 					final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
 					final BlockParams params = containerBox.getBlockParams();
 					if (params.pageBreakInside != Types.PAGE_BREAK_AVOID
-							&& vertical == StyleUtils.isVertical(params.flow)) {
+							&& vertical == params.flow.isVertical()) {
 						byte xflags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
 						double pageAxis = pageLimit - floating.pageAxis;
 						nextBox = (IFloatBox) containerBox.splitPageAxis(pageAxis, BreakMode.DEFAULT_BREAK_MODE,

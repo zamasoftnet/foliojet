@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.css.property;
 
+
 import java.util.HashMap;
 import java.util.Map;
 

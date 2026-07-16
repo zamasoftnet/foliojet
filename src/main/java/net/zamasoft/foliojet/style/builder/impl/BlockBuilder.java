@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.WritingMode;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -184,7 +186,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				Flow flow = (Flow) this.flowStack.get(i);
 				BlockParams params = flow.box.getBlockParams();
 				frameWidth += flow.box.getFrame().getFrameWidth();
-				if (!StyleUtils.isVertical(params.flow)) {
+				if (!params.flow.isVertical()) {
 					// 横書き
 					return flow.box.getWidth() - frameWidth;
 				}
@@ -203,7 +205,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
 				Flow flow = (Flow) this.flowStack.get(i);
 				BlockParams params = flow.box.getBlockParams();
-				if (!StyleUtils.isVertical(params.flow)) {
+				if (!params.flow.isVertical()) {
 					// 横書き
 					return flow.box;
 				}
@@ -221,7 +223,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
 				final Flow flow = (Flow) this.flowStack.get(i);
 				final BlockParams params = flow.box.getBlockParams();
-				if (StyleUtils.isVertical(params.flow)) {
+				if (params.flow.isVertical()) {
 					// 縦書き
 					return flow.box;
 				}
@@ -241,7 +243,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				Flow flow = (Flow) this.flowStack.get(i);
 				BlockParams params = flow.box.getBlockParams();
 				frameHeight += flow.box.getFrame().getFrameHeight();
-				if (StyleUtils.isVertical(params.flow)) {
+				if (params.flow.isVertical()) {
 					// 縦書き
 					return flow.box.getHeight() - frameHeight;
 				}
@@ -407,7 +409,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// clearが指定されている場合
 			LayoutContext.Floating floating = null;
 			double pageEnd = 0, marginStart;
-			if (StyleUtils.isVertical(cParams.flow)) {
+			if (cParams.flow.isVertical()) {
 				marginStart = frame.margin.right;
 			} else {
 				marginStart = frame.margin.top;
@@ -460,7 +462,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		LayoutContext.Flow parentFlow = this.getFlow(this.getFlowCount() - 1);
 		double marginStart, frameStart, frameHead;
 		boolean bordered;
-		if (StyleUtils.isVertical(cParams.flow)) {
+		if (cParams.flow.isVertical()) {
 			// 縦書き
 			marginStart = frame.margin.right;
 			frameHead = frame.getFrameTop();
@@ -528,7 +530,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final AbsoluteRectFrame frame = flowBox.getFrame();
 		final double marginEnd, frameEnd, frameHead;
 		boolean bordered;
-		if (StyleUtils.isVertical(parentParams.flow)) {
+		if (parentParams.flow.isVertical()) {
 			// 縦書き
 			marginEnd = frame.margin.left;
 			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
@@ -598,7 +600,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			Flow flow = this.getFlow();
 			BlockParams params = flow.box.getBlockParams();
-			boolean vertical = StyleUtils.isVertical(params.flow);
+			boolean vertical = params.flow.isVertical();
 			AbsoluteInsets amargin;
 			AbsoluteRectFrame frame;
 			byte clear, align;
@@ -871,9 +873,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// 7.浮動ボックスは最も端にある場合を除き、包含ボックスの左右の辺をはみ出してはならない
 		// 8.浮動ボックスは第一になるべく高く、第二になるべく端に位置しなければならない
 		// 浮動体はこれより上にはならない
-		byte progression = this.getRootBox().getBlockParams().flow;
+		WritingMode progression = this.getRootBox().getBlockParams().flow;
 		double lineWidth, pageWidth;
-		if (StyleUtils.isVertical(progression)) {
+		if (progression.isVertical()) {
 			// 縦書き
 			lineWidth = box.getHeight();
 			pageWidth = box.getWidth();
@@ -993,9 +995,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 */
 	protected void addEndFloat(IFloatBox box) {
 		// 浮動体はこれより上にはならない
-		byte progression = this.getRootBox().getBlockParams().flow;
+		WritingMode progression = this.getRootBox().getBlockParams().flow;
 		double lineWidth, pageWidth;
-		if (StyleUtils.isVertical(progression)) {
+		if (progression.isVertical()) {
 			// 縦書き
 			lineWidth = box.getHeight();
 			pageWidth = box.getWidth();
@@ -1124,7 +1126,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 					contextFlow.box.setPageAxis(pageAxis - contextFlow.pageAxis);
 					if (params.overflow == Types.OVERFLOW_HIDDEN) {
 						// overflowで高さが指定されている場合は、外に影響しない
-						if (StyleUtils.isVertical(contextFlow.box.getBlockParams().flow)) {
+						if (contextFlow.box.getBlockParams().flow.isVertical()) {
 							pageAxis = contextFlow.box.getInnerWidth() + contextFlow.pageAxis;
 						} else {
 							pageAxis = contextFlow.box.getInnerHeight() + contextFlow.pageAxis;
