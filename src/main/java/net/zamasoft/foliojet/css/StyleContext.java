@@ -3,7 +3,9 @@ package net.zamasoft.foliojet.css;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.logging.Logger;
 
@@ -93,6 +95,35 @@ public class StyleContext {
 			result.merge(this.styleSheet.firstPage);
 		}
 		return result;
+	}
+
+	/**
+	 * ページに対して適用されるマージンボックスの宣言を返します
+	 * (擬似ページの合成順は {@link #nextPage(CSSElement)} と同一)。
+	 *
+	 * @param page ページ擬似要素
+	 * @return ボックス名→宣言(宣言のないボックスは含まれない)
+	 */
+	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page) {
+		final Map<MarginBoxName, Declaration> result = new EnumMap<MarginBoxName, Declaration>(MarginBoxName.class);
+		mergeMarginBoxes(result, this.styleSheet.pageMarginBoxes);
+		if (page.isPseudoClass(CSSElement.PC_LEFT)) {
+			mergeMarginBoxes(result, this.styleSheet.leftPageMarginBoxes);
+		}
+		if (page.isPseudoClass(CSSElement.PC_RIGHT)) {
+			mergeMarginBoxes(result, this.styleSheet.rightPageMarginBoxes);
+		}
+		if (page.isPseudoClass(CSSElement.PC_FIRST)) {
+			mergeMarginBoxes(result, this.styleSheet.firstPageMarginBoxes);
+		}
+		return result;
+	}
+
+	private static void mergeMarginBoxes(Map<MarginBoxName, Declaration> result,
+			Map<MarginBoxName, Declaration> boxes) {
+		for (Map.Entry<MarginBoxName, Declaration> e : boxes.entrySet()) {
+			result.computeIfAbsent(e.getKey(), k -> new Declaration()).merge(e.getValue());
+		}
 	}
 
 	/**

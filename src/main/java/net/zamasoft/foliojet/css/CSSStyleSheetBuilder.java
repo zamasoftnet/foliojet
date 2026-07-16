@@ -16,6 +16,7 @@ import com.helger.css.decl.CSSFontFaceRule;
 import com.helger.css.decl.CSSImportRule;
 import com.helger.css.decl.CSSMediaQuery;
 import com.helger.css.decl.CSSMediaRule;
+import com.helger.css.decl.CSSPageMarginBlock;
 import com.helger.css.decl.CSSPageRule;
 import com.helger.css.decl.CSSStyleRule;
 import com.helger.css.decl.CascadingStyleSheet;
@@ -143,7 +144,7 @@ public class CSSStyleSheetBuilder {
 			if (member instanceof CSSDeclaration declaration) {
 				declarations.add(declaration);
 			}
-			// ページマージンボックス(@top-center等)は現段階では未対応
+			// ページマージンボックス(@top-center等)は page() が別途処理する
 		}
 		return declarations;
 	}
@@ -178,6 +179,21 @@ public class CSSStyleSheetBuilder {
 			Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
 					PagePropertySet.getInstance(), this.ua, uri);
 			this.cssStyleSheet.addPage(pseudo, declaration);
+
+			// ページマージンボックス(@top-center等、css-page-3 §7)
+			for (ICSSPageRuleMember member : pageRule.getAllMembers()) {
+				if (member instanceof CSSPageMarginBlock marginBlock) {
+					final MarginBoxName box = MarginBoxName.fromSymbol(marginBlock.getPageMarginSymbol());
+					if (box == null) {
+						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+								"未知のページマージンボックスです: " + marginBlock.getPageMarginSymbol());
+						continue;
+					}
+					Declaration boxDeclaration = DeclarationParser.convert(marginBlock.getAllDeclarations(), null,
+							ElementPropertySet.getInstance(), this.ua, uri);
+					this.cssStyleSheet.addPageMarginBox(pseudo, box, boxDeclaration);
+				}
+			}
 		}
 	}
 

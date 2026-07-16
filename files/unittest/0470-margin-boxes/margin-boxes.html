@@ -1,0 +1,52 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="160pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page {
+	margin: 30pt;
+	@top-center { content: "Chapter " counter(page); }
+	@top-left { content: "TL"; }
+	@top-right { content: "TR"; font-size: 6pt; }
+	@bottom-center { content: counter(page); }
+	@bottom-left { content: "BL"; vertical-align: top; }
+	@top-left-corner { content: "+"; }
+	@bottom-right-corner { content: "*"; }
+	@left-middle { content: "L" counter(page); }
+	@right-top { content: "RT"; }
+	@right-bottom { content: "RB"; }
+}
+@page :first {
+	@top-center { content: "First Page"; font-weight: bold; }
+}
+body {
+	font: normal 10pt/1 serif;
+	margin: 0;
+}
+p {
+	margin: 0 0 4pt 0;
+}
+</style>
+</head>
+<body>
+<p>page one line alpha</p>
+<p>page one line beta</p>
+<p>page one line gamma</p>
+<p>page one line delta</p>
+<p>page one line epsilon</p>
+<p>page one line zeta</p>
+<p>page one line eta</p>
+<p>page one line theta</p>
+<p>second page first line</p>
+<p>second page second line</p>
+<p>second page third line</p>
+<p>second page fourth line</p>
+<p>second page fifth line</p>
+<p>third page content line</p>
+<p>third page closing line</p>
+</body>
+</html>

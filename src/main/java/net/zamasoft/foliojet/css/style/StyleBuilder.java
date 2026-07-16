@@ -2555,6 +2555,7 @@ public class StyleBuilder implements PageGenerator {
 
 		// ページカウンター加算
 		Value[] increments = CounterIncrement.get(pageStyle);
+		boolean pageIncremented = false;
 		if (increments != null) {
 			final PassContext pc = this.ua.getPassContext();
 			for (int i = 0; i < increments.length; ++i) {
@@ -2562,7 +2563,13 @@ public class StyleBuilder implements PageGenerator {
 				String name = counterSet.getName();
 				int delta = counterSet.getValue();
 				pc.getCounterScope(0, true).increment(name, delta);
+				pageIncremented |= "page".equals(name);
 			}
+		}
+		if (!pageIncremented) {
+			// page カウンタはページごとに自動加算される(css-page-3 §6.1)。
+			// @page の counter-increment が page を明示した場合はそちらが優先
+			this.ua.getPassContext().getCounterScope(0, true).increment("page", 1);
 		}
 
 		// ルートのスタイルを適用
@@ -2686,6 +2693,10 @@ public class StyleBuilder implements PageGenerator {
 		if (gc != null) {
 			// 固定
 			pageBox.drawFixed(drawer, visitor);
+
+			// ページマージンボックス(css-page-3。本文の後に描く=仕様の描画順)
+			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, pageBox, drawer, visitor);
+
 			visitor.endPage();
 		}
 

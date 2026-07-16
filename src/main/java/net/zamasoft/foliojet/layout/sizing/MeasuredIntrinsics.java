@@ -84,9 +84,9 @@ public final class MeasuredIntrinsics {
 	 * 組み上がったボックス木の使用行寸法(内容が実際に占める行方向の幅)を
 	 * 返します。scratch ページ上では AUTO 幅のブロックは利用可能幅に
 	 * 伸びるため、テキスト行・置換要素・固定幅ブロックの実寸から
-	 * 読み取ります。
+	 * 読み取ります(マージンボックスの max-content 測定でも使用)。
 	 */
-	private static double usedLineExtent(final Container container, final WritingMode flow) {
+	public static double usedLineExtent(final Container container, final WritingMode flow) {
 		final double[] max = { 0 };
 		container.eachFlowBox(box -> max[0] = Math.max(max[0], boxLineExtent(box, flow)));
 		if (container instanceof FlowContainer fc) {

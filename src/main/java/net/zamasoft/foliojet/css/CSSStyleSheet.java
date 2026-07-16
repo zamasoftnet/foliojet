@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.css;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +47,16 @@ public class CSSStyleSheet {
 
 	/** ページの宣言。 */
 	Declaration page, firstPage, leftPage, rightPage;
+
+	/** ページマージンボックスの宣言(擬似ページ別)。 */
+	final Map<MarginBoxName, Declaration> pageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
+			MarginBoxName.class);
+	final Map<MarginBoxName, Declaration> firstPageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
+			MarginBoxName.class);
+	final Map<MarginBoxName, Declaration> leftPageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
+			MarginBoxName.class);
+	final Map<MarginBoxName, Declaration> rightPageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
+			MarginBoxName.class);
 
 	/**
 	 * ルールを追加します。
@@ -189,6 +200,32 @@ public class CSSStyleSheet {
 			}
 			this.rightPage.merge(declaration);
 		}
+	}
+
+	/**
+	 * ページマージンボックスの宣言を追加します(css-page-3 §7)。
+	 *
+	 * @param pseudoPage  @page の擬似ページ(null / first / left / right)
+	 * @param box         マージンボックス名
+	 * @param declaration 宣言
+	 */
+	public void addPageMarginBox(String pseudoPage, MarginBoxName box, Declaration declaration) {
+		if (declaration == null) {
+			return;
+		}
+		final Map<MarginBoxName, Declaration> boxes;
+		if (pseudoPage == null) {
+			boxes = this.pageMarginBoxes;
+		} else if (pseudoPage.equals("first")) {
+			boxes = this.firstPageMarginBoxes;
+		} else if (pseudoPage.equals("left")) {
+			boxes = this.leftPageMarginBoxes;
+		} else if (pseudoPage.equals("right")) {
+			boxes = this.rightPageMarginBoxes;
+		} else {
+			return;
+		}
+		boxes.computeIfAbsent(box, k -> new Declaration()).merge(declaration);
 	}
 
 }
