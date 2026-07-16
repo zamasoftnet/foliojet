@@ -110,6 +110,11 @@ public class ColumnsContainer implements Container {
 		return first.getCutPoint(pageAxis);
 	}
 
+	public double getCutPointBelow(double pageAxis) {
+		FlowContainer first = (FlowContainer) this.columns.get(0);
+		return first.getCutPointBelow(pageAxis);
+	}
+
 	public void drawFlowFrames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y) {
 		final BlockParams params = this.box.getBlockParams();

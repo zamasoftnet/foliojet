@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.layout.box.params.Length;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder;
+import net.zamasoft.foliojet.layout.fragment.ColumnBalancer;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -175,22 +176,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final Container oldCont = this.container;
 
 		final int acc = this.getActualColumnCount();
-		double pageSize = oldCont.getContentSize();
-		if (this.getBlockParams().flow.isVertical()) {
-			// 縦書き
-			if (acc >= 2) {
-				pageSize += this.width * (acc - 1);
-			}
-			pageSize /= (double) this.getColumnCount();
-			pageSize = oldCont.getCutPoint(pageSize);
+		final int columnCount = this.getColumnCount();
+		final boolean vertical = this.getBlockParams().flow.isVertical();
+		final double pageSize;
+		if (acc >= 2) {
+			// 既に複数段に分かれて構築済みの場合は元の単一スタックが失われて
+			// いるため、旧来の均等割り(総量/段数の一回スナップ)を使う
+			final double total = oldCont.getContentSize() + (vertical ? this.width : this.height) * (acc - 1);
+			pageSize = oldCont.getCutPoint(total / columnCount);
+		} else {
+			// 単一スタックの切り下げ境界で実切断を模擬し、全段に収まる
+			// 最小容量を探索する(M5-B)
+			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
+		}
+		if (vertical) {
 			this.maxPageAxis = this.width = pageSize;
 		} else {
-			// 横書き
-			if (acc >= 2) {
-				pageSize += this.height * (acc - 1);
-			}
-			pageSize /= (double) this.getColumnCount();
-			pageSize = oldCont.getCutPoint(pageSize);
 			this.maxPageAxis = this.height = pageSize;
 		}
 

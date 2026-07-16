@@ -35,6 +35,17 @@ public interface Container {
 
 	public double getCutPoint(double pageAxis);
 
+	/**
+	 * 提案位置の直前の実行可能な切断位置を返します(M5-B)。
+	 * getCutPoint が直後の境界へ切り上げるのに対し、こちらは実際の切断
+	 * (はみ出す内容を次の断片へ送る)をボックスを変異させずに見積もる
+	 * 切り下げです。提案位置より前に境界がなければ 0 を返します。
+	 *
+	 * @param pageAxis 提案位置(内容の始端からの距離)
+	 * @return 直前の切断位置(なければ 0)
+	 */
+	public double getCutPointBelow(double pageAxis);
+
 	public boolean avoidBreakBefore();
 
 	public boolean avoidBreakAfter();

@@ -313,6 +313,53 @@ public class FlowContainer implements Container {
 		return pageAxis;
 	}
 
+	public double getCutPointBelow(final double pageAxis) {
+		final WritingMode flow = this.box.getBlockParams().flow;
+		double result = 0;
+		if (this.hasFlows()) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				final Flow f = (Flow) this.flows.get(i);
+				final double bottom = f.pageAxis + f.box.getPageExtent(flow);
+				if (LayoutUtils.compare(bottom, pageAxis) <= 0) {
+					// 完全に手前に収まるフロー
+					result = bottom;
+					continue;
+				}
+				// 提案位置に跨るフロー: 内部の境界を探す
+				if (f.box.getType() == BoxType.BLOCK) {
+					final FlowBlockBox blockBox = (FlowBlockBox) f.box;
+					if (blockBox.getBlockParams().pageBreakInside != PageBreakMode.AVOID) {
+						final double frameStart = blockBox.getFrame().getFramePageStart(flow);
+						final double inner = blockBox.getContainer()
+								.getCutPointBelow(pageAxis - f.pageAxis - frameStart);
+						if (LayoutUtils.compare(inner, 0) > 0) {
+							result = Math.max(result, f.pageAxis + frameStart + inner);
+						}
+					}
+					// 内部に境界がない場合はブロックの前(直前の result)で切る
+				} else if (f.box.getType() == BoxType.TEXT_BLOCK) {
+					final double inner = ((TextBlockBox) f.box).getCutPointBelow(pageAxis - f.pageAxis);
+					if (LayoutUtils.compare(inner, 0) > 0) {
+						result = Math.max(result, f.pageAxis + inner);
+					}
+				}
+				break;
+			}
+		}
+		if (this.hasFloatings()) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				final Floating floating = this.floatings.getFloating(i);
+				final double top = floating.pageAxis;
+				final double bottom = top + floating.box.getPageExtent(flow);
+				if (LayoutUtils.compare(top, result) < 0 && LayoutUtils.compare(bottom, result) > 0) {
+					// 切断位置に跨る浮動体の前まで引き下げる
+					result = top;
+				}
+			}
+		}
+		return result;
+	}
+
 	protected Flow getFirstFlow() {
 		if (this.flows == null || this.flows.isEmpty()) {
 			return null;

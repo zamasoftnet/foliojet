@@ -197,6 +197,26 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return pageAxis;
 	}
 
+	/**
+	 * 提案位置の直前の行境界を返します(M5-B)。getCutPoint の切り上げに
+	 * 対する切り下げで、提案位置より前に行境界がなければ 0 を返します。
+	 *
+	 * @param pageAxis 提案位置
+	 * @return 直前の行境界(なければ 0)
+	 */
+	public final double getCutPointBelow(final double pageAxis) {
+		double result = 0;
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = (Line) this.lines.get(i);
+			final double bottom = line.pageAxis + line.box.getPageExtent(this.getBlockParams().flow);
+			if (LayoutUtils.compare(bottom, pageAxis) > 0) {
+				break;
+			}
+			result = bottom;
+		}
+		return result;
+	}
+
 	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y) {
 		assert !LayoutUtils.isNone(x);
