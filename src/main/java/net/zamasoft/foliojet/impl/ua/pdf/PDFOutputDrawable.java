@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.impl.ua.pdf;
 
 import java.io.IOException;
 
-import net.zamasoft.foliojet.style.draw.Drawable;
+import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.pdf.PDFPageOutput;

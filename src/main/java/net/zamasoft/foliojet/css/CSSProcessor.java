@@ -32,7 +32,7 @@ import net.zamasoft.foliojet.impl.css.property.box.Display;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalLink;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.style.imposition.Imposition;
+import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPdfHyperlinksHref;

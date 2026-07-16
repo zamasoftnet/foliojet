@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.css.value.ext.CSSJBreakRuleValue;
 import net.zamasoft.foliojet.impl.css.property.text.WordBreak;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJNoBreakCharacters;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.JapaneseHyphenation;
 

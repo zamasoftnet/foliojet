@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.Border;
+import net.zamasoft.foliojet.layout.box.params.Border;
 
 /**
  * 境界線のスタイルです。 DOUBLE以下の値はSPEC CSS2 17.6.2 規則3の順に並べられています。

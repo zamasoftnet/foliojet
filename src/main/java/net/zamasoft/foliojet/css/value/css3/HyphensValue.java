@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value.css3;
 
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**

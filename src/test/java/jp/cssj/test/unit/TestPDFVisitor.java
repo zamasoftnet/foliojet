@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.impl.ua.pdf.PDFVisitor;
-import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
@@ -33,7 +33,7 @@ public class TestPDFVisitor extends PDFVisitor {
 		++this.pageNumber;
 	}
 
-	public void visitBox(AffineTransform transform, IBox box, net.zamasoft.foliojet.style.draw.Drawer drawer,
+	public void visitBox(AffineTransform transform, IBox box, net.zamasoft.foliojet.layout.draw.Drawer drawer,
 			double x, double y) {
 		super.visitBox(transform, box, drawer, x, y);
 		int pc = this.ua.getUAContext().getPassCount();

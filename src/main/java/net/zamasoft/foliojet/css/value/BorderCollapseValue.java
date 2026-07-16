@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
 
 /**
  * @author MIYABE Tatsuhiko

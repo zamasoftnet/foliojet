@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.page;
 
-import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.net.URI;
 

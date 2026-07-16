@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.impl.ua.recorder;
 
 import net.zamasoft.foliojet.impl.ua.AbstractUserAgent;
 import net.zamasoft.foliojet.impl.ua.NopVisitor;
-import net.zamasoft.foliojet.style.visitor.Visitor;
+import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.RecorderGC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;

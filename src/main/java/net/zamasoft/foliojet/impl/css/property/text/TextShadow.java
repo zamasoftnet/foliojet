@@ -29,13 +29,13 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 public class TextShadow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextShadow();
 
-	public static net.zamasoft.foliojet.style.box.params.TextShadow[] get(CSSStyle style) {
+	public static net.zamasoft.foliojet.layout.box.params.TextShadow[] get(CSSStyle style) {
 		TextShadowValue value = (TextShadowValue) style.get(TextShadow.INFO);
 		if (value.getShadows().length == 0) {
 			return null;
 		}
 		Shadow[] src = value.getShadows();
-		net.zamasoft.foliojet.style.box.params.TextShadow[] shadows = new net.zamasoft.foliojet.style.box.params.TextShadow[src.length];
+		net.zamasoft.foliojet.layout.box.params.TextShadow[] shadows = new net.zamasoft.foliojet.layout.box.params.TextShadow[src.length];
 		for (int i = 0; i < src.length; ++i) {
 			double x;
 			double y;
@@ -55,7 +55,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			} else {
 				color = src[i].color.getColor();
 			}
-			shadows[i] = new net.zamasoft.foliojet.style.box.params.TextShadow(x, y, color);
+			shadows[i] = new net.zamasoft.foliojet.layout.box.params.TextShadow(x, y, color);
 		}
 		return shadows;
 	}

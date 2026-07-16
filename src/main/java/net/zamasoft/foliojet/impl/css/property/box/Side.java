@@ -1,12 +1,12 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
  * ボックスの4辺です。縦書き時の論理→物理の回転を担います。

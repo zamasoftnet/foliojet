@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.impl.css.part;
 import java.awt.geom.GeneralPath;
 
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.style.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.StyleUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;

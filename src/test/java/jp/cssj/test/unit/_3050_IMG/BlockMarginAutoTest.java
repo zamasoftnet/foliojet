@@ -3,9 +3,9 @@ package jp.cssj.test.unit._3050_IMG;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
-import net.zamasoft.foliojet.style.box.BoxType;
-import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
-import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 public class BlockMarginAutoTest extends AbstractTestCase {

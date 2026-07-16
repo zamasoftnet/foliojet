@@ -1,0 +1,30 @@
+package net.zamasoft.foliojet.layout.box.impl;
+
+import net.zamasoft.foliojet.layout.box.BoxSubtype;
+import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
+import net.zamasoft.foliojet.layout.box.content.Container;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
+
+public class RubyBodyBox extends FlowBlockBox {
+	public RubyBodyBox(BlockParams params, FlowPos pos) {
+		super(params, pos);
+	}
+
+	public BoxSubtype getSubtype() {
+		return BoxSubtype.RUBY_BODY;
+	}
+
+	protected RubyBodyBox(BlockParams params, FlowPos pos, Dimension size, Dimension minSize, AbsoluteRectFrame frame,
+			Container container) {
+		super(params, pos, size, minSize, frame, container);
+	}
+
+	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
+			Container container) {
+		final BlockParams params = this.getBlockParams();
+		return new RubyBodyBox(params, this.getFlowPos(), nextSize, nextMinSize, nextFrame, container);
+	}
+}

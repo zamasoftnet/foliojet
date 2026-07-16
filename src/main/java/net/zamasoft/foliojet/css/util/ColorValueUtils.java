@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.css.value.css3.BackgroundClipValue;
 import net.zamasoft.foliojet.css.value.css3.LinearGradientValue;
-import net.zamasoft.foliojet.style.util.DoubleList;
+import net.zamasoft.foliojet.layout.util.DoubleList;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.CMYKColor;
 import net.zamasoft.pdfg2d.gc.paint.SpotColor;

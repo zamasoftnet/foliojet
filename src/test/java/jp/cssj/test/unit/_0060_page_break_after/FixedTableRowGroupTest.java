@@ -3,7 +3,7 @@ package jp.cssj.test.unit._0060_page_break_after;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
-import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 public class FixedTableRowGroupTest extends AbstractTestCase {

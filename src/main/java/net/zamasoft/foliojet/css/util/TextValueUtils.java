@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.css.util;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.impl.css.property.text.Direction;
-import net.zamasoft.foliojet.style.box.params.AbstractLineParams;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
  * @author MIYABE Tatsuhiko

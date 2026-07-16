@@ -13,7 +13,7 @@ import org.xml.sax.Attributes;
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.impl.ua.AbstractVisitor;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPdfVersion;
 import net.zamasoft.foliojet.ua.props.UAProps;

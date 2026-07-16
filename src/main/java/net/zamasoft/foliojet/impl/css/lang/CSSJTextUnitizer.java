@@ -3,9 +3,9 @@ package net.zamasoft.foliojet.impl.css.lang;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.style.builder.InlineQuad;
-import net.zamasoft.foliojet.style.builder.InlineQuad.InlineStartQuad;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.builder.InlineQuad;
+import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.Hyphenation;
 import net.zamasoft.foliojet.pdfg2d.text.hyphenation.impl.TextUnitizer;

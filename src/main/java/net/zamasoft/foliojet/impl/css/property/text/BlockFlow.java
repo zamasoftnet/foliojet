@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.BlockFlowValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;

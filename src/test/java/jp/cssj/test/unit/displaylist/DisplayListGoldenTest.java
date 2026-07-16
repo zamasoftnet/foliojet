@@ -16,7 +16,7 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
-import net.zamasoft.foliojet.style.draw.DisplayListDumper;
+import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 

@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.impl.ua.NUpImposition;
 import net.zamasoft.foliojet.impl.ua.NopImposition;
 import net.zamasoft.foliojet.impl.ua.SinglePageImposition;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.style.imposition.Imposition;
+import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;

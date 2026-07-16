@@ -1,8 +1,8 @@
 package jp.cssj.test.unit.sizing;
 
 import junit.framework.TestCase;
-import net.zamasoft.foliojet.style.sizing.ColumnDistribution;
-import net.zamasoft.foliojet.style.sizing.ColumnDistribution.ColumnType;
+import net.zamasoft.foliojet.layout.sizing.ColumnDistribution;
+import net.zamasoft.foliojet.layout.sizing.ColumnDistribution.ColumnType;
 
 /**
  * css-tables-3 の列幅分配のテストです。

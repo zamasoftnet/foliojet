@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
-import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 
 import java.net.URI;
 

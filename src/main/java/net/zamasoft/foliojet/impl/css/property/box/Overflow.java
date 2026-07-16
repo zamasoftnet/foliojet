@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
-import net.zamasoft.foliojet.style.box.params.OverflowMode;
+import net.zamasoft.foliojet.layout.box.params.OverflowMode;
 
 import java.net.URI;
 

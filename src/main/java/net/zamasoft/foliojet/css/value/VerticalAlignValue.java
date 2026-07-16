@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.content.CSSVerticalAlignPolicy;
+import net.zamasoft.foliojet.layout.box.content.CSSVerticalAlignPolicy;
 
 public class VerticalAlignValue extends CSSVerticalAlignPolicy implements Value {
 	public static final VerticalAlignValue BASELINE_VALUE = new VerticalAlignValue(BASELINE);

@@ -4,11 +4,11 @@ import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.style.box.BoxType;
-import net.zamasoft.foliojet.style.box.IBox;
-import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
-import net.zamasoft.foliojet.style.box.params.Border;
-import net.zamasoft.foliojet.style.box.params.RectBorder;
+import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.IBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.params.Border;
+import net.zamasoft.foliojet.layout.box.params.RectBorder;
 import jp.cssj.test.unit.AbstractTestCase;
 
 public class BlockBorderTest extends AbstractTestCase {

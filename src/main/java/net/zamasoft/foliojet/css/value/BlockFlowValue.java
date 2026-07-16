@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
  * @author MIYABE Tatsuhiko

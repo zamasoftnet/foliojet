@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.internal;
 
-import net.zamasoft.foliojet.style.box.params.Align;
+import net.zamasoft.foliojet.layout.box.params.Align;
 
 import java.net.URI;
 

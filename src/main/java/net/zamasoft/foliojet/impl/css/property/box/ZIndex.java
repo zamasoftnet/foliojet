@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.IntegerValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.style.box.params.Params;
+import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;

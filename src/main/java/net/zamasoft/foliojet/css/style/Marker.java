@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.style;
 
-import net.zamasoft.foliojet.style.box.impl.InlineBlockBox;
-import net.zamasoft.foliojet.style.box.impl.InlineReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 
 /**
  * マーカーの出力情報です。

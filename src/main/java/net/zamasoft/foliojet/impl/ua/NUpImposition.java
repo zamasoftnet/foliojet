@@ -4,7 +4,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 
-import net.zamasoft.foliojet.style.imposition.AbstractImposition;
+import net.zamasoft.foliojet.layout.imposition.AbstractImposition;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputNUpOrder;
 import net.zamasoft.pdfg2d.gc.GC;

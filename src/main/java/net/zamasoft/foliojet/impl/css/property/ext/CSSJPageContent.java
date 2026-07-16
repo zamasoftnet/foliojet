@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageContentValue;
-import net.zamasoft.foliojet.style.util.ByteList;
+import net.zamasoft.foliojet.layout.util.ByteList;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;

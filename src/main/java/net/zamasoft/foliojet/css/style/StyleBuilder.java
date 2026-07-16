@@ -1,24 +1,24 @@
 package net.zamasoft.foliojet.css.style;
 
-import net.zamasoft.foliojet.style.box.params.Fiducial;
+import net.zamasoft.foliojet.layout.box.params.Fiducial;
 
-import net.zamasoft.foliojet.style.box.params.AutoPosition;
+import net.zamasoft.foliojet.layout.box.params.AutoPosition;
 
-import net.zamasoft.foliojet.style.box.params.RowGroupType;
+import net.zamasoft.foliojet.layout.box.params.RowGroupType;
 
-import net.zamasoft.foliojet.style.box.params.CaptionSideMode;
+import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
 
-import net.zamasoft.foliojet.style.box.params.Align;
+import net.zamasoft.foliojet.layout.box.params.Align;
 
-import net.zamasoft.foliojet.style.box.params.FloatSide;
+import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
-import net.zamasoft.foliojet.style.box.params.OverflowMode;
+import net.zamasoft.foliojet.layout.box.params.OverflowMode;
 
-import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
-import net.zamasoft.foliojet.style.box.params.ClearMode;
+import net.zamasoft.foliojet.layout.box.params.ClearMode;
 
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import java.awt.geom.AffineTransform;
 import java.net.URI;
@@ -149,74 +149,74 @@ import net.zamasoft.foliojet.impl.css.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.style.DocumentBuilder;
-import net.zamasoft.foliojet.style.box.AbstractBlockBox;
-import net.zamasoft.foliojet.style.box.AbstractContainerBox;
-import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
-import net.zamasoft.foliojet.style.box.IBox;
-import net.zamasoft.foliojet.style.box.content.FlowContainer;
-import net.zamasoft.foliojet.style.box.impl.AbsoluteBlockBox;
-import net.zamasoft.foliojet.style.box.impl.AbsoluteReplacedBox;
-import net.zamasoft.foliojet.style.box.impl.FloatBlockBox;
-import net.zamasoft.foliojet.style.box.impl.FloatReplacedBox;
-import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
-import net.zamasoft.foliojet.style.box.impl.FlowReplacedBox;
-import net.zamasoft.foliojet.style.box.impl.InlineBlockBox;
-import net.zamasoft.foliojet.style.box.impl.InlineBox;
-import net.zamasoft.foliojet.style.box.impl.InlineReplacedBox;
-import net.zamasoft.foliojet.style.box.impl.MulticolumnBlockBox;
-import net.zamasoft.foliojet.style.box.impl.OutsideMarkerBox;
-import net.zamasoft.foliojet.style.box.impl.PageBox;
-import net.zamasoft.foliojet.style.box.impl.RubyBodyBox;
-import net.zamasoft.foliojet.style.box.impl.RubyBox;
-import net.zamasoft.foliojet.style.box.impl.TableBox;
-import net.zamasoft.foliojet.style.box.impl.TableCellBox;
-import net.zamasoft.foliojet.style.box.impl.TableColumnBox;
-import net.zamasoft.foliojet.style.box.impl.TableColumnGroupBox;
-import net.zamasoft.foliojet.style.box.impl.TableRowBox;
-import net.zamasoft.foliojet.style.box.impl.TableRowGroupBox;
-import net.zamasoft.foliojet.style.box.params.LengthType;
-import net.zamasoft.foliojet.style.box.params.PosType;
-import net.zamasoft.foliojet.style.box.params.AbsolutePos;
-import net.zamasoft.foliojet.style.box.params.AbstractLineParams;
-import net.zamasoft.foliojet.style.box.params.AbstractStaticPos;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.style.box.params.Background;
-import net.zamasoft.foliojet.style.box.params.BlockParams;
-import net.zamasoft.foliojet.style.box.params.Border;
-import net.zamasoft.foliojet.style.box.params.Columns;
-import net.zamasoft.foliojet.style.box.params.Dimension;
-import net.zamasoft.foliojet.style.box.params.FirstLineParams;
-import net.zamasoft.foliojet.style.box.params.FloatPos;
-import net.zamasoft.foliojet.style.box.params.FlowPos;
-import net.zamasoft.foliojet.style.box.params.InlineParams;
-import net.zamasoft.foliojet.style.box.params.InlinePos;
-import net.zamasoft.foliojet.style.box.params.InnerTableParams;
-import net.zamasoft.foliojet.style.box.params.Insets;
-import net.zamasoft.foliojet.style.box.params.Offset;
-import net.zamasoft.foliojet.style.box.params.Params;
-import net.zamasoft.foliojet.style.box.params.Pos;
-import net.zamasoft.foliojet.style.box.params.RectBorder;
-import net.zamasoft.foliojet.style.box.params.RectBorder.Radius;
-import net.zamasoft.foliojet.style.box.params.RectFrame;
-import net.zamasoft.foliojet.style.box.params.ReplacedParams;
-import net.zamasoft.foliojet.style.box.params.TableCaptionPos;
-import net.zamasoft.foliojet.style.box.params.TableCellPos;
-import net.zamasoft.foliojet.style.box.params.TableColumnPos;
-import net.zamasoft.foliojet.style.box.params.TableParams;
-import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
-import net.zamasoft.foliojet.style.box.params.TableRowPos;
+import net.zamasoft.foliojet.layout.DocumentBuilder;
+import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
+import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.IBox;
+import net.zamasoft.foliojet.layout.box.content.FlowContainer;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
+import net.zamasoft.foliojet.layout.box.impl.PageBox;
+import net.zamasoft.foliojet.layout.box.impl.RubyBodyBox;
+import net.zamasoft.foliojet.layout.box.impl.RubyBox;
+import net.zamasoft.foliojet.layout.box.impl.TableBox;
+import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
+import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
+import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
+import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
+import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
+import net.zamasoft.foliojet.layout.box.params.PosType;
+import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
+import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.Background;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.Border;
+import net.zamasoft.foliojet.layout.box.params.Columns;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
+import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.InlineParams;
+import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.Insets;
+import net.zamasoft.foliojet.layout.box.params.Offset;
+import net.zamasoft.foliojet.layout.box.params.Params;
+import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.box.params.RectBorder;
+import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
+import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
+import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
+import net.zamasoft.foliojet.layout.box.params.TableCellPos;
+import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
+import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 
-import net.zamasoft.foliojet.style.builder.PageGenerator;
-import net.zamasoft.foliojet.style.draw.DisplayListDumper;
-import net.zamasoft.foliojet.style.draw.Drawer;
-import net.zamasoft.foliojet.style.imposition.Imposition;
-import net.zamasoft.foliojet.style.part.AbsoluteInsets;
-import net.zamasoft.foliojet.style.util.IntList;
-import net.zamasoft.foliojet.style.util.StyleUtils;
-import net.zamasoft.foliojet.style.util.TextUtils;
-import net.zamasoft.foliojet.style.visitor.Visitor;
-import net.zamasoft.foliojet.style.visitor.VisitorWrapper;
+import net.zamasoft.foliojet.layout.builder.PageGenerator;
+import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
+import net.zamasoft.foliojet.layout.draw.Drawer;
+import net.zamasoft.foliojet.layout.imposition.Imposition;
+import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
+import net.zamasoft.foliojet.layout.util.IntList;
+import net.zamasoft.foliojet.layout.util.StyleUtils;
+import net.zamasoft.foliojet.layout.util.TextUtils;
+import net.zamasoft.foliojet.layout.visitor.Visitor;
+import net.zamasoft.foliojet.layout.visitor.VisitorWrapper;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.PageRef;
@@ -819,9 +819,9 @@ public class StyleBuilder implements PageGenerator {
 	 */
 	private Background createBackground(CSSStyle style) {
 		Image image = BackgroundImage.get(style);
-		net.zamasoft.foliojet.style.box.params.BackgroundImage backgroundImage;
+		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
 		if (image != null) {
-			backgroundImage = net.zamasoft.foliojet.style.box.params.BackgroundImage.create(image, BackgroundRepeat.get(style),
+			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image, BackgroundRepeat.get(style),
 					BackgroundAttachment.get(style), BackgroundPosition.get(style), BackgroundSize.get(style, image));
 		} else {
 			backgroundImage = null;
@@ -2175,7 +2175,7 @@ public class StyleBuilder implements PageGenerator {
 			// 本文の中
 			if (!this.inTextBlock) {
 				// ブロック補完のためにテキストブロックの開始をチェック
-				// net.zamasoft.foliojet.styleパッケージを直接利用する場合のために、
+				// net.zamasoft.foliojet.layoutパッケージを直接利用する場合のために、
 				// StyledTextUnitizerでも同じ処理をしています。
 				final CSSStyle style = this.currentStyle;
 				TEXTBLOCK: switch (WhiteSpace.get(style)) {

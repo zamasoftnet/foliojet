@@ -3,9 +3,9 @@ package jp.cssj.test.unit._1000_TABLE;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
-import net.zamasoft.foliojet.style.box.BoxType;
-import net.zamasoft.foliojet.style.box.IBox;
-import net.zamasoft.foliojet.style.box.impl.TableCellBox;
+import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.IBox;
+import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 public class StrictFontSizeTest extends AbstractTestCase {

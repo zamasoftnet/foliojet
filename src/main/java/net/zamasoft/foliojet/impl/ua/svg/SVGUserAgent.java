@@ -17,7 +17,7 @@ import jp.cssj.cti2.results.NopResults;
 import jp.cssj.cti2.results.Results;
 import net.zamasoft.foliojet.impl.ua.AbstractUserAgent;
 import net.zamasoft.foliojet.impl.ua.NopVisitor;
-import net.zamasoft.foliojet.style.visitor.Visitor;
+import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;

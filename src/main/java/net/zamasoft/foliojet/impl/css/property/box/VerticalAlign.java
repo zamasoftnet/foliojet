@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
-import net.zamasoft.foliojet.style.box.params.CellAlign;
+import net.zamasoft.foliojet.layout.box.params.CellAlign;
 
 import java.net.URI;
 
@@ -13,10 +13,10 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.VerticalAlignValue;
-import net.zamasoft.foliojet.style.box.content.AbsoluteVerticalAlignPolicy;
-import net.zamasoft.foliojet.style.box.content.CSSVerticalAlignPolicy;
-import net.zamasoft.foliojet.style.box.content.FractionalVerticalAlignPolicy;
-import net.zamasoft.foliojet.style.box.content.VerticalAlignPolicy;
+import net.zamasoft.foliojet.layout.box.content.AbsoluteVerticalAlignPolicy;
+import net.zamasoft.foliojet.layout.box.content.CSSVerticalAlignPolicy;
+import net.zamasoft.foliojet.layout.box.content.FractionalVerticalAlignPolicy;
+import net.zamasoft.foliojet.layout.box.content.VerticalAlignPolicy;
 
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;

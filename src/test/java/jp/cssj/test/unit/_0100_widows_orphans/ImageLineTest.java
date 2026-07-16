@@ -3,7 +3,7 @@ package jp.cssj.test.unit._0100_widows_orphans;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
-import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 public class ImageLineTest extends AbstractTestCase {

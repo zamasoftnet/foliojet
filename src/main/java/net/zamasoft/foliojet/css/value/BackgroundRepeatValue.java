@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.BackgroundImage;
+import net.zamasoft.foliojet.layout.box.params.BackgroundImage;
 
 /**
  * 背景の繰り返し方法です。

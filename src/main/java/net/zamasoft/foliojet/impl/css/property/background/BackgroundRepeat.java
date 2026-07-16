@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.background;
 
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import java.net.URI;
 
@@ -14,8 +14,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.style.box.params.BackgroundImage;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.BackgroundImage;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;

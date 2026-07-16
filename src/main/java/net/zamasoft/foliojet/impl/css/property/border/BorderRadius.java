@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
-import net.zamasoft.foliojet.style.box.params.RectBorder.Radius;
+import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**

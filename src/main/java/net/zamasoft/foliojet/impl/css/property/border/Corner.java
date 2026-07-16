@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.impl.css.property.border;
 
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
 
 /**

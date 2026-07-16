@@ -3,8 +3,8 @@ package jp.cssj.test.unit._0140_content;
 import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
-import net.zamasoft.foliojet.style.box.BoxType;
-import net.zamasoft.foliojet.style.box.IBox;
+import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 public class QuotesTest extends AbstractTestCase {

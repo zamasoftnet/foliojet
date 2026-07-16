@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.text;
 
-import net.zamasoft.foliojet.style.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import java.net.URI;
 
@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
-import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.foliojet.css.token.CssToken;

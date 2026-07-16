@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.impl.css.property.table;
 
-import net.zamasoft.foliojet.style.box.params.EmptyCellsMode;
+import net.zamasoft.foliojet.layout.box.params.EmptyCellsMode;
 
 import java.net.URI;
 

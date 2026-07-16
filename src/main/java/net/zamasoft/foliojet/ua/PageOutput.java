@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.ua;
 
 import java.io.IOException;
 
-import net.zamasoft.foliojet.style.visitor.Visitor;
+import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 
 /**
