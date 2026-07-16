@@ -323,6 +323,14 @@ public class FlowContainer implements Container {
 		return result;
 	}
 
+	public void eachFlowBox(final java.util.function.Consumer<IFlowBox> consumer) {
+		if (this.flows != null) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				consumer.accept(((Flow) this.flows.get(i)).box);
+			}
+		}
+	}
+
 	protected Flow getFirstFlow() {
 		if (this.flows == null || this.flows.isEmpty()) {
 			return null;

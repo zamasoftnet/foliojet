@@ -217,6 +217,12 @@ public class ColumnsContainer implements Container {
 		return null;
 	}
 
+	public void eachFlowBox(java.util.function.Consumer<IFlowBox> consumer) {
+		for (int i = 0; i < this.columns.size(); ++i) {
+			((FlowContainer) this.columns.get(i)).eachFlowBox(consumer);
+		}
+	}
+
 	public void newColumn() {
 		Container container = new FlowContainer();
 		container.setBox(this.box);

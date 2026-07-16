@@ -95,6 +95,9 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 
+		// 残余のソースアンカーが窓と同期しているか(M6b診断、-ea時のみ)
+		assert this.verifySourceAnchors(nextRootBox);
+
 		//
 		// 改ページ実行
 		//
@@ -141,6 +144,21 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		this.restyling = false;
 
+		return true;
+	}
+
+	/**
+	 * 残余ボックスのソースアンカー(Params.sourceIndex)が本流セグメント窓
+	 * 内を指していることを検査します(M6b診断)。窓の刈り込みは nextPage で
+	 * 行われるため、このチェックは必ず刈り込み前に呼びます。
+	 */
+	private boolean verifySourceAnchors(final FlowBlockBox rootBox) {
+		rootBox.getContainer().eachFlowBox(box -> {
+			final int sourceIndex = box.getParams().sourceIndex;
+			assert sourceIndex < 0 || this.pageGenerator.verifySourceAnchor(box.getParams().sourceEpoch, sourceIndex,
+					box.getParams().element) : "source anchor out of window: " + box.getParams().element + "@"
+							+ sourceIndex;
+		});
 		return true;
 	}
 

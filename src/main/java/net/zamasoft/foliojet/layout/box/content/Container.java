@@ -75,4 +75,9 @@ public interface Container {
 	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y);
 
 	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes);
+
+	/**
+	 * 通常フローの子ボックスを順に渡します(M6b診断用)。
+	 */
+	public void eachFlowBox(java.util.function.Consumer<IFlowBox> consumer);
 }

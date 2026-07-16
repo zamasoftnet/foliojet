@@ -29,6 +29,13 @@ public abstract class Params {
 	public int sourceIndex = -1;
 
 	/**
+	 * sourceIndex が指す窓の世代です(Segment.getEpoch と対で有効性を
+	 * 判定します)。旧世代のアンカーは切断残余の再生では再刻印されない
+	 * ため「未接続」として扱います。
+	 */
+	public int sourceEpoch = -1;
+
+	/**
 	 * ボックスの奥行きです。
 	 */
 	public int zIndexValue = 0;

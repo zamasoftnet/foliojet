@@ -310,12 +310,28 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	/**
+	 * ソースアンカーの窓内整合を検査します(M6b診断)。匿名・合成
+	 * ボックスは直前の記録イベントを指すため要素一致は強制せず、
+	 * 窓外参照(窓とアンカーの同期破壊)のみを検出します。
+	 * 切替(segment-restyle)時に厳密化します。
+	 */
+	public boolean verifySourceAnchor(final int sourceEpoch, final int sourceIndex,
+			final net.zamasoft.foliojet.css.CSSElement element) {
+		if (sourceEpoch != this.segment.getEpoch()) {
+			// 旧世代のアンカー(複数ページに跨るボックス)は未接続扱い
+			return true;
+		}
+		return sourceIndex < this.segment.size();
+	}
+
+	/**
 	 * ボックスの開始を本流セグメント窓の現在位置(ソースアンカー)を
 	 * 刻印してから doc に渡します(M6b)。合成ボックスは直前の記録
 	 * イベントの位置を継承し、再生時に同じ位置で再合成されます。
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		box.getParams().sourceIndex = this.segment.size() - 1;
+		box.getParams().sourceEpoch = this.segment.getEpoch();
 		this.doc.startBox(box);
 	}
 

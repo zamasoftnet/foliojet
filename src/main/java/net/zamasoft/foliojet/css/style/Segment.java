@@ -44,6 +44,19 @@ public class Segment {
 
 	protected int depth = 0;
 
+	/**
+	 * 窓の世代です。刈り込みのたびに進み、旧世代のソースアンカー
+	 * (Params.sourceEpoch/sourceIndex)を無効として識別できます。
+	 */
+	protected int epoch = 0;
+
+	/**
+	 * 窓の世代を返します。
+	 */
+	public int getEpoch() {
+		return this.epoch;
+	}
+
 	public int getDepth() {
 		return this.depth;
 	}
@@ -94,6 +107,22 @@ public class Segment {
 		}
 		this.items.clear();
 		this.items.addAll(open);
+		++this.epoch;
+	}
+
+	/**
+	 * 指定位置が指定要素の Start イベントであるかを検査します
+	 * (M6b の再開位置アンカーの診断用)。
+	 *
+	 * @param index   窓内のイベント位置
+	 * @param element 期待される要素
+	 * @return 位置が窓内にあり、要素の Start であれば true
+	 */
+	public boolean isStartOf(final int index, final net.zamasoft.foliojet.css.CSSElement element) {
+		if (index < 0 || index >= this.items.size()) {
+			return false;
+		}
+		return this.items.get(index) instanceof Start(final CSSStyle style) && style.getCSSElement() == element;
 	}
 
 	public void restyle(StyleBuilder builder) {
