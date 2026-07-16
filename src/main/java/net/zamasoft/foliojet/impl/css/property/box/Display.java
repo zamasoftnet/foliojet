@@ -91,7 +91,6 @@ public class Display extends AbstractPrimitivePropertyInfo {
 					break;
 				}
 			}
-		case DisplayValue.RUN_IN:
 		case DisplayValue.TABLE_ROW_GROUP:
 		case DisplayValue.TABLE_COLUMN:
 		case DisplayValue.TABLE_COLUMN_GROUP:
@@ -125,7 +124,6 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			}
 			break;
 
-		case DisplayValue.RUN_IN:
 		case DisplayValue.LIST_ITEM:
 		case DisplayValue.TABLE:
 		case DisplayValue.TABLE_ROW_GROUP:
@@ -188,8 +186,8 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				return DisplayValue.INLINE_BLOCK_VALUE;
 			} else if (ident.equals("list-item")) {
 				return DisplayValue.LIST_ITEM_VALUE;
-			} else if (ident.equals("run-in")) {
-				return DisplayValue.RUN_IN_VALUE;
+				// run-in は非対応(4で廃止。CSS Display 3 でも at-risk)。
+				// 未対応値として宣言ごと無効にする(モダンブラウザと同じ)
 			} else {
 				if (ident.equals("table")) {
 					return DisplayValue.TABLE_VALUE;

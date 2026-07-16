@@ -10,9 +10,8 @@ import net.zamasoft.foliojet.css.CSSStyle;
  *
  * <p>
  * レイアウト前・スタイル適用後のソースイベント(Start/Chars/End の3語彙)を
- * 保持し、StyleBuilder へ再生(restyle)できます。従来は run-in と
- * ページ内容(PageContent)の再生成専用バッファ(旧名 StyleBuffer)でしたが、
- * M6 では本流の再レイアウト源に一般化します(ARCHITECTURE.md §5.4):
+ * 保持します(旧名 StyleBuffer。run-in / PageContent の再生成バッファ用途は
+ * 4で廃止)。M6 では本流の再レイアウト源です(ARCHITECTURE.md §5.4):
  * 改ページ時の再開を「構築済みボックスの再生」から「セグメント+
  * BreakToken からの再駆動」へ置き換えるための土台です。
  * </p>
@@ -108,26 +107,5 @@ public class Segment {
 		this.items.clear();
 		this.items.addAll(open);
 		++this.epoch;
-	}
-
-	public void restyle(StyleBuilder builder) {
-		for (Item item : this.items) {
-			switch (item) {
-			case Start(CSSStyle style) -> {
-				// 上位の匿名スタイルを除去する
-				for (;;) {
-					CSSStyle parentStyle = style.getParentStyle();
-					if (parentStyle != null && parentStyle.isAnonStyle()) {
-						style.removeAnonStyle();
-						continue;
-					}
-					break;
-				}
-				builder.startStyle(style);
-			}
-			case Chars(int charOffset, char[] ch) -> builder.characters(charOffset, ch, 0, ch.length);
-			case End end -> builder.endStyle();
-			}
-		}
 	}
 }

@@ -278,8 +278,6 @@ public class StyleBuilder implements PageGenerator {
 
 	private Marker marker = null;
 
-	private Segment runIn = null;
-
 	/**
 	 * 本流のスタイルイベント窓です(M6a)。改ページ再開をボックス再生から
 	 * セグメント再駆動へ置き換えるための記録で、現段階では記録のみ
@@ -413,10 +411,6 @@ public class StyleBuilder implements PageGenerator {
 		this.layoutSource.append(new LayoutSource.Chars(charOffset, copy, fixed));
 		this.doc.characters(charOffset, ch, off, len, fixed);
 	}
-
-	private static final byte STATE_RESTYLE_RUN_IN = 1;
-
-	private byte state = 0;
 
 	public StyleBuilder(StyleContext styleContext, UserAgent ua, Imposition imposition) {
 		this.styleContext = styleContext;
@@ -1136,555 +1130,482 @@ public class StyleBuilder implements PageGenerator {
 
 		short explDisplay = Display.get(style);
 
-		// run-inの中
-		boolean inRunIn = false;
-		if (this.runIn != null) {
-			if (this.runIn.getDepth() == 0) {
-				switch (explDisplay) {
-				case DisplayValue.TABLE:
-				case DisplayValue.TABLE_COLUMN:
-				case DisplayValue.TABLE_COLUMN_GROUP:
-				case DisplayValue.TABLE_ROW_GROUP:
-				case DisplayValue.TABLE_HEADER_GROUP:
-				case DisplayValue.TABLE_FOOTER_GROUP:
-				case DisplayValue.TABLE_ROW:
-				case DisplayValue.TABLE_CELL:
-					// テーブルがあるrun-inはブロックとして処理
-					Segment buff = this.runIn;
-					this.runIn = null;
-					this.state = STATE_RESTYLE_RUN_IN;
-					buff.restyle(this);
-					this.state = 0;
-					break;
+		if (!ce.isPseudoElement()) {
+			// 本流のセグメント記録(M6a)
+			this.segment.startStyle(style);
+		}
+		if (this.currentStyle != null) {
+			WHILE: while (this.currentStyle.isAnonStyle()) {
+				// 匿名スタイルの終了
 
-				case DisplayValue.RUN_IN:
-					// run-inの中のrun-inはinlineとして処理
-					style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
-					explDisplay = DisplayValue.INLINE;
+				// 静的要素のみに適用
+				final byte pos = CSSPosition.get(style);
+				if (pos != PositionValue.STATIC && pos != PositionValue.RELATIVE) {
+					break WHILE;
+				}
+
+				final byte anonRuby = CSSJRuby.get(this.currentStyle);
+				if (anonRuby == CSSJRubyValue.RB) {
+					// ルビ関係
+					final byte ruby = CSSJRuby.get(style);
+					if (ruby != CSSJRubyValue.RT) {
+						break WHILE;
+					}
+				} else {
+					// テーブル関係
+					final short anonDisplay = Display.get(this.currentStyle);
+					switch (explDisplay) {
+					case DisplayValue.TABLE_HEADER_GROUP:
+					case DisplayValue.TABLE_FOOTER_GROUP:
+					case DisplayValue.TABLE_ROW_GROUP:
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_ROW:
+						case DisplayValue.TABLE_ROW_GROUP:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					case DisplayValue.TABLE_CELL:
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_ROW_GROUP:
+						case DisplayValue.TABLE:
+						case DisplayValue.INLINE_TABLE:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					case DisplayValue.INLINE:
+					case DisplayValue.BLOCK:
+					case DisplayValue.LIST_ITEM:
+					case DisplayValue.INLINE_BLOCK:
+					case DisplayValue.TABLE:
+					case DisplayValue.INLINE_TABLE:
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_ROW:
+							CSSStyle parent = this.currentStyle.getParentStyle();
+							if (!parent.isAnonStyle() || !parent.getParentStyle().isAnonStyle()) {
+								break WHILE;
+							}
+						case DisplayValue.TABLE_ROW_GROUP:
+						case DisplayValue.TABLE:
+						case DisplayValue.INLINE_TABLE:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					default:
+						break WHILE;
+					}
+				}
+				if (style.getParentStyle() == this.currentStyle) {
+					style.removeAnonStyle();
+				}
+				this._endStyle();
+			}
+		}
+
+		// BR
+		if (XHTML.BR_ELEM.equalsElement(ce)) {
+			// クリアランス、強制改ページは後にブロックを生成する
+			ClearMode clear = Clear.get(style);
+			PageBreakMode pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), style);
+			PageBreakMode pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), style);
+			if (clear != ClearMode.NONE || pageBreakBefore != PageBreakMode.AUTO
+					|| pageBreakAfter != PageBreakMode.AUTO) {
+				// クリアランス等の実行
+				final FlowPos pos = new FlowPos();
+				pos.clear = clear;
+				pos.pageBreakBefore = pageBreakBefore;
+				pos.pageBreakAfter = pageBreakAfter;
+				BlockParams params = new BlockParams();
+				params.fontStyle = style.getFontStyle();
+				params.fontManager = this.ua.getFontManager();
+				params.lineBreakRules = LanguageProfileBundle
+						.getLanguageProfile(style.getCSSElement().lang).getLineBreakRules(style);
+				params.direction = Direction.get(style);
+				params.flow = BlockFlow.get(style);
+				params.element = ce;
+				final Insets margin = Insets.create(0, 0, -LineHeight.get(style), 0, LengthType.ABSOLUTE,
+						LengthType.ABSOLUTE, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
+				params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER,
+						Background.NULL_BACKGROUND, Insets.NULL_INSETS);
+				// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
+				FlowBlockBox flowBox = new FlowBlockBox(params, pos);
+				this.startBox(flowBox);
+				this.endBox();
+			}
+		}
+
+		this._startStyle(style);
+
+		this.firstLetter = true;
+		if (!ce.isPseudoElement()) {
+			++this.depth;
+		}
+		int depth = this.depth;
+
+		// カウンターリセット
+		Value[] resets = CounterReset.get(style);
+		if (resets != null) {
+			final PassContext pc = this.ua.getPassContext();
+			for (int i = 0; i < resets.length; ++i) {
+				CounterSetValue counterSet = (CounterSetValue) resets[i];
+				String name = counterSet.getName();
+				int value = counterSet.getValue();
+				CounterScope scope = pc.getCounterScope(0, false);
+				if (scope != null && scope.defined(name)) {
+					scope.reset(name, value);
+					continue;
+				}
+				pc.getCounterScope(depth, true).reset(name, value);
+			}
+		}
+
+		// カウンター加算
+		final Value[] increments = CounterIncrement.get(style);
+		if (increments != null) {
+			final PassContext pc = this.ua.getPassContext();
+			for (int i = 0; i < increments.length; ++i) {
+				CounterSetValue counterSet = (CounterSetValue) increments[i];
+				String name = counterSet.getName();
+				int delta = counterSet.getValue();
+				int level = depth;
+				for (; level > 0; --level) {
+					CounterScope scope = pc.getCounterScope(level, false);
+					if (scope != null && scope.defined(name)) {
+						break;
+					}
+				}
+				pc.getCounterScope(level, true).increment(name, delta);
+			}
+		}
+
+		// マーカー
+		if (explDisplay == DisplayValue.LIST_ITEM) {
+			int[] counter = null;
+			if (!this.listCounterStack.isEmpty()) {
+				counter = (int[]) this.listCounterStack.get(this.listCounterStack.size() - 1);
+				if (counter[0] == depth) {
+					++counter[1];
+				} else {
+					counter = null;
+				}
+			}
+			if (counter == null) {
+				int start = 1;
+				CSSStyle parentStyle = style;
+				for (parentStyle = parentStyle
+						.getParentStyle(); parentStyle != null; parentStyle = parentStyle
+								.getParentStyle()) {
+					CSSElement parentCe = parentStyle.getCSSElement();
+					if (parentCe == null) {
+						continue;
+					}
+					if (XHTML.UL_ELEM.equalsElement(parentCe)) {
+						break;
+					}
+					if (XHTML.OL_ELEM.equalsElement(parentCe)) {
+						String str = parentCe.atts.getValue("start");
+						if (str != null) {
+							try {
+								start = Integer.parseInt(str);
+							} catch (NumberFormatException e) {
+								ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "OL", "start" + str);
+							}
+						}
+						break;
+					}
+				}
+				counter = new int[] { depth, start };
+				this.listCounterStack.add(counter);
+			}
+			if (style.getCSSElement() != null && XHTML.LI_ELEM.equalsElement(style.getCSSElement())) {
+				String value = style.getCSSElement().atts.getValue("value");
+				if (value != null) {
+					try {
+						counter[1] = Integer.parseInt(value);
+					} catch (NumberFormatException e) {
+						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "LI", "value" + value);
+					}
+				}
+			}
+
+			int number = counter[1];
+			InlinePos pos = new InlinePos();
+			BlockParams params = new BlockParams();
+			this.setupBlockParams(params, style);
+			this.setupInlinePos(pos, style);
+			params.frame = RectFrame.NULL_FRAME;
+			short listStyleType = ListStyleType.get(style);
+			Image image = ListStyleImage.get(style);
+			if (image == null) {
+				image = GeneratedValueUtils.format(listStyleType, params.color, params.fontStyle);
+			}
+			this.marker = null;
+			Marker marker = null;
+			if (image == null) {
+				String str = GeneratedValueUtils.format(number, listStyleType);
+				if (str != null) {
+					marker = new Marker();
+					String dot = GeneratedValueUtils.period(listStyleType);
+					marker.text = (str + dot + ' ').toCharArray();
 				}
 			} else {
-				switch (explDisplay) {
-				case DisplayValue.BLOCK:
-				case DisplayValue.LIST_ITEM:
-				case DisplayValue.TABLE:
-					// テーブルやブロックがあるrun-inはブロックとして処理
-					Segment buff = this.runIn;
-					this.runIn = null;
-					this.state = STATE_RESTYLE_RUN_IN;
-					buff.restyle(this);
-					this.state = 0;
+				marker = new Marker();
+				ReplacedParams rparams = new ReplacedParams();
+				this.setupParams(rparams, style);
+				rparams.image = image;
+				marker.imageBox = new InlineReplacedBox(rparams, pos);
+			}
+			if (marker != null) {
+				switch (ListStylePosition.get(style)) {
+				case ListStylePositionValue.INSIDE:
+					// 内部マーカー
+					marker.box = new InlineBlockBox(params, pos);
+					this.marker(marker);
 					break;
-
-				case DisplayValue.RUN_IN:
-					// run-inの中のrun-inはinlineとして処理
-					style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
+				case ListStylePositionValue.OUTSIDE:
+					// 外部マーカー
+					marker.box = new OutsideMarkerBox(params, pos);
+					this.marker = marker;
+					break;
 				default:
-					this.runIn.startStyle(style);
-					this.currentStyle = style;
-					inRunIn = true;
+					throw new IllegalStateException();
 				}
 			}
 		}
 
-		if (!inRunIn) {
-			{
-				if (explDisplay == DisplayValue.RUN_IN) {
-					// run-inの開始
-					style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
-					this.runIn = new Segment();
-					this.runIn.startStyle(style);
-					this.currentStyle = style;
-				} else {
-					if (!ce.isPseudoElement()) {
-						// 本流のセグメント記録(M6a)
-						this.segment.startStyle(style);
-					}
-					if (this.currentStyle != null) {
-						WHILE: while (this.currentStyle.isAnonStyle()) {
-							// 匿名スタイルの終了
-
-							// 静的要素のみに適用
-							final byte pos = CSSPosition.get(style);
-							if (pos != PositionValue.STATIC && pos != PositionValue.RELATIVE) {
-								break WHILE;
-							}
-
-							final byte anonRuby = CSSJRuby.get(this.currentStyle);
-							if (anonRuby == CSSJRubyValue.RB) {
-								// ルビ関係
-								final byte ruby = CSSJRuby.get(style);
-								if (ruby != CSSJRubyValue.RT) {
-									break WHILE;
-								}
-							} else {
-								// テーブル関係
-								final short anonDisplay = Display.get(this.currentStyle);
-								switch (explDisplay) {
-								case DisplayValue.TABLE_HEADER_GROUP:
-								case DisplayValue.TABLE_FOOTER_GROUP:
-								case DisplayValue.TABLE_ROW_GROUP:
-									switch (anonDisplay) {
-									case DisplayValue.TABLE_ROW:
-									case DisplayValue.TABLE_ROW_GROUP:
-										break;
-									default:
-										break WHILE;
-									}
-									break;
-								case DisplayValue.TABLE_CELL:
-									switch (anonDisplay) {
-									case DisplayValue.TABLE_ROW_GROUP:
-									case DisplayValue.TABLE:
-									case DisplayValue.INLINE_TABLE:
-										break;
-									default:
-										break WHILE;
-									}
-									break;
-								case DisplayValue.INLINE:
-								case DisplayValue.BLOCK:
-								case DisplayValue.LIST_ITEM:
-								case DisplayValue.INLINE_BLOCK:
-								case DisplayValue.TABLE:
-								case DisplayValue.INLINE_TABLE:
-									switch (anonDisplay) {
-									case DisplayValue.TABLE_ROW:
-										CSSStyle parent = this.currentStyle.getParentStyle();
-										if (!parent.isAnonStyle() || !parent.getParentStyle().isAnonStyle()) {
-											break WHILE;
-										}
-									case DisplayValue.TABLE_ROW_GROUP:
-									case DisplayValue.TABLE:
-									case DisplayValue.INLINE_TABLE:
-										break;
-									default:
-										break WHILE;
-									}
-									break;
-								default:
-									break WHILE;
-								}
-							}
-							if (style.getParentStyle() == this.currentStyle) {
-								style.removeAnonStyle();
-							}
-							this._endStyle();
+		// コンテンツ生成
+		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
+			final Value[] contents = Content.get(style);
+			if (contents != null) {
+				for (int i = 0; i < contents.length; ++i) {
+					final Value v = contents[i];
+					switch (v) {
+					case StringValue stringValue: {
+						// 文字列
+						String str = stringValue.getString();
+						if (str.length() > 0) {
+							char[] ch = str.toCharArray();
+							this.checkMarker();
+							this.docCharacters(-1, ch, 0, ch.length, true);
 						}
 					}
-
-					// BR
-					if (XHTML.BR_ELEM.equalsElement(ce)) {
-						// クリアランス、強制改ページは後にブロックを生成する
-						ClearMode clear = Clear.get(style);
-						PageBreakMode pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), style);
-						PageBreakMode pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), style);
-						if (clear != ClearMode.NONE || pageBreakBefore != PageBreakMode.AUTO
-								|| pageBreakAfter != PageBreakMode.AUTO) {
-							// クリアランス等の実行
-							final FlowPos pos = new FlowPos();
-							pos.clear = clear;
-							pos.pageBreakBefore = pageBreakBefore;
-							pos.pageBreakAfter = pageBreakAfter;
-							BlockParams params = new BlockParams();
-							params.fontStyle = style.getFontStyle();
-							params.fontManager = this.ua.getFontManager();
-							params.lineBreakRules = LanguageProfileBundle
-									.getLanguageProfile(style.getCSSElement().lang).getLineBreakRules(style);
-							params.direction = Direction.get(style);
-							params.flow = BlockFlow.get(style);
-							params.element = ce;
-							final Insets margin = Insets.create(0, 0, -LineHeight.get(style), 0, LengthType.ABSOLUTE,
-									LengthType.ABSOLUTE, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
-							params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER,
-									Background.NULL_BACKGROUND, Insets.NULL_INSETS);
-							// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
-							FlowBlockBox flowBox = new FlowBlockBox(params, pos);
-							this.startBox(flowBox);
-							this.endBox();
+						break;
+					case URIValue uriValue: {
+						// 画像
+						URI uri = uriValue.getURI();
+						try {
+							Source source = this.ua.resolve(uri);
+							try {
+								Image image = this.ua.getImage(source);
+								ReplacedParams rparams = new ReplacedParams();
+								this.setupParams(rparams, style);
+								rparams.image = image;
+								AbstractReplacedBox replaced = new InlineReplacedBox(rparams,
+										new InlinePos());
+								this.checkMarker();
+								this.addReplacedBox(replaced);
+							} finally {
+								this.ua.release(source);
+							}
+						} catch (Exception e) {
+							LOG.log(Level.FINE, "Missing image", e);
+							this.ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
 						}
 					}
+						break;
 
-					this._startStyle(style);
-
-					this.firstLetter = true;
-					if (!ce.isPseudoElement()) {
-						++this.depth;
-					}
-					int depth = this.depth;
-
-					// カウンターリセット
-					Value[] resets = CounterReset.get(style);
-					if (resets != null) {
+					case CounterValue counter: {
+						// カウンタ
+						final String name = counter.getName();
+						final short counterStyle = counter.getStyle();
+						int number = 0;
 						final PassContext pc = this.ua.getPassContext();
-						for (int i = 0; i < resets.length; ++i) {
-							CounterSetValue counterSet = (CounterSetValue) resets[i];
-							String name = counterSet.getName();
-							int value = counterSet.getValue();
-							CounterScope scope = pc.getCounterScope(0, false);
+						for (int level = depth; level >= 0; --level) {
+							CounterScope scope = pc.getCounterScope(level, false);
 							if (scope != null && scope.defined(name)) {
-								scope.reset(name, value);
-								continue;
+								number = scope.get(name);
+								break;
 							}
-							pc.getCounterScope(depth, true).reset(name, value);
 						}
+						this.counter(number, counterStyle, style);
 					}
+						break;
 
-					// カウンター加算
-					final Value[] increments = CounterIncrement.get(style);
-					if (increments != null) {
+					case CountersValue counters: {
+						// カウンタ
+						final String name = counters.getName();
+						final String delim = counters.getDelimiter();
+						final short counterStyle = counters.getStyle();
+						boolean first = true;
 						final PassContext pc = this.ua.getPassContext();
-						for (int i = 0; i < increments.length; ++i) {
-							CounterSetValue counterSet = (CounterSetValue) increments[i];
-							String name = counterSet.getName();
-							int delta = counterSet.getValue();
-							int level = depth;
-							for (; level > 0; --level) {
-								CounterScope scope = pc.getCounterScope(level, false);
-								if (scope != null && scope.defined(name)) {
-									break;
+						for (int level = 0; level <= depth; ++level) {
+							CounterScope scope = pc.getCounterScope(level, false);
+							if (scope != null && scope.defined(name)) {
+								if (!first && delim != null && delim.length() > 0) {
+									char[] ch = delim.toCharArray();
+									this.checkMarker();
+									this.docCharacters(-1, ch, 0, ch.length, true);
 								}
-							}
-							pc.getCounterScope(level, true).increment(name, delta);
-						}
-					}
-
-					// マーカー
-					if (explDisplay == DisplayValue.LIST_ITEM) {
-						int[] counter = null;
-						if (!this.listCounterStack.isEmpty()) {
-							counter = (int[]) this.listCounterStack.get(this.listCounterStack.size() - 1);
-							if (counter[0] == depth) {
-								++counter[1];
-							} else {
-								counter = null;
-							}
-						}
-						if (counter == null) {
-							int start = 1;
-							CSSStyle parentStyle = style;
-							for (parentStyle = parentStyle
-									.getParentStyle(); parentStyle != null; parentStyle = parentStyle
-											.getParentStyle()) {
-								CSSElement parentCe = parentStyle.getCSSElement();
-								if (parentCe == null) {
-									continue;
-								}
-								if (XHTML.UL_ELEM.equalsElement(parentCe)) {
-									break;
-								}
-								if (XHTML.OL_ELEM.equalsElement(parentCe)) {
-									String str = parentCe.atts.getValue("start");
-									if (str != null) {
-										try {
-											start = Integer.parseInt(str);
-										} catch (NumberFormatException e) {
-											ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "OL", "start" + str);
-										}
-									}
-									break;
-								}
-							}
-							counter = new int[] { depth, start };
-							this.listCounterStack.add(counter);
-						}
-						if (style.getCSSElement() != null && XHTML.LI_ELEM.equalsElement(style.getCSSElement())) {
-							String value = style.getCSSElement().atts.getValue("value");
-							if (value != null) {
-								try {
-									counter[1] = Integer.parseInt(value);
-								} catch (NumberFormatException e) {
-									ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "LI", "value" + value);
-								}
-							}
-						}
-
-						int number = counter[1];
-						InlinePos pos = new InlinePos();
-						BlockParams params = new BlockParams();
-						this.setupBlockParams(params, style);
-						this.setupInlinePos(pos, style);
-						params.frame = RectFrame.NULL_FRAME;
-						short listStyleType = ListStyleType.get(style);
-						Image image = ListStyleImage.get(style);
-						if (image == null) {
-							image = GeneratedValueUtils.format(listStyleType, params.color, params.fontStyle);
-						}
-						this.marker = null;
-						Marker marker = null;
-						if (image == null) {
-							String str = GeneratedValueUtils.format(number, listStyleType);
-							if (str != null) {
-								marker = new Marker();
-								String dot = GeneratedValueUtils.period(listStyleType);
-								marker.text = (str + dot + ' ').toCharArray();
-							}
-						} else {
-							marker = new Marker();
-							ReplacedParams rparams = new ReplacedParams();
-							this.setupParams(rparams, style);
-							rparams.image = image;
-							marker.imageBox = new InlineReplacedBox(rparams, pos);
-						}
-						if (marker != null) {
-							switch (ListStylePosition.get(style)) {
-							case ListStylePositionValue.INSIDE:
-								// 内部マーカー
-								marker.box = new InlineBlockBox(params, pos);
-								this.marker(marker);
-								break;
-							case ListStylePositionValue.OUTSIDE:
-								// 外部マーカー
-								marker.box = new OutsideMarkerBox(params, pos);
-								this.marker = marker;
-								break;
-							default:
-								throw new IllegalStateException();
+								first = false;
+								final int number = scope.get(name);
+								this.counter(number, counterStyle, style);
 							}
 						}
 					}
+						break;
 
-					// コンテンツ生成
-					if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
-						final Value[] contents = Content.get(style);
-						if (contents != null) {
-							for (int i = 0; i < contents.length; ++i) {
-								final Value v = contents[i];
-								switch (v) {
-								case StringValue stringValue: {
-									// 文字列
-									String str = stringValue.getString();
+					case QuoteValue quote: {
+						// 引用符
+						Value[] quotesList = Quotes.get(style);
+
+						switch (quote.getQuote()) {
+						case QuoteValue.OPEN_QUOTE: {
+							if (quotesList != null) {
+								String str = ((QuotesValue) quotesList[Math.min(this.quoteLevel,
+										quotesList.length - 1)]).getOpen();
+								if (str.length() > 0) {
+									char[] ch = str.toCharArray();
+									this.checkMarker();
+									this.docCharacters(-1, ch, 0, ch.length, true);
+								}
+							}
+							++this.quoteLevel;
+						}
+							break;
+
+						case QuoteValue.CLOSE_QUOTE: {
+							if (this.quoteLevel > 0) {
+								--this.quoteLevel;
+								if (quotesList != null) {
+									String str = ((QuotesValue) quotesList[Math.min(this.quoteLevel,
+											quotesList.length - 1)]).getClose();
 									if (str.length() > 0) {
 										char[] ch = str.toCharArray();
 										this.checkMarker();
 										this.docCharacters(-1, ch, 0, ch.length, true);
 									}
 								}
-									break;
-								case URIValue uriValue: {
-									// 画像
-									URI uri = uriValue.getURI();
-									try {
-										Source source = this.ua.resolve(uri);
-										try {
-											Image image = this.ua.getImage(source);
-											ReplacedParams rparams = new ReplacedParams();
-											this.setupParams(rparams, style);
-											rparams.image = image;
-											AbstractReplacedBox replaced = new InlineReplacedBox(rparams,
-													new InlinePos());
-											this.checkMarker();
-											this.addReplacedBox(replaced);
-										} finally {
-											this.ua.release(source);
-										}
-									} catch (Exception e) {
-										LOG.log(Level.FINE, "Missing image", e);
-										this.ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
-									}
-								}
-									break;
+							}
+						}
+							break;
 
-								case CounterValue counter: {
-									// カウンタ
-									final String name = counter.getName();
-									final short counterStyle = counter.getStyle();
-									int number = 0;
-									final PassContext pc = this.ua.getPassContext();
-									for (int level = depth; level >= 0; --level) {
-										CounterScope scope = pc.getCounterScope(level, false);
-										if (scope != null && scope.defined(name)) {
-											number = scope.get(name);
-											break;
-										}
-									}
-									this.counter(number, counterStyle, style);
-								}
-									break;
+						case QuoteValue.NO_OPEN_QUOTE: {
+							++this.quoteLevel;
+						}
+							break;
 
-								case CountersValue counters: {
-									// カウンタ
-									final String name = counters.getName();
-									final String delim = counters.getDelimiter();
-									final short counterStyle = counters.getStyle();
-									boolean first = true;
-									final PassContext pc = this.ua.getPassContext();
-									for (int level = 0; level <= depth; ++level) {
-										CounterScope scope = pc.getCounterScope(level, false);
-										if (scope != null && scope.defined(name)) {
-											if (!first && delim != null && delim.length() > 0) {
-												char[] ch = delim.toCharArray();
-												this.checkMarker();
-												this.docCharacters(-1, ch, 0, ch.length, true);
-											}
-											first = false;
-											final int number = scope.get(name);
-											this.counter(number, counterStyle, style);
-										}
-									}
-								}
-									break;
+						case QuoteValue.NO_CLOSE_QUOTE: {
+							if (this.quoteLevel > 0) {
+								--this.quoteLevel;
+							}
+						}
+							break;
 
-								case QuoteValue quote: {
-									// 引用符
-									Value[] quotesList = Quotes.get(style);
-
-									switch (quote.getQuote()) {
-									case QuoteValue.OPEN_QUOTE: {
-										if (quotesList != null) {
-											String str = ((QuotesValue) quotesList[Math.min(this.quoteLevel,
-													quotesList.length - 1)]).getOpen();
-											if (str.length() > 0) {
-												char[] ch = str.toCharArray();
-												this.checkMarker();
-												this.docCharacters(-1, ch, 0, ch.length, true);
-											}
-										}
-										++this.quoteLevel;
-									}
-										break;
-
-									case QuoteValue.CLOSE_QUOTE: {
-										if (this.quoteLevel > 0) {
-											--this.quoteLevel;
-											if (quotesList != null) {
-												String str = ((QuotesValue) quotesList[Math.min(this.quoteLevel,
-														quotesList.length - 1)]).getClose();
-												if (str.length() > 0) {
-													char[] ch = str.toCharArray();
-													this.checkMarker();
-													this.docCharacters(-1, ch, 0, ch.length, true);
-												}
-											}
-										}
-									}
-										break;
-
-									case QuoteValue.NO_OPEN_QUOTE: {
-										++this.quoteLevel;
-									}
-										break;
-
-									case QuoteValue.NO_CLOSE_QUOTE: {
-										if (this.quoteLevel > 0) {
-											--this.quoteLevel;
-										}
-									}
-										break;
-
-									default:
-										throw new IllegalStateException();
-									}
-								}
-									break;
-								case AttrValue attr: {
-									// 属性
-									CSSElement parentCe = style.getParentStyle().getCSSElement();
-									if (parentCe.atts != null) {
-										String str = parentCe.atts.getValue(attr.getName());
-										if (str != null && str.length() > 0) {
-											char[] ch = str.toCharArray();
-											this.checkMarker();
-											this.docCharacters(-1, ch, 0, ch.length, true);
-										}
-									}
-								}
-									break;
-								case CSSJLastHeadingValue header: {
-									// ヘッダ
-									SectionState state = this.ua.getPassContext().getSectionState();
-									int level = header.getLevel() - 1;
-									String str = state.lastSections[level >= state.lastSections.length
-											? state.lastSections.length - 1
-											: level];
-									if (str != null && str.length() > 0) {
-										char[] ch = str.toCharArray();
-										this.checkMarker();
-										this.docCharacters(-1, ch, 0, ch.length, true);
-									}
-								}
-									break;
-								case CSSJFirstHeadingValue header: {
-									// ヘッダ
-									SectionState state = this.ua.getPassContext().getSectionState();
-									int level = header.getLevel() - 1;
-									String str = state.firstSections[level >= state.firstSections.length
-											? state.firstSections.length - 1
-											: level];
-									if (str != null && str.length() > 0) {
-										char[] ch = str.toCharArray();
-										this.checkMarker();
-										this.docCharacters(-1, ch, 0, ch.length, true);
-									}
-								}
-									break;
-								case CSSJTitleValue title: {
-									// タイトル
-									SectionState state = this.ua.getPassContext().getSectionState();
-									String str = state.title;
-									if (str != null && str.length() > 0) {
-										char[] ch = str.toCharArray();
-										this.checkMarker();
-										this.docCharacters(-1, ch, 0, ch.length, true);
-									}
-								}
-									break;
-								case CSSJPageRefValue pageRefFunc: {
-									// ページ番号
-									switch (pageRefFunc.getType()) {
-									case CSSJPageRefValue.ATTR: {
-										// 属性から
-										CSSElement parentCe = style.getParentStyle().getCSSElement();
-										if (parentCe.atts != null) {
-											String attr = pageRefFunc.getRef();
-											String str = parentCe.atts.getValue(attr);
-											if (str != null) {
-												if (!attr.equals("href") && str.indexOf("#") == -1) {
-													// 互換性のため
-													str = "#" + str;
-												}
-												this.pageRef(pageRefFunc, str);
-											}
-										}
-									}
-										break;
-									case CSSJPageRefValue.REF: {
-										// ID指定
-										String id = pageRefFunc.getRef();
-										if (id.indexOf("#") == -1) {
-											// 互換性のため
-											id = "#" + id;
-										}
-										this.pageRef(pageRefFunc, id);
-									}
-										break;
-									default:
-										throw new IllegalStateException();
-									}
-								}
-									break;
-								default:
-									throw new IllegalStateException(String.valueOf(v));
-								}
+						default:
+							throw new IllegalStateException();
+						}
+					}
+						break;
+					case AttrValue attr: {
+						// 属性
+						CSSElement parentCe = style.getParentStyle().getCSSElement();
+						if (parentCe.atts != null) {
+							String str = parentCe.atts.getValue(attr.getName());
+							if (str != null && str.length() > 0) {
+								char[] ch = str.toCharArray();
+								this.checkMarker();
+								this.docCharacters(-1, ch, 0, ch.length, true);
 							}
 						}
 					}
-
-					// run-in生成
-					if (this.runIn != null) {
-						Segment buff = this.runIn;
-						this.runIn = null;
-						style = this.currentStyle;
-						this.state = STATE_RESTYLE_RUN_IN;
-						buff.restyle(this);
-						this.state = 0;
-						this.currentStyle = style;
+						break;
+					case CSSJLastHeadingValue header: {
+						// ヘッダ
+						SectionState state = this.ua.getPassContext().getSectionState();
+						int level = header.getLevel() - 1;
+						String str = state.lastSections[level >= state.lastSections.length
+								? state.lastSections.length - 1
+								: level];
+						if (str != null && str.length() > 0) {
+							char[] ch = str.toCharArray();
+							this.checkMarker();
+							this.docCharacters(-1, ch, 0, ch.length, true);
+						}
+					}
+						break;
+					case CSSJFirstHeadingValue header: {
+						// ヘッダ
+						SectionState state = this.ua.getPassContext().getSectionState();
+						int level = header.getLevel() - 1;
+						String str = state.firstSections[level >= state.firstSections.length
+								? state.firstSections.length - 1
+								: level];
+						if (str != null && str.length() > 0) {
+							char[] ch = str.toCharArray();
+							this.checkMarker();
+							this.docCharacters(-1, ch, 0, ch.length, true);
+						}
+					}
+						break;
+					case CSSJTitleValue title: {
+						// タイトル
+						SectionState state = this.ua.getPassContext().getSectionState();
+						String str = state.title;
+						if (str != null && str.length() > 0) {
+							char[] ch = str.toCharArray();
+							this.checkMarker();
+							this.docCharacters(-1, ch, 0, ch.length, true);
+						}
+					}
+						break;
+					case CSSJPageRefValue pageRefFunc: {
+						// ページ番号
+						switch (pageRefFunc.getType()) {
+						case CSSJPageRefValue.ATTR: {
+							// 属性から
+							CSSElement parentCe = style.getParentStyle().getCSSElement();
+							if (parentCe.atts != null) {
+								String attr = pageRefFunc.getRef();
+								String str = parentCe.atts.getValue(attr);
+								if (str != null) {
+									if (!attr.equals("href") && str.indexOf("#") == -1) {
+										// 互換性のため
+										str = "#" + str;
+									}
+									this.pageRef(pageRefFunc, str);
+								}
+							}
+						}
+							break;
+						case CSSJPageRefValue.REF: {
+							// ID指定
+							String id = pageRefFunc.getRef();
+							if (id.indexOf("#") == -1) {
+								// 互換性のため
+								id = "#" + id;
+							}
+							this.pageRef(pageRefFunc, id);
+						}
+							break;
+						default:
+							throw new IllegalStateException();
+						}
+					}
+						break;
+					default:
+						throw new IllegalStateException(String.valueOf(v));
 					}
 				}
 			}
 		}
 
 		// before
-		if (this.state != STATE_RESTYLE_RUN_IN && ce != CSSElement.AFTER && ce != CSSElement.BEFORE
+		if (ce != CSSElement.AFTER && ce != CSSElement.BEFORE
 				&& CSSJInternalImage.getImage(style) == null) {
 			// :before
 			CSSElement beforeCe = CSSElement.BEFORE;
@@ -2202,12 +2123,6 @@ public class StyleBuilder implements PageGenerator {
 
 	public void characters(int charOffset, char[] ch, int off, int len) {
 		assert len > 0;
-		// run-inの中
-		if (this.runIn != null) {
-			this.runIn.characters(charOffset, ch, off, len);
-			return;
-		}
-
 		if (this.htmlRootBlock == null && this.currentStyle != null) {
 			// 本文の中
 			this.segment.characters(charOffset, ch, off, len); // 本流のセグメント記録(M6a)
@@ -2473,7 +2388,7 @@ public class StyleBuilder implements PageGenerator {
 		}
 
 		final CSSElement ce = style.getCSSElement();
-		if (this.state != STATE_RESTYLE_RUN_IN && ce != CSSElement.AFTER && ce != CSSElement.BEFORE
+		if (ce != CSSElement.AFTER && ce != CSSElement.BEFORE
 				&& CSSJInternalImage.getImage(style) == null) {
 			// :after
 			boolean br = XHTML.BR_ELEM.equalsElement(ce);
@@ -2506,13 +2421,6 @@ public class StyleBuilder implements PageGenerator {
 				}
 			}
 			this.styleContext.endElement();
-		}
-
-		if (this.runIn != null) {
-			// run-inの中
-			this.runIn.endStyle(this.currentStyle);
-			this.currentStyle = this.currentStyle.getParentStyle();
-			return;
 		}
 
 		// 匿名スタイルを終了

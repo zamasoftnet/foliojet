@@ -14,8 +14,6 @@ public enum DisplayValue implements Value {
 
 	LIST_ITEM_VALUE(DisplayValue.LIST_ITEM),
 
-	RUN_IN_VALUE(DisplayValue.RUN_IN),
-
 	TABLE_VALUE(DisplayValue.TABLE),
 
 	INLINE_TABLE_VALUE(DisplayValue.INLINE_TABLE),
@@ -45,7 +43,7 @@ public enum DisplayValue implements Value {
 
 	public static final byte LIST_ITEM = 4;
 
-	public static final byte RUN_IN = 5;
+	// 5 は旧 RUN_IN(4で廃止)の欠番
 
 	public static final byte TABLE = 6;
 
@@ -89,8 +87,6 @@ public enum DisplayValue implements Value {
 			return "inline-block";
 		case LIST_ITEM:
 			return "list-item";
-		case RUN_IN:
-			return "run-in";
 		case TABLE:
 			return "table";
 		case INLINE_TABLE:
