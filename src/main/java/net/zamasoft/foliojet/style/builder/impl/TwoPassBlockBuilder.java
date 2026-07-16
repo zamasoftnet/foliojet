@@ -13,7 +13,6 @@ import net.zamasoft.foliojet.style.box.params.ClearMode;
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import net.zamasoft.foliojet.impl.css.lang.CSSJTextUnitizer;
@@ -48,7 +47,6 @@ import net.zamasoft.foliojet.style.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.style.builder.LayoutStack;
 import net.zamasoft.foliojet.style.builder.TableBuilder;
 import net.zamasoft.foliojet.style.builder.TwoPass;
-import net.zamasoft.foliojet.style.util.ByteList;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
@@ -62,21 +60,43 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.LineBreak;
 public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private static final boolean DEBUG = false;
 
-	private static final byte TYPE_ELEMENT = 1;
+	/**
+	 * 実測パスで記録し、bind() で再生するイベントです。
+	 */
+	private sealed interface Recorded {
+		/** テキスト要素または制御(インライン境界等)。 */
+		record ElementEvent(Element element) implements Recorded {
+		}
 
-	private static final byte TYPE_END_TEXT_BLOCK = 2;
+		/** テキストブロックの終了。 */
+		record EndTextBlock() implements Recorded {
+			static final EndTextBlock INSTANCE = new EndTextBlock();
+		}
 
-	private static final byte TYPE_START_FLOW = 3;
+		/** フローブロックの開始。 */
+		record StartFlow(FlowBlockBox box) implements Recorded {
+		}
 
-	private static final byte TYPE_END_FLOW = 4;
+		/** フローブロックの終了。 */
+		record EndFlow(FlowBlockBox box) implements Recorded {
+		}
 
-	private static final byte TYPE_REPLACED = 5;
+		/** 置換要素。 */
+		record ReplacedEvent(IBox box) implements Recorded {
+		}
 
-	private static final byte TYPE_STF_BLOCK = 6;
+		/** ネストした shrink-to-fit ブロック。 */
+		record StfBlock(TwoPassBlockBuilder builder) implements Recorded {
+		}
 
-	private static final byte TYPE_ABSOLUTE_BLOCK = 7;
+		/** 絶対配置ブロック。 */
+		record AbsoluteBlock(TwoPassBlockBuilder builder) implements Recorded {
+		}
 
-	private static final byte TYPE_TABLE = 9;
+		/** テーブル。 */
+		record TableEvent(TwoPassTableBuilder builder) implements Recorded {
+		}
+	}
 
 	protected final LayoutStack layoutStack;
 
@@ -115,9 +135,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	private final List<IBox> inlineStack = new ArrayList<IBox>();
 
-	private final List<Object> recordObjects = new ArrayList<Object>();
-
-	private final ByteList recordTypes = new ByteList();
+	private final List<Recorded> records = new ArrayList<Recorded>();
 
 	private final List<TwoPass> recordInlineBlocks = new ArrayList<TwoPass>();
 
@@ -314,8 +332,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.blockHead = true;
 
 		this.flowStack.add(flowBox);
-		this.recordTypes.add(TYPE_START_FLOW);
-		this.recordObjects.add(flowBox);
+		this.records.add(new Recorded.StartFlow(flowBox));
 		this.columnCount *= flowBox.getColumnCount();
 		this.letterSpacing = StyleUtils.computeLength(flowBox.getBlockParams().letterSpacing,
 				this.getFlowBox().getLineSize());
@@ -359,8 +376,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		assert !StyleUtils.isNone(this.lineFrame);
-		this.recordTypes.add(TYPE_END_FLOW);
-		this.recordObjects.add(flowBox);
+		this.records.add(new Recorded.EndFlow((FlowBlockBox) flowBox));
 
 		this.textIndent = 0;
 		this.blockHead = false;
@@ -496,8 +512,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		default:
 			throw new IllegalStateException();
 		}
-		this.recordTypes.add(TYPE_REPLACED);
-		this.recordObjects.add(replacedBox);
+		this.records.add(new Recorded.ReplacedEvent(replacedBox));
 	}
 
 	public void addTable(TableBuilder tableBuilder) {
@@ -506,8 +521,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
 		this.minLineSize = Math.max(this.minLineSize, tableSizes.minContent() * this.columnCount);
 		this.maxLineSize = Math.max(this.maxLineSize, tableSizes.maxContent() * this.columnCount);
-		this.recordTypes.add(TYPE_TABLE);
-		this.recordObjects.add(tableBuilder);
+		this.records.add(new Recorded.TableEvent(autoTableBuilder));
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 		case INLINE:
 			this.recordInlineBlocks.add(autoTableBuilder);
@@ -527,14 +541,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 書字方向が違う
 		case FLOAT:
 			// 浮動体
-			this.recordTypes.add(TYPE_STF_BLOCK);
-			this.recordObjects.add(builder);
+			this.records.add(new Recorded.StfBlock(builder));
 			break;
 
 		case ABSOLUTE:
 			// 絶対配置
-			this.recordTypes.add(TYPE_ABSOLUTE_BLOCK);
-			this.recordObjects.add(builder);
+			this.records.add(new Recorded.AbsoluteBlock(builder));
 			break;
 
 		case INLINE:
@@ -604,16 +616,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			System.err.println("BIND");
 		}
 		FilterGlyphHandler textUnitizer = null;
-		final Iterator<Object> k = this.recordObjects.iterator();
 
-		for (int i = 0; i < this.recordTypes.size(); ++i) {
-			switch (this.recordTypes.get(i)) {
-			case TYPE_ELEMENT: {
+		for (final Recorded recorded : this.records) {
+			switch (recorded) {
+			case Recorded.ElementEvent elementEvent: {
 				if (textUnitizer == null) {
 					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams().hyphenation);
 					textUnitizer.setGlyphHandler(new BuilderGlyphHandler(builder));
 				}
-				final Element e = (Element) k.next();
+				final Element e = elementEvent.element();
 				if (DEBUG) {
 					System.err.println("ELEMENT " + e);
 				}
@@ -642,7 +653,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 				break;
 
-			case TYPE_END_TEXT_BLOCK:
+			case Recorded.EndTextBlock endTextBlock:
 				if (DEBUG) {
 					System.err.println("END_TEXT_BLOCK");
 				}
@@ -651,11 +662,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				builder.endTextBlock();
 				break;
 
-			case TYPE_START_FLOW: {
+			case Recorded.StartFlow startFlow: {
 				if (DEBUG) {
 					System.err.println("START_FLOW");
 				}
-				final FlowBlockBox flow = (FlowBlockBox) k.next();
+				final FlowBlockBox flow = startFlow.box();
 				if (flow.getBlockParams().flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()) {
 					builder.startFlowBlock(flow);
 				} else {
@@ -665,11 +676,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 				break;
 
-			case TYPE_END_FLOW:
+			case Recorded.EndFlow endFlow:
 				if (DEBUG) {
 					System.err.println("END_FLOW");
 				}
-				final FlowBlockBox flow = (FlowBlockBox) k.next();
+				final FlowBlockBox flow = endFlow.box();
 				if (flow == builder.getRootBox()) {
 					builder = (BlockBuilder) builder.getParentBuilder();
 					builder.addBound(flow);
@@ -678,11 +689,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				}
 				break;
 
-			case TYPE_REPLACED: {
+			case Recorded.ReplacedEvent replacedEvent: {
 				if (DEBUG) {
 					System.err.println("REPLACED");
 				}
-				final IBox replacedBox = (IBox) k.next();
+				final IBox replacedBox = replacedEvent.box();
 				switch (replacedBox.getPos().getType()) {
 				case FLOAT:
 				case FLOW:
@@ -694,14 +705,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 				break;
 
-			case TYPE_STF_BLOCK: {
+			case Recorded.StfBlock stfBlock: {
 				if (DEBUG) {
 					System.err.println("STF");
 				}
 				if (textUnitizer != null) {
 					textUnitizer.flush();
 				}
-				final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) k.next();
+				final TwoPassBlockBuilder stfBuilder = stfBlock.builder();
 				final AbstractStaticBlockBox blockBox = (AbstractStaticBlockBox) stfBuilder.getRootBox();
 				blockBox.shrinkToFit(builder, stfBuilder.getIntrinsicSizes(), false);
 				final BlockBuilder boundBuilder = new BlockBuilder(this, blockBox);
@@ -711,12 +722,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 				break;
 
-			case TYPE_ABSOLUTE_BLOCK: {
+			case Recorded.AbsoluteBlock absoluteBlock: {
 				if (DEBUG) {
 					System.err.println("ABSOLUTE");
 				}
 
-				final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) k.next();
+				final TwoPassBlockBuilder stfBuilder = absoluteBlock.builder();
 				final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) stfBuilder.getRootBox();
 				final AbstractContainerBox containerBox;
 				if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
@@ -747,11 +758,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 				break;
 
-			case TYPE_TABLE: {
+			case Recorded.TableEvent tableEvent: {
 				if (DEBUG) {
 					System.err.println("TABLE");
 				}
-				TwoPassTableBuilder tableBuilder = (TwoPassTableBuilder) k.next();
+				final TwoPassTableBuilder tableBuilder = tableEvent.builder();
 				switch (tableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 				case FLOAT:
 				case FLOW:
@@ -797,8 +808,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void endTextRun() {
 		this.text.pack();
-		this.recordTypes.add(TYPE_ELEMENT);
-		this.recordObjects.add(this.text);
+		this.records.add(new Recorded.ElementEvent(this.text));
 		this.text = null;
 	}
 
@@ -806,8 +816,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (quad instanceof LineBreak) {
 			this.toLineFeed = (LineBreak) quad;
 		}
-		this.recordTypes.add(TYPE_ELEMENT);
-		this.recordObjects.add(quad);
+		this.records.add(new Recorded.ElementEvent(quad));
 
 		double minAdvance, maxAdvance, pageSize;
 		if (quad instanceof InlineQuad) {
@@ -938,7 +947,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void endTextBlock() {
-		this.recordTypes.add(TYPE_END_TEXT_BLOCK);
+		this.records.add(Recorded.EndTextBlock.INSTANCE);
 		assert !StyleUtils.isNone(this.lineAxis);
 		assert !StyleUtils.isNone(this.lineFrame);
 		double minLineSize = this.atomicLineSize;
@@ -981,6 +990,6 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public boolean isEmpty() {
-		return this.recordTypes.isEmpty();
+		return this.records.isEmpty();
 	}
 }
