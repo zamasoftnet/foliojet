@@ -1,5 +1,9 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
+import net.zamasoft.foliojet.style.sizing.Sizing;
+
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
 
 import net.zamasoft.foliojet.style.box.content.Container;
@@ -43,7 +47,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		return this.getStaticPos().offset != null;
 	}
 
-	public void shrinkToFit(LayoutStack layoutStack, double minLineAxis, double maxLineAxis, boolean table) {
+	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table) {
+		final double minLineAxis = sizes.minContent(), maxLineAxis = sizes.maxContent();
 		final AbstractContainerBox containerBox;
 		if (this.getPos().getType() == PosType.FLOW) {
 			if (table) {
@@ -113,7 +118,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					// 親の幅が不確定の場合はページ高さを限度とする
 					limitHeight = layoutStack.getFixedHeight() - this.frame.getFrameHeight();
 				}
-				this.height = Math.max(minLineAxis, Math.min(limitHeight, this.height));
+				this.height = Sizing.fitContent(minLineAxis, this.height, limitHeight);
 			}
 			double maxHeight = StyleUtils.computeDimensionHeight(this.params.maxSize, cHeight);
 			if (!StyleUtils.isNone(maxHeight) && this.height > maxHeight) {
@@ -213,7 +218,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					// 親の幅が不確定の場合はページ幅を限度とする
 					limitWidth = layoutStack.getFixedWidth() - this.frame.getFrameWidth();
 				}
-				this.width = Math.max(minLineAxis, Math.min(limitWidth, this.width));
+				this.width = Sizing.fitContent(minLineAxis, this.width, limitWidth);
 			}
 			double maxWidth = StyleUtils.computeDimensionWidth(this.params.maxSize, cWidth);
 			if (!StyleUtils.isNone(maxWidth) && this.width > maxWidth) {

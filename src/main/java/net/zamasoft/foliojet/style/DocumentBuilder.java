@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import net.zamasoft.foliojet.style.box.params.Fiducial;
 
 import net.zamasoft.foliojet.style.box.params.AutoPosition;
@@ -507,8 +509,7 @@ public class DocumentBuilder {
 				if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
 					// インラインブロックボックスの幅が明示されてなかった場合
 					final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
-					inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.getMinLineSize(), stfBuilder.getMaxLineSize(),
-							false);
+					inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.getIntrinsicSizes(), false);
 					final BlockBuilder lnlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
 					stfBuilder.bind(lnlineBlockBuilder);
 					lnlineBlockBuilder.close();
@@ -534,8 +535,7 @@ public class DocumentBuilder {
 					if (entry.builder.isTwoPass()) {
 						// ビルド
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						blockBox.shrinkToFit(parentBuilder, contentBuilder.getMinLineSize(),
-								contentBuilder.getMaxLineSize(), false);
+						blockBox.shrinkToFit(parentBuilder, contentBuilder.getIntrinsicSizes(), false);
 						final BlockBuilder bindBuilder = new BlockBuilder(this.pageContextBuilder(), blockBox);
 						contentBuilder.bind(bindBuilder);
 						bindBuilder.close();
@@ -565,8 +565,7 @@ public class DocumentBuilder {
 				if (entry.builder.isTwoPass()) {
 					// ビルド
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					floatBox.shrinkToFit(parentBuilder, contentBuilder.getMinLineSize(),
-							contentBuilder.getMaxLineSize(), false);
+					floatBox.shrinkToFit(parentBuilder, contentBuilder.getIntrinsicSizes(), false);
 					final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
 					contentBuilder.bind(floatBuilder);
 					floatBuilder.close();
@@ -608,8 +607,7 @@ public class DocumentBuilder {
 					if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 						// position: fixed; の場合、ここで構築
 						IFramedBox containerBox = this.pageContextBuilder().getRootBox();
-						absoluteBox.shrinkToFit(containerBox, contentBuilder.getMinLineSize(),
-								contentBuilder.getMaxLineSize());
+						absoluteBox.shrinkToFit(containerBox, contentBuilder.getIntrinsicSizes());
 						BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
 						contentBuilder.bind(absoluteBuilder);
 						absoluteBuilder.close();

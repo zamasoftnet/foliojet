@@ -1,5 +1,9 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
+import net.zamasoft.foliojet.style.sizing.Sizing;
+
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
 
 import net.zamasoft.foliojet.style.box.params.WritingMode;
@@ -67,7 +71,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		this.builder = builder;
 	}
 
-	public final void shrinkToFit(IFramedBox containerBox, double minLineAxis, double maxLineAxis) {
+	public final void shrinkToFit(IFramedBox containerBox, IntrinsicSizes sizes) {
+		final double minLineAxis = sizes.minContent(), maxLineAxis = sizes.maxContent();
 		double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
 		double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
 		{
@@ -138,13 +143,13 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 							width = maxLineAxis;
 							double limitWidth = cWidth - this.frame.getFrameWidth();
 							if (StyleUtils.isNone(left) && StyleUtils.isNone(right)) {
-								width = Math.max(minLineAxis, Math.min(limitWidth, width));
+								width = Sizing.fitContent(minLineAxis, width, limitWidth);
 								left = right = 0;
 							} else if (StyleUtils.isNone(left)) {
-								width = Math.max(minLineAxis, Math.min(limitWidth - right, width));
+								width = Sizing.fitContent(minLineAxis, width, limitWidth - right);
 								left = cWidth - right - width - this.frame.getFrameWidth();
 							} else {
-								width = Math.max(minLineAxis, Math.min(limitWidth - left, width));
+								width = Sizing.fitContent(minLineAxis, width, limitWidth - left);
 								right = cWidth - left - width - this.frame.getFrameWidth();
 							}
 						}
@@ -229,13 +234,13 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 							height = maxLineAxis;
 							double limitHeight = cHeight - this.frame.getFrameHeight();
 							if (StyleUtils.isNone(top) && StyleUtils.isNone(bottom)) {
-								height = Math.max(minLineAxis, Math.min(limitHeight, height));
+								height = Sizing.fitContent(minLineAxis, height, limitHeight);
 								top = bottom = 0;
 							} else if (StyleUtils.isNone(top)) {
-								height = Math.max(minLineAxis - bottom, Math.min(limitHeight, height));
+								height = Sizing.fitContent(minLineAxis - bottom, height, limitHeight);
 								top = cHeight - bottom - height - this.frame.getFrameHeight();
 							} else {
-								height = Math.max(minLineAxis - top, Math.min(limitHeight, height));
+								height = Sizing.fitContent(minLineAxis - top, height, limitHeight);
 								bottom = cHeight - top - height - this.frame.getFrameHeight();
 							}
 						}
@@ -289,7 +294,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 
 	public final void finishLayout(final IFramedBox containerBox) {
 		if (this.builder != null) {
-			this.shrinkToFit(containerBox, this.builder.getMinLineSize(), this.builder.getMaxLineSize());
+			this.shrinkToFit(containerBox, this.builder.getIntrinsicSizes());
 			final BlockBuilder absoluteBuilder = new BlockBuilder(this.builder.getPageContext(), this);
 			this.builder.bind(absoluteBuilder);
 			absoluteBuilder.close();

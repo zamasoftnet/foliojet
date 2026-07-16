@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import net.zamasoft.foliojet.style.box.params.Fiducial;
 
 import net.zamasoft.foliojet.style.box.params.AutoPosition;
@@ -1216,7 +1218,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			containerBox = this.getFlowBox();
 			if (StyleUtils.isFixedLineAxis(containerBox, blockBox)) {
 				// 固定幅
-				staticBlockBox.shrinkToFit(this, 0, 0, false);
+				staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
 				if (blockBox.isFixedMulcolumn()) {
 					// ページ方向が固定されたマルチカラム
 					builder = new ColumnBuilder(this, blockBox);
@@ -1242,7 +1244,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			if (StyleUtils.isFixedLineAxis(containerBox, blockBox)) {
 				// 固定幅
-				absoluteBox.shrinkToFit(containerBox, 0, 0);
+				absoluteBox.shrinkToFit(containerBox, IntrinsicSizes.ZERO);
 
 				// 高さは最後に確定するので、マルチカラムで高さが明示された場合でもリフローする
 				builder = new BlockBuilder(this, blockBox);

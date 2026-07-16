@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
@@ -31,9 +33,9 @@ public class OutsideMarkerBox extends InlineBlockBox {
 		}
 	}
 
-	public void shrinkToFit(LayoutStack builder, double minLineAxis, double maxLineAxis, boolean table) {
-		super.shrinkToFit(builder, minLineAxis, maxLineAxis, table);
-		this.lineAxis = maxLineAxis;
+	public void shrinkToFit(LayoutStack builder, IntrinsicSizes sizes, boolean table) {
+		super.shrinkToFit(builder, sizes, table);
+		this.lineAxis = sizes.maxContent();
 		final AbstractContainerBox containerBox = builder.getFlowBox();
 		if (this.params.flow.isVertical()) {
 			this.lineAxis += containerBox.getFrame().getFrameTop();

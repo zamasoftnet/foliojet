@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
 
 import net.zamasoft.foliojet.style.box.params.Align;
@@ -70,8 +72,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		return this.pos;
 	}
 
-	public final void shrinkToFit(LayoutStack layoutStack, double minLineAxis, double maxLineAxis, boolean table) {
-		super.shrinkToFit(layoutStack, minLineAxis, maxLineAxis, table);
+	public final void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table) {
+		super.shrinkToFit(layoutStack, sizes, table);
 		final AbstractContainerBox containerBox;
 		if (!table) {
 			return;

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import net.zamasoft.foliojet.style.box.params.Fiducial;
 
 import net.zamasoft.foliojet.style.box.params.AutoPosition;
@@ -230,16 +232,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		return (Builder) this.layoutStack;
 	}
 
-	public double getMaxLineSize() {
-		return this.maxLineSize;
-	}
-
-	public double getMinLineSize() {
-		return this.minLineSize;
-	}
-
-	public double getMinPageSize() {
-		return this.minPageSize;
+	public IntrinsicSizes getIntrinsicSizes() {
+		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize);
 	}
 
 	public boolean isMain() {
@@ -509,12 +503,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public void addTable(TableBuilder tableBuilder) {
 		TwoPassTableBuilder autoTableBuilder = (TwoPassTableBuilder) tableBuilder;
 		autoTableBuilder.prepareLayout();
-		double maxLineAxis = autoTableBuilder.getMinLineSize();
-		double minLineAxis = autoTableBuilder.getMaxLineSize();
-		maxLineAxis *= this.columnCount;
-		minLineAxis *= this.columnCount;
-		this.minLineSize = Math.max(this.minLineSize, maxLineAxis);
-		this.maxLineSize = Math.max(this.maxLineSize, minLineAxis);
+		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
+		this.minLineSize = Math.max(this.minLineSize, tableSizes.minContent() * this.columnCount);
+		this.maxLineSize = Math.max(this.maxLineSize, tableSizes.maxContent() * this.columnCount);
 		this.recordTypes.add(TYPE_TABLE);
 		this.recordObjects.add(tableBuilder);
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {
@@ -569,16 +560,18 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			if (params.size.getHeightType() != LengthType.AUTO) {
 				minLineAxis = maxLineAxis = floatingBox.getHeight();
 			} else {
-				minLineAxis = childBuilder.getMinLineSize() + floatingBox.getFrame().getFrameWidth();
-				maxLineAxis = childBuilder.getMaxLineSize() + floatingBox.getFrame().getFrameHeight();
+				final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
+				minLineAxis = childSizes.minContent() + floatingBox.getFrame().getFrameWidth();
+				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameHeight();
 			}
 		} else {
 			// 横書き
 			if (params.size.getWidthType() != LengthType.AUTO) {
 				minLineAxis = maxLineAxis = floatingBox.getWidth();
 			} else {
-				minLineAxis = childBuilder.getMinLineSize() + floatingBox.getFrame().getFrameWidth();
-				maxLineAxis = childBuilder.getMaxLineSize() + floatingBox.getFrame().getFrameWidth();
+				final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
+				minLineAxis = childSizes.minContent() + floatingBox.getFrame().getFrameWidth();
+				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameWidth();
 			}
 		}
 		assert !StyleUtils.isNone(maxLineAxis);
@@ -636,8 +629,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 							final InlineBlockQuad inlineBlockQuad = (InlineBlockQuad) quad;
 							final InlineBlockBox inlineBlockBox = inlineBlockQuad.box;
 							final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) twoPass;
-							inlineBlockBox.shrinkToFit(builder, stfBuilder.getMinLineSize(),
-									stfBuilder.getMaxLineSize(), false);
+							inlineBlockBox.shrinkToFit(builder, stfBuilder.getIntrinsicSizes(), false);
 							final BlockBuilder lnlineBlockBuilder = new BlockBuilder(this, inlineBlockBox);
 							stfBuilder.bind(lnlineBlockBuilder);
 							lnlineBlockBuilder.close();
@@ -711,7 +703,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				}
 				final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) k.next();
 				final AbstractStaticBlockBox blockBox = (AbstractStaticBlockBox) stfBuilder.getRootBox();
-				blockBox.shrinkToFit(builder, stfBuilder.getMinLineSize(), stfBuilder.getMaxLineSize(), false);
+				blockBox.shrinkToFit(builder, stfBuilder.getIntrinsicSizes(), false);
 				final BlockBuilder boundBuilder = new BlockBuilder(this, blockBox);
 				stfBuilder.bind(boundBuilder);
 				boundBuilder.close();
@@ -732,7 +724,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				} else {
 					containerBox = builder.getContextBox();
 				}
-				absoluteBox.shrinkToFit(containerBox, stfBuilder.getMinLineSize(), stfBuilder.getMaxLineSize());
+				absoluteBox.shrinkToFit(containerBox, stfBuilder.getIntrinsicSizes());
 				final BlockBuilder boundBuilder = new BlockBuilder(this, absoluteBox);
 				stfBuilder.bind(boundBuilder);
 				boundBuilder.close();
@@ -859,14 +851,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// インラインブロック
 				final BlockParams params = (BlockParams) box.getParams();
 				final TwoPass stfBuilder = (TwoPass) this.recordInlineBlocks.get(this.recordInlineBlocks.size() - 1);
+				final IntrinsicSizes stfSizes = stfBuilder.getIntrinsicSizes();
 				if (cParams.flow.isVertical() == params.flow.isVertical()) {
-					minAdvance = stfBuilder.getMinLineSize() + lineFrame;
-					maxAdvance = stfBuilder.getMaxLineSize() + lineFrame;
-					pageSize = stfBuilder.getMinPageSize() + pageFrame;
+					minAdvance = stfSizes.minContent() + lineFrame;
+					maxAdvance = stfSizes.maxContent() + lineFrame;
+					pageSize = stfSizes.minPage() + pageFrame;
 				} else {
 					// 縦中横/横中縦
-					minAdvance = maxAdvance = stfBuilder.getMinPageSize() + pageFrame;
-					pageSize = stfBuilder.getMinLineSize() + lineFrame;
+					minAdvance = maxAdvance = stfSizes.minPage() + pageFrame;
+					pageSize = stfSizes.minContent() + lineFrame;
 				}
 				minAdvance = Math.max(minAdvance, box.getLineExtent(params.flow));
 				maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));

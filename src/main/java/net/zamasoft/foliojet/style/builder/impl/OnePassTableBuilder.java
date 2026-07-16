@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
 
 import net.zamasoft.foliojet.style.box.params.RowGroupType;
@@ -556,7 +558,7 @@ public class OnePassTableBuilder implements TableBuilder {
 
 		// テーブルのレイアウト
 		final double tableSize = tableInnerSize + tableFrame;
-		flowBox.shrinkToFit(this.builder, tableSize, tableSize, true);
+		flowBox.shrinkToFit(this.builder, new IntrinsicSizes(tableSize, tableSize, 0), true);
 
 		// 上部キャプション
 		for (int i = 0; i < this.topCaptions.size(); ++i) {

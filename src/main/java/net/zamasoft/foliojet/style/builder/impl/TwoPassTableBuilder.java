@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
+
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
 
 import net.zamasoft.foliojet.style.box.params.Fiducial;
@@ -152,36 +154,22 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						: tableParams.size.getWidthType()) != LengthType.AUTO);
 	}
 
-	public final double getMinLineSize() {
+	public IntrinsicSizes getIntrinsicSizes() {
 		final TableParams tableParams = this.tableBox.getTableParams();
+		double min = this.minLineSize, max = this.maxLineSize;
+		// 表自体の指定寸法は固有寸法の下限になる
 		if (this.vertical) {
 			if (tableParams.size.getHeightType() == LengthType.ABSOLUTE) {
-				return Math.max(this.minLineSize, tableParams.size.getHeight());
+				min = Math.max(min, tableParams.size.getHeight());
+				max = Math.max(max, tableParams.size.getHeight());
 			}
 		} else {
 			if (tableParams.size.getWidthType() == LengthType.ABSOLUTE) {
-				return Math.max(this.minLineSize, tableParams.size.getWidth());
+				min = Math.max(min, tableParams.size.getWidth());
+				max = Math.max(max, tableParams.size.getWidth());
 			}
 		}
-		return this.minLineSize;
-	}
-
-	public final double getMaxLineSize() {
-		final TableParams tableParams = this.tableBox.getTableParams();
-		if (this.vertical) {
-			if (tableParams.size.getHeightType() == LengthType.ABSOLUTE) {
-				return Math.max(this.maxLineSize, tableParams.size.getHeight());
-			}
-		} else {
-			if (tableParams.size.getWidthType() == LengthType.ABSOLUTE) {
-				return Math.max(this.maxLineSize, tableParams.size.getWidth());
-			}
-		}
-		return this.maxLineSize;
-	}
-
-	public final double getMinPageSize() {
-		return 0;
+		return new IntrinsicSizes(min, max, 0);
 	}
 
 	public final TableBox getTableBox() {
@@ -941,13 +929,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					} else {
 						cellFrame = cellBox.getFrame().getFrameWidth();
 					}
-					final TwoPassBlockBuilder builder = cell.getBuilder();
+					final IntrinsicSizes cellSizes = cell.getBuilder().getIntrinsicSizes();
 					double min, des;
 					if (cellParams.flow.isVertical() != this.vertical) {
-						min = des = builder.getMinPageSize();
+						min = des = cellSizes.minPage();
 					} else {
-						min = builder.getMinLineSize();
-						des = builder.getMaxLineSize();
+						min = cellSizes.minContent();
+						des = cellSizes.maxContent();
 					}
 					min += cellFrame;
 					des += cellFrame;
@@ -1335,13 +1323,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		case INLINE: {
 			InlineBlockBox inlineBox = (InlineBlockBox) blockBox;
 			anonBuilder = new BlockBuilder(this.layoutStack, inlineBox);
-			inlineBox.shrinkToFit(builder, lineSize, lineSize, false);
+			inlineBox.shrinkToFit(builder, new IntrinsicSizes(lineSize, lineSize, 0), false);
 		}
 			break;
 		case FLOAT: {
 			FloatBlockBox floatingBox = (FloatBlockBox) blockBox;
 			anonBuilder = new BlockBuilder(this.layoutStack, floatingBox);
-			floatingBox.shrinkToFit(builder, lineSize, lineSize, false);
+			floatingBox.shrinkToFit(builder, new IntrinsicSizes(lineSize, lineSize, 0), false);
 		}
 			break;
 		case ABSOLUTE: {
@@ -1353,7 +1341,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			} else {
 				cBox = builder.getContextBox();
 			}
-			absoluteBox.shrinkToFit(cBox, lineSize, lineSize);
+			absoluteBox.shrinkToFit(cBox, new IntrinsicSizes(lineSize, lineSize, 0));
 		}
 			break;
 		default:
@@ -1815,17 +1803,17 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		switch (blockBox.getPos().getType()) {
 		case FLOW: {
 			FlowBlockBox flowBox = (FlowBlockBox) blockBox;
-			flowBox.shrinkToFit(builder, tableSize, tableSize, true);
+			flowBox.shrinkToFit(builder, new IntrinsicSizes(tableSize, tableSize, 0), true);
 			break;
 		}
 		case INLINE: {
 			InlineBlockBox inlineBox = (InlineBlockBox) blockBox;
-			inlineBox.shrinkToFit(builder, tableSize, tableSize, true);
+			inlineBox.shrinkToFit(builder, new IntrinsicSizes(tableSize, tableSize, 0), true);
 		}
 			break;
 		case FLOAT: {
 			FloatBlockBox floatingBox = (FloatBlockBox) blockBox;
-			floatingBox.shrinkToFit(builder, tableSize, tableSize, true);
+			floatingBox.shrinkToFit(builder, new IntrinsicSizes(tableSize, tableSize, 0), true);
 		}
 			break;
 		case ABSOLUTE: {
@@ -1836,7 +1824,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			} else {
 				cBox = builder.getContextBox();
 			}
-			absoluteBox.shrinkToFit(cBox, tableSize, tableSize);
+			absoluteBox.shrinkToFit(cBox, new IntrinsicSizes(tableSize, tableSize, 0));
 		}
 			break;
 
@@ -1963,13 +1951,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						if (this.vertical) {
 							cellBox.setHeight(size);
 							if (!cellParams.flow.isVertical()) {
-								cellBox.setWidth(cell.getBuilder().getMaxLineSize() + cellBox.getFrame().getFrameWidth()
+								cellBox.setWidth(cell.getBuilder().getIntrinsicSizes().maxContent() + cellBox.getFrame().getFrameWidth()
 										+ tableParams.borderSpacingH);
 							}
 						} else {
 							cellBox.setWidth(size);
 							if (cellParams.flow.isVertical()) {
-								cellBox.setHeight(cell.getBuilder().getMaxLineSize()
+								cellBox.setHeight(cell.getBuilder().getIntrinsicSizes().maxContent()
 										+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
 							}
 						}
