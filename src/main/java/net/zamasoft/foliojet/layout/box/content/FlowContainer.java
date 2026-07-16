@@ -1052,7 +1052,10 @@ public class FlowContainer implements Container {
 					// ±1文字の精度で切れないため、box-restyle に委ねる
 					// (M3b のトークン再開で回収予定)
 					if (!open
-							&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root) {
+							&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
+									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
+							&& builder.getPageContext() != null) {
+						final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
 						// 尾部の終端 = 次の item のソースアンカー(なければログ末尾)
 						long endId = -1;
 						boolean endKnown = true;
@@ -1088,8 +1091,10 @@ public class FlowContainer implements Container {
 							if (lastFlow == holder && depth > 1) {
 								// 開いたままの祖先チェーン
 								containerBox.restyle(builder, depth - 1);
-							} else if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root
-									&& root.replayFromSource(containerBox))) {
+							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
+									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
+									&& builder.getPageContext() != null
+									&& builder.getPageContext().replayFromSource(containerBox, builder))) {
 								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b
 								// segment-restyle)。false ならボックス再生でフォールバック。
 								// lastFlow && depth==1 の末尾も閉じたボックス(次段で depth-1=0)

@@ -1020,8 +1020,18 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
 		this.restyling = true;
-		container.restyle(this, depth, false);
-		this.restyling = false;
+		final RootBuilder root = this.getPageContext();
+		if (root != null) {
+			root.beginBreakRestyle();
+		}
+		try {
+			container.restyle(this, depth, false);
+		} finally {
+			if (root != null) {
+				root.endBreakRestyle();
+			}
+			this.restyling = false;
+		}
 		return true;
 	}
 }

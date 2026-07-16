@@ -41,10 +41,25 @@ public class RootBuilder extends BreakableBuilder {
 	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");
 
 	/**
-	 * 改ページの残余再構築中だけ true(segment-restyle の適用範囲)。
-	 * 改段・バランスの再レイアウトはソース位置と対応しないため対象外。
+	 * 破断(改ページ・改段)の残余再構築中だけ true(segment-restyle の
+	 * 適用範囲)。破断は常に構築ヘッドで起きるため、どちらも「ヘッド=
+	 * 祖先チェーン」の再開文脈が成立する。
 	 */
-	private boolean pageBreakRestyle = false;
+	private boolean breakRestyle = false;
+
+	/**
+	 * 破断残余の再構築ブラケットを開始します(M6b)。
+	 */
+	public final void beginBreakRestyle() {
+		this.breakRestyle = true;
+	}
+
+	/**
+	 * 破断残余の再構築ブラケットを終了します(M6b)。
+	 */
+	public final void endBreakRestyle() {
+		this.breakRestyle = false;
+	}
 
 	private final PageGenerator pageGenerator;
 
@@ -158,11 +173,11 @@ public class RootBuilder extends BreakableBuilder {
 		final int depth = this.flowStack.size();
 		this.flowStack.clear();
 		pageBox.restyle(this, 0);
-		this.pageBreakRestyle = true;
+		this.beginBreakRestyle();
 		try {
 			nextRootBox.restyle(this, depth);
 		} finally {
-			this.pageBreakRestyle = false;
+			this.endBreakRestyle();
 		}
 		this.pageGenerator.compactLayoutSource(watermark);
 		assert this.flowStack.size() == depth : ("break flow failed. " + this.getFlowBox().getParams().element);
@@ -194,8 +209,8 @@ public class RootBuilder extends BreakableBuilder {
 	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
 	 * 再駆動されます。false ならボックス再生でフォールバックします。
 	 */
-	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box) {
-		if (!SEGMENT_RESTYLE || !this.pageBreakRestyle) {
+	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box, final BlockBuilder target) {
+		if (!SEGMENT_RESTYLE || !this.breakRestyle) {
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
@@ -209,7 +224,7 @@ public class RootBuilder extends BreakableBuilder {
 			// (段組内容の再生は列機構との相互作用が未検証)
 			return false;
 		}
-		net.zamasoft.foliojet.layout.SourceReplayer.replay(log, startId, endId, this, this.pageGenerator);
+		net.zamasoft.foliojet.layout.SourceReplayer.replay(log, startId, endId, target, this.pageGenerator);
 		return true;
 	}
 
@@ -243,7 +258,7 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final long endId,
 			final boolean keepTextOpen) {
-		if (!TEXT_TAIL_RESTYLE || !SEGMENT_RESTYLE || !this.pageBreakRestyle) {
+		if (!TEXT_TAIL_RESTYLE || !SEGMENT_RESTYLE || !this.breakRestyle) {
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
