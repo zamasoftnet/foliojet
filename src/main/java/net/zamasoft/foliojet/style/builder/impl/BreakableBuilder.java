@@ -32,6 +32,7 @@ import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.style.box.params.TableRowPos;
+import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import net.zamasoft.foliojet.style.builder.LayoutStack;
 import net.zamasoft.foliojet.style.util.StyleUtils;
@@ -105,11 +106,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		double pageLimit = this.getPageLimit();
 		double last = this.pageAxis;
-		if (tableBox.getTableParams().flow.isVertical()) {
-			last -= tableBox.getInnerWidth() + tableBox.getFrame().getFrameLeft();
-		} else {
-			last -= tableBox.getInnerHeight() + tableBox.getFrame().getFrameBottom();
-		}
+		final WritingMode tableFlow = tableBox.getTableParams().flow;
+		last -= tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow);
 		if (tableBox.getTableHeader() != null) {
 			last += tableBox.getTableHeader().getPageSize();
 		}
@@ -719,18 +717,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			throw new IllegalStateException();
 		}
 		if (breakFloats) {
-			boolean vertical = this.getRootBox().getBlockParams().flow.isVertical();
 			this.breakFloats.add(box.getFloatPos().floating);
 			double pageStart = this.getPageLimit();
 			Flow flow = this.getFlow();
 			flow.box.addFloating(box, 0, pageStart - flow.pageAxis);
 			// 上位ボックスの幅の拡張
 			double pageAxis = pageStart;
-			if (vertical) {
-				pageAxis += box.getWidth();
-			} else {
-				pageAxis += box.getHeight();
-			}
+			pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
 			int i;
 			if (this.flowStack != null) {
 				i = this.flowStack.size() - 1;
@@ -775,18 +768,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			throw new IllegalStateException();
 		}
 		if (breakFloats) {
-			boolean vertical = this.getRootBox().getBlockParams().flow.isVertical();
 			this.breakFloats.add(box.getFloatPos().floating);
 			double pageStart = this.getPageLimit();
 			Flow flow = this.getFlow();
 			flow.box.addFloating(box, 0, pageStart - flow.pageAxis);
 			// 上位ボックスの幅の拡張
 			double pageAxis = pageStart;
-			if (vertical) {
-				pageAxis += box.getWidth();
-			} else {
-				pageAxis += box.getHeight();
-			}
+			pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
 			int i;
 			if (this.flowStack != null) {
 				i = this.flowStack.size() - 1;
@@ -808,23 +796,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		double pageAxis = pageStart;
-		if (this.getRootBox().getBlockParams().flow.isVertical()) {
-			pageAxis += box.getWidth();
-		} else {
-			pageAxis += box.getHeight();
-		}
+		pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
 		if (StyleUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
 			// 下部がはみ出していない場合は分割しない
 			return false;
 		}
 
 		// ページをはみ出した浮動ボックスが存在する
-		if (this.getRootBox().getBlockParams().flow.isVertical()) {
-			pageStart -= this.getFlow().box.getFrame().getFrameRight();
-		}
-		else {
-			pageStart -= this.getFlow().box.getFrame().getFrameTop();
-		}
+		pageStart -= this.getFlow().box.getFrame().getFramePageStart(this.getRootBox().getBlockParams().flow);
 		boolean transfer;
 		switch (box.getType()) {
 		case BLOCK:
@@ -873,12 +852,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	public double getPageLimit() {
 		final AbstractContainerBox rootBox = this.getRootBox();
 		final BlockParams params = rootBox.getBlockParams();
-		double pageLimit;
-		if (params.flow.isVertical()) {
-			pageLimit = rootBox.getInnerWidth();
-		} else {
-			pageLimit = rootBox.getInnerHeight();
-		}
+		double pageLimit = rootBox.getInnerPageExtent(params.flow);
 		if (pageLimit < 20) {
 			// 20ポイントより小さなページ高さは無視
 			pageLimit = 20;
@@ -974,16 +948,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.flowStack == null) {
 			return lastFrame;
 		}
-		if (breakFlow.box.getBlockParams().flow.isVertical()) {
-			for (int i = this.flowStack.size() - depth; i >= 0; --i) {
-				Flow flow = (Flow) this.flowStack.get(i);
-				lastFrame += flow.box.getFrame().getFrameLeft();
-			}
-		} else {
-			for (int i = this.flowStack.size() - depth; i >= 0; --i) {
-				Flow flow = (Flow) this.flowStack.get(i);
-				lastFrame += flow.box.getFrame().getFrameBottom();
-			}
+		for (int i = this.flowStack.size() - depth; i >= 0; --i) {
+			Flow flow = (Flow) this.flowStack.get(i);
+			lastFrame += flow.box.getFrame().getFramePageEnd(breakFlow.box.getBlockParams().flow);
 		}
 		return lastFrame;
 	}
@@ -1008,14 +975,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
 
 		// ページの先頭かどうかの判断
-		if (breakFlow.box.getBlockParams().flow.isVertical()) {
-			if (StyleUtils.compare(breakFlow.pageAxis - breakFlow.box.getFrame().getFrameRight(), 0) > 0) {
-				flags ^= IPageBreakableBox.FLAGS_FIRST;
-			}
-		} else {
-			if (StyleUtils.compare(breakFlow.pageAxis - breakFlow.box.getFrame().getFrameTop(), 0) > 0) {
-				flags ^= IPageBreakableBox.FLAGS_FIRST;
-			}
+		if (StyleUtils.compare(
+				breakFlow.pageAxis - breakFlow.box.getFrame().getFramePageStart(breakFlow.box.getBlockParams().flow),
+				0) > 0) {
+			flags ^= IPageBreakableBox.FLAGS_FIRST;
 		}
 
 		final Container container = breakFlow.box.newColumn(pageAxis, mode, flags);

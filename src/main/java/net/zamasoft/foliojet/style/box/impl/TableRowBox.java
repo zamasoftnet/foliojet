@@ -342,21 +342,11 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					// 切断線より上にある場合
 					// 連結されたセルによる高さを考慮するため、全てのセルの高さをチェック
 					boolean leave = true;
-					if (vertical) {
-						for (int i = 0; i < this.cells.size(); ++i) {
-							Cell cell = (Cell) this.cells.get(i);
-							if (StyleUtils.compare(pageLimit, cell.getCellBox().getWidth()) < 0) {
-								leave = false;
-								break;
-							}
-						}
-					} else {
-						for (int i = 0; i < this.cells.size(); ++i) {
-							Cell cell = (Cell) this.cells.get(i);
-							if (StyleUtils.compare(pageLimit, cell.getCellBox().getHeight()) < 0) {
-								leave = false;
-								break;
-							}
+					for (int i = 0; i < this.cells.size(); ++i) {
+						Cell cell = (Cell) this.cells.get(i);
+						if (StyleUtils.compare(pageLimit, cell.getCellBox().getPageExtent(this.tableParams.flow)) < 0) {
+							leave = false;
+							break;
 						}
 					}
 					if (leave) {
@@ -401,23 +391,12 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					}
 				}
 				// 上部境界がなく、高さがゼロのセルが存在すれば分割を諦める
-				if (vertical) {
-					for (int i = 0; i < this.cells.size(); ++i) {
-						Cell cell = (Cell) this.cells.get(i);
-						TableCellBox cellBox = cell.getCellBox();
-						if (cellBox.getFrame().getFrameRight() <= 0
-								&& StyleUtils.compare(cellBox.getInnerWidth(), 0) <= 0) {
-							return null;
-						}
-					}
-				} else {
-					for (int i = 0; i < this.cells.size(); ++i) {
-						Cell cell = (Cell) this.cells.get(i);
-						TableCellBox cellBox = cell.getCellBox();
-						if (cellBox.getFrame().getFrameTop() <= 0
-								&& StyleUtils.compare(cellBox.getInnerHeight(), 0) <= 0) {
-							return null;
-						}
+				for (int i = 0; i < this.cells.size(); ++i) {
+					Cell cell = (Cell) this.cells.get(i);
+					TableCellBox cellBox = cell.getCellBox();
+					if (cellBox.getFrame().getFramePageStart(this.tableParams.flow) <= 0
+							&& StyleUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0) {
+						return null;
 					}
 				}
 			}
@@ -512,11 +491,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 							xcell = xcell.getNextExtendedCell();
 						} while (xcell != null);
 					}
-					if (vertical) {
-						nextRowBox.pageSize = Math.max(nextRowBox.pageSize, nextCell2.getWidth() / span);
-					} else {
-						nextRowBox.pageSize = Math.max(nextRowBox.pageSize, nextCell2.getHeight() / span);
-					}
+					nextRowBox.pageSize = Math.max(nextRowBox.pageSize,
+							nextCell2.getPageExtent(this.tableParams.flow) / span);
 				}
 			}
 			if (vertical) {
@@ -536,11 +512,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					xcell = xcell.getNextExtendedCell();
 				} while (xcell != null);
 			}
-			if (vertical) {
-				nextRowBox.pageSize = Math.max(nextRowBox.pageSize, nextCellBox.getWidth() / span);
-			} else {
-				nextRowBox.pageSize = Math.max(nextRowBox.pageSize, nextCellBox.getHeight() / span);
-			}
+			nextRowBox.pageSize = Math.max(nextRowBox.pageSize, nextCellBox.getPageExtent(this.tableParams.flow) / span);
 		}
 
 		// System.err.println("TR nextRowBox: pass=" + (nextRowBox ==
@@ -616,11 +588,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				} while (xcell != null);
 			}
 			// 行の高さをセルの高さを行数で割ったもので更新
-			if (vertical) {
-				this.pageSize = Math.max(this.pageSize, nextCell.getWidth() / span);
-			} else {
-				this.pageSize = Math.max(this.pageSize, nextCell.getHeight() / span);
-			}
+			this.pageSize = Math.max(this.pageSize, nextCell.getPageExtent(this.tableParams.flow) / span);
 			// System.err.println("TR cutRowSpanCells: " + i + "/"
 			// + prevCell.getHeight());
 		}

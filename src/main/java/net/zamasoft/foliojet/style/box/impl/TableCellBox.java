@@ -446,7 +446,6 @@ public class TableCellBox extends AbstractContainerBox {
 
 	public final IPageBreakableBox splitPageAxis(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
-		boolean vertical = this.params.flow.isVertical();
 		pageLimit -= this.verticalAlign;
 		TableCellBox nextBox = (TableCellBox) super.splitPageAxis(pageLimit, mode, flags);
 		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode
@@ -457,11 +456,7 @@ public class TableCellBox extends AbstractContainerBox {
 			return nextBox;
 		}
 		if (this.container.hasFloatings()) {
-			if (vertical) {
-				pageLimit -= this.frame.getFrameRight();
-			} else {
-				pageLimit -= this.frame.getFrameTop();
-			}
+			pageLimit -= this.frame.getFramePageStart(this.params.flow);
 			this.container.splitFloatings(nextBox.container, pageLimit, flags);
 		}
 		return nextBox;

@@ -132,12 +132,7 @@ public class Floatings {
 		// 浮動体
 		for (int i = 0; i < this.floatings.size(); ++i) {
 			Floating floating = (Floating) this.floatings.get(i);
-			double pageEnd = floating.pageAxis;
-			if (vertical) {
-				pageEnd += floating.box.getWidth();
-			} else {
-				pageEnd += floating.box.getHeight();
-			}
+			double pageEnd = floating.pageAxis + floating.box.getPageExtent(box.getBlockParams().flow);
 			final boolean first = (flags & IPageBreakableBox.FLAGS_FIRST) != 0
 					&& StyleUtils.compare(floating.pageAxis, 0) <= 0;
 			final IFloatBox nextBox;

@@ -359,15 +359,8 @@ public class TextBuilder {
 			double descent = flm.getMaxDescent();
 			inlineBox.addAscentDescent(ascent, descent);
 
-			double start;
 			AbstractTextParams textParams = textBox.getTextParams();
-			if (textParams.flow.isVertical()) {
-				// 縦書き
-				start = inlineBox.getFrame().getFrameTop();
-			} else {
-				// 横書き
-				start = inlineBox.getFrame().getFrameLeft();
-			}
+			double start = inlineBox.getFrame().getFrameLineStart(textParams.flow);
 			this.lineBox.addAdvance(start);
 			inlineBox.addAdvance(start);
 			Inline inline = new Inline(inlineBox);
@@ -398,15 +391,8 @@ public class TextBuilder {
 		case REPLACED:
 		case BLOCK: {
 			final IInlineBox inlineBox = box;
-			final double advance;
 			final AbstractLineParams lineParams = this.lineBox.getLineParams();
-			if (lineParams.flow.isVertical()) {
-				// 縦書き
-				advance = inlineBox.getHeight();
-			} else {
-				// 横書き
-				advance = inlineBox.getWidth();
-			}
+			final double advance = inlineBox.getLineExtent(lineParams.flow);
 			textBox.addAdvance(advance);
 			if (this.lineBox != textBox) {
 				this.lineBox.addAdvance(advance);
@@ -654,13 +640,7 @@ public class TextBuilder {
 				for (int i = inlineStack.size() - 1; i >= 1; --i) {
 					Inline inline = (Inline) inlineStack.get(i);
 					Inline parent = (Inline) inlineStack.get(i - 1);
-					if (lineParams.flow.isVertical()) {
-						// 縦書き
-						parent.box.addAdvance(inline.box.getHeight());
-					} else {
-						// 横書き
-						parent.box.addAdvance(inline.box.getWidth());
-					}
+					parent.box.addAdvance(inline.box.getLineExtent(lineParams.flow));
 				}
 			} else {
 				this.lineBox = newLineBox;
@@ -996,12 +976,7 @@ public class TextBuilder {
 
 			case InlineQuad.INLINE_REPLACED:
 			case InlineQuad.INLINE_BLOCK:
-				final double lineHeight;
-				if (params.flow.isVertical()) {
-					lineHeight = inlineQuad.getBox().getWidth();
-				} else {
-					lineHeight = inlineQuad.getBox().getHeight();
-				}
+				final double lineHeight = inlineQuad.getBox().getPageExtent(params.flow);
 				if (StyleUtils.compare(lineHeight, this.maxPageSize) > 0) {
 					// 行高さの制限を超えたら強制折り返し
 					this.maxLineSize = 0;

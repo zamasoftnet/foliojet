@@ -21,15 +21,8 @@ public interface LayoutContext extends LayoutStack {
 			this.box = box;
 			this.lineStart = lineStart;
 			this.pageStart = pageStart;
-			if (progression.isVertical()) {
-				// 縦書き
-				this.lineEnd = lineStart + box.getHeight();
-				this.pageEnd = pageStart + box.getWidth();
-			} else {
-				// 横書き
-				this.lineEnd = lineStart + box.getWidth();
-				this.pageEnd = pageStart + box.getHeight();
-			}
+			this.lineEnd = lineStart + box.getLineExtent(progression);
+			this.pageEnd = pageStart + box.getPageExtent(progression);
 		}
 	}
 

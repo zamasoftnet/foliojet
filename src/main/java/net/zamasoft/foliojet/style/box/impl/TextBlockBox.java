@@ -180,25 +180,12 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		if (this.lines.isEmpty()) {
 			return pageAxis;
 		}
-		if (this.getBlockParams().flow.isVertical()) {
-			// 縦書き
-			for (int i = 0; i < this.lines.size(); ++i) {
-				final Line line = (Line) this.lines.get(i);
-				final double bottom = line.pageAxis + line.box.getWidth();
-				if (StyleUtils.compare(bottom, pageAxis) >= 0) {
-					pageAxis = bottom;
-					break;
-				}
-			}
-		} else {
-			// 横書き
-			for (int i = 0; i < this.lines.size(); ++i) {
-				final Line line = (Line) this.lines.get(i);
-				final double bottom = line.pageAxis + line.box.getHeight();
-				if (StyleUtils.compare(bottom, pageAxis) >= 0) {
-					pageAxis = bottom;
-					break;
-				}
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = (Line) this.lines.get(i);
+			final double bottom = line.pageAxis + line.box.getPageExtent(this.getBlockParams().flow);
+			if (StyleUtils.compare(bottom, pageAxis) >= 0) {
+				pageAxis = bottom;
+				break;
 			}
 		}
 
@@ -254,13 +241,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// FLAGS_LASTは実際の要素に対するもので、仮想的なテキストブロックには適用しない
 
-		final boolean vertical = this.params.flow.isVertical();
-		final double pageSize;
-		if (vertical) {
-			pageSize = this.getWidth();
-		} else {
-			pageSize = this.getHeight();
-		}
+		final double pageSize = this.getPageExtent(this.params.flow);
 		if (StyleUtils.compare(pageLimit, pageSize) >= 0) {
 			// 切断線が底辺以下にある場合は移動なし
 			return null;

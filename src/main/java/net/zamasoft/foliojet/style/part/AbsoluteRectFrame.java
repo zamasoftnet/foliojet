@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.style.part;
 import java.awt.Shape;
 
 import net.zamasoft.foliojet.style.box.params.RectFrame;
+import net.zamasoft.foliojet.style.box.params.WritingMode;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -50,6 +51,67 @@ public class AbsoluteRectFrame {
 
 	public final double getFrameWidth() {
 		return this.getFrameLeft() + this.getFrameRight();
+	}
+
+	/**
+	 * 行方向の始端側(横書き=左、縦書き=上)のフレーム幅を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向始端側のフレーム幅
+	 */
+	public final double getFrameLineStart(WritingMode flow) {
+		return flow.isVertical() ? this.getFrameTop() : this.getFrameLeft();
+	}
+
+	/**
+	 * 行方向の終端側(横書き=右、縦書き=下)のフレーム幅を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向終端側のフレーム幅
+	 */
+	public final double getFrameLineEnd(WritingMode flow) {
+		return flow.isVertical() ? this.getFrameBottom() : this.getFrameRight();
+	}
+
+	/**
+	 * ページ方向の始端側(横書き=上、縦書き=右)のフレーム幅を返します。
+	 * 縦書きの内部座標は常に右から左(LRは描画段で反転)です。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向始端側のフレーム幅
+	 */
+	public final double getFramePageStart(WritingMode flow) {
+		return flow.isVertical() ? this.getFrameRight() : this.getFrameTop();
+	}
+
+	/**
+	 * ページ方向の終端側(横書き=下、縦書き=左)のフレーム幅を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向終端側のフレーム幅
+	 */
+	public final double getFramePageEnd(WritingMode flow) {
+		return flow.isVertical() ? this.getFrameLeft() : this.getFrameBottom();
+	}
+
+	/**
+	 * 行方向のフレーム幅の合計を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向のフレーム幅
+	 */
+	public final double getFrameLineExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getFrameHeight() : this.getFrameWidth();
+	}
+
+	/**
+	 * ページ方向のフレーム幅の合計を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向のフレーム幅
+	 */
+	public final double getFramePageExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getFrameWidth() : this.getFrameHeight();
 	}
 
 	public final double getBorderHeight() {

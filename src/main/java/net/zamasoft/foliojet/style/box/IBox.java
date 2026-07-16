@@ -7,6 +7,7 @@ import java.awt.geom.GeneralPath;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.Pos;
+import net.zamasoft.foliojet.style.box.params.WritingMode;
 import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.visitor.Visitor;
 
@@ -51,17 +52,57 @@ public interface IBox {
 
 	/**
 	 * ボックスの現在の内部幅を返します。
-	 * 
+	 *
 	 * @return
 	 */
 	public double getInnerWidth();
 
 	/**
 	 * ボックスの現在の内部高さを返します。
-	 * 
+	 *
 	 * @return
 	 */
 	public double getInnerHeight();
+
+	/**
+	 * 与えられた書字方向での行方向の寸法を返します(横書き=幅、縦書き=高さ)。
+	 *
+	 * @param flow 軸を決める書字方向(通常は包含ブロックのもの)
+	 * @return 行方向の寸法
+	 */
+	public default double getLineExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getHeight() : this.getWidth();
+	}
+
+	/**
+	 * 与えられた書字方向でのページ方向の寸法を返します(横書き=高さ、縦書き=幅)。
+	 *
+	 * @param flow 軸を決める書字方向(通常は包含ブロックのもの)
+	 * @return ページ方向の寸法
+	 */
+	public default double getPageExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getWidth() : this.getHeight();
+	}
+
+	/**
+	 * 与えられた書字方向での行方向の内部寸法を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 行方向の内部寸法
+	 */
+	public default double getInnerLineExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getInnerHeight() : this.getInnerWidth();
+	}
+
+	/**
+	 * 与えられた書字方向でのページ方向の内部寸法を返します。
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return ページ方向の内部寸法
+	 */
+	public default double getInnerPageExtent(WritingMode flow) {
+		return flow.isVertical() ? this.getInnerWidth() : this.getInnerHeight();
+	}
 
 	/**
 	 * ページ方向の幅を確定します。

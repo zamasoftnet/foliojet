@@ -307,11 +307,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	public IPageBreakableBox splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
-		if (this.getBlockParams().flow.isVertical()) {
-			pageLimit -= this.frame.getFrameRight();
-		} else {
-			pageLimit -= this.frame.getFrameTop();
-		}
+		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		byte xflags = flags;
 		if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && this.getColumnCount() > 1) {
 			xflags ^= IPageBreakableBox.FLAGS_COLUMN;

@@ -229,11 +229,7 @@ public class FlowContainer implements Container {
 		if (flow == null) {
 			return 0;
 		}
-		if (this.box.getBlockParams().flow.isVertical()) {
-			// 縦書き
-			return flow.pageAxis + flow.box.getWidth();
-		}
-		return flow.pageAxis + flow.box.getHeight();
+		return flow.pageAxis + flow.box.getPageExtent(this.box.getBlockParams().flow);
 	}
 
 	public double getCutPoint(double pageAxis) {
@@ -499,16 +495,9 @@ public class FlowContainer implements Container {
 
 	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
-		final double frameStart, pageSize, pageInnerSize;
-		if (vertical) {
-			frameStart = this.box.getFrame().getFrameRight();
-			pageSize = this.box.getWidth();
-			pageInnerSize = this.box.getInnerWidth();
-		} else {
-			frameStart = this.box.getFrame().getFrameTop();
-			pageSize = this.box.getHeight();
-			pageInnerSize = this.box.getInnerHeight();
-		}
+		final double frameStart = this.box.getFrame().getFramePageStart(this.box.getBlockParams().flow);
+		final double pageSize = this.box.getPageExtent(this.box.getBlockParams().flow);
+		final double pageInnerSize = this.box.getInnerPageExtent(this.box.getBlockParams().flow);
 
 		// System.err.println("ACB A: flags=" + flags + "/" + mode +
 		// "/pageLimit=" + pageLimit + "/vertical="+vertical+"/pageInnerSize=" +
@@ -646,11 +635,7 @@ public class FlowContainer implements Container {
 					throw new IllegalStateException();
 				}
 			} else {
-				if (params.flow.isVertical()) {
-					lastBottom += flow.box.getWidth();
-				} else {
-					lastBottom += flow.box.getHeight();
-				}
+				lastBottom += flow.box.getPageExtent(params.flow);
 			}
 			if (StyleUtils.compare(lastBottom, pageLimit) <= 0) {
 				break;
@@ -737,12 +722,7 @@ public class FlowContainer implements Container {
 				}
 			case REPLACED: {
 				// 置換されたボックス
-				double prevFlowPageSize;
-				if (vertical) {
-					prevFlowPageSize = prevFlow.box.getWidth();
-				} else {
-					prevFlowPageSize = prevFlow.box.getHeight();
-				}
+				double prevFlowPageSize = prevFlow.box.getPageExtent(this.box.getBlockParams().flow);
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						|| StyleUtils.compare(splitLine, prevFlowPageSize) >= 0) {
 					// ページの先頭にある場合、ページ下辺にかかっていない場合は残す
@@ -961,8 +941,7 @@ public class FlowContainer implements Container {
 				}
 				if (nextBox == null && (flags & IPageBreakableBox.FLAGS_FIRST) == 0
 						&& StyleUtils.compare(
-								this.box.getBlockParams().flow.isVertical() ? this.box.getInnerWidth()
-										: this.box.getInnerHeight(),
+								this.box.getInnerPageExtent(this.box.getBlockParams().flow),
 								0) <= 0) {
 					return this;
 
@@ -1012,11 +991,7 @@ public class FlowContainer implements Container {
 			case BLOCK:
 				AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
-				if (blockBox.getBlockParams().flow.isVertical()) {
-					pageAxis -= blockBox.getFrame().getFrameRight();
-				} else {
-					pageAxis -= blockBox.getFrame().getFrameTop();
-				}
+				pageAxis -= blockBox.getFrame().getFramePageStart(blockBox.getBlockParams().flow);
 				Floatings floatings = blockBox.getContainer().splitFloatings(pageAxis, (byte) (lflags & flags));
 				if (floatings == null) {
 					break;

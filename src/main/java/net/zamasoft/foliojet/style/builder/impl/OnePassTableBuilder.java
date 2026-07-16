@@ -1616,14 +1616,8 @@ public class OnePassTableBuilder implements TableBuilder {
 	}
 
 	private boolean checkBreak(boolean groupLast) {
-		final double firstFrame, lastFrame;
-		if (this.tableBox.getTableParams().flow.isVertical()) {
-			firstFrame = this.tableBox.getFrame().getFrameRight();
-			lastFrame = this.tableBox.getFrame().getFrameLeft();
-		} else {
-			firstFrame = this.tableBox.getFrame().getFrameTop();
-			lastFrame = this.tableBox.getFrame().getFrameBottom();
-		}
+		final double firstFrame = this.tableBox.getFrame().getFramePageStart(this.tableBox.getTableParams().flow);
+		final double lastFrame = this.tableBox.getFrame().getFramePageEnd(this.tableBox.getTableParams().flow);
 		double pageLimit = this.builder.getPageLimit();
 		pageLimit -= this.builder.getPageAxis();
 		pageLimit -= firstFrame;

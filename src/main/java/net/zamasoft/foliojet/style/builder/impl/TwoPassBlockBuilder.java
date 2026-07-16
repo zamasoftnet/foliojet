@@ -298,18 +298,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.clearFloatAdvance(pos.clear);
 
 		flowBox.firstPassLayout(containerBox);
-		double lineSize;
-		if (params.flow.isVertical()) {
-			// 縦書き
-			lineSize = this.lineFrame + flowBox.getHeight();
-			this.lineFrame += flowBox.getFrame().getFrameHeight();
-			this.pageFrame += flowBox.getFrame().getFrameWidth();
-		} else {
-			// 横書き
-			lineSize = this.lineFrame + flowBox.getWidth();
-			this.lineFrame += flowBox.getFrame().getFrameWidth();
-			this.pageFrame += flowBox.getFrame().getFrameHeight();
-		}
+		double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow);
+		this.lineFrame += flowBox.getFrame().getFrameLineExtent(params.flow);
+		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
 		assert !StyleUtils.isNone(this.lineFrame);
 		if (flowBox.getColumnCount() > 0) {
 			this.lineFrame += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
@@ -863,16 +854,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			} else if (quad instanceof InlineBlockQuad) {
 				// インラインブロック
 				final AbstractContainerBox box = (AbstractContainerBox) inlineQuad.getBox();
-				final double lineFrame, pageFrame;
-				if (cParams.flow.isVertical()) {
-					// 縦書き
-					lineFrame = box.getFrame().getFrameHeight();
-					pageFrame = box.getFrame().getFrameWidth();
-				} else {
-					// 横書き
-					lineFrame = box.getFrame().getFrameWidth();
-					pageFrame = box.getFrame().getFrameHeight();
-				}
+				final double lineFrame = box.getFrame().getFrameLineExtent(cParams.flow);
+				final double pageFrame = box.getFrame().getFramePageExtent(cParams.flow);
 				// インラインブロック
 				final BlockParams params = (BlockParams) box.getParams();
 				final TwoPass stfBuilder = (TwoPass) this.recordInlineBlocks.get(this.recordInlineBlocks.size() - 1);
@@ -885,17 +868,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					minAdvance = maxAdvance = stfBuilder.getMinPageSize() + pageFrame;
 					pageSize = stfBuilder.getMinLineSize() + lineFrame;
 				}
-				if (params.flow.isVertical()) {
-					// 縦書き
-					minAdvance = Math.max(minAdvance, box.getHeight());
-					maxAdvance = Math.max(maxAdvance, box.getHeight());
-					pageSize = Math.max(pageSize, box.getWidth());
-				} else {
-					// 横書き
-					minAdvance = Math.max(minAdvance, box.getWidth());
-					maxAdvance = Math.max(maxAdvance, box.getWidth());
-					pageSize = Math.max(pageSize, box.getHeight());
-				}
+				minAdvance = Math.max(minAdvance, box.getLineExtent(params.flow));
+				maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));
+				pageSize = Math.max(pageSize, box.getPageExtent(params.flow));
 			} else {
 				if (inlineQuad instanceof InlineStartQuad) {
 					this.inlineStack.add(inlineQuad.getBox());
@@ -915,11 +890,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 							this.getFlowBox().getLineSize());
 				}
 				minAdvance = maxAdvance = quad.getAdvance();
-				if (cParams.flow.isVertical()) {
-					pageSize = inlineQuad.getBox().getWidth();
-				} else {
-					pageSize = inlineQuad.getBox().getHeight();
-				}
+				pageSize = inlineQuad.getBox().getPageExtent(cParams.flow);
 			}
 		} else {
 			minAdvance = maxAdvance = quad.getAdvance();

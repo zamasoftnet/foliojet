@@ -647,12 +647,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			Insets margin = frame.frame.margin;
 			amargin = frame.margin;
-			double lineSize;
-			if (vertical) {
-				lineSize = box.getHeight();
-			} else {
-				lineSize = box.getWidth();
-			}
+			double lineSize = box.getLineExtent(params.flow);
 			final double cLineSize = flow.box.getLineSize();
 			final double lineStop = this.lineAxis + cLineSize;
 			double xMarginStart = 0, lineEnd = lineStop, xMarginEnd = 0;
@@ -802,13 +797,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
 
-			if (vertical) {
-				// 縦書き
-				this.pageAxis += flowBox.getWidth();
-			} else {
-				// 横書き
-				this.pageAxis += flowBox.getHeight();
-			}
+			this.pageAxis += flowBox.getPageExtent(params.flow);
 			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		}
 			break;
@@ -887,16 +876,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// 8.浮動ボックスは第一になるべく高く、第二になるべく端に位置しなければならない
 		// 浮動体はこれより上にはならない
 		WritingMode progression = this.getRootBox().getBlockParams().flow;
-		double lineWidth, pageWidth;
-		if (progression.isVertical()) {
-			// 縦書き
-			lineWidth = box.getHeight();
-			pageWidth = box.getWidth();
-		} else {
-			// 横書き
-			lineWidth = box.getWidth();
-			pageWidth = box.getHeight();
-		}
+		double lineWidth = box.getLineExtent(progression);
+		double pageWidth = box.getPageExtent(progression);
 		double pageStart = this.pageAxis;
 		if (this.textBuilder != null) {
 			pageStart += this.textBuilder.getActualPageAxis();
@@ -1009,16 +990,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected void addEndFloat(IFloatBox box) {
 		// 浮動体はこれより上にはならない
 		WritingMode progression = this.getRootBox().getBlockParams().flow;
-		double lineWidth, pageWidth;
-		if (progression.isVertical()) {
-			// 縦書き
-			lineWidth = box.getHeight();
-			pageWidth = box.getWidth();
-		} else {
-			// 横書き
-			lineWidth = box.getWidth();
-			pageWidth = box.getHeight();
-		}
+		double lineWidth = box.getLineExtent(progression);
+		double pageWidth = box.getPageExtent(progression);
 		double pageStart = this.pageAxis;
 		if (this.textBuilder != null) {
 			pageStart += this.textBuilder.getActualPageAxis();
@@ -1139,11 +1112,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 					contextFlow.box.setPageAxis(pageAxis - contextFlow.pageAxis);
 					if (params.overflow == OverflowMode.HIDDEN) {
 						// overflowで高さが指定されている場合は、外に影響しない
-						if (contextFlow.box.getBlockParams().flow.isVertical()) {
-							pageAxis = contextFlow.box.getInnerWidth() + contextFlow.pageAxis;
-						} else {
-							pageAxis = contextFlow.box.getInnerHeight() + contextFlow.pageAxis;
-						}
+						pageAxis = contextFlow.box.getInnerPageExtent(contextFlow.box.getBlockParams().flow)
+								+ contextFlow.pageAxis;
 					}
 				}
 			}
