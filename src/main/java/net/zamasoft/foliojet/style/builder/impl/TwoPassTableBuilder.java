@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.sizing.ColumnDistribution;
 import net.zamasoft.foliojet.style.sizing.IntrinsicSizes;
 
 import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
@@ -1667,95 +1668,28 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					}
 				}
 
-				double sizeSum = 0;
-				// 最小幅を適用
+				// 列幅の分配 (css-tables-3)
+				double[] startSizes = this.columnMins;
+				double minSum = 0;
 				for (int i = 0; i < columnCount; ++i) {
-					columnSizes[i] = this.columnMins[i];
-					sizeSum += this.columnMins[i];
+					minSum += this.columnMins[i];
 				}
-				if (sizeSum > maxTableSize) {
+				if (minSum > maxTableSize) {
+					// 最小幅の合計が最大表幅を超える場合は比例縮小する
+					startSizes = new double[columnCount];
 					for (int i = 0; i < columnCount; ++i) {
-						columnSizes[i] = this.columnMins[i] * (maxTableSize - tableFrame) / sizeSum;
-					}
-					sizeSum = maxTableSize;
-				}
-
-				// ％幅、指定幅、推奨幅の順に適用
-				// System.err.println("TPT: "+innerWidth+"/"+widthSum);
-				for (byte type = COLUMN_TYPE_PCT; type >= COLUMN_TYPE_DES; --type) {
-					if (innerSize <= sizeSum) {
-						break;
-					}
-					double diffSum = 0;
-					for (int i = 0; i < columnCount; ++i) {
-						if (this.columnTypes[i] != type) {
-							continue;
-						}
-						double size = this.columnSpecs[i];
-						assert !StyleUtils.isNone(columnSizes[i]);
-						diffSum += Math.max(0, size - columnSizes[i]);
-					}
-					if (diffSum > 0) {
-						double rem = innerSize - sizeSum;
-						if (diffSum <= rem) {
-							for (int i = 0; i < columnCount; ++i) {
-								if (this.columnTypes[i] != type) {
-									continue;
-								}
-								double width = this.columnSpecs[i];
-								assert !StyleUtils.isNone(columnSizes[i]);
-								double diff = Math.max(0, width - columnSizes[i]);
-								columnSizes[i] += diff;
-								sizeSum += diff;
-							}
-						} else {
-							for (int i = 0; i < columnCount; ++i) {
-								if (this.columnTypes[i] != type) {
-									continue;
-								}
-								double size = this.columnSpecs[i];
-								assert !StyleUtils.isNone(columnSizes[i]);
-								double diff = Math.max(0, size - columnSizes[i]);
-								diff = diff * rem / diffSum;
-								columnSizes[i] += diff;
-								sizeSum += diff;
-							}
-						}
+						startSizes[i] = this.columnMins[i] * (maxTableSize - tableFrame) / minSum;
 					}
 				}
-				// テーブルの指定幅まで拡張
-				// System.err.println("TPT: " + innerWidth + "/" + widthSum);
-				if (innerSize > sizeSum) {
-					double rem = innerSize - sizeSum;
-					int[] counts = new int[PARAM_COUNT];
-					double sums[] = new double[PARAM_COUNT];
-					for (int i = 0; i < columnCount; ++i) {
-						++counts[this.columnTypes[i]];
-						assert !StyleUtils.isNone(columnSizes[i]);
-						sums[this.columnTypes[i]] += columnSizes[i];
-					}
-					for (byte type = 0; type < PARAM_COUNT; ++type) {
-						int count = counts[type];
-						double sum = sums[type];
-						if (count == 0) {
-							continue;
-						}
-						for (int i = 0; i < columnCount; ++i) {
-							if (this.columnTypes[i] != type) {
-								continue;
-							}
-							double diff;
-							assert !StyleUtils.isNone(columnSizes[i]);
-							if (sum > 0) {
-								diff = rem * columnSizes[i] / sum;
-							} else {
-								diff = rem / count;
-							}
-							columnSizes[i] += diff;
-						}
-						break;
-					}
+				final ColumnDistribution.ColumnType[] types = new ColumnDistribution.ColumnType[columnCount];
+				for (int i = 0; i < columnCount; ++i) {
+					types[i] = switch (this.columnTypes[i]) {
+					case COLUMN_TYPE_FIX -> ColumnDistribution.ColumnType.CONSTRAINED;
+					case COLUMN_TYPE_PCT -> ColumnDistribution.ColumnType.PERCENT;
+					default -> ColumnDistribution.ColumnType.AUTO;
+					};
 				}
+				columnSizes = ColumnDistribution.distribute(startSizes, this.columnSpecs, types, innerSize);
 			} else {
 				if (StyleUtils.isNone(tableSize)) {
 					tableSize = 0;
