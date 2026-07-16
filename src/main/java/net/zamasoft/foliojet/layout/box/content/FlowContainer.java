@@ -1030,31 +1030,9 @@ public class FlowContainer implements Container {
 				switch (holder.getBox().getType()) {
 				case TEXT_BLOCK: {
 					// テキストブロックボックス
+					// TODO: 切断段落の尾部再開のソース再駆動(v3 SourceReplayer 拡張)
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
-					boolean replayed = false;
-					if (sourceReplayable && (lastFlow != holder || depth == 1)
-							&& builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root) {
-						// 尾部の終端 = 次の item のソースアンカー(なければ旧窓末尾)
-						int endEpoch = -1;
-						int endIndex = -1;
-						if (i + 1 < size) {
-							final net.zamasoft.foliojet.layout.box.params.Params nextParams = ((BoxHolder) items
-									.get(i + 1)).getBox().getParams();
-							endEpoch = nextParams.sourceEpoch;
-							endIndex = nextParams.sourceIndex;
-							if (endIndex < 0) {
-								// 終端不明: フォールバック
-								endIndex = -2;
-							}
-						}
-						if (endIndex != -2) {
-							// 切断された段落の尾部をソース再駆動(M6b Phase B)
-							replayed = root.replayTextFrom(this.box, textBlock, endEpoch, endIndex);
-						}
-					}
-					if (!replayed) {
-						textBlock.restyle(builder);
-					}
+					textBlock.restyle(builder);
 					// System.err.println("endTextBlock"+depth);
 					if (lastFlow != holder || depth != 1) {
 						builder.endTextBlock();

@@ -29,7 +29,7 @@ class Regeneratable extends PageContent {
 		int i = 0;
 		for (Item item : this.items) {
 			switch (item) {
-			case Start(CSSStyle recorded, net.zamasoft.foliojet.ua.CounterScope[] counters) -> {
+			case Start(CSSStyle recorded) -> {
 				CSSElement ce = recorded.getCSSElement();
 				if (!ce.isPseudoElement()) {
 					CSSStyle parentStyle;
@@ -50,7 +50,7 @@ class Regeneratable extends PageContent {
 				}
 			}
 			case Chars(int charOffset, char[] ch) -> builder.characters(charOffset, ch, 0, ch.length);
-			case End(CSSStyle recorded, net.zamasoft.foliojet.ua.CounterScope[] endCounters) -> {
+			case End(CSSStyle recorded) -> {
 				if (!recorded.getCSSElement().isPseudoElement()) {
 					builder.endStyle();
 					applier.endStyle();

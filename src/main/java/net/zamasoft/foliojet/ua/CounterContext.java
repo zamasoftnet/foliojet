@@ -21,30 +21,4 @@ class CounterContext {
 		}
 	}
 
-	/**
-	 * ページカウンタ(レベル0)以外のスコープの複製を返します(M6b)。
-	 * 状態がなければ null。
-	 */
-	public CounterScope[] snapshotNonPageCounters() {
-		CounterScope[] snapshot = null;
-		for (int i = 1; i < MAX_DEPTH; ++i) {
-			if (this.counters[i] != null) {
-				if (snapshot == null) {
-					snapshot = new CounterScope[MAX_DEPTH];
-				}
-				snapshot[i] = this.counters[i].copy();
-			}
-		}
-		return snapshot;
-	}
-
-	/**
-	 * snapshotNonPageCounters の結果を書き戻します。
-	 * ページカウンタ(レベル0)は現在値を維持します。
-	 */
-	public void restoreNonPageCounters(final CounterScope[] snapshot) {
-		for (int i = 1; i < MAX_DEPTH; ++i) {
-			this.counters[i] = snapshot == null || snapshot[i] == null ? null : snapshot[i].copy();
-		}
-	}
 }

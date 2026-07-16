@@ -9,7 +9,6 @@ import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
-import net.zamasoft.foliojet.css.style.StyleBuilder;
 import net.zamasoft.foliojet.layout.SourceReplayer;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
@@ -55,10 +54,10 @@ public class SegmentReplayCoverageTest extends TestCase {
 			return;
 		}
 		// 段落の中間で改ページされる文書
-		final long before = StyleBuilder.TEXT_TAIL_REPLAYS.get();
+		final long before = SourceReplayer.TEXT_TAIL_REPLAYS.get();
 		this.transcode(new File("files/unittest/0460-segment-restyle/mid-paragraph.html"), "coverage-texttail");
 		assertTrue("切断段落の尾部ソース再駆動が一度も発火していません",
-				StyleBuilder.TEXT_TAIL_REPLAYS.get() > before);
+				SourceReplayer.TEXT_TAIL_REPLAYS.get() > before);
 	}
 
 	private void transcode(File source, String name) throws Exception {

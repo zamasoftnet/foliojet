@@ -108,9 +108,6 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 
-		// 残余のソースアンカーが窓と同期しているか(M6b診断、-ea時のみ)
-		assert this.verifySourceAnchors(nextRootBox);
-
 		// ソースログの水位 = 残余の閉じたアイテムの最小 EventId(M6b v3)。
 		// これより前のイベントは確定ページに消費済みで破棄できる。
 		// 開いているチェーンの StartBlock は compaction が常に保持する
@@ -172,21 +169,6 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 残余ボックスのソースアンカー(Params.sourceIndex)が本流セグメント窓
-	 * 内を指していることを検査します(M6b診断)。窓の刈り込みは nextPage で
-	 * 行われるため、このチェックは必ず刈り込み前に呼びます。
-	 */
-	private boolean verifySourceAnchors(final FlowBlockBox rootBox) {
-		rootBox.getContainer().eachFlowBox(box -> {
-			final int sourceIndex = box.getParams().sourceIndex;
-			assert sourceIndex < 0 || this.pageGenerator.verifySourceAnchor(box.getParams().sourceEpoch, sourceIndex,
-					box.getParams().element) : "source anchor out of window: " + box.getParams().element + "@"
-							+ sourceIndex;
-		});
-		return true;
-	}
-
-	/**
 	 * 移動した閉じた部分木のソース再駆動を試みます(M6b)。改ページの
 	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
 	 * 再駆動されます。false ならボックス再生でフォールバックします。
@@ -207,43 +189,6 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		net.zamasoft.foliojet.layout.SourceReplayer.replay(log, startId, endId, this, this.pageGenerator);
 		return true;
-	}
-
-	/**
-	 * 切断された段落の尾部再開をソース再駆動で試みます(M6b Phase B)。
-	 * 改ページの残余再構築中で、継続トークンが位置(charOffset)を持ち、
-	 * 尾部の終端が特定できる場合のみ再駆動されます。
-	 *
-	 * @param chainBox  段落を含むチェーンコンテナのボックス
-	 * @param textBlock 切断残余のテキストブロック
-	 * @param endEpoch  終端アンカーの世代(終端なし時は無視)
-	 * @param endIndex  終端アンカーの位置(負なら旧窓末尾まで)
-	 * @return 再駆動した場合 true
-	 */
-	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.AbstractContainerBox chainBox,
-			final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final int endEpoch,
-			final int endIndex) {
-		// v1(StyleBuilder再入型)は doc 層との再入衝突で無効化(§5.6 v3)。
-		// テキスト尾部再開は v3 の SourceReplayer 拡張で実装し直す
-		if (true) {
-			return false;
-		}
-		if (!SEGMENT_RESTYLE || !this.pageBreakRestyle) {
-			return false;
-		}
-		final net.zamasoft.foliojet.layout.box.content.BreakToken token = textBlock.getBreakToken();
-		final int charOffset = switch (token) {
-		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidFlow(final int offset) -> offset;
-		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidLine(final int offset) -> offset;
-		default -> -1;
-		};
-		if (charOffset < 0 || chainBox.getParams().element == null) {
-			return false;
-		}
-		// 再駆動が構築するテキストは継続(text-indent/:first-line 抑制)。
-		// TextBuilder が生成時に builder の breakToken を消費する
-		this.setBreakToken(token);
-		return this.pageGenerator.replayTextTail(chainBox.getParams().element, charOffset, endEpoch, endIndex);
 	}
 
 	/**

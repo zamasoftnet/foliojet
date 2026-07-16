@@ -30,31 +30,6 @@ public class PassContext {
 		this.counterContext.resetNonPageCounters();
 	}
 
-	/**
-	 * ページカウンタ以外のカウンタ状態の複製を返します(M6b)。
-	 * セグメント再駆動の再開位置での巻き戻しに使います。
-	 * ページカウンタは残余が新しいページで再評価されるべきため対象外です。
-	 */
-	public CounterScope[] snapshotNonPageCounters() {
-		if (this.counterContext == null) {
-			return null;
-		}
-		return this.counterContext.snapshotNonPageCounters();
-	}
-
-	/**
-	 * snapshotNonPageCounters の結果を書き戻します。
-	 */
-	public void restoreNonPageCounters(final CounterScope[] snapshot) {
-		if (this.counterContext == null) {
-			if (snapshot == null) {
-				return;
-			}
-			this.counterContext = new CounterContext();
-		}
-		this.counterContext.restoreNonPageCounters(snapshot);
-	}
-
 	public CounterScope getCounterScope(int level, boolean create) {
 		if (this.counterContext == null) {
 			this.counterContext = new CounterContext();

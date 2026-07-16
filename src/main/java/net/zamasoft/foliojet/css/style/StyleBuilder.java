@@ -323,30 +323,6 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	/**
-	 * 0 より大きい間、本流セグメント記録を抑止します(M6b Phase B:
-	 * 尾部再生での再オープンは元の開いている Start と二重記録になるため)。
-	 */
-	private int suppressSegmentRecording = 0;
-
-	/**
-	 * segment-restyle の発火計測です(移行カバレッジの証明・診断用)。
-	 */
-	public static final java.util.concurrent.atomic.AtomicLong SUBTREE_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
-	public static final java.util.concurrent.atomic.AtomicLong TEXT_TAIL_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
-
-	/**
-	 * 記録を抑止して開始イベントを再駆動します(Segment の尾部再生用)。
-	 */
-	void replayOpenStart(final CSSStyle style) {
-		++this.suppressSegmentRecording;
-		try {
-			this.startStyle(style);
-		} finally {
-			--this.suppressSegmentRecording;
-		}
-	}
-
-	/**
 	 * 本流のスタイルイベント窓を返します(M6a)。
 	 */
 	public Segment getSegment() {
@@ -354,68 +330,9 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	/**
-	 * ソースアンカーの窓内整合を検査します(M6b診断)。匿名・合成
-	 * ボックスは直前の記録イベントを指すため要素一致は強制せず、
-	 * 窓外参照(窓とアンカーの同期破壊)のみを検出します。
-	 * 切替(segment-restyle)時に厳密化します。
-	 */
-	public boolean verifySourceAnchor(final int sourceEpoch, final int sourceIndex,
-			final net.zamasoft.foliojet.css.CSSElement element) {
-		if (sourceEpoch != this.segment.getEpoch()) {
-			// 旧世代のアンカー(複数ページに跨るボックス)は未接続扱い
-			return true;
-		}
-		return sourceIndex < this.segment.size();
-	}
-
-	public boolean replayTextTail(final net.zamasoft.foliojet.css.CSSElement chainElement, final int charOffset,
-			final int endEpoch, final int endIndex) {
-		final int anchor = this.segment.findOpenStart(chainElement);
-		if (anchor < 0) {
-			return false;
-		}
-		final int endExclusive;
-		if (endIndex >= 0) {
-			if (endEpoch != this.segment.getPreviousEpoch()) {
-				// 終端アンカーが旧窓と対応しない: 範囲を特定できない
-				return false;
-			}
-			endExclusive = endIndex;
-		} else {
-			endExclusive = this.segment.previousSize();
-		}
-		if (!this.segment.replayTextTail(this, anchor, charOffset, endExclusive)) {
-			return false;
-		}
-		TEXT_TAIL_REPLAYS.incrementAndGet();
-		return true;
-	}
-
-	public boolean replaySubtree(final int sourceEpoch, final int sourceIndex,
-			final net.zamasoft.foliojet.css.CSSElement element) {
-		// 残余のアンカーは切断前の窓(=退避された旧窓)を指す
-		if (sourceEpoch != this.segment.getPreviousEpoch() || !this.segment.isStartOf(sourceIndex, element)) {
-			// 世代不一致・不整合アンカーはボックス再生へフォールバック
-			return false;
-		}
-		final int end = this.segment.endOf(sourceIndex);
-		if (end < 0) {
-			// 窓内で閉じていない部分木(切断された要素)は対象外
-			return false;
-		}
-		this.segment.replaySubtree(this, sourceIndex, end);
-		SUBTREE_REPLAYS.incrementAndGet();
-		return true;
-	}
-
-	/**
-	 * ボックスの開始を本流セグメント窓の現在位置(ソースアンカー)を
-	 * 刻印してから doc に渡します(M6b)。合成ボックスは直前の記録
-	 * イベントの位置を継承し、再生時に同じ位置で再合成されます。
+	 * ボックスの開始をログに記録してから doc に渡します(M6b v3)。
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
-		box.getParams().sourceIndex = this.segment.size() - 1;
-		box.getParams().sourceEpoch = this.segment.getEpoch();
 		// レイアウトソースプロトコルの記録(M6b v3)。純粋な FlowBlockBox は
 		// params/pos から再インスタンス化できるため再生可能として記録し、
 		// それ以外(inline/table/replaced/multicol 等)は Opaque として
@@ -1323,9 +1240,9 @@ public class StyleBuilder implements PageGenerator {
 					this.runIn.startStyle(style);
 					this.currentStyle = style;
 				} else {
-					if (!ce.isPseudoElement() && this.suppressSegmentRecording == 0) {
-						// 本流のセグメント記録(M6a)。カウンタ状態も再開用に保持(M6b)
-						this.segment.startStyle(style, this.ua.getPassContext().snapshotNonPageCounters());
+					if (!ce.isPseudoElement()) {
+						// 本流のセグメント記録(M6a)
+						this.segment.startStyle(style);
 					}
 					if (this.currentStyle != null) {
 						WHILE: while (this.currentStyle.isAnonStyle()) {
@@ -2667,8 +2584,8 @@ public class StyleBuilder implements PageGenerator {
 		// 明示されたスタイルを終了
 		style = this.currentStyle;
 		if (!style.getCSSElement().isPseudoElement()) {
-			// 本流のセグメント記録(M6a)。カウンタ状態も再開用に保持(M6b)
-			this.segment.endStyle(style, this.ua.getPassContext().snapshotNonPageCounters());
+			// 本流のセグメント記録(M6a)
+			this.segment.endStyle(style);
 		}
 		this._endStyle();
 		if (this.currentStyle != null) {

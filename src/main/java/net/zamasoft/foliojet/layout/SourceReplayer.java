@@ -32,6 +32,11 @@ public final class SourceReplayer {
 	 */
 	public static final AtomicLong SUBTREE_REPLAYS = new AtomicLong();
 
+	/**
+	 * 切断段落の尾部再生の発火計測です(v3 では未実装、実装時に使用)。
+	 */
+	public static final AtomicLong TEXT_TAIL_REPLAYS = new AtomicLong();
+
 	private SourceReplayer() {
 		// driver
 	}
