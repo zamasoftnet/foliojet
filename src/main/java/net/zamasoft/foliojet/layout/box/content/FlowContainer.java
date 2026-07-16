@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.layout.box.content;
 
 import net.zamasoft.foliojet.layout.fragment.FlowCutter;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
+import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
@@ -236,78 +237,39 @@ public class FlowContainer implements Container {
 	}
 
 	public double getCutPoint(double pageAxis) {
-		if (this.box.getBlockParams().flow.isVertical()) {
-			// 縦書き
-			if (this.hasFlows()) {
-				for (int i = 0; i < this.flows.size(); ++i) {
-					final Flow flow = (Flow) this.flows.get(i);
-					final double bottom = flow.pageAxis + flow.box.getWidth();
-					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
-						if (flow.box.getType() == BoxType.BLOCK) {
-							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
-							if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
-								pageAxis = bottom;
-								break;
-							}
-							pageAxis = flow.pageAxis
-									+ blockBox.getContainer()
-											.getCutPoint(pageAxis - flow.pageAxis - blockBox.getFrame().getFrameRight())
-									+ blockBox.getFrame().getFrameWidth();
-						} else if (flow.box.getType() == BoxType.TEXT_BLOCK) {
-							final TextBlockBox blockBox = (TextBlockBox) flow.box;
-							pageAxis = flow.pageAxis + blockBox.getCutPoint(pageAxis - flow.pageAxis);
-						} else {
+		final WritingMode flow = this.box.getBlockParams().flow;
+		if (this.hasFlows()) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				final Flow f = (Flow) this.flows.get(i);
+				final double bottom = f.pageAxis + f.box.getPageExtent(flow);
+				if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
+					if (f.box.getType() == BoxType.BLOCK) {
+						final FlowBlockBox blockBox = (FlowBlockBox) f.box;
+						if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
 							pageAxis = bottom;
+							break;
 						}
-						break;
-					}
-				}
-			}
-			if (this.hasFloatings()) {
-				for (int i = 0; i < this.floatings.getCount(); ++i) {
-					final Floating floaing = this.floatings.getFloating(i);
-					final double bottom = floaing.pageAxis + floaing.box.getWidth();
-					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
+						final AbsoluteRectFrame frame = blockBox.getFrame();
+						pageAxis = f.pageAxis
+								+ blockBox.getContainer()
+										.getCutPoint(pageAxis - f.pageAxis - frame.getFramePageStart(flow))
+								+ frame.getFramePageStart(flow) + frame.getFramePageEnd(flow);
+					} else if (f.box.getType() == BoxType.TEXT_BLOCK) {
+						pageAxis = f.pageAxis + ((TextBlockBox) f.box).getCutPoint(pageAxis - f.pageAxis);
+					} else {
 						pageAxis = bottom;
-						break;
 					}
+					break;
 				}
 			}
-		} else {
-			// 横書き
-			if (this.hasFlows()) {
-				for (int i = 0; i < this.flows.size(); ++i) {
-					final Flow flow = (Flow) this.flows.get(i);
-					final double bottom = flow.pageAxis + flow.box.getHeight();
-					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
-						if (flow.box.getType() == BoxType.BLOCK) {
-							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
-							if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
-								pageAxis = bottom;
-								break;
-							}
-							pageAxis = flow.pageAxis
-									+ blockBox.getContainer()
-											.getCutPoint(pageAxis - flow.pageAxis - blockBox.getFrame().getFrameTop())
-									+ blockBox.getFrame().getFrameHeight();
-						} else if (flow.box.getType() == BoxType.TEXT_BLOCK) {
-							final TextBlockBox blockBox = (TextBlockBox) flow.box;
-							pageAxis = flow.pageAxis + blockBox.getCutPoint(pageAxis - flow.pageAxis);
-						} else {
-							pageAxis = bottom;
-						}
-						break;
-					}
-				}
-			}
-			if (this.hasFloatings()) {
-				for (int i = 0; i < this.floatings.getCount(); ++i) {
-					final Floating floaing = this.floatings.getFloating(i);
-					final double bottom = floaing.pageAxis + floaing.box.getHeight();
-					if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
-						pageAxis = bottom;
-						break;
-					}
+		}
+		if (this.hasFloatings()) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				final Floating floating = this.floatings.getFloating(i);
+				final double bottom = floating.pageAxis + floating.box.getPageExtent(flow);
+				if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
+					pageAxis = bottom;
+					break;
 				}
 			}
 		}
