@@ -54,11 +54,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * @param flags
 	 */
 	protected boolean pageBreak(BreakMode mode, byte flags) {
-		assert this.textBuilder == null;
-		this.breakFloats.clear();
-		this.breakAfter = null;
-		this.canBreakBefore = false;
-		this.interflowBreak = false;
+		this.beginBreak();
 		if (this.flowStack.isEmpty()) {
 			return false;
 		}
@@ -116,12 +112,7 @@ public class RootBuilder extends BreakableBuilder {
 
 		// コンテキストを再開
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
-		this.pageAxis = 0;
-		this.lineAxis = 0;
-		this.poLastMargin = 0;
-		this.neLastMargin = 0;
-		this.widows = 0;
-		this.floatings = null;
+		this.resetFragmentCursor(0, 0);
 		this.restyling = true;
 
 		// 分割後のルートブロックを再開

@@ -872,21 +872,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	public void forceBreak(ForceBreakMode breakMode) {
 		if (breakMode.breakType == PageBreakMode.COLUMN) {
 			// 改カラム可能なブロックを検索
-			Flow columnBreak = null;
-			int depth = 0;
-			if (this.flowStack != null) {
-				for (int i = this.flowStack.size() - 1; i >= 0; --i) {
-					final Flow flow = (Flow) this.flowStack.get(i);
-					++depth;
-					if (flow.box.canColumnBreak()) {
-						columnBreak = flow;
-						break;
-					}
-				}
-			}
+			final ColumnBreakPoint columnBreak = this.findColumnBreak();
 			if (columnBreak != null) {
-				final double lastFrame = this.lastFrame(columnBreak, depth);
-				this.columnBreak(columnBreak, breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame, depth);
+				final double lastFrame = this.lastFrame(columnBreak.flow(), columnBreak.depth());
+				this.columnBreak(columnBreak.flow(), breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame,
+						columnBreak.depth());
 				return;
 			}
 		}
@@ -903,19 +893,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	private boolean autoBreak() {
 		byte flags = IPageBreakableBox.FLAGS_FIRST;
-		Flow columnBreak = null;
-		int depth = 0;
-		if (this.flowStack != null) {
-			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
-				final Flow flow = (Flow) this.flowStack.get(i);
-				++depth;
-				// 改カラム可能なブロックを検索
-				if (flow.box.canColumnBreak()) {
-					columnBreak = flow;
-					break;
-				}
-			}
-		}
+		// 改カラム可能なブロックを検索
+		final ColumnBreakPoint columnBreak = this.findColumnBreak();
 
 		final BreakMode mode;
 		if (this.flowStack == null || this.flowStack.size() <= 1) {
@@ -925,22 +904,68 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			flags |= IPageBreakableBox.FLAGS_LAST;
 		}
 		if (columnBreak != null) {
-			final double lastFrame = this.lastFrame(columnBreak, depth);
-			if (this.columnBreak(columnBreak, mode, flags, lastFrame, depth)) {
+			final double lastFrame = this.lastFrame(columnBreak.flow(), columnBreak.depth());
+			if (this.columnBreak(columnBreak.flow(), mode, flags, lastFrame, columnBreak.depth())) {
 				return true;
 			}
-			// マルチカラムがページの下の方にある場合は改ページする
-			// final double pageAxis = this.getPageLimit() -
-			// columnBreak.pageAxis
-			// - lastFrame;
-			// if (LayoutUtils.compare(pageAxis, 0) > 0) {
-			// return false;
-			// }
 		}
 		return this.pageBreak(mode, flags);
 	}
 
 	protected abstract boolean pageBreak(BreakMode mode, byte flags);
+
+	/**
+	 * 改ページ・改段の共通前処理です。断片(ページ/段)をまたぐ際に
+	 * リセットされる切断待ち状態を初期化します(M5)。
+	 */
+	protected final void beginBreak() {
+		assert this.textBuilder == null;
+		this.breakFloats.clear();
+		this.breakAfter = null;
+		this.canBreakBefore = false;
+		this.interflowBreak = false;
+	}
+
+	/**
+	 * 次の断片へ進む際のカーソル状態のリセットです。改ページと改段は
+	 * 「断片容器(フラグメンテナ)があふれたので次の断片へ進む」という
+	 * 同一操作であり(ARCHITECTURE.md §5)、リセットもここに一元化します(M5)。
+	 *
+	 * @param pageAxis 新しい断片のページ方向カーソル位置
+	 * @param lineAxis 新しい断片の行方向カーソル位置
+	 */
+	protected final void resetFragmentCursor(final double pageAxis, final double lineAxis) {
+		this.pageAxis = pageAxis;
+		this.lineAxis = lineAxis;
+		this.poLastMargin = 0;
+		this.neLastMargin = 0;
+		this.widows = 0;
+		this.floatings = null;
+	}
+
+	/**
+	 * 改段可能な最も内側のフローと、その深さです(M5)。
+	 */
+	protected record ColumnBreakPoint(Flow flow, int depth) {
+	}
+
+	/**
+	 * スタック上の改段可能な最も内側のフローを探します。
+	 *
+	 * @return 改段可能なフローがなければ null
+	 */
+	protected final ColumnBreakPoint findColumnBreak() {
+		if (this.flowStack == null) {
+			return null;
+		}
+		for (int i = this.flowStack.size() - 1; i >= 0; --i) {
+			final Flow flow = (Flow) this.flowStack.get(i);
+			if (flow.box.canColumnBreak()) {
+				return new ColumnBreakPoint(flow, this.flowStack.size() - i);
+			}
+		}
+		return null;
+	}
 
 	protected double lastFrame(Flow breakFlow, int depth) {
 		// 下部の枠の幅を計算します。
@@ -966,11 +991,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected boolean columnBreak(final Flow breakFlow, final BreakMode mode, byte flags, final double lastFrame,
 			int depth) {
-		assert this.textBuilder == null;
-		this.breakFloats.clear();
-		this.breakAfter = null;
-		this.canBreakBefore = false;
-		this.interflowBreak = false;
+		this.beginBreak();
 
 		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
 
@@ -997,12 +1018,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 
-		this.pageAxis = breakFlow.pageAxis;
-		this.lineAxis = breakFlow.lineAxis;
-		this.poLastMargin = 0;
-		this.neLastMargin = 0;
-		this.widows = 0;
-		this.floatings = null;
+		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
 		this.restyling = true;
 		container.restyle(this, depth, false);
 		this.restyling = false;
