@@ -57,6 +57,9 @@ public final class SourceReplayer {
 			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
 					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
 					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
+			case LayoutSource.StartMarker(final BlockParams params,
+					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
+					.startBox(new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox(params, pos));
 			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
 					.addReplacedBox(box);
 			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
@@ -149,6 +152,9 @@ public final class SourceReplayer {
 			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
 					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
 					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
+			case LayoutSource.StartMarker(final BlockParams params,
+					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
+					.startBox(new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox(params, pos));
 			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
 				int skip = 0;
 				if (first[0]) {

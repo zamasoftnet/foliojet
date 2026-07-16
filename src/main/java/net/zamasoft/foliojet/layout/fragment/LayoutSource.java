@@ -29,7 +29,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource {
-	public sealed interface Event permits StartBlock, StartInline, Replaced, Chars, EndBlock, Opaque {
+	public sealed interface Event permits StartBlock, StartInline, StartMarker, Replaced, Chars, EndBlock, Opaque {
 	}
 
 	/**
@@ -45,6 +45,15 @@ public final class LayoutSource {
 	 */
 	public record StartInline(net.zamasoft.foliojet.layout.box.params.InlineParams params,
 			net.zamasoft.foliojet.layout.box.params.InlinePos pos) implements Event {
+	}
+
+	/**
+	 * リストマーカー(外置き)の開始です。params/pos から
+	 * 再インスタンス化できます。マーカーの内容(番号等)は解決済みの
+	 * Chars として続くため、再生でカウンタは再評価されません。
+	 */
+	public record StartMarker(BlockParams params, net.zamasoft.foliojet.layout.box.params.InlinePos pos)
+			implements Event {
 	}
 
 	/**
@@ -152,6 +161,7 @@ public final class LayoutSource {
 			switch (entry.event()) {
 			case StartBlock start -> open.add(entry);
 			case StartInline start -> open.add(entry);
+			case StartMarker start -> open.add(entry);
 			case EndBlock end -> {
 				if (!open.isEmpty()) {
 					open.remove(open.size() - 1);
@@ -189,6 +199,7 @@ public final class LayoutSource {
 			switch (this.entries.get(i).event()) {
 			case StartBlock start -> ++depth;
 			case StartInline start -> ++depth;
+			case StartMarker start -> ++depth;
 			case EndBlock end -> {
 				if (--depth == 0) {
 					return this.entries.get(i).id();
@@ -246,6 +257,7 @@ public final class LayoutSource {
 			switch (entry.event()) {
 			case StartBlock start -> ++depth;
 			case StartInline start -> ++depth;
+			case StartMarker start -> ++depth;
 			case EndBlock end -> {
 				if (depth == 0) {
 					return entry.id();

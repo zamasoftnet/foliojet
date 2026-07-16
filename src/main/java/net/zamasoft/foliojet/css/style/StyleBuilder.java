@@ -346,6 +346,11 @@ public class StyleBuilder implements PageGenerator {
 				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.BlockParams blockParams) {
 			box.getParams().sourceEventId = this.layoutSource
 					.append(new LayoutSource.StartBlock(blockParams, box.getPos()));
+		} else if (box.getClass() == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class
+				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.BlockParams markerParams
+				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.InlinePos markerPos) {
+			box.getParams().sourceEventId = this.layoutSource
+					.append(new LayoutSource.StartMarker(markerParams, markerPos));
 		} else if (box.getClass() == net.zamasoft.foliojet.layout.box.impl.InlineBox.class
 				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.InlineParams inlineParams
 				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.InlinePos inlinePos) {
