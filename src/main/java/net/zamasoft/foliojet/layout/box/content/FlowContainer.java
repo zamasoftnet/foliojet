@@ -594,6 +594,43 @@ public class FlowContainer implements Container {
 		}
 		int lastOrphan = FlowCutter.lastOrphan(flowBottoms, pageLimit);
 
+		// FlowCutter へ渡す純データ(avoid 押し戻し・後段判定用の計測)
+		final double[] flowPageStarts = new double[this.flows.size()];
+		final double[] flowPageExtents = new double[this.flows.size()];
+		final boolean[] avoidBefore = new boolean[this.flows.size()];
+		final boolean[] avoidAfter = new boolean[this.flows.size()];
+		final double[] flowPageEndFrames = new double[this.flows.size()];
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow flow = (Flow) this.flows.get(i);
+			flowPageStarts[i] = flow.pageAxis;
+			flowPageExtents[i] = flow.box.getPageExtent(params.flow);
+			avoidBefore[i] = flow.box.avoidBreakBefore();
+			avoidAfter[i] = flow.box.avoidBreakAfter();
+			flowPageEndFrames[i] = flow.box.getType() == BoxType.BLOCK
+					? ((AbstractContainerBox) flow.box).getFrame().getFramePageEnd(params.flow)
+					: 0;
+		}
+		final double[] floatPageStarts;
+		final double[] floatPageExtents;
+		final boolean[] floatUncut;
+		if (this.floatings != null) {
+			final int floatCount = this.floatings.getCount();
+			floatPageStarts = new double[floatCount];
+			floatPageExtents = new double[floatCount];
+			floatUncut = new boolean[floatCount];
+			for (int k = 0; k < floatCount; ++k) {
+				final Floating floating = this.floatings.getFloating(k);
+				floatPageStarts[k] = floating.pageAxis;
+				floatPageExtents[k] = floating.box.getPageExtent(params.flow);
+				floatUncut[k] = floating.box.getType() == BoxType.REPLACED || ((AbstractContainerBox) floating.box)
+						.getBlockParams().pageBreakInside == PageBreakMode.AVOID;
+			}
+		} else {
+			floatPageStarts = null;
+			floatPageExtents = null;
+			floatUncut = null;
+		}
+
 		// System.err.println("ACB E:" + flags + "/" + pageLimit + "/" + mode +
 		// "/lastOrphan=" + lastOrphan + "/" +
 		// this.box.getParams().augmentation);
@@ -603,13 +640,8 @@ public class FlowContainer implements Container {
 				if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
 					return this.cutTail(prevPageSize, flags);
 				}
-				Flow flow = (Flow) this.flows.get(this.flows.size() - 1);
-				double contentHeight = flow.pageAxis;
-				if (vertical) {
-					contentHeight += flow.box.getWidth();
-				} else {
-					contentHeight += flow.box.getHeight();
-				}
+				final double contentHeight = flowPageStarts[this.flows.size() - 1]
+						+ flowPageExtents[this.flows.size() - 1];
 				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
 					// 自然の高さより高いボックスは切断
 					return this.cutTail(prevPageSize, flags);
@@ -740,79 +772,14 @@ public class FlowContainer implements Container {
 				// + this.params.augmentation);
 				if (!ignoreAvoid && i > 0 && i <= lastOrphan) {
 					// ボックスの2つめ以降の要素に限る
-					// ブロック間の改ページ禁止のチェック
-					int beforeFlows = 1;
-					boolean breakAvoid = prevFlow.box.avoidBreakBefore();
-					Flow beforeFlow = (Flow) this.flows.get(i - 1);
-					// 接しているブロックで改ページ禁止されていることを確認
-					for (int j = i - 1; j >= 0; --j) {
-						Flow beforeFlow2 = (Flow) this.flows.get(j);
-						double beforeBottom = beforeFlow2.pageAxis;
-						if (vertical) {
-							beforeBottom += beforeFlow2.box.getWidth();
-						} else {
-							beforeBottom += beforeFlow2.box.getHeight();
-						}
-						if (LayoutUtils.compare(beforeBottom, prevFlow.pageAxis) < 0) {
-							if (j == i - 1) {
-								breakAvoid = false;
-							}
-							break;
-						}
-						beforeFlows++;
-						beforeFlow = beforeFlow2;
-						if (beforeFlow.box.avoidBreakAfter()) {
-							breakAvoid = true;
-						}
-					}
-					if (breakAvoid) {
-						// 切断可能な浮動ボックスがある場合は改ページを区切る
-						if (this.floatings != null) {
-							for (int k = 0; k < this.floatings.getCount(); ++k) {
-								Floating floating = this.floatings.getFloating(k);
-								if (LayoutUtils.compare(floating.pageAxis, pageLimit) >= 0) {
-									breakAvoid = false;
-									break;
-								}
-								double floatPageSize;
-								if (vertical) {
-									floatPageSize = floating.box.getWidth();
-								} else {
-									floatPageSize = floating.box.getHeight();
-								}
-								if (LayoutUtils.compare(floating.pageAxis + floatPageSize, pageLimit) <= 0) {
-									continue;
-								}
-								if (floating.box.getType() == BoxType.REPLACED) {
-									continue;
-								}
-								if (((AbstractContainerBox) floating.box)
-										.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
-									continue;
-								}
-								breakAvoid = false;
-								break;
-							}
-						}
-					}
-					// System.err.println("ACB: " + i + "/" + breakAvoid + "/"
-					// + this.params.augmentation);
-					if (breakAvoid) {
+					// ブロック間の改ページ禁止のチェック(判定は FlowCutter に純化)
+					final FlowCutter.AvoidPushback pushback = FlowCutter.avoidPushback(i, pageLimit, flowPageStarts,
+							flowPageExtents, avoidBefore, avoidAfter, flowPageEndFrames, floatPageStarts,
+							floatPageExtents, floatUncut);
+					if (pushback != null) {
 						// ブロック間の改ページ禁止の場合
-						assert beforeFlows >= 2;
-						i -= beforeFlows;
-						pageLimit = beforeFlow.pageAxis - LayoutUtils.THRESHOLD * 2;
-						if (vertical) {
-							pageLimit += beforeFlow.box.getWidth();
-							if (beforeFlow.box.getType() == BoxType.BLOCK) {
-								pageLimit -= ((AbstractContainerBox) beforeFlow.box).getFrame().getFrameLeft();
-							}
-						} else {
-							pageLimit += beforeFlow.box.getHeight();
-							if (beforeFlow.box.getType() == BoxType.BLOCK) {
-								pageLimit -= ((AbstractContainerBox) beforeFlow.box).getFrame().getFrameBottom();
-							}
-						}
+						i = pushback.resumeIndex();
+						pageLimit = pushback.newPageLimit();
 						continue;
 					}
 				}
@@ -838,35 +805,17 @@ public class FlowContainer implements Container {
 		// System.err.println("ACB J: flags=" + flags + "/leave="
 		// + (nextBox == null) + "/" + this.box.getParams().augmentation);
 		if (nextBox == null) {
-			// ブロックを残す
-			// 末尾のブロックを残すことはない
+			// ブロックを残す(末尾のブロックを残すことはない)。判定は FlowCutter に純化
 			assert !((flags & IPageBreakableBox.FLAGS_LAST) != 0 && ((AutoBreakMode) mode).box != this.box);
-			pageLimit = savePageLimit;
-			if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
-				// 切断
-				return this.cutTail(prevPageSize, flags);
-			}
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				// ページの先頭(FLAGS_LASTを無視する)
-				final Flow flow = (Flow) this.flows.get(this.flows.size() - 1);
-				double contentHeight = flow.pageAxis;
-				if (vertical) {
-					contentHeight += flow.box.getWidth();
-				} else {
-					contentHeight += flow.box.getHeight();
-				}
-				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
-					// 自然の高さより高いボックスは切断
-					return this.cutTail(prevPageSize, flags);
-				}
-				return this.splitFloatings(null, prevPageSize, flags);
-			}
-			if (lastOrphan == 0) {
-				// 切断線より上がなければ次ページに送る
-				return this.splitFloatings(this, prevPageSize, flags);
-			}
-			// 末尾で切る
-			return this.cutTail(prevPageSize, flags);
+			final double lastFlowBottom = flowPageStarts[this.flows.size() - 1]
+					+ flowPageExtents[this.flows.size() - 1];
+			return switch (FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize)) {
+			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
+			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
+			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this.splitFloatings(this, atLimit,
+					flags);
+			default -> throw new IllegalStateException();
+			};
 		}
 
 		// System.err.println("ACB G: remove=" + remove + "/leave="

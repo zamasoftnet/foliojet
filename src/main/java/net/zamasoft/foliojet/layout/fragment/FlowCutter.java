@@ -120,6 +120,114 @@ public final class FlowCutter {
 	}
 
 	/**
+	 * ブロック間の改ページ禁止(avoid)による押し戻しの結果です。
+	 *
+	 * @param resumeIndex  ループを再開するインデックス(ループの ++i 前提)
+	 * @param newPageLimit 押し戻し後の切断線
+	 */
+	public record AvoidPushback(int resumeIndex, double newPageLimit) {
+	}
+
+	/**
+	 * ブロック間の改ページ禁止をチェックし、必要なら押し戻し先を返します。
+	 * 接している(隙間なく積まれた)先行ブロック群を遡り、avoid 指定が
+	 * あれば安全な境界まで切断線を引き上げます。切断可能な浮動ボックスが
+	 * 切断線に跨る場合は禁止を解除します(旧実装の挙動を忠実に維持)。
+	 *
+	 * @param i                  現在のフローインデックス
+	 * @param pageLimit          現在の切断線
+	 * @param flowPageStarts     各フローのページ方向始端
+	 * @param flowPageExtents    各フローのページ方向寸法
+	 * @param avoidBefore        各フローの break-before:avoid
+	 * @param avoidAfter         各フローの break-after:avoid
+	 * @param flowPageEndFrames  各フロー(ブロックのみ)のページ方向終端フレーム幅
+	 * @param floatPageStarts    各浮動体のページ方向始端(なければ null)
+	 * @param floatPageExtents   各浮動体のページ方向寸法
+	 * @param floatUncut         各浮動体が切断不能(置換要素または avoid)
+	 * @return 押し戻しが必要なら AvoidPushback、不要なら null
+	 */
+	public static AvoidPushback avoidPushback(final int i, final double pageLimit, final double[] flowPageStarts,
+			final double[] flowPageExtents, final boolean[] avoidBefore, final boolean[] avoidAfter,
+			final double[] flowPageEndFrames, final double[] floatPageStarts, final double[] floatPageExtents,
+			final boolean[] floatUncut) {
+		int beforeFlows = 1;
+		boolean breakAvoid = avoidBefore[i];
+		int beforeIndex = i - 1;
+		// 接しているブロックで改ページ禁止されていることを確認
+		for (int j = i - 1; j >= 0; --j) {
+			final double beforeBottom = flowPageStarts[j] + flowPageExtents[j];
+			if (LayoutUtils.compare(beforeBottom, flowPageStarts[i]) < 0) {
+				if (j == i - 1) {
+					breakAvoid = false;
+				}
+				break;
+			}
+			beforeFlows++;
+			beforeIndex = j;
+			if (avoidAfter[j]) {
+				breakAvoid = true;
+			}
+		}
+		if (breakAvoid && floatPageStarts != null) {
+			// 切断可能な浮動ボックスがある場合は改ページを区切る
+			for (int k = 0; k < floatPageStarts.length; ++k) {
+				if (LayoutUtils.compare(floatPageStarts[k], pageLimit) >= 0) {
+					breakAvoid = false;
+					break;
+				}
+				if (LayoutUtils.compare(floatPageStarts[k] + floatPageExtents[k], pageLimit) <= 0) {
+					continue;
+				}
+				if (floatUncut[k]) {
+					continue;
+				}
+				breakAvoid = false;
+				break;
+			}
+		}
+		if (!breakAvoid) {
+			return null;
+		}
+		assert beforeFlows >= 2;
+		final double newPageLimit = flowPageStarts[beforeIndex] - LayoutUtils.THRESHOLD * 2
+				+ flowPageExtents[beforeIndex] - flowPageEndFrames[beforeIndex];
+		return new AvoidPushback(i - beforeFlows, newPageLimit);
+	}
+
+	/**
+	 * 主ループで切断先が見つからなかった場合の後段判定です。
+	 * 旧実装 889-919 の分岐を忠実に写しています。
+	 *
+	 * @param flags          IPageBreakableBox.FLAGS_* のビット和
+	 * @param lastOrphan     切断線以下に収まる最後のフローの直後のインデックス
+	 * @param pageInnerSize  ボックスのページ方向内寸
+	 * @param lastFlowBottom 最後のフローの底辺位置
+	 * @param prevPageSize   元の(調整前の)切断線
+	 * @return 判定結果(CutTail / KeepFloats / MoveWithFloats のいずれか)
+	 */
+	public static PreDecision tailDecide(final byte flags, final int lastOrphan, final double pageInnerSize,
+			final double lastFlowBottom, final double prevPageSize) {
+		if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
+			// 切断
+			return new PreDecision.CutTail(prevPageSize);
+		}
+		if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
+			// ページの先頭(FLAGS_LASTを無視する)
+			if (LayoutUtils.compare(pageInnerSize, lastFlowBottom) > 0) {
+				// 自然の高さより高いボックスは切断
+				return new PreDecision.CutTail(prevPageSize);
+			}
+			return new PreDecision.KeepFloats(prevPageSize);
+		}
+		if (lastOrphan == 0) {
+			// 切断線より上がなければ次ページに送る
+			return new PreDecision.MoveWithFloats(prevPageSize);
+		}
+		// 末尾で切る
+		return new PreDecision.CutTail(prevPageSize);
+	}
+
+	/**
 	 * 切断線以下に収まる最後のフローの直後のインデックスを返します
 	 * (0=収まるフローなし、length=全フローが収まる)。
 	 *
