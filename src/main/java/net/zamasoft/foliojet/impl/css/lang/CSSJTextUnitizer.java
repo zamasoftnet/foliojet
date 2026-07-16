@@ -1,22 +1,28 @@
 package net.zamasoft.foliojet.impl.css.lang;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
+import net.zamasoft.foliojet.layout.text.InlineParamsStack;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
 import net.zamasoft.foliojet.layout.text.breaking.TextUnitizer;
 
+/**
+ * インライン境界(InlineQuad)を追跡して行分割規則を切り替える unitizer です。
+ * パイプラインの先頭ステージとして InlineParamsStack を駆動し、
+ * 下流ステージ(WordHyphenator 等)は同じスタックを共有して読み取ります。
+ */
 public class CSSJTextUnitizer extends TextUnitizer {
 
-	private List<LineBreakRules> breakRulesStack = new ArrayList<LineBreakRules>();;
+	private final InlineParamsStack inlineContext;
 
-	public CSSJTextUnitizer(LineBreakRules breakRules) {
-		super(breakRules);
-		this.breakRulesStack.add(breakRules);
+	public CSSJTextUnitizer(AbstractTextParams params) {
+		this(new InlineParamsStack(params));
+	}
+
+	public CSSJTextUnitizer(InlineParamsStack inlineContext) {
+		super(inlineContext.current().lineBreakRules);
+		this.inlineContext = inlineContext;
 	}
 
 	public void control(TextControl quad) {
@@ -25,16 +31,14 @@ public class CSSJTextUnitizer extends TextUnitizer {
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
-				AbstractTextParams params = inlineStartQuad.box.getTextParams();
-				this.breakRulesStack.add(params.lineBreakRules);
-				this.setLineBreakRules(params.lineBreakRules);
+				this.inlineContext.push(inlineStartQuad.box.getTextParams());
+				this.setLineBreakRules(this.inlineContext.current().lineBreakRules);
 			}
 				break;
 
 			case InlineQuad.INLINE_END: {
-				this.breakRulesStack.remove(this.breakRulesStack.size() - 1);
-				final LineBreakRules breakRules = this.breakRulesStack.get(this.breakRulesStack.size() - 1);
-				this.setLineBreakRules(breakRules);
+				this.inlineContext.pop();
+				this.setLineBreakRules(this.inlineContext.current().lineBreakRules);
 			}
 				break;
 

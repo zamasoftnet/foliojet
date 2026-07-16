@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.text.InlineParamsStack;
+
 import java.lang.Character.UnicodeBlock;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,8 +71,9 @@ public class StyledTextUnitizer {
 			return;
 		}
 		final AbstractTextParams params = this.getTextParams();
-		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(params.lineBreakRules);
-		final FilterGlyphHandler wordHyphenator = new WordHyphenator(params);
+		final InlineParamsStack inlineContext = new InlineParamsStack(params);
+		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(inlineContext);
+		final FilterGlyphHandler wordHyphenator = new WordHyphenator(inlineContext);
 		wordHyphenator.setGlyphHandler(this.gh);
 		textUnitizer.setGlyphHandler(wordHyphenator);
 		this.textShaper = params.fontManager.getTextShaper();

@@ -629,7 +629,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			switch (recorded) {
 			case Recorded.ElementEvent elementEvent: {
 				if (textUnitizer == null) {
-					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams().lineBreakRules);
+					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams());
 					textUnitizer.setGlyphHandler(new BuilderGlyphHandler(builder));
 				}
 				final Element e = elementEvent.element();
@@ -651,7 +651,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 			case Recorded.InlineBlockEvent inlineBlockEvent: {
 				if (textUnitizer == null) {
-					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams().lineBreakRules);
+					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams());
 					textUnitizer.setGlyphHandler(new BuilderGlyphHandler(builder));
 				}
 				// インラインテーブルの実測(TwoPassTableBuilder)は TableEvent 側で bind される
@@ -760,7 +760,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				case AutoPosition.INLINE:
 					final TextControl quad = InlineQuad.createInlineAbsoluteBoxQuad(absoluteBox);
 					if (textUnitizer == null) {
-						textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams().lineBreakRules);
+						textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams());
 						textUnitizer.setGlyphHandler(new BuilderGlyphHandler(builder));
 					}
 					textUnitizer.control(quad);

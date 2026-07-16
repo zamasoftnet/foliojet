@@ -1,11 +1,12 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.text.InlineParamsStack;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
-import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.pdfg2d.font.Font;
 import net.zamasoft.pdfg2d.font.FontMetricsImpl;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
@@ -69,7 +70,10 @@ public class WordHyphenator implements FilterGlyphHandler {
 
 	private GlyphHandler out;
 
-	private final List<AbstractTextParams> paramsStack = new ArrayList<AbstractTextParams>();
+	/**
+	 * パイプライン共有のインライン文脈(CSSJTextUnitizer が駆動)。
+	 */
+	private final InlineParamsStack inlineContext;
 
 	/**
 	 * 直前のランのフォント(非バッファ時のU+00AD字形生成用)。
@@ -103,8 +107,8 @@ public class WordHyphenator implements FilterGlyphHandler {
 
 	private FontMetrics bufFontMetrics;
 
-	public WordHyphenator(AbstractTextParams params) {
-		this.paramsStack.add(params);
+	public WordHyphenator(InlineParamsStack inlineContext) {
+		this.inlineContext = inlineContext;
 	}
 
 	public void setGlyphHandler(GlyphHandler glyphHandler) {
@@ -112,7 +116,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 	}
 
 	private AbstractTextParams getParams() {
-		return this.paramsStack.get(this.paramsStack.size() - 1);
+		return this.inlineContext.current();
 	}
 
 	public void startTextRun(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) {
@@ -156,11 +160,8 @@ public class WordHyphenator implements FilterGlyphHandler {
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START:
-				this.paramsStack.add(((InlineStartQuad) inlineQuad).box.getTextParams());
-				break;
-
 			case InlineQuad.INLINE_END:
-				this.paramsStack.remove(this.paramsStack.size() - 1);
+				// インライン文脈は共有 InlineParamsStack(上流が駆動)で追跡される
 				break;
 
 			case InlineQuad.INLINE_REPLACED:
