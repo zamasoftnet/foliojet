@@ -52,14 +52,7 @@ public final class SourceReplayer {
 	private static void drive(final DocumentBuilder doc, final LayoutSource log, final long fromId, final long toId) {
 		log.replay(fromId, toId, event -> {
 			switch (event) {
-			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
-					.startBox(newBlockBox(params, (FlowPos) pos));
-			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
-					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
-					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
-			case LayoutSource.StartMarker(final BlockParams params,
-					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
-					.startBox(new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox(params, pos));
+			case LayoutSource.Start start -> doc.startBox(newBox(start));
 			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
 					.addReplacedBox(box);
 			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
@@ -99,14 +92,20 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * 記録された params/pos から同型のブロックボックスを作ります。
-	 * マルチカラムは params の columns 指定で判別します(M6c)。
+	 * 記録された kind と params/pos から同型のボックスを作ります
+	 * (StyleBuilder.boxKind と対のファクトリ)。
 	 */
-	private static FlowBlockBox newBlockBox(final BlockParams params, final FlowPos pos) {
-		if (params.columns != null && params.columns.count > 1) {
-			return new net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox(params, pos);
-		}
-		return new FlowBlockBox(params, pos);
+	private static net.zamasoft.foliojet.layout.box.INonReplacedBox newBox(final LayoutSource.Start start) {
+		return switch (start.kind()) {
+		case FLOW -> new FlowBlockBox((BlockParams) start.params(), (FlowPos) start.pos());
+		case MULTICOL -> new net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox((BlockParams) start.params(),
+				(FlowPos) start.pos());
+		case INLINE -> new net.zamasoft.foliojet.layout.box.impl.InlineBox(
+				(net.zamasoft.foliojet.layout.box.params.InlineParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
+		case MARKER -> new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox((BlockParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
+		};
 	}
 
 	/**
@@ -147,14 +146,7 @@ public final class SourceReplayer {
 		final boolean[] first = { true };
 		log.replay(fromId, toId, event -> {
 			switch (event) {
-			case LayoutSource.StartBlock(final BlockParams params, final Pos pos) -> doc
-					.startBox(newBlockBox(params, (FlowPos) pos));
-			case LayoutSource.StartInline(final net.zamasoft.foliojet.layout.box.params.InlineParams params,
-					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
-					.startBox(new net.zamasoft.foliojet.layout.box.impl.InlineBox(params, pos));
-			case LayoutSource.StartMarker(final BlockParams params,
-					final net.zamasoft.foliojet.layout.box.params.InlinePos pos) -> doc
-					.startBox(new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox(params, pos));
+			case LayoutSource.Start start -> doc.startBox(newBox(start));
 			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
 				int skip = 0;
 				if (first[0]) {

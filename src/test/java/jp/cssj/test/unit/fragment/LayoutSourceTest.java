@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  */
 public class LayoutSourceTest extends TestCase {
 	private static LayoutSource.Event start() {
-		return new LayoutSource.StartBlock(null, null);
+		return new LayoutSource.Start(LayoutSource.BoxKind.FLOW, null, null);
 	}
 
 	public void testEventIdStableAcrossCompaction() {
@@ -33,7 +33,7 @@ public class LayoutSourceTest extends TestCase {
 		assertNull(log.get(p1));
 		assertNotNull(log.get(p2));
 		// id は不変
-		assertTrue(log.get(p2) instanceof LayoutSource.StartBlock);
+		assertTrue(log.get(p2) instanceof LayoutSource.Start);
 		assertEquals(log.endOf(p2), p2 + 2);
 	}
 

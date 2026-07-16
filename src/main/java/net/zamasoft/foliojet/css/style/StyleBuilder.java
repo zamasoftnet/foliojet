@@ -337,25 +337,14 @@ public class StyleBuilder implements PageGenerator {
 	 * ボックスの開始をログに記録してから doc に渡します(M6b v3)。
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
-		// レイアウトソースプロトコルの記録(M6b v3)。純粋な FlowBlockBox は
-		// params/pos から再インスタンス化できるため再生可能として記録し、
-		// それ以外(inline/table/replaced/multicol 等)は Opaque として
-		// 位置だけ占有する(範囲に Opaque を含む再生はフォールバック)
-		if ((box.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
-				|| box.getClass() == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class)
-				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.BlockParams blockParams) {
+		// レイアウトソースプロトコルの記録(M6b v3)。params/pos から
+		// 再インスタンス化できる種別は Start(kind) として記録し、未対応の
+		// 種別(表・絶対配置等)は Opaque として位置だけ占有する
+		// (範囲に Opaque を含む再生はフォールバック)
+		final LayoutSource.BoxKind kind = boxKind(box);
+		if (kind != null) {
 			box.getParams().sourceEventId = this.layoutSource
-					.append(new LayoutSource.StartBlock(blockParams, box.getPos()));
-		} else if (box.getClass() == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class
-				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.BlockParams markerParams
-				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.InlinePos markerPos) {
-			box.getParams().sourceEventId = this.layoutSource
-					.append(new LayoutSource.StartMarker(markerParams, markerPos));
-		} else if (box.getClass() == net.zamasoft.foliojet.layout.box.impl.InlineBox.class
-				&& box.getParams() instanceof net.zamasoft.foliojet.layout.box.params.InlineParams inlineParams
-				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.InlinePos inlinePos) {
-			box.getParams().sourceEventId = this.layoutSource
-					.append(new LayoutSource.StartInline(inlineParams, inlinePos));
+					.append(new LayoutSource.Start(kind, box.getParams(), box.getPos()));
 		} else {
 			box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Opaque());
 		}
@@ -370,6 +359,27 @@ public class StyleBuilder implements PageGenerator {
 	private void addReplacedBox(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
 		box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Replaced(box));
 		this.doc.addReplacedBox(box);
+	}
+
+	/**
+	 * ソース再生で再インスタンス化できるボックス種別を返します
+	 * (未対応なら null = Opaque 記録)。SourceReplayer.newBox と対。
+	 */
+	private static LayoutSource.BoxKind boxKind(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
+		final Class<?> type = box.getClass();
+		if (type == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class) {
+			return LayoutSource.BoxKind.FLOW;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class) {
+			return LayoutSource.BoxKind.MULTICOL;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBox.class) {
+			return LayoutSource.BoxKind.INLINE;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class) {
+			return LayoutSource.BoxKind.MARKER;
+		}
+		return null;
 	}
 
 	/**

@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.layout.fragment;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 
 /**
@@ -22,37 +21,37 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
  * <b>EventId</b>: 各イベントには付与時から不変の id が振られます。
  * ボックスへの刻印(アンカー)は id で行い、compaction 後も安定です。
  * <b>水位破棄</b>: {@link #compact(long)} は指定 id より前のイベントを、
- * 開いている(未対応の)StartBlock を残して破棄します。保持量は
+ * 開いている(未対応の)Start を残して破棄します。保持量は
  * O(現在ページ+開いている要素) に保たれます。
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource {
-	public sealed interface Event permits StartBlock, StartInline, StartMarker, Replaced, Chars, EndBlock, Opaque {
+	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque {
 	}
 
 	/**
-	 * ブロックの開始です。params/pos から同型のボックスを再インスタンス化
-	 * できます。
+	 * ボックスの種別です。params/pos からの再インスタンス化の
+	 * ファクトリ選択に使います(SourceReplayer.newBox)。
 	 */
-	public record StartBlock(BlockParams params, Pos pos) implements Event {
+	public enum BoxKind {
+		/** 通常ブロック(FlowBlockBox)。 */
+		FLOW,
+		/** マルチカラムブロック(MulticolumnBlockBox)。 */
+		MULTICOL,
+		/** インライン(InlineBox)。 */
+		INLINE,
+		/** 外置きリストマーカー(OutsideMarkerBox)。 */
+		MARKER;
 	}
 
 	/**
-	 * インライン要素の開始です。params/pos から同型のボックスを
-	 * 再インスタンス化できます。
+	 * ボックスの開始です。kind と params/pos から同型のボックスを
+	 * 再インスタンス化できます(生成内容・マーカー番号等は解決済みの
+	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません)。
 	 */
-	public record StartInline(net.zamasoft.foliojet.layout.box.params.InlineParams params,
-			net.zamasoft.foliojet.layout.box.params.InlinePos pos) implements Event {
-	}
-
-	/**
-	 * リストマーカー(外置き)の開始です。params/pos から
-	 * 再インスタンス化できます。マーカーの内容(番号等)は解決済みの
-	 * Chars として続くため、再生でカウンタは再評価されません。
-	 */
-	public record StartMarker(BlockParams params, net.zamasoft.foliojet.layout.box.params.InlinePos pos)
+	public record Start(BoxKind kind, net.zamasoft.foliojet.layout.box.params.Params params, Pos pos)
 			implements Event {
 	}
 
@@ -145,23 +144,21 @@ public final class LayoutSource {
 	}
 
 	/**
-	 * watermark より前のイベントを、開いている StartBlock を残して
-	 * 破棄します。開いている StartBlock の id は変わりません。
+	 * watermark より前のイベントを、開いている Start を残して
+	 * 破棄します。開いている Start の id は変わりません。
 	 *
 	 * @param watermark これより前(id &lt; watermark)が破棄対象
 	 */
 	public void compact(final long watermark) {
 		final List<Entry> kept = new ArrayList<Entry>();
-		// 破棄対象範囲の「未対応 StartBlock」のスタックを求める
+		// 破棄対象範囲の「未対応 Start」のスタックを求める
 		final List<Entry> open = new ArrayList<Entry>();
 		for (final Entry entry : this.entries) {
 			if (entry.id() >= watermark) {
 				break;
 			}
 			switch (entry.event()) {
-			case StartBlock start -> open.add(entry);
-			case StartInline start -> open.add(entry);
-			case StartMarker start -> open.add(entry);
+			case Start start -> open.add(entry);
 			case EndBlock end -> {
 				if (!open.isEmpty()) {
 					open.remove(open.size() - 1);
@@ -186,20 +183,18 @@ public final class LayoutSource {
 	}
 
 	/**
-	 * id の StartBlock に対応する EndBlock の id を返します。
+	 * id の Start に対応する EndBlock の id を返します。
 	 * 部分木がまだ閉じていなければ -1。
 	 */
 	public long endOf(final long startId) {
 		int index = this.indexOf(startId);
-		if (index < 0 || !(this.entries.get(index).event() instanceof StartBlock)) {
+		if (index < 0 || !(this.entries.get(index).event() instanceof Start)) {
 			return -1;
 		}
 		int depth = 0;
 		for (int i = index; i < this.entries.size(); ++i) {
 			switch (this.entries.get(i).event()) {
-			case StartBlock start -> ++depth;
-			case StartInline start -> ++depth;
-			case StartMarker start -> ++depth;
+			case Start start -> ++depth;
 			case EndBlock end -> {
 				if (--depth == 0) {
 					return this.entries.get(i).id();
@@ -255,9 +250,7 @@ public final class LayoutSource {
 				break;
 			}
 			switch (entry.event()) {
-			case StartBlock start -> ++depth;
-			case StartInline start -> ++depth;
-			case StartMarker start -> ++depth;
+			case Start start -> ++depth;
 			case EndBlock end -> {
 				if (depth == 0) {
 					return entry.id();
@@ -297,7 +290,7 @@ public final class LayoutSource {
 	}
 
 	/**
-	 * [fromId, toId] の範囲にマルチカラムの StartBlock が含まれていれば
+	 * [fromId, toId] の範囲にマルチカラムの Start が含まれていれば
 	 * true を返します(M6c: 段組内容の再生は列機構(columnBreak/balance)
 	 * との相互作用が未検証のためフォールバックさせる)。
 	 */
@@ -311,8 +304,8 @@ public final class LayoutSource {
 			if (entry.id() > toId) {
 				break;
 			}
-			if (entry.event() instanceof StartBlock(final BlockParams params, final Pos pos) && params.columns != null
-					&& params.columns.count > 1) {
+			if (entry.event() instanceof Start(final BoxKind kind, final net.zamasoft.foliojet.layout.box.params.Params params,
+					final Pos pos) && kind == BoxKind.MULTICOL) {
 				return true;
 			}
 		}
@@ -320,7 +313,7 @@ public final class LayoutSource {
 	}
 
 	/**
-	 * [fromId, toId] の範囲に浮動配置の StartBlock が含まれていれば
+	 * [fromId, toId] の範囲に浮動配置の Start が含まれていれば
 	 * true を返します(M6c: バランスのソース再生はフロートの係留の
 	 * 再現が未検証のためフォールバックさせる)。
 	 */
@@ -334,8 +327,8 @@ public final class LayoutSource {
 			if (entry.id() > toId) {
 				break;
 			}
-			if (entry.event() instanceof StartBlock(final BlockParams params, final Pos pos)
-					&& pos.getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
+			if (entry.event() instanceof Start(final BoxKind kind, final net.zamasoft.foliojet.layout.box.params.Params params,
+					final Pos pos) && pos.getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
 				return true;
 			}
 			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box)
