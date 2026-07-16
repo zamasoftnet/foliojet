@@ -1,22 +1,23 @@
 package net.zamasoft.foliojet.css.value.internal;
 
-import net.zamasoft.foliojet.style.box.params.Types;
+import net.zamasoft.foliojet.style.box.params.Align;
+
 import net.zamasoft.foliojet.css.value.Value;
 
 public enum CSSJHtmlAlignValue implements Value {
-	START_VALUE(Types.ALIGN_START),
+	START_VALUE(Align.START),
 
-	END_VALUE(Types.ALIGN_END),
+	END_VALUE(Align.END),
 
-	CENTER_VALUE(Types.ALIGN_CENTER);
+	CENTER_VALUE(Align.CENTER);
 
-	private final byte align;
+	private final Align align;
 
-	private CSSJHtmlAlignValue(byte align) {
+	private CSSJHtmlAlignValue(Align align) {
 		this.align = align;
 	}
 
-	public byte getHtmlAlign() {
+	public Align getHtmlAlign() {
 		return this.align;
 	}
 }

@@ -1,14 +1,15 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.Types;
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 
 /**
  * @author MIYABE Tatsuhiko
  */
 public enum PageBreakInsideValue implements Value {
-	AUTO_VALUE(Types.PAGE_BREAK_AUTO),
+	AUTO_VALUE(PageBreakMode.AUTO),
 
-	AVOID_VALUE(Types.PAGE_BREAK_AVOID);
+	AVOID_VALUE(PageBreakMode.AVOID);
 
 	//
 	// public static final PageBreakInsideValue AVOID_PAGE_VALUE = new
@@ -19,22 +20,22 @@ public enum PageBreakInsideValue implements Value {
 	// PageBreakInsideValue(
 	// Types.PAGE_BREAK_AVOID_COLUMN);
 
-	private final byte pageBreakInside;
+	private final PageBreakMode pageBreakInside;
 
-	private PageBreakInsideValue(byte pageBreakInside) {
+	private PageBreakInsideValue(PageBreakMode pageBreakInside) {
 		this.pageBreakInside = pageBreakInside;
 	}
 
-	public byte getPageBreakInside() {
+	public PageBreakMode getPageBreakInside() {
 		return this.pageBreakInside;
 	}
 
 	public String toString() {
 		switch (this.pageBreakInside) {
-		case Types.PAGE_BREAK_AUTO:
+		case PageBreakMode.AUTO:
 			return "auto";
 
-		case Types.PAGE_BREAK_AVOID:
+		case PageBreakMode.AVOID:
 			return "avoid";
 
 		default:

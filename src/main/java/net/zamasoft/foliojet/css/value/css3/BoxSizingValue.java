@@ -1,25 +1,24 @@
 package net.zamasoft.foliojet.css.value.css3;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
  * @author MIYABE Tatsuhiko
  */
 public enum BoxSizingValue implements Value {
-	CONTENT_BOX_VALUE(BoxSizingValue.CONTENT_BOX),
+	CONTENT_BOX_VALUE(BoxSizingMode.CONTENT_BOX),
 
-	BORDER_BOX_VALUE(BoxSizingValue.BORDER_BOX);
-	public static final byte CONTENT_BOX = 1;
+	BORDER_BOX_VALUE(BoxSizingMode.BORDER_BOX);
 
-	public static final byte BORDER_BOX = 2;
+	private final BoxSizingMode boxSizing;
 
-	private final byte boxSizing;
-
-	private BoxSizingValue(byte boxSizing) {
+	private BoxSizingValue(BoxSizingMode boxSizing) {
 		this.boxSizing = boxSizing;
 	}
 
-	public byte getBoxSizing() {
+	public BoxSizingMode getBoxSizing() {
 		return this.boxSizing;
 	}
 

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.page;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -18,7 +20,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class PageBreakInside extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new PageBreakInside();
 
-	public static byte get(CSSStyle style) {
+	public static PageBreakMode get(CSSStyle style) {
 		PageBreakInsideValue value = (PageBreakInsideValue) style.get(INFO);
 		return value.getPageBreakInside();
 	}

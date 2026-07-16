@@ -1,5 +1,11 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
+import net.zamasoft.foliojet.style.box.params.Align;
+
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
@@ -16,7 +22,7 @@ import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.Pos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.LayoutStack;
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.draw.DebugDrawable;
@@ -74,28 +80,28 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		BlockBuilder builder = (BlockBuilder) layoutStack;
 		containerBox = builder.getFlow(builder.getFlowCount() - 2).box;
 
-		byte align = this.pos.align;
+		Align align = this.pos.align;
 		if (containerBox.getBlockParams().flow.isVertical()) {
 			// 縦書き
-			if (align == Types.ALIGN_START) {
+			if (align == Align.START) {
 				Insets margin = this.getBlockParams().frame.margin;
 				if (margin.getTopType() == LengthType.AUTO) {
 					if (margin.getBottomType() == LengthType.AUTO) {
-						align = Types.ALIGN_CENTER;
+						align = Align.CENTER;
 					} else {
-						align = Types.ALIGN_END;
+						align = Align.END;
 					}
 				}
 			}
 			final double remainder = containerBox.getLineSize() - this.height;
 			switch (align) {
-			case Types.ALIGN_START:
+			case Align.START:
 				this.frame.margin.bottom = remainder;
 				break;
-			case Types.ALIGN_END:
+			case Align.END:
 				this.frame.margin.top = remainder;
 				break;
-			case Types.ALIGN_CENTER:
+			case Align.CENTER:
 				this.frame.margin.top = this.frame.margin.bottom = remainder / 2;
 				break;
 			}
@@ -103,25 +109,25 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			this.size = Dimension.create(0, this.height, LengthType.AUTO, LengthType.ABSOLUTE);
 		} else {
 			// 横書き
-			if (align == Types.ALIGN_START) {
+			if (align == Align.START) {
 				Insets margin = this.getBlockParams().frame.margin;
 				if (margin.getLeftType() == LengthType.AUTO) {
 					if (margin.getRightType() == LengthType.AUTO) {
-						align = Types.ALIGN_CENTER;
+						align = Align.CENTER;
 					} else {
-						align = Types.ALIGN_END;
+						align = Align.END;
 					}
 				}
 			}
 			final double remainder = containerBox.getLineSize() - this.width;
 			switch (align) {
-			case Types.ALIGN_START:
+			case Align.START:
 				this.frame.margin.right = remainder;
 				break;
-			case Types.ALIGN_END:
+			case Align.END:
 				this.frame.margin.left = remainder;
 				break;
-			case Types.ALIGN_CENTER:
+			case Align.CENTER:
 				this.frame.margin.left = this.frame.margin.right = remainder / 2;
 				break;
 			}
@@ -195,7 +201,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			marginLeft = amargin.left;
 			marginRight = amargin.right;
 			this.height = StyleUtils.computeDimensionHeight(this.size, lineSize);
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX && !StyleUtils.isNone(this.height)) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(this.height)) {
 				this.height -= this.frame.getBorderHeight();
 			}
 			marginTop = marginBottom = 0;
@@ -217,15 +223,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						// 制限しすぎ
 						FlowPos pos = this.getFlowPos();
 						switch (pos.align) {
-						case Types.ALIGN_START:
+						case Align.START:
 							// 上寄せ
 							marginBottom = 0;
 							break;
-						case Types.ALIGN_END:
+						case Align.END:
 							// 下寄せ
 							marginTop += lineSize - this.height - this.frame.getFrameHeight();
 							break;
-						case Types.ALIGN_CENTER:
+						case Align.CENTER:
 							// 中央
 							double remainder = lineSize - this.height - this.frame.getFrameHeight();
 							remainder /= 2.0;
@@ -300,7 +306,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					this.width = this.size.getWidth() * containerBox.getInnerWidth();
 					this.width = Math.max(this.width, minWidth);
 					this.width = Math.min(this.width, maxWidth);
-					if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 						this.width -= this.getFrame().getBorderWidth();
 					}
 					minWidth = maxWidth = this.width;
@@ -319,7 +325,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.width = this.size.getWidth();
 				this.width = Math.max(this.width, minWidth);
 				this.width = Math.min(this.width, maxWidth);
-				if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 					this.width -= this.getFrame().getBorderWidth();
 				}
 				minWidth = maxWidth = this.width;
@@ -333,7 +339,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			marginTop = amargin.top;
 			marginBottom = amargin.bottom;
 			this.width = StyleUtils.computeDimensionWidth(this.size, lineSize);
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX && !StyleUtils.isNone(this.width)) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(this.width)) {
 				this.width -= this.frame.getBorderWidth();
 			}
 			marginLeft = marginRight = 0;
@@ -356,15 +362,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							// 制限しすぎ
 							FlowPos pos = this.getFlowPos();
 							switch (pos.align) {
-							case Types.ALIGN_START:
+							case Align.START:
 								// 左寄せ
 								marginRight = 0;
 								break;
-							case Types.ALIGN_END:
+							case Align.END:
 								// 右寄せ
 								marginLeft += lineSize - this.width - this.frame.getFrameWidth();
 								break;
-							case Types.ALIGN_CENTER:
+							case Align.CENTER:
 								// 中央
 								double remainder = lineSize - this.width - this.frame.getFrameWidth();
 								remainder /= 2.0;
@@ -440,7 +446,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					this.height = this.size.getHeight() * containerBox.getInnerHeight();
 					this.height = Math.max(this.height, minHeight);
 					this.height = Math.min(this.height, maxHeight);
-					if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 						this.height -= this.getFrame().getBorderHeight();
 					}
 					minHeight = this.height;
@@ -460,7 +466,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.height = this.size.getHeight();
 				this.height = Math.max(this.height, minHeight);
 				this.height = Math.min(this.height, maxHeight);
-				if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 					this.height -= this.getFrame().getBorderHeight();
 				}
 				minHeight = this.height;
@@ -531,14 +537,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	public boolean avoidBreakBefore() {
-		if (this.getFlowPos().pageBreakBefore == Types.PAGE_BREAK_AVOID) {
+		if (this.getFlowPos().pageBreakBefore == PageBreakMode.AVOID) {
 			return true;
 		}
 		return this.container.avoidBreakBefore();
 	}
 
 	public boolean avoidBreakAfter() {
-		if (this.getFlowPos().pageBreakAfter == Types.PAGE_BREAK_AVOID) {
+		if (this.getFlowPos().pageBreakAfter == PageBreakMode.AVOID) {
 			return true;
 		}
 		return this.container.avoidBreakAfter();

@@ -10,12 +10,12 @@ public abstract class AbstractBlockLevelPos extends AbstractStaticPos {
 	/**
 	 * 直前の改ページ方法です。
 	 */
-	public byte pageBreakBefore = Types.PAGE_BREAK_AUTO;
+	public PageBreakMode pageBreakBefore = PageBreakMode.AUTO;
 
 	/**
 	 * 直後の改ページ方法です。
 	 */
-	public byte pageBreakAfter = Types.PAGE_BREAK_AUTO;
+	public PageBreakMode pageBreakAfter = PageBreakMode.AUTO;
 
 	public String toString() {
 		return super.toString() + "[pageBreakBefore=" + this.pageBreakBefore + ",pageBreakAfter=" + this.pageBreakAfter

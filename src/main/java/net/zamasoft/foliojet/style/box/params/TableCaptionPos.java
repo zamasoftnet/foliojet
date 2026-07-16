@@ -7,7 +7,7 @@ package net.zamasoft.foliojet.style.box.params;
  * @version $Id: TableCaptionPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TableCaptionPos extends FlowPos {
-	public byte captionSide = Types.CAPTION_SIDE_BEFORE;
+	public CaptionSideMode captionSide = CaptionSideMode.BEFORE;
 
 	public PosType getType() {
 		return PosType.TABLE_CAPTION;

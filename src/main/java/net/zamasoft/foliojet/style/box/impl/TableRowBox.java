@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
@@ -17,7 +19,7 @@ import net.zamasoft.foliojet.style.box.params.InnerTableParams;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.TableRowPos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.style.draw.Drawable;
@@ -364,7 +366,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 				boolean breakAvoid = false;
 				// ページ頭に接したセルがある場合は改ページ禁止を無視する
-				if (this.params.pageBreakInside == Types.PAGE_BREAK_AVOID) {
+				if (this.params.pageBreakInside == PageBreakMode.AVOID) {
 					// 行の改ページ禁止
 					breakAvoid = true;
 				} else {
@@ -375,7 +377,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 						if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
 							return this;
 						}
-						if (cellParams.pageBreakInside == Types.PAGE_BREAK_AVOID) {
+						if (cellParams.pageBreakInside == PageBreakMode.AVOID) {
 							// セルの改ページ禁止
 							breakAvoid = true;
 						}

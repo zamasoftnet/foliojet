@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.content;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
@@ -12,7 +14,7 @@ import net.zamasoft.foliojet.style.box.IFloatBox;
 import net.zamasoft.foliojet.style.box.IPageBreakableBox;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.util.StyleUtils;
@@ -151,7 +153,7 @@ public class Floatings {
 					// 匿名ボックス
 					final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
 					final BlockParams params = containerBox.getBlockParams();
-					if (params.pageBreakInside != Types.PAGE_BREAK_AVOID
+					if (params.pageBreakInside != PageBreakMode.AVOID
 							&& vertical == params.flow.isVertical()) {
 						byte xflags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
 						double pageAxis = pageLimit - floating.pageAxis;

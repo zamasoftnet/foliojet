@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
+import net.zamasoft.foliojet.style.box.params.CellAlign;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -15,7 +17,7 @@ import net.zamasoft.foliojet.style.box.content.AbsoluteVerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.content.CSSVerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.content.FractionalVerticalAlignPolicy;
 import net.zamasoft.foliojet.style.box.content.VerticalAlignPolicy;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -43,22 +45,22 @@ public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 		throw new IllegalStateException(String.valueOf(value));
 	}
 
-	public static byte getForTableCell(CSSStyle style) {
+	public static CellAlign getForTableCell(CSSStyle style) {
 		Value value = style.get(INFO);
 		if (value instanceof VerticalAlignValue va) {
 			switch (va.getVerticalAlignType()) {
 			case CSSVerticalAlignPolicy.TOP:
-				return Types.VERTICAL_ALIGN_START;
+				return CellAlign.START;
 			case CSSVerticalAlignPolicy.MIDDLE:
-				return Types.VERTICAL_ALIGN_MIDDLE;
+				return CellAlign.MIDDLE;
 			case CSSVerticalAlignPolicy.BOTTOM:
-				return Types.VERTICAL_ALIGN_END;
+				return CellAlign.END;
 			default:
-				return Types.VERTICAL_ALIGN_BASELINE;
+				return CellAlign.BASELINE;
 			}
 		}
 		if (value instanceof AbsoluteLengthValue || value instanceof PercentageValue) {
-			return Types.VERTICAL_ALIGN_BASELINE;
+			return CellAlign.BASELINE;
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}

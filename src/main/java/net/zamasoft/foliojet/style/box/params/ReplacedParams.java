@@ -12,7 +12,7 @@ public class ReplacedParams extends AbstractTextParams {
 
 	public Dimension maxSize = Dimension.AUTO_DIMENSION;
 
-	public byte boxSizing = Types.BOX_SIZING_CONTENT_BOX;
+	public BoxSizingMode boxSizing = BoxSizingMode.CONTENT_BOX;
 
 	public RectFrame frame = RectFrame.NULL_FRAME;
 

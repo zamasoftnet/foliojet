@@ -13,7 +13,7 @@ public class FlowPos extends AbstractNormalFlowPos implements Pos {
 	/**
 	 * ボックスの水平方向配置です。
 	 */
-	public byte align = Types.ALIGN_START;
+	public Align align = Align.START;
 
 	/**
 	 * マルチカラムの連結です。

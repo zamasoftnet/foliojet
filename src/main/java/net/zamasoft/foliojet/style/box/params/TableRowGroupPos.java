@@ -7,7 +7,7 @@ package net.zamasoft.foliojet.style.box.params;
  * @version $Id: TableRowGroupPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class TableRowGroupPos extends AbstractBlockLevelPos {
-	public byte rowGroupType = Types.ROW_GROUP_TYPE_BODY;
+	public RowGroupType rowGroupType = RowGroupType.BODY;
 
 	public PosType getType() {
 		return PosType.TABLE_ROW_GROUP;

@@ -1,9 +1,10 @@
 package net.zamasoft.foliojet.style.box.content;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import net.zamasoft.foliojet.style.box.BoxType;
 import net.zamasoft.foliojet.style.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.style.box.IBox;
-import net.zamasoft.foliojet.style.box.params.Types;
 
 /**
  * ブロックの分割モードです。
@@ -46,24 +47,24 @@ public abstract class BreakMode {
 	public static class ForceBreakMode extends BreakMode {
 		public final IBox box;
 
-		public final byte breakType;
+		public final PageBreakMode breakType;
 
-		public ForceBreakMode(IBox box, byte breakType) {
-			assert breakType == Types.PAGE_BREAK_PAGE || breakType == Types.PAGE_BREAK_COLUMN
-					|| breakType == Types.PAGE_BREAK_VERSO || breakType == Types.PAGE_BREAK_RECTO;
+		public ForceBreakMode(IBox box, PageBreakMode breakType) {
+			assert breakType == PageBreakMode.PAGE || breakType == PageBreakMode.COLUMN
+					|| breakType == PageBreakMode.VERSO || breakType == PageBreakMode.RECTO;
 			this.box = box;
 			this.breakType = breakType;
 		}
 
 		public String toString() {
 			switch (this.breakType) {
-			case Types.PAGE_BREAK_PAGE:
+			case PageBreakMode.PAGE:
 				return "FORCE_BREAK_MODE ALWAYS";
-			case Types.PAGE_BREAK_COLUMN:
+			case PageBreakMode.COLUMN:
 				return "FORCE_BREAK_MODE COLUMN";
-			case Types.PAGE_BREAK_VERSO:
+			case PageBreakMode.VERSO:
 				return "FORCE_BREAK_MODE LEFT";
-			case Types.PAGE_BREAK_RECTO:
+			case PageBreakMode.RECTO:
 				return "FORCE_BREAK_MODE RIGHT";
 			default:
 				throw new IllegalStateException();
@@ -80,7 +81,7 @@ public abstract class BreakMode {
 	public static class TableForceBreakMode extends ForceBreakMode {
 		public final int rowGroup, row;
 
-		public TableForceBreakMode(AbstractInnerTableBox box, byte breakType, int rowGroup, int row) {
+		public TableForceBreakMode(AbstractInnerTableBox box, PageBreakMode breakType, int rowGroup, int row) {
 			super(box, breakType);
 			assert row == -1 || box.getType() == BoxType.TABLE_ROW;
 			assert row != -1 || box.getType() == BoxType.TABLE_ROW_GROUP;

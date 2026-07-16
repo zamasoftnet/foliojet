@@ -15,12 +15,12 @@ public class AbsolutePos implements Pos {
 	/**
 	 * locationがAUTOの場合の位置です。
 	 */
-	public byte autoPosition = Types.AUTO_POSITION_BLOCK;
+	public AutoPosition autoPosition = AutoPosition.BLOCK;
 
 	/**
 	 * 配置の基準です。
 	 */
-	public byte fiducial = Types.FODUCIAL_CONTEXT;
+	public Fiducial fiducial = Fiducial.CONTEXT;
 
 	public PosType getType() {
 		return PosType.ABSOLUTE;

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
@@ -18,7 +20,7 @@ import net.zamasoft.foliojet.style.box.params.InnerTableParams;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.style.draw.DebugDrawable;
 import net.zamasoft.foliojet.style.draw.Drawable;
@@ -230,7 +232,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 		InnerTableParams con = this.params;
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
-				&& (con.pageBreakInside == Types.PAGE_BREAK_AVOID || StyleUtils.compare(pageLimit, 0) < 0)) {
+				&& (con.pageBreakInside == PageBreakMode.AVOID || StyleUtils.compare(pageLimit, 0) < 0)) {
 			// 全部移動
 			return this;
 		}
@@ -315,15 +317,15 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					// System.err.println("TRG :" + i);
 
 					// 行間の改ページ禁止
-					boolean breakAvoid = beforeRow.getTableRowPos().pageBreakAfter == Types.PAGE_BREAK_AVOID
-							|| prevRow.getTableRowPos().pageBreakBefore == Types.PAGE_BREAK_AVOID;
+					boolean breakAvoid = beforeRow.getTableRowPos().pageBreakAfter == PageBreakMode.AVOID
+							|| prevRow.getTableRowPos().pageBreakBefore == PageBreakMode.AVOID;
 					// ページ先頭の1-2行目で連結されたセルがある場合は適用しない
 					if (!breakAvoid && (i != 1 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0)) {
 						// 連結されたセルによる改ページ禁止
 						for (int j = 0; j < beforeRow.getCellCount(); ++j) {
 							final Cell cell = beforeRow.getCell(j);
 							final BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (cellParams.pageBreakInside == Types.PAGE_BREAK_AUTO && cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
+							if (cellParams.pageBreakInside == PageBreakMode.AUTO && cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
 								continue;
 							}
 							if (cell.getNextExtendedCell() != null) {

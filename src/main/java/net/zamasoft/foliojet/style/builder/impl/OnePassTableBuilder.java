@@ -1,5 +1,13 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
+import net.zamasoft.foliojet.style.box.params.RowGroupType;
+
+import net.zamasoft.foliojet.style.box.params.CaptionSideMode;
+
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,7 +45,7 @@ import net.zamasoft.foliojet.style.box.params.TableColumnPos;
 import net.zamasoft.foliojet.style.box.params.TableParams;
 import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.style.box.params.TableRowPos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.Builder;
 import net.zamasoft.foliojet.style.builder.TableBuilder;
 import net.zamasoft.foliojet.style.part.AbsoluteInsets;
@@ -404,7 +412,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						break;
 					case ABSOLUTE: {
 						double fix = cellParams.size.getHeight();
-						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
+						if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameHeight();
 						}
 						fix /= cell.colspan;
@@ -413,7 +421,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						break;
 					case RELATIVE: {
 						double fix = refSize * cellParams.size.getHeight();
-						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
+						if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameHeight();
 						}
 						fix /= cell.colspan;
@@ -441,7 +449,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						break;
 					case ABSOLUTE: {
 						double fix = cellParams.size.getWidth();
-						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
+						if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameWidth();
 						}
 						fix /= cell.colspan;
@@ -450,7 +458,7 @@ public class OnePassTableBuilder implements TableBuilder {
 						break;
 					case RELATIVE: {
 						double fix = refSize * cellParams.size.getWidth();
-						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
+						if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
 							fix += cellBox.getFrame().getFrameWidth();
 						}
 						fix /= cell.colspan;
@@ -701,14 +709,14 @@ public class OnePassTableBuilder implements TableBuilder {
 		boolean groupFirst = this.groupFirst;
 		this.groupFirst = false;
 		boolean groupLast = this.bindRowGroupBox != this.rowGroupBox;
-		lastRow = (groupLast && rowGroupPos.rowGroupType == Types.ROW_GROUP_TYPE_FOOTER)
+		lastRow = (groupLast && rowGroupPos.rowGroupType == RowGroupType.FOOTER)
 				|| (lastRow && this.tableBox.getTableFooter() == null);
 
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
 			// つぶし境界
 			final List<Border[]> vborders, hborders;
 			switch (rowGroupPos.rowGroupType) {
-			case Types.ROW_GROUP_TYPE_HEADER: {
+			case RowGroupType.HEADER: {
 				if (this.headerVborders == null) {
 					this.headerVborders = new ArrayList<Border[]>();
 				}
@@ -719,7 +727,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				hborders = this.headerHborders;
 			}
 				break;
-			case Types.ROW_GROUP_TYPE_BODY: {
+			case RowGroupType.BODY: {
 				if (this.bodyVborders == null) {
 					this.bodyVborders = new ArrayList<Border[]>();
 				}
@@ -730,7 +738,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				hborders = this.bodyHborders;
 			}
 				break;
-			case Types.ROW_GROUP_TYPE_FOOTER: {
+			case RowGroupType.FOOTER: {
 				if (this.footerVborders == null) {
 					this.footerVborders = new ArrayList<Border[]>();
 				}
@@ -1192,19 +1200,19 @@ public class OnePassTableBuilder implements TableBuilder {
 					// つぶし境界
 					List<Border[]> vborders, hborders;
 					switch (rowGroupPos.rowGroupType) {
-					case Types.ROW_GROUP_TYPE_HEADER: {
+					case RowGroupType.HEADER: {
 						vborders = this.headerVborders;
 						hborders = this.headerHborders;
 					}
 						break;
 
-					case Types.ROW_GROUP_TYPE_FOOTER: {
+					case RowGroupType.FOOTER: {
 						vborders = this.footerVborders;
 						hborders = this.footerHborders;
 					}
 						break;
 
-					case Types.ROW_GROUP_TYPE_BODY: {
+					case RowGroupType.BODY: {
 						vborders = this.bodyVborders;
 						hborders = this.bodyHborders;
 					}
@@ -1369,7 +1377,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					double cellSize = cellBox.getHeight();
 					if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 						double height = cellParams.size.getHeight();
-						if (cellParams.boxSizing == Types.BOX_SIZING_CONTENT_BOX) {
+						if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
 							height += cellBox.getFrame().getFrameHeight();
 						}
 						cellSize = Math.max(cellSize, height);
@@ -1551,20 +1559,20 @@ public class OnePassTableBuilder implements TableBuilder {
 		this.rowsUnit.clear();
 
 		if (this.builder.mode != BreakableBuilder.MODE_NO_BREAK
-				&& this.bindRowGroupBox.getTableRowGroupPos().rowGroupType == Types.ROW_GROUP_TYPE_BODY) {
+				&& this.bindRowGroupBox.getTableRowGroupPos().rowGroupType == RowGroupType.BODY) {
 			while (this.checkBreak(groupLast))
 				;
 		}
 		if (groupLast) {
 			// 新しいグループの開始
 			switch (this.bindRowGroupBox.getTableRowGroupPos().rowGroupType) {
-			case Types.ROW_GROUP_TYPE_HEADER:
+			case RowGroupType.HEADER:
 				this.tableBox.setTableHeader(this.bindRowGroupBox);
 				break;
-			case Types.ROW_GROUP_TYPE_FOOTER:
+			case RowGroupType.FOOTER:
 				this.tableBox.setTableFooter(this.bindRowGroupBox);
 				break;
-			case Types.ROW_GROUP_TYPE_BODY:
+			case RowGroupType.BODY:
 				this.tableBox.addTableBody(this.bindRowGroupBox);
 				break;
 			default:
@@ -1574,7 +1582,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			this.groupFirst = true;
 		}
 		if (this.builder.mode != BreakableBuilder.MODE_NO_BREAK && this.bindRowGroupBox != null
-				&& this.bindRowGroupBox.getTableRowGroupPos().rowGroupType == Types.ROW_GROUP_TYPE_BODY) {
+				&& this.bindRowGroupBox.getTableRowGroupPos().rowGroupType == RowGroupType.BODY) {
 			// 自動改ページチェック
 			for (;;) {
 				double pageBottom = this.builder.getPageLimit() - this.builder.getPageAxis();
@@ -1634,7 +1642,7 @@ public class OnePassTableBuilder implements TableBuilder {
 		AbstractInnerTableBox box = null;
 		int row = 0;
 		double rowSplitLine = pageLimit;
-		byte breakMode = 0;
+		PageBreakMode breakMode = null;
 		for (; row < this.bindRowGroupBox.getTableRowCount(); ++row) {
 			TableRowBox rowBox = this.bindRowGroupBox.getTableRow(row);
 			double rowSize = rowBox.getPageSize();
@@ -1646,7 +1654,7 @@ public class OnePassTableBuilder implements TableBuilder {
 			TableRowPos pos = rowBox.getTableRowPos();
 			if (row > 0) {
 				breakMode = pos.pageBreakBefore;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					// 行の直前の改ページ
 					--row;
 					box = this.bindRowGroupBox.getTableRow(row);
@@ -1658,7 +1666,7 @@ public class OnePassTableBuilder implements TableBuilder {
 				break;
 			}
 			breakMode = pos.pageBreakAfter;
-			if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+			if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 				// 行の直後の改ページ
 				box = rowBox;
 				break;
@@ -1687,22 +1695,22 @@ public class OnePassTableBuilder implements TableBuilder {
 			boolean forceBreak = true;
 			for (;;) {
 				breakMode = this.bindRowGroupBox.getTableRowGroupPos().pageBreakAfter;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					break;
 				}
 				if (this.bindRowGroupBox.getTableRowCount() > 0) {
 					breakMode = this.bindRowGroupBox.getTableRow(this.bindRowGroupBox.getTableRowCount() - 1)
 							.getTableRowPos().pageBreakAfter;
-					if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+					if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 						break;
 					}
 				}
 				breakMode = this.rowGroupBox.getTableRowGroupPos().pageBreakBefore;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					break;
 				}
 				breakMode = this.rowBox.getTableRowPos().pageBreakBefore;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					break;
 				}
 				forceBreak = false;
@@ -1727,7 +1735,7 @@ public class OnePassTableBuilder implements TableBuilder {
 		// System.err.println("Page Break." + mode + "/" + pageLimit + "/"
 		// + this.tableBox.getHeight());
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
-				&& this.tableBox.getTableParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
+				&& this.tableBox.getTableParams().pageBreakInside == PageBreakMode.AVOID) {
 			// テーブルの改ページ禁止
 			return false;
 		}
@@ -1771,10 +1779,10 @@ public class OnePassTableBuilder implements TableBuilder {
 		this.builder.addBound(this.tableBox);
 		this.updateColumnHeights();
 		this.tableBox = this.tableBox.splitTableBox();
-		byte breakMode = Types.PAGE_BREAK_COLUMN;
+		PageBreakMode breakMode = PageBreakMode.COLUMN;
 		if (mode instanceof BreakMode.ForceBreakMode) {
-			if (((ForceBreakMode) mode).breakType != Types.PAGE_BREAK_COLUMN) {
-				breakMode = Types.PAGE_BREAK_PAGE;
+			if (((ForceBreakMode) mode).breakType != PageBreakMode.COLUMN) {
+				breakMode = PageBreakMode.PAGE;
 			}
 		}
 		this.builder.forceBreak(breakMode);
@@ -1800,21 +1808,21 @@ public class OnePassTableBuilder implements TableBuilder {
 
 	private void addBorderRowSize(double size) {
 		switch (this.bindRowGroupBox.getTableRowGroupPos().rowGroupType) {
-		case Types.ROW_GROUP_TYPE_HEADER:
+		case RowGroupType.HEADER:
 			if (this.headerRowSizes == null) {
 				this.headerRowSizes = new DoubleList();
 			}
 			this.headerRowSizes.add(size);
 			break;
 
-		case Types.ROW_GROUP_TYPE_FOOTER:
+		case RowGroupType.FOOTER:
 			if (this.footerRowSizes == null) {
 				this.footerRowSizes = new DoubleList();
 			}
 			this.footerRowSizes.add(size);
 			break;
 
-		case Types.ROW_GROUP_TYPE_BODY:
+		case RowGroupType.BODY:
 			if (this.bodyRowSizes == null) {
 				this.bodyRowSizes = new DoubleList();
 			}
@@ -1850,11 +1858,11 @@ public class OnePassTableBuilder implements TableBuilder {
 			FlowBlockBox caption = (FlowBlockBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, caption);
 			switch (((TableCaptionPos) caption.getPos()).captionSide) {
-			case Types.CAPTION_SIDE_BEFORE:
+			case CaptionSideMode.BEFORE:
 				this.topCaptions.add(builder);
 				break;
 
-			case Types.CAPTION_SIDE_AFTER:
+			case CaptionSideMode.AFTER:
 				this.bottomCaptions.add(builder);
 				break;
 

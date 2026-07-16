@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
+import net.zamasoft.foliojet.style.box.params.ClearMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -18,7 +20,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class Clear extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Clear();
 
-	public static byte get(CSSStyle style) {
+	public static ClearMode get(CSSStyle style) {
 		ClearValue value = (ClearValue) style.get(INFO);
 		return value.getClear();
 	}

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.content;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.awt.Shape;
@@ -32,7 +34,7 @@ import net.zamasoft.foliojet.style.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Pos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.util.StyleUtils;
@@ -244,7 +246,7 @@ public class FlowContainer implements Container {
 					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
 						if (flow.box.getType() == BoxType.BLOCK) {
 							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
-							if (blockBox.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
+							if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
 								pageAxis = bottom;
 								break;
 							}
@@ -281,7 +283,7 @@ public class FlowContainer implements Container {
 					if (StyleUtils.compare(bottom, pageAxis) >= 0) {
 						if (flow.box.getType() == BoxType.BLOCK) {
 							final FlowBlockBox blockBox = (FlowBlockBox) flow.box;
-							if (blockBox.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
+							if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
 								pageAxis = bottom;
 								break;
 							}
@@ -722,7 +724,7 @@ public class FlowContainer implements Container {
 			case BLOCK:
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
 				// 改ページ禁止でかつページの頭でない場合、またはページ進行方向が違う場合は内部で改ページしない
-				if ((cParams.pageBreakInside != Types.PAGE_BREAK_AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
+				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
 						&& vertical == cParams.flow.isVertical()) {
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 					nextFlowBox = (IFlowBox) prevFlowBox.splitPageAxis(splitLine, mode, xflags);
@@ -854,7 +856,7 @@ public class FlowContainer implements Container {
 									continue;
 								}
 								if (((AbstractContainerBox) floating.box)
-										.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
+										.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
 									continue;
 								}
 								breakAvoid = false;

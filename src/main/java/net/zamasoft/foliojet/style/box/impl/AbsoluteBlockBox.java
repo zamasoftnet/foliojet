@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.awt.Shape;
@@ -18,7 +20,7 @@ import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.RectBorder;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.builder.impl.TwoPassBlockBuilder;
 import net.zamasoft.foliojet.style.draw.Drawer;
@@ -101,7 +103,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		case WritingMode.TB: {
 			// 横書き
 			double width = StyleUtils.computeDimensionWidth(this.size, cWidth);
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX && !StyleUtils.isNone(width)) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(width)) {
 				width -= this.frame.getBorderWidth();
 			}
 			marginLeft = marginRight = 0;
@@ -192,7 +194,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			// 縦書き
 			double top = 0;// TODO test box-sizing
 			double height = StyleUtils.computeDimensionHeight(this.size, cHeight);
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX && !StyleUtils.isNone(height)) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !StyleUtils.isNone(height)) {
 				height -= this.frame.getBorderHeight();
 			}
 			marginTop = marginBottom = 0;
@@ -400,7 +402,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			this.frame.margin.top = marginTop;
 			this.frame.margin.bottom = marginBottom;
 			assert !StyleUtils.isNone(height);
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				height -= this.frame.getBorderHeight();
 			}
 			this.height = height;
@@ -500,7 +502,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			assert !StyleUtils.isNone(marginLeft);
 			this.frame.margin.right = marginRight;
 			this.frame.margin.left = marginLeft;
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				width -= this.frame.getBorderWidth();
 			}
 			this.width = width;

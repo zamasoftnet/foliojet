@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.content;
 
+import net.zamasoft.foliojet.style.box.params.Fiducial;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
@@ -10,7 +12,7 @@ import net.zamasoft.foliojet.style.box.impl.PageBox;
 import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.AbsolutePos;
 import net.zamasoft.foliojet.style.box.params.Insets;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.draw.Drawer;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 import net.zamasoft.foliojet.style.visitor.Visitor;
@@ -83,7 +85,7 @@ public class Absolutes {
 			Absolute c = (Absolute) this.absolutes.get(i);
 			double xx = StyleUtils.isNone(c.x) ? contextX : x + c.x;
 			double yy = StyleUtils.isNone(c.y) ? contextY : y + c.y;
-			if (c.box.getAbsolutePos().fiducial != Types.FODUCIAL_CONTEXT) {
+			if (c.box.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 				// 固定配置
 				pageBox.addFixed(drawer, visitor, c.box, xx, yy);
 				this.absolutes.remove(i);

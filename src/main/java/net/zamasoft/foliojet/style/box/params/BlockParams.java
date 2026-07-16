@@ -11,7 +11,7 @@ public class BlockParams extends AbstractLineParams {
 
 	public FirstLineParams firstLineStyle = null;
 
-	public byte pageBreakInside = Types.PAGE_BREAK_AUTO;
+	public PageBreakMode pageBreakInside = PageBreakMode.AUTO;
 
 	public byte orphans = 2;
 
@@ -23,9 +23,9 @@ public class BlockParams extends AbstractLineParams {
 
 	public Dimension maxSize = Dimension.AUTO_DIMENSION;
 
-	public byte boxSizing = Types.BOX_SIZING_CONTENT_BOX;
+	public BoxSizingMode boxSizing = BoxSizingMode.CONTENT_BOX;
 
-	public byte overflow = Types.OVERFLOW_VISIBLE;
+	public OverflowMode overflow = OverflowMode.VISIBLE;
 
 	public Columns columns = Columns.NONE_COLUMNS;
 

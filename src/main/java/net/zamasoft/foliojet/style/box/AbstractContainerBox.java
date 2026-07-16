@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.box.params.OverflowMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -14,7 +16,7 @@ import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.style.box.params.Length;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.builder.impl.ColumnBuilder;
 import net.zamasoft.foliojet.style.draw.Drawer;
@@ -260,7 +262,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	protected final Shape clip(Shape clip, double x, double y) {
-		if (this.getBlockParams().overflow != Types.OVERFLOW_HIDDEN) {
+		if (this.getBlockParams().overflow != OverflowMode.HIDDEN) {
 			return clip;
 		}
 		Rectangle2D.Double newClip = new Rectangle2D.Double(

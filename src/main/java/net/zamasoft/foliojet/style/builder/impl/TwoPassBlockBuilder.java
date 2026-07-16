@@ -1,5 +1,13 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.Fiducial;
+
+import net.zamasoft.foliojet.style.box.params.AutoPosition;
+
+import net.zamasoft.foliojet.style.box.params.FloatSide;
+
+import net.zamasoft.foliojet.style.box.params.ClearMode;
+
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.util.ArrayList;
@@ -28,7 +36,7 @@ import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Length;
 import net.zamasoft.foliojet.style.box.params.Pos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.Builder;
 import net.zamasoft.foliojet.style.builder.InlineQuad;
 import net.zamasoft.foliojet.style.builder.InlineQuad.InlineBlockQuad;
@@ -455,11 +463,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 
 			switch (floatingBox.getFloatPos().floating) {
-			case Types.FLOATING_START: {
+			case FloatSide.START: {
 				this.maxStartFloatAdvance += minLineAxis;
 			}
 				break;
-			case Types.FLOATING_END: {
+			case FloatSide.END: {
 				this.maxEndFloatAdvance += minLineAxis;
 			}
 				break;
@@ -482,14 +490,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 絶対配置
 			AbstractContainerBox contextBox;
 			switch (((AbsoluteReplacedBox) replacedBox).getAbsolutePos().fiducial) {
-			case Types.FODUCIAL_CONTEXT:
-			case Types.FODUCIAL_ALL_PAGE: {
+			case Fiducial.CONTEXT:
+			case Fiducial.ALL_PAGE: {
 				// 通常の絶対配置
 				// 固定配置
 				contextBox = this.getFlowBox();
 			}
 				break;
-			case Types.FODUCIAL_CURRENT_PAGE: {
+			case Fiducial.CURRENT_PAGE: {
 				// ページコンテンツ
 				contextBox = this.getPageContext().getRootBox();
 			}
@@ -589,10 +597,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		switch (floatingBox.getFloatPos().floating) {
-		case Types.FLOATING_START:
+		case FloatSide.START:
 			this.maxStartFloatAdvance += maxLineAxis;
 			break;
-		case Types.FLOATING_END:
+		case FloatSide.END:
 			this.maxEndFloatAdvance += maxLineAxis;
 			break;
 		default:
@@ -728,7 +736,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) k.next();
 				final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) stfBuilder.getRootBox();
 				final AbstractContainerBox containerBox;
-				if (absoluteBox.getAbsolutePos().fiducial != Types.FODUCIAL_CONTEXT) {
+				if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 					containerBox = builder.getPageContext().getRootBox();
 				} else {
 					containerBox = builder.getContextBox();
@@ -739,10 +747,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				boundBuilder.close();
 				final AbsolutePos pos = absoluteBox.getAbsolutePos();
 				switch (pos.autoPosition) {
-				case Types.AUTO_POSITION_BLOCK:
+				case AutoPosition.BLOCK:
 					builder.addBound(absoluteBox);
 					break;
-				case Types.AUTO_POSITION_INLINE:
+				case AutoPosition.INLINE:
 					final TextControl quad = InlineQuad.createInlineAbsoluteBoxQuad(absoluteBox);
 					if (textUnitizer == null) {
 						textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams().hyphenation);
@@ -953,7 +961,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			this.lineAxis = 0;
 			this.toLineFeed = null;
 			this.textIndent = 0;
-			this.clearFloatAdvance(Types.CLEAR_BOTH);
+			this.clearFloatAdvance(ClearMode.BOTH);
 		}
 	}
 	
@@ -989,19 +997,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.lineAxis = 0;
 	}
 
-	private void clearFloatAdvance(byte clear) {
+	private void clearFloatAdvance(ClearMode clear) {
 		switch (clear) {
-		case Types.CLEAR_BOTH:
+		case ClearMode.BOTH:
 			this.maxStartFloatAdvance = 0;
 			this.maxEndFloatAdvance = 0;
 			break;
-		case Types.CLEAR_START:
+		case ClearMode.START:
 			this.maxStartFloatAdvance = 0;
 			break;
-		case Types.CLEAR_END:
+		case ClearMode.END:
 			this.maxEndFloatAdvance = 0;
 			break;
-		case Types.CLEAR_NONE:
+		case ClearMode.NONE:
 			break;
 		default:
 			throw new IllegalStateException();

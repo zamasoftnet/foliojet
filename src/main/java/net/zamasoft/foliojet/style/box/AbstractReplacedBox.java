@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -11,7 +13,7 @@ import net.zamasoft.foliojet.style.box.impl.PageBox;
 import net.zamasoft.foliojet.style.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.ReplacedParams;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.draw.AbsoluteRectFrameDrawable;
 import net.zamasoft.foliojet.style.draw.Drawable;
 import net.zamasoft.foliojet.style.draw.Drawer;
@@ -105,7 +107,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			height = this.params.image.getHeight();
 		} else if (StyleUtils.isNone(width)) {
 			// 幅が不確定
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				height -= this.frame.getBorderHeight();
 			}
 			double intrinsicWidth = this.params.image.getWidth();
@@ -118,7 +120,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			}
 		} else if (StyleUtils.isNone(height)) {
 			// 高さが不確定
-			if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				width -= this.frame.getBorderWidth();
 			}
 			double intrinsicHeight = this.params.image.getHeight();
@@ -129,7 +131,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				// 元画像の幅がゼロの場合[最小のレイアウトにするポリシー]
 				height = 0;
 			}
-		} else if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			width -= this.frame.getBorderWidth();
 			height -= this.frame.getBorderHeight();
 		}
@@ -144,13 +146,13 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		double minHeight = StyleUtils.computeDimensionHeight(this.params.minSize, refHeight);
 		if (StyleUtils.isNone(maxWidth)) {
 			maxWidth = Double.MAX_VALUE;
-		} else if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			maxWidth -= this.frame.getBorderWidth();
 		}
 
 		if (StyleUtils.isNone(maxHeight)) {
 			maxHeight = Double.MAX_VALUE;
-		} else if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			maxHeight -= this.frame.getBorderHeight();
 		}
 		maxWidth = Math.max(minWidth, maxWidth);

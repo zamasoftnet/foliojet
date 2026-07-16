@@ -1,45 +1,46 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.Types;
+import net.zamasoft.foliojet.style.box.params.ClearMode;
+
 
 /**
  * @author MIYABE Tatsuhiko
  */
 public enum ClearValue implements Value {
-	NONE_VALUE(Types.CLEAR_NONE),
+	NONE_VALUE(ClearMode.NONE),
 
-	LEFT_VALUE(Types.CLEAR_START),
+	LEFT_VALUE(ClearMode.START),
 
-	RIGHT_VALUE(Types.CLEAR_END),
+	RIGHT_VALUE(ClearMode.END),
 
-	START_VALUE(Types.CLEAR_START),
+	START_VALUE(ClearMode.START),
 
-	END_VALUE(Types.CLEAR_END),
+	END_VALUE(ClearMode.END),
 
-	BOTH_VALUE(Types.CLEAR_BOTH);
+	BOTH_VALUE(ClearMode.BOTH);
 
-	private final byte clear;
+	private final ClearMode clear;
 
-	private ClearValue(byte clear) {
+	private ClearValue(ClearMode clear) {
 		this.clear = clear;
 	}
 
-	public byte getClear() {
+	public ClearMode getClear() {
 		return this.clear;
 	}
 
 	public String toString() {
 		switch (this.clear) {
-		case Types.CLEAR_NONE:
+		case ClearMode.NONE:
 			return "none";
 
-		case Types.CLEAR_START:
+		case ClearMode.START:
 			return "left";
 
-		case Types.CLEAR_END:
+		case ClearMode.END:
 			return "right";
 
-		case Types.CLEAR_BOTH:
+		case ClearMode.BOTH:
 			return "both";
 
 		default:

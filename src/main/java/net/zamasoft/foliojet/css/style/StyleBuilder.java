@@ -1,5 +1,23 @@
 package net.zamasoft.foliojet.css.style;
 
+import net.zamasoft.foliojet.style.box.params.Fiducial;
+
+import net.zamasoft.foliojet.style.box.params.AutoPosition;
+
+import net.zamasoft.foliojet.style.box.params.RowGroupType;
+
+import net.zamasoft.foliojet.style.box.params.CaptionSideMode;
+
+import net.zamasoft.foliojet.style.box.params.Align;
+
+import net.zamasoft.foliojet.style.box.params.FloatSide;
+
+import net.zamasoft.foliojet.style.box.params.OverflowMode;
+
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
+import net.zamasoft.foliojet.style.box.params.ClearMode;
+
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.awt.geom.AffineTransform;
@@ -188,7 +206,7 @@ import net.zamasoft.foliojet.style.box.params.TableColumnPos;
 import net.zamasoft.foliojet.style.box.params.TableParams;
 import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.style.box.params.TableRowPos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.PageGenerator;
 import net.zamasoft.foliojet.style.draw.DisplayListDumper;
 import net.zamasoft.foliojet.style.draw.Drawer;
@@ -435,29 +453,29 @@ public class StyleBuilder implements PageGenerator {
 
 		switch (CSSPosition.get(style)) {
 		case PositionValue.ABSOLUTE:
-			pos.fiducial = Types.FODUCIAL_CONTEXT;
+			pos.fiducial = Fiducial.CONTEXT;
 			switch (Display.get(style)) {
 			case DisplayValue.INLINE_BLOCK:
 			case DisplayValue.INLINE_TABLE:
-				pos.autoPosition = Types.AUTO_POSITION_INLINE;
+				pos.autoPosition = AutoPosition.INLINE;
 				break;
 
 			case DisplayValue.BLOCK:
 			case DisplayValue.TABLE:
 			case DisplayValue.LIST_ITEM:
-				pos.autoPosition = Types.AUTO_POSITION_BLOCK;
+				pos.autoPosition = AutoPosition.BLOCK;
 				break;
 			default:
 				throw new IllegalStateException(style.get(Display.INFO).toString());
 			}
 			break;
 		case PositionValue.FIXED:
-			pos.fiducial = Types.FODUCIAL_ALL_PAGE;
-			pos.autoPosition = Types.AUTO_POSITION_BLOCK;
+			pos.fiducial = Fiducial.ALL_PAGE;
+			pos.autoPosition = AutoPosition.BLOCK;
 			break;
 		case PositionValue._CSSJ_CURRENT_PAGE:
-			pos.fiducial = Types.FODUCIAL_CURRENT_PAGE;
-			pos.autoPosition = Types.AUTO_POSITION_BLOCK;
+			pos.fiducial = Fiducial.CURRENT_PAGE;
+			pos.autoPosition = AutoPosition.BLOCK;
 			break;
 		}
 	}
@@ -488,12 +506,12 @@ public class StyleBuilder implements PageGenerator {
 		switch (floating) {
 		case CSSFloatValue.LEFT:
 		case CSSFloatValue.START:
-			pos.floating = Types.FLOATING_START;
+			pos.floating = FloatSide.START;
 			break;
 
 		case CSSFloatValue.RIGHT:
 		case CSSFloatValue.END:
-			pos.floating = Types.FLOATING_END;
+			pos.floating = FloatSide.END;
 			break;
 
 		default:
@@ -684,18 +702,18 @@ public class StyleBuilder implements PageGenerator {
 		switch (CaptionSide.get(style)) {
 		case CaptionSideValue.CAPTION_SIDE_TOP:
 		case CaptionSideValue.CAPTION_SIDE_BEFORE:
-			pos.captionSide = Types.CAPTION_SIDE_BEFORE;
+			pos.captionSide = CaptionSideMode.BEFORE;
 			break;
 		case CaptionSideValue.CAPTION_SIDE_BOTTOM:
 		case CaptionSideValue.CAPTION_SIDE_AFTER:
-			pos.captionSide = Types.CAPTION_SIDE_AFTER;
+			pos.captionSide = CaptionSideMode.AFTER;
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 	}
 
-	private void setupTableRowGroup(InnerTableParams params, TableRowGroupPos pos, CSSStyle style, byte rowGroupType) {
+	private void setupTableRowGroup(InnerTableParams params, TableRowGroupPos pos, CSSStyle style, RowGroupType rowGroupType) {
 		this.setupInnerTableParams(params, style);
 		if (BlockFlow.get(style.getParentStyle()).isVertical()) {
 			params.size = Width.getLength(style);
@@ -1215,11 +1233,11 @@ public class StyleBuilder implements PageGenerator {
 					// BR
 					if (XHTML.BR_ELEM.equalsElement(ce)) {
 						// クリアランス、強制改ページは後にブロックを生成する
-						byte clear = Clear.get(style);
-						byte pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), style);
-						byte pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), style);
-						if (clear != Types.CLEAR_NONE || pageBreakBefore != Types.PAGE_BREAK_AUTO
-								|| pageBreakAfter != Types.PAGE_BREAK_AUTO) {
+						ClearMode clear = Clear.get(style);
+						PageBreakMode pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), style);
+						PageBreakMode pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), style);
+						if (clear != ClearMode.NONE || pageBreakBefore != PageBreakMode.AUTO
+								|| pageBreakAfter != PageBreakMode.AUTO) {
 							// クリアランス等の実行
 							final FlowPos pos = new FlowPos();
 							pos.clear = clear;
@@ -2017,8 +2035,8 @@ public class StyleBuilder implements PageGenerator {
 			this.setupTableParams(params, style);
 			final AbstractBlockBox blockBox = this.createBlockBox(style, params, position, display, floating);
 			if (blockBox.getPos().getType() == PosType.FLOW) {
-				if (CSSJHtmlAlign.get(style) == Types.ALIGN_CENTER) {
-					((FlowPos) blockBox.getPos()).align = Types.ALIGN_CENTER;
+				if (CSSJHtmlAlign.get(style) == Align.CENTER) {
+					((FlowPos) blockBox.getPos()).align = Align.CENTER;
 				}
 			}
 			TableBox table = new TableBox(params, blockBox);
@@ -2034,13 +2052,13 @@ public class StyleBuilder implements PageGenerator {
 			final BlockParams params = new BlockParams();
 			this.setupTableCaptionPos(pos, style);
 			this.setupBlockParams(params, style);
-			params.pageBreakInside = Types.PAGE_BREAK_AVOID;
+			params.pageBreakInside = PageBreakMode.AVOID;
 			switch (pos.captionSide) {
-			case Types.CAPTION_SIDE_BEFORE:
-				pos.pageBreakAfter = Types.PAGE_BREAK_AVOID;
+			case CaptionSideMode.BEFORE:
+				pos.pageBreakAfter = PageBreakMode.AVOID;
 				break;
-			case Types.CAPTION_SIDE_AFTER:
-				pos.pageBreakBefore = Types.PAGE_BREAK_AVOID;
+			case CaptionSideMode.AFTER:
+				pos.pageBreakBefore = PageBreakMode.AVOID;
 				break;
 			default:
 				throw new IllegalStateException();
@@ -2078,7 +2096,7 @@ public class StyleBuilder implements PageGenerator {
 			// テーブルヘッダグループ
 			final TableRowGroupPos pos = new TableRowGroupPos();
 			final InnerTableParams params = new InnerTableParams();
-			this.setupTableRowGroup(params, pos, style, Types.ROW_GROUP_TYPE_HEADER);
+			this.setupTableRowGroup(params, pos, style, RowGroupType.HEADER);
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
 			this.doc.startBox(rowGroup);
 			this.inTextBlock = false;
@@ -2089,7 +2107,7 @@ public class StyleBuilder implements PageGenerator {
 			// テーブル行グループ
 			final TableRowGroupPos pos = new TableRowGroupPos();
 			final InnerTableParams params = new InnerTableParams();
-			this.setupTableRowGroup(params, pos, style, Types.ROW_GROUP_TYPE_BODY);
+			this.setupTableRowGroup(params, pos, style, RowGroupType.BODY);
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
 			this.doc.startBox(rowGroup);
 			this.inTextBlock = false;
@@ -2100,7 +2118,7 @@ public class StyleBuilder implements PageGenerator {
 			// テーブルフッタグループ
 			TableRowGroupPos pos = new TableRowGroupPos();
 			InnerTableParams params = new InnerTableParams();
-			this.setupTableRowGroup(params, pos, style, Types.ROW_GROUP_TYPE_FOOTER);
+			this.setupTableRowGroup(params, pos, style, RowGroupType.FOOTER);
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
 			this.doc.startBox(rowGroup);
 			this.inTextBlock = false;
@@ -2295,54 +2313,54 @@ public class StyleBuilder implements PageGenerator {
 		}
 	}
 
-	private byte toPageBreak(byte pageBreak, CSSStyle style) {
+	private PageBreakMode toPageBreak(byte pageBreak, CSSStyle style) {
 		switch (pageBreak) {
 		case PageBreakValue.PAGE_BREAK_AUTO:
-			return Types.PAGE_BREAK_AUTO;
+			return PageBreakMode.AUTO;
 		case PageBreakValue.PAGE_BREAK_AVOID:
-			return Types.PAGE_BREAK_AVOID;
+			return PageBreakMode.AVOID;
 		case PageBreakValue.PAGE_BREAK_ALWAYS:
-			return Types.PAGE_BREAK_PAGE;
+			return PageBreakMode.PAGE;
 		case PageBreakValue.PAGE_BREAK_LEFT:
 			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
 					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
-				return Types.PAGE_BREAK_RECTO;
+				return PageBreakMode.RECTO;
 			}
-			return Types.PAGE_BREAK_VERSO;
+			return PageBreakMode.VERSO;
 		case PageBreakValue.PAGE_BREAK_RIGHT:
 			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
 					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
-				return Types.PAGE_BREAK_VERSO;
+				return PageBreakMode.VERSO;
 			}
-			return Types.PAGE_BREAK_RECTO;
+			return PageBreakMode.RECTO;
 		case PageBreakValue.PAGE_BREAK_IF_LEFT:
 			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
 					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
-				return Types.PAGE_BREAK_IF_RECTO;
+				return PageBreakMode.IF_RECTO;
 			}
-			return Types.PAGE_BREAK_IF_VERSO;
+			return PageBreakMode.IF_VERSO;
 		case PageBreakValue.PAGE_BREAK_IF_RIGHT:
 			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
 					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
-				return Types.PAGE_BREAK_IF_VERSO;
+				return PageBreakMode.IF_VERSO;
 			}
-			return Types.PAGE_BREAK_IF_RECTO;
+			return PageBreakMode.IF_RECTO;
 		case PageBreakValue.PAGE_BREAK_PAGE:
-			return Types.PAGE_BREAK_PAGE;
+			return PageBreakMode.PAGE;
 		case PageBreakValue.PAGE_BREAK_COLUMN:
-			return Types.PAGE_BREAK_COLUMN;
+			return PageBreakMode.COLUMN;
 		// case PageBreakValue.PAGE_BREAK_AVOID_PAGE:
 		// return Types.PAGE_BREAK_AVOID_PAGE;
 		// case PageBreakValue.PAGE_BREAK_AVOID_COLUMN:
 		// return Types.PAGE_BREAK_AVOID_COLUMN;
 		case PageBreakValue.PAGE_BREAK_VERSO:
-			return Types.PAGE_BREAK_VERSO;
+			return PageBreakMode.VERSO;
 		case PageBreakValue.PAGE_BREAK_RECTO:
-			return Types.PAGE_BREAK_RECTO;
+			return PageBreakMode.RECTO;
 		case PageBreakValue.PAGE_BREAK_IF_VERSO:
-			return Types.PAGE_BREAK_IF_VERSO;
+			return PageBreakMode.IF_VERSO;
 		case PageBreakValue.PAGE_BREAK_IF_RECTO:
-			return Types.PAGE_BREAK_IF_RECTO;
+			return PageBreakMode.IF_RECTO;
 		default:
 			throw new IllegalStateException();
 		}
@@ -2435,12 +2453,12 @@ public class StyleBuilder implements PageGenerator {
 					afterDeclaration.applyProperties(afterStyle);
 				}
 				if (br && Display.get(afterStyle) == DisplayValue.INLINE) {
-					byte pageBreakBefore = this.toPageBreak(PageBreakBefore.get(afterStyle), afterStyle);
-					byte pageBreakAfter = this.toPageBreak(PageBreakAfter.get(afterStyle), afterStyle);
-					if ((pageBreakBefore != PageBreakValue.PAGE_BREAK_AUTO
-							&& pageBreakBefore != PageBreakValue.PAGE_BREAK_AVOID)
-							|| (pageBreakAfter != PageBreakValue.PAGE_BREAK_AUTO
-									&& pageBreakAfter != PageBreakValue.PAGE_BREAK_AVOID)) {
+					PageBreakMode pageBreakBefore = this.toPageBreak(PageBreakBefore.get(afterStyle), afterStyle);
+					PageBreakMode pageBreakAfter = this.toPageBreak(PageBreakAfter.get(afterStyle), afterStyle);
+					if ((pageBreakBefore != PageBreakMode.AUTO
+							&& pageBreakBefore != PageBreakMode.AVOID)
+							|| (pageBreakAfter != PageBreakMode.AUTO
+									&& pageBreakAfter != PageBreakMode.AVOID)) {
 						afterStyle.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 					}
 				}
@@ -2535,14 +2553,14 @@ public class StyleBuilder implements PageGenerator {
 		this.firstLetter = false;
 	}
 
-	public byte getPageSide() {
+	public PageBreakMode getPageSide() {
 		if (this.pageElement.isPseudoClass(CSSElement.PC_EVEN)) {
-			return PageGenerator.VERSO;
+			return PageBreakMode.VERSO;
 		}
 		if (this.pageElement.isPseudoClass(CSSElement.PC_ODD)) {
-			return PageGenerator.RECTO;
+			return PageBreakMode.RECTO;
 		}
-		return PageGenerator.NONE;
+		return PageBreakMode.AUTO;
 	}
 
 	public PageBox nextPage() {
@@ -2634,7 +2652,7 @@ public class StyleBuilder implements PageGenerator {
 		} else {
 			params.size = Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 		}
-		params.overflow = Types.OVERFLOW_VISIBLE;
+		params.overflow = OverflowMode.VISIBLE;
 
 		// マージン
 		Value marginTop = Margin.get(pageStyle, Side.TOP);

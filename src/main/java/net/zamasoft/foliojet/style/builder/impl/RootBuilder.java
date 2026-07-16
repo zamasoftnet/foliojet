@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -9,7 +11,7 @@ import net.zamasoft.foliojet.style.box.content.BreakMode;
 import net.zamasoft.foliojet.style.box.content.BreakMode.ForceBreakMode;
 import net.zamasoft.foliojet.style.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.style.box.impl.PageBox;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.PageGenerator;
 
 /**
@@ -50,8 +52,8 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	protected boolean pageBreak(BreakMode mode, byte flags) {
 		assert this.textBuilder == null;
-		this.breakFloats = 0;
-		this.breakAfter = -1;
+		this.breakFloats.clear();
+		this.breakAfter = null;
 		this.canBreakBefore = false;
 		this.interflowBreak = false;
 		if (this.flowStack.isEmpty()) {
@@ -102,8 +104,8 @@ public class RootBuilder extends BreakableBuilder {
 		this.pageGenerator.drawPage(this.pageBox);
 		final PageBox pageBox = this.pageBox;
 		this.pageBox = this.pageGenerator.nextPage();
-		if (this.pageSide != Types.PAGE_BREAK_AUTO) {
-			this.pageSide = (this.pageSide == Types.PAGE_BREAK_VERSO) ? Types.PAGE_BREAK_RECTO : Types.PAGE_BREAK_VERSO;
+		if (this.pageSide != PageBreakMode.AUTO) {
+			this.pageSide = (this.pageSide == PageBreakMode.VERSO) ? PageBreakMode.RECTO : PageBreakMode.VERSO;
 		}
 
 		if (LOG.isLoggable(Level.FINE)) {
@@ -134,8 +136,8 @@ public class RootBuilder extends BreakableBuilder {
 		// 左右改ページ
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			ForceBreakMode force = (ForceBreakMode) mode;
-			if ((force.breakType == Types.PAGE_BREAK_VERSO || force.breakType == Types.PAGE_BREAK_RECTO)
-					&& (this.pageSide == Types.PAGE_BREAK_VERSO || this.pageSide == Types.PAGE_BREAK_RECTO)) {
+			if ((force.breakType == PageBreakMode.VERSO || force.breakType == PageBreakMode.RECTO)
+					&& (this.pageSide == PageBreakMode.VERSO || this.pageSide == PageBreakMode.RECTO)) {
 				if (force.breakType != this.pageSide) {
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("white page: " + force);

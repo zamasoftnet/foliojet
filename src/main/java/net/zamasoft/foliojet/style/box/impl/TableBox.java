@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -22,7 +24,7 @@ import net.zamasoft.foliojet.style.box.params.RectBorder;
 import net.zamasoft.foliojet.style.box.params.RectFrame;
 import net.zamasoft.foliojet.style.box.params.TableParams;
 import net.zamasoft.foliojet.style.box.params.TablePos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.draw.AbstractDrawable;
 import net.zamasoft.foliojet.style.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.style.draw.DebugDrawable;
@@ -644,15 +646,15 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				}
 				if (!ignoreBreakAvoid) {
 					TableRowGroupBox beforeGroup = (TableRowGroupBox) this.bodyGroups.get(i - 1);
-					boolean breakAvoid = beforeGroup.getTableRowGroupPos().pageBreakAfter == Types.PAGE_BREAK_AVOID
-							|| prevRowGroup.getTableRowGroupPos().pageBreakBefore == Types.PAGE_BREAK_AVOID;
+					boolean breakAvoid = beforeGroup.getTableRowGroupPos().pageBreakAfter == PageBreakMode.AVOID
+							|| prevRowGroup.getTableRowGroupPos().pageBreakBefore == PageBreakMode.AVOID;
 					if (!breakAvoid && beforeGroup.getTableRowCount() > 0) {
 						breakAvoid = beforeGroup.getTableRow(beforeGroup.getTableRowCount() - 1)
-								.getTableRowPos().pageBreakAfter == Types.PAGE_BREAK_AVOID;
+								.getTableRowPos().pageBreakAfter == PageBreakMode.AVOID;
 					}
 					if (!breakAvoid && prevRowGroup.getTableRowCount() > 0) {
 						breakAvoid = prevRowGroup.getTableRow(0)
-								.getTableRowPos().pageBreakBefore == Types.PAGE_BREAK_AVOID;
+								.getTableRowPos().pageBreakBefore == PageBreakMode.AVOID;
 					}
 					if (breakAvoid) {
 						// 行グループの改ページ禁止

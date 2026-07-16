@@ -1,11 +1,13 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import net.zamasoft.foliojet.style.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.style.box.IFlowBox;
 import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.ReplacedParams;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 
 /**
  * 画像ボックスの実装です。
@@ -30,10 +32,10 @@ public class FlowReplacedBox extends AbstractReplacedBox implements IFlowBox {
 	}
 
 	public final boolean avoidBreakAfter() {
-		return this.pos.pageBreakAfter == Types.PAGE_BREAK_AVOID;
+		return this.pos.pageBreakAfter == PageBreakMode.AVOID;
 	}
 
 	public final boolean avoidBreakBefore() {
-		return this.pos.pageBreakBefore == Types.PAGE_BREAK_AVOID;
+		return this.pos.pageBreakBefore == PageBreakMode.AVOID;
 	}
 }

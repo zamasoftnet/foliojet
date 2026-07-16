@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
+import net.zamasoft.foliojet.style.box.params.OverflowMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -18,7 +20,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class Overflow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Overflow();
 
-	public static byte get(CSSStyle style) {
+	public static OverflowMode get(CSSStyle style) {
 		OverflowValue value = (OverflowValue) style.get(INFO);
 		return value.getOverflow();
 	}

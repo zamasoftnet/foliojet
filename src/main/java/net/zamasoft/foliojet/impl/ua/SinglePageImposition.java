@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.ua;
 
+import net.zamasoft.foliojet.style.box.params.Align;
+
 import net.zamasoft.foliojet.ua.props.OutputAutoRotate;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;

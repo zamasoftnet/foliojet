@@ -1,5 +1,11 @@
 package net.zamasoft.foliojet.style.box.impl;
 
+import net.zamasoft.foliojet.style.box.params.CellAlign;
+
+import net.zamasoft.foliojet.style.box.params.EmptyCellsMode;
+
+import net.zamasoft.foliojet.style.box.params.OverflowMode;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
@@ -20,7 +26,7 @@ import net.zamasoft.foliojet.style.box.params.RectBorder;
 import net.zamasoft.foliojet.style.box.params.RectFrame;
 import net.zamasoft.foliojet.style.box.params.TableCellPos;
 import net.zamasoft.foliojet.style.box.params.TableParams;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.style.draw.DebugDrawable;
 import net.zamasoft.foliojet.style.draw.Drawable;
@@ -108,8 +114,8 @@ public class TableCellBox extends AbstractContainerBox {
 
 	public final void verticalAlign() {
 		switch (this.pos.verticalAlign) {
-		case Types.VERTICAL_ALIGN_START:
-		case Types.VERTICAL_ALIGN_BASELINE:
+		case CellAlign.START:
+		case CellAlign.BASELINE:
 			// 上寄せ・ベースライン
 			return;
 		}
@@ -121,11 +127,11 @@ public class TableCellBox extends AbstractContainerBox {
 		}
 		double diff = Math.max(0, pageSize - this.pageSize);
 		switch (this.pos.verticalAlign) {
-		case Types.VERTICAL_ALIGN_END:
+		case CellAlign.END:
 			// 下寄せ
 			this.verticalAlign = diff;
 			break;
-		case Types.VERTICAL_ALIGN_MIDDLE:
+		case CellAlign.MIDDLE:
 			// 中央寄せ
 			this.verticalAlign = diff / 2.0;
 			break;
@@ -199,7 +205,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 	public final void baseline(double rowAscent) {
 		// System.err.println("baseline: " + rowAscent);
-		if (this.pos.verticalAlign != Types.VERTICAL_ALIGN_BASELINE) {
+		if (this.pos.verticalAlign != CellAlign.BASELINE) {
 			return;
 		}
 		double firstAscent = this.getFirstAscent();
@@ -260,7 +266,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 		transform = this.transform(transform, x, y);
 
-		if (this.params.overflow == Types.OVERFLOW_HIDDEN) {
+		if (this.params.overflow == OverflowMode.HIDDEN) {
 			// クリッピング
 			clip = this.clip(clip, x, y);
 		}
@@ -333,7 +339,7 @@ public class TableCellBox extends AbstractContainerBox {
 		if (!this.frame.isVisible()) {
 			return false;
 		}
-		if (this.pos.emptyCells == Types.EMPTY_CELLS_SHOW) {
+		if (this.pos.emptyCells == EmptyCellsMode.SHOW) {
 			return true;
 		}
 		if (this.collapse) {

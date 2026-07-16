@@ -11,9 +11,9 @@ public class TableCellPos extends AbstractBlockLevelPos {
 
 	public int rowspan = 1;
 
-	public byte emptyCells = Types.EMPTY_CELLS_HIDE;
+	public EmptyCellsMode emptyCells = EmptyCellsMode.HIDE;
 
-	public byte verticalAlign = Types.VERTICAL_ALIGN_BASELINE;
+	public CellAlign verticalAlign = CellAlign.BASELINE;
 
 	public PosType getType() {
 		return PosType.TABLE_CELL;

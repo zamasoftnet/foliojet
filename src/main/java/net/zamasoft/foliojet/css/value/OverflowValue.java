@@ -1,41 +1,42 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.Types;
+import net.zamasoft.foliojet.style.box.params.OverflowMode;
+
 
 /**
  * @author MIYABE Tatsuhiko
  */
 public enum OverflowValue implements Value {
-	VISIBLE_VALUE(Types.OVERFLOW_VISIBLE),
+	VISIBLE_VALUE(OverflowMode.VISIBLE),
 
-	HIDDEN_VALUE(Types.OVERFLOW_HIDDEN),
+	HIDDEN_VALUE(OverflowMode.HIDDEN),
 
-	AUTO_VALUE(Types.OVERFLOW_SCROLL),
+	AUTO_VALUE(OverflowMode.SCROLL),
 
-	SCROLL_VALUE(Types.OVERFLOW_AUTO);
+	SCROLL_VALUE(OverflowMode.AUTO);
 
-	private final byte overflow;
+	private final OverflowMode overflow;
 
-	private OverflowValue(byte overflow) {
+	private OverflowValue(OverflowMode overflow) {
 		this.overflow = overflow;
 	}
 
-	public byte getOverflow() {
+	public OverflowMode getOverflow() {
 		return this.overflow;
 	}
 
 	public String toString() {
 		switch (this.overflow) {
-		case Types.OVERFLOW_VISIBLE:
+		case OverflowMode.VISIBLE:
 			return "visible";
 
-		case Types.OVERFLOW_HIDDEN:
+		case OverflowMode.HIDDEN:
 			return "hidden";
 
-		case Types.OVERFLOW_SCROLL:
+		case OverflowMode.SCROLL:
 			return "scroll";
 
-		case Types.OVERFLOW_AUTO:
+		case OverflowMode.AUTO:
 			return "auto";
 
 		default:

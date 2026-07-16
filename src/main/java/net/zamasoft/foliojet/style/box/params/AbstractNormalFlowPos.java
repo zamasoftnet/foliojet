@@ -10,7 +10,7 @@ public abstract class AbstractNormalFlowPos extends AbstractBlockLevelPos {
 	/**
 	 * ボックスのクリア方法です。
 	 */
-	public byte clear = Types.CLEAR_NONE;
+	public ClearMode clear = ClearMode.NONE;
 
 	public String toString() {
 		return super.toString() + "[clear=" + this.clear + "]";

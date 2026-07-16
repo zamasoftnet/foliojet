@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.internal;
 
+import net.zamasoft.foliojet.style.box.params.Align;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -20,7 +22,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class CSSJHtmlAlign extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJHtmlAlign();
 
-	public static byte get(CSSStyle style) {
+	public static Align get(CSSStyle style) {
 		CSSJHtmlAlignValue value = (CSSJHtmlAlignValue) style.get(INFO);
 		return value.getHtmlAlign();
 	}

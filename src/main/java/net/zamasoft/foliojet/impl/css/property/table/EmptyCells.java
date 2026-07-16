@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.table;
 
+import net.zamasoft.foliojet.style.box.params.EmptyCellsMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -19,7 +21,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class EmptyCells extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new EmptyCells();
 
-	public static byte get(CSSStyle style) {
+	public static EmptyCellsMode get(CSSStyle style) {
 		EmptyCellsValue value = (EmptyCellsValue) style.get(INFO);
 		return value.getEmptyCells();
 	}

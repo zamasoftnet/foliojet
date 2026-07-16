@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.impl.css.property.box;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -18,7 +20,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 public class BoxSizing extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BoxSizing();
 
-	public static byte get(CSSStyle style) {
+	public static BoxSizingMode get(CSSStyle style) {
 		return ((BoxSizingValue) style.get(INFO)).getBoxSizing();
 	}
 

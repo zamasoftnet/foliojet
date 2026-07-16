@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.box;
 
+import net.zamasoft.foliojet.style.box.params.BoxSizingMode;
+
 import net.zamasoft.foliojet.style.box.content.Container;
 import net.zamasoft.foliojet.style.box.params.LengthType;
 import net.zamasoft.foliojet.style.box.params.PosType;
@@ -7,7 +9,7 @@ import net.zamasoft.foliojet.style.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.Dimension;
 import net.zamasoft.foliojet.style.box.params.Pos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.LayoutStack;
 import net.zamasoft.foliojet.style.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.style.part.AbsoluteRectFrame;
@@ -97,7 +99,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			if (StyleUtils.isNone(this.height)) {
 				this.height = maxLineAxis;
 			} else {
-				if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 					this.height -= this.frame.getBorderHeight();
 				}
 			}
@@ -160,7 +162,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					this.width = this.size.getWidth() * cWidth;
 					this.width = Math.max(this.width, minWidth);
 					this.width = Math.min(this.width, maxWidth);
-					if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 						this.width -= this.getFrame().getBorderWidth();
 					}
 					minWidth = maxWidth = this.width;
@@ -175,7 +177,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				this.width = this.size.getWidth();
 				this.width = Math.max(this.width, minWidth);
 				this.width = Math.min(this.width, maxWidth);
-				if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 					this.width -= this.getFrame().getBorderWidth();
 				}
 				minWidth = maxWidth = this.width;
@@ -197,7 +199,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			if (StyleUtils.isNone(this.width)) {
 				this.width = maxLineAxis;
 			} else {
-				if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 					this.width -= this.frame.getBorderWidth();
 				}
 			}
@@ -260,7 +262,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					this.height = this.size.getHeight() * cHeight;
 					this.height = Math.max(this.height, minHeight);
 					this.height = Math.min(this.height, maxHeight);
-					if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 						this.height -= this.getFrame().getBorderHeight();
 					}
 					minHeight = this.height;
@@ -274,7 +276,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				this.height = this.size.getHeight();
 				this.height = Math.max(this.height, minHeight);
 				this.height = Math.min(this.height, maxHeight);
-				if (this.params.boxSizing == Types.BOX_SIZING_BORDER_BOX) {
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 					this.height -= this.getFrame().getBorderHeight();
 				}
 				minHeight = this.height;

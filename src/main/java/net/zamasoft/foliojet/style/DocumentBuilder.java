@@ -1,5 +1,11 @@
 package net.zamasoft.foliojet.style;
 
+import net.zamasoft.foliojet.style.box.params.Fiducial;
+
+import net.zamasoft.foliojet.style.box.params.AutoPosition;
+
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
@@ -33,7 +39,7 @@ import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Params;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.TableParams;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.Builder;
 import net.zamasoft.foliojet.style.builder.PageGenerator;
 import net.zamasoft.foliojet.style.builder.TableBuilder;
@@ -405,7 +411,7 @@ public class DocumentBuilder {
 			final Builder builder = this.contextBuilder().builder;
 			if (box.getPos().getType() == PosType.ABSOLUTE) {
 				final AbsolutePos pos = (AbsolutePos) stfBox.getPos();
-				if (pos.autoPosition == Types.AUTO_POSITION_INLINE) {
+				if (pos.autoPosition == AutoPosition.INLINE) {
 					this.containerBuilder().getStyledTextUnitizer().flushText();
 					this.containerBuilder().getStyledTextUnitizer().requireGlypher();
 				}
@@ -461,7 +467,7 @@ public class DocumentBuilder {
 				break;
 			case ABSOLUTE:
 				final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) tableBox.getBlockBox();
-				if (absoluteBox.getAbsolutePos().autoPosition == Types.AUTO_POSITION_INLINE) {
+				if (absoluteBox.getAbsolutePos().autoPosition == AutoPosition.INLINE) {
 					this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
 				}
 				break;
@@ -566,10 +572,10 @@ public class DocumentBuilder {
 					floatBuilder.close();
 				}
 				final FloatPos pos = (FloatPos) box.getPos();
-				final boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != Types.PAGE_BREAK_AUTO
-						&& pos.pageBreakBefore != Types.PAGE_BREAK_AVOID)
-						|| (pos.pageBreakAfter != Types.PAGE_BREAK_AUTO
-								&& pos.pageBreakAfter != Types.PAGE_BREAK_AVOID)));
+				final boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != PageBreakMode.AUTO
+						&& pos.pageBreakBefore != PageBreakMode.AVOID)
+						|| (pos.pageBreakAfter != PageBreakMode.AUTO
+								&& pos.pageBreakAfter != PageBreakMode.AVOID)));
 				if (pageBreak) {
 					this.closeInlines(box.getParams());
 					this.endContainer();
@@ -599,7 +605,7 @@ public class DocumentBuilder {
 				if (entry.builder.isTwoPass()) {
 					// ビルド
 					TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					if (absoluteBox.getAbsolutePos().fiducial != Types.FODUCIAL_CONTEXT) {
+					if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 						// position: fixed; の場合、ここで構築
 						IFramedBox containerBox = this.pageContextBuilder().getRootBox();
 						absoluteBox.shrinkToFit(containerBox, contentBuilder.getMinLineSize(),
@@ -613,10 +619,10 @@ public class DocumentBuilder {
 					}
 				}
 				switch (absoluteBox.getAbsolutePos().autoPosition) {
-				case Types.AUTO_POSITION_BLOCK:
+				case AutoPosition.BLOCK:
 					boundBuilder.addBound(absoluteBox);
 					break;
-				case Types.AUTO_POSITION_INLINE:
+				case AutoPosition.INLINE:
 					this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
 					break;
 				default:
@@ -661,9 +667,9 @@ public class DocumentBuilder {
 			// 浮動体
 			final Builder context = this.containerBuilder().builder;
 			final FloatPos pos = (FloatPos) replacedBox.getPos();
-			boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != Types.PAGE_BREAK_AUTO
-					&& pos.pageBreakBefore != Types.PAGE_BREAK_AVOID)
-					|| (pos.pageBreakAfter != Types.PAGE_BREAK_AUTO && pos.pageBreakAfter != Types.PAGE_BREAK_AVOID)));
+			boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != PageBreakMode.AUTO
+					&& pos.pageBreakBefore != PageBreakMode.AVOID)
+					|| (pos.pageBreakAfter != PageBreakMode.AUTO && pos.pageBreakAfter != PageBreakMode.AVOID)));
 			if (pageBreak) {
 				this.closeInlines(replacedBox.getParams());
 				this.endContainer();
@@ -682,10 +688,10 @@ public class DocumentBuilder {
 			final Builder context = this.containerBuilder().builder;
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) replacedBox;
 			switch (absoluteBox.getAbsolutePos().autoPosition) {
-			case Types.AUTO_POSITION_BLOCK:
+			case AutoPosition.BLOCK:
 				context.addBound(replacedBox);
 				break;
-			case Types.AUTO_POSITION_INLINE:
+			case AutoPosition.INLINE:
 				this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
 				break;
 			default:

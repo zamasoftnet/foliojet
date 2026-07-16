@@ -1,5 +1,11 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.FloatSide;
+
+import net.zamasoft.foliojet.style.box.params.PageBreakMode;
+
+import net.zamasoft.foliojet.style.box.params.ClearMode;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,7 +32,7 @@ import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Pos;
 import net.zamasoft.foliojet.style.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.style.box.params.TableRowPos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.LayoutStack;
 import net.zamasoft.foliojet.style.util.StyleUtils;
 
@@ -48,7 +54,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected byte mode;
 
-	protected byte pageSide;
+	protected PageBreakMode pageSide;
 
 	protected int breakDepth = -1;
 
@@ -60,7 +66,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	/**
 	 * 次のポイントでpage-break-afterによる改ページを適用するフラグです。
 	 */
-	protected byte breakAfter = -1;
+	protected PageBreakMode breakAfter = null;
 
 	/**
 	 * 直前での強制改ページを許可するフラグです。
@@ -77,7 +83,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected boolean restyling = false;
 
-	protected byte breakFloats = 0;
+	protected final java.util.EnumSet<FloatSide> breakFloats = java.util.EnumSet.noneOf(FloatSide.class);
 
 	protected TableBox lastTableBox;
 
@@ -110,7 +116,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.getTableFooter() != null) {
 			last += tableBox.getTableFooter().getPageSize();
 		}
-		byte breakMode = 0;
+		PageBreakMode breakMode = null;
 		AbstractInnerTableBox box = null;
 		int rowGroup = 0, row = -1;
 		LOOP: for (; rowGroup < tableBox.getTableBodyCount(); ++rowGroup) {
@@ -118,7 +124,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (rowGroup > 0) {
 				TableRowGroupPos pos = rowGroupBox.getTableRowGroupPos();
 				breakMode = pos.pageBreakBefore;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					// 行グループの直前の改ページ
 					--rowGroup;
 					box = tableBox.getTableBody(rowGroup);
@@ -135,7 +141,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				TableRowPos pos = rowBox.getTableRowPos();
 				if (rowGroup > 0 || row > 0) {
 					breakMode = pos.pageBreakBefore;
-					if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+					if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 						// 行の直前の改ページ
 						--row;
 						if (row >= 0) {
@@ -152,7 +158,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				breakMode = pos.pageBreakAfter;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					// 行の直後の改ページ
 					if (row < rowGroupBox.getTableRowCount() - 1) {
 						box = rowBox;
@@ -166,7 +172,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (rowGroup < tableBox.getTableBodyCount() - 1) {
 				TableRowGroupPos pos = rowGroupBox.getTableRowGroupPos();
 				breakMode = pos.pageBreakAfter;
-				if (breakMode == Types.PAGE_BREAK_PAGE || breakMode == Types.PAGE_BREAK_COLUMN) {
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					// 行グループの直後に改ページ
 					box = rowGroupBox;
 					row = -1;
@@ -204,37 +210,37 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 			// 直前での強制改ページチェック
 			if (this.mode == MODE_PAGE_BREAK) {
-				if (this.breakAfter != -1 && canBreakAfter) {
+				if (this.breakAfter != null && canBreakAfter) {
 					// 前のpage-break-afterによる改ページ
 					this.forceBreak(this.breakAfter);
 				}
 				switch (pos.pageBreakBefore) {
-				case Types.PAGE_BREAK_PAGE:
-				case Types.PAGE_BREAK_COLUMN:
+				case PageBreakMode.PAGE:
+				case PageBreakMode.COLUMN:
 					if (this.canBreakBefore) {
 						this.forceBreak(pos.pageBreakBefore);
 					}
 					break;
-				case Types.PAGE_BREAK_VERSO:
-				case Types.PAGE_BREAK_RECTO:
+				case PageBreakMode.VERSO:
+				case PageBreakMode.RECTO:
 					if (!this.restyling && (this.canBreakBefore || pos.pageBreakBefore != this.pageSide)) {
 						this.forceBreak(pos.pageBreakBefore);
 					}
 					break;
-				case Types.PAGE_BREAK_IF_VERSO:
-					if (!this.restyling && this.pageSide == Types.PAGE_BREAK_VERSO) {
-						this.forceBreak(Types.PAGE_BREAK_RECTO);
+				case PageBreakMode.IF_VERSO:
+					if (!this.restyling && this.pageSide == PageBreakMode.VERSO) {
+						this.forceBreak(PageBreakMode.RECTO);
 					}
 					break;
-				case Types.PAGE_BREAK_IF_RECTO:
-					if (!this.restyling && this.pageSide == Types.PAGE_BREAK_RECTO) {
-						this.forceBreak(Types.PAGE_BREAK_VERSO);
+				case PageBreakMode.IF_RECTO:
+					if (!this.restyling && this.pageSide == PageBreakMode.RECTO) {
+						this.forceBreak(PageBreakMode.VERSO);
 					}
 					break;
-				case Types.PAGE_BREAK_AVOID:
+				case PageBreakMode.AVOID:
 					this.interflowBreak = false;
 					break;
-				case Types.PAGE_BREAK_AUTO:
+				case PageBreakMode.AUTO:
 					break;
 				default:
 					throw new IllegalStateException();
@@ -261,23 +267,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		assert this.textBuilder == null;
 		boolean breakFloats = false;
 		switch (pos.clear) {
-		case Types.CLEAR_NONE:
+		case ClearMode.NONE:
 			return false;
 
-		case Types.CLEAR_START:
-			if ((this.breakFloats & Types.FLOATING_START) != 0) {
+		case ClearMode.START:
+			if (this.breakFloats.contains(FloatSide.START)) {
 				breakFloats = true;
 			}
 			break;
 
-		case Types.CLEAR_END:
-			if ((this.breakFloats & Types.FLOATING_END) != 0) {
+		case ClearMode.END:
+			if (this.breakFloats.contains(FloatSide.END)) {
 				breakFloats = true;
 			}
 			break;
 
-		case Types.CLEAR_BOTH:
-			if (this.breakFloats != 0) {
+		case ClearMode.BOTH:
+			if (!this.breakFloats.isEmpty()) {
 				breakFloats = true;
 			}
 			break;
@@ -312,7 +318,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return;
 		}
 
-		byte pageBreakBefore, pageBreakAfter;
+		PageBreakMode pageBreakBefore, pageBreakAfter;
 		switch (box.getPos().getType()) {
 		case FLOW: {
 			// 通常のフロー
@@ -338,7 +344,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return;
 		}
 		case TABLE: {
-			pageBreakAfter = pageBreakBefore = Types.PAGE_BREAK_AUTO;
+			pageBreakAfter = pageBreakBefore = PageBreakMode.AUTO;
 			break;
 		}
 		default:
@@ -347,35 +353,35 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		// 直前での強制改ページチェック
 		if (this.mode == MODE_PAGE_BREAK) {
-			if (this.breakAfter != -1) {
+			if (this.breakAfter != null) {
 				// 前のpage-break-afterによる改ページ
 				this.forceBreak(this.breakAfter);
 			}
 			switch (pageBreakBefore) {
-			case Types.PAGE_BREAK_PAGE:
-			case Types.PAGE_BREAK_COLUMN:
+			case PageBreakMode.PAGE:
+			case PageBreakMode.COLUMN:
 				if (this.canBreakBefore) {
 					this.forceBreak(pageBreakBefore);
 				}
 				break;
-			case Types.PAGE_BREAK_VERSO:
-			case Types.PAGE_BREAK_RECTO:
+			case PageBreakMode.VERSO:
+			case PageBreakMode.RECTO:
 				if (!this.restyling && (this.canBreakBefore || pageBreakBefore != this.pageSide)) {
 					this.forceBreak(pageBreakBefore);
 				}
 				break;
-			case Types.PAGE_BREAK_IF_VERSO:
-				if (!this.restyling && this.pageSide == Types.PAGE_BREAK_VERSO) {
-					this.forceBreak(Types.PAGE_BREAK_RECTO);
+			case PageBreakMode.IF_VERSO:
+				if (!this.restyling && this.pageSide == PageBreakMode.VERSO) {
+					this.forceBreak(PageBreakMode.RECTO);
 				}
 				break;
-			case Types.PAGE_BREAK_IF_RECTO:
-				if (!this.restyling && this.pageSide == Types.PAGE_BREAK_RECTO) {
-					this.forceBreak(Types.PAGE_BREAK_VERSO);
+			case PageBreakMode.IF_RECTO:
+				if (!this.restyling && this.pageSide == PageBreakMode.RECTO) {
+					this.forceBreak(PageBreakMode.VERSO);
 				}
 				break;
-			case Types.PAGE_BREAK_AUTO:
-			case Types.PAGE_BREAK_AVOID:
+			case PageBreakMode.AUTO:
+			case PageBreakMode.AVOID:
 				break;
 			default:
 				throw new IllegalStateException(String.valueOf(pageBreakBefore));
@@ -460,22 +466,22 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// 直後での強制改ページチェック
 		if (this.mode == MODE_PAGE_BREAK) {
 			switch (pageBreakAfter) {
-			case Types.PAGE_BREAK_PAGE:
-			case Types.PAGE_BREAK_COLUMN:
+			case PageBreakMode.PAGE:
+			case PageBreakMode.COLUMN:
 				this.breakAfter = pageBreakAfter;
 				break;
-			case Types.PAGE_BREAK_VERSO:
-			case Types.PAGE_BREAK_RECTO:
+			case PageBreakMode.VERSO:
+			case PageBreakMode.RECTO:
 				if (pageBreakAfter != this.pageSide) {
 					this.forceBreak(pageBreakAfter);
 					break;
 				}
 				this.breakAfter = pageBreakAfter;
 				break;
-			case Types.PAGE_BREAK_AVOID:
+			case PageBreakMode.AVOID:
 				this.interflowBreak = false;
 				break;
-			case Types.PAGE_BREAK_AUTO:
+			case PageBreakMode.AUTO:
 				break;
 			default:
 				throw new IllegalStateException();
@@ -484,7 +490,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	protected final void requireTextBlock() {
-		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1 && this.breakAfter != -1) {
+		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1 && this.breakAfter != null) {
 			// 直前での強制改ページチェック
 			// 前のpage-break-afterによる改ページ
 			this.forceBreak(this.breakAfter);
@@ -605,12 +611,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			// 末尾の境界直前での強制改ページチェック
-			if (this.breakAfter != -1 && canBreakAfter) {
+			if (this.breakAfter != null && canBreakAfter) {
 				this.forceBreak(this.breakAfter);
 			}
 			// ルートボックス内の浮動ボックスを切断
 			if (this.flowStack.size() == 1) {
-				while (this.breakFloats != 0) {
+				while (!this.breakFloats.isEmpty()) {
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [floats]");
 					}
@@ -639,7 +645,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
 
 			final FlowPos pos = (FlowPos) flowBox.getPos();
-			if (pos.pageBreakAfter == Types.PAGE_BREAK_AVOID) {
+			if (pos.pageBreakAfter == PageBreakMode.AVOID) {
 				this.interflowBreak = false;
 			}
 			// System.out.println(this.pageAxis+"/"+ pageLimit);
@@ -659,24 +665,24 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// 直後での強制改ページチェック
 			if (this.mode == MODE_PAGE_BREAK) {
 				switch (pos.pageBreakAfter) {
-				case Types.PAGE_BREAK_IF_VERSO:
-					if (this.pageSide == Types.PAGE_BREAK_VERSO) {
-						this.forceBreak(Types.PAGE_BREAK_RECTO);
+				case PageBreakMode.IF_VERSO:
+					if (this.pageSide == PageBreakMode.VERSO) {
+						this.forceBreak(PageBreakMode.RECTO);
 					}
 					break;
-				case Types.PAGE_BREAK_IF_RECTO:
-					if (this.pageSide == Types.PAGE_BREAK_RECTO) {
-						this.forceBreak(Types.PAGE_BREAK_VERSO);
+				case PageBreakMode.IF_RECTO:
+					if (this.pageSide == PageBreakMode.RECTO) {
+						this.forceBreak(PageBreakMode.VERSO);
 					}
 					break;
-				case Types.PAGE_BREAK_VERSO:
-				case Types.PAGE_BREAK_RECTO:
+				case PageBreakMode.VERSO:
+				case PageBreakMode.RECTO:
 					if (pos.pageBreakAfter != this.pageSide) {
 						this.forceBreak(pos.pageBreakAfter);
 						break;
 					}
-				case Types.PAGE_BREAK_PAGE:
-				case Types.PAGE_BREAK_COLUMN:
+				case PageBreakMode.PAGE:
+				case PageBreakMode.COLUMN:
 					this.breakAfter = pos.pageBreakAfter;
 					break;
 				}
@@ -688,23 +694,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// clearによる先送りチェック
 		boolean breakFloats = false;
 		switch (box.getFloatPos().clear) {
-		case Types.CLEAR_NONE:
+		case ClearMode.NONE:
 			break;
 
-		case Types.CLEAR_START:
-			if ((this.breakFloats & Types.FLOATING_START) != 0) {
+		case ClearMode.START:
+			if (this.breakFloats.contains(FloatSide.START)) {
 				breakFloats = true;
 			}
 			break;
 
-		case Types.CLEAR_END:
-			if ((this.breakFloats & Types.FLOATING_END) != 0) {
+		case ClearMode.END:
+			if (this.breakFloats.contains(FloatSide.END)) {
 				breakFloats = true;
 			}
 			break;
 
-		case Types.CLEAR_BOTH:
-			if (this.breakFloats != 0) {
+		case ClearMode.BOTH:
+			if (!this.breakFloats.isEmpty()) {
 				breakFloats = true;
 			}
 			break;
@@ -714,7 +720,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (breakFloats) {
 			boolean vertical = this.getRootBox().getBlockParams().flow.isVertical();
-			this.breakFloats |= box.getFloatPos().floating;
+			this.breakFloats.add(box.getFloatPos().floating);
 			double pageStart = this.getPageLimit();
 			Flow flow = this.getFlow();
 			flow.box.addFloating(box, 0, pageStart - flow.pageAxis);
@@ -744,23 +750,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// clearによる先送りチェック
 		boolean breakFloats = false;
 		switch (box.getFloatPos().clear) {
-		case Types.CLEAR_NONE:
+		case ClearMode.NONE:
 			break;
 
-		case Types.CLEAR_START:
-			if ((this.breakFloats & Types.FLOATING_START) != 0) {
+		case ClearMode.START:
+			if (this.breakFloats.contains(FloatSide.START)) {
 				breakFloats = true;
 			}
 			break;
 
-		case Types.CLEAR_END:
-			if ((this.breakFloats & Types.FLOATING_END) != 0) {
+		case ClearMode.END:
+			if (this.breakFloats.contains(FloatSide.END)) {
 				breakFloats = true;
 			}
 			break;
 
-		case Types.CLEAR_BOTH:
-			if (this.breakFloats != 0) {
+		case ClearMode.BOTH:
+			if (!this.breakFloats.isEmpty()) {
 				breakFloats = true;
 			}
 			break;
@@ -770,7 +776,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (breakFloats) {
 			boolean vertical = this.getRootBox().getBlockParams().flow.isVertical();
-			this.breakFloats |= box.getFloatPos().floating;
+			this.breakFloats.add(box.getFloatPos().floating);
 			double pageStart = this.getPageLimit();
 			Flow flow = this.getFlow();
 			flow.box.addFloating(box, 0, pageStart - flow.pageAxis);
@@ -822,9 +828,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		boolean transfer;
 		switch (box.getType()) {
 		case BLOCK:
-			this.breakFloats |= box.getFloatPos().floating;
+			this.breakFloats.add(box.getFloatPos().floating);
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
-			if (containerBox.getBlockParams().pageBreakInside == Types.PAGE_BREAK_AVOID) {
+			if (containerBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
 				if (StyleUtils.compare(pageStart, 0) <= 0) {
 					// ページ先頭の場合切断
 					transfer = false;
@@ -854,7 +860,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (LOG.isLoggable(Level.FINE)) {
 				LOG.fine("transfer float replaced: " + box.getParams().element);
 			}
-			this.breakFloats |= box.getFloatPos().floating;
+			this.breakFloats.add(box.getFloatPos().floating);
 			// 丸ごと移動
 			transfer = true;
 			break;
@@ -880,7 +886,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		return pageLimit;
 	}
 
-	public void forceBreak(byte breakType) {
+	public void forceBreak(PageBreakMode breakType) {
 		this.forceBreak(new ForceBreakMode(this.getFlowBox(), breakType));
 	}
 
@@ -890,7 +896,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * @param breakMode
 	 */
 	public void forceBreak(ForceBreakMode breakMode) {
-		if (breakMode.breakType == Types.PAGE_BREAK_COLUMN) {
+		if (breakMode.breakType == PageBreakMode.COLUMN) {
 			// 改カラム可能なブロックを検索
 			Flow columnBreak = null;
 			int depth = 0;
@@ -994,8 +1000,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	protected boolean columnBreak(final Flow breakFlow, final BreakMode mode, byte flags, final double lastFrame,
 			int depth) {
 		assert this.textBuilder == null;
-		this.breakFloats = 0;
-		this.breakAfter = -1;
+		this.breakFloats.clear();
+		this.breakAfter = null;
 		this.canBreakBefore = false;
 		this.interflowBreak = false;
 

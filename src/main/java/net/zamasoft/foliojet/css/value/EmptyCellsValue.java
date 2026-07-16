@@ -1,31 +1,32 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.style.box.params.Types;
+import net.zamasoft.foliojet.style.box.params.EmptyCellsMode;
+
 
 /**
  * @author MIYABE Tatsuhiko
  */
 public enum EmptyCellsValue implements Value {
-	SHOW_VALUE(Types.EMPTY_CELLS_SHOW),
+	SHOW_VALUE(EmptyCellsMode.SHOW),
 
-	HIDE_VALUE(Types.EMPTY_CELLS_HIDE);
+	HIDE_VALUE(EmptyCellsMode.HIDE);
 
-	private final byte emptyCells;
+	private final EmptyCellsMode emptyCells;
 
-	private EmptyCellsValue(byte emptyCells) {
+	private EmptyCellsValue(EmptyCellsMode emptyCells) {
 		this.emptyCells = emptyCells;
 	}
 
-	public byte getEmptyCells() {
+	public EmptyCellsMode getEmptyCells() {
 		return this.emptyCells;
 	}
 
 	public String toString() {
 		switch (this.emptyCells) {
-		case Types.EMPTY_CELLS_SHOW:
+		case EmptyCellsMode.SHOW:
 			return "show";
 
-		case Types.EMPTY_CELLS_HIDE:
+		case EmptyCellsMode.HIDE:
 			return "hide";
 
 		default:

@@ -1,5 +1,17 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.Fiducial;
+
+import net.zamasoft.foliojet.style.box.params.AutoPosition;
+
+import net.zamasoft.foliojet.style.box.params.Align;
+
+import net.zamasoft.foliojet.style.box.params.FloatSide;
+
+import net.zamasoft.foliojet.style.box.params.OverflowMode;
+
+import net.zamasoft.foliojet.style.box.params.ClearMode;
+
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.util.ArrayList;
@@ -31,7 +43,7 @@ import net.zamasoft.foliojet.style.box.params.FloatPos;
 import net.zamasoft.foliojet.style.box.params.FlowPos;
 import net.zamasoft.foliojet.style.box.params.Insets;
 import net.zamasoft.foliojet.style.box.params.Pos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.Builder;
 import net.zamasoft.foliojet.style.builder.InlineQuad;
 import net.zamasoft.foliojet.style.builder.InlineQuad.InlineAbsoluteQuad;
@@ -380,10 +392,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 				FloatPos floatingPos = floating.box.getFloatPos();
 				switch (floatingPos.floating) {
-				case Types.FLOATING_START:
+				case FloatSide.START:
 					lineStart = Math.max(lineStart, floating.lineEnd);
 					break;
-				case Types.FLOATING_END:
+				case FloatSide.END:
 					lineEnd = Math.min(lineEnd, floating.lineStart);
 					break;
 				}
@@ -394,7 +406,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();
 
-		if (flowBox.getBlockParams().overflow == Types.OVERFLOW_HIDDEN) {
+		if (flowBox.getBlockParams().overflow == OverflowMode.HIDDEN) {
 			// hidden指定されたボックス内のfloatは外に影響しない
 			if (this.noOverflowFloatings == null) {
 				this.noOverflowFloatings = new ArrayList<List<Floating>>();
@@ -405,7 +417,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final BlockParams cParams = this.getFlowBox().getBlockParams();
 		final AbsoluteRectFrame frame = flowBox.getFrame();
 
-		if (pos.clear != Types.CLEAR_NONE && this.getFloatingCount() > 0) {
+		if (pos.clear != ClearMode.NONE && this.getFloatingCount() > 0) {
 			// clearが指定されている場合
 			LayoutContext.Floating floating = null;
 			double pageEnd = 0, marginStart;
@@ -424,21 +436,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 				FloatPos floatingPos = floating.box.getFloatPos();
 				switch (pos.clear) {
-				case Types.CLEAR_START:
+				case ClearMode.START:
 					// 左クリア
-					if (floatingPos.floating == Types.FLOATING_START) {
+					if (floatingPos.floating == FloatSide.START) {
 						break FOR;
 					}
 					break;
 
-				case Types.CLEAR_END:
+				case ClearMode.END:
 					// 右クリア
-					if (floatingPos.floating == Types.FLOATING_END) {
+					if (floatingPos.floating == FloatSide.END) {
 						break FOR;
 					}
 					break;
 
-				case Types.CLEAR_BOTH:
+				case ClearMode.BOTH:
 					// 両クリア
 					break FOR;
 
@@ -517,7 +529,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.pageAxis = flow.pageAxis;
 			flowBox.balance(this);
 		}
-		if (flowBox.getBlockParams().overflow == Types.OVERFLOW_HIDDEN) {
+		if (flowBox.getBlockParams().overflow == OverflowMode.HIDDEN) {
 			// hidden指定されたボックス内のfloatは外に影響しない
 			List<?> floatings = (List<?>) this.noOverflowFloatings.remove(this.noOverflowFloatings.size() - 1);
 			if (this.floatings != null) {
@@ -534,7 +546,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 縦書き
 			marginEnd = frame.margin.left;
 			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
-					|| params.overflow != Types.OVERFLOW_VISIBLE || flowBox.getColumnCount() > 1;
+					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1;
 			double width = flowBox.getInnerWidth();
 			if (flowBox.getContentSize() != width || bordered) {
 				this.pageAxis = flow.pageAxis + width;
@@ -548,7 +560,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 横書き
 			marginEnd = frame.margin.bottom;
 			bordered = frame.padding.bottom > 0 || !frame.frame.border.getBottom().isNull()
-					|| params.overflow != Types.OVERFLOW_VISIBLE || flowBox.getColumnCount() > 1;
+					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1;
 			double height = flowBox.getInnerHeight();
 			if (flowBox.getContentSize() != height || bordered) {
 				this.pageAxis = flow.pageAxis + height;
@@ -603,7 +615,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			boolean vertical = params.flow.isVertical();
 			AbsoluteInsets amargin;
 			AbsoluteRectFrame frame;
-			byte clear, align;
+			ClearMode clear;
+			Align align;
 			switch (box.getType()) {
 			case REPLACED: {
 				AbstractReplacedBox replacedBox = (AbstractReplacedBox) flowBox;
@@ -625,8 +638,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			case TABLE: {
 				TableBox tableBox = (TableBox) flowBox;
 				frame = tableBox.getFrame();
-				clear = Types.CLEAR_NONE;
-				align = -1;
+				clear = ClearMode.NONE;
+				align = null;
 			}
 				break;
 			default:
@@ -668,22 +681,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 					}
 					FloatPos floatingPos = floating.box.getFloatPos();
 					switch (clear) {
-					case Types.CLEAR_NONE:
+					case ClearMode.NONE:
 						break;
 
-					case Types.CLEAR_START:
-						if (floatingPos.floating == Types.FLOATING_START) {
+					case ClearMode.START:
+						if (floatingPos.floating == FloatSide.START) {
 							break FOR;
 						}
 						break;
 
-					case Types.CLEAR_END:
-						if (floatingPos.floating == Types.FLOATING_END) {
+					case ClearMode.END:
+						if (floatingPos.floating == FloatSide.END) {
 							break FOR;
 						}
 						break;
 
-					case Types.CLEAR_BOTH:
+					case ClearMode.BOTH:
 						break FOR;
 
 					default:
@@ -691,10 +704,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 					}
 
 					switch (floatingPos.floating) {
-					case Types.FLOATING_START:
+					case FloatSide.START:
 						xMarginStart = 0;
 						break FOR;
-					case Types.FLOATING_END:
+					case FloatSide.END:
 						if (StyleUtils.compare(floating.lineStart - xMarginStart, lineSize) < 0) {
 							lineEnd = lineStop;
 							break FOR;
@@ -716,7 +729,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			//
 			// ■ 通常のフローのマージンの計算
 			//
-			if (align != -1) {
+			if (align != null) {
 				double frameSize, marginStart, marginEnd;
 				if (vertical) {
 					frameSize = frame.getFrameHeight();
@@ -740,15 +753,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 				} else {
 					// 制限しすぎ
 					switch (align) {
-					case Types.ALIGN_START:
+					case Align.START:
 						// 左寄せ
 						marginEnd = 0;
 						break;
-					case Types.ALIGN_END:
+					case Align.END:
 						// 右寄せ
 						marginStart += cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
 						break;
-					case Types.ALIGN_CENTER:
+					case Align.CENTER:
 						// 中央
 						double remainder = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
 						remainder /= 2.0;
@@ -822,8 +835,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final AbsolutePos pos = absoluteBox.getAbsolutePos();
 			final AbstractContainerBox contextBox;
 			switch (pos.fiducial) {
-			case Types.FODUCIAL_CONTEXT:
-			case Types.FODUCIAL_ALL_PAGE: {
+			case Fiducial.CONTEXT:
+			case Fiducial.ALL_PAGE: {
 				// 通常の絶対配置
 				// 固定配置
 				final Flow flow = this.getFlow();
@@ -831,13 +844,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 				double staticX = this.lineAxis - flow.lineAxis;
 				double staticY = this.pageAxis - flow.pageAxis;
 				if (this.textBuilder != null) {
-					assert pos.autoPosition == Types.AUTO_POSITION_BLOCK : box.getParams();
+					assert pos.autoPosition == AutoPosition.BLOCK : box.getParams();
 					staticY += this.textBuilder.getActualPageAxis();
 				}
 				contextBox.addAbsolute(absoluteBox, staticX, staticY);
 			}
 				break;
-			case Types.FODUCIAL_CURRENT_PAGE: {
+			case Fiducial.CURRENT_PAGE: {
 				// ページコンテンツ
 				this.getPageContext().addPageContent(absoluteBox);
 				contextBox = this.getPageContext().getRootBox();
@@ -907,23 +920,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 					}
 					FloatPos floatingPos = floating.box.getFloatPos();
 					switch (pos.clear) {
-					case Types.CLEAR_NONE:
+					case ClearMode.NONE:
 						break;
-					case Types.CLEAR_START:
-						if (floatingPos.floating == Types.FLOATING_START) {
+					case ClearMode.START:
+						if (floatingPos.floating == FloatSide.START) {
 							pageStart = pageEnd;
 							break FOR;
 						}
 						break;
 
-					case Types.CLEAR_END:
-						if (floatingPos.floating == Types.FLOATING_END) {
+					case ClearMode.END:
+						if (floatingPos.floating == FloatSide.END) {
 							pageStart = pageEnd;
 							break FOR;
 						}
 						break;
 
-					case Types.CLEAR_BOTH:
+					case ClearMode.BOTH:
 						pageStart = pageEnd;
 						break FOR;
 
@@ -931,7 +944,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 						throw new IllegalStateException();
 					}
 					switch (floatingPos.floating) {
-					case Types.FLOATING_START:
+					case FloatSide.START:
 						double tempStart = floating.lineEnd;
 						if (StyleUtils.compare(tempStart, lineStart) >= 0) {
 							startFloating = floating;
@@ -939,7 +952,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 						}
 						continue;
 
-					case Types.FLOATING_END:
+					case FloatSide.END:
 						double tempEnd = floating.lineStart;
 						if (StyleUtils.compare(tempEnd, lineEnd) <= 0) {
 							endFloating = floating;
@@ -1029,23 +1042,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 					}
 					FloatPos floatingPos = floating.box.getFloatPos();
 					switch (pos.clear) {
-					case Types.CLEAR_NONE:
+					case ClearMode.NONE:
 						break;
-					case Types.CLEAR_START:
-						if (floatingPos.floating == Types.FLOATING_START) {
+					case ClearMode.START:
+						if (floatingPos.floating == FloatSide.START) {
 							pageStart = pageEnd;
 							break FOR;
 						}
 						break;
 
-					case Types.CLEAR_END:
-						if (floatingPos.floating == Types.FLOATING_END) {
+					case ClearMode.END:
+						if (floatingPos.floating == FloatSide.END) {
 							pageStart = pageEnd;
 							break FOR;
 						}
 						break;
 
-					case Types.CLEAR_BOTH:
+					case ClearMode.BOTH:
 						pageStart = pageEnd;
 						break FOR;
 
@@ -1053,7 +1066,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 						throw new IllegalStateException();
 					}
 					switch (floatingPos.floating) {
-					case Types.FLOATING_START:
+					case FloatSide.START:
 						double tempStart = floating.lineEnd;
 						if (StyleUtils.compare(tempStart, lineStart) >= 0) {
 							startFloating = floating;
@@ -1061,7 +1074,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 						}
 						break;
 
-					case Types.FLOATING_END:
+					case FloatSide.END:
 						double tempEnd = floating.lineStart;
 						if (StyleUtils.compare(tempEnd, lineEnd) <= 0) {
 							endFloating = floating;
@@ -1122,9 +1135,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 			for (; i >= 0; --i) {
 				contextFlow = (Flow) this.flowStack.get(i);
 				final BlockParams params = contextFlow.box.getBlockParams();
-				if (params.overflow == Types.OVERFLOW_HIDDEN) {
+				if (params.overflow == OverflowMode.HIDDEN) {
 					contextFlow.box.setPageAxis(pageAxis - contextFlow.pageAxis);
-					if (params.overflow == Types.OVERFLOW_HIDDEN) {
+					if (params.overflow == OverflowMode.HIDDEN) {
 						// overflowで高さが指定されている場合は、外に影響しない
 						if (contextFlow.box.getBlockParams().flow.isVertical()) {
 							pageAxis = contextFlow.box.getInnerWidth() + contextFlow.pageAxis;
@@ -1178,10 +1191,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		FloatPos pos = box.getFloatPos();
 		switch (pos.floating) {
-		case Types.FLOATING_START:
+		case FloatSide.START:
 			this.addStartFloat(box);
 			break;
-		case Types.FLOATING_END:
+		case FloatSide.END:
 			this.addEndFloat(box);
 			break;
 		default:
@@ -1250,7 +1263,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 		case ABSOLUTE: {
 			final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) blockBox;
-			if (absoluteBox.getAbsolutePos().fiducial != Types.FODUCIAL_CONTEXT) {
+			if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 				// 固定配置
 				containerBox = this.getPageContext().getRootBox();
 			} else {

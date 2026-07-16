@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.style.builder.impl;
 
+import net.zamasoft.foliojet.style.box.params.FloatSide;
+
 import net.zamasoft.foliojet.style.box.params.WritingMode;
 
 import java.util.ArrayList;
@@ -21,7 +23,7 @@ import net.zamasoft.foliojet.style.box.params.BlockParams;
 import net.zamasoft.foliojet.style.box.params.FloatPos;
 import net.zamasoft.foliojet.style.box.params.InlineParams;
 import net.zamasoft.foliojet.style.box.params.InlinePos;
-import net.zamasoft.foliojet.style.box.params.Types;
+
 import net.zamasoft.foliojet.style.builder.InlineQuad;
 import net.zamasoft.foliojet.style.builder.InlineQuad.InlineAbsoluteQuad;
 import net.zamasoft.foliojet.style.builder.InlineQuad.InlineEndQuad;
@@ -246,7 +248,7 @@ public class TextBuilder {
 						break;
 					}
 					switch (floatingPos.floating) {
-					case Types.FLOATING_START:
+					case FloatSide.START:
 						double tempStart = floating.lineEnd;
 						if (StyleUtils.compare(tempStart, lineStart) >= 0) {
 							startContent = floating;
@@ -254,7 +256,7 @@ public class TextBuilder {
 						}
 						continue;
 
-					case Types.FLOATING_END:
+					case FloatSide.END:
 						double tempEnd = floating.lineStart;
 						if (StyleUtils.compare(tempEnd, lineEnd) <= 0) {
 							endContent = floating;

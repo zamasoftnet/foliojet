@@ -17,7 +17,7 @@ public class InnerTableParams extends Params {
 
 	public Length maxSize = Length.AUTO_LENGTH;
 
-	public byte pageBreakInside = Types.PAGE_BREAK_AUTO;
+	public PageBreakMode pageBreakInside = PageBreakMode.AUTO;
 
 	public ParamsType getType() {
 		return ParamsType.INNER_TABLE;
