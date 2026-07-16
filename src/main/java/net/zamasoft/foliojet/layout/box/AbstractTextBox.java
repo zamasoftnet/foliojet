@@ -116,6 +116,29 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.contents.add(content);
 	}
 
+	/**
+	 * 内部の最初のテキストのソース文字オフセットを返します(M6b)。
+	 * セグメント再駆動の再開位置(BreakToken)の導出に使います。
+	 *
+	 * @return 最初のテキストの文字オフセット(テキストがなければ -1)
+	 */
+	public final int firstCharOffset() {
+		if (this.contents != null) {
+			for (final Object content : this.contents) {
+				if (content instanceof Text text) {
+					return text.getCharOffset();
+				}
+				if (content instanceof AbstractTextBox inline) {
+					final int offset = inline.firstCharOffset();
+					if (offset >= 0) {
+						return offset;
+					}
+				}
+			}
+		}
+		return -1;
+	}
+
 	public final double getLineSize() {
 		return this.lineSize;
 	}
