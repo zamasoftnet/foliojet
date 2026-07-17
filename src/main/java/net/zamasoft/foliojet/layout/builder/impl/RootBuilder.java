@@ -520,6 +520,7 @@ public class RootBuilder extends BreakableBuilder {
 		switch (frame.tail()) {
 		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
 			this.startFlowBlock(box);
 			this.restyleFrame(box.getContainer(), frame.prefixItems(), 0);
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(index + 1, "chain-fragment",
@@ -530,9 +531,11 @@ public class RootBuilder extends BreakableBuilder {
 			if (index == 0) {
 				// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 				// この経路では prefix 吸収は行われていない
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_ROOTS.incrementAndGet();
 				assert frame.prefixItems().isEmpty();
 				box.restyle(this, d);
 			} else {
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_TAILS.incrementAndGet();
 				this.startFlowBlock(box);
 				this.restyleFrame(box.getContainer(), frame.prefixItems(), d);
 			}
