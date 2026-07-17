@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>テーブル行と列の結合</title>
+    <style type="text/css">
+      body {
+        background-image: url(../blue.png);
+        margin: 0;
+      }
+      table {
+        border-collapse: collapse;
+        border: 10px solid Red;
+        border-spacing: 5px 10px;;
+      }
+      tbody td {
+        border: 10px solid Blue;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>テーブル行と列の結合</h1>
+    
+    <p>
+右上が欠落しています。
+    </p>
+<table>
+  <tbody>
+    <tr>
+      <td>セル1</td>
+      <td>セル2</td>
+    </tr>
+    <tr>
+      <td colspan="3">colspan=3</td>
+    </tr>
+  </tbody>
+</table>
+    <p>
+右の高さが縦方向に過剰です。
+    </p>
+<table>
+  <tbody>
+    <tr>
+      <td>セル1</td>
+      <td rowspan="3">rowspan=3</td>
+    </tr>
+    <tr>
+      <td>セル2</td>
+    </tr>
+  </tbody>
+</table>
+    <p>
+右と下のセルが交差しています。
+    </p>
+<table>
+  <tbody>
+    <tr>
+      <td>セル</td>
+      <td rowspan="2">rowspan=2</td>
+    </tr>
+    <tr>
+      <td colspan="2">colspan=2</td>
+    </tr>
+  </tbody>
+</table>
+   
+  </body>
+</html>

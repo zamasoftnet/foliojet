@@ -1090,41 +1090,14 @@ public class OnePassTableBuilder implements TableBuilder {
 	 * ストリーミング中に行単位で蓄積した境界(行=リスト、列=配列)を、
 	 * TableCollapsedBorders の列優先配列へ転置した行グループ分です。
 	 */
-	private record GroupBorders(double[] rowSizes, Border[][] hborders, Border[][] vborders) {
-		static final GroupBorders NONE = new GroupBorders(null, null, null);
-
-		static GroupBorders of(DoubleList rowSizes, List<Border[]> hborders, List<Border[]> vborders,
-				int columnCount) {
-			if (hborders == null) {
-				return NONE;
-			}
-			final int groupRowCount = vborders.size();
-			final double[] sizes = rowSizes.toArray();
-			final Border[][] h = new Border[columnCount][groupRowCount + 1];
-			final Border[][] v = new Border[groupRowCount][];
-			for (int i = 0; i < groupRowCount; ++i) {
-				final Border[] border = hborders.get(i);
-				for (int j = 0; j < columnCount; ++j) {
-					h[j][i] = border[j];
-				}
-				v[i] = vborders.get(i);
-			}
-			final Border[] border = hborders.get(groupRowCount);
-			for (int j = 0; j < columnCount; ++j) {
-				h[j][sizes.length] = border[j];
-			}
-			return new GroupBorders(sizes, h, v);
-		}
-	}
-
 	private void makeBorder() {
 		// つぶし境界
 		final int columnCount = this.columnSizes == null ? 0 : this.columnSizes.length;
-		final GroupBorders header = GroupBorders.of(this.headerRowSizes, this.headerHborders, this.headerVborders,
+		final CollapsedBorderRules.GroupBorders header = CollapsedBorderRules.GroupBorders.of(this.headerRowSizes == null ? null : this.headerRowSizes.toArray(), this.headerHborders, this.headerVborders,
 				columnCount);
-		final GroupBorders body = GroupBorders.of(this.bodyRowSizes, this.bodyHborders, this.bodyVborders,
+		final CollapsedBorderRules.GroupBorders body = CollapsedBorderRules.GroupBorders.of(this.bodyRowSizes == null ? null : this.bodyRowSizes.toArray(), this.bodyHborders, this.bodyVborders,
 				columnCount);
-		final GroupBorders footer = GroupBorders.of(this.footerRowSizes, this.footerHborders, this.footerVborders,
+		final CollapsedBorderRules.GroupBorders footer = CollapsedBorderRules.GroupBorders.of(this.footerRowSizes == null ? null : this.footerRowSizes.toArray(), this.footerHborders, this.footerVborders,
 				columnCount);
 		this.tableBox.setCollapsedBorders(new TableCollapsedBorders(this.columnSizes, header.rowSizes(),
 				header.vborders(), header.hborders(), body.rowSizes(), body.vborders(), body.hborders(),

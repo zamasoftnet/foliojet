@@ -272,150 +272,74 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	}
 
 	/**
-	 * つぶし境界を生成します。
+	 * つぶし境界を生成します。適用規則は CollapsedBorderRules.collapseRow
+	 * (OnePass のストリーミング蓄積と同一)で、ここでは全行を一括で
+	 * ループするだけ。行・列寸法は assemble で後から設定される。
 	 */
 	private TableCollapsedBorders createBorders(int columnCount, int headerRowCount, int bodyRowCount,
 			int footerRowCount, List<List<?>> rowLists, List<List<?>> cellLists) {
 		final TableParams params = this.tableBox.getTableParams();
-
-		// つぶし境界
-		final TableCollapsedBorders borders = new TableCollapsedBorders(columnCount, headerRowCount, bodyRowCount,
-				footerRowCount);
-		int rowCount = headerRowCount + bodyRowCount + footerRowCount;
-
-		RectBorder border = params.frame.border;
 		final BorderAxes ax = this.vertical ? BorderAxes.VERTICAL : BorderAxes.HORIZONTAL;
-
-		// テーブル境界
-		for (int col = 0; col < columnCount; ++col) {
-			borders.collapseHBorder(col, 0, false, ax.hStart().apply(border));
-			borders.collapseHBorder(col, rowCount, true, ax.hEnd().apply(border));
-		}
-		for (int row = 0; row < rowCount; ++row) {
-			borders.collapseVBorder(row, 0, ax.vStart().apply(border));
-			borders.collapseVBorder(row, columnCount, ax.vEnd().apply(border));
-		}
-
-		// カラムグループ境界
-		// カラム境界
-		if (this.columnGroupBox != null) {
-			final int rows = rowCount;
-			this.columnGroupBox.eachColumn((column, col, colspan) -> {
-				final InnerTableParams colParams = column.getInnerTableParams();
-				for (int j = 0; j < colspan; ++j) {
-					final int jj = col + j;
-					// 列グループ始端・終端(H)
-					borders.collapseHBorder(jj, 0, false, ax.hStart().apply(colParams.border));
-					borders.collapseHBorder(jj, rows, true, ax.hEnd().apply(colParams.border));
+		final List<Border[]> headerH = new ArrayList<>(), headerV = new ArrayList<>();
+		final List<Border[]> bodyH = new ArrayList<>(), bodyV = new ArrayList<>();
+		final List<Border[]> footerH = new ArrayList<>(), footerV = new ArrayList<>();
+		final int totalRows = headerRowCount + bodyRowCount + footerRowCount;
+		int globalRow = 0;
+		for (int i = 0; i < this.rowGroups.size(); ++i) {
+			final TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
+			final InnerTableParams rowGroupParams = rowGroup.getInnerTableParams();
+			final List<?> rows = rowLists.get(i);
+			final List<Border[]> hborders, vborders;
+			switch (rowGroup.getTableRowGroupPos().rowGroupType) {
+			case RowGroupType.HEADER:
+				hborders = headerH;
+				vborders = headerV;
+				break;
+			case RowGroupType.BODY:
+				hborders = bodyH;
+				vborders = bodyV;
+				break;
+			case RowGroupType.FOOTER:
+				hborders = footerH;
+				vborders = footerV;
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+			for (int j = 0; j < rows.size(); ++j) {
+				final Border[] lineBorder = new Border[columnCount + 1];
+				vborders.add(lineBorder);
+				final Border[] firstBorder;
+				if (hborders.isEmpty()) {
+					firstBorder = new Border[columnCount];
+					hborders.add(firstBorder);
+				} else {
+					firstBorder = hborders.get(hborders.size() - 1);
 				}
-				for (int j = 0; j < rows; ++j) {
-					// 列グループ始端・終端(V)
-					borders.collapseVBorder(j, col, ax.vStart().apply(colParams.border));
-					borders.collapseVBorder(j, col + colspan, ax.vEnd().apply(colParams.border));
-				}
-			});
-		}
+				final Border[] lastBorder = new Border[columnCount];
+				hborders.add(lastBorder);
 
-		// 行グループ境界
-		// 行境界
-		{
-			int row = 0;
-			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
-				InnerTableParams rowGroupParams = rowGroup.getInnerTableParams();
-				List<?> rows = (List<?>) rowLists.get(i);
-				int rowspan = rows.size();
-				for (int j = 0; j < columnCount; ++j) {
-					// 行グループ始端・終端(H)
-					borders.collapseHBorder(j, row, false, ax.hStart().apply(rowGroupParams.border));
-					borders.collapseHBorder(j, row + rowspan, true, ax.hEnd().apply(rowGroupParams.border));
-				}
-				for (int j = 0; j < rowspan; ++j) {
-					int jj = row + j;
-					// 行グループ始端・終端(V)
-					borders.collapseVBorder(jj, 0, ax.vStart().apply(rowGroupParams.border));
-					borders.collapseVBorder(jj, columnCount, ax.vEnd().apply(rowGroupParams.border));
-
-					InnerTableParams rowParams = ((TableRowBox) rows.get(j)).getInnerTableParams();
-					// 行始端・終端(V)
-					borders.collapseVBorder(jj, 0, ax.vStart().apply(rowParams.border));
-					borders.collapseVBorder(jj, columnCount, ax.vEnd().apply(rowParams.border));
-
-					List<?> cells = (List<?>) cellLists.get(row + j);
-					for (int k = 0; k < cells.size(); ++k) {
-						CellContent cell = (CellContent) cells.get(k);
-						TableCellPos cellPos = cell.getCellBox().getTableCellPos();
-						// 行始端(H)
-						if (cell.rowspan == cellPos.rowspan) {
-							borders.collapseHBorder(k, jj, false, ax.hStart().apply(rowParams.border));
-						}
-						// 行終端(H)
-						if (cell.rowspan == 1) {
-							borders.collapseHBorder(k, jj + 1, true, ax.hEnd().apply(rowParams.border));
-						}
-					}
-				}
-				row += rowspan;
+				final boolean groupLastRow = j == rows.size() - 1;
+				@SuppressWarnings("unchecked")
+				final List<CellContent> cells = (List<CellContent>) cellLists.get(globalRow);
+				final TableRowBox nextRowBox = groupLastRow ? null : (TableRowBox) rows.get(j + 1);
+				final List<?> nextCells = groupLastRow ? null : cellLists.get(globalRow + 1);
+				CollapsedBorderRules.collapseRow(firstBorder, lastBorder, lineBorder, ax, params,
+						this.columnGroupBox, rowGroupParams, (TableRowBox) rows.get(j), cells, nextRowBox, nextCells,
+						globalRow == 0, globalRow == totalRows - 1, j == 0, groupLastRow, j == 0, !groupLastRow,
+						columnCount);
+				++globalRow;
 			}
 		}
-
-		// セル境界
-		{
-			int row = 0;
-			for (int i = 0; i < rowGroups.size(); ++i) {
-				List<?> rows = (List<?>) rowLists.get(i);
-				for (int j = 0; j < rows.size(); ++j) {
-					List<?> cells = (List<?>) cellLists.get(row);
-					for (int col = 0; col < cells.size(); ++col) {
-						CellContent cell = (CellContent) cells.get(col);
-						if (cell.isExtended()) {
-							continue;
-						}
-						BlockParams cellParams = cell.getCellBox().getBlockParams();
-						TableCellPos cellPos = cell.getCellBox().getTableCellPos();
-						int bottom = row + cellPos.rowspan;
-						for (int k = 0; k < cellPos.colspan; ++k) {
-							int kk = col + k;
-							if (kk >= columnCount) {
-								break;
-							}
-							// セル始端(H)
-							borders.collapseHBorder(kk, row, false, ax.hStart().apply(cellParams.frame.border));
-							for (int l = 1; l < cellPos.rowspan; ++l) {
-								int ll = row + l;
-								if (ll > rowCount) {
-									break;
-								}
-								borders.collapseHBorder(kk, ll, false, Border.NONE_BORDER);
-							}
-							// セル終端(H)
-							borders.collapseHBorder(kk, Math.min(rowCount, bottom), true,
-									ax.hEnd().apply(cellParams.frame.border));
-						}
-						int right = col + cellPos.colspan;
-						for (int k = 0; k < cellPos.rowspan; ++k) {
-							int kk = row + k;
-							if (kk >= rowCount) {
-								break;
-							}
-							// セル始端(V)
-							borders.collapseVBorder(kk, col, ax.vStart().apply(cellParams.frame.border));
-							for (int l = 1; l < cellPos.colspan; ++l) {
-								int ll = col + l;
-								borders.collapseVBorder(kk, ll, Border.NONE_BORDER);
-							}
-							if (right <= columnCount) {
-								// セル終端(V)
-								borders.collapseVBorder(kk, right, ax.vEnd().apply(cellParams.frame.border));
-							}
-						}
-						col = right - 1;
-					}
-					++row;
-				}
-			}
-		}
-		return borders;
+		final CollapsedBorderRules.GroupBorders header = CollapsedBorderRules.GroupBorders
+				.of(new double[headerRowCount], headerH, headerV, columnCount);
+		final CollapsedBorderRules.GroupBorders body = CollapsedBorderRules.GroupBorders.of(new double[bodyRowCount],
+				bodyH, bodyV, columnCount);
+		final CollapsedBorderRules.GroupBorders footer = CollapsedBorderRules.GroupBorders
+				.of(new double[footerRowCount], footerH, footerV, columnCount);
+		return new TableCollapsedBorders(new double[columnCount], new double[headerRowCount], header.vborders(),
+				header.hborders(), new double[bodyRowCount], body.vborders(), body.hborders(),
+				new double[footerRowCount], footer.vborders(), footer.hborders());
 	}
 
 	/**

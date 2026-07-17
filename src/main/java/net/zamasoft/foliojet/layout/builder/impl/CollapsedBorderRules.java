@@ -34,6 +34,36 @@ final class CollapsedBorderRules {
 	}
 
 	/**
+	 * 行単位で蓄積した境界(行=リスト、列=配列)を TableCollapsedBorders の
+	 * 列優先配列へ転置した行グループ分です。
+	 */
+	record GroupBorders(double[] rowSizes, Border[][] hborders, Border[][] vborders) {
+		static final GroupBorders NONE = new GroupBorders(null, null, null);
+
+		static GroupBorders of(final double[] rowSizes, final List<Border[]> hborders, final List<Border[]> vborders,
+				final int columnCount) {
+			if (hborders == null || hborders.isEmpty()) {
+				return NONE;
+			}
+			final int groupRowCount = vborders.size();
+			final Border[][] h = new Border[columnCount][groupRowCount + 1];
+			final Border[][] v = new Border[groupRowCount][];
+			for (int i = 0; i < groupRowCount; ++i) {
+				final Border[] border = hborders.get(i);
+				for (int j = 0; j < columnCount; ++j) {
+					h[j][i] = border[j];
+				}
+				v[i] = vborders.get(i);
+			}
+			final Border[] border = hborders.get(groupRowCount);
+			for (int j = 0; j < columnCount; ++j) {
+				h[j][rowSizes.length] = border[j];
+			}
+			return new GroupBorders(rowSizes, h, v);
+		}
+	}
+
+	/**
 	 * 1行分のつぶし境界を配列へ載せます。
 	 *
 	 * @param firstBorder   行の前側 H 境界(列数)
@@ -160,6 +190,11 @@ final class CollapsedBorderRules {
 			final BlockParams cellParams = cell.getCellBox().getBlockParams();
 			lineBorder[j] = TableCollapsedBorders.collapseBorder(lineBorder[j],
 					ax.vStart().apply(cellParams.frame.border));
+			// 連結内側の V 線は非表示だが非 null を保証する(不正な表で
+			// rowspan が連結内側を跨いだときの読み取りに備える)
+			for (int l = 1; l < cell.colspan; ++l) {
+				lineBorder[j + l] = TableCollapsedBorders.collapseBorder(lineBorder[j + l], Border.NONE_BORDER);
+			}
 			j += cell.colspan - 1;
 			lineBorder[j + 1] = TableCollapsedBorders.collapseBorder(lineBorder[j + 1],
 					ax.vEnd().apply(cellParams.frame.border));
