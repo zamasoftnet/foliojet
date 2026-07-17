@@ -200,81 +200,28 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	protected abstract AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize,
 			AbsoluteRectFrame nextFrame, Container container);
 
-	protected final AbstractContainerBox splitPage(final Container container, double pageLimit, final byte flags) {
-		if (pageLimit < 0) {
-			pageLimit = 0;
-		}
+	protected final AbstractContainerBox splitPage(final Container container, final double pageLimit,
+			final byte flags) {
 		// 分割されたボックスの断片は「継続物」(フレーム切断・内容消費が進行)
 		// であり、ソースから新品を再生してはならない。params は断片間で共有
 		// されるためアンカーを無効化する(M6b v3。無効化しないと再生が
 		// 分割進捗を巻き戻し、収まらない内容で無限改ページに陥る)
 		this.params.sourceEventId = -1;
-		final AbsoluteRectFrame prevFrame, nextFrame;
-		final AbstractBlockBox nextBlock;
-		if (this.params.flow.isVertical()) {
-			// 縦書き
-			if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0) {
-				// 複数カラムの場合は境界を残し、高さを内容に合わせる
-				prevFrame = nextFrame = this.frame;
-				pageLimit = Math.max(pageLimit, this.container.getContentSize());
-			} else {
-				prevFrame = this.frame.cut(true, true, true, false);
-				nextFrame = this.frame.cut(true, false, true, true);
-			}
-			final Dimension nextSize, nextMinSize;
-			if (this.isSpecifiedPageSize()) {
-				// 幅指定
-				final double width = Math.max(0, this.width - pageLimit);
-				nextSize = Dimension.create(width, this.size.getHeight(), LengthType.ABSOLUTE,
-						this.size.getHeightType());
-			} else {
-				nextSize = this.size;
-			}
-
-			if (this.minSize.getWidthType() != LengthType.AUTO) {
-				// 幅指定
-				final double width = Math.max(0, Math.min(this.minSize.getWidth(), this.width) - pageLimit);
-				nextMinSize = Dimension.create(width, this.minSize.getHeight(), LengthType.ABSOLUTE,
-						this.minSize.getHeightType());
-			} else {
-				nextMinSize = this.minSize;
-			}
-			nextBlock = this.splitPage(nextSize, nextMinSize, nextFrame, container);
+		final boolean vertical = this.params.flow.isVertical();
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
+				.of(this.params.flow, (flags & IPageBreakableBox.FLAGS_COLUMN) != 0, this.frame, this.size,
+						this.minSize, vertical ? this.width : this.height, pageLimit,
+						this.container.getContentSize(), this.isSpecifiedPageSize());
+		final AbstractBlockBox nextBlock = this.splitPage(state.nextSize(), state.nextMinSize(), state.nextFrame(),
+				container);
+		if (vertical) {
 			nextBlock.height = this.height;
-			this.width = pageLimit;
+			this.width = state.prevPageExtent();
 		} else {
-			// 横書き
-			if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0) {
-				// 複数カラムの場合は境界を残し、高さを内容に合わせる
-				prevFrame = nextFrame = this.frame;
-				pageLimit = Math.max(pageLimit, this.container.getContentSize());
-			} else {
-				prevFrame = this.frame.cut(true, true, false, true);
-				nextFrame = this.frame.cut(false, true, true, true);
-			}
-
-			final Dimension nextSize, nextMinSize;
-			if (this.isSpecifiedPageSize()) {
-				// 指定高さを分割
-				final double height = Math.max(0, this.height - pageLimit);
-				nextSize = Dimension.create(this.size.getWidth(), height, this.size.getWidthType(),
-						LengthType.ABSOLUTE);
-			} else {
-				nextSize = this.size;
-			}
-			if (this.minSize.getHeightType() != LengthType.AUTO) {
-				// 最小高さを分割
-				final double height = Math.max(0, Math.min(this.minSize.getHeight(), this.height) - pageLimit);
-				nextMinSize = Dimension.create(this.minSize.getWidth(), height, this.minSize.getWidthType(),
-						LengthType.ABSOLUTE);
-			} else {
-				nextMinSize = this.minSize;
-			}
-			nextBlock = this.splitPage(nextSize, nextMinSize, nextFrame, container);
 			nextBlock.width = this.width;
-			this.height = pageLimit;
+			this.height = state.prevPageExtent();
 		}
-		this.frame = prevFrame;
+		this.frame = state.prevFrame();
 		return nextBlock;
 	}
 }
