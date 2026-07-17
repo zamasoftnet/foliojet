@@ -1565,83 +1565,49 @@ public class OnePassTableBuilder implements TableBuilder {
 		this.pageSize = 0;
 	}
 
+	/**
+	 * ストリーミング中に行単位で蓄積した境界(行=リスト、列=配列)を、
+	 * TableCollapsedBorders の列優先配列へ転置した行グループ分です。
+	 */
+	private record GroupBorders(double[] rowSizes, Border[][] hborders, Border[][] vborders) {
+		static final GroupBorders NONE = new GroupBorders(null, null, null);
+
+		static GroupBorders of(DoubleList rowSizes, List<Border[]> hborders, List<Border[]> vborders,
+				int columnCount) {
+			if (hborders == null) {
+				return NONE;
+			}
+			final int groupRowCount = vborders.size();
+			final double[] sizes = rowSizes.toArray();
+			final Border[][] h = new Border[columnCount][groupRowCount + 1];
+			final Border[][] v = new Border[groupRowCount][];
+			for (int i = 0; i < groupRowCount; ++i) {
+				final Border[] border = hborders.get(i);
+				for (int j = 0; j < columnCount; ++j) {
+					h[j][i] = border[j];
+				}
+				v[i] = vborders.get(i);
+			}
+			final Border[] border = hborders.get(groupRowCount);
+			for (int j = 0; j < columnCount; ++j) {
+				h[j][sizes.length] = border[j];
+			}
+			return new GroupBorders(sizes, h, v);
+		}
+	}
+
 	private void makeBorder() {
 		// つぶし境界
-		int columnCount = this.columnSizes == null ? 0 : this.columnSizes.length;
-		double[] headerRowSizes = null;
-		Border[][] headerHborders = null;
-		Border[][] headerVborders = null;
-
-		// THEAD
-		if (this.headerHborders != null) {
-			int groupRowCount = this.headerVborders.size();
-			headerRowSizes = this.headerRowSizes.toArray();
-			headerHborders = new Border[columnCount][groupRowCount + 1];
-			headerVborders = new Border[groupRowCount][];
-			for (int i = 0; i < groupRowCount; ++i) {
-				Border[] border = (Border[]) this.headerHborders.get(i);
-				for (int j = 0; j < columnCount; ++j) {
-					headerHborders[j][i] = border[j];
-				}
-				headerVborders[i] = (Border[]) this.headerVborders.get(i);
-			}
-			Border[] border = (Border[]) this.headerHborders.get(groupRowCount);
-			for (int j = 0; j < columnCount; ++j) {
-				headerHborders[j][headerRowSizes.length] = border[j];
-			}
-		}
-
-		double[] bodyRowSizes = null;
-		Border[][] bodyHborders = null;
-		Border[][] bodyVborders = null;
-
-		// TBODY
-		if (this.bodyVborders != null) {
-			int groupRowCount = this.bodyVborders.size();
-			bodyRowSizes = this.bodyRowSizes.toArray();
-			bodyHborders = new Border[columnCount][groupRowCount + 1];
-			bodyVborders = new Border[groupRowCount][];
-			for (int i = 0; i < groupRowCount; ++i) {
-				Border[] border = (Border[]) this.bodyHborders.get(i);
-				for (int j = 0; j < columnCount; ++j) {
-					bodyHborders[j][i] = border[j];
-				}
-				bodyVborders[i] = (Border[]) this.bodyVborders.get(i);
-			}
-			Border[] border = (Border[]) this.bodyHborders.get(groupRowCount);
-			for (int j = 0; j < columnCount; ++j) {
-				bodyHborders[j][bodyRowSizes.length] = border[j];
-			}
-		}
-
-		double[] footerRowSizes = null;
-		Border[][] footerHborders = null;
-		Border[][] footerVborders = null;
-
-		// TFOOT
-		if (this.footerHborders != null) {
-			int groupRowCount = this.footerVborders.size();
-			footerRowSizes = this.footerRowSizes.toArray();
-			footerHborders = new Border[columnCount][groupRowCount + 1];
-			footerVborders = new Border[groupRowCount][];
-			for (int i = 0; i < groupRowCount; ++i) {
-				Border[] border = (Border[]) this.footerHborders.get(i);
-				for (int j = 0; j < columnCount; ++j) {
-					footerHborders[j][i] = border[j];
-				}
-				footerVborders[i] = (Border[]) this.footerVborders.get(i);
-			}
-			Border[] border = (Border[]) this.footerHborders.get(groupRowCount);
-			for (int j = 0; j < columnCount; ++j) {
-				footerHborders[j][footerRowSizes.length] = border[j];
-			}
-		}
-
-		TableCollapsedBorders borders = new TableCollapsedBorders(this.columnSizes, headerRowSizes, headerVborders,
-				headerHborders, bodyRowSizes, bodyVborders, bodyHborders, footerRowSizes, footerVborders,
-				footerHborders);
-		this.tableBox.setCollapsedBorders(borders);
-
+		final int columnCount = this.columnSizes == null ? 0 : this.columnSizes.length;
+		final GroupBorders header = GroupBorders.of(this.headerRowSizes, this.headerHborders, this.headerVborders,
+				columnCount);
+		final GroupBorders body = GroupBorders.of(this.bodyRowSizes, this.bodyHborders, this.bodyVborders,
+				columnCount);
+		final GroupBorders footer = GroupBorders.of(this.footerRowSizes, this.footerHborders, this.footerVborders,
+				columnCount);
+		this.tableBox.setCollapsedBorders(new TableCollapsedBorders(this.columnSizes, header.rowSizes(),
+				header.vborders(), header.hborders(), body.rowSizes(), body.vborders(), body.hborders(),
+				footer.rowSizes(), footer.vborders(), footer.hborders()));
 	}
 
 	public void endLayout() {
