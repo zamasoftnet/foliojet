@@ -1564,18 +1564,8 @@ public class OnePassTableBuilder implements TableBuilder {
 
 	private void complementRowspan() {
 		if (!this.cellsUnit.isEmpty()) {
-			// rowspanで連結されたセルの補完
-			List<?> upperCells = (List<?>) this.cellsUnit.get(this.cellsUnit.size() - 1);
-			while (upperCells.size() > this.cells.size()) {
-				CellContent upperCell = (CellContent) upperCells.get(this.cells.size());
-				if (upperCell.rowspan > 1) {
-					for (int colspan = upperCell.colspan; colspan >= 1; --colspan) {
-						this.cells.add(new CellContent(upperCell.getCellBox(), upperCell.rowspan - 1, colspan));
-					}
-				} else {
-					break;
-				}
-			}
+			// rowspanで連結されたセルの補完(共有核 — P2-2)
+			CellContent.complementRowspan(this.cells, (List<?>) this.cellsUnit.get(this.cellsUnit.size() - 1));
 		}
 	}
 

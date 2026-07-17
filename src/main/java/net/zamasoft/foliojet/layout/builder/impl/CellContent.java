@@ -46,6 +46,28 @@ class CellContent {
 		this.colspan = colspan;
 	}
 
+	/**
+	 * rowspan で連結されたセルの補完です(P2-2 共有核。両ビルダーの
+	 * 同一アルゴリズムの統合 — 差はリストの出所だけだった)。
+	 * 前行のセル列を参照し、rowspan が続くセルの継続 CellContent を
+	 * 当行へ追加する。
+	 *
+	 * @param cells      当行のセル列(追記される)
+	 * @param upperCells 前行のセル列
+	 */
+	static void complementRowspan(final java.util.List<CellContent> cells, final java.util.List<?> upperCells) {
+		while (upperCells.size() > cells.size()) {
+			final CellContent upperCell = (CellContent) upperCells.get(cells.size());
+			if (upperCell.rowspan > 1) {
+				for (int colspan = upperCell.colspan; colspan >= 1; --colspan) {
+					cells.add(new CellContent(upperCell.getCellBox(), upperCell.rowspan - 1, colspan));
+				}
+			} else {
+				break;
+			}
+		}
+	}
+
 	public boolean isExtended() {
 		return this.cell instanceof TableCellBox;
 	}

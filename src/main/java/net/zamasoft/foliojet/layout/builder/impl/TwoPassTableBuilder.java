@@ -238,19 +238,8 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 
 	private void complementRowspan(TableRowBox row) {
 		if (this.upperRow != null) {
-			// rowspanで連結されたセルの補完
-			List<CellContent> cells = (ArrayList<CellContent>) this.rowToCells.get(row);
-			List<?> upperCells = (ArrayList<?>) this.rowToCells.get(this.upperRow);
-			while (upperCells.size() > cells.size()) {
-				CellContent upperCell = (CellContent) upperCells.get(cells.size());
-				if (upperCell.rowspan > 1) {
-					for (int colspan = upperCell.colspan; colspan >= 1; --colspan) {
-						cells.add(new CellContent(upperCell.getCellBox(), upperCell.rowspan - 1, colspan));
-					}
-				} else {
-					break;
-				}
-			}
+			// rowspanで連結されたセルの補完(共有核 — P2-2)
+			CellContent.complementRowspan(this.rowToCells.get(row), this.rowToCells.get(this.upperRow));
 		}
 	}
 
