@@ -73,6 +73,13 @@ public final class MeasuredIntrinsics {
 			// 縦横混在の再生はサブビルダー文脈が未設計のため模倣計測へ
 			return null;
 		}
+		if (log.containsFloat(selfId + 1, endId - 1)) {
+			// フロートを含む内容は模倣計測へ: max-content では並置フロートの
+			// 幅は累積するが、無限幅 scratch の事後読み取りは各フロートの
+			// 位置・整列に依存せず累積幅を復元できない(正確な解は配置中の
+			// 行占有トラッカー — フロート再設計(M6c)で扱う)
+			return null;
+		}
 		final WritingMode flow = template.flow;
 		final boolean vertical = flow.isVertical();
 		// max-content: 行幅∞で折り返しなしに組む
@@ -106,6 +113,21 @@ public final class MeasuredIntrinsics {
 		return max[0];
 	}
 
+	/**
+	 * 行方向の指定マージンの合計を返します(絶対値のみ。%・auto は
+	 * 固有寸法の計測では 0 として扱う)。
+	 */
+	private static double specifiedLineMargins(final AbstractContainerBox block, final WritingMode flow) {
+		final net.zamasoft.foliojet.layout.box.params.Insets margin = block.getBlockParams().frame.margin;
+		final net.zamasoft.foliojet.layout.box.params.LengthType abs = net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
+		if (flow.isVertical()) {
+			return (margin.getTopType() == abs ? margin.getTop() : 0)
+					+ (margin.getBottomType() == abs ? margin.getBottom() : 0);
+		}
+		return (margin.getLeftType() == abs ? margin.getLeft() : 0)
+				+ (margin.getRightType() == abs ? margin.getRight() : 0);
+	}
+
 	private static double boxLineExtent(final IBox box, final WritingMode flow) {
 		final boolean vertical = flow.isVertical();
 		switch (box.getType()) {
@@ -113,11 +135,15 @@ public final class MeasuredIntrinsics {
 			return ((TextBlockBox) box).getLineSize();
 		case BLOCK: {
 			final AbstractContainerBox block = (AbstractContainerBox) box;
+			// マージンは使用値ではなく指定値から復元する: scratch 上の
+			// ブロックは利用可能幅の解決(制限しすぎの調整)で終端側の
+			// 使用マージンが吸収されるため。%・auto は固有寸法では 0 扱い
+			final double margins = specifiedLineMargins(block, flow);
 			if (!block.isAutoLineSize()) {
 				// 幅指定のブロックは指定幅がそのまま使用幅
-				return vertical ? block.getHeight() : block.getWidth();
+				return margins + (vertical ? block.getHeight() : block.getWidth());
 			}
-			return block.getFrame().getFrameLineExtent(flow) + usedLineExtent(block.getContainer(), flow);
+			return margins + block.getFrame().getBorderLineExtent(flow) + usedLineExtent(block.getContainer(), flow);
 		}
 		default:
 			// 置換要素等は実寸

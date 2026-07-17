@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>浮動ボックスの中の浮動ボックス</title>
+<style type="text/css">
+div.a {
+  border: 5px solid Green;
+  float: left;
+  background-color: yellow;
+}
+div.b {
+  border: 5px solid Black;
+  float: left;
+  background-color: yellow;
+  width: 50px;
+  height: 50px;
+}
+div.c {
+  border: 5px solid Green;
+  float: right;
+  background-color: yellow;
+}
+div.d {
+  border: 5px solid Black;
+  float: right;
+  background-color: yellow;
+  width: 50px;
+  height: 50px;
+}
+div.e {
+  border: 5px solid Blue;
+  padding: 5px;
+}
+</style>
+</head>
+<body>
+  <h1>浮動ボックスの中の浮動ボックス</h1>
+  <div style="height: 300px;">
+  <div class="a"><div class="e">
+    <div class="b">左浮動</div>
+    <div style="float: left; border: 1px solid Red;">左浮動左浮動</div>
+    <div class="b">左浮動</div>
+左
+  </div></div>
+  <div class="c"><div class="e">
+    <div class="d">右浮動</div>
+    <div style="float: right; border: 1px solid Red;">右浮動右浮動</div>
+    <div class="d">右浮動</div>
+ 右
+  </div></div>
+
+  <div class="a">
+    <div class="b">左浮動</div>
+    <div style="float: left; border: 1px solid Red;">左浮動左浮動</div>
+    <div class="b">左浮動</div>
+左<br clear="left">
+    <div class="b">左浮動</div>
+    <div style="float: left; border: 1px solid Red;">左浮動左浮動</div>
+    <div class="b">左浮動</div>
+  </div>
+  
+  <div class="c">
+    <div class="d">右浮動</div>
+    <div style="float: right; border: 1px solid Red;">右浮動右浮動</div>
+    <div class="d">右浮動</div>
+ 右<br clear="right">
+    <div class="d">右浮動</div>
+    <div style="float: right; border: 1px solid Red;">右浮動右浮動</div>
+    <div class="d">右浮動</div>
+  </div>
+  
+  <br clear="all">
+  <div class="a"><div class="e">
+    <img src="../red.png" align="left">
+    <div style="float: left; border: 1px solid Red;">左浮動左浮動</div>
+    <img src="../red.png" align="left">
+  </div></div>
+  <div class="c"><div class="e">
+    <img src="../red.png" align="right">
+    <div style="float: right; border: 1px solid Red;">右浮動右浮動</div>
+    <img src="../red.png" align="right">
+  </div></div>
+</body>
+</html>
