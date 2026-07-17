@@ -369,6 +369,9 @@ public class StyleBuilder implements PageGenerator {
 		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBlockBox.class) {
 			return LayoutSource.BoxKind.INLINE_BLOCK;
 		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox.class) {
+			return LayoutSource.BoxKind.INSIDE_MARKER;
+		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableBox.class
 				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FlowPos) {
 			// blockBox は TableParams を共有するため (params, pos) で再構成できる。
@@ -1364,7 +1367,7 @@ public class StyleBuilder implements PageGenerator {
 				switch (ListStylePosition.get(style)) {
 				case ListStylePositionValue.INSIDE:
 					// 内部マーカー
-					marker.box = new InlineBlockBox(params, pos);
+					marker.box = new net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox(params, pos);
 					this.marker(marker);
 					break;
 				case ListStylePositionValue.OUTSIDE:

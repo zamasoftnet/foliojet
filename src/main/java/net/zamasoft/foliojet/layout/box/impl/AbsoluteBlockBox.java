@@ -154,7 +154,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 
 	public final void finishLayout(final IFramedBox containerBox) {
 		if (this.builder != null) {
-			this.shrinkToFit(containerBox, this.builder.getIntrinsicSizes());
+			this.shrinkToFit(containerBox, this.builder.intrinsicSizesMeasured());
 			final BlockBuilder absoluteBuilder = new BlockBuilder(this.builder.getPageContext(), this);
 			this.builder.bind(absoluteBuilder);
 			absoluteBuilder.close();

@@ -50,6 +50,16 @@ public final class MeasuredIntrinsics {
 		if (log == null) {
 			return null;
 		}
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox
+				|| box instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox) {
+			// リストマーカー(外部・内部とも)は模倣計測へフォールバック:
+			// マーカー内容の末尾空白は実レイアウトでは行末処理で落ちる
+			// (=実測は真の max-content)が、現行のマーカー配置は「末尾空白の
+			// advance がマーカーと本文の隙間を作る」ことに依存している。
+			// 明示ギャップによるマーカー配置の再設計(M3)までは旧
+			// セマンティクスを維持する
+			return null;
+		}
 		final long selfId = box.getParams().sourceEventId;
 		if (selfId < 0) {
 			return null;

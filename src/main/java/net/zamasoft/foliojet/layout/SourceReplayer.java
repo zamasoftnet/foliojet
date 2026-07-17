@@ -120,6 +120,8 @@ public final class SourceReplayer {
 				(net.zamasoft.foliojet.layout.box.params.FloatPos) start.pos());
 		case INLINE_BLOCK -> new net.zamasoft.foliojet.layout.box.impl.InlineBlockBox((BlockParams) start.params(),
 				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
+		case INSIDE_MARKER -> new net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox((BlockParams) start.params(),
+				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
 		case TABLE -> {
 			final net.zamasoft.foliojet.layout.box.params.TableParams tableParams = (net.zamasoft.foliojet.layout.box.params.TableParams) start
 					.params();

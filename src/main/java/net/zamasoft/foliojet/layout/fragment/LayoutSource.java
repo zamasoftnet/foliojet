@@ -48,6 +48,8 @@ public final class LayoutSource {
 		FLOAT_BLOCK,
 		/** インラインブロック(InlineBlockBox)。 */
 		INLINE_BLOCK,
+		/** 内部マーカー(InsideMarkerBox)。 */
+		INSIDE_MARKER,
 		/** テーブル(TableBox。blockBox は params 共有+pos クラスで再構成)。 */
 		TABLE,
 		/** テーブル行グループ(TableRowGroupBox)。 */

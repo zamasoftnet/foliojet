@@ -212,12 +212,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	/**
 	 * 固有寸法を実レイアウト計測(M2c)で求め、範囲を特定できない場合は
-	 * 旧2パスの模倣計測へフォールバックします。
+	 * 旧2パスの模倣計測へフォールバックします。shrinkToFit の全消費者は
+	 * getIntrinsicSizes()(模倣のみ)ではなくこちらを使うこと。
 	 */
-	private static IntrinsicSizes intrinsicSizes(final BlockBuilder builder, final TwoPassBlockBuilder stfBuilder) {
-		final AbstractContainerBox rootBox = (AbstractContainerBox) stfBuilder.getRootBox();
-		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
+	public IntrinsicSizes intrinsicSizesMeasured() {
+		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = this.layoutStack == null ? null
+				: this.getPageContext();
 		if (root != null && root.isSegmentRestyle()) {
+			final AbstractContainerBox rootBox = (AbstractContainerBox) this.getRootBox();
 			final IntrinsicSizes measured = net.zamasoft.foliojet.layout.sizing.MeasuredIntrinsics.of(
 					root.getPageGenerator().getLayoutSource(), rootBox, rootBox.getBlockParams(),
 					root.getPageGenerator().getUserAgent());
@@ -225,7 +227,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				return measured;
 			}
 		}
-		return stfBuilder.getIntrinsicSizes();
+		return this.measurer.sizes();
 	}
 
 	public IntrinsicSizes getIntrinsicSizes() {
@@ -393,7 +395,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// インラインテーブルの実測(TwoPassTableBuilder)は TableEvent 側で bind される
 				if (inlineBlockEvent.measure() instanceof TwoPassBlockBuilder stfBuilder) {
 					final InlineBlockBox inlineBlockBox = inlineBlockEvent.quad().box;
-					inlineBlockBox.shrinkToFit(builder, intrinsicSizes(builder, stfBuilder), false);
+					inlineBlockBox.shrinkToFit(builder, stfBuilder.intrinsicSizesMeasured(), false);
 					final BlockBuilder inlineBlockBuilder = new BlockBuilder(this, inlineBlockBox);
 					stfBuilder.bind(inlineBlockBuilder);
 					inlineBlockBuilder.close();
@@ -463,7 +465,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				}
 				final TwoPassBlockBuilder stfBuilder = stfBlock.builder();
 				final AbstractStaticBlockBox blockBox = (AbstractStaticBlockBox) stfBuilder.getRootBox();
-				blockBox.shrinkToFit(builder, intrinsicSizes(builder, stfBuilder), false);
+				blockBox.shrinkToFit(builder, stfBuilder.intrinsicSizesMeasured(), false);
 				final BlockBuilder boundBuilder = new BlockBuilder(this, blockBox);
 				stfBuilder.bind(boundBuilder);
 				boundBuilder.close();
@@ -484,7 +486,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				} else {
 					containerBox = builder.getContextBox();
 				}
-				absoluteBox.shrinkToFit(containerBox, intrinsicSizes(builder, stfBuilder));
+				absoluteBox.shrinkToFit(containerBox, stfBuilder.intrinsicSizesMeasured());
 				final BlockBuilder boundBuilder = new BlockBuilder(this, absoluteBox);
 				stfBuilder.bind(boundBuilder);
 				boundBuilder.close();

@@ -548,7 +548,7 @@ public class DocumentBuilder {
 				if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
 					// インラインブロックボックスの幅が明示されてなかった場合
 					final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
-					inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.getIntrinsicSizes(), false);
+					inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.intrinsicSizesMeasured(), false);
 					final BlockBuilder inlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
 					stfBuilder.bind(inlineBlockBuilder);
 					inlineBlockBuilder.close();
@@ -574,7 +574,7 @@ public class DocumentBuilder {
 					if (entry.builder.isTwoPass()) {
 						// ビルド
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						blockBox.shrinkToFit(parentBuilder, contentBuilder.getIntrinsicSizes(), false);
+						blockBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 						final BlockBuilder bindBuilder = new BlockBuilder(this.pageContextBuilder(), blockBox);
 						contentBuilder.bind(bindBuilder);
 						bindBuilder.close();
@@ -604,7 +604,7 @@ public class DocumentBuilder {
 				if (entry.builder.isTwoPass()) {
 					// ビルド
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					floatBox.shrinkToFit(parentBuilder, contentBuilder.getIntrinsicSizes(), false);
+					floatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 					final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
 					contentBuilder.bind(floatBuilder);
 					floatBuilder.close();
@@ -646,7 +646,7 @@ public class DocumentBuilder {
 					if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 						// position: fixed; の場合、ここで構築
 						IFramedBox containerBox = this.pageContextBuilder().getRootBox();
-						absoluteBox.shrinkToFit(containerBox, contentBuilder.getIntrinsicSizes());
+						absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
 						BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
 						contentBuilder.bind(absoluteBuilder);
 						absoluteBuilder.close();
