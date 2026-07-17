@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>複数行グループ+%行+rowspan の高さ分配</title>
+<style>
+table { height: 100px; border-collapse: separate; }
+td { padding: 0; background-color: #ffe; border: 1px solid #999; }
+div.tall { height: 120px; width: 20px; background-color: #cdf; }
+</style>
+</head>
+<body>
+<!-- 2つ目の行グループの rowspan 分配で %指定行(50%)が
+     グループ局所添字で読まれるか(正)/先頭グループの添字を
+     読むか(バグ)を判別する。表高さは内容より小さくして
+     残余分配ループの影響を消す。 -->
+<table>
+<tbody>
+<tr><td>a</td><td>x</td></tr>
+<tr><td>b</td><td>y</td></tr>
+</tbody>
+<tbody>
+<tr style="height: 50%"><td>c</td><td rowspan="2"><div class="tall"></div></td></tr>
+<tr><td>d</td></tr>
+</tbody>
+</table>
+</body>
+</html>

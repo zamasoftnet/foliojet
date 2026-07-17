@@ -54,6 +54,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0460-segment-restyle/nested-break-in-replay.html", //
 			"0390-writing-mode/vert-cell-specified-pagebreak.html", //
 			"0240-table/z-order.html", //
+			"0242-table-height/percent-rowspan-groups.html", //
 			"0240-table/absolute.html", //
 			"0390-writing-mode/border-collapse.html", //
 			"0390-writing-mode/absolute.html", //

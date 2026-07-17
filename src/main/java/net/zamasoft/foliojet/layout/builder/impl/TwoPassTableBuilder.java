@@ -1732,18 +1732,19 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				}
 
 				// rowspanで連結された行の高さの計算(共有エンジン — P2-2)。
-				// 注意: rowRatios はグローバル添字(rowIndex)で書かれるが、
-				// ここは従来からグループ局所添字で読んでいた — 2つ目以降の
-				// グループでは先頭グループの比率を読む潜在バグの疑い。
-				// 挙動保存のため 0 起点スライスで忠実に維持(PLAN 記録)
+				// rowRatios はグローバル添字で書かれるため、当グループの
+				// スライスを渡す(旧実装は 0 起点=先頭グループの比率を
+				// 読んでおり、2つ目以降のグループの %行に分配されなかった。
+				// 0242-table-height/percent-rowspan-groups.html で是正)
 				Collections.sort(rowspanList, Rowspan.SPAN_COMPARATOR);
 				{
+					final int groupStart = rowIndex - rows.size();
 					final double[] rowSizes = new double[rows.size()];
 					for (int j = 0; j < rows.size(); ++j) {
 						rowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
 					}
 					RowLayoutEngine.distributeSpannedRowSizes(rowSizes, rowspanList, noAdjRows, autoRows,
-							java.util.Arrays.copyOfRange(rowRatios, 0, rows.size()));
+							java.util.Arrays.copyOfRange(rowRatios, groupStart, rowIndex));
 					for (int j = 0; j < rows.size(); ++j) {
 						((TableRowBox) rows.get(j)).setPageSize(rowSizes[j]);
 					}
