@@ -41,6 +41,121 @@ public final class AutoColumnWidths {
 	 */
 	public record Result(double[] mins, double[] specs, double[] desired, byte[] types, double minLineSize,
 			double maxLineSize) {
+		/**
+		 * 表の使用行寸法と列幅を確定します(CSS 2.1 17.5.2.2
+		 * [Column widths influence the final table width as follows])。
+		 * 指定がなければ最大行寸法を基準に%列による拡張を試み、最小・最大
+		 * 表幅にクランプした上で、%指定を絶対値へ変換(specs を破壊的に
+		 * 更新)して ColumnDistribution で列幅を分配する。
+		 *
+		 * @param specifiedLineSize 指定の表寸法(なければ LayoutUtils.NONE)
+		 * @param maxTableSize      利用可能な最大表寸法
+		 * @param tableFrame        表の枠
+		 * @param lineBorderSpacing 行方向の境界間隔
+		 * @param separateBorders   分離境界であれば true
+		 * @return 表寸法と列幅
+		 */
+		public Sized resolve(final double specifiedLineSize, final double maxTableSize, final double tableFrame,
+				final double lineBorderSpacing, final boolean separateBorders) {
+			final int columnCount = this.mins.length;
+			double tableSize = specifiedLineSize;
+			double[] columnSizes = new double[columnCount];
+			if (columnCount == 0) {
+				return new Sized(LayoutUtils.isNone(tableSize) ? 0 : tableSize, columnSizes);
+			}
+			if (LayoutUtils.isNone(tableSize)) {
+				tableSize = this.maxLineSize;
+				if (tableSize < maxTableSize && columnCount > 1) {
+					// パーセント幅によるテーブルの拡張
+					int pctCount = 0, effColumnCount = 0;
+					double pctSum = 0, noPctDesiredSum = 0;
+					double w = tableSize - tableFrame;
+					for (int i = 0; i < columnCount; ++i) {
+						double des = this.desired[i];
+						if (this.types[i] != COLUMN_TYPE_PCT && des == 0) {
+							continue;
+						}
+						++effColumnCount;
+						if (this.types[i] != COLUMN_TYPE_PCT) {
+							noPctDesiredSum += des;
+							continue;
+						}
+						++pctCount;
+						double pct = this.specs[i];
+						pctSum += pct;
+						if (pct != 1 && pct != 0) {
+							w = Math.max(w, des / pct);
+						} else {
+							w = maxTableSize - tableFrame;
+						}
+						if (w >= maxTableSize - tableFrame) {
+							break;
+						}
+					}
+					if (pctCount != 0 && pctCount != effColumnCount) {
+						if (pctSum != 1 && pctSum != 0) {
+							w = Math.max(w, noPctDesiredSum / (1 - pctSum));
+						} else if (noPctDesiredSum > 0) {
+							w = maxTableSize - tableFrame;
+						}
+					}
+					tableSize = w + tableFrame;
+				}
+			}
+			// minLineSize には tableFrame が含まれていることに注意
+			if (tableSize < this.minLineSize) {
+				tableSize = this.minLineSize;
+			}
+			if (tableSize > maxTableSize) {
+				tableSize = maxTableSize;
+			}
+			final double innerSize = tableSize - tableFrame;
+			// ％幅の計算
+			final double refSize = separateBorders ? innerSize - columnCount * lineBorderSpacing : innerSize;
+			for (int i = 0; i < columnCount; ++i) {
+				if (this.types[i] != COLUMN_TYPE_PCT) {
+					continue;
+				}
+				this.specs[i] *= refSize;
+				if (separateBorders) {
+					// 分離境界
+					this.specs[i] += lineBorderSpacing;
+				}
+			}
+
+			// 列幅の分配 (css-tables-3)
+			double[] startSizes = this.mins;
+			double minSum = 0;
+			for (int i = 0; i < columnCount; ++i) {
+				minSum += this.mins[i];
+			}
+			if (minSum > maxTableSize) {
+				// 最小幅の合計が最大表幅を超える場合は比例縮小する
+				startSizes = new double[columnCount];
+				for (int i = 0; i < columnCount; ++i) {
+					startSizes[i] = this.mins[i] * (maxTableSize - tableFrame) / minSum;
+				}
+			}
+			final ColumnDistribution.ColumnType[] distTypes = new ColumnDistribution.ColumnType[columnCount];
+			for (int i = 0; i < columnCount; ++i) {
+				distTypes[i] = switch (this.types[i]) {
+				case COLUMN_TYPE_FIX -> ColumnDistribution.ColumnType.CONSTRAINED;
+				case COLUMN_TYPE_PCT -> ColumnDistribution.ColumnType.PERCENT;
+				default -> ColumnDistribution.ColumnType.AUTO;
+				};
+			}
+			columnSizes = ColumnDistribution.distribute(startSizes, this.specs, distTypes, innerSize);
+			return new Sized(tableSize, columnSizes);
+		}
+	}
+
+	/**
+	 * 表寸法の解決結果です。
+	 *
+	 * @param tableSize   表の行寸法(枠込み)
+	 * @param columnSizes 列幅
+	 */
+	public record Sized(double tableSize, double[] columnSizes) {
 	}
 
 	/** 列結合の蓄積です。 */

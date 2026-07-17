@@ -98,19 +98,9 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	/**
 	 * 右の境界の中央から左の中央までを基準としたカラムの最小幅、指定幅、推奨幅です。
 	 */
-	private double[] columnMins, columnSpecs, columnDesiredWidths;
-
-	/**
-	 * カラムの指定幅のタイプです。
-	 */
-	private byte[] columnTypes;
+	private AutoColumnWidths.Result columnWidths;
 
 	private static final byte PARAM_COUNT = 3;
-
-	/**
-	 * テーブルの外側の最小幅、最大幅です。
-	 */
-	private double minLineSize = 0, maxLineSize = 0;
 
 	public TwoPassTableBuilder(LayoutStack layoutStack, TableBox tableBox) {
 		this.layoutStack = layoutStack;
@@ -124,7 +114,8 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 
 	public IntrinsicSizes getIntrinsicSizes() {
 		final TableParams tableParams = this.tableBox.getTableParams();
-		double min = this.minLineSize, max = this.maxLineSize;
+		double min = this.columnWidths == null ? 0 : this.columnWidths.minLineSize();
+		double max = this.columnWidths == null ? 0 : this.columnWidths.maxLineSize();
 		// 表自体の指定寸法は固有寸法の下限になる
 		if (this.vertical) {
 			if (tableParams.size.getHeightType() == LengthType.ABSOLUTE) {
@@ -760,13 +751,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			}
 		}
 
-		final AutoColumnWidths.Result widths2 = widths.finish(tableFrame);
-		this.columnMins = widths2.mins();
-		this.columnSpecs = widths2.specs();
-		this.columnDesiredWidths = widths2.desired();
-		this.columnTypes = widths2.types();
-		this.minLineSize = widths2.minLineSize();
-		this.maxLineSize = widths2.maxLineSize();
+		this.columnWidths = widths.finish(tableFrame);
 	}
 
 	/**
@@ -850,7 +835,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			new IllegalStateException();
 		}
 
-		final int columnCount = this.columnMins.length;
+		final int columnCount = this.columnWidths.mins().length;
 		double[] columnSizes;
 		if (this.fixed) {
 			// 固定レイアウト
@@ -894,111 +879,11 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			columnSizes = result.sizes();
 			tableSize = result.innerSize() + tableFrame;
 		} else {
-			// 自動レイアウト
-			// CSS 2.1 17.5.2.2 [Column widths influence the final table width
-			// as
-			// follows]
-			columnSizes = new double[columnCount];
-			if (columnCount > 0) {
-				final double maxTableSize = blockBox.getLineSize();
-				if (LayoutUtils.isNone(tableSize)) {
-					tableSize = this.maxLineSize;
-					if (tableSize < maxTableSize && columnCount > 1) {
-						// パーセント幅によるテーブルの拡張
-						int pctCount = 0, effColumnCount = 0;
-						double pctSum = 0, noPctDesiredSum = 0;
-						double w = tableSize - tableFrame;
-						for (int i = 0; i < columnCount; ++i) {
-							double des = this.columnDesiredWidths[i];
-							if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT && des == 0) {
-								continue;
-							}
-							++effColumnCount;
-							if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT) {
-								noPctDesiredSum += des;
-								continue;
-							}
-							++pctCount;
-							double pct = this.columnSpecs[i];
-							pctSum += pct;
-							if (pct != 1 && pct != 0) {
-								w = Math.max(w, des / pct);
-							} else {
-								w = maxTableSize - tableFrame;
-							}
-							if (w >= maxTableSize - tableFrame) {
-								break;
-							}
-						}
-						if (pctCount != 0 && pctCount != effColumnCount) {
-							if (pctSum != 1 && pctSum != 0) {
-								w = Math.max(w, noPctDesiredSum / (1 - pctSum));
-							} else if (noPctDesiredSum > 0) {
-								w = maxTableSize - tableFrame;
-							}
-						}
-						tableSize = w + tableFrame;
-					}
-				}
-				// this.minLineAxisにはtableFrameが含まれていることに注意
-				if (tableSize < this.minLineSize) {
-					tableSize = this.minLineSize;
-				}
-				if (tableSize > maxTableSize) {
-					tableSize = maxTableSize;
-				}
-				double innerSize = tableSize - tableFrame;
-				// ％幅の計算
-				if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-					// 分離境界
-					final double refSize = innerSize - columnCount * lineBorderSpacing;
-					for (int i = 0; i < columnCount; ++i) {
-						if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT) {
-							continue;
-						}
-						this.columnSpecs[i] *= refSize;
-						if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-							// 分離境界
-							this.columnSpecs[i] += lineBorderSpacing;
-						}
-					}
-				} else {
-					// つぶし境界
-					for (int i = 0; i < columnCount; ++i) {
-						if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT) {
-							continue;
-						}
-						this.columnSpecs[i] *= innerSize;
-					}
-				}
-
-				// 列幅の分配 (css-tables-3)
-				double[] startSizes = this.columnMins;
-				double minSum = 0;
-				for (int i = 0; i < columnCount; ++i) {
-					minSum += this.columnMins[i];
-				}
-				if (minSum > maxTableSize) {
-					// 最小幅の合計が最大表幅を超える場合は比例縮小する
-					startSizes = new double[columnCount];
-					for (int i = 0; i < columnCount; ++i) {
-						startSizes[i] = this.columnMins[i] * (maxTableSize - tableFrame) / minSum;
-					}
-				}
-				final ColumnDistribution.ColumnType[] types = new ColumnDistribution.ColumnType[columnCount];
-				for (int i = 0; i < columnCount; ++i) {
-					types[i] = switch (this.columnTypes[i]) {
-					case AutoColumnWidths.COLUMN_TYPE_FIX -> ColumnDistribution.ColumnType.CONSTRAINED;
-					case AutoColumnWidths.COLUMN_TYPE_PCT -> ColumnDistribution.ColumnType.PERCENT;
-					default -> ColumnDistribution.ColumnType.AUTO;
-					};
-				}
-				columnSizes = ColumnDistribution.distribute(startSizes, this.columnSpecs, types, innerSize);
-			} else {
-				if (LayoutUtils.isNone(tableSize)) {
-					tableSize = 0;
-				}
-			}
+			// 自動レイアウト(共有核 — P2-4)
+			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(tableSize, blockBox.getLineSize(),
+					tableFrame, lineBorderSpacing, tableParams.borderCollapse == TableParams.BORDER_SEPARATE);
+			tableSize = sized.tableSize();
+			columnSizes = sized.columnSizes();
 		}
 
 		final double specifiedPageSize;
