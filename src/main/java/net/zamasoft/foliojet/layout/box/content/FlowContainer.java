@@ -1238,6 +1238,12 @@ public class FlowContainer implements Container {
 							replayed ? "text-tail" : (open ? "restyle-text-open" : "restyle-text"),
 							"serial=" + holder.serial);
 					if (!replayed) {
+						if (open) {
+							// M3b Phase 1: スライス運搬経由(restyle 内部で
+							// record→replay)。Phase 2/3 の TextTail 型付き化の実測
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TEXT_HANDOFFS
+									.incrementAndGet();
+						}
 						textBlock.restyle(builder);
 					}
 					// System.err.println("endTextBlock"+depth);

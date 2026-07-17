@@ -17,6 +17,12 @@ public final class ContinuationStats {
 	/** 収集不能な破断(チェーンなし)の全ボックス restyle。 */
 	public static final AtomicLong LEGACY_ROOTS = new AtomicLong();
 
+	/**
+	 * open 段落の handoff(M3b Phase 1 のスライス運搬経由)。
+	 * Phase 2/3 で TextTail 型付き item へ移行する対象の実測。
+	 */
+	public static final AtomicLong OPEN_TEXT_HANDOFFS = new AtomicLong();
+
 	private ContinuationStats() {
 		// counters
 	}
@@ -25,5 +31,6 @@ public final class ContinuationStats {
 		CHILD_FRAMES.set(0);
 		LEGACY_TAILS.set(0);
 		LEGACY_ROOTS.set(0);
+		OPEN_TEXT_HANDOFFS.set(0);
 	}
 }

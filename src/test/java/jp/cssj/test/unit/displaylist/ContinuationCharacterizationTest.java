@@ -37,6 +37,14 @@ public class ContinuationCharacterizationTest extends TestCase {
 		assertEquals("チェーン破断で Legacy 全 restyle が発火", 0, ContinuationStats.LEGACY_ROOTS.get());
 	}
 
+	public void testOpenParagraphHandoffGoesThroughSlice() throws Exception {
+		ContinuationStats.reset();
+		// 段落中央の破断: open 段落の handoff がスライス運搬
+		// (M3b Phase 1)を通ることを実測固定
+		this.transcode(new File("files/unittest/0460-segment-restyle/mid-paragraph.html"), "cont-open-text");
+		assertTrue("open 段落の handoff が観測されていません", ContinuationStats.OPEN_TEXT_HANDOFFS.get() > 0);
+	}
+
 	public void testTableSpanningBreakChainsToo() throws Exception {
 		ContinuationStats.reset();
 		// 表を跨ぐ改ページも Child フレームで連鎖し、末端だけが
