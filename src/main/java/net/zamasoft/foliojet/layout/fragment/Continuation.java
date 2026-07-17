@@ -1,43 +1,29 @@
 package net.zamasoft.foliojet.layout.fragment;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-
-import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 
 /**
- * 改ページの継続記述です(ARCHITECTURE §5.7、C0')。
+ * 改ページの継続記述です(ARCHITECTURE §5.7)。
  *
  * <p>
- * 「次のフラグメンテナへ何を送るか」を型で表します。現段階(C0')は
- * 従来の残余ボックス木を {@link LegacyCarry} として丸ごと運ぶ互換
- * ラッパーで、挙動は従来の restyle と同一です。移行スライス
- * (C2=閉部分木の {@link SourceRange} 化、C3=切断段落尾部の
- * {@link TextTail} 化、C1=祖先チェーンのログ再インスタンス化)が進む
- * ごとに LegacyCarry の中身が痩せ、発火ゼロになった種別から
- * splitPageAxis の残余構築コードが死ぬ(§5.5)。
+ * 「次のフラグメンテナへ何を送るか」を型で表します。内容はルート
+ * フレーム({@link ContinuationFrame})の入れ子: 各フレームがレシピ+
+ * 断片状態+残余コンテナ+吸収済み再生範囲(prefixItems)を持ち、
+ * 開いた子孫を tail で表します。C0' 期の互換ラッパー(残余ボックス木を
+ * 丸ごと運ぶ LegacyCarry)は C1 完了で撤去済み — 残余ボックス木の
+ * 運搬という概念は、プレーンブロックチェーンについては存在しません。
  * </p>
  *
- * @param depth  再開時に復元する祖先チェーンの深さ(flowStack の要素数)
- * @param items  次のフラグメンテナへ送る内容(文書順)
+ * @param depth  再開後に検証する祖先チェーンの深さ(flowStack の要素数。
+ *               走行自体は tail の型が駆動する — C3 完了後に削除予定)
+ * @param root   ルートフレーム
  * @param ranges 閉部分木の再生範囲(C2: 破断時に一括判定した記録。
- *               再開走行はこれを消費するだけで、ゲートを再計算しない)
+ *               再開走行はこれを消費するだけで、ゲートを再計算しない。
+ *               box フォールバック付きのネスト部分木用 — C4 で縮小)
  * @author MIYABE Tatsuhiko
  */
-public record Continuation(int depth, List<Item> items,
+public record Continuation(int depth, ContinuationFrame root,
 		java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges) {
-	/**
-	 * LegacyCarry の発火計測です(移行進捗の観測: これがコーパスで
-	 * ゼロになった時が残余ボックス構築の死)。
-	 */
-	public static final AtomicLong LEGACY_CARRIES = new AtomicLong();
-
-	/**
-	 * 継続内容の1項目です。
-	 */
-	public sealed interface Item permits SourceRange, TextTail, LegacyCarry, ContinuationFrame {
-	}
-
 	/**
 	 * 継続断片のフレームです(C1d-A: ルート断片とチェーン断片の統一形)。
 	 * 断片ボックスは split では構築されず、resume がレシピと断片状態から
@@ -53,7 +39,7 @@ public record Continuation(int depth, List<Item> items,
 	 */
 	public record ContinuationFrame(FragmentRecipe recipe, FragmentState state,
 			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
-			List<SourceRange> prefixItems, OpenTail tail) implements Item {
+			List<SourceRange> prefixItems, OpenTail tail) {
 	}
 
 	/**
@@ -92,24 +78,6 @@ public record Continuation(int depth, List<Item> items,
 	 * @param fromId 部分木の StartBlock の EventId
 	 * @param toId   対応する EndBlock の EventId
 	 */
-	public record SourceRange(int serial, long fromId, long toId) implements Item {
-	}
-
-	/**
-	 * 切断段落の尾部です(C3 で使用予定)。
-	 *
-	 * @param charOffset     再開位置のソース文字オフセット
-	 * @param endIdExclusive 尾部の終端(負ならログ末尾まで)
-	 */
-	public record TextTail(int charOffset, long endIdExclusive) implements Item {
-	}
-
-	/**
-	 * 従来の残余ボックス木の運搬です(移行期フォールバック)。
-	 * 再開は従来どおり restyle(箱の再演)で行われます。
-	 *
-	 * @param remainder 残余ボックス木のルート
-	 */
-	public record LegacyCarry(IPageBreakableBox remainder) implements Item {
+	public record SourceRange(int serial, long fromId, long toId) {
 	}
 }
