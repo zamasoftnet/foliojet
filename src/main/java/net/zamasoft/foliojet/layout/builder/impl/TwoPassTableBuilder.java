@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
+import net.zamasoft.foliojet.layout.sizing.AutoColumnWidths;
 import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
 
 import net.zamasoft.foliojet.layout.sizing.ColumnDistribution;
@@ -104,9 +105,6 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	 */
 	private byte[] columnTypes;
 
-	private static final byte COLUMN_TYPE_DES = 0; // 推奨幅
-	private static final byte COLUMN_TYPE_FIX = 1; // 絶対指定
-	private static final byte COLUMN_TYPE_PCT = 2; // パーセント
 	private static final byte PARAM_COUNT = 3;
 
 	/**
@@ -557,12 +555,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		}
 
 		// CSS 2.1 17.5.2.2 [Column widths are determined as follows] #1,#2
-		this.columnMins = new double[columnCount];
-		this.columnSpecs = new double[columnCount];
-		this.columnDesiredWidths = new double[columnCount];
-		this.columnTypes = new byte[columnCount];
-		Map<Colspan, Colspan> colspans = new HashMap<Colspan, Colspan>();
-		List<Colspan> colspanList = new ArrayList<Colspan>();
+		final AutoColumnWidths widths = new AutoColumnWidths(columnCount);
 		// カラムグループの幅計算
 		if (this.columnGroupBox != null) {
 			// 指定幅
@@ -583,39 +576,12 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						span = colPos.span;
 					}
 					switch (colParams.size.getType()) {
-					case ABSOLUTE: {
-						double fix = colParams.size.getLength();
-						fix += lineBorderSpacing;
-						for (int s = 0; s < span; ++s) {
-							int k = col + s;
-							if (this.columnTypes[k] <= COLUMN_TYPE_FIX) {
-								if (this.columnTypes[k] != COLUMN_TYPE_FIX) {
-									this.columnTypes[k] = COLUMN_TYPE_FIX;
-									this.columnSpecs[k] = 0;
-								}
-								this.columnSpecs[k] = Math.max(this.columnSpecs[k], fix);
-							}
-							this.columnDesiredWidths[k] = Math.max(this.columnDesiredWidths[k], fix);
-						}
-					}
+					case ABSOLUTE:
+						widths.specFixed(col, span, colParams.size.getLength() + lineBorderSpacing);
 						break;
-					case RELATIVE: {
-						double pct = colParams.size.getLength();
-						for (int s = 0; s < span; ++s) {
-							int k = col + s;
-							if (this.columnTypes[k] <= COLUMN_TYPE_PCT) {
-								if (this.columnTypes[k] != COLUMN_TYPE_PCT) {
-									this.columnTypes[k] = COLUMN_TYPE_PCT;
-									this.columnSpecs[k] = 0;
-								}
-								if (pct > this.columnSpecs[k]) {
-									double pctDiff = pct - this.columnSpecs[k];
-									this.columnSpecs[k] += pctDiff;
-									this.columnDesiredWidths[k] = 1; // PCT指定には一応なんらかの内容があると判断させるため
-								}
-							}
-						}
-					}
+					case RELATIVE:
+						widths.specPercent(col, span, colParams.size.getLength());
+						break;
 					case AUTO:
 						// ignore
 						break;
@@ -623,17 +589,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						throw new IllegalStateException();
 					}
 					if (colParams.minSize.getType() == LengthType.ABSOLUTE) {
-						double minSize = colParams.minSize.getLength();
-						this.columnMins[col] = Math.max(minSize, this.columnMins[col]);
-						this.columnDesiredWidths[col] = Math.max(minSize, this.columnDesiredWidths[col]);
+						widths.colMin(col, colParams.minSize.getLength());
 					}
 					if (colParams.maxSize.getType() == LengthType.ABSOLUTE) {
-						double maxSize = colParams.maxSize.getLength();
-						this.columnMins[col] = Math.min(maxSize, this.columnMins[col]);
-						if (this.columnTypes[col] == COLUMN_TYPE_FIX) {
-							this.columnSpecs[col] = Math.min(maxSize, this.columnSpecs[col]);
-							this.columnDesiredWidths[col] = Math.min(maxSize, this.columnDesiredWidths[col]);
-						}
+						widths.colMax(col, colParams.maxSize.getLength());
 					}
 
 					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
@@ -730,16 +689,16 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					min += cellFrame;
 					des += cellFrame;
 					double spec = 0;
-					byte type = COLUMN_TYPE_DES;
+					byte type = AutoColumnWidths.COLUMN_TYPE_DES;
 
 					if (this.vertical) {
 						switch (cellParams.size.getHeightType()) {
 						case ABSOLUTE:
-							type = COLUMN_TYPE_FIX;
+							type = AutoColumnWidths.COLUMN_TYPE_FIX;
 							spec = cellParams.size.getHeight() + cellFrame;
 							break;
 						case RELATIVE:
-							type = COLUMN_TYPE_PCT;
+							type = AutoColumnWidths.COLUMN_TYPE_PCT;
 							spec = cellParams.size.getHeight();
 							break;
 						case AUTO:
@@ -757,18 +716,18 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							double maxSize = cellParams.maxSize.getHeight() + cellFrame;
 							min = Math.min(maxSize, min);
 							des = Math.min(maxSize, des);
-							if (type == COLUMN_TYPE_FIX) {
+							if (type == AutoColumnWidths.COLUMN_TYPE_FIX) {
 								spec = Math.min(maxSize, spec);
 							}
 						}
 					} else {
 						switch (cellParams.size.getWidthType()) {
 						case ABSOLUTE:
-							type = COLUMN_TYPE_FIX;
+							type = AutoColumnWidths.COLUMN_TYPE_FIX;
 							spec = cellParams.size.getWidth() + cellFrame;
 							break;
 						case RELATIVE:
-							type = COLUMN_TYPE_PCT;
+							type = AutoColumnWidths.COLUMN_TYPE_PCT;
 							spec = cellParams.size.getWidth();
 							break;
 						case AUTO:
@@ -786,275 +745,28 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							double maxSize = cellParams.maxSize.getWidth() + cellFrame;
 							min = Math.min(maxSize, min);
 							des = Math.min(maxSize, des);
-							if (type == COLUMN_TYPE_FIX) {
+							if (type == AutoColumnWidths.COLUMN_TYPE_FIX) {
 								spec = Math.min(maxSize, spec);
 							}
 						}
 					}
-					if (cellParams.boxSizing == BoxSizingMode.BORDER_BOX && type == COLUMN_TYPE_FIX) {
+					if (cellParams.boxSizing == BoxSizingMode.BORDER_BOX && type == AutoColumnWidths.COLUMN_TYPE_FIX) {
 						spec -= cellFrame;
 					}
 
-					if (span == 1) {
-						// 連結なし
-						this.columnMins[col] = Math.max(this.columnMins[col], min);
-						switch (type) {
-						case COLUMN_TYPE_DES:
-							if (this.columnTypes[col] == COLUMN_TYPE_DES) {
-								this.columnSpecs[col] = Math.max(this.columnSpecs[col], spec);
-							}
-							break;
-						case COLUMN_TYPE_FIX:
-							if (this.columnTypes[col] <= COLUMN_TYPE_FIX) {
-								if (this.columnTypes[col] != COLUMN_TYPE_FIX) {
-									this.columnTypes[col] = COLUMN_TYPE_FIX;
-									this.columnSpecs[col] = 0;
-								}
-								this.columnSpecs[col] = Math.max(this.columnSpecs[col], spec);
-								this.columnDesiredWidths[col] = Math.max(this.columnMins[col], this.columnSpecs[col]);
-							} else {
-								des = Math.max(des, spec);
-							}
-							break;
-						case COLUMN_TYPE_PCT:
-							if (this.columnTypes[col] <= COLUMN_TYPE_PCT) {
-								if (this.columnTypes[col] != COLUMN_TYPE_PCT) {
-									this.columnTypes[col] = COLUMN_TYPE_PCT;
-									this.columnSpecs[col] = 0;
-								}
-								if (spec > this.columnSpecs[col]) {
-									double pctDiff = spec - this.columnSpecs[col];
-									this.columnSpecs[col] += pctDiff;
-								}
-							}
-							break;
-						default:
-							throw new IllegalStateException();
-						}
-						if (this.columnTypes[col] != COLUMN_TYPE_FIX) {
-							this.columnDesiredWidths[col] = Math.max(this.columnDesiredWidths[col], des);
-						}
-					} else {
-						// 連結あり
-						Colspan key = new Colspan(col, span);
-						Colspan colspan = (Colspan) colspans.get(key);
-						if (colspan == null) {
-							colspans.put(key, key);
-							colspanList.add(key);
-							colspan = key;
-						}
-						colspan.min = Math.max(colspan.min, min);
-						colspan.des = Math.max(colspan.des, des);
-						switch (type) {
-						case COLUMN_TYPE_DES:
-							break;
-						case COLUMN_TYPE_FIX:
-							if (LayoutUtils.isNone(colspan.fix)) {
-								colspan.fix = spec;
-							} else {
-								colspan.fix = Math.max(colspan.fix, spec);
-							}
-							break;
-						case COLUMN_TYPE_PCT:
-							double pctDiff;
-							if (LayoutUtils.isNone(colspan.pct)) {
-								pctDiff = spec;
-								colspan.pct = 0;
-							} else {
-								pctDiff = spec - colspan.pct;
-							}
-							if (pctDiff > 0) {
-								colspan.pct += pctDiff;
-							}
-							break;
-						default:
-							throw new IllegalStateException();
-						}
-					}
+					widths.cell(col, span, min, des, type, spec);
 				}
 				++row;
 			}
 		}
 
-		// colspanの適用
-		Collections.sort(colspanList, Colspan.SPAN_COMPARATOR);
-		for (int i = 0; i < colspanList.size(); ++i) {
-			Colspan colspan = (Colspan) colspanList.get(i);
-			// 自動幅/固定幅を分配
-			boolean fix = !LayoutUtils.isNone(colspan.fix);
-			double spec = fix ? colspan.fix : colspan.des;
-			double desSum = 0;
-			int noFixCount = 0, effCount = 0;
-			double noFixDesiredSum = 0;
-			for (int s = 0; s < colspan.span; ++s) {
-				int k = colspan.col + s;
-				double des = this.columnDesiredWidths[k];
-				if (des == 0) {
-					continue;
-				}
-				++effCount;
-				desSum += des;
-				if (this.columnTypes[k] == COLUMN_TYPE_FIX) {
-					continue;
-				}
-				++noFixCount;
-				noFixDesiredSum += des;
-			}
-			// 全てのカラムの幅が0なら幅0のカラムを無視しない
-			if (effCount == 0) {
-				noFixDesiredSum = 0;
-				for (int s = 0; s < colspan.span; ++s) {
-					int k = colspan.col + s;
-					double des = this.columnDesiredWidths[k];
-					++effCount;
-					desSum += des;
-					if (this.columnTypes[k] == COLUMN_TYPE_FIX) {
-						continue;
-					}
-					++noFixCount;
-					noFixDesiredSum += des;
-				}
-			}
-			if (noFixCount == 0 && !fix) {
-				// 元が全て固定幅の場合は、自動幅は適用しない
-				continue;
-			}
-			if (spec > desSum) {
-				if (effCount == 0) {
-					effCount = colspan.span;
-				}
-				if (noFixCount == 0) {
-					noFixDesiredSum = desSum;
-				}
-				double rem = spec - desSum;
-				for (int s = 0; s < colspan.span; ++s) {
-					int k = colspan.col + s;
-					if (effCount != colspan.span && this.columnDesiredWidths[k] == 0) {
-						continue;
-					}
-					if (noFixCount != 0 && this.columnTypes[k] == COLUMN_TYPE_FIX) {
-						continue;
-					}
-					double diff;
-					if (noFixDesiredSum > 0) {
-						diff = rem * this.columnDesiredWidths[k] / noFixDesiredSum;
-					} else {
-						diff = rem / colspan.span;
-					}
-					this.columnDesiredWidths[k] += diff;
-					if (this.columnTypes[k] == COLUMN_TYPE_PCT) {
-						continue;
-					}
-					this.columnSpecs[k] = Math.max(this.columnMins[k], this.columnDesiredWidths[k]);
-				}
-			}
-		}
-		for (int i = 0; i < colspanList.size(); ++i) {
-			Colspan colspan = (Colspan) colspanList.get(i);
-			// 最小幅を分配
-			double minSum = 0, desSum = 0, diffSum = 0;
-			for (int s = 0; s < colspan.span; ++s) {
-				int k = colspan.col + s;
-				double min = this.columnMins[k];
-				double des = this.columnDesiredWidths[k];
-				minSum += min;
-				desSum += des;
-				diffSum += (des - min);
-			}
-			if (colspan.min > minSum) {
-				double rem = colspan.min - minSum;
-				if (diffSum > 0) {
-					double dist = Math.min(rem, diffSum);
-					for (int s = 0; s < colspan.span; ++s) {
-						int k = colspan.col + s;
-						double min = this.columnMins[k];
-						double des = this.columnDesiredWidths[k];
-						double diff = dist * (des - min) / diffSum;
-						min = this.columnMins[k] += diff;
-						if (this.columnTypes[k] == COLUMN_TYPE_DES) {
-							this.columnSpecs[k] = Math.max(min, this.columnSpecs[k]);
-						}
-					}
-					rem -= dist;
-				}
-				for (int s = 0; s < colspan.span; ++s) {
-					int k = colspan.col + s;
-					double des = this.columnDesiredWidths[k];
-					double diff;
-					if (desSum > 0) {
-						diff = rem * des / desSum;
-					} else {
-						diff = rem / colspan.span;
-					}
-					double min = (this.columnMins[k] += diff);
-					this.columnDesiredWidths[k] = Math.max(min, this.columnDesiredWidths[k]);
-					if (this.columnTypes[k] != COLUMN_TYPE_DES) {
-						continue;
-					}
-					this.columnSpecs[k] = Math.max(min, this.columnSpecs[k]);
-				}
-			}
-		}
-		for (int i = 0; i < colspanList.size(); ++i) {
-			Colspan colspan = (Colspan) colspanList.get(i);
-			// パーセント幅をdesの比率で分配
-			if (LayoutUtils.isNone(colspan.pct)) {
-				continue;
-			}
-			double spec = colspan.pct;
-			double pctSum = 0;
-			int nonPctCount = 0;
-			double nonPctSum = 0, desSum = 0;
-			for (int s = 0; s < colspan.span; ++s) {
-				int k = colspan.col + s;
-				double des = this.columnDesiredWidths[k];
-				desSum += des;
-				if (this.columnTypes[k] == COLUMN_TYPE_PCT) {
-					pctSum += this.columnSpecs[k];
-					continue;
-				}
-				++nonPctCount;
-				nonPctSum += des;
-			}
-			if (spec > pctSum) {
-				double rem = spec - pctSum;
-				if (nonPctCount == 0) {
-					nonPctCount = colspan.span;
-					nonPctSum = desSum;
-				}
-				for (int s = 0; s < colspan.span; ++s) {
-					int k = colspan.col + s;
-					if (nonPctCount != colspan.span && this.columnTypes[k] == COLUMN_TYPE_PCT) {
-						continue;
-					}
-					double diff;
-					if (nonPctSum > 0) {
-						diff = rem * this.columnDesiredWidths[k] / nonPctSum;
-					} else {
-						diff = rem / nonPctCount;
-					}
-					if (this.columnTypes[k] == COLUMN_TYPE_PCT) {
-						this.columnSpecs[k] += diff;
-					} else {
-						this.columnTypes[k] = COLUMN_TYPE_PCT;
-						this.columnSpecs[k] = diff;
-					}
-				}
-			}
-		}
-
-		// 最小幅/最大幅計算、パーセント幅制限
-		double pctRem = 1;
-		for (int i = 0; i < columnCount; ++i) {
-			this.minLineSize += this.columnMins[i];
-			if (this.columnTypes[i] == COLUMN_TYPE_PCT) {
-				this.columnSpecs[i] = Math.min(pctRem, this.columnSpecs[i]);
-				pctRem -= this.columnSpecs[i];
-			}
-			this.maxLineSize += Math.max(this.columnMins[i], this.columnDesiredWidths[i]);
-		}
-		this.minLineSize += tableFrame;
-		this.maxLineSize += tableFrame;
+		final AutoColumnWidths.Result widths2 = widths.finish(tableFrame);
+		this.columnMins = widths2.mins();
+		this.columnSpecs = widths2.specs();
+		this.columnDesiredWidths = widths2.desired();
+		this.columnTypes = widths2.types();
+		this.minLineSize = widths2.minLineSize();
+		this.maxLineSize = widths2.maxLineSize();
 	}
 
 	/**
@@ -1198,11 +910,11 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 						double w = tableSize - tableFrame;
 						for (int i = 0; i < columnCount; ++i) {
 							double des = this.columnDesiredWidths[i];
-							if (this.columnTypes[i] != COLUMN_TYPE_PCT && des == 0) {
+							if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT && des == 0) {
 								continue;
 							}
 							++effColumnCount;
-							if (this.columnTypes[i] != COLUMN_TYPE_PCT) {
+							if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT) {
 								noPctDesiredSum += des;
 								continue;
 							}
@@ -1241,7 +953,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					// 分離境界
 					final double refSize = innerSize - columnCount * lineBorderSpacing;
 					for (int i = 0; i < columnCount; ++i) {
-						if (this.columnTypes[i] != COLUMN_TYPE_PCT) {
+						if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT) {
 							continue;
 						}
 						this.columnSpecs[i] *= refSize;
@@ -1253,7 +965,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				} else {
 					// つぶし境界
 					for (int i = 0; i < columnCount; ++i) {
-						if (this.columnTypes[i] != COLUMN_TYPE_PCT) {
+						if (this.columnTypes[i] != AutoColumnWidths.COLUMN_TYPE_PCT) {
 							continue;
 						}
 						this.columnSpecs[i] *= innerSize;
@@ -1276,8 +988,8 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				final ColumnDistribution.ColumnType[] types = new ColumnDistribution.ColumnType[columnCount];
 				for (int i = 0; i < columnCount; ++i) {
 					types[i] = switch (this.columnTypes[i]) {
-					case COLUMN_TYPE_FIX -> ColumnDistribution.ColumnType.CONSTRAINED;
-					case COLUMN_TYPE_PCT -> ColumnDistribution.ColumnType.PERCENT;
+					case AutoColumnWidths.COLUMN_TYPE_FIX -> ColumnDistribution.ColumnType.CONSTRAINED;
+					case AutoColumnWidths.COLUMN_TYPE_PCT -> ColumnDistribution.ColumnType.PERCENT;
 					default -> ColumnDistribution.ColumnType.AUTO;
 					};
 				}
@@ -1897,49 +1609,3 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
  * @author MIYABE Tatsuhiko
  * @version $Id: TwoPassTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-class Colspan {
-	/** カラム番号(0オリジン) */
-	public final int col;
-	/** 結合される列の数 */
-	public final int span;
-	/** 最小幅 */
-	public double min = 0;
-	/* パーセント幅 */
-	public double pct = LayoutUtils.NONE;
-	/** 指定幅 */
-	public double fix = LayoutUtils.NONE;
-	/** 推奨幅 */
-	public double des = 0;
-
-	public Colspan(int col, int span) {
-		assert span >= 2;
-		this.col = col;
-		this.span = span;
-	}
-
-	public boolean equals(Object o) {
-		Colspan colspan = (Colspan) o;
-		return this.col == colspan.col && this.span == colspan.span;
-	}
-
-	public int hashCode() {
-		int h = this.col;
-		h = 31 * h + this.span;
-		return h;
-	}
-
-	public static final Comparator<Colspan> SPAN_COMPARATOR = new Comparator<Colspan>() {
-		public int compare(Colspan o1, Colspan o2) {
-			Colspan span1 = (Colspan) o1;
-			Colspan span2 = (Colspan) o2;
-			if (span1.span > span2.span) {
-				return 1;
-			}
-			if (span1.span < span2.span) {
-				return -1;
-			}
-			return 0;
-		}
-	};
-
-}
