@@ -22,9 +22,10 @@ public class MulticolumnBlockBox extends FlowBlockBox {
 		return LayoutUtils.getColumnCount(this);
 	}
 
-	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
-			Container container) {
+	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
-		return new MulticolumnBlockBox(params, this.getFlowPos(), nextSize, nextMinSize, nextFrame, container);
+		final FlowPos pos = this.getFlowPos();
+		return (state, container) -> new MulticolumnBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
+				state.nextFrame(), container);
 	}
 }

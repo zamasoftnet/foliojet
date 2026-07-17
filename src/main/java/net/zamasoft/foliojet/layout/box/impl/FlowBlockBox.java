@@ -537,14 +537,18 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 	}
 
-	protected AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
-			Container container) {
+	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
-		final FlowBlockBox next = new FlowBlockBox(params, this.getFlowPos(), nextSize, nextMinSize, nextFrame,
-				container);
-		// 解決済み整列は断片間で共有される状態(旧実装の pos 書き戻し相当)
-		next.resolvedAlign = this.resolvedAlign;
-		return next;
+		final FlowPos pos = this.getFlowPos();
+		// 解決済み整列は断片間で共有される状態(旧実装の pos 書き戻し相当)。
+		// レシピは値をキャプチャし、this を保持しない
+		final Align resolvedAlign = this.resolvedAlign;
+		return (state, container) -> {
+			final FlowBlockBox next = new FlowBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
+					state.nextFrame(), container);
+			next.resolvedAlign = resolvedAlign;
+			return next;
+		};
 	}
 
 	public final void restyle(final BlockBuilder builder, int depth) {

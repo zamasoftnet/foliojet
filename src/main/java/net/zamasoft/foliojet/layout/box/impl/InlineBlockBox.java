@@ -61,8 +61,10 @@ public class InlineBlockBox extends AbstractStaticBlockBox implements IInlineBox
 		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 	}
 
-	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
-			Container container) {
-		return new InlineBlockBox(params, this.pos, nextSize, nextMinSize, nextFrame, container);
+	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
+		final BlockParams params = this.getBlockParams();
+		final InlinePos pos = this.pos;
+		return (state, container) -> new InlineBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
+				state.nextFrame(), container);
 	}
 }

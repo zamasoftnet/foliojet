@@ -61,8 +61,10 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 	}
 
-	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
-			Container container) {
-		return new FloatBlockBox(params, this.getFloatPos(), nextSize, nextMinSize, nextFrame, container);
+	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
+		final BlockParams params = this.getBlockParams();
+		final FloatPos pos = this.getFloatPos();
+		return (state, container) -> new FloatBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
+				state.nextFrame(), container);
 	}
 }

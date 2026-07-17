@@ -197,8 +197,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 	}
 
-	protected abstract AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize,
-			AbsoluteRectFrame nextFrame, Container container);
+	/**
+	 * 断片ボックスの再構成レシピを返します(C1d-B)。実装は必要な値を
+	 * キャプチャし、this への参照を保持しないこと(FragmentRecipe の
+	 * 規約参照)。splitPageState がアンカーを無効化する前に取得すること。
+	 */
+	public abstract net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe();
 
 	protected final AbstractContainerBox splitPage(final Container container, final double pageLimit,
 			final byte flags) {
@@ -246,9 +250,18 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	 */
 	public final AbstractBlockBox continueFragment(final net.zamasoft.foliojet.layout.fragment.FragmentState state,
 			final Container container, final double crossExtent) {
-		final AbstractBlockBox nextBlock = this.splitPage(state.nextSize(), state.nextMinSize(), state.nextFrame(),
-				container);
-		if (this.params.flow.isVertical()) {
+		return continueFragment(this.fragmentRecipe(), state, container, crossExtent);
+	}
+
+	/**
+	 * レシピから継続断片ボックスを構成します(C1d-B。resume が
+	 * ContinuationFrame の消費に使う — 旧ボックスへの仮想呼び出しなし)。
+	 */
+	public static AbstractBlockBox continueFragment(final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe,
+			final net.zamasoft.foliojet.layout.fragment.FragmentState state, final Container container,
+			final double crossExtent) {
+		final AbstractBlockBox nextBlock = recipe.instantiate(state, container);
+		if (nextBlock.params.flow.isVertical()) {
 			nextBlock.height = crossExtent;
 		} else {
 			nextBlock.width = crossExtent;

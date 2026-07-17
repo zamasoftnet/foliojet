@@ -40,17 +40,18 @@ public record Continuation(int depth, List<Item> items,
 
 	/**
 	 * 継続断片のフレームです(C1d-A: ルート断片とチェーン断片の統一形)。
-	 * 断片ボックスは split では構築されず、resume が prev の params/pos と
-	 * 断片状態から再構成します。開いた子孫は tail の入れ子で表します。
+	 * 断片ボックスは split では構築されず、resume がレシピと断片状態から
+	 * 再構成します(C1d-B: 旧ボックスを factory として保持しない)。
+	 * 開いた子孫は tail の入れ子で表します。
 	 *
-	 * @param prev        前断片(切りつめ済み。BlockRecipe 化は C1d-B)
+	 * @param recipe      断片ボックスの再構成レシピ(切断時に値キャプチャ)
 	 * @param state       断片状態
 	 * @param container   このレベルの残余コンテナ(チェーン子は含まれない)
 	 * @param crossExtent 切断時点の交差軸寸法
 	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c)
 	 * @param tail        開いた続きの表現
 	 */
-	public record ContinuationFrame(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
+	public record ContinuationFrame(FragmentRecipe recipe, FragmentState state,
 			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
 			List<SourceRange> prefixItems, OpenTail tail) implements Item {
 	}
@@ -109,13 +110,13 @@ public record Continuation(int depth, List<Item> items,
 	 * 1レベル分)。pageBreak が水位計算・prefix 吸収(C1c)の後に
 	 * {@link ContinuationFrame} の入れ子へ組み上げる。
 	 *
-	 * @param prev        前断片(切りつめ済み)
+	 * @param recipe      断片ボックスの再構成レシピ(切断時に値キャプチャ)
 	 * @param state       断片状態
 	 * @param container   このレベルの残余コンテナ(閉じた先行アイテム+
 	 *                    フロート。チェーン子は含まれない)
 	 * @param crossExtent 切断時点の交差軸寸法
 	 */
-	public record ChainFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
+	public record ChainFragment(FragmentRecipe recipe, FragmentState state,
 			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) {
 	}
 

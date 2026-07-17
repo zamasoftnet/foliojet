@@ -309,9 +309,10 @@ public class PageBox extends AbstractBlockBox {
 		throw new UnsupportedOperationException();
 	}
 
-	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
-			Container container) {
-		return new PageBox(this.params, this.ua, container);
+	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
+		final BlockParams params = this.getBlockParams();
+		final net.zamasoft.foliojet.ua.UserAgent ua = this.ua;
+		return (state, container) -> new PageBox(params, ua, container);
 	}
 
 	public final void drawFlow(Drawer drawer, Visitor visitor) {

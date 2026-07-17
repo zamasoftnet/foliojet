@@ -241,8 +241,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 	}
 
-	protected final AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
-			Container container) {
-		return new AbsoluteBlockBox(params, this.getAbsolutePos(), nextSize, nextMinSize, nextFrame, container);
+	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
+		final BlockParams params = this.getBlockParams();
+		final AbsolutePos pos = this.getAbsolutePos();
+		return (state, container) -> new AbsoluteBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
+				state.nextFrame(), container);
 	}
 }

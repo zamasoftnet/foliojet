@@ -209,6 +209,7 @@ public class RootBuilder extends BreakableBuilder {
 		// RootFragment の構築は水位計算・prefix 吸収(C1c)の後)
 		final FlowBlockBox prevRootBox;
 		final net.zamasoft.foliojet.layout.box.content.Container nextRootContainer;
+		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe rootRecipe;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState rootState;
 		final double rootCrossExtent;
 		try {
@@ -241,6 +242,8 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			final boolean vertical = prevRootBox.getBlockParams().flow.isVertical();
 			rootCrossExtent = vertical ? prevRootBox.getInnerHeight() : prevRootBox.getInnerWidth();
+			// レシピは splitPageState(アンカー無効化)より前に取得(C1d-B)
+			rootRecipe = prevRootBox.fragmentRecipe();
 			rootState = prevRootBox.splitPageState(innerLimit, flags);
 		} finally {
 			if (chainCollector != null) {
@@ -330,11 +333,11 @@ public class RootBuilder extends BreakableBuilder {
 		for (int i = chain.size() - 1; i >= 0; --i) {
 			final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f = chain.get(i);
 			tail = new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
-					new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(f.prev(), f.state(),
+					new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(f.recipe(), f.state(),
 							f.container(), f.crossExtent(), chainPrefixes.get(i), tail));
 		}
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootFrame = new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(
-				prevRootBox, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
+				rootRecipe, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
 				chain.isEmpty() ? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(depth)
 						: tail);
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
@@ -445,8 +448,8 @@ public class RootBuilder extends BreakableBuilder {
 	private void resumeFrame(final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame,
 			final int index, final int depth) {
 		assert !this.resumeScopes.isEmpty();
-		final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box = (net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) frame
-				.prev().continueFragment(frame.state(), frame.container(), frame.crossExtent());
+		final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box = (net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) net.zamasoft.foliojet.layout.box.AbstractBlockBox
+				.continueFragment(frame.recipe(), frame.state(), frame.container(), frame.crossExtent());
 		switch (frame.tail()) {
 		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {

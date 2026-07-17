@@ -357,11 +357,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 			return SplitResult.MOVE;
 		}
 		if (this.chainCollector != null && this instanceof AbstractBlockBox block) {
-			// C1b: 断片ボックスは構築せず、断片状態を収集して resume に委ねる
+			// C1b: 断片ボックスは構築せず、断片状態を収集して resume に委ねる。
+			// レシピは splitPageState(アンカー無効化)より前に取得する(C1d-B)
 			final boolean vertical = this.getBlockParams().flow.isVertical();
 			final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
+			final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = block.fragmentRecipe();
 			final net.zamasoft.foliojet.layout.fragment.FragmentState state = block.splitPageState(pageLimit, flags);
-			this.chainCollector.add(new net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment(block, state,
+			this.chainCollector.add(new net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment(recipe, state,
 					nextContainer, crossExtent));
 			return SplitResult.COLLECTED;
 		}
