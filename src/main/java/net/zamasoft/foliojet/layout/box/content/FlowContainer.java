@@ -1048,9 +1048,11 @@ public class FlowContainer implements Container {
 					final boolean open = lastFlow == holder && depth == 1;
 					boolean replayed = false;
 					// open(live ストリームが続きを流し込む)場合の尾部再生は
-					// live shaper の保留バッファとの境界が charOffset 座標では
-					// ±1文字の精度で切れないため、box-restyle に委ねる
-					// (M3b のトークン再開で回収予定)
+					// box-restyle に委ねる。かつての理由「charOffset の±1」は
+					// 整形器バグとして根治済み(2026-07-17)だが、解禁実験は
+					// 多数の失敗を示した — 残る実質は live shaper の保留
+					// バッファと builder テキスト状態の受け渡し(deliveredCharEnd
+					// と unitizer 保留の境界)であり、M3b のトークン再開で回収する
 					if (!open
 							&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
