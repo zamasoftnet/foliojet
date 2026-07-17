@@ -508,7 +508,7 @@ public class OnePassTableBuilder implements TableBuilder {
 							tableParams.frame.border.getTop());
 					// 右
 					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], tableParams.frame.border.getTop());
+							.collapseBorder(lineBorder[lineBorder.length - 1], tableParams.frame.border.getBottom());
 					// 上
 					if (firstRow && row == 0) {
 						for (int i = 0; i < firstBorder.length; ++i) {
@@ -589,7 +589,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], rowGroupParams.border.getTop());
 					// 右
 					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowGroupParams.border.getTop());
+							.collapseBorder(lineBorder[lineBorder.length - 1], rowGroupParams.border.getBottom());
 					// 上
 					if (groupFirst) {
 						for (int j = 0; j < this.columnSizes.length; ++j) {
@@ -612,7 +612,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], rowParams.border.getTop());
 					// 右
 					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowParams.border.getTop());
+							.collapseBorder(lineBorder[lineBorder.length - 1], rowParams.border.getBottom());
 					// 下
 					for (int j = 0; j < cells.size(); ++j) {
 						CellContent cell = (CellContent) cells.get(j);
@@ -717,7 +717,7 @@ public class OnePassTableBuilder implements TableBuilder {
 							tableParams.frame.border.getLeft());
 					// 右
 					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], tableParams.frame.border.getLeft());
+							.collapseBorder(lineBorder[lineBorder.length - 1], tableParams.frame.border.getRight());
 					// 上
 					if (firstRow && row == 0) {
 						for (int i = 0; i < firstBorder.length; ++i) {
@@ -799,7 +799,7 @@ public class OnePassTableBuilder implements TableBuilder {
 							rowGroupParams.border.getLeft());
 					// 右
 					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowGroupParams.border.getLeft());
+							.collapseBorder(lineBorder[lineBorder.length - 1], rowGroupParams.border.getRight());
 					// 上
 					if (groupFirst) {
 						for (int j = 0; j < this.columnSizes.length; ++j) {
@@ -822,7 +822,7 @@ public class OnePassTableBuilder implements TableBuilder {
 					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], rowParams.border.getLeft());
 					// 右
 					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowParams.border.getLeft());
+							.collapseBorder(lineBorder[lineBorder.length - 1], rowParams.border.getRight());
 					// 下
 					for (int j = 0; j < cells.size(); ++j) {
 						CellContent cell = (CellContent) cells.get(j);

@@ -1,0 +1,6 @@
+drawer z=0
+  x=6.00 y=6.00 CollapsedBordersDrawable
+  x=9.75 y=6.75 Text["a" asc=10.31 desc=4.09]
+  x=81.75 y=6.75 Text["b" asc=10.31 desc=4.09]
+  x=9.75 y=22.65 Text["c" asc=10.31 desc=4.09]
+  x=81.75 y=22.65 Text["d" asc=10.31 desc=4.09]

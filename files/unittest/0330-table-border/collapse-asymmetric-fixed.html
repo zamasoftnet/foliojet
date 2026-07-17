@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>非対称境界のつぶし(fixed=OnePass 経路)</title>
+<style>
+table {
+  table-layout: fixed;
+  width: 200px;
+  border-collapse: collapse;
+  border-left: 8px solid #f00;
+  border-right: 2px solid #00f;
+}
+tr { border-left: 6px solid #0a0; border-right: 1px solid #a0a; }
+td { border: none; }
+</style>
+</head>
+<body>
+<!-- OnePass(fixed)経路の縦境界: 右端が border-right(2px 青)ではなく
+     border-left(8px 赤)で潰されるかを判別する。TwoPass(auto)は
+     右端に right を採る。 -->
+<table>
+<tr><td>a</td><td>b</td></tr>
+<tr><td>c</td><td>d</td></tr>
+</table>
+</body>
+</html>
