@@ -63,6 +63,39 @@ public class TableColumnGroupBox extends TableColumnBox {
 		}
 	}
 
+	/**
+	 * 列走査の訪問者です。列グループ(子あり)にはグループ→子の順で
+	 * 訪問し、col は葉のカラム位置、span は葉なら colPos.span、
+	 * グループなら直下の子の数(旧来の手動スタック走査の規約)。
+	 */
+	public interface ColumnVisitor {
+		void visit(TableColumnBox column, int col, int span);
+	}
+
+	/**
+	 * 列と列グループをカラム位置付きで走査します。両表ビルダーに7箇所
+	 * あった手動スタックの RECURSE 走査の置き換えです。
+	 */
+	public final void eachColumn(final ColumnVisitor visitor) {
+		eachColumn(this, 0, visitor);
+	}
+
+	private static int eachColumn(final TableColumnGroupBox group, int col, final ColumnVisitor visitor) {
+		for (int i = 0; i < group.getTableColumnCount(); ++i) {
+			final TableColumnBox column = group.getTableColumn(i);
+			if (column.getType() == BoxType.TABLE_COLUMN_GROUP
+					&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
+				visitor.visit(column, col, ((TableColumnGroupBox) column).getTableColumnCount());
+				col = eachColumn((TableColumnGroupBox) column, col, visitor);
+			} else {
+				final int span = column.getTableColumnPos().span;
+				visitor.visit(column, col, span);
+				col += span;
+			}
+		}
+		return col;
+	}
+
 	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y) {
 		if (this.columns == null) {

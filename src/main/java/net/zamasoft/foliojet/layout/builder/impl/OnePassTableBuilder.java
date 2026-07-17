@@ -303,44 +303,13 @@ public class OnePassTableBuilder implements TableBuilder {
 
 		// カラム幅設定
 		if (this.columnGroupBox != null) {
-			int col = 0;
-			List<Object> stack = new ArrayList<Object>();
-			TableColumnGroupBox colgroup = this.columnGroupBox;
-			int i = 0;
-			RECURSE: for (;;) {
-				for (; i < colgroup.getTableColumnCount(); ++i) {
-					TableColumnBox column = colgroup.getTableColumn(i);
-					TableColumnPos colPos = column.getTableColumnPos();
-
-					int span;
-					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-						span = ((TableColumnGroupBox) column).getTableColumnCount();
-					} else {
-						span = colPos.span;
-					}
-					double size = 0;
-					for (int j = 0; j < span; ++j) {
-						size += this.columnSizes[col + j];
-					}
-					column.setLineSize(size);
-					if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-							&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-						stack.add(colgroup);
-						stack.add(NumberUtils.intValue(i + 1));
-						colgroup = (TableColumnGroupBox) column;
-						i = 0;
-						continue RECURSE;
-					} else {
-						col += span;
-					}
+			this.columnGroupBox.eachColumn((column, col, span) -> {
+				double size = 0;
+				for (int j = 0; j < span; ++j) {
+					size += this.columnSizes[col + j];
 				}
-				if (stack.isEmpty()) {
-					break;
-				}
-				i = ((Integer) stack.remove(stack.size() - 1)).intValue();
-				colgroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
-			}
+				column.setLineSize(size);
+			});
 		}
 	}
 
@@ -405,28 +374,7 @@ public class OnePassTableBuilder implements TableBuilder {
 		} else {
 			pageSize = this.tableBox.getInnerHeight();
 		}
-		List<Object> stack = new ArrayList<Object>();
-		TableColumnGroupBox colgroup = this.columnGroupBox;
-		int i = 0;
-		RECURSE: for (;;) {
-			for (; i < colgroup.getTableColumnCount(); ++i) {
-				TableColumnBox column = colgroup.getTableColumn(i);
-				column.setPageSize(pageSize);
-				if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-						&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-					stack.add(colgroup);
-					stack.add(NumberUtils.intValue(i + 1));
-					colgroup = (TableColumnGroupBox) column;
-					i = 0;
-					continue RECURSE;
-				}
-			}
-			if (stack.isEmpty()) {
-				break;
-			}
-			i = ((Integer) stack.remove(stack.size() - 1)).intValue();
-			colgroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
-		}
+		this.columnGroupBox.eachColumn((column, col, span) -> column.setPageSize(pageSize));
 	}
 
 	/**
@@ -527,61 +475,32 @@ public class OnePassTableBuilder implements TableBuilder {
 				// カラムグループ境界
 				// カラム境界
 				if (this.columnGroupBox != null) {
-					TableColumnGroupBox columnGroup = this.columnGroupBox;
-					int col = 0;
-					List<Object> stack = new ArrayList<Object>();
-					int i = 0;
-					RECURSE: for (;;) {
-						for (; i < columnGroup.getTableColumnCount(); ++i) {
-							TableColumnBox column = columnGroup.getTableColumn(i);
-							InnerTableParams colParams = column.getInnerTableParams();
-							TableColumnPos colPos = column.getTableColumnPos();
-							int colspan;
-							if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-									&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-								colspan = ((TableColumnGroupBox) column).getTableColumnCount();
-							} else {
-								colspan = colPos.span;
-							}
-							if (firstRow && row == 0) {
-								for (int j = 0; j < colspan; ++j) {
-									int jj = col + j;
-									// 列グループ上
-									firstBorder[jj] = TableCollapsedBorders.collapseBorder(firstBorder[jj],
-											ax.hStart().apply(colParams.border));
-								}
-							}
-							if (lastRow && row == this.cellsUnit.size() - 1) {
-								for (int j = 0; j < colspan; ++j) {
-									int jj = col + j;
-									// 列グループ下
-									lastBorder[jj] = TableCollapsedBorders.collapseBorder(lastBorder[jj],
-											ax.hEnd().apply(colParams.border));
-								}
-							}
-							// 行グループ左
-							lineBorder[col] = TableCollapsedBorders.collapseBorder(lineBorder[col],
-									ax.vStart().apply(colParams.border));
-							// 行グループ右
-							lineBorder[col + colspan] = TableCollapsedBorders
-									.collapseBorder(lineBorder[col + colspan], ax.vEnd().apply(colParams.border));
-							if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-									&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-								stack.add(columnGroup);
-								stack.add(NumberUtils.intValue(i + 1));
-								columnGroup = (TableColumnGroupBox) column;
-								i = 0;
-								continue RECURSE;
-							} else {
-								col += colspan;
+					final boolean atFirst = firstRow && row == 0;
+					final boolean atLast = lastRow && row == this.cellsUnit.size() - 1;
+					this.columnGroupBox.eachColumn((column, col, colspan) -> {
+						final InnerTableParams colParams = column.getInnerTableParams();
+						if (atFirst) {
+							for (int j = 0; j < colspan; ++j) {
+								final int jj = col + j;
+								// 列グループ始端(H)
+								firstBorder[jj] = TableCollapsedBorders.collapseBorder(firstBorder[jj],
+										ax.hStart().apply(colParams.border));
 							}
 						}
-						if (stack.isEmpty()) {
-							break;
+						if (atLast) {
+							for (int j = 0; j < colspan; ++j) {
+								final int jj = col + j;
+								// 列グループ終端(H)
+								lastBorder[jj] = TableCollapsedBorders.collapseBorder(lastBorder[jj],
+										ax.hEnd().apply(colParams.border));
+							}
 						}
-						i = ((Integer) stack.remove(stack.size() - 1)).intValue();
-						columnGroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
-					}
+						// 列グループ始端・終端(V)
+						lineBorder[col] = TableCollapsedBorders.collapseBorder(lineBorder[col],
+								ax.vStart().apply(colParams.border));
+						lineBorder[col + colspan] = TableCollapsedBorders.collapseBorder(lineBorder[col + colspan],
+								ax.vEnd().apply(colParams.border));
+					});
 				}
 
 				// 行グループ境界
