@@ -59,6 +59,77 @@ final class RowLayoutEngine {
 		return added;
 	}
 
+	/**
+	 * %指定行の高さを表の指定高さへ向けて拡大します(文書順に残余を
+	 * 消費)。
+	 *
+	 * @param rowSizes          各行の高さ(入出力)
+	 * @param rowRatios         %指定行の比率(なければ 0)
+	 * @param specifiedPageSize 表の指定高さ
+	 * @param remainder         分配できる残余
+	 * @return 行高合計の増分
+	 */
+	static double distributePercentRowSizes(final double[] rowSizes, final double[] rowRatios,
+			final double specifiedPageSize, double remainder) {
+		double added = 0;
+		for (int i = 0; i < rowSizes.length && remainder > 0; ++i) {
+			if (rowRatios[i] > 0) {
+				final double diff = Math.min(remainder, specifiedPageSize * rowRatios[i] - rowSizes[i]);
+				if (diff > 0) {
+					remainder -= diff;
+					rowSizes[i] += diff;
+					added += diff;
+				}
+			}
+		}
+		return added;
+	}
+
+	/**
+	 * 表の指定高さへの不足分を行へ分配します。自動行と固定行が混在すれば
+	 * 自動行へ現在高さの比で分配(自動行合計が0なら均等)、そうでなければ
+	 * 全行を指定高さへ比例スケール(合計0なら均等)する。
+	 *
+	 * @param rowSizes          各行の高さ(入出力)
+	 * @param autoRows          高さ指定が auto の行(%0 指定は含まない —
+	 *                          rowspan 分配の autoRows とは判定が異なる)
+	 * @param specifiedPageSize 表の指定高さ
+	 */
+	static void distributeTableSize(final double[] rowSizes, final boolean[] autoRows,
+			final double specifiedPageSize) {
+		double rowSizeSum = 0;
+		int autoRowCount = 0;
+		for (int i = 0; i < rowSizes.length; ++i) {
+			rowSizeSum += rowSizes[i];
+			if (autoRows[i]) {
+				++autoRowCount;
+			}
+		}
+		if (rowSizeSum >= specifiedPageSize) {
+			return;
+		}
+		if (autoRowCount > 0 && autoRowCount < rowSizes.length) {
+			// 固定高さの行がある場合
+			final double remainder = specifiedPageSize - rowSizeSum;
+			double autoSum = 0;
+			for (int i = 0; i < rowSizes.length; ++i) {
+				if (autoRows[i]) {
+					autoSum += rowSizes[i];
+				}
+			}
+			for (int i = 0; i < rowSizes.length; ++i) {
+				if (autoRows[i]) {
+					rowSizes[i] += autoSum <= 0 ? remainder / autoRowCount : remainder * rowSizes[i] / autoSum;
+				}
+			}
+		} else {
+			for (int i = 0; i < rowSizes.length; ++i) {
+				rowSizes[i] = rowSizeSum <= 0 ? specifiedPageSize / rowSizes.length
+						: specifiedPageSize * rowSizes[i] / rowSizeSum;
+			}
+		}
+	}
+
 	static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
 			final boolean[] noAdjRows, final boolean[] autoRows, final double[] rowRatios) {
 		for (int j = 0; j < rowspanList.size(); ++j) {

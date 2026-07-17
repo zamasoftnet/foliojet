@@ -1300,27 +1300,23 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			}
 		}
 
-		// 行のパーセント高さ計算
+		// 行のパーセント高さ計算(共有エンジン — P2-4)
 		{
-			double remainder = specifiedPageSize - rowSizeSum;
+			final double[] rowSizes = new double[rowCount];
 			int rowIndex = 0;
-			for (int i = 0; remainder > 0 && i < this.rowGroups.size(); ++i) {
-				TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
-				for (int j = 0; remainder > 0 && j < rows.size(); ++j) {
-					TableRowBox rowBox = (TableRowBox) rows.get(j);
-					double rowRatio = rowRatios[rowIndex];
-					if (rowRatio > 0) {
-						double rowHeight = rowBox.getPageSize();
-						double diff = Math.min(remainder, specifiedPageSize * rowRatio - rowHeight);
-						if (diff > 0) {
-							remainder -= diff;
-							rowHeight += diff;
-							rowSizeSum += diff;
-							rowBox.setPageSize(rowHeight);
-						}
-					}
-					++rowIndex;
+			for (int i = 0; i < this.rowGroups.size(); ++i) {
+				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				for (int j = 0; j < rows.size(); ++j) {
+					rowSizes[rowIndex++] = ((TableRowBox) rows.get(j)).getPageSize();
+				}
+			}
+			rowSizeSum += RowLayoutEngine.distributePercentRowSizes(rowSizes, rowRatios, specifiedPageSize,
+					specifiedPageSize - rowSizeSum);
+			rowIndex = 0;
+			for (int i = 0; i < this.rowGroups.size(); ++i) {
+				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				for (int j = 0; j < rows.size(); ++j) {
+					((TableRowBox) rows.get(j)).setPageSize(rowSizes[rowIndex++]);
 				}
 			}
 		}
@@ -1343,54 +1339,29 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			}
 		}
 
-		// テーブル高さを適用
-		if (rowSizeSum < specifiedPageSize) {
-			if (autoRowCount > 0 && autoRowCount < rowCount) {
-				// 固定高さの行がある場合
-				double remainder = specifiedPageSize - rowSizeSum;
-				for (int i = 0; i < this.rowGroups.size(); ++i) {
-					TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
-					List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
-					for (int j = 0; j < rows.size(); ++j) {
-						TableRowBox rowBox = (TableRowBox) rows.get(j);
-						InnerTableParams params = rowBox.getInnerTableParams();
-						if (params.size.getType() == LengthType.AUTO) {
-							continue;
-						}
-						rowSizeSum -= rowBox.getPageSize();
-					}
+		// テーブル高さを適用(共有エンジン — P2-4)。自動行の判定は
+		// 指定型の直判定(%0 指定行を自動行に数えた旧 autoRowCount とは
+		// 分岐条件が異なり得るが、分配対象の選別とは元々不整合だった —
+		// 一貫した直判定へ正規化)
+		{
+			final double[] rowSizes = new double[rowCount];
+			final boolean[] autoRows = new boolean[rowCount];
+			int rowIndex = 0;
+			for (int i = 0; i < this.rowGroups.size(); ++i) {
+				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				for (int j = 0; j < rows.size(); ++j) {
+					final TableRowBox rowBox = (TableRowBox) rows.get(j);
+					rowSizes[rowIndex] = rowBox.getPageSize();
+					autoRows[rowIndex] = rowBox.getInnerTableParams().size.getType() == LengthType.AUTO;
+					++rowIndex;
 				}
-				for (int i = 0; i < this.rowGroups.size(); ++i) {
-					TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
-					List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
-					for (int j = 0; j < rows.size(); ++j) {
-						TableRowBox rowBox = (TableRowBox) rows.get(j);
-						InnerTableParams params = rowBox.getInnerTableParams();
-						if (params.size.getType() != LengthType.AUTO) {
-							continue;
-						}
-						double rowSize = rowBox.getPageSize();
-						if (rowSizeSum <= 0) {
-							rowSize += remainder / autoRowCount;
-						} else {
-							rowSize += remainder * rowSize / rowSizeSum;
-						}
-						rowBox.setPageSize(rowSize);
-					}
-				}
-			} else {
-				for (int i = 0; i < this.rowGroups.size(); ++i) {
-					TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
-					List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
-					for (int j = 0; j < rows.size(); ++j) {
-						TableRowBox rowBox = (TableRowBox) rows.get(j);
-						double rowHeight = rowBox.getPageSize();
-						if (rowSizeSum <= 0) {
-							rowBox.setPageSize(specifiedPageSize / rowCount);
-						} else {
-							rowBox.setPageSize(specifiedPageSize * rowHeight / rowSizeSum);
-						}
-					}
+			}
+			RowLayoutEngine.distributeTableSize(rowSizes, autoRows, specifiedPageSize);
+			rowIndex = 0;
+			for (int i = 0; i < this.rowGroups.size(); ++i) {
+				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				for (int j = 0; j < rows.size(); ++j) {
+					((TableRowBox) rows.get(j)).setPageSize(rowSizes[rowIndex++]);
 				}
 			}
 		}
