@@ -46,6 +46,8 @@ public class ResumeTraceGoldenTest extends TestCase {
 			"0460-segment-restyle/text-tail-avoid.html", //
 			"0460-segment-restyle/float-in-moved.html", //
 			"0460-segment-restyle/float-split-in-chain.html", //
+			"0460-segment-restyle/float-uncut-before-prefix.html", //
+			"0460-segment-restyle/nested-break-in-replay.html", //
 			"0120-float/float-in-moved-block.html", //
 			"0400-column-count/simple.html", //
 			"0400-column-count/columns-float.html", //

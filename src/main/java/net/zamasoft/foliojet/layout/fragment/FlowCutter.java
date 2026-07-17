@@ -169,7 +169,13 @@ public final class FlowCutter {
 			}
 		}
 		if (breakAvoid && floatPageStarts != null) {
-			// 切断可能な浮動ボックスがある場合は改ページを区切る
+			// 切断可能な浮動ボックスがある場合は改ページを区切る。
+			// 不変条件: 切断可能な crossing float は keep 後退を解除し
+			// (float 自身は splitFloatings が独立に分割する)、切断不能
+			// (置換要素 / page-break-inside:avoid = floatUncut)な
+			// crossing float は keep 後退を妨げない。FlowCutterTest と
+			// 統合フィクスチャ float-split-in-chain(cuttable)/
+			// float-uncut-before-prefix(uncut)の対で固定
 			for (int k = 0; k < floatPageStarts.length; ++k) {
 				if (LayoutUtils.compare(floatPageStarts[k], pageLimit) >= 0) {
 					breakAvoid = false;

@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="220pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+/* 1ページ目だけ本文領域が大きい(220pt)。2ページ目以降は 100pt。
+   これにより 1 ページ目で吸収された閉部分木の合計が 2 ページ目の容量を
+   超え、再生の途中で改ページが入れ子で起きる(ReplaySlice と
+   RetentionLease の統合検証) */
+@page {
+	margin: 0 0 120pt 0;
+}
+@page :first {
+	margin: 0;
+}
+body {
+	font: normal 10pt/1 serif;
+	margin: 0;
+}
+p {
+	margin: 0;
+}
+p.k {
+	page-break-before: avoid;
+	page-break-inside: avoid;
+}
+p.ki {
+	page-break-inside: avoid;
+}
+</style>
+</head>
+<body>
+<p>あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば
+あばばばばばばば</p>
+<p id="b1" class="ki">いろはにほへとちりぬるを
+いろはにほへとちりぬるを
+いろはにほへとちりぬるを
+いろはにほへとちりぬるを
+いろはにほへとち</p>
+<p id="b2" class="k">わかよたれそつねならむう
+わかよたれそつねならむう
+わかよたれそつねならむう
+わかよたれそつねならむう
+わかよたれそつね</p>
+<p id="b3" class="k">ゐのおくやまけふこ</p>
+<p id="c" class="k">えてあさきゆめみしゑひもせす
+えてあさきゆめみしゑひもせす
+えてあさきゆめみしゑひもせす</p>
+</body>
+</html>
