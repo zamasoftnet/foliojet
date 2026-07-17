@@ -326,6 +326,26 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		}
 	}
 
+	/**
+	 * セルの切断位置です(C4-T3)。連結セル(rowspan)は連結元の行から
+	 * 当行までのページ寸を加算する — 切断線はセル上端基準になる。
+	 */
+	private static double cellCutPageAxis(final Cell cell, final double pageLimit) {
+		double cutPageAxis = pageLimit;
+		if (!cell.isSource()) {
+			final Cell sCell = cell.getSource();
+			cutPageAxis += sCell.getTableRow().getPageSize();
+			for (ExtendedCell xcell = sCell.getNextExtendedCell(); xcell != null; xcell = xcell
+					.getNextExtendedCell()) {
+				if (xcell == cell) {
+					break;
+				}
+				cutPageAxis += xcell.getTableRow().getPageSize();
+			}
+		}
+		return cutPageAxis;
+	}
+
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// System.err.println("A:" + flags + "/" + pageLimit + "/" + mode
@@ -419,18 +439,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			Cell cell = (Cell) this.cells.get(i);
 			TableCellBox prevCellBox = cell.getCellBox();
 			TableCellBox nextCellBox;
-			double cutPageAxis = pageLimit;
-			if (!cell.isSource()) {
-				Cell sCell = cell.getSource();
-				cutPageAxis += sCell.getTableRow().getPageSize();
-				for (ExtendedCell xcell = sCell.getNextExtendedCell(); xcell != null; xcell = xcell
-						.getNextExtendedCell()) {
-					if (xcell == cell) {
-						break;
-					}
-					cutPageAxis += xcell.getTableRow().getPageSize();
-				}
-			}
+			final double cutPageAxis = cellCutPageAxis(cell, pageLimit);
 			// System.err.println(prevCellBox.getInnerHeight());
 			final SplitResult cellResult = prevCellBox.split(cutPageAxis, mode, xflags);
 			// System.err.println("TR C: " + i + "/" + xflags + "/pass="
@@ -459,18 +468,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				for (int j = 0; j < i; ++j) {
 					Cell cell2 = (Cell) this.cells.get(j);
 					TableCellBox prevCell2 = cell2.getCellBox();
-					double cutPageAxis2 = pageLimit;
-					if (!cell2.isSource()) {
-						Cell sCell = cell2.getSource();
-						cutPageAxis2 += sCell.getTableRow().getPageSize();
-						for (ExtendedCell xcell = sCell.getNextExtendedCell(); xcell != null; xcell = xcell
-								.getNextExtendedCell()) {
-							if (xcell == cell2) {
-								break;
-							}
-							cutPageAxis2 += xcell.getTableRow().getPageSize();
-						}
-					}
+					final double cutPageAxis2 = cellCutPageAxis(cell2, pageLimit);
 					byte xxflags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 					TableCellBox nextCell2 = (TableCellBox) ((SplitResult.Split) prevCell2.split(cutPageAxis2, mode,
 							xxflags)).remainder();

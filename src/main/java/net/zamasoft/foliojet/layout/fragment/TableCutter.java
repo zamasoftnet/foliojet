@@ -249,6 +249,83 @@ public final class TableCutter {
 	}
 
 	/**
+	 * 明示的な行間強制改ページの位置です(C4-T3)。
+	 *
+	 * @param rowGroup  切断直前の本体行グループのインデックス
+	 * @param row       切断直前の行のインデックス(グループ末尾なら -1)
+	 * @param breakMode 指定された改ページ種別(PAGE / COLUMN)
+	 */
+	public record ForceBreakAt(int rowGroup, int row, PageBreakMode breakMode) {
+	}
+
+	/**
+	 * 自動テーブルの明示的な強制改ページ(行・行グループの
+	 * page-break-before/after: page|column)のうち、切断線までに現れる
+	 * 最初のものを探します(純関数。旧 BreakableBuilder.
+	 * firstTableForceBreak の走査)。切断線を越えた行に達したら打ち切り
+	 * (以降は自動改ページの領分)。
+	 *
+	 * @param pageLimit        切断線
+	 * @param last             本体行グループ先頭のページ位置
+	 *                         (表の位置からヘッダ・フッタ等を調整済み)
+	 * @param rowSizes         各グループの各行のページ寸
+	 * @param groupBreakBefore 各グループの page-break-before
+	 * @param groupBreakAfter  各グループの page-break-after
+	 * @param rowBreakBefore   各グループの各行の page-break-before
+	 * @param rowBreakAfter    各グループの各行の page-break-after
+	 * @return 最初の強制改ページ。切断線まで現れなければ null
+	 */
+	public static ForceBreakAt firstForceBreak(final double pageLimit, double last, final double[][] rowSizes,
+			final PageBreakMode[] groupBreakBefore, final PageBreakMode[] groupBreakAfter,
+			final PageBreakMode[][] rowBreakBefore, final PageBreakMode[][] rowBreakAfter) {
+		final int groupCount = rowSizes.length;
+		PageBreakMode breakMode;
+		for (int rowGroup = 0; rowGroup < groupCount; ++rowGroup) {
+			final int rowCount = rowSizes[rowGroup].length;
+			if (rowGroup > 0) {
+				breakMode = groupBreakBefore[rowGroup];
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
+					// 行グループの直前の改ページ
+					return new ForceBreakAt(rowGroup - 1, -1, breakMode);
+				}
+			}
+			for (int row = 0; row < rowCount; ++row) {
+				last += rowSizes[rowGroup][row];
+				if (LayoutUtils.compare(last, pageLimit) > 0) {
+					// 切断線を越えた: 以降は自動改ページの領分
+					return null;
+				}
+				if (rowGroup > 0 || row > 0) {
+					breakMode = rowBreakBefore[rowGroup][row];
+					if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
+						// 行の直前の改ページ
+						return row - 1 >= 0 ? new ForceBreakAt(rowGroup, row - 1, breakMode)
+								: new ForceBreakAt(rowGroup - 1, -1, breakMode);
+					}
+				}
+				if (rowGroup == groupCount - 1 && row == rowCount - 1) {
+					// 末尾の場合はループから抜ける
+					break;
+				}
+				breakMode = rowBreakAfter[rowGroup][row];
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
+					// 行の直後の改ページ
+					return row < rowCount - 1 ? new ForceBreakAt(rowGroup, row, breakMode)
+							: new ForceBreakAt(rowGroup, -1, breakMode);
+				}
+			}
+			if (rowGroup < groupCount - 1) {
+				breakMode = groupBreakAfter[rowGroup];
+				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
+					// 行グループの直後に改ページ
+					return new ForceBreakAt(rowGroup, -1, breakMode);
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * ページ先頭での行フラグを計算します。先頭行、または先頭行と
 	 * セルを共有する(rowspan で連結された)行には FLAGS_FIRST_ROW を
 	 * 立て、2行目以降は FLAGS_FIRST を落とします。

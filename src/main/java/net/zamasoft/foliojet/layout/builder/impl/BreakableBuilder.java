@@ -120,7 +120,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.getTableBodyCount() <= 0) {
 			return null;
 		}
-		double pageLimit = this.getPageLimit();
 		double last = this.pageAxis;
 		final WritingMode tableFlow = tableBox.getTableParams().flow;
 		last -= tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow);
@@ -130,74 +129,36 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.getTableFooter() != null) {
 			last += tableBox.getTableFooter().getPageSize();
 		}
-		PageBreakMode breakMode = null;
-		AbstractInnerTableBox box = null;
-		int rowGroup = 0, row = -1;
-		LOOP: for (; rowGroup < tableBox.getTableBodyCount(); ++rowGroup) {
-			TableRowGroupBox rowGroupBox = tableBox.getTableBody(rowGroup);
-			if (rowGroup > 0) {
-				TableRowGroupPos pos = rowGroupBox.getTableRowGroupPos();
-				breakMode = pos.pageBreakBefore;
-				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行グループの直前の改ページ
-					--rowGroup;
-					box = tableBox.getTableBody(rowGroup);
-					row = -1;
-					break LOOP;
-				}
-			}
-			for (row = 0; row < rowGroupBox.getTableRowCount(); ++row) {
-				TableRowBox rowBox = rowGroupBox.getTableRow(row);
-				last += rowBox.getPageSize();
-				if (LayoutUtils.compare(last, pageLimit) > 0) {
-					break LOOP;
-				}
-				TableRowPos pos = rowBox.getTableRowPos();
-				if (rowGroup > 0 || row > 0) {
-					breakMode = pos.pageBreakBefore;
-					if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-						// 行の直前の改ページ
-						--row;
-						if (row >= 0) {
-							box = rowGroupBox.getTableRow(row);
-						} else {
-							--rowGroup;
-							box = tableBox.getTableBody(rowGroup);
-						}
-						break LOOP;
-					}
-				}
-				if (rowGroup == tableBox.getTableBodyCount() - 1 && row == rowGroupBox.getTableRowCount() - 1) {
-					// 末尾の場合はループから抜ける
-					break;
-				}
-				breakMode = pos.pageBreakAfter;
-				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行の直後の改ページ
-					if (row < rowGroupBox.getTableRowCount() - 1) {
-						box = rowBox;
-					} else {
-						box = rowGroupBox;
-						row = -1;
-					}
-					break LOOP;
-				}
-			}
-			if (rowGroup < tableBox.getTableBodyCount() - 1) {
-				TableRowGroupPos pos = rowGroupBox.getTableRowGroupPos();
-				breakMode = pos.pageBreakAfter;
-				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行グループの直後に改ページ
-					box = rowGroupBox;
-					row = -1;
-					break LOOP;
-				}
+		// 走査は TableCutter に純化(C4-T3)
+		final int groupCount = tableBox.getTableBodyCount();
+		final double[][] rowSizes = new double[groupCount][];
+		final PageBreakMode[] groupBefore = new PageBreakMode[groupCount];
+		final PageBreakMode[] groupAfter = new PageBreakMode[groupCount];
+		final PageBreakMode[][] rowBefore = new PageBreakMode[groupCount][];
+		final PageBreakMode[][] rowAfter = new PageBreakMode[groupCount][];
+		for (int g = 0; g < groupCount; ++g) {
+			final TableRowGroupBox rowGroupBox = tableBox.getTableBody(g);
+			groupBefore[g] = rowGroupBox.getTableRowGroupPos().pageBreakBefore;
+			groupAfter[g] = rowGroupBox.getTableRowGroupPos().pageBreakAfter;
+			final int rowCount = rowGroupBox.getTableRowCount();
+			rowSizes[g] = new double[rowCount];
+			rowBefore[g] = new PageBreakMode[rowCount];
+			rowAfter[g] = new PageBreakMode[rowCount];
+			for (int r = 0; r < rowCount; ++r) {
+				final TableRowBox rowBox = rowGroupBox.getTableRow(r);
+				rowSizes[g][r] = rowBox.getPageSize();
+				rowBefore[g][r] = rowBox.getTableRowPos().pageBreakBefore;
+				rowAfter[g][r] = rowBox.getTableRowPos().pageBreakAfter;
 			}
 		}
-		if (box == null) {
+		final net.zamasoft.foliojet.layout.fragment.TableCutter.ForceBreakAt at = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.firstForceBreak(this.getPageLimit(), last, rowSizes, groupBefore, groupAfter, rowBefore, rowAfter);
+		if (at == null) {
 			return null;
 		}
-		return new TableForceBreakMode(box, breakMode, rowGroup, row);
+		final AbstractInnerTableBox box = at.row() >= 0 ? tableBox.getTableBody(at.rowGroup()).getTableRow(at.row())
+				: tableBox.getTableBody(at.rowGroup());
+		return new TableForceBreakMode(box, at.breakMode(), at.rowGroup(), at.row());
 	}
 
 	public void startFlowBlock(FlowBlockBox flowBox) {

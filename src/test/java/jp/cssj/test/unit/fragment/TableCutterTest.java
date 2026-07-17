@@ -110,6 +110,52 @@ public class TableCutterTest extends TestCase {
 		assertSame(frame, repeat.prevFrame());
 	}
 
+	public void testFirstForceBreak() {
+		final PageBreakMode a = PageBreakMode.AUTO, p = PageBreakMode.PAGE;
+		// 2グループ×2行、行寸10。切断線は十分下
+		final double[][] sizes = { { 10, 10 }, { 10, 10 } };
+		final PageBreakMode[] ga = { a, a };
+		final PageBreakMode[][] ra = { { a, a }, { a, a } };
+		// 強制改ページなし → null
+		assertNull(TableCutter.firstForceBreak(1000, 0, sizes, ga, ga, ra, ra));
+		// グループ2の直前 → 直前グループ(0)の末尾で切る
+		TableCutter.ForceBreakAt at = TableCutter.firstForceBreak(1000, 0, sizes,
+				new PageBreakMode[] { a, p }, ga, ra, ra);
+		assertEquals(0, at.rowGroup());
+		assertEquals(-1, at.row());
+		assertSame(p, at.breakMode());
+		// グループ1の直後 → そのグループの末尾で切る
+		at = TableCutter.firstForceBreak(1000, 0, sizes, ga, new PageBreakMode[] { p, a }, ra, ra);
+		assertEquals(0, at.rowGroup());
+		assertEquals(-1, at.row());
+		// 行2の直前 → 行1の直後で切る
+		at = TableCutter.firstForceBreak(1000, 0, sizes, ga, ga,
+				new PageBreakMode[][] { { a, p }, { a, a } }, ra);
+		assertEquals(0, at.rowGroup());
+		assertEquals(0, at.row());
+		// グループ2先頭行の直前 → グループ境界(前グループ末尾)で切る
+		at = TableCutter.firstForceBreak(1000, 0, sizes, ga, ga,
+				new PageBreakMode[][] { { a, a }, { p, a } }, ra);
+		assertEquals(0, at.rowGroup());
+		assertEquals(-1, at.row());
+		// 行1の直後(グループ内に後続行あり)→ その行で切る
+		at = TableCutter.firstForceBreak(1000, 0, sizes, ga, ga, ra,
+				new PageBreakMode[][] { { p, a }, { a, a } });
+		assertEquals(0, at.rowGroup());
+		assertEquals(0, at.row());
+		// グループ末尾行の直後 → グループ末尾で切る
+		at = TableCutter.firstForceBreak(1000, 0, sizes, ga, ga, ra,
+				new PageBreakMode[][] { { a, p }, { a, a } });
+		assertEquals(0, at.rowGroup());
+		assertEquals(-1, at.row());
+		// 切断線を越えた行以降の指定は無視(自動改ページの領分)
+		assertNull(TableCutter.firstForceBreak(15, 0, sizes, ga, ga,
+				new PageBreakMode[][] { { a, a }, { p, a } }, ra));
+		// 表末尾の直後指定は改ページにならない
+		assertNull(TableCutter.firstForceBreak(1000, 0, sizes, ga, ga, ra,
+				new PageBreakMode[][] { { a, a }, { a, p } }));
+	}
+
 	public void testFirstRowFlags() {
 		final byte first = IPageBreakableBox.FLAGS_FIRST;
 		// ページ先頭でなければ変更なし
