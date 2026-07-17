@@ -283,21 +283,6 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	}
 
 	/**
-	 * つぶし境界の辺選択です。物理境界(RectBorder)から、グリッドの
-	 * H境界(行進行に直交)の始端/終端・V境界の始端/終端に採る辺への
-	 * 4射影。縦書きと横書きの collapse 本文はこの射影だけが異なる。
-	 */
-	private record BorderAxes(java.util.function.Function<RectBorder, Border> hStart,
-			java.util.function.Function<RectBorder, Border> hEnd,
-			java.util.function.Function<RectBorder, Border> vStart,
-			java.util.function.Function<RectBorder, Border> vEnd) {
-		static final BorderAxes VERTICAL = new BorderAxes(RectBorder::getRight, RectBorder::getLeft,
-				RectBorder::getTop, RectBorder::getBottom);
-		static final BorderAxes HORIZONTAL = new BorderAxes(RectBorder::getTop, RectBorder::getBottom,
-				RectBorder::getLeft, RectBorder::getRight);
-	}
-
-	/**
 	 * つぶし境界を生成します。
 	 */
 	private TableCollapsedBorders createBorders(int columnCount, int headerRowCount, int bodyRowCount,

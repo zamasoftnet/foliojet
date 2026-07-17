@@ -487,422 +487,211 @@ public class OnePassTableBuilder implements TableBuilder {
 			default:
 				throw new IllegalStateException();
 			}
-			if (this.vertical) {
-				for (int row = 0; row < this.cellsUnit.size(); ++row) {
-					List<CellContent> cells = this.cellsUnit.get(row);
-					Border[] lineBorder = new Border[this.columnSizes.length + 1];
-					vborders.add(lineBorder);
-					Border[] firstBorder;
-					if (hborders.isEmpty()) {
-						firstBorder = new Border[this.columnSizes.length];
-						hborders.add(firstBorder);
-					} else {
-						firstBorder = (Border[]) hborders.get(hborders.size() - 1);
-					}
-					Border[] lastBorder = new Border[this.columnSizes.length];
-					hborders.add(lastBorder);
+			final BorderAxes ax = this.vertical ? BorderAxes.VERTICAL : BorderAxes.HORIZONTAL;
+			for (int row = 0; row < this.cellsUnit.size(); ++row) {
+				List<CellContent> cells = this.cellsUnit.get(row);
+				Border[] lineBorder = new Border[this.columnSizes.length + 1];
+				vborders.add(lineBorder);
+				Border[] firstBorder;
+				if (hborders.isEmpty()) {
+					firstBorder = new Border[this.columnSizes.length];
+					hborders.add(firstBorder);
+				} else {
+					firstBorder = (Border[]) hborders.get(hborders.size() - 1);
+				}
+				Border[] lastBorder = new Border[this.columnSizes.length];
+				hborders.add(lastBorder);
 
-					// テーブル境界
-					// 左
-					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0],
-							tableParams.frame.border.getTop());
-					// 右
-					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], tableParams.frame.border.getBottom());
-					// 上
-					if (firstRow && row == 0) {
-						for (int i = 0; i < firstBorder.length; ++i) {
-							firstBorder[i] = TableCollapsedBorders.collapseBorder(firstBorder[i],
-									tableParams.frame.border.getRight());
-						}
+				// テーブル境界
+				// 左
+				lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0],
+						ax.vStart().apply(tableParams.frame.border));
+				// 右
+				lineBorder[lineBorder.length - 1] = TableCollapsedBorders
+						.collapseBorder(lineBorder[lineBorder.length - 1], ax.vEnd().apply(tableParams.frame.border));
+				// 上
+				if (firstRow && row == 0) {
+					for (int i = 0; i < firstBorder.length; ++i) {
+						firstBorder[i] = TableCollapsedBorders.collapseBorder(firstBorder[i],
+								ax.hStart().apply(tableParams.frame.border));
 					}
-					// 下
-					if (lastRow && row == this.cellsUnit.size() - 1) {
-						for (int i = 0; i < lastBorder.length; ++i) {
-							lastBorder[i] = TableCollapsedBorders.collapseBorder(lastBorder[i],
-									tableParams.frame.border.getLeft());
-						}
+				}
+				// 下
+				if (lastRow && row == this.cellsUnit.size() - 1) {
+					for (int i = 0; i < lastBorder.length; ++i) {
+						lastBorder[i] = TableCollapsedBorders.collapseBorder(lastBorder[i],
+								ax.hEnd().apply(tableParams.frame.border));
 					}
+				}
 
-					// カラムグループ境界
-					// カラム境界
-					if (this.columnGroupBox != null) {
-						TableColumnGroupBox columnGroup = this.columnGroupBox;
-						int col = 0;
-						List<Object> stack = new ArrayList<Object>();
-						int i = 0;
-						RECURSE: for (;;) {
-							for (; i < columnGroup.getTableColumnCount(); ++i) {
-								TableColumnBox column = columnGroup.getTableColumn(i);
-								InnerTableParams colParams = column.getInnerTableParams();
-								TableColumnPos colPos = column.getTableColumnPos();
-								int colspan;
-								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-									colspan = ((TableColumnGroupBox) column).getTableColumnCount();
-								} else {
-									colspan = colPos.span;
-								}
-								if (firstRow && row == 0) {
-									for (int j = 0; j < colspan; ++j) {
-										int jj = col + j;
-										// 列グループ上
-										firstBorder[jj] = TableCollapsedBorders.collapseBorder(firstBorder[jj],
-												colParams.border.getRight());
-									}
-								}
-								if (lastRow && row == this.cellsUnit.size() - 1) {
-									for (int j = 0; j < colspan; ++j) {
-										int jj = col + j;
-										// 列グループ下
-										lastBorder[jj] = TableCollapsedBorders.collapseBorder(lastBorder[jj],
-												colParams.border.getLeft());
-									}
-								}
-								// 行グループ左
-								lineBorder[col] = TableCollapsedBorders.collapseBorder(lineBorder[col],
-										colParams.border.getTop());
-								// 行グループ右
-								lineBorder[col + colspan] = TableCollapsedBorders
-										.collapseBorder(lineBorder[col + colspan], colParams.border.getBottom());
-								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-									stack.add(columnGroup);
-									stack.add(NumberUtils.intValue(i + 1));
-									columnGroup = (TableColumnGroupBox) column;
-									i = 0;
-									continue RECURSE;
-								} else {
-									col += colspan;
-								}
-							}
-							if (stack.isEmpty()) {
-								break;
-							}
-							i = ((Integer) stack.remove(stack.size() - 1)).intValue();
-							columnGroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
-						}
-					}
-
-					// 行グループ境界
-					// 左
-					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], rowGroupParams.border.getTop());
-					// 右
-					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowGroupParams.border.getBottom());
-					// 上
-					if (groupFirst) {
-						for (int j = 0; j < this.columnSizes.length; ++j) {
-							firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
-									rowGroupParams.border.getRight());
-						}
-					}
-					// 下
-					if (groupLast) {
-						for (int j = 0; j < this.columnSizes.length; ++j) {
-							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-									rowGroupParams.border.getLeft());
-						}
-					}
-
-					// 行境界
-					TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
-					InnerTableParams rowParams = rowBox.getInnerTableParams();
-					// 左
-					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], rowParams.border.getTop());
-					// 右
-					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowParams.border.getBottom());
-					// 下
-					for (int j = 0; j < cells.size(); ++j) {
-						CellContent cell = (CellContent) cells.get(j);
-						if (cell.rowspan == 1) {
-							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-									rowParams.border.getLeft());
-						}
-					}
-					// 次の行の上
-					List<?> nextCells = (row < this.cellsUnit.size() - 1) ? (List<?>) this.cellsUnit.get(row + 1)
-							: this.cells;
-					if (!groupLast || row < this.cellsUnit.size() - 1) {
-						InnerTableParams nextRowParams = this.rowBox.getInnerTableParams();
-						for (int j = 0; j < nextCells.size(); ++j) {
-							CellContent nextCell = (CellContent) nextCells.get(j);
-							TableCellPos cellPos = nextCell.getCellBox().getTableCellPos();
-							if (nextCell.rowspan == cellPos.rowspan) {
-								lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-										nextRowParams.border.getRight());
-							}
-						}
-					}
-					if (groupFirst && row == 0) {
-						// 最初の行の上
-						for (int j = 0; j < cells.size(); ++j) {
-							firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
-									rowParams.border.getRight());
-						}
-					}
-
-					// セル境界
-					for (int j = 0; j < cells.size(); ++j) {
-						CellContent cell = (CellContent) cells.get(j);
-						BlockParams cellParams = cell.getCellBox().getBlockParams();
-						// 左
-						// System.out.println((this.vborders.size() -
-						// 1)+"/"+j+"/"+cell.colspan);
-						lineBorder[j] = TableCollapsedBorders.collapseBorder(lineBorder[j],
-								cellParams.frame.border.getTop());
-						j += cell.colspan - 1;
-						// 右
-						lineBorder[j + 1] = TableCollapsedBorders.collapseBorder(lineBorder[j + 1],
-								cellParams.frame.border.getBottom());
-					}
-
-					if (groupFirst && row == 0) {
-						// 最初の行の上
-						for (int j = 0; j < cells.size(); ++j) {
-							CellContent cell = (CellContent) cells.get(j);
-							BlockParams cellParams = cell.getCellBox().getBlockParams();
-							firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
-									cellParams.frame.border.getRight());
-							// System.out.println((this.hborders.size() - 2) +
-							// "/" +
-							// j
-							// + "/" + topBorder[j]);
-						}
-					}
-					for (int j = 0; j < cells.size(); ++j) {
-						CellContent cell = (CellContent) cells.get(j);
-						BlockParams cellParams = cell.getCellBox().getBlockParams();
-						// 下
-						if (cell.rowspan == 1) {
-							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-									cellParams.frame.border.getLeft());
-						} else {
-							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j], Border.NONE_BORDER);
-						}
-					}
-					// 次の行の上
-					if (!groupLast || row < this.cellsUnit.size() - 1) {
-						for (int j = 0; j < nextCells.size(); ++j) {
-							CellContent cell = (CellContent) nextCells.get(j);
-							BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (cell.rowspan == cell.getCellBox().getTableCellPos().rowspan) {
-								lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-										cellParams.frame.border.getRight());
+				// カラムグループ境界
+				// カラム境界
+				if (this.columnGroupBox != null) {
+					TableColumnGroupBox columnGroup = this.columnGroupBox;
+					int col = 0;
+					List<Object> stack = new ArrayList<Object>();
+					int i = 0;
+					RECURSE: for (;;) {
+						for (; i < columnGroup.getTableColumnCount(); ++i) {
+							TableColumnBox column = columnGroup.getTableColumn(i);
+							InnerTableParams colParams = column.getInnerTableParams();
+							TableColumnPos colPos = column.getTableColumnPos();
+							int colspan;
+							if (column.getType() == BoxType.TABLE_COLUMN_GROUP
+									&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
+								colspan = ((TableColumnGroupBox) column).getTableColumnCount();
 							} else {
-								lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j], Border.NONE_BORDER);
+								colspan = colPos.span;
 							}
+							if (firstRow && row == 0) {
+								for (int j = 0; j < colspan; ++j) {
+									int jj = col + j;
+									// 列グループ上
+									firstBorder[jj] = TableCollapsedBorders.collapseBorder(firstBorder[jj],
+											ax.hStart().apply(colParams.border));
+								}
+							}
+							if (lastRow && row == this.cellsUnit.size() - 1) {
+								for (int j = 0; j < colspan; ++j) {
+									int jj = col + j;
+									// 列グループ下
+									lastBorder[jj] = TableCollapsedBorders.collapseBorder(lastBorder[jj],
+											ax.hEnd().apply(colParams.border));
+								}
+							}
+							// 行グループ左
+							lineBorder[col] = TableCollapsedBorders.collapseBorder(lineBorder[col],
+									ax.vStart().apply(colParams.border));
+							// 行グループ右
+							lineBorder[col + colspan] = TableCollapsedBorders
+									.collapseBorder(lineBorder[col + colspan], ax.vEnd().apply(colParams.border));
+							if (column.getType() == BoxType.TABLE_COLUMN_GROUP
+									&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
+								stack.add(columnGroup);
+								stack.add(NumberUtils.intValue(i + 1));
+								columnGroup = (TableColumnGroupBox) column;
+								i = 0;
+								continue RECURSE;
+							} else {
+								col += colspan;
+							}
+						}
+						if (stack.isEmpty()) {
+							break;
+						}
+						i = ((Integer) stack.remove(stack.size() - 1)).intValue();
+						columnGroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
+					}
+				}
+
+				// 行グループ境界
+				// 左
+				lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], ax.vStart().apply(rowGroupParams.border));
+				// 右
+				lineBorder[lineBorder.length - 1] = TableCollapsedBorders
+						.collapseBorder(lineBorder[lineBorder.length - 1], ax.vEnd().apply(rowGroupParams.border));
+				// 上
+				if (groupFirst) {
+					for (int j = 0; j < this.columnSizes.length; ++j) {
+						firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
+								ax.hStart().apply(rowGroupParams.border));
+					}
+				}
+				// 下
+				if (groupLast) {
+					for (int j = 0; j < this.columnSizes.length; ++j) {
+						lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
+								ax.hEnd().apply(rowGroupParams.border));
+					}
+				}
+
+				// 行境界
+				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
+				InnerTableParams rowParams = rowBox.getInnerTableParams();
+				// 左
+				lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], ax.vStart().apply(rowParams.border));
+				// 右
+				lineBorder[lineBorder.length - 1] = TableCollapsedBorders
+						.collapseBorder(lineBorder[lineBorder.length - 1], ax.vEnd().apply(rowParams.border));
+				// 下
+				for (int j = 0; j < cells.size(); ++j) {
+					CellContent cell = (CellContent) cells.get(j);
+					if (cell.rowspan == 1) {
+						lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
+								ax.hEnd().apply(rowParams.border));
+					}
+				}
+				// 次の行の上
+				List<?> nextCells = (row < this.cellsUnit.size() - 1) ? (List<?>) this.cellsUnit.get(row + 1)
+						: this.cells;
+				if (!groupLast || row < this.cellsUnit.size() - 1) {
+					InnerTableParams nextRowParams = this.rowBox.getInnerTableParams();
+					for (int j = 0; j < nextCells.size(); ++j) {
+						CellContent nextCell = (CellContent) nextCells.get(j);
+						TableCellPos cellPos = nextCell.getCellBox().getTableCellPos();
+						if (nextCell.rowspan == cellPos.rowspan) {
+							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
+									ax.hStart().apply(nextRowParams.border));
 						}
 					}
 				}
-			} else {
-				for (int row = 0; row < this.cellsUnit.size(); ++row) {
-					List<?> cells = (List<?>) this.cellsUnit.get(row);
-					Border[] lineBorder = new Border[this.columnSizes.length + 1];
-					vborders.add(lineBorder);
-					Border[] firstBorder;
-					if (hborders.isEmpty()) {
-						firstBorder = new Border[this.columnSizes.length];
-						hborders.add(firstBorder);
+				if (groupFirst && row == 0) {
+					// 最初の行の上
+					for (int j = 0; j < cells.size(); ++j) {
+						firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
+								ax.hStart().apply(rowParams.border));
+					}
+				}
+
+				// セル境界
+				for (int j = 0; j < cells.size(); ++j) {
+					CellContent cell = (CellContent) cells.get(j);
+					BlockParams cellParams = cell.getCellBox().getBlockParams();
+					// 左
+					// System.out.println((this.vborders.size() -
+					// 1)+"/"+j+"/"+cell.colspan);
+					lineBorder[j] = TableCollapsedBorders.collapseBorder(lineBorder[j],
+							ax.vStart().apply(cellParams.frame.border));
+					j += cell.colspan - 1;
+					// 右
+					lineBorder[j + 1] = TableCollapsedBorders.collapseBorder(lineBorder[j + 1],
+							ax.vEnd().apply(cellParams.frame.border));
+				}
+
+				if (groupFirst && row == 0) {
+					// 最初の行の上
+					for (int j = 0; j < cells.size(); ++j) {
+						CellContent cell = (CellContent) cells.get(j);
+						BlockParams cellParams = cell.getCellBox().getBlockParams();
+						firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
+								ax.hStart().apply(cellParams.frame.border));
+						// System.out.println((this.hborders.size() - 2) +
+						// "/" +
+						// j
+						// + "/" + topBorder[j]);
+					}
+				}
+				for (int j = 0; j < cells.size(); ++j) {
+					CellContent cell = (CellContent) cells.get(j);
+					BlockParams cellParams = cell.getCellBox().getBlockParams();
+					// 下
+					if (cell.rowspan == 1) {
+						lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
+								ax.hEnd().apply(cellParams.frame.border));
 					} else {
-						firstBorder = (Border[]) hborders.get(hborders.size() - 1);
+						lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j], Border.NONE_BORDER);
 					}
-					Border[] lastBorder = new Border[this.columnSizes.length];
-					hborders.add(lastBorder);
-
-					// テーブル境界
-					// 左
-					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0],
-							tableParams.frame.border.getLeft());
-					// 右
-					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], tableParams.frame.border.getRight());
-					// 上
-					if (firstRow && row == 0) {
-						for (int i = 0; i < firstBorder.length; ++i) {
-							firstBorder[i] = TableCollapsedBorders.collapseBorder(firstBorder[i],
-									tableParams.frame.border.getTop());
-						}
-					}
-					// 下
-					if (lastRow && row == this.cellsUnit.size() - 1) {
-						for (int i = 0; i < lastBorder.length; ++i) {
-							lastBorder[i] = TableCollapsedBorders.collapseBorder(lastBorder[i],
-									tableParams.frame.border.getBottom());
-						}
-					}
-
-					// カラムグループ境界
-					// カラム境界
-					if (this.columnGroupBox != null) {
-						TableColumnGroupBox columnGroup = this.columnGroupBox;
-						int col = 0;
-						List<Object> stack = new ArrayList<Object>();
-						int i = 0;
-						RECURSE: for (;;) {
-							for (; i < columnGroup.getTableColumnCount(); ++i) {
-								TableColumnBox column = columnGroup.getTableColumn(i);
-								InnerTableParams colParams = column.getInnerTableParams();
-								TableColumnPos colPos = column.getTableColumnPos();
-								int colspan;
-								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-									colspan = ((TableColumnGroupBox) column).getTableColumnCount();
-								} else {
-									colspan = colPos.span;
-								}
-								if (firstRow && row == 0) {
-									for (int j = 0; j < colspan; ++j) {
-										int jj = col + j;
-										// 列グループ上
-										firstBorder[jj] = TableCollapsedBorders.collapseBorder(firstBorder[jj],
-												colParams.border.getTop());
-									}
-								}
-								if (lastRow && row == this.cellsUnit.size() - 1) {
-									for (int j = 0; j < colspan; ++j) {
-										int jj = col + j;
-										// 列グループ下
-										lastBorder[jj] = TableCollapsedBorders.collapseBorder(lastBorder[jj],
-												colParams.border.getBottom());
-									}
-								}
-								// 行グループ左
-								lineBorder[col] = TableCollapsedBorders.collapseBorder(lineBorder[col],
-										colParams.border.getLeft());
-								// 行グループ右
-								lineBorder[col + colspan] = TableCollapsedBorders
-										.collapseBorder(lineBorder[col + colspan], colParams.border.getRight());
-								if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-										&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-									stack.add(columnGroup);
-									stack.add(NumberUtils.intValue(i + 1));
-									columnGroup = (TableColumnGroupBox) column;
-									i = 0;
-									continue RECURSE;
-								} else {
-									col += colspan;
-								}
-							}
-							if (stack.isEmpty()) {
-								break;
-							}
-							i = ((Integer) stack.remove(stack.size() - 1)).intValue();
-							columnGroup = (TableColumnGroupBox) stack.remove(stack.size() - 1);
-						}
-					}
-
-					// 行グループ境界
-					// 左
-					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0],
-							rowGroupParams.border.getLeft());
-					// 右
-					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowGroupParams.border.getRight());
-					// 上
-					if (groupFirst) {
-						for (int j = 0; j < this.columnSizes.length; ++j) {
-							firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
-									rowGroupParams.border.getTop());
-						}
-					}
-					// 下
-					if (groupLast) {
-						for (int j = 0; j < this.columnSizes.length; ++j) {
-							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-									rowGroupParams.border.getBottom());
-						}
-					}
-
-					// 行境界
-					TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
-					InnerTableParams rowParams = rowBox.getInnerTableParams();
-					// 左
-					lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], rowParams.border.getLeft());
-					// 右
-					lineBorder[lineBorder.length - 1] = TableCollapsedBorders
-							.collapseBorder(lineBorder[lineBorder.length - 1], rowParams.border.getRight());
-					// 下
-					for (int j = 0; j < cells.size(); ++j) {
-						CellContent cell = (CellContent) cells.get(j);
-						if (cell.rowspan == 1) {
-							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-									rowParams.border.getBottom());
-						}
-					}
-					// 次の行の上
-					List<?> nextCells = (row < this.cellsUnit.size() - 1) ? (List<?>) this.cellsUnit.get(row + 1)
-							: this.cells;
-					if (!groupLast || row < this.cellsUnit.size() - 1) {
-						InnerTableParams nextRowParams = this.rowBox.getInnerTableParams();
-						for (int j = 0; j < nextCells.size(); ++j) {
-							CellContent nextCell = (CellContent) nextCells.get(j);
-							TableCellPos cellPps = nextCell.getCellBox().getTableCellPos();
-							if (nextCell.rowspan == cellPps.rowspan) {
-								lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-										nextRowParams.border.getTop());
-							}
-						}
-					}
-					if (groupFirst && row == 0) {
-						// 最初の行の上
-						for (int j = 0; j < cells.size(); ++j) {
-							firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
-									rowParams.border.getTop());
-						}
-					}
-
-					// セル境界
-					for (int j = 0; j < cells.size(); ++j) {
-						CellContent cell = (CellContent) cells.get(j);
+				}
+				// 次の行の上
+				if (!groupLast || row < this.cellsUnit.size() - 1) {
+					for (int j = 0; j < nextCells.size(); ++j) {
+						CellContent cell = (CellContent) nextCells.get(j);
 						BlockParams cellParams = cell.getCellBox().getBlockParams();
-						// 左
-						// System.out.println((this.vborders.size() -
-						// 1)+"/"+j+"/"+cell.colspan);
-						lineBorder[j] = TableCollapsedBorders.collapseBorder(lineBorder[j],
-								cellParams.frame.border.getLeft());
-						j += cell.colspan - 1;
-						// 右
-						lineBorder[j + 1] = TableCollapsedBorders.collapseBorder(lineBorder[j + 1],
-								cellParams.frame.border.getRight());
-					}
-
-					if (groupFirst && row == 0) {
-						// 最初の行の上
-						for (int j = 0; j < cells.size(); ++j) {
-							CellContent cell = (CellContent) cells.get(j);
-							BlockParams cellParams = cell.getCellBox().getBlockParams();
-							firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
-									cellParams.frame.border.getTop());
-							// System.out.println((this.hborders.size() - 2) +
-							// "/" +
-							// j
-							// + "/" + topBorder[j]);
-						}
-					}
-					for (int j = 0; j < cells.size(); ++j) {
-						CellContent cell = (CellContent) cells.get(j);
-						BlockParams cellParams = cell.getCellBox().getBlockParams();
-						// 下
-						if (cell.rowspan == 1) {
+						if (cell.rowspan == cell.getCellBox().getTableCellPos().rowspan) {
 							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-									cellParams.frame.border.getBottom());
+									ax.hStart().apply(cellParams.frame.border));
 						} else {
 							lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j], Border.NONE_BORDER);
-						}
-					}
-					// 次の行の上
-					if (!groupLast || row < this.cellsUnit.size() - 1) {
-						for (int j = 0; j < nextCells.size(); ++j) {
-							CellContent cell = (CellContent) nextCells.get(j);
-							BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (cell.rowspan == cell.getCellBox().getTableCellPos().rowspan) {
-								lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
-										cellParams.frame.border.getTop());
-							} else {
-								lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j], Border.NONE_BORDER);
-							}
 						}
 					}
 				}
