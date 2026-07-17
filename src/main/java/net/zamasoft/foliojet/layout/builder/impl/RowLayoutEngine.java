@@ -12,25 +12,11 @@ import java.util.List;
  * ビルダーごとに異なる — CellContent.complementRowspan と同じ分担)。
  * </p>
  */
-final class RowLayoutEngine {
+public final class RowLayoutEngine {
 	private RowLayoutEngine() {
 		// engine
 	}
 
-	/**
-	 * rowspan で連結された行の高さを分配します(両ビルダーの同一
-	 * アルゴリズムの統合)。各連結について、連結範囲の行高合計が連結
-	 * セルの要求(min)に足りなければ、不足分を (1) %指定行に比率適用 →
-	 * (2) 連結によってのみ拡張された自動行 → (3) 自動行 → (4) 全行、の
-	 * 優先順で分配する。
-	 *
-	 * @param rowSizes    各行の高さ(入出力)
-	 * @param rowspanList 連結(row=開始行、span=連結数、min=要求高さ)。
-	 *                    Rowspan.SPAN_COMPARATOR でソート済みであること
-	 * @param noAdjRows   連結されないセルを含む行
-	 * @param autoRows    自動高さの行
-	 * @param rowRatios   %指定行の比率(なければ 0)
-	 */
 	/**
 	 * 行グループの指定高さを行へ分配します(両ビルダーの同一アルゴリズムの
 	 * 統合)。行高合計が指定に満たなければ比例拡大し、合計0なら均等分配
@@ -42,7 +28,7 @@ final class RowLayoutEngine {
 	 * @param groupSize 行グループの指定高さ
 	 * @return 行高合計の増分
 	 */
-	static double distributeGroupSize(final double[] rowSizes, final double groupSize) {
+	public static double distributeGroupSize(final double[] rowSizes, final double groupSize) {
 		double sum = 0;
 		for (final double s : rowSizes) {
 			sum += s;
@@ -69,7 +55,7 @@ final class RowLayoutEngine {
 	 * @param remainder         分配できる残余
 	 * @return 行高合計の増分
 	 */
-	static double distributePercentRowSizes(final double[] rowSizes, final double[] rowRatios,
+	public static double distributePercentRowSizes(final double[] rowSizes, final double[] rowRatios,
 			final double specifiedPageSize, double remainder) {
 		double added = 0;
 		for (int i = 0; i < rowSizes.length && remainder > 0; ++i) {
@@ -95,7 +81,7 @@ final class RowLayoutEngine {
 	 *                          rowspan 分配の autoRows とは判定が異なる)
 	 * @param specifiedPageSize 表の指定高さ
 	 */
-	static void distributeTableSize(final double[] rowSizes, final boolean[] autoRows,
+	public static void distributeTableSize(final double[] rowSizes, final boolean[] autoRows,
 			final double specifiedPageSize) {
 		double rowSizeSum = 0;
 		int autoRowCount = 0;
@@ -130,7 +116,21 @@ final class RowLayoutEngine {
 		}
 	}
 
-	static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
+	/**
+	 * rowspan で連結された行の高さを分配します(両ビルダーの同一
+	 * アルゴリズムの統合)。各連結について、連結範囲の行高合計が連結
+	 * セルの要求(min)に足りなければ、不足分を (1) %指定行に比率適用 →
+	 * (2) 連結によってのみ拡張された自動行 → (3) 自動行 → (4) 全行、の
+	 * 優先順で分配する。
+	 *
+	 * @param rowSizes    各行の高さ(入出力)
+	 * @param rowspanList 連結(row=開始行、span=連結数、min=要求高さ)。
+	 *                    Rowspan.SPAN_COMPARATOR でソート済みであること
+	 * @param noAdjRows   連結されないセルを含む行
+	 * @param autoRows    自動高さの行
+	 * @param rowRatios   %指定行の比率(なければ 0)
+	 */
+	public static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
 			final boolean[] noAdjRows, final boolean[] autoRows, final double[] rowRatios) {
 		for (int j = 0; j < rowspanList.size(); ++j) {
 			final Rowspan rowspan = (Rowspan) rowspanList.get(j);
