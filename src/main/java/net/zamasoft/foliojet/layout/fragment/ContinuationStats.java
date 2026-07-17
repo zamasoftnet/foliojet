@@ -23,6 +23,12 @@ public final class ContinuationStats {
 	 */
 	public static final AtomicLong OPEN_TEXT_HANDOFFS = new AtomicLong();
 
+	/**
+	 * LegacyOpenTail の深さの最大値(Phase 3 の除去範囲の実測。
+	 * 0 = 開きボックスなし、1 = 開きテキストのみ、2+ = moved-open 入れ子)。
+	 */
+	public static final AtomicLong MAX_LEGACY_DEPTH = new AtomicLong();
+
 	private ContinuationStats() {
 		// counters
 	}
@@ -32,5 +38,6 @@ public final class ContinuationStats {
 		LEGACY_TAILS.set(0);
 		LEGACY_ROOTS.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
+		MAX_LEGACY_DEPTH.set(0);
 	}
 }

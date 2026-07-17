@@ -45,6 +45,21 @@ public class ContinuationCharacterizationTest extends TestCase {
 		assertTrue("open 段落の handoff が観測されていません", ContinuationStats.OPEN_TEXT_HANDOFFS.get() > 0);
 	}
 
+	public void testLegacyDepthIsLoadBearing() throws Exception {
+		ContinuationStats.reset();
+		// LegacyOpenTail の深さ規約は実働(実測 max=6: moved-open の
+		// 入れ子)。Phase 3 の除去は「開きボックス連鎖の値 recipe 化」を
+		// 伴う本格工事であることの記録。除去できたらこのテストごと削除
+		this.transcode(new File("files/unittest/0460-segment-restyle/mid-paragraph.html"), "p1");
+		this.transcode(new File("files/unittest/0460-segment-restyle/float-split-in-chain.html"), "p2");
+		this.transcode(new File("files/unittest/0460-segment-restyle/nested-break-in-replay.html"), "p3");
+		this.transcode(new File("files/unittest/0460-segment-restyle/moved-blocks.html"), "p4");
+		this.transcode(new File("files/unittest/0400-column-count/nest.html"), "p5");
+		assertTrue("depth 規約が観測されていません", ContinuationStats.MAX_LEGACY_DEPTH.get() > 0);
+		assertTrue("depth の実測上限が拡大: " + ContinuationStats.MAX_LEGACY_DEPTH.get(),
+				ContinuationStats.MAX_LEGACY_DEPTH.get() <= 6);
+	}
+
 	public void testTableSpanningBreakChainsToo() throws Exception {
 		ContinuationStats.reset();
 		// 表を跨ぐ改ページも Child フレームで連鎖し、末端だけが

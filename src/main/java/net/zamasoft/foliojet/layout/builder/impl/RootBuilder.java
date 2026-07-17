@@ -528,6 +528,8 @@ public class RootBuilder extends BreakableBuilder {
 			this.resumeFrame(child, index + 1, depth);
 		}
 		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(final int d) -> {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_LEGACY_DEPTH
+					.accumulateAndGet(d, Math::max);
 			if (index == 0) {
 				// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 				// この経路では prefix 吸収は行われていない
