@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>複数行単位の内側線と行グループ境界</title>
+<style>
+table { border-collapse: collapse; margin-bottom: 10px; }
+table.fixed { table-layout: fixed; width: 200px; }
+tbody { border: 6px solid #00f; }
+tr.r1 { border-top: 2px solid #0a0; }
+tr.r2 { border-top: 4px solid #a0a; }
+tr.r3 { border-top: 3px solid #fa0; }
+td { border: 1px solid #999; padding: 0; }
+</style>
+</head>
+<body>
+<!-- rowspan で2行が1単位になる fixed(OnePass)経路で、
+     (7) tbody の前後境界が単位内の内側線(r1/r2 間)へ漏れるか、
+     (8) r2 の border-top でなく保留行 r3 の border-top が
+     内側線に使われるか、を判別する。下の auto 表(TwoPass)が基準 —
+     修正後は両表の CollapsedBorders describe が一致するはず。 -->
+<table class="fixed">
+<tbody>
+<tr class="r1"><td rowspan="2">s</td><td>a</td></tr>
+<tr class="r2"><td>b</td></tr>
+<tr class="r3"><td>c</td><td>d</td></tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr class="r1"><td rowspan="2">s</td><td>a</td></tr>
+<tr class="r2"><td>b</td></tr>
+<tr class="r3"><td>c</td><td>d</td></tr>
+</tbody>
+</table>
+</body>
+</html>

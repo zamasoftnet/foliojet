@@ -1,0 +1,13 @@
+drawer z=0
+  x=6.00 y=6.00 CollapsedBorders[2x3 H0,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] H0,2=[style=3,width=2.25,color=rgb(1.0,0.6666667,0.0)] H0,3=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] H1,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] H1,1=[style=3,width=3.0,color=rgb(0.6666667,0.0,0.6666667)] H1,2=[style=3,width=2.25,color=rgb(1.0,0.6666667,0.0)] H1,3=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V0,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V0,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V0,2=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V1,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V1,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V1,2=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V2,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V2,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V2,2=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)]]
+  x=8.25 y=16.95 Text["s" asc=10.31 desc=4.09]
+  x=81.38 y=8.25 Text["a" asc=10.31 desc=4.09]
+  x=81.38 y=25.65 Text["b" asc=10.31 desc=4.09]
+  x=8.25 y=42.30 Text["c" asc=10.31 desc=4.09]
+  x=81.38 y=42.30 Text["d" asc=10.31 desc=4.09]
+  x=6.00 y=66.45 CollapsedBorders[2x3 H0,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] H0,2=[style=3,width=2.25,color=rgb(1.0,0.6666667,0.0)] H0,3=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] H1,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] H1,1=[style=3,width=3.0,color=rgb(0.6666667,0.0,0.6666667)] H1,2=[style=3,width=2.25,color=rgb(1.0,0.6666667,0.0)] H1,3=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V0,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V0,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V0,2=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V1,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V1,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V1,2=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V2,0=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)] V2,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V2,2=[style=3,width=4.5,color=rgb(0.0,0.0,1.0)]]
+  x=8.25 y=77.40 Text["s" asc=10.31 desc=4.09]
+  x=14.33 y=68.70 Text["a" asc=10.31 desc=4.09]
+  x=14.33 y=86.10 Text["b" asc=10.31 desc=4.09]
+  x=8.25 y=102.75 Text["c" asc=10.31 desc=4.09]
+  x=14.33 y=102.75 Text["d" asc=10.31 desc=4.09]

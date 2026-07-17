@@ -22,10 +22,10 @@ import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
  * </p>
  *
  * <p>
- * 既知の OnePass 固有規約(bug-for-bug 保存、要裁定): (1) 行グループの
- * 前後 H は groupFirst/groupLast の単位で全行へ適用される(TwoPass は
- * グループ境界行のみ)。(2) 単位内の次行 peek でも次行 params は
- * ストリーミング側の保留行(pendingRowBox)から採る。
+ * 行グループの前後 H はグループ境界行のみに適用し、次行 peek は
+ * 実際の次行の params を使う(旧 OnePass は単位全行への適用と保留行
+ * 参照の固有規約を持っていた —
+ * 0330-table-border/collapse-group-inner-lines.html で是正)。
  * </p>
  */
 final class CollapsedBorderRules {
@@ -45,12 +45,12 @@ final class CollapsedBorderRules {
 	 * @param rowGroupParams 行グループのパラメータ
 	 * @param rowBox        当行
 	 * @param cells         当行のセル列
-	 * @param pendingRowBox 次行 peek に使う保留行(hasNextRow のとき非 null)
+	 * @param nextRowBox    次行(hasNextRow のとき非 null)
 	 * @param nextCells     次行のセル列
 	 * @param tableFirst    表の最初の行
 	 * @param tableLast     表の最後の行
-	 * @param groupFirst    行グループ最初の単位
-	 * @param groupLast     行グループ最後の単位
+	 * @param groupFirst    行グループの先頭境界行
+	 * @param groupLast     行グループの末尾境界行
 	 * @param rowFirst      単位の最初の行
 	 * @param hasNextRow    次行の peek を行う(グループが続くか単位内に次行)
 	 * @param columnCount   列数
@@ -58,7 +58,7 @@ final class CollapsedBorderRules {
 	static void collapseRow(final Border[] firstBorder, final Border[] lastBorder, final Border[] lineBorder,
 			final BorderAxes ax, final TableParams tableParams, final TableColumnGroupBox colgroup,
 			final InnerTableParams rowGroupParams, final TableRowBox rowBox, final List<CellContent> cells,
-			final TableRowBox pendingRowBox, final List<?> nextCells, final boolean tableFirst,
+			final TableRowBox nextRowBox, final List<?> nextCells, final boolean tableFirst,
 			final boolean tableLast, final boolean groupFirst, final boolean groupLast, final boolean rowFirst,
 			final boolean hasNextRow, final int columnCount) {
 		// テーブル境界
@@ -136,7 +136,7 @@ final class CollapsedBorderRules {
 		}
 		// 次の行の上
 		if (hasNextRow) {
-			final InnerTableParams nextRowParams = pendingRowBox.getInnerTableParams();
+			final InnerTableParams nextRowParams = nextRowBox.getInnerTableParams();
 			for (int j = 0; j < nextCells.size(); ++j) {
 				final CellContent nextCell = (CellContent) nextCells.get(j);
 				final TableCellPos cellPos = nextCell.getCellBox().getTableCellPos();

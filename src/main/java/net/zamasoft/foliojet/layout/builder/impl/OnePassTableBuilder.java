@@ -450,12 +450,14 @@ public class OnePassTableBuilder implements TableBuilder {
 				Border[] lastBorder = new Border[this.columnSizes.length];
 				hborders.add(lastBorder);
 
-				final List<?> nextCells = (row < this.cellsUnit.size() - 1) ? (List<?>) this.cellsUnit.get(row + 1)
-						: this.cells;
+				final boolean unitLastRow = row == this.cellsUnit.size() - 1;
+				final List<?> nextCells = unitLastRow ? this.cells : (List<?>) this.cellsUnit.get(row + 1);
+				// 次行はまず単位内、単位末尾ではストリーミング側の保留行
+				final TableRowBox nextRowBox = unitLastRow ? this.rowBox : (TableRowBox) this.rowsUnit.get(row + 1);
 				CollapsedBorderRules.collapseRow(firstBorder, lastBorder, lineBorder, ax, tableParams,
-						this.columnGroupBox, rowGroupParams, (TableRowBox) this.rowsUnit.get(row), cells, this.rowBox,
-						nextCells, firstRow && row == 0, lastRow && row == this.cellsUnit.size() - 1, groupFirst,
-						groupLast, row == 0, !groupLast || row < this.cellsUnit.size() - 1, this.columnSizes.length);
+						this.columnGroupBox, rowGroupParams, (TableRowBox) this.rowsUnit.get(row), cells, nextRowBox,
+						nextCells, firstRow && row == 0, lastRow && unitLastRow, groupFirst && row == 0,
+						groupLast && unitLastRow, row == 0, !groupLast || !unitLastRow, this.columnSizes.length);
 			}
 		}
 
