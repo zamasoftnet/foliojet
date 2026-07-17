@@ -75,41 +75,6 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: TwoPassTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */
-	protected static class CellContent {
-		private final Object cell;
-
-		public final int rowspan, colspan;
-
-		public CellContent(TwoPassBlockBuilder cellBuilder) {
-			this.cell = cellBuilder;
-			TableCellBox cellBox = (TableCellBox) cellBuilder.getRootBox();
-			this.rowspan = cellBox.getTableCellPos().rowspan;
-			this.colspan = cellBox.getTableCellPos().colspan;
-		}
-
-		public CellContent(TableCellBox cell, int rowspan, int colspan) {
-			assert rowspan >= 1;
-			assert colspan >= 1;
-			this.cell = cell;
-			this.rowspan = rowspan;
-			this.colspan = colspan;
-		}
-
-		public boolean isExtended() {
-			return this.cell instanceof TableCellBox;
-		}
-
-		public TwoPassBlockBuilder getBuilder() {
-			return (TwoPassBlockBuilder) this.cell;
-		}
-
-		public TableCellBox getCellBox() {
-			if (this.isExtended()) {
-				return (TableCellBox) this.cell;
-			}
-			return (TableCellBox) this.getBuilder().getRootBox();
-		}
-	}
 
 	private final boolean vertical, fixed;
 	private final LayoutStack layoutStack;
@@ -2161,29 +2126,9 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	 * @return 列指定
 	 */
 	private FixedColumnWidths.Spec fixedCellSpec(final CellContent cell, final double refSize) {
-		final TableCellBox cellBox = cell.getCellBox();
-		final BlockParams cellParams = cellBox.getBlockParams();
-		final WritingMode tableFlow = this.tableBox.getTableParams().flow;
-		switch (cellParams.size.getLineType(tableFlow)) {
-		case AUTO:
-			return null;
-		case ABSOLUTE: {
-			double fix = cellParams.size.getLineLength(tableFlow);
-			if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-				fix += cellBox.getFrame().getFrameLineExtent(tableFlow);
-			}
-			return new FixedColumnWidths.Spec(fix / cell.colspan, false);
-		}
-		case RELATIVE: {
-			double fix = refSize * cellParams.size.getLineLength(tableFlow);
-			if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-				fix += cellBox.getFrame().getFrameLineExtent(tableFlow);
-			}
-			return new FixedColumnWidths.Spec(fix / cell.colspan, true);
-		}
-		default:
-			throw new IllegalStateException();
-		}
+		// 指定の導出は FixedColumnWidths に統合(P2-2)
+		return FixedColumnWidths.cellSpec(cell.getCellBox(), cell.colspan,
+				this.tableBox.getTableParams().flow, refSize);
 	}
 }
 

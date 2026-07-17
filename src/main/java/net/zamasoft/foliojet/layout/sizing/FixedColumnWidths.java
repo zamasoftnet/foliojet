@@ -35,6 +35,40 @@ public final class FixedColumnWidths {
 	}
 
 	/**
+	 * セルの行方向指定から列幅指定を導出します(P2-2: OnePass/TwoPass の
+	 * 同一実装の統合)。AUTO は null(指定なし)。
+	 *
+	 * @param cellBox   セル
+	 * @param colspan   列結合数(指定幅は colspan で均等割り)
+	 * @param tableFlow 表の書字方向
+	 * @param refSize   %指定の基準寸法
+	 */
+	public static Spec cellSpec(final net.zamasoft.foliojet.layout.box.impl.TableCellBox cellBox, final int colspan,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode tableFlow, final double refSize) {
+		final net.zamasoft.foliojet.layout.box.params.BlockParams cellParams = cellBox.getBlockParams();
+		switch (cellParams.size.getLineType(tableFlow)) {
+		case AUTO:
+			return null;
+		case ABSOLUTE: {
+			double fix = cellParams.size.getLineLength(tableFlow);
+			if (cellParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {
+				fix += cellBox.getFrame().getFrameLineExtent(tableFlow);
+			}
+			return new Spec(fix / colspan, false);
+		}
+		case RELATIVE: {
+			double fix = refSize * cellParams.size.getLineLength(tableFlow);
+			if (cellParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {
+				fix += cellBox.getFrame().getFrameLineExtent(tableFlow);
+			}
+			return new Spec(fix / colspan, true);
+		}
+		default:
+			throw new IllegalStateException();
+		}
+	}
+
+	/**
 	 * 列幅を分配します。
 	 *
 	 * @param colgroupSpecs colgroup 由来の列指定(優先。なしは null)
