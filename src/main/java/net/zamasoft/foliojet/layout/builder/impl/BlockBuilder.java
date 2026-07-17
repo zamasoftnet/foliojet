@@ -627,7 +627,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 				frame = blockBox.getFrame();
 				FlowPos pos = (FlowPos) flowBox.getPos();
 				clear = pos.clear;
-				align = pos.align;
+				// 表整列の解決結果は箱ローカル(共有 pos は record 後不変)
+				align = blockBox instanceof FlowBlockBox fb ? fb.getResolvedAlign() : pos.align;
 			}
 				break;
 			case TABLE: {

@@ -49,15 +49,32 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 
 	protected double contentSize;
 
+	/**
+	 * 解決済みの整列です(表の auto マージン整列)。初期値は pos.align で、
+	 * shrinkToFit(table) が解決結果を保存します。共有 pos への書き戻しは
+	 * しない(ログが参照する pos は record 後不変 — §5.7 前提 (ii))。
+	 * 分割断片へは splitPage が引き継ぎます。
+	 */
+	protected Align resolvedAlign;
+
 	public FlowBlockBox(BlockParams params, FlowPos pos) {
 		super(params);
 		this.pos = pos;
+		this.resolvedAlign = pos.align;
 	}
 
 	protected FlowBlockBox(BlockParams params, FlowPos pos, Dimension size, Dimension minSize, AbsoluteRectFrame frame,
 			Container container) {
 		super(params, size, minSize, frame, container);
 		this.pos = pos;
+		this.resolvedAlign = pos.align;
+	}
+
+	/**
+	 * 解決済みの整列を返します(表整列の解決後はその結果)。
+	 */
+	public final Align getResolvedAlign() {
+		return this.resolvedAlign;
 	}
 
 	public final Pos getPos() {
@@ -82,7 +99,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		BlockBuilder builder = (BlockBuilder) layoutStack;
 		containerBox = builder.getFlow(builder.getFlowCount() - 2).box;
 
-		Align align = this.pos.align;
+		Align align = this.resolvedAlign;
 		if (containerBox.getBlockParams().flow.isVertical()) {
 			// 縦書き
 			if (align == Align.START) {
@@ -136,7 +153,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// 幅を固定
 			this.size = Dimension.create(this.width, 0, LengthType.ABSOLUTE, LengthType.AUTO);
 		}
-		this.pos.align = align;
+		this.resolvedAlign = align;
 	}
 
 	public final void setPageAxis(final double newSize) {
@@ -223,8 +240,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						marginBottom = lineSize - marginBottom - this.frame.getFrameHeight();
 					} else {
 						// 制限しすぎ
-						FlowPos pos = this.getFlowPos();
-						switch (pos.align) {
+												switch (this.resolvedAlign) {
 						case Align.START:
 							// 上寄せ
 							marginBottom = 0;
@@ -362,8 +378,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							marginRight = lineSize - this.width - this.frame.getFrameWidth();
 						} else {
 							// 制限しすぎ
-							FlowPos pos = this.getFlowPos();
-							switch (pos.align) {
+														switch (this.resolvedAlign) {
 							case Align.START:
 								// 左寄せ
 								marginRight = 0;
@@ -525,8 +540,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	protected AbstractBlockBox splitPage(Dimension nextSize, Dimension nextMinSize, AbsoluteRectFrame nextFrame,
 			Container container) {
 		final BlockParams params = this.getBlockParams();
-		// System.out.println(nextFrame+"/"+params.augmentation);
-		return new FlowBlockBox(params, this.getFlowPos(), nextSize, nextMinSize, nextFrame, container);
+		final FlowBlockBox next = new FlowBlockBox(params, this.getFlowPos(), nextSize, nextMinSize, nextFrame,
+				container);
+		// 解決済み整列は断片間で共有される状態(旧実装の pos 書き戻し相当)
+		next.resolvedAlign = this.resolvedAlign;
+		return next;
 	}
 
 	public final void restyle(final BlockBuilder builder, int depth) {
