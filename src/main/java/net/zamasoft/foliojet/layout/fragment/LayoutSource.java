@@ -260,6 +260,9 @@ public final class LayoutSource {
 		}
 		this.entries.clear();
 		this.entries.addAll(kept);
+		// 生きているリースの範囲は compact 後も保持されている
+		assert this.retentionLeases.isEmpty() || this.indexOf(this.retentionLeases.firstKey()) >= 0
+				|| this.retentionLeases.firstKey() >= this.nextId : this.retentionLeases.firstKey();
 	}
 
 	/**

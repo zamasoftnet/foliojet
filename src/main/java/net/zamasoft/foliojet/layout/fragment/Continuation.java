@@ -25,8 +25,7 @@ import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
  * @author MIYABE Tatsuhiko
  */
 public record Continuation(int depth, List<Item> items,
-		java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges,
-		List<ChainFragment> chain) {
+		java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges) {
 	/**
 	 * LegacyCarry の発火計測です(移行進捗の観測: これがコーパスで
 	 * ゼロになった時が残余ボックス構築の死)。
@@ -36,7 +35,51 @@ public record Continuation(int depth, List<Item> items,
 	/**
 	 * 継続内容の1項目です。
 	 */
-	public sealed interface Item permits SourceRange, TextTail, LegacyCarry, RootFragment {
+	public sealed interface Item permits SourceRange, TextTail, LegacyCarry, ContinuationFrame {
+	}
+
+	/**
+	 * 継続断片のフレームです(C1d-A: ルート断片とチェーン断片の統一形)。
+	 * 断片ボックスは split では構築されず、resume が prev の params/pos と
+	 * 断片状態から再構成します。開いた子孫は tail の入れ子で表します。
+	 *
+	 * @param prev        前断片(切りつめ済み。BlockRecipe 化は C1d-B)
+	 * @param state       断片状態
+	 * @param container   このレベルの残余コンテナ(チェーン子は含まれない)
+	 * @param crossExtent 切断時点の交差軸寸法
+	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c)
+	 * @param tail        開いた続きの表現
+	 */
+	public record ContinuationFrame(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
+			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
+			List<SourceRange> prefixItems, OpenTail tail) implements Item {
+	}
+
+	/**
+	 * フレームの開いた続きの表現です(C1d-A)。
+	 */
+	public sealed interface OpenTail {
+		/**
+		 * 切断が貫通した次の(内側の)フレームです。
+		 */
+		record Child(ContinuationFrame frame) implements OpenTail {
+		}
+
+		/**
+		 * 従来の深さ規約による legacy 走行です。生の depth を読むのは
+		 * この consumer 一箇所だけにする(外部レビュー #6 の adapter)。
+		 * 最内の収集フレーム(木に残った moved-open ボックス・開き
+		 * テキストの継続)と、収集不能な破断のルートフレームが持つ。
+		 *
+		 * @param depth このフレームのコンテナ走行に渡す残り深さ
+		 */
+		record LegacyOpenTail(int depth) implements OpenTail {
+			public LegacyOpenTail {
+				// ルート=flowStack 全深さ、最内=残 depth(D - chain 数)。
+				// いずれも 1 以上(チェーンは flowStack[1..] の部分列)
+				assert depth > 0 : depth;
+			}
+		}
 	}
 
 	/**
@@ -62,37 +105,18 @@ public record Continuation(int depth, List<Item> items,
 	}
 
 	/**
-	 * チェーン断片の継続です(C1b)。切断が貫通した開いた祖先1レベル分。
+	 * チェーン断片の収集ドラフトです(C1b。切断が貫通した開いた祖先
+	 * 1レベル分)。pageBreak が水位計算・prefix 吸収(C1c)の後に
+	 * {@link ContinuationFrame} の入れ子へ組み上げる。
 	 *
 	 * @param prev        前断片(切りつめ済み)
 	 * @param state       断片状態
 	 * @param container   このレベルの残余コンテナ(閉じた先行アイテム+
 	 *                    フロート。チェーン子は含まれない)
 	 * @param crossExtent 切断時点の交差軸寸法
-	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c。
-	 *                    ボックスは運搬されず、resume が serial 順で
-	 *                    コンテナの残アイテムと合流させて再駆動する)
 	 */
 	public record ChainFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
-			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
-			List<SourceRange> prefixItems) {
-	}
-
-	/**
-	 * ルート断片の継続です(C1a)。断片ボックスは split では構築されず、
-	 * 再開時に prev の params/pos と断片状態から再構成されます。
-	 *
-	 * @param prev        前断片(切りつめ済み)
-	 * @param state       断片状態
-	 * @param container   継続断片の内容
-	 * @param crossExtent 切断時点の交差軸寸法
-	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c。
-	 *                    チェーン収集時のみ。{@link ChainFragment#prefixItems}
-	 *                    と同じ扱い)
-	 */
-	public record RootFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
-			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
-			List<SourceRange> prefixItems) implements Item {
+			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) {
 	}
 
 	/**

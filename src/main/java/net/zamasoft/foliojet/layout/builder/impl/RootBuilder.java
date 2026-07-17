@@ -300,32 +300,45 @@ public class RootBuilder extends BreakableBuilder {
 		// C1c: 収集パスでは各フレームコンテナ最上位の再生可能な閉部分木を
 		// ボックスごと吸収し、serial 付き再生範囲(prefixItems)として運ぶ。
 		// resume が serial 順で残アイテムと合流させて再駆動する
+		final int depth = this.flowStack.size();
 		java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> rootPrefix = java.util.List
 				.of();
-		java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment> chainFinal = chain;
+		final java.util.List<java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange>> chainPrefixes = new java.util.ArrayList<>(
+				chain.size());
 		if (!chain.isEmpty()) {
 			final boolean rootVertical = rootFlow.isVertical();
 			if (nextRootContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc) {
 				// ルートコンテナはチェーン収集時 depth=0 で歩かれる
 				rootPrefix = fc.extractReplayable(ranges, rootVertical, 0);
 			}
-			chainFinal = new java.util.ArrayList<>(chain.size());
 			for (int i = 0; i < chain.size(); ++i) {
 				final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f = chain.get(i);
 				// 最内レベルだけ残 depth で歩かれる(resume と同じ規約)
-				final int walkDepth = i == chain.size() - 1 ? this.flowStack.size() - chain.size() : 0;
-				final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix = f
-						.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
-								? fc.extractReplayable(ranges, rootVertical, walkDepth)
-								: java.util.List.of();
-				chainFinal.add(new net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment(f.prev(),
-						f.state(), f.container(), f.crossExtent(), prefix));
+				final int walkDepth = i == chain.size() - 1 ? depth - chain.size() : 0;
+				chainPrefixes.add(f.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+						? fc.extractReplayable(ranges, rootVertical, walkDepth)
+						: java.util.List.of());
 			}
 		}
-		final net.zamasoft.foliojet.layout.fragment.Continuation.RootFragment rootFragment = new net.zamasoft.foliojet.layout.fragment.Continuation.RootFragment(
-				prevRootBox, rootState, nextRootContainer, rootCrossExtent, rootPrefix);
+
+		// C1d-A: 収集ドラフトを ContinuationFrame の入れ子(外→内)へ
+		// 組み上げる。最内フレームだけ legacy の深さ規約(LegacyOpenTail)を
+		// 持ち、外側は Child の入れ子。収集不能な破断はルートフレームが
+		// LegacyOpenTail(D)(従来の全ボックス restyle)
+		net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
+				depth - chain.size());
+		for (int i = chain.size() - 1; i >= 0; --i) {
+			final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f = chain.get(i);
+			tail = new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+					new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(f.prev(), f.state(),
+							f.container(), f.crossExtent(), chainPrefixes.get(i), tail));
+		}
+		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootFrame = new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(
+				prevRootBox, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
+				chain.isEmpty() ? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(depth)
+						: tail);
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
-				this.flowStack.size(), java.util.List.of(rootFragment), ranges, chainFinal);
+				depth, java.util.List.of(rootFrame), ranges);
 
 		// C1c: 吸収済み範囲はボックスを運搬しないため、消費されるまで
 		// 保持リースで compact から守る(再生内容の溢れによる入れ子
@@ -335,8 +348,8 @@ public class RootBuilder extends BreakableBuilder {
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : rootPrefix) {
 				this.prefixLeases.put(r.fromId(), log.retainFrom(r.fromId()));
 			}
-			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f : chainFinal) {
-				for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : f.prefixItems()) {
+			for (final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix : chainPrefixes) {
+				for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : prefix) {
 					this.prefixLeases.put(r.fromId(), log.retainFrom(r.fromId()));
 				}
 			}
@@ -346,7 +359,7 @@ public class RootBuilder extends BreakableBuilder {
 		pageBox.restyle(this, 0);
 		this.resume(continuation);
 		assert java.util.stream.Stream
-				.concat(rootPrefix.stream(), chainFinal.stream().flatMap(f -> f.prefixItems().stream()))
+				.concat(rootPrefix.stream(), chainPrefixes.stream().flatMap(java.util.List::stream))
 				.noneMatch(r -> this.prefixLeases.containsKey(r.fromId())) : "未消費の吸収済み再生範囲が残っています";
 		this.pageGenerator.compactLayoutSource(watermark);
 		assert this.flowStack.size() == continuation.depth()
@@ -386,37 +399,12 @@ public class RootBuilder extends BreakableBuilder {
 		try {
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.Item item : continuation.items()) {
 				switch (item) {
-				case net.zamasoft.foliojet.layout.fragment.Continuation.RootFragment fragment -> {
-					// ルート断片の再構成(C1a): 断片ボックスはここで初めて作られる
+				case net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame -> {
+					// フレームの再構成(C1a/C1b/C1d-A): 断片ボックスはここで
+					// 初めて作られる。開いた子孫は tail の入れ子を外→内に消費
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
 							"depth=" + continuation.depth());
-					final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox nextRootBox = (net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) fragment
-							.prev().continueFragment(fragment.state(), fragment.container(), fragment.crossExtent());
-					final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment> chain = continuation
-							.chain();
-					if (chain.isEmpty()) {
-						nextRootBox.restyle(this, continuation.depth());
-					} else {
-						// C1b: 収集されたチェーン断片を外→内に再構成する。
-						// 収集済みレベルのコンテナはチェーン子を含まないため
-						// depth=0(閉アイテムのみ)で歩き、最内レベルだけ
-						// 残 depth(木に残った開いた続き)を渡す。
-						// 吸収済み閉部分木(C1c)は prefix として合流させる
-						this.startFlowBlock(nextRootBox);
-						this.restyleFrame(nextRootBox.getContainer(), fragment.prefixItems(), 0);
-						int j = 1;
-						for (final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f : chain) {
-							net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(j, "chain-fragment",
-									"depth=" + (continuation.depth() - j));
-							final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box = (net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) f
-									.prev().continueFragment(f.state(), f.container(), f.crossExtent());
-							this.startFlowBlock(box);
-							final boolean innermost = j == chain.size();
-							this.restyleFrame(box.getContainer(), f.prefixItems(),
-									innermost ? continuation.depth() - j : 0);
-							++j;
-						}
-					}
+					this.resumeFrame(frame, 0, continuation.depth());
 				}
 				case net.zamasoft.foliojet.layout.fragment.Continuation.LegacyCarry(
 						final net.zamasoft.foliojet.layout.box.IPageBreakableBox remainder) -> {
@@ -443,6 +431,45 @@ public class RootBuilder extends BreakableBuilder {
 	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
 	 * 再駆動されます。false ならボックス再生でフォールバックします。
 	 */
+	/**
+	 * 継続フレームを外→内に消費します(C1d-A)。各フレームの断片ボックスを
+	 * ここで初めて構成し、コンテナを吸収済み prefix と合流させて歩く。
+	 * tail が Child なら depth=0(チェーン子はコンテナに居ない)、
+	 * LegacyOpenTail なら従来の深さ規約(最内の moved-open ボックス・
+	 * 開きテキストの継続)。
+	 *
+	 * @param frame フレーム
+	 * @param index 外からの位置(0=ルート。トレースの chain-fragment 番号)
+	 * @param depth 継続全体の深さ(トレース表示用)
+	 */
+	private void resumeFrame(final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame,
+			final int index, final int depth) {
+		assert !this.resumeScopes.isEmpty();
+		final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box = (net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) frame
+				.prev().continueFragment(frame.state(), frame.container(), frame.crossExtent());
+		switch (frame.tail()) {
+		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
+			this.startFlowBlock(box);
+			this.restyleFrame(box.getContainer(), frame.prefixItems(), 0);
+			net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(index + 1, "chain-fragment",
+					"depth=" + (depth - (index + 1)));
+			this.resumeFrame(child, index + 1, depth);
+		}
+		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(final int d) -> {
+			if (index == 0) {
+				// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
+				// この経路では prefix 吸収は行われていない
+				assert frame.prefixItems().isEmpty();
+				box.restyle(this, d);
+			} else {
+				this.startFlowBlock(box);
+				this.restyleFrame(box.getContainer(), frame.prefixItems(), d);
+			}
+		}
+		}
+	}
+
 	/**
 	 * フレームコンテナを再開します(C1c)。吸収済みの再生範囲(prefix)を
 	 * serial 順で残アイテムと合流させる。
