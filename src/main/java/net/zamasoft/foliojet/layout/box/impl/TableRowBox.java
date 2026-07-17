@@ -353,73 +353,27 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 		final boolean vertical = this.tableParams.flow.isVertical();
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) == 0) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-				// ページ頭ではない場合
-				if (LayoutUtils.compare(pageLimit, 0) < 0) {
-					// 切断線より下にある場合
-					return SplitResult.MOVE;
-				}
-				if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
-					// 切断線より上にある場合
-					// 連結されたセルによる高さを考慮するため、全てのセルの高さをチェック
-					boolean leave = true;
-					for (int i = 0; i < this.cells.size(); ++i) {
-						Cell cell = (Cell) this.cells.get(i);
-						if (LayoutUtils.compare(pageLimit, cell.getCellBox().getPageExtent(this.tableParams.flow)) < 0) {
-							leave = false;
-							break;
-						}
-					}
-					if (leave) {
-						// 移動なし
-						return SplitResult.KEEP;
-					}
-				}
-				boolean breakAvoid = false;
-				// ページ頭に接したセルがある場合は改ページ禁止を無視する
-				if (this.params.pageBreakInside == PageBreakMode.AVOID) {
-					// 行の改ページ禁止
-					breakAvoid = true;
-				} else {
-					for (int i = 0; i < this.cells.size(); ++i) {
-						Cell cell = (Cell) this.cells.get(i);
-						BlockParams cellParams = cell.getCellBox().getBlockParams();
-						// 書字方向が違う場合は改ページ禁止
-						if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
-							return SplitResult.MOVE;
-						}
-						if (cellParams.pageBreakInside == PageBreakMode.AVOID) {
-							// セルの改ページ禁止
-							breakAvoid = true;
-						}
-					}
-				}
-				if (breakAvoid && (flags & IPageBreakableBox.FLAGS_FIRST_ROW) == 0) {
-					return SplitResult.MOVE;
-				}
-			} else {
-				// ページ頭の場合
-				if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
-					// rowspanによる連結のはみ出しがあったとしても、あとの処理で切る
-					return SplitResult.KEEP;
-				}
-				// 書字方向が違う場合は移動しない
-				for (int i = 0; i < this.cells.size(); ++i) {
-					Cell cell = (Cell) this.cells.get(i);
-					BlockParams cellParams = cell.getCellBox().getBlockParams();
-					if (cellParams.flow.isVertical() != this.tableParams.flow.isVertical()) {
-						return SplitResult.KEEP;
-					}
-				}
-				// 上部境界がなく、高さがゼロのセルが存在すれば分割を諦める
-				for (int i = 0; i < this.cells.size(); ++i) {
-					Cell cell = (Cell) this.cells.get(i);
-					TableCellBox cellBox = cell.getCellBox();
-					if (cellBox.getFrame().getFramePageStart(this.tableParams.flow) <= 0
-							&& LayoutUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0) {
-						return SplitResult.KEEP;
-					}
-				}
+			// 前置判定は TableCutter に純化(C4-T3)
+			final double[] cellPageExtents = new double[this.cells.size()];
+			final boolean[] cellFlowMatch = new boolean[this.cells.size()];
+			final boolean[] cellInsideAvoid = new boolean[this.cells.size()];
+			final boolean[] cellCollapsedAtStart = new boolean[this.cells.size()];
+			for (int i = 0; i < this.cells.size(); ++i) {
+				final TableCellBox cellBox = ((Cell) this.cells.get(i)).getCellBox();
+				final BlockParams cellParams = cellBox.getBlockParams();
+				cellPageExtents[i] = cellBox.getPageExtent(this.tableParams.flow);
+				cellFlowMatch[i] = cellParams.flow.isVertical() == vertical;
+				cellInsideAvoid[i] = cellParams.pageBreakInside == PageBreakMode.AVOID;
+				cellCollapsedAtStart[i] = cellBox.getFrame().getFramePageStart(this.tableParams.flow) <= 0
+						&& LayoutUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0;
+			}
+			final SplitResult pre = net.zamasoft.foliojet.layout.fragment.TableCutter.rowPreDecide(
+					(flags & IPageBreakableBox.FLAGS_FIRST) != 0,
+					(flags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0, pageLimit, this.getPageSize(),
+					this.params.pageBreakInside == PageBreakMode.AVOID, cellPageExtents, cellFlowMatch,
+					cellInsideAvoid, cellCollapsedAtStart);
+			if (pre != null) {
+				return pre;
 			}
 		}
 		// System.err.println("TR B/flags=" + flags + "/" + pageLimit);

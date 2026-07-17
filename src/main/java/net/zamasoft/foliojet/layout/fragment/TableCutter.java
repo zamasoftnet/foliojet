@@ -250,6 +250,85 @@ public final class TableCutter {
 	}
 
 	/**
+	 * 行切断の前置判定です(C4-T3。旧 TableRowBox.split の先頭部)。
+	 * KEEP/MOVE で確定するか、null なら主処理(セル分割)へ進みます。
+	 *
+	 * @param pageFirst            FLAGS_FIRST(ページ先頭)
+	 * @param firstRow             FLAGS_FIRST_ROW(先頭行または先頭行と連結)
+	 * @param pageLimit            切断線(行の上端から)
+	 * @param rowPageSize          行のページ寸
+	 * @param rowInsideAvoid       行の page-break-inside: avoid
+	 * @param cellPageExtents      各セルのページ寸(rowspan で行より
+	 *                             大きいことがある)
+	 * @param cellFlowMatch        各セルの書字方向が表と一致
+	 * @param cellInsideAvoid      各セルの page-break-inside: avoid
+	 * @param cellCollapsedAtStart 各セルが上部境界なしかつ高さゼロ
+	 *                             (分割を諦める)
+	 */
+	public static SplitResult rowPreDecide(final boolean pageFirst, final boolean firstRow, final double pageLimit,
+			final double rowPageSize, final boolean rowInsideAvoid, final double[] cellPageExtents,
+			final boolean[] cellFlowMatch, final boolean[] cellInsideAvoid, final boolean[] cellCollapsedAtStart) {
+		if (!pageFirst) {
+			// ページ頭ではない場合
+			if (LayoutUtils.compare(pageLimit, 0) < 0) {
+				// 切断線より下にある場合
+				return SplitResult.MOVE;
+			}
+			if (LayoutUtils.compare(pageLimit, rowPageSize) >= 0) {
+				// 切断線より上にある場合。連結されたセルによる高さを考慮する
+				// ため、全てのセルの高さをチェック
+				boolean leave = true;
+				for (final double extent : cellPageExtents) {
+					if (LayoutUtils.compare(pageLimit, extent) < 0) {
+						leave = false;
+						break;
+					}
+				}
+				if (leave) {
+					// 移動なし
+					return SplitResult.KEEP;
+				}
+			}
+			boolean breakAvoid = false;
+			if (rowInsideAvoid) {
+				// 行の改ページ禁止
+				breakAvoid = true;
+			} else {
+				for (int i = 0; i < cellFlowMatch.length; ++i) {
+					// 書字方向が違う場合は改ページ禁止
+					if (!cellFlowMatch[i]) {
+						return SplitResult.MOVE;
+					}
+					if (cellInsideAvoid[i]) {
+						// セルの改ページ禁止
+						breakAvoid = true;
+					}
+				}
+			}
+			if (breakAvoid && !firstRow) {
+				return SplitResult.MOVE;
+			}
+			return null;
+		}
+		// ページ頭の場合
+		if (LayoutUtils.compare(pageLimit, rowPageSize) >= 0) {
+			// rowspanによる連結のはみ出しがあったとしても、あとの処理で切る
+			return SplitResult.KEEP;
+		}
+		// 書字方向が違う場合は移動しない
+		if (mixedFlowKeep(cellFlowMatch)) {
+			return SplitResult.KEEP;
+		}
+		// 上部境界がなく、高さがゼロのセルが存在すれば分割を諦める
+		for (final boolean collapsed : cellCollapsedAtStart) {
+			if (collapsed) {
+				return SplitResult.KEEP;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * 明示的な行間強制改ページの位置です(C4-T3)。
 	 *
 	 * @param rowGroup  切断直前の本体行グループのインデックス

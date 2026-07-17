@@ -110,6 +110,48 @@ public class TableCutterTest extends TestCase {
 		assertSame(frame, repeat.prevFrame());
 	}
 
+	public void testRowPreDecideNotPageFirst() {
+		final double[] extents = { 30 };
+		final boolean[] match = { true };
+		final boolean[] noAvoid = { false };
+		final boolean[] noCollapse = { false };
+		// 切断線より下 → 全体移動
+		assertSame(SplitResult.MOVE,
+				TableCutter.rowPreDecide(false, false, -1, 30, false, extents, match, noAvoid, noCollapse));
+		// 切断線より上(連結セルも収まる)→ 残す
+		assertSame(SplitResult.KEEP,
+				TableCutter.rowPreDecide(false, false, 40, 30, false, extents, match, noAvoid, noCollapse));
+		// 連結セルがはみ出す → 主処理へ
+		assertNull(TableCutter.rowPreDecide(false, false, 40, 30, false, new double[] { 50 }, match, noAvoid,
+				noCollapse));
+		// 行の avoid-inside(先頭行でない)→ 移動
+		assertSame(SplitResult.MOVE,
+				TableCutter.rowPreDecide(false, false, 10, 30, true, extents, match, noAvoid, noCollapse));
+		// 先頭行なら avoid を無視して主処理へ
+		assertNull(TableCutter.rowPreDecide(false, true, 10, 30, true, extents, match, noAvoid, noCollapse));
+		// 書字方向が違うセル → 移動
+		assertSame(SplitResult.MOVE, TableCutter.rowPreDecide(false, false, 10, 30, false, extents,
+				new boolean[] { false }, noAvoid, noCollapse));
+	}
+
+	public void testRowPreDecidePageFirst() {
+		final double[] extents = { 30 };
+		final boolean[] match = { true };
+		final boolean[] noAvoid = { false };
+		// 収まるなら残す
+		assertSame(SplitResult.KEEP,
+				TableCutter.rowPreDecide(true, true, 40, 30, false, extents, match, noAvoid, new boolean[] { false }));
+		// 書字方向が違えば残す(移動しない)
+		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 10, 30, false, extents,
+				new boolean[] { false }, noAvoid, new boolean[] { false }));
+		// 上部境界なし・高さゼロのセルがあれば分割を諦める
+		assertSame(SplitResult.KEEP,
+				TableCutter.rowPreDecide(true, true, 10, 30, false, extents, match, noAvoid, new boolean[] { true }));
+		// それ以外は主処理(セル分割)へ
+		assertNull(TableCutter.rowPreDecide(true, true, 10, 30, false, extents, match, noAvoid,
+				new boolean[] { false }));
+	}
+
 	public void testFirstForceBreak() {
 		final PageBreakMode a = PageBreakMode.AUTO, p = PageBreakMode.PAGE;
 		// 2グループ×2行、行寸10。切断線は十分下
