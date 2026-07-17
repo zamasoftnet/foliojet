@@ -108,6 +108,14 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	 * これまでに配達された最後のソース文字の終端オフセットです(M6b v3)。
 	 * shaper 内に保留中(未配達)の文字はこれ以降にあり、切断段落の
 	 * 尾部再生はここで打ち切ることで live パイプラインとの二重供給を防ぐ。
+	 *
+	 * <p>
+	 * 注意: この値は {@link #glyph} でしか進まない — 最後のグリフの後に
+	 * 配達された control(空白・改行・SoftHyphen)や inline quad は
+	 * 反映されない。「正規化イベントの配達境界」としては不完全であり、
+	 * open 段落の接合キーには使えない(C3 完遂形は正規化イベント列の
+	 * 値渡し — ARCHITECTURE §5.9、codex 相談 2026-07-17)。
+	 * </p>
 	 */
 	private int deliveredCharEnd = 0;
 
