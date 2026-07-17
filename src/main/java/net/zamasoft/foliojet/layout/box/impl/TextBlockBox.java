@@ -304,6 +304,10 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			}
 			assert !this.lines.isEmpty();
 			assert !nextTextBlock.lines.isEmpty();
+			// M3b Phase 2: handoff 内容は破断時点で確定する — 残余の
+			// 正規化イベント列をここで捕捉し、box は運搬体に落とす
+			// (Phase 3 で TextTail 型付き item へ置換し運搬体を除去)
+			nextTextBlock.slice = nextTextBlock.recordSlice();
 			return new SplitResult.Split(nextTextBlock);
 		}
 		}
@@ -318,21 +322,29 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return this.lines.size();
 	}
 
+	/**
+	 * 破断時に捕捉した残余の正規化イベント列です(M3b Phase 2)。
+	 * 分割断片(運搬体)のみ非 null。
+	 */
+	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice;
+
 	public final void restyle(final BlockBuilder builder) {
 		assert (!this.lines.isEmpty());
 		builder.setBreakToken(this.breakToken);
-		// M3b Phase 1: 残余行を oracle として正規化イベント列を捕捉し、
-		// 運搬体をスライスに置換(捕捉→再生は構成的に同一 = 挙動不変)。
-		// Phase 2 で Continuation がボックスの代わりにこのスライスを運ぶ
-		this.replaySlice().replay(new BuilderGlyphHandler(builder));
+		// M3b Phase 1/2: 運搬体はスライス。分割断片は破断時に捕捉済み、
+		// それ以外(全 restyle 経路)はここで捕捉する。捕捉→再生は
+		// 構成的に同一の呼び出し列なので挙動不変
+		final net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice = this.slice != null ? this.slice
+				: this.recordSlice();
+		slice.replay(new BuilderGlyphHandler(builder));
 	}
 
 	/**
-	 * 残余行の正規化イベント列を返します(M3b Phase 1 / C3)。
+	 * 残余行の正規化イベント列を捕捉します(M3b Phase 1 / C3)。
 	 * WordHyphenator 相当(unitizer)の出口で捕捉した、restyle が
 	 * BuilderGlyphHandler へ配達するのと同一の列。
 	 */
-	public final net.zamasoft.foliojet.layout.fragment.TextReplaySlice replaySlice() {
+	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice recordSlice() {
 		return net.zamasoft.foliojet.layout.fragment.TextReplaySlice.record(gh -> {
 			final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params);
 			textUnitizer.setGlyphHandler(gh);
