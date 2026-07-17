@@ -675,7 +675,21 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 	 * 
 	 * @param builder
 	 */
+	/** 表の形(寸法・列幅・匿名ブロック)です(bind の段間受け渡し)。 */
+	private record TableShape(BlockBuilder anonBuilder, AbstractBlockBox blockBox, double tableSize,
+			double[] columnSizes, double specifiedPageSize, double tableInnerSize) {
+	}
+
 	public void bind(final BlockBuilder builder) {
+		final TableShape shape = this.resolveShape(builder);
+		final int rowCount = this.bindRows(shape);
+		this.assemble(builder, shape, rowCount);
+	}
+
+	/**
+	 * 表と列の寸法を解決し、匿名ブロックを開きます(P2-5 (a): bind 第1段)。
+	 */
+	private TableShape resolveShape(final BlockBuilder builder) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final AbstractContainerBox containerBox = this.layoutStack.getFlowBox();
 		final double lineSize = containerBox.getBlockParams().flow.isVertical() == tableParams.flow.isVertical() ? containerBox.getLineSize()
@@ -871,7 +885,20 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		default:
 			throw new IllegalStateException();
 		}
+		return new TableShape(anonBuilder, blockBox, tableSize, columnSizes, specifiedPageSize, tableInnerSize);
+	}
 
+	/**
+	 * キャプションと行群をバインドし、行高を確定します(bind 第2段)。
+	 *
+	 * @return 行数
+	 */
+	private int bindRows(final TableShape shape) {
+		final TableParams tableParams = this.tableBox.getTableParams();
+		final BlockBuilder anonBuilder = shape.anonBuilder();
+		final double[] columnSizes = shape.columnSizes();
+		final double specifiedPageSize = shape.specifiedPageSize();
+		final double tableInnerSize = shape.tableInnerSize();
 		// 上部キャプション
 		for (int i = 0; i < this.topCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.topCaptions.get(i);
@@ -1207,7 +1234,20 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				}
 			}
 		}
+		return rowCount;
+	}
 
+	/**
+	 * 行グループを表に組み付け、列・境界寸法を適用して閉じます(bind 第3段)。
+	 */
+	private void assemble(final BlockBuilder builder, final TableShape shape, final int rowCount) {
+		final TableParams tableParams = this.tableBox.getTableParams();
+		final BlockBuilder anonBuilder = shape.anonBuilder();
+		final AbstractBlockBox blockBox = shape.blockBox();
+		final double[] columnSizes = shape.columnSizes();
+		final double specifiedPageSize = shape.specifiedPageSize();
+		final double tableSize = shape.tableSize();
+		final int columnCount = this.columnWidths.mins().length;
 		if (this.headerGroup != null) {
 			this.tableBox.setTableHeader(this.headerGroup);
 		}
