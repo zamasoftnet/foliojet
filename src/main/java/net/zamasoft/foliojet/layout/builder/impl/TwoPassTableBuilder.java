@@ -461,47 +461,12 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					final TableCellBox cellBox = cell.getCellBox();
 					final BlockParams cellParams = cellBox.getBlockParams();
 					final TableCellPos cellPos = cellBox.getTableCellPos();
-					if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-						// 分離境界
-						double top = tableParams.borderSpacingV / 2.0;
-						double right = tableParams.borderSpacingH / 2.0;
-						double bottom = tableParams.borderSpacingV / 2.0;
-						double left = tableParams.borderSpacingH / 2.0;
-						AbsoluteInsets cellSpacing = new AbsoluteInsets(top, right, bottom, left);
-						cellBox.prepareLayout(this.layoutStack.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
-					} else {
-						// つぶし境界
-						double pageFirst = 0, lineEnd = 0, pageLast = 0, lineStart = 0;
-						int bottomIndex = row + cellPos.rowspan;
-						for (int k = 0; k < cellPos.colspan; ++k) {
-							int kk = col + k;
-							if (kk >= columnCount) {
-								break;
-							}
-							pageFirst = Math.max(pageFirst, this.borders.getHBorder(kk, row).width / 2.0);
-							if (bottomIndex <= rowCount) {
-								pageLast = Math.max(pageLast, this.borders.getHBorder(kk, bottomIndex).width / 2.0);
-							}
-						}
-						int rightIndex = col + cellPos.colspan;
-						for (int k = 0; k < cellPos.rowspan; ++k) {
-							int kk = row + k;
-							if (kk >= rowCount) {
-								break;
-							}
-							lineStart = Math.max(lineStart, this.borders.getVBorder(kk, col).width / 2.0);
-							if (rightIndex <= columnCount) {
-								lineEnd = Math.max(lineEnd, this.borders.getVBorder(kk, rightIndex).width / 2.0);
-							}
-						}
-						final AbsoluteInsets spacing;
-						if (this.vertical) {
-							spacing = new AbsoluteInsets(lineStart, pageFirst, lineEnd, pageLast);
-						} else {
-							spacing = new AbsoluteInsets(pageFirst, lineEnd, pageLast, lineStart);
-						}
-						cellBox.prepareLayout(this.layoutStack.getFlowBox().getLineSize(), this.tableBox, spacing);
-					}
+					// セル間隔(共有核 — P2-5 (c))
+					final AbsoluteInsets cellSpacing = tableParams.borderCollapse == TableParams.BORDER_SEPARATE
+							? CollapsedBorderRules.separateSpacing(tableParams)
+							: CollapsedBorderRules.gridSpacing(this.borders, row, col, cellPos.rowspan,
+									cellPos.colspan, rowCount, columnCount, this.vertical);
+					cellBox.prepareLayout(this.layoutStack.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
 
 					final double cellFrame;
 					if (this.vertical) {

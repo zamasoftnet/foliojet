@@ -475,80 +475,33 @@ public class OnePassTableBuilder implements TableBuilder {
 					continue;
 				}
 				final TableCellBox cellBox = cell.getCellBox();
+				// セル間隔(共有核 — P2-5 (c))
+				final AbsoluteInsets cellSpacing;
 				if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-					// 分離境界
-					double top = tableParams.borderSpacingV / 2.0;
-					double right = tableParams.borderSpacingH / 2.0;
-					double bottom = tableParams.borderSpacingV / 2.0;
-					double left = tableParams.borderSpacingH / 2.0;
-					AbsoluteInsets cellSpacing = new AbsoluteInsets(top, right, bottom, left);
-					cellBox.prepareLayout(this.builder.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
+					cellSpacing = CollapsedBorderRules.separateSpacing(tableParams);
 				} else {
-					// つぶし境界
-					List<Border[]> vborders, hborders;
+					final List<Border[]> vborders, hborders;
 					switch (rowGroupPos.rowGroupType) {
-					case RowGroupType.HEADER: {
+					case RowGroupType.HEADER:
 						vborders = this.headerVborders;
 						hborders = this.headerHborders;
-					}
 						break;
-
-					case RowGroupType.FOOTER: {
+					case RowGroupType.FOOTER:
 						vborders = this.footerVborders;
 						hborders = this.footerHborders;
-					}
 						break;
-
-					case RowGroupType.BODY: {
+					case RowGroupType.BODY:
 						vborders = this.bodyVborders;
 						hborders = this.bodyHborders;
-					}
 						break;
 					default:
 						throw new IllegalStateException();
 					}
-					double pageFirst = 0, lineEnd = 0, pageLast = 0, lineStart = 0;
-					int borderRow = hborders.size() - this.cellsUnit.size() + row;
-					Border[] prevBorder = (Border[]) hborders.get(borderRow - 1);
-					Border[] nextBorder = (Border[]) hborders
-							.get(Math.min(hborders.size() - 1, borderRow + cell.rowspan - 1));
-					for (int k = 0; k < cell.colspan; ++k) {
-						int kk = i + k;
-						if (kk >= this.columnSizes.length) {
-							break;
-						}
-						if (prevBorder[kk] != null) {
-							pageFirst = Math.max(pageFirst, prevBorder[kk].width / 2.0);
-						}
-						if (nextBorder[kk] != null) {
-							pageLast = Math.max(pageLast, nextBorder[kk].width / 2.0);
-						}
-					}
-					// 行方向の間隔は連結全行の縦境界の最大から(TwoPass と同じ規約。
-					// 旧実装は先頭行のみ参照 —
-					// 0330-table-border/collapse-rowspan-spacing.html で是正)
-					for (int k = 0; k < cell.rowspan; ++k) {
-						final int rr = borderRow - 1 + k;
-						if (rr >= vborders.size()) {
-							break;
-						}
-						final Border[] rowLine = (Border[]) vborders.get(rr);
-						if (rowLine[i] != null) {
-							lineStart = Math.max(lineStart, rowLine[i].width / 2.0);
-						}
-						if (rowLine[i + cell.colspan] != null) {
-							lineEnd = Math.max(lineEnd, rowLine[i + cell.colspan].width / 2.0);
-						}
-					}
-					AbsoluteInsets spacing;
-					if (this.vertical) {
-						spacing = new AbsoluteInsets(lineStart, pageFirst, lineEnd, pageLast);
-					} else {
-						spacing = new AbsoluteInsets(pageFirst, lineEnd, pageLast, lineStart);
-					}
-					cellBox.prepareLayout(this.builder.getFlowBox().getLineSize(), this.tableBox, spacing);
-
+					final int borderRow = hborders.size() - this.cellsUnit.size() + row;
+					cellSpacing = CollapsedBorderRules.streamSpacing(hborders, vborders, borderRow, i, cell.rowspan,
+							cell.colspan, this.columnSizes.length, this.vertical);
 				}
+				cellBox.prepareLayout(this.builder.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
 
 				double size = this.columnSizes[i];
 				for (int j = 1; j < span; ++j) {

@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.layout.box.params.Border;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 
 /**
@@ -61,6 +62,93 @@ final class CollapsedBorderRules {
 			}
 			return new GroupBorders(rowSizes, h, v);
 		}
+	}
+
+	/**
+	 * 分離境界のセル間隔(境界間隔の半分)です。
+	 */
+	static AbsoluteInsets separateSpacing(final TableParams tableParams) {
+		final double v = tableParams.borderSpacingV / 2.0;
+		final double h = tableParams.borderSpacingH / 2.0;
+		return new AbsoluteInsets(v, h, v, h);
+	}
+
+	/**
+	 * つぶし境界のセル間隔です(グリッド読み — 全表の境界確定後)。
+	 * 連結範囲の境界半幅の最大を各辺に採る。
+	 */
+	static AbsoluteInsets gridSpacing(final TableCollapsedBorders borders, final int row, final int col,
+			final int rowspan, final int colspan, final int rowCount, final int columnCount, final boolean vertical) {
+		double pageFirst = 0, lineEnd = 0, pageLast = 0, lineStart = 0;
+		final int bottomIndex = row + rowspan;
+		for (int k = 0; k < colspan; ++k) {
+			final int kk = col + k;
+			if (kk >= columnCount) {
+				break;
+			}
+			pageFirst = Math.max(pageFirst, borders.getHBorder(kk, row).width / 2.0);
+			if (bottomIndex <= rowCount) {
+				pageLast = Math.max(pageLast, borders.getHBorder(kk, bottomIndex).width / 2.0);
+			}
+		}
+		final int rightIndex = col + colspan;
+		for (int k = 0; k < rowspan; ++k) {
+			final int kk = row + k;
+			if (kk >= rowCount) {
+				break;
+			}
+			lineStart = Math.max(lineStart, borders.getVBorder(kk, col).width / 2.0);
+			if (rightIndex <= columnCount) {
+				lineEnd = Math.max(lineEnd, borders.getVBorder(kk, rightIndex).width / 2.0);
+			}
+		}
+		return spacing(pageFirst, lineEnd, pageLast, lineStart, vertical);
+	}
+
+	/**
+	 * つぶし境界のセル間隔です(ストリーム読み — 行単位蓄積の窓)。
+	 * グリッド読みと同じ規則を蓄積リストから読む。
+	 */
+	static AbsoluteInsets streamSpacing(final List<Border[]> hborders, final List<Border[]> vborders,
+			final int borderRow, final int col, final int rowspan, final int colspan, final int columnCount,
+			final boolean vertical) {
+		double pageFirst = 0, lineEnd = 0, pageLast = 0, lineStart = 0;
+		final Border[] prevBorder = hborders.get(borderRow - 1);
+		final Border[] nextBorder = hborders.get(Math.min(hborders.size() - 1, borderRow + rowspan - 1));
+		for (int k = 0; k < colspan; ++k) {
+			final int kk = col + k;
+			if (kk >= columnCount) {
+				break;
+			}
+			if (prevBorder[kk] != null) {
+				pageFirst = Math.max(pageFirst, prevBorder[kk].width / 2.0);
+			}
+			if (nextBorder[kk] != null) {
+				pageLast = Math.max(pageLast, nextBorder[kk].width / 2.0);
+			}
+		}
+		for (int k = 0; k < rowspan; ++k) {
+			final int rr = borderRow - 1 + k;
+			if (rr >= vborders.size()) {
+				break;
+			}
+			final Border[] rowLine = vborders.get(rr);
+			if (rowLine[col] != null) {
+				lineStart = Math.max(lineStart, rowLine[col].width / 2.0);
+			}
+			if (rowLine[col + colspan] != null) {
+				lineEnd = Math.max(lineEnd, rowLine[col + colspan].width / 2.0);
+			}
+		}
+		return spacing(pageFirst, lineEnd, pageLast, lineStart, vertical);
+	}
+
+	private static AbsoluteInsets spacing(final double pageFirst, final double lineEnd, final double pageLast,
+			final double lineStart, final boolean vertical) {
+		if (vertical) {
+			return new AbsoluteInsets(lineStart, pageFirst, lineEnd, pageLast);
+		}
+		return new AbsoluteInsets(pageFirst, lineEnd, pageLast, lineStart);
 	}
 
 	/**
