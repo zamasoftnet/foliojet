@@ -1,0 +1,8 @@
+resume PAGE
+  legacy-carry depth=4
+      restyle-chain serial=1
+     restyle-float serial=3
+     restyle-float serial=4
+     restyle-chain serial=5
+    restyle-chain serial=1
+   restyle-text-open serial=1

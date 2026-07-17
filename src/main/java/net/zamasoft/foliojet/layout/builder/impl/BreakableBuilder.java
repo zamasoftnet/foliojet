@@ -1021,6 +1021,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
 		this.restyling = true;
 		final RootBuilder root = this.getPageContext();
+		net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
 		if (root != null) {
 			root.beginBreakRestyle();
 		}
@@ -1031,6 +1032,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				root.endBreakRestyle();
 			}
 			this.restyling = false;
+			net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
 		}
 		return true;
 	}

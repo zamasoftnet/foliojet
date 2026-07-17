@@ -210,6 +210,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * ときにここへ消費者が加わる。
 	 */
 	private void resume(final net.zamasoft.foliojet.layout.fragment.Continuation continuation) {
+		net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("PAGE");
 		this.beginBreakRestyle();
 		try {
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.Item item : continuation.items()) {
@@ -217,6 +218,8 @@ public class RootBuilder extends BreakableBuilder {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.LegacyCarry(
 						final net.zamasoft.foliojet.layout.box.IPageBreakableBox remainder) -> {
 					net.zamasoft.foliojet.layout.fragment.Continuation.LEGACY_CARRIES.incrementAndGet();
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "legacy-carry",
+							"depth=" + continuation.depth());
 					((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) remainder).restyle(this,
 							continuation.depth());
 				}
@@ -228,6 +231,7 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		} finally {
 			this.endBreakRestyle();
+			net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
 		}
 	}
 

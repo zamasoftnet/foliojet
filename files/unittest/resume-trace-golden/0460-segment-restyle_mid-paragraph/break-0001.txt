@@ -1,0 +1,5 @@
+resume PAGE
+  legacy-carry depth=3
+     restyle-chain serial=1
+    restyle-chain serial=1
+   restyle-text-open serial=1

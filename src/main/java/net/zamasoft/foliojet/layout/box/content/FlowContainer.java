@@ -1070,6 +1070,9 @@ public class FlowContainer implements Container {
 							replayed = root.replayTextFrom(textBlock, endId, open);
 						}
 					}
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth,
+							replayed ? "text-tail" : (open ? "restyle-text-open" : "restyle-text"),
+							"serial=" + holder.serial);
 					if (!replayed) {
 						textBlock.restyle(builder);
 					}
@@ -1092,6 +1095,8 @@ public class FlowContainer implements Container {
 							// テーブルキャプション
 							if (lastFlow == holder && depth > 1) {
 								// 開いたままの祖先チェーン
+								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-chain",
+										"serial=" + holder.serial);
 								containerBox.restyle(builder, depth - 1);
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
@@ -1100,10 +1105,17 @@ public class FlowContainer implements Container {
 								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b
 								// segment-restyle)。false ならボックス再生でフォールバック。
 								// lastFlow && depth==1 の末尾も閉じたボックス(次段で depth-1=0)
+								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-box",
+										"serial=" + holder.serial);
 								containerBox.restyle(builder, 0);
+							} else {
+								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "replay-subtree",
+										"serial=" + holder.serial);
 							}
 						}
 					} else {
+						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-float",
+								"serial=" + holder.serial);
 						((Floating) holder).restyle(builder);
 					}
 				}
@@ -1112,6 +1124,8 @@ public class FlowContainer implements Container {
 				case TABLE: {
 					// テーブル
 					TableBox tableBox = (TableBox) holder.getBox();
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-table",
+							"serial=" + holder.serial);
 					builder.addBound(tableBox);
 				}
 					break;
@@ -1119,8 +1133,12 @@ public class FlowContainer implements Container {
 					// 置換されたボックス
 					AbstractReplacedBox replacedBox = (AbstractReplacedBox) holder.getBox();
 					if (replacedBox.getPos().getType() != PosType.FLOAT) {
+						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-replaced",
+								"serial=" + holder.serial);
 						builder.addBound(replacedBox);
 					} else {
+						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-float-replaced",
+								"serial=" + holder.serial);
 						((Floating) holder).restyle(builder);
 					}
 					break;

@@ -1,0 +1,132 @@
+package jp.cssj.test.unit.displaylist;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import jp.cssj.cti2.helpers.CTIMessageHelper;
+import jp.cssj.cti2.helpers.CTISessionHelper;
+import jp.cssj.cti2.results.SingleResult;
+import junit.framework.TestCase;
+import net.zamasoft.foliojet.driver.DirectDriver;
+import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.fragment.ResumeTrace;
+import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
+import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
+
+/**
+ * 改ページ・改段の再開操作トレースの golden 比較テストです。
+ *
+ * <p>
+ * Continuation 移行(ARCHITECTURE §5.7)の各スライスに対して、
+ * 「再開の操作列(replay/box-restyle の分岐・順序・深さ)が変わらない」
+ * ことを固定します。意図的な移行(例: restyle-box → replay-subtree)は
+ * 該当 golden を削除して再生成し、差分をレビューしてコミットします。
+ * </p>
+ */
+public class ResumeTraceGoldenTest extends TestCase {
+	static {
+		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
+		System.setProperty("jp.cssj.driver.default",
+				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
+	}
+
+	private static final URI COPPER_URI = URI.create("copper:direct:");
+
+	/** 対象文書。改ページ・改段・フロート・表・尾部再開をカバーする。 */
+	private static final String[] DOCUMENTS = { //
+			"0460-segment-restyle/mid-paragraph.html", //
+			"0460-segment-restyle/moved-blocks.html", //
+			"0460-segment-restyle/text-tail-avoid.html", //
+			"0460-segment-restyle/float-in-moved.html", //
+			"0120-float/float-in-moved-block.html", //
+			"0400-column-count/simple.html", //
+			"0400-column-count/columns-float.html", //
+			"0215-pagebreak-table/auto-page-break-margin.html", //
+	};
+
+	public void testResumeTraces() throws Exception {
+		List<String> failures = new ArrayList<>();
+		for (String doc : DOCUMENTS) {
+			String name = doc.replace('/', '_').replace(".html", "");
+			File outDir = new File("local/unittest/resume-trace/" + name);
+			deleteChildren(outDir);
+			File goldenDir = new File("files/unittest/resume-trace-golden/" + name);
+
+			ResumeTrace.reset();
+			System.setProperty(ResumeTrace.DIR_PROPERTY, outDir.getPath());
+			try {
+				this.transcode(new File("files/unittest/" + doc), name);
+			} finally {
+				System.clearProperty(ResumeTrace.DIR_PROPERTY);
+			}
+
+			File[] breaks = outDir.listFiles((d, n) -> n.endsWith(".txt"));
+			assertNotNull("再開トレースが出力されていません: " + doc, breaks);
+			assertTrue("再開トレースが出力されていません: " + doc, breaks.length > 0);
+
+			if (!goldenDir.isDirectory()) {
+				// 基準データの初回生成
+				goldenDir.mkdirs();
+				for (File b : breaks) {
+					Files.copy(b.toPath(), new File(goldenDir, b.getName()).toPath());
+				}
+				failures.add(doc + ": 基準データを生成しました。内容を確認してコミットしてください: " + goldenDir);
+				continue;
+			}
+
+			File[] goldenBreaks = goldenDir.listFiles((d, n) -> n.endsWith(".txt"));
+			if (goldenBreaks.length != breaks.length) {
+				failures.add(doc + ": 破断数が基準と異なります (golden=" + goldenBreaks.length + ", actual="
+						+ breaks.length + ")");
+				continue;
+			}
+			for (File golden : goldenBreaks) {
+				Path actual = new File(outDir, golden.getName()).toPath();
+				String expected = Files.readString(golden.toPath(), StandardCharsets.UTF_8);
+				String got = Files.readString(actual, StandardCharsets.UTF_8);
+				if (!expected.equals(got)) {
+					failures.add(doc + "/" + golden.getName() + ": 再開トレースが基準と一致しません (expected="
+							+ golden + ", actual=" + actual + ")");
+				}
+			}
+		}
+		if (!failures.isEmpty()) {
+			fail(String.join("\n", failures));
+		}
+	}
+
+	private void transcode(File source, String name) throws Exception {
+		File pdf = new File("local/unittest/resume-trace/" + name + ".pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, source, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+	}
+
+	private static void deleteChildren(File dir) {
+		File[] children = dir.listFiles();
+		if (children == null) {
+			return;
+		}
+		for (File child : children) {
+			child.delete();
+		}
+	}
+}
