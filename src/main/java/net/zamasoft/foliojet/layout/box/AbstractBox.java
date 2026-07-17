@@ -5,6 +5,26 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 
 public abstract class AbstractBox implements IBox {
+	/**
+	 * この内容を生んだ LayoutSource のイベントIDです(SourceAnchor。
+	 * P0: provenance の style params からの分離 — 外部レビュー指摘)。
+	 * 記録時に一度だけ付与され、以後不変。断片・未記録の内容は -1 のまま
+	 * — レシピ構築の断片は最初からアンカーを持たないため、旧
+	 * params.sourceEventId の「-1 書き込みによる無効化」プロトコルは
+	 * 不要になった。再生インスタンスにはドライバがイベントIDから
+	 * 再付与する(SourceReplayer.drive)。
+	 */
+	private long sourceAnchor = -1;
+
+	public final long getSourceAnchor() {
+		return this.sourceAnchor;
+	}
+
+	public final void setSourceAnchor(final long id) {
+		assert this.sourceAnchor == -1 : "アンカーは付与後不変: " + this.sourceAnchor + " -> " + id;
+		this.sourceAnchor = id;
+	}
+
 	public BoxSubtype getSubtype() {
 		return BoxSubtype.NONE;
 	}

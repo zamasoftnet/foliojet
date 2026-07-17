@@ -59,16 +59,29 @@ public final class SourceReplayer {
 	 * 駆動中の入れ子改ページによる compact の影響を受けません。
 	 */
 	private static void drive(final DocumentBuilder doc, final LayoutSource.ReplaySlice slice) {
+		// slice の EventId は fromId からの連番(capture が検証済み)。
+		// 再生インスタンスにはイベントIDから SourceAnchor を再付与する
+		// (P0: アンカーはボックス個体に属する — 次の破断で再び
+		// 再生可能になるための系譜)
+		final long[] eventId = { slice.fromId() };
 		slice.replay(event -> {
 			switch (event) {
-			case LayoutSource.Start start -> doc.startBox(newBox(start));
-			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
-					.addReplacedBox(box.newReplayInstance());
+			case LayoutSource.Start start -> {
+				final net.zamasoft.foliojet.layout.box.INonReplacedBox box = newBox(start);
+				box.setSourceAnchor(eventId[0]);
+				doc.startBox(box);
+			}
+			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> {
+				final net.zamasoft.foliojet.layout.box.AbstractReplacedBox fresh = box.newReplayInstance();
+				fresh.setSourceAnchor(eventId[0]);
+				doc.addReplacedBox(fresh);
+			}
 			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
 					.characters(charOffset, ch, 0, ch.length, fixed);
 			case LayoutSource.EndBlock end -> doc.endBox();
 			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
 			}
+			++eventId[0];
 		});
 	}
 
@@ -205,9 +218,14 @@ public final class SourceReplayer {
 		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
 		final boolean[] first = { true };
+		final long[] eventId = { slice.fromId() };
 		slice.replay(event -> {
 			switch (event) {
-			case LayoutSource.Start start -> doc.startBox(newBox(start));
+			case LayoutSource.Start start -> {
+				final net.zamasoft.foliojet.layout.box.INonReplacedBox box = newBox(start);
+				box.setSourceAnchor(eventId[0]);
+				doc.startBox(box);
+			}
 			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
 				int skip = 0;
 				if (first[0]) {
@@ -223,11 +241,15 @@ public final class SourceReplayer {
 					doc.characters(off + skip, ch, skip, len, fixed);
 				}
 			}
-			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
-					.addReplacedBox(box.newReplayInstance());
+			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> {
+				final net.zamasoft.foliojet.layout.box.AbstractReplacedBox fresh = box.newReplayInstance();
+				fresh.setSourceAnchor(eventId[0]);
+				doc.addReplacedBox(fresh);
+			}
 			case LayoutSource.EndBlock end -> doc.endBox();
 			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
 			}
+			++eventId[0];
 		});
 		if (keepTextOpen) {
 			doc.finishReplayKeepText();

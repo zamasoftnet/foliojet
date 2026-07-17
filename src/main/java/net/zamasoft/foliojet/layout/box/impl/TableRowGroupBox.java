@@ -363,8 +363,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	}
 
 	private TableRowGroupBox splitTableRowGroup() {
-		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
-		this.params.sourceEventId = -1;
+		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
 		final TableRowGroupBox nextRowGroup = new TableRowGroupBox(this.params, this.pos);
 		nextRowGroup.setTableParams(this.tableParams);
 		nextRowGroup.lineSize = this.lineSize;

@@ -40,7 +40,7 @@ public final class MeasuredIntrinsics {
 	 * 対象ブロックの固有寸法を実レイアウトで測ります。
 	 *
 	 * @param log      ソースログ(なければ null 可)
-	 * @param box      対象ブロック(アンカー=params.sourceEventId)
+	 * @param box      対象ブロック(アンカー=SourceAnchor)
 	 * @param template 書体等を引き継ぐ計算済みパラメータ
 	 * @param ua       ユーザーエージェント
 	 * @return 実測固有寸法。範囲を特定できなければ null(模倣へフォールバック)
@@ -60,7 +60,7 @@ public final class MeasuredIntrinsics {
 			// セマンティクスを維持する
 			return null;
 		}
-		final long selfId = box.getParams().sourceEventId;
+		final long selfId = box.getSourceAnchor();
 		if (selfId < 0) {
 			return null;
 		}

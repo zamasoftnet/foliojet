@@ -1229,7 +1229,7 @@ public class FlowContainer implements Container {
 							// そのボックスのアンカーと同値
 							final BoxHolder next = (BoxHolder) items.get(i + 1);
 							endId = next instanceof Replay replay ? replay.range.fromId()
-									: next.getBox().getParams().sourceEventId;
+									: next.getBox().getSourceAnchor();
 						}
 						// 切断段落の尾部をソース再駆動(M6b v3)
 						replayed = root.replayTextFrom(textBlock, endId, open);

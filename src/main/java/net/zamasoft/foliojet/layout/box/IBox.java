@@ -14,8 +14,20 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 public interface IBox {
 
 	/**
+	 * この内容を生んだ LayoutSource のイベントIDを返します
+	 * (SourceAnchor。記録時に一度だけ付与され不変。断片・未記録は -1)。
+	 */
+	public long getSourceAnchor();
+
+	/**
+	 * SourceAnchor を付与します(記録時・再生時のドライバ専用。
+	 * 一度だけ)。
+	 */
+	public void setSourceAnchor(long id);
+
+	/**
 	 * ボックスのタイプを返します。
-	 * 
+	 *
 	 * @return
 	 */
 	public BoxType getType();

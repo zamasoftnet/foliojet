@@ -327,10 +327,10 @@ public class StyleBuilder implements PageGenerator {
 		// (範囲に Opaque を含む再生はフォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
 		if (kind != null) {
-			box.getParams().sourceEventId = this.layoutSource
-					.append(new LayoutSource.Start(kind, box.getParams(), box.getPos()));
+			box.setSourceAnchor(
+					this.layoutSource.append(new LayoutSource.Start(kind, box.getParams(), box.getPos())));
 		} else {
-			box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Opaque());
+			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Opaque()));
 		}
 		this.doc.startBox(box);
 	}
@@ -341,7 +341,7 @@ public class StyleBuilder implements PageGenerator {
 	 * 失われる(サイレントホールの防止)。
 	 */
 	private void addReplacedBox(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
-		box.getParams().sourceEventId = this.layoutSource.append(new LayoutSource.Replaced(box));
+		box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Replaced(box)));
 		this.doc.addReplacedBox(box);
 	}
 

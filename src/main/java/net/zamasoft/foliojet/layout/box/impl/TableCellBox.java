@@ -393,8 +393,7 @@ public class TableCellBox extends AbstractContainerBox {
 				.cellFragmentState(vertical, this.size, this.minSize, this.frame,
 						vertical ? this.width : this.height, pageLimit);
 
-		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
-		this.params.sourceEventId = -1;
+		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
 		final TableCellBox cell = new TableCellBox(this.params, this.pos, state.nextSize(), state.nextMinSize(),
 				state.nextFrame(), container);
 		cell.collapse = this.collapse;

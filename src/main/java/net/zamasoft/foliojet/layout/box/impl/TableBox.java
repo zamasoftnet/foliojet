@@ -689,8 +689,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		// フレームの切断判定は TableCutter に純化(C4-T2)
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames frames = net.zamasoft.foliojet.layout.fragment.TableCutter
 				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
-		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
-		this.params.sourceEventId = -1;
+		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
 		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
 		if (vertical) {
 			nextTable.height = this.height;

@@ -382,8 +382,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		TableRowBox nextRowBox = null;
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
 			// 必ず切断する
-			// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
-			this.params.sourceEventId = -1;
+			// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
 			nextRowBox = new TableRowBox(this.params, this.getTableRowPos());
 			nextRowBox.setTableParams(this.tableParams);
 			this.pageSize = pageLimit;
@@ -413,7 +412,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			// System.err.println("TR C: " + i + "/prevHeight="
 			// + prevCellBox.getInnerHeight() + "/" + cutPageAxis);
 			if (nextRowBox == null) {
-				this.params.sourceEventId = -1;
 				nextRowBox = new TableRowBox(this.params, this.getTableRowPos());
 				nextRowBox.setTableParams(this.tableParams);
 				this.pageSize = pageLimit;

@@ -214,7 +214,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
 		final boolean replayed = root != null && root.isSegmentRestyle()
 				&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
-						root.getPageGenerator().getLayoutSource(), this.getParams().sourceEventId, columnBuilder,
+						root.getPageGenerator().getLayoutSource(), this.getSourceAnchor(), columnBuilder,
 						root.getPageGenerator());
 		if (!replayed) {
 			oldCont.restyle(columnBuilder, 0, true);

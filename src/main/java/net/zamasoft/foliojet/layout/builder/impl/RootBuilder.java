@@ -111,7 +111,7 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 			final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
 		container.eachFlowBox(box -> {
-			final long startId = box.getParams().sourceEventId;
+			final long startId = box.getSourceAnchor();
 			if (startId >= 0) {
 				final long endId = log.endOf(startId);
 				if (endId >= 0 && !log.containsOpaque(startId, endId) && !log.containsMulticol(startId, endId)
@@ -554,7 +554,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		final long[] min = { Long.MAX_VALUE };
 		container.eachFlowBox(box -> {
-			final long id = box.getParams().sourceEventId;
+			final long id = box.getSourceAnchor();
 			if (id >= 0 && log.endOf(id) >= 0) {
 				min[0] = Math.min(min[0], id);
 			}
