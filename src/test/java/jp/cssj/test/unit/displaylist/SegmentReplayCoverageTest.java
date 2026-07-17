@@ -38,9 +38,12 @@ public class SegmentReplayCoverageTest extends TestCase {
 		}
 		// 丸ごと次ページへ移動するブロックを含む文書
 		final long before = SourceReplayer.SUBTREE_REPLAYS.get();
+		final long prefixBefore = SourceReplayer.PREFIX_REPLAYS.get();
 		this.transcode(new File("files/unittest/0460-segment-restyle/moved-blocks.html"), "coverage-subtree");
 		assertTrue("移動した閉部分木のソース再駆動が一度も発火していません",
 				SourceReplayer.SUBTREE_REPLAYS.get() > before);
+		assertTrue("吸収済み再生範囲(C1c prefixItems)経由の再駆動が一度も発火していません",
+				SourceReplayer.PREFIX_REPLAYS.get() > prefixBefore);
 	}
 
 	public void testTextTailReplayFires() throws Exception {

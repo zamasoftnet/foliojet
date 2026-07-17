@@ -66,6 +66,23 @@ public class FlowContainer implements Container {
 		}
 	}
 
+	/**
+	 * 吸収された閉部分木の再生範囲です(C1c)。ボックスを持たず、
+	 * restyle 走行の serial 合流順にソース再駆動を発火させます。
+	 */
+	private static class Replay extends BoxHolder {
+		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range;
+
+		Replay(net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range) {
+			super(range.serial());
+			this.range = range;
+		}
+
+		public IBox getBox() {
+			return null;
+		}
+	}
+
 	protected AbstractContainerBox box;
 
 	protected int serial = 0;
@@ -1007,7 +1024,69 @@ public class FlowContainer implements Container {
 		}
 	}
 
+	/**
+	 * stampRanges 済みの閉部分木をコンテナから吸収します(C1c)。最上位の
+	 * 閉じた plain ブロック(restyle 走行で replay-subtree になるもの:
+	 * BLOCK・非フロート・書字方向一致)のうち再生範囲が記録されたものを
+	 * フローから除去し、serial 付きの再生範囲として返します。resume は
+	 * これを {@link #restyle(BlockBuilder, int, boolean, List)} の prefix に
+	 * 渡し、serial 順で残アイテムと合流させて再駆動します。
+	 * 呼び出しはソースログ水位の計算後であること(吸収されたアイテムは
+	 * コンテナを歩く水位計算から見えなくなるため)。
+	 */
+	public final List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> extractReplayable(
+			final java.util.Map<IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges,
+			final boolean rootVertical, final int walkDepth) {
+		if (this.flows == null || ranges.isEmpty()) {
+			return List.of();
+		}
+		List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix = null;
+		// walkDepth >= 1 のとき末尾フローは開いた継続(depth>1 なら moved-open
+		// チェーン子、depth==1 なら開きテキスト)であり、たとえソースログ上で
+		// 閉じていても(イベント全着)flowStack への再積みが必要なため吸収
+		// しない。また末尾を抜くと開き判定(lastFlow)が前のアイテムへ
+		// ずれる — C1b までは walk 時の lastFlow 判定が replay より先に
+		// 効いて守られていた条件の、記録時への移し替え
+		int limit = walkDepth >= 1 ? this.flows.size() - 1 : this.flows.size();
+		for (int i = 0; i < limit;) {
+			final Flow flow = this.flows.get(i);
+			if (flow.box.getType() != BoxType.BLOCK || flow.box.getPos().getType() == PosType.FLOAT
+					|| ((AbstractContainerBox) flow.box).getBlockParams().flow.isVertical() != rootVertical) {
+				// 表・置換・テキスト・縦横混在は従来経路のまま
+				++i;
+				continue;
+			}
+			final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = ranges.remove(flow.box);
+			if (range == null) {
+				++i;
+				continue;
+			}
+			if (prefix == null) {
+				prefix = new ArrayList<>();
+			}
+			prefix.add(new net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange(flow.serial, range.fromId(),
+					range.toId()));
+			this.flows.remove(i);
+			--limit;
+		}
+		if (prefix == null) {
+			return List.of();
+		}
+		if (this.flows.isEmpty()) {
+			this.flows = null;
+		}
+		return prefix;
+	}
+
 	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes) {
+		this.restyle(builder, depth, restyleAbsolutes, List.of());
+	}
+
+	/**
+	 * 吸収された再生範囲(C1c)を serial 順で合流させながら再開します。
+	 */
+	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes,
+			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		// フロートは最近接ブロック祖先のコンテナに係留されるため、移動した
 		// 部分木の内部フロートは部分木と一緒に動き、ソース再駆動でも二重
 		// 生成されない(golden: float-in-moved)。絶対配置ボックスの開始は
@@ -1053,11 +1132,29 @@ public class FlowContainer implements Container {
 			}
 		}
 
+		if (!prefix.isEmpty()) {
+			// C1c: 吸収された閉部分木を serial 順の合流に加える
+			if (items == null) {
+				items = new ArrayList<BoxHolder>();
+			}
+			for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range : prefix) {
+				items.add(new Replay(range));
+			}
+		}
+
 		if (items != null) {
 			Collections.sort(items);
 			int size = items.size();
 			for (int i = 0; i < size; ++i) {
 				BoxHolder holder = (BoxHolder) items.get(i);
+				if (holder instanceof Replay replay) {
+					// C1c: 吸収された閉部分木のソース再駆動(再生可否は
+					// 破断時に判定済みのため無条件。op は従来と同一)
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "replay-subtree",
+							"serial=" + holder.serial);
+					builder.getPageContext().replaySubtree(replay.range, builder);
+					continue;
+				}
 				switch (holder.getBox().getType()) {
 				case TEXT_BLOCK: {
 					// テキストブロックボックス
@@ -1081,7 +1178,11 @@ public class FlowContainer implements Container {
 						// 次兄弟が分割断片(アンカー無効)でも再生できる(2026-07-17)
 						long endId = -1;
 						if (i + 1 < size) {
-							endId = ((BoxHolder) items.get(i + 1)).getBox().getParams().sourceEventId;
+							// 次アイテムが吸収済み再生範囲(C1c)なら fromId が
+							// そのボックスのアンカーと同値
+							final BoxHolder next = (BoxHolder) items.get(i + 1);
+							endId = next instanceof Replay replay ? replay.range.fromId()
+									: next.getBox().getParams().sourceEventId;
 						}
 						// 切断段落の尾部をソース再駆動(M6b v3)
 						replayed = root.replayTextFrom(textBlock, endId, open);

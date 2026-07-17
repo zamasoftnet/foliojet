@@ -38,6 +38,13 @@ public final class SourceReplayer {
 	public static final AtomicLong TEXT_TAIL_REPLAYS = new AtomicLong();
 
 	/**
+	 * 吸収済み再生範囲(C1c prefixItems)経由の発火計測です
+	 * (SUBTREE_REPLAYS の内数。ボックス運搬なしの経路が実際に
+	 * 通っていることの移行カバレッジ)。
+	 */
+	public static final AtomicLong PREFIX_REPLAYS = new AtomicLong();
+
+	/**
 	 * カラムバランスのソース再生の発火計測です(M6c)。
 	 */
 	public static final AtomicLong BALANCE_REPLAYS = new AtomicLong();

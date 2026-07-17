@@ -1,0 +1,13 @@
+drawer z=0
+  x=0.00 y=60.00 AbsoluteRectFrame[w=14.00 h=40.00]
+  x=0.00 y=0.00 Text["あばばばばばばばあば" asc=8.00 desc=2.00]
+  x=0.00 y=10.00 Text["ばばばばばばあばばば" asc=8.00 desc=2.00]
+  x=0.00 y=20.00 Text["ばばばばあばばばばば" asc=8.00 desc=2.00]
+  x=0.00 y=30.00 Text["ばばあばばばばばばば" asc=8.00 desc=2.00]
+  x=0.00 y=40.00 Text["あばばばばばばばあば" asc=8.00 desc=2.00]
+  x=0.00 y=50.00 Text["ばばばばばば" asc=8.00 desc=2.00]
+  x=14.00 y=60.00 Text["いろは" asc=8.00 desc=2.00]
+  x=44.00 y=59.40 AbsoluteRectFrame[w=30.00 h=12.01]
+  x=44.00 y=59.40 Text["にほへ" asc=8.60 desc=3.41]
+  x=74.00 y=60.00 Text["とち" asc=8.00 desc=2.00]
+  x=14.00 y=70.00 Text["いろはにほへとち" asc=8.00 desc=2.00]

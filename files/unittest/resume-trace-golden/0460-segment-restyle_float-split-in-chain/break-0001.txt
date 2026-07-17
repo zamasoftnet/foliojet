@@ -1,0 +1,8 @@
+resume PAGE
+  root-fragment depth=4
+   chain-fragment depth=3
+     restyle-float serial=2
+     restyle-chain serial=4
+    replay-subtree serial=1
+    restyle-chain serial=2
+   restyle-text-open serial=1

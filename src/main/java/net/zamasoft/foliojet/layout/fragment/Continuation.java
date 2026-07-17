@@ -69,9 +69,13 @@ public record Continuation(int depth, List<Item> items,
 	 * @param container   このレベルの残余コンテナ(閉じた先行アイテム+
 	 *                    フロート。チェーン子は含まれない)
 	 * @param crossExtent 切断時点の交差軸寸法
+	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c。
+	 *                    ボックスは運搬されず、resume が serial 順で
+	 *                    コンテナの残アイテムと合流させて再駆動する)
 	 */
 	public record ChainFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
-			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) {
+			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
+			List<SourceRange> prefixItems) {
 	}
 
 	/**
@@ -82,18 +86,25 @@ public record Continuation(int depth, List<Item> items,
 	 * @param state       断片状態
 	 * @param container   継続断片の内容
 	 * @param crossExtent 切断時点の交差軸寸法
+	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c。
+	 *                    チェーン収集時のみ。{@link ChainFragment#prefixItems}
+	 *                    と同じ扱い)
 	 */
 	public record RootFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
-			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) implements Item {
+			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
+			List<SourceRange> prefixItems) implements Item {
 	}
 
 	/**
-	 * 丸ごと移動する閉部分木のソース範囲です(C2 で使用予定)。
+	 * 丸ごと移動する閉部分木のソース範囲です(C2 で記録、C1c で
+	 * prefixItems として運搬)。
 	 *
+	 * @param serial 元のコンテナ内での合流順(BoxHolder の serial。
+	 *               フロートとの相対順を保存する。ranges マップ用途では -1)
 	 * @param fromId 部分木の StartBlock の EventId
 	 * @param toId   対応する EndBlock の EventId
 	 */
-	public record SourceRange(long fromId, long toId) implements Item {
+	public record SourceRange(int serial, long fromId, long toId) implements Item {
 	}
 
 	/**

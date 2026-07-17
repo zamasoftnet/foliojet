@@ -361,8 +361,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 			final boolean vertical = this.getBlockParams().flow.isVertical();
 			final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 			final net.zamasoft.foliojet.layout.fragment.FragmentState state = block.splitPageState(pageLimit, flags);
+			// prefixItems は pageBreak が水位計算の後に吸収する(C1c)
 			this.chainCollector.add(new net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment(block, state,
-					nextContainer, crossExtent));
+					nextContainer, crossExtent, java.util.List.of()));
 			return SplitResult.COLLECTED;
 		}
 		return new SplitResult.Split(this.splitPage(nextContainer, pageLimit, flags));
