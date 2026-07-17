@@ -58,6 +58,31 @@ public class LayoutSourceTest extends TestCase {
 		assertEquals(-1, log.endOf(open));
 	}
 
+	public void testOpaquePairsWithEndBlock() {
+		// Opaque は EndBlock と対を成す開始イベント。対称に扱わないと
+		// (1) endOf が Opaque の対の EndBlock を親の終端と誤認し、
+		// (2) compact が祖先の Start を誤って pop して開チェーンが崩壊する
+		final LayoutSource log = new LayoutSource();
+		final long body = log.append(start());
+		final long div = log.append(start());
+		log.append(new LayoutSource.Opaque()); // 絶対配置などの非対応ボックス
+		log.append(new LayoutSource.Chars(0, "a".toCharArray(), false));
+		log.append(new LayoutSource.EndBlock()); // /opaque
+		log.append(new LayoutSource.Chars(1, "b".toCharArray(), false));
+		final long divEnd = log.append(new LayoutSource.EndBlock()); // /div
+		final long tail = log.nextId();
+		log.append(new LayoutSource.Chars(2, "c".toCharArray(), false));
+
+		// endOf: Opaque の対の EndBlock を div の終端と誤認しないこと
+		assertEquals(divEnd, log.endOf(div));
+
+		// compact: 破棄範囲内で完結する opaque 対が、開いている祖先
+		// (body)の Start を pop してしまわないこと
+		log.compact(tail);
+		assertNotNull(log.get(body));
+		assertEquals(-1, log.endOf(body));
+	}
+
 	public void testCompactKeepsNestedOpenStarts() {
 		final LayoutSource log = new LayoutSource();
 		final long html = log.append(start());

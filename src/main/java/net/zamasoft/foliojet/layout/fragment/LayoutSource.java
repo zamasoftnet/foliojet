@@ -176,7 +176,12 @@ public final class LayoutSource {
 				break;
 			}
 			switch (entry.event()) {
+			// Opaque も EndBlock と対を成す開始イベント(startBox が Opaque を
+			// 積み endBox が EndBlock を積む)。Start と同様に扱わないと、
+			// Opaque の対の EndBlock が祖先の Start を誤って pop し、
+			// compaction の反復で開チェーンが崩壊する(2026-07-17 修正)
 			case Start start -> open.add(entry);
+			case Opaque opaque -> open.add(entry);
 			case EndBlock end -> {
 				if (!open.isEmpty()) {
 					open.remove(open.size() - 1);
@@ -185,8 +190,6 @@ public final class LayoutSource {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
-			}
-			case Opaque opaque -> {
 			}
 			}
 		}
@@ -212,7 +215,9 @@ public final class LayoutSource {
 		int depth = 0;
 		for (int i = index; i < this.entries.size(); ++i) {
 			switch (this.entries.get(i).event()) {
+			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
 			case Start start -> ++depth;
+			case Opaque opaque -> ++depth;
 			case EndBlock end -> {
 				if (--depth == 0) {
 					return this.entries.get(i).id();
@@ -221,8 +226,6 @@ public final class LayoutSource {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
-			}
-			case Opaque opaque -> {
 			}
 			}
 		}
@@ -268,7 +271,9 @@ public final class LayoutSource {
 				break;
 			}
 			switch (entry.event()) {
+			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
 			case Start start -> ++depth;
+			case Opaque opaque -> ++depth;
 			case EndBlock end -> {
 				if (depth == 0) {
 					return entry.id();
@@ -278,8 +283,6 @@ public final class LayoutSource {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
-			}
-			case Opaque opaque -> {
 			}
 			}
 		}
