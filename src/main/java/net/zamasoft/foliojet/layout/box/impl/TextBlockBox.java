@@ -321,16 +321,27 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	public final void restyle(final BlockBuilder builder) {
 		assert (!this.lines.isEmpty());
 		builder.setBreakToken(this.breakToken);
-		final GlyphHandler gh = new BuilderGlyphHandler(builder);
-		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params);
-		textUnitizer.setGlyphHandler(gh);
-		// System.err.println("*** start");
-		for (int i = 0; i < this.lines.size(); ++i) {
-			final Line line = (Line) this.lines.get(i);
-			line.box.restyle(textUnitizer, i == 0);
-		}
-		// System.err.println("*** end");
-		textUnitizer.close();
+		// M3b Phase 1: 残余行を oracle として正規化イベント列を捕捉し、
+		// 運搬体をスライスに置換(捕捉→再生は構成的に同一 = 挙動不変)。
+		// Phase 2 で Continuation がボックスの代わりにこのスライスを運ぶ
+		this.replaySlice().replay(new BuilderGlyphHandler(builder));
+	}
+
+	/**
+	 * 残余行の正規化イベント列を返します(M3b Phase 1 / C3)。
+	 * WordHyphenator 相当(unitizer)の出口で捕捉した、restyle が
+	 * BuilderGlyphHandler へ配達するのと同一の列。
+	 */
+	public final net.zamasoft.foliojet.layout.fragment.TextReplaySlice replaySlice() {
+		return net.zamasoft.foliojet.layout.fragment.TextReplaySlice.record(gh -> {
+			final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params);
+			textUnitizer.setGlyphHandler(gh);
+			for (int i = 0; i < this.lines.size(); ++i) {
+				final Line line = (Line) this.lines.get(i);
+				line.box.restyle(textUnitizer, i == 0);
+			}
+			textUnitizer.close();
+		});
 	}
 
 	public final boolean avoidBreakAfter() {
