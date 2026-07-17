@@ -80,9 +80,25 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	protected boolean interflowBreak = true;
 
 	/**
-	 * 再レイアウト中のフラグです。
+	 * 再レイアウト(破断残余の再開)の入れ子深さです。再生した内容が
+	 * 新ページを溢れさせると再開の中で改ページが入れ子で起きるため、
+	 * boolean では内側の終了が外側の再開文脈を解除してしまう
+	 * (外部レビュー指摘)。
 	 */
-	protected boolean restyling = false;
+	private int restyleNesting = 0;
+
+	protected final boolean isRestyling() {
+		return this.restyleNesting > 0;
+	}
+
+	protected final void beginRestyling() {
+		++this.restyleNesting;
+	}
+
+	protected final void endRestyling() {
+		--this.restyleNesting;
+		assert this.restyleNesting >= 0;
+	}
 
 	protected final java.util.EnumSet<FloatSide> breakFloats = java.util.EnumSet.noneOf(FloatSide.class);
 
@@ -221,17 +237,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				case PageBreakMode.VERSO:
 				case PageBreakMode.RECTO:
-					if (!this.restyling && (this.canBreakBefore || pos.pageBreakBefore != this.pageSide)) {
+					if (!this.isRestyling() && (this.canBreakBefore || pos.pageBreakBefore != this.pageSide)) {
 						this.forceBreak(pos.pageBreakBefore);
 					}
 					break;
 				case PageBreakMode.IF_VERSO:
-					if (!this.restyling && this.pageSide == PageBreakMode.VERSO) {
+					if (!this.isRestyling() && this.pageSide == PageBreakMode.VERSO) {
 						this.forceBreak(PageBreakMode.RECTO);
 					}
 					break;
 				case PageBreakMode.IF_RECTO:
-					if (!this.restyling && this.pageSide == PageBreakMode.RECTO) {
+					if (!this.isRestyling() && this.pageSide == PageBreakMode.RECTO) {
 						this.forceBreak(PageBreakMode.VERSO);
 					}
 					break;
@@ -364,17 +380,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				break;
 			case PageBreakMode.VERSO:
 			case PageBreakMode.RECTO:
-				if (!this.restyling && (this.canBreakBefore || pageBreakBefore != this.pageSide)) {
+				if (!this.isRestyling() && (this.canBreakBefore || pageBreakBefore != this.pageSide)) {
 					this.forceBreak(pageBreakBefore);
 				}
 				break;
 			case PageBreakMode.IF_VERSO:
-				if (!this.restyling && this.pageSide == PageBreakMode.VERSO) {
+				if (!this.isRestyling() && this.pageSide == PageBreakMode.VERSO) {
 					this.forceBreak(PageBreakMode.RECTO);
 				}
 				break;
 			case PageBreakMode.IF_RECTO:
-				if (!this.restyling && this.pageSide == PageBreakMode.RECTO) {
+				if (!this.isRestyling() && this.pageSide == PageBreakMode.RECTO) {
 					this.forceBreak(PageBreakMode.VERSO);
 				}
 				break;
@@ -387,7 +403,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		super.addBound(box);
-		if (!this.restyling) {
+		if (!this.isRestyling()) {
 			switch (box.getType()) {
 			case TABLE:
 				TableBox tableBox = (TableBox) box;
@@ -1019,7 +1035,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
-		this.restyling = true;
+		this.beginRestyling();
 		final RootBuilder root = this.getPageContext();
 		net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
 		if (root != null) {
@@ -1033,7 +1049,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (root != null) {
 				root.endBreakRestyle();
 			}
-			this.restyling = false;
+			this.endRestyling();
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
 		}
 		return true;

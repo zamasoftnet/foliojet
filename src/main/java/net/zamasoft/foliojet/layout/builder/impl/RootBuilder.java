@@ -42,52 +42,44 @@ public class RootBuilder extends BreakableBuilder {
 	private static final boolean TEXT_TAIL_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle.textTail");
 
 	/**
-	 * 破断(改ページ・改段)の残余再構築中だけ true(segment-restyle の
-	 * 適用範囲)。破断は常に構築ヘッドで起きるため、どちらも「ヘッド=
-	 * 祖先チェーン」の再開文脈が成立する。
+	 * 破断(改ページ・改段)の残余再構築スコープのスタックです(M6b。
+	 * 各要素は破断時に一括記録された閉部分木の再生範囲 = C2)。
+	 * 破断は常に構築ヘッドで起きるため「ヘッド=祖先チェーン」の再開
+	 * 文脈が成立する。再生した内容が新ページを溢れさせると再開の中で
+	 * 改ページが入れ子で起きるため、単一フィールドでは内側の破断が
+	 * 外側の再開文脈を破壊する(外部レビュー指摘)— top が現在の文脈。
 	 */
-	private boolean breakRestyle = false;
+	private final java.util.ArrayDeque<java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange>> resumeScopes = new java.util.ArrayDeque<>();
 
 	/**
-	 * 破断残余の再構築ブラケットを開始します(M6b)。
-	 */
-	public final void beginBreakRestyle() {
-		this.breakRestyle = true;
-	}
-
-	/**
-	 * 破断残余の再構築ブラケットを、記録済みの再生範囲(C2)付きで
+	 * 破断残余の再構築スコープを、記録済みの再生範囲(C2)付きで
 	 * 開始します。
 	 */
 	public final void beginBreakRestyle(
 			final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
-		this.breakRestyle = true;
-		this.activeRanges = ranges;
+		this.resumeScopes.push(ranges);
 	}
 
 	/**
-	 * 破断残余の再構築ブラケットを終了します(M6b)。
+	 * 破断残余の再構築スコープを終了します(M6b)。
 	 */
 	public final void endBreakRestyle() {
-		this.breakRestyle = false;
-		this.activeRanges = java.util.Map.of();
+		if (this.resumeScopes.isEmpty()) {
+			throw new IllegalStateException("再開スコープの対応が壊れています");
+		}
+		this.resumeScopes.pop();
 	}
 
 	/**
-	 * 現在の破断で記録された閉部分木の再生範囲です(C2)。
+	 * 再開中でまだ消費されていない吸収済み再生範囲の保持リースです
+	 * (C1c。fromId → lease)。再生した内容が新ページを溢れさせると
+	 * 再開中に改ページが入れ子で起きるが、吸収済み範囲はボックスを
+	 * 運搬しない(フォールバックなし)ため、入れ子の compact が
+	 * イベントを落とさないようリースで保持する(水位の clamp は
+	 * LayoutSource が行う)。map 経由の再生(resumeScopes)はボックスが
+	 * 残っており box-restyle へ落ちられるのでリース不要。
 	 */
-	private java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> activeRanges = java.util.Map
-			.of();
-
-	/**
-	 * 再開中でまだ消費されていない吸収済み再生範囲の fromId です(C1c)。
-	 * 再生した内容が新ページを溢れさせると再開中に改ページが入れ子で
-	 * 起きるが、吸収済み範囲はボックスを運搬しない(フォールバック
-	 * なし)ため、入れ子の compact がこれらのイベントを落とさないよう
-	 * 水位の下限として pin する。map 経由の再生(activeRanges)は
-	 * ボックスが残っており box-restyle へ落ちられるので pin 不要。
-	 */
-	private final java.util.TreeSet<Long> pinnedReplayFrom = new java.util.TreeSet<>();
+	private final java.util.Map<Long, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> prefixLeases = new java.util.HashMap<>();
 
 	/**
 	 * 残余の各閉部分木の再生可否と範囲を破断時に一括判定します(C2:
@@ -293,7 +285,7 @@ public class RootBuilder extends BreakableBuilder {
 		// コンテキストを再開
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
 		this.resetFragmentCursor(0, 0);
-		this.restyling = true;
+		this.beginRestyling();
 
 		// 継続記述(§5.7)。ルート断片は再開時に再構成(C1a)、閉部分木の
 		// 再生範囲は破断時に一括判定して記録(C2。チェーン断片の
@@ -336,13 +328,17 @@ public class RootBuilder extends BreakableBuilder {
 				this.flowStack.size(), java.util.List.of(rootFragment), ranges, chainFinal);
 
 		// C1c: 吸収済み範囲はボックスを運搬しないため、消費されるまで
-		// compact から守る(再生内容の溢れによる入れ子改ページ対策)
-		for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : rootPrefix) {
-			this.pinnedReplayFrom.add(r.fromId());
-		}
-		for (final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f : chainFinal) {
-			for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : f.prefixItems()) {
-				this.pinnedReplayFrom.add(r.fromId());
+		// 保持リースで compact から守る(再生内容の溢れによる入れ子
+		// 改ページ対策。水位の clamp は LayoutSource が行う)
+		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
+		if (log != null) {
+			for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : rootPrefix) {
+				this.prefixLeases.put(r.fromId(), log.retainFrom(r.fromId()));
+			}
+			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment f : chainFinal) {
+				for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : f.prefixItems()) {
+					this.prefixLeases.put(r.fromId(), log.retainFrom(r.fromId()));
+				}
 			}
 		}
 
@@ -351,9 +347,8 @@ public class RootBuilder extends BreakableBuilder {
 		this.resume(continuation);
 		assert java.util.stream.Stream
 				.concat(rootPrefix.stream(), chainFinal.stream().flatMap(f -> f.prefixItems().stream()))
-				.noneMatch(r -> this.pinnedReplayFrom.contains(r.fromId())) : "未消費の吸収済み再生範囲が残っています";
-		this.pageGenerator.compactLayoutSource(this.pinnedReplayFrom.isEmpty() ? watermark
-				: Math.min(watermark, this.pinnedReplayFrom.first()));
+				.noneMatch(r -> this.prefixLeases.containsKey(r.fromId())) : "未消費の吸収済み再生範囲が残っています";
+		this.pageGenerator.compactLayoutSource(watermark);
 		assert this.flowStack.size() == continuation.depth()
 				: ("break flow failed. " + this.getFlowBox().getParams().element);
 
@@ -374,7 +369,7 @@ public class RootBuilder extends BreakableBuilder {
 				}
 			}
 		}
-		this.restyling = false;
+		this.endRestyling();
 
 		return true;
 	}
@@ -469,29 +464,39 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public void replaySubtree(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range,
 			final BlockBuilder target) {
-		net.zamasoft.foliojet.layout.SourceReplayer.PREFIX_REPLAYS.incrementAndGet();
 		try {
-			net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(), range.fromId(),
-					range.toId(), target, this.pageGenerator);
+			if (!net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(),
+					range.fromId(), range.toId(), target, this.pageGenerator)) {
+				// 吸収済み範囲はボックスを運搬しない(フォールバック不可)。
+				// pin が守っているはずのイベントが欠けたら実装バグとして失敗
+				throw new IllegalStateException("吸収済み再生範囲が失われました: [" + range.fromId() + ", " + range.toId() + "]");
+			}
+			net.zamasoft.foliojet.layout.SourceReplayer.PREFIX_REPLAYS.incrementAndGet();
 		} finally {
 			// 消費完了。再生の途中で入れ子の改ページが起きても、finally
-			// までは pin が残っているため残イベントは compact されない
-			this.pinnedReplayFrom.remove(range.fromId());
+			// までリースが残っているため残イベントは compact されない
+			final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.prefixLeases
+					.remove(range.fromId());
+			if (lease != null) {
+				lease.close();
+			}
 		}
 	}
 
 	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box, final BlockBuilder target) {
-		if (!SEGMENT_RESTYLE || !this.breakRestyle) {
+		if (!SEGMENT_RESTYLE || this.resumeScopes.isEmpty()) {
 			return false;
 		}
 		// C2: 判定は破断時に一括記録済み(stampRanges)。ここでは消費のみ
-		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = this.activeRanges.get(box);
+		// (現在=最内の再開スコープの記録)
+		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = this.resumeScopes.peek().get(box);
 		if (range == null) {
 			return false;
 		}
-		net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(), range.fromId(),
+		// 範囲が(入れ子の compact 等で)欠けていれば駆動前に false が返り、
+		// ボックスが残っているため box-restyle へフォールバックする
+		return net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(), range.fromId(),
 				range.toId(), target, this.pageGenerator);
-		return true;
 	}
 
 	/**
@@ -524,7 +529,7 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final long endId,
 			final boolean keepTextOpen) {
-		if (!TEXT_TAIL_RESTYLE || !SEGMENT_RESTYLE || !this.breakRestyle) {
+		if (!TEXT_TAIL_RESTYLE || !SEGMENT_RESTYLE || this.resumeScopes.isEmpty()) {
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();

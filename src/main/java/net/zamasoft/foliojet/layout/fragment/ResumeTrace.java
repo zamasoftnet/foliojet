@@ -30,7 +30,14 @@ public final class ResumeTrace {
 
 	public static final String DIR_PROPERTY = "net.zamasoft.foliojet.debug.resume-trace.dir";
 
-	private static StringBuilder buffer = null;
+	/**
+	 * 再開トレースのバッファスタックです。再生した内容が新ページを
+	 * 溢れさせると再開の中で破断が入れ子で起きるため、単一バッファでは
+	 * 内側の begin が外側の記録を上書きする(外部レビュー指摘)。
+	 * 入れ子の破断は「nested resume」行として外側にも痕跡を残し、
+	 * 自身は完了時に独立ファイルとして書き出される(完了順の連番)。
+	 */
+	private static final java.util.ArrayDeque<StringBuilder> buffers = new java.util.ArrayDeque<>();
 
 	private static int breakCount = 0;
 
@@ -51,8 +58,13 @@ public final class ResumeTrace {
 		if (!enabled()) {
 			return;
 		}
-		buffer = new StringBuilder();
+		final StringBuilder outer = buffers.peek();
+		if (outer != null) {
+			outer.append("  nested resume ").append(kind).append('\n');
+		}
+		final StringBuilder buffer = new StringBuilder();
 		buffer.append("resume ").append(kind).append('\n');
+		buffers.push(buffer);
 	}
 
 	/**
@@ -64,7 +76,7 @@ public final class ResumeTrace {
 	 * @param what  対象の要約(ボックス種別・serial 等)
 	 */
 	public static void op(final int depth, final String op, final String what) {
-		final StringBuilder sb = buffer;
+		final StringBuilder sb = buffers.peek();
 		if (sb == null) {
 			return;
 		}
@@ -79,11 +91,10 @@ public final class ResumeTrace {
 	 * 再開の終了を記録し、有効ならファイルへ書き出します。
 	 */
 	public static void end() {
-		final StringBuilder sb = buffer;
+		final StringBuilder sb = buffers.poll();
 		if (sb == null) {
 			return;
 		}
-		buffer = null;
 		final String dir = System.getProperty(DIR_PROPERTY);
 		if (dir == null) {
 			return;
@@ -104,6 +115,6 @@ public final class ResumeTrace {
 	 */
 	public static void reset() {
 		breakCount = 0;
-		buffer = null;
+		buffers.clear();
 	}
 }

@@ -162,17 +162,76 @@ public final class LayoutSource {
 	}
 
 	/**
+	 * 未消費の再生範囲の保持リースです(参照カウント。C1c)。
+	 * ボックスを運搬しない source-only の継続アイテムが所有し、消費完了で
+	 * close する。リースが生きている間、compact はその fromId より前を
+	 * 破棄しない。close は冪等。
+	 */
+	public final class RetentionLease implements AutoCloseable {
+		private final long fromId;
+		private boolean closed = false;
+
+		private RetentionLease(final long fromId) {
+			this.fromId = fromId;
+		}
+
+		public long fromId() {
+			return this.fromId;
+		}
+
+		@Override
+		public void close() {
+			if (this.closed) {
+				return;
+			}
+			this.closed = true;
+			LayoutSource.this.release(this.fromId);
+		}
+	}
+
+	/**
+	 * fromId 以降のイベントの保持リースです(fromId → 参照数)。
+	 * 同じ fromId を複数の継続が独立に所有し得るため参照カウント
+	 * (単純な集合では一方の解放が他方の pin を消す — 外部レビュー指摘)。
+	 */
+	private final java.util.TreeMap<Long, Integer> retentionLeases = new java.util.TreeMap<>();
+
+	/**
+	 * fromId 以降のイベントを保持するリースを取得します。
+	 */
+	public RetentionLease retainFrom(final long fromId) {
+		this.retentionLeases.merge(fromId, 1, Integer::sum);
+		return new RetentionLease(fromId);
+	}
+
+	private void release(final long fromId) {
+		final Integer count = this.retentionLeases.get(fromId);
+		if (count == null) {
+			throw new IllegalStateException("リースの対応が壊れています: " + fromId);
+		}
+		if (count <= 1) {
+			this.retentionLeases.remove(fromId);
+		} else {
+			this.retentionLeases.put(fromId, count - 1);
+		}
+	}
+
+	/**
 	 * watermark より前のイベントを、開いている Start を残して
 	 * 破棄します。開いている Start の id は変わりません。
+	 * 生きている保持リースの最小 fromId が watermark を内部で clamp
+	 * します(呼び出し側が水位とリースを合成する必要はない)。
 	 *
 	 * @param watermark これより前(id &lt; watermark)が破棄対象
 	 */
 	public void compact(final long watermark) {
+		final long clamped = this.retentionLeases.isEmpty() ? watermark
+				: Math.min(watermark, this.retentionLeases.firstKey());
 		final List<Entry> kept = new ArrayList<Entry>();
 		// 破棄対象範囲の「未対応 Start」のスタックを求める
 		final List<Entry> open = new ArrayList<Entry>();
 		for (final Entry entry : this.entries) {
-			if (entry.id() >= watermark) {
+			if (entry.id() >= clamped) {
 				break;
 			}
 			switch (entry.event()) {
@@ -195,7 +254,7 @@ public final class LayoutSource {
 		}
 		kept.addAll(open);
 		for (final Entry entry : this.entries) {
-			if (entry.id() >= watermark) {
+			if (entry.id() >= clamped) {
 				kept.add(entry);
 			}
 		}
@@ -417,18 +476,65 @@ public final class LayoutSource {
 	}
 
 	/**
+	 * 一回の再生が読むイベント列の不変スナップショットです。
+	 *
+	 * <p>
+	 * visitor 呼出し前に範囲の完全性を検証してコピーすることで、visitor 内の
+	 * 入れ子改ページによる compact(backing list の clear+addAll)から再生
+	 * 走査を隔離します。数値 index で生リストを歩くと、入れ子 compact で
+	 * index がずれて未消費イベントを silent skip する(外部レビュー指摘。
+	 * LayoutSourceTest.testReplaySurvivesNestedCompaction が固定)。
+	 * </p>
+	 */
+	public record ReplaySlice(long fromId, long toId, List<Event> events) {
+		public void replay(final java.util.function.Consumer<Event> visitor) {
+			for (final Event event : this.events) {
+				visitor.accept(event);
+			}
+		}
+	}
+
+	/**
+	 * [fromId, toId] の不変スナップショットを検証付きで取得します。
+	 * 端が破棄済み・範囲の内部に破棄済みの穴がある・toId まで届かない
+	 * 場合は null(呼び出し側の契約に応じてフォールバックまたは失敗)。
+	 */
+	public ReplaySlice capture(final long fromId, final long toId) {
+		final int index = this.indexOf(fromId);
+		if (index < 0 || toId < fromId) {
+			return null;
+		}
+		final List<Event> events = new ArrayList<Event>();
+		long expected = fromId;
+		for (int i = index; i < this.entries.size(); ++i) {
+			final Entry entry = this.entries.get(i);
+			if (entry.id() != expected) {
+				// 内部に破棄済みの穴(EventId は連番で付与されるため)
+				return null;
+			}
+			events.add(entry.event());
+			if (entry.id() == toId) {
+				return new ReplaySlice(fromId, toId, List.copyOf(events));
+			}
+			++expected;
+		}
+		return null;
+	}
+
+	/**
 	 * [fromId, toId] の範囲のイベントを順に visitor へ渡します。
-	 * 範囲内に破棄済みの穴があってはなりません(呼び出し側の契約)。
+	 * 内部で不変スナップショットを取ってから駆動するため、visitor 内の
+	 * 入れ子改ページ(compact)に対して安全です。範囲が完全でなければ
+	 * 実行前に失敗します(フォールバック可能な呼び出し側は
+	 * {@link #capture} を使うこと)。
 	 */
 	public void replay(final long fromId, final long toId, final java.util.function.Consumer<Event> visitor) {
-		int index = this.indexOf(fromId);
-		assert index >= 0 : "replay from discarded event: " + fromId;
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			visitor.accept(entry.event());
+		final ReplaySlice slice = this.capture(fromId, toId);
+		if (slice == null) {
+			throw new IllegalStateException("replay range is not intact: [" + fromId + ", " + toId + "], retained=["
+					+ (this.entries.isEmpty() ? "-" : this.entries.get(0).id() + ".." + this.entries.get(this.entries.size() - 1).id())
+					+ "]");
 		}
+		slice.replay(visitor);
 	}
 }

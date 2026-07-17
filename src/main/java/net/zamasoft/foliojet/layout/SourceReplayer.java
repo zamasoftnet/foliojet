@@ -54,10 +54,12 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * ログ範囲のイベントを doc へそのまま再駆動します(共有ドライバ)。
+	 * スナップショット範囲のイベントを doc へそのまま再駆動します
+	 * (共有ドライバ)。slice は駆動前に確定した不変コピーのため、
+	 * 駆動中の入れ子改ページによる compact の影響を受けません。
 	 */
-	private static void drive(final DocumentBuilder doc, final LayoutSource log, final long fromId, final long toId) {
-		log.replay(fromId, toId, event -> {
+	private static void drive(final DocumentBuilder doc, final LayoutSource.ReplaySlice slice) {
+		slice.replay(event -> {
 			switch (event) {
 			case LayoutSource.Start start -> doc.startBox(newBox(start));
 			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> doc
@@ -103,7 +105,13 @@ public final class SourceReplayer {
 		wrapperParams.flow = template.flow;
 		wrapperParams.direction = template.direction;
 		doc.startBox(new FlowBlockBox(wrapperParams, new FlowPos()));
-		drive(doc, log, fromId, toId);
+		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
+		if (slice == null) {
+			// 計測はフォールバック経路を持たない(範囲は呼び出し側が
+			// 生きているうちに確定させる契約)
+			throw new IllegalStateException("measure range is not intact: [" + fromId + ", " + toId + "]");
+		}
+		drive(doc, slice);
 		doc.endBox();
 		doc.end();
 		return pg;
@@ -190,9 +198,14 @@ public final class SourceReplayer {
 			// 再開位置全体が live 保留中: 再生不要(live が全て供給する)
 			return false;
 		}
+		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
+		if (slice == null) {
+			// 範囲が欠けていれば box-restyle へフォールバック
+			return false;
+		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
 		final boolean[] first = { true };
-		log.replay(fromId, toId, event -> {
+		slice.replay(event -> {
 			switch (event) {
 			case LayoutSource.Start start -> doc.startBox(newBox(start));
 			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
@@ -251,8 +264,13 @@ public final class SourceReplayer {
 			// フロート係留・入れ子段組・縦横混在の再現は未検証のためフォールバック
 			return false;
 		}
+		final LayoutSource.ReplaySlice slice = log.capture(selfId + 1, endId - 1);
+		if (slice == null) {
+			// 範囲が欠けていればボックス再生へフォールバック
+			return false;
+		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
-		drive(doc, log, selfId + 1, endId - 1);
+		drive(doc, slice);
 		doc.finishReplay();
 		BALANCE_REPLAYS.incrementAndGet();
 		return true;
@@ -267,13 +285,21 @@ public final class SourceReplayer {
 	 * @param toId          対応する EndBlock の EventId
 	 * @param rootBuilder   再生先のルートビルダー(現在のページ文脈)
 	 * @param pageGenerator ページ生成器
+	 * @return 再駆動した場合 true。範囲が欠けていれば駆動前に false
+	 *         (呼び出し側の契約: box フォールバックがある経路は false を
+	 *         フォールバックへ、ない経路(C1c prefix)は失敗にする)
 	 */
-	public static void replay(final LayoutSource log, final long fromId, final long toId,
+	public static boolean replay(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
 		assert !log.containsMulticol(fromId, toId);
+		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
+		if (slice == null) {
+			return false;
+		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
-		drive(doc, log, fromId, toId);
+		drive(doc, slice);
 		doc.finishReplay();
 		SUBTREE_REPLAYS.incrementAndGet();
+		return true;
 	}
 }
