@@ -1139,82 +1139,21 @@ public class OnePassTableBuilder implements TableBuilder {
 				rowBox.setPageSize(rowSize);
 			}
 
-			// rowspanで連結された行の高さの計算
+			// rowspanで連結された行の高さの計算(共有エンジン — P2-2)
 			Collections.sort(rowspanList, Rowspan.SPAN_COMPARATOR);
-			for (int j = 0; j < rowspanList.size(); ++j) {
-				Rowspan rowspan = (Rowspan) rowspanList.get(j);
-				double minSum = ((TableRowBox) this.rowsUnit.get(rowspan.row)).getPageSize();
-				for (int k = 1; k < rowspan.span; ++k) {
-					int kk = rowspan.row + k;
-					if (kk < this.rowsUnit.size()) {
-						TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(kk);
-						minSum += rowBox.getPageSize();
+			{
+				final double[] rowSizes = new double[this.rowsUnit.size()];
+				final double[] rowRatios = new double[this.rowsUnit.size()];
+				for (int row = 0; row < this.rowsUnit.size(); ++row) {
+					final TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
+					rowSizes[row] = rowBox.getPageSize();
+					if (rowBox.getInnerTableParams().size.getType() == LengthType.RELATIVE) {
+						rowRatios[row] = rowBox.getInnerTableParams().size.getLength();
 					}
 				}
-				double minRem = rowspan.min - minSum;
-				if (minRem > 0) {
-					// minを分配
-					double adjCount = 0, autoCount = 0;
-					for (int k = 0; k < rowspan.span; ++k) {
-						int kk = rowspan.row + k;
-						if (kk >= this.rowsUnit.size()) {
-							break;
-						}
-						if (!noAdjRows[kk] && autoRows[kk]) {
-							++adjCount;
-						}
-						if (autoRows[kk]) {
-							++autoCount;
-						}
-						// %の適用
-						TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(kk);
-						if (rowBox.getInnerTableParams().size.getType() == LengthType.RELATIVE) {
-							double diff = minRem * rowBox.getInnerTableParams().size.getLength();
-							minRem -= diff;
-							rowBox.setPageSize(rowBox.getPageSize() + diff);
-						}
-					}
-					if (adjCount > 0 && adjCount < rowspan.span) {
-						// 連結により拡張したセルのだけの行に分配
-						minRem /= adjCount;
-						for (int k = 0; k < rowspan.span; ++k) {
-							int kk = rowspan.row + k;
-							if (kk >= this.rowsUnit.size()) {
-								break;
-							}
-							if (!noAdjRows[kk] && autoRows[kk]) {
-								TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(kk);
-								double size = rowBox.getPageSize() + minRem;
-								rowBox.setPageSize(size);
-							}
-						}
-					} else if (autoCount > 0 && autoCount < rowspan.span) {
-						// 自動高さの行に分配
-						minRem /= autoCount;
-						for (int k = 0; k < rowspan.span; ++k) {
-							int kk = rowspan.row + k;
-							if (kk >= this.rowsUnit.size()) {
-								break;
-							}
-							if (autoRows[kk]) {
-								TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(kk);
-								double size = rowBox.getPageSize() + minRem;
-								rowBox.setPageSize(size);
-							}
-						}
-					} else {
-						// 高さの分配
-						minRem /= rowspan.span;
-						for (int k = 0; k < rowspan.span; ++k) {
-							int kk = rowspan.row + k;
-							if (kk >= this.rowsUnit.size()) {
-								break;
-							}
-							TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(kk);
-							double size = rowBox.getPageSize() + minRem;
-							rowBox.setPageSize(size);
-						}
-					}
+				RowLayoutEngine.distributeSpannedRowSizes(rowSizes, rowspanList, noAdjRows, autoRows, rowRatios);
+				for (int row = 0; row < this.rowsUnit.size(); ++row) {
+					((TableRowBox) this.rowsUnit.get(row)).setPageSize(rowSizes[row]);
 				}
 			}
 
