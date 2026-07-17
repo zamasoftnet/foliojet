@@ -130,4 +130,8 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		assert !LayoutUtils.isNone(this.offsetX) : "Undefined offsetX";
 		assert !LayoutUtils.isNone(this.offsetY) : "Undefined offsetY";
 	}
+
+	public AbsoluteReplacedBox newReplayInstance() {
+		return new AbsoluteReplacedBox(this.params, this.pos);
+	}
 }

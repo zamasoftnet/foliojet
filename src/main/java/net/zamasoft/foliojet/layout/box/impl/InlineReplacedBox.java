@@ -27,4 +27,8 @@ public class InlineReplacedBox extends AbstractReplacedBox implements IInlineBox
 	public final InlinePos getInlinePos() {
 		return this.pos;
 	}
+
+	public InlineReplacedBox newReplayInstance() {
+		return new InlineReplacedBox(this.params, this.pos);
+	}
 }

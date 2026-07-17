@@ -27,4 +27,8 @@ public class FloatReplacedBox extends AbstractReplacedBox implements IFloatBox {
 	public final FloatPos getFloatPos() {
 		return this.pos;
 	}
+
+	public FloatReplacedBox newReplayInstance() {
+		return new FloatReplacedBox(this.params, this.pos);
+	}
 }

@@ -372,10 +372,31 @@ public class RootBuilder extends BreakableBuilder {
 
 		this.flowStack.clear();
 		pageBox.restyle(this, 0);
-		this.resume(continuation);
-		assert java.util.stream.Stream
-				.concat(rootPrefix.stream(), framePrefixes.stream().flatMap(java.util.List::stream))
-				.noneMatch(r -> this.prefixLeases.containsKey(r.fromId())) : "未消費の吸収済み再生範囲が残っています";
+		try {
+			this.resume(continuation);
+			assert java.util.stream.Stream
+					.concat(rootPrefix.stream(), framePrefixes.stream().flatMap(java.util.List::stream))
+					.noneMatch(r -> this.prefixLeases.containsKey(r.fromId())) : "未消費の吸収済み再生範囲が残っています";
+		} finally {
+			// この継続が取得した未消費リースを例外時も含めて解放する
+			// (P0。取り残すと以後の compact が永久に clamp される)
+			for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : rootPrefix) {
+				final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.prefixLeases
+						.remove(r.fromId());
+				if (lease != null) {
+					lease.close();
+				}
+			}
+			for (final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix : framePrefixes) {
+				for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : prefix) {
+					final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.prefixLeases
+							.remove(r.fromId());
+					if (lease != null) {
+						lease.close();
+					}
+				}
+			}
+		}
 		this.pageGenerator.compactLayoutSource(watermark);
 		assert this.flowStack.size() == continuation.depth()
 				: ("break flow failed. " + this.getFlowBox().getParams().element);
@@ -509,8 +530,10 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		// C2: 判定は破断時に一括記録済み(stampRanges)。ここでは消費のみ
-		// (現在=最内の再開スコープの記録)
-		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = this.resumeScopes.peek().get(box);
+		// (現在=最内の再開スコープの記録)。consume-once: 同じ範囲が
+		// 二度再生されない(P0。外部レビュー指摘の明示化)
+		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = this.resumeScopes.peek()
+				.remove(box);
 		if (range == null) {
 			return false;
 		}
