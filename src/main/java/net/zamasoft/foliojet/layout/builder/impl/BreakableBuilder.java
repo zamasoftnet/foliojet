@@ -1023,7 +1023,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final RootBuilder root = this.getPageContext();
 		net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
 		if (root != null) {
-			root.beginBreakRestyle();
+			// C2: 改段の残余についても再生範囲を破断時に一括判定
+			root.beginBreakRestyle(
+					root.stampRanges(container, breakFlow.box.getBlockParams().flow));
 		}
 		try {
 			container.restyle(this, depth, false);

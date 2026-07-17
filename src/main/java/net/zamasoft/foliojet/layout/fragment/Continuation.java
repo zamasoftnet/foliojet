@@ -18,11 +18,13 @@ import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
  * splitPageAxis の残余構築コードが死ぬ(§5.5)。
  * </p>
  *
- * @param depth 再開時に復元する祖先チェーンの深さ(flowStack の要素数)
- * @param items 次のフラグメンテナへ送る内容(文書順)
+ * @param depth  再開時に復元する祖先チェーンの深さ(flowStack の要素数)
+ * @param items  次のフラグメンテナへ送る内容(文書順)
+ * @param ranges 閉部分木の再生範囲(C2: 破断時に一括判定した記録。
+ *               再開走行はこれを消費するだけで、ゲートを再計算しない)
  * @author MIYABE Tatsuhiko
  */
-public record Continuation(int depth, List<Item> items) {
+public record Continuation(int depth, List<Item> items, java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges) {
 	/**
 	 * LegacyCarry の発火計測です(移行進捗の観測: これがコーパスで
 	 * ゼロになった時が残余ボックス構築の死)。
