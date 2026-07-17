@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/UTF-8">
+<title>連結セルの境界間隔と行ごとの縦境界</title>
+<style>
+table { border-collapse: collapse; margin-bottom: 10px; }
+table.fixed { table-layout: fixed; width: 200px; }
+tr.r1 { border-left: 2px solid #0a0; }
+tr.r2 { border-left: 12px solid #a0a; }
+td { border: 1px solid #999; padding: 0; }
+</style>
+</head>
+<body>
+<!-- rowspan セルの行方向 spacing(境界半幅)は連結全行の最大であるべき
+     (TwoPass/auto)。旧 OnePass(fixed)は先頭行のみ参照の疑い。
+     r2 の太い border-left が rowspan セルの内容位置へ効くかを比較。 -->
+<table class="fixed">
+<tr class="r1"><td rowspan="2">s</td><td>a</td></tr>
+<tr class="r2"><td>b</td></tr>
+</table>
+<table>
+<tr class="r1"><td rowspan="2">s</td><td>a</td></tr>
+<tr class="r2"><td>b</td></tr>
+</table>
+</body>
+</html>

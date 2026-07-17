@@ -61,6 +61,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0330-table-border/collapse-asymmetric-fixed.html", //
 			"0330-table-border/collapse-group-inner-lines.html", //
 			"0330-table-border/collapse-multi-groups.html", //
+			"0330-table-border/collapse-rowspan-spacing.html", //
 			"0330-table-border/collapse-illegal.html", //
 			"0240-table/absolute.html", //
 			"0390-writing-mode/border-collapse.html", //

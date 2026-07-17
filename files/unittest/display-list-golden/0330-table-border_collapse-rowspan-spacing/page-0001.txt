@@ -1,0 +1,9 @@
+drawer z=0
+  x=6.00 y=6.00 CollapsedBorders[2x2 H0,0=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H0,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H1,0=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H1,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H1,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V0,0=[style=3,width=1.5,color=rgb(0.0,0.6666667,0.0)] V0,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V0,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V1,0=[style=3,width=9.0,color=rgb(0.6666667,0.0,0.6666667)] V1,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V1,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)]]
+  x=10.50 y=13.95 Text["s" asc=10.31 desc=4.09]
+  x=81.38 y=6.38 Text["a" asc=10.31 desc=4.09]
+  x=81.38 y=21.53 Text["b" asc=10.31 desc=4.09]
+  x=6.00 y=43.80 CollapsedBorders[2x2 H0,0=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H0,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H1,0=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H1,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] H1,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V0,0=[style=3,width=1.5,color=rgb(0.0,0.6666667,0.0)] V0,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V0,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V1,0=[style=3,width=9.0,color=rgb(0.6666667,0.0,0.6666667)] V1,1=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)] V1,2=[style=3,width=0.75,color=rgb(0.6,0.6,0.6)]]
+  x=10.50 y=51.75 Text["s" asc=10.31 desc=4.09]
+  x=15.92 y=44.18 Text["a" asc=10.31 desc=4.09]
+  x=15.92 y=59.32 Text["b" asc=10.31 desc=4.09]

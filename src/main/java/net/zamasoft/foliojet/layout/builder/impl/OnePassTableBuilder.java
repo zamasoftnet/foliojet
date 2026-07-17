@@ -512,7 +512,6 @@ public class OnePassTableBuilder implements TableBuilder {
 					Border[] prevBorder = (Border[]) hborders.get(borderRow - 1);
 					Border[] nextBorder = (Border[]) hborders
 							.get(Math.min(hborders.size() - 1, borderRow + cell.rowspan - 1));
-					Border[] lineBorder = (Border[]) vborders.get(borderRow - 1);
 					for (int k = 0; k < cell.colspan; ++k) {
 						int kk = i + k;
 						if (kk >= this.columnSizes.length) {
@@ -525,11 +524,21 @@ public class OnePassTableBuilder implements TableBuilder {
 							pageLast = Math.max(pageLast, nextBorder[kk].width / 2.0);
 						}
 					}
-					if (lineBorder[i] != null) {
-						lineStart = Math.max(lineStart, lineBorder[i].width / 2.0);
-					}
-					if (lineBorder[i + cell.colspan] != null) {
-						lineEnd = Math.max(lineEnd, lineBorder[i + cell.colspan].width / 2.0);
+					// 行方向の間隔は連結全行の縦境界の最大から(TwoPass と同じ規約。
+					// 旧実装は先頭行のみ参照 —
+					// 0330-table-border/collapse-rowspan-spacing.html で是正)
+					for (int k = 0; k < cell.rowspan; ++k) {
+						final int rr = borderRow - 1 + k;
+						if (rr >= vborders.size()) {
+							break;
+						}
+						final Border[] rowLine = (Border[]) vborders.get(rr);
+						if (rowLine[i] != null) {
+							lineStart = Math.max(lineStart, rowLine[i].width / 2.0);
+						}
+						if (rowLine[i + cell.colspan] != null) {
+							lineEnd = Math.max(lineEnd, rowLine[i + cell.colspan].width / 2.0);
+						}
 					}
 					AbsoluteInsets spacing;
 					if (this.vertical) {
