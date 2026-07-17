@@ -53,6 +53,118 @@ public final class AbsoluteSizing {
 	}
 
 	/**
+	 * ページ方向の入力です(CSS2.1 10.6.4 相当)。auto は NONE で表します。
+	 * 行方向({@link Input})と違い shrink-to-fit(min/max-content)は関与せず、
+	 * 内容の実寸(contentSize)を直接使います。
+	 *
+	 * @param available   包含ブロックのページ方向寸法(パディング込み)
+	 * @param size        指定寸法(auto=NONE。box-sizing 調整は呼び出し側で後段)
+	 * @param maxSize     最大寸法(なし=NONE)
+	 * @param minSize     最小寸法(解決済み値)
+	 * @param insetStart  ページ方向始端インセット(横書き=top / 縦書き=left。auto=NONE)
+	 * @param insetEnd    ページ方向終端インセット(横書き=bottom / 縦書き=right。auto=NONE)
+	 * @param marginStart 始端マージン(auto=NONE)
+	 * @param marginEnd   終端マージン(auto=NONE)
+	 * @param contentSize 内容のページ方向実寸
+	 * @param frameExtent ボーダー+パディングのページ方向合計
+	 */
+	public record PageInput(double available, double size, double maxSize, double minSize, double insetStart,
+			double insetEnd, double marginStart, double marginEnd, double contentSize, double frameExtent) {
+	}
+
+	/**
+	 * ページ方向の解決結果です。
+	 *
+	 * @param size        ページ方向寸法
+	 * @param insetStart  始端インセット(確定値)
+	 * @param marginStart 始端マージン(確定値)
+	 * @param marginEnd   終端マージン(確定値)
+	 */
+	public record PageResult(double size, double insetStart, double marginStart, double marginEnd) {
+	}
+
+	/**
+	 * ページ方向の寸法・インセット・マージンを解決します
+	 * (旧 AbsoluteBlockBox.finishLayout の縦横鏡像 約100行×2 の統合。
+	 * 忠実移植 — dangling-else の「制限しすぎ」挙動も維持)。
+	 *
+	 * @param in 入力
+	 * @return 解決結果
+	 */
+	public static PageResult resolvePage(final PageInput in) {
+		double size = in.size();
+		double start = 0;
+		double marginStart = 0, marginEnd = 0;
+		for (int state = 0; state < 2; ++state) {
+			marginStart = in.marginStart();
+			marginEnd = in.marginEnd();
+			start = in.insetStart();
+			double end = in.insetEnd();
+			if (!LayoutUtils.isNone(start) && !LayoutUtils.isNone(end) && !LayoutUtils.isNone(size)) {
+				// 過剰指定: マージン(auto)で吸収する
+				if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
+					marginStart = marginEnd = (in.available() - start - end - size - in.frameExtent()) / 2.0;
+				}
+				if (LayoutUtils.isNone(marginStart) && !LayoutUtils.isNone(marginEnd)) {
+					marginStart = in.available() - start - end - size - marginEnd - in.frameExtent();
+				}
+				if (!LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
+					marginEnd = in.available() - start - end - size - marginStart - in.frameExtent();
+				} else {
+					// 制限しすぎ(旧実装の dangling-else をそのまま維持)
+					end = 0;
+				}
+			} else {
+				if (LayoutUtils.isNone(marginStart)) {
+					marginStart = 0;
+				}
+				if (LayoutUtils.isNone(marginEnd)) {
+					marginEnd = 0;
+				}
+				if (LayoutUtils.isNone(size)) {
+					if (LayoutUtils.isNone(start) && LayoutUtils.isNone(end)) {
+						start = 0;
+						size = in.contentSize();
+					} else if (LayoutUtils.isNone(start)) {
+						size = in.contentSize();
+						start = in.available() - end - size - marginStart - marginEnd - in.frameExtent();
+					} else if (LayoutUtils.isNone(end)) {
+						size = in.contentSize();
+						end = in.available() - start - size - marginStart - marginEnd - in.frameExtent();
+					} else {
+						size = in.available() - start - end - marginStart - marginEnd - in.frameExtent();
+					}
+				} else {
+					if (LayoutUtils.isNone(end)) {
+						if (LayoutUtils.isNone(start)) {
+							start = 0;
+						}
+						end = in.available() - start - size - marginStart - marginEnd - in.frameExtent();
+					} else {
+						start = in.available() - end - size - marginStart - marginEnd - in.frameExtent();
+					}
+				}
+			}
+			switch (state) {
+			case 0:
+				if (!LayoutUtils.isNone(in.maxSize()) && size > in.maxSize()) {
+					size = in.maxSize();
+					continue;
+				}
+				state = 1;
+			case 1:
+				if (size < in.minSize()) {
+					size = in.minSize();
+					continue;
+				}
+				state = 2;
+				break;
+			}
+		}
+		return new PageResult(size, start, marginStart, marginEnd);
+	}
+
+	/**
 	 * 行方向の寸法・インセット・マージンを解決します。
 	 *
 	 * @param in 入力
