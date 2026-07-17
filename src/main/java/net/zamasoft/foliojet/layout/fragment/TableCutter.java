@@ -150,6 +150,105 @@ public final class TableCutter {
 	}
 
 	/**
+	 * セル断片の寸法・フレーム状態です(C4-T2。ブロックの
+	 * {@link FragmentState} に相当するが、最小寸法の残量計算が異なる —
+	 * セルは実寸から引き、ブロックは min(指定, 実寸) から引く)。
+	 *
+	 * @param nextSize    継続断片の指定寸法
+	 * @param nextMinSize 継続断片の最小寸法
+	 * @param nextFrame   継続断片のフレーム(始端側を落とした形)
+	 * @param prevFrame   前断片のフレーム(終端側を落とした形)
+	 */
+	public record CellFragmentState(net.zamasoft.foliojet.layout.box.params.Dimension nextSize,
+			net.zamasoft.foliojet.layout.box.params.Dimension nextMinSize,
+			net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame,
+			net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame) {
+	}
+
+	/**
+	 * セル断片の状態を計算します(純関数。旧 TableCellBox.splitPage の
+	 * 縦横鏡像 約30行×2 の共通化)。
+	 *
+	 * <p>
+	 * 注意: 縦書き分岐の Dimension.create の引数順(width スロットに
+	 * 交差軸指定、height スロットにページ方向残量)は旧実装を忠実に
+	 * 維持している。横書き分岐および FragmentState の縦書きとは
+	 * 非対称で、潜在バグの疑いがある(PLAN サイクル18の記録参照。
+	 * 挙動保存のためリファクタでは変更しない)。
+	 * </p>
+	 *
+	 * @param vertical   縦書きか
+	 * @param size       指定寸法
+	 * @param minSize    最小寸法
+	 * @param frame      切断前のフレーム
+	 * @param pageExtent 切断前のページ方向内寸(縦書き=width)
+	 * @param pageLimit  切断位置(内辺から)
+	 */
+	public static CellFragmentState cellFragmentState(final boolean vertical,
+			final net.zamasoft.foliojet.layout.box.params.Dimension size,
+			final net.zamasoft.foliojet.layout.box.params.Dimension minSize,
+			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame, final double pageExtent,
+			final double pageLimit) {
+		final net.zamasoft.foliojet.layout.box.params.Dimension nextSize, nextMinSize;
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame, prevFrame;
+		final double rest = Math.max(0, pageExtent - pageLimit);
+		if (vertical) {
+			nextSize = size.getWidthType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(size.getHeight(), rest,
+							size.getHeightType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					: size;
+			nextMinSize = minSize.getWidthType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getHeight(), rest,
+							minSize.getHeightType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					: minSize;
+			nextFrame = frame.cut(true, false, true, true);
+			prevFrame = frame.cut(true, true, true, false);
+		} else {
+			nextSize = size.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(size.getWidth(), rest,
+							size.getWidthType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					: size;
+			nextMinSize = minSize.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getWidth(), rest,
+							minSize.getWidthType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					: minSize;
+			nextFrame = frame.cut(false, true, true, true);
+			prevFrame = frame.cut(true, true, false, true);
+		}
+		return new CellFragmentState(nextSize, nextMinSize, nextFrame, prevFrame);
+	}
+
+	/**
+	 * 表断片のフレームです(C4-T2)。ヘッダは全断片で繰り返されるため
+	 * 継続断片も始端フレームを保持し、フッタも同様に前断片が終端
+	 * フレームを保持します。
+	 *
+	 * @param prevFrame 前断片のフレーム
+	 * @param nextFrame 継続断片のフレーム
+	 */
+	public record TableFragmentFrames(net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame,
+			net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame) {
+	}
+
+	/**
+	 * 表断片のフレームを計算します(純関数。旧 splitTableBox の
+	 * フレーム切断判定)。
+	 *
+	 * @param vertical     縦書きか
+	 * @param repeatHeader ヘッダ行グループがある(全断片で繰り返す)
+	 * @param repeatFooter フッタ行グループがある(全断片で繰り返す)
+	 * @param frame        切断前のフレーム
+	 */
+	public static TableFragmentFrames tableFragmentFrames(final boolean vertical, final boolean repeatHeader,
+			final boolean repeatFooter, final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame = repeatHeader ? frame
+				: (vertical ? frame.cut(true, false, true, true) : frame.cut(false, true, true, true));
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame = repeatFooter ? frame
+				: (vertical ? frame.cut(true, true, true, false) : frame.cut(true, true, false, true));
+		return new TableFragmentFrames(prevFrame, nextFrame);
+	}
+
+	/**
 	 * ページ先頭での行フラグを計算します。先頭行、または先頭行と
 	 * セルを共有する(rowspan で連結された)行には FLAGS_FIRST_ROW を
 	 * 立て、2行目以降は FLAGS_FIRST を落とします。

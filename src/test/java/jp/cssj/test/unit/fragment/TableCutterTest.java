@@ -78,6 +78,38 @@ public class TableCutterTest extends TestCase {
 		assertFalse(TableCutter.mixedFlowKeep(new boolean[] {}));
 	}
 
+	public void testCellFragmentStateHorizontal() {
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = new net.zamasoft.foliojet.layout.part.AbsoluteRectFrame(
+				net.zamasoft.foliojet.layout.box.params.RectFrame.NULL_FRAME);
+		final net.zamasoft.foliojet.layout.box.params.Dimension size = net.zamasoft.foliojet.layout.box.params.Dimension
+				.create(50, 80, net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
+						net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE);
+		final net.zamasoft.foliojet.layout.box.params.Dimension auto = net.zamasoft.foliojet.layout.box.params.Dimension
+				.create(0, 0, net.zamasoft.foliojet.layout.box.params.LengthType.AUTO,
+						net.zamasoft.foliojet.layout.box.params.LengthType.AUTO);
+		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.cellFragmentState(false, size, auto, frame, 100, 30);
+		// 指定高さのページ方向は残量(100-30)の絶対値に分割される
+		assertEquals(70, state.nextSize().getHeight(), 0.01);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE, state.nextSize().getHeightType());
+		assertEquals(50, state.nextSize().getWidth(), 0.01);
+		// AUTO の最小寸法はそのまま
+		assertSame(auto, state.nextMinSize());
+		// 残量は負にならない
+		assertEquals(0, net.zamasoft.foliojet.layout.fragment.TableCutter
+				.cellFragmentState(false, size, auto, frame, 100, 120).nextSize().getHeight(), 0.01);
+	}
+
+	public void testTableFragmentFrames() {
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = new net.zamasoft.foliojet.layout.part.AbsoluteRectFrame(
+				net.zamasoft.foliojet.layout.box.params.RectFrame.NULL_FRAME);
+		// ヘッダ・フッタが繰り返されるならフレームは切らない(同一参照)
+		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames repeat = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.tableFragmentFrames(false, true, true, frame);
+		assertSame(frame, repeat.nextFrame());
+		assertSame(frame, repeat.prevFrame());
+	}
+
 	public void testFirstRowFlags() {
 		final byte first = IPageBreakableBox.FLAGS_FIRST;
 		// ページ先頭でなければ変更なし

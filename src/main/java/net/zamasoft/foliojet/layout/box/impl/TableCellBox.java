@@ -388,62 +388,26 @@ public class TableCellBox extends AbstractContainerBox {
 
 	protected final AbstractContainerBox splitPage(Container container, double pageLimit, byte flags) {
 		final boolean vertical = this.params.flow.isVertical();
-		final Dimension nextSize, nextMinSize;
-		final AbsoluteRectFrame nextFrame;
-		if (vertical) {
-			if (this.size.getWidthType() != LengthType.AUTO) {
-				// 高さ指定
-				double width = Math.max(0, this.width - pageLimit);
-				nextSize = Dimension.create(this.size.getHeight(), width, this.size.getHeightType(),
-						LengthType.ABSOLUTE);
-			} else {
-				nextSize = this.size;
-			}
-			if (this.minSize.getWidthType() != LengthType.AUTO) {
-				// 高さ指定
-				double width = Math.max(0, this.width - pageLimit);
-				nextMinSize = Dimension.create(this.minSize.getHeight(), width, this.minSize.getHeightType(),
-						LengthType.ABSOLUTE);
-			} else {
-				nextMinSize = this.minSize;
-			}
-			nextFrame = this.frame.cut(true, false, true, true);
-		} else {
-			if (this.size.getHeightType() != LengthType.AUTO) {
-				// 高さ指定
-				double height = Math.max(0, this.height - pageLimit);
-				nextSize = Dimension.create(this.size.getWidth(), height, this.size.getWidthType(),
-						LengthType.ABSOLUTE);
-			} else {
-				nextSize = this.size;
-			}
-			if (this.minSize.getHeightType() != LengthType.AUTO) {
-				// 高さ指定
-				double height = Math.max(0, this.height - pageLimit);
-				nextMinSize = Dimension.create(this.minSize.getWidth(), height, this.minSize.getWidthType(),
-						LengthType.ABSOLUTE);
-			} else {
-				nextMinSize = this.minSize;
-			}
-			nextFrame = this.frame.cut(false, true, true, true);
-		}
+		// 断片状態の計算は TableCutter に純化(C4-T2)
+		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.cellFragmentState(vertical, this.size, this.minSize, this.frame,
+						vertical ? this.width : this.height, pageLimit);
 
 		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
 		this.params.sourceEventId = -1;
-		final TableCellBox cell = new TableCellBox(this.params, this.pos, nextSize, nextMinSize, nextFrame, container);
+		final TableCellBox cell = new TableCellBox(this.params, this.pos, state.nextSize(), state.nextMinSize(),
+				state.nextFrame(), container);
 		cell.collapse = this.collapse;
 		cell.forceDraw = this.draw();
+		this.frame = state.prevFrame();
 		if (vertical) {
 			cell.height = this.height;
-			this.frame = this.frame.cut(true, true, true, false);
 			this.width = pageLimit;
 		} else {
 			cell.width = this.width;
-			this.frame = this.frame.cut(true, true, false, true);
 			this.height = pageLimit;
 		}
 		this.forceDraw = this.draw();
-		// System.err.println("CELL B: "+this.height+"/"+cell.getInnerHeight());
 		return cell;
 	}
 

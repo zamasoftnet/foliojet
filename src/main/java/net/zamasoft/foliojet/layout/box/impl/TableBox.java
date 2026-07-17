@@ -686,19 +686,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final TableBox splitTableBox() {
 		final boolean vertical = this.params.flow.isVertical();
-		final AbsoluteRectFrame nextFrame;
-		if (this.headerGroupBox != null) {
-			nextFrame = this.frame;
-		} else {
-			if (vertical) {
-				nextFrame = this.frame.cut(true, false, true, true);
-			} else {
-				nextFrame = this.frame.cut(false, true, true, true);
-			}
-		}
+		// フレームの切断判定は TableCutter に純化(C4-T2)
+		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames frames = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
 		// 分割断片は継続物: 共有 params のソースアンカーを無効化(M6b)
 		this.params.sourceEventId = -1;
-		TableBox nextTable = new TableBox(this.params, nextFrame, this.block);
+		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
 		if (vertical) {
 			nextTable.height = this.height;
 		} else {
@@ -710,13 +703,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 		if (this.footerGroupBox != null) {
 			nextTable.setTableFooter(this.footerGroupBox);
-		} else {
-			if (vertical) {
-				this.frame = this.frame.cut(true, true, true, false);
-			} else {
-				this.frame = this.frame.cut(true, true, false, true);
-			}
 		}
+		this.frame = frames.prevFrame();
 		return nextTable;
 	}
 
