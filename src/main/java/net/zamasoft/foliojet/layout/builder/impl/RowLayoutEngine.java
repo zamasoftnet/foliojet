@@ -31,6 +31,34 @@ final class RowLayoutEngine {
 	 * @param autoRows    自動高さの行
 	 * @param rowRatios   %指定行の比率(なければ 0)
 	 */
+	/**
+	 * 行グループの指定高さを行へ分配します(両ビルダーの同一アルゴリズムの
+	 * 統合)。行高合計が指定に満たなければ比例拡大し、合計0なら均等分配
+	 * する(均等分配の分母はグループ自身の行数 — 旧 TwoPass は表全体の
+	 * 行数で割っており合計が指定高にならなかったが、この分岐は通常文書
+	 * では到達し難く fixture では発火確認できていない。正規化して統合)。
+	 *
+	 * @param rowSizes  各行の高さ(入出力)
+	 * @param groupSize 行グループの指定高さ
+	 * @return 行高合計の増分
+	 */
+	static double distributeGroupSize(final double[] rowSizes, final double groupSize) {
+		double sum = 0;
+		for (final double s : rowSizes) {
+			sum += s;
+		}
+		if (groupSize <= sum) {
+			return 0;
+		}
+		double added = 0;
+		for (int i = 0; i < rowSizes.length; ++i) {
+			final double size = sum == 0 ? groupSize / rowSizes.length : rowSizes[i] * groupSize / sum;
+			added += size - rowSizes[i];
+			rowSizes[i] = size;
+		}
+		return added;
+	}
+
 	static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
 			final boolean[] noAdjRows, final boolean[] autoRows, final double[] rowRatios) {
 		for (int j = 0; j < rowspanList.size(); ++j) {

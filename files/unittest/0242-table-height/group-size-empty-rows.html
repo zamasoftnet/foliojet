@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/UTF-8">
+<title>空行グループへの指定高さ分配</title>
+<style>
+table { border-collapse: separate; }
+td { padding: 0; background-color: #ffe; }
+</style>
+</head>
+<body>
+<!-- 高さ合計0の行グループに指定高さを分配するとき、グループ自身の
+     行数(2)で割るか(正: 各30)、表全体の行数(4)で割るか
+     (バグ: 各15)を判別する。 -->
+<table>
+<tbody style="height: 60px">
+<tr style="height: 0; line-height: 0; font-size: 0"><td></td></tr>
+<tr style="height: 0; line-height: 0; font-size: 0"><td></td></tr>
+</tbody>
+<tbody>
+<tr><td>a</td></tr>
+<tr><td>b</td></tr>
+</tbody>
+</table>
+</body>
+</html>

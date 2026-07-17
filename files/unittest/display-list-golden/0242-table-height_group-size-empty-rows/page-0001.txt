@@ -1,0 +1,7 @@
+drawer z=0
+  x=6.75 y=6.75 BackgroundBorder[w=7.50 h=22.50]
+  x=6.75 y=29.25 BackgroundBorder[w=7.50 h=22.50]
+  x=6.75 y=51.75 BackgroundBorder[w=7.50 h=15.90]
+  x=6.75 y=67.65 BackgroundBorder[w=7.50 h=15.90]
+  x=7.50 y=52.50 Text["a" asc=10.31 desc=4.09]
+  x=7.50 y=68.40 Text["b" asc=10.31 desc=4.09]

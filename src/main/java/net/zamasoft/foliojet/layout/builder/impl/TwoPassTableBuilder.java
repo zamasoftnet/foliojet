@@ -1325,7 +1325,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			}
 		}
 
-		// 行グループ高さを適用
+		// 行グループ高さを適用(共有エンジン — P2-4)
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
 			InnerTableParams params = rowGroupBox.getInnerTableParams();
@@ -1333,26 +1333,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				continue;
 			}
 			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
-			double groupRowHeightSum = 0;
+			final double[] rowSizes = new double[rows.size()];
 			for (int j = 0; j < rows.size(); ++j) {
-				TableRowBox rowBox = (TableRowBox) rows.get(j);
-				groupRowHeightSum += rowBox.getPageSize();
+				rowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
 			}
-			double groupSize = params.size.getLength();
-			if (groupSize > groupRowHeightSum) {
-				for (int j = 0; j < rows.size(); ++j) {
-					TableRowBox rowBox = (TableRowBox) rows.get(j);
-					double rowSize = rowBox.getPageSize();
-					if (groupRowHeightSum == 0) {
-						double diff = groupSize / rowCount;
-						rowSizeSum += diff;
-						rowBox.setPageSize(diff);
-					} else {
-						double height = rowSize * groupSize / groupRowHeightSum;
-						rowSizeSum += height - rowBox.getPageSize();
-						rowBox.setPageSize(height);
-					}
-				}
+			rowSizeSum += RowLayoutEngine.distributeGroupSize(rowSizes, params.size.getLength());
+			for (int j = 0; j < rows.size(); ++j) {
+				((TableRowBox) rows.get(j)).setPageSize(rowSizes[j]);
 			}
 		}
 

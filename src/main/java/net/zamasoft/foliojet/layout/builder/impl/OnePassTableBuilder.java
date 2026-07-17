@@ -946,24 +946,15 @@ public class OnePassTableBuilder implements TableBuilder {
 				}
 			}
 
-			// 行グループ高さ
+			// 行グループ高さ(共有エンジン — P2-4)
 			if (rowGroupParams.size.getType() == LengthType.ABSOLUTE) {
-				double rowSizeSum = 0;
+				final double[] rowSizes = new double[this.rowsUnit.size()];
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
-					TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
-					rowSizeSum += rowBox.getPageSize();
+					rowSizes[row] = ((TableRowBox) this.rowsUnit.get(row)).getPageSize();
 				}
-				double groupSize = rowGroupParams.size.getLength();
-				if (groupSize > rowSizeSum) {
-					for (int row = 0; row < this.rowsUnit.size(); ++row) {
-						TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
-						double rowSize = rowBox.getPageSize();
-						if (rowSizeSum == 0) {
-							rowBox.setPageSize(groupSize / this.rowsUnit.size());
-						} else {
-							rowBox.setPageSize(rowSize * groupSize / rowSizeSum);
-						}
-					}
+				RowLayoutEngine.distributeGroupSize(rowSizes, rowGroupParams.size.getLength());
+				for (int row = 0; row < this.rowsUnit.size(); ++row) {
+					((TableRowBox) this.rowsUnit.get(row)).setPageSize(rowSizes[row]);
 				}
 			}
 
