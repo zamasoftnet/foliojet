@@ -1,5 +1,5 @@
 drawer z=0
-  x=6.00 y=6.00 CollapsedBordersDrawable
+  x=6.00 y=6.00 CollapsedBorders[2x2 V0,0=[style=3,width=6.0,color=rgb(1.0,0.0,0.0)] V0,2=[style=3,width=1.5,color=rgb(0.0,0.0,1.0)] V1,0=[style=3,width=6.0,color=rgb(1.0,0.0,0.0)] V1,2=[style=3,width=1.5,color=rgb(0.0,0.0,1.0)]]
   x=9.75 y=6.75 Text["a" asc=10.31 desc=4.09]
   x=81.75 y=6.75 Text["b" asc=10.31 desc=4.09]
   x=9.75 y=22.65 Text["c" asc=10.31 desc=4.09]

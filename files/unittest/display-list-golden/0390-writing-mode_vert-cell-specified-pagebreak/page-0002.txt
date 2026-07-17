@@ -1,5 +1,5 @@
 drawer z=0
-  x=80.00 y=0.00 CollapsedBordersDrawable
+  x=80.00 y=0.00 CollapsedBorders[2x1 vertical H0,0=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)] H0,1=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)] H1,0=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)] H1,1=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)] V0,0=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)] V0,1=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)] V0,2=[style=3,width=2.0,color=rgb(0.0,0.5019608,0.0)]]
   x=140.00 y=1.75 Text["あさきゆめみ" asc=5.00 desc=5.00]
   x=130.00 y=1.75 Text["しゑひもせす" asc=5.00 desc=5.00]
   x=140.00 y=65.25 Text["とりなくこゑ" asc=5.00 desc=5.00]

@@ -499,6 +499,34 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			BorderRenderer.INSTANCE.drawTableCollapseBorders(gc, this.borders, x, y, this.vertical);
 
 		}
+
+		/**
+		 * 境界内容を序列化します(display-list golden 用)。NONE 以外の
+		 * 各グリッド境界を H列,添字 / V行,添字 = [style,width,color] で列挙。
+		 */
+		public String describe() {
+			final StringBuilder sb = new StringBuilder("CollapsedBorders[");
+			final int rows = this.borders.getRowCount();
+			final int cols = this.borders.getColumnCount();
+			sb.append(cols).append('x').append(rows).append(this.vertical ? " vertical" : "");
+			for (int col = 0; col < cols; ++col) {
+				for (int i = 0; i <= rows; ++i) {
+					final net.zamasoft.foliojet.layout.box.params.Border b = this.borders.getHBorder(col, i);
+					if (b != null && !b.isNull()) {
+						sb.append(" H").append(col).append(',').append(i).append('=').append(b);
+					}
+				}
+			}
+			for (int row = 0; row < rows; ++row) {
+				for (int i = 0; i <= cols; ++i) {
+					final net.zamasoft.foliojet.layout.box.params.Border b = this.borders.getVBorder(row, i);
+					if (b != null && !b.isNull()) {
+						sb.append(" V").append(row).append(',').append(i).append('=').append(b);
+					}
+				}
+			}
+			return sb.append(']').toString();
+		}
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
