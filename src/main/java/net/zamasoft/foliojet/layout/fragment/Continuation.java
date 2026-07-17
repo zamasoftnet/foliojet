@@ -34,7 +34,20 @@ public record Continuation(int depth, List<Item> items, java.util.Map<net.zamaso
 	/**
 	 * 継続内容の1項目です。
 	 */
-	public sealed interface Item permits SourceRange, TextTail, LegacyCarry {
+	public sealed interface Item permits SourceRange, TextTail, LegacyCarry, RootFragment {
+	}
+
+	/**
+	 * ルート断片の継続です(C1a)。断片ボックスは split では構築されず、
+	 * 再開時に prev の params/pos と断片状態から再構成されます。
+	 *
+	 * @param prev        前断片(切りつめ済み)
+	 * @param state       断片状態
+	 * @param container   継続断片の内容
+	 * @param crossExtent 切断時点の交差軸寸法
+	 */
+	public record RootFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
+			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) implements Item {
 	}
 
 	/**

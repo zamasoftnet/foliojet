@@ -1,4 +1,4 @@
 resume PAGE
-  legacy-carry depth=1
+  root-fragment depth=1
    restyle-float serial=1
   bound-table serial=1

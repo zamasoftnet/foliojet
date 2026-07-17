@@ -202,6 +202,21 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 	protected final AbstractContainerBox splitPage(final Container container, final double pageLimit,
 			final byte flags) {
+		final boolean vertical = this.params.flow.isVertical();
+		final double crossExtent = vertical ? this.height : this.width;
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit, flags);
+		return this.continueFragment(state, container, crossExtent);
+	}
+
+	/**
+	 * ページ方向切断の前断片側を確定し、継続断片の状態を返します(C1a)。
+	 * 従来 splitPage(断片ボックス構築込み)が一体で行っていた処理の
+	 * 前側半分: 自箱をページ使用量まで切りつめ、終端側フレームを落とす。
+	 * 継続断片の構築は {@link #continueFragment} が(必要なら resume 時に)
+	 * 行う。
+	 */
+	public final net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
+			final byte flags) {
 		// 分割されたボックスの断片は「継続物」(フレーム切断・内容消費が進行)
 		// であり、ソースから新品を再生してはならない。params は断片間で共有
 		// されるためアンカーを無効化する(M6b v3。無効化しないと再生が
@@ -212,16 +227,32 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				.of(this.params.flow, (flags & IPageBreakableBox.FLAGS_COLUMN) != 0, this.frame, this.size,
 						this.minSize, vertical ? this.width : this.height, pageLimit,
 						this.container.getContentSize(), this.isSpecifiedPageSize());
-		final AbstractBlockBox nextBlock = this.splitPage(state.nextSize(), state.nextMinSize(), state.nextFrame(),
-				container);
 		if (vertical) {
-			nextBlock.height = this.height;
 			this.width = state.prevPageExtent();
 		} else {
-			nextBlock.width = this.width;
 			this.height = state.prevPageExtent();
 		}
 		this.frame = state.prevFrame();
+		return state;
+	}
+
+	/**
+	 * 断片状態から継続断片ボックスを構成します(C1a)。
+	 *
+	 * @param state       断片状態({@link #splitPageState} の返値)
+	 * @param container   継続断片の内容
+	 * @param crossExtent 切断時点の交差軸(行方向)寸法
+	 * @return 継続断片
+	 */
+	public final AbstractBlockBox continueFragment(final net.zamasoft.foliojet.layout.fragment.FragmentState state,
+			final Container container, final double crossExtent) {
+		final AbstractBlockBox nextBlock = this.splitPage(state.nextSize(), state.nextMinSize(), state.nextFrame(),
+				container);
+		if (this.params.flow.isVertical()) {
+			nextBlock.height = crossExtent;
+		} else {
+			nextBlock.width = crossExtent;
+		}
 		return nextBlock;
 	}
 }

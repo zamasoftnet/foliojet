@@ -179,10 +179,9 @@ public class RootBuilder extends BreakableBuilder {
 			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		}
 
-		// ルートブロックの分割
-		// System.err.println("RB break: flags=" + flags + "/"
-		// + this.getFlowBox().getParams().element);
-		final FlowBlockBox nextRootBox;
+		// ルートブロックの分割(C1a: 断片ボックスは split では構築せず、
+		// コンテナ切断+断片状態を Continuation に載せて resume が再構成する)
+		final net.zamasoft.foliojet.layout.fragment.Continuation.RootFragment rootFragment;
 		{
 			final Flow root = (Flow) this.flowStack.get(0);
 
@@ -199,20 +198,31 @@ public class RootBuilder extends BreakableBuilder {
 
 			final FlowBlockBox prevRootBox = (FlowBlockBox) root.box;
 			final double pageAxis = this.getPageLimit() - root.pageAxis - lastFrame;
-			// System.err.println("PAGE BREAK: " + pageAxis + "/"
-			// +prevRootBox.getInnerHeight() +"/"+ mode);
-			if (prevRootBox.split(pageAxis, mode, flags) instanceof SplitResult.Split(final IPageBreakableBox remainder)) {
-				nextRootBox = (FlowBlockBox) remainder;
-			} else {
+			// 旧 AbstractContainerBox.split と同じ前処理(内辺基準・段組フラグ)
+			final double innerLimit = pageAxis
+					- prevRootBox.getFrame().getFramePageStart(prevRootBox.getBlockParams().flow);
+			byte xflags = flags;
+			if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && prevRootBox.getColumnCount() > 1) {
+				xflags ^= IPageBreakableBox.FLAGS_COLUMN;
+			}
+			final net.zamasoft.foliojet.layout.box.content.Container nextContainer = prevRootBox.getContainer()
+					.splitPageAxis(innerLimit, mode, xflags);
+			if (nextContainer == null || nextContainer == prevRootBox.getContainer()) {
 				// KEEP/MOVE: 改ページポイントがない場合
 				return false;
 			}
+			final boolean vertical = prevRootBox.getBlockParams().flow.isVertical();
+			final double crossExtent = vertical ? prevRootBox.getInnerHeight() : prevRootBox.getInnerWidth();
+			final net.zamasoft.foliojet.layout.fragment.FragmentState state = prevRootBox.splitPageState(innerLimit,
+					flags);
+			rootFragment = new net.zamasoft.foliojet.layout.fragment.Continuation.RootFragment(prevRootBox, state,
+					nextContainer, crossExtent);
 		}
 
 		// ソースログの水位 = 残余の閉じたアイテムの最小 EventId(M6b v3)。
 		// これより前のイベントは確定ページに消費済みで破棄できる。
 		// 開いているチェーンの StartBlock は compaction が常に保持する
-		final long watermark = this.sourceWatermark(nextRootBox);
+		final long watermark = this.sourceWatermark(rootFragment.container());
 
 		//
 		// 改ページ実行
@@ -234,12 +244,12 @@ public class RootBuilder extends BreakableBuilder {
 		this.resetFragmentCursor(0, 0);
 		this.restyling = true;
 
-		// 継続記述(§5.7)。運搬は残余木の LegacyCarry(C0')、閉部分木の
+		// 継続記述(§5.7)。ルート断片は再開時に再構成(C1a)、閉部分木の
 		// 再生範囲は破断時に一括判定して記録(C2)
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
-				this.flowStack.size(),
-				java.util.List.of(new net.zamasoft.foliojet.layout.fragment.Continuation.LegacyCarry(nextRootBox)),
-				this.stampRanges(nextRootBox.getContainer(), nextRootBox.getBlockParams().flow));
+				this.flowStack.size(), java.util.List.of(rootFragment),
+				this.stampRanges(rootFragment.container(),
+						rootFragment.prev().getBlockParams().flow));
 		this.flowStack.clear();
 		pageBox.restyle(this, 0);
 		this.resume(continuation);
@@ -281,6 +291,14 @@ public class RootBuilder extends BreakableBuilder {
 		try {
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.Item item : continuation.items()) {
 				switch (item) {
+				case net.zamasoft.foliojet.layout.fragment.Continuation.RootFragment fragment -> {
+					// ルート断片の再構成(C1a): 断片ボックスはここで初めて作られる
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
+							"depth=" + continuation.depth());
+					final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox nextRootBox = (net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) fragment
+							.prev().continueFragment(fragment.state(), fragment.container(), fragment.crossExtent());
+					nextRootBox.restyle(this, continuation.depth());
+				}
 				case net.zamasoft.foliojet.layout.fragment.Continuation.LegacyCarry(
 						final net.zamasoft.foliojet.layout.box.IPageBreakableBox remainder) -> {
 					net.zamasoft.foliojet.layout.fragment.Continuation.LEGACY_CARRIES.incrementAndGet();
@@ -324,13 +342,13 @@ public class RootBuilder extends BreakableBuilder {
 	 * 残余のうち窓内で閉じているアイテムの最小 EventId を返します
 	 * (M6b v3 の compaction 水位)。なければ Long.MAX_VALUE。
 	 */
-	private long sourceWatermark(final FlowBlockBox rootBox) {
+	private long sourceWatermark(final net.zamasoft.foliojet.layout.box.content.Container container) {
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
 		if (log == null) {
 			return Long.MAX_VALUE;
 		}
 		final long[] min = { Long.MAX_VALUE };
-		rootBox.getContainer().eachFlowBox(box -> {
+		container.eachFlowBox(box -> {
 			final long id = box.getParams().sourceEventId;
 			if (id >= 0 && log.endOf(id) >= 0) {
 				min[0] = Math.min(min[0], id);
