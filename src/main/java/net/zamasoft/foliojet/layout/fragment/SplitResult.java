@@ -30,4 +30,15 @@ public sealed interface SplitResult {
 	 */
 	record Split(IPageBreakableBox remainder) implements SplitResult {
 	}
+
+	/** チェーン収集済み(C1b): 断片は Continuation の frames に記録された。 */
+	SplitResult COLLECTED = new Collected();
+
+	/**
+	 * 内部で切断し、継続断片はボックスとしてではなく Continuation の
+	 * frames(ChainCollector)に記録されました(C1b)。呼び出し側は
+	 * 残余コンテナへボックスを加えず、切断成立として扱います。
+	 */
+	record Collected() implements SplitResult {
+	}
 }

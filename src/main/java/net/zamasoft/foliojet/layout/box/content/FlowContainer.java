@@ -557,9 +557,16 @@ public class FlowContainer implements Container {
 				Flow flow = (Flow) this.flows.get(index);
 				IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
 				final SplitResult forceResult = flowBox.split(pageLimit - flow.pageAxis, mode, (byte) (lflags & flags));
-				assert forceResult instanceof SplitResult.Split : "force break failed";
-				IFlowBox nextFlowBox = (IFlowBox) ((SplitResult.Split) forceResult).remainder();
-				nextBox.addFlow(flow.serial, nextFlowBox, 0);
+				switch (forceResult) {
+				case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
+						(IFlowBox) remainder, 0);
+				case SplitResult.Collected collected -> {
+					// C1b: チェーン断片は Continuation へ収集済み。残余
+					// コンテナにはボックスを加えず、切断成立として扱う
+				}
+				case SplitResult.Keep keep -> throw new AssertionError("force break failed");
+				case SplitResult.Move move -> throw new AssertionError("force break failed");
+				}
 			} else {
 				index = this.flows == null ? 0 : this.flows.size();
 			}
@@ -722,6 +729,8 @@ public class FlowContainer implements Container {
 				case SplitResult.Keep keep -> null;
 				case SplitResult.Move move -> prevFlow.box;
 				case SplitResult.Split(final IPageBreakableBox remainder) -> (IFlowBox) remainder;
+				case SplitResult.Collected collected -> throw new IllegalStateException(
+						"チェーン収集は表・テキストでは起きない");
 				};
 			}
 				break;
@@ -731,11 +740,19 @@ public class FlowContainer implements Container {
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
 						&& vertical == cParams.flow.isVertical()) {
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-					nextFlowBox = switch (prevFlowBox.split(splitLine, mode, xflags)) {
-					case SplitResult.Keep keep -> null;
-					case SplitResult.Move move -> prevFlow.box;
-					case SplitResult.Split(final IPageBreakableBox remainder) -> (IFlowBox) remainder;
-					};
+					switch (prevFlowBox.split(splitLine, mode, xflags)) {
+					case SplitResult.Keep keep -> nextFlowBox = null;
+					case SplitResult.Move move -> nextFlowBox = prevFlow.box;
+					case SplitResult.Split(final IPageBreakableBox remainder) -> nextFlowBox = (IFlowBox) remainder;
+					case SplitResult.Collected collected -> {
+						// C1b: チェーン断片は Continuation へ収集済み。残余
+						// コンテナにはボックスを加えず、切断成立として確定する
+						// (チェーン子は常に末尾のため後続フローの移送はない)
+						assert i == this.flows.size() - 1;
+						final FlowContainer collectedNext = new FlowContainer();
+						return this.splitFloatings(collectedNext, prevPageSize, flags);
+					}
+					}
 					break;
 				}
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {

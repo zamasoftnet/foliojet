@@ -1,6 +1,6 @@
 resume PAGE
   root-fragment depth=4
-      restyle-chain serial=1
+   chain-fragment depth=3
      replay-subtree serial=2
      restyle-chain serial=3
     replay-subtree serial=1

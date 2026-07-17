@@ -24,7 +24,9 @@ import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
  *               再開走行はこれを消費するだけで、ゲートを再計算しない)
  * @author MIYABE Tatsuhiko
  */
-public record Continuation(int depth, List<Item> items, java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges) {
+public record Continuation(int depth, List<Item> items,
+		java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges,
+		List<ChainFragment> chain) {
 	/**
 	 * LegacyCarry の発火計測です(移行進捗の観測: これがコーパスで
 	 * ゼロになった時が残余ボックス構築の死)。
@@ -35,6 +37,41 @@ public record Continuation(int depth, List<Item> items, java.util.Map<net.zamaso
 	 * 継続内容の1項目です。
 	 */
 	public sealed interface Item permits SourceRange, TextTail, LegacyCarry, RootFragment {
+	}
+
+	/**
+	 * チェーン断片の収集器です(C1b)。pageBreak の split カスケード中、
+	 * 事前検分(pre-flight)で収集可と判定された祖先チェーンの各レベルが
+	 * 自分の断片状態をここへ記録します(カスケードの再帰順=内側が先)。
+	 */
+	public static final class ChainCollector {
+		private final java.util.List<ChainFragment> fragments = new java.util.ArrayList<>();
+
+		public void add(final ChainFragment fragment) {
+			this.fragments.add(fragment);
+		}
+
+		/**
+		 * 収集された断片を外側→内側の順で返します。
+		 */
+		public java.util.List<ChainFragment> outerToInner() {
+			final java.util.List<ChainFragment> list = new java.util.ArrayList<>(this.fragments);
+			java.util.Collections.reverse(list);
+			return list;
+		}
+	}
+
+	/**
+	 * チェーン断片の継続です(C1b)。切断が貫通した開いた祖先1レベル分。
+	 *
+	 * @param prev        前断片(切りつめ済み)
+	 * @param state       断片状態
+	 * @param container   このレベルの残余コンテナ(閉じた先行アイテム+
+	 *                    フロート。チェーン子は含まれない)
+	 * @param crossExtent 切断時点の交差軸寸法
+	 */
+	public record ChainFragment(net.zamasoft.foliojet.layout.box.AbstractBlockBox prev, FragmentState state,
+			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) {
 	}
 
 	/**

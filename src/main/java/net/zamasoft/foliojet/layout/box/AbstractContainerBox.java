@@ -326,6 +326,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return newContainer;
 	}
 
+	/**
+	 * チェーン断片収集器です(C1b)。pageBreak が事前検分で設定し、
+	 * この破断の split でこのボックスが切断された場合、断片ボックスを
+	 * 構築せず断片状態を収集器へ記録します(構築は resume が行う)。
+	 * 破断ごとに設定・解除される一時状態。
+	 */
+	private net.zamasoft.foliojet.layout.fragment.Continuation.ChainCollector chainCollector = null;
+
+	/**
+	 * チェーン断片収集器を設定します(C1b。pageBreak の事前検分用)。
+	 */
+	public final void setChainCollector(
+			final net.zamasoft.foliojet.layout.fragment.Continuation.ChainCollector collector) {
+		this.chainCollector = collector;
+	}
+
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		byte xflags = flags;
@@ -339,6 +355,15 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 		if (nextContainer == this.container) {
 			return SplitResult.MOVE;
+		}
+		if (this.chainCollector != null && this instanceof AbstractBlockBox block) {
+			// C1b: 断片ボックスは構築せず、断片状態を収集して resume に委ねる
+			final boolean vertical = this.getBlockParams().flow.isVertical();
+			final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
+			final net.zamasoft.foliojet.layout.fragment.FragmentState state = block.splitPageState(pageLimit, flags);
+			this.chainCollector.add(new net.zamasoft.foliojet.layout.fragment.Continuation.ChainFragment(block, state,
+					nextContainer, crossExtent));
+			return SplitResult.COLLECTED;
 		}
 		return new SplitResult.Split(this.splitPage(nextContainer, pageLimit, flags));
 	}
