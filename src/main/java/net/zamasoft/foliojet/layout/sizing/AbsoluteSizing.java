@@ -28,12 +28,10 @@ public final class AbsoluteSizing {
 	 * @param frameExtent     行方向フレーム(マージン+ボーダー+パディング)合計
 	 * @param minContent      最小内容寸法
 	 * @param maxContent      最大内容寸法
-	 * @param verticalVariant 縦書き分岐の歴史的な式変種を使う
-	 *                        (fit-content の下限からインセットを引く形。要調査 台帳#2)
 	 */
 	public record Input(double available, double size, double maxSize, double minSize, double insetStart,
 			double insetEnd, double marginStart, double marginEnd, boolean marginStartAuto, boolean marginEndAuto,
-			double frameExtent, double minContent, double maxContent, boolean verticalVariant) {
+			double frameExtent, double minContent, double maxContent) {
 	}
 
 	/**
@@ -206,18 +204,13 @@ public final class AbsoluteSizing {
 							size = Sizing.fitContent(in.minContent(), size, limit);
 							start = end = 0;
 						} else if (LayoutUtils.isNone(start)) {
-							if (in.verticalVariant()) {
-								size = Sizing.fitContent(in.minContent() - end, size, limit);
-							} else {
-								size = Sizing.fitContent(in.minContent(), size, limit - end);
-							}
+							// 台帳#2 解消(2026-07-17): 旧縦書き変種
+							// fitContent(minContent - inset, …, limit) を廃し、
+							// 10.3.7 の形 fitContent(minContent, …, limit - inset) に統一
+							size = Sizing.fitContent(in.minContent(), size, limit - end);
 							start = in.available() - end - size - in.frameExtent();
 						} else {
-							if (in.verticalVariant()) {
-								size = Sizing.fitContent(in.minContent() - start, size, limit);
-							} else {
-								size = Sizing.fitContent(in.minContent(), size, limit - start);
-							}
+							size = Sizing.fitContent(in.minContent(), size, limit - start);
 							end = in.available() - start - size - in.frameExtent();
 						}
 					}

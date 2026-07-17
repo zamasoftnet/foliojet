@@ -122,8 +122,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				(vertical ? margin.getTopType() : margin.getLeftType()) == LengthType.AUTO, //
 				(vertical ? margin.getBottomType() : margin.getRightType()) == LengthType.AUTO, //
 				this.frame.getFrameLineExtent(flow), //
-				minLineAxis, maxLineAxis, //
-				vertical));
+				minLineAxis, maxLineAxis));
 		// 交差軸(ページ方向)のマージン: auto は未解決(NONE)のままにする
 		final double crossStart = (vertical ? margin.getLeftType() : margin.getTopType()) == LengthType.AUTO
 				? LayoutUtils.NONE

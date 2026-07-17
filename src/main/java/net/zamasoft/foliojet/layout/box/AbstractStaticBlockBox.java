@@ -171,10 +171,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				break;
 			}
 		case AUTO:
-			// 既存挙動: 横書きは常に0、縦書きはテーブル時のみ既値を維持
-			if (!table || !flow.isVertical()) {
-				pageExtent = 0;
-			}
+			// 台帳#4 解消(2026-07-17): 旧実装は縦書きのテーブル時のみ
+			// 既値を維持していた。横書きと同じく常に0(内容が後で決める)
+			pageExtent = 0;
 			break;
 		case ABSOLUTE:
 			pageExtent = this.size.getPageLength(flow);
@@ -221,8 +220,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		if (fixedPageBox == null) {
 			fixedPageBox = containerBox;
 		}
-		// 注: 縦書きでも InnerHeight を参照する(鏡像なら InnerWidth)。既存挙動を温存(要調査)。
-		final double cPage = fixedPageBox.getInnerHeight();
+		// 台帳#3 解消(2026-07-17): 旧実装は縦書きでも InnerHeight を参照
+		// していた。ページ方向%の基準は論理ページ軸の内寸(縦書き=幅)
+		final double cPage = fixedPageBox.getInnerPageExtent(flow);
 		final double cLine = table ? containerBox.getInnerLineExtent(flow)
 				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
 		// ページ方向の%は基準が確定している場合のみ解決する

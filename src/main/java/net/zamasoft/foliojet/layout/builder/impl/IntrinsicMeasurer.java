@@ -286,25 +286,18 @@ final class IntrinsicMeasurer {
 
 		BlockParams params = floatingBox.getBlockParams();
 		BlockParams flowParams = this.builder.getFlowBox().getBlockParams();
+		final WritingMode floatFlow = flowParams.flow;
 		double minLineAxis, maxLineAxis;
-		if (flowParams.flow.isVertical()) {
-			// 縦書き
-			if (params.size.getHeightType() != LengthType.AUTO) {
-				minLineAxis = maxLineAxis = floatingBox.getHeight();
-			} else {
-				final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
-				minLineAxis = childSizes.minContent() + floatingBox.getFrame().getFrameWidth();
-				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameHeight();
-			}
+		// 台帳#1 解消(2026-07-17): 旧実装は縦書きの min だけページ方向の
+		// フレーム(FrameWidth)を加算していた(max は行方向)。論理軸
+		// アクセサで縦横を統合し、min/max とも行方向フレームに揃える
+		if (params.size.getLineType(floatFlow) != LengthType.AUTO) {
+			minLineAxis = maxLineAxis = floatingBox.getLineExtent(floatFlow);
 		} else {
-			// 横書き
-			if (params.size.getWidthType() != LengthType.AUTO) {
-				minLineAxis = maxLineAxis = floatingBox.getWidth();
-			} else {
-				final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
-				minLineAxis = childSizes.minContent() + floatingBox.getFrame().getFrameWidth();
-				maxLineAxis = childSizes.maxContent() + floatingBox.getFrame().getFrameWidth();
-			}
+			final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
+			final double frameLine = floatingBox.getFrame().getFrameLineExtent(floatFlow);
+			minLineAxis = childSizes.minContent() + frameLine;
+			maxLineAxis = childSizes.maxContent() + frameLine;
 		}
 		assert !LayoutUtils.isNone(maxLineAxis);
 		// System.err.println(this.minLineAxis + "/" + this.maxLineAxis);
