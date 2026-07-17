@@ -1,0 +1,84 @@
+package jp.cssj.test.unit.displaylist;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+
+import jp.cssj.cti2.helpers.CTIMessageHelper;
+import jp.cssj.cti2.helpers.CTISessionHelper;
+import jp.cssj.cti2.results.SingleResult;
+import junit.framework.TestCase;
+import net.zamasoft.foliojet.driver.DirectDriver;
+import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.builder.impl.TableBuildStats;
+import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
+import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
+
+/**
+ * 表構築の特性テストです(P2-1。§5.2b 表ビルダー統一の保存契約)。
+ *
+ * <p>
+ * golden 一致だけでは検出できない特性 — fixed が OnePass にルーティング
+ * されること、そのストリーミングが有界であること、auto が TwoPass で
+ * あること、分割・rowspan 切断の経路が実際に通ること — をカウンタで
+ * 固定します。P2 の置換はこれらを保存しなければならない。
+ * </p>
+ */
+public class TableBuildCharacterizationTest extends TestCase {
+	static {
+		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
+		System.setProperty("jp.cssj.driver.default",
+				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
+	}
+
+	private static final URI COPPER_URI = URI.create("copper:direct:");
+
+	public void testFixedPagedTableStreamsOnePass() throws Exception {
+		final long onePass = TableBuildStats.ONE_PASS_BUILDS.get();
+		final long fragments = TableBuildStats.TABLE_FRAGMENTS.get();
+		TableBuildStats.ONE_PASS_ROW_HIGH_WATER.set(0);
+		this.transcode(new File("files/unittest/0390-writing-mode/fixed-table-pagebreak.html"), "char-fixed");
+		assertTrue("fixed 表が OnePass にルーティングされていません",
+				TableBuildStats.ONE_PASS_BUILDS.get() > onePass);
+		assertTrue("ページ跨ぎで表断片が生成されていません",
+				TableBuildStats.TABLE_FRAGMENTS.get() > fragments);
+		// fixed のストリーミングは有界: 9行の表で全行保持なら退化。
+		// 現行実装の実測値を保存契約として固定する(P2 置換後も維持)
+		final long highWater = TableBuildStats.ONE_PASS_ROW_HIGH_WATER.get();
+		assertTrue("行保持の high-water が観測されていません", highWater > 0);
+		assertTrue("fixed ストリーミングが全体保持に退化しています: high-water=" + highWater, highWater < 9);
+	}
+
+	public void testAutoTableUsesTwoPass() throws Exception {
+		final long twoPass = TableBuildStats.TWO_PASS_BUILDS.get();
+		this.transcode(new File("files/unittest/0070-table-layout/auto-rowspan.html"), "char-auto");
+		assertTrue("auto 表が TwoPass にルーティングされていません",
+				TableBuildStats.TWO_PASS_BUILDS.get() > twoPass);
+	}
+
+	public void testRowspanCutFires() throws Exception {
+		final long cuts = TableBuildStats.ROWSPAN_CUTS.get();
+		this.transcode(new File("files/unittest/0218-pagebreak-table-span/fixed-rowspan.html"), "char-rowspan");
+		assertTrue("rowspan 連結セルの切断経路が通っていません",
+				TableBuildStats.ROWSPAN_CUTS.get() > cuts);
+	}
+
+	private void transcode(File source, String name) throws Exception {
+		File pdf = new File("local/unittest/display-list/" + name + ".pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, source, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+	}
+}

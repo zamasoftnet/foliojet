@@ -339,9 +339,11 @@ public class DocumentBuilder {
 			final TableBuilder tableBuilder;
 			if (!builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox)) {
 				// 2パスレイアウト
+				net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
 				tableBuilder = new TwoPassTableBuilder(builder, tableBox);
 			} else {
 				// 1パスレイアウト
+				net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.ONE_PASS_BUILDS.incrementAndGet();
 				final OnePassTableBuilder fixedTableBuilder = new OnePassTableBuilder(tableBox);
 				fixedTableBuilder.startLayout((RootBuilder) builder);
 				tableBuilder = fixedTableBuilder;

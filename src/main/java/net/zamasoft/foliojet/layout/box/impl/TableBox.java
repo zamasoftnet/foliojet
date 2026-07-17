@@ -685,6 +685,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final TableBox splitTableBox() {
+		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TABLE_FRAGMENTS.incrementAndGet();
 		final boolean vertical = this.params.flow.isVertical();
 		// フレームの切断判定は TableCutter に純化(C4-T2)
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames frames = net.zamasoft.foliojet.layout.fragment.TableCutter

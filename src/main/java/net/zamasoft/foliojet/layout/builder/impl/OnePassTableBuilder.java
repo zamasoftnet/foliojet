@@ -422,6 +422,8 @@ public class OnePassTableBuilder implements TableBuilder {
 			}
 			this.cellsUnit.add(this.cells);
 			this.rowsUnit.add(this.rowBox);
+			// fixed ストリーミングの保持上限の観測(P2-1 保存契約)
+			TableBuildStats.reportRowRetention(this.rowsUnit.size());
 		}
 			break;
 		default:

@@ -499,6 +499,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	public final void cutRowspanCells() {
+		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.ROWSPAN_CUTS.incrementAndGet();
 		// 連結されたセルを強制切断する
 		final boolean vertical = this.tableParams.flow.isVertical();
 		for (int i = 0; i < this.cells.size(); ++i) {
