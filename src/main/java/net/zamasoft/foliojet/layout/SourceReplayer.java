@@ -171,7 +171,9 @@ public final class SourceReplayer {
 		// 次の兄弟アイテムの手前まで
 		final long cap = endIdExclusive < 0 ? log.nextId() : endIdExclusive;
 		final long toId = log.tailBound(fromId, cap) - 1;
-		if (toId < fromId || log.containsOpaque(fromId, toId)) {
+		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsFloat(fromId, toId)) {
+			// フロートを含む尾部の再生は係留の再実行(二重化)の危険が
+			// あるためフォールバック(replayChildren と同じゲート)
 			return false;
 		}
 		// live パイプライン(shaper)が未配達のまま保留している文字は

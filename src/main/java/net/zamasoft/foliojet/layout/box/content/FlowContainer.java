@@ -1058,17 +1058,16 @@ public class FlowContainer implements Container {
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 							&& builder.getPageContext() != null) {
 						final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
-						// 尾部の終端 = 次の item のソースアンカー(なければログ末尾)
+						// 尾部の終端: 次の item のアンカーがあれば上限として使う。
+						// なくても tailBound がログ構造(囲みブロックの EndBlock
+						// またはブロック級兄弟の Start)から終端を導出するため、
+						// 次兄弟が分割断片(アンカー無効)でも再生できる(2026-07-17)
 						long endId = -1;
-						boolean endKnown = true;
 						if (i + 1 < size) {
 							endId = ((BoxHolder) items.get(i + 1)).getBox().getParams().sourceEventId;
-							endKnown = endId >= 0;
 						}
-						if (endKnown) {
-							// 切断段落の尾部をソース再駆動(M6b v3)
-							replayed = root.replayTextFrom(textBlock, endId, open);
-						}
+						// 切断段落の尾部をソース再駆動(M6b v3)
+						replayed = root.replayTextFrom(textBlock, endId, open);
 					}
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth,
 							replayed ? "text-tail" : (open ? "restyle-text-open" : "restyle-text"),

@@ -252,8 +252,16 @@ public final class LayoutSource {
 
 	/**
 	 * テキスト尾部の終端を返します(M6b v3): fromId から前方走査し、
-	 * 範囲内で開かれていない EndBlock(=囲みブロックの終了)に当たれば
-	 * その id、capExclusive まで当たらなければ capExclusive。
+	 * 範囲内で開かれていない EndBlock(=囲みブロックの終了)または
+	 * ブロック級の兄弟の Start(=段落の終わり。インライン級の Start は
+	 * 段落の続きなので通過)に当たればその id、capExclusive まで
+	 * 当たらなければ capExclusive。
+	 *
+	 * <p>
+	 * ブロック級 Start での停止(2026-07-17)により、終端導出は次兄弟の
+	 * ソースアンカーに依存しない — 兄弟が分割断片(アンカー無効)でも
+	 * 尾部再生できる。
+	 * </p>
 	 *
 	 * @param fromId       走査開始位置
 	 * @param capExclusive 上限(これ以上は走査しない)
@@ -272,7 +280,14 @@ public final class LayoutSource {
 			}
 			switch (entry.event()) {
 			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
-			case Start start -> ++depth;
+			case Start(final BoxKind kind, final net.zamasoft.foliojet.layout.box.params.Params params,
+					final Pos pos) -> {
+				if (depth == 0 && isBlockLevel(kind)) {
+					// 段落の次のブロック級兄弟 = 尾部の終わり
+					return entry.id();
+				}
+				++depth;
+			}
 			case Opaque opaque -> ++depth;
 			case EndBlock end -> {
 				if (depth == 0) {
@@ -287,6 +302,20 @@ public final class LayoutSource {
 			}
 		}
 		return capExclusive;
+	}
+
+	/**
+	 * ブロック級(段落を終わらせる)種別かを返します。インライン級
+	 * (INLINE/INLINE_BLOCK/各マーカー)は段落の続きとして通過させます。
+	 */
+	private static boolean isBlockLevel(final BoxKind kind) {
+		// フロートは段落を終わらせない(ソース位置は段落中)。尾部範囲に
+		// フロートが入る場合の再生可否は呼び出し側の containsFloat ゲートが
+		// 判定する(再生は係留を再実行するため二重化の危険がある)
+		return switch (kind) {
+		case FLOW, MULTICOL, TABLE -> true;
+		default -> false;
+		};
 	}
 
 	/**
