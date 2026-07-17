@@ -1119,43 +1119,22 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			}
 		}
 
-		// セル高さ確定
-		{
-			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroup);
-				for (int j = 0; j < rows.size(); ++j) {
-					TableRowBox rowBox = (TableRowBox) rows.get(j);
-
-					rowBox.setLineSize(tableInnerSize);
-					rowGroup.addTableRow(rowBox);
-					List<?> cells = (List<?>) this.rowToCells.get(rowBox);
-
-					// セル高さ設定
-					@SuppressWarnings("unchecked")
-					final double rowAscent = CellContent.maxFirstAscent((List<CellContent>) cells);
-					for (int k = 0; k < cells.size(); ++k) {
-						CellContent cell = (CellContent) cells.get(k);
-						if (cell.isExtended()) {
-							continue;
-						}
-						TableCellBox cellBox = cell.getCellBox();
-						double rowSize = rowBox.getPageSize();
-						int rowspan = Math.min(rows.size() - j, cellBox.getTableCellPos().rowspan);
-						for (int l = 1; l < rowspan; ++l) {
-							int m = j + l;
-							TableRowBox xrow = (TableRowBox) rows.get(m);
-							rowSize += xrow.getPageSize();
-						}
-						cellBox.baseline(rowAscent);
-						if (this.vertical) {
-							cellBox.setWidth(rowSize);
-						} else {
-							cellBox.setHeight(rowSize);
-						}
-						cellBox.verticalAlign();
-					}
-				}
+		// セル高さ確定(共有核 — P2-5 (c))
+		for (int i = 0; i < this.rowGroups.size(); ++i) {
+			TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
+			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroup);
+			final double[] groupRowSizes = new double[rows.size()];
+			for (int j = 0; j < rows.size(); ++j) {
+				groupRowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
+			}
+			for (int j = 0; j < rows.size(); ++j) {
+				TableRowBox rowBox = (TableRowBox) rows.get(j);
+				rowBox.setLineSize(tableInnerSize);
+				rowGroup.addTableRow(rowBox);
+				@SuppressWarnings("unchecked")
+				final List<CellContent> cells = (List<CellContent>) this.rowToCells.get(rowBox);
+				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
+						this.vertical);
 			}
 		}
 		return rowCount;

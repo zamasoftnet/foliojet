@@ -87,6 +87,42 @@ class CellContent {
 		return rowAscent;
 	}
 
+	/**
+	 * 行高をセルへ適用します(P2-5 (c) 共有核。3箇所の同一処理の統合)。
+	 * 非連結セルごとに連結範囲の行高合計をページ方向寸法として設定し、
+	 * 縦位置合わせを行う。
+	 *
+	 * @param cells     行のセル列
+	 * @param rowSizes  行高(単位または行グループの窓)
+	 * @param rowIndex  当行の窓内位置
+	 * @param rowAscent 行のベースライン(NaN なら適用済みとして省略)
+	 * @param vertical  縦書きであれば true
+	 */
+	static void applyCellExtents(final java.util.List<CellContent> cells, final double[] rowSizes, final int rowIndex,
+			final double rowAscent, final boolean vertical) {
+		for (int k = 0; k < cells.size(); ++k) {
+			final CellContent cell = cells.get(k);
+			if (cell.isExtended()) {
+				continue;
+			}
+			final TableCellBox cellBox = cell.getCellBox();
+			double size = 0;
+			final int rowspan = Math.min(rowSizes.length - rowIndex, cellBox.getTableCellPos().rowspan);
+			for (int l = 0; l < rowspan; ++l) {
+				size += rowSizes[rowIndex + l];
+			}
+			if (!Double.isNaN(rowAscent)) {
+				cellBox.baseline(rowAscent);
+			}
+			if (vertical) {
+				cellBox.setWidth(size);
+			} else {
+				cellBox.setHeight(size);
+			}
+			cellBox.verticalAlign();
+		}
+	}
+
 	public boolean isExtended() {
 		return this.cell instanceof TableCellBox;
 	}

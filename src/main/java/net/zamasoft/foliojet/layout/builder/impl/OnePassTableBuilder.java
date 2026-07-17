@@ -595,21 +595,8 @@ public class OnePassTableBuilder implements TableBuilder {
 				}
 				rowSize = Math.max(rowSize, cellSize);
 			}
-			for (int j = 0; j < cells.size(); ++j) {
-				CellContent cell = (CellContent) cells.get(j);
-				if (cell.isExtended()) {
-					continue;
-				}
-				TableCellBox cellBox = cell.getCellBox();
-				cellBox.baseline(rowAscent);
-				if (this.vertical) {
-					cellBox.setWidth(rowSize);
-				} else {
-					cellBox.setHeight(rowSize);
-				}
-				cellBox.verticalAlign();
-				j += cell.colspan - 1;
-			}
+			CellContent.applyCellExtents((List<CellContent>) (List<?>) cells, new double[] { rowSize }, 0, rowAscent,
+					this.vertical);
 			rowBox.setLineSize(this.tableInnerSize);
 			rowBox.setPageSize(rowSize);
 			this.bindRowGroupBox.addTableRow(rowBox);
@@ -710,32 +697,14 @@ public class OnePassTableBuilder implements TableBuilder {
 				this.bindRowGroupBox.addTableRow(rowBox);
 			}
 
-			// セルの高さ設定
-			for (int i = 0; i < this.rowsUnit.size(); ++i) {
-				List<?> cells = (List<?>) this.cellsUnit.get(i);
-				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(i);
-				for (int j = 0; j < cells.size(); ++j) {
-					CellContent cell = (CellContent) cells.get(j);
-					if (cell.isExtended()) {
-						continue;
-					}
-					double rowSize = rowBox.getPageSize();
-					for (int k = 1; k < cell.rowspan; ++k) {
-						int kk = i + k;
-						if (kk >= this.rowsUnit.size()) {
-							break;
-						}
-						TableRowBox xrowBox = (TableRowBox) this.rowsUnit.get(kk);
-						rowSize += xrowBox.getPageSize();
-					}
-					TableCellBox cellBox = cell.getCellBox();
-					if (this.vertical) {
-						cellBox.setWidth(rowSize);
-					} else {
-						cellBox.setHeight(rowSize);
-					}
-					cellBox.verticalAlign();
-					j += cell.colspan - 1;
+			// セルの高さ設定(共有核 — P2-5 (c)。baseline は寸法収集時に適用済み)
+			{
+				final double[] unitRowSizes = new double[this.rowsUnit.size()];
+				for (int i = 0; i < this.rowsUnit.size(); ++i) {
+					unitRowSizes[i] = ((TableRowBox) this.rowsUnit.get(i)).getPageSize();
+				}
+				for (int i = 0; i < this.rowsUnit.size(); ++i) {
+					CellContent.applyCellExtents(this.cellsUnit.get(i), unitRowSizes, i, Double.NaN, this.vertical);
 				}
 			}
 			if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
