@@ -168,40 +168,9 @@ public class OnePassTableBuilder implements TableBuilder {
 	}
 
 	private double getSpecificRowSize(TableRowBox rowBox) {
-		double rowSize;
-		InnerTableParams rowParams = rowBox.getInnerTableParams();
-		switch (rowParams.size.getType()) {
-		case ABSOLUTE:
-			rowSize = rowParams.size.getLength();
-			break;
-		case RELATIVE:
-		case AUTO:
-			rowSize = 0;
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-		switch (rowParams.minSize.getType()) {
-		case ABSOLUTE:
-			rowSize = Math.max(rowParams.minSize.getLength(), rowSize);
-			break;
-		case RELATIVE:
-		case AUTO:
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-		switch (rowParams.maxSize.getType()) {
-		case ABSOLUTE:
-			rowSize = Math.min(rowParams.maxSize.getLength(), rowSize);
-			break;
-		case RELATIVE:
-		case AUTO:
-			break;
-		default:
-			throw new IllegalStateException();
-		}
-		return rowSize;
+		// 導出は共有核(P2-5 (c))。旧実装は %指定を常に 0 としていたが、
+		// rowSpec は %>0 でも 0 を返すため同値
+		return RowLayoutEngine.rowSpec(rowBox.getInnerTableParams()).size();
 	}
 
 	private void firstLayout() {
@@ -577,9 +546,10 @@ public class OnePassTableBuilder implements TableBuilder {
 			for (int row = 0; row < this.cellsUnit.size(); ++row) {
 				List<?> cells = (List<?>) this.cellsUnit.get(row);
 				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
-				InnerTableParams rowParams = rowBox.getInnerTableParams();
-				double rowSize = this.getSpecificRowSize(rowBox);
-				if (rowParams.size.getType() == LengthType.AUTO) {
+				final RowLayoutEngine.RowSpec rowSpec = RowLayoutEngine.rowSpec(rowBox.getInnerTableParams());
+				double rowSize = rowSpec.size();
+				// 0% 指定も自動行として扱う(共有核 rowSpec の規約に統一)
+				if (rowSpec.auto()) {
 					autoRows[row] = true;
 				}
 				@SuppressWarnings("unchecked")

@@ -58,6 +58,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0240-table/z-order.html", //
 			"0242-table-height/percent-rowspan-groups.html", //
 			"0242-table-height/group-size-empty-rows.html", //
+			"0242-table-height/zero-percent-row-rowspan.html", //
 			"0330-table-border/collapse-asymmetric-fixed.html", //
 			"0330-table-border/collapse-group-inner-lines.html", //
 			"0330-table-border/collapse-multi-groups.html", //

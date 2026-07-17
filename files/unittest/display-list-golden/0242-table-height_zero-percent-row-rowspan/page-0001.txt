@@ -1,0 +1,7 @@
+drawer z=0
+  x=6.75 y=6.75 BackgroundBorder[w=148.50 h=69.00]
+  x=7.50 y=7.50 AbsoluteRectFrame[w=15.00 h=67.50]
+  x=6.75 y=30.00 BackgroundBorder[w=0.00 h=45.75]
+  x=6.75 y=84.75 BackgroundBorder[w=16.50 h=69.00]
+  x=7.50 y=85.50 AbsoluteRectFrame[w=15.00 h=67.50]
+  x=6.75 y=108.00 BackgroundBorder[w=16.50 h=45.75]

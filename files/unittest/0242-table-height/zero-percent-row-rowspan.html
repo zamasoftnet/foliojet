@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/UTF-8">
+<title>0%指定行と rowspan 分配</title>
+<style>
+table { border-collapse: separate; margin-bottom: 10px; }
+table.fixed { table-layout: fixed; width: 200px; }
+td { padding: 0; background-color: #ffe; }
+div.tall { height: 90px; width: 20px; background-color: #cdf; }
+</style>
+</head>
+<body>
+<!-- 高さ0%の行が rowspan 不足分の分配先(自動行)になるか。
+     TwoPass(auto)は 0% をフォールスルーで自動扱い、旧 OnePass
+     (fixed)は非自動扱いの疑い。fixed と auto で行高が一致すべき。 -->
+<table class="fixed">
+<tr style="height: 0%"><td rowspan="2"><div class="tall"></div></td></tr>
+<tr style="height: 30px; background-color: #fdd"></tr>
+</table>
+<table>
+<tr style="height: 0%"><td rowspan="2"><div class="tall"></div></td></tr>
+<tr style="height: 30px; background-color: #fdd"></tr>
+</table>
+</body>
+</html>

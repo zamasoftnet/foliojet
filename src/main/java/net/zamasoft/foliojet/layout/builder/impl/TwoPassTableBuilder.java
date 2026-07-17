@@ -825,45 +825,13 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					TableRowBox rowBox = (TableRowBox) rows.get(j);
 					double rowSize;
 
-					// 指定された行高さの計算
-					InnerTableParams rowParams = rowBox.getInnerTableParams();
-					switch (rowParams.size.getType()) {
-					case ABSOLUTE:
-						rowSize = rowParams.size.getLength();
-						break;
-					case RELATIVE:
-						rowRatios[rowIndex] = rowParams.size.getLength();
-						if (rowRatios[rowIndex] > 0) {
-							rowSize = 0;
-							break;
-						}
-					case AUTO:
+					// 指定された行高さの計算(共有核 — P2-5 (c))
+					final RowLayoutEngine.RowSpec rowSpec = RowLayoutEngine.rowSpec(rowBox.getInnerTableParams());
+					rowSize = rowSpec.size();
+					rowRatios[rowIndex] = rowSpec.ratio();
+					if (rowSpec.auto()) {
 						++autoRowCount;
 						autoRows[j] = true;
-						rowSize = 0;
-						break;
-					default:
-						throw new IllegalStateException();
-					}
-					switch (rowParams.minSize.getType()) {
-					case ABSOLUTE:
-						rowSize = Math.max(rowParams.minSize.getLength(), rowSize);
-						break;
-					case RELATIVE:
-					case AUTO:
-						break;
-					default:
-						throw new IllegalStateException();
-					}
-					switch (rowParams.maxSize.getType()) {
-					case ABSOLUTE:
-						rowSize = Math.min(rowParams.maxSize.getLength(), rowSize);
-						break;
-					case RELATIVE:
-					case AUTO:
-						break;
-					default:
-						throw new IllegalStateException();
 					}
 
 					// セル内のレイアウト

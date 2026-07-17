@@ -18,6 +18,65 @@ public final class RowLayoutEngine {
 	}
 
 	/**
+	 * 指定行高の導出結果です。
+	 *
+	 * @param size  指定・min/max から確定した行高(自動・%は 0)
+	 * @param ratio %指定の比率(なければ 0)
+	 * @param auto  自動高さ(0% 指定も自動として扱う)
+	 */
+	public record RowSpec(double size, double ratio, boolean auto) {
+	}
+
+	/**
+	 * 行の指定高さを導出します(両ビルダーの同一 switch の統合)。
+	 * ABSOLUTE は指定値、%は比率へ、0% と AUTO は自動行。min/max の
+	 * ABSOLUTE 指定でクランプする。
+	 */
+	public static RowSpec rowSpec(final net.zamasoft.foliojet.layout.box.params.InnerTableParams rowParams) {
+		double rowSize;
+		double ratio = 0;
+		boolean auto = false;
+		switch (rowParams.size.getType()) {
+		case ABSOLUTE:
+			rowSize = rowParams.size.getLength();
+			break;
+		case RELATIVE:
+			ratio = rowParams.size.getLength();
+			if (ratio > 0) {
+				rowSize = 0;
+				break;
+			}
+		case AUTO:
+			auto = true;
+			rowSize = 0;
+			break;
+		default:
+			throw new IllegalStateException();
+		}
+		switch (rowParams.minSize.getType()) {
+		case ABSOLUTE:
+			rowSize = Math.max(rowParams.minSize.getLength(), rowSize);
+			break;
+		case RELATIVE:
+		case AUTO:
+			break;
+		default:
+			throw new IllegalStateException();
+		}
+		switch (rowParams.maxSize.getType()) {
+		case ABSOLUTE:
+			rowSize = Math.min(rowParams.maxSize.getLength(), rowSize);
+			break;
+		case RELATIVE:
+		case AUTO:
+			break;
+		default:
+			throw new IllegalStateException();
+		}
+		return new RowSpec(rowSize, ratio, auto);
+	}
+
+	/**
 	 * 行グループの指定高さを行へ分配します(両ビルダーの同一アルゴリズムの
 	 * 統合)。行高合計が指定に満たなければ比例拡大し、合計0なら均等分配
 	 * する(均等分配の分母はグループ自身の行数 — 旧 TwoPass は表全体の
