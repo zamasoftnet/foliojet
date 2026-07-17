@@ -101,6 +101,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	}
 
 	public void startTextRun(final int charOffset, final FontStyle fontStyle, final FontMetrics fontMetrics) {
+		this.journal.run(charOffset);
 		this.builder.startTextRun(charOffset, fontStyle, fontMetrics);
 	}
 
@@ -120,6 +121,18 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	private int deliveredCharEnd = 0;
 
 	/**
+	 * 境界イベントの shadow journal です(M3b Phase 0。挙動不変の観測)。
+	 */
+	private final TextEventJournal journal = new TextEventJournal();
+
+	/**
+	 * 境界イベントの journal を返します(M3b Phase 0)。
+	 */
+	public TextEventJournal getJournal() {
+		return this.journal;
+	}
+
+	/**
 	 * 配達済みソース文字の終端オフセットを返します(M6b v3)。
 	 */
 	public int getDeliveredCharEnd() {
@@ -127,6 +140,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
+		this.journal.glyph(charOffset, charOffset + clen);
 		if (charOffset >= 0) {
 			this.deliveredCharEnd = Math.max(this.deliveredCharEnd, charOffset + clen);
 		}
@@ -142,6 +156,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		// System.out.println(quad);
 		if (quad instanceof InlineQuad) {
 			// インラインボックス
+			this.journal.inline();
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
@@ -186,6 +201,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		} else {
 			// 制御コード
 			Control control = (Control) quad;
+			this.journal.control(control.getCharOffset());
 			switch (control.getControlChar()) {
 			case '\n':
 				this.toLineFeed = true;
@@ -209,6 +225,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			return;
 		}
 		this.toLineFeed = false;
+		this.journal.flush();
 		this.builder.flush();
 	}
 	
