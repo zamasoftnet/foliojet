@@ -768,10 +768,11 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			final FixedColumnWidths.Spec[] colgroupSpecs;
 			if (this.columnGroupBox != null) {
 				this.tableBox.setTableColumnGroup(this.columnGroupBox);
-				// 注: 歴史的に縦書きでも borderSpacingH を加算していた(要調査。
-				// OnePassTableBuilder は論理軸の lineBorderSpacing を使う)
+				// 行方向の境界間隔は論理軸で採る(旧実装は縦書きでも
+				// borderSpacingH を加算していた — OnePass と同じ論理軸へ正規化。
+				// 0390-writing-mode/vert-fixed-colgroup-spacing.html で固定)
 				colgroupSpecs = TableColumnSpecs.colgroupSpecs(this.columnGroupBox, columnCount, refSize,
-						tableParams.borderCollapse == TableParams.BORDER_SEPARATE ? tableParams.borderSpacingH : 0);
+						tableParams.borderCollapse == TableParams.BORDER_SEPARATE ? lineBorderSpacing : 0);
 			} else {
 				colgroupSpecs = new FixedColumnWidths.Spec[columnCount];
 			}

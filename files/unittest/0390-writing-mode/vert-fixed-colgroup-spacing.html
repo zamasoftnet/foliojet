@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>縦書き固定表の colgroup 幅と境界間隔の軸</title>
+<style>
+table {
+  writing-mode: vertical-rl;
+  table-layout: fixed;
+  height: 200px;
+  border-collapse: separate;
+  border-spacing: 10px 2px; /* H=10px(7.5pt) ≠ V=2px(1.5pt) で軸を判別 */
+}
+td { padding: 0; background-color: #ffe; }
+</style>
+</head>
+<body>
+<!-- 縦書き表の行方向(=垂直)の境界間隔は border-spacing の V 成分。
+     旧 TwoPass fixed は colgroup 幅に H 成分を加算していた
+     (col 50px + 10px=45pt)。論理軸なら V 成分(50px + 2px=39pt)。
+     フロート内に置いて TwoPass 経路(実測文脈)を通す。 -->
+<div style="float: left;">
+<table>
+<colgroup><col style="height: 50px"><col></colgroup>
+<tr><td>a</td><td>b</td></tr>
+<tr><td>c</td><td>d</td></tr>
+</table>
+</div>
+</body>
+</html>
