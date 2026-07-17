@@ -68,6 +68,25 @@ class CellContent {
 		}
 	}
 
+	/**
+	 * 行のベースライン(先頭アセントの最大)を求めます(P2-4 共有核。
+	 * 3箇所の同一ループの統合 — 連結の続きは持ち主の行で数える)。
+	 */
+	static double maxFirstAscent(final java.util.List<CellContent> cells) {
+		double rowAscent = 0;
+		for (int i = 0; i < cells.size(); ++i) {
+			final CellContent cell = cells.get(i);
+			if (cell.isExtended()) {
+				continue;
+			}
+			final double firstAscent = cell.getCellBox().getFirstAscent();
+			if (!net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
+				rowAscent = firstAscent;
+			}
+		}
+		return rowAscent;
+	}
+
 	public boolean isExtended() {
 		return this.cell instanceof TableCellBox;
 	}

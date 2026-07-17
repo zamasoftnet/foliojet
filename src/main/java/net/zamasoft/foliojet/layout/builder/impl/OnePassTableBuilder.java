@@ -724,19 +724,8 @@ public class OnePassTableBuilder implements TableBuilder {
 			final List<?> cells = (List<?>) this.cellsUnit.get(0);
 			final TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(0);
 			double rowSize = this.getSpecificRowSize(rowBox);
-			double rowAscent = 0;
-			for (int i = 0; i < cells.size(); ++i) {
-				CellContent cell = (CellContent) cells.get(i);
-				if (cell.isExtended()) {
-					i += cell.colspan - 1;
-					continue;
-				}
-				TableCellBox cellBox = cell.getCellBox();
-				double firstAscent = cellBox.getFirstAscent();
-				if (!LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
-					rowAscent = firstAscent;
-				}
-			}
+			@SuppressWarnings("unchecked")
+			final double rowAscent = CellContent.maxFirstAscent((List<CellContent>) cells);
 			for (int i = 0; i < cells.size(); ++i) {
 				final CellContent cell = (CellContent) cells.get(i);
 				final TableCellBox cellBox = cell.getCellBox();
@@ -795,19 +784,8 @@ public class OnePassTableBuilder implements TableBuilder {
 				if (rowParams.size.getType() == LengthType.AUTO) {
 					autoRows[row] = true;
 				}
-				double rowAscent = 0;
-				for (int i = 0; i < cells.size(); ++i) {
-					CellContent cell = (CellContent) cells.get(i);
-					if (cell.isExtended()) {
-						i += cell.colspan - 1;
-						continue;
-					}
-					TableCellBox cellBox = cell.getCellBox();
-					double firstAscent = cellBox.getFirstAscent();
-					if (!LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
-						rowAscent = firstAscent;
-					}
-				}
+				@SuppressWarnings("unchecked")
+				final double rowAscent = CellContent.maxFirstAscent((List<CellContent>) cells);
 				for (int i = 0; i < cells.size(); ++i) {
 					CellContent cell = (CellContent) cells.get(i);
 					if (cell.isExtended()) {

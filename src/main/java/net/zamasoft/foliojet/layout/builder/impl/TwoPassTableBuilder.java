@@ -1180,18 +1180,8 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					List<?> cells = (List<?>) this.rowToCells.get(rowBox);
 
 					// セル高さ設定
-					double rowAscent = 0;
-					for (int k = 0; k < cells.size(); ++k) {
-						CellContent cell = (CellContent) cells.get(k);
-						if (cell.isExtended()) {
-							continue;
-						}
-						TableCellBox cellBox = cell.getCellBox();
-						double firstAscent = cellBox.getFirstAscent();
-						if (!LayoutUtils.isNone(firstAscent) && firstAscent > rowAscent) {
-							rowAscent = firstAscent;
-						}
-					}
+					@SuppressWarnings("unchecked")
+					final double rowAscent = CellContent.maxFirstAscent((List<CellContent>) cells);
 					for (int k = 0; k < cells.size(); ++k) {
 						CellContent cell = (CellContent) cells.get(k);
 						if (cell.isExtended()) {
