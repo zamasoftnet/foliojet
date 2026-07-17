@@ -1,0 +1,64 @@
+package net.zamasoft.foliojet.layout.fragment;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
+
+/**
+ * 改ページの継続記述です(ARCHITECTURE §5.7、C0')。
+ *
+ * <p>
+ * 「次のフラグメンテナへ何を送るか」を型で表します。現段階(C0')は
+ * 従来の残余ボックス木を {@link LegacyCarry} として丸ごと運ぶ互換
+ * ラッパーで、挙動は従来の restyle と同一です。移行スライス
+ * (C2=閉部分木の {@link SourceRange} 化、C3=切断段落尾部の
+ * {@link TextTail} 化、C1=祖先チェーンのログ再インスタンス化)が進む
+ * ごとに LegacyCarry の中身が痩せ、発火ゼロになった種別から
+ * splitPageAxis の残余構築コードが死ぬ(§5.5)。
+ * </p>
+ *
+ * @param depth 再開時に復元する祖先チェーンの深さ(flowStack の要素数)
+ * @param items 次のフラグメンテナへ送る内容(文書順)
+ * @author MIYABE Tatsuhiko
+ */
+public record Continuation(int depth, List<Item> items) {
+	/**
+	 * LegacyCarry の発火計測です(移行進捗の観測: これがコーパスで
+	 * ゼロになった時が残余ボックス構築の死)。
+	 */
+	public static final AtomicLong LEGACY_CARRIES = new AtomicLong();
+
+	/**
+	 * 継続内容の1項目です。
+	 */
+	public sealed interface Item permits SourceRange, TextTail, LegacyCarry {
+	}
+
+	/**
+	 * 丸ごと移動する閉部分木のソース範囲です(C2 で使用予定)。
+	 *
+	 * @param fromId 部分木の StartBlock の EventId
+	 * @param toId   対応する EndBlock の EventId
+	 */
+	public record SourceRange(long fromId, long toId) implements Item {
+	}
+
+	/**
+	 * 切断段落の尾部です(C3 で使用予定)。
+	 *
+	 * @param charOffset     再開位置のソース文字オフセット
+	 * @param endIdExclusive 尾部の終端(負ならログ末尾まで)
+	 */
+	public record TextTail(int charOffset, long endIdExclusive) implements Item {
+	}
+
+	/**
+	 * 従来の残余ボックス木の運搬です(移行期フォールバック)。
+	 * 再開は従来どおり restyle(箱の再演)で行われます。
+	 *
+	 * @param remainder 残余ボックス木のルート
+	 */
+	public record LegacyCarry(IPageBreakableBox remainder) implements Item {
+	}
+}

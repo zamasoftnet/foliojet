@@ -170,18 +170,16 @@ public class RootBuilder extends BreakableBuilder {
 		this.resetFragmentCursor(0, 0);
 		this.restyling = true;
 
-		// 分割後のルートブロックを再開
-		final int depth = this.flowStack.size();
+		// 継続記述(§5.7 C0': 現段階は残余木の LegacyCarry 全量運搬)
+		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
+				this.flowStack.size(),
+				java.util.List.of(new net.zamasoft.foliojet.layout.fragment.Continuation.LegacyCarry(nextRootBox)));
 		this.flowStack.clear();
 		pageBox.restyle(this, 0);
-		this.beginBreakRestyle();
-		try {
-			nextRootBox.restyle(this, depth);
-		} finally {
-			this.endBreakRestyle();
-		}
+		this.resume(continuation);
 		this.pageGenerator.compactLayoutSource(watermark);
-		assert this.flowStack.size() == depth : ("break flow failed. " + this.getFlowBox().getParams().element);
+		assert this.flowStack.size() == continuation.depth()
+				: ("break flow failed. " + this.getFlowBox().getParams().element);
 
 		if (LOG.isLoggable(Level.FINE)) {
 			LOG.fine("restyled");
@@ -203,6 +201,34 @@ public class RootBuilder extends BreakableBuilder {
 		this.restyling = false;
 
 		return true;
+	}
+
+	/**
+	 * 継続記述を消費して次ページのビルダー状態と内容を再開します
+	 * (§5.7)。C0' 段階では LegacyCarry(残余木の restyle)のみ。
+	 * SourceRange/TextTail は C2/C3 で splitPageAxis 側が生成し始めた
+	 * ときにここへ消費者が加わる。
+	 */
+	private void resume(final net.zamasoft.foliojet.layout.fragment.Continuation continuation) {
+		this.beginBreakRestyle();
+		try {
+			for (final net.zamasoft.foliojet.layout.fragment.Continuation.Item item : continuation.items()) {
+				switch (item) {
+				case net.zamasoft.foliojet.layout.fragment.Continuation.LegacyCarry(
+						final net.zamasoft.foliojet.layout.box.IPageBreakableBox remainder) -> {
+					net.zamasoft.foliojet.layout.fragment.Continuation.LEGACY_CARRIES.incrementAndGet();
+					((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) remainder).restyle(this,
+							continuation.depth());
+				}
+				case net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range -> throw new IllegalStateException(
+						"C2 未実装: " + range);
+				case net.zamasoft.foliojet.layout.fragment.Continuation.TextTail tail -> throw new IllegalStateException(
+						"C3 未実装: " + tail);
+				}
+			}
+		} finally {
+			this.endBreakRestyle();
+		}
 	}
 
 	/**
