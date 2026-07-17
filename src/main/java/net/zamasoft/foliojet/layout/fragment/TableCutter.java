@@ -170,11 +170,12 @@ public final class TableCutter {
 	 * 縦横鏡像 約30行×2 の共通化)。
 	 *
 	 * <p>
-	 * 注意: 縦書き分岐の Dimension.create の引数順(width スロットに
-	 * 交差軸指定、height スロットにページ方向残量)は旧実装を忠実に
-	 * 維持している。横書き分岐および FragmentState の縦書きとは
-	 * 非対称で、潜在バグの疑いがある(PLAN サイクル18の記録参照。
-	 * 挙動保存のためリファクタでは変更しない)。
+	 * 縦書き分岐の Dimension.create の引数順は、旧実装では横書き・
+	 * FragmentState と非対称(width スロットに交差軸指定)だったが、
+	 * FragmentState と同じ規約(width=ページ方向残量)に正規化した。
+	 * 実寸は行分割(setWidth/setHeight)と列幅機構が支配するため出力は
+	 * 不変(vert-cell-specified-pagebreak の交差検証で同一を確認 —
+	 * PLAN サイクル18)。
 	 * </p>
 	 *
 	 * @param vertical   縦書きか
@@ -194,12 +195,12 @@ public final class TableCutter {
 		final double rest = Math.max(0, pageExtent - pageLimit);
 		if (vertical) {
 			nextSize = size.getWidthType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
-					? net.zamasoft.foliojet.layout.box.params.Dimension.create(size.getHeight(), rest,
-							size.getHeightType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(rest, size.getHeight(),
+							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE, size.getHeightType())
 					: size;
 			nextMinSize = minSize.getWidthType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
-					? net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getHeight(), rest,
-							minSize.getHeightType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(rest, minSize.getHeight(),
+							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE, minSize.getHeightType())
 					: minSize;
 			nextFrame = frame.cut(true, false, true, true);
 			prevFrame = frame.cut(true, true, true, false);

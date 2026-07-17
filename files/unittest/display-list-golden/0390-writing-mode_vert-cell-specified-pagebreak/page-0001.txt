@@ -1,0 +1,8 @@
+drawer z=0
+  x=80.00 y=0.00 CollapsedBordersDrawable
+  x=145.00 y=1.75 Text["いろはにほへ" asc=5.00 desc=5.00]
+  x=135.00 y=1.75 Text["とちりぬるを" asc=5.00 desc=5.00]
+  x=125.00 y=1.75 Text["わかよたれそ" asc=5.00 desc=5.00]
+  x=145.00 y=65.25 Text["つねならむう" asc=5.00 desc=5.00]
+  x=135.00 y=65.25 Text["いのおくやま" asc=5.00 desc=5.00]
+  x=125.00 y=65.25 Text["けふこえて" asc=5.00 desc=5.00]

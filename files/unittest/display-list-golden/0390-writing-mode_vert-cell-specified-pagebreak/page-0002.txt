@@ -1,0 +1,6 @@
+drawer z=0
+  x=80.00 y=0.00 CollapsedBordersDrawable
+  x=140.00 y=1.75 Text["あさきゆめみ" asc=5.00 desc=5.00]
+  x=130.00 y=1.75 Text["しゑひもせす" asc=5.00 desc=5.00]
+  x=140.00 y=65.25 Text["とりなくこゑ" asc=5.00 desc=5.00]
+  x=130.00 y=65.25 Text["すゆめさませ" asc=5.00 desc=5.00]
