@@ -84,43 +84,6 @@ public record Continuation(int depth, List<Item> items,
 	}
 
 	/**
-	 * チェーン断片の収集器です(C1b)。pageBreak の split カスケード中、
-	 * 事前検分(pre-flight)で収集可と判定された祖先チェーンの各レベルが
-	 * 自分の断片状態をここへ記録します(カスケードの再帰順=内側が先)。
-	 */
-	public static final class ChainCollector {
-		private final java.util.List<ChainFragment> fragments = new java.util.ArrayList<>();
-
-		public void add(final ChainFragment fragment) {
-			this.fragments.add(fragment);
-		}
-
-		/**
-		 * 収集された断片を外側→内側の順で返します。
-		 */
-		public java.util.List<ChainFragment> outerToInner() {
-			final java.util.List<ChainFragment> list = new java.util.ArrayList<>(this.fragments);
-			java.util.Collections.reverse(list);
-			return list;
-		}
-	}
-
-	/**
-	 * チェーン断片の収集ドラフトです(C1b。切断が貫通した開いた祖先
-	 * 1レベル分)。pageBreak が水位計算・prefix 吸収(C1c)の後に
-	 * {@link ContinuationFrame} の入れ子へ組み上げる。
-	 *
-	 * @param recipe      断片ボックスの再構成レシピ(切断時に値キャプチャ)
-	 * @param state       断片状態
-	 * @param container   このレベルの残余コンテナ(閉じた先行アイテム+
-	 *                    フロート。チェーン子は含まれない)
-	 * @param crossExtent 切断時点の交差軸寸法
-	 */
-	public record ChainFragment(FragmentRecipe recipe, FragmentState state,
-			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent) {
-	}
-
-	/**
 	 * 丸ごと移動する閉部分木のソース範囲です(C2 で記録、C1c で
 	 * prefixItems として運搬)。
 	 *

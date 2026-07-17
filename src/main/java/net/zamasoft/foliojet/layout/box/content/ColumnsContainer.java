@@ -209,6 +209,11 @@ public class ColumnsContainer implements Container {
 		return this.getLastColumn().splitPageAxis(pageLimit, mode, flags);
 	}
 
+	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(final double pageLimit,
+			final BreakMode mode, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
+		return this.getLastColumn().splitPageAxis(pageLimit, mode, flags, plan);
+	}
+
 	public Container splitFloatings(Container nextBox, double pageLimit, byte flags) {
 		return nextBox;
 	}

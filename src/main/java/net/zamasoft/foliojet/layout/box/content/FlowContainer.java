@@ -546,6 +546,19 @@ public class FlowContainer implements Container {
 	}
 
 	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
+		// legacy 契約(null=KEEP / this=MOVE / 他=残余)。plan なしでは
+		// フレームは生成されない
+		return ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.splitPageAxis(pageLimit, mode, flags,
+				null)).container();
+	}
+
+	/**
+	 * 継続化計画付きのページ方向切断です(C1d-C)。単一実装 — legacy の
+	 * 3引数版はこの Plain 写像。plan が選択したチェーンメンバー(常に
+	 * 末尾フロー)の断片は WithFrame の返り値で親へ伝播する。
+	 */
+	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, final BreakMode mode,
+			final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
 		final double frameStart = this.box.getFrame().getFramePageStart(this.box.getBlockParams().flow);
 		final double pageSize = this.box.getPageExtent(this.box.getBlockParams().flow);
@@ -561,6 +574,7 @@ public class FlowContainer implements Container {
 			FlowContainer nextBox;
 			ForceBreakMode force = (ForceBreakMode) mode;
 			int index;
+			net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame chainFrame = null;
 			nextBox = new FlowContainer();
 			if (this.box != force.box) {
 				index = this.flows.size() - 1;
@@ -572,17 +586,30 @@ public class FlowContainer implements Container {
 					lflags ^= IPageBreakableBox.FLAGS_LAST;
 				}
 				Flow flow = (Flow) this.flows.get(index);
-				IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
-				final SplitResult forceResult = flowBox.split(pageLimit - flow.pageAxis, mode, (byte) (lflags & flags));
-				switch (forceResult) {
-				case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
-						(IFlowBox) remainder, 0);
-				case SplitResult.Collected collected -> {
-					// C1b: チェーン断片は Continuation へ収集済み。残余
-					// コンテナにはボックスを加えず、切断成立として扱う
-				}
-				case SplitResult.Keep keep -> throw new AssertionError("force break failed");
-				case SplitResult.Move move -> throw new AssertionError("force break failed");
+				if (plan != null && plan.selects(flow.box)) {
+					// C1d-C: チェーンメンバーの継続化。断片はボックスではなく
+					// フレームとして返り値で親へ伝播する
+					switch (((AbstractBlockBox) flow.box).splitForContinuation(pageLimit - flow.pageAxis, mode,
+							(byte) (lflags & flags), plan)) {
+					case SplitResult.Frame(
+							final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) ->
+						chainFrame = f;
+					case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
+							"チェーンメンバーは Split を返さない");
+					case SplitResult.Keep keep -> throw new AssertionError("force break failed");
+					case SplitResult.Move move -> throw new AssertionError("force break failed");
+					}
+				} else {
+					IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
+					final SplitResult forceResult = flowBox.split(pageLimit - flow.pageAxis, mode,
+							(byte) (lflags & flags));
+					switch (forceResult) {
+					case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
+							(IFlowBox) remainder, 0);
+					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
+					case SplitResult.Keep keep -> throw new AssertionError("force break failed");
+					case SplitResult.Move move -> throw new AssertionError("force break failed");
+					}
 				}
 			} else {
 				index = this.flows == null ? 0 : this.flows.size();
@@ -593,7 +620,9 @@ public class FlowContainer implements Container {
 			}
 			assert nextBox != null;
 			assert nextBox != this;
-			return nextBox;
+			return chainFrame != null
+					? new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(nextBox, chainFrame)
+					: plain(nextBox);
 		}
 
 		final double prevPageSize = pageLimit;
@@ -601,7 +630,7 @@ public class FlowContainer implements Container {
 		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, pageSize, pageInnerSize, frameStart, flags,
 				this.flows != null && !this.flows.isEmpty());
 		if (!(pre instanceof FlowCutter.PreDecision.Proceed(final double adjustedPageLimit))) {
-			return switch (pre) {
+			return plain(switch (pre) {
 			case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
 			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
 			case FlowCutter.PreDecision.MoveAll moveAll -> this;
@@ -609,7 +638,7 @@ public class FlowContainer implements Container {
 					flags);
 			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
 			case FlowCutter.PreDecision.Proceed proceed -> throw new IllegalStateException();
-			};
+			});
 		}
 		pageLimit = adjustedPageLimit;
 
@@ -694,17 +723,16 @@ public class FlowContainer implements Container {
 			// 切断線以下のフローがない場合
 			if ((flags & IPageBreakableBox.FLAGS_LAST) == 0) {
 				if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-					return this.cutTail(prevPageSize, flags);
+					return plain(this.cutTail(prevPageSize, flags));
 				}
 				final double contentHeight = flowPageStarts[this.flows.size() - 1]
 						+ flowPageExtents[this.flows.size() - 1];
 				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
 					// 自然の高さより高いボックスは切断
-					return this.cutTail(prevPageSize, flags);
+					return plain(this.cutTail(prevPageSize, flags));
 				}
 				// 前のページに残す
-				Container next = this.splitFloatings(null, prevPageSize, flags);
-				return next;
+				return plain(this.splitFloatings(null, prevPageSize, flags));
 			}
 			lastOrphan = this.flows.size() - 1;
 		}
@@ -746,8 +774,8 @@ public class FlowContainer implements Container {
 				case SplitResult.Keep keep -> null;
 				case SplitResult.Move move -> prevFlow.box;
 				case SplitResult.Split(final IPageBreakableBox remainder) -> (IFlowBox) remainder;
-				case SplitResult.Collected collected -> throw new IllegalStateException(
-						"チェーン収集は表・テキストでは起きない");
+				case SplitResult.Frame frame -> throw new IllegalStateException(
+						"チェーン継続は表・テキストでは起きない");
 				};
 			}
 				break;
@@ -756,19 +784,34 @@ public class FlowContainer implements Container {
 				// 改ページ禁止でかつページの頭でない場合、またはページ進行方向が違う場合は内部で改ページしない
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
 						&& vertical == cParams.flow.isVertical()) {
+					if (plan != null && plan.selects(prevFlow.box)) {
+						// C1d-C: チェーンメンバーの継続化。断片はボックスでは
+						// なくフレームとして返り値で親へ伝播する
+						// (チェーン子は常に末尾のため後続フローの移送はない)
+						if (i != this.flows.size() - 1) {
+							throw new IllegalStateException("continuation frame child is not the open-tail flow");
+						}
+						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
+								plan)) {
+						case SplitResult.Keep keep -> nextFlowBox = null;
+						case SplitResult.Move move -> nextFlowBox = prevFlow.box;
+						case SplitResult.Frame(
+								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
+							final FlowContainer collectedNext = new FlowContainer();
+							return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
+									this.splitFloatings(collectedNext, prevPageSize, flags), f);
+						}
+						case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
+								"チェーンメンバーは Split を返さない");
+						}
+						break;
+					}
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 					switch (prevFlowBox.split(splitLine, mode, xflags)) {
 					case SplitResult.Keep keep -> nextFlowBox = null;
 					case SplitResult.Move move -> nextFlowBox = prevFlow.box;
 					case SplitResult.Split(final IPageBreakableBox remainder) -> nextFlowBox = (IFlowBox) remainder;
-					case SplitResult.Collected collected -> {
-						// C1b: チェーン断片は Continuation へ収集済み。残余
-						// コンテナにはボックスを加えず、切断成立として確定する
-						// (チェーン子は常に末尾のため後続フローの移送はない)
-						assert i == this.flows.size() - 1;
-						final FlowContainer collectedNext = new FlowContainer();
-						return this.splitFloatings(collectedNext, prevPageSize, flags);
-					}
+					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
 					}
 					break;
 				}
@@ -801,7 +844,7 @@ public class FlowContainer implements Container {
 			if (nextFlowBox == null) {
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {
 					// ページの末尾で残す場合は、全て残す
-					return null;
+					return plain(null);
 				}
 				if (i >= lastOrphan) {
 					// 改ページ禁止により牽引されていない
@@ -820,7 +863,7 @@ public class FlowContainer implements Container {
 					pageLimit = savePageLimit;
 					if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
 						// 強制切断
-						return this.cutHead(prevPageSize, flags);
+						return plain(this.cutHead(prevPageSize, flags));
 					}
 					if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 						// ページの先頭
@@ -832,13 +875,13 @@ public class FlowContainer implements Container {
 						}
 						if ((flags & IPageBreakableBox.FLAGS_LAST) != 0) {
 							// 末尾なら切断
-							return this.cutTail(prevPageSize, flags);
+							return plain(this.cutTail(prevPageSize, flags));
 						}
 						// 前ページに残す
-						return this.splitFloatings(null, prevPageSize, flags);
+						return plain(this.splitFloatings(null, prevPageSize, flags));
 					}
 					// 全部移動
-					return this;
+					return plain(this);
 				}
 				// System.err.println("ACB FC: ignoreAvoid=" + ignoreAvoid +
 				// "/i="
@@ -883,20 +926,24 @@ public class FlowContainer implements Container {
 			assert !((flags & IPageBreakableBox.FLAGS_LAST) != 0 && ((AutoBreakMode) mode).box != this.box);
 			final double lastFlowBottom = flowPageStarts[this.flows.size() - 1]
 					+ flowPageExtents[this.flows.size() - 1];
-			return switch (FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize)) {
+			return plain(switch (FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize)) {
 			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
 			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
 			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this.splitFloatings(this, atLimit,
 					flags);
 			default -> throw new IllegalStateException();
-			};
+			});
 		}
 
 		// System.err.println("ACB G: remove=" + remove + "/leave="
 		// + (nextBox == null) + "/floatings=" + (this.floatings != null)
 		// + "/flows.size=" + (this.flows == null ? 0 : this.flows.size())
 		// + "/" + this.getParams().augmentation);
-		return this.splitFloatings(nextBox, prevPageSize, flags);
+		return plain(this.splitFloatings(nextBox, prevPageSize, flags));
+	}
+
+	private static net.zamasoft.foliojet.layout.fragment.ContainerCut plain(final Container container) {
+		return new net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain(container);
 	}
 
 	public Container splitFloatings(Container nextBox, double pageLimit, byte flags) {

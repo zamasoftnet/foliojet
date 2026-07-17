@@ -157,8 +157,8 @@ public class Floatings {
 						case SplitResult.Keep keep -> null;
 						case SplitResult.Move move -> floating.box;
 						case SplitResult.Split(final IPageBreakableBox remainder) -> (IFloatBox) remainder;
-						case SplitResult.Collected collected -> throw new IllegalStateException(
-								"チェーン収集はフロートでは起きない");
+						case SplitResult.Frame frame -> throw new IllegalStateException(
+								"チェーン継続はフロートでは起きない");
 						};
 						break;
 					}

@@ -77,6 +77,14 @@ public interface Container {
 	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes);
 
 	/**
+	 * 継続化計画付きのページ方向切断です(C1d-C)。plan が選択した
+	 * チェーンメンバーの断片は ContinuationFrame として返り値で伝播する。
+	 * plan が null なら従来の切断(Plain のみ)。
+	 */
+	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, BreakMode mode,
+			byte flags, net.zamasoft.foliojet.layout.fragment.BreakPlan plan);
+
+	/**
 	 * 通常フローの子ボックスを順に渡します(M6b診断用)。
 	 */
 	public void eachFlowBox(java.util.function.Consumer<IFlowBox> consumer);

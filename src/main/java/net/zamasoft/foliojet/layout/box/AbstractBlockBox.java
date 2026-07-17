@@ -213,6 +213,55 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
+	 * チェーンメンバーの継続化切断です(C1d-C)。plan がこのボックスを
+	 * 選択している破断で、切断が内部を貫通した場合、断片ボックスを
+	 * 構築せず ContinuationFrame を {@link SplitResult.Frame} で返します
+	 * (親が返り値でさらに外へ伝播する)。KEEP/MOVE はそのまま。
+	 * Split(box) は返らない。
+	 */
+	public final net.zamasoft.foliojet.layout.fragment.SplitResult splitForContinuation(double pageLimit,
+			final net.zamasoft.foliojet.layout.box.content.BreakMode mode, final byte flags,
+			final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
+		assert plan.selects(this);
+		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
+		byte xflags = flags;
+		if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && this.getColumnCount() > 1) {
+			xflags ^= IPageBreakableBox.FLAGS_COLUMN;
+		}
+		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, mode,
+				xflags, plan.next());
+		final Container nextContainer;
+		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
+		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(final Container c,
+				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f)) {
+			nextContainer = c;
+			childFrame = f;
+		} else {
+			nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) cut).container();
+			childFrame = null;
+		}
+		if (nextContainer == null) {
+			return net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP;
+		}
+		if (nextContainer == this.container) {
+			assert childFrame == null;
+			return net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
+		}
+		// 貫通 = 継続化。レシピは splitPageState(アンカー無効化)より前に
+		// 取得する(C1d-B)。prefixItems は pageBreak が水位計算の後に吸収
+		final boolean vertical = this.getBlockParams().flow.isVertical();
+		final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
+		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit, flags);
+		final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = childFrame != null
+				? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(childFrame)
+				: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(plan.legacyDepth());
+		return new net.zamasoft.foliojet.layout.fragment.SplitResult.Frame(
+				new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(recipe, state, nextContainer,
+						crossExtent, java.util.List.of(), tail));
+	}
+
+	/**
 	 * ページ方向切断の前断片側を確定し、継続断片の状態を返します(C1a)。
 	 * 従来 splitPage(断片ボックス構築込み)が一体で行っていた処理の
 	 * 前側半分: 自箱をページ使用量まで切りつめ、終端側フレームを落とす。
