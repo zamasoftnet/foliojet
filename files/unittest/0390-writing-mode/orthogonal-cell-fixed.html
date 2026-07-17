@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>直交書字方向セルの行方向寸法</title>
+<style>
+table { border-collapse: separate; margin-bottom: 10px; }
+table.fixed { table-layout: fixed; width: 240px; }
+td { border: 1px solid #999; padding: 0; }
+td.v { writing-mode: vertical-rl; }
+</style>
+</head>
+<body>
+<!-- 横書き表内の縦書きセル。行方向(縦)の寸法は内容の実測
+     (maxContent+frame+spacing = TwoPass/auto の規約)であるべき。
+     旧 OnePass(fixed)は fontSize*10 の仮寸法だった。 -->
+<table class="fixed">
+<tr><td>横書き</td><td class="v">縦書きのセル内容がここにある</td></tr>
+</table>
+<table>
+<tr><td>横書き</td><td class="v">縦書きのセル内容がここにある</td></tr>
+</table>
+</body>
+</html>

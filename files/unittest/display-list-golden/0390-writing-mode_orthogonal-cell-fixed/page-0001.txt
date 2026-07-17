@@ -1,0 +1,9 @@
+drawer z=0
+  x=6.75 y=6.75 BackgroundBorder[w=89.25 h=172.50]
+  x=96.00 y=6.75 BackgroundBorder[w=89.25 h=172.50]
+  x=8.25 y=85.80 Text["横書き" asc=10.80 desc=3.60]
+  x=133.42 y=8.25 Text["縦書きのセル内容がここにある" asc=7.20 desc=7.20]
+  x=6.75 y=188.25 BackgroundBorder[w=39.00 h=172.50]
+  x=45.75 y=188.25 BackgroundBorder[w=17.40 h=172.50]
+  x=8.25 y=267.30 Text["横書き" asc=10.80 desc=3.60]
+  x=47.25 y=189.75 Text["縦書きのセル内容がここにある" asc=7.20 desc=7.20]

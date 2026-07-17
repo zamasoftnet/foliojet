@@ -545,15 +545,20 @@ public class OnePassTableBuilder implements TableBuilder {
 				for (int j = 1; j < span; ++j) {
 					size += this.columnSizes[++i];
 				}
+				// 直交書字方向のセルの行方向寸法は内容の実測から
+				// (TwoPass と同じ規約。旧実装は fontSize*10 の仮寸法 —
+				// 0390-writing-mode/orthogonal-cell-fixed.html で是正)
 				if (this.vertical) {
 					cellBox.setHeight(size);
 					if (!cellBox.getBlockParams().flow.isVertical()) {
-						cellBox.setWidth(cellBox.getBlockParams().fontStyle.getSize() * 10);
+						cellBox.setWidth(cell.getBuilder().getIntrinsicSizes().maxContent()
+								+ cellBox.getFrame().getFrameWidth() + tableParams.borderSpacingH);
 					}
 				} else {
 					cellBox.setWidth(size);
 					if (cellBox.getBlockParams().flow.isVertical()) {
-						cellBox.setHeight(cellBox.getBlockParams().fontStyle.getSize() * 10);
+						cellBox.setHeight(cell.getBuilder().getIntrinsicSizes().maxContent()
+								+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
 					}
 				}
 				final BlockBuilder cellBindBuilder = new BlockBuilder(this.builder, cellBox);
