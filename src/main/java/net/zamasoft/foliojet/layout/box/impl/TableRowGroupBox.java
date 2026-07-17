@@ -226,10 +226,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 		// 空の場合
 		if (this.rows == null || this.rows.isEmpty()) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return SplitResult.KEEP;
-			}
-			return SplitResult.MOVE;
+			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
 		// はみ出した行を移動
@@ -249,32 +246,21 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				continue;
 			}
 			byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
-			if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				// ページの先頭の場合
-				if (i > 0) {
-					// ２つめ以降の行
-					xflags ^= IPageBreakableBox.FLAGS_FIRST;
-					boolean first = false;
-					// 連結したセルが先頭にあるかチェック
-					TableRowBox topRow = (TableRowBox) this.rows.get(0);
-					for (int j = 0; j < prevRow.getCellCount(); ++j) {
-						Cell prevCell = prevRow.getCell(j);
-						if (j >= topRow.getCellCount()) {
-							continue;
-						}
-						Cell topCell = topRow.getCell(j);
-						if (prevCell.getCellBox().getParams() == topCell.getCellBox().getParams()) {
-							first = true;
+			{
+				// ページ先頭での行フラグ(判定は TableCutter に純化)。
+				// 連結したセルが先頭行にあるかチェック
+				boolean linkedToTop = false;
+				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0 && i > 0) {
+					final TableRowBox topRow = (TableRowBox) this.rows.get(0);
+					for (int j = 0; j < prevRow.getCellCount() && j < topRow.getCellCount(); ++j) {
+						if (prevRow.getCell(j).getCellBox().getParams() == topRow.getCell(j).getCellBox()
+								.getParams()) {
+							linkedToTop = true;
 							break;
 						}
 					}
-					if (first) {
-						xflags |= IPageBreakableBox.FLAGS_FIRST_ROW;
-					}
-				} else {
-					// 最初の行
-					xflags |= IPageBreakableBox.FLAGS_FIRST_ROW;
 				}
+				xflags = net.zamasoft.foliojet.layout.fragment.TableCutter.firstRowFlags(xflags, i, linkedToTop);
 			}
 			final SplitResult rowResult = prevRow.split(pageLimit, mode, xflags);
 			// System.err.println("TRG C: xflags=" + xflags + "/row=" + i
@@ -300,45 +286,23 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				}
 				TableRowBox beforeRow = (TableRowBox) this.rows.get(i - 1);
 				if (!ignoreBreakAvoid) {
-					// 改ページ禁止処理
-					// System.err.println("TRG :" + i);
-
-					// 行間の改ページ禁止
-					boolean breakAvoid = beforeRow.getTableRowPos().pageBreakAfter == PageBreakMode.AVOID
-							|| prevRow.getTableRowPos().pageBreakBefore == PageBreakMode.AVOID;
-					// ページ先頭の1-2行目で連結されたセルがある場合は適用しない
-					if (!breakAvoid && (i != 1 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0)) {
-						// 連結されたセルによる改ページ禁止
-						for (int j = 0; j < beforeRow.getCellCount(); ++j) {
-							final Cell cell = beforeRow.getCell(j);
-							final BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (cellParams.pageBreakInside == PageBreakMode.AUTO && cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
-								continue;
-							}
-							if (cell.getNextExtendedCell() != null) {
-								breakAvoid = true;
-								break;
-							}
-						}
-					} else if (i == 1 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-						for (int j = 0; j < beforeRow.getCellCount(); ++j) {
-							final Cell cell = beforeRow.getCell(j);
-							if (cell.getNextExtendedCell() == null) {
-								continue;
-							}
-							final BlockParams cellParams = cell.getCellBox().getBlockParams();
-							if (cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
-								breakAvoid = false;
-								continue;
-							}
-							// 書字方向が違えば必ず改ページしない
-							breakAvoid = true;
-							break;
-						}
+					// 行間の改ページ禁止(判定は TableCutter に純化)
+					final boolean tableVertical = this.tableParams.flow.isVertical();
+					final boolean[] cuttable = new boolean[beforeRow.getCellCount()];
+					final boolean[] extended = new boolean[beforeRow.getCellCount()];
+					final boolean[] flowMatch = new boolean[beforeRow.getCellCount()];
+					for (int j = 0; j < beforeRow.getCellCount(); ++j) {
+						final Cell cell = beforeRow.getCell(j);
+						final BlockParams cellParams = cell.getCellBox().getBlockParams();
+						flowMatch[j] = cellParams.flow.isVertical() == tableVertical;
+						cuttable[j] = cellParams.pageBreakInside == PageBreakMode.AUTO && flowMatch[j];
+						extended[j] = cell.getNextExtendedCell() != null;
 					}
-					if (breakAvoid) {
+					if (net.zamasoft.foliojet.layout.fragment.TableCutter.rowBreakAvoid(i,
+							(flags & IPageBreakableBox.FLAGS_FIRST) != 0, beforeRow.getTableRowPos().pageBreakAfter,
+							prevRow.getTableRowPos().pageBreakBefore, cuttable, extended, flowMatch)) {
 						// 行の改ページ禁止
-						if (!ignoreBreakAvoid && (xflags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0) {
+						if ((xflags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0) {
 							// ページ先頭行の場合は改ページ禁止を無視してやりなおす
 							ignoreBreakAvoid = true;
 							pageLimit = savePageLimit;
@@ -352,19 +316,17 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					}
 				}
 
-				// 書字方向が違えば必ず改ページしない
-				boolean breakAvoid = false;
-				for (int j = 0; j < prevRow.getCellCount(); ++j) {
-					final Cell cell = prevRow.getCell(j);
-					final BlockParams cellParams = cell.getCellBox().getBlockParams();
-					if (cellParams.flow.isVertical() == this.tableParams.flow.isVertical()) {
-						continue;
+				// 書字方向が違えば必ず改ページしない(判定は TableCutter に純化)
+				{
+					final boolean tableVertical = this.tableParams.flow.isVertical();
+					final boolean[] flowMatch = new boolean[prevRow.getCellCount()];
+					for (int j = 0; j < prevRow.getCellCount(); ++j) {
+						flowMatch[j] = prevRow.getCell(j).getCellBox().getBlockParams().flow
+								.isVertical() == tableVertical;
 					}
-					breakAvoid = true;
-					break;
-				}
-				if (breakAvoid) {
-					return SplitResult.KEEP;
+					if (net.zamasoft.foliojet.layout.fragment.TableCutter.mixedFlowKeep(flowMatch)) {
+						return SplitResult.KEEP;
+					}
 				}
 
 				// 持ち越す際に縦に連結されたセルを分割する
@@ -384,10 +346,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		// System.err.println("E:" + this.getHeight()+"/"+remove + "/" +
 		// this.rows.size());
 		if (nextRowGroup == null) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return SplitResult.KEEP;
-			}
-			return SplitResult.MOVE;
+			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
 		int remove = 0;

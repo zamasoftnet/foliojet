@@ -553,56 +553,26 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 
 		if (this.bodyGroups == null || this.bodyGroups.isEmpty()) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return SplitResult.KEEP;
-			}
-			// 全部移動
-			return SplitResult.MOVE;
+			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
+		// 上下の改ページしない部分(ヘッダ・フッタ等)の高さを差し引く
+		// (判定は TableCutter に純化)
+		final double headerSize = this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1;
+		final double footerSize = this.footerGroupBox != null ? this.footerGroupBox.getPageSize() : -1;
 		if (vertical) {
-			// 上下の改ページしない部分の高さを差し引く
-			double over = this.getWidth() - pageLimit;
-			pageLimit -= this.frame.getFrameRight();
-			if (this.headerGroupBox != null) {
-				pageLimit -= this.headerGroupBox.getPageSize();
-			}
-			if (this.footerGroupBox != null) {
-				pageLimit -= this.footerGroupBox.getPageSize();
-				pageLimit -= this.frame.getFrameLeft();
-			} else {
-				// 境界が下マージンに差し掛かった場合は切る
-				if (over > 0 && LayoutUtils.compare(over, this.frame.margin.left) < 0) {
-					pageLimit -= this.frame.margin.left;
-				}
-			}
+			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveNonBreakable(pageLimit,
+					this.getWidth(), this.frame.getFrameRight(), this.frame.getFrameLeft(), this.frame.margin.left,
+					headerSize, footerSize);
 		} else {
-			// 上下の改ページしない部分の高さを差し引く
-			double over = this.getHeight() - pageLimit;
-			pageLimit -= this.frame.getFrameTop();
-			if (this.headerGroupBox != null) {
-				pageLimit -= this.headerGroupBox.getPageSize();
-			}
-			if (this.footerGroupBox != null) {
-				pageLimit -= this.footerGroupBox.getPageSize();
-				pageLimit -= this.frame.getFrameBottom();
-			} else {
-				// 境界が下マージンに差し掛かった場合は切る
-				if (over > 0 && LayoutUtils.compare(over, this.frame.margin.bottom) < 0) {
-					pageLimit -= this.frame.margin.bottom;
-				}
-			}
+			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveNonBreakable(pageLimit,
+					this.getHeight(), this.frame.getFrameTop(), this.frame.getFrameBottom(), this.frame.margin.bottom,
+					headerSize, footerSize);
 		}
 
-		// System.err.println("TABLE B:" +
-		// this.bodyGroups.size()+"/"+pageLimit);
 		// テーブルのヘッダとフッタがおさまらない
 		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return SplitResult.KEEP;
-			}
-			// 全部移動
-			return SplitResult.MOVE;
+			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
 		TableBox nextTable = null;
@@ -645,18 +615,18 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 					return SplitResult.MOVE;
 				}
 				if (!ignoreBreakAvoid) {
-					TableRowGroupBox beforeGroup = (TableRowGroupBox) this.bodyGroups.get(i - 1);
-					boolean breakAvoid = beforeGroup.getTableRowGroupPos().pageBreakAfter == PageBreakMode.AVOID
-							|| prevRowGroup.getTableRowGroupPos().pageBreakBefore == PageBreakMode.AVOID;
-					if (!breakAvoid && beforeGroup.getTableRowCount() > 0) {
-						breakAvoid = beforeGroup.getTableRow(beforeGroup.getTableRowCount() - 1)
-								.getTableRowPos().pageBreakAfter == PageBreakMode.AVOID;
-					}
-					if (!breakAvoid && prevRowGroup.getTableRowCount() > 0) {
-						breakAvoid = prevRowGroup.getTableRow(0)
-								.getTableRowPos().pageBreakBefore == PageBreakMode.AVOID;
-					}
-					if (breakAvoid) {
+					final TableRowGroupBox beforeGroup = (TableRowGroupBox) this.bodyGroups.get(i - 1);
+					// 判定は TableCutter に純化
+					if (net.zamasoft.foliojet.layout.fragment.TableCutter.groupBreakAvoid(
+							beforeGroup.getTableRowGroupPos().pageBreakAfter,
+							prevRowGroup.getTableRowGroupPos().pageBreakBefore,
+							beforeGroup.getTableRowCount() > 0
+									? beforeGroup.getTableRow(beforeGroup.getTableRowCount() - 1)
+											.getTableRowPos().pageBreakAfter
+									: PageBreakMode.AUTO,
+							prevRowGroup.getTableRowCount() > 0
+									? prevRowGroup.getTableRow(0).getTableRowPos().pageBreakBefore
+									: PageBreakMode.AUTO)) {
 						// 行グループの改ページ禁止
 						// 一つ戻って前の行グループを末尾で切る
 						pageLimit = beforeGroup.getPageSize() - LayoutUtils.THRESHOLD * 2;
@@ -680,10 +650,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 
 		if (nextTable == null) {
-			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-				return SplitResult.KEEP;
-			}
-			return SplitResult.MOVE;
+			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
 		int remove = 0;
