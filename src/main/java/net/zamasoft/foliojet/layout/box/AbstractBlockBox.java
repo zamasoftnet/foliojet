@@ -205,10 +205,11 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	public abstract net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe();
 
 	protected final AbstractContainerBox splitPage(final Container container, final double pageLimit,
-			final byte flags) {
+			final boolean columnSpanning) {
 		final boolean vertical = this.params.flow.isVertical();
 		final double crossExtent = vertical ? this.height : this.width;
-		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit, flags);
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit,
+				columnSpanning);
 		return this.continueFragment(state, container, crossExtent);
 	}
 
@@ -224,12 +225,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		assert plan.selects(this);
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
-		byte xflags = flags;
-		if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && this.getColumnCount() > 1) {
-			xflags ^= IPageBreakableBox.FLAGS_COLUMN;
-		}
-		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, mode,
-				xflags, plan.next());
+		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
+				.absorbColumn(mode, this.getColumnCount());
+		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, xmode,
+				flags, plan.next());
 		final Container nextContainer;
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
 		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(final Container c,
@@ -252,7 +251,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final boolean vertical = this.getBlockParams().flow.isVertical();
 		final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
-		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit, flags);
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit,
+				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
 		final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = childFrame != null
 				? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(childFrame)
 				: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(plan.legacyDepth());
@@ -269,7 +269,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	 * 行う。
 	 */
 	public final net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
-			final byte flags) {
+			final boolean columnSpanning) {
 		// 分割されたボックスの断片は「継続物」(フレーム切断・内容消費が進行)
 		// であり、ソースから新品を再生してはならない。SourceAnchor は
 		// ボックス個体に属し(P0)、レシピ構築の断片は最初からアンカーを
@@ -278,7 +278,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// 危険は「断片にアンカーが継承されない」ことで構造的に防がれる)
 		final boolean vertical = this.params.flow.isVertical();
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
-				.of(this.params.flow, (flags & IPageBreakableBox.FLAGS_COLUMN) != 0, this.frame, this.size,
+				.of(this.params.flow, columnSpanning, this.frame, this.size,
 						this.minSize, vertical ? this.width : this.height, pageLimit,
 						this.container.getContentSize(), this.isSpecifiedPageSize());
 		if (vertical) {

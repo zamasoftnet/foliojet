@@ -386,7 +386,7 @@ public class TableCellBox extends AbstractContainerBox {
 		}
 	}
 
-	protected final AbstractContainerBox splitPage(Container container, double pageLimit, byte flags) {
+	protected final AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning) {
 		final boolean vertical = this.params.flow.isVertical();
 		// 断片状態の計算は TableCutter に純化(C4-T2)
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter

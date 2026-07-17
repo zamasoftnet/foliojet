@@ -330,22 +330,20 @@ public class RootBuilder extends BreakableBuilder {
 				final Flow flow = (Flow) this.flowStack.get(i);
 				if (flow.box.getColumnCount() > 1) {
 					lastFrame = this.lastFrame(root, this.flowStack.size() - i);
-					flags |= IPageBreakableBox.FLAGS_COLUMN;
+					mode = net.zamasoft.foliojet.layout.box.content.BreakMode.column(mode);
 					break;
 				}
 			}
 
 			prevRootBox = (FlowBlockBox) root.box;
 			final double pageAxis = this.getPageLimit() - root.pageAxis - lastFrame;
-			// 旧 AbstractContainerBox.split と同じ前処理(内辺基準・段組フラグ)
+			// 旧 AbstractContainerBox.split と同じ前処理(内辺基準・改段吸収)
 			final double innerLimit = pageAxis
 					- prevRootBox.getFrame().getFramePageStart(prevRootBox.getBlockParams().flow);
-			byte xflags = flags;
-			if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && prevRootBox.getColumnCount() > 1) {
-				xflags ^= IPageBreakableBox.FLAGS_COLUMN;
-			}
+			final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
+					.absorbColumn(mode, prevRootBox.getColumnCount());
 			final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = prevRootBox.getContainer()
-					.splitPageAxis(innerLimit, mode, xflags, plan);
+					.splitPageAxis(innerLimit, xmode, flags, plan);
 			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
 					final net.zamasoft.foliojet.layout.box.content.Container c,
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f)) {
@@ -363,7 +361,8 @@ public class RootBuilder extends BreakableBuilder {
 			rootCrossExtent = vertical ? prevRootBox.getInnerHeight() : prevRootBox.getInnerWidth();
 			// レシピは splitPageState(アンカー無効化)より前に取得(C1d-B)
 			rootRecipe = prevRootBox.fragmentRecipe();
-			rootState = prevRootBox.splitPageState(innerLimit, flags);
+			rootState = prevRootBox.splitPageState(innerLimit,
+					mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
 		}
 
 		// C1d-C: 貫通フレーム(外→内)。各レベルのコンテナはルート

@@ -39,6 +39,50 @@ public abstract class BreakMode {
 	public static AutoBreakMode DEFAULT_BREAK_MODE = new AutoBreakMode();
 
 	/**
+	 * 段組の改段(自動)です(旧 FLAGS_COLUMN の型付け)。改段は段組
+	 * ボックスに到達したところで吸収され、内側では通常の自動改ページと
+	 * して振る舞う。
+	 */
+	public static final class ColumnBreakMode extends AutoBreakMode {
+		private ColumnBreakMode(IBox box) {
+			super(box);
+		}
+
+		private ColumnBreakMode() {
+			super();
+		}
+
+		public String toString() {
+			return "COLUMN_" + super.toString();
+		}
+	}
+
+	/**
+	 * 自動改ページを改段として印付けます(強制改ページは breakType が
+	 * 段を表すためそのまま)。
+	 */
+	public static BreakMode column(final BreakMode mode) {
+		if (mode instanceof ColumnBreakMode) {
+			return mode;
+		}
+		if (mode instanceof AutoBreakMode auto) {
+			return auto.box == null ? new ColumnBreakMode() : new ColumnBreakMode(auto.box);
+		}
+		return mode;
+	}
+
+	/**
+	 * 段組ボックス自身に到達した改段を吸収し、内側の通常改ページへ
+	 * 戻します。
+	 */
+	public static BreakMode absorbColumn(final BreakMode mode, final int columnCount) {
+		if (columnCount > 1 && mode instanceof ColumnBreakMode column) {
+			return column.box == null ? DEFAULT_BREAK_MODE : new AutoBreakMode(column.box);
+		}
+		return mode;
+	}
+
+	/**
 	 * 特定の場所での強制改ページです。
 	 * 
 	 * @author MIYABE Tatsuhiko

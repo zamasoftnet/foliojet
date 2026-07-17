@@ -295,7 +295,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return newClip.createIntersection((Rectangle2D) clip);
 	}
 
-	protected abstract AbstractContainerBox splitPage(Container container, double pageLimit, byte flags);
+	protected abstract AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning);
 
 	public Container newColumn(double pageLimit, final BreakMode mode, final byte flags) {
 		// このpageLimitは内辺から始まる
@@ -328,19 +328,17 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
-		byte xflags = flags;
-		if ((flags & IPageBreakableBox.FLAGS_COLUMN) != 0 && this.getColumnCount() > 1) {
-			xflags ^= IPageBreakableBox.FLAGS_COLUMN;
-		}
+		final BreakMode xmode = BreakMode.absorbColumn(mode, this.getColumnCount());
 		// コンテナ側の三義的返値の解釈はここに集約(コンテナ内部の型付けは M4-A3b)
-		final Container nextContainer = this.container.splitPageAxis(pageLimit, mode, xflags);
+		final Container nextContainer = this.container.splitPageAxis(pageLimit, xmode, flags);
 		if (nextContainer == null) {
 			return SplitResult.KEEP;
 		}
 		if (nextContainer == this.container) {
 			return SplitResult.MOVE;
 		}
-		return new SplitResult.Split(this.splitPage(nextContainer, pageLimit, flags));
+		return new SplitResult.Split(
+				this.splitPage(nextContainer, pageLimit, mode instanceof BreakMode.ColumnBreakMode));
 	}
 
 	public final void getText(StringBuilder textBuff) {

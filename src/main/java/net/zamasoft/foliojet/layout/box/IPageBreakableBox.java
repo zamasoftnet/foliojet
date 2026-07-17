@@ -42,7 +42,6 @@ public interface IPageBreakableBox extends IBox {
 	/**
 	 * マルチカラムでの改ページです。
 	 */
-	public static final byte FLAGS_COLUMN = 16;
 
 	/**
 	 * ボックスをページ方向に分割します(M4-A3: SplitResult ネイティブ)。
@@ -57,7 +56,7 @@ public interface IPageBreakableBox extends IBox {
 	 *                  送ってよい。テーブルの行・行グループでは禁止)。
 	 *                  FLAGS_SPLIT=必ず内部で切断する。
 	 *                  FLAGS_FIRST_ROW=FLAGS_FIRST のテーブル行変種(ページ先頭行)。
-	 *                  FLAGS_COLUMN=改ページではなく改段(マルチカラム)である。
+	 *                  改段(マルチカラム)は BreakMode.ColumnBreakMode で表す。
 	 * @return 切断結果。KEEP=分割せず前のページに残す。MOVE=全体を次のページに
 	 *         移動する。Split(remainder)=内部で切断した(このボックスは前ページ分
 	 *         のみを保持するよう変異済みで、remainder を次のページに送る)。
