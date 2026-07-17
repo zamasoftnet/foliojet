@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/UTF-8">
+<title>複数行グループの境界線</title>
+<style>
+table { border-collapse: collapse; margin-bottom: 10px; }
+table.fixed { table-layout: fixed; width: 200px; }
+tr.r1 { border-top: 2px solid #0a0; }
+tr.r2 { border-top: 4px solid #a0a; }
+td { border: 1px solid #999; padding: 0; }
+</style>
+</head>
+<body>
+<!-- 2つ目の tbody の先頭線に行・セルの top 境界が適用されるか
+     (quirk (9) 疑い)。fixed(OnePass)と auto(TwoPass)の
+     CollapsedBorders describe が一致すべき。 -->
+<table class="fixed">
+<tbody>
+<tr class="r1"><td>a</td><td>b</td></tr>
+</tbody>
+<tbody>
+<tr class="r2"><td>c</td><td>d</td></tr>
+</tbody>
+</table>
+<table>
+<tbody>
+<tr class="r1"><td>a</td><td>b</td></tr>
+</tbody>
+<tbody>
+<tr class="r2"><td>c</td><td>d</td></tr>
+</tbody>
+</table>
+</body>
+</html>
