@@ -33,6 +33,16 @@ public class BarcodeInlineObjectTest extends TestCase {
 		assertEquals("FolioJet", image.getAltString());
 	}
 
+	public void testJapanPostIgnoresCharactersOutsideDigitsLettersHyphen() throws Exception {
+		// 4900_barcode.mdに明記されている「message内に含まれる数字、アルファベット、
+		// ハイフン以外の文字は無視されます」という挙動をJapanPostで確認する。
+		// スペースを含むメッセージがOkapiInputExceptionにならず正常に画像化できること。
+		Image image = parse("<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"1008798 1-3-2\">"
+				+ "<japanpost><module-width>0.6mm</module-width></japanpost></barcode>");
+		assertTrue(image.getWidth() > 0);
+		assertTrue(image.getHeight() > 0);
+	}
+
 	public void testFactoryMatchesBarcodeNamespace() {
 		BarcodeInlineObjectFactory factory = new BarcodeInlineObjectFactory();
 		assertTrue(factory.match(new CSSElement("http://barcode4j.krysalis.org/ns", "barcode", null, null, null,

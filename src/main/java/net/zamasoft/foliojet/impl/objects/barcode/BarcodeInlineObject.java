@@ -40,7 +40,16 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 	public Image getImage(UserAgent ua) throws IOException {
 		try {
 			Symbol symbol = this.createSymbol();
-			symbol.setContent(this.message == null ? "" : this.message);
+			String content = this.message == null ? "" : this.message;
+			if (symbol instanceof JapanPost) {
+				// マニュアル(4900_barcode)に「message内に含まれる数字、アルファベット、
+				// ハイフン以外の文字は無視されます」と明記されている。旧Barcode4Jは
+				// これらを無視していたが、OkapiBarcodeのJapanPostはスペース等を
+				// OkapiInputExceptionとして拒否するため、ここで明示的に除去して
+				// ドキュメント記載の挙動を維持する(2026-07-19)。
+				content = content.replaceAll("[^0-9A-Za-z-]", "");
+			}
+			symbol.setContent(content);
 			return new BarcodeImage(ua, symbol, this.message);
 		} catch (Exception e) {
 			throw new IOException(e);

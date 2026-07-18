@@ -121,6 +121,7 @@ dependencies {
     api "uk.org.okapibarcode:okapibarcode:${dependencyVersions.okapiBarcode}"
     api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
     api "org.commonmark:commonmark:${dependencyVersions.commonmark}"
+    api "org.commonmark:commonmark-ext-gfm-tables:${dependencyVersions.commonmark}"
     testImplementation 'junit:junit:4.13.2'
     // veraPDF (greenfield parser) for automated PDF/UA conformance validation
     testImplementation 'org.verapdf:validation-model:1.26.5'

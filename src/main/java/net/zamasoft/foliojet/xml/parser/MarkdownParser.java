@@ -60,13 +60,24 @@ public class MarkdownParser implements Parser {
 	 * @return `&lt;html&gt;...&lt;/html&gt;` 形式のHTML文書文字列(UTF-8を前提とした
 	 *         `meta charset` を含む)
 	 */
+	private static final java.util.List<org.commonmark.Extension> EXTENSIONS = java.util.List
+			.of(org.commonmark.ext.gfm.tables.TablesExtension.create());
+
 	public static String toHtml(String markdown) {
-		final org.commonmark.parser.Parser parser = org.commonmark.parser.Parser.builder().build();
+		final org.commonmark.parser.Parser parser = org.commonmark.parser.Parser.builder().extensions(EXTENSIONS)
+				.build();
 		final Node document = parser.parse(markdown);
-		final HtmlRenderer renderer = HtmlRenderer.builder().build();
+		final HtmlRenderer renderer = HtmlRenderer.builder().extensions(EXTENSIONS).build();
 		final String body = renderer.render(document);
 
-		return "<!DOCTYPE html><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/></head><body>"
+		// DOCTYPEはbareな<!DOCTYPE html>ではなくXHTML1.0 StrictのSYSTEM識別子付きにする。
+		// これにより、XSLT結合(join.xslt/Saxonのdocument())時にXML宣言済み外部DTDが
+		// 存在する文書として扱われ、MathML用の名前付き実体参照(&PlusMinus;等、HTML5
+		// パーサーの内蔵テーブルには含まれるがXHTML1.0 DTD自体には無い)を含む文書でも
+		// 「外部サブセット未読のため未定義実体はエラーにしない」というXML 1.0仕様の
+		// 緩和規定(WFC: Entity Declared)が働き、SAXParseExceptionにならない
+		// (2026-07-19、4910_mathml.mdの&PlusMinus;/&InvisibleTimes;で実際に発生した)。
+		return "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/></head><body>"
 				+ body + "</body></html>";
 	}
 
