@@ -698,6 +698,10 @@ public class HTMLStyle {
 			}
 		}
 			break;
+		// HTML5セクショニング/フローコンテンツ要素・メタデータ非表示要素の
+		// display既定値はUAデフォルトスタイルシート(html-ua.css)に移行した
+		// (2026-07-18)。BDIのみ、専用の自動方向判定(dir="auto")は先読みが
+		// 要るため対象外(継承カスケードに委ねる、CSSでは表現不要)。
 		case HTMLCodes.B: {
 			// <B>
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
@@ -2056,9 +2060,8 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.VIDEO: {
-			// <VIDEO width height poster>
+			// <VIDEO width height poster>(display:inline-blockはhtml-ua.cssへ移行)
 			HTMLStyleUtils.applyWidthHeight("VIDEO", style);
-			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
 			String poster = ce.atts.getValue("poster");
 			if (poster != null) {
 				HTMLStyle.applyImage(style, poster, null, "");

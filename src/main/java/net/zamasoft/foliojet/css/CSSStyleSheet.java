@@ -59,17 +59,28 @@ public class CSSStyleSheet {
 			MarginBoxName.class);
 
 	/**
-	 * ルールを追加します。
+	 * ルールを追加します(cascade originはAUTHOR)。
 	 *
 	 * @param selectors
 	 * @param declaration
 	 */
 	public void addRule(List<Selector> selectors, Declaration declaration) {
+		this.addRule(selectors, declaration, Origin.AUTHOR);
+	}
+
+	/**
+	 * ルールを追加します。
+	 *
+	 * @param selectors
+	 * @param declaration
+	 * @param origin cascade origin
+	 */
+	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin) {
 		if (declaration == null) {
 			return;
 		}
 		for (Selector selector : selectors) {// ループすることに注意！
-			Rule rule = new Rule(selector, declaration, this.rules.size());
+			Rule rule = new Rule(selector, declaration, this.rules.size(), origin);
 			this.rules.add(rule);
 			this.index(rule);
 		}

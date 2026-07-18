@@ -103,6 +103,9 @@ public final class XHTML {
 	/** 言語選択子のための属性。 */
 	public static final AttributeNode LANG_ATTR = new AttributeNode("lang");
 
+	/** :dir() 選択子のための属性。 */
+	public static final AttributeNode DIR_ATTR = new AttributeNode("dir");
+
 	/** 補助説明文属性。 */
 	public static final AttributeNode TITLE_ATTR = new AttributeNode("title");
 

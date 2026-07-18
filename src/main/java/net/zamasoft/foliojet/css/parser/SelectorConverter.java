@@ -21,6 +21,7 @@ import net.zamasoft.foliojet.css.selector.CombinatorSelector;
 import net.zamasoft.foliojet.css.selector.Condition;
 import net.zamasoft.foliojet.css.selector.Condition.ConditionType;
 import net.zamasoft.foliojet.css.selector.ElementSelector;
+import net.zamasoft.foliojet.css.selector.NthCondition;
 import net.zamasoft.foliojet.css.selector.PseudoElementSelector;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
@@ -104,8 +105,19 @@ public final class SelectorConverter {
 						String name = value.substring(1);
 						if (isLegacyPseudoElement(name)) {
 							pseudoElement = name;
+						} else if (name.equalsIgnoreCase("first-of-type")) {
+							// :first-of-type は :nth-of-type(1) と等価
+							conditions.add(new NthCondition(ConditionType.NTH_OF_TYPE_CONDITION, 0, 1, "1"));
 						} else {
-							conditions.add(new ValueCondition(ConditionType.PSEUDO_CLASS_CONDITION, name));
+							// ph-css 8.2.1 は :nth-child()/:nth-of-type() を
+							// CSSSelectorMemberFunctionLike ではなく、括弧を含む
+							// 一つの単純セレクタ文字列(例: "nth-child(odd)")として
+							// 渡す(:lang()/:dir() は FunctionLike になるのに対し
+							// 非対称。2026-07-18 実測で確認)。関数呼び出しの形を
+							// していればここで検出する
+							Condition functional = tryConvertFunctionalPseudo(name);
+							conditions.add(functional != null ? functional
+									: new ValueCondition(ConditionType.PSEUDO_CLASS_CONDITION, name));
 						}
 					}
 				} else {
@@ -138,8 +150,12 @@ public final class SelectorConverter {
 				String param = function.getParameterExpression().getAsCSSString(WRITER_SETTINGS, 0);
 				if (name.equalsIgnoreCase("lang")) {
 					conditions.add(new ValueCondition(ConditionType.LANG_CONDITION, param));
+				} else if (name.equalsIgnoreCase("dir")) {
+					conditions.add(new ValueCondition(ConditionType.DIR_CONDITION, param.trim()));
 				} else {
-					// 未対応の関数型擬似クラス(nth-child等)は不一致条件として扱う
+					// 未対応の関数型擬似クラス(nth-last-child等)は不一致条件として扱う。
+					// nth-child/nth-of-type はここに来ない(ph-cssの実装上
+					// CSSSelectorSimpleMember側で処理される。上のisPseudo()分岐参照)
 					conditions.add(new ValueCondition(ConditionType.PSEUDO_CLASS_CONDITION,
 							name + "(" + param + ")"));
 				}
@@ -177,6 +193,133 @@ public final class SelectorConverter {
 					new PseudoElementSelector(pseudoElement));
 		}
 		return result;
+	}
+
+	/**
+	 * ph-cssがCSSSelectorSimpleMemberの生文字列として渡す関数型擬似クラス
+	 * (実測: nth-child()/nth-of-type())を検出・解析します。関数呼び出しの
+	 * 形をしていなければ、あるいは対応する関数名でなければ null を返します。
+	 */
+	private static Condition tryConvertFunctionalPseudo(String name) {
+		int paren = name.indexOf('(');
+		if (paren < 0 || !name.endsWith(")")) {
+			return null;
+		}
+		String fname = name.substring(0, paren);
+		String param = name.substring(paren + 1, name.length() - 1);
+		if (fname.equalsIgnoreCase("nth-child")) {
+			return convertNth(ConditionType.NTH_CHILD_CONDITION, fname, param);
+		}
+		if (fname.equalsIgnoreCase("nth-of-type")) {
+			return convertNth(ConditionType.NTH_OF_TYPE_CONDITION, fname, param);
+		}
+		return null;
+	}
+
+	/**
+	 * :nth-child() / :nth-of-type() の引数(An+B構文)を解析します。
+	 * 解析できない場合は未対応セレクタとして警告し、常に不一致になる
+	 * 条件を返します(2026-07 方針: 未知のセレクタは例外にせず不一致継続)。
+	 */
+	private static Condition convertNth(ConditionType type, String name, String param) {
+		int[] ab = parseNth(param);
+		if (ab == null) {
+			LOG.warning(":" + name + "() の引数を解析できません: " + param);
+			return new ValueCondition(ConditionType.PSEUDO_CLASS_CONDITION, name + "(" + param + ")");
+		}
+		return new NthCondition(type, ab[0], ab[1], param.trim());
+	}
+
+	/**
+	 * An+B構文(odd / even / 整数 / an+b)を解析します。反復(文字走査)のみで
+	 * 完結し再帰は使いません。解析できなければ null を返します。
+	 */
+	static int[] parseNth(String raw) {
+		if (raw == null) {
+			return null;
+		}
+		String s = raw.trim();
+		if (s.isEmpty()) {
+			return null;
+		}
+		if (s.equalsIgnoreCase("odd")) {
+			return new int[] { 2, 1 };
+		}
+		if (s.equalsIgnoreCase("even")) {
+			return new int[] { 2, 0 };
+		}
+		int nIndex = -1;
+		for (int i = 0; i < s.length(); ++i) {
+			char c = s.charAt(i);
+			if (c == 'n' || c == 'N') {
+				nIndex = i;
+				break;
+			}
+		}
+		if (nIndex < 0) {
+			// "n" を含まない: 整数のみ(a=0)
+			Integer b = parseSignedInt(s);
+			return b == null ? null : new int[] { 0, b.intValue() };
+		}
+		String aPart = s.substring(0, nIndex).trim();
+		int a;
+		if (aPart.isEmpty() || aPart.equals("+")) {
+			a = 1;
+		} else if (aPart.equals("-")) {
+			a = -1;
+		} else {
+			Integer parsedA = parseSignedInt(aPart);
+			if (parsedA == null) {
+				return null;
+			}
+			a = parsedA.intValue();
+		}
+		String bPart = s.substring(nIndex + 1).trim();
+		int b;
+		if (bPart.isEmpty()) {
+			b = 0;
+		} else {
+			Integer parsedB = parseSignedInt(bPart);
+			if (parsedB == null) {
+				return null;
+			}
+			b = parsedB.intValue();
+		}
+		return new int[] { a, b };
+	}
+
+	/**
+	 * 符号付き整数を解析します(符号と数字の間の空白も許容: "+ 3" 等)。
+	 * 解析できなければ null。
+	 */
+	private static Integer parseSignedInt(String part) {
+		part = part.trim();
+		if (part.isEmpty()) {
+			return null;
+		}
+		boolean negative = false;
+		int i = 0;
+		char first = part.charAt(0);
+		if (first == '+' || first == '-') {
+			negative = first == '-';
+			++i;
+			while (i < part.length() && Character.isWhitespace(part.charAt(i))) {
+				++i;
+			}
+		}
+		int start = i;
+		while (i < part.length() && Character.isDigit(part.charAt(i))) {
+			++i;
+		}
+		if (start == i || i != part.length()) {
+			return null;
+		}
+		try {
+			int value = Integer.parseInt(part.substring(start, i));
+			return Integer.valueOf(negative ? -value : value);
+		} catch (NumberFormatException e) {
+			return null;
+		}
 	}
 
 	private static Condition convertAttribute(CSSSelectorAttribute attribute) {

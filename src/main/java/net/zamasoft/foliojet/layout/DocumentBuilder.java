@@ -180,6 +180,7 @@ public class DocumentBuilder {
 			// テーブル内でセル外のinline, block, テキスト等をテーブルの前に置くため
 			// 一般的なブラウザの動作による
 			--index;
+			assert index >= 0 : "builderStack が全て TableBuilder で、周囲のコンテナが見つかりません";
 			o = this.builderStack.get(index);
 		}
 		return (ContainerBuilderEntry) o;
@@ -192,7 +193,7 @@ public class DocumentBuilder {
 				return (ContainerBuilderEntry) entry;
 			}
 		}
-		throw new ArrayIndexOutOfBoundsException();
+		throw new ArrayIndexOutOfBoundsException("builderStack に ContainerBuilderEntry がありません: " + this.builderStack);
 	}
 
 	private RootBuilder pageContextBuilder() {
@@ -204,16 +205,34 @@ public class DocumentBuilder {
 		if (!entry.builder.isTwoPass()) {
 			((BlockBuilder) entry.builder).close();
 		}
+		// 不変条件: containerBuilder() が探し当てたエントリは builderStack の
+		// 末尾でなければならない(末尾に TableBuilder が残ったまま末尾要素を
+		// 取り除くと、containerBuilder() が返した entry とは別物を消してしまい、
+		// スタックが静かに壊れる — 表キャプション単独再生クラッシュ
+		// (2026-07-18)の調査で発見した builderStack 系の脆さの類例)。
+		assert this.builderStack.get(this.builderStack.size() - 1) == entry : //
+		"containerBuilder() の結果が末尾要素と一致しません: entry=" + entry + ", stack=" + this.builderStack;
 		this.builderStack.remove(this.builderStack.size() - 1);
 		return entry;
 	}
 
 	private TableBuilder tableBuilder() {
-		TableBuilder tableBuilder = (TableBuilder) this.builderStack.get(this.builderStack.size() - 1);
-		return tableBuilder;
+		Object top = this.builderStack.get(this.builderStack.size() - 1);
+		// 不変条件: このメソッドが呼ばれる時点で、同一の再生/構築セッション内で
+		// 対応する TABLE 種別のボックスが先に開始され TableBuilder が積まれて
+		// いなければならない。破れていると builderStack の末尾はただの
+		// ContainerBuilderEntry のままキャストに失敗する(表キャプションの
+		// 単独ソース再生クラッシュ、2026-07-18 で実際に発生・修正済み)。
+		assert top instanceof TableBuilder : //
+		"表構造の外(先行する TABLE 開始イベントなし)で TABLE_CELL/TABLE_ROW 系ボックスを"
+				+ "構築しようとしました。単独ソース再生の対象になっていないか確認してください: top=" + top;
+		return (TableBuilder) top;
 	}
 
 	private TableBuilder endTableBuilder() {
+		assert !this.builderStack.isEmpty() && this.builderStack
+				.get(this.builderStack.size() - 1) instanceof TableBuilder : //
+		"閉じるべき TableBuilder が builderStack の末尾にありません: " + this.builderStack;
 		TableBuilder builder = (TableBuilder) this.builderStack.remove(this.builderStack.size() - 1);
 		return builder;
 	}

@@ -36,9 +36,9 @@ public class BarcodeInlineObjectTest extends TestCase {
 	public void testFactoryMatchesBarcodeNamespace() {
 		BarcodeInlineObjectFactory factory = new BarcodeInlineObjectFactory();
 		assertTrue(factory.match(new CSSElement("http://barcode4j.krysalis.org/ns", "barcode", null, null, null,
-				null, null, null, -1)));
+				null, null, null, null, -1)));
 		assertFalse(factory.match(new CSSElement("http://www.w3.org/1999/xhtml", "barcode", null, null, null, null,
-				null, null, -1)));
+				null, null, null, -1)));
 	}
 
 	private static Image parse(String xml) throws Exception {

@@ -34,9 +34,9 @@ public class MathMLInlineObjectTest extends TestCase {
 	public void testFactoryMatchesMathMLNamespace() {
 		MathMLInlineObjectFactory factory = new MathMLInlineObjectFactory();
 		assertTrue(factory.match(new CSSElement(MathMLInlineObjectFactory.URI, "math", null, null, null, null, null,
-				null, -1)));
+				null, null, -1)));
 		assertFalse(factory.match(new CSSElement("http://www.w3.org/1999/xhtml", "math", null, null, null, null, null,
-				null, -1)));
+				null, null, -1)));
 	}
 
 	public void testFactoryCreatesInlineObject() {

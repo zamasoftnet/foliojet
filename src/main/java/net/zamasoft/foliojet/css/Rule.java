@@ -18,12 +18,16 @@ public class Rule {
 	/** スタイルシート内の出現順。固有性が等しい規則の優先順位を決める。 */
 	private final int order;
 
+	/** cascade origin。固有性・出現順に優先する(USER_AGENT は常に AUTHOR に劣後)。 */
+	private final Origin origin;
+
 	private transient Specificity specificity = null;
 
-	public Rule(Selector selector, Declaration declaration, int order) {
+	public Rule(Selector selector, Declaration declaration, int order, Origin origin) {
 		this.selector = selector;
 		this.declaration = declaration;
 		this.order = order;
+		this.origin = origin;
 	}
 
 	/**
@@ -51,6 +55,15 @@ public class Rule {
 	 */
 	public int getOrder() {
 		return this.order;
+	}
+
+	/**
+	 * cascade origin を返します。
+	 *
+	 * @return
+	 */
+	public Origin getOrigin() {
+		return this.origin;
 	}
 
 	/**

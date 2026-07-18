@@ -107,6 +107,13 @@ public class CSSElement {
 	/** 言語です。 */
 	public final Locale lang;
 
+	/**
+	 * :dir() 用の方向性です("ltr" / "rtl" / null=未指定)。dir 属性から
+	 * 文書ツリーを継承します(dir="auto" の一次強方向文字判定は先読みを
+	 * 要するため1P原則の範囲外とし、継承値へフォールスルーします)。
+	 */
+	public final String dir;
+
 	/** XML/HTML属性です。 */
 	public final Attributes atts;
 
@@ -118,7 +125,7 @@ public class CSSElement {
 
 	/**
 	 * HTML要素を構築します。
-	 * 
+	 *
 	 * @param uri
 	 * @param lName
 	 * @param id
@@ -129,13 +136,14 @@ public class CSSElement {
 	 * @param charOffset
 	 */
 	public CSSElement(String uri, String lName, String id, String[] styleClasses, byte[] pseudoClasses, Locale lang,
-			Attributes atts, CSSElement precedingElement, int charOffset) {
+			String dir, Attributes atts, CSSElement precedingElement, int charOffset) {
 		this.uri = uri;
 		this.lName = lName;
 		this.id = id;
 		this.styleClasses = styleClasses;
 		this.pseudoClasses = pseudoClasses;
 		this.lang = lang;
+		this.dir = dir;
 		this.atts = atts;
 		this.precedingElement = precedingElement;
 		this.charOffset = charOffset;
@@ -143,20 +151,20 @@ public class CSSElement {
 
 	/**
 	 * 擬似要素を構築します。
-	 * 
+	 *
 	 * @param pseudoElement
 	 */
 	private CSSElement(String pseudoElement) {
-		this(null, pseudoElement, null, null, null, null, null, null, -1);
+		this(null, pseudoElement, null, null, null, null, null, null, null, -1);
 	}
 
 	/**
 	 * 擬似クラスを構築します。
-	 * 
+	 *
 	 * @param pseudoClasses
 	 */
 	private CSSElement(byte[] pseudoClasses) {
-		this(null, null, null, null, pseudoClasses, null, null, null, -1);
+		this(null, null, null, null, pseudoClasses, null, null, null, null, -1);
 	}
 
 	/**

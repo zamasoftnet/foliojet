@@ -1,0 +1,36 @@
+/*
+ * HTML向けユーザーエージェント既定スタイルシート(UA origin)。
+ *
+ * CSSで表現できる既定値はここに書き、属性駆動のロジック・画像添付・
+ * 生成テキストの値埋め込みなど、CSSだけでは表現できないものだけを
+ * HTMLStyle.java(Java実装)に残す方針(2026-07-18決定)。
+ *
+ * cascade originはUSER_AGENTで登録される(CSSProcessor経由)。固有性・
+ * 出現順にかかわらず常に著者スタイルシート(<style>・<link>・style属性)
+ * に劣後するため、ここでは通常のタグセレクタで書いてよい。
+ *
+ * 現時点ではHTML5セクショニング/フローコンテンツ要素群のみを対象とする
+ * (2026-07-18のHTML5タグ対応で新規追加した要素、既存のDIV/P/TABLE等の
+ * 大規模なswitch文の移行は別途段階的に行う、NEXT-SESSION.md参照)。
+ */
+
+section, article, nav, aside, header, footer, main, figure,
+figcaption, details, dialog, hgroup, summary {
+	display: block;
+}
+
+audio, canvas {
+	display: inline;
+}
+
+data, mark, meter, output, picture, progress, time, bdi {
+	display: inline;
+}
+
+datalist, source, template, track {
+	display: none;
+}
+
+video {
+	display: inline-block;
+}

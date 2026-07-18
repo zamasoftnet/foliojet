@@ -352,6 +352,14 @@ public class StyleBuilder implements PageGenerator {
 	private static LayoutSource.BoxKind boxKind(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		final Class<?> type = box.getClass();
 		if (type == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class) {
+			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.TableCaptionPos) {
+				// 表キャプションは実行時クラスこそ FlowBlockBox だが、再生時に
+				// TableBuilder.newContext() を経由しないと正しく配置できず、
+				// 単独(表を伴わない)再生では DocumentBuilder.tableBuilder() が
+				// 例外を投げる(builderStack の先頭が TableBuilder でない)。
+				// 表本体と同じく Opaque とし、単独再生の対象から外す。
+				return null;
+			}
 			return LayoutSource.BoxKind.FLOW;
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class) {

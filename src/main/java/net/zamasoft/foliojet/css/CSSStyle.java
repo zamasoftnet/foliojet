@@ -162,40 +162,52 @@ public class CSSStyle {
 	}
 
 	public Value get(PrimitivePropertyInfo info) {
-		Value value = null;
 		short code = ElementPropertySet.getCode(info);
 		if (code == -1) {
 			return info.getDefault(this);
 		}
-		if (this.computedValues != null) {
-			value = this.computedValues[code];
-		}
-		if (value != null) {
-			return value;
-		}
-		if (this.values != null) {
-			value = this.values[code];
-		}
-		if (value != null) {
-			// 継承
-			this.values[code] = null;
-			if (value == KeywordValue.INHERIT) {
-				// 継承
-				value = (this.parentStyle != null) ? this.parentStyle.get(info) : info.getDefault(this);
+		// 継承の親方向探索は元々 this.parentStyle.get(info) の再帰だったが、
+		// 深くネストした文書(例: 条項番号が千段以上入れ子になる法令HTML)で
+		// StackOverflowError になる実クラッシュが発生したため、スタック深さに
+		// 依存しない反復に書き換える(2026-07-18)。意味論は再帰版と同一:
+		// 各階層で values[code] を読み出し次第クリアし、最終的に確定した値を
+		// 子階層へ向けて getComputedValue で1階層ずつ変換しながら
+		// computedValues[code] にキャッシュする。
+		java.util.List<CSSStyle> chain = new java.util.ArrayList<CSSStyle>();
+		CSSStyle style = this;
+		Value resolved;
+		for (;;) {
+			Value cached = style.computedValues != null ? style.computedValues[code] : null;
+			if (cached != null) {
+				resolved = cached;
+				break;
 			}
+			Value raw = style.values != null ? style.values[code] : null;
+			if (raw != null) {
+				// 継承(読み出し次第クリア)
+				style.values[code] = null;
+			}
+			boolean needsParent = raw != null ? raw == KeywordValue.INHERIT
+					: (style.parentStyle != null && info.isInherited());
+			if (!needsParent || style.parentStyle == null) {
+				// デフォルトの場合は継承するか、デフォルト値を使う
+				resolved = (raw != null && !needsParent) ? raw : info.getDefault(style);
+				chain.add(style);
+				break;
+			}
+			chain.add(style);
+			style = style.parentStyle;
 		}
-		if (value == null) {
-			// デフォルトの場合は継承するか、デフォルト値を使う
-			value = (this.parentStyle != null && info.isInherited()) ? this.parentStyle.get(info)
-					: info.getDefault(this);
+		for (int i = chain.size() - 1; i >= 0; --i) {
+			CSSStyle level = chain.get(i);
+			// 計算値
+			resolved = info.getComputedValue(resolved, level);
+			if (level.computedValues == null) {
+				level.computedValues = new Value[ElementPropertySet.getCodeSize()];
+			}
+			level.computedValues[code] = resolved;
 		}
-		// 計算値
-		value = info.getComputedValue(value, this);
-		if (this.computedValues == null) {
-			this.computedValues = new Value[ElementPropertySet.getCodeSize()];
-		}
-		this.computedValues[code] = value;
-		return value;
+		return resolved;
 	}
 
 	public void set(PrimitivePropertyInfo info, Value value) {

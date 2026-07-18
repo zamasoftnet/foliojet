@@ -15,38 +15,50 @@ final public class HTMLCodes {
 	public static final short ADDRESS = 104;
 	public static final short APPLET = 105;
 	public static final short AREA = 106;
+	public static final short ARTICLE = 107;
+	public static final short ASIDE = 108;
+	public static final short AUDIO = 109;
 	public static final short B = 201;
 	public static final short BASE = 202;
 	public static final short BASEFONT = 203;
-	public static final short BDO = 204;
-	public static final short BGSOUND = 205;
-	public static final short BIG = 206;
-	public static final short BLINK = 207;
-	public static final short BLOCKQUOTE = 208;
-	public static final short BODY = 209;
-	public static final short BR = 210;
-	public static final short BUTTON = 211;
-	public static final short CAPTION = 301;
-	public static final short CENTER = 302;
-	public static final short CITE = 303;
-	public static final short CODE = 304;
-	public static final short COL = 305;
-	public static final short COLGROUP = 306;
-	public static final short COMMENT = 307;
-	public static final short DD = 401;
-	public static final short DEL = 402;
-	public static final short DFN = 403;
-	public static final short DIR = 404;
-	public static final short DIV = 405;
-	public static final short DL = 406;
-	public static final short DT = 407;
+	public static final short BDI = 204;
+	public static final short BDO = 205;
+	public static final short BGSOUND = 206;
+	public static final short BIG = 207;
+	public static final short BLINK = 208;
+	public static final short BLOCKQUOTE = 209;
+	public static final short BODY = 210;
+	public static final short BR = 211;
+	public static final short BUTTON = 212;
+	public static final short CANVAS = 301;
+	public static final short CAPTION = 302;
+	public static final short CENTER = 303;
+	public static final short CITE = 304;
+	public static final short CODE = 305;
+	public static final short COL = 306;
+	public static final short COLGROUP = 307;
+	public static final short COMMENT = 308;
+	public static final short DATA = 401;
+	public static final short DATALIST = 402;
+	public static final short DD = 403;
+	public static final short DEL = 404;
+	public static final short DETAILS = 405;
+	public static final short DFN = 406;
+	public static final short DIALOG = 407;
+	public static final short DIR = 408;
+	public static final short DIV = 409;
+	public static final short DL = 410;
+	public static final short DT = 411;
 	public static final short EM = 501;
 	public static final short EMBED = 502;
 	public static final short FIELDSET = 601;
-	public static final short FONT = 602;
-	public static final short FORM = 603;
-	public static final short FRAME = 604;
-	public static final short FRAMESET = 605;
+	public static final short FIGCAPTION = 602;
+	public static final short FIGURE = 603;
+	public static final short FONT = 604;
+	public static final short FOOTER = 605;
+	public static final short FORM = 606;
+	public static final short FRAME = 607;
+	public static final short FRAMESET = 608;
 	public static final short H1 = 701;
 	public static final short H2 = 702;
 	public static final short H3 = 703;
@@ -54,8 +66,10 @@ final public class HTMLCodes {
 	public static final short H5 = 705;
 	public static final short H6 = 706;
 	public static final short HEAD = 707;
-	public static final short HR = 708;
-	public static final short HTML = 709;
+	public static final short HEADER = 708;
+	public static final short HGROUP = 709;
+	public static final short HR = 710;
+	public static final short HTML = 711;
 	public static final short I = 801;
 	public static final short IFRAME = 802;
 	public static final short IMG = 804;
@@ -69,24 +83,31 @@ final public class HTMLCodes {
 	public static final short LI = 1004;
 	public static final short LINK = 1005;
 	public static final short LISTING = 1006;
-	public static final short MAP = 1101;
-	public static final short MARQUEE = 1102;
-	public static final short MENU = 1103;
-	public static final short META = 1104;
-	public static final short NEXTID = 1201;
-	public static final short NOBR = 1202;
-	public static final short NOEMBED = 1203;
-	public static final short NOFRAMES = 1204;
-	public static final short NOLAYER = 1205;
-	public static final short NOSCRIPT = 1206;
+	public static final short MAIN = 1101;
+	public static final short MAP = 1102;
+	public static final short MARK = 1103;
+	public static final short MARQUEE = 1104;
+	public static final short MENU = 1105;
+	public static final short META = 1106;
+	public static final short METER = 1107;
+	public static final short NAV = 1201;
+	public static final short NEXTID = 1202;
+	public static final short NOBR = 1203;
+	public static final short NOEMBED = 1204;
+	public static final short NOFRAMES = 1205;
+	public static final short NOLAYER = 1206;
+	public static final short NOSCRIPT = 1207;
 	public static final short OBJECT = 1301;
 	public static final short OL = 1302;
 	public static final short OPTGROUP = 1303;
 	public static final short OPTION = 1304;
+	public static final short OUTPUT = 1305;
 	public static final short P = 1401;
 	public static final short PARAM = 1402;
-	public static final short PLAINTEXT = 1403;
-	public static final short PRE = 1404;
+	public static final short PICTURE = 1403;
+	public static final short PLAINTEXT = 1404;
+	public static final short PRE = 1405;
+	public static final short PROGRESS = 1406;
 	public static final short Q = 1501;
 	public static final short RB = 1601;
 	public static final short RP = 1602;
@@ -95,25 +116,31 @@ final public class HTMLCodes {
 	public static final short S = 1701;
 	public static final short SAMP = 1702;
 	public static final short SCRIPT = 1703;
-	public static final short SELECT = 1704;
-	public static final short SERVER = 1705;
-	public static final short SMALL = 1706;
-	public static final short SPAN = 1708;
-	public static final short STRIKE = 1709;
-	public static final short STRONG = 1710;
-	public static final short STYLE = 1711;
-	public static final short SUB = 1712;
-	public static final short SUP = 1713;
+	public static final short SECTION = 1704;
+	public static final short SELECT = 1705;
+	public static final short SERVER = 1706;
+	public static final short SMALL = 1707;
+	public static final short SOURCE = 1708;
+	public static final short SPAN = 1709;
+	public static final short STRIKE = 1710;
+	public static final short STRONG = 1711;
+	public static final short STYLE = 1712;
+	public static final short SUB = 1713;
+	public static final short SUMMARY = 1714;
+	public static final short SUP = 1715;
 	public static final short TABLE = 1801;
 	public static final short TBODY = 1802;
 	public static final short TD = 1803;
-	public static final short TEXTAREA = 1804;
-	public static final short TFOOT = 1805;
-	public static final short TH = 1806;
-	public static final short THEAD = 1807;
-	public static final short TITLE = 1808;
-	public static final short TR = 1809;
-	public static final short TT = 1810;
+	public static final short TEMPLATE = 1804;
+	public static final short TEXTAREA = 1805;
+	public static final short TFOOT = 1806;
+	public static final short TH = 1807;
+	public static final short THEAD = 1808;
+	public static final short TIME = 1809;
+	public static final short TITLE = 1810;
+	public static final short TR = 1811;
+	public static final short TRACK = 1812;
+	public static final short TT = 1813;
 	public static final short U = 1901;
 	public static final short UL = 1902;
 	public static final short VAR = 2001;
@@ -144,6 +171,12 @@ final public class HTMLCodes {
 				code = APPLET;
 			} else if (lName.equals("area")) {
 				code = AREA;
+			} else if (lName.equals("article")) {
+				code = ARTICLE;
+			} else if (lName.equals("aside")) {
+				code = ASIDE;
+			} else if (lName.equals("audio")) {
+				code = AUDIO;
 			}
 			break;
 		case 'b':
@@ -153,6 +186,8 @@ final public class HTMLCodes {
 				code = BASE;
 			} else if (lName.equals("basefont")) {
 				code = BASEFONT;
+			} else if (lName.equals("bdi")) {
+				code = BDI;
 			} else if (lName.equals("bdo")) {
 				code = BDO;
 			} else if (lName.equals("bgsound")) {
@@ -172,7 +207,9 @@ final public class HTMLCodes {
 			}
 			break;
 		case 'c':
-			if (lName.equals("caption")) {
+			if (lName.equals("canvas")) {
+				code = CANVAS;
+			} else if (lName.equals("caption")) {
 				code = CAPTION;
 			} else if (lName.equals("center")) {
 				code = CENTER;
@@ -189,12 +226,20 @@ final public class HTMLCodes {
 			}
 			break;
 		case 'd':
-			if (lName.equals("dd")) {
+			if (lName.equals("data")) {
+				code = DATA;
+			} else if (lName.equals("datalist")) {
+				code = DATALIST;
+			} else if (lName.equals("dd")) {
 				code = DD;
 			} else if (lName.equals("del")) {
 				code = DEL;
+			} else if (lName.equals("details")) {
+				code = DETAILS;
 			} else if (lName.equals("dfn")) {
 				code = DFN;
+			} else if (lName.equals("dialog")) {
+				code = DIALOG;
 			} else if (lName.equals("dir")) {
 				code = DIR;
 			} else if (lName.equals("div")) {
@@ -215,8 +260,14 @@ final public class HTMLCodes {
 		case 'f':
 			if (lName.equals("fieldset")) {
 				code = FIELDSET;
+			} else if (lName.equals("figcaption")) {
+				code = FIGCAPTION;
+			} else if (lName.equals("figure")) {
+				code = FIGURE;
 			} else if (lName.equals("font")) {
 				code = FONT;
+			} else if (lName.equals("footer")) {
+				code = FOOTER;
 			} else if (lName.equals("form")) {
 				code = FORM;
 			} else if (lName.equals("frame")) {
@@ -240,6 +291,10 @@ final public class HTMLCodes {
 				code = H6;
 			} else if (lName.equals("head")) {
 				code = HEAD;
+			} else if (lName.equals("header")) {
+				code = HEADER;
+			} else if (lName.equals("hgroup")) {
+				code = HGROUP;
 			} else if (lName.equals("hr")) {
 				code = HR;
 			} else if (lName.equals("html")) {
@@ -282,18 +337,26 @@ final public class HTMLCodes {
 			}
 			break;
 		case 'm':
-			if (lName.equals("map")) {
+			if (lName.equals("main")) {
+				code = MAIN;
+			} else if (lName.equals("map")) {
 				code = MAP;
+			} else if (lName.equals("mark")) {
+				code = MARK;
 			} else if (lName.equals("marquee")) {
 				code = MARQUEE;
 			} else if (lName.equals("menu")) {
 				code = MENU;
 			} else if (lName.equals("meta")) {
 				code = META;
+			} else if (lName.equals("meter")) {
+				code = METER;
 			}
 			break;
 		case 'n':
-			if (lName.equals("nextid")) {
+			if (lName.equals("nav")) {
+				code = NAV;
+			} else if (lName.equals("nextid")) {
 				code = NEXTID;
 			} else if (lName.equals("nobr")) {
 				code = NOBR;
@@ -316,6 +379,8 @@ final public class HTMLCodes {
 				code = OPTGROUP;
 			} else if (lName.equals("option")) {
 				code = OPTION;
+			} else if (lName.equals("output")) {
+				code = OUTPUT;
 			}
 			break;
 		case 'p':
@@ -323,10 +388,14 @@ final public class HTMLCodes {
 				code = P;
 			} else if (lName.equals("param")) {
 				code = PARAM;
+			} else if (lName.equals("picture")) {
+				code = PICTURE;
 			} else if (lName.equals("plaintext")) {
 				code = PLAINTEXT;
 			} else if (lName.equals("pre")) {
 				code = PRE;
+			} else if (lName.equals("progress")) {
+				code = PROGRESS;
 			}
 			break;
 		case 'q':
@@ -361,7 +430,9 @@ final public class HTMLCodes {
 					}
 					break;
 				case 'e':
-					if (lName.equals("select")) {
+					if (lName.equals("section")) {
+						code = SECTION;
+					} else if (lName.equals("select")) {
 						code = SELECT;
 					} else if (lName.equals("server")) {
 						code = SERVER;
@@ -370,6 +441,11 @@ final public class HTMLCodes {
 				case 'm':
 					if (lName.equals("small")) {
 						code = SMALL;
+					}
+					break;
+				case 'o':
+					if (lName.equals("source")) {
+						code = SOURCE;
 					}
 					break;
 				case 'p':
@@ -389,6 +465,8 @@ final public class HTMLCodes {
 				case 'u':
 					if (lName.equals("sub")) {
 						code = SUB;
+					} else if (lName.equals("summary")) {
+						code = SUMMARY;
 					} else if (lName.equals("sup")) {
 						code = SUP;
 					}
@@ -402,6 +480,8 @@ final public class HTMLCodes {
 				code = TBODY;
 			} else if (lName.equals("td")) {
 				code = TD;
+			} else if (lName.equals("template")) {
+				code = TEMPLATE;
 			} else if (lName.equals("textarea")) {
 				code = TEXTAREA;
 			} else if (lName.equals("tfoot")) {
@@ -410,10 +490,14 @@ final public class HTMLCodes {
 				code = TH;
 			} else if (lName.equals("thead")) {
 				code = THEAD;
+			} else if (lName.equals("time")) {
+				code = TIME;
 			} else if (lName.equals("title")) {
 				code = TITLE;
 			} else if (lName.equals("tr")) {
 				code = TR;
+			} else if (lName.equals("track")) {
+				code = TRACK;
 			} else if (lName.equals("tt")) {
 				code = TT;
 			}
@@ -428,6 +512,8 @@ final public class HTMLCodes {
 		case 'v':
 			if (lName.equals("var")) {
 				code = VAR;
+			} else if (lName.equals("video")) {
+				code = VIDEO;
 			}
 			break;
 		case 'w':

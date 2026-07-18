@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.selector.AttributeCondition;
 import net.zamasoft.foliojet.css.selector.CombinatorSelector;
 import net.zamasoft.foliojet.css.selector.Condition;
 import net.zamasoft.foliojet.css.selector.ElementSelector;
+import net.zamasoft.foliojet.css.selector.NthCondition;
 import net.zamasoft.foliojet.css.selector.PseudoElementSelector;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
@@ -430,6 +431,22 @@ public class StyleContext {
 			return lang.equalsIgnoreCase(value);
 		}
 
+		// 方向性条件(:dir())
+		case DIR_CONDITION: {
+			String value = condition.getValue();
+			return ce.dir != null && ce.dir.equalsIgnoreCase(value);
+		}
+
+		// An+B条件(:nth-child() / :nth-of-type())
+		case NTH_CHILD_CONDITION: {
+			NthCondition nth = (NthCondition) condition;
+			return nth.matches(siblingPosition(ce, false));
+		}
+		case NTH_OF_TYPE_CONDITION: {
+			NthCondition nth = (NthCondition) condition;
+			return nth.matches(siblingPosition(ce, true));
+		}
+
 		// 前方一致・後方一致・部分一致属性値条件
 		case PREFIX_ATTRIBUTE_CONDITION:
 		case SUFFIX_ATTRIBUTE_CONDITION:
@@ -490,6 +507,32 @@ public class StyleContext {
 			return false;
 		}
 	}
+
+	/**
+	 * 兄弟内での通し番号(1始まり)を返します。先行兄弟チェーン
+	 * (CSSElement.precedingElement)を先頭側へ反復的に辿るだけで求まり
+	 * (1P、後続要素は見ない)、再帰は使いません。
+	 *
+	 * @param ce           対象要素
+	 * @param sameTypeOnly true なら同じ要素名の兄弟だけを数える
+	 *                     (:nth-of-type() 用)
+	 */
+	private static int siblingPosition(CSSElement ce, boolean sameTypeOnly) {
+		int position = 1;
+		for (CSSElement sibling = ce.precedingElement; sibling != null; sibling = sibling.precedingElement) {
+			if (!sameTypeOnly || sameElementType(sibling, ce)) {
+				++position;
+			}
+		}
+		return position;
+	}
+
+	private static boolean sameElementType(CSSElement a, CSSElement b) {
+		if (!java.util.Objects.equals(a.lName, b.lName)) {
+			return false;
+		}
+		return java.util.Objects.equals(a.uri, b.uri);
+	}
 }
 
 /**
@@ -508,11 +551,17 @@ class RuleComparator implements Comparator<Object> {
 	}
 
 	/**
-	 * 固有性の昇順、固有性が等しい場合はスタイルシート内の出現順で比較します。
+	 * cascade origin(USER_AGENT &lt; AUTHOR)の昇順を最優先し、同じoriginの中では
+	 * 固有性の昇順、固有性が等しい場合はスタイルシート内の出現順で比較します
+	 * (CSS Cascading and Inheritance: origin → specificity → order)。
 	 */
 	public int compare(Object o1, Object o2) {
 		Rule rule1 = (Rule) o1;
 		Rule rule2 = (Rule) o2;
+		int origin = rule1.getOrigin().compareTo(rule2.getOrigin());
+		if (origin != 0) {
+			return origin;
+		}
 		int specificity = rule1.getSpecificity().compareTo(rule2.getSpecificity());
 		if (specificity != 0) {
 			return specificity;

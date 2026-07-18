@@ -1,10 +1,13 @@
 package net.zamasoft.foliojet.css;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -113,6 +116,24 @@ public class CSSProcessor implements XMLHandler {
 		this.styleSheetBuilder.setCSSStyleSheet(styleContext.styleSheet);
 
 		this.applier = new StyleApplier(ua, styleContext);
+
+		// UAデフォルトスタイルシート(html-ua.css、cascade origin=USER_AGENT)。
+		// 固有性・出現順にかかわらず常に著者スタイルシートに劣後する
+		// (2026-07-18、CSSで表現できる既定値をHTMLStyle.javaのswitch文から
+		// 段階的に移す方針で新設。詳細はPLAN.md参照)。
+		try (Reader uaStyleReader = new InputStreamReader(
+				CSSProcessor.class.getResourceAsStream("html/html-ua.css"), StandardCharsets.UTF_8)) {
+			InputSource uaInputSource = new InputSource(uaStyleReader);
+			uaInputSource.setURI("net/zamasoft/foliojet/css/html/html-ua.css");
+			uaInputSource.setEncoding("UTF-8");
+			this.styleSheetBuilder.setOrigin(Origin.USER_AGENT);
+			this.styleSheetBuilder.parse(uaInputSource);
+		} catch (IOException | CSSException e) {
+			// バンドルされたリソースのため、実行時に発生しない想定
+			throw new IllegalStateException("UAデフォルトスタイルシートの読み込みに失敗しました", e);
+		} finally {
+			this.styleSheetBuilder.setOrigin(Origin.AUTHOR);
+		}
 
 		// デフォルトのスタイルシート
 		String defaultStyle = UAProps.INPUT_DEFAULT_STYLESHEET.getString(this.ua);
@@ -226,13 +247,20 @@ public class CSSProcessor implements XMLHandler {
 	}
 
 	public void startDTD(String name, String publicId, String systemId) throws SAXException {
-		if (publicId == null) {
+		if (this.builder != null) {
 			return;
 		}
-		if (this.builder == null) {
+		if (publicId != null) {
 			if (DTDs.contains(publicId.toLowerCase())) {
 				this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.STRICT);
 			}
+		} else if (systemId == null && "html".equalsIgnoreCase(name)) {
+			// HTML5の簡易DOCTYPE(<!DOCTYPE html>)。publicId/systemIdを伴わないが、
+			// 実務上はほぼ全てのHTML5文書がこれを使うため標準モード(html4.xmlのタグ
+			// 入れ子ルール)として扱う。付けない場合、legacy.xmlにはVIDEO/SOURCE/TRACK
+			// 等のHTML5要素の定義が無くUNKNOWN扱いとなり、入れ子構造が破壊される
+			// (2026-07-18、video>source+trackが後続要素を飲み込むバグで発見)。
+			this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.STRICT);
 		}
 	}
 
@@ -504,8 +532,20 @@ public class CSSProcessor implements XMLHandler {
 			loca = new Locale(lang);
 		}
 
-		CSSElement ce = new CSSElement(uri, lName, id, styleClasses, pseudoClasses, loca, atts, this.precedingElement,
-				charOffset);
+		// :dir() 用の方向性。dir="auto" の一次強方向文字判定は先読みを要する
+		// ため対象外(継承値へフォールスルー、CSS-SUPPORT.md参照)
+		String dirAttr = atts.getValue(XHTML.URI, XHTML.DIR_ATTR.lName);
+		final String dir;
+		if (dirAttr != null && dirAttr.equalsIgnoreCase("ltr")) {
+			dir = "ltr";
+		} else if (dirAttr != null && dirAttr.equalsIgnoreCase("rtl")) {
+			dir = "rtl";
+		} else {
+			dir = parentStyle == null ? null : parentStyle.getCSSElement().dir;
+		}
+
+		CSSElement ce = new CSSElement(uri, lName, id, styleClasses, pseudoClasses, loca, dir, atts,
+				this.precedingElement, charOffset);
 		this.precedingElement = null;
 
 		// スタイル構築

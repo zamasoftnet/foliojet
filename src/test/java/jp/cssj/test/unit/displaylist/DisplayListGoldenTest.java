@@ -52,6 +52,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0460-segment-restyle/float-split-in-chain.html", //
 			"0460-segment-restyle/float-uncut-before-prefix.html", //
 			"0460-segment-restyle/nested-break-in-replay.html", //
+			"0460-segment-restyle/moved-table-caption.html", //
 			"0390-writing-mode/vert-cell-specified-pagebreak.html", //
 			"0390-writing-mode/vert-fixed-colgroup-spacing.html", //
 			"0390-writing-mode/orthogonal-cell-fixed.html", //
@@ -72,6 +73,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0140-content/counters.html", //
 			"0450-hyphens/hyphens.html", //
 			"0470-margin-boxes/margin-boxes.html", //
+			"3000-SELECTOR/nth.html", //
+			"3000-SELECTOR/dir.html", //
+			"3000-SELECTOR/html5-elements.html", //
 	};
 
 	public void testDisplayLists() throws Exception {

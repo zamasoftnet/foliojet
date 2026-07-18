@@ -61,6 +61,9 @@ public class CSSStyleSheetBuilder {
 
 	private CSSStyleSheet cssStyleSheet;
 
+	/** これから追加する規則のcascade origin。既定は文書(著者)スタイルシート。 */
+	private Origin origin = Origin.AUTHOR;
+
 	public CSSStyleSheetBuilder(UserAgent ua) {
 		this.ua = ua;
 	}
@@ -71,6 +74,16 @@ public class CSSStyleSheetBuilder {
 
 	public CSSStyleSheet getCSSStyleSheet() {
 		return this.cssStyleSheet;
+	}
+
+	/**
+	 * これから{@link #parse(InputSource)}する規則のcascade originを設定します。
+	 * ユーザーエージェント既定スタイルシートを読み込む前後で切り替えて使用します。
+	 *
+	 * @param origin
+	 */
+	public void setOrigin(Origin origin) {
+		this.origin = origin;
 	}
 
 	/**
@@ -112,7 +125,7 @@ public class CSSStyleSheetBuilder {
 			}
 			Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
 					ElementPropertySet.getInstance(), this.ua, uri);
-			this.cssStyleSheet.addRule(selectors, declaration);
+			this.cssStyleSheet.addRule(selectors, declaration, this.origin);
 		} else if (rule instanceof CSSMediaRule mediaRule) {
 			// メディア判定は最内の@mediaが優先(従来動作の踏襲)
 			boolean ok = false;

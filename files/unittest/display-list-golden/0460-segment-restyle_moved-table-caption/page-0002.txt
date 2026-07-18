@@ -1,0 +1,7 @@
+drawer z=0
+  x=1.50 y=0.00 Text["表のキャプ" asc=8.00 desc=2.00]
+  x=11.50 y=10.00 Text["ション" asc=8.00 desc=2.00]
+  x=0.00 y=20.00 CollapsedBorders[1x3 H0,0=[style=3,width=1.0,color=-cssj-gray(0.0)] H0,1=[style=3,width=1.0,color=-cssj-gray(0.0)] H0,2=[style=3,width=1.0,color=-cssj-gray(0.0)] H0,3=[style=3,width=1.0,color=-cssj-gray(0.0)] V0,0=[style=3,width=1.0,color=-cssj-gray(0.0)] V0,1=[style=3,width=1.0,color=-cssj-gray(0.0)] V1,0=[style=3,width=1.0,color=-cssj-gray(0.0)] V1,1=[style=3,width=1.0,color=-cssj-gray(0.0)] V2,0=[style=3,width=1.0,color=-cssj-gray(0.0)] V2,1=[style=3,width=1.0,color=-cssj-gray(0.0)]]
+  x=1.50 y=21.50 Text["いろは" asc=8.00 desc=2.00]
+  x=1.50 y=34.50 Text["にほへと" asc=8.00 desc=2.00]
+  x=1.50 y=47.50 Text["ちりぬるを" asc=8.00 desc=2.00]

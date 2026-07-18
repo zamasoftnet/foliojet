@@ -1,0 +1,7 @@
+resume PAGE
+  root-fragment depth=3
+   chain-fragment depth=2
+    restyle-chain serial=2
+   restyle-box serial=1
+  restyle-text serial=1
+   bound-table serial=2
