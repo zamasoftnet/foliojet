@@ -36,13 +36,14 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(CSSFontStyle.INFO, KeywordValue.INHERIT);
-			primitives.set(FontVariant.INFO, KeywordValue.INHERIT);
-			primitives.set(FontWeight.INFO, KeywordValue.INHERIT);
-			primitives.set(FontSize.INFO, KeywordValue.INHERIT);
-			primitives.set(LineHeight.INFO, KeywordValue.INHERIT);
-			primitives.set(CSSFontFamily.INFO, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(CSSFontStyle.INFO, global);
+			primitives.set(FontVariant.INFO, global);
+			primitives.set(FontWeight.INFO, global);
+			primitives.set(FontSize.INFO, global);
+			primitives.set(LineHeight.INFO, global);
+			primitives.set(CSSFontFamily.INFO, global);
 			return;
 		} else if (tokens.peek() instanceof CssToken.Ident systemFont) {
 			String ident = systemFont.lower();

@@ -26,9 +26,10 @@ public class TextStrokeShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(TextStrokeWidth.INFO, KeywordValue.INHERIT);
-			primitives.set(TextStrokeColor.INFO, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(TextStrokeWidth.INFO, global);
+			primitives.set(TextStrokeColor.INFO, global);
 			return;
 		}
 

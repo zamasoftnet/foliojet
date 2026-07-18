@@ -52,6 +52,28 @@ public final class TokenStream {
 		return this.tokens.size() == 1 && this.tokens.get(0) == CssToken.Keyword.INHERIT;
 	}
 
+	/**
+	 * 値全体が単独のCSS全体キーワード(inherit/initial/unset)なら対応する
+	 * {@link net.zamasoft.foliojet.css.value.KeywordValue} を返します。
+	 * それ以外は null。
+	 */
+	public net.zamasoft.foliojet.css.value.KeywordValue globalKeyword() {
+		if (this.tokens.size() != 1) {
+			return null;
+		}
+		CssToken token = this.tokens.get(0);
+		if (token == CssToken.Keyword.INHERIT) {
+			return net.zamasoft.foliojet.css.value.KeywordValue.INHERIT;
+		}
+		if (token == CssToken.Keyword.INITIAL) {
+			return net.zamasoft.foliojet.css.value.KeywordValue.INITIAL;
+		}
+		if (token == CssToken.Keyword.UNSET) {
+			return net.zamasoft.foliojet.css.value.KeywordValue.UNSET;
+		}
+		return null;
+	}
+
 	/** 次が識別子ならその名前を消費して返す。それ以外は null。 */
 	public String ident() {
 		if (this.peek() instanceof CssToken.Ident ident) {

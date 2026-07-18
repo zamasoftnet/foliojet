@@ -80,6 +80,12 @@ public final class Tokens {
 		if (value.equalsIgnoreCase("inherit")) {
 			return CssToken.Keyword.INHERIT;
 		}
+		if (value.equalsIgnoreCase("initial")) {
+			return CssToken.Keyword.INITIAL;
+		}
+		if (value.equalsIgnoreCase("unset")) {
+			return CssToken.Keyword.UNSET;
+		}
 		if (value.charAt(0) == '#') {
 			CssToken color = parseHexColor(value);
 			if (color != null) {

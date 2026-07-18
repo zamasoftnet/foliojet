@@ -105,10 +105,10 @@ public sealed interface CssToken {
 
 	/** 特別なキーワード。 */
 	enum Keyword implements CssToken {
-		INHERIT;
+		INHERIT, INITIAL, UNSET;
 
 		public String toString() {
-			return "inherit";
+			return this.name().toLowerCase(java.util.Locale.ROOT);
 		}
 	}
 }

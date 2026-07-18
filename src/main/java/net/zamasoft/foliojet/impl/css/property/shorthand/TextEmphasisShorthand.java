@@ -27,9 +27,10 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(TextEmphasisStyle.INFO, KeywordValue.INHERIT);
-			primitives.set(TextEmphasisColor.INFO, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(TextEmphasisStyle.INFO, global);
+			primitives.set(TextEmphasisColor.INFO, global);
 			return;
 		}
 		byte fill = 0, type = 0;

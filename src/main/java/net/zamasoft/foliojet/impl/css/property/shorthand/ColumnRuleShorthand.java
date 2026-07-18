@@ -27,10 +27,11 @@ public class ColumnRuleShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(ColumnRuleWidth.INFO, KeywordValue.INHERIT);
-			primitives.set(ColumnRuleStyle.INFO, KeywordValue.INHERIT);
-			primitives.set(ColumnRuleColor.INFO, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(ColumnRuleWidth.INFO, global);
+			primitives.set(ColumnRuleStyle.INFO, global);
+			primitives.set(ColumnRuleColor.INFO, global);
 			return;
 		}
 

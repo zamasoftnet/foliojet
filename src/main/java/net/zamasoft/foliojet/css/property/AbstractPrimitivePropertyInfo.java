@@ -24,9 +24,10 @@ public abstract class AbstractPrimitivePropertyInfo extends AbstractPropertyInfo
 	public final Property parse(TokenStream tokens, UserAgent ua, URI uri, boolean important)
 			throws PropertyException {
 		Value value;
-		if (tokens.isInherit()) {
-			// 継承
-			value = KeywordValue.INHERIT;
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			// inherit / initial / unset(CSSStyle.getで解決される)
+			value = global;
 		} else {
 			value = this.parseValue(tokens, ua, uri);
 		}

@@ -24,11 +24,12 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(BorderRadius.TOP_LEFT, KeywordValue.INHERIT);
-			primitives.set(BorderRadius.TOP_RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderRadius.BOTTOM_RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderRadius.BOTTOM_LEFT, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(BorderRadius.TOP_LEFT, global);
+			primitives.set(BorderRadius.TOP_RIGHT, global);
+			primitives.set(BorderRadius.BOTTOM_RIGHT, global);
+			primitives.set(BorderRadius.BOTTOM_LEFT, global);
 			return;
 		}
 		final LengthValue tlh, trh, brh, blh;

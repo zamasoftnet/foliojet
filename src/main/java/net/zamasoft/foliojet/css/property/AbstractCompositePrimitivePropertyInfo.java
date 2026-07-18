@@ -28,12 +28,13 @@ public abstract class AbstractCompositePrimitivePropertyInfo extends AbstractPro
 	public final Property parse(TokenStream tokens, UserAgent ua, URI uri, boolean important)
 			throws PropertyException {
 		Entry[] entries;
-		if (tokens.isInherit()) {
-			// 継承
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			// inherit / initial / unset(CSSStyle.getで解決される)
 			PrimitivePropertyInfo[] primitives = this.getPrimitives();
 			entries = new Entry[primitives.length];
 			for (int i = 0; i < entries.length; ++i) {
-				entries[i] = new Entry(primitives[i], KeywordValue.INHERIT);
+				entries[i] = new Entry(primitives[i], global);
 			}
 		} else {
 			entries = this.parseValues(tokens, ua, uri);

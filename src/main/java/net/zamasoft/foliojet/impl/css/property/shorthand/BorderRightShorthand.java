@@ -28,10 +28,11 @@ public class BorderRightShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(BorderWidth.RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderStyle.RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderColor.RIGHT, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(BorderWidth.RIGHT, global);
+			primitives.set(BorderStyle.RIGHT, global);
+			primitives.set(BorderColor.RIGHT, global);
 			return;
 		}
 

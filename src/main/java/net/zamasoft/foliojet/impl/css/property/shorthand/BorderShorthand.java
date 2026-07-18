@@ -28,19 +28,20 @@ public class BorderShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(BorderWidth.LEFT, KeywordValue.INHERIT);
-			primitives.set(BorderStyle.LEFT, KeywordValue.INHERIT);
-			primitives.set(BorderColor.LEFT, KeywordValue.INHERIT);
-			primitives.set(BorderWidth.TOP, KeywordValue.INHERIT);
-			primitives.set(BorderStyle.TOP, KeywordValue.INHERIT);
-			primitives.set(BorderColor.TOP, KeywordValue.INHERIT);
-			primitives.set(BorderWidth.RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderStyle.RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderColor.RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderWidth.BOTTOM, KeywordValue.INHERIT);
-			primitives.set(BorderStyle.BOTTOM, KeywordValue.INHERIT);
-			primitives.set(BorderColor.BOTTOM, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(BorderWidth.LEFT, global);
+			primitives.set(BorderStyle.LEFT, global);
+			primitives.set(BorderColor.LEFT, global);
+			primitives.set(BorderWidth.TOP, global);
+			primitives.set(BorderStyle.TOP, global);
+			primitives.set(BorderColor.TOP, global);
+			primitives.set(BorderWidth.RIGHT, global);
+			primitives.set(BorderStyle.RIGHT, global);
+			primitives.set(BorderColor.RIGHT, global);
+			primitives.set(BorderWidth.BOTTOM, global);
+			primitives.set(BorderStyle.BOTTOM, global);
+			primitives.set(BorderColor.BOTTOM, global);
 			return;
 		}
 

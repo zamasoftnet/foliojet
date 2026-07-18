@@ -187,6 +187,17 @@ public class CSSStyle {
 				// 継承(読み出し次第クリア)
 				style.values[code] = null;
 			}
+			if (raw == KeywordValue.UNSET) {
+				// unset: 継承特性ならinherit相当、非継承特性ならinitial相当
+				// (CSS Cascading and Inheritance)
+				raw = info.isInherited() ? KeywordValue.INHERIT : KeywordValue.INITIAL;
+			}
+			if (raw == KeywordValue.INITIAL) {
+				// initial: 継承せず、常にプロパティの初期値を使う
+				resolved = info.getDefault(style);
+				chain.add(style);
+				break;
+			}
 			boolean needsParent = raw != null ? raw == KeywordValue.INHERIT
 					: (style.parentStyle != null && info.isInherited());
 			if (!needsParent || style.parentStyle == null) {

@@ -30,10 +30,11 @@ public class ListStyleShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(ListStyleType.INFO, KeywordValue.INHERIT);
-			primitives.set(ListStyleImage.INFO, KeywordValue.INHERIT);
-			primitives.set(ListStylePosition.INFO, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(ListStyleType.INFO, global);
+			primitives.set(ListStyleImage.INFO, global);
+			primitives.set(ListStylePosition.INFO, global);
 			return;
 		}
 

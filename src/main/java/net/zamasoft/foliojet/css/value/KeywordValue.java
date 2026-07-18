@@ -14,7 +14,11 @@ public enum KeywordValue implements Value {
 
 	TRANSPARENT("transparent"),
 
-	INHERIT("inherit");
+	INHERIT("inherit"),
+
+	INITIAL("initial"),
+
+	UNSET("unset");
 
 	private final String text;
 

@@ -38,16 +38,17 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(BackgroundColor.INFO, KeywordValue.INHERIT);
-			primitives.set(BackgroundImage.INFO, KeywordValue.INHERIT);
-			primitives.set(BackgroundAttachment.INFO, KeywordValue.INHERIT);
-			primitives.set(BackgroundRepeat.INFO, KeywordValue.INHERIT);
-			primitives.set(BackgroundPosition.INFO_X, KeywordValue.INHERIT);
-			primitives.set(BackgroundPosition.INFO_Y, KeywordValue.INHERIT);
-			primitives.set(BackgroundSize.INFO_WIDTH, KeywordValue.INHERIT);
-			primitives.set(BackgroundSize.INFO_HEIGHT, KeywordValue.INHERIT);
-			primitives.set(BackgroundClip.INFO, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(BackgroundColor.INFO, global);
+			primitives.set(BackgroundImage.INFO, global);
+			primitives.set(BackgroundAttachment.INFO, global);
+			primitives.set(BackgroundRepeat.INFO, global);
+			primitives.set(BackgroundPosition.INFO_X, global);
+			primitives.set(BackgroundPosition.INFO_Y, global);
+			primitives.set(BackgroundSize.INFO_WIDTH, global);
+			primitives.set(BackgroundSize.INFO_HEIGHT, global);
+			primitives.set(BackgroundClip.INFO, global);
 			return;
 		}
 

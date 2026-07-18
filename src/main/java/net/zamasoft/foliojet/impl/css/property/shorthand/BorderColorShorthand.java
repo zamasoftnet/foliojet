@@ -25,11 +25,12 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
-		if (tokens.isInherit()) {
-			primitives.set(BorderColor.LEFT, KeywordValue.INHERIT);
-			primitives.set(BorderColor.TOP, KeywordValue.INHERIT);
-			primitives.set(BorderColor.RIGHT, KeywordValue.INHERIT);
-			primitives.set(BorderColor.BOTTOM, KeywordValue.INHERIT);
+		KeywordValue global = tokens.globalKeyword();
+		if (global != null) {
+			primitives.set(BorderColor.LEFT, global);
+			primitives.set(BorderColor.TOP, global);
+			primitives.set(BorderColor.RIGHT, global);
+			primitives.set(BorderColor.BOTTOM, global);
 			return;
 		}
 		final Value color1 = nextColor(tokens, ua);

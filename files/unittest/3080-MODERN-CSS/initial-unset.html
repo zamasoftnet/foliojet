@@ -1,0 +1,39 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+div {
+	display: block;
+}
+#parent {
+	font-size: 20pt;
+}
+#initialchild {
+	font-size: initial;
+}
+#unsetchild {
+	font-size: unset;
+}
+#displayinitial {
+	display: initial;
+}
+</style>
+  </head>
+
+  <body>
+    <div id="parent">PARENTTWENTYPT</div>
+    <div id="parent"><div id="initialchild">INITIALCHILD</div></div>
+    <div id="parent"><div id="unsetchild">UNSETCHILD</div></div>
+    <div>BEFOREDISPLAY<div id="displayinitial">DISPLAYINITIAL</div>AFTERDISPLAY</div>
+  </body>
+
+</html>

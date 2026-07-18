@@ -1,0 +1,7 @@
+drawer z=0
+  x=0.00 y=0.00 Text["PARENTTWENTYPT" asc=18.00 desc=6.00]
+  x=0.00 y=24.00 Text["INITIALCHILD" asc=10.80 desc=3.60]
+  x=0.00 y=38.40 Text["UNSETCHILD" asc=18.00 desc=6.00]
+  x=0.00 y=62.40 Text["BEFOREDISPLAY" asc=9.00 desc=3.00]
+  x=65.00 y=62.80 Text["DISPLAYINITIAL" asc=8.60 desc=2.41]
+  x=135.00 y=62.40 Text["AFTERDISPLAY" asc=9.00 desc=3.00]
