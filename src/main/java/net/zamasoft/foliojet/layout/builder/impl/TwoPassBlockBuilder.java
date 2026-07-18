@@ -408,8 +408,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				if (DEBUG) {
 					System.err.println("END_TEXT_BLOCK");
 				}
-				textUnitizer.close();
-				textUnitizer = null;
+				// 内容が空のテキストブロック(例: 空のテーブルセル)では
+				// ElementEvent/InlineBlockEventが一度も来ずtextUnitizerが
+				// 遅延初期化されないままここに達することがある(2026-07-18、
+				// <td></td>のような空セルでNullPointerExceptionが実際に
+				// 発生した)。他のcase節と同じくnullガードで対応する。
+				if (textUnitizer != null) {
+					textUnitizer.close();
+					textUnitizer = null;
+				}
 				builder.endTextBlock();
 				break;
 

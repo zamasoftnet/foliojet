@@ -1342,10 +1342,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void endTextBlock() {
-		// テキストブロックの終了
-		this.textBuilder.finish();
-		this.pageAxis += this.textBuilder.getPageAxis();
-		this.textBuilder = null;
+		// テキストブロックの終了。内容が空(control()が一度も呼ばれず
+		// requireTextBlock()でtextBuilderが生成されない)場合はnullのまま
+		// ここに達することがある(2026-07-18、空のテーブルセルで
+		// NullPointerExceptionが実際に発生した)。このクラスの他の箇所
+		// (809行目付近等)と同じくnullガードで対応する
+		if (this.textBuilder != null) {
+			this.textBuilder.finish();
+			this.pageAxis += this.textBuilder.getPageAxis();
+			this.textBuilder = null;
+		}
 		final Flow flow = this.getFlow();
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		// System.err.println("endTextBlock");
