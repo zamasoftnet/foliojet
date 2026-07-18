@@ -418,7 +418,7 @@ public class RootBuilder extends BreakableBuilder {
 		// C1c: 継続化パスでは各フレームコンテナ最上位の再生可能な閉部分木を
 		// ボックスごと吸収し、serial 付き再生範囲(prefixItems)として運ぶ。
 		// resume が serial 順で残アイテムと合流させて再駆動する。
-		// walk depth はフレームの tail から導出(Child=0、LegacyOpenTail=d)
+		// walk depth はフレームの tail から導出(Child=0、OpenTailShape=d)
 		final int depth = this.flowStack.size();
 		java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> rootPrefix = java.util.List
 				.of();
@@ -432,7 +432,7 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
 				final int walkDepth = f
-						.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
+						.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 								final net.zamasoft.foliojet.layout.fragment.OpenShape shape) ? shape.depth() : 0;
 				framePrefixes.add(f.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 						? fc.extractReplayable(ranges, rootVertical, walkDepth)
@@ -441,7 +441,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		// C1d-C: prefix を焼き込んだフレーム木を内→外に再構成する。
-		// 最内フレームは cascade が確定した LegacyOpenTail を保持
+		// 最内フレームは cascade が確定した OpenTailShape を保持
 		net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = null;
 		for (int i = innerFrames.size() - 1; i >= 0; --i) {
 			final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = innerFrames.get(i);
@@ -452,7 +452,7 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootFrame = new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(
 				rootRecipe, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
 				tail == null
-						? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
+						? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 								net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth))
 						: tail);
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
@@ -502,7 +502,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 継続フレームを外→内に消費します(C1d-A)。各フレームの断片ボックスを
 	 * ここで初めて構成し、コンテナを吸収済み prefix と合流させて歩く。
 	 * tail が Child なら depth=0(チェーン子はコンテナに居ない)、
-	 * LegacyOpenTail なら従来の深さ規約(最内の moved-open ボックス・
+	 * OpenTailShape なら従来の深さ規約(最内の moved-open ボックス・
 	 * 開きテキストの継続)。
 	 *
 	 * @param frame フレーム
@@ -530,18 +530,18 @@ public class RootBuilder extends BreakableBuilder {
 					"depth=" + (depth - (index + 1)));
 			this.resumeFrame(child, index + 1, depth);
 		}
-		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
+		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 				final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_LEGACY_DEPTH
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH
 					.accumulateAndGet(shape.depth(), Math::max);
 			if (index == 0) {
 				// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 				// この経路では prefix 吸収は行われていない
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_ROOTS.incrementAndGet();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.incrementAndGet();
 				assert frame.prefixItems().isEmpty();
 				box.restyle(this, shape);
 			} else {
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_TAILS.incrementAndGet();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.incrementAndGet();
 				this.startFlowBlock(box);
 				this.restyleFrame(box.getContainer(), frame.prefixItems(), shape);
 			}

@@ -33,10 +33,10 @@ public record BreakPlan(java.util.List<net.zamasoft.foliojet.layout.box.Abstract
 
 	/**
 	 * 現在の対象メンバー(flowStack[index+1])が最内の継続化レベルに
-	 * なった場合の LegacyOpenTail 深さ(そのコンテナに残る開いた
+	 * なった場合の OpenTailShape 深さ(そのコンテナに残る開いた
 	 * レベル数)。
 	 */
-	public int legacyDepth() {
+	public int openTailDepth() {
 		return this.depth - this.index - 1;
 	}
 }

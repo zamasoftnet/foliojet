@@ -255,8 +255,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
 		final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = childFrame != null
 				? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(childFrame)
-				: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
-						net.zamasoft.foliojet.layout.fragment.OpenShape.of(plan.legacyDepth()));
+				: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+						net.zamasoft.foliojet.layout.fragment.OpenShape.of(plan.openTailDepth()));
 		return new net.zamasoft.foliojet.layout.fragment.SplitResult.Frame(
 				new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(recipe, state, nextContainer,
 						crossExtent, java.util.List.of(), tail));

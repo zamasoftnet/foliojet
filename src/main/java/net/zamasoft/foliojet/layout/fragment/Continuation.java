@@ -53,15 +53,14 @@ public record Continuation(int depth, ContinuationFrame root,
 		}
 
 		/**
-		 * 従来の深さ規約による legacy 走行です。生の depth を読むのは
-		 * この consumer 一箇所だけにする(外部レビュー #6 の adapter)。
+		 * 継続末尾の開き形です(M3b Phase 3c で旧 int depth 規約を型化)。
 		 * 最内の収集フレーム(木に残った moved-open ボックス・開き
 		 * テキストの継続)と、収集不能な破断のルートフレームが持つ。
 		 *
-		 * @param depth このフレームのコンテナ走行に渡す残り深さ
+		 * @param shape このフレームのコンテナ走行に渡す末尾の開き形
 		 */
-		record LegacyOpenTail(OpenShape shape) implements OpenTail {
-			public LegacyOpenTail {
+		record OpenTailShape(OpenShape shape) implements OpenTail {
+			public OpenTailShape {
 				// ルート=flowStack 全深さ、最内=残 depth(D - chain 数)。
 				// いずれも開いている(チェーンは flowStack[1..] の部分列)。
 				// 形は M3b Phase 3c で型化(旧 int depth 規約)
