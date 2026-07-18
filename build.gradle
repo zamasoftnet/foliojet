@@ -21,7 +21,8 @@ def dependencyVersions = [
     saxon            : '12.9',
     xmlApis          : '1.4.01',
     okapiBarcode     : '0.5.5',
-    jeuclid          : '3.1.14'
+    jeuclid          : '3.1.14',
+    commonmark       : '0.29.0'
 ]
 
 repositories {
@@ -119,6 +120,7 @@ dependencies {
     api "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
     api "uk.org.okapibarcode:okapibarcode:${dependencyVersions.okapiBarcode}"
     api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
+    api "org.commonmark:commonmark:${dependencyVersions.commonmark}"
     testImplementation 'junit:junit:4.13.2'
     // veraPDF (greenfield parser) for automated PDF/UA conformance validation
     testImplementation 'org.verapdf:validation-model:1.26.5'
