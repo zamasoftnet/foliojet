@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.InflaterInputStream;
 
 import net.zamasoft.foliojet.message.MessageHandler;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -283,6 +285,10 @@ class MyHttpSourceResolver implements SourceResolver {
 	protected HttpClient createHttpClient(ExecutorService executor) {
 		HttpClient.Builder builder = HttpClient.newBuilder();
 		builder.executor(executor);
+		// HttpClient は既定で Redirect.NEVER(3xx をリダイレクト先に追従せず
+		// そのまま応答として返す)。HTTPS→HTTP への格下げだけは追従しない
+		// NORMAL を明示する
+		builder.followRedirects(HttpClient.Redirect.NORMAL);
 		if (this.connectionTimeout > 0) {
 			builder.connectTimeout(Duration.ofMillis(this.connectionTimeout));
 		}
@@ -333,8 +339,37 @@ class MyHttpSourceResolver implements SourceResolver {
 		this.httpClient = null;
 	}
 
+	private static final String DEFAULT_USER_AGENT = "CopperPDF";
+
+	private boolean hasCustomHeader(String name) {
+		if (this.headers == null) {
+			return false;
+		}
+		for (int i = 0; i < this.headers.size(); ++i) {
+			if (this.headers.get(i).getKey().equalsIgnoreCase(name)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private HttpRequest createHttpRequest(URI uri) {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(uri).GET();
+		// java.net.http.HttpClient は Accept-Encoding を自動送信せず、応答の
+		// Content-Encoding も自動で解凍しない(帯域節約のため明示的に要求し、
+		// getInputStream() 側で解凍する。static object store 由来のレスポンス
+		// (S3 等)は Accept-Encoding 無指定でも Content-Encoding: gzip を
+		// 返すことがあるため、要求の有無に関わらず解凍側の対応が本質)。
+		builder.header("Accept-Encoding", "gzip, deflate");
+		// User-Agent 未設定のままだと HttpClient 既定の "Java-http-client/x.x"
+		// が送られ、bot policy を敷くサイト(実例: Wikipedia が
+		// robots policy 遵守目的で明示的な User-Agent を要求し、無ければ
+		// 403 で拒否する)からコンテンツを取得できない実バグを2026-07-18の
+		// 実地テストで発見。管理者が input.http-header*.name で明示的に
+		// User-Agent を設定している場合はそちらを優先し、上書きしない
+		if (!this.hasCustomHeader("User-Agent")) {
+			builder.header("User-Agent", DEFAULT_USER_AGENT);
+		}
 		if (this.requestTimeout > 0) {
 			builder.timeout(Duration.ofMillis(this.requestTimeout));
 		}
@@ -391,6 +426,7 @@ class MyHttpSourceResolver implements SourceResolver {
 		private HttpResponse<InputStream> response;
 		private InputStream in;
 		private String mimeType;
+		private String contentEncoding;
 		private String encoding;
 		private boolean exists;
 		private long lastModified = -1;
@@ -438,10 +474,29 @@ class MyHttpSourceResolver implements SourceResolver {
 				this.startConnection();
 			}
 			this.tryConnect();
-			this.in = this.response.body();
-			if (this.in == null) {
+			InputStream body = this.response.body();
+			if (body == null) {
 				throw new FileNotFoundException();
 			}
+			// HttpClient は Content-Encoding を自動解凍しないため、ここで
+			// 明示的に解凍する(未対応のままだと圧縮バイト列がそのまま
+			// パーサに渡り、大量の文字化けとして観測される)。
+			if (this.contentEncoding != null) {
+				switch (this.contentEncoding.trim().toLowerCase()) {
+				case "gzip":
+				case "x-gzip":
+					body = new GZIPInputStream(body);
+					break;
+				case "deflate":
+					body = new InflaterInputStream(body);
+					break;
+				default:
+					// br(Brotli)等、未対応の符号化はそのまま渡す(現状 br は
+					// 要求していないため通常は到達しない)
+					break;
+				}
+			}
+			this.in = body;
 			return this.in;
 		}
 
@@ -489,8 +544,13 @@ class MyHttpSourceResolver implements SourceResolver {
 			}
 			this.exists = this.response.statusCode() != 404;
 			this.mimeType = this.response.headers().firstValue("Content-Type").orElse(null);
+			this.contentEncoding = this.response.headers().firstValue("Content-Encoding").orElse(null);
 			this.encoding = parseCharset(this.mimeType);
-			this.contentLength = this.response.headers().firstValueAsLong("Content-Length").orElse(-1);
+			// Content-Length は圧縮後のバイト数であり、解凍後の長さとは
+			// 一致しない(getInputStream() が解凍する場合)。誤った長さを
+			// 伝えるより不明(-1)の方が安全
+			this.contentLength = this.contentEncoding != null ? -1
+					: this.response.headers().firstValueAsLong("Content-Length").orElse(-1);
 			this.lastModified = parseLastModified(this.response.headers().firstValue("Last-Modified").orElse(null));
 		}
 
