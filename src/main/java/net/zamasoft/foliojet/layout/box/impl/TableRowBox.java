@@ -562,7 +562,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	private final void restyleCell(TableCellBox nextCell) {
 		// 再レイアウトにFIXEDボックスは関与しないのでpageContextBuilderはnullでよい
 		final BlockBuilder cellBindBuilder = new BlockBuilder(null, nextCell);
-		nextCell.restyle(cellBindBuilder, 0);
+		nextCell.restyle(cellBindBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 		cellBindBuilder.close();
 	}
 }

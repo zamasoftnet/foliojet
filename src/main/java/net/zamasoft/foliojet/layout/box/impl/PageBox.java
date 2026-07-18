@@ -340,7 +340,7 @@ public class PageBox extends AbstractBlockBox {
 		}
 	}
 
-	public final void restyle(BlockBuilder builder, int depth) {
+	public final void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
 		if (this.fixeds == null) {
 			return;
 		}

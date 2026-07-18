@@ -74,7 +74,8 @@ public interface Container {
 
 	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y);
 
-	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes);
+	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
+			boolean restyleAbsolutes);
 
 	/**
 	 * 継続化計画付きのページ方向切断です(C1d-C)。plan が選択した

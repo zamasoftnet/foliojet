@@ -433,7 +433,7 @@ public class RootBuilder extends BreakableBuilder {
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
 				final int walkDepth = f
 						.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
-								final int d) ? d : 0;
+								final net.zamasoft.foliojet.layout.fragment.OpenShape shape) ? shape.depth() : 0;
 				framePrefixes.add(f.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 						? fc.extractReplayable(ranges, rootVertical, walkDepth)
 						: java.util.List.of());
@@ -451,13 +451,15 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootFrame = new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(
 				rootRecipe, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
-				tail == null ? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(depth)
+				tail == null
+						? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
+								net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth))
 						: tail);
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
 				depth, rootFrame, ranges);
 
 		this.flowStack.clear();
-		pageBox.restyle(this, 0);
+		pageBox.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 		// P1: セッションがリース(occurrence 単位)とスコープを所有し、
 		// consume-once と例外時清算を対称に保証する
 		try (ResumeSession session = new ResumeSession(continuation)) {
@@ -522,24 +524,26 @@ public class RootBuilder extends BreakableBuilder {
 				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
 			this.startFlowBlock(box);
-			this.restyleFrame(box.getContainer(), frame.prefixItems(), 0);
+			this.restyleFrame(box.getContainer(), frame.prefixItems(),
+					net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(index + 1, "chain-fragment",
 					"depth=" + (depth - (index + 1)));
 			this.resumeFrame(child, index + 1, depth);
 		}
-		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(final int d) -> {
+		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.LegacyOpenTail(
+				final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_LEGACY_DEPTH
-					.accumulateAndGet(d, Math::max);
+					.accumulateAndGet(shape.depth(), Math::max);
 			if (index == 0) {
 				// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 				// この経路では prefix 吸収は行われていない
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_ROOTS.incrementAndGet();
 				assert frame.prefixItems().isEmpty();
-				box.restyle(this, d);
+				box.restyle(this, shape);
 			} else {
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_TAILS.incrementAndGet();
 				this.startFlowBlock(box);
-				this.restyleFrame(box.getContainer(), frame.prefixItems(), d);
+				this.restyleFrame(box.getContainer(), frame.prefixItems(), shape);
 			}
 		}
 		}
@@ -551,12 +555,12 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private void restyleFrame(final net.zamasoft.foliojet.layout.box.content.Container container,
 			final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix,
-			final int depth) {
+			final net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
 		if (container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc) {
-			fc.restyle(this, depth, false, prefix);
+			fc.restyle(this, shape, false, prefix);
 		} else {
 			assert prefix.isEmpty();
-			container.restyle(this, depth, false);
+			container.restyle(this, shape, false);
 		}
 	}
 

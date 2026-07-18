@@ -56,7 +56,7 @@ public class Floatings {
 				// 匿名ボックス
 				AbstractContainerBox floatBox = (AbstractContainerBox) this.box;
 				BlockBuilder floatBindBuilder = new BlockBuilder(builder, floatBox);
-				floatBox.restyle(floatBindBuilder, 0);
+				floatBox.restyle(floatBindBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 				floatBindBuilder.close();
 				builder.addBound(floatBox);
 			}

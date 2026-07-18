@@ -234,10 +234,11 @@ public class ColumnsContainer implements Container {
 		this.columns.add(container);
 	}
 
-	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes) {
+	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
+			boolean restyleAbsolutes) {
 		for (int i = 0; i < this.columns.size(); ++i) {
 			FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.restyle(builder, depth, restyleAbsolutes);
+			container.restyle(builder, shape, restyleAbsolutes);
 		}
 	}
 }

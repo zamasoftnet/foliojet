@@ -1005,7 +1005,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					root.stampRanges(container, breakFlow.box.getBlockParams().flow));
 		}
 		try {
-			container.restyle(this, depth, false);
+			container.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth), false);
 		} finally {
 			if (root != null) {
 				root.endBreakRestyle();

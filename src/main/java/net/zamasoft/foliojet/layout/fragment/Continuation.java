@@ -60,11 +60,12 @@ public record Continuation(int depth, ContinuationFrame root,
 		 *
 		 * @param depth このフレームのコンテナ走行に渡す残り深さ
 		 */
-		record LegacyOpenTail(int depth) implements OpenTail {
+		record LegacyOpenTail(OpenShape shape) implements OpenTail {
 			public LegacyOpenTail {
 				// ルート=flowStack 全深さ、最内=残 depth(D - chain 数)。
-				// いずれも 1 以上(チェーンは flowStack[1..] の部分列)
-				assert depth > 0 : depth;
+				// いずれも開いている(チェーンは flowStack[1..] の部分列)。
+				// 形は M3b Phase 3c で型化(旧 int depth 規約)
+				assert !(shape instanceof OpenShape.Closed) : shape;
 			}
 		}
 	}

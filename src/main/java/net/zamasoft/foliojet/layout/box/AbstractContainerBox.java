@@ -217,7 +217,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 						root.getPageGenerator().getLayoutSource(), this.getSourceAnchor(), columnBuilder,
 						root.getPageGenerator());
 		if (!replayed) {
-			oldCont.restyle(columnBuilder, 0, true);
+			oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
 		}
 	}
 
@@ -354,7 +354,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.textShape(pageBox, path, transform, x, y);
 	}
 
-	public void restyle(BlockBuilder builder, int depth) {
-		this.container.restyle(builder, depth, false);
+	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
+		this.container.restyle(builder, shape, false);
 	}
 }

@@ -1125,15 +1125,19 @@ public class FlowContainer implements Container {
 		return prefix;
 	}
 
-	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes) {
-		this.restyle(builder, depth, restyleAbsolutes, List.of());
+	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
+			boolean restyleAbsolutes) {
+		this.restyle(builder, shape, restyleAbsolutes, List.of());
 	}
 
 	/**
 	 * 吸収された再生範囲(C1c)を serial 順で合流させながら再開します。
 	 */
-	public void restyle(BlockBuilder builder, int depth, boolean restyleAbsolutes,
+	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
+			boolean restyleAbsolutes,
 			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
+		// トレース・水位の互換表示は旧 depth 値
+		final int depth = shape.depth();
 		// フロートは最近接ブロック祖先のコンテナに係留されるため、移動した
 		// 部分木の内部フロートは部分木と一緒に動き、ソース再駆動でも二重
 		// 生成されない(golden: float-in-moved)。絶対配置ボックスの開始は
@@ -1206,7 +1210,8 @@ public class FlowContainer implements Container {
 				case TEXT_BLOCK: {
 					// テキストブロックボックス
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
-					final boolean open = lastFlow == holder && depth == 1;
+					final boolean open = lastFlow == holder
+							&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText;
 					boolean replayed = false;
 					// open(live ストリームが続きを流し込む)場合の尾部再生は
 					// box-restyle に委ねる。かつての理由「charOffset の±1」は
@@ -1263,21 +1268,24 @@ public class FlowContainer implements Container {
 							// ブロックボックス
 							// 匿名ボックス
 							// テーブルキャプション
-							if (lastFlow == holder && depth > 1) {
+							if (lastFlow == holder
+									&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenChain(
+											final net.zamasoft.foliojet.layout.fragment.OpenShape inner)) {
 								// 開いたままの祖先チェーン
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-chain",
 										"serial=" + holder.serial);
-								containerBox.restyle(builder, depth - 1);
+								containerBox.restyle(builder, inner);
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 									&& builder.getPageContext() != null
 									&& builder.getPageContext().replayFromSource(containerBox, builder))) {
 								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b
 								// segment-restyle)。false ならボックス再生でフォールバック。
-								// lastFlow && depth==1 の末尾も閉じたボックス(次段で depth-1=0)
+								// lastFlow && OpenText の末尾も閉じたボックス(次段は Closed)
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-box",
 										"serial=" + holder.serial);
-								containerBox.restyle(builder, 0);
+								containerBox.restyle(builder,
+										net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 							} else {
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "replay-subtree",
 										"serial=" + holder.serial);

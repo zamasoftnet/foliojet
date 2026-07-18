@@ -551,10 +551,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		};
 	}
 
-	public final void restyle(final BlockBuilder builder, int depth) {
+	public final void restyle(final BlockBuilder builder, final net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
 		builder.startFlowBlock(this);
-		super.restyle(builder, depth);
-		if (depth > 0) {
+		super.restyle(builder, shape);
+		if (!(shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.Closed)) {
+			// 開いた継続: 末尾はこの箱の中で live が続く
 			return;
 		}
 		builder.endFlowBlock();
