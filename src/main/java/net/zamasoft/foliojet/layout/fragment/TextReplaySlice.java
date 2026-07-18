@@ -23,6 +23,9 @@ import net.zamasoft.pdfg2d.gc.text.TextControl;
 public final class TextReplaySlice {
 	private final List<TextReplayEvent> events;
 
+	/** consume-once: 再生済みなら true(P0 の ranges と同じ規約)。 */
+	private boolean consumed;
+
 	private TextReplaySlice(final List<TextReplayEvent> events) {
 		this.events = events;
 	}
@@ -70,8 +73,17 @@ public final class TextReplaySlice {
 
 	/**
 	 * 捕捉した列を GlyphHandler へ再生し、close で終端します。
+	 * consume-once — 二重再生は二重供給(グリフの重複)なので禁止。
+	 * 非 quad の Control(WhiteSpace/Tab/LineBreak/SoftHyphen)は
+	 * final フィールドのみの不変値のため参照運搬=値運搬。可変参照が
+	 * 残るのは InlineQuad(インライン継続)のみで、これは OpenChain
+	 * recipe(Phase 3c)で値化する。
 	 */
 	public void replay(final GlyphHandler gh) {
+		if (this.consumed) {
+			throw new IllegalStateException("TextReplaySlice は consume-once");
+		}
+		this.consumed = true;
 		for (final TextReplayEvent event : this.events) {
 			switch (event) {
 			case TextReplayEvent.RunStart(final int charOffset, final FontStyle fontStyle,
