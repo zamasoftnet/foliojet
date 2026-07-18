@@ -304,10 +304,13 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			}
 			assert !this.lines.isEmpty();
 			assert !nextTextBlock.lines.isEmpty();
-			// M3b Phase 2: handoff 内容は破断時点で確定する — 残余の
-			// 正規化イベント列をここで捕捉し、box は運搬体に落とす
-			// (Phase 3 で TextTail 型付き item へ置換し運搬体を除去)
+			// M3b Phase 2/3a: handoff 内容は破断時点で確定する — 残余の
+			// 正規化イベント列をここで捕捉し、行は捨てる。運搬体は
+			// slice+breakToken だけを運ぶ(切断は live、運搬は不変、
+			// 再開で再構築 — grok 裁定 docs/consult-p3-resplit-grok.txt。
+			// resume 前に残余の行・寸法を読む経路はない)
 			nextTextBlock.slice = nextTextBlock.recordSlice();
+			nextTextBlock.lines.clear();
 			return new SplitResult.Split(nextTextBlock);
 		}
 		}
@@ -329,7 +332,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice;
 
 	public final void restyle(final BlockBuilder builder) {
-		assert (!this.lines.isEmpty());
+		assert this.slice != null || !this.lines.isEmpty();
 		builder.setBreakToken(this.breakToken);
 		// M3b Phase 1/2: 運搬体はスライス。分割断片は破断時に捕捉済み、
 		// それ以外(全 restyle 経路)はここで捕捉する。捕捉→再生は
