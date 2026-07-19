@@ -1,2 +1,2 @@
-net.zamasoft.foliojet.impl.ua.svg.SVGImageLoader
-net.zamasoft.foliojet.impl.ua.image.RasterImageLoader
+net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader
+net.zamasoft.foliojet.ua.impl.image.RasterImageLoader
