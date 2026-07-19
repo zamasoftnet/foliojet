@@ -667,17 +667,4 @@ public class RootBuilder extends BreakableBuilder {
 		this.finishLayout();
 		this.pageGenerator.drawPage(this.pageBox);
 	}
-	//
-	// public final void startFlowBlock(FlowBlockBox flowBox) {
-	// System.err.println((this.flowStack == null ? 0 :
-	// this.flowStack.size())+"/"+flowBox.getParams().augmentation);
-	// super.startFlowBlock(flowBox);
-	// }
-	//
-	// public void endFlowBlock() {
-	// Flow flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
-	// System.err.println((this.flowStack == null ? 0 :
-	// this.flowStack.size())+"/"+flow.box.getParams().augmentation);
-	// super.endFlowBlock();
-	// }
 }

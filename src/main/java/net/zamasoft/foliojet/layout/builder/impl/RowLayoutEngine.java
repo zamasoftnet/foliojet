@@ -6,10 +6,25 @@ import java.util.List;
  * 行・セル配置の共有核です(P2-2: §5.2b 表ビルダー統一)。
  *
  * <p>
- * OnePass/TwoPass 両ビルダーが鏡像で持っていた行高さのアルゴリズムを、
- * ボックス木から切り離した配列演算として統合します。呼び出し側は
- * 行ボックスから配列を組み、結果を書き戻す(データの出所だけが
- * ビルダーごとに異なる — CellContent.complementRowspan と同じ分担)。
+ * 「両ビルダーの行高さアルゴリズムを統合した」という説明は過大だった
+ * (2026-07-19訂正、C4-D・外部設計レビュー)。実際に共有されているのは
+ * 局所/全体それぞれの行高方針をボックス木から切り離した純粋な配列演算
+ * であり、いつ・どの範囲へ・どの順序で適用するかはIncremental
+ * (OnePassTableBuilder)/Retained(TwoPassTableBuilder)で異なる。
+ * 呼び出し側は行ボックスから配列を組み、結果を書き戻す(データの出所
+ * だけがビルダーごとに異なる — CellContent.complementRowspan と同じ分担)。
+ * </p>
+ * <p>
+ * 概念上2種類に分かれる(クラス自体は分離していない、2026-07-19時点):
+ * <ul>
+ * <li><b>局所(窓内で完結、Incremental/Retained共用)</b>: {@link #rowSpec}、
+ * {@link #distributeSpannedRowSizes}(開いているrowspanの範囲だけで完結)、
+ * {@link #distributeGroupSize}(1つのrow-group内で完結——絶対高さ
+ * row-groupはIncrementalでもこの単位を丸ごと保持する、P0-2参照)。</li>
+ * <li><b>表全体(Retained専用。specifiedPageSize=0=表heightがautoの
+ * 場合は恒等的に無効になるため、Incrementalは実質呼ばない)</b>:
+ * {@link #distributePercentRowSizes}、{@link #distributeTableSize}。</li>
+ * </ul>
  * </p>
  */
 public final class RowLayoutEngine {

@@ -14,16 +14,28 @@ import java.util.concurrent.atomic.AtomicLong;
  * </p>
  */
 public final class TableBuildStats {
-	/** OnePass(fixed ストリーミング)構築の発火数。 */
+	/**
+	 * OnePass(Incremental=早期コミット可能)構築の発火数。table-layout:fixed
+	 * が主だが、それだけではない——{@link TableRetentionReason}参照
+	 * (2026-07-19訂正: 「OnePass=fixed」は不正確)。
+	 */
 	public static final AtomicLong ONE_PASS_BUILDS = new AtomicLong();
 
-	/** TwoPass(実測後 bind)構築の発火数。 */
+	/**
+	 * TwoPass(Retained=表全体を保持してからコミット)構築の発火数。
+	 * table-layout:autoが主だが、それだけではない——非FLOW配置・
+	 * ページ軸寸法指定・行軸auto寸法・ネスト実測パスでもこちらへ
+	 * ルーティングされる(2026-07-19訂正: 「TwoPass=auto」は不正確)。
+	 */
 	public static final AtomicLong TWO_PASS_BUILDS = new AtomicLong();
 
 	/**
-	 * OnePass が同時に保持した行単位バッファの最大数(high-water)。
-	 * fixed のストリーミング(bounded-memory)が全体保持に退化していない
-	 * ことの証拠。未閉鎖 rowspan の周辺だけが保持される。
+	 * OnePass(Incremental)が同時に保持した行単位バッファの最大数(high-water)。
+	 * ストリーミング(bounded-memory)が全体保持に退化していないことの証拠
+	 * ——未閉鎖rowspanの周辺だけが保持される。**ただし絶対高さrow-group
+	 * (`<tbody style="height:...">`)内では、そのrow-groupが閉じるまで
+	 * 全行を保持する既知の限界がある**(2026-07-19発見、
+	 * CSS-SUPPORT.md参照。table-layout:auto以外の無限成長経路)。
 	 */
 	public static final AtomicLong ONE_PASS_ROW_HIGH_WATER = new AtomicLong();
 

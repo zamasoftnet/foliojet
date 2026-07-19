@@ -336,7 +336,6 @@ public class TextBuilder {
 	}
 
 	private void startInline(IInlineBox box) {
-		// System.err.println(box.getParams().augmentation);
 		AbstractTextBox textBox = this.getTextBox();
 		textBox.addInline(box);
 
@@ -490,7 +489,6 @@ public class TextBuilder {
 		Inline inline = (Inline) this.inlineStack.remove(this.inlineStack.size() - 1);
 		if (inline != null) {
 			InlineBox inlineBox = inline.box;
-			// System.err.println("/"+inline.box.getParams().augmentation);
 			inlineBox.closeInline();
 
 			AbstractLineParams params = this.lineBox.getLineParams();
@@ -942,17 +940,11 @@ public class TextBuilder {
 				if (inlineStartQuad.getAdvance() != 0) {
 					this.lastSpaceAdvance = 0;
 				}
-				// System.err.println(this.textParamStack.size()+"
-				// start/"+this+" TB:
-				// "+quad.getAdvance()+"/"+params.augmentation);
 			}
 				break;
 
 			case InlineQuad.INLINE_END: {
 				final InlineEndQuad inlineEndQuad = (InlineEndQuad) inlineQuad;
-				// System.err.println(this.textParamStack.size()+" end/"+this+"
-				// TB:
-				// "+quad.getAdvance()+"/"+inlineEndQuad.box.getParams().augmentation);
 				this.textParamStack.remove(this.textParamStack.size() - 1);
 				if (this.textParamStack.isEmpty()) {
 					params = this.lineBox.getTextParams();

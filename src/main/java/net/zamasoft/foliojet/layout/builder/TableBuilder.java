@@ -19,5 +19,36 @@ public interface TableBuilder {
 
 	public Builder newContext(AbstractContainerBox box);
 
-	public boolean isOnePass();
+	/**
+	 * この表がIncremental(早期コミット可能)な実行計画で構築されていれば
+	 * trueを返します(2026-07-19、C4-C: 旧isOnePass()を
+	 * {@link net.zamasoft.foliojet.layout.builder.impl.TableBuildPlan.Mode}
+	 * の語彙へ統一。意味は不変)。
+	 */
+	public boolean isIncremental();
+
+	/**
+	 * セル/キャプションに入る直前(newContext呼び出し前)に呼ばれます
+	 * (C4-C深化、2026-07-19)。Incremental(OnePass)はインライン文脈を
+	 * 閉じ直す必要があるが、Retained(TwoPass)は独立した内側ビルダーを
+	 * 持つため何もしなくてよい——この判断をDocumentBuilder側で
+	 * isIncremental()を問うのではなく、TableBuilder実装自身に委ねる
+	 * (tell-don't-ask)。既定はRetained相当の no-op。
+	 */
+	public default void prepareEnterCell(TableBuilderHost host) {
+	}
+
+	/**
+	 * カラム/行グループ/行に入る直前に呼ばれます(C4-C深化)。既定は
+	 * no-op。
+	 */
+	public default void prepareEnterTrack(TableBuilderHost host) {
+	}
+
+	/**
+	 * カラム/行グループ/行に入った直後に呼ばれます(C4-C深化)。既定は
+	 * no-op。
+	 */
+	public default void afterEnterTrack(TableBuilderHost host) {
+	}
 }

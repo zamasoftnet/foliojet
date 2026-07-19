@@ -38,8 +38,13 @@ import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * ドキュメント全体を構築します。
- * 
+ * 改ページ・改段の編成(自動/強制/段組)を担う抽象ビルダーです
+ * (2026-07-19訂正: 旧javadocはRootBuilderからのコピー残りで
+ * 「ドキュメント全体を構築します」という不正確な説明だった。実際には
+ * ARCHITECTURE.md命名台帳§8で指摘の通り、ファイル本体の大半が
+ * 自動/強制/段の切断編成に費やされている)。{@link RootBuilder}が
+ * ドキュメントルート向けの具象サブクラス。
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: BreakableBuilder.java 1561 2018-07-04 11:44:21Z miyabe $
  */
@@ -798,13 +803,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 切断
 				transfer = false;
 			}
-			// if (transfer) {
-			// System.err.println("transfer float block: "
-			// + box.getParams().augmentation);
-			// } else {
-			// System.err.println("split float block: "
-			// + box.getParams().augmentation);
-			// }
 			break;
 
 		case REPLACED:

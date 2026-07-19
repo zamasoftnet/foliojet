@@ -55,6 +55,7 @@ import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
+import net.zamasoft.foliojet.layout.builder.TableBuilderHost;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 import net.zamasoft.foliojet.layout.util.DoubleList;
@@ -741,8 +742,6 @@ public class OnePassTableBuilder implements TableBuilder {
 		for (; row < this.bindRowGroupBox.getTableRowCount(); ++row) {
 			TableRowBox rowBox = this.bindRowGroupBox.getTableRow(row);
 			double rowSize = rowBox.getPageSize();
-			// System.err.println(row + "/" + bottom + "/" + pageLimit + "/"
-			// + rowBox.getParams().augmentation);
 			if (LayoutUtils.compare(rowSize, rowSplitLine) > 0) {
 				break;
 			}
@@ -1039,8 +1038,32 @@ public class OnePassTableBuilder implements TableBuilder {
 		this.builder.endFlowBlock();
 	}
 
-	public boolean isOnePass() {
+	public boolean isIncremental() {
 		return true;
+	}
+
+	/**
+	 * Incrementalは外側のDocumentBuilderと同じストリーミング機構で
+	 * セルを構築するため、newContext呼び出し前にインライン文脈を
+	 * 閉じ直す必要がある(段組span境界のstartColumnSpan/endColumnSpanと
+	 * 同型の「フロー境界跨ぎ」ブラケット、C4-C深化・2026-07-19)。
+	 */
+	@Override
+	public void prepareEnterCell(final TableBuilderHost host) {
+		host.closeInlines(this.getTableBox().getParams());
+		host.endContainer();
+		host.startContainer();
+	}
+
+	@Override
+	public void prepareEnterTrack(final TableBuilderHost host) {
+		host.closeInlines(this.getTableBox().getParams());
+		host.endContainer();
+	}
+
+	@Override
+	public void afterEnterTrack(final TableBuilderHost host) {
+		host.startContainer();
 	}
 
 	/**

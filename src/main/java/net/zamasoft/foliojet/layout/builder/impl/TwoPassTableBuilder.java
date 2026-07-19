@@ -64,8 +64,13 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 
 /**
- * 自動レイアウトのテーブルを構築します。
- * 
+ * 表を実行計画Retained(全体を保持してからコミットする方式)で構築します
+ * (2026-07-19訂正: table-layout:autoに限らず、非FLOW配置・ページ軸寸法
+ * 指定・行軸auto寸法等{@link TableRetentionReason}の理由でもこちらへ
+ * ルーティングされる。固定列幅も{@code this.fixed}フィールドで扱う——
+ * 「自動レイアウト専用」ではない。詳細はTableLayoutのjavadoc・
+ * docs/PLAN.md「C4」参照)。
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TwoPassTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -821,7 +826,6 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		// 行高さの計算
 		double[] rowRatios = new double[rowCount]; // パーセント高さ
 		double rowSizeSum = 0; // 行高さの合計
-		int autoRowCount = 0;
 		{
 			int rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
@@ -844,7 +848,6 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 					rowSize = rowSpec.size();
 					rowRatios[rowIndex] = rowSpec.ratio();
 					if (rowSpec.auto()) {
-						++autoRowCount;
 						autoRows[j] = true;
 					}
 
@@ -1033,7 +1036,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 			for (int j = 0; j < rows.size(); ++j) {
 				rowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
 			}
-			rowSizeSum += RowLayoutEngine.distributeGroupSize(rowSizes, params.size.getLength());
+			// 戻り値(増分)は以降どこにも読まれないため破棄する(P2、外部設計レビュー2026-07-19で発見:
+			// 直後の「テーブル高さを適用」ブロックはrowBox.getPageSize()から都度読み直すため
+			// rowSizeSumのこれ以降の値は死んでいた)
+			RowLayoutEngine.distributeGroupSize(rowSizes, params.size.getLength());
 			for (int j = 0; j < rows.size(); ++j) {
 				((TableRowBox) rows.get(j)).setPageSize(rowSizes[j]);
 			}
@@ -1188,7 +1194,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 		}
 	}
 
-	public boolean isOnePass() {
+	public boolean isIncremental() {
 		return false;
 	}
 

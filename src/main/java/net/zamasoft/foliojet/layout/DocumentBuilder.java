@@ -46,6 +46,7 @@ import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
+import net.zamasoft.foliojet.layout.builder.TableBuilderHost;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.OnePassTableBuilder;
@@ -62,7 +63,7 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * @author MIYABE Tatsuhiko
  * @version $Id: DocumentBuilder.java 1622 2022-05-02 06:22:56Z miyabe $
  */
-public class DocumentBuilder {
+public class DocumentBuilder implements TableBuilderHost {
 	private static final boolean DEBUG = false;
 
 	private static final Logger LOG = Logger.getLogger(DocumentBuilder.class.getName());
@@ -250,7 +251,14 @@ public class DocumentBuilder {
 		return builder;
 	}
 
-	private void closeInlines(Params params) {
+	/**
+	 * {@link TableBuilderHost}実装(C4-C深化、2026-07-19)。
+	 * {@link TableBuilder}実装(現状は{@link OnePassTableBuilder}のみ)が
+	 * 表のセル/カラム/行グループ/行に入る前後で必要なインライン文脈操作を
+	 * 呼び出すための公開経路。
+	 */
+	@Override
+	public void closeInlines(Params params) {
 		int count = 0;
 
 		for (int i = this.boxStack.size() - 1; i >= 0; --i) {
@@ -340,12 +348,14 @@ public class DocumentBuilder {
 		}
 	}
 
-	private void startContainer() {
+	@Override
+	public void startContainer() {
 		final ContainerBuilderEntry cbe = this.containerBuilder();
 		cbe.getStyledTextUnitizer().startContainer();
 	}
 
-	private void endContainer() {
+	@Override
+	public void endContainer() {
 		final ContainerBuilderEntry cbe = this.containerBuilder();
 		cbe.getStyledTextUnitizer().endContainer();
 	}
@@ -368,33 +378,10 @@ public class DocumentBuilder {
 				this.startContainer();
 				break;
 			}
-			final TableBuilder tableBuilder;
-			final boolean needsTwoPass = !builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox);
-			// processing.strict-one-pass=trueの場合、無制限バッファを要する
-			// TwoPassTableBuilderの代わりにOnePassTableBuilder(table-layout:fixed
-			// 相当)へ警告付きで近似する(未対応セレクタと同じ「警告+縮退」経路。
-			// docs/PLAN.md「2パス制御モード」参照)。ただし!builder.isMain()の場合は
-			// 対象外: この経路は既にネストした実測パス(TwoPassBlockBuilder)の内側で、
-			// OnePassTableBuilder.startLayout()はRootBuilderを要求するため安全に
-			// 代替できない(既知の限界。PLAN.md参照)。
-			final boolean degradeToOnePass = needsTwoPass && this.strictOnePass && builder.isMain();
-			if (needsTwoPass && !degradeToOnePass) {
-				// 2パスレイアウト
-				net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
-				tableBuilder = new TwoPassTableBuilder(builder, tableBox);
-			} else {
-				// 1パスレイアウト(table-layout:fixed、またはstrict-one-passによる近似)
-				if (degradeToOnePass) {
-					net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.STRICT_ONE_PASS_DEGRADES
-							.incrementAndGet();
-					LOG.warning("processing.strict-one-pass=trueのため、table-layout:autoの表をfixed相当に近似します: "
-							+ tableParams.element);
-				}
-				net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.ONE_PASS_BUILDS.incrementAndGet();
-				final OnePassTableBuilder fixedTableBuilder = new OnePassTableBuilder(tableBox);
-				fixedTableBuilder.startLayout((RootBuilder) builder);
-				tableBuilder = fixedTableBuilder;
-			}
+			// ビルダー選択(fixed/auto・strict-one-pass近似)と開始処理は
+			// TableLayout(C4準備の継ぎ目、2026-07-19)へ委譲。挙動は不変。
+			final TableBuilder tableBuilder = net.zamasoft.foliojet.layout.builder.impl.TableLayout.start(builder,
+					tableBox, this.strictOnePass);
 			this.builderStack.add(tableBuilder);
 		}
 			break;
@@ -404,11 +391,7 @@ public class DocumentBuilder {
 			// テーブルセル
 			// キャプション
 			final TableBuilder tableBuilder = this.tableBuilder();
-			if (tableBuilder.isOnePass()) {
-				this.closeInlines(tableBuilder.getTableBox().getParams());
-				this.endContainer();
-				this.startContainer();
-			}
+			tableBuilder.prepareEnterCell(this);
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
 			final Builder newBuilder = tableBuilder.newContext(containerBox);
 			this.startContainerBuilder(newBuilder);
@@ -424,15 +407,10 @@ public class DocumentBuilder {
 			// テーブル行グループ
 			// テーブル行
 			final TableBuilder tableBuilder = this.tableBuilder();
-			if (tableBuilder.isOnePass()) {
-				this.closeInlines(tableBuilder.getTableBox().getParams());
-				this.endContainer();
-			}
+			tableBuilder.prepareEnterTrack(this);
 			final AbstractInnerTableBox innerTableBox = (AbstractInnerTableBox) box;
 			tableBuilder.startInnerTable(innerTableBox);
-			if (tableBuilder.isOnePass()) {
-				this.startContainer();
-			}
+			tableBuilder.afterEnterTrack(this);
 		}
 			break;
 
@@ -539,16 +517,9 @@ public class DocumentBuilder {
 				break;
 			}
 			final Builder builder = this.containerBuilder().builder;
-			// startBox側の実際のルーティング結果(strict-one-passによる近似を
-			// 含む)と一致させるため、条件を再計算せずtableBuilder自身に問う
-			if (!tableBuilder.isOnePass()) {
-				// 2パスレイアウト
-				builder.addTable(tableBuilder);
-			} else {
-				// 1パスレイアウト(table-layout:fixed、またはstrict-one-passによる近似)
-				final OnePassTableBuilder fixedTableBuilder = (OnePassTableBuilder) tableBuilder;
-				fixedTableBuilder.endLayout();
-			}
+			// 終了処理もTableLayoutへ委譲(開始側のルーティング結果と一致させるため、
+			// 条件を再計算せずtableBuilder自身に問うのは従来どおり)。挙動は不変。
+			net.zamasoft.foliojet.layout.builder.impl.TableLayout.finish(tableBuilder, builder);
 			switch (tableBox.getBlockBox().getPos().getType()) {
 			case FLOW:
 				this.startContainer();
