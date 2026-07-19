@@ -5,7 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import net.zamasoft.foliojet.css.CSSElement;
-import net.zamasoft.foliojet.impl.ua.pdf.PDFVisitor;
+import net.zamasoft.foliojet.ua.impl.pdf.PDFVisitor;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;

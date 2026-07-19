@@ -2,9 +2,9 @@ package net.zamasoft.foliojet.css.util;
 
 import net.zamasoft.foliojet.css.value.ListStylePositionValue;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
-import net.zamasoft.foliojet.impl.css.part.CircleImage;
-import net.zamasoft.foliojet.impl.css.part.DiscImage;
-import net.zamasoft.foliojet.impl.css.part.SquareImage;
+import net.zamasoft.foliojet.css.impl.part.CircleImage;
+import net.zamasoft.foliojet.css.impl.part.DiscImage;
+import net.zamasoft.foliojet.css.impl.part.SquareImage;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Color;

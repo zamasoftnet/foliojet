@@ -1,10 +1,10 @@
 package net.zamasoft.foliojet.css.property;
 
-import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
-import net.zamasoft.foliojet.impl.css.property.font.CSSFontStyle;
-import net.zamasoft.foliojet.impl.css.property.font.FontWeight;
-import net.zamasoft.foliojet.impl.css.property.font.CSSUnicodeRange;
-import net.zamasoft.foliojet.impl.css.property.font.Src;
+import net.zamasoft.foliojet.css.impl.property.font.CSSFontFamily;
+import net.zamasoft.foliojet.css.impl.property.font.CSSFontStyle;
+import net.zamasoft.foliojet.css.impl.property.font.FontWeight;
+import net.zamasoft.foliojet.css.impl.property.font.CSSUnicodeRange;
+import net.zamasoft.foliojet.css.impl.property.font.Src;
 
 /**
  * @author MIYABE Tatsuhiko

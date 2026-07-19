@@ -1,6 +1,6 @@
 package jp.cssj.test.unit;
 
-import net.zamasoft.foliojet.impl.ua.pdf.PDFUserAgent;
+import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class TestPDFUserAgent extends PDFUserAgent {

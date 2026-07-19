@@ -1,30 +1,30 @@
 package net.zamasoft.foliojet.css.property;
 
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundAttachment;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundColor;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundImage;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundPosition;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundRepeat;
-import net.zamasoft.foliojet.impl.css.property.content.CounterIncrement;
-import net.zamasoft.foliojet.impl.css.property.content.CounterReset;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundSize;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BackgroundShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderBottomShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderColorShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderLeftShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderRightShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderStyleShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderTopShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.BorderWidthShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.MarginShorthand;
-import net.zamasoft.foliojet.impl.css.property.shorthand.PaddingShorthand;
-import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
-import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
-import net.zamasoft.foliojet.impl.css.property.box.Padding;
-import net.zamasoft.foliojet.impl.css.property.box.Margin;
-import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
-import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundImage;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundPosition;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundRepeat;
+import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
+import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BackgroundShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderBottomShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderColorShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderLeftShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderRightShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderStyleShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderTopShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.BorderWidthShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.MarginShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.PaddingShorthand;
+import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
+import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
+import net.zamasoft.foliojet.css.impl.property.box.Padding;
+import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
+import net.zamasoft.foliojet.css.impl.property.box.Side;
 
 /**
  * @author MIYABE Tatsuhiko

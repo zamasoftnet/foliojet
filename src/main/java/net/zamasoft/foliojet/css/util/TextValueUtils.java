@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.util;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
-import net.zamasoft.foliojet.impl.css.property.text.Direction;
+import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 

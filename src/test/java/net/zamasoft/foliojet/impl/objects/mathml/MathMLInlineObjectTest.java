@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.impl.objects.mathml;
+package net.zamasoft.foliojet.objects.mathml;
 
 import java.io.StringReader;
 import java.lang.reflect.Proxy;

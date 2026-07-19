@@ -6,7 +6,7 @@ import java.lang.Character.UnicodeBlock;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.impl.css.lang.CSSJTextUnitizer;
+import net.zamasoft.foliojet.css.impl.lang.CSSJTextUnitizer;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;

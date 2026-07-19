@@ -1,4 +1,4 @@
-package net.zamasoft.foliojet.impl.objects.barcode;
+package net.zamasoft.foliojet.objects.barcode;
 
 import java.io.StringReader;
 import java.lang.reflect.Proxy;
