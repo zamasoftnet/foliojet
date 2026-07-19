@@ -34,3 +34,97 @@ datalist, source, template, track {
 video {
 	display: inline-block;
 }
+
+/*
+ * 既存DIV/P/TABLE等の大規模switch文からの段階移行分(2026-07-19)。
+ * 属性駆動のロジックを持たない、単純なタグ既定値のみを対象とする。
+ */
+
+address {
+	display: block;
+	font-style: italic;
+}
+
+b {
+	font-weight: bolder;
+}
+
+base, bgsound {
+	display: none;
+}
+
+big {
+	font-size: larger;
+}
+
+blink {
+	text-decoration: blink;
+}
+
+cite, em {
+	font-style: italic;
+}
+
+/*
+ * CODE(font-family: monospace)はここに移行しない: FontValueUtils.toFontFamily()が
+ * CSSテキスト経由のパースではUAデフォルトフォントファミリを暗黙に末尾へ追加するため、
+ * Java直書きのFontFamilyValue.MONOSPACE定数(単一要素、追加なし)と実際のフォント解決結果が
+ * 食い違う(display-list golden 3070-MARKDOWN_basicのdescent値差で発覚、2026-07-19)。
+ * font-familyのCSS化はこの非対称性を先に解消してから行う。HTMLStyle.javaのCODEケースを維持。
+ */
+
+del {
+	text-decoration: line-through;
+}
+
+dt {
+	display: block;
+	page-break-after: avoid;
+}
+
+comment, head, script, style, title {
+	display: none;
+}
+
+i, var {
+	font-style: italic;
+}
+
+ins, u {
+	text-decoration: underline;
+}
+
+s, strike {
+	text-decoration: line-through;
+}
+
+nobr {
+	white-space: nowrap;
+}
+
+small, sub, sup {
+	font-size: 0.83em;
+}
+
+sub {
+	vertical-align: sub;
+}
+
+sup {
+	vertical-align: super;
+}
+
+strong {
+	font-weight: bolder;
+}
+
+/*
+ * SAMP/KBD/TT(font-family: monospace)はCODEと同じ理由でここに移行しない
+ * (toFontFamilyの非対称性、上記コメント参照)。
+ */
+
+xmp {
+	display: block;
+	white-space: pre;
+	text-align: start;
+}

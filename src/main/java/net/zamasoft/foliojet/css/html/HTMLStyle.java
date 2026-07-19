@@ -26,7 +26,6 @@ import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
-import net.zamasoft.foliojet.css.value.FontStyleValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
@@ -38,7 +37,6 @@ import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
 import net.zamasoft.foliojet.css.value.RealValue;
-import net.zamasoft.foliojet.css.value.RelativeSizeValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.TextDecorationValue;
@@ -51,49 +49,48 @@ import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlTableBorderValue;
-import net.zamasoft.foliojet.impl.css.part.BrokenImage;
-import net.zamasoft.foliojet.impl.css.part.CheckBoxImage;
-import net.zamasoft.foliojet.impl.css.part.NullImage;
-import net.zamasoft.foliojet.impl.css.part.RadioButtonImage;
-import net.zamasoft.foliojet.impl.css.part.SelectImage;
-import net.zamasoft.foliojet.impl.css.part.UnprintBrokenImage;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundAttachment;
-import net.zamasoft.foliojet.impl.css.property.background.BackgroundColor;
-import net.zamasoft.foliojet.impl.css.property.table.BorderCollapse;
-import net.zamasoft.foliojet.impl.css.property.table.BorderSpacing;
-import net.zamasoft.foliojet.impl.css.property.text.CSSColor;
-import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
-import net.zamasoft.foliojet.impl.css.property.font.CSSFontStyle;
-import net.zamasoft.foliojet.impl.css.property.box.CSSPosition;
-import net.zamasoft.foliojet.impl.css.property.table.CaptionSide;
-import net.zamasoft.foliojet.impl.css.property.box.Clear;
-import net.zamasoft.foliojet.impl.css.property.content.Content;
-import net.zamasoft.foliojet.impl.css.property.text.Direction;
-import net.zamasoft.foliojet.impl.css.property.box.Display;
-import net.zamasoft.foliojet.impl.css.property.font.FontSize;
-import net.zamasoft.foliojet.impl.css.property.font.FontWeight;
-import net.zamasoft.foliojet.impl.css.property.box.Height;
-import net.zamasoft.foliojet.impl.css.property.font.LineHeight;
-import net.zamasoft.foliojet.impl.css.property.content.ListStyleType;
-import net.zamasoft.foliojet.impl.css.property.box.Overflow;
-import net.zamasoft.foliojet.impl.css.property.page.PageBreakAfter;
-import net.zamasoft.foliojet.impl.css.property.page.PageBreakBefore;
-import net.zamasoft.foliojet.impl.css.property.page.PageBreakInside;
-import net.zamasoft.foliojet.impl.css.property.text.TextAlign;
-import net.zamasoft.foliojet.impl.css.property.text.TextDecoration;
-import net.zamasoft.foliojet.impl.css.property.text.TextIndent;
-import net.zamasoft.foliojet.impl.css.property.text.UnicodeBidi;
-import net.zamasoft.foliojet.impl.css.property.box.VerticalAlign;
-import net.zamasoft.foliojet.impl.css.property.text.WhiteSpace;
-import net.zamasoft.foliojet.impl.css.property.box.Width;
-import net.zamasoft.foliojet.impl.css.property.text.BlockFlow;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.impl.css.property.ext.CSSJRuby;
-import net.zamasoft.foliojet.impl.css.property.internal.CSSJAutoWidth;
-import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlAlign;
-import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlCellPadding;
-import net.zamasoft.foliojet.impl.css.property.internal.CSSJHtmlTableBorder;
-import net.zamasoft.foliojet.impl.css.property.internal.CSSJInternalImage;
+import net.zamasoft.foliojet.css.impl.part.BrokenImage;
+import net.zamasoft.foliojet.css.impl.part.CheckBoxImage;
+import net.zamasoft.foliojet.css.impl.part.NullImage;
+import net.zamasoft.foliojet.css.impl.part.RadioButtonImage;
+import net.zamasoft.foliojet.css.impl.part.SelectImage;
+import net.zamasoft.foliojet.css.impl.part.UnprintBrokenImage;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
+import net.zamasoft.foliojet.css.impl.property.table.BorderCollapse;
+import net.zamasoft.foliojet.css.impl.property.table.BorderSpacing;
+import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
+import net.zamasoft.foliojet.css.impl.property.font.CSSFontFamily;
+import net.zamasoft.foliojet.css.impl.property.box.CSSPosition;
+import net.zamasoft.foliojet.css.impl.property.table.CaptionSide;
+import net.zamasoft.foliojet.css.impl.property.box.Clear;
+import net.zamasoft.foliojet.css.impl.property.content.Content;
+import net.zamasoft.foliojet.css.impl.property.text.Direction;
+import net.zamasoft.foliojet.css.impl.property.box.Display;
+import net.zamasoft.foliojet.css.impl.property.font.FontSize;
+import net.zamasoft.foliojet.css.impl.property.font.FontWeight;
+import net.zamasoft.foliojet.css.impl.property.box.Height;
+import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
+import net.zamasoft.foliojet.css.impl.property.content.ListStyleType;
+import net.zamasoft.foliojet.css.impl.property.box.Overflow;
+import net.zamasoft.foliojet.css.impl.property.page.PageBreakAfter;
+import net.zamasoft.foliojet.css.impl.property.page.PageBreakBefore;
+import net.zamasoft.foliojet.css.impl.property.page.PageBreakInside;
+import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
+import net.zamasoft.foliojet.css.impl.property.text.TextDecoration;
+import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
+import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
+import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
+import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
+import net.zamasoft.foliojet.css.impl.property.box.Width;
+import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
+import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
+import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlCellPadding;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlTableBorder;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.DocumentContext;
@@ -111,13 +108,13 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
-import net.zamasoft.foliojet.impl.css.property.border.BorderWidth;
-import net.zamasoft.foliojet.impl.css.property.border.BorderStyle;
-import net.zamasoft.foliojet.impl.css.property.box.Padding;
-import net.zamasoft.foliojet.impl.css.property.box.Margin;
-import net.zamasoft.foliojet.impl.css.property.border.BorderColor;
-import net.zamasoft.foliojet.impl.css.property.box.Inset;
-import net.zamasoft.foliojet.impl.css.property.box.Side;
+import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
+import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
+import net.zamasoft.foliojet.css.impl.property.box.Padding;
+import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
+import net.zamasoft.foliojet.css.impl.property.box.Inset;
+import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.CompatibleMode;
@@ -344,7 +341,7 @@ public class HTMLStyle {
 	 * @param style
 	 * @param length
 	 */
-	private static void applyParagraphMargins(CSSStyle style, LengthValue length, short code) {
+	private static void applyParagraphMargins(CSSStyle style, LengthValue length) {
 		if (style.getParentStyle() == null) {
 			return;
 		}
@@ -617,20 +614,8 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.ABBR: {
-			// <ABBR> ignore
-		}
-			break;
-		case HTMLCodes.ACRONYM: {
-			// <ACRONYM> ignore
-		}
-			break;
-		case HTMLCodes.ADDRESS: {
-			// <ADDRESS>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			style.set(CSSFontStyle.INFO, FontStyleValue.ITALIC_VALUE);
-		}
-			break;
+		// ABBR/ACRONYM: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
+		// ADDRESS: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.APPLET: {
 			// <APPLET width height hspace vspace alt align>
 			HTMLStyleUtils.applyWidthHeight("APPLET", style);
@@ -702,16 +687,7 @@ public class HTMLStyle {
 		// display既定値はUAデフォルトスタイルシート(html-ua.css)に移行した
 		// (2026-07-18)。BDIのみ、専用の自動方向判定(dir="auto")は先読みが
 		// 要るため対象外(継承カスケードに委ねる、CSSでは表現不要)。
-		case HTMLCodes.B: {
-			// <B>
-			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
-		}
-			break;
-		case HTMLCodes.BASE: {
-			// <BASE>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
+		// B/BASE: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.BASEFONT: {
 			// <BASEFONT size color face>
 			HTMLStyleUtils.applyFontSize("BASEFONT", style);
@@ -719,11 +695,7 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyFontColor("BASEFONT", style);
 		}
 			break;
-		case HTMLCodes.BGSOUND: {
-			// <BGSOUND>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
+		// BGSOUND: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.BDO: {
 			// <BDO dir>
 			String dir = ce.atts.getValue("dir");
@@ -740,20 +712,11 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.BIG: {
-			// <BIG>
-			style.set(FontSize.INFO, RelativeSizeValue.LARGER_VALUE);
-		}
-			break;
-		case HTMLCodes.BLINK: {
-			// <BLINK>
-			style.set(TextDecoration.INFO, TextDecorationValue.create(TextDecorationValue.BLINK));
-		}
-			break;
+		// BIG/BLINK: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.BLOCKQUOTE: {
 			// <BLOCKQUOTE>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyQuoteMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 		}
 			break;
@@ -886,13 +849,11 @@ public class HTMLStyle {
 			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.CENTER_VALUE);
 		}
 			break;
-		case HTMLCodes.CITE: {
-			// <CITE>
-			style.set(CSSFontStyle.INFO, FontStyleValue.ITALIC_VALUE);
-		}
-			break;
+		// CITE: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.CODE: {
 			// <CODE>
+			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
+			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
@@ -925,11 +886,7 @@ public class HTMLStyle {
 			applyTableColumn("COL", style);
 		}
 			break;
-		case HTMLCodes.COMMENT: {
-			// <COMMENT>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
+		// COMMENT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.DD: {
 			// <DD>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
@@ -937,19 +894,12 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 		}
 			break;
-		case HTMLCodes.DEL: {
-			// <DEL>
-			style.set(TextDecoration.INFO, TextDecorationValue.create(TextDecorationValue.LINE_THROUGH));
-		}
-			break;
-		case HTMLCodes.DFN: {
-			// <DFN>
-		}
-			break;
+		// DEL: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// DFN: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
 		case HTMLCodes.DIR: {
 			// <DIR type -compact>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
 			if (type != null) {
@@ -971,21 +921,11 @@ public class HTMLStyle {
 		case HTMLCodes.DL: {
 			// <DL -compact>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 		}
 			break;
-		case HTMLCodes.DT: {
-			// <DT>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-		}
-			break;
-		case HTMLCodes.EM: {
-			// <EM>
-			style.set(CSSFontStyle.INFO, FontStyleValue.ITALIC_VALUE);
-		}
-			break;
+		// DT/EM: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.EMBED: {
 			// <EMBED border
 			// width height type
@@ -1003,7 +943,7 @@ public class HTMLStyle {
 		case HTMLCodes.FIELDSET: {
 			// <FIELDSET align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			style.set(Padding.TOP, EM__5);
 			style.set(Padding.RIGHT, EM__5);
 			style.set(Padding.BOTTOM, EM__5);
@@ -1062,7 +1002,7 @@ public class HTMLStyle {
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(2));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.67), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.67));
 			HTMLStyleUtils.applyBlockAlign("H1", style);
 		}
 			break;
@@ -1072,7 +1012,7 @@ public class HTMLStyle {
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(1.5));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.75), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.75));
 			HTMLStyleUtils.applyBlockAlign("H2", style);
 		}
 			break;
@@ -1082,7 +1022,7 @@ public class HTMLStyle {
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(1.17));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.83), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(0.83));
 			HTMLStyleUtils.applyBlockAlign("H3", style);
 		}
 			break;
@@ -1091,7 +1031,7 @@ public class HTMLStyle {
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyBlockAlign("H4", style);
 		}
 			break;
@@ -1101,7 +1041,7 @@ public class HTMLStyle {
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
-			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(1.5), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(1.5));
 			HTMLStyleUtils.applyBlockAlign("H5", style);
 		}
 			break;
@@ -1111,20 +1051,16 @@ public class HTMLStyle {
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(0.75));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(1.67), code);
+			HTMLStyle.applyParagraphMargins(style, RelativeLengthValue.em(1.67));
 			HTMLStyleUtils.applyBlockAlign("H6", style);
 		}
 			break;
-		case HTMLCodes.HEAD: {
-			// <HEAD>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
+		// HEAD: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.HR: {
 			// <HR align color noshade size width>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			LengthValue margin = RelativeLengthValue.em(.5);
-			HTMLStyle.applyParagraphMargins(style, margin, code);
+			HTMLStyle.applyParagraphMargins(style, margin);
 
 			ColorValue color = null;
 			{
@@ -1240,11 +1176,7 @@ public class HTMLStyle {
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 		}
 			break;
-		case HTMLCodes.I: {
-			// <I>
-			style.set(CSSFontStyle.INFO, FontStyleValue.ITALIC_VALUE);
-		}
-			break;
+		// I: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.IFRAME: {
 			// <IFRAME>
 			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
@@ -1343,26 +1275,13 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.INS: {
-			// <INS>
-			style.set(TextDecoration.INFO, TextDecorationValue.create(TextDecorationValue.UNDERLINE));
-		}
-			break;
-		case HTMLCodes.ISINDEX: {
-			// <ISINDEX prompt>
-		}
-			break;
+		// INS/U: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// ISINDEX/KEYGEN/LABEL: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
 		case HTMLCodes.KBD: {
 			// <KBD>
+			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
+			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
-		}
-			break;
-		case HTMLCodes.KEYGEN: {
-			// <KEYGEN>
-		}
-			break;
-		case HTMLCodes.LABEL: {
-			// <LABEL>
 		}
 			break;
 		case HTMLCodes.LEGEND: {
@@ -1437,7 +1356,7 @@ public class HTMLStyle {
 		case HTMLCodes.MENU: {
 			// <MENU type -compact>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 		}
@@ -1452,20 +1371,8 @@ public class HTMLStyle {
 			style.set(Display.INFO, DisplayValue.NONE_VALUE);
 		}
 			break;
-		case HTMLCodes.NOBR: {
-			// <NOBR>
-			style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
-		}
-			break;
-		case HTMLCodes.NOEMBED:
-			// <NOEMBED>
-		case HTMLCodes.NOFRAMES:
-			// <NOFRAMES>
-		case HTMLCodes.NOLAYER:
-			// <NOLAYER>
-		case HTMLCodes.NOSCRIPT:
-			// <NOSCRIPT>
-			break;
+		// NOBR: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// NOEMBED/NOFRAMES/NOLAYER/NOSCRIPT: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
 		case HTMLCodes.OBJECT: {
 			// <OBJECT border width height hspace vspace alt align usemap>
 			HTMLStyleUtils.applyWidthHeight("OBJECT", style);
@@ -1482,7 +1389,7 @@ public class HTMLStyle {
 			// <OL type -compact start>
 			// startはStyleBuilderで処理
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
 			if (type != null) {
@@ -1513,7 +1420,7 @@ public class HTMLStyle {
 		case HTMLCodes.P: {
 			// <P align>
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyBlockAlign("P", style);
 		}
 			break;
@@ -1630,19 +1537,12 @@ public class HTMLStyle {
 			style.set(Display.INFO, DisplayValue.NONE_VALUE);
 		}
 			break;
-		case HTMLCodes.S: {
-			// <S>
-			style.set(TextDecoration.INFO, TextDecorationValue.create(TextDecorationValue.LINE_THROUGH));
-		}
-			break;
+		// S/SCRIPT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.SAMP: {
 			// <SAMP>
+			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
+			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
-		}
-			break;
-		case HTMLCodes.SCRIPT: {
-			// <SCRIPT>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
 		}
 			break;
 		case HTMLCodes.SELECT: {
@@ -1692,42 +1592,9 @@ public class HTMLStyle {
 			style.set(Display.INFO, DisplayValue.NONE_VALUE);
 		}
 			break;
-		case HTMLCodes.SMALL: {
-			// <SMALL>
-			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
-		}
-			break;
-		case HTMLCodes.SPAN: {
-			// <SPAN>
-		}
-			break;
-		case HTMLCodes.STRIKE: {
-			// <STRIKE>
-			style.set(TextDecoration.INFO, TextDecorationValue.create(TextDecorationValue.LINE_THROUGH));
-		}
-			break;
-		case HTMLCodes.STRONG: {
-			// <STRONG>
-			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
-		}
-			break;
-		case HTMLCodes.STYLE: {
-			// <STYLE>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
-		case HTMLCodes.SUB: {
-			// <SUB>
-			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
-			style.set(VerticalAlign.INFO, VerticalAlignValue.SUB_VALUE);
-		}
-			break;
-		case HTMLCodes.SUP: {
-			// <SUP>
-			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
-			style.set(VerticalAlign.INFO, VerticalAlignValue.SUPER_VALUE);
-		}
-			break;
+		// SMALL/SPAN/STRIKE/STRONG/STYLE/SUB/SUP: 既定値はUAデフォルトスタイルシート
+		// (html-ua.css)に移行(2026-07-19)。SPANは属性駆動のロジックがなく既定値も無いため
+		// Javaケース自体が不要だった
 		case HTMLCodes.TABLE: {
 			// <TABLE width height
 			// bgcolor background align
@@ -1952,6 +1819,8 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.TT: {
 			// <TT>
+			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
+			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
@@ -2004,16 +1873,7 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.TITLE: {
-			// <TITLE>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
-		case HTMLCodes.U: {
-			// <U>
-			style.set(TextDecoration.INFO, TextDecorationValue.create(TextDecorationValue.UNDERLINE));
-		}
-			break;
+		// TITLE/U: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.UL: {
 			// <UL type -compact>
 			int depth = 0;
@@ -2025,7 +1885,7 @@ public class HTMLStyle {
 
 			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			if (depth == 0) {
-				HTMLStyle.applyParagraphMargins(style, EM_1_12, code);
+				HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			}
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
@@ -2054,11 +1914,7 @@ public class HTMLStyle {
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 		}
 			break;
-		case HTMLCodes.VAR: {
-			// <VAR>
-			style.set(CSSFontStyle.INFO, FontStyleValue.ITALIC_VALUE);
-		}
-			break;
+		// VAR: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.VIDEO: {
 			// <VIDEO width height poster>(display:inline-blockはhtml-ua.cssへ移行)
 			HTMLStyleUtils.applyWidthHeight("VIDEO", style);
@@ -2068,16 +1924,13 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.WBR: {
-			// <WBR>
-		}
-			break;
+		// WBR: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
 		case HTMLCodes.XMP: {
 			// <XMP>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
+			// display/white-space/text-alignはUAデフォルトスタイルシート(html-ua.css)に
+			// 移行済み(2026-07-19)。font-familyのみFontValueUtils.toFontFamily()の
+			// フォールバック追加との非対称性を避けてJava側に残す。
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
-			style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_VALUE);
-			style.set(TextAlign.INFO, TextAlignValue.START_VALUE);
 		}
 			break;
 		}
