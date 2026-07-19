@@ -12,6 +12,7 @@ import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.layout.box.BoxSubtype;
 import net.zamasoft.foliojet.layout.box.BoxType;
@@ -64,10 +65,21 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
 public class DocumentBuilder {
 	private static final boolean DEBUG = false;
 
+	private static final Logger LOG = Logger.getLogger(DocumentBuilder.class.getName());
+
 	public static final byte PAGE_MODE_CONTINUOUS = 1;
 	public static final byte PAGE_MODE_NO_BREAK = 1 << 1;
 	
 	private final boolean normalizeText;
+
+	/**
+	 * trueの場合、文書全体を無制限に保持するローカルバッファ
+	 * ({@link net.zamasoft.foliojet.layout.builder.impl.TwoPassTableBuilder}、
+	 * 主に{@code table-layout:auto}の実測パス)の使用を拒否します
+	 * (docs/PLAN.md「2パス制御モード」参照。processing.pass-countとは独立で、
+	 * こちらは無制限メモリ使用そのものの可否を扱う)。
+	 */
+	private final boolean strictOnePass;
 
 	protected static class ContainerBuilderEntry {
 		public final Builder builder;
@@ -109,6 +121,7 @@ public class DocumentBuilder {
 	public DocumentBuilder(PageGenerator pageGenerator) {
 		this.pageGenerator = pageGenerator;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
+		this.strictOnePass = UAProps.PROCESSING_STRICT_ONE_PASS.getBoolean(pageGenerator.getUserAgent());
 	}
 
 	/**
@@ -356,12 +369,27 @@ public class DocumentBuilder {
 				break;
 			}
 			final TableBuilder tableBuilder;
-			if (!builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox)) {
+			final boolean needsTwoPass = !builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox);
+			// processing.strict-one-pass=trueの場合、無制限バッファを要する
+			// TwoPassTableBuilderの代わりにOnePassTableBuilder(table-layout:fixed
+			// 相当)へ警告付きで近似する(未対応セレクタと同じ「警告+縮退」経路。
+			// docs/PLAN.md「2パス制御モード」参照)。ただし!builder.isMain()の場合は
+			// 対象外: この経路は既にネストした実測パス(TwoPassBlockBuilder)の内側で、
+			// OnePassTableBuilder.startLayout()はRootBuilderを要求するため安全に
+			// 代替できない(既知の限界。PLAN.md参照)。
+			final boolean degradeToOnePass = needsTwoPass && this.strictOnePass && builder.isMain();
+			if (needsTwoPass && !degradeToOnePass) {
 				// 2パスレイアウト
 				net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
 				tableBuilder = new TwoPassTableBuilder(builder, tableBox);
 			} else {
-				// 1パスレイアウト
+				// 1パスレイアウト(table-layout:fixed、またはstrict-one-passによる近似)
+				if (degradeToOnePass) {
+					net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.STRICT_ONE_PASS_DEGRADES
+							.incrementAndGet();
+					LOG.warning("processing.strict-one-pass=trueのため、table-layout:autoの表をfixed相当に近似します: "
+							+ tableParams.element);
+				}
 				net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.ONE_PASS_BUILDS.incrementAndGet();
 				final OnePassTableBuilder fixedTableBuilder = new OnePassTableBuilder(tableBox);
 				fixedTableBuilder.startLayout((RootBuilder) builder);
@@ -511,11 +539,13 @@ public class DocumentBuilder {
 				break;
 			}
 			final Builder builder = this.containerBuilder().builder;
-			if (!builder.isMain() || LayoutUtils.needsIntrinsicSizing(tableBox)) {
+			// startBox側の実際のルーティング結果(strict-one-passによる近似を
+			// 含む)と一致させるため、条件を再計算せずtableBuilder自身に問う
+			if (!tableBuilder.isOnePass()) {
 				// 2パスレイアウト
 				builder.addTable(tableBuilder);
 			} else {
-				// 1パスレイアウト
+				// 1パスレイアウト(table-layout:fixed、またはstrict-one-passによる近似)
 				final OnePassTableBuilder fixedTableBuilder = (OnePassTableBuilder) tableBuilder;
 				fixedTableBuilder.endLayout();
 			}

@@ -64,7 +64,40 @@ public class TableBuildCharacterizationTest extends TestCase {
 				TableBuildStats.ROWSPAN_CUTS.get() > cuts);
 	}
 
+	/**
+	 * processing.strict-one-pass=trueは、無制限バッファを要する
+	 * table-layout:autoのTwoPassTableBuilder使用を避け、警告付きで
+	 * OnePassTableBuilder(table-layout:fixed相当)へ近似する
+	 * (例外にはしない。未対応セレクタと同じ「警告+縮退」経路。
+	 * docs/PLAN.md「2パス制御モード」参照)。
+	 */
+	public void testStrictOnePassDegradesAutoTableToOnePass() throws Exception {
+		final long twoPass = TableBuildStats.TWO_PASS_BUILDS.get();
+		final long onePass = TableBuildStats.ONE_PASS_BUILDS.get();
+		final long degrades = TableBuildStats.STRICT_ONE_PASS_DEGRADES.get();
+		this.transcode(new File("files/unittest/0070-table-layout/auto-rowspan.html"), "char-auto-strict", true);
+		assertEquals("strict-one-pass中でもTwoPassTableBuilderが構築されています",
+				twoPass, TableBuildStats.TWO_PASS_BUILDS.get());
+		assertTrue("auto表がOnePassTableBuilderへ近似されていません",
+				TableBuildStats.ONE_PASS_BUILDS.get() > onePass);
+		assertTrue("STRICT_ONE_PASS_DEGRADESが計上されていません",
+				TableBuildStats.STRICT_ONE_PASS_DEGRADES.get() > degrades);
+	}
+
+	/**
+	 * processing.strict-one-pass=trueでも、無制限バッファを要しない
+	 * (table-layout:fixed)文書は通常どおり処理できる。
+	 */
+	public void testStrictOnePassAllowsFixedTable() throws Exception {
+		this.transcode(new File("files/unittest/0390-writing-mode/fixed-table-pagebreak.html"), "char-fixed-strict",
+				true);
+	}
+
 	private void transcode(File source, String name) throws Exception {
+		this.transcode(source, name, false);
+	}
+
+	private void transcode(File source, String name, boolean strictOnePass) throws Exception {
 		File pdf = new File("local/unittest/display-list/" + name + ".pdf");
 		pdf.getParentFile().mkdirs();
 		try (OutputStream out = new FileOutputStream(pdf)) {
@@ -75,6 +108,9 @@ public class TableBuildCharacterizationTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
+				if (strictOnePass) {
+					session.property("processing.strict-one-pass", "true");
+				}
 				CTISessionHelper.transcodeFile(session, source, "text/html", null);
 			} finally {
 				session.close();

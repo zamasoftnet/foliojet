@@ -457,6 +457,17 @@ public final class UAProps {
 			"processing.fail-on-fatal-error", true);
 
 	/**
+	 * trueの場合、文書全体を無制限に保持するローカルバッファ(現状は
+	 * {@code table-layout:auto}の実測パスのみ)の使用箇所でエラーにします。
+	 * 巨大な文書をストリーミング的な有界メモリで処理したい用途向けの
+	 * 安全弁です(docs/PLAN.md「2パス制御モード」参照)。{@code :has()}/
+	 * {@code :last-child}系はSelectorFactsという有界(要素あたり定数)な
+	 * 記録先を使うため、このフラグの対象外です。
+	 */
+	public static final BooleanPropManager PROCESSING_STRICT_ONE_PASS = new BooleanPropManager(
+			"processing.strict-one-pass", false);
+
+	/**
 	 * ファイルIDです。
 	 */
 	public static final StringPropManager OUTPUT_PDF_FILE_ID = new StringPropManager("output.pdf.file-id", null);
@@ -639,6 +650,7 @@ public final class UAProps {
 			PROCESSING_MIDDLE_PASS,
 			PROCESSING_PAGE_REFERENCES,
 			PROCESSING_FAIL_ON_FATAL_ERROR,
+			PROCESSING_STRICT_ONE_PASS,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,
