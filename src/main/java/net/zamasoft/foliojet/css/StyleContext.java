@@ -152,102 +152,11 @@ public class StyleContext {
 		List<Rule> result = null;
 		for (List<Rule> bucket : buckets) {
 		for (Rule rule : bucket) {
-			Selector selector = rule.getSelector();
-			boolean first = true;// 最初のセレクタのため、該当する要素が直ちにあらわれなければならない。
-			boolean child = false;// 子セレクタのため、擬似要素をのぞいて該当する要素が直ちにあらわれなければならない。
-			boolean sibling = false;// 隣接セレクタのため、スタックをあがらずに隣の要素に移る
-			CSSElement ce = null;
-			NEXT_RULE: for (int j = this.elementStack.size() - 1; j >= 0; --j) {
-				if (sibling) {
-					sibling = false;
-				} else {
-					ce = (CSSElement) this.elementStack.get(j);
+			if (matchesFromPath(rule.getSelector(), this.elementStack)) {
+				if (result == null) {
+					result = new ArrayList<Rule>();
 				}
-				switch (selector.getSelectorType()) {
-				// 子セレクタ
-				case CHILD_SELECTOR: {
-					CombinatorSelector combinator = (CombinatorSelector) selector;
-					SimpleSelector simpleSelector = combinator.getSimpleSelector();
-					if (evaluateSimpleSelector(simpleSelector, ce)) {
-						selector = combinator.getAncestorSelector();
-						child = true;
-					} else if (first || (!ce.isPseudoElement() && child)) {
-						break NEXT_RULE;
-					}
-				}
-					break;
-
-				// 子孫セレクタ
-				case DESCENDANT_SELECTOR: {
-					CombinatorSelector combinator = (CombinatorSelector) selector;
-					SimpleSelector simpleSelector = combinator.getSimpleSelector();
-					if (evaluateSimpleSelector(simpleSelector, ce)) {
-						selector = combinator.getAncestorSelector();
-						child = simpleSelector.getSelectorType() == SelectorType.PSEUDO_ELEMENT_SELECTOR;
-					} else if (first || (!ce.isPseudoElement() && child)) {
-						break NEXT_RULE;
-					}
-				}
-					break;
-
-				// 隣接セレクタ
-				case DIRECT_ADJACENT_SELECTOR: {
-					CombinatorSelector combinator = (CombinatorSelector) selector;
-					SimpleSelector simpleSelector = combinator.getSimpleSelector();
-					if (evaluateSimpleSelector(simpleSelector, ce)) {
-						selector = combinator.getAncestorSelector();
-						child = true;
-						ce = ce.precedingElement;
-						if (ce == null) {
-							break NEXT_RULE;
-						}
-						++j;
-						sibling = true;
-					} else if (first || (!ce.isPseudoElement() && child)) {
-						break NEXT_RULE;
-					}
-				}
-					break;
-
-				// 一般兄弟セレクタ
-				case GENERAL_ADJACENT_SELECTOR: {
-					CombinatorSelector combinator = (CombinatorSelector) selector;
-					SimpleSelector simpleSelector = combinator.getSimpleSelector();
-					if (evaluateSimpleSelector(simpleSelector, ce)) {
-						selector = combinator.getAncestorSelector();
-						child = true;
-						// 先行する兄弟のいずれかが左側セレクタの右端にマッチする位置まで戻る
-						ce = ce.precedingElement;
-						while (ce != null && !evaluateSimpleSelector(selector.getSimpleSelector(), ce)) {
-							ce = ce.precedingElement;
-						}
-						if (ce == null) {
-							break NEXT_RULE;
-						}
-						++j;
-						sibling = true;
-					} else if (first || (!ce.isPseudoElement() && child)) {
-						break NEXT_RULE;
-					}
-				}
-					break;
-
-				// 単純セレクタ
-				default: {
-					SimpleSelector simpleSelector = selector.getSimpleSelector();
-					if (evaluateSimpleSelector(simpleSelector, ce)) {
-						if (result == null) {
-							result = new ArrayList<Rule>();
-						}
-						result.add(rule);
-						break NEXT_RULE;
-					} else if (first || (!ce.isPseudoElement() && child)) {
-						break NEXT_RULE;
-					}
-				}
-					break;
-				}
-				first = false;
+				result.add(rule);
 			}
 		}
 		}
@@ -272,7 +181,131 @@ public class StyleContext {
 		return declaration;
 	}
 
-	private static boolean evaluateSimpleSelector(SimpleSelector selector, CSSElement ce) {
+	/**
+	 * pathの末尾要素を起点として、selector(結合子チェーンを含みうる)が
+	 * 一致するかを判定します。{@link #merge}のトップレベル規則評価と、
+	 * :is()/:where()/:not()の引数(子孫 半角スペース・子 &gt;・隣接兄弟 +・
+	 * 一般兄弟 ~ のいずれの結合子も含みうる)の評価の両方から使う共通実装
+	 * です(2026-07-19、両者で重複していたロジックを統合)。非再帰:
+	 * selectorは右端から左へ、pathは末尾(対象要素)から先頭(最も遠い祖先)
+	 * へ反復的に辿るだけです(要素木・選択木いずれも再帰しない)。
+	 *
+	 * @param selector 評価するセレクタ
+	 * @param path     対象要素を末尾とする祖先チェーン(先頭が最も遠い祖先)。
+	 *                 隣接・一般兄弟結合子で対象要素がこのpathの外の兄弟へ
+	 *                 移っても、兄弟は同じ親を共有するためpathの残りの
+	 *                 接頭辞をそのまま祖先として使い続けられる
+	 */
+	private static boolean matchesFromPath(Selector selector, List<CSSElement> path) {
+		boolean first = true;// 最初のセレクタのため、該当する要素が直ちにあらわれなければならない。
+		boolean child = false;// 子セレクタのため、擬似要素をのぞいて該当する要素が直ちにあらわれなければならない。
+		boolean sibling = false;// 隣接セレクタのため、pathをあがらずに隣の要素に移る
+		CSSElement ce = null;
+		List<CSSElement> ceView = null;// ceを末尾とする祖先チェーン(:is()/:where()/:not()のネスト評価用)
+		NEXT: for (int j = path.size() - 1; j >= 0; --j) {
+			if (sibling) {
+				sibling = false;
+				ceView = withLast(path.subList(0, j), ce);
+			} else {
+				ce = path.get(j);
+				ceView = path.subList(0, j + 1);
+			}
+			switch (selector.getSelectorType()) {
+			// 子セレクタ
+			case CHILD_SELECTOR: {
+				CombinatorSelector combinator = (CombinatorSelector) selector;
+				SimpleSelector simpleSelector = combinator.getSimpleSelector();
+				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+					selector = combinator.getAncestorSelector();
+					child = true;
+				} else if (first || (!ce.isPseudoElement() && child)) {
+					break NEXT;
+				}
+			}
+				break;
+
+			// 子孫セレクタ
+			case DESCENDANT_SELECTOR: {
+				CombinatorSelector combinator = (CombinatorSelector) selector;
+				SimpleSelector simpleSelector = combinator.getSimpleSelector();
+				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+					selector = combinator.getAncestorSelector();
+					child = simpleSelector.getSelectorType() == SelectorType.PSEUDO_ELEMENT_SELECTOR;
+				} else if (first || (!ce.isPseudoElement() && child)) {
+					break NEXT;
+				}
+			}
+				break;
+
+			// 隣接セレクタ
+			case DIRECT_ADJACENT_SELECTOR: {
+				CombinatorSelector combinator = (CombinatorSelector) selector;
+				SimpleSelector simpleSelector = combinator.getSimpleSelector();
+				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+					selector = combinator.getAncestorSelector();
+					child = true;
+					ce = ce.precedingElement;
+					if (ce == null) {
+						break NEXT;
+					}
+					++j;
+					sibling = true;
+				} else if (first || (!ce.isPseudoElement() && child)) {
+					break NEXT;
+				}
+			}
+				break;
+
+			// 一般兄弟セレクタ
+			case GENERAL_ADJACENT_SELECTOR: {
+				CombinatorSelector combinator = (CombinatorSelector) selector;
+				SimpleSelector simpleSelector = combinator.getSimpleSelector();
+				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+					selector = combinator.getAncestorSelector();
+					child = true;
+					// 先行する兄弟のいずれかが左側セレクタの右端にマッチする位置まで戻る
+					CSSElement sib = ce.precedingElement;
+					List<CSSElement> ancestors = path.subList(0, j);
+					while (sib != null && !evaluateSimpleSelector(selector.getSimpleSelector(), withLast(ancestors, sib))) {
+						sib = sib.precedingElement;
+					}
+					if (sib == null) {
+						break NEXT;
+					}
+					ce = sib;
+					++j;
+					sibling = true;
+				} else if (first || (!ce.isPseudoElement() && child)) {
+					break NEXT;
+				}
+			}
+				break;
+
+			// 単純セレクタ
+			default: {
+				SimpleSelector simpleSelector = selector.getSimpleSelector();
+				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+					return true;
+				} else if (first || (!ce.isPseudoElement() && child)) {
+					break NEXT;
+				}
+			}
+				break;
+			}
+			first = false;
+		}
+		return false;
+	}
+
+	private static List<CSSElement> withLast(List<CSSElement> ancestors, CSSElement last) {
+		List<CSSElement> result = new ArrayList<CSSElement>(ancestors.size() + 1);
+		result.addAll(ancestors);
+		result.add(last);
+		return result;
+	}
+
+	private static boolean evaluateSimpleSelector(SimpleSelector selector, List<CSSElement> path) {
+		CSSElement ce = path.get(path.size() - 1);
 		switch (selector.getSelectorType()) {
 		// 要素セレクタ
 		case ELEMENT_NODE_SELECTOR: {
@@ -291,7 +324,7 @@ public class StyleContext {
 				}
 			}
 			for (Condition condition : elementSelector.getConditions()) {
-				if (!evaluateCondition(condition, ce)) {
+				if (!evaluateCondition(condition, path)) {
 					return false;
 				}
 			}
@@ -315,7 +348,8 @@ public class StyleContext {
 		}
 	}
 
-	private static boolean evaluateCondition(Condition condition, CSSElement ce) {
+	private static boolean evaluateCondition(Condition condition, List<CSSElement> path) {
+		CSSElement ce = path.get(path.size() - 1);
 		switch (condition.getConditionType()) {
 		// クラス条件
 		case CLASS_CONDITION: {
@@ -472,18 +506,14 @@ public class StyleContext {
 			}
 		}
 
-		// :not擬似クラス条件
+		// :not擬似クラス条件(引数は子孫・子・隣接兄弟・一般兄弟いずれの結合子も
+		// 対応。pathをそのままmatchesFromPathへ渡すことで、:not()に付随した
+		// 要素(=pathの末尾)を起点に祖先方向へ遡って評価できる。2026-07-19、
+		// 隣接・一般兄弟結合子のみ対応(evaluateSiblingChain)だった状態から
+		// 子孫・子結合子にも対応(matchesFromPathへ統合))
 		case NOT_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
-				Boolean matched = evaluateSiblingChain(selector, ce);
-				if (matched == null) {
-					// 子孫・子結合子を含む枝は未対応。この枝だけを無視して残りを
-					// 評価し続ける(2026-07-19修正前は即座に不一致=false扱いで
-					// リスト内の他の枝の判定ごと握りつぶす非対称なバグだった)。
-					LOG.warning(":not内の子孫・子結合子(> や半角スペース)を含むセレクタは未対応です: " + condition);
-					continue;
-				}
-				if (matched) {
+				if (matchesFromPath(selector, path)) {
 					return false;
 				}
 			}
@@ -495,12 +525,7 @@ public class StyleContext {
 		case IS_CONDITION:
 		case WHERE_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
-				Boolean matched = evaluateSiblingChain(selector, ce);
-				if (matched == null) {
-					LOG.warning(":is/:where内の子孫・子結合子(> や半角スペース)を含むセレクタは未対応です: " + condition);
-					continue;
-				}
-				if (matched) {
+				if (matchesFromPath(selector, path)) {
 					return true;
 				}
 			}
@@ -511,63 +536,6 @@ public class StyleContext {
 		default:
 			LOG.warning("未対応のセレクタ条件です: " + condition.getConditionType() + " " + condition);
 			return false;
-		}
-	}
-
-	/**
-	 * :not()/:is()/:where()の引数として現れるセレクタを、要素スタックを使わずに
-	 * 単独のCSSElementから評価します。祖先方向の文脈(elementStack)を持たない
-	 * 場所での評価のため、隣接兄弟結合子(+)・一般兄弟結合子(~)は
-	 * {@link CSSElement#precedingElement}を辿るだけで評価できる({@link #merge}
-	 * のDIRECT_ADJACENT_SELECTOR/GENERAL_ADJACENT_SELECTORケースと同じ手法)が、
-	 * 子孫結合子(半角スペース)・子結合子(&gt;)は祖先アクセスが要るため未対応
-	 * (elementStackを引数評価まで貫通させる大きめのリファクタが必要。
-	 * docs/PLAN.md参照)。
-	 *
-	 * @return セレクタが評価できた場合はその真偽値。子孫・子結合子を含むため
-	 *         評価できない場合は null(呼び出し側はこの枝を無視して他の枝の
-	 *         評価を続けるべきで、即座に不一致とみなしてはならない)
-	 */
-	private static Boolean evaluateSiblingChain(Selector selector, CSSElement ce) {
-		for (;;) {
-			switch (selector.getSelectorType()) {
-			case CHILD_SELECTOR:
-			case DESCENDANT_SELECTOR:
-				return null;
-
-			case DIRECT_ADJACENT_SELECTOR: {
-				CombinatorSelector combinator = (CombinatorSelector) selector;
-				if (!evaluateSimpleSelector(combinator.getSimpleSelector(), ce)) {
-					return Boolean.FALSE;
-				}
-				ce = ce.precedingElement;
-				if (ce == null) {
-					return Boolean.FALSE;
-				}
-				selector = combinator.getAncestorSelector();
-				continue;
-			}
-
-			case GENERAL_ADJACENT_SELECTOR: {
-				CombinatorSelector combinator = (CombinatorSelector) selector;
-				if (!evaluateSimpleSelector(combinator.getSimpleSelector(), ce)) {
-					return Boolean.FALSE;
-				}
-				Selector nextSelector = combinator.getAncestorSelector();
-				ce = ce.precedingElement;
-				while (ce != null && !evaluateSimpleSelector(nextSelector.getSimpleSelector(), ce)) {
-					ce = ce.precedingElement;
-				}
-				if (ce == null) {
-					return Boolean.FALSE;
-				}
-				selector = nextSelector;
-				continue;
-			}
-
-			default:
-				return evaluateSimpleSelector(selector.getSimpleSelector(), ce);
-			}
 		}
 	}
 

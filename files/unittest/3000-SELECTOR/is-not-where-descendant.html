@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+p {
+	font-size: 10pt;
+}
+/* :is() + 子孫結合子(半角スペース): .ancの子孫であればどの深さでも一致 */
+p.desc-test:is(.anc .target) {
+	font-size: 16pt;
+}
+/* :is() + 子結合子(>): .ancの直接の子である場合のみ一致(孫要素は不一致) */
+p.child-test:is(.anc > .target) {
+	font-size: 20pt;
+}
+/* :where() + 子孫結合子: マッチング判定は:is()と同じ(詳細度は常にゼロだが
+   この検証では他の規則と競合させないため詳細度の違いは問わない) */
+p.where-test:where(.anc .target) {
+	font-size: 14pt;
+}
+/* :not() + 子孫結合子: .ancの子孫でtargetクラスを持つ要素以外に適用 */
+p.not-test:not(.anc .target) {
+	font-size: 22pt;
+}
+/* 子結合子と子孫結合子の混在: .outerの直接の子である.midの、
+   子孫(どの深さでも可)であるtarget */
+p.mixed-test:is(.outer > .mid .target) {
+	font-size: 18pt;
+}
+    </style>
+  </head>
+
+  <body>
+    <!-- 子孫結合子: 直接の子・孫いずれもヒット、祖先クラス違いはミス -->
+    <div class="anc">
+      <p class="desc-test target" id="desc-direct">DESCDIRECT</p>
+    </div>
+    <div class="anc">
+      <div class="mid">
+        <p class="desc-test target" id="desc-nested">DESCNESTED</p>
+      </div>
+    </div>
+    <div class="other">
+      <p class="desc-test target" id="desc-miss">DESCMISS</p>
+    </div>
+
+    <!-- 子結合子: 直接の子のみヒット、孫はミス -->
+    <div class="anc">
+      <p class="child-test target" id="child-hit">CHILDHIT</p>
+    </div>
+    <div class="anc">
+      <div class="mid">
+        <p class="child-test target" id="child-miss">CHILDMISS</p>
+      </div>
+    </div>
+
+    <!-- :where()の子孫結合子 -->
+    <div class="anc">
+      <p class="where-test target" id="where-hit">WHEREHIT</p>
+    </div>
+    <div class="other">
+      <p class="where-test target" id="where-miss">WHEREMISS</p>
+    </div>
+
+    <!-- :not()の子孫結合子 -->
+    <div class="anc">
+      <p class="not-test target" id="not-target-miss">NOTTARGETMISS</p>
+    </div>
+    <div class="other">
+      <p class="not-test target" id="not-other-hit">NOTOTHERHIT</p>
+    </div>
+    <p class="not-test" id="not-noclass-hit">NOTNOCLASSHIT</p>
+
+    <!-- 子結合子+子孫結合子の混在 -->
+    <div class="outer">
+      <div class="mid">
+        <p class="mixed-test target" id="mixed-hit">MIXEDHIT</p>
+      </div>
+    </div>
+    <div class="outer">
+      <div class="between">
+        <div class="mid">
+          <p class="mixed-test target" id="mixed-miss-notdirectmid">MIXEDMISSNOTDIRECTMID</p>
+        </div>
+      </div>
+    </div>
+    <div class="notouter">
+      <div class="mid">
+        <p class="mixed-test target" id="mixed-miss-wrongouter">MIXEDMISSWRONGOUTER</p>
+      </div>
+    </div>
+  </body>
+
+</html>
