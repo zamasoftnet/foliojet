@@ -34,11 +34,12 @@ public class Width extends AbstractPrimitivePropertyInfo {
 
 	public static Value get(CSSStyle style) {
 		PrimitivePropertyInfo info;
-		if (CSSJInternalImage.getImage(style) != null) {
+		boolean image = CSSJInternalImage.getImage(style) != null;
+		if (image) {
 			// 画像には回転を適用しない
 			info = INFO;
 		} else {
-			// 回転
+			// 回転(-cssj-direction-mode。既定PHYSICALでは無効)
 			switch (CSSJDirectionMode.get(style)) {
 			case CSSJDirectionModeValue.PHYSICAL:
 				info = INFO;
@@ -66,6 +67,18 @@ public class Width extends AbstractPrimitivePropertyInfo {
 				break;
 			default:
 				throw new IllegalStateException();
+			}
+		}
+		if (style.isDeclared(info)) {
+			return style.get(info);
+		}
+		// -cssj-direction-modeによる回転(foliojet4独自・既定無効)が効いていない
+		// 場合のみ、標準の論理プロパティinline-size/block-sizeをフォールバックとして
+		// 見る(両方の仕組みを重ねると解釈が曖昧になるため。docs/PLAN.md参照)。
+		if (!image && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL) {
+			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? BlockSize.INFO : InlineSize.INFO;
+			if (style.isDeclared(logicalInfo)) {
+				return style.get(logicalInfo);
 			}
 		}
 		return style.get(info);

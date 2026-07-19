@@ -29,12 +29,27 @@ public final class Padding extends AbstractPrimitivePropertyInfo {
 
 	private static final Padding[] BY_SIDE = { TOP, RIGHT, BOTTOM, LEFT };
 
+	/** padding-block-start/end・padding-inline-start/end(論理プロパティ)。 */
+	public static final Padding BLOCK_START = new Padding("padding-block-start");
+
+	public static final Padding BLOCK_END = new Padding("padding-block-end");
+
+	public static final Padding INLINE_START = new Padding("padding-inline-start");
+
+	public static final Padding INLINE_END = new Padding("padding-inline-end");
+
+	private static final Padding[] BY_LOGICAL_SIDE = { BLOCK_START, BLOCK_END, INLINE_START, INLINE_END };
+
 	private Padding(Side side) {
 		super("padding-" + side.text());
 	}
 
+	private Padding(String name) {
+		super(name);
+	}
+
 	public static Value get(CSSStyle style, Side side) {
-		return style.get(BY_SIDE[side.resolve(style).ordinal()]);
+		return LogicalSide.resolve(style, side, BY_SIDE, BY_LOGICAL_SIDE);
 	}
 
 	public Value getDefault(CSSStyle style) {

@@ -221,6 +221,27 @@ public class CSSStyle {
 		return resolved;
 	}
 
+	/**
+	 * このスタイルの直下(継承元をたどらず)でプロパティが明示的に宣言されて
+	 * いるか(cascade適用によりvalues[]にまだ書き込まれたままか)を返します。
+	 * 論理プロパティ(margin-inline-start等)と対応する物理プロパティ
+	 * (margin-top等)が同じ辺を指す場合にどちらを優先するかの判定に使います
+	 * (物理側が明示指定されていれば物理を優先し、無ければ論理側を見る)。
+	 * <p>
+	 * <b>注意</b>: {@link #get}はこのスタイル階層のvalues[code]を読み出し
+	 * 次第クリアします(継承解決の一部)。そのため、この判定は対応する
+	 * {@link #get}呼び出しより前に行う必要があります——先にgetしてしまうと
+	 * 明示指定の有無にかかわらずfalseになります。
+	 * </p>
+	 */
+	public boolean isDeclared(PrimitivePropertyInfo info) {
+		short code = ElementPropertySet.getCode(info);
+		if (code == -1) {
+			return false;
+		}
+		return this.values != null && this.values[code] != null;
+	}
+
 	public void set(PrimitivePropertyInfo info, Value value) {
 		this.set(info, value, MODE_NORMAL);
 	}

@@ -29,12 +29,27 @@ public final class Inset extends AbstractPrimitivePropertyInfo {
 
 	private static final Inset[] BY_SIDE = { TOP, RIGHT, BOTTOM, LEFT };
 
+	/** inset-block-start/end・inset-inline-start/end(論理プロパティ)。 */
+	public static final Inset BLOCK_START = new Inset("inset-block-start");
+
+	public static final Inset BLOCK_END = new Inset("inset-block-end");
+
+	public static final Inset INLINE_START = new Inset("inset-inline-start");
+
+	public static final Inset INLINE_END = new Inset("inset-inline-end");
+
+	private static final Inset[] BY_LOGICAL_SIDE = { BLOCK_START, BLOCK_END, INLINE_START, INLINE_END };
+
 	private Inset(Side side) {
 		super(side.text());
 	}
 
+	private Inset(String name) {
+		super(name);
+	}
+
 	public static Value get(CSSStyle style, Side side) {
-		return style.get(BY_SIDE[side.resolve(style).ordinal()]);
+		return LogicalSide.resolve(style, side, BY_SIDE, BY_LOGICAL_SIDE);
 	}
 
 	public Value getDefault(CSSStyle style) {

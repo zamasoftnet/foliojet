@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+#stage {
+	position: relative;
+	width: 300pt;
+	height: 200pt;
+}
+#stage div {
+	position: absolute;
+	background-color: #cccccc;
+}
+
+/* inset-block-start/inset-inline-start の物理辺への対応を、writing-mode・
+   directionの全4通り(horizontal-tb x LTR/RTL、vertical-rl x LTR/RTL、
+   vertical-lr x LTR/RTL、計6通り)で検証する。
+   いずれもinset-block-start:10pt; inset-inline-start:20pt; のみを指定し、
+   block-end/inline-endはautoのまま(過剰制約を避ける)。 */
+
+/* TB・LTR: block-start=top, inline-start=left -> top:10 left:20 */
+#b1 {
+	width: 50pt;
+	height: 30pt;
+	inset-block-start: 10pt;
+	inset-inline-start: 20pt;
+}
+/* TB・RTL: block-start=top(不変), inline-start=right(反転)
+   -> top:10 right:20 -> x = 300-20-50=230 */
+#b2 {
+	direction: rtl;
+	width: 50pt;
+	height: 30pt;
+	inset-block-start: 10pt;
+	inset-inline-start: 20pt;
+}
+/* vertical-rl・LTR: block-start=right, inline-start=top
+   -> right:10 top:20 -> x = 300-10-50=240, y=20 */
+#b3 {
+	writing-mode: vertical-rl;
+	width: 50pt;
+	height: 30pt;
+	inset-block-start: 10pt;
+	inset-inline-start: 20pt;
+}
+/* vertical-rl・RTL: block-start=right, inline-start=bottom(反転)
+   -> right:10 bottom:20 -> x=240, y = 200-20-30=150 */
+#b4 {
+	writing-mode: vertical-rl;
+	direction: rtl;
+	width: 50pt;
+	height: 30pt;
+	inset-block-start: 10pt;
+	inset-inline-start: 20pt;
+}
+/* vertical-lr・LTR: block-start=left, inline-start=top
+   -> left:10 top:20 -> x=10, y=20
+   注: writing-modeは-cssj-writing-modeショートハンドに展開され、
+   vertical-lr(tb-lr)は歴史的経緯によりdirectionの既定値をrtlに
+   設定する(WritingModeShorthand参照)。LTRケースを検証するには
+   direction:ltrで明示的に上書きする必要がある。 */
+#b5 {
+	writing-mode: vertical-lr;
+	direction: ltr;
+	width: 50pt;
+	height: 30pt;
+	inset-block-start: 10pt;
+	inset-inline-start: 20pt;
+}
+/* vertical-lr・RTL: block-start=left, inline-start=bottom(反転)
+   -> left:10 bottom:20 -> x=10, y=200-20-30=150
+   (direction未指定でもvertical-lrショートハンドの既定でrtlになるが、
+   意図を明示するためdirection:rtlを明記する) */
+#b6 {
+	writing-mode: vertical-lr;
+	direction: rtl;
+	width: 50pt;
+	height: 30pt;
+	inset-block-start: 10pt;
+	inset-inline-start: 20pt;
+}
+
+/* margin-inline-start/margin-block-startの解決(TB・LTR)。
+   top:0;left:0を基準に、marginが加算されて位置が決まる。
+   -> x=0+15=15, y=0+5=5 */
+#b7 {
+	top: 0;
+	left: 0;
+	width: 100pt;
+	height: 20pt;
+	margin-inline-start: 15pt;
+	margin-block-start: 5pt;
+}
+/* 物理・論理が同じ辺を指して競合する場合、物理側(margin-top)を優先する
+   簡略化した規則(docs/PLAN.md参照)。margin-top:3ptが勝つため
+   y=0+3=3(margin-block-start:20ptは無視される)。 */
+#b8 {
+	top: 0;
+	left: 0;
+	width: 100pt;
+	height: 20pt;
+	margin-top: 3pt;
+	margin-block-start: 20pt;
+}
+
+/* inline-size/block-size(TB): inline-size->width, block-size->height
+   -> w=120 h=40 */
+#b9 {
+	top: 0;
+	left: 0;
+	inline-size: 120pt;
+	block-size: 40pt;
+}
+/* inline-size/block-size(vertical-rl): inline-size->height, block-size->width
+   (TB側と軸が入れ替わる) -> w=40 h=120 */
+#b10 {
+	top: 0;
+	left: 0;
+	writing-mode: vertical-rl;
+	inline-size: 120pt;
+	block-size: 40pt;
+}
+/* min-block-size(vertical-rl): block-size->width軸なのでmin-block-sizeは
+   min-widthとして働く。width:60ptだが min-block-size:100pt によって
+   100ptまで引き上げられる -> w=100 h=80 */
+#b11 {
+	top: 0;
+	left: 0;
+	writing-mode: vertical-rl;
+	width: 60pt;
+	height: 80pt;
+	min-block-size: 100pt;
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="stage">
+      <div id="b1">B1</div>
+      <div id="b2">B2</div>
+      <div id="b3">B3</div>
+      <div id="b4">B4</div>
+      <div id="b5">B5</div>
+      <div id="b6">B6</div>
+      <div id="b7">B7</div>
+      <div id="b8">B8</div>
+      <div id="b9">B9</div>
+      <div id="b10">B10</div>
+      <div id="b11">B11</div>
+    </div>
+  </body>
+
+</html>

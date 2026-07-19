@@ -29,12 +29,27 @@ public final class Margin extends AbstractPrimitivePropertyInfo {
 
 	private static final Margin[] BY_SIDE = { TOP, RIGHT, BOTTOM, LEFT };
 
+	/** margin-block-start/end・margin-inline-start/end(論理プロパティ)。 */
+	public static final Margin BLOCK_START = new Margin("margin-block-start");
+
+	public static final Margin BLOCK_END = new Margin("margin-block-end");
+
+	public static final Margin INLINE_START = new Margin("margin-inline-start");
+
+	public static final Margin INLINE_END = new Margin("margin-inline-end");
+
+	private static final Margin[] BY_LOGICAL_SIDE = { BLOCK_START, BLOCK_END, INLINE_START, INLINE_END };
+
 	private Margin(Side side) {
 		super("margin-" + side.text());
 	}
 
+	private Margin(String name) {
+		super(name);
+	}
+
 	public static Value get(CSSStyle style, Side side) {
-		return style.get(BY_SIDE[side.resolve(style).ordinal()]);
+		return LogicalSide.resolve(style, side, BY_SIDE, BY_LOGICAL_SIDE);
 	}
 
 	public Value getDefault(CSSStyle style) {
