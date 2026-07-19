@@ -168,6 +168,11 @@ public final class LayoutUtils {
 			return length.getLength() * ref;
 		case ABSOLUTE:
 			return length.getLength();
+		case MIXED:
+			if (ref == LayoutUtils.NONE) {
+				return LayoutUtils.NONE;
+			}
+			return length.getLength() + length.getRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -191,6 +196,9 @@ public final class LayoutUtils {
 		case RELATIVE:
 			top = insets.getTop() * refSize;
 			break;
+		case MIXED:
+			top = insets.getTop() + insets.getTopRatio() * refSize;
+			break;
 		case AUTO:
 			top = 0;
 			break;
@@ -204,6 +212,9 @@ public final class LayoutUtils {
 			break;
 		case RELATIVE:
 			right = insets.getRight() * refSize;
+			break;
+		case MIXED:
+			right = insets.getRight() + insets.getRightRatio() * refSize;
 			break;
 		case AUTO:
 			right = 0;
@@ -219,6 +230,9 @@ public final class LayoutUtils {
 		case RELATIVE:
 			bottom = insets.getBottom() * refSize;
 			break;
+		case MIXED:
+			bottom = insets.getBottom() + insets.getBottomRatio() * refSize;
+			break;
 		case AUTO:
 			bottom = 0;
 			break;
@@ -232,6 +246,9 @@ public final class LayoutUtils {
 			break;
 		case RELATIVE:
 			left = insets.getLeft() * refSize;
+			break;
+		case MIXED:
+			left = insets.getLeft() + insets.getLeftRatio() * refSize;
 			break;
 		case AUTO:
 			left = 0;
@@ -254,6 +271,9 @@ public final class LayoutUtils {
 		case RELATIVE:
 			top = insets.getTop() * refSize;
 			break;
+		case MIXED:
+			top = insets.getTop() + insets.getTopRatio() * refSize;
+			break;
 		default:
 			throw new IllegalStateException();
 		}
@@ -264,6 +284,9 @@ public final class LayoutUtils {
 			break;
 		case RELATIVE:
 			right = insets.getRight() * refSize;
+			break;
+		case MIXED:
+			right = insets.getRight() + insets.getRightRatio() * refSize;
 			break;
 		default:
 			throw new IllegalStateException();
@@ -276,6 +299,9 @@ public final class LayoutUtils {
 		case RELATIVE:
 			bottom = insets.getBottom() * refSize;
 			break;
+		case MIXED:
+			bottom = insets.getBottom() + insets.getBottomRatio() * refSize;
+			break;
 		default:
 			throw new IllegalStateException();
 		}
@@ -286,6 +312,9 @@ public final class LayoutUtils {
 			break;
 		case RELATIVE:
 			left = insets.getLeft() * refSize;
+			break;
+		case MIXED:
+			left = insets.getLeft() + insets.getLeftRatio() * refSize;
 			break;
 		default:
 			throw new IllegalStateException();
@@ -312,6 +341,11 @@ public final class LayoutUtils {
 			return size.getWidth() * ref;
 		case ABSOLUTE:
 			return size.getWidth();
+		case MIXED:
+			if (ref == LayoutUtils.NONE) {
+				return LayoutUtils.NONE;
+			}
+			return size.getWidth() + size.getWidthRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -335,6 +369,11 @@ public final class LayoutUtils {
 			return size.getHeight() * ref;
 		case ABSOLUTE:
 			return size.getHeight();
+		case MIXED:
+			if (ref == LayoutUtils.NONE) {
+				return LayoutUtils.NONE;
+			}
+			return size.getHeight() + size.getHeightRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -391,6 +430,8 @@ public final class LayoutUtils {
 			return insets.getTop();
 		case RELATIVE:
 			return insets.getTop() * ref;
+		case MIXED:
+			return insets.getTop() + insets.getTopRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -404,6 +445,8 @@ public final class LayoutUtils {
 			return insets.getLeft();
 		case RELATIVE:
 			return insets.getLeft() * ref;
+		case MIXED:
+			return insets.getLeft() + insets.getLeftRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -417,6 +460,8 @@ public final class LayoutUtils {
 			return insets.getRight();
 		case RELATIVE:
 			return insets.getRight() * ref;
+		case MIXED:
+			return insets.getRight() + insets.getRightRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -430,6 +475,8 @@ public final class LayoutUtils {
 			return insets.getBottom();
 		case RELATIVE:
 			return insets.getBottom() * ref;
+		case MIXED:
+			return insets.getBottom() + insets.getBottomRatio() * ref;
 		case AUTO:
 			return LayoutUtils.NONE;
 		default:
@@ -444,6 +491,9 @@ public final class LayoutUtils {
 		case RELATIVE:
 			// this.offsetX = pos.offset.getX() * container.getInnerWidth();
 			// break;
+		case MIXED:
+			// RELATIVE同様、この経路は未実装(既存のTODO。MIXEDもさしあたり
+			// RELATIVEと同じ扱いにして例外だけは避ける)。
 		case AUTO:
 			return 0;
 		default:
@@ -458,6 +508,9 @@ public final class LayoutUtils {
 		case RELATIVE:
 			// this.offsetY = pos.offset.getY() * container.getInnerWidth();
 			// break;
+		case MIXED:
+			// RELATIVE同様、この経路は未実装(既存のTODO。MIXEDもさしあたり
+			// RELATIVEと同じ扱いにして例外だけは避ける)。
 		case AUTO:
 			return 0;
 		default:

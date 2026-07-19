@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.FontValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RelativeSizeValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -48,6 +49,15 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 		if (value instanceof PercentageValue percentage) {
 			double fontSize = FontSize.get(parentStyle);
 			return AbsoluteLengthValue.create(parentStyle.getUserAgent(), percentage.getRatio() * fontSize);
+		}
+		if (value instanceof CalcLengthValue calc) {
+			// calc()が絶対長さと割合を混在させた場合(例: calc(1px + 50%))。
+			// font-sizeの%は(width/height等と違いレイアウト時ではなく)親の
+			// font-sizeを基準に今ここで解決できるため、PercentageValueと
+			// 同じ扱いにしてAbsoluteLengthValueへ完全に還元する。
+			double fontSize = FontSize.get(parentStyle);
+			return AbsoluteLengthValue.create(parentStyle.getUserAgent(),
+					calc.getAbsolute() + calc.getRatio() * fontSize);
 		}
 		if (value instanceof RelativeSizeValue relativeSize) {
 			UserAgent ua = parentStyle.getUserAgent();

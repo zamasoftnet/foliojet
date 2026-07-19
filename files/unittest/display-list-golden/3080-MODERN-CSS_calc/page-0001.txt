@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=170.00 h=12.00]
+  x=0.00 y=12.00 AbsoluteRectFrame[w=250.00 h=12.00]
+  x=0.00 y=24.00 AbsoluteRectFrame[w=90.00 h=12.00]
+  x=0.00 y=36.00 AbsoluteRectFrame[w=180.00 h=12.00]
+  x=0.00 y=48.00 AbsoluteRectFrame[w=150.00 h=12.00]
+  x=0.00 y=0.00 Text["CALCADD" asc=9.00 desc=3.00]
+  x=0.00 y=12.00 Text["CALCSUB" asc=9.00 desc=3.00]
+  x=0.00 y=24.00 Text["CALCMIN" asc=9.00 desc=3.00]
+  x=0.00 y=36.00 Text["CALCMAX" asc=9.00 desc=3.00]
+  x=0.00 y=48.00 Text["CALCCLAMP" asc=9.00 desc=3.00]

@@ -72,8 +72,14 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 		if (specifiedPageSize) {
 			// 指定寸法のページ方向を残量に分割
 			final double rest = Math.max(0, pageExtent - limit);
-			nextSize = vertical ? Dimension.create(rest, size.getHeight(), LengthType.ABSOLUTE, size.getHeightType())
-					: Dimension.create(size.getWidth(), rest, size.getWidthType(), LengthType.ABSOLUTE);
+			// 行方向(ページ方向でない側)はtype/値をそのまま残すが、MIXED
+			// (calc()の絶対長さ+割合混在)の場合は割合成分も一緒に保存しないと
+			// 断片化後の解決でratio成分が消える(2026-07-19、外部レビューで発覚)。
+			nextSize = vertical
+					? Dimension.create(rest, 0, size.getHeight(), size.getHeightRatio(), LengthType.ABSOLUTE,
+							size.getHeightType())
+					: Dimension.create(size.getWidth(), size.getWidthRatio(), rest, 0, size.getWidthType(),
+							LengthType.ABSOLUTE);
 		} else {
 			nextSize = size;
 		}
@@ -84,8 +90,10 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 			final double spec = vertical ? minSize.getWidth() : minSize.getHeight();
 			final double rest = Math.max(0, Math.min(spec, pageExtent) - limit);
 			nextMinSize = vertical
-					? Dimension.create(rest, minSize.getHeight(), LengthType.ABSOLUTE, minSize.getHeightType())
-					: Dimension.create(minSize.getWidth(), rest, minSize.getWidthType(), LengthType.ABSOLUTE);
+					? Dimension.create(rest, 0, minSize.getHeight(), minSize.getHeightRatio(), LengthType.ABSOLUTE,
+							minSize.getHeightType())
+					: Dimension.create(minSize.getWidth(), minSize.getWidthRatio(), rest, 0, minSize.getWidthType(),
+							LengthType.ABSOLUTE);
 		} else {
 			nextMinSize = minSize;
 		}

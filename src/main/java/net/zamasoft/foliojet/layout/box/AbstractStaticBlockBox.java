@@ -73,7 +73,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final WritingMode flow = this.params.flow;
 		{
 			final LengthType pageType = this.params.size.getPageType(flow);
-			this.specifiedPageAxis = pageType == LengthType.ABSOLUTE || (pageType == LengthType.RELATIVE && (!table
+			this.specifiedPageAxis = pageType == LengthType.ABSOLUTE || (pageType.needsReference() && (!table
 					&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
 		}
 
@@ -132,11 +132,19 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				minPage = this.minSize.getPageLength(flow) * context.percentBasePage();
 				break;
 			}
+			// percentBasePage未確定ならAUTOへフォールスルー(既存の意図的な仕様)
 		case AUTO:
 			minPage = 0;
 			break;
 		case ABSOLUTE:
 			minPage = this.minSize.getPageLength(flow);
+			break;
+		case MIXED:
+			if (context.isPagePercentDefinite()) {
+				minPage = this.minSize.getPageLength(flow) + this.minSize.getPageRatio(flow) * context.percentBasePage();
+				break;
+			}
+			minPage = 0;
 			break;
 		default:
 			throw new IllegalStateException();
@@ -148,11 +156,20 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				maxPage = this.params.maxSize.getPageLength(flow) * context.percentBasePage();
 				break;
 			}
+			// percentBasePage未確定ならAUTOへフォールスルー(既存の意図的な仕様)
 		case AUTO:
 			maxPage = Double.MAX_VALUE;
 			break;
 		case ABSOLUTE:
 			maxPage = this.params.maxSize.getPageLength(flow);
+			break;
+		case MIXED:
+			if (context.isPagePercentDefinite()) {
+				maxPage = this.params.maxSize.getPageLength(flow)
+						+ this.params.maxSize.getPageRatio(flow) * context.percentBasePage();
+				break;
+			}
+			maxPage = Double.MAX_VALUE;
 			break;
 		default:
 			throw new IllegalStateException();
@@ -170,6 +187,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				minPage = maxPage = pageExtent;
 				break;
 			}
+			// percentBasePage未確定ならAUTOへフォールスルー(既存の意図的な仕様)
 		case AUTO:
 			// 台帳#4 解消(2026-07-17): 旧実装は縦書きのテーブル時のみ
 			// 既値を維持していた。横書きと同じく常に0(内容が後で決める)
@@ -183,6 +201,19 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				pageExtent -= this.getFrame().getBorderPageExtent(flow);
 			}
 			minPage = maxPage = pageExtent;
+			break;
+		case MIXED:
+			if (context.isPagePercentDefinite()) {
+				pageExtent = this.size.getPageLength(flow) + this.size.getPageRatio(flow) * context.percentBasePage();
+				pageExtent = Math.max(pageExtent, minPage);
+				pageExtent = Math.min(pageExtent, maxPage);
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+					pageExtent -= this.getFrame().getBorderPageExtent(flow);
+				}
+				minPage = maxPage = pageExtent;
+				break;
+			}
+			pageExtent = 0;
 			break;
 		default:
 			throw new IllegalStateException();

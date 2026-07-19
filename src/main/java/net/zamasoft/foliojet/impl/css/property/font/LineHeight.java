@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -55,6 +56,14 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 		}
 		if (value instanceof PercentageValue percentage) {
 			return AbsoluteLengthValue.create(style.getUserAgent(), percentage.getRatio() * FontSize.get(style));
+		}
+		if (value instanceof CalcLengthValue calc) {
+			// calc()が絶対長さと割合を混在させた場合(例: calc(50% + 10pt))。
+			// line-heightの%はfont-size同様、親ではなく自要素のfont-sizeを
+			// 基準に今ここで解決できるため、PercentageValueと同じ扱いにして
+			// AbsoluteLengthValueへ完全に還元する。
+			return AbsoluteLengthValue.create(style.getUserAgent(),
+					calc.getAbsolute() + calc.getRatio() * FontSize.get(style));
 		}
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}

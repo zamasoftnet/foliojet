@@ -251,6 +251,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 		case RELATIVE:
 			textIndent = params.textIndent.getLength() * this.getLineSize();
 			break;
+		case MIXED:
+			textIndent = params.textIndent.getLength() + params.textIndent.getRatio() * this.getLineSize();
+			break;
 		default:
 			throw new IllegalStateException();
 		}

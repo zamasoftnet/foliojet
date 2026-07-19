@@ -73,8 +73,8 @@ public class PageBox extends AbstractBlockBox {
 
 	public PageBox(BlockParams params, UserAgent ua, Container container) {
 		super(params, params.size, params.minSize, new AbsoluteRectFrame(params.frame), container);
-		assert this.size.getWidthType() != LengthType.RELATIVE;
-		assert this.size.getHeightType() != LengthType.RELATIVE;
+		assert !this.size.getWidthType().needsReference();
+		assert !this.size.getHeightType().needsReference();
 
 		this.ua = ua;
 
@@ -106,6 +106,9 @@ public class PageBox extends AbstractBlockBox {
 			case RELATIVE:
 				top = insets.getTop() * lineWidth;
 				break;
+			case MIXED:
+				top = insets.getTop() + insets.getTopRatio() * lineWidth;
+				break;
 			case AUTO:
 				top = 0;
 				break;
@@ -118,6 +121,9 @@ public class PageBox extends AbstractBlockBox {
 				break;
 			case RELATIVE:
 				bottom = insets.getBottom() * lineWidth;
+				break;
+			case MIXED:
+				bottom = insets.getBottom() + insets.getBottomRatio() * lineWidth;
 				break;
 			case AUTO:
 				bottom = 0;
@@ -132,6 +138,9 @@ public class PageBox extends AbstractBlockBox {
 			case RELATIVE:
 				left = insets.getLeft() * lineWidth;
 				break;
+			case MIXED:
+				left = insets.getLeft() + insets.getLeftRatio() * lineWidth;
+				break;
 			case AUTO:
 				left = 0;
 				break;
@@ -144,6 +153,9 @@ public class PageBox extends AbstractBlockBox {
 				break;
 			case RELATIVE:
 				right = insets.getRight() * lineWidth;
+				break;
+			case MIXED:
+				right = insets.getRight() + insets.getRightRatio() * lineWidth;
 				break;
 			case AUTO:
 				right = 0;

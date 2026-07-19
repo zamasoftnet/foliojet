@@ -49,6 +49,12 @@ public final class FixedColumnWidths {
 		switch (cellParams.size.getLineType(tableFlow)) {
 		case AUTO:
 			return null;
+		case MIXED:
+			// calc()による絶対長さ+割合混在(例: calc(50% + 10px))の表セル幅は
+			// 固定レイアウトの列幅分配アルゴリズムが前提とする「絶対 or 割合の
+			// 二択」に収まらないため未対応。AUTO(指定なし)として扱い、
+			// 安全側に倒す(クラッシュや誤った幅計算を避ける。docs/PLAN.md参照)。
+			return null;
 		case ABSOLUTE: {
 			double fix = cellParams.size.getLineLength(tableFlow);
 			if (cellParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {

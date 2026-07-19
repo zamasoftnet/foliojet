@@ -50,6 +50,20 @@ public final class RowLayoutEngine {
 			auto = true;
 			rowSize = 0;
 			break;
+		case MIXED:
+			// calc()による絶対長さ+割合混在(例: calc(50% + 10pt))の行高は、
+			// このRowSpecが前提とする「絶対値 or 比率の二択」に収まらない
+			// (行高分配アルゴリズムのratio利用箇所は比率単独を前提にしている)。
+			// RELATIVEと同じ扱いにして安全側に倒す(絶対成分は無視、比率成分の
+			// みratioへ渡す。docs/PLAN.md参照)。
+			ratio = rowParams.size.getRatio();
+			if (ratio > 0) {
+				rowSize = 0;
+				break;
+			}
+			auto = true;
+			rowSize = 0;
+			break;
 		default:
 			throw new IllegalStateException();
 		}
@@ -58,6 +72,7 @@ public final class RowLayoutEngine {
 			rowSize = Math.max(rowParams.minSize.getLength(), rowSize);
 			break;
 		case RELATIVE:
+		case MIXED:
 		case AUTO:
 			break;
 		default:
@@ -68,6 +83,7 @@ public final class RowLayoutEngine {
 			rowSize = Math.min(rowParams.maxSize.getLength(), rowSize);
 			break;
 		case RELATIVE:
+		case MIXED:
 		case AUTO:
 			break;
 		default:

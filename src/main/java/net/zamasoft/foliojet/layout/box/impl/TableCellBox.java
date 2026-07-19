@@ -159,6 +159,7 @@ public class TableCellBox extends AbstractContainerBox {
 				this.minPageAxis = this.minSize.getWidth();
 				break;
 			case RELATIVE:
+			case MIXED:
 			case AUTO:
 				this.minPageAxis = 0;
 				break;
@@ -170,6 +171,7 @@ public class TableCellBox extends AbstractContainerBox {
 				this.maxPageAxis = this.params.maxSize.getWidth();
 				break;
 			case RELATIVE:
+			case MIXED:
 			case AUTO:
 				this.maxPageAxis = Double.MAX_VALUE;
 				break;
@@ -183,6 +185,7 @@ public class TableCellBox extends AbstractContainerBox {
 				this.minPageAxis = this.minSize.getHeight();
 				break;
 			case RELATIVE:
+			case MIXED:
 			case AUTO:
 				this.minPageAxis = 0;
 				break;
@@ -194,6 +197,7 @@ public class TableCellBox extends AbstractContainerBox {
 				this.maxPageAxis = this.params.maxSize.getHeight();
 				break;
 			case RELATIVE:
+			case MIXED:
 			case AUTO:
 				this.maxPageAxis = Double.MAX_VALUE;
 				break;

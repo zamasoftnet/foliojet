@@ -139,8 +139,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	public AbstractContainerBox getFixedWidthContextBox() {
 		AbstractContainerBox box = this.getRootBox();
 		if (box.getBlockParams().size.getWidthType() != LengthType.AUTO) {
-			if (box.getBlockParams().size.getWidthType() != LengthType.RELATIVE
-					|| !box.getType().isTableInternal()) {
+			if (!box.getBlockParams().size.getWidthType().needsReference() || !box.getType().isTableInternal()) {
 				return box;
 			}
 		}
@@ -164,8 +163,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	public AbstractContainerBox getFixedHeightContextBox() {
 		AbstractContainerBox box = this.getRootBox();
 		if (box.getBlockParams().size.getHeightType() != LengthType.AUTO) {
-			if (box.getBlockParams().size.getHeightType() != LengthType.RELATIVE
-					|| !box.getType().isTableInternal()) {
+			if (!box.getBlockParams().size.getHeightType().needsReference() || !box.getType().isTableInternal()) {
 				return box;
 			}
 		}

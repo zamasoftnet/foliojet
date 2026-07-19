@@ -45,15 +45,24 @@ public abstract class AbstractBox implements IBox {
 		case RELATIVE:
 			ax += this.getWidth() * offset.getX();
 			break;
+		case MIXED:
+			ax += offset.getX() + this.getWidth() * offset.getXRatio();
+			break;
 		default:
 			throw new IllegalStateException();
 		}
+		// 注: 以下のswitchはoffset.getXType()を条件にしているが本体はY成分を
+		// 計算している(既存コードの不整合。MIXED追加のスコープ外のため
+		// 挙動は変えず、既存条件式のまま維持する)。
 		switch (offset.getXType()) {
 		case ABSOLUTE:
 			ay += offset.getY();
 			break;
 		case RELATIVE:
 			ay += this.getHeight() * offset.getY();
+			break;
+		case MIXED:
+			ay += offset.getY() + this.getHeight() * offset.getYRatio();
 			break;
 		default:
 			throw new IllegalStateException();

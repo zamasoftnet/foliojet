@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
@@ -341,6 +342,25 @@ public final class FontValueUtils {
 		}
 		if (token instanceof CssToken.Num num && num.value() == 0) {
 			return AbsoluteLengthValue.create(ua, 0, Unit.PX);
+		}
+		if (token instanceof CssToken.Func) {
+			// calc()/min()/max()/clamp()。絶対長さ成分にはfont-size固有の
+			// ズーム倍率(getFontMagnification)を適用する必要があるが、
+			// CalcValueUtils自体はfont-size専用の規約を知らないため、
+			// 評価結果の絶対成分にここで後掛けする(calc()の+,-,*は絶対成分に
+			// ついて線形なので、個々の入力を先に倍率適用してから合成するのと
+			// 数学的に等価)。
+			Value calc = CalcValueUtils.toCalc(ua, token);
+			if (calc instanceof AbsoluteLengthValue length) {
+				return AbsoluteLengthValue.create(ua, length.getLength() * ua.getFontMagnification());
+			}
+			if (calc instanceof CalcLengthValue mixed) {
+				return CalcLengthValue.create(ua, mixed.getAbsolute() * ua.getFontMagnification(), mixed.getRatio());
+			}
+			if (calc instanceof PercentageValue percentage) {
+				return percentage.isNegative() ? null : percentage;
+			}
+			return null;
 		}
 		return null;
 	}

@@ -159,6 +159,9 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			case RELATIVE:
 				top = rframe.margin.getTop() * lineSize;
 				break;
+			case MIXED:
+				top = rframe.margin.getTop() + rframe.margin.getTopRatio() * lineSize;
+				break;
 			case AUTO:
 				top = 0;
 				break;
@@ -172,6 +175,9 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 				break;
 			case RELATIVE:
 				bottom = rframe.margin.getBottom() * lineSize;
+				break;
+			case MIXED:
+				bottom = rframe.margin.getBottom() + rframe.margin.getBottomRatio() * lineSize;
 				break;
 			case AUTO:
 				bottom = 0;
@@ -193,6 +199,9 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			case RELATIVE:
 				left = rframe.margin.getLeft() * lineSize;
 				break;
+			case MIXED:
+				left = rframe.margin.getLeft() + rframe.margin.getLeftRatio() * lineSize;
+				break;
 			case AUTO:
 				left = 0;
 				break;
@@ -205,6 +214,9 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 				break;
 			case RELATIVE:
 				right = rframe.margin.getRight() * lineSize;
+				break;
+			case MIXED:
+				right = rframe.margin.getRight() + rframe.margin.getRightRatio() * lineSize;
 				break;
 			case AUTO:
 				right = 0;

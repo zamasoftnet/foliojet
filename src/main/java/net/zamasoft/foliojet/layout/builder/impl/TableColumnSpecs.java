@@ -47,6 +47,10 @@ final class TableColumnSpecs {
 					false);
 			case RELATIVE -> new FixedColumnWidths.Spec(
 					refSize * column.getInnerTableParams().size.getLength() + separateSpacing, true);
+			// calc()による絶対長さと割合の混在(例: calc(50% + 10px))。refSizeは
+			// この時点で既に確定しているため、ABSOLUTEと同様に確定値として扱う。
+			case MIXED -> new FixedColumnWidths.Spec(column.getInnerTableParams().size.getLength()
+					+ refSize * column.getInnerTableParams().size.getRatio() + separateSpacing, false);
 			};
 			final int span = column.getTableColumnPos().span;
 			for (int j = 0; j < span; ++j) {

@@ -351,8 +351,8 @@ final class IntrinsicMeasurer {
 				minAdvance = 0;
 				if (cParams.flow.isVertical()) {
 					// 縦書き
-					if (box.getReplacedParams().size.getHeightType() != LengthType.RELATIVE
-							&& box.getReplacedParams().maxSize.getHeightType() != LengthType.RELATIVE) {
+					if (!box.getReplacedParams().size.getHeightType().needsReference()
+							&& !box.getReplacedParams().maxSize.getHeightType().needsReference()) {
 						minAdvance = maxAdvance;
 					}
 					if (box.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
@@ -363,8 +363,8 @@ final class IntrinsicMeasurer {
 					pageSize = box.getWidth();
 				} else {
 					// 横書き
-					if (box.getReplacedParams().size.getWidthType() != LengthType.RELATIVE
-							&& box.getReplacedParams().maxSize.getWidthType() != LengthType.RELATIVE) {
+					if (!box.getReplacedParams().size.getWidthType().needsReference()
+							&& !box.getReplacedParams().maxSize.getWidthType().needsReference()) {
 						minAdvance = maxAdvance;
 					}
 					if (box.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {

@@ -430,6 +430,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				case RELATIVE:
 					widths.specPercent(col, span, colParams.size.getLength());
 					break;
+				case MIXED:
+					// calc()による絶対長さ+割合混在の列幅は、このAUTO-layout列幅
+					// 指定APIが前提とする「絶対 or 割合の二択」に収まらないため
+					// 未対応。AUTO(指定なし)として扱い安全側に倒す(docs/PLAN.md参照)。
 				case AUTO:
 					// ignore
 					break;
@@ -497,6 +501,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							type = AutoColumnWidths.COLUMN_TYPE_PCT;
 							spec = cellParams.size.getHeight();
 							break;
+						case MIXED:
+							// calc()混在の表セル高さはAUTO-layoutの列高さ交渉アルゴリズムが
+							// 前提とする「絶対 or 割合の二択」に収まらないため未対応。
+							// AUTOと同じ扱いにして安全側に倒す(docs/PLAN.md参照)。
 						case AUTO:
 							spec = des;
 							break;
@@ -526,6 +534,10 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 							type = AutoColumnWidths.COLUMN_TYPE_PCT;
 							spec = cellParams.size.getWidth();
 							break;
+						case MIXED:
+							// calc()混在の表セル幅はAUTO-layoutの列幅交渉アルゴリズムが
+							// 前提とする「絶対 or 割合の二択」に収まらないため未対応。
+							// AUTOと同じ扱いにして安全側に倒す(docs/PLAN.md参照)。
 						case AUTO:
 							spec = des;
 							break;
@@ -714,6 +726,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				specifiedPageSize = tableParams.size.getWidth() - this.tableBox.getFrame().getFrameWidth();
 				break;
 			case RELATIVE:
+			case MIXED:
 				specifiedPageSize = LayoutUtils.computeDimensionWidth(tableParams.size,
 						this.layoutStack.getFixedWidth());
 				break;
@@ -730,6 +743,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 				specifiedPageSize = tableParams.size.getHeight() - this.tableBox.getFrame().getFrameHeight();
 				break;
 			case RELATIVE:
+			case MIXED:
 				specifiedPageSize = LayoutUtils.computeDimensionHeight(tableParams.size,
 						this.layoutStack.getFixedHeight());
 				break;

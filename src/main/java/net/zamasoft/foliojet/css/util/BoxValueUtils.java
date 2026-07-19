@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.css.util;
 
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
@@ -35,6 +36,11 @@ public final class BoxValueUtils {
 		if (token instanceof CssToken.Ident ident) {
 			return ident.is("auto") ? KeywordValue.AUTO : null;
 		}
+		Value calc = CalcValueUtils.toCalc(ua, token);
+		if (calc != null) {
+			// <length-percentage>文脈なので単位なし数値のcalc()結果(例: calc(1 + 2))は無効
+			return calc instanceof RealValue ? null : calc;
+		}
 		if (token instanceof CssToken.Percent percent) {
 			return ValueUtils.toPercentage(percent);
 		}
@@ -53,9 +59,15 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * 絶対長さ・パーセントの数値部分を返します(キーワードは0)。
+	 * Length/Dimension/Insets/Offsetの主フィールド(getLength()/getWidth()等)に
+	 * 格納すべき値を返します。意味はtypeに依存する(Length.create/createMixedと
+	 * 同じ規約): ABSOLUTE→絶対長さそのもの、RELATIVE→割合そのもの、
+	 * MIXED→絶対成分(割合成分は{@link #extraRatioPart}が別途持つ)。
 	 */
-	private static double quantity(Value value) {
+	private static double primaryPart(Value value) {
+		if (value instanceof CalcLengthValue calc) {
+			return calc.getAbsolute();
+		}
 		if (value instanceof AbsoluteLengthValue length) {
 			return length.getLength();
 		}
@@ -66,14 +78,33 @@ public final class BoxValueUtils {
 	}
 
 	/**
+	 * MIXED(calc()の絶対+割合混在)の場合のみ意味を持つ、主フィールドとは別枠の
+	 * 割合成分を返します。RELATIVE単体の場合は割合が既に{@link #primaryPart}に
+	 * 入っているため、ここは常に0です。
+	 */
+	private static double extraRatioPart(Value value) {
+		if (value instanceof CalcLengthValue calc) {
+			return calc.getRatio();
+		}
+		return 0;
+	}
+
+	/**
 	 * ValueからDimensionとして取得します。
 	 */
 	public static Dimension toDimension(Value widthValue, Value heightValue) {
-		return Dimension.create(quantity(widthValue), quantity(heightValue), dimensionType(widthValue),
-				dimensionType(heightValue));
+		return Dimension.create(primaryPart(widthValue), extraRatioPart(widthValue), primaryPart(heightValue),
+				extraRatioPart(heightValue), lengthType(widthValue), lengthType(heightValue));
 	}
 
-	private static LengthType dimensionType(Value value) {
+	/**
+	 * Value(AbsoluteLengthValue/PercentageValue/CalcLengthValue/AUTO系キーワード)から
+	 * 対応するLengthTypeを求めます。Dimension/Insets/Offsetのtype判定で共用します。
+	 */
+	private static LengthType lengthType(Value value) {
+		if (value instanceof CalcLengthValue) {
+			return LengthType.MIXED;
+		}
 		if (value instanceof AbsoluteLengthValue) {
 			return LengthType.ABSOLUTE;
 		}
@@ -99,6 +130,9 @@ public final class BoxValueUtils {
 		if (value instanceof AbsoluteLengthValue length) {
 			return Length.create(length.getLength(), LengthType.ABSOLUTE);
 		}
+		if (value instanceof CalcLengthValue calc) {
+			return Length.createMixed(calc.getAbsolute(), calc.getRatio());
+		}
 		throw new IllegalStateException(String.valueOf(value));
 	}
 
@@ -110,8 +144,14 @@ public final class BoxValueUtils {
 	 * @return
 	 */
 	public static QuantityValue toPositiveLength(UserAgent ua, CssToken token) {
+		Value calc = CalcValueUtils.toCalc(ua, token);
 		QuantityValue value;
-		if (token instanceof CssToken.Percent percent) {
+		if (calc instanceof RealValue) {
+			// <length-percentage>文脈なので単位なし数値のcalc()結果(例: calc(1 + 2))は無効
+			return null;
+		} else if (calc != null) {
+			value = (QuantityValue) calc;
+		} else if (token instanceof CssToken.Percent percent) {
 			value = ValueUtils.toPercentage(percent);
 		} else {
 			value = ValueUtils.toLength(ua, token);
@@ -126,58 +166,38 @@ public final class BoxValueUtils {
 		if (ValueUtils.isNormal(token)) {
 			return KeywordValue.NORMAL;
 		}
-		final Value lineHeight;
+		final Value lineHeight = CalcValueUtils.toCalc(ua, token);
+		if (lineHeight != null) {
+			return ((QuantityValue) lineHeight).isNegative() ? null : lineHeight;
+		}
+		final Value plain;
 		if (token instanceof CssToken.Num) {
-			lineHeight = ValueUtils.toReal(token);
-			if (lineHeight == null || ((RealValue) lineHeight).isNegative()) {
+			plain = ValueUtils.toReal(token);
+			if (plain == null || ((RealValue) plain).isNegative()) {
 				return null;
 			}
 		} else if (token instanceof CssToken.Percent) {
-			lineHeight = ValueUtils.toPercentage(token);
-			if (lineHeight == null || ((PercentageValue) lineHeight).isNegative()) {
+			plain = ValueUtils.toPercentage(token);
+			if (plain == null || ((PercentageValue) plain).isNegative()) {
 				return null;
 			}
 		} else {
-			lineHeight = ValueUtils.toLength(ua, token);
-			if (lineHeight == null || ((LengthValue) lineHeight).isNegative()) {
+			plain = ValueUtils.toLength(ua, token);
+			if (plain == null || ((LengthValue) plain).isNegative()) {
 				return null;
 			}
 		}
-		return lineHeight;
+		return plain;
 	}
 
 	public static Insets toInsets(Value top, Value right, Value bottom, Value left) {
-		return Insets.create(quantity(top), quantity(right), quantity(bottom), quantity(left), insetsType(top),
-				insetsType(right), insetsType(bottom), insetsType(left));
-	}
-
-	private static LengthType insetsType(Value value) {
-		if (value instanceof AbsoluteLengthValue) {
-			return LengthType.ABSOLUTE;
-		}
-		if (value instanceof PercentageValue) {
-			return LengthType.RELATIVE;
-		}
-		if (value == KeywordValue.AUTO) {
-			return LengthType.AUTO;
-		}
-		throw new IllegalStateException(String.valueOf(value));
+		return Insets.create(primaryPart(top), extraRatioPart(top), primaryPart(right), extraRatioPart(right),
+				primaryPart(bottom), extraRatioPart(bottom), primaryPart(left), extraRatioPart(left), lengthType(top),
+				lengthType(right), lengthType(bottom), lengthType(left));
 	}
 
 	public static Offset toOffset(Value xValue, Value yValue) {
-		return Offset.create(quantity(xValue), quantity(yValue), offsetType(xValue), offsetType(yValue));
-	}
-
-	private static LengthType offsetType(Value value) {
-		if (value instanceof AbsoluteLengthValue) {
-			return LengthType.ABSOLUTE;
-		}
-		if (value instanceof PercentageValue) {
-			return LengthType.RELATIVE;
-		}
-		if (value == KeywordValue.AUTO) {
-			return LengthType.AUTO;
-		}
-		throw new IllegalStateException(String.valueOf(value));
+		return Offset.create(primaryPart(xValue), extraRatioPart(xValue), primaryPart(yValue), extraRatioPart(yValue),
+				lengthType(xValue), lengthType(yValue));
 	}
 }

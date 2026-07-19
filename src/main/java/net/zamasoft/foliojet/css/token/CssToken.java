@@ -94,12 +94,21 @@ public sealed interface CssToken {
 		}
 	}
 
-	/** 区切り記号。 */
+	/**
+	 * 区切り記号・演算子。PLUS/MINUS/TIMESはcalc()のRPN化(Tokens.convertCalc)でのみ
+	 * 生成される(通常のトークン化では算術演算子は出現しない)。
+	 */
 	enum Op implements CssToken {
-		COMMA, SLASH;
+		COMMA, SLASH, PLUS, MINUS, TIMES;
 
 		public String toString() {
-			return this == COMMA ? "," : "/";
+			return switch (this) {
+			case COMMA -> ",";
+			case SLASH -> "/";
+			case PLUS -> "+";
+			case MINUS -> "-";
+			case TIMES -> "*";
+			};
 		}
 	}
 
