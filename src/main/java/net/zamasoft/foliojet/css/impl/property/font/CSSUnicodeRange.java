@@ -1,0 +1,61 @@
+package net.zamasoft.foliojet.css.impl.property.font;
+
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+
+import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
+import net.zamasoft.foliojet.css.property.PropertyException;
+import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.css.value.css3.UnicodeRangeValue;
+import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.pdfg2d.gc.font.UnicodeRange;
+import net.zamasoft.pdfg2d.gc.font.UnicodeRangeList;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
+
+/**
+ * @author MIYABE Tatsuhiko
+ */
+public class CSSUnicodeRange extends AbstractPrimitivePropertyInfo {
+	public static final AbstractPrimitivePropertyInfo INFO = new CSSUnicodeRange();
+
+	public static UnicodeRangeList get(CSSStyle style) {
+		return ((UnicodeRangeValue) style.get(INFO)).asUnicodeRangeList();
+	}
+
+	protected CSSUnicodeRange() {
+		super("unicode-range");
+	}
+
+	public Value getDefault(CSSStyle style) {
+		return UnicodeRangeValue.EMPTY;
+	}
+
+	public boolean isInherited() {
+		return true;
+	}
+
+	public Value getComputedValue(Value value, CSSStyle style) {
+		return value;
+	}
+
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		List<UnicodeRange> list = new ArrayList<UnicodeRange>();
+		for (CssToken lu : tokens.restIgnoringCommas()) {
+			if (!(lu instanceof CssToken.UnicodeRange range)) {
+				throw new PropertyException();
+			}
+			final UnicodeRange unicodeRange;
+			try {
+				unicodeRange = UnicodeRange.parseRange(range.text());
+			} catch (NumberFormatException e) {
+				throw new PropertyException();
+			}
+			list.add(unicodeRange);
+		}
+		return new UnicodeRangeValue((UnicodeRange[]) list.toArray(new UnicodeRange[list.size()]));
+	}
+
+}
