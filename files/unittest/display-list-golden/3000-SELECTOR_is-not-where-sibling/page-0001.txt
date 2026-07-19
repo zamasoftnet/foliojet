@@ -1,0 +1,12 @@
+drawer z=0
+  x=0.00 y=11.20 Text["MARKER" asc=9.00 desc=3.00]
+  x=0.00 y=45.60 Text["ADJACENTHIT" asc=18.00 desc=6.00]
+  x=0.00 y=92.00 Text["MARKER" asc=9.00 desc=3.00]
+  x=0.00 y=115.20 Text["OTHER" asc=9.00 desc=3.00]
+  x=0.00 y=145.12 Text["ADJACENTMISS" asc=14.40 desc=4.80]
+  x=0.00 y=182.24 Text["MARKER" asc=9.00 desc=3.00]
+  x=0.00 y=205.44 Text["OTHER" asc=9.00 desc=3.00]
+  x=0.00 y=235.36 Text["GENERALHIT" asc=14.40 desc=4.80]
+  x=0.00 y=272.48 Text["GENERALMISS" asc=9.00 desc=3.00]
+  x=0.00 y=295.68 Text["NOTSKIP" asc=9.00 desc=3.00]
+  x=0.00 y=332.32 Text["NOTHIT" asc=19.80 desc=6.60]

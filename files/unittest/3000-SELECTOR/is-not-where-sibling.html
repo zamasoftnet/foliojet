@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+p {
+	font-size: 10pt;
+}
+/* :is() + 隣接兄弟結合子(+): .markerの直後のp.marker-testだけ拡大。
+   scopeクラス(marker-test/not-test)で各テスト群のルールが互いに
+   混線しないようにする。 */
+p.marker-test:is(.marker + p) {
+	font-size: 20pt;
+}
+/* :where() + 一般兄弟結合子(~): .markerより後のどこかにあるp.marker-test
+   (隣接かどうかは問わない)を拡大。:is()の規則より詳細度が低いため、
+   隣接している場合は:is()側が勝つ。 */
+p.marker-test:where(.marker ~ p) {
+	font-size: 16pt;
+}
+/* :not()の非対称バグ確認用: リスト内に対応可能な単純セレクタ(.skip)と
+   未対応の子結合子セレクタ(.zzz > .zzz2)を混在させる。修正前は
+   未対応の枝が1つでもあると:not()全体が常にfalse(不一致)扱いになり、
+   .skipに一致しない要素にすら本来適用されるべきこの規則が
+   適用されなかった(非対称バグ)。 */
+p.not-test:not(.skip, .zzz > .zzz2) {
+	font-size: 22pt;
+}
+    </style>
+  </head>
+
+  <body>
+    <div>
+      <p class="marker">MARKER</p>
+      <p class="marker-test" id="adjacent-hit">ADJACENTHIT</p>
+    </div>
+    <div>
+      <p class="marker">MARKER</p>
+      <p class="other">OTHER</p>
+      <p class="marker-test" id="adjacent-miss">ADJACENTMISS</p>
+    </div>
+    <div>
+      <p class="marker">MARKER</p>
+      <p class="other">OTHER</p>
+      <p class="marker-test" id="general-hit">GENERALHIT</p>
+    </div>
+    <div>
+      <p class="marker-test" id="general-miss">GENERALMISS</p>
+    </div>
+    <div>
+      <p class="not-test skip" id="not-skip">NOTSKIP</p>
+      <p class="not-test" id="not-hit">NOTHIT</p>
+    </div>
+  </body>
+
+</html>

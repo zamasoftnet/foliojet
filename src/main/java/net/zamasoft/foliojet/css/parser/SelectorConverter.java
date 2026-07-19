@@ -140,7 +140,10 @@ public final class SelectorConverter {
 				conditions.add(new SelectorListCondition(ConditionType.IS_CONDITION,
 						convertList(((CSSSelectorMemberPseudoIs) member).getAllSelectors())));
 			} else if (member instanceof CSSSelectorMemberPseudoWhere) {
-				conditions.add(new SelectorListCondition(ConditionType.IS_CONDITION,
+				// :where()は:is()とマッチング判定は同じだが、詳細度は常にゼロ
+				// (CSS Selectors4仕様)。別のConditionTypeで区別する
+				// (SelectorListCondition.getSpecificity参照)。
+				conditions.add(new SelectorListCondition(ConditionType.WHERE_CONDITION,
 						convertList(((CSSSelectorMemberPseudoWhere) member).getAllSelectors())));
 			} else if (member instanceof CSSSelectorMemberFunctionLike) {
 				CSSSelectorMemberFunctionLike function = (CSSSelectorMemberFunctionLike) member;

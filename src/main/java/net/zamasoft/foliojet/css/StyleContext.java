@@ -475,27 +475,33 @@ public class StyleContext {
 		// :not擬似クラス条件
 		case NOT_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
-				if (selector instanceof SimpleSelector) {
-					if (evaluateSimpleSelector((SimpleSelector) selector, ce)) {
-						return false;
-					}
-				} else {
-					LOG.warning(":not内の複合セレクタは未対応です: " + condition);
+				Boolean matched = evaluateSiblingChain(selector, ce);
+				if (matched == null) {
+					// 子孫・子結合子を含む枝は未対応。この枝だけを無視して残りを
+					// 評価し続ける(2026-07-19修正前は即座に不一致=false扱いで
+					// リスト内の他の枝の判定ごと握りつぶす非対称なバグだった)。
+					LOG.warning(":not内の子孫・子結合子(> や半角スペース)を含むセレクタは未対応です: " + condition);
+					continue;
+				}
+				if (matched) {
 					return false;
 				}
 			}
 			return true;
 		}
 
-		// :is/:where擬似クラス条件
-		case IS_CONDITION: {
+		// :is擬似クラス条件(詳細度は引数リスト中最大。:where()とはConditionTypeで
+		// 区別するが、マッチング判定自体は同一のためcaseをまとめる)
+		case IS_CONDITION:
+		case WHERE_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
-				if (selector instanceof SimpleSelector) {
-					if (evaluateSimpleSelector((SimpleSelector) selector, ce)) {
-						return true;
-					}
-				} else {
-					LOG.warning(":is/:where内の複合セレクタは未対応です: " + condition);
+				Boolean matched = evaluateSiblingChain(selector, ce);
+				if (matched == null) {
+					LOG.warning(":is/:where内の子孫・子結合子(> や半角スペース)を含むセレクタは未対応です: " + condition);
+					continue;
+				}
+				if (matched) {
+					return true;
 				}
 			}
 			return false;
@@ -505,6 +511,63 @@ public class StyleContext {
 		default:
 			LOG.warning("未対応のセレクタ条件です: " + condition.getConditionType() + " " + condition);
 			return false;
+		}
+	}
+
+	/**
+	 * :not()/:is()/:where()の引数として現れるセレクタを、要素スタックを使わずに
+	 * 単独のCSSElementから評価します。祖先方向の文脈(elementStack)を持たない
+	 * 場所での評価のため、隣接兄弟結合子(+)・一般兄弟結合子(~)は
+	 * {@link CSSElement#precedingElement}を辿るだけで評価できる({@link #merge}
+	 * のDIRECT_ADJACENT_SELECTOR/GENERAL_ADJACENT_SELECTORケースと同じ手法)が、
+	 * 子孫結合子(半角スペース)・子結合子(&gt;)は祖先アクセスが要るため未対応
+	 * (elementStackを引数評価まで貫通させる大きめのリファクタが必要。
+	 * docs/PLAN.md参照)。
+	 *
+	 * @return セレクタが評価できた場合はその真偽値。子孫・子結合子を含むため
+	 *         評価できない場合は null(呼び出し側はこの枝を無視して他の枝の
+	 *         評価を続けるべきで、即座に不一致とみなしてはならない)
+	 */
+	private static Boolean evaluateSiblingChain(Selector selector, CSSElement ce) {
+		for (;;) {
+			switch (selector.getSelectorType()) {
+			case CHILD_SELECTOR:
+			case DESCENDANT_SELECTOR:
+				return null;
+
+			case DIRECT_ADJACENT_SELECTOR: {
+				CombinatorSelector combinator = (CombinatorSelector) selector;
+				if (!evaluateSimpleSelector(combinator.getSimpleSelector(), ce)) {
+					return Boolean.FALSE;
+				}
+				ce = ce.precedingElement;
+				if (ce == null) {
+					return Boolean.FALSE;
+				}
+				selector = combinator.getAncestorSelector();
+				continue;
+			}
+
+			case GENERAL_ADJACENT_SELECTOR: {
+				CombinatorSelector combinator = (CombinatorSelector) selector;
+				if (!evaluateSimpleSelector(combinator.getSimpleSelector(), ce)) {
+					return Boolean.FALSE;
+				}
+				Selector nextSelector = combinator.getAncestorSelector();
+				ce = ce.precedingElement;
+				while (ce != null && !evaluateSimpleSelector(nextSelector.getSimpleSelector(), ce)) {
+					ce = ce.precedingElement;
+				}
+				if (ce == null) {
+					return Boolean.FALSE;
+				}
+				selector = nextSelector;
+				continue;
+			}
+
+			default:
+				return evaluateSimpleSelector(selector.getSimpleSelector(), ce);
+			}
 		}
 	}
 
