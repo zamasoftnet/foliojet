@@ -8,11 +8,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import net.zamasoft.foliojet.css.selector.CombinatorSelector;
 import net.zamasoft.foliojet.css.selector.Condition;
+import net.zamasoft.foliojet.css.selector.Condition.ConditionType;
 import net.zamasoft.foliojet.css.selector.ElementSelector;
 import net.zamasoft.foliojet.css.selector.PseudoElementSelector;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
+import net.zamasoft.foliojet.css.selector.SelectorListCondition;
 import net.zamasoft.foliojet.css.selector.SimpleSelector;
 
 /**
@@ -44,6 +47,13 @@ public class CSSStyleSheet {
 	private final Map<String, List<Rule>> nameToRules = new HashMap<String, List<Rule>>();
 	private final Map<String, List<Rule>> pseudoElementToRules = new HashMap<String, List<Rule>>();
 	private final List<Rule> universalRules = new ArrayList<Rule>();
+
+	/**
+	 * 文書中に現れる全ての{@code :has()}条件(文書順)。要素の終了時点まで
+	 * 真偽が確定しないため、{@code StyleContext}が要素ごとに祖先チェーンを
+	 * 遡って判定を積み上げるのに使う(docs/PLAN.md「2パス制御モード」参照)。
+	 */
+	private final List<Condition> hasConditions = new ArrayList<Condition>();
 
 	/** ページの宣言。 */
 	Declaration page, firstPage, leftPage, rightPage;
@@ -83,6 +93,44 @@ public class CSSStyleSheet {
 			Rule rule = new Rule(selector, declaration, this.rules.size(), origin);
 			this.rules.add(rule);
 			this.index(rule);
+			collectHasConditions(selector, this.hasConditions);
+		}
+	}
+
+	/**
+	 * selectorが持つ全ての{@code :has()}条件を(結合子チェーン・
+	 * {@code :not()}/{@code :is()}/{@code :where()}内にネストしたものも
+	 * 含めて)outへ集めます。セレクタのAST(構文由来・有限)を辿るだけの
+	 * 非有界でない反復深さのため、通常の再帰で実装する(要素木を辿る
+	 * ものではなく、HTML入力由来の非有界な深さとは性質が異なる——
+	 * Tokens.fromExpression等、既存コードの同種の判断と同じ)。
+	 */
+	private static void collectHasConditions(Selector selector, List<Condition> out) {
+		SimpleSelector simple = selector.getSimpleSelector();
+		if (simple.getSelectorType() == SelectorType.ELEMENT_NODE_SELECTOR) {
+			for (Condition condition : ((ElementSelector) simple).getConditions()) {
+				collectHasConditionsFromCondition(condition, out);
+			}
+		}
+		if (selector instanceof CombinatorSelector combinator) {
+			collectHasConditions(combinator.getAncestorSelector(), out);
+		}
+	}
+
+	private static void collectHasConditionsFromCondition(Condition condition, List<Condition> out) {
+		switch (condition.getConditionType()) {
+		case HAS_CONDITION:
+			out.add(condition);
+			break;
+		case NOT_CONDITION:
+		case IS_CONDITION:
+		case WHERE_CONDITION:
+			for (Selector nested : ((SelectorListCondition) condition).getSelectors()) {
+				collectHasConditions(nested, out);
+			}
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -178,6 +226,15 @@ public class CSSStyleSheet {
 	 */
 	public List<Rule> getRules() {
 		return Collections.unmodifiableList(this.rules);
+	}
+
+	/**
+	 * 文書中に現れる全ての{@code :has()}条件(文書順・変更不可)を返します。
+	 * ネストした{@code :has()}(:has()自身の引数内)は含めない(初期実装の
+	 * 制限、docs/PLAN.md参照)。
+	 */
+	public List<Condition> getHasConditions() {
+		return Collections.unmodifiableList(this.hasConditions);
 	}
 
 	/**

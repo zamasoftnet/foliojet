@@ -155,6 +155,14 @@ public class StyleContext {
 		}
 		// 右端セレクタの索引から候補規則だけを照合する
 		final CSSElement top = (CSSElement) this.elementStack.get(this.elementStack.size() - 1);
+
+		// :has()の判定を積み上げる(要素の終了時点まで真偽が確定しないため、
+		// 複数パスにまたがってSelectorFactsへ記録する。docs/PLAN.md
+		// 「2パス制御モード」参照)
+		if (this.selectorFacts != null) {
+			recordHasFacts(this.styleSheet.getHasConditions(), this.elementStack, this.selectorFacts);
+		}
+
 		final List<List<Rule>> buckets = this.styleSheet.candidateBuckets(top);
 
 		// 結果が確定したもの
@@ -307,6 +315,40 @@ public class StyleContext {
 			first = false;
 		}
 		return false;
+	}
+
+	/**
+	 * :has()の判定を積み上げます。現在の要素(pathの末尾)を新たな候補として、
+	 * その全ての祖先(pathの末尾を除く各要素)についてチェックし、真になった
+	 * ものをfactsへ記録します。既に真と分かっている祖先は再チェックしません
+	 * (:has()は「部分木内に存在するか」の判定のため、一度真になれば以降
+	 * 不変)。文書全体を通じて呼び続けることで、要素の終了時点で確定する
+	 * :has()の真偽を段階的に積み上げます(単一パスでは完結しないため、
+	 * 複数パスにまたがって呼ぶ前提。docs/PLAN.md「2パス制御モード」参照)。
+	 *
+	 * @param hasConditions 文書中の全:has()条件(文書順)
+	 * @param path          祖先チェーン(末尾が現在の要素)
+	 * @param facts         書き込み先
+	 */
+	private static void recordHasFacts(List<Condition> hasConditions, List<CSSElement> path, SelectorFacts facts) {
+		if (hasConditions.isEmpty() || path.size() < 2) {
+			// 祖先が無ければ:has()の対象(subject)になり得ない
+			return;
+		}
+		for (Condition hasCondition : hasConditions) {
+			for (Selector relativeSelector : ((SelectorListCondition) hasCondition).getSelectors()) {
+				for (int sIndex = path.size() - 2; sIndex >= 0; --sIndex) {
+					CSSElement subject = path.get(sIndex);
+					if (facts.isHasMatch(subject.elementKey, hasCondition)) {
+						continue;
+					}
+					List<CSSElement> subPath = path.subList(sIndex + 1, path.size());
+					if (matchesFromPath(relativeSelector, subPath, facts)) {
+						facts.setHasMatch(subject.elementKey, hasCondition);
+					}
+				}
+			}
+		}
 	}
 
 	private static List<CSSElement> withLast(List<CSSElement> ancestors, CSSElement last) {
@@ -525,6 +567,11 @@ public class StyleContext {
 			int position = facts.getTypePositionFromEnd(ce.elementKey);
 			return position >= 1 && ((NthCondition) condition).matches(position);
 		}
+
+		// :has()(引数は複数可、OR。StyleContext.mergeが呼ぶrecordHasFactsが
+		// 複数パスにまたがって積み上げた結果を参照するだけ)
+		case HAS_CONDITION:
+			return facts != null && facts.isHasMatch(ce.elementKey, condition);
 
 		// 前方一致・後方一致・部分一致属性値条件
 		case PREFIX_ATTRIBUTE_CONDITION:

@@ -93,6 +93,7 @@ public class DisplayListGoldenTest extends TestCase {
 	 */
 	private static final String[] MULTI_PASS_DOCUMENTS = { //
 			"3000-SELECTOR/last-child-family.html", //
+			"3000-SELECTOR/has.html", //
 	};
 
 	public void testDisplayLists() throws Exception {

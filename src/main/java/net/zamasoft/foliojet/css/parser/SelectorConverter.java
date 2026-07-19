@@ -9,6 +9,7 @@ import com.helger.css.decl.CSSSelector;
 import com.helger.css.decl.CSSSelectorAttribute;
 import com.helger.css.decl.CSSSelectorMemberFunctionLike;
 import com.helger.css.decl.CSSSelectorMemberNot;
+import com.helger.css.decl.CSSSelectorMemberPseudoHas;
 import com.helger.css.decl.CSSSelectorMemberPseudoIs;
 import com.helger.css.decl.CSSSelectorMemberPseudoWhere;
 import com.helger.css.decl.CSSSelectorSimpleMember;
@@ -63,8 +64,22 @@ public final class SelectorConverter {
 		List<Condition> conditions = new ArrayList<Condition>();
 		String pseudoElement = null;
 		boolean inCompound = false;
+		// ph-css 8.2.1は:has(...)をCSSSelectorMemberPseudoHasとして正しく
+		// 解析するが、その直後に引数と同数の生CSSSelector(それ自体が
+		// ICSSSelectorMemberを実装しており、素のままメンバー列に現れる)を
+		// 重複して並べてくる(2026-07-19実測で確認。おそらくph-css内部の
+		// 別解析経路の名残)。これを無視しないと、下の「未対応メンバー」
+		// 分岐で常に不一致の条件が余分に追加され、:has()を含むコンパウンド
+		// 全体が常に不一致になってしまう。そのためCSSSelectorMemberPseudoHas
+		// を処理した直後、引数の個数分だけ後続の生CSSSelectorメンバーを
+		// 読み飛ばす。
+		int skipDuplicateHasSelectors = 0;
 
 		for (ICSSSelectorMember member : selector.getAllMembers()) {
+			if (skipDuplicateHasSelectors > 0 && member instanceof CSSSelector) {
+				--skipDuplicateHasSelectors;
+				continue;
+			}
 			if (member instanceof ECSSSelectorCombinator) {
 				if (!inCompound) {
 					throw new CSSException("結合子の左側にセレクタがありません: " + selector);
@@ -156,6 +171,15 @@ public final class SelectorConverter {
 				// (SelectorListCondition.getSpecificity参照)。
 				conditions.add(new SelectorListCondition(ConditionType.WHERE_CONDITION,
 						convertList(((CSSSelectorMemberPseudoWhere) member).getAllSelectors())));
+			} else if (member instanceof CSSSelectorMemberPseudoHas) {
+				List<CSSSelector> hasArgs = ((CSSSelectorMemberPseudoHas) member).getAllSelectors();
+				List<Selector> relativeSelectors = new ArrayList<Selector>(hasArgs.size());
+				for (CSSSelector hasArg : hasArgs) {
+					relativeSelectors.add(convert(unwrapHasArgument(hasArg)));
+				}
+				conditions.add(new SelectorListCondition(ConditionType.HAS_CONDITION, relativeSelectors));
+				// 直後に続く重複した生CSSSelectorメンバーを読み飛ばす(上のコメント参照)
+				skipDuplicateHasSelectors = hasArgs.size();
 			} else if (member instanceof CSSSelectorMemberFunctionLike) {
 				CSSSelectorMemberFunctionLike function = (CSSSelectorMemberFunctionLike) member;
 				String name = function.getFunctionName();
@@ -182,6 +206,24 @@ public final class SelectorConverter {
 			throw new CSSException("空のセレクタです: " + selector);
 		}
 		return attach(chain, pendingCombinator, localName, conditions, pseudoElement);
+	}
+
+	/**
+	 * ph-css 8.2.1は:has()のNestedSelectorsの各要素を、実際のセレクタを
+	 * 単一メンバーとしてもう一段CSSSelectorで包んだ形で返す
+	 * (:not()/:is()/:where()には無い:has()固有の非対称。2026-07-19実測で
+	 * 確認)。そのため単一メンバーがCSSSelectorである間はそれを剥がし、
+	 * 実際のセレクタに到達させる(構文木由来の有限な深さのみを辿る反復。
+	 * 再帰は使わない)。
+	 */
+	private static CSSSelector unwrapHasArgument(CSSSelector selector) {
+		CSSSelector current = selector;
+		List<ICSSSelectorMember> members = current.getAllMembers();
+		while (members.size() == 1 && members.get(0) instanceof CSSSelector) {
+			current = (CSSSelector) members.get(0);
+			members = current.getAllMembers();
+		}
+		return current;
 	}
 
 	public static List<Selector> convertList(List<CSSSelector> selectors) throws CSSException {

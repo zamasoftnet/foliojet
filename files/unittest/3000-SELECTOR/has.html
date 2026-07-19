@@ -1,0 +1,114 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+p, div, span {
+	font-size: 10pt;
+}
+
+/* 基本: 子孫にどこかで.badgeを持つ.card1だけ拡大 */
+.card1:has(.badge) p {
+	font-size: 16pt;
+}
+
+/* 複合セレクタ: span.badgeという指定(要素名+クラス) */
+.card2:has(span.badge) p {
+	font-size: 18pt;
+}
+
+/* 子孫チェーン: .wrapの子孫に.deepがあるという2階層の指定 */
+.card3:has(.wrap .deep) p {
+	font-size: 20pt;
+}
+
+/* 子結合子(先頭ではない): .wrapの直接の子に.directがあるという指定 */
+.card4:has(.wrap > .direct) p {
+	font-size: 22pt;
+}
+
+/* :not(:has()): .badge子孫を持たないcard5だけ拡大 */
+.card5:not(:has(.badge)) p {
+	font-size: 24pt;
+}
+
+/* :has()の引数リスト(OR): .xまたは.y子孫を持つcard6を拡大 */
+.card6:has(.x, .y) p {
+	font-size: 26pt;
+}
+    </style>
+  </head>
+
+  <body>
+    <!-- :has(.badge) 基本 -->
+    <div class="card1">
+      <span class="badge">B</span>
+      <p id="c1hit">C1HIT</p>
+    </div>
+    <div class="card1">
+      <p id="c1miss">C1MISS</p>
+    </div>
+
+    <!-- :has(span.badge) 複合セレクタ -->
+    <div class="card2">
+      <span class="badge">B</span>
+      <p id="c2hit">C2HIT</p>
+    </div>
+    <div class="card2">
+      <p class="badge">NOTSPAN</p>
+      <p id="c2miss">C2MISS</p>
+    </div>
+
+    <!-- :has(.wrap .deep) 子孫チェーン -->
+    <div class="card3">
+      <div class="wrap"><span class="deep">D</span></div>
+      <p id="c3hit">C3HIT</p>
+    </div>
+    <div class="card3">
+      <div class="wrap"></div>
+      <span class="deep">D</span>
+      <p id="c3miss">C3MISS</p>
+    </div>
+
+    <!-- :has(.wrap > .direct) 子結合子 -->
+    <div class="card4">
+      <div class="wrap"><span class="direct">D</span></div>
+      <p id="c4hit">C4HIT</p>
+    </div>
+    <div class="card4">
+      <div class="wrap"><div class="mid"><span class="direct">D</span></div></div>
+      <p id="c4miss">C4MISS</p>
+    </div>
+
+    <!-- :not(:has(.badge)) -->
+    <div class="card5">
+      <p id="c5hit">C5HIT</p>
+    </div>
+    <div class="card5">
+      <span class="badge">B</span>
+      <p id="c5miss">C5MISS</p>
+    </div>
+
+    <!-- :has(.x, .y) 複数引数(OR) -->
+    <div class="card6">
+      <span class="x">X</span>
+      <p id="c6hitx">C6HITX</p>
+    </div>
+    <div class="card6">
+      <span class="y">Y</span>
+      <p id="c6hity">C6HITY</p>
+    </div>
+    <div class="card6">
+      <p id="c6miss">C6MISS</p>
+    </div>
+  </body>
+
+</html>

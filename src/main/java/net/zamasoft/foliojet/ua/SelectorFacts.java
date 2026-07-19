@@ -5,20 +5,29 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import net.zamasoft.foliojet.css.selector.Condition;
+
 /**
- * {@code STRUCTURE_SCAN}パス(実レイアウトを組まない軽量な事前走査)が
- * 収集する、要素の終了時点まで真偽が確定しないセレクタの判定結果です。
- * {@code CSSElement.elementKey}(文書順の通し番号、パスをまたいで安定)を
- * キーとする。
+ * 要素の終了時点(:has()は該当部分木の終了時点)まで真偽が確定しない
+ * セレクタの判定結果です。{@code CSSElement.elementKey}(文書順の通し
+ * 番号、パスをまたいで安定)をキーとする。
+ * <p>
+ * `:last-child`系は実レイアウトを組まない軽量な事前走査
+ * {@code STRUCTURE_SCAN}(独立したパスフェーズ)が一度に確定させ、以降の
+ * 全LAYOUTパスからは読み取り専用として参照される。`:has()`は
+ * {@code STRUCTURE_SCAN}を使わず、通常のLAYOUTパス(`StyleContext.merge`)が
+ * 要素ごとの祖先チェーンを見ながら段階的に確定させる(`PageRef`と同じ
+ * 「複数パスにまたがって値を積み上げる」設計。理由はdocs/PLAN.md
+ * 「2パス制御モード」参照——`:has()`の相対セレクタ評価には実際の
+ * `CSSElement`(class/id/属性込み)と`StyleContext.matchesFromPath`が
+ * 要り、`STRUCTURE_SCAN`専用の軽量walkerでは賄えないため)。
+ * </p>
  * <p>
  * {@link PageRef}とは別クラス(意図的): {@code PageRef}はURI/id起点の
- * ページ参照・TOC専用ストアで、{@code reset()}が蓄積済みのフラグメントを
- * 消さずカーソルだけ戻す(複数回のLAYOUTパスにまたがって値を段階的に
- * 確定させていく設計)。一方このクラスが保持する事実は、
- * {@code STRUCTURE_SCAN}という単一の専用パスで一度に確定し、以降の
- * 全LAYOUTパスからは読み取り専用として参照される(段階的な確定は無い)。
- * ライフサイクルが異なるため、{@code PageRef}への相乗りはしない
- * (docs/PLAN.md「2パス制御モード」の設計確定 v3参照)。
+ * ページ参照・TOC専用ストアで、id無し要素の安定キーを持たない。
+ * ライフサイクル(このクラスは`STRUCTURE_SCAN`開始時に1回だけリセットし、
+ * 以降の全パスで蓄積し続ける)は`PageRef`の`reset()`と紛らわしいため
+ * 相乗りはしない(docs/PLAN.md参照)。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -27,6 +36,9 @@ public final class SelectorFacts {
 	private Set<Long> lastChild;
 	private Set<Long> lastOfType;
 	private Set<Long> empty;
+
+	/** :has()。elementKey → その要素で真になったHAS_CONDITION(SelectorListCondition)集合。 */
+	private Map<Long, Set<Condition>> hasMatches;
 
 	/**
 	 * 同じ親の子のうち、末尾から数えた通し番号(1始まり)。
@@ -49,6 +61,31 @@ public final class SelectorFacts {
 		this.empty = null;
 		this.positionFromEnd = null;
 		this.typePositionFromEnd = null;
+		this.hasMatches = null;
+	}
+
+	/**
+	 * elementKeyの要素についてhasConditionが真になったことを記録します。
+	 * 一度真になったら以降は変わらない(:has()は「存在するか」の判定のため)。
+	 */
+	public void setHasMatch(long elementKey, Condition hasCondition) {
+		if (this.hasMatches == null) {
+			this.hasMatches = new HashMap<Long, Set<Condition>>();
+		}
+		Set<Condition> set = this.hasMatches.get(elementKey);
+		if (set == null) {
+			set = new HashSet<Condition>();
+			this.hasMatches.put(elementKey, set);
+		}
+		set.add(hasCondition);
+	}
+
+	public boolean isHasMatch(long elementKey, Condition hasCondition) {
+		if (this.hasMatches == null) {
+			return false;
+		}
+		Set<Condition> set = this.hasMatches.get(elementKey);
+		return set != null && set.contains(hasCondition);
 	}
 
 	public void setLastChild(long elementKey) {

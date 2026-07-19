@@ -13,7 +13,7 @@ public final class SelectorListCondition implements Condition {
 
 	public SelectorListCondition(ConditionType type, List<Selector> selectors) {
 		assert type == ConditionType.NOT_CONDITION || type == ConditionType.IS_CONDITION
-				|| type == ConditionType.WHERE_CONDITION;
+				|| type == ConditionType.WHERE_CONDITION || type == ConditionType.HAS_CONDITION;
 		this.type = type;
 		this.selectors = Collections.unmodifiableList(selectors);
 	}
@@ -43,7 +43,7 @@ public final class SelectorListCondition implements Condition {
 
 	public Specificity getSpecificity() {
 		// :where()は引数の内容によらず常に詳細度ゼロ(CSS Selectors4仕様)。
-		// :not()/:is()は引数リスト中最大の詳細度を採る。
+		// :not()/:is()/:has()は引数リスト中最大の詳細度を採る。
 		if (this.type == ConditionType.WHERE_CONDITION) {
 			return new Specificity(0, 0, 0);
 		}
@@ -61,6 +61,7 @@ public final class SelectorListCondition implements Condition {
 		String name = switch (this.type) {
 		case NOT_CONDITION -> ":not(";
 		case WHERE_CONDITION -> ":where(";
+		case HAS_CONDITION -> ":has(";
 		default -> ":is(";
 		};
 		return name + this.getValue() + ")";
