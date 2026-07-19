@@ -261,7 +261,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);
 	}
 
-	public void finishLayout(IFramedBox containerBox) {
+	public void finishLayoutSelf(IFramedBox containerBox) {
 		// 位置の計算
 		AbstractStaticPos pos = this.getStaticPos();
 		if (pos.offset != null) {
@@ -271,6 +271,5 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
 			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
 		}
-		super.finishLayout(containerBox);
 	}
 }

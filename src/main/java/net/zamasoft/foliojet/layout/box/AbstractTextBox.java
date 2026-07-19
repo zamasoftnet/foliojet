@@ -354,22 +354,28 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	public abstract boolean isContextBox();
 
-	public void finishLayout(IFramedBox containerBox) {
+	public void finishLayoutSelf(IFramedBox containerBox) {
+	}
+
+	public void pushFinishLayoutChildren(IFramedBox containerBox,
+			final java.util.Deque<FinishLayoutStep> worklist) {
 		if (this.contents == null) {
 			return;
 		}
 		if (this.isContextBox()) {
 			containerBox = (IFramedBox) this;
 		}
-		for (int i = 0; i < this.contents.size(); ++i) {
+		final IFramedBox childContainerBox = containerBox;
+		// 元の走査順(先頭から)を保つため、スタックへは逆順(末尾から)でpushする
+		for (int i = this.contents.size() - 1; i >= 0; --i) {
 			switch (this.contents.get(i)) {
 			case IAbsoluteBox absoluteBox ->
 				// 絶対配置
-				absoluteBox.finishLayout(containerBox);
+				worklist.push(IBox.step(absoluteBox, childContainerBox));
 
 			case Inline inline ->
 				// インライン
-				inline.box.finishLayout(containerBox);
+				worklist.push(IBox.step(inline.box, childContainerBox));
 
 			default -> {
 				// テキスト

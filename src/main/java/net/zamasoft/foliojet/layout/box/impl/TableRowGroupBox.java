@@ -7,9 +7,12 @@ import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Deque;
+
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
@@ -86,10 +89,13 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		return (TableRowBox) this.rows.get(i);
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
-		for (int j = 0; j < this.getTableRowCount(); ++j) {
-			TableRowBox rowBox = this.getTableRow(j);
-			rowBox.finishLayout(containerBox);
+	public final void finishLayoutSelf(IFramedBox containerBox) {
+	}
+
+	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
+		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		for (int j = this.getTableRowCount() - 1; j >= 0; --j) {
+			worklist.push(IBox.step(this.getTableRow(j), containerBox));
 		}
 	}
 

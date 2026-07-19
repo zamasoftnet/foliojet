@@ -4,7 +4,10 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 
+import java.util.Deque;
+
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
@@ -50,7 +53,13 @@ public interface Container {
 
 	public boolean avoidBreakAfter();
 
-	public void finishLayout(IFramedBox containerBox);
+	/**
+	 * {@code finishLayout}の反復化(2026-07-20、IBox.finishLayoutと同じ
+	 * 理由)。子(flows/floatings/absolutes、またはcolumns)の処理
+	 * ステップを、元の再帰と同じ走査順になるよう**逆順**で
+	 * {@code worklist}へ積みます。
+	 */
+	public void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist);
 
 	public void drawFlowFrames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y);

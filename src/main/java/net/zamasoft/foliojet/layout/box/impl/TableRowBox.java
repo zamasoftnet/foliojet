@@ -8,8 +8,11 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Deque;
+
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
@@ -175,14 +178,18 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		return this.cells.size();
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
+	public final void finishLayoutSelf(IFramedBox containerBox) {
+	}
+
+	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
 		if (this.cells == null) {
 			return;
 		}
-		for (int i = 0; i < this.cells.size(); ++i) {
+		// 元の走査順(先頭セルから)を保つため、スタックへは逆順(末尾セルから)でpushする
+		for (int i = this.cells.size() - 1; i >= 0; --i) {
 			Cell cell = (Cell) this.cells.get(i);
 			if (cell.isSource()) {
-				cell.getCellBox().finishLayout(containerBox);
+				worklist.push(IBox.step(cell.getCellBox(), containerBox));
 			}
 		}
 	}
@@ -348,8 +355,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
-		// System.err.println("A:" + flags + "/" + pageLimit + "/" + mode
-		// + "/" + this.getHeight()+"/"+this.params.augmentation);
 
 		final boolean vertical = this.tableParams.flow.isVertical();
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) == 0) {

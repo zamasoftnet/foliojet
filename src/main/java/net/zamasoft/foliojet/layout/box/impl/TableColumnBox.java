@@ -3,8 +3,11 @@ package net.zamasoft.foliojet.layout.box.impl;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
+import java.util.Deque;
+
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
@@ -49,8 +52,12 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		this.pageSize = pageSize;
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
+	public final void finishLayoutSelf(IFramedBox containerBox) {
 		// ignore
+	}
+
+	public final void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist) {
+		// ignore(リーフ)
 	}
 
 	public void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x, double y) {

@@ -152,7 +152,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		assert !LayoutUtils.isNone(this.height);
 	}
 
-	public final void finishLayout(final IFramedBox containerBox) {
+	public final void finishLayoutSelf(final IFramedBox containerBox) {
 		if (this.builder != null) {
 			this.shrinkToFit(containerBox, this.builder.intrinsicSizesMeasured());
 			final BlockBuilder absoluteBuilder = new BlockBuilder(this.builder.getPageContext(), this);
@@ -222,7 +222,6 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		}
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
-		super.finishLayout(containerBox);
 	}
 
 	public final boolean isContextBox() {

@@ -8,9 +8,12 @@ import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Deque;
+
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
@@ -147,16 +150,19 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
-		if (this.headerGroupBox != null) {
-			this.headerGroupBox.finishLayout(containerBox);
-		}
-		for (int i = 0; i < this.getTableBodyCount(); ++i) {
-			TableRowGroupBox rowGroupBox = this.getTableBody(i);
-			rowGroupBox.finishLayout(containerBox);
-		}
+	public final void finishLayoutSelf(IFramedBox containerBox) {
+	}
+
+	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
+		// 元の走査順(header→body(0..n)→footer)を保つため、スタックへは逆順でpushする
 		if (this.footerGroupBox != null) {
-			this.footerGroupBox.finishLayout(containerBox);
+			worklist.push(IBox.step(this.footerGroupBox, containerBox));
+		}
+		for (int i = this.getTableBodyCount() - 1; i >= 0; --i) {
+			worklist.push(IBox.step(this.getTableBody(i), containerBox));
+		}
+		if (this.headerGroupBox != null) {
+			worklist.push(IBox.step(this.headerGroupBox, containerBox));
 		}
 	}
 

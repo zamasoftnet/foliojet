@@ -280,8 +280,17 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.addFloating(box, lineAxis, pageAxis);
 	}
 
-	public void finishLayout(IFramedBox containerBox) {
-		this.container.finishLayout(containerBox);
+	/**
+	 * このクラス自体に局所処理は無い(2026-07-20、finishLayout反復化。
+	 * 局所処理を持つ具象サブクラスはこれをオーバーライドする)。
+	 */
+	public void finishLayoutSelf(IFramedBox containerBox) {
+	}
+
+	public void pushFinishLayoutChildren(final IFramedBox containerBox,
+			final java.util.Deque<FinishLayoutStep> worklist) {
+		final Container container = this.container;
+		worklist.push(w -> container.pushFinishLayoutChildren(containerBox, w));
 	}
 
 	protected final Shape clip(Shape clip, double x, double y) {

@@ -231,7 +231,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		}
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
+	public final void finishLayoutSelf(IFramedBox containerBox) {
 		InlinePos pos = this.getInlinePos();
 		if (pos.offset != null) {
 			//
@@ -240,7 +240,6 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
 			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
 		}
-		super.finishLayout(containerBox);
 	}
 
 	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
@@ -323,7 +322,6 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			inlineBox.frame.margin = this.frame.margin;
 			inlineBox.frame.padding = this.frame.padding;
 			final InlineQuad quad = InlineQuad.createInlineBoxStartQuad(inlineBox);
-			// System.err.println(quad + "A:" + params.augmentation);
 			gh.control(quad);
 		} else if (widow) {
 			final RectFrame nextFrame;
@@ -344,13 +342,11 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			inlineBox.frame.margin = nextMargin;
 			inlineBox.frame.padding = nextPadding;
 			final InlineQuad quad = InlineQuad.createInlineBoxStartQuad(inlineBox);
-			// System.err.println(quad + "B:" + params.augmentation);
 			gh.control(quad);
 		}
 		super.restyle(gh, widow);
 		if (!this.cutTail) {
 			final InlineQuad quad = InlineQuad.createInlineBoxEndQuad(this);
-			// System.err.println(quad + ":" + params.augmentation);
 			gh.control(quad);
 		}
 	}

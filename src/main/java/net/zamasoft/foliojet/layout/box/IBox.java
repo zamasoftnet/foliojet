@@ -3,6 +3,8 @@ package net.zamasoft.foliojet.layout.box;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.Params;
@@ -117,11 +119,50 @@ public interface IBox {
 	}
 
 	/**
-	 * ページ方向の幅を確定します。
-	 * 
+	 * ページ方向の幅を確定します(2026-07-20、反復化——ARCHITECTURE.md
+	 * 不変条件6。旧実装はポリモーフィックな相互再帰で、深いネスト文書
+	 * (1000段超)でStackOverflowErrorを起こしていた——実文書=法令ページで
+	 * 確認済み)。JVMコールスタックの代わりに明示的な{@link Deque}を
+	 * ワークリストとして使う反復DFSに置き換えた。個々のボックス型は
+	 * {@link #finishLayoutSelf}(局所処理)と
+	 * {@link #pushFinishLayoutChildren}(子の登録)だけを実装すればよく、
+	 * このdefaultメソッド自体を書き換える必要はない。
+	 *
 	 * @param containerBox
 	 */
-	public void finishLayout(IFramedBox containerBox);
+	public default void finishLayout(IFramedBox containerBox) {
+		final Deque<FinishLayoutStep> worklist = new ArrayDeque<>();
+		worklist.push(IBox.step(this, containerBox));
+		while (!worklist.isEmpty()) {
+			worklist.pop().run(worklist);
+		}
+	}
+
+	/**
+	 * {@code box}の{@link #finishLayoutSelf}実行後に
+	 * {@link #pushFinishLayoutChildren}を行う、1つの{@link FinishLayoutStep}
+	 * を作ります(IBoxの子をワークリストへ積む共通ヘルパー)。
+	 */
+	public static FinishLayoutStep step(final IBox box, final IFramedBox containerBox) {
+		return worklist -> {
+			box.finishLayoutSelf(containerBox);
+			box.pushFinishLayoutChildren(containerBox, worklist);
+		};
+	}
+
+	/**
+	 * このボックス自身の局所処理(位置・寸法の確定等、子を持たない部分)
+	 * だけを行います。子の処理は{@link #pushFinishLayoutChildren}が
+	 * 別途担当します。
+	 */
+	public void finishLayoutSelf(IFramedBox containerBox);
+
+	/**
+	 * 子ボックス(または{@code Container})の処理ステップを{@code worklist}
+	 * へ積みます。子を複数持つ場合は、元の再帰と同じ走査順になるよう
+	 * **逆順**でpushしてください(スタックとして使うため)。
+	 */
+	public void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist);
 
 	/**
 	 * 描画可能なコンテンツを追加します。

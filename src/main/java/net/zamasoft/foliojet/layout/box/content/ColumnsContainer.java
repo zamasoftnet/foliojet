@@ -4,9 +4,11 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
@@ -167,10 +169,11 @@ public class ColumnsContainer implements Container {
 		}
 	}
 
-	public void finishLayout(IFramedBox containerBox) {
-		for (int i = 0; i < this.columns.size(); ++i) {
-			FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.finishLayout(containerBox);
+	public void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
+		// 元の走査順(先頭カラムから)を保つため、スタックへは逆順(末尾カラムから)でpushする
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
+			final Container container = this.columns.get(i);
+			worklist.push(w -> container.pushFinishLayoutChildren(containerBox, w));
 		}
 	}
 

@@ -11,10 +11,14 @@ import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.impl.css.lang.CSSJTextUnitizer;
+import java.util.Deque;
+
+import net.zamasoft.foliojet.css.impl.lang.CSSJTextUnitizer;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBox;
 import net.zamasoft.foliojet.layout.box.AbstractLineBox;
+import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
@@ -174,10 +178,14 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		this.lineSize = Math.max(lineBox.getLineSize(), this.lineSize);
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
-		for (int i = 0; i < this.lines.size(); ++i) {
+	public final void finishLayoutSelf(IFramedBox containerBox) {
+	}
+
+	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
+		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
-			line.box.finishLayout(containerBox);
+			worklist.push(IBox.step(line.box, containerBox));
 		}
 	}
 

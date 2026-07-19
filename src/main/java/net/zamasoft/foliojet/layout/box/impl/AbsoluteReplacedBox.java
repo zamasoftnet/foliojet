@@ -33,7 +33,7 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		return this.pos;
 	}
 
-	public final void finishLayout(IFramedBox containerBox) {
+	public final void finishLayoutSelf(IFramedBox containerBox) {
 		//
 		// ■ 幅と高さの計算
 		//

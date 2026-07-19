@@ -236,7 +236,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		this.height = height;
 	}
 
-	public void finishLayout(IFramedBox containerBox) {
+	public void finishLayoutSelf(IFramedBox containerBox) {
 		// 相対配置
 		AbstractStaticPos pos = (AbstractStaticPos) this.getPos();
 		if (pos.offset != null) {
@@ -251,6 +251,12 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		assert !LayoutUtils.isNone(this.height);
 		assert !LayoutUtils.isNone(this.offsetX) : "Undefined offsetX";
 		assert !LayoutUtils.isNone(this.offsetY) : "Undefined offsetY";
+	}
+
+	/**
+	 * リーフ(子を持たない)なので何もしません。
+	 */
+	public void pushFinishLayoutChildren(IFramedBox containerBox, java.util.Deque<FinishLayoutStep> worklist) {
 	}
 
 	protected static class ReplacedBoxDrawable extends AbsoluteRectFrameDrawable {
