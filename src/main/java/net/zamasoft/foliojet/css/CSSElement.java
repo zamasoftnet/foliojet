@@ -124,6 +124,17 @@ public class CSSElement {
 	public final int charOffset;
 
 	/**
+	 * 文書順の通し番号です(0始まり、パス(STRUCTURE_SCAN/LAYOUT等)を
+	 * またいで安定——同一の入力に対して同一の走査順で採番されるため)。
+	 * {@code :has()}/{@code :last-child}系のようにパスをまたいで判定結果を
+	 * キャッシュする機能の安定キーとして使う({@code SelectorFacts}参照)。
+	 * 擬似要素には振らない(-1のまま。DOM上の実要素のみが対象のため)。
+	 * charOffset(ソース上のバイト位置)ではなくこの専用カウンタを使うのは、
+	 * charOffsetはロケータが無い経路では-1に落ちて衝突しうるため。
+	 */
+	public final long elementKey;
+
+	/**
 	 * HTML要素を構築します。
 	 *
 	 * @param uri
@@ -134,9 +145,10 @@ public class CSSElement {
 	 * @param atts
 	 * @param precedingElement
 	 * @param charOffset
+	 * @param elementKey       文書順の通し番号(0始まり)。擬似要素は-1
 	 */
 	public CSSElement(String uri, String lName, String id, String[] styleClasses, byte[] pseudoClasses, Locale lang,
-			String dir, Attributes atts, CSSElement precedingElement, int charOffset) {
+			String dir, Attributes atts, CSSElement precedingElement, int charOffset, long elementKey) {
 		this.uri = uri;
 		this.lName = lName;
 		this.id = id;
@@ -147,6 +159,7 @@ public class CSSElement {
 		this.atts = atts;
 		this.precedingElement = precedingElement;
 		this.charOffset = charOffset;
+		this.elementKey = elementKey;
 	}
 
 	/**
@@ -155,7 +168,7 @@ public class CSSElement {
 	 * @param pseudoElement
 	 */
 	private CSSElement(String pseudoElement) {
-		this(null, pseudoElement, null, null, null, null, null, null, null, -1);
+		this(null, pseudoElement, null, null, null, null, null, null, null, -1, -1);
 	}
 
 	/**
@@ -164,7 +177,7 @@ public class CSSElement {
 	 * @param pseudoClasses
 	 */
 	private CSSElement(byte[] pseudoClasses) {
-		this(null, null, null, null, pseudoClasses, null, null, null, null, -1);
+		this(null, null, null, null, pseudoClasses, null, null, null, null, -1, -1);
 	}
 
 	/**

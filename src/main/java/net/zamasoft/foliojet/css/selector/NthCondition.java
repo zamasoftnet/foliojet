@@ -19,8 +19,9 @@ public final class NthCondition implements Condition {
 	private final String raw;
 
 	public NthCondition(ConditionType type, int a, int b, String raw) {
-		assert type == ConditionType.NTH_CHILD_CONDITION
-				|| type == ConditionType.NTH_OF_TYPE_CONDITION : "対象外の ConditionType: " + type;
+		assert type == ConditionType.NTH_CHILD_CONDITION || type == ConditionType.NTH_OF_TYPE_CONDITION
+				|| type == ConditionType.NTH_LAST_CHILD_CONDITION
+				|| type == ConditionType.NTH_LAST_OF_TYPE_CONDITION : "対象外の ConditionType: " + type;
 		this.type = type;
 		this.a = a;
 		this.b = b;
@@ -68,6 +69,21 @@ public final class NthCondition implements Condition {
 	}
 
 	public String toString() {
-		return (this.type == ConditionType.NTH_CHILD_CONDITION ? ":nth-child(" : ":nth-of-type(") + this.raw + ")";
+		final String fname;
+		switch (this.type) {
+		case NTH_CHILD_CONDITION:
+			fname = ":nth-child(";
+			break;
+		case NTH_OF_TYPE_CONDITION:
+			fname = ":nth-of-type(";
+			break;
+		case NTH_LAST_CHILD_CONDITION:
+			fname = ":nth-last-child(";
+			break;
+		default:
+			fname = ":nth-last-of-type(";
+			break;
+		}
+		return fname + this.raw + ")";
 	}
 }

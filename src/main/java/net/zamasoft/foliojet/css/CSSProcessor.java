@@ -94,6 +94,13 @@ public class CSSProcessor implements XMLHandler {
 
 	private int noneStack = 0;
 
+	/**
+	 * 次に採番するElementKey(文書順の通し番号、0始まり)。パスをまたいで
+	 * 安定なキーとして{@code CSSElement.elementKey}に使う
+	 * ({@code CSSElement}のjavadoc参照)。
+	 */
+	private long nextElementKey = 0;
+
 	// インラインオブジェクト
 	private InlineObject inlineObject = null;
 
@@ -110,7 +117,7 @@ public class CSSProcessor implements XMLHandler {
 	public CSSProcessor(UserAgent ua, Imposition imposition) {
 		this.ua = ua;
 		this.imposition = imposition;
-		StyleContext styleContext = new StyleContext(new CSSStyleSheet());
+		StyleContext styleContext = new StyleContext(new CSSStyleSheet(), this.ua.getUAContext().getSelectorFacts());
 
 		this.styleSheetBuilder = new CSSStyleSheetBuilder(this.ua);
 		this.styleSheetBuilder.setCSSStyleSheet(styleContext.styleSheet);
@@ -393,6 +400,12 @@ public class CSSProcessor implements XMLHandler {
 		// None
 		if (this.noneStack > 0) {
 			this.noneStack++;
+			// ElementKeyは表示の有無に関わらず、文書順に漏れなく消費する
+			// (STRUCTURE_SCANは表示されない部分木も対象に含めるため。
+			// ここでCSSElementを作らない要素もキー空間だけは消費しないと、
+			// このdisplay:none部分木より後に続く兄弟要素のキーが
+			// STRUCTURE_SCAN側の採番とずれてしまう)
+			++this.nextElementKey;
 			return;
 		}
 
@@ -404,6 +417,9 @@ public class CSSProcessor implements XMLHandler {
 				this.ua.message(MessageCodes.WARN_BAD_INLINE_OBJECT, e.getMessage());
 			}
 			this.inlineObjectDepth++;
+			// ElementKeyはnoneStackと同じ理由で漏れなく消費する(下の
+			// コメント参照)
+			++this.nextElementKey;
 			return;
 		}
 
@@ -545,7 +561,7 @@ public class CSSProcessor implements XMLHandler {
 		}
 
 		CSSElement ce = new CSSElement(uri, lName, id, styleClasses, pseudoClasses, loca, dir, atts,
-				this.precedingElement, charOffset);
+				this.precedingElement, charOffset, this.nextElementKey++);
 		this.precedingElement = null;
 
 		// スタイル構築

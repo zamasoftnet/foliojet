@@ -108,6 +108,17 @@ public final class SelectorConverter {
 						} else if (name.equalsIgnoreCase("first-of-type")) {
 							// :first-of-type は :nth-of-type(1) と等価
 							conditions.add(new NthCondition(ConditionType.NTH_OF_TYPE_CONDITION, 0, 1, "1"));
+						} else if (name.equalsIgnoreCase("last-child")) {
+							// STRUCTURE_SCANで解決(docs/PLAN.md「2パス制御モード」参照)
+							conditions.add(new ValueCondition(ConditionType.LAST_CHILD_CONDITION, name));
+						} else if (name.equalsIgnoreCase("only-child")) {
+							conditions.add(new ValueCondition(ConditionType.ONLY_CHILD_CONDITION, name));
+						} else if (name.equalsIgnoreCase("empty")) {
+							conditions.add(new ValueCondition(ConditionType.EMPTY_CONDITION, name));
+						} else if (name.equalsIgnoreCase("last-of-type")) {
+							conditions.add(new ValueCondition(ConditionType.LAST_OF_TYPE_CONDITION, name));
+						} else if (name.equalsIgnoreCase("only-of-type")) {
+							conditions.add(new ValueCondition(ConditionType.ONLY_OF_TYPE_CONDITION, name));
 						} else {
 							// ph-css 8.2.1 は :nth-child()/:nth-of-type() を
 							// CSSSelectorMemberFunctionLike ではなく、括弧を含む
@@ -215,6 +226,13 @@ public final class SelectorConverter {
 		}
 		if (fname.equalsIgnoreCase("nth-of-type")) {
 			return convertNth(ConditionType.NTH_OF_TYPE_CONDITION, fname, param);
+		}
+		if (fname.equalsIgnoreCase("nth-last-child")) {
+			// STRUCTURE_SCANで解決(docs/PLAN.md「2パス制御モード」参照)
+			return convertNth(ConditionType.NTH_LAST_CHILD_CONDITION, fname, param);
+		}
+		if (fname.equalsIgnoreCase("nth-last-of-type")) {
+			return convertNth(ConditionType.NTH_LAST_OF_TYPE_CONDITION, fname, param);
 		}
 		return null;
 	}

@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+p, span {
+	font-size: 10pt;
+}
+
+/* :last-child: 3人兄弟のうち最後だけ拡大 */
+.lc:last-child {
+	font-size: 16pt;
+}
+
+/* :only-child: 単独の子だけが対象。兄弟がいれば不一致 */
+.oc:only-child {
+	font-size: 18pt;
+}
+
+/* :empty: 子要素も非空白テキストも無い要素だけwidthを変える
+   (widthはRectFrameで確認できるが空要素はテキストが出せないため) */
+.empty-container {
+	width: 300pt;
+}
+.empty-container div {
+	display: block;
+	height: 12pt;
+	background-color: #cccccc;
+}
+.et:empty {
+	width: 50pt;
+}
+
+/* :last-of-type: 同じ要素名の兄弟のうち最後だけ拡大。
+   単独の要素名(兄弟に同名が無い)はそれ自体が最後のof-typeでもある */
+.lot:last-of-type {
+	font-size: 22pt;
+}
+
+/* :only-of-type: 同じ要素名の兄弟が他にいない要素だけ拡大 */
+.oot:only-of-type {
+	font-size: 24pt;
+}
+
+/* :nth-last-child(2): 末尾から2番目の子だけ拡大 */
+.nlc:nth-last-child(2) {
+	font-size: 26pt;
+}
+
+/* :nth-last-of-type(2): 同じ要素名の兄弟のうち末尾から2番目だけ拡大 */
+.nlot:nth-last-of-type(2) {
+	font-size: 28pt;
+}
+    </style>
+  </head>
+
+  <body>
+    <!-- :last-child -->
+    <div>
+      <p class="lc" id="lc1">LC1</p>
+      <p class="lc" id="lc2">LC2</p>
+      <p class="lc" id="lc3">LC3</p>
+    </div>
+
+    <!-- :only-child -->
+    <div><p class="oc" id="ocsolo">OCSOLO</p></div>
+    <div>
+      <p class="oc" id="ocmultia">OCMULTIA</p>
+      <p class="oc" id="ocmultib">OCMULTIB</p>
+    </div>
+
+    <!-- :empty -->
+    <div class="empty-container">
+      <div class="et" id="etempty"></div>
+      <div class="et" id="etnonempty">X</div>
+    </div>
+
+    <!-- :last-of-type / :only-of-type -->
+    <div>
+      <p class="lot" id="lotp1">LOTP1</p>
+      <span class="lot" id="lotspan">LOTSPAN</span>
+      <p class="lot" id="lotp2">LOTP2</p>
+    </div>
+    <div>
+      <p class="oot" id="ootlonep">OOTLONEP</p>
+      <span class="oot" id="ootspana">OOTSPANA</span>
+      <span class="oot" id="ootspanb">OOTSPANB</span>
+    </div>
+
+    <!-- :nth-last-child(2) -->
+    <div>
+      <p class="nlc" id="nlc1">NLC1</p>
+      <p class="nlc" id="nlc2">NLC2</p>
+      <p class="nlc" id="nlc3">NLC3</p>
+      <p class="nlc" id="nlc4">NLC4</p>
+    </div>
+
+    <!-- :nth-last-of-type(2) -->
+    <div>
+      <p class="nlot" id="nlotp1">NLOTP1</p>
+      <span class="nlot" id="nlotspan">NLOTSPAN</span>
+      <p class="nlot" id="nlotp2">NLOTP2</p>
+      <p class="nlot" id="nlotp3">NLOTP3</p>
+    </div>
+  </body>
+
+</html>

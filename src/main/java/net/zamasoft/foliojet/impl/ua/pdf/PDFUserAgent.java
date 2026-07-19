@@ -100,6 +100,12 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		switch (mode) {
 		case DOCUMENT:
 			break;
+		case STRUCTURE_SCAN:
+			// ボックス構築・レイアウトを一切行わない軽量な事前走査。
+			// TranscoderHandlerがCSSProcessor(PDF生成に関わる状態を
+			// 使う側)自体を経由させないため、PDF固有の状態(results/
+			// pdfWriter/builder)には一切触れない。
+			break;
 		case MIDDLE_PASS:
 			if (this.results != NopResults.SHARED_INSTANCE) {
 				this.xresults = this.results;

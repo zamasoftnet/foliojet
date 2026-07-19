@@ -461,7 +461,10 @@ public abstract class AbstractUserAgent implements UserAgent {
 		// NOP
 	}
 
+	private PrepareMode currentMode = PrepareMode.DOCUMENT;
+
 	public void prepare(PrepareMode mode) {
+		this.currentMode = mode;
 		this.fontMagnification = -1;
 		this.pixelsPerInch = -1;
 		this.pixelToUnit = null;
@@ -472,11 +475,23 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// 総ページ数
 			this.getPassContext().getCounterScope(0, true).reset("pages", pages);
 		}
+		if (mode == PrepareMode.STRUCTURE_SCAN) {
+			// SelectorFactsはSTRUCTURE_SCANパス自身が新規に確定させるため、
+			// 前回の走査結果(別文書、またはやり直し)を引きずらないよう
+			// クリアする。PageRefと異なり複数のLAYOUTパスをまたいで
+			// 段階的に確定させるものではないため、STRUCTURE_SCAN開始時
+			// 1回だけリセットすれば足りる。
+			this.getUAContext().getSelectorFacts().reset();
+		}
 		this.documentContext = new DocumentContext();
 	}
 
 	public boolean isMeasurePass() {
 		return false;
+	}
+
+	public boolean isStructureScanPass() {
+		return this.currentMode == PrepareMode.STRUCTURE_SCAN;
 	}
 
 	public void dispose() {

@@ -13,6 +13,8 @@ public class UAContext {
 
 	private final PageRef pageRef = new PageRef();
 
+	private final SelectorFacts selectorFacts = new SelectorFacts();
+
 	private FontSourceManager fsm;
 	
 	private Map<Object, ImageMap> maps = new HashMap<Object, ImageMap> ();
@@ -35,6 +37,10 @@ public class UAContext {
 
 	public PageRef getPageRef() {
 		return this.pageRef;
+	}
+
+	public SelectorFacts getSelectorFacts() {
+		return this.selectorFacts;
 	}
 	
 	public Map<Object, ImageMap> getImageMaps() {

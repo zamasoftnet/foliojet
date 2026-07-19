@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.StringTokenizer;
 
 import net.zamasoft.foliojet.css.CSSProcessor;
+import net.zamasoft.foliojet.css.scan.StructureScanHandler;
 import net.zamasoft.foliojet.impl.ua.NUpImposition;
 import net.zamasoft.foliojet.impl.ua.NopImposition;
 import net.zamasoft.foliojet.impl.ua.SinglePageImposition;
@@ -215,28 +216,38 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				exitPoint = handlerFilter;
 			}
 
-			// CSSの処理
-			Imposition imposition;
-			if (this.ua.isMeasurePass()) {
-				imposition = new NopImposition(this.ua);
+			if (this.ua.isStructureScanPass()) {
+				// STRUCTURE_SCAN: ボックス構築・レイアウトを一切行わない
+				// 軽量な事前走査。CSSProcessor(スタイル解決・ボックス構築)
+				// を経由せず、専用の軽量walkerで直接受ける
+				// (docs/PLAN.md「2パス制御モード」参照)。上流のフィルタ
+				// 連鎖(CSSJML・入力フィルタ)はLAYOUTパスと共有し、
+				// ElementKeyの採番が両パスでずれないようにする。
+				exitPoint.setXMLHandler(new StructureScanHandler(this.ua.getUAContext().getSelectorFacts()));
 			} else {
-				int nUp = UAProps.OUTPUT_N_UP.getInteger(this.ua);
-				if (nUp > 1) {
-					imposition = new NUpImposition(this.ua, nUp,
-							UAProps.OUTPUT_N_UP_ORDER.get(this.ua));
+				// CSSの処理
+				Imposition imposition;
+				if (this.ua.isMeasurePass()) {
+					imposition = new NopImposition(this.ua);
 				} else {
-					if (nUp < 1) {
-						this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_N_UP.name,
-								String.valueOf(nUp));
+					int nUp = UAProps.OUTPUT_N_UP.getInteger(this.ua);
+					if (nUp > 1) {
+						imposition = new NUpImposition(this.ua, nUp,
+								UAProps.OUTPUT_N_UP_ORDER.get(this.ua));
+					} else {
+						if (nUp < 1) {
+							this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_N_UP.name,
+									String.valueOf(nUp));
+						}
+						imposition = new SinglePageImposition(this.ua);
 					}
-					imposition = new SinglePageImposition(this.ua);
 				}
+				CSSProcessor cssProcessor = new CSSProcessor(this.ua, imposition);
+				if (ssh != null) {
+					cssProcessor.setStyleSheetSelector(ssh);
+				}
+				exitPoint.setXMLHandler(cssProcessor);
 			}
-			CSSProcessor cssProcessor = new CSSProcessor(this.ua, imposition);
-			if (ssh != null) {
-				cssProcessor.setStyleSheetSelector(ssh);
-			}
-			exitPoint.setXMLHandler(cssProcessor);
 
 			// 再開
 			for (int i = 0; i < this.events.size(); ++i) {

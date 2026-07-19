@@ -692,11 +692,17 @@ public class DirectSession extends AbstractCTISession
 				File tmpFile = null;
 				try {
 					tmpFile = File.createTempFile("copper", ".tmp");
-					// 保存
-					this.ua.prepare(PrepareMode.MIDDLE_PASS);
+					// STRUCTURE_SCAN: ボックス構築・レイアウトを一切行わない
+					// 軽量な事前走査(:has()/:last-child系の解決用、
+					// docs/PLAN.md「2パス制御モード」参照)。
+					// processing.pass-countの反復回数には数えない、独立した
+					// 1回だけの追加フェーズ。sourceを一度だけ読み切り、
+					// 以降の全パスが使うテンポラリファイルへ保存する
+					// (sourceは1回しか読めない前提のため、以降は必ず
+					// tmpFileから読む——保存とMIDDLE_PASSを兼ねていた旧処理を
+					// この専用ステップへ分離した)。
+					this.ua.prepare(PrepareMode.STRUCTURE_SCAN);
 					this.ua.getDocumentContext().setBaseURI(source.getURI());
-					this.ua.getUAContext().setPassCount(passCount);
-					this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
 					try (final FileOutputStream out = new FileOutputStream(tmpFile);
 							final TeeInputStream in = new TeeInputStream(source.getInputStream(), out)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
@@ -704,11 +710,11 @@ public class DirectSession extends AbstractCTISession
 						formatter.format(fileSource, this.ua);
 					}
 					// 中間処理
-					for (--passCount; passCount > 1; --passCount) {
+					for (int remaining = passCount; remaining > 1; --remaining) {
 						this.ua.prepare(PrepareMode.MIDDLE_PASS);
 						this.ua.getDocumentContext().setBaseURI(source.getURI());
-						this.ua.getUAContext().setPassCount(passCount);
-						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
+						this.ua.getUAContext().setPassCount(remaining);
+						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
 						try (final InputStream in = new FileInputStream(tmpFile)) {
 							final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 									source.getEncoding());
@@ -721,8 +727,8 @@ public class DirectSession extends AbstractCTISession
 					try (final InputStream in = new FileInputStream(tmpFile)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 								source.getEncoding());
-						this.ua.getUAContext().setPassCount(passCount);
-						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
+						this.ua.getUAContext().setPassCount(1);
+						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
 						formatter.format(fileSource, this.ua);
 					}
 				} finally {

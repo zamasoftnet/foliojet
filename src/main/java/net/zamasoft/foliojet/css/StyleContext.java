@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
 import net.zamasoft.foliojet.css.selector.SelectorListCondition;
 import net.zamasoft.foliojet.css.selector.SimpleSelector;
+import net.zamasoft.foliojet.ua.SelectorFacts;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 public class StyleContext {
@@ -32,12 +33,20 @@ public class StyleContext {
 
 	public final CSSStyleSheet styleSheet;
 
-	public StyleContext(CSSStyleSheet styleSheet) {
+	/**
+	 * STRUCTURE_SCANパスが収集した、要素の終了時点まで確定しない
+	 * 疑似クラス(:has()・:last-child系)の判定結果。docs/PLAN.md
+	 * 「2パス制御モード」参照。
+	 */
+	private final SelectorFacts selectorFacts;
+
+	public StyleContext(CSSStyleSheet styleSheet, SelectorFacts selectorFacts) {
 		this.styleSheet = styleSheet;
+		this.selectorFacts = selectorFacts;
 	}
 
 	public StyleContext copy(int up) {
-		StyleContext styleContext = new StyleContext(this.styleSheet);
+		StyleContext styleContext = new StyleContext(this.styleSheet, this.selectorFacts);
 		for (int i = 0; i < this.elementStack.size() - up; ++i) {
 			styleContext.elementStack.add(this.elementStack.get(i));
 		}
@@ -152,7 +161,7 @@ public class StyleContext {
 		List<Rule> result = null;
 		for (List<Rule> bucket : buckets) {
 		for (Rule rule : bucket) {
-			if (matchesFromPath(rule.getSelector(), this.elementStack)) {
+			if (matchesFromPath(rule.getSelector(), this.elementStack, this.selectorFacts)) {
 				if (result == null) {
 					result = new ArrayList<Rule>();
 				}
@@ -195,8 +204,10 @@ public class StyleContext {
 	 *                 隣接・一般兄弟結合子で対象要素がこのpathの外の兄弟へ
 	 *                 移っても、兄弟は同じ親を共有するためpathの残りの
 	 *                 接頭辞をそのまま祖先として使い続けられる
+	 * @param facts    STRUCTURE_SCANが収集した先読みが要る疑似クラスの
+	 *                 判定結果(:has()・:last-child系)。無ければnull可
 	 */
-	private static boolean matchesFromPath(Selector selector, List<CSSElement> path) {
+	private static boolean matchesFromPath(Selector selector, List<CSSElement> path, SelectorFacts facts) {
 		boolean first = true;// 最初のセレクタのため、該当する要素が直ちにあらわれなければならない。
 		boolean child = false;// 子セレクタのため、擬似要素をのぞいて該当する要素が直ちにあらわれなければならない。
 		boolean sibling = false;// 隣接セレクタのため、pathをあがらずに隣の要素に移る
@@ -215,7 +226,7 @@ public class StyleContext {
 			case CHILD_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					selector = combinator.getAncestorSelector();
 					child = true;
 				} else if (first || (!ce.isPseudoElement() && child)) {
@@ -228,7 +239,7 @@ public class StyleContext {
 			case DESCENDANT_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					selector = combinator.getAncestorSelector();
 					child = simpleSelector.getSelectorType() == SelectorType.PSEUDO_ELEMENT_SELECTOR;
 				} else if (first || (!ce.isPseudoElement() && child)) {
@@ -241,7 +252,7 @@ public class StyleContext {
 			case DIRECT_ADJACENT_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					selector = combinator.getAncestorSelector();
 					child = true;
 					ce = ce.precedingElement;
@@ -260,13 +271,14 @@ public class StyleContext {
 			case GENERAL_ADJACENT_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					selector = combinator.getAncestorSelector();
 					child = true;
 					// 先行する兄弟のいずれかが左側セレクタの右端にマッチする位置まで戻る
 					CSSElement sib = ce.precedingElement;
 					List<CSSElement> ancestors = path.subList(0, j);
-					while (sib != null && !evaluateSimpleSelector(selector.getSimpleSelector(), withLast(ancestors, sib))) {
+					while (sib != null
+							&& !evaluateSimpleSelector(selector.getSimpleSelector(), withLast(ancestors, sib), facts)) {
 						sib = sib.precedingElement;
 					}
 					if (sib == null) {
@@ -284,7 +296,7 @@ public class StyleContext {
 			// 単純セレクタ
 			default: {
 				SimpleSelector simpleSelector = selector.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView)) {
+				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					return true;
 				} else if (first || (!ce.isPseudoElement() && child)) {
 					break NEXT;
@@ -304,7 +316,7 @@ public class StyleContext {
 		return result;
 	}
 
-	private static boolean evaluateSimpleSelector(SimpleSelector selector, List<CSSElement> path) {
+	private static boolean evaluateSimpleSelector(SimpleSelector selector, List<CSSElement> path, SelectorFacts facts) {
 		CSSElement ce = path.get(path.size() - 1);
 		switch (selector.getSelectorType()) {
 		// 要素セレクタ
@@ -324,7 +336,7 @@ public class StyleContext {
 				}
 			}
 			for (Condition condition : elementSelector.getConditions()) {
-				if (!evaluateCondition(condition, path)) {
+				if (!evaluateCondition(condition, path, facts)) {
 					return false;
 				}
 			}
@@ -348,7 +360,7 @@ public class StyleContext {
 		}
 	}
 
-	private static boolean evaluateCondition(Condition condition, List<CSSElement> path) {
+	private static boolean evaluateCondition(Condition condition, List<CSSElement> path, SelectorFacts facts) {
 		CSSElement ce = path.get(path.size() - 1);
 		switch (condition.getConditionType()) {
 		// クラス条件
@@ -481,6 +493,39 @@ public class StyleContext {
 			return nth.matches(siblingPosition(ce, true));
 		}
 
+		// 後方基準の疑似クラス(STRUCTURE_SCANが収集したSelectorFactsを
+		// 参照。facts自体が無い、またはその要素の走査結果が無い
+		// (STRUCTURE_SCANが実行されていない=processing.pass-count<2)
+		// 場合は未対応セレクタと同じく不一致として扱う)
+		case LAST_CHILD_CONDITION:
+			return facts != null && facts.isLastChild(ce.elementKey);
+		case ONLY_CHILD_CONDITION:
+			// :first-child(既存、開始時点で確定済みのPC_FIRST_CHILD)と
+			// :last-child(STRUCTURE_SCAN)の両方を満たす要素
+			return ce.isPseudoClass(CSSElement.PC_FIRST_CHILD) && facts != null && facts.isLastChild(ce.elementKey);
+		case EMPTY_CONDITION:
+			return facts != null && facts.isEmpty(ce.elementKey);
+		case LAST_OF_TYPE_CONDITION:
+			return facts != null && facts.isLastOfType(ce.elementKey);
+		case ONLY_OF_TYPE_CONDITION:
+			// :first-of-type相当(既存のsiblingPosition(ce,true)==1)と
+			// :last-of-type(STRUCTURE_SCAN)の両方を満たす要素
+			return siblingPosition(ce, true) == 1 && facts != null && facts.isLastOfType(ce.elementKey);
+		case NTH_LAST_CHILD_CONDITION: {
+			if (facts == null) {
+				return false;
+			}
+			int position = facts.getPositionFromEnd(ce.elementKey);
+			return position >= 1 && ((NthCondition) condition).matches(position);
+		}
+		case NTH_LAST_OF_TYPE_CONDITION: {
+			if (facts == null) {
+				return false;
+			}
+			int position = facts.getTypePositionFromEnd(ce.elementKey);
+			return position >= 1 && ((NthCondition) condition).matches(position);
+		}
+
 		// 前方一致・後方一致・部分一致属性値条件
 		case PREFIX_ATTRIBUTE_CONDITION:
 		case SUFFIX_ATTRIBUTE_CONDITION:
@@ -513,7 +558,7 @@ public class StyleContext {
 		// 子孫・子結合子にも対応(matchesFromPathへ統合))
 		case NOT_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
-				if (matchesFromPath(selector, path)) {
+				if (matchesFromPath(selector, path, facts)) {
 					return false;
 				}
 			}
@@ -525,7 +570,7 @@ public class StyleContext {
 		case IS_CONDITION:
 		case WHERE_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
-				if (matchesFromPath(selector, path)) {
+				if (matchesFromPath(selector, path, facts)) {
 					return true;
 				}
 			}

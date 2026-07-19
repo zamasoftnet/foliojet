@@ -55,4 +55,10 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	public Image getImage(Source source) throws IOException;
 
 	public boolean isMeasurePass();
+
+	/**
+	 * 現在STRUCTURE_SCANパス(実レイアウトを組まない軽量な事前走査、
+	 * PrepareMode.STRUCTURE_SCAN)中かを返します。
+	 */
+	public boolean isStructureScanPass();
 }
