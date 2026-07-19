@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+	--base-width: 100pt;
+	--gap: 20pt;
+	--chain-ref: var(--base-width);
+	--circ-a: var(--circ-b);
+	--circ-b: var(--circ-a);
+}
+#container {
+	width: 300pt;
+}
+#container div {
+	display: block;
+	height: 12pt;
+	background-color: #cccccc;
+}
+
+/* 基本: var()で参照した値をそのまま使う -> 100pt */
+#basic {
+	width: var(--base-width);
+}
+/* フォールバック: 未定義のカスタムプロパティ -> フォールバック60ptを使う */
+#fallback-used {
+	width: var(--undefined-name, 60pt);
+}
+/* フォールバック: 定義済みのカスタムプロパティ -> フォールバックは無視され100pt */
+#fallback-defined {
+	width: var(--base-width, 60pt);
+}
+
+/* 継承: 祖先で再定義された--gapを子孫が参照する -> 55pt */
+.scope-a {
+	--gap: 55pt;
+}
+#inherited {
+	width: var(--gap);
+}
+
+/* カスケード: 祖先で--base-widthを再定義 -> 33pt(bodyの100ptは隠れる) */
+.scope-b {
+	--base-width: 33pt;
+}
+#overridden {
+	width: var(--base-width);
+}
+
+/* 連鎖: --chain-refはvar(--base-width)を参照しており、さらにそれを
+   var()で参照する。二段階のvar()解決が必要 -> 100pt */
+#chained {
+	width: var(--chain-ref);
+}
+
+/* 循環参照: --circ-a/--circ-bが互いを参照する。CSS仕様上「未設定」と
+   同じ扱いになりフォールバックへ進む -> 77pt */
+#circular {
+	width: var(--circ-a, 77pt);
+}
+
+/* calc()内でのvar(): calc(100pt + 20pt) = 120pt */
+#calc-mix {
+	width: calc(var(--base-width) + var(--gap));
+}
+
+/* ショートハンド内でのvar(): marginショートハンドの1値指定(4辺とも
+   --gap=20pt)。position:absoluteでtop:0;left:0を基準に、marginが
+   加算されて位置が決まる -> x=20,y=20 */
+#shorthand-margin {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 50pt;
+	height: 20pt;
+	margin: var(--gap);
+}
+
+/* !important: 詳細度は.imp-low(クラス)より#important-test(ID)の方が
+   高いが、!importantが優先されるため.imp-lowの5ptが勝つ(15ptは無視) */
+#important-test {
+	--imp-width: 15pt;
+	width: var(--imp-width);
+}
+.imp-low {
+	--imp-width: 5pt !important;
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="container">
+      <div id="basic">BASIC</div>
+      <div id="fallback-used">FALLBACKUSED</div>
+      <div id="fallback-defined">FALLBACKDEFINED</div>
+      <div class="scope-a">
+        <div id="inherited">INHERITED</div>
+      </div>
+      <div class="scope-b">
+        <div id="overridden">OVERRIDDEN</div>
+      </div>
+      <div id="chained">CHAINED</div>
+      <div id="circular">CIRCULAR</div>
+      <div id="calc-mix">CALCMIX</div>
+      <div id="shorthand-margin">SHORTHANDMARGIN</div>
+      <div id="important-test" class="imp-low">IMPORTANTTEST</div>
+    </div>
+  </body>
+
+</html>

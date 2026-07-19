@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.zamasoft.foliojet.css.property.CustomProperty;
 import net.zamasoft.foliojet.css.property.Property;
 
 /**
@@ -52,13 +53,30 @@ public class Declaration {
 
 	/**
 	 * 特性を先頭から順に適用します。
-	 * 
+	 * <p>
+	 * カスタムプロパティ({@link CustomProperty})は、その他のプロパティ
+	 * (var()を参照しうる)より必ず先に適用する2パス構成にする——CSS仕様上、
+	 * var()による置換は要素の全カスタムプロパティが確定した後の使用値計算
+	 * 時に行われるべきもので、同一要素内でたまたま出現順(カスケード順)が
+	 * 逆(var()を使う宣言の方が先に適用される順序)になっただけで参照先が
+	 * 見えなくなるのは仕様に反するため。1パス目・2パス目それぞれの内部の
+	 * 相対順序(カスケード順)は保つ。
+	 * </p>
+	 *
 	 * @param style
 	 */
 	public void applyProperties(CSSStyle style) {
 		for (int i = 0; i < this.properties.size(); ++i) {
 			Property property = (Property) this.properties.get(i);
-			property.applyProperty(style);
+			if (property instanceof CustomProperty) {
+				property.applyProperty(style);
+			}
+		}
+		for (int i = 0; i < this.properties.size(); ++i) {
+			Property property = (Property) this.properties.get(i);
+			if (!(property instanceof CustomProperty)) {
+				property.applyProperty(style);
+			}
 		}
 	}
 

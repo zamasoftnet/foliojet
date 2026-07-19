@@ -82,6 +82,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"3070-AT-RULE/media-supports.html", //
 			"3080-MODERN-CSS/logical-properties.html", //
 			"3000-SELECTOR/is-not-where-descendant.html", //
+			"3080-MODERN-CSS/var.html", //
 	};
 
 	public void testDisplayLists() throws Exception {

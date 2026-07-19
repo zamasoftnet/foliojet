@@ -1,7 +1,14 @@
 package net.zamasoft.foliojet.css;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
+import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
 import net.zamasoft.foliojet.impl.css.property.font.CSSFontStyle;
@@ -73,6 +80,17 @@ public class CSSStyle {
 	private Value[] computedValues = null;
 	private boolean[] importants = null;
 	private FontStyle fontStyle = null;
+
+	/**
+	 * カスタムプロパティ(--name)の宣言値(生トークン列、var()は未解決のまま)。
+	 * 通常のプロパティのvalues[]/computedValues[](ElementPropertySet.CODESで
+	 * 採番された固定コード空間)とは別枠で管理する。カスタムプロパティ名は
+	 * 文書ごとに任意・無制限で、CODESはJVM全体で共有される静的な登録表のため、
+	 * 同時実行中の別文書のCSSStyleとコード空間がずれる恐れがあり、動的採番は
+	 * 採用しなかった(docs/PLAN.md参照)。
+	 */
+	private Map<String, List<CssToken>> customProperties = null;
+	private Set<String> importantCustomProperties = null;
 
 	public static CSSStyle getCSSStyle(UserAgent ua, CSSStyle parentStyle, CSSElement ce) {
 		CSSStyle style = new CSSStyle();
@@ -240,6 +258,46 @@ public class CSSStyle {
 			return false;
 		}
 		return this.values != null && this.values[code] != null;
+	}
+
+	/**
+	 * カスタムプロパティ(--name)の宣言を記録します。値は型検証を行わず
+	 * 生トークン列のまま保持します(var()の実際の解決は使用時=
+	 * {@link net.zamasoft.foliojet.css.property.DeferredProperty#applyProperty}
+	 * まで遅延するため)。!importantの優先度は通常の{@link #set}と同じ
+	 * 「一度importantになったら以後のNORMALは無視」規則に従う。
+	 */
+	public void setCustomProperty(String name, List<CssToken> tokens, byte mode) {
+		if (mode == MODE_IMPORTANT) {
+			if (this.importantCustomProperties == null) {
+				this.importantCustomProperties = new HashSet<String>();
+			}
+			this.importantCustomProperties.add(name);
+		} else if (this.importantCustomProperties != null && this.importantCustomProperties.contains(name)) {
+			return;
+		}
+		if (this.customProperties == null) {
+			this.customProperties = new HashMap<String, List<CssToken>>();
+		}
+		this.customProperties.put(name, tokens);
+	}
+
+	/**
+	 * カスタムプロパティの値を、祖先方向の継承を考慮して解決します。
+	 * 見つからなければnull。通常の{@link #get}と異なり読み出し後も
+	 * クリアしません(同じ祖先の値を複数の子孫が独立して繰り返し参照
+	 * しうるため)。
+	 */
+	public List<CssToken> getCustomProperty(String name) {
+		for (CSSStyle style = this; style != null; style = style.parentStyle) {
+			if (style.customProperties != null) {
+				List<CssToken> tokens = style.customProperties.get(name);
+				if (tokens != null) {
+					return tokens;
+				}
+			}
+		}
+		return null;
 	}
 
 	public void set(PrimitivePropertyInfo info, Value value) {

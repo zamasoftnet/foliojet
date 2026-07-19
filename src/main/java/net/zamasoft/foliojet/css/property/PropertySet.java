@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.token.VarSubstitution;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 
@@ -44,8 +45,19 @@ public abstract class PropertySet {
 
 	public final Property parseDeclaration(String name, List<CssToken> value, UserAgent ua, URI uri,
 			boolean important) {
+		if (isCustomPropertyName(name)) {
+			// カスタムプロパティ(--name)は型検証を行わず生トークン列のまま
+			// 保持する(名前は大文字小文字を区別するため小文字化しない)。
+			return new CustomProperty(name, value, uri, important);
+		}
 		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
 		if (ph != null) {
+			if (VarSubstitution.containsVarReference(value)) {
+				// var()の実際の値はカスケード適用時(要素ごと)に異なりうるため、
+				// ここ(スタイルシート解析時、文書全体で1回)では解析を確定
+				// できない。要素ごとの適用時まで遅延する(DeferredProperty参照)。
+				return new DeferredProperty(name, ph, value, ua, uri, important);
+			}
 			TokenStream tokens = new TokenStream(value);
 			try {
 				return ph.parse(tokens, ua, uri, important);
@@ -60,6 +72,10 @@ public abstract class PropertySet {
 		return null;
 	}
 
+	private static boolean isCustomPropertyName(String name) {
+		return name.length() > 2 && name.charAt(0) == '-' && name.charAt(1) == '-';
+	}
+
 	/**
 	 * @supports (name: value) の判定用。プロパティ名が登録されており、かつ
 	 * 与えられた値をそのプロパティとして解析できるかを試すだけで、実際の値は
@@ -68,9 +84,20 @@ public abstract class PropertySet {
 	 * 未対応であること自体が正常な結果のため)。
 	 */
 	public final boolean supports(String name, List<CssToken> value, UserAgent ua, URI uri) {
+		if (isCustomPropertyName(name)) {
+			// カスタムプロパティの宣言文法は常に妥当(CSS仕様: -- で始まる
+			// プロパティは任意のトークン列を受理する)
+			return true;
+		}
 		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
 		if (ph == null) {
 			return false;
+		}
+		if (VarSubstitution.containsVarReference(value)) {
+			// var()の実際の値は要素ごとに異なりうるため、ここでは評価せず
+			// 常にtrueとする(ブラウザの挙動と同じ: var()を含む宣言は
+			// @supportsの判定では無条件にサポートありとみなす)
+			return true;
 		}
 		try {
 			return ph.parse(new TokenStream(value), ua, uri, false) != null;
