@@ -14,15 +14,23 @@ import java.util.logging.Logger;
 import com.helger.css.decl.CSSDeclaration;
 import com.helger.css.decl.CSSFontFaceRule;
 import com.helger.css.decl.CSSImportRule;
+import com.helger.css.decl.CSSMediaExpression;
 import com.helger.css.decl.CSSMediaQuery;
 import com.helger.css.decl.CSSMediaRule;
 import com.helger.css.decl.CSSPageMarginBlock;
 import com.helger.css.decl.CSSPageRule;
 import com.helger.css.decl.CSSStyleRule;
+import com.helger.css.decl.CSSSupportsConditionDeclaration;
+import com.helger.css.decl.CSSSupportsConditionNegation;
+import com.helger.css.decl.CSSSupportsConditionNested;
+import com.helger.css.decl.CSSSupportsRule;
 import com.helger.css.decl.CascadingStyleSheet;
+import com.helger.css.decl.ECSSSupportsConditionOperator;
 import com.helger.css.decl.ICSSPageRuleMember;
+import com.helger.css.decl.ICSSSupportsConditionMember;
 import com.helger.css.decl.ICSSTopLevelRule;
 import com.helger.css.reader.CSSReader;
+import com.helger.css.writer.CSSWriterSettings;
 
 import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
@@ -31,6 +39,10 @@ import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.FontFacePropertySet;
 import net.zamasoft.foliojet.css.property.PagePropertySet;
 import net.zamasoft.foliojet.css.selector.Selector;
+import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.Tokens;
+import net.zamasoft.foliojet.css.util.ValueUtils;
+import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.impl.css.property.font.CSSFontFamily;
 import net.zamasoft.foliojet.impl.css.property.font.CSSFontStyle;
 import net.zamasoft.foliojet.impl.css.property.font.FontWeight;
@@ -38,6 +50,7 @@ import net.zamasoft.foliojet.impl.css.property.font.CSSUnicodeRange;
 import net.zamasoft.foliojet.impl.css.property.font.Src;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
@@ -127,20 +140,23 @@ public class CSSStyleSheetBuilder {
 					ElementPropertySet.getInstance(), this.ua, uri);
 			this.cssStyleSheet.addRule(selectors, declaration, this.origin);
 		} else if (rule instanceof CSSMediaRule mediaRule) {
-			// メディア判定は最内の@mediaが優先(従来動作の踏襲)
 			boolean ok = false;
 			for (CSSMediaQuery query : mediaRule.getAllMediaQueries()) {
-				String medium = query.getMedium();
-				if (medium == null) {
-					medium = "all";
-				}
-				if (!query.isNot() && this.ua.is(medium.toLowerCase())) {
+				if (this.evaluateMediaQuery(query)) {
 					ok = true;
 					break;
 				}
 			}
+			// 外側の@media/@supportsの不一致は内側へ継承する(2026-07-19修正:
+			// 以前は内側の判定だけで決まり、外側が不一致でも内側の@mediaが
+			// 独立に一致すれば適用されてしまっていた)
 			for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
-				this.rule(inner, uri, ok);
+				this.rule(inner, uri, mediaOk && ok);
+			}
+		} else if (rule instanceof CSSSupportsRule supportsRule) {
+			boolean ok = this.evaluateSupports(supportsRule.getAllSupportConditionMembers(), uri, 0);
+			for (ICSSTopLevelRule inner : supportsRule.getAllRules()) {
+				this.rule(inner, uri, mediaOk && ok);
 			}
 		} else if (rule instanceof CSSPageRule pageRule) {
 			this.page(pageRule, uri, mediaOk);
@@ -148,7 +164,157 @@ public class CSSStyleSheetBuilder {
 			// 従来動作の踏襲: @font-faceはメディアに関係なく登録する
 			this.fontFace(fontFaceRule, uri);
 		}
-		// その他(@keyframes, @supports, @namespace, 未知のat-rule)は無視する
+		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+	}
+
+	/**
+	 * 1個の@mediaクエリ(メディア型+特性式の並び、暗黙にAND)を評価します。
+	 * `not`が付く場合は全体を反転します(SPEC Media Queries)。
+	 */
+	private boolean evaluateMediaQuery(CSSMediaQuery query) {
+		String medium = query.getMedium();
+		if (medium == null) {
+			medium = "all";
+		}
+		boolean result = this.ua.is(medium.toLowerCase());
+		if (result) {
+			for (CSSMediaExpression expression : query.getAllMediaExpressions()) {
+				if (!this.evaluateMediaExpression(expression)) {
+					result = false;
+					break;
+				}
+			}
+		}
+		return query.isNot() ? !result : result;
+	}
+
+	private static final CSSWriterSettings MEDIA_WRITER_SETTINGS = new CSSWriterSettings();
+
+	/**
+	 * メディア特性式(`(min-width: 400px)`等)を評価します。ページ寸法は
+	 * `output.page-width`/`output.page-height`プロパティで文書解析前に
+	 * 静的に確定済みのため、先読みなしに1Pで評価できる。
+	 * <p>
+	 * ph-css 8.2.1はMedia Queries Level 3相当までしかパースできない
+	 * (Level 4の`or`結合子・括弧なしの`not (...)`・range構文
+	 * `(width &gt;= 400px)`は構文解析の時点で規則ごと無視される。
+	 * docs/CSS-SUPPORT.md参照)。
+	 * </p>
+	 */
+	private boolean evaluateMediaExpression(CSSMediaExpression expression) {
+		String feature = expression.getFeature();
+		if (feature == null) {
+			return false;
+		}
+		feature = feature.toLowerCase(java.util.Locale.ROOT);
+		if (feature.equals("orientation")) {
+			String value = expression.getValue() != null
+					? expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0).trim().toLowerCase(java.util.Locale.ROOT)
+					: null;
+			boolean landscape = this.resolvePageWidth() > this.resolvePageHeight();
+			if ("landscape".equals(value)) {
+				return landscape;
+			}
+			if ("portrait".equals(value)) {
+				return !landscape;
+			}
+			return false;
+		}
+		if (expression.getValue() == null) {
+			// 値なしのbooleanコンテキストクエリ(例: (color)、(monochrome))は未対応
+			return false;
+		}
+		String valueText = expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0);
+		AbsoluteLengthValue value = ValueUtils.toAbsoluteLength(this.ua, false, valueText);
+		if (value == null) {
+			return false;
+		}
+		double length = value.getLength();
+		switch (feature) {
+		case "width":
+			return length == this.resolvePageWidth();
+		case "min-width":
+			return this.resolvePageWidth() >= length;
+		case "max-width":
+			return this.resolvePageWidth() <= length;
+		case "height":
+			return length == this.resolvePageHeight();
+		case "min-height":
+			return this.resolvePageHeight() >= length;
+		case "max-height":
+			return this.resolvePageHeight() <= length;
+		default:
+			// aspect-ratio等の未対応特性は保守的に不一致とする
+			return false;
+		}
+	}
+
+	private Double pageWidth, pageHeight;
+
+	private double resolvePageWidth() {
+		if (this.pageWidth == null) {
+			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(this.ua, false,
+					UAProps.OUTPUT_PAGE_WIDTH.getString(this.ua));
+			this.pageWidth = length != null ? length.getLength() : 0;
+		}
+		return this.pageWidth;
+	}
+
+	private double resolvePageHeight() {
+		if (this.pageHeight == null) {
+			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(this.ua, false,
+					UAProps.OUTPUT_PAGE_HEIGHT.getString(this.ua));
+			this.pageHeight = length != null ? length.getLength() : 0;
+		}
+		return this.pageHeight;
+	}
+
+	/**
+	 * @supports条件式(and/or/notと括弧によるネスト)を評価します。CSS仕様上、
+	 * 同一階層でand/orが混在することはない(混在させる場合は括弧が必須)ため、
+	 * 左から畳み込むだけでよい。ネスト(括弧)は構文由来の深さ(手書きCSSの
+	 * 入れ子段数)のため上限付きの再帰で扱う(calc()の関数ネストと同じ方針)。
+	 */
+	private boolean evaluateSupports(List<ICSSSupportsConditionMember> members, URI uri, int depth) {
+		if (depth > MAX_DEPTH || members.isEmpty()) {
+			return false;
+		}
+		Boolean result = null;
+		ECSSSupportsConditionOperator pendingOp = null;
+		for (ICSSSupportsConditionMember member : members) {
+			if (member instanceof ECSSSupportsConditionOperator op) {
+				pendingOp = op;
+				continue;
+			}
+			boolean value = this.evaluateSupportsMember(member, uri, depth);
+			if (result == null) {
+				result = value;
+			} else if (pendingOp == ECSSSupportsConditionOperator.OR) {
+				result = result || value;
+			} else {
+				result = result && value;
+			}
+		}
+		return result != null && result;
+	}
+
+	private boolean evaluateSupportsMember(ICSSSupportsConditionMember member, URI uri, int depth) {
+		if (depth > MAX_DEPTH) {
+			return false;
+		}
+		if (member instanceof CSSSupportsConditionDeclaration declMember) {
+			CSSDeclaration declaration = declMember.getDeclaration();
+			List<CssToken> tokens = Tokens.fromExpression(declaration.getExpression());
+			return ElementPropertySet.getInstance().supports(declaration.getProperty(), tokens, this.ua, uri);
+		}
+		if (member instanceof CSSSupportsConditionNegation negation) {
+			return !this.evaluateSupportsMember(negation.getSupportsMember(), uri, depth + 1);
+		}
+		if (member instanceof CSSSupportsConditionNested nested) {
+			return this.evaluateSupports(nested.getAllMembers(), uri, depth + 1);
+		}
+		// selector()等、ph-css 8.2.1がそもそも解析できない構文は未対応(不一致)
+		return false;
 	}
 
 	private static List<CSSDeclaration> pageDeclarations(CSSPageRule pageRule) {

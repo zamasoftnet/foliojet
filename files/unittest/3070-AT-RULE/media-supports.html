@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+p {
+	font-size: 10pt;
+}
+/* ページ幅は既定210mm・高さ297mm(output.page-width/height既定値)。
+   media_types既定は "all print paged visual bitmap static"(screenは含まない)。 */
+
+/* min-width: 210mm >= 100mm -> 一致 */
+@media (min-width: 100mm) {
+	#min-width-hit { font-size: 16pt; }
+}
+/* min-width: 210mm >= 300mm -> 不一致 */
+@media (min-width: 300mm) {
+	#min-width-miss { font-size: 16pt; }
+}
+/* max-width: 210mm <= 300mm -> 一致 */
+@media (max-width: 300mm) {
+	#max-width-hit { font-size: 16pt; }
+}
+/* max-width: 210mm <= 100mm -> 不一致 */
+@media (max-width: 100mm) {
+	#max-width-miss { font-size: 16pt; }
+}
+/* orientation: 高さ(297mm) > 幅(210mm)なのでportrait */
+@media (orientation: portrait) {
+	#orientation-hit { font-size: 16pt; }
+}
+@media (orientation: landscape) {
+	#orientation-miss { font-size: 16pt; }
+}
+/* screenはmedia_types既定に含まれないため不一致 */
+@media screen {
+	#screen-miss { font-size: 16pt; }
+}
+/* not screen: screenが不一致なので反転して一致(修正前は常に不一致扱いの
+   バグがあった) */
+@media not screen {
+	#not-screen-hit { font-size: 16pt; }
+}
+/* 外側@printは一致、内側(min-width:100mm)も一致 -> 両方成立で適用 */
+@media print {
+	@media (min-width: 100mm) {
+		#nested-hit { font-size: 16pt; }
+	}
+}
+/* 外側@screenが不一致のため、内側@allが単体では一致しても全体は不適用
+   (修正前は内側だけで判定し外側の不一致を継承しないバグがあった) */
+@media screen {
+	@media all {
+		#nested-miss { font-size: 16pt; }
+	}
+}
+
+/* @supports: 対応済みプロパティ */
+@supports (font-size: 10pt) {
+	#supports-hit { font-size: 16pt; }
+}
+/* @supports: 未知のプロパティ */
+@supports (totally-unknown-property-xyz: 10pt) {
+	#supports-miss { font-size: 16pt; }
+}
+@supports not (totally-unknown-property-xyz: 10pt) {
+	#supports-not-hit { font-size: 16pt; }
+}
+@supports (font-size: 10pt) and (totally-unknown-property-xyz: 10pt) {
+	#supports-and-miss { font-size: 16pt; }
+}
+@supports (font-size: 10pt) or (totally-unknown-property-xyz: 10pt) {
+	#supports-or-hit { font-size: 16pt; }
+}
+@supports ((font-size: 10pt) and (totally-unknown-property-xyz: 10pt)) or (color: red) {
+	#supports-nested-hit { font-size: 16pt; }
+}
+    </style>
+  </head>
+
+  <body>
+    <p id="min-width-hit">MINWIDTHHIT</p>
+    <p id="min-width-miss">MINWIDTHMISS</p>
+    <p id="max-width-hit">MAXWIDTHHIT</p>
+    <p id="max-width-miss">MAXWIDTHMISS</p>
+    <p id="orientation-hit">ORIENTATIONHIT</p>
+    <p id="orientation-miss">ORIENTATIONMISS</p>
+    <p id="screen-miss">SCREENMISS</p>
+    <p id="not-screen-hit">NOTSCREENHIT</p>
+    <p id="nested-hit">NESTEDHIT</p>
+    <p id="nested-miss">NESTEDMISS</p>
+    <p id="supports-hit">SUPPORTSHIT</p>
+    <p id="supports-miss">SUPPORTSMISS</p>
+    <p id="supports-not-hit">SUPPORTSNOTHIT</p>
+    <p id="supports-and-miss">SUPPORTSANDMISS</p>
+    <p id="supports-or-hit">SUPPORTSORHIT</p>
+    <p id="supports-nested-hit">SUPPORTSNESTEDHIT</p>
+  </body>
+
+</html>

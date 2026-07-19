@@ -79,6 +79,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"3080-MODERN-CSS/initial-unset.html", //
 			"3080-MODERN-CSS/calc.html", //
 			"3000-SELECTOR/is-not-where-sibling.html", //
+			"3070-AT-RULE/media-supports.html", //
 	};
 
 	public void testDisplayLists() throws Exception {

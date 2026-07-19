@@ -59,4 +59,23 @@ public abstract class PropertySet {
 		ua.message(MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, name);
 		return null;
 	}
+
+	/**
+	 * @supports (name: value) の判定用。プロパティ名が登録されており、かつ
+	 * 与えられた値をそのプロパティとして解析できるかを試すだけで、実際の値は
+	 * 破棄します(通常の{@link #parseDeclaration}と違い、失敗しても警告を
+	 * 出しません——@supports は「対応していない」ことを調べるための構文であり、
+	 * 未対応であること自体が正常な結果のため)。
+	 */
+	public final boolean supports(String name, List<CssToken> value, UserAgent ua, URI uri) {
+		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
+		if (ph == null) {
+			return false;
+		}
+		try {
+			return ph.parse(new TokenStream(value), ua, uri, false) != null;
+		} catch (PropertyException e) {
+			return false;
+		}
+	}
 }
