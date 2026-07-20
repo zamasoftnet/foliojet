@@ -17,11 +17,17 @@ public class LogicalVertRubyTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "application/xhtml+xml", null);
 	}
 
+	// 2026-07-20: -cssj-direction-mode廃止に伴いフィクスチャからも削除した。
+	// bodyのborder(縦書き時、旧回転機構下ではSide.resolve()経由の一部の
+	// 参照でLEFT/RIGHT(none)へ誤って回転され、実質無効化されていた)が
+	// 常に物理どおり(TOP/BOTTOM、1pt)に効くようになったことで、内容領域が
+	// 正しく縮み、期待値がわずかに(x方向+2〜3pt、y方向+約2pt)変化した。
+
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getHeight());
-			assertEquals(188, x, 1);
-			assertEquals(43, y, 1);
+			assertEquals(190, x, 1);
+			assertEquals(45, y, 1);
 			assertEquals(24, box.getHeight(), 0);
 			return true;
 		}
@@ -31,8 +37,8 @@ public class LogicalVertRubyTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getHeight());
-			assertEquals(193, x, 1);
-			assertEquals(43, y, 1);
+			assertEquals(196, x, 1);
+			assertEquals(45, y, 1);
 			assertEquals(24, box.getHeight(), 0);
 			return true;
 		}
@@ -42,8 +48,8 @@ public class LogicalVertRubyTest extends AbstractTestCase {
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getHeight());
-			assertEquals(130, x, 1);
-			assertEquals(126, y, 1);
+			assertEquals(132, x, 1);
+			assertEquals(128, y, 1);
 			assertEquals(24, box.getHeight(), 0);
 			return true;
 		}
@@ -53,8 +59,8 @@ public class LogicalVertRubyTest extends AbstractTestCase {
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getHeight());
-			assertEquals(135, x, 1);
-			assertEquals(126, y, 1);
+			assertEquals(137, x, 1);
+			assertEquals(128, y, 1);
 			assertEquals(24, box.getHeight(), 0);
 			return true;
 		}
@@ -64,8 +70,8 @@ public class LogicalVertRubyTest extends AbstractTestCase {
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getHeight());
-			assertEquals(116, x, 1);
-			assertEquals(43, y, 1);
+			assertEquals(118, x, 1);
+			assertEquals(45, y, 1);
 			assertEquals(24, box.getHeight(), 0);
 			return true;
 		}
@@ -75,8 +81,8 @@ public class LogicalVertRubyTest extends AbstractTestCase {
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x + "/" + y + "/" + box.getHeight());
-			assertEquals(57, x, 1);
-			assertEquals(126, y, 1);
+			assertEquals(60, x, 1);
+			assertEquals(128, y, 1);
 			assertEquals(24, box.getHeight(), 0);
 			return true;
 		}

@@ -61,7 +61,6 @@ import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.css.value.VisibilityValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJFirstHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJPageRefValue;
@@ -86,6 +85,7 @@ import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
 import net.zamasoft.foliojet.css.impl.property.table.EmptyCells;
 import net.zamasoft.foliojet.css.impl.property.font.FontSize;
+import net.zamasoft.foliojet.css.impl.property.box.BlockSize;
 import net.zamasoft.foliojet.css.impl.property.box.Height;
 import net.zamasoft.foliojet.css.impl.property.text.Hyphens;
 import net.zamasoft.foliojet.css.impl.property.text.LetterSpacing;
@@ -138,7 +138,6 @@ import net.zamasoft.foliojet.css.impl.property.text.TextStrokeWidth;
 import net.zamasoft.foliojet.css.impl.property.box.Transform;
 import net.zamasoft.foliojet.css.impl.property.box.TransformOrigin;
 import net.zamasoft.foliojet.css.impl.property.text.WordWrap;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
@@ -1746,16 +1745,10 @@ public class StyleBuilder implements PageGenerator {
 		style.set(CSSJRuby.INFO, CSSJRubyValue.RB_VALUE);
 		style.set(LineHeight.INFO, PercentageValue.FULL);
 		style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
-		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& BlockFlow.get(pStyle).isVertical())
-				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-			// 縦書き
-			style.set(Width.INFO, AbsoluteLengthValue.ZERO);
-		} else {
-			// 横書き
-			style.set(Height.INFO, AbsoluteLengthValue.ZERO);
-		}
+		// block-sizeを0にする(2026-07-20、-cssj-direction-mode廃止により
+		// 論理プロパティへ一本化。Width/Height.get()のblock-size
+		// フォールバックが実際の書字方向に応じて解決する)
+		style.set(BlockSize.INFO, AbsoluteLengthValue.ZERO);
 		this._startStyle(style);
 	}
 
@@ -2236,8 +2229,6 @@ public class StyleBuilder implements PageGenerator {
 				// 圏点
 				final char[] emc = em.toCharArray();
 				final boolean vert = BlockFlow.get(this.currentStyle).isVertical();
-				final boolean logVert = (CSSJDirectionMode.get(this.currentStyle) == CSSJDirectionModeValue.PHYSICAL
-						&& vert) || CSSJDirectionMode.get(this.currentStyle) == CSSJDirectionModeValue.VERTICAL_RL;
 				Value color = this.currentStyle.get(TextEmphasisColor.INFO);
 				if (color == KeywordValue.DEFAULT) {
 					color = this.currentStyle.get(CSSColor.INFO);
@@ -2259,7 +2250,7 @@ public class StyleBuilder implements PageGenerator {
 					et.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 					et.set(CSSColor.INFO, color);
 					et.set(FontSize.INFO, PercentageValue.HALF);
-					if (logVert) {
+					if (vert) {
 						et.set(Height.INFO, PercentageValue.FULL);
 						et.set(Inset.LEFT, EM_1_4);
 					} else {
@@ -2286,26 +2277,23 @@ public class StyleBuilder implements PageGenerator {
 		case PageBreakValue.PAGE_BREAK_ALWAYS:
 			return PageBreakMode.PAGE;
 		case PageBreakValue.PAGE_BREAK_LEFT:
-			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
-					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
+			// 2026-07-20、-cssj-direction-mode廃止によりrightSideのみで判定
+			if (this.rightSide) {
 				return PageBreakMode.RECTO;
 			}
 			return PageBreakMode.VERSO;
 		case PageBreakValue.PAGE_BREAK_RIGHT:
-			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
-					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
+			if (this.rightSide) {
 				return PageBreakMode.VERSO;
 			}
 			return PageBreakMode.RECTO;
 		case PageBreakValue.PAGE_BREAK_IF_LEFT:
-			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
-					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
+			if (this.rightSide) {
 				return PageBreakMode.IF_RECTO;
 			}
 			return PageBreakMode.IF_VERSO;
 		case PageBreakValue.PAGE_BREAK_IF_RIGHT:
-			if ((this.rightSide && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL)
-					|| CSSJDirectionMode.get(style) == CSSJDirectionModeValue.VERTICAL_RL) {
+			if (this.rightSide) {
 				return PageBreakMode.IF_VERSO;
 			}
 			return PageBreakMode.IF_RECTO;

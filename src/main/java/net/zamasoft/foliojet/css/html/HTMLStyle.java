@@ -45,7 +45,6 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.css.value.WhiteSpaceValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlTableBorderValue;
@@ -83,8 +82,10 @@ import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
 import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
 import net.zamasoft.foliojet.css.impl.property.box.Width;
+import net.zamasoft.foliojet.css.impl.property.box.BlockSize;
+import net.zamasoft.foliojet.css.impl.property.box.InlineSize;
+import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
@@ -342,22 +343,14 @@ public class HTMLStyle {
 	 * @param length
 	 */
 	private static void applyParagraphMargins(CSSStyle style, LengthValue length) {
-		if (style.getParentStyle() == null) {
+		final CSSStyle pStyle = style.getParentStyle();
+		if (pStyle == null) {
 			return;
 		}
-
-		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& BlockFlow.get(pStyle).isVertical())
-				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-			// 縦書き
-			style.set(Margin.LEFT, length);
-			style.set(Margin.RIGHT, length);
-		} else {
-			// 横書き
-			style.set(Margin.TOP, length);
-			style.set(Margin.BOTTOM, length);
-		}
+		// 段落マージンはblock-start/block-end両側(2026-07-20、
+		// -cssj-direction-mode廃止により論理プロパティへ一本化)
+		style.set(Margin.forSide(LogicalSide.BLOCK_START.toPhysical(pStyle)), length);
+		style.set(Margin.forSide(LogicalSide.BLOCK_END.toPhysical(pStyle)), length);
 	}
 
 	/**
@@ -1111,52 +1104,28 @@ public class HTMLStyle {
 				style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
 				style.set(BorderWidth.LEFT, border);
 
-				if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-						&& BlockFlow.get(pStyle).isVertical())
-						|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-					// 縦書き
-					if (size != null) {
-						style.set(Width.INFO, size);
-					}
-					if (width != null) {
-						style.set(Height.INFO, width);
-					}
-				} else {
-					// 横書き
-					if (size != null) {
-						style.set(Height.INFO, size);
-					}
-					if (width != null) {
-						style.set(Width.INFO, width);
-					}
+				// size(太さ)=block-size、width属性(長さ)=inline-size
+				// (2026-07-20、-cssj-direction-mode廃止により論理プロパティへ
+				// 一本化)
+				if (size != null) {
+					style.set(BlockSize.INFO, size);
+				}
+				if (width != null) {
+					style.set(InlineSize.INFO, width);
 				}
 			} else {
-				if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-						&& BlockFlow.get(pStyle).isVertical())
-						|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-					// 縦書き
-					style.set(BorderStyle.LEFT, BorderStyleValue.SOLID_VALUE);
-					if (size != null) {
-						style.set(BorderWidth.LEFT, size);
-					}
-					if (color != null) {
-						style.set(BorderColor.LEFT, color);
-					}
-					if (width != null) {
-						style.set(Height.INFO, width);
-					}
-				} else {
-					// 横書き
-					style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
-					if (size != null) {
-						style.set(BorderWidth.BOTTOM, size);
-					}
-					if (color != null) {
-						style.set(BorderColor.BOTTOM, color);
-					}
-					if (width != null) {
-						style.set(Width.INFO, width);
-					}
+				// 罫線を1辺だけ描く(block-end側。2026-07-20、
+				// -cssj-direction-mode廃止により論理プロパティへ一本化)
+				final Side blockEnd = pStyle != null ? LogicalSide.BLOCK_END.toPhysical(pStyle) : Side.BOTTOM;
+				style.set(BorderStyle.forSide(blockEnd), BorderStyleValue.SOLID_VALUE);
+				if (size != null) {
+					style.set(BorderWidth.forSide(blockEnd), size);
+				}
+				if (color != null) {
+					style.set(BorderColor.forSide(blockEnd), color);
+				}
+				if (width != null) {
+					style.set(InlineSize.INFO, width);
 				}
 			}
 
@@ -1499,16 +1468,9 @@ public class HTMLStyle {
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RB_VALUE);
 			style.set(LineHeight.INFO, RealValue.ONE);
 			style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
-			final CSSStyle pStyle = style.getParentStyle();
-			if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-					&& BlockFlow.get(pStyle).isVertical())
-					|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-				// 縦書き
-				style.set(Width.INFO, AbsoluteLengthValue.ZERO);
-			} else {
-				// 横書き
-				style.set(Height.INFO, AbsoluteLengthValue.ZERO);
-			}
+			// block-sizeを0にする(2026-07-20、-cssj-direction-mode廃止により
+			// 論理プロパティへ一本化)
+			style.set(BlockSize.INFO, AbsoluteLengthValue.ZERO);
 		}
 			break;
 		case HTMLCodes.RT: {
@@ -1518,18 +1480,13 @@ public class HTMLStyle {
 			style.set(LineHeight.INFO, RealValue.ONE);
 			style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
 			style.set(FontSize.INFO, PercentageValue.HALF);
+			// マージンはblock-start側、サイズはblock-sizeを0にする
+			// (2026-07-20、-cssj-direction-mode廃止により論理プロパティへ
+			// 一本化)
 			final CSSStyle pStyle = style.getParentStyle();
-			if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-					&& BlockFlow.get(pStyle).isVertical())
-					|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-				// 縦書き
-				style.set(Margin.RIGHT, _EM__9);
-				style.set(Width.INFO, AbsoluteLengthValue.ZERO);
-			} else {
-				// 横書き
-				style.set(Margin.TOP, _EM__9);
-				style.set(Height.INFO, AbsoluteLengthValue.ZERO);
-			}
+			final Side blockStart = pStyle != null ? LogicalSide.BLOCK_START.toPhysical(pStyle) : Side.TOP;
+			style.set(Margin.forSide(blockStart), _EM__9);
+			style.set(BlockSize.INFO, AbsoluteLengthValue.ZERO);
 		}
 			break;
 		case HTMLCodes.RP: {

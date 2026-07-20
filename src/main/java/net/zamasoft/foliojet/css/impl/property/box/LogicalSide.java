@@ -12,12 +12,12 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * ({@link BlockFlow})とdirection({@link Direction})の両方から物理的な辺
  * ({@link Side})への対応を解決します。
  * <p>
- * {@link Side#resolve}(物理プロパティの「回転」)との違いは2点:
- * (1) block軸だけでなくinline軸(方向性、RTLでの左右反転)も考慮する、
- * (2) {@code -cssj-direction-mode}(既定PHYSICAL=無回転)による無効化を
- * 受けない——CSS仕様上、論理プロパティは常にwriting-mode/directionに従って
- * 解決されるべきもので、foliojet4独自の「物理プロパティの回転」機能とは
- * 別の、常時有効な仕組みだからです(2026-07-19実装)。
+ * {@link Side}自体はもはや辺の回転を行わない({@code Side.resolve()}は
+ * 2026-07-20に恒等写像へ簡略化済み、foliojet4独自の物理プロパティ「回転」
+ * 機構{@code -cssj-direction-mode}を廃止したため)。{@link LogicalSide}は
+ * それとは別に、block軸だけでなくinline軸(方向性、RTLでの左右反転)も
+ * 考慮して物理側を解決する、CSS仕様どおりの論理プロパティ機構です
+ * (2026-07-19実装)。
  * </p>
  */
 public enum LogicalSide {

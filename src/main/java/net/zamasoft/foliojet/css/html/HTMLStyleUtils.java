@@ -20,7 +20,6 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.VerticalAlignValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundImage;
@@ -32,8 +31,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Height;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
 import net.zamasoft.foliojet.css.impl.property.box.Width;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
+import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -132,15 +130,14 @@ public final class HTMLStyleUtils {
 	 */
 	static void applyListMargins(CSSStyle style, LengthValue length) {
 		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& BlockFlow.get(pStyle).isVertical())
-				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-			// 縦書き
-			style.set(Margin.TOP, length);
-		} else {
-			// 横書き
+		if (pStyle == null) {
+			// 親が無い(ルート要素)場合は従来どおり横書き扱い
 			style.set(Margin.LEFT, length);
+			return;
 		}
+		// リストのインデントはinline-start側のマージン(2026-07-20、
+		// -cssj-direction-mode廃止により論理プロパティへ一本化)
+		style.set(Margin.forSide(LogicalSide.INLINE_START.toPhysical(pStyle)), length);
 	}
 
 	/**
@@ -151,17 +148,16 @@ public final class HTMLStyleUtils {
 	 */
 	static void applyQuoteMargins(CSSStyle style, LengthValue length) {
 		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle != null && ((CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.PHYSICAL
-				&& BlockFlow.get(pStyle).isVertical())
-				|| CSSJDirectionMode.get(pStyle) == CSSJDirectionModeValue.VERTICAL_RL)) {
-			// 縦書き
-			style.set(Margin.TOP, length);
-			style.set(Margin.BOTTOM, length);
-		} else {
-			// 横書き
+		if (pStyle == null) {
+			// 親が無い(ルート要素)場合は従来どおり横書き扱い
 			style.set(Margin.LEFT, length);
 			style.set(Margin.RIGHT, length);
+			return;
 		}
+		// 引用ブロックのインデントはinline-start/inline-end両側のマージン
+		// (2026-07-20、-cssj-direction-mode廃止により論理プロパティへ一本化)
+		style.set(Margin.forSide(LogicalSide.INLINE_START.toPhysical(pStyle)), length);
+		style.set(Margin.forSide(LogicalSide.INLINE_END.toPhysical(pStyle)), length);
 	}
 
 	/**

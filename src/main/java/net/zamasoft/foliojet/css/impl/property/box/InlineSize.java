@@ -17,8 +17,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * inline-size 特性(論理プロパティ)です。writing-modeにより width か
- * height のいずれかに対応します(常時有効。{@code -cssj-direction-mode}
- * による無効化は受けません——{@link LogicalSide}参照)。
+ * height のいずれかに対応します。
  */
 public final class InlineSize extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new InlineSize();

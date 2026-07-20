@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css.impl.property.box;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -13,18 +11,17 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 
 /**
- * 
+ * 2026-07-20: {@code -cssj-direction-mode}廃止に伴い、縦書き時のx/y軸
+ * 入れ替え(実世界のCSS/ブラウザには存在しない挙動)を削除した。
+ * transform-originは常に物理座標のまま扱う。
+ *
  * @author MIYABE Tatsuhiko
  */
 public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
@@ -37,41 +34,6 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 	public static Offset get(CSSStyle style) {
 		Value xValue = style.get(INFO_X);
 		Value yValue = style.get(INFO_Y);
-		switch (CSSJDirectionMode.get(style)) {
-		case CSSJDirectionModeValue.HORIZONTAL_TB:
-			// 縦書き
-			switch (BlockFlow.get(style)) {
-			case WritingMode.RL:
-				if (yValue instanceof PercentageValue y) {
-					yValue = PercentageValue.create(100 - y.getPercentage());
-				}
-			case WritingMode.LR: {
-				Value x = xValue;
-				xValue = yValue;
-				yValue = x;
-			}
-				break;
-			default:
-				break;
-			}
-		case CSSJDirectionModeValue.VERTICAL_RL:
-			// 縦書き
-			switch (BlockFlow.get(style)) {
-			case WritingMode.TB:
-				if (yValue instanceof PercentageValue y) {
-					yValue = PercentageValue.create(100 - y.getPercentage());
-				}
-				Value x = xValue;
-				xValue = yValue;
-				yValue = x;
-				break;
-			default:
-				break;
-			}
-		default:
-			break;
-		}
-
 		return BoxValueUtils.toOffset(xValue, yValue);
 	}
 

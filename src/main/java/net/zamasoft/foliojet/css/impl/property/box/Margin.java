@@ -52,6 +52,14 @@ public final class Margin extends AbstractPrimitivePropertyInfo {
 		return LogicalSide.resolve(style, side, BY_SIDE, BY_LOGICAL_SIDE);
 	}
 
+	/**
+	 * 物理的な辺に対応するmarginプロパティを返します(2026-07-20、
+	 * UAデフォルトスタイルの論理プロパティ一本化用)。
+	 */
+	public static Margin forSide(Side side) {
+		return BY_SIDE[side.ordinal()];
+	}
+
 	public Value getDefault(CSSStyle style) {
 		return AbsoluteLengthValue.ZERO;
 	}

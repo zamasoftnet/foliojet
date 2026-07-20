@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css.impl.property.background;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -11,62 +9,22 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.BackgroundRepeatValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.layout.box.params.BackgroundImage;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
+ * 2026-07-20: {@code -cssj-direction-mode}廃止に伴い、縦書き時のX/Y入れ替え
+ * (実世界のCSS/ブラウザには存在しない挙動)を削除した。background-repeatは
+ * 常に物理軸のまま扱う。
+ *
  * @author MIYABE Tatsuhiko
  */
 public class BackgroundRepeat extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundRepeat();
 
 	public static byte get(CSSStyle style) {
-		byte repeat = ((BackgroundRepeatValue) style.get(INFO)).getBackgroundRepeat();
-		switch (CSSJDirectionMode.get(style)) {
-		case CSSJDirectionModeValue.HORIZONTAL_TB:
-			// 縦書き
-			switch (BlockFlow.get(style)) {
-			case WritingMode.RL:
-			case WritingMode.LR:
-				switch (repeat) {
-				case BackgroundImage.REPEAT_X:
-					repeat = BackgroundImage.REPEAT_Y;
-					break;
-				case BackgroundImage.REPEAT_Y:
-					repeat = BackgroundImage.REPEAT_X;
-					break;
-				}
-				break;
-			default:
-				break;
-			}
-		case CSSJDirectionModeValue.VERTICAL_RL:
-			// 縦書き
-			switch (BlockFlow.get(style)) {
-			case WritingMode.TB:
-				switch (repeat) {
-				case BackgroundImage.REPEAT_X:
-					repeat = BackgroundImage.REPEAT_Y;
-					break;
-				case BackgroundImage.REPEAT_Y:
-					repeat = BackgroundImage.REPEAT_X;
-					break;
-				}
-				break;
-			default:
-				break;
-			}
-		default:
-			break;
-		}
-
-		return repeat;
+		return ((BackgroundRepeatValue) style.get(INFO)).getBackgroundRepeat();
 	}
 
 	protected BackgroundRepeat() {

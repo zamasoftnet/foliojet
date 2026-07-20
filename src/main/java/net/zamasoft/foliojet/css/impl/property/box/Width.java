@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css.impl.property.box;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -11,9 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
@@ -33,55 +29,21 @@ public class Width extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Width();
 
 	public static Value get(CSSStyle style) {
-		PrimitivePropertyInfo info;
 		boolean image = CSSJInternalImage.getImage(style) != null;
-		if (image) {
-			// 画像には回転を適用しない
-			info = INFO;
-		} else {
-			// 回転(-cssj-direction-mode。既定PHYSICALでは無効)
-			switch (CSSJDirectionMode.get(style)) {
-			case CSSJDirectionModeValue.PHYSICAL:
-				info = INFO;
-				break;
-			case CSSJDirectionModeValue.HORIZONTAL_TB:
-				switch (BlockFlow.get(style)) {
-				case WritingMode.RL:
-				case WritingMode.LR:
-					info = Height.INFO;
-					break;
-				default:
-					info = INFO;
-					break;
-				}
-				break;
-			case CSSJDirectionModeValue.VERTICAL_RL:
-				switch (BlockFlow.get(style)) {
-				case WritingMode.TB:
-					info = Height.INFO;
-					break;
-				default:
-					info = INFO;
-					break;
-				}
-				break;
-			default:
-				throw new IllegalStateException();
-			}
+		if (style.isDeclared(INFO)) {
+			return style.get(INFO);
 		}
-		if (style.isDeclared(info)) {
-			return style.get(info);
-		}
-		// -cssj-direction-modeによる回転(foliojet4独自・既定無効)が効いていない
-		// 場合のみ、標準の論理プロパティinline-size/block-sizeをフォールバックとして
-		// 見る(両方の仕組みを重ねると解釈が曖昧になるため。docs/PLAN.md参照)。
-		if (!image && CSSJDirectionMode.get(style) == CSSJDirectionModeValue.PHYSICAL) {
+		// widthが明示指定されていなければ、標準の論理プロパティ
+		// inline-size/block-sizeをフォールバックとして見る(画像には
+		// 適用しない。2026-07-20、-cssj-direction-mode廃止によりinline-size/
+		// block-sizeへ一本化)。
+		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? BlockSize.INFO : InlineSize.INFO;
 			if (style.isDeclared(logicalInfo)) {
 				return style.get(logicalInfo);
 			}
 		}
-		return style.get(info);
+		return style.get(INFO);
 	}
 
 	public static Length getLength(CSSStyle style) {

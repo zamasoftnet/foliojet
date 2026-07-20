@@ -1,15 +1,17 @@
 package net.zamasoft.foliojet.css.impl.property.box;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import net.zamasoft.foliojet.css.CSSStyle;
-import net.zamasoft.foliojet.css.value.ext.CSSJDirectionModeValue;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
- * ボックスの4辺です。縦書き時の論理→物理の回転を担います。
+ * ボックスの4辺です。
+ *
+ * <p>
+ * 2026-07-20: 独自拡張{@code -cssj-direction-mode}による「物理プロパティの
+ * 回転」機構は廃止した(実世界のCSS/ブラウザには存在しない挙動であり、
+ * 縦書き対応は標準の論理プロパティ({@link LogicalSide})へ一本化した)。
+ * {@link #resolve}は後方互換のため残すが、常に{@code this}を返す
+ * (無回転)。
+ * </p>
  */
 public enum Side {
 	TOP("top"), RIGHT("right"), BOTTOM("bottom"), LEFT("left");
@@ -24,38 +26,10 @@ public enum Side {
 		return this.text;
 	}
 
-	// 並び順: TOP, RIGHT, BOTTOM, LEFT
-	private static final Side[] HTB_RL = { LEFT, TOP, RIGHT, BOTTOM };
-
-	private static final Side[] HTB_LR = { LEFT, BOTTOM, RIGHT, TOP };
-
-	private static final Side[] VRL_TB = { RIGHT, BOTTOM, LEFT, TOP };
-
 	/**
-	 * 書字方向を考慮して、実際に参照すべき辺を返します(従来の「回転」処理)。
+	 * 物理的な辺をそのまま返します(回転なし)。
 	 */
 	public Side resolve(CSSStyle style) {
-		switch (CSSJDirectionMode.get(style)) {
-		case CSSJDirectionModeValue.PHYSICAL:
-			return this;
-		case CSSJDirectionModeValue.HORIZONTAL_TB:
-			switch (BlockFlow.get(style)) {
-			case WritingMode.RL:
-				return HTB_RL[this.ordinal()];
-			case WritingMode.LR:
-				return HTB_LR[this.ordinal()];
-			default:
-				return this;
-			}
-		case CSSJDirectionModeValue.VERTICAL_RL:
-			switch (BlockFlow.get(style)) {
-			case WritingMode.TB:
-				return VRL_TB[this.ordinal()];
-			default:
-				return this;
-			}
-		default:
-			throw new IllegalStateException();
-		}
+		return this;
 	}
 }

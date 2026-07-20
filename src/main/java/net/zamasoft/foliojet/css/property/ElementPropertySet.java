@@ -97,7 +97,6 @@ import net.zamasoft.foliojet.css.impl.property.box.TransformOrigin;
 import net.zamasoft.foliojet.css.impl.property.text.WordBreak;
 import net.zamasoft.foliojet.css.impl.property.text.WordWrap;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJBreakCharacters;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJDirectionMode;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJFontPolicy;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJNoBreakCharacters;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
@@ -374,7 +373,6 @@ public final class ElementPropertySet extends PropertySet {
 
 		// Extensions
 		reg(CSSJFontPolicy.INFO);
-		reg(CSSJDirectionMode.INFO);
 		reg(CSSJRuby.INFO);
 		reg(CSSJBreakCharacters.INFO);
 		reg(CSSJNoBreakCharacters.INFO);

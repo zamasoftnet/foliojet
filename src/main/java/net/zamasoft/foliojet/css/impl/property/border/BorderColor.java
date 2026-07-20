@@ -44,6 +44,14 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 		return ((ColorValue) value).getColor();
 	}
 
+	/**
+	 * 物理的な辺に対応するborder-colorプロパティを返します(2026-07-20、
+	 * UAデフォルトスタイルの論理プロパティ一本化用)。
+	 */
+	public static BorderColor forSide(Side side) {
+		return BY_SIDE[side.ordinal()];
+	}
+
 	public Value getDefault(CSSStyle style) {
 		return KeywordValue.DEFAULT;
 	}
