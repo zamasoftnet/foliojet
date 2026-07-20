@@ -6,6 +6,7 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractTextBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IInlineBox;
@@ -242,8 +243,9 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		}
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			java.util.Deque<DrawStep> worklist) {
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), GrayColor.create(.7f));
 			drawer.visitDrawable(drawable, x, y);
@@ -283,7 +285,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			}
 
 			// 内部のテキスト・インラインを描画
-			super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+			super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 		}
 	}
 

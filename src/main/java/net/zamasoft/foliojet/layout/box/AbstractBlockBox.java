@@ -5,6 +5,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
+import java.util.Deque;
 
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
@@ -122,8 +123,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		assert !LayoutUtils.isNone(this.height);
 	}
 
-	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y) {
+	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist) {
 		// SPEC CSS 2.1 9.9.1 #1
 		x += this.offsetX;
 		y += this.offsetY;
@@ -149,12 +150,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		this.container.drawFlowFrames(pageBox, drawer, clip, transform, x, y);
+		this.container.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
 	
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, final Deque<DrawStep> worklist) {
 		x += this.offsetX;
 		y += this.offsetY;
 		assert !LayoutUtils.isNone(x);
@@ -187,14 +188,16 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// untagged or non-PDF; deduplicated per element by PageBox.
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 
-		this.container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-		this.container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-		if (!contextBox) {
-			clip = null;
-		}
-		this.container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-
-		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
+		final Shape absolutesClip = contextBox ? clip : null;
+		final double fx = x, fy = y;
+		// 元の実行順(floatings→flows→absolutes→endStruct)を保つため、
+		// スタックへは逆順でpushする
+		worklist.push(w -> pageBox.endStruct(drawer, this.params.element, structCount, fx, fy));
+		this.container.pushDrawAbsolutes(pageBox, drawer, visitor, absolutesClip, transform, contextX, contextY, x, y,
+				worklist);
+		this.container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
+		this.container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
+				worklist);
 	}
 
 	/**

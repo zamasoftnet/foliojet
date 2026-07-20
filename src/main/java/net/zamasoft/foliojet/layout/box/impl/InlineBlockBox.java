@@ -5,6 +5,7 @@ import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IInlineBox;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
@@ -49,8 +50,8 @@ public class InlineBlockBox extends AbstractStaticBlockBox implements IInlineBox
 		return this.pos;
 	}
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			Drawer newDrawer = new Drawer(this.params.zIndexValue);
 			drawer.visitDrawer(newDrawer);
@@ -58,7 +59,7 @@ public class InlineBlockBox extends AbstractStaticBlockBox implements IInlineBox
 		}
 
 		this.frames(pageBox, drawer, clip, transform, x, y);
-		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {

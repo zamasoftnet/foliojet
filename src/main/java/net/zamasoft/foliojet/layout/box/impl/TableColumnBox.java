@@ -7,7 +7,10 @@ import java.util.Deque;
 
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
@@ -60,7 +63,8 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		// ignore(リーフ)
 	}
 
-	public void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x, double y) {
+	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist) {
 		if (this.params.opacity == 0) {
 			return;
 		}
@@ -72,7 +76,7 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		drawer.visitDrawable(drawable, x, y);
 	}
 
-	public final void getText(final StringBuilder textBuff) {
+	public final void pushGetTextSteps(final StringBuilder textBuff, Deque<GetTextStep> worklist) {
 		// ignore
 	}
 
@@ -81,8 +85,8 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		// ignore
 	}
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist) {
 		visitor.visitBox(transform, this, drawer, x, y);
 	}
 

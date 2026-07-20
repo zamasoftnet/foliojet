@@ -17,8 +17,12 @@ import java.util.Deque;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IBox;
+import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
@@ -441,20 +445,21 @@ public class FlowContainer implements Container {
 		}
 	}
 
-	public final void drawFlowFrames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y) {
+	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist) {
 		if (this.flows == null) {
 			return;
 		}
 		switch (this.box.getBlockParams().flow) {
 		case WritingMode.TB:
 			// 横書き
-			// 通常のフロー
-			for (int i = 0; i < this.flows.size(); ++i) {
+			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				Flow c = (Flow) this.flows.get(i);
 				if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
 					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
-					blockBox.frames(pageBox, drawer, clip, transform, x, y + c.pageAxis);
+					worklist.push(AbstractContainerBox.framesStep(blockBox, pageBox, drawer, clip, transform, x,
+							y + c.pageAxis));
 				}
 			}
 			break;
@@ -462,12 +467,13 @@ public class FlowContainer implements Container {
 		case WritingMode.LR:
 			// 縦書き
 			x += this.box.getInnerWidth();
-			for (int i = 0; i < this.flows.size(); ++i) {
+			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				// 通常のフロー
 				Flow c = (Flow) this.flows.get(i);
 				if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
 					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
-					blockBox.frames(pageBox, drawer, clip, transform, x - c.pageAxis + -blockBox.getWidth(), y);
+					worklist.push(AbstractContainerBox.framesStep(blockBox, pageBox, drawer, clip, transform,
+							x - c.pageAxis + -blockBox.getWidth(), y));
 				}
 			}
 			break;
@@ -476,29 +482,31 @@ public class FlowContainer implements Container {
 		}
 	}
 
-	public final void drawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		if (this.flows == null) {
 			return;
 		}
 		switch (this.box.getBlockParams().flow) {
 		case WritingMode.TB:
 			// 横書き
-			// 通常のフロー
-			for (int i = 0; i < this.flows.size(); ++i) {
+			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				Flow c = (Flow) this.flows.get(i);
-				c.box.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y + c.pageAxis);
+				worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY, x,
+						y + c.pageAxis));
 			}
 			break;
 		case WritingMode.RL:
 		case WritingMode.LR:
 			// 縦書き
 			x += this.box.getInnerWidth();
-			for (int i = 0; i < this.flows.size(); ++i) {
+			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				// 通常のフロー
 				Flow c = (Flow) this.flows.get(i);
-				c.box.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-						x - c.pageAxis - c.box.getWidth(), y);
+				worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
+						x - c.pageAxis - c.box.getWidth(), y));
 			}
 			break;
 		default:
@@ -506,28 +514,29 @@ public class FlowContainer implements Container {
 		}
 	}
 
-	public final void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
+	public final void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x,
+			double y, Deque<TextShapeStep> worklist) {
 		if (this.flows == null) {
 			return;
 		}
 		switch (this.box.getBlockParams().flow) {
 		case WritingMode.TB:
 			// 横書き
-			// 通常のフロー
-			for (int i = 0; i < this.flows.size(); ++i) {
+			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				Flow c = (Flow) this.flows.get(i);
-				c.box.textShape(pageBox, path, transform, x, y + c.pageAxis);
+				worklist.push(IBox.textShapeStep(c.box, pageBox, path, transform, x, y + c.pageAxis));
 			}
 			break;
 		case WritingMode.RL:
 		case WritingMode.LR:
 			// 縦書き
 			x += this.box.getInnerWidth();
-			for (int i = 0; i < this.flows.size(); ++i) {
+			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				// 通常のフロー
 				Flow c = (Flow) this.flows.get(i);
-				c.box.textShape(pageBox,
-						path, transform, x - c.pageAxis - c.box.getWidth(), y);
+				worklist.push(
+						IBox.textShapeStep(c.box, pageBox, path, transform, x - c.pageAxis - c.box.getWidth(), y));
 			}
 			break;
 		default:
@@ -535,20 +544,23 @@ public class FlowContainer implements Container {
 		}
 	}
 
-	public final void drawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
-			AffineTransform transform, double contextX, double contextY, double x, double y) {
+	public final void pushDrawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		if (this.floatings == null) {
 			return;
 		}
-		this.floatings.draw(this.box, pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		this.floatings.pushDraw(this.box, pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
+				worklist);
 	}
 
-	public final void drawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
-			AffineTransform transform, double contextX, double contextY, double x, double y) {
+	public final void pushDrawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		if (this.absolutes == null) {
 			return;
 		}
-		this.absolutes.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		this.absolutes.pushDraw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
 	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
@@ -1075,14 +1087,15 @@ public class FlowContainer implements Container {
 		return nextBox;
 	}
 
-	public final void getText(StringBuilder textBuff) {
+	public final void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {
 		if (this.flows == null) {
 			return;
 		}
-		for (int i = 0; i < this.flows.size(); ++i) {
+		// 元の走査順を保つため、スタックへは逆順でpushする
+		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			// 通常のフロー
 			Flow c = (Flow) this.flows.get(i);
-			c.box.getText(textBuff);
+			worklist.push(IBox.getTextStep(c.box, textBuff));
 		}
 	}
 

@@ -12,6 +12,7 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.content.Container;
@@ -228,8 +229,9 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		return true;
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			java.util.Deque<DrawStep> worklist) {
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			Drawer newDrawer = new Drawer(this.params.zIndexValue);
 			drawer.visitDrawer(newDrawer);
@@ -237,7 +239,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		}
 
 		this.frames(pageBox, drawer, clip, transform, x, y);
-		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {

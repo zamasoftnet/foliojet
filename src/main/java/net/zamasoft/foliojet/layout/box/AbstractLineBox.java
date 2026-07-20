@@ -205,8 +205,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		this.contents = newContents;
 	}
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		switch (this.getLineParams().flow) {
 		case WritingMode.TB:
 			// 横書き
@@ -224,14 +224,19 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		}
 
 		visitor.visitBox(transform, this, drawer, x, y);
-		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), GrayColor.create(.5f));
-			drawer.visitDrawable(drawable, x, y);
+			// super(子)の描画より後に見えるよう、先にpushして最後にpopされるようにする
+			final double fx = x, fy = y;
+			worklist.push(w -> {
+				Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), GrayColor.create(.5f));
+				drawer.visitDrawable(drawable, fx, fy);
+			});
 		}
+		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+			java.util.Deque<TextShapeStep> worklist) {
 		switch (this.getLineParams().flow) {
 		case WritingMode.TB:
 			// 横書き
@@ -247,6 +252,6 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		default:
 			throw new IllegalStateException();
 		}
-		super.textShape(pageBox, path, transform, x, y);
+		super.pushTextShapeSteps(pageBox, path, transform, x, y, worklist);
 	}
 }

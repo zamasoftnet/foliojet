@@ -5,9 +5,12 @@ import net.zamasoft.foliojet.layout.box.params.Fiducial;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
@@ -74,24 +77,36 @@ public class Absolutes {
 		this.absolutes.add(absolute);
 	}
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	/**
+	 * drawの反復化(2026-07-20、IBox.drawと同じ理由)。固定配置ボックスの
+	 * 登録(pageBox.addFixed)はこの場のDrawer列に描画を加えず、別ページ
+	 * サイクルで扱われるため、走査順に関係なく即座に行ってよい。context
+	 * 配置のボックスの描画手順だけを、元の走査順のまま**逆順**で
+	 * {@code worklist}へ積む(逆順走査により、削除時のインデックス補正が
+	 * 不要になる)。
+	 */
+	public void pushDraw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist) {
 		assert !LayoutUtils.isNone(x) : "Undefined x";
 		assert !LayoutUtils.isNone(y) : "Undefined y";
 		if (this.absolutes == null) {
 			return;
 		}
-		for (int i = 0; i < this.absolutes.size(); ++i) {
-			Absolute c = (Absolute) this.absolutes.get(i);
-			double xx = LayoutUtils.isNone(c.x) ? contextX : x + c.x;
-			double yy = LayoutUtils.isNone(c.y) ? contextY : y + c.y;
+		for (int i = this.absolutes.size() - 1; i >= 0; --i) {
+			final Absolute c = (Absolute) this.absolutes.get(i);
+			final double xx = LayoutUtils.isNone(c.x) ? contextX : x + c.x;
+			final double yy = LayoutUtils.isNone(c.y) ? contextY : y + c.y;
 			if (c.box.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
-				// 固定配置
-				pageBox.addFixed(drawer, visitor, c.box, xx, yy);
+				// 固定配置。登録・初回描画(pageBox.addFixed)は他の項目との
+				// 相対順序を保つため、リストからの除去だけ即座に行い、
+				// 実際の登録・描画はworklistへ積んで遅延させる(2026-07-20、
+				// FixedOrderTest回帰で発見: 即座に描画すると、混在する
+				// 非固定配置の項目より先に描画されてしまい元の走査順が崩れる)
 				this.absolutes.remove(i);
-				--i;
+				worklist.push(w -> pageBox.addFixed(drawer, visitor, c.box, xx, yy));
 			} else {
-				c.box.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yy);
+				worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY, xx,
+						yy));
 			}
 		}
 	}

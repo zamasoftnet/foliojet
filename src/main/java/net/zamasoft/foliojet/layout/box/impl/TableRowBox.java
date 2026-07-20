@@ -11,8 +11,12 @@ import java.util.List;
 import java.util.Deque;
 
 import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
@@ -194,8 +198,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		}
 	}
 
-	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y) {
+	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist) {
 		if (this.params.opacity == 0) {
 			return;
 		}
@@ -207,27 +211,43 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
+		// セルの描画対象と座標を先に(副作用なく)計算してから、元の走査順を
+		// 保つため**逆順**でpushする
+		final int n = this.cells.size();
+		final TableCellBox[] sourceCells = new TableCellBox[n];
+		final double[] xs = new double[n];
+		final double[] ys = new double[n];
+		int count = 0;
 		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
-			for (int i = 0; i < this.cells.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
-					cellBox.frames(pageBox, drawer, clip, transform, x - cellBox.getWidth() + this.pageSize, y);
+					sourceCells[count] = cellBox;
+					xs[count] = x - cellBox.getWidth() + this.pageSize;
+					ys[count] = y;
+					++count;
 				}
 				y += cellBox.getHeight();
 			}
 		} else {
 			// 横書き
-			for (int i = 0; i < this.cells.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
-					cellBox.frames(pageBox, drawer, clip, transform, x, y);
-
+					sourceCells[count] = cellBox;
+					xs[count] = x;
+					ys[count] = y;
+					++count;
 				}
 				x += cellBox.getWidth();
 			}
+		}
+		for (int i = count - 1; i >= 0; --i) {
+			worklist.push(
+					AbstractContainerBox.framesStep(sourceCells[i], pageBox, drawer, clip, transform, xs[i], ys[i]));
 		}
 	}
 
@@ -265,8 +285,9 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		}
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			java.util.Deque<DrawStep> worklist) {
 		visitor.visitBox(transform, this, drawer, x, y);
 
 		if (this.params.opacity == 0) {
@@ -296,40 +317,57 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			return;
 		}
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
+		// セルの描画対象と座標を先に(副作用なく)計算してから、元の走査順を
+		// 保つため**逆順**でpushする
+		final int n = this.cells.size();
+		final TableCellBox[] sourceCells = new TableCellBox[n];
+		final double[] drawXs = new double[n];
+		final double[] drawYs = new double[n];
+		int sourceCount = 0;
 		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
-			for (int i = 0; i < this.cells.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource()) {
-					cellBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-							x - cellBox.getWidth() + this.pageSize, y);
-
+					sourceCells[sourceCount] = cellBox;
+					drawXs[sourceCount] = x - cellBox.getWidth() + this.pageSize;
+					drawYs[sourceCount] = y;
+					++sourceCount;
 				}
 				y += cellBox.getHeight();
 			}
 		} else {
 			// 横書き
-			for (int i = 0; i < this.cells.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource()) {
-					cellBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-
+					sourceCells[sourceCount] = cellBox;
+					drawXs[sourceCount] = x;
+					drawYs[sourceCount] = y;
+					++sourceCount;
 				}
 				x += cellBox.getWidth();
 			}
 		}
-		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
+		final Drawer fdrawer = drawer;
+		final double fx = x, fy = y;
+		worklist.push(w -> pageBox.endStruct(fdrawer, this.params.element, structCount, fx, fy));
+		for (int i = sourceCount - 1; i >= 0; --i) {
+			worklist.push(IBox.drawStep(sourceCells[i], pageBox, drawer, visitor, clip, transform, contextX,
+					contextY, drawXs[i], drawYs[i]));
+		}
 	}
 
-	public final void getText(StringBuilder textBuff) {
+	public final void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {
 		if (this.cells == null) {
 			return;
 		}
-		for (int i = 0; i < this.cells.size(); ++i) {
+		// 元の走査順を保つため、スタックへは逆順でpushする
+		for (int i = this.cells.size() - 1; i >= 0; --i) {
 			Cell cell = (Cell) this.cells.get(i);
-			cell.getCellBox().getText(textBuff);
+			worklist.push(IBox.getTextStep(cell.getCellBox(), textBuff));
 		}
 	}
 

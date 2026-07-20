@@ -35,12 +35,21 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  *
  * <p>
- * 深さ700は、この修正で本来無制限になった{@code finishLayout}自体の限界
- * ではなく、**別の**既知の課題({@code AbstractContainerBox.draw}系の
- * 描画走査。まだ同種のポリモーフィック再帰のまま — RELIABILITY-PLAN.md
- * 台帳参照)による現状の実質上限。深さ1500では draw 側で
- * {@code StackOverflowError}が再現することを確認済み(finishLayout側では
- * ない)。draw系の反復化は本修正の対象外(別立て設計サイクル)。
+ * 2026-07-20時点の追記: 当初この修正直後は{@code AbstractContainerBox.draw}
+ * 系(draw/drawFlows/drawFloatings/drawAbsolutes)がまだポリモーフィックな
+ * 相互再帰のままで、深さ1500で**別の**{@code StackOverflowError}に到達する
+ * ことを確認していた(finishLayout自体は無制限に解消済み)。その後、
+ * frames({@link net.zamasoft.foliojet.layout.box.FramesStep})・
+ * draw({@link net.zamasoft.foliojet.layout.box.DrawStep})・
+ * textShape({@link net.zamasoft.foliojet.layout.box.TextShapeStep})・
+ * getText({@link net.zamasoft.foliojet.layout.box.GetTextStep})の
+ * 4系統も同じ反復化パターンで解消したため、このテストの深さを
+ * 5000まで引き上げても成功することを確認済み。**未解消**なのは
+ * {@code restyle}系(継続機構=BlockBuilderの状態機械と深く絡み合うため
+ * 別途じっくり設計する必要がある、2026-07-20ユーザー判断)のみ
+ * (RELIABILITY-PLAN.md台帳参照)。この境界テストはページ分割を
+ * 誘発しない構成(下記generateDeeplyNestedDivs参照)のため、restyle系は
+ * 経路に入らず引き続き検証対象外。
  * </p>
  */
 public class DeepNestingLayoutTest extends TestCase {
@@ -53,13 +62,14 @@ public class DeepNestingLayoutTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * finishLayoutの反復化で解消した深さ(未修正時は1000段前後で
-	 * StackOverflowErrorしていた)を上回る深さで、レイアウトから
+	 * finishLayout・frames・draw・textShape・getTextの反復化で解消した深さ
+	 * (未修正時はfinishLayoutが1000段前後、drawが1500段前後で
+	 * StackOverflowErrorしていた)を大きく上回る深さで、レイアウトから
 	 * PDF出力までが完了することを確認する。
 	 */
 	public void testDeeplyNestedDivsLayoutWithoutStackOverflow() throws Exception {
-		final File doc = generateDeeplyNestedDivs("deep-nesting-700", 700);
-		final File pdf = new File("local/unittest/display-list/deep-nesting-700.pdf");
+		final File doc = generateDeeplyNestedDivs("deep-nesting-5000", 5000);
+		final File pdf = new File("local/unittest/display-list/deep-nesting-5000.pdf");
 		pdf.getParentFile().mkdirs();
 		try (OutputStream out = new FileOutputStream(pdf)) {
 			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);

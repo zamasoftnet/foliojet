@@ -301,19 +301,21 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 	}
 
-	public final void getText(final StringBuilder textBuff) {
+	public final void pushGetTextSteps(final StringBuilder textBuff, java.util.Deque<GetTextStep> worklist) {
 		String str = this.getReplacedParams().image.getAltString();
 		if (str != null) {
 			textBuff.append(str);
 		}
 	}
 	
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d,
+			java.util.Deque<TextShapeStep> worklist) {
 		// ignore
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			java.util.Deque<DrawStep> worklist) {
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			Drawer newDrawer = new Drawer(this.params.zIndexValue);
 			drawer.visitDrawer(newDrawer);

@@ -7,8 +7,12 @@ import java.awt.geom.GeneralPath;
 import java.util.Deque;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
+import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
@@ -61,17 +65,33 @@ public interface Container {
 	 */
 	public void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist);
 
-	public void drawFlowFrames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y);
+	/**
+	 * framesの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。通常フローの
+	 * 子の枠描画手順を、元の走査順のまま**逆順**で{@code worklist}へ積みます。
+	 */
+	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist);
 
-	public void drawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y);
+	/**
+	 * drawの反復化(2026-07-20、IBox.drawと同じ理由)。通常フローの子の
+	 * 描画手順を、元の走査順のまま**逆順**で{@code worklist}へ積みます。
+	 */
+	public void pushDrawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist);
 
-	public void drawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y);
+	/**
+	 * 浮動ボックスについての{@link #pushDrawFlows}相当です。
+	 */
+	public void pushDrawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist);
 
-	public void drawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y);
+	/**
+	 * 絶対配置ボックスについての{@link #pushDrawFlows}相当です。
+	 */
+	public void pushDrawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist);
 
 	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags);
 
@@ -79,9 +99,19 @@ public interface Container {
 
 	public Floatings splitFloatings(double pageLimit, byte flags);
 
-	public void getText(StringBuilder textBuff);
+	/**
+	 * getTextの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。子の
+	 * テキスト抽出手順を、元の走査順のまま**逆順**で{@code worklist}へ
+	 * 積みます。
+	 */
+	public void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist);
 
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y);
+	/**
+	 * textShapeの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。子の
+	 * 輪郭手順を{@code worklist}へ積みます。
+	 */
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+			Deque<TextShapeStep> worklist);
 
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
 			boolean restyleAbsolutes);

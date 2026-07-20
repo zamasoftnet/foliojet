@@ -4,6 +4,7 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.layout.box.AbstractLineBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
@@ -43,15 +44,16 @@ public class FirstLineBox extends AbstractLineBox {
 		return false;
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			java.util.Deque<DrawStep> worklist) {
 		// 背景は最初の行だけ描画する
 		if (this.params.opacity != 0 && this.params.background.isVisible()) {
 			Drawable drawable = new BackgroundDrawable(pageBox, clip, this.params.opacity, transform,
 					this.params.background, this.getWidth(), this.getHeight());
 			drawer.visitDrawable(drawable, x, y);
 		}
-		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
 	public String toString() {

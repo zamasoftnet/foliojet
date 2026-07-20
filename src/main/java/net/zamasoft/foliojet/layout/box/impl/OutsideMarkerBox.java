@@ -6,6 +6,7 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -46,13 +47,13 @@ public class OutsideMarkerBox extends InlineBlockBox {
 		}
 	}
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		if (this.params.flow.isVertical()) {
 			y -= this.lineAxis;
 		} else {
 			x -= this.lineAxis;
 		}
-		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 }

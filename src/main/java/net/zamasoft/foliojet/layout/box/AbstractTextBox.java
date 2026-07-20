@@ -662,28 +662,43 @@ public abstract class AbstractTextBox extends AbstractBox {
 				this.descent);
 	}
 
-	public final void getText(final StringBuilder textBuff) {
+	public final void pushGetTextSteps(final StringBuilder textBuff, final java.util.Deque<GetTextStep> worklist) {
 		if (this.contents == null) {
 			return;
 		}
+		// テキスト抽出は文書順を保つ必要があるため、局所的な追記(Text/
+		// Control)も子への委譲(Inline/IAbsoluteBox)も同じ手順列として
+		// 組み立て、最後に**逆順**でworklistへpushする(2026-07-20、
+		// drawと同じ理由)
+		final List<GetTextStep> localSteps = new ArrayList<>();
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
-			case Text text -> textBuff.append(text.getChars(), 0, text.getCharCount());
-			case Inline inline -> inline.box.getText(textBuff);
-			case IAbsoluteBox absoluteBox -> absoluteBox.getText(textBuff);
+			case Text text -> localSteps.add(w -> textBuff.append(text.getChars(), 0, text.getCharCount()));
+			case Inline inline -> localSteps.add(IBox.getTextStep(inline.box, textBuff));
+			case IAbsoluteBox absoluteBox -> localSteps.add(IBox.getTextStep(absoluteBox, textBuff));
 			case Control control ->
 				// 空白
-				textBuff.append(control.getControlChar());
+				localSteps.add(w -> textBuff.append(control.getControlChar()));
 			default -> throw new IllegalStateException();
 			}
 		}
+		for (int i = localSteps.size() - 1; i >= 0; --i) {
+			worklist.push(localSteps.get(i));
+		}
 	}
 
-	public void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		if (this.contents == null || this.contents.isEmpty()) {
 			return;
 		}
+		// 局所描画(テキストラン・装飾)と子(インライン・絶対配置)の描画が
+		// 同一ループ内で交互に現れるため、両方をこの順番のまま局所リストへ
+		// 積み、最後に**逆順**で共有workリストへpushする(2026-07-20、
+		// IBox.pushDrawStepsと同じ理由での反復化)。局所描画をここで
+		// 即座に実行してしまうと、まだ実行されていない子の描画より先に
+		// なってしまい、描画順が崩れる。
+		final List<DrawStep> localSteps = new ArrayList<>();
 		int off = 0;
 		int len = 0;
 		double xx = x, yy = y;
@@ -721,7 +736,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Inline inline -> {
 				// インライン
 				if (lineParams.opacity != 0 && len > 0) {
-					drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
+					final int foff = off, flen = len;
+					final double ftx = tx, fty = ty;
+					localSteps.add(w -> drawer.visitDrawable(
+							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
 					len = 0;
 				}
 				if (decoration) {
@@ -730,9 +748,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 						final double width = xx - dx;
 						final double height = yy - dy;
 						if ((vertical && height > 0) || (!vertical && width > 0)) {
-							Drawable drawable = new TextDecorationDrawable(pageBox, clip, transform, lineParams,
-									this.decoration, this.ascent, this.descent, width, height);
-							drawer.visitDrawable(drawable, dx, dy);
+							final double fdx = dx, fdy = dy;
+							localSteps.add(w -> {
+								Drawable drawable = new TextDecorationDrawable(pageBox, clip, transform, lineParams,
+										this.decoration, this.ascent, this.descent, width, height);
+								drawer.visitDrawable(drawable, fdx, fdy);
+							});
 						}
 					}
 					decoration = false;
@@ -802,13 +823,15 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (vertical) {
 					// 縦書き(日本)
 					voffset += (this.getWidth() - inlineBox.getWidth());
-					inlineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-							xx + voffset + inline.verticalAlign, yy);
+					final double drawX = xx + voffset + inline.verticalAlign, drawY = yy;
+					localSteps.add(IBox.drawStep(inlineBox, pageBox, drawer, visitor, clip, transform, contextX,
+							contextY, drawX, drawY));
 					yy += inlineBox.getHeight();
 				} else {
 					// 横書き
-					inlineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx,
-							yy - voffset - inline.verticalAlign);
+					final double drawX = xx, drawY = yy - voffset - inline.verticalAlign;
+					localSteps.add(IBox.drawStep(inlineBox, pageBox, drawer, visitor, clip, transform, contextX,
+							contextY, drawX, drawY));
 					xx += inlineBox.getWidth();
 				}
 			}
@@ -816,7 +839,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case IAbsoluteBox absoluteBox -> {
 				// 絶対配置
 				if (lineParams.opacity != 0 && len > 0) {
-					drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
+					final int foff = off, flen = len;
+					final double ftx = tx, fty = ty;
+					localSteps.add(w -> drawer.visitDrawable(
+							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
 					len = 0;
 				}
 				double xxx, yyy;
@@ -831,13 +857,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 				} else {
 					yyy = yy;
 				}
-				absoluteBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yyy);
+				localSteps.add(IBox.drawStep(absoluteBox, pageBox, drawer, visitor, clip, transform, contextX,
+						contextY, xxx, yyy));
 			}
 
 			case Control control -> {
 				// 空白
 				if (lineParams.opacity != 0 && len > 0) {
-					drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
+					final int foff = off, flen = len;
+					final double ftx = tx, fty = ty;
+					localSteps.add(w -> drawer.visitDrawable(
+							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
 					len = 0;
 				}
 				if (!decoration) {
@@ -858,17 +888,27 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 		}
 		if (lineParams.opacity != 0 && len > 0) {
-			drawer.visitDrawable(this.createTextSequenceDrawable(pageBox, clip, transform, off, len), tx, ty);
+			final int foff = off, flen = len;
+			final double ftx = tx, fty = ty;
+			localSteps.add(w -> drawer.visitDrawable(
+					this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
 			len = 0;
 		}
 		if (decoration && this.decoration != null) {
 			final double width = xx - dx;
 			final double height = yy - dy;
 			if ((vertical && height > 0) || (!vertical && width > 0)) {
-				Drawable drawable = new TextDecorationDrawable(pageBox, clip, transform, lineParams, this.decoration,
-						this.ascent, this.descent, width, height);
-				drawer.visitDrawable(drawable, dx, dy);
+				final double fdx = dx, fdy = dy;
+				localSteps.add(w -> {
+					Drawable drawable = new TextDecorationDrawable(pageBox, clip, transform, lineParams,
+							this.decoration, this.ascent, this.descent, width, height);
+					drawer.visitDrawable(drawable, fdx, fdy);
+				});
 			}
+		}
+		// 元の実行順を保つため、共有worklistへは逆順でpushする
+		for (int i = localSteps.size() - 1; i >= 0; --i) {
+			worklist.push(localSteps.get(i));
 		}
 	}
 
@@ -881,10 +921,15 @@ public abstract class AbstractTextBox extends AbstractBox {
 		pageBox.getUserAgent().message(MessageCodes.WARN_MISSING_FONT_OUTLINE, c + codes);
 	}
 
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+			java.util.Deque<TextShapeStep> worklist) {
 		if (this.contents == null || this.contents.isEmpty()) {
 			return;
 		}
+		// クリップ用のpathへの追記は描画順に意味がないため、テキストは
+		// その場で即座に追記してよい。子(インライン)の輪郭だけを
+		// worklistへ積む(2026-07-20、反復化——drawと同じ理由)
+		final List<TextShapeStep> localSteps = new ArrayList<>();
 		double xx = x, yy = y;
 
 		final AbstractTextParams lineParams = this.getTextParams();
@@ -987,11 +1032,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (vertical) {
 					// 縦書き(日本)
 					voffset += (this.getWidth() - inlineBox.getWidth());
-					inlineBox.textShape(pageBox, path, transform, xx + voffset + inline.verticalAlign, yy);
+					final double sx = xx + voffset + inline.verticalAlign, sy = yy;
+					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
 					yy += inlineBox.getHeight();
 				} else {
 					// 横書き
-					inlineBox.textShape(pageBox, path, transform, xx, yy - voffset - inline.verticalAlign);
+					final double sx = xx, sy = yy - voffset - inline.verticalAlign;
+					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
 					xx += inlineBox.getWidth();
 				}
 			}
@@ -1014,6 +1061,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 			default -> throw new IllegalStateException();
 			}
+		}
+		// 元の実行順を保つため、共有worklistへは逆順でpushする
+		for (int i = localSteps.size() - 1; i >= 0; --i) {
+			worklist.push(localSteps.get(i));
 		}
 	}
 

@@ -104,8 +104,10 @@ public abstract class AbstractContainerBox extends AbstractBox
 	public abstract boolean isContextBox();
 
 	/**
-	 * 枠を描画します。
-	 * 
+	 * 枠を描画します(2026-07-20、反復化——drawと同じ理由。深いネストでの
+	 * StackOverflowErrorを避けるため、明示的な{@link Deque}をワークリストと
+	 * して使う反復DFSに置き換えた)。
+	 *
 	 * @param pageBox
 	 *            TODO
 	 * @param drawer
@@ -115,8 +117,31 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * @param x
 	 * @param y
 	 */
-	public abstract void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y);
+	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y) {
+		final java.util.Deque<FramesStep> worklist = new java.util.ArrayDeque<>();
+		worklist.push(AbstractContainerBox.framesStep(this, pageBox, drawer, clip, transform, x, y));
+		while (!worklist.isEmpty()) {
+			worklist.pop().run(worklist);
+		}
+	}
+
+	/**
+	 * {@code box}の{@link #pushFramesSteps}を実行する1つの{@link FramesStep}を
+	 * 作ります。
+	 */
+	public static FramesStep framesStep(final AbstractContainerBox box, final PageBox pageBox, final Drawer drawer,
+			final Shape clip, final AffineTransform transform, final double x, final double y) {
+		return worklist -> box.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
+	}
+
+	/**
+	 * このボックス(とその子孫)の枠描画手順を{@code worklist}へ積みます。
+	 * {@link IBox#pushDrawSteps}と同じ規約(元の走査順を保つため**逆順**で
+	 * push)に従ってください。
+	 */
+	public abstract void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform,
+			double x, double y, java.util.Deque<FramesStep> worklist);
 
 	/**
 	 * 行幅を返します。
@@ -353,17 +378,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 				this.splitPage(nextContainer, pageLimit, mode instanceof BreakMode.ColumnBreakMode));
 	}
 
-	public final void getText(StringBuilder textBuff) {
-		this.container.getText(textBuff);
+	public final void pushGetTextSteps(StringBuilder textBuff, java.util.Deque<GetTextStep> worklist) {
+		this.container.pushGetTextSteps(textBuff, worklist);
 	}
 	
-	public final void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
+	public final void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x,
+			double y, java.util.Deque<TextShapeStep> worklist) {
 		x += this.offsetX;
 		y += this.offsetY;
 		transform = this.transform(transform, x, y);
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		this.container.textShape(pageBox, path, transform, x, y);
+		this.container.pushTextShapeSteps(pageBox, path, transform, x, y, worklist);
 	}
 
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape) {

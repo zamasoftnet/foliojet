@@ -8,8 +8,12 @@ import java.util.Deque;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
+import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
@@ -117,55 +121,61 @@ public class ColumnsContainer implements Container {
 		return first.getCutPointBelow(pageAxis);
 	}
 
-	public void drawFlowFrames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y) {
+	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
 		if (params.columns.rule.isVisible()) {
 			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y);
 			drawer.visitDrawable(drawable, x, y);
 		}
-		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
-		for (int i = 0; i < this.columns.size(); ++i) {
+		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)。
+		// カラム数は小さく固定なので直接呼び出してよい(走査順を保つため
+		// 逆順で処理する)
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.drawFlowFrames(pageBox, drawer, clip, transform, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
+			container.pushFramesSteps(pageBox, drawer, clip, transform, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
 
-	public void drawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
+			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
-		for (int i = 0; i < this.columns.size(); ++i) {
+		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)。
+		// カラム数は小さく固定なので、直接呼び出しても(逆順にせずとも)
+		// スタック深さは問題にならないが、走査順を保つため逆順で処理する
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
+			container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
 
-	public void drawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
 		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
-		for (int i = 0; i < this.columns.size(); ++i) {
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
+			container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
 
-	public void drawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public void pushDrawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
 		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
-		for (int i = 0; i < this.columns.size(); ++i) {
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize));
+			container.pushDrawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
 
@@ -177,14 +187,17 @@ public class ColumnsContainer implements Container {
 		}
 	}
 
-	public void getText(StringBuilder textBuff) {
-		for (int i = 0; i < this.columns.size(); ++i) {
+	public void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {
+		// カラム数は小さく固定なので直接呼び出してよい(走査順を保つため
+		// 逆順で処理する)
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.getText(textBuff);
+			container.pushGetTextSteps(textBuff, worklist);
 		}
 	}
 	
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+			Deque<TextShapeStep> worklist) {
 		// TODO
 	}
 

@@ -5,7 +5,12 @@ import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Deque;
+
+import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.layout.box.BoxType;
+import net.zamasoft.foliojet.layout.box.DrawStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
@@ -96,44 +101,68 @@ public class TableColumnGroupBox extends TableColumnBox {
 		return col;
 	}
 
-	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y) {
+	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, Deque<FramesStep> worklist) {
 		if (this.columns == null) {
 			return;
 		}
+		// 列の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
+		// **逆順**でpushする
+		final int n = this.columns.size();
+		final double[] xs = new double[n];
+		final double[] ys = new double[n];
 		if (this.tableParams.flow.isVertical()) {
-			for (int i = 0; i < this.columns.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				TableColumnBox column = (TableColumnBox) this.columns.get(i);
-				column.frames(pageBox, drawer, clip, transform, x, y);
+				xs[i] = x;
+				ys[i] = y;
 				y += column.getLineSize();
 			}
 		} else {
-			for (int i = 0; i < this.columns.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				TableColumnBox column = (TableColumnBox) this.columns.get(i);
-				column.frames(pageBox, drawer, clip, transform, x, y);
+				xs[i] = x;
+				ys[i] = y;
 				x += column.getLineSize();
 			}
+		}
+		for (int i = n - 1; i >= 0; --i) {
+			TableColumnBox column = (TableColumnBox) this.columns.get(i);
+			worklist.push(AbstractInnerTableBox.framesStep(column, pageBox, drawer, clip, transform, xs[i], ys[i]));
 		}
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
-		super.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
+		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 		if (this.columns == null) {
 			return;
 		}
+		// 列の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
+		// **逆順**でpushする
+		final int n = this.columns.size();
+		final double[] drawXs = new double[n];
+		final double[] drawYs = new double[n];
 		if (this.tableParams.flow.isVertical()) {
-			for (int i = 0; i < this.columns.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				TableColumnBox column = (TableColumnBox) this.columns.get(i);
-				column.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+				drawXs[i] = x;
+				drawYs[i] = y;
 				y += column.getLineSize();
 			}
 		} else {
-			for (int i = 0; i < this.columns.size(); ++i) {
+			for (int i = 0; i < n; ++i) {
 				TableColumnBox column = (TableColumnBox) this.columns.get(i);
-				column.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+				drawXs[i] = x;
+				drawYs[i] = y;
 				x += column.getLineSize();
 			}
+		}
+		for (int i = n - 1; i >= 0; --i) {
+			TableColumnBox column = (TableColumnBox) this.columns.get(i);
+			worklist.push(IBox.drawStep(column, pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					drawXs[i], drawYs[i]));
 		}
 	}
 

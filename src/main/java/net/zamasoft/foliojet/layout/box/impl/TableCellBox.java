@@ -11,6 +11,8 @@ import java.awt.geom.AffineTransform;
 
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
+import net.zamasoft.foliojet.layout.box.FramesStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
@@ -232,8 +234,8 @@ public class TableCellBox extends AbstractContainerBox {
 		return this.getTableCellPos().offset != null;
 	}
 
-	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
-			double y) {
+	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
+			double y, java.util.Deque<FramesStep> worklist) {
 		if (this.params.opacity == 0) {
 			return;
 		}
@@ -258,7 +260,7 @@ public class TableCellBox extends AbstractContainerBox {
 		} else {
 			y += this.verticalAlign;
 		}
-		this.container.drawFlowFrames(pageBox, drawer, clip, transform, x, y);
+		this.container.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
 
 	public final void floats(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
@@ -282,11 +284,19 @@ public class TableCellBox extends AbstractContainerBox {
 		} else {
 			y += this.verticalAlign;
 		}
-		this.container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+		// floatsはIBox.drawと同じく完結した1つの入口点なので、自前の
+		// ワークリストを作って最後まで消化してから返る(2026-07-20)
+		final java.util.Deque<DrawStep> worklist = new java.util.ArrayDeque<>();
+		this.container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
+				worklist);
+		while (!worklist.isEmpty()) {
+			worklist.pop().run(worklist);
+		}
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			java.util.Deque<DrawStep> worklist) {
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(0, 1, 1));
 			drawer.visitDrawable(drawable, x, y);
@@ -326,15 +336,22 @@ public class TableCellBox extends AbstractContainerBox {
 		if (contextBox) {
 			contextX = x;
 			contextY = y;
-			this.container.drawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
 		}
-		this.container.drawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-		if (!contextBox) {
-			clip = null;
+		final Drawer fdrawer = drawer;
+		final double fx = x, fy = y, fcontextX = contextX, fcontextY = contextY;
+		final Shape flowsClip = clip;
+		final Shape absolutesClip = contextBox ? clip : null;
+		// 元の実行順(floatings[contextBoxのみ]→flows→absolutes→endStruct)を
+		// 保つため、スタックへは逆順でpushする
+		worklist.push(w -> pageBox.endStruct(fdrawer, this.params.element, structCount, fx, fy));
+		this.container.pushDrawAbsolutes(pageBox, drawer, visitor, absolutesClip, transform, fcontextX, fcontextY, x,
+				y, worklist);
+		this.container.pushDrawFlows(pageBox, drawer, visitor, flowsClip, transform, fcontextX, fcontextY, x, y,
+				worklist);
+		if (contextBox) {
+			this.container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, fcontextX, fcontextY, x, y,
+					worklist);
 		}
-		this.container.drawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
-
-		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 	}
 
 	private final boolean draw() {

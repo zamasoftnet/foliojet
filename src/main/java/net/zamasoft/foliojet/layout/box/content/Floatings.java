@@ -5,10 +5,12 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
@@ -89,8 +91,13 @@ public class Floatings {
 		this.floatings.add(floating);
 	}
 
-	public void draw(AbstractContainerBox box, PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
-			AffineTransform transform, double contextX, double contextY, double x, double y) {
+	/**
+	 * drawの反復化(2026-07-20、IBox.drawと同じ理由)。各浮動ボックスの
+	 * 描画手順を、元の走査順のまま**逆順**で{@code worklist}へ積みます。
+	 */
+	public void pushDraw(AbstractContainerBox box, PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		assert !LayoutUtils.isNone(x) : "Undefined x";
 		assert !LayoutUtils.isNone(y) : "Undefined y";
 		// 浮動体
@@ -98,7 +105,7 @@ public class Floatings {
 		if (vertical) {
 			x += box.getInnerWidth();
 		}
-		for (int i = 0; i < this.floatings.size(); ++i) {
+		for (int i = this.floatings.size() - 1; i >= 0; --i) {
 			Floating floating = (Floating) this.floatings.get(i);
 			double xx;
 			double yy;
@@ -111,7 +118,8 @@ public class Floatings {
 				xx = x + floating.lineAxis;
 				yy = y + floating.pageAxis;
 			}
-			floating.box.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yy);
+			worklist.push(IBox.drawStep(floating.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					xx, yy));
 		}
 	}
 

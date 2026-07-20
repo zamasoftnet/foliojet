@@ -17,7 +17,10 @@ import net.zamasoft.foliojet.css.impl.lang.CSSJTextUnitizer;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBox;
 import net.zamasoft.foliojet.layout.box.AbstractLineBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
+import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
@@ -189,10 +192,11 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
-	public final void getText(StringBuilder textBuff) {
-		for (int i = 0; i < this.lines.size(); ++i) {
+	public final void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {
+		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
-			line.box.getText(textBuff);
+			worklist.push(IBox.getTextStep(line.box, textBuff));
 		}
 	}
 
@@ -232,8 +236,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return result;
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		assert !LayoutUtils.isNone(x);
 		assert !LayoutUtils.isNone(y);
 		visitor.visitBox(transform, this, drawer, x, y);
@@ -242,23 +247,26 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, .5f, 1));
 			drawer.visitDrawable(drawable, x, y);
 		}
-		for (int i = 0; i < this.lines.size(); ++i) {
+		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
 			// 描画(論理→物理変換は LayoutUtils.drawX/drawY に集約)
-			lineBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY,
+			worklist.push(IBox.drawStep(lineBox, pageBox, drawer, visitor, clip, transform, contextX, contextY,
 					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.getPageEnd(), 0),
-					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0));
+					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0)));
 		}
 	}
 
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y) {
-		for (int i = 0; i < this.lines.size(); ++i) {
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+			Deque<TextShapeStep> worklist) {
+		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
-			lineBox.textShape(pageBox, path, transform,
+			worklist.push(IBox.textShapeStep(lineBox, pageBox, path, transform,
 					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.getPageEnd(), 0),
-					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0));
+					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0)));
 		}
 	}
 

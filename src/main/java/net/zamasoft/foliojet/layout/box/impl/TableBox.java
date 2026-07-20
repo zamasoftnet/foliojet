@@ -13,7 +13,10 @@ import java.util.Deque;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractBox;
+import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
+import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
@@ -271,8 +274,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
-	public final void draw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
-			double contextX, double contextY, double x, double y) {
+	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+			AffineTransform transform, double contextX, double contextY, double x, double y,
+			Deque<DrawStep> worklist) {
 		assert !LayoutUtils.isNone(x) : "Undefined x";
 		assert !LayoutUtils.isNone(y) : "Undefined y";
 		x += this.offsetX;
@@ -300,6 +304,15 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 					this.getWidth() - this.frame.getFrameWidth(), this.getHeight() - this.frame.getFrameHeight());
 			drawer.visitDrawable(drawable, xx, yy);
 		}
+
+		// frames/floatsの各パスはまだ再帰実装のまま(別課題、RELIABILITY-PLAN.md
+		// 参照)。テーブルのネスト段数は行/セル数に依存しない有界な段数
+		// なので、ここでは同期的に呼んでよい。内容(draw)パスだけを
+		// 反復化する——子の描画座標を先に(副作用なく)計算してから、
+		// 元の走査順を保つため**逆順**でworklistへpushする。
+		final List<IBox> contentBoxes = new ArrayList<>();
+		final List<Double> contentXs = new ArrayList<>();
+		final List<Double> contentYs = new ArrayList<>();
 
 		if (this.params.flow.isVertical()) {
 			// 縦書き
@@ -353,23 +366,31 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			{
 				double xxx = xx;
 				if (this.columnGroupBox != null) {
-					this.columnGroupBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
+					contentBoxes.add(this.columnGroupBox);
+					contentXs.add(xxx);
+					contentYs.add(yy);
 				}
 				xxx += this.width;
 				if (this.headerGroupBox != null) {
 					xxx -= this.headerGroupBox.getWidth();
-					this.headerGroupBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
+					contentBoxes.add(this.headerGroupBox);
+					contentXs.add(xxx);
+					contentYs.add(yy);
 				}
 				if (this.bodyGroups != null) {
 					for (int i = 0; i < this.bodyGroups.size(); ++i) {
 						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
 						xxx -= rowGroup.getWidth();
-						rowGroup.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
+						contentBoxes.add(rowGroup);
+						contentXs.add(xxx);
+						contentYs.add(yy);
 					}
 				}
 				if (this.footerGroupBox != null) {
 					xxx -= this.footerGroupBox.getWidth();
-					this.footerGroupBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
+					contentBoxes.add(this.footerGroupBox);
+					contentXs.add(xxx);
+					contentYs.add(yy);
 				}
 			}
 		} else {
@@ -423,48 +444,66 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			{
 				double yyy = yy;
 				if (this.columnGroupBox != null) {
-					this.columnGroupBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
+					contentBoxes.add(this.columnGroupBox);
+					contentXs.add(xx);
+					contentYs.add(yyy);
 				}
 				if (this.headerGroupBox != null) {
-					this.headerGroupBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
+					contentBoxes.add(this.headerGroupBox);
+					contentXs.add(xx);
+					contentYs.add(yyy);
 					yyy += this.headerGroupBox.getHeight();
 				}
 				if (this.bodyGroups != null) {
 					for (int i = 0; i < this.bodyGroups.size(); ++i) {
 						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						rowGroup.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
+						contentBoxes.add(rowGroup);
+						contentXs.add(xx);
+						contentYs.add(yyy);
 						yyy += rowGroup.getHeight();
 					}
 				}
 				if (this.footerGroupBox != null) {
-					this.footerGroupBox.draw(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
-					yyy += this.footerGroupBox.getHeight();
+					contentBoxes.add(this.footerGroupBox);
+					contentXs.add(xx);
+					contentYs.add(yyy);
 				}
 			}
 		}
-		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
+		final Drawer fdrawer = drawer;
+		final double fx = x, fy = y;
 		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, 0, 1));
-			drawer.visitDrawable(drawable, x, y);
+			worklist.push(w -> {
+				Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, 0, 1));
+				fdrawer.visitDrawable(drawable, fx, fy);
+			});
+		}
+		worklist.push(w -> pageBox.endStruct(fdrawer, this.params.element, structCount, fx, fy));
+		for (int i = contentBoxes.size() - 1; i >= 0; --i) {
+			worklist.push(IBox.drawStep(contentBoxes.get(i), pageBox, drawer, visitor, clip, transform, contextX,
+					contextY, contentXs.get(i), contentYs.get(i)));
 		}
 	}
 
-	public final void getText(final StringBuilder textBuff) {
-		if (this.headerGroupBox != null) {
-			this.headerGroupBox.getText(textBuff);
+	public final void pushGetTextSteps(final StringBuilder textBuff, Deque<GetTextStep> worklist) {
+		// 元の走査順(header→body(0..n)→footer)を保つため、スタックへは
+		// 逆順でpushする
+		if (this.footerGroupBox != null) {
+			worklist.push(IBox.getTextStep(this.footerGroupBox, textBuff));
 		}
 		if (this.bodyGroups != null) {
-			for (int i = 0; i < this.bodyGroups.size(); ++i) {
+			for (int i = this.bodyGroups.size() - 1; i >= 0; --i) {
 				TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-				rowGroup.getText(textBuff);
+				worklist.push(IBox.getTextStep(rowGroup, textBuff));
 			}
 		}
-		if (this.footerGroupBox != null) {
-			this.footerGroupBox.getText(textBuff);
+		if (this.headerGroupBox != null) {
+			worklist.push(IBox.getTextStep(this.headerGroupBox, textBuff));
 		}
 	}
 	
-	public void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
+	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d,
+			Deque<TextShapeStep> worklist) {
 		// TODO
 	}
 
