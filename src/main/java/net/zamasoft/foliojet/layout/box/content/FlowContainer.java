@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
@@ -384,36 +385,114 @@ public class FlowContainer implements Container {
 		return (Flow) this.flows.get(this.flows.size() - 1);
 	}
 
-	public boolean avoidBreakBefore() {
-		if (this.flows == null || this.flows.isEmpty()) {
-			return false;
-		}
-		for (int i = 0; i < this.flows.size(); ++i) {
-			Flow flow = (Flow) this.flows.get(i);
-			if (flow.box.avoidBreakBefore()) {
-				return true;
-			}
-			if (flow.box.getHeight() > 0) {
-				break;
-			}
+	/**
+	 * {@code avoidBreakBefore}/{@code avoidBreakAfter}の反復化用ワーク
+	 * リストの1フレームです(2026-07-20、ARCHITECTURE.md不変条件6)。
+	 * ある{@code FlowContainer}の{@code flows}を末尾または先頭から順に
+	 * 見ている状態を表します。{@code awaitingChild}は、現在の
+	 * {@code index}の{@link FlowBlockBox}が持つ内部コンテナへ降りるため
+	 * 子フレームをpushした直後で、その子フレームの解決(popされて
+	 * このフレームへ戻ってきた=trueは見つからなかった)を待っている
+	 * ことを表します。
+	 */
+	private static final class AvoidBreakFrame {
+		final List<Flow> flows;
+		int index;
+		boolean awaitingChild;
 
+		AvoidBreakFrame(List<Flow> flows, int index) {
+			this.flows = flows;
+			this.index = index;
 		}
-		return false;
+	}
+
+	public boolean avoidBreakBefore() {
+		return this.walkAvoidBreak(false);
 	}
 
 	public boolean avoidBreakAfter() {
+		return this.walkAvoidBreak(true);
+	}
+
+	/**
+	 * {@code avoidBreakBefore}/{@code avoidBreakAfter}の実装です。
+	 *
+	 * <p>
+	 * 旧実装は{@code FlowContainer.avoidBreak{Before,After}()}が
+	 * {@code flow.box.avoidBreak{Before,After}()}を呼び、それが
+	 * {@link FlowBlockBox}であれば自分の内部コンテナ(通常は別の
+	 * {@code FlowContainer})へ委譲する、というポリモーフィックな相互
+	 * 再帰で、深いネスト文書(改ページを跨ぐ開いた祖先チェーン)で
+	 * {@code StackOverflowError}を起こしていた(2026-07-20、
+	 * {@code DeepNestingRestyleTest}で確認。restyle系の反復化に着手する
+	 * 前に、この別系統の再帰も同じ不変条件6違反として発見された)。
+	 * </p>
+	 *
+	 * <p>
+	 * 本メソッドは、{@link FlowBlockBox}への降下だけを明示的
+	 * {@link Deque}のワークリストへ置き換える(finishLayout等と同じ
+	 * 反復DFSパターン)。{@link IFlowBox}の他の実装
+	 * ({@link TableBox}・{@link TextBlockBox}・{@link net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox})
+	 * と{@link Container}の他の実装({@link ColumnsContainer})はいずれも
+	 * 末端(再帰しない)であることを確認済みのため、それらは直接呼び出す。
+	 * </p>
+	 */
+	private boolean walkAvoidBreak(final boolean after) {
 		if (this.flows == null || this.flows.isEmpty()) {
 			return false;
 		}
-		for (int i = this.flows.size() - 1; i >= 0; --i) {
-			Flow flow = (Flow) this.flows.get(i);
-			if (flow.box.avoidBreakAfter()) {
+		final Deque<AvoidBreakFrame> stack = new ArrayDeque<AvoidBreakFrame>();
+		stack.push(new AvoidBreakFrame(this.flows, after ? this.flows.size() - 1 : 0));
+		while (!stack.isEmpty()) {
+			final AvoidBreakFrame frame = stack.peek();
+			if (frame.index < 0 || frame.index >= frame.flows.size()) {
+				stack.pop();
+				continue;
+			}
+			final Flow flow = frame.flows.get(frame.index);
+			final IFlowBox box = flow.box;
+			boolean result;
+			if (frame.awaitingChild) {
+				// 子コンテナへの降下から戻ってきた。子がtrueを見つけて
+				// いれば、その時点で既にreturn trueしているため、ここに
+				// 来るのはfalseで確定した場合のみ。
+				frame.awaitingChild = false;
+				result = false;
+			} else if (box instanceof FlowBlockBox) {
+				final FlowBlockBox flowBlockBox = (FlowBlockBox) box;
+				final PageBreakMode mode = after ? flowBlockBox.getFlowPos().pageBreakAfter
+						: flowBlockBox.getFlowPos().pageBreakBefore;
+				if (mode == PageBreakMode.AVOID) {
+					return true;
+				}
+				final Container inner = flowBlockBox.getContainer();
+				if (inner instanceof FlowContainer) {
+					final FlowContainer innerFlowContainer = (FlowContainer) inner;
+					if (innerFlowContainer.flows != null && !innerFlowContainer.flows.isEmpty()) {
+						// 子コンテナへ降りる。戻ってきたら上のawaitingChild
+						// 分岐で続き(高さ判定・次の候補への移動)を処理する。
+						frame.awaitingChild = true;
+						stack.push(new AvoidBreakFrame(innerFlowContainer.flows,
+								after ? innerFlowContainer.flows.size() - 1 : 0));
+						continue;
+					}
+					result = false;
+				} else {
+					// ColumnsContainer等: 再帰しないことを確認済みの末端
+					result = after ? inner.avoidBreakAfter() : inner.avoidBreakBefore();
+				}
+			} else {
+				// TableBox/TextBlockBox/FlowReplacedBox: 再帰しない末端
+				result = after ? box.avoidBreakAfter() : box.avoidBreakBefore();
+			}
+			if (result) {
 				return true;
 			}
-			if (flow.box.getHeight() > 0) {
-				break;
+			if (box.getHeight() > 0) {
+				frame.index = after ? -1 : frame.flows.size();
+			} else {
+				frame.index += after ? -1 : 1;
 			}
-
 		}
 		return false;
 	}

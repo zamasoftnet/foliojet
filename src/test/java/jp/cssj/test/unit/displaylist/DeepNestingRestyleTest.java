@@ -1,0 +1,273 @@
+package jp.cssj.test.unit.displaylist;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+
+import jp.cssj.cti2.TranscoderException;
+import jp.cssj.cti2.helpers.CTIMessageHelper;
+import jp.cssj.cti2.helpers.CTISessionHelper;
+import jp.cssj.cti2.results.SingleResult;
+import junit.framework.TestCase;
+import net.zamasoft.foliojet.driver.DirectDriver;
+import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
+import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
+
+/**
+ * 深いネスト+改ページ(restyle系が実際に発火する構成)に対する回帰テストです
+ * (ARCHITECTURE.md不変条件6、2026-07-20)。
+ *
+ * <p>
+ * {@link DeepNestingLayoutTest}はfinishLayout/frames/draw/textShape/getText
+ * の反復化を固定するテストだが、意図的にページ分割を誘発しない構成
+ * (ネストした<code>&lt;div&gt;</code>群がすべて1ページに収まる)のため、
+ * {@code restyle}系(継続機構、まだ`FlowContainer.restyle`↔
+ * `AbstractContainerBox.restyle`のポリモーフィックな相互再帰のまま)を
+ * 経路に含まない。
+ * </p>
+ *
+ * <p>
+ * このテストは逆に、深いネスト構造の最深部に複数ページ分の内容を置き、
+ * ネストの祖先チェーンが**開いたまま**ページ分割を跨ぐ構成にする
+ * ({@code OpenShape.OpenChain}が深く入れ子になり、
+ * {@code FlowContainer.restyle}・{@code RootBuilder.resumeFrame}の
+ * 相互再帰が実際に深さ分だけ発火する)。restyle系の反復化(codex/grok
+ * への外部相談、docs/consultations/consult-restyle-*.md参照)に着手する
+ * 前の回帰基盤として、現状の再帰実装がどこまでの深さに耐えるかを
+ * 実測・記録する。
+ * </p>
+ *
+ * <p>
+ * <b>実測結果(2026-07-20、初回)</b>: 深さ200・500は成功、深さ1000・5000は
+ * {@code StackOverflowError}。ただしスタックトレースを実際に確認したところ、
+ * 直接の原因は当初想定した{@code restyle}系ではなく、
+ * {@code FlowContainer.avoidBreakBefore/After}(改ページ回避判定、
+ * `FlowContainer`↔`FlowBlockBox`の同型のポリモーフィック相互再帰)
+ * だった。これは{@code restyle}以前の、改ページ位置探索(break-point
+ * search)の中で発火する別系統の再帰であり、restyle系の反復化に着手する
+ * 前に本テストで新たに発見された(restyle系はこの手前で既に
+ * StackOverflowErrorしていたため、まだ経路にすら到達していなかった)。
+ * </p>
+ *
+ * <p>
+ * <b>対応(2026-07-20)</b>: {@code FlowContainer.avoidBreakBefore/After}を
+ * 明示的{@link java.util.Deque}ワークリストへ反復化した
+ * (finishLayout等と同じ設計パターン。{@code FlowContainer}の
+ * {@code walkAvoidBreak}参照)。
+ * </p>
+ *
+ * <p>
+ * <b>実測結果(2026-07-20、avoidBreakBefore/After反復化後)</b>: 深さ1000・
+ * 5000は依然{@code StackOverflowError}だが、発生箇所が
+ * {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox.splitForContinuation}
+ * (改ページ時のボックス分割=ARCHITECTURE.mdのパイプライン図でいう
+ * 「splitPageAxis(変異切断)」)へ移った。この経路は
+ * {@code restyle}よりさらに手前(改ページの実行そのもの)で走る、
+ * 第三の独立した再帰系統である。{@code restyle}系自体の反復化が実際に
+ * 必要になる深さへは、この{@code splitPageAxis}の壁が先に立ちはだかる
+ * ため、本テストではまだ到達できていない。
+ * </p>
+ *
+ * <p>
+ * <b>{@code splitPageAxis}に今は着手しない理由</b>: `docs/NEXT-SESSION.md`
+ * 「Box/Builderコア: FlowContainer.splitPageAxisの核心ループはM6d前提の
+ * まま」に既存の記録があるとおり、{@code splitPageAxis}/{@code .split()}
+ * 呼び出しは子ボックスを直接変異させる構造であり、
+ * ConstraintSpace/write-onceボックス(M6d)の設計が入るまでは安全な
+ * 機械的リファクタが難しいと既に判断されている。この既存判断を覆さず、
+ * 深さ1000・5000のテストは「splitPageAxisがM6d後に反復化されるまでの
+ * 既知の限界」として固定する(restyle系の反復化の完了条件では、もはや
+ * ない)。
+ * </p>
+ */
+public class DeepNestingRestyleTest extends TestCase {
+	static {
+		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
+		System.setProperty("jp.cssj.driver.default",
+				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
+	}
+
+	private static final URI COPPER_URI = URI.create("copper:direct:");
+
+	/**
+	 * 深さ200の開いた祖先チェーンが複数ページの改ページを跨ぐ構成。
+	 * 実測(2026-07-20)では深さ500まで成功し、1000でStackOverflowError
+	 * に到達する(下記{@link #testDepth1000OpenChainAcrossPageBreaksCurrentlyOverflows}
+	 * 参照)。この深さ200は「現状でも安全な下限」を回帰として固定する。
+	 */
+	public void testDepth200OpenChainAcrossPageBreaks() throws Exception {
+		this.runDeepOpenChain(200, 300);
+	}
+
+	/**
+	 * 深さ500。実測(2026-07-20)ではまだ成功する上限側の境界。
+	 */
+	public void testDepth500OpenChainAcrossPageBreaks() throws Exception {
+		this.runDeepOpenChain(500, 300);
+	}
+
+	/**
+	 * 深さ1000(finishLayout修正前の実測限界=1000段と同水準)。
+	 *
+	 * <p>
+	 * <b>既知の現状の限界(2026-07-20実測、avoidBreakBefore/After反復化後)
+	 * </b>: {@code FlowContainer.splitPageAxis}↔
+	 * {@code AbstractBlockBox.splitForContinuation}(改ページ時のボックス
+	 * 分割)がこの深さで実際に{@code StackOverflowError}に到達する
+	 * (クラスjavadoc参照)。この経路は`docs/NEXT-SESSION.md`
+	 * 「splitPageAxisの核心ループはM6d前提のまま」に既存の記録がある
+	 * とおり、子ボックスを直接変異させる構造であり、
+	 * ConstraintSpace/write-onceボックス(M6d)の設計が入るまでは安全な
+	 * 反復化が難しいと既に判断されている。restyle系自体の反復化は、
+	 * この手前の壁のためまだ経路にすら到達できていない。
+	 * </p>
+	 *
+	 * <p>
+	 * M6d設計後にsplitPageAxisが反復化されたら、このテストは
+	 * {@link #testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows}
+	 * とあわせて「成功する」側のアサーションへ書き換えること
+	 * (このメソッド名の"CurrentlyOverflows"を外し、
+	 * {@code runDeepOpenChain}で成功を確認する形に戻す)。それでもなお
+	 * 別の深さで{@code StackOverflowError}に到達する場合、その時点で
+	 * ようやくrestyle系自体の反復化の要否を実測で判断できる。
+	 * </p>
+	 */
+	public void testDepth1000OpenChainAcrossPageBreaksCurrentlyOverflows() throws Exception {
+		this.assertCurrentlyOverflows(1000, 300);
+	}
+
+	/**
+	 * 深さ5000(finishLayout/frames/draw/textShape/getTextの反復化後に
+	 * 確認済みの深さと同水準)。同じく現状は{@code splitPageAxis}経由で
+	 * {@code StackOverflowError}に到達する(クラスjavadoc参照)。
+	 */
+	public void testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows() throws Exception {
+		this.assertCurrentlyOverflows(5000, 300);
+	}
+
+	/**
+	 * restyle系反復化前の現状の既知の限界を固定する。
+	 *
+	 * <p>
+	 * {@code DirectSession.transcode(Source)}は{@code catch (Throwable t)}で
+	 * 予期しない例外を捕捉し、原因(cause)を保持しないまま
+	 * {@code TranscoderException}へ包み直す(ログにのみ出力する)ため、
+	 * {@code TranscoderException}の原因チェーンからは元の
+	 * {@code StackOverflowError}を辿れない。そのため一時的な
+	 * {@link Handler}を{@code DirectSession}のロガーへ差し込み、
+	 * ログ出力された{@code Throwable}を直接検査する。
+	 * </p>
+	 */
+	private void assertCurrentlyOverflows(int depth, int leafLines) throws Exception {
+		final Logger sessionLogger = Logger.getLogger(DirectSession.class.getName());
+		final Throwable[] logged = new Throwable[1];
+		final Handler capture = new Handler() {
+			public void publish(LogRecord record) {
+				if (record.getThrown() != null) {
+					logged[0] = record.getThrown();
+				}
+			}
+
+			public void flush() {
+			}
+
+			public void close() {
+			}
+		};
+		sessionLogger.addHandler(capture);
+		try {
+			try {
+				this.runDeepOpenChain(depth, leafLines);
+				fail("restyle系(または関連する反復化未対応の再帰)が解消した可能性があります。"
+						+ "深さ" + depth + "が例外なく成功しました——このテストを「成功する」側の"
+						+ "アサーションへ書き換えてください(クラスjavadoc参照)。");
+			} catch (TranscoderException e) {
+				Throwable cause = logged[0];
+				while (cause != null && !(cause instanceof StackOverflowError)) {
+					cause = cause.getCause();
+				}
+				assertTrue("深さ" + depth + "の失敗原因がStackOverflowErrorではありません"
+						+ "(想定外の別の不具合の可能性、ログ捕捉分=" + logged[0] + "): " + e,
+						cause instanceof StackOverflowError);
+				// StackOverflowErrorの発生箇所を記録しておく(restyle系か、
+				// それ以外の未対応の再帰かを切り分けるため)。
+				System.err.println("深さ" + depth + "でのStackOverflowError発生箇所(先頭20フレーム):");
+				StackTraceElement[] trace = cause.getStackTrace();
+				System.err.println("  total frames=" + trace.length);
+				for (int i = 0; i < Math.min(20, trace.length); ++i) {
+					System.err.println("  at " + trace[i]);
+				}
+			}
+		} finally {
+			sessionLogger.removeHandler(capture);
+		}
+	}
+
+	private void runDeepOpenChain(int depth, int leafLines) throws Exception {
+		final String name = "deep-nesting-restyle-" + depth;
+		final File doc = generateDeepOpenChainAcrossPageBreaks(name, depth, leafLines);
+		final File pdf = new File("local/unittest/display-list/" + name + ".pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+		assertTrue("PDFが出力されていません(深さ" + depth + ")", pdf.length() > 0);
+	}
+
+	/**
+	 * depth段だけ{@code <div>}を入れ子にし、最深部にleafLines行分の
+	 * 番号付きテキスト(1行8pt、ページ高さ400ptなので約50行/ページ)を
+	 * 置いた文書を生成する。leafLinesを1ページ分(約50行)より十分大きく
+	 * することで、ネストの祖先チェーン全体が開いたまま複数回改ページする。
+	 */
+	private static File generateDeepOpenChainAcrossPageBreaks(String name, int depth, int leafLines)
+			throws IOException {
+		final File dir = new File("local/unittest/generated");
+		dir.mkdirs();
+		final File file = new File(dir, name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"250pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			// DeepNestingLayoutTestと同様、borderやpaddingは付けない
+			// (各段のサイズ計算を単純に保つ)。ただし今回は最深部の内容量を
+			// 意図的にページ高さより大きくし、祖先チェーンを開いたまま
+			// 改ページさせる。
+			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif}</style>\n");
+			w.write("</head><body>\n");
+			for (int i = 0; i < depth; ++i) {
+				w.write("<div>");
+			}
+			for (int i = 0; i < leafLines; ++i) {
+				w.write("LEAF-");
+				w.write(String.format("%06d", i));
+				w.write("<br/>\n");
+			}
+			for (int i = 0; i < depth; ++i) {
+				w.write("</div>");
+			}
+			w.write("\n</body></html>\n");
+		}
+		return file;
+	}
+}
