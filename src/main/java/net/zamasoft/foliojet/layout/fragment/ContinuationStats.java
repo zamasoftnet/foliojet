@@ -29,6 +29,16 @@ public final class ContinuationStats {
 	 */
 	public static final AtomicLong MAX_OPEN_TAIL_DEPTH = new AtomicLong();
 
+	/**
+	 * 開いたままの祖先チェーン(moved-open)を{@code FlowContainer.restyle}が
+	 * ボックス再生(restyle-chain)で1段降りるたびに1加算します(2026-07-20、
+	 * M6b Phase B「切断ブロックチェーン」ソース再生化の可視化基盤=B0)。
+	 * ソース再生化が進むほどこの値は0に近づくべき値で、着手前の現状把握と、
+	 * 各段階での box-restyle 依存の縮小を実測するための発火カウンタです
+	 * (docs/consultations/consult-open-chain-replay-*.md参照)。
+	 */
+	public static final AtomicLong RESTYLE_CHAIN_FIRINGS = new AtomicLong();
+
 	private ContinuationStats() {
 		// counters
 	}
@@ -39,5 +49,6 @@ public final class ContinuationStats {
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_OPEN_TAIL_DEPTH.set(0);
+		RESTYLE_CHAIN_FIRINGS.set(0);
 	}
 }

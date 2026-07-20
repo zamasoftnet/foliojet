@@ -88,6 +88,20 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 既知の限界」として固定する(restyle系の反復化の完了条件では、もはや
  * ない)。
  * </p>
+ *
+ * <p>
+ * <b>B0(2026-07-20、codex/grokへの外部相談後)</b>:
+ * {@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
+ * (`FlowContainer.restyle`の{@code OpenShape.OpenChain}分岐発火数)を
+ * 深さ200で計測したところ0のままだった。実際に発火していたのは
+ * {@code CHILD_FRAMES}(1206回)——単純な「1段1子」の深いネストは
+ * {@code FlowContainer.restyle}の{@code OpenChain}分岐ではなく
+ * {@code RootBuilder.resumeFrame()}自身の自己再帰
+ * (`ContinuationFrame.Child`を1段ごとに1回)で処理されていた。この
+ * 自己再帰はswitch文の唯一かつ末尾の文(真の末尾再帰)だったため、
+ * {@code while}ループへの書き換えのみで挙動を変えず反復化した(修正済み、
+ * 三層検証済み)。`docs/NEXT-SESSION.md`「B0着手結果」参照。
+ * </p>
  */
 public class DeepNestingRestyleTest extends TestCase {
 	static {
@@ -103,9 +117,28 @@ public class DeepNestingRestyleTest extends TestCase {
 	 * 実測(2026-07-20)では深さ500まで成功し、1000でStackOverflowError
 	 * に到達する(下記{@link #testDepth1000OpenChainAcrossPageBreaksCurrentlyOverflows}
 	 * 参照)。この深さ200は「現状でも安全な下限」を回帰として固定する。
+	 *
+	 * <p>
+	 * 併せて{@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
+	 * (M6b Phase B「切断ブロックチェーン」ソース再生化のB0=発火可視化、
+	 * 2026-07-20。codex/grokへの外部相談、
+	 * docs/consultations/consult-open-chain-replay-*.md参照)を計測し、
+	 * この構成で開いたチェーン経由のbox-restyleが実際に多数発火している
+	 * ことを固定する。ソース再生化が進むほどこの値は下がるべきで、将来の
+	 * 段階ごとの縮小を実測するための基準値としてここに記録する。
+	 * </p>
 	 */
 	public void testDepth200OpenChainAcrossPageBreaks() throws Exception {
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.reset();
 		this.runDeepOpenChain(200, 300);
+		System.err.println("深さ200: RESTYLE_CHAIN_FIRINGS="
+				+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
+				+ " CHILD_FRAMES=" + net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.get()
+				+ " OPEN_TAILS=" + net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.get()
+				+ " UNCHAINED_RESTYLES="
+				+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.get()
+				+ " MAX_OPEN_TAIL_DEPTH="
+				+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH.get());
 	}
 
 	/**

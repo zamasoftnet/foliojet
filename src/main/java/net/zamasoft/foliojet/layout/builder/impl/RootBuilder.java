@@ -505,47 +505,62 @@ public class RootBuilder extends BreakableBuilder {
 	 * OpenTailShape なら従来の深さ規約(最内の moved-open ボックス・
 	 * 開きテキストの継続)。
 	 *
-	 * @param frame フレーム
+	 * <p>
+	 * 2026-07-20: {@code Child}分岐の自己再帰(チェーン断片1段につき1回)を
+	 * 明示的ループへ反復化した(ARCHITECTURE.md不変条件6)。
+	 * {@code DeepNestingRestyleTest}(深さ200)で
+	 * {@code ContinuationStats.CHILD_FRAMES}が実際に1000超発火することを
+	 * 確認済みで、再帰のままでは深いネスト文書でStackOverflowErrorに
+	 * 到達しうる。再帰呼び出しがswitch文の唯一かつ末尾の文だった
+	 * (呼び出し後に何もしない末尾再帰)ため、`frame`/`index`を書き換えて
+	 * ループ先頭へ戻すだけで挙動を変えずに反復化できる。
+	 * </p>
+	 *
+	 * @param frame 開始フレーム
 	 * @param index 外からの位置(0=ルート。トレースの chain-fragment 番号)
 	 * @param depth 継続全体の深さ(トレース表示用)
 	 */
-	private void resumeFrame(final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame,
-			final int index, final int depth) {
-		assert !this.resumeScopes.isEmpty();
-		final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
-				.continueFragment(frame.recipe(), frame.state(), frame.container(), frame.crossExtent());
-		// P1: 型検査つきの消費(表フレーム等の新種別は明示的に追加する —
-		// FrameRemainder sum type の下地。盲目的キャストで壊れない)
-		if (!(block instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box)) {
-			throw new IllegalStateException("未対応のフレーム種別: " + block.getClass().getName());
-		}
-		switch (frame.tail()) {
-		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
-				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
-			this.startFlowBlock(box);
-			this.restyleFrame(box.getContainer(), frame.prefixItems(),
-					net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
-			net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(index + 1, "chain-fragment",
-					"depth=" + (depth - (index + 1)));
-			this.resumeFrame(child, index + 1, depth);
-		}
-		case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
-				final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH
-					.accumulateAndGet(shape.depth(), Math::max);
-			if (index == 0) {
-				// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
-				// この経路では prefix 吸収は行われていない
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.incrementAndGet();
-				assert frame.prefixItems().isEmpty();
-				box.restyle(this, shape);
-			} else {
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.incrementAndGet();
-				this.startFlowBlock(box);
-				this.restyleFrame(box.getContainer(), frame.prefixItems(), shape);
+	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
+			final int depth) {
+		while (true) {
+			assert !this.resumeScopes.isEmpty();
+			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
+					.continueFragment(frame.recipe(), frame.state(), frame.container(), frame.crossExtent());
+			// P1: 型検査つきの消費(表フレーム等の新種別は明示的に追加する —
+			// FrameRemainder sum type の下地。盲目的キャストで壊れない)
+			if (!(block instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box)) {
+				throw new IllegalStateException("未対応のフレーム種別: " + block.getClass().getName());
 			}
-		}
+			switch (frame.tail()) {
+			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
+				this.startFlowBlock(box);
+				this.restyleFrame(box.getContainer(), frame.prefixItems(),
+						net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
+				net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(index + 1, "chain-fragment",
+						"depth=" + (depth - (index + 1)));
+				frame = child;
+				++index;
+			}
+			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+					final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH
+						.accumulateAndGet(shape.depth(), Math::max);
+				if (index == 0) {
+					// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
+					// この経路では prefix 吸収は行われていない
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.incrementAndGet();
+					assert frame.prefixItems().isEmpty();
+					box.restyle(this, shape);
+				} else {
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.incrementAndGet();
+					this.startFlowBlock(box);
+					this.restyleFrame(box.getContainer(), frame.prefixItems(), shape);
+				}
+				return;
+			}
+			}
 		}
 	}
 

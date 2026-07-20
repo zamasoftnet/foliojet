@@ -1381,6 +1381,8 @@ public class FlowContainer implements Container {
 								// 開いたままの祖先チェーン
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-chain",
 										"serial=" + holder.serial);
+								net.zamasoft.foliojet.layout.fragment.ContinuationStats.RESTYLE_CHAIN_FIRINGS
+										.incrementAndGet();
 								containerBox.restyle(builder, inner);
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
