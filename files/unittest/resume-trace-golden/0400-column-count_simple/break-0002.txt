@@ -2,5 +2,5 @@ resume PAGE
   root-fragment depth=4
    chain-fragment depth=3
     chain-fragment depth=2
-    restyle-chain serial=1
+     chain-fragment depth=1
    restyle-text-open serial=1

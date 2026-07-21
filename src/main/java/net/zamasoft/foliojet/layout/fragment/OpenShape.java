@@ -36,12 +36,24 @@ public sealed interface OpenShape {
 		return shape;
 	}
 
-	/** 旧 depth 規約の値です(トレース表示・水位歩行の互換)。 */
+	/**
+	 * 旧 depth 規約の値です(トレース表示・水位歩行の互換)。
+	 *
+	 * <p>
+	 * 2026-07-21: 再帰実装(1 + inner.depth())は、深さガード自体が
+	 * 深いOpenChainでStackOverflowErrorに到達しうるという盲点だった
+	 * (ChatGPT Pro相談で指摘、docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+	 * ガードの判定に使う値が先に落ちては安全網の意味がないため、
+	 * 明示カーソルによる反復へ変更した。
+	 * </p>
+	 */
 	default int depth() {
-		return switch (this) {
-		case Closed closed -> 0;
-		case OpenText text -> 1;
-		case OpenChain(final OpenShape inner) -> 1 + inner.depth();
-		};
+		int depth = 0;
+		OpenShape cursor = this;
+		while (cursor instanceof OpenChain(final OpenShape inner)) {
+			++depth;
+			cursor = inner;
+		}
+		return depth + (cursor instanceof OpenText ? 1 : 0);
 	}
 }

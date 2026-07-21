@@ -91,6 +91,14 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.Continuation continuation;
 
 		/**
+		 * 2026-07-21(B2): shadow比較用。既存executor(resumeFrame)が実際に
+		 * 選んだ操作を、resumeProgramが予告した操作列と突き合わせる。
+		 * セッションごとに独立して持つ(ソース再生中の入れ子破断で混線
+		 * しないよう、staticバッファにはしない)。
+		 */
+		private final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow;
+
+		/**
 		 * 吸収済み再生範囲のリース(occurrence 単位)。吸収済み範囲は
 		 * ボックスを運搬しない(フォールバックなし)ため、消費されるまで
 		 * compact から守る(水位の clamp は LayoutSource が行う)。
@@ -101,8 +109,10 @@ public class RootBuilder extends BreakableBuilder {
 
 		private State state = State.NEW;
 
-		ResumeSession(final net.zamasoft.foliojet.layout.fragment.Continuation continuation) {
+		ResumeSession(final net.zamasoft.foliojet.layout.fragment.Continuation continuation,
+				final net.zamasoft.foliojet.layout.fragment.ResumeProgram resumeProgram) {
 			this.continuation = continuation;
+			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(resumeProgram);
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
@@ -130,17 +140,22 @@ public class RootBuilder extends BreakableBuilder {
 			this.state = State.RESUMING;
 			RootBuilder.this.sessions.push(this);
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("PAGE");
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(false);
 			RootBuilder.this.beginBreakRestyle(this.continuation.ranges());
 			try {
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
 						"depth=" + this.continuation.depth());
-				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth());
+				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.shadow);
+				// 2026-07-21(B2): shadow比較——正常終了後にのみ完全一致を
+				// 確認する(既存executorの挙動そのものは変えない)。
+				this.shadow.verifyComplete();
 				this.state = State.CONSUMED;
 			} catch (RuntimeException | Error e) {
 				this.state = State.FAILED;
 				throw e;
 			} finally {
 				RootBuilder.this.endBreakRestyle();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
 				RootBuilder.this.sessions.pop();
 			}
@@ -302,24 +317,34 @@ public class RootBuilder extends BreakableBuilder {
 		// docs/consultations/consult-open-chain-prefix-*.md参照)。
 		// 断片は split の返り値(SplitResult.Frame → ContainerCut.WithFrame)
 		// で外へ伝播する — side channel なし
+		//
+		// 2026-07-21(B2): スキャン自体を OpenPathScan.capture() へ委譲した
+		// (挙動不変。B1のContinuationCapability分類をそのまま使う)。
+		// スナップショットはこの後 ResumeProgram のコンパイルにも使う
+		// (再分類しない——ChatGPT Pro相談で確認、
+		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b2-resume-program.md)。
+		//
+		// 2026-07-21(B3a): MULTICOLをPAGE自動改ページ(ForceBreakMode以外)
+		// でのみ収集可能にした——強制改ページでは
+		// FlowContainer.splitPageAxisがKEEP/MOVEを無条件に
+		// AssertionError("force break failed")へ落とす経路があり、
+		// 現時点では安全と確認できていない(B3bとして見送り。ChatGPT Pro
+		// 相談で指摘・検証済み、
+		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b3-multicol-split-through.md)。
+		final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot;
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan plan;
 		{
-			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow = ((FlowBlockBox) ((Flow) this.flowStack
-					.get(0)).box).getBlockParams().flow;
-			final java.util.List<net.zamasoft.foliojet.layout.box.AbstractContainerBox> chainBoxes = new java.util.ArrayList<>(
-					Math.max(0, this.flowStack.size() - 1));
-			for (int i = 1; i < this.flowStack.size(); ++i) {
-				final net.zamasoft.foliojet.layout.box.AbstractContainerBox b = ((Flow) this.flowStack.get(i)).box;
-				final boolean collectable = b.getClass() == FlowBlockBox.class
-						&& ((FlowBlockBox) b).getColumnCount() <= 1
-						&& ((FlowBlockBox) b).getBlockParams().flow == rootFlow;
-				if (!collectable) {
-					break;
-				}
-				chainBoxes.add(b);
+			final java.util.List<net.zamasoft.foliojet.layout.box.AbstractContainerBox> openBoxes = new java.util.ArrayList<>(
+					this.flowStack.size());
+			for (int i = 0; i < this.flowStack.size(); ++i) {
+				openBoxes.add(((Flow) this.flowStack.get(i)).box);
 			}
-			plan = new net.zamasoft.foliojet.layout.fragment.BreakPlan(java.util.List.copyOf(chainBoxes),
-					this.flowStack.size(), 0);
+			final net.zamasoft.foliojet.layout.fragment.OpenPathScan scan = net.zamasoft.foliojet.layout.fragment.OpenPathScan
+					.capture(openBoxes, mode);
+			scan.snapshot().firstBarrier().ifPresent(barrier -> net.zamasoft.foliojet.layout.fragment.ContinuationStats
+					.recordCapabilityScanStop(barrier.reason()));
+			snapshot = scan.snapshot();
+			plan = scan.toBreakPlan();
 		}
 
 		// ルートブロックの分割(C1a: 断片ボックスは split では構築せず、
@@ -383,6 +408,27 @@ public class RootBuilder extends BreakableBuilder {
 			innerFrames.add(f);
 			f = f.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child : null;
+		}
+
+		// 2026-07-21: 深さガードを旧ページ出力(drawPage)より前に検査する。
+		// 終端の OpenTailShape 深さはこの時点で既に確定している
+		// (splitForContinuation が破断時に計算済み)ため、以前のように
+		// resumeFrame() 内(旧ページ出力・drawPage 後)まで待つ必要がない。
+		// ここで止めれば、旧ページの確定・出力が既に済んでいる以外の
+		// 状態変異が一切ない、より安全な地点で中断できる
+		// (ChatGPT Pro相談で指摘、
+		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+		{
+			final int terminalOpenDepth;
+			if (rootChildFrame == null) {
+				terminalOpenDepth = this.flowStack.size();
+			} else {
+				final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail lastTail = innerFrames
+						.get(innerFrames.size() - 1).tail();
+				terminalOpenDepth = lastTail instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+						final net.zamasoft.foliojet.layout.fragment.OpenShape shape) ? shape.depth() : 0;
+			}
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(terminalOpenDepth, false);
 		}
 
 		// ソースログの水位 = 残余の閉じたアイテムの最小 EventId(M6b v3)。
@@ -468,17 +514,40 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
 				depth, rootFrame, ranges);
 
+		// 2026-07-21(B2): 平坦なResumeProgramへコンパイル・検証する
+		// (shadowのみ、既存executorの実行には一切影響しない)。
+		// malformedなプログラムはこの時点(flowStack.clear()・resume側の
+		// 状態変異より前)で例外を投げて安全に停止する。
+		final net.zamasoft.foliojet.layout.fragment.ResumeProgram resumeProgram = net.zamasoft.foliojet.layout.fragment.ResumeProgramCompiler
+				.compile(new net.zamasoft.foliojet.layout.fragment.ResumeProgram.ResumeTarget.NewPage(), snapshot,
+						continuation);
+		// 2026-07-21(B3): compileしたlevelをcapability別に集計する
+		// (「実際にfirst-classコンパイルできた理由」の観測、
+		// capabilityScanStopsとは別軸)。
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCompiledProgram(resumeProgram);
+
 		this.flowStack.clear();
 		pageBox.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 		// P1: セッションがリース(occurrence 単位)とスコープを所有し、
 		// consume-once と例外時清算を対称に保証する
-		try (ResumeSession session = new ResumeSession(continuation)) {
+		try (ResumeSession session = new ResumeSession(continuation, resumeProgram)) {
 			session.resume();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
 		this.pageGenerator.compactLayoutSource(watermark);
-		assert this.flowStack.size() == continuation.depth()
-				: ("break flow failed. " + this.getFlowBox().getParams().element);
+		// 2026-07-21: 旧来はassertのみ(本番では無検査)だったが、ChatGPT Pro
+		// 相談で「直交writing-modeの表(OnePassTableBuilder経由の改ページ、
+		// BreakableBuilder.forceBreak()がbreakDepth障壁を迂回する)」が
+		// この不変条件を破る既存の到達可能経路であることが判明し、実測でも
+		// 確認した(本セッションの変更とは無関係の既存バグ)。本番でこの
+		// チェックが無効だと、flowStackが破断前後で不整合なまま処理が
+		// 継続し、検知されないコンテンツ破損に至る恐れがあるため、
+		// テスト・本番を問わず例外を投げる形に変更する。
+		if (this.flowStack.size() != continuation.depth()) {
+			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+					"break flow failed (flowStack.size()=" + this.flowStack.size() + ", continuation.depth()="
+							+ continuation.depth() + "): " + this.getFlowBox().getParams().element);
+		}
 
 		if (LOG.isLoggable(Level.FINE)) {
 			LOG.fine("restyled");
@@ -529,9 +598,11 @@ public class RootBuilder extends BreakableBuilder {
 	 * @param frame 開始フレーム
 	 * @param index 外からの位置(0=ルート。トレースの chain-fragment 番号)
 	 * @param depth 継続全体の深さ(トレース表示用)
+	 * @param shadow 2026-07-21(B2)。ResumeProgramが予告した操作列との
+	 *               shadow比較(既存executorの実行そのものには影響しない)
 	 */
 	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
-			final int depth) {
+			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow) {
 		while (true) {
 			assert !this.resumeScopes.isEmpty();
 			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
@@ -541,13 +612,19 @@ public class RootBuilder extends BreakableBuilder {
 			if (!(block instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box)) {
 				throw new IllegalStateException("未対応のフレーム種別: " + block.getClass().getName());
 			}
+			shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.Instantiate(index,
+					net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature.from(box)));
 			switch (frame.tail()) {
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
 				this.startFlowBlock(box);
+				shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
 				this.restyleFrame(box.getContainer(), frame.prefixItems(),
 						net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
+				shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleFrame(index,
+						net.zamasoft.foliojet.layout.fragment.ResumeOp.TailMode.CLOSED_CHILD, 0,
+						frame.prefixItems()));
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(index + 1, "chain-fragment",
 						"depth=" + (depth - (index + 1)));
 				frame = child;
@@ -555,39 +632,35 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 					final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
-				final int openDepth = shape.depth();
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH
-						.accumulateAndGet(openDepth, Math::max);
-				// M6b Phase Bの安全網(2026-07-20)。FlowContainer.restyleの
-				// OpenChain分岐はまだ反復化されていない再帰であり、この深さに
-				// 達すると素のStackOverflowErrorに到達しうる。この時点では
-				// 新ページへはまだ何も書き込まれていない(直前のstartFlowBlock
-				// はいずれも旧ページ確定前の話で、この関数はここまで
-				// box.restyle/startFlowBlockのどちらも未実行——外部レビューで
-				// 状態変異を追跡し確認済み)ため、テスト・本番を問わず
-				// ここで安全に例外を投げて中断できる。DirectSession.transcode
-				// の既存catch(Throwable)がTranscoderException(STATE_BROKEN,
-				// FATAL_UNEXPECTED)へ変換する(docs/PLAN.md「M6b Phase B」参照)。
-				if (openDepth >= net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_DEPTH_ALARM_THRESHOLD) {
-					net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_DEPTH_ALARMS.incrementAndGet();
-					final String message = "open ancestor chain depth=" + openDepth
-							+ " reached the safety alarm threshold ("
-							+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_DEPTH_ALARM_THRESHOLD
-							+ "); FlowContainer.restyle's OpenChain branch is still recursive and would risk "
-							+ "an uncontrolled StackOverflowError beyond this point (see docs/PLAN.md \"M6b Phase B\")";
-					LOG.warning(message);
-					throw new net.zamasoft.foliojet.layout.fragment.ContinuationDepthLimitExceededException(message);
-				}
+				// 2026-07-21: 主たる深さガードは RootBuilder.pageBreak() が
+				// 旧ページ出力(drawPage)より前に既に検査済み(この
+				// resumeFrame() の呼び出しに至った時点で必ず一度合格して
+				// いる)。ここでの再検査は防御の重複であり、本来は発火
+				// しないはずだが、念のため同一の閾値・例外で保護しておく。
+				// 注意: index>0(index==0でないOpenTailShape)の場合、
+				// このswitch文より前のChild分岐の反復で既に
+				// startFlowBlock/restyleFrameが実行済みであり、「ここまで
+				// 状態変異なし」という主張は成立しない——「状態変異前」と
+				// 言えるのは pageBreak() 側の検査地点(旧ページ出力より前)
+				// だけである(ChatGPT Pro相談で指摘、
+				// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(shape.depth(), false);
 				if (index == 0) {
 					// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 					// この経路では prefix 吸収は行われていない
 					net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.incrementAndGet();
 					assert frame.prefixItems().isEmpty();
 					box.restyle(this, shape);
+					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleWholeBox(index,
+							shape.depth()));
 				} else {
 					net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.incrementAndGet();
 					this.startFlowBlock(box);
+					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
 					this.restyleFrame(box.getContainer(), frame.prefixItems(), shape);
+					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleFrame(index,
+							net.zamasoft.foliojet.layout.fragment.ResumeOp.TailMode.OPEN_TAIL, shape.depth(),
+							frame.prefixItems()));
 				}
 				return;
 			}

@@ -16,6 +16,7 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.fragment.ContinuationCapability;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
@@ -95,23 +96,41 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		this.run("table-leaf-control", 40, this::writeTableLeaf, 300);
 		assertEquals("表リーフはOpenChainを発火させないはずです", 0, ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
 		assertEquals("表リーフの開きテイルは深さ1(開きテキストのみ)のはずです", 1,
-				ContinuationStats.MAX_OPEN_TAIL_DEPTH.get());
-		assertEquals(0, ContinuationStats.OPEN_CHAIN_DEPTH_ALARMS.get());
+				ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
+		assertEquals(0, ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
 	}
 
 	/**
 	 * 段組を祖先チェーンの途中に挟んだ場合、外側のラッパーdivをかなり
-	 * 深く(100段)しても、収集可能プレフィックス切り詰めにより
-	 * {@code OpenChain}の実深さは段組周辺(内側10段)だけに留まり、
-	 * 安全閾値(64)を大きく下回ったまま安定する——外側の深さに
-	 * <i>比例して</i>大きくならないことがこのテストの主張。
+	 * 深く(100段)しても、B3a(段組のPAGE split-through解禁)により
+	 * 段組level自体がfirst-classにコンパイルされ、PAGE側の
+	 * {@code OpenChain}は完全に消える——外側の深さに関わらず
+	 * {@code MAX_PAGE_OPEN_TAIL_DEPTH}は常に1(開きテキストのみ)。
+	 *
+	 * <p>
+	 * <b>2026-07-21追記(B3a)</b>: 以前(B0.5〜B2)はMULTICOLがプレフィックス
+	 * スキャンを停止させ、段組から内側だけがOpenChain(box-restyle)に
+	 * 落ちていた(実測: 深さ12程度)。B3aで`ContinuationCapability
+	 * .supportsPageSplitThrough()`がMULTICOLを自動改ページで収集可能に
+	 * したため、段組level自体も`ResumeProgram`のfirst-class levelになり、
+	 * PAGE側のOpenChainは完全に消える(`PAGE_RESTYLE_CHAIN_FIRINGS==0`)。
+	 * 残る`RESTYLE_CHAIN_FIRINGS`(このfixtureでは40)はすべてCOLUMN経路
+	 * (段組内部の改段、B4の対象)由来である。
+	 * </p>
 	 */
 	public void testDeepOuterWrapperAroundMulticolStaysShallow() throws Exception {
 		this.run("outer-wrapper-around-multicol", 100, (w, leafLines) -> this.writeMulticolLeaf(w, 10, leafLines),
 				300);
-		final long depth = ContinuationStats.MAX_OPEN_TAIL_DEPTH.get();
-		assertTrue("外側100段でも開きテイル深さは段組周辺だけに留まるはずです(実測=" + depth + ")", depth < 20);
-		assertEquals("プレフィックス切り詰め後は安全閾値に達しないはずです", 0, ContinuationStats.OPEN_CHAIN_DEPTH_ALARMS.get());
+		assertEquals("B3a後はPAGE側の開きテイル深さは常に1(開きテキストのみ)のはずです", 1,
+				ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
+		assertEquals("プレフィックス切り詰め後は安全閾値に達しないはずです", 0, ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
+		assertEquals("B3a後はMULTICOLがプレフィックススキャンを止めないはずです", 0,
+				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
+		assertEquals("PAGE側のOpenChainは完全に消えるはずです", 0, ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
+		assertTrue("段組levelが実際にfirst-classコンパイルされたはずです",
+				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0);
+		assertEquals("残るRESTYLE_CHAIN_FIRINGSはすべてCOLUMN経路由来のはずです",
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get(), ContinuationStats.COLUMN_RESTYLE_CHAIN_FIRINGS.get());
 	}
 
 	/**
@@ -121,14 +140,168 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	 * {@code StackOverflowError}ではなく、型付きの
 	 * {@code ContinuationDepthLimitExceededException}経由の
 	 * {@code TranscoderException}として安全に停止することを確認する。
+	 *
+	 * <p>
+	 * <b>2026-07-21追記</b>: 実際に発火するのはPAGE経路
+	 * ({@code RootBuilder.pageBreak}/{@code resumeFrame})ではなく
+	 * COLUMN経路({@code BreakableBuilder.columnBreak}、段組内の改段)
+	 * だった——80段のネストは2カラムの1カラム分の高さに収まらず、
+	 * ページ全体が改ページを要する前に段組内部で改段が先に必要になるため。
+	 * COLUMN経路は2026-07-20時点ではガード自体が存在せず無防備だった
+	 * (ChatGPT Pro相談で発見、
+	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+	 * このテストが実測でそれを裏付けた——当初「PAGE側の深さガードの
+	 * 検証」のつもりで書いたが、実際にはCOLUMN側ガードの新設を検証する
+	 * テストになっている。
+	 * </p>
 	 */
 	public void testDeepNestingInsideMulticolTripsDepthGuard() throws Exception {
 		try {
 			this.run("nesting-inside-multicol", 5, (w, leafLines) -> this.writeMulticolLeaf(w, 80, leafLines), 300);
 			fail("段組内側の深いネストは安全閾値に到達し、TranscoderExceptionになるはずです");
 		} catch (TranscoderException e) {
-			assertTrue("安全閾値アラームが記録されているはずです", ContinuationStats.OPEN_CHAIN_DEPTH_ALARMS.get() > 0);
+			assertTrue("COLUMN経路の安全閾値アラームが記録されているはずです",
+					ContinuationStats.COLUMN_OPEN_DEPTH_ALARMS.get() > 0);
 		}
+	}
+
+	/**
+	 * 直交writing-modeの表(OnePassTableBuilder経由のINCREMENTAL改ページ)は、
+	 * {@code BreakableBuilder.forceBreak()}が{@code breakDepth}障壁
+	 * (通常は直交書字方向の内部で自動改ページを抑止する仕組み)を迂回する
+	 * ため、{@code ORTHOGONAL_FLOW}(段組・RL/LR不一致と同型の未対応
+	 * capability)へ実際に到達する——2026-07-21、ChatGPT Pro相談で指摘、
+	 * 本セッションの変更とは無関係の既存バグとして実測で確認した
+	 * (本セッション以前から存在。`RootBuilder.java`の
+	 * {@code assert this.flowStack.size() == continuation.depth()}が
+	 * 本番では無検査のまま素通りし、検知されないコンテンツ破損の
+	 * 恐れがあった)。
+	 *
+	 * <p>
+	 * 恒久解(B2以降でORTHOGONAL_FLOWを型付きで扱う)は未実装のため、
+	 * このテストは「型付き例外で安全に停止すること」だけを固定する
+	 * characterization test。この安全網
+	 * ({@code ContinuationInvariantViolationException}、旧
+	 * assertを本番でも常に効く形へ変更)は本テストの発見を受けて追加した。
+	 * </p>
+	 */
+	public void testOrthogonalWritingModeTableTripsInvariantGuard() throws Exception {
+		ContinuationStats.reset();
+		final File doc = this.generateOrthogonalWritingModeTable("orthogonal-table", 200);
+		final File pdf = new File("local/unittest/display-list/open-chain-orthogonal-table.pdf");
+		pdf.getParentFile().mkdirs();
+		try {
+			try (OutputStream out = new FileOutputStream(pdf)) {
+				DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				try {
+					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+					session.property("input.include", "**");
+					session.property("input.property-pi", "true");
+					CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+				} finally {
+					session.close();
+				}
+			}
+			fail("直交writing-modeの表はContinuationInvariantViolationException経由の"
+					+ "TranscoderExceptionになるはずです(未対応のORTHOGONAL_FLOW capability)");
+		} catch (TranscoderException e) {
+			assertTrue("プレフィックススキャンはORTHOGONAL_FLOWで停止したはずです(B1分類)",
+					ContinuationStats.capabilityScanStops(ContinuationCapability.ORTHOGONAL_FLOW) > 0);
+		}
+	}
+
+	private File generateOrthogonalWritingModeTable(String name, int rows) throws IOException {
+		final File dir = new File("local/unittest/generated");
+		dir.mkdirs();
+		final File file = new File(dir, "open-chain-" + name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"300pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"300pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;writing-mode:horizontal-tb}\n");
+			w.write("table{writing-mode:vertical-rl;table-layout:fixed;height:100pt;border-collapse:collapse}\n");
+			w.write("td{border:0.5pt solid black}</style>\n");
+			w.write("</head><body>\n<table>\n");
+			for (int i = 0; i < rows; ++i) {
+				w.write("<tr><td>ROW-" + String.format("%06d", i) + "</td></tr>\n");
+			}
+			w.write("</table>\n</body></html>\n");
+		}
+		return file;
+	}
+
+	/**
+	 * 段組だけがOpenChainの発火条件ではない(2026-07-21、ChatGPT Pro相談で
+	 * 指摘・検証済み)。{@code RootBuilder.pageBreak()}の事前検分は
+	 * 祖先の{@code WritingMode}がルートと完全一致することを要求するが、
+	 * 実際の内部切断可否(`FlowContainer.splitPageAxis`)・自動改ページの
+	 * 障壁(`BreakableBuilder.startFlowBlock`)はどちらも
+	 * {@code isVertical()}の一致しか見ていない。したがって
+	 * {@code vertical-rl}の祖先チェーンの途中に{@code vertical-lr}
+	 * (縦書きのまま方向だけ違う)が挟まっても、実際の切断はできるのに
+	 * 事前検分だけが失敗し、段組と同型のOpenChain発火に至る。
+	 */
+	public void testMixedVerticalDirectionAncestorAlsoTriggersOpenChain() throws Exception {
+		ContinuationStats.reset();
+		final File doc = this.generateVerticalDirectionMismatch("vertical-rl-lr-mismatch", 40, 300);
+		final File pdf = new File("local/unittest/display-list/open-chain-vertical-rl-lr-mismatch.pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+		System.err.println("vertical-rl-lr-mismatch: RESTYLE_CHAIN_FIRINGS=" + ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
+				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " MAX_PAGE_OPEN_TAIL_DEPTH="
+				+ ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
+		assertTrue("書字方向不一致(vertical-rl祖先+vertical-lr子孫)でもOpenChainが発火するはずです"
+				+ "(段組だけが発火条件ではないことの実証、ChatGPT Pro相談で指摘)",
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
+		assertTrue("プレフィックススキャンはSAME_AXIS_DIRECTION_CHANGEで停止したはずです"
+				+ "(B1分類、ページ毎に1回計上)",
+				ContinuationStats.capabilityScanStops(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE) > 0);
+	}
+
+	private File generateVerticalDirectionMismatch(String name, int depth, int leafLines) throws IOException {
+		final File dir = new File("local/unittest/generated");
+		dir.mkdirs();
+		final File file = new File(dir, "open-chain-" + name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"150pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"200pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;writing-mode:vertical-rl}</style>\n");
+			w.write("</head><body>\n");
+			for (int i = 0; i < depth; ++i) {
+				w.write("<div>");
+			}
+			w.write("<div style=\"writing-mode:vertical-lr\">\n");
+			for (int i = 0; i < 10; ++i) {
+				w.write("<div>");
+			}
+			this.writeTextLeaf(w, leafLines);
+			for (int i = 0; i < 10; ++i) {
+				w.write("</div>");
+			}
+			w.write("\n</div>\n");
+			for (int i = 0; i < depth; ++i) {
+				w.write("</div>");
+			}
+			w.write("\n</body></html>\n");
+		}
+		return file;
 	}
 
 	private interface LeafWriter {
@@ -184,8 +357,8 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		System.err.println(name + ": RESTYLE_CHAIN_FIRINGS=" + ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
 				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " OPEN_TAILS="
 				+ ContinuationStats.OPEN_TAILS.get() + " UNCHAINED_RESTYLES=" + ContinuationStats.UNCHAINED_RESTYLES.get()
-				+ " MAX_OPEN_TAIL_DEPTH=" + ContinuationStats.MAX_OPEN_TAIL_DEPTH.get() + " OPEN_CHAIN_DEPTH_ALARMS="
-				+ ContinuationStats.OPEN_CHAIN_DEPTH_ALARMS.get());
+				+ " MAX_OPEN_TAIL_DEPTH=" + ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get() + " OPEN_CHAIN_DEPTH_ALARMS="
+				+ ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
 	}
 
 	private File generate(String name, int depth, LeafWriter leaf, int leafLines) throws IOException {

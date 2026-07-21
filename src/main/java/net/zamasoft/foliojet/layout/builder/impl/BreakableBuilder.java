@@ -850,9 +850,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			final ColumnBreakPoint columnBreak = this.findColumnBreak();
 			if (columnBreak != null) {
 				final double lastFrame = this.lastFrame(columnBreak.flow(), columnBreak.depth());
-				this.columnBreak(columnBreak.flow(), breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame,
-						columnBreak.depth());
-				return;
+				// 2026-07-21: 従来はcolumnBreak()の戻り値(boolean)を無視して
+				// 無条件にreturnしていた——newColumn()がno-cut(null)を返すと、
+				// 改段も行われず、autoBreak()と違いPAGEへのfallbackもされない
+				// サイレントno-opになっていた(ChatGPT Pro相談で発見・検証済み、
+				// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md)。
+				// autoBreak()(887行目付近)と同じfallback規則に揃える。
+				if (this.columnBreak(columnBreak.flow(), breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame,
+						columnBreak.depth())) {
+					return;
+				}
+				if (this.pageBreak(breakMode, IPageBreakableBox.FLAGS_FIRST)) {
+					return;
+				}
+				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+						"forced column break produced no column and no page fallback");
 			}
 		}
 
@@ -966,6 +978,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected boolean columnBreak(final Flow breakFlow, final BreakMode mode, byte flags, final double lastFrame,
 			int depth) {
+		// 2026-07-21: この改段(COLUMN)経路は、下の container.restyle(...,
+		// OpenShape.of(depth), ...) が RootBuilder.pageBreak()の
+		// BreakPlan/深さガード機構を完全に迂回する独立経路であり、
+		// 2026-07-20時点では深さガードが一切存在しなかった(ChatGPT Pro
+		// 相談で発見、docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+		// depthはこの時点で既にパラメータとして確定しており、以降の
+		// newColumn()呼び出しより前(状態変異が一切起きる前)に検査できる。
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(depth, true);
 		this.beginBreak();
 
 		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
@@ -997,6 +1017,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.beginRestyling();
 		final RootBuilder root = this.getPageContext();
 		net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
 		if (root != null) {
 			// C2: 改段の残余についても再生範囲を破断時に一括判定
 			root.beginBreakRestyle(
@@ -1009,6 +1030,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				root.endBreakRestyle();
 			}
 			this.endRestyling();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
 		}
 		return true;

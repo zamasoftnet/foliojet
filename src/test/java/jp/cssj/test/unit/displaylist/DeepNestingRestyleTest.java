@@ -138,7 +138,7 @@ public class DeepNestingRestyleTest extends TestCase {
 				+ " UNCHAINED_RESTYLES="
 				+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.get()
 				+ " MAX_OPEN_TAIL_DEPTH="
-				+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH.get());
+				+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
 	}
 
 	/**
