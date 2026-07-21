@@ -124,6 +124,23 @@ public final class ColumnResumeProgramCompiler {
 				ColumnContinuationVerifier.verify(program);
 				return program;
 			}
+			case Continuation.OpenTail.MovedOpen(final int openDepth) -> {
+				// 2026-07-22(M6b Phase B5c-2 Step1): OpenTailShapeと同じ
+				// COLUMN深さ不変条件。現時点ではproducerが無いため実際には
+				// 到達しない
+				if (levels.size() + openDepth != snapshot.depth()) {
+					throw new ContinuationInvariantViolationException("COLUMN depth invariant failed: levels="
+							+ levels.size() + ", tailDepth=" + openDepth + ", snapshotDepth=" + snapshot.depth());
+				}
+
+				final int firstUncompiled = 1 + levels.size();
+				final ResumeTail tail = new ResumeTail.MovedOpen(firstUncompiled, openDepth);
+
+				final ColumnResumeProgram program = new ColumnResumeProgram(target, anchor, snapshot, levels, tail,
+						ranges);
+				ColumnContinuationVerifier.verify(program);
+				return program;
+			}
 			}
 		}
 	}

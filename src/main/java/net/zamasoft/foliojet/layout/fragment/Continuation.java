@@ -67,6 +67,30 @@ public record Continuation(int depth, ContinuationFrame root,
 				assert !(shape instanceof OpenShape.Closed) : shape;
 			}
 		}
+
+		/**
+		 * plan選択済みチェーンメンバーがMOVEで打ち切られた継続末尾です
+		 * (2026-07-22新設、M6b Phase B5c-2 Step1。codex設計相談で確認、
+		 * docs/consultations参照)。{@code OpenTailShape}と同じ「収集
+		 * 不能な残りの開き」を表すが、KEEPではなくMOVEが理由だったことを
+		 * 型で明示する——{@code LegacyTailCause}のKEEP/MOVE混同
+		 * (旧{@code SplitStopped})を分離するのが目的。
+		 *
+		 * <p>
+		 * {@code Container}は保持しない(tailはcontainerの所有者ではなく
+		 * 「containerの末尾をどう開いて消費するか」を表す情報にすぎない
+		 * ——二重所有・double replayを避けるため)。{@code OpenShape}も
+		 * 直接保持せず素の{@code int}にする(B6完了後もlegacy型を残す
+		 * ことを避けるため)。現時点(Step1)ではこの型を実際に生成する
+		 * producerは無く、既存の網羅switchを壊さないための下地のみ。
+		 * </p>
+		 *
+		 * @param openDepth 旧{@code OpenShape.depth()}相当の実効深さ
+		 *                  (このフレームのcontainerへ{@code OpenShape
+		 *                  .of(openDepth)}として渡す値と同じ)
+		 */
+		record MovedOpen(int openDepth) implements OpenTail {
+		}
 	}
 
 	/**

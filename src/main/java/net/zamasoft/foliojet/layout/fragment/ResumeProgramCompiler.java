@@ -69,6 +69,23 @@ public final class ResumeProgramCompiler {
 				ContinuationVerifier.verify(program);
 				return program;
 			}
+			case Continuation.OpenTail.MovedOpen(final int openDepth) -> {
+				// 2026-07-22(M6b Phase B5c-2 Step1): OpenTailShapeと同じ深さ
+				// 不変条件・LegacyOpen委譲(型だけ分離、実行は既存bridge)。
+				// 現時点ではproducerが無いため実際には到達しない
+				final int frameCount = levels.size();
+
+				if (frameCount + openDepth - 1 != continuation.depth()) {
+					throw new ContinuationInvariantViolationException("depth invariant failed: frames=" + frameCount
+							+ ", tailDepth=" + openDepth + ", continuationDepth=" + continuation.depth());
+				}
+
+				final ResumeTail tail = new ResumeTail.MovedOpen(frameCount, openDepth);
+				final PageResumeProgram program = new PageResumeProgram(snapshot, levels, tail,
+						continuation.ranges());
+				ContinuationVerifier.verify(program);
+				return program;
+			}
 			}
 		}
 	}

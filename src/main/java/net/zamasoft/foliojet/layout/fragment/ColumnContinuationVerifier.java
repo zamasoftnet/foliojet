@@ -74,6 +74,14 @@ public final class ColumnContinuationVerifier {
 								+ " does not match 1 + levels.size()=" + (1 + levels.size()));
 			}
 		}
+		case ResumeTail.MovedOpen movedOpen -> {
+			// 2026-07-22(M6b Phase B5c-2 Step1)
+			if (movedOpen.firstOpenPathIndex() != 1 + levels.size()) {
+				throw new ContinuationInvariantViolationException(
+						"MovedOpen firstOpenPathIndex=" + movedOpen.firstOpenPathIndex()
+								+ " does not match 1 + levels.size()=" + (1 + levels.size()));
+			}
+		}
 		}
 	}
 }
