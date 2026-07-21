@@ -818,6 +818,20 @@ public class FlowContainer implements Container {
 		FlowContainer nextBox = null;
 		boolean ignoreAvoid = false;
 		double savePageLimit = pageLimit;
+		// B5c-2 Step3(自動改ページ主ループ、2026-07-22再挑戦): plan選択
+		// 済みチェーンメンバー(常にthis.flowsの末尾)が一度でも検分され
+		// たかどうか。チェーンメンバー自身のKeep/Moveの生値はここでは
+		// 使わない(pushback巻き戻しで2回検分されうる非純粋呼び出しの
+		// ため、switch直後の値は最終配置と食い違いうると判明——詳細は
+		// docs/history/2026-07-22-open-chain-b5c2-autoloop-root-cause.md
+		// 参照)。かわりに、コンテナ全体の結論が確定する「nextBox+
+		// splitFloatings」の最終returnでのみ、その時点で確定している
+		// 事実(nextBoxがチェーンメンバー単体だけを含むか)から
+		// PlainWithChainStopを付与するか判断する(force-branchと同型の
+		// 状況に限定——複数flowが絡む部分継続は単純な二値では表現できない
+		// ため、それ以外はplain()のまま、既存のcontainer-identity比較
+		// フォールバックに委ねる)。
+		boolean sawChainMember = false;
 		// 上から下へチェックする
 		for (int i = lastOrphan; i < this.flows.size(); ++i) {
 			Flow prevFlow = (Flow) this.flows.get(i);
@@ -875,6 +889,7 @@ public class FlowContainer implements Container {
 						if (i != this.flows.size() - 1) {
 							throw new IllegalStateException("continuation frame child is not the open-tail flow");
 						}
+						sawChainMember = true;
 						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
 								plan)) {
 						case SplitResult.Keep keep -> {
@@ -1039,7 +1054,17 @@ public class FlowContainer implements Container {
 		}
 
 		recordDecision(false, this, "nextBox+splitFloatings", this.flows.size());
-		return plain(this.splitFloatings(nextBox, prevPageSize, flags));
+		// nextBoxがチェーンメンバー一つだけを含む(=force-branchと同型の
+		// 「識別では判別できない素の全体move」)場合に限り
+		// PlainWithChainStopを付与する。複数flowが絡む場合(pushback巻き
+		// 戻しで途中の兄弟が実際の切断点になったケース等)は既存の
+		// container-identity比較へ安全にフォールバックさせる
+		final boolean chainMemberAlone = sawChainMember && nextBox.flows != null && nextBox.flows.size() == 1;
+		final Container splitResult = this.splitFloatings(nextBox, prevPageSize, flags);
+		return chainMemberAlone
+				? new net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(splitResult,
+						net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE)
+				: plain(splitResult);
 	}
 
 	private static net.zamasoft.foliojet.layout.fragment.ContainerCut plain(final Container container) {
