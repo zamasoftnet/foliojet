@@ -396,6 +396,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
 		final Container remainder;
 		final Continuation.ContinuationFrame childFrame;
+		// 2026-07-22(B5c-2 段階4): owner直下自身がPlainWithChainStop
+		// (非空container)で打ち切られた場合のreasonを保持する——
+		// PreparedColumnCut経由でColumnResumeProgramCompilerまで運び、
+		// MovedOpenを構築できるようにする(codex設計相談で確認)
+		net.zamasoft.foliojet.layout.fragment.ChainStopReason terminalStopReason = null;
 		if (cut instanceof ContainerCut.PlainWithChainStop(final Container chainStopContainer,
 				final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
 			{
@@ -418,6 +423,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 				return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP ? new ColumnCutResult.Keep()
 						: new ColumnCutResult.Move();
 			}
+			terminalStopReason = reason;
 			remainder = chainStopContainer;
 			childFrame = null;
 		} else if (cut instanceof ContainerCut.WithFrame(final Container c, final Continuation.ContinuationFrame f)) {
@@ -436,7 +442,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 
 		return new ColumnCutResult.Cut(new PreparedColumnCut(this, ownerContainer, activeColumn, actualColumns,
-				pageLimit, remainder, childFrame));
+				pageLimit, remainder, childFrame, terminalStopReason));
 	}
 
 	/**

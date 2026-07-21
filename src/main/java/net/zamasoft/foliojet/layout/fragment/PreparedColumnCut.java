@@ -25,8 +25,19 @@ import net.zamasoft.foliojet.layout.box.content.Container;
  * @param newPageExtent            commit時にownerへ設定する新しいpage軸寸法
  * @param ownerRemainder           owner直下の残余コンテナ(次columnへ運ぶ内容)
  * @param childFrame               貫通した場合の継続フレーム(貫通しなければnull)
+ * @param terminalStopReason       owner直下自身が{@code PlainWithChainStop}
+ *                                 (非空container)で打ち切られた場合の理由
+ *                                 (2026-07-22新設、M6b Phase B5c-2 段階4。
+ *                                 codex設計相談で確認)。通常の
+ *                                 {@code Plain}/{@code WithFrame}なら
+ *                                 {@code null}。非nullなら
+ *                                 {@code childFrame==null}が不変条件
+ *                                 (チェーン子孫へは貫通しない)
  */
 public record PreparedColumnCut(AbstractContainerBox owner, Container expectedOwnerContainer,
 		Container expectedActiveColumn, int expectedActualColumnCount, double newPageExtent, Container ownerRemainder,
-		Continuation.ContinuationFrame childFrame) {
+		Continuation.ContinuationFrame childFrame, ChainStopReason terminalStopReason) {
+	public PreparedColumnCut {
+		assert terminalStopReason == null || childFrame == null : "terminalStopReasonが非nullならchildFrameはnullのはず";
+	}
 }

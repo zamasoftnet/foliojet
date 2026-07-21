@@ -282,7 +282,7 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.ColumnAnchor anchor = new net.zamasoft.foliojet.layout.fragment.ColumnAnchor(
 				ownerRemainder, anchorPrefix);
 		final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program = net.zamasoft.foliojet.layout.fragment.ColumnResumeProgramCompiler
-				.compileColumn(columnTarget, anchor, snapshot, childFrame, ranges);
+				.compileColumn(columnTarget, anchor, snapshot, childFrame, ranges, prepared.terminalStopReason());
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnCompiledProgram(program);
 		return new CompiledColumn(program, childFrame, ranges);
 	}

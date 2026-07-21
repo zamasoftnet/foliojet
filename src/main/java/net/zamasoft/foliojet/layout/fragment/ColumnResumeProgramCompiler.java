@@ -29,11 +29,16 @@ public final class ColumnResumeProgramCompiler {
 	 * @param snapshot  破断時の相対open pathスナップショット(index 0 = owner)
 	 * @param childFrame owner直下で貫通した場合の継続フレーム(貫通しなければnull)
 	 * @param ranges    閉部分木の再生範囲
+	 * @param terminalStopReason owner直下自身が{@code PlainWithChainStop}
+	 *                           (非空container)で打ち切られた場合の理由
+	 *                           (2026-07-22新設、M6b Phase B5c-2 段階4。
+	 *                           {@code childFrame==null}のときのみ意味を
+	 *                           持つ。通常は{@code null})
 	 * @throws ContinuationInvariantViolationException 構造が破れている場合
 	 */
 	public static ColumnResumeProgram compileColumn(final NextColumnTarget target, final ColumnAnchor anchor,
 			final OpenPathSnapshot snapshot, final Continuation.ContinuationFrame childFrame,
-			final Map<IBox, Continuation.SourceRange> ranges) {
+			final Map<IBox, Continuation.SourceRange> ranges, final ChainStopReason terminalStopReason) {
 		final List<FragmentResumeLevel> levels = new ArrayList<>();
 
 		if (childFrame == null) {
@@ -49,7 +54,21 @@ public final class ColumnResumeProgramCompiler {
 			// (openDepth==1)が正しい——実測でdepth-1を使うと
 			// AssertionError(flowStack空)になることを確認して修正した。
 			final ResumeTail tail;
-			if (snapshot.depth() == 1) {
+			if (terminalStopReason == ChainStopReason.MOVE) {
+				// 2026-07-22(段階4): owner直下自身がMOVEで打ち切られた場合、
+				// MovedOpenで型付けする(codex設計相談で確認:
+				// firstOpenPathIndex=1(=1+levels.size()、levelsは常に空)、
+				// openDepth=snapshot.depth()——PAGE側のplan.openTailDepth()
+				// を流用する必要はない)。depth==1(=OpenTextに相当する
+				// 状況)でMOVEが起きるのは不変条件違反——owner自身が
+				// 丸ごと動いたのに開きテキストすら残らないのは、chain
+				// メンバーの選択と矛盾する
+				if (snapshot.depth() <= 1) {
+					throw new ContinuationInvariantViolationException(
+							"MovedOpen at COLUMN owner anchor with snapshot.depth()=" + snapshot.depth());
+				}
+				tail = new ResumeTail.MovedOpen(1, snapshot.depth());
+			} else if (snapshot.depth() == 1) {
 				tail = new ResumeTail.OpenText();
 			} else {
 				final int firstUncompiled = 1;

@@ -75,11 +75,18 @@ public final class ColumnContinuationVerifier {
 			}
 		}
 		case ResumeTail.MovedOpen movedOpen -> {
-			// 2026-07-22(M6b Phase B5c-2 Step1)
+			// 2026-07-22(M6b Phase B5c-2 Step1・段階4)
 			if (movedOpen.firstOpenPathIndex() != 1 + levels.size()) {
 				throw new ContinuationInvariantViolationException(
 						"MovedOpen firstOpenPathIndex=" + movedOpen.firstOpenPathIndex()
 								+ " does not match 1 + levels.size()=" + (1 + levels.size()));
+			}
+			// 段階4(codex設計相談で確認): COLUMNの深さ不変条件は
+			// fragmentLevels.size() + tailDepth == snapshotDepth
+			if (levels.size() + movedOpen.openDepth() != program.snapshot().depth()) {
+				throw new ContinuationInvariantViolationException(
+						"MovedOpen depth invariant failed: levels=" + levels.size() + ", openDepth="
+								+ movedOpen.openDepth() + ", snapshotDepth=" + program.snapshot().depth());
 			}
 		}
 		}
