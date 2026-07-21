@@ -14,6 +14,24 @@ public final class ContinuationStats {
 	/** チェーン子フレーム(Child)での消費。 */
 	public static final AtomicLong CHILD_FRAMES = new AtomicLong();
 
+	/**
+	 * plan選択済み(収集可能と判定された)チェーンメンバーの
+	 * {@code splitForContinuation}/{@code split}が{@code Keep}を返した
+	 * 回数(2026-07-21新設、M6b Phase B5c)。B5d(`ColumnsContainer`全体
+	 * 運搬等、MOVEの型付け)着手前の頻度調査用——`FragmentResumeLevel`
+	 * (recipe/state前提)へ押し込めないため、現状は`ResumeTail
+	 * .LegacyOpen(SplitStopped)`へ保守的に委譲している経路が実際に
+	 * どれだけ踏まれているかを可視化する。
+	 */
+	public static final AtomicLong CHAIN_MEMBER_KEEP = new AtomicLong();
+
+	/**
+	 * plan選択済みチェーンメンバーが{@code Move}(丸ごと次の
+	 * フラグメンテナへ移動)を返した回数(2026-07-21新設、M6b Phase B5c)。
+	 * {@link #CHAIN_MEMBER_KEEP}と同じ目的。
+	 */
+	public static final AtomicLong CHAIN_MEMBER_MOVE = new AtomicLong();
+
 	/** チェーン末端の OpenTailShape 消費(prefix 吸収済み)。 */
 	public static final AtomicLong OPEN_TAILS = new AtomicLong();
 
@@ -293,6 +311,8 @@ public final class ContinuationStats {
 
 	public static void reset() {
 		CHILD_FRAMES.set(0);
+		CHAIN_MEMBER_KEEP.set(0);
+		CHAIN_MEMBER_MOVE.set(0);
 		OPEN_TAILS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);

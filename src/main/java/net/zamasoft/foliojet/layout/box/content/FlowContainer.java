@@ -698,6 +698,7 @@ public class FlowContainer implements Container {
 						// 継続化不成立(chainFrame は null のまま)。box 全体を
 						// this 側に残す — 720行目の chainFrame==null 分岐が
 						// plain(nextBox) へ自然にフォールバックする
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP.incrementAndGet();
 					}
 					case SplitResult.Move move -> {
 						// box全体をnextBox側へ送る。自動改ページ主ループ
@@ -707,6 +708,7 @@ public class FlowContainer implements Container {
 						// そちらがthis.flowsの元のサイズを前提にしている)
 						nextBox.addFlow(flow.serial, flow.box, 0);
 						moved = true;
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE.incrementAndGet();
 					}
 					}
 				} else {
@@ -853,8 +855,16 @@ public class FlowContainer implements Container {
 						}
 						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
 								plan)) {
-						case SplitResult.Keep keep -> nextFlowBox = null;
-						case SplitResult.Move move -> nextFlowBox = prevFlow.box;
+						case SplitResult.Keep keep -> {
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP
+									.incrementAndGet();
+							nextFlowBox = null;
+						}
+						case SplitResult.Move move -> {
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE
+									.incrementAndGet();
+							nextFlowBox = prevFlow.box;
+						}
 						case SplitResult.Frame(
 								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
 							final FlowContainer collectedNext = new FlowContainer();

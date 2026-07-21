@@ -57,12 +57,21 @@ public class ResumeTraceGoldenTest extends TestCase {
 
 	public void testResumeTraces() throws Exception {
 		List<String> failures = new ArrayList<>();
+		// 2026-07-21(M6b Phase B5c): plan選択済みチェーンメンバーが
+		// Keep/Moveを返した回数を文書ごとに集計する。B5d(ColumnsContainer
+		// 全体運搬等、MOVEの型付け)着手前の頻度調査——このfixture集合
+		// (12文書)ではKeepは一度も発生せず、Moveは
+		// moved-table-caption.html・columns-float.htmlで1回ずつ発生する
+		// ことを実測済み(稀だが実在する、B5d後回しの判断根拠)。
+		long totalKeep = 0;
+		long totalMove = 0;
 		for (String doc : DOCUMENTS) {
 			String name = doc.replace('/', '_').replace(".html", "");
 			File outDir = new File("local/unittest/resume-trace/" + name);
 			deleteChildren(outDir);
 			File goldenDir = new File("files/unittest/resume-trace-golden/" + name);
 
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.reset();
 			ResumeTrace.reset();
 			System.setProperty(ResumeTrace.DIR_PROPERTY, outDir.getPath());
 			try {
@@ -71,6 +80,8 @@ public class ResumeTraceGoldenTest extends TestCase {
 				System.clearProperty(ResumeTrace.DIR_PROPERTY);
 			}
 
+			totalKeep += net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP.get();
+			totalMove += net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE.get();
 			File[] breaks = outDir.listFiles((d, n) -> n.endsWith(".txt"));
 			assertNotNull("再開トレースが出力されていません: " + doc, breaks);
 			assertTrue("再開トレースが出力されていません: " + doc, breaks.length > 0);
@@ -101,6 +112,9 @@ public class ResumeTraceGoldenTest extends TestCase {
 				}
 			}
 		}
+		assertEquals("plan選択済みチェーンメンバーのKeepはこのfixture集合では発生しないはずです", 0, totalKeep);
+		assertEquals("plan選択済みチェーンメンバーのMoveはこのfixture集合で2回発生するはずです"
+				+ "(moved-table-caption.html・columns-float.htmlで1回ずつ)", 2, totalMove);
 		if (!failures.isEmpty()) {
 			fail(String.join("\n", failures));
 		}
