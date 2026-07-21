@@ -283,6 +283,85 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
+	 * M6b Phase B3b-1(2026-07-21): 段組祖先(段数2、AUTO高さ、複数ページに
+	 * わたる)の内側で強制改ページ({@code page-break-before: always})が
+	 * 起きても、{@code ContinuationCapability.supportsPageSplitThrough}の
+	 * mode非依存化(B3b-2でKEEP/MOVEが正規経路になったことを根拠に撤去)
+	 * 以降、例外なく安全に完走し、段組level自体が{@code
+	 * CapabilityBarrier(MULTICOL)}にならず(実際に収集され)first-class
+	 * コンパイルされたことを確認する。
+	 *
+	 * <p>
+	 * <b>フィクスチャ設計上の注意</b>: 段組に明示的な高さ({@code height})を
+	 * 指定すると、{@code canColumnBreak()}の{@code isSpecifiedPageSize()}
+	 * 短絡(高さ指定時は実使用量に関わらず追加の列を無条件に許可する)により、
+	 * 収まりきらない内容はPAGE分割ではなく単にオーバーフローする(あるいは
+	 * ページ幅が許す限り追加の列が生成される)だけで、実際のPAGEレベル
+	 * 強制分割には至らない——このセッションの変更とは無関係の既存挙動
+	 * (このテスト作成時に発見)。段組をAUTO高さのままにし
+	 * ({@code testNestedPageAndColumnResumeDoNotLeakSessions}の
+	 * {@code generateMultiPageMulticol}と同型)、内容が複数ページに
+	 * またがる分量にすることで、初めてPAGEレベルの強制分割
+	 * (このテストが検証したい経路)が発生することを実測で確認した。
+	 * トリガーには{@code page-break-before}を使う(このエンジンは
+	 * {@code ElementPropertySet}に登録された旧CSS2プロパティ名のみを
+	 * 認識し、現行のCSS Fragmentation仕様の{@code break-before}は未対応、
+	 * `PageBreakBefore.java`参照)。
+	 * </p>
+	 */
+	public void testForceBreakInsideMulticolAncestorSplitsThroughSafely() throws Exception {
+		ContinuationStats.reset();
+		final File doc = this.generateForceBreakInsideMulticol("force-break-inside-multicol");
+		final File pdf = new File("local/unittest/display-list/open-chain-force-break-inside-multicol.pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+		assertEquals("MULTICOLは強制改ページでもbarrierにならないはずです(B3b-1)", 0,
+				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
+		assertTrue("段組levelが強制改ページ経由でもfirst-classコンパイルされたはずです",
+				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0);
+	}
+
+	private File generateForceBreakInsideMulticol(final String name) throws IOException {
+		final File dir = new File("local/unittest/generated");
+		dir.mkdirs();
+		final File file = new File(dir, "open-chain-" + name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"250pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"200pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;margin:0}"
+					+ "div{margin:0;padding:0}</style>\n");
+			w.write("</head><body>\n");
+			// 段組祖先(段数2、AUTO高さ)——複数ページにまたがる分量の
+			// 内容の途中でpage-break-before:alwaysを発火させ、PAGEレベルの
+			// 強制分割にエスカレーションさせる
+			w.write("<div style=\"column-count:2;column-gap:1em\">\n");
+			w.write("<div>\n");
+			this.writeTextLeaf(w, 100);
+			w.write("<div style=\"page-break-before:always\">\n");
+			this.writeTextLeaf(w, 100);
+			w.write("</div>\n");
+			w.write("</div>\n");
+			w.write("</div>\n");
+			w.write("</body></html>\n");
+		}
+		return file;
+	}
+
+	/**
 	 * 段組<i>自身の内側</i>を深くネストさせた場合(外側は5段のみと浅い)、
 	 * プレフィックス切り詰めの対象外(違反箇所より内側)であるため、
 	 * 依然として安全閾値(64)へ到達しうる。この場合、素の

@@ -139,20 +139,22 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * B3a(2026-07-21): {@code MULTICOL}はPAGE自動改ページ
-	 * ({@code AutoBreakMode})では収集可能(split-through)だが、
-	 * 強制改ページ({@code ForceBreakMode})では収集不能のまま——
-	 * {@code FlowContainer.splitPageAxis}の強制改ページ分岐は選択された
+	 * B3a(2026-07-21)で{@code MULTICOL}はPAGE自動改ページのみ収集可能に
+	 * なり、強制改ページ({@code ForceBreakMode})は
+	 * {@code FlowContainer.splitPageAxis}の強制改ページ分岐が選択された
 	 * チェーンメンバーの{@code KEEP}/{@code MOVE}を無条件に
-	 * {@code AssertionError("force break failed")}へ落とすため、安全と
-	 * 確認できるまで見送る(ChatGPT Pro相談で指摘・検証済み)。
+	 * {@code AssertionError("force break failed")}へ落とすため見送って
+	 * いた。B3b-2(2026-07-21)でこの生の{@code AssertionError}を正規の
+	 * KEEP/MOVE処理へ書き換えたため、B3b-1(2026-07-21)でmodeによらず
+	 * 収集可能にした——自動改ページ・強制改ページのどちらでも同じ
+	 * {@code splitForContinuation}経路を通る。
 	 */
-	public void testMulticolSupportsPageSplitThroughOnlyForAutoBreak() {
+	public void testMulticolSupportsPageSplitThroughRegardlessOfMode() {
 		final ContinuationCapability multicol = ContinuationCapability.MULTICOL;
 		assertTrue("自動改ページではMULTICOLを収集可能にするはずです",
 				multicol.supportsPageSplitThrough(
 						new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(plainFlowBlockBox(WritingMode.TB))));
-		assertFalse("強制改ページではMULTICOLを収集不能のままにするはずです(force break failed回避)",
+		assertTrue("B3b-1(2026-07-21)以降、強制改ページでもMULTICOLを収集可能にするはずです",
 				multicol.supportsPageSplitThrough(new net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode(
 						plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE)));
 	}
@@ -168,9 +170,9 @@ public class ContinuationCapabilityTest extends TestCase {
 
 	/**
 	 * {@code ORTHOGONAL_FLOW}/{@code UNSUPPORTED_BOX}はmodeによらず常に
-	 * 収集不能(2026-07-21のB5でFLOW_SUBTYPE/SAME_AXIS_DIRECTION_CHANGEは
-	 * 自動改ページに限り収集可能になったため、このテストの対象からは
-	 * 除外した——下記{@code testFlowSubtypeAndSameAxisSupportPageSplitThroughOnlyForAutoBreak}参照)。
+	 * 収集不能(B3b-1(2026-07-21)以降、他の全capability——{@code
+	 * MULTICOL}/{@code FLOW_SUBTYPE}/{@code SAME_AXIS_DIRECTION_CHANGE}——は
+	 * mode非依存で収集可能になったため、この2つだけが引き続きbarrier)。
 	 */
 	public void testOrthogonalAndUnsupportedNeverSupportPageSplitThrough() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
@@ -180,25 +182,26 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * B5(2026-07-21): {@code FLOW_SUBTYPE}(唯一の実装である
+	 * B5(2026-07-21)で{@code FLOW_SUBTYPE}(唯一の実装である
 	 * {@code RubyBodyBox})・{@code SAME_AXIS_DIRECTION_CHANGE}(RL/LR
-	 * 混在)は、{@code MULTICOL}と同じ規則(自動改ページのみ収集可能、
-	 * 強制改ページは見送り)で解禁する。codex/grok/agyへの設計相談で
-	 * 「crossExtent/FragmentStateはisVertical()のみに依存し、サブタイプ・
-	 * RL/LRの向きを見ない」ことを確認した上での解禁。
+	 * 混在)は、当時の{@code MULTICOL}と同じ規則(自動改ページのみ収集可能、
+	 * 強制改ページは見送り)で解禁した。B3b-1(2026-07-21)でMULTICOLの
+	 * 強制改ページ制限を撤去したのに合わせ、同じ理由(選択された
+	 * チェーンメンバーのKEEP/MOVE処理はB3b-2以降mode非依存)でこちらも
+	 * 撤去した。
 	 */
-	public void testFlowSubtypeAndSameAxisSupportPageSplitThroughOnlyForAutoBreak() {
+	public void testFlowSubtypeAndSameAxisSupportPageSplitThroughRegardlessOfMode() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
 				plainFlowBlockBox(WritingMode.TB));
 		final net.zamasoft.foliojet.layout.box.content.BreakMode force = new net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode(
 				plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE);
 		assertTrue("自動改ページではFLOW_SUBTYPEを収集可能にするはずです",
 				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(auto));
-		assertFalse("強制改ページではFLOW_SUBTYPEを収集不能のままにするはずです",
+		assertTrue("B3b-1以降、強制改ページでもFLOW_SUBTYPEを収集可能にするはずです",
 				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(force));
 		assertTrue("自動改ページではSAME_AXIS_DIRECTION_CHANGEを収集可能にするはずです",
 				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(auto));
-		assertFalse("強制改ページではSAME_AXIS_DIRECTION_CHANGEを収集不能のままにするはずです",
+		assertTrue("B3b-1以降、強制改ページでもSAME_AXIS_DIRECTION_CHANGEを収集可能にするはずです",
 				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(force));
 	}
 

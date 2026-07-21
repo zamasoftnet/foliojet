@@ -64,53 +64,43 @@ public enum ContinuationCapability {
 	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b3-multicol-split-through.md参照。
 	 *
 	 * <p>
-	 * {@link #MULTICOL}は{@code BreakMode.ForceBreakMode}では許可しない。
-	 * 強制改ページで選択されたチェーンメンバーの{@code
-	 * splitForContinuation}が{@code KEEP}/{@code MOVE}を返すと、
-	 * {@code FlowContainer.splitPageAxis}が無条件に
-	 * {@code AssertionError("force break failed")}を投げる経路がある
-	 * ため(`FlowContainer.java`の強制改ページ分岐で確認済み)。自動改ページ
-	 * では、収集できなかった場合は安全に{@code
-	 * LegacyTailCause.SplitStopped}へ落ちるため問題ない。
+	 * {@link #MULTICOL}はB3aで自動改ページのみ許可されていた——強制改ページで
+	 * 選択されたチェーンメンバーの{@code splitForContinuation}が
+	 * {@code KEEP}/{@code MOVE}を返すと、当時は{@code
+	 * FlowContainer.splitPageAxis}が無条件に{@code
+	 * AssertionError("force break failed")}を投げる経路があったため
+	 * (`FlowContainer.java`の強制改ページ分岐で確認済み)。B3b-2
+	 * (2026-07-21)でこの生の{@code AssertionError}を{@code
+	 * AbstractBlockBox.splitForContinuation()}が明記する正規のKEEP/MOVE
+	 * 処理へ書き換え、自動改ページ主ループ・{@code
+	 * AbstractContainerBox.split()}と同型の処理に揃えたため、この障壁は
+	 * 解消した(B3b-1、2026-07-21)。強制改ページ・改段いずれも、選択された
+	 * チェーンメンバーが返す{@code KEEP}/{@code MOVE}/{@code Frame}は
+	 * どの{@link ContinuationCapability}であっても同じ経路で処理される
+	 * ため、mode依存の制限を維持する理由がなくなった。
 	 * </p>
 	 */
 	public boolean supportsPageSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW -> true;
-		case MULTICOL -> !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
-		// 2026-07-21(B5): RubyBodyBox(唯一のFLOW_SUBTYPE実装、
-		// fragmentRecipe()のresolvedAlign欠落は修正済み)・RL/LR混在
-		// (SAME_AXIS_DIRECTION_CHANGE、crossExtent/FragmentStateは
-		// isVertical()のみに依存しRL/LRの向きを見ないため意味論上安全)を
-		// 解禁する。MULTICOLと同様、Force改ページでは見送る——B3b-2で
-		// force split自体はKEEP/MOVEを安全に処理するようになったが、
-		// force+これらの新規admissionの組み合わせは未検証のため、まずは
-		// Autoのみに限定する(将来のB3b-1と合わせて再検討する)。
-		case FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE ->
-			!(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
+		case PLAIN_FLOW, MULTICOL, FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE -> true;
 		default -> false;
 		};
 	}
 
 	/**
 	 * COLUMN経由(段組ownerより内側の子孫)のsplit-throughを許可するかを
-	 * 判定します(2026-07-21新設、M6b Phase B B4、未配線)。B4の最初の
-	 * sliceでは{@link #PLAIN_FLOW}のみ、かつ自動改段(Force以外)に限る
-	 * ——ChatGPT Pro相談で確認、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
-	 * 参照。強制COLUMNの新しいselected-frame経路は、force split
-	 * hardening(B3b-2の続き)が終わるまで非許可のままにする。
-	 * descendant側の{@link #MULTICOL}(段組ownerの内側にさらに現れる別の
-	 * 段組)は当面{@code LegacyOpen}のbarrierとして残す。
+	 * 判定します(2026-07-21新設、M6b Phase B B4、B5でRubyBodyBox・RL/LR
+	 * 混在を解禁、B3b-1で強制改段も解禁——PAGE側の
+	 * {@link #supportsPageSplitThrough}と同じ理由で、B3b-2により選択済み
+	 * チェーンメンバーのKEEP/MOVE処理がmode非依存の正規経路になったため、
+	 * 強制改段だけ制限する理由がなくなった)。descendant側の
+	 * {@link #MULTICOL}(段組ownerの内側にさらに現れる別の段組)は引き続き
+	 * {@code LegacyOpen}のbarrierとして残す(owner自体は分類対象外、
+	 * ownerの内側にさらに現れる別のMULTICOLだけがこの分岐に到達する)。
 	 */
 	public boolean supportsColumnSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW ->
-			!(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
-		// 2026-07-21(B5): PAGE側と同じ理由でRubyBodyBox・RL/LR混在を
-		// COLUMN側でも自動改段のみ解禁する。
-		case FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE ->
-			!(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
+		case PLAIN_FLOW, FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE -> true;
 		default -> false;
 		};
 	}
