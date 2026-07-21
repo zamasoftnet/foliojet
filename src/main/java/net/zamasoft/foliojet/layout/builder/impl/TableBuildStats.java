@@ -45,13 +45,6 @@ public final class TableBuildStats {
 	/** 表断片(splitTableBox)の生成数。 */
 	public static final AtomicLong TABLE_FRAGMENTS = new AtomicLong();
 
-	/**
-	 * processing.strict-one-pass=trueにより、TwoPassTableBuilder
-	 * (無制限バッファ)の代わりにOnePassTableBuilderへ警告付きで
-	 * 近似した回数(docs/PLAN.md「2パス制御モード」参照)。
-	 */
-	public static final AtomicLong STRICT_ONE_PASS_DEGRADES = new AtomicLong();
-
 	private TableBuildStats() {
 		// stats
 	}

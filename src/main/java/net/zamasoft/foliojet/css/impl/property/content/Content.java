@@ -15,14 +15,14 @@ import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
+import net.zamasoft.foliojet.css.value.StringFunctionValue;
 import net.zamasoft.foliojet.css.value.StringValue;
+import net.zamasoft.foliojet.css.value.TargetCounterValue;
+import net.zamasoft.foliojet.css.value.TargetTextValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJFirstHeadingValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJPageRefValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.NamedStringState;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -88,9 +88,6 @@ public class Content extends AbstractPrimitivePropertyInfo {
 				case "no-close-quote":
 					values.add(QuoteValue.NO_CLOSE_QUOTE_VALUE);
 					break;
-				case "-cssj-title":
-					values.add(CSSJTitleValue.CSSJ_TITLE_VALUE);
-					break;
 				default:
 					throw new PropertyException();
 				}
@@ -106,12 +103,16 @@ public class Content extends AbstractPrimitivePropertyInfo {
 						throw new PropertyException();
 					}
 					values.add(new AttrValue(name));
-				} else if (func.is("-cssj-heading") || func.is("-cssj-last-heading")) {
-					values.add(new CSSJLastHeadingValue(parseHeadingLevel(func.argStream())));
-				} else if (func.is("-cssj-first-heading")) {
-					values.add(new CSSJFirstHeadingValue(parseHeadingLevel(func.argStream())));
 				} else if (func.is("-cssj-page-ref")) {
 					values.add(parsePageRef(func.argStream()));
+				} else if (func.is("target-counter")) {
+					values.add(parseTargetCounter(func.argStream()));
+				} else if (func.is("target-counters")) {
+					values.add(parseTargetCounters(func.argStream()));
+				} else if (func.is("target-text")) {
+					values.add(parseTargetText(func.argStream()));
+				} else if (func.is("string")) {
+					values.add(parseStringFunc(func.argStream()));
 				} else {
 					throw new PropertyException();
 				}
@@ -125,7 +126,8 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return new ValueListValue((Value[]) values.toArray(new Value[values.size()]));
 	}
 
-	private static CounterValue parseCounter(TokenStream params) throws PropertyException {
+	/** package-visible: {@link StringSet}が{@code counter()}パースを再利用する。 */
+	static CounterValue parseCounter(TokenStream params) throws PropertyException {
 		final String id = params.ident();
 		if (id == null) {
 			throw new PropertyException();
@@ -145,7 +147,8 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return new CounterValue(id, styleType.getListStyleType());
 	}
 
-	private static CountersValue parseCounters(TokenStream params) throws PropertyException {
+	/** package-visible: {@link StringSet}が{@code counters()}パースを再利用する。 */
+	static CountersValue parseCounters(TokenStream params) throws PropertyException {
 		final String id = params.ident();
 		if (id == null) {
 			throw new PropertyException();
@@ -170,37 +173,75 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return new CountersValue(id, delimiter, styleType);
 	}
 
-	private static int parseHeadingLevel(TokenStream params) throws PropertyException {
-		if (!params.hasNext()) {
-			return 1;
-		}
-		final CssToken.Num num = params.number();
-		if (num == null || !num.integer() || params.hasNext()) {
+	/** {@code string(name[, first|start|last|first-except])} */
+	private static StringFunctionValue parseStringFunc(TokenStream params) throws PropertyException {
+		final String name = params.ident();
+		if (name == null) {
 			throw new PropertyException();
 		}
-		return num.intValue();
+		byte mode = NamedStringState.FIRST;
+		if (params.hasNext()) {
+			if (!params.eatComma()) {
+				throw new PropertyException();
+			}
+			final String modeStr = params.ident();
+			if (modeStr == null) {
+				throw new PropertyException();
+			}
+			switch (modeStr) {
+			case "first":
+				mode = NamedStringState.FIRST;
+				break;
+			case "start":
+				mode = NamedStringState.START;
+				break;
+			case "last":
+				mode = NamedStringState.LAST;
+				break;
+			case "first-except":
+				mode = NamedStringState.FIRST_EXCEPT;
+				break;
+			default:
+				throw new PropertyException();
+			}
+			if (params.hasNext()) {
+				throw new PropertyException();
+			}
+		}
+		return new StringFunctionValue(name, mode);
 	}
 
-	private static CSSJPageRefValue parsePageRef(TokenStream params) throws PropertyException {
+	/** ref/attr()解決先の型+ID文字列。 */
+	private record TargetRef(byte type, String ref) {
+	}
+
+	/**
+	 * 参照先の解決(ident/string/url()はREF、attr()はATTR)。
+	 * {@code -cssj-page-ref()}・{@code target-counter()}・
+	 * {@code target-counters()}・{@code target-text()}で共通。
+	 */
+	private static TargetRef parseTargetRef(TokenStream params) throws PropertyException {
 		final CssToken first = params.next();
-		final byte type;
-		final String ref;
 		if (first instanceof CssToken.Ident ident) {
-			type = CSSJPageRefValue.REF;
-			ref = ident.name();
+			return new TargetRef(TargetCounterValue.REF, ident.name());
 		} else if (first instanceof CssToken.Str str) {
-			type = CSSJPageRefValue.REF;
-			ref = str.value();
+			return new TargetRef(TargetCounterValue.REF, str.value());
+		} else if (first instanceof CssToken.Uri uri) {
+			return new TargetRef(TargetCounterValue.REF, uri.uri());
 		} else if (first instanceof CssToken.Func attr && attr.is("attr")) {
-			type = CSSJPageRefValue.ATTR;
 			final TokenStream attrParams = attr.argStream();
-			ref = attrParams.ident();
+			final String ref = attrParams.ident();
 			if (ref == null || attrParams.hasNext()) {
 				throw new PropertyException("IDが必要です");
 			}
+			return new TargetRef(TargetCounterValue.ATTR, ref);
 		} else {
 			throw new PropertyException("IDが必要です");
 		}
+	}
+
+	private static TargetCounterValue parsePageRef(TokenStream params) throws PropertyException {
+		final TargetRef target = parseTargetRef(params);
 		if (!params.eatComma()) {
 			throw new PropertyException("カンマが必要です");
 		}
@@ -233,7 +274,90 @@ public class Content extends AbstractPrimitivePropertyInfo {
 				}
 			}
 		}
-		return new CSSJPageRefValue(type, ref, counter, numberStyleType, separator);
+		return new TargetCounterValue(target.type(), target.ref(), counter, numberStyleType, separator);
+	}
+
+	/** {@code target-counter(target, counter-name, counter-style?)} */
+	private static TargetCounterValue parseTargetCounter(TokenStream params) throws PropertyException {
+		final TargetRef target = parseTargetRef(params);
+		if (!params.eatComma()) {
+			throw new PropertyException("カンマが必要です");
+		}
+		final String counter = params.ident();
+		if (counter == null) {
+			throw new PropertyException("カウンタ名が必要です");
+		}
+		short numberStyleType = ListStyleTypeValue.DECIMAL;
+		if (params.hasNext()) {
+			if (!params.eatComma()) {
+				throw new PropertyException("カンマが必要です");
+			}
+			final String typeStr = params.ident();
+			if (typeStr == null) {
+				throw new PropertyException("数字タイプが必要です");
+			}
+			final ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
+			if (typeValue == null) {
+				throw new PropertyException("数字タイプが不正です");
+			}
+			numberStyleType = typeValue.getListStyleType();
+		}
+		return new TargetCounterValue(target.type(), target.ref(), counter, numberStyleType, null);
+	}
+
+	/** {@code target-counters(target, counter-name, separator, counter-style?)} */
+	private static TargetCounterValue parseTargetCounters(TokenStream params) throws PropertyException {
+		final TargetRef target = parseTargetRef(params);
+		if (!params.eatComma()) {
+			throw new PropertyException("カンマが必要です");
+		}
+		final String counter = params.ident();
+		if (counter == null) {
+			throw new PropertyException("カウンタ名が必要です");
+		}
+		if (!params.eatComma()) {
+			throw new PropertyException("カンマが必要です");
+		}
+		final String separator = params.string();
+		if (separator == null) {
+			throw new PropertyException("区切り文字が必要です");
+		}
+		short numberStyleType = ListStyleTypeValue.DECIMAL;
+		if (params.hasNext()) {
+			if (!params.eatComma()) {
+				throw new PropertyException("カンマが必要です");
+			}
+			final String typeStr = params.ident();
+			if (typeStr == null) {
+				throw new PropertyException("数字タイプが必要です");
+			}
+			final ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
+			if (typeValue == null) {
+				throw new PropertyException("数字タイプが不正です");
+			}
+			numberStyleType = typeValue.getListStyleType();
+		}
+		return new TargetCounterValue(target.type(), target.ref(), counter, numberStyleType, separator);
+	}
+
+	/**
+	 * {@code target-text(target, target-property?)}。v1では
+	 * {@code target-property}は既定の{@code content}のみ対応
+	 * (仕様上の{@code before}/{@code after}/{@code first-letter}は未対応、
+	 * CSS-SUPPORT.md参照)。
+	 */
+	private static TargetTextValue parseTargetText(TokenStream params) throws PropertyException {
+		final TargetRef target = parseTargetRef(params);
+		if (params.hasNext()) {
+			if (!params.eatComma()) {
+				throw new PropertyException("カンマが必要です");
+			}
+			final String targetProperty = params.ident();
+			if (!"content".equals(targetProperty)) {
+				throw new PropertyException("target-textはcontentのみ対応です");
+			}
+		}
+		return new TargetTextValue(target.type(), target.ref(), TargetTextValue.CONTENT);
 	}
 
 	private static String identOrString(TokenStream params) {

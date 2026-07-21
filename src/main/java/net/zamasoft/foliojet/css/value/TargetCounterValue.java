@@ -1,11 +1,14 @@
-package net.zamasoft.foliojet.css.value.ext;
-
-import net.zamasoft.foliojet.css.value.Value;
+package net.zamasoft.foliojet.css.value;
 
 /**
+ * {@code -cssj-page-ref()}(独自拡張)と標準の{@code target-counter()}/
+ * {@code target-counters()}が共通で使う値。id/attr参照先の{@code PageRef}
+ * フラグメントからカウンタ値を読み出す点で3構文とも同じデータ形状のため、
+ * 同じクラスで表現する。
+ *
  * @author MIYABE Tatsuhiko
  */
-public class CSSJPageRefValue implements Value {
+public class TargetCounterValue implements Value {
 	public static final byte REF = 1;
 	public static final byte ATTR = 2;
 
@@ -15,7 +18,7 @@ public class CSSJPageRefValue implements Value {
 
 	private final short numberStyleType;
 
-	public CSSJPageRefValue(byte type, String ref, String counter, short numberStyleType, String separator) {
+	public TargetCounterValue(byte type, String ref, String counter, short numberStyleType, String separator) {
 		this.type = type;
 		this.ref = ref;
 		this.counter = counter;
@@ -44,6 +47,6 @@ public class CSSJPageRefValue implements Value {
 	}
 
 	public String toString() {
-		return "-cssj-page-ref(" + this.ref + "," + this.counter + "," + this.numberStyleType + ")";
+		return "TargetCounterValue(" + this.ref + "," + this.counter + "," + this.numberStyleType + ")";
 	}
 }

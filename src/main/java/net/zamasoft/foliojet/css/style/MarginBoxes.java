@@ -14,13 +14,11 @@ import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
+import net.zamasoft.foliojet.css.value.StringFunctionValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.VerticalAlignValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJFirstHeadingValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.box.Padding;
@@ -66,7 +64,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * <p>
  * 現段階の対応: content の文字列・counter()/counters()(ページレベルの
  * カウンタ=page/pages と @page の counter-* によるもの)・
- * -cssj-first/last-heading・-cssj-title、フォント・色・text-align・
+ * string()(GCPM、NamedStringStateを読む)、フォント・色・text-align・
  * vertical-align(top/middle/bottom)、margin/border/padding/background。
  * 未対応(FINE ログ): url() 画像・引用符・attr()・page-ref、縦書きの側面
  * ボックス。幅配分は css-page-3 §7.3 の基本形(センター優先、なければ
@@ -276,24 +274,10 @@ final class MarginBoxes {
 						.append(GeneratedValueUtils.format(counterValue(ua, counter.getName()), counter.getStyle()));
 				case CountersValue counters -> text.append(
 						GeneratedValueUtils.format(counterValue(ua, counters.getName()), counters.getStyle()));
-				case CSSJTitleValue title -> {
-					final String str = ua.getPassContext().getSectionState().title;
+				case StringFunctionValue sf -> {
+					final String str = ua.getPassContext().getNamedStringState().get(sf.getName(), sf.getMode());
 					if (str != null) {
 						text.append(str);
-					}
-				}
-				case CSSJFirstHeadingValue heading -> {
-					final String[] sections = ua.getPassContext().getSectionState().firstSections;
-					final int level = Math.min(heading.getLevel() - 1, sections.length - 1);
-					if (sections[level] != null) {
-						text.append(sections[level]);
-					}
-				}
-				case CSSJLastHeadingValue heading -> {
-					final String[] sections = ua.getPassContext().getSectionState().lastSections;
-					final int level = Math.min(heading.getLevel() - 1, sections.length - 1);
-					if (sections[level] != null) {
-						text.append(sections[level]);
 					}
 				}
 				default -> LOG.log(Level.FINE, "マージンボックスで未対応のcontent値: {0}", v);

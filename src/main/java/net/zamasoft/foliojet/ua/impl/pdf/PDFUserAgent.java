@@ -690,7 +690,6 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		} else if (name.equalsIgnoreCase("title")) {
 			this.message(MessageCodes.INFO_TITLE, content);
 			this.metaInfo.setTitle(content);
-			this.getPassContext().getSectionState().title = content;
 		}
 	}
 

@@ -45,6 +45,7 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CSSFloatValue;
 import net.zamasoft.foliojet.css.value.CaptionSideValue;
+import net.zamasoft.foliojet.css.value.ContentFunctionValue;
 import net.zamasoft.foliojet.css.value.CounterSetValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
@@ -55,17 +56,17 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
 import net.zamasoft.foliojet.css.value.QuotesValue;
+import net.zamasoft.foliojet.css.value.StringFunctionValue;
+import net.zamasoft.foliojet.css.value.StringSetEntryValue;
 import net.zamasoft.foliojet.css.value.StringValue;
+import net.zamasoft.foliojet.css.value.TargetCounterValue;
+import net.zamasoft.foliojet.css.value.TargetTextValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.css.value.VisibilityValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJFirstHeadingValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJLastHeadingValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJPageRefValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJTitleValue;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundImage;
@@ -81,6 +82,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Clear;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
 import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
+import net.zamasoft.foliojet.css.impl.property.content.StringSet;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
 import net.zamasoft.foliojet.css.impl.property.table.EmptyCells;
@@ -210,10 +212,11 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
+import net.zamasoft.foliojet.ua.NamedStringState;
 import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PageRef.Fragment;
 import net.zamasoft.foliojet.ua.PassContext;
-import net.zamasoft.foliojet.ua.SectionState;
+import net.zamasoft.foliojet.ua.PendingStringSet;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPageLimitAbort;
 import net.zamasoft.foliojet.ua.props.OutputPrintMode;
@@ -245,6 +248,17 @@ public class StyleBuilder implements PageGenerator {
 	private static final boolean DEBUG = false;
 	private static final Logger LOG = Logger.getLogger(StyleBuilder.class.getName());
 
+	/**
+	 * 総ページ数カウンタ名。css-page-3 §6.1相当のUA予約カウンタとして扱い、
+	 * 著者の{@code counter-reset}/{@code counter-increment}からは保護する
+	 * ({@link #isReservedCounterName(String)}参照)。
+	 */
+	private static final String PAGES_COUNTER_NAME = "pages";
+
+	private static boolean isReservedCounterName(String name) {
+		return PAGES_COUNTER_NAME.equalsIgnoreCase(name);
+	}
+
 	private static final ValueListValue LF = new ValueListValue(new Value[] { new StringValue("\n") });
 
 	private static final RelativeLengthValue EM_1_618 = RelativeLengthValue.em(1.618);
@@ -266,6 +280,8 @@ public class StyleBuilder implements PageGenerator {
 	private WritingMode progression = WritingMode.TB;
 	private boolean rightSide = false;
 	private boolean inBody = false;
+	private boolean warnedReservedCounter = false;
+	private boolean warnedUnconvergedTarget = false;
 	private boolean inTextBlock = false;
 	private boolean firstLetter = false;
 
@@ -1264,6 +1280,10 @@ public class StyleBuilder implements PageGenerator {
 			for (int i = 0; i < resets.length; ++i) {
 				CounterSetValue counterSet = (CounterSetValue) resets[i];
 				String name = counterSet.getName();
+				if (isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
 				int value = counterSet.getValue();
 				CounterScope scope = pc.getCounterScope(0, false);
 				if (scope != null && scope.defined(name)) {
@@ -1281,6 +1301,10 @@ public class StyleBuilder implements PageGenerator {
 			for (int i = 0; i < increments.length; ++i) {
 				CounterSetValue counterSet = (CounterSetValue) increments[i];
 				String name = counterSet.getName();
+				if (isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
 				int delta = counterSet.getValue();
 				int level = depth;
 				for (; level > 0; --level) {
@@ -1290,6 +1314,45 @@ public class StyleBuilder implements PageGenerator {
 					}
 				}
 				pc.getCounterScope(level, true).increment(name, delta);
+			}
+		}
+
+		// string-set(GCPM)。counter()/attr()/文字列は文書順=build時に確定させる
+		// (呼び出しタイミングではなくelementKeyで先後を判定するNamedStringStateの
+		// 契約を守るため)。content()を含むエントリのみ、要素のボックスが確定する
+		// draw時(AbstractVisitor.visitBox)まで解決を保留する。
+		final Value[] stringSets = StringSet.get(style);
+		if (stringSets != null) {
+			final long elementKey = ce.elementKey;
+			for (int i = 0; i < stringSets.length; ++i) {
+				final StringSetEntryValue entry = (StringSetEntryValue) stringSets[i];
+				final Value[] parts = entry.getParts();
+				final List<Object> resolvedParts = new ArrayList<Object>(parts.length);
+				boolean needsContent = false;
+				for (int j = 0; j < parts.length; ++j) {
+					final Value part = parts[j];
+					if (part instanceof ContentFunctionValue) {
+						resolvedParts.add(PendingStringSet.CONTENT);
+						needsContent = true;
+					} else {
+						resolvedParts.add(this.resolveStringSetPart(part, ce, depth));
+					}
+				}
+				final String name = entry.getName();
+				if (!needsContent) {
+					final StringBuilder buff = new StringBuilder();
+					for (int j = 0; j < resolvedParts.size(); ++j) {
+						buff.append((String) resolvedParts.get(j));
+					}
+					this.ua.getPassContext().getNamedStringState().set(name, buff.toString(), elementKey);
+				} else {
+					List<PendingStringSet> pending = this.ua.getPassContext().getPendingStringSets().get(elementKey);
+					if (pending == null) {
+						pending = new ArrayList<PendingStringSet>();
+						this.ua.getPassContext().getPendingStringSets().put(elementKey, pending);
+					}
+					pending.add(new PendingStringSet(name, resolvedParts));
+				}
 			}
 		}
 
@@ -1534,13 +1597,9 @@ public class StyleBuilder implements PageGenerator {
 						}
 					}
 						break;
-					case CSSJLastHeadingValue header: {
-						// ヘッダ
-						SectionState state = this.ua.getPassContext().getSectionState();
-						int level = header.getLevel() - 1;
-						String str = state.lastSections[level >= state.lastSections.length
-								? state.lastSections.length - 1
-								: level];
+					case StringFunctionValue sf: {
+						// string()(GCPM)
+						String str = this.ua.getPassContext().getNamedStringState().get(sf.getName(), sf.getMode());
 						if (str != null && str.length() > 0) {
 							char[] ch = str.toCharArray();
 							this.checkMarker();
@@ -1548,62 +1607,19 @@ public class StyleBuilder implements PageGenerator {
 						}
 					}
 						break;
-					case CSSJFirstHeadingValue header: {
-						// ヘッダ
-						SectionState state = this.ua.getPassContext().getSectionState();
-						int level = header.getLevel() - 1;
-						String str = state.firstSections[level >= state.firstSections.length
-								? state.firstSections.length - 1
-								: level];
-						if (str != null && str.length() > 0) {
-							char[] ch = str.toCharArray();
-							this.checkMarker();
-							this.docCharacters(-1, ch, 0, ch.length, true);
-						}
-					}
-						break;
-					case CSSJTitleValue title: {
-						// タイトル
-						SectionState state = this.ua.getPassContext().getSectionState();
-						String str = state.title;
-						if (str != null && str.length() > 0) {
-							char[] ch = str.toCharArray();
-							this.checkMarker();
-							this.docCharacters(-1, ch, 0, ch.length, true);
-						}
-					}
-						break;
-					case CSSJPageRefValue pageRefFunc: {
+					case TargetCounterValue pageRefFunc: {
 						// ページ番号
-						switch (pageRefFunc.getType()) {
-						case CSSJPageRefValue.ATTR: {
-							// 属性から
-							CSSElement parentCe = style.getParentStyle().getCSSElement();
-							if (parentCe.atts != null) {
-								String attr = pageRefFunc.getRef();
-								String str = parentCe.atts.getValue(attr);
-								if (str != null) {
-									if (!attr.equals("href") && str.indexOf("#") == -1) {
-										// 互換性のため
-										str = "#" + str;
-									}
-									this.pageRef(pageRefFunc, str);
-								}
-							}
+						String ref = this.resolveTargetRef(pageRefFunc.getType(), pageRefFunc.getRef(), style);
+						if (ref != null) {
+							this.pageRef(pageRefFunc, ref);
 						}
-							break;
-						case CSSJPageRefValue.REF: {
-							// ID指定
-							String id = pageRefFunc.getRef();
-							if (id.indexOf("#") == -1) {
-								// 互換性のため
-								id = "#" + id;
-							}
-							this.pageRef(pageRefFunc, id);
-						}
-							break;
-						default:
-							throw new IllegalStateException();
+					}
+						break;
+					case TargetTextValue targetText: {
+						// ターゲットのテキスト
+						String ref = this.resolveTargetRef(targetText.getType(), targetText.getRef(), style);
+						if (ref != null) {
+							this.targetText(targetText, ref);
 						}
 					}
 						break;
@@ -1636,6 +1652,62 @@ public class StyleBuilder implements PageGenerator {
 		}
 	}
 
+	/**
+	 * {@code string-set}の値リストの1要素(build時に確定できるもの、
+	 * {@link ContentFunctionValue}は呼び出し側で個別に扱う)を文字列へ
+	 * 解決する。画像ベースの{@code list-style-type}は文字列として意味を
+	 * 持たないため空文字列として扱う。
+	 */
+	private String resolveStringSetPart(Value part, CSSElement ce, int depth) {
+		if (part instanceof StringValue str) {
+			return str.getString();
+		} else if (part instanceof CounterValue counter) {
+			final String name = counter.getName();
+			final short counterStyle = counter.getStyle();
+			int number = 0;
+			final PassContext pc = this.ua.getPassContext();
+			for (int level = depth; level >= 0; --level) {
+				CounterScope scope = pc.getCounterScope(level, false);
+				if (scope != null && scope.defined(name)) {
+					number = scope.get(name);
+					break;
+				}
+			}
+			final String str = GeneratedValueUtils.format(number, counterStyle);
+			return str != null ? str : "";
+		} else if (part instanceof CountersValue counters) {
+			final String name = counters.getName();
+			final String delim = counters.getDelimiter();
+			final short counterStyle = counters.getStyle();
+			final StringBuilder buff = new StringBuilder();
+			final PassContext pc = this.ua.getPassContext();
+			boolean first = true;
+			for (int level = 0; level <= depth; ++level) {
+				CounterScope scope = pc.getCounterScope(level, false);
+				if (scope != null && scope.defined(name)) {
+					if (!first && delim != null && delim.length() > 0) {
+						buff.append(delim);
+					}
+					first = false;
+					final String str = GeneratedValueUtils.format(scope.get(name), counterStyle);
+					if (str != null) {
+						buff.append(str);
+					}
+				}
+			}
+			return buff.toString();
+		} else if (part instanceof AttrValue attr) {
+			if (ce.atts != null) {
+				final String str = ce.atts.getValue(attr.getName());
+				if (str != null) {
+					return str;
+				}
+			}
+			return "";
+		}
+		return "";
+	}
+
 	private void counter(int number, short counterStyle, CSSStyle style) {
 		final String str = GeneratedValueUtils.format(number, counterStyle);
 		if (str != null) {
@@ -1655,7 +1727,101 @@ public class StyleBuilder implements PageGenerator {
 		}
 	}
 
-	private void pageRef(CSSJPageRefValue pageRefFunc, String ref) {
+	/**
+	 * {@code counter-reset}/{@code counter-increment}で予約カウンタ名
+	 * ({@code pages})が指定された場合の警告(1文書につき1回のみ)。
+	 * css-page-3 §6.1の{@code pages}はUA予約であり、著者が明示しても
+	 * 無視して継続する(警告+縮退、例外にはしない方針)。
+	 */
+	private void warnReservedCounter(String name) {
+		if (!this.warnedReservedCounter) {
+			this.warnedReservedCounter = true;
+			LOG.warning("counter '" + name + "' is reserved by the UA (total page count) and cannot be "
+					+ "reset/incremented by author style; ignoring.");
+		}
+	}
+
+	/**
+	 * {@code target-counter()}系/{@code target-text()}のtarget参照
+	 * (ATTR/REF)を、実際に{@code PageRef}へ問い合わせるための
+	 * {@code "#id"}文字列(またはhref)へ解決する。属性値が無い場合は
+	 * {@code null}。
+	 */
+	private String resolveTargetRef(byte type, String ref, CSSStyle style) {
+		switch (type) {
+		case TargetCounterValue.ATTR: {
+			// 属性から
+			CSSElement parentCe = style.getParentStyle().getCSSElement();
+			if (parentCe.atts == null) {
+				return null;
+			}
+			String str = parentCe.atts.getValue(ref);
+			if (str == null) {
+				return null;
+			}
+			if (!ref.equals("href") && str.indexOf("#") == -1) {
+				// 互換性のため
+				str = "#" + str;
+			}
+			return str;
+		}
+		case TargetCounterValue.REF: {
+			// ID指定
+			String id = ref;
+			if (id.indexOf("#") == -1) {
+				// 互換性のため
+				id = "#" + id;
+			}
+			return id;
+		}
+		default:
+			throw new IllegalStateException();
+		}
+	}
+
+	/**
+	 * 収束性の軽量チェック: 最終パスで解決したフラグメントが今回パスで
+	 * 書き込まれたものではなく(1パス以上前のstaleな値のまま)確定した
+	 * 場合、1文書につき1回だけ警告する。振動検出・自動再試行は行わない
+	 * (自動昇格断念の判断と同じ方針)。
+	 */
+	private void checkTargetConverged(PageRef pageRef, Fragment frag) {
+		if (this.warnedUnconvergedTarget || !this.ua.isLastPass()) {
+			return;
+		}
+		if (frag.generation < pageRef.getGeneration()) {
+			this.warnedUnconvergedTarget = true;
+			LOG.warning("target-counter()/target-counters()/target-text() did not resolve to a fresh value "
+					+ "by the final layout pass; consider increasing processing.pass-count.");
+		}
+	}
+
+	private void targetText(TargetTextValue targetText, String ref) {
+		PageRef pageRef = this.ua.getUAContext().getPageRef();
+		if (pageRef == null) {
+			return;
+		}
+		try {
+			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
+					this.ua.getDocumentContext().getBaseURI(), ref);
+			Fragment frag = pageRef.getFragment(uri);
+			if (frag == null) {
+				return;
+			}
+			this.checkTargetConverged(pageRef, frag);
+			if (frag.text == null || frag.text.length() == 0) {
+				return;
+			}
+			char[] ch = frag.text.toCharArray();
+			this.checkMarker();
+			// ターゲットテキスト
+			this.docCharacters(-1, ch, 0, ch.length, true);
+		} catch (URISyntaxException e) {
+			this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
+		}
+	}
+
+	private void pageRef(TargetCounterValue pageRefFunc, String ref) {
 		PageRef pageRef = this.ua.getUAContext().getPageRef();
 		if (pageRef == null) {
 			return;
@@ -1672,6 +1838,7 @@ public class StyleBuilder implements PageGenerator {
 				if (frag == null) {
 					return;
 				}
+				this.checkTargetConverged(pageRef, frag);
 				int count = frag.getCounterValue(counter);
 				String str = GeneratedValueUtils.format(count, pageRefFunc.getNumberStyleType());
 				if (str == null) {
@@ -1686,6 +1853,7 @@ public class StyleBuilder implements PageGenerator {
 				IntList counts = new IntList();
 				for (Iterator<?> j = frags.iterator(); j.hasNext();) {
 					Fragment fragment = (Fragment) j.next();
+					this.checkTargetConverged(pageRef, fragment);
 					int count = fragment.getCounterValue(counter);
 					if (!counts.contains(count)) {
 						counts.add(count);
@@ -2547,6 +2715,10 @@ public class StyleBuilder implements PageGenerator {
 			for (int i = 0; i < resets.length; ++i) {
 				CounterSetValue counterSet = (CounterSetValue) resets[i];
 				String name = counterSet.getName();
+				if (isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
 				int value = counterSet.getValue();
 				this.ua.getPassContext().getCounterScope(0, true).reset(name, value);
 			}
@@ -2560,6 +2732,10 @@ public class StyleBuilder implements PageGenerator {
 			for (int i = 0; i < increments.length; ++i) {
 				CounterSetValue counterSet = (CounterSetValue) increments[i];
 				String name = counterSet.getName();
+				if (isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
 				int delta = counterSet.getValue();
 				pc.getCounterScope(0, true).increment(name, delta);
 				pageIncremented |= "page".equals(name);

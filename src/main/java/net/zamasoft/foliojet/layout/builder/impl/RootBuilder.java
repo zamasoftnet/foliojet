@@ -283,33 +283,43 @@ public class RootBuilder extends BreakableBuilder {
 			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		}
 
-		// C1b/C1d-C 事前検分: 祖先チェーン(flowStack[1..])が plain
-		// FlowBlockBox のみ(段組・表・縦横混在なし)なら、切断貫通レベルの
-		// 断片をボックス構築なしで継続化する読み取り専用の計画を作る。
-		// カスケードは一度きりのため all-or-nothing(1レベルでも不可なら
-		// 全て従来経路)。断片は split の返り値(SplitResult.Frame →
-		// ContainerCut.WithFrame)で外へ伝播する — side channel なし
+		// C1b/C1d-C 事前検分: 祖先チェーン(flowStack[1..])の先頭から plain
+		// FlowBlockBox(段組・表・縦横混在なし)が連続する「収集可能な
+		// プレフィックス」だけを読み取り専用の計画に載せ、切断貫通レベルの
+		// 断片をボックス構築なしで継続化する。最初に違反したレベルで
+		// スキャンを止める(2026-07-20、以前は1レベルでも不可なら
+		// 全体をall-or-nothingで従来経路に落としていたため、多数のplain
+		// ラッパーの外側にmulticol等が1つ混ざっただけで祖先チェーン全体が
+		// 未反復のOpenChain再帰に回っていた——実測でdepth 74に到達する
+		// ケースを確認済み。BreakPlan.depth はプレフィックス長ではなく
+		// 常に flowStack.size()(不変)を渡す。BreakPlan.openTailDepth()
+		// = depth - index - 1 はこの depth を歩かずに得られる値のまま
+		// 保つことで、プレフィックスの外に落ちた残り(違反箇所+その内側)
+		// だけがOpenChainの実深さになる——depth自体を短縮すると
+		// OpenShapeの入れ子数と実ボックス木の開き構造が食い違い、
+		// まだ開いているボックスを閉じたものとして誤処理しうるため、
+		// 絶対に触らない(外部レビューで確認済み、
+		// docs/consultations/consult-open-chain-prefix-*.md参照)。
+		// 断片は split の返り値(SplitResult.Frame → ContainerCut.WithFrame)
+		// で外へ伝播する — side channel なし
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan plan;
 		{
 			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow = ((FlowBlockBox) ((Flow) this.flowStack
 					.get(0)).box).getBlockParams().flow;
-			boolean collectable = this.flowStack.size() >= 2;
-			for (int i = 1; collectable && i < this.flowStack.size(); ++i) {
+			final java.util.List<net.zamasoft.foliojet.layout.box.AbstractContainerBox> chainBoxes = new java.util.ArrayList<>(
+					Math.max(0, this.flowStack.size() - 1));
+			for (int i = 1; i < this.flowStack.size(); ++i) {
 				final net.zamasoft.foliojet.layout.box.AbstractContainerBox b = ((Flow) this.flowStack.get(i)).box;
-				collectable = b.getClass() == FlowBlockBox.class && ((FlowBlockBox) b).getColumnCount() <= 1
+				final boolean collectable = b.getClass() == FlowBlockBox.class
+						&& ((FlowBlockBox) b).getColumnCount() <= 1
 						&& ((FlowBlockBox) b).getBlockParams().flow == rootFlow;
-			}
-			if (collectable) {
-				final java.util.List<net.zamasoft.foliojet.layout.box.AbstractContainerBox> chainBoxes = new java.util.ArrayList<>(
-						this.flowStack.size() - 1);
-				for (int i = 1; i < this.flowStack.size(); ++i) {
-					chainBoxes.add(((Flow) this.flowStack.get(i)).box);
+				if (!collectable) {
+					break;
 				}
-				plan = new net.zamasoft.foliojet.layout.fragment.BreakPlan(java.util.List.copyOf(chainBoxes),
-						this.flowStack.size(), 0);
-			} else {
-				plan = null;
+				chainBoxes.add(b);
 			}
+			plan = new net.zamasoft.foliojet.layout.fragment.BreakPlan(java.util.List.copyOf(chainBoxes),
+					this.flowStack.size(), 0);
 		}
 
 		// ルートブロックの分割(C1a: 断片ボックスは split では構築せず、
@@ -545,8 +555,29 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 					final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
+				final int openDepth = shape.depth();
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.MAX_OPEN_TAIL_DEPTH
-						.accumulateAndGet(shape.depth(), Math::max);
+						.accumulateAndGet(openDepth, Math::max);
+				// M6b Phase Bの安全網(2026-07-20)。FlowContainer.restyleの
+				// OpenChain分岐はまだ反復化されていない再帰であり、この深さに
+				// 達すると素のStackOverflowErrorに到達しうる。この時点では
+				// 新ページへはまだ何も書き込まれていない(直前のstartFlowBlock
+				// はいずれも旧ページ確定前の話で、この関数はここまで
+				// box.restyle/startFlowBlockのどちらも未実行——外部レビューで
+				// 状態変異を追跡し確認済み)ため、テスト・本番を問わず
+				// ここで安全に例外を投げて中断できる。DirectSession.transcode
+				// の既存catch(Throwable)がTranscoderException(STATE_BROKEN,
+				// FATAL_UNEXPECTED)へ変換する(docs/PLAN.md「M6b Phase B」参照)。
+				if (openDepth >= net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_DEPTH_ALARM_THRESHOLD) {
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_DEPTH_ALARMS.incrementAndGet();
+					final String message = "open ancestor chain depth=" + openDepth
+							+ " reached the safety alarm threshold ("
+							+ net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_DEPTH_ALARM_THRESHOLD
+							+ "); FlowContainer.restyle's OpenChain branch is still recursive and would risk "
+							+ "an uncontrolled StackOverflowError beyond this point (see docs/PLAN.md \"M6b Phase B\")";
+					LOG.warning(message);
+					throw new net.zamasoft.foliojet.layout.fragment.ContinuationDepthLimitExceededException(message);
+				}
 				if (index == 0) {
 					// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 					// この経路では prefix 吸収は行われていない

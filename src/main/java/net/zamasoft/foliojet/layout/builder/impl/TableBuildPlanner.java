@@ -22,11 +22,10 @@ public final class TableBuildPlanner {
 	}
 
 	/**
-	 * @param builder       表を構築するコンテキストのビルダー
-	 * @param tableBox      対象の表ボックス
-	 * @param strictOnePass {@code processing.strict-one-pass}の設定値
+	 * @param builder  表を構築するコンテキストのビルダー
+	 * @param tableBox 対象の表ボックス
 	 */
-	public static TableBuildPlan plan(final Builder builder, final TableBox tableBox, final boolean strictOnePass) {
+	public static TableBuildPlan plan(final Builder builder, final TableBox tableBox) {
 		final TableParams params = tableBox.getTableParams();
 		final EnumSet<TableRetentionReason> reasons = EnumSet.noneOf(TableRetentionReason.class);
 		if (!builder.isMain()) {
@@ -46,16 +45,8 @@ public final class TableBuildPlanner {
 			reasons.add(TableRetentionReason.AUTO_LINE_SIZE);
 		}
 		if (reasons.isEmpty()) {
-			return new TableBuildPlan(TableBuildPlan.Mode.INCREMENTAL, reasons, false);
+			return new TableBuildPlan(TableBuildPlan.Mode.INCREMENTAL, reasons);
 		}
-		// strict-one-passの近似(Incrementalへの縮退)は、OnePassTableBuilderが
-		// 実際に扱えるFLOW配置・builder.isMainの表に限る。非FLOW配置を近似すると
-		// OnePassTableBuilder.startLayout()のFLOW前提assert/castが破綻する
-		// (P0-1、外部設計レビュー2026-07-19で発見・修正)。
-		final boolean approximate = strictOnePass && builder.isMain() && isFlow;
-		if (approximate) {
-			return new TableBuildPlan(TableBuildPlan.Mode.INCREMENTAL, reasons, true);
-		}
-		return new TableBuildPlan(TableBuildPlan.Mode.RETAINED, reasons, false);
+		return new TableBuildPlan(TableBuildPlan.Mode.RETAINED, reasons);
 	}
 }

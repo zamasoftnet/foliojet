@@ -29,11 +29,22 @@ public class PageRef {
 
 	private final Map<URI, int[]> uriToSeq = new HashMap<URI, int[]>();
 
+	/**
+	 * LAYOUTパスを跨ぐたびに{@link #reset()}でインクリメントする世代番号。
+	 * 参照先idが今回パスでまだ訪問されていない(意図的な、1パス前の値を
+	 * 読む forward-reference)場合と、2パス以上前の値が{@code
+	 * uriToFragments}に取り残された(重複idの出現数がパスをまたいで
+	 * 減った等の)stale状態を区別するために使う({@link #getFragments}
+	 * 参照)。
+	 */
+	private int generation = 0;
+
 	public PageRef() {
 		this.sectionStack.add(new Section(null, null, null));
 	}
 
 	public void reset() {
+		++this.generation;
 		while (this.sectionStack.size() > 1) {
 			this.sectionStack.remove(this.sectionStack.size() - 1);
 		}
@@ -44,11 +55,22 @@ public class PageRef {
 
 	/**
 	 * フラグメントを追加します。
-	 * 
+	 *
 	 * @param uri
 	 * @param counters
 	 */
 	public void addFragment(URI uri, Counter[] counters) {
+		this.addFragment(uri, counters, null);
+	}
+
+	/**
+	 * フラグメントを追加します。
+	 *
+	 * @param uri
+	 * @param counters
+	 * @param text 参照先要素の描画テキスト({@code target-text()}用、無ければ{@code null})
+	 */
+	public void addFragment(URI uri, Counter[] counters, String text) {
 		int[] seq = (int[]) this.uriToSeq.get(uri);
 		if (seq == null) {
 			seq = new int[] { 1 };
@@ -56,18 +78,20 @@ public class PageRef {
 		} else {
 			seq[0]++;
 		}
-		Collection<?> col = this.getFragments(uri);
-		if (col != null) {
-			for (Iterator<?> i = col.iterator(); i.hasNext();) {
-				Fragment f = (Fragment) i.next();
-				if (f.uid == seq[0]) {
-					f.counters = counters;
-					return;
-				}
+		List<Fragment> list = this.uriToFragments.computeIfAbsent(uri, k -> new ArrayList<Fragment>());
+		for (Iterator<Fragment> i = list.iterator(); i.hasNext();) {
+			Fragment f = i.next();
+			if (f.uid == seq[0]) {
+				f.counters = counters;
+				f.text = text;
+				f.generation = this.generation;
+				return;
 			}
 		}
 		Fragment fragment = new Fragment(seq[0], uri, counters);
-		this.uriToFragments.computeIfAbsent(fragment.uri, k -> new ArrayList<Fragment>()).add(fragment);
+		fragment.text = text;
+		fragment.generation = this.generation;
+		list.add(fragment);
 	}
 
 	/**
@@ -106,13 +130,27 @@ public class PageRef {
 	}
 
 	/**
-	 * 追加済みの全てのフラグメントを返します。
-	 * 
+	 * 追加済みの全てのフラグメントを返します。2世代以上前の(重複idの
+	 * 出現数がパスをまたいで減った等でstaleになった)フラグメントは
+	 * ここで遅延プルーニングして除去する。
+	 *
 	 * @param uri
 	 * @return
 	 */
 	public Collection<?> getFragments(URI uri) {
-		return this.uriToFragments.get(uri);
+		List<Fragment> list = this.uriToFragments.get(uri);
+		if (list != null && !list.isEmpty()) {
+			list.removeIf(f -> f.generation < this.generation - 1);
+		}
+		return list;
+	}
+
+	/**
+	 * 現在の世代番号({@link #reset()}のたびに1増加)。収束性チェック
+	 * (target-counter系が最終パスまでに確定したか)に使う。
+	 */
+	public int getGeneration() {
+		return this.generation;
 	}
 
 	/**
@@ -179,6 +217,12 @@ public class PageRef {
 		public URI uri;
 
 		public Counter[] counters;
+
+		/** 参照先要素の描画テキスト({@code target-text()}用)。無ければ{@code null}。 */
+		public String text;
+
+		/** このフラグメントが書き込まれた{@link PageRef}の世代番号。 */
+		public int generation;
 
 		protected Fragment(int uid, URI uri, Counter[] counters) {
 			this.uid = uid;

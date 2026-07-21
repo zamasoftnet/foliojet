@@ -16,11 +16,15 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
+import java.util.List;
+import java.util.Map;
+
 import net.zamasoft.foliojet.ua.Counter;
 import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.PageRef;
+import net.zamasoft.foliojet.ua.PendingStringSet;
 import net.zamasoft.foliojet.ua.SectionState;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -202,13 +206,8 @@ public abstract class AbstractVisitor implements Visitor {
 		if (this.forms) {
 			this.flushForms();
 		}
-		if (this.bookmarks || this.processPageReference) {
-			SectionState state = this.ua.getPassContext().getSectionState();
-			for (int i = 0; i < state.firstChangedSections.length; ++i) {
-				state.firstChangedSections[i] = false;
-				state.firstSections[i] = state.lastSections[i];
-			}
-		}
+		// string-set(GCPM)は特定機能に相乗りしない独立機構のため無条件で処理する。
+		this.ua.getPassContext().getNamedStringState().endPage();
 	}
 
 	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
@@ -328,10 +327,41 @@ public abstract class AbstractVisitor implements Visitor {
 					try {
 						URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
 								this.ua.getDocumentContext().getBaseURI(), "#" + id);
-						pageRef.addFragment(uri, this.getCounters());
+						// target-text()用にテキストも捕捉する
+						StringBuilder textBuff = new StringBuilder();
+						box.getText(textBuff);
+						String text = textBuff.length() == 0 ? null : textBuff.toString();
+						pageRef.addFragment(uri, this.getCounters(), text);
 					} catch (URISyntaxException e) {
 						this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
 					}
+				}
+			}
+		}
+
+		// string-set(GCPM)のcontent()未完成分をdraw時に解決する。
+		// bookmarks/page-referencesとは無関係の独立機構のため無条件で処理する。
+		if (isMarkupBox(type)) {
+			Map<Long, List<PendingStringSet>> pendingMap = this.ua.getPassContext().getPendingStringSets();
+			List<PendingStringSet> pending = pendingMap.remove(ce.elementKey);
+			if (pending != null) {
+				StringBuilder textBuff = null;
+				for (int i = 0; i < pending.size(); ++i) {
+					PendingStringSet p = pending.get(i);
+					StringBuilder resolved = new StringBuilder();
+					for (int j = 0; j < p.parts.size(); ++j) {
+						Object part = p.parts.get(j);
+						if (part == PendingStringSet.CONTENT) {
+							if (textBuff == null) {
+								textBuff = new StringBuilder();
+								box.getText(textBuff);
+							}
+							resolved.append(textBuff);
+						} else {
+							resolved.append((String) part);
+						}
+					}
+					this.ua.getPassContext().getNamedStringState().set(p.name, resolved.toString(), ce.elementKey);
 				}
 			}
 		}
@@ -367,7 +397,6 @@ public abstract class AbstractVisitor implements Visitor {
 						}
 						--state.sectionDepth;
 						--state.sectionLevel;
-						state.lastSections[state.sectionLevel] = null;
 					}
 
 					String ref = "cssj-header-" + (++state.sectionCount);
@@ -399,11 +428,6 @@ public abstract class AbstractVisitor implements Visitor {
 
 					++state.sectionDepth;
 					state.sectionLevel = level;
-					if (!state.firstChangedSections[level - 1]) {
-						state.firstSections[level - 1] = title;
-						state.firstChangedSections[level - 1] = true;
-					}
-					state.lastSections[level - 1] = title;
 				} catch (NumberFormatException e) {
 					this.ua.message(MessageCodes.WARN_BAD_HEADER, header);
 				}

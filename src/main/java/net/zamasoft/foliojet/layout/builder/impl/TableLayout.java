@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
-import java.util.logging.Logger;
-
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
@@ -38,8 +36,6 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
  * </p>
  */
 public final class TableLayout {
-	private static final Logger LOG = Logger.getLogger(TableLayout.class.getName());
-
 	private TableLayout() {
 	}
 
@@ -48,18 +44,13 @@ public final class TableLayout {
 	 * ビルダーを選び、必要なら{@link OnePassTableBuilder#startLayout}まで
 	 * 実行して返します。
 	 */
-	public static TableBuilder start(Builder builder, TableBox tableBox, boolean strictOnePass) {
-		final TableBuildPlan plan = TableBuildPlanner.plan(builder, tableBox, strictOnePass);
+	public static TableBuilder start(Builder builder, TableBox tableBox) {
+		final TableBuildPlan plan = TableBuildPlanner.plan(builder, tableBox);
 		if (plan.mode() == TableBuildPlan.Mode.RETAINED) {
 			TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
 			return new TwoPassTableBuilder(builder, tableBox);
 		}
-		// Incremental(table-layout:fixed相当、またはstrict-one-passによる近似)
-		if (plan.approximate()) {
-			TableBuildStats.STRICT_ONE_PASS_DEGRADES.incrementAndGet();
-			LOG.warning("processing.strict-one-pass=trueのため、表の実測・全体高さ分配を近似します("
-					+ plan.reasons() + "): " + tableBox.getTableParams().element);
-		}
+		// Incremental(table-layout:fixed相当)
 		TableBuildStats.ONE_PASS_BUILDS.incrementAndGet();
 		final OnePassTableBuilder fixedTableBuilder = new OnePassTableBuilder(tableBox);
 		fixedTableBuilder.startLayout((RootBuilder) builder);
@@ -67,15 +58,15 @@ public final class TableLayout {
 	}
 
 	/**
-	 * 表の終了時に、開始側のルーティング結果(strict-one-passによる近似を含む)と
-	 * 一致させるため、条件を再計算せずtableBuilder自身に問うて終了処理を行います。
+	 * 表の終了時に、開始側のルーティング結果と一致させるため、条件を
+	 * 再計算せずtableBuilder自身に問うて終了処理を行います。
 	 */
 	public static void finish(TableBuilder tableBuilder, Builder builder) {
 		if (!tableBuilder.isIncremental()) {
 			// Retained
 			builder.addTable(tableBuilder);
 		} else {
-			// Incremental(table-layout:fixed相当、またはstrict-one-passによる近似)
+			// Incremental(table-layout:fixed相当)
 			((OnePassTableBuilder) tableBuilder).endLayout();
 		}
 	}

@@ -1,0 +1,46 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>string-set content()</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	line-height: 1;
+}
+body > * + * {
+	page-break-before: always;
+}
+h1, h2, .marker {
+	font: 10pt/1 monospace;
+	display: block;
+}
+h1 {
+	string-set: chapter content();
+}
+h2 {
+	string-set: label "H2:" content();
+}
+#fa:before, #fb:before {
+	content: string(chapter);
+}
+#fc:before {
+	content: string(label);
+}
+    </style>
+  </head>
+
+  <body>
+    <h1 id="a">Alpha</h1>
+    <span class="marker" id="fa"></span>
+    <h1 id="b">Beta</h1>
+    <span class="marker" id="fb"></span>
+    <h2 id="c">Gamma</h2>
+    <span class="marker" id="fc"></span>
+  </body>
+
+</html>

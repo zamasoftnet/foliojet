@@ -73,15 +73,6 @@ public class DocumentBuilder implements TableBuilderHost {
 	
 	private final boolean normalizeText;
 
-	/**
-	 * trueの場合、文書全体を無制限に保持するローカルバッファ
-	 * ({@link net.zamasoft.foliojet.layout.builder.impl.TwoPassTableBuilder}、
-	 * 主に{@code table-layout:auto}の実測パス)の使用を拒否します
-	 * (docs/PLAN.md「2パス制御モード」参照。processing.pass-countとは独立で、
-	 * こちらは無制限メモリ使用そのものの可否を扱う)。
-	 */
-	private final boolean strictOnePass;
-
 	protected static class ContainerBuilderEntry {
 		public final Builder builder;
 
@@ -122,7 +113,6 @@ public class DocumentBuilder implements TableBuilderHost {
 	public DocumentBuilder(PageGenerator pageGenerator) {
 		this.pageGenerator = pageGenerator;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
-		this.strictOnePass = UAProps.PROCESSING_STRICT_ONE_PASS.getBoolean(pageGenerator.getUserAgent());
 	}
 
 	/**
@@ -378,10 +368,10 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.startContainer();
 				break;
 			}
-			// ビルダー選択(fixed/auto・strict-one-pass近似)と開始処理は
+			// ビルダー選択(fixed/auto)と開始処理は
 			// TableLayout(C4準備の継ぎ目、2026-07-19)へ委譲。挙動は不変。
 			final TableBuilder tableBuilder = net.zamasoft.foliojet.layout.builder.impl.TableLayout.start(builder,
-					tableBox, this.strictOnePass);
+					tableBox);
 			this.builderStack.add(tableBuilder);
 		}
 			break;

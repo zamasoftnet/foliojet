@@ -22,6 +22,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Clip;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
 import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
+import net.zamasoft.foliojet.css.impl.property.content.StringSet;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
 import net.zamasoft.foliojet.css.impl.property.table.EmptyCells;
@@ -247,6 +248,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(Quotes.INFO);
 		reg(CounterReset.INFO);
 		reg(CounterIncrement.INFO);
+		reg(StringSet.INFO);
 		reg(ListStyleType.INFO);
 		reg(ListStylePosition.INFO);
 		reg(ListStyleImage.INFO);

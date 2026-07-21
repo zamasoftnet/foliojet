@@ -1,0 +1,39 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>total-page-counter-protected</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+	/* pagesはUA予約カウンタなので、著者のcounter-incrementは無視され警告のみ */
+	counter-increment: page pages 50;
+}
+body {
+	line-height: 1;
+	/* pagesはUA予約カウンタなので、著者のcounter-resetは無視され警告のみ */
+	counter-reset: pages 999;
+}
+h2 {
+	font: 10pt/1 monospace;
+}
+h2 + h2 {
+	page-break-before: always;
+}
+h2:after {
+	content: " " counter(page) "/" counter(pages);
+}
+    </style>
+  </head>
+
+  <body>
+    <h2 id="a">Alpha</h2>
+    <h2 id="b">Beta</h2>
+    <h2 id="c">Gamma</h2>
+    <h2 id="d">Delta</h2>
+    <h2 id="e">Epsilon</h2>
+  </body>
+
+</html>

@@ -1,0 +1,60 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>string-set counter/literal(build-time)</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	line-height: 1;
+}
+.pagebreak {
+	page-break-before: always;
+}
+.r {
+	display: block;
+	font: 10pt/1 monospace;
+}
+#s1 {
+	string-set: v "one";
+}
+#s2 {
+	string-set: v "two";
+}
+.rf:before {
+	content: string(v, first);
+}
+.rl:before {
+	content: string(v, last);
+}
+.re:before {
+	content: string(v, first-except);
+}
+.rs:before {
+	content: string(v, start);
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="s1">S1</div>
+    <span class="r rf" id="p1first"></span>
+    <span class="r rl" id="p1last"></span>
+    <span class="r re" id="p1except"></span>
+    <div class="pagebreak" id="p2marker">P2</div>
+    <span class="r rf" id="p2first"></span>
+    <span class="r rl" id="p2last"></span>
+    <span class="r re" id="p2except"></span>
+    <span class="r rs" id="p2start"></span>
+    <div class="pagebreak" id="s2">S2</div>
+    <span class="r rf" id="p3first"></span>
+    <span class="r rl" id="p3last"></span>
+    <span class="r re" id="p3except"></span>
+    <span class="r rs" id="p3start"></span>
+  </body>
+
+</html>

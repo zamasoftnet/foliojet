@@ -102,46 +102,17 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * processing.strict-one-pass=trueは、無制限バッファを要する
-	 * table-layout:autoのTwoPassTableBuilder使用を避け、警告付きで
-	 * OnePassTableBuilder(table-layout:fixed相当)へ近似する
-	 * (例外にはしない。未対応セレクタと同じ「警告+縮退」経路。
-	 * docs/PLAN.md「2パス制御モード」参照)。
-	 */
-	public void testStrictOnePassDegradesAutoTableToOnePass() throws Exception {
-		final long twoPass = TableBuildStats.TWO_PASS_BUILDS.get();
-		final long onePass = TableBuildStats.ONE_PASS_BUILDS.get();
-		final long degrades = TableBuildStats.STRICT_ONE_PASS_DEGRADES.get();
-		this.transcode(new File("files/unittest/0070-table-layout/auto-rowspan.html"), "char-auto-strict", true);
-		assertEquals("strict-one-pass中でもTwoPassTableBuilderが構築されています",
-				twoPass, TableBuildStats.TWO_PASS_BUILDS.get());
-		assertTrue("auto表がOnePassTableBuilderへ近似されていません",
-				TableBuildStats.ONE_PASS_BUILDS.get() > onePass);
-		assertTrue("STRICT_ONE_PASS_DEGRADESが計上されていません",
-				TableBuildStats.STRICT_ONE_PASS_DEGRADES.get() > degrades);
-	}
-
-	/**
-	 * processing.strict-one-pass=trueでも、無制限バッファを要しない
-	 * (table-layout:fixed)文書は通常どおり処理できる。
-	 */
-	public void testStrictOnePassAllowsFixedTable() throws Exception {
-		this.transcode(new File("files/unittest/0390-writing-mode/fixed-table-pagebreak.html"), "char-fixed-strict",
-				true);
-	}
-
-	/**
-	 * 非FLOW配置(float)のtable-layout:fixed表は、processing.strict-one-pass=true
-	 * でもTwoPassTableBuilderのまま処理される(OnePassTableBuilderへ縮退させると
-	 * startLayout()のFLOW前提assert/castが破綻するため対象外にする必要がある——
-	 * 外部設計レビュー2026-07-19で発見、P0-1。修正前はneedsIntrinsicSizing()が
-	 * 非FLOW配置でもtrueを返すため誤ってOnePassへ回り、この文書はassert有効時に
+	 * 非FLOW配置(float)のtable-layout:fixed表は、TwoPassTableBuilderのまま
+	 * 処理される(OnePassTableBuilderへ回すとstartLayout()のFLOW前提
+	 * assert/castが破綻するため対象外にする必要がある——外部設計レビュー
+	 * 2026-07-19で発見、P0-1。修正前はneedsIntrinsicSizing()が非FLOW配置
+	 * でもtrueを返すため誤ってOnePassへ回り、この文書はassert有効時に
 	 * AssertionErrorで失敗していたはず)。
 	 */
-	public void testStrictOnePassKeepsNonFlowFixedTableOnTwoPass() throws Exception {
+	public void testNonFlowFixedTableStaysOnTwoPass() throws Exception {
 		final File dir = new File("local/unittest/generated");
 		dir.mkdirs();
-		final File file = new File(dir, "char-nonflow-fixed-strict.html");
+		final File file = new File(dir, "char-nonflow-fixed.html");
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
 			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
 			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"250pt\"?>\n");
@@ -153,7 +124,7 @@ public class TableBuildCharacterizationTest extends TestCase {
 					+ "<tr><td>c</td><td>d</td></tr></table></body></html>\n");
 		}
 		final long twoPass = TableBuildStats.TWO_PASS_BUILDS.get();
-		this.transcode(file, "char-nonflow-fixed-strict", true);
+		this.transcode(file, "char-nonflow-fixed");
 		assertTrue("非FLOW配置のfixed表がTwoPassTableBuilderにルーティングされていません(P0-1回帰)",
 				TableBuildStats.TWO_PASS_BUILDS.get() > twoPass);
 	}
@@ -281,10 +252,6 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	private void transcode(File source, String name) throws Exception {
-		this.transcode(source, name, false);
-	}
-
-	private void transcode(File source, String name, boolean strictOnePass) throws Exception {
 		File pdf = new File("local/unittest/display-list/" + name + ".pdf");
 		pdf.getParentFile().mkdirs();
 		try (OutputStream out = new FileOutputStream(pdf)) {
@@ -295,9 +262,6 @@ public class TableBuildCharacterizationTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
-				if (strictOnePass) {
-					session.property("processing.strict-one-pass", "true");
-				}
 				CTISessionHelper.transcodeFile(session, source, "text/html", null);
 			} finally {
 				session.close();

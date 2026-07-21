@@ -39,6 +39,25 @@ public final class ContinuationStats {
 	 */
 	public static final AtomicLong RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
+	/**
+	 * {@code OpenTailShape}の深さがこの値以上になった回数(2026-07-20、
+	 * M6b Phase B着手前の暫定安全策)。{@code FlowContainer.restyle}の
+	 * {@code OpenChain}分岐はまだ反復化されていない
+	 * ({@code docs/PLAN.md}「M6b Phase B」参照)ため、この深さに達すると
+	 * 素のStackOverflowErrorへ到達するリスクがある。
+	 */
+	public static final AtomicLong OPEN_CHAIN_DEPTH_ALARMS = new AtomicLong();
+
+	/**
+	 * {@link #OPEN_CHAIN_DEPTH_ALARMS}の閾値。実文書でこの深さの開いた
+	 * 祖先チェーンが必要になることは通常ありえない、十分に保守的な
+	 * アラーム線(素のStackOverflowErrorが起きうる深さよりずっと手前)
+	 * として設定している——実際にここへ到達した場合は、想定より
+	 * 深いopen-chainが実在するという強い証拠であり、M6b Phase Bの
+	 * 着手根拠になる。
+	 */
+	public static final int OPEN_CHAIN_DEPTH_ALARM_THRESHOLD = 64;
+
 	private ContinuationStats() {
 		// counters
 	}
@@ -50,5 +69,6 @@ public final class ContinuationStats {
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_OPEN_TAIL_DEPTH.set(0);
 		RESTYLE_CHAIN_FIRINGS.set(0);
+		OPEN_CHAIN_DEPTH_ALARMS.set(0);
 	}
 }

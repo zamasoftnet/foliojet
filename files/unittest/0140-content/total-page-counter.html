@@ -1,0 +1,36 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>total-page-counter</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+	counter-increment: page;
+}
+body {
+	line-height: 1;
+}
+h2 {
+	font: 10pt/1 monospace;
+}
+h2 + h2 {
+	page-break-before: always;
+}
+h2:after {
+	content: " " counter(page) "/" counter(pages);
+}
+    </style>
+  </head>
+
+  <body>
+    <h2 id="a">Alpha</h2>
+    <h2 id="b">Beta</h2>
+    <h2 id="c">Gamma</h2>
+    <h2 id="d">Delta</h2>
+    <h2 id="e">Epsilon</h2>
+  </body>
+
+</html>

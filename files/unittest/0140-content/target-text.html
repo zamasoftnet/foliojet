@@ -1,0 +1,43 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>target-text</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+	counter-increment: page;
+}
+body {
+	line-height: 1;
+}
+h2 {
+	font: 10pt/1 monospace;
+}
+h2 + h2 {
+	page-break-before: always;
+}
+a {
+	display: block;
+}
+a.text:before {
+	content: target-text(attr(href));
+}
+a.unsupported:before {
+	/* target-propertyがcontent以外はv1未対応、パース時に拒否される */
+	content: target-text(attr(href), before);
+}
+    </style>
+  </head>
+
+  <body>
+    <h2 id="a">Alpha</h2>
+    <h2 id="b">Beta</h2>
+    <a href="#a" class="text" id="aa"></a>
+    <a href="#b" class="text" id="bb"></a>
+    <a href="#a" class="unsupported" id="cc"></a>
+  </body>
+
+</html>

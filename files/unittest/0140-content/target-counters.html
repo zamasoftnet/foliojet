@@ -1,0 +1,43 @@
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>target-counters</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+	counter-increment: page;
+}
+body {
+	line-height: 1;
+}
+h2 {
+	font: 10pt/1 monospace;
+}
+h2 + h2 {
+	page-break-before: always;
+}
+a {
+	display: block;
+}
+a.multi:before {
+	content: target-counters(attr(href), page, ',');
+}
+    </style>
+  </head>
+
+  <body>
+    <h2 id="a">見出し</h2>
+    <h2 id="b">見出し</h2>
+    <h2 id="c">見出し</h2>
+    <h2 id="d">見出し</h2>
+    <h2 id="e">見出し</h2>
+    <h2 id="d">見出し</h2>
+    <h2 id="e">見出し</h2>
+    <a href="#d" class="multi" id="aa"></a>
+    <a href="#e" class="multi" id="bb"></a>
+  </body>
+
+</html>

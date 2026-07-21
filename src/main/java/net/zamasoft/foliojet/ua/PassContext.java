@@ -1,5 +1,9 @@
 package net.zamasoft.foliojet.ua;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import net.zamasoft.foliojet.css.CSSElement;
 
 /**
@@ -7,12 +11,28 @@ import net.zamasoft.foliojet.css.CSSElement;
  */
 public class PassContext {
 	private final SectionState sectionState = new SectionState();
+	private final NamedStringState namedStringState = new NamedStringState();
+	/**
+	 * {@code string-set}の値に{@code content()}が含まれ、build時点では
+	 * 未完成のエントリです。{@code elementKey}をキーにする
+	 * ({@code AbstractVisitor.visitBox}がdraw時にボックステキストで
+	 * 完成させ、ここから取り除く)。
+	 */
+	private final Map<Long, List<PendingStringSet>> pendingStringSets = new HashMap<Long, List<PendingStringSet>>();
 	private CSSElement pageSide;
 	private CounterContext counterContext = null;
 	private int pageNumber = 0;
 
 	public SectionState getSectionState() {
 		return this.sectionState;
+	}
+
+	public NamedStringState getNamedStringState() {
+		return this.namedStringState;
+	}
+
+	public Map<Long, List<PendingStringSet>> getPendingStringSets() {
+		return this.pendingStringSets;
 	}
 
 	public CSSElement getPageSide() {

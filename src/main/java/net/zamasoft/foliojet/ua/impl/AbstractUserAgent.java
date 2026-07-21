@@ -494,6 +494,10 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.currentMode == PrepareMode.STRUCTURE_SCAN;
 	}
 
+	public boolean isLastPass() {
+		return this.currentMode == PrepareMode.LAST_PASS;
+	}
+
 	public void dispose() {
 		// ignore
 	}

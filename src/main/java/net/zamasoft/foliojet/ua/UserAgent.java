@@ -61,4 +61,11 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	 * PrepareMode.STRUCTURE_SCAN)中かを返します。
 	 */
 	public boolean isStructureScanPass();
+
+	/**
+	 * 現在最終パス(PrepareMode.LAST_PASS)中かを返します。
+	 * target-counter()系の収束性チェック(最終パスまでに参照先が
+	 * 確定したか)に使います。
+	 */
+	public boolean isLastPass();
 }
