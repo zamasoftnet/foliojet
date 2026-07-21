@@ -12,6 +12,35 @@ public sealed interface FragmentationEvent {
 	boolean column();
 
 	/**
+	 * {@code RootBuilder.pageBreak()}呼び出しの入口です(2026-07-21新設)。
+	 * 1回のPAGE改ページ判定全体の開始点。
+	 *
+	 * @param forced        {@code BreakMode.ForceBreakMode}かどうか
+	 * @param flags         {@code IPageBreakableBox.FLAGS_*}
+	 * @param flowStackDepth 呼び出し時点のflowStackの深さ
+	 */
+	record PageBreakEntry(boolean forced, byte flags, int flowStackDepth) implements FragmentationEvent {
+		public boolean column() {
+			return false;
+		}
+	}
+
+	/**
+	 * {@code BreakableBuilder.columnBreak()}呼び出しの入口です
+	 * (2026-07-21新設)。1回のCOLUMN改段判定全体の開始点。
+	 *
+	 * @param forced      {@code BreakMode.ForceBreakMode}かどうか
+	 * @param flags       {@code IPageBreakableBox.FLAGS_*}
+	 * @param depth       owner(段組)から数えた相対open pathの深さ
+	 * @param columnCount owner自身の設定段数
+	 */
+	record ColumnBreakEntry(boolean forced, byte flags, int depth, int columnCount) implements FragmentationEvent {
+		public boolean column() {
+			return true;
+		}
+	}
+
+	/**
 	 * {@code FlowContainer.splitPageAxis}の自動改ページ主ループが
 	 * インデックス{@code i}のflowアイテムを検分した記録です。
 	 *

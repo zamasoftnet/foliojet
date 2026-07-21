@@ -513,6 +513,16 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.flowStack.isEmpty()) {
 			return false;
 		}
+		// 2026-07-21(M6d-0.5): 観測のみ、既存分岐には一切影響しない
+		{
+			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+					.current();
+			if (trace != null) {
+				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.PageBreakEntry(
+						mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode, flags,
+						this.flowStack.size()));
+			}
+		}
 
 		// ボックスの高さを計算
 		for (int i = 0; i < this.flowStack.size(); ++i) {
