@@ -673,6 +673,7 @@ public class FlowContainer implements Container {
 			int index;
 			net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame chainFrame = null;
 			boolean moved = false;
+			net.zamasoft.foliojet.layout.fragment.ChainStopReason chainStopReason = null;
 			nextBox = new FlowContainer();
 			if (this.box != force.box) {
 				index = this.flows.size() - 1;
@@ -699,6 +700,7 @@ public class FlowContainer implements Container {
 						// this 側に残す — 720行目の chainFrame==null 分岐が
 						// plain(nextBox) へ自然にフォールバックする
 						net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP.incrementAndGet();
+						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
 					}
 					case SplitResult.Move move -> {
 						// box全体をnextBox側へ送る。自動改ページ主ループ
@@ -709,6 +711,7 @@ public class FlowContainer implements Container {
 						nextBox.addFlow(flow.serial, flow.box, 0);
 						moved = true;
 						net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE.incrementAndGet();
+						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
 					}
 					}
 				} else {
@@ -746,8 +749,12 @@ public class FlowContainer implements Container {
 			}
 			assert nextBox != null;
 			assert nextBox != this;
-			return chainFrame != null
-					? new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(nextBox, chainFrame)
+			if (chainFrame != null) {
+				return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(nextBox, chainFrame);
+			}
+			return chainStopReason != null
+					? new net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(nextBox,
+							chainStopReason)
 					: plain(nextBox);
 		}
 

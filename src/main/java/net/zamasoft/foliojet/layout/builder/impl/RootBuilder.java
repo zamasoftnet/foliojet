@@ -601,6 +601,10 @@ public class RootBuilder extends BreakableBuilder {
 					.absorbColumn(mode, prevRootBox.getColumnCount());
 			final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = prevRootBox.getContainer()
 					.splitPageAxis(innerLimit, xmode, flags, plan);
+			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop) {
+				// KEEP/MOVE: 改ページポイントがない場合
+				return false;
+			}
 			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
 					final net.zamasoft.foliojet.layout.box.content.Container c,
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f)) {

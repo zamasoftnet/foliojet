@@ -17,6 +17,16 @@ public sealed interface ContainerCut {
 	}
 
 	/**
+	 * plan選択済みチェーンメンバー自身が{@code Keep}/{@code Move}を返した
+	 * ことを明示的に運ぶ結果です(2026-07-21新設、M6b Phase B5c-2、
+	 * 強制改ページ分岐のみで使用——自動改ページ主ループへの適用は
+	 * 実測で回帰を確認したため見送り中)。
+	 */
+	record PlainWithChainStop(net.zamasoft.foliojet.layout.box.content.Container container, ChainStopReason reason)
+			implements ContainerCut {
+	}
+
+	/**
 	 * 切断がチェーンを貫通し、残余コンテナに加えて継続フレームが
 	 * 返されました(チェーン子はボックスとして運搬されない)。
 	 */

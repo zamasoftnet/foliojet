@@ -385,6 +385,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final int actualColumns = this.getActualColumnCount();
 
 		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
+		if (cut instanceof ContainerCut.PlainWithChainStop(final Container ignoredContainer,
+				final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
+			return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP ? new ColumnCutResult.Keep()
+					: new ColumnCutResult.Move();
+		}
 		final Container remainder;
 		final Continuation.ContinuationFrame childFrame;
 		if (cut instanceof ContainerCut.WithFrame(final Container c, final Continuation.ContinuationFrame f)) {

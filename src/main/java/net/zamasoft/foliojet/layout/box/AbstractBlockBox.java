@@ -232,6 +232,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				.absorbColumn(mode, this.getColumnCount());
 		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, xmode,
 				flags, plan.next());
+		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
+				final Container ignoredContainer, final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
+			return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP
+					? net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP
+					: net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
+		}
 		final Container nextContainer;
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
 		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(final Container c,
