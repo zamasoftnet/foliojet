@@ -693,8 +693,12 @@ public class FlowContainer implements Container {
 						chainFrame = f;
 					case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
 							"チェーンメンバーは Split を返さない");
-					case SplitResult.Keep keep -> throw new AssertionError("force break failed");
-					case SplitResult.Move move -> throw new AssertionError("force break failed");
+					case SplitResult.Keep keep -> {
+						// 継続化不成立(chainFrame は null のまま)。box 全体を
+						// this 側に残す — 720行目の chainFrame==null 分岐が
+						// plain(nextBox) へ自然にフォールバックする
+					}
+					case SplitResult.Move move -> nextBox.addFlow(flow.serial, flow.box, 0);
 					}
 				} else {
 					IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
@@ -704,8 +708,10 @@ public class FlowContainer implements Container {
 					case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
 							(IFlowBox) remainder, 0);
 					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
-					case SplitResult.Keep keep -> throw new AssertionError("force break failed");
-					case SplitResult.Move move -> throw new AssertionError("force break failed");
+					case SplitResult.Keep keep -> {
+						// box 全体を this 側に残す(nextBox には何も加えない)
+					}
+					case SplitResult.Move move -> nextBox.addFlow(flow.serial, flow.box, 0);
 					}
 				}
 			} else {
