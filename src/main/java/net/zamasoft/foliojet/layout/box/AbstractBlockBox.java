@@ -227,13 +227,48 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			final net.zamasoft.foliojet.layout.box.content.BreakMode mode, final byte flags,
 			final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		assert plan.selects(this);
+		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
+		{
+			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+					.current();
+			if (trace != null) {
+				trace.record(
+						new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.SplitForContinuationEntry(
+								System.identityHashCode(this)));
+			}
+		}
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 				.absorbColumn(mode, this.getColumnCount());
 		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, xmode,
 				flags, plan.next());
 		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
-				final Container ignoredContainer, final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
+				final Container chainStopContainer, final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
+			{
+				final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+						.current();
+				if (trace != null) {
+					trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChainStopObserved(false,
+							"AbstractBlockBox.splitForContinuation", reason));
+				}
+			}
+			// 2026-07-22安全網: chainStopContainerを捨てる前に、実際の
+			// flow/floatを保持していないか確認する。保持していれば
+			// (=このreasonが実は継続化を要する内容を伴っていれば)、
+			// 破棄するとサイレントなコンテンツ消失になるため、
+			// ContinuationInvariantViolationExceptionとして検知する
+			// (2026-07-22、codex設計相談で発見。591文書+12文書corpusの
+			// 現行fixtureはどれもこの経路を一切通らないと実測確認済み
+			// ——未検証のまま挙動だけ変えるのは危険なため、安全に失敗
+			// させる形にとどめる。詳細はdocs/history/2026-07-22-open-chain
+			// -b5c2-autoloop-root-cause.md参照)
+			if (chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+					&& (fc.hasFlows() || fc.hasFloatings())) {
+				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+						"PlainWithChainStop(" + reason
+								+ ") at AbstractBlockBox.splitForContinuation discarded a non-empty container — "
+								+ "would silently lose content: " + this.getParams().element);
+			}
 			return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP
 					? net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP
 					: net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;

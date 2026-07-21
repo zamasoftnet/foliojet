@@ -384,9 +384,37 @@ public abstract class AbstractContainerBox extends AbstractBox
 				: ownerContainer;
 		final int actualColumns = this.getActualColumnCount();
 
+		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
+		{
+			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+					.current();
+			if (trace != null) {
+				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.PrepareColumnCutEntry(
+						System.identityHashCode(ownerContainer)));
+			}
+		}
 		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
-		if (cut instanceof ContainerCut.PlainWithChainStop(final Container ignoredContainer,
+		if (cut instanceof ContainerCut.PlainWithChainStop(final Container chainStopContainer,
 				final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
+			{
+				final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+						.current();
+				if (trace != null) {
+					trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChainStopObserved(true,
+							"AbstractContainerBox.prepareColumnCut", reason));
+				}
+			}
+			// 2026-07-22安全網: AbstractBlockBox.splitForContinuationと同じ
+			// 理由(codex設計相談で発見した潜在的コンテンツ消失リスク)。
+			// 詳細はdocs/history/2026-07-22-open-chain-b5c2-autoloop
+			// -root-cause.md参照
+			if (chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+					&& (fc.hasFlows() || fc.hasFloatings())) {
+				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+						"PlainWithChainStop(" + reason
+								+ ") at AbstractContainerBox.prepareColumnCut discarded a non-empty container — "
+								+ "would silently lose content: " + this.getParams().element);
+			}
 			return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP ? new ColumnCutResult.Keep()
 					: new ColumnCutResult.Move();
 		}

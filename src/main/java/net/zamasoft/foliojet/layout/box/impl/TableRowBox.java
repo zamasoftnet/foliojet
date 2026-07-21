@@ -392,6 +392,15 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
+		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
+		{
+			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+					.current();
+			if (trace != null) {
+				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.TableSplitEntry(false,
+						"TableRowBox", System.identityHashCode(this)));
+			}
+		}
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 
 		final boolean vertical = this.tableParams.flow.isVertical();

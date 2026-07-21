@@ -90,4 +90,62 @@ public sealed interface FragmentationEvent {
 	record Decision(boolean column, int containerFingerprint, String exitPath, int remainingFlows)
 			implements FragmentationEvent {
 	}
+
+	/**
+	 * {@code AbstractBlockBox.splitForContinuation()}呼び出しの入口です
+	 * (2026-07-22新設)。plan選択済みチェーンメンバー自身の継続化判定
+	 * 全体の開始点。
+	 *
+	 * @param boxFingerprint 対象ボックス自身の識別子
+	 */
+	record SplitForContinuationEntry(int boxFingerprint) implements FragmentationEvent {
+		public boolean column() {
+			return false;
+		}
+	}
+
+	/**
+	 * {@code AbstractContainerBox.prepareColumnCut()}呼び出しの入口です
+	 * (2026-07-22新設)。
+	 *
+	 * @param ownerFingerprint 対象owner(段組等)ボックス自身の識別子
+	 */
+	record PrepareColumnCutEntry(int ownerFingerprint) implements FragmentationEvent {
+		public boolean column() {
+			return true;
+		}
+	}
+
+	/**
+	 * {@code Floatings.splitPageAxis()}呼び出しの入口です(2026-07-22新設)。
+	 *
+	 * @param floatingsFingerprint 対象Floatings自身の識別子
+	 */
+	record FloatSplitEntry(boolean column, int floatingsFingerprint) implements FragmentationEvent {
+	}
+
+	/**
+	 * 表系ボックス({@code TableBox}/{@code TableRowGroupBox}/
+	 * {@code TableRowBox}/{@code TableCellBox})の{@code split}呼び出しの
+	 * 入口です(2026-07-22新設)。
+	 *
+	 * @param kind 呼び出し元クラスの単純名
+	 */
+	record TableSplitEntry(boolean column, String kind, int boxFingerprint) implements FragmentationEvent {
+	}
+
+	/**
+	 * {@code PlainWithChainStop}を呼び出し側が実際に消費した記録です
+	 * (2026-07-22新設、B5c-2の再挑戦診断用)。どの箇所で・どちらの
+	 * {@link ChainStopReason}が観測されたかを記録する——特にMOVEが、
+	 * 本来Frameを構築するはずだった収集可能プレフィックス上のレベルで
+	 * 発生していないかを後から確認するために使う。
+	 *
+	 * @param siteLabel 消費箇所を表す短いラベル(例:
+	 *                  {@code "AbstractBlockBox.splitForContinuation"})
+	 * @param reason    観測された{@link ChainStopReason}
+	 */
+	record ChainStopObserved(boolean column, String siteLabel, ChainStopReason reason)
+			implements FragmentationEvent {
+	}
 }

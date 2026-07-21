@@ -611,7 +611,31 @@ public class RootBuilder extends BreakableBuilder {
 					.absorbColumn(mode, prevRootBox.getColumnCount());
 			final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = prevRootBox.getContainer()
 					.splitPageAxis(innerLimit, xmode, flags, plan);
-			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop) {
+			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
+					final net.zamasoft.foliojet.layout.box.content.Container chainStopContainer,
+					final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
+				// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
+				{
+					final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+							.current();
+					if (trace != null) {
+						trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChainStopObserved(
+								false, "RootBuilder.pageBreak(root)", reason));
+					}
+				}
+				// 2026-07-22安全網: AbstractBlockBox.splitForContinuationと
+				// 同じ理由(codex設計相談で発見した潜在的コンテンツ消失
+				// リスク)。ここは「改ページポイントなし」として何もせず
+				// falseを返す経路のため、chainStopContainerに実内容が
+				// あるのに何もせず捨てるのは特に危険——詳細はdocs/history
+				// /2026-07-22-open-chain-b5c2-autoloop-root-cause.md参照
+				if (chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+						&& (fc.hasFlows() || fc.hasFloatings())) {
+					throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+							"PlainWithChainStop(" + reason
+									+ ") at RootBuilder.pageBreak(root) discarded a non-empty container — "
+									+ "would silently lose content: " + this.getFlowBox().getParams().element);
+				}
 				// KEEP/MOVE: 改ページポイントがない場合
 				return false;
 			}

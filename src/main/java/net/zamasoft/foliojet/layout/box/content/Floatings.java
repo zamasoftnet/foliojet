@@ -136,6 +136,15 @@ public class Floatings {
 	 */
 	public Floatings splitPageAxis(final AbstractContainerBox box, final double pageLimit, final byte flags) {
 		assert !this.floatings.isEmpty();
+		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
+		{
+			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+					.current();
+			if (trace != null) {
+				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.FloatSplitEntry(false,
+						System.identityHashCode(this)));
+			}
+		}
 		final boolean vertical = box.getBlockParams().flow.isVertical();
 		Floatings nextFloatings = this;
 		// 浮動体
