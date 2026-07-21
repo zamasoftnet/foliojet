@@ -763,6 +763,8 @@ public class FlowContainer implements Container {
 		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, pageSize, pageInnerSize, frameStart, flags,
 				this.flows != null && !this.flows.isEmpty());
 		if (!(pre instanceof FlowCutter.PreDecision.Proceed(final double adjustedPageLimit))) {
+			recordDecision(false, this, "preLoop:" + pre.getClass().getSimpleName(),
+					this.flows == null ? 0 : this.flows.size());
 			return plain(switch (pre) {
 			case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
 			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
@@ -796,15 +798,18 @@ public class FlowContainer implements Container {
 			// 切断線以下のフローがない場合
 			if ((flags & IPageBreakableBox.FLAGS_LAST) == 0) {
 				if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
+					recordDecision(false, this, "noOrphan:cutTail(split-or-not-first)", this.flows.size());
 					return plain(this.cutTail(prevPageSize, flags));
 				}
 				final double contentHeight = flowPageStarts[this.flows.size() - 1]
 						+ flowPageExtents[this.flows.size() - 1];
 				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
 					// 自然の高さより高いボックスは切断
+					recordDecision(false, this, "noOrphan:cutTail(tallerThanNatural)", this.flows.size());
 					return plain(this.cutTail(prevPageSize, flags));
 				}
 				// 前のページに残す
+				recordDecision(false, this, "noOrphan:keepOnPrevPage", this.flows.size());
 				return plain(this.splitFloatings(null, prevPageSize, flags));
 			}
 			lastOrphan = this.flows.size() - 1;
