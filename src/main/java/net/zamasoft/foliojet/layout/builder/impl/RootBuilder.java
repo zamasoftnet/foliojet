@@ -623,23 +623,21 @@ public class RootBuilder extends BreakableBuilder {
 								false, "RootBuilder.pageBreak(root)", reason));
 					}
 				}
-				// 2026-07-22安全網: AbstractBlockBox.splitForContinuationと
-				// 同じ理由(codex設計相談で発見した潜在的コンテンツ消失
-				// リスク)。ここは「改ページポイントなし」として何もせず
-				// falseを返す経路のため、chainStopContainerに実内容が
-				// あるのに何もせず捨てるのは特に危険——詳細はdocs/history
-				// /2026-07-22-open-chain-b5c2-autoloop-root-cause.md参照
-				if (chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
-						&& (fc.hasFlows() || fc.hasFloatings())) {
-					throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
-							"PlainWithChainStop(" + reason
-									+ ") at RootBuilder.pageBreak(root) discarded a non-empty container — "
-									+ "would silently lose content: " + this.getFlowBox().getParams().element);
+				// 2026-07-22: AbstractBlockBox.splitForContinuationと同じ
+				// 理由(codex設計相談で発見した潜在的コンテンツ消失リスク)。
+				// containerが空の場合のみ「改ページポイントなし」として
+				// falseを返し、実内容がある場合は下の共通ルートフレーム
+				// 構築ロジックへ合流させる。詳細はdocs/history/2026-07-22
+				// -chainstop-content-loss-safety-net.md参照
+				final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+						&& (fc.hasFlows() || fc.hasFloatings());
+				if (!hasContent) {
+					// KEEP/MOVE: 改ページポイントがない場合
+					return false;
 				}
-				// KEEP/MOVE: 改ページポイントがない場合
-				return false;
-			}
-			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
+				nextRootContainer = chainStopContainer;
+				rootChildFrame = null;
+			} else if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
 					final net.zamasoft.foliojet.layout.box.content.Container c,
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f)) {
 				nextRootContainer = c;

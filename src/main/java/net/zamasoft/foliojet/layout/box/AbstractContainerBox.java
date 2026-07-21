@@ -394,6 +394,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 			}
 		}
 		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
+		final Container remainder;
+		final Continuation.ContinuationFrame childFrame;
 		if (cut instanceof ContainerCut.PlainWithChainStop(final Container chainStopContainer,
 				final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
 			{
@@ -404,23 +406,21 @@ public abstract class AbstractContainerBox extends AbstractBox
 							"AbstractContainerBox.prepareColumnCut", reason));
 				}
 			}
-			// 2026-07-22安全網: AbstractBlockBox.splitForContinuationと同じ
-			// 理由(codex設計相談で発見した潜在的コンテンツ消失リスク)。
-			// 詳細はdocs/history/2026-07-22-open-chain-b5c2-autoloop
-			// -root-cause.md参照
-			if (chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
-					&& (fc.hasFlows() || fc.hasFloatings())) {
-				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
-						"PlainWithChainStop(" + reason
-								+ ") at AbstractContainerBox.prepareColumnCut discarded a non-empty container — "
-								+ "would silently lose content: " + this.getParams().element);
+			// 2026-07-22: AbstractBlockBox.splitForContinuationと同じ理由
+			// (codex設計相談で発見した潜在的コンテンツ消失リスク)。
+			// containerが空の場合のみbareなKEEP/MOVEとして返し、実内容が
+			// ある場合は下の共通Cut構築ロジックへ合流させる。詳細は
+			// docs/history/2026-07-22-chainstop-content-loss-safety-net.md
+			// 参照
+			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+					&& (fc.hasFlows() || fc.hasFloatings());
+			if (!hasContent) {
+				return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP ? new ColumnCutResult.Keep()
+						: new ColumnCutResult.Move();
 			}
-			return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP ? new ColumnCutResult.Keep()
-					: new ColumnCutResult.Move();
-		}
-		final Container remainder;
-		final Continuation.ContinuationFrame childFrame;
-		if (cut instanceof ContainerCut.WithFrame(final Container c, final Continuation.ContinuationFrame f)) {
+			remainder = chainStopContainer;
+			childFrame = null;
+		} else if (cut instanceof ContainerCut.WithFrame(final Container c, final Continuation.ContinuationFrame f)) {
 			remainder = c;
 			childFrame = f;
 		} else {

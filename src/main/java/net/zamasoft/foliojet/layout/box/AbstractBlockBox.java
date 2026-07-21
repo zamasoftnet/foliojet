@@ -242,6 +242,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				.absorbColumn(mode, this.getColumnCount());
 		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, xmode,
 				flags, plan.next());
+		final Container nextContainer;
+		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
 		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
 				final Container chainStopContainer, final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
 			{
@@ -252,30 +254,26 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 							"AbstractBlockBox.splitForContinuation", reason));
 				}
 			}
-			// 2026-07-22安全網: chainStopContainerを捨てる前に、実際の
-			// flow/floatを保持していないか確認する。保持していれば
-			// (=このreasonが実は継続化を要する内容を伴っていれば)、
-			// 破棄するとサイレントなコンテンツ消失になるため、
-			// ContinuationInvariantViolationExceptionとして検知する
-			// (2026-07-22、codex設計相談で発見。591文書+12文書corpusの
-			// 現行fixtureはどれもこの経路を一切通らないと実測確認済み
-			// ——未検証のまま挙動だけ変えるのは危険なため、安全に失敗
-			// させる形にとどめる。詳細はdocs/history/2026-07-22-open-chain
-			// -b5c2-autoloop-root-cause.md参照)
-			if (chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
-					&& (fc.hasFlows() || fc.hasFloatings())) {
-				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
-						"PlainWithChainStop(" + reason
-								+ ") at AbstractBlockBox.splitForContinuation discarded a non-empty container — "
-								+ "would silently lose content: " + this.getParams().element);
+			// 2026-07-22: chainStopContainerが実際にflow/floatを保持して
+			// いる場合(MOVEなら常に、KEEPでも兄弟の浮動体オーバーフローが
+			// あれば起こりうる——force-branchのsplitFloatings(pageLimit,
+			// flags, index)はKEEP/MOVEどちらでも兄弟の浮動体を検分する
+			// ため)、破棄すると内容が消える。containerが空の場合のみ
+			// reasonをそのままbareなKEEP/MOVEとして返し、実内容がある
+			// 場合は下の共通Frame構築ロジックへ合流させる(tailは
+			// OpenTailShapeに落ち、このレベルでfirst-class型付けを止めて
+			// legacy機構に委ねる)。codex設計相談で確認、詳細はdocs/history
+			// /2026-07-22-chainstop-content-loss-safety-net.md参照
+			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+					&& (fc.hasFlows() || fc.hasFloatings());
+			if (!hasContent) {
+				return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP
+						? net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP
+						: net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
 			}
-			return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP
-					? net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP
-					: net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
-		}
-		final Container nextContainer;
-		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
-		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(final Container c,
+			nextContainer = chainStopContainer;
+			childFrame = null;
+		} else if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(final Container c,
 				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f)) {
 			nextContainer = c;
 			childFrame = f;
