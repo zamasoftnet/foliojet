@@ -39,12 +39,21 @@ public final class ColumnResumeProgramCompiler {
 		if (childFrame == null) {
 			// ownerの切断がそもそも子孫を貫通しなかった(plan未選択、または
 			// owner自身の直下に開いた子孫が存在しない)正規のケース。
+			// openDepthはsnapshot.depth()をそのまま使う(depth-1ではない)
+			// ——PAGE側のindex==0(全ボックスrestyle)ケースが、実測された
+			// OpenTailShape.depth()(常にflowStack.size()と同じ値)を
+			// そのままLegacyOpen.openDepthに使っているのと同じ規約。
+			// owner自身はsnapshotのboxカウントに含まれるが、その「開き」は
+			// 暗黙のOpenText 1単位として別勘定されるため、depth==1
+			// (owner自身がsnapshotの唯一のレベル=子孫なし)でもOpenText
+			// (openDepth==1)が正しい——実測でdepth-1を使うと
+			// AssertionError(flowStack空)になることを確認して修正した。
 			final ResumeTail tail;
 			if (snapshot.depth() == 1) {
 				tail = new ResumeTail.OpenText();
 			} else {
 				final int firstUncompiled = 1;
-				final int openDepth = snapshot.depth() - 1;
+				final int openDepth = snapshot.depth();
 				final LegacyTailCause cause;
 				if (snapshot.firstBarrier().isPresent()
 						&& snapshot.firstBarrier().get().openPathIndex() == firstUncompiled) {

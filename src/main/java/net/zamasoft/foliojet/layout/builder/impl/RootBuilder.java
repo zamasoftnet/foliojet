@@ -83,7 +83,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 作る形で拡張する(同じ session の再利用は不可)。
 	 * </p>
 	 */
-	final class ResumeSession implements AutoCloseable {
+	final class ResumeSession implements AutoCloseable, net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession {
 		enum State {
 			NEW, RESUMING, CONSUMED, FAILED, CLOSED
 		}
@@ -164,7 +164,7 @@ public class RootBuilder extends BreakableBuilder {
 		/**
 		 * 吸収済み範囲の消費完了です(replaySubtree の finally から)。
 		 */
-		void releaseLease(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange occurrence) {
+		public void releaseLease(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange occurrence) {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.leases
 					.remove(occurrence);
 			if (lease != null) {
@@ -172,7 +172,7 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 
-		boolean hasUnconsumedLeases() {
+		public boolean hasUnconsumedLeases() {
 			return !this.leases.isEmpty();
 		}
 
@@ -193,10 +193,232 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 実行中の再開セッションのスタックです(再生内容の溢れによる
-	 * 入れ子改ページで入れ子になる。top が現在のセッション)。
+	 * {@link #compileColumnProgram}が返す、compile済みprogramと実行用
+	 * フレームの組です。{@code ranges}は{@code program.replayRanges()}
+	 * (read-only、{@code Map.copyOf}済み)とは別の、consume-once用の
+	 * mutableな同一内容マップ——{@code replayFromSource()}がこれを
+	 * 直接remove()するため、read-onlyなprogramの中身をそのまま
+	 * {@code beginBreakRestyle}へ渡してはいけない(PAGEが
+	 * {@code continuation.ranges()}という別のmutableマップを使うのと
+	 * 同じ理由。誤ってprogram側を渡すと本番でUnsupportedOperation
+	 * Exceptionになる——実測で発見・修正済み)。
 	 */
-	private final java.util.ArrayDeque<ResumeSession> sessions = new java.util.ArrayDeque<>();
+	record CompiledColumn(net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program,
+			net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame,
+			java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
+	}
+
+	/**
+	 * {@code AbstractContainerBox.prepareColumnCut()}が返した{@link
+	 * net.zamasoft.foliojet.layout.fragment.PreparedColumnCut}から、
+	 * {@link net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram}を
+	 * コンパイル・検証します(2026-07-21新設、M6b Phase B4-Step4)。
+	 * ownerへのcommit・実行(session)はまだ行わない——呼び出し側が
+	 * 「program検証→column commit→executor開始」の順序を守れるようにする
+	 * (ChatGPT Pro相談、
+	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 参照)。PAGEの{@code pageBreak()}(414-524行目付近)と同型のprefix
+	 * 吸収ロジック(stampRanges+extractReplayable)をCOLUMN向けに複製した
+	 * ——既存のPAGE経路には一切触れずに済むよう、意図的に共有せず並行
+	 * 実装している。
+	 */
+	final CompiledColumn compileColumnProgram(final net.zamasoft.foliojet.layout.box.params.WritingMode ownerFlow,
+			final net.zamasoft.foliojet.layout.fragment.NextColumnTarget columnTarget,
+			final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared,
+			final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot) {
+		final net.zamasoft.foliojet.layout.box.content.Container ownerRemainder = prepared.ownerRemainder();
+
+		final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame> innerFrames = new java.util.ArrayList<>();
+		for (net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = prepared.childFrame(); f != null;) {
+			innerFrames.add(f);
+			f = f.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child : null;
+		}
+
+		final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges = this
+				.stampRanges(ownerRemainder, ownerFlow);
+		for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
+			ranges.putAll(this.stampRanges(f.container(), ownerFlow));
+		}
+
+		final boolean vertical = ownerFlow.isVertical();
+		java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> anchorPrefix = java.util.List
+				.of();
+		final java.util.List<java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange>> framePrefixes = new java.util.ArrayList<>(
+				innerFrames.size());
+		if (!innerFrames.isEmpty()) {
+			if (ownerRemainder instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc) {
+				anchorPrefix = fc.extractReplayable(ranges, vertical, 0);
+			}
+			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
+				final int walkDepth = f
+						.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+								final net.zamasoft.foliojet.layout.fragment.OpenShape shape) ? shape.depth() : 0;
+				framePrefixes
+						.add(f.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
+								? fc.extractReplayable(ranges, vertical, walkDepth)
+								: java.util.List.of());
+			}
+		}
+
+		net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = null;
+		for (int i = innerFrames.size() - 1; i >= 0; --i) {
+			final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = innerFrames.get(i);
+			tail = new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+					new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(f.recipe(), f.state(),
+							f.container(), f.crossExtent(), framePrefixes.get(i), tail == null ? f.tail() : tail));
+		}
+		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame = tail instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child : null;
+
+		final net.zamasoft.foliojet.layout.fragment.ColumnAnchor anchor = new net.zamasoft.foliojet.layout.fragment.ColumnAnchor(
+				ownerRemainder, anchorPrefix);
+		final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program = net.zamasoft.foliojet.layout.fragment.ColumnResumeProgramCompiler
+				.compileColumn(columnTarget, anchor, snapshot, childFrame, ranges);
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnCompiledProgram(program);
+		return new CompiledColumn(program, childFrame, ranges);
+	}
+
+	/**
+	 * コンパイル済み{@link net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram}
+	 * を消費し、新columnのビルダー状態と内容を再開します(2026-07-21新設、
+	 * M6b Phase B4-Step4)。呼び出し側は{@link #compileColumnProgram}の後、
+	 * {@code owner.commitPreparedColumn()}を実行済みであること。
+	 *
+	 * @param target 状態変異を適用する先のbuilder(改段を駆動している
+	 *               実際のBreakableBuilder。nested な{@code ColumnBuilder}
+	 *               の場合もある)
+	 */
+	final void resumeColumn(final BreakableBuilder target, final CompiledColumn compiled) {
+		try (ColumnResumeSession session = new ColumnResumeSession(target, compiled.program(), compiled.childFrame(),
+				compiled.ranges())) {
+			session.resume();
+			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
+		}
+	}
+
+	/**
+	 * COLUMN継続の一回きりの消費セッションです(2026-07-21新設、
+	 * M6b Phase B4-Step4)。{@link ResumeSession}のCOLUMN版——設計は
+	 * 同一(状態遷移・リース所有・例外時清算の対称性)。
+	 */
+	final class ColumnResumeSession implements AutoCloseable, net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession {
+		enum State {
+			NEW, RESUMING, CONSUMED, FAILED, CLOSED
+		}
+
+		private final BreakableBuilder target;
+		private final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program;
+		private final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
+		private final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges;
+		private final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow;
+		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
+		private State state = State.NEW;
+
+		ColumnResumeSession(final BreakableBuilder target,
+				final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program,
+				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame,
+				final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
+			this.target = target;
+			this.program = program;
+			this.childFrame = childFrame;
+			this.ranges = ranges;
+			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(
+					net.zamasoft.foliojet.layout.fragment.ResumeOp.expectedOps(program));
+			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
+					.getLayoutSource();
+			if (log != null) {
+				for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : program.anchor()
+						.prefixItems()) {
+					this.leases.put(r, log.retainFrom(r.fromId()));
+				}
+				for (net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = childFrame; f != null;) {
+					for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : f.prefixItems()) {
+						this.leases.put(r, log.retainFrom(r.fromId()));
+					}
+					f = f.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
+							final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child
+									: null;
+				}
+			}
+		}
+
+		void resume() {
+			if (this.state != State.NEW) {
+				throw new IllegalStateException("継続は一度だけ消費できる: " + this.state);
+			}
+			this.state = State.RESUMING;
+			RootBuilder.this.sessions.push(this);
+			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
+			this.target.beginRestyling();
+			RootBuilder.this.beginBreakRestyle(this.ranges);
+			try {
+				if (this.childFrame != null) {
+					RootBuilder.this.restyleFrame(this.target, this.program.anchor().remainder(),
+							this.program.anchor().prefixItems(),
+							net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
+					RootBuilder.this.resumeFrame(this.childFrame, 1, this.program.snapshot().depth(), this.shadow,
+							this.target);
+				} else {
+					assert this.program.anchor().prefixItems().isEmpty();
+					this.program.anchor().remainder().restyle(this.target,
+							net.zamasoft.foliojet.layout.fragment.OpenShape.of(this.program.tail().openDepth()),
+							false);
+				}
+				this.shadow.verifyComplete();
+				this.state = State.CONSUMED;
+			} catch (RuntimeException | Error e) {
+				this.state = State.FAILED;
+				throw e;
+			} finally {
+				RootBuilder.this.endBreakRestyle();
+				this.target.endRestyling();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
+				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
+				RootBuilder.this.sessions.pop();
+			}
+		}
+
+		public void releaseLease(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange occurrence) {
+			final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.leases
+					.remove(occurrence);
+			if (lease != null) {
+				lease.close();
+			}
+		}
+
+		public boolean hasUnconsumedLeases() {
+			return !this.leases.isEmpty();
+		}
+
+		@Override
+		public void close() {
+			if (this.state == State.CLOSED) {
+				return;
+			}
+			for (final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease : this.leases
+					.values()) {
+				lease.close();
+			}
+			this.leases.clear();
+			this.state = State.CLOSED;
+		}
+	}
+
+	/**
+	 * 実行中の再開セッションのスタックです(再生内容の溢れによる
+	 * 入れ子改ページ・改段で入れ子になる。top が現在のセッション)。
+	 * 2026-07-21(M6b Phase B4-Step4): PAGE専用の{@code ResumeSession}から
+	 * {@link net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession}へ
+	 * 一般化した——COLUMN側の{@link ColumnResumeSession}も同じスタックで
+	 * 管理することで、COLUMN resume中にPAGE breakが入れ子になっても
+	 * (またはその逆でも)、{@link #replaySubtree}が常に「現在のtop
+	 * セッション」だけを見ればよいようにする(ChatGPT Pro相談、
+	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 参照)。
+	 */
+	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession> sessions = new java.util.ArrayDeque<>();
 
 	/**
 	 * 残余の各閉部分木の再生可否と範囲を破断時に一括判定します(C2:
@@ -602,6 +824,21 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
 			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow) {
+		this.resumeFrame(frame, index, depth, shadow, this);
+	}
+
+	/**
+	 * @param target 状態変異(startFlowBlock/restyle)を適用する先の
+	 *               builder(2026-07-21新設、M6b Phase B4-Step4)。PAGEは
+	 *               常に{@code RootBuilder.this}(旧来どおり)。COLUMNは
+	 *               改段を駆動している実際の{@code BreakableBuilder}
+	 *               (nested な{@code ColumnBuilder}の場合もある——M6c
+	 *               の段バランスprobe中に、probeの内容自体がさらに改段を
+	 *               要する場合)を渡す。
+	 */
+	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
+			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
+			final BlockBuilder target) {
 		while (true) {
 			assert !this.resumeScopes.isEmpty();
 			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
@@ -617,9 +854,9 @@ public class RootBuilder extends BreakableBuilder {
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
-				this.startFlowBlock(box);
+				target.startFlowBlock(box);
 				shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
-				this.restyleFrame(box.getContainer(), frame.prefixItems(),
+				this.restyleFrame(target, box.getContainer(), frame.prefixItems(),
 						net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 				shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleFrame(index,
 						net.zamasoft.foliojet.layout.fragment.ResumeOp.TailMode.CLOSED_CHILD, 0,
@@ -649,14 +886,14 @@ public class RootBuilder extends BreakableBuilder {
 					// この経路では prefix 吸収は行われていない
 					net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.incrementAndGet();
 					assert frame.prefixItems().isEmpty();
-					box.restyle(this, shape);
+					box.restyle(target, shape);
 					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleWholeBox(index,
 							shape.depth()));
 				} else {
 					net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.incrementAndGet();
-					this.startFlowBlock(box);
+					target.startFlowBlock(box);
 					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
-					this.restyleFrame(box.getContainer(), frame.prefixItems(), shape);
+					this.restyleFrame(target, box.getContainer(), frame.prefixItems(), shape);
 					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleFrame(index,
 							net.zamasoft.foliojet.layout.fragment.ResumeOp.TailMode.OPEN_TAIL, shape.depth(),
 							frame.prefixItems()));
@@ -670,15 +907,18 @@ public class RootBuilder extends BreakableBuilder {
 	/**
 	 * フレームコンテナを再開します(C1c)。吸収済みの再生範囲(prefix)を
 	 * serial 順で残アイテムと合流させる。
+	 *
+	 * @param target 状態変異を適用する先のbuilder(2026-07-21、B4-Step4で
+	 *               {@code this}固定から一般化)。
 	 */
-	private void restyleFrame(final net.zamasoft.foliojet.layout.box.content.Container container,
+	private void restyleFrame(final BlockBuilder target, final net.zamasoft.foliojet.layout.box.content.Container container,
 			final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix,
 			final net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
 		if (container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc) {
-			fc.restyle(this, shape, false, prefix);
+			fc.restyle(target, shape, false, prefix);
 		} else {
 			assert prefix.isEmpty();
-			container.restyle(this, shape, false);
+			container.restyle(target, shape, false);
 		}
 	}
 
@@ -688,7 +928,7 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public void replaySubtree(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range,
 			final BlockBuilder target) {
-		final ResumeSession session = this.sessions.peek();
+		final net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession session = this.sessions.peek();
 		try {
 			if (!net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(),
 					range.fromId(), range.toId(), target, this.pageGenerator)) {

@@ -81,4 +81,39 @@ public sealed interface ResumeOp {
 		}
 		return List.copyOf(ops);
 	}
+
+	/**
+	 * {@link ColumnResumeProgram}から、owner内側のfragment chain実行時に
+	 * 期待される操作列を機械的に導出します(2026-07-21新設、
+	 * M6b Phase B4-Step4)。PAGE版と異なり、index==0(収集不能な破断の
+	 * 全ボックスrestyle)分岐は存在しない——COLUMNのfragment levelは
+	 * 常にindex 1から始まり、owner(index 0)自体はfragment levelではなく
+	 * {@link ColumnAnchor}として別途扱われるため(anchor自体の再生は
+	 * このshadow比較の対象外——{@code RootBuilder.resumeColumn()}が
+	 * fragment chain実行の前後で直接行う)。{@code fragmentLevels}が
+	 * 空(owner直下に開いた子孫が全く無い、または貫通しなかった)場合は
+	 * 空リストを返す——この場合、fragment chain実行自体が呼ばれない。
+	 */
+	static List<ResumeOp> expectedOps(final ColumnResumeProgram program) {
+		final List<ResumeOp> ops = new ArrayList<>();
+		final List<FragmentResumeLevel> levels = program.fragmentLevels();
+
+		for (int i = 0; i < levels.size(); ++i) {
+			final FragmentResumeLevel level = levels.get(i);
+			final boolean terminal = i == levels.size() - 1;
+			final int index = level.openPathIndex();
+
+			ops.add(new Instantiate(index, level.descriptor().fragmentSignature()));
+
+			if (!terminal) {
+				ops.add(new StartFlow(index));
+				ops.add(new RestyleFrame(index, TailMode.CLOSED_CHILD, 0, level.prefixItems()));
+				continue;
+			}
+
+			ops.add(new StartFlow(index));
+			ops.add(new RestyleFrame(index, TailMode.OPEN_TAIL, program.tail().openDepth(), level.prefixItems()));
+		}
+		return List.copyOf(ops);
+	}
 }

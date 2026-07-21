@@ -129,8 +129,17 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		assertEquals("PAGE側のOpenChainは完全に消えるはずです", 0, ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
 		assertTrue("段組levelが実際にfirst-classコンパイルされたはずです",
 				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0);
-		assertEquals("残るRESTYLE_CHAIN_FIRINGSはすべてCOLUMN経路由来のはずです",
-				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get(), ContinuationStats.COLUMN_RESTYLE_CHAIN_FIRINGS.get());
+		// 2026-07-21(B4-Step4): COLUMN経路もPLAIN_FLOW子孫を自動改段で
+		// first-classコンパイルするようになったため、RESTYLE_CHAIN_FIRINGS
+		// (旧OpenChain再帰)はPAGE・COLUMN双方でゼロになるはずである
+		// (このfixtureの段組内側は10段のPLAIN_FLOWラッパーのみ、
+		// FLOW_SUBTYPE/直交等のbarrierを含まないため完全に収集される)。
+		assertEquals("B4-Step4後はCOLUMN側のOpenChainも完全に消えるはずです", 0,
+				ContinuationStats.COLUMN_RESTYLE_CHAIN_FIRINGS.get());
+		assertEquals("RESTYLE_CHAIN_FIRINGSはPAGE・COLUMN双方でゼロになるはずです", 0,
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
+		assertTrue("段組owner内側のPLAIN_FLOW子孫がCOLUMN側でもfirst-classコンパイルされたはずです",
+				ContinuationStats.columnCompiledLevels(ContinuationCapability.PLAIN_FLOW) > 0);
 	}
 
 	/**

@@ -1023,20 +1023,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(depth, true);
 		this.beginBreak();
 
-		// 2026-07-21(M6b Phase B4-Step3、観測のみ): 相対open pathを捕捉し、
-		// 深さがdepthパラメータと整合するかを検証する。ここで得たplanは
-		// まだ実際の切断(newColumn())には渡さない——B4-Step3は観測のみで
-		// 挙動を変えない(実際の切断へplanを渡すとPLAIN_FLOWがforce以外で
-		// 初めてsplitForContinuation経由になり、これは正真正銘の挙動変更
-		// になるため、B4-Step4で3層検証込みで別途行う)。
+		// 2026-07-21(M6b Phase B4): 相対open pathを捕捉し、深さがdepth
+		// パラメータと整合するかを検証する(Step3で観測用に導入、Step4で
+		// 実際の切断(prepareColumnCut)へも渡すよう配線した)。
+		final net.zamasoft.foliojet.layout.fragment.OpenPathScan columnScan;
 		{
 			final java.util.List<AbstractContainerBox> columnOpenPath = this.captureColumnOpenPath(breakFlow);
 			if (columnOpenPath.size() != depth) {
 				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
 						"column open path size=" + columnOpenPath.size() + " does not match depth=" + depth);
 			}
-			final net.zamasoft.foliojet.layout.fragment.OpenPathScan columnScan = net.zamasoft.foliojet.layout.fragment.OpenPathScan
-					.captureColumn(columnOpenPath, mode);
+			columnScan = net.zamasoft.foliojet.layout.fragment.OpenPathScan.captureColumn(columnOpenPath, mode);
 			columnScan.snapshot().firstBarrier()
 					.ifPresent(barrier -> net.zamasoft.foliojet.layout.fragment.ContinuationStats
 							.recordColumnCapabilityScanStop(barrier.reason()));
@@ -1051,12 +1048,64 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			flags ^= IPageBreakableBox.FLAGS_FIRST;
 		}
 
-		final Container container = breakFlow.box.newColumn(pageAxis, mode, flags);
-		// assert container != null;
-		if (container == null) {
+		final RootBuilder root = this.getPageContext();
+		if (root == null) {
+			// 2026-07-21(M6b Phase B4-Step4): 型付き経路(compileColumnProgram/
+			// resumeColumn)はRootBuilderのメソッドとして実装されているため、
+			// rootless文脈(M6c段バランスprobe等のTwoPassBuilder系)では
+			// 使えない。旧来どおりlegacy経路(range stampingなし)のまま。
+			final Container container = breakFlow.box.newColumn(pageAxis, mode, flags);
+			if (container == null) {
+				return false;
+			}
+			this.pruneFlowStackTo(breakFlow);
+			this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
+			this.beginRestyling();
+			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
+			try {
+				container.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth), false);
+			} finally {
+				this.endRestyling();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
+				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
+			}
+			return true;
+		}
+
+		// 2026-07-21(M6b Phase B4-Step4): 相対open pathの収集可能プレフィックス
+		// (自動改段のPLAIN_FLOWのみ、force改段では常に空——
+		// ContinuationCapability.supportsColumnSplitThrough参照)を型付き
+		// 継続として切断する。強制改段では常に空チェーンになるため、
+		// この呼び出しはmode問わず安全(旧plan=nullと同じ結果になる)。
+		final net.zamasoft.foliojet.layout.fragment.BreakPlan relativePlan = columnScan.toBreakPlan();
+		final net.zamasoft.foliojet.layout.fragment.ColumnCutResult cutResult = breakFlow.box.prepareColumnCut(pageAxis,
+				mode, flags, relativePlan);
+		if (!(cutResult instanceof net.zamasoft.foliojet.layout.fragment.ColumnCutResult.Cut(
+				final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared))) {
+			// Keep/Move: 改段ポイントがない(旧newColumn()のnull相当)
 			return false;
 		}
 
+		final net.zamasoft.foliojet.layout.fragment.NextColumnTarget columnTarget = new net.zamasoft.foliojet.layout.fragment.NextColumnTarget(
+				breakFlow.box, prepared.expectedOwnerContainer(), prepared.expectedActualColumnCount(),
+				breakFlow.box.getColumnCount(), pageAxis, breakFlow.lineAxis,
+				net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature.from(breakFlow.box));
+
+		// program検証 → column commit → executor開始、の順序を守る
+		// (検証失敗時にownerへcommitしていない状態で安全に止まれる)
+		final RootBuilder.CompiledColumn compiled = root.compileColumnProgram(breakFlow.box.getBlockParams().flow,
+				columnTarget, prepared, columnScan.snapshot());
+		breakFlow.box.commitPreparedColumn(prepared);
+
+		this.pruneFlowStackTo(breakFlow);
+		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
+		root.resumeColumn(this, compiled);
+		return true;
+	}
+
+	/** flowStackを{@code breakFlow}まで刈り込みます(改段先より内側を捨てる)。 */
+	private void pruneFlowStackTo(final Flow breakFlow) {
 		if (this.flowStack != null) {
 			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
 				final Flow flow = (Flow) this.flowStack.get(i);
@@ -1066,27 +1115,5 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				this.flowStack.remove(i);
 			}
 		}
-
-		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
-		this.beginRestyling();
-		final RootBuilder root = this.getPageContext();
-		net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
-		if (root != null) {
-			// C2: 改段の残余についても再生範囲を破断時に一括判定
-			root.beginBreakRestyle(
-					root.stampRanges(container, breakFlow.box.getBlockParams().flow));
-		}
-		try {
-			container.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth), false);
-		} finally {
-			if (root != null) {
-				root.endBreakRestyle();
-			}
-			this.endRestyling();
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
-			net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
-		}
-		return true;
 	}
 }
