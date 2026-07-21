@@ -33,6 +33,29 @@ public final class ContinuationStats {
 	public static final AtomicLong CHAIN_MEMBER_MOVE = new AtomicLong();
 
 	/**
+	 * {@code ColumnsContainer.splitPageAxis()}が呼ばれた回数(2026-07-21
+	 * 新設、M6b Phase B5d-0)。{@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}
+	 * の分母として使う——実corpusで「段組全体が丸ごと次ページへ運ばれる」
+	 * ケース(B5d)がどの程度の頻度で発生しうるかを、B5d本実装着手前に
+	 * 実測するための頻度probe。
+	 */
+	public static final AtomicLong COLUMNS_SPLIT_ATTEMPTS = new AtomicLong();
+
+	/**
+	 * {@code ColumnsContainer}が段数2以上を持つ状態で、委譲先の最後列
+	 * (`getLastColumn()`)自身の分割結果が「その列の内容が丸ごと
+	 * 次フラグメンテナへ移動した」(3引数版: 戻り値が最後列自身と同一/
+	 * 4引数版: {@code ContainerCut.Plain}のcontainerが最後列自身と同一)
+	 * であった回数(2026-07-21新設、M6b Phase B5d-0)。これは「段組全体の
+	 * MOVE」の上位集合(最後列だけがMOVEし前方列はそのまま残る通常
+	 * ケースも含む)——実際に「全列MOVE」かどうかまでは区別しない、
+	 * B5d本実装の要否を判断するための粗い頻度シグナルに留める。挙動には
+	 * 一切影響しない(カウンタ加算のみ、`ColumnsContainer`の委譲ロジック
+	 * 自体は変更していない)。
+	 */
+	public static final AtomicLong COLUMNS_LAST_COLUMN_MOVE_CANDIDATE = new AtomicLong();
+
+	/**
 	 * 直近の改段(COLUMN)で選択されたowner(改段対象box)の設定段数
 	 * (CSS {@code column-count}相当)を記録します(2026-07-21新設、
 	 * nested multicol owner選択のテスト観測用)。{@code
@@ -325,6 +348,8 @@ public final class ContinuationStats {
 		CHILD_FRAMES.set(0);
 		CHAIN_MEMBER_KEEP.set(0);
 		CHAIN_MEMBER_MOVE.set(0);
+		COLUMNS_SPLIT_ATTEMPTS.set(0);
+		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.set(0);
 		LAST_COLUMN_OWNER_COLUMN_COUNT.set(-1);
 		OPEN_TAILS.set(0);
 		UNCHAINED_RESTYLES.set(0);

@@ -65,6 +65,8 @@ public class ResumeTraceGoldenTest extends TestCase {
 		// ことを実測済み(稀だが実在する、B5d後回しの判断根拠)。
 		long totalKeep = 0;
 		long totalMove = 0;
+		long totalColumnsSplitAttempts = 0;
+		long totalColumnsLastColumnMoveCandidate = 0;
 		for (String doc : DOCUMENTS) {
 			String name = doc.replace('/', '_').replace(".html", "");
 			File outDir = new File("local/unittest/resume-trace/" + name);
@@ -82,6 +84,10 @@ public class ResumeTraceGoldenTest extends TestCase {
 
 			totalKeep += net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP.get();
 			totalMove += net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE.get();
+			totalColumnsSplitAttempts += net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_SPLIT_ATTEMPTS
+					.get();
+			totalColumnsLastColumnMoveCandidate += net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
+					.get();
 			File[] breaks = outDir.listFiles((d, n) -> n.endsWith(".txt"));
 			assertNotNull("再開トレースが出力されていません: " + doc, breaks);
 			assertTrue("再開トレースが出力されていません: " + doc, breaks.length > 0);
@@ -115,6 +121,16 @@ public class ResumeTraceGoldenTest extends TestCase {
 		assertEquals("plan選択済みチェーンメンバーのKeepはこのfixture集合では発生しないはずです", 0, totalKeep);
 		assertEquals("plan選択済みチェーンメンバーのMoveはこのfixture集合で2回発生するはずです"
 				+ "(moved-table-caption.html・columns-float.htmlで1回ずつ)", 2, totalMove);
+		// 2026-07-21(M6b Phase B5d-0): ColumnsContainer(2列以上に実体化
+		// 済みの段組)自体がsplitPageAxisを呼ばれる回数自体がこの
+		// fixture集合では1回のみ(多くの段組は1列のまま完結し、
+		// ColumnsContainerへ遅延ラップされる前にページが閉じるため)。
+		// そのうち最後列自体が丸ごとMOVEした候補は0件——B5d(段組全体
+		// move型付け)の優先度が低いという既存判断を裏付ける実測値。
+		assertEquals("ColumnsContainer.splitPageAxisの呼び出し回数はこのfixture集合で1回のみのはずです", 1,
+				totalColumnsSplitAttempts);
+		assertEquals("最後列丸ごとMOVEの候補はこのfixture集合では発生しないはずです", 0,
+				totalColumnsLastColumnMoveCandidate);
 		if (!failures.isEmpty()) {
 			fail(String.join("\n", failures));
 		}
