@@ -596,6 +596,10 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe rootRecipe;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState rootState;
 		final double rootCrossExtent;
+		// 2026-07-22(B5c-2 Step2): ルート自身がPlainWithChainStop(MOVE,
+		// 非空container)で打ち切られた場合、末尾のOpenTailShapeを
+		// MovedOpenに置き換える(rootChildFrame==nullのときのみ意味を持つ)
+		boolean rootMovedOpen = false;
 		{
 			final Flow root = (Flow) this.flowStack.get(0);
 
@@ -643,6 +647,7 @@ public class RootBuilder extends BreakableBuilder {
 					// KEEP/MOVE: 改ページポイントがない場合
 					return false;
 				}
+				rootMovedOpen = reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
 				nextRootContainer = chainStopContainer;
 				rootChildFrame = null;
 			} else if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
@@ -791,8 +796,10 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootFrame = new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(
 				rootRecipe, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
 				tail == null
-						? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
-								net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth))
+						? (rootMovedOpen
+								? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(depth)
+								: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+										net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth)))
 						: tail);
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
 				depth, rootFrame, ranges);
