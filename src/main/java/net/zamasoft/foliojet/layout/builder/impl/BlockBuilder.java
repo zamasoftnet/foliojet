@@ -1172,7 +1172,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void addTable(final TableBuilder tableBuilder) {
-		final TwoPassTableBuilder autoTableBuilder = (TwoPassTableBuilder) tableBuilder;
+		final RetainedTableBuilder autoTableBuilder = (RetainedTableBuilder) tableBuilder;
 		autoTableBuilder.prepareLayout();
 		autoTableBuilder.bind(this);
 	}

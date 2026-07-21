@@ -5,13 +5,13 @@ import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
 
 /**
- * OnePassTableBuilder/TwoPassTableBuilderの選択・開始・終了を一箇所へ集約する
+ * IncrementalTableBuilder/RetainedTableBuilderの選択・開始・終了を一箇所へ集約する
  * ライフサイクルアダプタです(C4準備、2026-07-19。C4-Bでルーティング判定を
  * {@link TableBuildPlanner}へ委譲)。
  *
  * <p>
  * 計算・箱操作は一切変更していません。DocumentBuilderに分散していた
- * ビルダー選択条件と、終了時のisIncremental()判定+OnePassTableBuilderへの
+ * ビルダー選択条件と、終了時のisIncremental()判定+IncrementalTableBuilderへの
  * castをここへ移しただけです。
  * </p>
  *
@@ -35,24 +35,24 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
  * 要するため、別途の設計サイクルへ回す)。
  * </p>
  */
-public final class TableLayout {
-	private TableLayout() {
+public final class TableBuilderLifecycle {
+	private TableBuilderLifecycle() {
 	}
 
 	/**
 	 * 表の開始時に、{@link TableBuildPlanner}が決めた実行計画に従って
-	 * ビルダーを選び、必要なら{@link OnePassTableBuilder#startLayout}まで
+	 * ビルダーを選び、必要なら{@link IncrementalTableBuilder#startLayout}まで
 	 * 実行して返します。
 	 */
 	public static TableBuilder start(Builder builder, TableBox tableBox) {
 		final TableBuildPlan plan = TableBuildPlanner.plan(builder, tableBox);
 		if (plan.mode() == TableBuildPlan.Mode.RETAINED) {
 			TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
-			return new TwoPassTableBuilder(builder, tableBox);
+			return new RetainedTableBuilder(builder, tableBox);
 		}
 		// Incremental(table-layout:fixed相当)
 		TableBuildStats.ONE_PASS_BUILDS.incrementAndGet();
-		final OnePassTableBuilder fixedTableBuilder = new OnePassTableBuilder(tableBox);
+		final IncrementalTableBuilder fixedTableBuilder = new IncrementalTableBuilder(tableBox);
 		fixedTableBuilder.startLayout((RootBuilder) builder);
 		return fixedTableBuilder;
 	}
@@ -67,7 +67,7 @@ public final class TableLayout {
 			builder.addTable(tableBuilder);
 		} else {
 			// Incremental(table-layout:fixed相当)
-			((OnePassTableBuilder) tableBuilder).endLayout();
+			((IncrementalTableBuilder) tableBuilder).endLayout();
 		}
 	}
 }

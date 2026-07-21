@@ -67,7 +67,7 @@ public class TableBuildCharacterizationTest extends TestCase {
 
 	/**
 	 * table-layout:fixedでも、表にページ軸寸法(横書きならheight)が明示指定
-	 * されていればRetained(TwoPassTableBuilder)へルーティングされる
+	 * されていればRetained(RetainedTableBuilder)へルーティングされる
 	 * ——ルーティングは「fixed対auto」ではなく「早期コミット可能か否か」の
 	 * 軸であることを固定する(TableRetentionReason.SPECIFIED_PAGE_SIZE、
 	 * C4-B・外部設計レビュー2026-07-19)。
@@ -89,7 +89,7 @@ public class TableBuildCharacterizationTest extends TestCase {
 		final long twoPass = TableBuildStats.TWO_PASS_BUILDS.get();
 		this.transcode(file, "char-fixed-specified-height");
 		assertTrue(
-				"ページ軸寸法(height)が明示指定されたfixed表がTwoPassTableBuilder"
+				"ページ軸寸法(height)が明示指定されたfixed表がRetainedTableBuilder"
 						+ "(Retained)にルーティングされていません",
 				TableBuildStats.TWO_PASS_BUILDS.get() > twoPass);
 	}
@@ -102,11 +102,11 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * 非FLOW配置(float)のtable-layout:fixed表は、TwoPassTableBuilderのまま
-	 * 処理される(OnePassTableBuilderへ回すとstartLayout()のFLOW前提
+	 * 非FLOW配置(float)のtable-layout:fixed表は、RetainedTableBuilderのまま
+	 * 処理される(IncrementalTableBuilderへ回すとstartLayout()のFLOW前提
 	 * assert/castが破綻するため対象外にする必要がある——外部設計レビュー
 	 * 2026-07-19で発見、P0-1。修正前はneedsIntrinsicSizing()が非FLOW配置
-	 * でもtrueを返すため誤ってOnePassへ回り、この文書はassert有効時に
+	 * でもtrueを返すため誤ってIncrementalへ回り、この文書はassert有効時に
 	 * AssertionErrorで失敗していたはず)。
 	 */
 	public void testNonFlowFixedTableStaysOnTwoPass() throws Exception {
@@ -125,7 +125,7 @@ public class TableBuildCharacterizationTest extends TestCase {
 		}
 		final long twoPass = TableBuildStats.TWO_PASS_BUILDS.get();
 		this.transcode(file, "char-nonflow-fixed");
-		assertTrue("非FLOW配置のfixed表がTwoPassTableBuilderにルーティングされていません(P0-1回帰)",
+		assertTrue("非FLOW配置のfixed表がRetainedTableBuilderにルーティングされていません(P0-1回帰)",
 				TableBuildStats.TWO_PASS_BUILDS.get() > twoPass);
 	}
 
@@ -169,7 +169,7 @@ public class TableBuildCharacterizationTest extends TestCase {
 
 	/**
 	 * 絶対高さrow-group(&lt;tbody style="height:..."&gt;)は、その行グループが
-	 * 閉じるまで全行をrowsUnitへ蓄積し続ける(OnePassTableBuilder.endInnerTable()の
+	 * 閉じるまで全行をrowsUnitへ蓄積し続ける(IncrementalTableBuilder.endInnerTable()の
 	 * bindUnit=falseがrow-group終了までリセットされないため)。table-layout:fixed
 	 * であっても、行グループの絶対高さ指定はtable-layout:auto以外の無限成長経路に
 	 * なりうることを観測して固定する(外部設計レビュー2026-07-19で発見、P0-2。

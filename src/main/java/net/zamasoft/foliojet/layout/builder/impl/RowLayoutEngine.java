@@ -10,7 +10,7 @@ import java.util.List;
  * (2026-07-19訂正、C4-D・外部設計レビュー)。実際に共有されているのは
  * 局所/全体それぞれの行高方針をボックス木から切り離した純粋な配列演算
  * であり、いつ・どの範囲へ・どの順序で適用するかはIncremental
- * (OnePassTableBuilder)/Retained(TwoPassTableBuilder)で異なる。
+ * (IncrementalTableBuilder)/Retained(RetainedTableBuilder)で異なる。
  * 呼び出し側は行ボックスから配列を組み、結果を書き戻す(データの出所
  * だけがビルダーごとに異なる — CellContent.complementRowspan と同じ分担)。
  * </p>

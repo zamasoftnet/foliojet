@@ -394,7 +394,7 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 直交writing-modeの表は、当初(2026-07-21)`OnePassTableBuilder`経由の
+	 * 直交writing-modeの表は、当初(2026-07-21)`IncrementalTableBuilder`経由の
 	 * INCREMENTAL改ページが選ばれていたため、`BreakableBuilder
 	 * .forceBreak()`が`breakDepth`障壁(通常は直交書字方向の内部で自動
 	 * 改ページを抑止する仕組み)を迂回し、`ORTHOGONAL_FLOW`(段組・RL/LR
@@ -409,7 +409,7 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	 * M6b Phase B5e(2026-07-21)で`TableBuildPlanner.plan()`に
 	 * {@code TableRetentionReason.ORTHOGONAL_WRITING_MODE}判定を追加し、
 	 * 表自身の書字方向が現在開いているflowと軸違いの場合は無条件でRETAINED
-	 * (`TwoPassTableBuilder`)へ回すようにした——不正な入口自体を塞いだため、
+	 * (`RetainedTableBuilder`)へ回すようにした——不正な入口自体を塞いだため、
 	 * この文書はもう`ContinuationInvariantViolationException`を投げず、
 	 * 例外なく完走するはずである。このテストはB5e以降の期待挙動
 	 * (完走・legacy OpenChain経路に一切到達しない)を固定する。

@@ -66,14 +66,14 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * 固定レイアウトのテーブルを構築します。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: OnePassTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
+ * @version $Id: IncrementalTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
  */
-public class OnePassTableBuilder implements TableBuilder {
+public class IncrementalTableBuilder implements TableBuilder {
 	/**
 	 * 構築中のテーブルセルです。
 	 * 
 	 * @author MIYABE Tatsuhiko
-	 * @version $Id: OnePassTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
+	 * @version $Id: IncrementalTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
 	 */
 	private final boolean vertical;
 	private TableBox tableBox;
@@ -117,7 +117,7 @@ public class OnePassTableBuilder implements TableBuilder {
 	// 構築中の行のセルリストです。
 	private List<CellContent> cells = null;
 
-	public OnePassTableBuilder(TableBox tableBox) {
+	public IncrementalTableBuilder(TableBox tableBox) {
 		this.tableBox = tableBox;
 		this.vertical = tableBox.getTableParams().flow.isVertical();
 	}
@@ -1104,5 +1104,5 @@ public class OnePassTableBuilder implements TableBuilder {
  * 結合された行です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: OnePassTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
+ * @version $Id: IncrementalTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
  */

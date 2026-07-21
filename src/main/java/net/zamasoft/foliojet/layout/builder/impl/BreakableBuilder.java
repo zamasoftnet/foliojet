@@ -383,7 +383,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 判定点(TableBuildPlanner.plan())へ統一する。
 				if (TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
 					// Incremental(fixedレイアウト等)の場合は
-					// OnePassTableBuilderが再配置する
+					// IncrementalTableBuilderが再配置する
 					break;
 				}
 				for (;;) {

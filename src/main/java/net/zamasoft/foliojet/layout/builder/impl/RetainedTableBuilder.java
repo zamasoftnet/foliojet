@@ -72,14 +72,14 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * docs/PLAN.md「C4」参照)。
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: TwoPassTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
+ * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class TwoPassTableBuilder implements TableBuilder, TwoPass {
+public class RetainedTableBuilder implements TableBuilder, TwoPass {
 	/**
 	 * 構築中のテーブルセルです。
 	 * 
 	 * @author MIYABE Tatsuhiko
-	 * @version $Id: TwoPassTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
+	 * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */
 
 	private final boolean vertical, fixed;
@@ -107,7 +107,7 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
 
 	private static final byte PARAM_COUNT = 3;
 
-	public TwoPassTableBuilder(LayoutStack layoutStack, TableBox tableBox) {
+	public RetainedTableBuilder(LayoutStack layoutStack, TableBox tableBox) {
 		this.layoutStack = layoutStack;
 		this.tableBox = tableBox;
 		TableParams tableParams = tableBox.getTableParams();
@@ -1217,5 +1217,5 @@ public class TwoPassTableBuilder implements TableBuilder, TwoPass {
  * 結合された列です。
  * 
  * @author MIYABE Tatsuhiko
- * @version $Id: TwoPassTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
+ * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */

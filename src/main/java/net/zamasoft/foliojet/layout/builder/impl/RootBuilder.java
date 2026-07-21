@@ -761,7 +761,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		this.pageGenerator.compactLayoutSource(watermark);
 		// 2026-07-21: 旧来はassertのみ(本番では無検査)だったが、ChatGPT Pro
-		// 相談で「直交writing-modeの表(OnePassTableBuilder経由の改ページ、
+		// 相談で「直交writing-modeの表(IncrementalTableBuilder経由の改ページ、
 		// BreakableBuilder.forceBreak()がbreakDepth障壁を迂回する)」が
 		// この不変条件を破る既存の到達可能経路であることが判明し、実測でも
 		// 確認した(本セッションの変更とは無関係の既存バグ)。本番でこの

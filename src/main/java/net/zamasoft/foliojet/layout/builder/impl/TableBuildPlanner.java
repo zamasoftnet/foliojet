@@ -46,7 +46,7 @@ public final class TableBuildPlanner {
 		}
 		// M6b Phase B5e(2026-07-21): 表自身の書字方向が現在開いているflowと
 		// 軸違い(横書き⇄縦書き)の場合はRETAINEDへ回す——Incrementalだと
-		// OnePassTableBuilder.pageBreak()がbreakDepth障壁を迂回し、legacy
+		// IncrementalTableBuilder.pageBreak()がbreakDepth障壁を迂回し、legacy
 		// OpenChain(ContinuationCapability.ORTHOGONAL_FLOW)へ実際に到達する
 		// ため(TableRetentionReason.ORTHOGONAL_WRITING_MODEのjavadoc参照)。
 		if (builder instanceof BreakableBuilder breakableBuilder

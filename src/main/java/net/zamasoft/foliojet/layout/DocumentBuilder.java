@@ -49,11 +49,11 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.builder.TableBuilderHost;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder;
-import net.zamasoft.foliojet.layout.builder.impl.OnePassTableBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.IncrementalTableBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.StyledTextUnitizer;
 import net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder;
-import net.zamasoft.foliojet.layout.builder.impl.TwoPassTableBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.RetainedTableBuilder;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.util.NumberUtils;
@@ -243,7 +243,7 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/**
 	 * {@link TableBuilderHost}実装(C4-C深化、2026-07-19)。
-	 * {@link TableBuilder}実装(現状は{@link OnePassTableBuilder}のみ)が
+	 * {@link TableBuilder}実装(現状は{@link IncrementalTableBuilder}のみ)が
 	 * 表のセル/カラム/行グループ/行に入る前後で必要なインライン文脈操作を
 	 * 呼び出すための公開経路。
 	 */
@@ -369,8 +369,8 @@ public class DocumentBuilder implements TableBuilderHost {
 				break;
 			}
 			// ビルダー選択(fixed/auto)と開始処理は
-			// TableLayout(C4準備の継ぎ目、2026-07-19)へ委譲。挙動は不変。
-			final TableBuilder tableBuilder = net.zamasoft.foliojet.layout.builder.impl.TableLayout.start(builder,
+			// TableBuilderLifecycle(旧TableLayout、C4準備の継ぎ目、2026-07-19。2026-07-21命名訂正)へ委譲。挙動は不変。
+			final TableBuilder tableBuilder = net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.start(builder,
 					tableBox);
 			this.builderStack.add(tableBuilder);
 		}
@@ -507,9 +507,9 @@ public class DocumentBuilder implements TableBuilderHost {
 				break;
 			}
 			final Builder builder = this.containerBuilder().builder;
-			// 終了処理もTableLayoutへ委譲(開始側のルーティング結果と一致させるため、
+			// 終了処理もTableBuilderLifecycleへ委譲(開始側のルーティング結果と一致させるため、
 			// 条件を再計算せずtableBuilder自身に問うのは従来どおり)。挙動は不変。
-			net.zamasoft.foliojet.layout.builder.impl.TableLayout.finish(tableBuilder, builder);
+			net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.finish(tableBuilder, builder);
 			switch (tableBox.getBlockBox().getPos().getType()) {
 			case FLOW:
 				this.startContainer();

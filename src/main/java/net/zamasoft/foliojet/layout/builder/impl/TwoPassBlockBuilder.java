@@ -79,7 +79,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		/** テーブル。 */
-		record TableEvent(TwoPassTableBuilder builder) implements Recorded {
+		record TableEvent(RetainedTableBuilder builder) implements Recorded {
 		}
 	}
 
@@ -309,7 +309,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void addTable(TableBuilder tableBuilder) {
-		TwoPassTableBuilder autoTableBuilder = (TwoPassTableBuilder) tableBuilder;
+		RetainedTableBuilder autoTableBuilder = (RetainedTableBuilder) tableBuilder;
 		autoTableBuilder.prepareLayout();
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
 		this.measurer.table(tableSizes);
@@ -392,7 +392,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					textUnitizer = new CSSJTextUnitizer(builder.getFlowBox().getBlockParams());
 					textUnitizer.setGlyphHandler(new BuilderGlyphHandler(builder));
 				}
-				// インラインテーブルの実測(TwoPassTableBuilder)は TableEvent 側で bind される
+				// インラインテーブルの実測(RetainedTableBuilder)は TableEvent 側で bind される
 				if (inlineBlockEvent.measure() instanceof TwoPassBlockBuilder stfBuilder) {
 					final InlineBlockBox inlineBlockBox = inlineBlockEvent.quad().box;
 					inlineBlockBox.shrinkToFit(builder, stfBuilder.intrinsicSizesMeasured(), false);
@@ -520,7 +520,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				if (DEBUG) {
 					System.err.println("TABLE");
 				}
-				final TwoPassTableBuilder tableBuilder = tableEvent.builder();
+				final RetainedTableBuilder tableBuilder = tableEvent.builder();
 				switch (tableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 				case FLOAT:
 				case FLOW:

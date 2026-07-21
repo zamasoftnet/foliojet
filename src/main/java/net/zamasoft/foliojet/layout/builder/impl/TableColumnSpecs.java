@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
 
 /**
  * colgroup 構造から固定レイアウトの列指定を組み立てるヘルパです。
- * OnePassTableBuilder / TwoPassTableBuilder で共有します。
+ * IncrementalTableBuilder / RetainedTableBuilder で共有します。
  *
  * @author MIYABE Tatsuhiko
  */

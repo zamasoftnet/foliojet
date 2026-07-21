@@ -15,14 +15,14 @@ public enum TableRetentionReason {
 	AUTO_LINE_SIZE,
 	/** ページ軸(page-axis、横書きなら高さ)寸法が指定されている — 表全体の行高分配が要る。 */
 	SPECIFIED_PAGE_SIZE,
-	/** 通常フロー(FLOW)以外の配置 — OnePassTableBuilder.startLayout()が前提とするFLOWでない。 */
+	/** 通常フロー(FLOW)以外の配置 — IncrementalTableBuilder.startLayout()が前提とするFLOWでない。 */
 	OUT_OF_FLOW,
 	/** ネストした実測パス(TwoPassBlockBuilder)の内側 — builder.isMain()が偽。 */
 	NESTED_LAYOUT,
 	/**
 	 * 表自身の書字方向が、現在開いているflow(page/column文脈)と軸が
 	 * 異なる(横書き⇄縦書き)——M6b Phase B5e(2026-07-21)。
-	 * {@code OnePassTableBuilder.pageBreak()}は{@code
+	 * {@code IncrementalTableBuilder.pageBreak()}は{@code
 	 * BreakableBuilder.forceBreak()}を直接呼び、通常の自動改ページが
 	 * 経由する{@code breakDepth}障壁(直交writing-mode内部での改ページ
 	 * 抑止)を迂回するため、このケースをIncrementalで扱うと
