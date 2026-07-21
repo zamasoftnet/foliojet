@@ -32,7 +32,7 @@ public class ResumeProgramCompilerTest extends TestCase {
 	private static OpenPathSnapshot plainSnapshot(final int depth) {
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = new ArrayList<>(depth);
 		for (int i = 0; i < depth; ++i) {
-			final OpenPathSnapshot.OpenLevelRole role = i == 0 ? new OpenPathSnapshot.OpenLevelRole.Root()
+			final OpenPathSnapshot.OpenLevelRole role = i == 0 ? new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)
 					: new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW);
 			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, FlowBlockBox.class, BoxSubtype.NONE,
 					WritingMode.TB, 1, i, role));
@@ -61,12 +61,11 @@ public class ResumeProgramCompilerTest extends TestCase {
 		final Continuation continuation = new Continuation(depth, frame, Map.of());
 		final OpenPathSnapshot snapshot = plainSnapshot(depth);
 
-		final ResumeProgram program = ResumeProgramCompiler.compile(new ResumeProgram.ResumeTarget.NewPage(),
-				snapshot, continuation);
+		final PageResumeProgram program = ResumeProgramCompiler.compile(snapshot, continuation);
 
-		assertEquals(depth, program.levels().size());
+		assertEquals(depth, program.fragmentLevels().size());
 		assertTrue("完全に収集可能なチェーンはOpenTextで終端するはずです",
-				program.tail() instanceof ResumeProgram.ResumeTail.OpenText);
+				program.tail() instanceof ResumeTail.OpenText);
 		assertEquals("compilerはFragmentRecipeを一切呼んではいけません", 0, recipeCalls.get());
 
 		// expectedOpsの導出自体も副作用なし(fragment生成なし)で完了できる
@@ -92,7 +91,7 @@ public class ResumeProgramCompilerTest extends TestCase {
 		final OpenPathSnapshot snapshot = plainSnapshot(20);
 
 		try {
-			ResumeProgramCompiler.compile(new ResumeProgram.ResumeTarget.NewPage(), snapshot, continuation);
+			ResumeProgramCompiler.compile(snapshot, continuation);
 			fail("depth不整合はContinuationInvariantViolationExceptionになるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
 			// 期待通り
@@ -111,7 +110,7 @@ public class ResumeProgramCompilerTest extends TestCase {
 		final OpenPathSnapshot snapshot = plainSnapshot(3);
 
 		try {
-			ResumeProgramCompiler.compile(new ResumeProgram.ResumeTarget.NewPage(), snapshot, continuation);
+			ResumeProgramCompiler.compile(snapshot, continuation);
 			fail("snapshot/continuationのdepth不一致は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
 			// 期待通り
@@ -143,7 +142,7 @@ public class ResumeProgramCompilerTest extends TestCase {
 
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = new ArrayList<>();
 		descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(0, FlowBlockBox.class, BoxSubtype.NONE,
-				WritingMode.TB, 1, 0, new OpenPathSnapshot.OpenLevelRole.Root()));
+				WritingMode.TB, 1, 0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)));
 		for (int i = 1; i < 4; ++i) {
 			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, FlowBlockBox.class, BoxSubtype.RUBY_BODY,
 					WritingMode.TB, 1, i,
@@ -154,14 +153,13 @@ public class ResumeProgramCompilerTest extends TestCase {
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors,
 				Optional.of(barrier));
 
-		final ResumeProgram program = ResumeProgramCompiler.compile(new ResumeProgram.ResumeTarget.NewPage(),
-				snapshot, continuation);
+		final PageResumeProgram program = ResumeProgramCompiler.compile(snapshot, continuation);
 
-		assertEquals(1, program.levels().size());
-		assertTrue(program.tail() instanceof ResumeProgram.ResumeTail.LegacyOpen);
-		final ResumeProgram.ResumeTail.LegacyOpen legacyOpen = (ResumeProgram.ResumeTail.LegacyOpen) program.tail();
+		assertEquals(1, program.fragmentLevels().size());
+		assertTrue(program.tail() instanceof ResumeTail.LegacyOpen);
+		final ResumeTail.LegacyOpen legacyOpen = (ResumeTail.LegacyOpen) program.tail();
 		assertEquals(1, legacyOpen.firstOpenPathIndex());
-		assertTrue(legacyOpen.cause() instanceof ResumeProgram.LegacyTailCause.CapabilityBarrier);
+		assertTrue(legacyOpen.cause() instanceof LegacyTailCause.CapabilityBarrier);
 		assertEquals(0, recipeCalls.get());
 	}
 
@@ -189,7 +187,7 @@ public class ResumeProgramCompilerTest extends TestCase {
 
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
 				new OpenPathSnapshot.OpenLevelDescriptor(0, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1, 0,
-						new OpenPathSnapshot.OpenLevelRole.Root()),
+						new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
 				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, BoxSubtype.NONE,
 						WritingMode.TB, 2, 1,
 						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.MULTICOL)),
@@ -197,14 +195,13 @@ public class ResumeProgramCompilerTest extends TestCase {
 						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW)));
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
 
-		final ResumeProgram program = ResumeProgramCompiler.compile(new ResumeProgram.ResumeTarget.NewPage(),
-				snapshot, continuation);
+		final PageResumeProgram program = ResumeProgramCompiler.compile(snapshot, continuation);
 
-		assertEquals(3, program.levels().size());
-		assertTrue(program.levels().get(1)
+		assertEquals(3, program.fragmentLevels().size());
+		assertTrue(program.fragmentLevels().get(1)
 				.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
 						final ContinuationCapability capability) && capability == ContinuationCapability.MULTICOL);
-		assertTrue(program.tail() instanceof ResumeProgram.ResumeTail.OpenText);
+		assertTrue(program.tail() instanceof ResumeTail.OpenText);
 		assertEquals(0, recipeCalls.get());
 	}
 
@@ -228,7 +225,7 @@ public class ResumeProgramCompilerTest extends TestCase {
 
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
 				new OpenPathSnapshot.OpenLevelDescriptor(0, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1, 0,
-						new OpenPathSnapshot.OpenLevelRole.Root()),
+						new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
 				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, BoxSubtype.NONE,
 						WritingMode.TB, 2, 1,
 						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.MULTICOL)),
@@ -238,15 +235,14 @@ public class ResumeProgramCompilerTest extends TestCase {
 		// SplitStoppedになるべきケース
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
 
-		final ResumeProgram program = ResumeProgramCompiler.compile(new ResumeProgram.ResumeTarget.NewPage(),
-				snapshot, continuation);
+		final PageResumeProgram program = ResumeProgramCompiler.compile(snapshot, continuation);
 
-		assertEquals(1, program.levels().size());
-		assertTrue(program.tail() instanceof ResumeProgram.ResumeTail.LegacyOpen);
-		final ResumeProgram.ResumeTail.LegacyOpen legacyOpen = (ResumeProgram.ResumeTail.LegacyOpen) program.tail();
+		assertEquals(1, program.fragmentLevels().size());
+		assertTrue(program.tail() instanceof ResumeTail.LegacyOpen);
+		final ResumeTail.LegacyOpen legacyOpen = (ResumeTail.LegacyOpen) program.tail();
 		assertEquals(1, legacyOpen.firstOpenPathIndex());
 		assertTrue("capability上は承認済みなのでSplitStoppedになるはずです(CapabilityBarrierではない)",
-				legacyOpen.cause() instanceof ResumeProgram.LegacyTailCause.SplitStopped);
+				legacyOpen.cause() instanceof LegacyTailCause.SplitStopped);
 		assertEquals(0, recipeCalls.get());
 	}
 }

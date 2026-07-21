@@ -3,23 +3,31 @@ package net.zamasoft.foliojet.layout.fragment;
 import java.util.List;
 
 /**
- * {@link ResumeProgram}が予告する意味操作列(expected)と、既存executor
- * ({@code RootBuilder.resumeFrame()})が実際に選んだ操作(actual)を
- * 突き合わせます(2026-07-21新設、M6b Phase B B2)。
+ * {@link PageResumeProgram}/{@code ColumnResumeProgram}が予告する意味
+ * 操作列(expected)と、既存executor({@code RootBuilder.resumeFrame()}/
+ * 将来のCOLUMN executor)が実際に選んだ操作(actual)を突き合わせます
+ * (2026-07-21新設、M6b Phase B B2。B4でprogram型に依存しない
+ * {@code List<ResumeOp>}コンストラクタへ一般化した——ChatGPT Pro相談、
+ * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+ * 参照)。
  *
  * <p>
- * {@code ResumeSession}ごとに1つ所有させること——ソース再生中に改ページが
+ * セッションごとに1つ所有させること——ソース再生中に改ページが
  * 入れ子になりうるため、{@code ResumeTrace}のような単一static bufferには
- * しない({@code RootBuilder.resumeFrame}へ通常のメソッド引数として渡す
- * ことで、Java呼び出しスタック自体が入れ子を自然に分離する)。
+ * しない(builderへ通常のメソッド引数として渡すことで、Java呼び出し
+ * スタック自体が入れ子を自然に分離する)。
  * </p>
  */
 public final class ResumeProgramTrace {
 	private final List<ResumeOp> expected;
 	private int cursor;
 
-	public ResumeProgramTrace(final ResumeProgram program) {
-		this.expected = ResumeOp.expectedOps(program);
+	public ResumeProgramTrace(final PageResumeProgram program) {
+		this(ResumeOp.expectedOps(program));
+	}
+
+	public ResumeProgramTrace(final List<ResumeOp> expected) {
+		this.expected = List.copyOf(expected);
 	}
 
 	/** {@code resumeFrame()}が実際に選んだ操作を記録・照合します。 */

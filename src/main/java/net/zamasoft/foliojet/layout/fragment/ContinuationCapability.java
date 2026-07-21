@@ -66,7 +66,7 @@ public enum ContinuationCapability {
 	 * {@code AssertionError("force break failed")}を投げる経路がある
 	 * ため(`FlowContainer.java`の強制改ページ分岐で確認済み)。自動改ページ
 	 * では、収集できなかった場合は安全に{@code
-	 * ResumeProgram.LegacyTailCause.SplitStopped}へ落ちるため問題ない。
+	 * LegacyTailCause.SplitStopped}へ落ちるため問題ない。
 	 * </p>
 	 */
 	public boolean supportsPageSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
@@ -78,13 +78,31 @@ public enum ContinuationCapability {
 	}
 
 	/**
-	 * boxをrootFlowとの関係で分類します。
+	 * COLUMN経由(段組ownerより内側の子孫)のsplit-throughを許可するかを
+	 * 判定します(2026-07-21新設、M6b Phase B B4、未配線)。B4の最初の
+	 * sliceでは{@link #PLAIN_FLOW}のみ、かつ自動改段(Force以外)に限る
+	 * ——ChatGPT Pro相談で確認、
+	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 参照。強制COLUMNの新しいselected-frame経路は、force split
+	 * hardening(B3b-2の続き)が終わるまで非許可のままにする。
+	 * descendant側の{@link #MULTICOL}(段組ownerの内側にさらに現れる別の
+	 * 段組)は当面{@code LegacyOpen}のbarrierとして残す。
+	 */
+	public boolean supportsColumnSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
+		return switch (this) {
+		case PLAIN_FLOW -> !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
+		default -> false;
+		};
+	}
+
+	/**
+	 * boxをanchorFlowとの関係で分類します。
 	 *
-	 * @param b        分類対象(祖先チェーンの1レベル)
-	 * @param rootFlow ルートボックスの書字方向
+	 * @param b          分類対象(open pathの1レベル)
+	 * @param anchorFlow anchor(PAGE rootまたはCOLUMN owner)の書字方向
 	 */
 	public static ContinuationCapability classify(final net.zamasoft.foliojet.layout.box.AbstractContainerBox b,
-			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow) {
+			final net.zamasoft.foliojet.layout.box.params.WritingMode anchorFlow) {
 		if (!(b instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox)) {
 			return UNSUPPORTED_BOX;
 		}
@@ -93,8 +111,8 @@ public enum ContinuationCapability {
 		}
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = ((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) b)
 				.getBlockParams().flow;
-		if (flow != rootFlow) {
-			return flow.isVertical() != rootFlow.isVertical() ? ORTHOGONAL_FLOW : SAME_AXIS_DIRECTION_CHANGE;
+		if (flow != anchorFlow) {
+			return flow.isVertical() != anchorFlow.isVertical() ? ORTHOGONAL_FLOW : SAME_AXIS_DIRECTION_CHANGE;
 		}
 		// getColumnCount()<=1はexact-class FlowBlockBoxでは常に真
 		// (AbstractContainerBox.getColumnCount()のデフォルトは1、段組は

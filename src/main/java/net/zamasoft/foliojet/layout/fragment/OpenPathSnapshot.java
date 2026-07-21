@@ -8,27 +8,30 @@ import net.zamasoft.foliojet.layout.box.BoxSubtype;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * 破断時の{@code flowStack}(開いた祖先チェーン)を、mutableなボックス
- * identityから独立に観測したスナップショットです(2026-07-21新設、
- * M6b Phase B B2)。{@link ContinuationCapability#classify}による分類は
+ * 破断時の{@code flowStack}(開いた祖先チェーン、またはCOLUMN継続の
+ * ownerから数えた相対path)を、mutableなボックスidentityから独立に観測
+ * したスナップショットです(2026-07-21新設、M6b Phase B B2。B4でPAGE root
+ * だけでなくCOLUMN ownerも表現できるよう{@link OpenLevelRole.Anchor}へ
+ * 一般化した)。{@link ContinuationCapability#classify}による分類は
  * ここで一度だけ行い(破断後・resume後に再分類しない)、
- * {@link ResumeProgramCompiler}はこの結果をそのまま運ぶ
- * (ChatGPT Pro相談で確認、
+ * {@link ResumeProgramCompiler}/{@code ColumnResumeProgramCompiler}は
+ * この結果をそのまま運ぶ(ChatGPT Pro相談で確認、
  * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b2-resume-program.md)。
  *
- * @param rootFlow    ルートボックスの書字方向
- * @param levels      flowStackの各レベル(index 0 = root)
+ * @param anchorFlow  index 0(anchor)の書字方向。PAGEでは文書rootの、
+ *                    COLUMNでは段組ownerの書字方向
+ * @param levels      open pathの各レベル(index 0 = anchor)
  * @param firstBarrier 最初に収集不能と判定されたレベル(全レベルが
  *                     収集可能なら空)
  */
-public record OpenPathSnapshot(WritingMode rootFlow, List<OpenLevelDescriptor> levels,
+public record OpenPathSnapshot(WritingMode anchorFlow, List<OpenLevelDescriptor> levels,
 		Optional<CapabilityBarrier> firstBarrier) {
 
 	public OpenPathSnapshot {
 		levels = List.copyOf(levels);
 	}
 
-	/** flowStackの深さ(全レベル数、rootを含む)。 */
+	/** open pathの深さ(全レベル数、anchorを含む)。 */
 	public int depth() {
 		return this.levels.size();
 	}
@@ -37,9 +40,14 @@ public record OpenPathSnapshot(WritingMode rootFlow, List<OpenLevelDescriptor> l
 	public record CapabilityBarrier(int openPathIndex, ContinuationCapability reason) {
 	}
 
-	/** レベルがrootか、分類済みの祖先かを表します。 */
+	/** anchorの種別です(PAGE文書rootか、COLUMN段組ownerか)。 */
+	public enum AnchorKind {
+		PAGE_ROOT, COLUMN_OWNER
+	}
+
+	/** レベルがanchor(root/owner)か、分類済みの祖先かを表します。 */
 	public sealed interface OpenLevelRole {
-		record Root() implements OpenLevelRole {
+		record Anchor(AnchorKind kind) implements OpenLevelRole {
 		}
 
 		record Ancestor(ContinuationCapability capability) implements OpenLevelRole {

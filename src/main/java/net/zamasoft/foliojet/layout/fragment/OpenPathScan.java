@@ -47,7 +47,7 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 			throw new IllegalArgumentException("open path is empty");
 		}
 
-		final WritingMode rootFlow = boxes.get(0).getBlockParams().flow;
+		final WritingMode anchorFlow = boxes.get(0).getBlockParams().flow;
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = new ArrayList<>(boxes.size());
 		final List<AbstractContainerBox> approved = new ArrayList<>();
 		OpenPathSnapshot.CapabilityBarrier firstBarrier = null;
@@ -57,9 +57,9 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 
 			final OpenPathSnapshot.OpenLevelRole role;
 			if (i == 0) {
-				role = new OpenPathSnapshot.OpenLevelRole.Root();
+				role = new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT);
 			} else {
-				final ContinuationCapability capability = ContinuationCapability.classify(box, rootFlow);
+				final ContinuationCapability capability = ContinuationCapability.classify(box, anchorFlow);
 				role = new OpenPathSnapshot.OpenLevelRole.Ancestor(capability);
 				if (firstBarrier == null) {
 					if (capability.supportsPageSplitThrough(mode)) {
@@ -74,7 +74,7 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 					box.getBlockParams().flow, box.getColumnCount(), box.getSourceAnchor(), role));
 		}
 
-		final OpenPathSnapshot snapshot = new OpenPathSnapshot(rootFlow, descriptors,
+		final OpenPathSnapshot snapshot = new OpenPathSnapshot(anchorFlow, descriptors,
 				Optional.ofNullable(firstBarrier));
 		return new OpenPathScan(snapshot, approved);
 	}

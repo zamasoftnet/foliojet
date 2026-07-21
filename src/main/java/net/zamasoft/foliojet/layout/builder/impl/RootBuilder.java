@@ -110,7 +110,7 @@ public class RootBuilder extends BreakableBuilder {
 		private State state = State.NEW;
 
 		ResumeSession(final net.zamasoft.foliojet.layout.fragment.Continuation continuation,
-				final net.zamasoft.foliojet.layout.fragment.ResumeProgram resumeProgram) {
+				final net.zamasoft.foliojet.layout.fragment.PageResumeProgram resumeProgram) {
 			this.continuation = continuation;
 			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(resumeProgram);
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
@@ -320,7 +320,7 @@ public class RootBuilder extends BreakableBuilder {
 		//
 		// 2026-07-21(B2): スキャン自体を OpenPathScan.capture() へ委譲した
 		// (挙動不変。B1のContinuationCapability分類をそのまま使う)。
-		// スナップショットはこの後 ResumeProgram のコンパイルにも使う
+		// スナップショットはこの後 PageResumeProgram のコンパイルにも使う
 		// (再分類しない——ChatGPT Pro相談で確認、
 		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b2-resume-program.md)。
 		//
@@ -518,9 +518,8 @@ public class RootBuilder extends BreakableBuilder {
 		// (shadowのみ、既存executorの実行には一切影響しない)。
 		// malformedなプログラムはこの時点(flowStack.clear()・resume側の
 		// 状態変異より前)で例外を投げて安全に停止する。
-		final net.zamasoft.foliojet.layout.fragment.ResumeProgram resumeProgram = net.zamasoft.foliojet.layout.fragment.ResumeProgramCompiler
-				.compile(new net.zamasoft.foliojet.layout.fragment.ResumeProgram.ResumeTarget.NewPage(), snapshot,
-						continuation);
+		final net.zamasoft.foliojet.layout.fragment.PageResumeProgram resumeProgram = net.zamasoft.foliojet.layout.fragment.ResumeProgramCompiler
+				.compile(snapshot, continuation);
 		// 2026-07-21(B3): compileしたlevelをcapability別に集計する
 		// (「実際にfirst-classコンパイルできた理由」の観測、
 		// capabilityScanStopsとは別軸)。

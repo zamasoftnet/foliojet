@@ -155,12 +155,13 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * コンパイル済み{@link ResumeProgram}のlevel(root除く)をcapability別に
-	 * 集計します。{@code RootBuilder.pageBreak()}が`ResumeProgramCompiler
-	 * .compile()`直後、`flowStack.clear()`より前に呼ぶ。
+	 * コンパイル済み{@link PageResumeProgram}のlevel(anchor除く)を
+	 * capability別に集計します。{@code RootBuilder.pageBreak()}が
+	 * `ResumeProgramCompiler.compile()`直後、`flowStack.clear()`より前に
+	 * 呼ぶ。
 	 */
-	public static void recordCompiledProgram(final ResumeProgram program) {
-		for (final ResumeProgram.ResumeLevel level : program.levels()) {
+	public static void recordCompiledProgram(final PageResumeProgram program) {
+		for (final FragmentResumeLevel level : program.fragmentLevels()) {
 			if (level.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
 					final ContinuationCapability capability)) {
 				PAGE_COMPILED_LEVELS.get(capability).incrementAndGet();
