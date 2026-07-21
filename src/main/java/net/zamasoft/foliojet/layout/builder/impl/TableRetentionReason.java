@@ -18,5 +18,19 @@ public enum TableRetentionReason {
 	/** 通常フロー(FLOW)以外の配置 — OnePassTableBuilder.startLayout()が前提とするFLOWでない。 */
 	OUT_OF_FLOW,
 	/** ネストした実測パス(TwoPassBlockBuilder)の内側 — builder.isMain()が偽。 */
-	NESTED_LAYOUT
+	NESTED_LAYOUT,
+	/**
+	 * 表自身の書字方向が、現在開いているflow(page/column文脈)と軸が
+	 * 異なる(横書き⇄縦書き)——M6b Phase B5e(2026-07-21)。
+	 * {@code OnePassTableBuilder.pageBreak()}は{@code
+	 * BreakableBuilder.forceBreak()}を直接呼び、通常の自動改ページが
+	 * 経由する{@code breakDepth}障壁(直交writing-mode内部での改ページ
+	 * 抑止)を迂回するため、このケースをIncrementalで扱うと
+	 * {@code ContinuationCapability.ORTHOGONAL_FLOW}という型付き
+	 * capability barrierしか持たない、まだ反復化されていないlegacy
+	 * `OpenChain`経路へ実際に到達してしまう(2026-07-21に実測確認済み、
+	 * 現状は`ContinuationInvariantViolationException`という緊急ガードの
+	 * みで支えている)。RETAINEDへ回すことでこの入口自体を塞ぐ。
+	 */
+	ORTHOGONAL_WRITING_MODE
 }

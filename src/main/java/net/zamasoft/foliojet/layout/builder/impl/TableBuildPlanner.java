@@ -44,6 +44,15 @@ public final class TableBuildPlanner {
 		if (params.size.getLineType(params.flow) == LengthType.AUTO) {
 			reasons.add(TableRetentionReason.AUTO_LINE_SIZE);
 		}
+		// M6b Phase B5e(2026-07-21): 表自身の書字方向が現在開いているflowと
+		// 軸違い(横書き⇄縦書き)の場合はRETAINEDへ回す——Incrementalだと
+		// OnePassTableBuilder.pageBreak()がbreakDepth障壁を迂回し、legacy
+		// OpenChain(ContinuationCapability.ORTHOGONAL_FLOW)へ実際に到達する
+		// ため(TableRetentionReason.ORTHOGONAL_WRITING_MODEのjavadoc参照)。
+		if (builder instanceof BreakableBuilder breakableBuilder
+				&& breakableBuilder.getFlowBox().getBlockParams().flow.isVertical() != params.flow.isVertical()) {
+			reasons.add(TableRetentionReason.ORTHOGONAL_WRITING_MODE);
+		}
 		if (reasons.isEmpty()) {
 			return new TableBuildPlan(TableBuildPlan.Mode.INCREMENTAL, reasons);
 		}

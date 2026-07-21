@@ -394,50 +394,50 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 直交writing-modeの表(OnePassTableBuilder経由のINCREMENTAL改ページ)は、
-	 * {@code BreakableBuilder.forceBreak()}が{@code breakDepth}障壁
-	 * (通常は直交書字方向の内部で自動改ページを抑止する仕組み)を迂回する
-	 * ため、{@code ORTHOGONAL_FLOW}(段組・RL/LR不一致と同型の未対応
-	 * capability)へ実際に到達する——2026-07-21、ChatGPT Pro相談で指摘、
-	 * 本セッションの変更とは無関係の既存バグとして実測で確認した
-	 * (本セッション以前から存在。`RootBuilder.java`の
-	 * {@code assert this.flowStack.size() == continuation.depth()}が
-	 * 本番では無検査のまま素通りし、検知されないコンテンツ破損の
-	 * 恐れがあった)。
+	 * 直交writing-modeの表は、当初(2026-07-21)`OnePassTableBuilder`経由の
+	 * INCREMENTAL改ページが選ばれていたため、`BreakableBuilder
+	 * .forceBreak()`が`breakDepth`障壁(通常は直交書字方向の内部で自動
+	 * 改ページを抑止する仕組み)を迂回し、`ORTHOGONAL_FLOW`(段組・RL/LR
+	 * 不一致と同型の未対応capability)へ実際に到達していた
+	 * (本セッションの変更とは無関係の既存バグとして実測確認、`RootBuilder
+	 * .java`の{@code assert this.flowStack.size() == continuation.depth()}
+	 * が本番では無検査のまま素通りし検知されないコンテンツ破損の恐れが
+	 * あった。当時は`ContinuationInvariantViolationException`という
+	 * 緊急ガードのみで支えていた)。
 	 *
 	 * <p>
-	 * 恒久解(B2以降でORTHOGONAL_FLOWを型付きで扱う)は未実装のため、
-	 * このテストは「型付き例外で安全に停止すること」だけを固定する
-	 * characterization test。この安全網
-	 * ({@code ContinuationInvariantViolationException}、旧
-	 * assertを本番でも常に効く形へ変更)は本テストの発見を受けて追加した。
+	 * M6b Phase B5e(2026-07-21)で`TableBuildPlanner.plan()`に
+	 * {@code TableRetentionReason.ORTHOGONAL_WRITING_MODE}判定を追加し、
+	 * 表自身の書字方向が現在開いているflowと軸違いの場合は無条件でRETAINED
+	 * (`TwoPassTableBuilder`)へ回すようにした——不正な入口自体を塞いだため、
+	 * この文書はもう`ContinuationInvariantViolationException`を投げず、
+	 * 例外なく完走するはずである。このテストはB5e以降の期待挙動
+	 * (完走・legacy OpenChain経路に一切到達しない)を固定する。
 	 * </p>
 	 */
-	public void testOrthogonalWritingModeTableTripsInvariantGuard() throws Exception {
+	public void testOrthogonalWritingModeTableRoutesToRetainedAndCompletes() throws Exception {
 		ContinuationStats.reset();
 		final File doc = this.generateOrthogonalWritingModeTable("orthogonal-table", 200);
 		final File pdf = new File("local/unittest/display-list/open-chain-orthogonal-table.pdf");
 		pdf.getParentFile().mkdirs();
-		try {
-			try (OutputStream out = new FileOutputStream(pdf)) {
-				DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
-				try {
-					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
-					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
-					session.property("input.include", "**");
-					session.property("input.property-pi", "true");
-					CTISessionHelper.transcodeFile(session, doc, "text/html", null);
-				} finally {
-					session.close();
-				}
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+			} finally {
+				session.close();
 			}
-			fail("直交writing-modeの表はContinuationInvariantViolationException経由の"
-					+ "TranscoderExceptionになるはずです(未対応のORTHOGONAL_FLOW capability)");
-		} catch (TranscoderException e) {
-			assertTrue("プレフィックススキャンはORTHOGONAL_FLOWで停止したはずです(B1分類)",
-					ContinuationStats.capabilityScanStops(ContinuationCapability.ORTHOGONAL_FLOW) > 0);
 		}
+		assertEquals("RETAINEDへ回ったのでORTHOGONAL_FLOWのcapability barrierには"
+				+ "一切到達しないはずです", 0,
+				ContinuationStats.capabilityScanStops(ContinuationCapability.ORTHOGONAL_FLOW));
+		assertEquals("legacy OpenChain(restyle-chain)経路にも一切到達しないはずです", 0,
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
 	}
 
 	private File generateOrthogonalWritingModeTable(String name, int rows) throws IOException {
