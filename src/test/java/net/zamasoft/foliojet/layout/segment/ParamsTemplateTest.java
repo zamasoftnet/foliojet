@@ -6,6 +6,8 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.InlineParams;
+import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
@@ -113,5 +115,40 @@ public class ParamsTemplateTest extends TestCase {
 		assertNotSame(m1, m2);
 		assertEquals(net.zamasoft.foliojet.layout.box.params.Align.CENTER, m1.align);
 		assertEquals(FlowPos.COLUMN_SPAN_ALL, m2.columnSpan);
+	}
+
+	/**
+	 * InlineParams(AbstractTextParamsを直接継承、line固有フィールドを
+	 * 持たない)も、共有TextParamsFields経由で同じ独立性契約を満たす。
+	 */
+	public void testInlineParamsMaterializeIsIndependent() {
+		final InlineParams source = new InlineParams();
+		source.transform = AffineTransform.getRotateInstance(1.0);
+		source.textShadows = new TextShadow[] { new TextShadow(5, 6, RGBColor.create(255, 0, 0)) };
+
+		final InlineParamsTemplate template = InlineParamsTemplate.freeze(source);
+		final InlineParams m1 = template.materialize();
+		final InlineParams m2 = template.materialize();
+
+		assertEquals(source.transform, m1.transform);
+		assertNotSame(m1.transform, m2.transform);
+		assertNotSame(m1.textShadows, m2.textShadows);
+
+		m1.transform.translate(9, 9);
+		assertEquals(AffineTransform.getRotateInstance(1.0), m2.transform);
+	}
+
+	/** InlinePosも複数回materializeしても値が保たれ、別インスタンスになる。 */
+	public void testInlinePosMaterializeIsIndependent() {
+		final InlinePos source = new InlinePos();
+		source.lineHeight = 1.5;
+
+		final InlinePosTemplate template = InlinePosTemplate.freeze(source);
+		final InlinePos m1 = template.materialize();
+		final InlinePos m2 = template.materialize();
+
+		assertNotSame(m1, m2);
+		assertEquals(1.5, m1.lineHeight);
+		assertEquals(source.verticalAlign, m2.verticalAlign);
 	}
 }
