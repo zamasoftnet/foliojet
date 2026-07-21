@@ -155,6 +155,64 @@ public final class ContinuationStats {
 	}
 
 	/**
+	 * COLUMN継続の相対open pathスキャンが各レベルをどう分類したかの集計
+	 * です(2026-07-21新設、M6b Phase B4-Step3、未配線)。{@link
+	 * #CAPABILITY_SCAN_STOPS}/{@link #capabilityScanStops}はPAGE専用の
+	 * カウンタである(名前は汎用的だが、現状PAGE側からしか呼ばれない)ため、
+	 * COLUMN側は別カウンタにする——同一文書がPAGE/COLUMN両方の継続経路を
+	 * 持つことは普通にあり(段組内部の改段等)、共有カウンタにすると
+	 * 既存のPAGE専用テストの期待値がCOLUMN分の寄与で狂ってしまう。
+	 */
+	private static final Map<ContinuationCapability, AtomicLong> COLUMN_CAPABILITY_SCAN_STOPS = new EnumMap<>(
+			ContinuationCapability.class);
+	static {
+		for (final ContinuationCapability c : ContinuationCapability.values()) {
+			COLUMN_CAPABILITY_SCAN_STOPS.put(c, new AtomicLong());
+		}
+	}
+
+	/** {@code reason}によってCOLUMN側のプレフィックススキャンが停止した回数。 */
+	public static long columnCapabilityScanStops(final ContinuationCapability reason) {
+		return COLUMN_CAPABILITY_SCAN_STOPS.get(reason).get();
+	}
+
+	/** COLUMN側のスキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
+	public static void recordColumnCapabilityScanStop(final ContinuationCapability reason) {
+		COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
+	}
+
+	/**
+	 * {@link ColumnResumeProgram}がfirst-classにコンパイルしたlevel
+	 * (owner anchor除く)のcapability別件数です(2026-07-21新設、
+	 * M6b Phase B4-Step3、未配線)。{@link #pageCompiledLevels}のCOLUMN版。
+	 */
+	private static final Map<ContinuationCapability, AtomicLong> COLUMN_COMPILED_LEVELS = new EnumMap<>(
+			ContinuationCapability.class);
+	static {
+		for (final ContinuationCapability c : ContinuationCapability.values()) {
+			COLUMN_COMPILED_LEVELS.put(c, new AtomicLong());
+		}
+	}
+
+	/** {@code capability}のレベルがCOLUMN側で実際にfirst-classコンパイルされた回数。 */
+	public static long columnCompiledLevels(final ContinuationCapability capability) {
+		return COLUMN_COMPILED_LEVELS.get(capability).get();
+	}
+
+	/**
+	 * コンパイル済み{@link ColumnResumeProgram}のlevel(owner anchor除く)を
+	 * capability別に集計します。
+	 */
+	public static void recordColumnCompiledProgram(final ColumnResumeProgram program) {
+		for (final FragmentResumeLevel level : program.fragmentLevels()) {
+			if (level.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
+					final ContinuationCapability capability)) {
+				COLUMN_COMPILED_LEVELS.get(capability).incrementAndGet();
+			}
+		}
+	}
+
+	/**
 	 * コンパイル済み{@link PageResumeProgram}のlevel(anchor除く)を
 	 * capability別に集計します。{@code RootBuilder.pageBreak()}が
 	 * `ResumeProgramCompiler.compile()`直後、`flowStack.clear()`より前に
@@ -251,6 +309,12 @@ public final class ContinuationStats {
 			counter.set(0);
 		}
 		for (final AtomicLong counter : PAGE_COMPILED_LEVELS.values()) {
+			counter.set(0);
+		}
+		for (final AtomicLong counter : COLUMN_CAPABILITY_SCAN_STOPS.values()) {
+			counter.set(0);
+		}
+		for (final AtomicLong counter : COLUMN_COMPILED_LEVELS.values()) {
 			counter.set(0);
 		}
 	}

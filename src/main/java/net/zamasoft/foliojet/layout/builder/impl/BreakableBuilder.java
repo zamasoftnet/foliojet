@@ -954,6 +954,41 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		return null;
 	}
 
+	/**
+	 * COLUMN継続の相対open path(index 0 = owner)を捕捉します
+	 * (2026-07-21新設、M6b Phase B4-Step3、観測のみ・未配線)。owner自身が
+	 * flowStack内にある通常経路({@link #findColumnBreak()})と、
+	 * {@code ColumnBuilder.contextFlow}がflowStack外にある経路の両方を
+	 * 扱う(ChatGPT Pro相談、
+	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 参照)。
+	 */
+	private java.util.List<AbstractContainerBox> captureColumnOpenPath(final Flow breakFlow) {
+		if (this.flowStack != null) {
+			final int ownerIndex = this.flowStack.indexOf(breakFlow);
+			if (ownerIndex >= 0) {
+				final java.util.List<AbstractContainerBox> boxes = new java.util.ArrayList<>(
+						this.flowStack.size() - ownerIndex);
+				for (int i = ownerIndex; i < this.flowStack.size(); ++i) {
+					boxes.add(((Flow) this.flowStack.get(i)).box);
+				}
+				return boxes;
+			}
+		}
+		if (breakFlow == this.contextFlow) {
+			final java.util.List<AbstractContainerBox> boxes = new java.util.ArrayList<>();
+			boxes.add(breakFlow.box);
+			if (this.flowStack != null) {
+				for (final Object entry : this.flowStack) {
+					boxes.add(((Flow) entry).box);
+				}
+			}
+			return boxes;
+		}
+		throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+				"column owner is neither in flowStack nor the contextFlow");
+	}
+
 	protected double lastFrame(Flow breakFlow, int depth) {
 		// 下部の枠の幅を計算します。
 		double lastFrame = 0;
@@ -987,6 +1022,25 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// newColumn()呼び出しより前(状態変異が一切起きる前)に検査できる。
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(depth, true);
 		this.beginBreak();
+
+		// 2026-07-21(M6b Phase B4-Step3、観測のみ): 相対open pathを捕捉し、
+		// 深さがdepthパラメータと整合するかを検証する。ここで得たplanは
+		// まだ実際の切断(newColumn())には渡さない——B4-Step3は観測のみで
+		// 挙動を変えない(実際の切断へplanを渡すとPLAIN_FLOWがforce以外で
+		// 初めてsplitForContinuation経由になり、これは正真正銘の挙動変更
+		// になるため、B4-Step4で3層検証込みで別途行う)。
+		{
+			final java.util.List<AbstractContainerBox> columnOpenPath = this.captureColumnOpenPath(breakFlow);
+			if (columnOpenPath.size() != depth) {
+				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+						"column open path size=" + columnOpenPath.size() + " does not match depth=" + depth);
+			}
+			final net.zamasoft.foliojet.layout.fragment.OpenPathScan columnScan = net.zamasoft.foliojet.layout.fragment.OpenPathScan
+					.captureColumn(columnOpenPath, mode);
+			columnScan.snapshot().firstBarrier()
+					.ifPresent(barrier -> net.zamasoft.foliojet.layout.fragment.ContinuationStats
+							.recordColumnCapabilityScanStop(barrier.reason()));
+		}
 
 		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
 
