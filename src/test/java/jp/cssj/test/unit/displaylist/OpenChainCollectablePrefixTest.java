@@ -143,6 +143,79 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
+	 * M6b Phase B4残作業: COLUMN resume中にPAGE breakが入れ子になる
+	 * (逆に言えばPAGE resume中にCOLUMN resumeが入れ子になる)ケースで、
+	 * {@code ReplayLeaseSession}スタック・{@code resumeScopes}・
+	 * {@code ResumeTrace}・leaseが混線しないことを確認する
+	 * characterization test(2026-07-21新設)。
+	 *
+	 * <p>
+	 * 段組(2段)の内容を複数ページにまたがるだけの分量にすると、
+	 * 「ページ1内で段1→段2の改段(COLUMN resume)」「ページ1→2の改ページ
+	 * (PAGE resume、この中でさらに段組が継続するため新しいCOLUMN
+	 * resumeが入れ子で起きる)」の両方が自然に発生する。
+	 * {@code enableAssertions=true}(build.gradle)によりテスト実行中は
+	 * {@code RootBuilder.ResumeSession}/{@code ColumnResumeSession}の
+	 * {@code assert !hasUnconsumedLeases()}が有効なため、この文書が
+	 * 例外を投げずに完走すること自体が、入れ子セッション間でリースが
+	 * 正しく所有・解放されたことの検証になる。
+	 * </p>
+	 */
+	public void testNestedPageAndColumnResumeDoNotLeakSessions() throws Exception {
+		ContinuationStats.reset();
+		final File doc = this.generateMultiPageMulticol("nested-page-column-resume", 3, 2, 60);
+		final File pdf = new File("local/unittest/display-list/open-chain-nested-page-column-resume.pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+		// 複数ページ・複数段の両方が実際に発生したことを確認する
+		// (発生しなければ、そもそも入れ子resumeを検証できていない)。
+		assertTrue("複数ページにまたがる改ページが実際に発生したはずです",
+				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0
+						|| ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL) > 0);
+		assertTrue("段組内部の改段が実際に複数回発生したはずです",
+				ContinuationStats.columnCompiledLevels(ContinuationCapability.PLAIN_FLOW) > 0);
+	}
+
+	private File generateMultiPageMulticol(final String name, final int pages, final int columnsPerPage,
+			final int leafLinesPerColumn) throws IOException {
+		final File dir = new File("local/unittest/generated");
+		dir.mkdirs();
+		final File file = new File(dir, "open-chain-" + name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"250pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"200pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;margin:0}"
+					+ "div{margin:0;padding:0}</style>\n");
+			w.write("</head><body>\n");
+			w.write("<div style=\"column-count:2;column-gap:1em\">\n");
+			final int totalLines = pages * columnsPerPage * leafLinesPerColumn;
+			// PLAIN_FLOWのラッパーdivを挟む——素のテキストのみだと
+			// owner(段組)直下に子孫レベルが存在せず(depth==1)、
+			// COLUMN側のfragment chain実行(index>=1)を経由しない
+			w.write("<div>\n");
+			this.writeTextLeaf(w, totalLines);
+			w.write("</div>\n");
+			w.write("</div>\n");
+			w.write("</body></html>\n");
+		}
+		return file;
+	}
+
+	/**
 	 * 段組<i>自身の内側</i>を深くネストさせた場合(外側は5段のみと浅い)、
 	 * プレフィックス切り詰めの対象外(違反箇所より内側)であるため、
 	 * 依然として安全閾値(64)へ到達しうる。この場合、素の

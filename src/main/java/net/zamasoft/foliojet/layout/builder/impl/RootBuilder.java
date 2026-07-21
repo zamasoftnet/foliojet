@@ -358,7 +358,7 @@ public class RootBuilder extends BreakableBuilder {
 					RootBuilder.this.restyleFrame(this.target, this.program.anchor().remainder(),
 							this.program.anchor().prefixItems(),
 							net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
-					RootBuilder.this.resumeFrame(this.childFrame, 1, this.program.snapshot().depth(), this.shadow,
+					RootBuilder.this.resumeFragmentChain(this.childFrame, 1, this.program.snapshot().depth(), this.shadow,
 							this.target);
 				} else {
 					assert this.program.anchor().prefixItems().isEmpty();
@@ -824,10 +824,22 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
 			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow) {
-		this.resumeFrame(frame, index, depth, shadow, this);
+		this.resumeFragmentChain(frame, index, depth, shadow, this);
 	}
 
 	/**
+	 * PAGE/COLUMN共有のfragment chain executorです(2026-07-21、
+	 * M6b Phase B4残作業でPAGE専用の{@code resumeFrame}から改名・明示的に
+	 * 共有メソッドとして切り出した)。{@code index==0}の全ボックス
+	 * restyle(収集不能な破断、チェーンなし)分岐はPAGE root専用に見えるが、
+	 * 実際にはこのメソッド自体がPAGE/COLUMN両方の入口であり、COLUMN側
+	 * (owner内側のfragment chain実行)は常に{@code index=1}から呼ぶため、
+	 * この分岐は構造的にCOLUMN側からは到達しない(indexは単調増加する
+	 * ため、一度でもindex&gt;0になれば以降index==0には戻らない)——別の
+	 * メソッドへ完全に分離すると{@code continueFragment}のfragment
+	 * 再構成を二重に行うリスクがあるため、単一ループ内で条件分岐する形を
+	 * 維持している。
+	 *
 	 * @param target 状態変異(startFlowBlock/restyle)を適用する先の
 	 *               builder(2026-07-21新設、M6b Phase B4-Step4)。PAGEは
 	 *               常に{@code RootBuilder.this}(旧来どおり)。COLUMNは
@@ -836,7 +848,7 @@ public class RootBuilder extends BreakableBuilder {
 	 *               の段バランスprobe中に、probeの内容自体がさらに改段を
 	 *               要する場合)を渡す。
 	 */
-	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
+	private void resumeFragmentChain(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
 			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
 			final BlockBuilder target) {
 		while (true) {
