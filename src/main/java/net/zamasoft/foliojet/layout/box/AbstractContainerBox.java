@@ -19,7 +19,13 @@ import net.zamasoft.foliojet.layout.box.params.Length;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder;
+import net.zamasoft.foliojet.layout.fragment.BreakPlan;
 import net.zamasoft.foliojet.layout.fragment.ColumnBalancer;
+import net.zamasoft.foliojet.layout.fragment.ColumnCutResult;
+import net.zamasoft.foliojet.layout.fragment.ContainerCut;
+import net.zamasoft.foliojet.layout.fragment.Continuation;
+import net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException;
+import net.zamasoft.foliojet.layout.fragment.PreparedColumnCut;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
@@ -334,33 +340,122 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	protected abstract AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning);
 
+	/**
+	 * @deprecated {@link #prepareColumnCut(double, BreakMode, byte, BreakPlan)}
+	 *             + {@link #commitPreparedColumn(PreparedColumnCut)}へ分離した
+	 *             (2026-07-21、M6b Phase B4-Step2)。移行期間中のlegacy wrapper
+	 *             として挙動を保つ。
+	 */
+	@Deprecated
 	public Container newColumn(double pageLimit, final BreakMode mode, final byte flags) {
-		// このpageLimitは内辺から始まる
-		final Container newContainer = this.container.splitPageAxis(pageLimit, mode, flags);
-
-		if (newContainer == null) {
-			return null;
+		return switch (this.prepareColumnCut(pageLimit, mode, flags, null)) {
+		case ColumnCutResult.Keep keep -> null;
+		case ColumnCutResult.Move move -> null;
+		case ColumnCutResult.Cut(final PreparedColumnCut prepared) -> {
+			this.commitPreparedColumn(prepared);
+			yield prepared.ownerRemainder();
 		}
-		final ColumnsContainer columns;
-		if (this.container instanceof ColumnsContainer cc) {
-			columns = cc;
-			if (newContainer == columns.getLastColumn()) {
-				return null;
-			}
+		};
+	}
+
+	/**
+	 * 改段の切断だけを行い、ownerへの新column追加・builder resume開始は
+	 * まだcommitしません(2026-07-21新設、M6b Phase B4-Step2)。
+	 *
+	 * <p>
+	 * 「prepare」は完全に副作用のないdry-runという意味ではない——
+	 * {@code ownerContainer.splitPageAxis()}による元active columnの切断は
+	 * ここで既に行われる。正確な意味は「ownerへの新column追加とbuilder
+	 * resume開始をまだcommitしていない切断結果」である(ChatGPT Pro相談、
+	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 参照)。split後の構造検証失敗は変換全体を中断すべきであり、legacy
+	 * 経路へrollbackして再実行してはいけない。
+	 * </p>
+	 *
+	 * @param pageLimit 内辺から始まる改段位置
+	 * @param mode      改段モード
+	 * @param flags     {@code IPageBreakableBox.FLAGS_*}
+	 * @param plan      収集可能プレフィックスの計画(未対応の間はnull)
+	 */
+	public ColumnCutResult prepareColumnCut(final double pageLimit, final BreakMode mode, final byte flags,
+			final BreakPlan plan) {
+		final Container ownerContainer = this.container;
+		final Container activeColumn = ownerContainer instanceof ColumnsContainer columns ? columns.getLastColumn()
+				: ownerContainer;
+		final int actualColumns = this.getActualColumnCount();
+
+		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
+		final Container remainder;
+		final Continuation.ContinuationFrame childFrame;
+		if (cut instanceof ContainerCut.WithFrame(final Container c, final Continuation.ContinuationFrame f)) {
+			remainder = c;
+			childFrame = f;
 		} else {
-			if (newContainer == this.container) {
-				return null;
-			}
+			remainder = ((ContainerCut.Plain) cut).container();
+			childFrame = null;
+		}
+
+		if (remainder == null) {
+			return new ColumnCutResult.Keep();
+		}
+		if (remainder == activeColumn) {
+			return new ColumnCutResult.Move();
+		}
+
+		return new ColumnCutResult.Cut(new PreparedColumnCut(this, ownerContainer, activeColumn, actualColumns,
+				pageLimit, remainder, childFrame));
+	}
+
+	/**
+	 * {@link #prepareColumnCut}が返した{@link ColumnCutResult.Cut}を
+	 * ownerへcommitします(2026-07-21新設、M6b Phase B4-Step2)——
+	 * ownerを実際に{@link ColumnsContainer}へラップし(未ラップなら)、
+	 * page軸寸法を更新し、新しい空columnを追加します。
+	 *
+	 * <p>
+	 * prepare後にowner状態が変化していないかを、commit前に全て検証する
+	 * (owner identity・container identity・実段数)——codexレビューで
+	 * 指摘された、{@code expectedActiveColumn}を保持するのに検証しない
+	 * 欠落を修正済み。commit後は新column追加が正確に1回だけ行われたことも
+	 * 確認する。
+	 * </p>
+	 */
+	public void commitPreparedColumn(final PreparedColumnCut cut) {
+		if (cut.owner() != this) {
+			throw new ContinuationInvariantViolationException("column owner changed");
+		}
+		if (this.container != cut.expectedOwnerContainer()) {
+			throw new ContinuationInvariantViolationException("owner container changed before column commit");
+		}
+		final Container currentActiveColumn = this.container instanceof ColumnsContainer columns
+				? columns.getLastColumn()
+				: this.container;
+		if (currentActiveColumn != cut.expectedActiveColumn()) {
+			throw new ContinuationInvariantViolationException("active column changed before column commit");
+		}
+		if (this.getActualColumnCount() != cut.expectedActualColumnCount()) {
+			throw new ContinuationInvariantViolationException("actual column count changed before commit");
+		}
+
+		final ColumnsContainer columns;
+		if (this.container instanceof ColumnsContainer existing) {
+			columns = existing;
+		} else {
 			this.container = columns = new ColumnsContainer((FlowContainer) this.container);
 			columns.setBox(this);
 		}
+
 		if (this.getBlockParams().flow.isVertical()) {
-			this.width = pageLimit;
+			this.width = cut.newPageExtent();
 		} else {
-			this.height = pageLimit;
+			this.height = cut.newPageExtent();
 		}
+
 		columns.newColumn();
-		return newContainer;
+
+		if (this.getActualColumnCount() != cut.expectedActualColumnCount() + 1) {
+			throw new ContinuationInvariantViolationException("new column was not added exactly once");
+		}
 	}
 
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
