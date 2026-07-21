@@ -82,6 +82,14 @@ public class CSSElement {
 	public static final CSSElement AFTER = new CSSElement("after");
 
 	/**
+	 * {@code ::marker}擬似要素です(2026-07-21新設、CSS Lists)。
+	 * リストマーカー(list-item)自身に対して{@code color}/{@code font-*}等
+	 * 限定的なプロパティをカスケード解決するために使う。BEFORE/AFTERと
+	 * 同じ仕組み(atts=nullの合成CSSElement)。
+	 */
+	public static final CSSElement MARKER = new CSSElement("marker");
+
+	/**
 	 * 匿名要素です。
 	 */
 	public static final CSSElement ANON = new CSSElement((String)null);

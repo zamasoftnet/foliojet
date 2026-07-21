@@ -1408,9 +1408,23 @@ public class StyleBuilder implements PageGenerator {
 
 			int number = counter[1];
 			InlinePos pos = new InlinePos();
+			// 2026-07-21新設: ::marker(CSS Lists)。BEFORE/AFTERと同じ
+			// 仕組みでCSSElement.MARKERをカスケード解決し、限定的な
+			// プロパティ(color/font-*等)だけliの実スタイルへ上書きする。
+			// list-style-type/list-style-position等は::markerの対象
+			// プロパティではないため、常にliの実スタイル(style)から
+			// 読む(仕様どおり)。
+			this.styleContext.startElement(CSSElement.MARKER);
+			final Declaration markerDeclaration = this.styleContext.merge(null);
+			CSSStyle markerStyle = style;
+			if (markerDeclaration != null) {
+				markerStyle = CSSStyle.getCSSStyle(this.ua, style, CSSElement.MARKER);
+				markerDeclaration.applyProperties(markerStyle);
+			}
+			this.styleContext.endElement();
 			BlockParams params = new BlockParams();
-			this.setupBlockParams(params, style);
-			this.setupInlinePos(pos, style);
+			this.setupBlockParams(params, markerStyle);
+			this.setupInlinePos(pos, markerStyle);
 			params.frame = RectFrame.NULL_FRAME;
 			short listStyleType = ListStyleType.get(style);
 			Image image = ListStyleImage.get(style);
@@ -1429,7 +1443,7 @@ public class StyleBuilder implements PageGenerator {
 			} else {
 				marker = new Marker();
 				ReplacedParams rparams = new ReplacedParams();
-				this.setupParams(rparams, style);
+				this.setupParams(rparams, markerStyle);
 				rparams.image = image;
 				marker.imageBox = new InlineReplacedBox(rparams, pos);
 			}

@@ -444,6 +444,18 @@ public class StyleContext {
 					pc = CSSElement.PC_ROOT;
 				}
 				break;
+			case 'S':
+			case 's':
+				if (pseudoClass.equalsIgnoreCase("scope")) {
+					// 2026-07-21: @scopeは未対応のため、:scopeは常に
+					// :root相当として扱う(CSS Selectors 4「スタイル
+					// シート内でスコープ根が他に指定されなければ
+					// ルート要素がデフォルト」の単純化)。@scopeを
+					// 実装する際は、この単純化をelementStack上の
+					// スコープ根追跡へ置き換える必要がある。
+					pc = CSSElement.PC_ROOT;
+				}
+				break;
 			}
 			return ce.isPseudoClass(pc);
 		}
