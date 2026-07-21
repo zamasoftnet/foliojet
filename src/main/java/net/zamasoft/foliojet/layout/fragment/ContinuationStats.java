@@ -32,6 +32,18 @@ public final class ContinuationStats {
 	 */
 	public static final AtomicLong CHAIN_MEMBER_MOVE = new AtomicLong();
 
+	/**
+	 * 直近の改段(COLUMN)で選択されたowner(改段対象box)の設定段数
+	 * (CSS {@code column-count}相当)を記録します(2026-07-21新設、
+	 * nested multicol owner選択のテスト観測用)。{@code
+	 * BreakableBuilder.findColumnBreak()}が最内側の{@code
+	 * canColumnBreak()}なownerを選ぶ既存挙動は変更していない——単に
+	 * 「実際にどのownerが選ばれたか」をテストから観測できるようにする
+	 * だけの計測。
+	 */
+	public static final java.util.concurrent.atomic.AtomicInteger LAST_COLUMN_OWNER_COLUMN_COUNT = new java.util.concurrent.atomic.AtomicInteger(
+			-1);
+
 	/** チェーン末端の OpenTailShape 消費(prefix 吸収済み)。 */
 	public static final AtomicLong OPEN_TAILS = new AtomicLong();
 
@@ -313,6 +325,7 @@ public final class ContinuationStats {
 		CHILD_FRAMES.set(0);
 		CHAIN_MEMBER_KEEP.set(0);
 		CHAIN_MEMBER_MOVE.set(0);
+		LAST_COLUMN_OWNER_COLUMN_COUNT.set(-1);
 		OPEN_TAILS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);

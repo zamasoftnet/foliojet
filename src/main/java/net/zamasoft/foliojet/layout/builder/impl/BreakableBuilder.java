@@ -1021,6 +1021,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// depthはこの時点で既にパラメータとして確定しており、以降の
 		// newColumn()呼び出しより前(状態変異が一切起きる前)に検査できる。
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(depth, true);
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.LAST_COLUMN_OWNER_COLUMN_COUNT
+				.set(breakFlow.box.getColumnCount());
 		this.beginBreak();
 
 		// 2026-07-21(M6b Phase B4): 相対open pathを捕捉し、深さがdepth

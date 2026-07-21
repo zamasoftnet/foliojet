@@ -226,4 +226,41 @@ public class ContinuationCapabilityTest extends TestCase {
 		assertEquals(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE,
 				ContinuationCapability.classify(sameAxisRuby, WritingMode.RL));
 	}
+
+	/**
+	 * M6b Phase B4/B5残作業(task #73): 選択されたCOLUMN owner(段組)の
+	 * 内側にさらに別の段組が現れる場合、そのdescendant側が
+	 * {@link OpenPathScan#captureColumn}で{@code MULTICOL}barrierとして
+	 * 検出され、収集対象(approvedBoxes)から除外されることを直接検証する。
+	 *
+	 * <p>
+	 * 当初はHTMLフィクスチャ経由(実文書レンダリング)で「外側ownerの
+	 * 内側にdescendant multicolがbarrierとして残る」ことを確認する
+	 * 設計だったが、{@code AbstractContainerBox#canColumnBreak()}の
+	 * 実際のセマンティクス({@code isSpecifiedPageSize()}が真なら
+	 * {@code columnCount>=2}であるだけで無条件に{@code true}を返す)と
+	 * {@code findColumnBreak()}の内側優先探索の組み合わせにより、
+	 * 高さ指定つきの入れ子段組では常に最内側がownerとして選ばれてしまい、
+	 * 「外側がowner・内側descendantがbarrierとして残る」構成をHTML上で
+	 * 自然に発生させることができないと判明した(実測でも
+	 * {@code testDescendantMulticolInsideColumnOwnerStaysBarrier}という
+	 * 旧テストが実際に失敗することを確認済み)。このため
+	 * {@link OpenPathScan#captureColumn}を箱を直接構築して単体で呼ぶ形へ
+	 * 置き換えた——CSS上の到達可能性ではなく、分類ロジック自体が
+	 * 正しくbarrierを検出することを検証する。
+	 * </p>
+	 */
+	public void testCaptureColumnTreatsDescendantMulticolAsBarrier() {
+		final AbstractContainerBox owner = multicolumnBlockBox(WritingMode.TB);
+		final AbstractContainerBox descendant = multicolumnBlockBox(WritingMode.TB);
+		final OpenPathScan scan = OpenPathScan.captureColumn(java.util.List.of(owner, descendant),
+				new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(descendant));
+
+		assertTrue("descendantのMULTICOLはowner内側で収集不能(barrier)のはずです",
+				scan.snapshot().firstBarrier().isPresent());
+		final OpenPathSnapshot.CapabilityBarrier barrier = scan.snapshot().firstBarrier().get();
+		assertEquals(1, barrier.openPathIndex());
+		assertEquals(ContinuationCapability.MULTICOL, barrier.reason());
+		assertTrue("barrier以降は収集(approvedBoxes)されないはずです", scan.approvedBoxes().isEmpty());
+	}
 }

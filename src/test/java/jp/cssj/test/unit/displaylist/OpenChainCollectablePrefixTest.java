@@ -216,6 +216,73 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
+	 * M6b Phase B4/B5残作業: nested multicol(段組の中の段組)で、
+	 * {@code BreakableBuilder.findColumnBreak()}が最内側の
+	 * {@code canColumnBreak()}なownerを選ぶ既存挙動が、B4のCOLUMN継続
+	 * 型付け後も維持されていることを確認する(2026-07-21新設)。
+	 *
+	 * <p>
+	 * 外側(段数2)は十分な高さを持ち、内側(段数3)の内容だけが自身の
+	 * 単一段の容量を超える構成にする——内側だけが改段を要し、外側は
+	 * 改段不要のまま文書全体が完結するはずである。改段のたびに
+	 * {@code ContinuationStats.LAST_COLUMN_OWNER_COLUMN_COUNT}へ
+	 * ownerの設定段数を記録させ、最後に観測された値が常に内側の3で
+	 * あって外側の2ではないことを確認する。
+	 * </p>
+	 */
+	public void testNestedMulticolSelectsInnermostOwner() throws Exception {
+		ContinuationStats.reset();
+		final File doc = this.generateNestedMulticol("nested-multicol-owner", 2, 3);
+		final File pdf = new File("local/unittest/display-list/open-chain-nested-multicol-owner.pdf");
+		pdf.getParentFile().mkdirs();
+		try (OutputStream out = new FileOutputStream(pdf)) {
+			DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				session.property("input.include", "**");
+				session.property("input.property-pi", "true");
+				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+		assertTrue("段組内部の改段が実際に発生したはずです(でなければownerを検証できていない)",
+				ContinuationStats.columnCompiledLevels(ContinuationCapability.PLAIN_FLOW) > 0
+						|| ContinuationStats.capabilityScanStops(ContinuationCapability.PLAIN_FLOW) >= 0);
+		assertEquals("最内側(段数3)のmulticolがownerとして選ばれ続けるはずです(外側の段数2ではない)", 3,
+				ContinuationStats.LAST_COLUMN_OWNER_COLUMN_COUNT.get());
+	}
+
+	private File generateNestedMulticol(final String name, final int outerColumnCount, final int innerColumnCount)
+			throws IOException {
+		final File dir = new File("local/unittest/generated");
+		dir.mkdirs();
+		final File file = new File(dir, "open-chain-" + name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"300pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;margin:0}"
+					+ "div{margin:0;padding:0}</style>\n");
+			w.write("</head><body>\n");
+			// 外側: 十分な高さ、改段が不要な段数
+			w.write("<div style=\"column-count:" + outerColumnCount + ";column-gap:1em;height:380pt\">\n");
+			// 内側: 単一段の容量を超える内容を持つ、狭い高さ
+			w.write("<div style=\"column-count:" + innerColumnCount + ";column-gap:1em;height:60pt\">\n");
+			w.write("<div>\n");
+			this.writeTextLeaf(w, 200);
+			w.write("</div>\n");
+			w.write("</div>\n");
+			w.write("</div>\n");
+			w.write("</body></html>\n");
+		}
+		return file;
+	}
+
+	/**
 	 * 段組<i>自身の内側</i>を深くネストさせた場合(外側は5段のみと浅い)、
 	 * プレフィックス切り詰めの対象外(違反箇所より内側)であるため、
 	 * 依然として安全閾値(64)へ到達しうる。この場合、素の
