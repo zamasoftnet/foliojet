@@ -87,4 +87,69 @@ public sealed interface BoxRecipe {
 			return BoxKind.INSIDE_MARKER;
 		}
 	}
+
+	/**
+	 * 表({@code TableBox})——{@code TableParams}/{@code FlowPos}を使う。
+	 * ただし{@code box.getPos() instanceof FlowPos}の場合のみ記録可能
+	 * (絶対配置・浮動の表は{@code StyleBuilder}が当面{@code Opaque}に
+	 * する、既存コード確認済み)。
+	 */
+	record Table(TableParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE;
+		}
+	}
+
+	/**
+	 * 表の行グループ({@code TableRowGroupBox})——{@code InnerTableParams}/
+	 * {@code TableRowGroupPos}を使う(既存コード確認済み)。
+	 */
+	record TableRowGroup(InnerTableParamsTemplate params, TableRowGroupPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE_ROW_GROUP;
+		}
+	}
+
+	/**
+	 * 表の行({@code TableRowBox})——{@code InnerTableParams}/
+	 * {@code TableRowPos}を使う(既存コード確認済み)。
+	 */
+	record TableRow(InnerTableParamsTemplate params, TableRowPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE_ROW;
+		}
+	}
+
+	/**
+	 * 表のセル({@code TableCellBox})——既存{@link BoxKind#FLOW}等と
+	 * 同じ{@code BlockParams}を再利用し、{@code TableCellPos}を使う
+	 * (既存コード確認済み)。
+	 */
+	record TableCell(BlockParamsTemplate params, TableCellPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE_CELL;
+		}
+	}
+
+	/**
+	 * 表のカラムグループ({@code TableColumnGroupBox})——
+	 * {@code InnerTableParams}/{@code TableColumnPos}を使う
+	 * (既存コード確認済み)。
+	 */
+	record TableColumnGroup(InnerTableParamsTemplate params, TableColumnPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE_COLUMN_GROUP;
+		}
+	}
+
+	/**
+	 * 表のカラム({@code TableColumnBox})——{@code TableColumnGroup}と
+	 * 同じ{@code InnerTableParams}/{@code TableColumnPos}を使う
+	 * (既存コード確認済み)。
+	 */
+	record TableColumn(InnerTableParamsTemplate params, TableColumnPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE_COLUMN;
+		}
+	}
 }

@@ -1,11 +1,7 @@
 package net.zamasoft.foliojet.layout.segment;
 
-import java.awt.geom.AffineTransform;
-
-import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Length;
-import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
@@ -30,16 +26,13 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  * </p>
  *
  * <p>
- * フィールド分類の根拠は{@link LineParamsFields}のjavadocを参照。
+ * 祖先({@code Params})のフィールドは{@link ParamsFields}
+ * (`InnerTableParamsTemplate`とも共有する)へ委譲する(合成、
+ * さらに2つ目の具体的な必要が生じたため2026-07-22に抽出)。
  * </p>
  */
 final class TextParamsFields {
-	final CSSElement element;
-	final int zIndexValue;
-	final byte zIndexType;
-	final float opacity;
-	private final AffineTransform transform;
-	final Offset transformOrigin;
+	private final ParamsFields common;
 	final FontStyle fontStyle;
 	final WritingMode flow;
 	final byte direction;
@@ -59,22 +52,13 @@ final class TextParamsFields {
 	final Color textStrokeColor;
 	private final TextShadow[] textShadows;
 
-	private TextParamsFields(final CSSElement element, final int zIndexValue, final byte zIndexType,
-			final float opacity, final AffineTransform transform, final Offset transformOrigin,
-			final FontStyle fontStyle, final WritingMode flow, final byte direction, final FontManager fontManager,
-			final LineBreakRules lineBreakRules, final Length letterSpacing, final double wordSpacing,
-			final byte textTransform, final byte whiteSpace, final byte wordWrap, final byte hyphens,
-			final Hyphenator hyphenator, final Color color, final byte decoration, final double decorationThickness,
-			final double textStrokeWidth, final Color textStrokeColor, final TextShadow[] textShadows) {
-		this.element = element;
-		this.zIndexValue = zIndexValue;
-		this.zIndexType = zIndexType;
-		this.opacity = opacity;
-		// 防御的コピー(freeze時に一度だけ)。AffineTransformはmutableなJDK
-		// クラスのため、呼び出し元の元インスタンスをそのまま握るとwrite-once
-		// 契約が壊れる
-		this.transform = new AffineTransform(transform);
-		this.transformOrigin = transformOrigin;
+	private TextParamsFields(final ParamsFields common, final FontStyle fontStyle, final WritingMode flow,
+			final byte direction, final FontManager fontManager, final LineBreakRules lineBreakRules,
+			final Length letterSpacing, final double wordSpacing, final byte textTransform, final byte whiteSpace,
+			final byte wordWrap, final byte hyphens, final Hyphenator hyphenator, final Color color,
+			final byte decoration, final double decorationThickness, final double textStrokeWidth,
+			final Color textStrokeColor, final TextShadow[] textShadows) {
+		this.common = common;
 		this.fontStyle = fontStyle;
 		this.flow = flow;
 		this.direction = direction;
@@ -98,8 +82,7 @@ final class TextParamsFields {
 	}
 
 	static TextParamsFields freeze(final AbstractTextParams source) {
-		return new TextParamsFields(source.element, source.zIndexValue, source.zIndexType, source.opacity,
-				source.transform, source.transformOrigin, source.fontStyle, source.flow, source.direction,
+		return new TextParamsFields(ParamsFields.freeze(source), source.fontStyle, source.flow, source.direction,
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
 				source.textTransform, source.whiteSpace, source.wordWrap, source.hyphens, source.hyphenator,
 				source.color, source.decoration, source.decorationThickness, source.textStrokeWidth,
@@ -112,12 +95,7 @@ final class TextParamsFields {
 	 * 複数回materializeしても互いに影響しない(M6d-Aの最重要契約)。
 	 */
 	void materializeInto(final AbstractTextParams target) {
-		target.element = this.element;
-		target.zIndexValue = this.zIndexValue;
-		target.zIndexType = this.zIndexType;
-		target.opacity = this.opacity;
-		target.transform = new AffineTransform(this.transform);
-		target.transformOrigin = this.transformOrigin;
+		this.common.materializeInto(target);
 		target.fontStyle = this.fontStyle;
 		target.flow = this.flow;
 		target.direction = this.direction;

@@ -9,6 +9,12 @@ import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.TableCellPos;
+import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
+import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
@@ -92,6 +98,33 @@ public final class LayoutSourceEventConverter {
 		case INSIDE_MARKER -> new SegmentEvent.BeginBox(new BoxRecipe.InsideMarker(
 				BlockParamsTemplate.freeze((BlockParams) start.params()),
 				InlinePosTemplate.freeze((InlinePos) start.pos())));
+		// TableBoxはTableParams/FlowPosを使う(StyleBuilderがbox.getPos()
+		// instanceof FlowPosの場合のみBoxKind.TABLEを記録するため、
+		// このcastは常に成立する、既存コード確認済み)
+		case TABLE -> new SegmentEvent.BeginBox(new BoxRecipe.Table(
+				TableParamsTemplate.freeze((TableParams) start.params()),
+				FlowPosTemplate.freeze((FlowPos) start.pos())));
+		// TableRowGroupBoxはInnerTableParams/TableRowGroupPosを使う(既存コード確認済み)
+		case TABLE_ROW_GROUP -> new SegmentEvent.BeginBox(new BoxRecipe.TableRowGroup(
+				InnerTableParamsTemplate.freeze((InnerTableParams) start.params()),
+				TableRowGroupPosTemplate.freeze((TableRowGroupPos) start.pos())));
+		// TableRowBoxはInnerTableParams/TableRowPosを使う(既存コード確認済み)
+		case TABLE_ROW -> new SegmentEvent.BeginBox(new BoxRecipe.TableRow(
+				InnerTableParamsTemplate.freeze((InnerTableParams) start.params()),
+				TableRowPosTemplate.freeze((TableRowPos) start.pos())));
+		// TableCellBoxはBlockParams/TableCellPosを使う(既存コード確認済み)
+		case TABLE_CELL -> new SegmentEvent.BeginBox(new BoxRecipe.TableCell(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
+				TableCellPosTemplate.freeze((TableCellPos) start.pos())));
+		// TableColumnGroupBoxはInnerTableParams/TableColumnPosを使う(既存コード確認済み)
+		case TABLE_COLUMN_GROUP -> new SegmentEvent.BeginBox(new BoxRecipe.TableColumnGroup(
+				InnerTableParamsTemplate.freeze((InnerTableParams) start.params()),
+				TableColumnPosTemplate.freeze((TableColumnPos) start.pos())));
+		// TableColumnBoxはTableColumnGroupBoxと同じInnerTableParams/
+		// TableColumnPosを使う(既存コード確認済み)
+		case TABLE_COLUMN -> new SegmentEvent.BeginBox(new BoxRecipe.TableColumn(
+				InnerTableParamsTemplate.freeze((InnerTableParams) start.params()),
+				TableColumnPosTemplate.freeze((TableColumnPos) start.pos())));
 		default -> new SegmentEvent.Barrier(Optional.of(mapKind(start.kind())), BarrierReason.NOT_YET_SUPPORTED);
 		};
 	}

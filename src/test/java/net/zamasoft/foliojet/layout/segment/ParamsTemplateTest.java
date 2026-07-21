@@ -4,12 +4,21 @@ import java.awt.geom.AffineTransform;
 
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.CellAlign;
+import net.zamasoft.foliojet.layout.box.params.EmptyCellsMode;
 import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.RowGroupType;
+import net.zamasoft.foliojet.layout.box.params.TableCellPos;
+import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
+import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
@@ -170,5 +179,111 @@ public class ParamsTemplateTest extends TestCase {
 		assertNotSame(m1, m2);
 		assertEquals(FloatSide.END, m1.floating);
 		assertEquals(net.zamasoft.foliojet.layout.box.params.ClearMode.BOTH, m2.clear);
+	}
+
+	/**
+	 * TableParams(BlockParamsを直接継承)もBlockParamsFields経由で
+	 * 同じ独立性契約を満たす。
+	 */
+	public void testTableParamsMaterializeIsIndependent() {
+		final TableParams source = new TableParams();
+		source.transform = AffineTransform.getTranslateInstance(7, 8);
+		source.borderSpacingH = 1.5;
+		source.borderSpacingV = 2.5;
+		source.borderCollapse = TableParams.BORDER_COLLAPSE;
+
+		final TableParamsTemplate template = TableParamsTemplate.freeze(source);
+		final TableParams m1 = template.materialize();
+		final TableParams m2 = template.materialize();
+
+		assertNotSame(m1.transform, m2.transform);
+		assertEquals(source.transform, m1.transform);
+		assertEquals(1.5, m1.borderSpacingH);
+		assertEquals(TableParams.BORDER_COLLAPSE, m2.borderCollapse);
+
+		m1.transform.translate(1, 1);
+		assertEquals(AffineTransform.getTranslateInstance(7, 8), m2.transform);
+	}
+
+	/**
+	 * InnerTableParams(Paramsを直接継承、AbstractTextParamsを経由しない)
+	 * もParamsFields経由で同じ独立性契約を満たす。
+	 */
+	public void testInnerTableParamsMaterializeIsIndependent() {
+		final InnerTableParams source = new InnerTableParams();
+		source.transform = AffineTransform.getScaleInstance(3, 3);
+		source.pageBreakInside = net.zamasoft.foliojet.layout.box.params.PageBreakMode.AVOID;
+
+		final InnerTableParamsTemplate template = InnerTableParamsTemplate.freeze(source);
+		final InnerTableParams m1 = template.materialize();
+		final InnerTableParams m2 = template.materialize();
+
+		assertNotSame(m1.transform, m2.transform);
+		assertEquals(source.transform, m1.transform);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.PageBreakMode.AVOID, m2.pageBreakInside);
+
+		m1.transform.translate(1, 1);
+		assertEquals(AffineTransform.getScaleInstance(3, 3), m2.transform);
+	}
+
+	/** TableCellPosも複数回materializeしても値が保たれ、別インスタンスになる。 */
+	public void testTableCellPosMaterializeIsIndependent() {
+		final TableCellPos source = new TableCellPos();
+		source.colspan = 2;
+		source.rowspan = 3;
+		source.emptyCells = EmptyCellsMode.SHOW;
+		source.verticalAlign = CellAlign.MIDDLE;
+
+		final TableCellPosTemplate template = TableCellPosTemplate.freeze(source);
+		final TableCellPos m1 = template.materialize();
+		final TableCellPos m2 = template.materialize();
+
+		assertNotSame(m1, m2);
+		assertEquals(2, m1.colspan);
+		assertEquals(3, m2.rowspan);
+		assertEquals(EmptyCellsMode.SHOW, m1.emptyCells);
+		assertEquals(CellAlign.MIDDLE, m2.verticalAlign);
+	}
+
+	/** TableRowGroupPosも複数回materializeしても値が保たれ、別インスタンスになる。 */
+	public void testTableRowGroupPosMaterializeIsIndependent() {
+		final TableRowGroupPos source = new TableRowGroupPos();
+		source.rowGroupType = RowGroupType.FOOTER;
+
+		final TableRowGroupPosTemplate template = TableRowGroupPosTemplate.freeze(source);
+		final TableRowGroupPos m1 = template.materialize();
+		final TableRowGroupPos m2 = template.materialize();
+
+		assertNotSame(m1, m2);
+		assertEquals(RowGroupType.FOOTER, m1.rowGroupType);
+		assertEquals(RowGroupType.FOOTER, m2.rowGroupType);
+	}
+
+	/** TableRowPos(固有フィールドなし)も複数回materializeしても別インスタンスになる。 */
+	public void testTableRowPosMaterializeIsIndependent() {
+		final TableRowPos source = new TableRowPos();
+		source.pageBreakBefore = net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE;
+
+		final TableRowPosTemplate template = TableRowPosTemplate.freeze(source);
+		final TableRowPos m1 = template.materialize();
+		final TableRowPos m2 = template.materialize();
+
+		assertNotSame(m1, m2);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE, m1.pageBreakBefore);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE, m2.pageBreakBefore);
+	}
+
+	/** TableColumnPos(Posを直接実装、共有祖先なし)も複数回materializeしても別インスタンスになる。 */
+	public void testTableColumnPosMaterializeIsIndependent() {
+		final TableColumnPos source = new TableColumnPos();
+		source.span = 4;
+
+		final TableColumnPosTemplate template = TableColumnPosTemplate.freeze(source);
+		final TableColumnPos m1 = template.materialize();
+		final TableColumnPos m2 = template.materialize();
+
+		assertNotSame(m1, m2);
+		assertEquals(4, m1.span);
+		assertEquals(4, m2.span);
 	}
 }

@@ -1,0 +1,52 @@
+package net.zamasoft.foliojet.layout.segment;
+
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+
+/**
+ * {@link TableParams}({@code BlockParams}を直接継承、
+ * {@link BoxKind#TABLE}——ただし{@code box.getPos() instanceof
+ * FlowPos}の場合のみ記録可能、既存コード({@code StyleBuilder}の
+ * kind判定)確認済み——が使う)の内容をfreezeし、呼び出しごとに独立した
+ * 新品の{@code TableParams}をmaterializeするテンプレートです
+ * (2026-07-22新設、M6d-A3b)。
+ *
+ * <p>
+ * 祖先(`Params`/`AbstractTextParams`/`AbstractLineParams`/
+ * `BlockParams`)のフィールドは{@link BlockParamsFields}
+ * (`BlockParamsTemplate`と共有)が担う。{@code borderSpacingH}/
+ * {@code borderSpacingV}(double)・{@code borderCollapse}/
+ * {@code layout}(byte)は全てプリミティブのためそのまま保持する。
+ * </p>
+ */
+public final class TableParamsTemplate {
+	private final BlockParamsFields common;
+	private final double borderSpacingH;
+	private final double borderSpacingV;
+	private final byte borderCollapse;
+	private final byte layout;
+
+	private TableParamsTemplate(final BlockParamsFields common, final double borderSpacingH,
+			final double borderSpacingV, final byte borderCollapse, final byte layout) {
+		this.common = common;
+		this.borderSpacingH = borderSpacingH;
+		this.borderSpacingV = borderSpacingV;
+		this.borderCollapse = borderCollapse;
+		this.layout = layout;
+	}
+
+	public static TableParamsTemplate freeze(final TableParams source) {
+		return new TableParamsTemplate(BlockParamsFields.freeze(source), source.borderSpacingH,
+				source.borderSpacingV, source.borderCollapse, source.layout);
+	}
+
+	/** 呼び出しごとに新品の{@code TableParams}を返す(複数回呼んでも互いに影響しない)。 */
+	public TableParams materialize() {
+		final TableParams p = new TableParams();
+		this.common.materializeInto(p);
+		p.borderSpacingH = this.borderSpacingH;
+		p.borderSpacingV = this.borderSpacingV;
+		p.borderCollapse = this.borderCollapse;
+		p.layout = this.layout;
+		return p;
+	}
+}

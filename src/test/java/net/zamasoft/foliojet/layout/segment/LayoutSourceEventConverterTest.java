@@ -9,6 +9,12 @@ import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.TableCellPos;
+import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
+import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
@@ -95,15 +101,60 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(FloatSide.END, floatBlock.pos().materialize().floating);
 	}
 
-	/** 未対応のBoxKind(例: TABLE)はBarrierへ変換され、種別が明示される。 */
-	public void testUnsupportedBoxKindConvertsToBarrierWithKind() {
-		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE, null, null));
+	/**
+	 * BoxKind.TABLEはTableParams+FlowPosで内容を失わずBoxRecipe.Tableへ
+	 * 変換される(StyleBuilderの「box.getPos() instanceof FlowPosの
+	 * 場合のみ記録」不変条件どおり)。
+	 */
+	public void testTableStartConvertsToBeginBoxWithTableRecipe() {
+		final TableParams params = new TableParams();
+		params.borderCollapse = TableParams.BORDER_COLLAPSE;
+		final FlowPos pos = new FlowPos();
+		pos.columnSpan = net.zamasoft.foliojet.layout.box.params.FlowPos.COLUMN_SPAN_ALL;
 
-		assertTrue(converted instanceof SegmentEvent.Barrier);
-		final SegmentEvent.Barrier barrier = (SegmentEvent.Barrier) converted;
-		assertEquals(BoxKind.TABLE, barrier.kind().get());
-		assertEquals(BarrierReason.NOT_YET_SUPPORTED, barrier.reason());
+		final SegmentEvent converted = LayoutSourceEventConverter
+				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE, params, pos));
+
+		assertTrue(converted instanceof SegmentEvent.BeginBox);
+		final BoxRecipe.Table table = (BoxRecipe.Table) ((SegmentEvent.BeginBox) converted).recipe();
+		assertEquals(TableParams.BORDER_COLLAPSE, table.params().materialize().borderCollapse);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.FlowPos.COLUMN_SPAN_ALL,
+				table.pos().materialize().columnSpan);
+	}
+
+	/** TableRowGroupBox/TableRowBox/TableColumnGroupBox/TableColumnBoxはInnerTableParamsで変換される。 */
+	public void testInnerTableParamsBoxKinds() {
+		final InnerTableParams tableRowGroupParams = new InnerTableParams();
+		final SegmentEvent rowGroup = LayoutSourceEventConverter.convert(
+				new LayoutSource.Start(LayoutSource.BoxKind.TABLE_ROW_GROUP, tableRowGroupParams, new TableRowGroupPos()));
+		assertTrue(((SegmentEvent.BeginBox) rowGroup).recipe() instanceof BoxRecipe.TableRowGroup);
+
+		final SegmentEvent row = LayoutSourceEventConverter
+				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE_ROW, new InnerTableParams(), new TableRowPos()));
+		assertTrue(((SegmentEvent.BeginBox) row).recipe() instanceof BoxRecipe.TableRow);
+
+		final SegmentEvent columnGroup = LayoutSourceEventConverter.convert(new LayoutSource.Start(
+				LayoutSource.BoxKind.TABLE_COLUMN_GROUP, new InnerTableParams(), new TableColumnPos()));
+		assertTrue(((SegmentEvent.BeginBox) columnGroup).recipe() instanceof BoxRecipe.TableColumnGroup);
+
+		final SegmentEvent column = LayoutSourceEventConverter.convert(
+				new LayoutSource.Start(LayoutSource.BoxKind.TABLE_COLUMN, new InnerTableParams(), new TableColumnPos()));
+		assertTrue(((SegmentEvent.BeginBox) column).recipe() instanceof BoxRecipe.TableColumn);
+	}
+
+	/** TableCellBoxは既存のBlockParamsを再利用し、TableCellPosで変換される。 */
+	public void testTableCellStartConvertsToBeginBoxWithTableCellRecipe() {
+		final BlockParams params = new BlockParams();
+		params.orphans = 2;
+		final TableCellPos pos = new TableCellPos();
+		pos.colspan = 3;
+
+		final SegmentEvent converted = LayoutSourceEventConverter
+				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE_CELL, params, pos));
+
+		final BoxRecipe.TableCell cell = (BoxRecipe.TableCell) ((SegmentEvent.BeginBox) converted).recipe();
+		assertEquals(2, cell.params().materialize().orphans);
+		assertEquals(3, cell.pos().materialize().colspan);
 	}
 
 	/** EndBlockはEndBoxへ、Charsは配列がStringへ変換される(charOffset/fixedは保持)。 */
