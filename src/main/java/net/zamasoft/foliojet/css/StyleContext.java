@@ -686,9 +686,14 @@ class RuleComparator implements Comparator<Object> {
 	}
 
 	/**
-	 * cascade origin(USER_AGENT &lt; AUTHOR)の昇順を最優先し、同じoriginの中では
-	 * 固有性の昇順、固有性が等しい場合はスタイルシート内の出現順で比較します
-	 * (CSS Cascading and Inheritance: origin → specificity → order)。
+	 * cascade origin(USER_AGENT &lt; AUTHOR)の昇順を最優先し、次に
+	 * cascadeレイヤーの出現順(レイヤーなし{@link Rule#NO_LAYER}が常に
+	 * 最優先、レイヤーどうしでは後から現れたレイヤーが優先)、
+	 * 同じレイヤーの中では固有性の昇順、固有性が等しい場合はスタイル
+	 * シート内の出現順で比較します(CSS Cascading and Inheritance:
+	 * origin/importance → layer → specificity → order。2026-07-21、
+	 * CSS Cascade Layers対応でlayerの段を追加。importantによる
+	 * layer優先順位反転は未対応、{@link Rule#getLayer()}参照)。
 	 */
 	public int compare(Object o1, Object o2) {
 		Rule rule1 = (Rule) o1;
@@ -696,6 +701,10 @@ class RuleComparator implements Comparator<Object> {
 		int origin = rule1.getOrigin().compareTo(rule2.getOrigin());
 		if (origin != 0) {
 			return origin;
+		}
+		int layer = Integer.compare(rule1.getLayer(), rule2.getLayer());
+		if (layer != 0) {
+			return layer;
 		}
 		int specificity = rule1.getSpecificity().compareTo(rule2.getSpecificity());
 		if (specificity != 0) {

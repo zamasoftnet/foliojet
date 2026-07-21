@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 import com.helger.css.decl.CSSDeclaration;
 import com.helger.css.decl.CSSFontFaceRule;
 import com.helger.css.decl.CSSImportRule;
+import com.helger.css.decl.CSSLayerRule;
 import com.helger.css.decl.CSSMediaExpression;
 import com.helger.css.decl.CSSMediaQuery;
 import com.helger.css.decl.CSSMediaRule;
@@ -117,14 +118,14 @@ public class CSSStyleSheetBuilder {
 						source.getEncoding());
 			}
 			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
-				this.rule(rule, uri, true);
+				this.rule(rule, uri, true, Rule.NO_LAYER, null);
 			}
 		} finally {
 			this.uriStack.remove(this.uriStack.size() - 1);
 		}
 	}
 
-	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk) {
+	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk, int layer, String layerNamePrefix) {
 		if (rule instanceof CSSStyleRule styleRule) {
 			if (!mediaOk) {
 				return;
@@ -138,7 +139,7 @@ public class CSSStyleSheetBuilder {
 			}
 			Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
 					ElementPropertySet.getInstance(), this.ua, uri);
-			this.cssStyleSheet.addRule(selectors, declaration, this.origin);
+			this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
 		} else if (rule instanceof CSSMediaRule mediaRule) {
 			boolean ok = false;
 			for (CSSMediaQuery query : mediaRule.getAllMediaQueries()) {
@@ -151,20 +152,62 @@ public class CSSStyleSheetBuilder {
 			// 以前は内側の判定だけで決まり、外側が不一致でも内側の@mediaが
 			// 独立に一致すれば適用されてしまっていた)
 			for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
-				this.rule(inner, uri, mediaOk && ok);
+				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix);
 			}
 		} else if (rule instanceof CSSSupportsRule supportsRule) {
 			boolean ok = this.evaluateSupports(supportsRule.getAllSupportConditionMembers(), uri, 0);
 			for (ICSSTopLevelRule inner : supportsRule.getAllRules()) {
-				this.rule(inner, uri, mediaOk && ok);
+				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix);
 			}
 		} else if (rule instanceof CSSPageRule pageRule) {
 			this.page(pageRule, uri, mediaOk);
 		} else if (rule instanceof CSSFontFaceRule fontFaceRule) {
 			// 従来動作の踏襲: @font-faceはメディアに関係なく登録する
 			this.fontFace(fontFaceRule, uri);
+		} else if (rule instanceof CSSLayerRule layerRule) {
+			this.layer(layerRule, uri, mediaOk, layerNamePrefix);
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+	}
+
+	/**
+	 * {@code @layer}(CSS Cascade Layers、2026-07-21新設)を処理します。
+	 * ブロック形式({@code @layer name { ... }}・匿名{@code @layer { ... }})、
+	 * 文形式({@code @layer a, b, c;}、規則を伴わずレイヤーの出現順だけを
+	 * 確定する)の両方に対応する。ネストした{@code @layer}(レイヤー
+	 * ブロックの中にさらに{@code @layer}がある場合)は、ドット結合した
+	 * 完全名(例: 外側{@code a}・内側{@code b}なら{@code "a.b"})で
+	 * 独立したレイヤーとして登録する(CSS Cascade Layersの入れ子命名と
+	 * 同じ考え方)。{@code !important}によるレイヤー優先順位の反転は
+	 * 未対応(docs/CSS-SUPPORT.md参照)。
+	 */
+	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, String layerNamePrefix) {
+		final List<String> names = layerRule.getAllSelectors();
+		if (layerRule.getAllRules().isEmpty()) {
+			// 文形式(@layer a, b;)、または空ブロック(@layer a {})——
+			// 規則を追加せず出現順だけを確定する
+			for (String name : names) {
+				this.cssStyleSheet.registerNamedLayer(qualifyLayerName(layerNamePrefix, name));
+			}
+			return;
+		}
+		// ブロック形式: 0個(匿名)か1個(名前つき)のはず
+		final int childLayer;
+		final String childPrefix;
+		if (names.isEmpty()) {
+			childLayer = this.cssStyleSheet.registerAnonymousLayer();
+			childPrefix = null;
+		} else {
+			childPrefix = qualifyLayerName(layerNamePrefix, names.get(0));
+			childLayer = this.cssStyleSheet.registerNamedLayer(childPrefix);
+		}
+		for (ICSSTopLevelRule inner : layerRule.getAllRules()) {
+			this.rule(inner, uri, mediaOk, childLayer, childPrefix);
+		}
+	}
+
+	private static String qualifyLayerName(String prefix, String name) {
+		return prefix == null ? name : prefix + "." + name;
 	}
 
 	/**

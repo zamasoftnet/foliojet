@@ -69,13 +69,57 @@ public class CSSStyleSheet {
 			MarginBoxName.class);
 
 	/**
-	 * ルールを追加します(cascade originはAUTHOR)。
+	 * cascadeレイヤーの出現順を登録する台帳です(2026-07-21新設、CSS
+	 * Cascade Layers)。名前つきレイヤーは同じ名前が再度現れても最初の
+	 * 出現順を保つ(spec: 同名レイヤーへの追記であり、順位は変わらない)。
+	 */
+	private final Map<String, Integer> namedLayerOrder = new HashMap<String, Integer>();
+	private int nextLayerOrder = 0;
+
+	/**
+	 * 名前つきレイヤーを登録し、その優先順位番号を返します(初出時に
+	 * 確定、以後同名で呼ばれても同じ番号を返す)。ネストしたレイヤー
+	 * (例: {@code @layer a { @layer b { ... } }})は呼び出し側が
+	 * ドット結合した完全名(例: {@code "a.b"})を渡すことで、独立した
+	 * 名前として扱う。
+	 */
+	public int registerNamedLayer(String fullName) {
+		Integer existing = this.namedLayerOrder.get(fullName);
+		if (existing != null) {
+			return existing;
+		}
+		int order = this.nextLayerOrder++;
+		this.namedLayerOrder.put(fullName, order);
+		return order;
+	}
+
+	/**
+	 * 匿名レイヤー({@code @layer { ... }}、名前なし)用に、呼ばれるたびに
+	 * 新しい優先順位番号を発行します(spec: 匿名レイヤーは常に一意)。
+	 */
+	public int registerAnonymousLayer() {
+		return this.nextLayerOrder++;
+	}
+
+	/**
+	 * ルールを追加します(cascade originはAUTHOR、レイヤーに属さない)。
 	 *
 	 * @param selectors
 	 * @param declaration
 	 */
 	public void addRule(List<Selector> selectors, Declaration declaration) {
-		this.addRule(selectors, declaration, Origin.AUTHOR);
+		this.addRule(selectors, declaration, Origin.AUTHOR, Rule.NO_LAYER);
+	}
+
+	/**
+	 * ルールを追加します(レイヤーに属さない)。
+	 *
+	 * @param selectors
+	 * @param declaration
+	 * @param origin cascade origin
+	 */
+	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin) {
+		this.addRule(selectors, declaration, origin, Rule.NO_LAYER);
 	}
 
 	/**
@@ -84,13 +128,16 @@ public class CSSStyleSheet {
 	 * @param selectors
 	 * @param declaration
 	 * @param origin cascade origin
+	 * @param layer {@link #registerNamedLayer}/{@link #registerAnonymousLayer}
+	 *              が返した優先順位番号(レイヤーに属さないなら
+	 *              {@link Rule#NO_LAYER})
 	 */
-	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin) {
+	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin, int layer) {
 		if (declaration == null) {
 			return;
 		}
 		for (Selector selector : selectors) {// ループすることに注意！
-			Rule rule = new Rule(selector, declaration, this.rules.size(), origin);
+			Rule rule = new Rule(selector, declaration, this.rules.size(), origin, layer);
 			this.rules.add(rule);
 			this.index(rule);
 			collectHasConditions(selector, this.hasConditions);
