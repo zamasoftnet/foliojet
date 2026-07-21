@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -67,8 +68,29 @@ public final class LayoutSourceEventConverter {
 		case FLOW -> new SegmentEvent.BeginBox(new BoxRecipe.Flow(
 				BlockParamsTemplate.freeze((BlockParams) start.params()),
 				FlowPosTemplate.freeze((FlowPos) start.pos())));
+		// MulticolumnBlockBoxはFlowBlockBoxを継承するためBoxKind.FLOWと
+		// 同じBlockParams/FlowPosを使う(既存コード確認済み)
+		case MULTICOL -> new SegmentEvent.BeginBox(new BoxRecipe.Multicol(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
+				FlowPosTemplate.freeze((FlowPos) start.pos())));
 		case INLINE -> new SegmentEvent.BeginBox(new BoxRecipe.Inline(
 				InlineParamsTemplate.freeze((InlineParams) start.params()),
+				InlinePosTemplate.freeze((InlinePos) start.pos())));
+		// OutsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		case MARKER -> new SegmentEvent.BeginBox(new BoxRecipe.Marker(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
+				InlinePosTemplate.freeze((InlinePos) start.pos())));
+		// FloatBlockBoxはBlockParams/FloatPosを使う(既存コード確認済み)
+		case FLOAT_BLOCK -> new SegmentEvent.BeginBox(new BoxRecipe.FloatBlock(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
+				FloatPosTemplate.freeze((FloatPos) start.pos())));
+		// InlineBlockBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		case INLINE_BLOCK -> new SegmentEvent.BeginBox(new BoxRecipe.InlineBlock(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
+				InlinePosTemplate.freeze((InlinePos) start.pos())));
+		// InsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		case INSIDE_MARKER -> new SegmentEvent.BeginBox(new BoxRecipe.InsideMarker(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
 				InlinePosTemplate.freeze((InlinePos) start.pos())));
 		default -> new SegmentEvent.Barrier(Optional.of(mapKind(start.kind())), BarrierReason.NOT_YET_SUPPORTED);
 		};

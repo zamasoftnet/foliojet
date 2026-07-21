@@ -4,6 +4,8 @@ import java.util.List;
 
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
+import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -58,6 +60,39 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertTrue(converted instanceof SegmentEvent.BeginBox);
 		final BoxRecipe.Inline inline = (BoxRecipe.Inline) ((SegmentEvent.BeginBox) converted).recipe();
 		assertEquals(2.0, inline.pos().materialize().lineHeight);
+	}
+
+	/** MulticolumnBlockBoxはFlowBlockBoxを継承するため、BoxKind.FLOWと同じ型で変換される。 */
+	public void testMulticolStartConvertsToBeginBoxWithMulticolRecipe() {
+		final BlockParams params = new BlockParams();
+		params.widows = 4;
+		final SegmentEvent converted = LayoutSourceEventConverter
+				.convert(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL, params, new FlowPos()));
+
+		assertTrue(((SegmentEvent.BeginBox) converted).recipe() instanceof BoxRecipe.Multicol);
+		final BoxRecipe.Multicol multicol = (BoxRecipe.Multicol) ((SegmentEvent.BeginBox) converted).recipe();
+		assertEquals(4, multicol.params().materialize().widows);
+	}
+
+	/** OutsideMarkerBox/InlineBlockBox/InsideMarkerBoxはBlockParams+InlinePosで変換される。 */
+	public void testBlockParamsWithInlinePosBoxKinds() {
+		for (final LayoutSource.BoxKind kind : new LayoutSource.BoxKind[] { LayoutSource.BoxKind.MARKER,
+				LayoutSource.BoxKind.INLINE_BLOCK, LayoutSource.BoxKind.INSIDE_MARKER }) {
+			final SegmentEvent converted = LayoutSourceEventConverter
+					.convert(new LayoutSource.Start(kind, new BlockParams(), new InlinePos()));
+			assertTrue("kind=" + kind, converted instanceof SegmentEvent.BeginBox);
+		}
+	}
+
+	/** FloatBlockBoxはBlockParams+FloatPosで変換される。 */
+	public void testFloatBlockStartConvertsToBeginBoxWithFloatBlockRecipe() {
+		final FloatPos pos = new FloatPos();
+		pos.floating = FloatSide.END;
+		final SegmentEvent converted = LayoutSourceEventConverter
+				.convert(new LayoutSource.Start(LayoutSource.BoxKind.FLOAT_BLOCK, new BlockParams(), pos));
+
+		final BoxRecipe.FloatBlock floatBlock = (BoxRecipe.FloatBlock) ((SegmentEvent.BeginBox) converted).recipe();
+		assertEquals(FloatSide.END, floatBlock.pos().materialize().floating);
 	}
 
 	/** 未対応のBoxKind(例: TABLE)はBarrierへ変換され、種別が明示される。 */

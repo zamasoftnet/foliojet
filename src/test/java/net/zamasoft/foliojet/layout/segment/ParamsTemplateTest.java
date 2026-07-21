@@ -5,6 +5,8 @@ import java.awt.geom.AffineTransform;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
+import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -150,5 +152,23 @@ public class ParamsTemplateTest extends TestCase {
 		assertNotSame(m1, m2);
 		assertEquals(1.5, m1.lineHeight);
 		assertEquals(source.verticalAlign, m2.verticalAlign);
+	}
+
+	/**
+	 * FloatPosはFlowPosと同じAbstractNormalFlowPosを継承するため
+	 * (NormalFlowPosFields経由で)同じ独立性契約を満たす。
+	 */
+	public void testFloatPosMaterializeIsIndependent() {
+		final FloatPos source = new FloatPos();
+		source.floating = FloatSide.END;
+		source.clear = net.zamasoft.foliojet.layout.box.params.ClearMode.BOTH;
+
+		final FloatPosTemplate template = FloatPosTemplate.freeze(source);
+		final FloatPos m1 = template.materialize();
+		final FloatPos m2 = template.materialize();
+
+		assertNotSame(m1, m2);
+		assertEquals(FloatSide.END, m1.floating);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.ClearMode.BOTH, m2.clear);
 	}
 }

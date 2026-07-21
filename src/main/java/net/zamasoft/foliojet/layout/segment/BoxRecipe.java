@@ -36,4 +36,55 @@ public sealed interface BoxRecipe {
 			return BoxKind.INLINE;
 		}
 	}
+
+	/**
+	 * 段組ブロック({@code MulticolumnBlockBox})——{@code FlowBlockBox}を
+	 * 継承するため{@link BoxKind#FLOW}と同じ{@code BlockParams}/
+	 * {@code FlowPos}を使う(既存コード確認済み)。
+	 */
+	record Multicol(BlockParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.MULTICOL;
+		}
+	}
+
+	/**
+	 * 外置きリストマーカー({@code OutsideMarkerBox})——
+	 * {@code BlockParams}/{@code InlinePos}を使う(既存コード確認済み)。
+	 */
+	record Marker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.MARKER;
+		}
+	}
+
+	/**
+	 * 浮動ブロック({@code FloatBlockBox})——{@code BlockParams}/
+	 * {@code FloatPos}を使う(既存コード確認済み)。
+	 */
+	record FloatBlock(BlockParamsTemplate params, FloatPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.FLOAT_BLOCK;
+		}
+	}
+
+	/**
+	 * インラインブロック({@code InlineBlockBox})——{@code BlockParams}/
+	 * {@code InlinePos}を使う(既存コード確認済み)。
+	 */
+	record InlineBlock(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.INLINE_BLOCK;
+		}
+	}
+
+	/**
+	 * 内部マーカー({@code InsideMarkerBox})——{@code BlockParams}/
+	 * {@code InlinePos}を使う(既存コード確認済み)。
+	 */
+	record InsideMarker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.INSIDE_MARKER;
+		}
+	}
 }
