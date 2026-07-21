@@ -11,7 +11,6 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IBox;
-import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
@@ -21,7 +20,6 @@ import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.Pos;
-import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
@@ -93,34 +91,6 @@ public final class LayoutUtils {
 			return lineType != LengthType.ABSOLUTE;
 		}
 		return lineType == LengthType.AUTO;
-	}
-
-	/**
-	 * 表の列幅・寸法が内容に依存する(実測パス=TwoPassTableBuilderが必要)で
-	 * あればtrueを返します。
-	 *
-	 * @param box 表ボックス
-	 * @return 実測が必要であればtrue
-	 */
-	public static boolean needsIntrinsicSizing(TableBox box) {
-		final TableParams params = box.getTableParams();
-		if (params.layout == TableParams.LAYOUT_AUTO) {
-			// 自動レイアウトは実測が必要
-			return true;
-		}
-		if (box.getBlockBox().getPos().getType() != PosType.FLOW) {
-			// 通常のフローにない場合は実測が必要
-			return true;
-		}
-		if (params.size.getPageType(params.flow) != LengthType.AUTO) {
-			// ページ方向の寸法が指定された場合は実測が必要
-			return true;
-		}
-		if (params.size.getLineType(params.flow) == LengthType.AUTO) {
-			// 自動幅の場合は実測が必要
-			return true;
-		}
-		return false;
 	}
 
 	/**

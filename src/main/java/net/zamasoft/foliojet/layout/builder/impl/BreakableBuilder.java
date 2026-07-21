@@ -373,8 +373,16 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			switch (box.getType()) {
 			case TABLE:
 				TableBox tableBox = (TableBox) box;
-				if (!LayoutUtils.needsIntrinsicSizing(tableBox)) {
-					// fixedレイアウトの場合は
+				// 2026-07-21(M6b Phase B5e後始末): 従来はLayoutUtils
+				// .needsIntrinsicSizing(TableBox)という別実装(旧4条件)で
+				// 再判定していたが、これはTableBuildPlanner.plan()と
+				// 完全に重複しており、B5eで追加したORTHOGONAL_WRITING_MODE
+				// 条件がこちらには反映されない食い違いを生んでいた
+				// (実測では実害なしを確認済みだったが、今後同種の条件が
+				// 増えるたびに再発するリスクがあるため解消する)。単一の
+				// 判定点(TableBuildPlanner.plan())へ統一する。
+				if (TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
+					// Incremental(fixedレイアウト等)の場合は
 					// OnePassTableBuilderが再配置する
 					break;
 				}
