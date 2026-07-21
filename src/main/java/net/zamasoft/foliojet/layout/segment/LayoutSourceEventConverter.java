@@ -1,0 +1,94 @@
+package net.zamasoft.foliojet.layout.segment;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.InlineParams;
+import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+
+/**
+ * {@link LayoutSource.Event}を{@link SegmentEvent}へ変換するアダプタ
+ * です(2026-07-22新設、M6d-A3c)。
+ *
+ * <p>
+ * イベント数は1:1を維持する(M6d-A2のordinal対応・将来のshadow比較を
+ * 壊さないため、codex設計相談で確認)。{@link BoxKind#FLOW}/
+ * {@link BoxKind#INLINE}はM6d-A3bのテンプレートで完全に(内容の
+ * 欠落なく)変換する。それ以外の{@code BoxKind}、および
+ * {@code Replaced}/{@code Opaque}(まだ{@code ReplacedRecipe}の
+ * 中身が未設計)は{@link SegmentEvent.Barrier}へ変換する——silent
+ * fallbackを避けるため、理由(常に{@link BarrierReason
+ * #NOT_YET_SUPPORTED})と、判明していれば元の種別を明示する。
+ * </p>
+ *
+ * <p>
+ * {@code LayoutSource}本体・{@code SourceReplayer}には一切関与しない
+ * ——読み取り専用の変換のみを行う。
+ * </p>
+ */
+public final class LayoutSourceEventConverter {
+	private LayoutSourceEventConverter() {
+	}
+
+	/** {@code slice}の全イベントを、対応する{@link SegmentEvent}へ1:1変換する。 */
+	public static List<SegmentEvent> convert(final LayoutSource.ReplaySlice slice) {
+		final List<LayoutSource.Event> events = slice.events();
+		final List<SegmentEvent> result = new ArrayList<>(events.size());
+		for (final LayoutSource.Event event : events) {
+			result.add(convert(event));
+		}
+		return result;
+	}
+
+	/** 単一の{@link LayoutSource.Event}を対応する{@link SegmentEvent}へ変換する。 */
+	public static SegmentEvent convert(final LayoutSource.Event event) {
+		return switch (event) {
+		case LayoutSource.Start start -> convertStart(start);
+		case LayoutSource.EndBlock endBlock -> new SegmentEvent.EndBox();
+		case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) ->
+			new SegmentEvent.Text(charOffset, new String(ch), fixed);
+		// Replaced/Opaqueはそもそも種別情報を保持しない(旧Opaqueは
+		// フィールドなしの位置占有マーカー、旧Replacedはlive boxのみ
+		// 保持——ReplacedRecipeの中身はまだ未設計のためlive boxを見に
+		// 行かず、そのままBarrier化する)
+		case LayoutSource.Replaced replaced ->
+			new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
+		case LayoutSource.Opaque opaque ->
+			new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
+		};
+	}
+
+	private static SegmentEvent convertStart(final LayoutSource.Start start) {
+		return switch (start.kind()) {
+		case FLOW -> new SegmentEvent.BeginBox(new BoxRecipe.Flow(
+				BlockParamsTemplate.freeze((BlockParams) start.params()),
+				FlowPosTemplate.freeze((FlowPos) start.pos())));
+		case INLINE -> new SegmentEvent.BeginBox(new BoxRecipe.Inline(
+				InlineParamsTemplate.freeze((InlineParams) start.params()),
+				InlinePosTemplate.freeze((InlinePos) start.pos())));
+		default -> new SegmentEvent.Barrier(Optional.of(mapKind(start.kind())), BarrierReason.NOT_YET_SUPPORTED);
+		};
+	}
+
+	private static BoxKind mapKind(final LayoutSource.BoxKind kind) {
+		return switch (kind) {
+		case FLOW -> BoxKind.FLOW;
+		case MULTICOL -> BoxKind.MULTICOL;
+		case INLINE -> BoxKind.INLINE;
+		case MARKER -> BoxKind.MARKER;
+		case FLOAT_BLOCK -> BoxKind.FLOAT_BLOCK;
+		case INLINE_BLOCK -> BoxKind.INLINE_BLOCK;
+		case INSIDE_MARKER -> BoxKind.INSIDE_MARKER;
+		case TABLE -> BoxKind.TABLE;
+		case TABLE_ROW_GROUP -> BoxKind.TABLE_ROW_GROUP;
+		case TABLE_ROW -> BoxKind.TABLE_ROW;
+		case TABLE_CELL -> BoxKind.TABLE_CELL;
+		case TABLE_COLUMN_GROUP -> BoxKind.TABLE_COLUMN_GROUP;
+		case TABLE_COLUMN -> BoxKind.TABLE_COLUMN;
+		};
+	}
+}

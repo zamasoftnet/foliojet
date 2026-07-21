@@ -56,9 +56,17 @@ public sealed interface SegmentEvent {
 
 	/**
 	 * まだ正規化・再生に対応していない内容の位置占有マーカーです
-	 * (旧{@code Opaque}相当)。理由({@link BarrierReason})と元の
-	 * ボックス種別を必ず持ち、silent fallbackを避ける。
+	 * (旧{@code Opaque}相当。A3c実装時に判明: 旧{@code Replaced}も
+	 * {@code ReplacedRecipe}の中身が未設計な間はこちらへ変換される)。
+	 * 理由({@link BarrierReason})を必ず持ち、silent fallbackを避ける。
+	 *
+	 * @param kind   元のボックス種別(判明していれば——旧{@code Start}が
+	 *               未対応の{@code BoxKind}を持っていた場合はここに
+	 *               入る)。旧{@code Opaque}・{@code Replaced}はそもそも
+	 *               種別情報を保持しないため空({@link
+	 *               java.util.Optional#empty()})。
+	 * @param reason 理由
 	 */
-	record Barrier(BoxKind kind, BarrierReason reason) implements SegmentEvent {
+	record Barrier(java.util.Optional<BoxKind> kind, BarrierReason reason) implements SegmentEvent {
 	}
 }
