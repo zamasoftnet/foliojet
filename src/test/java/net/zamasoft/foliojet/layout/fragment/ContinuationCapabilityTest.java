@@ -166,13 +166,64 @@ public class ContinuationCapabilityTest extends TestCase {
 				plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE)));
 	}
 
-	/** それ以外の分類はmodeによらず常に収集不能。 */
-	public void testOtherCapabilitiesNeverSupportPageSplitThrough() {
+	/**
+	 * {@code ORTHOGONAL_FLOW}/{@code UNSUPPORTED_BOX}はmodeによらず常に
+	 * 収集不能(2026-07-21のB5でFLOW_SUBTYPE/SAME_AXIS_DIRECTION_CHANGEは
+	 * 自動改ページに限り収集可能になったため、このテストの対象からは
+	 * 除外した——下記{@code testFlowSubtypeAndSameAxisSupportPageSplitThroughOnlyForAutoBreak}参照)。
+	 */
+	public void testOrthogonalAndUnsupportedNeverSupportPageSplitThrough() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
 				plainFlowBlockBox(WritingMode.TB));
-		assertFalse(ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(auto));
-		assertFalse(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(auto));
 		assertFalse(ContinuationCapability.ORTHOGONAL_FLOW.supportsPageSplitThrough(auto));
 		assertFalse(ContinuationCapability.UNSUPPORTED_BOX.supportsPageSplitThrough(auto));
+	}
+
+	/**
+	 * B5(2026-07-21): {@code FLOW_SUBTYPE}(唯一の実装である
+	 * {@code RubyBodyBox})・{@code SAME_AXIS_DIRECTION_CHANGE}(RL/LR
+	 * 混在)は、{@code MULTICOL}と同じ規則(自動改ページのみ収集可能、
+	 * 強制改ページは見送り)で解禁する。codex/grok/agyへの設計相談で
+	 * 「crossExtent/FragmentStateはisVertical()のみに依存し、サブタイプ・
+	 * RL/LRの向きを見ない」ことを確認した上での解禁。
+	 */
+	public void testFlowSubtypeAndSameAxisSupportPageSplitThroughOnlyForAutoBreak() {
+		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
+				plainFlowBlockBox(WritingMode.TB));
+		final net.zamasoft.foliojet.layout.box.content.BreakMode force = new net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode(
+				plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE);
+		assertTrue("自動改ページではFLOW_SUBTYPEを収集可能にするはずです",
+				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(auto));
+		assertFalse("強制改ページではFLOW_SUBTYPEを収集不能のままにするはずです",
+				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(force));
+		assertTrue("自動改ページではSAME_AXIS_DIRECTION_CHANGEを収集可能にするはずです",
+				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(auto));
+		assertFalse("強制改ページではSAME_AXIS_DIRECTION_CHANGEを収集不能のままにするはずです",
+				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(force));
+	}
+
+	/**
+	 * B5(2026-07-21): {@code classify()}は軸判定をサブタイプ判定より先に
+	 * 行うため、直交writing-modeの{@code MulticolumnBlockBox}/
+	 * {@code RubyBodyBox}は{@code MULTICOL}/{@code FLOW_SUBTYPE}ではなく
+	 * {@code ORTHOGONAL_FLOW}に分類される(codexへの設計相談で発見した、
+	 * 旧実装の誤分類を修正)。
+	 */
+	public void testOrthogonalMulticolAndRubyClassifyAsOrthogonalFlowNotSubtype() {
+		final AbstractContainerBox orthogonalMulticol = multicolumnBlockBox(WritingMode.RL);
+		assertEquals(ContinuationCapability.ORTHOGONAL_FLOW,
+				ContinuationCapability.classify(orthogonalMulticol, WritingMode.TB));
+
+		final AbstractContainerBox orthogonalRuby = rubyBodyBox(WritingMode.RL);
+		assertEquals(ContinuationCapability.ORTHOGONAL_FLOW,
+				ContinuationCapability.classify(orthogonalRuby, WritingMode.TB));
+
+		final AbstractContainerBox sameAxisMulticol = multicolumnBlockBox(WritingMode.LR);
+		assertEquals(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE,
+				ContinuationCapability.classify(sameAxisMulticol, WritingMode.RL));
+
+		final AbstractContainerBox sameAxisRuby = rubyBodyBox(WritingMode.LR);
+		assertEquals(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE,
+				ContinuationCapability.classify(sameAxisRuby, WritingMode.RL));
 	}
 }

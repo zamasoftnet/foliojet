@@ -347,12 +347,19 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		System.err.println("vertical-rl-lr-mismatch: RESTYLE_CHAIN_FIRINGS=" + ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
 				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " MAX_PAGE_OPEN_TAIL_DEPTH="
 				+ ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
-		assertTrue("書字方向不一致(vertical-rl祖先+vertical-lr子孫)でもOpenChainが発火するはずです"
-				+ "(段組だけが発火条件ではないことの実証、ChatGPT Pro相談で指摘)",
-				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
-		assertTrue("プレフィックススキャンはSAME_AXIS_DIRECTION_CHANGEで停止したはずです"
-				+ "(B1分類、ページ毎に1回計上)",
-				ContinuationStats.capabilityScanStops(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE) > 0);
+		// 2026-07-21(B5)追記: 当初(B1時点)はSAME_AXIS_DIRECTION_CHANGEが
+		// プレフィックススキャンを止め、OpenChainが発火することを実証する
+		// テストだった。B5で「crossExtent/FragmentStateはisVertical()の
+		// みに依存しRL/LRの向きを見ない」ことをcodex/grok/agyへの設計
+		// 相談で確認した上でSAME_AXIS_DIRECTION_CHANGEを自動改ページで
+		// 収集可能にしたため、このfixtureはもうOpenChainへ落ちない
+		// (MULTICOLがB3aで解禁された際と同型の書き換え)。
+		assertEquals("B5後はSAME_AXIS_DIRECTION_CHANGEがプレフィックススキャンを止めないはずです", 0,
+				ContinuationStats.capabilityScanStops(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE));
+		assertEquals("B5後はPAGE側のOpenChainは完全に消えるはずです", 0,
+				ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
+		assertTrue("RL/LR混在levelが実際にfirst-classコンパイルされたはずです",
+				ContinuationStats.pageCompiledLevels(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE) > 0);
 	}
 
 	private File generateVerticalDirectionMismatch(String name, int depth, int leafLines) throws IOException {

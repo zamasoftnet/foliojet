@@ -21,9 +21,14 @@ public enum ContinuationCapability {
 	MULTICOL,
 
 	/**
-	 * {@code FlowBlockBox}の{@link #MULTICOL}以外のサブタイプ
-	 * (例: {@code RubyBodyBox})。{@code getClass() == FlowBlockBox.class}
-	 * という完全一致判定により機械的に除外される。
+	 * {@code FlowBlockBox}の{@link #MULTICOL}以外のサブタイプ(例:
+	 * {@code RubyBodyBox})、かつanchorと同一書字方向。{@code getClass()
+	 * == FlowBlockBox.class}という完全一致判定により機械的に除外される。
+	 * 2026-07-21(B5)、軸判定をサブタイプ判定より先に行うよう{@link
+	 * #classify}を修正した——直交writing-modeのサブタイプ(例:
+	 * 横書きroot内の縦書きRubyBodyBox)を誤って{@code FLOW_SUBTYPE}
+	 * (収集許可)に分類せず{@link #ORTHOGONAL_FLOW}(収集不許可)に
+	 * 分類するため(codexへの設計相談で発見)。
 	 */
 	FLOW_SUBTYPE,
 
@@ -73,6 +78,16 @@ public enum ContinuationCapability {
 		return switch (this) {
 		case PLAIN_FLOW -> true;
 		case MULTICOL -> !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
+		// 2026-07-21(B5): RubyBodyBox(唯一のFLOW_SUBTYPE実装、
+		// fragmentRecipe()のresolvedAlign欠落は修正済み)・RL/LR混在
+		// (SAME_AXIS_DIRECTION_CHANGE、crossExtent/FragmentStateは
+		// isVertical()のみに依存しRL/LRの向きを見ないため意味論上安全)を
+		// 解禁する。MULTICOLと同様、Force改ページでは見送る——B3b-2で
+		// force split自体はKEEP/MOVEを安全に処理するようになったが、
+		// force+これらの新規admissionの組み合わせは未検証のため、まずは
+		// Autoのみに限定する(将来のB3b-1と合わせて再検討する)。
+		case FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE ->
+			!(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
 		default -> false;
 		};
 	}
@@ -90,7 +105,12 @@ public enum ContinuationCapability {
 	 */
 	public boolean supportsColumnSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW -> !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
+		case PLAIN_FLOW ->
+			!(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
+		// 2026-07-21(B5): PAGE側と同じ理由でRubyBodyBox・RL/LR混在を
+		// COLUMN側でも自動改段のみ解禁する。
+		case FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE ->
+			!(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode);
 		default -> false;
 		};
 	}
@@ -106,13 +126,19 @@ public enum ContinuationCapability {
 		if (!(b instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox)) {
 			return UNSUPPORTED_BOX;
 		}
-		if (b.getClass() != net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class) {
-			return b instanceof net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox ? MULTICOL : FLOW_SUBTYPE;
-		}
+		// 2026-07-21(B5): 軸判定をサブタイプ判定より先に行う(旧実装は
+		// exact-classチェックが先だったため、直交writing-modeの
+		// MulticolumnBlockBox/RubyBodyBox等がORTHOGONAL_FLOWではなく
+		// MULTICOL/FLOW_SUBTYPEに誤分類されていた——codexへの設計相談で
+		// 発見)。全FlowBlockBoxサブタイプに対し、まず軸の一致・不一致を
+		// 一律に判定してから、一致する場合のみサブタイプ固有の分類へ進む。
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = ((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) b)
 				.getBlockParams().flow;
 		if (flow != anchorFlow) {
 			return flow.isVertical() != anchorFlow.isVertical() ? ORTHOGONAL_FLOW : SAME_AXIS_DIRECTION_CHANGE;
+		}
+		if (b.getClass() != net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class) {
+			return b instanceof net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox ? MULTICOL : FLOW_SUBTYPE;
 		}
 		// getColumnCount()<=1はexact-class FlowBlockBoxでは常に真
 		// (AbstractContainerBox.getColumnCount()のデフォルトは1、段組は
