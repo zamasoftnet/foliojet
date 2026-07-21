@@ -672,6 +672,7 @@ public class FlowContainer implements Container {
 			ForceBreakMode force = (ForceBreakMode) mode;
 			int index;
 			net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame chainFrame = null;
+			boolean moved = false;
 			nextBox = new FlowContainer();
 			if (this.box != force.box) {
 				index = this.flows.size() - 1;
@@ -698,7 +699,15 @@ public class FlowContainer implements Container {
 						// this 側に残す — 720行目の chainFrame==null 分岐が
 						// plain(nextBox) へ自然にフォールバックする
 					}
-					case SplitResult.Move move -> nextBox.addFlow(flow.serial, flow.box, 0);
+					case SplitResult.Move move -> {
+						// box全体をnextBox側へ送る。自動改ページ主ループ
+						// (942-950行目)と同様、this.flows側からも除去
+						// しないと同一boxが前後ページに二重に残ってしまう
+						// (除去自体は下のsplitFloatings呼び出しの後——
+						// そちらがthis.flowsの元のサイズを前提にしている)
+						nextBox.addFlow(flow.serial, flow.box, 0);
+						moved = true;
+					}
 					}
 				} else {
 					IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
@@ -711,13 +720,25 @@ public class FlowContainer implements Container {
 					case SplitResult.Keep keep -> {
 						// box 全体を this 側に残す(nextBox には何も加えない)
 					}
-					case SplitResult.Move move -> nextBox.addFlow(flow.serial, flow.box, 0);
+					case SplitResult.Move move -> {
+						// 同上: this.flows側からも除去する(除去はsplitFloatings
+						// 呼び出しの後)
+						nextBox.addFlow(flow.serial, flow.box, 0);
+						moved = true;
+					}
 					}
 				}
 			} else {
 				index = this.flows == null ? 0 : this.flows.size();
 			}
 			nextBox.floatings = this.splitFloatings(pageLimit, flags, index);
+			if (moved) {
+				// splitFloatings(pageLimit, flags, index) は呼び出し時点の
+				// this.flows.size()==index+1 を前提に0..index-1を走査する
+				// ため、除去はその呼び出しの後に行う(先に除去すると
+				// FLAGS_LAST判定がずれる)
+				this.flows.remove(index);
+			}
 			if (nextBox.floatings == this.floatings) {
 				this.floatings = null;
 			}
