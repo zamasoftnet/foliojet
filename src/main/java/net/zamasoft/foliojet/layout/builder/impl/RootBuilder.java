@@ -251,16 +251,14 @@ public class RootBuilder extends BreakableBuilder {
 				anchorPrefix = fc.extractReplayable(ranges, vertical, 0);
 			}
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
-				// 2026-07-22: walk depthはChild=0(このフレームはまだ内側へ
-				// 続く)、OpenTailShape/MovedOpen=実際の残り深さ(codex設計
-				// 相談で確認——0にすると末尾moved flowを閉部分木として
-				// prefixへ吸収し、二重再生または内容消失につながりうる)
+				// walk depthはChild=0(このフレームはまだ内側へ続く)、
+				// OpenTailShape=実際の残り深さ(0にすると末尾moved flowを
+				// 閉部分木としてprefixへ吸収し、二重再生または内容消失に
+				// つながりうる)
 				final int walkDepth = switch (f.tail()) {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child child -> 0;
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 						final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> shape.depth();
-				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(
-						final int openDepth) -> openDepth;
 				};
 				framePrefixes
 						.add(f.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
@@ -282,7 +280,7 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.ColumnAnchor anchor = new net.zamasoft.foliojet.layout.fragment.ColumnAnchor(
 				ownerRemainder, anchorPrefix);
 		final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program = net.zamasoft.foliojet.layout.fragment.ColumnResumeProgramCompiler
-				.compileColumn(columnTarget, anchor, snapshot, childFrame, ranges, prepared.terminalStopReason());
+				.compileColumn(columnTarget, anchor, snapshot, childFrame, ranges);
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnCompiledProgram(program);
 		return new CompiledColumn(program, childFrame, ranges);
 	}
@@ -596,10 +594,6 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe rootRecipe;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState rootState;
 		final double rootCrossExtent;
-		// 2026-07-22(B5c-2 Step2): ルート自身がPlainWithChainStop(MOVE,
-		// 非空container)で打ち切られた場合、末尾のOpenTailShapeを
-		// MovedOpenに置き換える(rootChildFrame==nullのときのみ意味を持つ)
-		boolean rootMovedOpen = false;
 		{
 			final Flow root = (Flow) this.flowStack.get(0);
 
@@ -626,20 +620,13 @@ public class RootBuilder extends BreakableBuilder {
 			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
 					final net.zamasoft.foliojet.layout.box.content.Container chainStopContainer,
 					final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
-				// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
-				{
-					final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-							.current();
-					if (trace != null) {
-						trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChainStopObserved(
-								false, "RootBuilder.pageBreak(root)", reason));
-					}
-				}
-				// 2026-07-22: AbstractBlockBox.splitForContinuationと同じ
-				// 理由(codex設計相談で発見した潜在的コンテンツ消失リスク)。
-				// containerが空の場合のみ「改ページポイントなし」として
-				// falseを返し、実内容がある場合は下の共通ルートフレーム
-				// 構築ロジックへ合流させる。詳細はdocs/history/2026-07-22
+				// AbstractBlockBox.splitForContinuationと同じ理由
+				// (コンテンツ消失リスク)。containerが空の場合のみ
+				// 「改ページポイントなし」としてfalseを返し、実内容が
+				// ある場合は下の共通ルートフレーム構築ロジックへ合流
+				// させる(専用のMovedOpen型は2026-07-22に撤去した、
+				// docs/history/2026-07-22-pagination-contract
+				// -consultation.md参照)。詳細はdocs/history/2026-07-22
 				// -chainstop-content-loss-safety-net.md参照
 				final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 						&& (fc.hasFlows() || fc.hasFloatings());
@@ -647,7 +634,6 @@ public class RootBuilder extends BreakableBuilder {
 					// KEEP/MOVE: 改ページポイントがない場合
 					return false;
 				}
-				rootMovedOpen = reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
 				nextRootContainer = chainStopContainer;
 				rootChildFrame = null;
 			} else if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
@@ -696,15 +682,11 @@ public class RootBuilder extends BreakableBuilder {
 			} else {
 				final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail lastTail = innerFrames
 						.get(innerFrames.size() - 1).tail();
-				// 2026-07-22: MovedOpenもOpenTailShapeと同じ実深さでguardする
-				// (codex設計相談で確認——統計だけの都合で0に落としてはいけない)。
 				// innerFramesの走査規約上lastTailがChildになることは構造的に
 				// ありえない
 				terminalOpenDepth = switch (lastTail) {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 						final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> shape.depth();
-				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(
-						final int openDepth) -> openDepth;
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child child ->
 					throw new IllegalStateException("innerFrames walk must terminate on a non-Child tail");
 				};
@@ -768,15 +750,12 @@ public class RootBuilder extends BreakableBuilder {
 				rootPrefix = fc.extractReplayable(ranges, rootVertical, 0);
 			}
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
-				// 2026-07-22: walk depthはChild=0、OpenTailShape/MovedOpen=
-				// 実際の残り深さ(codex設計相談で確認、上記compileColumnProgram
-				// と同じ理由)
+				// walk depthはChild=0、OpenTailShape=実際の残り深さ
+				// (上記compileColumnProgramと同じ理由)
 				final int walkDepth = switch (f.tail()) {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child child -> 0;
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 						final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> shape.depth();
-				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(
-						final int openDepth) -> openDepth;
 				};
 				framePrefixes.add(f.container() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 						? fc.extractReplayable(ranges, rootVertical, walkDepth)
@@ -795,12 +774,8 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootFrame = new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(
 				rootRecipe, rootState, nextRootContainer, rootCrossExtent, rootPrefix,
-				tail == null
-						? (rootMovedOpen
-								? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(depth)
-								: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
-										net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth)))
-						: tail);
+				tail == null ? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+						net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth)) : tail);
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
 				depth, rootFrame, ranges);
 
@@ -976,33 +951,6 @@ public class RootBuilder extends BreakableBuilder {
 					this.restyleFrame(target, box.getContainer(), frame.prefixItems(), shape);
 					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleFrame(index,
 							net.zamasoft.foliojet.layout.fragment.ResumeOp.TailMode.OPEN_TAIL, shape.depth(),
-							frame.prefixItems()));
-				}
-				return;
-			}
-			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(final int openDepth) -> {
-				// 2026-07-22(M6b Phase B5c-2 Step1): 型だけをOpenTailShapeから
-				// 分離する段階のため、実行はlegacy bridge(直上のOpenTailShape
-				// ケースと全く同じ副作用列)へ委譲する——codex設計相談で確認
-				// (「MovedOpenをno-opや直接drawingにしてはいけない、MOVEされた
-				// boxは既に構築済みだが、内部へ後続のlive contentを流すため
-				// builderのopen flow状態を再建する必要がある」)。B6で専用の
-				// 新executorへ置換する。現時点ではproducerが無いため実際には
-				// 到達しない
-				final net.zamasoft.foliojet.layout.fragment.OpenShape shape = net.zamasoft.foliojet.layout.fragment.OpenShape
-						.of(openDepth);
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(openDepth, false);
-				if (index == 0) {
-					assert frame.prefixItems().isEmpty();
-					box.restyle(target, shape);
-					shadow.actual(
-							new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleWholeBox(index, openDepth));
-				} else {
-					target.startFlowBlock(box);
-					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
-					this.restyleFrame(target, box.getContainer(), frame.prefixItems(), shape);
-					shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleFrame(index,
-							net.zamasoft.foliojet.layout.fragment.ResumeOp.TailMode.OPEN_TAIL, openDepth,
 							frame.prefixItems()));
 				}
 				return;

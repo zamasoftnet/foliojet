@@ -133,19 +133,4 @@ public sealed interface FragmentationEvent {
 	 */
 	record TableSplitEntry(boolean column, String kind, int boxFingerprint) implements FragmentationEvent {
 	}
-
-	/**
-	 * {@code PlainWithChainStop}を呼び出し側が実際に消費した記録です
-	 * (2026-07-22新設、B5c-2の再挑戦診断用)。どの箇所で・どちらの
-	 * {@link ChainStopReason}が観測されたかを記録する——特にMOVEが、
-	 * 本来Frameを構築するはずだった収集可能プレフィックス上のレベルで
-	 * 発生していないかを後から確認するために使う。
-	 *
-	 * @param siteLabel 消費箇所を表す短いラベル(例:
-	 *                  {@code "AbstractBlockBox.splitForContinuation"})
-	 * @param reason    観測された{@link ChainStopReason}
-	 */
-	record ChainStopObserved(boolean column, String siteLabel, ChainStopReason reason)
-			implements FragmentationEvent {
-	}
 }

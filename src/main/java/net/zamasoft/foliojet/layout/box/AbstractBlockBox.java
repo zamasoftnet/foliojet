@@ -244,29 +244,21 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				flags, plan.next());
 		final Container nextContainer;
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
-		// 2026-07-22(B5c-2 Step2): PlainWithChainStop(MOVE, 非空container)の
-		// 場合、tailをOpenTailShapeではなくMovedOpenにする(KEEP+非空
-		// (浮動体オーバーフロー)はMovedOpenではない——codex設計相談で確認)
-		boolean movedOpen = false;
 		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
 				final Container chainStopContainer, final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
-			{
-				final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-						.current();
-				if (trace != null) {
-					trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChainStopObserved(false,
-							"AbstractBlockBox.splitForContinuation", reason));
-				}
-			}
 			// chainStopContainerが実際にflow/floatを保持している場合
 			// (MOVEなら常に、KEEPでも兄弟の浮動体オーバーフローがあれば
 			// 起こりうる——force-branchのsplitFloatings(pageLimit, flags,
 			// index)はKEEP/MOVEどちらでも兄弟の浮動体を検分するため)、
 			// 破棄すると内容が消える。containerが空の場合のみreasonを
 			// そのままbareなKEEP/MOVEとして返し、実内容がある場合は下の
-			// 共通Frame構築ロジックへ合流させる。codex設計相談で確認、
-			// 詳細はdocs/history/2026-07-22-chainstop-content-loss-safety
-			// -net.md・2026-07-22-b5c2-movedopen-design-and-step1.md参照
+			// 共通Frame構築ロジックへ合流させる(tailは常にOpenTailShape
+			// ——MOVE/KEEPどちらでも同じ「開いたまま続く」を表す。専用の
+			// MovedOpen型は2026-07-22に撤去した、
+			// docs/history/2026-07-22-pagination-contract-consultation.md
+			// 参照)。詳細は
+			// docs/history/2026-07-22-chainstop-content-loss-safety-net.md
+			// 参照
 			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 					&& (fc.hasFlows() || fc.hasFloatings());
 			if (!hasContent) {
@@ -274,7 +266,6 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 						? net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP
 						: net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
 			}
-			movedOpen = reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
 			nextContainer = chainStopContainer;
 			childFrame = null;
 		} else if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(final Container c,
@@ -301,11 +292,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
 		final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = childFrame != null
 				? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(childFrame)
-				: movedOpen
-						? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.MovedOpen(
-								plan.openTailDepth())
-						: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
-								net.zamasoft.foliojet.layout.fragment.OpenShape.of(plan.openTailDepth()));
+				: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
+						net.zamasoft.foliojet.layout.fragment.OpenShape.of(plan.openTailDepth()));
 		return new net.zamasoft.foliojet.layout.fragment.SplitResult.Frame(
 				new net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame(recipe, state, nextContainer,
 						crossExtent, java.util.List.of(), tail));

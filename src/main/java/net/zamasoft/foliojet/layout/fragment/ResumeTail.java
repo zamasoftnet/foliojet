@@ -26,19 +26,4 @@ public sealed interface ResumeTail {
 	 */
 	record LegacyOpen(int firstOpenPathIndex, int openDepth, LegacyTailCause cause) implements ResumeTail {
 	}
-
-	/**
-	 * plan選択済みチェーンメンバーがMOVEで打ち切られた継続
-	 * ({@link Continuation.OpenTail.MovedOpen}由来、2026-07-22新設、
-	 * M6b Phase B5c-2 Step1)。{@link LegacyOpen}の
-	 * {@code LegacyTailCause.SplitStopped}相当だが、KEEP/MOVE混同を
-	 * 分離するため独立したvariantにする。実行はB5c-2完了までlegacy
-	 * bridge(box-restyle経由のOpenChain再帰)へ委譲する——型だけを
-	 * 先に分離する。
-	 *
-	 * @param firstOpenPathIndex levels直後、未コンパイル部分の開始位置
-	 * @param openDepth          未コンパイル部分の深さ
-	 */
-	record MovedOpen(int firstOpenPathIndex, int openDepth) implements ResumeTail {
-	}
 }

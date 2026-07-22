@@ -396,25 +396,14 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
 		final Container remainder;
 		final Continuation.ContinuationFrame childFrame;
-		// 2026-07-22(B5c-2 段階4): owner直下自身がPlainWithChainStop
-		// (非空container)で打ち切られた場合のreasonを保持する——
-		// PreparedColumnCut経由でColumnResumeProgramCompilerまで運び、
-		// MovedOpenを構築できるようにする(codex設計相談で確認)
-		net.zamasoft.foliojet.layout.fragment.ChainStopReason terminalStopReason = null;
 		if (cut instanceof ContainerCut.PlainWithChainStop(final Container chainStopContainer,
 				final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
-			{
-				final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-						.current();
-				if (trace != null) {
-					trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChainStopObserved(true,
-							"AbstractContainerBox.prepareColumnCut", reason));
-				}
-			}
-			// 2026-07-22: AbstractBlockBox.splitForContinuationと同じ理由
-			// (codex設計相談で発見した潜在的コンテンツ消失リスク)。
-			// containerが空の場合のみbareなKEEP/MOVEとして返し、実内容が
-			// ある場合は下の共通Cut構築ロジックへ合流させる。詳細は
+			// AbstractBlockBox.splitForContinuationと同じ理由(コンテンツ
+			// 消失リスク)。containerが空の場合のみbareなKEEP/MOVEとして
+			// 返し、実内容がある場合は下の共通Cut構築ロジックへ合流させる
+			// (childFrameは常にnull——専用のMovedOpen型は2026-07-22に撤去
+			// した、docs/history/2026-07-22-pagination-contract
+			// -consultation.md参照)。詳細は
 			// docs/history/2026-07-22-chainstop-content-loss-safety-net.md
 			// 参照
 			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
@@ -423,7 +412,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 				return reason == net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP ? new ColumnCutResult.Keep()
 						: new ColumnCutResult.Move();
 			}
-			terminalStopReason = reason;
 			remainder = chainStopContainer;
 			childFrame = null;
 		} else if (cut instanceof ContainerCut.WithFrame(final Container c, final Continuation.ContinuationFrame f)) {
@@ -441,8 +429,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 			return new ColumnCutResult.Move();
 		}
 
-		return new ColumnCutResult.Cut(new PreparedColumnCut(this, ownerContainer, activeColumn, actualColumns,
-				pageLimit, remainder, childFrame, terminalStopReason));
+		return new ColumnCutResult.Cut(
+				new PreparedColumnCut(this, ownerContainer, activeColumn, actualColumns, pageLimit, remainder, childFrame));
 	}
 
 	/**
