@@ -169,28 +169,38 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * {@code ORTHOGONAL_FLOW}/{@code UNSUPPORTED_BOX}はmodeによらず常に
-	 * 収集不能(B3b-1(2026-07-21)以降、他の全capability——{@code
-	 * MULTICOL}/{@code FLOW_SUBTYPE}/{@code SAME_AXIS_DIRECTION_CHANGE}——は
-	 * mode非依存で収集可能になったため、この2つだけが引き続きbarrier)。
+	 * {@code ORTHOGONAL_FLOW}/{@code UNSUPPORTED_BOX}/
+	 * {@code SAME_AXIS_DIRECTION_CHANGE}はmodeによらず常に収集不能
+	 * (2026-07-22の改ページ契約でatomic対象と確定、
+	 * docs/history/2026-07-22-pagination-contract-consultation.md参照
+	 * ——{@code SAME_AXIS_DIRECTION_CHANGE}はB5bで一時収集可能にして
+	 * いたが撤回した)。{@code MULTICOL}/{@code FLOW_SUBTYPE}はmode
+	 * 非依存で収集可能なまま。
 	 */
 	public void testOrthogonalAndUnsupportedNeverSupportPageSplitThrough() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
 				plainFlowBlockBox(WritingMode.TB));
+		final net.zamasoft.foliojet.layout.box.content.BreakMode force = new net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode(
+				plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE);
 		assertFalse(ContinuationCapability.ORTHOGONAL_FLOW.supportsPageSplitThrough(auto));
 		assertFalse(ContinuationCapability.UNSUPPORTED_BOX.supportsPageSplitThrough(auto));
+		assertFalse("改ページ契約(2026-07-22)によりSAME_AXIS_DIRECTION_CHANGEはatomic対象です",
+				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(auto));
+		assertFalse("強制改ページでも同様にatomic対象です",
+				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(force));
 	}
 
 	/**
 	 * B5(2026-07-21)で{@code FLOW_SUBTYPE}(唯一の実装である
-	 * {@code RubyBodyBox})・{@code SAME_AXIS_DIRECTION_CHANGE}(RL/LR
-	 * 混在)は、当時の{@code MULTICOL}と同じ規則(自動改ページのみ収集可能、
-	 * 強制改ページは見送り)で解禁した。B3b-1(2026-07-21)でMULTICOLの
-	 * 強制改ページ制限を撤去したのに合わせ、同じ理由(選択された
-	 * チェーンメンバーのKEEP/MOVE処理はB3b-2以降mode非依存)でこちらも
-	 * 撤去した。
+	 * {@code RubyBodyBox})を、当時の{@code MULTICOL}と同じ規則
+	 * (自動改ページのみ収集可能、強制改ページは見送り)で解禁した。
+	 * B3b-1(2026-07-21)でMULTICOLの強制改ページ制限を撤去したのに合わせ、
+	 * 同じ理由(選択されたチェーンメンバーのKEEP/MOVE処理はB3b-2以降
+	 * mode非依存)でこちらも撤去した。{@code FLOW_SUBTYPE}は単なる
+	 * Javaクラスの違い(挙動は素の{@code FlowBlockBox}と同じ)のため、
+	 * 2026-07-22の改ページ契約でも収集可能のまま維持している。
 	 */
-	public void testFlowSubtypeAndSameAxisSupportPageSplitThroughRegardlessOfMode() {
+	public void testFlowSubtypeSupportsPageSplitThroughRegardlessOfMode() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
 				plainFlowBlockBox(WritingMode.TB));
 		final net.zamasoft.foliojet.layout.box.content.BreakMode force = new net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode(
@@ -199,10 +209,6 @@ public class ContinuationCapabilityTest extends TestCase {
 				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(auto));
 		assertTrue("B3b-1以降、強制改ページでもFLOW_SUBTYPEを収集可能にするはずです",
 				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(force));
-		assertTrue("自動改ページではSAME_AXIS_DIRECTION_CHANGEを収集可能にするはずです",
-				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(auto));
-		assertTrue("B3b-1以降、強制改ページでもSAME_AXIS_DIRECTION_CHANGEを収集可能にするはずです",
-				ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE.supportsPageSplitThrough(force));
 	}
 
 	/**

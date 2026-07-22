@@ -35,10 +35,15 @@ public enum ContinuationCapability {
 	/**
 	 * ルートと同じ軸(横書き/縦書き)だが、方向が異なる
 	 * (例: {@code vertical-rl}祖先の途中に{@code vertical-lr})。
-	 * 実際の内部切断可否({@code FlowContainer.splitPageAxis})・自動
-	 * 改ページ障壁({@code BreakableBuilder.startFlowBlock})はどちらも
-	 * {@code isVertical()}の一致しか見ないため、この分類は「切断自体は
-	 * できるのに事前検分だけが不必要に厳しい」ケース。
+	 * 2026-07-22の改ページ契約(docs/history/2026-07-22-pagination
+	 * -contract-consultation.md参照)により、この分類は{@link
+	 * #ORTHOGONAL_FLOW}と同じく非収集(atomic)対象——収集可能に一時
+	 * 解禁していた(B5b、2026-07-21)が、実装しやすさ優先の方針転換に
+	 * より撤回した。{@code BreakableBuilder.startFlowBlock()}の
+	 * {@code breakDepth}障壁も{@code isVertical()}だけでなく
+	 * {@code WritingMode}完全一致で判定するよう同時に拡張済みのため、
+	 * このボックスの祖先チェーンは実際にatomic(丸ごと収まるか丸ごと
+	 * 次ページへ送られるか)になる。
 	 */
 	SAME_AXIS_DIRECTION_CHANGE,
 
@@ -79,28 +84,35 @@ public enum ContinuationCapability {
 	 * どの{@link ContinuationCapability}であっても同じ経路で処理される
 	 * ため、mode依存の制限を維持する理由がなくなった。
 	 * </p>
+	 *
+	 * <p>
+	 * {@link #SAME_AXIS_DIRECTION_CHANGE}は2026-07-21(B5b)に一時解禁して
+	 * いたが、2026-07-22の改ページ契約により撤回した(atomic対象、
+	 * docs/history/2026-07-22-pagination-contract-consultation.md参照)。
+	 * </p>
 	 */
 	public boolean supportsPageSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW, MULTICOL, FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE -> true;
+		case PLAIN_FLOW, MULTICOL, FLOW_SUBTYPE -> true;
 		default -> false;
 		};
 	}
 
 	/**
 	 * COLUMN経由(段組ownerより内側の子孫)のsplit-throughを許可するかを
-	 * 判定します(2026-07-21新設、M6b Phase B B4、B5でRubyBodyBox・RL/LR
-	 * 混在を解禁、B3b-1で強制改段も解禁——PAGE側の
-	 * {@link #supportsPageSplitThrough}と同じ理由で、B3b-2により選択済み
-	 * チェーンメンバーのKEEP/MOVE処理がmode非依存の正規経路になったため、
-	 * 強制改段だけ制限する理由がなくなった)。descendant側の
-	 * {@link #MULTICOL}(段組ownerの内側にさらに現れる別の段組)は引き続き
-	 * {@code LegacyOpen}のbarrierとして残す(owner自体は分類対象外、
-	 * ownerの内側にさらに現れる別のMULTICOLだけがこの分岐に到達する)。
+	 * 判定します(2026-07-21新設、M6b Phase B B4、B3b-1で強制改段も解禁
+	 * ——PAGE側の{@link #supportsPageSplitThrough}と同じ理由で、B3b-2
+	 * により選択済みチェーンメンバーのKEEP/MOVE処理がmode非依存の正規
+	 * 経路になったため、強制改段だけ制限する理由がなくなった)。
+	 * descendant側の{@link #MULTICOL}(段組ownerの内側にさらに現れる
+	 * 別の段組)は引き続き{@code LegacyOpen}のbarrierとして残す
+	 * (owner自体は分類対象外、ownerの内側にさらに現れる別のMULTICOLだけ
+	 * がこの分岐に到達する)。{@link #SAME_AXIS_DIRECTION_CHANGE}は
+	 * {@link #supportsPageSplitThrough}と同じ理由で撤回した。
 	 */
 	public boolean supportsColumnSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW, FLOW_SUBTYPE, SAME_AXIS_DIRECTION_CHANGE -> true;
+		case PLAIN_FLOW, FLOW_SUBTYPE -> true;
 		default -> false;
 		};
 	}

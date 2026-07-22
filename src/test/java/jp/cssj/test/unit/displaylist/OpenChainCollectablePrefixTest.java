@@ -462,15 +462,27 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 段組だけがOpenChainの発火条件ではない(2026-07-21、ChatGPT Pro相談で
-	 * 指摘・検証済み)。{@code RootBuilder.pageBreak()}の事前検分は
-	 * 祖先の{@code WritingMode}がルートと完全一致することを要求するが、
-	 * 実際の内部切断可否(`FlowContainer.splitPageAxis`)・自動改ページの
-	 * 障壁(`BreakableBuilder.startFlowBlock`)はどちらも
-	 * {@code isVertical()}の一致しか見ていない。したがって
-	 * {@code vertical-rl}の祖先チェーンの途中に{@code vertical-lr}
-	 * (縦書きのまま方向だけ違う)が挟まっても、実際の切断はできるのに
-	 * 事前検分だけが失敗し、段組と同型のOpenChain発火に至る。
+	 * 2026-07-22の改ページ契約(docs/history/2026-07-22-pagination
+	 * -contract-consultation.md参照)により、{@code vertical-rl}祖先の
+	 * 途中に{@code vertical-lr}(縦書きのまま方向だけ違う)が挟まる
+	 * ケースは意図的にatomic(この祖先チェーンは分割せず、丸ごと収まる
+	 * か丸ごと次ページへ送られるか)にした。B5(2026-07-21)で一時的に
+	 * 「実際の内部切断可否はisVertical()の一致しか見ないので収集可能に
+	 * してよい」と判断し収集可能化していたが、方針転換により撤回した
+	 * ——{@code BreakableBuilder.startFlowBlock()}の{@code breakDepth}
+	 * 障壁も{@code isVertical()}だけでなく{@code WritingMode}完全一致で
+	 * 判定するよう同時に拡張したため、実際に軸不一致(直交writing-mode)
+	 * と同じ「祖先チェーンとしては分割不能」という扱いになる。
+	 *
+	 * <p>
+	 * ただし内部のテキスト継続(改ページ時の行分割)は{@code TextBlockBox}
+	 * /{@code BreakToken}という別の(ARCHITECTURE.md §5.9で完成済みの)
+	 * 機構が担っており、{@code breakDepth}の対象外——このfixtureは実際に
+	 * 17ページへ正しく改ページされ(実測確認済み)、legacy `OpenChain`の
+	 * 深い再帰(`RESTYLE_CHAIN_FIRINGS`)を経由せず、バリア到達時の
+	 * 残り深さも1(単一レベル、危険な再帰ではない)にとどまることを
+	 * 固定する。
+	 * </p>
 	 */
 	public void testMixedVerticalDirectionAncestorAlsoTriggersOpenChain() throws Exception {
 		ContinuationStats.reset();
@@ -493,19 +505,28 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		System.err.println("vertical-rl-lr-mismatch: RESTYLE_CHAIN_FIRINGS=" + ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
 				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " MAX_PAGE_OPEN_TAIL_DEPTH="
 				+ ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
-		// 2026-07-21(B5)追記: 当初(B1時点)はSAME_AXIS_DIRECTION_CHANGEが
-		// プレフィックススキャンを止め、OpenChainが発火することを実証する
-		// テストだった。B5で「crossExtent/FragmentStateはisVertical()の
-		// みに依存しRL/LRの向きを見ない」ことをcodex/grok/agyへの設計
-		// 相談で確認した上でSAME_AXIS_DIRECTION_CHANGEを自動改ページで
-		// 収集可能にしたため、このfixtureはもうOpenChainへ落ちない
-		// (MULTICOLがB3aで解禁された際と同型の書き換え)。
-		assertEquals("B5後はSAME_AXIS_DIRECTION_CHANGEがプレフィックススキャンを止めないはずです", 0,
+		// 2026-07-22(改ページ契約): breakDepth拡張(BreakableBuilder
+		// .startFlowBlock)により、書字方向不一致の祖先チェーンの内側では
+		// ブロック境界の自動改ページ自体が一切発火しなくなった。この
+		// fixtureのテキスト本体はブロックではなく連続テキスト
+		// (`<br/>`区切りの1つの連続text)なので、既存の(ARCHITECTURE.md
+		// §5.9で完成済みの)TextBlockBox/BreakToken機構が改ページを担い、
+		// この機構はブロックレベルのOpenChain/collectable-prefixスキャン
+		// を一切経由しない——実測で
+		// capabilityScanStops(SAME_AXIS_DIRECTION_CHANGE)・
+		// pageCompiledLevels(SAME_AXIS_DIRECTION_CHANGE)・
+		// RESTYLE_CHAIN_FIRINGSがすべて0のまま、17ページへ安全に
+		// 改ページされることを確認済み(このRL/LR祖先チェーン自体は
+		// 一度も「開いたまま継続」する対象にならない、という意味で
+		// 真にatomic)。
+		assertEquals("SAME_AXIS_DIRECTION_CHANGEの祖先はスキャン自体の対象にならないはずです", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE));
-		assertEquals("B5後はPAGE側のOpenChainは完全に消えるはずです", 0,
+		assertEquals("RL/LR混在levelはfirst-classコンパイルされないはずです", 0,
+				ContinuationStats.pageCompiledLevels(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE));
+		assertEquals("legacy OpenChainの深い再帰も発生しないはずです", 0,
 				ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
-		assertTrue("RL/LR混在levelが実際にfirst-classコンパイルされたはずです",
-				ContinuationStats.pageCompiledLevels(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE) > 0);
+		assertEquals("PAGE/COLUMN合算でもOpenChainは発火しないはずです", 0,
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
 	}
 
 	private File generateVerticalDirectionMismatch(String name, int depth, int leafLines) throws IOException {

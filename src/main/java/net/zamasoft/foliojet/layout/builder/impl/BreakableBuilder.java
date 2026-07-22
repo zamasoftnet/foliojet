@@ -229,7 +229,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		if (this.breakDepth == -1) {
-			if (this.getFlow().box.getBlockParams().flow.isVertical() != flowBox.getBlockParams().flow.isVertical()) {
+			// 改ページ契約(2026-07-22、docs/history/2026-07-22-pagination
+			// -contract-consultation.md参照): 軸違い(TB⇄RL/LR)だけでなく
+			// 同軸内の方向違い(RL⇄LR)もこの祖先チェーンをatomicにする
+			// (直交writing-mode表と同じ扱いを、通常フローのブロックにも
+			// 一般化する)。WritingModeはenumなので参照比較で十分
+			// (isVertical()だけの比較では軸が同じRL/LRの違いを見逃す)。
+			if (this.getFlow().box.getBlockParams().flow != flowBox.getBlockParams().flow) {
 				this.breakDepth = 0;
 			}
 		} else {
