@@ -10,7 +10,7 @@ version = '3.5.0-SNAPSHOT'
 
 def dependencyVersions = [
     cti              : '2.2.3',
-    pdfg2d           : '1.2.0',
+    pdfg2d           : '1.3.0-SNAPSHOT',
     zstream          : '1.0.0-SNAPSHOT',
     commonsIo        : '2.21.0',
     batik            : '1.19',
