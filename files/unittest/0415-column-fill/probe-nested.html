@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<title>Balance probe: nested multicol (outer falls back, inner adopts)</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	border: 5pt solid Red;
+}
+div.outer {
+	column-count: 2;
+	column-fill: balance;
+	border: 2pt solid Blue;
+	margin: 5pt;
+	padding: 5pt;
+}
+div.inner {
+	column-count: 2;
+	column-fill: balance;
+	border: 1pt solid Green;
+}
+p {
+	margin: 0;
+}
+</style>
+</head>
+<body>
+<div class="outer" id="a">
+<p>いいいいいいい</p>
+<p>ろろろろろろろ</p>
+<div class="inner" id="i">
+<p>ははははははは</p>
+<p>ににににににに</p>
+<p>ほほほほほほほ</p>
+</div>
+<p>へへへへへへへ</p>
+<p id="b">ととととととと</p>
+</div>
+</body>
+</html>

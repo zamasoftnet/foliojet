@@ -78,45 +78,62 @@ public final class BalanceProbe {
 	}
 
 	/**
-	 * オプトインが有効な場合のみプローブを実行し、結果を観測します
-	 * (M6c-3: commitしない。既定falseでは何もしない=挙動不変)。
+	 * オプトインが有効な場合のみプローブを実行し、winnerが得られれば
+	 * ownerへ<b>実採用(commit)</b>します(M6c-4で観測→採用へ切替。
+	 * 既定falseでは何もしない=既定挙動は不変)。
 	 * {@code AbstractContainerBox.balance()}が既存の容量計算の直後・
-	 * owner変異の前に呼ぶ。
+	 * owner変異の前に呼び、trueが返ればlegacy再構築を行わない。
+	 *
+	 * <p>
+	 * <b>例外方針</b>: commit開始前(入力凍結・探索)のRuntimeException
+	 * は握り潰してlegacyへフォールバックしてよい(候補はliveから完全に
+	 * 隔離されており何もcommitしていないため)。commit
+	 * ({@code MulticolumnBlockBox.commitBalance})開始後の例外は
+	 * 握り潰さず変換全体を中断する——codex設計§1.7。
+	 * </p>
 	 *
 	 * @param owner        バランス対象
 	 * @param builder      liveビルダー(RootBuilder到達のみに使う)
 	 * @param columnCount  指定段数
 	 * @param seedCapacity 現行ColumnBalancerが計算した容量(最初の候補)
+	 * @return winnerをownerへcommitした場合true(呼び出し側はlegacy
+	 *         balanceを行わない)。不適格・フォールバック時false
 	 */
-	public static void observeIfEnabled(final AbstractContainerBox owner, final BlockBuilder builder,
+	public static boolean adoptIfEnabled(final AbstractContainerBox owner, final BlockBuilder builder,
 			final int columnCount, final double seedCapacity) {
 		if (!LayoutExecutionScope.isLive()) {
 			// 再入ベルト(プローブ中の候補が更にbalanceへ入っても何もしない
 			// ——nested multicolは入力ゲートで除外済みだが、防御的に切る)
-			return;
+			return false;
 		}
 		final RootBuilder root = builder.getPageContext();
 		if (root == null) {
 			// rootless文脈(TwoPass系等)はソースログに到達できない
-			return;
+			return false;
 		}
 		final UserAgent ua = root.getPageGenerator().getUserAgent();
 		if (!UAProps.PROCESSING_BALANCE_PROBE.getBoolean(ua)) {
-			return;
+			return false;
 		}
 		ContinuationStats.recordBalanceProbeSession();
+		final MulticolumnBlockBox multicol;
+		final BalanceCommit commit;
 		try {
-			if (!(owner instanceof MulticolumnBlockBox multicol) || !root.isSegmentRestyle()) {
+			if (!(owner instanceof MulticolumnBlockBox m) || !root.isSegmentRestyle()) {
 				ContinuationStats.recordBalanceProbeFallback();
-				return;
+				return false;
 			}
+			multicol = m;
 			final Optional<BalanceProbeInput> input = BalanceProbeInput.capture(
 					root.getPageGenerator().getLayoutSource(), owner.getSourceAnchor(), multicol, columnCount, ua);
 			if (input.isEmpty()) {
 				ContinuationStats.recordBalanceProbeFallback();
-				return;
+				return false;
 			}
 			ContinuationStats.recordBalanceProbeEligible();
+			// commit直前のidentity検証用(§1.2)。プローブはliveへ触れない
+			// ため、探索中にこのcontainerが変わることはないはずである
+			final net.zamasoft.foliojet.layout.box.content.Container expectedOwnerContainer = multicol.getContainer();
 			final BalanceProbeSession session = new BalanceProbeSession(input.get());
 			final Result result = search(session::build, columnCount, seedCapacity);
 			switch (result) {
@@ -127,9 +144,7 @@ public final class BalanceProbe {
 							+ " capacity=" + winner.committedCapacity() + " (requested=" + winner.requestedCapacity()
 							+ ", seed=" + seedCapacity + ", builds=" + builds + ", used=" + winner.usedExtents() + ")");
 				}
-				// M6c-3: winnerはここで破棄する(ownerへのcommitはM6c-4)。
-				// live側はcandidateへの参照を一切保持しない——メソッドを
-				// 抜けた時点で候補一式はGC可能
+				commit = new BalanceCommit(expectedOwnerContainer, winner);
 			}
 			case Result.Fallback(final String reason, final int builds) -> {
 				ContinuationStats.recordBalanceProbeBuilds(builds);
@@ -138,17 +153,21 @@ public final class BalanceProbe {
 					LOG.fine("balance probe fallback: " + reason + " (seed=" + seedCapacity + ", builds=" + builds
 							+ ")");
 				}
+				return false;
 			}
 			}
 		} catch (final RuntimeException e) {
-			// M6c-3は観測のみ(何もcommitしていない)ため、候補構築中の例外で
+			// commit開始前: 何もcommitしていないため、候補構築中の例外で
 			// 変換全体を落とさず既存balanceへ安全にフォールバックする
-			// (2026-07-24のユーザー較正: クラッシュ排除が最優先。M6c-4で
-			// commitを始めたら、commit開始後の例外はここで握り潰しては
-			// いけない——変換全体を中断する。codex設計§1.7)
+			// (2026-07-24のユーザー較正: クラッシュ排除が最優先)
 			ContinuationStats.recordBalanceProbeFallback();
-			LOG.log(Level.FINE, "balance probe failed; falling back to the legacy balance", e);
+			LOG.log(Level.FINE, "balance probe failed before commit; falling back to the legacy balance", e);
+			return false;
 		}
+		// ---- commit開始: ここから先の例外は握り潰さず変換全体を中断する ----
+		multicol.commitBalance(commit);
+		ContinuationStats.recordBalanceProbeCommit();
+		return true;
 	}
 
 	/**
@@ -173,9 +192,13 @@ public final class BalanceProbe {
 			best = candidate;
 			upper = Math.min(seed, candidate.committedCapacity());
 		} else {
-			// 収まらない: 倍増して最初に収まった候補を上界とする
+			// 収まらない: 倍増して最初に収まった候補を上界とする。
+			// 下限(MIN_PAGE_LIMIT)未満の容量は物理的に同一の構築になる
+			// (BreakableBuilder.getPageLimitの床)ため、倍増は床から始めて
+			// 冗長な試行を省く(M6c-4)
 			lower = seed;
-			double doubled = Math.max(seed, 1);
+			double doubled = Math.max(seed,
+					net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder.MIN_PAGE_LIMIT);
 			best = null;
 			while (best == null && builds < MAX_PROBES) {
 				doubled *= 2;
@@ -198,7 +221,10 @@ public final class BalanceProbe {
 					builds);
 		}
 
-		while (builds < MAX_PROBES && upper - lower > BalanceCandidate.TOLERANCE) {
+		// 上界が下限(20pt床)以下なら、それ以上細かい容量は物理的に区別
+		// できない(全て床で組まれる)ため探索を打ち切る(M6c-4)
+		while (builds < MAX_PROBES && upper - lower > BalanceCandidate.TOLERANCE
+				&& upper > net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder.MIN_PAGE_LIMIT) {
 			final double mid = (lower + upper) / 2;
 			candidate = session.build(mid);
 			++builds;

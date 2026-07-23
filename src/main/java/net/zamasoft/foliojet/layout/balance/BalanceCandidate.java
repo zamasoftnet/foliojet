@@ -28,7 +28,8 @@ public final class BalanceCandidate {
 	private final double committedCapacity;
 	private final int actualColumns;
 	private final List<Double> usedExtents;
-	private final MulticolumnBlockBox candidateBox;
+	/** {@link #takeContainer()}で解放される(shellをどこにも保持しないため——M6c-4)。 */
+	private MulticolumnBlockBox candidateBox;
 	private boolean containerTaken = false;
 
 	BalanceCandidate(final double requestedCapacity, final double committedCapacity, final int actualColumns,
@@ -64,29 +65,44 @@ public final class BalanceCandidate {
 		return this.usedExtents;
 	}
 
-	/** 候補shell(新品の{@code MulticolumnBlockBox})です。 */
+	/**
+	 * 候補shell(新品の{@code MulticolumnBlockBox})です。
+	 * {@link #takeContainer()}後は解放済みのため呼べない。
+	 */
 	public MulticolumnBlockBox candidateBox() {
+		if (this.containerTaken) {
+			throw new IllegalStateException("candidate shell was released by takeContainer()");
+		}
 		return this.candidateBox;
 	}
 
 	/**
 	 * 指定段数・試行容量に収まったかを判定します(実カラム数と実測extent
-	 * だけで判定——論理コンテンツ量は見ない)。
+	 * だけで判定——論理コンテンツ量は見ない)。容量には実構築と同じ
+	 * {@code BreakableBuilder.getPageLimit()}の下限
+	 * ({@link net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder#MIN_PAGE_LIMIT})
+	 * を適用する——下限未満の試行容量は物理的には下限で組まれるため、
+	 * 判定も同じ床で比較しないと「組んだ実物」と食い違う(M6c-4)。
 	 */
 	public boolean fits(final int columnCount) {
-		return this.actualColumns <= columnCount && this.committedCapacity <= this.requestedCapacity + TOLERANCE;
+		final double effectiveCapacity = Math.max(this.requestedCapacity,
+				net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder.MIN_PAGE_LIMIT);
+		return this.actualColumns <= columnCount && this.committedCapacity <= effectiveCapacity + TOLERANCE;
 	}
 
 	/**
 	 * 候補のコンテナを取り出します。<b>一回だけ</b>呼べる——winnerの
 	 * ownerへの接続(M6c-4)を正確に一回に限定するため、二回目は
-	 * {@link IllegalStateException}を投げる。
+	 * {@link IllegalStateException}を投げる。取り出しと同時にshellへの
+	 * 参照を解放する(commit後にshellをどこにも保持しない——§1.7)。
 	 */
 	public Container takeContainer() {
 		if (this.containerTaken) {
 			throw new IllegalStateException("candidate container was already taken");
 		}
 		this.containerTaken = true;
-		return this.candidateBox.getContainer();
+		final Container container = this.candidateBox.getContainer();
+		this.candidateBox = null;
+		return container;
 	}
 }

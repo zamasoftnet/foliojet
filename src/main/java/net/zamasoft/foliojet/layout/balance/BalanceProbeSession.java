@@ -64,20 +64,34 @@ public final class BalanceProbeSession {
 					capacity);
 			final BalanceProbeBuilder builder = new BalanceProbeBuilder(shell);
 			final DocumentBuilder doc = new DocumentBuilder(new ProbePageGenerator(this.input.ua()), builder);
+			// SourceReplayer.driveと同じく、再生インスタンスへイベントIDから
+			// ソースアンカーを再付与する(凍結列はsliceとordinal 1:1)——
+			// winnerが実採用(M6c-4)された後の改ページ破断でも、子部分木の
+			// ソース再生系譜が保たれる
+			long eventId = this.input.source().fromId();
 			for (final SegmentEvent event : this.input.frozenEvents()) {
 				switch (event) {
-				case SegmentEvent.BeginBox(final BoxRecipe recipe) -> doc.startBox(BoxRecipeBoxFactory.create(recipe));
+				case SegmentEvent.BeginBox(final BoxRecipe recipe) -> {
+					final net.zamasoft.foliojet.layout.box.INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+					box.setSourceAnchor(eventId);
+					doc.startBox(box);
+				}
 				case SegmentEvent.EndBox end -> doc.endBox();
 				case SegmentEvent.Text(final int sourceOffset, final String text, final boolean fixed) -> {
 					final char[] ch = text.toCharArray();
 					doc.characters(sourceOffset, ch, 0, ch.length, fixed);
 				}
-				case SegmentEvent.Replaced(final ReplacedRecipe recipe) -> doc
-						.addReplacedBox(BoxRecipeBoxFactory.createReplaced(recipe));
+				case SegmentEvent.Replaced(final ReplacedRecipe recipe) -> {
+					final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box = BoxRecipeBoxFactory
+							.createReplaced(recipe);
+					box.setSourceAnchor(eventId);
+					doc.addReplacedBox(box);
+				}
 				// 入力凍結時にBarrierゼロを検証済み(BalanceProbeInput.capture)
 				case SegmentEvent.Barrier barrier -> throw new IllegalStateException(
 						"barrier event in balance probe input: " + barrier);
 				}
+				++eventId;
 			}
 			doc.finishReplay();
 			return observe(shell, capacity);

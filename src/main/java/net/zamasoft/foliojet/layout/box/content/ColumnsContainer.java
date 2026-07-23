@@ -91,6 +91,22 @@ public class ColumnsContainer implements Container {
 		return this.columns.get(index).getContentSize();
 	}
 
+	/**
+	 * 自身と全カラムのboxを付け替えます(2026-07-24新設、排除域P2の
+	 * M6c-4——バランスプローブのwinner commit用)。{@link #setBox}は
+	 * 自身のboxしか変えない(既存の呼び出し元では内側カラムが既に同じ
+	 * boxを指しているため足りる)が、候補shellで組まれたコンテナ木を
+	 * live ownerへ接続する場合は、各カラムの{@code FlowContainer.box}も
+	 * shellからownerへ付け替えないと、後続の改ページ分割・描画が
+	 * 破棄済みshellの古い幾何を読んでしまう。
+	 */
+	public final void adoptBox(final AbstractContainerBox box) {
+		this.setBox(box);
+		for (int i = 0; i < this.columns.size(); ++i) {
+			this.columns.get(i).setBox(box);
+		}
+	}
+
 	public void addFlow(IFlowBox box, double pageAxis) {
 		this.getLastColumn().addFlow(box, pageAxis);
 	}

@@ -804,13 +804,20 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.breakFloats.add(side);
 	}
 
+	/**
+	 * {@link #getPageLimit()}のページ方向容量の下限です(2026-07-24に
+	 * 定数化、排除域P2のM6c-4——バランスプローブの収まり判定が実構築と
+	 * 同じ床で比較するため共有する)。
+	 */
+	public static final double MIN_PAGE_LIMIT = 20;
+
 	public double getPageLimit() {
 		final AbstractContainerBox rootBox = this.getRootBox();
 		final BlockParams params = rootBox.getBlockParams();
 		double pageLimit = rootBox.getInnerPageExtent(params.flow);
-		if (pageLimit < 20) {
+		if (pageLimit < MIN_PAGE_LIMIT) {
 			// 20ポイントより小さなページ高さは無視
-			pageLimit = 20;
+			pageLimit = MIN_PAGE_LIMIT;
 		}
 		return pageLimit;
 	}

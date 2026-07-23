@@ -272,6 +272,13 @@ public final class ContinuationStats {
 	/** プローブが構築した候補の総数です(探索コストの実測)。 */
 	public static final AtomicLong BALANCE_PROBE_BUILDS = new AtomicLong();
 
+	/**
+	 * winnerがownerへ実際にcommitされた回数です(2026-07-24新設、
+	 * M6c-4——実採用切替)。{@code BALANCE_PROBE_SESSIONS ==
+	 * BALANCE_PROBE_COMMITS + BALANCE_PROBE_FALLBACKS}が常に成り立つ。
+	 */
+	public static final AtomicLong BALANCE_PROBE_COMMITS = new AtomicLong();
+
 	/** プローブ起動の集計です(M6c-3。全試行終了後に一セッション一回)。 */
 	public static void recordBalanceProbeSession() {
 		if (live()) {
@@ -297,6 +304,13 @@ public final class ContinuationStats {
 	public static void recordBalanceProbeBuilds(final int builds) {
 		if (live()) {
 			BALANCE_PROBE_BUILDS.addAndGet(builds);
+		}
+	}
+
+	/** winnerのowner commitの集計です(M6c-4)。 */
+	public static void recordBalanceProbeCommit() {
+		if (live()) {
+			BALANCE_PROBE_COMMITS.incrementAndGet();
 		}
 	}
 
@@ -601,6 +615,7 @@ public final class ContinuationStats {
 		BALANCE_PROBE_ELIGIBLE.set(0);
 		BALANCE_PROBE_FALLBACKS.set(0);
 		BALANCE_PROBE_BUILDS.set(0);
+		BALANCE_PROBE_COMMITS.set(0);
 		CHILD_FRAMES.set(0);
 		CHAIN_MEMBER_KEEP.set(0);
 		CHAIN_MEMBER_MOVE.set(0);
