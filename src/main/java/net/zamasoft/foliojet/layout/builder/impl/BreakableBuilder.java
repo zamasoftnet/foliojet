@@ -786,56 +786,61 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
-	boolean transferFloatToNextPage(final IFloatBox box, double pageStart) {
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * 2026-07-23(排除域P1増分2): 従来の{@code transferFloatToNextPage}
+	 * (判定名だが{@code breakFloats.add}の副作用を持っていた)を、
+	 * この副作用のない分類と{@link #recordBreakFloat}へ分解した。
+	 * 分類は実測の物理位置(フラグメント境界へのはみ出し・ページ先頭に
+	 * いるか)だけで決まる。
+	 * </p>
+	 */
+	@Override
+	FloatCommitKind classifyFloatPlacement(final IFloatBox box, double pageStart) {
 		if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
-			return false;
+			return FloatCommitKind.PLACED;
 		}
 
 		double pageAxis = pageStart;
 		pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
 		if (LayoutUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
 			// 下部がはみ出していない場合は分割しない
-			return false;
+			return FloatCommitKind.PLACED;
 		}
 
 		// ページをはみ出した浮動ボックスが存在する
 		pageStart -= this.getFlow().box.getFrame().getFramePageStart(this.getRootBox().getBlockParams().flow);
-		boolean transfer;
 		switch (box.getType()) {
 		case BLOCK:
-			this.breakFloats.add(box.getFloatPos().floating);
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
-			if (containerBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
-				if (LayoutUtils.compare(pageStart, 0) <= 0) {
-					// ページ先頭の場合切断
-					transfer = false;
-				} else {
-					// 丸ごと移動
-					transfer = true;
-				}
-			} else {
-				// 切断
-				transfer = false;
+			if (containerBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID
+					&& LayoutUtils.compare(pageStart, 0) > 0) {
+				// avoid指定でページ先頭でない場合は丸ごと移動
+				return FloatCommitKind.MOVE_TO_NEXT;
 			}
-			break;
+			// 切断(avoid指定でもページ先頭なら切断——§5.11の物理位置優先)
+			return FloatCommitKind.SPLIT_AT_BREAK;
 
 		case REPLACED:
 			if (LayoutUtils.compare(pageStart, 0) <= 0) {
 				// ページ先頭の場合残す
-				transfer = false;
-				break;
+				return FloatCommitKind.PLACED;
 			}
 			if (LOG.isLoggable(Level.FINE)) {
 				LOG.fine("transfer float replaced: " + box.getParams().element);
 			}
-			this.breakFloats.add(box.getFloatPos().floating);
 			// 丸ごと移動
-			transfer = true;
-			break;
+			return FloatCommitKind.MOVE_TO_NEXT;
 		default:
 			throw new IllegalStateException();
 		}
-		return transfer;
+	}
+
+	@Override
+	void recordBreakFloat(final FloatSide side) {
+		this.breakFloats.add(side);
 	}
 
 	public double getPageLimit() {

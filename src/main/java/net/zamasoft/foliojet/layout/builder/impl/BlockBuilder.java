@@ -844,11 +844,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 			}
 		}
-		boolean transfer = this.transferFloatToNextPage(box, pageStart);
+		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
+		if (kind != FloatCommitKind.PLACED) {
+			this.recordBreakFloat(box.getFloatPos().floating);
+		}
 		// 配置
 		Flow flow = this.getFlow();
 		flow.box.addFloating(box, lineStart - flow.lineAxis, pageStart - flow.pageAxis);
-		if (!transfer) {
+		if (kind != FloatCommitKind.MOVE_TO_NEXT) {
 			LayoutContext.Floating floating = new LayoutContext.Floating(box, lineStart, pageStart, progression);
 			this.addFloating(floating);
 		}
@@ -913,11 +916,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		lineEnd -= lineWidth;
 
-		boolean transfer = this.transferFloatToNextPage(box, pageStart);
+		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
+		if (kind != FloatCommitKind.PLACED) {
+			this.recordBreakFloat(box.getFloatPos().floating);
+		}
 		// 配置
 		Flow flow = this.getFlow();
 		flow.box.addFloating(box, lineEnd - flow.lineAxis, pageStart - flow.pageAxis);
-		if (!transfer) {
+		if (kind != FloatCommitKind.MOVE_TO_NEXT) {
 			LayoutContext.Floating floating = new LayoutContext.Floating(box, lineEnd, pageStart, progression);
 			this.addFloating(floating);
 		}
@@ -1243,7 +1249,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// System.err.println("endTextBlock");
 	}
 
-	boolean transferFloatToNextPage(IFloatBox prevBox, double floatPageAxis) {
-		return false;
+	/**
+	 * 新規floatの配置確定の種別を、副作用なしで分類します(2026-07-23、
+	 * 排除域P1増分2——従来の{@code transferFloatToNextPage}を純分類と
+	 * {@link #recordBreakFloat}へ分解)。基底実装は常に
+	 * {@link FloatCommitKind#PLACED}(改ページ文脈を持たないbuilderは
+	 * floatを先送りしない)。
+	 */
+	FloatCommitKind classifyFloatPlacement(IFloatBox box, double pageStart) {
+		return FloatCommitKind.PLACED;
+	}
+
+	/**
+	 * フラグメント境界と交差したfloatの記録hookです(2026-07-23、
+	 * 排除域P1増分2)。基底実装は何もしない。{@code BreakableBuilder}が
+	 * {@code breakFloats}への追加として実装する。
+	 */
+	void recordBreakFloat(FloatSide side) {
 	}
 }
