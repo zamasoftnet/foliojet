@@ -528,8 +528,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	/**
 	 * 現在の{@link #floatings}を{@link ExclusionSpace}へ変換した
-	 * スナップショットを返します(2026-07-23新設、shadow比較専用——
-	 * 実レイアウトには使わない)。{@code this.floatings}は既に
+	 * スナップショットを返します(2026-07-23新設、P0 Step4以降は
+	 * 実レイアウトに使用)。{@code this.floatings}は既に
 	 * {@code FLOAT_COMP}(pageEnd昇順、同値は追加順)でソート済みのため、
 	 * その並び順そのままをorderとして使えば{@link ExclusionSpace#plus}
 	 * が同じ並びを再現する。
@@ -1061,14 +1061,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 			pageStart = Math.max(pageStart, lastFloating.pageStart);
 
 			FloatPos pos = box.getFloatPos();
+			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
+			// 旧ループ(scanFloatPlacementBand)はもう実レイアウトに使わず、
+			// 安全網としてのshadow比較専用に残す。floatingsはこのループ中
+			// 不変なのでスナップショットはループ外で1回だけ取る。
+			final ExclusionSpace snapshot = this.snapshotExclusions();
 			for (;;) {
 				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
-				final FloatPlacementScan scan = this.scanFloatPlacementBand(pageStart, this.lineAxis, lineEnd0,
+				final ExclusionSpace.FloatPlacementScan found = snapshot.scanFloatPlacementBand(pageStart,
+						this.lineAxis, lineEnd0, pos.clear);
+				final FloatPlacementScan legacyScan = this.scanFloatPlacementBand(pageStart, this.lineAxis, lineEnd0,
 						pos.clear);
-				this.shadowCompareFloatPlacementScan(pageStart, this.lineAxis, lineEnd0, pos.clear, scan);
-				pageStart = scan.pageStart;
-				lineStart = scan.lineStart;
-				final double lineEnd = scan.lineEnd;
+				this.shadowCompareFloatPlacementScan(found, legacyScan);
+				pageStart = found.pageStart();
+				lineStart = found.lineStart();
+				final double lineEnd = found.lineEnd();
 				double width = lineEnd - lineStart;
 				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
@@ -1076,16 +1083,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 
 				// 余裕がない場合は１つ下りて再探索
-				if (scan.startFloating == null && scan.endFloating == null) {
+				if (found.startExclusion() == null && found.endExclusion() == null) {
 					break;
 				}
-				if (scan.endFloating == null) {
-					pageStart = scan.startFloating.pageEnd;
-				} else if (scan.startFloating == null) {
-					pageStart = scan.endFloating.pageEnd;
+				if (found.endExclusion() == null) {
+					pageStart = found.startExclusion().pageSpan().end();
+				} else if (found.startExclusion() == null) {
+					pageStart = found.endExclusion().pageSpan().end();
 				} else {
-					double lineStartPageEnd = scan.startFloating.pageEnd;
-					double lineEndPageEnd = scan.endFloating.pageEnd;
+					double lineStartPageEnd = found.startExclusion().pageSpan().end();
+					double lineEndPageEnd = found.endExclusion().pageSpan().end();
 					if (lineStartPageEnd > lineEndPageEnd) {
 						pageStart = lineEndPageEnd;
 					} else {
@@ -1127,31 +1134,37 @@ public class BlockBuilder implements Builder, LayoutContext {
 			pageStart = Math.max(pageStart, lastFloating.pageStart);
 
 			FloatPos pos = box.getFloatPos();
+			// 2026-07-23(排除域P0 Step4): addStartFloatと同じ切り替え
+			// (ExclusionSpace実採用、旧ループは安全網、スナップショットは
+			// ループ外で1回)。
+			final ExclusionSpace snapshot = this.snapshotExclusions();
 			for (;;) {
 				final double lineStart0 = this.lineAxis;
 				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
-				final FloatPlacementScan scan = this.scanFloatPlacementBand(pageStart, lineStart0, lineEnd0,
+				final ExclusionSpace.FloatPlacementScan found = snapshot.scanFloatPlacementBand(pageStart, lineStart0,
+						lineEnd0, pos.clear);
+				final FloatPlacementScan legacyScan = this.scanFloatPlacementBand(pageStart, lineStart0, lineEnd0,
 						pos.clear);
-				this.shadowCompareFloatPlacementScan(pageStart, lineStart0, lineEnd0, pos.clear, scan);
-				pageStart = scan.pageStart;
-				lineEnd = scan.lineEnd;
-				final double lineStart = scan.lineStart;
+				this.shadowCompareFloatPlacementScan(found, legacyScan);
+				pageStart = found.pageStart();
+				lineEnd = found.lineEnd();
+				final double lineStart = found.lineStart();
 				double width = lineEnd - lineStart;
 				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
 					break;
 				}
 				// 余裕がない場合は１つ下りて再探索
-				if (scan.startFloating == null && scan.endFloating == null) {
+				if (found.startExclusion() == null && found.endExclusion() == null) {
 					break;
 				}
-				if (scan.endFloating == null) {
-					pageStart = scan.startFloating.pageEnd;
-				} else if (scan.startFloating == null) {
-					pageStart = scan.endFloating.pageEnd;
+				if (found.endExclusion() == null) {
+					pageStart = found.startExclusion().pageSpan().end();
+				} else if (found.startExclusion() == null) {
+					pageStart = found.endExclusion().pageSpan().end();
 				} else {
-					double leftBottom = scan.startFloating.pageEnd;
-					double rightBottom = scan.endFloating.pageEnd;
+					double leftBottom = found.startExclusion().pageSpan().end();
+					double rightBottom = found.endExclusion().pageSpan().end();
 					if (leftBottom > rightBottom) {
 						pageStart = rightBottom;
 					} else {
@@ -1203,7 +1216,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * {@code startFloating}/{@code endFloating}/{@code lineStart}/
 	 * {@code lineEnd}を保持したまま{@code pageStart}だけ更新して即座に
 	 * 返す(既存コードのbreak FOR直後、この走査の外側で幅の十分性を
-	 * 判定する構造をそのまま保つ)。
+	 * 判定する構造をそのまま保つ)。P0 Step4以降は実レイアウトには
+	 * 使わず、shadow比較の安全網としてのみ残している。
 	 */
 	private FloatPlacementScan scanFloatPlacementBand(final double pageStartIn, final double lineStart0,
 			final double lineEnd0, final ClearMode clear) {
@@ -1261,24 +1275,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * {@link #scanFloatPlacementBand}の結果と、{@link ExclusionSpace}
-	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
-	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
-	 * {@code scanFloatPlacementBand}の結果だけを使う。
+	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
+	 * {@link #scanFloatPlacementBand}(旧ループ、安全網としてのみ残す)の
+	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
+	 * {@code ExclusionSpace}側の結果だけを使う。
 	 */
-	private void shadowCompareFloatPlacementScan(final double pageStart, final double lineStart0,
-			final double lineEnd0, final ClearMode clear, final FloatPlacementScan actual) {
-		final ExclusionSpace snapshot = this.snapshotExclusions();
-		final ExclusionSpace.FloatPlacementScan expected = snapshot.scanFloatPlacementBand(pageStart, lineStart0,
-				lineEnd0, clear);
-		final boolean actualStartFound = actual.startFloating != null;
-		final boolean expectedStartFound = expected.startExclusion() != null;
-		final boolean actualEndFound = actual.endFloating != null;
-		final boolean expectedEndFound = expected.endExclusion() != null;
-		final boolean matched = actualStartFound == expectedStartFound && actualEndFound == expectedEndFound
-				&& Math.abs(expected.lineStart() - actual.lineStart) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(expected.lineEnd() - actual.lineEnd) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(expected.pageStart() - actual.pageStart) <= ExclusionShadowStats.EPSILON;
+	private void shadowCompareFloatPlacementScan(final ExclusionSpace.FloatPlacementScan exclusionSpaceResult,
+			final FloatPlacementScan legacyResult) {
+		final boolean exclusionSpaceStartFound = exclusionSpaceResult.startExclusion() != null;
+		final boolean legacyStartFound = legacyResult.startFloating != null;
+		final boolean exclusionSpaceEndFound = exclusionSpaceResult.endExclusion() != null;
+		final boolean legacyEndFound = legacyResult.endFloating != null;
+		final boolean matched = exclusionSpaceStartFound == legacyStartFound
+				&& exclusionSpaceEndFound == legacyEndFound
+				&& Math.abs(exclusionSpaceResult.lineStart() - legacyResult.lineStart) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(exclusionSpaceResult.pageStart() - legacyResult.pageStart) <= ExclusionShadowStats.EPSILON;
 		ExclusionShadowStats.recordFloatPlacement(matched);
 	}
 
