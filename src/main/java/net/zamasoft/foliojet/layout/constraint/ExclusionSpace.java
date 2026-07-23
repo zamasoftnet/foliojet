@@ -35,6 +35,30 @@ public final class ExclusionSpace {
 	}
 
 	/**
+	 * 既に{@code pageSpan.end}昇順(同値は追加順)に並んだリストから
+	 * 一括構築します(2026-07-23、codexレビュー指摘のO(N²)解消——
+	 * {@code BlockBuilder.floatings}は{@code FLOAT_COMP}安定ソート済み
+	 * のため、要素ごとの{@link #plus}挿入は不要でO(N)コピーで足りる)。
+	 * 並び順の契約は呼び出し元の責任(assertで検査)。
+	 */
+	public static ExclusionSpace copyOfSorted(final List<FloatExclusion> ascendingByPageEnd) {
+		if (ascendingByPageEnd.isEmpty()) {
+			return EMPTY;
+		}
+		assert isAscendingByPageEnd(ascendingByPageEnd) : "list must be sorted by pageSpan.end ascending";
+		return new ExclusionSpace(List.copyOf(ascendingByPageEnd));
+	}
+
+	private static boolean isAscendingByPageEnd(final List<FloatExclusion> list) {
+		for (int i = 1; i < list.size(); ++i) {
+			if (list.get(i - 1).pageSpan().end() > list.get(i).pageSpan().end()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * {@code exclusion}を追加した新しい{@code ExclusionSpace}を返します。
 	 * このインスタンス自体は変更しません。挿入位置は既存の
 	 * {@code pageSpan.end}昇順を保ったまま、同値の要素より後ろに
@@ -107,7 +131,8 @@ public final class ExclusionSpace {
 	public AxisSpan narrowLineBandForMulticol(final double pageAxis, final AxisSpan lineBand) {
 		double lineStart = lineBand.start();
 		double lineEnd = lineBand.end();
-		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+		for (int i = this.ascendingByPageEnd.size() - 1; i >= 0; --i) {
+			final FloatExclusion exclusion = this.ascendingByPageEnd.get(i);
 			if (exclusion.pageSpan().end() <= pageAxis) {
 				break;
 			}
@@ -139,7 +164,8 @@ public final class ExclusionSpace {
 	 * </p>
 	 */
 	public FloatExclusion findClearBoundary(final double pageStart, final double marginStart, final ClearMode clear) {
-		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+		for (int i = this.ascendingByPageEnd.size() - 1; i >= 0; --i) {
+			final FloatExclusion exclusion = this.ascendingByPageEnd.get(i);
 			final double pageEnd = exclusion.pageSpan().end() - marginStart;
 			if (pageEnd <= pageStart) {
 				return null;
@@ -181,7 +207,8 @@ public final class ExclusionSpace {
 	public BoundAvoidance findBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
 			final double marginAdjust, final ClearMode clear) {
 		double xMarginStart = 0, lineEnd = lineStop;
-		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+		for (int i = this.ascendingByPageEnd.size() - 1; i >= 0; --i) {
+			final FloatExclusion exclusion = this.ascendingByPageEnd.get(i);
 			final double pageEnd = exclusion.pageSpan().end() - marginAdjust;
 			if (pageStart >= pageEnd) {
 				return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
@@ -310,7 +337,8 @@ public final class ExclusionSpace {
 		double pageStart = pageStartIn;
 		FloatExclusion startExclusion = null, endExclusion = null;
 		double lineStart = lineStart0, lineEnd = lineEnd0;
-		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+		for (int i = this.ascendingByPageEnd.size() - 1; i >= 0; --i) {
+			final FloatExclusion exclusion = this.ascendingByPageEnd.get(i);
 			final double pageEnd = exclusion.pageSpan().end();
 			if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
 				break;

@@ -529,22 +529,26 @@ public class BlockBuilder implements Builder, LayoutContext {
 	/**
 	 * 現在の{@link #floatings}を{@link ExclusionSpace}へ変換した
 	 * スナップショットを返します(2026-07-23新設、P0 Step4以降は
-	 * 実レイアウトに使用)。{@code this.floatings}は既に
-	 * {@code FLOAT_COMP}(pageEnd昇順、同値は追加順)でソート済みのため、
-	 * その並び順そのままをorderとして使えば{@link ExclusionSpace#plus}
-	 * が同じ並びを再現する。
+	 * 実レイアウトに使用。{@code TextBuilder}もこれを共用する)。
+	 * {@code this.floatings}は既に{@code FLOAT_COMP}(pageEnd昇順、
+	 * 同値は追加順)でソート済みのため、並び順をそのまま
+	 * {@link ExclusionSpace#copyOfSorted}へ渡すO(N)一括構築で足りる
+	 * (2026-07-23、codexレビュー指摘のO(N²)解消)。
 	 */
-	private ExclusionSpace snapshotExclusions() {
-		ExclusionSpace space = ExclusionSpace.EMPTY;
+	ExclusionSpace snapshotExclusions() {
 		final int count = this.getFloatingCount();
+		if (count == 0) {
+			return ExclusionSpace.EMPTY;
+		}
+		final List<FloatExclusion> exclusions = new ArrayList<>(count);
 		for (int i = 0; i < count; ++i) {
 			final LayoutContext.Floating floating = this.getFloating(i);
 			final FloatPos floatingPos = floating.box.getFloatPos();
-			space = space.plus(new FloatExclusion(i, floatingPos.floating,
+			exclusions.add(new FloatExclusion(i, floatingPos.floating,
 					new AxisSpan(floating.pageStart, floating.pageEnd),
 					new AxisSpan(floating.lineStart, floating.lineEnd)));
 		}
-		return space;
+		return ExclusionSpace.copyOfSorted(exclusions);
 	}
 
 	/**
@@ -730,14 +734,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final BoundAvoidance legacyResult) {
 		final boolean exclusionSpaceFound = exclusionSpaceResult.clearingExclusion() != null;
 		final boolean legacyFound = legacyResult.clearing != null;
-		final boolean matched;
-		if (exclusionSpaceFound != legacyFound) {
-			matched = false;
-		} else if (exclusionSpaceFound) {
+		// 呼び出し元はclearingの有無に関わらずxMarginStart/lineEndを使う
+		// ため、全出力を常に比較する(2026-07-23、codexレビュー指摘——
+		// 従来はclearing検出時にclearPageEndしか比較しておらず、END側で
+		// 帯が狭まった後にclear境界へ到達する入力で帯の差を見逃せた)。
+		boolean matched = exclusionSpaceFound == legacyFound
+				&& Math.abs(exclusionSpaceResult.xMarginStart() - legacyResult.xMarginStart) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON;
+		if (matched && exclusionSpaceFound) {
 			matched = Math.abs(exclusionSpaceResult.clearPageEnd() - legacyResult.clearPageEnd) <= ExclusionShadowStats.EPSILON;
-		} else {
-			matched = Math.abs(exclusionSpaceResult.xMarginStart() - legacyResult.xMarginStart) <= ExclusionShadowStats.EPSILON
-					&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON;
 		}
 		ExclusionShadowStats.recordBound(matched);
 	}

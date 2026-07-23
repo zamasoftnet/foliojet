@@ -35,10 +35,8 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutContext.Flow;
-import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 import net.zamasoft.foliojet.layout.constraint.ExclusionShadowStats;
 import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
-import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
@@ -415,22 +413,12 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 現在の{@link #builder}.floatingsを{@link ExclusionSpace}へ変換した
-	 * スナップショットを返します(2026-07-23新設、P0 Step4以降は
-	 * 実レイアウトに使用。{@code BlockBuilder.snapshotExclusions}
-	 * と同じ変換規則)。
+	 * {@link BlockBuilder#snapshotExclusions}への委譲です(2026-07-23、
+	 * codexレビュー指摘——変換処理が両クラスに重複していると将来の
+	 * 変換規則ずれを生むため一本化した)。
 	 */
 	private ExclusionSpace snapshotExclusions() {
-		ExclusionSpace space = ExclusionSpace.EMPTY;
-		final List<LayoutContext.Floating> floatings = this.builder.floatings;
-		for (int i = 0; i < floatings.size(); ++i) {
-			final LayoutContext.Floating floating = floatings.get(i);
-			final FloatPos floatingPos = floating.box.getFloatPos();
-			space = space.plus(new FloatExclusion(i, floatingPos.floating,
-					new AxisSpan(floating.pageStart, floating.pageEnd),
-					new AxisSpan(floating.lineStart, floating.lineEnd)));
-		}
-		return space;
+		return this.builder.snapshotExclusions();
 	}
 
 	/**
