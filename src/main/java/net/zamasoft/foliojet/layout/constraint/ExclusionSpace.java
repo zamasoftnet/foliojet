@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import net.zamasoft.foliojet.layout.box.params.ClearMode;
+import net.zamasoft.foliojet.layout.box.params.FloatSide;
+
 /**
  * ある文脈(1つのformatting context)で現在有効な浮動体排除帯の集合です
  * (2026-07-23新設、排除域のConstraintSpace入力化のP0第一段——
@@ -117,5 +120,46 @@ public final class ExclusionSpace {
 			}
 		}
 		return new AxisSpan(lineStart, lineEnd);
+	}
+
+	/**
+	 * {@code BlockBuilder.startFlowBlock}のclear処理と同じ規則で、
+	 * clearの対象になる浮動体を探します(2026-07-23新設、P0 Step3の
+	 * shadow比較用——既存ループを1対1で移した実装)。
+	 *
+	 * <p>
+	 * {@code pageEnd}は既存コードと同じく{@code marginStart}を引いた
+	 * 相対値で比較する(算術的には{@code pageStart}側へ足し戻すのと
+	 * 同値だが、浮動小数点の丸めまで完全に再現するため既存コードと
+	 * 同じ引き算の順序・箇所を保つ)。descending順で最初に見つかった
+	 * 対象だけを返す——{@code pageEnd <= pageStart}になった時点で
+	 * (現ページより手前の浮動体に達したら)探索を打ち切り、見つから
+	 * なかったものとして{@code null}を返す。
+	 * </p>
+	 */
+	public FloatExclusion findClearBoundary(final double pageStart, final double marginStart, final ClearMode clear) {
+		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+			final double pageEnd = exclusion.pageSpan().end() - marginStart;
+			if (pageEnd <= pageStart) {
+				return null;
+			}
+			switch (clear) {
+			case START:
+				if (exclusion.side() == FloatSide.START) {
+					return exclusion;
+				}
+				break;
+			case END:
+				if (exclusion.side() == FloatSide.END) {
+					return exclusion;
+				}
+				break;
+			case BOTH:
+				return exclusion;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return null;
 	}
 }

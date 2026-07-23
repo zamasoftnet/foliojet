@@ -20,21 +20,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 排除域のConstraintSpace入力化P0 Step3(2026-07-23、
- * {@code BlockBuilder.computeMulticolBand}/{@code
- * shadowCompareMulticolBand})が、{@code files/unittest/}コーパス全体
- * (multicol+float文書を含む)に対して既存ループと{@link ExclusionSpace}
- * queryの結果が一致し続けることを固定する回帰テストです。
- *
- * <p>
- * {@code files/unittest/0400-column-count/columns-float.html}
- * ({@code ColumnsFloatTest}が使う既存フィクスチャ)を含む、multicolかつ
- * floatを持つ文書がこのコーパスに実在することを確認したうえで、
- * {@link ExclusionShadowStats#MULTICOL_MISMATCHES}が0のままであることを
- * 断言する。
- * </p>
+ * 排除域のConstraintSpace入力化P0 Step3(2026-07-23、{@code
+ * BlockBuilder}のmulticol回避・clear処理をshadow比較配線)が、
+ * {@code files/unittest/}コーパス全体(multicol+float・clear+float
+ * 文書を含む)に対して既存ループと{@link ExclusionSpace}queryの結果が
+ * 一致し続けることを固定する回帰テストです。P0 Step3の残り消費者
+ * (addBound・TextBuilder・float配置)を配線するたびに、このテストへ
+ * 対応するアサーションを追加していく。
  */
-public class MulticolExclusionShadowCorpusTest extends TestCase {
+public class ExclusionShadowCorpusTest extends TestCase {
 	static {
 		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
 		System.setProperty("jp.cssj.driver.default",
@@ -43,7 +37,7 @@ public class MulticolExclusionShadowCorpusTest extends TestCase {
 
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	public MulticolExclusionShadowCorpusTest(String name) {
+	public ExclusionShadowCorpusTest(String name) {
 		super(name);
 	}
 
@@ -58,7 +52,7 @@ public class MulticolExclusionShadowCorpusTest extends TestCase {
 		}
 
 		ExclusionShadowStats.reset();
-		final File scratch = File.createTempFile("multicol-exclusion-shadow", ".pdf");
+		final File scratch = File.createTempFile("exclusion-shadow", ".pdf");
 		scratch.deleteOnExit();
 		int ok = 0, failed = 0;
 		for (final Path doc : docs) {
@@ -75,13 +69,19 @@ public class MulticolExclusionShadowCorpusTest extends TestCase {
 		System.out.println("MULTICOL_SESSIONS=" + ExclusionShadowStats.MULTICOL_SESSIONS.get());
 		System.out.println("MULTICOL_MATCHES=" + ExclusionShadowStats.MULTICOL_MATCHES.get());
 		System.out.println("MULTICOL_MISMATCHES=" + ExclusionShadowStats.MULTICOL_MISMATCHES.get());
+		System.out.println("CLEAR_SESSIONS=" + ExclusionShadowStats.CLEAR_SESSIONS.get());
+		System.out.println("CLEAR_MATCHES=" + ExclusionShadowStats.CLEAR_MATCHES.get());
+		System.out.println("CLEAR_MISMATCHES=" + ExclusionShadowStats.CLEAR_MISMATCHES.get());
 
-		// このコーパスにはmulticol+floatの組み合わせを実際に踏む文書
-		// (columns-float.html等)が含まれるはず——0件ならテスト自体が
-		// 何も検証していないことになるため、それも失敗として検出する。
+		// このコーパスにはmulticol+float・clear+floatの組み合わせを実際に
+		// 踏む文書が含まれるはず——0件ならテスト自体が何も検証していない
+		// ことになるため、それも失敗として検出する。
 		assertTrue("expected at least one multicol exclusion shadow session in the corpus",
 				ExclusionShadowStats.MULTICOL_SESSIONS.get() > 0);
 		assertEquals(0, ExclusionShadowStats.MULTICOL_MISMATCHES.get());
+		assertTrue("expected at least one clear exclusion shadow session in the corpus",
+				ExclusionShadowStats.CLEAR_SESSIONS.get() > 0);
+		assertEquals(0, ExclusionShadowStats.CLEAR_MISMATCHES.get());
 	}
 
 	private void transcode(final File source, final File out) throws Exception {

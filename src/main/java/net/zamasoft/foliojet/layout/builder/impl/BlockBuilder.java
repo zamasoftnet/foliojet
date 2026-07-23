@@ -403,50 +403,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 		if (pos.clear != ClearMode.NONE && this.getFloatingCount() > 0) {
 			// clearが指定されている場合
-			LayoutContext.Floating floating = null;
-			double pageEnd = 0, marginStart;
+			final double marginStart;
 			if (cParams.flow.isVertical()) {
 				marginStart = frame.margin.right;
 			} else {
 				marginStart = frame.margin.top;
 			}
 			final double pageStart = this.pageAxis - marginStart;
-			FOR: for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-				floating = this.getFloating(i);
-				pageEnd = floating.pageEnd - marginStart;
-				if (pageEnd <= pageStart) {
-					floating = null;
-					break;
-				}
-				FloatPos floatingPos = floating.box.getFloatPos();
-				switch (pos.clear) {
-				case ClearMode.START:
-					// 左クリア
-					if (floatingPos.floating == FloatSide.START) {
-						break FOR;
-					}
-					break;
-
-				case ClearMode.END:
-					// 右クリア
-					if (floatingPos.floating == FloatSide.END) {
-						break FOR;
-					}
-					break;
-
-				case ClearMode.BOTH:
-					// 両クリア
-					break FOR;
-
-				default:
-					throw new IllegalStateException();
-				}
-				floating = null;
-			}
+			final LayoutContext.Floating floating = this.findClearFloating(pageStart, marginStart, pos.clear);
+			this.shadowCompareClearBoundary(pageStart, marginStart, pos.clear, floating);
 			if (floating != null) {
 				// 浮動ボックスの下につける
 				this.poLastMargin = this.neLastMargin = 0;
-				this.pageAxis = pageEnd;
+				this.pageAxis = floating.pageEnd - marginStart;
 			}
 		}
 
@@ -601,6 +570,69 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final boolean matched = Math.abs(expectedXmargin - actualXmargin) <= EXCLUSION_SHADOW_EPSILON
 				&& Math.abs(expectedLineSize - actualLineSize) <= EXCLUSION_SHADOW_EPSILON;
 		ExclusionShadowStats.recordMulticol(matched);
+	}
+
+	/**
+	 * clearの対象になる浮動体を探します(2026-07-23、{@link #startFlowBlock}
+	 * から挙動不変のまま抽出——既存ループの行単位の移植で、算術・比較・
+	 * 走査順は一切変えていない)。
+	 */
+	private LayoutContext.Floating findClearFloating(final double pageStart, final double marginStart,
+			final ClearMode clear) {
+		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
+			final LayoutContext.Floating floating = this.getFloating(i);
+			final double pageEnd = floating.pageEnd - marginStart;
+			if (pageEnd <= pageStart) {
+				return null;
+			}
+			final FloatPos floatingPos = floating.box.getFloatPos();
+			switch (clear) {
+			case ClearMode.START:
+				// 左クリア
+				if (floatingPos.floating == FloatSide.START) {
+					return floating;
+				}
+				break;
+
+			case ClearMode.END:
+				// 右クリア
+				if (floatingPos.floating == FloatSide.END) {
+					return floating;
+				}
+				break;
+
+			case ClearMode.BOTH:
+				// 両クリア
+				return floating;
+
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * {@link #findClearFloating}の結果と、{@link ExclusionSpace}
+	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
+	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
+	 * {@code findClearFloating}の結果だけを使う。
+	 */
+	private void shadowCompareClearBoundary(final double pageStart, final double marginStart, final ClearMode clear,
+			final LayoutContext.Floating actual) {
+		final ExclusionSpace snapshot = this.snapshotExclusions();
+		final FloatExclusion expected = snapshot.findClearBoundary(pageStart, marginStart, clear);
+		final boolean actualFound = actual != null;
+		final boolean expectedFound = expected != null;
+		final boolean matched;
+		if (actualFound != expectedFound) {
+			matched = false;
+		} else if (!actualFound) {
+			matched = true;
+		} else {
+			matched = Math.abs((expected.pageSpan().end() - marginStart) - (actual.pageEnd - marginStart)) <= EXCLUSION_SHADOW_EPSILON;
+		}
+		ExclusionShadowStats.recordClear(matched);
 	}
 
 	public void endFlowBlock() {

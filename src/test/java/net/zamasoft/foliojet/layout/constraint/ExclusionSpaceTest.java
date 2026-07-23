@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.layout.constraint;
 import java.util.List;
 
 import junit.framework.TestCase;
+import net.zamasoft.foliojet.layout.box.params.ClearMode;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
 /**
@@ -148,5 +149,60 @@ public class ExclusionSpaceTest extends TestCase {
 		assertEquals(300.0, band.start(), 0);
 		assertEquals(200.0, band.end(), 0);
 		assertEquals(-100.0, band.extent(), 0);
+	}
+
+	public void testFindClearBoundaryNoFloatsReturnsNull() {
+		assertNull(ExclusionSpace.EMPTY.findClearBoundary(0, 0, ClearMode.BOTH));
+	}
+
+	public void testFindClearBoundaryMatchesRequestedSide() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 200, 0, 100));
+		space = space.plus(sideExclusion(1, FloatSide.START, 300, 0, 100));
+
+		final FloatExclusion found = space.findClearBoundary(0, 0,
+				ClearMode.START);
+		assertNotNull(found);
+		assertEquals(1, found.order());
+	}
+
+	public void testFindClearBoundaryIgnoresNonMatchingSide() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 200, 0, 100));
+
+		final FloatExclusion found = space.findClearBoundary(0, 0,
+				ClearMode.START);
+		assertNull(found);
+	}
+
+	public void testFindClearBoundaryBothMatchesFirstEncountered() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 100, 0, 100));
+		space = space.plus(sideExclusion(1, FloatSide.START, 200, 0, 100));
+
+		final FloatExclusion found = space.findClearBoundary(0, 0,
+				ClearMode.BOTH);
+		assertNotNull(found);
+		assertEquals(1, found.order());
+	}
+
+	public void testFindClearBoundaryStopsAtOrBeforePageStart() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 50, 0, 100));
+
+		// pageEnd(50) - marginStart(0) <= pageStart(100) なので即座に打ち切り、null。
+		final FloatExclusion found = space.findClearBoundary(100, 0,
+				ClearMode.START);
+		assertNull(found);
+	}
+
+	public void testFindClearBoundaryUsesMarginAdjustedComparison() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 150, 0, 100));
+
+		// pageEnd(150) - marginStart(60) = 90 > pageStart(80) なので適用される。
+		final FloatExclusion found = space.findClearBoundary(80, 60,
+				ClearMode.START);
+		assertNotNull(found);
 	}
 }
