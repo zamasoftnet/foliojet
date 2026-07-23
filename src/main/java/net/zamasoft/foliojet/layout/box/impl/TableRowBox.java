@@ -374,6 +374,19 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	/**
 	 * セルの切断位置です(C4-T3)。連結セル(rowspan)は連結元の行から
 	 * 当行までのページ寸を加算する — 切断線はセル上端基準になる。
+	 *
+	 * <p>
+	 * A-3bのアラインメント物理契約(2026-07-24文書化、
+	 * `docs/history/2026-07-23-a3b-goal-narrowed.md`が正本): 行内の
+	 * 全セルは**同一の物理分割線**で切られ(後発セルで初めて分割が
+	 * 決まった場合は処理済みセルへ遡って強制分割)、各セルへは
+	 * この上端基準位置から更に{@code verticalAlign}(実測の
+	 * 確定セル高と内容高の差)を引いた内容座標が渡される
+	 * ({@code TableCellBox.split}参照)。この表専用分割機構は
+	 * FragmentRecipe系の共通継続IRへは統合しない(意図的な隔離領域
+	 * ——共通IRは並列に開く複数セルを構造的に表現できないため。
+	 * 設計相談で確定、再開条件は上記文書参照)。
+	 * </p>
 	 */
 	private static double cellCutPageAxis(final Cell cell, final double pageLimit) {
 		double cutPageAxis = pageLimit;

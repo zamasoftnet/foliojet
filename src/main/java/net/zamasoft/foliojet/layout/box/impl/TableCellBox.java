@@ -442,6 +442,12 @@ public class TableCellBox extends AbstractContainerBox {
 			}
 		}
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
+		// A-3bのアラインメント物理契約: セル内容へ渡す切断位置は
+		// 「行の物理分割線 - verticalAlign(実測の確定セル高と内容高の
+		// 差から計算される内容開始オフセット)」。継続セルは
+		// verticalAlign=0から始まる——元セルの先頭側余白は前断片で
+		// 消費済みであり、残余内容を再アラインしない(2026-07-24文書化、
+		// docs/history/2026-07-23-a3b-goal-narrowed.md参照)。
 		pageLimit -= this.verticalAlign;
 		final SplitResult result = super.split(pageLimit, mode, flags);
 		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode
