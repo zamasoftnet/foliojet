@@ -61,6 +61,13 @@ public final class PlainFlowTailTrace {
 		 * (BLOCKケース冒頭の書字方向判定、:1513付近——
 		 * {@link #CLOSED_AS_BLOCK}とは別のearly-out分岐)。
 		 * codex設計相談で「3分類は閉じていない」と指摘され発見。
+		 * この分岐を実際に踏む文書の構築は3回試行して未達
+		 * (2026-07-22、`docs/history/2026-07-22-b6a0-bound-as-float-
+		 * terminal-kind.md`参照)——書字方向不一致ボックスは改ページ契約
+		 * (§5.10ルール3)でatomic化されており、plain-flowチェーンの終端に
+		 * 現れる入力自体が極めて作りにくい。コードリーディングによる
+		 * 正しさ確認で足りるとして到達実証は打ち切り(2026-07-23、
+		 * ユーザー方針「不可能・過剰なことをゴールにしない」の適用)。
 		 */
 		BOUND_AS_WRITING_MODE_MISMATCH_BLOCK,
 		/**
@@ -70,6 +77,12 @@ public final class PlainFlowTailTrace {
 		 * 無条件`builder.addBound(replacedBox)`経路を通った(REPLACED
 		 * ケース、:1599付近、float以外の場合)。{@link #BOUND_AS_TABLE}
 		 * と同型——codex設計相談で「明示的な第4候補」と指摘され発見。
+		 * この分岐を実際に踏む文書の構築は3回試行して未達(2026-07-22、
+		 * {@link #BOUND_AS_WRITING_MODE_MISMATCH_BLOCK}と同じ経緯)——
+		 * 非floatの置換要素がplain-flowチェーンの終端(改ページ点の
+		 * 開いた祖先チェーン末尾)に来る入力は極めて作りにくい。
+		 * コードリーディングによる正しさ確認で足りるとして到達実証は
+		 * 打ち切り(2026-07-23)。
 		 */
 		BOUND_AS_REPLACED,
 		/**

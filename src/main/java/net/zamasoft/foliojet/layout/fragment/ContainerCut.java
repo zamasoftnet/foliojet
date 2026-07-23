@@ -18,9 +18,13 @@ public sealed interface ContainerCut {
 
 	/**
 	 * plan選択済みチェーンメンバー自身が{@code Keep}/{@code Move}を返した
-	 * ことを明示的に運ぶ結果です(2026-07-21新設、M6b Phase B5c-2、
-	 * 強制改ページ分岐のみで使用——自動改ページ主ループへの適用は
-	 * 実測で回帰を確認したため見送り中)。
+	 * ことを明示的に運ぶ結果です(2026-07-21新設、M6b Phase B5c-2)。
+	 * 強制改ページ分岐に加え、自動改ページ主ループでも「nextBoxが
+	 * チェーンメンバー単体だけを含む」(force-branchと同型でcontainer-
+	 * identity比較では判別できない)場合に限って付与される(2026-07-22
+	 * のB5c-2 Step3再挑戦で適用済み——{@code FlowContainer.splitPageAxis}
+	 * の最終return参照)。段組をまたぐ改ページ(改ページ契約§5.10
+	 * ルール2・4)のために恒久的に必要な型であり、削除予定はない。
 	 */
 	record PlainWithChainStop(net.zamasoft.foliojet.layout.box.content.Container container, ChainStopReason reason)
 			implements ContainerCut {
