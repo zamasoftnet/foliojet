@@ -13,18 +13,11 @@ import net.zamasoft.foliojet.layout.box.params.FloatSide;
  * {@code FloatPos}は{@code FlowPos}と同じ{@code AbstractNormalFlowPos}
  * を継承するため、祖先フィールドは{@link NormalFlowPosFields}
  * (`FlowPosTemplate`と共有)が担う。{@code floating}
- * ({@code FloatSide}、enum)はそのまま保持する。
+ * ({@code FloatSide}、enum)はそのまま保持する(2026-07-22 Stage2で
+ * 不変recordへ置換)。
  * </p>
  */
-public final class FloatPosTemplate {
-	private final NormalFlowPosFields common;
-	private final FloatSide floating;
-
-	private FloatPosTemplate(final NormalFlowPosFields common, final FloatSide floating) {
-		this.common = common;
-		this.floating = floating;
-	}
-
+public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating) {
 	public static FloatPosTemplate freeze(final FloatPos source) {
 		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating);
 	}

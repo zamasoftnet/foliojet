@@ -16,25 +16,15 @@ import net.zamasoft.foliojet.layout.box.params.Params;
  * <p>
  * {@code transform}({@code AffineTransform}、mutableなJDKクラス)は
  * freeze時・materialize時それぞれで防御的コピーが必要
- * ({@link TextParamsFields}と同じ理由)。
+ * ({@link TextParamsFields}と同じ理由)——コンパクトコンストラクタで
+ * freeze時のコピーを、{@link #materializeInto}呼び出しごとに新品の
+ * コピーをそれぞれ行う(2026-07-22 Stage2、不変recordへ置換)。
  * </p>
  */
-final class ParamsFields {
-	final CSSElement element;
-	final int zIndexValue;
-	final byte zIndexType;
-	final float opacity;
-	private final AffineTransform transform;
-	final Offset transformOrigin;
-
-	private ParamsFields(final CSSElement element, final int zIndexValue, final byte zIndexType, final float opacity,
-			final AffineTransform transform, final Offset transformOrigin) {
-		this.element = element;
-		this.zIndexValue = zIndexValue;
-		this.zIndexType = zIndexType;
-		this.opacity = opacity;
-		this.transform = new AffineTransform(transform);
-		this.transformOrigin = transformOrigin;
+record ParamsFields(CSSElement element, int zIndexValue, byte zIndexType, float opacity, AffineTransform transform,
+		Offset transformOrigin) {
+	ParamsFields {
+		transform = new AffineTransform(transform);
 	}
 
 	static ParamsFields freeze(final Params source) {

@@ -13,18 +13,11 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
  * <p>
  * 祖先({@code Params}/{@code AbstractTextParams})のフィールドは
  * {@link TextParamsFields}が担う。{@code frame}(既存{@code RectFrame}
- * 実装はfinalフィールドのみで実質不変)はコピー不要。
+ * 実装はfinalフィールドのみで実質不変)はコピー不要(2026-07-22
+ * Stage2、不変recordへ置換)。
  * </p>
  */
-public final class InlineParamsTemplate {
-	private final TextParamsFields common;
-	private final RectFrame frame;
-
-	private InlineParamsTemplate(final TextParamsFields common, final RectFrame frame) {
-		this.common = common;
-		this.frame = frame;
-	}
-
+public record InlineParamsTemplate(TextParamsFields common, RectFrame frame) {
 	public static InlineParamsTemplate freeze(final InlineParams source) {
 		return new InlineParamsTemplate(TextParamsFields.freeze(source), source.frame);
 	}

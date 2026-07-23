@@ -16,15 +16,7 @@ import net.zamasoft.foliojet.layout.box.params.ClearMode;
  * 防御的コピーは不要——単純に値をそのまま保持・書き戻すだけで済む。
  * </p>
  */
-final class NormalFlowPosFields {
-	private final BlockLevelPosFields common;
-	final ClearMode clear;
-
-	private NormalFlowPosFields(final BlockLevelPosFields common, final ClearMode clear) {
-		this.common = common;
-		this.clear = clear;
-	}
-
+record NormalFlowPosFields(BlockLevelPosFields common, ClearMode clear) {
 	static NormalFlowPosFields freeze(final AbstractNormalFlowPos source) {
 		return new NormalFlowPosFields(BlockLevelPosFields.freeze(source), source.clear);
 	}

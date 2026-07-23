@@ -11,16 +11,11 @@ import net.zamasoft.foliojet.layout.box.params.TableRowPos;
  * <p>
  * 祖先({@code AbstractStaticPos}/{@code AbstractBlockLevelPos})の
  * フィールドは{@link BlockLevelPosFields}(`TableRowGroupPosTemplate`・
- * `TableCellPosTemplate`とも共有する)が担う。
+ * `TableCellPosTemplate`とも共有する)が担う(2026-07-22 Stage2で
+ * 不変recordへ置換)。
  * </p>
  */
-public final class TableRowPosTemplate {
-	private final BlockLevelPosFields common;
-
-	private TableRowPosTemplate(final BlockLevelPosFields common) {
-		this.common = common;
-	}
-
+public record TableRowPosTemplate(BlockLevelPosFields common) {
 	public static TableRowPosTemplate freeze(final TableRowPos source) {
 		return new TableRowPosTemplate(BlockLevelPosFields.freeze(source));
 	}

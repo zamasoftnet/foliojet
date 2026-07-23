@@ -1,11 +1,16 @@
 package net.zamasoft.foliojet.layout.segment;
 
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
-import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
@@ -61,6 +66,23 @@ public final class BoxRecipeBoxFactory {
 			new TableCellBox(r.params().materialize(), r.pos().materialize(), new FlowContainer());
 		case BoxRecipe.TableColumnGroup r -> new TableColumnGroupBox(r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableColumn r -> new TableColumnBox(r.params().materialize(), r.pos().materialize());
+		};
+	}
+
+	/**
+	 * {@link ReplacedRecipe}のテンプレートをmaterializeし、対応する
+	 * 新品の{@link AbstractReplacedBox}を返します(2026-07-22新設、
+	 * M6d-A——{@link #create}と対だが戻り値型が{@code INonReplacedBox}
+	 * ではなく{@code AbstractReplacedBox}のため別メソッドとした
+	 * (`docs/history/2026-07-22-m6d-a-replaced-element-support.md`
+	 * 「未着手のまま残るもの」参照)。
+	 */
+	public static AbstractReplacedBox createReplaced(final ReplacedRecipe recipe) {
+		return switch (recipe) {
+		case ReplacedRecipe.Inline r -> new InlineReplacedBox(r.params().materialize(), r.pos().materialize());
+		case ReplacedRecipe.Flow r -> new FlowReplacedBox(r.params().materialize(), r.pos().materialize());
+		case ReplacedRecipe.Float r -> new FloatReplacedBox(r.params().materialize(), r.pos().materialize());
+		case ReplacedRecipe.Absolute r -> new AbsoluteReplacedBox(r.params().materialize(), r.pos().materialize());
 		};
 	}
 }

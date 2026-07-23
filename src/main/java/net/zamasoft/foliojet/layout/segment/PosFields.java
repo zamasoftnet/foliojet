@@ -13,13 +13,7 @@ import net.zamasoft.foliojet.layout.box.params.Offset;
  * 不変)はコピー不要、そのまま保持する。
  * </p>
  */
-final class PosFields {
-	final Offset offset;
-
-	private PosFields(final Offset offset) {
-		this.offset = offset;
-	}
-
+record PosFields(Offset offset) {
 	static PosFields freeze(final AbstractStaticPos source) {
 		return new PosFields(source.offset);
 	}

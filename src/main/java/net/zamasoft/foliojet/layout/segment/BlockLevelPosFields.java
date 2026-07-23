@@ -13,18 +13,7 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
  * する)。祖先(`AbstractStaticPos`)のフィールドは{@link PosFields}へ
  * 委譲する(合成)。
  */
-final class BlockLevelPosFields {
-	private final PosFields staticFields;
-	final PageBreakMode pageBreakBefore;
-	final PageBreakMode pageBreakAfter;
-
-	private BlockLevelPosFields(final PosFields staticFields, final PageBreakMode pageBreakBefore,
-			final PageBreakMode pageBreakAfter) {
-		this.staticFields = staticFields;
-		this.pageBreakBefore = pageBreakBefore;
-		this.pageBreakAfter = pageBreakAfter;
-	}
-
+record BlockLevelPosFields(PosFields staticFields, PageBreakMode pageBreakBefore, PageBreakMode pageBreakAfter) {
 	static BlockLevelPosFields freeze(final AbstractBlockLevelPos source) {
 		return new BlockLevelPosFields(PosFields.freeze(source), source.pageBreakBefore, source.pageBreakAfter);
 	}

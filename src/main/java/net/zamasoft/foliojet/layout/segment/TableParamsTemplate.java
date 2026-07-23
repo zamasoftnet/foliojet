@@ -15,25 +15,12 @@ import net.zamasoft.foliojet.layout.box.params.TableParams;
  * `BlockParams`)のフィールドは{@link BlockParamsFields}
  * (`BlockParamsTemplate`と共有)が担う。{@code borderSpacingH}/
  * {@code borderSpacingV}(double)・{@code borderCollapse}/
- * {@code layout}(byte)は全てプリミティブのためそのまま保持する。
+ * {@code layout}(byte)は全てプリミティブのためそのまま保持する
+ * (2026-07-22 Stage2で不変recordへ置換)。
  * </p>
  */
-public final class TableParamsTemplate {
-	private final BlockParamsFields common;
-	private final double borderSpacingH;
-	private final double borderSpacingV;
-	private final byte borderCollapse;
-	private final byte layout;
-
-	private TableParamsTemplate(final BlockParamsFields common, final double borderSpacingH,
-			final double borderSpacingV, final byte borderCollapse, final byte layout) {
-		this.common = common;
-		this.borderSpacingH = borderSpacingH;
-		this.borderSpacingV = borderSpacingV;
-		this.borderCollapse = borderCollapse;
-		this.layout = layout;
-	}
-
+public record TableParamsTemplate(BlockParamsFields common, double borderSpacingH, double borderSpacingV,
+		byte borderCollapse, byte layout) {
 	public static TableParamsTemplate freeze(final TableParams source) {
 		return new TableParamsTemplate(BlockParamsFields.freeze(source), source.borderSpacingH,
 				source.borderSpacingV, source.borderCollapse, source.layout);

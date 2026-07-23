@@ -19,29 +19,12 @@ import net.zamasoft.foliojet.layout.box.params.Length;
  * </p>
  *
  * <p>
- * ここで扱うのはこの段階(Stage1)の対象:「入力を再帰的にdeep copyした
- * 非公開テンプレートとしてfreezeし、再生ごとに新品のlegacy
- * {@code Params}へmaterializeする」実装(codex設計相談で確認)。
- * テンプレート自体を不変recordへ置換するのはStage2(未着手)。
+ * テンプレート自体を不変recordへ置換するStage2(2026-07-22完了)。
  * フィールド分類の根拠は{@link TextParamsFields}のjavadocを参照。
  * </p>
  */
-final class LineParamsFields {
-	private final TextParamsFields text;
-	final byte textAlign;
-	final byte textAlignLast;
-	final Length textIndent;
-	final double lineHeight;
-
-	private LineParamsFields(final TextParamsFields text, final byte textAlign, final byte textAlignLast,
-			final Length textIndent, final double lineHeight) {
-		this.text = text;
-		this.textAlign = textAlign;
-		this.textAlignLast = textAlignLast;
-		this.textIndent = textIndent;
-		this.lineHeight = lineHeight;
-	}
-
+record LineParamsFields(TextParamsFields text, byte textAlign, byte textAlignLast, Length textIndent,
+		double lineHeight) {
 	static LineParamsFields freeze(final AbstractLineParams source) {
 		return new LineParamsFields(TextParamsFields.freeze(source), source.textAlign, source.textAlignLast,
 				source.textIndent, source.lineHeight);

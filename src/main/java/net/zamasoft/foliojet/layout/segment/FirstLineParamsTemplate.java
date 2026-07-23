@@ -10,21 +10,12 @@ import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
  * が非nullの場合、この型を使って再帰的にfreeze/materializeする。
  *
  * <p>
- * 段階1(この実装): {@link LineParamsFields}(共通祖先フィールド)+
- * {@code background}(既存{@code Background}実装はfinalフィールドのみで
- * 実質不変、コピー不要)を保持する。段階2でこの内部状態自体を不変
- * recordへ置換する予定。
+ * {@link LineParamsFields}(共通祖先フィールド)+{@code background}
+ * (既存{@code Background}実装はfinalフィールドのみで実質不変、
+ * コピー不要)を保持する(2026-07-22 Stage2、不変recordへ置換)。
  * </p>
  */
-public final class FirstLineParamsTemplate {
-	private final LineParamsFields common;
-	private final Background background;
-
-	private FirstLineParamsTemplate(final LineParamsFields common, final Background background) {
-		this.common = common;
-		this.background = background;
-	}
-
+public record FirstLineParamsTemplate(LineParamsFields common, Background background) {
 	public static FirstLineParamsTemplate freeze(final FirstLineParams source) {
 		return new FirstLineParamsTemplate(LineParamsFields.freeze(source), source.background);
 	}

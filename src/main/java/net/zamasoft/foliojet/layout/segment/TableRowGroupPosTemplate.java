@@ -12,18 +12,10 @@ import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
  * <p>
  * 祖先のフィールドは{@link BlockLevelPosFields}(`TableRowPosTemplate`・
  * `TableCellPosTemplate`とも共有する)が担う。{@code rowGroupType}
- * (enum)はそのまま保持する。
+ * (enum)はそのまま保持する(2026-07-22 Stage2で不変recordへ置換)。
  * </p>
  */
-public final class TableRowGroupPosTemplate {
-	private final BlockLevelPosFields common;
-	private final RowGroupType rowGroupType;
-
-	private TableRowGroupPosTemplate(final BlockLevelPosFields common, final RowGroupType rowGroupType) {
-		this.common = common;
-		this.rowGroupType = rowGroupType;
-	}
-
+public record TableRowGroupPosTemplate(BlockLevelPosFields common, RowGroupType rowGroupType) {
 	public static TableRowGroupPosTemplate freeze(final TableRowGroupPos source) {
 		return new TableRowGroupPosTemplate(BlockLevelPosFields.freeze(source), source.rowGroupType);
 	}

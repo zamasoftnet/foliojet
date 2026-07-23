@@ -4,6 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
@@ -25,11 +30,17 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  * イベント数は1:1を維持する(M6d-A2のordinal対応・将来のshadow比較を
  * 壊さないため、codex設計相談で確認)。{@link BoxKind#FLOW}/
  * {@link BoxKind#INLINE}はM6d-A3bのテンプレートで完全に(内容の
- * 欠落なく)変換する。それ以外の{@code BoxKind}、および
- * {@code Replaced}/{@code Opaque}(まだ{@code ReplacedRecipe}の
- * 中身が未設計)は{@link SegmentEvent.Barrier}へ変換する——silent
- * fallbackを避けるため、理由(常に{@link BarrierReason
- * #NOT_YET_SUPPORTED})と、判明していれば元の種別を明示する。
+ * 欠落なく)変換する。{@code Replaced}は{@link ReplacedRecipe}
+ * (2026-07-22、M6d-A Replaced要素対応)へ変換する——ただし
+ * {@link ReplacedParamsTemplate#freeze}が不安全な{@code image}
+ * ({@code ReplacedBoxImage}実装)を検出した場合、または未知の
+ * {@code AbstractReplacedBox}サブクラスの場合はfail closedで
+ * {@link SegmentEvent.Barrier}へ落とす。それ以外の{@code BoxKind}、
+ * および{@code Opaque}は常に{@link SegmentEvent.Barrier}へ変換する
+ * ——silent fallbackを避けるため、理由(常に
+ * {@link BarrierReason#NOT_YET_SUPPORTED}、未知の型は
+ * {@link BarrierReason#UNKNOWN_TYPE})と、判明していれば元の種別を
+ * 明示する。
  * </p>
  *
  * <p>
@@ -58,15 +69,45 @@ public final class LayoutSourceEventConverter {
 		case LayoutSource.EndBlock endBlock -> new SegmentEvent.EndBox();
 		case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) ->
 			new SegmentEvent.Text(charOffset, new String(ch), fixed);
-		// Replaced/Opaqueはそもそも種別情報を保持しない(旧Opaqueは
-		// フィールドなしの位置占有マーカー、旧Replacedはlive boxのみ
-		// 保持——ReplacedRecipeの中身はまだ未設計のためlive boxを見に
-		// 行かず、そのままBarrier化する)
-		case LayoutSource.Replaced replaced ->
-			new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
+		case LayoutSource.Replaced(final AbstractReplacedBox box) -> convertReplaced(box);
+		// Opaqueはそもそも種別情報を保持しない(フィールドなしの位置占有
+		// マーカー)ため常にBarrier化する
 		case LayoutSource.Opaque opaque ->
 			new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
 		};
+	}
+
+	/**
+	 * live{@code AbstractReplacedBox}から{@link ReplacedRecipe}を
+	 * 組み立てる。{@code ReplacedParamsTemplate.freeze()}が不安全な
+	 * {@code image}を検出した場合、または未知のサブクラスの場合は
+	 * fail closedで{@link SegmentEvent.Barrier}を返す。
+	 */
+	private static SegmentEvent convertReplaced(final AbstractReplacedBox box) {
+		final Optional<ReplacedParamsTemplate> params = ReplacedParamsTemplate.freeze(box.getReplacedParams());
+		if (params.isEmpty()) {
+			return new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
+		}
+		// 4実装(InlineReplacedBox/FlowReplacedBox/FloatReplacedBox/
+		// AbsoluteReplacedBox)がそれぞれInlinePos/FlowPos/FloatPos/
+		// AbsolutePosを使う(既存コード確認済み、ReplacedRecipeのjavadoc参照)
+		if (box instanceof InlineReplacedBox inline) {
+			return new SegmentEvent.Replaced(
+					new ReplacedRecipe.Inline(params.get(), InlinePosTemplate.freeze(inline.getInlinePos())));
+		}
+		if (box instanceof FlowReplacedBox flow) {
+			return new SegmentEvent.Replaced(
+					new ReplacedRecipe.Flow(params.get(), FlowPosTemplate.freeze(flow.getFlowPos())));
+		}
+		if (box instanceof FloatReplacedBox floatBox) {
+			return new SegmentEvent.Replaced(
+					new ReplacedRecipe.Float(params.get(), FloatPosTemplate.freeze(floatBox.getFloatPos())));
+		}
+		if (box instanceof AbsoluteReplacedBox absolute) {
+			return new SegmentEvent.Replaced(
+					new ReplacedRecipe.Absolute(params.get(), AbsolutePosTemplate.freeze(absolute.getAbsolutePos())));
+		}
+		return new SegmentEvent.Barrier(Optional.empty(), BarrierReason.UNKNOWN_TYPE);
 	}
 
 	private static SegmentEvent convertStart(final LayoutSource.Start start) {

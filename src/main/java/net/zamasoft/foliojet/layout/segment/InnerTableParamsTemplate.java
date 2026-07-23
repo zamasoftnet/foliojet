@@ -19,29 +19,11 @@ import net.zamasoft.foliojet.layout.box.params.RectBorder;
  * (`TextParamsFields`とも共有する)が担う。{@code background}/
  * {@code border}/{@code size}系/{@code pageBreakInside}は既存実装が
  * finalフィールドのみで実質不変と確認済みのため、参照をそのまま保持する
- * (コピー不要)。
+ * (コピー不要、2026-07-22 Stage2で不変recordへ置換)。
  * </p>
  */
-public final class InnerTableParamsTemplate {
-	private final ParamsFields common;
-	private final Background background;
-	private final RectBorder border;
-	private final Length size;
-	private final Length minSize;
-	private final Length maxSize;
-	private final PageBreakMode pageBreakInside;
-
-	private InnerTableParamsTemplate(final ParamsFields common, final Background background, final RectBorder border,
-			final Length size, final Length minSize, final Length maxSize, final PageBreakMode pageBreakInside) {
-		this.common = common;
-		this.background = background;
-		this.border = border;
-		this.size = size;
-		this.minSize = minSize;
-		this.maxSize = maxSize;
-		this.pageBreakInside = pageBreakInside;
-	}
-
+public record InnerTableParamsTemplate(ParamsFields common, Background background, RectBorder border, Length size,
+		Length minSize, Length maxSize, PageBreakMode pageBreakInside) {
 	public static InnerTableParamsTemplate freeze(final InnerTableParams source) {
 		return new InnerTableParamsTemplate(ParamsFields.freeze(source), source.background, source.border,
 				source.size, source.minSize, source.maxSize, source.pageBreakInside);

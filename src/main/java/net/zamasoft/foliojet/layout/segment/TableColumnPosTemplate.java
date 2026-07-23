@@ -10,16 +10,10 @@ import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
  *
  * <p>
  * {@code span}(プリミティブ)のみを持つため、他のPosテンプレートのような
- * 合成は不要。
+ * 合成は不要(2026-07-22 Stage2で不変recordへ置換)。
  * </p>
  */
-public final class TableColumnPosTemplate {
-	private final int span;
-
-	private TableColumnPosTemplate(final int span) {
-		this.span = span;
-	}
-
+public record TableColumnPosTemplate(int span) {
 	public static TableColumnPosTemplate freeze(final TableColumnPos source) {
 		return new TableColumnPosTemplate(source.span);
 	}

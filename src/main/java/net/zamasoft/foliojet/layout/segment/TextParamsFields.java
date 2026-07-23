@@ -30,55 +30,22 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  * (`InnerTableParamsTemplate`とも共有する)へ委譲する(合成、
  * さらに2つ目の具体的な必要が生じたため2026-07-22に抽出)。
  * </p>
+ *
+ * <p>
+ * {@code textShadows}(配列、mutableな参照)はコンパクトコンストラクタで
+ * freeze時に{@code clone()}し、{@link #materializeInto}呼び出しごとに
+ * 新品の{@code clone()}を書き戻す(2026-07-22 Stage2、不変recordへ置換)。
+ * </p>
  */
-final class TextParamsFields {
-	private final ParamsFields common;
-	final FontStyle fontStyle;
-	final WritingMode flow;
-	final byte direction;
-	final FontManager fontManager;
-	final LineBreakRules lineBreakRules;
-	final Length letterSpacing;
-	final double wordSpacing;
-	final byte textTransform;
-	final byte whiteSpace;
-	final byte wordWrap;
-	final byte hyphens;
-	final Hyphenator hyphenator;
-	final Color color;
-	final byte decoration;
-	final double decorationThickness;
-	final double textStrokeWidth;
-	final Color textStrokeColor;
-	private final TextShadow[] textShadows;
-
-	private TextParamsFields(final ParamsFields common, final FontStyle fontStyle, final WritingMode flow,
-			final byte direction, final FontManager fontManager, final LineBreakRules lineBreakRules,
-			final Length letterSpacing, final double wordSpacing, final byte textTransform, final byte whiteSpace,
-			final byte wordWrap, final byte hyphens, final Hyphenator hyphenator, final Color color,
-			final byte decoration, final double decorationThickness, final double textStrokeWidth,
-			final Color textStrokeColor, final TextShadow[] textShadows) {
-		this.common = common;
-		this.fontStyle = fontStyle;
-		this.flow = flow;
-		this.direction = direction;
-		this.fontManager = fontManager;
-		this.lineBreakRules = lineBreakRules;
-		this.letterSpacing = letterSpacing;
-		this.wordSpacing = wordSpacing;
-		this.textTransform = textTransform;
-		this.whiteSpace = whiteSpace;
-		this.wordWrap = wordWrap;
-		this.hyphens = hyphens;
-		this.hyphenator = hyphenator;
-		this.color = color;
-		this.decoration = decoration;
-		this.decorationThickness = decorationThickness;
-		this.textStrokeWidth = textStrokeWidth;
-		this.textStrokeColor = textStrokeColor;
+record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow, byte direction,
+		FontManager fontManager, LineBreakRules lineBreakRules, Length letterSpacing, double wordSpacing,
+		byte textTransform, byte whiteSpace, byte wordWrap, byte hyphens, Hyphenator hyphenator, Color color,
+		byte decoration, double decorationThickness, double textStrokeWidth, Color textStrokeColor,
+		TextShadow[] textShadows) {
+	TextParamsFields {
 		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
 		// TextShadowはfinalフィールドのみで実質不変)
-		this.textShadows = textShadows == null ? null : textShadows.clone();
+		textShadows = textShadows == null ? null : textShadows.clone();
 	}
 
 	static TextParamsFields freeze(final AbstractTextParams source) {

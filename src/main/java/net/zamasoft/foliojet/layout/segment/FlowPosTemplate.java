@@ -14,22 +14,12 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
  * {@code AbstractStaticPos})のフィールドは{@link NormalFlowPosFields}
  * (`FloatPosTemplate`と共有)が担う。{@code align}/{@code columnSpan}
  * (`FlowPos`固有)は既存実装が値クラス・プリミティブで実質不変のため
- * そのまま保持する——{@link BlockParamsTemplate}のような防御的コピーは
- * 不要({@code Params}系の{@code AffineTransform}/配列のような真に
- * mutableなフィールドが{@code Pos}階層には存在しない)。
+ * そのまま保持する——{@code Params}系の{@code AffineTransform}/配列の
+ * ような真にmutableなフィールドが{@code Pos}階層には存在しないため
+ * 防御的コピーは不要(2026-07-22 Stage2で不変recordへ置換)。
  * </p>
  */
-public final class FlowPosTemplate {
-	private final NormalFlowPosFields common;
-	private final Align align;
-	private final byte columnSpan;
-
-	private FlowPosTemplate(final NormalFlowPosFields common, final Align align, final byte columnSpan) {
-		this.common = common;
-		this.align = align;
-		this.columnSpan = columnSpan;
-	}
-
+public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan) {
 	public static FlowPosTemplate freeze(final FlowPos source) {
 		return new FlowPosTemplate(NormalFlowPosFields.freeze(source), source.align, source.columnSpan);
 	}

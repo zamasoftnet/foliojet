@@ -14,25 +14,12 @@ import net.zamasoft.foliojet.layout.box.params.TableCellPos;
  * 祖先のフィールドは{@link BlockLevelPosFields}(`TableRowPosTemplate`・
  * `TableRowGroupPosTemplate`とも共有する)が担う。{@code colspan}/
  * {@code rowspan}(プリミティブ)・{@code emptyCells}/
- * {@code verticalAlign}(enum)はそのまま保持する。
+ * {@code verticalAlign}(enum)はそのまま保持する(2026-07-22 Stage2で
+ * 不変recordへ置換)。
  * </p>
  */
-public final class TableCellPosTemplate {
-	private final BlockLevelPosFields common;
-	private final int colspan;
-	private final int rowspan;
-	private final EmptyCellsMode emptyCells;
-	private final CellAlign verticalAlign;
-
-	private TableCellPosTemplate(final BlockLevelPosFields common, final int colspan, final int rowspan,
-			final EmptyCellsMode emptyCells, final CellAlign verticalAlign) {
-		this.common = common;
-		this.colspan = colspan;
-		this.rowspan = rowspan;
-		this.emptyCells = emptyCells;
-		this.verticalAlign = verticalAlign;
-	}
-
+public record TableCellPosTemplate(BlockLevelPosFields common, int colspan, int rowspan, EmptyCellsMode emptyCells,
+		CellAlign verticalAlign) {
 	public static TableCellPosTemplate freeze(final TableCellPos source) {
 		return new TableCellPosTemplate(BlockLevelPosFields.freeze(source), source.colspan, source.rowspan,
 				source.emptyCells, source.verticalAlign);

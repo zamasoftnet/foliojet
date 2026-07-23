@@ -1,11 +1,16 @@
 package net.zamasoft.foliojet.layout.segment;
 
 import junit.framework.TestCase;
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
-import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
@@ -15,6 +20,7 @@ import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.Align;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.CellAlign;
@@ -25,6 +31,7 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.box.params.RowGroupType;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
@@ -117,6 +124,12 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		params.fontStyle = DUMMY_FONT_STYLE;
 		params.lineBreakRules = DUMMY_LINE_BREAK_RULES;
 		params.fontManager = DUMMY_FONT_MANAGER;
+		return params;
+	}
+
+	private static ReplacedParams replacedParams() {
+		final ReplacedParams params = new ReplacedParams();
+		params.fontStyle = DUMMY_FONT_STYLE;
 		return params;
 	}
 
@@ -260,5 +273,75 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		assertNotSame(cell1.getParams(), cell2.getParams());
 		assertEquals(2, cell1.getTableCellPos().colspan);
 		assertEquals(EmptyCellsMode.SHOW, cell2.getTableCellPos().emptyCells);
+	}
+
+	/**
+	 * {@link ReplacedRecipe}の4variant(2026-07-22新設、M6d-A)——
+	 * {@link BoxRecipeBoxFactory#createReplaced}が対応する
+	 * {@code AbstractReplacedBox}実装へ正しく再構築することを、
+	 * 非デフォルト値の保持込みで固定する。
+	 */
+	public void testInlineReplacedRecipeCreatesInlineReplacedBox() {
+		final ReplacedParams params = replacedParams();
+		params.lineHeight = 2.5;
+		final InlinePos pos = new InlinePos();
+		pos.lineHeight = 3.5;
+		final ReplacedRecipe recipe = new ReplacedRecipe.Inline(ReplacedParamsTemplate.freeze(params).orElseThrow(),
+				InlinePosTemplate.freeze(pos));
+
+		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+		assertTrue(box instanceof InlineReplacedBox);
+		assertEquals(2.5, ((ReplacedParams) box.getParams()).lineHeight);
+		assertEquals(3.5, ((InlinePos) box.getPos()).lineHeight);
+	}
+
+	public void testFlowReplacedRecipeCreatesFlowReplacedBox() {
+		final FlowPos pos = new FlowPos();
+		pos.align = Align.CENTER;
+		final ReplacedRecipe recipe = new ReplacedRecipe.Flow(
+				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), FlowPosTemplate.freeze(pos));
+
+		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+		assertTrue(box instanceof FlowReplacedBox);
+		assertEquals(Align.CENTER, ((FlowPos) box.getPos()).align);
+	}
+
+	public void testFloatReplacedRecipeCreatesFloatReplacedBox() {
+		final FloatPos pos = new FloatPos();
+		pos.floating = FloatSide.END;
+		final ReplacedRecipe recipe = new ReplacedRecipe.Float(
+				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), FloatPosTemplate.freeze(pos));
+
+		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+		assertTrue(box instanceof FloatReplacedBox);
+		assertEquals(FloatSide.END, ((FloatPos) box.getPos()).floating);
+	}
+
+	public void testAbsoluteReplacedRecipeCreatesAbsoluteReplacedBox() {
+		final AbsolutePos pos = new AbsolutePos();
+		pos.autoPosition = net.zamasoft.foliojet.layout.box.params.AutoPosition.INLINE;
+		final ReplacedRecipe recipe = new ReplacedRecipe.Absolute(
+				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), AbsolutePosTemplate.freeze(pos));
+
+		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+		assertTrue(box instanceof AbsoluteReplacedBox);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.AutoPosition.INLINE,
+				((AbsolutePos) box.getPos()).autoPosition);
+	}
+
+	/**
+	 * 2回createReplacedすれば、独立した別インスタンスになる
+	 * (非Replaced版の{@link #testTableCellRecipeGetsFreshContainer}と
+	 * 同じ契約——M6d-Aの最重要契約: frozen templateからの複数回
+	 * materialize()は互いに独立していること)。
+	 */
+	public void testCreateReplacedProducesIndependentInstances() {
+		final ReplacedRecipe recipe = new ReplacedRecipe.Flow(
+				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), FlowPosTemplate.freeze(new FlowPos()));
+		final AbstractReplacedBox box1 = BoxRecipeBoxFactory.createReplaced(recipe);
+		final AbstractReplacedBox box2 = BoxRecipeBoxFactory.createReplaced(recipe);
+		assertNotSame(box1, box2);
+		assertNotSame(box1.getParams(), box2.getParams());
+		assertNotSame(box1.getPos(), box2.getPos());
 	}
 }

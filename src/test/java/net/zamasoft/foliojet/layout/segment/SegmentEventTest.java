@@ -1,10 +1,15 @@
 package net.zamasoft.foliojet.layout.segment;
 
 import junit.framework.TestCase;
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
+import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
  * M6d-A3a(2026-07-22新設、A3b後に{@link BoxRecipe}をsealed interface
@@ -53,9 +58,60 @@ public class SegmentEventTest extends TestCase {
 	}
 
 	public void testReplacedHoldsRecipeNotLiveBox() {
-		final ReplacedRecipe recipe = new ReplacedRecipe(ReplacedRecipe.GenerationKind.INLINE);
+		final ReplacedRecipe.Inline recipe = new ReplacedRecipe.Inline(
+				ReplacedParamsTemplate.freeze(new ReplacedParams()).orElseThrow(),
+				InlinePosTemplate.freeze(new InlinePos()));
 		final SegmentEvent.Replaced replaced = new SegmentEvent.Replaced(recipe);
 		assertEquals(ReplacedRecipe.GenerationKind.INLINE, replaced.recipe().generationKind());
+	}
+
+	/** {@code ReplacedRecipe}は生成種別ごとに異なるvariant(Pos型が違う)として表現される。 */
+	public void testReplacedRecipeVariantsCarryKindSpecificPosTemplates() {
+		final ReplacedParamsTemplate params = ReplacedParamsTemplate.freeze(new ReplacedParams()).orElseThrow();
+		final ReplacedRecipe.Flow flow = new ReplacedRecipe.Flow(params, FlowPosTemplate.freeze(new FlowPos()));
+		final ReplacedRecipe.Float floating = new ReplacedRecipe.Float(params,
+				FloatPosTemplate.freeze(new net.zamasoft.foliojet.layout.box.params.FloatPos()));
+		final ReplacedRecipe.Absolute absolute = new ReplacedRecipe.Absolute(params,
+				AbsolutePosTemplate.freeze(new net.zamasoft.foliojet.layout.box.params.AbsolutePos()));
+		assertEquals(ReplacedRecipe.GenerationKind.FLOW, flow.generationKind());
+		assertEquals(ReplacedRecipe.GenerationKind.FLOAT, floating.generationKind());
+		assertEquals(ReplacedRecipe.GenerationKind.ABSOLUTE, absolute.generationKind());
+		assertNotNull(flow.pos().materialize());
+		assertNotNull(floating.pos().materialize());
+		assertNotNull(absolute.pos().materialize());
+	}
+
+	/**
+	 * {@link ReplacedBoxImage}実装({@code BarcodeImage}等、live boxへの
+	 * back-referenceを自身に書き込む)を持つ{@code ReplacedParams}は
+	 * 共有不可なため、{@code freeze()}がfail closedで{@code
+	 * Optional.empty()}を返す。
+	 */
+	public void testReplacedParamsTemplateFailsClosedForReplacedBoxImage() {
+		final ReplacedParams params = new ReplacedParams();
+		params.image = new StubReplacedBoxImage();
+		assertTrue(ReplacedParamsTemplate.freeze(params).isEmpty());
+	}
+
+	/** {@link Image}かつ{@link ReplacedBoxImage}を両方実装する最小のテスト用スタブ。 */
+	private static final class StubReplacedBoxImage implements Image, ReplacedBoxImage {
+		public double getWidth() {
+			return 0;
+		}
+
+		public double getHeight() {
+			return 0;
+		}
+
+		public void drawTo(GC gc) {
+		}
+
+		public String getAltString() {
+			return null;
+		}
+
+		public void setReplacedBox(AbstractReplacedBox box, double width, double height) {
+		}
 	}
 
 	/** ContainerNodeはBoxRecipeと子範囲を分離して持つ(recipeに構造を混ぜない)。 */

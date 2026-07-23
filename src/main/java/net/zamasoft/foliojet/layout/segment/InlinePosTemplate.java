@@ -16,21 +16,11 @@ import net.zamasoft.foliojet.layout.box.params.Offset;
  * 状態を持たないpolicyオブジェクト(実装{@code CSSVerticalAlignPolicy}
  * は`BASELINE_POLICY`等の共有singletonとして使われている)——
  * {@code FontManager}等と同じ「共有可能な不変サービス」として扱い、
- * コピーせず参照をそのまま保持する。
+ * コピーせず参照をそのまま保持する(2026-07-22 Stage2で不変recordへ
+ * 置換)。
  * </p>
  */
-public final class InlinePosTemplate {
-	private final Offset offset;
-	private final VerticalAlignPolicy verticalAlign;
-	private final double lineHeight;
-
-	private InlinePosTemplate(final Offset offset, final VerticalAlignPolicy verticalAlign,
-			final double lineHeight) {
-		this.offset = offset;
-		this.verticalAlign = verticalAlign;
-		this.lineHeight = lineHeight;
-	}
-
+public record InlinePosTemplate(Offset offset, VerticalAlignPolicy verticalAlign, double lineHeight) {
 	public static InlinePosTemplate freeze(final InlinePos source) {
 		return new InlinePosTemplate(source.offset, source.verticalAlign, source.lineHeight);
 	}

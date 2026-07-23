@@ -3,6 +3,10 @@ package net.zamasoft.foliojet.layout.segment;
 import java.util.List;
 
 import junit.framework.TestCase;
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
+import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
@@ -10,12 +14,15 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
  * M6d-A3c(2026-07-22新設)、{@code LayoutSource.Event}を
@@ -175,5 +182,94 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Opaque());
 		assertTrue(converted instanceof SegmentEvent.Barrier);
 		assertTrue(((SegmentEvent.Barrier) converted).kind().isEmpty());
+	}
+
+	/** 通常フローの置換要素(FlowReplacedBox)は内容を失わずReplacedRecipe.Flowへ変換される。 */
+	public void testFlowReplacedConvertsToReplacedWithFlowRecipe() {
+		final ReplacedParams params = new ReplacedParams();
+		params.lineHeight = 1.5;
+		final FlowPos pos = new FlowPos();
+		pos.align = net.zamasoft.foliojet.layout.box.params.Align.CENTER;
+		final AbstractReplacedBox box = new FlowReplacedBox(params, pos);
+
+		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(box));
+
+		assertTrue(converted instanceof SegmentEvent.Replaced);
+		final ReplacedRecipe recipe = ((SegmentEvent.Replaced) converted).recipe();
+		assertTrue(recipe instanceof ReplacedRecipe.Flow);
+		final ReplacedRecipe.Flow flow = (ReplacedRecipe.Flow) recipe;
+		assertEquals(1.5, flow.params().materialize().lineHeight);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.Align.CENTER, flow.pos().materialize().align);
+	}
+
+	/** インラインの置換要素(InlineReplacedBox)は内容を失わずReplacedRecipe.Inlineへ変換される。 */
+	public void testInlineReplacedConvertsToReplacedWithInlineRecipe() {
+		final ReplacedParams params = new ReplacedParams();
+		final InlinePos pos = new InlinePos();
+		pos.lineHeight = 3.0;
+		final AbstractReplacedBox box = new InlineReplacedBox(params, pos);
+
+		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(box));
+
+		assertTrue(converted instanceof SegmentEvent.Replaced);
+		final ReplacedRecipe.Inline inline = (ReplacedRecipe.Inline) ((SegmentEvent.Replaced) converted).recipe();
+		assertEquals(3.0, inline.pos().materialize().lineHeight);
+	}
+
+	/**
+	 * {@link ReplacedBoxImage}実装(live boxへのback-referenceを持つため
+	 * 共有不可)を参照する置換要素は、fail closedでBarrierへ変換される
+	 * (ReplacedRecipeは構築されない)。
+	 */
+	public void testReplacedBoxImageFailsClosedToBarrier() {
+		final ReplacedParams params = new ReplacedParams();
+		params.image = new Image() {
+			public double getWidth() {
+				return 0;
+			}
+
+			public double getHeight() {
+				return 0;
+			}
+
+			public void drawTo(GC gc) {
+			}
+
+			public String getAltString() {
+				return null;
+			}
+		};
+		// 通常のImageなら変換できることをまず確認(対照)
+		final AbstractReplacedBox plain = new FlowReplacedBox(params, new FlowPos());
+		assertTrue(LayoutSourceEventConverter.convert(new LayoutSource.Replaced(plain)) instanceof SegmentEvent.Replaced);
+
+		final ReplacedParams unsafeParams = new ReplacedParams();
+		unsafeParams.image = new StubReplacedBoxImage();
+		final AbstractReplacedBox unsafe = new FlowReplacedBox(unsafeParams, new FlowPos());
+
+		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(unsafe));
+		assertTrue(converted instanceof SegmentEvent.Barrier);
+		assertEquals(BarrierReason.NOT_YET_SUPPORTED, ((SegmentEvent.Barrier) converted).reason());
+	}
+
+	/** {@link Image}かつ{@link ReplacedBoxImage}を両方実装する最小のテスト用スタブ。 */
+	private static final class StubReplacedBoxImage implements Image, ReplacedBoxImage {
+		public double getWidth() {
+			return 0;
+		}
+
+		public double getHeight() {
+			return 0;
+		}
+
+		public void drawTo(GC gc) {
+		}
+
+		public String getAltString() {
+			return null;
+		}
+
+		public void setReplacedBox(AbstractReplacedBox box, double width, double height) {
+		}
 	}
 }

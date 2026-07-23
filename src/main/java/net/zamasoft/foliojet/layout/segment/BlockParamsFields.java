@@ -29,38 +29,9 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
  * 保持する(コピー不要)。
  * </p>
  */
-final class BlockParamsFields {
-	private final LineParamsFields common;
-	private final RectFrame frame;
-	private final FirstLineParamsTemplate firstLineStyle;
-	private final PageBreakMode pageBreakInside;
-	private final byte orphans;
-	private final byte widows;
-	private final Dimension size;
-	private final Dimension minSize;
-	private final Dimension maxSize;
-	private final BoxSizingMode boxSizing;
-	private final OverflowMode overflow;
-	private final Columns columns;
-
-	private BlockParamsFields(final LineParamsFields common, final RectFrame frame,
-			final FirstLineParamsTemplate firstLineStyle, final PageBreakMode pageBreakInside, final byte orphans,
-			final byte widows, final Dimension size, final Dimension minSize, final Dimension maxSize,
-			final BoxSizingMode boxSizing, final OverflowMode overflow, final Columns columns) {
-		this.common = common;
-		this.frame = frame;
-		this.firstLineStyle = firstLineStyle;
-		this.pageBreakInside = pageBreakInside;
-		this.orphans = orphans;
-		this.widows = widows;
-		this.size = size;
-		this.minSize = minSize;
-		this.maxSize = maxSize;
-		this.boxSizing = boxSizing;
-		this.overflow = overflow;
-		this.columns = columns;
-	}
-
+record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLineParamsTemplate firstLineStyle,
+		PageBreakMode pageBreakInside, byte orphans, byte widows, Dimension size, Dimension minSize,
+		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow, Columns columns) {
 	static BlockParamsFields freeze(final BlockParams source) {
 		final FirstLineParamsTemplate firstLineStyle = source.firstLineStyle == null ? null
 				: FirstLineParamsTemplate.freeze(source.firstLineStyle);
