@@ -63,13 +63,17 @@ public class BalanceProbeGoldenTest extends TestCase {
 			"0415-column-fill/probe-avoid-orphans.html", // widows/orphans/avoid
 			"0415-column-fill/probe-edge-cases.html", // 空(fallback)/1段/複数段済み
 			"0415-column-fill/probe-nested.html", // 入れ子段組(外側fallback+内側採用)
+			"0415-column-fill/probe-float.html", // 段組内float(M6c-5解禁。固定幅+auto幅two-pass)
 			"0400-column-count/columns-float.html", // 外側floatで実幅が狭くなる反例
 	};
 
 	/**
 	 * 全balance呼び出しがプローブ不適格でlegacyへフォールバックするはずの
-	 * 文書(段組内float・column-span分割で部分木が開いたままのbalance・
-	 * anchorなしの再構成multicol——M6c-5まで全て不適格)。
+	 * 文書。M6c-5で段組内floatゲートは撤去されたため、float-in-flowが
+	 * フォールバックし続ける理由は<b>column-span分割の構造</b>のみ:
+	 * {@code startColumnSpan}中のbalanceは部分木が開いたまま
+	 * ({@code endOf}=-1)、{@code endColumnSpan}の再構成multicolは
+	 * ソースアンカーなし——いずれも入力凍結不能。
 	 */
 	private static final String[] FALLBACK_DOCUMENTS = { //
 			"0415-column-fill/float-in-flow.html", //

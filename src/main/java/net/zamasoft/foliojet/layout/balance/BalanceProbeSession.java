@@ -28,9 +28,9 @@ import net.zamasoft.foliojet.layout.segment.SegmentEvent;
  * <p>
  * 外側floatの排除域はcandidateへコピーしない——外側floatの効果はlive
  * 構築時に{@code snapshotExclusions()}からmulticolの実幅へ既に反映済みで、
- * ここで再投入すると二重回避になる(§1.3)。段組内floatは当面
- * プローブ不適格(入力captureの{@code containsFloat}ゲート)で、解禁は
- * M6c-5。
+ * ここで再投入すると二重回避になる(§1.3)。段組内floatはM6c-5
+ * (2026-07-24)で解禁——候補builder(新品のfloatings台帳)内で通常
+ * どおり配置され、P1の{@code commitFloatPlacement}が候補内に閉じる。
  * </p>
  *
  * <p>

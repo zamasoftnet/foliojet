@@ -200,8 +200,23 @@ public class DocumentBuilder implements TableBuilderHost {
 		throw new ArrayIndexOutOfBoundsException("builderStack に ContainerBuilderEntry がありません: " + this.builderStack);
 	}
 
-	private RootBuilder pageContextBuilder() {
-		return (RootBuilder) ((ContainerBuilderEntry) this.builderStack.get(0)).builder;
+	/**
+	 * ビルダースタックの根(通常はページ文脈の{@code RootBuilder})を
+	 * 返します。二段階(two-pass)構築のbind先ビルダーの親として使う。
+	 *
+	 * <p>
+	 * 2026-07-24(M6c-5): 型を{@code RootBuilder}から{@link BlockBuilder}へ
+	 * 緩和した。live構築ではスタックの根は常に{@code RootBuilder}のため
+	 * 挙動は不変だが、rootlessなソース再生(バランスプローブの候補構築
+	 * ——根は{@code BalanceProbeBuilder})では、段組内floatやインライン
+	 * ブロックのtwo-pass bindがここを通るため、旧castは
+	 * {@code ClassCastException}になっていた(段組内float解禁で実際に
+	 * 踏む経路になった)。呼び出し側はいずれも{@code LayoutStack}/
+	 * {@code getRootBox()}としてしか使わない。
+	 * </p>
+	 */
+	private BlockBuilder pageContextBuilder() {
+		return (BlockBuilder) ((ContainerBuilderEntry) this.builderStack.get(0)).builder;
 	}
 
 	private ContainerBuilderEntry endContainerBuilder() {

@@ -246,15 +246,36 @@ public class BalanceProbeSessionTest extends TestCase {
 		assertNull("破棄された候補shellはGCされるはずです", ref.get());
 	}
 
-	/** フロートを含む内容はプローブ不適格(M6c-5まで)。 */
-	public void testFloatContentIsIneligible() {
+	/**
+	 * フロートを含む内容はプローブ適格である(M6c-5、2026-07-24解禁——
+	 * legacy再構築の{@code SourceReplayer.canReplayChildren}はfloatゲートを
+	 * 維持したまま、プローブ専用判定だけが受け入れる)。
+	 */
+	public void testFloatContentIsEligibleForProbe() {
 		final LayoutSource floatLog = new LayoutSource();
 		final long floatSelfId = floatLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL,
 				this.ownerParams, this.ownerPos));
 		floatLog.append(new LayoutSource.Start(LayoutSource.BoxKind.FLOAT_BLOCK, childParams(30), new FloatPos()));
 		floatLog.append(new LayoutSource.EndBlock());
 		floatLog.append(new LayoutSource.EndBlock());
-		assertTrue(BalanceProbeInput.capture(floatLog, floatSelfId, this.owner, 3, dummyUserAgent()).isEmpty());
+		assertTrue("段組内floatはM6c-5でプローブ適格になったはずです",
+				BalanceProbeInput.capture(floatLog, floatSelfId, this.owner, 3, dummyUserAgent()).isPresent());
+		// legacy共有判定(SourceReplayer.canReplayChildren)は挙動不変
+		// ——floatゲートを維持している
+		assertFalse("legacyのcanReplayChildrenはfloatゲートを維持するはずです",
+				net.zamasoft.foliojet.layout.SourceReplayer.canReplayChildren(floatLog, floatSelfId,
+						this.ownerParams.flow));
+	}
+
+	/** 入れ子段組を含む内容はM6c-5後もプローブ不適格。 */
+	public void testNestedMulticolContentIsIneligible() {
+		final LayoutSource nestedLog = new LayoutSource();
+		final long nestedSelfId = nestedLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL,
+				this.ownerParams, this.ownerPos));
+		nestedLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL, multicolParams(2), new FlowPos()));
+		nestedLog.append(new LayoutSource.EndBlock());
+		nestedLog.append(new LayoutSource.EndBlock());
+		assertTrue(BalanceProbeInput.capture(nestedLog, nestedSelfId, this.owner, 3, dummyUserAgent()).isEmpty());
 	}
 
 	/** Opaque(replay不能イベント)を含む内容はプローブ不適格。 */

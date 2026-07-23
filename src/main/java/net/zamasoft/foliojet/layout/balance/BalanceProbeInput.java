@@ -41,10 +41,20 @@ public record BalanceProbeInput(LayoutSource.ReplaySlice source, List<SegmentEve
 
 	/**
 	 * live ownerからプローブ入力を凍結します。プローブ不適格
-	 * (範囲不明・Opaque/フロート/入れ子段組/縦横混在含み・範囲の穴・
+	 * (範囲不明・Opaque/入れ子段組/縦横混在含み・範囲の穴・
 	 * {@link SegmentEvent.Barrier}が一件でもある)なら空を返し、呼び出し側は
 	 * 既存balanceへフォールバックする——汎用Segment executorは作らない
 	 * (codex設計§1.4)。
+	 *
+	 * <p>
+	 * <b>段組内float(M6c-5、2026-07-24解禁)</b>: 適格判定はプローブ
+	 * 専用で、{@link SourceReplayer#canReplayChildren}(live legacy再構築
+	 * 経路と共有——そちらは{@code containsFloat}ゲートを維持)とは
+	 * 独立している。floatは候補builder内で通常どおり配置され、P1の
+	 * {@code commitFloatPlacement}が候補内に閉じる(候補builderの
+	 * floatings台帳は新品)。外側floatの排除域は従来どおりコピーしない
+	 * (multicol実幅に反映済み・二重回避防止)。
+	 * </p>
 	 *
 	 * @param log         ソースログ
 	 * @param selfId      owner自身のStartのEventId(ソースアンカー)
@@ -55,7 +65,7 @@ public record BalanceProbeInput(LayoutSource.ReplaySlice source, List<SegmentEve
 	 */
 	public static Optional<BalanceProbeInput> capture(final LayoutSource log, final long selfId,
 			final MulticolumnBlockBox owner, final int columnCount, final UserAgent ua) {
-		if (!SourceReplayer.canReplayChildren(log, selfId, owner.getBlockParams().flow)) {
+		if (!canReplayForProbe(log, selfId, owner)) {
 			return Optional.empty();
 		}
 		final long endId = log.endOf(selfId);
@@ -72,5 +82,27 @@ public record BalanceProbeInput(LayoutSource.ReplaySlice source, List<SegmentEve
 			}
 		}
 		return Optional.of(new BalanceProbeInput(slice, events, owner.snapshotBalanceGeometry(), columnCount, ua));
+	}
+
+	/**
+	 * プローブ専用の子範囲再生可否です(2026-07-24、M6c-5で
+	 * {@link SourceReplayer#canReplayChildren}から分離)。判定は
+	 * {@code containsFloat}を課さない点だけが異なる——legacy再構築
+	 * ({@code SourceReplayer.replayChildren})の適格条件はそのまま
+	 * 維持し、float解禁の影響範囲をプローブに限定する。
+	 */
+	private static boolean canReplayForProbe(final LayoutSource log, final long selfId,
+			final MulticolumnBlockBox owner) {
+		if (log == null || selfId < 0) {
+			return false;
+		}
+		final long endId = log.endOf(selfId);
+		if (endId < 0 || endId <= selfId + 1) {
+			// 部分木が開いたまま(column-span分割中)・空内容
+			return false;
+		}
+		// 入れ子段組・縦横混在の再現は未検証のためフォールバック(M6c-5でも維持)
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
+				|| log.containsMixedFlow(selfId + 1, endId - 1, owner.getBlockParams().flow));
 	}
 }
