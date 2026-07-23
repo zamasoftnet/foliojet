@@ -416,12 +416,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 				marginStart = frame.margin.top;
 			}
 			final double pageStart = this.pageAxis - marginStart;
-			final LayoutContext.Floating floating = this.findClearFloating(pageStart, marginStart, pos.clear);
-			this.shadowCompareClearBoundary(pageStart, marginStart, pos.clear, floating);
-			if (floating != null) {
+			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
+			// 旧ループ(findClearFloating)はもう実レイアウトに使わず、
+			// 安全網としてのshadow比較専用に残す。
+			final ExclusionSpace snapshot = this.snapshotExclusions();
+			final FloatExclusion found = snapshot.findClearBoundary(pageStart, marginStart, pos.clear);
+			final LayoutContext.Floating legacyFloating = this.findClearFloating(pageStart, marginStart, pos.clear);
+			this.shadowCompareClearBoundary(marginStart, found, legacyFloating);
+			if (found != null) {
 				// 浮動ボックスの下につける
 				this.poLastMargin = this.neLastMargin = 0;
-				this.pageAxis = floating.pageEnd - marginStart;
+				this.pageAxis = found.pageSpan().end() - marginStart;
 			}
 		}
 
@@ -611,24 +616,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * {@link #findClearFloating}の結果と、{@link ExclusionSpace}
-	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
-	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
-	 * {@code findClearFloating}の結果だけを使う。
+	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
+	 * {@link #findClearFloating}(旧ループ、安全網としてのみ残す)の
+	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
+	 * {@code ExclusionSpace}側の結果だけを使う。
 	 */
-	private void shadowCompareClearBoundary(final double pageStart, final double marginStart, final ClearMode clear,
-			final LayoutContext.Floating actual) {
-		final ExclusionSpace snapshot = this.snapshotExclusions();
-		final FloatExclusion expected = snapshot.findClearBoundary(pageStart, marginStart, clear);
-		final boolean actualFound = actual != null;
-		final boolean expectedFound = expected != null;
+	private void shadowCompareClearBoundary(final double marginStart, final FloatExclusion exclusionSpaceResult,
+			final LayoutContext.Floating legacyResult) {
+		final boolean exclusionSpaceFound = exclusionSpaceResult != null;
+		final boolean legacyFound = legacyResult != null;
 		final boolean matched;
-		if (actualFound != expectedFound) {
+		if (exclusionSpaceFound != legacyFound) {
 			matched = false;
-		} else if (!actualFound) {
+		} else if (!exclusionSpaceFound) {
 			matched = true;
 		} else {
-			matched = Math.abs((expected.pageSpan().end() - marginStart) - (actual.pageEnd - marginStart)) <= ExclusionShadowStats.EPSILON;
+			matched = Math.abs((exclusionSpaceResult.pageSpan().end() - marginStart)
+					- (legacyResult.pageEnd - marginStart)) <= ExclusionShadowStats.EPSILON;
 		}
 		ExclusionShadowStats.recordClear(matched);
 	}
