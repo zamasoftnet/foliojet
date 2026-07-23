@@ -1086,6 +1086,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 			this.pruneFlowStackTo(breakFlow);
 			this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
+			// 2026-07-23(排除域P1増分1): 保持されたhidden flow分の空台帳を
+			// 積み直す(これらのflowは再startFlowBlockされないため必須)。
+			this.rebuildNoOverflowFloatingScopes();
 			this.beginRestyling();
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
@@ -1126,6 +1129,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		this.pruneFlowStackTo(breakFlow);
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
+		// 2026-07-23(排除域P1増分1): 保持されたhidden flow分の空台帳を
+		// 積み直す(rootless経路と同じ)。
+		this.rebuildNoOverflowFloatingScopes();
 		root.resumeColumn(this, compiled);
 		return true;
 	}

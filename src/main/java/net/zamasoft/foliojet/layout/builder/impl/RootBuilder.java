@@ -883,6 +883,9 @@ public class RootBuilder extends BreakableBuilder {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCompiledProgram(resumeProgram);
 
 		this.flowStack.clear();
+		// 2026-07-23(排除域P1増分1): 旧断片のhiddenスコープ台帳を捨てる
+		// (再開されるhidden flowはresumeのstartFlowBlock()が積み直す)。
+		this.rebuildNoOverflowFloatingScopes();
 		pageBox.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 		// P1: セッションがリース(occurrence 単位)とスコープを所有し、
 		// consume-once と例外時清算を対称に保証する

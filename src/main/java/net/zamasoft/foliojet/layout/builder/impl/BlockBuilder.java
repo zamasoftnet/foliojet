@@ -1016,6 +1016,49 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
+	/**
+	 * fragment境界(改ページ・改段)通過後に、overflow:hiddenのfloat台帳
+	 * ({@link #noOverflowFloatings})を現在のflowStack上のactive hidden
+	 * flowから再構築します(2026-07-23、排除域P1増分1)。
+	 *
+	 * <p>
+	 * 従来は{@code resetFragmentCursor()}が{@code floatings}だけをnullに
+	 * 戻しこの台帳には触れなかったため、PAGE改ページ(flowStack.clear()+
+	 * resume再駆動でhidden flowが台帳を再pushする経路)では旧断片の
+	 * スコープエントリがpopされないまま残留し続けた——レイアウト結果には
+	 * 影響しない(popは常に末尾=新エントリ、removeAllは空振り)が、
+	 * ページ数×hidden深さ×float数で旧Floating/IFloatBox参照が文書終了
+	 * までGCできなかった(codexレビュー指摘)。
+	 * </p>
+	 *
+	 * <p>
+	 * PAGE({@code flowStack.clear()}直後に呼ぶ)では結果はnull——再開される
+	 * hidden flowが{@code startFlowBlock()}で新しい台帳を積む。COLUMN
+	 * ({@code pruneFlowStackTo()}+{@code resetFragmentCursor()}直後に呼ぶ)
+	 * では、保持されたhidden flowの数だけ空の台帳を積み直す——それらの
+	 * flowは再度{@code startFlowBlock()}されないため、積み直さないと
+	 * 終了時のpopが破綻する。どちらも{@code floatings}自体はリセット済み
+	 * (assertで検査)のため、旧floatを引き継ぐ必要はなく空台帳で十分
+	 * (owner付けは不要)。
+	 * </p>
+	 */
+	protected final void rebuildNoOverflowFloatingScopes() {
+		assert this.floatings == null;
+		this.noOverflowFloatings = null;
+		if (this.flowStack == null) {
+			return;
+		}
+		for (int i = 0; i < this.flowStack.size(); ++i) {
+			final Flow flow = (Flow) this.flowStack.get(i);
+			if (flow.box.getBlockParams().overflow == OverflowMode.HIDDEN) {
+				if (this.noOverflowFloatings == null) {
+					this.noOverflowFloatings = new ArrayList<List<Floating>>();
+				}
+				this.noOverflowFloatings.add(new ArrayList<Floating>());
+			}
+		}
+	}
+
 	public void addTable(final TableBuilder tableBuilder) {
 		final RetainedTableBuilder autoTableBuilder = (RetainedTableBuilder) tableBuilder;
 		autoTableBuilder.prepareLayout();
