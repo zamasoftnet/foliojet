@@ -888,6 +888,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double pageStart = delta.pageSpan().start();
 		final Flow flow = this.getFlow();
 		flow.box.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis);
+		if (delta.kind() == FloatCommitKind.MOVE_BY_CLEAR) {
+			// clear先送りは現行のroot-only extent規則を保存する(通常の
+			// extendParentsと同じではない——ネスト中は親extentを更新しない。
+			// codex設計: この非対称をP1で黙って正規化しない)。
+			if (this.flowStack == null || this.flowStack.isEmpty()) {
+				this.getRootBox().setPageAxis(delta.pageSpan().end());
+			}
+			return;
+		}
 		if (delta.kind() != FloatCommitKind.MOVE_TO_NEXT) {
 			final WritingMode progression = this.getRootBox().getBlockParams().flow;
 			this.addFloating(new LayoutContext.Floating(delta.box(), lineOffset, pageStart, progression));

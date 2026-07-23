@@ -33,6 +33,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -685,105 +686,55 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	protected void addStartFloat(IFloatBox box) {
-		// clearによる先送りチェック
-		boolean breakFloats = false;
-		switch (box.getFloatPos().clear) {
-		case ClearMode.NONE:
-			break;
-
-		case ClearMode.START:
-			if (this.breakFloats.contains(FloatSide.START)) {
-				breakFloats = true;
-			}
-			break;
-
-		case ClearMode.END:
-			if (this.breakFloats.contains(FloatSide.END)) {
-				breakFloats = true;
-			}
-			break;
-
-		case ClearMode.BOTH:
-			if (!this.breakFloats.isEmpty()) {
-				breakFloats = true;
-			}
-			break;
-
-		default:
-			throw new IllegalStateException();
-		}
-		if (breakFloats) {
-			this.breakFloats.add(box.getFloatPos().floating);
-			double pageStart = this.getPageLimit();
-			Flow flow = this.getFlow();
-			flow.box.addFloating(box, 0, pageStart - flow.pageAxis);
-			// 上位ボックスの幅の拡張
-			double pageAxis = pageStart;
-			pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
-			int i;
-			if (this.flowStack != null) {
-				i = this.flowStack.size() - 1;
-			} else {
-				i = -1;
-			}
-			if (i == -1) {
-				AbstractContainerBox rootBox = this.getRootBox();
-				rootBox.setPageAxis(pageAxis);
-			}
+		if (this.deferredByClear(box.getFloatPos().clear)) {
+			this.commitFloatPlacement(this.deferByClear(box, FloatSide.START));
 		} else {
 			super.addStartFloat(box);
 		}
 	}
 
 	protected void addEndFloat(IFloatBox box) {
-		// clearによる先送りチェック
-		boolean breakFloats = false;
-		switch (box.getFloatPos().clear) {
-		case ClearMode.NONE:
-			break;
-
-		case ClearMode.START:
-			if (this.breakFloats.contains(FloatSide.START)) {
-				breakFloats = true;
-			}
-			break;
-
-		case ClearMode.END:
-			if (this.breakFloats.contains(FloatSide.END)) {
-				breakFloats = true;
-			}
-			break;
-
-		case ClearMode.BOTH:
-			if (!this.breakFloats.isEmpty()) {
-				breakFloats = true;
-			}
-			break;
-
-		default:
-			throw new IllegalStateException();
-		}
-		if (breakFloats) {
-			this.breakFloats.add(box.getFloatPos().floating);
-			double pageStart = this.getPageLimit();
-			Flow flow = this.getFlow();
-			flow.box.addFloating(box, 0, pageStart - flow.pageAxis);
-			// 上位ボックスの幅の拡張
-			double pageAxis = pageStart;
-			pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
-			int i;
-			if (this.flowStack != null) {
-				i = this.flowStack.size() - 1;
-			} else {
-				i = -1;
-			}
-			if (i == -1) {
-				AbstractContainerBox rootBox = this.getRootBox();
-				rootBox.setPageAxis(pageAxis);
-			}
+		if (this.deferredByClear(box.getFloatPos().clear)) {
+			this.commitFloatPlacement(this.deferByClear(box, FloatSide.END));
 		} else {
 			super.addEndFloat(box);
 		}
+	}
+
+	/**
+	 * clearによる先送り判定です(2026-07-23、排除域P1増分4——旧
+	 * addStartFloat/addEndFloatが重複して持っていたswitchの一本化。
+	 * 既に先送り済みのfloatをclear対象に指定しているfloatは、探索なしで
+	 * 次フラグメントへ先送りする)。副作用なし。
+	 */
+	private boolean deferredByClear(final ClearMode clear) {
+		switch (clear) {
+		case ClearMode.NONE:
+			return false;
+		case ClearMode.START:
+			return this.breakFloats.contains(FloatSide.START);
+		case ClearMode.END:
+			return this.breakFloats.contains(FloatSide.END);
+		case ClearMode.BOTH:
+			return !this.breakFloats.isEmpty();
+		default:
+			throw new IllegalStateException();
+		}
+	}
+
+	/**
+	 * clear先送りの配置計画を作ります(2026-07-23、排除域P1増分4——
+	 * フラグメント境界(pageLimit)へ置いて次フラグメントへ送る。
+	 * 副作用なし、commitは{@code commitFloatPlacement}の
+	 * {@code MOVE_BY_CLEAR}分岐)。
+	 */
+	private FloatPlacementDelta deferByClear(final IFloatBox box, final FloatSide side) {
+		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final double pageStart = this.getPageLimit();
+		final double lineOffset = this.getFlow().lineAxis;
+		return new FloatPlacementDelta(box, side,
+				new AxisSpan(lineOffset, lineOffset + box.getLineExtent(progression)),
+				new AxisSpan(pageStart, pageStart + box.getPageExtent(progression)), FloatCommitKind.MOVE_BY_CLEAR);
 	}
 
 	/**

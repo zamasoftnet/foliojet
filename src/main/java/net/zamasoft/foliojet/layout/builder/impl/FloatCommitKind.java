@@ -30,5 +30,14 @@ enum FloatCommitKind {
 	 * {@code breakFloats}へ追加する(avoid指定のBLOCK、またはページ
 	 * 先頭でないREPLACED)。
 	 */
-	MOVE_TO_NEXT
+	MOVE_TO_NEXT,
+	/**
+	 * clearによる先送り: 既に先送り済みのfloatに対するclear指定を持つ
+	 * floatを、探索なしでフラグメント境界(pageLimit)へ置いて次
+	 * フラグメントへ送る。排除域台帳へは登録せず{@code breakFloats}へ
+	 * 追加する。親extentの更新は通常の{@code extendParents}ではなく
+	 * root直下のみという現行規則を保存する(2026-07-23、codex設計——
+	 * この非対称をP1で黙って正規化しない)。
+	 */
+	MOVE_BY_CLEAR
 }
