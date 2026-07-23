@@ -44,4 +44,46 @@ public class FragmentationAuditTest extends TestCase {
 		FragmentationAudit.setEnabled(false);
 		assertNull("無効化後はcurrent()がnullを返すはずです", FragmentationAudit.current());
 	}
+
+	/**
+	 * {@code adopt}(2026-07-23新設、{@code processing.large-stack-thread}
+	 * 用)は、呼び出し元スレッドで取得したtraceを別スレッドへ明示的に
+	 * 引き継ぐ——両スレッドが同一のtraceインスタンスに記録を集約する。
+	 */
+	public void testAdoptSharesTraceAcrossThreads() throws InterruptedException {
+		FragmentationAudit.setEnabled(true);
+		final FragmentationTrace mainThreadTrace = FragmentationAudit.current();
+		mainThreadTrace.record(new FragmentationEvent.LoopExamine(false, 1, 0, 0, false, false));
+
+		final FragmentationTrace[] workerThreadTrace = new FragmentationTrace[1];
+		final Thread worker = new Thread(() -> {
+			FragmentationAudit.adopt(mainThreadTrace);
+			workerThreadTrace[0] = FragmentationAudit.current();
+			workerThreadTrace[0].record(new FragmentationEvent.LoopExamine(false, 2, 0, 0, false, false));
+		});
+		worker.start();
+		worker.join();
+
+		assertSame("adopt後は別スレッドでも同一のtraceインスタンスを返すはずです", mainThreadTrace, workerThreadTrace[0]);
+		assertEquals("両スレッドの記録が同じtraceに集約されているはずです", 2, mainThreadTrace.events().size());
+	}
+
+	/** {@code trace}がnull(無効時)の場合、adoptは何もしない(現在のスレッドのCURRENTを汚染しない)。 */
+	public void testAdoptWithNullTraceIsNoOp() throws InterruptedException {
+		FragmentationAudit.setEnabled(false);
+		final Throwable[] failure = new Throwable[1];
+		final Thread worker = new Thread(() -> {
+			try {
+				FragmentationAudit.adopt(null);
+				assertNull("無効時はadopt(null)後もcurrent()はnullのはずです", FragmentationAudit.current());
+			} catch (Throwable t) {
+				failure[0] = t;
+			}
+		});
+		worker.start();
+		worker.join();
+		if (failure[0] != null) {
+			throw new AssertionError(failure[0]);
+		}
+	}
 }

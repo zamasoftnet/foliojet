@@ -60,4 +60,26 @@ public final class FragmentationAudit {
 	public static void reset() {
 		CURRENT.remove();
 	}
+
+	/**
+	 * 別スレッドから引き継いだtraceを現在のスレッドへ明示的に紐付けます
+	 * (2026-07-23新設、`processing.large-stack-thread`用)。
+	 *
+	 * <p>
+	 * {@code current()}はスレッドごとに独立して新規traceを遅延生成する
+	 * ため、実際のformat処理を専用スレッドへ委譲する構成では、呼び出し
+	 * 元スレッドが{@code current()}で読もうとしたtraceと専用スレッドが
+	 * 記録したtraceが別物になってしまう。呼び出し元スレッドで取得した
+	 * traceをこのメソッドで専用スレッドへ明示的に引き継ぐことで、
+	 * どちらのスレッドで実行されても同一のtraceオブジェクトに記録が
+	 * 集約される(専用スレッド実行中は呼び出し元スレッドは
+	 * {@code join()}で待機するため、同時書き込みは起きない)。
+	 * {@code trace}がnull(無効時)の場合は何もしない。
+	 * </p>
+	 */
+	public static void adopt(final FragmentationTrace trace) {
+		if (trace != null) {
+			CURRENT.set(trace);
+		}
+	}
 }

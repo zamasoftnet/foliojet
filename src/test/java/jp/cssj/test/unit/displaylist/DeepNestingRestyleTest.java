@@ -188,6 +188,63 @@ public class DeepNestingRestyleTest extends TestCase {
 	}
 
 	/**
+	 * {@code splitPageAxis}の反復化(M6d後の大規模リファクタ)と比較検討
+	 * する代替案の実証実験です(2026-07-23、
+	 * `docs/history/2026-07-22-m6d-splitpageaxis-iteration
+	 * -investigation.md`「代替案」節参照)。
+	 *
+	 * <p>
+	 * 深さ1000・5000での{@code StackOverflowError}は典型的な「JVM
+	 * デフォルトのスレッドstackサイズ不足」パターン(深さ500は成功、
+	 * 1000で失敗——1段あたり数百バイト消費と見積もれば筋が通る)と
+	 * 仮説を立てた。{@code splitPageAxis}のロジックには一切触れず、
+	 * 大きいstackサイズ(64MB)を持つ専用スレッドで同じ計算を実行する
+	 * だけで解消するかを直接検証する。
+	 * </p>
+	 *
+	 * <p>
+	 * この実証実験自体はテストコード側だけで大きいstackスレッドを
+	 * 手動生成する(本番コードには一切手を入れない、生の仮説検証)。
+	 * 検証後に実際に本番へ配線した統合({@code processing
+	 * .large-stack-thread}プロパティ経由)は
+	 * {@link #testDepth5000SucceedsWithLargeStackThreadProperty}参照。
+	 * </p>
+	 */
+	public void testDepth5000SucceedsOnLargeStackThread() throws Throwable {
+		final int depth = 5000;
+		final int leafLines = 300;
+		final long largeStackBytes = 64L * 1024 * 1024;
+		final Throwable[] failure = new Throwable[1];
+		final Thread worker = new Thread(null, () -> {
+			try {
+				this.runDeepOpenChain(depth, leafLines);
+			} catch (Throwable t) {
+				failure[0] = t;
+			}
+		}, "deep-nesting-large-stack", largeStackBytes);
+		worker.start();
+		worker.join();
+		if (failure[0] != null) {
+			throw failure[0];
+		}
+	}
+
+	/**
+	 * 上記の仮説検証を受けて実際に本番へ配線した統合(2026-07-23、
+	 * `processing.large-stack-thread`セッションプロパティ、
+	 * {@code DirectSession.runOnLargeStackIfEnabled}経由)を、
+	 * テストコード側で手動スレッドを作らず、{@code DirectSession
+	 * .transcode()}の通常の呼び出し経路だけで検証する。深さ5000は
+	 * このプロパティを立てない既定設定では{@code StackOverflowError}
+	 * になる({@link #testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows}
+	 * 参照)——このプロパティを立てるだけで例外なく成功することを
+	 * 固定する。
+	 */
+	public void testDepth5000SucceedsWithLargeStackThreadProperty() throws Exception {
+		this.runDeepOpenChain(5000, 300, true);
+	}
+
+	/**
 	 * restyle系反復化前の現状の既知の限界を固定する。
 	 *
 	 * <p>
@@ -246,6 +303,10 @@ public class DeepNestingRestyleTest extends TestCase {
 	}
 
 	private void runDeepOpenChain(int depth, int leafLines) throws Exception {
+		this.runDeepOpenChain(depth, leafLines, false);
+	}
+
+	private void runDeepOpenChain(int depth, int leafLines, boolean largeStackThread) throws Exception {
 		final String name = "deep-nesting-restyle-" + depth;
 		final File doc = generateDeepOpenChainAcrossPageBreaks(name, depth, leafLines);
 		final File pdf = new File("local/unittest/display-list/" + name + ".pdf");
@@ -258,6 +319,9 @@ public class DeepNestingRestyleTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
+				if (largeStackThread) {
+					session.property("processing.large-stack-thread", "true");
+				}
 				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
 			} finally {
 				session.close();

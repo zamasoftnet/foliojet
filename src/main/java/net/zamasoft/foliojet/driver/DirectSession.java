@@ -650,9 +650,69 @@ public class DirectSession extends AbstractCTISession
 		this.reset();
 	}
 
+	/** {@link #runOnLargeStackIfEnabled}へ渡す、実際のformat呼び出し1回分です。 */
+	@FunctionalInterface
+	private interface LargeStackTask {
+		void run() throws AbortException, TranscoderException;
+	}
+
+	/**
+	 * {@code task}(実際には{@code formatter.format(...)}の1呼び出し)を
+	 * 実行します。{@code processing.large-stack-thread}が有効な場合は、
+	 * 大きいstackサイズを持つ専用スレッド上で実行する(2026-07-23新設)。
+	 *
+	 * <p>
+	 * 極端に深いネスト構造の文書は{@code FlowContainer.splitPageAxis}↔
+	 * {@code AbstractBlockBox.splitForContinuation}の相互再帰が
+	 * JVMデフォルトのスレッドstackサイズを超え{@code StackOverflowError}
+	 * になりうることを実証済み(`docs/history/2026-07-22
+	 * -m6d-splitpageaxis-iteration-investigation.md`参照)。既定は
+	 * 無効——通常の文書やこの対策を必要としない呼び出し側の挙動・
+	 * スレッド前提は一切変えない。
+	 * </p>
+	 */
+	private void runOnLargeStackIfEnabled(final LargeStackTask task) throws AbortException, TranscoderException {
+		if (!UAProps.PROCESSING_LARGE_STACK_THREAD.getBoolean(this.ua)) {
+			task.run();
+			return;
+		}
+		final int stackSize = UAProps.PROCESSING_LARGE_STACK_THREAD_SIZE.getInteger(this.ua);
+		final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
+				.current();
+		final Throwable[] failure = new Throwable[1];
+		final Thread worker = new Thread(null, () -> {
+			net.zamasoft.foliojet.layout.fragment.FragmentationAudit.adopt(trace);
+			try {
+				task.run();
+			} catch (Throwable t) {
+				failure[0] = t;
+			}
+		}, "foliojet-large-stack-format", stackSize);
+		worker.start();
+		try {
+			worker.join();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException("Interrupted while waiting for large-stack format thread", e);
+		}
+		if (failure[0] instanceof AbortException ae) {
+			throw ae;
+		}
+		if (failure[0] instanceof TranscoderException te) {
+			throw te;
+		}
+		if (failure[0] instanceof RuntimeException re) {
+			throw re;
+		}
+		if (failure[0] instanceof Error err) {
+			throw err;
+		}
+		assert failure[0] == null : failure[0];
+	}
+
 	/**
 	 * 文書を変換します。
-	 * 
+	 *
 	 * @param source
 	 * @throws AbortException
 	 * @throws TranscoderException
@@ -685,7 +745,13 @@ public class DirectSession extends AbstractCTISession
 				this.ua.getDocumentContext().setBaseURI(source.getURI());
 				this.ua.getUAContext().setPassCount(passCount);
 				this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
-				formatter.format(source, this.ua);
+				// source をラムダで直接捕捉しない: このメソッドはproduct側の
+				// ライセンスチェック拡張で source を再代入する変種が存在し
+				// (copperpdf4/product、期限切れ時にexpired.htmlへ差し替える)、
+				// 再代入されるとeffectively finalでなくなりコンパイルできない
+				// (2026-07-23、imageTestのfresh jarビルドで実際に検出)。
+				final Source formatSource = source;
+				this.runOnLargeStackIfEnabled(() -> formatter.format(formatSource, this.ua));
 			} else {
 				// 複数パス
 				((RandomResultUserAgent) this.ua).setResults(results);
@@ -707,7 +773,7 @@ public class DirectSession extends AbstractCTISession
 							final TeeInputStream in = new TeeInputStream(source.getInputStream(), out)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 								source.getEncoding());
-						formatter.format(fileSource, this.ua);
+						this.runOnLargeStackIfEnabled(() -> formatter.format(fileSource, this.ua));
 					}
 					// 中間処理
 					for (int remaining = passCount; remaining > 1; --remaining) {
@@ -718,7 +784,7 @@ public class DirectSession extends AbstractCTISession
 						try (final InputStream in = new FileInputStream(tmpFile)) {
 							final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 									source.getEncoding());
-							formatter.format(fileSource, this.ua);
+							this.runOnLargeStackIfEnabled(() -> formatter.format(fileSource, this.ua));
 						}
 					}
 					// 目的物生成
@@ -729,7 +795,7 @@ public class DirectSession extends AbstractCTISession
 								source.getEncoding());
 						this.ua.getUAContext().setPassCount(1);
 						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-						formatter.format(fileSource, this.ua);
+						this.runOnLargeStackIfEnabled(() -> formatter.format(fileSource, this.ua));
 					}
 				} finally {
 					if (tmpFile != null) {
