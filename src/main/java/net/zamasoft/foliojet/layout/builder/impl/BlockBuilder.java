@@ -794,103 +794,56 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// 6.浮動ボックスの上辺は以前に現れたボックスを包含する行ボックスの上辺より上にはならない
 		// 7.浮動ボックスは最も端にある場合を除き、包含ボックスの左右の辺をはみ出してはならない
 		// 8.浮動ボックスは第一になるべく高く、第二になるべく端に位置しなければならない
-		// 浮動体はこれより上にはならない
-		WritingMode progression = this.getRootBox().getBlockParams().flow;
-		double lineWidth = box.getLineExtent(progression);
-		double pageWidth = box.getPageExtent(progression);
-		double pageStart = this.pageAxis;
-		if (this.textBuilder != null) {
-			pageStart += this.textBuilder.getActualPageAxis();
-		}
-		double lineStart = this.lineAxis;
-		if (this.getFloatingCount() > 0) {
-			LayoutContext.Floating lastFloating = (LayoutContext.Floating) this.floatings
-					.get(this.floatings.size() - 1);
-			pageStart = Math.max(pageStart, lastFloating.pageStart);
-
-			FloatPos pos = box.getFloatPos();
-			// floatingsはこのループ中不変なのでスナップショットはループ外で
-			// 1回だけ取る。
-			final ExclusionSpace snapshot = this.snapshotExclusions();
-			for (;;) {
-				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
-				final ExclusionSpace.FloatPlacementScan found = snapshot.scanFloatPlacementBand(pageStart,
-						this.lineAxis, lineEnd0, pos.clear);
-				pageStart = found.pageStart();
-				lineStart = found.lineStart();
-				final double lineEnd = found.lineEnd();
-				double width = lineEnd - lineStart;
-				if (LayoutUtils.compare(width, lineWidth) >= 0) {
-					// 幅に余裕がある
-					break;
-				}
-
-				// 余裕がない場合は１つ下りて再探索
-				if (found.startExclusion() == null && found.endExclusion() == null) {
-					break;
-				}
-				if (found.endExclusion() == null) {
-					pageStart = found.startExclusion().pageSpan().end();
-				} else if (found.startExclusion() == null) {
-					pageStart = found.endExclusion().pageSpan().end();
-				} else {
-					double lineStartPageEnd = found.startExclusion().pageSpan().end();
-					double lineEndPageEnd = found.endExclusion().pageSpan().end();
-					if (lineStartPageEnd > lineEndPageEnd) {
-						pageStart = lineEndPageEnd;
-					} else {
-						pageStart = lineStartPageEnd;
-					}
-				}
-			}
-		}
-		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
-		if (kind != FloatCommitKind.PLACED) {
-			this.recordBreakFloat(box.getFloatPos().floating);
-		}
-		// 配置
-		Flow flow = this.getFlow();
-		flow.box.addFloating(box, lineStart - flow.lineAxis, pageStart - flow.pageAxis);
-		if (kind != FloatCommitKind.MOVE_TO_NEXT) {
-			LayoutContext.Floating floating = new LayoutContext.Floating(box, lineStart, pageStart, progression);
-			this.addFloating(floating);
-		}
-		// 上位ボックスの幅の拡張
-		this.extendParents(pageStart, pageWidth);
+		this.commitFloatPlacement(this.tryFloatPlacement(box, this.snapshotExclusions(), FloatSide.START));
 	}
 
 	/**
 	 * 右浮動体の位置を設定します。
-	 * 
+	 *
 	 * @param box
 	 */
 	protected void addEndFloat(IFloatBox box) {
-		// 浮動体はこれより上にはならない
-		WritingMode progression = this.getRootBox().getBlockParams().flow;
-		double lineWidth = box.getLineExtent(progression);
-		double pageWidth = box.getPageExtent(progression);
+		this.commitFloatPlacement(this.tryFloatPlacement(box, this.snapshotExclusions(), FloatSide.END));
+	}
+
+	/**
+	 * 新規floatの配置先を副作用なしで探索し、配置計画を返します
+	 * (2026-07-23、排除域P1増分3——addStartFloat/addEndFloatが重複して
+	 * 持っていた探索ループの一本化。挙動不変)。入力はすべて実測物理値
+	 * ({@code exclusions}スナップショットと現在カーソル)で、builderの
+	 * 状態は一切変更しない——計画を捨てるだけで試行のrollbackになる。
+	 *
+	 * <p>
+	 * 「浮動体はこれより上にはならない」制約(最後に配置されたfloatの
+	 * 上端)は{@code exclusions}の末尾要素から取る(旧コードの
+	 * {@code floatings}末尾と同じ値——スナップショットは並びを保存する)。
+	 * </p>
+	 */
+	final FloatPlacementDelta tryFloatPlacement(final IFloatBox box, final ExclusionSpace exclusions,
+			final FloatSide side) {
+		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final double lineWidth = box.getLineExtent(progression);
+		final double pageWidth = box.getPageExtent(progression);
 		double pageStart = this.pageAxis;
 		if (this.textBuilder != null) {
 			pageStart += this.textBuilder.getActualPageAxis();
 		}
-		double lineEnd = this.lineAxis + this.getFlowBox().getLineSize();
-		if (this.getFloatingCount() > 0) {
-			LayoutContext.Floating lastFloating = (LayoutContext.Floating) this.floatings
-					.get(this.floatings.size() - 1);
-			pageStart = Math.max(pageStart, lastFloating.pageStart);
+		final double lineStart0 = this.lineAxis;
+		final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
+		double lineStart = lineStart0;
+		double lineEnd = lineEnd0;
+		if (!exclusions.isEmpty()) {
+			final List<FloatExclusion> ascending = exclusions.ascendingByPageEnd();
+			pageStart = Math.max(pageStart, ascending.get(ascending.size() - 1).pageSpan().start());
 
-			FloatPos pos = box.getFloatPos();
-			// addStartFloatと同様、スナップショットはループ外で1回だけ取る。
-			final ExclusionSpace snapshot = this.snapshotExclusions();
+			final FloatPos pos = box.getFloatPos();
 			for (;;) {
-				final double lineStart0 = this.lineAxis;
-				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
-				final ExclusionSpace.FloatPlacementScan found = snapshot.scanFloatPlacementBand(pageStart, lineStart0,
-						lineEnd0, pos.clear);
+				final ExclusionSpace.FloatPlacementScan found = exclusions.scanFloatPlacementBand(pageStart,
+						lineStart0, lineEnd0, pos.clear);
 				pageStart = found.pageStart();
+				lineStart = found.lineStart();
 				lineEnd = found.lineEnd();
-				final double lineStart = found.lineStart();
-				double width = lineEnd - lineStart;
+				final double width = lineEnd - lineStart;
 				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
 					break;
@@ -904,31 +857,43 @@ public class BlockBuilder implements Builder, LayoutContext {
 				} else if (found.startExclusion() == null) {
 					pageStart = found.endExclusion().pageSpan().end();
 				} else {
-					double leftBottom = found.startExclusion().pageSpan().end();
-					double rightBottom = found.endExclusion().pageSpan().end();
-					if (leftBottom > rightBottom) {
-						pageStart = rightBottom;
+					final double startPageEnd = found.startExclusion().pageSpan().end();
+					final double endPageEnd = found.endExclusion().pageSpan().end();
+					if (startPageEnd > endPageEnd) {
+						pageStart = endPageEnd;
 					} else {
-						pageStart = leftBottom;
+						pageStart = startPageEnd;
 					}
 				}
 			}
 		}
-		lineEnd -= lineWidth;
-
+		final double lineOffset = side == FloatSide.START ? lineStart : lineEnd - lineWidth;
 		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
-		if (kind != FloatCommitKind.PLACED) {
-			this.recordBreakFloat(box.getFloatPos().floating);
+		return new FloatPlacementDelta(box, side, new AxisSpan(lineOffset, lineOffset + lineWidth),
+				new AxisSpan(pageStart, pageStart + pageWidth), kind);
+	}
+
+	/**
+	 * 配置計画をレイアウト状態へ反映します(2026-07-23、排除域P1増分3。
+	 * 副作用の発生順は旧コードと同一: breakFloats記録→コンテナへの追加
+	 * (serial更新)→排除域台帳(+hidden台帳、FLOAT_COMP安定ソート)→
+	 * 親ボックスのpage extent拡張)。
+	 */
+	final void commitFloatPlacement(final FloatPlacementDelta delta) {
+		if (delta.kind() != FloatCommitKind.PLACED) {
+			this.recordBreakFloat(delta.side());
 		}
 		// 配置
-		Flow flow = this.getFlow();
-		flow.box.addFloating(box, lineEnd - flow.lineAxis, pageStart - flow.pageAxis);
-		if (kind != FloatCommitKind.MOVE_TO_NEXT) {
-			LayoutContext.Floating floating = new LayoutContext.Floating(box, lineEnd, pageStart, progression);
-			this.addFloating(floating);
+		final double lineOffset = delta.lineSpan().start();
+		final double pageStart = delta.pageSpan().start();
+		final Flow flow = this.getFlow();
+		flow.box.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis);
+		if (delta.kind() != FloatCommitKind.MOVE_TO_NEXT) {
+			final WritingMode progression = this.getRootBox().getBlockParams().flow;
+			this.addFloating(new LayoutContext.Floating(delta.box(), lineOffset, pageStart, progression));
 		}
 		// 上位ボックスの幅の拡張
-		this.extendParents(pageStart, pageWidth);
+		this.extendParents(pageStart, delta.pageSpan().extent());
 	}
 
 				private void extendParents(final double pageStart, final double pageWidth) {
