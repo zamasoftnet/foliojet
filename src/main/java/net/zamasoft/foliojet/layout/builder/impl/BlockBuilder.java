@@ -18,6 +18,11 @@ import net.zamasoft.foliojet.layout.box.params.ClearMode;
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
+import net.zamasoft.foliojet.layout.constraint.AxisSpan;
+import net.zamasoft.foliojet.layout.constraint.ExclusionShadowStats;
+import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
+import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -376,25 +381,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		double lineSize = containerBox.getLineSize();
 		if (flowBox.getColumnCount() > 1) {
 			// マルチカラムの場合浮動ボックスを避ける
-			double lineStart = this.lineAxis, lineEnd = this.lineAxis + lineSize;
-			for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-				LayoutContext.Floating floating = this.getFloating(i);
-				double pageEnd = floating.pageEnd;
-				if (pageEnd <= this.pageAxis) {
-					break;
-				}
-				FloatPos floatingPos = floating.box.getFloatPos();
-				switch (floatingPos.floating) {
-				case FloatSide.START:
-					lineStart = Math.max(lineStart, floating.lineEnd);
-					break;
-				case FloatSide.END:
-					lineEnd = Math.min(lineEnd, floating.lineStart);
-					break;
-				}
-				xmargin = lineStart - this.lineAxis;
-				lineSize = lineEnd - lineStart;
-			}
+			final double initialLineSize = lineSize;
+			final MulticolBand band = this.computeMulticolBand(this.lineAxis, this.pageAxis, initialLineSize);
+			xmargin = band.xmargin;
+			lineSize = band.lineSize;
+			this.shadowCompareMulticolBand(initialLineSize, xmargin, lineSize);
 		}
 		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();
@@ -509,6 +500,107 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final Flow flow = new Flow(flowBox, this.lineAxis, this.pageAxis);
 		this.flowStack.add(flow);
 		this.breakToken = BreakToken.NONE;
+	}
+
+	/**
+	 * {@link #startFlowBlock}のmulticol回避が計算する結果です
+	 * (2026-07-23新設、排除域のConstraintSpace入力化P0 Step3——
+	 * `docs/consultations/consult-exclusion-zone-codex.txt`参照)。
+	 */
+	private static final class MulticolBand {
+		final double xmargin, lineSize;
+
+		MulticolBand(double xmargin, double lineSize) {
+			this.xmargin = xmargin;
+			this.lineSize = lineSize;
+		}
+	}
+
+	/**
+	 * マルチカラムブロック配置時の浮動体回避を計算します(2026-07-23、
+	 * {@link #startFlowBlock}から挙動不変のまま抽出——既存ループの
+	 * 行単位の移植で、算術・比較・走査順は一切変えていない)。
+	 */
+	private MulticolBand computeMulticolBand(final double lineAxis, final double pageAxis,
+			final double initialLineSize) {
+		double lineStart = lineAxis, lineEnd = lineAxis + initialLineSize;
+		double xmargin = 0, lineSize = initialLineSize;
+		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
+			LayoutContext.Floating floating = this.getFloating(i);
+			double pageEnd = floating.pageEnd;
+			if (pageEnd <= pageAxis) {
+				break;
+			}
+			FloatPos floatingPos = floating.box.getFloatPos();
+			switch (floatingPos.floating) {
+			case FloatSide.START:
+				lineStart = Math.max(lineStart, floating.lineEnd);
+				break;
+			case FloatSide.END:
+				lineEnd = Math.min(lineEnd, floating.lineStart);
+				break;
+			}
+			xmargin = lineStart - lineAxis;
+			lineSize = lineEnd - lineStart;
+		}
+		return new MulticolBand(xmargin, lineSize);
+	}
+
+	/**
+	 * 現在の{@link #floatings}を{@link ExclusionSpace}へ変換した
+	 * スナップショットを返します(2026-07-23新設、shadow比較専用——
+	 * 実レイアウトには使わない)。{@code this.floatings}は既に
+	 * {@code FLOAT_COMP}(pageEnd昇順、同値は追加順)でソート済みのため、
+	 * その並び順そのままをorderとして使えば{@link ExclusionSpace#plus}
+	 * が同じ並びを再現する。
+	 */
+	private ExclusionSpace snapshotExclusions() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		final int count = this.getFloatingCount();
+		for (int i = 0; i < count; ++i) {
+			final LayoutContext.Floating floating = this.getFloating(i);
+			final FloatPos floatingPos = floating.box.getFloatPos();
+			space = space.plus(new FloatExclusion(i, floatingPos.floating,
+					new AxisSpan(floating.pageStart, floating.pageEnd),
+					new AxisSpan(floating.lineStart, floating.lineEnd)));
+		}
+		return space;
+	}
+
+	/** shadow比較の許容誤差です。1e-9は、後述のround-trip誤差(高々1ULP、10^-13台)より十分大きく、実際の論理不一致(通常10^-2以上)より十分小さい。 */
+	private static final double EXCLUSION_SHADOW_EPSILON = 1e-9;
+
+	/**
+	 * {@link #computeMulticolBand}の結果と、{@link ExclusionSpace}
+	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
+	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
+	 * {@code computeMulticolBand}の結果だけを使う——この比較は
+	 * {@link ExclusionShadowStats}への記録のみが目的で、挙動には
+	 * 一切影響しない。
+	 *
+	 * <p>
+	 * 完全一致(==)ではなく微小許容誤差で比較する——実測(2026-07-23、
+	 * 414文書コーパス)で、浮動体が全く適用されないケースでも
+	 * {@code (lineAxis + initialLineSize) - lineAxis}が浮動小数点の
+	 * 丸めにより{@code initialLineSize}と1ULP異なることがあると判明した
+	 * (このqueryは{@code lineBand}を{@code AxisSpan(lineAxis, lineAxis +
+	 * initialLineSize)}として構築するため、narrowingが一切効かない場合
+	 * でも減算のround-tripが発生する。{@code computeMulticolBand}は
+	 * narrowingが効かなければ{@code initialLineSize}をそのまま無演算で
+	 * 保持するため、この差は発生しない)。これは論理的な不一致ではなく、
+	 * 浮動小数点演算の結合則が成り立たないことによる既知の丸め誤差。
+	 * </p>
+	 */
+	private void shadowCompareMulticolBand(final double initialLineSize, final double actualXmargin,
+			final double actualLineSize) {
+		final ExclusionSpace snapshot = this.snapshotExclusions();
+		final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
+				new AxisSpan(this.lineAxis, this.lineAxis + initialLineSize));
+		final double expectedXmargin = band.start() - this.lineAxis;
+		final double expectedLineSize = band.extent();
+		final boolean matched = Math.abs(expectedXmargin - actualXmargin) <= EXCLUSION_SHADOW_EPSILON
+				&& Math.abs(expectedLineSize - actualLineSize) <= EXCLUSION_SHADOW_EPSILON;
+		ExclusionShadowStats.recordMulticol(matched);
 	}
 
 	public void endFlowBlock() {

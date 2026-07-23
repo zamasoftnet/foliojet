@@ -89,4 +89,64 @@ public class ExclusionSpaceTest extends TestCase {
 		final List<FloatExclusion> ascending = space.ascendingByPageEnd();
 		assertEquals(List.of(3L, 1L, 0L, 2L), ascending.stream().map(FloatExclusion::order).toList());
 	}
+
+	private static FloatExclusion sideExclusion(long order, FloatSide side, double pageEnd, double lineStart,
+			double lineEnd) {
+		return new FloatExclusion(order, side, new AxisSpan(0, pageEnd), new AxisSpan(lineStart, lineEnd));
+	}
+
+	public void testNarrowLineBandForMulticolNoExclusions() {
+		final AxisSpan band = ExclusionSpace.EMPTY.narrowLineBandForMulticol(0, new AxisSpan(0, 500));
+		assertEquals(0.0, band.start(), 0);
+		assertEquals(500.0, band.end(), 0);
+	}
+
+	public void testNarrowLineBandForMulticolStartAndEndFloat() {
+		// BlockBuilder.startFlowBlockのmulticol回避と同じ規則:
+		// STARTはlineStartをfloating.lineEndまで押し出し、
+		// ENDはlineEndをfloating.lineStartまで押し戻す。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 100, 0, 50));
+		space = space.plus(sideExclusion(1, FloatSide.END, 100, 400, 500));
+
+		final AxisSpan band = space.narrowLineBandForMulticol(0, new AxisSpan(0, 500));
+		assertEquals(50.0, band.start(), 0);
+		assertEquals(400.0, band.end(), 0);
+	}
+
+	public void testNarrowLineBandForMulticolIgnoresFloatAtOrBeforePageAxis() {
+		// 既存ループのbreak条件: floating.pageEndがpageAxis以下の浮動体は
+		// 回避帯に含めない(現ページより手前で既に終わっている浮動体)。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 50, 0, 80));
+
+		final AxisSpan band = space.narrowLineBandForMulticol(100, new AxisSpan(0, 500));
+		assertEquals(0.0, band.start(), 0);
+		assertEquals(500.0, band.end(), 0);
+	}
+
+	public void testNarrowLineBandForMulticolAppliesFloatPastPageAxisOnly() {
+		// pageEnd>pageAxisの浮動体だけが適用され、pageEnd<=pageAxisの
+		// ものは(descending順で先に遭遇しても)無視される。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 200, 0, 80));
+		space = space.plus(sideExclusion(1, FloatSide.START, 50, 0, 999));
+
+		final AxisSpan band = space.narrowLineBandForMulticol(100, new AxisSpan(0, 500));
+		assertEquals(80.0, band.start(), 0);
+		assertEquals(500.0, band.end(), 0);
+	}
+
+	public void testNarrowLineBandForMulticolCanInvertOnHeavyOverlap() {
+		// 既存ループはnegative line sizeをそのまま許容する(下流のクランプは
+		// このメソッドの責務外)——この値型もその挙動を再現する。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 100, 0, 300));
+		space = space.plus(sideExclusion(1, FloatSide.END, 100, 200, 500));
+
+		final AxisSpan band = space.narrowLineBandForMulticol(0, new AxisSpan(0, 500));
+		assertEquals(300.0, band.start(), 0);
+		assertEquals(200.0, band.end(), 0);
+		assertEquals(-100.0, band.extent(), 0);
+	}
 }

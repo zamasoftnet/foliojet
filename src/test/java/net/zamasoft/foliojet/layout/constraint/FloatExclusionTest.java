@@ -12,13 +12,12 @@ public class FloatExclusionTest extends TestCase {
 		super(name);
 	}
 
-	public void testAxisSpanRejectsInvertedRange() {
-		try {
-			new AxisSpan(10, 5);
-			fail("expected IllegalArgumentException");
-		} catch (IllegalArgumentException expected) {
-			// ok
-		}
+	public void testAxisSpanAllowsInvertedRange() {
+		// 意図的に検証しない: 既存の排除域計算は浮動体の重なりが大きい
+		// 場合に負のline sizeを許容する既存挙動を持つため、この値型も
+		// それを忠実に再現できる必要がある(AxisSpan.java参照)。
+		final AxisSpan span = new AxisSpan(10, 5);
+		assertEquals(-5.0, span.extent(), 0);
 	}
 
 	public void testAxisSpanAllowsZeroExtent() {

@@ -11,14 +11,16 @@ package net.zamasoft.foliojet.layout.constraint;
  * .LayoutContext.Floating}の{@code lineStart}/{@code lineEnd}・
  * {@code pageStart}/{@code pageEnd}と同じ座標系)。
  * </p>
+ *
+ * <p>
+ * 意図的に{@code start <= end}を検証しない——既存の排除域計算
+ * (`BlockBuilder.startFlowBlock`のmulticol回避等)は浮動体の重なりが
+ * 大きい場合に負のline sizeを許容したまま下流へ渡す既存挙動を持つため、
+ * この値型もその既存挙動を忠実に再現できる必要がある(挙動変更は
+ * このP0段階のスコープ外)。
+ * </p>
  */
 public record AxisSpan(double start, double end) {
-	public AxisSpan {
-		if (start > end) {
-			throw new IllegalArgumentException("start(" + start + ") > end(" + end + ")");
-		}
-	}
-
 	public double extent() {
 		return this.end - this.start;
 	}

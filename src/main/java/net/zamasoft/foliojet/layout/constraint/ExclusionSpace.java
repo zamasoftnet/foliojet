@@ -87,4 +87,35 @@ public final class ExclusionSpace {
 		Collections.reverse(reversed);
 		return Collections.unmodifiableList(reversed);
 	}
+
+	/**
+	 * {@code BlockBuilder.startFlowBlock}のmulticol回避と同じ規則で、
+	 * {@code lineBand}を浮動体が占める帯だけ狭めます(2026-07-23新設、
+	 * P0 Step3のshadow比較用——`BlockBuilder`の既存ループを1対1で
+	 * 移した実装。挙動を変えないことが目的なので、比較演算子・走査順は
+	 * 既存ループと完全に同じにする)。
+	 *
+	 * <p>
+	 * {@code pageAxis}以下(浮動体の下端がpage軸開始位置以前)まで
+	 * 遡ったら打ち切る——既存ループの{@code break}と同じ。
+	 * </p>
+	 */
+	public AxisSpan narrowLineBandForMulticol(final double pageAxis, final AxisSpan lineBand) {
+		double lineStart = lineBand.start();
+		double lineEnd = lineBand.end();
+		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+			if (exclusion.pageSpan().end() <= pageAxis) {
+				break;
+			}
+			switch (exclusion.side()) {
+			case START:
+				lineStart = Math.max(lineStart, exclusion.lineSpan().end());
+				break;
+			case END:
+				lineEnd = Math.min(lineEnd, exclusion.lineSpan().start());
+				break;
+			}
+		}
+		return new AxisSpan(lineStart, lineEnd);
+	}
 }
