@@ -222,27 +222,25 @@ public class ColumnsContainer implements Container {
 	}
 
 	public Container splitPageAxis(final double pageLimit, final BreakMode mode, final byte flags) {
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_SPLIT_ATTEMPTS.incrementAndGet();
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnsSplitAttempt();
 		final FlowContainer lastColumn = this.getLastColumn();
 		final Container result = lastColumn.splitPageAxis(pageLimit, mode, flags);
 		if (this.columns.size() > 1 && result == lastColumn) {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
-					.incrementAndGet();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnMoveCandidate();
 		}
 		return result;
 	}
 
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(final double pageLimit,
 			final BreakMode mode, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_SPLIT_ATTEMPTS.incrementAndGet();
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnsSplitAttempt();
 		final FlowContainer lastColumn = this.getLastColumn();
 		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = lastColumn.splitPageAxis(pageLimit, mode,
 				flags, plan);
 		if (this.columns.size() > 1
 				&& cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain(final Container container)
 				&& container == lastColumn) {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
-					.incrementAndGet();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnMoveCandidate();
 		}
 		return cut;
 	}

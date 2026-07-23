@@ -184,8 +184,99 @@ public final class ContinuationStats {
 	 * (PAGE/COLUMN)に応じた分離カウンタも加算します。
 	 */
 	public static void recordChainFiring() {
+		if (!live()) {
+			return;
+		}
 		RESTYLE_CHAIN_FIRINGS.incrementAndGet();
 		(isColumnPath() ? COLUMN_RESTYLE_CHAIN_FIRINGS : PAGE_RESTYLE_CHAIN_FIRINGS).incrementAndGet();
+	}
+
+	/**
+	 * production診断writeの共通ゲートです(2026-07-24、排除域P2のM6c-1)。
+	 * M6cバランスプローブの候補構築中({@link LayoutExecutionScope}の
+	 * {@code BALANCE_PROBE})は、捨てる可能性のある試行で診断を汚さない
+	 * よう書き込みを抑制する。M6c-1時点ではプローブ未配線のため常に
+	 * true(挙動不変)。
+	 */
+	private static boolean live() {
+		return LayoutExecutionScope.isLive();
+	}
+
+	/** {@code ColumnsContainer.splitPageAxis}の試行回数です(M6c-1でAPI集約)。 */
+	public static void recordColumnsSplitAttempt() {
+		if (live()) {
+			COLUMNS_SPLIT_ATTEMPTS.incrementAndGet();
+		}
+	}
+
+	/** 複数カラム時に最終カラム全体がMOVE候補になった回数です(M6c-1でAPI集約)。 */
+	public static void recordLastColumnMoveCandidate() {
+		if (live()) {
+			COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.incrementAndGet();
+		}
+	}
+
+	/** plan選択済みチェーンメンバーがKeepを返した回数です(M6c-1でAPI集約)。 */
+	public static void recordChainMemberKeep() {
+		if (live()) {
+			CHAIN_MEMBER_KEEP.incrementAndGet();
+		}
+	}
+
+	/** plan選択済みチェーンメンバーがMoveを返した回数です(M6c-1でAPI集約)。 */
+	public static void recordChainMemberMove() {
+		if (live()) {
+			CHAIN_MEMBER_MOVE.incrementAndGet();
+		}
+	}
+
+	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
+	public static void recordOpenTextHandoff() {
+		if (live()) {
+			OPEN_TEXT_HANDOFFS.incrementAndGet();
+		}
+	}
+
+	/** OpenChain分岐で末尾以外のitemを観測した回数です(M6c-1でAPI集約)。 */
+	public static void recordOpenChainTrailingItem() {
+		if (live()) {
+			OPEN_CHAIN_TRAILING_ITEMS.incrementAndGet();
+		}
+	}
+
+	/** 改段時のowner段数の観測です(M6c-1でAPI集約)。 */
+	public static void recordLastColumnOwnerColumnCount(final int columnCount) {
+		if (live()) {
+			LAST_COLUMN_OWNER_COLUMN_COUNT.set(columnCount);
+		}
+	}
+
+	/** worklist executorの適格/不適格terminalの集計です(M6c-1でAPI集約)。 */
+	public static void recordWorklistTerminal(final boolean eligible) {
+		if (live()) {
+			(eligible ? WORKLIST_ELIGIBLE_TERMINALS : WORKLIST_INELIGIBLE_TERMINALS).incrementAndGet();
+		}
+	}
+
+	/** チェーン子フレーム(Child)消費の集計です(M6c-1でAPI集約)。 */
+	public static void recordChildFrame() {
+		if (live()) {
+			CHILD_FRAMES.incrementAndGet();
+		}
+	}
+
+	/** チェーン外restyleの集計です(M6c-1でAPI集約)。 */
+	public static void recordUnchainedRestyle() {
+		if (live()) {
+			UNCHAINED_RESTYLES.incrementAndGet();
+		}
+	}
+
+	/** open tail消費の集計です(M6c-1でAPI集約)。 */
+	public static void recordOpenTail() {
+		if (live()) {
+			OPEN_TAILS.incrementAndGet();
+		}
 	}
 
 	/**

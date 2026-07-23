@@ -699,7 +699,7 @@ public class FlowContainer implements Container {
 						// 継続化不成立(chainFrame は null のまま)。box 全体を
 						// this 側に残す — 720行目の chainFrame==null 分岐が
 						// plain(nextBox) へ自然にフォールバックする
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP.incrementAndGet();
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberKeep();
 						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
 					}
 					case SplitResult.Move move -> {
@@ -710,7 +710,7 @@ public class FlowContainer implements Container {
 						// そちらがthis.flowsの元のサイズを前提にしている)
 						nextBox.addFlow(flow.serial, flow.box, 0);
 						moved = true;
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE.incrementAndGet();
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberMove();
 						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
 					}
 					}
@@ -893,14 +893,12 @@ public class FlowContainer implements Container {
 						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
 								plan)) {
 						case SplitResult.Keep keep -> {
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP
-									.incrementAndGet();
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberKeep();
 							recordChildResult(false, i, true, "Keep");
 							nextFlowBox = null;
 						}
 						case SplitResult.Move move -> {
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE
-									.incrementAndGet();
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberMove();
 							recordChildResult(false, i, true, "Move");
 							nextFlowBox = prevFlow.box;
 						}
@@ -1711,8 +1709,7 @@ public class FlowContainer implements Container {
 						if (open) {
 							// M3b Phase 1: スライス運搬経由(restyle 内部で
 							// record→replay)。Phase 2/3 の TextTail 型付き化の実測
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TEXT_HANDOFFS
-									.incrementAndGet();
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenTextHandoff();
 						}
 						textBlock.restyle(builder);
 					}
@@ -1782,8 +1779,7 @@ public class FlowContainer implements Container {
 								// itemsレベルにまだ処理すべき残りitemがあるかを実測する
 								// (診断専用・非例外化、既存の挙動には一切影響しない)。
 								if (i < size - 1) {
-									net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_CHAIN_TRAILING_ITEMS
-											.incrementAndGet();
+									net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenChainTrailingItem();
 								}
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)

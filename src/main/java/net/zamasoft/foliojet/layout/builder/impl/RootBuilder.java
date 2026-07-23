@@ -402,10 +402,7 @@ public class RootBuilder extends BreakableBuilder {
 					// LegacyOpenでない)場合は計測から除外する(PAGE側と
 					// 同じ理由)。
 					if (this.tailShadow.isPresent()) {
-						(gateAllPlainFlow
-								? net.zamasoft.foliojet.layout.fragment.ContinuationStats.WORKLIST_ELIGIBLE_TERMINALS
-								: net.zamasoft.foliojet.layout.fragment.ContinuationStats.WORKLIST_INELIGIBLE_TERMINALS)
-										.incrementAndGet();
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistTerminal(gateAllPlainFlow);
 					}
 					final boolean worklistEligible = !"legacy"
 							.equals(System.getProperty("foliojet.openTailExecutor", "eligible")) && gateAllPlainFlow;
@@ -1021,7 +1018,7 @@ public class RootBuilder extends BreakableBuilder {
 			switch (frame.tail()) {
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHILD_FRAMES.incrementAndGet();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChildFrame();
 				target.startFlowBlock(box);
 				shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
 				this.restyleFrame(target, box.getContainer(), frame.prefixItems(),
@@ -1069,10 +1066,7 @@ public class RootBuilder extends BreakableBuilder {
 				// legacyの区別自体が無意味なので計測に含めない——「本当に
 				// LegacyOpenだったが不適格だった」実測のみを数える。
 				if (gateTailShadow.isPresent()) {
-					(gateAllPlainFlow
-							? net.zamasoft.foliojet.layout.fragment.ContinuationStats.WORKLIST_ELIGIBLE_TERMINALS
-							: net.zamasoft.foliojet.layout.fragment.ContinuationStats.WORKLIST_INELIGIBLE_TERMINALS)
-									.incrementAndGet();
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistTerminal(gateAllPlainFlow);
 				}
 				final boolean worklistEligible = !"legacy".equals(System.getProperty("foliojet.openTailExecutor", "eligible"))
 						&& gateAllPlainFlow;
@@ -1083,13 +1077,13 @@ public class RootBuilder extends BreakableBuilder {
 					if (index == 0) {
 						// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
 						// この経路では prefix 吸収は行われていない
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.UNCHAINED_RESTYLES.incrementAndGet();
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordUnchainedRestyle();
 						assert frame.prefixItems().isEmpty();
 						box.restyle(target, shape);
 						shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.RestyleWholeBox(index,
 								shape.depth()));
 					} else {
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.OPEN_TAILS.incrementAndGet();
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenTail();
 						target.startFlowBlock(box);
 						shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.StartFlow(index));
 						this.restyleFrame(target, box.getContainer(), frame.prefixItems(), shape);
