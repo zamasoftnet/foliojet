@@ -54,18 +54,27 @@ public class ExclusionShadowCorpusTest extends TestCase {
 		ExclusionShadowStats.reset();
 		final File scratch = File.createTempFile("exclusion-shadow", ".pdf");
 		scratch.deleteOnExit();
-		int ok = 0, failed = 0;
+		int ok = 0;
+		// 変換に失敗した文書は握り潰さず名前を収集し、最後にassertする
+		// (2026-07-23、codexレビュー指摘——特定入力だけ新実装で例外に
+		// なっても、他文書のmismatchが0ならテストが緑になってしまう
+		// 穴があった)。
+		final List<String> failedDocs = new ArrayList<>();
 		for (final Path doc : docs) {
 			try {
 				this.transcode(doc.toFile(), scratch);
 				++ok;
 			} catch (final Exception e) {
-				++failed;
+				failedDocs.add(root.relativize(doc) + " (" + e + ")");
 			}
 		}
 		scratch.delete();
 
-		System.out.println("documents: total=" + docs.size() + " ok=" + ok + " failed=" + failed);
+		System.out.println("documents: total=" + docs.size() + " ok=" + ok + " failed=" + failedDocs.size());
+		for (final String failedDoc : failedDocs) {
+			System.out.println("FAILED: " + failedDoc);
+		}
+		assertEquals("transcode failures in corpus: " + failedDocs, 0, failedDocs.size());
 		System.out.println("MULTICOL_SESSIONS=" + ExclusionShadowStats.MULTICOL_SESSIONS.get());
 		System.out.println("MULTICOL_MATCHES=" + ExclusionShadowStats.MULTICOL_MATCHES.get());
 		System.out.println("MULTICOL_MISMATCHES=" + ExclusionShadowStats.MULTICOL_MISMATCHES.get());

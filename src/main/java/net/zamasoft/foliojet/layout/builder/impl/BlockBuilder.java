@@ -1286,11 +1286,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final boolean legacyStartFound = legacyResult.startFloating != null;
 		final boolean exclusionSpaceEndFound = exclusionSpaceResult.endExclusion() != null;
 		final boolean legacyEndFound = legacyResult.endFloating != null;
-		final boolean matched = exclusionSpaceStartFound == legacyStartFound
+		boolean matched = exclusionSpaceStartFound == legacyStartFound
 				&& exclusionSpaceEndFound == legacyEndFound
 				&& Math.abs(exclusionSpaceResult.lineStart() - legacyResult.lineStart) <= ExclusionShadowStats.EPSILON
 				&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON
 				&& Math.abs(exclusionSpaceResult.pageStart() - legacyResult.pageStart) <= ExclusionShadowStats.EPSILON;
+		// 選択された境界floatのpageEnd(呼び出し元の降下先を決める値)も
+		// 比較する(2026-07-23、codexレビュー指摘——line端が同じで
+		// pageEndだけ異なる2つのfloatを新旧が別々に選んだ場合を検出する
+		// ため)。
+		if (matched && exclusionSpaceStartFound) {
+			matched = Math.abs(exclusionSpaceResult.startExclusion().pageSpan().end()
+					- legacyResult.startFloating.pageEnd) <= ExclusionShadowStats.EPSILON;
+		}
+		if (matched && exclusionSpaceEndFound) {
+			matched = Math.abs(exclusionSpaceResult.endExclusion().pageSpan().end()
+					- legacyResult.endFloating.pageEnd) <= ExclusionShadowStats.EPSILON;
+		}
 		ExclusionShadowStats.recordFloatPlacement(matched);
 	}
 
