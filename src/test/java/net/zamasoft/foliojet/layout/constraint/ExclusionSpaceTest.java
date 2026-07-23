@@ -283,4 +283,56 @@ public class ExclusionSpaceTest extends TestCase {
 		assertEquals(0, avoidance.clearingExclusion().order());
 		assertEquals(500.0, avoidance.lineEnd(), 0);
 	}
+
+	public void testScanLineBandNoExclusions() {
+		final ExclusionSpace.LineScan scan = ExclusionSpace.EMPTY.scanLineBand(0, 20, 0, 500);
+		assertNull(scan.startExclusion());
+		assertNull(scan.endExclusion());
+		assertEquals(0.0, scan.lineStart(), 0);
+		assertEquals(500.0, scan.lineEnd(), 0);
+		assertFalse(scan.maxPageSizeSet());
+	}
+
+	public void testScanLineBandSkipsFloatAlreadyPast() {
+		// TextBuilder.locateLineは昇順走査で、既に終わった浮動体は
+		// continue(打ち切らず次へ進む)——他3消費者のdescending
+		// break挙動とは異なる。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 50, 0, 80));
+		space = space.plus(sideExclusion(1, FloatSide.START, 200, 0, 999));
+
+		final ExclusionSpace.LineScan scan = space.scanLineBand(100, 20, 0, 500);
+		assertNotNull(scan.startExclusion());
+		assertEquals(1, scan.startExclusion().order());
+		assertEquals(999.0, scan.lineStart(), 0);
+	}
+
+	public void testScanLineBandNarrowsStartAndEnd() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 100, 0, 50));
+		space = space.plus(sideExclusion(1, FloatSide.END, 100, 400, 500));
+
+		final ExclusionSpace.LineScan scan = space.scanLineBand(0, 20, 0, 500);
+		assertEquals(50.0, scan.lineStart(), 0);
+		assertEquals(400.0, scan.lineEnd(), 0);
+		assertFalse(scan.maxPageSizeSet());
+	}
+
+	public void testScanLineBandSetsMaxPageSizeForFutureFloat() {
+		// floating.pageStartが現在行の高さの範囲を超えている場合、
+		// maxPageSizeを設定して走査を打ち切る(それより後の浮動体は
+		// 無視される)。sideExclusion()はpageSpan.start()を常に0にする
+		// ため、この場合だけ直接FloatExclusionを構築する。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(
+				new FloatExclusion(0, FloatSide.START, new AxisSpan(30, 200), new AxisSpan(0, 999)));
+		space = space.plus(sideExclusion(1, FloatSide.END, 300, 0, 999));
+
+		final ExclusionSpace.LineScan scan = space.scanLineBand(0, 20, 0, 500);
+		assertTrue(scan.maxPageSizeSet());
+		assertEquals(30.0, scan.maxPageSize(), 0);
+		// order=0で打ち切られるため、order=1によるlineEnd狭窄は
+		// 適用されない。
+		assertEquals(500.0, scan.lineEnd(), 0);
+	}
 }

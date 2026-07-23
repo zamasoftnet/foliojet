@@ -75,10 +75,14 @@ public class ExclusionShadowCorpusTest extends TestCase {
 		System.out.println("BOUND_SESSIONS=" + ExclusionShadowStats.BOUND_SESSIONS.get());
 		System.out.println("BOUND_MATCHES=" + ExclusionShadowStats.BOUND_MATCHES.get());
 		System.out.println("BOUND_MISMATCHES=" + ExclusionShadowStats.BOUND_MISMATCHES.get());
+		System.out.println("LINE_SCAN_SESSIONS=" + ExclusionShadowStats.LINE_SCAN_SESSIONS.get());
+		System.out.println("LINE_SCAN_MATCHES=" + ExclusionShadowStats.LINE_SCAN_MATCHES.get());
+		System.out.println("LINE_SCAN_MISMATCHES=" + ExclusionShadowStats.LINE_SCAN_MISMATCHES.get());
 
-		// このコーパスにはmulticol+float・clear+float・addBound+floatの
-		// 組み合わせを実際に踏む文書が含まれるはず——0件ならテスト自体が
-		// 何も検証していないことになるため、それも失敗として検出する。
+		// このコーパスにはmulticol+float・clear+float・addBound+float・
+		// テキスト行+floatの組み合わせを実際に踏む文書が含まれるはず——
+		// 0件ならテスト自体が何も検証していないことになるため、それも
+		// 失敗として検出する。
 		assertTrue("expected at least one multicol exclusion shadow session in the corpus",
 				ExclusionShadowStats.MULTICOL_SESSIONS.get() > 0);
 		assertEquals(0, ExclusionShadowStats.MULTICOL_MISMATCHES.get());
@@ -88,6 +92,9 @@ public class ExclusionShadowCorpusTest extends TestCase {
 		assertTrue("expected at least one addBound exclusion shadow session in the corpus",
 				ExclusionShadowStats.BOUND_SESSIONS.get() > 0);
 		assertEquals(0, ExclusionShadowStats.BOUND_MISMATCHES.get());
+		assertTrue("expected at least one line scan exclusion shadow session in the corpus",
+				ExclusionShadowStats.LINE_SCAN_SESSIONS.get() > 0);
+		assertEquals(0, ExclusionShadowStats.LINE_SCAN_MISMATCHES.get());
 	}
 
 	private void transcode(final File source, final File out) throws Exception {

@@ -35,6 +35,10 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutContext.Flow;
+import net.zamasoft.foliojet.layout.constraint.AxisSpan;
+import net.zamasoft.foliojet.layout.constraint.ExclusionShadowStats;
+import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
+import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
@@ -230,64 +234,32 @@ public class TextBuilder {
 			final double lineEnd0 = this.builder.lineAxis + this.maxLineSize;
 			for (;;) {
 				// ラインを入れるスペースがある部分の左右
-				LayoutContext.Floating startContent = null, endContent = null;
-				double lineEnd = lineEnd0;
-				lineStart = this.builder.lineAxis;
-
-				// 浮動ボックスを底辺が上にあるものから順に探索
-				for (int i = 0; i < this.builder.floatings.size(); ++i) {
-					LayoutContext.Floating floating = (LayoutContext.Floating) this.builder.floatings.get(i);
-					double pageEnd = floating.pageEnd;
-					// System.out.println("TB-locateLine2:" + i + "/" +
-					// pageEnd);
-					if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
-						// 底辺より下に行がある場合
-						continue;
-					}
-					FloatPos floatingPos = floating.box.getFloatPos();
-					if (LayoutUtils.compare(floating.pageStart, pageStart + lineHeight) >= 0) {
-						// 上辺が以下にある場合
-						// 行高さを余裕高さに制限する
-						this.maxPageSize = floating.pageStart - pageStart;
-						break;
-					}
-					switch (floatingPos.floating) {
-					case FloatSide.START:
-						double tempStart = floating.lineEnd;
-						if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
-							startContent = floating;
-							lineStart = tempStart;
-						}
-						continue;
-
-					case FloatSide.END:
-						double tempEnd = floating.lineStart;
-						if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
-							endContent = floating;
-							lineEnd = tempEnd;
-						}
-						continue;
-
-					default:
-						throw new IllegalStateException();
-					}
+				final LineScanResult scan = this.scanLineBand(pageStart, lineHeight, this.builder.lineAxis, lineEnd0);
+				this.shadowCompareLineScan(pageStart, lineHeight, lineEnd0, scan);
+				lineStart = scan.lineStart;
+				if (scan.maxPageSizeSet) {
+					// 既存コードはthis.maxPageSizeをこの分岐でしか更新しない
+					// ——外側for(;;)の前回反復の値がそのまま残ることがある
+					// (2026-07-23、BlockBuilder.addBoundと同型の「ループ間で
+					// 状態が持ち越される」実挙動、必ず条件付きでのみ更新する)。
+					this.maxPageSize = scan.maxPageSize;
 				}
-				this.maxLineSize = lineEnd - lineStart;
+				this.maxLineSize = scan.lineEnd - scan.lineStart;
 				if (LayoutUtils.compare(this.maxLineSize, this.lineAxis) >= 0) {
 					// 幅に余裕がある
 					break;
 				}
 				// 余裕がない場合は１つ下りて再探索
-				if (startContent == null && endContent == null) {
+				if (scan.startContent == null && scan.endContent == null) {
 					break;
 				}
-				if (endContent == null) {
-					pageStart = startContent.pageEnd;
-				} else if (startContent == null) {
-					pageStart = endContent.pageEnd;
+				if (scan.endContent == null) {
+					pageStart = scan.startContent.pageEnd;
+				} else if (scan.startContent == null) {
+					pageStart = scan.endContent.pageEnd;
 				} else {
-					double startEnd = startContent.pageEnd;
-					double endEnd = endContent.pageEnd;
+					double startEnd = scan.startContent.pageEnd;
+					double endEnd = scan.endContent.pageEnd;
 					if (startEnd > endEnd) {
 						pageStart = endEnd;
 					} else {
@@ -320,6 +292,126 @@ public class TextBuilder {
 				break;
 			}
 		}
+	}
+
+	/**
+	 * {@link #scanLineBand}の結果です(2026-07-23新設、排除域の
+	 * ConstraintSpace入力化P0 Step3)。{@code maxPageSizeSet}が
+	 * falseの場合、呼び出し元は{@code this.maxPageSize}を更新しては
+	 * ならない——既存コードはこの走査でその分岐に到達したときだけ
+	 * 更新し、到達しなければ外側{@code for(;;)}の前回反復(または
+	 * 初期値{@code Double.MAX_VALUE})の値をそのまま持ち越す。
+	 */
+	private static final class LineScanResult {
+		final LayoutContext.Floating startContent, endContent;
+		final double lineStart, lineEnd;
+		final boolean maxPageSizeSet;
+		final double maxPageSize;
+
+		LineScanResult(LayoutContext.Floating startContent, LayoutContext.Floating endContent, double lineStart,
+				double lineEnd, boolean maxPageSizeSet, double maxPageSize) {
+			this.startContent = startContent;
+			this.endContent = endContent;
+			this.lineStart = lineStart;
+			this.lineEnd = lineEnd;
+			this.maxPageSizeSet = maxPageSizeSet;
+			this.maxPageSize = maxPageSize;
+		}
+	}
+
+	/**
+	 * {@code pageStart}における1回分の行帯走査です(2026-07-23、
+	 * {@link #locateLine}から挙動不変のまま抽出——既存ループの行単位の
+	 * 移植で、算術・比較・走査順(昇順、他3消費者とは逆順)は一切変えて
+	 * いない)。
+	 */
+	private LineScanResult scanLineBand(final double pageStart, final double lineHeight, final double lineStart0,
+			final double lineEnd0) {
+		LayoutContext.Floating startContent = null, endContent = null;
+		double lineStart = lineStart0;
+		double lineEnd = lineEnd0;
+		boolean maxPageSizeSet = false;
+		double maxPageSize = 0;
+		for (int i = 0; i < this.builder.floatings.size(); ++i) {
+			final LayoutContext.Floating floating = (LayoutContext.Floating) this.builder.floatings.get(i);
+			final double pageEnd = floating.pageEnd;
+			if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
+				// 底辺より下に行がある場合
+				continue;
+			}
+			final FloatPos floatingPos = floating.box.getFloatPos();
+			if (LayoutUtils.compare(floating.pageStart, pageStart + lineHeight) >= 0) {
+				// 上辺が以下にある場合
+				// 行高さを余裕高さに制限する
+				maxPageSizeSet = true;
+				maxPageSize = floating.pageStart - pageStart;
+				break;
+			}
+			switch (floatingPos.floating) {
+			case FloatSide.START:
+				final double tempStart = floating.lineEnd;
+				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
+					startContent = floating;
+					lineStart = tempStart;
+				}
+				continue;
+
+			case FloatSide.END:
+				final double tempEnd = floating.lineStart;
+				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
+					endContent = floating;
+					lineEnd = tempEnd;
+				}
+				continue;
+
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new LineScanResult(startContent, endContent, lineStart, lineEnd, maxPageSizeSet, maxPageSize);
+	}
+
+	/**
+	 * {@link #scanLineBand}の結果と、{@link ExclusionSpace}queryの結果を
+	 * 突き合わせます(2026-07-23新設、排除域のConstraintSpace入力化P0
+	 * Step3)。実際のレイアウトは{@code scanLineBand}の結果だけを使う。
+	 */
+	private void shadowCompareLineScan(final double pageStart, final double lineHeight, final double lineEnd0,
+			final LineScanResult actual) {
+		final ExclusionSpace snapshot = this.snapshotExclusions();
+		final ExclusionSpace.LineScan expected = snapshot.scanLineBand(pageStart, lineHeight, this.builder.lineAxis,
+				lineEnd0);
+		final boolean actualStartFound = actual.startContent != null;
+		final boolean expectedStartFound = expected.startExclusion() != null;
+		final boolean actualEndFound = actual.endContent != null;
+		final boolean expectedEndFound = expected.endExclusion() != null;
+		boolean matched = actualStartFound == expectedStartFound && actualEndFound == expectedEndFound
+				&& Math.abs(expected.lineStart() - actual.lineStart) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(expected.lineEnd() - actual.lineEnd) <= ExclusionShadowStats.EPSILON
+				&& expected.maxPageSizeSet() == actual.maxPageSizeSet;
+		if (matched && actual.maxPageSizeSet) {
+			matched = Math.abs(expected.maxPageSize() - actual.maxPageSize) <= ExclusionShadowStats.EPSILON;
+		}
+		ExclusionShadowStats.recordLineScan(matched);
+	}
+
+	/**
+	 * 現在の{@link #builder}.floatingsを{@link ExclusionSpace}へ変換した
+	 * スナップショットを返します(2026-07-23新設、shadow比較専用——
+	 * 実レイアウトには使わない。{@code BlockBuilder.snapshotExclusions}
+	 * と同じ変換規則)。
+	 */
+	private ExclusionSpace snapshotExclusions() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		final List<LayoutContext.Floating> floatings = this.builder.floatings;
+		for (int i = 0; i < floatings.size(); ++i) {
+			final LayoutContext.Floating floating = floatings.get(i);
+			final FloatPos floatingPos = floating.box.getFloatPos();
+			space = space.plus(new FloatExclusion(i, floatingPos.floating,
+					new AxisSpan(floating.pageStart, floating.pageEnd),
+					new AxisSpan(floating.lineStart, floating.lineEnd)));
+		}
+		return space;
 	}
 
 	/**

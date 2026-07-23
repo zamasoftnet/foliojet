@@ -536,9 +536,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return space;
 	}
 
-	/** shadow比較の許容誤差です。1e-9は、後述のround-trip誤差(高々1ULP、10^-13台)より十分大きく、実際の論理不一致(通常10^-2以上)より十分小さい。 */
-	private static final double EXCLUSION_SHADOW_EPSILON = 1e-9;
-
 	/**
 	 * {@link #computeMulticolBand}の結果と、{@link ExclusionSpace}
 	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
@@ -567,8 +564,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 				new AxisSpan(this.lineAxis, this.lineAxis + initialLineSize));
 		final double expectedXmargin = band.start() - this.lineAxis;
 		final double expectedLineSize = band.extent();
-		final boolean matched = Math.abs(expectedXmargin - actualXmargin) <= EXCLUSION_SHADOW_EPSILON
-				&& Math.abs(expectedLineSize - actualLineSize) <= EXCLUSION_SHADOW_EPSILON;
+		final boolean matched = Math.abs(expectedXmargin - actualXmargin) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(expectedLineSize - actualLineSize) <= ExclusionShadowStats.EPSILON;
 		ExclusionShadowStats.recordMulticol(matched);
 	}
 
@@ -630,7 +627,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		} else if (!actualFound) {
 			matched = true;
 		} else {
-			matched = Math.abs((expected.pageSpan().end() - marginStart) - (actual.pageEnd - marginStart)) <= EXCLUSION_SHADOW_EPSILON;
+			matched = Math.abs((expected.pageSpan().end() - marginStart) - (actual.pageEnd - marginStart)) <= ExclusionShadowStats.EPSILON;
 		}
 		ExclusionShadowStats.recordClear(matched);
 	}
@@ -735,10 +732,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (actualFound != expectedFound) {
 			matched = false;
 		} else if (actualFound) {
-			matched = Math.abs(expected.clearPageEnd() - actual.clearPageEnd) <= EXCLUSION_SHADOW_EPSILON;
+			matched = Math.abs(expected.clearPageEnd() - actual.clearPageEnd) <= ExclusionShadowStats.EPSILON;
 		} else {
-			matched = Math.abs(expected.xMarginStart() - actual.xMarginStart) <= EXCLUSION_SHADOW_EPSILON
-					&& Math.abs(expected.lineEnd() - actual.lineEnd) <= EXCLUSION_SHADOW_EPSILON;
+			matched = Math.abs(expected.xMarginStart() - actual.xMarginStart) <= ExclusionShadowStats.EPSILON
+					&& Math.abs(expected.lineEnd() - actual.lineEnd) <= ExclusionShadowStats.EPSILON;
 		}
 		ExclusionShadowStats.recordBound(matched);
 	}

@@ -236,4 +236,60 @@ public final class ExclusionSpace {
 	public record BoundAvoidance(FloatExclusion clearingExclusion, double clearPageEnd, double xMarginStart,
 			double lineEnd) {
 	}
+
+	/**
+	 * {@code TextBuilder.locateLine}の1回分の行帯走査と同じ規則を
+	 * 再現します(2026-07-23新設、P0 Step3のshadow比較用——既存ループを
+	 * 1対1で移した実装)。他3消費者とは異なり{@code ascendingByPageEnd}
+	 * (昇順)で走査する——既存コードの{@code for (i = 0; i <
+	 * floatings.size(); ++i)}と同じ順序。
+	 */
+	public LineScan scanLineBand(final double pageStart, final double lineHeight, final double lineStart0,
+			final double lineEnd0) {
+		FloatExclusion startExclusion = null, endExclusion = null;
+		double lineStart = lineStart0;
+		double lineEnd = lineEnd0;
+		boolean maxPageSizeSet = false;
+		double maxPageSize = 0;
+		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
+			if (LayoutUtils.compare(pageStart, exclusion.pageSpan().end()) >= 0) {
+				continue;
+			}
+			if (LayoutUtils.compare(exclusion.pageSpan().start(), pageStart + lineHeight) >= 0) {
+				maxPageSizeSet = true;
+				maxPageSize = exclusion.pageSpan().start() - pageStart;
+				break;
+			}
+			switch (exclusion.side()) {
+			case START:
+				final double tempStart = exclusion.lineSpan().end();
+				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
+					startExclusion = exclusion;
+					lineStart = tempStart;
+				}
+				continue;
+			case END:
+				final double tempEnd = exclusion.lineSpan().start();
+				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
+					endExclusion = exclusion;
+					lineEnd = tempEnd;
+				}
+				continue;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new LineScan(startExclusion, endExclusion, lineStart, lineEnd, maxPageSizeSet, maxPageSize);
+	}
+
+	/**
+	 * {@link #scanLineBand}の結果です(2026-07-23新設)。
+	 * {@code maxPageSizeSet}がfalseの場合、呼び出し元は
+	 * {@code TextBuilder.maxPageSize}相当の値を更新してはならない——
+	 * 既存コードはこの走査でその分岐に到達したときだけ更新し、到達
+	 * しなければ外側の再探索ループの前回反復の値をそのまま持ち越す。
+	 */
+	public record LineScan(FloatExclusion startExclusion, FloatExclusion endExclusion, double lineStart,
+			double lineEnd, boolean maxPageSizeSet, double maxPageSize) {
+	}
 }
