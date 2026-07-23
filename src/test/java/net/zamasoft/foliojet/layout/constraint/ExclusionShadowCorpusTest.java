@@ -78,6 +78,9 @@ public class ExclusionShadowCorpusTest extends TestCase {
 		System.out.println("LINE_SCAN_SESSIONS=" + ExclusionShadowStats.LINE_SCAN_SESSIONS.get());
 		System.out.println("LINE_SCAN_MATCHES=" + ExclusionShadowStats.LINE_SCAN_MATCHES.get());
 		System.out.println("LINE_SCAN_MISMATCHES=" + ExclusionShadowStats.LINE_SCAN_MISMATCHES.get());
+		System.out.println("FLOAT_PLACEMENT_SESSIONS=" + ExclusionShadowStats.FLOAT_PLACEMENT_SESSIONS.get());
+		System.out.println("FLOAT_PLACEMENT_MATCHES=" + ExclusionShadowStats.FLOAT_PLACEMENT_MATCHES.get());
+		System.out.println("FLOAT_PLACEMENT_MISMATCHES=" + ExclusionShadowStats.FLOAT_PLACEMENT_MISMATCHES.get());
 
 		// このコーパスにはmulticol+float・clear+float・addBound+float・
 		// テキスト行+floatの組み合わせを実際に踏む文書が含まれるはず——
@@ -95,6 +98,9 @@ public class ExclusionShadowCorpusTest extends TestCase {
 		assertTrue("expected at least one line scan exclusion shadow session in the corpus",
 				ExclusionShadowStats.LINE_SCAN_SESSIONS.get() > 0);
 		assertEquals(0, ExclusionShadowStats.LINE_SCAN_MISMATCHES.get());
+		assertTrue("expected at least one float placement exclusion shadow session in the corpus",
+				ExclusionShadowStats.FLOAT_PLACEMENT_SESSIONS.get() > 0);
+		assertEquals(0, ExclusionShadowStats.FLOAT_PLACEMENT_MISMATCHES.get());
 	}
 
 	private void transcode(final File source, final File out) throws Exception {

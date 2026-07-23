@@ -292,4 +292,78 @@ public final class ExclusionSpace {
 	public record LineScan(FloatExclusion startExclusion, FloatExclusion endExclusion, double lineStart,
 			double lineEnd, boolean maxPageSizeSet, double maxPageSize) {
 	}
+
+	/**
+	 * {@code BlockBuilder.addStartFloat}/{@code addEndFloat}(新規floatの
+	 * 配置先探索)と同じ規則を再現します(2026-07-23新設、P0 Step3最後の
+	 * 消費者——既存ループを1対1で移した実装。両メソッドは完全に同一の
+	 * アルゴリズムを重複して持つため、このqueryも共有できる)。
+	 *
+	 * <p>
+	 * clear境界に遭遇した場合、それまでの{@code startExclusion}/
+	 * {@code endExclusion}/{@code lineStart}/{@code lineEnd}を保持した
+	 * まま{@code pageStart}だけ更新して即座に返す。
+	 * </p>
+	 */
+	public FloatPlacementScan scanFloatPlacementBand(final double pageStartIn, final double lineStart0,
+			final double lineEnd0, final ClearMode clear) {
+		double pageStart = pageStartIn;
+		FloatExclusion startExclusion = null, endExclusion = null;
+		double lineStart = lineStart0, lineEnd = lineEnd0;
+		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+			final double pageEnd = exclusion.pageSpan().end();
+			if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
+				break;
+			}
+			switch (clear) {
+			case NONE:
+				break;
+			case START:
+				if (exclusion.side() == FloatSide.START) {
+					pageStart = pageEnd;
+					return new FloatPlacementScan(startExclusion, endExclusion, lineStart, lineEnd, pageStart);
+				}
+				break;
+			case END:
+				if (exclusion.side() == FloatSide.END) {
+					pageStart = pageEnd;
+					return new FloatPlacementScan(startExclusion, endExclusion, lineStart, lineEnd, pageStart);
+				}
+				break;
+			case BOTH:
+				pageStart = pageEnd;
+				return new FloatPlacementScan(startExclusion, endExclusion, lineStart, lineEnd, pageStart);
+			default:
+				throw new IllegalStateException();
+			}
+			switch (exclusion.side()) {
+			case START:
+				final double tempStart = exclusion.lineSpan().end();
+				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
+					startExclusion = exclusion;
+					lineStart = tempStart;
+				}
+				continue;
+			case END:
+				final double tempEnd = exclusion.lineSpan().start();
+				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
+					endExclusion = exclusion;
+					lineEnd = tempEnd;
+				}
+				continue;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new FloatPlacementScan(startExclusion, endExclusion, lineStart, lineEnd, pageStart);
+	}
+
+	/**
+	 * {@link #scanFloatPlacementBand}の結果です(2026-07-23新設)。
+	 * {@code pageStart}はclearの条件一致で更新された値——呼び出し元は
+	 * 常にこの値を採用する。
+	 */
+	public record FloatPlacementScan(FloatExclusion startExclusion, FloatExclusion endExclusion, double lineStart,
+			double lineEnd, double pageStart) {
+	}
 }

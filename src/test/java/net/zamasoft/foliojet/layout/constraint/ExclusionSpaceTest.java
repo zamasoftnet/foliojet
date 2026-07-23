@@ -335,4 +335,45 @@ public class ExclusionSpaceTest extends TestCase {
 		// 適用されない。
 		assertEquals(500.0, scan.lineEnd(), 0);
 	}
+
+	public void testScanFloatPlacementBandNoExclusions() {
+		final ExclusionSpace.FloatPlacementScan scan = ExclusionSpace.EMPTY.scanFloatPlacementBand(0, 0, 500,
+				ClearMode.NONE);
+		assertNull(scan.startExclusion());
+		assertNull(scan.endExclusion());
+		assertEquals(0.0, scan.lineStart(), 0);
+		assertEquals(500.0, scan.lineEnd(), 0);
+		assertEquals(0.0, scan.pageStart(), 0);
+	}
+
+	public void testScanFloatPlacementBandNarrowsStartAndEnd() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 100, 0, 50));
+		space = space.plus(sideExclusion(1, FloatSide.END, 100, 400, 500));
+
+		final ExclusionSpace.FloatPlacementScan scan = space.scanFloatPlacementBand(0, 0, 500, ClearMode.NONE);
+		assertEquals(50.0, scan.lineStart(), 0);
+		assertEquals(400.0, scan.lineEnd(), 0);
+		assertEquals(0.0, scan.pageStart(), 0);
+	}
+
+	public void testScanFloatPlacementBandClearBoundaryPreservesPriorNarrowingAndBumpsPageStart() {
+		// clear=STARTの場合、descending順で先に処理されるEND側の狭窄結果
+		// (order0)は保持したまま、後で遭遇するSTART側の浮動体(order1、
+		// clearの条件に一致)でpageStartだけ更新して即座に打ち切る
+		// (2026-07-23、addBoundの教訓を踏まえ事前に確認・正しく設計)。
+		// clear=STARTの場合、START側の浮動体に遭遇した時点で必ずclear側の
+		// 分岐が先に一致するため、START側自身の狭窄が蓄積することはない
+		// ——保持されるのはそれ以前に処理された「一致しない側」の狭窄のみ。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 200, 300, 999));
+		space = space.plus(sideExclusion(1, FloatSide.START, 100, 0, 999));
+
+		final ExclusionSpace.FloatPlacementScan scan = space.scanFloatPlacementBand(0, 0, 500, ClearMode.START);
+		assertNull(scan.startExclusion());
+		assertNotNull(scan.endExclusion());
+		assertEquals(0, scan.endExclusion().order());
+		assertEquals(300.0, scan.lineEnd(), 0);
+		assertEquals(100.0, scan.pageStart(), 0);
+	}
 }

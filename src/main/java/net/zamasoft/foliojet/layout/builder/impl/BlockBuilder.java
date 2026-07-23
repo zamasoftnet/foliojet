@@ -1054,61 +1054,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			FloatPos pos = box.getFloatPos();
 			for (;;) {
-				LayoutContext.Floating startFloating = null, endFloating = null;
-				double lineEnd = this.lineAxis + this.getFlowBox().getLineSize();
-				lineStart = this.lineAxis;
-				FOR: for (int i = this.floatings.size() - 1; i >= 0; --i) {
-					LayoutContext.Floating floating = (LayoutContext.Floating) this.floatings.get(i);
-					double pageEnd = floating.pageEnd;
-					if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
-						break;
-					}
-					FloatPos floatingPos = floating.box.getFloatPos();
-					switch (pos.clear) {
-					case ClearMode.NONE:
-						break;
-					case ClearMode.START:
-						if (floatingPos.floating == FloatSide.START) {
-							pageStart = pageEnd;
-							break FOR;
-						}
-						break;
-
-					case ClearMode.END:
-						if (floatingPos.floating == FloatSide.END) {
-							pageStart = pageEnd;
-							break FOR;
-						}
-						break;
-
-					case ClearMode.BOTH:
-						pageStart = pageEnd;
-						break FOR;
-
-					default:
-						throw new IllegalStateException();
-					}
-					switch (floatingPos.floating) {
-					case FloatSide.START:
-						double tempStart = floating.lineEnd;
-						if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
-							startFloating = floating;
-							lineStart = tempStart;
-						}
-						continue;
-
-					case FloatSide.END:
-						double tempEnd = floating.lineStart;
-						if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
-							endFloating = floating;
-							lineEnd = tempEnd;
-						}
-						continue;
-
-					default:
-						throw new IllegalStateException();
-					}
-				}
+				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
+				final FloatPlacementScan scan = this.scanFloatPlacementBand(pageStart, this.lineAxis, lineEnd0,
+						pos.clear);
+				this.shadowCompareFloatPlacementScan(pageStart, this.lineAxis, lineEnd0, pos.clear, scan);
+				pageStart = scan.pageStart;
+				lineStart = scan.lineStart;
+				final double lineEnd = scan.lineEnd;
 				double width = lineEnd - lineStart;
 				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
@@ -1116,16 +1068,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 
 				// 余裕がない場合は１つ下りて再探索
-				if (startFloating == null && endFloating == null) {
+				if (scan.startFloating == null && scan.endFloating == null) {
 					break;
 				}
-				if (endFloating == null) {
-					pageStart = startFloating.pageEnd;
-				} else if (startFloating == null) {
-					pageStart = endFloating.pageEnd;
+				if (scan.endFloating == null) {
+					pageStart = scan.startFloating.pageEnd;
+				} else if (scan.startFloating == null) {
+					pageStart = scan.endFloating.pageEnd;
 				} else {
-					double lineStartPageEnd = startFloating.pageEnd;
-					double lineEndPageEnd = endFloating.pageEnd;
+					double lineStartPageEnd = scan.startFloating.pageEnd;
+					double lineEndPageEnd = scan.endFloating.pageEnd;
 					if (lineStartPageEnd > lineEndPageEnd) {
 						pageStart = lineEndPageEnd;
 					} else {
@@ -1168,78 +1120,30 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			FloatPos pos = box.getFloatPos();
 			for (;;) {
-				LayoutContext.Floating startFloating = null, endFloating = null;
-				double lineStart = this.lineAxis;
-				lineEnd = this.lineAxis + this.getFlowBox().getLineSize();
-				FOR: for (int i = this.floatings.size() - 1; i >= 0; --i) {
-					LayoutContext.Floating floating = (LayoutContext.Floating) this.floatings.get(i);
-					double pageEnd = floating.pageEnd;
-					if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
-						break;
-					}
-					FloatPos floatingPos = floating.box.getFloatPos();
-					switch (pos.clear) {
-					case ClearMode.NONE:
-						break;
-					case ClearMode.START:
-						if (floatingPos.floating == FloatSide.START) {
-							pageStart = pageEnd;
-							break FOR;
-						}
-						break;
-
-					case ClearMode.END:
-						if (floatingPos.floating == FloatSide.END) {
-							pageStart = pageEnd;
-							break FOR;
-						}
-						break;
-
-					case ClearMode.BOTH:
-						pageStart = pageEnd;
-						break FOR;
-
-					default:
-						throw new IllegalStateException();
-					}
-					switch (floatingPos.floating) {
-					case FloatSide.START:
-						double tempStart = floating.lineEnd;
-						if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
-							startFloating = floating;
-							lineStart = tempStart;
-						}
-						break;
-
-					case FloatSide.END:
-						double tempEnd = floating.lineStart;
-						if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
-							endFloating = floating;
-							lineEnd = tempEnd;
-						}
-						break;
-
-					default:
-						throw new IllegalStateException();
-					}
-				}
+				final double lineStart0 = this.lineAxis;
+				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
+				final FloatPlacementScan scan = this.scanFloatPlacementBand(pageStart, lineStart0, lineEnd0,
+						pos.clear);
+				this.shadowCompareFloatPlacementScan(pageStart, lineStart0, lineEnd0, pos.clear, scan);
+				pageStart = scan.pageStart;
+				lineEnd = scan.lineEnd;
+				final double lineStart = scan.lineStart;
 				double width = lineEnd - lineStart;
-				// System.out.println(box.getWidth()+"/"+width);
 				if (LayoutUtils.compare(width, lineWidth) >= 0) {
 					// 幅に余裕がある
 					break;
 				}
 				// 余裕がない場合は１つ下りて再探索
-				if (startFloating == null && endFloating == null) {
+				if (scan.startFloating == null && scan.endFloating == null) {
 					break;
 				}
-				if (endFloating == null) {
-					pageStart = startFloating.pageEnd;
-				} else if (startFloating == null) {
-					pageStart = endFloating.pageEnd;
+				if (scan.endFloating == null) {
+					pageStart = scan.startFloating.pageEnd;
+				} else if (scan.startFloating == null) {
+					pageStart = scan.endFloating.pageEnd;
 				} else {
-					double leftBottom = startFloating.pageEnd;
-					double rightBottom = endFloating.pageEnd;
+					double leftBottom = scan.startFloating.pageEnd;
+					double rightBottom = scan.endFloating.pageEnd;
 					if (leftBottom > rightBottom) {
 						pageStart = rightBottom;
 					} else {
@@ -1260,6 +1164,114 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		// 上位ボックスの幅の拡張
 		this.extendParents(pageStart, pageWidth);
+	}
+
+	/**
+	 * {@link #scanFloatPlacementBand}の結果です(2026-07-23新設、
+	 * 排除域のConstraintSpace入力化P0 Step3、最後の消費者)。
+	 * {@code pageStart}はclearの条件一致で更新された値——呼び出し元は
+	 * 常にこの値を採用する(既存コードのclear分岐内での代入と同じ)。
+	 */
+	private static final class FloatPlacementScan {
+		final LayoutContext.Floating startFloating, endFloating;
+		final double lineStart, lineEnd, pageStart;
+
+		FloatPlacementScan(LayoutContext.Floating startFloating, LayoutContext.Floating endFloating,
+				double lineStart, double lineEnd, double pageStart) {
+			this.startFloating = startFloating;
+			this.endFloating = endFloating;
+			this.lineStart = lineStart;
+			this.lineEnd = lineEnd;
+			this.pageStart = pageStart;
+		}
+	}
+
+	/**
+	 * 新規floatの配置先を探す1回分の走査です(2026-07-23、
+	 * {@link #addStartFloat}/{@link #addEndFloat}から挙動不変のまま
+	 * 抽出——両メソッドのこの部分は既存コードが完全に同一のアルゴリズム
+	 * (descending走査+clear境界検出+START/END狭窄)を重複して持って
+	 * いたため、共有できる)。clear境界に遭遇した場合、それまでの
+	 * {@code startFloating}/{@code endFloating}/{@code lineStart}/
+	 * {@code lineEnd}を保持したまま{@code pageStart}だけ更新して即座に
+	 * 返す(既存コードのbreak FOR直後、この走査の外側で幅の十分性を
+	 * 判定する構造をそのまま保つ)。
+	 */
+	private FloatPlacementScan scanFloatPlacementBand(final double pageStartIn, final double lineStart0,
+			final double lineEnd0, final ClearMode clear) {
+		double pageStart = pageStartIn;
+		LayoutContext.Floating startFloating = null, endFloating = null;
+		double lineStart = lineStart0, lineEnd = lineEnd0;
+		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
+			final LayoutContext.Floating floating = this.getFloating(i);
+			final double pageEnd = floating.pageEnd;
+			if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
+				break;
+			}
+			final FloatPos floatingPos = floating.box.getFloatPos();
+			switch (clear) {
+			case ClearMode.NONE:
+				break;
+			case ClearMode.START:
+				if (floatingPos.floating == FloatSide.START) {
+					pageStart = pageEnd;
+					return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
+				}
+				break;
+			case ClearMode.END:
+				if (floatingPos.floating == FloatSide.END) {
+					pageStart = pageEnd;
+					return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
+				}
+				break;
+			case ClearMode.BOTH:
+				pageStart = pageEnd;
+				return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
+			default:
+				throw new IllegalStateException();
+			}
+			switch (floatingPos.floating) {
+			case FloatSide.START:
+				final double tempStart = floating.lineEnd;
+				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
+					startFloating = floating;
+					lineStart = tempStart;
+				}
+				continue;
+			case FloatSide.END:
+				final double tempEnd = floating.lineStart;
+				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
+					endFloating = floating;
+					lineEnd = tempEnd;
+				}
+				continue;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
+	}
+
+	/**
+	 * {@link #scanFloatPlacementBand}の結果と、{@link ExclusionSpace}
+	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
+	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
+	 * {@code scanFloatPlacementBand}の結果だけを使う。
+	 */
+	private void shadowCompareFloatPlacementScan(final double pageStart, final double lineStart0,
+			final double lineEnd0, final ClearMode clear, final FloatPlacementScan actual) {
+		final ExclusionSpace snapshot = this.snapshotExclusions();
+		final ExclusionSpace.FloatPlacementScan expected = snapshot.scanFloatPlacementBand(pageStart, lineStart0,
+				lineEnd0, clear);
+		final boolean actualStartFound = actual.startFloating != null;
+		final boolean expectedStartFound = expected.startExclusion() != null;
+		final boolean actualEndFound = actual.endFloating != null;
+		final boolean expectedEndFound = expected.endExclusion() != null;
+		final boolean matched = actualStartFound == expectedStartFound && actualEndFound == expectedEndFound
+				&& Math.abs(expected.lineStart() - actual.lineStart) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(expected.lineEnd() - actual.lineEnd) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(expected.pageStart() - actual.pageStart) <= ExclusionShadowStats.EPSILON;
+		ExclusionShadowStats.recordFloatPlacement(matched);
 	}
 
 	private void extendParents(final double pageStart, final double pageWidth) {

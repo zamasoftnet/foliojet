@@ -41,6 +41,10 @@ public final class ExclusionShadowStats {
 	public static final AtomicLong LINE_SCAN_MATCHES = new AtomicLong();
 	public static final AtomicLong LINE_SCAN_MISMATCHES = new AtomicLong();
 
+	public static final AtomicLong FLOAT_PLACEMENT_SESSIONS = new AtomicLong();
+	public static final AtomicLong FLOAT_PLACEMENT_MATCHES = new AtomicLong();
+	public static final AtomicLong FLOAT_PLACEMENT_MISMATCHES = new AtomicLong();
+
 	/** {@code BlockBuilder.startFlowBlock}のmulticol回避1回分のshadow比較結果を記録します。 */
 	public static void recordMulticol(final boolean matched) {
 		MULTICOL_SESSIONS.incrementAndGet();
@@ -65,6 +69,12 @@ public final class ExclusionShadowStats {
 		(matched ? LINE_SCAN_MATCHES : LINE_SCAN_MISMATCHES).incrementAndGet();
 	}
 
+	/** {@code BlockBuilder.addStartFloat}/{@code addEndFloat}の1回分の配置先探索のshadow比較結果を記録します。 */
+	public static void recordFloatPlacement(final boolean matched) {
+		FLOAT_PLACEMENT_SESSIONS.incrementAndGet();
+		(matched ? FLOAT_PLACEMENT_MATCHES : FLOAT_PLACEMENT_MISMATCHES).incrementAndGet();
+	}
+
 	public static void reset() {
 		MULTICOL_SESSIONS.set(0);
 		MULTICOL_MATCHES.set(0);
@@ -78,6 +88,9 @@ public final class ExclusionShadowStats {
 		LINE_SCAN_SESSIONS.set(0);
 		LINE_SCAN_MATCHES.set(0);
 		LINE_SCAN_MISMATCHES.set(0);
+		FLOAT_PLACEMENT_SESSIONS.set(0);
+		FLOAT_PLACEMENT_MATCHES.set(0);
+		FLOAT_PLACEMENT_MISMATCHES.set(0);
 	}
 
 	private ExclusionShadowStats() {
