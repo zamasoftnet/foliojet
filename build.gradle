@@ -131,6 +131,12 @@ tasks.named('test') {
     useJUnit()
     enableAssertions = true
     maxHeapSize = '1024m'
+    // 2026-07-24: テスト実行の並列化(カイゼン)。従来は単一フォークで
+    // 全395スイート直列・7〜9分かかっていた。各テストはDirectSessionの
+    // インプロセス変換+一時ファイル(ユニーク名)で独立しており、
+    // フォーク分離(別JVM)なら静的状態も共有しない。メモリは
+    // フォーク数×maxHeapSize を上限に見積もること(30GB環境で8×1GB)。
+    maxParallelForks = Math.min(8, Runtime.runtime.availableProcessors())
     jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
     workingDir = rootProject.projectDir
     exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'
