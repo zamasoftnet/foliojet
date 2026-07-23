@@ -6,6 +6,7 @@ import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.params.ClearMode;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * ある文脈(1つのformatting context)で現在有効な浮動体排除帯の集合です
@@ -161,5 +162,78 @@ public final class ExclusionSpace {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * {@code BlockBuilder.addBound}(置換要素・表がフロー中で浮動体を
+	 * 避ける処理)と同じ規則を再現します(2026-07-23新設、P0 Step3の
+	 * shadow比較用——既存ループを1対1で移した実装)。
+	 *
+	 * <p>
+	 * このループは2つの独立した規則を1回の走査で行う既存構造を
+	 * そのまま保つ: (1) {@code clear}指定に応じた境界浮動体の探索
+	 * (見つかったら即座に走査終了)、(2) 見つからなかった場合の
+	 * START/END浮動体によるline帯の狭窄(START側は既存コードの
+	 * 挙動どおり{@code xMarginStart}を0にリセットして走査を打ち切る
+	 * ——既存コードのコメントにある非対称な既存挙動をそのまま再現)。
+	 * </p>
+	 */
+	public BoundAvoidance findBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
+			final double marginAdjust, final ClearMode clear) {
+		double xMarginStart = 0, lineEnd = lineStop;
+		for (final FloatExclusion exclusion : this.descendingByPageEnd()) {
+			final double pageEnd = exclusion.pageSpan().end() - marginAdjust;
+			if (pageStart >= pageEnd) {
+				return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
+			}
+			switch (clear) {
+			case NONE:
+				break;
+			case START:
+				if (exclusion.side() == FloatSide.START) {
+					return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+				}
+				break;
+			case END:
+				if (exclusion.side() == FloatSide.END) {
+					return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+				}
+				break;
+			case BOTH:
+				return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+			default:
+				throw new IllegalStateException();
+			}
+			switch (exclusion.side()) {
+			case START:
+				xMarginStart = 0;
+				// BlockBuilder.computeBoundAvoidanceの対応するjavadoc参照:
+				// 既存コードはこの分岐でもループ後のclearance適用と同じ
+				// 経路を通るため、ここもclearing扱いにする(2026-07-23
+				// 発見の実挙動)。
+				return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+			case END:
+				if (LayoutUtils.compare(exclusion.lineSpan().start() - xMarginStart, lineSize) < 0) {
+					lineEnd = lineStop;
+					return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+				}
+				lineEnd = Math.min(lineEnd, exclusion.lineSpan().start());
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
+	}
+
+	/**
+	 * {@link #findBoundAvoidance}の結果です(2026-07-23新設)。
+	 * {@code clearingExclusion}が非nullなら、それがclearの境界になった
+	 * 浮動体で{@code clearPageEnd}がその際の(margin調整済み)pageEnd。
+	 * {@code clearingExclusion}がnullの場合、clearによる境界移動はなく
+	 * {@code xMarginStart}/{@code lineEnd}がそのまま採用される狭窄結果。
+	 */
+	public record BoundAvoidance(FloatExclusion clearingExclusion, double clearPageEnd, double xMarginStart,
+			double lineEnd) {
 	}
 }

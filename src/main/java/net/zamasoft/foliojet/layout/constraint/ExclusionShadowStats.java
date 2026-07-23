@@ -24,6 +24,10 @@ public final class ExclusionShadowStats {
 	public static final AtomicLong CLEAR_MATCHES = new AtomicLong();
 	public static final AtomicLong CLEAR_MISMATCHES = new AtomicLong();
 
+	public static final AtomicLong BOUND_SESSIONS = new AtomicLong();
+	public static final AtomicLong BOUND_MATCHES = new AtomicLong();
+	public static final AtomicLong BOUND_MISMATCHES = new AtomicLong();
+
 	/** {@code BlockBuilder.startFlowBlock}のmulticol回避1回分のshadow比較結果を記録します。 */
 	public static void recordMulticol(final boolean matched) {
 		MULTICOL_SESSIONS.incrementAndGet();
@@ -36,6 +40,12 @@ public final class ExclusionShadowStats {
 		(matched ? CLEAR_MATCHES : CLEAR_MISMATCHES).incrementAndGet();
 	}
 
+	/** {@code BlockBuilder.addBound}の浮動体回避1回分のshadow比較結果を記録します。 */
+	public static void recordBound(final boolean matched) {
+		BOUND_SESSIONS.incrementAndGet();
+		(matched ? BOUND_MATCHES : BOUND_MISMATCHES).incrementAndGet();
+	}
+
 	public static void reset() {
 		MULTICOL_SESSIONS.set(0);
 		MULTICOL_MATCHES.set(0);
@@ -43,6 +53,9 @@ public final class ExclusionShadowStats {
 		CLEAR_SESSIONS.set(0);
 		CLEAR_MATCHES.set(0);
 		CLEAR_MISMATCHES.set(0);
+		BOUND_SESSIONS.set(0);
+		BOUND_MATCHES.set(0);
+		BOUND_MISMATCHES.set(0);
 	}
 
 	private ExclusionShadowStats() {

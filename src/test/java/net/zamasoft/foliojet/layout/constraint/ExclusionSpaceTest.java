@@ -205,4 +205,82 @@ public class ExclusionSpaceTest extends TestCase {
 				ClearMode.START);
 		assertNotNull(found);
 	}
+
+	public void testFindBoundAvoidanceNoExclusionsKeepsLineStop() {
+		final ExclusionSpace.BoundAvoidance avoidance = ExclusionSpace.EMPTY.findBoundAvoidance(0, 100, 500, 0,
+				ClearMode.NONE);
+		assertNull(avoidance.clearingExclusion());
+		assertEquals(0.0, avoidance.xMarginStart(), 0);
+		assertEquals(500.0, avoidance.lineEnd(), 0);
+	}
+
+	public void testFindBoundAvoidanceStopsWhenPastPageStart() {
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 50, 0, 200));
+
+		// pageStart(100) >= pageEnd(50) なので即座に打ち切り、無変更のまま。
+		final ExclusionSpace.BoundAvoidance avoidance = space.findBoundAvoidance(100, 100, 500, 0, ClearMode.NONE);
+		assertNull(avoidance.clearingExclusion());
+		assertEquals(500.0, avoidance.lineEnd(), 0);
+	}
+
+	public void testFindBoundAvoidanceClearBoundaryShortCircuitsNarrowing() {
+		// clearが指定されている場合、境界となる浮動体が見つかった時点で
+		// 走査終了——それより後(descending順で先)にある浮動体による
+		// 狭窄は一切適用されない。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 100, 0, 999));
+		space = space.plus(sideExclusion(1, FloatSide.START, 200, 0, 100));
+
+		final ExclusionSpace.BoundAvoidance avoidance = space.findBoundAvoidance(0, 100, 500, 0, ClearMode.START);
+		assertNotNull(avoidance.clearingExclusion());
+		assertEquals(1, avoidance.clearingExclusion().order());
+		assertEquals(500.0, avoidance.lineEnd(), 0);
+	}
+
+	public void testFindBoundAvoidanceStartFloatResetsAndCountsAsClearing() {
+		// STARTの浮動体に遭遇するとxMarginStartが0になり、走査を打ち切る
+		// ——既存コードはこの分岐でも(clearの条件一致と同様に)ループ後の
+		// clearance適用(pageAxis書き換え)へ落ちるため、clearingExclusion
+		// は非nullになる(2026-07-23発見の実挙動、history文書参照)。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 50, 0, 300));
+		space = space.plus(sideExclusion(1, FloatSide.START, 100, 0, 999));
+
+		final ExclusionSpace.BoundAvoidance avoidance = space.findBoundAvoidance(0, 100, 500, 0, ClearMode.NONE);
+		assertNotNull(avoidance.clearingExclusion());
+		assertEquals(1, avoidance.clearingExclusion().order());
+		assertEquals(0.0, avoidance.xMarginStart(), 0);
+		// order=1(START)で走査が止まるため、order=0(END)による狭窄は
+		// 適用されない。
+		assertEquals(500.0, avoidance.lineEnd(), 0);
+	}
+
+	public void testFindBoundAvoidanceEndFloatNarrowsWhenRoomRemains() {
+		// addBoundのEND側narrowingが読むのはlineSpan.start()
+		// (=既存コードのfloating.lineStart)——lineSpan.end()側は無関係。
+		// 十分な幅がある場合はclearanceにはならず、単なる狭窄として続行する。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 100, 300, 999));
+
+		// lineSpan.start(300) - xMarginStart(0) = 300 >= lineSize(100) なので
+		// 狭窄が適用される(LayoutUtils.compareの0.5許容込み)。
+		final ExclusionSpace.BoundAvoidance avoidance = space.findBoundAvoidance(0, 100, 500, 0, ClearMode.NONE);
+		assertNull(avoidance.clearingExclusion());
+		assertEquals(300.0, avoidance.lineEnd(), 0);
+	}
+
+	public void testFindBoundAvoidanceEndFloatNoRoomCountsAsClearing() {
+		// 幅不足の場合はlineEndがlineStopへ戻り、STARTの場合と同じく
+		// clearance適用扱いになる(2026-07-23発見の実挙動)。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.END, 100, 50, 999));
+
+		// lineSpan.start(50) - xMarginStart(0) = 50 < lineSize(100) なので
+		// lineEndはlineStopへ戻り、走査は打ち切られる。
+		final ExclusionSpace.BoundAvoidance avoidance = space.findBoundAvoidance(0, 100, 500, 0, ClearMode.NONE);
+		assertNotNull(avoidance.clearingExclusion());
+		assertEquals(0, avoidance.clearingExclusion().order());
+		assertEquals(500.0, avoidance.lineEnd(), 0);
+	}
 }

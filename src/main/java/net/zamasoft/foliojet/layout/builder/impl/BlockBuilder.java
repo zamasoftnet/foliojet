@@ -635,6 +635,114 @@ public class BlockBuilder implements Builder, LayoutContext {
 		ExclusionShadowStats.recordClear(matched);
 	}
 
+	/**
+	 * {@link #computeBoundAvoidance}の結果です(2026-07-23新設、
+	 * {@link ExclusionSpace.BoundAvoidance}と対になる形)。
+	 * {@code clearing}が非nullなら、それがclearの境界になった浮動体で
+	 * {@code clearPageEnd}がその際の(margin調整済み)pageEnd。
+	 */
+	private static final class BoundAvoidance {
+		final LayoutContext.Floating clearing;
+		final double clearPageEnd;
+		final double xMarginStart;
+		final double lineEnd;
+
+		BoundAvoidance(LayoutContext.Floating clearing, double clearPageEnd, double xMarginStart, double lineEnd) {
+			this.clearing = clearing;
+			this.clearPageEnd = clearPageEnd;
+			this.xMarginStart = xMarginStart;
+			this.lineEnd = lineEnd;
+		}
+	}
+
+	/**
+	 * {@link #addBound}の浮動体回避(clearチェック+置換要素・表の狭窄)を
+	 * 計算します(2026-07-23、挙動不変のまま抽出——既存ループの行単位の
+	 * 移植で、算術・比較・走査順は一切変えていない)。
+	 */
+	private BoundAvoidance computeBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
+			final double marginAdjust, final ClearMode clear) {
+		double xMarginStart = 0, lineEnd = lineStop;
+		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
+			final LayoutContext.Floating floating = this.getFloating(i);
+			final double pageEnd = floating.pageEnd - marginAdjust;
+			if (pageStart >= pageEnd) {
+				return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
+			}
+			final FloatPos floatingPos = floating.box.getFloatPos();
+			switch (clear) {
+			case ClearMode.NONE:
+				break;
+
+			case ClearMode.START:
+				if (floatingPos.floating == FloatSide.START) {
+					return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
+				}
+				break;
+
+			case ClearMode.END:
+				if (floatingPos.floating == FloatSide.END) {
+					return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
+				}
+				break;
+
+			case ClearMode.BOTH:
+				return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
+
+			default:
+				throw new IllegalStateException();
+			}
+
+			switch (floatingPos.floating) {
+			case FloatSide.START:
+				xMarginStart = 0;
+				// 既存コードは"floating = null;"を経ずbreak FORするため、
+				// ループ後のif(floating != null)によるclearance適用
+				// (this.pageAxis = pageEnd)がこの分岐でも発生する——
+				// clearの条件一致と同じ扱いになる、既存コードの暗黙の
+				// 挙動(2026-07-23発見、shadow比較では捕捉できなかった
+				// 実挙動差——詳細はhistory文書参照)。
+				return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
+			case FloatSide.END:
+				if (LayoutUtils.compare(floating.lineStart - xMarginStart, lineSize) < 0) {
+					lineEnd = lineStop;
+					// 上記と同じ理由でclearance適用扱いになる。
+					return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
+				}
+				lineEnd = Math.min(lineEnd, floating.lineStart);
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
+	}
+
+	/**
+	 * {@link #computeBoundAvoidance}の結果と、{@link ExclusionSpace}
+	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
+	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
+	 * {@code computeBoundAvoidance}の結果だけを使う。
+	 */
+	private void shadowCompareBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
+			final double marginAdjust, final ClearMode clear, final BoundAvoidance actual) {
+		final ExclusionSpace snapshot = this.snapshotExclusions();
+		final ExclusionSpace.BoundAvoidance expected = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
+				marginAdjust, clear);
+		final boolean actualFound = actual.clearing != null;
+		final boolean expectedFound = expected.clearingExclusion() != null;
+		final boolean matched;
+		if (actualFound != expectedFound) {
+			matched = false;
+		} else if (actualFound) {
+			matched = Math.abs(expected.clearPageEnd() - actual.clearPageEnd) <= EXCLUSION_SHADOW_EPSILON;
+		} else {
+			matched = Math.abs(expected.xMarginStart() - actual.xMarginStart) <= EXCLUSION_SHADOW_EPSILON
+					&& Math.abs(expected.lineEnd() - actual.lineEnd) <= EXCLUSION_SHADOW_EPSILON;
+		}
+		ExclusionShadowStats.recordBound(matched);
+	}
+
 	public void endFlowBlock() {
 		assert this.textBuilder == null;
 		final Flow flow = (Flow) this.flowStack.remove(this.flowStack.size() - 1);
@@ -772,69 +880,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (this.getFloatingCount() > 0) {
 				// clearのチェックと置換ボックスやテーブルが浮動ボックスと重ならない処理
 				// *** CLEAR_NONEもチェックしていることに注意 ***
-				LayoutContext.Floating floating = null;
-				double pageEnd = 0;
 				final double pageStart;
+				final double marginAdjust;
 				if (vertical) {
-					pageStart = this.pageAxis - amargin.right;
+					marginAdjust = amargin.right;
 				} else {
-					pageStart = this.pageAxis - amargin.top;
+					marginAdjust = amargin.top;
 				}
-				FOR: for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-					floating = this.getFloating(i);
-					pageEnd = floating.pageEnd;
-					if (vertical) {
-						pageEnd -= amargin.right;
-					} else {
-						pageEnd -= amargin.top;
-					}
-					if (pageStart >= pageEnd) {
-						floating = null;
-						break;
-					}
-					FloatPos floatingPos = floating.box.getFloatPos();
-					switch (clear) {
-					case ClearMode.NONE:
-						break;
-
-					case ClearMode.START:
-						if (floatingPos.floating == FloatSide.START) {
-							break FOR;
-						}
-						break;
-
-					case ClearMode.END:
-						if (floatingPos.floating == FloatSide.END) {
-							break FOR;
-						}
-						break;
-
-					case ClearMode.BOTH:
-						break FOR;
-
-					default:
-						throw new IllegalStateException();
-					}
-
-					switch (floatingPos.floating) {
-					case FloatSide.START:
-						xMarginStart = 0;
-						break FOR;
-					case FloatSide.END:
-						if (LayoutUtils.compare(floating.lineStart - xMarginStart, lineSize) < 0) {
-							lineEnd = lineStop;
-							break FOR;
-						}
-						lineEnd = Math.min(lineEnd, floating.lineStart);
-						break;
-					default:
-						throw new IllegalStateException();
-					}
-					floating = null;
-				}
-				if (floating != null) {
+				pageStart = this.pageAxis - marginAdjust;
+				final BoundAvoidance avoidance = this.computeBoundAvoidance(pageStart, lineSize, lineStop,
+						marginAdjust, clear);
+				xMarginStart = avoidance.xMarginStart;
+				lineEnd = avoidance.lineEnd;
+				this.shadowCompareBoundAvoidance(pageStart, lineSize, lineStop, marginAdjust, clear, avoidance);
+				if (avoidance.clearing != null) {
 					this.poLastMargin = this.neLastMargin = 0;
-					this.pageAxis = pageEnd;
+					this.pageAxis = avoidance.clearPageEnd;
 				}
 			}
 			xMarginEnd = lineStop - lineEnd;
