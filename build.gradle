@@ -146,6 +146,9 @@ tasks.named('test') {
     systemProperty 'java.awt.headless', 'true'
     systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
     systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath
+    if (System.getProperty('foliojet.debugTailShadow') != null) {
+        systemProperty 'foliojet.debugTailShadow', System.getProperty('foliojet.debugTailShadow')
+    }
 
     doFirst {
         new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
