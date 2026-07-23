@@ -166,7 +166,16 @@ public class Floatings {
 					// 匿名ボックス
 					final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
 					final BlockParams params = containerBox.getBlockParams();
-					if (params.pageBreakInside != PageBreakMode.AVOID
+					// 2026-07-23: 通常フロー(ARCHITECTURE.md §5.11)と同じ
+					// avoidヒント上書き規則をfloatにも適用する——物理的に
+					// ページ/フラグメント先頭にいる(first)場合は、これ以上
+					// 先送りしても無意味なのでavoidヒントを上書きして実際に
+					// 分割する。以前はこの上書きが無く、avoid指定+ページ先頭
+					// のfloatがREPLACED(atomic)と同じ「はみ出したまま描画」
+					// 経路へ落ちていた(通常フローとの非対称、ユーザー指摘に
+					// より見落としと確認)。書字方向の不一致側は対象外——
+					// こちらは§5.10ルール3の恒久的なatomic対象のまま。
+					if ((params.pageBreakInside != PageBreakMode.AVOID || first)
 							&& vertical == params.flow.isVertical()) {
 						byte xflags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
 						double pageAxis = pageLimit - floating.pageAxis;

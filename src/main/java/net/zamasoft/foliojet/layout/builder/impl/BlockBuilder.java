@@ -381,11 +381,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 		double lineSize = containerBox.getLineSize();
 		if (flowBox.getColumnCount() > 1) {
 			// マルチカラムの場合浮動ボックスを避ける
+			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
+			// 旧ループ(computeMulticolBand)はもう実レイアウトに使わず、
+			// 安全網としてのshadow比較専用に残す。
 			final double initialLineSize = lineSize;
-			final MulticolBand band = this.computeMulticolBand(this.lineAxis, this.pageAxis, initialLineSize);
-			xmargin = band.xmargin;
-			lineSize = band.lineSize;
-			this.shadowCompareMulticolBand(initialLineSize, xmargin, lineSize);
+			final ExclusionSpace snapshot = this.snapshotExclusions();
+			final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
+					new AxisSpan(this.lineAxis, this.lineAxis + initialLineSize));
+			xmargin = band.start() - this.lineAxis;
+			lineSize = band.extent();
+			final MulticolBand legacyBand = this.computeMulticolBand(this.lineAxis, this.pageAxis, initialLineSize);
+			this.shadowCompareMulticolBand(xmargin, lineSize, legacyBand.xmargin, legacyBand.lineSize);
 		}
 		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();
@@ -537,10 +543,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * {@link #computeMulticolBand}の結果と、{@link ExclusionSpace}
-	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
-	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
-	 * {@code computeMulticolBand}の結果だけを使う——この比較は
+	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
+	 * {@link #computeMulticolBand}(旧ループ、安全網としてのみ残す)の
+	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
+	 * {@code ExclusionSpace}側の結果だけを使う——ここでの比較は
 	 * {@link ExclusionShadowStats}への記録のみが目的で、挙動には
 	 * 一切影響しない。
 	 *
@@ -557,15 +563,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * 浮動小数点演算の結合則が成り立たないことによる既知の丸め誤差。
 	 * </p>
 	 */
-	private void shadowCompareMulticolBand(final double initialLineSize, final double actualXmargin,
-			final double actualLineSize) {
-		final ExclusionSpace snapshot = this.snapshotExclusions();
-		final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
-				new AxisSpan(this.lineAxis, this.lineAxis + initialLineSize));
-		final double expectedXmargin = band.start() - this.lineAxis;
-		final double expectedLineSize = band.extent();
-		final boolean matched = Math.abs(expectedXmargin - actualXmargin) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(expectedLineSize - actualLineSize) <= ExclusionShadowStats.EPSILON;
+	private void shadowCompareMulticolBand(final double exclusionSpaceXmargin, final double exclusionSpaceLineSize,
+			final double legacyXmargin, final double legacyLineSize) {
+		final boolean matched = Math.abs(exclusionSpaceXmargin - legacyXmargin) <= ExclusionShadowStats.EPSILON
+				&& Math.abs(exclusionSpaceLineSize - legacyLineSize) <= ExclusionShadowStats.EPSILON;
 		ExclusionShadowStats.recordMulticol(matched);
 	}
 
