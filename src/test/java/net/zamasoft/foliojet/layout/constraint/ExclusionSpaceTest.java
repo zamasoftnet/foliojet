@@ -376,4 +376,49 @@ public class ExclusionSpaceTest extends TestCase {
 		assertEquals(300.0, scan.lineEnd(), 0);
 		assertEquals(100.0, scan.pageStart(), 0);
 	}
+
+	public void testCopyOfSortedMatchesPlusOrdering() {
+		// copyOfSorted(O(N)一括構築)とplus(逐次挿入)が同じ並びを
+		// 生むことを固定する(2026-07-23、旧ループ撤去時の特性テスト)。
+		final List<FloatExclusion> sorted = List.of(exclusion(0, 100), exclusion(1, 100), exclusion(2, 200));
+		ExclusionSpace byPlus = ExclusionSpace.EMPTY;
+		for (final FloatExclusion e : sorted) {
+			byPlus = byPlus.plus(e);
+		}
+		final ExclusionSpace byCopy = ExclusionSpace.copyOfSorted(sorted);
+		assertEquals(byPlus.ascendingByPageEnd(), byCopy.ascendingByPageEnd());
+	}
+
+	public void testScanLineBandSameLineEndDistinctPageEndPinsSelection() {
+		// 同一line端・異なるpageEndの2つのSTART floatがある場合に、どちらが
+		// 「選択された境界」(呼び出し元の降下先pageEndを決める)になるかを
+		// 固定する。昇順走査では同値(>=)の更新により後に処理された方
+		// (pageEndが大きい方)が選ばれる——旧TextBuilderループと同じ挙動
+		// (2026-07-23、旧ループ撤去時の特性テスト)。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 100, 0, 80));
+		space = space.plus(sideExclusion(1, FloatSide.START, 200, 0, 80));
+
+		final ExclusionSpace.LineScan scan = space.scanLineBand(0, 20, 0, 500);
+		assertNotNull(scan.startExclusion());
+		assertEquals(1, scan.startExclusion().order());
+		assertEquals(200.0, scan.startExclusion().pageSpan().end(), 0);
+		assertEquals(80.0, scan.lineStart(), 0);
+	}
+
+	public void testScanFloatPlacementBandSameLineEndDistinctPageEndPinsSelection() {
+		// scanLineBand(昇順)とは逆に、float配置の降順走査では同値(>=)の
+		// 更新により後に処理された方(pageEndが小さい方)が選ばれる——
+		// 旧addStartFloat/addEndFloatループと同じ挙動(2026-07-23、
+		// 旧ループ撤去時の特性テスト)。
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(sideExclusion(0, FloatSide.START, 100, 0, 80));
+		space = space.plus(sideExclusion(1, FloatSide.START, 200, 0, 80));
+
+		final ExclusionSpace.FloatPlacementScan scan = space.scanFloatPlacementBand(0, 0, 500, ClearMode.NONE);
+		assertNotNull(scan.startExclusion());
+		assertEquals(0, scan.startExclusion().order());
+		assertEquals(100.0, scan.startExclusion().pageSpan().end(), 0);
+		assertEquals(80.0, scan.lineStart(), 0);
+	}
 }

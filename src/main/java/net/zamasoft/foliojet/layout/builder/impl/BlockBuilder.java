@@ -19,7 +19,6 @@ import net.zamasoft.foliojet.layout.box.params.ClearMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.constraint.AxisSpan;
-import net.zamasoft.foliojet.layout.constraint.ExclusionShadowStats;
 import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
 import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 
@@ -380,18 +379,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 		double xmargin = 0;
 		double lineSize = containerBox.getLineSize();
 		if (flowBox.getColumnCount() > 1) {
-			// マルチカラムの場合浮動ボックスを避ける
-			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
-			// 旧ループ(computeMulticolBand)はもう実レイアウトに使わず、
-			// 安全網としてのshadow比較専用に残す。
-			final double initialLineSize = lineSize;
+			// マルチカラムの場合浮動ボックスを避ける(排除域は
+			// ExclusionSpace queryへ一本化済み——2026-07-23、P0完了)
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
-					new AxisSpan(this.lineAxis, this.lineAxis + initialLineSize));
+					new AxisSpan(this.lineAxis, this.lineAxis + lineSize));
 			xmargin = band.start() - this.lineAxis;
 			lineSize = band.extent();
-			final MulticolBand legacyBand = this.computeMulticolBand(this.lineAxis, this.pageAxis, initialLineSize);
-			this.shadowCompareMulticolBand(xmargin, lineSize, legacyBand.xmargin, legacyBand.lineSize);
 		}
 		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();
@@ -416,13 +410,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 				marginStart = frame.margin.top;
 			}
 			final double pageStart = this.pageAxis - marginStart;
-			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
-			// 旧ループ(findClearFloating)はもう実レイアウトに使わず、
-			// 安全網としてのshadow比較専用に残す。
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			final FloatExclusion found = snapshot.findClearBoundary(pageStart, marginStart, pos.clear);
-			final LayoutContext.Floating legacyFloating = this.findClearFloating(pageStart, marginStart, pos.clear);
-			this.shadowCompareClearBoundary(marginStart, found, legacyFloating);
 			if (found != null) {
 				// 浮動ボックスの下につける
 				this.poLastMargin = this.neLastMargin = 0;
@@ -482,51 +471,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.breakToken = BreakToken.NONE;
 	}
 
-	/**
-	 * {@link #startFlowBlock}のmulticol回避が計算する結果です
-	 * (2026-07-23新設、排除域のConstraintSpace入力化P0 Step3——
-	 * `docs/consultations/consult-exclusion-zone-codex.txt`参照)。
-	 */
-	private static final class MulticolBand {
-		final double xmargin, lineSize;
-
-		MulticolBand(double xmargin, double lineSize) {
-			this.xmargin = xmargin;
-			this.lineSize = lineSize;
-		}
-	}
-
-	/**
-	 * マルチカラムブロック配置時の浮動体回避を計算します(2026-07-23、
-	 * {@link #startFlowBlock}から挙動不変のまま抽出——既存ループの
-	 * 行単位の移植で、算術・比較・走査順は一切変えていない)。
-	 */
-	private MulticolBand computeMulticolBand(final double lineAxis, final double pageAxis,
-			final double initialLineSize) {
-		double lineStart = lineAxis, lineEnd = lineAxis + initialLineSize;
-		double xmargin = 0, lineSize = initialLineSize;
-		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-			LayoutContext.Floating floating = this.getFloating(i);
-			double pageEnd = floating.pageEnd;
-			if (pageEnd <= pageAxis) {
-				break;
-			}
-			FloatPos floatingPos = floating.box.getFloatPos();
-			switch (floatingPos.floating) {
-			case FloatSide.START:
-				lineStart = Math.max(lineStart, floating.lineEnd);
-				break;
-			case FloatSide.END:
-				lineEnd = Math.min(lineEnd, floating.lineStart);
-				break;
-			}
-			xmargin = lineStart - lineAxis;
-			lineSize = lineEnd - lineStart;
-		}
-		return new MulticolBand(xmargin, lineSize);
-	}
-
-	/**
+			/**
 	 * 現在の{@link #floatings}を{@link ExclusionSpace}へ変換した
 	 * スナップショットを返します(2026-07-23新設、P0 Step4以降は
 	 * 実レイアウトに使用。{@code TextBuilder}もこれを共用する)。
@@ -551,203 +496,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return ExclusionSpace.copyOfSorted(exclusions);
 	}
 
-	/**
-	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
-	 * {@link #computeMulticolBand}(旧ループ、安全網としてのみ残す)の
-	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
-	 * {@code ExclusionSpace}側の結果だけを使う——ここでの比較は
-	 * {@link ExclusionShadowStats}への記録のみが目的で、挙動には
-	 * 一切影響しない。
-	 *
-	 * <p>
-	 * 完全一致(==)ではなく微小許容誤差で比較する——実測(2026-07-23、
-	 * 414文書コーパス)で、浮動体が全く適用されないケースでも
-	 * {@code (lineAxis + initialLineSize) - lineAxis}が浮動小数点の
-	 * 丸めにより{@code initialLineSize}と1ULP異なることがあると判明した
-	 * (このqueryは{@code lineBand}を{@code AxisSpan(lineAxis, lineAxis +
-	 * initialLineSize)}として構築するため、narrowingが一切効かない場合
-	 * でも減算のround-tripが発生する。{@code computeMulticolBand}は
-	 * narrowingが効かなければ{@code initialLineSize}をそのまま無演算で
-	 * 保持するため、この差は発生しない)。これは論理的な不一致ではなく、
-	 * 浮動小数点演算の結合則が成り立たないことによる既知の丸め誤差。
-	 * </p>
-	 */
-	private void shadowCompareMulticolBand(final double exclusionSpaceXmargin, final double exclusionSpaceLineSize,
-			final double legacyXmargin, final double legacyLineSize) {
-		final boolean matched = Math.abs(exclusionSpaceXmargin - legacyXmargin) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(exclusionSpaceLineSize - legacyLineSize) <= ExclusionShadowStats.EPSILON;
-		ExclusionShadowStats.recordMulticol(matched);
-	}
-
-	/**
-	 * clearの対象になる浮動体を探します(2026-07-23、{@link #startFlowBlock}
-	 * から挙動不変のまま抽出——既存ループの行単位の移植で、算術・比較・
-	 * 走査順は一切変えていない)。
-	 */
-	private LayoutContext.Floating findClearFloating(final double pageStart, final double marginStart,
-			final ClearMode clear) {
-		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-			final LayoutContext.Floating floating = this.getFloating(i);
-			final double pageEnd = floating.pageEnd - marginStart;
-			if (pageEnd <= pageStart) {
-				return null;
-			}
-			final FloatPos floatingPos = floating.box.getFloatPos();
-			switch (clear) {
-			case ClearMode.START:
-				// 左クリア
-				if (floatingPos.floating == FloatSide.START) {
-					return floating;
-				}
-				break;
-
-			case ClearMode.END:
-				// 右クリア
-				if (floatingPos.floating == FloatSide.END) {
-					return floating;
-				}
-				break;
-
-			case ClearMode.BOTH:
-				// 両クリア
-				return floating;
-
-			default:
-				throw new IllegalStateException();
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
-	 * {@link #findClearFloating}(旧ループ、安全網としてのみ残す)の
-	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
-	 * {@code ExclusionSpace}側の結果だけを使う。
-	 */
-	private void shadowCompareClearBoundary(final double marginStart, final FloatExclusion exclusionSpaceResult,
-			final LayoutContext.Floating legacyResult) {
-		final boolean exclusionSpaceFound = exclusionSpaceResult != null;
-		final boolean legacyFound = legacyResult != null;
-		final boolean matched;
-		if (exclusionSpaceFound != legacyFound) {
-			matched = false;
-		} else if (!exclusionSpaceFound) {
-			matched = true;
-		} else {
-			matched = Math.abs((exclusionSpaceResult.pageSpan().end() - marginStart)
-					- (legacyResult.pageEnd - marginStart)) <= ExclusionShadowStats.EPSILON;
-		}
-		ExclusionShadowStats.recordClear(matched);
-	}
-
-	/**
-	 * {@link #computeBoundAvoidance}の結果です(2026-07-23新設、
-	 * {@link ExclusionSpace.BoundAvoidance}と対になる形)。
-	 * {@code clearing}が非nullなら、それがclearの境界になった浮動体で
-	 * {@code clearPageEnd}がその際の(margin調整済み)pageEnd。
-	 */
-	private static final class BoundAvoidance {
-		final LayoutContext.Floating clearing;
-		final double clearPageEnd;
-		final double xMarginStart;
-		final double lineEnd;
-
-		BoundAvoidance(LayoutContext.Floating clearing, double clearPageEnd, double xMarginStart, double lineEnd) {
-			this.clearing = clearing;
-			this.clearPageEnd = clearPageEnd;
-			this.xMarginStart = xMarginStart;
-			this.lineEnd = lineEnd;
-		}
-	}
-
-	/**
-	 * {@link #addBound}の浮動体回避(clearチェック+置換要素・表の狭窄)を
-	 * 計算します(2026-07-23、挙動不変のまま抽出——既存ループの行単位の
-	 * 移植で、算術・比較・走査順は一切変えていない)。
-	 */
-	private BoundAvoidance computeBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
-			final double marginAdjust, final ClearMode clear) {
-		double xMarginStart = 0, lineEnd = lineStop;
-		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-			final LayoutContext.Floating floating = this.getFloating(i);
-			final double pageEnd = floating.pageEnd - marginAdjust;
-			if (pageStart >= pageEnd) {
-				return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
-			}
-			final FloatPos floatingPos = floating.box.getFloatPos();
-			switch (clear) {
-			case ClearMode.NONE:
-				break;
-
-			case ClearMode.START:
-				if (floatingPos.floating == FloatSide.START) {
-					return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
-				}
-				break;
-
-			case ClearMode.END:
-				if (floatingPos.floating == FloatSide.END) {
-					return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
-				}
-				break;
-
-			case ClearMode.BOTH:
-				return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
-
-			default:
-				throw new IllegalStateException();
-			}
-
-			switch (floatingPos.floating) {
-			case FloatSide.START:
-				xMarginStart = 0;
-				// 既存コードは"floating = null;"を経ずbreak FORするため、
-				// ループ後のif(floating != null)によるclearance適用
-				// (this.pageAxis = pageEnd)がこの分岐でも発生する——
-				// clearの条件一致と同じ扱いになる、既存コードの暗黙の
-				// 挙動(2026-07-23発見、shadow比較では捕捉できなかった
-				// 実挙動差——詳細はhistory文書参照)。
-				return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
-			case FloatSide.END:
-				if (LayoutUtils.compare(floating.lineStart - xMarginStart, lineSize) < 0) {
-					lineEnd = lineStop;
-					// 上記と同じ理由でclearance適用扱いになる。
-					return new BoundAvoidance(floating, pageEnd, xMarginStart, lineEnd);
-				}
-				lineEnd = Math.min(lineEnd, floating.lineStart);
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-		}
-		return new BoundAvoidance(null, 0, xMarginStart, lineEnd);
-	}
-
-	/**
-	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
-	 * {@link #computeBoundAvoidance}(旧ループ、安全網としてのみ残す)の
-	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
-	 * {@code ExclusionSpace}側の結果だけを使う。
-	 */
-	private void shadowCompareBoundAvoidance(final ExclusionSpace.BoundAvoidance exclusionSpaceResult,
-			final BoundAvoidance legacyResult) {
-		final boolean exclusionSpaceFound = exclusionSpaceResult.clearingExclusion() != null;
-		final boolean legacyFound = legacyResult.clearing != null;
-		// 呼び出し元はclearingの有無に関わらずxMarginStart/lineEndを使う
-		// ため、全出力を常に比較する(2026-07-23、codexレビュー指摘——
-		// 従来はclearing検出時にclearPageEndしか比較しておらず、END側で
-		// 帯が狭まった後にclear境界へ到達する入力で帯の差を見逃せた)。
-		boolean matched = exclusionSpaceFound == legacyFound
-				&& Math.abs(exclusionSpaceResult.xMarginStart() - legacyResult.xMarginStart) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON;
-		if (matched && exclusionSpaceFound) {
-			matched = Math.abs(exclusionSpaceResult.clearPageEnd() - legacyResult.clearPageEnd) <= ExclusionShadowStats.EPSILON;
-		}
-		ExclusionShadowStats.recordBound(matched);
-	}
-
-	public void endFlowBlock() {
+							public void endFlowBlock() {
 		assert this.textBuilder == null;
 		final Flow flow = (Flow) this.flowStack.remove(this.flowStack.size() - 1);
 		final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
@@ -892,17 +641,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 					marginAdjust = amargin.top;
 				}
 				pageStart = this.pageAxis - marginAdjust;
-				// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
-				// 旧ループ(computeBoundAvoidance)はもう実レイアウトに使わず、
-				// 安全網としてのshadow比較専用に残す。
 				final ExclusionSpace snapshot = this.snapshotExclusions();
 				final ExclusionSpace.BoundAvoidance found = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
 						marginAdjust, clear);
 				xMarginStart = found.xMarginStart();
 				lineEnd = found.lineEnd();
-				final BoundAvoidance legacyAvoidance = this.computeBoundAvoidance(pageStart, lineSize, lineStop,
-						marginAdjust, clear);
-				this.shadowCompareBoundAvoidance(found, legacyAvoidance);
 				if (found.clearingExclusion() != null) {
 					this.poLastMargin = this.neLastMargin = 0;
 					this.pageAxis = found.clearPageEnd();
@@ -1066,18 +809,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 			pageStart = Math.max(pageStart, lastFloating.pageStart);
 
 			FloatPos pos = box.getFloatPos();
-			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
-			// 旧ループ(scanFloatPlacementBand)はもう実レイアウトに使わず、
-			// 安全網としてのshadow比較専用に残す。floatingsはこのループ中
-			// 不変なのでスナップショットはループ外で1回だけ取る。
+			// floatingsはこのループ中不変なのでスナップショットはループ外で
+			// 1回だけ取る。
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			for (;;) {
 				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
 				final ExclusionSpace.FloatPlacementScan found = snapshot.scanFloatPlacementBand(pageStart,
 						this.lineAxis, lineEnd0, pos.clear);
-				final FloatPlacementScan legacyScan = this.scanFloatPlacementBand(pageStart, this.lineAxis, lineEnd0,
-						pos.clear);
-				this.shadowCompareFloatPlacementScan(found, legacyScan);
 				pageStart = found.pageStart();
 				lineStart = found.lineStart();
 				final double lineEnd = found.lineEnd();
@@ -1139,18 +877,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 			pageStart = Math.max(pageStart, lastFloating.pageStart);
 
 			FloatPos pos = box.getFloatPos();
-			// 2026-07-23(排除域P0 Step4): addStartFloatと同じ切り替え
-			// (ExclusionSpace実採用、旧ループは安全網、スナップショットは
-			// ループ外で1回)。
+			// addStartFloatと同様、スナップショットはループ外で1回だけ取る。
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			for (;;) {
 				final double lineStart0 = this.lineAxis;
 				final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
 				final ExclusionSpace.FloatPlacementScan found = snapshot.scanFloatPlacementBand(pageStart, lineStart0,
 						lineEnd0, pos.clear);
-				final FloatPlacementScan legacyScan = this.scanFloatPlacementBand(pageStart, lineStart0, lineEnd0,
-						pos.clear);
-				this.shadowCompareFloatPlacementScan(found, legacyScan);
 				pageStart = found.pageStart();
 				lineEnd = found.lineEnd();
 				final double lineStart = found.lineStart();
@@ -1192,126 +925,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.extendParents(pageStart, pageWidth);
 	}
 
-	/**
-	 * {@link #scanFloatPlacementBand}の結果です(2026-07-23新設、
-	 * 排除域のConstraintSpace入力化P0 Step3、最後の消費者)。
-	 * {@code pageStart}はclearの条件一致で更新された値——呼び出し元は
-	 * 常にこの値を採用する(既存コードのclear分岐内での代入と同じ)。
-	 */
-	private static final class FloatPlacementScan {
-		final LayoutContext.Floating startFloating, endFloating;
-		final double lineStart, lineEnd, pageStart;
-
-		FloatPlacementScan(LayoutContext.Floating startFloating, LayoutContext.Floating endFloating,
-				double lineStart, double lineEnd, double pageStart) {
-			this.startFloating = startFloating;
-			this.endFloating = endFloating;
-			this.lineStart = lineStart;
-			this.lineEnd = lineEnd;
-			this.pageStart = pageStart;
-		}
-	}
-
-	/**
-	 * 新規floatの配置先を探す1回分の走査です(2026-07-23、
-	 * {@link #addStartFloat}/{@link #addEndFloat}から挙動不変のまま
-	 * 抽出——両メソッドのこの部分は既存コードが完全に同一のアルゴリズム
-	 * (descending走査+clear境界検出+START/END狭窄)を重複して持って
-	 * いたため、共有できる)。clear境界に遭遇した場合、それまでの
-	 * {@code startFloating}/{@code endFloating}/{@code lineStart}/
-	 * {@code lineEnd}を保持したまま{@code pageStart}だけ更新して即座に
-	 * 返す(既存コードのbreak FOR直後、この走査の外側で幅の十分性を
-	 * 判定する構造をそのまま保つ)。P0 Step4以降は実レイアウトには
-	 * 使わず、shadow比較の安全網としてのみ残している。
-	 */
-	private FloatPlacementScan scanFloatPlacementBand(final double pageStartIn, final double lineStart0,
-			final double lineEnd0, final ClearMode clear) {
-		double pageStart = pageStartIn;
-		LayoutContext.Floating startFloating = null, endFloating = null;
-		double lineStart = lineStart0, lineEnd = lineEnd0;
-		for (int i = this.getFloatingCount() - 1; i >= 0; --i) {
-			final LayoutContext.Floating floating = this.getFloating(i);
-			final double pageEnd = floating.pageEnd;
-			if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
-				break;
-			}
-			final FloatPos floatingPos = floating.box.getFloatPos();
-			switch (clear) {
-			case ClearMode.NONE:
-				break;
-			case ClearMode.START:
-				if (floatingPos.floating == FloatSide.START) {
-					pageStart = pageEnd;
-					return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
-				}
-				break;
-			case ClearMode.END:
-				if (floatingPos.floating == FloatSide.END) {
-					pageStart = pageEnd;
-					return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
-				}
-				break;
-			case ClearMode.BOTH:
-				pageStart = pageEnd;
-				return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
-			default:
-				throw new IllegalStateException();
-			}
-			switch (floatingPos.floating) {
-			case FloatSide.START:
-				final double tempStart = floating.lineEnd;
-				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
-					startFloating = floating;
-					lineStart = tempStart;
-				}
-				continue;
-			case FloatSide.END:
-				final double tempEnd = floating.lineStart;
-				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
-					endFloating = floating;
-					lineEnd = tempEnd;
-				}
-				continue;
-			default:
-				throw new IllegalStateException();
-			}
-		}
-		return new FloatPlacementScan(startFloating, endFloating, lineStart, lineEnd, pageStart);
-	}
-
-	/**
-	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
-	 * {@link #scanFloatPlacementBand}(旧ループ、安全網としてのみ残す)の
-	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
-	 * {@code ExclusionSpace}側の結果だけを使う。
-	 */
-	private void shadowCompareFloatPlacementScan(final ExclusionSpace.FloatPlacementScan exclusionSpaceResult,
-			final FloatPlacementScan legacyResult) {
-		final boolean exclusionSpaceStartFound = exclusionSpaceResult.startExclusion() != null;
-		final boolean legacyStartFound = legacyResult.startFloating != null;
-		final boolean exclusionSpaceEndFound = exclusionSpaceResult.endExclusion() != null;
-		final boolean legacyEndFound = legacyResult.endFloating != null;
-		boolean matched = exclusionSpaceStartFound == legacyStartFound
-				&& exclusionSpaceEndFound == legacyEndFound
-				&& Math.abs(exclusionSpaceResult.lineStart() - legacyResult.lineStart) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(exclusionSpaceResult.pageStart() - legacyResult.pageStart) <= ExclusionShadowStats.EPSILON;
-		// 選択された境界floatのpageEnd(呼び出し元の降下先を決める値)も
-		// 比較する(2026-07-23、codexレビュー指摘——line端が同じで
-		// pageEndだけ異なる2つのfloatを新旧が別々に選んだ場合を検出する
-		// ため)。
-		if (matched && exclusionSpaceStartFound) {
-			matched = Math.abs(exclusionSpaceResult.startExclusion().pageSpan().end()
-					- legacyResult.startFloating.pageEnd) <= ExclusionShadowStats.EPSILON;
-		}
-		if (matched && exclusionSpaceEndFound) {
-			matched = Math.abs(exclusionSpaceResult.endExclusion().pageSpan().end()
-					- legacyResult.endFloating.pageEnd) <= ExclusionShadowStats.EPSILON;
-		}
-		ExclusionShadowStats.recordFloatPlacement(matched);
-	}
-
-	private void extendParents(final double pageStart, final double pageWidth) {
+				private void extendParents(final double pageStart, final double pageWidth) {
 		// 浮動ボックスによる上位ボックスの幅の拡張
 		Flow contextFlow = this.getSubContextFlow();
 		double pageAxis = pageStart + pageWidth;

@@ -4,7 +4,6 @@ import net.zamasoft.foliojet.layout.fragment.BreakOpportunity;
 
 import net.zamasoft.foliojet.layout.box.content.BreakToken;
 
-import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
@@ -24,7 +23,6 @@ import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
-import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 
@@ -35,7 +33,6 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutContext.Flow;
-import net.zamasoft.foliojet.layout.constraint.ExclusionShadowStats;
 import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
@@ -230,18 +227,13 @@ public class TextBuilder {
 			// System.out.println("TB-locateLine1:" + pageStart + "/"
 			// + this.builder.floatings.size() + "/" + lineHeight);
 			final double lineEnd0 = this.builder.lineAxis + this.maxLineSize;
-			// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
-			// 旧ループ(scanLineBand)はもう実レイアウトに使わず、
-			// 安全網としてのshadow比較専用に残す。floatingsはこのループ中
-			// 不変なのでスナップショットはループ外で1回だけ取る。
+			// floatingsはこのループ中不変なのでスナップショットはループ外で
+			// 1回だけ取る。
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			for (;;) {
 				// ラインを入れるスペースがある部分の左右
 				final ExclusionSpace.LineScan found = snapshot.scanLineBand(pageStart, lineHeight,
 						this.builder.lineAxis, lineEnd0);
-				final LineScanResult legacyScan = this.scanLineBand(pageStart, lineHeight, this.builder.lineAxis,
-						lineEnd0);
-				this.shadowCompareLineScan(found, legacyScan);
 				lineStart = found.lineStart();
 				if (found.maxPageSizeSet()) {
 					// 既存コードはthis.maxPageSizeをこの分岐でしか更新しない
@@ -300,119 +292,7 @@ public class TextBuilder {
 		}
 	}
 
-	/**
-	 * {@link #scanLineBand}の結果です(2026-07-23新設、排除域の
-	 * ConstraintSpace入力化P0 Step3)。{@code maxPageSizeSet}が
-	 * falseの場合、呼び出し元は{@code this.maxPageSize}を更新しては
-	 * ならない——既存コードはこの走査でその分岐に到達したときだけ
-	 * 更新し、到達しなければ外側{@code for(;;)}の前回反復(または
-	 * 初期値{@code Double.MAX_VALUE})の値をそのまま持ち越す。
-	 */
-	private static final class LineScanResult {
-		final LayoutContext.Floating startContent, endContent;
-		final double lineStart, lineEnd;
-		final boolean maxPageSizeSet;
-		final double maxPageSize;
-
-		LineScanResult(LayoutContext.Floating startContent, LayoutContext.Floating endContent, double lineStart,
-				double lineEnd, boolean maxPageSizeSet, double maxPageSize) {
-			this.startContent = startContent;
-			this.endContent = endContent;
-			this.lineStart = lineStart;
-			this.lineEnd = lineEnd;
-			this.maxPageSizeSet = maxPageSizeSet;
-			this.maxPageSize = maxPageSize;
-		}
-	}
-
-	/**
-	 * {@code pageStart}における1回分の行帯走査です(2026-07-23、
-	 * {@link #locateLine}から挙動不変のまま抽出——既存ループの行単位の
-	 * 移植で、算術・比較・走査順(昇順、他3消費者とは逆順)は一切変えて
-	 * いない)。P0 Step4以降は実レイアウトには使わず、shadow比較の
-	 * 安全網としてのみ残している。
-	 */
-	private LineScanResult scanLineBand(final double pageStart, final double lineHeight, final double lineStart0,
-			final double lineEnd0) {
-		LayoutContext.Floating startContent = null, endContent = null;
-		double lineStart = lineStart0;
-		double lineEnd = lineEnd0;
-		boolean maxPageSizeSet = false;
-		double maxPageSize = 0;
-		for (int i = 0; i < this.builder.floatings.size(); ++i) {
-			final LayoutContext.Floating floating = (LayoutContext.Floating) this.builder.floatings.get(i);
-			final double pageEnd = floating.pageEnd;
-			if (LayoutUtils.compare(pageStart, pageEnd) >= 0) {
-				// 底辺より下に行がある場合
-				continue;
-			}
-			final FloatPos floatingPos = floating.box.getFloatPos();
-			if (LayoutUtils.compare(floating.pageStart, pageStart + lineHeight) >= 0) {
-				// 上辺が以下にある場合
-				// 行高さを余裕高さに制限する
-				maxPageSizeSet = true;
-				maxPageSize = floating.pageStart - pageStart;
-				break;
-			}
-			switch (floatingPos.floating) {
-			case FloatSide.START:
-				final double tempStart = floating.lineEnd;
-				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
-					startContent = floating;
-					lineStart = tempStart;
-				}
-				continue;
-
-			case FloatSide.END:
-				final double tempEnd = floating.lineStart;
-				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
-					endContent = floating;
-					lineEnd = tempEnd;
-				}
-				continue;
-
-			default:
-				throw new IllegalStateException();
-			}
-		}
-		return new LineScanResult(startContent, endContent, lineStart, lineEnd, maxPageSizeSet, maxPageSize);
-	}
-
-	/**
-	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
-	 * {@link #scanLineBand}(旧ループ、安全網としてのみ残す)の結果を
-	 * 突き合わせます。実際のレイアウトは呼び出し元が
-	 * {@code ExclusionSpace}側の結果だけを使う。
-	 */
-	private void shadowCompareLineScan(final ExclusionSpace.LineScan exclusionSpaceResult,
-			final LineScanResult legacyResult) {
-		final boolean exclusionSpaceStartFound = exclusionSpaceResult.startExclusion() != null;
-		final boolean legacyStartFound = legacyResult.startContent != null;
-		final boolean exclusionSpaceEndFound = exclusionSpaceResult.endExclusion() != null;
-		final boolean legacyEndFound = legacyResult.endContent != null;
-		boolean matched = exclusionSpaceStartFound == legacyStartFound && exclusionSpaceEndFound == legacyEndFound
-				&& Math.abs(exclusionSpaceResult.lineStart() - legacyResult.lineStart) <= ExclusionShadowStats.EPSILON
-				&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON
-				&& exclusionSpaceResult.maxPageSizeSet() == legacyResult.maxPageSizeSet;
-		if (matched && exclusionSpaceResult.maxPageSizeSet()) {
-			matched = Math.abs(exclusionSpaceResult.maxPageSize() - legacyResult.maxPageSize) <= ExclusionShadowStats.EPSILON;
-		}
-		// 選択された境界floatのpageEnd(呼び出し元の降下先を決める値)も
-		// 比較する(2026-07-23、codexレビュー指摘——line端が同じで
-		// pageEndだけ異なる2つのfloatを新旧が別々に選んだ場合を検出する
-		// ため)。
-		if (matched && exclusionSpaceStartFound) {
-			matched = Math.abs(exclusionSpaceResult.startExclusion().pageSpan().end()
-					- legacyResult.startContent.pageEnd) <= ExclusionShadowStats.EPSILON;
-		}
-		if (matched && exclusionSpaceEndFound) {
-			matched = Math.abs(exclusionSpaceResult.endExclusion().pageSpan().end()
-					- legacyResult.endContent.pageEnd) <= ExclusionShadowStats.EPSILON;
-		}
-		ExclusionShadowStats.recordLineScan(matched);
-	}
-
-	/**
+				/**
 	 * {@link BlockBuilder#snapshotExclusions}への委譲です(2026-07-23、
 	 * codexレビュー指摘——変換処理が両クラスに重複していると将来の
 	 * 変換規則ずれを生むため一本化した)。
