@@ -1,0 +1,92 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>行内分割とvertical-align(横書き)</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+}
+table {
+	border-collapse: separate;
+	border-spacing: 0;
+	table-layout: fixed;
+}
+td {
+	margin: 0;
+	padding: 0;
+	border: none;
+	page-break-inside: auto;
+}
+table.a {
+	width: 300pt;
+}
+table.a td {
+	width: 50pt;
+}
+table.b {
+	page-break-before: always;
+	width: 300pt;
+}
+table.b td {
+	width: 100pt;
+}
+td.top { vertical-align: top; }
+td.bl { vertical-align: baseline; }
+td.mid { vertical-align: middle; }
+td.bot { vertical-align: bottom; }
+.f20 { font-size: 20pt; }
+</style>
+</head>
+<body>
+<!--
+表A(rowspanなし): 名目1行10pt(実測の行送りは約10.09pt)、ページ100pt。
+第1セル(12行)が行高を決め、行内分割線はページ下端(=行先頭から100pt)。
+top: 全内容が1ページ目(継続セルは空)。
+baseline: bl1(20pt)がrowAscentを決め、bl2はverticalAlign>0で開始
+  (goldenでは両セルの1行目ベースラインがy=16.00で一致)。末尾2行は
+  widows=2により2ページ目先頭(継続はverticalAlign=0)へ。
+middle: verticalAlign=実測(行高-内容高)/2≈15.1。末尾2行はwidows=2により
+  2ページ目先頭(y=0)へ。
+bottom: verticalAlign≈90.9。1行目のみ1ページ目(下端を僅かにはみ出す。
+  分割不能単位の最低1行保持)、残り2行は2ページ目先頭(y=0)へ。
+-->
+<table class="a">
+<tr>
+  <td class="top">一<br/>二<br/>三<br/>四<br/>五<br/>六<br/>七<br/>八<br/>九<br/>十<br/><span id="drva">百</span><br/>千</td>
+  <td class="top"><span id="ta">あ</span><br/>い<br/>う</td>
+  <td class="bl"><span class="f20" id="bl1">永</span></td>
+  <td class="bl"><span id="bl2">か</span><br/>き<br/>く<br/>け<br/>こ<br/>さ<br/>し<br/>す<br/>せ<br/><span id="bla">そ</span></td>
+  <td class="mid"><span id="m1">た</span><br/>ち<br/>つ<br/>て<br/>と<br/>な<br/>に<br/>ぬ<br/><span id="ma">ね</span></td>
+  <td class="bot"><span id="ba">は</span><br/><span id="bb">ひ</span><br/>ふ</td>
+</tr>
+</table>
+<!--
+表B(rowspanあり): 1行目=3行セル、2行目=9行セル、rowspanセルは12行
+(=1行目+2行目)。分割線は表先頭から100pt=2行目内部。rowspanセルは
+cellCutPageAxisでセル始端基準に換算されて切断(3ページ目に9行)。
+2行目のtopセルは分割線まで(6行)を3ページ目に保持。bottomセル
+(verticalAlign≈60.6、物理≈90.9..121.1)は1行目すら分割線内に収まらず、
+全内容が4ページ目先頭(verticalAlign=0、再アラインなし)へ。
+-->
+<table class="b">
+<tr>
+  <td class="top" rowspan="2">壱<br/>弐<br/>参<br/>肆<br/>伍<br/>陸<br/>漆<br/>捌<br/>玖<br/>拾<br/><span id="rsa">佰</span><br/>仟</td>
+  <td class="top">ア<br/>イ<br/>ウ</td>
+  <td class="top">カ<br/>キ<br/>ク</td>
+</tr>
+<tr>
+  <td class="bot"><span id="rba">サ</span><br/><span id="rbb">シ</span><br/>ス</td>
+  <td class="top">タ<br/>チ<br/>ツ<br/>テ<br/>ト<br/>ナ<br/>ニ<br/><span id="rca">ヌ</span><br/>ネ</td>
+</tr>
+</table>
+</body>
+</html>

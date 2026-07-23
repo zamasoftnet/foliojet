@@ -1,0 +1,9 @@
+drawer z=0
+  x=90.00 y=0.00 Text["百" asc=5.00 desc=5.00]
+  x=80.00 y=0.00 Text["千" asc=5.00 desc=5.00]
+  x=90.00 y=150.00 Text["せ" asc=5.00 desc=5.00]
+  x=80.00 y=150.00 Text["そ" asc=5.00 desc=5.00]
+  x=90.00 y=200.00 Text["ぬ" asc=5.00 desc=5.00]
+  x=80.00 y=200.00 Text["ね" asc=5.00 desc=5.00]
+  x=90.00 y=250.00 Text["ひ" asc=5.00 desc=5.00]
+  x=80.00 y=250.00 Text["ふ" asc=5.00 desc=5.00]

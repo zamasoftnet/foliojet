@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.compatible_mode" value="copper"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>行内分割とvertical-align(縦書き)</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+	-cssj-writing-mode: tb-rl;
+	writing-mode: tb-rl;
+}
+table {
+	border-collapse: separate;
+	border-spacing: 0;
+	table-layout: fixed;
+}
+td {
+	margin: 0;
+	padding: 0;
+	border: none;
+	page-break-inside: auto;
+}
+table.a {
+	height: 300pt;
+}
+table.a td {
+	height: 50pt;
+}
+table.b {
+	page-break-before: always;
+	height: 300pt;
+}
+table.b td {
+	height: 100pt;
+}
+td.top { vertical-align: top; }
+td.bl { vertical-align: baseline; }
+td.mid { vertical-align: middle; }
+td.bot { vertical-align: bottom; }
+.f20 { font-size: 20pt; }
+</style>
+</head>
+<body>
+<!--
+valign-split.htmlの縦書き(tb-rl)ミラー。ページ軸は水平(右から左)、
+ページ軸寸法100pt。第1セル(12行=120pt)が行の水平寸法を決め、
+行内分割線はページ左端(=行先頭から100pt)。継続セルは2ページ目の
+右端(verticalAlign=0)から始まる。表B(rowspanあり)は3〜4ページ目。
+
+観測済みの横書きとの非対称(現状動作の記録。golden参照):
+rowspanセルはcellCutPageAxis換算で3ページ目に10行(=100pt)保持される
+一方、2行目の非rowspanセルは横書きと違い3ページ目に一切内容を残さず、
+2行目の内容全部が4ページ目へ送られる(4ページ目では全セルが
+verticalAlign=0=右端から始まり、再アラインされない)。
+-->
+<table class="a">
+<tr>
+  <td class="top">一<br/>二<br/>三<br/>四<br/>五<br/>六<br/>七<br/>八<br/>九<br/>十<br/><span id="drva">百</span><br/>千</td>
+  <td class="top"><span id="ta">あ</span><br/>い<br/>う</td>
+  <td class="bl"><span class="f20" id="bl1">永</span></td>
+  <td class="bl"><span id="bl2">か</span><br/>き<br/>く<br/>け<br/>こ<br/>さ<br/>し<br/>す<br/>せ<br/><span id="bla">そ</span></td>
+  <td class="mid"><span id="m1">た</span><br/>ち<br/>つ<br/>て<br/>と<br/>な<br/>に<br/>ぬ<br/><span id="ma">ね</span></td>
+  <td class="bot"><span id="ba">は</span><br/><span id="bb">ひ</span><br/>ふ</td>
+</tr>
+</table>
+<table class="b">
+<tr>
+  <td class="top" rowspan="2">壱<br/>弐<br/>参<br/>肆<br/>伍<br/>陸<br/>漆<br/>捌<br/>玖<br/>拾<br/><span id="rsa">佰</span><br/>仟</td>
+  <td class="top">ア<br/>イ<br/>ウ</td>
+  <td class="top">カ<br/>キ<br/>ク</td>
+</tr>
+<tr>
+  <td class="bot"><span id="rba">サ</span><br/><span id="rbb">シ</span><br/>ス</td>
+  <td class="top">タ<br/>チ<br/>ツ<br/>テ<br/>ト<br/>ナ<br/>ニ<br/><span id="rca">ヌ</span><br/>ネ</td>
+</tr>
+</table>
+</body>
+</html>
