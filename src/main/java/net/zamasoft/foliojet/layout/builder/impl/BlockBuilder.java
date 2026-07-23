@@ -721,26 +721,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * {@link #computeBoundAvoidance}の結果と、{@link ExclusionSpace}
-	 * queryの結果を突き合わせます(2026-07-23新設、排除域の
-	 * ConstraintSpace入力化P0 Step3)。実際のレイアウトは
-	 * {@code computeBoundAvoidance}の結果だけを使う。
+	 * {@link ExclusionSpace}(実採用、2026-07-23のP0 Step4以降)の結果と
+	 * {@link #computeBoundAvoidance}(旧ループ、安全網としてのみ残す)の
+	 * 結果を突き合わせます。実際のレイアウトは呼び出し元が
+	 * {@code ExclusionSpace}側の結果だけを使う。
 	 */
-	private void shadowCompareBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
-			final double marginAdjust, final ClearMode clear, final BoundAvoidance actual) {
-		final ExclusionSpace snapshot = this.snapshotExclusions();
-		final ExclusionSpace.BoundAvoidance expected = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
-				marginAdjust, clear);
-		final boolean actualFound = actual.clearing != null;
-		final boolean expectedFound = expected.clearingExclusion() != null;
+	private void shadowCompareBoundAvoidance(final ExclusionSpace.BoundAvoidance exclusionSpaceResult,
+			final BoundAvoidance legacyResult) {
+		final boolean exclusionSpaceFound = exclusionSpaceResult.clearingExclusion() != null;
+		final boolean legacyFound = legacyResult.clearing != null;
 		final boolean matched;
-		if (actualFound != expectedFound) {
+		if (exclusionSpaceFound != legacyFound) {
 			matched = false;
-		} else if (actualFound) {
-			matched = Math.abs(expected.clearPageEnd() - actual.clearPageEnd) <= ExclusionShadowStats.EPSILON;
+		} else if (exclusionSpaceFound) {
+			matched = Math.abs(exclusionSpaceResult.clearPageEnd() - legacyResult.clearPageEnd) <= ExclusionShadowStats.EPSILON;
 		} else {
-			matched = Math.abs(expected.xMarginStart() - actual.xMarginStart) <= ExclusionShadowStats.EPSILON
-					&& Math.abs(expected.lineEnd() - actual.lineEnd) <= ExclusionShadowStats.EPSILON;
+			matched = Math.abs(exclusionSpaceResult.xMarginStart() - legacyResult.xMarginStart) <= ExclusionShadowStats.EPSILON
+					&& Math.abs(exclusionSpaceResult.lineEnd() - legacyResult.lineEnd) <= ExclusionShadowStats.EPSILON;
 		}
 		ExclusionShadowStats.recordBound(matched);
 	}
@@ -890,14 +887,20 @@ public class BlockBuilder implements Builder, LayoutContext {
 					marginAdjust = amargin.top;
 				}
 				pageStart = this.pageAxis - marginAdjust;
-				final BoundAvoidance avoidance = this.computeBoundAvoidance(pageStart, lineSize, lineStop,
+				// 2026-07-23(排除域P0 Step4): ExclusionSpaceを実採用に切り替え。
+				// 旧ループ(computeBoundAvoidance)はもう実レイアウトに使わず、
+				// 安全網としてのshadow比較専用に残す。
+				final ExclusionSpace snapshot = this.snapshotExclusions();
+				final ExclusionSpace.BoundAvoidance found = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
 						marginAdjust, clear);
-				xMarginStart = avoidance.xMarginStart;
-				lineEnd = avoidance.lineEnd;
-				this.shadowCompareBoundAvoidance(pageStart, lineSize, lineStop, marginAdjust, clear, avoidance);
-				if (avoidance.clearing != null) {
+				xMarginStart = found.xMarginStart();
+				lineEnd = found.lineEnd();
+				final BoundAvoidance legacyAvoidance = this.computeBoundAvoidance(pageStart, lineSize, lineStop,
+						marginAdjust, clear);
+				this.shadowCompareBoundAvoidance(found, legacyAvoidance);
+				if (found.clearingExclusion() != null) {
 					this.poLastMargin = this.neLastMargin = 0;
-					this.pageAxis = avoidance.clearPageEnd;
+					this.pageAxis = found.clearPageEnd();
 				}
 			}
 			xMarginEnd = lineStop - lineEnd;
