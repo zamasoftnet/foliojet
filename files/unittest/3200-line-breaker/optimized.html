@@ -1,0 +1,43 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>text.line-breaker=optimized smoke</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font-size: 10pt;
+        line-height: 1.2;
+      }
+      .justify {
+        text-align: justify;
+      }
+      .indent {
+        text-indent: 2em;
+      }
+      .fl {
+        float: left;
+        width: 50pt;
+        height: 30pt;
+        background: #ccc;
+      }
+    </style>
+  </head>
+
+  <body>
+    <p>The quick brown fox jumps over the lazy dog. The quick brown fox
+    jumps over the lazy dog. The quick brown fox jumps over the lazy
+    dog again and again and again.</p>
+    <p class="justify">国境の長いトンネルを抜けると雪国であった。夜の底が白くなった。信号所に汽車が止まった。向側の座席から娘が立って来て、島村の前のガラス窓を落した。</p>
+    <p class="indent">吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。</p>
+    <p>first line<br>second line<br><br>after blank line</p>
+    <div>
+      <div class="fl"></div>
+      <p>この段落は左にfloatがあるため、optimized指定でもlegacyへフォールバックして組まれる。テキストはfloatを避けて流れる。</p>
+    </div>
+  </body>
+</html>

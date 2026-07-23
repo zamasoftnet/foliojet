@@ -300,6 +300,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void addBound(IBox box) {
+		// M3c: 改ページ検査(forceBreak等)がK-P蓄積とインターリーブ
+		// しないよう、蓄積中なら検査より前にlegacyへ確定させる
+		if (this.textSession != null) {
+			this.textSession.abortToLegacy();
+		}
 		if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
 			super.addBound(box);
 			return;
@@ -494,6 +499,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void flush() {
+		// M3c: K-P蓄積中はflushイベントを記録するだけ(行間改ページ検査は
+		// セッション終了時の再生がこのメソッドを通るときに行われる)
+		if (this.textSession != null && this.textSession.recordFlush()) {
+			return;
+		}
 		// if (this.textBuilder == null) {
 		// // テキストブロック内にabsoluteしかない場合に発生することがある
 		// return;

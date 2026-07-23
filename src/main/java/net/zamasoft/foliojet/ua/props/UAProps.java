@@ -483,6 +483,26 @@ public final class UAProps {
 			"processing.large-stack-thread.size", 64 * 1024 * 1024);
 
 	/**
+	 * 行分割の戦略です(既定{@code "legacy"}、2026-07-23新設、M3c増分3)。
+	 *
+	 * <p>
+	 * 値は{@code "legacy"}(従来の貪欲法)または{@code "optimized"}
+	 * (Knuth-Plass全体最適、experimental)。{@code "optimized"}を指定すると、
+	 * 適格な段落(排除域=floatの非関与・タブなし・インライン置換要素/
+	 * インラインブロック/ルビ/インライン絶対配置なし・
+	 * {@code white-space: pre/pre-wrap}でない・横書き・改ページ再開でない・
+	 * イベント数上限以下など)に限り、pdfg2dの{@code TotalFit}が段落全体の
+	 * demeritsを最小化するbreakpoint列を選択する。物理的な行の生成
+	 * (禁則・ハイフン実体化・インライン再生成・justification)はすべて
+	 * 従来の{@code TextBuilder}が行い、不適格な段落は従来の貪欲法へ
+	 * フォールバックする。既定は無効——既存文書の出力には一切影響を
+	 * 与えないよう、この機能を必要とする呼び出し側だけが明示的に
+	 * 有効化する。不正な値は{@code "legacy"}として扱われる。
+	 * </p>
+	 */
+	public static final StringPropManager TEXT_LINE_BREAKER = new StringPropManager("text.line-breaker", "legacy");
+
+	/**
 	 * ファイルIDです。
 	 */
 	public static final StringPropManager OUTPUT_PDF_FILE_ID = new StringPropManager("output.pdf.file-id", null);
@@ -667,6 +687,7 @@ public final class UAProps {
 			PROCESSING_FAIL_ON_FATAL_ERROR,
 			PROCESSING_LARGE_STACK_THREAD,
 			PROCESSING_LARGE_STACK_THREAD_SIZE,
+			TEXT_LINE_BREAKER,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,

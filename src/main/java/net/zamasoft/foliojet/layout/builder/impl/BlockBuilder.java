@@ -80,6 +80,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected TextBuilder textBuilder = null;
 
 	/**
+	 * Knuth-Plass行分割({@code text.line-breaker=optimized})の蓄積
+	 * セッションです(2026-07-23、M3c増分3)。オプトインが有効で段落が
+	 * 適格な場合のみ{@link #requireTextBlock()}で開始され、記録中は
+	 * テキストイベントを{@link #textBuilder}へ配達せず蓄積する。既定
+	 * (legacy)では常にnullで挙動不変。
+	 */
+	TotalFitSession textSession = null;
+
+	/**
 	 * 次のテキストブロックの継続状態です。
 	 */
 	protected BreakToken breakToken = BreakToken.NONE;
@@ -581,6 +590,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void addBound(IBox box) {
+		// M3c: float・絶対配置はTextBuilderの実状態(lineAxis/pageAxis)を
+		// 読むため、K-P蓄積中なら先にlegacyへ確定させる
+		if (this.textSession != null) {
+			this.textSession.abortToLegacy();
+		}
 		switch (box.getPos().getType()) {
 		case FLOW:
 		case TABLE: {
@@ -1135,12 +1149,60 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// 新規テキストブロック
 		// System.err.println("requireTextBlock");
 		assert this.textBuilder == null;
-		this.textBuilder = new TextBuilder(this, this.breakToken);
+		// textSessionは再生中の改ページ処理が新しいTextBuilderを作る間も
+		// 保持される(配達境界のclampのため)——記録中でないことだけを検査
+		assert this.textSession == null || !this.textSession.recording();
+		final BreakToken breakToken = this.breakToken;
+		this.textBuilder = new TextBuilder(this, breakToken);
 		this.breakToken = BreakToken.MID_FLOW;
 
 		final Flow flow = this.getFlow();
 		double localPageAxis = this.pageAxis - flow.pageAxis;
 		flow.box.addFlow(this.textBuilder.textBlockBox, localPageAxis);
+
+		// M3c: オプトイン時のみ、適格な段落のK-P蓄積セッションを開始する
+		if (this.textSession == null && this.optimizedTextEnabled()) {
+			this.textSession = TotalFitSession.tryBegin(this, this.textBuilder, breakToken);
+		}
+	}
+
+	/**
+	 * 「物理的にTextBuilderへ届いたソース文字の配達境界」を返します
+	 * (M3c)。K-Pセッションが蓄積・再生中の場合、未配達イベントの先頭
+	 * ソース位置でclampする(切断段落の尾部再生とセッションの残イベント
+	 * 配達が二重供給にならないため)。セッションがなければそのまま返す。
+	 */
+	final int clampDeliveredCharEnd(final int deliveredCharEnd) {
+		final TotalFitSession session = this.textSession;
+		if (session == null) {
+			return deliveredCharEnd;
+		}
+		return session.clampDeliveredCharEnd(deliveredCharEnd);
+	}
+
+	/**
+	 * Knuth-Plass行分割({@code text.line-breaker=optimized})が有効かを
+	 * 返します(M3c)。プロパティは変換単位で{@link RootBuilder}が保持
+	 * する。破断残余の再構築(restyle)中は、切断段落の尾部再生等の
+	 * 再開機構と混線しないよう保守的に無効とする。
+	 */
+	private boolean optimizedTextEnabled() {
+		final RootBuilder root;
+		if (this instanceof RootBuilder r) {
+			root = r;
+		} else if (this.layoutStack != null) {
+			root = this.getPageContext();
+		} else {
+			// ページ文脈を持たない再レイアウト用ビルダー
+			return false;
+		}
+		if (root == null || !root.isOptimizedTextEnabled()) {
+			return false;
+		}
+		if (this instanceof BreakableBuilder breakable && breakable.isRestyling()) {
+			return false;
+		}
+		return true;
 	}
 
 	public void startTextRun(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) {
@@ -1148,15 +1210,24 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// System.err.println("begin1");
 			this.requireTextBlock();
 		}
+		if (this.textSession != null && this.textSession.recordRun(fontStyle, fontMetrics)) {
+			return;
+		}
 		this.textBuilder.startTextRun(fontStyle, fontMetrics);
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
 		// System.err.println("glyph: "+new String(ch, coff, clen));
+		if (this.textSession != null && this.textSession.recordGlyph(charOffset, ch, coff, clen, gid)) {
+			return;
+		}
 		this.textBuilder.glyph(charOffset, ch, coff, clen, gid);
 	}
 
 	public void endTextRun() {
+		if (this.textSession != null && this.textSession.recordRunEnd()) {
+			return;
+		}
 		this.textBuilder.endTextRun();
 	}
 
@@ -1198,11 +1269,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// System.err.println("begin2");
 			this.requireTextBlock();
 		}
+		if (this.textSession != null && this.textSession.recordControl(quad)) {
+			return;
+		}
 		// System.err.println(this+"/"+quad);
 		this.textBuilder.control(quad);
 	}
 
 	public void flush() {
+		if (this.textSession != null && this.textSession.recordFlush()) {
+			return;
+		}
 		while (this.textBuilder.flush())
 			;
 	}
@@ -1214,6 +1291,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// NullPointerExceptionが実際に発生した)。このクラスの他の箇所
 		// (809行目付近等)と同じくnullガードで対応する
 		if (this.textBuilder != null) {
+			if (this.textSession != null) {
+				// M3c: 蓄積分のbreakpoint選択と再生(不適格ならlegacyと
+				// 同一のverbatim再生)。再生中の再入では何もしない
+				this.textSession.finishSession();
+			}
 			this.textBuilder.finish();
 			this.pageAxis += this.textBuilder.getPageAxis();
 			this.textBuilder = null;

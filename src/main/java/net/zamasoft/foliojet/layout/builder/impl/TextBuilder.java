@@ -131,6 +131,15 @@ public class TextBuilder {
 	 */
 	private BreakOpportunity opportunity = BreakOpportunity.NONE;
 
+	/**
+	 * Knuth-Plass行分割({@code text.line-breaker=optimized})の選択済み
+	 * breakpoint列です(2026-07-23、M3c増分3)。{@link TotalFitSession}の
+	 * 最適化再生中のみ非null——このインスタンスに束縛され、行間改ページで
+	 * 新しいTextBuilderに差し替わった場合は引き継がれない(残りはlegacyの
+	 * 貪欲法で組まれる)。既定(legacy)経路では常にnullで挙動不変。
+	 */
+	TotalFitProjection.Plan totalFitPlan = null;
+
 	public TextBuilder(BlockBuilder builder, BreakToken breakToken) {
 		this.builder = builder;
 		final Flow flow = builder.getFlow();
@@ -967,6 +976,10 @@ public class TextBuilder {
 	 * @return
 	 */
 	public boolean flush() {
+		if (this.totalFitPlan != null) {
+			// M3c: 最適化再生中はK-Pが選択したflushでのみ改行する
+			return this.plannedFlush();
+		}
 		//System.err.println("TB FLUSH: " + this.wrap);
 		this.unitAdvance = 0;
 		if (this.textBuffer.isEmpty()) {
@@ -1010,6 +1023,32 @@ public class TextBuilder {
 			this.opportunity = this.captureOpportunity();
 		//}
 		return false;
+	}
+
+	/**
+	 * K-Pの選択計画に従うflushです(M3c、{@link #totalFitPlan}非null時
+	 * のみ)。溢れ判定・ソフトハイフン適合判定はK-P側で済んでいるため
+	 * 行わず、選択されたflushではバッファ全体を1行として確定する
+	 * (consume-onceのため{@code while(flush())}ループの再入では改行
+	 * しない)。物理生成(禁則済みバッファの行化・ハイフン実体化・
+	 * インライン再生成・justification)は既存の{@link #newLine}系が担う。
+	 */
+	private boolean plannedFlush() {
+		this.unitAdvance = 0;
+		if (this.textBuffer.isEmpty()) {
+			return false;
+		}
+		if (!this.totalFitPlan.takeBreakAtCursor()) {
+			return false;
+		}
+		if (this.toLineFeed) {
+			// 明示改行(forced breakpoint)はlegacyと同じ最終行扱い
+			final boolean ret = this.newLine(true);
+			this.toLineFeed = false;
+			return ret;
+		}
+		this.opportunity = this.captureOpportunity();
+		return this.newLine(false);
 	}
 
 	void finish() {
