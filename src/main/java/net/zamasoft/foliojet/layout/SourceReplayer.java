@@ -261,6 +261,31 @@ public final class SourceReplayer {
 	}
 
 	/**
+	 * 子範囲の再駆動({@link #replayChildren})が可能かを判定します
+	 * (2026-07-24分離、排除域P2のM6c-2——バランスの実プローブが反復の前に
+	 * 一度だけ検査するため。判定条件は従来の{@code replayChildren}冒頭と
+	 * 完全に同一)。
+	 *
+	 * @param log    ソースログ
+	 * @param selfId 親ボックスの Start の EventId
+	 * @param flow   再生先の書字方向
+	 * @return 再駆動可能なら true
+	 */
+	public static boolean canReplayChildren(final LayoutSource log, final long selfId,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		if (log == null || selfId < 0) {
+			return false;
+		}
+		final long endId = log.endOf(selfId);
+		if (endId < 0 || endId <= selfId + 1) {
+			return false;
+		}
+		// フロート係留・入れ子段組・縦横混在の再現は未検証のためフォールバック
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsFloat(selfId + 1, endId - 1)
+				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));
+	}
+
+	/**
 	 * 閉じたブロックの「子イベント範囲」を指定ビルダーへ再駆動します
 	 * (M6c: カラムバランス。multicol は endFlowBlock 時点で閉部分木
 	 * なので、その内容をソースから ColumnBuilder へ再構築できる)。
@@ -273,19 +298,10 @@ public final class SourceReplayer {
 	 */
 	public static boolean replayChildren(final LayoutSource log, final long selfId, final BlockBuilder target,
 			final PageGenerator pageGenerator) {
-		if (log == null || selfId < 0) {
+		if (!canReplayChildren(log, selfId, target.getRootBox().getBlockParams().flow)) {
 			return false;
 		}
 		final long endId = log.endOf(selfId);
-		if (endId < 0 || endId <= selfId + 1) {
-			return false;
-		}
-		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsFloat(selfId + 1, endId - 1)
-				|| log.containsMulticol(selfId + 1, endId - 1)
-				|| log.containsMixedFlow(selfId + 1, endId - 1, target.getRootBox().getBlockParams().flow)) {
-			// フロート係留・入れ子段組・縦横混在の再現は未検証のためフォールバック
-			return false;
-		}
 		final LayoutSource.ReplaySlice slice = log.capture(selfId + 1, endId - 1);
 		if (slice == null) {
 			// 範囲が欠けていればボックス再生へフォールバック

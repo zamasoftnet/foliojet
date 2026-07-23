@@ -79,6 +79,18 @@ public class ColumnsContainer implements Container {
 		return (FlowContainer) this.columns.get(this.columns.size() - 1);
 	}
 
+	/**
+	 * 指定カラムの実測内容寸法を返します(2026-07-24新設、排除域P2の
+	 * M6c-2——バランスプローブの候補観測用。fitは論理コンテンツ量ではなく
+	 * 実カラム数と各カラムの実測extentだけで判定する)。読み取り専用。
+	 *
+	 * @param index カラム番号(0起点)
+	 * @return カラムの内容寸法
+	 */
+	public final double getColumnContentSize(final int index) {
+		return this.columns.get(index).getContentSize();
+	}
+
 	public void addFlow(IFlowBox box, double pageAxis) {
 		this.getLastColumn().addFlow(box, pageAxis);
 	}

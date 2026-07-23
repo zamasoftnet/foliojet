@@ -457,6 +457,24 @@ public final class UAProps {
 			"processing.fail-on-fatal-error", true);
 
 	/**
+	 * カラムバランス(column-fill: balance)の実プローブを実行します
+	 * (既定false、2026-07-24新設・排除域P2のM6c-3)。
+	 *
+	 * <p>
+	 * 有効にすると、バランス対象の段組内容をソースログの凍結recipeから
+	 * 完全に独立した候補として何度か実レイアウトし、指定段数へ収まる
+	 * 最小の実測容量を二分探索で観測する。M6c-3時点では<b>観測のみ</b>
+	 * ——探索結果はまだownerへcommitされず、既存のバランス
+	 * (幾何近似+再構築)がそのまま走るため、出力は変わらない
+	 * (実行時間だけ候補構築の分増える)。既定は無効——通常の文書には
+	 * 一切影響を与えない。commit切替はM6c-4
+	 * ({@code docs/consultations/consult-exclusion-p2-design-codex.txt}参照)。
+	 * </p>
+	 */
+	public static final BooleanPropManager PROCESSING_BALANCE_PROBE = new BooleanPropManager(
+			"processing.balance-probe", false);
+
+	/**
 	 * 実際のformat処理を、大きいstackサイズを持つ専用スレッドで実行します
 	 * (既定false、2026-07-23新設)。
 	 *

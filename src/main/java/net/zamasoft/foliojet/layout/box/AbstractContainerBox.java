@@ -228,6 +228,14 @@ public abstract class AbstractContainerBox extends AbstractBox
 			// 最小容量を探索する(M5-B)
 			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
 		}
+
+		// M6c-3(2026-07-24、排除域P2): default-offの実プローブ観測。
+		// オプトイン(processing.balance-probe)有効時のみ、凍結ソースから
+		// 独立候補を組んで最小実測容量を二分探索する——結果はまだownerへ
+		// commitしない(観測ログ・カウンタのみ)。owner変異(下の寸法更新)
+		// より前に呼ぶこと。commit切替はM6c-4
+		net.zamasoft.foliojet.layout.balance.BalanceProbe.observeIfEnabled(this, builder, columnCount, pageSize);
+
 		if (vertical) {
 			this.maxPageAxis = this.width = pageSize;
 		} else {

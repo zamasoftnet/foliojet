@@ -28,4 +28,52 @@ public class MulticolumnBlockBox extends FlowBlockBox {
 		return (state, container) -> new MulticolumnBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
 				state.nextFrame(), container);
 	}
+
+	/**
+	 * このlive ownerの解決済み物理形状を凍結します(2026-07-24新設、
+	 * 排除域P2のM6c-2)。M6cバランスプローブの候補shellはこのスナップ
+	 * ショットから作られる({@link #newBalanceProbeShell})——raw CSSから
+	 * 親レイアウトを再現するのではなく、live構築で既に解決済みの値を
+	 * コピーする(codex設計§1.3)。
+	 */
+	public net.zamasoft.foliojet.layout.balance.BalanceBoxSnapshot snapshotBalanceGeometry() {
+		final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = new net.zamasoft.foliojet.layout.part.AbsoluteInsets();
+		margin.set(this.frame.margin);
+		final net.zamasoft.foliojet.layout.part.AbsoluteInsets padding = new net.zamasoft.foliojet.layout.part.AbsoluteInsets();
+		padding.set(this.frame.padding);
+		return new net.zamasoft.foliojet.layout.balance.BalanceBoxSnapshot(this.params, this.pos, this.size,
+				this.minSize, this.frame.frame, margin, padding, this.width, this.height, this.minPageAxis,
+				this.specifiedPageAxis, this.resolvedAlign);
+	}
+
+	/**
+	 * M6cバランスプローブの候補shellを新品で作ります(2026-07-24新設、
+	 * 排除域P2のM6c-2)。スナップショットの解決済み物理形状をコピーし、
+	 * ページ方向の寸法だけを試行容量{@code capacity}で上書きする
+	 * (既存balanceの{@code maxPageAxis = width|height = pageSize}と同じ
+	 * 契約)。コンテナは新品の{@link FlowContainer}。
+	 *
+	 * @param geometry live ownerの凍結済み物理形状
+	 * @param capacity ページ方向の試行容量
+	 * @return 新品の候補shell
+	 */
+	public static MulticolumnBlockBox newBalanceProbeShell(
+			final net.zamasoft.foliojet.layout.balance.BalanceBoxSnapshot geometry, final double capacity) {
+		final AbsoluteRectFrame frame = new AbsoluteRectFrame(geometry.frameSpec());
+		frame.margin.set(geometry.margin());
+		frame.padding.set(geometry.padding());
+		final MulticolumnBlockBox shell = new MulticolumnBlockBox(geometry.params(), geometry.pos(), geometry.size(),
+				geometry.minSize(), frame, new net.zamasoft.foliojet.layout.box.content.FlowContainer());
+		shell.width = geometry.width();
+		shell.height = geometry.height();
+		shell.minPageAxis = geometry.minPageAxis();
+		shell.specifiedPageAxis = geometry.specifiedPageAxis();
+		shell.resolvedAlign = geometry.resolvedAlign();
+		if (geometry.params().flow.isVertical()) {
+			shell.maxPageAxis = shell.width = capacity;
+		} else {
+			shell.maxPageAxis = shell.height = capacity;
+		}
+		return shell;
+	}
 }

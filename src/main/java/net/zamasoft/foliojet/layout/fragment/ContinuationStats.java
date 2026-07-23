@@ -251,6 +251,55 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * M6cバランスプローブが起動された回数です(2026-07-24新設、排除域P2の
+	 * M6c-3。オプトイン{@code processing.balance-probe}有効時のみ増える)。
+	 */
+	public static final AtomicLong BALANCE_PROBE_SESSIONS = new AtomicLong();
+
+	/**
+	 * うち、入力の凍結(source capture+frozen recipe化、Barrierゼロ)に
+	 * 成功しプローブ適格だった回数です。
+	 */
+	public static final AtomicLong BALANCE_PROBE_ELIGIBLE = new AtomicLong();
+
+	/**
+	 * うち、winnerなしで既存balanceへフォールバックした回数です
+	 * (不適格・上界不発見・非単調観測の合計)。
+	 */
+	public static final AtomicLong BALANCE_PROBE_FALLBACKS = new AtomicLong();
+
+	/** プローブが構築した候補の総数です(探索コストの実測)。 */
+	public static final AtomicLong BALANCE_PROBE_BUILDS = new AtomicLong();
+
+	/** プローブ起動の集計です(M6c-3。全試行終了後に一セッション一回)。 */
+	public static void recordBalanceProbeSession() {
+		if (live()) {
+			BALANCE_PROBE_SESSIONS.incrementAndGet();
+		}
+	}
+
+	/** プローブ適格(入力凍結成功)の集計です(M6c-3)。 */
+	public static void recordBalanceProbeEligible() {
+		if (live()) {
+			BALANCE_PROBE_ELIGIBLE.incrementAndGet();
+		}
+	}
+
+	/** 既存balanceへのフォールバックの集計です(M6c-3)。 */
+	public static void recordBalanceProbeFallback() {
+		if (live()) {
+			BALANCE_PROBE_FALLBACKS.incrementAndGet();
+		}
+	}
+
+	/** 構築した候補数の集計です(M6c-3)。 */
+	public static void recordBalanceProbeBuilds(final int builds) {
+		if (live()) {
+			BALANCE_PROBE_BUILDS.addAndGet(builds);
+		}
+	}
+
 	/** worklist executorの適格/不適格terminalの集計です(M6c-1でAPI集約)。 */
 	public static void recordWorklistTerminal(final boolean eligible) {
 		if (live()) {
@@ -301,7 +350,9 @@ public final class ContinuationStats {
 
 	/** スキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
 	public static void recordCapabilityScanStop(final ContinuationCapability reason) {
-		CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
+		if (live()) {
+			CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
+		}
 	}
 
 	/**
@@ -352,7 +403,9 @@ public final class ContinuationStats {
 
 	/** COLUMN側のスキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
 	public static void recordColumnCapabilityScanStop(final ContinuationCapability reason) {
-		COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
+		if (live()) {
+			COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
+		}
 	}
 
 	/**
@@ -378,6 +431,9 @@ public final class ContinuationStats {
 	 * capability別に集計します。
 	 */
 	public static void recordColumnCompiledProgram(final ColumnResumeProgram program) {
+		if (!live()) {
+			return;
+		}
 		for (final FragmentResumeLevel level : program.fragmentLevels()) {
 			if (level.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
 					final ContinuationCapability capability)) {
@@ -393,6 +449,9 @@ public final class ContinuationStats {
 	 * 呼ぶ。
 	 */
 	public static void recordCompiledProgram(final PageResumeProgram program) {
+		if (!live()) {
+			return;
+		}
 		for (final FragmentResumeLevel level : program.fragmentLevels()) {
 			if (level.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
 					final ContinuationCapability capability)) {
@@ -485,6 +544,9 @@ public final class ContinuationStats {
 	 * 正常終了時から呼ぶ)。
 	 */
 	public static void recordTailShadowResult(final PlainFlowTailTrace.Result result) {
+		if (!live()) {
+			return;
+		}
 		TAIL_SHADOW_SESSIONS.incrementAndGet();
 		TAIL_SHADOW_TERMINAL_KINDS.get(result.terminalKind()).incrementAndGet();
 		if (result.consistent()) {
@@ -513,11 +575,18 @@ public final class ContinuationStats {
 	 * @param column    true なら改段(COLUMN)経路、false なら改ページ(PAGE)経路
 	 */
 	public static void guardOpenDepth(final int openDepth, final boolean column) {
-		(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);
-		MAX_OPEN_TAIL_DEPTH.accumulateAndGet(openDepth, Math::max);
+		// 深さ観測はproduction診断(M6c-3: バランスプローブの候補構築中は
+		// 抑制する)。安全閾値の例外自体はプローブ中も等しく発動する——
+		// 候補中の異常を握り潰してlegacy再実行してはいけない(codex設計§1.7)
+		if (live()) {
+			(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);
+			MAX_OPEN_TAIL_DEPTH.accumulateAndGet(openDepth, Math::max);
+		}
 		if (openDepth >= OPEN_CHAIN_DEPTH_ALARM_THRESHOLD) {
-			(column ? COLUMN_OPEN_DEPTH_ALARMS : PAGE_OPEN_DEPTH_ALARMS).incrementAndGet();
-			OPEN_CHAIN_DEPTH_ALARMS.incrementAndGet();
+			if (live()) {
+				(column ? COLUMN_OPEN_DEPTH_ALARMS : PAGE_OPEN_DEPTH_ALARMS).incrementAndGet();
+				OPEN_CHAIN_DEPTH_ALARMS.incrementAndGet();
+			}
 			final String message = "open ancestor chain depth=" + openDepth + " reached the safety alarm threshold ("
 					+ OPEN_CHAIN_DEPTH_ALARM_THRESHOLD + ") on the " + (column ? "COLUMN" : "PAGE")
 					+ " continuation path; FlowContainer.restyle's OpenChain branch is still recursive and would "
@@ -528,6 +597,10 @@ public final class ContinuationStats {
 	}
 
 	public static void reset() {
+		BALANCE_PROBE_SESSIONS.set(0);
+		BALANCE_PROBE_ELIGIBLE.set(0);
+		BALANCE_PROBE_FALLBACKS.set(0);
+		BALANCE_PROBE_BUILDS.set(0);
 		CHILD_FRAMES.set(0);
 		CHAIN_MEMBER_KEEP.set(0);
 		CHAIN_MEMBER_MOVE.set(0);

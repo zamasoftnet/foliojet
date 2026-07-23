@@ -48,6 +48,11 @@ public final class FragmentationAudit {
 		if (!enabled) {
 			return null;
 		}
+		if (!LayoutExecutionScope.isLive()) {
+			// M6cバランスプローブの候補構築(捨てる可能性のある試行)は
+			// traceを汚さない(2026-07-24、排除域P2のM6c-2——codex設計§1.6)
+			return null;
+		}
 		FragmentationTrace trace = CURRENT.get();
 		if (trace == null) {
 			trace = new FragmentationTrace();
