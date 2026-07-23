@@ -1,0 +1,20 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>parity: inline parts fallback</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 1.2; }
+      .justify { text-align: justify; }
+      .ib { display: inline-block; width: 30pt; background: #eee; }
+    </style>
+  </head>
+  <body>
+    <p class="justify">タブ&#9;を含む段落です。吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。</p>
+    <p class="justify">画像<img src="../red.png" width="12" height="12">を含む段落。吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。</p>
+    <p class="justify">箱<span class="ib">IB</span>を含む段落。吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。</p>
+    <p class="justify"><ruby>漢字<rt>かんじ</rt></ruby>を含む段落。吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。</p>
+  </body>
+</html>
