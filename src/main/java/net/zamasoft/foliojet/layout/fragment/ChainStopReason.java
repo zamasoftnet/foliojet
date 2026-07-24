@@ -5,8 +5,10 @@ package net.zamasoft.foliojet.layout.fragment;
  * {@code splitForContinuation}/{@code split}が返した{@code SplitResult}の
  * うち、{@code Frame}にならなかった理由です(2026-07-21新設、M6b Phase
  * B5c-2)。{@code ContainerCut.PlainWithChainStop}とともに、段組を
- * またぐ改ページ(改ページ契約§5.10ルール2・4)のために恒久的に必要な
- * 型であり、削除予定はない。
+ * またぐ改ページ(改ページ契約§5.10ルール4)のために恒久的に必要な
+ * 型であり、削除予定はない。§5.10ルール2が「不要」と裁定したMOVE専用型
+ * ({@code MovedOpen}系、2026-07-22撤去済み)とは別物——本型はKEEP/MOVE
+ * 両方を運ぶ(詳細は{@code ContainerCut.PlainWithChainStop}のjavadoc参照)。
  */
 public enum ChainStopReason {
 	/** チェーンメンバーが{@code SplitResult.Keep}を返した(box全体を現在側に残す)。 */

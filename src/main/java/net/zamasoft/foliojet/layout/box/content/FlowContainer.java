@@ -1274,17 +1274,17 @@ public class FlowContainer implements Container {
 		return new FloatTransferResult.Remainder(container);
 	}
 
-	public final Floatings splitFloatings(double pageLimit, byte flags) {
+	public final java.util.Optional<Floatings> detachMovedFloatings(double pageLimit, byte flags) {
 		final int flowCount = this.flows == null ? 0 : this.flows.size();
 		return switch (this.aggregateFloatings(pageLimit, flags, flowCount)) {
-		case FloatAggregate.None none -> null;
+		case FloatAggregate.None none -> java.util.Optional.empty();
 		case FloatAggregate.OwnerAll ownerAll -> {
-			// 自分の台帳をdetachして返す(2引数版の契約)
+			// 自分の台帳をdetachして返す(子flow再帰の内部契約)
 			final Floatings moved = this.floatings;
 			this.floatings = null;
-			yield moved;
+			yield java.util.Optional.of(moved);
 		}
-		case FloatAggregate.Detached(final Floatings moved) -> moved;
+		case FloatAggregate.Detached(final Floatings moved) -> java.util.Optional.of(moved);
 		};
 	}
 
@@ -1359,12 +1359,13 @@ public class FlowContainer implements Container {
 				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
 				pageAxis -= blockBox.getFrame().getFramePageStart(blockBox.getBlockParams().flow);
-				// 子は自分の台帳をdetachして返す(2引数版の再帰)
-				final Floatings childFloatings = blockBox.getContainer().splitFloatings(pageAxis,
-						(byte) (lflags & flags));
-				if (childFloatings == null) {
+				// 子は自分の台帳をdetachして返す(detachMovedFloatingsの再帰)
+				final java.util.Optional<Floatings> childDetached = blockBox.getContainer()
+						.detachMovedFloatings(pageAxis, (byte) (lflags & flags));
+				if (childDetached.isEmpty()) {
 					break;
 				}
+				final Floatings childFloatings = childDetached.get();
 				switch (state) {
 				case FloatAggregate.None none ->
 					// 子のFloatingsオブジェクトをそのまま採用(コンテナごと引き取り)

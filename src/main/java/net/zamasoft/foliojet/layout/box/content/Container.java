@@ -101,7 +101,18 @@ public interface Container {
 	 */
 	public FloatTransferResult splitFloatings(FloatTransferTarget target, double pageLimit, byte flags);
 
-	public Floatings splitFloatings(double pageLimit, byte flags);
+	/**
+	 * 浮動ボックスをページ分割し、移動分の台帳を自分からdetachして返します
+	 * (子flow再帰専用の内部契約——親の
+	 * {@code FlowContainer.aggregateFloatings}だけが呼ぶ。旧2引数
+	 * {@code splitFloatings}のnullable返し(null=移動なし)をOptionalへ
+	 * 置換、2026-07-24 E-4)。3引数版
+	 * {@link #splitFloatings(FloatTransferTarget, double, byte)}と違い、
+	 * 移動float台帳をコンテナへ装着せず生のまま返す(装着先は親が決める)。
+	 *
+	 * @return 移動するfloatがなければempty、あればdetach済みの非空台帳
+	 */
+	public java.util.Optional<Floatings> detachMovedFloatings(double pageLimit, byte flags);
 
 	/**
 	 * getTextの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。子の

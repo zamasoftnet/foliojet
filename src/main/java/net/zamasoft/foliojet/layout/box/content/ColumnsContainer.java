@@ -279,8 +279,9 @@ public class ColumnsContainer implements Container {
 		return FloatTransferResult.KEEP_OWNER;
 	}
 
-	public Floatings splitFloatings(double pageLimit, byte flags) {
-		return null;
+	public java.util.Optional<Floatings> detachMovedFloatings(double pageLimit, byte flags) {
+		// 段組コンテナはこの経路でfloatを移動しない(3引数版と同じ理由)
+		return java.util.Optional.empty();
 	}
 
 	public void eachFlowBox(java.util.function.Consumer<IFlowBox> consumer) {

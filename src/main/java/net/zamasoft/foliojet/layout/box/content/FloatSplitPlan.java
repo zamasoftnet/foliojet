@@ -45,7 +45,12 @@ public record FloatSplitPlan(
 		List<FloatItemPlan> direct,
 		List<ChildFloatPlan> children) {
 
-	/** 単一floatの行き先計画です。 */
+	/**
+	 * 単一floatの行き先計画です。{@code Keep}/{@code Move}はfloat 1個
+	 * 粒度(台帳全体粒度の{@link FloatSplitResult}のKeepAll/MoveAllとは
+	 * 別——切断結果型ファミリの語彙対応表は{@code SplitResult}のjavadoc
+	 * 参照)。
+	 */
 	public sealed interface FloatItemPlan {
 		/** 計画対象floatの実測スナップショット。 */
 		FloatMeasurement expected();

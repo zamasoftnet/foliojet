@@ -6,6 +6,16 @@ package net.zamasoft.foliojet.layout.box.content;
  * §2.2の型)。旧sentinel(null=KeepAll / this=MoveAll / 新=Partition)を
  * 置き換えます。
  *
+ * <p>
+ * <b>語彙対応(E-4)</b>: {@code All}接尾辞は「台帳({@link Floatings})
+ * 全体」の粒度を表す——box 1個粒度の
+ * {@code SplitResult.Keep}/{@code Move}、float 1個粒度の
+ * {@link FloatSplitPlan.FloatItemPlan}とは意図的に区別している。
+ * {@code Partition}は台帳を残す側と送る側({@code remainder})へ二分する
+ * ことを表し、box 1個の{@code SplitResult.Split}とは別概念。全体表は
+ * {@code SplitResult}のjavadoc参照。
+ * </p>
+ *
  * @author MIYABE Tatsuhiko
  */
 public sealed interface FloatSplitResult {
