@@ -155,6 +155,10 @@ tasks.named('test') {
     if (System.getProperty('foliojet.debugTailShadow') != null) {
         systemProperty 'foliojet.debugTailShadow', System.getProperty('foliojet.debugTailShadow')
     }
+    if (System.getProperty('foliojet.perf') != null) {
+        // 性能ハーネス(LineBreakerPerfHarness等)の手動実行スイッチ
+        systemProperty 'foliojet.perf', System.getProperty('foliojet.perf')
+    }
 
     doFirst {
         new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()

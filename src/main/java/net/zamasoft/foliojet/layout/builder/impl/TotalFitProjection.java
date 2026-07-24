@@ -246,7 +246,10 @@ public final class TotalFitProjection {
 			return null;
 		}
 
-		final LineMeasure measure = lineIndex -> lineIndex == 0 ? firstLineWidth : lineWidth;
+		// firstLineThenConstantはeasyLine=1を宣言する——2行目以降の行番号を
+		// 支配同値類へ潰せないと、和文justify(全文字がbreakpoint)で
+		// activeが行数変種ごとに残り、ソルバが分単位に退化する(E-2実測)
+		final LineMeasure measure = LineMeasure.firstLineThenConstant(firstLineWidth, lineWidth);
 		final List<TotalFit.BrokenLine> lines = TotalFit.totalFit(nodes, measure, params);
 
 		// 幅の事後検証: 選択に溢れ行(実行可能解の枯渇によるfit-anyway
