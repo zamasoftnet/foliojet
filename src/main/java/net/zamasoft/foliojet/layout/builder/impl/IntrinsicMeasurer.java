@@ -382,15 +382,24 @@ final class IntrinsicMeasurer {
 				// インラインブロック
 				final BlockParams params = (BlockParams) box.getParams();
 				final TwoPass stfBuilder = inlineBlockMeasure;
-				final IntrinsicSizes stfSizes = stfBuilder.getIntrinsicSizes();
-				if (cParams.flow.isVertical() == params.flow.isVertical()) {
-					minAdvance = stfSizes.minContent() + lineFrame;
-					maxAdvance = stfSizes.maxContent() + lineFrame;
-					pageSize = stfSizes.minPage() + pageFrame;
+				if (stfBuilder == null) {
+					// 実測ビルダーを持たない合成箱(ルビ単位)。寸法は
+					// 構築時に確定しているので箱の実寸だけを使う
+					// (2026-07-25、TwoPassBlockBuilder.controlの
+					// isPreMeasured分岐と対)
+					minAdvance = maxAdvance = lineFrame;
+					pageSize = pageFrame;
 				} else {
-					// 縦中横/横中縦
-					minAdvance = maxAdvance = stfSizes.minPage() + pageFrame;
-					pageSize = stfSizes.minContent() + lineFrame;
+					final IntrinsicSizes stfSizes = stfBuilder.getIntrinsicSizes();
+					if (cParams.flow.isVertical() == params.flow.isVertical()) {
+						minAdvance = stfSizes.minContent() + lineFrame;
+						maxAdvance = stfSizes.maxContent() + lineFrame;
+						pageSize = stfSizes.minPage() + pageFrame;
+					} else {
+						// 縦中横/横中縦
+						minAdvance = maxAdvance = stfSizes.minPage() + pageFrame;
+						pageSize = stfSizes.minContent() + lineFrame;
+					}
 				}
 				minAdvance = Math.max(minAdvance, box.getLineExtent(params.flow));
 				maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));

@@ -12,8 +12,10 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.RubyUnitBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
@@ -59,12 +61,10 @@ public class StyledTextUnitizer {
 	private TextShaper textShaper = null;
 
 	/**
-	 * 注釈付きテキスト方式のルビ単位バッファです(2026-07-25、F-1試作)。
+	 * ルビ単位バッファです(注釈付きテキスト方式、2026-07-25仕様裁定)。
 	 * ルビコンテナ({@code rubyRole == RUBY_CONTAINER}のINLINE)の開始で
 	 * 生成され、コンテナ終了で単位を配達して破棄されます。非null中は
-	 * ルビ範囲内のインライン・文字イベントを横取りします。既定
-	 * ({@code text.ruby=box})ではrubyRoleが立たないため常にnullで
-	 * 挙動不変です。
+	 * ルビ範囲内のインライン・文字イベントを横取りします。
 	 */
 	private RubyUnitCollector rubyCollector = null;
 
@@ -157,11 +157,12 @@ public class StyledTextUnitizer {
 
 	public void endContainer() {
 		if (this.rubyCollector != null) {
-			// 防御: コンテナが閉じる前にルビが閉じていない(malformed)場合は
-			// たまった単位をその場で配達して混線を避ける(F-1)
-			final RubyUnitCollector collector = this.rubyCollector;
-			this.rubyCollector = null;
-			this.emitRubyUnits(collector);
+			// 防御: コンテナが閉じる前にルビが閉じていない(malformed——
+			// ルビの中にブロックが現れた等)場合は、たまっている分を
+			// その場で配達する。ただしコレクタは<b>捨てない</b>——
+			// 深さの追跡を続けないと、内側のインラインの終了が通常の
+			// インラインスタックを誤popしてスタックを壊す
+			this.rubyCollector.drain();
 		}
 		final AbstractTextParams params = (AbstractTextParams) this.textParamsStack
 				.remove(this.textParamsStack.size() - 1);
@@ -179,17 +180,11 @@ public class StyledTextUnitizer {
 	}
 
 	public void startInline(InlineBox inlineBox) {
-		final AbstractTextParams inlineParams = inlineBox.getInlineParams();
+		final InlineParams inlineParams = inlineBox.getInlineParams();
 		if (this.rubyCollector != null) {
-			// ルビ範囲内のマークアップは無視して深さだけ数える(F-1)
-			this.rubyCollector.startInline(inlineParams.rubyRole);
-			return;
-		}
-		if (inlineParams.rubyRole == AbstractTextParams.RUBY_CONTAINER) {
-			// ルビコンテナの開始: 以降の文字を単位バッファへためる。
-			// コンテナ自身のインラインボックスは行へ流さない(単位が
-			// 内容を丸ごと置き換える)
-			this.rubyCollector = new RubyUnitCollector((net.zamasoft.foliojet.layout.box.params.InlineParams) inlineParams);
+			// ルビ範囲内のマークアップは箱にせず、深さとスタイルだけを数える
+			// (仕様: ルビ内は文字のみ)
+			this.rubyCollector.startInline(inlineParams);
 			return;
 		}
 		AbstractContainerBox containerBox = this.gh.builder.getFlowBox();
@@ -204,17 +199,25 @@ public class StyledTextUnitizer {
 		Quad start = InlineQuad.createInlineBoxStartQuad(inlineBox);
 		this.textShaper.control(start);
 		this.changeTextState(params);
+
+		if (inlineParams.rubyRole == AbstractTextParams.RUBY_CONTAINER) {
+			// ルビコンテナ(ruby要素)は通常のインラインとして残したうえで
+			// (idやハイパーリンク等のidentityはこのInlineBoxが持つ)、
+			// 以降の内側の文字を単位バッファへ横取りする。設計裁定(d)
+			// ——codex独立レビュー2026-07-25
+			this.rubyCollector = new RubyUnitCollector(inlineParams,
+					(base, ruby) -> this.emitRubyUnit(inlineParams, base, ruby));
+		}
 	}
 
 	public void endInline() {
 		if (this.rubyCollector != null) {
-			if (this.rubyCollector.endInline()) {
-				// ルビコンテナの終了: 確定した単位を配達する
-				final RubyUnitCollector collector = this.rubyCollector;
-				this.rubyCollector = null;
-				this.emitRubyUnits(collector);
+			if (!this.rubyCollector.endInline()) {
+				return;
 			}
-			return;
+			// ルビコンテナの終了: 残りの単位は配達済み。以降は通常の
+			// インライン終了処理(ruby要素のInlineBoxを閉じる)
+			this.rubyCollector = null;
 		}
 		// ブロックでインラインが寸断されて復帰した直後にインラインが終わるときに、ここを実行する
 		this.requireTextShaper();
@@ -260,22 +263,32 @@ public class StyledTextUnitizer {
 	}
 
 	/**
-	 * ルビコンテナ1個分の確定済み単位列を、atomic inline
-	 * ({@code RubyUnitBox}をインラインブロック扱いのquadに載せる)として
-	 * 下流へ配達します(2026-07-25、F-1)。
+	 * 対応がついたルビ単位を1つ、atomic inline({@code RubyUnitBox}を
+	 * インラインブロック扱いのquadに載せる)として下流へ配達します
+	 * (2026-07-25、注釈付きテキスト方式)。
 	 */
-	private void emitRubyUnits(final RubyUnitCollector collector) {
-		for (final RubyUnitCollector.PendingUnit unit : collector.units()) {
-			final net.zamasoft.foliojet.layout.box.impl.RubyUnitBox box = net.zamasoft.foliojet.layout.box.impl.RubyUnitBox
-					.create(collector.containerParams(), unit.baseText(), unit.baseOffset(), unit.rubyText(),
-							unit.rubyOffset());
-			if (box == null) {
-				continue;
-			}
-			this.requireTextShaper();
-			this.textShaper.control(InlineQuad.createInlineBlockBoxQuad(box));
-			this.followingChar = 'x';
+	private void emitRubyUnit(final InlineParams container, final RubyUnitCollector.Segment base,
+			final RubyUnitCollector.Segment ruby) {
+		final String baseText = base == null ? "" : base.text();
+		final String rubyText = ruby == null ? "" : ruby.text();
+		int sourceStart = -1, sourceEnd = -1;
+		if (base != null && base.charOffset() >= 0) {
+			sourceStart = base.charOffset();
+			sourceEnd = base.charEnd();
 		}
+		if (ruby != null && ruby.charOffset() >= 0) {
+			sourceStart = sourceStart < 0 ? ruby.charOffset() : Math.min(sourceStart, ruby.charOffset());
+			sourceEnd = Math.max(sourceEnd, ruby.charEnd());
+		}
+		final RubyUnitBox box = RubyUnitBox.create(container, baseText, base == null ? null : base.params(),
+				base == null ? -1 : base.charOffset(), rubyText, ruby == null ? null : ruby.params(),
+				ruby == null ? -1 : ruby.charOffset(), sourceStart, sourceEnd);
+		if (box == null) {
+			return;
+		}
+		this.requireTextShaper();
+		this.textShaper.control(InlineQuad.createInlineBlockBoxQuad(box));
+		this.followingChar = 'x';
 	}
 
 	public void characters(int charOffset, char[] ch, final int off, final int len, boolean lineFeed) {

@@ -25,10 +25,6 @@ public abstract class AbstractBox implements IBox {
 		this.sourceAnchor = id;
 	}
 
-	public BoxSubtype getSubtype() {
-		return BoxSubtype.NONE;
-	}
-
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {
 		AffineTransform ct = this.getParams().transform;
 		if (ct.isIdentity()) {

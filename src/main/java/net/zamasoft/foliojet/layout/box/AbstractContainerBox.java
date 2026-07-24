@@ -502,7 +502,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 				this.splitPage(nextContainer, pageLimit, mode instanceof BreakMode.ColumnBreakMode));
 	}
 
-	public final void pushGetTextSteps(StringBuilder textBuff, java.util.Deque<GetTextStep> worklist) {
+	/**
+	 * コンテナの内容からテキストを抽出します。
+	 *
+	 * <p>
+	 * 2026-07-25: {@code final}を外した。{@code RubyUnitBox}は子ボックスを
+	 * 持たず(コンテナは空)、整形済みグリフ列を自前で持つ合成箱のため、
+	 * 抽出を上書きしないと親からの反復抽出(リンクの代替テキスト・
+	 * string-setのcontent()・ブックマーク見出し・target-text())で
+	 * ルビの親文字が丸ごと落ちる。
+	 * </p>
+	 */
+	public void pushGetTextSteps(StringBuilder textBuff, java.util.Deque<GetTextStep> worklist) {
 		this.container.pushGetTextSteps(textBuff, worklist);
 	}
 	

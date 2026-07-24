@@ -67,7 +67,13 @@ public class DisplayListGoldenTest extends TestCase {
 			"0330-table-border/collapse-illegal.html", //
 			"0240-table/absolute.html", //
 			"0219-pagebreak-table-inrow/valign-split.html", //
+			// ルビ=注釈付きテキスト(2026-07-25仕様裁定)。単位<行のため
+			// ページ境界は段落の行分割で自然に泣き別れする(旧箱方式の
+			// 「同方向ルビ本文は分割可」特別契約は消滅)
 			"3060-RUBY/ruby-split-through.html", //
+			// ルビ単位の組み立て(複数rb/rtの対応づけ・断片の書式・
+			// ネスト・片側だけのmalformed・縦書き)を直接固定する
+			"3060-RUBY/ruby-annotation.html", //
 			"0219-pagebreak-table-inrow/valign-split-vert.html", //
 			"0390-writing-mode/border-collapse.html", //
 			"0390-writing-mode/absolute.html", //

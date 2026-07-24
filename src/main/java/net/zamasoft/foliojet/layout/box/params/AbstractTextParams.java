@@ -47,31 +47,31 @@ public abstract class AbstractTextParams extends Params {
 	public static final byte DECORATION_LINE_THROUGH = 0x04;
 
 	/**
-	 * ルビ役割なし(既定)です(2026-07-25、F-1注釈付きテキスト方式)。
+	 * ルビ役割なし(既定)です(2026-07-25、注釈付きテキスト方式)。
 	 */
 	public static final byte RUBY_NONE = 0;
 
 	/**
-	 * ルビコンテナ(ruby要素相当)です(text.ruby=annotationのときのみ設定)。
+	 * ルビコンテナ(ruby要素相当)です。
 	 */
 	public static final byte RUBY_CONTAINER = 1;
 
 	/**
-	 * ルビ親文字(rb要素相当)です(text.ruby=annotationのときのみ設定)。
+	 * ルビ親文字(rb要素相当)です。
 	 */
 	public static final byte RUBY_BASE = 2;
 
 	/**
-	 * ふりがな(rt要素相当)です(text.ruby=annotationのときのみ設定)。
+	 * ふりがな(rt要素相当)です。
 	 */
 	public static final byte RUBY_TEXT = 3;
 
 	/**
-	 * ルビ役割マーカーです(2026-07-25、F-1)。{@code text.ruby=annotation}
-	 * のときだけ{@code RUBY_*}が設定され、文字処理層
+	 * ルビ役割マーカーです(2026-07-25、注釈付きテキスト方式の仕様裁定
+	 * ——docs/history/2026-07-25-ruby-annotation-spec-decision.md)。
+	 * ルビ関連要素(ruby/rb/rt)で{@code RUBY_*}が設定され、文字処理層
 	 * ({@code StyledTextUnitizer})が注釈付きテキスト単位を組み立てる
-	 * 手掛かりにします。既定({@code text.ruby=box})では常に
-	 * {@link #RUBY_NONE}のままで、挙動に影響しません。
+	 * 手掛かりにします。
 	 */
 	public byte rubyRole = RUBY_NONE;
 

@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import junit.framework.TestCase;
-import net.zamasoft.foliojet.layout.box.BoxSubtype;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
@@ -29,7 +28,7 @@ public class WorklistTailGateTest extends TestCase {
 
 	private static OpenPathSnapshot.OpenLevelDescriptor level(final int index,
 			final OpenPathSnapshot.OpenLevelRole role) {
-		return new OpenPathSnapshot.OpenLevelDescriptor(index, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1,
+		return new OpenPathSnapshot.OpenLevelDescriptor(index, FlowBlockBox.class, WritingMode.TB, 1,
 				index, role);
 	}
 
@@ -90,12 +89,12 @@ public class WorklistTailGateTest extends TestCase {
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = new ArrayList<>();
 		descriptors.add(level(0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)));
 		for (int i = 1; i < 4; ++i) {
-			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, FlowBlockBox.class, BoxSubtype.RUBY_BODY,
-					WritingMode.TB, 1, i,
-					new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.FLOW_SUBTYPE)));
+			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, FlowBlockBox.class,
+					WritingMode.RL, 1, i,
+					new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.ORTHOGONAL_FLOW)));
 		}
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors,
-				Optional.of(new OpenPathSnapshot.CapabilityBarrier(1, ContinuationCapability.FLOW_SUBTYPE)));
+				Optional.of(new OpenPathSnapshot.CapabilityBarrier(1, ContinuationCapability.ORTHOGONAL_FLOW)));
 
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(4)));
@@ -120,7 +119,7 @@ public class WorklistTailGateTest extends TestCase {
 	public void testSplitStoppedWithMulticolIsLegacyRecursion() {
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
 				level(0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
-				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, BoxSubtype.NONE, WritingMode.TB,
+				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, WritingMode.TB,
 						2, 1, new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.MULTICOL)),
 				level(2, new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW)));
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
@@ -142,9 +141,9 @@ public class WorklistTailGateTest extends TestCase {
 	}
 
 	/** COLUMN childなし(snapshot depth&gt;1、非PLAIN_FLOW残存): legacy再帰。 */
-	public void testColumnNoChildFlowSubtypeIsLegacyRecursion() {
+	public void testColumnNoChildNonPlainFlowIsLegacyRecursion() {
 		assertColumnGate(WorklistTailGate.LEGACY_RECURSION,
-				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.FLOW_SUBTYPE), null);
+				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.MULTICOL), null);
 	}
 
 	/** COLUMN貫通チェーン完全収集: 終端は開きテキストのみ。 */

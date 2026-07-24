@@ -50,6 +50,24 @@ public class InlineBlockBox extends AbstractStaticBlockBox implements IInlineBox
 		return this.pos;
 	}
 
+	/**
+	 * 構築時に寸法が確定しており、内容の実測(shrink-to-fitの2パス)を
+	 * 必要としない箱かどうかです(2026-07-25)。
+	 *
+	 * <p>
+	 * 通常のインラインブロックは内容から幅を決めるため、実測ビルダー
+	 * ({@code TwoPassBlockBuilder.newBuilder})が対で作られます。
+	 * {@code RubyUnitBox}のように整形済みグリフ列だけを持つ合成箱は
+	 * その対を持たないため、実測経路はこの印を見て素通ししなければ
+	 * なりません。
+	 * </p>
+	 *
+	 * @return 実測が不要ならtrue
+	 */
+	public boolean isPreMeasured() {
+		return false;
+	}
+
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {

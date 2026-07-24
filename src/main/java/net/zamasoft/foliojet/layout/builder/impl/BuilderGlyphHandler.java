@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.RubyUnitBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
@@ -200,6 +201,17 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			case InlineQuad.INLINE_BLOCK:
 				// インラインブロック
 				inlineQuad.advance = inlineQuad.getBox().getLineExtent(this.progression);
+				if (inlineQuad.getBox() instanceof RubyUnitBox rubyUnit) {
+					// ルビ単位の文字はCollectorへ横取りされ glyph() を通らない
+					// ため、配達済み終端はここで単位のソース終端まで進める
+					// (2026-07-25。進めないと切断段落の尾部再生が
+					// 「ルビの手前」で打ち切られ、ルビ範囲がliveと再生の
+					// 双方から供給されうる)
+					final int end = rubyUnit.getSourceEnd();
+					if (end >= 0) {
+						this.deliveredCharEnd = Math.max(this.deliveredCharEnd, end);
+					}
+				}
 				break;
 
 			case InlineQuad.INLINE_ABSOLUTE:

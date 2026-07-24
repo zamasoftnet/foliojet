@@ -7,6 +7,19 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
+/**
+ * ルビの幾何(横書き・論理プロパティ)の回帰テストです。
+ *
+ * <p>
+ * 注釈付きテキスト方式(2026-07-25仕様裁定)ではrb/rtは箱にならず、
+ * ルビ1単位(親文字+ふりがな)が1つの{@code RubyUnitBox}になる。
+ * DOM要素として残るのは{@code ruby}自身だけなので、idは{@code ruby}へ
+ * 置き、そのインラインボックス(単位と同じ位置・行方向寸法)を測る。
+ * ふりがなは行間へはみ出して描かれるため寸法には算入されない。
+ * 単位の内容・寸法そのものは表示リストgolden
+ * (3060-RUBY/ruby-annotation.html)が直接固定する。
+ * </p>
+ */
 public class LogicalHrizRubyTest extends AbstractTestCase {
 	public LogicalHrizRubyTest(String name) {
 		super(name);
@@ -17,69 +30,42 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "application/xhtml+xml", null);
 	}
 
-	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
-			System.err.println(x + "/" + y + "/" + box.getWidth());
-			assertEquals(43, x, 1);
-			assertEquals(9, y, 1);
-			assertEquals(24, box.getWidth(), 0);
-			return true;
+	/**
+	 * ルビ要素のインラインボックスを検査します。
+	 *
+	 * @param lineExtent 行方向の寸法 = max(親文字幅, ふりがな幅)
+	 */
+	private boolean check(IBox box, double x, double y, double expectedX, double expectedY, double lineExtent) {
+		if (box.getType() != BoxType.INLINE) {
+			return false;
 		}
-		return false;
+		assertEquals(expectedX, x, 1);
+		assertEquals(expectedY, y, 1);
+		assertEquals(lineExtent, box.getWidth(), 0);
+		return true;
+	}
+
+	public boolean check_a(IBox box, int pageNumber, double x, double y) {
+		return this.check(box, x, y, 43.78, 9.71, 24);
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
-			System.err.println(x + "/" + y + "/" + box.getWidth());
-			assertEquals(43, x, 1);
-			assertEquals(9, y, 1);
-			assertEquals(24, box.getWidth(), 0);
-			return true;
-		}
-		return false;
+		return this.check(box, x, y, 93.56, 9.71, 36);
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
-			System.err.println(x + "/" + y + "/" + box.getWidth());
-			assertEquals(126, x, 1);
-			assertEquals(67, y, 1);
-			assertEquals(24, box.getWidth(), 0);
-			return true;
-		}
-		return false;
+		return this.check(box, x, y, 126, 67.96, 24);
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
-			System.err.println(x + "/" + y + "/" + box.getWidth());
-			assertEquals(126, x, 1);
-			assertEquals(67, y, 1);
-			assertEquals(24, box.getWidth(), 0);
-			return true;
-		}
-		return false;
+		return this.check(box, x, y, 108, 48.54, 30);
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
-			System.err.println(x + "/" + y + "/" + box.getWidth());
-			assertEquals(43, x, 1);
-			assertEquals(87, y, 1);
-			assertEquals(24, box.getWidth(), 0);
-			return true;
-		}
-		return false;
+		return this.check(box, x, y, 43.78, 87.37, 24);
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
-			System.err.println(x + "/" + y + "/" + box.getWidth());
-			assertEquals(126, x, 1);
-			assertEquals(145, y, 1);
-			assertEquals(24, box.getWidth(), 0);
-			return true;
-		}
-		return false;
+		return this.check(box, x, y, 126, 145.62, 24);
 	}
 }

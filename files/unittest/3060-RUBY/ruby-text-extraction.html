@@ -1,0 +1,27 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>ruby text extraction / malformed safety</title>
+    <!--
+      注釈付きテキスト方式(2026-07-25仕様裁定)の2点を固定する。
+      (1) 親からの反復テキスト抽出でルビの親文字が落ちないこと
+          (リンクの代替テキスト・string-setのcontent()・ブックマーク
+          見出し・target-text()が共通で使う経路)。ふりがなは読みの
+          注釈であって本文ではないため出さない。
+      (2) ルビの中にブロックが現れる異常入力でも、インラインスタックが
+          壊れず例外にならないこと。
+    -->
+    <style type="text/css">
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 10pt; line-height: 2; }
+      p { margin: 0; }
+      .blk { display: block; }
+    </style>
+  </head>
+  <body>
+    <p id="a">前<ruby><rb>漢</rb><rt>かん</rt><rb>字</rb><rt>じ</rt></ruby>後</p>
+    <p id="b">壊れ<ruby>あ<span class="blk">ブロック</span>い<rt>るび</rt></ruby>末</p>
+  </body>
+</html>

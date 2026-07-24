@@ -136,7 +136,7 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		// first-classコンパイルするようになったため、RESTYLE_CHAIN_FIRINGS
 		// (旧OpenChain再帰)はPAGE・COLUMN双方でゼロになるはずである
 		// (このfixtureの段組内側は10段のPLAIN_FLOWラッパーのみ、
-		// FLOW_SUBTYPE/直交等のbarrierを含まないため完全に収集される)。
+		// 直交等のbarrierを含まないため完全に収集される)。
 		assertEquals("B4-Step4後はCOLUMN側のOpenChainも完全に消えるはずです", 0,
 				ContinuationStats.COLUMN_RESTYLE_CHAIN_FIRINGS.get());
 		assertEquals("RESTYLE_CHAIN_FIRINGSはPAGE・COLUMN双方でゼロになるはずです", 0,

@@ -102,9 +102,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				lineExtent -= this.frame.getBorderLineExtent(flow);
 			}
 		}
-		if ((this.size.getLineType(flow) == LengthType.AUTO) &&
-		// 縦中横が拡張されるようにページ方向が固定されていないとみなす。
-				containerBox.getSubtype() != BoxSubtype.RUBY_BODY) {
+		if (this.size.getLineType(flow) == LengthType.AUTO) {
 			double limitLine;
 			if (cParams.flow.isVertical() == flow.isVertical() || containerBox.isSpecifiedPageSize()) {
 				limitLine = cLine - this.frame.getFrameLineExtent(flow);

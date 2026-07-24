@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import net.zamasoft.foliojet.layout.box.BoxSubtype;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
@@ -31,7 +30,6 @@ import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.RubyBox;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
@@ -439,20 +437,6 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 通常のフローのボックス
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
 			final BlockParams params = blockBox.getBlockParams();
-
-			if (!this.boxStack.isEmpty()) {
-				final IBox parentBox = (IBox) this.boxStack.get(this.boxStack.size() - 1);
-				if (parentBox.getSubtype() == BoxSubtype.RUBY && blockBox.getSubtype() == BoxSubtype.RUBY_BODY
-						&& this.containerBuilder().builder.isTwoPass()) {
-					TwoPassBlockBuilder builder = (TwoPassBlockBuilder) this.containerBuilder().builder;
-					if (!builder.isEmpty()) {
-						RubyBox rubyBox = (RubyBox) parentBox;
-						this.endBox();
-						rubyBox = new RubyBox(rubyBox.getBlockParams(), rubyBox.getInlinePos());
-						this.startBox(rubyBox);
-					}
-				}
-			}
 
 			// ぶちぬき
 			final FlowPos pos = blockBox.getFlowPos();

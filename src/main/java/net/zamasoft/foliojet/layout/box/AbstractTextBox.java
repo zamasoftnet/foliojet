@@ -130,10 +130,24 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (content instanceof Text text && text.getCharOffset() >= 0) {
 					return text.getCharOffset() + text.getCharCount();
 				}
-				if (content instanceof AbstractTextBox inline) {
-					final int end = inline.lastCharEnd();
-					if (end >= 0) {
-						return end;
+				if (content instanceof Inline inline) {
+					// ルビ単位は合成箱で、文字は箱の中に整形済みで入って
+					// いる(グリフとしては行に現れない)。単位の途中を
+					// 再開位置にすると、部分再生がruby開始イベントを
+					// 含まない位置から始まって二重供給になるため、
+					// 単位全体のソース終端を返す(2026-07-25)
+					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.RubyUnitBox rubyUnit) {
+						final int end = rubyUnit.getSourceEnd();
+						if (end >= 0) {
+							return end;
+						}
+						continue;
+					}
+					if (inline.box instanceof AbstractTextBox nested) {
+						final int end = nested.lastCharEnd();
+						if (end >= 0) {
+							return end;
+						}
 					}
 				}
 			}
@@ -153,10 +167,19 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (content instanceof Text text) {
 					return text.getCharOffset();
 				}
-				if (content instanceof AbstractTextBox inline) {
-					final int offset = inline.firstCharOffset();
-					if (offset >= 0) {
-						return offset;
+				if (content instanceof Inline inline) {
+					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.RubyUnitBox rubyUnit) {
+						final int offset = rubyUnit.getSourceStart();
+						if (offset >= 0) {
+							return offset;
+						}
+						continue;
+					}
+					if (inline.box instanceof AbstractTextBox nested) {
+						final int offset = nested.firstCharOffset();
+						if (offset >= 0) {
+							return offset;
+						}
 					}
 				}
 			}

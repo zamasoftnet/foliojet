@@ -159,7 +159,7 @@ public final class ContinuationValidator {
 	}
 
 	/**
-	 * instantiate直後の実fragmentの署名(class/subtype/writing-mode/
+	 * instantiate直後の実fragmentの署名(class/writing-mode/
 	 * column-count)を、破断時snapshotの対応レベルと直接照合します
 	 * (E-3増分2。shadow({@code ResumeProgramTrace})の{@code
 	 * ResumeOp.Instantiate}照合が持っていた唯一の独立価値の直接化)。

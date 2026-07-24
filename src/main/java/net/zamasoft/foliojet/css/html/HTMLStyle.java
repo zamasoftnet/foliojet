@@ -129,9 +129,6 @@ public class HTMLStyle {
 	private static final RelativeLengthValue EM_1 = RelativeLengthValue.em(1);
 	private static final RelativeLengthValue EM__5 = RelativeLengthValue.em(.5);
 	private static final RelativeLengthValue _EM_1 = RelativeLengthValue.em(-1);
-	private static final RelativeLengthValue _EM__9 = RelativeLengthValue.em(-.9);
-	private static final RealValue REAL_1_618 = RealValue.create(1.618);
-	private static final RealValue REAL_1_414 = RealValue.create(1.414);
 	private static final ValueListValue WBR = new ValueListValue(new Value[] { new StringValue("\u200B") });
 	private static final ValueListValue OPEN_QUOTE = new ValueListValue(new Value[] { QuoteValue.OPEN_QUOTE_VALUE });
 	private static final ValueListValue CLOSE_QUOTE = new ValueListValue(new Value[] { QuoteValue.CLOSE_QUOTE_VALUE });
@@ -1448,45 +1445,29 @@ public class HTMLStyle {
 			// <Q>
 		}
 			break;
+		// ルビは注釈付きテキスト(2026-07-25仕様裁定、docs/history/
+		// 2026-07-25-ruby-annotation-spec-decision.md): ruby/rb/rtは
+		// 役割マーカー(-cssj-ruby)だけを与え、通常のINLINEとして流す
+		// (StyleBuilderがdisplayをINLINEへ強制する)。単位の組み立て・
+		// ふりがなの半サイズ描画は文字処理層(StyledTextUnitizer/
+		// RubyUnitBox)が行うため、旧箱方式のline-height/text-align/
+		// font-size等の要素既定スタイルは不要になった。
 		case HTMLCodes.RUBY: {
 			// <RUBY>
-			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
+			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RUBY_VALUE);
-			style.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
-			final CSSStyle pStyle = style.getParentStyle();
-			if (pStyle != null && BlockFlow.get(pStyle).isVertical()) {
-				// 縦書き
-				style.set(LineHeight.INFO, REAL_1_618);
-			} else {
-				style.set(LineHeight.INFO, REAL_1_414);
-			}
 		}
 			break;
 		case HTMLCodes.RB: {
 			// <RB> XHTML5では非標準
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
+			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RB_VALUE);
-			style.set(LineHeight.INFO, RealValue.ONE);
-			style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
-			// block-sizeを0にする(2026-07-20、-cssj-direction-mode廃止により
-			// 論理プロパティへ一本化)
-			style.set(BlockSize.INFO, AbsoluteLengthValue.ZERO);
 		}
 			break;
 		case HTMLCodes.RT: {
 			// <RT>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
+			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RT_VALUE);
-			style.set(LineHeight.INFO, RealValue.ONE);
-			style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
-			style.set(FontSize.INFO, PercentageValue.HALF);
-			// マージンはblock-start側、サイズはblock-sizeを0にする
-			// (2026-07-20、-cssj-direction-mode廃止により論理プロパティへ
-			// 一本化)
-			final CSSStyle pStyle = style.getParentStyle();
-			final Side blockStart = pStyle != null ? LogicalSide.BLOCK_START.toPhysical(pStyle) : Side.TOP;
-			style.set(Margin.forSide(blockStart), _EM__9);
-			style.set(BlockSize.INFO, AbsoluteLengthValue.ZERO);
 		}
 			break;
 		case HTMLCodes.RP: {

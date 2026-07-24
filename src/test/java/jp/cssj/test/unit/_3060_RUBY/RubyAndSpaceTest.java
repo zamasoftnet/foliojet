@@ -18,7 +18,7 @@ public class RubyAndSpaceTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
+		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x);
 			assertEquals(6, x, 1);
 			return true;
@@ -27,7 +27,7 @@ public class RubyAndSpaceTest extends AbstractTestCase {
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
+		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x);
 			assertEquals(29, x, 1);
 			return true;
@@ -36,7 +36,7 @@ public class RubyAndSpaceTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		if (box.getType() == BoxType.BLOCK) {
+		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x);
 			assertEquals(72, x, 1);
 			return true;

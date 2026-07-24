@@ -1,0 +1,5 @@
+resume PAGE
+  root-fragment depth=3
+   chain-fragment depth=2
+    chain-fragment depth=1
+   restyle-text-open serial=1

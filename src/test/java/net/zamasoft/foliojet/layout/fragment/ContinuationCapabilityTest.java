@@ -4,7 +4,6 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.RubyBodyBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
@@ -15,8 +14,9 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
  * (2026-07-21新設、M6b Phase B B1)。実文書を経由せず、対象の箱を
  * 直接構築して各分類分岐を検証する——ChatGPT Pro相談で指摘された
  * 「段組だけが発火条件ではない」という訂正の根拠(RL/LR不一致・
- * {@code RubyBodyBox}等のサブタイプ・横縦直交)を、分類ロジック単体で
- * 固定する。
+ * 横縦直交)を、分類ロジック単体で固定する(かつて検証していた
+ * {@code RubyBodyBox}サブタイプ={@code FLOW_SUBTYPE}分類は、ルビの
+ * 注釈付きテキスト化——2026-07-25仕様裁定——で対象が消滅し撤去した)。
  *
  * <p>
  * {@link ContinuationCapability#UNSUPPORTED_BOX}(表等、{@code
@@ -76,10 +76,6 @@ public class ContinuationCapabilityTest extends TestCase {
 		return new MulticolumnBlockBox(blockParams(flow), new FlowPos());
 	}
 
-	private static RubyBodyBox rubyBodyBox(final WritingMode flow) {
-		return new RubyBodyBox(blockParams(flow), new FlowPos());
-	}
-
 	public void testPlainFlowBlockBoxMatchingRootIsCollectable() {
 		final AbstractContainerBox b = plainFlowBlockBox(WritingMode.TB);
 		final ContinuationCapability c = ContinuationCapability.classify(b, WritingMode.TB);
@@ -91,20 +87,6 @@ public class ContinuationCapabilityTest extends TestCase {
 		final AbstractContainerBox b = multicolumnBlockBox(WritingMode.TB);
 		final ContinuationCapability c = ContinuationCapability.classify(b, WritingMode.TB);
 		assertEquals(ContinuationCapability.MULTICOL, c);
-		assertFalse(c.isCollectable());
-	}
-
-	/**
-	 * {@code RubyBodyBox}は{@code FlowBlockBox}のサブタイプであり、
-	 * {@code getClass() == FlowBlockBox.class}という完全一致判定で
-	 * 機械的に{@code FLOW_SUBTYPE}へ分類される(段組と同型の除外理由)。
-	 * 2026-07-20セッションでは「段組だけが発火条件」と誤って結論して
-	 * おり、このケースを見落としていた(ChatGPT Pro相談で指摘)。
-	 */
-	public void testRubyBodyBoxIsFlowSubtype() {
-		final AbstractContainerBox b = rubyBodyBox(WritingMode.TB);
-		final ContinuationCapability c = ContinuationCapability.classify(b, WritingMode.TB);
-		assertEquals(ContinuationCapability.FLOW_SUBTYPE, c);
 		assertFalse(c.isCollectable());
 	}
 
@@ -174,8 +156,7 @@ public class ContinuationCapabilityTest extends TestCase {
 	 * (2026-07-22の改ページ契約でatomic対象と確定、
 	 * docs/history/2026-07-22-pagination-contract-consultation.md参照
 	 * ——{@code SAME_AXIS_DIRECTION_CHANGE}はB5bで一時収集可能にして
-	 * いたが撤回した)。{@code MULTICOL}/{@code FLOW_SUBTYPE}はmode
-	 * 非依存で収集可能なまま。
+	 * いたが撤回した)。{@code MULTICOL}はmode非依存で収集可能なまま。
 	 */
 	public void testOrthogonalAndUnsupportedNeverSupportPageSplitThrough() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
@@ -191,49 +172,19 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * B5(2026-07-21)で{@code FLOW_SUBTYPE}(唯一の実装である
-	 * {@code RubyBodyBox})を、当時の{@code MULTICOL}と同じ規則
-	 * (自動改ページのみ収集可能、強制改ページは見送り)で解禁した。
-	 * B3b-1(2026-07-21)でMULTICOLの強制改ページ制限を撤去したのに合わせ、
-	 * 同じ理由(選択されたチェーンメンバーのKEEP/MOVE処理はB3b-2以降
-	 * mode非依存)でこちらも撤去した。{@code FLOW_SUBTYPE}は単なる
-	 * Javaクラスの違い(挙動は素の{@code FlowBlockBox}と同じ)のため、
-	 * 2026-07-22の改ページ契約でも収集可能のまま維持している。
-	 */
-	public void testFlowSubtypeSupportsPageSplitThroughRegardlessOfMode() {
-		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
-				plainFlowBlockBox(WritingMode.TB));
-		final net.zamasoft.foliojet.layout.box.content.BreakMode force = new net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode(
-				plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE);
-		assertTrue("自動改ページではFLOW_SUBTYPEを収集可能にするはずです",
-				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(auto));
-		assertTrue("B3b-1以降、強制改ページでもFLOW_SUBTYPEを収集可能にするはずです",
-				ContinuationCapability.FLOW_SUBTYPE.supportsPageSplitThrough(force));
-	}
-
-	/**
 	 * B5(2026-07-21): {@code classify()}は軸判定をサブタイプ判定より先に
-	 * 行うため、直交writing-modeの{@code MulticolumnBlockBox}/
-	 * {@code RubyBodyBox}は{@code MULTICOL}/{@code FLOW_SUBTYPE}ではなく
-	 * {@code ORTHOGONAL_FLOW}に分類される(codexへの設計相談で発見した、
-	 * 旧実装の誤分類を修正)。
+	 * 行うため、直交writing-modeの{@code MulticolumnBlockBox}は
+	 * {@code MULTICOL}ではなく{@code ORTHOGONAL_FLOW}に分類される
+	 * (codexへの設計相談で発見した、旧実装の誤分類を修正)。
 	 */
-	public void testOrthogonalMulticolAndRubyClassifyAsOrthogonalFlowNotSubtype() {
+	public void testOrthogonalMulticolClassifiesAsOrthogonalFlowNotSubtype() {
 		final AbstractContainerBox orthogonalMulticol = multicolumnBlockBox(WritingMode.RL);
 		assertEquals(ContinuationCapability.ORTHOGONAL_FLOW,
 				ContinuationCapability.classify(orthogonalMulticol, WritingMode.TB));
 
-		final AbstractContainerBox orthogonalRuby = rubyBodyBox(WritingMode.RL);
-		assertEquals(ContinuationCapability.ORTHOGONAL_FLOW,
-				ContinuationCapability.classify(orthogonalRuby, WritingMode.TB));
-
 		final AbstractContainerBox sameAxisMulticol = multicolumnBlockBox(WritingMode.LR);
 		assertEquals(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE,
 				ContinuationCapability.classify(sameAxisMulticol, WritingMode.RL));
-
-		final AbstractContainerBox sameAxisRuby = rubyBodyBox(WritingMode.LR);
-		assertEquals(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE,
-				ContinuationCapability.classify(sameAxisRuby, WritingMode.RL));
 	}
 
 	/**

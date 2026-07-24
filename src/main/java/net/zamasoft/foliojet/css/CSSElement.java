@@ -100,8 +100,6 @@ public class CSSElement implements StructureElement {
 	 * 匿名要素です。
 	 */
 	public static final CSSElement ANON = new CSSElement((String)null);
-	public static final CSSElement ANON_RUBY = new CSSElement("ruby");
-	public static final CSSElement ANON_RB = new CSSElement("rb");
 	public static final CSSElement ANON_TABLE = new CSSElement("table");
 	public static final CSSElement ANON_TBODY = new CSSElement("tbody");
 	public static final CSSElement ANON_TR = new CSSElement("tr");

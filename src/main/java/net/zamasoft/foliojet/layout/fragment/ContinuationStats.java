@@ -122,7 +122,7 @@ public final class ContinuationStats {
 	 * 同判定が**偽**だった回数です(legacy再帰へフォールバックした
 	 * 実際の回数)。この値が実測コーパスで恒常的に0なら、legacy実装の
 	 * 削除を検討する強い根拠になる——0でなければ、削除前にworklist
-	 * executor側がそれらのケース(ruby・float・absolute・書字方向
+	 * executor側がそれらのケース(float・absolute・書字方向
 	 * 不一致祖先等)も正しく扱えるかの追加検証が必要。
 	 */
 	public static final AtomicLong WORKLIST_INELIGIBLE_TERMINALS = new AtomicLong();
@@ -329,7 +329,7 @@ public final class ContinuationStats {
 		NO_RANGE,
 		/** 子イベント範囲が空(空のfloat等。records解放の益がない)。 */
 		EMPTY_RANGE,
-		/** 範囲にOpaque(ルビ・キャプション・浮動/絶対の表等)を含む。 */
+		/** 範囲にOpaque(表キャプション・表本体・浮動/絶対の表等)を含む。 */
 		OPAQUE_RANGE,
 		/**
 		 * 範囲に絶対配置ブロックのStartを含む(E-6増分4e)。増分4e以前は

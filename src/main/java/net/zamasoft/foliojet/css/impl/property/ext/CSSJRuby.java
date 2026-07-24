@@ -6,10 +6,8 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
-import net.zamasoft.foliojet.css.impl.property.box.Display;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -30,34 +28,12 @@ public class CSSJRuby extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		final byte ruby = ((CSSJRubyValue) value).getRuby();
-		final byte display = Display.get(style);
-		// 注釈付きテキスト方式(text.ruby=annotation、2026-07-25 F-1)では
-		// ルビ要素は通常のINLINEとして流すため、display:inlineでも役割
-		// マーカーを保持する。既定(box)の判定は従来どおり(挙動不変)。
-		final boolean annotationInline = display == DisplayValue.INLINE
-				&& "annotation".equals(net.zamasoft.foliojet.ua.props.UAProps.TEXT_RUBY.getString(style.getUserAgent()));
-		switch (ruby) {
-		case CSSJRubyValue.NONE:
-			break;
-		case CSSJRubyValue.RUBY:
-			if (display != DisplayValue.INLINE_BLOCK && !annotationInline) {
-				return CSSJRubyValue.NONE_VALUE;
-			}
-			break;
-		case CSSJRubyValue.RB:
-			if (display != DisplayValue.BLOCK && !annotationInline) {
-				return CSSJRubyValue.NONE_VALUE;
-			}
-			break;
-		case CSSJRubyValue.RT:
-			if (display != DisplayValue.BLOCK && !annotationInline) {
-				return CSSJRubyValue.NONE_VALUE;
-			}
-			break;
-		default:
-			throw new IllegalStateException();
-		}
+		// ルビは注釈付きテキスト(文字に付く飾り)であり箱ではない
+		// (2026-07-25仕様裁定、docs/history/2026-07-25-ruby-annotation-
+		// spec-decision.md)。役割マーカー(ruby/rb/rt)はdisplayに
+		// 依存しない——ルビ関連要素はStyleBuilderが常にINLINEへ強制し、
+		// 単位の組み立ては文字処理層(StyledTextUnitizer)が行う。
+		// 旧箱方式のdisplayガード(INLINE_BLOCK/BLOCK要求)は撤去した。
 		return value;
 	}
 

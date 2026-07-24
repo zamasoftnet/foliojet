@@ -53,6 +53,11 @@ public class ResumeTraceGoldenTest extends TestCase {
 			"0400-column-count/simple.html", //
 			"0400-column-count/columns-float.html", //
 			"0215-pagebreak-table/auto-page-break-margin.html", //
+			// ルビ段落のページまたぎ(2026-07-25、注釈付きテキスト方式)。
+			// ルビ単位の文字はCollectorへ横取りされglyph()を通らないため、
+			// 尾部再開の位置(単位のソース終端)が壊れていないことをここで
+			// 固定する
+			"3060-RUBY/ruby-split-through.html", //
 	};
 
 	public void testResumeTraces() throws Exception {

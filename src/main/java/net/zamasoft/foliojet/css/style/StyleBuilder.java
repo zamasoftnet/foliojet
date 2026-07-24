@@ -162,8 +162,6 @@ import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
-import net.zamasoft.foliojet.layout.box.impl.RubyBodyBox;
-import net.zamasoft.foliojet.layout.box.impl.RubyBox;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
@@ -267,15 +265,6 @@ public class StyleBuilder implements PageGenerator {
 
 	private final UserAgent ua;
 
-	/**
-	 * ルビの注釈付きテキスト方式({@code text.ruby=annotation})が有効か
-	 * どうかです(2026-07-25、F-1試作)。有効なとき、ルビ要素は箱
-	 * ({@code RubyBox}等)を作らず通常のINLINEとして記録・配達され、
-	 * 単位の組み立ては文字処理層({@code StyledTextUnitizer})が行います。
-	 * 既定({@code box})では従来経路のままで挙動不変です。
-	 */
-	private final boolean annotationRuby;
-
 	private final DocumentBuilder doc;
 	private final Imposition imposition;
 	private final AbsoluteLengthValue[] margins;
@@ -363,7 +352,8 @@ public class StyleBuilder implements PageGenerator {
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		// レイアウトソースプロトコルの記録(M6b v3)。recipe化できる種別は
-		// Start(recipe) として記録し、未対応の種別(キャプション・ルビ等)
+		// Start(recipe) として記録し、未対応の種別(表キャプション・
+		// 表本体等)
 		// は Opaque として位置だけ占有する(範囲に Opaque を含む再生は
 		// フォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
@@ -507,7 +497,6 @@ public class StyleBuilder implements PageGenerator {
 	public StyleBuilder(StyleContext styleContext, UserAgent ua, Imposition imposition) {
 		this.styleContext = styleContext;
 		this.ua = ua;
-		this.annotationRuby = "annotation".equals(UAProps.TEXT_RUBY.getString(ua));
 		this.pageNumber = ua.getPassContext().getPageNumber();
 		this.imposition = imposition;
 		// E-6増分3b-2: text payloadのspill予算(bytes)を注入する
@@ -752,23 +741,20 @@ public class StyleBuilder implements PageGenerator {
 		}
 		params.direction = Direction.get(style);
 		params.flow = BlockFlow.get(style);
-		if (this.annotationRuby) {
-			// 注釈付きテキスト方式(2026-07-25 F-1): ルビ役割マーカーを
-			// paramsへ載せ、文字処理層(StyledTextUnitizer)へ配達する。
-			// 既定(box)では常にRUBY_NONEのまま(オプトイン完全性)。
-			switch (CSSJRuby.get(style)) {
-			case CSSJRubyValue.RUBY:
-				params.rubyRole = AbstractTextParams.RUBY_CONTAINER;
-				break;
-			case CSSJRubyValue.RB:
-				params.rubyRole = AbstractTextParams.RUBY_BASE;
-				break;
-			case CSSJRubyValue.RT:
-				params.rubyRole = AbstractTextParams.RUBY_TEXT;
-				break;
-			default:
-				break;
-			}
+		// ルビ役割マーカーをparamsへ載せ、文字処理層(StyledTextUnitizer)へ
+		// 配達する(注釈付きテキスト方式、2026-07-25仕様裁定)。
+		switch (CSSJRuby.get(style)) {
+		case CSSJRubyValue.RUBY:
+			params.rubyRole = AbstractTextParams.RUBY_CONTAINER;
+			break;
+		case CSSJRubyValue.RB:
+			params.rubyRole = AbstractTextParams.RUBY_BASE;
+			break;
+		case CSSJRubyValue.RT:
+			params.rubyRole = AbstractTextParams.RUBY_TEXT;
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -1206,11 +1192,7 @@ public class StyleBuilder implements PageGenerator {
 		} else if (display == DisplayValue.INLINE_BLOCK || display == DisplayValue.INLINE_TABLE) {
 			final InlinePos pos = new InlinePos();
 			this.setupInlinePos(pos, style);
-			if (CSSJRuby.get(style) == CSSJRubyValue.RUBY) {
-				blockBox = new RubyBox(params, pos);
-			} else {
-				blockBox = new InlineBlockBox(params, pos);
-			}
+			blockBox = new InlineBlockBox(params, pos);
 		} else if (floating != CSSFloatValue.NONE) {
 			final FloatPos pos = new FloatPos();
 			this.setupFloatPos(pos, style);
@@ -1222,11 +1204,7 @@ public class StyleBuilder implements PageGenerator {
 			if (parentStyle != null) {
 				pos.align = CSSJHtmlAlign.get(parentStyle);
 			}
-			if (CSSJRuby.get(style) == CSSJRubyValue.RB) {
-				blockBox = new RubyBodyBox(params, pos);
-			} else {
-				blockBox = new FlowBlockBox(params, pos);
-			}
+			blockBox = new FlowBlockBox(params, pos);
 		}
 		return blockBox;
 	}
@@ -1257,14 +1235,7 @@ public class StyleBuilder implements PageGenerator {
 					break WHILE;
 				}
 
-				final byte anonRuby = CSSJRuby.get(this.currentStyle);
-				if (anonRuby == CSSJRubyValue.RB) {
-					// ルビ関係
-					final byte ruby = CSSJRuby.get(style);
-					if (ruby != CSSJRubyValue.RT) {
-						break WHILE;
-					}
-				} else {
+				{
 					// テーブル関係
 					final short anonDisplay = Display.get(this.currentStyle);
 					switch (explDisplay) {
@@ -2009,25 +1980,13 @@ public class StyleBuilder implements PageGenerator {
 		return style;
 	}
 
-	private void startRB(CSSStyle style) {
-		style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-		style.set(CSSJRuby.INFO, CSSJRubyValue.RB_VALUE);
-		style.set(LineHeight.INFO, PercentageValue.FULL);
-		style.set(TextAlign.INFO, TextAlignValue.X_JUSTIFY_CENTER_VALUE);
-		// block-sizeを0にする(2026-07-20、-cssj-direction-mode廃止により
-		// 論理プロパティへ一本化。Width/Height.get()のblock-size
-		// フォールバックが実際の書字方向に応じて解決する)
-		style.set(BlockSize.INFO, AbsoluteLengthValue.ZERO);
-		this._startStyle(style);
-	}
-
 	private void _startStyle(CSSStyle style) {
 		// System.err.println("_"+style.path());
-		if (this.annotationRuby && CSSJRuby.get(style) != CSSJRubyValue.NONE) {
-			// 注釈付きテキスト方式(text.ruby=annotation、2026-07-25 F-1):
-			// ルビ関連要素(ruby/rb/rt)は箱を作らず通常のINLINEとして流す。
-			// 役割マーカーはCSSJRuby.getComputedValue()のannotation分岐が
-			// display:inlineでも保持する。
+		if (CSSJRuby.get(style) != CSSJRubyValue.NONE) {
+			// ルビ関連要素(ruby/rb/rt)は箱を作らず通常のINLINEとして流す
+			// (注釈付きテキスト方式、2026-07-25仕様裁定)。単位の組み立ては
+			// 文字処理層(StyledTextUnitizer)がrubyRoleマーカーを手掛かりに
+			// 行う。
 			style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
 		}
 		// ルートのHTMLタグはblockに固定する
@@ -2052,17 +2011,6 @@ public class StyleBuilder implements PageGenerator {
 			// タグの補完
 			final CSSStyle parentStyle = style.getParentStyle();
 			if (parentStyle != null) {
-				final byte ruby = CSSJRuby.get(style);
-				if (!this.annotationRuby && ruby != CSSJRubyValue.RT && ruby != CSSJRubyValue.RB) {
-					// ruby内のrt以外の要素の上にrbを挿入
-					// (注釈付きテキスト方式では匿名RBを作らない——単位の
-					// 組み立てはStyledTextUnitizerが行う。2026-07-25 F-1)
-					final byte parentRuby = CSSJRuby.get(parentStyle);
-					if (parentRuby == CSSJRubyValue.RUBY) {
-						this.startRB(style.insertAnonStyle(CSSElement.ANON_RB));
-					}
-				}
-
 				final short parentDisplay = Display.get(parentStyle);
 				switch (display) {
 				case DisplayValue.TABLE_CELL: {
@@ -2443,15 +2391,6 @@ public class StyleBuilder implements PageGenerator {
 				this.inTextBlock = true;
 			}
 
-			// テキストの中
-			// (注釈付きテキスト方式では匿名RBを作らない——ruby直下の
-			// テキストはそのまま流れ、StyledTextUnitizerが親文字として
-			// 単位バッファへためる。2026-07-25 F-1)
-			final byte parentRuby = this.annotationRuby ? CSSJRubyValue.NONE : CSSJRuby.get(this.currentStyle);
-			if (parentRuby == CSSJRubyValue.RUBY) {
-				this.startRB(this.currentStyle.inheritAnonStyle(CSSElement.ANON_RB));
-			}
-
 			if (this.firstLetter) {
 				this.firstLetter = false;
 
@@ -2744,10 +2683,6 @@ public class StyleBuilder implements PageGenerator {
 					switch (anonDisplay) {
 					// 匿名セルが生成されている場合は行で止める
 					case DisplayValue.TABLE_ROW:
-						break WHILE;
-					}
-					// 匿名RBが生成されている場合はRBで止める
-					if (CSSJRuby.get(this.currentStyle) == CSSJRubyValue.RB) {
 						break WHILE;
 					}
 					break;

@@ -30,7 +30,7 @@ public enum WorklistTailGate {
 	NO_LEGACY_OPEN_TAIL,
 	/**
 	 * 未収集のlegacy開きが残り、そこに{@link ContinuationCapability
-	 * #PLAIN_FLOW}以外のレベル(ruby・float・absolute・書字方向不一致
+	 * #PLAIN_FLOW}以外のレベル(float・absolute・書字方向不一致
 	 * 祖先等)が含まれる。改ページ契約(ARCHITECTURE.md §5.10)どおり
 	 * legacy OpenChain再帰(段組貫通MOVE専用の経路)で駆動する。
 	 */

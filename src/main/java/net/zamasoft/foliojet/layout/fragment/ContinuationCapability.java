@@ -17,20 +17,15 @@ public enum ContinuationCapability {
 	/** plain {@code FlowBlockBox}、ルートと同一書字方向——収集可能。 */
 	PLAIN_FLOW,
 
-	/** 段組({@code MulticolumnBlockBox}、{@code column-count>1}相当)。 */
-	MULTICOL,
-
 	/**
-	 * {@code FlowBlockBox}の{@link #MULTICOL}以外のサブタイプ(例:
-	 * {@code RubyBodyBox})、かつanchorと同一書字方向。{@code getClass()
-	 * == FlowBlockBox.class}という完全一致判定により機械的に除外される。
-	 * 2026-07-21(B5)、軸判定をサブタイプ判定より先に行うよう{@link
-	 * #classify}を修正した——直交writing-modeのサブタイプ(例:
-	 * 横書きroot内の縦書きRubyBodyBox)を誤って{@code FLOW_SUBTYPE}
-	 * (収集許可)に分類せず{@link #ORTHOGONAL_FLOW}(収集不許可)に
-	 * 分類するため(codexへの設計相談で発見)。
+	 * 段組({@code MulticolumnBlockBox}、{@code column-count>1}相当)。
+	 * かつては{@code FlowBlockBox}の段組以外のサブタイプを表す
+	 * {@code FLOW_SUBTYPE}分類が並存していたが、唯一の実装だった
+	 * {@code RubyBodyBox}がルビの注釈付きテキスト化(2026-07-25仕様裁定、
+	 * docs/history/2026-07-25-ruby-annotation-spec-decision.md)で消滅した
+	 * ため撤去した——現在{@code FlowBlockBox}のサブタイプは段組のみ。
 	 */
-	FLOW_SUBTYPE,
+	MULTICOL,
 
 	/**
 	 * ルートと同じ軸(横書き/縦書き)だが、方向が異なる
@@ -93,7 +88,7 @@ public enum ContinuationCapability {
 	 */
 	public boolean supportsPageSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW, MULTICOL, FLOW_SUBTYPE -> true;
+		case PLAIN_FLOW, MULTICOL -> true;
 		default -> false;
 		};
 	}
@@ -112,7 +107,7 @@ public enum ContinuationCapability {
 	 */
 	public boolean supportsColumnSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
 		return switch (this) {
-		case PLAIN_FLOW, FLOW_SUBTYPE -> true;
+		case PLAIN_FLOW -> true;
 		default -> false;
 		};
 	}
@@ -130,23 +125,19 @@ public enum ContinuationCapability {
 		}
 		// 2026-07-21(B5): 軸判定をサブタイプ判定より先に行う(旧実装は
 		// exact-classチェックが先だったため、直交writing-modeの
-		// MulticolumnBlockBox/RubyBodyBox等がORTHOGONAL_FLOWではなく
-		// MULTICOL/FLOW_SUBTYPEに誤分類されていた——codexへの設計相談で
-		// 発見)。全FlowBlockBoxサブタイプに対し、まず軸の一致・不一致を
-		// 一律に判定してから、一致する場合のみサブタイプ固有の分類へ進む。
+		// MulticolumnBlockBox等がORTHOGONAL_FLOWではなくMULTICOLに
+		// 誤分類されていた——codexへの設計相談で発見)。全FlowBlockBox
+		// サブタイプに対し、まず軸の一致・不一致を一律に判定してから、
+		// 一致する場合のみサブタイプ固有の分類へ進む。
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = ((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) b)
 				.getBlockParams().flow;
 		if (flow != anchorFlow) {
 			return flow.isVertical() != anchorFlow.isVertical() ? ORTHOGONAL_FLOW : SAME_AXIS_DIRECTION_CHANGE;
 		}
-		if (b.getClass() != net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class) {
-			return b instanceof net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox ? MULTICOL : FLOW_SUBTYPE;
-		}
-		// getColumnCount()<=1はexact-class FlowBlockBoxでは常に真
-		// (AbstractContainerBox.getColumnCount()のデフォルトは1、段組は
-		// MulticolumnBlockBoxという別クラスとしてのみ存在するため、この
-		// 分岐は事実上到達しないが、旧実装の条件式との厳密な等価性を
-		// 保つため維持する——2026-07-21のChatGPT Pro相談で確認)。
-		return ((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) b).getColumnCount() <= 1 ? PLAIN_FLOW : MULTICOL;
+		// FlowBlockBoxのサブタイプは現在MulticolumnBlockBox(段組)のみ
+		// (旧RubyBodyBoxは2026-07-25のルビ注釈付きテキスト化で消滅)。
+		// exact-class判定を維持し、未知のサブタイプが将来現れても
+		// PLAIN_FLOW(最も寛大な分類)には倒さない。
+		return b.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class ? PLAIN_FLOW : MULTICOL;
 	}
 }

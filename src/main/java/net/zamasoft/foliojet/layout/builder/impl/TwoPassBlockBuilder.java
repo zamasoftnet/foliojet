@@ -916,7 +916,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void control(final TextControl quad) {
 		final TwoPass inlineBlockMeasure;
-		if (quad instanceof InlineBlockQuad inlineBlockQuad) {
+		if (quad instanceof InlineBlockQuad inlineBlockQuad && !inlineBlockQuad.box.isPreMeasured()) {
 			// ネストした実測ビルダーをイベントに内包する(旧: recordInlineBlocks 側チャネル)
 			inlineBlockMeasure = this.pendingInlineBlock;
 			assert inlineBlockMeasure != null;

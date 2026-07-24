@@ -34,8 +34,6 @@ public interface IBox {
 	 */
 	public BoxType getType();
 
-	public BoxSubtype getSubtype();
-
 	/**
 	 * 内容のパラメータを返します。
 	 * 

@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
-import net.zamasoft.foliojet.layout.box.BoxSubtype;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
@@ -34,7 +33,7 @@ public class ContinuationValidatorTest extends TestCase {
 		for (int i = 0; i < depth; ++i) {
 			final OpenPathSnapshot.OpenLevelRole role = i == 0 ? new OpenPathSnapshot.OpenLevelRole.Anchor(anchorKind)
 					: new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW);
-			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, FlowBlockBox.class, BoxSubtype.NONE,
+			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, FlowBlockBox.class,
 					WritingMode.TB, 1, i, role));
 		}
 		return new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
@@ -160,12 +159,12 @@ public class ContinuationValidatorTest extends TestCase {
 		final Continuation continuation = new Continuation(3, frame, Map.of());
 
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
-				new OpenPathSnapshot.OpenLevelDescriptor(0, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1, 0,
+				new OpenPathSnapshot.OpenLevelDescriptor(0, FlowBlockBox.class, WritingMode.TB, 1, 0,
 						new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
-				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, BoxSubtype.NONE,
+				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class,
 						WritingMode.TB, 2, 1,
 						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.MULTICOL)),
-				new OpenPathSnapshot.OpenLevelDescriptor(2, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1, 2,
+				new OpenPathSnapshot.OpenLevelDescriptor(2, FlowBlockBox.class, WritingMode.TB, 1, 2,
 						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW)));
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
 
@@ -320,12 +319,12 @@ public class ContinuationValidatorTest extends TestCase {
 
 		// 一致(snapshotのdescriptorと同一の署名)
 		ContinuationValidator.checkFragmentSignature(snapshot, 0,
-				new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1));
+				new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.TB, 1));
 
 		// class不一致
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 0, new OpenPathSnapshot.FragmentSignature(
-					MulticolumnBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1));
+					MulticolumnBlockBox.class, WritingMode.TB, 1));
 			fail("class不一致の署名は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
 			// 期待通り
@@ -334,7 +333,7 @@ public class ContinuationValidatorTest extends TestCase {
 		// writing-mode不一致
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 1,
-					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, BoxSubtype.NONE, WritingMode.RL, 1));
+					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.RL, 1));
 			fail("writing-mode不一致の署名は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
 			// 期待通り
@@ -343,7 +342,7 @@ public class ContinuationValidatorTest extends TestCase {
 		// column-count不一致
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 1,
-					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 2));
+					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.TB, 2));
 			fail("column-count不一致の署名は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
 			// 期待通り
@@ -352,7 +351,7 @@ public class ContinuationValidatorTest extends TestCase {
 		// index範囲外
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 2,
-					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1));
+					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.TB, 1));
 			fail("snapshot深さ超過のindexは拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
 			// 期待通り

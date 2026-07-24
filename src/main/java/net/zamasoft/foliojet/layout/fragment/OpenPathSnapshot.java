@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
-import net.zamasoft.foliojet.layout.box.BoxSubtype;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
@@ -58,8 +57,7 @@ public record OpenPathSnapshot(WritingMode anchorFlow, List<OpenLevelDescriptor>
 	 * flowStackの1レベルの、mutableなボックスから独立した記述です。
 	 *
 	 * @param index       flowStack上の位置(0 = root)
-	 * @param boxClass    実行時クラス(段組・RubyBodyBox等のサブタイプ判定に使う)
-	 * @param subtype     {@link net.zamasoft.foliojet.layout.box.IBox#getSubtype()}
+	 * @param boxClass    実行時クラス(段組等のサブタイプ判定に使う)
 	 * @param flow        書字方向
 	 * @param columnCount 段組数
 	 * @param sourceAnchor split前のソースアンカー(診断用。resume後の新
@@ -67,24 +65,25 @@ public record OpenPathSnapshot(WritingMode anchorFlow, List<OpenLevelDescriptor>
 	 *                     には使わない)
 	 * @param role        rootか分類済み祖先か
 	 */
-	public record OpenLevelDescriptor(int index, Class<? extends AbstractContainerBox> boxClass, BoxSubtype subtype,
+	public record OpenLevelDescriptor(int index, Class<? extends AbstractContainerBox> boxClass,
 			WritingMode flow, int columnCount, long sourceAnchor, OpenLevelRole role) {
 
 		/** resume時の実fragmentと照合するための署名。 */
 		public FragmentSignature fragmentSignature() {
-			return new FragmentSignature(this.boxClass, this.subtype, this.flow, this.columnCount);
+			return new FragmentSignature(this.boxClass, this.flow, this.columnCount);
 		}
 	}
 
 	/**
-	 * fragment identityの照合キーです(class/subtype/flow/columnCount)。
-	 * {@code sourceAnchor}は含めない(新fragmentは旧anchorを継承しないため)。
+	 * fragment identityの照合キーです(class/flow/columnCount。実行時
+	 * クラスがサブタイプ——段組——も区別する)。{@code sourceAnchor}は
+	 * 含めない(新fragmentは旧anchorを継承しないため)。
 	 */
-	public record FragmentSignature(Class<? extends AbstractContainerBox> boxClass, BoxSubtype subtype,
+	public record FragmentSignature(Class<? extends AbstractContainerBox> boxClass,
 			WritingMode flow, int columnCount) {
 
 		public static FragmentSignature from(final AbstractContainerBox box) {
-			return new FragmentSignature(box.getClass(), box.getSubtype(), box.getBlockParams().flow,
+			return new FragmentSignature(box.getClass(), box.getBlockParams().flow,
 					box.getColumnCount());
 		}
 	}

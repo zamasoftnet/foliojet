@@ -1,0 +1,33 @@
+<?jp.cssj.property name="output.page-width" value="220pt"?>
+<?jp.cssj.property name="output.page-height" value="260pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>ruby annotation units characterization</title>
+    <!--
+      ルビ単位(注釈付きテキスト方式、2026-07-25仕様裁定)の内容・寸法の
+      golden固定。表示リストのRubyUnit[...]行が、親文字・ふりがな・
+      単位の寸法(行方向=max(親文字, ふりがな)、ページ方向=親文字のみ)を
+      そのまま示すため、単位の組み立てを直接検証できる。
+      覆う条件: 複数rb/rtの対応づけ、HTML5形式(rb無し)の複数ペア、
+      rb/rt/内側spanの書式、ネストしたマークアップ、片側だけの
+      malformed、縦書き。
+    -->
+    <style type="text/css">
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 10pt; line-height: 2; }
+      p { margin: 0; }
+      .vert { -cssj-writing-mode: tb-rl; height: 80pt; }
+      .bold { font-weight: bold; }
+      .red { color: #cc0000; }
+    </style>
+  </head>
+  <body>
+    <p><ruby><rb>京</rb><rb>都</rb><rt>きょう</rt><rt>と</rt></ruby></p>
+    <p><ruby>漢<rt>かん</rt>字<rt>じ</rt></ruby></p>
+    <p><ruby><rb class="bold">東</rb><rt class="red">ひがし</rt></ruby></p>
+    <p><ruby><span class="red">快</span><rp>（</rp><rt>こころよ</rt><rp>）</rp></ruby>い</p>
+    <p><ruby>素通り</ruby>|<ruby><rt>のみ</rt></ruby></p>
+    <div class="vert">縦<ruby><rb>蜻蛉</rb><rt>とんぼ</rt></ruby>書き</div>
+  </body>
+</html>

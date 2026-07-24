@@ -3,7 +3,15 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>ruby split-through characterization</title>
+    <title>ruby line-splitting characterization</title>
+    <!--
+      ルビ段落のページまたぎ特性のgolden固定。
+      注釈付きテキスト方式(2026-07-25仕様裁定)では、ルビ1単位
+      (親文字+ふりがな)は行内で分割不可の1アイテムだが単位<行の
+      ため、ページ境界では段落の行分割で自然に泣き別れする——
+      旧箱方式の「同方向ルビ本文は分割可」という特別契約は消滅した。
+    -->
+
     <style type="text/css">
       @page { margin: 0; }
       body { margin: 0; font-size: 10pt; line-height: 2; }

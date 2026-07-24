@@ -195,7 +195,7 @@ public final class LayoutSource implements AutoCloseable {
 
 	/**
 	 * 範囲replay不能マーカーです(recipe化に対応していないボックス種別
-	 * ——表キャプション・ルビ・絶対/浮動の表など{@code StyleBuilder.boxKind}
+	 * ——表キャプション・表本体・絶対/浮動の表など{@code StyleBuilder.boxKind}
 	 * がnullを返すもの(絶対配置ブロックはE-6増分4eでrecipe記録へ昇格)、
 	 * および未知の{@code AbstractReplacedBox}
 	 * サブクラスのfail closed)。ログの完全性(正直な全記録)のために

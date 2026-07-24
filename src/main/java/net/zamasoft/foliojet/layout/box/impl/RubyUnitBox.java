@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.DrawStep;
+import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
@@ -13,6 +14,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
@@ -30,16 +32,14 @@ import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.pdfg2d.gc.text.TextShaper;
 
 /**
- * 注釈付きテキスト方式のルビ1単位です(2026-07-25新設、F-1試作。
- * {@code text.ruby=annotation}のときだけ生成される——仕様裁定は
+ * ルビ1単位です(注釈付きテキスト方式、2026-07-25新設——仕様裁定は
  * docs/history/2026-07-25-ruby-annotation-spec-decision.md)。
  *
  * <p>
  * 親文字列+ふりがな文字列のペアを、行内で分割不可のatomic inline
  * (インラインブロック扱い)として組みます。幅はmax(親文字幅,
  * ふりがな幅)で、狭い方は単位内で均等配置。ふりがなは親の半分の
- * フォントサイズ・同フォントで、横書きは行の上側、縦書きは行の右側に
- * 付きます。
+ * フォントサイズで、横書きは行の上側、縦書きは行の右側に付きます。
  * </p>
  *
  * <p>
@@ -48,8 +48,7 @@ import net.zamasoft.pdfg2d.gc.text.TextShaper;
  * 日本語組版の原則(行送り一定、ルビは行間に置く)に反すると裁定
  * された)。ふりがなは箱の外(横書きは上端の上、縦書きは右端の右=
  * 行間の余白)へはみ出して描かれます。行間の確保はデザイナー責任
- * (ルビを使う文書はline-heightを広めに取る)。祖先のoverflowクリップ
- * で切れる可能性は現行box方式の食い込み描画と同等で許容。基底線は
+ * (ルビを使う文書はline-heightを広めに取る)。基底線は
  * {@code TextBuilder}のBLOCK経路が{@code getLastDescent()}で親文字の
  * 基底線に合わせるため、行送りは周囲のテキストと完全に一致します。
  * </p>
@@ -59,6 +58,15 @@ import net.zamasoft.pdfg2d.gc.text.TextShaper;
  * 半サイズの注釈)を自前で描画します。コンテナは空のまま
  * ({@code InlineBlockBox}の分割・finishLayout等の既存機構と衝突
  * しない)。
+ * </p>
+ *
+ * <p>
+ * {@code params.element}は<b>null</b>です。この箱はDOM要素に対応する
+ * 箱ではなく、ルビ範囲の文字から合成されたものだからです。ルビ要素
+ * 自身のidentity(id・ハイパーリンク・Tagged PDFロール)は、通常の
+ * インラインとして残る外側の{@code InlineBox}が持ちます
+ * (codex独立レビュー 2026-07-25の設計裁定(d))。rb/rt個別の
+ * アンカーやPDFのRuby/RB/RT構造型は、将来の専用メタデータの課題です。
  * </p>
  */
 public class RubyUnitBox extends InlineBlockBox {
@@ -70,7 +78,20 @@ public class RubyUnitBox extends InlineBlockBox {
 
 	private final TextImpl[] rubyTexts;
 
-	private final boolean vertical;
+	/** 親文字の色です(nullなら継承色のまま)。 */
+	private final Color baseColor;
+
+	/** ふりがなの色です(nullなら継承色のまま)。 */
+	private final Color rubyColor;
+
+	/**
+	 * 書字方向です。ふりがなを置く側(=行の「上」側)の決定に使います。
+	 * 縦書き({@link WritingMode#RL}/{@link WritingMode#LR})では、本エンジンは
+	 * 基底線の左に descent・右に ascent を取る({@code TextBuilder}の
+	 * 縦書き経路がRL/LRを同一に扱う)ため、どちらも<b>+x側</b>が文字の
+	 * 上側になります。ふりがなはその上側=+x方向へ置きます。
+	 */
+	private final WritingMode flow;
 
 	/** 親文字の基底線上側(縦書きは右側)の寸法です。 */
 	private final double baseAscent;
@@ -93,24 +114,37 @@ public class RubyUnitBox extends InlineBlockBox {
 	/** テキスト抽出・禁則判定用の文字列(親文字、無ければふりがな)です。 */
 	private final String text;
 
+	/**
+	 * この単位が消費したソース文字の範囲です(生成内容など出所が無ければ
+	 * どちらも-1)。改ページの部分再生で「単位の途中から再開しない」ことを
+	 * 保証するために使います({@code AbstractTextBox.lastCharEnd()}/
+	 * {@code firstCharOffset()}・配達済み終端の前進)。
+	 */
+	private final int sourceStart, sourceEnd;
+
 	private RubyUnitBox(final BlockParams params, final InlinePos pos, final RubyUnitContainer container,
-			final TextImpl[] baseTexts, final TextImpl[] rubyTexts, final boolean vertical, final double lineExtent,
-			final double baseAscent, final double baseDescent, final double rubyAscent, final double rubyDescent,
-			final String text) {
+			final TextImpl[] baseTexts, final TextImpl[] rubyTexts, final Color baseColor, final Color rubyColor,
+			final WritingMode flow, final double lineExtent, final double baseAscent, final double baseDescent,
+			final double rubyAscent, final double rubyDescent, final String text, final int sourceStart,
+			final int sourceEnd) {
 		super(params, pos, Dimension.AUTO_DIMENSION, Dimension.ZERO_DIMENSION,
 				new AbsoluteRectFrame(RectFrame.NULL_FRAME), container);
 		this.baseTexts = baseTexts;
 		this.rubyTexts = rubyTexts;
-		this.vertical = vertical;
+		this.baseColor = baseColor;
+		this.rubyColor = rubyColor;
+		this.flow = flow;
 		this.baseAscent = baseAscent;
 		this.baseDescent = baseDescent;
 		this.rubyAscent = rubyAscent;
 		this.rubyDescent = rubyDescent;
 		this.text = text;
+		this.sourceStart = sourceStart;
+		this.sourceEnd = sourceEnd;
 		// ページ方向の寸法=親文字のみ(仕様修正2026-07-25: 行送り一定。
 		// ふりがなは箱の外——行間の余白——へはみ出して描く)
 		final double pageExtent = baseDescent + baseAscent;
-		if (vertical) {
+		if (flow.isVertical()) {
 			// 縦書き: 行方向=縦、ページ方向=横。左からbaseDescent, 基底線,
 			// baseAscent。ふりがな列は右端の右外
 			this.width = pageExtent;
@@ -125,28 +159,59 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
+	 * 常にtrueです。ルビ単位は構築時に整形済みで寸法が確定しており、
+	 * shrink-to-fitの実測(ネストしたビルダー)を必要としません。
+	 */
+	public boolean isPreMeasured() {
+		return true;
+	}
+
+	/**
+	 * この単位が消費したソース文字の先頭オフセットです(無ければ-1)。
+	 */
+	public int getSourceStart() {
+		return this.sourceStart;
+	}
+
+	/**
+	 * この単位が消費したソース文字の終端(exclusive)です(無ければ-1)。
+	 */
+	public int getSourceEnd() {
+		return this.sourceEnd;
+	}
+
+	/**
 	 * ルビ単位を組み立てます。親文字・ふりがなの両方が空の場合はnullを
 	 * 返します(単位を生成しない)。
 	 *
-	 * @param src        ルビコンテナ(ruby要素)のインラインパラメータ
-	 *                   (親文字は周囲のスタイルを継承する——単位内は
-	 *                   この単一スタイル)
-	 * @param baseText   親文字列(空可)
-	 * @param baseOffset 親文字列のソース文字オフセット(生成内容は-1)
-	 * @param rubyText   ふりがな文字列(空可)
-	 * @param rubyOffset ふりがな文字列のソース文字オフセット
+	 * @param container   ルビコンテナ(ruby要素)のインラインパラメータ
+	 *                    (構造的な文脈——フォント管理・書字方向・禁則——の
+	 *                    出所)
+	 * @param baseText    親文字列(空可)
+	 * @param baseParams  親文字の書式(空のときは{@code container})
+	 * @param baseOffset  親文字列のソース文字オフセット(生成内容は-1)
+	 * @param rubyText    ふりがな文字列(空可)
+	 * @param rubyParams  ふりがなの書式(空のときは{@code container})
+	 * @param rubyOffset  ふりがな文字列のソース文字オフセット
+	 * @param sourceStart 単位が消費したソースの先頭(無ければ-1)
+	 * @param sourceEnd   単位が消費したソースの終端(無ければ-1)
 	 */
-	public static RubyUnitBox create(final InlineParams src, final String baseText, final int baseOffset,
-			final String rubyText, final int rubyOffset) {
+	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
+			final int baseOffset, final String rubyText, final InlineParams rubyParams, final int rubyOffset,
+			final int sourceStart, final int sourceEnd) {
 		if (baseText.isEmpty() && rubyText.isEmpty()) {
 			return null;
 		}
-		final FontStyle baseFs = src.fontStyle;
-		final FontStyle rubyFs = new FontStyleImpl(baseFs.getFamily(), baseFs.getSize() / 2.0, baseFs.getStyle(),
-				baseFs.getWeight(), baseFs.getDirection(), baseFs.getPolicy());
+		final InlineParams bp = baseParams == null ? container : baseParams;
+		final InlineParams rp = rubyParams == null ? container : rubyParams;
+		final FontStyle baseFs = bp.fontStyle;
+		final FontStyle rubyBaseFs = rp.fontStyle;
+		// ふりがなは親文字の半分のサイズ。ファミリ・字面はrt側の指定に従う
+		final FontStyle rubyFs = new FontStyleImpl(rubyBaseFs.getFamily(), baseFs.getSize() / 2.0,
+				rubyBaseFs.getStyle(), rubyBaseFs.getWeight(), rubyBaseFs.getDirection(), rubyBaseFs.getPolicy());
 
-		final TextImpl[] baseTexts = shape(src, baseFs, baseText, baseOffset);
-		final TextImpl[] rubyTexts = rubyText.isEmpty() ? new TextImpl[0] : shape(src, rubyFs, rubyText, rubyOffset);
+		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset);
+		final TextImpl[] rubyTexts = rubyText.isEmpty() ? new TextImpl[0] : shape(rp, rubyFs, rubyText, rubyOffset);
 
 		final double baseAdvance = totalAdvance(baseTexts);
 		final double rubyAdvance = totalAdvance(rubyTexts);
@@ -171,7 +236,7 @@ public class RubyUnitBox extends InlineBlockBox {
 			baseDescent = maxDescent(baseTexts);
 		} else {
 			// 親文字が空の単位(rt先行等)はフォールバックリストの値
-			final FontListMetrics baseFlm = src.fontManager.getFontListMetrics(baseFs);
+			final FontListMetrics baseFlm = bp.fontManager.getFontListMetrics(baseFs);
 			baseAscent = baseFlm.getMaxAscent();
 			baseDescent = baseFlm.getMaxDescent();
 		}
@@ -186,14 +251,18 @@ public class RubyUnitBox extends InlineBlockBox {
 		}
 
 		final BlockParams params = new BlockParams();
-		params.element = src.element;
-		params.opacity = src.opacity;
+		// DOM要素ではない合成箱(identityは外側のruby InlineBoxが持つ)
+		params.element = null;
+		params.opacity = bp.opacity;
 		params.fontStyle = baseFs;
-		params.fontManager = src.fontManager;
-		params.lineBreakRules = src.lineBreakRules;
-		params.flow = src.flow;
-		params.direction = src.direction;
-		params.color = src.color;
+		// 書式は親文字側(base)の指定に従う。禁則・言語依存の処理も
+		// 親文字が主体(ふりがなは単位内に閉じて分割されない)
+		params.fontManager = bp.fontManager;
+		params.lineBreakRules = bp.lineBreakRules;
+		params.direction = bp.direction;
+		// 書字方向だけは行の文脈(=ルビコンテナ)に従う
+		params.flow = container.flow;
+		params.color = bp.color;
 		params.whiteSpace = AbstractTextParams.WHITE_SPACE_NOWRAP;
 		// 行送りは行側のline-heightに従う(TextBuilderのBLOCK経路は
 		// pos.lineHeightと行のline-heightのmaxを適用する)
@@ -203,8 +272,9 @@ public class RubyUnitBox extends InlineBlockBox {
 		pos.lineHeight = 0;
 
 		final String text = baseText.isEmpty() ? rubyText : baseText;
-		return new RubyUnitBox(params, pos, new RubyUnitContainer(), baseTexts, rubyTexts, src.flow.isVertical(),
-				lineExtent, baseAscent, baseDescent, rubyAscent, rubyDescent, text);
+		return new RubyUnitBox(params, pos, new RubyUnitContainer(), baseTexts, rubyTexts, bp.color, rp.color,
+				container.flow, lineExtent, baseAscent, baseDescent, rubyAscent, rubyDescent, text, sourceStart,
+				sourceEnd);
 	}
 
 	/**
@@ -309,13 +379,17 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * 禁則判定({@code InlineBlockQuad.getString()})・テキスト抽出用に
-	 * 親文字列を返します。コンテナ経由の抽出
-	 * ({@code pushGetTextSteps}——{@code FlowContainer}側でfinal)は
-	 * 空になるため、直接の{@code getText}呼び出しだけがこの内容を得ます
-	 * (F-1の割り切り)。
+	 * テキスト抽出で<b>親文字</b>を返します(ふりがなは読みの注釈であり
+	 * 本文ではないため出さない——リンクの代替テキスト・string-setの
+	 * content()・ブックマーク見出し・target-text()に共通の方針)。
+	 * 親文字が無い単位(malformed)だけはふりがなを本文の代わりに出します。
+	 *
+	 * <p>
+	 * コンテナ({@code FlowContainer})は空なので、抽出はこの上書きだけが
+	 * 担います。
+	 * </p>
 	 */
-	public void getText(final StringBuilder textBuff) {
+	public void pushGetTextSteps(final StringBuilder textBuff, final java.util.Deque<GetTextStep> worklist) {
 		textBuff.append(this.text);
 	}
 
@@ -329,9 +403,7 @@ public class RubyUnitBox extends InlineBlockBox {
 		if (this.params.opacity == 0) {
 			return;
 		}
-		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 		drawer.visitDrawable(new RubyUnitDrawable(pageBox, clip, transform, this), x, y);
-		pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 	}
 
 	/**
@@ -363,38 +435,38 @@ public class RubyUnitBox extends InlineBlockBox {
 		public void innerDraw(final GC gc, final double x, final double y) throws GraphicsException {
 			final RubyUnitBox box = this.box;
 			try (final var gcState = gc.begin()) {
-				final Color color = box.params.color;
-				if (color != null) {
-					gc.setFillPaint(color);
-				}
-				if (box.vertical) {
+				if (box.flow.isVertical()) {
 					// 縦書き: 親文字列は左からbaseDescentの縦基準線上。
 					// ふりがな列は箱の右端(x+width)の右外=行間の余白
+					// (RL/LRとも本エンジンは+x側を文字の上側に取る)
 					final double baseX = x + box.baseDescent;
-					double yy = y;
-					for (final TextImpl text : box.baseTexts) {
-						gc.drawText(text, baseX, yy);
-						yy += text.getAdvance();
-					}
+					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y, true);
 					final double rubyX = x + box.baseDescent + box.baseAscent + box.rubyDescent;
-					yy = y;
-					for (final TextImpl text : box.rubyTexts) {
-						gc.drawText(text, rubyX, yy);
-						yy += text.getAdvance();
-					}
+					this.drawRun(gc, box.rubyTexts, box.rubyColor, rubyX, y, true);
 				} else {
 					// 横書き: 親文字行が箱の中、ふりがな行は箱の上端(y)の
 					// 上外=行間の余白(基底線はy-rubyDescent)
-					final double rubyY = y - box.rubyDescent;
-					double xx = x;
-					for (final TextImpl text : box.rubyTexts) {
-						gc.drawText(text, xx, rubyY);
-						xx += text.getAdvance();
-					}
-					final double baseY = y + box.baseAscent;
-					xx = x;
-					for (final TextImpl text : box.baseTexts) {
-						gc.drawText(text, xx, baseY);
+					this.drawRun(gc, box.rubyTexts, box.rubyColor, x, y - box.rubyDescent, false);
+					this.drawRun(gc, box.baseTexts, box.baseColor, x, y + box.baseAscent, false);
+				}
+			}
+		}
+
+		private void drawRun(final GC gc, final TextImpl[] texts, final Color color, final double x, final double y,
+				final boolean vertical) throws GraphicsException {
+			if (texts.length == 0) {
+				return;
+			}
+			try (final var gcState = gc.begin()) {
+				if (color != null) {
+					gc.setFillPaint(color);
+				}
+				double xx = x, yy = y;
+				for (final TextImpl text : texts) {
+					gc.drawText(text, xx, yy);
+					if (vertical) {
+						yy += text.getAdvance();
+					} else {
 						xx += text.getAdvance();
 					}
 				}

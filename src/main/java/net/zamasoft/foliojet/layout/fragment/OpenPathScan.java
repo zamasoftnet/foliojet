@@ -99,7 +99,7 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 				}
 			}
 
-			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, box.getClass(), box.getSubtype(),
+			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, box.getClass(),
 					box.getBlockParams().flow, box.getColumnCount(), box.getSourceAnchor(), role));
 		}
 
