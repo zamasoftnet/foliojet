@@ -27,6 +27,24 @@ import java.io.IOException;
  * </p>
  */
 public final class TextSpill implements AutoCloseable {
+	/**
+	 * spill I/O障害の注入点です(テスト専用——{@link SpillStore.TempFileDeleter}
+	 * と同じ流儀。E-6耐久試験(2026-07-24)がspill write/read失敗の型付き
+	 * 失敗({@code TextSpillException})・一時ファイル清算・後続変換の正常
+	 * 動作を検証するために使う)。production経路では常にnullで、nullの
+	 * ときの挙動は注入点導入前と完全に同一。
+	 */
+	interface IOFaultInjector {
+		/** {@link TextSpill#append}のstore書き込み直前に呼ばれます。 */
+		void beforeAppend() throws IOException;
+
+		/** {@link TextSpill#read}のstore読み出し直前に呼ばれます。 */
+		void beforeRead() throws IOException;
+	}
+
+	/** テスト専用の障害注入フック(TextSpillTestHooks経由で設定)。 */
+	static volatile IOFaultInjector faultInjector = null;
+
 	private final SpillStore store;
 
 	private TextSpill(final SpillStore store) {
@@ -43,6 +61,10 @@ public final class TextSpill implements AutoCloseable {
 	 * recordId(0起点の連番)を返します。
 	 */
 	public long append(final char[] ch, final int off, final int len) throws IOException {
+		final IOFaultInjector injector = faultInjector;
+		if (injector != null) {
+			injector.beforeAppend();
+		}
 		final byte[] record = new byte[len * 2];
 		for (int i = 0; i < len; ++i) {
 			final char c = ch[off + i];
@@ -60,6 +82,10 @@ public final class TextSpill implements AutoCloseable {
 	 * {@link IOException}で失敗する。
 	 */
 	public char[] read(final long recordId, final int expectedUtf16Length) throws IOException {
+		final IOFaultInjector injector = faultInjector;
+		if (injector != null) {
+			injector.beforeRead();
+		}
 		final byte[] record = this.store.read(recordId);
 		if (record.length != expectedUtf16Length * 2) {
 			throw new IOException("spilled text record corrupted (length " + record.length + " != "
