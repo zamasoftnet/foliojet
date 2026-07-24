@@ -140,6 +140,14 @@ public class DisplayListGoldenTest extends TestCase {
 		s.append("  CELL_RANGE_BINDS=").append(cellRangeBinds).append('\n');
 		s.append("  CELL_LEGACY_BINDS=")
 				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_LEGACY_BINDS.get()).append('\n');
+		// E-6増分5b-2: 表Pass C(行単位逐次bind)の表単位採用率
+		final long passCTables = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_PASS_C_TABLES.get();
+		final long legacyBindRows = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_LEGACY_BINDROWS.get();
+		s.append("  TABLE_PASS_C_TABLES=").append(passCTables).append('\n');
+		s.append("  TABLE_LEGACY_BINDROWS=").append(legacyBindRows).append('\n');
+		s.append("  TABLE_PASS_B_CELL_MEASURES=")
+				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get())
+				.append('\n');
 		long total = seals;
 		for (final net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject r : net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject
 				.values()) {
@@ -164,6 +172,11 @@ public class DisplayListGoldenTest extends TestCase {
 		if (cellSeals != cellRangeBinds) {
 			failures.add("セルseal数とセルrange bind数が一致しません(セルのリース取り残しの疑い): cellSeals="
 					+ cellSeals + ", cellRangeBinds=" + cellRangeBinds);
+		}
+		// E-6増分5b-2: 表Pass C(行単位逐次bind)の配線検証。コーパスは全実セル
+		// 適格のRetained表を含むため、Pass Cが一度も発火しないのは空虚な緑
+		if (passCTables == 0) {
+			failures.add("表Pass C(E-6増分5b-2)がgoldenコーパスで一度も発火していません(空虚な緑)");
 		}
 	}
 

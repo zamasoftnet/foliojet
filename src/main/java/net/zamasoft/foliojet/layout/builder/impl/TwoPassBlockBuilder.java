@@ -662,6 +662,18 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * {@code CellContent.sealForRangeBind})はfail closedでビルダー保持を
 	 * 継続する。
 	 */
+	/**
+	 * 本文が「records空のLegacyRecords」か(=bindが何も再演しない空本文か)を
+	 * 返します(E-6増分5b-2、2026-07-24)。空セル({@code <td></td>}等)は
+	 * 子イベントを持たずEMPTY_RANGEでseal不適格になるが、bindは本文非依存
+	 * (BlockBuilderのopen/closeのみ)のため、表Pass Bはビルダーに触れずに
+	 * 複製セルbox上のclose-onlyで計測できる——この判定はその適格条件
+	 * ({@code CellContent.isPassBMeasurable})の部品。
+	 */
+	boolean hasEmptyRecordedBody() {
+		return this.body instanceof ReplayBody.LegacyRecords legacy && legacy.records.isEmpty();
+	}
+
 	public DeferredBind detachDeferredBind() {
 		if (!(this.body instanceof ReplayBody.SourceRangeBody range)) {
 			return null;

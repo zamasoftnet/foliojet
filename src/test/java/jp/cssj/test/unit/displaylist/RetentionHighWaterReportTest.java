@@ -54,6 +54,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 		final long autoBefore = TableBuildStats.retentionReasonCount(TableRetentionReason.AUTO_COLUMNS);
 		final long cellSealsBefore = ContinuationStats.CELL_RANGE_SEALS.get();
 		final long cellRangeBindsBefore = ContinuationStats.CELL_RANGE_BINDS.get();
+		final long passCTablesBefore = ContinuationStats.TABLE_PASS_C_TABLES.get();
+		final long passBMeasuresBefore = ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get();
 		final File doc = generateAutoTable("e6-hw-auto-table", bodyRows, columns);
 		this.transcode(doc, "e6-hw-auto-table", 1);
 
@@ -93,6 +95,15 @@ public class RetentionHighWaterReportTest extends TestCase {
 					cellSeals >= bodyRows);
 			assertEquals("セルseal数とセルrange bind数が一致しません(リース取り残しの疑い)", cellSeals,
 					cellRangeBinds);
+
+			// E-6増分5b-2: 全実セルがseal適格のこの表はPass C(行単位逐次bind)で
+			// 処理され、Pass B(行計測)が実セル規模で発火する——「行高計算中は
+			// bind済みセル本文木ゼロ(計測木は都度破棄)」の観測指標
+			assertTrue("auto表が表Pass C(行単位逐次bind)で処理されていません",
+					ContinuationStats.TABLE_PASS_C_TABLES.get() > passCTablesBefore);
+			final long passBMeasures = ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get() - passBMeasuresBefore;
+			assertTrue("表Pass B(行計測)がauto表の実セル規模で発火していません: " + passBMeasures,
+					passBMeasures >= bodyRows);
 		}
 
 		report();
@@ -138,6 +149,10 @@ public class RetentionHighWaterReportTest extends TestCase {
 		s.append("  CELL_RANGE_SEALS=").append(ContinuationStats.CELL_RANGE_SEALS.get()).append('\n');
 		s.append("  CELL_RANGE_BINDS=").append(ContinuationStats.CELL_RANGE_BINDS.get()).append('\n');
 		s.append("  CELL_LEGACY_BINDS=").append(ContinuationStats.CELL_LEGACY_BINDS.get()).append('\n');
+		s.append("  TABLE_PASS_C_TABLES=").append(ContinuationStats.TABLE_PASS_C_TABLES.get()).append('\n');
+		s.append("  TABLE_LEGACY_BINDROWS=").append(ContinuationStats.TABLE_LEGACY_BINDROWS.get()).append('\n');
+		s.append("  TABLE_PASS_B_CELL_MEASURES=").append(ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get())
+				.append('\n');
 		for (final TableRetentionReason reason : TableRetentionReason.values()) {
 			s.append("  RETENTION_REASON_").append(reason).append('=')
 					.append(TableBuildStats.retentionReasonCount(reason)).append('\n');

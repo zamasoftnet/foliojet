@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -901,6 +902,23 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			rowCount += rows.size();
 		}
 
+		// E-6増分5b-2(2026-07-24): 表Pass C(行単位逐次bind)の適格判定
+		// (表単位、fail closed——codex設計§4.4)。適格なら以降の行高計算は
+		// bindせずPass Bのscratch計測値だけを読み、bindは行高確定後の
+		// 「セル高さ確定」ループで行ごとに行う(Pass C)。不適格なら従来の
+		// 「行高計算前の全セル一括bind」のまま(計算コードは両経路共有——
+		// 差し替わるのは入力源とbind時点だけ)
+		final boolean rowSequentialBind = this.isRowSequentialBindEligible();
+		if (rowSequentialBind) {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTablePassC();
+		} else {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTableLegacyBindRows();
+		}
+		// Pass B計測値(実セルboxごとの使用ページ方向寸法)。従来経路ではnull
+		final Map<TableCellBox, Double> measuredPageAxis = rowSequentialBind
+				? new IdentityHashMap<TableCellBox, Double>()
+				: null;
+
 		// 行高さの計算
 		double[] rowRatios = new double[rowCount]; // パーセント高さ
 		double rowSizeSum = 0; // 行高さの合計
@@ -980,18 +998,25 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 										+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
 							}
 						}
-						// E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、
-						// 不適格セルは従来のrecords再演(CellContent.bindが分岐)
-						// E-6増分5b-1: shadow検証フック(テスト専用、production=null)
-						final CellBindShadow shadow = cellBindShadow;
-						if (shadow != null) {
-							shadow.beforeCellBind(cell, cellBox, this.layoutStack, this.vertical);
-						}
-						final BlockBuilder cellBindBuilder = new BlockBuilder(this.layoutStack, cellBox);
-						cell.bind(cellBindBuilder);
-						cellBindBuilder.close();
-						if (shadow != null) {
-							shadow.afterCellBind(cell, cellBox, this.vertical);
+						if (measuredPageAxis != null) {
+							// E-6増分5b-2 Pass B: bindせずscratch計測(複製box上に
+							// 作った木は値の採取後に破棄——この時点でbind済みセル
+							// 本文木は1つも存在しない)。行高計算はこの計測値だけを
+							// 読む。bind実寸とのbit一致は5b-1の
+							// RetainedCellPassBShadowTestで実証済み
+							final CellPassBMeasurer.Result measured = CellPassBMeasurer.measure(cell, this.layoutStack,
+									this.vertical);
+							if (measured == null) {
+								// isRowSequentialBindEligibleで適格判定済みのため起きない
+								throw new IllegalStateException("Pass C適格表のセルがPass B計測できません");
+							}
+							measuredPageAxis.put(cellBox, measured.pageAxisSize());
+							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTablePassBCellMeasure();
+						} else {
+							// 従来経路: 行高計算前の一括bind
+							// E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、
+							// 不適格セルは従来のrecords再演(CellContent.bindが分岐)
+							this.bindCell(cell, cellBox);
 						}
 
 						this.cellToSource.put(cellBox, rowBox.addTableSourceCell(cellBox));
@@ -1010,7 +1035,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 							}
 							double cellSize;
 							if (this.vertical) {
-								cellSize = cellBox.getWidth();
+								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
 								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 									double width = cellParams.size.getWidth();
 									if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
@@ -1019,7 +1044,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 									cellSize = Math.max(cellSize, width);
 								}
 							} else {
-								cellSize = cellBox.getHeight();
+								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
 								if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 									double height = cellParams.size.getHeight();
 									if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
@@ -1045,13 +1070,13 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 							final BlockParams cellParams = cellBox.getBlockParams();
 							double cellSize;
 							if (this.vertical) {
-								cellSize = cellBox.getWidth();
+								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
 								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 									double width = cellParams.size.getWidth();
 									cellSize = Math.max(cellSize, width);
 								}
 							} else {
-								cellSize = cellBox.getHeight();
+								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
 								if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 									double height = cellParams.size.getHeight();
 									cellSize = Math.max(cellSize, height);
@@ -1174,11 +1199,98 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 				rowGroup.addTableRow(rowBox);
 				@SuppressWarnings("unchecked")
 				final List<CellContent> cells = (List<CellContent>) this.rowToCells.get(rowBox);
+				if (measuredPageAxis != null) {
+					// E-6増分5b-2 Pass C: 行単位の逐次bind。確定行高の適用
+					// (applyCellExtents)・baseline整列(maxFirstAscent)の直前に
+					// 当行の実セルをbindする——bind後のセル実寸・firstAscentは
+					// Pass B計測値とbit一致のため、以降が読む値は従来経路と
+					// 同一。bind順(行順・行内セル順)も従来と同一
+					this.bindRowCells(cells);
+				}
 				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
 						this.vertical);
 			}
 		}
 		return rowCount;
+	}
+
+	/**
+	 * 表Pass C(行単位逐次bind)の表単位適格判定です(E-6増分5b-2、
+	 * 2026-07-24——codex設計§4.4のPass B/C。fail closed)。適格条件:
+	 * <ul>
+	 * <li>キャプションなし(キャプションはOpaque記録のレガシービルダーで
+	 * 行構造の外——1つでもあれば表全体を従来経路へ)</li>
+	 * <li>全実セルがPass B計測可能({@link CellContent#isPassBMeasurable}:
+	 * seal済みrange、またはrecords空の空セル。ネストビルダー含みセル等の
+	 * seal不適格セル・段組セルが1つでもあれば表全体を従来経路へ)</li>
+	 * </ul>
+	 */
+	private boolean isRowSequentialBindEligible() {
+		if (!this.topCaptions.isEmpty() || !this.bottomCaptions.isEmpty()) {
+			return false;
+		}
+		for (int i = 0; i < this.rowGroups.size(); ++i) {
+			final List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
+			for (int j = 0; j < rows.size(); ++j) {
+				final List<CellContent> cells = this.rowToCells.get(rows.get(j));
+				for (int k = 0; k < cells.size(); ++k) {
+					final CellContent cell = cells.get(k);
+					if (cell.isExtended()) {
+						continue;
+					}
+					if (!cell.isPassBMeasurable()) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * 行高計算が読むセルの使用ページ方向寸法です(E-6増分5b-2)。Pass C表
+	 * ({@code measured != null})ではPass Bのscratch計測値(bind実寸との
+	 * bit一致は5b-1で実証済み)、従来経路ではbind済みセルboxの実寸。
+	 */
+	private double boundPageAxisSize(final Map<TableCellBox, Double> measured, final TableCellBox cellBox) {
+		if (measured != null) {
+			return measured.get(cellBox);
+		}
+		return this.vertical ? cellBox.getWidth() : cellBox.getHeight();
+	}
+
+	/**
+	 * セル1つをbindします(従来経路の一括bindとPass Cの行順bindの共有核。
+	 * E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、不適格セルは
+	 * records再演——{@code CellContent.bind}が分岐。E-6増分5b-1:
+	 * shadow検証フック(テスト専用、production=null)はbindの直前・直後を
+	 * 観測する)。
+	 */
+	private void bindCell(final CellContent cell, final TableCellBox cellBox) {
+		final CellBindShadow shadow = cellBindShadow;
+		if (shadow != null) {
+			shadow.beforeCellBind(cell, cellBox, this.layoutStack, this.vertical);
+		}
+		final BlockBuilder cellBindBuilder = new BlockBuilder(this.layoutStack, cellBox);
+		cell.bind(cellBindBuilder);
+		cellBindBuilder.close();
+		if (shadow != null) {
+			shadow.afterCellBind(cell, cellBox, this.vertical);
+		}
+	}
+
+	/**
+	 * 行の実セルを行内セル順にbindします(E-6増分5b-2 Pass C)。extended
+	 * (rowspan/colspan継続slot)は持ち主の行・列でbind済み/される。
+	 */
+	private void bindRowCells(final List<CellContent> cells) {
+		for (int k = 0; k < cells.size(); ++k) {
+			final CellContent cell = cells.get(k);
+			if (cell.isExtended()) {
+				continue;
+			}
+			this.bindCell(cell, cell.getCellBox());
+		}
 	}
 
 	/**

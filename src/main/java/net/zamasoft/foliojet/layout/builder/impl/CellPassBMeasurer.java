@@ -61,12 +61,14 @@ final class CellPassBMeasurer {
 	 *                    {@code bindRows}のsetWidth/setHeight後)
 	 * @param layoutStack 本bindと同じlive layoutStack
 	 * @param vertical    表が縦書きならtrue(ページ方向軸の選択)
-	 * @return 計測結果。Pass B対象外(未sealセル・段組セル)はnull
+	 * @return 計測結果。Pass B対象外(records保持の未sealセル・段組セル)は
+	 *         null。records空の未sealセル(空セル——E-6増分5b-2)は本文
+	 *         非依存のためclose-onlyで計測する
 	 */
 	static Result measure(final CellContent cell, final LayoutStack layoutStack, final boolean vertical) {
 		final TwoPassBlockBuilder.DeferredBind body = cell.rangeBody();
-		if (body == null) {
-			// 未seal(records保持)・extendedセルはPass B対象外
+		if (body == null && !cell.isPassBMeasurable()) {
+			// records保持の未sealセル・extendedセルはPass B対象外
 			return null;
 		}
 		final TableCellBox replica = cell.getCellBox().newMeasureReplica();
@@ -74,7 +76,10 @@ final class CellPassBMeasurer {
 			return null;
 		}
 		final BlockBuilder builder = new BlockBuilder(layoutStack, replica);
-		body.measureInto(builder);
+		if (body != null) {
+			body.measureInto(builder);
+		}
+		// bodyがnullの適格セルはrecords空(bindが何も再演しない)——close-only
 		builder.close();
 		return new Result(vertical ? replica.getWidth() : replica.getHeight(), replica.getFirstAscent());
 	}

@@ -440,6 +440,52 @@ public final class ContinuationStats {
 		}
 	}
 
+	// ---- E-6増分5b-2(2026-07-24): 表Pass C(行単位逐次bind)の発火カウンタ群 ----
+
+	/**
+	 * Retained表のbindRowsがPass B/C(全セルscratch計測→行高確定→行単位
+	 * 逐次bind)で走った表の数です(2026-07-24新設、E-6増分5b-2)。適格条件は
+	 * 表単位のfail closed——全実セルがrange化(またはrecords空)済み・
+	 * キャプションなし・全セルが計測複製可能({@code
+	 * RetainedTableBuilder.isRowSequentialBindEligible})。
+	 */
+	public static final AtomicLong TABLE_PASS_C_TABLES = new AtomicLong();
+
+	/**
+	 * 不適格でbindRows従来経路(行高計算前の全セル一括bind)へフォール
+	 * バックしたRetained表の数です(E-6増分5b-2。適格率の分母側)。
+	 */
+	public static final AtomicLong TABLE_LEGACY_BINDROWS = new AtomicLong();
+
+	/**
+	 * Pass B(行計測)のscratch計測の発火数です(E-6増分5b-2)。Pass C表では
+	 * 行高計算はこの計測値だけを読み、bind済みセル本文木は1つも存在しない
+	 * (計測木は値の採取後に破棄)——「Pass B中のセル本文木保持ゼロ」の
+	 * 観測指標。RetentionHighWaterReportTestが実セル規模での発火を固定する。
+	 */
+	public static final AtomicLong TABLE_PASS_B_CELL_MEASURES = new AtomicLong();
+
+	/** Pass B/C経路で処理された表の集計です(E-6増分5b-2)。 */
+	public static void recordTablePassC() {
+		if (live()) {
+			TABLE_PASS_C_TABLES.incrementAndGet();
+		}
+	}
+
+	/** 従来bindRows経路へフォールバックした表の集計です(E-6増分5b-2)。 */
+	public static void recordTableLegacyBindRows() {
+		if (live()) {
+			TABLE_LEGACY_BINDROWS.incrementAndGet();
+		}
+	}
+
+	/** Pass Bのセルscratch計測の集計です(E-6増分5b-2)。 */
+	public static void recordTablePassBCellMeasure() {
+		if (live()) {
+			TABLE_PASS_B_CELL_MEASURES.incrementAndGet();
+		}
+	}
+
 	/** {@code reason}によるseal不適格の回数です(E-6増分4a/4b)。 */
 	public static long twoPassSealRejects(final TwoPassSealReject reason) {
 		return TWO_PASS_SEAL_REJECTS.get(reason).get();
@@ -710,6 +756,9 @@ public final class ContinuationStats {
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);
 		CELL_LEGACY_BINDS.set(0);
+		TABLE_PASS_C_TABLES.set(0);
+		TABLE_LEGACY_BINDROWS.set(0);
+		TABLE_PASS_B_CELL_MEASURES.set(0);
 		for (final AtomicLong counter : TWO_PASS_SEAL_REJECTS.values()) {
 			counter.set(0);
 		}

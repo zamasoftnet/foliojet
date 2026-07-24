@@ -156,7 +156,7 @@ public class TableCellBox extends AbstractContainerBox {
 	 * @return 複製セル。段組セルはnull
 	 */
 	public final TableCellBox newMeasureReplica() {
-		if (!(this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer)) {
+		if (!this.canMeasureReplica()) {
 			// 段組セルのコンテナ複製は未対応(Pass B対象外)
 			return null;
 		}
@@ -172,6 +172,16 @@ public class TableCellBox extends AbstractContainerBox {
 		replica.width = this.width;
 		replica.height = this.height;
 		return replica;
+	}
+
+	/**
+	 * {@link #newMeasureReplica()}が複製を作れるか(=段組セルでないか)を
+	 * 複製を作らずに判定します(E-6増分5b-2、2026-07-24——表Pass Cの
+	 * 表単位適格判定{@code RetainedTableBuilder.isRowSequentialBindEligible}
+	 * がbind前スキャンで使う)。
+	 */
+	public final boolean canMeasureReplica() {
+		return this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer;
 	}
 
 	public final void prepareLayout(double lineSize, TableBox tableBox, AbsoluteInsets spacing) {

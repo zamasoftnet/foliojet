@@ -229,6 +229,28 @@ class CellContent {
 	}
 
 	/**
+	 * 表Pass B(行計測)がこのセルをscratch計測できるかを返します
+	 * (E-6増分5b-2、2026-07-24——表単位のPass C適格判定の部品。
+	 * fail closed)。適格は次の2態:
+	 * <ol>
+	 * <li>seal済み({@link RangeContent}: 範囲再生で計測)</li>
+	 * <li>records空の未sealビルダー(空セル{@code <td></td>}等。
+	 * EMPTY_RANGEでsealされないが、bindが何も再演しない本文非依存の
+	 * セルのため、複製box上のclose-onlyで計測できる)</li>
+	 * </ol>
+	 * どちらも段組セル(計測複製不能——
+	 * {@link TableCellBox#canMeasureReplica})は不適格。extendedは
+	 * 呼び出し側でスキップされる前提。
+	 */
+	boolean isPassBMeasurable() {
+		if (this.cell instanceof RangeContent) {
+			return this.getCellBox().canMeasureReplica();
+		}
+		return this.cell instanceof TwoPassBlockBuilder builder && builder.hasEmptyRecordedBody()
+				&& this.getCellBox().canMeasureReplica();
+	}
+
+	/**
 	 * recordsが現に保持しているglyph数の概算です(E-6増分5a、保持量観測
 	 * 専用——seal済み・extendedは0)。挙動には影響しない。
 	 */
