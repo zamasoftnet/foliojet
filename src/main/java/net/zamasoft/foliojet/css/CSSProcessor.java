@@ -235,6 +235,17 @@ public class CSSProcessor implements XMLHandler {
 		this.builder.finish();
 	}
 
+	/**
+	 * 変換終了時の清算です(E-6増分3b-2)。レイアウトソースのspill
+	 * ストア(一時ファイル)を閉じる。成功・例外を問わずformatterの
+	 * finally(TranscoderHandler.dispose経由)から呼ばれる。冪等。
+	 */
+	public void dispose() {
+		if (this.builder != null) {
+			this.builder.closeLayoutSource();
+		}
+	}
+
 	public void setDocumentLocator(Locator locator) {
 		if (locator instanceof SourceLocator source) {
 			this.sourceLocator = source;

@@ -484,6 +484,22 @@ public final class UAProps {
 			"processing.large-stack-thread.size", 64 * 1024 * 1024);
 
 	/**
+	 * レイアウトソース(LayoutSource)のテキストpayloadをheapへinline
+	 * 保持する上限(bytes)です(既定8MB、2026-07-24新設——E-6増分3b-2)。
+	 *
+	 * <p>
+	 * 保持中のinline bytesがこの予算を超える新規テキスト追記は一時
+	 * ファイル(spillストア)へ書かれ、改ページ再生時にdecodeされる。
+	 * 判定は設定値と累積bytesのみの決定的なもので、heap残量には依存
+	 * しない。出力(display list)は予算値に関わらず完全に同一——変わる
+	 * のはメモリ挙動のみ。既定値はコーパス実測(保持イベント数は数千
+	 * 規模の文書が大半)より十分大きく、通常文書ではspillは起きない。
+	 * </p>
+	 */
+	public static final LongPropManager PROCESSING_TEXT_SPILL_BUDGET = new LongPropManager(
+			"processing.text-spill-budget", 8L * 1024L * 1024L);
+
+	/**
 	 * 行分割の戦略です(既定{@code "optimized"}。2026-07-23新設(M3c増分3、
 	 * 当初既定legacy)、2026-07-24に既定反転(E-2))。
 	 *
@@ -696,6 +712,7 @@ public final class UAProps {
 			PROCESSING_FAIL_ON_FATAL_ERROR,
 			PROCESSING_LARGE_STACK_THREAD,
 			PROCESSING_LARGE_STACK_THREAD_SIZE,
+			PROCESSING_TEXT_SPILL_BUDGET,
 			TEXT_LINE_BREAKER,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,

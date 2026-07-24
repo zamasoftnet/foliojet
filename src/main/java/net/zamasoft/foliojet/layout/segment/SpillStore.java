@@ -10,7 +10,8 @@ import java.util.logging.Logger;
 
 /**
  * length-prefixedなbyte recordの追記専用spillストアです(E-6増分2、
- * 2026-07-24新設、production経路は未配線)。
+ * 2026-07-24新設。増分3b-2で{@link TextSpill}経由のtext payload spillに
+ * production配線された)。
  *
  * <p>
  * codex設計相談(docs/consultations/consult-e6-spillable-tape-codex.md
@@ -127,6 +128,31 @@ final class SpillStore implements AutoCloseable {
 	/** 追記済みrecord数(= 次に付与されるrecordId)を返します。 */
 	long recordCount() {
 		return this.recordCount;
+	}
+
+	/**
+	 * recordIdのrecord payloadを直接読み出します(E-6増分3b-2: text
+	 * payloadの単発読み——順次cursorを開くまでもないrecordId直接read)。
+	 * 境界検査つきで、不正データは1バイトも返さず{@link IOException}で
+	 * 失敗します(§2.4のクラッシュ型一貫性)。返す配列は毎回新しい。
+	 */
+	byte[] read(final long recordId) throws IOException {
+		this.ensureOpen();
+		if (recordId < 0 || recordId >= this.recordCount) {
+			throw new IllegalArgumentException("record id out of bounds: " + recordId + ", count=" + this.recordCount);
+		}
+		final long offset = this.offsetOf(recordId);
+		if (offset < HEADER_BYTES || offset + LENGTH_BYTES > this.dataLength) {
+			throw new IOException("spill index corrupted (offset " + offset + " out of bounds) at record " + recordId);
+		}
+		this.data.seek(offset);
+		final int length = this.data.readInt();
+		if (length < 0 || offset + LENGTH_BYTES + length > this.dataLength) {
+			throw new IOException("spill record corrupted (bad length " + length + ") at record " + recordId);
+		}
+		final byte[] payload = new byte[length];
+		this.data.readFully(payload);
+		return payload;
 	}
 
 	/**

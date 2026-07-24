@@ -70,8 +70,9 @@ public final class LayoutSourceEventConverter {
 		return switch (event) {
 		case LayoutSource.Start start -> convertStart(start);
 		case LayoutSource.EndBlock endBlock -> new SegmentEvent.EndBox();
-		case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) ->
-			new SegmentEvent.Text(charOffset, new String(ch), fixed);
+		case LayoutSource.Chars(final int charOffset, final LayoutSource.TextPayload payload, final boolean fixed) ->
+			// freshChars()はInline=clone、Spilled=storeからのdecode(E-6増分3b-2)
+			new SegmentEvent.Text(charOffset, new String(payload.freshChars()), fixed);
 		case LayoutSource.Replaced(final AbstractReplacedBox box) -> convertReplaced(box);
 		// Opaqueはそもそも種別情報を保持しない(フィールドなしの位置占有
 		// マーカー)ため常にBarrier化する

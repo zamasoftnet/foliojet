@@ -172,7 +172,10 @@ public final class SourceReplayer {
 		final boolean[] first = { true };
 		slice.replay(event -> {
 			switch (event) {
-			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
+			case LayoutSource.Chars(final int off, final LayoutSource.TextPayload payload, final boolean fixed) -> {
+				// E-6増分3b-2: payloadはspill済みのことがある。freshChars()は
+				// 毎回freshな配列(Inline=clone、Spilled=decode)を返す
+				final char[] ch = payload.freshChars();
 				int skip = 0;
 				if (first[0]) {
 					first[0] = false;

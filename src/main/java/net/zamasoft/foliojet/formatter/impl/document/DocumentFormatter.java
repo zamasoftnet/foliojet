@@ -35,8 +35,13 @@ public class DocumentFormatter implements Formatter {
 			String mimeType = source.getMimeType();
 			ParserFactory pf = PluginRegistry.getInstance().search(ParserFactory.class, mimeType);
 			Parser parser = pf.createParser();
-			XMLHandler entryPoint = new TranscoderHandler(ua);
-			parser.parse(ua, source, entryPoint);
+			TranscoderHandler entryPoint = new TranscoderHandler(ua);
+			try {
+				parser.parse(ua, source, entryPoint);
+			} finally {
+				// E-6増分3b-2: 成功・例外を問わずspill一時ファイルを清算する
+				entryPoint.dispose();
+			}
 		} catch (IOException e) {
 			short code = CTIMessageCodes.ERROR_IO;
 			String[] args = new String[] { e.getMessage() };

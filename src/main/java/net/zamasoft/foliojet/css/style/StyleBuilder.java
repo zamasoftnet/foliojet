@@ -306,9 +306,14 @@ public class StyleBuilder implements PageGenerator {
 	 * レイアウトソースプロトコルログです(M6b v3)。スタイル適用・合成後、
 	 * レイアウト前の doc 入力プロトコル(StartBlock/Chars/EndBlock)を
 	 * 記録します。改ページ残余の再生はこのログから、ライブ状態に
-	 * 無干渉な専用ドライバが行います。
+	 * 無干渉な専用ドライバが行います。E-6増分3b-2: text payloadの
+	 * spill予算(processing.text-spill-budget)を注入するため、生成は
+	 * コンストラクタ本体で行う。寿命はこの変換1回に一致し、closeは
+	 * {@link #finish()}(成功経路の早期解放)と
+	 * {@code CSSProcessor.dispose()}(formatterのfinally——例外時清算)の
+	 * 両方から保証される(冪等)。
 	 */
-	private final LayoutSource layoutSource = new LayoutSource();
+	private final LayoutSource layoutSource;
 
 	/**
 	 * レイアウトソースログを返します(M6b v3)。
@@ -432,10 +437,18 @@ public class StyleBuilder implements PageGenerator {
 	 */
 	private void docCharacters(final int charOffset, final char[] ch, final int off, final int len,
 			final boolean fixed) {
-		final char[] copy = new char[len];
-		System.arraycopy(ch, off, copy, 0, len);
-		this.layoutSource.append(new LayoutSource.Chars(charOffset, copy, fixed));
+		// E-6増分3b-2: 防御コピー・spill判定(予算制)はLayoutSourceが行う
+		this.layoutSource.appendChars(charOffset, ch, off, len, fixed);
 		this.doc.characters(charOffset, ch, off, len, fixed);
+	}
+
+	/**
+	 * レイアウトソースのspillストア(一時ファイル)を閉じます
+	 * (E-6増分3b-2)。変換の終了経路——成功・例外を問わずformatterの
+	 * finallyから{@code CSSProcessor.dispose()}経由で呼ばれる。冪等。
+	 */
+	public void closeLayoutSource() {
+		this.layoutSource.close();
 	}
 
 	public StyleBuilder(StyleContext styleContext, UserAgent ua, Imposition imposition) {
@@ -443,6 +456,8 @@ public class StyleBuilder implements PageGenerator {
 		this.ua = ua;
 		this.pageNumber = ua.getPassContext().getPageNumber();
 		this.imposition = imposition;
+		// E-6増分3b-2: text payloadのspill予算(bytes)を注入する
+		this.layoutSource = new LayoutSource(UAProps.PROCESSING_TEXT_SPILL_BUDGET.getLong(ua));
 		this.doc = new DocumentBuilder(this);
 
 		byte pageMode = 0;
@@ -2905,5 +2920,9 @@ public class StyleBuilder implements PageGenerator {
 		this.doc.end();
 		this.imposition.finish();
 		this.ua.getPassContext().setPageNumber(this.pageNumber);
+		// E-6増分3b-2: 最終ページ確定後はソース再生が発生しないため、
+		// spillストアの一時ファイルをここで早期解放する(例外経路は
+		// formatterのfinally→CSSProcessor.dispose→closeLayoutSourceが清算)
+		this.layoutSource.close();
 	}
 }

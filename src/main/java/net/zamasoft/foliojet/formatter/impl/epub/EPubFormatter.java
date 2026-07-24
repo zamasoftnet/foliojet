@@ -226,12 +226,17 @@ public class EPubFormatter implements Formatter {
 							ParserFactory pf = PluginRegistry.getInstance()
 									.search(ParserFactory.class, mimeType);
 							Parser parser = pf.createParser();
-							XMLHandler entryPoint = new TranscoderHandler(ua);
-							entryPoint = new LinkHandler(entryPoint, ir.item, fullPathToItem);
+							TranscoderHandler transcoderHandler = new TranscoderHandler(ua);
+							XMLHandler entryPoint = new LinkHandler(transcoderHandler, ir.item, fullPathToItem);
 							boolean replaceNumbers = REPLACE_NUMBERS.getBoolean(ua);
 							WritingModeHandler xhandler = new WritingModeHandler(entryPoint, ir.item, replaceNumbers);
 							entryPoint = XMLHandler.of(xhandler, null);
-							parser.parse(ua, zSource, entryPoint);
+							try {
+								parser.parse(ua, zSource, entryPoint);
+							} finally {
+								// E-6増分3b-2: spill一時ファイルの清算(冪等)
+								transcoderHandler.dispose();
+							}
 						} else {
 							Formatter formatter = PluginRegistry.getInstance().search(Formatter.class,
 									zSource);

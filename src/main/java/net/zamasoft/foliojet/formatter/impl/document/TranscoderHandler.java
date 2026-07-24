@@ -44,8 +44,25 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 
 	private List<SAXEventRecorder.SAXEvent> events = new ArrayList<SAXEventRecorder.SAXEvent>();
 
+	/**
+	 * 変換終了時の清算対象です(E-6増分3b-2)。LAYOUTパスでのみ生成される
+	 * (STRUCTURE_SCANパスはnullのまま)。
+	 */
+	private CSSProcessor cssProcessor = null;
+
 	public TranscoderHandler(UserAgent ua) {
 		this.ua = ua;
+	}
+
+	/**
+	 * 変換の清算です(E-6増分3b-2)。レイアウトソースのspillストア
+	 * (一時ファイル)を閉じる。成功・例外を問わず、parseを駆動した
+	 * formatterのfinallyから呼ぶこと。冪等。
+	 */
+	public void dispose() {
+		if (this.cssProcessor != null) {
+			this.cssProcessor.dispose();
+		}
 	}
 
 	public void startDocument() throws SAXException {
@@ -247,6 +264,8 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 					cssProcessor.setStyleSheetSelector(ssh);
 				}
 				exitPoint.setXMLHandler(cssProcessor);
+				// E-6増分3b-2: dispose(spill一時ファイルの清算)の対象として保持
+				this.cssProcessor = cssProcessor;
 			}
 
 			// 再開

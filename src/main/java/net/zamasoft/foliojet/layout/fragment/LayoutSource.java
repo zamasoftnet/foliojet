@@ -1,9 +1,11 @@
 package net.zamasoft.foliojet.layout.fragment;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.segment.TextSpill;
 
 /**
  * レイアウトのソースプロトコルログです(M6b v3)。
@@ -25,9 +27,21 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
  * O(現在ページ+開いている要素) に保たれます。
  * </p>
  *
+ * <p>
+ * <b>text payloadのspill(E-6増分3b-2、2026-07-24)</b>: {@link Chars}の
+ * char[]本体は、inline保持量が設定予算({@code processing.text-spill
+ * -budget})を超えた後の新規追記から{@link TextSpill}(一時ファイル)へ
+ * 退避される。判定は設定値と累積inline bytesのみの決定的なもので、
+ * heap残量には依存しない。イベント境界は一切変えない(1 Chars =
+ * 1 payload。分割・結合はNFC正規化・text-transformの呼び出し境界を
+ * 変えるため禁止——codex設計§2.4)。spillストアはこのLayoutSourceの
+ * 寿命に紐づき、{@link #close()}(変換終了経路のfinally)で一時
+ * ファイルごと確実に削除される。
+ * </p>
+ *
  * @author MIYABE Tatsuhiko
  */
-public final class LayoutSource {
+public final class LayoutSource implements AutoCloseable {
 	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque {
 	}
 
@@ -84,8 +98,63 @@ public final class LayoutSource {
 	/**
 	 * テキストです。charOffset はソース文字オフセット(生成内容は -1)。
 	 * fixed は doc プロトコルの固定テキストフラグをそのまま保持します。
+	 * payload は inline char[] または spill 済み record 参照です
+	 * (E-6増分3b-2。{@link TextPayload})。
 	 */
-	public record Chars(int charOffset, char[] ch, boolean fixed) implements Event {
+	public record Chars(int charOffset, TextPayload payload, boolean fixed) implements Event {
+		/** inline payload での簡易構築です(テスト・小規模呼び出し用)。 */
+		public Chars(final int charOffset, final char[] ch, final boolean fixed) {
+			this(charOffset, new TextPayload.Inline(ch), fixed);
+		}
+	}
+
+	/**
+	 * {@link Chars}のテキスト本体です(E-6増分3b-2)。UTF-16長
+	 * ({@link #utf16Length()})はSpilledでもheapメタデータとして持ち、
+	 * {@link LayoutSource#findCharsAt(int)}等の範囲計算がdecodeなしで
+	 * 成立する(挙動不変の保証)。
+	 */
+	public sealed interface TextPayload permits TextPayload.Inline, TextPayload.Spilled {
+		/** UTF-16単位の文字数です(heapメタデータ——decode不要で読める)。 */
+		int utf16Length();
+
+		/**
+		 * テキストを<b>常に呼び出しごとに新しい(freshな)char[]</b>で
+		 * 返します。replay駆動の下流({@code StyledTextUnitizer})は配列を
+		 * in-placeで書き換えるため、保持配列を直接返してはならない
+		 * (3b-1のfresh copy方針)。Spilledの読み出し失敗は
+		 * {@link TextSpillException}(型付きレイアウト失敗)。
+		 */
+		char[] freshChars();
+
+		/** heap上のinline保持です。 */
+		record Inline(char[] ch) implements TextPayload {
+			@Override
+			public int utf16Length() {
+				return this.ch.length;
+			}
+
+			@Override
+			public char[] freshChars() {
+				return this.ch.clone();
+			}
+		}
+
+		/**
+		 * {@link TextSpill}へ書き出し済みのrecord参照です。heapに残るのは
+		 * (store参照, recordId, utf16Length)の定数サイズのみ。
+		 */
+		record Spilled(TextSpill spill, long recordId, int utf16Length) implements TextPayload {
+			@Override
+			public char[] freshChars() {
+				try {
+					return this.spill.read(this.recordId, this.utf16Length);
+				} catch (final IOException e) {
+					throw new TextSpillException(
+							"spill済みテキストpayloadの読み出しに失敗しました: record=" + this.recordId, e);
+				}
+			}
+		}
 	}
 
 	/**
@@ -110,6 +179,28 @@ public final class LayoutSource {
 	private long nextId = 0;
 
 	/**
+	 * text payloadのinline保持予算の既定値(bytes)です(E-6増分3b-2)。
+	 * {@code UAProps.PROCESSING_TEXT_SPILL_BUDGET}の既定値と同値。
+	 * コーパス実測(SOURCE_EVENT_HIGH_WATER=数千イベント規模の文書が
+	 * 大半)より十分大きく、通常文書ではspillは起きない。
+	 */
+	public static final long DEFAULT_TEXT_SPILL_BUDGET_BYTES = 8L * 1024L * 1024L;
+
+	/** inline text payloadの予算(bytes)。超過後の新規Charsはspillされる。 */
+	private final long textSpillBudgetBytes;
+
+	/**
+	 * 現在entriesが保持しているinline text payloadの累積bytes
+	 * (UTF-16見積り: char数×2)。append時に加算し、compactでinline
+	 * Charsが破棄されたとき減算する——判定はこの値と設定予算のみで行う
+	 * 決定的なもの(heap残量参照は禁止——codex設計§2.1)。
+	 */
+	private long liveInlineTextBytes = 0;
+
+	/** spillストア(最初に必要になったとき遅延生成。{@link #close()}で削除)。 */
+	private TextSpill textSpill = null;
+
+	/**
 	 * E-6増分2(2026-07-24): 追記イベントのshadow観測フック(テスト
 	 * 専用、LayoutSourceTestHooks経由で設定)。production経路では常に
 	 * null——nullのときの挙動は増分前と完全に同一。レイアウトが別
@@ -117,12 +208,31 @@ public final class LayoutSource {
 	 */
 	static volatile java.util.function.Consumer<Event> appendObserver;
 
+	/** 既定予算({@link #DEFAULT_TEXT_SPILL_BUDGET_BYTES})で作ります。 */
+	public LayoutSource() {
+		this(DEFAULT_TEXT_SPILL_BUDGET_BYTES);
+	}
+
+	/**
+	 * text payloadのinline保持予算(bytes)を指定して作ります
+	 * (E-6増分3b-2。productionはStyleBuilderが
+	 * {@code processing.text-spill-budget}を渡す)。
+	 */
+	public LayoutSource(final long textSpillBudgetBytes) {
+		this.textSpillBudgetBytes = textSpillBudgetBytes;
+	}
+
 	/**
 	 * イベントを追記し、その EventId を返します。
 	 */
 	public long append(final Event event) {
 		final long id = this.nextId++;
 		this.entries.add(new Entry(id, event));
+		// E-6増分3b-2: inline text payloadの予算会計(append/compactで対称)
+		if (event instanceof Chars chars && chars.payload() instanceof TextPayload.Inline inline) {
+			this.liveInlineTextBytes += (long) inline.utf16Length() * 2;
+			ContinuationStats.recordLiveTextPayloadBytes(this.liveInlineTextBytes);
+		}
 		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
 		// E-6増分2(2026-07-24): shadow観測のみ(挙動不変)
@@ -131,6 +241,63 @@ public final class LayoutSource {
 			observer.accept(event);
 		}
 		return id;
+	}
+
+	/**
+	 * テキストイベントを追記し、その EventId を返します(E-6増分3b-2)。
+	 * inline保持量({@code liveInlineTextBytes})+今回分が予算内なら
+	 * 配列コピーをinline保持し、予算を超える追記は{@link TextSpill}へ
+	 * 書く(「予算超過後の新規Charsはspillで書く」——sealed済みの古い
+	 * inline chunkを後からspillする複雑さは作らない。compactでinline分が
+	 * 解放されれば以降の追記は再びinlineに戻るため、inline保持量は常に
+	 * 予算以下に保たれる)。
+	 *
+	 * <p>
+	 * spillの書き込み失敗は{@link TextSpillException}(型付きレイアウト
+	 * 失敗)として伝播する——黙殺やinline継続へのフォールバックはしない
+	 * (spill成否で出力・メモリ挙動が変わる非決定性を作らない)。
+	 * </p>
+	 */
+	public long appendChars(final int charOffset, final char[] ch, final int off, final int len, final boolean fixed) {
+		final long bytes = (long) len * 2;
+		final TextPayload payload;
+		if (this.liveInlineTextBytes + bytes <= this.textSpillBudgetBytes) {
+			final char[] copy = new char[len];
+			System.arraycopy(ch, off, copy, 0, len);
+			payload = new TextPayload.Inline(copy);
+		} else {
+			try {
+				if (this.textSpill == null) {
+					this.textSpill = TextSpill.open();
+				}
+				final long recordId = this.textSpill.append(ch, off, len);
+				payload = new TextPayload.Spilled(this.textSpill, recordId, len);
+			} catch (final IOException e) {
+				throw new TextSpillException(
+						"テキストpayloadのspill書き込みに失敗しました: charOffset=" + charOffset + ", length=" + len, e);
+			}
+			ContinuationStats.recordTextSpill(bytes);
+		}
+		return this.append(new Chars(charOffset, payload, fixed));
+	}
+
+	/**
+	 * text payloadのspillストアを閉じ、一時ファイルを削除します(冪等。
+	 * E-6増分3b-2)。LayoutSourceの寿命の終端——変換の終了経路
+	 * (StyleBuilder.finish、および例外時も通るformatterのfinally→
+	 * CSSProcessor.dispose)——で必ず呼ばれる。close後にSpilled payloadを
+	 * decodeすることはできない(最終ページ確定後は再生が発生しない)。
+	 */
+	@Override
+	public void close() {
+		if (this.textSpill != null) {
+			this.textSpill.close();
+		}
+	}
+
+	/** spillストアを返します(未生成ならnull。テスト観測用)。 */
+	public TextSpill textSpillForTest() {
+		return this.textSpill;
 	}
 
 	/**
@@ -237,6 +404,16 @@ public final class LayoutSource {
 	 * 生きている保持リースの最小 fromId が watermark を内部で clamp
 	 * します(呼び出し側が水位とリースを合成する必要はない)。
 	 *
+	 * <p>
+	 * <b>spill済みrecordとの整合(E-6増分3b-2)</b>: entriesから外れた
+	 * {@link TextPayload.Spilled}のrecordは{@link TextSpill}上に残る
+	 * (初版ではdisk領域の途中回収はしない——codex裁定)。これは
+	 * recordIdへのheap参照が消えるだけであり、リークではない: 一時
+	 * ファイル全体が{@link #close()}(変換終了経路のfinally)で削除される。
+	 * inline payloadの破棄は予算会計({@code liveInlineTextBytes})から
+	 * 減算され、以降の追記が再びinlineに戻れる。
+	 * </p>
+	 *
 	 * @param watermark これより前(id &lt; watermark)が破棄対象
 	 */
 	public void compact(final long watermark) {
@@ -262,6 +439,11 @@ public final class LayoutSource {
 				}
 			}
 			case Chars chars -> {
+				// E-6増分3b-2: 破棄されるinline payloadを予算会計から除く
+				// (Spilledのrecordは残るがリークではない——メソッドjavadoc)
+				if (chars.payload() instanceof TextPayload.Inline inline) {
+					this.liveInlineTextBytes -= (long) inline.utf16Length() * 2;
+				}
 			}
 			case Replaced replaced -> {
 			}
@@ -319,8 +501,9 @@ public final class LayoutSource {
 	 */
 	public long findCharsAt(final int charOffset) {
 		for (final Entry entry : this.entries) {
-			if (entry.event() instanceof Chars(final int off, final char[] ch, final boolean fixed) && off >= 0
-					&& charOffset >= off && charOffset < off + ch.length) {
+			// utf16LengthはSpilledでもheapメタデータ(decode不要——挙動不変)
+			if (entry.event() instanceof Chars(final int off, final TextPayload payload, final boolean fixed)
+					&& off >= 0 && charOffset >= off && charOffset < off + payload.utf16Length()) {
 				return entry.id();
 			}
 		}

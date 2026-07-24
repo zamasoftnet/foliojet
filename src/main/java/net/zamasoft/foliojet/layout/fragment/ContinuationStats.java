@@ -227,6 +227,35 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * {@code LayoutSource}のinline text payload保持量(bytes、UTF-16
+	 * 見積り=char数×2)のhigh-waterです(2026-07-24新設、E-6増分3b-2)。
+	 * spill予算({@code processing.text-spill-budget})が守られている
+	 * こと(この値≦予算)を耐久試験の合格条件が読む。
+	 */
+	public static final AtomicLong LIVE_TEXT_PAYLOAD_BYTES = new AtomicLong();
+
+	/** text payloadのspill record数です(E-6増分3b-2)。 */
+	public static final AtomicLong SPILLED_TEXT_RECORDS = new AtomicLong();
+
+	/** text payloadのspill済みbytes総量です(E-6増分3b-2)。 */
+	public static final AtomicLong SPILLED_TEXT_BYTES = new AtomicLong();
+
+	/** inline text payload保持量の観測です(E-6増分3b-2、最大値を保持)。 */
+	public static void recordLiveTextPayloadBytes(final long bytes) {
+		if (live()) {
+			LIVE_TEXT_PAYLOAD_BYTES.accumulateAndGet(bytes, Math::max);
+		}
+	}
+
+	/** text payloadのspill発火の観測です(E-6増分3b-2)。 */
+	public static void recordTextSpill(final long bytes) {
+		if (live()) {
+			SPILLED_TEXT_RECORDS.incrementAndGet();
+			SPILLED_TEXT_BYTES.addAndGet(bytes);
+		}
+	}
+
 	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenTextHandoff() {
 		if (live()) {
@@ -469,6 +498,9 @@ public final class ContinuationStats {
 		LAST_COLUMN_OWNER_COLUMN_COUNT.set(-1);
 		OPEN_TAILS.set(0);
 		SOURCE_EVENT_HIGH_WATER.set(0);
+		LIVE_TEXT_PAYLOAD_BYTES.set(0);
+		SPILLED_TEXT_RECORDS.set(0);
+		SPILLED_TEXT_BYTES.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_PAGE_OPEN_TAIL_DEPTH.set(0);

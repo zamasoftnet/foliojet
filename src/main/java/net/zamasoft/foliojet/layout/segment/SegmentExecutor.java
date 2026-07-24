@@ -115,9 +115,11 @@ public final class SegmentExecutor {
 			fresh.setSourceAnchor(this.eventId);
 			this.doc.addReplacedBox(fresh);
 		}
-		case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> {
-			// 記録済み配列を直接渡さない(クラスjavadoc「fresh copy化」)
-			final char[] fresh = ch.clone();
+		case LayoutSource.Chars(final int charOffset, final LayoutSource.TextPayload payload, final boolean fixed) -> {
+			// 保持配列を直接渡さない(クラスjavadoc「fresh copy化」。
+			// freshChars()はInline=clone、Spilled=storeからのdecodeで、
+			// どちらも毎回freshな配列を返す——E-6増分3b-2)
+			final char[] fresh = payload.freshChars();
 			this.doc.characters(charOffset, fresh, 0, fresh.length, fixed);
 		}
 		case LayoutSource.EndBlock end -> this.doc.endBox();
