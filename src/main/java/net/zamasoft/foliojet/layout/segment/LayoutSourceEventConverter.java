@@ -52,13 +52,16 @@ public final class LayoutSourceEventConverter {
 	private LayoutSourceEventConverter() {
 	}
 
-	/** {@code slice}の全イベントを、対応する{@link SegmentEvent}へ1:1変換する。 */
+	/**
+	 * {@code slice}の全イベントを、対応する{@link SegmentEvent}へ1:1変換する。
+	 * E-6増分3a(2026-07-24): {@code slice}はstreamingビュー(consume-once)
+	 * のため、この変換が{@code slice}を消費する——呼び出し側は同じsliceを
+	 * 再度読めない(凍結結果のListだけを使うこと)。
+	 */
 	public static List<SegmentEvent> convert(final LayoutSource.ReplaySlice slice) {
-		final List<LayoutSource.Event> events = slice.events();
-		final List<SegmentEvent> result = new ArrayList<>(events.size());
-		for (final LayoutSource.Event event : events) {
-			result.add(convert(event));
-		}
+		// イベント数 == 範囲長(EventIdは連番、captureが検証済み)
+		final List<SegmentEvent> result = new ArrayList<>((int) (slice.toId() - slice.fromId() + 1));
+		slice.replay(event -> result.add(convert(event)));
 		return result;
 	}
 

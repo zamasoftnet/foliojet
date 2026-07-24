@@ -54,9 +54,10 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * スナップショット範囲のイベントを doc へそのまま再駆動します
-	 * (共有ドライバ)。slice は駆動前に確定した不変コピーのため、
-	 * 駆動中の入れ子改ページによる compact の影響を受けません。
+	 * capture 済み範囲のイベントを doc へそのまま再駆動します
+	 * (共有ドライバ)。slice は検証済みの streaming ビュー(リース付き。
+	 * E-6増分3a)のため、駆動中の入れ子改ページによる compact の影響を
+	 * 受けません(未読範囲はリースが守る)。
 	 */
 	private static void drive(final DocumentBuilder doc, final LayoutSource.ReplaySlice slice) {
 		// slice の EventId は fromId からの連番(capture が検証済み)。

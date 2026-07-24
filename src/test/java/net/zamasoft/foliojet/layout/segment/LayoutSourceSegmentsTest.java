@@ -79,7 +79,9 @@ public class LayoutSourceSegmentsTest extends TestCase {
 		assertEquals(List.of(from, from + 1, from + 2), ordinals);
 
 		final LayoutSource.ReplaySlice slice = LayoutSourceSegments.capture(log, range);
-		assertEquals(3, slice.events().size());
+		final List<LayoutSource.Event> seen = new ArrayList<>();
+		slice.replay(seen::add);
+		assertEquals(3, seen.size());
 	}
 
 	/** 退化区間(toId == fromId - 1相当)はnullを返す。 */

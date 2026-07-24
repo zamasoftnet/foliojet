@@ -292,12 +292,19 @@ public class BalanceProbeSessionTest extends TestCase {
 	/** 凍結イベント列はordinal 1:1で、Barrierを含まない。 */
 	public void testFrozenEventsKeepOrdinalParity() {
 		final BalanceProbeInput input = frozenInput(this.owner, this.selfId, this.log);
-		assertEquals(input.source().events().size(), input.frozenEvents().size());
+		// E-6増分3a: sliceはstreamingビュー(凍結変換で消費済み)のため、
+		// ordinal 1:1は範囲長(EventIdは連番)との一致で確認する
+		assertEquals(input.source().toId() - input.source().fromId() + 1, input.frozenEvents().size());
 		for (final SegmentEvent event : input.frozenEvents()) {
 			assertFalse(event instanceof SegmentEvent.Barrier);
 		}
-		// 変換自体もordinal 1:1(LayoutSourceEventConverterの既存契約の再確認)
-		assertEquals(input.frozenEvents().size(), LayoutSourceEventConverter.convert(input.source()).size());
+		// 凍結時にsliceは消費済み(consume-once)——二重再生はできない
+		try {
+			LayoutSourceEventConverter.convert(input.source());
+			fail("消費済みsliceの再読はconsume-once違反のはず");
+		} catch (IllegalStateException expected) {
+			// OK
+		}
 	}
 
 	// ---- 探索ドライバ(BalanceProbe.search)の構造的検証 ----

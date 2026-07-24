@@ -494,26 +494,98 @@ public final class LayoutSource {
 	}
 
 	/**
-	 * 一回の再生が読むイベント列の不変スナップショットです。
+	 * 一回の再生が読むイベント範囲の streaming ビューです(E-6増分3a、
+	 * 2026-07-24: 全量 List コピーの所有から「store(本体)+範囲
+	 * [fromId, toId]+保持リース」への参照ビューへ変更)。
 	 *
 	 * <p>
-	 * visitor 呼出し前に範囲の完全性を検証してコピーすることで、visitor 内の
-	 * 入れ子改ページによる compact(backing list の clear+addAll)から再生
-	 * 走査を隔離します。数値 index で生リストを歩くと、入れ子 compact で
-	 * index がずれて未消費イベントを silent skip する(外部レビュー指摘。
+	 * <b>compact からの保護</b>: capture 時に範囲の完全性(連番で穴なし)を
+	 * 検証し、自前の {@link RetentionLease}(fromId)を取得する。visitor 内の
+	 * 入れ子改ページによる compact(backing list の clear+addAll)は、
+	 * {@link #compact(long)} の水位 clamp によって fromId より前へ抑えられる
+	 * ため、streaming 走査中に範囲内のイベントが破棄されることは構造的に
+	 * ない(従来は全量コピーで隔離していた保証の置き換え。
 	 * LayoutSourceTest.testReplaySurvivesNestedCompaction が固定)。
+	 * 数値 index は各イベントごとに id で再検証するため、入れ子 compact で
+	 * backing list が組み直されてもずれない(silent skip しない——
+	 * 外部レビュー指摘の保証も維持)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>consume-once</b>: {@link #replay} は一度だけ呼べ、完了時
+	 * (例外時も finally で)リースを解放する。再生せず放棄する場合は
+	 * {@link #close()}(冪等)。リースを取り残すと以後の compact が永久に
+	 * clamp される(保持リーク)ため、消費経路は必ずどちらかを通ること。
 	 * </p>
 	 */
-	public record ReplaySlice(long fromId, long toId, List<Event> events) {
+	public final class ReplaySlice implements AutoCloseable {
+		private final long fromId;
+		private final long toId;
+		private final RetentionLease lease;
+		private boolean consumed = false;
+
+		private ReplaySlice(final long fromId, final long toId) {
+			this.fromId = fromId;
+			this.toId = toId;
+			this.lease = LayoutSource.this.retainFrom(fromId);
+		}
+
+		public long fromId() {
+			return this.fromId;
+		}
+
+		public long toId() {
+			return this.toId;
+		}
+
+		/**
+		 * 範囲のイベントを1件ずつ順に visitor へ渡します(consume-once)。
+		 * リースが cursor の未読範囲を compact から守るため、visitor 内の
+		 * 入れ子改ページに対して安全です。完了・例外を問わずリースを
+		 * 解放します。
+		 */
 		public void replay(final java.util.function.Consumer<Event> visitor) {
-			for (final Event event : this.events) {
-				visitor.accept(event);
+			if (this.consumed) {
+				throw new IllegalStateException(
+						"ReplaySlice は consume-once: [" + this.fromId + ", " + this.toId + "]");
 			}
+			this.consumed = true;
+			try {
+				final List<Entry> entries = LayoutSource.this.entries;
+				int hint = -1;
+				for (long id = this.fromId; id <= this.toId; ++id) {
+					// visitor(入れ子 compact)が backing list を組み直して
+					// いる可能性があるため、index は毎回 id で検証する
+					if (hint < 0 || hint >= entries.size() || entries.get(hint).id() != id) {
+						hint = LayoutSource.this.indexOf(id);
+						if (hint < 0) {
+							// リースが fromId 以降を守っている限り起きない
+							throw new IllegalStateException("replay range lost during streaming replay: id=" + id
+									+ " of [" + this.fromId + ", " + this.toId + "]");
+						}
+					}
+					final Event event = entries.get(hint).event();
+					++hint;
+					visitor.accept(event);
+				}
+			} finally {
+				this.lease.close();
+			}
+		}
+
+		/**
+		 * 消費せず放棄します(リース解放。冪等)。
+		 */
+		@Override
+		public void close() {
+			this.consumed = true;
+			this.lease.close();
 		}
 	}
 
 	/**
-	 * [fromId, toId] の不変スナップショットを検証付きで取得します。
+	 * [fromId, toId] の検証済み streaming ビューを取得します(リース付き。
+	 * E-6増分3aで不変スナップショット(全量コピー)から置換)。
 	 * 端が破棄済み・範囲の内部に破棄済みの穴がある・toId まで届かない
 	 * 場合は null(呼び出し側の契約に応じてフォールバックまたは失敗)。
 	 */
@@ -522,29 +594,27 @@ public final class LayoutSource {
 		if (index < 0 || toId < fromId) {
 			return null;
 		}
-		final List<Event> events = new ArrayList<Event>();
-		long expected = fromId;
-		for (int i = index; i < this.entries.size(); ++i) {
-			final Entry entry = this.entries.get(i);
-			if (entry.id() != expected) {
-				// 内部に破棄済みの穴(EventId は連番で付与されるため)
-				return null;
-			}
-			events.add(entry.event());
-			if (entry.id() == toId) {
-				return new ReplaySlice(fromId, toId, List.copyOf(events));
-			}
-			++expected;
+		// EventId は連番で付与され、破棄されても順序は保たれる(狭義単調
+		// 増加)。よって entries[index].id == fromId かつ
+		// entries[index + n].id == toId == fromId + n なら、その間の n+1 件は
+		// 強制的に連番 == 穴なし(旧実装の1件ずつの逐次検証と等価)
+		final long offset = toId - fromId;
+		if (offset > this.entries.size() - 1 - index) {
+			return null;
 		}
-		return null;
+		final int last = index + (int) offset;
+		if (this.entries.get(last).id() != toId) {
+			return null;
+		}
+		return new ReplaySlice(fromId, toId);
 	}
 
 	/**
 	 * [fromId, toId] の範囲のイベントを順に visitor へ渡します。
-	 * 内部で不変スナップショットを取ってから駆動するため、visitor 内の
-	 * 入れ子改ページ(compact)に対して安全です。範囲が完全でなければ
-	 * 実行前に失敗します(フォールバック可能な呼び出し側は
-	 * {@link #capture} を使うこと)。
+	 * 内部で検証済み streaming ビュー(リース付き)を取ってから駆動する
+	 * ため、visitor 内の入れ子改ページ(compact)に対して安全です。
+	 * 範囲が完全でなければ実行前に失敗します(フォールバック可能な
+	 * 呼び出し側は {@link #capture} を使うこと)。
 	 */
 	public void replay(final long fromId, final long toId, final java.util.function.Consumer<Event> visitor) {
 		final ReplaySlice slice = this.capture(fromId, toId);

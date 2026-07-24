@@ -105,6 +105,67 @@ public class LayoutSourceTest extends TestCase {
 		assertEquals(List.of(2, 3, 4, 5), seen);
 	}
 
+	public void testReplaySurvivesNestedCompactionBeyondRange() {
+		// E-6増分3a: 再生中の入れ子 compact の水位が再生範囲の先(範囲全体
+		// より後ろ)を指しても、slice 自身のリースが fromId で clamp する
+		// ため streaming 走査は完走する(従来は全量コピーが隔離していた
+		// 保証の置き換え)
+		final LayoutSource log = new LayoutSource();
+		final long[] ids = new long[7];
+		for (int i = 0; i < 7; ++i) {
+			ids[i] = log.append(new LayoutSource.Chars(i, new char[] { (char) ('A' + i) }, false));
+		}
+		final List<Integer> seen = new ArrayList<Integer>();
+		log.replay(ids[2], ids[5], event -> {
+			final int off = ((LayoutSource.Chars) event).charOffset();
+			seen.add(off);
+			if (off == 3) {
+				// 範囲の終端より先の水位(リースなしなら未読の 4,5 が消える)
+				log.compact(ids[6]);
+			}
+		});
+		assertEquals(List.of(2, 3, 4, 5), seen);
+		// 再生完了でリースは解放済み——次の compact は普通に破棄できる
+		// (取り残すと永久 clamp = 保持リーク)
+		log.compact(ids[6]);
+		assertNull(log.get(ids[2]));
+		assertNotNull(log.get(ids[6]));
+	}
+
+	public void testReplaySliceIsConsumeOnce() {
+		final LayoutSource log = new LayoutSource();
+		final long from = log.append(new LayoutSource.Chars(0, "a".toCharArray(), false));
+		final long to = log.append(new LayoutSource.Chars(1, "b".toCharArray(), false));
+		final LayoutSource.ReplaySlice slice = log.capture(from, to);
+		slice.replay(event -> {
+		});
+		try {
+			slice.replay(event -> {
+			});
+			fail("ReplaySlice は consume-once のはず");
+		} catch (IllegalStateException expected) {
+			// OK
+		}
+	}
+
+	public void testAbandonedReplaySliceReleasesLeaseOnClose() {
+		final LayoutSource log = new LayoutSource();
+		final long[] ids = new long[3];
+		for (int i = 0; i < 3; ++i) {
+			ids[i] = log.append(new LayoutSource.Chars(i, new char[] { (char) ('A' + i) }, false));
+		}
+		final LayoutSource.ReplaySlice slice = log.capture(ids[0], ids[1]);
+		// capture 中はリースが compact を clamp する
+		log.compact(ids[2]);
+		assertNotNull(log.get(ids[0]));
+		// 放棄(close は冪等)でリースが解放され、破棄できる
+		slice.close();
+		slice.close();
+		log.compact(ids[2]);
+		assertNull(log.get(ids[0]));
+		assertNotNull(log.get(ids[2]));
+	}
+
 	public void testRetentionLeaseClampsCompaction() {
 		final LayoutSource log = new LayoutSource();
 		final long[] ids = new long[5];

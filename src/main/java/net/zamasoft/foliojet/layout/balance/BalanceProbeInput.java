@@ -16,17 +16,20 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * §1.2/1.4)。
  *
  * <p>
- * {@code ReplaySlice}はイベント列をコピーするが{@code Start.params/pos}
- * 自体は参照のままなので、プローブ開始時に一度だけ
- * {@code LayoutSource.capture}→{@link LayoutSourceEventConverter#convert}
- * →frozen template化まで済ませる(ordinal 1:1維持)。各候補は
- * {@code BoxRecipeBoxFactory}からこの凍結列だけを読んで完全な新品を作る
- * ——候補構築中にliveログ・liveボックスへ一切触れない。
+ * {@code Start.params/pos}はliveログ上では参照のままなので、プローブ
+ * 開始時に一度だけ{@code LayoutSource.capture}→
+ * {@link LayoutSourceEventConverter#convert}→frozen template化まで
+ * 済ませる(ordinal 1:1維持)。E-6増分3a(2026-07-24):
+ * {@code ReplaySlice}はstreamingビュー(consume-once)になったため、
+ * この凍結変換がsliceを消費する——以後sliceからはfromId/toId(座標)
+ * だけが読める。各候補は{@code BoxRecipeBoxFactory}からこの凍結列だけを
+ * 読んで完全な新品を作る——候補構築中にliveログ・liveボックスへ一切
+ * 触れない。
  * </p>
  *
- * @param source       子イベント範囲の不変スナップショット(診断・将来の
- *                     shadow比較用。候補構築は{@code frozenEvents}だけを
- *                     読む)
+ * @param source       子イベント範囲のcapture済みビュー(凍結時に消費済み。
+ *                     ソースアンカー再付与の座標{@code fromId()}にのみ使う。
+ *                     候補構築は{@code frozenEvents}だけを読む)
  * @param frozenEvents 凍結済みイベント列({@code source}とordinal 1:1)
  * @param ownerGeometry live ownerの解決済み物理形状
  * @param columnCount  指定段数
