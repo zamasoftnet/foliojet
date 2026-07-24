@@ -99,11 +99,11 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow;
 
 		/**
-		 * 2026-07-22(B6a0): legacy `OpenChain`実行系(内部)のshadow比較
-		 * (診断専用、非例外化——docs/history/2026-07-22-b6a0-wiring
-		 * -attempt-and-revert.md参照)。
+		 * 終端OpenTailShapeのworklist executor適格判定です(B6a1。
+		 * 2026-07-24のB6検証インフラ退役でtail shadow比較から判定のみを
+		 * 引き継いだ)。
 		 */
-		private final java.util.Optional<net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace> tailShadow;
+		private final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate;
 
 		/**
 		 * 吸収済み再生範囲のリース(occurrence 単位)。吸収済み範囲は
@@ -120,8 +120,7 @@ public class RootBuilder extends BreakableBuilder {
 				final net.zamasoft.foliojet.layout.fragment.PageResumeProgram resumeProgram) {
 			this.continuation = continuation;
 			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(resumeProgram);
-			this.tailShadow = net.zamasoft.foliojet.layout.fragment.PlainFlowTailProgram.compile(resumeProgram)
-					.map(net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::of);
+			this.tailGate = net.zamasoft.foliojet.layout.fragment.WorklistTailGate.of(resumeProgram);
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
@@ -154,13 +153,11 @@ public class RootBuilder extends BreakableBuilder {
 			try {
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
 						"depth=" + this.continuation.depth());
-				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.shadow);
+				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.shadow,
+						this.tailGate);
 				// 2026-07-21(B2): shadow比較——正常終了後にのみ完全一致を
 				// 確認する(既存executorの挙動そのものは変えない)。
 				this.shadow.verifyComplete();
-				// 2026-07-22(B6a0): tail shadowは診断専用(非例外化)——
-				// -Dfoliojet.debugTailShadow=trueの時だけ不一致をstderrへ出す。
-				this.tailShadow.ifPresent(t -> RootBuilder.debugTailShadow("PAGE", t.verifyComplete()));
 				this.state = State.CONSUMED;
 			} catch (RuntimeException | Error e) {
 				this.state = State.FAILED;
@@ -182,10 +179,6 @@ public class RootBuilder extends BreakableBuilder {
 			if (lease != null) {
 				lease.close();
 			}
-		}
-
-		public java.util.Optional<net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace> tailShadow() {
-			return this.tailShadow;
 		}
 
 		public boolean hasUnconsumedLeases() {
@@ -334,8 +327,8 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
 		private final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges;
 		private final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow;
-		/** 2026-07-22(B6a0): PAGE側{@link ResumeSession#tailShadow}と同じ役割のCOLUMN版(診断専用)。 */
-		private final java.util.Optional<net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace> tailShadow;
+		/** PAGE側{@link ResumeSession#tailGate}と同じ役割のCOLUMN版。 */
+		private final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate;
 		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
 		private State state = State.NEW;
 
@@ -349,8 +342,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.ranges = ranges;
 			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(
 					net.zamasoft.foliojet.layout.fragment.ResumeOp.expectedOps(program));
-			this.tailShadow = net.zamasoft.foliojet.layout.fragment.PlainFlowTailProgram.compile(program)
-					.map(net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::of);
+			this.tailGate = net.zamasoft.foliojet.layout.fragment.WorklistTailGate.of(program);
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
@@ -385,27 +377,19 @@ public class RootBuilder extends BreakableBuilder {
 							this.program.anchor().prefixItems(),
 							net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 					RootBuilder.this.resumeFragmentChain(this.childFrame, 1, this.program.snapshot().depth(), this.shadow,
-							this.target);
+							this.target, this.tailGate);
 				} else {
 					assert this.program.anchor().prefixItems().isEmpty();
 					// 2026-07-22(B6a1): PAGE側index==0の「収集不能な破断」と
 					// 同型のCOLUMN経路——resumeFragmentChain()を経由しない
-					// 独立呼び出しのため、同じ限定switchをここにも適用する。
-					// 2026-07-22: 広範囲検証(12+414+591文書・3層検証すべて
-					// legacyと完全一致)を経て`eligible`を既定化した——
-					// `-Dfoliojet.openTailExecutor=legacy`で即座に旧経路へ
-					// 戻せる(docs/history/2026-07-22-b6a1-eligibility
-					// -gated-switch.md参照)。
-					final boolean gateAllPlainFlow = this.tailShadow.map(trace -> trace.program().allPlainFlow())
-							.orElse(false);
-					// 2026-07-22: `tailShadow`が空(=OpenText、そもそも
-					// LegacyOpenでない)場合は計測から除外する(PAGE側と
-					// 同じ理由)。
-					if (this.tailShadow.isPresent()) {
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistTerminal(gateAllPlainFlow);
-					}
-					final boolean worklistEligible = !"legacy"
-							.equals(System.getProperty("foliojet.openTailExecutor", "eligible")) && gateAllPlainFlow;
+					// 独立呼び出しのため、同じ適格判定をここにも適用する。
+					// 広範囲検証(12+414+591文書・3層検証すべてlegacyと完全
+					// 一致)を経て2026-07-24に切替スイッチを撤去、適格なら
+					// 無条件にworklist executorで駆動する(B6検証インフラ退役、
+					// docs/history/2026-07-22-b6a1-eligibility-gated-switch.md
+					// 参照)。
+					RootBuilder.recordWorklistTerminal(this.tailGate);
+					final boolean worklistEligible = this.tailGate == net.zamasoft.foliojet.layout.fragment.WorklistTailGate.WORKLIST_ELIGIBLE;
 					if (worklistEligible) {
 						net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();
 					}
@@ -420,8 +404,6 @@ public class RootBuilder extends BreakableBuilder {
 					}
 				}
 				this.shadow.verifyComplete();
-				// 2026-07-22(B6a0): PAGE側と同じくtail shadowは診断専用(非例外化)。
-				this.tailShadow.ifPresent(t -> RootBuilder.debugTailShadow("COLUMN", t.verifyComplete()));
 				this.state = State.CONSUMED;
 			} catch (RuntimeException | Error e) {
 				this.state = State.FAILED;
@@ -441,10 +423,6 @@ public class RootBuilder extends BreakableBuilder {
 			if (lease != null) {
 				lease.close();
 			}
-		}
-
-		public java.util.Optional<net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace> tailShadow() {
-			return this.tailShadow;
 		}
 
 		public boolean hasUnconsumedLeases() {
@@ -480,38 +458,16 @@ public class RootBuilder extends BreakableBuilder {
 	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession> sessions = new java.util.ArrayDeque<>();
 
 	/**
-	 * 現在topのセッション(PAGE `ResumeSession`/COLUMN
-	 * `ColumnResumeSession`のいずれか)のplain-flow tail shadow(2026-07-22
-	 * 新設、B6a0)です。セッション中でなければ空。{@link #replaySubtree}
-	 * と同じ「現在のtopセッションだけを見る」パターン。
+	 * 終端の適格判定結果を{@code WORKLIST_ELIGIBLE/INELIGIBLE_TERMINALS}
+	 * カウンタへ集計します(legacy再帰経路の使用頻度観測)。tailが
+	 * LegacyOpenでない場合はlegacy/worklistの区別自体が無意味なので
+	 * 計測に含めない——「本当にLegacyOpenだったが不適格だった」実測のみを
+	 * 数える。
 	 */
-	public final java.util.Optional<net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace> currentTailShadow() {
-		final net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession session = this.sessions.peek();
-		return session == null ? java.util.Optional.empty() : session.tailShadow();
-	}
-
-
-	/**
-	 * tail shadowの観測結果を集計・診断出力します(2026-07-22新設、B6a0、
-	 * 診断専用)。2026-07-22の配線試行で例外化したところ複数カテゴリの
-	 * 文書・golden回帰テストで実不一致が見つかり、「legacy OpenChain
-	 * 実行系が実際にOpenTextへ到達する経路」についての理解が不完全と
-	 * 判明した(docs/history/2026-07-22-b6a0-wiring-attempt-and-revert.md
-	 * 参照)。「終端がBLOCKでOpenTextの場合はCLOSEDへ落ちる」経路をモデルへ
-	 * 組み込んだ後、591文書コーパスに対し整合率を実測してから例外化を
-	 * 検討する方針(docs/NEXT-SESSION.md参照)——{@link
-	 * net.zamasoft.foliojet.layout.fragment.ContinuationStats
-	 * #recordTailShadowResult}への集計は常時行い(挙動には影響しない
-	 * カウンタ加算のみ)、stderrへの個別ログは
-	 * `-Dfoliojet.debugTailShadow=true`の時だけに限定する。
-	 */
-	static void debugTailShadow(final String phase,
-			final net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace.Result result) {
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTailShadowResult(result);
-		if (!result.consistent() && Boolean.getBoolean("foliojet.debugTailShadow")) {
-			System.err.println("[tailShadow:" + phase + "] mismatch=" + result.mismatch() + ", observed="
-					+ result.observedLevels() + "/" + result.expectedLevels() + ", terminalKind="
-					+ result.terminalKind() + ", allPlainFlow=" + result.allPlainFlow());
+	private static void recordWorklistTerminal(final net.zamasoft.foliojet.layout.fragment.WorklistTailGate gate) {
+		if (gate != net.zamasoft.foliojet.layout.fragment.WorklistTailGate.NO_LEGACY_OPEN_TAIL) {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistTerminal(
+					gate == net.zamasoft.foliojet.layout.fragment.WorklistTailGate.WORKLIST_ELIGIBLE);
 		}
 	}
 
@@ -974,10 +930,13 @@ public class RootBuilder extends BreakableBuilder {
 	 * @param depth 継続全体の深さ(トレース表示用)
 	 * @param shadow 2026-07-21(B2)。ResumeProgramが予告した操作列との
 	 *               shadow比較(既存executorの実行そのものには影響しない)
+	 * @param tailGate 終端OpenTailShapeのworklist executor適格判定
+	 *                 (B6a1。セッション構築時に一度だけ判定済み)
 	 */
 	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
-			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow) {
-		this.resumeFragmentChain(frame, index, depth, shadow, this);
+			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
+			final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate) {
+		this.resumeFragmentChain(frame, index, depth, shadow, this, tailGate);
 	}
 
 	/**
@@ -1000,10 +959,12 @@ public class RootBuilder extends BreakableBuilder {
 	 *               (nested な{@code ColumnBuilder}の場合もある——M6c
 	 *               の段バランスprobe中に、probeの内容自体がさらに改段を
 	 *               要する場合)を渡す。
+	 * @param tailGate 終端OpenTailShapeのworklist executor適格判定
+	 *                 (B6a1。呼び出し元セッションの構築時に判定済みの値)
 	 */
 	private void resumeFragmentChain(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
 			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
-			final BlockBuilder target) {
+			final BlockBuilder target, final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate) {
 		while (true) {
 			assert !this.resumeScopes.isEmpty();
 			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
@@ -1046,30 +1007,18 @@ public class RootBuilder extends BreakableBuilder {
 				// だけである(ChatGPT Pro相談で指摘、
 				// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(shape.depth(), false);
-				// 2026-07-22(B6a1): rooted PAGE/COLUMNでかつ
-				// `PlainFlowTailProgram.allPlainFlow()`が真と予測された
-				// 継続だけ、この末尾のOpenChain実行をworklist executorへ
-				// 限定的に切り替える(既定`eligible`——広範囲検証
-				// (12+414+591文書・3層検証すべてlegacyと完全一致)を
-				// 経て2026-07-22に既定化した。
-				// `-Dfoliojet.openTailExecutor=legacy`で即座に旧経路へ
-				// 戻せる、docs/history/2026-07-22-b6a1-eligibility
-				// -gated-switch.md参照)。不適格なら通常のlegacy再帰の
-				// まま——駆動開始前のこの1点だけで判定し、開始後に
-				// legacyへ再試行することはしない。
-				final java.util.Optional<net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace> gateTailShadow = this
-						.currentTailShadow();
-				final boolean gateAllPlainFlow = gateTailShadow.map(trace -> trace.program().allPlainFlow())
-						.orElse(false);
-				// 2026-07-22: `tailShadow`が空(=このtailはそもそも
-				// ResumeTail.LegacyOpenではなくOpenText)の場合はworklist/
-				// legacyの区別自体が無意味なので計測に含めない——「本当に
-				// LegacyOpenだったが不適格だった」実測のみを数える。
-				if (gateTailShadow.isPresent()) {
-					net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistTerminal(gateAllPlainFlow);
-				}
-				final boolean worklistEligible = !"legacy".equals(System.getProperty("foliojet.openTailExecutor", "eligible"))
-						&& gateAllPlainFlow;
+				// 2026-07-22(B6a1): rooted PAGE/COLUMNでかつ残存tailが
+				// 全てPLAIN_FLOWと予測された継続だけ、この末尾のOpenChain
+				// 実行をworklist executorへ切り替える。広範囲検証
+				// (12+414+591文書・3層検証すべてlegacyと完全一致)を経て
+				// 2026-07-24に`foliojet.openTailExecutor`切替スイッチを
+				// 撤去、適格なら無条件にworklistで駆動する(B6検証インフラ
+				// 退役、docs/history/2026-07-22-b6a1-eligibility-gated
+				// -switch.md参照)。不適格ならlegacy再帰(段組貫通MOVE専用
+				// 経路、§5.10契約)のまま——駆動開始前のこの1点だけで判定し、
+				// 開始後にlegacyへ再試行することはしない。
+				recordWorklistTerminal(tailGate);
+				final boolean worklistEligible = tailGate == net.zamasoft.foliojet.layout.fragment.WorklistTailGate.WORKLIST_ELIGIBLE;
 				if (worklistEligible) {
 					net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();
 				}

@@ -18,13 +18,4 @@ public interface ReplayLeaseSession {
 
 	/** 未消費のリースが残っているか(セッション終了時の健全性チェック用)。 */
 	boolean hasUnconsumedLeases();
-
-	/**
-	 * このセッションのplain-flow tail shadow(2026-07-22新設、B6a0)です。
-	 * {@code ResumeTail.LegacyOpen}が無かった(完全収集済み)場合は空。
-	 * {@code FlowContainer.restyle()}のOpenChain再帰が、現在topの
-	 * セッション({@code RootBuilder.sessions.peek()})のこれへ観測を
-	 * 通知する。
-	 */
-	java.util.Optional<PlainFlowTailTrace> tailShadow();
 }

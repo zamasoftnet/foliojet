@@ -121,11 +121,10 @@ public final class ContinuationStats {
 
 	/**
 	 * `RootBuilder`の終端`OpenTailShape`処理で、worklist executorへの
-	 * 限定switch判定(`PlainFlowTailProgram.allPlainFlow()`)が**真**
-	 * だった回数です(2026-07-22新設、B6a1——`eligible`を本番既定化
-	 * した後、legacy実装を安全に削除できるかを実測で判断するための
-	 * 基盤。`docs/history/2026-07-22-b6a1-eligible-default
-	 * -switchover.md`参照)。
+	 * 適格判定({@link WorklistTailGate})が**適格**だった回数です
+	 * (2026-07-22新設、B6a1。2026-07-24のB6検証インフラ退役後も
+	 * legacy再帰経路の使用頻度観測として残置——591文書コーパスの最終
+	 * 実測はELIGIBLE=10/INELIGIBLE=0)。
 	 */
 	public static final AtomicLong WORKLIST_ELIGIBLE_TERMINALS = new AtomicLong();
 
@@ -508,71 +507,6 @@ public final class ContinuationStats {
 	 */
 	public static final int OPEN_CHAIN_DEPTH_ALARM_THRESHOLD = 64;
 
-	/**
-	 * {@link PlainFlowTailTrace}(B6a0、2026-07-22新設)の観測結果を
-	 * capability別・整合性別に集計します。B6a0は「終端がBLOCKでOpenTextの
-	 * 場合はCLOSEDへ落ちる」という正当な経路をモデルへ組み込んだ後、
-	 * 591文書コーパスに対しこの整合率を実測してから例外化を検討する方針
-	 * ({@code docs/NEXT-SESSION.md}参照)——このカウンタがその実測基盤。
-	 */
-	public static final AtomicLong TAIL_SHADOW_SESSIONS = new AtomicLong();
-
-	/** {@link #TAIL_SHADOW_SESSIONS}のうち{@code Result.consistent()}だった件数。 */
-	public static final AtomicLong TAIL_SHADOW_CONSISTENT = new AtomicLong();
-
-	/** {@link #TAIL_SHADOW_SESSIONS}のうち不一致だった件数。 */
-	public static final AtomicLong TAIL_SHADOW_INCONSISTENT = new AtomicLong();
-
-	/**
-	 * 不一致のうち{@code Result.allPlainFlow()==true}(改ページ契約どおり
-	 * 「幹と同じ書字方向の素のFlowBlockBoxの一直線」だったはずのケース)
-	 * だった件数——これが0に近いほど、将来の例外化が安全という根拠になる。
-	 * `allPlainFlow==false`の不一致(ruby等の既知audit対象)はここに
-	 * 含めない。
-	 */
-	public static final AtomicLong TAIL_SHADOW_ALL_PLAIN_FLOW_INCONSISTENT = new AtomicLong();
-
-	/**
-	 * {@link PlainFlowTailTrace.TerminalKind}別の発生件数です(2026-07-22
-	 * 新設、codex設計相談で「terminal別の内訳が無いと3分類が閉じている
-	 * かの実測にならない」と指摘され追加)。B6の次段(worklist executor)
-	 * 着手前に、意図的fixtureで各`TerminalKind`を個別に踏めているかを
-	 * 確認する基盤として使う。
-	 */
-	private static final Map<PlainFlowTailTrace.TerminalKind, AtomicLong> TAIL_SHADOW_TERMINAL_KINDS = new EnumMap<>(
-			PlainFlowTailTrace.TerminalKind.class);
-	static {
-		for (final PlainFlowTailTrace.TerminalKind k : PlainFlowTailTrace.TerminalKind.values()) {
-			TAIL_SHADOW_TERMINAL_KINDS.put(k, new AtomicLong());
-		}
-	}
-
-	/** {@code kind}へ実際に到達した回数。 */
-	public static long tailShadowTerminalKindCount(final PlainFlowTailTrace.TerminalKind kind) {
-		return TAIL_SHADOW_TERMINAL_KINDS.get(kind).get();
-	}
-
-	/**
-	 * {@code PlainFlowTailTrace.verifyComplete()}の結果を集計します
-	 * (`RootBuilder.ResumeSession`/`ColumnResumeSession`の`resume()`
-	 * 正常終了時から呼ぶ)。
-	 */
-	public static void recordTailShadowResult(final PlainFlowTailTrace.Result result) {
-		if (!live()) {
-			return;
-		}
-		TAIL_SHADOW_SESSIONS.incrementAndGet();
-		TAIL_SHADOW_TERMINAL_KINDS.get(result.terminalKind()).incrementAndGet();
-		if (result.consistent()) {
-			TAIL_SHADOW_CONSISTENT.incrementAndGet();
-		} else {
-			TAIL_SHADOW_INCONSISTENT.incrementAndGet();
-			if (result.allPlainFlow()) {
-				TAIL_SHADOW_ALL_PLAIN_FLOW_INCONSISTENT.incrementAndGet();
-			}
-		}
-	}
-
 	private ContinuationStats() {
 		// counters
 	}
@@ -637,13 +571,6 @@ public final class ContinuationStats {
 		OPEN_CHAIN_DEPTH_ALARMS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
-		TAIL_SHADOW_SESSIONS.set(0);
-		TAIL_SHADOW_CONSISTENT.set(0);
-		TAIL_SHADOW_INCONSISTENT.set(0);
-		TAIL_SHADOW_ALL_PLAIN_FLOW_INCONSISTENT.set(0);
-		for (final AtomicLong counter : TAIL_SHADOW_TERMINAL_KINDS.values()) {
-			counter.set(0);
-		}
 		for (final AtomicLong counter : CAPABILITY_SCAN_STOPS.values()) {
 			counter.set(0);
 		}

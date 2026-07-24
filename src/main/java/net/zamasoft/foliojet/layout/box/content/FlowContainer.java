@@ -1508,11 +1508,11 @@ public class FlowContainer implements Container {
 			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		if (isWorklistMode()) {
 			// 2026-07-22(B6a1): 明示スタック駆動のworklist executor
-			// (`foliojet.openTailExecutor=worklist`のときのみ、既定は
-			// legacy再帰のまま)。呼び出し元(AbstractContainerBox
-			// .restyle/RootBuilder.restyleFrame)は一切変更せずこの
-			// public restyle()自体が分岐するため、既存の全呼び出し口が
-			// そのまま新executorの検証に使える。
+			// (`RootBuilder`が適格判定した継続のterminal restyleのみ、
+			// pushWorklistOverride/popWorklistOverrideで囲まれている間)。
+			// 呼び出し元(AbstractContainerBox.restyle/RootBuilder
+			// .restyleFrame)は一切変更せずこのpublic restyle()自体が
+			// 分岐する。
 			this.restyleWorklist(builder, shape, restyleAbsolutes, prefix);
 			return;
 		}
@@ -1532,7 +1532,8 @@ public class FlowContainer implements Container {
 	/**
 	 * 継続ごとの限定的なworklist有効化カウンタです(2026-07-22新設、
 	 * B6a1)。{@code RootBuilder}が「この継続はrooted PAGE/COLUMNで
-	 * `PlainFlowTailProgram.allPlainFlow()`が真」と判定した場合にのみ
+	 * 残存tailが全てPLAIN_FLOW」({@code WorklistTailGate
+	 * .WORKLIST_ELIGIBLE})と判定した場合にのみ
 	 * {@link #pushWorklistOverride}/{@link #popWorklistOverride}で
 	 * 該当のterminal restyle呼び出しだけを囲む(try/finally必須)。
 	 * カウンタ(bool ではなく)にしているのは、入れ子の破断
@@ -1553,19 +1554,15 @@ public class FlowContainer implements Container {
 
 	/**
 	 * {@code OpenChain}を明示スタックで駆動するworklist executorの
-	 * 選択フラグです(2026-07-22新設、B6a1)。既定は{@code legacy}
-	 * (この判定が常にfalseで、挙動は完全に従来どおり)——次の
-	 * いずれかで有効化される: (1)
-	 * {@code -Dfoliojet.openTailExecutor=worklist}で全継続に対し
-	 * 無条件有効化(広範囲テスト用、`WorklistExecutorParityTest`等が
-	 * 使う)、(2){@link #worklistOverrideDepth}>0(`RootBuilder`が
-	 * 継続ごとに適格性判定した上で有効化する、本番ルーティング用の
-	 * 限定switch)。JVM起動ごとの{@code static final}キャッシュに
-	 * しない(同一JVM内でlegacy/worklistを別runで切り替えて比較する
-	 * 検証を可能にするため)。
+	 * 選択判定です(2026-07-22新設、B6a1)。{@link #worklistOverrideDepth}
+	 * >0——`RootBuilder`が継続ごとに適格性判定({@code WorklistTailGate})
+	 * した上で有効化している間——のみ真。広範囲検証(12+414+591文書・
+	 * 3層検証すべてlegacyと完全一致)を経て、2026-07-24に
+	 * `foliojet.openTailExecutor`切替スイッチ(グローバル強制worklist/
+	 * legacy退避)は撤去した(B6検証インフラ退役)。
 	 */
 	private static boolean isWorklistMode() {
-		return worklistOverrideDepth > 0 || "worklist".equals(System.getProperty("foliojet.openTailExecutor", "legacy"));
+		return worklistOverrideDepth > 0;
 	}
 
 	/**
@@ -1747,8 +1744,8 @@ public class FlowContainer implements Container {
 	/**
 	 * {@code OpenChain}の子孫へ降りる方法です(2026-07-22新設、B6a1)。
 	 * legacy再帰driverは{@code containerBox.restyle(builder, inner)}を
-	 * 直接呼ぶ(再帰)。worklist driver({@link #restyleWorklist}、まだ
-	 * production未配線)は、子コンテナが{@link FlowContainer}であれば
+	 * 直接呼ぶ(再帰)。worklist driver({@link #restyleWorklist})は、
+	 * 子コンテナが{@link FlowContainer}であれば
 	 * 再帰せず明示スタックへ新しいframeをpushする——この差し替え1点
 	 * だけがlegacy/worklistの違いであり、それ以外のTEXT/BLOCK/TABLE/
 	 * REPLACEDの意味は{@link #restyleItem}を両driverが共有するため
@@ -1798,15 +1795,6 @@ public class FlowContainer implements Container {
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
 					final boolean open = lastFlow == holder
 							&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText;
-					if (open && (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-							|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-							&& builder.getPageContext() != null) {
-						// 2026-07-22(B6a0): legacy OpenChain実行系のtail shadowへ
-						// 終端(開きテキスト)到達を通知する(診断専用・非例外化、
-						// 既存の挙動には一切影響しない)。
-						builder.getPageContext().currentTailShadow()
-								.ifPresent(net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeOpenText);
-					}
 					boolean replayed = false;
 					// open(live ストリームが続きを流し込む)場合の尾部再生は
 					// box-restyle に委ねる。かつての理由「charOffset の±1」は
@@ -1857,38 +1845,11 @@ public class FlowContainer implements Container {
 						AbstractContainerBox containerBox = (AbstractContainerBox) holder.getBox();
 						if (containerBox.getBlockParams().flow.isVertical() != builder.getRootBox().getBlockParams().flow.isVertical()) {
 							// 書字方向が違う場合
-							if (lastFlow == holder
-									&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText
-									&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-											|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-									&& builder.getPageContext() != null) {
-								// 2026-07-22(B6a0続き): codex設計相談で「3分類は閉じて
-								// いない」と指摘され発見した4つ目の経路——終端が書字
-								// 方向不一致のBLOCKだと、lastFlow/shapeを見る手前で
-								// addBoundへ抜ける(診断専用・非例外化)。
-								builder.getPageContext().currentTailShadow().ifPresent(
-										net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeTerminalBoundAsWritingModeMismatchBlock);
-							}
 							builder.addBound(containerBox);
 						} else {
 							// ブロックボックス
 							// 匿名ボックス
 							// テーブルキャプション
-							if (lastFlow == holder
-									&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText
-									&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-											|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-									&& builder.getPageContext() != null) {
-								// 2026-07-22(B6a0): 終端(shape==OpenText)がTextBlockBox
-								// ではなくBLOCK型だったため、下のif/elseどちらの経路を
-								// 通ってもCLOSEDとして扱われる(既存コメント「lastFlow &&
-								// OpenText の末尾も閉じたボックス(次段は Closed)」どおり
-								// の正当な挙動)。tail shadowへ「終端に到達した」ことを
-								// 通知する(診断専用・非例外化、既存の挙動には一切影響
-								// しない)。
-								builder.getPageContext().currentTailShadow().ifPresent(
-										net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeTerminalClosedAsBlock);
-							}
 							if (lastFlow == holder
 									&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenChain(
 											final net.zamasoft.foliojet.layout.fragment.OpenShape inner)) {
@@ -1896,16 +1857,6 @@ public class FlowContainer implements Container {
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-chain",
 										"serial=" + holder.serial);
 								net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainFiring();
-								if ((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-										|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-										&& builder.getPageContext() != null) {
-									// 2026-07-22(B6a0): legacy OpenChain実行系が実際に選んだ
-									// box identityをtail shadowへ通知する(診断専用・
-									// 非例外化、既存の挙動には一切影響しない)。
-									final net.zamasoft.foliojet.layout.box.AbstractContainerBox observed = containerBox;
-									builder.getPageContext().currentTailShadow()
-											.ifPresent(trace -> trace.observeChainBox(observed));
-								}
 								descender.descend(builder, containerBox, inner);
 								// 2026-07-22(B6a1準備): OpenChain再帰から戻った直後、同じ
 								// itemsレベルにまだ処理すべき残りitemがあるかを実測する
@@ -1930,18 +1881,6 @@ public class FlowContainer implements Container {
 							}
 						}
 					} else {
-						if (lastFlow == null && i == size - 1
-								&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText
-								&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-										|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-								&& builder.getPageContext() != null) {
-							// 2026-07-22(B6a0続き): 414文書コーパス実測で発見した6つ目の
-							// 経路——floatはthis.flowsに入らずlastFlowに構造的になり
-							// えないため、lastFlow/shapeを見る判定そのものを通らない
-							// (診断専用・非例外化)。
-							builder.getPageContext().currentTailShadow().ifPresent(
-									net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeTerminalBoundAsFloat);
-						}
 						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-float",
 								"serial=" + holder.serial);
 						((Floating) holder).restyle(builder);
@@ -1952,20 +1891,6 @@ public class FlowContainer implements Container {
 				case TABLE: {
 					// テーブル
 					TableBox tableBox = (TableBox) holder.getBox();
-					if (lastFlow == holder && shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText
-							&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-							&& builder.getPageContext() != null) {
-						// 2026-07-22(B6a0): 終端(shape==OpenText)がTABLE型だった
-						// ため、lastFlow/shapeを一切見ない既存の無条件addBound
-						// 経路を通る(改ページ契約ルール1が「表の行境界を除き」
-						// としているとおり、表は元々このplain-flowチェーンの
-						// モデルの対象外)。tail shadowへ「終端に到達した」ことを
-						// 通知する(診断専用・非例外化、既存の挙動には一切影響
-						// しない)。
-						builder.getPageContext().currentTailShadow().ifPresent(
-								net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeTerminalBoundAsTable);
-					}
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-table",
 							"serial=" + holder.serial);
 					builder.addBound(tableBox);
@@ -1975,35 +1900,10 @@ public class FlowContainer implements Container {
 					// 置換されたボックス
 					AbstractReplacedBox replacedBox = (AbstractReplacedBox) holder.getBox();
 					if (replacedBox.getPos().getType() != PosType.FLOAT) {
-						if (lastFlow == holder
-								&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText
-								&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-										|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-								&& builder.getPageContext() != null) {
-							// 2026-07-22(B6a0続き): codex設計相談で指摘された「明示的な
-							// 第4候補」——FlowReplacedBoxはIFlowBoxを実装するため
-							// lastFlowになりうる。終端がREPLACED型だと、lastFlow/shape
-							// を一切見ない既存の無条件addBound経路を通る(診断専用・
-							// 非例外化)。
-							builder.getPageContext().currentTailShadow().ifPresent(
-									net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeTerminalBoundAsReplaced);
-						}
 						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-replaced",
 								"serial=" + holder.serial);
 						builder.addBound(replacedBox);
 					} else {
-						if (lastFlow == null && i == size - 1
-								&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText
-								&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-										|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-								&& builder.getPageContext() != null) {
-							// 2026-07-22(B6a0続き): 414文書コーパス実測で発見した6つ目の
-							// 経路——floatはthis.flowsに入らずlastFlowに構造的になり
-							// えないため、lastFlow/shapeを見る判定そのものを通らない
-							// (診断専用・非例外化)。
-							builder.getPageContext().currentTailShadow().ifPresent(
-									net.zamasoft.foliojet.layout.fragment.PlainFlowTailTrace::observeTerminalBoundAsFloat);
-						}
 						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-float-replaced",
 								"serial=" + holder.serial);
 						((Floating) holder).restyle(builder);
