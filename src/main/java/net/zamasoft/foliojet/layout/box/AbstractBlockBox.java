@@ -227,16 +227,6 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			final net.zamasoft.foliojet.layout.box.content.BreakMode mode, final byte flags,
 			final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		assert plan.selects(this);
-		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
-		{
-			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-					.current();
-			if (trace != null) {
-				trace.record(
-						new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.SplitForContinuationEntry(
-								System.identityHashCode(this)));
-			}
-		}
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 				.absorbColumn(mode, this.getColumnCount());

@@ -170,15 +170,6 @@ public class Floatings {
 	public FloatSplitResult splitPageAxis(final AbstractContainerBox box, final double pageLimit,
 			final byte flags) {
 		assert !this.floatings.isEmpty();
-		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
-		{
-			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-					.current();
-			if (trace != null) {
-				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.FloatSplitEntry(false,
-						System.identityHashCode(this)));
-			}
-		}
 		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
 		// 分類はここで全floatについて確定する。旧実装はfloat iのsplit実行後に
 		// float i+1を分類していたが、各floatのboxは独立でsplitは他floatの

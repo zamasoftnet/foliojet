@@ -115,6 +115,46 @@ public class BlockBuilder implements Builder, LayoutContext {
 	private List<List<Floating>> noOverflowFloatings = null;
 
 	/**
+	 * {@link #floatings}台帳の世代カウンタです(2026-07-24、E-5——codex
+	 * アーキレビュー指摘「照会ごとのO(N) snapshot再構築」の解消)。台帳を
+	 * 変更する全ての口が{@link #noteFloatingsChanged()}を呼んで
+	 * インクリメントする:
+	 * <ul>
+	 * <li>{@link #addFloating(LayoutContext.Floating)}——要素追加</li>
+	 * <li>{@link #addFloating(IFloatBox)}——{@code FLOAT_COMP}安定ソート
+	 * (並び順は{@code FloatExclusion.order}とスナップショット内容に
+	 * 影響する)</li>
+	 * <li>{@link #endFlowBlock()}——overflow:hiddenスコープpop時の
+	 * {@code removeAll}</li>
+	 * <li>{@code BreakableBuilder.resetFragmentCursor()}——フラグメント
+	 * 境界での台帳リセット({@code floatings = null})</li>
+	 * </ul>
+	 * 要素{@link LayoutContext.Floating}は全フィールドfinalの不変値で、
+	 * スナップショットが参照する{@code box.getFloatPos().floating}も
+	 * 台帳追加後に書き換わることはない({@code StyleBuilder}・
+	 * {@code FloatPosTemplate}ともレイアウト開始前の構築時のみ書く)ため、
+	 * リスト自体の追加・削除・並び替えだけを世代に数えれば足りる。
+	 */
+	private int floatingsGeneration = 0;
+
+	/** {@link #snapshotExclusions()}のキャッシュ(不変値なので共有可)。 */
+	private ExclusionSpace cachedExclusions = null;
+
+	/** {@link #cachedExclusions}を構築した時点の世代。 */
+	private int cachedExclusionsGeneration = -1;
+
+	/**
+	 * {@link #floatings}台帳の変更を記録します(E-5、世代キャッシュの
+	 * 無効化)。変更操作を増やす場合は必ずこれを呼ぶこと——呼び漏らしは
+	 * staleなスナップショット=実挙動バグになる。迷ったら安全側
+	 * (余分なインクリメントは再構築が増えるだけで正しさは保たれる)。
+	 */
+	final void noteFloatingsChanged() {
+		++this.floatingsGeneration;
+		this.cachedExclusions = null;
+	}
+
+	/**
 	 * 浮動ボックスをページ方向の底辺がページ開始位置にあるものから順に整列します。
 	 */
 	private static Comparator<Object> FLOAT_COMP = new Comparator<Object>() {
@@ -488,11 +528,20 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * 同値は追加順)でソート済みのため、並び順をそのまま
 	 * {@link ExclusionSpace#copyOfSorted}へ渡すO(N)一括構築で足りる
 	 * (2026-07-23、codexレビュー指摘のO(N²)解消)。
+	 *
+	 * <p>
+	 * 台帳が前回構築時から変わっていなければ({@link #floatingsGeneration}
+	 * 世代一致)、再構築せずキャッシュ済みの不変スナップショットを返す
+	 * (2026-07-24、E-5——照会ごとのO(N)再構築の解消)。
+	 * </p>
 	 */
 	ExclusionSpace snapshotExclusions() {
 		final int count = this.getFloatingCount();
 		if (count == 0) {
 			return ExclusionSpace.EMPTY;
+		}
+		if (this.cachedExclusions != null && this.cachedExclusionsGeneration == this.floatingsGeneration) {
+			return this.cachedExclusions;
 		}
 		final List<FloatExclusion> exclusions = new ArrayList<>(count);
 		for (int i = 0; i < count; ++i) {
@@ -502,7 +551,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 					new AxisSpan(floating.pageStart, floating.pageEnd),
 					new AxisSpan(floating.lineStart, floating.lineEnd)));
 		}
-		return ExclusionSpace.copyOfSorted(exclusions);
+		final ExclusionSpace snapshot = ExclusionSpace.copyOfSorted(exclusions);
+		this.cachedExclusions = snapshot;
+		this.cachedExclusionsGeneration = this.floatingsGeneration;
+		return snapshot;
 	}
 
 							public void endFlowBlock() {
@@ -521,6 +573,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			List<?> floatings = (List<?>) this.noOverflowFloatings.remove(this.noOverflowFloatings.size() - 1);
 			if (this.floatings != null) {
 				this.floatings.removeAll(floatings);
+				this.noteFloatingsChanged();
 			}
 		}
 
@@ -995,6 +1048,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 底辺を下から順に整列
 			// このソートは安定ソートである必要があります
 			Collections.sort(this.floatings, FLOAT_COMP);
+			this.noteFloatingsChanged();
 		}
 	}
 
@@ -1003,6 +1057,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.floatings = new ArrayList<Floating>();
 		}
 		this.floatings.add(floating);
+		this.noteFloatingsChanged();
 		if (this.noOverflowFloatings != null && !this.noOverflowFloatings.isEmpty()) {
 			List<Floating> floatings = (List<Floating>) this.noOverflowFloatings
 					.get(this.noOverflowFloatings.size() - 1);

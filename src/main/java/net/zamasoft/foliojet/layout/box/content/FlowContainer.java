@@ -699,7 +699,6 @@ public class FlowContainer implements Container {
 						// 継続化不成立(chainFrame は null のまま)。box 全体を
 						// this 側に残す — 720行目の chainFrame==null 分岐が
 						// plain(nextBox) へ自然にフォールバックする
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberKeep();
 						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
 					}
 					case SplitResult.Move move -> {
@@ -710,7 +709,6 @@ public class FlowContainer implements Container {
 						// そちらがthis.flowsの元のサイズを前提にしている)
 						nextBox.addFlow(flow.serial, flow.box, 0);
 						moved = true;
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberMove();
 						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
 					}
 					}
@@ -761,8 +759,6 @@ public class FlowContainer implements Container {
 		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, pageSize, pageInnerSize, frameStart, flags,
 				this.flows != null && !this.flows.isEmpty());
 		if (!(pre instanceof FlowCutter.PreDecision.Proceed(final double adjustedPageLimit))) {
-			recordDecision(false, this, "preLoop:" + pre.getClass().getSimpleName(),
-					this.flows == null ? 0 : this.flows.size());
 			return plain(switch (pre) {
 			case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
 			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatingsKeepingOwner(atLimit,
@@ -797,18 +793,15 @@ public class FlowContainer implements Container {
 			// 切断線以下のフローがない場合
 			if ((flags & IPageBreakableBox.FLAGS_LAST) == 0) {
 				if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
-					recordDecision(false, this, "noOrphan:cutTail(split-or-not-first)", this.flows.size());
 					return plain(this.cutTail(prevPageSize, flags));
 				}
 				final double contentHeight = flowPageStarts[this.flows.size() - 1]
 						+ flowPageExtents[this.flows.size() - 1];
 				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
 					// 自然の高さより高いボックスは切断
-					recordDecision(false, this, "noOrphan:cutTail(tallerThanNatural)", this.flows.size());
 					return plain(this.cutTail(prevPageSize, flags));
 				}
 				// 前のページに残す
-				recordDecision(false, this, "noOrphan:keepOnPrevPage", this.flows.size());
 				return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
 			}
 			lastOrphan = this.flows.size() - 1;
@@ -834,16 +827,6 @@ public class FlowContainer implements Container {
 		// 上から下へチェックする
 		for (int i = lastOrphan; i < this.flows.size(); ++i) {
 			Flow prevFlow = (Flow) this.flows.get(i);
-			// 2026-07-21(M6d-0.5): 観測のみ、既存分岐には一切影響しない
-			{
-				final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-						.current();
-				if (trace != null) {
-					trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.LoopExamine(false,
-							System.identityHashCode(this), i, lastOrphan, ignoreAvoid,
-							plan != null && plan.selects(prevFlow.box)));
-				}
-			}
 			final double splitLine = pageLimit - prevFlow.pageAxis;
 			byte lflags = (byte) 0xFF;
 			if (LayoutUtils.compare(prevFlow.pageAxis, 0) > 0) {
@@ -891,19 +874,10 @@ public class FlowContainer implements Container {
 						sawChainMember = true;
 						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
 								plan)) {
-						case SplitResult.Keep keep -> {
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberKeep();
-							recordChildResult(false, i, true, "Keep");
-							nextFlowBox = null;
-						}
-						case SplitResult.Move move -> {
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainMemberMove();
-							recordChildResult(false, i, true, "Move");
-							nextFlowBox = prevFlow.box;
-						}
+						case SplitResult.Keep keep -> nextFlowBox = null;
+						case SplitResult.Move move -> nextFlowBox = prevFlow.box;
 						case SplitResult.Frame(
 								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
-							recordChildResult(false, i, true, "Frame");
 							// Existing指定では結果は常にcollectedNext自身
 							// (移動があれば台帳が装着される)——旧APIの
 							// 返り値(=nextBox)と同じ
@@ -918,14 +892,8 @@ public class FlowContainer implements Container {
 					}
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 					switch (prevFlowBox.split(splitLine, mode, xflags)) {
-					case SplitResult.Keep keep -> {
-						recordChildResult(false, i, false, "Keep");
-						nextFlowBox = null;
-					}
-					case SplitResult.Move move -> {
-						recordChildResult(false, i, false, "Move");
-						nextFlowBox = prevFlow.box;
-					}
+					case SplitResult.Keep keep -> nextFlowBox = null;
+					case SplitResult.Move move -> nextFlowBox = prevFlow.box;
 					case SplitResult.Split(final IPageBreakableBox remainder) -> nextFlowBox = (IFlowBox) remainder;
 					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
 					}
@@ -994,7 +962,6 @@ public class FlowContainer implements Container {
 						return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
 					}
 					// 全部移動
-					recordDecision(false, this, "moveAll:plain(this)", this.flows.size());
 					return plain(this);
 				}
 				if (!ignoreAvoid && i > 0 && i <= lastOrphan) {
@@ -1004,15 +971,6 @@ public class FlowContainer implements Container {
 							flowPageExtents, avoidBefore, avoidAfter, flowPageEndFrames, floatPageStarts,
 							floatPageExtents, floatUncut);
 					if (pushback != null) {
-						// 2026-07-21(M6d-0.5): 観測のみ
-						{
-							final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-									.current();
-							if (trace != null) {
-								trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.Pushback(
-										false, i, pushback.resumeIndex(), pushback.newPageLimit()));
-							}
-						}
 						// ブロック間の改ページ禁止の場合
 						i = pushback.resumeIndex();
 						pageLimit = pushback.newPageLimit();
@@ -1041,7 +999,6 @@ public class FlowContainer implements Container {
 		if (nextBox == null) {
 			// ブロックを残す(末尾のブロックを残すことはない)。判定は FlowCutter に純化
 			assert !((flags & IPageBreakableBox.FLAGS_LAST) != 0 && ((AutoBreakMode) mode).box != this.box);
-			recordDecision(false, this, "nextBox==null:tailDecide", this.flows.size());
 			final double lastFlowBottom = flowPageStarts[this.flows.size() - 1]
 					+ flowPageExtents[this.flows.size() - 1];
 			return plain(switch (FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize)) {
@@ -1054,7 +1011,6 @@ public class FlowContainer implements Container {
 			});
 		}
 
-		recordDecision(false, this, "nextBox+splitFloatings", this.flows.size());
 		// nextBoxがチェーンメンバー一つだけを含む(=force-branchと同型の
 		// 「識別では判別できない素の全体move」)場合に限り
 		// PlainWithChainStopを付与する。複数flowが絡む場合(pushback巻き
@@ -1073,34 +1029,6 @@ public class FlowContainer implements Container {
 
 	private static net.zamasoft.foliojet.layout.fragment.ContainerCut plain(final Container container) {
 		return new net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain(container);
-	}
-
-	/**
-	 * 2026-07-21(M6d-0.5): {@code FragmentationAudit}が有効な場合のみ、
-	 * flowアイテムのsplit結果を観測記録する(既存分岐には一切影響しない)。
-	 */
-	private static void recordChildResult(final boolean column, final int i, final boolean isChainMember,
-			final String resultKind) {
-		final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-				.current();
-		if (trace != null) {
-			trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ChildResult(column, i,
-					isChainMember, resultKind));
-		}
-	}
-
-	/**
-	 * 2026-07-21(M6d-0.5): {@code splitPageAxis}呼び出し全体の最終決定を
-	 * 観測記録する(既存分岐には一切影響しない)。
-	 */
-	private static void recordDecision(final boolean column, final FlowContainer container, final String exitPath,
-			final int remainingFlows) {
-		final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-				.current();
-		if (trace != null) {
-			trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.Decision(column,
-					System.identityHashCode(container), exitPath, remainingFlows));
-		}
 	}
 
 	/**

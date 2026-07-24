@@ -395,15 +395,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 				: ownerContainer;
 		final int actualColumns = this.getActualColumnCount();
 
-		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
-		{
-			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-					.current();
-			if (trace != null) {
-				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.PrepareColumnCutEntry(
-						System.identityHashCode(ownerContainer)));
-			}
-		}
 		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
 		final Container remainder;
 		final Continuation.ContinuationFrame childFrame;

@@ -57,14 +57,13 @@ public class ResumeTraceGoldenTest extends TestCase {
 
 	public void testResumeTraces() throws Exception {
 		List<String> failures = new ArrayList<>();
-		// 2026-07-21(M6b Phase B5c): plan選択済みチェーンメンバーが
-		// Keep/Moveを返した回数を文書ごとに集計する。B5d(ColumnsContainer
-		// 全体運搬等、MOVEの型付け)着手前の頻度調査——このfixture集合
-		// (12文書)ではKeepは一度も発生せず、Moveは
-		// moved-table-caption.html・columns-float.htmlで1回ずつ発生する
-		// ことを実測済み(稀だが実在する、B5d後回しの判断根拠)。
-		long totalKeep = 0;
-		long totalMove = 0;
+		// 2026-07-21(M6b Phase B5d-0)新設のColumnsContainer系カウンタの
+		// 固定。B5d本実装の要否判断自体は2026-07-22にclose済みで、現在は
+		// ContainerCut.Plainのsentinel解釈差の観測(E-4)として残置——
+		// 退役条件はContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
+		// のjavadoc参照。B5c由来のCHAIN_MEMBER_KEEP/MOVE頻度assertは
+		// 2026-07-24(E-5)に退役した(Keep/Move経路の挙動自体は本テストの
+		// resume-trace golden比較が固定している)。
 		long totalColumnsSplitAttempts = 0;
 		long totalColumnsLastColumnMoveCandidate = 0;
 		for (String doc : DOCUMENTS) {
@@ -82,8 +81,6 @@ public class ResumeTraceGoldenTest extends TestCase {
 				System.clearProperty(ResumeTrace.DIR_PROPERTY);
 			}
 
-			totalKeep += net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_KEEP.get();
-			totalMove += net.zamasoft.foliojet.layout.fragment.ContinuationStats.CHAIN_MEMBER_MOVE.get();
 			totalColumnsSplitAttempts += net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_SPLIT_ATTEMPTS
 					.get();
 			totalColumnsLastColumnMoveCandidate += net.zamasoft.foliojet.layout.fragment.ContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
@@ -118,13 +115,6 @@ public class ResumeTraceGoldenTest extends TestCase {
 				}
 			}
 		}
-		assertEquals("plan選択済みチェーンメンバーのKeepはこのfixture集合では発生しないはずです", 0, totalKeep);
-		// 2026-07-24: バランスプローブ常時有効化(copper3.2互換廃止)により
-		// columns-float.htmlの段組レイアウトが実測最小容量へ変わり、下流の
-		// 改ページ経路でMoveが1回増えて計3回になった(display list goldenは
-		// BalanceProbeGoldenTest側でプローブ採用後の座標を固定済み)。
-		assertEquals("plan選択済みチェーンメンバーのMoveはこのfixture集合で3回発生するはずです"
-				+ "(moved-table-caption.htmlで1回・columns-float.htmlで2回)", 3, totalMove);
 		// 2026-07-21(M6b Phase B5d-0): ColumnsContainer(2列以上に実体化
 		// 済みの段組)自体がsplitPageAxisを呼ばれる回数自体がこの
 		// fixture集合では1回のみ(多くの段組は1列のまま完結し、

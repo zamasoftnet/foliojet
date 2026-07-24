@@ -915,6 +915,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.neLastMargin = 0;
 		this.widows = 0;
 		this.floatings = null;
+		this.noteFloatingsChanged();
 	}
 
 	/**
@@ -1010,16 +1011,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(depth, true);
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnOwnerColumnCount(breakFlow.box.getColumnCount());
 		this.beginBreak();
-		// 2026-07-21(M6d-0.5): 観測のみ、既存分岐には一切影響しない
-		{
-			final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-					.current();
-			if (trace != null) {
-				trace.record(new net.zamasoft.foliojet.layout.fragment.FragmentationEvent.ColumnBreakEntry(
-						mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode, flags,
-						depth, breakFlow.box.getColumnCount()));
-			}
-		}
 
 		// 2026-07-21(M6b Phase B4): 相対open pathを捕捉し、深さがdepth
 		// パラメータと整合するかを検証する(Step3で観測用に導入、Step4で

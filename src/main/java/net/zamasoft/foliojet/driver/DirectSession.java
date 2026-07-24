@@ -677,11 +677,8 @@ public class DirectSession extends AbstractCTISession
 			return;
 		}
 		final int stackSize = UAProps.PROCESSING_LARGE_STACK_THREAD_SIZE.getInteger(this.ua);
-		final net.zamasoft.foliojet.layout.fragment.FragmentationTrace trace = net.zamasoft.foliojet.layout.fragment.FragmentationAudit
-				.current();
 		final Throwable[] failure = new Throwable[1];
 		final Thread worker = new Thread(null, () -> {
-			net.zamasoft.foliojet.layout.fragment.FragmentationAudit.adopt(trace);
 			try {
 				task.run();
 			} catch (Throwable t) {

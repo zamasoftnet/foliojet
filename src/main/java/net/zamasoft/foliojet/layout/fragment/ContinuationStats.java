@@ -15,29 +15,15 @@ public final class ContinuationStats {
 	public static final AtomicLong CHILD_FRAMES = new AtomicLong();
 
 	/**
-	 * plan選択済み(収集可能と判定された)チェーンメンバーの
-	 * {@code splitForContinuation}/{@code split}が{@code Keep}を返した
-	 * 回数(2026-07-21新設、M6b Phase B5c)。B5d(`ColumnsContainer`全体
-	 * 運搬等、MOVEの型付け)着手前の頻度調査用——継続フレーム
-	 * (recipe/state前提)へ押し込めないため、現状はlegacy開き
-	 * (split-stopped)へ保守的に委譲している経路が実際に
-	 * どれだけ踏まれているかを可視化する。
-	 */
-	public static final AtomicLong CHAIN_MEMBER_KEEP = new AtomicLong();
-
-	/**
-	 * plan選択済みチェーンメンバーが{@code Move}(丸ごと次の
-	 * フラグメンテナへ移動)を返した回数(2026-07-21新設、M6b Phase B5c)。
-	 * {@link #CHAIN_MEMBER_KEEP}と同じ目的。
-	 */
-	public static final AtomicLong CHAIN_MEMBER_MOVE = new AtomicLong();
-
-	/**
 	 * {@code ColumnsContainer.splitPageAxis()}が呼ばれた回数(2026-07-21
 	 * 新設、M6b Phase B5d-0)。{@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}
-	 * の分母として使う——実corpusで「段組全体が丸ごと次ページへ運ばれる」
-	 * ケース(B5d)がどの程度の頻度で発生しうるかを、B5d本実装着手前に
-	 * 実測するための頻度probe。
+	 * の分母。
+	 *
+	 * <p>
+	 * <b>退役条件(2026-07-24 E-5)</b>:
+	 * {@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}と同時に退役する
+	 * (分母としてのみ意味を持つ——単独では残さない)。
+	 * </p>
 	 */
 	public static final AtomicLong COLUMNS_SPLIT_ATTEMPTS = new AtomicLong();
 
@@ -48,10 +34,22 @@ public final class ContinuationStats {
 	 * 4引数版: {@code ContainerCut.Plain}のcontainerが最後列自身と同一)
 	 * であった回数(2026-07-21新設、M6b Phase B5d-0)。これは「段組全体の
 	 * MOVE」の上位集合(最後列だけがMOVEし前方列はそのまま残る通常
-	 * ケースも含む)——実際に「全列MOVE」かどうかまでは区別しない、
-	 * B5d本実装の要否を判断するための粗い頻度シグナルに留める。挙動には
-	 * 一切影響しない(カウンタ加算のみ、`ColumnsContainer`の委譲ロジック
-	 * 自体は変更していない)。
+	 * ケースも含む)。挙動には一切影響しない(カウンタ加算のみ)。
+	 *
+	 * <p>
+	 * <b>退役条件(2026-07-24 E-5)</b>: 当初目的(B5d本実装の要否判断)は
+	 * 2026-07-22にclose済み(docs/history/2026-07-22-b5d-closed-no
+	 * -implementation-needed.md——実測0件+既存の{@code remainder ==
+	 * activeColumn}判定で正しく処理されることを確認)。現在の残置理由は
+	 * {@code ContainerCut.Plain}のsentinel(null/this)が層ごとに異なる
+	 * identity比較で解釈される現行挙動の観測(E-4で明文化、
+	 * {@code ContainerCut.Plain}のjavadoc参照)——Plain sentinelの
+	 * {@code Keep}/{@code Move}型化(legacy 3引数{@code Container
+	 * .splitPageAxis}契約の撤去と同時に行う)が完了したら、
+	 * {@link #COLUMNS_SPLIT_ATTEMPTS}および参照assert
+	 * ({@code ResumeTraceGoldenTest}・{@code BalanceProbeSessionTest})
+	 * ごと退役してよい。
+	 * </p>
 	 */
 	public static final AtomicLong COLUMNS_LAST_COLUMN_MOVE_CANDIDATE = new AtomicLong();
 
@@ -212,20 +210,6 @@ public final class ContinuationStats {
 	public static void recordLastColumnMoveCandidate() {
 		if (live()) {
 			COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.incrementAndGet();
-		}
-	}
-
-	/** plan選択済みチェーンメンバーがKeepを返した回数です(M6c-1でAPI集約)。 */
-	public static void recordChainMemberKeep() {
-		if (live()) {
-			CHAIN_MEMBER_KEEP.incrementAndGet();
-		}
-	}
-
-	/** plan選択済みチェーンメンバーがMoveを返した回数です(M6c-1でAPI集約)。 */
-	public static void recordChainMemberMove() {
-		if (live()) {
-			CHAIN_MEMBER_MOVE.incrementAndGet();
 		}
 	}
 
@@ -466,8 +450,6 @@ public final class ContinuationStats {
 		BALANCE_PROBE_BUILDS.set(0);
 		BALANCE_PROBE_COMMITS.set(0);
 		CHILD_FRAMES.set(0);
-		CHAIN_MEMBER_KEEP.set(0);
-		CHAIN_MEMBER_MOVE.set(0);
 		COLUMNS_SPLIT_ATTEMPTS.set(0);
 		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.set(0);
 		LAST_COLUMN_OWNER_COLUMN_COUNT.set(-1);
