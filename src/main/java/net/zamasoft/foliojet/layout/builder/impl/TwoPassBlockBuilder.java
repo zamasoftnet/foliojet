@@ -220,6 +220,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				this.lease.close();
 			}
 		}
+
+		/**
+		 * 表Pass B(行計測)用にseal済み範囲を{@code builder}へ再駆動します
+		 * (E-6増分5b-1、2026-07-24——codex設計§4.4)。{@link #bind}と同じ
+		 * SegmentExecutor駆動だが、<b>リースを解放しない</b>(後続の本bindが
+		 * 同じ範囲をもう一度captureする——captureはslice自身のリースを都度
+		 * 取得・解放する非破壊読み)。統計(TWO_PASS_RANGE_BINDS)も計上しない
+		 * (seal:bind 1:1検証を汚さない)。
+		 */
+		void measureInto(final BlockBuilder builder) {
+			net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(this.source, this.fromId, this.toId, builder,
+					this.pageGenerator);
+		}
 	}
 
 	protected final LayoutStack layoutStack;

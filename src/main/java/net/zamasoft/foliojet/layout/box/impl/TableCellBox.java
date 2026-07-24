@@ -143,6 +143,37 @@ public class TableCellBox extends AbstractContainerBox {
 		}
 	}
 
+	/**
+	 * 表Pass B(行計測)用のscratch複製を作ります(E-6増分5b-1、2026-07-24——
+	 * codex設計§4.4「確定列幅でセルrangeを再生し寸法だけ取得して破棄」の
+	 * 計測プリミティブの部品)。prepareLayout・列幅適用
+	 * (setWidth/setHeight)済みの自分と同じレイアウト初期状態
+	 * (フレーム・min/maxページ方向寸法・つぶし境界フラグ・両軸の内寸)を
+	 * 持つ新品を返す。フレームは防御コピー(複製側のレイアウトが
+	 * 自分の状態へ触れない)。段組セル(非FlowContainer)は未対応でnull
+	 * (呼び出し側がPass B対象外として扱う)。
+	 *
+	 * @return 複製セル。段組セルはnull
+	 */
+	public final TableCellBox newMeasureReplica() {
+		if (!(this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer)) {
+			// 段組セルのコンテナ複製は未対応(Pass B対象外)
+			return null;
+		}
+		final AbsoluteRectFrame frameCopy = new AbsoluteRectFrame(this.frame.frame);
+		frameCopy.margin = new AbsoluteInsets(this.frame.margin.top, this.frame.margin.right, this.frame.margin.bottom,
+				this.frame.margin.left);
+		frameCopy.padding.set(this.frame.padding);
+		final TableCellBox replica = new TableCellBox(this.params, this.pos, this.size, this.minSize, frameCopy,
+				new net.zamasoft.foliojet.layout.box.content.FlowContainer());
+		replica.collapse = this.collapse;
+		replica.minPageAxis = this.minPageAxis;
+		replica.maxPageAxis = this.maxPageAxis;
+		replica.width = this.width;
+		replica.height = this.height;
+		return replica;
+	}
+
 	public final void prepareLayout(double lineSize, TableBox tableBox, AbsoluteInsets spacing) {
 		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		this.frame.margin = spacing;

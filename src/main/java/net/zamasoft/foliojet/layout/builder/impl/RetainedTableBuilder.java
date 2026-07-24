@@ -114,6 +114,24 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 	 */
 	private AutoColumnWidths.Result columnWidths;
 
+	/**
+	 * 表Pass B(行計測)のshadow検証フックです(E-6増分5b-1、2026-07-24、
+	 * テスト専用——3b-2のLayoutSourceTestHooks流儀)。productionでは
+	 * nullのままで挙動不変。shadowテストがセルbindの直前・直後を観測し、
+	 * {@link CellPassBMeasurer}の独立計測とbind実寸の一致を検証する。
+	 * 設定したテストはfinallyで必ず解除すること(static共有のため)。
+	 */
+	interface CellBindShadow {
+		/** セルbind({@code cell.bind})の直前(列幅適用済み)。 */
+		void beforeCellBind(CellContent cell, TableCellBox cellBox, LayoutStack layoutStack, boolean vertical);
+
+		/** セルbind+builder closeの直後。 */
+		void afterCellBind(CellContent cell, TableCellBox cellBox, boolean vertical);
+	}
+
+	/** テスト専用shadow観測フック(production=null)。 */
+	static CellBindShadow cellBindShadow = null;
+
 	private static final byte PARAM_COUNT = 3;
 
 	public RetainedTableBuilder(LayoutStack layoutStack, TableBox tableBox) {
@@ -964,9 +982,17 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 						}
 						// E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、
 						// 不適格セルは従来のrecords再演(CellContent.bindが分岐)
+						// E-6増分5b-1: shadow検証フック(テスト専用、production=null)
+						final CellBindShadow shadow = cellBindShadow;
+						if (shadow != null) {
+							shadow.beforeCellBind(cell, cellBox, this.layoutStack, this.vertical);
+						}
 						final BlockBuilder cellBindBuilder = new BlockBuilder(this.layoutStack, cellBox);
 						cell.bind(cellBindBuilder);
 						cellBindBuilder.close();
+						if (shadow != null) {
+							shadow.afterCellBind(cell, cellBox, this.vertical);
+						}
 
 						this.cellToSource.put(cellBox, rowBox.addTableSourceCell(cellBox));
 						int cellRowspan = Math.min(rows.size() - j, cell.rowspan);

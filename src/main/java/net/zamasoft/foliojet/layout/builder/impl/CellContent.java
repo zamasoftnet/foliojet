@@ -220,6 +220,15 @@ class CellContent {
 	}
 
 	/**
+	 * seal済み本文のDeferredBindを返します(E-6増分5b-1、表Pass B計測
+	 * プリミティブ{@link CellPassBMeasurer}用)。未seal(records保持)・
+	 * extendedはnull(Pass B対象外)。
+	 */
+	TwoPassBlockBuilder.DeferredBind rangeBody() {
+		return this.cell instanceof RangeContent range ? range.body() : null;
+	}
+
+	/**
 	 * recordsが現に保持しているglyph数の概算です(E-6増分5a、保持量観測
 	 * 専用——seal済み・extendedは0)。挙動には影響しない。
 	 */
