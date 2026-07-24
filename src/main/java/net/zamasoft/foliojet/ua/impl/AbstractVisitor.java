@@ -7,7 +7,7 @@ import java.awt.geom.Rectangle2D;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.StructureElement;
 import net.zamasoft.foliojet.css.util.LengthUtils;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
@@ -82,7 +82,7 @@ public abstract class AbstractVisitor implements Visitor {
 	protected Drawer drawer;
 
 	/** Form controls already emitted on the current page (dedup by identity). */
-	private final java.util.Set<CSSElement> emittedControls = java.util.Collections
+	private final java.util.Set<StructureElement> emittedControls = java.util.Collections
 			.newSetFromMap(new java.util.IdentityHashMap<>());
 
 	protected AbstractVisitor(UserAgent ua) {
@@ -92,7 +92,7 @@ public abstract class AbstractVisitor implements Visitor {
 
 	protected abstract void addFragment(String id, Point2D location);
 
-	protected abstract void addLink(Shape s, URI uri, CSSElement ce, String contents);
+	protected abstract void addLink(Shape s, URI uri, StructureElement ce, String contents);
 
 	/**
 	 * Emits an interactive PDF form field for a simple HTML form control
@@ -103,7 +103,7 @@ public abstract class AbstractVisitor implements Visitor {
 	 * @param box  the control's box (for reading textarea content)
 	 * @param ce   the control element (input/textarea)
 	 */
-	protected void addFormField(Shape rect, IBox box, CSSElement ce) {
+	protected void addFormField(Shape rect, IBox box, StructureElement ce) {
 		// no-op by default
 	}
 
@@ -115,7 +115,7 @@ public abstract class AbstractVisitor implements Visitor {
 	 * @param rect the widget rectangle in page coordinates
 	 * @param ce   the select element
 	 */
-	protected void beginSelect(Shape rect, CSSElement ce) {
+	protected void beginSelect(Shape rect, StructureElement ce) {
 		// no-op by default
 	}
 
@@ -126,7 +126,7 @@ public abstract class AbstractVisitor implements Visitor {
 	 * @param optionCe  the option element
 	 * @param optionBox the option box (for its label text)
 	 */
-	protected void addSelectOption(CSSElement optionCe, IBox optionBox) {
+	protected void addSelectOption(StructureElement optionCe, IBox optionBox) {
 		// no-op by default
 	}
 
@@ -212,8 +212,10 @@ public abstract class AbstractVisitor implements Visitor {
 
 	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
 		this.drawer = drawer;
-		final CSSElement ce = (CSSElement) box.getParams().element;
-		if (ce == null || ce.atts == null) {
+		// E-6増分3b-4: ソース再生されたボックスのelementはStructureToken
+		// (CSSElementではない)——読み取りは共通契約StructureElement経由
+		final StructureElement ce = box.getParams().element;
+		if (ce == null || ce.atts() == null) {
 			return;
 		}
 
@@ -231,7 +233,7 @@ public abstract class AbstractVisitor implements Visitor {
 			String href = null;
 			URI uri = null;
 			try {
-				href = Constants.XLINK_HREF_ATTR.getValue(ce.atts);
+				href = Constants.XLINK_HREF_ATTR.getValue(ce.atts());
 				if (href != null) {
 					if (href.length() > 4096) {
 						throw new URISyntaxException(href, "URI too long: >4096");
@@ -258,7 +260,7 @@ public abstract class AbstractVisitor implements Visitor {
 			
 			if (type == BoxType.REPLACED) {
 				// Image map
-				String usemap = XHTML.USEMAP_ATTR.getValue(ce.atts);
+				String usemap = XHTML.USEMAP_ATTR.getValue(ce.atts());
 				if (usemap != null && usemap.startsWith("#")) {
 					usemap = usemap.substring(1);
 					ImageMap imageMap = this.ua.getUAContext().getImageMaps().get(usemap);
@@ -300,9 +302,9 @@ public abstract class AbstractVisitor implements Visitor {
 		}
 
 		// フォーム部品を対話フォームフィールドとして出力
-		if (this.forms && (type == BoxType.REPLACED || type == BoxType.BLOCK) && ce.lName != null
+		if (this.forms && (type == BoxType.REPLACED || type == BoxType.BLOCK) && ce.lName() != null
 				&& this.emittedControls.add(ce)) {
-			final String lName = ce.lName.toLowerCase(java.util.Locale.ROOT);
+			final String lName = ce.lName().toLowerCase(java.util.Locale.ROOT);
 			if (lName.equals("input") || lName.equals("textarea")) {
 				this.addFormField(controlRect(transform, box, x, y), box, ce);
 			} else if (lName.equals("select")) {
@@ -314,7 +316,7 @@ public abstract class AbstractVisitor implements Visitor {
 
 		// フラグメント
 		if ((this.fragments || pageRef != null) && isMarkupBox(type)) {
-			String id = XHTML.ID_ATTR.getValue(ce.atts);
+			String id = XHTML.ID_ATTR.getValue(ce.atts());
 			if (id != null) {
 				// ページ参照を使う場合はいずれにしてもフラグメントを出す
 				Point2D location = new Point2D.Double(x, y);
@@ -343,7 +345,7 @@ public abstract class AbstractVisitor implements Visitor {
 		// bookmarks/page-referencesとは無関係の独立機構のため無条件で処理する。
 		if (isMarkupBox(type)) {
 			Map<Long, List<PendingStringSet>> pendingMap = this.ua.getPassContext().getPendingStringSets();
-			List<PendingStringSet> pending = pendingMap.remove(ce.elementKey);
+			List<PendingStringSet> pending = pendingMap.remove(ce.elementKey());
 			if (pending != null) {
 				StringBuilder textBuff = null;
 				for (int i = 0; i < pending.size(); ++i) {
@@ -361,14 +363,14 @@ public abstract class AbstractVisitor implements Visitor {
 							resolved.append((String) part);
 						}
 					}
-					this.ua.getPassContext().getNamedStringState().set(p.name, resolved.toString(), ce.elementKey);
+					this.ua.getPassContext().getNamedStringState().set(p.name, resolved.toString(), ce.elementKey());
 				}
 			}
 		}
 
 		// ブックマーク
 		if ((this.bookmarks || pageRef != null) && isMarkupBox(type)) {
-			String header = CSSJML.HEADER_ATTR.getValue(ce.atts);
+			String header = CSSJML.HEADER_ATTR.getValue(ce.atts());
 			if (header != null) {
 				// 見出しの処理
 				try {
@@ -433,9 +435,9 @@ public abstract class AbstractVisitor implements Visitor {
 				}
 			}
 
-			if (ce.atts != null) {
+			if (ce.atts() != null) {
 				// アノテーション
-				String annot = CSSJML.ANNOT_ATTR.getValue(ce.atts);
+				String annot = CSSJML.ANNOT_ATTR.getValue(ce.atts());
 				if (annot != null) {
 					this.ua.message(MessageCodes.INFO_ANNOTATION, annot);
 				}

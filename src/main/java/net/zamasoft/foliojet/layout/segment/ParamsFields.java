@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.segment;
 
 import java.awt.geom.AffineTransform;
 
-import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.StructureElement;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.Params;
 
@@ -20,16 +20,24 @@ import net.zamasoft.foliojet.layout.box.params.Params;
  * freeze時のコピーを、{@link #materializeInto}呼び出しごとに新品の
  * コピーをそれぞれ行う(2026-07-22 Stage2、不変recordへ置換)。
  * </p>
+ *
+ * <p>
+ * {@code element}はE-6増分3b-4(2026-07-24)で{@code CSSElement}の
+ * 直接保持から{@link StructureToken#freeze}の結果へ切り替えた——
+ * {@code CSSElement.precedingElement}チェーン(過去の要素列)をrecipeが
+ * 引き留めないため。identity契約(同じ論理要素=同じインスタンス)は
+ * 再生セッション内のintern({@code SegmentExecutor})が保つ。
+ * </p>
  */
-record ParamsFields(CSSElement element, int zIndexValue, byte zIndexType, float opacity, AffineTransform transform,
-		Offset transformOrigin) {
+record ParamsFields(StructureElement element, int zIndexValue, byte zIndexType, float opacity,
+		AffineTransform transform, Offset transformOrigin) {
 	ParamsFields {
 		transform = new AffineTransform(transform);
 	}
 
 	static ParamsFields freeze(final Params source) {
-		return new ParamsFields(source.element, source.zIndexValue, source.zIndexType, source.opacity,
-				source.transform, source.transformOrigin);
+		return new ParamsFields(StructureToken.freeze(source.element), source.zIndexValue, source.zIndexType,
+				source.opacity, source.transform, source.transformOrigin);
 	}
 
 	void materializeInto(final Params target) {

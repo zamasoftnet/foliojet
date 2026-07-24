@@ -31,10 +31,22 @@ import net.zamasoft.pdfg2d.gc.image.Image;
  * (production経路からの呼び出し)はまだ行わない。
  */
 public class LayoutSourceEventConverterTest extends TestCase {
+	/**
+	 * E-6増分3b-4: Startは記録時freezeのrecipe保持になった。freezeの
+	 * kind→variant/テンプレート対応(旧convertStartの変換時freeze)は
+	 * {@code BoxRecipe.freeze}が担うため、このテストは記録時と同じ
+	 * 経路でStartを組み立てて変換を検証する。
+	 */
+	private static LayoutSource.Start start(final LayoutSource.BoxKind kind,
+			final net.zamasoft.foliojet.layout.box.params.Params params,
+			final net.zamasoft.foliojet.layout.box.params.Pos pos) {
+		return new LayoutSource.Start(BoxRecipe.freeze(kind, params, pos));
+	}
+
 	/** イベント数は1:1(ordinal対応を壊さない、M6d-A2との整合性)。 */
 	public void testEventCountIsPreserved1to1() {
 		final LayoutSource log = new LayoutSource();
-		log.append(new LayoutSource.Start(LayoutSource.BoxKind.FLOW, new BlockParams(), new FlowPos()));
+		log.append(start(LayoutSource.BoxKind.FLOW, new BlockParams(), new FlowPos()));
 		log.append(new LayoutSource.Chars(0, "abc".toCharArray(), false));
 		log.append(new LayoutSource.EndBlock());
 		final LayoutSource.ReplaySlice slice = log.capture(0, 2);
@@ -51,7 +63,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		pos.align = net.zamasoft.foliojet.layout.box.params.Align.END;
 
 		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.FLOW, params, pos));
+				.convert(start(LayoutSource.BoxKind.FLOW, params, pos));
 
 		assertTrue(converted instanceof SegmentEvent.BeginBox);
 		final SegmentEvent.BeginBox begin = (SegmentEvent.BeginBox) converted;
@@ -68,7 +80,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		pos.lineHeight = 2.0;
 
 		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.INLINE, params, pos));
+				.convert(start(LayoutSource.BoxKind.INLINE, params, pos));
 
 		assertTrue(converted instanceof SegmentEvent.BeginBox);
 		final BoxRecipe.Inline inline = (BoxRecipe.Inline) ((SegmentEvent.BeginBox) converted).recipe();
@@ -80,7 +92,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		final BlockParams params = new BlockParams();
 		params.widows = 4;
 		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL, params, new FlowPos()));
+				.convert(start(LayoutSource.BoxKind.MULTICOL, params, new FlowPos()));
 
 		assertTrue(((SegmentEvent.BeginBox) converted).recipe() instanceof BoxRecipe.Multicol);
 		final BoxRecipe.Multicol multicol = (BoxRecipe.Multicol) ((SegmentEvent.BeginBox) converted).recipe();
@@ -92,7 +104,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		for (final LayoutSource.BoxKind kind : new LayoutSource.BoxKind[] { LayoutSource.BoxKind.MARKER,
 				LayoutSource.BoxKind.INLINE_BLOCK, LayoutSource.BoxKind.INSIDE_MARKER }) {
 			final SegmentEvent converted = LayoutSourceEventConverter
-					.convert(new LayoutSource.Start(kind, new BlockParams(), new InlinePos()));
+					.convert(start(kind, new BlockParams(), new InlinePos()));
 			assertTrue("kind=" + kind, converted instanceof SegmentEvent.BeginBox);
 		}
 	}
@@ -102,7 +114,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		final FloatPos pos = new FloatPos();
 		pos.floating = FloatSide.END;
 		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.FLOAT_BLOCK, new BlockParams(), pos));
+				.convert(start(LayoutSource.BoxKind.FLOAT_BLOCK, new BlockParams(), pos));
 
 		final BoxRecipe.FloatBlock floatBlock = (BoxRecipe.FloatBlock) ((SegmentEvent.BeginBox) converted).recipe();
 		assertEquals(FloatSide.END, floatBlock.pos().materialize().floating);
@@ -120,7 +132,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		pos.columnSpan = net.zamasoft.foliojet.layout.box.params.FlowPos.COLUMN_SPAN_ALL;
 
 		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE, params, pos));
+				.convert(start(LayoutSource.BoxKind.TABLE, params, pos));
 
 		assertTrue(converted instanceof SegmentEvent.BeginBox);
 		final BoxRecipe.Table table = (BoxRecipe.Table) ((SegmentEvent.BeginBox) converted).recipe();
@@ -133,19 +145,19 @@ public class LayoutSourceEventConverterTest extends TestCase {
 	public void testInnerTableParamsBoxKinds() {
 		final InnerTableParams tableRowGroupParams = new InnerTableParams();
 		final SegmentEvent rowGroup = LayoutSourceEventConverter.convert(
-				new LayoutSource.Start(LayoutSource.BoxKind.TABLE_ROW_GROUP, tableRowGroupParams, new TableRowGroupPos()));
+				start(LayoutSource.BoxKind.TABLE_ROW_GROUP, tableRowGroupParams, new TableRowGroupPos()));
 		assertTrue(((SegmentEvent.BeginBox) rowGroup).recipe() instanceof BoxRecipe.TableRowGroup);
 
 		final SegmentEvent row = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE_ROW, new InnerTableParams(), new TableRowPos()));
+				.convert(start(LayoutSource.BoxKind.TABLE_ROW, new InnerTableParams(), new TableRowPos()));
 		assertTrue(((SegmentEvent.BeginBox) row).recipe() instanceof BoxRecipe.TableRow);
 
-		final SegmentEvent columnGroup = LayoutSourceEventConverter.convert(new LayoutSource.Start(
+		final SegmentEvent columnGroup = LayoutSourceEventConverter.convert(start(
 				LayoutSource.BoxKind.TABLE_COLUMN_GROUP, new InnerTableParams(), new TableColumnPos()));
 		assertTrue(((SegmentEvent.BeginBox) columnGroup).recipe() instanceof BoxRecipe.TableColumnGroup);
 
 		final SegmentEvent column = LayoutSourceEventConverter.convert(
-				new LayoutSource.Start(LayoutSource.BoxKind.TABLE_COLUMN, new InnerTableParams(), new TableColumnPos()));
+				start(LayoutSource.BoxKind.TABLE_COLUMN, new InnerTableParams(), new TableColumnPos()));
 		assertTrue(((SegmentEvent.BeginBox) column).recipe() instanceof BoxRecipe.TableColumn);
 	}
 
@@ -157,7 +169,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		pos.colspan = 3;
 
 		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(new LayoutSource.Start(LayoutSource.BoxKind.TABLE_CELL, params, pos));
+				.convert(start(LayoutSource.BoxKind.TABLE_CELL, params, pos));
 
 		final BoxRecipe.TableCell cell = (BoxRecipe.TableCell) ((SegmentEvent.BeginBox) converted).recipe();
 		assertEquals(2, cell.params().materialize().orphans);

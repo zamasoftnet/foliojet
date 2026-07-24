@@ -339,16 +339,27 @@ public class StyleBuilder implements PageGenerator {
 
 	/**
 	 * ボックスの開始をログに記録してから doc に渡します(M6b v3)。
+	 *
+	 * <p>
+	 * E-6増分3b-4(2026-07-24): 記録時に{@code BoxRecipe.freeze}で
+	 * 凍結し、liveのparams/pos参照({@code CSSElement}グラフ含む)を
+	 * ログに残さない。params/posの変異は全てこの記録前のStyleBuilder
+	 * フェーズに閉じる(codex設計§1.1・独立cross-check済み)ため、
+	 * 記録時freezeは従来の再生時共有と同値。freezeは
+	 * {@link #boxKind}が非nullを返す全13 kindをカバーする総関数で、
+	 * {@code ReplacedRecipe.freeze}と違い失敗変種({@code StartLive})は
+	 * 必要ない。
+	 * </p>
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
-		// レイアウトソースプロトコルの記録(M6b v3)。params/pos から
-		// 再インスタンス化できる種別は Start(kind) として記録し、未対応の
-		// 種別(表・絶対配置等)は Opaque として位置だけ占有する
-		// (範囲に Opaque を含む再生はフォールバック)
+		// レイアウトソースプロトコルの記録(M6b v3)。recipe化できる種別は
+		// Start(recipe) として記録し、未対応の種別(キャプション・絶対配置等)
+		// は Opaque として位置だけ占有する(範囲に Opaque を含む再生は
+		// フォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
 		if (kind != null) {
-			box.setSourceAnchor(
-					this.layoutSource.append(new LayoutSource.Start(kind, box.getParams(), box.getPos())));
+			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Start(
+					net.zamasoft.foliojet.layout.segment.BoxRecipe.freeze(kind, box.getParams(), box.getPos()))));
 		} else {
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Opaque()));
 		}

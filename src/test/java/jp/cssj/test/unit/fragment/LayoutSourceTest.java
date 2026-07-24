@@ -8,11 +8,16 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
  * LayoutSource(レイアウトソースプロトコルログ)のテストです(M6b v3)。
- * params/pos はログ機構に無関係のため null で代用します。
+ * recipeの中身はログ機構に無関係のため、デフォルト値の最小recipeで
+ * 代用します(E-6増分3b-4でStartは記録時freezeのrecipe保持になった)。
  */
 public class LayoutSourceTest extends TestCase {
 	private static LayoutSource.Event start() {
-		return new LayoutSource.Start(LayoutSource.BoxKind.FLOW, null, null);
+		return new LayoutSource.Start(new net.zamasoft.foliojet.layout.segment.BoxRecipe.Flow(
+				net.zamasoft.foliojet.layout.segment.BlockParamsTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.BlockParams()),
+				net.zamasoft.foliojet.layout.segment.FlowPosTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.FlowPos())));
 	}
 
 	public void testEventIdStableAcrossCompaction() {

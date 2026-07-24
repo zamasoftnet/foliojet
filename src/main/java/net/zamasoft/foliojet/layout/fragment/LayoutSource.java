@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.segment.BoxRecipe;
 import net.zamasoft.foliojet.layout.segment.TextSpill;
 
 /**
@@ -17,6 +17,17 @@ import net.zamasoft.foliojet.layout.segment.TextSpill;
  * カウンタ評価が再実行されることは構造的にありません。改ページ残余の
  * 再生はこのログを read-only で読み、ライブの StyleBuilder/DocumentBuilder
  * の状態には一切触れない専用ドライバが行います(ARCHITECTURE.md §5.6 v3)。
+ * </p>
+ *
+ * <p>
+ * <b>BeginBoxのappend時freeze(E-6増分3b-4、2026-07-24)</b>:
+ * {@link Start}はliveのparams/pos参照ではなく、記録時に
+ * {@link BoxRecipe#freeze}で凍結したrecipeを保持する。params/posの変異は
+ * 全て記録前のStyleBuilderフェーズに閉じる(codex設計§1.1・独立
+ * cross-check済み)ため出力挙動は不変で、ログがliveのparams/pos・
+ * {@code CSSElement}のprecedingElementグラフを引き留めない
+ * ({@code Params.element}は{@code StructureToken}へ切り離される——
+ * {@code StructureToken}のjavadoc参照)。
  * </p>
  *
  * <p>
@@ -47,7 +58,8 @@ public final class LayoutSource implements AutoCloseable {
 
 	/**
 	 * ボックスの種別です。params/pos からの再インスタンス化の
-	 * ファクトリ選択に使います(SourceReplayer.newBox)。
+	 * ファクトリ選択({@code BoxRecipeBoxFactory.create}のkindカーネル)と
+	 * 記録時freeze({@link BoxRecipe#freeze})のvariant選択に使います。
 	 */
 	public enum BoxKind {
 		/** 通常ブロック(FlowBlockBox)。 */
@@ -79,12 +91,17 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * ボックスの開始です。kind と params/pos から同型のボックスを
-	 * 再インスタンス化できます(生成内容・マーカー番号等は解決済みの
-	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません)。
+	 * ボックスの開始です(E-6増分3b-4、2026-07-24: live params/pos参照の
+	 * 保持から記録時freezeのrecipe保持へ置換)。記録時
+	 * ({@code StyleBuilder.startBox})に{@link BoxRecipe#freeze}で凍結され、
+	 * 再生は{@code BoxRecipeBoxFactory.create(BoxRecipe)}のmaterializeで
+	 * 新品のボックスを作る——liveのparams/pos({@code CSSElement}グラフ
+	 * 含む)はログに残らない。freezeは{@code StyleBuilder.boxKind}が
+	 * 非nullを返す全13 kindをカバーする総関数({@code ReplacedRecipe
+	 * .freeze}と違い失敗変種はない)。生成内容・マーカー番号等は解決済みの
+	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません。
 	 */
-	public record Start(BoxKind kind, net.zamasoft.foliojet.layout.box.params.Params params, Pos pos)
-			implements Event {
+	public record Start(BoxRecipe recipe) implements Event {
 	}
 
 	/**
@@ -255,6 +272,10 @@ public final class LayoutSource implements AutoCloseable {
 			ContinuationStats.recordReplacedRecorded(true);
 		} else if (event instanceof ReplacedLive) {
 			ContinuationStats.recordReplacedRecorded(false);
+		} else if (event instanceof Start) {
+			// E-6増分3b-4: Startは記録時freeze(全kindカバーの総関数のため
+			// live変種の対カウンタはない——構造的に残量ゼロ)
+			ContinuationStats.recordStartRecipe();
 		}
 		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
@@ -567,9 +588,8 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			switch (entry.event()) {
 			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
-			case Start(final BoxKind kind, final net.zamasoft.foliojet.layout.box.params.Params params,
-					final Pos pos) -> {
-				if (depth == 0 && isBlockLevel(kind)) {
+			case Start(final BoxRecipe recipe) -> {
+				if (depth == 0 && isBlockLevel(recipe.kind())) {
 					// 段落の次のブロック級兄弟 = 尾部の終わり
 					return entry.id();
 				}
@@ -597,7 +617,7 @@ public final class LayoutSource implements AutoCloseable {
 	 * ブロック級(段落を終わらせる)種別かを返します。インライン級
 	 * (INLINE/INLINE_BLOCK/各マーカー)は段落の続きとして通過させます。
 	 */
-	private static boolean isBlockLevel(final BoxKind kind) {
+	private static boolean isBlockLevel(final net.zamasoft.foliojet.layout.segment.BoxKind kind) {
 		// フロートは段落を終わらせない(ソース位置は段落中)。尾部範囲に
 		// フロートが入る場合の再生可否は呼び出し側の containsFloat ゲートが
 		// 判定する(再生は係留を再実行するため二重化の危険がある)
@@ -643,8 +663,7 @@ public final class LayoutSource implements AutoCloseable {
 			if (entry.id() > toId) {
 				break;
 			}
-			if (entry.event() instanceof Start(final BoxKind kind, final net.zamasoft.foliojet.layout.box.params.Params params,
-					final Pos pos) && kind == BoxKind.MULTICOL) {
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Multicol) {
 				return true;
 			}
 		}
@@ -668,10 +687,12 @@ public final class LayoutSource implements AutoCloseable {
 			if (entry.id() > toId) {
 				break;
 			}
-			if (entry.event() instanceof Start(final BoxKind kind,
-					final net.zamasoft.foliojet.layout.box.params.Params params, final Pos pos)
-					&& params instanceof net.zamasoft.foliojet.layout.box.params.AbstractTextParams textParams
-					&& textParams.flow.isVertical() != vertical) {
+			// flowOrNull()はInnerTableParams系(flowを持たない)でnull——
+			// 旧liveログのparams instanceof AbstractTextParams判定と同値
+			// (E-6増分3b-4、凍結済みStartから読む)
+			if (entry.event() instanceof Start(final BoxRecipe recipe)
+					&& recipe.flowOrNull() instanceof net.zamasoft.foliojet.layout.box.params.WritingMode flow
+					&& flow.isVertical() != vertical) {
 				return true;
 			}
 		}
@@ -693,8 +714,10 @@ public final class LayoutSource implements AutoCloseable {
 			if (entry.id() > toId) {
 				break;
 			}
-			if (entry.event() instanceof Start(final BoxKind kind, final net.zamasoft.foliojet.layout.box.params.Params params,
-					final Pos pos) && pos.getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
+			// recipeのFloatBlock変種 ⇔ FloatBlockBox ⇔ FloatPos(PosType.FLOAT)
+			// の1:1対応(StyleBuilder.boxKindのクラス判定とBoxRecipe.freezeが対
+			// ——E-6増分3b-4、旧pos.getType()==FLOAT判定と同値)
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.FloatBlock) {
 				return true;
 			}
 			// recipeのFloat変種 ⇔ FloatReplacedBox ⇔ PosType.FLOAT(1:1対応。

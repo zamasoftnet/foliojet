@@ -278,6 +278,23 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * 記録時にrecipe化されたStart(BeginBox)イベント数です(2026-07-24
+	 * 新設、E-6増分3b-4)。Startのfreeze({@code BoxRecipe.freeze})は
+	 * {@code StyleBuilder.boxKind}が非nullを返す全13 kindをカバーする
+	 * 総関数のため、Replacedと違いliveの対カウンタは存在しない
+	 * (live残量は構造的にゼロ——テンプレートを持たない種別はそもそも
+	 * {@code Opaque}で記録される)。
+	 */
+	public static final AtomicLong START_RECIPE_EVENTS = new AtomicLong();
+
+	/** Startイベントの記録時recipe化の観測です(E-6増分3b-4)。 */
+	public static void recordStartRecipe() {
+		if (live()) {
+			START_RECIPE_EVENTS.incrementAndGet();
+		}
+	}
+
 	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenTextHandoff() {
 		if (live()) {
@@ -525,6 +542,7 @@ public final class ContinuationStats {
 		SPILLED_TEXT_BYTES.set(0);
 		REPLACED_RECIPE_EVENTS.set(0);
 		REPLACED_LIVE_EVENTS.set(0);
+		START_RECIPE_EVENTS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_PAGE_OPEN_TAIL_DEPTH.set(0);

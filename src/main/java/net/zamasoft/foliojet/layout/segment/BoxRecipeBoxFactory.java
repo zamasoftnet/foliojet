@@ -87,9 +87,10 @@ public final class BoxRecipeBoxFactory {
 	/**
 	 * kindとparams/posから同型の新品ボックスを作る構築カーネルです
 	 * (E-6増分3b-1で旧{@code SourceReplayer.newBox}を移設——
-	 * {@code StyleBuilder.boxKind}と対のファクトリ)。liveの
-	 * {@code LayoutSource.Start}駆動({@code SegmentExecutor.executeLive})
-	 * とrecipe駆動({@link #create(BoxRecipe)})の両方がここを通るため、
+	 * {@code StyleBuilder.boxKind}と対のファクトリ)。E-6増分3b-4で
+	 * {@code LayoutSource.Start}も記録時freezeのrecipe保持になったため、
+	 * live params/posを直接渡す呼び出し元は残っていない——recipe駆動
+	 * ({@link #create(BoxRecipe)})のmaterialize結果がここを通り、
 	 * kindごとの構築ロジック(Tableのparams共有aliasを含む)は
 	 * この一箇所だけが持つ。
 	 */

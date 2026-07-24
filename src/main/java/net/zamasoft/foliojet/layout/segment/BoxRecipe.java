@@ -1,5 +1,21 @@
 package net.zamasoft.foliojet.layout.segment;
 
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
+import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.InlineParams;
+import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.Params;
+import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.box.params.TableCellPos;
+import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
+import net.zamasoft.foliojet.layout.box.params.TableRowPos;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+
 /**
  * ボックスの生成方法を表すrecipeです(2026-07-22新設、M6d-A3a策定・
  * A3c向けに拡張)。
@@ -12,9 +28,16 @@ package net.zamasoft.foliojet.layout.segment;
  * {@link FlowPosTemplate}、{@link BoxKind#INLINE}は
  * {@link InlineParamsTemplate}+{@link InlinePosTemplate})ため、
  * 単一recordではなくsealed interfaceのvariantとして表現する。
- * まだテンプレートを持たない{@code BoxKind}は、そもそも
- * {@code BoxRecipe}を構築せず{@link SegmentEvent.Barrier}
- * ({@link BarrierReason#NOT_YET_SUPPORTED})で表す(A3c)。
+ * </p>
+ *
+ * <p>
+ * E-6増分3b-4(2026-07-24): {@link #freeze}を追加し、記録時
+ * ({@code StyleBuilder.startBox})にlive params/posから凍結する——
+ * {@code StyleBuilder.boxKind}が非nullを返す全13 kindをカバーする
+ * <b>総関数</b>(旧{@code LayoutSourceEventConverter.convertStart}の
+ * 変換時freezeの移設。{@code ReplacedRecipe.freeze}と違い失敗変種は
+ * ない)。テンプレートを持たない種別はそもそも{@code boxKind}がnullを
+ * 返し{@code LayoutSource.Opaque}として記録される。
  * </p>
  *
  * <p>
@@ -25,15 +48,83 @@ package net.zamasoft.foliojet.layout.segment;
 public sealed interface BoxRecipe {
 	BoxKind kind();
 
+	/**
+	 * 凍結済みparamsの書字方向を返します(E-6増分3b-4——
+	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
+	 * {@code InnerTableParams}系({@code AbstractTextParams}を継承せず
+	 * flowを持たない)は{@code null}——旧liveログの
+	 * {@code params instanceof AbstractTextParams}判定と同値。
+	 */
+	WritingMode flowOrNull();
+
+	/**
+	 * kindとlive params/posから対応するvariantを凍結します(E-6増分3b-4、
+	 * 記録時freeze)。castの成立は{@code StyleBuilder.boxKind}のkind判定が
+	 * 保証する(例: {@link BoxKind#TABLE}は{@code box.getPos() instanceof
+	 * FlowPos}の場合のみ記録される)。
+	 */
+	static BoxRecipe freeze(final LayoutSource.BoxKind kind, final Params params, final Pos pos) {
+		return switch (kind) {
+		case FLOW -> new Flow(BlockParamsTemplate.freeze((BlockParams) params), FlowPosTemplate.freeze((FlowPos) pos));
+		// MulticolumnBlockBoxはFlowBlockBoxを継承するためBoxKind.FLOWと
+		// 同じBlockParams/FlowPosを使う(既存コード確認済み)
+		case MULTICOL -> new Multicol(BlockParamsTemplate.freeze((BlockParams) params),
+				FlowPosTemplate.freeze((FlowPos) pos));
+		case INLINE -> new Inline(InlineParamsTemplate.freeze((InlineParams) params),
+				InlinePosTemplate.freeze((InlinePos) pos));
+		// OutsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		case MARKER -> new Marker(BlockParamsTemplate.freeze((BlockParams) params),
+				InlinePosTemplate.freeze((InlinePos) pos));
+		// FloatBlockBoxはBlockParams/FloatPosを使う(既存コード確認済み)
+		case FLOAT_BLOCK -> new FloatBlock(BlockParamsTemplate.freeze((BlockParams) params),
+				FloatPosTemplate.freeze((FloatPos) pos));
+		// InlineBlockBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		case INLINE_BLOCK -> new InlineBlock(BlockParamsTemplate.freeze((BlockParams) params),
+				InlinePosTemplate.freeze((InlinePos) pos));
+		// InsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		case INSIDE_MARKER -> new InsideMarker(BlockParamsTemplate.freeze((BlockParams) params),
+				InlinePosTemplate.freeze((InlinePos) pos));
+		// TableBoxはTableParams/FlowPosを使う(StyleBuilderがbox.getPos()
+		// instanceof FlowPosの場合のみBoxKind.TABLEを記録するため、
+		// このcastは常に成立する、既存コード確認済み)
+		case TABLE -> new Table(TableParamsTemplate.freeze((TableParams) params),
+				FlowPosTemplate.freeze((FlowPos) pos));
+		// TableRowGroupBoxはInnerTableParams/TableRowGroupPosを使う(既存コード確認済み)
+		case TABLE_ROW_GROUP -> new TableRowGroup(InnerTableParamsTemplate.freeze((InnerTableParams) params),
+				TableRowGroupPosTemplate.freeze((TableRowGroupPos) pos));
+		// TableRowBoxはInnerTableParams/TableRowPosを使う(既存コード確認済み)
+		case TABLE_ROW -> new TableRow(InnerTableParamsTemplate.freeze((InnerTableParams) params),
+				TableRowPosTemplate.freeze((TableRowPos) pos));
+		// TableCellBoxはBlockParams/TableCellPosを使う(既存コード確認済み)
+		case TABLE_CELL -> new TableCell(BlockParamsTemplate.freeze((BlockParams) params),
+				TableCellPosTemplate.freeze((TableCellPos) pos));
+		// TableColumnGroupBoxはInnerTableParams/TableColumnPosを使う(既存コード確認済み)
+		case TABLE_COLUMN_GROUP -> new TableColumnGroup(InnerTableParamsTemplate.freeze((InnerTableParams) params),
+				TableColumnPosTemplate.freeze((TableColumnPos) pos));
+		// TableColumnBoxはTableColumnGroupBoxと同じInnerTableParams/
+		// TableColumnPosを使う(既存コード確認済み)
+		case TABLE_COLUMN -> new TableColumn(InnerTableParamsTemplate.freeze((InnerTableParams) params),
+				TableColumnPosTemplate.freeze((TableColumnPos) pos));
+		};
+	}
+
 	record Flow(BlockParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.FLOW;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
 		}
 	}
 
 	record Inline(InlineParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.INLINE;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
 		}
 	}
 
@@ -46,6 +137,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.MULTICOL;
 		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
 	}
 
 	/**
@@ -55,6 +150,10 @@ public sealed interface BoxRecipe {
 	record Marker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.MARKER;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
 		}
 	}
 
@@ -66,6 +165,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.FLOAT_BLOCK;
 		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
 	}
 
 	/**
@@ -76,6 +179,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.INLINE_BLOCK;
 		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
 	}
 
 	/**
@@ -85,6 +192,10 @@ public sealed interface BoxRecipe {
 	record InsideMarker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.INSIDE_MARKER;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
 		}
 	}
 
@@ -98,6 +209,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.TABLE;
 		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
 	}
 
 	/**
@@ -108,6 +223,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.TABLE_ROW_GROUP;
 		}
+
+		public WritingMode flowOrNull() {
+			return null;
+		}
 	}
 
 	/**
@@ -117,6 +236,10 @@ public sealed interface BoxRecipe {
 	record TableRow(InnerTableParamsTemplate params, TableRowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.TABLE_ROW;
+		}
+
+		public WritingMode flowOrNull() {
+			return null;
 		}
 	}
 
@@ -129,6 +252,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.TABLE_CELL;
 		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
 	}
 
 	/**
@@ -140,6 +267,10 @@ public sealed interface BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.TABLE_COLUMN_GROUP;
 		}
+
+		public WritingMode flowOrNull() {
+			return null;
+		}
 	}
 
 	/**
@@ -150,6 +281,10 @@ public sealed interface BoxRecipe {
 	record TableColumn(InnerTableParamsTemplate params, TableColumnPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.TABLE_COLUMN;
+		}
+
+		public WritingMode flowOrNull() {
+			return null;
 		}
 	}
 }

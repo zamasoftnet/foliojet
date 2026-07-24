@@ -32,12 +32,24 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  * 本末転倒になる。そこで本増分では駆動プリミティブの共有に留め、
  * IRのswitchは{@link #execute(SegmentEvent)}(正規・恒久)と
  * {@link #executeLive(LayoutSource.Event)}(過渡)の2本を併置する。
- * Replacedのrecipe化は3b-3で完了(記録時freeze。freezeできないものは
+ * Replacedのrecipe化は3b-3で、Startのrecipe化は3b-4で完了
+ * (どちらも記録時freeze。freezeできない置換要素は
  * {@code LayoutSource.ReplacedLive}として残り、back-reference隔離
  * ({@link #isolatedReplayInstance})つきで従来駆動)。残るBarrier源は
- * Start(3b-4のappend時freeze対象)・Opaque・ReplacedLiveで、ゼロに
- * なった後、liveの過渡switchを撤去(3b-6)して
- * {@link #execute(SegmentEvent)}だけが残る。
+ * Opaque・ReplacedLiveのみで、ゼロになった後、liveの過渡switchを撤去
+ * (3b-6)して{@link #execute(SegmentEvent)}だけが残る。
+ * </p>
+ *
+ * <p>
+ * <b>StructureTokenのintern(E-6増分3b-4)</b>: recipeのmaterializeは
+ * イベントごとに独立した{@code Params}を作るため、同じ論理要素が複数の
+ * Startを持つケース(例: {@code <li>}のprincipal boxとmarker box)では
+ * {@code Params.element}のtokenも別インスタンスになる。Tagged PDFの
+ * 構造タグ二重開き防止({@code PageBox.beginStruct}のidentity set)は
+ * 「同じ論理要素=同じインスタンス」を要求するため、この executor
+ * (=1再生セッション)内で{@code elementKey}によりinternし、live経路の
+ * {@code CSSElement}共有と同じidentityを再現する(codex裁定——
+ * {@code docs/history/2026-07-24-e6-remaining-design-decision.md})。
  * </p>
  *
  * <p>
@@ -64,12 +76,33 @@ public final class SegmentExecutor {
 	private long eventId;
 
 	/**
+	 * 再生セッション内のStructureToken internです(E-6増分3b-4、クラス
+	 * javadoc「StructureTokenのintern」参照)。key({@code elementKey})→
+	 * 最初にmaterializeされたtokenインスタンス。
+	 */
+	private final java.util.HashMap<Long, StructureToken> structureTokens = new java.util.HashMap<>();
+
+	/**
 	 * @param doc    駆動先(新品の{@code DocumentBuilder})
 	 * @param fromId 範囲先頭のEventId(sliceのordinalと1:1)
 	 */
 	public SegmentExecutor(final DocumentBuilder doc, final long fromId) {
 		this.doc = doc;
 		this.eventId = fromId;
+	}
+
+	/**
+	 * materialize済みparamsの{@code element}をこの再生セッションの正準
+	 * tokenへ差し替えます(E-6増分3b-4)。tokenは{@code StructureToken
+	 * .freeze}によりelementKey&gt;=0の実要素のみ({@code elementKey<0}は
+	 * static singletonの{@code CSSElement}がそのまま入るため対象外——
+	 * identityは共有singletonが既に保っている)。package-privateは
+	 * 単体テスト({@code StructureTokenTest})からの直接検証のため。
+	 */
+	void internStructureToken(final net.zamasoft.foliojet.layout.box.params.Params params) {
+		if (params.element instanceof StructureToken token && token.elementKey() >= 0) {
+			params.element = this.structureTokens.computeIfAbsent(token.elementKey(), key -> token);
+		}
 	}
 
 	/**
@@ -81,6 +114,7 @@ public final class SegmentExecutor {
 		switch (event) {
 		case SegmentEvent.BeginBox(final BoxRecipe recipe) -> {
 			final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+			this.internStructureToken(box.getParams());
 			box.setSourceAnchor(this.eventId);
 			this.doc.startBox(box);
 		}
@@ -92,6 +126,7 @@ public final class SegmentExecutor {
 		}
 		case SegmentEvent.Replaced(final ReplacedRecipe recipe) -> {
 			final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+			this.internStructureToken(box.getParams());
 			box.setSourceAnchor(this.eventId);
 			this.doc.addReplacedBox(box);
 		}
@@ -109,8 +144,11 @@ public final class SegmentExecutor {
 	 */
 	public void executeLive(final LayoutSource.Event event) {
 		switch (event) {
-		case LayoutSource.Start start -> {
-			final INonReplacedBox box = BoxRecipeBoxFactory.create(start.kind(), start.params(), start.pos());
+		case LayoutSource.Start(final BoxRecipe recipe) -> {
+			// E-6増分3b-4: 記録時にfreeze済み——正規経路と同じmaterialize
+			// (execute()のSegmentEvent.BeginBox armと同一の駆動)
+			final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+			this.internStructureToken(box.getParams());
 			box.setSourceAnchor(this.eventId);
 			this.doc.startBox(box);
 		}
@@ -118,11 +156,16 @@ public final class SegmentExecutor {
 			// E-6増分3b-3: 記録時にfreeze済み——正規経路と同じmaterialize
 			// (execute()のSegmentEvent.Replaced armと同一の駆動)
 			final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+			this.internStructureToken(box.getParams());
 			box.setSourceAnchor(this.eventId);
 			this.doc.addReplacedBox(box);
 		}
 		case LayoutSource.ReplacedLive(final AbstractReplacedBox recorded) -> {
 			final AbstractReplacedBox fresh = isolatedReplayInstance(recorded);
+			// 隔離複製(materialize経路)のelementはtoken化されている。
+			// 非隔離のnewReplayInstance()はlive paramsを共有するため
+			// elementはCSSElementのままで、internは何もしない
+			this.internStructureToken(fresh.getParams());
 			fresh.setSourceAnchor(this.eventId);
 			this.doc.addReplacedBox(fresh);
 		}

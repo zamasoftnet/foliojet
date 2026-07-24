@@ -2,13 +2,19 @@ package net.zamasoft.foliojet.ua.props;
 
 import java.util.Locale;
 
-import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.StructureElement;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * Helpers for tagged-PDF output: whether logical structure is being produced,
  * and the mapping from an HTML element to a PDF structure type (ISO 32000
  * table 333 / PDF/UA).
+ *
+ * <p>
+ * E-6増分3b-4(2026-07-24): 読み手は{@code CSSElement}直接ではなく
+ * {@link StructureElement}契約(live={@code CSSElement}/ソース再生=
+ * {@code StructureToken})経由で要素を読む。
+ * </p>
  *
  * @author MIYABE Tatsuhiko
  */
@@ -35,14 +41,15 @@ public final class TaggedPdf {
 	 * given box element when tagging is active, or {@code null} otherwise.
 	 *
 	 * @param ua      the user agent
-	 * @param element the box's element (a {@link CSSElement} or {@code null})
+	 * @param element the box's element (a {@link StructureElement} or
+	 *                {@code null})
 	 * @return the role to open, or {@code null} to open nothing
 	 */
 	public static String roleIfActive(final UserAgent ua, final Object element) {
-		if (!(element instanceof CSSElement ce) || !isActive(ua)) {
+		if (!(element instanceof StructureElement se) || !isActive(ua)) {
 			return null;
 		}
-		return blockRole(ce);
+		return blockRole(se);
 	}
 
 	/**
@@ -54,8 +61,8 @@ public final class TaggedPdf {
 	 * @return {@code "Row"}, {@code "Column"} or {@code "Both"}
 	 */
 	public static String headerScope(final Object element) {
-		if (element instanceof CSSElement ce && ce.atts != null) {
-			final String scope = ce.atts.getValue("scope");
+		if (element instanceof StructureElement se && se.atts() != null) {
+			final String scope = se.atts().getValue("scope");
 			if (scope != null) {
 				switch (scope.trim().toLowerCase(Locale.ROOT)) {
 				case "row":
@@ -79,11 +86,11 @@ public final class TaggedPdf {
 	 * @return the structure role (e.g. {@code "H1"}, {@code "P"}, {@code "L"}),
 	 *         or {@code null}
 	 */
-	public static String blockRole(final CSSElement ce) {
-		if (ce == null || ce.lName == null) {
+	public static String blockRole(final StructureElement ce) {
+		if (ce == null || ce.lName() == null) {
 			return null;
 		}
-		switch (ce.lName.toLowerCase(Locale.ROOT)) {
+		switch (ce.lName().toLowerCase(Locale.ROOT)) {
 		case "h1":
 			return "H1";
 		case "h2":

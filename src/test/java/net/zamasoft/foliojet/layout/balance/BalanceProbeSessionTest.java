@@ -109,6 +109,13 @@ public class BalanceProbeSessionTest extends TestCase {
 		return params;
 	}
 
+	/** E-6増分3b-4: Startは記録時freezeのrecipe保持(記録時と同じ経路で組み立てる)。 */
+	private static LayoutSource.Start start(final LayoutSource.BoxKind kind,
+			final net.zamasoft.foliojet.layout.box.params.Params params,
+			final net.zamasoft.foliojet.layout.box.params.Pos pos) {
+		return new LayoutSource.Start(net.zamasoft.foliojet.layout.segment.BoxRecipe.freeze(kind, params, pos));
+	}
+
 	/** 固定高さ{@code height}ptの空ブロックのパラメータです(テキスト整形不要)。 */
 	private static BlockParams childParams(final double height) {
 		final BlockParams params = new BlockParams();
@@ -148,11 +155,11 @@ public class BalanceProbeSessionTest extends TestCase {
 		// 同じ工場から作るが、以降プローブは一切これへ触れないはずである
 		this.owner = MulticolumnBlockBox.newBalanceProbeShell(ownerGeometry(this.ownerParams, this.ownerPos), 240);
 		this.log = new LayoutSource();
-		this.selfId = this.log.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL, this.ownerParams,
+		this.selfId = this.log.append(start(LayoutSource.BoxKind.MULTICOL, this.ownerParams,
 				this.ownerPos));
 		this.owner.setSourceAnchor(this.selfId);
 		for (int i = 0; i < 10; ++i) {
-			this.log.append(new LayoutSource.Start(LayoutSource.BoxKind.FLOW, childParams(30), new FlowPos()));
+			this.log.append(start(LayoutSource.BoxKind.FLOW, childParams(30), new FlowPos()));
 			this.log.append(new LayoutSource.EndBlock());
 		}
 		this.log.append(new LayoutSource.EndBlock());
@@ -253,9 +260,9 @@ public class BalanceProbeSessionTest extends TestCase {
 	 */
 	public void testFloatContentIsEligibleForProbe() {
 		final LayoutSource floatLog = new LayoutSource();
-		final long floatSelfId = floatLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL,
+		final long floatSelfId = floatLog.append(start(LayoutSource.BoxKind.MULTICOL,
 				this.ownerParams, this.ownerPos));
-		floatLog.append(new LayoutSource.Start(LayoutSource.BoxKind.FLOAT_BLOCK, childParams(30), new FloatPos()));
+		floatLog.append(start(LayoutSource.BoxKind.FLOAT_BLOCK, childParams(30), new FloatPos()));
 		floatLog.append(new LayoutSource.EndBlock());
 		floatLog.append(new LayoutSource.EndBlock());
 		assertTrue("段組内floatはM6c-5でプローブ適格になったはずです",
@@ -270,9 +277,9 @@ public class BalanceProbeSessionTest extends TestCase {
 	/** 入れ子段組を含む内容はM6c-5後もプローブ不適格。 */
 	public void testNestedMulticolContentIsIneligible() {
 		final LayoutSource nestedLog = new LayoutSource();
-		final long nestedSelfId = nestedLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL,
+		final long nestedSelfId = nestedLog.append(start(LayoutSource.BoxKind.MULTICOL,
 				this.ownerParams, this.ownerPos));
-		nestedLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL, multicolParams(2), new FlowPos()));
+		nestedLog.append(start(LayoutSource.BoxKind.MULTICOL, multicolParams(2), new FlowPos()));
 		nestedLog.append(new LayoutSource.EndBlock());
 		nestedLog.append(new LayoutSource.EndBlock());
 		assertTrue(BalanceProbeInput.capture(nestedLog, nestedSelfId, this.owner, 3, dummyUserAgent()).isEmpty());
@@ -281,7 +288,7 @@ public class BalanceProbeSessionTest extends TestCase {
 	/** Opaque(replay不能イベント)を含む内容はプローブ不適格。 */
 	public void testOpaqueContentIsIneligible() {
 		final LayoutSource opaqueLog = new LayoutSource();
-		final long opaqueSelfId = opaqueLog.append(new LayoutSource.Start(LayoutSource.BoxKind.MULTICOL,
+		final long opaqueSelfId = opaqueLog.append(start(LayoutSource.BoxKind.MULTICOL,
 				this.ownerParams, this.ownerPos));
 		opaqueLog.append(new LayoutSource.Opaque());
 		opaqueLog.append(new LayoutSource.EndBlock());

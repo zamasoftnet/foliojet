@@ -10,7 +10,7 @@ import java.util.Locale;
 
 import org.xml.sax.Attributes;
 
-import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.StructureElement;
 import net.zamasoft.foliojet.ua.impl.AbstractVisitor;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.IBox;
@@ -132,7 +132,7 @@ public class PDFVisitor extends AbstractVisitor {
 		this.setForms(forms);
 	}
 
-	protected void addLink(Shape s, URI uri, CSSElement ce, String contents) {
+	protected void addLink(Shape s, URI uri, StructureElement ce, String contents) {
 		AffineTransform at = this.gc.getTransform();
 		if (at != null) {
 			s = at.createTransformedShape(s);
@@ -158,15 +158,15 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	@Override
-	protected void addFormField(Shape rectShape, IBox box, CSSElement ce) {
+	protected void addFormField(Shape rectShape, IBox box, StructureElement ce) {
 		if (!this.formsSupported) {
 			return;
 		}
 		final Rectangle2D b = rectShape.getBounds2D();
 		final Rectangle2D.Double rect = new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
 
-		final Attributes atts = ce.atts;
-		final String lName = ce.lName.toLowerCase(Locale.ROOT);
+		final Attributes atts = ce.atts();
+		final String lName = ce.lName().toLowerCase(Locale.ROOT);
 		String name = atts.getValue("name");
 		if (name == null || name.isEmpty()) {
 			name = "field" + (++this.fieldSeq);
@@ -222,11 +222,11 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	@Override
-	protected void beginSelect(Shape rectShape, CSSElement ce) {
+	protected void beginSelect(Shape rectShape, StructureElement ce) {
 		if (!this.formsSupported) {
 			return;
 		}
-		final Attributes atts = ce.atts;
+		final Attributes atts = ce.atts();
 		final Rectangle2D b = rectShape.getBounds2D();
 		final Rectangle2D.Double rect = new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
 		String name = atts.getValue("name");
@@ -268,7 +268,7 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	@Override
-	protected void addSelectOption(CSSElement optionCe, IBox optionBox) {
+	protected void addSelectOption(StructureElement optionCe, IBox optionBox) {
 		if (this.pendingSelects.isEmpty()) {
 			return;
 		}
@@ -277,10 +277,10 @@ public class PDFVisitor extends AbstractVisitor {
 		optionBox.getText(sb);
 		// Collapse whitespace so the option label matches its visible text.
 		final String label = sb.toString().trim().replaceAll("\\s+", " ");
-		final String value = optionCe.atts.getValue("value");
+		final String value = optionCe.atts().getValue("value");
 		final String option = (value != null) ? value : label;
 		select.options.add(option);
-		if (optionCe.atts.getValue("selected") != null) {
+		if (optionCe.atts().getValue("selected") != null) {
 			select.selected = option;
 		}
 	}

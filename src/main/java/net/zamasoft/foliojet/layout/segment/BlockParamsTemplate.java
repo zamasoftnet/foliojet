@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.segment;
 
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
  * {@link BlockParams}(M6d-Aの{@link BoxKind#FLOW}等が使う代表的な
@@ -16,6 +17,14 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 public record BlockParamsTemplate(BlockParamsFields fields) {
 	public static BlockParamsTemplate freeze(final BlockParams source) {
 		return new BlockParamsTemplate(BlockParamsFields.freeze(source));
+	}
+
+	/**
+	 * 凍結済みの書字方向を返します(E-6増分3b-4——
+	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
+	 */
+	public WritingMode flow() {
+		return this.fields.common().text().flow();
 	}
 
 	/** 呼び出しごとに新品の{@code BlockParams}を返す(複数回呼んでも互いに影響しない)。 */

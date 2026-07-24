@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.segment;
 
 import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
  * {@link TableParams}({@code BlockParams}を直接継承、
@@ -24,6 +25,14 @@ public record TableParamsTemplate(BlockParamsFields common, double borderSpacing
 	public static TableParamsTemplate freeze(final TableParams source) {
 		return new TableParamsTemplate(BlockParamsFields.freeze(source), source.borderSpacingH,
 				source.borderSpacingV, source.borderCollapse, source.layout);
+	}
+
+	/**
+	 * 凍結済みの書字方向を返します(E-6増分3b-4——
+	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
+	 */
+	public WritingMode flow() {
+		return this.common.common().text().flow();
 	}
 
 	/** 呼び出しごとに新品の{@code TableParams}を返す(複数回呼んでも互いに影響しない)。 */

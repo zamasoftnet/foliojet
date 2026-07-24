@@ -6,10 +6,17 @@ import org.xml.sax.Attributes;
 
 /**
  * CSS要素の情報です。
- * 
+ *
+ * <p>
+ * E-6増分3b-4(2026-07-24): レイアウト後の読み手(Tagged PDF・注釈系・
+ * string-set)向けの読み取り契約{@link StructureElement}を実装する。
+ * ソース再生のfreeze結果({@code StructureToken})と共通の契約で、
+ * {@code Params.element}はこのinterface型で保持される。
+ * </p>
+ *
  * @author MIYABE Tatsuhiko
  */
-public class CSSElement {
+public class CSSElement implements StructureElement {
 	private static final boolean DEBUG_CHAIN = false;
 
 	public static final byte PC_FIRST = 1;
@@ -188,9 +195,29 @@ public class CSSElement {
 		this(null, null, null, null, pseudoClasses, null, null, null, null, -1, -1);
 	}
 
+	@Override
+	public long elementKey() {
+		return this.elementKey;
+	}
+
+	@Override
+	public String lName() {
+		return this.lName;
+	}
+
+	@Override
+	public String id() {
+		return this.id;
+	}
+
+	@Override
+	public Attributes atts() {
+		return this.atts;
+	}
+
 	/**
 	 * 与えられたクラスであればtrueを返します。
-	 * 
+	 *
 	 * @param styleClass
 	 * @return
 	 */

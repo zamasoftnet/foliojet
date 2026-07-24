@@ -13,7 +13,11 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  */
 public class LayoutSourceSegmentsTest extends TestCase {
 	private static LayoutSource.Event start() {
-		return new LayoutSource.Start(LayoutSource.BoxKind.FLOW, null, null);
+		// E-6増分3b-4: Startは記録時freezeのrecipe保持。ログ機構のテストには
+		// 中身は無関係なので、デフォルト値の最小recipeで代用する
+		return new LayoutSource.Start(new BoxRecipe.Flow(
+				BlockParamsTemplate.freeze(new net.zamasoft.foliojet.layout.box.params.BlockParams()),
+				FlowPosTemplate.freeze(new net.zamasoft.foliojet.layout.box.params.FlowPos())));
 	}
 
 	/** 同一sourceに対しては常に同じSegmentIdが返る。 */

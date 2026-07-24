@@ -4,7 +4,7 @@ import java.awt.geom.AffineTransform;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.StructureElement;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFVisitor;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -41,11 +41,13 @@ public class TestPDFVisitor extends PDFVisitor {
 			return;
 		}
 
-		CSSElement ce = box.getParams().element;
-		if (ce == null || ce.id == null) {
+		// E-6増分3b-4: ソース再生されたボックスのelementはStructureToken
+		// のことがある——共通契約StructureElement経由で読む(idも契約に含む)
+		StructureElement ce = box.getParams().element;
+		if (ce == null || ce.id() == null) {
 			return;
 		}
-		Method method = (Method) this.test.idToMethod.get(ce.id);
+		Method method = (Method) this.test.idToMethod.get(ce.id());
 		if (method == null) {
 			// throw new RuntimeException("id=" + ce.id +
 			// " の要素をテストするメソッドがありません");
@@ -59,7 +61,7 @@ public class TestPDFVisitor extends PDFVisitor {
 							new Double(x), new Double(y) });
 			if (Boolean.TRUE.equals(result)) {
 				done = true;
-				this.test.done.add(ce.id);
+				this.test.done.add(ce.id());
 			}
 		} catch (InvocationTargetException e) {
 			t = e.getCause();

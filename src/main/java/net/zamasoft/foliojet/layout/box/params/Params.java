@@ -2,11 +2,11 @@ package net.zamasoft.foliojet.layout.box.params;
 
 import java.awt.geom.AffineTransform;
 
-import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.StructureElement;
 
 /**
  * 内容のパラメータです。
- * 
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: Params.java 1587 2019-06-10 01:42:25Z miyabe $
  */
@@ -16,9 +16,12 @@ public abstract class Params {
 	public static final byte Z_INDEX_SPECIFIED = 1;
 
 	/**
-	 * 対応するCSSStyleです。
+	 * 対応するソース要素です。live構築では{@code CSSElement}、ソース
+	 * 再生(BoxRecipeのmaterialize)では{@code StructureToken}が入る
+	 * (E-6増分3b-4——読み手が必要とする契約は{@link StructureElement}の
+	 * javadoc参照)。
 	 */
-	public CSSElement element = null;
+	public StructureElement element = null;
 
 	/**
 	 * ボックスの奥行きです。

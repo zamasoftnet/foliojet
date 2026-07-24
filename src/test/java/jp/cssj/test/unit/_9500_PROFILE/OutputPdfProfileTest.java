@@ -83,6 +83,47 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		}
 	}
 
+	/**
+	 * 改ページを跨ぐtagged出力の検証です(E-6増分3b-4、2026-07-24)。
+	 * 改ページ残余のソース再生で作られたボックスの{@code Params.element}は
+	 * {@code StructureToken}(CSSElementではない)になるため、複数ページに
+	 * 割れたリストでも構造ロールとリンク注釈(どちらもelementの読み手)が
+	 * 出続けることを固定する。
+	 */
+	public void testTaggedMultiPageStructure() throws Exception {
+		this.session.property("output.pdf.tagged", "true");
+		this.session.property("output.pdf.tagged.lang", "ja");
+		this.session.property("output.pdf.hyperlinks", "true");
+		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/9500-PROFILE/structure-multipage.html"),
+				"text/html", null);
+		this.session.close();
+		this.closed = true;
+		final String pdf = new String(Files.readAllBytes(this.file.toPath()), StandardCharsets.ISO_8859_1);
+		// 前提の検証: この文書は実際に複数ページへ割れている
+		final int pageObjects = count(pdf, "/Type /Page") - count(pdf, "/Type /Pages");
+		assertTrue("this fixture must break across pages (pages=" + pageObjects + ")", pageObjects >= 2);
+		// 構造ロール(Tagged PDF)とリンク注釈(atts読み手)が全ページ分出ている
+		for (final String role : new String[] { "/S /H1", "/S /L", "/S /LI", "/S /Link" }) {
+			assertTrue("missing structure element " + role, pdf.contains(role));
+		}
+		// LI開きは50項目分——StructureTokenのidentity intern(同じ論理要素=
+		// 同じインスタンス)が壊れると、再生されたliのprincipal/marker対で
+		// 二重開きになり~2倍へ跳ねる。ページ跨ぎ分割のliは正当に+1され
+		// 得るため、小さな余裕を持たせる
+		final int liOpens = count(pdf, "/S /LI");
+		assertTrue("LI structure elements out of range: " + liOpens, liOpens >= 50 && liOpens <= 55);
+		final int links = count(pdf, "/Subtype /Link");
+		assertTrue("link annotations must survive page continuation: " + links, links >= 50 && links <= 55);
+	}
+
+	private static int count(final String s, final String needle) {
+		int count = 0;
+		for (int i = s.indexOf(needle); i >= 0; i = s.indexOf(needle, i + needle.length())) {
+			++count;
+		}
+		return count;
+	}
+
 	public void testPdfUa1AutoEnablesTagging() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
 		this.session.property("output.pdf.tagged.lang", "ja"); // PDF/UA requires a language

@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.layout.segment;
 
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
  * {@link InlineParams}({@link BoxKind#INLINE}が使う{@code Params}
@@ -20,6 +21,14 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
 public record InlineParamsTemplate(TextParamsFields common, RectFrame frame) {
 	public static InlineParamsTemplate freeze(final InlineParams source) {
 		return new InlineParamsTemplate(TextParamsFields.freeze(source), source.frame);
+	}
+
+	/**
+	 * 凍結済みの書字方向を返します(E-6増分3b-4——
+	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
+	 */
+	public WritingMode flow() {
+		return this.common.flow();
 	}
 
 	/** 呼び出しごとに新品の{@code InlineParams}を返す(複数回呼んでも互いに影響しない)。 */
