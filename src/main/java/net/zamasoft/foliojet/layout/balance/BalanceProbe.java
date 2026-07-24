@@ -11,7 +11,6 @@ import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.LayoutExecutionScope;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
  * M6cバランスプローブの探索ドライバです(2026-07-24新設、排除域P2の
@@ -28,10 +27,9 @@ import net.zamasoft.foliojet.ua.props.UAProps;
  * </p>
  *
  * <p>
- * M6c-3時点の配線はオプトイン({@code processing.balance-probe}、
- * 既定false)の<b>観測のみ</b>——winnerはまだownerへcommitせず、
- * 既存balanceがそのまま走る(既定では一切実行されない=挙動不変)。
- * commit切替はM6c-4。
+ * M6c-4でwinnerの実採用(commit)へ切り替え、2026-07-24のcopper3.2
+ * 出力互換廃止(ユーザー方針)によりオプトインを撤去して<b>常時有効</b>
+ * となった。不適格時の既存balanceへの自動フォールバックが堅牢性の担保。
  * </p>
  */
 public final class BalanceProbe {
@@ -78,9 +76,8 @@ public final class BalanceProbe {
 	}
 
 	/**
-	 * オプトインが有効な場合のみプローブを実行し、winnerが得られれば
-	 * ownerへ<b>実採用(commit)</b>します(M6c-4で観測→採用へ切替。
-	 * 既定falseでは何もしない=既定挙動は不変)。
+	 * プローブを実行し、winnerが得られればownerへ<b>実採用(commit)</b>
+	 * します(M6c-4で観測→採用へ切替、2026-07-24から常時有効)。
 	 * {@code AbstractContainerBox.balance()}が既存の容量計算の直後・
 	 * owner変異の前に呼び、trueが返ればlegacy再構築を行わない。
 	 *
@@ -111,15 +108,23 @@ public final class BalanceProbe {
 			// rootless文脈(TwoPass系等)はソースログに到達できない
 			return false;
 		}
+		// 2026-07-24: copper3.2出力互換の廃止(ユーザー方針)により
+		// オプトイン(processing.balance-probe)を撤去、プローブは常時有効。
+		// 不適格時の自動フォールバックが堅牢性の担保。
 		final UserAgent ua = root.getPageGenerator().getUserAgent();
-		if (!UAProps.PROCESSING_BALANCE_PROBE.getBoolean(ua)) {
-			return false;
-		}
 		ContinuationStats.recordBalanceProbeSession();
 		final MulticolumnBlockBox multicol;
 		final BalanceCommit commit;
 		try {
-			if (!(owner instanceof MulticolumnBlockBox m) || !root.isSegmentRestyle()) {
+			// ページ直下の文脈(builderのrootBoxがPAGE)の段組のみ対象
+			// (2026-07-24、常時有効化時に発覚: absolute配置サブツリー内の
+			// 段組(rootBox=AbsoluteBlockBox)でプローブ採用がボックスの
+			// 描画を失わせる実回帰(_0410_column_width.AbsoluteTest)。
+			// 適格条件を狭めてフォールバックさせる——迷ったらフォールバック、
+			// の較正どおり。absolute内段組の解禁は必要が生じた時の将来課題)
+			if (!(owner instanceof MulticolumnBlockBox m) || !root.isSegmentRestyle()
+					|| builder.getRootBox().getPos()
+							.getType() != net.zamasoft.foliojet.layout.box.params.PosType.PAGE) {
 				ContinuationStats.recordBalanceProbeFallback();
 				return false;
 			}

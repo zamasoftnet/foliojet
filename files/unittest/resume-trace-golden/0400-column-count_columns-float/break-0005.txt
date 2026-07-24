@@ -1,2 +1,0 @@
-resume COLUMN
-   restyle-text-open serial=2

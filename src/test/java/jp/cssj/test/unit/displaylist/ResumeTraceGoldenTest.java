@@ -119,8 +119,12 @@ public class ResumeTraceGoldenTest extends TestCase {
 			}
 		}
 		assertEquals("plan選択済みチェーンメンバーのKeepはこのfixture集合では発生しないはずです", 0, totalKeep);
-		assertEquals("plan選択済みチェーンメンバーのMoveはこのfixture集合で2回発生するはずです"
-				+ "(moved-table-caption.html・columns-float.htmlで1回ずつ)", 2, totalMove);
+		// 2026-07-24: バランスプローブ常時有効化(copper3.2互換廃止)により
+		// columns-float.htmlの段組レイアウトが実測最小容量へ変わり、下流の
+		// 改ページ経路でMoveが1回増えて計3回になった(display list goldenは
+		// BalanceProbeGoldenTest側でプローブ採用後の座標を固定済み)。
+		assertEquals("plan選択済みチェーンメンバーのMoveはこのfixture集合で3回発生するはずです"
+				+ "(moved-table-caption.htmlで1回・columns-float.htmlで2回)", 3, totalMove);
 		// 2026-07-21(M6b Phase B5d-0): ColumnsContainer(2列以上に実体化
 		// 済みの段組)自体がsplitPageAxisを呼ばれる回数自体がこの
 		// fixture集合では1回のみ(多くの段組は1列のまま完結し、

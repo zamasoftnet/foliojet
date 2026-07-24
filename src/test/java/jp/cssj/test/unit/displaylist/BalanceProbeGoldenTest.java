@@ -22,7 +22,7 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code processing.balance-probe=true}(M6c-4実採用、2026-07-24)の
+ * バランスプローブ(M6c-4実採用、2026-07-24以降は常時有効)の
  * display list goldenテストです。
  *
  * <p>
@@ -194,7 +194,6 @@ public class BalanceProbeGoldenTest extends TestCase {
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
 				if (probe) {
-					session.property("processing.balance-probe", "true");
 				}
 				CTISessionHelper.transcodeFile(session, new File("files/unittest/" + doc), "text/html", null);
 			} finally {

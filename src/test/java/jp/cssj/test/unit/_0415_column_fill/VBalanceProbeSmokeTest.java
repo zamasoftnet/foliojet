@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 
 /**
- * {@code processing.balance-probe=true}(M6c-4実採用)の縦書きスモーク+
+ * バランスプローブ(M6c-4実採用、常時有効)の縦書きスモーク+
  * 品質テストです。{@code BalanceProbeSmokeTest}(横書き)と対で、
  * codex設計§1.8の品質条件「悪化0件」の座標アサート2件目——縦書きでは
  * ページ方向=幅(既存balance {@code VBalanceTest}: width 188±1)に対して
@@ -22,7 +22,6 @@ public class VBalanceProbeSmokeTest extends AbstractTestCase {
 
 	protected void transcode() throws Exception {
 		ContinuationStats.reset();
-		this.session.property("processing.balance-probe", "true");
 		File file = new File("files/unittest/0415-column-fill/v-balance.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 

@@ -456,23 +456,6 @@ public final class UAProps {
 	public static final BooleanPropManager PROCESSING_FAIL_ON_FATAL_ERROR = new BooleanPropManager(
 			"processing.fail-on-fatal-error", true);
 
-	/**
-	 * カラムバランス(column-fill: balance)の実プローブを実行します
-	 * (既定false、2026-07-24新設・排除域P2のM6c-3、M6c-4で実採用化)。
-	 *
-	 * <p>
-	 * 有効にすると、バランス対象の段組内容をソースログの凍結recipeから
-	 * 完全に独立した候補として何度か実レイアウトし、指定段数へ収まる
-	 * 最小の実測容量を二分探索して、最良候補のコンテナをownerへ一度だけ
-	 * commitする(M6c-4)。プローブ不適格(フロート含み・入れ子段組・
-	 * 縦横混在・recipe化不能な内容等)・非単調観測・commit前の例外は、
-	 * 従来のバランス(幾何近似+再構築)へ安全にフォールバックする。
-	 * 既定は無効——通常の文書には一切影響を与えない
-	 * ({@code docs/consultations/consult-exclusion-p2-design-codex.txt}参照)。
-	 * </p>
-	 */
-	public static final BooleanPropManager PROCESSING_BALANCE_PROBE = new BooleanPropManager(
-			"processing.balance-probe", false);
 
 	/**
 	 * 実際のformat処理を、大きいstackサイズを持つ専用スレッドで実行します
@@ -504,6 +487,15 @@ public final class UAProps {
 	 * 行分割の戦略です(既定{@code "legacy"}、2026-07-23新設、M3c増分3)。
 	 *
 	 * <p>
+	 * 既定が{@code "legacy"}のままなのは<b>性能上の理由のみ</b>
+	 * (copper3.2互換は2026-07-24に廃止済みで、互換は理由ではない)。
+	 * optimized既定化の初回試行でコーパス実測のハング級遅延が発覚し、
+	 * pdfg2d TotalFitへのdeactivation実装(第1歩、対処済み)後も
+	 * 射影側の計測コストに未解明の遅延が残るため、性能ハードニングと
+	 * コーパス全体の性能検証を終えてから既定を反転する。
+	 * </p>
+	 *
+	 * <p>
 	 * 値は{@code "legacy"}(従来の貪欲法)または{@code "optimized"}
 	 * (Knuth-Plass全体最適、experimental)。{@code "optimized"}を指定すると、
 	 * 適格な段落(排除域=floatの非関与・タブなし・インライン置換要素/
@@ -513,9 +505,7 @@ public final class UAProps {
 	 * demeritsを最小化するbreakpoint列を選択する。物理的な行の生成
 	 * (禁則・ハイフン実体化・インライン再生成・justification)はすべて
 	 * 従来の{@code TextBuilder}が行い、不適格な段落は従来の貪欲法へ
-	 * フォールバックする。既定は無効——既存文書の出力には一切影響を
-	 * 与えないよう、この機能を必要とする呼び出し側だけが明示的に
-	 * 有効化する。不正な値は{@code "legacy"}として扱われる。
+	 * フォールバックする。不正な値は{@code "legacy"}として扱われる。
 	 * </p>
 	 */
 	public static final StringPropManager TEXT_LINE_BREAKER = new StringPropManager("text.line-breaker", "legacy");

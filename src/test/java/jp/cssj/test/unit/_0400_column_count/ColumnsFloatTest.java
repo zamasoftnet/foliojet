@@ -31,9 +31,12 @@ public class ColumnsFloatTest extends AbstractTestCase {
 		System.out.println("x: " + x);
 		System.out.println("y: " + y);
 		System.out.println("pageNumber: " + pageNumber);
+		// 2026-07-24: バランスプローブ常時有効化により1つ目の段組が実測
+		// 最小容量へ縮み、2つ目の段組(b)が1ページ目のy=245へ収まるように
+		// なった(従来は2ページ目へ送られていた——改ページ1回減の改善)。
 		assertEquals(214, x, 1);
-		assertEquals(28, y, 1);
-		assertEquals(2, pageNumber);
+		assertEquals(245, y, 1);
+		assertEquals(1, pageNumber);
 		return true;
 	}
 
@@ -41,9 +44,10 @@ public class ColumnsFloatTest extends AbstractTestCase {
 		System.out.println("x: " + x);
 		System.out.println("y: " + y);
 		System.out.println("pageNumber: " + pageNumber);
+		// 2026-07-24: 同上(bと同じ段組内、1ページ目へ)
 		assertEquals(28, x, 1);
-		assertEquals(28, y, 1);
-		assertEquals(2, pageNumber);
+		assertEquals(245, y, 1);
+		assertEquals(1, pageNumber);
 		return true;
 	}
 }
