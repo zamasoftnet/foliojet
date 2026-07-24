@@ -8,10 +8,8 @@ import net.zamasoft.foliojet.layout.box.content.ColumnsContainer;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.fragment.LayoutExecutionScope;
-import net.zamasoft.foliojet.layout.segment.BoxRecipe;
-import net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory;
-import net.zamasoft.foliojet.layout.segment.ReplacedRecipe;
 import net.zamasoft.foliojet.layout.segment.SegmentEvent;
+import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
 
 /**
  * M6cバランスプローブの候補構築セッションです(2026-07-24新設、
@@ -64,34 +62,17 @@ public final class BalanceProbeSession {
 					capacity);
 			final BalanceProbeBuilder builder = new BalanceProbeBuilder(shell);
 			final DocumentBuilder doc = new DocumentBuilder(new ProbePageGenerator(this.input.ua()), builder);
-			// SourceReplayer.driveと同じく、再生インスタンスへイベントIDから
-			// ソースアンカーを再付与する(凍結列はsliceとordinal 1:1)——
-			// winnerが実採用(M6c-4)された後の改ページ破断でも、子部分木の
-			// ソース再生系譜が保たれる
-			long eventId = this.input.source().fromId();
+			// E-6増分3b-1(2026-07-24): 駆動本体はSourceReplayer.driveと共有の
+			// SegmentExecutorへ一元化(SegmentEvent駆動はこちらが正規経路)。
+			// executorが再生インスタンスへイベントIDからソースアンカーを
+			// 再付与する(凍結列はsliceとordinal 1:1)——winnerが実採用
+			// (M6c-4)された後の改ページ破断でも、子部分木のソース再生系譜が
+			// 保たれる。Barrierは入力凍結時にゼロを検証済み
+			// (BalanceProbeInput.capture)のため、executor内の失敗は
+			// 契約違反の即時失敗
+			final SegmentExecutor executor = new SegmentExecutor(doc, this.input.source().fromId());
 			for (final SegmentEvent event : this.input.frozenEvents()) {
-				switch (event) {
-				case SegmentEvent.BeginBox(final BoxRecipe recipe) -> {
-					final net.zamasoft.foliojet.layout.box.INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
-					box.setSourceAnchor(eventId);
-					doc.startBox(box);
-				}
-				case SegmentEvent.EndBox end -> doc.endBox();
-				case SegmentEvent.Text(final int sourceOffset, final String text, final boolean fixed) -> {
-					final char[] ch = text.toCharArray();
-					doc.characters(sourceOffset, ch, 0, ch.length, fixed);
-				}
-				case SegmentEvent.Replaced(final ReplacedRecipe recipe) -> {
-					final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box = BoxRecipeBoxFactory
-							.createReplaced(recipe);
-					box.setSourceAnchor(eventId);
-					doc.addReplacedBox(box);
-				}
-				// 入力凍結時にBarrierゼロを検証済み(BalanceProbeInput.capture)
-				case SegmentEvent.Barrier barrier -> throw new IllegalStateException(
-						"barrier event in balance probe input: " + barrier);
-				}
-				++eventId;
+				executor.execute(event);
 			}
 			doc.finishReplay();
 			return observe(shell, capacity);

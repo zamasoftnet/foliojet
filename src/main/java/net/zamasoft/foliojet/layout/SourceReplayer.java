@@ -5,10 +5,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
 
 /**
  * レイアウトソースの再生ドライバです(M6b v3)。
@@ -58,32 +58,24 @@ public final class SourceReplayer {
 	 * (共有ドライバ)。slice は検証済みの streaming ビュー(リース付き。
 	 * E-6増分3a)のため、駆動中の入れ子改ページによる compact の影響を
 	 * 受けません(未読範囲はリースが守る)。
+	 *
+	 * <p>
+	 * E-6増分3b-1(2026-07-24): 駆動本体(ボックス構築・SourceAnchor
+	 * 再付与・Chars の fresh copy 駆動)は BalanceProbeSession と共有の
+	 * {@link SegmentExecutor} へ一元化した。live イベントには
+	 * SegmentEvent 化すると Barrier になるもの(unsafe Replaced・Opaque)
+	 * が残るため、ここは過渡の {@code executeLive} 経路を使う
+	 * (Barrier ゼロ化(3b-3以降)後に撤去——SegmentExecutor の
+	 * javadoc「段階的統合の設計」参照)。
+	 * </p>
 	 */
 	private static void drive(final DocumentBuilder doc, final LayoutSource.ReplaySlice slice) {
 		// slice の EventId は fromId からの連番(capture が検証済み)。
 		// 再生インスタンスにはイベントIDから SourceAnchor を再付与する
 		// (P0: アンカーはボックス個体に属する — 次の破断で再び
 		// 再生可能になるための系譜)
-		final long[] eventId = { slice.fromId() };
-		slice.replay(event -> {
-			switch (event) {
-			case LayoutSource.Start start -> {
-				final net.zamasoft.foliojet.layout.box.INonReplacedBox box = newBox(start);
-				box.setSourceAnchor(eventId[0]);
-				doc.startBox(box);
-			}
-			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> {
-				final net.zamasoft.foliojet.layout.box.AbstractReplacedBox fresh = box.newReplayInstance();
-				fresh.setSourceAnchor(eventId[0]);
-				doc.addReplacedBox(fresh);
-			}
-			case LayoutSource.Chars(final int charOffset, final char[] ch, final boolean fixed) -> doc
-					.characters(charOffset, ch, 0, ch.length, fixed);
-			case LayoutSource.EndBlock end -> doc.endBox();
-			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
-			}
-			++eventId[0];
-		});
+		final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
+		slice.replay(executor::executeLive);
 	}
 
 	/**
@@ -132,51 +124,6 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * 記録された kind と params/pos から同型のボックスを作ります
-	 * (StyleBuilder.boxKind と対のファクトリ)。
-	 */
-	private static net.zamasoft.foliojet.layout.box.INonReplacedBox newBox(final LayoutSource.Start start) {
-		return switch (start.kind()) {
-		case FLOW -> new FlowBlockBox((BlockParams) start.params(), (FlowPos) start.pos());
-		case MULTICOL -> new net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox((BlockParams) start.params(),
-				(FlowPos) start.pos());
-		case INLINE -> new net.zamasoft.foliojet.layout.box.impl.InlineBox(
-				(net.zamasoft.foliojet.layout.box.params.InlineParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
-		case MARKER -> new net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox((BlockParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
-		case FLOAT_BLOCK -> new net.zamasoft.foliojet.layout.box.impl.FloatBlockBox((BlockParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.FloatPos) start.pos());
-		case INLINE_BLOCK -> new net.zamasoft.foliojet.layout.box.impl.InlineBlockBox((BlockParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
-		case INSIDE_MARKER -> new net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox((BlockParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.InlinePos) start.pos());
-		case TABLE -> {
-			final net.zamasoft.foliojet.layout.box.params.TableParams tableParams = (net.zamasoft.foliojet.layout.box.params.TableParams) start
-					.params();
-			yield new net.zamasoft.foliojet.layout.box.impl.TableBox(tableParams,
-					new FlowBlockBox(tableParams, (FlowPos) start.pos()));
-		}
-		case TABLE_ROW_GROUP -> new net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox(
-				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.TableRowGroupPos) start.pos());
-		case TABLE_ROW -> new net.zamasoft.foliojet.layout.box.impl.TableRowBox(
-				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.TableRowPos) start.pos());
-		case TABLE_CELL -> new net.zamasoft.foliojet.layout.box.impl.TableCellBox(
-				(net.zamasoft.foliojet.layout.box.params.BlockParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.TableCellPos) start.pos(),
-				new net.zamasoft.foliojet.layout.box.content.FlowContainer());
-		case TABLE_COLUMN_GROUP -> new net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox(
-				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.TableColumnPos) start.pos());
-		case TABLE_COLUMN -> new net.zamasoft.foliojet.layout.box.impl.TableColumnBox(
-				(net.zamasoft.foliojet.layout.box.params.InnerTableParams) start.params(),
-				(net.zamasoft.foliojet.layout.box.params.TableColumnPos) start.pos());
-		};
-	}
-
-	/**
 	 * 切断段落の尾部(charOffset 以降)を再駆動します(M6b v3)。
 	 * ログから該当 Chars を charOffset の単調性で直接探索するため、
 	 * 分割でアンカーを失ったチェーンにも依存しません。
@@ -218,15 +165,13 @@ public final class SourceReplayer {
 			return false;
 		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
+		// E-6増分3b-1: 駆動本体は共有の SegmentExecutor へ。Chars だけは
+		// 尾部特有のトリミング(先頭 skip・配達済み終端での打ち切り)を
+		// ここで計算し、部分範囲プリミティブで駆動する
+		final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
 		final boolean[] first = { true };
-		final long[] eventId = { slice.fromId() };
 		slice.replay(event -> {
 			switch (event) {
-			case LayoutSource.Start start -> {
-				final net.zamasoft.foliojet.layout.box.INonReplacedBox box = newBox(start);
-				box.setSourceAnchor(eventId[0]);
-				doc.startBox(box);
-			}
 			case LayoutSource.Chars(final int off, final char[] ch, final boolean fixed) -> {
 				int skip = 0;
 				if (first[0]) {
@@ -238,19 +183,10 @@ public final class SourceReplayer {
 					// 配達済み終端で打ち切り(以降は live が供給)
 					len = charEndExclusive - off - skip;
 				}
-				if (len > 0) {
-					doc.characters(off + skip, ch, skip, len, fixed);
-				}
+				executor.executeLiveCharsRange(off + skip, ch, skip, len, fixed);
 			}
-			case LayoutSource.Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) -> {
-				final net.zamasoft.foliojet.layout.box.AbstractReplacedBox fresh = box.newReplayInstance();
-				fresh.setSourceAnchor(eventId[0]);
-				doc.addReplacedBox(fresh);
+			default -> executor.executeLive(event);
 			}
-			case LayoutSource.EndBlock end -> doc.endBox();
-			case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
-			}
-			++eventId[0];
 		});
 		if (keepTextOpen) {
 			doc.finishReplayKeepText();
