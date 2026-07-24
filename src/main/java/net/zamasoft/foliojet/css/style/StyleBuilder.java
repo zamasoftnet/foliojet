@@ -376,16 +376,25 @@ public class StyleBuilder implements PageGenerator {
 	 * 凍結し、liveボックスへの参照をログに残さない(params/posの変異は
 	 * この記録前のStyleBuilderフェーズに閉じるため、記録時freezeは
 	 * 従来の再生時共有と同値——codex設計§1.5・独立cross-check済み)。
-	 * freezeできないもの({@code ReplacedBoxImage}実装を参照する
-	 * ボックス等)のみ過渡の{@code ReplacedLive}で残す。
+	 * E-6増分3b-6: {@code ReplacedBoxImage}参照のボックスもduplicate
+	 * ベースでfreezeできるようになり(live型{@code ReplacedLive}は撤去)、
+	 * freezeが空を返すのは未知の{@code AbstractReplacedBox}サブクラス
+	 * のみ(現存4実装では構造的にゼロ)。その場合はfail closedで
+	 * replay不能マーカー({@code Opaque}+対の{@code EndBlock}——
+	 * {@code Opaque}は開始イベントとして{@code EndBlock}と対を成す規約
+	 * のため単独では積めない)として位置を占有し、範囲にこれを含む
+	 * 再生はフォールバックする。
 	 * </p>
 	 */
 	private void addReplacedBox(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
 		final java.util.Optional<net.zamasoft.foliojet.layout.segment.ReplacedRecipe> recipe = net.zamasoft.foliojet.layout.segment.ReplacedRecipe
 				.freeze(box);
-		final LayoutSource.Event event = recipe.isPresent() ? new LayoutSource.Replaced(recipe.get())
-				: new LayoutSource.ReplacedLive(box);
-		box.setSourceAnchor(this.layoutSource.append(event));
+		if (recipe.isPresent()) {
+			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Replaced(recipe.get())));
+		} else {
+			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Opaque()));
+			this.layoutSource.append(new LayoutSource.EndBlock());
+		}
 		this.doc.addReplacedBox(box);
 	}
 

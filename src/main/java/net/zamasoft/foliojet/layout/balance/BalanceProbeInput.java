@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.layout.balance;
 
-import java.util.List;
 import java.util.Optional;
 
 import net.zamasoft.foliojet.layout.SourceReplayer;
@@ -11,43 +10,51 @@ import net.zamasoft.foliojet.layout.segment.SegmentEvent;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * M6cバランスプローブの凍結済み入力です(2026-07-24新設、排除域P2の
+ * M6cバランスプローブの検証済み入力です(2026-07-24新設、排除域P2の
  * M6c-2——{@code docs/consultations/consult-exclusion-p2-design-codex.txt}
  * §1.2/1.4)。
  *
  * <p>
- * {@code Start.params/pos}はliveログ上では参照のままなので、プローブ
- * 開始時に一度だけ{@code LayoutSource.capture}→
- * {@link LayoutSourceEventConverter#convert}→frozen template化まで
- * 済ませる(ordinal 1:1維持)。E-6増分3a(2026-07-24):
- * {@code ReplaySlice}はstreamingビュー(consume-once)になったため、
- * この凍結変換がsliceを消費する——以後sliceからはfromId/toId(座標)
- * だけが読める。各候補は{@code BoxRecipeBoxFactory}からこの凍結列だけを
- * 読んで完全な新品を作る——候補構築中にliveログ・liveボックスへ一切
- * 触れない。
+ * <b>E-6増分3b-5(2026-07-24)</b>: 旧実装はcapture時に範囲全量を
+ * {@code List<SegmentEvent>}へ凍結していたが、イベント格納が記録時
+ * recipe化(3b-3/3b-4)済みになったため全量Listは不要になった。本recordは
+ * range座標+owner geometryだけの軽量入力で、capture時は範囲を1パス
+ * streaming走査してBarrier検査(適格判定)のみ行う。各候補試行は
+ * {@link #openSlice()}で範囲のstreamingビューを試行ごとに開き直し、
+ * {@code SegmentEvent}への変換は駆動時にオンザフライで行う
+ * ({@code BalanceProbeSession.build})。
  * </p>
  *
- * @param source       子イベント範囲のcapture済みビュー(凍結時に消費済み。
- *                     ソースアンカー再付与の座標{@code fromId()}にのみ使う。
- *                     候補構築は{@code frozenEvents}だけを読む)
- * @param frozenEvents 凍結済みイベント列({@code source}とordinal 1:1)
+ * <p>
+ * <b>試行ごとcaptureの安全性</b>: プローブは改ページ処理中の
+ * {@code AbstractContainerBox.balance()}からの同期実行で、実行中に
+ * liveの追記・compactは走らない——compactの唯一の呼び出し元は
+ * {@code RootBuilder.breakFlow}(live PageGenerator経由)で、その
+ * スレッドはプローブ完了までblance()内でブロックしており、候補構築側の
+ * {@code ProbePageGenerator.compactLayoutSource}は例外を投げる。
+ * よって範囲はプローブ実行中を通して無傷であり、リースを持ち越さない
+ * 試行ごとのcapture(O(log N))で複数試行(最大
+ * {@code BalanceProbe.MAX_PROBES})の再読が成立する。
+ * </p>
+ *
+ * @param log           ソースログ(範囲の再読に使う。候補構築はここから
+ *                      captureした凍結済みrecipe列だけを読み、liveボックスへ
+ *                      一切触れない)
+ * @param fromId        子イベント範囲の先頭EventId(ソースアンカー再付与の座標)
+ * @param toId          子イベント範囲の末尾EventId
  * @param ownerGeometry live ownerの解決済み物理形状
- * @param columnCount  指定段数
- * @param ua           ユーザーエージェント(プロパティ参照のみに使う)
+ * @param columnCount   指定段数
+ * @param ua            ユーザーエージェント(プロパティ参照のみに使う)
  */
-public record BalanceProbeInput(LayoutSource.ReplaySlice source, List<SegmentEvent> frozenEvents,
+public record BalanceProbeInput(LayoutSource log, long fromId, long toId,
 		BalanceBoxSnapshot ownerGeometry, int columnCount, UserAgent ua) {
 
-	public BalanceProbeInput {
-		frozenEvents = List.copyOf(frozenEvents);
-	}
-
 	/**
-	 * live ownerからプローブ入力を凍結します。プローブ不適格
+	 * live ownerからプローブ入力を検証・構築します。プローブ不適格
 	 * (範囲不明・Opaque/入れ子段組/縦横混在含み・範囲の穴・
-	 * {@link SegmentEvent.Barrier}が一件でもある)なら空を返し、呼び出し側は
-	 * 既存balanceへフォールバックする——汎用Segment executorは作らない
-	 * (codex設計§1.4)。
+	 * {@link SegmentEvent.Barrier}化するイベントが一件でもある)なら空を
+	 * 返し、呼び出し側は既存balanceへフォールバックする——汎用Segment
+	 * executorは作らない(codex設計§1.4)。
 	 *
 	 * <p>
 	 * <b>段組内float(M6c-5、2026-07-24解禁)</b>: 適格判定はプローブ
@@ -64,7 +71,7 @@ public record BalanceProbeInput(LayoutSource.ReplaySlice source, List<SegmentEve
 	 * @param owner       バランス対象の段組ボックス
 	 * @param columnCount 指定段数
 	 * @param ua          ユーザーエージェント
-	 * @return 凍結済み入力。不適格なら空
+	 * @return 検証済み入力。不適格なら空
 	 */
 	public static Optional<BalanceProbeInput> capture(final LayoutSource log, final long selfId,
 			final MulticolumnBlockBox owner, final int columnCount, final UserAgent ua) {
@@ -72,19 +79,44 @@ public record BalanceProbeInput(LayoutSource.ReplaySlice source, List<SegmentEve
 			return Optional.empty();
 		}
 		final long endId = log.endOf(selfId);
-		final LayoutSource.ReplaySlice slice = log.capture(selfId + 1, endId - 1);
+		final long fromId = selfId + 1;
+		final long toId = endId - 1;
+		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
 			// 範囲に破棄済みの穴があればフォールバック
 			return Optional.empty();
 		}
-		final List<SegmentEvent> events = LayoutSourceEventConverter.convert(slice);
-		for (final SegmentEvent event : events) {
-			if (event instanceof SegmentEvent.Barrier) {
-				// replay不能イベントが一件でもあればプローブ不適格
-				return Optional.empty();
+		// E-6増分3b-5: 全量Listへの凍結はしない——範囲を1パスstreaming走査
+		// してBarrier化するイベント(replay不能)の有無だけを検査する
+		// (payloadのdecodeもしない)。変換自体は各試行の駆動時にオンザフライ
+		final boolean[] barrier = { false };
+		slice.replay(event -> {
+			if (LayoutSourceEventConverter.convertsToBarrier(event)) {
+				barrier[0] = true;
 			}
+		});
+		if (barrier[0]) {
+			// replay不能イベントが一件でもあればプローブ不適格
+			return Optional.empty();
 		}
-		return Optional.of(new BalanceProbeInput(slice, events, owner.snapshotBalanceGeometry(), columnCount, ua));
+		return Optional.of(new BalanceProbeInput(log, fromId, toId, owner.snapshotBalanceGeometry(), columnCount, ua));
+	}
+
+	/**
+	 * 検証済み範囲のstreamingビューを開きます(試行ごとに呼ぶ——
+	 * {@code ReplaySlice}はconsume-onceのため共有できない。E-6増分3b-5)。
+	 * captureが検証した範囲はプローブ実行中のcompactから構造的に無傷
+	 * (クラスjavadoc「試行ごとcaptureの安全性」)のため、ここでの失敗は
+	 * 契約違反の即時失敗——呼び出し側(BalanceProbe.adopt)のcommit前
+	 * 例外処理が既存balanceへフォールバックさせる。
+	 */
+	public LayoutSource.ReplaySlice openSlice() {
+		final LayoutSource.ReplaySlice slice = this.log.capture(this.fromId, this.toId);
+		if (slice == null) {
+			throw new IllegalStateException(
+					"balance probe range lost between trials: [" + this.fromId + ", " + this.toId + "]");
+		}
+		return slice;
 	}
 
 	/**

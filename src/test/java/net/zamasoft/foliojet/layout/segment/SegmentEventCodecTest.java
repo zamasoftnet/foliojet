@@ -64,7 +64,7 @@ public class SegmentEventCodecTest extends TestCase {
 	public void testReplacedRestoresSameRecipeInstance() {
 		final SegmentEventCodec codec = new SegmentEventCodec();
 		final ReplacedRecipe recipe = new ReplacedRecipe.Flow(
-				ReplacedParamsTemplate.freeze(new ReplacedParams()).get(), FlowPosTemplate.freeze(new FlowPos()));
+				ReplacedParamsTemplate.freeze(new ReplacedParams()), FlowPosTemplate.freeze(new FlowPos()));
 		final SegmentEvent original = new SegmentEvent.Replaced(recipe);
 
 		final SegmentEvent decoded = codec.decode(codec.encode(original));

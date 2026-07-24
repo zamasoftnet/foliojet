@@ -59,7 +59,7 @@ public class SegmentEventTest extends TestCase {
 
 	public void testReplacedHoldsRecipeNotLiveBox() {
 		final ReplacedRecipe.Inline recipe = new ReplacedRecipe.Inline(
-				ReplacedParamsTemplate.freeze(new ReplacedParams()).orElseThrow(),
+				ReplacedParamsTemplate.freeze(new ReplacedParams()),
 				InlinePosTemplate.freeze(new InlinePos()));
 		final SegmentEvent.Replaced replaced = new SegmentEvent.Replaced(recipe);
 		assertEquals(ReplacedRecipe.GenerationKind.INLINE, replaced.recipe().generationKind());
@@ -67,7 +67,7 @@ public class SegmentEventTest extends TestCase {
 
 	/** {@code ReplacedRecipe}は生成種別ごとに異なるvariant(Pos型が違う)として表現される。 */
 	public void testReplacedRecipeVariantsCarryKindSpecificPosTemplates() {
-		final ReplacedParamsTemplate params = ReplacedParamsTemplate.freeze(new ReplacedParams()).orElseThrow();
+		final ReplacedParamsTemplate params = ReplacedParamsTemplate.freeze(new ReplacedParams());
 		final ReplacedRecipe.Flow flow = new ReplacedRecipe.Flow(params, FlowPosTemplate.freeze(new FlowPos()));
 		final ReplacedRecipe.Float floating = new ReplacedRecipe.Float(params,
 				FloatPosTemplate.freeze(new net.zamasoft.foliojet.layout.box.params.FloatPos()));
@@ -83,14 +83,23 @@ public class SegmentEventTest extends TestCase {
 
 	/**
 	 * {@link ReplacedBoxImage}実装({@code BarcodeImage}等、live boxへの
-	 * back-referenceを自身に書き込む)を持つ{@code ReplacedParams}は
-	 * 共有不可なため、{@code freeze()}がfail closedで{@code
-	 * Optional.empty()}を返す。
+	 * back-referenceを自身に書き込む)を持つ{@code ReplacedParams}は、
+	 * E-6増分3b-6のduplicateベースfreeze総関数化により、凍結時に独立
+	 * 複製が格納され、materializeごとにさらに複製が配られる(live・
+	 * materialize同士のいずれとも共有しない)。
 	 */
-	public void testReplacedParamsTemplateFailsClosedForReplacedBoxImage() {
+	public void testReplacedParamsTemplateDuplicatesReplacedBoxImage() {
 		final ReplacedParams params = new ReplacedParams();
-		params.image = new StubReplacedBoxImage();
-		assertTrue(ReplacedParamsTemplate.freeze(params).isEmpty());
+		final StubReplacedBoxImage liveImage = new StubReplacedBoxImage();
+		params.image = liveImage;
+		final ReplacedParamsTemplate template = ReplacedParamsTemplate.freeze(params);
+		final ReplacedParams m1 = template.materialize();
+		final ReplacedParams m2 = template.materialize();
+		assertNotSame(liveImage, m1.image);
+		assertNotSame(liveImage, m2.image);
+		assertNotSame(m1.image, m2.image);
+		assertTrue(m1.image instanceof ReplacedBoxImage);
+		assertSame(liveImage, params.image);
 	}
 
 	/** {@link Image}かつ{@link ReplacedBoxImage}を両方実装する最小のテスト用スタブ。 */

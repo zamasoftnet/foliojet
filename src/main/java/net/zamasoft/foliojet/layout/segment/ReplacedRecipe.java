@@ -27,11 +27,12 @@ package net.zamasoft.foliojet.layout.segment;
  * </p>
  *
  * <p>
- * {@link ReplacedParamsTemplate#freeze}は不安全な{@code image}
- * ({@link net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage}
- * 実装)を検出すると{@code Optional.empty()}を返す——その場合この
- * recipeは構築できず、呼び出し側(変換アダプタ配線時)は
- * {@link SegmentEvent.Barrier}にfall backすること。
+ * {@link ReplacedParamsTemplate#freeze}はE-6増分3b-6で総関数化された
+ * ({@code ReplacedBoxImage}は{@code duplicate()}の独立複製を凍結)。
+ * {@link #freeze}が空を返すのは未知の{@code AbstractReplacedBox}
+ * サブクラスのみ(現存4実装では構造的に到達不能・コーパス実測ゼロ)で、
+ * その場合呼び出し側({@code StyleBuilder.addReplacedBox})はfail closed
+ * でreplay不能マーカー({@code LayoutSource.Opaque})を記録すること。
  * </p>
  */
 public sealed interface ReplacedRecipe {
@@ -40,37 +41,30 @@ public sealed interface ReplacedRecipe {
 	/**
 	 * live boxからrecipeを組み立てます(E-6増分3b-3で
 	 * {@code LayoutSourceEventConverter}の変換ロジックを移設——記録時
-	 * ({@code StyleBuilder.addReplacedBox})と変換アダプタが同じ分類を
-	 * 共有するため)。{@link ReplacedParamsTemplate#freeze}が不安全な
-	 * {@code image}({@code ReplacedBoxImage}実装)を検出した場合、
-	 * または未知の{@code AbstractReplacedBox}サブクラスの場合は
-	 * fail closedで{@code Optional.empty()}を返す——呼び出し側は
-	 * live box保持({@code LayoutSource.ReplacedLive}/
-	 * {@link SegmentEvent.Barrier})へfall backすること。
+	 * ({@code StyleBuilder.addReplacedBox})にfreezeする)。
+	 * E-6増分3b-6: {@link ReplacedParamsTemplate#freeze}の総関数化
+	 * ({@code ReplacedBoxImage}のduplicateベースfreeze)により、空を
+	 * 返すのは未知の{@code AbstractReplacedBox}サブクラスのみ(現存
+	 * 4実装では発生しない)。呼び出し側はfail closedでreplay不能
+	 * マーカー({@code LayoutSource.Opaque})へfall backすること。
 	 */
 	static java.util.Optional<ReplacedRecipe> freeze(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
-		final java.util.Optional<ReplacedParamsTemplate> params = ReplacedParamsTemplate
-				.freeze(box.getReplacedParams());
-		if (params.isEmpty()) {
-			return java.util.Optional.empty();
-		}
+		final ReplacedParamsTemplate params = ReplacedParamsTemplate.freeze(box.getReplacedParams());
 		// 4実装(InlineReplacedBox/FlowReplacedBox/FloatReplacedBox/
 		// AbsoluteReplacedBox)がそれぞれInlinePos/FlowPos/FloatPos/
 		// AbsolutePosを使う(クラスjavadoc参照)
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox inline) {
-			return java.util.Optional
-					.of(new Inline(params.get(), InlinePosTemplate.freeze(inline.getInlinePos())));
+			return java.util.Optional.of(new Inline(params, InlinePosTemplate.freeze(inline.getInlinePos())));
 		}
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox flow) {
-			return java.util.Optional.of(new Flow(params.get(), FlowPosTemplate.freeze(flow.getFlowPos())));
+			return java.util.Optional.of(new Flow(params, FlowPosTemplate.freeze(flow.getFlowPos())));
 		}
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox floatBox) {
-			return java.util.Optional
-					.of(new Float(params.get(), FloatPosTemplate.freeze(floatBox.getFloatPos())));
+			return java.util.Optional.of(new Float(params, FloatPosTemplate.freeze(floatBox.getFloatPos())));
 		}
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox absolute) {
 			return java.util.Optional
-					.of(new Absolute(params.get(), AbsolutePosTemplate.freeze(absolute.getAbsolutePos())));
+					.of(new Absolute(params, AbsolutePosTemplate.freeze(absolute.getAbsolutePos())));
 		}
 		return java.util.Optional.empty();
 	}

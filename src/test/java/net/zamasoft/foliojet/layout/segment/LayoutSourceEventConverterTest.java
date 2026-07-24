@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.segment;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import junit.framework.TestCase;
@@ -43,7 +44,11 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		return new LayoutSource.Start(BoxRecipe.freeze(kind, params, pos));
 	}
 
-	/** イベント数は1:1(ordinal対応を壊さない、M6d-A2との整合性)。 */
+	/**
+	 * イベント数は1:1(ordinal対応を壊さない、M6d-A2との整合性)。
+	 * E-6増分3b-5: 全量List版convertは廃止——streamingビューの各イベントを
+	 * 単発版でオンザフライ変換する(1イベント=1 SegmentEvent)。
+	 */
 	public void testEventCountIsPreserved1to1() {
 		final LayoutSource log = new LayoutSource();
 		log.append(start(LayoutSource.BoxKind.FLOW, new BlockParams(), new FlowPos()));
@@ -51,7 +56,8 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		log.append(new LayoutSource.EndBlock());
 		final LayoutSource.ReplaySlice slice = log.capture(0, 2);
 
-		final List<SegmentEvent> converted = LayoutSourceEventConverter.convert(slice);
+		final List<SegmentEvent> converted = new ArrayList<>();
+		slice.replay(event -> converted.add(LayoutSourceEventConverter.convert(event)));
 		assertEquals(3, converted.size());
 	}
 
@@ -236,10 +242,13 @@ public class LayoutSourceEventConverterTest extends TestCase {
 
 	/**
 	 * {@link ReplacedBoxImage}実装(live boxへのback-referenceを持つため
-	 * 共有不可)を参照する置換要素は、記録時freezeがfail closedで空を返し
-	 * ({@code ReplacedLive}保持)、変換はBarrierへ落とす(E-6増分3b-3)。
+	 * 共有不可)を参照する置換要素も、E-6増分3b-6のduplicateベース
+	 * freeze総関数化により記録時freezeでき、Barrierにならない
+	 * (live型{@code ReplacedLive}は撤去された)。凍結値・materialize値の
+	 * 画像はliveと独立した複製である。
 	 */
-	public void testReplacedBoxImageFailsClosedToBarrier() {
+	public void testReplacedBoxImageFreezesWithDuplicatedImage() {
+		// 通常のImageなら従来どおり共有のままfreezeされる(対照)
 		final ReplacedParams params = new ReplacedParams();
 		params.image = new Image() {
 			public double getWidth() {
@@ -257,20 +266,38 @@ public class LayoutSourceEventConverterTest extends TestCase {
 				return null;
 			}
 		};
-		// 通常のImageなら記録時freezeできることをまず確認(対照)
 		final AbstractReplacedBox plain = new FlowReplacedBox(params, new FlowPos());
-		assertTrue(LayoutSourceEventConverter.convert(
-				new LayoutSource.Replaced(ReplacedRecipe.freeze(plain).orElseThrow())) instanceof SegmentEvent.Replaced);
+		final ReplacedRecipe plainRecipe = ReplacedRecipe.freeze(plain).orElseThrow();
+		assertTrue(LayoutSourceEventConverter
+				.convert(new LayoutSource.Replaced(plainRecipe)) instanceof SegmentEvent.Replaced);
+		assertSame(params.image, ((ReplacedRecipe.Flow) plainRecipe).params().materialize().image);
 
+		final StubReplacedBoxImage liveImage = new StubReplacedBoxImage();
 		final ReplacedParams unsafeParams = new ReplacedParams();
-		unsafeParams.image = new StubReplacedBoxImage();
+		unsafeParams.image = liveImage;
 		final AbstractReplacedBox unsafe = new FlowReplacedBox(unsafeParams, new FlowPos());
 
-		// 記録時freezeはfail closed(StyleBuilderはReplacedLiveで記録する)
-		assertTrue(ReplacedRecipe.freeze(unsafe).isEmpty());
+		// 記録時freezeは総関数(3b-6): ReplacedBoxImageでも成功し、
+		// 変換はBarrierではなくReplacedになる
+		final ReplacedRecipe recipe = ReplacedRecipe.freeze(unsafe).orElseThrow();
+		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(recipe));
+		assertTrue(converted instanceof SegmentEvent.Replaced);
+		// materialize結果の画像はliveと独立、かつmaterialize同士も独立
+		final ReplacedRecipe.Flow flow = (ReplacedRecipe.Flow) recipe;
+		final Image m1 = flow.params().materialize().image;
+		final Image m2 = flow.params().materialize().image;
+		assertNotSame(liveImage, m1);
+		assertNotSame(liveImage, m2);
+		assertNotSame(m1, m2);
+		assertTrue(m1 instanceof ReplacedBoxImage);
+	}
 
-		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.ReplacedLive(unsafe));
-		assertTrue(converted instanceof SegmentEvent.Barrier);
+	/** Opaque(replay不能マーカー)は3b-6のlive型撤去後も唯一のBarrier源として残る。 */
+	public void testOpaqueRemainsSoleBarrierSource() {
+		assertTrue(LayoutSourceEventConverter.convertsToBarrier(new LayoutSource.Opaque()));
+		assertFalse(LayoutSourceEventConverter
+				.convertsToBarrier(new LayoutSource.Chars(0, "x".toCharArray(), false)));
+		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Opaque());
 		assertEquals(BarrierReason.NOT_YET_SUPPORTED, ((SegmentEvent.Barrier) converted).reason());
 	}
 

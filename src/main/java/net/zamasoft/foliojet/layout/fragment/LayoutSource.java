@@ -53,7 +53,7 @@ import net.zamasoft.foliojet.layout.segment.TextSpill;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource implements AutoCloseable {
-	public sealed interface Event permits Start, Replaced, ReplacedLive, Chars, EndBlock, Opaque {
+	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque {
 	}
 
 	/**
@@ -110,23 +110,13 @@ public final class LayoutSource implements AutoCloseable {
 	 * {@code ReplacedRecipe.freeze}で凍結され、再生は
 	 * {@code BoxRecipeBoxFactory.createReplaced}のmaterializeで新品の
 	 * ボックスを作る——liveボックスへの参照はログに残らない。
-	 * (旧javadocの「同じインスタンスをそのまま渡す」は、実際には
-	 * {@code newReplayInstance()}導入(P0)以降のコードと不一致だった。)
+	 * E-6増分3b-6: {@code ReplacedBoxImage}実装(BarcodeImage等)を
+	 * 参照するボックスも{@code duplicate()}の独立複製ベースでfreeze
+	 * されるようになり、live box保持の過渡変種({@code ReplacedLive})は
+	 * 撤去された。freezeできない未知サブクラス(現存4実装ではゼロ)は
+	 * {@link Opaque}+{@link EndBlock}の対でfail closed記録される。
 	 */
 	public record Replaced(net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe) implements Event {
-	}
-
-	/**
-	 * 記録時にfreezeできなかった置換要素です(E-6増分3b-3の過渡変種。
-	 * {@code ReplacedRecipe.freeze}がfail closedになるもの——現状は
-	 * {@code ReplacedBoxImage}実装(BarcodeImage等)を参照するボックスと
-	 * 未知の{@code AbstractReplacedBox}サブクラス)。再生は
-	 * {@code newReplayInstance}経由だが、{@code ReplacedBoxImage}の
-	 * back-referenceを奪わないよう複製画像入りの独立paramsで駆動する
-	 * ({@code SegmentExecutor}参照)。SegmentEvent化は従来どおり
-	 * Barrier(凍結経路の保護と同じ分類)。
-	 */
-	public record ReplacedLive(net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) implements Event {
 	}
 
 	/**
@@ -198,9 +188,22 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * まだ再生に対応していないイベントです(置換要素・表など)。
-	 * ログの完全性(正直な全記録)のために位置だけ占有し、範囲に
-	 * これを含む再生要求はフォールバックさせます。
+	 * 範囲replay不能マーカーです(recipe化に対応していないボックス種別
+	 * ——表キャプション・絶対配置・浮動の表など{@code StyleBuilder.boxKind}
+	 * がnullを返すもの、および未知の{@code AbstractReplacedBox}
+	 * サブクラスのfail closed)。ログの完全性(正直な全記録)のために
+	 * 位置を占有し、範囲にこれを含む再生要求はフォールバックさせます。
+	 * 常に{@link EndBlock}と対を成す開始イベントとして積まれます
+	 * ({@code compact}/{@code endOf}の開閉対称性)。
+	 *
+	 * <p>
+	 * <b>撤去対象ではない(E-6増分3b-6で明確化)</b>: live型
+	 * ({@code ReplacedLive})と違い、Opaqueはreplay適格判定
+	 * ({@code containsOpaque})のfail closed基盤として恒久的に必要
+	 * ——「変換できないものは正直にマークして範囲ごとフォールバック」
+	 * が、silent hole(内容の黙失)を構造的に防ぐ。recipe化対応が
+	 * 広がるほど発生頻度は下がるが、型自体は残る。
+	 * </p>
 	 */
 	public record Opaque() implements Event {
 	}
@@ -267,11 +270,10 @@ public final class LayoutSource implements AutoCloseable {
 			this.liveInlineTextBytes += (long) inline.utf16Length() * 2;
 			ContinuationStats.recordLiveTextPayloadBytes(this.liveInlineTextBytes);
 		}
-		// E-6増分3b-3: 置換要素のrecipe化率の観測(3b-6のlive型撤去判断の材料)
+		// E-6増分3b-3: 置換要素のrecipe化の観測(3b-6でlive型を撤去し、
+		// 記録はrecipe一択になった——対のliveカウンタも撤去済み)
 		if (event instanceof Replaced) {
-			ContinuationStats.recordReplacedRecorded(true);
-		} else if (event instanceof ReplacedLive) {
-			ContinuationStats.recordReplacedRecorded(false);
+			ContinuationStats.recordReplacedRecipe();
 		} else if (event instanceof Start) {
 			// E-6増分3b-4: Startは記録時freeze(全kindカバーの総関数のため
 			// live変種の対カウンタはない——構造的に残量ゼロ)
@@ -491,8 +493,6 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			case Replaced replaced -> {
 			}
-			case ReplacedLive replacedLive -> {
-			}
 			}
 		}
 		kept.addAll(open);
@@ -531,8 +531,6 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
-			}
-			case ReplacedLive replacedLive -> {
 			}
 			}
 		}
@@ -605,8 +603,6 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
-			}
-			case ReplacedLive replacedLive -> {
 			}
 			}
 		}
@@ -724,10 +720,6 @@ public final class LayoutSource implements AutoCloseable {
 			// ReplacedRecipe.freezeの分類とBoxRecipeBoxFactory.createReplacedが対)
 			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe)
 					&& recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
-				return true;
-			}
-			if (entry.event() instanceof ReplacedLive(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box)
-					&& box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
 				return true;
 			}
 		}

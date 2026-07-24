@@ -39,7 +39,4 @@ public class FlowReplacedBox extends AbstractReplacedBox implements IFlowBox {
 		return this.pos.pageBreakBefore == PageBreakMode.AVOID;
 	}
 
-	public FlowReplacedBox newReplayInstance(final ReplacedParams params) {
-		return new FlowReplacedBox(params, this.pos);
-	}
 }

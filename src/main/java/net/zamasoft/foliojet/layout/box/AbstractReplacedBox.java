@@ -93,26 +93,6 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 	}
 
-	/**
-	 * 再生用の新品インスタンスを返します(P0。外部レビュー指摘)。
-	 * 再生の隔離原則「再生は新品のボックス木を作る」に対し、Replaced
-	 * イベントだけが同一インスタンスの再演で、計測(scratch)再生が
-	 * 生きているボックスの frame/size を変異させ得た。params/pos は
-	 * 共有(記録後不変)、幾何は再生ごとに新規。
-	 */
-	public final AbstractReplacedBox newReplayInstance() {
-		return this.newReplayInstance(this.params);
-	}
-
-	/**
-	 * 指定の params で再生用の新品インスタンスを返します(E-6増分3b-3、
-	 * 2026-07-24)。{@code params.image}が{@link ReplacedBoxImage}
-	 * (calculateSize が back-reference を画像へ書き込む)の場合、
-	 * replay 駆動側が複製画像入りの独立 params を渡してライブ側の
-	 * 画像状態を隔離するための注入点。pos は共有(記録後不変)。
-	 */
-	public abstract AbstractReplacedBox newReplayInstance(ReplacedParams params);
-
 	public final void calculateSize(final double refWidth, final double refHeight, final double refMaxWidth, final double refMaxHeight) {
 		double width = LayoutUtils.computeDimensionWidth(this.params.size, refWidth);
 		double height = LayoutUtils.computeDimensionHeight(this.params.size, refHeight);

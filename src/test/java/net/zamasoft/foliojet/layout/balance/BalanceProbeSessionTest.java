@@ -22,8 +22,6 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
-import net.zamasoft.foliojet.layout.segment.LayoutSourceEventConverter;
-import net.zamasoft.foliojet.layout.segment.SegmentEvent;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
@@ -296,19 +294,28 @@ public class BalanceProbeSessionTest extends TestCase {
 		assertTrue(BalanceProbeInput.capture(opaqueLog, opaqueSelfId, this.owner, 3, dummyUserAgent()).isEmpty());
 	}
 
-	/** 凍結イベント列はordinal 1:1で、Barrierを含まない。 */
-	public void testFrozenEventsKeepOrdinalParity() {
+	/**
+	 * E-6増分3b-5: 入力はrange座標+owner geometryだけの軽量recordで、
+	 * 各試行が範囲を独立にstreaming再読する(consume-onceのsliceを
+	 * 共有しない)。captureはリースを持ち越さない——プローブ実行中は
+	 * compactが走らない(改ページ処理中の同期実行)ことが再読の前提で、
+	 * もし範囲が失われれば黙って古い結果を使わず即時失敗する。
+	 */
+	public void testProbeInputRereadsRangePerTrial() {
 		final BalanceProbeInput input = frozenInput(this.owner, this.selfId, this.log);
-		// E-6増分3a: sliceはstreamingビュー(凍結変換で消費済み)のため、
-		// ordinal 1:1は範囲長(EventIdは連番)との一致で確認する
-		assertEquals(input.source().toId() - input.source().fromId() + 1, input.frozenEvents().size());
-		for (final SegmentEvent event : input.frozenEvents()) {
-			assertFalse(event instanceof SegmentEvent.Barrier);
-		}
-		// 凍結時にsliceは消費済み(consume-once)——二重再生はできない
+		assertEquals(this.selfId + 1, input.fromId());
+		assertEquals(this.log.endOf(this.selfId) - 1, input.toId());
+		final BalanceProbeSession session = new BalanceProbeSession(input);
+		// 連続試行が成立する(試行ごとにcaptureし直す——リース残置なし)
+		session.build(100);
+		session.build(100);
+		// captureが範囲をpinしていないことの実証: 範囲が破棄されると
+		// 以後の試行は契約違反として即時失敗する(BalanceProbe.adoptの
+		// commit前例外処理がlegacyへフォールバックさせる)
+		this.log.compact(this.log.nextId());
 		try {
-			LayoutSourceEventConverter.convert(input.source());
-			fail("消費済みsliceの再読はconsume-once違反のはず");
+			session.build(100);
+			fail("破棄済み範囲の試行は即時失敗するはず");
 		} catch (IllegalStateException expected) {
 			// OK
 		}

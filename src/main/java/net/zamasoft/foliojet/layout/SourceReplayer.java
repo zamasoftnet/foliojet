@@ -8,6 +8,8 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.foliojet.layout.segment.LayoutSourceEventConverter;
+import net.zamasoft.foliojet.layout.segment.SegmentEvent;
 import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
 
 /**
@@ -62,11 +64,14 @@ public final class SourceReplayer {
 	 * <p>
 	 * E-6増分3b-1(2026-07-24): 駆動本体(ボックス構築・SourceAnchor
 	 * 再付与・Chars の fresh copy 駆動)は BalanceProbeSession と共有の
-	 * {@link SegmentExecutor} へ一元化した。live イベントには
-	 * SegmentEvent 化すると Barrier になるもの(unsafe Replaced・Opaque)
-	 * が残るため、ここは過渡の {@code executeLive} 経路を使う
-	 * (Barrier ゼロ化(3b-3以降)後に撤去——SegmentExecutor の
-	 * javadoc「段階的統合の設計」参照)。
+	 * {@link SegmentExecutor} へ一元化した。E-6増分3b-6: live型
+	 * ({@code ReplacedLive})の撤去により過渡の {@code executeLive}
+	 * 経路も撤去され、{@code LayoutSource.Event} をオンザフライで
+	 * {@link SegmentEvent} へ変換して単一の
+	 * {@link SegmentExecutor#execute(SegmentEvent)} で駆動する
+	 * (BalanceProbeSession と完全に同型)。範囲に {@code Opaque} が
+	 * 含まれる場合は Barrier 変換 → execute が即時失敗する——適格判定
+	 * ({@code containsOpaque})は呼び出し側の契約。
 	 * </p>
 	 */
 	private static void drive(final DocumentBuilder doc, final LayoutSource.ReplaySlice slice) {
@@ -75,7 +80,7 @@ public final class SourceReplayer {
 		// (P0: アンカーはボックス個体に属する — 次の破断で再び
 		// 再生可能になるための系譜)
 		final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
-		slice.replay(executor::executeLive);
+		slice.replay(event -> executor.execute(LayoutSourceEventConverter.convert(event)));
 	}
 
 	/**
@@ -167,7 +172,8 @@ public final class SourceReplayer {
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
 		// E-6増分3b-1: 駆動本体は共有の SegmentExecutor へ。Chars だけは
 		// 尾部特有のトリミング(先頭 skip・配達済み終端での打ち切り)を
-		// ここで計算し、部分範囲プリミティブで駆動する
+		// ここで計算し、部分範囲プリミティブで駆動する(それ以外は
+		// 3b-6以降 drive と同じオンザフライ変換の単一 execute)
 		final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
 		final boolean[] first = { true };
 		slice.replay(event -> {
@@ -186,9 +192,9 @@ public final class SourceReplayer {
 					// 配達済み終端で打ち切り(以降は live が供給)
 					len = charEndExclusive - off - skip;
 				}
-				executor.executeLiveCharsRange(off + skip, ch, skip, len, fixed);
+				executor.executeCharsRange(off + skip, ch, skip, len, fixed);
 			}
-			default -> executor.executeLive(event);
+			default -> executor.execute(LayoutSourceEventConverter.convert(event));
 			}
 		});
 		if (keepTextOpen) {

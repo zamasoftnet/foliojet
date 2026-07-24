@@ -8,7 +8,8 @@ import net.zamasoft.foliojet.layout.box.content.ColumnsContainer;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.fragment.LayoutExecutionScope;
-import net.zamasoft.foliojet.layout.segment.SegmentEvent;
+import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.foliojet.layout.segment.LayoutSourceEventConverter;
 import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
 
 /**
@@ -19,8 +20,10 @@ import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
  * {@link #build(double)}は各試行容量ごとに<b>完全な新品</b>
  * (候補shell・{@code FlowContainer}・rootless builder・
  * {@code DocumentBuilder}・全子box・置換box・テキスト整形状態)を組む。
- * live側は入力の凍結({@link BalanceProbeInput})時点で読み終えており、
- * 構築中に一切触れない——losing candidateを何個作ってもliveは不変。
+ * 各試行はソースログの検証済み範囲({@link BalanceProbeInput})を
+ * streaming再読するだけで、liveボックス・liveビルダーへ構築中に一切
+ * 触れない(ログの格納は記録時freeze済みのrecipe——3b-4)——losing
+ * candidateを何個作ってもliveは不変。
  * </p>
  *
  * <p>
@@ -65,14 +68,19 @@ public final class BalanceProbeSession {
 			// E-6増分3b-1(2026-07-24): 駆動本体はSourceReplayer.driveと共有の
 			// SegmentExecutorへ一元化(SegmentEvent駆動はこちらが正規経路)。
 			// executorが再生インスタンスへイベントIDからソースアンカーを
-			// 再付与する(凍結列はsliceとordinal 1:1)——winnerが実採用
+			// 再付与する(範囲のEventIdは連番でordinal 1:1)——winnerが実採用
 			// (M6c-4)された後の改ページ破断でも、子部分木のソース再生系譜が
-			// 保たれる。Barrierは入力凍結時にゼロを検証済み
+			// 保たれる。
+			// E-6増分3b-5(2026-07-24): 全量List凍結を廃止し、試行ごとに
+			// 範囲のstreamingビューを開き直してオンザフライ変換で駆動する
+			// (格納は記録時recipe化(3b-3/3b-4)済み——Startのmaterializeと
+			// StructureToken internは試行ごとに新品のexecutorが担い、候補間で
+			// 状態を共有しない)。Barrierは入力検証時にゼロを確認済み
 			// (BalanceProbeInput.capture)のため、executor内の失敗は
 			// 契約違反の即時失敗
-			final SegmentExecutor executor = new SegmentExecutor(doc, this.input.source().fromId());
-			for (final SegmentEvent event : this.input.frozenEvents()) {
-				executor.execute(event);
+			try (LayoutSource.ReplaySlice slice = this.input.openSlice()) {
+				final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
+				slice.replay(event -> executor.execute(LayoutSourceEventConverter.convert(event)));
 			}
 			doc.finishReplay();
 			return observe(shell, capacity);

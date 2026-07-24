@@ -257,24 +257,19 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * 記録時にrecipe化できた置換要素イベント数です(2026-07-24新設、
-	 * E-6増分3b-3)。{@link #REPLACED_LIVE_EVENTS}との比が記録時の
-	 * recipe化率——3b-6(live Event型撤去)の判断材料。
+	 * 記録時にrecipe化された置換要素イベント数です(2026-07-24新設、
+	 * E-6増分3b-3)。3b-6でlive box保持の過渡変種({@code ReplacedLive})と
+	 * その対カウンタ({@code REPLACED_LIVE_EVENTS})は撤去され、置換要素の
+	 * 記録はrecipe一択になった({@code ReplacedBoxImage}はduplicateベース
+	 * でfreeze。freezeできない未知サブクラスは{@code Opaque}記録のため
+	 * このカウンタに乗らない——現存4実装では構造的にゼロ)。
 	 */
 	public static final AtomicLong REPLACED_RECIPE_EVENTS = new AtomicLong();
 
-	/**
-	 * 記録時にrecipe化できずlive box保持({@code LayoutSource.ReplacedLive})
-	 * のまま残った置換要素イベント数です(E-6増分3b-3。現状は
-	 * {@code ReplacedBoxImage}実装=BarcodeImage等を参照するボックスと
-	 * 未知の{@code AbstractReplacedBox}サブクラスのみ)。
-	 */
-	public static final AtomicLong REPLACED_LIVE_EVENTS = new AtomicLong();
-
-	/** 置換要素イベントの記録時分類の観測です(E-6増分3b-3)。 */
-	public static void recordReplacedRecorded(final boolean recipe) {
+	/** 置換要素イベントの記録時recipe化の観測です(E-6増分3b-3)。 */
+	public static void recordReplacedRecipe() {
 		if (live()) {
-			(recipe ? REPLACED_RECIPE_EVENTS : REPLACED_LIVE_EVENTS).incrementAndGet();
+			REPLACED_RECIPE_EVENTS.incrementAndGet();
 		}
 	}
 
@@ -541,7 +536,6 @@ public final class ContinuationStats {
 		SPILLED_TEXT_RECORDS.set(0);
 		SPILLED_TEXT_BYTES.set(0);
 		REPLACED_RECIPE_EVENTS.set(0);
-		REPLACED_LIVE_EVENTS.set(0);
 		START_RECIPE_EVENTS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);

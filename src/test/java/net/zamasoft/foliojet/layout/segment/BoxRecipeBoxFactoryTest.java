@@ -286,7 +286,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		params.lineHeight = 2.5;
 		final InlinePos pos = new InlinePos();
 		pos.lineHeight = 3.5;
-		final ReplacedRecipe recipe = new ReplacedRecipe.Inline(ReplacedParamsTemplate.freeze(params).orElseThrow(),
+		final ReplacedRecipe recipe = new ReplacedRecipe.Inline(ReplacedParamsTemplate.freeze(params),
 				InlinePosTemplate.freeze(pos));
 
 		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
@@ -299,7 +299,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		final FlowPos pos = new FlowPos();
 		pos.align = Align.CENTER;
 		final ReplacedRecipe recipe = new ReplacedRecipe.Flow(
-				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), FlowPosTemplate.freeze(pos));
+				ReplacedParamsTemplate.freeze(replacedParams()), FlowPosTemplate.freeze(pos));
 
 		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
 		assertTrue(box instanceof FlowReplacedBox);
@@ -310,7 +310,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		final FloatPos pos = new FloatPos();
 		pos.floating = FloatSide.END;
 		final ReplacedRecipe recipe = new ReplacedRecipe.Float(
-				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), FloatPosTemplate.freeze(pos));
+				ReplacedParamsTemplate.freeze(replacedParams()), FloatPosTemplate.freeze(pos));
 
 		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
 		assertTrue(box instanceof FloatReplacedBox);
@@ -321,7 +321,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		final AbsolutePos pos = new AbsolutePos();
 		pos.autoPosition = net.zamasoft.foliojet.layout.box.params.AutoPosition.INLINE;
 		final ReplacedRecipe recipe = new ReplacedRecipe.Absolute(
-				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), AbsolutePosTemplate.freeze(pos));
+				ReplacedParamsTemplate.freeze(replacedParams()), AbsolutePosTemplate.freeze(pos));
 
 		final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
 		assertTrue(box instanceof AbsoluteReplacedBox);
@@ -337,7 +337,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 	 */
 	public void testCreateReplacedProducesIndependentInstances() {
 		final ReplacedRecipe recipe = new ReplacedRecipe.Flow(
-				ReplacedParamsTemplate.freeze(replacedParams()).orElseThrow(), FlowPosTemplate.freeze(new FlowPos()));
+				ReplacedParamsTemplate.freeze(replacedParams()), FlowPosTemplate.freeze(new FlowPos()));
 		final AbstractReplacedBox box1 = BoxRecipeBoxFactory.createReplaced(recipe);
 		final AbstractReplacedBox box2 = BoxRecipeBoxFactory.createReplaced(recipe);
 		assertNotSame(box1, box2);
