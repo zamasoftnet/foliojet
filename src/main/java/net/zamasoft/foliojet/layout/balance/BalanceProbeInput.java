@@ -136,8 +136,11 @@ public record BalanceProbeInput(LayoutSource log, long fromId, long toId,
 			// 部分木が開いたまま(column-span分割中)・空内容
 			return false;
 		}
-		// 入れ子段組・縦横混在の再現は未検証のためフォールバック(M6c-5でも維持)
-		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
+		// 入れ子段組・縦横混在の再現は未検証のためフォールバック(M6c-5でも維持)。
+		// 絶対配置は増分4e以前はOpaque記録でcontainsOpaqueが捕捉していた——
+		// 候補内での係留・deferred bindの再現は未検証のため従来どおり不適格
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
+				|| log.containsMulticol(selfId + 1, endId - 1)
 				|| log.containsMixedFlow(selfId + 1, endId - 1, owner.getBlockParams().flow));
 	}
 }

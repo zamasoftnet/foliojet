@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.layout.segment;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
@@ -20,6 +21,7 @@ import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
@@ -81,6 +83,8 @@ public final class BoxRecipeBoxFactory {
 			create(LayoutSource.BoxKind.TABLE_COLUMN_GROUP, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableColumn r ->
 			create(LayoutSource.BoxKind.TABLE_COLUMN, r.params().materialize(), r.pos().materialize());
+		case BoxRecipe.Absolute r ->
+			create(LayoutSource.BoxKind.ABSOLUTE, r.params().materialize(), r.pos().materialize());
 		};
 	}
 
@@ -114,6 +118,8 @@ public final class BoxRecipeBoxFactory {
 		case TABLE_CELL -> new TableCellBox((BlockParams) params, (TableCellPos) pos, new FlowContainer());
 		case TABLE_COLUMN_GROUP -> new TableColumnGroupBox((InnerTableParams) params, (TableColumnPos) pos);
 		case TABLE_COLUMN -> new TableColumnBox((InnerTableParams) params, (TableColumnPos) pos);
+		// E-6増分4e: 絶対配置ブロック(StyleBuilder:1166の生成と同型)
+		case ABSOLUTE -> new AbsoluteBlockBox((BlockParams) params, (AbsolutePos) pos);
 		};
 	}
 

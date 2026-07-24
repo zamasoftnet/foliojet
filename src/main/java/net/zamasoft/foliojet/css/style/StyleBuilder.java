@@ -346,14 +346,14 @@ public class StyleBuilder implements PageGenerator {
 	 * ログに残さない。params/posの変異は全てこの記録前のStyleBuilder
 	 * フェーズに閉じる(codex設計§1.1・独立cross-check済み)ため、
 	 * 記録時freezeは従来の再生時共有と同値。freezeは
-	 * {@link #boxKind}が非nullを返す全13 kindをカバーする総関数で、
+	 * {@link #boxKind}が非nullを返す全14 kindをカバーする総関数で、
 	 * {@code ReplacedRecipe.freeze}と違い失敗変種({@code StartLive})は
 	 * 必要ない。
 	 * </p>
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		// レイアウトソースプロトコルの記録(M6b v3)。recipe化できる種別は
-		// Start(recipe) として記録し、未対応の種別(キャプション・絶対配置等)
+		// Start(recipe) として記録し、未対応の種別(キャプション・ルビ等)
 		// は Opaque として位置だけ占有する(範囲に Opaque を含む再生は
 		// フォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
@@ -453,6 +453,16 @@ public class StyleBuilder implements PageGenerator {
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableColumnBox.class) {
 			return LayoutSource.BoxKind.TABLE_COLUMN;
+		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox.class) {
+			// 絶対配置ブロック(E-6増分4e、2026-07-24)。記録の主目的は
+			// 絶対配置ビルダー自身の本文range seal(旧Opaque記録では
+			// endOfが引けずTwoPassSealReject.NO_RANGE——4b実測131件中81件の
+			// 最大残件)。絶対配置を「含む」範囲の再生可否は
+			// LayoutSource.containsAbsoluteゲートが従来どおり
+			// フォールバックさせる(係留・deferred bindの二重化防止)。
+			// 絶対配置の「表」はTableBoxで記録されるため従来どおりOpaque
+			return LayoutSource.BoxKind.ABSOLUTE;
 		}
 		return null;
 	}

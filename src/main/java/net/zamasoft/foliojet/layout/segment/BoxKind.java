@@ -16,5 +16,11 @@ package net.zamasoft.foliojet.layout.segment;
  */
 public enum BoxKind {
 	FLOW, MULTICOL, INLINE, MARKER, FLOAT_BLOCK, INLINE_BLOCK, INSIDE_MARKER, TABLE, TABLE_ROW_GROUP, TABLE_ROW,
-	TABLE_CELL, TABLE_COLUMN_GROUP, TABLE_COLUMN;
+	TABLE_CELL, TABLE_COLUMN_GROUP, TABLE_COLUMN,
+	/**
+	 * 絶対配置ブロック(AbsoluteBlockBox)。E-6増分4e(2026-07-24)で追加
+	 * ——末尾追加なのは既存ordinal(SegmentEventCodecのバイト表現)を
+	 * 変えないため。
+	 */
+	ABSOLUTE;
 }

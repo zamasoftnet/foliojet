@@ -87,7 +87,13 @@ public final class LayoutSource implements AutoCloseable {
 		/** テーブル列グループ(TableColumnGroupBox)。 */
 		TABLE_COLUMN_GROUP,
 		/** テーブル列(TableColumnBox)。 */
-		TABLE_COLUMN;
+		TABLE_COLUMN,
+		/**
+		 * 絶対配置ブロック(AbsoluteBlockBox)。E-6増分4e(2026-07-24)で
+		 * Opaque記録からrecipe記録へ昇格——末尾追加なのは既存ordinalを
+		 * 変えないため({@code segment.BoxKind}と並びを揃える)。
+		 */
+		ABSOLUTE;
 	}
 
 	/**
@@ -97,8 +103,8 @@ public final class LayoutSource implements AutoCloseable {
 	 * 再生は{@code BoxRecipeBoxFactory.create(BoxRecipe)}のmaterializeで
 	 * 新品のボックスを作る——liveのparams/pos({@code CSSElement}グラフ
 	 * 含む)はログに残らない。freezeは{@code StyleBuilder.boxKind}が
-	 * 非nullを返す全13 kindをカバーする総関数({@code ReplacedRecipe
-	 * .freeze}と違い失敗変種はない)。生成内容・マーカー番号等は解決済みの
+	 * 非nullを返す全14 kind(E-6増分4eでABSOLUTE追加)をカバーする総関数
+	 * ({@code ReplacedRecipe.freeze}と違い失敗変種はない)。生成内容・マーカー番号等は解決済みの
 	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません。
 	 */
 	public record Start(BoxRecipe recipe) implements Event {
@@ -189,8 +195,9 @@ public final class LayoutSource implements AutoCloseable {
 
 	/**
 	 * 範囲replay不能マーカーです(recipe化に対応していないボックス種別
-	 * ——表キャプション・絶対配置・浮動の表など{@code StyleBuilder.boxKind}
-	 * がnullを返すもの、および未知の{@code AbstractReplacedBox}
+	 * ——表キャプション・ルビ・絶対/浮動の表など{@code StyleBuilder.boxKind}
+	 * がnullを返すもの(絶対配置ブロックはE-6増分4eでrecipe記録へ昇格)、
+	 * および未知の{@code AbstractReplacedBox}
 	 * サブクラスのfail closed)。ログの完全性(正直な全記録)のために
 	 * 位置を占有し、範囲にこれを含む再生要求はフォールバックさせます。
 	 * 常に{@link EndBlock}と対を成す開始イベントとして積まれます
@@ -720,6 +727,44 @@ public final class LayoutSource implements AutoCloseable {
 			// ReplacedRecipe.freezeの分類とBoxRecipeBoxFactory.createReplacedが対)
 			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe)
 					&& recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * [fromId, toId] の範囲に絶対配置ブロックの Start が含まれていれば
+	 * true を返します(E-6増分4e、2026-07-24)。
+	 *
+	 * <p>
+	 * 増分4e以前は絶対配置が{@link Opaque}で記録されていたため、
+	 * {@link #containsOpaque}が全replay経路を暗黙にフォールバックさせて
+	 * いた。recipe記録化(適格化の対象は絶対配置ビルダー<b>自身の本文</b>
+	 * seal)後も、絶対配置を<b>含む</b>範囲の再生は従来どおり
+	 * フォールバックさせる——絶対配置はcontext builderへ係留
+	 * ({@code BlockBuilder.addBound}の{@code addAbsolute})され、deferred
+	 * bind(ページ末の{@code finishLayoutSelf})を持つため、範囲再生に
+	 * よる再構築は「liveで係留済みの箱+再生で新造される箱」の二重登録や
+	 * bindされないDeferredBind(リース取り残し)を生む。この判定は
+	 * {@link #containsFloat}と同じ「係留の再実行」ゲートの絶対配置版
+	 * (置換要素の絶対配置({@code ReplacedRecipe}のABSOLUTE)は増分4e
+	 * 以前から再生対象で挙動実績があるため、従来どおり対象外)。
+	 * </p>
+	 */
+	public boolean containsAbsolute(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			// recipeのAbsolute変種 ⇔ AbsoluteBlockBox ⇔ AbsolutePosの1:1対応
+			// (StyleBuilder.boxKindのクラス判定とBoxRecipe.freezeが対)
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Absolute) {
 				return true;
 			}
 		}

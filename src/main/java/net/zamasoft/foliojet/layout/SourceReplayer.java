@@ -152,9 +152,11 @@ public final class SourceReplayer {
 		// 次の兄弟アイテムの手前まで
 		final long cap = endIdExclusive < 0 ? log.nextId() : endIdExclusive;
 		final long toId = log.tailBound(fromId, cap) - 1;
-		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsFloat(fromId, toId)) {
-			// フロートを含む尾部の再生は係留の再実行(二重化)の危険が
-			// あるためフォールバック(replayChildren と同じゲート)
+		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsFloat(fromId, toId)
+				|| log.containsAbsolute(fromId, toId)) {
+			// フロート・絶対配置を含む尾部の再生は係留の再実行(二重化)の
+			// 危険があるためフォールバック(replayChildren と同じゲート。
+			// 絶対配置は増分4e以前はOpaque記録でcontainsOpaqueが捕捉していた)
 			return false;
 		}
 		// live パイプライン(shaper)が未配達のまま保留している文字は
@@ -226,9 +228,12 @@ public final class SourceReplayer {
 		if (endId < 0 || endId <= selfId + 1) {
 			return false;
 		}
-		// フロート係留・入れ子段組・縦横混在の再現は未検証のためフォールバック
+		// フロート・絶対配置の係留、入れ子段組・縦横混在の再現は未検証の
+		// ためフォールバック(絶対配置は増分4e以前はOpaque記録で
+		// containsOpaqueが捕捉していた——挙動維持のゲート分離)
 		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsFloat(selfId + 1, endId - 1)
-				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));
+				|| log.containsAbsolute(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
+				|| log.containsMixedFlow(selfId + 1, endId - 1, flow));
 	}
 
 	/**

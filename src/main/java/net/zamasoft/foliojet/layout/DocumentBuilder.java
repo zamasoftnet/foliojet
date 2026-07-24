@@ -672,9 +672,9 @@ public class DocumentBuilder implements TableBuilderHost {
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
 			if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-				// E-6増分4a/4b: 録画完了点でのrange seal。絶対配置はOpaque記録の
-				// ため現状は常に不適格(NO_RANGE)だが、seal呼び出し自体が
-				// 「表外float/absolute/inline-blockの母数」の実測点になる
+				// E-6増分4a/4b: 録画完了点でのrange seal。E-6増分4eの
+				// recipe記録化により絶対配置も適格になる(旧NO_RANGE=81の解消)。
+				// 適格な本文は下のprepareBindでDeferredBindへ持ち出される
 				sealable.sealBodyForRangeBind();
 			}
 			Builder builder = this.contextBuilder().builder;

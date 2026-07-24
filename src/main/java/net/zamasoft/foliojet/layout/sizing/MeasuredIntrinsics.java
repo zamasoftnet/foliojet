@@ -50,6 +50,16 @@ public final class MeasuredIntrinsics {
 		if (log == null) {
 			return null;
 		}
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox) {
+			// 絶対配置は模倣計測へフォールバック(E-6増分4e、2026-07-24):
+			// 増分4e以前はアンカーがOpaque記録でendOfが引けず構造的にnull
+			// (=模倣計測)だった。recipe記録化(4e)は本文rangeのbind適格化が
+			// 目的であり、M2c実測の適用は寸法変化(出力変化)を伴うため
+			// 挙動不変制約で見送る——適用する場合は別増分でgolden再基準化と
+			// AbsoluteBlockBox.DeferredBindのsizesスナップショットのbind時
+			// 再計測化を同時に行うこと
+			return null;
+		}
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox
 				|| box instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox) {
 			// リストマーカー(外部・内部とも)は模倣計測へフォールバック:
@@ -68,9 +78,12 @@ public final class MeasuredIntrinsics {
 		if (endId < 0 || endId <= selfId + 1) {
 			return null;
 		}
-		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
+		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
+				|| log.containsMulticol(selfId + 1, endId - 1)
 				|| log.containsMixedFlow(selfId + 1, endId - 1, template.flow)) {
-			// 縦横混在の再生はサブビルダー文脈が未設計のため模倣計測へ
+			// 縦横混在の再生はサブビルダー文脈が未設計のため模倣計測へ。
+			// 絶対配置を含む範囲は増分4e以前のOpaque記録時代と同じく模倣計測へ
+			// (recipe記録化による実測の適用拡大は挙動不変制約で見送り)
 			return null;
 		}
 		if (log.containsFloat(selfId + 1, endId - 1)) {

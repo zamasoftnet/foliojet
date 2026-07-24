@@ -91,6 +91,25 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * {@link #sealBodyForRangeBind()} で {@link SourceRangeBody} へ
 	 * 切り替わり、records(TextImplのglyph列・liveボックス)を手放す
 	 * (E-6増分4b)。
+	 *
+	 * <p>
+	 * <b>増分4c(range-first capture=録画中からrecordsを作らない)の
+	 * 実装可能性調査の結論(2026-07-24)</b>: fail closedの現行契約下では
+	 * 未成立のため見送り。適格性は録画完了時にしか確定できず
+	 * (poison要因——ルビ等のOpaque・非固定同方向multicolのStartFlow・
+	 * ネストビルダー——は本文streamの途中で初めて到着する)、seal不適格へ
+	 * 転落したビルダーのfallback bind({@link #bindRecords})はTextImplの
+	 * glyph列を要求する。よってglyph列を録画中に落とすと、後着のpoisonで
+	 * 内容が復元不能になる(例: float内の途中にルビ)。開始時確定(codex
+	 * (c)案)はSAX単一パスに先読みがなく不可能、投機+live再駆動((b)案)は
+	 * 裁定済み不可、glyph列の別テープ退避は「第二のTwoPass glyphテープは
+	 * 作らない」裁定(2026-07-24-e6-remaining-design-decision.md)に抵触。
+	 * codex自身の切替条件「対象範囲の全入力variantがrecipe化済み
+	 * (Barrierゼロ)」——残Opaque源はルビ・キャプション・絶対/浮動の表
+	 * (絶対配置ブロックは増分4eで解消)——が満たされ、かつ非leaf range
+	 * bind(ネストのリース再帰解放)が入った後に、初めてrange-firstが
+	 * fail closedのまま成立する。
+	 * </p>
 	 */
 	private sealed interface ReplayBody {
 		/** 従来のイベント記録(records)による本文です。 */
@@ -107,6 +126,95 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		record SourceRangeBody(net.zamasoft.foliojet.layout.fragment.LayoutSource source,
 				net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator, long fromId, long toId,
 				net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease) implements ReplayBody {
+		}
+
+		/**
+		 * seal済み本文を{@link DeferredBind}へ持ち出した後の状態です
+		 * (E-6増分4e)。リースの所有はDeferredBindへ移っており、この
+		 * ビルダーへのbind要求は契約違反(このビルダー経由のbindは
+		 * 以後起きない——deferred absoluteのbindはDeferredBindが担う)。
+		 */
+		record Detached() implements ReplayBody {
+		}
+	}
+
+	/**
+	 * deferred absolute(position:absolute、ページ末bind)のための
+	 * seal済み本文の持ち出し形です(E-6増分4e、2026-07-24——codex設計
+	 * §3.2の増分4e「AbsoluteBlockBoxのTwoPassBlockBuilder保持を
+	 * DeferredBind {sizes; range; lease}相当へ置換」)。
+	 *
+	 * <p>
+	 * ビルダー自体を{@code AbsoluteBlockBox}が保持し続けると、
+	 * layoutStack鎖(親ビルダー群)・計測器をページ末のbindまで引き留める。
+	 * 適格(seal済み)な場合はこの値オブジェクトだけを箱へ渡し、
+	 * ビルダーを手放す。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>sizesは模倣計測のスナップショット</b>: 現行の
+	 * {@link TwoPassBlockBuilder#intrinsicSizesMeasured()}は絶対配置では
+	 * 常に模倣計測({@code IntrinsicMeasurer})へフォールバックする
+	 * ({@code MeasuredIntrinsics.of}の絶対配置ゲート——M2c実測の適用は
+	 * 寸法変化を伴うため挙動不変制約で見送り)。計測器は録画完了後不変の
+	 * ためdetach時のスナップショットはbind時読みと同値。M2cを絶対配置へ
+	 * 広げる際は、ここをbind時のMeasuredIntrinsics再計測へ変えること。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>リース寿命</b>: seal時に取得したリースの所有はここへ移り、
+	 * {@link #bind}のfinallyで解放する(取り残すと以後のcompactが永久に
+	 * clampされる)。bindされない破棄経路は構造的に存在しない——
+	 * 絶対配置を含む部分木はソース再生で置換されない
+	 * ({@code LayoutSource.containsAbsolute}ゲート)ため箱は必ず
+	 * box-restyleで運搬され、ページ末の{@code finishLayoutSelf}が
+	 * 必ずbindする。この1:1は既存の検出器
+	 * (DisplayListGoldenTestの TWO_PASS_SEALS_ELIGIBLE ==
+	 * RANGE_FIRST_BINDS assert)が監視する。
+	 * </p>
+	 */
+	public static final class DeferredBind {
+		private final RootBuilder pageContext;
+		private final net.zamasoft.foliojet.layout.fragment.LayoutSource source;
+		private final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator;
+		private final long fromId, toId;
+		private final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease;
+		private final IntrinsicSizes sizes;
+
+		private DeferredBind(final RootBuilder pageContext, final ReplayBody.SourceRangeBody range,
+				final IntrinsicSizes sizes) {
+			this.pageContext = pageContext;
+			this.source = range.source();
+			this.pageGenerator = range.pageGenerator();
+			this.fromId = range.fromId();
+			this.toId = range.toId();
+			this.lease = range.lease();
+			this.sizes = sizes;
+		}
+
+		/** 固有寸法(模倣計測のスナップショット——クラスjavadoc参照)。 */
+		public IntrinsicSizes sizes() {
+			return this.sizes;
+		}
+
+		/** bind用のページ文脈({@code new BlockBuilder(pageContext, box)}の第1引数)。 */
+		public RootBuilder pageContext() {
+			return this.pageContext;
+		}
+
+		/**
+		 * seal済み範囲を{@code builder}へ再駆動します
+		 * ({@link TwoPassBlockBuilder#bind}のSourceRangeBody armと同型。
+		 * リースは完了・失敗を問わず解放する)。
+		 */
+		public void bind(final BlockBuilder builder) {
+			try {
+				net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(this.source, this.fromId, this.toId,
+						builder, this.pageGenerator);
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassRangeBind();
+			} finally {
+				this.lease.close();
+			}
 		}
 	}
 
@@ -464,8 +572,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			return;
 		}
 		final long anchor = this.getRootBox().getSourceAnchor();
-		// 絶対配置はOpaqueとして記録される(StyleBuilder.boxKindがnull)ため
-		// endOfが-1になり、ここで構造的に不適格になる(fail closed)
+		// Opaque記録の種別(キャプション・ルビ等)はendOfが-1になり、ここで
+		// 構造的に不適格になる(fail closed)。絶対配置はE-6増分4eの
+		// recipe記録化でendOfが引けるようになった(NO_RANGE=81の解消)
 		final long endId = anchor < 0 ? -1 : log.endOf(anchor);
 		if (endId < 0) {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NO_RANGE);
@@ -479,6 +588,18 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 		if (log.containsOpaque(fromId, toId)) {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
+			return;
+		}
+		if (log.containsAbsolute(fromId, toId)) {
+			// E-6増分4e: 絶対配置を「含む」範囲は不適格のまま(増分4e以前は
+			// Opaque記録によりOPAQUE_RANGEが捕捉していた分類の分離)。
+			// 絶対配置はcontext builderへ係留済み+deferred bindを持つため、
+			// 範囲再生で再構築すると二重登録・リース取り残しになる。なお
+			// context builderがこの録画中のTwoPassビルダー自身の場合は
+			// NESTED_BUILDER(AbsoluteBlockレコード)でも捕捉されるが、
+			// contextが録画の外(ページルート等)の場合はレコードが残らない
+			// ため、このログ側ゲートが唯一の防壁になる
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.ABSOLUTE_RANGE);
 			return;
 		}
 		if (log.containsMulticol(fromId, toId)) {
@@ -515,6 +636,25 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealReject(reason);
 	}
 
+	/**
+	 * seal済み本文を{@link DeferredBind}として持ち出します(E-6増分4e)。
+	 * 適格(seal済み={@code SourceRangeBody})な場合のみ値を返し、この
+	 * ビルダーは{@code Detached}状態(以後のbindは契約違反)になる。
+	 * 不適格({@code LegacyRecords})ならnull——呼び出し側
+	 * ({@code AbsoluteBlockBox.prepareBind})はfail closedでビルダー保持を
+	 * 継続する。
+	 */
+	public DeferredBind detachDeferredBind() {
+		if (!(this.body instanceof ReplayBody.SourceRangeBody range)) {
+			return null;
+		}
+		this.body = new ReplayBody.Detached();
+		// sizesスナップショットの同値性はDeferredBindのjavadoc参照
+		// (絶対配置のintrinsicSizesMeasured()は常に模倣計測へフォール
+		// バックし、計測器は録画完了後不変)
+		return new DeferredBind(this.getPageContext(), range, this.measurer.sizes());
+	}
+
 	public void bind(BlockBuilder builder) {
 		switch (this.body) {
 		case ReplayBody.SourceRangeBody range -> {
@@ -533,6 +673,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassLegacyRecordBind();
 			this.bindRecords(builder, legacy.records);
 		}
+		case ReplayBody.Detached detached ->
+			// E-6増分4e: DeferredBindへ持ち出し済み。bindはDeferredBindが担う
+			throw new IllegalStateException("DeferredBindへ持ち出し済みのビルダーへのbind");
 		}
 	}
 

@@ -47,9 +47,9 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <p>
  * あわせて「空虚な緑の防止」: range側の実行で(a)seal適格
  * (records解放)が実際に発火したこと、(b)range bindが実際に発火した
- * こと、(c)不適格分類(絶対配置=NO_RANGE、ネストビルダー=
- * NESTED_BUILDER)が実際に計上されることを固定し、適格/不適格の実測を
- * stderrへレポートする。
+ * こと、(c)不適格分類(ネストビルダー=NESTED_BUILDER)が実際に計上される
+ * こと、(d)絶対配置のrecipe記録化(E-6増分4e)後このコーパスでNO_RANGEが
+ * 残らないことを固定し、適格/不適格の実測をstderrへレポートする。
  * </p>
  */
 public class TwoPassRangeBindParityTest extends TestCase {
@@ -155,11 +155,14 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			}
 		}
 
-		// 空虚な緑の防止: 適格・不適格の両分類が実際に発火している
+		// 空虚な緑の防止: 適格・不適格の両分類が実際に発火している。
+		// E-6増分4e: 絶対配置はrecipe記録化により適格になった(旧「絶対配置
+		// =NO_RANGE」の検証は撤去)。このコーパスでNO_RANGEが残らないこと
+		// 自体が4eの適格化の証拠になるため0を固定する
 		assertTrue("range bindが一度も発火していません", rangeBinds > 0);
 		assertTrue("seal適格(records解放)が一度も発火していません", sealsEligible > 0);
-		assertTrue("絶対配置の不適格(NO_RANGE)が計上されていません",
-				rejects.get(ContinuationStats.TwoPassSealReject.NO_RANGE) > 0);
+		assertEquals("絶対配置のrecipe記録化(4e)後、このコーパスでNO_RANGEは残らないはずです", 0,
+				(long) rejects.get(ContinuationStats.TwoPassSealReject.NO_RANGE));
 		assertTrue("ネストビルダーの不適格(NESTED_BUILDER)が計上されていません",
 				rejects.get(ContinuationStats.TwoPassSealReject.NESTED_BUILDER) > 0);
 

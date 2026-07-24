@@ -1615,9 +1615,10 @@ public class FlowContainer implements Container {
 			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		// フロートは最近接ブロック祖先のコンテナに係留されるため、移動した
 		// 部分木の内部フロートは部分木と一緒に動き、ソース再駆動でも二重
-		// 生成されない(golden: float-in-moved)。絶対配置ボックスの開始は
-		// Opaque として記録されるため、それを含む部分木は containsOpaque が
-		// 部分木単位で正しくフォールバックさせる — 階層単位のゲートは不要
+		// 生成されない(golden: float-in-moved)。絶対配置ボックスを含む
+		// 部分木は stampRanges の containsAbsolute ゲート(E-6増分4e以前は
+		// Opaque記録によるcontainsOpaque)が部分木単位で正しくフォールバック
+		// させる — 階層単位のゲートは不要
 		List<BoxHolder> items = null;
 		if (this.floatings != null) {
 			Floatings floatings = this.floatings;

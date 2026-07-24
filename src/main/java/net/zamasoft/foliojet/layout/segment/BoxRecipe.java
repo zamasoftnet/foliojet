@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.segment;
 
+import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
@@ -33,7 +34,8 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  * <p>
  * E-6増分3b-4(2026-07-24): {@link #freeze}を追加し、記録時
  * ({@code StyleBuilder.startBox})にlive params/posから凍結する——
- * {@code StyleBuilder.boxKind}が非nullを返す全13 kindをカバーする
+ * {@code StyleBuilder.boxKind}が非nullを返す全14 kind(E-6増分4eで
+ * {@link Absolute}追加)をカバーする
  * <b>総関数</b>(旧{@code LayoutSourceEventConverter.convertStart}の
  * 変換時freezeの移設。{@code ReplacedRecipe.freeze}と違い失敗変種は
  * ない)。テンプレートを持たない種別はそもそも{@code boxKind}がnullを
@@ -105,6 +107,10 @@ public sealed interface BoxRecipe {
 		// TableColumnPosを使う(既存コード確認済み)
 		case TABLE_COLUMN -> new TableColumn(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableColumnPosTemplate.freeze((TableColumnPos) pos));
+		// AbsoluteBlockBoxはBlockParams/AbsolutePosを使う(E-6増分4e。
+		// AbsolutePosTemplateはReplacedRecipe.Absoluteで実績あり)
+		case ABSOLUTE -> new Absolute(BlockParamsTemplate.freeze((BlockParams) params),
+				AbsolutePosTemplate.freeze((AbsolutePos) pos));
 		};
 	}
 
@@ -285,6 +291,25 @@ public sealed interface BoxRecipe {
 
 		public WritingMode flowOrNull() {
 			return null;
+		}
+	}
+
+	/**
+	 * 絶対配置ブロック({@code AbsoluteBlockBox})——{@code BlockParams}/
+	 * {@code AbsolutePos}を使う(E-6増分4e、2026-07-24)。記録の主目的は
+	 * 絶対配置ビルダー自身の本文range seal({@code endOf}が引けるように
+	 * なること——旧Opaque記録では{@code TwoPassSealReject.NO_RANGE})。
+	 * 絶対配置を<b>含む</b>範囲の再生は{@code LayoutSource
+	 * .containsAbsolute}ゲートが従来どおりフォールバックさせる
+	 * (係留・deferred bindの二重化防止——同メソッドjavadoc参照)。
+	 */
+	record Absolute(BlockParamsTemplate params, AbsolutePosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.ABSOLUTE;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
 		}
 	}
 }

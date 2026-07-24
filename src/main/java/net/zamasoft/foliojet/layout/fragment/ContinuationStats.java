@@ -321,12 +321,24 @@ public final class ContinuationStats {
 	public enum TwoPassSealReject {
 		/** ページ文脈なし・segment-restyle無効・LayoutSourceなし(scratch計測等)。 */
 		NO_SOURCE,
-		/** root boxのSourceAnchorがない、またはStartでない(絶対配置=Opaque等)か未閉。 */
+		/**
+		 * root boxのSourceAnchorがない、またはStartでないか未閉。増分4e以前は
+		 * 絶対配置(Opaque記録)が全てここに計上されていた(4b実測131件中81件)
+		 * ——4eのrecipe記録化で絶対配置は適格判定の土俵に乗る。
+		 */
 		NO_RANGE,
 		/** 子イベント範囲が空(空のfloat等。records解放の益がない)。 */
 		EMPTY_RANGE,
-		/** 範囲にOpaque(ルビ・絶対配置・キャプション・浮動/絶対の表等)を含む。 */
+		/** 範囲にOpaque(ルビ・キャプション・浮動/絶対の表等)を含む。 */
 		OPAQUE_RANGE,
+		/**
+		 * 範囲に絶対配置ブロックのStartを含む(E-6増分4e)。増分4e以前は
+		 * 絶対配置がOpaque記録だったためOPAQUE_RANGEに含まれていた分類の
+		 * 分離——絶対配置はcontext builderへ係留済み+deferred bindを持つ
+		 * ため、範囲再生による再構築は二重登録・リース取り残しを生む
+		 * ({@code LayoutSource.containsAbsolute}のjavadoc参照)。
+		 */
+		ABSOLUTE_RANGE,
 		/** 範囲に段組(multicol)を含む(列機構との相互作用は未検証)。 */
 		MULTICOL_RANGE,
 		/** 範囲に書字方向の異なる内容を含む(サブビルダー文脈の再現は未検証)。 */

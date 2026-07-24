@@ -276,6 +276,27 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 	}
 
 	/**
+	 * BoxKind.ABSOLUTEはAbsoluteBlockBoxへ、AbsolutePosの非デフォルト値も
+	 * 保持したまま再構築される(E-6増分4e、2026-07-24)。
+	 */
+	public void testAbsoluteRecipeCreatesAbsoluteBlockBox() {
+		final AbsolutePos pos = new AbsolutePos();
+		pos.autoPosition = net.zamasoft.foliojet.layout.box.params.AutoPosition.INLINE;
+		pos.fiducial = net.zamasoft.foliojet.layout.box.params.Fiducial.ALL_PAGE;
+		final BoxRecipe recipe = new BoxRecipe.Absolute(BlockParamsTemplate.freeze(blockParams()),
+				AbsolutePosTemplate.freeze(pos));
+
+		final INonReplacedBox box1 = BoxRecipeBoxFactory.create(recipe);
+		final INonReplacedBox box2 = BoxRecipeBoxFactory.create(recipe);
+		assertEquals(net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox.class, box1.getClass());
+		assertNotSame(box1, box2);
+		assertNotSame(box1.getParams(), box2.getParams());
+		final AbsolutePos materialized = (AbsolutePos) box1.getPos();
+		assertEquals(net.zamasoft.foliojet.layout.box.params.AutoPosition.INLINE, materialized.autoPosition);
+		assertEquals(net.zamasoft.foliojet.layout.box.params.Fiducial.ALL_PAGE, materialized.fiducial);
+	}
+
+	/**
 	 * {@link ReplacedRecipe}の4variant(2026-07-22新設、M6d-A)——
 	 * {@link BoxRecipeBoxFactory#createReplaced}が対応する
 	 * {@code AbstractReplacedBox}実装へ正しく再構築することを、

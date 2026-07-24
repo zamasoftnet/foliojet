@@ -503,7 +503,13 @@ public class RootBuilder extends BreakableBuilder {
 			final long startId = box.getSourceAnchor();
 			if (startId >= 0) {
 				final long endId = log.endOf(startId);
-				if (endId >= 0 && !log.containsOpaque(startId, endId) && !log.containsMulticol(startId, endId)
+				// containsAbsolute(E-6増分4e): 絶対配置は増分4e以前はOpaque
+				// 記録でcontainsOpaqueが捕捉していた。recipe記録化後も、
+				// 絶対配置を含む部分木のソース再生置換は係留・deferred bindの
+				// 二重化を生むため従来どおりbox-restyleへフォールバックさせる
+				// (LayoutSource.containsAbsoluteのjavadoc参照)
+				if (endId >= 0 && !log.containsOpaque(startId, endId) && !log.containsAbsolute(startId, endId)
+						&& !log.containsMulticol(startId, endId)
 						&& !log.containsMixedFlow(startId, endId, rootFlow)) {
 					ranges.put(box,
 							new net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange(-1, startId, endId));
