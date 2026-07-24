@@ -55,4 +55,44 @@ public enum WorklistTailGate {
 		}
 		return WORKLIST_ELIGIBLE;
 	}
+
+	/**
+	 * program({@code ResumeTail})を経由せず、snapshot+検証済みopen path形
+	 * ({@link ContinuationValidator.PathShape}=first-classに歩けたframe数と
+	 * 終端{@link OpenShape})から適格性を直接導出します(2026-07-24、E-3
+	 * 増分3。docs/consultations/consult-e3-single-source-codex.md §3)。
+	 *
+	 * <p>
+	 * 旧{@link #of(ContinuationProgram)}との対応: {@code ResumeTail}が
+	 * {@code LegacyOpen}になるのは未収集レベルが残る場合、すなわち
+	 * {@code firstOpenPathIndex < snapshot.depth()}の場合に限られ、その
+	 * {@code LegacyOpen.firstOpenPathIndex}は{@code PathShape
+	 * .firstOpenPathIndex()}と同一の値である(PAGE compilerでは
+	 * frame数、COLUMN compilerでは1+チェーンframe数がそのまま
+	 * firstOpenPathIndexになる)。したがって両判定は全入力で一致する——
+	 * 一致は{@code WorklistTailGateTest}の新旧比較で固定している。
+	 * </p>
+	 */
+	public static WorklistTailGate of(final OpenPathSnapshot snapshot,
+			final ContinuationValidator.PathShape pathShape) {
+		return ofUncompiledLevels(snapshot, pathShape.firstOpenPathIndex());
+	}
+
+	/**
+	 * 未収集レベル{@code [firstOpenPathIndex, snapshot.depth())}のroleだけ
+	 * から判定する共通実装です(有界ループ。分類はsnapshot捕捉時に一度だけ
+	 * 計算済みの{@link OpenPathSnapshot.OpenLevelDescriptor#role()}を読む)。
+	 */
+	private static WorklistTailGate ofUncompiledLevels(final OpenPathSnapshot snapshot, final int firstOpenPathIndex) {
+		if (firstOpenPathIndex >= snapshot.depth()) {
+			return NO_LEGACY_OPEN_TAIL;
+		}
+		for (int i = firstOpenPathIndex; i < snapshot.depth(); ++i) {
+			if (!(snapshot.levels().get(i).role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
+					final ContinuationCapability capability)) || capability != ContinuationCapability.PLAIN_FLOW) {
+				return LEGACY_RECURSION;
+			}
+		}
+		return WORKLIST_ELIGIBLE;
+	}
 }

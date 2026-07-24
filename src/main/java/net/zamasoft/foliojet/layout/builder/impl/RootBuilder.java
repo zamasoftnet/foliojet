@@ -91,6 +91,18 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.Continuation continuation;
 
 		/**
+		 * 破断時snapshot(実fragment署名の直接照合(E-3増分2)と、検証済み
+		 * open path形からのtail policy導出(E-3増分3)に使う)。
+		 */
+		private final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot;
+
+		/**
+		 * {@code ContinuationValidator.validatePage()}が返した検証済み
+		 * open path形です(E-3増分3。tail policyの直接導出の入力)。
+		 */
+		private final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape;
+
+		/**
 		 * 2026-07-21(B2): shadow比較用。既存executor(resumeFrame)が実際に
 		 * 選んだ操作を、resumeProgramが予告した操作列と突き合わせる。
 		 * セッションごとに独立して持つ(ソース再生中の入れ子破断で混線
@@ -117,10 +129,17 @@ public class RootBuilder extends BreakableBuilder {
 		private State state = State.NEW;
 
 		ResumeSession(final net.zamasoft.foliojet.layout.fragment.Continuation continuation,
-				final net.zamasoft.foliojet.layout.fragment.PageResumeProgram resumeProgram) {
+				final net.zamasoft.foliojet.layout.fragment.PageResumeProgram resumeProgram,
+				final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape) {
 			this.continuation = continuation;
+			this.snapshot = resumeProgram.snapshot();
+			this.pathShape = pathShape;
 			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(resumeProgram);
-			this.tailGate = net.zamasoft.foliojet.layout.fragment.WorklistTailGate.of(resumeProgram);
+			// 2026-07-24(E-3増分3): tail policyをprogram(ResumeTail)経由で
+			// はなく、snapshot+検証済みopen path形から直接導出する
+			// (WorklistTailGateTestの新旧比較で全ケース一致を固定済み。
+			// 旧経路of(program)は増分4以降のprogram撤去まで残す)。
+			this.tailGate = net.zamasoft.foliojet.layout.fragment.WorklistTailGate.of(this.snapshot, this.pathShape);
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
@@ -153,8 +172,8 @@ public class RootBuilder extends BreakableBuilder {
 			try {
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
 						"depth=" + this.continuation.depth());
-				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.shadow,
-						this.tailGate);
+				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.snapshot,
+						this.shadow, this.tailGate);
 				// 2026-07-21(B2): shadow比較——正常終了後にのみ完全一致を
 				// 確認する(既存executorの挙動そのものは変えない)。
 				this.shadow.verifyComplete();
@@ -214,7 +233,8 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	record CompiledColumn(net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program,
 			net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame,
-			java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
+			java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges,
+			net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape) {
 	}
 
 	/**
@@ -288,10 +308,16 @@ public class RootBuilder extends BreakableBuilder {
 
 		final net.zamasoft.foliojet.layout.fragment.ColumnAnchor anchor = new net.zamasoft.foliojet.layout.fragment.ColumnAnchor(
 				ownerRemainder, anchorPrefix);
+		// 2026-07-24(E-3増分1): 正本(COLUMN入力)を直接検証する。既存
+		// compiler/verifierと並置(同一の型付き例外、同一不変条件)——
+		// 呼び出し元(BreakableBuilder.columnBreak)のcommitPreparedColumn
+		// より前なので、検証失敗時はownerへのcommitなしで安全に止まる。
+		final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape = net.zamasoft.foliojet.layout.fragment.ContinuationValidator
+				.validateColumn(anchor, snapshot, childFrame);
 		final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program = net.zamasoft.foliojet.layout.fragment.ColumnResumeProgramCompiler
 				.compileColumn(columnTarget, anchor, snapshot, childFrame, ranges);
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnCompiledProgram(program);
-		return new CompiledColumn(program, childFrame, ranges);
+		return new CompiledColumn(program, childFrame, ranges, pathShape);
 	}
 
 	/**
@@ -306,7 +332,7 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	final void resumeColumn(final BreakableBuilder target, final CompiledColumn compiled) {
 		try (ColumnResumeSession session = new ColumnResumeSession(target, compiled.program(), compiled.childFrame(),
-				compiled.ranges())) {
+				compiled.ranges(), compiled.pathShape())) {
 			session.resume();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
@@ -327,6 +353,8 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
 		private final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges;
 		private final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow;
+		/** PAGE側{@link ResumeSession#pathShape}と同じ役割のCOLUMN版(E-3増分3)。 */
+		private final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape;
 		/** PAGE側{@link ResumeSession#tailGate}と同じ役割のCOLUMN版。 */
 		private final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate;
 		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
@@ -335,14 +363,19 @@ public class RootBuilder extends BreakableBuilder {
 		ColumnResumeSession(final BreakableBuilder target,
 				final net.zamasoft.foliojet.layout.fragment.ColumnResumeProgram program,
 				final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame,
-				final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
+				final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges,
+				final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape) {
 			this.target = target;
 			this.program = program;
 			this.childFrame = childFrame;
 			this.ranges = ranges;
+			this.pathShape = pathShape;
 			this.shadow = new net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace(
 					net.zamasoft.foliojet.layout.fragment.ResumeOp.expectedOps(program));
-			this.tailGate = net.zamasoft.foliojet.layout.fragment.WorklistTailGate.of(program);
+			// 2026-07-24(E-3増分3): PAGE側と同じくtail policyを直接導出へ
+			// 切替(旧経路of(program)は増分4以降のprogram撤去まで残す)。
+			this.tailGate = net.zamasoft.foliojet.layout.fragment.WorklistTailGate.of(program.snapshot(),
+					this.pathShape);
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
@@ -376,8 +409,8 @@ public class RootBuilder extends BreakableBuilder {
 					RootBuilder.this.restyleFrame(this.target, this.program.anchor().remainder(),
 							this.program.anchor().prefixItems(),
 							net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
-					RootBuilder.this.resumeFragmentChain(this.childFrame, 1, this.program.snapshot().depth(), this.shadow,
-							this.target, this.tailGate);
+					RootBuilder.this.resumeFragmentChain(this.childFrame, 1, this.program.snapshot().depth(),
+							this.program.snapshot(), this.shadow, this.target, this.tailGate);
 				} else {
 					assert this.program.anchor().prefixItems().isEmpty();
 					// 2026-07-22(B6a1): PAGE側index==0の「収集不能な破断」と
@@ -842,6 +875,12 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
 				depth, rootFrame, ranges);
 
+		// 2026-07-24(E-3増分1): 正本(Continuation)を直接検証する。既存
+		// compiler/verifierと並置(同一の型付き例外、同一不変条件)。
+		// この時点(flowStack.clear()・resume側の状態変異より前)で例外を
+		// 投げて安全に停止する。
+		final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape = net.zamasoft.foliojet.layout.fragment.ContinuationValidator
+				.validatePage(snapshot, continuation);
 		// 2026-07-21(B2): 平坦なResumeProgramへコンパイル・検証する
 		// (shadowのみ、既存executorの実行には一切影響しない)。
 		// malformedなプログラムはこの時点(flowStack.clear()・resume側の
@@ -860,7 +899,7 @@ public class RootBuilder extends BreakableBuilder {
 		pageBox.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 		// P1: セッションがリース(occurrence 単位)とスコープを所有し、
 		// consume-once と例外時清算を対称に保証する
-		try (ResumeSession session = new ResumeSession(continuation, resumeProgram)) {
+		try (ResumeSession session = new ResumeSession(continuation, resumeProgram, pathShape)) {
 			session.resume();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
@@ -934,9 +973,10 @@ public class RootBuilder extends BreakableBuilder {
 	 *                 (B6a1。セッション構築時に一度だけ判定済み)
 	 */
 	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
-			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
+			final int depth, final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot,
+			final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
 			final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate) {
-		this.resumeFragmentChain(frame, index, depth, shadow, this, tailGate);
+		this.resumeFragmentChain(frame, index, depth, snapshot, shadow, this, tailGate);
 	}
 
 	/**
@@ -963,7 +1003,8 @@ public class RootBuilder extends BreakableBuilder {
 	 *                 (B6a1。呼び出し元セッションの構築時に判定済みの値)
 	 */
 	private void resumeFragmentChain(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
-			final int depth, final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
+			final int depth, final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot,
+			final net.zamasoft.foliojet.layout.fragment.ResumeProgramTrace shadow,
 			final BlockBuilder target, final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate) {
 		while (true) {
 			assert !this.resumeScopes.isEmpty();
@@ -974,8 +1015,16 @@ public class RootBuilder extends BreakableBuilder {
 			if (!(block instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box)) {
 				throw new IllegalStateException("未対応のフレーム種別: " + block.getClass().getName());
 			}
-			shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.Instantiate(index,
-					net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature.from(box)));
+			// 2026-07-24(E-3増分2): instantiate直後・builder状態変異
+			// (startFlowBlock/restyle)前に、実fragmentの署名を破断時
+			// snapshotと直接照合する(shadowのInstantiate照合が持っていた
+			// 唯一の独立価値の直接化。不一致は型付き例外で停止し、legacyで
+			// 再試行しない)。
+			final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature signature = net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature
+					.from(box);
+			net.zamasoft.foliojet.layout.fragment.ContinuationValidator.checkFragmentSignature(snapshot, index,
+					signature);
+			shadow.actual(new net.zamasoft.foliojet.layout.fragment.ResumeOp.Instantiate(index, signature));
 			switch (frame.tail()) {
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) -> {
