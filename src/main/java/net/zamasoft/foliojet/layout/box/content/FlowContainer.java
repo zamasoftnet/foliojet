@@ -736,17 +736,15 @@ public class FlowContainer implements Container {
 			} else {
 				index = this.flows == null ? 0 : this.flows.size();
 			}
-			nextBox.floatings = this.splitFloatings(pageLimit, flags, index);
+			final FloatAggregate aggregate = this.aggregateFloatings(pageLimit, flags, index);
 			if (moved) {
-				// splitFloatings(pageLimit, flags, index) は呼び出し時点の
+				// aggregateFloatings(pageLimit, flags, index) は呼び出し時点の
 				// this.flows.size()==index+1 を前提に0..index-1を走査する
 				// ため、除去はその呼び出しの後に行う(先に除去すると
 				// FLAGS_LAST判定がずれる)
 				this.flows.remove(index);
 			}
-			if (nextBox.floatings == this.floatings) {
-				this.floatings = null;
-			}
+			this.attachAggregate(nextBox, aggregate);
 			assert nextBox != null;
 			assert nextBox != this;
 			if (chainFrame != null) {
@@ -767,10 +765,11 @@ public class FlowContainer implements Container {
 					this.flows == null ? 0 : this.flows.size());
 			return plain(switch (pre) {
 			case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
-			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
-			case FlowCutter.PreDecision.MoveAll moveAll -> this;
-			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this.splitFloatings(this, atLimit,
+			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatingsKeepingOwner(atLimit,
 					flags);
+			case FlowCutter.PreDecision.MoveAll moveAll -> this;
+			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this
+					.splitFloatingsMovingOwner(atLimit, flags);
 			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
 			case FlowCutter.PreDecision.Proceed proceed -> throw new IllegalStateException();
 			});
@@ -810,7 +809,7 @@ public class FlowContainer implements Container {
 				}
 				// 前のページに残す
 				recordDecision(false, this, "noOrphan:keepOnPrevPage", this.flows.size());
-				return plain(this.splitFloatings(null, prevPageSize, flags));
+				return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
 			}
 			lastOrphan = this.flows.size() - 1;
 		}
@@ -905,9 +904,12 @@ public class FlowContainer implements Container {
 						case SplitResult.Frame(
 								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
 							recordChildResult(false, i, true, "Frame");
+							// Existing指定では結果は常にcollectedNext自身
+							// (移動があれば台帳が装着される)——旧APIの
+							// 返り値(=nextBox)と同じ
 							final FlowContainer collectedNext = new FlowContainer();
-							return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(
-									this.splitFloatings(collectedNext, prevPageSize, flags), f);
+							this.splitFloatings(new FloatTransferTarget.Existing(collectedNext), prevPageSize, flags);
+							return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(collectedNext, f);
 						}
 						case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
 								"チェーンメンバーは Split を返さない");
@@ -989,7 +991,7 @@ public class FlowContainer implements Container {
 							return plain(this.cutTail(prevPageSize, flags));
 						}
 						// 前ページに残す
-						return plain(this.splitFloatings(null, prevPageSize, flags));
+						return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
 					}
 					// 全部移動
 					recordDecision(false, this, "moveAll:plain(this)", this.flows.size());
@@ -1044,9 +1046,10 @@ public class FlowContainer implements Container {
 					+ flowPageExtents[this.flows.size() - 1];
 			return plain(switch (FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize)) {
 			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
-			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatings(null, atLimit, flags);
-			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this.splitFloatings(this, atLimit,
+			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatingsKeepingOwner(atLimit,
 					flags);
+			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this
+					.splitFloatingsMovingOwner(atLimit, flags);
 			default -> throw new IllegalStateException();
 			});
 		}
@@ -1058,7 +1061,10 @@ public class FlowContainer implements Container {
 		// 戻しで途中の兄弟が実際の切断点になったケース等)は既存の
 		// container-identity比較へ安全にフォールバックさせる
 		final boolean chainMemberAlone = sawChainMember && nextBox.flows != null && nextBox.flows.size() == 1;
-		final Container splitResult = this.splitFloatings(nextBox, prevPageSize, flags);
+		// Existing指定では結果は常にnextBox自身(移動があれば台帳が装着
+		// される)——旧APIの返り値(=nextBox)と同じ
+		this.splitFloatings(new FloatTransferTarget.Existing(nextBox), prevPageSize, flags);
+		final Container splitResult = nextBox;
 		return chainMemberAlone
 				? new net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(splitResult,
 						net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE)
@@ -1189,86 +1195,200 @@ public class FlowContainer implements Container {
 		return new FloatMeasurements(floatPageStarts, floatPageExtents, floatUncut);
 	}
 
-	public Container splitFloatings(Container nextBox, double pageLimit, byte flags) {
-		assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0 || nextBox != null;
-		assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0 || nextBox != this;
-		int flowCount = this.flows == null ? 0 : this.flows.size();
-		Floatings nextFloatings = this.splitFloatings(pageLimit, flags, flowCount);
-		if (nextFloatings != null) {
-			if (nextFloatings == this.floatings) {
-				if (nextBox == this) {
-					return this;
-				}
-				if (nextBox == null && (flags & IPageBreakableBox.FLAGS_FIRST) == 0
-						&& LayoutUtils.compare(
-								this.box.getInnerPageExtent(this.box.getBlockParams().flow),
-								0) <= 0) {
-					return this;
-
-				}
-				this.floatings = null;
+	/**
+	 * 浮動ボックス(直接保持分+子flowの再帰集約)をページ分割し、移動分の
+	 * 行き先を型で返します(2026-07-24、P2-4。分岐表の正本:
+	 * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md}の
+	 * 「public 3引数版」の表と1:1対応)。
+	 *
+	 * <table>
+	 * <caption>行き先の写像</caption>
+	 * <tr><td>移動なし</td><td>{@link FloatTransferResult#KEEP_OWNER}
+	 * (呼び出し側はtargetのコンテナをそのまま使う)</td></tr>
+	 * <tr><td>MoveAllかつtarget=MOVE_OWNER</td>
+	 * <td>{@link FloatTransferResult#MOVE_OWNER}</td></tr>
+	 * <tr><td>MoveAllかつtarget=KEEPかつ非FIRSTかつinnerPageExtent&lt;=0</td>
+	 * <td>{@link FloatTransferResult#MOVE_OWNER}(<b>空コンテナ全体を
+	 * floatごと移動する特例</b>——台帳はownerに付いたまま)</td></tr>
+	 * <tr><td>その他(移動あり)</td><td>{@code Remainder}(targetが
+	 * Existingならそのコンテナへ、KEEP/MOVE_OWNERなら新FlowContainerへ
+	 * 台帳を装着)</td></tr>
+	 * </table>
+	 */
+	public FloatTransferResult splitFloatings(final FloatTransferTarget target, final double pageLimit,
+			final byte flags) {
+		assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0 || target instanceof FloatTransferTarget.Existing;
+		final int flowCount = this.flows == null ? 0 : this.flows.size();
+		return switch (this.aggregateFloatings(pageLimit, flags, flowCount)) {
+		case FloatAggregate.None none -> FloatTransferResult.KEEP_OWNER;
+		case FloatAggregate.OwnerAll ownerAll -> {
+			if (target instanceof FloatTransferTarget.MoveOwner) {
+				yield FloatTransferResult.MOVE_OWNER;
 			}
-			if (nextBox == null || nextBox == this) {
-				nextBox = new FlowContainer();
+			if (target instanceof FloatTransferTarget.Keep && (flags & IPageBreakableBox.FLAGS_FIRST) == 0
+					&& LayoutUtils.compare(this.box.getInnerPageExtent(this.box.getBlockParams().flow), 0) <= 0) {
+				// 空コンテナ全体をfloatごと移動する特例(分岐表)
+				yield FloatTransferResult.MOVE_OWNER;
 			}
-			((FlowContainer) nextBox).floatings = nextFloatings;
+			final Floatings moved = this.floatings;
+			this.floatings = null;
+			yield remainderWith(target, moved);
 		}
-		return nextBox;
+		case FloatAggregate.Detached(final Floatings moved) -> remainderWith(target, moved);
+		};
+	}
+
+	/**
+	 * target={@code KEEP}での型付き呼び出しを、切断経路の既存Container契約
+	 * (null=移動なし / this=owner丸ごと移動 / 新=残余コンテナ)へ写す補助
+	 * です(P2-4)。この契約の消費側({@code ContainerCut.Plain})はP2の
+	 * 対象外。
+	 */
+	private Container splitFloatingsKeepingOwner(final double pageLimit, final byte flags) {
+		return switch (this.splitFloatings(FloatTransferTarget.KEEP, pageLimit, flags)) {
+		case FloatTransferResult.KeepOwner keepOwner -> null;
+		case FloatTransferResult.MoveOwner moveOwner -> this;
+		case FloatTransferResult.Remainder(final FlowContainer container) -> container;
+		};
+	}
+
+	/**
+	 * target={@code MOVE_OWNER}(owner自身が丸ごと次フラグメントへ移動する
+	 * 文脈)での型付き呼び出しの補助です(P2-4)。移動なしでもownerが移動
+	 * するため、KeepOwner/MoveOwnerのどちらもthisになる(旧APIで
+	 * {@code nextBox==this}を渡していた契約と同一)。
+	 */
+	private Container splitFloatingsMovingOwner(final double pageLimit, final byte flags) {
+		return switch (this.splitFloatings(FloatTransferTarget.MOVE_OWNER, pageLimit, flags)) {
+		case FloatTransferResult.KeepOwner keepOwner -> this;
+		case FloatTransferResult.MoveOwner moveOwner -> this;
+		case FloatTransferResult.Remainder(final FlowContainer container) -> container;
+		};
+	}
+
+	private static FloatTransferResult remainderWith(final FloatTransferTarget target, final Floatings moved) {
+		final FlowContainer container = target instanceof FloatTransferTarget.Existing(final FlowContainer existing)
+				? existing
+				: new FlowContainer();
+		container.floatings = moved;
+		return new FloatTransferResult.Remainder(container);
 	}
 
 	public final Floatings splitFloatings(double pageLimit, byte flags) {
-		int flowCount = this.flows == null ? 0 : this.flows.size();
-		Floatings nextFloatings = this.splitFloatings(pageLimit, flags, flowCount);
-		if (nextFloatings == this.floatings) {
+		final int flowCount = this.flows == null ? 0 : this.flows.size();
+		return switch (this.aggregateFloatings(pageLimit, flags, flowCount)) {
+		case FloatAggregate.None none -> null;
+		case FloatAggregate.OwnerAll ownerAll -> {
+			// 自分の台帳をdetachして返す(2引数版の契約)
+			final Floatings moved = this.floatings;
 			this.floatings = null;
+			yield moved;
 		}
-		return nextFloatings;
+		case FloatAggregate.Detached(final Floatings moved) -> moved;
+		};
 	}
 
-	private Floatings splitFloatings(double pageLimit, byte flags, int index) {
-		Floatings nextFloatings;
+	/**
+	 * 再帰集約の内部結果です(P2-4。codex設計§2.3の局所状態
+	 * {@code NONE/OWNER_ALL/DETACHED}を型で表す。外へは公開しない)。
+	 */
+	private sealed interface FloatAggregate {
+		/** 移動するfloatなし。 */
+		record None() implements FloatAggregate {
+		}
+
+		/**
+		 * ownerの直接保持分が丸ごと移動——台帳はまだownerに付いたまま
+		 * (遅延detach。付け替えは呼び出し側が確定する)。
+		 */
+		record OwnerAll() implements FloatAggregate {
+		}
+
+		/**
+		 * 移動台帳(ownerからdetach済みの自台帳、直接分割のremainder、
+		 * または子から引き取ったFloatings)。
+		 */
+		record Detached(Floatings floatings) implements FloatAggregate {
+		}
+	}
+
+	private static final FloatAggregate AGGREGATE_NONE = new FloatAggregate.None();
+	private static final FloatAggregate AGGREGATE_OWNER_ALL = new FloatAggregate.OwnerAll();
+
+	/**
+	 * 直接保持分と子flow [0..index) の浮動ボックスを分割・集約します
+	 * (P2-4で旧private 3引数版のsentinel状態機械を型付きへ置換)。
+	 */
+	private FloatAggregate aggregateFloatings(final double pageLimit, final byte flags, final int index) {
+		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
+		// lflagsのLAST判定は旧実装では「現在の」this.flows.size()を見ていた
+		// (ループ上限indexは呼び出し時点のスナップショットという非対称)。
+		// このメソッドの実行中this.flowsは変異しない(子再帰は子自身の
+		// containerのみを変異させる)ため、入口snapshotと現在値は常に一致
+		// し、snapshot化は等価。呼び出し元の変異順序もこの前提を守っている
+		// (force-branchの「flow除去はsplitFloatings呼び出しの後」コメント)。
+		final int originalFlowCount = this.flows == null ? 0 : this.flows.size();
+		assert index <= originalFlowCount;
+		FloatAggregate state;
 		if (this.floatings != null) {
-			// 浮動ボックスを分割
-			nextFloatings = this.floatings.splitPageAxis(this.box, pageLimit, flags);
+			// 直接保持分を分割
+			state = switch (this.floatings.splitPageAxis(this.box, pageLimit, flags)) {
+			case FloatSplitResult.KeepAll keepAll -> AGGREGATE_NONE;
+			case FloatSplitResult.MoveAll moveAll -> AGGREGATE_OWNER_ALL;
+			case FloatSplitResult.Partition(final Floatings remainder) -> new FloatAggregate.Detached(remainder);
+			};
 			if (this.floatings.getCount() == 0) {
+				// 旧実装からの防御(plan駆動commitのPartitionはsource側を
+				// 空にしないため、現行では到達しない)
 				this.floatings = null;
 			}
 		} else {
-			nextFloatings = null;
+			state = AGGREGATE_NONE;
 		}
 		for (int i = 0; i < index; ++i) {
-			Flow flow = (Flow) this.flows.get(i);
+			final Flow flow = (Flow) this.flows.get(i);
 			byte lflags = (byte) 0xFF;
 			if (i != 0) {
 				lflags ^= IPageBreakableBox.FLAGS_FIRST;
 			}
-			if (i != this.flows.size() - 1) {
+			if (i != originalFlowCount - 1) {
 				lflags ^= IPageBreakableBox.FLAGS_LAST;
 			}
 			switch (flow.box.getType()) {
 			case BLOCK:
-				AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
+				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
 				pageAxis -= blockBox.getFrame().getFramePageStart(blockBox.getBlockParams().flow);
-				Floatings floatings = blockBox.getContainer().splitFloatings(pageAxis, (byte) (lflags & flags));
-				if (floatings == null) {
+				// 子は自分の台帳をdetachして返す(2引数版の再帰)
+				final Floatings childFloatings = blockBox.getContainer().splitFloatings(pageAxis,
+						(byte) (lflags & flags));
+				if (childFloatings == null) {
 					break;
 				}
-				if (nextFloatings == this.floatings) {
+				switch (state) {
+				case FloatAggregate.None none ->
+					// 子のFloatingsオブジェクトをそのまま採用(コンテナごと引き取り)
+					state = new FloatAggregate.Detached(childFloatings);
+				case FloatAggregate.OwnerAll ownerAll -> {
+					// 子float追加時に初めてownerからdetachが確定する
+					final Floatings owned = this.floatings;
 					this.floatings = null;
+					for (int j = 0; j < childFloatings.getCount(); ++j) {
+						owned.addFloating(childFloatings.getFloating(j));
+					}
+					state = new FloatAggregate.Detached(owned);
 				}
-				if (nextFloatings == null) {
-					nextFloatings = floatings;
-					break;
+				case FloatAggregate.Detached(final Floatings moved) -> {
+					for (int j = 0; j < childFloatings.getCount(); ++j) {
+						moved.addFloating(childFloatings.getFloating(j));
+					}
 				}
-				for (int j = 0; j < floatings.getCount(); ++j) {
-					nextFloatings.addFloating(floatings.getFloating(j));
 				}
 				break;
 			}
 		}
-		assert !(nextFloatings != null && nextFloatings.getCount() == 0);
-		return nextFloatings;
+		assert !(state instanceof FloatAggregate.Detached(final Floatings moved) && moved.getCount() == 0);
+		return state;
 	}
 
 	private FlowContainer cutHead(double pageLimit, byte flags) {
@@ -1280,21 +1400,33 @@ public class FlowContainer implements Container {
 			nextBox.flows = this.flows;
 			this.flows = null;
 		}
-		nextBox.floatings = this.splitFloatings(pageLimit, flags, 0);
-		if (nextBox.floatings == this.floatings) {
-			this.floatings = null;
-		}
+		// flowsは先にnextBoxへ移送済みのため、集約対象は直接保持分のみ
+		// (index=0。this.flows==nullなのでLAST判定にも影響しない)
+		this.attachAggregate(nextBox, this.aggregateFloatings(pageLimit, flags, 0));
 		return nextBox;
 	}
 
 	private FlowContainer cutTail(double pageLimit, byte flags) {
 		FlowContainer nextBox = new FlowContainer();
 		int flowCount = this.flows == null ? 0 : this.flows.size();
-		nextBox.floatings = this.splitFloatings(pageLimit, flags, flowCount);
-		if (nextBox.floatings == this.floatings) {
+		this.attachAggregate(nextBox, this.aggregateFloatings(pageLimit, flags, flowCount));
+		return nextBox;
+	}
+
+	/**
+	 * 集約結果の移動台帳を{@code nextBox}へ装着します(P2-4。旧
+	 * 「nextBox.floatings代入+identity比較でthis.floatings=null」の置換)。
+	 */
+	private void attachAggregate(final FlowContainer nextBox, final FloatAggregate aggregate) {
+		switch (aggregate) {
+		case FloatAggregate.None none -> {
+		}
+		case FloatAggregate.OwnerAll ownerAll -> {
+			nextBox.floatings = this.floatings;
 			this.floatings = null;
 		}
-		return nextBox;
+		case FloatAggregate.Detached(final Floatings moved) -> nextBox.floatings = moved;
+		}
 	}
 
 	public final void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {

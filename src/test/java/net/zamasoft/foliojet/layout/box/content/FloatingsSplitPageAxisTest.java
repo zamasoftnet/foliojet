@@ -26,16 +26,11 @@ import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
  *
  * <p>
  * 合成のFloatings/Floating(scripted splitのスタブボックス)を組み立てて
- * 既存{@code splitPageAxis}を直接呼び、返り値のsentinel(null=KeepAll /
- * this=MoveAll / 新=Partition)・各floatの行き先・SPLITのremainder座標
- * (0,0)とserial引き継ぎ・caseフォールスルー経路(分岐表4→5)を固定する。
- * <b>既存挙動の固定</b>であり、実装変更なしで緑になることが完了条件。
- * </p>
- *
- * <p>
- * あわせてP2-2のshadow比較(純判定{@code FloatSplitPlan.classify}と
- * 実行結果の突き合わせ)が全シナリオで不一致0であることをtearDownで
- * 検証する。
+ * {@code splitPageAxis}を直接呼び、結果の分類(KeepAll/MoveAll/Partition
+ * ——P2-1時点の旧sentinel null/this/新と1:1対応)・各floatの行き先・
+ * SPLITのremainder座標(0,0)とserial引き継ぎ・caseフォールスルー経路
+ * (分岐表4→5)を固定する。<b>既存挙動の固定</b>であり、P2-3のplan駆動
+ * commit化・P2-5の型付き一本化を通じて全シナリオの期待値は不変。
  * </p>
  */
 public class FloatingsSplitPageAxisTest extends TestCase {
@@ -47,10 +42,24 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		ContinuationStats.reset();
 	}
 
-	@Override
-	protected void tearDown() {
-		// P2-2: どのシナリオでも純判定と実行結果は不一致0であること
-		assertEquals("FLOAT_SPLIT_PLAN_MISMATCHES", 0, ContinuationStats.FLOAT_SPLIT_PLAN_MISMATCHES.get());
+	// ------------------------------------------------------------------
+	// 補助: 結果の分類(旧sentinel null/this/新との対応を固定)
+	// ------------------------------------------------------------------
+
+	/** 旧null: 全て前のフラグメントに残る。 */
+	private static void assertKeepAll(final FloatSplitResult result) {
+		assertTrue("KeepAllのはず: " + result, result instanceof FloatSplitResult.KeepAll);
+	}
+
+	/** 旧this: 全て次のフラグメントへ(遅延表現——元リストは無傷)。 */
+	private static void assertMoveAll(final FloatSplitResult result) {
+		assertTrue("MoveAllのはず: " + result, result instanceof FloatSplitResult.MoveAll);
+	}
+
+	/** 旧新Floatings: 部分移動。remainder台帳を返す。 */
+	private static Floatings partitionRemainder(final FloatSplitResult result) {
+		assertTrue("Partitionのはず: " + result, result instanceof FloatSplitResult.Partition);
+		return ((FloatSplitResult.Partition) result).remainder();
 	}
 
 	// ------------------------------------------------------------------
@@ -140,40 +149,39 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// nextFloatings状態機械(ループ外変数の暗黙の二重利用)の固定
+	// 結果分類(旧nextFloatings状態機械のsentinel対応)の固定
 	// ------------------------------------------------------------------
 
-	/** 行列: 全KEEP→null。 */
-	public void testAllKeepReturnsNull() {
+	/** 行列: 全KEEP→KeepAll(旧null)。 */
+	public void testAllKeepReturnsKeepAll() {
 		final Floatings.Floating f0 = floating(1, block(10), 0);
 		final Floatings.Floating f1 = floating(2, block(10), 20);
 		final Floatings floatings = floatingsOf(f0, f1);
-		assertNull(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		// 元のリストは無傷
 		assertEquals(2, floatings.getCount());
 		assertSame(f0, floatings.getFloating(0));
 		assertSame(f1, floatings.getFloating(1));
 	}
 
-	/** 行列: 全MOVE→this(遅延表現——元リストから動かさない)。 */
-	public void testAllMoveReturnsThis() {
+	/** 行列: 全MOVE→MoveAll(旧this。遅延表現——元リストから動かさない)。 */
+	public void testAllMoveReturnsMoveAll() {
 		final Floatings.Floating f0 = floating(1, block(10), 150);
 		final Floatings.Floating f1 = floating(2, block(10), 160);
 		final Floatings floatings = floatingsOf(f0, f1);
-		assertSame(floatings, floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
-		// MoveAllはsentinelのまま——floatは元リストに残っている
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		// MoveAllは遅延表現——floatは元リストに残っている
 		assertEquals(2, floatings.getCount());
 		assertSame(f0, floatings.getFloating(0));
 		assertSame(f1, floatings.getFloating(1));
 	}
 
-	/** 行列: KEEP後MOVE(先頭KEEPでnull遷移→MOVEで新Floatings生成)。 */
+	/** 行列: KEEP後MOVE(先頭KEEP後のMOVEでPartition)。 */
 	public void testKeepThenMovePartition() {
 		final Floatings.Floating keep = floating(1, block(50), 0);
 		final Floatings.Floating move = floating(2, block(10), 150);
 		final Floatings floatings = floatingsOf(keep, move);
-		final Floatings next = floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS);
-		assertNotNull(next);
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
 		assertEquals(1, floatings.getCount());
 		assertSame(keep, floatings.getFloating(0));
@@ -181,14 +189,13 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertSame(move, next.getFloating(0));
 	}
 
-	/** 行列: MOVE prefix後KEEP(先行MOVE群のremove(j)移送——移送ロジックの本丸)。 */
+	/** 行列: MOVE prefix後KEEP(先行MOVE群の移送——移送ロジックの本丸)。 */
 	public void testMovePrefixThenKeepTransfersPrefix() {
 		final Floatings.Floating move0 = floating(1, block(10), 150);
 		final Floatings.Floating move1 = floating(2, block(10), 160);
 		final Floatings.Floating keep = floating(3, block(50), 0);
 		final Floatings floatings = floatingsOf(move0, move1, keep);
-		final Floatings next = floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS);
-		assertNotNull(next);
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
 		// 先行MOVE群は元順序のままnext側へ、KEEPは元に残る
 		assertEquals(2, next.getCount());
@@ -204,8 +211,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final StubBlockFloat box = blockSplitting(100, new SplitResult.Split(remainder));
 		final Floatings.Floating f = floating(7, box, 40);
 		final Floatings floatings = floatingsOf(f);
-		final Floatings next = floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS);
-		assertNotNull(next);
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
 		// 元のFloatingはthis側に残る
 		assertEquals(1, floatings.getCount());
@@ -233,8 +239,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final Floatings.Floating split = floating(22, splitBox, 40);
 		final Floatings.Floating keep = floating(33, block(50), 0);
 		final Floatings floatings = floatingsOf(move, split, keep);
-		final Floatings next = floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS);
-		assertNotNull(next);
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
 		// next側: [MOVEされた元Floating, SPLITのremainder] の元順序
 		assertEquals(2, next.getCount());
@@ -245,8 +250,6 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(2, floatings.getCount());
 		assertSame(split, floatings.getFloating(0));
 		assertSame(keep, floatings.getFloating(1));
-		// shadow(P2-2): 3float全て一致
-		assertEquals(3, ContinuationStats.FLOAT_SPLIT_PLAN_MATCHES.get());
 	}
 
 	// ------------------------------------------------------------------
@@ -267,11 +270,10 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testFirstBlockSplitUsesFirstFlag() {
 		final StubBlockFloat box = blockSplitting(200, new SplitResult.Split(block(100)));
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		final Floatings next = floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST);
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
 		assertEquals(1, box.splitCalls);
 		assertEquals(IPageBreakableBox.FLAGS_FIRST, box.seenFlags);
 		assertEquals(100.0, box.seenPageLimit, 0);
-		assertNotNull(next);
 		assertNotSame(floatings, next);
 	}
 
@@ -279,7 +281,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testAvoidNonFirstFallsThroughToMove() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.TB, PageBreakMode.AVOID), 100, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
-		assertSame(floatings, floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -297,7 +299,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testAxisMismatchNonFirstFallsThroughToMove() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 100, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
-		assertSame(floatings, floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -305,7 +307,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testAxisMismatchFirstKeepsOverflowing() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		assertNull(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -313,7 +315,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testReplacedNonFirstMoves() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 100);
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
-		assertSame(floatings, floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -321,7 +323,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testReplacedFirstKeepsOverflowing() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		assertNull(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -329,7 +331,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testFirstFlagRequiresPhysicalHead() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 10));
-		assertSame(floatings, floatings.splitPageAxis(owner(WritingMode.TB), 5, FIRST));
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 5, FIRST));
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -338,12 +340,12 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		// ちょうど
 		final StubBlockFloat exact = block(100);
 		final Floatings f1 = floatingsOf(floating(1, exact, 0));
-		assertNull(f1.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertKeepAll(f1.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, exact.splitCalls);
 		// 0.4はみ出し(<0.5)も同一視
 		final StubBlockFloat nearly = block(100.4);
 		final Floatings f2 = floatingsOf(floating(2, nearly, 0));
-		assertNull(f2.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertKeepAll(f2.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, nearly.splitCalls);
 	}
 
@@ -351,27 +353,27 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	public void testBoundaryBeyondToleranceSplits() {
 		final StubBlockFloat box = blockSplitting(100.5, SplitResult.KEEP);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		assertNull(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(1, box.splitCalls);
 	}
 
-	/** 分岐表3: split結果Keep→nextBox=null(全体が前フラグメントに残る)。 */
+	/** 分岐表3: split結果Keep→全体が前フラグメントに残る(KeepAll)。 */
 	public void testSplitResultKeepLeavesAllInPlace() {
 		final StubBlockFloat box = blockSplitting(100, SplitResult.KEEP);
 		final Floatings.Floating f = floating(1, box, 40);
 		final Floatings floatings = floatingsOf(f);
-		assertNull(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(1, box.splitCalls);
 		assertEquals(1, floatings.getCount());
 		assertSame(f, floatings.getFloating(0));
 	}
 
-	/** 分岐表3: split結果Move→nextBox=box(丸ごとMOVE=MoveAll sentinel)。 */
+	/** 分岐表3: split結果Move→丸ごとMOVE(MoveAll、元リスト無傷)。 */
 	public void testSplitResultMoveMovesWhole() {
 		final StubBlockFloat box = blockSplitting(100, SplitResult.MOVE);
 		final Floatings.Floating f = floating(1, box, 40);
 		final Floatings floatings = floatingsOf(f);
-		assertSame(floatings, floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(1, box.splitCalls);
 		assertEquals(1, floatings.getCount());
 		assertSame(f, floatings.getFloating(0));
@@ -462,14 +464,27 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 				NO_FLAGS) instanceof FloatSplitPlan.FloatItemPlan.Move);
 	}
 
-	/** P2-2: shadow比較のカウンタが1float=1比較で数えられ、混在シナリオで全一致すること。 */
-	public void testShadowCountersExactOnMixedScenario() {
+	/** P2-3/P2-5: 型付き結果の3分類と台帳内容の複合固定(混在シナリオ)。 */
+	public void testTypedResultMatchesSentinelContract() {
+		// KeepAll(旧null)——元リスト無傷
+		final Floatings allKeep = floatingsOf(floating(1, block(10), 0));
+		assertKeepAll(allKeep.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertEquals(1, allKeep.getCount());
+		// MoveAll(旧this)——遅延表現、元リスト無傷
+		final Floatings allMove = floatingsOf(floating(2, block(10), 150));
+		assertMoveAll(allMove.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertEquals(1, allMove.getCount());
+		// Partition(旧新Floatings)——MOVE+SPLIT残余がremainder、KEEP+SPLIT元がsource
 		final Floatings.Floating move = floating(1, block(10), 150);
 		final Floatings.Floating split = floating(2, blockSplitting(100, new SplitResult.Split(block(60))), 40);
 		final Floatings.Floating keep = floating(3, block(50), 0);
 		final Floatings floatings = floatingsOf(move, split, keep);
-		floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS);
-		assertEquals(3, ContinuationStats.FLOAT_SPLIT_PLAN_MATCHES.get());
-		assertEquals(0, ContinuationStats.FLOAT_SPLIT_PLAN_MISMATCHES.get());
+		final Floatings remainder = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+		assertEquals(2, remainder.getCount());
+		assertSame(move, remainder.getFloating(0));
+		assertEquals(2, remainder.getFloating(1).serial);
+		assertEquals(2, floatings.getCount());
+		assertSame(split, floatings.getFloating(0));
+		assertSame(keep, floatings.getFloating(1));
 	}
 }

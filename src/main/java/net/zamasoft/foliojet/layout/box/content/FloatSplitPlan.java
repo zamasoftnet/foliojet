@@ -24,9 +24,10 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * </p>
  *
  * <p>
- * P2-2時点ではshadow配線({@link Floatings#splitPageAxis}内での既存実行
- * 結果との突き合わせ)のみに使う。{@code children}(子flow再帰の計画)は
- * P2-3以降で埋める——現状は常に空。
+ * P2-3以降、{@link Floatings#splitPageAxis}はこの計画で駆動される
+ * (planDirect→ordinal順commit)。{@code children}(子flow再帰の計画)は
+ * 現状常に空——子flowのfloatは実行時に各コンテナが独立にplan+commitする
+ * (FlowContainerの型付き再帰集約、P2-4)。
  * </p>
  *
  * @param expectedSource 計画の対象{@link Floatings}(identity anchor)
@@ -73,9 +74,9 @@ public record FloatSplitPlan(
 	}
 
 	/**
-	 * 子flow(BLOCK)への再帰分の計画です(P2-3以降で使用。
-	 * {@code FlowContainer.splitFloatings(pageLimit, flags, index)}の
-	 * 子flowループを写す)。
+	 * 子flow(BLOCK)への再帰分の計画です(現状未使用のseam——P2-4は
+	 * 子flowの再帰集約を実行時の型付き集約(FloatAggregate)で実現した
+	 * ため、計画の階層化はA-3a以降必要になった時点で埋める)。
 	 *
 	 * @param flowOrdinal  呼び出し時点のflowsスナップショットでの序数
 	 * @param expectedFlow 対象flow(identity anchor)

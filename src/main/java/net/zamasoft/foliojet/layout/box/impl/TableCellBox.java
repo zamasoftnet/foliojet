@@ -460,7 +460,14 @@ public class TableCellBox extends AbstractContainerBox {
 		final TableCellBox nextBox = (TableCellBox) remainder;
 		if (this.container.hasFloatings()) {
 			pageLimit -= this.frame.getFramePageStart(this.params.flow);
-			this.container.splitFloatings(nextBox.container, pageLimit, flags);
+			// P2-4: 型付きAPIへ移行。セルとその残余セルのcontainerは常に
+			// 同型なので、残余側が段組(非FlowContainer)なのは自分も段組の
+			// 場合だけ——そのときはColumnsContainer実装がtargetを見ずに
+			// KEEP_OWNERを返すため、フォールバックのKEEPは実際には使われない
+			final net.zamasoft.foliojet.layout.box.content.FloatTransferTarget target = nextBox.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flowContainer
+					? new net.zamasoft.foliojet.layout.box.content.FloatTransferTarget.Existing(flowContainer)
+					: net.zamasoft.foliojet.layout.box.content.FloatTransferTarget.KEEP;
+			this.container.splitFloatings(target, pageLimit, flags);
 		}
 		return result;
 	}

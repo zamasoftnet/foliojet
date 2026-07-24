@@ -273,8 +273,10 @@ public class ColumnsContainer implements Container {
 		return cut;
 	}
 
-	public Container splitFloatings(Container nextBox, double pageLimit, byte flags) {
-		return nextBox;
+	public FloatTransferResult splitFloatings(FloatTransferTarget target, double pageLimit, byte flags) {
+		// 段組コンテナはこの経路でfloatを移動しない(旧APIのnextBox
+		// そのまま返し=移動なしと同じ)
+		return FloatTransferResult.KEEP_OWNER;
 	}
 
 	public Floatings splitFloatings(double pageLimit, byte flags) {

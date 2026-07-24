@@ -21,27 +21,24 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
-import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * P2-2のshadow比較({@code Floatings.splitPageAxis}の純判定
- * {@code FloatSplitPlan}と実行結果の突き合わせ)を、copperpdf4のSMOKE
+ * P2-3のplan駆動commit({@code Floatings.splitPageAxis}の
+ * plan整合assert・identity anchor assertを含む)を、copperpdf4のSMOKE
  * マニフェスト(51文書——float・表・改ページ・縦書きの代表集合)へ
- * in-process({@code DirectSession}経由、{@code TailShadowCorpusAudit}と
- * 同じパターン)で走らせ、
- * {@code FLOAT_SPLIT_PLAN_MISMATCHES == 0}かつ
- * {@code FLOAT_SPLIT_PLAN_MATCHES > 0}(shadowが空振りしていない)ことを
- * 検証します(2026-07-24新設)。
+ * in-process({@code DirectSession}経由)で走らせ、assert有効のまま
+ * 1文書も失敗しないことを検証します(2026-07-24。P2-2の
+ * {@code FloatSplitPlanShadowSmokeTest}をshadow撤去にあわせて改修)。
  *
  * <p>
  * imageTest本体(基準画像比較)はcopperpdf4/devのgradleタスクが担う——
- * こちらはカウンタが観測できる同一JVM内での補助証拠。copperpdf4リポジトリ
+ * こちらはassertが観測できる同一JVM内での補助証拠。copperpdf4リポジトリ
  * が隣に無い環境(単独checkout)ではスキップする。
  * </p>
  */
-public class FloatSplitPlanShadowSmokeTest extends TestCase {
+public class FloatSplitCommitSmokeTest extends TestCase {
 	static {
 		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
 		System.setProperty("jp.cssj.driver.default",
@@ -53,40 +50,30 @@ public class FloatSplitPlanShadowSmokeTest extends TestCase {
 	/** foliojet4作業ディレクトリから見たcopperpdf4のSMOKEマニフェスト。 */
 	private static final Path SMOKE_MANIFEST = Path.of("../copperpdf4/dev/files/visual/SMOKE-MANIFEST.txt");
 
-	public void testSmokeCorpusShadowHasNoMismatches() throws Exception {
+	public void testSmokeCorpusCommitsWithoutAssertionFailures() throws Exception {
 		if (!Files.isRegularFile(SMOKE_MANIFEST)) {
 			System.out.println("SKIP: " + SMOKE_MANIFEST.toAbsolutePath().normalize() + " がありません(単独checkout)");
 			return;
 		}
+		assertTrue("このテストはassert有効(gradle testの既定)で走ること", Floatings.class.desiredAssertionStatus());
 		final Path docsDir = SMOKE_MANIFEST.getParent();
 		final List<String> sourcePaths = new ArrayList<>();
 		parseManifest(SMOKE_MANIFEST, new HashSet<>(), sourcePaths);
 
-		ContinuationStats.reset();
 		final List<String> failures = new ArrayList<>();
-		final File scratch = File.createTempFile("float-split-plan-smoke", ".pdf");
+		final File scratch = File.createTempFile("float-split-commit-smoke", ".pdf");
 		scratch.deleteOnExit();
 		for (final String sourcePath : sourcePaths) {
-			final long mismatchesBefore = ContinuationStats.FLOAT_SPLIT_PLAN_MISMATCHES.get();
 			try {
 				this.transcode(docsDir.resolve(sourcePath).normalize().toFile(), scratch);
-			} catch (final Exception e) {
+			} catch (final Exception | AssertionError e) {
 				failures.add(sourcePath + ": " + e);
-			}
-			if (ContinuationStats.FLOAT_SPLIT_PLAN_MISMATCHES.get() != mismatchesBefore) {
-				System.out.println("FLOAT_SPLIT_PLAN mismatch caused by: " + sourcePath);
 			}
 		}
 		scratch.delete();
 
 		System.out.println("SMOKE documents: total=" + sourcePaths.size() + " failed=" + failures.size());
-		System.out.println("FLOAT_SPLIT_PLAN_MATCHES=" + ContinuationStats.FLOAT_SPLIT_PLAN_MATCHES.get());
-		System.out.println("FLOAT_SPLIT_PLAN_MISMATCHES=" + ContinuationStats.FLOAT_SPLIT_PLAN_MISMATCHES.get());
-
 		assertTrue("変換失敗: " + failures, failures.isEmpty());
-		assertTrue("このコーパスではsplitPageAxisのshadow比較が少なくとも1回は発火するはずです(空振り検知)",
-				ContinuationStats.FLOAT_SPLIT_PLAN_MATCHES.get() > 0);
-		assertEquals("FLOAT_SPLIT_PLAN_MISMATCHES", 0, ContinuationStats.FLOAT_SPLIT_PLAN_MISMATCHES.get());
 	}
 
 	/** {@code ImageTestRunner.parseManifest}と同じ形式(@file/skip=/source=)のサブセット。 */

@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.layout.box.content;
 
-import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
-
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
@@ -16,7 +14,6 @@ import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
-import net.zamasoft.foliojet.layout.box.params.BlockParams;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
@@ -148,9 +145,29 @@ public class Floatings {
 	}
 
 	/**
-	 * 浮動ボックスをページ分割します。全て前ページに残す場合はnull, 全て送る場合は自分自身を返します。
+	 * 浮動ボックスをページ分割します(2026-07-24、P2-3でplan駆動commitへ
+	 * 切替、P2-5で旧sentinel契約(null=KeepAll / this=MoveAll / 新=
+	 * Partition)のadapterを撤去して型付き結果へ一本化。分岐表の正本:
+	 * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md})。
+	 *
+	 * <p>
+	 * 実装は「{@link FloatSplitPlan#planDirect}で分類(純判定・副作用なし)
+	 * →plan駆動のcommit(codex設計§2.3)」の2段。commitはordinal順に一度
+	 * だけ走り、{@code SplitOnCommit}はここで一度だけ
+	 * {@code containerBox.split}を実行してKeep/Move/Splitへ確定する。
+	 * 旧実装との等価性は{@code FloatingsSplitPageAxisTest}の分岐表テストと
+	 * P2-2 shadow比較(SMOKEコーパス不一致0)で固定済み。
+	 * </p>
+	 *
+	 * <p>
+	 * 結果の意味({@link FloatSplitResult}参照):
+	 * KeepAll/MoveAllでは元リストは無傷(MoveAllの台帳付け替えはownerが
+	 * 行う遅延表現)。Partitionでのみ元リストを「KEEP+SPLIT元」へ組み替え、
+	 * remainder台帳(MOVEの元Floating+SPLIT残余、元順序)を返す。
+	 * </p>
 	 */
-	public Floatings splitPageAxis(final AbstractContainerBox box, final double pageLimit, final byte flags) {
+	public FloatSplitResult splitPageAxis(final AbstractContainerBox box, final double pageLimit,
+			final byte flags) {
 		assert !this.floatings.isEmpty();
 		// 2026-07-22(M6d-0.5): 観測のみ、既存分岐には一切影響しない
 		{
@@ -161,120 +178,105 @@ public class Floatings {
 						System.identityHashCode(this)));
 			}
 		}
-		final boolean vertical = box.getBlockParams().flow.isVertical();
-		// 2026-07-24(P2-2): shadow配線——入口で入力をfinal snapshot化し
-		// (codex設計§2.5)、純判定(FloatSplitPlan.classify)の分類と実際の
-		// 実行結果を突き合わせて一致カウンタへ記録する。既存分岐には一切
-		// 影響しない(読み取り専用)。ordinal(安定序数)はlist index `i`
-		// と別に数える——`i`はremove/--iで変異するため。
+		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
+		// 分類はここで全floatについて確定する。旧実装はfloat iのsplit実行後に
+		// float i+1を分類していたが、各floatのboxは独立でsplitは他floatの
+		// 実測に影響しないため等価(P2-2 shadowで確認済み)。
 		final int originalFloatCount = this.floatings.size();
-		final FloatSplitPlan shadowPlan = FloatSplitPlan.planDirect(this, box.getBlockParams().flow, pageLimit, flags);
-		int ordinal = 0;
-		Floatings nextFloatings = this;
-		// 浮動体
-		for (int i = 0; i < this.floatings.size(); ++i) {
-			Floating floating = (Floating) this.floatings.get(i);
-			double pageEnd = floating.pageAxis + floating.box.getPageExtent(box.getBlockParams().flow);
-			final boolean first = (flags & IPageBreakableBox.FLAGS_FIRST) != 0
-					&& LayoutUtils.compare(floating.pageAxis, 0) <= 0;
-			final IFloatBox nextBox;
-			if (LayoutUtils.compare(pageEnd, pageLimit) <= 0) {
-				// 移動なし
-				nextBox = null;
-			} else if (!first && LayoutUtils.compare(pageLimit, floating.pageAxis) < 0) {
-				nextBox = floating.box;
-			} else {
-				switch (floating.box.getType()) {
-				case BLOCK: {
-					// ブロックボックス
-					// 匿名ボックス
-					final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
-					final BlockParams params = containerBox.getBlockParams();
-					// 2026-07-23: 通常フロー(ARCHITECTURE.md §5.11)と同じ
-					// avoidヒント上書き規則をfloatにも適用する——物理的に
-					// ページ/フラグメント先頭にいる(first)場合は、これ以上
-					// 先送りしても無意味なのでavoidヒントを上書きして実際に
-					// 分割する。以前はこの上書きが無く、avoid指定+ページ先頭
-					// のfloatがREPLACED(atomic)と同じ「はみ出したまま描画」
-					// 経路へ落ちていた(通常フローとの非対称、ユーザー指摘に
-					// より見落としと確認)。書字方向の不一致側は対象外——
-					// こちらは§5.10ルール3の恒久的なatomic対象のまま。
-					if ((params.pageBreakInside != PageBreakMode.AVOID || first)
-							&& vertical == params.flow.isVertical()) {
-						byte xflags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
-						double pageAxis = pageLimit - floating.pageAxis;
-						nextBox = switch (containerBox.split(pageAxis, BreakMode.DEFAULT_BREAK_MODE, xflags)) {
-						case SplitResult.Keep keep -> null;
-						case SplitResult.Move move -> floating.box;
-						case SplitResult.Split(final IPageBreakableBox remainder) -> (IFloatBox) remainder;
-						case SplitResult.Frame frame -> throw new IllegalStateException(
-								"チェーン継続はフロートでは起きない");
-						};
-						break;
-					}
-					// 改ページ禁止されていた場合、ページ進行方向が違う場合は置換されたボックスと同じ処理
+		final FloatSplitPlan plan = FloatSplitPlan.planDirect(this, box.getBlockParams().flow, pageLimit, flags);
+		assert plan.direct().size() == originalFloatCount;
+		// commit(codex設計§2.3): ordinal順に一度だけ。source側(KEEP+
+		// SPLIT元)とremainder側(MOVE+SPLIT残余)のリストを構築する。
+		// ordinalは安定序数——旧実装のようなremove/--iによるindex変異はない。
+		final List<Floating> sourceSide = new ArrayList<Floating>(originalFloatCount);
+		final List<Floating> remainderSide = new ArrayList<Floating>();
+		boolean allWholeMoves = true;
+		for (int ordinal = 0; ordinal < originalFloatCount; ++ordinal) {
+			final Floating floating = (Floating) this.floatings.get(ordinal);
+			final FloatSplitPlan.FloatItemPlan item = plan.direct().get(ordinal);
+			assert item.expected().box() == floating.box : "plan/commitのidentity不一致 ordinal=" + ordinal;
+			switch (item) {
+			case FloatSplitPlan.FloatItemPlan.Keep keep -> {
+				// 分岐表1、および4→5フォールスルーのfirst: 元に残す
+				sourceSide.add(floating);
+				allWholeMoves = false;
+			}
+			case FloatSplitPlan.FloatItemPlan.Move move ->
+				// 分岐表2、および4→5フォールスルーの非first: 丸ごと送る
+				remainderSide.add(floating);
+			case FloatSplitPlan.FloatItemPlan.SplitOnCommit(final FloatMeasurement expected, final double innerLimit,
+					final byte splitFlags) -> {
+				// 分岐表3: ここで一度だけsplitを実行し、Keep/Move/Splitへ確定
+				final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
+				switch (containerBox.split(innerLimit, BreakMode.DEFAULT_BREAK_MODE, splitFlags)) {
+				case SplitResult.Keep keep -> {
+					sourceSide.add(floating);
+					allWholeMoves = false;
 				}
-				case REPLACED: {
-					// 置換されたボックス
-					nextBox = first ? null : floating.box;
+				case SplitResult.Move move -> remainderSide.add(floating);
+				case SplitResult.Split(final IPageBreakableBox remainder) -> {
+					// 元のFloatingはthis側に残り、remainderは座標(0,0)=
+					// 次フラグメント先頭、serial引き継ぎでnext側へ
+					sourceSide.add(floating);
+					remainderSide.add(new Floating(floating.serial, (IFloatBox) remainder, 0, 0));
+					allWholeMoves = false;
 				}
-					break;
-				default:
-					throw new IllegalStateException(floating.box.toString());
+				case SplitResult.Frame frame -> throw new IllegalStateException("チェーン継続はフロートでは起きない");
 				}
 			}
-			// 2026-07-24(P2-2): 純判定と実行結果の突き合わせ(比較対象の
-			// 限定——codex設計§2.4。SplitOnCommitはbox splitの結果を予言
-			// しないため、実行結果がKeep/Move/Splitのどれでも一致扱い。
-			// 分類がKEEP/MOVEなのに実行が異なる場合のみ不一致)。この時点の
-			// `floating`はまだ元のFloating(SPLIT時の差し替えは後段)。
-			{
-				final Floating shadowFloating = floating;
-				final FloatSplitPlan.FloatItemPlan itemPlan = shadowPlan.direct().get(ordinal);
-				++ordinal;
-				final boolean planMatch = switch (itemPlan) {
-				case FloatSplitPlan.FloatItemPlan.Keep keep -> nextBox == null;
-				case FloatSplitPlan.FloatItemPlan.Move move -> nextBox == shadowFloating.box;
-				case FloatSplitPlan.FloatItemPlan.SplitOnCommit splitOnCommit -> true;
-				};
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordFloatSplitPlanComparison(planMatch,
-						() -> "serial=" + shadowFloating.serial + " plan=" + itemPlan + " actual="
-								+ (nextBox == null ? "KEEP" : nextBox == shadowFloating.box ? "MOVE" : "SPLIT")
-								+ " pageLimit=" + pageLimit + " flags=" + flags);
 			}
-			if (nextFloatings == this) {
-				if (nextBox == floating.box) {
-					continue;
-				}
-				if (i > 0 || nextBox != null) {
-					nextFloatings = new Floatings();
-					for (int j = 0; j < i; ++j) {
-						nextFloatings.floatings.add(this.floatings.remove(j));
-						--j;
-						--i;
-					}
-				} else {
-					nextFloatings = null;
-				}
-			}
-			if (nextBox == null) {
-				continue;
-			}
-			if (nextFloatings == null) {
-				nextFloatings = new Floatings();
-			}
-			if (nextBox == floating.box) {
-				this.floatings.remove(i);
-				--i;
-			} else {
-				floating = new Floating(floating.serial, nextBox, 0, 0);
-			}
-			nextFloatings.floatings.add(floating);
 		}
-		assert ordinal == originalFloatCount : "shadow ordinal (" + ordinal + ") != originalFloatCount ("
-				+ originalFloatCount + ")";
-		assert !(nextFloatings != null && nextFloatings.floatings.isEmpty());
-		return nextFloatings;
+		final FloatSplitResult result;
+		if (remainderSide.isEmpty()) {
+			// 全KEEP——元リストは無傷
+			result = FloatSplitResult.KEEP_ALL;
+		} else if (allWholeMoves) {
+			// 全floatが丸ごとMOVE——遅延表現(元リストから動かさない。
+			// 台帳ごとの付け替えはownerが行う)
+			result = FloatSplitResult.MOVE_ALL;
+		} else {
+			this.floatings.clear();
+			this.floatings.addAll(sourceSide);
+			final Floatings remainder = new Floatings();
+			remainder.floatings.addAll(remainderSide);
+			result = new FloatSplitResult.Partition(remainder);
+		}
+		// commit結果の分類がplanと整合することの検査(P2-3でP2-2のshadow
+		// 比較を置き換えたもの。assert無効の本番ではFINE診断のみ)
+		final boolean consistent = commitConsistentWithPlan(plan, result);
+		assert consistent : "commit結果がplanと不整合: pageLimit=" + pageLimit + " flags=" + flags;
+		assert !(result instanceof FloatSplitResult.Partition(final Floatings r) && r.floatings.isEmpty());
+		return result;
+	}
+
+	/**
+	 * commit結果の分類がplanの分類と整合するかを検査します(P2-3)。
+	 * {@code SplitOnCommit}は結果を予言しないため制約を緩める:
+	 * Moveを含むplanはKeepAllになれず、Keepを含むplanはMoveAllになれず、
+	 * PartitionはMoveまたはSplitOnCommitなしには生じない。不整合は
+	 * FINEログにも出す(本番でassertが無効でも観測できるように)。
+	 */
+	private static boolean commitConsistentWithPlan(final FloatSplitPlan plan, final FloatSplitResult result) {
+		boolean anyKeepPlan = false;
+		boolean anyMovePlan = false;
+		boolean anySplitPlan = false;
+		for (final FloatSplitPlan.FloatItemPlan item : plan.direct()) {
+			switch (item) {
+			case FloatSplitPlan.FloatItemPlan.Keep keep -> anyKeepPlan = true;
+			case FloatSplitPlan.FloatItemPlan.Move move -> anyMovePlan = true;
+			case FloatSplitPlan.FloatItemPlan.SplitOnCommit splitOnCommit -> anySplitPlan = true;
+			}
+		}
+		final boolean consistent = switch (result) {
+		case FloatSplitResult.KeepAll keepAll -> !anyMovePlan;
+		case FloatSplitResult.MoveAll moveAll -> !anyKeepPlan;
+		case FloatSplitResult.Partition partition -> anyMovePlan || anySplitPlan;
+		};
+		if (!consistent) {
+			java.util.logging.Logger.getLogger(Floatings.class.getName())
+					.fine(() -> "FloatSplit commit/plan不整合: plan=" + plan + " result=" + result);
+		}
+		return consistent;
 	}
 
 	public String toString() {
