@@ -48,6 +48,8 @@ public final class TableBuilderLifecycle {
 		final TableBuildPlan plan = TableBuildPlanner.plan(builder, tableBox);
 		if (plan.mode() == TableBuildPlan.Mode.RETAINED) {
 			TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
+			// E-6増分1(2026-07-24): Retained理由別の発生回数(観測のみ、挙動不変)
+			TableBuildStats.recordRetentionReasons(plan.reasons());
 			return new RetainedTableBuilder(builder, tableBox);
 		}
 		// Incremental(table-layout:fixed相当)

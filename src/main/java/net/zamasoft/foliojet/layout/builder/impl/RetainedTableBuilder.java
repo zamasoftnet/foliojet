@@ -574,6 +574,20 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		}
 
 		this.columnWidths = widths.finish(tableFrame);
+
+		// E-6増分1(2026-07-24): 保持形状のhigh-water観測。spill閾値・
+		// 対象選定の実測基盤(読み取り・max更新のみ、挙動には影響しない)
+		int realCellCount = 0;
+		for (int i = 0; i < cellLists.size(); ++i) {
+			final List<?> cells = cellLists.get(i);
+			for (int j = 0; j < cells.size(); ++j) {
+				if (!((CellContent) cells.get(j)).isExtended()) {
+					++realCellCount;
+				}
+			}
+		}
+		TableBuildStats.reportRetainedTableShape(rowCount, realCellCount, (long) rowCount * columnCount, headerRowCount,
+				footerRowCount, widths.colspanConstraintCount());
 	}
 
 	/**

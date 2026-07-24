@@ -343,6 +343,15 @@ public final class AutoColumnWidths {
 	}
 
 	/**
+	 * 蓄積された異なる(開始列, colspan)制約の個数(Uspan、最悪O(C²))を
+	 * 返します。E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤の
+	 * 読み取り専用アクセサ。挙動には影響しない。
+	 */
+	public int colspanConstraintCount() {
+		return this.colspanList.size();
+	}
+
+	/**
 	 * 列結合の3パス分配(指定幅/最小幅/パーセント幅)とパーセント制限を
 	 * 実行し、結果を返します。
 	 *

@@ -97,6 +97,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private final List<Recorded> records = new ArrayList<Recorded>();
 
 	/**
+	 * glyph()イベントの累計(recordsへ保持されるTextImplのglyph総量の概算)。
+	 * E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤。挙動には影響しない。
+	 */
+	private long glyphCount = 0;
+
+	/**
 	 * 直近に作られたネスト実測ビルダー。対応する InlineBlockQuad の到着時に
 	 * InlineBlockEvent へ内包されます。
 	 */
@@ -106,6 +112,24 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.layoutStack = layoutStack;
 		this.flowStack.add(containerBox);
 		this.measurer.start(containerBox);
+		// E-6増分1(2026-07-24): ネスト深さのhigh-water観測(読み取りのみ、
+		// 挙動には影響しない)。layoutStack鎖上の連続するTwoPassBlockBuilder
+		// 数を数える(表セル経由のネストはRetainedTableBuilderが親のlayoutStack
+		// を引き継ぐため、この鎖に自然に現れる)
+		int depth = 1;
+		for (LayoutStack stack = layoutStack; stack instanceof TwoPassBlockBuilder parent; stack = parent.layoutStack) {
+			++depth;
+		}
+		TableBuildStats.reportTwoPassNestDepth(depth);
+	}
+
+	/**
+	 * recordsへ追記し、保持量high-waterを報告します(E-6増分1(2026-07-24)、
+	 * spill閾値・対象選定の実測基盤。追記+max更新のみで挙動には影響しない)。
+	 */
+	private void addRecord(final Recorded recorded) {
+		this.records.add(recorded);
+		TableBuildStats.reportTwoPassRecordRetention(this.records.size());
 	}
 
 	public AbstractContainerBox getFixedWidthContextBox() {
@@ -290,7 +314,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.measurer.startFlow(flowBox, containerBox);
 
 		this.flowStack.add(flowBox);
-		this.records.add(new Recorded.StartFlow(flowBox));
+		this.addRecord(new Recorded.StartFlow(flowBox));
 	}
 
 	public void endFlowBlock() {
@@ -299,13 +323,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// 元コードでは記録(records.add)は枠反転処理と textIndent リセットの間にあったが、
 		// 計測状態と records は独立のため 計測(末尾リセット含む)→記録 の順でも等価。
 		this.measurer.endFlow(flowBox);
-		this.records.add(new Recorded.EndFlow((FlowBlockBox) flowBox));
+		this.addRecord(new Recorded.EndFlow((FlowBlockBox) flowBox));
 	}
 
 	public void addBound(IBox box) {
 		AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
 		this.measurer.bound(replacedBox);
-		this.records.add(new Recorded.ReplacedEvent(replacedBox));
+		this.addRecord(new Recorded.ReplacedEvent(replacedBox));
 	}
 
 	public void addTable(TableBuilder tableBuilder) {
@@ -313,7 +337,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		autoTableBuilder.prepareLayout();
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
 		this.measurer.table(tableSizes);
-		this.records.add(new Recorded.TableEvent(autoTableBuilder));
+		this.addRecord(new Recorded.TableEvent(autoTableBuilder));
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 		case INLINE:
 			this.pendingInlineBlock = autoTableBuilder;
@@ -333,12 +357,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 書字方向が違う
 		case FLOAT:
 			// 浮動体
-			this.records.add(new Recorded.StfBlock(builder));
+			this.addRecord(new Recorded.StfBlock(builder));
 			break;
 
 		case ABSOLUTE:
 			// 絶対配置
-			this.records.add(new Recorded.AbsoluteBlock(builder));
+			this.addRecord(new Recorded.AbsoluteBlock(builder));
 			break;
 
 		case INLINE:
@@ -550,12 +574,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
 		double advance = this.text.appendGlyph(ch, coff, clen, gid);
 		this.measurer.glyph(advance);
+		// E-6増分1(2026-07-24): glyph保持量の概算観測(加算のみ、挙動不変)
+		++this.glyphCount;
 	}
 
 	public void endTextRun() {
 		this.text.pack();
-		this.records.add(new Recorded.ElementEvent(this.text));
+		this.addRecord(new Recorded.ElementEvent(this.text));
 		this.text = null;
+		TableBuildStats.reportTwoPassGlyphRetention(this.glyphCount);
 	}
 
 	public void control(final TextControl quad) {
@@ -565,10 +592,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			inlineBlockMeasure = this.pendingInlineBlock;
 			assert inlineBlockMeasure != null;
 			this.pendingInlineBlock = null;
-			this.records.add(new Recorded.InlineBlockEvent(inlineBlockQuad, inlineBlockMeasure));
+			this.addRecord(new Recorded.InlineBlockEvent(inlineBlockQuad, inlineBlockMeasure));
 		} else {
 			inlineBlockMeasure = null;
-			this.records.add(new Recorded.ElementEvent(quad));
+			this.addRecord(new Recorded.ElementEvent(quad));
 		}
 		this.measurer.control(quad, inlineBlockMeasure);
 	}
@@ -586,7 +613,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void endTextBlock() {
-		this.records.add(Recorded.EndTextBlock.INSTANCE);
+		this.addRecord(Recorded.EndTextBlock.INSTANCE);
 		this.measurer.endTextBlock();
 	}
 

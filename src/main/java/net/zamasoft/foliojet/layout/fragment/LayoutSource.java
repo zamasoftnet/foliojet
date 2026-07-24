@@ -115,6 +115,8 @@ public final class LayoutSource {
 	public long append(final Event event) {
 		final long id = this.nextId++;
 		this.entries.add(new Entry(id, event));
+		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
+		ContinuationStats.recordSourceEventRetention(this.entries.size());
 		return id;
 	}
 

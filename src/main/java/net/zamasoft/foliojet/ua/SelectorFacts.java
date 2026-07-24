@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.zamasoft.foliojet.css.selector.Condition;
 
@@ -33,6 +34,38 @@ import net.zamasoft.foliojet.css.selector.Condition;
  * @author MIYABE Tatsuhiko
  */
 public final class SelectorFacts {
+	// ---- E-6増分1(2026-07-24): 保持量のhigh-waterカウンタ群 ----
+	// spillableテープ基盤のspill閾値・対象選定の実測基盤(codex設計§1.3:
+	// SelectorFactsはE-6でtape化しない——まず実コーパスでエントリ数を測る)。
+	// 各Map/Setのエントリ数のmax更新のみで挙動には影響しない。
+
+	/** {@code lastChild}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	public static final AtomicLong LAST_CHILD_HIGH_WATER = new AtomicLong();
+
+	/** {@code lastOfType}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	public static final AtomicLong LAST_OF_TYPE_HIGH_WATER = new AtomicLong();
+
+	/** {@code empty}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	public static final AtomicLong EMPTY_HIGH_WATER = new AtomicLong();
+
+	/** {@code positionFromEnd}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	public static final AtomicLong POSITION_FROM_END_HIGH_WATER = new AtomicLong();
+
+	/** {@code typePositionFromEnd}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	public static final AtomicLong TYPE_POSITION_FROM_END_HIGH_WATER = new AtomicLong();
+
+	/** {@code hasMatches}のキー(要素)数のhigh-water(E-6増分1、挙動不変)。 */
+	public static final AtomicLong HAS_MATCH_ELEMENT_HIGH_WATER = new AtomicLong();
+
+	/**
+	 * {@code hasMatches}の(要素, 条件)ペア総数のhigh-water(E-6増分1、
+	 * 挙動不変)。最悪O(N×H)の実測。
+	 */
+	public static final AtomicLong HAS_MATCH_PAIR_HIGH_WATER = new AtomicLong();
+
+	/** 現在の(要素, 条件)ペア総数(観測用の付随カウンタ、判定には使わない)。 */
+	private long hasPairCount;
+
 	private Set<Long> lastChild;
 	private Set<Long> lastOfType;
 	private Set<Long> empty;
@@ -62,6 +95,7 @@ public final class SelectorFacts {
 		this.positionFromEnd = null;
 		this.typePositionFromEnd = null;
 		this.hasMatches = null;
+		this.hasPairCount = 0;
 	}
 
 	/**
@@ -77,7 +111,11 @@ public final class SelectorFacts {
 			set = new HashSet<Condition>();
 			this.hasMatches.put(elementKey, set);
 		}
-		set.add(hasCondition);
+		if (set.add(hasCondition)) {
+			++this.hasPairCount;
+		}
+		HAS_MATCH_ELEMENT_HIGH_WATER.accumulateAndGet(this.hasMatches.size(), Math::max);
+		HAS_MATCH_PAIR_HIGH_WATER.accumulateAndGet(this.hasPairCount, Math::max);
 	}
 
 	public boolean isHasMatch(long elementKey, Condition hasCondition) {
@@ -93,6 +131,7 @@ public final class SelectorFacts {
 			this.lastChild = new HashSet<Long>();
 		}
 		this.lastChild.add(elementKey);
+		LAST_CHILD_HIGH_WATER.accumulateAndGet(this.lastChild.size(), Math::max);
 	}
 
 	public boolean isLastChild(long elementKey) {
@@ -104,6 +143,7 @@ public final class SelectorFacts {
 			this.lastOfType = new HashSet<Long>();
 		}
 		this.lastOfType.add(elementKey);
+		LAST_OF_TYPE_HIGH_WATER.accumulateAndGet(this.lastOfType.size(), Math::max);
 	}
 
 	public boolean isLastOfType(long elementKey) {
@@ -115,6 +155,7 @@ public final class SelectorFacts {
 			this.empty = new HashSet<Long>();
 		}
 		this.empty.add(elementKey);
+		EMPTY_HIGH_WATER.accumulateAndGet(this.empty.size(), Math::max);
 	}
 
 	public boolean isEmpty(long elementKey) {
@@ -126,6 +167,7 @@ public final class SelectorFacts {
 			this.positionFromEnd = new HashMap<Long, Integer>();
 		}
 		this.positionFromEnd.put(elementKey, position);
+		POSITION_FROM_END_HIGH_WATER.accumulateAndGet(this.positionFromEnd.size(), Math::max);
 	}
 
 	/** 末尾からの通し番号。走査結果が無ければ-1(未対応セレクタと同じ警告+不一致経路へ)。 */
@@ -142,6 +184,7 @@ public final class SelectorFacts {
 			this.typePositionFromEnd = new HashMap<Long, Integer>();
 		}
 		this.typePositionFromEnd.put(elementKey, position);
+		TYPE_POSITION_FROM_END_HIGH_WATER.accumulateAndGet(this.typePositionFromEnd.size(), Math::max);
 	}
 
 	public int getTypePositionFromEnd(long elementKey) {

@@ -213,6 +213,20 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * {@code LayoutSource}のイベントリスト保持数(compact前の最大)の
+	 * high-waterです(2026-07-24新設、E-6増分1: spillableテープ基盤の
+	 * spill閾値・対象選定の実測基盤。挙動には影響しない)。
+	 */
+	public static final AtomicLong SOURCE_EVENT_HIGH_WATER = new AtomicLong();
+
+	/** LayoutSourceのイベント保持数の観測です(E-6増分1、最大値を保持)。 */
+	public static void recordSourceEventRetention(final int size) {
+		if (live()) {
+			SOURCE_EVENT_HIGH_WATER.accumulateAndGet(size, Math::max);
+		}
+	}
+
 	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenTextHandoff() {
 		if (live()) {
@@ -454,6 +468,7 @@ public final class ContinuationStats {
 		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.set(0);
 		LAST_COLUMN_OWNER_COLUMN_COUNT.set(-1);
 		OPEN_TAILS.set(0);
+		SOURCE_EVENT_HIGH_WATER.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_PAGE_OPEN_TAIL_DEPTH.set(0);
@@ -473,4 +488,5 @@ public final class ContinuationStats {
 			counter.set(0);
 		}
 	}
+
 }
