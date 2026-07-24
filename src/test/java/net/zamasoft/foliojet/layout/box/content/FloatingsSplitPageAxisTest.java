@@ -81,8 +81,12 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	/**
-	 * ページ方向寸法とsplit結果をスクリプトできるBLOCK浮動ボックスです。
-	 * scripted==nullのシナリオでsplit()が呼ばれたら失敗する。
+	 * ページ方向寸法と切断結果をスクリプトできるBLOCK浮動ボックスです。
+	 * シナリオの記述は従来どおり{@code SplitResult}型で行い、A-3a-2以降の
+	 * 実切断経路({@code splitFloatFragment})へ翻訳する——Splitは「canned
+	 * remainderをそのまま返すrecipe」を持つPreparedFloatFragmentになる
+	 * (materializeの一回性・serial引き継ぎは本物の機構を通る)。
+	 * scripted==nullのシナリオで切断が呼ばれたら失敗する。
 	 */
 	private static class StubBlockFloat extends FloatBlockBox {
 		private final double pageExtent;
@@ -99,15 +103,25 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		}
 
 		@Override
-		public SplitResult split(final double pageLimit, final BreakMode mode, final byte flags) {
+		public net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit splitFloatFragment(final int serial,
+				final double pageLimit, final BreakMode mode, final byte flags) {
 			++this.splitCalls;
 			this.seenPageLimit = pageLimit;
 			this.seenMode = mode;
 			this.seenFlags = flags;
 			if (this.scripted == null) {
-				throw new AssertionError("split()はこのシナリオでは呼ばれないはず");
+				throw new AssertionError("切断はこのシナリオでは呼ばれないはず");
 			}
-			return this.scripted;
+			return switch (this.scripted) {
+			case SplitResult.Keep keep -> net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.KEEP;
+			case SplitResult.Move move -> net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.MOVE;
+			case SplitResult.Split(final IPageBreakableBox remainder) ->
+				new net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Prepared(
+						new net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment(serial,
+								(state, container) -> (net.zamasoft.foliojet.layout.box.AbstractBlockBox) remainder,
+								null, null, 0));
+			case SplitResult.Frame frame -> throw new AssertionError("Frameはfloatではスクリプトしない");
+			};
 		}
 
 		@Override

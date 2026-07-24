@@ -59,12 +59,15 @@ public record FloatSplitPlan(
 		}
 
 		/**
-		 * commit時に一度だけ{@code split(innerLimit, DEFAULT, splitFlags)}を
-		 * 呼ぶ(分岐表3)。結果(Keep/Move/Split)は予言しない。
+		 * commit時に一度だけ
+		 * {@code splitFloatFragment(serial, innerLimit, DEFAULT, splitFlags)}を
+		 * 呼ぶ(分岐表3。A-3a-2以降——残余boxは即時構築されず、材料
+		 * {@code PreparedFloatFragment}を受け側Floatingへの接続時に一度だけ
+		 * materializeする)。結果(Keep/Move/Prepared)は予言しない。
 		 *
 		 * @param expected   計画対象floatの実測スナップショット
 		 * @param innerLimit float座標系の切断線({@code pageLimit - pageStart}。
-		 *                   frame控除は{@code split}内部で行われる)
+		 *                   frame控除は切断内部で行われる)
 		 * @param splitFlags {@code FLAGS_FIRST}(物理first)または
 		 *                   {@code FLAGS_SPLIT}
 		 */

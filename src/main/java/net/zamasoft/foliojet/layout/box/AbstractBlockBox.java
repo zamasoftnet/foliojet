@@ -300,6 +300,48 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
+	 * ブロックfloat専用のページ方向切断です(2026-07-24、排除域A-3a)。
+	 * {@link AbstractContainerBox#split}のfloat変種で、内部切断(Split)の
+	 * 残余boxを即時構築({@code splitPage})せず、材料
+	 * ({@link net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment})
+	 * のまま返します。残余boxの構築は受け側{@code Floatings}へ接続する
+	 * 時点で一度だけ行われる。
+	 *
+	 * <p>
+	 * 材料の取り方は即時経路と同一: 切断判定はコンテナの
+	 * {@code splitPageAxis}、前断片のmutationと断片状態は
+	 * {@code splitPageState}の実出力(再計算しない)、crossExtentは
+	 * mutation前のraw寸法({@code splitPage}と同じ)。recipeは
+	 * {@code splitPageState}の前に取得する({@code splitForContinuation}と
+	 * 同じC1d-Bの規約。即時経路はmutation後に取得するが、FloatBlockBoxの
+	 * recipeは不変のparams/posのみをキャプチャするため等価)。
+	 * </p>
+	 *
+	 * @param serial 呼び出し側({@code Floatings})が管理するfloatの識別子
+	 */
+	public net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit splitFloatFragment(final int serial,
+			double pageLimit, final net.zamasoft.foliojet.layout.box.content.BreakMode mode, final byte flags) {
+		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
+		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
+				.absorbColumn(mode, this.getColumnCount());
+		final Container nextContainer = this.container.splitPageAxis(pageLimit, xmode, flags);
+		if (nextContainer == null) {
+			return net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.KEEP;
+		}
+		if (nextContainer == this.container) {
+			return net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.MOVE;
+		}
+		final boolean vertical = this.params.flow.isVertical();
+		final double crossExtent = vertical ? this.height : this.width;
+		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit,
+				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
+		return new net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Prepared(
+				new net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment(serial, recipe, state, nextContainer,
+						crossExtent));
+	}
+
+	/**
 	 * ページ方向切断の前断片側を確定し、継続断片の状態を返します(C1a)。
 	 * 従来 splitPage(断片ボックス構築込み)が一体で行っていた処理の
 	 * 前側半分: 自箱をページ使用量まで切りつめ、終端側フレームを落とす。

@@ -11,8 +11,6 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
-import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
-import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
@@ -154,9 +152,12 @@ public class Floatings {
 	 * 実装は「{@link FloatSplitPlan#planDirect}で分類(純判定・副作用なし)
 	 * →plan駆動のcommit(codex設計§2.3)」の2段。commitはordinal順に一度
 	 * だけ走り、{@code SplitOnCommit}はここで一度だけ
-	 * {@code containerBox.split}を実行してKeep/Move/Splitへ確定する。
-	 * 旧実装との等価性は{@code FloatingsSplitPageAxisTest}の分岐表テストと
-	 * P2-2 shadow比較(SMOKEコーパス不一致0)で固定済み。
+	 * {@code containerBox.splitFloatFragment}を実行してKeep/Move/Preparedへ
+	 * 確定する(A-3a-2: 残余boxは即時構築せず、受け側Floatingへの接続時に
+	 * 一度だけmaterialize)。旧実装との等価性は
+	 * {@code FloatingsSplitPageAxisTest}の分岐表テストとP2-2 shadow比較
+	 * (SMOKEコーパス不一致0)、および{@code PreparedFloatFragmentTest}の
+	 * twin等価テストで固定済み。
 	 * </p>
 	 *
 	 * <p>
@@ -206,22 +207,28 @@ public class Floatings {
 				remainderSide.add(floating);
 			case FloatSplitPlan.FloatItemPlan.SplitOnCommit(final FloatMeasurement expected, final double innerLimit,
 					final byte splitFlags) -> {
-				// 分岐表3: ここで一度だけsplitを実行し、Keep/Move/Splitへ確定
-				final AbstractContainerBox containerBox = (AbstractContainerBox) floating.box;
-				switch (containerBox.split(innerLimit, BreakMode.DEFAULT_BREAK_MODE, splitFlags)) {
-				case SplitResult.Keep keep -> {
+				// 分岐表3: ここで一度だけ切断し、Keep/Move/Preparedへ確定。
+				// A-3a-2: 残余boxは切断内部で即時構築せず、材料
+				// (PreparedFloatFragment)で受け取り、受け側Floatingへ接続
+				// するこの場で一度だけmaterializeする(構築は旧即時経路と
+				// 同一のcontinueFragmentによる)
+				final net.zamasoft.foliojet.layout.box.AbstractBlockBox containerBox = (net.zamasoft.foliojet.layout.box.AbstractBlockBox) floating.box;
+				switch (containerBox.splitFloatFragment(floating.serial, innerLimit, BreakMode.DEFAULT_BREAK_MODE,
+						splitFlags)) {
+				case net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Keep keep -> {
 					sourceSide.add(floating);
 					allWholeMoves = false;
 				}
-				case SplitResult.Move move -> remainderSide.add(floating);
-				case SplitResult.Split(final IPageBreakableBox remainder) -> {
-					// 元のFloatingはthis側に残り、remainderは座標(0,0)=
+				case net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Move move ->
+					remainderSide.add(floating);
+				case net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Prepared(
+						final net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment fragment) -> {
+					// 元のFloatingはthis側に残り、残余は座標(0,0)=
 					// 次フラグメント先頭、serial引き継ぎでnext側へ
 					sourceSide.add(floating);
-					remainderSide.add(new Floating(floating.serial, (IFloatBox) remainder, 0, 0));
+					remainderSide.add(new Floating(fragment.serial(), fragment.materialize(), 0, 0));
 					allWholeMoves = false;
 				}
-				case SplitResult.Frame frame -> throw new IllegalStateException("チェーン継続はフロートでは起きない");
 				}
 			}
 			}
