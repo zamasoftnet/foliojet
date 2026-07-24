@@ -290,6 +290,100 @@ public final class ContinuationStats {
 		}
 	}
 
+	// ---- E-6増分4a/4b(2026-07-24): TwoPass range化の発火カウンタ群 ----
+
+	/**
+	 * {@code TwoPassBlockBuilder}のbindが{@code SourceRangeBody}
+	 * (LayoutSource範囲のSegmentExecutor再駆動)で行われた回数です
+	 * (2026-07-24新設、E-6増分4a/4b)。
+	 */
+	public static final AtomicLong RANGE_FIRST_BINDS = new AtomicLong();
+
+	/**
+	 * {@code TwoPassBlockBuilder}のbindが{@code LegacyRecords}
+	 * (records再演)で行われた回数です(表セル・キャプション等、seal
+	 * 対象外のビルダーも含む全records bindの分母)。
+	 */
+	public static final AtomicLong LEGACY_RECORD_BINDS = new AtomicLong();
+
+	/**
+	 * 表外float/absolute/inline-blockの録画完了(close)時sealが適格で、
+	 * {@code SourceRangeBody}へ切り替わった回数です(E-6増分4a/4b)。
+	 * 不適格の内訳は{@link #twoPassSealRejects(TwoPassSealReject)}。
+	 */
+	public static final AtomicLong TWO_PASS_SEALS_ELIGIBLE = new AtomicLong();
+
+	/**
+	 * TwoPass range seal({@code TwoPassBlockBuilder.sealBodyForRangeBind})の
+	 * 不適格理由です(E-6増分4a/4b)。判定はfail closed——少しでも怪しい
+	 * 範囲は{@code LegacyRecords}を継続する。
+	 */
+	public enum TwoPassSealReject {
+		/** ページ文脈なし・segment-restyle無効・LayoutSourceなし(scratch計測等)。 */
+		NO_SOURCE,
+		/** root boxのSourceAnchorがない、またはStartでない(絶対配置=Opaque等)か未閉。 */
+		NO_RANGE,
+		/** 子イベント範囲が空(空のfloat等。records解放の益がない)。 */
+		EMPTY_RANGE,
+		/** 範囲にOpaque(ルビ・絶対配置・キャプション・浮動/絶対の表等)を含む。 */
+		OPAQUE_RANGE,
+		/** 範囲に段組(multicol)を含む(列機構との相互作用は未検証)。 */
+		MULTICOL_RANGE,
+		/** 範囲に書字方向の異なる内容を含む(サブビルダー文脈の再現は未検証)。 */
+		MIXED_FLOW_RANGE,
+		/**
+		 * recordsにネストしたビルダー(StfBlock/AbsoluteBlock/InlineBlockEvent/
+		 * TableEvent)を含む。ネストした子が既にsealしたリースを親のrange化で
+		 * 破棄するとリース解放の再帰配線が必要になるため、4a/4bでは
+		 * 「ネストなし(leaf)」のみを適格とする——子ビルダー自身は自分の
+		 * bindで独立にrange化される。
+		 */
+		NESTED_BUILDER,
+		/** 範囲の完全性検証(capture)に失敗(compact済みの穴)。 */
+		RANGE_NOT_INTACT
+	}
+
+	private static final Map<TwoPassSealReject, AtomicLong> TWO_PASS_SEAL_REJECTS = new EnumMap<>(
+			TwoPassSealReject.class);
+	static {
+		for (final TwoPassSealReject r : TwoPassSealReject.values()) {
+			TWO_PASS_SEAL_REJECTS.put(r, new AtomicLong());
+		}
+	}
+
+	/** range bind(SourceRangeBody)の発火の集計です(E-6増分4a/4b)。 */
+	public static void recordTwoPassRangeBind() {
+		if (live()) {
+			RANGE_FIRST_BINDS.incrementAndGet();
+		}
+	}
+
+	/** records bind(LegacyRecords)の発火の集計です(E-6増分4a/4b)。 */
+	public static void recordTwoPassLegacyRecordBind() {
+		if (live()) {
+			LEGACY_RECORD_BINDS.incrementAndGet();
+		}
+	}
+
+	/** seal適格の集計です(E-6増分4a/4b)。 */
+	public static void recordTwoPassSealEligible() {
+		if (live()) {
+			TWO_PASS_SEALS_ELIGIBLE.incrementAndGet();
+		}
+	}
+
+	/** seal不適格(理由つき)の集計です(E-6増分4a/4b)。 */
+	public static void recordTwoPassSealReject(final TwoPassSealReject reason) {
+		if (live()) {
+			TWO_PASS_SEAL_REJECTS.get(reason).incrementAndGet();
+		}
+	}
+
+	/** {@code reason}によるseal不適格の回数です(E-6増分4a/4b)。 */
+	public static long twoPassSealRejects(final TwoPassSealReject reason) {
+		return TWO_PASS_SEAL_REJECTS.get(reason).get();
+	}
+
 	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenTextHandoff() {
 		if (live()) {
@@ -549,6 +643,12 @@ public final class ContinuationStats {
 		OPEN_CHAIN_TRAILING_ITEMS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
+		RANGE_FIRST_BINDS.set(0);
+		LEGACY_RECORD_BINDS.set(0);
+		TWO_PASS_SEALS_ELIGIBLE.set(0);
+		for (final AtomicLong counter : TWO_PASS_SEAL_REJECTS.values()) {
+			counter.set(0);
+		}
 		for (final AtomicLong counter : CAPABILITY_SCAN_STOPS.values()) {
 			counter.set(0);
 		}

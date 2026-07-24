@@ -261,6 +261,39 @@ public final class SourceReplayer {
 	}
 
 	/**
+	 * seal済みTwoPassビルダーの本文範囲を bind 先ビルダーへ再駆動します
+	 * (E-6増分4a/4b、2026-07-24: TwoPass range化)。
+	 *
+	 * <p>
+	 * 範囲は録画完了(close)時に検証済み(Opaque/段組/縦横混在なし、
+	 * capture可能)で、seal時に取得した{@code RetentionLease}が compact
+	 * から守っている契約のため、ここにフォールバックはない——範囲が
+	 * 欠けていたら実装バグとして失敗する(silent holeを作らない)。
+	 * 駆動は{@code replayChildren}と同型(新品の{@code DocumentBuilder}を
+	 * targetへ向け、{@code SegmentExecutor}でボックスを再インスタンス化)。
+	 * bind先の{@code BlockBuilder}配下で行分割(TotalFitSession含む)が
+	 * 通常構築と同じに再駆動される。
+	 * </p>
+	 *
+	 * @param log           ソースログ
+	 * @param fromId        本文範囲の先頭 EventId(root boxのStartの次)
+	 * @param toId          本文範囲の末尾 EventId(対応するEndBlockの手前)
+	 * @param target        bind 先ビルダー(root boxの上に作られたもの)
+	 * @param pageGenerator ページ生成器
+	 */
+	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
+			final BlockBuilder target, final PageGenerator pageGenerator) {
+		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
+		if (slice == null) {
+			throw new IllegalStateException(
+					"seal済みTwoPass範囲が失われました(リースが守っているはずの範囲): [" + fromId + ", " + toId + "]");
+		}
+		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
+		drive(doc, slice);
+		doc.finishReplay();
+	}
+
+	/**
 	 * [fromId, toId] の閉じた部分木列を再駆動します。
 	 * 範囲は Opaque を含まないこと(呼び出し側が containsOpaque で検査)。
 	 *

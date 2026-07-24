@@ -188,9 +188,48 @@ public class PageBox extends AbstractBlockBox {
 		return this.ua;
 	}
 
-	/** Elements whose tagged-PDF structure element is currently open. */
+	/**
+	 * Elements whose tagged-PDF structure element is currently open
+	 * (identity-keyed: pseudo/anonymous singletons and non-StructureElement
+	 * values).
+	 */
 	private final java.util.Set<Object> openStructElements = java.util.Collections
 			.newSetFromMap(new java.util.IdentityHashMap<>());
+
+	/**
+	 * Real source elements (elementKey &gt;= 0) whose structure element is
+	 * currently open, deduplicated by their logical identity (elementKey).
+	 *
+	 * <p>
+	 * E-6増分4b(2026-07-24): TwoPass range bindでは、liveの祖先ボックス
+	 * ({@code CSSElement}保持)と再生された子孫ボックス
+	 * ({@code StructureToken}保持)が同じ論理要素を指すことがある
+	 * (例: {@code <li>}のprincipal box(live)とmarker box(range再生)。
+	 * 従来は同一{@code CSSElement}インスタンスの共有で識別していた)。
+	 * 参照identityでは再生境界をまたぐ共有を表現できないため、実要素は
+	 * {@code elementKey}(文書順の通し番号=論理identity)で重複開きを
+	 * 防ぐ。live同士では同じ論理要素は常に同じインスタンスを共有する
+	 * (fragmentはparamsを共有する)ため、この変更でlive挙動は変わらない。
+	 * </p>
+	 */
+	private final java.util.Set<Long> openStructKeys = new java.util.HashSet<>();
+
+	/** Marks the element's structure open; false when it already is. */
+	private boolean openStruct(final Object element) {
+		if (element instanceof net.zamasoft.foliojet.css.StructureElement se && se.elementKey() >= 0) {
+			return this.openStructKeys.add(se.elementKey());
+		}
+		return this.openStructElements.add(element);
+	}
+
+	/** Clears the element's open mark ({@code openStruct}'s counterpart). */
+	private void closeStruct(final Object element) {
+		if (element instanceof net.zamasoft.foliojet.css.StructureElement se && se.elementKey() >= 0) {
+			this.openStructKeys.remove(se.elementKey());
+			return;
+		}
+		this.openStructElements.remove(element);
+	}
 
 	/**
 	 * Inserts tagged-PDF structure begin markers for a box's element and
@@ -207,7 +246,7 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	public int beginStruct(final Drawer drawer, final Object element, final double x, final double y) {
 		final String role = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(this.ua, element);
-		if (role == null || !this.openStructElements.add(element)) {
+		if (role == null || !this.openStruct(element)) {
 			return 0;
 		}
 		if (role.equals("TH")) {
@@ -244,7 +283,7 @@ public class PageBox extends AbstractBlockBox {
 		for (int i = 0; i < count; ++i) {
 			drawer.visitDrawable(net.zamasoft.foliojet.layout.draw.StructDrawable.end(), x, y);
 		}
-		this.openStructElements.remove(element);
+		this.closeStruct(element);
 	}
 
 	public final boolean isSpecifiedPageSize() {

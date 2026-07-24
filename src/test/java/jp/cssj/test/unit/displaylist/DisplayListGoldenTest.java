@@ -100,6 +100,7 @@ public class DisplayListGoldenTest extends TestCase {
 	};
 
 	public void testDisplayLists() throws Exception {
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.reset();
 		List<String> failures = new ArrayList<>();
 		for (String doc : DOCUMENTS) {
 			checkDocument(doc, 1, failures);
@@ -107,8 +108,47 @@ public class DisplayListGoldenTest extends TestCase {
 		for (String doc : MULTI_PASS_DOCUMENTS) {
 			checkDocument(doc, 2, failures);
 		}
+		reportTwoPassRangeBind(failures);
 		if (!failures.isEmpty()) {
 			fail(String.join("\n", failures));
+		}
+	}
+
+	/**
+	 * TwoPass range化(E-6増分4b、production default-on)のコーパス実測
+	 * レポートと配線検証です。golden一致だけでは「常にLegacyRecordsへ
+	 * フォールバックしている」空虚な緑と区別できないため、(a)range bind
+	 * がこのコーパスで実際に発火していること、(b)seal適格数とrange bind数が
+	 * 一致すること(sealで取得したRetentionLeaseが全てbindのfinallyで解放
+	 * された証拠——取り残しはcompactを永久にclampする)を固定する。
+	 */
+	private static void reportTwoPassRangeBind(List<String> failures) {
+		if (Boolean.getBoolean("foliojet.noTwoPassRangeBind")) {
+			return; // kill switch下では対象経路が無効
+		}
+		final long seals = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get();
+		final long rangeBinds = net.zamasoft.foliojet.layout.fragment.ContinuationStats.RANGE_FIRST_BINDS.get();
+		final StringBuilder s = new StringBuilder();
+		s.append("[E-6 two-pass range bind / golden corpus]\n");
+		s.append("  RANGE_FIRST_BINDS=").append(rangeBinds).append('\n');
+		s.append("  LEGACY_RECORD_BINDS=")
+				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_RECORD_BINDS.get()).append('\n');
+		s.append("  TWO_PASS_SEALS_ELIGIBLE=").append(seals).append('\n');
+		long total = seals;
+		for (final net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject r : net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject
+				.values()) {
+			final long count = net.zamasoft.foliojet.layout.fragment.ContinuationStats.twoPassSealRejects(r);
+			total += count;
+			s.append("  REJECT_").append(r).append('=').append(count).append('\n');
+		}
+		s.append("  ELIGIBLE_RATE=").append(seals).append('/').append(total).append('\n');
+		System.err.print(s);
+		if (rangeBinds == 0) {
+			failures.add("TwoPass range bindがgoldenコーパスで一度も発火していません(空虚な緑)");
+		}
+		if (seals != rangeBinds) {
+			failures.add("seal適格数とrange bind数が一致しません(リース取り残しの疑い): seals=" + seals
+					+ ", rangeBinds=" + rangeBinds);
 		}
 	}
 

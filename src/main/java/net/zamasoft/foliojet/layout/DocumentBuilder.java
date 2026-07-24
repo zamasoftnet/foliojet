@@ -570,6 +570,10 @@ public class DocumentBuilder implements TableBuilderHost {
 				// インラインブロック
 				this.endContainer();
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
+				if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+					// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
+					sealable.sealBodyForRangeBind();
+				}
 				final InlineBlockBox inlineBlockBox = (InlineBlockBox) entry.builder.getRootBox();
 				final Builder parentBuilder = this.containerBuilder().builder;
 				if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
@@ -624,6 +628,10 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 浮動体
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
+			if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+				// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
+				sealable.sealBodyForRangeBind();
+			}
 			final Builder parentBuilder = this.containerBuilder().builder;
 			if (!parentBuilder.isTwoPass()) {
 				final BlockBuilder boundBuilder = (BlockBuilder) parentBuilder;
@@ -663,6 +671,12 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 絶対位置指定
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
+			if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+				// E-6増分4a/4b: 録画完了点でのrange seal。絶対配置はOpaque記録の
+				// ため現状は常に不適格(NO_RANGE)だが、seal呼び出し自体が
+				// 「表外float/absolute/inline-blockの母数」の実測点になる
+				sealable.sealBodyForRangeBind();
+			}
 			Builder builder = this.contextBuilder().builder;
 			if (!builder.isTwoPass()) {
 				BlockBuilder boundBuilder = (BlockBuilder) builder;

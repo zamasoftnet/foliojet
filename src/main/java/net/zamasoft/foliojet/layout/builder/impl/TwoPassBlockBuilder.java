@@ -83,6 +83,33 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
+	/**
+	 * bind() の再生元となる本文表現です(E-6増分4a、2026-07-24——
+	 * {@code docs/consultations/consult-e6b-remaining-increments-codex.md}
+	 * §3.2)。録画中は常に {@link LegacyRecords}。表外float/absolute/
+	 * inline-blockの適格なビルダーは録画完了(close)時に
+	 * {@link #sealBodyForRangeBind()} で {@link SourceRangeBody} へ
+	 * 切り替わり、records(TextImplのglyph列・liveボックス)を手放す
+	 * (E-6増分4b)。
+	 */
+	private sealed interface ReplayBody {
+		/** 従来のイベント記録(records)による本文です。 */
+		final class LegacyRecords implements ReplayBody {
+			final List<Recorded> records = new ArrayList<Recorded>();
+		}
+
+		/**
+		 * LayoutSourceの子イベント範囲 [fromId, toId] による本文です。
+		 * bindは{@code SourceReplayer.bindTwoPassRange}(SegmentExecutor
+		 * 駆動)で行われ、範囲はseal時に取得した{@code RetentionLease}が
+		 * compactから守る。リースはbindのfinallyで解放される(冪等)。
+		 */
+		record SourceRangeBody(net.zamasoft.foliojet.layout.fragment.LayoutSource source,
+				net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator, long fromId, long toId,
+				net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease) implements ReplayBody {
+		}
+	}
+
 	protected final LayoutStack layoutStack;
 
 	/**
@@ -94,7 +121,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	private final List<AbstractContainerBox> flowStack = new ArrayList<AbstractContainerBox>();
 
-	private final List<Recorded> records = new ArrayList<Recorded>();
+	/**
+	 * bind() の再生元(E-6増分4a)。録画中は常に LegacyRecords。
+	 */
+	private ReplayBody body = new ReplayBody.LegacyRecords();
 
 	/**
 	 * glyph()イベントの累計(recordsへ保持されるTextImplのglyph総量の概算)。
@@ -128,8 +158,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * spill閾値・対象選定の実測基盤。追記+max更新のみで挙動には影響しない)。
 	 */
 	private void addRecord(final Recorded recorded) {
-		this.records.add(recorded);
-		TableBuildStats.reportTwoPassRecordRetention(this.records.size());
+		if (!(this.body instanceof ReplayBody.LegacyRecords legacy)) {
+			// seal(録画完了)後の追記は契約違反(E-6増分4a)
+			throw new IllegalStateException("seal済みビルダーへの記録: " + recorded);
+		}
+		legacy.records.add(recorded);
+		TableBuildStats.reportTwoPassRecordRetention(legacy.records.size());
 	}
 
 	public AbstractContainerBox getFixedWidthContextBox() {
@@ -380,14 +414,136 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.measurer.fitFloating(childBuilder);
 	}
 
+	/**
+	 * TwoPass range化(E-6増分4a/4b)の有効スイッチです。増分4bで
+	 * default-onへ切替(E-3の教訓: default-off期間を作ると二重経路が
+	 * 固定化する。適格判定自体がfail closedのため、怪しい範囲は常に
+	 * LegacyRecordsに残る)。{@code foliojet.noTwoPassRangeBind}は退避用の
+	 * kill switch。動的に読むのは、parityテストが同一JVM内でon/offを
+	 * 切り替えてdisplay list一致を比較するため。
+	 */
+	private static boolean rangeBindEnabled() {
+		return !Boolean.getBoolean("foliojet.noTwoPassRangeBind");
+	}
+
+	/**
+	 * 録画完了(close)時のrange sealです(E-6増分4a/4b——codex設計§3.2の
+	 * 増分4b「close時range seal、records解放」)。表外float/absolute/
+	 * inline-blockの録画完了点({@code DocumentBuilder.endBox}の
+	 * FLOAT/ABSOLUTE/INLINE(ブロック)ケースが endContainerBuilder 直後に
+	 * 呼ぶ)で、本文をLayoutSource範囲参照({@link ReplayBody.SourceRangeBody})
+	 * へ切り替え、records(TextImpl glyph列・liveボックス)を手放す。
+	 * 計測器({@link IntrinsicMeasurer})はsealの影響を受けない——
+	 * shrinkToFitへの固有寸法供給は従来どおり。
+	 *
+	 * <p>
+	 * 適格判定はfail closed(不適格理由は
+	 * {@code ContinuationStats.TwoPassSealReject})。冪等で、録画完了後の
+	 * 一度だけ効く。プローブ等の非live実行では常にno-op
+	 * (ProbePageGeneratorはliveログへの参照自体を禁じている)。
+	 * </p>
+	 */
+	public void sealBodyForRangeBind() {
+		if (!(this.body instanceof ReplayBody.LegacyRecords legacy)) {
+			return; // 冪等
+		}
+		if (!rangeBindEnabled() || !net.zamasoft.foliojet.layout.fragment.LayoutExecutionScope.isLive()
+				|| this.layoutStack == null) {
+			return;
+		}
+		final RootBuilder root = this.getPageContext();
+		if (root == null || !root.isSegmentRestyle()) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NO_SOURCE);
+			return;
+		}
+		final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator = root.getPageGenerator();
+		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = pageGenerator.getLayoutSource();
+		if (log == null) {
+			// scratch計測(MeasurePageGenerator)等、ログを持たない文脈
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NO_SOURCE);
+			return;
+		}
+		final long anchor = this.getRootBox().getSourceAnchor();
+		// 絶対配置はOpaqueとして記録される(StyleBuilder.boxKindがnull)ため
+		// endOfが-1になり、ここで構造的に不適格になる(fail closed)
+		final long endId = anchor < 0 ? -1 : log.endOf(anchor);
+		if (endId < 0) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NO_RANGE);
+			return;
+		}
+		final long fromId = anchor + 1;
+		final long toId = endId - 1;
+		if (toId < fromId) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.EMPTY_RANGE);
+			return;
+		}
+		if (log.containsOpaque(fromId, toId)) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
+			return;
+		}
+		if (log.containsMulticol(fromId, toId)) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.MULTICOL_RANGE);
+			return;
+		}
+		if (log.containsMixedFlow(fromId, toId, this.getRootBox().getBlockParams().flow)) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.MIXED_FLOW_RANGE);
+			return;
+		}
+		for (final Recorded recorded : legacy.records) {
+			// ネストしたビルダーを含む場合は不適格(leaf限定——理由は
+			// TwoPassSealReject.NESTED_BUILDERのjavadoc。子が既に取得した
+			// リースを親のrange化で孤児にしない構造的保証でもある)
+			if (recorded instanceof Recorded.StfBlock || recorded instanceof Recorded.AbsoluteBlock
+					|| recorded instanceof Recorded.InlineBlockEvent || recorded instanceof Recorded.TableEvent) {
+				reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NESTED_BUILDER);
+				return;
+			}
+		}
+		// 範囲の完全性(連番で穴なし)の最終検証。probeのリースは即時解放
+		try (net.zamasoft.foliojet.layout.fragment.LayoutSource.ReplaySlice probe = log.capture(fromId, toId)) {
+			if (probe == null) {
+				reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.RANGE_NOT_INTACT);
+				return;
+			}
+		}
+		// seal: 以後の再生元は範囲参照。recordsはこの差し替えで手放される
+		this.body = new ReplayBody.SourceRangeBody(log, pageGenerator, fromId, toId, log.retainFrom(fromId));
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealEligible();
+	}
+
+	private static void reject(final net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject reason) {
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealReject(reason);
+	}
+
 	public void bind(BlockBuilder builder) {
+		switch (this.body) {
+		case ReplayBody.SourceRangeBody range -> {
+			// E-6増分4b: seal済み範囲からのSegmentExecutor駆動bind。
+			// リースはbindの完了・失敗を問わず解放する(取り残すと以後の
+			// compactが永久にclampされる——LayoutSource.ReplaySliceと同じ規約)
+			try {
+				net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(range.source(), range.fromId(),
+						range.toId(), builder, range.pageGenerator());
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassRangeBind();
+			} finally {
+				range.lease().close();
+			}
+		}
+		case ReplayBody.LegacyRecords legacy -> {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassLegacyRecordBind();
+			this.bindRecords(builder, legacy.records);
+		}
+		}
+	}
+
+	private void bindRecords(BlockBuilder builder, final List<Recorded> records) {
 		// 再レイアウト
 		if (DEBUG) {
 			System.err.println("BIND");
 		}
 		FilterGlyphHandler textUnitizer = null;
 
-		for (final Recorded recorded : this.records) {
+		for (final Recorded recorded : records) {
 			switch (recorded) {
 			case Recorded.ElementEvent elementEvent: {
 				if (textUnitizer == null) {
@@ -618,6 +774,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public boolean isEmpty() {
-		return this.records.isEmpty();
+		// seal済み(SourceRangeBody)は適格判定が空範囲を除外しているため
+		// 常に非空(E-6増分4a)
+		return this.body instanceof ReplayBody.LegacyRecords legacy && legacy.records.isEmpty();
 	}
 }

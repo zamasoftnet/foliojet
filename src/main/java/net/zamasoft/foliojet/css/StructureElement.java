@@ -28,11 +28,17 @@ import org.xml.sax.Attributes;
  * </ul>
  *
  * <p>
- * これに加えて<b>参照identity</b>が契約に含まれる: 同じ論理要素の
- * ボックスは同じインスタンスを共有する(Tagged PDFの構造タグ二重開き
- * 防止——{@code PageBox.beginStruct}のidentity set)。live側は同一
- * {@code CSSElement}の共有で、再生側は再生セッション内のintern
- * ({@code SegmentExecutor})でこれを保つ。
+ * これに加えて<b>論理identity</b>が契約に含まれる: 同じ論理要素の
+ * ボックスは同じ要素を指すと識別できること(Tagged PDFの構造タグ
+ * 二重開き防止——{@code PageBox.beginStruct})。実要素
+ * ({@code elementKey >= 0})は{@code elementKey}(文書順の通し番号)で
+ * 識別する——E-6増分4b(2026-07-24)でliveの祖先({@code CSSElement})と
+ * range再生された子孫({@code StructureToken})が同じ論理要素を指す
+ * ケース(例: {@code <li>}のprincipal boxとmarker box)が生まれ、参照
+ * identityでは再生境界をまたぐ共有を表現できなくなったため。
+ * 擬似要素・匿名要素({@code elementKey < 0})はstatic singletonの参照
+ * identityのまま。再生セッション内のintern({@code SegmentExecutor})は
+ * インスタンス数の抑制として引き続き行う。
  * </p>
  *
  * @author MIYABE Tatsuhiko
