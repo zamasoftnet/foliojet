@@ -799,7 +799,13 @@ public class DirectSession extends AbstractCTISession
 					}
 				} finally {
 					if (tmpFile != null) {
-						tmpFile.delete();
+						// 削除失敗を黙殺しない(2026-07-24アーキレビューE-1)。
+						// 本処理は完了しているため例外は伝播させずWARNのみ
+						try {
+							java.nio.file.Files.deleteIfExists(tmpFile.toPath());
+						} catch (IOException | RuntimeException e) {
+							LOG.log(Level.WARNING, "Failed to delete temporary file: " + tmpFile, e);
+						}
 					}
 				}
 			}

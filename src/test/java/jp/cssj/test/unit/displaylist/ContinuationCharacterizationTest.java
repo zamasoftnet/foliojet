@@ -55,9 +55,12 @@ public class ContinuationCharacterizationTest extends TestCase {
 		this.transcode(new File("files/unittest/0460-segment-restyle/nested-break-in-replay.html"), "p3");
 		this.transcode(new File("files/unittest/0460-segment-restyle/moved-blocks.html"), "p4");
 		this.transcode(new File("files/unittest/0400-column-count/nest.html"), "p5");
-		assertTrue("depth 規約が観測されていません", ContinuationStats.MAX_OPEN_TAIL_DEPTH.get() > 0);
-		assertTrue("depth の実測上限が拡大: " + ContinuationStats.MAX_OPEN_TAIL_DEPTH.get(),
-				ContinuationStats.MAX_OPEN_TAIL_DEPTH.get() <= 6);
+		// 旧 MAX_OPEN_TAIL_DEPTH(PAGE/COLUMN混同の非推奨カウンタ)は削除。
+		// 後継のPAGE/COLUMN別カウンタの最大値が旧カウンタと同じ意味になる
+		final long maxOpenTailDepth = Math.max(ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get(),
+				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get());
+		assertTrue("depth 規約が観測されていません", maxOpenTailDepth > 0);
+		assertTrue("depth の実測上限が拡大: " + maxOpenTailDepth, maxOpenTailDepth <= 6);
 	}
 
 	public void testTableSpanningBreakChainsToo() throws Exception {

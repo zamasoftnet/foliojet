@@ -5,7 +5,11 @@ import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 /**
  * ページ方向の切断結果です(柱2cの型付きプロトコル)。
  * 旧 splitPageAxis の三義的返値(null/this/新オブジェクト)を置き換えます。
- * 継続情報(BreakToken 等)は remainder ボックス自身が保持します。
+ * 内部切断の継続情報の運搬は2系統あります: {@code BreakPlan} が選択した
+ * チェーンメンバーは {@link Frame} で {@code ContinuationFrame} を親へ
+ * 伝播し(残余コンテナへボックスは加えない、C1d-C)、それ以外
+ * ({@link Split}——表分割などの隔離領域)は従来どおり remainder
+ * ボックス自身が継続状態を保持します。
  *
  * @author MIYABE Tatsuhiko
  */

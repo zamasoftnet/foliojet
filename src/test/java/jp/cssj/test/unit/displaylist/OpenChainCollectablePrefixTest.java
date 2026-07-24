@@ -47,7 +47,8 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * なる)。このため段組を囲む外側のplainラッパーdivがどれだけ深く
  * ネストしていても(実文書では普通にありうる)、その深さがそのまま
  * 未反復の再帰へ流れ込んでいた(実測: 外側60段+内側10段+段組で
- * {@code MAX_OPEN_TAIL_DEPTH}=74に到達)。
+ * {@code MAX_PAGE_OPEN_TAIL_DEPTH}(当時は未分離の
+ * {@code MAX_OPEN_TAIL_DEPTH})=74に到達)。
  * </p>
  *
  * <p>
@@ -613,8 +614,8 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		System.err.println(name + ": RESTYLE_CHAIN_FIRINGS=" + ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
 				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " OPEN_TAILS="
 				+ ContinuationStats.OPEN_TAILS.get() + " UNCHAINED_RESTYLES=" + ContinuationStats.UNCHAINED_RESTYLES.get()
-				+ " MAX_OPEN_TAIL_DEPTH=" + ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get() + " OPEN_CHAIN_DEPTH_ALARMS="
-				+ ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
+				+ " MAX_PAGE_OPEN_TAIL_DEPTH=" + ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get()
+				+ " PAGE_OPEN_DEPTH_ALARMS=" + ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
 	}
 
 	private File generate(String name, int depth, LeafWriter leaf, int leafLines) throws IOException {

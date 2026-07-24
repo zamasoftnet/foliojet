@@ -80,21 +80,13 @@ public final class ContinuationStats {
 	public static final AtomicLong OPEN_TEXT_HANDOFFS = new AtomicLong();
 
 	/**
-	 * OpenTailShape の深さの最大値(Phase 3 の除去範囲の実測。
-	 * 0 = 開きボックスなし、1 = 開きテキストのみ、2+ = moved-open 入れ子)。
-	 *
-	 * @deprecated 2026-07-21、{@link #MAX_PAGE_OPEN_TAIL_DEPTH}/
-	 *             {@link #MAX_COLUMN_OPEN_TAIL_DEPTH}へ分離した
-	 *             (ChatGPT Pro相談で判明: {@code BreakableBuilder
-	 *             .columnBreak()}はPAGE側の深さガードを一切通らない別経路
-	 *             のため、両者を混同すると片方の異常が見えなくなる)。
-	 *             既存テスト互換のため当面残すが、両者の合計ではなく
-	 *             最後に観測したいずれか一方の値になる点に注意。
+	 * PAGE(RootBuilder.pageBreak経由)のOpenTailShape深さの最大値
+	 * (0 = 開きボックスなし、1 = 開きテキストのみ、2+ = moved-open
+	 * 入れ子)。旧{@code MAX_OPEN_TAIL_DEPTH}はPAGE/COLUMNを混同していた
+	 * ため2026-07-21にCOLUMN側と分離した(ChatGPT Pro相談で判明:
+	 * {@code BreakableBuilder.columnBreak()}はPAGE側の深さガードを一切
+	 * 通らない別経路のため、両者を混同すると片方の異常が見えなくなる)。
 	 */
-	@Deprecated
-	public static final AtomicLong MAX_OPEN_TAIL_DEPTH = new AtomicLong();
-
-	/** PAGE(RootBuilder.pageBreak経由)のOpenTailShape深さの最大値。 */
 	public static final AtomicLong MAX_PAGE_OPEN_TAIL_DEPTH = new AtomicLong();
 
 	/**
@@ -482,19 +474,11 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * {@code OpenTailShape}の深さがこの値以上になった回数(2026-07-20、
-	 * M6b Phase B着手前の暫定安全策)。{@code FlowContainer.restyle}の
-	 * {@code OpenChain}分岐はまだ反復化されていない
-	 * ({@code docs/PLAN.md}「M6b Phase B」参照)ため、この深さに達すると
-	 * 素のStackOverflowErrorへ到達するリスクがある。
-	 *
-	 * @deprecated 2026-07-21、{@link #PAGE_OPEN_DEPTH_ALARMS}/
-	 *             {@link #COLUMN_OPEN_DEPTH_ALARMS}へ分離。
+	 * PAGE経路(RootBuilder.pageBreak)での深さアラーム発火回数
+	 * ({@code OpenTailShape}の深さが閾値以上になった回数。2026-07-20、
+	 * M6b Phase B着手前の暫定安全策として旧{@code OPEN_CHAIN_DEPTH_ALARMS}
+	 * で導入し、2026-07-21にCOLUMN側と分離)。
 	 */
-	@Deprecated
-	public static final AtomicLong OPEN_CHAIN_DEPTH_ALARMS = new AtomicLong();
-
-	/** PAGE経路(RootBuilder.pageBreak)での深さアラーム発火回数。 */
 	public static final AtomicLong PAGE_OPEN_DEPTH_ALARMS = new AtomicLong();
 
 	/**
@@ -536,12 +520,10 @@ public final class ContinuationStats {
 		// 候補中の異常を握り潰してlegacy再実行してはいけない(codex設計§1.7)
 		if (live()) {
 			(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);
-			MAX_OPEN_TAIL_DEPTH.accumulateAndGet(openDepth, Math::max);
 		}
 		if (openDepth >= OPEN_CHAIN_DEPTH_ALARM_THRESHOLD) {
 			if (live()) {
 				(column ? COLUMN_OPEN_DEPTH_ALARMS : PAGE_OPEN_DEPTH_ALARMS).incrementAndGet();
-				OPEN_CHAIN_DEPTH_ALARMS.incrementAndGet();
 			}
 			final String message = "open ancestor chain depth=" + openDepth + " reached the safety alarm threshold ("
 					+ OPEN_CHAIN_DEPTH_ALARM_THRESHOLD + ") on the " + (column ? "COLUMN" : "PAGE")
@@ -567,7 +549,6 @@ public final class ContinuationStats {
 		OPEN_TAILS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
-		MAX_OPEN_TAIL_DEPTH.set(0);
 		MAX_PAGE_OPEN_TAIL_DEPTH.set(0);
 		MAX_COLUMN_OPEN_TAIL_DEPTH.set(0);
 		RESTYLE_CHAIN_FIRINGS.set(0);
@@ -576,7 +557,6 @@ public final class ContinuationStats {
 		WORKLIST_ELIGIBLE_TERMINALS.set(0);
 		WORKLIST_INELIGIBLE_TERMINALS.set(0);
 		OPEN_CHAIN_TRAILING_ITEMS.set(0);
-		OPEN_CHAIN_DEPTH_ALARMS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
 		for (final AtomicLong counter : CAPABILITY_SCAN_STOPS.values()) {

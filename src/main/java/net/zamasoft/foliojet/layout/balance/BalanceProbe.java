@@ -77,7 +77,8 @@ public final class BalanceProbe {
 
 	/**
 	 * プローブを実行し、winnerが得られればownerへ<b>実採用(commit)</b>
-	 * します(M6c-4で観測→採用へ切替、2026-07-24から常時有効)。
+	 * します(常時有効。オプトインだった旧名{@code adoptIfEnabled}は
+	 * 2026-07-24の常時有効化に伴い改名)。
 	 * {@code AbstractContainerBox.balance()}が既存の容量計算の直後・
 	 * owner変異の前に呼び、trueが返ればlegacy再構築を行わない。
 	 *
@@ -96,7 +97,7 @@ public final class BalanceProbe {
 	 * @return winnerをownerへcommitした場合true(呼び出し側はlegacy
 	 *         balanceを行わない)。不適格・フォールバック時false
 	 */
-	public static boolean adoptIfEnabled(final AbstractContainerBox owner, final BlockBuilder builder,
+	public static boolean adopt(final AbstractContainerBox owner, final BlockBuilder builder,
 			final int columnCount, final double seedCapacity) {
 		if (!LayoutExecutionScope.isLive()) {
 			// 再入ベルト(プローブ中の候補が更にbalanceへ入っても何もしない
