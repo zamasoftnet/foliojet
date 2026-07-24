@@ -67,6 +67,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0330-table-border/collapse-illegal.html", //
 			"0240-table/absolute.html", //
 			"0219-pagebreak-table-inrow/valign-split.html", //
+			"3060-RUBY/ruby-split-through.html", //
 			"0219-pagebreak-table-inrow/valign-split-vert.html", //
 			"0390-writing-mode/border-collapse.html", //
 			"0390-writing-mode/absolute.html", //
