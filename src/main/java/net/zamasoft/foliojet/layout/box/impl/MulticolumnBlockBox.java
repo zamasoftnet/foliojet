@@ -68,6 +68,10 @@ public class MulticolumnBlockBox extends FlowBlockBox {
 					"owner container changed before balance commit");
 		}
 		final net.zamasoft.foliojet.layout.balance.BalanceCandidate winner = commit.winner();
+		// 2026-07-24(アーキテクチャレビュー指摘): takeContainer(一回制)が
+		// 失敗し得る操作なので、owner変異より先にconsumeする——逆順だと
+		// take失敗時に寸法だけ更新された部分commit状態になる。
+		final Container next = winner.takeContainer();
 		final double capacity = winner.committedCapacity();
 		if (this.getBlockParams().flow.isVertical()) {
 			this.maxPageAxis = this.width = capacity;
@@ -75,7 +79,6 @@ public class MulticolumnBlockBox extends FlowBlockBox {
 			this.maxPageAxis = this.height = capacity;
 		}
 		this.contentSize = capacity;
-		final Container next = winner.takeContainer();
 		this.container = next;
 		if (next instanceof net.zamasoft.foliojet.layout.box.content.ColumnsContainer columns) {
 			columns.adoptBox(this);

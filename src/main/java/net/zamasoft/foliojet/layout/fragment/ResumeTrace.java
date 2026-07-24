@@ -37,9 +37,10 @@ public final class ResumeTrace {
 	 * 入れ子の破断は「nested resume」行として外側にも痕跡を残し、
 	 * 自身は完了時に独立ファイルとして書き出される(完了順の連番)。
 	 */
-	private static final java.util.ArrayDeque<StringBuilder> buffers = new java.util.ArrayDeque<>();
+	private static final ThreadLocal<java.util.ArrayDeque<StringBuilder>> buffers = ThreadLocal
+			.withInitial(java.util.ArrayDeque::new);
 
-	private static int breakCount = 0;
+	private static final java.util.concurrent.atomic.AtomicInteger breakCount = new java.util.concurrent.atomic.AtomicInteger();
 
 	private ResumeTrace() {
 		// utility
@@ -61,13 +62,13 @@ public final class ResumeTrace {
 			// 対になるため、3つを同じ条件でゲートすればスタック整合が保たれる
 			return;
 		}
-		final StringBuilder outer = buffers.peek();
+		final StringBuilder outer = buffers.get().peek();
 		if (outer != null) {
 			outer.append("  nested resume ").append(kind).append('\n');
 		}
 		final StringBuilder buffer = new StringBuilder();
 		buffer.append("resume ").append(kind).append('\n');
-		buffers.push(buffer);
+		buffers.get().push(buffer);
 	}
 
 	/**
@@ -83,7 +84,7 @@ public final class ResumeTrace {
 			// プローブ候補構築中のopを外側(live)のバッファへ混入させない
 			return;
 		}
-		final StringBuilder sb = buffers.peek();
+		final StringBuilder sb = buffers.get().peek();
 		if (sb == null) {
 			return;
 		}
@@ -102,7 +103,7 @@ public final class ResumeTrace {
 			// beginと対称にゲートする(スタック整合)
 			return;
 		}
-		final StringBuilder sb = buffers.poll();
+		final StringBuilder sb = buffers.get().poll();
 		if (sb == null) {
 			return;
 		}
@@ -114,7 +115,7 @@ public final class ResumeTrace {
 			final File d = new File(dir);
 			d.mkdirs();
 			Files.writeString(
-					new File(d, String.format(Locale.ROOT, "break-%04d.txt", ++breakCount)).toPath(),
+					new File(d, String.format(Locale.ROOT, "break-%04d.txt", breakCount.incrementAndGet())).toPath(),
 					sb.toString(), StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			LOG.log(Level.WARNING, "再開トレースをダンプできませんでした", e);
@@ -125,7 +126,7 @@ public final class ResumeTrace {
 	 * テスト用: 連番をリセットします。
 	 */
 	public static void reset() {
-		breakCount = 0;
-		buffers.clear();
+		breakCount.set(0);
+		buffers.get().clear();
 	}
 }

@@ -153,8 +153,16 @@ public final class ContinuationStats {
 	 * {@link ResumeTrace#begin(String)}と同じ「入れ子破断はスタックで
 	 * 表現する」設計だが、こちらはデバッグ用プロパティに関わらず常に
 	 * 有効(観測カウンタの分類に使うため)。
+	 *
+	 * <p>
+	 * 2026-07-24(アーキテクチャレビュー指摘): staticな単一Dequeだと
+	 * 複数変換の並行実行でpush/popが混線し、誤集計だけでなく空Dequeの
+	 * {@code pop()}例外で変換を落とし得るため、ThreadLocalへ変更した
+	 * (クラッシュ排除は絶対要件)。
+	 * </p>
 	 */
-	private static final ArrayDeque<Boolean> continuationPathStack = new ArrayDeque<>();
+	private static final ThreadLocal<ArrayDeque<Boolean>> continuationPathStack = ThreadLocal
+			.withInitial(ArrayDeque::new);
 
 	/**
 	 * 継続経路の追跡を開始します。{@code RootBuilder.ResumeSession.resume()}・
@@ -164,16 +172,16 @@ public final class ContinuationStats {
 	 * @param column true なら改段(COLUMN)経路、false なら改ページ(PAGE)経路
 	 */
 	public static void beginContinuationPath(final boolean column) {
-		continuationPathStack.push(column);
+		continuationPathStack.get().push(column);
 	}
 
 	/** {@link #beginContinuationPath(boolean)}に対応する終了。 */
 	public static void endContinuationPath() {
-		continuationPathStack.pop();
+		continuationPathStack.get().pop();
 	}
 
 	private static boolean isColumnPath() {
-		final Boolean top = continuationPathStack.peek();
+		final Boolean top = continuationPathStack.get().peek();
 		return top != null && top;
 	}
 
