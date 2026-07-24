@@ -157,6 +157,28 @@ public final class TotalFitProjection {
 		boolean anyCandidate = false;
 
 		final int n = pieces.size();
+		// 「行末確定」の空白(そこから先、LineFeedまたは列末尾まで幅のある
+		// 材料・flushが一切ない空白)は幅0のGlueにする。この空白は候補に
+		// ならず(forbiddenガード付き)、必ず強制改行・段落末の行末に落ちる
+		// ——legacyのTextBuilderは行末空白をつぶすため、幅を算入すると
+		// 「実際にはちょうど収まる行」がK-Pには溢れて見え、1つ手前の候補へ
+		// 改行が systematically ずれる(HTMLは閉じタグ前の改行由来の末尾
+		// 空白が極めて一般的。E-2で発覚)。
+		final boolean[] lineFinal = new boolean[n];
+		{
+			boolean finalRun = true;
+			for (int i = n - 1; i >= 0; --i) {
+				switch (pieces.get(i)) {
+				case Piece.Space space -> lineFinal[i] = finalRun;
+				case Piece.LineFeed lf -> finalRun = true;
+				// Flushは幅のない候補マーカーなので行末確定性を変えない
+				// (段落末尾の[Space, Flush]の空白も行末確定)
+				case Piece.Flush flush -> {
+				}
+				default -> finalRun = false;
+				}
+			}
+		}
 		for (int i = 0; i < n; ++i) {
 			switch (pieces.get(i)) {
 			case Piece.Box box -> {
@@ -192,12 +214,13 @@ public final class TotalFitProjection {
 					// flushを伴わない空白(nowrap等)・行頭の空白:
 					// 分割禁止のGlue。materialは変えない(空白だけでは
 					// 後続flushをbreakpoint候補にしない=空白のみの行を
-					// 作らない)
+					// 作らない)。行末確定の空白は幅0(上のlineFinal注記)
+					final double w = lineFinal[i] ? 0 : space.width();
 					nodes.add(BreakNode.Penalty.forbidden());
 					ordinals.add(-1);
-					nodes.add(new BreakNode.Glue(space.width(), space.width() * 0.5, 0));
+					nodes.add(new BreakNode.Glue(w, w * 0.5, 0));
 					ordinals.add(-1);
-					unbreakable += space.width();
+					unbreakable += w;
 				}
 			}
 

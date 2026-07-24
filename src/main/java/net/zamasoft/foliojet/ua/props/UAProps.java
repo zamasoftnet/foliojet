@@ -484,31 +484,32 @@ public final class UAProps {
 			"processing.large-stack-thread.size", 64 * 1024 * 1024);
 
 	/**
-	 * 行分割の戦略です(既定{@code "legacy"}、2026-07-23新設、M3c増分3)。
+	 * 行分割の戦略です(既定{@code "optimized"}。2026-07-23新設(M3c増分3、
+	 * 当初既定legacy)、2026-07-24に既定反転(E-2))。
 	 *
 	 * <p>
-	 * 既定が{@code "legacy"}のままなのは<b>性能上の理由のみ</b>
-	 * (copper3.2互換は2026-07-24に廃止済みで、互換は理由ではない)。
-	 * optimized既定化の初回試行でコーパス実測のハング級遅延が発覚し、
-	 * pdfg2d TotalFitへのdeactivation実装(第1歩、対処済み)後も
-	 * 射影側の計測コストに未解明の遅延が残るため、性能ハードニングと
-	 * コーパス全体の性能検証を終えてから既定を反転する。
+	 * 既定をoptimizedへ反転できたのは、性能ハードニング(E-2)で
+	 * ハング級遅延の原因をpdfg2d {@code TotalFit}のactiveリスト増殖
+	 * (支配判定の全走査・行番号発散・割り当て過多)と特定し修正した
+	 * ため——最悪ケース(400段落の和文密justify)実測で406s→2.9s。
+	 * 互換は考慮しない(copper3.2互換は2026-07-24廃止済み)。
 	 * </p>
 	 *
 	 * <p>
-	 * 値は{@code "legacy"}(従来の貪欲法)または{@code "optimized"}
-	 * (Knuth-Plass全体最適、experimental)。{@code "optimized"}を指定すると、
-	 * 適格な段落(排除域=floatの非関与・タブなし・インライン置換要素/
-	 * インラインブロック/ルビ/インライン絶対配置なし・
-	 * {@code white-space: pre/pre-wrap}でない・横書き・改ページ再開でない・
-	 * イベント数上限以下など)に限り、pdfg2dの{@code TotalFit}が段落全体の
-	 * demeritsを最小化するbreakpoint列を選択する。物理的な行の生成
-	 * (禁則・ハイフン実体化・インライン再生成・justification)はすべて
-	 * 従来の{@code TextBuilder}が行い、不適格な段落は従来の貪欲法へ
-	 * フォールバックする。不正な値は{@code "legacy"}として扱われる。
+	 * 値は{@code "optimized"}(Knuth-Plass全体最適)または{@code "legacy"}
+	 * (従来の貪欲法)。{@code "optimized"}では、適格な段落(排除域=float
+	 * の非関与・タブなし・インライン置換要素/インラインブロック/ルビ/
+	 * インライン絶対配置なし・{@code white-space: pre/pre-wrap}でない・
+	 * 横書き・改ページ再開でない・イベント数上限以下など)に限り、
+	 * pdfg2dの{@code TotalFit}が段落全体のdemeritsを最小化する
+	 * breakpoint列を選択する。物理的な行の生成(禁則・ハイフン実体化・
+	 * インライン再生成・justification)はすべて従来の{@code TextBuilder}が
+	 * 行い、不適格な段落は従来の貪欲法へフォールバックする。
+	 * {@code "optimized"}以外の値(不正な値を含む)は{@code "legacy"}として
+	 * 扱われる。
 	 * </p>
 	 */
-	public static final StringPropManager TEXT_LINE_BREAKER = new StringPropManager("text.line-breaker", "legacy");
+	public static final StringPropManager TEXT_LINE_BREAKER = new StringPropManager("text.line-breaker", "optimized");
 
 	/**
 	 * ファイルIDです。

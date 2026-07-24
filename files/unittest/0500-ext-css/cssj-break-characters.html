@@ -1,3 +1,8 @@
+<?jp.cssj.property name="text.line-breaker" value="legacy"?>
+<!-- text.line-breaker=legacy固定: このテストは「break-charactersで許可した
+     分割点が実際に選ばれる」座標を検証する。K-P(optimized)は同じ候補
+     集合から別の合法解を選び得るため、貪欲法の決定的挙動へ固定する
+     (候補集合自体はflush生成=TextBuilder側の禁則判定で両モード共通) -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
 <head>
