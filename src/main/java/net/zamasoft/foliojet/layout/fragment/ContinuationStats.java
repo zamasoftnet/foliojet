@@ -314,6 +314,46 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * {@code Floatings.splitPageAxis}のshadow比較(排除域P2のP2-2、
+	 * 2026-07-24新設)で、純判定({@code FloatSplitPlan.classify})の分類と
+	 * 実際の実行結果が一致した1float分の回数です。比較対象は限定される
+	 * (codex設計§2.4)——{@code SplitOnCommit}はbox splitの結果を予言
+	 * しないため、実行結果がKeep/Move/Splitのどれでも一致扱い。
+	 */
+	public static final AtomicLong FLOAT_SPLIT_PLAN_MATCHES = new AtomicLong();
+
+	/**
+	 * 同shadow比較の不一致回数です(分類がKEEP/MOVEなのに実行結果が
+	 * 異なった場合のみ)。挙動保存の証明ではなく移植の補助証拠
+	 * (codex設計§2.4/§2.5)——0でない場合は純判定がloop外変数の暗黙状態を
+	 * 見落としている強いシグナルであり、P2-3(実行の計画駆動化)へ進んでは
+	 * ならない。
+	 */
+	public static final AtomicLong FLOAT_SPLIT_PLAN_MISMATCHES = new AtomicLong();
+
+	/**
+	 * shadow比較の1float分の結果を集計します(P2-2)。不一致は
+	 * WARNINGログにも出す——imageTest等の別プロセス実行でも不一致が
+	 * ログから観測できるようにするため。
+	 *
+	 * @param match          一致したか
+	 * @param mismatchDetail 不一致時の詳細(遅延評価。一致時は評価されない)
+	 */
+	public static void recordFloatSplitPlanComparison(final boolean match,
+			final java.util.function.Supplier<String> mismatchDetail) {
+		if (!live()) {
+			return;
+		}
+		if (match) {
+			FLOAT_SPLIT_PLAN_MATCHES.incrementAndGet();
+		} else {
+			FLOAT_SPLIT_PLAN_MISMATCHES.incrementAndGet();
+			java.util.logging.Logger.getLogger(ContinuationStats.class.getName())
+					.warning("FLOAT_SPLIT_PLAN mismatch: " + mismatchDetail.get());
+		}
+	}
+
 	/** worklist executorの適格/不適格terminalの集計です(M6c-1でAPI集約)。 */
 	public static void recordWorklistTerminal(final boolean eligible) {
 		if (live()) {
@@ -616,6 +656,8 @@ public final class ContinuationStats {
 		BALANCE_PROBE_FALLBACKS.set(0);
 		BALANCE_PROBE_BUILDS.set(0);
 		BALANCE_PROBE_COMMITS.set(0);
+		FLOAT_SPLIT_PLAN_MATCHES.set(0);
+		FLOAT_SPLIT_PLAN_MISMATCHES.set(0);
 		CHILD_FRAMES.set(0);
 		CHAIN_MEMBER_KEEP.set(0);
 		CHAIN_MEMBER_MOVE.set(0);

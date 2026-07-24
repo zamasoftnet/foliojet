@@ -132,6 +132,22 @@ public class Floatings {
 	}
 
 	/**
+	 * 全floatの実測値を元順序で採取します(2026-07-24、P2-1。読み取り専用
+	 * ——このリストにもボックスにも一切影響しない)。ordinalは採取時点の
+	 * 安定序数(=このリストのindex)である。
+	 *
+	 * @param ownerFlow ownerの書字方向
+	 * @return 実測値のリスト(変更不可)
+	 */
+	public List<FloatMeasurement> measure(final net.zamasoft.foliojet.layout.box.params.WritingMode ownerFlow) {
+		final List<FloatMeasurement> measurements = new ArrayList<>(this.floatings.size());
+		for (int i = 0; i < this.floatings.size(); ++i) {
+			measurements.add(FloatMeasurement.of(i, (Floating) this.floatings.get(i), ownerFlow));
+		}
+		return java.util.Collections.unmodifiableList(measurements);
+	}
+
+	/**
 	 * 浮動ボックスをページ分割します。全て前ページに残す場合はnull, 全て送る場合は自分自身を返します。
 	 */
 	public Floatings splitPageAxis(final AbstractContainerBox box, final double pageLimit, final byte flags) {
@@ -146,6 +162,14 @@ public class Floatings {
 			}
 		}
 		final boolean vertical = box.getBlockParams().flow.isVertical();
+		// 2026-07-24(P2-2): shadow配線——入口で入力をfinal snapshot化し
+		// (codex設計§2.5)、純判定(FloatSplitPlan.classify)の分類と実際の
+		// 実行結果を突き合わせて一致カウンタへ記録する。既存分岐には一切
+		// 影響しない(読み取り専用)。ordinal(安定序数)はlist index `i`
+		// と別に数える——`i`はremove/--iで変異するため。
+		final int originalFloatCount = this.floatings.size();
+		final FloatSplitPlan shadowPlan = FloatSplitPlan.planDirect(this, box.getBlockParams().flow, pageLimit, flags);
+		int ordinal = 0;
 		Floatings nextFloatings = this;
 		// 浮動体
 		for (int i = 0; i < this.floatings.size(); ++i) {
@@ -199,6 +223,25 @@ public class Floatings {
 					throw new IllegalStateException(floating.box.toString());
 				}
 			}
+			// 2026-07-24(P2-2): 純判定と実行結果の突き合わせ(比較対象の
+			// 限定——codex設計§2.4。SplitOnCommitはbox splitの結果を予言
+			// しないため、実行結果がKeep/Move/Splitのどれでも一致扱い。
+			// 分類がKEEP/MOVEなのに実行が異なる場合のみ不一致)。この時点の
+			// `floating`はまだ元のFloating(SPLIT時の差し替えは後段)。
+			{
+				final Floating shadowFloating = floating;
+				final FloatSplitPlan.FloatItemPlan itemPlan = shadowPlan.direct().get(ordinal);
+				++ordinal;
+				final boolean planMatch = switch (itemPlan) {
+				case FloatSplitPlan.FloatItemPlan.Keep keep -> nextBox == null;
+				case FloatSplitPlan.FloatItemPlan.Move move -> nextBox == shadowFloating.box;
+				case FloatSplitPlan.FloatItemPlan.SplitOnCommit splitOnCommit -> true;
+				};
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordFloatSplitPlanComparison(planMatch,
+						() -> "serial=" + shadowFloating.serial + " plan=" + itemPlan + " actual="
+								+ (nextBox == null ? "KEEP" : nextBox == shadowFloating.box ? "MOVE" : "SPLIT")
+								+ " pageLimit=" + pageLimit + " flags=" + flags);
+			}
 			if (nextFloatings == this) {
 				if (nextBox == floating.box) {
 					continue;
@@ -228,6 +271,8 @@ public class Floatings {
 			}
 			nextFloatings.floatings.add(floating);
 		}
+		assert ordinal == originalFloatCount : "shadow ordinal (" + ordinal + ") != originalFloatCount ("
+				+ originalFloatCount + ")";
 		assert !(nextFloatings != null && nextFloatings.floatings.isEmpty());
 		return nextFloatings;
 	}
