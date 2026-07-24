@@ -110,6 +110,14 @@ public final class LayoutSource {
 	private long nextId = 0;
 
 	/**
+	 * E-6増分2(2026-07-24): 追記イベントのshadow観測フック(テスト
+	 * 専用、LayoutSourceTestHooks経由で設定)。production経路では常に
+	 * null——nullのときの挙動は増分前と完全に同一。レイアウトが別
+	 * スレッドで走る構成(large stack)があるためvolatile。
+	 */
+	static volatile java.util.function.Consumer<Event> appendObserver;
+
+	/**
 	 * イベントを追記し、その EventId を返します。
 	 */
 	public long append(final Event event) {
@@ -117,6 +125,11 @@ public final class LayoutSource {
 		this.entries.add(new Entry(id, event));
 		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
+		// E-6増分2(2026-07-24): shadow観測のみ(挙動不変)
+		final java.util.function.Consumer<Event> observer = appendObserver;
+		if (observer != null) {
+			observer.accept(event);
+		}
 		return id;
 	}
 
