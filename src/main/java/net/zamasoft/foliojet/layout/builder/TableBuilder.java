@@ -51,4 +51,16 @@ public interface TableBuilder {
 	 */
 	public default void afterEnterTrack(TableBuilderHost host) {
 	}
+
+	/**
+	 * セル/キャプションのコンテナビルダーが閉じた直後(録画完了点)に
+	 * 呼ばれます(E-6増分5a、2026-07-24)。Retained実装は、適格なセル本文を
+	 * 「IntrinsicSizes数値+LayoutSource範囲参照(+lease)」保持へ
+	 * seal(records解放)する。既定はno-op(Incremental表のセルは対象外——
+	 * 保持窓が行単位で短く、close前ピークの縮小は別増分で扱う)。
+	 *
+	 * @param cellBuilder 閉じたセル/キャプションのコンテナビルダー
+	 */
+	public default void sealCellContext(Builder cellBuilder) {
+	}
 }

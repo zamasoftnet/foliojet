@@ -69,8 +69,13 @@ public class TwoPassRangeBindParityTest extends TestCase {
 
 	/**
 	 * 対象文書。表外float(shrink-to-fit・ネスト・改ページ再生との相互
-	 * 作用)・inline-block(置換要素含む)・絶対配置(不適格計上の実測)を
-	 * カバーする。
+	 * 作用)・inline-block(置換要素含む)・絶対配置(不適格計上の実測)、
+	 * E-6増分5aからはRetained表のセル(rowspan・%行高・thead反復+改ページ・
+	 * rowspanのページ跨ぎ分割・縦書き+つぶし境界・直交セル)もカバーする
+	 * (kill switchはセルsealも同時に無効化するため、baseline側は従来の
+	 * records再演になる)。キャプション付きの表はこのコーパスへ入れない
+	 * こと——キャプションはOpaque記録のためNO_RANGE==0の固定が壊れる
+	 * (セル自身はTABLE_CELL recipe記録のためNO_RANGEにならない)。
 	 */
 	private static final String[] DOCUMENTS = { //
 			"0120-float/auto-width.html", //
@@ -82,6 +87,11 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			"0380-inline-block/inline-block-in-absolute.html", //
 			"0170-position/absolute-in-inline.html", //
 			"0460-segment-restyle/float-split-in-chain.html", //
+			"0242-table-height/percent-rowspan-groups.html", //
+			"0217-pagebreak-table-row-group/020-HEADER.html", //
+			"0218-pagebreak-table-span/090-ROWSPAN.html", //
+			"0390-writing-mode/border-collapse.html", //
+			"0390-writing-mode/hriz-cell-in-vert.html", //
 	};
 
 	/**
@@ -97,6 +107,8 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		final List<String> failures = new ArrayList<>();
 		long rangeBinds = 0;
 		long sealsEligible = 0;
+		long cellSeals = 0;
+		long cellRangeBinds = 0;
 		final Map<ContinuationStats.TwoPassSealReject, Long> rejects = new EnumMap<>(
 				ContinuationStats.TwoPassSealReject.class);
 		for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
@@ -124,12 +136,16 @@ public class TwoPassRangeBindParityTest extends TestCase {
 					ContinuationStats.RANGE_FIRST_BINDS.get());
 			assertEquals(doc + ": kill switch下でsealが適格になってはならない", 0,
 					ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get());
+			assertEquals(doc + ": kill switch下でセルsealが発火してはならない(E-6増分5a)", 0,
+					ContinuationStats.CELL_RANGE_SEALS.get());
 
 			// range bind(4bのproduction既定)
 			ContinuationStats.reset();
 			this.dump(doc, name + "-range", rangeDir, lineBreaker, true);
 			rangeBinds += ContinuationStats.RANGE_FIRST_BINDS.get();
 			sealsEligible += ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get();
+			cellSeals += ContinuationStats.CELL_RANGE_SEALS.get();
+			cellRangeBinds += ContinuationStats.CELL_RANGE_BINDS.get();
 			for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
 				rejects.merge(r, ContinuationStats.twoPassSealRejects(r), Long::sum);
 			}
@@ -161,6 +177,11 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		// 自体が4eの適格化の証拠になるため0を固定する
 		assertTrue("range bindが一度も発火していません", rangeBinds > 0);
 		assertTrue("seal適格(records解放)が一度も発火していません", sealsEligible > 0);
+		// E-6増分5a: 表セルのrange化がこのコーパスで実際に発火し、seal数と
+		// bind数が一致する(リース1:1——取り残しはcompactを永久にclampする)
+		assertTrue("表セルのrange seal(E-6増分5a)が一度も発火していません", cellSeals > 0);
+		assertEquals("セルseal数とセルrange bind数が一致しません(セルのリース取り残しの疑い)", cellSeals,
+				cellRangeBinds);
 		assertEquals("絶対配置のrecipe記録化(4e)後、このコーパスでNO_RANGEは残らないはずです", 0,
 				(long) rejects.get(ContinuationStats.TwoPassSealReject.NO_RANGE));
 		assertTrue("ネストビルダーの不適格(NESTED_BUILDER)が計上されていません",
@@ -173,6 +194,8 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		s.append("[E-6 two-pass range bind]\n");
 		s.append("  RANGE_FIRST_BINDS=").append(rangeBinds).append('\n');
 		s.append("  TWO_PASS_SEALS_ELIGIBLE=").append(sealsEligible).append('\n');
+		s.append("  CELL_RANGE_SEALS=").append(cellSeals).append('\n');
+		s.append("  CELL_RANGE_BINDS=").append(cellRangeBinds).append('\n');
 		for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
 			total += rejects.get(r);
 			s.append("  REJECT_").append(r).append('=').append(rejects.get(r)).append('\n');

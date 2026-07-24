@@ -52,6 +52,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 		final int bodyRows = 200;
 		final int columns = 6;
 		final long autoBefore = TableBuildStats.retentionReasonCount(TableRetentionReason.AUTO_COLUMNS);
+		final long cellSealsBefore = ContinuationStats.CELL_RANGE_SEALS.get();
+		final long cellRangeBindsBefore = ContinuationStats.CELL_RANGE_BINDS.get();
 		final File doc = generateAutoTable("e6-hw-auto-table", bodyRows, columns);
 		this.transcode(doc, "e6-hw-auto-table", 1);
 
@@ -79,6 +81,19 @@ public class RetentionHighWaterReportTest extends TestCase {
 				TableBuildStats.TWO_PASS_NEST_DEPTH_HIGH_WATER.get() >= 1);
 		assertTrue("LayoutSourceイベント数のhigh-waterが観測されていません",
 				ContinuationStats.SOURCE_EVENT_HIGH_WATER.get() > 0);
+
+		// E-6増分5a: セルclose時のrange sealがこの表の全実セル規模で発火し
+		// (プレーンテキストセルは全て適格のはず)、seal数とbind数が一致する
+		// (リース1:1)。kill switch(foliojet.noTwoPassRangeBind)下では
+		// sealが起きないため検証をスキップする
+		if (!Boolean.getBoolean("foliojet.noTwoPassRangeBind")) {
+			final long cellSeals = ContinuationStats.CELL_RANGE_SEALS.get() - cellSealsBefore;
+			final long cellRangeBinds = ContinuationStats.CELL_RANGE_BINDS.get() - cellRangeBindsBefore;
+			assertTrue("セルrange seal(E-6増分5a)がauto表の実セル規模で発火していません: " + cellSeals,
+					cellSeals >= bodyRows);
+			assertEquals("セルseal数とセルrange bind数が一致しません(リース取り残しの疑い)", cellSeals,
+					cellRangeBinds);
+		}
 
 		report();
 	}
@@ -118,6 +133,11 @@ public class RetentionHighWaterReportTest extends TestCase {
 				.append(TableBuildStats.RETAINED_REPEATED_FOOTER_ROW_HIGH_WATER.get()).append('\n');
 		s.append("  RETAINED_COLSPAN_CONSTRAINT_HIGH_WATER=")
 				.append(TableBuildStats.RETAINED_COLSPAN_CONSTRAINT_HIGH_WATER.get()).append('\n');
+		s.append("  RETAINED_CELL_GLYPH_HIGH_WATER=").append(TableBuildStats.RETAINED_CELL_GLYPH_HIGH_WATER.get())
+				.append('\n');
+		s.append("  CELL_RANGE_SEALS=").append(ContinuationStats.CELL_RANGE_SEALS.get()).append('\n');
+		s.append("  CELL_RANGE_BINDS=").append(ContinuationStats.CELL_RANGE_BINDS.get()).append('\n');
+		s.append("  CELL_LEGACY_BINDS=").append(ContinuationStats.CELL_LEGACY_BINDS.get()).append('\n');
 		for (final TableRetentionReason reason : TableRetentionReason.values()) {
 			s.append("  RETENTION_REASON_").append(reason).append('=')
 					.append(TableBuildStats.retentionReasonCount(reason)).append('\n');

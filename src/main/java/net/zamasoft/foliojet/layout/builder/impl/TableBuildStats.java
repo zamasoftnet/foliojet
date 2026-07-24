@@ -108,6 +108,14 @@ public final class TableBuildStats {
 	}
 
 	/**
+	 * Retained 1表あたりの、表終端(prepareLayout)時点でセルのrecordsが
+	 * 現に保持しているglyph数合計のhigh-water(E-6増分5a、2026-07-24)。
+	 * セルrange化(seal)の効果の直接の実測——sealされたセルは0を寄与する
+	 * ため、全セル適格ならこの値は0のまま。挙動には影響しない。
+	 */
+	public static final AtomicLong RETAINED_CELL_GLYPH_HIGH_WATER = new AtomicLong();
+
+	/**
 	 * TwoPassBlockBuilder 1ビルダーあたりのrecords要素数のhigh-water。
 	 * E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤。挙動には影響しない。
 	 */
@@ -174,6 +182,14 @@ public final class TableBuildStats {
 	/** {@code reason}によるRetainedルーティングの発生回数(E-6増分1)。 */
 	public static long retentionReasonCount(final TableRetentionReason reason) {
 		return RETENTION_REASON_COUNTS.get(reason).get();
+	}
+
+	/**
+	 * Retained表の表終端時点のセルrecords保持glyph数合計を報告します
+	 * (E-6増分5a、最大値を保持)。
+	 */
+	public static void reportRetainedCellGlyphRetention(final long glyphs) {
+		RETAINED_CELL_GLYPH_HIGH_WATER.accumulateAndGet(glyphs, Math::max);
 	}
 
 	/** TwoPassBlockBuilderのrecords保持数を報告します(E-6増分1、最大値を保持)。 */

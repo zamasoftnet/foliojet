@@ -547,7 +547,13 @@ public class DocumentBuilder implements TableBuilderHost {
 			// テーブルセル
 			// キャプション
 			this.endContainer();
-			this.endContainerBuilder();
+			final ContainerBuilderEntry entry = this.endContainerBuilder();
+			// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
+			// (Retained実装のみ。適格ならCellContentがrecords解放+
+			// range+lease保持へ切り替わる。キャプションはOpaque記録
+			// (StyleBuilder.boxKindがTableCaptionPosでnull)のためsealは
+			// 構造的に不適格——実装側はセル以外を無視する)
+			this.tableBuilder().sealCellContext(entry.builder);
 			assert this.builderStack.size() != 1;
 		}
 			break;

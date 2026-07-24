@@ -139,10 +139,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	/**
-	 * deferred absolute(position:absolute、ページ末bind)のための
 	 * seal済み本文の持ち出し形です(E-6増分4e、2026-07-24——codex設計
 	 * §3.2の増分4e「AbsoluteBlockBoxのTwoPassBlockBuilder保持を
-	 * DeferredBind {sizes; range; lease}相当へ置換」)。
+	 * DeferredBind {sizes; range; lease}相当へ置換」)。持ち主は2種:
+	 * deferred absolute(position:absolute、ページ末bind——
+	 * {@code AbsoluteBlockBox})と、Retained表のseal済みセル
+	 * (E-6増分5a——{@code CellContent}。表終端の列幅確定後bind)。
 	 *
 	 * <p>
 	 * ビルダー自体を{@code AbsoluteBlockBox}が保持し続けると、
@@ -168,9 +170,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * 絶対配置を含む部分木はソース再生で置換されない
 	 * ({@code LayoutSource.containsAbsolute}ゲート)ため箱は必ず
 	 * box-restyleで運搬され、ページ末の{@code finishLayoutSelf}が
-	 * 必ずbindする。この1:1は既存の検出器
-	 * (DisplayListGoldenTestの TWO_PASS_SEALS_ELIGIBLE ==
-	 * RANGE_FIRST_BINDS assert)が監視する。
+	 * 必ずbindする。セル(E-6増分5a)は{@code CellContent}のjavadoc参照
+	 * (表終端の一括bindが全実セルを必ず一度bindする)。この1:1は既存の
+	 * 検出器(DisplayListGoldenTestの TWO_PASS_SEALS_ELIGIBLE ==
+	 * RANGE_FIRST_BINDS assert+セル専用のCELL_RANGE_SEALS ==
+	 * CELL_RANGE_BINDS assert)が監視する。
 	 * </p>
 	 */
 	public static final class DeferredBind {
@@ -641,7 +645,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * 適格(seal済み={@code SourceRangeBody})な場合のみ値を返し、この
 	 * ビルダーは{@code Detached}状態(以後のbindは契約違反)になる。
 	 * 不適格({@code LegacyRecords})ならnull——呼び出し側
-	 * ({@code AbsoluteBlockBox.prepareBind})はfail closedでビルダー保持を
+	 * ({@code AbsoluteBlockBox.prepareBind}・E-6増分5aの
+	 * {@code CellContent.sealForRangeBind})はfail closedでビルダー保持を
 	 * 継続する。
 	 */
 	public DeferredBind detachDeferredBind() {
@@ -920,5 +925,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// seal済み(SourceRangeBody)は適格判定が空範囲を除外しているため
 		// 常に非空(E-6増分4a)
 		return this.body instanceof ReplayBody.LegacyRecords legacy && legacy.records.isEmpty();
+	}
+
+	/**
+	 * recordsが現に保持しているglyph数の概算です(E-6増分5a、2026-07-24。
+	 * Retained表の保持量観測{@code TableBuildStats
+	 * .reportRetainedCellGlyphRetention}専用の読み取り——seal済み
+	 * (records解放済み)は0)。挙動には影響しない。
+	 */
+	long retainedGlyphs() {
+		return this.body instanceof ReplayBody.LegacyRecords ? this.glyphCount : 0;
 	}
 }

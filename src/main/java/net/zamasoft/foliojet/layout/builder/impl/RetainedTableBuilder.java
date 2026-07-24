@@ -101,6 +101,15 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 	private TableCollapsedBorders borders = null;
 
 	/**
+	 * 現在開いているセルのCellContentです(E-6増分5a、2026-07-24)。
+	 * newContext(TABLE_CELL)で設定し、セルclose時の
+	 * {@link #sealCellContext}が消費する。セルは行内で逐次(同時に
+	 * 1つしか開かない)、ネストした表は自分のRetainedTableBuilderを
+	 * 持つため、単一フィールドで足りる。
+	 */
+	private CellContent pendingSealCell = null;
+
+	/**
 	 * 右の境界の中央から左の中央までを基準としたカラムの最小幅、指定幅、推奨幅です。
 	 */
 	private AutoColumnWidths.Result columnWidths;
@@ -268,12 +277,41 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			for (int colspan = cell.colspan; colspan > 1; --colspan) {
 				cells.add(new CellContent(cell.getCellBox(), cell.rowspan, colspan));
 			}
+			// E-6増分5a: セルclose時sealの対象として記憶する
+			this.pendingSealCell = cell;
 		}
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 		return builder;
+	}
+
+	/**
+	 * セルclose(録画完了点)時のrange sealです(E-6増分5a、2026-07-24——
+	 * codex設計§4.2/§4.3)。直前にnewContextで開いたセルのCellContentを、
+	 * 適格なら「IntrinsicSizes数値+SourceRange(+lease)」保持へ切り替え、
+	 * records(TextImpl glyph列・liveボックス)を手放す。適格判定は
+	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}と同一のfail
+	 * closed(セル内の表・float等のネストビルダーはNESTED_BUILDERで
+	 * 不適格)。列幅計算({@link #prepareLayout})へはseal時に確定した
+	 * 模倣計測(IntrinsicMeasurer)の数値がそのまま渡る——tape再読で
+	 * 列幅を出すことはしない。キャプションはOpaque記録のため対象外
+	 * (ビルダー保持を継続。pendingセルなしで呼ばれるためここでは無視)。
+	 */
+	@Override
+	public void sealCellContext(final Builder cellBuilder) {
+		final CellContent cell = this.pendingSealCell;
+		if (cell == null) {
+			// キャプション等、seal対象のセルが開いていないコンテキスト
+			return;
+		}
+		this.pendingSealCell = null;
+		if (cell.isExtended() || cell.getBuilder() != cellBuilder) {
+			// 構造的には起きない(セルは逐次)が、fail closedで無視する
+			return;
+		}
+		cell.sealForRangeBind();
 	}
 
 	/**
@@ -483,7 +521,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 					} else {
 						cellFrame = cellBox.getFrame().getFrameWidth();
 					}
-					final IntrinsicSizes cellSizes = cell.getBuilder().getIntrinsicSizes();
+					// E-6増分5a: seal済みセルはclose時に確定した模倣計測の
+					// スナップショットを読む(従来のビルダー経由読みと同値)
+					final IntrinsicSizes cellSizes = cell.getIntrinsicSizes();
 					double min, des;
 					if (cellParams.flow.isVertical() != this.vertical) {
 						min = des = cellSizes.minPage();
@@ -578,16 +618,22 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		// E-6増分1(2026-07-24): 保持形状のhigh-water観測。spill閾値・
 		// 対象選定の実測基盤(読み取り・max更新のみ、挙動には影響しない)
 		int realCellCount = 0;
+		long retainedCellGlyphs = 0;
 		for (int i = 0; i < cellLists.size(); ++i) {
 			final List<?> cells = cellLists.get(i);
 			for (int j = 0; j < cells.size(); ++j) {
-				if (!((CellContent) cells.get(j)).isExtended()) {
+				final CellContent cell = (CellContent) cells.get(j);
+				if (!cell.isExtended()) {
 					++realCellCount;
+					// E-6増分5a: 表終端時点でrecordsが保持しているglyph数の
+					// 1表合計(seal済みセルは0)。セルrange化の効果の実測
+					retainedCellGlyphs += cell.retainedGlyphs();
 				}
 			}
 		}
 		TableBuildStats.reportRetainedTableShape(rowCount, realCellCount, (long) rowCount * columnCount, headerRowCount,
 				footerRowCount, widths.colspanConstraintCount());
+		TableBuildStats.reportRetainedCellGlyphRetention(retainedCellGlyphs);
 	}
 
 	/**
@@ -906,18 +952,20 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 						if (this.vertical) {
 							cellBox.setHeight(size);
 							if (!cellParams.flow.isVertical()) {
-								cellBox.setWidth(cell.getBuilder().getIntrinsicSizes().maxContent() + cellBox.getFrame().getFrameWidth()
+								cellBox.setWidth(cell.getIntrinsicSizes().maxContent() + cellBox.getFrame().getFrameWidth()
 										+ tableParams.borderSpacingH);
 							}
 						} else {
 							cellBox.setWidth(size);
 							if (cellParams.flow.isVertical()) {
-								cellBox.setHeight(cell.getBuilder().getIntrinsicSizes().maxContent()
+								cellBox.setHeight(cell.getIntrinsicSizes().maxContent()
 										+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
 							}
 						}
+						// E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、
+						// 不適格セルは従来のrecords再演(CellContent.bindが分岐)
 						final BlockBuilder cellBindBuilder = new BlockBuilder(this.layoutStack, cellBox);
-						cell.getBuilder().bind(cellBindBuilder);
+						cell.bind(cellBindBuilder);
 						cellBindBuilder.close();
 
 						this.cellToSource.put(cellBox, rowBox.addTableSourceCell(cellBox));

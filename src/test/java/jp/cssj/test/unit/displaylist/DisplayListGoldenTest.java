@@ -128,12 +128,18 @@ public class DisplayListGoldenTest extends TestCase {
 		}
 		final long seals = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get();
 		final long rangeBinds = net.zamasoft.foliojet.layout.fragment.ContinuationStats.RANGE_FIRST_BINDS.get();
+		final long cellSeals = net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_RANGE_SEALS.get();
+		final long cellRangeBinds = net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_RANGE_BINDS.get();
 		final StringBuilder s = new StringBuilder();
 		s.append("[E-6 two-pass range bind / golden corpus]\n");
 		s.append("  RANGE_FIRST_BINDS=").append(rangeBinds).append('\n');
 		s.append("  LEGACY_RECORD_BINDS=")
 				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_RECORD_BINDS.get()).append('\n');
 		s.append("  TWO_PASS_SEALS_ELIGIBLE=").append(seals).append('\n');
+		s.append("  CELL_RANGE_SEALS=").append(cellSeals).append('\n');
+		s.append("  CELL_RANGE_BINDS=").append(cellRangeBinds).append('\n');
+		s.append("  CELL_LEGACY_BINDS=")
+				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_LEGACY_BINDS.get()).append('\n');
 		long total = seals;
 		for (final net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject r : net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject
 				.values()) {
@@ -149,6 +155,15 @@ public class DisplayListGoldenTest extends TestCase {
 		if (seals != rangeBinds) {
 			failures.add("seal適格数とrange bind数が一致しません(リース取り残しの疑い): seals=" + seals
 					+ ", rangeBinds=" + rangeBinds);
+		}
+		// E-6増分5a: 表セルのrange化の配線検証+リース1:1検出。コーパスは
+		// auto表(0240/0242/0330等)を含むためセルsealが実際に発火する
+		if (cellSeals == 0) {
+			failures.add("表セルのrange seal(E-6増分5a)がgoldenコーパスで一度も発火していません(空虚な緑)");
+		}
+		if (cellSeals != cellRangeBinds) {
+			failures.add("セルseal数とセルrange bind数が一致しません(セルのリース取り残しの疑い): cellSeals="
+					+ cellSeals + ", cellRangeBinds=" + cellRangeBinds);
 		}
 	}
 

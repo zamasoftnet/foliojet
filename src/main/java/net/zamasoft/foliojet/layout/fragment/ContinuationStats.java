@@ -391,6 +391,55 @@ public final class ContinuationStats {
 		}
 	}
 
+	// ---- E-6増分5a(2026-07-24): 表セル(CellContent)range化の発火カウンタ群 ----
+
+	/**
+	 * Retained表のセルclose時sealが適格で、{@code CellContent}が
+	 * 「IntrinsicSizes数値+SourceRange(+lease)」保持へ切り替わった回数
+	 * です(2026-07-24新設、E-6増分5a)。セルのsealは
+	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}を経由するため、
+	 * この値は{@link #TWO_PASS_SEALS_ELIGIBLE}の部分集合。不適格の内訳も
+	 * 同じ{@link #twoPassSealRejects(TwoPassSealReject)}に計上される。
+	 */
+	public static final AtomicLong CELL_RANGE_SEALS = new AtomicLong();
+
+	/**
+	 * seal済みセルのbind(列幅確定後のSegmentExecutor範囲駆動)の回数です
+	 * (E-6増分5a)。{@link #RANGE_FIRST_BINDS}の部分集合。リース1:1検出
+	 * (取り残しはcompactを永久にclampする)のため、
+	 * {@link #CELL_RANGE_SEALS}と常に一致しなければならない——
+	 * DisplayListGoldenTestが固定する。
+	 */
+	public static final AtomicLong CELL_RANGE_BINDS = new AtomicLong();
+
+	/**
+	 * seal不適格のままのRetained表セルのbind(従来のrecords再演)の回数
+	 * です(E-6増分5a。適格率の分母側。Incremental表のセルはこの経路も
+	 * 通らず対象外——保持窓が行単位で短いため別増分)。
+	 */
+	public static final AtomicLong CELL_LEGACY_BINDS = new AtomicLong();
+
+	/** セルrange seal(records解放)の集計です(E-6増分5a)。 */
+	public static void recordCellRangeSeal() {
+		if (live()) {
+			CELL_RANGE_SEALS.incrementAndGet();
+		}
+	}
+
+	/** seal済みセルのrange bindの集計です(E-6増分5a)。 */
+	public static void recordCellRangeBind() {
+		if (live()) {
+			CELL_RANGE_BINDS.incrementAndGet();
+		}
+	}
+
+	/** 不適格セルのrecords bindの集計です(E-6増分5a)。 */
+	public static void recordCellLegacyBind() {
+		if (live()) {
+			CELL_LEGACY_BINDS.incrementAndGet();
+		}
+	}
+
 	/** {@code reason}によるseal不適格の回数です(E-6増分4a/4b)。 */
 	public static long twoPassSealRejects(final TwoPassSealReject reason) {
 		return TWO_PASS_SEAL_REJECTS.get(reason).get();
@@ -658,6 +707,9 @@ public final class ContinuationStats {
 		RANGE_FIRST_BINDS.set(0);
 		LEGACY_RECORD_BINDS.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);
+		CELL_RANGE_SEALS.set(0);
+		CELL_RANGE_BINDS.set(0);
+		CELL_LEGACY_BINDS.set(0);
 		for (final AtomicLong counter : TWO_PASS_SEAL_REJECTS.values()) {
 			counter.set(0);
 		}

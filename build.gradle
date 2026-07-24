@@ -159,6 +159,10 @@ tasks.named('test') {
         // 性能ハーネス(LineBreakerPerfHarness等)の手動実行スイッチ
         systemProperty 'foliojet.perf', System.getProperty('foliojet.perf')
     }
+    if (System.getProperty('foliojet.noTwoPassRangeBind') != null) {
+        // E-6 TwoPass range bindのkill switch(退避・保持量before/after計測用)
+        systemProperty 'foliojet.noTwoPassRangeBind', System.getProperty('foliojet.noTwoPassRangeBind')
+    }
 
     doFirst {
         new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
