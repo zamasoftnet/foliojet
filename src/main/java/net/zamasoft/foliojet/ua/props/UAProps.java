@@ -528,6 +528,25 @@ public final class UAProps {
 	public static final StringPropManager TEXT_LINE_BREAKER = new StringPropManager("text.line-breaker", "optimized");
 
 	/**
+	 * ルビの実装方式です(既定{@code "box"}。2026-07-25新設、F-1試作)。
+	 *
+	 * <p>
+	 * 値は{@code "box"}(従来のインラインブロック亜種の箱によるルビ)
+	 * または{@code "annotation"}(注釈付きテキスト方式——ルビ1単位=
+	 * 親文字列+ふりがな文字列のペアを行内で分割不可の1アイテムとして
+	 * 組む。単位の幅はmax(親文字幅, ふりがな幅)、狭い方は単位内で均等
+	 * 配置。ふりがなは親の半分のフォントサイズ・同フォントで、横書きは
+	 * 行の上側、縦書きは行の右側の<b>行間の余白</b>に描かれ、行送りは
+	 * 変わらない——日本語組版の原則どおり行送りは一定で、行間の確保は
+	 * デザイナー責任(ルビを使う文書はline-heightを広めに取る)。仕様
+	 * 裁定は docs/history/2026-07-25-ruby-annotation-spec-decision.md
+	 * 参照)。{@code "annotation"}以外の値(不正な値を含む)は
+	 * {@code "box"}として扱われる。
+	 * </p>
+	 */
+	public static final StringPropManager TEXT_RUBY = new StringPropManager("text.ruby", "box");
+
+	/**
 	 * ファイルIDです。
 	 */
 	public static final StringPropManager OUTPUT_PDF_FILE_ID = new StringPropManager("output.pdf.file-id", null);
@@ -714,6 +733,7 @@ public final class UAProps {
 			PROCESSING_LARGE_STACK_THREAD_SIZE,
 			PROCESSING_TEXT_SPILL_BUDGET,
 			TEXT_LINE_BREAKER,
+			TEXT_RUBY,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,

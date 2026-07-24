@@ -32,21 +32,26 @@ public class CSSJRuby extends AbstractPrimitivePropertyInfo {
 	public Value getComputedValue(Value value, CSSStyle style) {
 		final byte ruby = ((CSSJRubyValue) value).getRuby();
 		final byte display = Display.get(style);
+		// 注釈付きテキスト方式(text.ruby=annotation、2026-07-25 F-1)では
+		// ルビ要素は通常のINLINEとして流すため、display:inlineでも役割
+		// マーカーを保持する。既定(box)の判定は従来どおり(挙動不変)。
+		final boolean annotationInline = display == DisplayValue.INLINE
+				&& "annotation".equals(net.zamasoft.foliojet.ua.props.UAProps.TEXT_RUBY.getString(style.getUserAgent()));
 		switch (ruby) {
 		case CSSJRubyValue.NONE:
 			break;
 		case CSSJRubyValue.RUBY:
-			if (display != DisplayValue.INLINE_BLOCK) {
+			if (display != DisplayValue.INLINE_BLOCK && !annotationInline) {
 				return CSSJRubyValue.NONE_VALUE;
 			}
 			break;
 		case CSSJRubyValue.RB:
-			if (display != DisplayValue.BLOCK) {
+			if (display != DisplayValue.BLOCK && !annotationInline) {
 				return CSSJRubyValue.NONE_VALUE;
 			}
 			break;
 		case CSSJRubyValue.RT:
-			if (display != DisplayValue.BLOCK) {
+			if (display != DisplayValue.BLOCK && !annotationInline) {
 				return CSSJRubyValue.NONE_VALUE;
 			}
 			break;

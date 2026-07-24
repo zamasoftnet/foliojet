@@ -58,6 +58,16 @@ public class StyledTextUnitizer {
 
 	private TextShaper textShaper = null;
 
+	/**
+	 * 注釈付きテキスト方式のルビ単位バッファです(2026-07-25、F-1試作)。
+	 * ルビコンテナ({@code rubyRole == RUBY_CONTAINER}のINLINE)の開始で
+	 * 生成され、コンテナ終了で単位を配達して破棄されます。非null中は
+	 * ルビ範囲内のインライン・文字イベントを横取りします。既定
+	 * ({@code text.ruby=box})ではrubyRoleが立たないため常にnullで
+	 * 挙動不変です。
+	 */
+	private RubyUnitCollector rubyCollector = null;
+
 	public StyledTextUnitizer(Builder builder) {
 		this.builder = builder;
 	}
@@ -146,6 +156,13 @@ public class StyledTextUnitizer {
 	}
 
 	public void endContainer() {
+		if (this.rubyCollector != null) {
+			// 防御: コンテナが閉じる前にルビが閉じていない(malformed)場合は
+			// たまった単位をその場で配達して混線を避ける(F-1)
+			final RubyUnitCollector collector = this.rubyCollector;
+			this.rubyCollector = null;
+			this.emitRubyUnits(collector);
+		}
 		final AbstractTextParams params = (AbstractTextParams) this.textParamsStack
 				.remove(this.textParamsStack.size() - 1);
 		if (this.textShaper != null) {
@@ -162,6 +179,19 @@ public class StyledTextUnitizer {
 	}
 
 	public void startInline(InlineBox inlineBox) {
+		final AbstractTextParams inlineParams = inlineBox.getInlineParams();
+		if (this.rubyCollector != null) {
+			// ルビ範囲内のマークアップは無視して深さだけ数える(F-1)
+			this.rubyCollector.startInline(inlineParams.rubyRole);
+			return;
+		}
+		if (inlineParams.rubyRole == AbstractTextParams.RUBY_CONTAINER) {
+			// ルビコンテナの開始: 以降の文字を単位バッファへためる。
+			// コンテナ自身のインラインボックスは行へ流さない(単位が
+			// 内容を丸ごと置き換える)
+			this.rubyCollector = new RubyUnitCollector((net.zamasoft.foliojet.layout.box.params.InlineParams) inlineParams);
+			return;
+		}
 		AbstractContainerBox containerBox = this.gh.builder.getFlowBox();
 		inlineBox.firstPassLayout(containerBox);
 		this.requireTextShaper();
@@ -177,6 +207,15 @@ public class StyledTextUnitizer {
 	}
 
 	public void endInline() {
+		if (this.rubyCollector != null) {
+			if (this.rubyCollector.endInline()) {
+				// ルビコンテナの終了: 確定した単位を配達する
+				final RubyUnitCollector collector = this.rubyCollector;
+				this.rubyCollector = null;
+				this.emitRubyUnits(collector);
+			}
+			return;
+		}
 		// ブロックでインラインが寸断されて復帰した直後にインラインが終わるときに、ここを実行する
 		this.requireTextShaper();
 
@@ -189,6 +228,10 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineReplaced(AbstractReplacedBox inlineReplacedBox) {
+		if (this.rubyCollector != null) {
+			// ルビ単位内は文字のみ(仕様)——置換要素は捨てる(F-1)
+			return;
+		}
 		this.requireTextShaper();
 		Quad quad = InlineQuad.createReplacedBoxQuad(inlineReplacedBox);
 		this.textShaper.control(quad);
@@ -196,6 +239,10 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineBlock(InlineBlockBox inlineBlockBox) {
+		if (this.rubyCollector != null) {
+			// ルビ単位内は文字のみ(仕様)——インラインブロックは捨てる(F-1)
+			return;
+		}
 		this.requireTextShaper();
 		final Quad quad = InlineQuad.createInlineBlockBoxQuad(inlineBlockBox);
 		this.textShaper.control(quad);
@@ -203,13 +250,41 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineAbsolute(final IAbsoluteBox absoluteBox) {
+		if (this.rubyCollector != null) {
+			// ルビ単位内は文字のみ(仕様)——絶対配置は捨てる(F-1)
+			return;
+		}
 		this.requireTextShaper();
 		final Quad quad = InlineQuad.createInlineAbsoluteBoxQuad(absoluteBox);
 		this.textShaper.control(quad);
 	}
 
+	/**
+	 * ルビコンテナ1個分の確定済み単位列を、atomic inline
+	 * ({@code RubyUnitBox}をインラインブロック扱いのquadに載せる)として
+	 * 下流へ配達します(2026-07-25、F-1)。
+	 */
+	private void emitRubyUnits(final RubyUnitCollector collector) {
+		for (final RubyUnitCollector.PendingUnit unit : collector.units()) {
+			final net.zamasoft.foliojet.layout.box.impl.RubyUnitBox box = net.zamasoft.foliojet.layout.box.impl.RubyUnitBox
+					.create(collector.containerParams(), unit.baseText(), unit.baseOffset(), unit.rubyText(),
+							unit.rubyOffset());
+			if (box == null) {
+				continue;
+			}
+			this.requireTextShaper();
+			this.textShaper.control(InlineQuad.createInlineBlockBoxQuad(box));
+			this.followingChar = 'x';
+		}
+	}
+
 	public void characters(int charOffset, char[] ch, final int off, final int len, boolean lineFeed) {
 		assert len > 0;
+		if (this.rubyCollector != null) {
+			// ルビ範囲内の文字は単位バッファへためる(F-1)
+			this.rubyCollector.characters(charOffset, ch, off, len);
+			return;
+		}
 		final AbstractTextParams params = this.getTextParams();
 
 		// テキスト処理

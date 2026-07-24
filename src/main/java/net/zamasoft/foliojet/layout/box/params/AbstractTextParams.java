@@ -47,6 +47,35 @@ public abstract class AbstractTextParams extends Params {
 	public static final byte DECORATION_LINE_THROUGH = 0x04;
 
 	/**
+	 * ルビ役割なし(既定)です(2026-07-25、F-1注釈付きテキスト方式)。
+	 */
+	public static final byte RUBY_NONE = 0;
+
+	/**
+	 * ルビコンテナ(ruby要素相当)です(text.ruby=annotationのときのみ設定)。
+	 */
+	public static final byte RUBY_CONTAINER = 1;
+
+	/**
+	 * ルビ親文字(rb要素相当)です(text.ruby=annotationのときのみ設定)。
+	 */
+	public static final byte RUBY_BASE = 2;
+
+	/**
+	 * ふりがな(rt要素相当)です(text.ruby=annotationのときのみ設定)。
+	 */
+	public static final byte RUBY_TEXT = 3;
+
+	/**
+	 * ルビ役割マーカーです(2026-07-25、F-1)。{@code text.ruby=annotation}
+	 * のときだけ{@code RUBY_*}が設定され、文字処理層
+	 * ({@code StyledTextUnitizer})が注釈付きテキスト単位を組み立てる
+	 * 手掛かりにします。既定({@code text.ruby=box})では常に
+	 * {@link #RUBY_NONE}のままで、挙動に影響しません。
+	 */
+	public byte rubyRole = RUBY_NONE;
+
+	/**
 	 * フォントのスタイル。
 	 */
 	public FontStyle fontStyle;
