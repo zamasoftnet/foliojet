@@ -184,7 +184,11 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertTrue(((SegmentEvent.Barrier) converted).kind().isEmpty());
 	}
 
-	/** 通常フローの置換要素(FlowReplacedBox)は内容を失わずReplacedRecipe.Flowへ変換される。 */
+	/**
+	 * 通常フローの置換要素(FlowReplacedBox)は記録時freeze
+	 * ({@code ReplacedRecipe.freeze})で内容を失わずReplacedRecipe.Flowへ
+	 * 凍結され、変換はそのままSegmentEvent.Replacedへ包む(E-6増分3b-3)。
+	 */
 	public void testFlowReplacedConvertsToReplacedWithFlowRecipe() {
 		final ReplacedParams params = new ReplacedParams();
 		params.lineHeight = 1.5;
@@ -192,7 +196,8 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		pos.align = net.zamasoft.foliojet.layout.box.params.Align.CENTER;
 		final AbstractReplacedBox box = new FlowReplacedBox(params, pos);
 
-		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(box));
+		final SegmentEvent converted = LayoutSourceEventConverter
+				.convert(new LayoutSource.Replaced(ReplacedRecipe.freeze(box).orElseThrow()));
 
 		assertTrue(converted instanceof SegmentEvent.Replaced);
 		final ReplacedRecipe recipe = ((SegmentEvent.Replaced) converted).recipe();
@@ -202,14 +207,15 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(net.zamasoft.foliojet.layout.box.params.Align.CENTER, flow.pos().materialize().align);
 	}
 
-	/** インラインの置換要素(InlineReplacedBox)は内容を失わずReplacedRecipe.Inlineへ変換される。 */
+	/** インラインの置換要素(InlineReplacedBox)は内容を失わずReplacedRecipe.Inlineへ凍結される。 */
 	public void testInlineReplacedConvertsToReplacedWithInlineRecipe() {
 		final ReplacedParams params = new ReplacedParams();
 		final InlinePos pos = new InlinePos();
 		pos.lineHeight = 3.0;
 		final AbstractReplacedBox box = new InlineReplacedBox(params, pos);
 
-		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(box));
+		final SegmentEvent converted = LayoutSourceEventConverter
+				.convert(new LayoutSource.Replaced(ReplacedRecipe.freeze(box).orElseThrow()));
 
 		assertTrue(converted instanceof SegmentEvent.Replaced);
 		final ReplacedRecipe.Inline inline = (ReplacedRecipe.Inline) ((SegmentEvent.Replaced) converted).recipe();
@@ -218,8 +224,8 @@ public class LayoutSourceEventConverterTest extends TestCase {
 
 	/**
 	 * {@link ReplacedBoxImage}実装(live boxへのback-referenceを持つため
-	 * 共有不可)を参照する置換要素は、fail closedでBarrierへ変換される
-	 * (ReplacedRecipeは構築されない)。
+	 * 共有不可)を参照する置換要素は、記録時freezeがfail closedで空を返し
+	 * ({@code ReplacedLive}保持)、変換はBarrierへ落とす(E-6増分3b-3)。
 	 */
 	public void testReplacedBoxImageFailsClosedToBarrier() {
 		final ReplacedParams params = new ReplacedParams();
@@ -239,15 +245,19 @@ public class LayoutSourceEventConverterTest extends TestCase {
 				return null;
 			}
 		};
-		// 通常のImageなら変換できることをまず確認(対照)
+		// 通常のImageなら記録時freezeできることをまず確認(対照)
 		final AbstractReplacedBox plain = new FlowReplacedBox(params, new FlowPos());
-		assertTrue(LayoutSourceEventConverter.convert(new LayoutSource.Replaced(plain)) instanceof SegmentEvent.Replaced);
+		assertTrue(LayoutSourceEventConverter.convert(
+				new LayoutSource.Replaced(ReplacedRecipe.freeze(plain).orElseThrow())) instanceof SegmentEvent.Replaced);
 
 		final ReplacedParams unsafeParams = new ReplacedParams();
 		unsafeParams.image = new StubReplacedBoxImage();
 		final AbstractReplacedBox unsafe = new FlowReplacedBox(unsafeParams, new FlowPos());
 
-		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(unsafe));
+		// 記録時freezeはfail closed(StyleBuilderはReplacedLiveで記録する)
+		assertTrue(ReplacedRecipe.freeze(unsafe).isEmpty());
+
+		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.ReplacedLive(unsafe));
 		assertTrue(converted instanceof SegmentEvent.Barrier);
 		assertEquals(BarrierReason.NOT_YET_SUPPORTED, ((SegmentEvent.Barrier) converted).reason());
 	}
@@ -270,6 +280,10 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		}
 
 		public void setReplacedBox(AbstractReplacedBox box, double width, double height) {
+		}
+
+		public Image duplicate() {
+			return new StubReplacedBoxImage();
 		}
 	}
 }

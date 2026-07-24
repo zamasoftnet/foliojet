@@ -42,7 +42,7 @@ import net.zamasoft.foliojet.layout.segment.TextSpill;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource implements AutoCloseable {
-	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque {
+	public sealed interface Event permits Start, Replaced, ReplacedLive, Chars, EndBlock, Opaque {
 	}
 
 	/**
@@ -88,11 +88,28 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * 置換要素です。置換ボックスは分割で変異しない葉なので、
-	 * 同じインスタンスを再生時にそのまま doc へ渡して再配置します
-	 * (box-restyle の addBound 再利用と同じ意味論)。
+	 * 置換要素です(E-6増分3b-3、2026-07-24: live box保持からrecipe保持へ
+	 * 置換)。記録時({@code StyleBuilder.addReplacedBox})に
+	 * {@code ReplacedRecipe.freeze}で凍結され、再生は
+	 * {@code BoxRecipeBoxFactory.createReplaced}のmaterializeで新品の
+	 * ボックスを作る——liveボックスへの参照はログに残らない。
+	 * (旧javadocの「同じインスタンスをそのまま渡す」は、実際には
+	 * {@code newReplayInstance()}導入(P0)以降のコードと不一致だった。)
 	 */
-	public record Replaced(net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) implements Event {
+	public record Replaced(net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe) implements Event {
+	}
+
+	/**
+	 * 記録時にfreezeできなかった置換要素です(E-6増分3b-3の過渡変種。
+	 * {@code ReplacedRecipe.freeze}がfail closedになるもの——現状は
+	 * {@code ReplacedBoxImage}実装(BarcodeImage等)を参照するボックスと
+	 * 未知の{@code AbstractReplacedBox}サブクラス)。再生は
+	 * {@code newReplayInstance}経由だが、{@code ReplacedBoxImage}の
+	 * back-referenceを奪わないよう複製画像入りの独立paramsで駆動する
+	 * ({@code SegmentExecutor}参照)。SegmentEvent化は従来どおり
+	 * Barrier(凍結経路の保護と同じ分類)。
+	 */
+	public record ReplacedLive(net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) implements Event {
 	}
 
 	/**
@@ -232,6 +249,12 @@ public final class LayoutSource implements AutoCloseable {
 		if (event instanceof Chars chars && chars.payload() instanceof TextPayload.Inline inline) {
 			this.liveInlineTextBytes += (long) inline.utf16Length() * 2;
 			ContinuationStats.recordLiveTextPayloadBytes(this.liveInlineTextBytes);
+		}
+		// E-6増分3b-3: 置換要素のrecipe化率の観測(3b-6のlive型撤去判断の材料)
+		if (event instanceof Replaced) {
+			ContinuationStats.recordReplacedRecorded(true);
+		} else if (event instanceof ReplacedLive) {
+			ContinuationStats.recordReplacedRecorded(false);
 		}
 		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
@@ -447,6 +470,8 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			case Replaced replaced -> {
 			}
+			case ReplacedLive replacedLive -> {
+			}
 			}
 		}
 		kept.addAll(open);
@@ -485,6 +510,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case ReplacedLive replacedLive -> {
 			}
 			}
 		}
@@ -558,6 +585,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case ReplacedLive replacedLive -> {
 			}
 			}
 		}
@@ -668,7 +697,13 @@ public final class LayoutSource implements AutoCloseable {
 					final Pos pos) && pos.getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
 				return true;
 			}
-			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box)
+			// recipeのFloat変種 ⇔ FloatReplacedBox ⇔ PosType.FLOAT(1:1対応。
+			// ReplacedRecipe.freezeの分類とBoxRecipeBoxFactory.createReplacedが対)
+			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe)
+					&& recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
+				return true;
+			}
+			if (entry.event() instanceof ReplacedLive(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box)
 					&& box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOAT) {
 				return true;
 			}

@@ -256,6 +256,28 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * 記録時にrecipe化できた置換要素イベント数です(2026-07-24新設、
+	 * E-6増分3b-3)。{@link #REPLACED_LIVE_EVENTS}との比が記録時の
+	 * recipe化率——3b-6(live Event型撤去)の判断材料。
+	 */
+	public static final AtomicLong REPLACED_RECIPE_EVENTS = new AtomicLong();
+
+	/**
+	 * 記録時にrecipe化できずlive box保持({@code LayoutSource.ReplacedLive})
+	 * のまま残った置換要素イベント数です(E-6増分3b-3。現状は
+	 * {@code ReplacedBoxImage}実装=BarcodeImage等を参照するボックスと
+	 * 未知の{@code AbstractReplacedBox}サブクラスのみ)。
+	 */
+	public static final AtomicLong REPLACED_LIVE_EVENTS = new AtomicLong();
+
+	/** 置換要素イベントの記録時分類の観測です(E-6増分3b-3)。 */
+	public static void recordReplacedRecorded(final boolean recipe) {
+		if (live()) {
+			(recipe ? REPLACED_RECIPE_EVENTS : REPLACED_LIVE_EVENTS).incrementAndGet();
+		}
+	}
+
 	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenTextHandoff() {
 		if (live()) {
@@ -501,6 +523,8 @@ public final class ContinuationStats {
 		LIVE_TEXT_PAYLOAD_BYTES.set(0);
 		SPILLED_TEXT_RECORDS.set(0);
 		SPILLED_TEXT_BYTES.set(0);
+		REPLACED_RECIPE_EVENTS.set(0);
+		REPLACED_LIVE_EVENTS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_PAGE_OPEN_TAIL_DEPTH.set(0);

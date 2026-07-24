@@ -356,12 +356,25 @@ public class StyleBuilder implements PageGenerator {
 	}
 
 	/**
-	 * 置換要素を Opaque としてログに記録してから doc に渡します(M6b v3)。
+	 * 置換要素をログに記録してから doc に渡します(M6b v3)。
 	 * 記録しないと、置換要素を含む部分木が「再生可能」に見えて内容が
 	 * 失われる(サイレントホールの防止)。
+	 *
+	 * <p>
+	 * E-6増分3b-3(2026-07-24): 記録時に{@code ReplacedRecipe.freeze}で
+	 * 凍結し、liveボックスへの参照をログに残さない(params/posの変異は
+	 * この記録前のStyleBuilderフェーズに閉じるため、記録時freezeは
+	 * 従来の再生時共有と同値——codex設計§1.5・独立cross-check済み)。
+	 * freezeできないもの({@code ReplacedBoxImage}実装を参照する
+	 * ボックス等)のみ過渡の{@code ReplacedLive}で残す。
+	 * </p>
 	 */
 	private void addReplacedBox(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
-		box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Replaced(box)));
+		final java.util.Optional<net.zamasoft.foliojet.layout.segment.ReplacedRecipe> recipe = net.zamasoft.foliojet.layout.segment.ReplacedRecipe
+				.freeze(box);
+		final LayoutSource.Event event = recipe.isPresent() ? new LayoutSource.Replaced(recipe.get())
+				: new LayoutSource.ReplacedLive(box);
+		box.setSourceAnchor(this.layoutSource.append(event));
 		this.doc.addReplacedBox(box);
 	}
 

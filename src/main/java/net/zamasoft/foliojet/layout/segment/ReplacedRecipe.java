@@ -37,6 +37,44 @@ package net.zamasoft.foliojet.layout.segment;
 public sealed interface ReplacedRecipe {
 	GenerationKind generationKind();
 
+	/**
+	 * live boxからrecipeを組み立てます(E-6増分3b-3で
+	 * {@code LayoutSourceEventConverter}の変換ロジックを移設——記録時
+	 * ({@code StyleBuilder.addReplacedBox})と変換アダプタが同じ分類を
+	 * 共有するため)。{@link ReplacedParamsTemplate#freeze}が不安全な
+	 * {@code image}({@code ReplacedBoxImage}実装)を検出した場合、
+	 * または未知の{@code AbstractReplacedBox}サブクラスの場合は
+	 * fail closedで{@code Optional.empty()}を返す——呼び出し側は
+	 * live box保持({@code LayoutSource.ReplacedLive}/
+	 * {@link SegmentEvent.Barrier})へfall backすること。
+	 */
+	static java.util.Optional<ReplacedRecipe> freeze(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox box) {
+		final java.util.Optional<ReplacedParamsTemplate> params = ReplacedParamsTemplate
+				.freeze(box.getReplacedParams());
+		if (params.isEmpty()) {
+			return java.util.Optional.empty();
+		}
+		// 4実装(InlineReplacedBox/FlowReplacedBox/FloatReplacedBox/
+		// AbsoluteReplacedBox)がそれぞれInlinePos/FlowPos/FloatPos/
+		// AbsolutePosを使う(クラスjavadoc参照)
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox inline) {
+			return java.util.Optional
+					.of(new Inline(params.get(), InlinePosTemplate.freeze(inline.getInlinePos())));
+		}
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox flow) {
+			return java.util.Optional.of(new Flow(params.get(), FlowPosTemplate.freeze(flow.getFlowPos())));
+		}
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox floatBox) {
+			return java.util.Optional
+					.of(new Float(params.get(), FloatPosTemplate.freeze(floatBox.getFloatPos())));
+		}
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox absolute) {
+			return java.util.Optional
+					.of(new Absolute(params.get(), AbsolutePosTemplate.freeze(absolute.getAbsolutePos())));
+		}
+		return java.util.Optional.empty();
+	}
+
 	/** 置換要素がどう生成されたか(codex設計相談で列挙された4種)。 */
 	enum GenerationKind {
 		INLINE, FLOW, FLOAT, ABSOLUTE;

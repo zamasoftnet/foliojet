@@ -42,6 +42,15 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 		// Okapi renders with its own color type. Keep barcode output black for now.
 	}
 
+	public Image duplicate() {
+		// symbol/messageは構築後不変の描画内容なので共有してよい。
+		// setReplacedBoxで受け取る状態(現状はcolorのみの候補)は
+		// インスタンスごとに独立になる(E-6増分3b-3)
+		final BarcodeImage duplicate = new BarcodeImage(this.ua, this.symbol, this.message);
+		duplicate.color = this.color;
+		return duplicate;
+	}
+
 	public double getWidth() {
 		return this.width;
 	}

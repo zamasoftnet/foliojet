@@ -91,6 +91,22 @@ public final class ReplacedParamsTemplate {
 				source.maxSize, source.boxSizing, source.frame, source.lineHeight, source.image));
 	}
 
+	/**
+	 * replay隔離専用のfreezeです(E-6増分3b-3、2026-07-24)。
+	 * {@link #freeze}のfail closed検証({@link ReplacedBoxImage}の拒否)を
+	 * バイパスし、{@code source.image}の代わりに{@code freshImage}を
+	 * 格納する。呼び出し側({@code SegmentExecutor}のReplacedLive再生駆動)
+	 * は{@code freshImage}に{@link ReplacedBoxImage#duplicate()}が返した
+	 * <b>独立した複製</b>を渡す契約——これによりmaterialize結果の
+	 * back-reference書き込み先がライブ側の画像から隔離される。
+	 * それ以外の用途で呼んではならない(package-private+契約コメントで
+	 * fail closed設計を維持する)。
+	 */
+	static ReplacedParamsTemplate freezeForReplayIsolation(final ReplacedParams source, final Image freshImage) {
+		return new ReplacedParamsTemplate(TextParamsFields.freeze(source), source.size, source.minSize, source.maxSize,
+				source.boxSizing, source.frame, source.lineHeight, freshImage);
+	}
+
 	/** 呼び出しごとに新品の{@code ReplacedParams}を返す(複数回呼んでも互いに影響しない)。 */
 	public ReplacedParams materialize() {
 		final ReplacedParams params = new ReplacedParams();

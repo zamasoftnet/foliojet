@@ -112,6 +112,10 @@ public class SegmentEventTest extends TestCase {
 
 		public void setReplacedBox(AbstractReplacedBox box, double width, double height) {
 		}
+
+		public Image duplicate() {
+			return new StubReplacedBoxImage();
+		}
 	}
 
 	/** ContainerNodeはBoxRecipeと子範囲を分離して持つ(recipeに構造を混ぜない)。 */

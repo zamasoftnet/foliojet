@@ -5,6 +5,7 @@ import java.util.Arrays;
 import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
+import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
@@ -31,8 +32,11 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  * 本末転倒になる。そこで本増分では駆動プリミティブの共有に留め、
  * IRのswitchは{@link #execute(SegmentEvent)}(正規・恒久)と
  * {@link #executeLive(LayoutSource.Event)}(過渡)の2本を併置する。
- * Replacedのrecipe化(3b-3)とBeginBoxのappend時freeze(3b-4)で
- * Barrierがゼロになった後、liveの過渡switchを撤去(3b-6)して
+ * Replacedのrecipe化は3b-3で完了(記録時freeze。freezeできないものは
+ * {@code LayoutSource.ReplacedLive}として残り、back-reference隔離
+ * ({@link #isolatedReplayInstance})つきで従来駆動)。残るBarrier源は
+ * Start(3b-4のappend時freeze対象)・Opaque・ReplacedLiveで、ゼロに
+ * なった後、liveの過渡switchを撤去(3b-6)して
  * {@link #execute(SegmentEvent)}だけが残る。
  * </p>
  *
@@ -110,8 +114,15 @@ public final class SegmentExecutor {
 			box.setSourceAnchor(this.eventId);
 			this.doc.startBox(box);
 		}
-		case LayoutSource.Replaced(final AbstractReplacedBox recorded) -> {
-			final AbstractReplacedBox fresh = recorded.newReplayInstance();
+		case LayoutSource.Replaced(final ReplacedRecipe recipe) -> {
+			// E-6増分3b-3: 記録時にfreeze済み——正規経路と同じmaterialize
+			// (execute()のSegmentEvent.Replaced armと同一の駆動)
+			final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
+			box.setSourceAnchor(this.eventId);
+			this.doc.addReplacedBox(box);
+		}
+		case LayoutSource.ReplacedLive(final AbstractReplacedBox recorded) -> {
+			final AbstractReplacedBox fresh = isolatedReplayInstance(recorded);
 			fresh.setSourceAnchor(this.eventId);
 			this.doc.addReplacedBox(fresh);
 		}
@@ -126,6 +137,34 @@ public final class SegmentExecutor {
 		case LayoutSource.Opaque opaque -> throw new IllegalStateException("opaque event in replay range");
 		}
 		++this.eventId;
+	}
+
+	/**
+	 * {@code ReplacedLive}(記録時にfreezeできなかった置換要素)の再生用
+	 * インスタンスを作ります(E-6増分3b-3——live経路の潜在欠陥の是正)。
+	 *
+	 * <p>
+	 * {@code newReplayInstance()}はparams(=image含む)を共有するため、
+	 * imageが{@link ReplacedBoxImage}の場合、再生ボックスの
+	 * {@code calculateSize}が呼ぶ{@code image.setReplacedBox(this, ...)}が
+	 * back-referenceをlive側から奪い、scratch計測再生がliveの画像状態を
+	 * 破壊しうる(凍結経路はBarrierで防御済みだったが、live再生経路は
+	 * 無防備だった)。ここでは{@link ReplacedBoxImage#duplicate()}の複製を
+	 * 持つ独立params({@link ReplacedParamsTemplate#freezeForReplayIsolation}
+	 * →materialize)で再生ボックスを作る——scratch計測は複製へ登録して
+	 * 捨て、実再生(次ページへ移動する部分木)は自分が描画する複製へ
+	 * 正しく登録する。どちらの場合もlive側の画像は触られない。
+	 * (現存する唯一の実装{@code BarcodeImage}の{@code setReplacedBox}は
+	 * no-opのため、この隔離は出力に影響しない=挙動不変。)
+	 * </p>
+	 */
+	static AbstractReplacedBox isolatedReplayInstance(final AbstractReplacedBox recorded) {
+		final net.zamasoft.foliojet.layout.box.params.ReplacedParams params = recorded.getReplacedParams();
+		if (params.image instanceof ReplacedBoxImage unsafe) {
+			return recorded.newReplayInstance(
+					ReplacedParamsTemplate.freezeForReplayIsolation(params, unsafe.duplicate()).materialize());
+		}
+		return recorded.newReplayInstance();
 	}
 
 	/**
