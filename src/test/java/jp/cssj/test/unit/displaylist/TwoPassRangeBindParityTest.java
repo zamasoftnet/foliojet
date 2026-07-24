@@ -92,6 +92,12 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			"0218-pagebreak-table-span/090-ROWSPAN.html", //
 			"0390-writing-mode/border-collapse.html", //
 			"0390-writing-mode/hriz-cell-in-vert.html", //
+			// E-6増分5a回帰(2026-07-24、040-8BITS_ASCII.htmlのNPE):
+			// soft hyphen(U+00AD)のみのセルはtextShaperだけが作られ
+			// ビルダーへ何も届かない——bind時のclose連鎖の空flushの固定
+			// (BlockBuilder.flushのnullガード)。制御文字・ゼロ幅文字の
+			// セルのlive/replay対称性も同時にカバーする
+			"0240-table/cell-control-chars.html", //
 	};
 
 	/**

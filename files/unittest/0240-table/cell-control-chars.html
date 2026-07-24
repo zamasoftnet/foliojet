@@ -1,0 +1,29 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>cell control chars</title>
+  </head>
+<body>
+<h1>Control characters in table cells</h1>
+<!-- E-6増分5a回帰(2026-07-24、040-8BITS_ASCII.html): セル内容が
+     soft hyphen(U+00AD)のみのとき、range bind再生でtextShaperだけが
+     作られビルダーへ何も届かず、close連鎖の空flushがNPEになった。
+     あわせて置換文字・ゼロ幅文字・制御文字のセルをカバーする。
+     文字は全て文字参照(このファイル自体はASCIIのみ)。 -->
+<table border="1" style="font-family: 'Times-Roman';">
+<tr>
+<td>&#xAD;</td><td>&#x00;</td><td>&#x01;</td><td>&#x09;</td>
+<td>&#x20;</td><td>&#xA0;</td><td>&#xFEFF;</td><td>&#x200B;</td><td>x</td>
+</tr>
+<tr>
+<td>a&#xAD;b</td><td>&#x0A;</td><td>&#x0C;</td><td>&#x1F;</td>
+<td>&#x7F;</td><td>&#x80;</td><td>&#x9F;</td><td>&#xE782;</td><td>y</td>
+</tr>
+</table>
+<table border="1" style="font-family: 'Times-Roman'; float: left;">
+<tr>
+<td>&#xAD;</td><td>&#x00;</td><td>&#xFEFF;</td><td>z</td>
+</tr>
+</table>
+</body>
+</html>

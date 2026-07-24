@@ -1335,6 +1335,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null && this.textSession.recordFlush()) {
 			return;
 		}
+		// テキストブロックが空(textBuilderが生成されていない)場合の
+		// flushは何もしない。endTextBlock()と同じnullガード(809行目付近の
+		// コメント参照)——E-6増分5aのセルrange bindで実際に発生する:
+		// セル内容がsoft hyphen(U+00AD)のみのとき、StyledTextUnitizerは
+		// textShaperを作るがWordHyphenatorがMarkerを黙って落とす
+		// (hyphens:manualでfontMetrics未設定)ため、ビルダーへはglyphも
+		// controlも届かないままshaperのclose連鎖がflush()だけを呼ぶ
+		// (2026-07-24、040-8BITS_ASCII.htmlのNullPointerException)。
+		// live経路のセルはTwoPassBlockBuilder(textBuilder非依存)で
+		// 記録されるため、この空flushはbind時のrange再生でのみ到達する。
+		if (this.textBuilder == null) {
+			return;
+		}
 		while (this.textBuilder.flush())
 			;
 	}
