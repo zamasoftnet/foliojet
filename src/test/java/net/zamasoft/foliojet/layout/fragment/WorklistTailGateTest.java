@@ -12,11 +12,14 @@ import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * {@link WorklistTailGate}のprogram経由判定({@code of(ContinuationProgram)})
- * と直接導出({@code of(OpenPathSnapshot, ContinuationValidator.PathShape)})
- * の一致を固定する一時的な比較テストです(2026-07-24新設、E-3増分3)。
- * program系(compiler/{@code ResumeTail})が撤去される増分4〜6の後は、
- * 旧判定側のアサートを直接導出の期待値固定へ置き換える。
+ * {@link WorklistTailGate}の直接導出({@code of(OpenPathSnapshot,
+ * ContinuationValidator.PathShape)})の期待値を固定するテストです
+ * (2026-07-24新設、E-3増分3。増分3〜5の間はprogram経由の旧判定
+ * {@code of(ContinuationProgram)}との一致比較として運用し、全ケース一致を
+ * 確認済み——増分6のprogram系撤去に伴い、直接導出の期待値固定へ書き換えた)。
+ * 網羅ケース: full collection / capability barrier / split-stopped
+ * (PLAIN_FLOW残存・非PLAIN_FLOW残存)/ COLUMN childなし(depth 1・
+ * plain・非plain)/ COLUMN貫通チェーン(完全収集・途中停止)。
  */
 public class WorklistTailGateTest extends TestCase {
 
@@ -60,47 +63,30 @@ public class WorklistTailGateTest extends TestCase {
 		return new Continuation(depth, frame, Map.of());
 	}
 
-	private static NextColumnTarget dummyTarget() {
-		return new NextColumnTarget(null, null, 0, 0, 0, 0, null);
-	}
-
-	private static void assertPageGateAgreement(final WorklistTailGate expected, final OpenPathSnapshot snapshot,
+	private static void assertPageGate(final WorklistTailGate expected, final OpenPathSnapshot snapshot,
 			final Continuation continuation) {
-		final PageResumeProgram program = ResumeProgramCompiler.compile(snapshot, continuation);
 		final ContinuationValidator.PathShape pathShape = ContinuationValidator.validatePage(snapshot, continuation);
-
-		final WorklistTailGate legacy = WorklistTailGate.of(program);
-		final WorklistTailGate direct = WorklistTailGate.of(snapshot, pathShape);
-
-		assertEquals("program経由の旧判定が期待値と一致しません", expected, legacy);
-		assertEquals("直接導出が旧判定と一致しません", legacy, direct);
+		assertEquals(expected, WorklistTailGate.of(snapshot, pathShape));
 	}
 
-	private static void assertColumnGateAgreement(final WorklistTailGate expected, final OpenPathSnapshot snapshot,
+	private static void assertColumnGate(final WorklistTailGate expected, final OpenPathSnapshot snapshot,
 			final Continuation.ContinuationFrame childFrame) {
 		final ColumnAnchor anchor = new ColumnAnchor(null, List.of());
-		final ColumnResumeProgram program = ColumnResumeProgramCompiler.compileColumn(dummyTarget(), anchor, snapshot,
-				childFrame, Map.of());
 		final ContinuationValidator.PathShape pathShape = ContinuationValidator.validateColumn(anchor, snapshot,
 				childFrame);
-
-		final WorklistTailGate legacy = WorklistTailGate.of(program);
-		final WorklistTailGate direct = WorklistTailGate.of(snapshot, pathShape);
-
-		assertEquals("program経由の旧判定が期待値と一致しません", expected, legacy);
-		assertEquals("直接導出が旧判定と一致しません", legacy, direct);
+		assertEquals(expected, WorklistTailGate.of(snapshot, pathShape));
 	}
 
 	/** full collection: 全レベル収集済み(終端は開きテキストのみ)。 */
-	public void testFullCollectionAgreesOnNoLegacyOpenTail() {
+	public void testFullCollectionIsNoLegacyOpenTail() {
 		final OpenPathSnapshot snapshot = pageSnapshot(
 				new ContinuationCapability[] { ContinuationCapability.PLAIN_FLOW, ContinuationCapability.PLAIN_FLOW },
 				Optional.empty());
-		assertPageGateAgreement(WorklistTailGate.NO_LEGACY_OPEN_TAIL, snapshot, fullyCollected(3));
+		assertPageGate(WorklistTailGate.NO_LEGACY_OPEN_TAIL, snapshot, fullyCollected(3));
 	}
 
 	/** barrier: capability障壁で停止、残存tailに非PLAIN_FLOWレベルが含まれる。 */
-	public void testCapabilityBarrierAgreesOnLegacyRecursion() {
+	public void testCapabilityBarrierIsLegacyRecursion() {
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = new ArrayList<>();
 		descriptors.add(level(0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)));
 		for (int i = 1; i < 4; ++i) {
@@ -113,7 +99,7 @@ public class WorklistTailGateTest extends TestCase {
 
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(4)));
-		assertPageGateAgreement(WorklistTailGate.LEGACY_RECURSION, snapshot, new Continuation(4, frame, Map.of()));
+		assertPageGate(WorklistTailGate.LEGACY_RECURSION, snapshot, new Continuation(4, frame, Map.of()));
 	}
 
 	/**
@@ -121,17 +107,17 @@ public class WorklistTailGateTest extends TestCase {
 	 * だがsplitがKEEP/MOVEで止まった——残存tailは全てPLAIN_FLOWなので
 	 * worklist適格。
 	 */
-	public void testSplitStoppedPlainFlowAgreesOnWorklistEligible() {
+	public void testSplitStoppedPlainFlowIsWorklistEligible() {
 		final OpenPathSnapshot snapshot = pageSnapshot(
 				new ContinuationCapability[] { ContinuationCapability.PLAIN_FLOW, ContinuationCapability.PLAIN_FLOW },
 				Optional.empty());
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(3)));
-		assertPageGateAgreement(WorklistTailGate.WORKLIST_ELIGIBLE, snapshot, new Continuation(3, frame, Map.of()));
+		assertPageGate(WorklistTailGate.WORKLIST_ELIGIBLE, snapshot, new Continuation(3, frame, Map.of()));
 	}
 
 	/** split-stopped(非PLAIN_FLOW残存): 段組levelが残るためlegacy再帰。 */
-	public void testSplitStoppedWithMulticolAgreesOnLegacyRecursion() {
+	public void testSplitStoppedWithMulticolIsLegacyRecursion() {
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
 				level(0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
 				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, BoxSubtype.NONE, WritingMode.TB,
@@ -141,41 +127,41 @@ public class WorklistTailGateTest extends TestCase {
 
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(3)));
-		assertPageGateAgreement(WorklistTailGate.LEGACY_RECURSION, snapshot, new Continuation(3, frame, Map.of()));
+		assertPageGate(WorklistTailGate.LEGACY_RECURSION, snapshot, new Continuation(3, frame, Map.of()));
 	}
 
 	/** COLUMN childなし(snapshot depth==1): 開きテキストのみで終端。 */
-	public void testColumnNoChildDepth1AgreesOnNoLegacyOpenTail() {
-		assertColumnGateAgreement(WorklistTailGate.NO_LEGACY_OPEN_TAIL, columnSnapshot(), null);
+	public void testColumnNoChildDepth1IsNoLegacyOpenTail() {
+		assertColumnGate(WorklistTailGate.NO_LEGACY_OPEN_TAIL, columnSnapshot(), null);
 	}
 
 	/** COLUMN childなし(snapshot depth&gt;1、全PLAIN_FLOW): worklist適格。 */
-	public void testColumnNoChildPlainFlowAgreesOnWorklistEligible() {
-		assertColumnGateAgreement(WorklistTailGate.WORKLIST_ELIGIBLE,
+	public void testColumnNoChildPlainFlowIsWorklistEligible() {
+		assertColumnGate(WorklistTailGate.WORKLIST_ELIGIBLE,
 				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.PLAIN_FLOW), null);
 	}
 
 	/** COLUMN childなし(snapshot depth&gt;1、非PLAIN_FLOW残存): legacy再帰。 */
-	public void testColumnNoChildFlowSubtypeAgreesOnLegacyRecursion() {
-		assertColumnGateAgreement(WorklistTailGate.LEGACY_RECURSION,
+	public void testColumnNoChildFlowSubtypeIsLegacyRecursion() {
+		assertColumnGate(WorklistTailGate.LEGACY_RECURSION,
 				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.FLOW_SUBTYPE), null);
 	}
 
 	/** COLUMN貫通チェーン完全収集: 終端は開きテキストのみ。 */
-	public void testColumnFullyCollectedChainAgreesOnNoLegacyOpenTail() {
+	public void testColumnFullyCollectedChainIsNoLegacyOpenTail() {
 		Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0, List.of(),
 				new Continuation.OpenTail.OpenTailShape(OpenShape.TEXT));
 		frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0, List.of(),
 				new Continuation.OpenTail.Child(frame));
-		assertColumnGateAgreement(WorklistTailGate.NO_LEGACY_OPEN_TAIL,
+		assertColumnGate(WorklistTailGate.NO_LEGACY_OPEN_TAIL,
 				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.PLAIN_FLOW), frame);
 	}
 
 	/** COLUMN貫通チェーン途中停止(残存PLAIN_FLOW): worklist適格。 */
-	public void testColumnPartialChainPlainFlowAgreesOnWorklistEligible() {
+	public void testColumnPartialChainPlainFlowIsWorklistEligible() {
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(2)));
-		assertColumnGateAgreement(WorklistTailGate.WORKLIST_ELIGIBLE,
+		assertColumnGate(WorklistTailGate.WORKLIST_ELIGIBLE,
 				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.PLAIN_FLOW), frame);
 	}
 }

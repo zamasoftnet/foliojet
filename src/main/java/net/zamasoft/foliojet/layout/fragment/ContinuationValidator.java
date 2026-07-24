@@ -6,18 +6,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 継続の正本({@link Continuation}のPAGE入力/COLUMN入力)を、
- * {@code ContinuationProgram}を経由せず直接検査します(2026-07-24新設、
- * E-3増分1。docs/consultations/consult-e3-single-source-codex.md §3)。
+ * 継続の正本({@link Continuation}のPAGE入力/COLUMN入力)を直接検査します
+ * (2026-07-24新設、E-3増分1。
+ * docs/consultations/consult-e3-single-source-codex.md §3)。
  *
  * <p>
- * {@link ResumeProgramCompiler}/{@link ColumnResumeProgramCompiler}と
- * 既存verifier({@link ContinuationVerifier}/{@link ColumnContinuationVerifier})
- * が担ってきた不変条件——snapshot/continuationの深さ式、有界のframe walk
- * (循環・null・snapshot超過の拒否)、prefixのserial順序・範囲の正当性、
- * crossExtentの有限性、snapshotレベルとの対応——をここへ移植した。
- * E-3の増分4〜6でprogram/compiler/verifierが撤去された後は、このクラスが
- * 唯一の検証層になる。
+ * 旧program系(E-3増分6で撤去した{@code ResumeProgramCompiler}/
+ * {@code ColumnResumeProgramCompiler}と{@code ContinuationVerifier}/
+ * {@code ColumnContinuationVerifier})が担っていた不変条件——snapshot/
+ * continuationの深さ式、有界のframe walk(循環・null・snapshot超過の拒否)、
+ * prefixのserial順序・範囲の正当性、crossExtentの有限性、snapshotレベル
+ * との対応——をここへ移植した。program撤去後の唯一の検証層である。
  * </p>
  *
  * <p>
@@ -43,18 +42,15 @@ public final class ContinuationValidator {
 	 *
 	 * @param firstOpenPathIndex 最初の未収集open path index(チェーンとして
 	 *                           first-classに歩けるframeの直後の位置。全レベル
-	 *                           収集済みなら{@code snapshot.depth()}に一致——
-	 *                           旧{@code ResumeTail.OpenText}相当)
-	 * @param terminalShape      終端frameの開き形(旧{@code ResumeTail
-	 *                           #openDepth()}は{@code terminalShape.depth()}に
-	 *                           対応)
+	 *                           収集済みなら{@code snapshot.depth()}に一致)
+	 * @param terminalShape      終端frameの開き形
 	 */
 	public record PathShape(int firstOpenPathIndex, OpenShape terminalShape) {
 	}
 
 	/**
-	 * PAGE継続を直接検証します({@link ResumeProgramCompiler#compile}+
-	 * {@link ContinuationVerifier#verify}の不変条件の移植)。
+	 * PAGE継続を直接検証します(旧{@code ResumeProgramCompiler.compile}+
+	 * {@code ContinuationVerifier.verify}の不変条件の移植)。
 	 *
 	 * @throws ContinuationInvariantViolationException 構造が破れている場合
 	 */
@@ -100,8 +96,8 @@ public final class ContinuationValidator {
 
 	/**
 	 * COLUMN継続の入力(owner anchor+owner内側の子孫チェーン)を直接検証
-	 * します({@link ColumnResumeProgramCompiler#compileColumn}+
-	 * {@link ColumnContinuationVerifier#verify}の不変条件の移植)。
+	 * します(旧{@code ColumnResumeProgramCompiler.compileColumn}+
+	 * {@code ColumnContinuationVerifier.verify}の不変条件の移植)。
 	 *
 	 * <p>
 	 * PAGEとの深さ式の違い(owner=index 0はfragment levelではないため

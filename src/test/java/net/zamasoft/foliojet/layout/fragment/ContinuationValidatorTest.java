@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
  * {@link ContinuationValidator}の直接単体テストです(2026-07-24新設、
- * E-3増分1)。{@link ResumeProgramCompilerTest}の深さ・不変条件テストを
+ * E-3増分1)。旧{@code ResumeProgramCompilerTest}の深さ・不変条件テストを
  * 正本(Continuation/COLUMN入力)の直接検証として移植した——programを
  * 経由せず、合成した入力を直接検証する。いずれのテストも
  * {@code FragmentRecipe.instantiate()}が一度も呼ばれないこと(validatorは
@@ -133,6 +133,46 @@ public class ContinuationValidatorTest extends TestCase {
 
 		assertEquals(1, shape.firstOpenPathIndex());
 		assertEquals(4, shape.terminalShape().depth());
+		assertEquals(0, recipeCalls.get());
+	}
+
+	/**
+	 * 段組(MULTICOL)levelを含むchainが完全に収集され、開きテキストまで
+	 * 貫通するケース(旧{@code ResumeProgramCompilerTest}のB3aテストの
+	 * 移植——段組levelがfirst-classに歩ける)。
+	 *
+	 * <pre>
+	 * snapshot: root - MULTICOL - PLAIN_FLOW
+	 * continuation: root frame -&gt; Child(multicol frame) -&gt; Child(plain frame) -&gt; OpenTailShape(TEXT)
+	 * </pre>
+	 */
+	public void testFullyCollectedChainIncludingMulticolEndsInOpenText() {
+		final AtomicInteger recipeCalls = new AtomicInteger();
+		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
+
+		Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(recipe, null, null, 0, List.of(),
+				new Continuation.OpenTail.OpenTailShape(OpenShape.TEXT));
+		frame = new Continuation.ContinuationFrame(recipe, null, null, 0, List.of(),
+				new Continuation.OpenTail.Child(frame)); // PLAIN_FLOW level
+		frame = new Continuation.ContinuationFrame(recipe, null, null, 0, List.of(),
+				new Continuation.OpenTail.Child(frame)); // MULTICOL level
+
+		final Continuation continuation = new Continuation(3, frame, Map.of());
+
+		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
+				new OpenPathSnapshot.OpenLevelDescriptor(0, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1, 0,
+						new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
+				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, BoxSubtype.NONE,
+						WritingMode.TB, 2, 1,
+						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.MULTICOL)),
+				new OpenPathSnapshot.OpenLevelDescriptor(2, FlowBlockBox.class, BoxSubtype.NONE, WritingMode.TB, 1, 2,
+						new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW)));
+		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
+
+		final ContinuationValidator.PathShape shape = ContinuationValidator.validatePage(snapshot, continuation);
+
+		assertEquals(3, shape.firstOpenPathIndex());
+		assertEquals(1, shape.terminalShape().depth());
 		assertEquals(0, recipeCalls.get());
 	}
 

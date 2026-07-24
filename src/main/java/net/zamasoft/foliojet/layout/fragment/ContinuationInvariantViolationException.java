@@ -9,8 +9,8 @@ package net.zamasoft.foliojet.layout.fragment;
  * {@code breakDepth}障壁を迂回するケース——のいずれか)。
  *
  * <p>
- * このチェックはB2(ResumeProgram/ContinuationVerifier)で汎用化される
- * 予定だが、既に実在する未保護のクラッシュ経路(直交writing-mode表、
+ * このチェックはB2で汎用化され、現在は{@link ContinuationValidator}が
+ * 検証層を担う。当初は、既に実在する未保護のクラッシュ経路(直交writing-mode表、
  * ChatGPT Pro相談で発見・実測で確認済み)を放置しないため、先行して
  * {@code RootBuilder.pageBreak()}の既存assertをこの例外による無条件
  * チェックへ切り替えた。

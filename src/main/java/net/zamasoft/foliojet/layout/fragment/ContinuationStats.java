@@ -18,9 +18,9 @@ public final class ContinuationStats {
 	 * plan選択済み(収集可能と判定された)チェーンメンバーの
 	 * {@code splitForContinuation}/{@code split}が{@code Keep}を返した
 	 * 回数(2026-07-21新設、M6b Phase B5c)。B5d(`ColumnsContainer`全体
-	 * 運搬等、MOVEの型付け)着手前の頻度調査用——`FragmentResumeLevel`
-	 * (recipe/state前提)へ押し込めないため、現状は`ResumeTail
-	 * .LegacyOpen(SplitStopped)`へ保守的に委譲している経路が実際に
+	 * 運搬等、MOVEの型付け)着手前の頻度調査用——継続フレーム
+	 * (recipe/state前提)へ押し込めないため、現状はlegacy開き
+	 * (split-stopped)へ保守的に委譲している経路が実際に
 	 * どれだけ踏まれているかを可視化する。
 	 */
 	public static final AtomicLong CHAIN_MEMBER_KEEP = new AtomicLong();
@@ -369,30 +369,6 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * {@link ResumeProgram}がfirst-classにコンパイルしたlevel(root除く)の
-	 * capability別件数です(2026-07-21新設、B3)。{@link
-	 * #capabilityScanStops}が「スキャンを止めた理由」を数えるのに対し、
-	 * こちらは「実際にResumeLevelとしてコンパイルできた理由」を数える
-	 * ——{@code MULTICOL}を収集可能にした後は、`capabilityScanStops
-	 * (MULTICOL)`が0のままでも`pageCompiledLevels(MULTICOL)`は増える
-	 * ため、両者を見比べることで「段組levelを実際に通過したか」を区別
-	 * できる(ChatGPT Pro相談で提案、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b3-multicol-split-through.md)。
-	 */
-	private static final Map<ContinuationCapability, AtomicLong> PAGE_COMPILED_LEVELS = new EnumMap<>(
-			ContinuationCapability.class);
-	static {
-		for (final ContinuationCapability c : ContinuationCapability.values()) {
-			PAGE_COMPILED_LEVELS.put(c, new AtomicLong());
-		}
-	}
-
-	/** {@code capability}のレベルが実際にfirst-classコンパイルされた回数。 */
-	public static long pageCompiledLevels(final ContinuationCapability capability) {
-		return PAGE_COMPILED_LEVELS.get(capability).get();
-	}
-
-	/**
 	 * COLUMN継続の相対open pathスキャンが各レベルをどう分類したかの集計
 	 * です(2026-07-21新設、M6b Phase B4-Step3、未配線)。{@link
 	 * #CAPABILITY_SCAN_STOPS}/{@link #capabilityScanStops}はPAGE専用の
@@ -421,57 +397,6 @@ public final class ContinuationStats {
 		}
 	}
 
-	/**
-	 * {@link ColumnResumeProgram}がfirst-classにコンパイルしたlevel
-	 * (owner anchor除く)のcapability別件数です(2026-07-21新設、
-	 * M6b Phase B4-Step3、未配線)。{@link #pageCompiledLevels}のCOLUMN版。
-	 */
-	private static final Map<ContinuationCapability, AtomicLong> COLUMN_COMPILED_LEVELS = new EnumMap<>(
-			ContinuationCapability.class);
-	static {
-		for (final ContinuationCapability c : ContinuationCapability.values()) {
-			COLUMN_COMPILED_LEVELS.put(c, new AtomicLong());
-		}
-	}
-
-	/** {@code capability}のレベルがCOLUMN側で実際にfirst-classコンパイルされた回数。 */
-	public static long columnCompiledLevels(final ContinuationCapability capability) {
-		return COLUMN_COMPILED_LEVELS.get(capability).get();
-	}
-
-	/**
-	 * コンパイル済み{@link ColumnResumeProgram}のlevel(owner anchor除く)を
-	 * capability別に集計します。
-	 */
-	public static void recordColumnCompiledProgram(final ColumnResumeProgram program) {
-		if (!live()) {
-			return;
-		}
-		for (final FragmentResumeLevel level : program.fragmentLevels()) {
-			if (level.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
-					final ContinuationCapability capability)) {
-				COLUMN_COMPILED_LEVELS.get(capability).incrementAndGet();
-			}
-		}
-	}
-
-	/**
-	 * コンパイル済み{@link PageResumeProgram}のlevel(anchor除く)を
-	 * capability別に集計します。{@code RootBuilder.pageBreak()}が
-	 * `ResumeProgramCompiler.compile()`直後、`flowStack.clear()`より前に
-	 * 呼ぶ。
-	 */
-	public static void recordCompiledProgram(final PageResumeProgram program) {
-		if (!live()) {
-			return;
-		}
-		for (final FragmentResumeLevel level : program.fragmentLevels()) {
-			if (level.descriptor().role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
-					final ContinuationCapability capability)) {
-				PAGE_COMPILED_LEVELS.get(capability).incrementAndGet();
-			}
-		}
-	}
 
 	/**
 	 * PAGE経路(RootBuilder.pageBreak)での深さアラーム発火回数
@@ -562,13 +487,7 @@ public final class ContinuationStats {
 		for (final AtomicLong counter : CAPABILITY_SCAN_STOPS.values()) {
 			counter.set(0);
 		}
-		for (final AtomicLong counter : PAGE_COMPILED_LEVELS.values()) {
-			counter.set(0);
-		}
 		for (final AtomicLong counter : COLUMN_CAPABILITY_SCAN_STOPS.values()) {
-			counter.set(0);
-		}
-		for (final AtomicLong counter : COLUMN_COMPILED_LEVELS.values()) {
 			counter.set(0);
 		}
 	}

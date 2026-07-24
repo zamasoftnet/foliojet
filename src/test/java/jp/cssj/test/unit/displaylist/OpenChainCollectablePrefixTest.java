@@ -128,8 +128,10 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		assertEquals("B3a後はMULTICOLがプレフィックススキャンを止めないはずです", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
 		assertEquals("PAGE側のOpenChainは完全に消えるはずです", 0, ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
-		assertTrue("段組levelが実際にfirst-classコンパイルされたはずです",
-				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0);
+		// E-3増分7: 旧pageCompiledLevels(MULTICOL)>0(compiled-programカウンタ)
+		// の置換——チェーンフレームが実際にfirst-class実行されたこと
+		// (段組levelを含む祖先チェーンの消費)を実挙動カウンタで固定する。
+		assertTrue("継続チェーンが実際にfirst-class実行されたはずです", ContinuationStats.CHILD_FRAMES.get() > 0);
 		// 2026-07-21(B4-Step4): COLUMN経路もPLAIN_FLOW子孫を自動改段で
 		// first-classコンパイルするようになったため、RESTYLE_CHAIN_FIRINGS
 		// (旧OpenChain再帰)はPAGE・COLUMN双方でゼロになるはずである
@@ -139,8 +141,12 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 				ContinuationStats.COLUMN_RESTYLE_CHAIN_FIRINGS.get());
 		assertEquals("RESTYLE_CHAIN_FIRINGSはPAGE・COLUMN双方でゼロになるはずです", 0,
 				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
-		assertTrue("段組owner内側のPLAIN_FLOW子孫がCOLUMN側でもfirst-classコンパイルされたはずです",
-				ContinuationStats.columnCompiledLevels(ContinuationCapability.PLAIN_FLOW) > 0);
+		// E-3増分7: 旧columnCompiledLevels(PLAIN_FLOW)>0の置換——COLUMN継続
+		// 経路が実際に踏まれたこと(改段時の深さガード通過)を実挙動
+		// カウンタで固定する(COLUMN_RESTYLE_CHAIN_FIRINGS==0と合わせて
+		// 「改段は起きたがlegacy再帰は使われなかった」=first-class実行を意味する)。
+		assertTrue("段組内部の改段が実際に発生したはずです",
+				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get() > 0);
 	}
 
 	/**
@@ -182,11 +188,13 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		}
 		// 複数ページ・複数段の両方が実際に発生したことを確認する
 		// (発生しなければ、そもそも入れ子resumeを検証できていない)。
+		// E-3増分7: 旧pageCompiledLevels/columnCompiledLevels(compiled-
+		// programカウンタ)の置換——PAGE/COLUMN継続経路の実行そのものを
+		// 実挙動カウンタ(深さガード通過時の最大開き深さ)で固定する。
 		assertTrue("複数ページにまたがる改ページが実際に発生したはずです",
-				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0
-						|| ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL) > 0);
-		assertTrue("段組内部の改段が実際に複数回発生したはずです",
-				ContinuationStats.columnCompiledLevels(ContinuationCapability.PLAIN_FLOW) > 0);
+				ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get() > 0);
+		assertTrue("段組内部の改段が実際に発生したはずです",
+				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get() > 0);
 	}
 
 	private File generateMultiPageMulticol(final String name, final int pages, final int columnsPerPage,
@@ -249,9 +257,9 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 				session.close();
 			}
 		}
+		// E-3増分7: 旧columnCompiledLevels(compiled-programカウンタ)の置換
 		assertTrue("段組内部の改段が実際に発生したはずです(でなければownerを検証できていない)",
-				ContinuationStats.columnCompiledLevels(ContinuationCapability.PLAIN_FLOW) > 0
-						|| ContinuationStats.capabilityScanStops(ContinuationCapability.PLAIN_FLOW) >= 0);
+				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get() > 0);
 		assertEquals("最内側(段数3)のmulticolがownerとして選ばれ続けるはずです(外側の段数2ではない)", 3,
 				ContinuationStats.LAST_COLUMN_OWNER_COLUMN_COUNT.get());
 	}
@@ -330,8 +338,11 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		}
 		assertEquals("MULTICOLは強制改ページでもbarrierにならないはずです(B3b-1)", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
-		assertTrue("段組levelが強制改ページ経由でもfirst-classコンパイルされたはずです",
-				ContinuationStats.pageCompiledLevels(ContinuationCapability.MULTICOL) > 0);
+		// E-3増分7: 旧pageCompiledLevels(MULTICOL)>0の置換——強制改ページ
+		// 経由でも段組levelを含むチェーンがfirst-class実行されたことを
+		// 実挙動カウンタで固定する(上のbarrierゼロ確認と合わせて読む)。
+		assertTrue("継続チェーンが強制改ページ経由でも実際にfirst-class実行されたはずです",
+				ContinuationStats.CHILD_FRAMES.get() > 0);
 	}
 
 	private File generateForceBreakInsideMulticol(final String name) throws IOException {
@@ -515,15 +526,13 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		// この機構はブロックレベルのOpenChain/collectable-prefixスキャン
 		// を一切経由しない——実測で
 		// capabilityScanStops(SAME_AXIS_DIRECTION_CHANGE)・
-		// pageCompiledLevels(SAME_AXIS_DIRECTION_CHANGE)・
 		// RESTYLE_CHAIN_FIRINGSがすべて0のまま、17ページへ安全に
 		// 改ページされることを確認済み(このRL/LR祖先チェーン自体は
 		// 一度も「開いたまま継続」する対象にならない、という意味で
-		// 真にatomic)。
+		// 真にatomic。旧pageCompiledLevels(SAME_AXIS_DIRECTION_CHANGE)==0の
+		// 確認はE-3増分7のcompiled-programカウンタ撤去に伴い削除した)。
 		assertEquals("SAME_AXIS_DIRECTION_CHANGEの祖先はスキャン自体の対象にならないはずです", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE));
-		assertEquals("RL/LR混在levelはfirst-classコンパイルされないはずです", 0,
-				ContinuationStats.pageCompiledLevels(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE));
 		assertEquals("legacy OpenChainの深い再帰も発生しないはずです", 0,
 				ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
 		assertEquals("PAGE/COLUMN合算でもOpenChainは発火しないはずです", 0,

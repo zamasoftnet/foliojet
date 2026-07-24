@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * だけでなくCOLUMN ownerも表現できるよう{@link OpenLevelRole.Anchor}へ
  * 一般化した)。{@link ContinuationCapability#classify}による分類は
  * ここで一度だけ行い(破断後・resume後に再分類しない)、
- * {@link ResumeProgramCompiler}/{@code ColumnResumeProgramCompiler}は
+ * {@link ContinuationValidator}や実行経路は
  * この結果をそのまま運ぶ(ChatGPT Pro相談で確認、
  * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b2-resume-program.md)。
  *

@@ -1048,7 +1048,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		final RootBuilder root = this.getPageContext();
 		if (root == null) {
-			// 2026-07-21(M6b Phase B4-Step4): 型付き経路(compileColumnProgram/
+			// 2026-07-21(M6b Phase B4-Step4): 型付き経路(prepareColumnContinuation/
 			// resumeColumn)はRootBuilderのメソッドとして実装されているため、
 			// rootless文脈(M6c段バランスprobe等のTwoPassBuilder系)では
 			// 使えない。旧来どおりlegacy経路(range stampingなし)のまま。
@@ -1088,15 +1088,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return false;
 		}
 
-		final net.zamasoft.foliojet.layout.fragment.NextColumnTarget columnTarget = new net.zamasoft.foliojet.layout.fragment.NextColumnTarget(
-				breakFlow.box, prepared.expectedOwnerContainer(), prepared.expectedActualColumnCount(),
-				breakFlow.box.getColumnCount(), pageAxis, breakFlow.lineAxis,
-				net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature.from(breakFlow.box));
-
-		// program検証 → column commit → executor開始、の順序を守る
+		// 検証 → column commit → executor開始、の順序を守る
 		// (検証失敗時にownerへcommitしていない状態で安全に止まれる)
-		final RootBuilder.CompiledColumn compiled = root.compileColumnProgram(breakFlow.box.getBlockParams().flow,
-				columnTarget, prepared, columnScan.snapshot());
+		final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation = root.prepareColumnContinuation(
+				breakFlow.box.getBlockParams().flow, prepared, columnScan.snapshot());
 		breakFlow.box.commitPreparedColumn(prepared);
 
 		this.pruneFlowStackTo(breakFlow);
@@ -1104,7 +1099,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// 2026-07-23(排除域P1増分1): 保持されたhidden flow分の空台帳を
 		// 積み直す(rootless経路と同じ)。
 		this.rebuildNoOverflowFloatingScopes();
-		root.resumeColumn(this, compiled);
+		root.resumeColumn(this, continuation);
 		return true;
 	}
 
