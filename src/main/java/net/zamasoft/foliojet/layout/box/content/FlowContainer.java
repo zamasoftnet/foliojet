@@ -1469,16 +1469,26 @@ public class FlowContainer implements Container {
 	 * (`ResumeTrace`の「nested resume」相当)でも安全に対称にpush/pop
 	 * できるようにするため。
 	 */
-	private static int worklistOverrideDepth = 0;
+	private static final ThreadLocal<int[]> worklistOverrideDepth = ThreadLocal.withInitial(() -> new int[1]);
 
-	/** {@link #worklistOverrideDepth}を1増やします。必ず{@link #popWorklistOverride}とtry/finallyで対にすること。 */
+	/**
+	 * {@link #worklistOverrideDepth}を1増やします。必ず{@link #popWorklistOverride}とtry/finallyで対にすること。
+	 *
+	 * <p>
+	 * 2026-07-25(独立レビュー指摘): 素の{@code static int}だと複数変換の
+	 * 並行実行で他スレッドのrestyleまでworklist扱いになり得たため
+	 * ThreadLocalへ変更した。2026-07-24に{@code ContinuationStats}の
+	 * 継続経路スタックと{@code ResumeTrace}のバッファを同じ理由で
+	 * ThreadLocal化した際の取りこぼし。
+	 * </p>
+	 */
 	public static void pushWorklistOverride() {
-		++worklistOverrideDepth;
+		++worklistOverrideDepth.get()[0];
 	}
 
 	/** {@link #worklistOverrideDepth}を1減らします。 */
 	public static void popWorklistOverride() {
-		--worklistOverrideDepth;
+		--worklistOverrideDepth.get()[0];
 	}
 
 	/**
@@ -1491,7 +1501,7 @@ public class FlowContainer implements Container {
 	 * legacy退避)は撤去した(B6検証インフラ退役)。
 	 */
 	private static boolean isWorklistMode() {
-		return worklistOverrideDepth > 0;
+		return worklistOverrideDepth.get()[0] > 0;
 	}
 
 	/**
