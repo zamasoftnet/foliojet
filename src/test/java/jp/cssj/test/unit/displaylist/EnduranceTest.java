@@ -32,6 +32,7 @@ import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.layout.fragment.LayoutSourceTestHooks;
 import net.zamasoft.foliojet.layout.fragment.TextSpillException;
+import net.zamasoft.foliojet.layout.rescue.RescueStats;
 import net.zamasoft.foliojet.layout.segment.TextSpill;
 import net.zamasoft.foliojet.layout.segment.TextSpillTestHooks;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
@@ -63,6 +64,10 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * そうでなければMOVE(次ページ先頭では必ずKEEP)で常に有限)。</li>
  * <li>-Xmx128m別JVM(perfゲート): 巨大単一セルauto表の完走+kill switch
  * (全legacy)対照、10万行短セルauto表の完走規模の実測。</li>
+ * <li>救済分割(2026-07-25、増分8): 20,000pt浮動体+20,000pt書字方向
+ * 不一致ブロック+3,000pt行の同居fixtureで、クラッシュ・無限ループ・
+ * 停滞がないこと、ページ数が有限で妥当なこと、意図しない白紙ページが
+ * できないことを固定する(常時CI)。</li>
  * </ul>
  */
 public class EnduranceTest extends TestCase {
@@ -313,8 +318,104 @@ public class EnduranceTest extends TestCase {
 		System.err.println("[E-6 endurance header] extremePages=" + extremePages + " progressPages=" + tallPages);
 	}
 
+	// ------------------------------------------------------------------
+	// 5. 救済分割の耐久試験(常時CI。2026-07-25、増分8)
+	// ------------------------------------------------------------------
+
+	/**
+	 * 救済分割(visual rescue split)を極端な規模で連続発火させても、
+	 * (1)クラッシュ・無限ループ・停滞がない、(2)ページ数が有限で妥当、
+	 * (3)意図しない白紙ページができない、を固定する
+	 * ({@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner})。
+	 *
+	 * <p>
+	 * fixtureは200×200ptのページに、救済の3経路——浮動体(置換要素)
+	 * 20,000pt・書字方向不一致ブロック20,000pt・巨大な行3,000pt——を
+	 * <b>同居</b>させたものです。単独ではなく同居させるのは、浮動体の
+	 * 排除域が本文側の利用可能量を削り、極小断片ページ(sliver)の下限判定
+	 * ({@code MIN_RESCUE_SLICE}/{@code MIN_RESCUE_FRACTION})が実際に
+	 * 効く配置を作るためです。
+	 * </p>
+	 *
+	 * <p>
+	 * ページ数はexactではなく範囲で固定します。厳密値は段組・排除域の
+	 * 相互作用に依存し、goldenとしての価値より脆さが勝るためです。
+	 * 「行数に比例して増えない」「1ページも進まない(=停滞)にならない」
+	 * という有限性の性質だけを見ます。
+	 * </p>
+	 */
+	public void testRescueSplitEnduranceIsFiniteAndLeavesNoBlankPage() throws Exception {
+		final int floatPt = 20_000, orthogonalPt = 20_000, linePt = 3_000;
+		final File doc = generateRescueSplitStress("rescue-stress", floatPt, orthogonalPt, linePt);
+		RescueStats.reset();
+		final List<String> pages = this.transcodeWithWatchdogDumpingPages(doc, "rescue-stress", 300_000);
+		final long slices = RescueStats.ENABLED_SLICES.get();
+		System.err.println("[rescue endurance] pages=" + pages.size() + " candidates=" + RescueStats.CANDIDATES.get()
+				+ " slices=" + RescueStats.SLICES.get() + " enabledSlices=" + slices);
+
+		// (1) 完走した(watchdogがfailしていない)ことは戻り値到達で確定。
+		// 救済が実際に発火していること——fixtureが黙って通常経路へ落ちて
+		// いたら、この耐久試験は何も試していない
+		assertTrue("救済分割が一度も発火していません(fixtureが通常経路へ落ちた疑い)", slices > 0);
+
+		// (2) ページ数が有限で妥当。
+		// 下限: いちばん背の高い分割不能要素(20,000pt)だけでも200ptずつ
+		// 100断片は要る——これを下回るのは内容が失われている(=停滞して
+		// 打ち切った)ということ。
+		// 上限: 3要素が1ページも共有しない最悪でも総量43,000pt/200pt=215。
+		// 「1ptずつ切って延々とページを作る」なら万単位になる。
+		// 実測(2026-07-25): 160ページ、救済断片156個。
+		final int tallestPages = Math.max(floatPt, orthogonalPt) / 200;
+		final int disjointPages = (floatPt + orthogonalPt + linePt) / 200;
+		assertTrue("ページ数が少なすぎます(停滞して内容を捨てた疑い): " + pages.size(), pages.size() >= tallestPages);
+		assertTrue("ページ数が過大です(極小断片で切り刻んだ疑い): " + pages.size(), pages.size() <= disjointPages * 2);
+
+		// (3) 意図しない白紙ページがない(全ページに描画命令がある)
+		for (int i = 0; i < pages.size(); ++i) {
+			assertTrue("ページ" + (i + 1) + "の表示リストが空です(意図しない白紙):\n" + pages.get(i),
+					pages.get(i).contains("  x="));
+		}
+	}
+
+	/**
+	 * 救済の3経路を同居させた耐久fixture(ページは200×200pt)。
+	 *
+	 * @param floatPt      分割できない浮動体(置換要素)の高さ
+	 * @param orthogonalPt 書字方向が幹と食い違うブロックの高さ
+	 * @param linePt       巨大フォントによる1行の高さ
+	 */
+	private static File generateRescueSplitStress(final String name, final int floatPt, final int orthogonalPt,
+			final int linePt) throws IOException {
+		WORK_DIR.mkdirs();
+		final File file = new File(WORK_DIR, name + ".html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+			w.write("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"200pt\"?>\n");
+			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"200pt\"?>\n");
+			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+			w.write("<style>@page{margin:0}body{margin:0;font:normal 10pt/1 serif}p{margin:0}"
+					+ "img#f{float:left;width:60pt;height:" + floatPt + "pt}"
+					+ "div#o{writing-mode:vertical-rl;width:100pt;height:" + orthogonalPt + "pt;background:#dddddd}"
+					+ "p#huge{font:normal " + linePt + "pt/1 serif}</style>\n");
+			w.write("</head><body>\n");
+			// WORK_DIR(local/unittest/endurance)からの相対
+			w.write("<img src=\"../../../files/unittest/red.png\" id=\"f\" />\n");
+			w.write("<div id=\"o\">O</div>\n");
+			w.write("<p id=\"huge\">A</p>\n");
+			w.write("<p id=\"after\">after</p>\n");
+			w.write("</body></html>\n");
+		}
+		return file;
+	}
+
 	/** watchdog(別daemonスレッド+join timeout)付きtranscode。display listのページ数を返す。 */
 	private int transcodeWithWatchdogCountingPages(final File doc, final String name, final long timeoutMs)
+			throws Exception {
+		return this.transcodeWithWatchdogDumpingPages(doc, name, timeoutMs).size();
+	}
+
+	/** watchdog付きtranscode。display listのページごとのダンプを返す。 */
+	private List<String> transcodeWithWatchdogDumpingPages(final File doc, final String name, final long timeoutMs)
 			throws Exception {
 		final File dumpDir = new File(WORK_DIR, name + "-dump");
 		deleteRecursively(dumpDir);
@@ -341,8 +442,16 @@ public class EnduranceTest extends TestCase {
 		if (failure[0] != null) {
 			throw new AssertionError(name + ": 変換が失敗しました", failure[0]);
 		}
-		final File[] pages = dumpDir.listFiles((d, n) -> n.endsWith(".txt"));
-		return pages == null ? 0 : pages.length;
+		final File[] files = dumpDir.listFiles((d, n) -> n.endsWith(".txt"));
+		if (files == null) {
+			return Collections.emptyList();
+		}
+		java.util.Arrays.sort(files);
+		final List<String> pages = new ArrayList<>(files.length);
+		for (final File f : files) {
+			pages.add(Files.readString(f.toPath(), StandardCharsets.UTF_8));
+		}
+		return pages;
 	}
 
 	// ------------------------------------------------------------------

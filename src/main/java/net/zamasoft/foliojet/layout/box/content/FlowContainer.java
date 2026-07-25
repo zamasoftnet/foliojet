@@ -1097,9 +1097,10 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 救済分割(visual rescue split)の唯一の差し込み地点です
-	 * (2026-07-25新設、増分4/5。
-	 * {@code docs/consultations/consult-rescue-split-codex.md} §1)。
+	 * 救済分割(visual rescue split)の、通常フローにおける唯一の差し込み
+	 * 地点です(2026-07-25新設。仕様と設計判断の根拠は
+	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
+	 * クラス説明に集約しています)。
 	 *
 	 * <p>
 	 * 呼ばれるのは「フラグメント先頭・分割不能・なお超過」という
@@ -1140,18 +1141,16 @@ public class FlowContainer implements Container {
 			offset = 0;
 		}
 		final net.zamasoft.foliojet.layout.rescue.RescueDecision decision = net.zamasoft.foliojet.layout.rescue.RescueStats
-				.record(box.getType(), net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
+				.record(net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
 						box.getPos().getType(), true, capacity, available, sourcePageExtent, offset));
 		if (!(decision instanceof net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice)) {
 			return null;
 		}
 		if (!net.zamasoft.foliojet.layout.rescue.RescuePolicy.isEnabled()) {
-			// 増分4(影検証): 判定はするが従わない
+			// テスト専用の注入点(従来の挙動との比較用)。本番は常に有効
 			return null;
 		}
 		if (!isRescueEnabled(box)) {
-			// 増分5では通常フローの置換要素(とその続き)だけを有効化する。
-			// 巨大な行・ブロック・表・floatは増分6以降
 			return null;
 		}
 		if (slice.lastFragment()) {
@@ -1176,8 +1175,9 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 救済分割を実際に有効にする範囲です(増分5: 通常フローの置換要素、
-	 * 増分6: 巨大な行と書字方向が食い違うブロックを追加)。
+	 * 救済分割を実際に有効にする範囲です。仕様と設計判断の根拠は
+	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
+	 * クラス説明に集約しています(ここには置きません)。
 	 *
 	 * <p>
 	 * <b>ここはクラス列挙ではありません</b>。この判定に到達する時点で
@@ -1204,10 +1204,7 @@ public class FlowContainer implements Container {
 	 *
 	 * <p>
 	 * <b>有効化していないもの</b>: {@code TABLE}(表全体を幾何学的に切る
-	 * 経路)。表は行・行グループ・セルの分割機構を自前で持ち、
-	 * {@code Keep}/{@code Move}が「内部機構が処理した」の意である場合と
-	 * 「本当に前進できない」場合を現状の戻り値からは区別できません。
-	 * コーパスにも候補がないため、段階的拡大の方針に従って見送ります。
+	 * 経路)。理由は{@code VisualRescuePlanner}のクラス説明§4。
 	 * </p>
 	 */
 	private static boolean isRescueEnabled(final IFlowBox box) {

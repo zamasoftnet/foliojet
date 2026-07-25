@@ -231,13 +231,13 @@ public record FloatSplitPlan(
 		}
 		final double available = pageLimit - m.pageStart();
 		final net.zamasoft.foliojet.layout.rescue.RescueDecision decision = net.zamasoft.foliojet.layout.rescue.RescueStats
-				.record(m.boxType(),
-						net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
-								m.box().getPos().getType(), true, pageLimit, available, sourcePageExtent, offset));
+				.record(net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
+						m.box().getPos().getType(), true, pageLimit, available, sourcePageExtent, offset));
 		if (!(decision instanceof net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice)) {
 			return null;
 		}
 		if (!net.zamasoft.foliojet.layout.rescue.RescuePolicy.isEnabled()) {
+			// テスト専用の注入点(従来の挙動との比較用)。本番は常に有効
 			return null;
 		}
 		if (slice.lastFragment()) {
