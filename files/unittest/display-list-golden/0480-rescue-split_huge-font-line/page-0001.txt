@@ -1,0 +1,2 @@
+drawer z=0
+  x=0.00 y=0.00 Text["A" asc=379.44 desc=120.56]

@@ -537,7 +537,12 @@ public class FlowContainer implements Container {
 			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
 			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				Flow c = (Flow) this.flows.get(i);
-				if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
+				if (isRescuedFrameOwner(c.box)) {
+					// 2026-07-25(救済分割・増分6): ブロックを元にした断片は
+					// 枠(背景・ボーダー)もこのフレームパスで描かれる
+					((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) c.box).pushSourceFramesSteps(pageBox, drawer,
+							clip, transform, x, y + c.pageAxis, worklist);
+				} else if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
 					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
 					worklist.push(AbstractContainerBox.framesStep(blockBox, pageBox, drawer, clip, transform, x,
 							y + c.pageAxis));
@@ -551,7 +556,10 @@ public class FlowContainer implements Container {
 			for (int i = this.flows.size() - 1; i >= 0; --i) {
 				// 通常のフロー
 				Flow c = (Flow) this.flows.get(i);
-				if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
+				if (isRescuedFrameOwner(c.box)) {
+					((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) c.box).pushSourceFramesSteps(pageBox, drawer,
+							clip, transform, x - c.pageAxis - c.box.getWidth(), y, worklist);
+				} else if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
 					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
 					worklist.push(AbstractContainerBox.framesStep(blockBox, pageBox, drawer, clip, transform,
 							x - c.pageAxis + -blockBox.getWidth(), y));
@@ -561,6 +569,22 @@ public class FlowContainer implements Container {
 		default:
 			throw new IllegalStateException();
 		}
+	}
+
+	/**
+	 * 救済断片のうち、枠(背景・ボーダー)をフレームパスで描くべきもので
+	 * あればtrueを返します(2026-07-25、増分6)。
+	 *
+	 * <p>
+	 * 判定は元ボックスの配置が通常フローの{@code offset == null}
+	 * (=相対配置でない)かどうかで、非救済のブロックとまったく同じ条件
+	 * です。テキストブロックを元にした断片は{@code FlowPos}を持たない
+	 * ためここでfalseになり、置換要素を元にした断片は自分の描画で枠を
+	 * 描くため{@code pushSourceFramesSteps}側で何も積みません。
+	 * </p>
+	 */
+	private static boolean isRescuedFrameOwner(final IFlowBox box) {
+		return box.getType() == BoxType.RESCUE && box.getPos() instanceof FlowPos flowPos && flowPos.offset == null;
 	}
 
 	public final void pushDrawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
@@ -851,6 +875,25 @@ public class FlowContainer implements Container {
 			switch (prevFlow.box.getType()) {
 			case TABLE:
 			case TEXT_BLOCK: {
+				// 2026-07-25(救済分割・増分6): 巨大な行。答申§1のとおり
+				// TextBlockBox.split()を呼ぶ**前に**行の物理下端を検査する。
+				// LineCutterはフラグメント先頭で実質1行しかなければ無条件に
+				// KEEPを返す(=行分割では前進しない)ため、切断結果からは
+				// その非進行を区別できないからである。巨大フォント・背の
+				// 高いインラインブロック・インラインテーブル・ルビ単位・
+				// インライン置換要素は、すべて「背の高い1行」としてこの
+				// 一点で捕捉される——個別の分岐は作らない
+				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
+						&& prevFlow.box instanceof net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock) {
+					final double unbreakableEnd = textBlock.getUnbreakableLinePageEnd();
+					if (!LayoutUtils.isNone(unbreakableEnd) && LayoutUtils.compare(splitLine, unbreakableEnd) < 0) {
+						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
+						if (rescued != null) {
+							nextFlowBox = rescued;
+							break;
+						}
+					}
+				}
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 				nextFlowBox = switch (prevFlowBox.split(splitLine, mode, xflags)) {
 				case SplitResult.Keep keep -> null;
@@ -1133,20 +1176,44 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 救済分割を実際に有効にする範囲です(増分5: 通常フローの置換要素と
-	 * その続きの断片だけ)。
+	 * 救済分割を実際に有効にする範囲です(増分5: 通常フローの置換要素、
+	 * 増分6: 巨大な行と書字方向が食い違うブロックを追加)。
 	 *
 	 * <p>
-	 * 判定はボックスの種類で行います。したがって段組の中・表セルの中の
-	 * 置換要素も同じ経路で救済されます(フラグメンテナが段・セルになる
-	 * だけで、判定も運搬も同一)。「段組・表セルは増分6以降」というのは
-	 * <b>段組ボックス自身・セルボックス自身を切る</b>話で、そちらは
-	 * ここで{@code false}になります。
+	 * <b>ここはクラス列挙ではありません</b>。この判定に到達する時点で
+	 * 「フラグメント先頭・分割不能・なお超過」というエンジン自身の分類は
+	 * 済んでいます(答申§4)——
+	 * </p>
+	 *
+	 * <ul>
+	 * <li>{@code REPLACED}は元から分割の入口を持たない。</li>
+	 * <li>{@code TEXT_BLOCK}は「先頭行が容量を超えている」という、行分割
+	 * では前進できない形でだけここへ来る(呼び出し元の事前検査)。</li>
+	 * <li>{@code BLOCK}は、書字方向が幹と食い違う等でエンジンが
+	 * <b>atomicに分類してREPLACED経路へフォールスルーさせた</b>ものだけが
+	 * ここへ来る。通常の(幹と同方向の)ブロックは自分のコンテナで再帰的に
+	 * 分割されるため、この地点には到達しない。</li>
+	 * <li>{@code RESCUE}は救済済み断片の続き。</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * フラグメンテナの種類(ページ・段・表セル)による差はありません。
+	 * 段組の中・表セルの中でも、判定({@code prevPageSize}=そのフラグメン
+	 * テナ容量)も運搬(残余を戻り値で親へ返す)もまったく同一の経路です。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>有効化していないもの</b>: {@code TABLE}(表全体を幾何学的に切る
+	 * 経路)。表は行・行グループ・セルの分割機構を自前で持ち、
+	 * {@code Keep}/{@code Move}が「内部機構が処理した」の意である場合と
+	 * 「本当に前進できない」場合を現状の戻り値からは区別できません。
+	 * コーパスにも候補がないため、段階的拡大の方針に従って見送ります。
 	 * </p>
 	 */
 	private static boolean isRescueEnabled(final IFlowBox box) {
 		return switch (box.getType()) {
-		case REPLACED -> box.getPos().getType() == PosType.FLOW;
+		case REPLACED, BLOCK -> box.getPos().getType() == PosType.FLOW;
+		case TEXT_BLOCK -> box.getPos().getType() == PosType.TEXT_BLOCK;
 		case RESCUE -> true;
 		default -> false;
 		};
@@ -1238,7 +1305,11 @@ public class FlowContainer implements Container {
 			final Floating floating = this.floatings.getFloating(k);
 			floatPageStarts[k] = floating.pageAxis;
 			floatPageExtents[k] = floating.box.getPageExtent(params.flow);
-			floatUncut[k] = floating.box.getType() == BoxType.REPLACED
+			// RESCUE(救済断片)は通常の意味では切断不能——行・行グループの
+			// ような内部の切断点を持たない。幾何学的な救済切断はこの
+			// avoid押し戻しの判断とは別の話なので、置換要素とまったく
+			// 同じ扱いにする(2026-07-25、増分7)
+			floatUncut[k] = floating.box.getType() == BoxType.REPLACED || floating.box.getType() == BoxType.RESCUE
 					|| ((AbstractContainerBox) floating.box).getBlockParams().pageBreakInside == PageBreakMode.AVOID;
 		}
 		return new FloatMeasurements(floatPageStarts, floatPageExtents, floatUncut);
@@ -1405,16 +1476,27 @@ public class FlowContainer implements Container {
 			}
 			switch (flow.box.getType()) {
 			case RESCUE:
-				// 2026-07-25(救済分割・増分5): 救済断片は排除域の台帳を
-				// 持たない(元ボックスは既にレイアウト済みで、断片は描画時の
-				// clipと座標移動だけ)。増分5で有効なのは通常フローの置換
-				// 要素だけで、置換要素は自分のコンテナを持たないため、
-				// REPLACED/TEXT_BLOCK/TABLEと同じく「何もしない」が正しい
-				// (増分6以降でブロックを有効化するときは、元ボックスの
-				// コンテナへ降りる再帰をここへ足すこと——ただし台帳の
-				// 二重移送を避けるため、先頭断片で一度だけ扱う設計が要る)
-				assert ((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) flow.box)
-						.getSource() instanceof AbstractReplacedBox : "増分5の救済対象は置換要素だけ: " + flow.box;
+				// 2026-07-25(救済分割・増分6): 救済断片は排除域の台帳を
+				// 持たず、子コンテナへも降りない。増分6で自前のコンテナを
+				// 持つ元ボックス(書字方向が食い違うブロック・テキスト
+				// ブロック)が来るようになったが、<b>何もしないのが正しい</b>。
+				//
+				// 理由: 救済断片は「元ボックス全体を、消費済み量だけずらして
+				// クリップして描く」ものである(答申§2)。元ボックスの中の
+				// フロートは、その元ボックスの描画の一部として、各断片の
+				// クリップ内に見える範囲だけが描かれる。ここで
+				// detachMovedFloatings して次フラグメントの台帳へ移すと、
+				// (a) 元ボックスからフロートが失われるため先頭断片で消え、
+				// (b) 次フラグメントでは元の幾何を無視した新しい位置へ
+				// 置き直される——「レイアウト計算は変えない。同じ箱を
+				// ずらしてクリップするだけ」という設計の核を破る。
+				//
+				// 断片がフラグメント上で占める量(=この断片の排除域の高さ)は
+				// sliceExtent であり、それは flow.box.getPageExtent() が
+				// 返す値そのものなので、追加の帳簿は要らない。残余(tail)は
+				// 次フラグメントで通常どおり配置され、そこで同じ規則が
+				// 適用される(答申§5)。
+				assert flow.box instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueBox : flow.box;
 				break;
 			case BLOCK:
 				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
@@ -1967,6 +2049,13 @@ public class FlowContainer implements Container {
 					// 2026-07-25(救済分割・増分5): 救済断片の残余。BoxType
 					// を偽装せず専用の入口へ明示dispatchする(答申§5——
 					// 通常のaddBound()へ流すとParamsのキャストで落ちる)
+					if (holder.getBox().getPos().getType() == PosType.FLOAT) {
+						// 増分7: 浮動体の残余は通常のfloat配置をやり直す
+						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-float-rescue",
+								"serial=" + holder.serial);
+						((Floating) holder).restyle(builder);
+						break;
+					}
 					final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox rescueBox = (net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox) holder
 							.getBox();
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-rescue",

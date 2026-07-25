@@ -351,6 +351,45 @@ public class VisualRescuePlannerTest extends TestCase {
 		assertTrue(slice.isContinuation());
 	}
 
+	/**
+	 * はみ出し量が実用上小さいなら救済を<b>始めない</b>(2026-07-25、増分6)。
+	 * 数ptのはみ出しを救うために丸ごと1ページ増やすと、そのページは実質
+	 * 白紙になる——「意図しない白紙ページを作らない」の末尾側の守り。
+	 */
+	public void testSliverRemainderDoesNotStartARescue() {
+		// はみ出し10pt(20pt未満) → 救済しない
+		assertEquals(RescueDecision.Reason.SLIVER_REMAINDER,
+				reasonOf(VisualRescuePlanner.planInFragmentainer(null, true, 200, 200, 210, 0)));
+		// ちょうど20ptのはみ出しは救済する(境界を含む)
+		final RescueDecision.Slice slice = sliceOf(
+				VisualRescuePlanner.planInFragmentainer(null, true, 200, 200, 220, 0));
+		assertEquals(200.0, slice.sliceExtent(), 0);
+		assertFalse(slice.lastFragment());
+	}
+
+	/**
+	 * 末尾側の下限に<b>割合</b>は課さない。A4(842pt)に貼られた少しだけ
+	 * 背の高い画像——本来の用途そのもの——を拒否してしまうため。
+	 */
+	public void testSliverRemainderUsesTheAbsoluteFloorOnly() {
+		// 容量800pt、はみ出し100pt。割合(200pt)を課すと拒否されてしまう
+		final RescueDecision.Slice slice = sliceOf(
+				VisualRescuePlanner.planInFragmentainer(null, true, 800, 800, 900, 0));
+		assertEquals(800.0, slice.sliceExtent(), 0);
+	}
+
+	/**
+	 * 末尾側の下限も<b>開始時だけ</b>。切り始めた断片は、残余が小さくても
+	 * 最後まで切り進める(やめると内容が失われる)。
+	 */
+	public void testSliverRemainderGuardDoesNotAbandonAnStartedRescue() {
+		final RescueDecision.Slice slice = sliceOf(
+				VisualRescuePlanner.planInFragmentainer(null, true, 200, 200, 405, 200));
+		assertEquals(200.0, slice.offset(), 0);
+		assertEquals(200.0, slice.sliceExtent(), 0);
+		assertFalse("残り5ptでも続ける", slice.lastFragment());
+	}
+
 	/** 絶対配置の除外は容量判定より前に効く。 */
 	public void testFragmentainerPlanStillRejectsAbsolute() {
 		assertEquals(RescueDecision.Reason.ABSOLUTE,

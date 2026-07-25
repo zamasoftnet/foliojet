@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=-400.00 artifact AbsoluteRectFrame[w=100.00 h=500.00]
+  x=100.00 y=0.00 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
+  x=100.00 y=10.51 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
+  x=100.00 y=21.01 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
+  x=100.00 y=31.52 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
+  x=100.00 y=42.02 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
+  x=100.00 y=52.53 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
+  x=100.00 y=63.03 Text["ABCDEFGHIJ" asc=7.59 desc=2.41]

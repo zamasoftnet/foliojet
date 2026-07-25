@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>救済分割: 段組の中の巨大ブロックが段の高さでちょうど割り切れる</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+	column-count: 2;
+	column-gap: 20pt;
+}
+div#a {
+	writing-mode: vertical-rl;
+	width: 50pt;
+	height: 400pt;
+	background: #cccccc;
+}
+</style>
+</head>
+<body>
+<div id="a">縦</div>
+</body>
+</html>

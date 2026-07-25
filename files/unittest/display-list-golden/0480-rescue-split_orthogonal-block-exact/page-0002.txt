@@ -1,0 +1,3 @@
+drawer z=0
+  x=0.00 y=-200.00 artifact AbsoluteRectFrame[w=100.00 h=400.00]
+  x=90.00 y=-200.00 artifact Text["縦" asc=5.00 desc=5.00]

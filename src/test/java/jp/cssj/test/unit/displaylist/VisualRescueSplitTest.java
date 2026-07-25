@@ -28,9 +28,12 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code docs/history/2026-07-25-rescue-split-spec.md})。
  *
  * <p>
- * 増分5で有効なのは<b>通常フロー中の置換要素</b>だけです。巨大行・ブロック・
- * 表セル・段組・floatは増分6以降なので、ここでは対象外であることを
- * 確かめません(有効化していないため既存の挙動のまま)。
+ * 増分6/7(2026-07-25)で、巨大な行(巨大フォント・背の高いインライン
+ * ブロック等)・書字方向が幹と食い違うブロック・表セル・段組・浮動体まで
+ * 広げました。<b>表全体を幾何学的に切る経路({@code BoxType.TABLE})だけは
+ * 見送っています</b>——表は行・行グループ・セルの分割機構を自前で持ち、
+ * {@code Keep}/{@code Move}が「内部機構が処理した」の意か「本当に前進
+ * できない」かを現状の戻り値からは区別できないためです。
  * </p>
  *
  * <p>
@@ -127,6 +130,164 @@ public class VisualRescueSplitTest extends TestCase {
 		assertDrawableAt(pages.get(0), 0, -300.0, 0.0, false);
 		assertDrawableAt(pages.get(1), 0, -100.0, 0.0, true);
 		assertDrawableAt(pages.get(2), 0, 100.0, 0.0, true);
+	}
+
+	// ------------------------------------------------------------------
+	// 増分6: 巨大な行(巨大フォント・背の高いインラインブロック)
+	// ------------------------------------------------------------------
+
+	/**
+	 * 1行がページより高い段落(巨大フォント)を切る。行分割は
+	 * 「フラグメント先頭では必ず1行を残す」ため<b>前進しない</b>——
+	 * その非進行点だけを置き換える。
+	 */
+	public void testHugeFontLineIsSliced() throws Exception {
+		final List<String> pages = render("0480-rescue-split/huge-font-line.html", RescuePolicy.ENABLED);
+		assertEquals("行500pt / ページ200pt = 3断片", 3, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(0), 0, 0.0, 0.0, false);
+		assertDrawableAt(pages.get(1), 0, 0.0, -200.0, true);
+		assertDrawableAt(pages.get(2), 0, 0.0, -400.0, true);
+		assertTrue("最終断片の後に後続が続く: " + pages.get(2), pages.get(2).contains("y=100.00 Text["));
+	}
+
+	/** ページ高さでちょうど割り切れる行で、余分なページを作らない。 */
+	public void testHugeFontLineExactMultipleProducesNoExtraPage() throws Exception {
+		final List<String> pages = render("0480-rescue-split/huge-font-exact.html", RescuePolicy.ENABLED);
+		assertEquals("行400pt / ページ200pt = ちょうど2断片", 2, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(1), 0, 0.0, -200.0, true);
+	}
+
+	/**
+	 * 背の高いインラインブロックも<b>同じ経路</b>(巨大な行)で捕捉される。
+	 * インラインブロック専用の分岐は作っていない。
+	 */
+	public void testTallInlineBlockIsSlicedAsAHugeLine() throws Exception {
+		final List<String> pages = render("0480-rescue-split/tall-inline-block.html", RescuePolicy.ENABLED);
+		assertEquals("インラインブロック500pt / ページ200pt = 3断片", 3, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(0), 0, 0.0, 0.0, false);
+		assertDrawableAt(pages.get(1), 0, 0.0, -200.0, true);
+		assertDrawableAt(pages.get(2), 0, 0.0, -400.0, true);
+	}
+
+	/**
+	 * <b>複数行ある段落は救済しない</b>。行分割が実際に前進する(先頭行を
+	 * 残して残りを次フラグメントへ送る)ため非進行点ではなく、そこで段落
+	 * 全体を幾何学的に切ると「全ページに全行の帯が並ぶ」明確な劣化になる。
+	 */
+	public void testMultiLineParagraphIsSplitByLinesNotSliced() throws Exception {
+		final List<String> enabled = render("2010-LIMIT/image-line.html", RescuePolicy.ENABLED);
+		final List<String> disabled = render("2010-LIMIT/image-line.html", RescuePolicy.DISABLED);
+		assertEquals(disabled, enabled);
+	}
+
+	// ------------------------------------------------------------------
+	// 増分6: 書字方向が幹と食い違うブロック
+	// ------------------------------------------------------------------
+
+	/**
+	 * 書字方向が幹と食い違うブロックは、エンジン自身が<b>atomicに分類</b>して
+	 * 置換要素と同じ終端へ落としている。そこが非進行点なので同じ規則で切る。
+	 */
+	public void testOrthogonalBlockIsSliced() throws Exception {
+		final List<String> pages = render("0480-rescue-split/orthogonal-block.html", RescuePolicy.ENABLED);
+		assertEquals("ブロック500pt / ページ200pt = 3断片", 3, pages.size());
+		assertNoBlankPage(pages);
+		// 枠(背景)は「フレームパス」で描かれる。断片でも先頭は実内容、
+		// 続きはartifactとして出る
+		assertDrawableAt(pages.get(0), 0, 0.0, 0.0, false);
+		assertDrawableAt(pages.get(1), 0, 0.0, -200.0, true);
+		assertDrawableAt(pages.get(2), 0, 0.0, -400.0, true);
+	}
+
+	/** ちょうど割り切れる書字方向不一致ブロックで、余分なページを作らない。 */
+	public void testOrthogonalBlockExactMultipleProducesNoExtraPage() throws Exception {
+		final List<String> pages = render("0480-rescue-split/orthogonal-block-exact.html", RescuePolicy.ENABLED);
+		assertEquals("ブロック400pt / ページ200pt = ちょうど2断片", 2, pages.size());
+		assertNoBlankPage(pages);
+	}
+
+	// ------------------------------------------------------------------
+	// 増分6: 表セル・段組(フラグメンテナがページでない場合)
+	// ------------------------------------------------------------------
+
+	/** 表セルの中でも同じ判定・同じ運搬(フラグメンテナがセルになるだけ)。 */
+	public void testTallImageInTableCellIsSliced() throws Exception {
+		final List<String> pages = render("0480-rescue-split/cell-tall-image.html", RescuePolicy.ENABLED);
+		assertEquals("セル内の画像500pt / ページ200pt = 3断片", 3, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(1), 1, 0.0, -200.0, true);
+		assertDrawableAt(pages.get(2), 1, 0.0, -400.0, true);
+	}
+
+	/** 表セルでもちょうど割り切れる高さで余分なページを作らない。 */
+	public void testTallImageInTableCellExactMultipleProducesNoExtraPage() throws Exception {
+		final List<String> pages = render("0480-rescue-split/cell-tall-image-exact.html", RescuePolicy.ENABLED);
+		assertEquals("セル内の画像400pt / ページ200pt = ちょうど2断片", 2, pages.size());
+		assertNoBlankPage(pages);
+	}
+
+	/**
+	 * 段組では「ページ」ではなく<b>現在のfragmentainer容量</b>で切る
+	 * ——次段へ、段が尽きれば次ページへ。500ptのブロックは
+	 * 1ページ目の2段(200+200)と2ページ目の2段(段バランスで55+45)に載る。
+	 */
+	public void testTallBlockInColumnsUsesTheColumnAsFragmentainer() throws Exception {
+		final List<String> pages = render("0480-rescue-split/column-tall-block.html", RescuePolicy.ENABLED);
+		assertEquals("段(200pt)を単位に切るので2ページ", 2, pages.size());
+		assertNoBlankPage(pages);
+		// 1ページ目: 1段目が先頭断片(実内容)、2段目が続き(artifact)
+		assertDrawableAt(pages.get(0), 0, 0.0, 0.0, false);
+		assertDrawableAt(pages.get(0), 1, 160.0, -200.0, true);
+	}
+
+	/**
+	 * 段の高さでちょうど割り切れるブロックは1ページの2段に収まり、
+	 * 余分なページを作らない。
+	 */
+	public void testTallBlockInColumnsExactMultipleProducesNoExtraPage() throws Exception {
+		final List<String> pages = render("0480-rescue-split/column-tall-block-exact.html", RescuePolicy.ENABLED);
+		assertEquals("ブロック400pt = 段200pt × 2段でちょうど1ページ", 1, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(0), 0, 0.0, 0.0, false);
+		assertDrawableAt(pages.get(0), 1, 160.0, -200.0, true);
+	}
+
+	// ------------------------------------------------------------------
+	// 増分7: 浮動体
+	// ------------------------------------------------------------------
+
+	/**
+	 * 分割できない浮動体(ページより背の高い画像)を切る。断片の排除域は
+	 * その断片の占有量になるので、<b>続きのページでも本文が浮動体を
+	 * 避けて流れる</b>(=救済前は本文が浮動体の下に潜り込んでいた)。
+	 */
+	public void testTallFloatIsSliced() throws Exception {
+		final List<String> pages = render("0480-rescue-split/float-tall.html", RescuePolicy.ENABLED);
+		assertEquals("浮動体500pt / ページ200pt = 3断片", 3, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(0), 0, 0.0, 0.0, false);
+		assertDrawableAt(pages.get(1), 0, 0.0, -200.0, true);
+		assertDrawableAt(pages.get(2), 0, 0.0, -400.0, true);
+		// 続きのページでも本文は浮動体の右へ流れる(排除域が生きている)
+		assertTrue("2ページ目の本文が排除域を避けている: " + pages.get(1), pages.get(1).contains("x=100.00 y=0.00 Text["));
+	}
+
+	/** 救済を切ると、浮動体の続きは失われ本文が左端から流れる(従来の挙動)。 */
+	public void testTallFloatWithoutRescueLosesTheRemainder() throws Exception {
+		final List<String> pages = render("0480-rescue-split/float-tall.html", RescuePolicy.DISABLED);
+		assertEquals(2, pages.size());
+		assertTrue("2ページ目に浮動体の続きはない: " + pages.get(1), pages.get(1).contains("x=0.00 y=0.00 Text["));
+	}
+
+	/** ちょうど割り切れる浮動体で、余分なページを作らない。 */
+	public void testFloatExactMultipleProducesNoExtraPage() throws Exception {
+		final List<String> pages = render("0480-rescue-split/float-exact.html", RescuePolicy.ENABLED);
+		assertEquals("浮動体400pt / ページ200pt = ちょうど2断片(3ページ目は作らない)", 2, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(1), 0, 0.0, -200.0, true);
 	}
 
 	// ------------------------------------------------------------------

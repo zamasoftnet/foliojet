@@ -158,11 +158,26 @@ public final class VisualRescuePlanner {
 	 * </p>
 	 *
 	 * <p>
-	 * 割合・絶対値の下限を課すのは<b>救済を始めるかどうか</b>
-	 * ({@code offset == 0})の判定だけです。すでに切り始めている
-	 * ({@code offset > 0})断片で「小さすぎるからやめる」を選ぶと、残りの
-	 * 内容が失われる(=従来どおりはみ出して切り捨てられる)ため、
-	 * 開始後は前進保証だけを守って必ず切り進めます。
+	 * 下限は<b>両側</b>に課します(2026-07-25、増分6/7で追加した
+	 * 末尾側)。
+	 * </p>
+	 *
+	 * <ul>
+	 * <li><b>先頭側</b>: 利用可能量が{@link #minUsefulSlice(double)}未満なら
+	 * 救済しない——数ptずつの断片ページが連続するのを防ぐ。</li>
+	 * <li><b>末尾側</b>: <b>はみ出し量</b>が{@link #MIN_RESCUE_SLICE}未満なら
+	 * 救済しない——数ptのはみ出しを救うために丸ごと1ページ増やすと、
+	 * そのページは実質白紙になる。ここに割合の下限を課さないのは、
+	 * 「A4に貼られた少しだけ背の高い画像」のような<b>本来の用途</b>を
+	 * 拒否してしまうためで、エンジン自身の縮退閾値(20pt)だけを使う。</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * どちらの下限も<b>救済を始めるかどうか</b>({@code offset == 0})の
+	 * 判定にだけ効きます。すでに切り始めている({@code offset > 0})断片で
+	 * 「小さすぎるからやめる」を選ぶと、残りの内容が失われる(=従来どおり
+	 * はみ出して切り捨てられる)ため、開始後は前進保証だけを守って必ず
+	 * 切り進めます。
 	 * </p>
 	 *
 	 * @param posType          対象ボックスの配置方法
@@ -185,6 +200,11 @@ public final class VisualRescuePlanner {
 		}
 		if (available < minUsefulSlice(capacity)) {
 			return new RescueDecision.None(RescueDecision.Reason.SLIVER_CAPACITY);
+		}
+		if (sourcePageExtent - slice.nextOffset() < MIN_RESCUE_SLICE) {
+			// 末尾側の守り: はみ出し量が実用上小さすぎる。数ptのために
+			// 1ページ増やすと、そのページは実質白紙になる
+			return new RescueDecision.None(RescueDecision.Reason.SLIVER_REMAINDER);
 		}
 		return decision;
 	}

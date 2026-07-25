@@ -200,6 +200,56 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
+	/**
+	 * 行境界では一切前進できない(=行分割の切断点が存在しない)場合に、
+	 * その唯一の行の物理下端を返します。前進できるなら
+	 * {@link LayoutUtils#NONE}を返します(2026-07-25新設、救済分割・増分6。
+	 * {@code docs/consultations/consult-rescue-split-codex.md} §1)。
+	 *
+	 * <p>
+	 * 「巨大な行」の救済分割は、{@link #split(double, byte)}を<b>呼ぶ前に</b>
+	 * この値を検査して判定します。{@link LineCutter}はフラグメント先頭
+	 * ({@code FLAGS_FIRST})で実質1行しかなければ<b>無条件に</b>
+	 * {@code KEEP}を返す——つまり容量を超えていてもはみ出したまま
+	 * 描かれる——ので、切断結果からはその非進行を区別できないためです。
+	 * 巨大フォント・背の高いインラインブロック・インラインテーブル・
+	 * ルビ単位・インライン置換要素は、すべて「背の高い1行」として
+	 * この一点に集約されます(個別の分岐は作りません)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>複数行あるときは救済しません</b>。行分割が実際に前進する
+	 * (先頭行を残して残りを次フラグメントへ送る)ため非進行点ではなく、
+	 * そこで段落全体を幾何学的に切ると「全ページに全行の帯が並ぶ」という
+	 * 明確な劣化になるからです({@code files/unittest/2010-LIMIT/line.html}
+	 * で実測)。先頭行だけが極端に高い段落のはみ出しは、従来どおり
+	 * 残ります。
+	 * </p>
+	 *
+	 * @return 前進できないときの唯一の行の下端。前進できるなら{@code NONE}
+	 */
+	public final double getUnbreakableLinePageEnd() {
+		if (this.lines.isEmpty()) {
+			return LayoutUtils.NONE;
+		}
+		final double[] lineStarts = new double[this.lines.size()];
+		final double[] lineEnds = new double[this.lines.size()];
+		this.measureLines(lineStarts, lineEnds);
+		if (!LineCutter.singleEffectiveLine(lineStarts, lineEnds)) {
+			return LayoutUtils.NONE;
+		}
+		return lineEnds[0];
+	}
+
+	/** 各行の上辺・底辺(このボックスの上端からの距離)を採取します。 */
+	private void measureLines(final double[] lineStarts, final double[] lineEnds) {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = (Line) this.lines.get(i);
+			lineStarts[i] = line.pageAxis;
+			lineEnds[i] = line.getPageEnd();
+		}
+	}
+
 	public final double getCutPoint(double pageAxis) {
 		if (this.lines.isEmpty()) {
 			return pageAxis;
@@ -286,11 +336,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		final double pageSize = this.getPageExtent(this.params.flow);
 		final double[] lineStarts = new double[this.lines.size()];
 		final double[] lineEnds = new double[this.lines.size()];
-		for (int i = 0; i < this.lines.size(); ++i) {
-			final Line line = (Line) this.lines.get(i);
-			lineStarts[i] = line.pageAxis;
-			lineEnds[i] = line.getPageEnd();
-		}
+		this.measureLines(lineStarts, lineEnds);
 		final LineCutter.Decision decision = LineCutter.decide(pageLimit, pageSize, this.params.lineHeight,
 				this.params.orphans, this.params.widows, (flags & IPageBreakableBox.FLAGS_FIRST) != 0, lineStarts,
 				lineEnds);

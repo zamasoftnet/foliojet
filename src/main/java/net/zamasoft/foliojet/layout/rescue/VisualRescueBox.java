@@ -337,6 +337,46 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
+	 * 元ボックスの枠(背景・ボーダー)の描画手順を、断片のクリップと
+	 * 座標で積みます(2026-07-25、増分6)。
+	 *
+	 * <p>
+	 * ブロックの枠は<b>描画パスとは別の「フレームパス」</b>で描かれます
+	 * ({@code AbstractBlockBox.pushFramesSteps} —— 背景・ボーダーを内容
+	 * より先に、親コンテナの走査で描く)。したがって
+	 * {@link #pushDrawSteps}へ元ボックスを委譲するだけでは、ブロックを
+	 * 元にした断片の背景・ボーダーが<b>どの断片にも出ません</b>。
+	 * この入口が、そのフレームパスの側の委譲です。
+	 * </p>
+	 *
+	 * <p>
+	 * 枠を{@link #clip(Shape, double, double)}で切るだけなので、装飾は
+	 * 描画パスと同じく自然にsliceになります(先頭断片だけが上ボーダー、
+	 * 最終断片だけが下ボーダーを含み、切断面に線は出ない)。継続断片は
+	 * artifact扱いも同じです。
+	 * </p>
+	 *
+	 * <p>
+	 * 元ボックスが枠パスを持たない種類(テキストブロック・置換要素)
+	 * であれば何も積みません——置換要素は自分の{@code pushDrawSteps}で
+	 * 枠を描くため、二重に描かないためです。
+	 * </p>
+	 *
+	 * @param x 断片の物理X
+	 * @param y 断片の物理Y
+	 */
+	public final void pushSourceFramesSteps(final PageBox pageBox, final Drawer drawer, final Shape clip,
+			final AffineTransform transform, final double x, final double y,
+			final Deque<net.zamasoft.foliojet.layout.box.FramesStep> worklist) {
+		if (!(this.source instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox containerBox)) {
+			return;
+		}
+		worklist.push(net.zamasoft.foliojet.layout.box.AbstractContainerBox.framesStep(containerBox, pageBox,
+				this.isContinuation() ? drawer.artifactView() : drawer, this.clip(clip, x, y), transform,
+				this.sourceDrawX(x), this.sourceDrawY(y)));
+	}
+
+	/**
 	 * 先頭断片だけが元ボックス全体のテキストを一度返します。継続断片は
 	 * 空です(テキスト抽出・読み上げの二重化を防ぐ)。
 	 */

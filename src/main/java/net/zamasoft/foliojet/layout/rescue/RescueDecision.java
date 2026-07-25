@@ -49,6 +49,15 @@ public sealed interface RescueDecision {
 		 * 従来どおりの終端(はみ出したまま描画)へ落ちる。
 		 */
 		SLIVER_CAPACITY,
+		/**
+		 * 容量は足りるが、<b>はみ出している量</b>が実用上小さすぎる
+		 * ({@link VisualRescuePlanner#MIN_RESCUE_SLICE}未満)。
+		 * 数ptのはみ出しを救うために丸ごと1ページ増やすと、そのページは
+		 * 実質白紙になる——「意図しない白紙ページを作らない」という絶対
+		 * 要件の、末尾側の守り。従来どおりの終端(はみ出したまま描画)へ
+		 * 落ちる。
+		 */
+		SLIVER_REMAINDER,
 		/** 加算の丸めで{@code offset}が厳密増加しない(極大doubleなど)。 */
 		NO_PROGRESS;
 	}

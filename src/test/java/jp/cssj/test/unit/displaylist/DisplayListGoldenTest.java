@@ -101,6 +101,20 @@ public class DisplayListGoldenTest extends TestCase {
 			"3050-IMG/rescue-huge.html", //
 			"3050-IMG/rescue-absolute.html", //
 			"3050-IMG/rescue-column.html", //
+			// 救済分割(2026-07-25、増分6/7)。巨大な行・書字方向不一致
+			// ブロック・表セル・段組・浮動体まで広げた各種別と、
+			// 「ちょうど割り切れる高さ」で余分なページを作らないこと
+			"0480-rescue-split/huge-font-line.html", //
+			"0480-rescue-split/huge-font-exact.html", //
+			"0480-rescue-split/tall-inline-block.html", //
+			"0480-rescue-split/orthogonal-block.html", //
+			"0480-rescue-split/orthogonal-block-exact.html", //
+			"0480-rescue-split/cell-tall-image.html", //
+			"0480-rescue-split/cell-tall-image-exact.html", //
+			"0480-rescue-split/column-tall-block.html", //
+			"0480-rescue-split/column-tall-block-exact.html", //
+			"0480-rescue-split/float-tall.html", //
+			"0480-rescue-split/float-exact.html", //
 	};
 
 	/**

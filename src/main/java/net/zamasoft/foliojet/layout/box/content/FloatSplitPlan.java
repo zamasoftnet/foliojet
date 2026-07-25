@@ -79,6 +79,44 @@ public record FloatSplitPlan(
 		public record SplitOnCommit(FloatMeasurement expected, double innerLimit, byte splitFlags)
 				implements FloatItemPlan {
 		}
+
+		/**
+		 * commit時に救済分割(visual rescue split)を行う印です
+		 * (2026-07-25新設、増分7。答申§5。
+		 * {@code docs/history/2026-07-25-rescue-split-spec.md})。
+		 *
+		 * <p>
+		 * 分岐表5の「first ははみ出し許容でKeep」——すなわちフラグメント
+		 * 先頭で分割不能な浮動体がなお超過している、<b>現在はみ出したまま
+		 * 描画している唯一の非進行点</b>——だけを置き換えます。commitでは
+		 * 元台帳(source側)に先頭断片(head)を、残余台帳(remainder側)に
+		 * 続きの断片(tail)を入れます。tailは次フラグメントで通常の
+		 * float配置をやり直します。
+		 * </p>
+		 *
+		 * <p>
+		 * {@link SplitOnCommit}と違い、こちらは結果を<b>完全に予言します</b>
+		 * ——救済は元ボックスに触れず(幾何を切るだけ)、判定は
+		 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
+		 * 純関数だからです。
+		 * </p>
+		 *
+		 * @param expected 計画対象floatの実測スナップショット
+		 * @param slice    切り出す区間(前進保証つき)
+		 */
+		public record RescueOnCommit(FloatMeasurement expected,
+				net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice) implements FloatItemPlan {
+			public RescueOnCommit {
+				if (slice == null) {
+					throw new IllegalArgumentException("slice");
+				}
+				if (slice.lastFragment()) {
+					// tailを作らない区間は救済の意味がない(非進行点は
+					// 「なお超過している」ことが前提)
+					throw new IllegalArgumentException("残余のない救済: " + slice);
+				}
+			}
+		}
 	}
 
 	/**
@@ -153,10 +191,65 @@ public record FloatSplitPlan(
 			// 分岐表4: avoid非first・書字軸不一致はREPLACED扱いへフォールスルー
 			//$FALL-THROUGH$
 		case REPLACED:
+		case RESCUE:
 			// 分岐表5: firstならはみ出し許容で残し、非firstなら丸ごと送る
-			return first ? new FloatItemPlan.Keep(m) : new FloatItemPlan.Move(m);
+			if (!first) {
+				return new FloatItemPlan.Move(m);
+			}
+			// 分岐表5-R(2026-07-25、救済分割・増分7): 「フラグメント先頭・
+			// 分割不能・なお超過」——ここが浮動体で「はみ出したまま描画」に
+			// 落ちる唯一の非進行点(答申§1・§5)。救済できるならKeepの
+			// かわりに幾何学的に切る
+			final FloatItemPlan rescue = rescue(m, pageLimit);
+			return rescue != null ? rescue : new FloatItemPlan.Keep(m);
 		default:
 			throw new IllegalStateException(m.box().toString());
 		}
+	}
+
+	/**
+	 * 非進行点の浮動体を救済分割する計画を返します(救済しないなら
+	 * {@code null})。判定そのものは
+	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
+	 * 純関数に集約されており(答申§4)、ここが持つのは
+	 * 「元ボックス・元寸法・消費済み量をどう取るか」だけです。
+	 *
+	 * @param m         対象floatの実測値(first・超過が確定している)
+	 * @param pageLimit 切断線(owner座標)。フラグメンテナ容量でもある
+	 *                  ——firstは物理的にフラグメント先頭を意味するため
+	 */
+	private static FloatItemPlan rescue(final FloatMeasurement m, final double pageLimit) {
+		final double sourcePageExtent;
+		final double offset;
+		if (m.box() instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox fragment) {
+			// 救済済み断片の続き(断片の断片は作らない)
+			sourcePageExtent = fragment.getSourcePageExtent();
+			offset = fragment.getOffset();
+		} else {
+			sourcePageExtent = m.pageExtent();
+			offset = 0;
+		}
+		final double available = pageLimit - m.pageStart();
+		final net.zamasoft.foliojet.layout.rescue.RescueDecision decision = net.zamasoft.foliojet.layout.rescue.RescueStats
+				.record(m.boxType(),
+						net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
+								m.box().getPos().getType(), true, pageLimit, available, sourcePageExtent, offset));
+		if (!(decision instanceof net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice)) {
+			return null;
+		}
+		if (!net.zamasoft.foliojet.layout.rescue.RescuePolicy.isEnabled()) {
+			return null;
+		}
+		if (slice.lastFragment()) {
+			// 呼び出し条件(なお超過)からここには来ない。念のため救済しない
+			return null;
+		}
+		// 実行時の前進検査(答申§5)。判定器の不変条件と二重になるが、
+		// 無限ループの不在は絶対要件なので実行時にも守る
+		if (!(slice.nextOffset() > offset) || !(sourcePageExtent - slice.nextOffset() > 0)) {
+			return null;
+		}
+		net.zamasoft.foliojet.layout.rescue.RescueStats.recordEnabled();
+		return new FloatItemPlan.RescueOnCommit(m, slice);
 	}
 }

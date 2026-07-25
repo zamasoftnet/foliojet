@@ -45,6 +45,34 @@ public final class LineCutter {
 	}
 
 	/**
+	 * 実質的に高さのある行が2行未満か(=行境界での切断点が存在しない)を
+	 * 返します。
+	 *
+	 * <p>
+	 * この場合{@link #decide}はフラグメント先頭で<b>無条件に</b>
+	 * {@link Decision#KEEP}を返します——つまり行分割では一切前進できず、
+	 * 容量を超えていればはみ出したまま描かれます。救済分割(2026-07-25)は
+	 * その「非進行点」だけを置き換えるため、同じ判定をここから使います
+	 * (規則の定義を二重に持たないため)。
+	 * </p>
+	 *
+	 * @param lineStarts 各行の上辺位置
+	 * @param lineEnds   各行の底辺位置
+	 * @return 実質1行以下ならtrue
+	 */
+	public static boolean singleEffectiveLine(final double[] lineStarts, final double[] lineEnds) {
+		int nonZeroLines = 0;
+		for (int i = 0; i < lineStarts.length; ++i) {
+			if (lineStarts[i] > 0 || lineEnds[i] - lineStarts[i] > 0) {
+				if (++nonZeroLines >= 2) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * 切断位置を判定します。
 	 *
 	 * @param pageLimit  ボックス上辺から切断線までの距離
@@ -65,16 +93,7 @@ public final class LineCutter {
 			return Decision.KEEP;
 		}
 
-		// 実質的に高さのある行をカウントする
-		int nonZeroLines = 0;
-		for (int i = 0; i < lineStarts.length; ++i) {
-			if (lineStarts[i] > 0 || lineEnds[i] - lineStarts[i] > 0) {
-				if (++nonZeroLines >= 2) {
-					break;
-				}
-			}
-		}
-		if (nonZeroLines >= 2) {
+		if (!singleEffectiveLine(lineStarts, lineEnds)) {
 			if (!first && LayoutUtils.compare(pageLimit, lineEnds[0]) < 0) {
 				// 切断線が最初の行の底辺より上にある場合は全部移動
 				return Decision.MOVE;

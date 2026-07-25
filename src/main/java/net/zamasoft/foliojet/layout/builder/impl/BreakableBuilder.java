@@ -431,6 +431,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				break;
 			case BLOCK:
 				break;
+			case RESCUE:
+				// 2026-07-25(救済分割・増分7): 救済断片がaddBoundを通るのは
+				// <b>浮動体の残余だけ</b>(通常フローの残余は専用入口
+				// addRescueBound()を通る)。浮動体はページ方向カーソルを
+				// 進めないので、ここでの自動改ページ検査は要らない
+				assert box.getPos().getType() == PosType.FLOAT : box;
+				break;
 			case REPLACED: {
 				if (box.getPos().getType() != PosType.FLOW) {
 					break;
@@ -825,6 +832,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// 切断(avoid指定でもページ先頭なら切断——§5.11の物理位置優先)
 			return FloatCommitKind.SPLIT_AT_BREAK;
 
+		case RESCUE:
+			// 2026-07-25(救済分割・増分7): 救済断片の残余。置換要素と同じ
+			// atomic扱いにする。フラグメント先頭なら残し(=この場では
+			// はみ出させ)、実際の切断はフラグメント境界の
+			// Floatings.splitPageAxisが救済判定として行う——断片を
+			// さらに切るのはあちら一か所だけ、という設計を保つ
+			//$FALL-THROUGH$
 		case REPLACED:
 			if (LayoutUtils.compare(pageStart, 0) <= 0) {
 				// ページ先頭の場合残す

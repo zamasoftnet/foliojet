@@ -1,0 +1,2 @@
+drawer z=0
+  x=0.00 y=-200.00 artifact Text["A" asc=303.56 desc=96.44]

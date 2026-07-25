@@ -64,6 +64,15 @@ public class Floatings {
 				builder.addBound(floatBox);
 			}
 				break;
+			case RESCUE: {
+				// 2026-07-25(救済分割・増分7): 救済断片の残余。元ボックスは
+				// レイアウト済みなので内容のrestyleは行わず、配置だけを
+				// やり直す(答申§5「tailは次fragmentで通常のfloat配置を
+				// 再実行」)。通常のaddBound経路を通るため、
+				// commitFloatPlacementの副作用順は一切変わらない
+				builder.addBound(this.box);
+			}
+				break;
 			default:
 				throw new IllegalStateException(this.box.toString());
 			}
@@ -196,6 +205,43 @@ public class Floatings {
 			case FloatSplitPlan.FloatItemPlan.Move move ->
 				// 分岐表2、および4→5フォールスルーの非first: 丸ごと送る
 				remainderSide.add(floating);
+			case FloatSplitPlan.FloatItemPlan.RescueOnCommit(final FloatMeasurement rescued,
+					final net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice) -> {
+				// 分岐表5-R(2026-07-25、救済分割・増分7): 元台帳をhead、
+				// 残余台帳をtailにする(答申§5)。元ボックスには一切触れない
+				// ——断片は描画時のクリップと座標移動だけの短命なデコレータで、
+				// レイアウト寸法は変わらない
+				final net.zamasoft.foliojet.layout.box.IFloatBox source;
+				final double sourcePageExtent;
+				if (floating.box instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox fragment) {
+					// 救済済み断片の続き(断片の断片は作らない)
+					source = (net.zamasoft.foliojet.layout.box.IFloatBox) fragment.getSource();
+					sourcePageExtent = fragment.getSourcePageExtent();
+				} else {
+					source = floating.box;
+					sourcePageExtent = rescued.pageExtent();
+				}
+				final net.zamasoft.foliojet.layout.box.params.WritingMode progression = plan.ownerFlow();
+				final double tailOffset = slice.nextOffset();
+				final double tailExtent = sourcePageExtent - tailOffset;
+				// 前進保証(計画側で確定済み——RescueOnCommitはlastFragmentを
+				// 受け付けず、FloatSplitPlan.rescueが残余>0を実行時にも検査
+				// する)。破れていればVisualRescueFloatBoxのコンストラクタが
+				// 即座に落ちる=無限ループにはならない
+				assert tailOffset > slice.offset() && tailExtent > 0 : slice;
+				// headは元の位置のまま(排除域のページ方向の高さがsliceExtentに
+				// なる)。tailは座標(0,0)=次フラグメント先頭・serial引き継ぎで
+				// 残余台帳へ入り、次フラグメントで通常のfloat配置をやり直す
+				sourceSide.add(new Floating(floating.serial,
+						new net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox(source, progression,
+								sourcePageExtent, slice.offset(), slice.sliceExtent()),
+						floating.lineAxis, floating.pageAxis));
+				remainderSide.add(new Floating(floating.serial,
+						new net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox(source, progression,
+								sourcePageExtent, tailOffset, tailExtent),
+						0, 0));
+				allWholeMoves = false;
+			}
 			case FloatSplitPlan.FloatItemPlan.SplitOnCommit(final FloatMeasurement expected, final double innerLimit,
 					final byte splitFlags) -> {
 				// 分岐表3: ここで一度だけ切断し、Keep/Move/Preparedへ確定。
@@ -263,6 +309,8 @@ public class Floatings {
 			case FloatSplitPlan.FloatItemPlan.Keep keep -> anyKeepPlan = true;
 			case FloatSplitPlan.FloatItemPlan.Move move -> anyMovePlan = true;
 			case FloatSplitPlan.FloatItemPlan.SplitOnCommit splitOnCommit -> anySplitPlan = true;
+			// 救済も「source側とremainder側の両方へ入る」ため分割と同じ扱い
+			case FloatSplitPlan.FloatItemPlan.RescueOnCommit rescueOnCommit -> anySplitPlan = true;
 			}
 		}
 		final boolean consistent = switch (result) {

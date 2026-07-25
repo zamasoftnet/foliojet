@@ -13,6 +13,8 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
+import net.zamasoft.foliojet.layout.rescue.RescuePolicy;
+import net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox;
 import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
@@ -317,11 +319,16 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(0, box.splitCalls);
 	}
 
-	/** 分岐表4→5フォールスルー: 書字軸不一致のBLOCK(first)ははみ出し許容でKEEP。 */
+	/**
+	 * 分岐表4→5フォールスルー: 書字軸不一致のBLOCK(first)ははみ出し許容でKEEP
+	 * ——救済分割を切った場合の<b>従来の</b>挙動。
+	 */
 	public void testAxisMismatchFirstKeepsOverflowing() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		try (RescuePolicy.Scope scope = RescuePolicy.DISABLED.scoped()) {
+			assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		}
 		assertEquals(0, box.splitCalls);
 	}
 
@@ -333,12 +340,124 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(0, box.splitCalls);
 	}
 
-	/** 分岐表5: REPLACED(first)ははみ出し許容でKEEP。 */
+	/**
+	 * 分岐表5: REPLACED(first)ははみ出し許容でKEEP——救済分割を切った場合の
+	 * <b>従来の</b>挙動。
+	 */
 	public void testReplacedFirstKeepsOverflowing() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		try (RescuePolicy.Scope scope = RescuePolicy.DISABLED.scoped()) {
+			assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		}
 		assertEquals(0, box.splitCalls);
+	}
+
+	// ------------------------------------------------------------------
+	// 分岐表5-R: 救済分割(2026-07-25、増分7)
+	// ------------------------------------------------------------------
+
+	/**
+	 * 分岐表5-R: REPLACED(first)がなお超過している——現在「はみ出したまま
+	 * 描画」に落ちる唯一の非進行点——では、Keepのかわりに幾何学的に切る。
+	 * 元台帳にhead(占有量=容量)、残余台帳にtail(残り全部・座標(0,0)・
+	 * serial引き継ぎ)が入る。元ボックスは<b>切らない</b>(splitは呼ばれない)。
+	 */
+	public void testReplacedFirstIsRescued() {
+		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
+		final Floatings.Floating f = floating(9, box, 0);
+		final Floatings floatings = floatingsOf(f);
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		assertEquals(0, box.splitCalls);
+		// head: 元の位置のまま、占有量は容量ぶんだけ
+		assertEquals(1, floatings.getCount());
+		final Floatings.Floating head = floatings.getFloating(0);
+		assertNotSame(f, head);
+		assertEquals(9, head.serial);
+		assertEquals(0.0, head.pageAxis, 0);
+		assertEquals(5.0, head.lineAxis, 0);
+		final VisualRescueFloatBox headBox = (VisualRescueFloatBox) head.box;
+		assertSame(box, headBox.getSource());
+		assertEquals(0.0, headBox.getOffset(), 0);
+		assertEquals(100.0, headBox.getSliceExtent(), 0);
+		assertEquals(200.0, headBox.getSourcePageExtent(), 0);
+		assertTrue(headBox.isFirstFragment());
+		assertFalse(headBox.isLastFragment());
+		// tail: 座標(0,0)=次フラグメント先頭、serial引き継ぎ、残り全部
+		assertEquals(1, next.getCount());
+		final Floatings.Floating tail = next.getFloating(0);
+		assertEquals(9, tail.serial);
+		assertEquals(0.0, tail.pageAxis, 0);
+		assertEquals(0.0, tail.lineAxis, 0);
+		final VisualRescueFloatBox tailBox = (VisualRescueFloatBox) tail.box;
+		assertSame(box, tailBox.getSource());
+		assertEquals(100.0, tailBox.getOffset(), 0);
+		assertEquals(100.0, tailBox.getSliceExtent(), 0);
+		assertTrue(tailBox.isContinuation());
+		assertTrue(tailBox.isLastFragment());
+	}
+
+	/** 分岐表5-R: 書字軸不一致のBLOCK(first)も同じ非進行点なので救済される。 */
+	public void testAxisMismatchFirstIsRescued() {
+		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
+		final Floatings floatings = floatingsOf(floating(1, box, 0));
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		// 元ボックスには一切触れない(通常の切断は呼ばれない)
+		assertEquals(0, box.splitCalls);
+		assertTrue(floatings.getFloating(0).box instanceof VisualRescueFloatBox);
+		assertTrue(next.getFloating(0).box instanceof VisualRescueFloatBox);
+	}
+
+	/**
+	 * 分岐表5-R: 断片の続きも同じ判定を通り、<b>断片の断片は作らない</b>
+	 * (区間はoffset/sliceExtentだけで表す)。
+	 */
+	public void testRescueFragmentIsSlicedAgainWithoutNesting() {
+		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 500);
+		final VisualRescueFloatBox fragment = new VisualRescueFloatBox(box, WritingMode.TB, 500, 100, 400);
+		final Floatings floatings = floatingsOf(new Floatings.Floating(3, fragment, 5, 0));
+		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+		final VisualRescueFloatBox head = (VisualRescueFloatBox) floatings.getFloating(0).box;
+		final VisualRescueFloatBox tail = (VisualRescueFloatBox) next.getFloating(0).box;
+		// 入れ子にならず、元ボックスを直接参照する
+		assertSame(box, head.getSource());
+		assertSame(box, tail.getSource());
+		assertEquals(100.0, head.getOffset(), 0);
+		assertEquals(100.0, head.getSliceExtent(), 0);
+		assertEquals(200.0, tail.getOffset(), 0);
+		assertEquals(300.0, tail.getSliceExtent(), 0);
+	}
+
+	/**
+	 * 分岐表5-R: 非firstは従来どおり丸ごとMOVE(救済しない)。まだ「次の
+	 * フラグメントへ送る」という通常の手段が残っているため。
+	 */
+	public void testNonFirstIsNotRescued() {
+		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
+		final Floatings floatings = floatingsOf(floating(1, box, 40));
+		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
+	}
+
+	/**
+	 * 分岐表5-R: はみ出し量が実用上小さすぎる(20pt未満)場合は救済しない。
+	 * 数ptのために1ページ増やすと、そのページは実質白紙になる
+	 * ——「意図しない白紙ページを作らない」という絶対要件の末尾側の守り。
+	 */
+	public void testTinyOverflowIsNotRescued() {
+		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 110);
+		final Floatings floatings = floatingsOf(floating(1, box, 0));
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
+	}
+
+	/**
+	 * 分岐表5-R: フラグメンテナの利用可能量が実用上小さすぎる場合も救済しない
+	 * (極小断片ページの連続を防ぐ先頭側の守り)。
+	 */
+	public void testSliverCapacityIsNotRescued() {
+		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
+		final Floatings floatings = floatingsOf(floating(1, box, 0));
+		// 容量15pt < max(20pt, 15pt*0.25)
+		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 15, FIRST));
 	}
 
 	/** 「first」は物理位置——FLAGS_FIRSTでもpageAxisが先頭でなければfirstではない(分岐表2でMOVE)。 */
@@ -465,11 +584,22 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final FloatMeasurement avoidCrossing = FloatMeasurement.of(0, floating(2, avoidBox, 40), WritingMode.TB);
 		assertTrue(FloatSplitPlan.classify(avoidCrossing, pageLimit,
 				NO_FLAGS) instanceof FloatSplitPlan.FloatItemPlan.Move);
-		// 軸不一致 + first → 4→5フォールスルーでKEEP
+		// 軸不一致 + first → 4→5フォールスルー。救済を切れば従来どおりKEEP、
+		// 有効なら分岐表5-RでRESCUE_ON_COMMIT(2026-07-25、増分7)
 		final StubBlockFloat rlBox = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
 		final FloatMeasurement axisMismatchFirst = FloatMeasurement.of(0, floating(3, rlBox, 0), WritingMode.TB);
-		assertTrue(FloatSplitPlan.classify(axisMismatchFirst, pageLimit,
-				FIRST) instanceof FloatSplitPlan.FloatItemPlan.Keep);
+		try (RescuePolicy.Scope scope = RescuePolicy.DISABLED.scoped()) {
+			assertTrue(FloatSplitPlan.classify(axisMismatchFirst, pageLimit,
+					FIRST) instanceof FloatSplitPlan.FloatItemPlan.Keep);
+		}
+		final FloatSplitPlan.FloatItemPlan.RescueOnCommit rescue = (FloatSplitPlan.FloatItemPlan.RescueOnCommit) FloatSplitPlan
+				.classify(axisMismatchFirst, pageLimit, FIRST);
+		assertEquals(3, rescue.expected().serial());
+		assertEquals(0.0, rescue.slice().offset(), 0);
+		assertEquals(100.0, rescue.slice().sliceExtent(), 0);
+		assertEquals(100.0, rescue.slice().nextOffset(), 0);
+		assertTrue(rescue.slice().firstFragment());
+		assertFalse(rescue.slice().lastFragment());
 		// REPLACED + 非first(境界跨ぎ) → MOVE
 		final StubReplacedFloat replacedBox = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO),
 				100);

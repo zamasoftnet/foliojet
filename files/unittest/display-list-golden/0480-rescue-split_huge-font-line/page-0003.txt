@@ -1,0 +1,3 @@
+drawer z=0
+  x=0.00 y=-400.00 artifact Text["A" asc=379.44 desc=120.56]
+  x=0.00 y=100.00 Text["後続" asc=8.00 desc=2.00]
