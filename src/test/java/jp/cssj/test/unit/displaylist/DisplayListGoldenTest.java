@@ -113,6 +113,10 @@ public class DisplayListGoldenTest extends TestCase {
 			"0480-rescue-split/cell-tall-image-exact.html", //
 			"0480-rescue-split/column-tall-block.html", //
 			"0480-rescue-split/column-tall-block-exact.html", //
+			// ページ自体が縦書きのときの断片座標(2026-07-25追加)。既存の
+			// 縦書きfixtureはいずれも「横書きページの中の縦書きブロック」で、
+			// VisualRescueBox.sourceDrawXの縦書き分岐を一度も通していなかった
+			"0480-rescue-split/vertical-page-rl.html", //
 			"0480-rescue-split/float-tall.html", //
 			"0480-rescue-split/float-exact.html", //
 	};
