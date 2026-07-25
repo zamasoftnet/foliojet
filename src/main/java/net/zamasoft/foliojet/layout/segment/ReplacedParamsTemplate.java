@@ -98,7 +98,7 @@ public final class ReplacedParamsTemplate {
 		params.frame = this.frame;
 		params.lineHeight = this.lineHeight;
 		// ReplacedBoxImageはmaterializeごとに複製を配る——凍結済み複製自体を
-		// 共有すると、複数の再生ボックス(バランスプローブの複数試行等)が
+		// 共有すると、複数の再生ボックスが
 		// setReplacedBoxのback-referenceを取り合い「materialize結果は互いに
 		// 独立」の契約が壊れる(E-6増分3b-6)
 		params.image = this.image instanceof ReplacedBoxImage frozen ? frozen.duplicate() : this.image;

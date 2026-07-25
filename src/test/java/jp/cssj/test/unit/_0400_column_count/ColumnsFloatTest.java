@@ -31,12 +31,12 @@ public class ColumnsFloatTest extends AbstractTestCase {
 		System.out.println("x: " + x);
 		System.out.println("y: " + y);
 		System.out.println("pageNumber: " + pageNumber);
-		// 2026-07-24: バランスプローブ常時有効化により1つ目の段組が実測
-		// 最小容量へ縮み、2つ目の段組(b)が1ページ目のy=245へ収まるように
-		// なった(従来は2ページ目へ送られていた——改ページ1回減の改善)。
+		// 2026-07-25: バランスプローブ撤去により1つ目の段組の高さは
+		// ColumnBalancerの一発計算(実測最小容量への収束なし)へ戻り、
+		// 2つ目の段組(b)は再び2ページ目の先頭に置かれる。
 		assertEquals(214, x, 1);
-		assertEquals(245, y, 1);
-		assertEquals(1, pageNumber);
+		assertEquals(28, y, 1);
+		assertEquals(2, pageNumber);
 		return true;
 	}
 
@@ -44,10 +44,10 @@ public class ColumnsFloatTest extends AbstractTestCase {
 		System.out.println("x: " + x);
 		System.out.println("y: " + y);
 		System.out.println("pageNumber: " + pageNumber);
-		// 2026-07-24: 同上(bと同じ段組内、1ページ目へ)
+		// 2026-07-25: 同上(bと同じ段組内、2ページ目へ)
 		assertEquals(28, x, 1);
-		assertEquals(245, y, 1);
-		assertEquals(1, pageNumber);
+		assertEquals(28, y, 1);
+		assertEquals(2, pageNumber);
 		return true;
 	}
 }

@@ -56,10 +56,7 @@ public final class ResumeTrace {
 	 * @param kind PAGE / COLUMN
 	 */
 	public static void begin(final String kind) {
-		if (!enabled() || !LayoutExecutionScope.isLive()) {
-			// M6cバランスプローブの候補構築中は記録しない(2026-07-24、
-			// 排除域P2のM6c-2)。begin/op/endは同一のプローブスコープ内で
-			// 対になるため、3つを同じ条件でゲートすればスタック整合が保たれる
+		if (!enabled()) {
 			return;
 		}
 		final StringBuilder outer = buffers.get().peek();
@@ -80,10 +77,6 @@ public final class ResumeTrace {
 	 * @param what  対象の要約(ボックス種別・serial 等)
 	 */
 	public static void op(final int depth, final String op, final String what) {
-		if (!LayoutExecutionScope.isLive()) {
-			// プローブ候補構築中のopを外側(live)のバッファへ混入させない
-			return;
-		}
 		final StringBuilder sb = buffers.get().peek();
 		if (sb == null) {
 			return;
@@ -99,10 +92,6 @@ public final class ResumeTrace {
 	 * 再開の終了を記録し、有効ならファイルへ書き出します。
 	 */
 	public static void end() {
-		if (!LayoutExecutionScope.isLive()) {
-			// beginと対称にゲートする(スタック整合)
-			return;
-		}
 		final StringBuilder sb = buffers.get().poll();
 		if (sb == null) {
 			return;

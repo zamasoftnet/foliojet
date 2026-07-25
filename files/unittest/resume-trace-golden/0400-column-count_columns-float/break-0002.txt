@@ -1,6 +1,2 @@
-resume PAGE
-  root-fragment depth=4
-   chain-fragment depth=3
-     restyle-chain serial=5
-    restyle-chain serial=1
+resume COLUMN
    restyle-text-open serial=1

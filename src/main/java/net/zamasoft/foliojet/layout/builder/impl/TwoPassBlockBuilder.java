@@ -574,16 +574,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * <p>
 	 * 適格判定はfail closed(不適格理由は
 	 * {@code ContinuationStats.TwoPassSealReject})。冪等で、録画完了後の
-	 * 一度だけ効く。プローブ等の非live実行では常にno-op
-	 * (ProbePageGeneratorはliveログへの参照自体を禁じている)。
+	 * 一度だけ効く。
 	 * </p>
 	 */
 	public void sealBodyForRangeBind() {
 		if (!(this.body instanceof ReplayBody.LegacyRecords legacy)) {
 			return; // 冪等
 		}
-		if (!rangeBindEnabled() || !net.zamasoft.foliojet.layout.fragment.LayoutExecutionScope.isLive()
-				|| this.layoutStack == null) {
+		if (!rangeBindEnabled() || this.layoutStack == null) {
 			return;
 		}
 		final RootBuilder root = this.getPageContext();

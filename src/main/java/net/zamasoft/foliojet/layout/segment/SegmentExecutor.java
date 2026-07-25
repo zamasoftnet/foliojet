@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.layout.box.INonReplacedBox;
  * §2.3増分1)。
  *
  * <p>
- * {@code SourceReplayer.drive}と{@code BalanceProbeSession}に重複していた
+ * {@code SourceReplayer.drive}に重複していた
  * replay switchの「駆動部分」——{@code DocumentBuilder}への駆動・
  * ordinal({@code EventId})→{@code SourceAnchor}再付与・テキストの
  * fresh copy化——をここへ一元化する。入力はstreamingカーソル
@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.layout.box.INonReplacedBox;
  * ({@code ReplacedBoxImage}のduplicateベースfreeze——
  * {@code ReplacedParamsTemplate})によりlive変種({@code ReplacedLive})が
  * 撤去されたため、{@link #execute(SegmentEvent)}へ一本化された。
- * 呼び出し側({@code SourceReplayer}/{@code BalanceProbeSession})は
+ * 呼び出し側({@code SourceReplayer})は
  * {@code LayoutSource.Event}を{@code LayoutSourceEventConverter.convert}で
  * オンザフライ変換して駆動する。唯一の例外は切断段落の尾部再生の
  * 部分範囲プリミティブ({@link #executeCharsRange})で、これは

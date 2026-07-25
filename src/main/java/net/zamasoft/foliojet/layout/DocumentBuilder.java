@@ -205,12 +205,9 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * <p>
 	 * 2026-07-24(M6c-5): 型を{@code RootBuilder}から{@link BlockBuilder}へ
 	 * 緩和した。live構築ではスタックの根は常に{@code RootBuilder}のため
-	 * 挙動は不変だが、rootlessなソース再生(バランスプローブの候補構築
-	 * ——根は{@code BalanceProbeBuilder})では、段組内floatやインライン
-	 * ブロックのtwo-pass bindがここを通るため、旧castは
-	 * {@code ClassCastException}になっていた(段組内float解禁で実際に
-	 * 踏む経路になった)。呼び出し側はいずれも{@code LayoutStack}/
-	 * {@code getRootBox()}としてしか使わない。
+	 * 挙動は不変だが、rootlessなソース再生では旧castが
+	 * {@code ClassCastException}になり得た。呼び出し側はいずれも
+	 * {@code LayoutStack}/{@code getRootBox()}としてしか使わない。
 	 * </p>
 	 */
 	private BlockBuilder pageContextBuilder() {

@@ -229,16 +229,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
 		}
 
-		// M6c-4(2026-07-24、排除域P2)のバランスプローブ実採用(常時有効)。
-		// 凍結ソースから独立候補を組んで最小実測容量を二分探索し、winnerの
-		// コンテナをownerへ一度だけcommitする(trueならlegacy再構築は
-		// 行わない)。不適格・非単調・commit前の例外はfalse=従来どおり
-		// legacyへ。commit開始後の例外は握り潰されず変換全体を中断する
-		// (§1.7)。owner変異(下の寸法更新)より前に呼ぶこと
-		if (net.zamasoft.foliojet.layout.balance.BalanceProbe.adopt(this, builder, columnCount, pageSize)) {
-			return;
-		}
-
+		// 2026-07-25(排除域P2の撤回): 上の容量計算に加えて隔離セッションで
+		// 中身を丸ごと組み直す「バランスプローブ」(M6c-2〜M6c-5)は全撤去した。
+		// 同じ問い(段が収まる最小容量)を二重に解いており、重い試行20回分の
+		// コストと隔離機構(専用builder/PageGenerator/実行パスThreadLocal)に
+		// 見合わない——独立3者レビュー全員一致+ユーザー裁定。段の高さの
+		// 揃え精度はColumnBalancerの一発勝負ぶん下がるが、フロートを含む
+		// 段組で多少不揃いになるのは許容(段組×float領域は妥協が許される)
 		if (vertical) {
 			this.maxPageAxis = this.width = pageSize;
 		} else {

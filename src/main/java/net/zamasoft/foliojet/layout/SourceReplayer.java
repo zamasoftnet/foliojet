@@ -63,13 +63,13 @@ public final class SourceReplayer {
 	 *
 	 * <p>
 	 * E-6増分3b-1(2026-07-24): 駆動本体(ボックス構築・SourceAnchor
-	 * 再付与・Chars の fresh copy 駆動)は BalanceProbeSession と共有の
+	 * 再付与・Chars の fresh copy 駆動)は
 	 * {@link SegmentExecutor} へ一元化した。E-6増分3b-6: live型
 	 * ({@code ReplacedLive})の撤去により過渡の {@code executeLive}
 	 * 経路も撤去され、{@code LayoutSource.Event} をオンザフライで
 	 * {@link SegmentEvent} へ変換して単一の
-	 * {@link SegmentExecutor#execute(SegmentEvent)} で駆動する
-	 * (BalanceProbeSession と完全に同型)。範囲に {@code Opaque} が
+	 * {@link SegmentExecutor#execute(SegmentEvent)} で駆動する。
+	 * 範囲に {@code Opaque} が
 	 * 含まれる場合は Barrier 変換 → execute が即時失敗する——適格判定
 	 * ({@code containsOpaque})は呼び出し側の契約。
 	 * </p>
@@ -234,8 +234,8 @@ public final class SourceReplayer {
 		// 表(G-1、2026-07-25): G-1以前は表がOpaque記録でcontainsOpaqueが
 		// 捕捉していた。recipe記録化(実験フラグ配下)後も、段組内容の
 		// 再構築で表全体(auto列幅の再確定を含む)を作り直すのは未検証の
-		// ため従来どおり不適格にする——MeasuredIntrinsics/
-		// BalanceProbeInputと同じ「表を含む範囲は通さない」ゲートで揃える
+		// ため従来どおり不適格にする——MeasuredIntrinsicsと同じ
+		// 「表を含む範囲は通さない」ゲートで揃える
 		// (LayoutSource.containsTableのjavadoc参照)。実験offでは表は
 		// Opaqueなので、このゲートは既定挙動に対して無害
 		return !(log.containsTable(selfId + 1, endId - 1) || log.containsOpaque(selfId + 1, endId - 1)

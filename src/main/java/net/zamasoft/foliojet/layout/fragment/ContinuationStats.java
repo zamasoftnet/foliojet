@@ -47,8 +47,7 @@ public final class ContinuationStats {
 	 * {@code Keep}/{@code Move}型化(legacy 3引数{@code Container
 	 * .splitPageAxis}契約の撤去と同時に行う)が完了したら、
 	 * {@link #COLUMNS_SPLIT_ATTEMPTS}および参照assert
-	 * ({@code ResumeTraceGoldenTest}・{@code BalanceProbeSessionTest})
-	 * ごと退役してよい。
+	 * ({@code ResumeTraceGoldenTest})ごと退役してよい。
 	 * </p>
 	 */
 	public static final AtomicLong COLUMNS_LAST_COLUMN_MOVE_CANDIDATE = new AtomicLong();
@@ -197,36 +196,18 @@ public final class ContinuationStats {
 	 * (PAGE/COLUMN)に応じた分離カウンタも加算します。
 	 */
 	public static void recordChainFiring() {
-		if (!live()) {
-			return;
-		}
 		RESTYLE_CHAIN_FIRINGS.incrementAndGet();
 		(isColumnPath() ? COLUMN_RESTYLE_CHAIN_FIRINGS : PAGE_RESTYLE_CHAIN_FIRINGS).incrementAndGet();
 	}
 
-	/**
-	 * production診断writeの共通ゲートです(2026-07-24、排除域P2のM6c-1)。
-	 * M6cバランスプローブの候補構築中({@link LayoutExecutionScope}の
-	 * {@code BALANCE_PROBE})は、捨てる可能性のある試行で診断を汚さない
-	 * よう書き込みを抑制する。M6c-1時点ではプローブ未配線のため常に
-	 * true(挙動不変)。
-	 */
-	private static boolean live() {
-		return LayoutExecutionScope.isLive();
-	}
-
 	/** {@code ColumnsContainer.splitPageAxis}の試行回数です(M6c-1でAPI集約)。 */
 	public static void recordColumnsSplitAttempt() {
-		if (live()) {
-			COLUMNS_SPLIT_ATTEMPTS.incrementAndGet();
-		}
+		COLUMNS_SPLIT_ATTEMPTS.incrementAndGet();
 	}
 
 	/** 複数カラム時に最終カラム全体がMOVE候補になった回数です(M6c-1でAPI集約)。 */
 	public static void recordLastColumnMoveCandidate() {
-		if (live()) {
-			COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.incrementAndGet();
-		}
+		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.incrementAndGet();
 	}
 
 	/**
@@ -238,9 +219,7 @@ public final class ContinuationStats {
 
 	/** LayoutSourceのイベント保持数の観測です(E-6増分1、最大値を保持)。 */
 	public static void recordSourceEventRetention(final int size) {
-		if (live()) {
-			SOURCE_EVENT_HIGH_WATER.accumulateAndGet(size, Math::max);
-		}
+		SOURCE_EVENT_HIGH_WATER.accumulateAndGet(size, Math::max);
 	}
 
 	/**
@@ -259,17 +238,13 @@ public final class ContinuationStats {
 
 	/** inline text payload保持量の観測です(E-6増分3b-2、最大値を保持)。 */
 	public static void recordLiveTextPayloadBytes(final long bytes) {
-		if (live()) {
-			LIVE_TEXT_PAYLOAD_BYTES.accumulateAndGet(bytes, Math::max);
-		}
+		LIVE_TEXT_PAYLOAD_BYTES.accumulateAndGet(bytes, Math::max);
 	}
 
 	/** text payloadのspill発火の観測です(E-6増分3b-2)。 */
 	public static void recordTextSpill(final long bytes) {
-		if (live()) {
-			SPILLED_TEXT_RECORDS.incrementAndGet();
-			SPILLED_TEXT_BYTES.addAndGet(bytes);
-		}
+		SPILLED_TEXT_RECORDS.incrementAndGet();
+		SPILLED_TEXT_BYTES.addAndGet(bytes);
 	}
 
 	/**
@@ -284,9 +259,7 @@ public final class ContinuationStats {
 
 	/** 置換要素イベントの記録時recipe化の観測です(E-6増分3b-3)。 */
 	public static void recordReplacedRecipe() {
-		if (live()) {
-			REPLACED_RECIPE_EVENTS.incrementAndGet();
-		}
+		REPLACED_RECIPE_EVENTS.incrementAndGet();
 	}
 
 	/**
@@ -301,9 +274,7 @@ public final class ContinuationStats {
 
 	/** Startイベントの記録時recipe化の観測です(E-6増分3b-4)。 */
 	public static void recordStartRecipe() {
-		if (live()) {
-			START_RECIPE_EVENTS.incrementAndGet();
-		}
+		START_RECIPE_EVENTS.incrementAndGet();
 	}
 
 	// ---- E-6増分4a/4b(2026-07-24): TwoPass range化の発火カウンタ群 ----
@@ -386,30 +357,22 @@ public final class ContinuationStats {
 
 	/** range bind(SourceRangeBody)の発火の集計です(E-6増分4a/4b)。 */
 	public static void recordTwoPassRangeBind() {
-		if (live()) {
-			RANGE_FIRST_BINDS.incrementAndGet();
-		}
+		RANGE_FIRST_BINDS.incrementAndGet();
 	}
 
 	/** records bind(LegacyRecords)の発火の集計です(E-6増分4a/4b)。 */
 	public static void recordTwoPassLegacyRecordBind() {
-		if (live()) {
-			LEGACY_RECORD_BINDS.incrementAndGet();
-		}
+		LEGACY_RECORD_BINDS.incrementAndGet();
 	}
 
 	/** seal適格の集計です(E-6増分4a/4b)。 */
 	public static void recordTwoPassSealEligible() {
-		if (live()) {
-			TWO_PASS_SEALS_ELIGIBLE.incrementAndGet();
-		}
+		TWO_PASS_SEALS_ELIGIBLE.incrementAndGet();
 	}
 
 	/** seal不適格(理由つき)の集計です(E-6増分4a/4b)。 */
 	public static void recordTwoPassSealReject(final TwoPassSealReject reason) {
-		if (live()) {
-			TWO_PASS_SEAL_REJECTS.get(reason).incrementAndGet();
-		}
+		TWO_PASS_SEAL_REJECTS.get(reason).incrementAndGet();
 	}
 
 	// ---- E-6増分5a(2026-07-24): 表セル(CellContent)range化の発火カウンタ群 ----
@@ -442,23 +405,17 @@ public final class ContinuationStats {
 
 	/** セルrange seal(records解放)の集計です(E-6増分5a)。 */
 	public static void recordCellRangeSeal() {
-		if (live()) {
-			CELL_RANGE_SEALS.incrementAndGet();
-		}
+		CELL_RANGE_SEALS.incrementAndGet();
 	}
 
 	/** seal済みセルのrange bindの集計です(E-6増分5a)。 */
 	public static void recordCellRangeBind() {
-		if (live()) {
-			CELL_RANGE_BINDS.incrementAndGet();
-		}
+		CELL_RANGE_BINDS.incrementAndGet();
 	}
 
 	/** 不適格セルのrecords bindの集計です(E-6増分5a)。 */
 	public static void recordCellLegacyBind() {
-		if (live()) {
-			CELL_LEGACY_BINDS.incrementAndGet();
-		}
+		CELL_LEGACY_BINDS.incrementAndGet();
 	}
 
 	// ---- E-6増分5b-2(2026-07-24): 表Pass C(行単位逐次bind)の発火カウンタ群 ----
@@ -488,23 +445,17 @@ public final class ContinuationStats {
 
 	/** Pass B/C経路で処理された表の集計です(E-6増分5b-2)。 */
 	public static void recordTablePassC() {
-		if (live()) {
-			TABLE_PASS_C_TABLES.incrementAndGet();
-		}
+		TABLE_PASS_C_TABLES.incrementAndGet();
 	}
 
 	/** 従来bindRows経路へフォールバックした表の集計です(E-6増分5b-2)。 */
 	public static void recordTableLegacyBindRows() {
-		if (live()) {
-			TABLE_LEGACY_BINDROWS.incrementAndGet();
-		}
+		TABLE_LEGACY_BINDROWS.incrementAndGet();
 	}
 
 	/** Pass Bのセルscratch計測の集計です(E-6増分5b-2)。 */
 	public static void recordTablePassBCellMeasure() {
-		if (live()) {
-			TABLE_PASS_B_CELL_MEASURES.incrementAndGet();
-		}
+		TABLE_PASS_B_CELL_MEASURES.incrementAndGet();
 	}
 
 	/** {@code reason}によるseal不適格の回数です(E-6増分4a/4b)。 */
@@ -514,114 +465,37 @@ public final class ContinuationStats {
 
 	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenTextHandoff() {
-		if (live()) {
-			OPEN_TEXT_HANDOFFS.incrementAndGet();
-		}
+		OPEN_TEXT_HANDOFFS.incrementAndGet();
 	}
 
 	/** OpenChain分岐で末尾以外のitemを観測した回数です(M6c-1でAPI集約)。 */
 	public static void recordOpenChainTrailingItem() {
-		if (live()) {
-			OPEN_CHAIN_TRAILING_ITEMS.incrementAndGet();
-		}
+		OPEN_CHAIN_TRAILING_ITEMS.incrementAndGet();
 	}
 
 	/** 改段時のowner段数の観測です(M6c-1でAPI集約)。 */
 	public static void recordLastColumnOwnerColumnCount(final int columnCount) {
-		if (live()) {
-			LAST_COLUMN_OWNER_COLUMN_COUNT.set(columnCount);
-		}
-	}
-
-	/**
-	 * M6cバランスプローブが起動された回数です(2026-07-24新設、排除域P2の
-	 * M6c-3。オプトイン{@code processing.balance-probe}有効時のみ増える)。
-	 */
-	public static final AtomicLong BALANCE_PROBE_SESSIONS = new AtomicLong();
-
-	/**
-	 * うち、入力の凍結(source capture+frozen recipe化、Barrierゼロ)に
-	 * 成功しプローブ適格だった回数です。
-	 */
-	public static final AtomicLong BALANCE_PROBE_ELIGIBLE = new AtomicLong();
-
-	/**
-	 * うち、winnerなしで既存balanceへフォールバックした回数です
-	 * (不適格・上界不発見・非単調観測の合計)。
-	 */
-	public static final AtomicLong BALANCE_PROBE_FALLBACKS = new AtomicLong();
-
-	/** プローブが構築した候補の総数です(探索コストの実測)。 */
-	public static final AtomicLong BALANCE_PROBE_BUILDS = new AtomicLong();
-
-	/**
-	 * winnerがownerへ実際にcommitされた回数です(2026-07-24新設、
-	 * M6c-4——実採用切替)。{@code BALANCE_PROBE_SESSIONS ==
-	 * BALANCE_PROBE_COMMITS + BALANCE_PROBE_FALLBACKS}が常に成り立つ。
-	 */
-	public static final AtomicLong BALANCE_PROBE_COMMITS = new AtomicLong();
-
-	/** プローブ起動の集計です(M6c-3。全試行終了後に一セッション一回)。 */
-	public static void recordBalanceProbeSession() {
-		if (live()) {
-			BALANCE_PROBE_SESSIONS.incrementAndGet();
-		}
-	}
-
-	/** プローブ適格(入力凍結成功)の集計です(M6c-3)。 */
-	public static void recordBalanceProbeEligible() {
-		if (live()) {
-			BALANCE_PROBE_ELIGIBLE.incrementAndGet();
-		}
-	}
-
-	/** 既存balanceへのフォールバックの集計です(M6c-3)。 */
-	public static void recordBalanceProbeFallback() {
-		if (live()) {
-			BALANCE_PROBE_FALLBACKS.incrementAndGet();
-		}
-	}
-
-	/** 構築した候補数の集計です(M6c-3)。 */
-	public static void recordBalanceProbeBuilds(final int builds) {
-		if (live()) {
-			BALANCE_PROBE_BUILDS.addAndGet(builds);
-		}
-	}
-
-	/** winnerのowner commitの集計です(M6c-4)。 */
-	public static void recordBalanceProbeCommit() {
-		if (live()) {
-			BALANCE_PROBE_COMMITS.incrementAndGet();
-		}
+		LAST_COLUMN_OWNER_COLUMN_COUNT.set(columnCount);
 	}
 
 	/** worklist executorの適格/不適格terminalの集計です(M6c-1でAPI集約)。 */
 	public static void recordWorklistTerminal(final boolean eligible) {
-		if (live()) {
-			(eligible ? WORKLIST_ELIGIBLE_TERMINALS : WORKLIST_INELIGIBLE_TERMINALS).incrementAndGet();
-		}
+		(eligible ? WORKLIST_ELIGIBLE_TERMINALS : WORKLIST_INELIGIBLE_TERMINALS).incrementAndGet();
 	}
 
 	/** チェーン子フレーム(Child)消費の集計です(M6c-1でAPI集約)。 */
 	public static void recordChildFrame() {
-		if (live()) {
-			CHILD_FRAMES.incrementAndGet();
-		}
+		CHILD_FRAMES.incrementAndGet();
 	}
 
 	/** チェーン外restyleの集計です(M6c-1でAPI集約)。 */
 	public static void recordUnchainedRestyle() {
-		if (live()) {
-			UNCHAINED_RESTYLES.incrementAndGet();
-		}
+		UNCHAINED_RESTYLES.incrementAndGet();
 	}
 
 	/** open tail消費の集計です(M6c-1でAPI集約)。 */
 	public static void recordOpenTail() {
-		if (live()) {
-			OPEN_TAILS.incrementAndGet();
-		}
+		OPEN_TAILS.incrementAndGet();
 	}
 
 	/**
@@ -646,9 +520,7 @@ public final class ContinuationStats {
 
 	/** スキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
 	public static void recordCapabilityScanStop(final ContinuationCapability reason) {
-		if (live()) {
-			CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
-		}
+		CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
 	}
 
 	/**
@@ -675,9 +547,7 @@ public final class ContinuationStats {
 
 	/** COLUMN側のスキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
 	public static void recordColumnCapabilityScanStop(final ContinuationCapability reason) {
-		if (live()) {
-			COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
-		}
+		COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
 	}
 
 
@@ -723,16 +593,9 @@ public final class ContinuationStats {
 	 * @param column    true なら改段(COLUMN)経路、false なら改ページ(PAGE)経路
 	 */
 	public static void guardOpenDepth(final int openDepth, final boolean column) {
-		// 深さ観測はproduction診断(M6c-3: バランスプローブの候補構築中は
-		// 抑制する)。安全閾値の例外自体はプローブ中も等しく発動する——
-		// 候補中の異常を握り潰してlegacy再実行してはいけない(codex設計§1.7)
-		if (live()) {
-			(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);
-		}
+		(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);
 		if (openDepth >= OPEN_CHAIN_DEPTH_ALARM_THRESHOLD) {
-			if (live()) {
-				(column ? COLUMN_OPEN_DEPTH_ALARMS : PAGE_OPEN_DEPTH_ALARMS).incrementAndGet();
-			}
+			(column ? COLUMN_OPEN_DEPTH_ALARMS : PAGE_OPEN_DEPTH_ALARMS).incrementAndGet();
 			final String message = "open ancestor chain depth=" + openDepth + " reached the safety alarm threshold ("
 					+ OPEN_CHAIN_DEPTH_ALARM_THRESHOLD + ") on the " + (column ? "COLUMN" : "PAGE")
 					+ " continuation path; FlowContainer.restyle's OpenChain branch is still recursive and would "
@@ -743,11 +606,6 @@ public final class ContinuationStats {
 	}
 
 	public static void reset() {
-		BALANCE_PROBE_SESSIONS.set(0);
-		BALANCE_PROBE_ELIGIBLE.set(0);
-		BALANCE_PROBE_FALLBACKS.set(0);
-		BALANCE_PROBE_BUILDS.set(0);
-		BALANCE_PROBE_COMMITS.set(0);
 		CHILD_FRAMES.set(0);
 		COLUMNS_SPLIT_ATTEMPTS.set(0);
 		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.set(0);

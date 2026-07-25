@@ -57,7 +57,7 @@ public class ReplacedRecipeImageIsolationTest extends TestCase {
 	/**
 	 * {@link ReplacedBoxImage}参照の置換要素はfreeze時に複製画像を凍結し、
 	 * materializeごとにさらに複製を配る——再生ボックス(scratch計測・
-	 * バランスプローブの複数試行)のcalculateSizeがliveのimageへ
+	 * 複数の再生ボックス)のcalculateSizeがliveのimageへ
 	 * back-referenceを書き込まない(奪わない)し、再生同士も取り合わない。
 	 */
 	public void testMaterializedReplayBoxesDoNotStealBackReference() {

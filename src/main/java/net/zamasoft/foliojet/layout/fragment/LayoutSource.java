@@ -776,7 +776,6 @@ public final class LayoutSource implements AutoCloseable {
 	 * ——実測では{@code 0070-table-layout/float-in-auto-4.html}の
 	 * shrink-to-fitフロート幅が376/414.5/276/216 → 全て500pt(=ページ幅)へ
 	 * 発散した(∞幅ページでは表の%指定セルが1e6基準で解決されるため)。
-	 * {@code BalanceProbeInput}も同様に候補ごとの表全体再構築になる。
 	 * E-6増分4eが絶対配置に対して{@link #containsAbsolute}で行った
 	 * 切り分けと同型のゲートで、実験がoffでも無害。
 	 * </p>

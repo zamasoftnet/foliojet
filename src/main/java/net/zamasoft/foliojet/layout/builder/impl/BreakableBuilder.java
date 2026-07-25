@@ -806,8 +806,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	/**
 	 * {@link #getPageLimit()}のページ方向容量の下限です(2026-07-24に
-	 * 定数化、排除域P2のM6c-4——バランスプローブの収まり判定が実構築と
-	 * 同じ床で比較するため共有する)。
+	 * 定数化)。
 	 */
 	public static final double MIN_PAGE_LIMIT = 20;
 
