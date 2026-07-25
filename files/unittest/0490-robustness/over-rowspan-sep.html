@@ -1,0 +1,14 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>rowspan が実際の行数を超える表 (separate)</title>
+<style>@page{margin:0}body{margin:0;font:normal 10pt/1 serif}
+table{border-collapse:separate;table-layout:auto}td{border:1pt solid black;padding:0}p{margin:0}</style>
+</head><body>
+<table><tbody>
+<tr><td rowspan="3">A</td><td>B</td></tr>
+<tr><td>C</td></tr>
+</tbody></table>
+<p id="a">AFTER</p>
+</body></html>

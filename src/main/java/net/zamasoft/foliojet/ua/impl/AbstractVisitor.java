@@ -265,13 +265,24 @@ public abstract class AbstractVisitor implements Visitor {
 					usemap = usemap.substring(1);
 					ImageMap imageMap = this.ua.getUAContext().getImageMaps().get(usemap);
 					if (imageMap != null) {
-						double f = LengthUtils.convert(this.ua, 1.0, Unit.PX, Unit.PT);
-						AffineTransform t2 = AffineTransform.getScaleInstance(f, f);
-						t2.translate(x, y);
+						// 平行移動は物理座標、areaの座標は画像ローカルのpx。
+						// したがって translate → scale の順でなければならない
+						// (従来は scale→translate で、位置にまでpx→pt倍率が
+						// 掛かっていた。すぐ下のSVGリンク側は正しい順序で
+						// 書かれており、その反証になっていた。2026-07-25)
+						final double f = LengthUtils.convert(this.ua, 1.0, Unit.PX, Unit.PT);
+						final AffineTransform t2 = AffineTransform.getTranslateInstance(x, y);
+						t2.scale(f, f);
 						for (ImageMap.Area area : imageMap) {
-							Shape s = area.shape;
-							if (!t2.isIdentity()) {
-								s = t2.createTransformedShape(s);
+							Shape s;
+							if (area.shape == null) {
+								// shape="default" = 画像全体。物理座標なのでt2を通さない
+								s = new java.awt.geom.Rectangle2D.Double(x, y, box.getWidth(), box.getHeight());
+							} else {
+								s = area.shape;
+								if (!t2.isIdentity()) {
+									s = t2.createTransformedShape(s);
+								}
 							}
 							if (!transform.isIdentity()) {
 								s = transform.createTransformedShape(s);

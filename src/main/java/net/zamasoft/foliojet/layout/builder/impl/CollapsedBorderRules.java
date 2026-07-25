@@ -86,9 +86,9 @@ final class CollapsedBorderRules {
 			if (kk >= columnCount) {
 				break;
 			}
-			pageFirst = Math.max(pageFirst, borders.getHBorder(kk, row).width / 2.0);
+			pageFirst = Math.max(pageFirst, halfWidth(borders.getHBorder(kk, row)));
 			if (bottomIndex <= rowCount) {
-				pageLast = Math.max(pageLast, borders.getHBorder(kk, bottomIndex).width / 2.0);
+				pageLast = Math.max(pageLast, halfWidth(borders.getHBorder(kk, bottomIndex)));
 			}
 		}
 		final int rightIndex = col + colspan;
@@ -97,12 +97,31 @@ final class CollapsedBorderRules {
 			if (kk >= rowCount) {
 				break;
 			}
-			lineStart = Math.max(lineStart, borders.getVBorder(kk, col).width / 2.0);
+			lineStart = Math.max(lineStart, halfWidth(borders.getVBorder(kk, col)));
 			if (rightIndex <= columnCount) {
-				lineEnd = Math.max(lineEnd, borders.getVBorder(kk, rightIndex).width / 2.0);
+				lineEnd = Math.max(lineEnd, halfWidth(borders.getVBorder(kk, rightIndex)));
 			}
 		}
 		return spacing(pageFirst, lineEnd, pageLast, lineStart, vertical);
+	}
+
+	/**
+	 * 境界の半幅を返します。{@code null}は「そこに境界がない」を表す正当な
+	 * 値なので0を返します(2026-07-25、ランダム文書生成で発見)。
+	 *
+	 * <p>
+	 * {@link TableCollapsedBorders#getHBorder}/{@link
+	 * TableCollapsedBorders#getVBorder}は、ヘッダ・フッタ・本体の境目で
+	 * 両側の配列が空のとき{@code null}を返します。他の読み手——
+	 * {@link #streamSpacing}・{@code BorderRenderer}・{@code TableBox}の
+	 * 診断出力——はいずれも{@code null}検査を持っており、
+	 * <b>{@link #gridSpacing}だけが素で参照していた</b>。
+	 * 表がページ分割されて継続表の境界グリッドが縮む場合などに
+	 * {@code NullPointerException}になる。
+	 * </p>
+	 */
+	private static double halfWidth(final Border border) {
+		return border == null ? 0 : border.width / 2.0;
 	}
 
 	/**

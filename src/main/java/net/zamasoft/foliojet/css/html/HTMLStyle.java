@@ -628,7 +628,12 @@ public class HTMLStyle {
 			String shape = ce.atts.getValue("shape");
 			String coords = ce.atts.getValue("coords");
 			Shape realShape = null;
-			if (shape == null || shape.equalsIgnoreCase("default") || coords == null) {
+			// shape="default"(および shape/coords 省略)は「画像全体」を表す。
+			// 形が作れなかった場合(未知のshape・座標不足)は、画像全体では
+			// なく**そのareaを捨てる**——不正な入力を「全体リンク」へ昇格
+			// させると意図しない広域リンクになる(2026-07-25)
+			final boolean wholeImage = shape == null || shape.equalsIgnoreCase("default") || coords == null;
+			if (wholeImage) {
 				realShape = null;
 			} else {
 				shape = shape.toLowerCase();
@@ -644,8 +649,11 @@ public class HTMLStyle {
 				}
 				try {
 					if (shape.startsWith("circ")) {
-						realShape = new Ellipse2D.Double(realCoords[0] - realCoords[2] / 2,
-								realCoords[1] - realCoords[2] / 2, realCoords[2] * 2, realCoords[2] * 2);
+						// coords="cx,cy,r" の外接矩形は (cx-r, cy-r, 2r, 2r)。
+						// 従来は cx-r/2 で、中心が半径の1/2ずれていた
+						// (2026-07-25、独立レビューで発見)
+						realShape = new Ellipse2D.Double(realCoords[0] - realCoords[2], realCoords[1] - realCoords[2],
+								realCoords[2] * 2, realCoords[2] * 2);
 					} else if (shape.startsWith("rect")) {
 						realShape = new Rectangle2D.Double(realCoords[0], realCoords[1], realCoords[2] - realCoords[0],
 								realCoords[3] - realCoords[1]);
@@ -663,6 +671,10 @@ public class HTMLStyle {
 				} catch (ArrayIndexOutOfBoundsException e) {
 					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "AREA", "coords", coords);
 				}
+			}
+			if (realShape == null && !wholeImage) {
+				// 形が作れなかった(未知のshape・座標不足)。警告は上で出済み
+				break;
 			}
 			try {
 				Area area = new Area(realShape, URIHelper.resolve(ua.getDocumentContext().getEncoding(),

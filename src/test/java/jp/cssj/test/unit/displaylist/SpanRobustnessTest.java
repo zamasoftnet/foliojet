@@ -73,6 +73,30 @@ public class SpanRobustnessTest extends TestCase {
 	}
 
 	/**
+	 * {@code rowspan}が表の実際の行数を超える場合(2026-07-25、ランダム
+	 * 文書生成で発見)。{@code border-collapse: collapse}のとき
+	 * {@code TableCollapsedBorders.getHBorder}/{@code getVBorder}がnullを返し、
+	 * {@code CollapsedBorderRules.gridSpacing}が{@code NullPointerException}
+	 * になっていた。
+	 */
+	public void testRowspanBeyondRowCount() throws Exception {
+		convertWithin("over-rowspan.html");
+		convertWithin("over-rowspan-sep.html");
+		convertWithin("ragged-collapse.html");
+	}
+
+	/**
+	 * イメージマップの{@code area}が異常でも変換が例外にならないこと
+	 * (2026-07-25、独立レビューで発見)。{@code shape="default"}・shape/coords
+	 * 省略・未知のshape・座標不足のとき、形のない{@code Area}がそのまま
+	 * 登録され{@code createTransformedShape(null)}が
+	 * {@code NullPointerException}になっていた。
+	 */
+	public void testImageMapWithDegenerateAreas() throws Exception {
+		convertWithin("image-map.html");
+	}
+
+	/**
 	 * 文書を別スレッドで変換し、{@link #WATCHDOG_MS}以内に例外なく
 	 * 終わることを確認します。
 	 */

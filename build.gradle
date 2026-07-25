@@ -158,6 +158,15 @@ tasks.named('test') {
     if (System.getProperty('foliojet.debugTailShadow') != null) {
         systemProperty 'foliojet.debugTailShadow', System.getProperty('foliojet.debugTailShadow')
     }
+    if (System.getProperty('foliojet.convertOne') != null) {
+        systemProperty 'foliojet.convertOne', System.getProperty('foliojet.convertOne')
+    }
+    if (System.getProperty('foliojet.convertOneBlank') != null) {
+        systemProperty 'foliojet.convertOneBlank', System.getProperty('foliojet.convertOneBlank')
+    }
+    if (System.getProperty('foliojet.fuzzSeeds') != null) {
+        systemProperty 'foliojet.fuzzSeeds', System.getProperty('foliojet.fuzzSeeds')
+    }
     if (System.getProperty('foliojet.perf') != null) {
         // 性能ハーネス(LineBreakerPerfHarness等)の手動実行スイッチ
         systemProperty 'foliojet.perf', System.getProperty('foliojet.perf')

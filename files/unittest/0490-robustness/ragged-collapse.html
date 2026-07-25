@@ -1,0 +1,14 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>行ごとに列数が食い違う collapse 表</title>
+<style>@page{margin:0}body{margin:0;font:normal 6pt/1.2 serif}
+table{border-collapse:collapse;table-layout:auto}td{border:1pt solid black;padding:0}p{margin:0}</style>
+</head><body>
+<table><tbody>
+<tr><td rowspan="3">T5</td><td>T6</td><td colspan="2">T7</td><td>T8</td></tr>
+<tr><td colspan="2" rowspan="3">T9</td><td>T10</td><td colspan="3">T11</td><td colspan="1">T12</td></tr>
+</tbody></table>
+<p id="a">AFTER</p>
+</body></html>

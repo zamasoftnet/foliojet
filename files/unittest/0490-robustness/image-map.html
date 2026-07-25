@@ -1,0 +1,26 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<?jp.cssj.property name="output.pdf.hyperlinks" value="true"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>イメージマップの異常な area</title>
+<style>@page{margin:0}body{margin:0;font:normal 10pt/1 serif}
+img{display:block;margin:40pt;width:100pt;height:100pt}p{margin:0}</style>
+</head><body>
+<p id="a">BEFORE</p>
+<map name="m">
+  <!-- shape="default" は画像全体。従来は realShape=null のまま登録され
+       createTransformedShape(null) で NullPointerException になっていた -->
+  <area shape="default" href="http://example.com/default" />
+  <!-- shape も coords も無い(= default 相当) -->
+  <area href="http://example.com/bare" />
+  <!-- 未知の shape・座標不足。area ごと捨てられる(全体リンクにしない) -->
+  <area shape="wobble" coords="1,2,3" href="http://example.com/unknown" />
+  <area shape="rect" coords="1,2" href="http://example.com/short" />
+  <!-- 正常な area。円は coords="cx,cy,r" -->
+  <area shape="circle" coords="50,50,20" href="http://example.com/circle" />
+  <area shape="rect" coords="0,0,10,10" href="http://example.com/rect" />
+  <area shape="poly" coords="0,0,10,0,10,10" href="http://example.com/poly" />
+</map>
+<img src="../red.png" alt="map" usemap="#m" />
+</body></html>
