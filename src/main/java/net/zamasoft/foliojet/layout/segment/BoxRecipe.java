@@ -207,9 +207,15 @@ public sealed interface BoxRecipe {
 
 	/**
 	 * 表({@code TableBox})——{@code TableParams}/{@code FlowPos}を使う。
-	 * ただし{@code box.getPos() instanceof FlowPos}の場合のみ記録可能
-	 * (絶対配置・浮動の表は{@code StyleBuilder}が当面{@code Opaque}に
-	 * する、既存コード確認済み)。
+	 * ただし{@code box.getPos() instanceof FlowPos}の場合のみ記録可能。
+	 *
+	 * <p>
+	 * <b>2026-07-25(F-4)の実測による訂正</b>: その条件は{@code TableBox}
+	 * に対して恒偽であり(詳細は{@link BoxKind#TABLE}および
+	 * {@code StyleBuilder.boxKind}のTableBox分岐)、旧記述「絶対配置・
+	 * 浮動の表は当面{@code Opaque}」は誤り——<b>全ての表</b>が
+	 * {@code Opaque}である。このvariantはproduction経路では生成されない。
+	 * </p>
 	 */
 	record Table(TableParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {

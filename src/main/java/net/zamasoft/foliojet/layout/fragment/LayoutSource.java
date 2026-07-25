@@ -76,7 +76,20 @@ public final class LayoutSource implements AutoCloseable {
 		INLINE_BLOCK,
 		/** 内部マーカー(InsideMarkerBox)。 */
 		INSIDE_MARKER,
-		/** テーブル(TableBox。blockBox は params 共有+pos クラスで再構成)。 */
+		/**
+		 * テーブル(TableBox。blockBox は params 共有+pos クラスで再構成)。
+		 *
+		 * <p>
+		 * <b>現在production未使用(F-4実測、2026-07-25)</b>: 記録側
+		 * ({@code StyleBuilder.boxKind})の条件{@code box.getPos()
+		 * instanceof FlowPos}が{@code TableBox}に対して恒偽のため
+		 * (同メソッドのTableBox分岐のコメント参照)、全ての表は
+		 * {@link Opaque}で記録される。この定数と対のfreeze/materialize
+		 * ({@code BoxRecipe.Table}・{@code TableParamsTemplate}・
+		 * {@code BoxRecipeBoxFactory})は単体テスト済みで、記録条件を
+		 * 正す増分でそのまま生きる。
+		 * </p>
+		 */
 		TABLE,
 		/** テーブル行グループ(TableRowGroupBox)。 */
 		TABLE_ROW_GROUP,
@@ -195,10 +208,9 @@ public final class LayoutSource implements AutoCloseable {
 
 	/**
 	 * 範囲replay不能マーカーです(recipe化に対応していないボックス種別
-	 * ——表キャプション・表本体・絶対/浮動の表など{@code StyleBuilder.boxKind}
-	 * がnullを返すもの(絶対配置ブロックはE-6増分4eでrecipe記録へ昇格)、
-	 * および未知の{@code AbstractReplacedBox}
-	 * サブクラスのfail closed)。ログの完全性(正直な全記録)のために
+	 * ——{@code StyleBuilder.boxKind}がnullを返すもの、および未知の
+	 * {@code AbstractReplacedBox}サブクラスのfail closed)。
+	 * ログの完全性(正直な全記録)のために
 	 * 位置を占有し、範囲にこれを含む再生要求はフォールバックさせます。
 	 * 常に{@link EndBlock}と対を成す開始イベントとして積まれます
 	 * ({@code compact}/{@code endOf}の開閉対称性)。
@@ -210,6 +222,16 @@ public final class LayoutSource implements AutoCloseable {
 	 * ——「変換できないものは正直にマークして範囲ごとフォールバック」
 	 * が、silent hole(内容の黙失)を構造的に防ぐ。recipe化対応が
 	 * 広がるほど発生頻度は下がるが、型自体は残る。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>発生源の実測(F-4、2026-07-25。{@code files/unittest}全数
+	 * 436文書)</b>: 計319件で、内訳は表本体310+表キャプション9のみ
+	 * (キャプションは必ず表の内側にあるので前者の真部分集合)。
+	 * 未知の{@code AbstractReplacedBox}サブクラスは現存4実装では
+	 * 構造的にゼロ。ルビ由来160件は2026-07-25の注釈付きテキスト化で
+	 * 消滅した。よって「Opaqueの残存源=表」であり、
+	 * {@link BoxKind#TABLE}の記録条件を正すことが唯一の削減手段。
 	 * </p>
 	 */
 	public record Opaque() implements Event {

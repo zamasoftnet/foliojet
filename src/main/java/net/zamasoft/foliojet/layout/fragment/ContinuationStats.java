@@ -113,17 +113,33 @@ public final class ContinuationStats {
 	 * `RootBuilder`の終端`OpenTailShape`処理で、worklist executorへの
 	 * 適格判定({@link WorklistTailGate})が**適格**だった回数です
 	 * (2026-07-22新設、B6a1。2026-07-24のB6検証インフラ退役後も
-	 * legacy再帰経路の使用頻度観測として残置——591文書コーパスの最終
-	 * 実測はELIGIBLE=10/INELIGIBLE=0)。
+	 * legacy再帰経路の使用頻度観測として残置。F-4(2026-07-25)の
+	 * {@code files/unittest}全数436文書実測でELIGIBLE=93/INELIGIBLE=3)。
 	 */
 	public static final AtomicLong WORKLIST_ELIGIBLE_TERMINALS = new AtomicLong();
 
 	/**
 	 * 同判定が**偽**だった回数です(legacy再帰へフォールバックした
-	 * 実際の回数)。この値が実測コーパスで恒常的に0なら、legacy実装の
-	 * 削除を検討する強い根拠になる——0でなければ、削除前にworklist
-	 * executor側がそれらのケース(float・absolute・書字方向
-	 * 不一致祖先等)も正しく扱えるかの追加検証が必要。
+	 * 実際の回数)。
+	 *
+	 * <p>
+	 * <b>legacy再帰の撤去は不可(F-4裁定、2026-07-25)</b>: 当初は
+	 * 「この値が実測コーパスで恒常0ならlegacy実装を削除できる」と
+	 * 見込んでいたが、436文書全数の実測は<b>3件</b>(0400-column-count/
+	 * columns-float・0400-column-count/page-first・0415-column-fill/
+	 * probe-nested)で、原因は全て未収集tailに残る{@link
+	 * ContinuationCapability#MULTICOL}祖先だった。しかもこれは偶然
+	 * ではなく構造的必然である({@link WorklistTailGate#LEGACY_RECURSION}
+	 * のjavadoc参照——段組は「貫通改ページ可」かつ「収集不可」という
+	 * 組合せを持つ唯一の分類なので、必ずtail側へ残る)。
+	 * したがって撤去条件は「実測0」ではなく<b>worklist executorが
+	 * {@code MULTICOL}レベルの降下を正しく扱えることの証明</b>へ
+	 * 置き換わる(現在の{@code restyleWorklist}は非{@code FlowContainer}
+	 * の子を通常の再帰フォールバックへ委ねており、この降下は未検証)。
+	 * ルビ撤去(2026-07-25)はこの二重経路に対しては無関係だった——
+	 * 旧{@code RubyBodyBox}は{@code FLOW_SUBTYPE}分類の唯一の実装
+	 * だったが、実測上の不適格要因は元々段組である。
+	 * </p>
 	 */
 	public static final AtomicLong WORKLIST_INELIGIBLE_TERMINALS = new AtomicLong();
 
@@ -329,7 +345,12 @@ public final class ContinuationStats {
 		NO_RANGE,
 		/** 子イベント範囲が空(空のfloat等。records解放の益がない)。 */
 		EMPTY_RANGE,
-		/** 範囲にOpaque(表キャプション・表本体・浮動/絶対の表等)を含む。 */
+		/**
+		 * 範囲にOpaqueを含む。F-4実測(2026-07-25)ではOpaqueの発生源は
+		 * <b>表(全ての表)とその内側の表キャプションのみ</b>
+		 * ({@code LayoutSource.BoxKind#TABLE}のjavadoc参照。ルビ由来の
+		 * Opaqueは注釈付きテキスト化で160→0)。
+		 */
 		OPAQUE_RANGE,
 		/**
 		 * 範囲に絶対配置ブロックのStartを含む(E-6増分4e)。増分4e以前は

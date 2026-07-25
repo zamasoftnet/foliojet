@@ -12,6 +12,16 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * (2026-07-22新設、M6d-A3b)。
  *
  * <p>
+ * <b>2026-07-25(F-4)の実測による訂正</b>: その記録条件
+ * {@code box.getPos() instanceof FlowPos}は{@code TableBox}に対して
+ * <b>恒偽</b>({@code TableBox.getPos()}は常に{@code TablePos}を返し、
+ * {@code TablePos}は{@code FlowPos}を継承しない)。よって
+ * {@link BoxKind#TABLE}は現在一度も記録されず、このテンプレートも
+ * production経路では使われない(単体テストのみ)。記録条件を内側の
+ * {@code TableBox.getBlockBox().getPos()}へ正す増分で有効化される。
+ * </p>
+ *
+ * <p>
  * 祖先(`Params`/`AbstractTextParams`/`AbstractLineParams`/
  * `BlockParams`)のフィールドは{@link BlockParamsFields}
  * (`BlockParamsTemplate`と共有)が担う。{@code borderSpacingH}/

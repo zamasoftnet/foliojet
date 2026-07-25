@@ -94,21 +94,31 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 *
 	 * <p>
 	 * <b>増分4c(range-first capture=録画中からrecordsを作らない)の
-	 * 実装可能性調査の結論(2026-07-24)</b>: fail closedの現行契約下では
-	 * 未成立のため見送り。適格性は録画完了時にしか確定できず
-	 * (poison要因——ルビ等のOpaque・非固定同方向multicolのStartFlow・
-	 * ネストビルダー——は本文streamの途中で初めて到着する)、seal不適格へ
-	 * 転落したビルダーのfallback bind({@link #bindRecords})はTextImplの
-	 * glyph列を要求する。よってglyph列を録画中に落とすと、後着のpoisonで
-	 * 内容が復元不能になる(例: float内の途中にルビ)。開始時確定(codex
-	 * (c)案)はSAX単一パスに先読みがなく不可能、投機+live再駆動((b)案)は
-	 * 裁定済み不可、glyph列の別テープ退避は「第二のTwoPass glyphテープは
-	 * 作らない」裁定(2026-07-24-e6-remaining-design-decision.md)に抵触。
+	 * 実装可能性調査の結論(2026-07-24、F-4で2026-07-25に再確認)</b>:
+	 * fail closedの現行契約下では未成立のため見送り。適格性は録画完了時
+	 * にしか確定できず(poison要因——表のOpaque・非固定同方向multicolの
+	 * StartFlow・ネストビルダー——は本文streamの途中で初めて到着する)、
+	 * seal不適格へ転落したビルダーのfallback bind({@link #bindRecords})は
+	 * TextImplのglyph列を要求する。よってglyph列を録画中に落とすと、
+	 * 後着のpoisonで内容が復元不能になる(例: float内の途中に表)。
+	 * 開始時確定(codex(c)案)はSAX単一パスに先読みがなく不可能、
+	 * 投機+live再駆動((b)案)は裁定済み不可、glyph列の別テープ退避は
+	 * 「第二のTwoPass glyphテープは作らない」裁定
+	 * (2026-07-24-e6-remaining-design-decision.md)に抵触。
+	 *
+	 * <p>
 	 * codex自身の切替条件「対象範囲の全入力variantがrecipe化済み
-	 * (Barrierゼロ)」——残Opaque源はルビ・キャプション・絶対/浮動の表
-	 * (絶対配置ブロックは増分4eで解消)——が満たされ、かつ非leaf range
-	 * bind(ネストのリース再帰解放)が入った後に、初めてrange-firstが
-	 * fail closedのまま成立する。
+	 * (Barrierゼロ)」の充足状況(F-4実測、{@code files/unittest}全数
+	 * 436文書): ルビ由来のOpaque 160→<b>0</b>(2026-07-25の注釈付き
+	 * テキスト化)、絶対配置由来は増分4eで解消済み。しかし残Opaqueは
+	 * <b>319件すべてが表</b>(表本体310+その内側の表キャプション9)で、
+	 * Barrierゼロには程遠い。しかも表のOpaque化は「浮動/絶対配置の表
+	 * だけ」ではなく<b>全ての表</b>である({@code StyleBuilder.boxKind}の
+	 * {@code TableBox}分岐のjavadoc参照——{@code TableBox.getPos()}が
+	 * 常に{@code TablePos}を返すため{@code BoxKind.TABLE}は到達不能)。
+	 * よって4cの解禁は「表のrecipe記録化」一件に律速される——
+	 * ルビ撤去だけでは前提は満たされない。加えて非leaf range bind
+	 * (ネストのリース再帰解放)も引き続き必要。
 	 * </p>
 	 */
 	private sealed interface ReplayBody {
@@ -589,7 +599,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			return;
 		}
 		final long anchor = this.getRootBox().getSourceAnchor();
-		// Opaque記録の種別(キャプション・ルビ等)はendOfが-1になり、ここで
+		// Opaque記録の種別(表・表キャプション)はendOfが-1になり、ここで
 		// 構造的に不適格になる(fail closed)。絶対配置はE-6増分4eの
 		// recipe記録化でendOfが引けるようになった(NO_RANGE=81の解消)
 		final long endId = anchor < 0 ? -1 : log.endOf(anchor);

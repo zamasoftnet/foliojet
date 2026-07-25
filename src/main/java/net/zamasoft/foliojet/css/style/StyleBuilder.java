@@ -352,10 +352,9 @@ public class StyleBuilder implements PageGenerator {
 	 */
 	private void startBox(final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		// レイアウトソースプロトコルの記録(M6b v3)。recipe化できる種別は
-		// Start(recipe) として記録し、未対応の種別(表キャプション・
-		// 表本体等)
-		// は Opaque として位置だけ占有する(範囲に Opaque を含む再生は
-		// フォールバック)
+		// Start(recipe) として記録し、未対応の種別(F-4実測では表本体と
+		// その内側の表キャプションのみ)は Opaque として位置だけ占有する
+		// (範囲に Opaque を含む再生はフォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
 		if (kind != null) {
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Start(
@@ -411,6 +410,16 @@ public class StyleBuilder implements PageGenerator {
 				// 単独(表を伴わない)再生では DocumentBuilder.tableBuilder() が
 				// 例外を投げる(builderStack の先頭が TableBuilder でない)。
 				// 表本体と同じく Opaque とし、単独再生の対象から外す。
+				//
+				// F-4(2026-07-25): キャプションの recipe 化を単独で行っても
+				// 得るものはない。キャプションは必ず表要素の内側にあり
+				// (DocumentBuilder の TABLE_CAPTION 分岐が tableBuilder() を
+				// 要求する)、その表自身が下の TableBox 分岐で Opaque として
+				// 記録されるため、キャプションを含む範囲は表の Opaque で
+				// 既に containsOpaque=true になる。実測の内訳も表310に対し
+				// キャプション9で、後者は前者の真部分集合。よってこの null は
+				// 表の recipe 記録化と同時に解消すべきであり、単独で
+				// BoxKind を足しても Opaque 総数は減らない。
 				return null;
 			}
 			return LayoutSource.BoxKind.FLOW;
@@ -436,7 +445,27 @@ public class StyleBuilder implements PageGenerator {
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableBox.class
 				&& box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FlowPos) {
 			// blockBox は TableParams を共有するため (params, pos) で再構成できる。
-			// 絶対配置・浮動の表は当面 Opaque(それぞれの再生設計に依存)
+			//
+			// 【この分岐は現在到達不能(F-4実測、2026-07-25)】
+			// TableBox.getPos() は final で常に TablePos.POS を返し、TablePos は
+			// FlowPos を継承しない(Pos を直接実装する)。よって右辺の
+			// instanceof は恒偽で、BoxKind.TABLE は一度も記録されない
+			// ——表の配置種別(FLOW/FLOAT/ABSOLUTE)を持つのは外側の
+			// TableBox ではなく内側の blockBox(TableBox.getBlockBox()
+			// .getPos())側である。実測: files/unittest 全数436文書で
+			// recipe:TABLE=0 に対し Opaque の TableBox=310(=全ての表)。
+			// したがって「絶対配置・浮動の表だけが Opaque」ではなく
+			// 【全ての表が Opaque】が現状であり、これが残 Opaque 319件
+			// (表310+その内側の表キャプション9)の実体である。
+			//
+			// 撤去せず残す理由: 対の recipe 機構(BoxKind.TABLE /
+			// BoxRecipe.Table / TableParamsTemplate /
+			// BoxRecipeBoxFactory の TABLE 分岐)は実装・単体テスト済みで、
+			// 条件を blockBox 側へ正す(= 表を recipe 記録化する)ときに
+			// そのまま使える。ただしそれは再生適格範囲が大きく広がる
+			// 挙動変更であり、golden 再基準化を伴うため別増分とする。
+			// この一件が Opaque ゲート族の縮小・LegacyRecords の Barrier
+			// ゼロ化・E-6増分4c(range-first capture)の解禁を同時に律速する。
 			return LayoutSource.BoxKind.TABLE;
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox.class) {
