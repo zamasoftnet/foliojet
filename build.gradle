@@ -164,6 +164,9 @@ tasks.named('test') {
     if (System.getProperty('foliojet.convertOneBlank') != null) {
         systemProperty 'foliojet.convertOneBlank', System.getProperty('foliojet.convertOneBlank')
     }
+    if (System.getProperty('foliojet.probeBreak') != null) {
+        systemProperty 'foliojet.probeBreak', System.getProperty('foliojet.probeBreak')
+    }
     if (System.getProperty('foliojet.fuzzSeeds') != null) {
         systemProperty 'foliojet.fuzzSeeds', System.getProperty('foliojet.fuzzSeeds')
     }
