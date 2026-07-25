@@ -76,21 +76,6 @@ public final class LayoutSource implements AutoCloseable {
 		INLINE_BLOCK,
 		/** 内部マーカー(InsideMarkerBox)。 */
 		INSIDE_MARKER,
-		/**
-		 * テーブル(TableBox。blockBox は params 共有+pos クラスで再構成)。
-		 *
-		 * <p>
-		 * <b>現在production未使用(F-4実測、2026-07-25)</b>: 記録側
-		 * ({@code StyleBuilder.boxKind})の条件{@code box.getPos()
-		 * instanceof FlowPos}が{@code TableBox}に対して恒偽のため
-		 * (同メソッドのTableBox分岐のコメント参照)、全ての表は
-		 * {@link Opaque}で記録される。この定数と対のfreeze/materialize
-		 * ({@code BoxRecipe.Table}・{@code TableParamsTemplate}・
-		 * {@code BoxRecipeBoxFactory})は単体テスト済みで、記録条件を
-		 * 正す増分でそのまま生きる。
-		 * </p>
-		 */
-		TABLE,
 		/** テーブル行グループ(TableRowGroupBox)。 */
 		TABLE_ROW_GROUP,
 		/** テーブル行(TableRowBox)。 */
@@ -116,7 +101,7 @@ public final class LayoutSource implements AutoCloseable {
 	 * 再生は{@code BoxRecipeBoxFactory.create(BoxRecipe)}のmaterializeで
 	 * 新品のボックスを作る——liveのparams/pos({@code CSSElement}グラフ
 	 * 含む)はログに残らない。freezeは{@code StyleBuilder.boxKind}が
-	 * 非nullを返す全14 kind(E-6増分4eでABSOLUTE追加)をカバーする総関数
+	 * 非nullを返す全13 kind(E-6増分4eでABSOLUTE追加)をカバーする総関数
 	 * ({@code ReplacedRecipe.freeze}と違い失敗変種はない)。生成内容・マーカー番号等は解決済みの
 	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません。
 	 */
@@ -298,15 +283,6 @@ public final class LayoutSource implements AutoCloseable {
 		if (event instanceof Chars chars && chars.payload() instanceof TextPayload.Inline inline) {
 			this.liveInlineTextBytes += (long) inline.utf16Length() * 2;
 			ContinuationStats.recordLiveTextPayloadBytes(this.liveInlineTextBytes);
-		}
-		// E-6増分3b-3: 置換要素のrecipe化の観測(3b-6でlive型を撤去し、
-		// 記録はrecipe一択になった——対のliveカウンタも撤去済み)
-		if (event instanceof Replaced) {
-			ContinuationStats.recordReplacedRecipe();
-		} else if (event instanceof Start) {
-			// E-6増分3b-4: Startは記録時freeze(全kindカバーの総関数のため
-			// live変種の対カウンタはない——構造的に残量ゼロ)
-			ContinuationStats.recordStartRecipe();
 		}
 		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
@@ -647,7 +623,7 @@ public final class LayoutSource implements AutoCloseable {
 		// フロートが入る場合の再生可否は呼び出し側の containsFloat ゲートが
 		// 判定する(再生は係留を再実行するため二重化の危険がある)
 		return switch (kind) {
-		case FLOW, MULTICOL, TABLE -> true;
+		case FLOW, MULTICOL -> true;
 		default -> false;
 		};
 	}
@@ -749,48 +725,6 @@ public final class LayoutSource implements AutoCloseable {
 			// ReplacedRecipe.freezeの分類とBoxRecipeBoxFactory.createReplacedが対)
 			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe)
 					&& recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * [fromId, toId] の範囲に表({@link BoxKind#TABLE})の Start が
-	 * 含まれていれば true を返します(G-1、2026-07-25)。
-	 *
-	 * <p>
-	 * 表は既定({@code foliojet.tableRecipe}未設定)では{@link Opaque}で
-	 * 記録されるため、このメソッドは既定では常に false ——
-	 * {@link #containsOpaque}が全ての消費側を暗黙にフォールバックさせる
-	 * 従来の構図は変わらない。表をrecipe記録化する実験を有効にしたとき
-	 * だけ意味を持つ。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>なぜ必要か(G-1実測)</b>: 表のrecipe記録化で「範囲を再生できる」
-	 * ようになっても、<b>再生してよいか</b>は消費側ごとに別問題である。
-	 * {@code MeasuredIntrinsics}(実レイアウト実測)は、表を含む範囲を
-	 * 通し始めると固有寸法が「模倣計測」から「∞幅scratchページへの実
-	 * source replay計測」へ<b>アルゴリズムごと切り替わり</b>、出力が壊れる
-	 * ——実測では{@code 0070-table-layout/float-in-auto-4.html}の
-	 * shrink-to-fitフロート幅が376/414.5/276/216 → 全て500pt(=ページ幅)へ
-	 * 発散した(∞幅ページでは表の%指定セルが1e6基準で解決されるため)。
-	 * E-6増分4eが絶対配置に対して{@link #containsAbsolute}で行った
-	 * 切り分けと同型のゲートで、実験がoffでも無害。
-	 * </p>
-	 */
-	public boolean containsTable(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
-			return true;
-		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Table) {
 				return true;
 			}
 		}

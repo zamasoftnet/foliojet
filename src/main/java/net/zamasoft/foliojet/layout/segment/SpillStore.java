@@ -221,9 +221,8 @@ final class SpillStore implements AutoCloseable {
 
 	/**
 	 * 範囲{@code [fromId, toIdExclusive)}を1レコードずつ読む順次cursor
-	 * です。消費位置はcursorが所有する(ストア側は位置を持たない——
-	 * 既存{@code SegmentReplaySession}と同じ契約)。ファイルハンドルは
-	 * ストア共有のため、cursor自体はclose不要。
+	 * です。消費位置はcursorが所有する(ストア側は位置を持たない)。
+	 * ファイルハンドルはストア共有のため、cursor自体はclose不要。
 	 */
 	final class Cursor {
 		private long nextId;

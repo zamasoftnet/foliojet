@@ -16,7 +16,6 @@ import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.RowGroupType;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
-import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
@@ -179,30 +178,6 @@ public class ParamsTemplateTest extends TestCase {
 		assertNotSame(m1, m2);
 		assertEquals(FloatSide.END, m1.floating);
 		assertEquals(net.zamasoft.foliojet.layout.box.params.ClearMode.BOTH, m2.clear);
-	}
-
-	/**
-	 * TableParams(BlockParamsを直接継承)もBlockParamsFields経由で
-	 * 同じ独立性契約を満たす。
-	 */
-	public void testTableParamsMaterializeIsIndependent() {
-		final TableParams source = new TableParams();
-		source.transform = AffineTransform.getTranslateInstance(7, 8);
-		source.borderSpacingH = 1.5;
-		source.borderSpacingV = 2.5;
-		source.borderCollapse = TableParams.BORDER_COLLAPSE;
-
-		final TableParamsTemplate template = TableParamsTemplate.freeze(source);
-		final TableParams m1 = template.materialize();
-		final TableParams m2 = template.materialize();
-
-		assertNotSame(m1.transform, m2.transform);
-		assertEquals(source.transform, m1.transform);
-		assertEquals(1.5, m1.borderSpacingH);
-		assertEquals(TableParams.BORDER_COLLAPSE, m2.borderCollapse);
-
-		m1.transform.translate(1, 1);
-		assertEquals(AffineTransform.getTranslateInstance(7, 8), m2.transform);
 	}
 
 	/**

@@ -14,9 +14,8 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
  * {@code pageBreakInside}・{@code orphans}/{@code widows}・
  * {@code size}系・{@code boxSizing}・{@code overflow}・{@code columns})
  * のfreeze/materialize処理です(2026-07-22新設、M6d-A3b、
- * package-private——{@link BlockParamsTemplate}と
- * {@link TableParamsTemplate}(`TableParams`は`BlockParams`を直接
- * 継承)が共有する。祖先({@code Params}/{@code AbstractTextParams}/
+ * package-private——{@link BlockParamsTemplate}が使う。
+ * 祖先({@code Params}/{@code AbstractTextParams}/
  * {@code AbstractLineParams})のフィールドは{@link LineParamsFields}へ
  * 委譲する(合成、{@code TextParamsFields}/{@code LineParamsFields}と
  * 同じパターン)。

@@ -109,51 +109,6 @@ public final class ContinuationStats {
 	public static final AtomicLong COLUMN_RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
 	/**
-	 * `RootBuilder`の終端`OpenTailShape`処理で、worklist executorへの
-	 * 適格判定({@link WorklistTailGate})が**適格**だった回数です
-	 * (2026-07-22新設、B6a1。2026-07-24のB6検証インフラ退役後も
-	 * legacy再帰経路の使用頻度観測として残置。F-4(2026-07-25)の
-	 * {@code files/unittest}全数436文書実測でELIGIBLE=93/INELIGIBLE=3)。
-	 */
-	public static final AtomicLong WORKLIST_ELIGIBLE_TERMINALS = new AtomicLong();
-
-	/**
-	 * 同判定が**偽**だった回数です(legacy再帰へフォールバックした
-	 * 実際の回数)。
-	 *
-	 * <p>
-	 * <b>legacy再帰の撤去は不可(F-4裁定、2026-07-25)</b>: 当初は
-	 * 「この値が実測コーパスで恒常0ならlegacy実装を削除できる」と
-	 * 見込んでいたが、436文書全数の実測は<b>3件</b>(0400-column-count/
-	 * columns-float・0400-column-count/page-first・0415-column-fill/
-	 * probe-nested)で、原因は全て未収集tailに残る{@link
-	 * ContinuationCapability#MULTICOL}祖先だった。しかもこれは偶然
-	 * ではなく構造的必然である({@link WorklistTailGate#LEGACY_RECURSION}
-	 * のjavadoc参照——段組は「貫通改ページ可」かつ「収集不可」という
-	 * 組合せを持つ唯一の分類なので、必ずtail側へ残る)。
-	 * したがって撤去条件は「実測0」ではなく<b>worklist executorが
-	 * {@code MULTICOL}レベルの降下を正しく扱えることの証明</b>へ
-	 * 置き換わる(現在の{@code restyleWorklist}は非{@code FlowContainer}
-	 * の子を通常の再帰フォールバックへ委ねており、この降下は未検証)。
-	 * ルビ撤去(2026-07-25)はこの二重経路に対しては無関係だった——
-	 * 旧{@code RubyBodyBox}は{@code FLOW_SUBTYPE}分類の唯一の実装
-	 * だったが、実測上の不適格要因は元々段組である。
-	 * </p>
-	 */
-	public static final AtomicLong WORKLIST_INELIGIBLE_TERMINALS = new AtomicLong();
-
-	/**
-	 * {@code OpenChain}再帰から戻った直後、同じ{@code items}レベルに
-	 * まだ処理すべき残りitem(chain子よりserialが後のfloating/replay等)
-	 * があった回数です(2026-07-22新設、B6a1のworklist executor設計で
-	 * codexが指摘した「子再帰から戻った後に処理すべき親itemが存在し
-	 * 得る」という構造の実測——単なる`Deque<FlowBlockBox>`では表現
-	 * できないためworklist設計上重要。読み取り専用、既存挙動には一切
-	 * 影響しない)。分母は{@link #RESTYLE_CHAIN_FIRINGS}。
-	 */
-	public static final AtomicLong OPEN_CHAIN_TRAILING_ITEMS = new AtomicLong();
-
-	/**
 	 * 現在の継続経路(PAGE/COLUMN)を追跡するスタックです(2026-07-21、B1)。
 	 * {@link ResumeTrace#begin(String)}と同じ「入れ子破断はスタックで
 	 * 表現する」設計だが、こちらはデバッグ用プロパティに関わらず常に
@@ -245,36 +200,6 @@ public final class ContinuationStats {
 	public static void recordTextSpill(final long bytes) {
 		SPILLED_TEXT_RECORDS.incrementAndGet();
 		SPILLED_TEXT_BYTES.addAndGet(bytes);
-	}
-
-	/**
-	 * 記録時にrecipe化された置換要素イベント数です(2026-07-24新設、
-	 * E-6増分3b-3)。3b-6でlive box保持の過渡変種({@code ReplacedLive})と
-	 * その対カウンタ({@code REPLACED_LIVE_EVENTS})は撤去され、置換要素の
-	 * 記録はrecipe一択になった({@code ReplacedBoxImage}はduplicateベース
-	 * でfreeze。freezeできない未知サブクラスは{@code Opaque}記録のため
-	 * このカウンタに乗らない——現存4実装では構造的にゼロ)。
-	 */
-	public static final AtomicLong REPLACED_RECIPE_EVENTS = new AtomicLong();
-
-	/** 置換要素イベントの記録時recipe化の観測です(E-6増分3b-3)。 */
-	public static void recordReplacedRecipe() {
-		REPLACED_RECIPE_EVENTS.incrementAndGet();
-	}
-
-	/**
-	 * 記録時にrecipe化されたStart(BeginBox)イベント数です(2026-07-24
-	 * 新設、E-6増分3b-4)。Startのfreeze({@code BoxRecipe.freeze})は
-	 * {@code StyleBuilder.boxKind}が非nullを返す全13 kindをカバーする
-	 * 総関数のため、Replacedと違いliveの対カウンタは存在しない
-	 * (live残量は構造的にゼロ——テンプレートを持たない種別はそもそも
-	 * {@code Opaque}で記録される)。
-	 */
-	public static final AtomicLong START_RECIPE_EVENTS = new AtomicLong();
-
-	/** Startイベントの記録時recipe化の観測です(E-6増分3b-4)。 */
-	public static void recordStartRecipe() {
-		START_RECIPE_EVENTS.incrementAndGet();
 	}
 
 	// ---- E-6増分4a/4b(2026-07-24): TwoPass range化の発火カウンタ群 ----
@@ -468,19 +393,9 @@ public final class ContinuationStats {
 		OPEN_TEXT_HANDOFFS.incrementAndGet();
 	}
 
-	/** OpenChain分岐で末尾以外のitemを観測した回数です(M6c-1でAPI集約)。 */
-	public static void recordOpenChainTrailingItem() {
-		OPEN_CHAIN_TRAILING_ITEMS.incrementAndGet();
-	}
-
 	/** 改段時のowner段数の観測です(M6c-1でAPI集約)。 */
 	public static void recordLastColumnOwnerColumnCount(final int columnCount) {
 		LAST_COLUMN_OWNER_COLUMN_COUNT.set(columnCount);
-	}
-
-	/** worklist executorの適格/不適格terminalの集計です(M6c-1でAPI集約)。 */
-	public static void recordWorklistTerminal(final boolean eligible) {
-		(eligible ? WORKLIST_ELIGIBLE_TERMINALS : WORKLIST_INELIGIBLE_TERMINALS).incrementAndGet();
 	}
 
 	/** チェーン子フレーム(Child)消費の集計です(M6c-1でAPI集約)。 */
@@ -615,8 +530,6 @@ public final class ContinuationStats {
 		LIVE_TEXT_PAYLOAD_BYTES.set(0);
 		SPILLED_TEXT_RECORDS.set(0);
 		SPILLED_TEXT_BYTES.set(0);
-		REPLACED_RECIPE_EVENTS.set(0);
-		START_RECIPE_EVENTS.set(0);
 		UNCHAINED_RESTYLES.set(0);
 		OPEN_TEXT_HANDOFFS.set(0);
 		MAX_PAGE_OPEN_TAIL_DEPTH.set(0);
@@ -624,9 +537,6 @@ public final class ContinuationStats {
 		RESTYLE_CHAIN_FIRINGS.set(0);
 		PAGE_RESTYLE_CHAIN_FIRINGS.set(0);
 		COLUMN_RESTYLE_CHAIN_FIRINGS.set(0);
-		WORKLIST_ELIGIBLE_TERMINALS.set(0);
-		WORKLIST_INELIGIBLE_TERMINALS.set(0);
-		OPEN_CHAIN_TRAILING_ITEMS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
 		RANGE_FIRST_BINDS.set(0);

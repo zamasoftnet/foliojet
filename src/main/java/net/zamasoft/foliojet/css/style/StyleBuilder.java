@@ -246,59 +246,6 @@ import net.zamasoft.foliojet.ua.BoundSide;
 public class StyleBuilder implements PageGenerator {
 	private static final boolean DEBUG = false;
 
-	/**
-	 * G-1「表のrecipe記録化」の実験スイッチです(2026-07-25、<b>既定off</b>
-	 * ——{@code off}のときの記録は増分前と完全に同一で、全ての表と表
-	 * キャプションは{@code LayoutSource.Opaque}として記録される)。
-	 *
-	 * <ul>
-	 * <li>{@code off}(既定・未設定): 従来どおり。</li>
-	 * <li>{@code fixed}(第1段): 通常フロー配置(内側blockBoxが素の
-	 * {@code FlowBlockBox}+素の{@code FlowPos}かつparams alias成立)で
-	 * かつ{@code table-layout: fixed}の表本体だけを{@code BoxKind.TABLE}で
-	 * 記録する。</li>
-	 * <li>{@code table}(第2段): 上の配置条件を満たす表を列幅方針
-	 * (fixed/auto)によらず記録する。{@code auto}はRetained経路で
-	 * 列幅を全面再確定するため段を分ける。</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * <b>G-1実測(2026-07-25)</b>: {@code table}でOpaqueは319→21、
-	 * フルコーパス(436文書850ページ)の表示リストparityは完全一致・
-	 * フル単体テスト全緑だが、{@code BoxRecipeBoxFactory.TABLE_REPLAYS}は
-	 * <b>0のまま</b>——表のrecipeを消費する経路が存在しないため、
-	 * 現状これを既定onにしても得るものはない(同カウンタのjavadoc参照)。
-	 * 表キャプションのrecipe化も試したが、キャプションが単独replay範囲の
-	 * 「根」になれてしまい、囲みビルダーなしで{@code startBox}できない
-	 * 種別を適格判定が見ていないためクラッシュする(実測2文書)。
-	 * キャプション側の実装は撤去済み。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>撤去条件</b>: これは G-2(TwoPassの{@code NESTED_BUILDER}制約の
-	 * 解消と、表replay消費者=
-	 * {@code FlowContainer.restyleItem}の{@code case TABLE}の設計)で使う
-	 * 土台として残している。<b>表replay消費者を作らないと決めた時点で、
-	 * このファイルの{@code tableRecipe}関連一式(モード定数・boxKindの
-	 * gated分岐)を撤去すること</b>。放置された移行足場は患部になる
-	 * (E-3の教訓)。なお{@code startBox}が内側posを渡す修正だけは
-	 * gateに関わらず正しい記録契約なので撤去対象ではない。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>注意</b>: {@code static final}なので同一JVM内での切り替え
-	 * (off/onのparityを1プロセスで取る)はできない。off/onの比較は
-	 * 別JVM(別の{@code gradlew test}起動)で行うこと。
-	 * </p>
-	 */
-	private static final String TABLE_RECIPE_MODE = System.getProperty("foliojet.tableRecipe", "off");
-
-	/** 表本体をrecipe記録するか({@code fixed}/{@code table})。 */
-	private static final boolean TABLE_RECIPE_TABLE = "fixed".equals(TABLE_RECIPE_MODE)
-			|| "table".equals(TABLE_RECIPE_MODE);
-
-	/** 第1段: {@code table-layout: fixed}の表だけを対象にするか。 */
-	private static final boolean TABLE_RECIPE_FIXED_ONLY = "fixed".equals(TABLE_RECIPE_MODE);
 	private static final Logger LOG = Logger.getLogger(StyleBuilder.class.getName());
 
 	/**
@@ -400,7 +347,7 @@ public class StyleBuilder implements PageGenerator {
 	 * ログに残さない。params/posの変異は全てこの記録前のStyleBuilder
 	 * フェーズに閉じる(codex設計§1.1・独立cross-check済み)ため、
 	 * 記録時freezeは従来の再生時共有と同値。freezeは
-	 * {@link #boxKind}が非nullを返す全14 kindをカバーする総関数で、
+	 * {@link #boxKind}が非nullを返す全13 kindをカバーする総関数で、
 	 * {@code ReplacedRecipe.freeze}と違い失敗変種({@code StartLive})は
 	 * 必要ない。
 	 * </p>
@@ -412,23 +359,8 @@ public class StyleBuilder implements PageGenerator {
 		// (範囲に Opaque を含む再生はフォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
 		if (kind != null) {
-			// TABLEだけは「外側TableBoxのTablePos」ではなく「内側blockBoxの
-			// FlowPos」を凍結する(G-1、2026-07-25)。TableBox.getPos()は
-			// finalで常にTablePos.POSを返し配置種別を持たない——配置
-			// (FLOW/FLOAT/INLINE/ABSOLUTE)は内側blockBox側にある。再生側
-			// (BoxRecipeBoxFactoryのTABLE分岐)がparamsを共有して
-			// new TableBox(params, new FlowBlockBox(params, pos))を作る構造と
-			// 対になる。
-			// これは実験フラグ(TABLE_RECIPE_MODE)の有無に関わらず
-			// 【構造的に正しい記録契約】である——旧コードは外側posを渡して
-			// いたため、BoxKind.TABLEを記録した瞬間 (FlowPos) キャストで
-			// ClassCastException になった(実験フラグを撤去する場合も
-			// この一行は残すこと)
-			final net.zamasoft.foliojet.layout.box.params.Pos pos = kind == LayoutSource.BoxKind.TABLE
-					? ((TableBox) box).getBlockBox().getPos()
-					: box.getPos();
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Start(
-					net.zamasoft.foliojet.layout.segment.BoxRecipe.freeze(kind, box.getParams(), pos))));
+					net.zamasoft.foliojet.layout.segment.BoxRecipe.freeze(kind, box.getParams(), box.getPos()))));
 		} else {
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Opaque()));
 		}
@@ -523,37 +455,19 @@ public class StyleBuilder implements PageGenerator {
 			return LayoutSource.BoxKind.INSIDE_MARKER;
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableBox.class) {
-			// 【旧条件は到達不能だった(F-4実測、2026-07-25)】
-			// 旧: box.getPos() instanceof FlowPos。TableBox.getPos() は final で
-			// 常に TablePos.POS を返し TablePos は FlowPos を継承しないため恒偽
-			// ——表の配置種別(FLOW/FLOAT/INLINE/ABSOLUTE)を持つのは外側の
-			// TableBox ではなく内側の blockBox(TableBox.getBlockBox().getPos())
-			// 側である。実測: files/unittest 全数436文書で recipe:TABLE=0 に
-			// 対し Opaque の TableBox=310(=全ての表)。
+			// 表本体は Opaque として記録し、単独再生の対象から外す。
 			//
-			// G-1実験(2026-07-25、既定 off = 従来どおり全て Opaque):
-			// 条件を内側 blockBox の pos へ正した版。再生側
-			// (BoxRecipeBoxFactory の TABLE 分岐)が作れるのは
-			// new TableBox(params, new FlowBlockBox(params, FlowPos)) だけ
-			// なので、内側が素の FlowBlockBox+素の FlowPos の表だけを
-			// recipe 化する。float/inline-table/absolute 配置の表と、
-			// 内側が FlowPos のサブクラス(TableCaptionPos)になる可能性は
-			// 構造的にないが、クラス一致で fail closed にしておく。
-			if (TABLE_RECIPE_TABLE) {
-				final TableBox tableBox = (TableBox) box;
-				final net.zamasoft.foliojet.layout.box.AbstractBlockBox blockBox = tableBox.getBlockBox();
-				// params alias: 再生側は1個のTableParamsを外箱と内箱で共有する
-				// (BoxRecipeBoxFactoryのTABLE分岐)。元がalias でない表を
-				// recipe化すると再生で意味が変わるため、aliasも適格条件にする
-				// (production通常生成は同一instance——StyleBuilderのTABLE分岐)
-				if (blockBox.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
-						&& blockBox.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class
-						&& blockBox.getParams() == tableBox.getTableParams()
-						&& (!TABLE_RECIPE_FIXED_ONLY || tableBox.getTableParams().layout
-								== net.zamasoft.foliojet.layout.box.params.TableParams.LAYOUT_FIXED)) {
-					return LayoutSource.BoxKind.TABLE;
-				}
-			}
+			// G-1実験(2026-07-25、撤去済み): 表を recipe 記録化する実験を
+			// 実装して全436文書で実測したが、表の recipe を消費する経路が
+			// 存在しない(FlowContainer.restyleItem の case TABLE は
+			// replayFromSource を試さず builder.addBound へ直行する)ため
+			// 得るものがなく、消費者を作らない結論で一式撤去した。
+			// 再挑戦する場合の注意: TableBox.getPos() は final で常に
+			// TablePos.POS を返し配置種別を持たない——配置
+			// (FLOW/FLOAT/INLINE/ABSOLUTE)を持つのは内側の blockBox
+			// (TableBox.getBlockBox().getPos())側なので、記録側は内側 pos を
+			// 渡す契約にする必要がある(外側 pos のままだと FlowPos への
+			// キャストで ClassCastException)。
 			return null;
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox.class) {

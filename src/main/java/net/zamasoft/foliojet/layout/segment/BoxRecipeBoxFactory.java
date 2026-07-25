@@ -56,25 +56,6 @@ public final class BoxRecipeBoxFactory {
 	private BoxRecipeBoxFactory() {
 	}
 
-	/**
-	 * 再生で{@code TableBox}を再構築した回数です(G-1調査、2026-07-25。
-	 * 観測のみ・挙動不変)。このファクトリの呼び出し元は全てreplay駆動
-	 * ({@code SegmentExecutor})なので、この値がそのまま「表がソース再生で
-	 * 作り直された回数」になる。
-	 *
-	 * <p>
-	 * <b>「消費者が存在しない」ことの検出器</b>(G-1実測、2026-07-25):
-	 * {@code foliojet.tableRecipe=table}で全436文書+合成fixture 32文書を
-	 * 変換しても、このカウンタは<b>0のまま</b>だった——
-	 * {@code FlowContainer.restyleItem}の{@code case TABLE}が
-	 * {@code replayFromSource}を一度も試さず{@code builder.addBound}へ
-	 * 直行するため、表のrecipeを消費する経路が現状ひとつもない。
-	 * 表のrecipe記録化を「入れたつもり」で空虚な緑にしないための恒久的な
-	 * 検出器として残す({@code TableRecipeCensusTest}が報告する)。
-	 * </p>
-	 */
-	public static final java.util.concurrent.atomic.AtomicLong TABLE_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
-
 	/** {@code recipe}のテンプレートをmaterializeし、対応する新品の{@code IBox}を返す。 */
 	public static INonReplacedBox create(final BoxRecipe recipe) {
 		return switch (recipe) {
@@ -89,9 +70,6 @@ public final class BoxRecipeBoxFactory {
 			create(LayoutSource.BoxKind.INLINE_BLOCK, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.InsideMarker r ->
 			create(LayoutSource.BoxKind.INSIDE_MARKER, r.params().materialize(), r.pos().materialize());
-		// Tableのparams共有(alias)はカーネル側で行うため、ここは
-		// materializeを1回ずつ呼ぶだけでよい
-		case BoxRecipe.Table r -> create(LayoutSource.BoxKind.TABLE, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableRowGroup r ->
 			create(LayoutSource.BoxKind.TABLE_ROW_GROUP, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableRow r ->
@@ -114,8 +92,7 @@ public final class BoxRecipeBoxFactory {
 	 * {@code LayoutSource.Start}も記録時freezeのrecipe保持になったため、
 	 * live params/posを直接渡す呼び出し元は残っていない——recipe駆動
 	 * ({@link #create(BoxRecipe)})のmaterialize結果がここを通り、
-	 * kindごとの構築ロジック(Tableのparams共有aliasを含む)は
-	 * この一箇所だけが持つ。
+	 * kindごとの構築ロジックはこの一箇所だけが持つ。
 	 */
 	public static INonReplacedBox create(final LayoutSource.BoxKind kind, final Params params, final Pos pos) {
 		return switch (kind) {
@@ -126,13 +103,6 @@ public final class BoxRecipeBoxFactory {
 		case FLOAT_BLOCK -> new FloatBlockBox((BlockParams) params, (FloatPos) pos);
 		case INLINE_BLOCK -> new InlineBlockBox((BlockParams) params, (InlinePos) pos);
 		case INSIDE_MARKER -> new InsideMarkerBox((BlockParams) params, (InlinePos) pos);
-		case TABLE -> {
-			// 外側のTableBoxと内側のFlowBlockBoxはTableParamsを共有する
-			// (alias構造の一元点——live/recipeの両駆動で同じ)
-			final TableParams tableParams = (TableParams) params;
-			TABLE_REPLAYS.incrementAndGet();
-			yield new TableBox(tableParams, new FlowBlockBox(tableParams, (FlowPos) pos));
-		}
 		case TABLE_ROW_GROUP -> new TableRowGroupBox((InnerTableParams) params, (TableRowGroupPos) pos);
 		case TABLE_ROW -> new TableRowBox((InnerTableParams) params, (TableRowPos) pos);
 		case TABLE_CELL -> new TableCellBox((BlockParams) params, (TableCellPos) pos, new FlowContainer());

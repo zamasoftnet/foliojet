@@ -13,8 +13,7 @@ package net.zamasoft.foliojet.layout.segment;
  * </p>
  * <ul>
  * <li>{@code Start} → {@link BeginBox}(recipeのみ、子構造は持たない
- * ——recipeは「箱の生成方法」、子範囲は{@link ContainerNode}が持つ
- * 「構造」であり、混ぜない)</li>
+ * ——recipeは「箱の生成方法」であって「構造」ではなく、混ぜない)</li>
  * <li>{@code EndBlock} → {@link EndBox}(実態に合わせて改名)</li>
  * <li>{@code Chars} → {@link Text}({@code char[]}を{@code String}へ
  * ——mutableな配列をrecordから取得して変更できてしまう問題を解消)</li>
@@ -28,7 +27,7 @@ package net.zamasoft.foliojet.layout.segment;
 public sealed interface SegmentEvent {
 	/**
 	 * ボックスの開始です。子コンテンツの構造(子への参照)はここには
-	 * 含めない——{@link ContainerNode}が別途持つ。
+	 * 含めない——構造は{@link EndBox}までの並びが表現する。
 	 */
 	record BeginBox(BoxRecipe recipe) implements SegmentEvent {
 	}

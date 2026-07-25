@@ -46,9 +46,9 @@ public class SegmentEventTest extends TestCase {
 	}
 
 	public void testBarrierAlwaysCarriesReason() {
-		final SegmentEvent.Barrier withKind = new SegmentEvent.Barrier(java.util.Optional.of(BoxKind.TABLE),
+		final SegmentEvent.Barrier withKind = new SegmentEvent.Barrier(java.util.Optional.of(BoxKind.TABLE_ROW),
 				BarrierReason.NOT_YET_SUPPORTED);
-		assertEquals(BoxKind.TABLE, withKind.kind().get());
+		assertEquals(BoxKind.TABLE_ROW, withKind.kind().get());
 		assertEquals(BarrierReason.NOT_YET_SUPPORTED, withKind.reason());
 
 		// 旧Opaque/Replaced相当は種別情報を持たないため空
@@ -125,18 +125,6 @@ public class SegmentEventTest extends TestCase {
 		public Image duplicate() {
 			return new StubReplacedBoxImage();
 		}
-	}
-
-	/** ContainerNodeはBoxRecipeと子範囲を分離して持つ(recipeに構造を混ぜない)。 */
-	public void testContainerNodeSeparatesRecipeFromStructure() {
-		final SegmentId id = SegmentId.create();
-		final SegmentRange children = new SegmentRange(new SegmentCursor(id, 1), new SegmentCursor(id, 3));
-		final BoxRecipe recipe = inlineRecipe();
-		final ContainerNode node = new ContainerNode(recipe, children);
-
-		assertSame(recipe, node.recipe());
-		assertEquals(children, node.children());
-		assertEquals(BoxKind.INLINE, node.recipe().kind());
 	}
 
 	/** 同値のイベントは記録場所によらず等価(record由来)。 */

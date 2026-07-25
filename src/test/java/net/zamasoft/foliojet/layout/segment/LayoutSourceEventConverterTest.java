@@ -18,7 +18,6 @@ import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
-import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
@@ -124,27 +123,6 @@ public class LayoutSourceEventConverterTest extends TestCase {
 
 		final BoxRecipe.FloatBlock floatBlock = (BoxRecipe.FloatBlock) ((SegmentEvent.BeginBox) converted).recipe();
 		assertEquals(FloatSide.END, floatBlock.pos().materialize().floating);
-	}
-
-	/**
-	 * BoxKind.TABLEはTableParams+FlowPosで内容を失わずBoxRecipe.Tableへ
-	 * 変換される(StyleBuilderの「box.getPos() instanceof FlowPosの
-	 * 場合のみ記録」不変条件どおり)。
-	 */
-	public void testTableStartConvertsToBeginBoxWithTableRecipe() {
-		final TableParams params = new TableParams();
-		params.borderCollapse = TableParams.BORDER_COLLAPSE;
-		final FlowPos pos = new FlowPos();
-		pos.columnSpan = net.zamasoft.foliojet.layout.box.params.FlowPos.COLUMN_SPAN_ALL;
-
-		final SegmentEvent converted = LayoutSourceEventConverter
-				.convert(start(LayoutSource.BoxKind.TABLE, params, pos));
-
-		assertTrue(converted instanceof SegmentEvent.BeginBox);
-		final BoxRecipe.Table table = (BoxRecipe.Table) ((SegmentEvent.BeginBox) converted).recipe();
-		assertEquals(TableParams.BORDER_COLLAPSE, table.params().materialize().borderCollapse);
-		assertEquals(net.zamasoft.foliojet.layout.box.params.FlowPos.COLUMN_SPAN_ALL,
-				table.pos().materialize().columnSpan);
 	}
 
 	/** TableRowGroupBox/TableRowBox/TableColumnGroupBox/TableColumnBoxはInnerTableParamsで変換される。 */

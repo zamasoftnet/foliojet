@@ -114,9 +114,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * <b>319件すべてが表</b>(表本体310+その内側の表キャプション9)で、
 	 * Barrierゼロには程遠い。しかも表のOpaque化は「浮動/絶対配置の表
 	 * だけ」ではなく<b>全ての表</b>である({@code StyleBuilder.boxKind}の
-	 * {@code TableBox}分岐のjavadoc参照——{@code TableBox.getPos()}が
-	 * 常に{@code TablePos}を返すため{@code BoxKind.TABLE}は到達不能)。
-	 * よって4cの解禁は「表のrecipe記録化」一件に律速される——
+	 * {@code TableBox}分岐のコメント参照)。よって4cの解禁は「表のrecipe記録化」一件に律速される——
 	 * ルビ撤去だけでは前提は満たされない。加えて非leaf range bind
 	 * (ネストのリース再帰解放)も引き続き必要。
 	 * </p>

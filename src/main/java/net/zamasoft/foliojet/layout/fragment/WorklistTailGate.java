@@ -23,9 +23,7 @@ package net.zamasoft.foliojet.layout.fragment;
 public enum WorklistTailGate {
 	/**
 	 * 未収集レベルが残っていない(完全収集済みで、残るのは終端の
-	 * 開きテキストのみ)。legacy/worklistの区別自体が無意味な
-	 * ケースで、頻度計測({@link ContinuationStats#recordWorklistTerminal})
-	 * にも含めない。
+	 * 開きテキストのみ)。legacy/worklistの区別自体が無意味なケース。
 	 */
 	NO_LEGACY_OPEN_TAIL,
 	/**
@@ -40,10 +38,14 @@ public enum WorklistTailGate {
 	 * {@link ContinuationCapability#supportsPageSplitThrough}が真
 	 * (段組を貫通する改ページを許す)である一方、収集可能プレフィックス
 	 * スキャンは{@code PLAIN_FLOW}でしか進まないため、段組レベルは必ず
-	 * <b>未収集tail側</b>に残りここへ到達する。つまり
-	 * {@code WORKLIST_INELIGIBLE_TERMINALS}は型・構造の上でゼロに
-	 * ならず、「実測0だからlegacy再帰を撤去する」という道は塞がっている
-	 * ({@link ContinuationStats#WORKLIST_INELIGIBLE_TERMINALS}参照)。
+	 * <b>未収集tail側</b>に残りここへ到達する(436文書全数の実測でも3件:
+	 * 0400-column-count/columns-float・0400-column-count/page-first・
+	 * 0415-column-fill/probe-nested)。つまりこの分岐は型・構造の上で
+	 * ゼロにならず、「実測0だからlegacy再帰を撤去する」という道は
+	 * 塞がっている。撤去条件は<b>worklist executorが{@code MULTICOL}
+	 * レベルの降下を正しく扱えることの証明</b>である(現在の
+	 * {@code restyleWorklist}は非{@code FlowContainer}の子を通常の再帰
+	 * フォールバックへ委ねており、この降下は未検証)。
 	 * </p>
 	 */
 	LEGACY_RECURSION,

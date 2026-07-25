@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
-import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
@@ -35,7 +34,6 @@ import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.box.params.RowGroupType;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
-import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
@@ -109,12 +107,6 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 
 	private static BlockParams blockParams() {
 		final BlockParams params = new BlockParams();
-		params.fontStyle = DUMMY_FONT_STYLE;
-		return params;
-	}
-
-	private static TableParams tableParams() {
-		final TableParams params = new TableParams();
 		params.fontStyle = DUMMY_FONT_STYLE;
 		return params;
 	}
@@ -198,29 +190,6 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		final BoxRecipe recipe = new BoxRecipe.InsideMarker(BlockParamsTemplate.freeze(blockParams()),
 				InlinePosTemplate.freeze(new InlinePos()));
 		assertTrue(BoxRecipeBoxFactory.create(recipe) instanceof InsideMarkerBox);
-	}
-
-	/**
-	 * BoxKind.TABLEはTableBoxへ再構築され、外側のTableBoxと内側の
-	 * FlowBlockBoxが同一のmaterialize済みTableParamsインスタンスを
-	 * 共有する(SourceReplayer.newBoxと同じ組み立て契約)。
-	 */
-	public void testTableRecipeSharesSingleMaterializedTableParams() {
-		final TableParams params = tableParams();
-		params.borderCollapse = TableParams.BORDER_COLLAPSE;
-		final BoxRecipe recipe = new BoxRecipe.Table(TableParamsTemplate.freeze(params),
-				FlowPosTemplate.freeze(new FlowPos()));
-
-		final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
-		assertTrue(box instanceof TableBox);
-		final TableBox table = (TableBox) box;
-		assertSame(table.getTableParams(), table.getBlockBox().getParams());
-		assertEquals(TableParams.BORDER_COLLAPSE, table.getTableParams().borderCollapse);
-
-		// 2回createすれば、共有はそれぞれ独立して保たれたまま別インスタンスになる
-		final TableBox table2 = (TableBox) BoxRecipeBoxFactory.create(recipe);
-		assertNotSame(table.getTableParams(), table2.getTableParams());
-		assertSame(table2.getTableParams(), table2.getBlockBox().getParams());
 	}
 
 	/** BoxKind.TABLE_ROW_GROUP/TABLE_ROW/TABLE_COLUMN_GROUP/TABLE_COLUMNはInnerTableParamsで再構築される。 */

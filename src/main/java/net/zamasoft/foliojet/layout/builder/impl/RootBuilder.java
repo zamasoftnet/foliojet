@@ -384,7 +384,6 @@ public class RootBuilder extends BreakableBuilder {
 					// 無条件にworklist executorで駆動する(B6検証インフラ退役、
 					// docs/history/2026-07-22-b6a1-eligibility-gated-switch.md
 					// 参照)。
-					RootBuilder.recordWorklistTerminal(this.tailGate);
 					final boolean worklistEligible = this.tailGate == net.zamasoft.foliojet.layout.fragment.WorklistTailGate.WORKLIST_ELIGIBLE;
 					if (worklistEligible) {
 						net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();
@@ -455,20 +454,6 @@ public class RootBuilder extends BreakableBuilder {
 	 * 参照)。
 	 */
 	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession> sessions = new java.util.ArrayDeque<>();
-
-	/**
-	 * 終端の適格判定結果を{@code WORKLIST_ELIGIBLE/INELIGIBLE_TERMINALS}
-	 * カウンタへ集計します(legacy再帰経路の使用頻度観測)。tailが
-	 * LegacyOpenでない場合はlegacy/worklistの区別自体が無意味なので
-	 * 計測に含めない——「本当にLegacyOpenだったが不適格だった」実測のみを
-	 * 数える。
-	 */
-	private static void recordWorklistTerminal(final net.zamasoft.foliojet.layout.fragment.WorklistTailGate gate) {
-		if (gate != net.zamasoft.foliojet.layout.fragment.WorklistTailGate.NO_LEGACY_OPEN_TAIL) {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistTerminal(
-					gate == net.zamasoft.foliojet.layout.fragment.WorklistTailGate.WORKLIST_ELIGIBLE);
-		}
-	}
 
 	/**
 	 * 残余の各閉部分木の再生可否と範囲を破断時に一括判定します(C2:
@@ -993,7 +978,6 @@ public class RootBuilder extends BreakableBuilder {
 				// -switch.md参照)。不適格ならlegacy再帰(段組貫通MOVE専用
 				// 経路、§5.10契約)のまま——駆動開始前のこの1点だけで判定し、
 				// 開始後にlegacyへ再試行することはしない。
-				recordWorklistTerminal(tailGate);
 				final boolean worklistEligible = tailGate == net.zamasoft.foliojet.layout.fragment.WorklistTailGate.WORKLIST_ELIGIBLE;
 				if (worklistEligible) {
 					net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();

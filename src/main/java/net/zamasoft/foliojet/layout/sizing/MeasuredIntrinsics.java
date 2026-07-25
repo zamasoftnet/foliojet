@@ -78,20 +78,14 @@ public final class MeasuredIntrinsics {
 		if (endId < 0 || endId <= selfId + 1) {
 			return null;
 		}
-		if (log.containsTable(selfId + 1, endId - 1)) {
-			// 表を含む範囲は模倣計測へフォールバック(G-1、2026-07-25):
-			// G-1以前は表がOpaque記録で下のcontainsOpaqueが捕捉していた。
-			// 表のrecipe記録化後にこの実測(∞幅/0幅のscratchページへの再生)を
-			// 表へ適用すると、%指定セル・auto列幅がscratch幅基準で解決されて
-			// max-contentが発散し、shrink-to-fitの幅が壊れる(実測:
-			// 0070-table-layout/float-in-auto-4.html の4フロートが
-			// 376/414.5/276/216 → 全て500pt=ページ幅)。実測の適用拡大は
-			// 出力を変えるため、E-6増分4eの絶対配置と同じく別増分とする。
-			// 実験offでは表がOpaque記録なので下のcontainsOpaqueと同値
-			// ——このゲート自体は既定挙動に対して無害で、表を recipe 化する
-			// 将来の増分に対する回帰防止として恒久的に価値がある
-			return null;
-		}
+		// 表を含む範囲は下のcontainsOpaqueが捕捉して模倣計測へ落ちる
+		// (表は常にOpaque記録——StyleBuilder.boxKindのTableBox分岐)。
+		// 表をrecipe記録化するとこの実測(∞幅/0幅のscratchページへの再生)が
+		// 表へも適用されてしまい、%指定セル・auto列幅がscratch幅基準で
+		// 解決されてmax-contentが発散し、shrink-to-fitの幅が壊れる(G-1実測:
+		// 0070-table-layout/float-in-auto-4.html の4フロートが
+		// 376/414.5/276/216 → 全て500pt=ページ幅)。表をrecipe化する将来の
+		// 増分は、ここに表専用のゲートを足すこと。
 		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
 				|| log.containsMulticol(selfId + 1, endId - 1)
 				|| log.containsMixedFlow(selfId + 1, endId - 1, template.flow)) {

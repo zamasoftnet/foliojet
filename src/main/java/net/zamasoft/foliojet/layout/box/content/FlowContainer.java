@@ -1798,12 +1798,6 @@ public class FlowContainer implements Container {
 										"serial=" + holder.serial);
 								net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainFiring();
 								descender.descend(builder, containerBox, inner);
-								// 2026-07-22(B6a1準備): OpenChain再帰から戻った直後、同じ
-								// itemsレベルにまだ処理すべき残りitemがあるかを実測する
-								// (診断専用・非例外化、既存の挙動には一切影響しない)。
-								if (i < size - 1) {
-									net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenChainTrailingItem();
-								}
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 									&& builder.getPageContext() != null

@@ -34,7 +34,7 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  * <p>
  * E-6増分3b-4(2026-07-24): {@link #freeze}を追加し、記録時
  * ({@code StyleBuilder.startBox})にlive params/posから凍結する——
- * {@code StyleBuilder.boxKind}が非nullを返す全14 kind(E-6増分4eで
+ * {@code StyleBuilder.boxKind}が非nullを返す全13 kind(E-6増分4eで
  * {@link Absolute}追加)をカバーする
  * <b>総関数</b>(旧{@code LayoutSourceEventConverter.convertStart}の
  * 変換時freezeの移設。{@code ReplacedRecipe.freeze}と違い失敗変種は
@@ -43,8 +43,8 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
  * </p>
  *
  * <p>
- * 子Segment参照はここに含めない——recipeは「箱の生成方法」、子範囲は
- * {@link ContainerNode}が別途持つ「構造」(A3a方針を継続)。
+ * 子Segment参照はここに含めない——recipeは「箱の生成方法」であって
+ * 「構造」ではない(A3a方針を継続)。
  * </p>
  */
 public sealed interface BoxRecipe {
@@ -61,9 +61,8 @@ public sealed interface BoxRecipe {
 
 	/**
 	 * kindとlive params/posから対応するvariantを凍結します(E-6増分3b-4、
-	 * 記録時freeze)。castの成立は{@code StyleBuilder.boxKind}のkind判定が
-	 * 保証する(例: {@link BoxKind#TABLE}は{@code box.getPos() instanceof
-	 * FlowPos}の場合のみ記録される)。
+	 * 記録時freeze)。castの成立は{@code StyleBuilder.boxKind}のkind判定
+	 * (実行時クラス一致)が保証する。
 	 */
 	static BoxRecipe freeze(final LayoutSource.BoxKind kind, final Params params, final Pos pos) {
 		return switch (kind) {
@@ -86,13 +85,6 @@ public sealed interface BoxRecipe {
 		// InsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
 		case INSIDE_MARKER -> new InsideMarker(BlockParamsTemplate.freeze((BlockParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
-		// TableBoxはTableParams+「内側blockBoxのFlowPos」を使う。
-		// F-4(2026-07-25)の実測どおり外側TableBox.getPos()は常にTablePos
-		// (FlowPosではない)なので、記録側(StyleBuilder.startBox)は
-		// TableBox.getBlockBox().getPos()を渡す契約。BoxKind.TABLEは
-		// 内側blockBoxがFlowPosのときだけ記録されるためcastは成立する
-		case TABLE -> new Table(TableParamsTemplate.freeze((TableParams) params),
-				FlowPosTemplate.freeze((FlowPos) pos));
 		// TableRowGroupBoxはInnerTableParams/TableRowGroupPosを使う(既存コード確認済み)
 		case TABLE_ROW_GROUP -> new TableRowGroup(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableRowGroupPosTemplate.freeze((TableRowGroupPos) pos));
@@ -200,28 +192,6 @@ public sealed interface BoxRecipe {
 	record InsideMarker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.INSIDE_MARKER;
-		}
-
-		public WritingMode flowOrNull() {
-			return this.params.flow();
-		}
-	}
-
-	/**
-	 * 表({@code TableBox})——{@code TableParams}と<b>内側blockBoxの</b>
-	 * {@code FlowPos}を使う(外側{@code TableBox.getPos()}は常に
-	 * {@code TablePos}で配置種別を持たない。{@code StyleBuilder.startBox}
-	 * が内側posを渡す契約)。
-	 *
-	 * <p>
-	 * <b>既定では生成されない(G-1、2026-07-25)</b>: 記録は
-	 * {@code foliojet.tableRecipe}実験フラグ配下で、既定は全ての表が
-	 * {@code Opaque}({@code StyleBuilder.boxKind}のTableBox分岐参照)。
-	 * </p>
-	 */
-	record Table(TableParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
-		public BoxKind kind() {
-			return BoxKind.TABLE;
 		}
 
 		public WritingMode flowOrNull() {
