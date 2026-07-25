@@ -174,6 +174,7 @@ public class FlowContainer implements Container {
 		}
 			break;
 
+		case RESCUE:
 		case REPLACED:
 		case TABLE:
 			ascent = flow.box.getHeight();
@@ -226,6 +227,7 @@ public class FlowContainer implements Container {
 		}
 			break;
 
+		case RESCUE:
 		case REPLACED:
 		case TABLE:
 			descent = 0;
@@ -904,12 +906,32 @@ public class FlowContainer implements Container {
 					nextFlowBox = prevFlow.box;
 					break;
 				}
+			case RESCUE:
+				// 2026-07-25(救済分割・増分5): 救済断片の続き。断片は
+				// 「元ボックスの残余」を表す不可分な箱なので、置換要素と
+				// まったく同じ判定でよい(先頭なら再度救済、収まるなら
+				// そのまま残す、途中なら丸ごと次フラグメンテナへ)
 			case REPLACED: {
 				// 置換されたボックス
 				double prevFlowPageSize = prevFlow.box.getPageExtent(this.box.getBlockParams().flow);
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						|| LayoutUtils.compare(splitLine, prevFlowPageSize) >= 0) {
 					// ページの先頭にある場合、ページ下辺にかかっていない場合は残す
+					if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
+							&& LayoutUtils.compare(splitLine, prevFlowPageSize) < 0) {
+						// 2026-07-25(救済分割・増分4/5): 「フラグメント先頭・
+						// 分割不能・なお超過」——現在はここで「はみ出したまま
+						// 描画」に落ちる唯一の非進行点(答申§1)
+						// 容量の基準は「調整前の切断線」= このコンテナの
+						// 始端からフラグメンテナ終端までの距離。コンテナ
+						// 自身の内寸(pageInnerSize)は自動高さだと内容に
+						// つれて伸びるため基準にならない
+						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
+						if (rescued != null) {
+							nextFlowBox = rescued;
+							break;
+						}
+					}
 					nextFlowBox = null;
 				} else {
 					// 次ページに送る
@@ -1029,6 +1051,105 @@ public class FlowContainer implements Container {
 
 	private static net.zamasoft.foliojet.layout.fragment.ContainerCut plain(final Container container) {
 		return new net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain(container);
+	}
+
+	/**
+	 * 救済分割(visual rescue split)の唯一の差し込み地点です
+	 * (2026-07-25新設、増分4/5。
+	 * {@code docs/consultations/consult-rescue-split-codex.md} §1)。
+	 *
+	 * <p>
+	 * 呼ばれるのは「フラグメント先頭・分割不能・なお超過」という
+	 * <b>非進行点</b>——現在「はみ出したまま描画」に落ちる唯一の地点——
+	 * だけです。通常経路(収まる/一度の延期で収まる)は一切通りません。
+	 * </p>
+	 *
+	 * <p>
+	 * 断片の運搬は<b>既存の残余運搬機構にそのまま乗ります</b>:
+	 * {@code this.flows}の当該要素を先頭断片(head)へ差し替え、残余断片
+	 * (tail)を戻り値として返すと、呼び出し側の
+	 * {@code SplitResult.Split(remainder)}と同じ経路で次フラグメンテナの
+	 * コンテナへ載ります。答申§2の「全断片を先に作らず、各改ページで
+	 * head一個とtail一個だけ作る」がそのまま実現されます。
+	 * </p>
+	 *
+	 * @param index     {@code this.flows}での位置(head へ差し替える)
+	 * @param prevFlow  非進行点に到達したフロー
+	 * @param available このフラグメンテナで使えるページ方向の量
+	 * @param capacity  フラグメンテナのページ方向内寸(極小断片の判定用)
+	 * @return 次フラグメンテナへ送る残余断片。救済しないなら{@code null}
+	 */
+	private IFlowBox rescueSplit(final int index, final Flow prevFlow, final double available, final double capacity) {
+		final IFlowBox box = prevFlow.box;
+		final WritingMode progression = this.box.getBlockParams().flow;
+		final IFlowBox source;
+		final double sourcePageExtent;
+		final double offset;
+		if (box instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox fragment) {
+			// 救済済み断片の続き。区間はoffset/sliceExtentだけで表す
+			// (断片の断片は作らない)
+			source = (IFlowBox) fragment.getSource();
+			sourcePageExtent = fragment.getSourcePageExtent();
+			offset = fragment.getOffset();
+		} else {
+			source = box;
+			sourcePageExtent = box.getPageExtent(progression);
+			offset = 0;
+		}
+		final net.zamasoft.foliojet.layout.rescue.RescueDecision decision = net.zamasoft.foliojet.layout.rescue.RescueStats
+				.record(box.getType(), net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
+						box.getPos().getType(), true, capacity, available, sourcePageExtent, offset));
+		if (!(decision instanceof net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice)) {
+			return null;
+		}
+		if (!net.zamasoft.foliojet.layout.rescue.RescuePolicy.isEnabled()) {
+			// 増分4(影検証): 判定はするが従わない
+			return null;
+		}
+		if (!isRescueEnabled(box)) {
+			// 増分5では通常フローの置換要素(とその続き)だけを有効化する。
+			// 巨大な行・ブロック・表・floatは増分6以降
+			return null;
+		}
+		if (slice.lastFragment()) {
+			// 呼び出し条件(なお超過)からここには来ない。念のため救済しない
+			return null;
+		}
+		final double tailOffset = slice.nextOffset();
+		final double tailExtent = sourcePageExtent - tailOffset;
+		// 実行時の前進検査(答申§5「offsetの厳密増加を実行時にも検査し、
+		// 失敗時はtailを作らない」)。判定器の不変条件と二重になるが、
+		// 無限ループの不在は絶対要件なので実行時にも守る
+		if (!(tailOffset > offset) || !(tailExtent > 0)) {
+			return null;
+		}
+		final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox head = new net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox(
+				source, progression, sourcePageExtent, slice.offset(), slice.sliceExtent());
+		final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox tail = new net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox(
+				source, progression, sourcePageExtent, tailOffset, tailExtent);
+		this.flows.set(index, new Flow(prevFlow.serial, head, prevFlow.pageAxis));
+		net.zamasoft.foliojet.layout.rescue.RescueStats.recordEnabled();
+		return tail;
+	}
+
+	/**
+	 * 救済分割を実際に有効にする範囲です(増分5: 通常フローの置換要素と
+	 * その続きの断片だけ)。
+	 *
+	 * <p>
+	 * 判定はボックスの種類で行います。したがって段組の中・表セルの中の
+	 * 置換要素も同じ経路で救済されます(フラグメンテナが段・セルになる
+	 * だけで、判定も運搬も同一)。「段組・表セルは増分6以降」というのは
+	 * <b>段組ボックス自身・セルボックス自身を切る</b>話で、そちらは
+	 * ここで{@code false}になります。
+	 * </p>
+	 */
+	private static boolean isRescueEnabled(final IFlowBox box) {
+		return switch (box.getType()) {
+		case REPLACED -> box.getPos().getType() == PosType.FLOW;
+		case RESCUE -> true;
+		default -> false;
+		};
 	}
 
 	/**
@@ -1284,12 +1405,17 @@ public class FlowContainer implements Container {
 			}
 			switch (flow.box.getType()) {
 			case RESCUE:
-				// 2026-07-25(救済分割・増分3): 救済断片は排除域の台帳を
+				// 2026-07-25(救済分割・増分5): 救済断片は排除域の台帳を
 				// 持たない(元ボックスは既にレイアウト済みで、断片は描画時の
-				// clipと座標移動だけ)。未配線のためここへは到達しない。
-				// 増分4以降で救済断片がフローに載るときは、元ボックス側の
-				// 台帳を先頭断片で一度だけ扱う設計を明示的に足すこと。
-				throw new IllegalStateException("救済断片はfloat台帳を持たない: " + flow.box);
+				// clipと座標移動だけ)。増分5で有効なのは通常フローの置換
+				// 要素だけで、置換要素は自分のコンテナを持たないため、
+				// REPLACED/TEXT_BLOCK/TABLEと同じく「何もしない」が正しい
+				// (増分6以降でブロックを有効化するときは、元ボックスの
+				// コンテナへ降りる再帰をここへ足すこと——ただし台帳の
+				// 二重移送を避けるため、先頭断片で一度だけ扱う設計が要る)
+				assert ((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) flow.box)
+						.getSource() instanceof AbstractReplacedBox : "増分5の救済対象は置換要素だけ: " + flow.box;
+				break;
 			case BLOCK:
 				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
@@ -1837,6 +1963,17 @@ public class FlowContainer implements Container {
 					builder.addBound(tableBox);
 				}
 					break;
+				case RESCUE: {
+					// 2026-07-25(救済分割・増分5): 救済断片の残余。BoxType
+					// を偽装せず専用の入口へ明示dispatchする(答申§5——
+					// 通常のaddBound()へ流すとParamsのキャストで落ちる)
+					final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox rescueBox = (net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox) holder
+							.getBox();
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-rescue",
+							"serial=" + holder.serial);
+					builder.addRescueBound(rescueBox);
+					break;
+				}
 				case REPLACED: {
 					// 置換されたボックス
 					AbstractReplacedBox replacedBox = (AbstractReplacedBox) holder.getBox();

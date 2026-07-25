@@ -245,6 +245,14 @@ public class PageBox extends AbstractBlockBox {
 	 *         {@link #endStruct})
 	 */
 	public int beginStruct(final Drawer drawer, final Object element, final double x, final double y) {
+		if (drawer.isArtifact()) {
+			// 2026-07-25(救済分割・増分5、答申§3): artifact drawer(=救済
+			// 分割の継続断片)は「見た目は内容、意味の上では先頭断片に
+			// 属する」。構造要素は先頭断片が一度だけ開くため、ここは
+			// 素通りさせる(elementKey dedupはページごとにsetが別なので
+			// 継続断片の抑止には使えない)
+			return 0;
+		}
 		final String role = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(this.ua, element);
 		if (role == null || !this.openStruct(element)) {
 			return 0;

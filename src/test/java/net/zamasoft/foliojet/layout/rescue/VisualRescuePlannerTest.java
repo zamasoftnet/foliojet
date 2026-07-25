@@ -298,6 +298,115 @@ public class VisualRescuePlannerTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
+	// 極小断片(実質白紙ページ)を作らない — 2026-07-25、増分4で追加
+	// ------------------------------------------------------------------
+
+	/**
+	 * 実用上の下限は絶対値20pt(={@code BreakableBuilder.MIN_PAGE_LIMIT}、
+	 * エンジン自身が「縮退」とみなす唯一既存の閾値)と、フラグメンテナ
+	 * 容量の1/4の大きい方。
+	 */
+	public void testMinUsefulSliceCombinesAbsoluteAndProportionalFloors() {
+		assertEquals(20.0, VisualRescuePlanner.MIN_RESCUE_SLICE, 0);
+		assertEquals(0.25, VisualRescuePlanner.MIN_RESCUE_FRACTION, 0);
+		// 小さいページでは絶対値が効く
+		assertEquals(20.0, VisualRescuePlanner.minUsefulSlice(40), 0);
+		// 大きいページでは割合が効く
+		assertEquals(200.0, VisualRescuePlanner.minUsefulSlice(800), 0);
+		// 容量が不明・非正なら絶対値だけ
+		assertEquals(20.0, VisualRescuePlanner.minUsefulSlice(0), 0);
+		assertEquals(20.0, VisualRescuePlanner.minUsefulSlice(Double.NaN), 0);
+		assertEquals(20.0, VisualRescuePlanner.minUsefulSlice(LayoutUtils.NONE), 0);
+	}
+
+	/**
+	 * 利用可能量が極端に小さいなら救済を<b>始めない</b>(数ptの断片ページが
+	 * 連続する=実質白紙ページの量産を防ぐ)。前進保証だけなら通る値でも
+	 * 拒否されることを固定する。
+	 */
+	public void testSliverCapacityDoesNotStartARescue() {
+		// 前進保証(1pt)は満たすが、実用下限(20pt)に届かない
+		assertTrue(VisualRescuePlanner.plan(true, 10, 5000, 0) instanceof RescueDecision.Slice);
+		assertEquals(RescueDecision.Reason.SLIVER_CAPACITY,
+				reasonOf(VisualRescuePlanner.planInFragmentainer(null, true, 800, 10, 5000, 0)));
+		// 絶対下限は満たすが、容量800ptの1/4(200pt)に届かない
+		assertEquals(RescueDecision.Reason.SLIVER_CAPACITY,
+				reasonOf(VisualRescuePlanner.planInFragmentainer(null, true, 800, 100, 5000, 0)));
+		// 割合を満たせば救済する
+		final RescueDecision.Slice slice = sliceOf(
+				VisualRescuePlanner.planInFragmentainer(null, true, 800, 200, 5000, 0));
+		assertEquals(200.0, slice.sliceExtent(), 0);
+	}
+
+	/**
+	 * すでに切り始めている断片は、利用可能量が小さくても切り進める。
+	 * ここで「小さすぎるからやめる」を選ぶと残りの内容が失われる
+	 * (=従来どおりはみ出して切り捨てられる)ため。
+	 */
+	public void testSliverGuardDoesNotAbandonAnStartedRescue() {
+		final RescueDecision.Slice slice = sliceOf(
+				VisualRescuePlanner.planInFragmentainer(null, true, 800, 10, 5000, 200));
+		assertEquals(200.0, slice.offset(), 0);
+		assertEquals(10.0, slice.sliceExtent(), 0);
+		assertTrue(slice.isContinuation());
+	}
+
+	/** 絶対配置の除外は容量判定より前に効く。 */
+	public void testFragmentainerPlanStillRejectsAbsolute() {
+		assertEquals(RescueDecision.Reason.ABSOLUTE,
+				reasonOf(VisualRescuePlanner.planInFragmentainer(PosType.ABSOLUTE, true, 800, 800, 5000, 0)));
+	}
+
+	/**
+	 * 残余が{@code LayoutUtils.THRESHOLD}以下なら消費済みとみなす。
+	 * 素の{@code remaining > 0}だと、丸めで0.1pt等の残余が出たときに
+	 * 「実質白紙の断片ページ」を1枚作ってしまう。
+	 */
+	public void testNegligibleRemainderIsExhaustedNotADegenerateFragment() {
+		assertEquals(RescueDecision.Reason.EXHAUSTED,
+				reasonOf(VisualRescuePlanner.plan(true, 100, 250, 249.9)));
+		// THRESHOLD以上の残余は最終断片になる(LayoutUtils.compareは
+		// 「差がTHRESHOLD未満」を同一とみなす——境界そのものは有意)
+		assertEquals(LayoutUtils.THRESHOLD,
+				sliceOf(VisualRescuePlanner.plan(true, 100, 250, 250 - LayoutUtils.THRESHOLD)).sliceExtent(), 1e-9);
+		assertEquals(0.6, sliceOf(VisualRescuePlanner.plan(true, 100, 250, 249.4)).sliceExtent(), 1e-9);
+	}
+
+	/**
+	 * 容量いっぱいを切ったあとに、退化した極小tailが残らない
+	 * (残余が容量をTHRESHOLD以下だけ超える場合は最終断片として一度で
+	 * 収める)。
+	 */
+	public void testNoDegenerateTailAfterAFullSlice() {
+		// 残余200.3、容量200 → 収まる扱い(最終断片)
+		final RescueDecision.Slice slice = sliceOf(VisualRescuePlanner.plan(true, 200, 400.3, 200));
+		assertTrue(slice.lastFragment());
+		assertFalse(slice.hasTail());
+	}
+
+	/**
+	 * フラグメンテナ容量つきの判定を繰り返しても、断片数はページ数の
+	 * 常識的な範囲で収束する(容量いっぱいを消費するため)。
+	 */
+	public void testFragmentainerPlanningConsumesFullCapacity() {
+		final double capacity = 200, sourcePageExtent = 1000;
+		double offset = 0;
+		int steps = 0;
+		while (VisualRescuePlanner.planInFragmentainer(PosType.FLOW, true, capacity, capacity, sourcePageExtent,
+				offset) instanceof RescueDecision.Slice slice) {
+			assertTrue("前進しなければ停止しない", slice.nextOffset() > offset);
+			offset = slice.nextOffset();
+			++steps;
+			assertTrue("断片が多すぎる: " + steps, steps <= 10);
+			if (slice.lastFragment()) {
+				break;
+			}
+		}
+		assertEquals(5, steps);
+		assertEquals(sourcePageExtent, offset, 0);
+	}
+
+	// ------------------------------------------------------------------
 	// 値型の不変条件
 	// ------------------------------------------------------------------
 

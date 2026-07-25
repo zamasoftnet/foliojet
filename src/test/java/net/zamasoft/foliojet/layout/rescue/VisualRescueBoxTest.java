@@ -118,11 +118,17 @@ public class VisualRescueBoxTest extends TestCase {
 			this.drawClip = clip;
 			this.drawX = x;
 			this.drawY = y;
+			this.drawArtifact = drawer != null && drawer.isArtifact();
+			this.drawVisitor = visitor;
 		}
 
 		public void pushGetTextSteps(final StringBuilder textBuff, final Deque<GetTextStep> worklist) {
 			textBuff.append("SOURCE");
 		}
+
+		boolean drawArtifact;
+
+		Visitor drawVisitor;
 
 		public void pushTextShapeSteps(final PageBox pageBox, final GeneralPath path, final AffineTransform transform,
 				final double x, final double y, final Deque<TextShapeStep> worklist) {
@@ -256,7 +262,7 @@ public class VisualRescueBoxTest extends TestCase {
 	public void testHorizontalCoordinates() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
-		box.draw(null, null, null, null, new AffineTransform(), 0, 0, 17, 200);
+		box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 17, 200);
 		assertEquals(1, src.drawCount);
 		assertEquals(17.0, src.drawX, 0);
 		assertEquals(200.0 - 40.0, src.drawY, 0);
@@ -270,7 +276,7 @@ public class VisualRescueBoxTest extends TestCase {
 		for (final WritingMode progression : new WritingMode[] { WritingMode.RL, WritingMode.LR }) {
 			final FakeSource src = source(progression);
 			final VisualRescueBox box = fragment(src, progression, 40, 30);
-			box.draw(null, null, null, null, new AffineTransform(), 0, 0, 300, 17);
+			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 300, 17);
 			assertEquals(progression.name(), 1, src.drawCount);
 			// 未消費の残余 = 100 - 40 - 30 = 30
 			assertEquals(progression.name(), 300.0 - 30.0, src.drawX, 0);
@@ -284,7 +290,7 @@ public class VisualRescueBoxTest extends TestCase {
 			final FakeSource src = source(progression);
 			// 先頭断片(offset=0、まだ残余がある)
 			final VisualRescueBox box = fragment(src, progression, 0, 40);
-			box.draw(null, null, null, null, new AffineTransform(), 0, 0, 50, 60);
+			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 50, 60);
 			if (progression.isVertical()) {
 				// 未消費の残余 = 100 - 0 - 40 = 60 だけ左へ寄る
 				assertEquals(progression.name(), 50.0 - 60.0, src.drawX, 0);
@@ -301,7 +307,7 @@ public class VisualRescueBoxTest extends TestCase {
 		for (final WritingMode progression : WritingMode.values()) {
 			final FakeSource src = source(progression);
 			final VisualRescueBox box = fragment(src, progression, 80, 20);
-			box.draw(null, null, null, null, new AffineTransform(), 0, 0, 50, 60);
+			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 50, 60);
 			if (progression.isVertical()) {
 				// 残余0なので元ボックスの左端は断片の左端と一致
 				assertEquals(progression.name(), 50.0, src.drawX, 0);
@@ -312,6 +318,37 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
+	// artifact化(2026-07-25、増分5)
+	// ------------------------------------------------------------------
+
+	/**
+	 * 先頭断片は実内容として描く(実Visitor・非artifact)。
+	 */
+	public void testFirstFragmentDrawsAsRealContent() {
+		final FakeSource src = source(WritingMode.TB);
+		final VisualRescueBox box = fragment(src, WritingMode.TB, 0, 30);
+		final Visitor visitor = new net.zamasoft.foliojet.layout.visitor.VisitorWrapper(null);
+		box.draw(null, new Drawer(0), visitor, null, new AffineTransform(), 0, 0, 0, 0);
+		assertFalse("先頭断片はartifactではない", src.drawArtifact);
+		assertSame("先頭断片は実Visitorで描く", visitor, src.drawVisitor);
+	}
+
+	/**
+	 * 継続断片({@code offset > 0})はartifactとして描き、副作用のない
+	 * Visitorを渡す(答申§3。リンク・フォーム・ページ参照・string-set・
+	 * しおりを二度発行しない)。
+	 */
+	public void testContinuationFragmentDrawsAsArtifact() {
+		final FakeSource src = source(WritingMode.TB);
+		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
+		final Visitor visitor = new net.zamasoft.foliojet.layout.visitor.VisitorWrapper(null);
+		box.draw(null, new Drawer(0), visitor, null, new AffineTransform(), 0, 0, 0, 0);
+		assertTrue("継続断片はartifact", src.drawArtifact);
+		assertSame("継続断片は副作用のないVisitorで描く",
+				net.zamasoft.foliojet.layout.visitor.ArtifactVisitor.INSTANCE, src.drawVisitor);
+	}
+
+	// ------------------------------------------------------------------
 	// クリップ
 	// ------------------------------------------------------------------
 
@@ -319,7 +356,7 @@ public class VisualRescueBoxTest extends TestCase {
 	public void testClipWithoutExistingClipIsTheFragmentRect() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
-		box.draw(null, null, null, null, new AffineTransform(), 0, 0, 10, 200);
+		box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 10, 200);
 		final Rectangle2D clip = (Rectangle2D) src.drawClip;
 		assertEquals(10.0, clip.getX(), 0);
 		assertEquals(200.0, clip.getY(), 0);
@@ -333,7 +370,7 @@ public class VisualRescueBoxTest extends TestCase {
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
 		// 断片は (10,200)-(70,230)。既存クリップで左右と下を削る
 		final Rectangle2D.Double outer = new Rectangle2D.Double(30, 100, 100, 120);
-		box.draw(null, null, null, outer, new AffineTransform(), 0, 0, 10, 200);
+		box.draw(null, new Drawer(0), null, outer, new AffineTransform(), 0, 0, 10, 200);
 		final Rectangle2D clip = (Rectangle2D) src.drawClip;
 		final Rectangle2D expected = new Rectangle2D.Double(10, 200, SOURCE_LINE_EXTENT, 30)
 				.createIntersection(outer);
@@ -351,7 +388,7 @@ public class VisualRescueBoxTest extends TestCase {
 	public void testVerticalClipIsTheFragmentRect() {
 		final FakeSource src = source(WritingMode.RL);
 		final VisualRescueBox box = fragment(src, WritingMode.RL, 40, 30);
-		box.draw(null, null, null, null, new AffineTransform(), 0, 0, 300, 17);
+		box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 300, 17);
 		final Rectangle2D clip = (Rectangle2D) src.drawClip;
 		assertEquals(300.0, clip.getX(), 0);
 		assertEquals(17.0, clip.getY(), 0);
@@ -387,7 +424,7 @@ public class VisualRescueBoxTest extends TestCase {
 			for (int i = 0; i < intervals.length; ++i) {
 				final FakeSource src = source(progression);
 				final VisualRescueBox box = fragment(src, progression, intervals[i][0], intervals[i][1]);
-				box.draw(null, null, null, null, new AffineTransform(), 0, 0, 500, 400);
+				box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 500, 400);
 				final double[] clip = clipBand(box, (Rectangle2D) src.drawClip);
 				final double[] top = physicalBand(box, src.drawX, src.drawY, 0, TOP_DECORATION_END);
 				final double[] bottom = physicalBand(box, src.drawX, src.drawY, BOTTOM_DECORATION_START,
@@ -418,7 +455,7 @@ public class VisualRescueBoxTest extends TestCase {
 				// 断片はページ軸上で連続して置かれる
 				final double fragmentX = progression.isVertical() ? 500 - covered - interval[1] : 500;
 				final double fragmentY = progression.isVertical() ? 400 : 400 + covered;
-				box.draw(null, null, null, null, new AffineTransform(), 0, 0, fragmentX, fragmentY);
+				box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, fragmentX, fragmentY);
 				// どの断片も同じ位置に元ボックスを置く(=見た目が連続する)
 				if (progression.isVertical()) {
 					assertEquals(progression.name(), 500 - SOURCE_PAGE_EXTENT, src.drawX, 0);

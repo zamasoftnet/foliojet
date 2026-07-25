@@ -63,6 +63,53 @@ public final class VisualRescuePlanner {
 	public static final double MIN_RESCUE_ADVANCE = 2 * LayoutUtils.THRESHOLD;
 
 	/**
+	 * 救済分割が1ステップで消費しなければならない<b>実用上の</b>最小量です
+	 * (2026-07-25、増分4で追加。「意図しない白紙(実質白紙)ページを作らない」
+	 * という絶対要件のうち、<b>極小断片ページ</b>を防ぐ側)。
+	 *
+	 * <p>
+	 * {@link #MIN_RESCUE_ADVANCE}(1pt)は「無限ループしないか」の下限
+	 * であって、「1ptずつ切って何十ページも作ってよい」という意味では
+	 * ありません。値20ptは
+	 * {@code BreakableBuilder.MIN_PAGE_LIMIT}と同じで、エンジン自身が
+	 * 「これより小さいページ方向容量は縮退として無視する」と決めている
+	 * 唯一既存の閾値です。新しい魔法数を増やさず、既存の判断基準に
+	 * そろえます(定数の重複定義を避けて参照しないのは、
+	 * {@code layout.rescue}が{@code layout.builder.impl}に依存しない
+	 * ためです)。
+	 * </p>
+	 */
+	public static final double MIN_RESCUE_SLICE = 20;
+
+	/**
+	 * 救済分割が1ステップで消費しなければならない、フラグメンテナ容量に
+	 * 対する最小の割合です(2026-07-25、増分4)。
+	 *
+	 * <p>
+	 * 絶対値の下限({@link #MIN_RESCUE_SLICE})だけでは、大きなページで
+	 * フロートの排除域などにより利用可能量が極端に小さくなった場合に、
+	 * 数十ptの断片ページが延々と続く危険が残ります。「フラグメンテナの
+	 * 1/4も使えないなら救済しない(=従来どおりの終端へ落ちる)」という
+	 * 割合の下限を併せて課します。
+	 * </p>
+	 */
+	public static final double MIN_RESCUE_FRACTION = 0.25;
+
+	/**
+	 * 与えられたフラグメンテナ容量に対して、救済を始めてよい利用可能量の
+	 * 下限です。
+	 *
+	 * @param capacity フラグメンテナ(ページ・段・セル)のページ方向内寸
+	 * @return 下限
+	 */
+	public static double minUsefulSlice(final double capacity) {
+		if (!isDefined(capacity) || !(capacity > 0)) {
+			return MIN_RESCUE_SLICE;
+		}
+		return Math.max(MIN_RESCUE_SLICE, capacity * MIN_RESCUE_FRACTION);
+	}
+
+	/**
 	 * 配置方法が救済分割の対象になり得るかを返します。
 	 *
 	 * <p>
@@ -99,7 +146,51 @@ public final class VisualRescuePlanner {
 	}
 
 	/**
-	 * 次の断片を決めます。
+	 * フラグメンテナ容量を考慮して次の断片を決めます(<b>配線はこれを
+	 * 使います</b>)。
+	 *
+	 * <p>
+	 * {@link #plan(boolean, double, double, double)}の「前進保証」に加えて、
+	 * <b>極小断片ページを作らない</b>という要件を課します
+	 * ({@link #minUsefulSlice(double)})。これは「無限ループしないか」とは
+	 * 別の判断で、「意図しない実質白紙ページを作らない」という絶対要件の
+	 * 側です。
+	 * </p>
+	 *
+	 * <p>
+	 * 割合・絶対値の下限を課すのは<b>救済を始めるかどうか</b>
+	 * ({@code offset == 0})の判定だけです。すでに切り始めている
+	 * ({@code offset > 0})断片で「小さすぎるからやめる」を選ぶと、残りの
+	 * 内容が失われる(=従来どおりはみ出して切り捨てられる)ため、
+	 * 開始後は前進保証だけを守って必ず切り進めます。
+	 * </p>
+	 *
+	 * @param posType          対象ボックスの配置方法
+	 * @param atFragmentStart  フラグメント(ページ・段・セル)の先頭か
+	 * @param capacity         フラグメンテナのページ方向内寸(容量)
+	 * @param available        利用可能なページ方向の量
+	 * @param sourcePageExtent 元ボックスのページ方向の占有量(不変)
+	 * @param offset           すでに消費したページ方向の量
+	 * @return 判定結果
+	 */
+	public static RescueDecision planInFragmentainer(final PosType posType, final boolean atFragmentStart,
+			final double capacity, final double available, final double sourcePageExtent, final double offset) {
+		final RescueDecision decision = plan(posType, atFragmentStart, available, sourcePageExtent, offset);
+		if (!(decision instanceof RescueDecision.Slice slice)) {
+			return decision;
+		}
+		if (!slice.firstFragment()) {
+			// 開始後は前進保証だけを守る(やめると内容が失われる)
+			return decision;
+		}
+		if (available < minUsefulSlice(capacity)) {
+			return new RescueDecision.None(RescueDecision.Reason.SLIVER_CAPACITY);
+		}
+		return decision;
+	}
+
+	/**
+	 * 次の断片を決めます(前進保証だけを見る中核判定)。
 	 *
 	 * <p>
 	 * {@code atFragmentStart}が偽のときは救済しません。まだ「次の
@@ -126,7 +217,11 @@ public final class VisualRescuePlanner {
 			return new RescueDecision.None(RescueDecision.Reason.INVALID_GEOMETRY);
 		}
 		final double remaining = sourcePageExtent - offset;
-		if (!(remaining > 0)) {
+		// 残余の判定もLayoutUtils.compare基準にする(2026-07-25、増分4)。
+		// 素の`remaining > 0`では、丸めで0.1pt等の残余が出たときに
+		// 「実質白紙の断片ページ」を1枚作ってしまう。エンジンが
+		// 「同一」とみなす差(THRESHOLD)以下の残余は消費済みとする
+		if (LayoutUtils.compare(remaining, 0) <= 0) {
 			return new RescueDecision.None(RescueDecision.Reason.EXHAUSTED);
 		}
 

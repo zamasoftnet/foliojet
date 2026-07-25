@@ -22,6 +22,7 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.visitor.ArtifactVisitor;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
@@ -209,6 +210,28 @@ public class VisualRescueBox extends AbstractBox {
 		return BoxType.RESCUE;
 	}
 
+	/**
+	 * 元ボックスのページ方向<b>終端側</b>のマージンです(2026-07-25、増分5)。
+	 *
+	 * <p>
+	 * 断片の直後でマージンの折りたたみを再開するために使います。元
+	 * ボックスの下マージンは<b>最終断片の幾何の中</b>にあるため、断片の
+	 * 占有量には既に含まれています。ここが返すのは「次の内容の上マージンと
+	 * 相殺してよい量」です({@code BlockBuilder.addBound}の
+	 * {@code poLastMargin}の設定と同じ軸の選び方)。
+	 * </p>
+	 *
+	 * @param flow 軸を決める書字方向
+	 * @return 折りたたみ対象のマージン(枠を持たない元ボックスなら0)
+	 */
+	public final double sourceCollapsibleEndMargin(final WritingMode flow) {
+		if (!(this.source instanceof IFramedBox framed)) {
+			return 0;
+		}
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = framed.getFrame();
+		return flow.isVertical() ? frame.margin.left : frame.margin.bottom;
+	}
+
 	public final Params getParams() {
 		return this.source.getParams();
 	}
@@ -303,8 +326,14 @@ public class VisualRescueBox extends AbstractBox {
 			final AffineTransform transform, final double contextX, final double contextY, final double x,
 			final double y, final Deque<DrawStep> worklist) {
 		final Shape sliceClip = this.clip(clip, x, y);
-		worklist.push(IBox.drawStep(this.source, pageBox, drawer, visitor, sliceClip, transform, contextX, contextY,
-				this.sourceDrawX(x), this.sourceDrawY(y)));
+		// 継続断片({@code offset > 0})はartifactとして出す(答申§3)。
+		// 唯一の判定はoffset>0で、(a)表示リストへのartifact印、
+		// (b)副作用のないVisitor、の二つを同時に切り替える。先頭断片は
+		// 通常どおり実Visitor・実内容
+		final Drawer sliceDrawer = this.isContinuation() ? drawer.artifactView() : drawer;
+		final Visitor sliceVisitor = this.isContinuation() ? ArtifactVisitor.INSTANCE : visitor;
+		worklist.push(IBox.drawStep(this.source, pageBox, sliceDrawer, sliceVisitor, sliceClip, transform, contextX,
+				contextY, this.sourceDrawX(x), this.sourceDrawY(y)));
 	}
 
 	/**

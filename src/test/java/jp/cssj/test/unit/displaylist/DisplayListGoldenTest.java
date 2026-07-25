@@ -92,6 +92,15 @@ public class DisplayListGoldenTest extends TestCase {
 			"3080-MODERN-CSS/logical-properties.html", //
 			"3000-SELECTOR/is-not-where-descendant.html", //
 			"3080-MODERN-CSS/var.html", //
+			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
+			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
+			// artifact印・ページ数をここで固定する
+			"3050-IMG/rescue-tall.html", //
+			"3050-IMG/rescue-tall-vert.html", //
+			"3050-IMG/rescue-exact.html", //
+			"3050-IMG/rescue-huge.html", //
+			"3050-IMG/rescue-absolute.html", //
+			"3050-IMG/rescue-column.html", //
 	};
 
 	/**

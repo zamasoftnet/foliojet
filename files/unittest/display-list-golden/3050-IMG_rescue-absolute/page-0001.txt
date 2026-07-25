@@ -1,0 +1,3 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=500.00]
+  x=0.00 y=11.20 Text["後続" asc=8.00 desc=2.00]

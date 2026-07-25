@@ -848,8 +848,57 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
+	 * 救済分割(visual rescue split)の残余断片をフローへ載せます
+	 * (2026-07-25新設、増分5。
+	 * {@code docs/consultations/consult-rescue-split-codex.md} §5)。
+	 *
+	 * <p>
+	 * 通常の{@link #addBound(net.zamasoft.foliojet.layout.box.IBox)}へ
+	 * BoxTypeを偽装して流すことは<b>しません</b>。断片は
+	 * {@code ReplacedParams}も{@code AbsoluteRectFrame}も持たない短命な
+	 * 描画デコレータであり、あちらの経路は必ずキャストで落ちるためです。
+	 * </p>
+	 *
+	 * <p>
+	 * 断片はレイアウト済みの元ボックスを幾何学的に切ったものなので、
+	 * ここでやることは「現在のページ方向カーソルへ、断片の占有量ぶん
+	 * だけ載せる」だけです。マージンの再計算・整列の再計算・排除域の
+	 * 回避は<b>一切行いません</b>:
+	 * </p>
+	 *
+	 * <ul>
+	 * <li>行方向の位置は元ボックス自身が自分のマージンから決めるため、
+	 * 先頭断片と必ず一致する。</li>
+	 * <li>上マージンは元ボックスの幾何の一部として先頭断片の中にあり、
+	 * 続きの断片には存在しない(切断面には装飾を付けない)。したがって
+	 * ここでマージンを積むと二重になる。</li>
+	 * <li>下マージンも同じく最終断片の幾何の中にある。断片の直後の
+	 * 折りたたみは、その内側の下マージンを基準に再開する。</li>
+	 * </ul>
+	 *
+	 * @param box 残余断片
+	 */
+	public void addRescueBound(final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox box) {
+		if (this.textSession != null) {
+			this.textSession.abortToLegacy();
+		}
+		assert this.textBuilder == null;
+		final Flow flow = this.getFlow();
+		final BlockParams params = flow.box.getBlockParams();
+		// 断片の前でマージンを折りたたまない(切断面には装飾がない)
+		this.poLastMargin = this.neLastMargin = 0;
+		flow.box.addFlow(box, this.pageAxis - flow.pageAxis);
+		this.pageAxis += box.getPageExtent(params.flow);
+		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
+		// 断片の後は、元ボックスの下マージン(最終断片の幾何に含まれる)を
+		// 基準に折りたたみを再開する
+		final double bottomMargin = box.isLastFragment() ? box.sourceCollapsibleEndMargin(params.flow) : 0;
+		this.poLastMargin = this.neLastMargin = bottomMargin;
+	}
+
+	/**
 	 * 左浮動体の位置を設定します。
-	 * 
+	 *
 	 * @param box
 	 */
 	protected void addStartFloat(IFloatBox box) {

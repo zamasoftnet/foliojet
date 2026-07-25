@@ -1,0 +1,14 @@
+# 白紙ページ(表示リストが空)の特性値。
+# 増えた=エンジンが余分な白紙を作った疑い、減った=意図した白紙が消えた疑い。
+# 更新は差分を目視確認してから行うこと。
+0120-float/float-break-always.html	0001,0010,0012
+0120-float/float-in-float-break.html	0003
+0120-float/inline-float-break.html	0001
+0130-display/all-none.html	0001
+0215-pagebreak-table/float-table.html	0005
+0390-writing-mode/float-pagebreak.html	0004
+1000-TABLE/root-table.html	0001
+1060-META/double-decl-meta.html	0001
+1060-META/double-decl.html	0001
+1060-META/xhtml-utf8.xhtml	0001
+1100-HEAD/unknown.html	0001

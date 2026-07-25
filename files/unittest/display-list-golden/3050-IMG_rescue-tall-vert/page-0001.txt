@@ -1,0 +1,2 @@
+drawer z=0
+  x=-300.00 y=0.00 AbsoluteRectFrame[w=500.00 h=100.00]

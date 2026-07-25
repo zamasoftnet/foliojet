@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=-400.00 artifact AbsoluteRectFrame[w=50.00 h=500.00]
+  x=160.00 y=-466.20 artifact AbsoluteRectFrame[w=50.00 h=500.00]
+  x=160.00 y=45.00 Text["後続" asc=8.00 desc=2.00]

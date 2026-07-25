@@ -489,6 +489,38 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
+	/**
+	 * 救済分割(visual rescue split)の残余断片をフローへ載せ、まだ
+	 * はみ出していれば改ページします(2026-07-25新設、増分5)。
+	 *
+	 * <p>
+	 * ループは{@code addBound()}の{@code case REPLACED}と同型です。
+	 * {@code autoBreak()}が{@code false}(改ページ点なし)を返したら
+	 * <b>必ず</b>抜けるため、ここで無限ループにはなりません。前進は
+	 * {@code VisualRescuePlanner}が構造的に保証します(各改ページで
+	 * 必ず正の量を消費する)。
+	 * </p>
+	 */
+	@Override
+	public void addRescueBound(final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox box) {
+		super.addRescueBound(box);
+		if (!this.isRestyling() && this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
+			for (;;) {
+				if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
+					break;
+				}
+				if (LOG.isLoggable(Level.FINE)) {
+					LOG.fine("page break [rescue fragment]");
+				}
+				if (!this.autoBreak()) {
+					break;
+				}
+			}
+		}
+		this.canBreakBefore = true;
+		this.interflowBreak = true;
+	}
+
 	protected final void requireTextBlock() {
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1 && this.breakAfter != null) {
 			// 直前での強制改ページチェック
@@ -597,12 +629,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		boolean canBreakAfter = false;
 		switch (flow.box.getType()) {
 		case RESCUE:
-			// 2026-07-25(救済分割・増分3): 救済断片の切断面には装飾を
-			// 付けないため、断片自身が「境界直後の改ページを許す枠線」を
-			// 持つことはない。未配線のためここへは到達しない。増分4以降で
-			// 救済断片がフローに載るときに、先頭/最終断片の枠線から
-			// canBreakAfterを導く判定を明示的に足すこと。
-			throw new IllegalStateException("救済断片は枠線境界を持たない: " + flow.box);
+			// 2026-07-25(救済分割・増分5で確認): ここで見ているのは
+			// flowStack の先頭=いま閉じようとしている「コンテナボックス」で
+			// あり、救済断片がflowStackへ積まれることは構造的にない
+			// (断片は分割不能な葉として flows に載るだけで、開かれない)。
+			// したがってこの分岐は到達不能。仮に到達したら、切断面には装飾を
+			// 付けない=断片自身が「境界直後の改ページを許す枠線」を持つ
+			// ことはない、という設計判断を明示的に足すこと
+			throw new IllegalStateException("救済断片はコンテナとして開かれない: " + flow.box);
 		case BLOCK:
 			AbstractBlockBox blockBox = (AbstractBlockBox) flow.box;
 			// 境界直後でのpage-break-afterによる強制改ページを許す

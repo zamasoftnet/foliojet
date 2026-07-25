@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>救済分割の対象外: 絶対配置の画像は従来どおりはみ出す</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+}
+img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100pt;
+	height: 500pt;
+}
+</style>
+</head>
+<body>
+<img src="../red.png" id="a" />
+<p id="after">後続</p>
+</body>
+</html>

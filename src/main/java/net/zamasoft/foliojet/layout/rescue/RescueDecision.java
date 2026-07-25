@@ -42,6 +42,13 @@ public sealed interface RescueDecision {
 		FITS,
 		/** 容量が{@link VisualRescuePlanner#MIN_RESCUE_ADVANCE}未満(前進保証を満たせない)。 */
 		INSUFFICIENT_CAPACITY,
+		/**
+		 * 容量は前進保証を満たすが、実用上小さすぎる
+		 * ({@link VisualRescuePlanner#minUsefulSlice(double)}未満)。
+		 * 極小断片ページの連続=実質白紙ページを作らないための拒否で、
+		 * 従来どおりの終端(はみ出したまま描画)へ落ちる。
+		 */
+		SLIVER_CAPACITY,
 		/** 加算の丸めで{@code offset}が厳密増加しない(極大doubleなど)。 */
 		NO_PROGRESS;
 	}

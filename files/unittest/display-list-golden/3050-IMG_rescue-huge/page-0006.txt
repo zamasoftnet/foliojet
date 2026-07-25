@@ -1,0 +1,2 @@
+drawer z=0
+  x=0.00 y=11.20 Text["後続" asc=8.00 desc=2.00]
