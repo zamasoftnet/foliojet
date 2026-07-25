@@ -112,9 +112,15 @@ public class ConcurrentConvertTest extends TestCase {
 				// 並行変換の警告をSystem.errへ流すと、16スレッド×数百回で
 				// Gradleのメッセージ経路が詰まりワーカーが終了できなくなる
 				// (2026-07-26に実際に踏んだ。エンジンではなくハーネスの問題)。
-				// ここでは変換が通るかだけを見るのでメッセージは捨てる
-				session.setMessageHandler((code, args, mes) -> {
-				});
+				// 捨てる先はNULL_DEVICEにする——ラムダの自前ハンドラだと
+				// 変換が失敗した(2026-07-26)
+				// 大量の警告をSystem.errへ流すとGradleのメッセージ経路が詰まり
+				// ワーカーが終了できなくなる(2026-07-26に実際に踏んだ)
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(
+						new java.io.PrintStream(java.io.OutputStream.nullOutputStream())));
+				if (System.getProperty("foliojet.concurrentLargeStack") != null) {
+					session.property("processing.large-stack-thread", "true");
+				}
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
