@@ -2,7 +2,8 @@ package net.zamasoft.foliojet.layout.segment;
 
 /**
  * 正規Segmentモデルにおける再生イベントです(2026-07-22新設、
- * M6d-A3a、型契約のみ・未配線)。
+ * M6d-A3a。2026-07-25時点で{@link LayoutSourceEventConverter}・
+ * {@code SegmentExecutor}・{@code SourceReplayer}が使っている)。
  *
  * <p>
  * 旧{@code net.zamasoft.foliojet.layout.fragment.LayoutSource.Event}

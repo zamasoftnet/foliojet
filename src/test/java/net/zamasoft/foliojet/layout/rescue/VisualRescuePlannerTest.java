@@ -352,6 +352,28 @@ public class VisualRescuePlannerTest extends TestCase {
 	}
 
 	/**
+	 * 開始後でも、送り先の空きが{@link VisualRescuePlanner#MIN_RESCUE_ADVANCE}
+	 * 未満なら救済の連鎖はそこで終わる(2026-07-25、独立レビュー指摘)。
+	 *
+	 * <p>
+	 * これは「開始後は必ず切り進める」の<b>唯一の例外</b>であり、意図した
+	 * 終端である。ここで「外側のフラグメンテナへ委譲」を選ぶと、容量は
+	 * ページごとに変わらないため送っても同じ判定になり、無限ループになる。
+	 * 到達するのは容量1pt未満という縮退したフラグメンテナだけ——通常の
+	 * 救済は先頭側の下限(20pt以上)を満たさないと始まらないため。
+	 * </p>
+	 */
+	public void testStartedRescueEndsWhenTheNextFragmentainerIsDegenerate() {
+		assertEquals(RescueDecision.Reason.INSUFFICIENT_CAPACITY,
+				reasonOf(VisualRescuePlanner.planInFragmentainer(null, true, 0.4, 0.4, 5000, 200)));
+		// 前進保証ちょうど(2×THRESHOLD)なら切り進める——境界を固定する
+		final RescueDecision.Slice slice = sliceOf(VisualRescuePlanner.planInFragmentainer(null, true,
+				VisualRescuePlanner.MIN_RESCUE_ADVANCE, VisualRescuePlanner.MIN_RESCUE_ADVANCE, 5000, 200));
+		assertTrue(slice.isContinuation());
+		assertEquals(VisualRescuePlanner.MIN_RESCUE_ADVANCE, slice.sliceExtent(), 0);
+	}
+
+	/**
 	 * はみ出し量が実用上小さいなら救済を<b>始めない</b>(2026-07-25、増分6)。
 	 * 数ptのはみ出しを救うために丸ごと1ページ増やすと、そのページは実質
 	 * 白紙になる——「意図しない白紙ページを作らない」の末尾側の守り。

@@ -414,13 +414,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	private static TableCellBox forcedCellRemainder(final TableCellBox cellBox, final double cutPageAxis,
 			final BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
-		final SplitResult result = cellBox.split(cutPageAxis, mode, flags);
-		if (!(result instanceof SplitResult.Split(final IPageBreakableBox remainder))
-				|| !(remainder instanceof TableCellBox cellRemainder)) {
-			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
-					"TableCellBox.split with FLAGS_SPLIT must return Split(TableCellBox) but returned " + result);
-		}
-		return cellRemainder;
+		return net.zamasoft.foliojet.layout.fragment.TableCutter.requireSplitRemainder(
+				cellBox.split(cutPageAxis, mode, flags), TableCellBox.class, "TableCellBox.split with FLAGS_SPLIT");
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {

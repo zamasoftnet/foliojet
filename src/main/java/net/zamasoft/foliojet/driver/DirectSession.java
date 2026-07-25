@@ -686,11 +686,22 @@ public class DirectSession extends AbstractCTISession
 			}
 		}, "foliojet-large-stack-format", stackSize);
 		worker.start();
-		try {
-			worker.join();
-		} catch (InterruptedException e) {
+		// 割り込まれてもworkerの完了までjoinし続ける(2026-07-25)。
+		// 途中で抜けると、呼び出し側がsessionをcloseし入力ストリームを
+		// 閉じたあともworkerが同じUA・同じ結果出力へ書き続けうる——
+		// 出力破損・sessionとの競合・非daemonスレッドによるJVM残留の経路。
+		// 割り込みは握りつぶさず、完了後に呼び出し元スレッドへ復元する。
+		boolean interrupted = false;
+		for (;;) {
+			try {
+				worker.join();
+				break;
+			} catch (InterruptedException e) {
+				interrupted = true;
+			}
+		}
+		if (interrupted) {
 			Thread.currentThread().interrupt();
-			throw new RuntimeException("Interrupted while waiting for large-stack format thread", e);
 		}
 		if (failure[0] instanceof AbortException ae) {
 			throw ae;

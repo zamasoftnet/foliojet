@@ -543,10 +543,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.textSession != null && this.textSession.recordFlush()) {
 			return;
 		}
-		// if (this.textBuilder == null) {
-		// // テキストブロック内にabsoluteしかない場合に発生することがある
-		// return;
-		// }
+		if (this.textBuilder == null) {
+			// テキストブロックが空(textBuilderが生成されていない)ときの
+			// flushは何もしない。BlockBuilder.flush()と同じnullガード。
+			// 到達例: `div`直下がsoft hyphen(U+00AD)単独のとき、
+			// StyledTextUnitizerはtextShaperを作るがWordHyphenatorが
+			// Markerを黙って落とす(hyphens:manualでfontMetrics未設定)ため、
+			// ビルダーへはglyphもcontrolも届かないまま、shaperのclose連鎖が
+			// flush()だけを呼ぶ。BlockBuilder側は2026-07-24に修正済みで、
+			// こちらは同型のまま残っていた(2026-07-25)
+			return;
+		}
 		while (this.textBuilder.flush()) {
 			// 改行発生
 			if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
@@ -998,7 +1005,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	/**
 	 * COLUMN継続の相対open path(index 0 = owner)を捕捉します
-	 * (2026-07-21新設、M6b Phase B4-Step3、観測のみ・未配線)。owner自身が
+	 * (2026-07-21新設、M6b Phase B4-Step3。2026-07-25時点で配線済み)。owner自身が
 	 * flowStack内にある通常経路({@link #findColumnBreak()})と、
 	 * {@code ColumnBuilder.contextFlow}がflowStack外にある経路の両方を
 	 * 扱う(ChatGPT Pro相談、

@@ -33,6 +33,29 @@ public final class TableCutter {
 	}
 
 	/**
+	 * {@code Split}を返すはずの子splitの結果から、期待する型の残余を
+	 * 取り出します。契約違反は{@link ContinuationInvariantViolationException}
+	 * にします(2026-07-25。従来は素のcastで、契約違反が
+	 * {@code ClassCastException}という原因の読めない形で現れていた。
+	 * {@code TableRowBox.forcedCellRemainder}と同じ扱いへ揃えたもの——
+	 * 正常経路のロジックは不変)。
+	 *
+	 * @param <T>      期待する残余の型
+	 * @param result   子splitの結果
+	 * @param type     期待する残余の型
+	 * @param context  例外メッセージに載せる呼び出し元の説明
+	 * @return 残余
+	 */
+	public static <T extends IPageBreakableBox> T requireSplitRemainder(final SplitResult result, final Class<T> type,
+			final String context) {
+		if (result instanceof SplitResult.Split(final IPageBreakableBox remainder) && type.isInstance(remainder)) {
+			return type.cast(remainder);
+		}
+		throw new ContinuationInvariantViolationException(
+				context + " must return Split(" + type.getSimpleName() + ") but returned " + result);
+	}
+
+	/**
 	 * 表の切断線からヘッダ・フッタ等の「改ページしない部分」を差し引きます。
 	 *
 	 * @param pageLimit      表の外辺からの切断線

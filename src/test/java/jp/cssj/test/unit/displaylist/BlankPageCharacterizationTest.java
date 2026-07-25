@@ -57,6 +57,12 @@ public class BlankPageCharacterizationTest extends TestCase {
 	/** 特性値の正本(文書ごとの白紙ページ番号)。 */
 	private static final Path EXPECTED = Path.of("files/unittest/blank-page-characterization.txt");
 
+	/** 変換が例外で終わった文書の特性値。 */
+	private static final String ERROR = "!conversion-failed";
+
+	/** 1ページも生成されなかった文書の特性値。 */
+	private static final String NO_PAGES = "!no-pages";
+
 	public BlankPageCharacterizationTest(String name) {
 		super(name);
 	}
@@ -81,6 +87,7 @@ public class BlankPageCharacterizationTest extends TestCase {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("# 白紙ページ(表示リストが空)の特性値。\n");
 		sb.append("# 増えた=エンジンが余分な白紙を作った疑い、減った=意図した白紙が消えた疑い。\n");
+		sb.append("# " + ERROR + "=変換が例外で終わる文書、" + NO_PAGES + "=1ページも出ない文書。\n");
 		sb.append("# 更新は差分を目視確認してから行うこと。\n");
 		for (final var e : actual.entrySet()) {
 			sb.append(e.getKey()).append('\t').append(e.getValue()).append('\n');
@@ -103,8 +110,16 @@ public class BlankPageCharacterizationTest extends TestCase {
 
 	/**
 	 * 文書を変換し、表示リストが空のページ番号をカンマ区切りで返します
-	 * (空ページなしなら空文字列)。変換に失敗した文書は対象外
-	 * (別のテストが扱う)。
+	 * (空ページなしなら空文字列)。
+	 *
+	 * <p>
+	 * 変換に失敗した文書・1ページも生成されなかった文書は、空文字列では
+	 * なく{@link #ERROR}/{@link #NO_PAGES}を返して<b>特性値に載せます</b>
+	 * (2026-07-25、独立レビュー指摘)。従来はどちらも空文字列を返しており、
+	 * 「変換が壊れた文書ほど白紙ゼロとして緑になる」という、この安全網の
+	 * 目的と正反対の偽陰性になっていた。特性値へ載せておけば、新しく
+     * 落ちるようになった文書も、落ちなくなった文書も差分として現れる。
+	 * </p>
 	 */
 	private String blankPagesOf(final Path doc) {
 		// 同名ファイルが別階層にあるため、相対パス全体をディレクトリ名にする
@@ -136,14 +151,14 @@ public class BlankPageCharacterizationTest extends TestCase {
 				}
 			}
 		} catch (final Exception | AssertionError e) {
-			return "";
+			return ERROR;
 		} finally {
 			System.clearProperty(DisplayListDumper.DIR_PROPERTY);
 		}
 
 		final File[] pages = outDir.listFiles((d, n) -> n.endsWith(".txt"));
-		if (pages == null) {
-			return "";
+		if (pages == null || pages.length == 0) {
+			return NO_PAGES;
 		}
 		java.util.Arrays.sort(pages);
 		final StringBuilder blanks = new StringBuilder();

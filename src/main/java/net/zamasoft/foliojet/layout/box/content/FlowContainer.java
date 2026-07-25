@@ -1698,9 +1698,27 @@ public class FlowContainer implements Container {
 		++worklistOverrideDepth.get()[0];
 	}
 
-	/** {@link #worklistOverrideDepth}を1減らします。 */
+	/**
+	 * {@link #worklistOverrideDepth}を1減らします。
+	 *
+	 * <p>
+	 * 2026-07-25(独立レビュー指摘): 0まで戻ったらThreadLocalを除去する。
+	 * この変換で二度と使わない値をスレッドへ残すと、スレッドプール上では
+	 * スレッドの寿命だけ滞留するため。あわせて非対称なpop(pushとの
+	 * try/finally対応が崩れている)を即時例外にする——静かに負の値へ
+	 * 落ちると、以後この変換の間ずっとworklist経路が無効化され、
+	 * 「なぜかlegacy経路を通る」という追いにくい不具合になる。
+	 * </p>
+	 */
 	public static void popWorklistOverride() {
-		--worklistOverrideDepth.get()[0];
+		final int[] depth = worklistOverrideDepth.get();
+		if (depth[0] <= 0) {
+			worklistOverrideDepth.remove();
+			throw new IllegalStateException("popWorklistOverride without a matching push");
+		}
+		if (--depth[0] == 0) {
+			worklistOverrideDepth.remove();
+		}
 	}
 
 	/**

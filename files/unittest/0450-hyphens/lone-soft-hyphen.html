@@ -1,0 +1,30 @@
+<?jp.cssj.property name="output.page-width" value="240pt"?>
+<?jp.cssj.property name="output.page-height" value="240pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>lone soft hyphen</title>
+    <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        font: normal 12pt/1.2 serif;
+        hyphens: manual;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!--
+      本文直下のブロックが soft hyphen(U+00AD)だけを含む場合の回帰。
+      WordHyphenator が Marker を黙って落とすため、ビルダーへは glyph も
+      control も届かないまま shaper の close 連鎖が flush() だけを呼ぶ。
+      BreakableBuilder.flush() に null ガードが無いと、ここで
+      NullPointerException になっていた(2026-07-25 修正)。
+    -->
+    <div>&shy;</div>
+    <div id="a">ok</div>
+  </body>
+</html>

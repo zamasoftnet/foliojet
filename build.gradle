@@ -139,14 +139,17 @@ tasks.named('test') {
     maxParallelForks = Math.min(8, Runtime.runtime.availableProcessors())
     jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
     workingDir = rootProject.projectDir
-    exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'
-    exclude 'jp/cssj/test/unit/_0360_text_indent/PageBreakByWrapTest.class'
-    exclude 'jp/cssj/test/unit/_0410_column_width/FlowTest.class'
-    exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclMetaTest.class'
-    exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclTest.class'
-    exclude 'jp/cssj/test/unit/_1060_META/DoubleMetaTest.class'
-    exclude 'jp/cssj/test/unit/_1060_META/HTMLEUCTest.class'
-    exclude 'jp/cssj/test/unit/_3000_SELECTOR/NameTest.class'
+    // 隔離中のテスト。`-PincludeQuarantined`で除外を解除して現状を確認できる。
+    // 理由と再開条件は docs/history/2026-07-25-quarantined-tests.md を参照。
+    if (!project.hasProperty('includeQuarantined')) {
+        exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'
+        exclude 'jp/cssj/test/unit/_0360_text_indent/PageBreakByWrapTest.class'
+        exclude 'jp/cssj/test/unit/_0410_column_width/FlowTest.class'
+        exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclMetaTest.class'
+        exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclTest.class'
+        exclude 'jp/cssj/test/unit/_1060_META/DoubleMetaTest.class'
+        exclude 'jp/cssj/test/unit/_1060_META/HTMLEUCTest.class'
+    }
 
     systemProperty 'java.io.tmpdir', 'local'
     systemProperty 'java.awt.headless', 'true'

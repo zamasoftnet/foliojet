@@ -2,7 +2,8 @@ package net.zamasoft.foliojet.layout.segment;
 
 /**
  * {@link SegmentEvent.Barrier}が生じた理由です(2026-07-22新設、
- * M6d-A3a、型契約のみ・未配線)。
+ * M6d-A3a。2026-07-25時点で{@link LayoutSourceEventConverter}が実際に
+ * 生成し、{@code SourceReplayer}が消費している)。
  *
  * <p>
  * 旧{@code LayoutSource.Opaque}は理由を一切持たない位置占有マーカーに

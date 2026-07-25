@@ -48,7 +48,8 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 
 	/**
 	 * COLUMN継続用: 段組ownerから相対的に数えたopen pathを分類します
-	 * (2026-07-21新設、M6b Phase B B4、未配線)。index 0はowner自身で
+	 * (2026-07-21新設、M6b Phase B B4。2026-07-25時点で
+	 * {@code BreakableBuilder}から使われている)。index 0はowner自身で
 	 * あり、{@link ContinuationCapability#classify}は呼ばない(owner自体
 	 * は{@code MULTICOL}として分類しない——owner内側にさらに現れる別の
 	 * 段組だけが{@code MULTICOL}になる)。anchorの書字方向はowner自身の

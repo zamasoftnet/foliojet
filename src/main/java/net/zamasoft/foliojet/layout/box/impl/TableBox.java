@@ -598,8 +598,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			if (row != -1) {
 				assert force.box.getType() == BoxType.TABLE_ROW || force.box.getType() == BoxType.TABLE_ROW_GROUP;
 				TableRowGroupBox rowGroupBox = (TableRowGroupBox) this.bodyGroups.get(rowGroup);
-				TableRowGroupBox newRowGroupBox = (TableRowGroupBox) ((SplitResult.Split) rowGroupBox.split(pageLimit,
-						mode, (byte) 0)).remainder();
+				TableRowGroupBox newRowGroupBox = net.zamasoft.foliojet.layout.fragment.TableCutter
+						.requireSplitRemainder(rowGroupBox.split(pageLimit, mode, (byte) 0), TableRowGroupBox.class,
+								"TableRowGroupBox.split for a forced break between rows");
 				nextTable.addTableBody(newRowGroupBox);
 				if (vertical) {
 					this.width -= newRowGroupBox.getPageSize();
@@ -717,7 +718,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			} else {
 				this.height -= prevRowGroupSize;
 			}
-			nextTable.addTableBody((TableRowGroupBox) ((SplitResult.Split) groupResult).remainder());
+			nextTable.addTableBody(net.zamasoft.foliojet.layout.fragment.TableCutter.requireSplitRemainder(groupResult,
+					TableRowGroupBox.class, "TableRowGroupBox.split at the table cut line"));
 			++i;
 			break;
 		}

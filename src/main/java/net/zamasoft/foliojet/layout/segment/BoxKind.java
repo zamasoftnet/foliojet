@@ -2,7 +2,8 @@ package net.zamasoft.foliojet.layout.segment;
 
 /**
  * 正規Segmentモデルにおけるボックス種別です(2026-07-22新設、
- * M6d-A3a、型契約のみ・未配線)。
+ * M6d-A3a。2026-07-25時点で{@link BoxRecipe}が保持し、
+ * {@code SourceReplayer}が消費している)。
  *
  * <p>
  * {@code net.zamasoft.foliojet.layout.fragment.LayoutSource.BoxKind}と

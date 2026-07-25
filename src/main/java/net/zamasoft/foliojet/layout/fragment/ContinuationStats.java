@@ -440,7 +440,7 @@ public final class ContinuationStats {
 
 	/**
 	 * COLUMN継続の相対open pathスキャンが各レベルをどう分類したかの集計
-	 * です(2026-07-21新設、M6b Phase B4-Step3、未配線)。{@link
+	 * です(2026-07-21新設、M6b Phase B4-Step3。2026-07-25時点で配線済み)。{@link
 	 * #CAPABILITY_SCAN_STOPS}/{@link #capabilityScanStops}はPAGE専用の
 	 * カウンタである(名前は汎用的だが、現状PAGE側からしか呼ばれない)ため、
 	 * COLUMN側は別カウンタにする——同一文書がPAGE/COLUMN両方の継続経路を

@@ -84,6 +84,12 @@ public abstract class AbstractTestCase extends TestCase implements
 
 	public void testDocument() throws Exception {
 		this.transcode();
+		// 2026-07-25: 「未実行」のメッセージで検査中の例外を上書きしない。
+		// check_*が例外を投げるとそのidはdoneに入らないため、以前は必ず
+		// 「Test x was not executed.」だけが残り、本当の原因(assertの
+		// 期待値差など)が失われていた——隔離中の7テストが全て同じ
+		// メッセージで落ちていた理由。
+		final StringBuilder reason = new StringBuilder();
 		if (!this.errors.isEmpty()) {
 			StringWriter o = new StringWriter();
 			PrintWriter w = new PrintWriter(o);
@@ -91,13 +97,19 @@ public abstract class AbstractTestCase extends TestCase implements
 				Throwable t = (Throwable) this.errors.get(i);
 				t.printStackTrace(w);
 			}
-			fail = o.toString();
+			reason.append(o.toString());
 		}
 		for (Iterator<String> i = this.idToMethod.keySet().iterator(); i.hasNext();) {
 			String id = (String) i.next();
 			if (!this.done.contains(id)) {
-				fail = "Test " + id + " was not executed.";
+				if (reason.length() > 0) {
+					reason.append('\n');
+				}
+				reason.append("Test ").append(id).append(" was not executed.");
 			}
+		}
+		if (reason.length() > 0) {
+			fail = (fail == null ? "" : fail + "\n") + reason;
 		}
 		if (fail != null) {
 			fail(fail);

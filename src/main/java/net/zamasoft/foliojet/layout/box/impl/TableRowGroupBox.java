@@ -370,7 +370,8 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			this.pageSize -= prevRowSize;
 			// System.err.println("D:" + prevRow.getHeight() +"/"+
 			// nextRow.getHeight()+"/"+(nextRow == prevRow));
-			nextRowGroup.addTableRow((TableRowBox) ((SplitResult.Split) rowResult).remainder());
+			nextRowGroup.addTableRow(net.zamasoft.foliojet.layout.fragment.TableCutter.requireSplitRemainder(rowResult,
+					TableRowBox.class, "TableRowBox.split at the row-group cut line"));
 			++i;
 			break;
 		}
