@@ -1283,6 +1283,13 @@ public class FlowContainer implements Container {
 				lflags ^= IPageBreakableBox.FLAGS_LAST;
 			}
 			switch (flow.box.getType()) {
+			case RESCUE:
+				// 2026-07-25(救済分割・増分3): 救済断片は排除域の台帳を
+				// 持たない(元ボックスは既にレイアウト済みで、断片は描画時の
+				// clipと座標移動だけ)。未配線のためここへは到達しない。
+				// 増分4以降で救済断片がフローに載るときは、元ボックス側の
+				// 台帳を先頭断片で一度だけ扱う設計を明示的に足すこと。
+				throw new IllegalStateException("救済断片はfloat台帳を持たない: " + flow.box);
 			case BLOCK:
 				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;

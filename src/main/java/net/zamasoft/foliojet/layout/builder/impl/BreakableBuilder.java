@@ -596,6 +596,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		boolean canBreakAfter = false;
 		switch (flow.box.getType()) {
+		case RESCUE:
+			// 2026-07-25(救済分割・増分3): 救済断片の切断面には装飾を
+			// 付けないため、断片自身が「境界直後の改ページを許す枠線」を
+			// 持つことはない。未配線のためここへは到達しない。増分4以降で
+			// 救済断片がフローに載るときに、先頭/最終断片の枠線から
+			// canBreakAfterを導く判定を明示的に足すこと。
+			throw new IllegalStateException("救済断片は枠線境界を持たない: " + flow.box);
 		case BLOCK:
 			AbstractBlockBox blockBox = (AbstractBlockBox) flow.box;
 			// 境界直後でのpage-break-afterによる強制改ページを許す
