@@ -135,12 +135,70 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	private static final java.util.Set<Integer> KNOWN_TRAILING_BLANK_PAGE = java.util.Set.of(8, 12, 28);
 
+	/**
+	 * 統計用の集計モード({@code -Dfoliojet.fuzzReport})。早期打ち切りを
+	 * せず全シードを走らせ、<b>失敗の種別ごとの件数と初出シード</b>を
+	 * 出力する。これが「あと何件残っているか」「次の失敗まで何回か」の
+	 * 推定の入力になる(`copperpdf4/docs/REVIEW-STATISTICS.md` §8)。
+	 */
+	private static boolean reportMode() {
+		return System.getProperty("foliojet.fuzzReport") != null;
+	}
+
+	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
+	private static String classify(final Throwable t) {
+		final String detail = detailKey(t);
+		if (detail != null) {
+			return detail;
+		}
+		final String m = String.valueOf(t.getMessage());
+		if (m.contains("白紙ページ")) {
+			return "白紙ページ";
+		}
+		if (m.contains("内容が失われた")) {
+			return "内容の消失";
+		}
+		if (m.contains("停止しない")) {
+			return "停止しない";
+		}
+		if (m.contains("ページ数が過大")) {
+			return "ページ数過大";
+		}
+		Throwable c = t;
+		while (c.getCause() != null) {
+			c = c.getCause();
+		}
+		return c.getClass().getSimpleName();
+	}
+
+	/**
+	 * 例外の**発生箇所**(スタックの最上位のfoliojetフレーム)まで見て
+	 * 種別を分ける。同じ例外型でも別の欠陥なら別種として数えるため——
+	 * ここを粗くすると「残り何件か」の推定が過小になる。
+	 */
+	private static String detailKey(final Throwable t) {
+		Throwable c = t;
+		while (c.getCause() != null) {
+			c = c.getCause();
+		}
+		for (final StackTraceElement e : c.getStackTrace()) {
+			if (e.getClassName().startsWith("net.zamasoft.foliojet")) {
+				final String cls = e.getClassName().substring(e.getClassName().lastIndexOf('.') + 1);
+				return c.getClass().getSimpleName() + "@" + cls + "." + e.getMethodName() + ":" + e.getLineNumber();
+			}
+		}
+		return null;
+	}
+
 	private void sweep(final boolean strict) throws Exception {
 		final int seeds = seedCount();
+		final boolean report = reportMode();
 		final List<String> failures = new ArrayList<>();
 		final List<Integer> knownStillFailing = new ArrayList<>();
+		final java.util.TreeMap<String, int[]> classCount = new java.util.TreeMap<>();
+		final java.util.TreeMap<String, java.util.List<Integer>> seedsOf = new java.util.TreeMap<>();
 		for (int seed = 0; seed < seeds; ++seed) {
-			final boolean known = strict && KNOWN_TRAILING_BLANK_PAGE.contains(seed);
+			final boolean known = !report && strict && KNOWN_TRAILING_BLANK_PAGE.contains(seed);
 			try {
 				checkOne(seed, strict);
 				if (known) {
@@ -148,6 +206,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 							+ "KNOWN_TRAILING_BLANK_PAGE から外すこと");
 				}
 			} catch (final Throwable t) {
+				if (report) {
+					final String k = classify(t);
+					classCount.computeIfAbsent(k, x -> new int[1])[0]++;
+					final var lst = seedsOf.computeIfAbsent(k, x -> new ArrayList<>());
+					if (lst.size() < 8) {
+						lst.add(seed);
+					}
+					continue;
+				}
 				if (known) {
 					knownStillFailing.add(seed);
 					continue;
@@ -157,6 +224,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 					break; // 最初の数件で十分。全件走らせても情報が増えない
 				}
 			}
+		}
+		if (report) {
+			System.out.println("[fuzzReport] mode=" + (strict ? "strict" : "wild") + " seeds=" + seeds);
+			if (classCount.isEmpty()) {
+				System.out.println("[fuzzReport]   失敗なし");
+			}
+			for (final var e : classCount.entrySet()) {
+				System.out.println("[fuzzReport]   " + e.getKey() + " : " + e.getValue()[0] + "件 seeds="
+						+ seedsOf.get(e.getKey()));
+			}
+			return;
 		}
 		if (!knownStillFailing.isEmpty()) {
 			System.out.println("[fuzz] 既知の未解決(末尾の空ページ): " + knownStillFailing);
