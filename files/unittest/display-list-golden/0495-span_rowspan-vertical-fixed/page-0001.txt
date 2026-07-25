@@ -1,0 +1,7 @@
+drawer z=0
+  x=0.00 y=0.00 BackgroundBorder[w=300.00 h=32.00]
+  x=150.00 y=32.00 BackgroundBorder[w=150.00 h=268.00]
+  x=0.00 y=32.00 BackgroundBorder[w=150.00 h=268.00]
+  x=146.00 y=1.00 Text["SPANWZ" asc=4.00 desc=4.00]
+  x=221.00 y=33.00 Text["S1Z" asc=4.00 desc=4.00]
+  x=71.00 y=33.00 Text["S2Z" asc=4.00 desc=4.00]

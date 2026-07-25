@@ -152,11 +152,20 @@ final class CollapsedBorderRules {
 				break;
 			}
 			final Border[] rowLine = vborders.get(rr);
-			if (rowLine[col] != null) {
+			// 列数を超える colspan では添字が溢れうる。gridSpacing 側には
+			// `rightIndex <= columnCount` のガードがあるのに、こちらだけ
+			// 無かった(2026-07-26、独立レビュー指摘)。
+			// **再現は取れていない**——上流(IncrementalTableBuilder の
+			// TABLE_CELL 追加)で colspan が残り列数へ丸められるため、
+			// 現状この経路へ溢れた値は届かない。ただし同型の欠落は
+			// collapseRow では実際に到達し ArrayIndexOutOfBounds になった
+			// (5000シードの掃過で検出)ので、防御として揃えておく
+			if (col < rowLine.length && rowLine[col] != null) {
 				lineStart = Math.max(lineStart, rowLine[col].width / 2.0);
 			}
-			if (rowLine[col + colspan] != null) {
-				lineEnd = Math.max(lineEnd, rowLine[col + colspan].width / 2.0);
+			final int rightIndex = col + colspan;
+			if (rightIndex < rowLine.length && rowLine[rightIndex] != null) {
+				lineEnd = Math.max(lineEnd, rowLine[rightIndex].width / 2.0);
 			}
 		}
 		return spacing(pageFirst, lineEnd, pageLast, lineStart, vertical);

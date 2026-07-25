@@ -132,6 +132,11 @@ public class DisplayListGoldenTest extends TestCase {
 			// goldenは現状(誤った出力)の記録であり正しさの記録ではない。
 			// 直したら差分が出るので、そのとき更新すること
 			"0495-span/rowspan-after-empty-row.html", //
+			// (e) 列数を超えるcolspan × つぶし境界、縦書き×fixed×rowspan。
+			// いずれも独立レビュー指摘だが**再現は取れなかった**——
+			// goldenは「今後変わったら気づく」ための固定
+			"0495-span/colspan-beyond-columns-collapse.html", //
+			"0495-span/rowspan-vertical-fixed.html", //
 			"0480-rescue-split/float-tall.html", //
 			"0480-rescue-split/float-exact.html", //
 	};
