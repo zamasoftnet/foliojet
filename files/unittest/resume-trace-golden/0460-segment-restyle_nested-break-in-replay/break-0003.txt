@@ -1,9 +1,10 @@
 resume PAGE
   root-fragment depth=3
    chain-fragment depth=2
-    restyle-box serial=1
-  restyle-text serial=1
+    replay-subtree serial=2
     replay-subtree serial=3
+  nested resume PAGE
     replay-subtree serial=4
     restyle-chain serial=5
-   restyle-text-open serial=2
+   restyle-text-open serial=1
+  nested resume PAGE
