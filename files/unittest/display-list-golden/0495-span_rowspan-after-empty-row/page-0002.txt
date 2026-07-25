@@ -1,0 +1,3 @@
+drawer z=0
+  x=0.00 y=0.00 BackgroundBorder[w=60.00 h=30.00]
+  x=1.00 y=11.00 Text["CZZ" asc=6.07 desc=1.93]

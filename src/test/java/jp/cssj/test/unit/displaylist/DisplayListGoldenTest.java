@@ -126,6 +126,12 @@ public class DisplayListGoldenTest extends TestCase {
 			"0495-span/rowspan-crosses-rowgroup.html", //
 			"0495-span/rowspan-vertical-lr.html", //
 			"0495-span/rowspan-vertical-rl.html", //
+			// (c) 強制改ページで連結セルが次ページに現れなかった
+			"0495-span/rowspan-forced-break.html", //
+			// (d) 空行の後ろのrowspanが2行で打ち切られる——**未解決**。
+			// goldenは現状(誤った出力)の記録であり正しさの記録ではない。
+			// 直したら差分が出るので、そのとき更新すること
+			"0495-span/rowspan-after-empty-row.html", //
 			"0480-rescue-split/float-tall.html", //
 			"0480-rescue-split/float-exact.html", //
 	};

@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 BackgroundBorder[w=60.00 h=30.00]
+  x=60.00 y=0.00 BackgroundBorder[w=60.00 h=60.00]
+  x=1.00 y=11.00 Text["AZZ" asc=6.07 desc=1.93]
+  x=61.00 y=26.00 Text["SPAN3Z" asc=6.07 desc=1.93]

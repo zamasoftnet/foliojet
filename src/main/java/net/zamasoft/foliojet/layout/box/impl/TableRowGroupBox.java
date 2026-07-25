@@ -220,6 +220,15 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			TableRowGroupBox nextRowGroup = this.splitTableRowGroup();
 			int row = force.row;
 			if (row != -1) {
+				// 持ち越す際に縦に連結されたセルを分割する。自動改ページ経路
+				// (下の prevRow.cutRowspanCells())だけが呼んでおり、強制
+				// 改ページ経路は呼んでいなかった——次ページへ移った行が前
+				// ページのsourceセルを指すextendedセルのままになり、連結セルの
+				// 背景・境界・残余内容が次ページに描かれなかった
+				// (2026-07-25、独立レビューで発見)
+				if (row + 1 < this.rows.size()) {
+					((TableRowBox) this.rows.get(row + 1)).cutRowspanCells();
+				}
 				for (int j = row + 1; j < this.rows.size(); ++j) {
 					TableRowBox rowBox = (TableRowBox) this.rows.get(j);
 					this.pageSize -= rowBox.getPageSize();
