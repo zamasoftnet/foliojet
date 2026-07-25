@@ -31,6 +31,7 @@ import net.zamasoft.foliojet.layout.box.params.RectBorder;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.box.params.TablePos;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
@@ -314,161 +315,68 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		final List<Double> contentXs = new ArrayList<>();
 		final List<Double> contentYs = new ArrayList<>();
 
-		if (this.params.flow.isVertical()) {
-			// 縦書き
-			// 内部の境界/背景
-			{
-				double xxx = xx;
-				if (this.columnGroupBox != null) {
-					this.columnGroupBox.frames(pageBox, drawer, clip, transform, xxx, yy);
-				}
-				xxx += this.width;
-				if (this.headerGroupBox != null) {
-					xxx -= this.headerGroupBox.getWidth();
-					this.headerGroupBox.frames(pageBox, drawer, clip, transform, xxx, yy);
-				}
-				if (this.bodyGroups != null) {
-					for (int i = 0; i < this.bodyGroups.size(); ++i) {
-						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						xxx -= rowGroup.getWidth();
-						rowGroup.frames(pageBox, drawer, clip, transform, xxx, yy);
-					}
-				}
-				if (this.footerGroupBox != null) {
-					xxx -= this.footerGroupBox.getWidth();
-					this.footerGroupBox.frames(pageBox, drawer, clip, transform, xxx, yy);
-				}
+		// 縦横で同一の構造だった2つの分岐を統合(2026-07-25、vertical-lr対応)。
+		// 論理位置(ページ方向の始端/終端)だけを数え、物理座標への変換は
+		// LayoutUtils.drawX/drawY に任せる。従来は縦書き側でRL専用式
+		// (カーソルを右端から減算)を手書きしており、これが重複していたことが
+		// vertical-lrの取りこぼしを生んでいた。
+		final WritingMode flow = this.params.flow;
+		final double tableExtent = flow.isVertical() ? this.width : this.height;
+		// ページ方向を消費するグループを、文書順(header→body→footer)に並べる
+		final List<TableRowGroupBox> groups = new ArrayList<>();
+		if (this.headerGroupBox != null) {
+			groups.add(this.headerGroupBox);
+		}
+		if (this.bodyGroups != null) {
+			for (int i = 0; i < this.bodyGroups.size(); ++i) {
+				groups.add((TableRowGroupBox) this.bodyGroups.get(i));
 			}
-
-			this.drawBorders(pageBox, drawer, clip, transform, x, y, xx, yy);
-
-			// 浮動ボックス
-			{
-				double xxx = xx + this.width;
-				if (this.headerGroupBox != null) {
-					xxx -= this.headerGroupBox.getWidth();
-					this.headerGroupBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
-				}
-				if (this.bodyGroups != null) {
-					for (int i = 0; i < this.bodyGroups.size(); ++i) {
-						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						xxx -= rowGroup.getWidth();
-						rowGroup.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
-					}
-				}
-				if (this.footerGroupBox != null) {
-					xxx -= this.footerGroupBox.getWidth();
-					this.footerGroupBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, xxx, yy);
-				}
+		}
+		if (this.footerGroupBox != null) {
+			groups.add(this.footerGroupBox);
+		}
+		final int groupCount = groups.size();
+		final double[] groupXs = new double[groupCount];
+		final double[] groupYs = new double[groupCount];
+		{
+			double pageStart = 0;
+			for (int i = 0; i < groupCount; ++i) {
+				final TableRowGroupBox group = groups.get(i);
+				final double pageEnd = pageStart + (flow.isVertical() ? group.getWidth() : group.getHeight());
+				groupXs[i] = LayoutUtils.drawX(flow, xx, tableExtent, pageStart, pageEnd, 0);
+				groupYs[i] = LayoutUtils.drawY(flow, yy, pageStart, 0);
+				pageStart = pageEnd;
 			}
+		}
+		// 列グループは表全体に渡るので、ページ方向の区間は [0, tableExtent]
+		final double columnGroupX = LayoutUtils.drawX(flow, xx, tableExtent, 0, tableExtent, 0);
+		final double columnGroupY = LayoutUtils.drawY(flow, yy, 0, 0);
 
-			// 内容
-			{
-				double xxx = xx;
-				if (this.columnGroupBox != null) {
-					contentBoxes.add(this.columnGroupBox);
-					contentXs.add(xxx);
-					contentYs.add(yy);
-				}
-				xxx += this.width;
-				if (this.headerGroupBox != null) {
-					xxx -= this.headerGroupBox.getWidth();
-					contentBoxes.add(this.headerGroupBox);
-					contentXs.add(xxx);
-					contentYs.add(yy);
-				}
-				if (this.bodyGroups != null) {
-					for (int i = 0; i < this.bodyGroups.size(); ++i) {
-						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						xxx -= rowGroup.getWidth();
-						contentBoxes.add(rowGroup);
-						contentXs.add(xxx);
-						contentYs.add(yy);
-					}
-				}
-				if (this.footerGroupBox != null) {
-					xxx -= this.footerGroupBox.getWidth();
-					contentBoxes.add(this.footerGroupBox);
-					contentXs.add(xxx);
-					contentYs.add(yy);
-				}
-			}
-		} else {
-			// 横書き
-			// 内部の境界/背景
-			{
-				double yyy = yy;
-				if (this.columnGroupBox != null) {
-					this.columnGroupBox.frames(pageBox, drawer, clip, transform, xx, yyy);
-				}
-				if (this.headerGroupBox != null) {
-					this.headerGroupBox.frames(pageBox, drawer, clip, transform, xx, yyy);
-					yyy += this.headerGroupBox.getHeight();
-				}
-				if (this.bodyGroups != null) {
-					for (int i = 0; i < this.bodyGroups.size(); ++i) {
-						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						rowGroup.frames(pageBox, drawer, clip, transform, xx, yyy);
-						yyy += rowGroup.getHeight();
-					}
-				}
-				if (this.footerGroupBox != null) {
-					this.footerGroupBox.frames(pageBox, drawer, clip, transform, xx, yyy);
-					yyy += this.footerGroupBox.getHeight();
-				}
-			}
+		// 内部の境界/背景
+		if (this.columnGroupBox != null) {
+			this.columnGroupBox.frames(pageBox, drawer, clip, transform, columnGroupX, columnGroupY);
+		}
+		for (int i = 0; i < groupCount; ++i) {
+			groups.get(i).frames(pageBox, drawer, clip, transform, groupXs[i], groupYs[i]);
+		}
 
-			this.drawBorders(pageBox, drawer, clip, transform, x, y, xx, yy);
+		this.drawBorders(pageBox, drawer, clip, transform, x, y, xx, yy);
 
-			// 浮動ボックス
-			{
-				double yyy = yy;
-				if (this.headerGroupBox != null) {
-					this.headerGroupBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
-					yyy += this.headerGroupBox.getHeight();
-				}
-				if (this.bodyGroups != null) {
-					for (int i = 0; i < this.bodyGroups.size(); ++i) {
-						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						rowGroup.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
-						yyy += rowGroup.getHeight();
-					}
-				}
-				if (this.footerGroupBox != null) {
-					this.footerGroupBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, xx, yyy);
-					yyy += this.footerGroupBox.getHeight();
-				}
-			}
+		// 浮動ボックス(列グループは対象外)
+		for (int i = 0; i < groupCount; ++i) {
+			groups.get(i).floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, groupXs[i], groupYs[i]);
+		}
 
-			// 内容
-			{
-				double yyy = yy;
-				if (this.columnGroupBox != null) {
-					contentBoxes.add(this.columnGroupBox);
-					contentXs.add(xx);
-					contentYs.add(yyy);
-				}
-				if (this.headerGroupBox != null) {
-					contentBoxes.add(this.headerGroupBox);
-					contentXs.add(xx);
-					contentYs.add(yyy);
-					yyy += this.headerGroupBox.getHeight();
-				}
-				if (this.bodyGroups != null) {
-					for (int i = 0; i < this.bodyGroups.size(); ++i) {
-						TableRowGroupBox rowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
-						contentBoxes.add(rowGroup);
-						contentXs.add(xx);
-						contentYs.add(yyy);
-						yyy += rowGroup.getHeight();
-					}
-				}
-				if (this.footerGroupBox != null) {
-					contentBoxes.add(this.footerGroupBox);
-					contentXs.add(xx);
-					contentYs.add(yyy);
-				}
-			}
+		// 内容
+		if (this.columnGroupBox != null) {
+			contentBoxes.add(this.columnGroupBox);
+			contentXs.add(columnGroupX);
+			contentYs.add(columnGroupY);
+		}
+		for (int i = 0; i < groupCount; ++i) {
+			contentBoxes.add(groups.get(i));
+			contentXs.add(groupXs[i]);
+			contentYs.add(groupYs[i]);
 		}
 		final Drawer fdrawer = drawer;
 		final double fx = x, fy = y;

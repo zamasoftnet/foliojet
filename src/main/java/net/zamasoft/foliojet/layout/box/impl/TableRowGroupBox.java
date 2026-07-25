@@ -117,26 +117,18 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 		// 行の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
 		// **逆順**でpushする
+		// 論理位置→物理座標は LayoutUtils.drawX/drawY に集約(2026-07-25、
+		// vertical-lr対応。従来はここでRL専用式を手書きしていた)
 		final int n = this.rows.size();
 		final double[] xs = new double[n];
 		final double[] ys = new double[n];
-		if (this.tableParams.flow.isVertical()) {
-			// 縦書き
-			x += this.pageSize;
-			for (int i = 0; i < n; ++i) {
-				TableRowBox row = (TableRowBox) this.rows.get(i);
-				x -= row.getPageSize();
-				xs[i] = x;
-				ys[i] = y;
-			}
-		} else {
-			// 横書き
-			for (int i = 0; i < n; ++i) {
-				TableRowBox row = (TableRowBox) this.rows.get(i);
-				xs[i] = x;
-				ys[i] = y;
-				y += row.getPageSize();
-			}
+		double framePageStart = 0;
+		for (int i = 0; i < n; ++i) {
+			final TableRowBox row = (TableRowBox) this.rows.get(i);
+			final double framePageEnd = framePageStart + row.getPageSize();
+			xs[i] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, framePageStart, framePageEnd, 0);
+			ys[i] = LayoutUtils.drawY(this.tableParams.flow, y, framePageStart, 0);
+			framePageStart = framePageEnd;
 		}
 		for (int i = n - 1; i >= 0; --i) {
 			TableRowBox row = (TableRowBox) this.rows.get(i);
@@ -157,7 +149,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			final TableRowBox row = (TableRowBox) this.rows.get(i);
 			final double pageEnd = pageStart + row.getPageSize();
 			row.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-					LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, pageEnd, 0),
+					LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, pageStart, pageEnd, 0),
 					LayoutUtils.drawY(this.tableParams.flow, y, pageStart, 0));
 			pageStart = pageEnd;
 		}
@@ -193,7 +185,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		for (int i = 0; i < n; ++i) {
 			final TableRowBox row = (TableRowBox) this.rows.get(i);
 			final double pageEnd = pageStart + row.getPageSize();
-			drawXs[i] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, pageEnd, 0);
+			drawXs[i] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, pageStart, pageEnd, 0);
 			drawYs[i] = LayoutUtils.drawY(this.tableParams.flow, y, pageStart, 0);
 			pageStart = pageEnd;
 		}

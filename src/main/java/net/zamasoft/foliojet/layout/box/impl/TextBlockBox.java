@@ -303,7 +303,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			AbstractLineBox lineBox = line.box;
 			// 描画(論理→物理変換は LayoutUtils.drawX/drawY に集約)
 			worklist.push(IBox.drawStep(lineBox, pageBox, drawer, visitor, clip, transform, contextX, contextY,
-					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.getPageEnd(), 0),
+					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.pageAxis, line.getPageEnd(), 0),
 					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0)));
 		}
 	}
@@ -315,7 +315,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
 			worklist.push(IBox.textShapeStep(lineBox, pageBox, path, transform,
-					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.getPageEnd(), 0),
+					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.pageAxis, line.getPageEnd(), 0),
 					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0)));
 		}
 	}

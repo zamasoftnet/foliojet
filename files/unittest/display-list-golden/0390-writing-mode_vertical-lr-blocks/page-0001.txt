@@ -1,0 +1,5 @@
+drawer z=0
+  x=70.00 y=0.00 Text["RL1" asc=5.00 desc=5.00]
+  x=60.00 y=0.00 Text["RL2" asc=5.00 desc=5.00]
+  x=0.00 y=60.00 Text["LR1" asc=5.00 desc=5.00]
+  x=10.00 y=60.00 Text["LR2" asc=5.00 desc=5.00]

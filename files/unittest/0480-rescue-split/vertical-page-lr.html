@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>救済分割: ページ自体が縦書き(vertical-lr)</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+	writing-mode: vertical-lr;
+}
+p {
+	margin: 0;
+}
+span#a {
+	display: inline-block;
+	width: 500pt;
+	height: 50pt;
+	background: #cccccc;
+}
+</style>
+</head>
+<body>
+<p><span id="a">塊</span></p>
+<p id="after">後続</p>
+</body>
+</html>

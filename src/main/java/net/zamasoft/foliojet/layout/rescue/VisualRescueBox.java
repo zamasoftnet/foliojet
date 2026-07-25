@@ -46,19 +46,21 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
  * </p>
  *
  * <pre>
- * 横書き(TB): sourceX = x
- *             sourceY = y - offset
- * 縦書き(RL/LR): sourceX = x - (sourcePageExtent - offset - sliceExtent)
- *                sourceY = y
+ * 横書き(TB):     sourceX = x
+ *                 sourceY = y - offset
+ * 縦書き右→左(RL): sourceX = x - (sourcePageExtent - offset - sliceExtent)
+ *                 sourceY = y
+ * 縦書き左→右(LR): sourceX = x - offset
+ *                 sourceY = y
  * </pre>
  *
  * <p>
- * です。縦書きのページ軸が右→左に進む内部規約は
- * {@link LayoutUtils#drawX} と {@link LayoutUtils#drawY} に集約されており、
- * 上式はその規約から導かれます(縦書きではページ方向始端=元ボックスの
- * 右端。断片の左端{@code x}から元ボックスの左端までの距離が
+ * です。ページ軸の<b>向き</b>の規則は{@link LayoutUtils#drawX}の説明が
+ * 正本で、上式はそこから導かれます。向きが正のTBとLRが同じ
+ * 「{@code - offset}」の形になり、向きが負のRLだけが
  * 「まだ消費していない残余」{@code sourcePageExtent - offset - sliceExtent}
- * になる)。
+ * を引く形になります(縦書きRLではページ方向始端=元ボックスの右端で、
+ * 断片の左端{@code x}から元ボックスの左端までの距離がその残余になる)。
  * </p>
  *
  * <h2>枠線・マージン</h2>
@@ -266,10 +268,14 @@ public class VisualRescueBox extends AbstractBox {
 	 * 断片の物理原点{@code fragmentX}に対する、元ボックスの描画原点Xです。
 	 */
 	public final double sourceDrawX(final double fragmentX) {
-		if (!this.progression.isVertical()) {
-			return fragmentX;
-		}
-		return fragmentX - (this.sourcePageExtent - this.offset - this.sliceExtent);
+		// ページ軸の向きの扱いは LayoutUtils.drawX と同じ規則に従う
+		// (2026-07-25、vertical-lr対応。従来はisVertical()でRLとLRを
+		// 同一視し、RL専用の式だけを持っていた)
+		return switch (this.progression) {
+		case TB -> fragmentX;
+		case RL -> fragmentX - (this.sourcePageExtent - this.offset - this.sliceExtent);
+		case LR -> fragmentX - this.offset;
+		};
 	}
 
 	/**

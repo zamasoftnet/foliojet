@@ -531,43 +531,29 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		switch (this.box.getBlockParams().flow) {
-		case WritingMode.TB:
-			// 横書き
-			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
-			for (int i = this.flows.size() - 1; i >= 0; --i) {
-				Flow c = (Flow) this.flows.get(i);
-				if (isRescuedFrameOwner(c.box)) {
-					// 2026-07-25(救済分割・増分6): ブロックを元にした断片は
-					// 枠(背景・ボーダー)もこのフレームパスで描かれる
-					((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) c.box).pushSourceFramesSteps(pageBox, drawer,
-							clip, transform, x, y + c.pageAxis, worklist);
-				} else if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
-					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
-					worklist.push(AbstractContainerBox.framesStep(blockBox, pageBox, drawer, clip, transform, x,
-							y + c.pageAxis));
-				}
+		// 論理位置→物理座標の変換は LayoutUtils.drawX/drawY に集約する
+		// (2026-07-25、vertical-lr対応。従来はここで RL 専用式を手書きしていた)
+		final WritingMode flow = this.box.getBlockParams().flow;
+		final double parentPageExtent = this.box.getInnerWidth();
+		// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+		for (int i = this.flows.size() - 1; i >= 0; --i) {
+			final Flow c = (Flow) this.flows.get(i);
+			final boolean rescued = isRescuedFrameOwner(c.box);
+			if (!rescued && !(c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null)) {
+				continue;
 			}
-			break;
-		case WritingMode.RL:
-		case WritingMode.LR:
-			// 縦書き
-			x += this.box.getInnerWidth();
-			for (int i = this.flows.size() - 1; i >= 0; --i) {
-				// 通常のフロー
-				Flow c = (Flow) this.flows.get(i);
-				if (isRescuedFrameOwner(c.box)) {
-					((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) c.box).pushSourceFramesSteps(pageBox, drawer,
-							clip, transform, x - c.pageAxis - c.box.getWidth(), y, worklist);
-				} else if (c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null) {
-					AbstractBlockBox blockBox = (AbstractBlockBox) c.box;
-					worklist.push(AbstractContainerBox.framesStep(blockBox, pageBox, drawer, clip, transform,
-							x - c.pageAxis + -blockBox.getWidth(), y));
-				}
+			final double cx = LayoutUtils.drawX(flow, x, parentPageExtent, c.pageAxis,
+					c.pageAxis + c.box.getWidth(), 0);
+			final double cy = LayoutUtils.drawY(flow, y, c.pageAxis, 0);
+			if (rescued) {
+				// 2026-07-25(救済分割・増分6): ブロックを元にした断片は
+				// 枠(背景・ボーダー)もこのフレームパスで描かれる
+				((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) c.box).pushSourceFramesSteps(pageBox, drawer,
+						clip, transform, cx, cy, worklist);
+			} else {
+				worklist.push(AbstractContainerBox.framesStep((AbstractBlockBox) c.box, pageBox, drawer, clip,
+						transform, cx, cy));
 			}
-			break;
-		default:
-			throw new IllegalStateException();
 		}
 	}
 
@@ -593,29 +579,15 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		switch (this.box.getBlockParams().flow) {
-		case WritingMode.TB:
-			// 横書き
-			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
-			for (int i = this.flows.size() - 1; i >= 0; --i) {
-				Flow c = (Flow) this.flows.get(i);
-				worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY, x,
-						y + c.pageAxis));
-			}
-			break;
-		case WritingMode.RL:
-		case WritingMode.LR:
-			// 縦書き
-			x += this.box.getInnerWidth();
-			for (int i = this.flows.size() - 1; i >= 0; --i) {
-				// 通常のフロー
-				Flow c = (Flow) this.flows.get(i);
-				worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
-						x - c.pageAxis - c.box.getWidth(), y));
-			}
-			break;
-		default:
-			throw new IllegalStateException();
+		// 論理位置→物理座標は LayoutUtils.drawX/drawY に集約(2026-07-25)
+		final WritingMode flow = this.box.getBlockParams().flow;
+		final double parentPageExtent = this.box.getInnerWidth();
+		// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+		for (int i = this.flows.size() - 1; i >= 0; --i) {
+			final Flow c = (Flow) this.flows.get(i);
+			worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					LayoutUtils.drawX(flow, x, parentPageExtent, c.pageAxis, c.pageAxis + c.box.getWidth(), 0),
+					LayoutUtils.drawY(flow, y, c.pageAxis, 0)));
 		}
 	}
 
@@ -624,28 +596,15 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		switch (this.box.getBlockParams().flow) {
-		case WritingMode.TB:
-			// 横書き
-			// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
-			for (int i = this.flows.size() - 1; i >= 0; --i) {
-				Flow c = (Flow) this.flows.get(i);
-				worklist.push(IBox.textShapeStep(c.box, pageBox, path, transform, x, y + c.pageAxis));
-			}
-			break;
-		case WritingMode.RL:
-		case WritingMode.LR:
-			// 縦書き
-			x += this.box.getInnerWidth();
-			for (int i = this.flows.size() - 1; i >= 0; --i) {
-				// 通常のフロー
-				Flow c = (Flow) this.flows.get(i);
-				worklist.push(
-						IBox.textShapeStep(c.box, pageBox, path, transform, x - c.pageAxis - c.box.getWidth(), y));
-			}
-			break;
-		default:
-			throw new IllegalStateException();
+		// 論理位置→物理座標は LayoutUtils.drawX/drawY に集約(2026-07-25)
+		final WritingMode flow = this.box.getBlockParams().flow;
+		final double parentPageExtent = this.box.getInnerWidth();
+		// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+		for (int i = this.flows.size() - 1; i >= 0; --i) {
+			final Flow c = (Flow) this.flows.get(i);
+			worklist.push(IBox.textShapeStep(c.box, pageBox, path, transform,
+					LayoutUtils.drawX(flow, x, parentPageExtent, c.pageAxis, c.pageAxis + c.box.getWidth(), 0),
+					LayoutUtils.drawY(flow, y, c.pageAxis, 0)));
 		}
 	}
 

@@ -104,26 +104,16 @@ public class Floatings {
 			Deque<DrawStep> worklist) {
 		assert !LayoutUtils.isNone(x) : "Undefined x";
 		assert !LayoutUtils.isNone(y) : "Undefined y";
-		// 浮動体
-		boolean vertical = box.getBlockParams().flow.isVertical();
-		if (vertical) {
-			x += box.getInnerWidth();
-		}
+		// 浮動体。論理位置→物理座標は LayoutUtils.drawX/drawY に集約
+		// (2026-07-25、vertical-lr対応。従来はRL専用式を手書きしていた)
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = box.getBlockParams().flow;
+		final double parentPageExtent = box.getInnerWidth();
 		for (int i = this.floatings.size() - 1; i >= 0; --i) {
 			Floating floating = (Floating) this.floatings.get(i);
-			double xx;
-			double yy;
-			if (vertical) {
-				// 縦書き
-				xx = x - floating.pageAxis - floating.box.getWidth();
-				yy = y + floating.lineAxis;
-			} else {
-				// 横書き
-				xx = x + floating.lineAxis;
-				yy = y + floating.pageAxis;
-			}
 			worklist.push(IBox.drawStep(floating.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
-					xx, yy));
+					LayoutUtils.drawX(flow, x, parentPageExtent, floating.pageAxis,
+							floating.pageAxis + floating.box.getWidth(), floating.lineAxis),
+					LayoutUtils.drawY(flow, y, floating.pageAxis, floating.lineAxis)));
 		}
 	}
 

@@ -29,7 +29,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
  * 救済分割の断片({@link VisualRescueBox})のclip・座標・枠slice描画の
- * 単体テストです(2026-07-25新設、増分3。<b>まだ未配線</b>)。
+ * 単体テストです(2026-07-25新設、増分3)。
  *
  * <p>
  * 元ボックスは{@link FakeSource}(描画引数を記録するだけのテストダブル)に
@@ -179,12 +179,16 @@ public class VisualRescueBoxTest extends TestCase {
 	 */
 	private static double[] physicalBand(final VisualRescueBox box, final double sourceX, final double sourceY,
 			final double from, final double to) {
-		if (!box.getProgression().isVertical()) {
-			return new double[] { sourceY + from, sourceY + to };
+		return switch (box.getProgression()) {
+		// ページ軸の向きが正(TB・LR)は始端をそのまま足す
+		case TB -> new double[] { sourceY + from, sourceY + to };
+		case LR -> new double[] { sourceX + from, sourceX + to };
+		// RLだけが向きが負(右→左)
+		case RL -> {
+			final double right = sourceX + box.getSourcePageExtent();
+			yield new double[] { right - to, right - from };
 		}
-		// 縦書きはページ軸が右→左に進む
-		final double right = sourceX + box.getSourcePageExtent();
-		return new double[] { right - to, right - from };
+		};
 	}
 
 	/** クリップ矩形のページ方向区間を返します。 */
@@ -278,8 +282,10 @@ public class VisualRescueBoxTest extends TestCase {
 			final VisualRescueBox box = fragment(src, progression, 40, 30);
 			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 300, 17);
 			assertEquals(progression.name(), 1, src.drawCount);
-			// 未消費の残余 = 100 - 40 - 30 = 30
-			assertEquals(progression.name(), 300.0 - 30.0, src.drawX, 0);
+			// RLは向きが負なので「未消費の残余」= 100 - 40 - 30 = 30 だけ左へ、
+			// LRは向きが正なので「消費済み量」= offset = 40 だけ左へ寄る
+			final double expectedX = progression == WritingMode.RL ? 300.0 - 30.0 : 300.0 - 40.0;
+			assertEquals(progression.name(), expectedX, src.drawX, 0);
 			assertEquals(progression.name(), 17.0, src.drawY, 0);
 		}
 	}
@@ -291,14 +297,10 @@ public class VisualRescueBoxTest extends TestCase {
 			// 先頭断片(offset=0、まだ残余がある)
 			final VisualRescueBox box = fragment(src, progression, 0, 40);
 			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 50, 60);
-			if (progression.isVertical()) {
-				// 未消費の残余 = 100 - 0 - 40 = 60 だけ左へ寄る
-				assertEquals(progression.name(), 50.0 - 60.0, src.drawX, 0);
-				assertEquals(progression.name(), 60.0, src.drawY, 0);
-			} else {
-				assertEquals(progression.name(), 50.0, src.drawX, 0);
-				assertEquals(progression.name(), 60.0, src.drawY, 0);
-			}
+			// 向きが正(TB・LR)なら offset=0 の先頭断片は断片原点そのもの。
+			// RLだけは向きが負なので「未消費の残余」= 100 - 0 - 40 = 60 左へ寄る
+			assertEquals(progression.name(), progression == WritingMode.RL ? 50.0 - 60.0 : 50.0, src.drawX, 0);
+			assertEquals(progression.name(), 60.0, src.drawY, 0);
 		}
 	}
 
@@ -308,11 +310,13 @@ public class VisualRescueBoxTest extends TestCase {
 			final FakeSource src = source(progression);
 			final VisualRescueBox box = fragment(src, progression, 80, 20);
 			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 50, 60);
-			if (progression.isVertical()) {
-				// 残余0なので元ボックスの左端は断片の左端と一致
-				assertEquals(progression.name(), 50.0, src.drawX, 0);
-			} else {
-				assertEquals(progression.name(), 60.0 - 80.0, src.drawY, 0);
+			switch (progression) {
+			case TB -> assertEquals(progression.name(), 60.0 - 80.0, src.drawY, 0);
+			// RL: 残余0なので元ボックスの左端が断片の左端と一致する
+			case RL -> assertEquals(progression.name(), 50.0, src.drawX, 0);
+			// LR: 消費済み量だけ左へ寄り、元ボックスの右端が断片の右端に一致する
+			// (50 - 80 = -30 から始まり、-30 + 100 = 70 = 50 + 20)
+			case LR -> assertEquals(progression.name(), 50.0 - 80.0, src.drawX, 0);
 			}
 		}
 	}
@@ -452,15 +456,19 @@ public class VisualRescueBoxTest extends TestCase {
 			for (final double[] interval : intervals) {
 				final FakeSource src = source(progression);
 				final VisualRescueBox box = fragment(src, progression, interval[0], interval[1]);
-				// 断片はページ軸上で連続して置かれる
-				final double fragmentX = progression.isVertical() ? 500 - covered - interval[1] : 500;
+				// 断片はページ軸上で連続して置かれる(RLだけ向きが負)
+				final double fragmentX = switch (progression) {
+				case TB -> 500;
+				case RL -> 500 - covered - interval[1];
+				case LR -> 500 + covered;
+				};
 				final double fragmentY = progression.isVertical() ? 400 : 400 + covered;
 				box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, fragmentX, fragmentY);
 				// どの断片も同じ位置に元ボックスを置く(=見た目が連続する)
-				if (progression.isVertical()) {
-					assertEquals(progression.name(), 500 - SOURCE_PAGE_EXTENT, src.drawX, 0);
-				} else {
-					assertEquals(progression.name(), 400.0, src.drawY, 0);
+				switch (progression) {
+				case TB -> assertEquals(progression.name(), 400.0, src.drawY, 0);
+				case RL -> assertEquals(progression.name(), 500 - SOURCE_PAGE_EXTENT, src.drawX, 0);
+				case LR -> assertEquals(progression.name(), 500.0, src.drawX, 0);
 				}
 				covered += interval[1];
 			}

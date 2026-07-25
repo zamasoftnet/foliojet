@@ -134,7 +134,7 @@ public class ColumnsContainer implements Container {
 		// 逆順で処理する)
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.pushFramesSteps(pageBox, drawer, clip, transform, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+			container.pushFramesSteps(pageBox, drawer, clip, transform, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
 					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
@@ -148,7 +148,7 @@ public class ColumnsContainer implements Container {
 		// スタック深さは問題にならないが、走査順を保つため逆順で処理する
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+			container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
 					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
@@ -161,7 +161,7 @@ public class ColumnsContainer implements Container {
 		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+			container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
 					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}
@@ -174,7 +174,7 @@ public class ColumnsContainer implements Container {
 		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.pushDrawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, i * columnSize),
+			container.pushDrawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
 					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
 		}
 	}

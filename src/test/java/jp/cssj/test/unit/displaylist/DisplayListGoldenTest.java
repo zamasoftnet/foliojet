@@ -117,6 +117,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 縦書きfixtureはいずれも「横書きページの中の縦書きブロック」で、
 			// VisualRescueBox.sourceDrawXの縦書き分岐を一度も通していなかった
 			"0480-rescue-split/vertical-page-rl.html", //
+			// vertical-lr は vertical-rl の鏡映になる(2026-07-25にLRを実装)
+			"0480-rescue-split/vertical-page-lr.html", //
+			"0390-writing-mode/vertical-lr-blocks.html", //
 			"0480-rescue-split/float-tall.html", //
 			"0480-rescue-split/float-exact.html", //
 	};

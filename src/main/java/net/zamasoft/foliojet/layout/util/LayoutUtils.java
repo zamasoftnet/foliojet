@@ -365,24 +365,60 @@ public final class LayoutUtils {
 
 	/**
 	 * 親の物理原点 x から、論理位置(行方向 childLineStart、ページ方向
-	 * childPageEnd)に置かれる子の物理X座標を返します。
-	 * 縦書きの内部規約(pageAxis は右→左)はこの関数と drawY に集約されます
-	 * (将来の LR 鏡映対応はここ1点で行う)。
+	 * childPageStart/childPageEnd)に置かれる子の物理X座標を返します。
+	 *
+	 * <h2>ページ軸の向きはここと {@link #drawY} だけが知っている</h2>
+	 *
+	 * <p>
+	 * 書字方向は<b>2つの独立した属性</b>で表せます——<b>どの物理次元が
+	 * ページ軸か</b>と、<b>その軸が正負どちらへ進むか</b>。前者は
+	 * {@link WritingMode#isVertical()}が答え、コード全体に散っていますが、
+	 * <b>後者を物理座標へ変換するのは、main全体でこの関数と{@link #drawY}
+	 * だけです</b>(2026-07-25に実測確認)。
+	 * </p>
+	 *
+	 * <table border="1">
+	 * <caption>ページ軸の次元と向き</caption>
+	 * <tr><th>書字方向</th><th>ページ軸</th><th>向き</th><th>X座標に足すもの</th></tr>
+	 * <tr><td>TB(横書き)</td><td>Y</td><td>正(上→下)</td><td>行方向のみ</td></tr>
+	 * <tr><td>RL(縦書き・右→左)</td><td>X</td><td><b>負</b></td><td>{@code parentPageExtent - childPageEnd}</td></tr>
+	 * <tr><td>LR(縦書き・左→右)</td><td>X</td><td>正</td><td>{@code childPageStart}</td></tr>
+	 * </table>
+	 *
+	 * <p>
+	 * LRがTBと同じ「始端を足すだけ」の形になるのは偶然ではなく、
+	 * <b>向きが正である</b>という同じ性質の現れです。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>この関数を迂回して自前で符号計算をしないこと。</b>
+	 * {@code x += 親の内寸; x - 子のpageAxis - 子の寸法}という手書きは
+	 * RL専用式であり、LRで誤ります(2026-07-25にLRを実装した際、
+	 * FlowContainer・Floatings・表・救済分割に計10箇所の手書きが見つかり、
+	 * すべてこの関数へ寄せた)。
+	 * </p>
 	 *
 	 * @param flow             書字方向
 	 * @param x                親の物理X原点
 	 * @param parentPageExtent 親のページ方向寸法
+	 * @param childPageStart   子のページ方向始端
 	 * @param childPageEnd     子のページ方向終端(始端+子の寸法)
 	 * @param childLineStart   子の行方向始端
 	 * @return 子の物理X座標
 	 */
-	public static double drawX(WritingMode flow, double x, double parentPageExtent, double childPageEnd,
-			double childLineStart) {
-		return flow.isVertical() ? x + parentPageExtent - childPageEnd : x + childLineStart;
+	public static double drawX(WritingMode flow, double x, double parentPageExtent, double childPageStart,
+			double childPageEnd, double childLineStart) {
+		return switch (flow) {
+		case TB -> x + childLineStart;
+		case RL -> x + parentPageExtent - childPageEnd;
+		case LR -> x + childPageStart;
+		};
 	}
 
 	/**
 	 * 親の物理原点 y から、論理位置に置かれる子の物理Y座標を返します。
+	 * 向きの扱いは{@link #drawX}の説明を参照(縦書きではページ軸がXなので、
+	 * Yは常に行方向だけで決まり、RLとLRで違いはありません)。
 	 *
 	 * @param flow           書字方向
 	 * @param y              親の物理Y原点

@@ -1,0 +1,23 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>vertical-lr: ブロックは左→右へ進む</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 serif; }
+/* 同じ内容を vertical-rl と vertical-lr で並べる。
+   rl は1つ目のブロックが右端、lr は左端から始まるのが正しい。 */
+div.box { width: 80pt; height: 60pt; }
+div.rl { writing-mode: vertical-rl; }
+div.lr { writing-mode: vertical-lr; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<div class="box rl"><p id="a">RL1</p><p id="b">RL2</p></div>
+<div class="box lr"><p id="c">LR1</p><p id="d">LR2</p></div>
+</body>
+</html>
