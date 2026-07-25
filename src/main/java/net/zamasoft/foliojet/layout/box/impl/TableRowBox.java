@@ -225,7 +225,12 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
 					sourceCells[count] = cellBox;
-					xs[count] = x - cellBox.getWidth() + this.pageSize;
+					// 連結セルは行のページ寸法を超える。向きの扱いは
+					// LayoutUtils.drawX に任せる(従来はRL専用式を手書きして
+					// おり、vertical-lr で連結セルだけ表の外へずれていた。
+					// 通常セルは幅==行のページ寸法なので誤りが相殺され、
+					// rowspan セルでだけ現れる。2026-07-25、独立レビューで発見)
+					xs[count] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
 					ys[count] = y;
 					++count;
 				}
@@ -266,7 +271,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
 					cellBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-							x - cellBox.getWidth() + this.pageSize, y);
+							LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0), y);
 
 				}
 				y += cellBox.getHeight();
@@ -331,7 +336,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource()) {
 					sourceCells[sourceCount] = cellBox;
-					drawXs[sourceCount] = x - cellBox.getWidth() + this.pageSize;
+					drawXs[sourceCount] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
 					drawYs[sourceCount] = y;
 					++sourceCount;
 				}

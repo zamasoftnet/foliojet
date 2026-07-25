@@ -264,7 +264,10 @@ final class CollapsedBorderRules {
 		lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], ax.vStart().apply(rowParams.border));
 		lineBorder[lineBorder.length - 1] = TableCollapsedBorders.collapseBorder(lineBorder[lineBorder.length - 1],
 				ax.vEnd().apply(rowParams.border));
-		for (int j = 0; j < cells.size(); ++j) {
+		// 境界の配列は**列数**の長さ。行のセル数はそれを超えうる
+		// (連結の繰り越しが列数を押し出す)ため、必ず頭打ちにする
+		// (2026-07-25、セル連結のランダム検査で ArrayIndexOutOfBounds を検出)
+		for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 			final CellContent cell = cells.get(j);
 			if (cell.rowspan == 1) {
 				lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
@@ -274,7 +277,7 @@ final class CollapsedBorderRules {
 		// 次の行の上
 		if (hasNextRow) {
 			final InnerTableParams nextRowParams = nextRowBox.getInnerTableParams();
-			for (int j = 0; j < nextCells.size(); ++j) {
+			for (int j = 0, n = Math.min(nextCells.size(), columnCount); j < n; ++j) {
 				final CellContent nextCell = (CellContent) nextCells.get(j);
 				final TableCellPos cellPos = nextCell.getCellBox().getTableCellPos();
 				if (nextCell.rowspan == cellPos.rowspan) {
@@ -285,37 +288,40 @@ final class CollapsedBorderRules {
 		}
 		if (groupFirst && rowFirst) {
 			// 最初の行の上
-			for (int j = 0; j < cells.size(); ++j) {
+			for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 				firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
 						ax.hStart().apply(rowParams.border));
 			}
 		}
 
 		// セル境界
-		for (int j = 0; j < cells.size(); ++j) {
+		for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 			final CellContent cell = cells.get(j);
 			final BlockParams cellParams = cell.getCellBox().getBlockParams();
 			lineBorder[j] = TableCollapsedBorders.collapseBorder(lineBorder[j],
 					ax.vStart().apply(cellParams.frame.border));
 			// 連結内側の V 線は非表示だが非 null を保証する(不正な表で
-			// rowspan が連結内側を跨いだときの読み取りに備える)
-			for (int l = 1; l < cell.colspan; ++l) {
+			// rowspan が連結内側を跨いだときの読み取りに備える)。
+			// lineBorder は列数+1(列と列の間)なので、そちらでも頭打ちにする
+			for (int l = 1; l < cell.colspan && j + l < lineBorder.length; ++l) {
 				lineBorder[j + l] = TableCollapsedBorders.collapseBorder(lineBorder[j + l], Border.NONE_BORDER);
 			}
 			j += cell.colspan - 1;
-			lineBorder[j + 1] = TableCollapsedBorders.collapseBorder(lineBorder[j + 1],
-					ax.vEnd().apply(cellParams.frame.border));
+			if (j + 1 < lineBorder.length) {
+				lineBorder[j + 1] = TableCollapsedBorders.collapseBorder(lineBorder[j + 1],
+						ax.vEnd().apply(cellParams.frame.border));
+			}
 		}
 		if (groupFirst && rowFirst) {
 			// 最初の行の上
-			for (int j = 0; j < cells.size(); ++j) {
+			for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 				final CellContent cell = cells.get(j);
 				final BlockParams cellParams = cell.getCellBox().getBlockParams();
 				firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
 						ax.hStart().apply(cellParams.frame.border));
 			}
 		}
-		for (int j = 0; j < cells.size(); ++j) {
+		for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 			final CellContent cell = cells.get(j);
 			final BlockParams cellParams = cell.getCellBox().getBlockParams();
 			if (cell.rowspan == 1) {
@@ -327,7 +333,7 @@ final class CollapsedBorderRules {
 		}
 		// 次の行の上
 		if (hasNextRow) {
-			for (int j = 0; j < nextCells.size(); ++j) {
+			for (int j = 0, n = Math.min(nextCells.size(), columnCount); j < n; ++j) {
 				final CellContent cell = (CellContent) nextCells.get(j);
 				final BlockParams cellParams = cell.getCellBox().getBlockParams();
 				if (cell.rowspan == cell.getCellBox().getTableCellPos().rowspan) {

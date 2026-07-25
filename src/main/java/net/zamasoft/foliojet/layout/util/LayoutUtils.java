@@ -416,6 +416,24 @@ public final class LayoutUtils {
 	}
 
 	/**
+	 * ページ軸の<b>向き</b>(+1 または -1)を返します。
+	 *
+	 * <p>
+	 * {@link #drawX}が扱うのは「論理位置→物理座標」の変換ですが、
+	 * <b>すでに物理座標にあるものをページ方向へずらす</b>操作
+	 * (セルの{@code vertical-align}など)にも同じ向きが要ります。
+	 * TBとLRは正、<b>RLだけが負</b>です(2026-07-25、vertical-lr対応で新設。
+	 * それまでは{@code isVertical()}で分岐してRL専用に{@code -=}していた)。
+	 * </p>
+	 *
+	 * @param flow 書字方向
+	 * @return ページ軸が正方向なら+1、負方向(RL)なら-1
+	 */
+	public static double pageAxisSign(WritingMode flow) {
+		return flow == WritingMode.RL ? -1 : 1;
+	}
+
+	/**
 	 * 親の物理原点 y から、論理位置に置かれる子の物理Y座標を返します。
 	 * 向きの扱いは{@link #drawX}の説明を参照(縦書きではページ軸がXなので、
 	 * Yは常に行方向だけで決まり、RLとLRで違いはありません)。

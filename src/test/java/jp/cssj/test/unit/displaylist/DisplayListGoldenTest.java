@@ -120,6 +120,12 @@ public class DisplayListGoldenTest extends TestCase {
 			// vertical-lr は vertical-rl の鏡映になる(2026-07-25にLRを実装)
 			"0480-rescue-split/vertical-page-lr.html", //
 			"0390-writing-mode/vertical-lr-blocks.html", //
+			// セル連結(2026-07-25、独立レビュー+ランダム検査で見つけた3件)。
+			// (a) rowspanが行グループを越えてtbody先頭セルを消していた
+			// (b) 連結セルの座標がRL専用式で、vertical-lrで表の外へずれていた
+			"0495-span/rowspan-crosses-rowgroup.html", //
+			"0495-span/rowspan-vertical-lr.html", //
+			"0495-span/rowspan-vertical-rl.html", //
 			"0480-rescue-split/float-tall.html", //
 			"0480-rescue-split/float-exact.html", //
 	};

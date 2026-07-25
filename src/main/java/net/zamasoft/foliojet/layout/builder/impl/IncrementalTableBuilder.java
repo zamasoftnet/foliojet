@@ -152,6 +152,14 @@ public class IncrementalTableBuilder implements TableBuilder {
 			if (this.bindRowGroupBox == null) {
 				this.bindRowGroupBox = this.rowGroupBox;
 			}
+			// rowspanは行グループを越えられない(CSS 2.1 §17.5)。
+			// RetainedTableBuilderは行グループ開始で upperRow = null に
+			// しているが、Incremental側は繰り越しを切っておらず、
+			// thead末尾のrowspanがtbody先頭列を占有していた——
+			// table-layout:fixed では占有された列に落ちるセルが
+			// 「列数外」と判定され**内容ごと消えて**いた
+			// (2026-07-25、独立レビューで発見)
+			this.rowGroupBoundary = true;
 		}
 			break;
 
@@ -927,7 +935,14 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 	}
 
+	/** 直前が行グループ境界か(境界ではrowspanを繰り越さない)。 */
+	private boolean rowGroupBoundary = false;
+
 	private void complementRowspan() {
+		if (this.rowGroupBoundary) {
+			this.rowGroupBoundary = false;
+			return;
+		}
 		if (!this.cellsUnit.isEmpty()) {
 			// rowspanで連結されたセルの補完(共有核 — P2-2)
 			CellContent.complementRowspan(this.cells, (List<?>) this.cellsUnit.get(this.cellsUnit.size() - 1));

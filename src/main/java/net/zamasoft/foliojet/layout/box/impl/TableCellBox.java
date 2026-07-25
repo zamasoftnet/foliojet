@@ -297,7 +297,9 @@ public class TableCellBox extends AbstractContainerBox {
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
 		if (this.params.flow.isVertical()) {
-			x -= this.verticalAlign;
+			// vertical-align はページ方向のずらし。向きはRLだけ負
+			// (2026-07-25、vertical-lr対応。従来はRL専用に -= していた)
+			x += LayoutUtils.pageAxisSign(this.params.flow) * this.verticalAlign;
 		} else {
 			y += this.verticalAlign;
 		}
@@ -321,7 +323,9 @@ public class TableCellBox extends AbstractContainerBox {
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
 		if (this.params.flow.isVertical()) {
-			x -= this.verticalAlign;
+			// vertical-align はページ方向のずらし。向きはRLだけ負
+			// (2026-07-25、vertical-lr対応。従来はRL専用に -= していた)
+			x += LayoutUtils.pageAxisSign(this.params.flow) * this.verticalAlign;
 		} else {
 			y += this.verticalAlign;
 		}
@@ -366,7 +370,9 @@ public class TableCellBox extends AbstractContainerBox {
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
 		if (this.params.flow.isVertical()) {
-			x -= this.verticalAlign;
+			// vertical-align はページ方向のずらし。向きはRLだけ負
+			// (2026-07-25、vertical-lr対応。従来はRL専用に -= していた)
+			x += LayoutUtils.pageAxisSign(this.params.flow) * this.verticalAlign;
 		} else {
 			y += this.verticalAlign;
 		}
