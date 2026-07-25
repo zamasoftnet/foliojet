@@ -39,8 +39,9 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  */
 record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow, byte direction,
 		FontManager fontManager, LineBreakRules lineBreakRules, Length letterSpacing, double wordSpacing,
-		byte textTransform, byte whiteSpace, byte wordWrap, byte hyphens, Hyphenator hyphenator, Color color,
-		byte decoration, double decorationThickness, double textStrokeWidth, Color textStrokeColor,
+		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
+		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, double textStrokeWidth,
+		Color textStrokeColor,
 		TextShadow[] textShadows, byte rubyRole) {
 	TextParamsFields {
 		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
@@ -51,8 +52,9 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 	static TextParamsFields freeze(final AbstractTextParams source) {
 		return new TextParamsFields(ParamsFields.freeze(source), source.fontStyle, source.flow, source.direction,
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
-				source.textTransform, source.whiteSpace, source.wordWrap, source.hyphens, source.hyphenator,
-				source.color, source.decoration, source.decorationThickness, source.textStrokeWidth,
+				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
+				source.hyphenator, source.color, source.decoration, source.decorationThickness,
+				source.textStrokeWidth,
 				source.textStrokeColor, source.textShadows, source.rubyRole);
 	}
 
@@ -73,6 +75,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.textTransform = this.textTransform;
 		target.whiteSpace = this.whiteSpace;
 		target.wordWrap = this.wordWrap;
+		target.textWrapStyle = this.textWrapStyle;
 		target.hyphens = this.hyphens;
 		target.hyphenator = this.hyphenator;
 		target.color = this.color;

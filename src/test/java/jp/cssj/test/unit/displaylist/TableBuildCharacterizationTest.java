@@ -262,11 +262,6 @@ public class TableBuildCharacterizationTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
-				// 本テストは表構築経路の発火特性(ルーティング・rowspan切断)を
-				// 固定するもので、行分割戦略は無関係。K-P(optimized、2026-07-24
-				// 既定化)は改行位置が変わりセルがページ境界を跨がなくなる等で
-				// 発火条件が揺れるため、fixtureが前提とする貪欲法へ固定する
-				session.property("text.line-breaker", "legacy");
 				CTISessionHelper.transcodeFile(session, source, "text/html", null);
 			} finally {
 				session.close();

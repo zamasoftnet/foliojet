@@ -132,7 +132,7 @@ public class TextBuilder {
 	private BreakOpportunity opportunity = BreakOpportunity.NONE;
 
 	/**
-	 * Knuth-Plass行分割({@code text.line-breaker=optimized})の選択済み
+	 * Knuth-Plass行分割({@code text-wrap-style: pretty})の選択済み
 	 * breakpoint列です(2026-07-23、M3c増分3)。{@link TotalFitSession}の
 	 * 最適化再生中のみ非null——このインスタンスに束縛され、行間改ページで
 	 * 新しいTextBuilderに差し替わった場合は引き継がれない(残りはlegacyの

@@ -525,20 +525,11 @@ public class RootBuilder extends BreakableBuilder {
 
 	private final PageGenerator pageGenerator;
 
-	/**
-	 * Knuth-Plass行分割({@code text.line-breaker=optimized})のオプトイン
-	 * です(2026-07-23、M3c増分3)。変換単位で確定し、既定(legacy)では
-	 * false。
-	 */
-	private final boolean optimizedText;
-
 	private PageBox pageBox;
 
 	public RootBuilder(PageGenerator pageGenerator, byte mode) {
 		super(null, null, mode);
 		this.pageGenerator = pageGenerator;
-		this.optimizedText = "optimized".equals(
-				net.zamasoft.foliojet.ua.props.UAProps.TEXT_LINE_BREAKER.getString(pageGenerator.getUserAgent()));
 		this.pageBox = pageGenerator.nextPage();
 
 		this.pageSide = this.pageGenerator.getPageSide();
@@ -565,15 +556,6 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public final boolean isSegmentRestyle() {
 		return SEGMENT_RESTYLE;
-	}
-
-	/**
-	 * Knuth-Plass行分割が有効かを返します(M3c)。破断残余の再構築
-	 * (restyle)中は、切断段落の尾部再生・閉部分木再生と混線しない
-	 * よう保守的に無効とする。
-	 */
-	final boolean isOptimizedTextEnabled() {
-		return this.optimizedText && !this.isRestyling();
 	}
 
 	/**

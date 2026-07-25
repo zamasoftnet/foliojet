@@ -1,0 +1,11 @@
+/*
+ * Knuth-Plass行分割(CSS text-wrap-style: pretty)を文書全体へオプトイン
+ * させるためのテスト専用スタイルシートです(2026-07-25)。
+ *
+ * 同一のfixtureを「貪欲法」と「K-P」の両方で組んで比較するパリティ系の
+ * テストが、input.default-stylesheet として読み込みます——fixture自体に
+ * 指定を書くと片方しか作れないため。
+ */
+html {
+	text-wrap-style: pretty;
+}

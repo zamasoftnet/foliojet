@@ -137,7 +137,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	 * 配達済みソース文字の終端オフセットを返します(M6b v3)。
 	 *
 	 * <p>
-	 * M3c: K-P行分割セッション({@code text.line-breaker=optimized})が
+	 * M3c: K-P行分割セッション({@code text-wrap-style: pretty})が
 	 * イベントを蓄積・再生している間は、「物理的にTextBuilderへ届いた」
 	 * 境界になるよう未配達イベントの先頭ソース位置でclampされる(既定の
 	 * legacy経路ではセッションが存在せず、値は従来のまま)。

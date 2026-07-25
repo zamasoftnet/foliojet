@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import jp.cssj.cti2.helpers.CTIMessageHelper;
+import jp.cssj.test.unit.TextWrapStyleOptIn;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
@@ -17,14 +18,16 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code text.line-breaker}のlegacy/optimized性能比較ハーネスです
+ * 行分割戦略(貪欲法/K-P)の性能比較ハーネスです
  * (E-2。CIの常時実行対象ではなく、性能作業時に手動で回す:
  * {@code ./gradlew test --tests "*.LineBreakerPerfHarness"})。
  *
  * <p>
  * 和文主体(全文字がbreakpoint候補=K-P負荷最大)と欧文主体(空白のみ
  * 候補)の2種の合成文書を生成し、ウォームアップ後の中央値で比較する。
- * 目的は回帰判定ではなく「optimized既定化の可否判断」のための実測。
+ * 目的は回帰判定ではなく「K-P既定化の可否判断」のための実測。
+ * K-Pのオプトインは著者スタイルシート
+ * ({@code html { text-wrap-style: pretty }})で与える。
  * </p>
  */
 public class LineBreakerPerfHarness extends TestCase {
@@ -60,18 +63,18 @@ public class LineBreakerPerfHarness extends TestCase {
 		Files.writeString(latin.toPath(), generateLatin(400), StandardCharsets.UTF_8);
 
 		for (final File doc : new File[] { cjk, latin }) {
-			final long legacy = median(doc, "legacy");
-			final long optimized = median(doc, "optimized");
+			final long legacy = median(doc, false);
+			final long optimized = median(doc, true);
 			System.out.printf("PERF %s: legacy=%dms optimized=%dms ratio=%.2f%n", doc.getName(), legacy, optimized,
 					(double) optimized / legacy);
 		}
 	}
 
-	private long median(final File doc, final String lineBreaker) throws Exception {
+	private long median(final File doc, final boolean pretty) throws Exception {
 		final long[] times = new long[RUNS];
 		for (int i = 0; i < WARMUP + RUNS; ++i) {
 			final long t0 = System.nanoTime();
-			this.transcode(doc, lineBreaker);
+			this.transcode(doc, pretty);
 			final long ms = (System.nanoTime() - t0) / 1_000_000;
 			if (i >= WARMUP) {
 				times[i - WARMUP] = ms;
@@ -81,7 +84,7 @@ public class LineBreakerPerfHarness extends TestCase {
 		return times[RUNS / 2];
 	}
 
-	private void transcode(final File doc, final String lineBreaker) throws Exception {
+	private void transcode(final File doc, final boolean pretty) throws Exception {
 		final File pdf = new File("local/unittest/line-breaker-perf/out.pdf");
 		try (OutputStream out = new FileOutputStream(pdf)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
@@ -89,7 +92,9 @@ public class LineBreakerPerfHarness extends TestCase {
 				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
-				session.property("text.line-breaker", lineBreaker);
+				if (pretty) {
+					session.property("input.default-stylesheet", TextWrapStyleOptIn.PRETTY_STYLESHEET);
+				}
 				CTISessionHelper.transcodeFile(session, doc, "text/html", null);
 			} finally {
 				session.close();

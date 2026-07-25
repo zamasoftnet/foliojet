@@ -20,6 +20,7 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import jp.cssj.test.unit.TextWrapStyleOptIn;
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
@@ -93,28 +94,30 @@ public class RetainedCellPassBShadowTest extends TestCase {
 		for (final String doc : DOCUMENTS) {
 			jobs.add(new String[] { "files/unittest/" + doc, doc, null });
 		}
-		// 200行fixture: 計測コストの実測+K-P行分割(optimized)下の決定性
+		// 200行fixture: 計測コストの実測+K-P行分割(text-wrap-style:
+		// pretty)下の決定性
 		final File generated = generateAutoTable("e6-passb-auto-table", GENERATED_ROWS, GENERATED_COLUMNS);
 		jobs.add(new String[] { generated.getPath(), "generated-200rows", null });
-		jobs.add(new String[] { generated.getPath(), "generated-200rows-optimized", "optimized" });
+		jobs.add(new String[] { generated.getPath(), "generated-200rows-optimized",
+				TextWrapStyleOptIn.PRETTY_STYLESHEET });
 
 		for (final String[] job : jobs) {
 			final String path = job[0];
 			final String label = job[1];
-			final String lineBreaker = job[2];
+			final String defaultStylesheet = job[2];
 			final String name = label.replace('/', '_').replace(".html", "");
 			final File baselineDir = new File("local/unittest/cell-pass-b/" + name + "-baseline");
 			final File shadowDir = new File("local/unittest/cell-pass-b/" + name + "-shadow");
 
 			// shadow計測なしの基準display list
-			this.dump(path, name + "-baseline", baselineDir, lineBreaker, null);
+			this.dump(path, name + "-baseline", baselineDir, defaultStylesheet, null);
 
 			// shadow計測ありのtranscode
 			final Shadow shadow = new Shadow(label);
 			RetainedTableBuilder.cellBindShadow = shadow;
 			final long wall0 = System.nanoTime();
 			try {
-				this.dump(path, name + "-shadow", shadowDir, lineBreaker, shadow);
+				this.dump(path, name + "-shadow", shadowDir, defaultStylesheet, shadow);
 			} finally {
 				RetainedTableBuilder.cellBindShadow = null;
 			}
@@ -275,8 +278,8 @@ public class RetainedCellPassBShadowTest extends TestCase {
 		return file;
 	}
 
-	private void dump(final String sourcePath, final String name, final File outDir, final String lineBreaker,
-			final Shadow shadow) throws Exception {
+	private void dump(final String sourcePath, final String name, final File outDir,
+			final String defaultStylesheet, final Shadow shadow) throws Exception {
 		deleteChildren(outDir);
 		outDir.mkdirs();
 		System.setProperty(DisplayListDumper.DIR_PROPERTY, outDir.getPath());
@@ -291,8 +294,8 @@ public class RetainedCellPassBShadowTest extends TestCase {
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 					session.property("input.include", "**");
 					session.property("input.property-pi", "true");
-					if (lineBreaker != null) {
-						session.property("text.line-breaker", lineBreaker);
+					if (defaultStylesheet != null) {
+						session.property("input.default-stylesheet", defaultStylesheet);
 					}
 					CTISessionHelper.transcodeFile(session, new File(sourcePath), "text/html", null);
 				} finally {

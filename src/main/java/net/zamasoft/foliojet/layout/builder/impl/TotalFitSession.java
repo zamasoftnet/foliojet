@@ -22,8 +22,9 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
 
 /**
- * Knuth-Plass行分割({@code text.line-breaker=optimized})のオプトイン
- * セッションです(2026-07-23新設、M3c増分3)。
+ * Knuth-Plass行分割(CSS {@code text-wrap-style: pretty})のオプトイン
+ * セッションです(2026-07-23新設、M3c増分3。2026-07-25に独自プロパティ
+ * {@code text.line-breaker}からCSSへ一本化)。
  *
  * <p>
  * {@code requireTextBlock()}〜{@code endTextBlock()}のTextBuilder構築
@@ -39,7 +40,8 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
  * verbatim再生=legacyと完全一致の出力にフォールバックする:
  * </p>
  * <ul>
- * <li>開始時: 改ページ再開({@code BreakToken.midFlow/midLine})でない・
+ * <li>開始時: 段落の算出値が{@code text-wrap-style: pretty}である・
+ * 改ページ再開({@code BreakToken.midFlow/midLine})でない・
  * 横書き({@code WritingMode.TB}。縦書きは天付き調整
  * {@code locateLine()}が行ごとに実効幅を変えるため初期版では除外)・
  * {@code ::first-line}なし・段落開始Y以降に影響しうるfloat排除域が
@@ -163,6 +165,12 @@ final class TotalFitSession {
 		}
 		final LayoutContext.Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
+		if (params.textWrapStyle != AbstractTextParams.TEXT_WRAP_STYLE_PRETTY) {
+			// CSS text-wrap-style: pretty のオプトイン(2026-07-25)。
+			// 既定(auto)は貪欲法——K-Pの適用単位は段落なので、段落を
+			// 確立するブロックの算出値だけを見る
+			return null;
+		}
 		if (params.flow != WritingMode.TB) {
 			// 縦書きは天付き(locateLineのCL01調整)が行ごとの実効幅を
 			// 変えるため初期版では除外する

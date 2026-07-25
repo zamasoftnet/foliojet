@@ -16,6 +16,7 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
+import jp.cssj.test.unit.TextWrapStyleOptIn;
 import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
@@ -101,9 +102,10 @@ public class TwoPassRangeBindParityTest extends TestCase {
 	};
 
 	/**
-	 * Knuth-Plass行分割({@code text.line-breaker=optimized})下のfloat。
+	 * Knuth-Plass行分割(CSS {@code text-wrap-style: pretty})下のfloat。
 	 * range bindはbind先のBlockBuilder配下でTotalFitSessionを通常構築と
-	 * 同じに再駆動する——その決定性の固定。
+	 * 同じに再駆動する——その決定性の固定。オプトインは著者スタイル
+	 * シート({@link TextWrapStyleOptIn#PRETTY_STYLESHEET})で与える。
 	 */
 	private static final String[] OPTIMIZED_DOCUMENTS = { //
 			"3200-line-breaker/parity-float.html", //
@@ -126,18 +128,18 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			jobs.add(new String[] { doc, null });
 		}
 		for (final String doc : OPTIMIZED_DOCUMENTS) {
-			jobs.add(new String[] { doc, "optimized" });
+			jobs.add(new String[] { doc, TextWrapStyleOptIn.PRETTY_STYLESHEET });
 		}
 		for (final String[] job : jobs) {
 			final String doc = job[0];
-			final String lineBreaker = job[1];
+			final String defaultStylesheet = job[1];
 			final String name = doc.replace('/', '_').replace(".html", "");
 			final File baselineDir = new File("local/unittest/two-pass-range-bind/" + name + "-baseline");
 			final File rangeDir = new File("local/unittest/two-pass-range-bind/" + name + "-range");
 
 			// legacy(kill switchで退避)の基準
 			ContinuationStats.reset();
-			this.dump(doc, name + "-baseline", baselineDir, lineBreaker, false);
+			this.dump(doc, name + "-baseline", baselineDir, defaultStylesheet, false);
 			assertEquals(doc + ": kill switch下でrange bindが発火してはならない", 0,
 					ContinuationStats.RANGE_FIRST_BINDS.get());
 			assertEquals(doc + ": kill switch下でsealが適格になってはならない", 0,
@@ -147,7 +149,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 
 			// range bind(4bのproduction既定)
 			ContinuationStats.reset();
-			this.dump(doc, name + "-range", rangeDir, lineBreaker, true);
+			this.dump(doc, name + "-range", rangeDir, defaultStylesheet, true);
 			rangeBinds += ContinuationStats.RANGE_FIRST_BINDS.get();
 			sealsEligible += ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get();
 			cellSeals += ContinuationStats.CELL_RANGE_SEALS.get();
@@ -214,7 +216,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		}
 	}
 
-	private void dump(final String doc, final String name, final File outDir, final String lineBreaker,
+	private void dump(final String doc, final String name, final File outDir, final String defaultStylesheet,
 			final boolean rangeBind) throws Exception {
 		deleteChildren(outDir);
 		outDir.mkdirs();
@@ -234,8 +236,8 @@ public class TwoPassRangeBindParityTest extends TestCase {
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 					session.property("input.include", "**");
 					session.property("input.property-pi", "true");
-					if (lineBreaker != null) {
-						session.property("text.line-breaker", lineBreaker);
+					if (defaultStylesheet != null) {
+						session.property("input.default-stylesheet", defaultStylesheet);
 					}
 					CTISessionHelper.transcodeFile(session, new File("files/unittest/" + doc), "text/html", null);
 				} finally {

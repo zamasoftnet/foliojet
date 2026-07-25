@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jp.cssj.cti2.helpers.CTIMessageHelper;
+import jp.cssj.test.unit.TextWrapStyleOptIn;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
@@ -20,13 +21,21 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code text.line-breaker=optimized}のフォールバック一致テストです
- * (M3c増分4)。フォールバック対象(float・タブ・インライン置換要素/
+ * CSS {@code text-wrap-style: pretty}のフォールバック一致テストです
+ * (M3c増分4。2026-07-25に独自プロパティ{@code text.line-breaker}から
+ * CSS指定へ移行)。フォールバック対象(float・タブ・インライン置換要素/
  * インラインブロック/ルビ・pre/pre-wrap・縦書き・word-wrap:break-word・
- * 段落途中float+行間改ページ)を含む文書について、optimized指定でも
- * legacyと**display listが完全一致**することを検証する——フォールバックは
- * 蓄積イベントのverbatim再生でlegacyと同一経路、という増分3の設計保証の
- * 固定。golden不要(同一プロセス内で両者を生成して直接比較)。
+ * 段落途中float+行間改ページ)を含む文書について、pretty指定でも
+ * 既定(auto=貪欲法)と**display listが完全一致**することを検証する
+ * ——フォールバックは蓄積イベントのverbatim再生で貪欲法と同一経路、
+ * という増分3の設計保証の固定。golden不要(同一プロセス内で両者を
+ * 生成して直接比較)。
+ *
+ * <p>
+ * 同一fixtureを両モードで組む必要があるため、prettyのオプトインは
+ * 著者スタイルシート({@link TextWrapStyleOptIn#PRETTY_STYLESHEET})を
+ * {@code input.default-stylesheet}で読ませて与える。
+ * </p>
  */
 public class FallbackParityTest extends TestCase {
 	static {
@@ -65,8 +74,8 @@ public class FallbackParityTest extends TestCase {
 		final String name = doc.replace('/', '_').replace(".html", "");
 		final File legacyDir = new File("local/unittest/line-breaker-parity/" + name + "-legacy");
 		final File optimizedDir = new File("local/unittest/line-breaker-parity/" + name + "-optimized");
-		this.dump(doc, name + "-legacy", legacyDir, "legacy");
-		this.dump(doc, name + "-optimized", optimizedDir, "optimized");
+		this.dump(doc, name + "-legacy", legacyDir, false);
+		this.dump(doc, name + "-optimized", optimizedDir, true);
 
 		final File[] legacyPages = legacyDir.listFiles((d, n) -> n.endsWith(".txt"));
 		final File[] optimizedPages = optimizedDir.listFiles((d, n) -> n.endsWith(".txt"));
@@ -88,7 +97,7 @@ public class FallbackParityTest extends TestCase {
 		}
 	}
 
-	private void dump(final String doc, final String name, final File outDir, final String lineBreaker)
+	private void dump(final String doc, final String name, final File outDir, final boolean pretty)
 			throws Exception {
 		deleteChildren(outDir);
 		outDir.mkdirs();
@@ -104,7 +113,9 @@ public class FallbackParityTest extends TestCase {
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 					session.property("input.include", "**");
 					session.property("input.property-pi", "true");
-					session.property("text.line-breaker", lineBreaker);
+					if (pretty) {
+						session.property("input.default-stylesheet", TextWrapStyleOptIn.PRETTY_STYLESHEET);
+					}
 					CTISessionHelper.transcodeFile(session, new File("files/unittest/" + doc), "text/html", null);
 				} finally {
 					session.close();

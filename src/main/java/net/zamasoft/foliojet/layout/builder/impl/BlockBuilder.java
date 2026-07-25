@@ -80,7 +80,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected TextBuilder textBuilder = null;
 
 	/**
-	 * Knuth-Plass行分割({@code text.line-breaker=optimized})の蓄積
+	 * Knuth-Plass行分割({@code text-wrap-style: pretty})の蓄積
 	 * セッションです(2026-07-23、M3c増分3)。オプトインが有効で段落が
 	 * 適格な場合のみ{@link #requireTextBlock()}で開始され、記録中は
 	 * テキストイベントを{@link #textBuilder}へ配達せず蓄積する。既定
@@ -1215,7 +1215,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		double localPageAxis = this.pageAxis - flow.pageAxis;
 		flow.box.addFlow(this.textBuilder.textBlockBox, localPageAxis);
 
-		// M3c: オプトイン時のみ、適格な段落のK-P蓄積セッションを開始する
+		// M3c: オプトイン時(text-wrap-style: pretty)のみ、適格な段落の
+		// K-P蓄積セッションを開始する
 		if (this.textSession == null && this.optimizedTextEnabled()) {
 			this.textSession = TotalFitSession.tryBegin(this, this.textBuilder, breakToken);
 		}
@@ -1236,10 +1237,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * Knuth-Plass行分割({@code text.line-breaker=optimized})が有効かを
-	 * 返します(M3c)。プロパティは変換単位で{@link RootBuilder}が保持
-	 * する。破断残余の再構築(restyle)中は、切断段落の尾部再生等の
-	 * 再開機構と混線しないよう保守的に無効とする。
+	 * Knuth-Plass行分割の蓄積セッションを開始しうる文脈かを返します
+	 * (M3c)。オプトインの可否そのものは段落の算出値
+	 * ({@code text-wrap-style: pretty})で決まり、{@link TotalFitSession#tryBegin}
+	 * が判定する(2026-07-25、独自プロパティ{@code text.line-breaker}から
+	 * CSSへ一本化)。ここで見るのは文脈側の条件だけ——破断残余の再構築
+	 * (restyle)中は、切断段落の尾部再生等の再開機構と混線しないよう
+	 * 保守的に無効とする。
 	 */
 	private boolean optimizedTextEnabled() {
 		final RootBuilder root;
@@ -1251,7 +1255,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// ページ文脈を持たない再レイアウト用ビルダー
 			return false;
 		}
-		if (root == null || !root.isOptimizedTextEnabled()) {
+		if (root == null || root.isRestyling()) {
 			return false;
 		}
 		if (this instanceof BreakableBuilder breakable && breakable.isRestyling()) {

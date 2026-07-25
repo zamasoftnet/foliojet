@@ -139,6 +139,7 @@ import net.zamasoft.foliojet.css.impl.property.text.TextStrokeColor;
 import net.zamasoft.foliojet.css.impl.property.text.TextStrokeWidth;
 import net.zamasoft.foliojet.css.impl.property.box.Transform;
 import net.zamasoft.foliojet.css.impl.property.box.TransformOrigin;
+import net.zamasoft.foliojet.css.impl.property.text.TextWrapStyle;
 import net.zamasoft.foliojet.css.impl.property.text.WordWrap;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
@@ -837,6 +838,7 @@ public class StyleBuilder implements PageGenerator {
 		this.setupParams(params, style);
 		params.whiteSpace = WhiteSpace.get(style);
 		params.wordWrap = WordWrap.get(style);
+		params.textWrapStyle = TextWrapStyle.get(style);
 		params.color = TextFillColor.get(style);
 		params.decoration = TextDecoration.get(style);
 		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(AbsoluteFontSize.MEDIUM) / 2.0;

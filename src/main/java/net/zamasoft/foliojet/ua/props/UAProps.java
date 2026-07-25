@@ -500,37 +500,6 @@ public final class UAProps {
 			"processing.text-spill-budget", 8L * 1024L * 1024L);
 
 	/**
-	 * 行分割の戦略です(既定{@code "legacy"}=貪欲法)。
-	 *
-	 * <p>
-	 * <b>既定が貪欲法なのはブラウザ準拠の設計判断です</b>(2026-07-25裁定)。
-	 * Chrome/Firefox/Safariとも既定は貪欲法(first-fit)で、段落全体最適化は
-	 * {@code text-wrap: pretty}のオプトインとして最近入り始めた段階
-	 * (Chrome 130+は段落末4行のみ、Safariは全行)。本エンジンの目標は
-	 * 「印刷向けストリームブラウザ」なので、同じ切り分けを採る:
-	 * <b>既定は性能(貪欲法)、品質が必要なデザイナーがoptimizedを選ぶ</b>。
-	 * 実測性能差は和文密justifyで約7倍、欧文で約1.4倍(貪欲法が速い)。
-	 * </p>
-	 *
-	 * <p>
-	 * 値は{@code "legacy"}(貪欲法。1行ずつ詰められるだけ詰める)または
-	 * {@code "optimized"}(Knuth-Plass全体最適。段落全体のdemeritsを
-	 * 最小化する改行位置を選ぶ——連続ハイフン行の回避、行の詰まり具合の
-	 * 平準化)。{@code "optimized"}でも適格な段落に限られ、不適格
-	 * (縦書き・{@code white-space: pre/pre-wrap}・{@code word-wrap:
-	 * break-word}・ルビ/インライン置換要素/インラインブロック/インライン
-	 * 絶対配置・タブ・段落内float・改ページ再開中・イベント数上限超過・
-	 * {@code ::first-line})なら貪欲法へフォールバックする。
-	 * 実測適格率は横書き中心のコーパスで82%、縦書き文書では0%。
-	 * どちらの場合も物理的な行生成(禁則・ハイフン実体化・両端揃え)は
-	 * 従来の{@code TextBuilder}が唯一の担当で、K-Pは改行位置を選ぶだけ。
-	 * {@code "optimized"}以外の値(不正な値を含む)は{@code "legacy"}として
-	 * 扱われる。
-	 * </p>
-	 */
-	public static final StringPropManager TEXT_LINE_BREAKER = new StringPropManager("text.line-breaker", "legacy");
-
-	/**
 	 * ファイルIDです。
 	 */
 	public static final StringPropManager OUTPUT_PDF_FILE_ID = new StringPropManager("output.pdf.file-id", null);
@@ -716,7 +685,6 @@ public final class UAProps {
 			PROCESSING_LARGE_STACK_THREAD,
 			PROCESSING_LARGE_STACK_THREAD_SIZE,
 			PROCESSING_TEXT_SPILL_BUDGET,
-			TEXT_LINE_BREAKER,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,

@@ -34,6 +34,17 @@ public abstract class AbstractTextParams extends Params {
 
 	public static final byte WORD_WRAP_BREAK_WORD = 2;
 
+	/**
+	 * {@code text-wrap-style: auto}(貪欲法。既定)です。
+	 * {@code balance}/{@code stable}も未対応のためこの値へ落とします。
+	 */
+	public static final byte TEXT_WRAP_STYLE_AUTO = 1;
+
+	/**
+	 * {@code text-wrap-style: pretty}(Knuth-Plass全体最適)です。
+	 */
+	public static final byte TEXT_WRAP_STYLE_PRETTY = 2;
+
 	public static final byte HYPHENS_NONE = 1;
 
 	public static final byte HYPHENS_MANUAL = 2;
@@ -120,6 +131,15 @@ public abstract class AbstractTextParams extends Params {
 	public byte wordWrap = WORD_WRAP_NORMAL;
 
 	/**
+	 * 行分割戦略(CSS {@code text-wrap-style})です(2026-07-25)。
+	 * {@link #TEXT_WRAP_STYLE_PRETTY}のときだけKnuth-Plass全体最適
+	 * ({@code TotalFitSession})を試み、既定の{@link #TEXT_WRAP_STYLE_AUTO}
+	 * では貪欲法で組みます。K-Pの適用単位が段落のため、実際に読まれるのは
+	 * 段落を確立するブロック({@code BlockParams})の値だけです。
+	 */
+	public byte textWrapStyle = TEXT_WRAP_STYLE_AUTO;
+
+	/**
 	 * 単語内分綴(CSS hyphens)。
 	 */
 	public byte hyphens = HYPHENS_MANUAL;
@@ -165,7 +185,8 @@ public abstract class AbstractTextParams extends Params {
 
 	public String toString() {
 		return super.toString() + "[fontStyle=" + this.fontStyle + ",letterSpacing=" + this.letterSpacing
-				+ ",whiteSpace=" + this.whiteSpace + ",wordWrap=" + this.wordWrap + ",color=" + this.color
+				+ ",whiteSpace=" + this.whiteSpace + ",wordWrap=" + this.wordWrap + ",textWrapStyle="
+				+ this.textWrapStyle + ",color=" + this.color
 				+ ",decoration=" + this.decoration + ",decorationThickness=" + this.decorationThickness
 				+ ",textStrokeWidth=" + this.textStrokeWidth + ",textStrokeColor=" + this.textStrokeColor + "]";
 	}

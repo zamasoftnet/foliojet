@@ -96,6 +96,8 @@ import net.zamasoft.foliojet.css.impl.property.text.TextStrokeWidth;
 import net.zamasoft.foliojet.css.impl.property.box.Transform;
 import net.zamasoft.foliojet.css.impl.property.box.TransformOrigin;
 import net.zamasoft.foliojet.css.impl.property.text.WordBreak;
+import net.zamasoft.foliojet.css.impl.property.text.TextWrapStyle;
+import net.zamasoft.foliojet.css.impl.property.shorthand.TextWrapShorthand;
 import net.zamasoft.foliojet.css.impl.property.text.WordWrap;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJFontPolicy;
@@ -296,6 +298,8 @@ public final class ElementPropertySet extends PropertySet {
 		put(WritingModeShorthand.INFO);
 		reg(WordWrap.INFO);
 		reg(WordBreak.INFO);
+		reg(TextWrapStyle.INFO);
+		put(TextWrapShorthand.INFO);
 		reg(Hyphens.INFO);
 		reg(ColumnCount.INFO);
 		reg(ColumnWidth.INFO);
