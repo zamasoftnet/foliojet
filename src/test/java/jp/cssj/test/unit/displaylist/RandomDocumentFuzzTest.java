@@ -174,6 +174,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 出力する。これが「あと何件残っているか」「次の失敗まで何回か」の
 	 * 推定の入力になる(`copperpdf4/docs/REVIEW-STATISTICS.md` §8)。
 	 */
+	/**
+	 * このシード数までは、シードごとに成果物(HTML・表示リスト)を残す。
+	 * これを超える掃過では使い回して捨てる——数百万文書を残すと
+	 * ディスクが保たないため。生成器は決定的なので、失敗したシードは
+	 * 同じシードで再実行すれば再現できる。
+	 */
+	private static final int KEEP_ARTIFACTS_BELOW = 20_000;
+
 	private static boolean reportMode() {
 		return System.getProperty("foliojet.fuzzReport") != null;
 	}
@@ -237,9 +245,83 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return null;
 	}
 
+	/**
+	 * 集計モードの並列度({@code -Dfoliojet.fuzzThreads})。既定は
+	 * 「コア数-2」。数百万文書の掃過は並列化しないと現実的な時間に
+	 * 収まらない(2026-07-26に「20年間エラーなし」を目標化した際に追加)。
+	 *
+	 * <p>
+	 * 変換は文書ごとに独立で、エンジン自身もサーバ用途で並行変換を
+	 * 前提にしている(状態はThreadLocal)。1文書=1スレッドという
+	 * 既存の構造をそのまま横に並べるだけで、判定内容は変えない。
+	 * </p>
+	 */
+	private static int sweepThreads() {
+		final String v = System.getProperty("foliojet.fuzzThreads");
+		if (v != null) {
+			return Math.max(1, Integer.parseInt(v));
+		}
+		return Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
+	}
+
+	/** 集計モードの並列掃過。判定は{@link #checkOne}で共通。 */
+	private void sweepParallel(final boolean strict, final int seeds) throws Exception {
+		final int threads = sweepThreads();
+		final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger> classCount =
+				new java.util.concurrent.ConcurrentHashMap<>();
+		final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> seedsOf =
+				new java.util.concurrent.ConcurrentHashMap<>();
+		final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger(0);
+		final long began = System.currentTimeMillis();
+		final Thread[] workers = new Thread[threads];
+		for (int w = 0; w < threads; ++w) {
+			workers[w] = new Thread(() -> {
+				for (;;) {
+					final int seed = next.getAndIncrement();
+					if (seed >= seeds) {
+						return;
+					}
+					try {
+						checkOne(seed, strict);
+					} catch (final Throwable t) {
+						final String k = classify(t);
+						classCount.computeIfAbsent(k, x -> new java.util.concurrent.atomic.AtomicInteger())
+								.incrementAndGet();
+						final java.util.List<Integer> lst = seedsOf.computeIfAbsent(k,
+								x -> java.util.Collections.synchronizedList(new ArrayList<>()));
+						synchronized (lst) {
+							if (lst.size() < 8) {
+								lst.add(seed);
+							}
+						}
+					}
+				}
+			}, "fuzz-sweep-" + (strict ? "s" : "w") + w);
+			workers[w].setDaemon(true);
+			workers[w].start();
+		}
+		for (final Thread t : workers) {
+			t.join();
+		}
+		final long ms = System.currentTimeMillis() - began;
+		System.out.println("[fuzzReport] mode=" + (strict ? "strict" : "wild") + " seeds=" + seeds + " threads="
+				+ threads + " elapsed=" + (ms / 1000) + "s (" + String.format("%.2f", ms / (double) seeds)
+				+ " ms/文書)");
+		if (classCount.isEmpty()) {
+			System.out.println("[fuzzReport]   失敗なし");
+		}
+		for (final String k : new java.util.TreeSet<>(classCount.keySet())) {
+			System.out.println("[fuzzReport]   " + k + " : " + classCount.get(k).get() + "件 seeds=" + seedsOf.get(k));
+		}
+	}
+
 	private void sweep(final boolean strict) throws Exception {
 		final int seeds = seedCount();
 		final boolean report = reportMode();
+		if (report) {
+			this.sweepParallel(strict, seeds);
+			return;
+		}
 		final List<String> failures = new ArrayList<>();
 		final List<Integer> knownStillFailing = new ArrayList<>();
 		final java.util.TreeMap<String, int[]> classCount = new java.util.TreeMap<>();
@@ -294,13 +376,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	private void checkOne(final int seed, final boolean strict) throws Exception {
 		final Generated doc = generate(seed, strict);
-		final File html = new File("local/fuzz/" + (strict ? "strict" : "wild") + "-" + seed + ".html");
+		// 長時間掃過(数百万文書)では、シードごとの成果物を残すとディスクが
+		// 保たない。失敗したシードは同じシードで再実行すれば必ず再現する
+		// (生成器は決定的)ので、成功したシードの成果物は捨ててよい。
+		// 保存ディレクトリもシードで分けず使い回す(2026-07-26)
+		final boolean keep = !reportMode() || seedCount() <= KEEP_ARTIFACTS_BELOW;
+		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
+		final File html = new File("local/fuzz/" + (strict ? "strict" : "wild") + "-" + slot + ".html");
 		html.getParentFile().mkdirs();
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(html), StandardCharsets.UTF_8)) {
 			w.write(doc.html);
 		}
 
-		final File outDir = new File("local/fuzz/dl-" + (strict ? "strict" : "wild") + "-" + seed);
+		final File outDir = new File("local/fuzz/dl-" + (strict ? "strict" : "wild") + "-" + slot);
 		outDir.mkdirs();
 		final File[] old = outDir.listFiles();
 		if (old != null) {
@@ -375,8 +463,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private static void convert(final File html, final File outDir) throws Exception {
-		System.setProperty(DisplayListDumper.DIR_PROPERTY, outDir.getPath());
-		try {
+		// 出力先はスレッド単位。システムプロパティだとプロセス全体で共有され、
+		// 並列掃過でダンプ先が互いに上書きされる(2026-07-26)
+		try (AutoCloseable scope = DisplayListDumper.scopedDir(outDir.getPath())) {
 			final File pdf = new File(outDir, "out.pdf");
 			try (OutputStream out = new FileOutputStream(pdf)) {
 				final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
@@ -391,8 +480,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 					session.close();
 				}
 			}
-		} finally {
-			System.clearProperty(DisplayListDumper.DIR_PROPERTY);
 		}
 	}
 
