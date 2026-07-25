@@ -24,6 +24,6 @@ public class ColumnBuilder extends BreakableBuilder {
 
 	public final void finish() {
 		assert this.flowStack == null || this.flowStack.isEmpty();
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 	}
 }

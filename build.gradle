@@ -129,7 +129,9 @@ dependencies {
 
 tasks.named('test') {
     useJUnit()
-    enableAssertions = true
+    // -PnoAssertions で本番と同じ条件(assertion無効)にする。
+    // 「不変条件が破れたまま処理が続くと出力はどうなるか」を測るため
+    enableAssertions = !project.hasProperty('noAssertions')
     maxHeapSize = '1024m'
     // 2026-07-24: テスト実行の並列化(カイゼン)。従来は単一フォークで
     // 全395スイート直列・7〜9分かかっていた。各テストはDirectSessionの

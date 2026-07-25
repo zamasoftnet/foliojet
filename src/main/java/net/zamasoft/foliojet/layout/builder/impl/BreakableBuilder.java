@@ -168,7 +168,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public void startFlowBlock(FlowBlockBox flowBox) {
-		assert this.textBuilder == null : flowBox.getParams().element;
+		this.requireNoOpenTextBuilder(flowBox.getParams().element);
 
 		boolean canBreakAfter = false;
 		switch (flowBox.getType()) {
@@ -251,7 +251,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	private final boolean breakByClear(final FlowPos pos) {
 		// ブロックのclearによる改ページ
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		boolean breakFloats = false;
 		switch (pos.clear) {
 		case ClearMode.NONE:
@@ -314,7 +314,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		switch (box.getPos().getType()) {
 		case FLOW: {
 			// 通常のフロー
-			assert this.textBuilder == null;
+			this.requireNoOpenTextBuilder("(no context)");
 			final FlowPos pos = (FlowPos) box.getPos();
 			pageBreakBefore = pos.pageBreakBefore;
 			pageBreakAfter = pos.pageBreakAfter;
@@ -622,7 +622,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void endFlowBlock() {
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		assert !this.flowStack.isEmpty();
 		Flow flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
 
@@ -918,7 +918,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		boolean breaked = this.pageBreak(breakMode, IPageBreakableBox.FLAGS_FIRST);
 		assert breaked;
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 	}
 
 	/**
@@ -954,7 +954,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * リセットされる切断待ち状態を初期化します(M5)。
 	 */
 	protected final void beginBreak() {
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		this.breakFloats.clear();
 		this.breakAfter = null;
 		this.canBreakBefore = false;

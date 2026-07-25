@@ -80,6 +80,33 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected TextBuilder textBuilder = null;
 
 	/**
+	 * ブロック境界で<b>テキストビルダーが開いたままでない</b>ことを検査します
+	 * (2026-07-26、assertから fail-closed へ昇格)。
+	 *
+	 * <p>
+	 * この不変条件が破れると、<b>本番では黙って内容が落ちる</b>ことを実測で
+	 * 確認した——ランダム生成のstrict seed 890は、assertionを切ると変換に
+	 * 成功したまま段落3つ({@code column-count:3}のブロック丸ごと)を出力から
+	 * 失う。assertionが有効なら同じ文書は明示的に失敗する。
+	 * </p>
+	 *
+	 * <p>
+	 * 証券レポート等では「出力されない」より「間違ったものが出力される」方が
+	 * 桁違いに危険なので、<b>テスト・本番を問わず例外にする</b>。
+	 * 検査自体はnull比較で費用ゼロ。{@code RootBuilder.pageBreak}の
+	 * 深さ検査が2026-07-21に同じ理由で昇格済みで、これはその第2弾。
+	 * </p>
+	 *
+	 * @param context 例外メッセージに載せる文脈(要素など)
+	 */
+	protected final void requireNoOpenTextBuilder(final Object context) {
+		if (this.textBuilder != null) {
+			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+					"text builder still open at a block boundary: " + context);
+		}
+	}
+
+	/**
 	 * Knuth-Plass行分割({@code text-wrap-style: pretty})の蓄積
 	 * セッションです(2026-07-23、M3c増分3)。オプトインが有効で段落が
 	 * 適格な場合のみ{@link #requireTextBlock()}で開始され、記録中は
@@ -423,7 +450,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void startFlowBlock(final FlowBlockBox flowBox) {
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		AbstractContainerBox containerBox = this.getFlowBox();
 		double xmargin = 0;
 		double lineSize = containerBox.getLineSize();
@@ -558,7 +585,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 							public void endFlowBlock() {
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		final Flow flow = (Flow) this.flowStack.remove(this.flowStack.size() - 1);
 		final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
 		final BlockParams params = flowBox.getBlockParams();
@@ -652,7 +679,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		case FLOW:
 		case TABLE: {
 			// 通常のフロー
-			assert this.textBuilder == null;
+			this.requireNoOpenTextBuilder("(no context)");
 			IFlowBox flowBox = (IFlowBox) box;
 
 			Flow flow = this.getFlow();
@@ -882,7 +909,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null) {
 			this.textSession.abortToLegacy();
 		}
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		final Flow flow = this.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
 		// 断片の前でマージンを折りたたまない(切断面には装飾がない)
@@ -1230,7 +1257,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	public void finish() {
 		assert this.flowStack == null || this.flowStack.isEmpty();
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 
 		final AbstractContainerBox flowBox = (AbstractContainerBox) this.contextFlow.box;
 		final BlockParams params = flowBox.getBlockParams();
@@ -1252,7 +1279,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected void requireTextBlock() {
 		// 新規テキストブロック
 		// System.err.println("requireTextBlock");
-		assert this.textBuilder == null;
+		this.requireNoOpenTextBuilder("(no context)");
 		// textSessionは再生中の改ページ処理が新しいTextBuilderを作る間も
 		// 保持される(配達境界のclampのため)——記録中でないことだけを検査
 		assert this.textSession == null || !this.textSession.recording();
