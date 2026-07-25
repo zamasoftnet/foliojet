@@ -255,6 +255,33 @@ public class StyleBuilder implements PageGenerator {
 	 */
 	private static final String PAGES_COUNTER_NAME = "pages";
 
+	/**
+	 * {@code colspan}の上限です。HTML Standardが定める値(実ブラウザと同じ)。
+	 *
+	 * <p>
+	 * 上限がないと、{@code colspan="2147483647"}のセル1個で
+	 * {@code IncrementalTableBuilder}が約21億回の要素追加を行い、停止前に
+	 * メモリを使い尽くします(2026-07-25、独立レビューで発見)。
+	 * 負・0・非数値の正規化は以前からあったが、<b>巨大な正数だけが素通り</b>
+	 * していた。上限値は「世界の標準動向に対応物があるか」の基準で
+	 * HTML Standardに揃える。
+	 * </p>
+	 */
+	private static final int MAX_COLSPAN = 1000;
+
+	/**
+	 * {@code rowspan}の上限です。HTML Standardが定める値(実ブラウザと同じ)。
+	 *
+	 * <p>
+	 * 上限がないと、{@code rowspan="2147483647"}で
+	 * {@code CollapsedBorderRules.streamSpacing}の
+	 * {@code borderRow + rowspan - 1}が<b>intオーバーフローで負値</b>になり、
+	 * {@code List.get(負値)}で{@code IndexOutOfBoundsException}になります
+	 * (2026-07-25、独立レビューで発見)。
+	 * </p>
+	 */
+	private static final int MAX_ROWSPAN = 65534;
+
 	private static boolean isReservedCounterName(String name) {
 		return PAGES_COUNTER_NAME.equalsIgnoreCase(name);
 	}
@@ -1002,6 +1029,8 @@ public class StyleBuilder implements PageGenerator {
 					pos.colspan = Integer.parseInt(colspan);
 					if (pos.colspan <= 0) {
 						pos.colspan = 1;
+					} else if (pos.colspan > MAX_COLSPAN) {
+						pos.colspan = MAX_COLSPAN;
 					}
 				} catch (NumberFormatException e) {
 					pos.colspan = 1;
@@ -1013,6 +1042,8 @@ public class StyleBuilder implements PageGenerator {
 					pos.rowspan = Integer.parseInt(rowspan);
 					if (pos.rowspan <= 0) {
 						pos.rowspan = 1;
+					} else if (pos.rowspan > MAX_ROWSPAN) {
+						pos.rowspan = MAX_ROWSPAN;
 					}
 				} catch (NumberFormatException e) {
 					pos.rowspan = 1;
