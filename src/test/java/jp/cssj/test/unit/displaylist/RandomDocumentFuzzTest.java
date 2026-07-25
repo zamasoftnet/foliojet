@@ -90,7 +90,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/** ページ数の上限。生成する内容量から見て明らかに過大な値。 */
 	private static final int MAX_PAGES = 300;
 
-	private static final Pattern TEXT_IN_DUMP = Pattern.compile("Text\\[\"([^\"]*)\"");
+	/**
+	 * 表示リストに現れる「文字として描かれたもの」を拾います。
+	 *
+	 * <p>
+	 * <b>ルビは{@code RubyUnit["親文字" ruby="ふりがな"]}という別表記で出る</b>
+	 * ため、{@code Text[...]}だけを見ると「消えた」と誤判定します
+	 * (2026-07-26、生成器にルビを足して発覚。エンジンではなく
+	 * <b>オラクル側の誤り</b>だった)。画像の{@code alt}は描かれないので、
+	 * 生成器はaltへトークンを埋めません。
+	 * </p>
+	 */
+	private static final Pattern TEXT_IN_DUMP = Pattern
+			.compile("(?:Text|RubyUnit)\\[\"([^\"]*)\"(?: ruby=\"([^\"]*)\")?");
 
 	public RandomDocumentFuzzTest(String name) {
 		super(name);
@@ -133,7 +145,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * <b>これ以外のシードが落ちたら失敗</b>させる(=新しい退行だけを検出)。
 	 * 解消したらこの集合を空にすること。
 	 */
-	private static final java.util.Set<Integer> KNOWN_TRAILING_BLANK_PAGE = java.util.Set.of(8, 12, 28);
+	private static final java.util.Set<Integer> KNOWN_TRAILING_BLANK_PAGE = java.util.Set.of(35);
+
+	/**
+	 * <b>既知の未解決</b>: 変換が例外で終わるシード(2026-07-26、
+	 * 語彙を広げた掃過で発見)。2種類の不変条件違反がある。
+	 *
+	 * <ul>
+	 * <li><b>textBuilderが開いたまま</b>ブロック境界を越える
+	 * ({@code BreakableBuilder}の{@code startFlowBlock}/{@code endFlowBlock}/
+	 * {@code flush}のassert)。strictで333文書に1件</li>
+	 * <li><b>flowStackの深さと継続の深さが食い違う</b>
+	 * ({@code RootBuilder.pageBreak}の"break flow failed")。strictで750文書に1件</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * <b>本番ではクラッシュしない</b>——assertionはテストでのみ有効。かわりに
+	 * 不変条件が破れた状態で処理が続く。出力への影響は未評価。
+	 * どちらも改ページ・継続機構の中枢なので、原因を特定してから直す。
+	 * 再現手順は`copperpdf4/docs/PLAN.md`。
+	 * </p>
+	 */
+	private static final java.util.Set<Integer> KNOWN_INVARIANT_VIOLATION = java.util.Set.of();
 
 	/**
 	 * 統計用の集計モード({@code -Dfoliojet.fuzzReport})。早期打ち切りを
@@ -147,11 +180,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	private static String classify(final Throwable t) {
-		final String detail = detailKey(t);
-		if (detail != null) {
-			return detail;
+		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
+		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
+		// なり、種別が1つに潰れる(2026-07-26に踏んだ)
+		final StringBuilder chain = new StringBuilder();
+		for (Throwable c = t; c != null; c = c.getCause()) {
+			chain.append(String.valueOf(c.getMessage())).append(' ');
 		}
-		final String m = String.valueOf(t.getMessage());
+		final String m = chain.toString();
+		// 変換エラーは**メッセージの形**で種別を分ける。もとの
+		// AssertionErrorのスタックはTranscoderExceptionへ包む段で
+		// 失われており(causeにも入らない)、発生箇所では分けられない。
+		// 種別を粗くすると「残り何件か」の推定が過小になる(2026-07-26)
+		if (m.contains("break flow failed")) {
+			return "不変条件: flowStack深さ≠継続深さ";
+		}
+		if (m.contains("Unexpected error.")) {
+			return "不変条件: textBuilderが開いたまま";
+		}
 		if (m.contains("白紙ページ")) {
 			return "白紙ページ";
 		}
@@ -168,7 +214,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		while (c.getCause() != null) {
 			c = c.getCause();
 		}
-		return c.getClass().getSimpleName();
+		final String site = detailKey(t);
+		return site != null ? site : c.getClass().getSimpleName();
 	}
 
 	/**
@@ -198,7 +245,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final java.util.TreeMap<String, int[]> classCount = new java.util.TreeMap<>();
 		final java.util.TreeMap<String, java.util.List<Integer>> seedsOf = new java.util.TreeMap<>();
 		for (int seed = 0; seed < seeds; ++seed) {
-			final boolean known = !report && strict && KNOWN_TRAILING_BLANK_PAGE.contains(seed);
+			final boolean known = !report && strict
+					&& (KNOWN_TRAILING_BLANK_PAGE.contains(seed) || KNOWN_INVARIANT_VIOLATION.contains(seed));
 			try {
 				checkOne(seed, strict);
 				if (known) {
@@ -303,6 +351,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final Matcher m = TEXT_IN_DUMP.matcher(dump);
 			while (m.find()) {
 				seen.add(m.group(1));
+				if (m.group(2) != null) {
+					// ルビのふりがな側
+					seen.add(m.group(2));
+				}
 			}
 		}
 
@@ -398,7 +450,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			s.append("<p>").append(token(tokens, counter)).append("</p>\n");
 			return;
 		}
-		final int kind = r.nextInt(strict ? 7 : 9);
+		final int kind = r.nextInt(strict ? 12 : 14);
 		switch (kind) {
 		case 0 -> { // 段落(複数トークン)
 			s.append("<p>");
@@ -457,7 +509,46 @@ public class RandomDocumentFuzzTest extends TestCase {
 					.append(10 + r.nextInt(200)).append("pt\">").append(token(tokens, counter))
 					.append("</span></p>\n");
 		}
-		case 7 -> { // WILDのみ: 絶対配置
+		case 7 -> { // リスト(マーカー・list-style)
+			final String tag = r.nextBoolean() ? "ul" : "ol";
+			s.append('<').append(tag).append(" style=\"list-style-position:")
+					.append(r.nextBoolean() ? "inside" : "outside").append(";list-style-type:")
+					.append(new String[] { "disc", "decimal", "lower-roman", "cjk-ideographic", "none" }[r.nextInt(5)])
+					.append("\">\n");
+			final int n = 1 + r.nextInt(4);
+			for (int i = 0; i < n; ++i) {
+				s.append("<li>").append(token(tokens, counter)).append("</li>\n");
+			}
+			s.append("</").append(tag).append(">\n");
+		}
+		case 8 -> { // ルビ(2026-07-25に行内の注釈付きテキストへ仕様変更)
+			s.append("<p>");
+			final int n = 1 + r.nextInt(3);
+			for (int i = 0; i < n; ++i) {
+				s.append("<ruby>").append(token(tokens, counter)).append("<rt>")
+						.append(token(tokens, counter)).append("</rt></ruby>");
+			}
+			s.append("</p>\n");
+		}
+		case 9 -> { // 置換要素(画像。救済分割の本来の動機)
+			// altは描かれないのでトークンにしない(オラクルが誤検出する)
+			s.append("<p><img src=\"../../files/unittest/red.png\" alt=\"img\"")
+					.append(" style=\"display:").append(r.nextBoolean() ? "block" : "inline")
+					.append(";width:").append(10 + r.nextInt(250)).append("pt;height:")
+					.append(10 + r.nextInt(250)).append("pt\" /></p>\n");
+		}
+		case 10 -> { // clear と極端なフォントサイズ(floatと絡ませる)
+			s.append("<div style=\"clear:")
+					.append(new String[] { "left", "right", "both" }[r.nextInt(3)]).append("\">")
+					.append("<span style=\"font-size:").append(6 + r.nextInt(40)).append("pt\">")
+					.append(token(tokens, counter)).append("</span></div>\n");
+		}
+		case 11 -> { // avoid ヒント(改ページ判定を揺さぶる)
+			s.append("<div style=\"page-break-inside:avoid;margin:").append(r.nextInt(6)).append("pt\">\n");
+			appendChildren(s, r, depth, strict, tokens, counter);
+			s.append("</div>\n");
+		}
+		case 12 -> { // WILDのみ: 絶対配置
 			s.append("<div style=\"position:absolute;top:").append(r.nextInt(300) - 50).append("pt;left:")
 					.append(r.nextInt(300) - 50).append("pt\">").append("X").append("</div>\n");
 		}
