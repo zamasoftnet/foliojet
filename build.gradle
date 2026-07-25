@@ -132,7 +132,9 @@ tasks.named('test') {
     // -PnoAssertions で本番と同じ条件(assertion無効)にする。
     // 「不変条件が破れたまま処理が続くと出力はどうなるか」を測るため
     enableAssertions = !project.hasProperty('noAssertions')
-    maxHeapSize = '1024m'
+    // -PtestHeap=256m 等で上書きできる。1変換あたりの必要ヒープを
+    // 二分探索で測るため(2026-07-26)
+    maxHeapSize = project.hasProperty('testHeap') ? project.property('testHeap') : '1024m'
     // 2026-07-24: テスト実行の並列化(カイゼン)。従来は単一フォークで
     // 全395スイート直列・7〜9分かかっていた。各テストはDirectSessionの
     // インプロセス変換+一時ファイル(ユニーク名)で独立しており、
@@ -165,6 +167,11 @@ tasks.named('test') {
     }
     if (System.getProperty('foliojet.convertOneBlank') != null) {
         systemProperty 'foliojet.convertOneBlank', System.getProperty('foliojet.convertOneBlank')
+    }
+    ['concurrentDoc','concurrentRuns','concurrentThreads'].each { k ->
+        if (System.getProperty("foliojet.$k") != null) {
+            systemProperty "foliojet.$k", System.getProperty("foliojet.$k")
+        }
     }
     if (System.getProperty('foliojet.fuzzThreads') != null) {
         systemProperty 'foliojet.fuzzThreads', System.getProperty('foliojet.fuzzThreads')
