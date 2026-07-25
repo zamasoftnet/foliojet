@@ -163,6 +163,18 @@ tasks.named('test') {
         // E-6 TwoPass range bindのkill switch(退避・保持量before/after計測用)
         systemProperty 'foliojet.noTwoPassRangeBind', System.getProperty('foliojet.noTwoPassRangeBind')
     }
+    if (System.getProperty('foliojet.tableRecipe') != null) {
+        // G-1「表のrecipe記録化」の実験スイッチ(既定off。off|table|full)
+        systemProperty 'foliojet.tableRecipe', System.getProperty('foliojet.tableRecipe')
+    }
+    if (System.getProperty('foliojet.tableRecipe.census') != null) {
+        // G-1 センサスハーネス(TableRecipeCensusTest)の手動実行スイッチ
+        systemProperty 'foliojet.tableRecipe.census', System.getProperty('foliojet.tableRecipe.census')
+    }
+    if (System.getProperty('foliojet.tableRecipe.parityDir') != null) {
+        // G-1 フルコーパス表示リストparity(off/onを別JVMで走らせてdiff)
+        systemProperty 'foliojet.tableRecipe.parityDir', System.getProperty('foliojet.tableRecipe.parityDir')
+    }
 
     doFirst {
         new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()

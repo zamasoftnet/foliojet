@@ -230,10 +230,17 @@ public final class SourceReplayer {
 		}
 		// フロート・絶対配置の係留、入れ子段組・縦横混在の再現は未検証の
 		// ためフォールバック(絶対配置は増分4e以前はOpaque記録で
-		// containsOpaqueが捕捉していた——挙動維持のゲート分離)
-		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsFloat(selfId + 1, endId - 1)
-				|| log.containsAbsolute(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
-				|| log.containsMixedFlow(selfId + 1, endId - 1, flow));
+		// containsOpaqueが捕捉していた——挙動維持のゲート分離)。
+		// 表(G-1、2026-07-25): G-1以前は表がOpaque記録でcontainsOpaqueが
+		// 捕捉していた。recipe記録化(実験フラグ配下)後も、段組内容の
+		// 再構築で表全体(auto列幅の再確定を含む)を作り直すのは未検証の
+		// ため従来どおり不適格にする——MeasuredIntrinsics/
+		// BalanceProbeInputと同じ「表を含む範囲は通さない」ゲートで揃える
+		// (LayoutSource.containsTableのjavadoc参照)。実験offでは表は
+		// Opaqueなので、このゲートは既定挙動に対して無害
+		return !(log.containsTable(selfId + 1, endId - 1) || log.containsOpaque(selfId + 1, endId - 1)
+				|| log.containsFloat(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
+				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));
 	}
 
 	/**

@@ -139,8 +139,13 @@ public record BalanceProbeInput(LayoutSource log, long fromId, long toId,
 		// 入れ子段組・縦横混在の再現は未検証のためフォールバック(M6c-5でも維持)。
 		// 絶対配置は増分4e以前はOpaque記録でcontainsOpaqueが捕捉していた——
 		// 候補内での係留・deferred bindの再現は未検証のため従来どおり不適格
-		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
-				|| log.containsMulticol(selfId + 1, endId - 1)
+		// 表(G-1、2026-07-25): G-1以前は表がOpaque記録でcontainsOpaqueが
+		// 捕捉していた。recipe記録化で「再生できる」ようになっても、段組
+		// バランスの候補試行で表を含む範囲を通すと、候補ごとに表全体
+		// (auto列幅の再確定を含む)を再構築することになり、バランス結果
+		// (=出力)とコストが変わる。挙動不変制約のため従来どおり不適格
+		return !(log.containsTable(selfId + 1, endId - 1) || log.containsOpaque(selfId + 1, endId - 1)
+				|| log.containsAbsolute(selfId + 1, endId - 1) || log.containsMulticol(selfId + 1, endId - 1)
 				|| log.containsMixedFlow(selfId + 1, endId - 1, owner.getBlockParams().flow));
 	}
 }

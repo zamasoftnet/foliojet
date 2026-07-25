@@ -86,9 +86,11 @@ public sealed interface BoxRecipe {
 		// InsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
 		case INSIDE_MARKER -> new InsideMarker(BlockParamsTemplate.freeze((BlockParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
-		// TableBoxはTableParams/FlowPosを使う(StyleBuilderがbox.getPos()
-		// instanceof FlowPosの場合のみBoxKind.TABLEを記録するため、
-		// このcastは常に成立する、既存コード確認済み)
+		// TableBoxはTableParams+「内側blockBoxのFlowPos」を使う。
+		// F-4(2026-07-25)の実測どおり外側TableBox.getPos()は常にTablePos
+		// (FlowPosではない)なので、記録側(StyleBuilder.startBox)は
+		// TableBox.getBlockBox().getPos()を渡す契約。BoxKind.TABLEは
+		// 内側blockBoxがFlowPosのときだけ記録されるためcastは成立する
 		case TABLE -> new Table(TableParamsTemplate.freeze((TableParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
 		// TableRowGroupBoxはInnerTableParams/TableRowGroupPosを使う(既存コード確認済み)
@@ -206,15 +208,15 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表({@code TableBox})——{@code TableParams}/{@code FlowPos}を使う。
-	 * ただし{@code box.getPos() instanceof FlowPos}の場合のみ記録可能。
+	 * 表({@code TableBox})——{@code TableParams}と<b>内側blockBoxの</b>
+	 * {@code FlowPos}を使う(外側{@code TableBox.getPos()}は常に
+	 * {@code TablePos}で配置種別を持たない。{@code StyleBuilder.startBox}
+	 * が内側posを渡す契約)。
 	 *
 	 * <p>
-	 * <b>2026-07-25(F-4)の実測による訂正</b>: その条件は{@code TableBox}
-	 * に対して恒偽であり(詳細は{@link BoxKind#TABLE}および
-	 * {@code StyleBuilder.boxKind}のTableBox分岐)、旧記述「絶対配置・
-	 * 浮動の表は当面{@code Opaque}」は誤り——<b>全ての表</b>が
-	 * {@code Opaque}である。このvariantはproduction経路では生成されない。
+	 * <b>既定では生成されない(G-1、2026-07-25)</b>: 記録は
+	 * {@code foliojet.tableRecipe}実験フラグ配下で、既定は全ての表が
+	 * {@code Opaque}({@code StyleBuilder.boxKind}のTableBox分岐参照)。
 	 * </p>
 	 */
 	record Table(TableParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {

@@ -756,6 +756,49 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
+	 * [fromId, toId] の範囲に表({@link BoxKind#TABLE})の Start が
+	 * 含まれていれば true を返します(G-1、2026-07-25)。
+	 *
+	 * <p>
+	 * 表は既定({@code foliojet.tableRecipe}未設定)では{@link Opaque}で
+	 * 記録されるため、このメソッドは既定では常に false ——
+	 * {@link #containsOpaque}が全ての消費側を暗黙にフォールバックさせる
+	 * 従来の構図は変わらない。表をrecipe記録化する実験を有効にしたとき
+	 * だけ意味を持つ。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>なぜ必要か(G-1実測)</b>: 表のrecipe記録化で「範囲を再生できる」
+	 * ようになっても、<b>再生してよいか</b>は消費側ごとに別問題である。
+	 * {@code MeasuredIntrinsics}(実レイアウト実測)は、表を含む範囲を
+	 * 通し始めると固有寸法が「模倣計測」から「∞幅scratchページへの実
+	 * source replay計測」へ<b>アルゴリズムごと切り替わり</b>、出力が壊れる
+	 * ——実測では{@code 0070-table-layout/float-in-auto-4.html}の
+	 * shrink-to-fitフロート幅が376/414.5/276/216 → 全て500pt(=ページ幅)へ
+	 * 発散した(∞幅ページでは表の%指定セルが1e6基準で解決されるため)。
+	 * {@code BalanceProbeInput}も同様に候補ごとの表全体再構築になる。
+	 * E-6増分4eが絶対配置に対して{@link #containsAbsolute}で行った
+	 * 切り分けと同型のゲートで、実験がoffでも無害。
+	 * </p>
+	 */
+	public boolean containsTable(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Table) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * [fromId, toId] の範囲に絶対配置ブロックの Start が含まれていれば
 	 * true を返します(E-6増分4e、2026-07-24)。
 	 *
