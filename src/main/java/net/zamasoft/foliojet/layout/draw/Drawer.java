@@ -155,8 +155,11 @@ public class Drawer implements Comparable<Drawer> {
 	 * これをオーナー側へ委譲します。
 	 */
 	protected void addDrawable(Drawable drawable, double x, double y, boolean artifact) {
-		assert !LayoutUtils.isNone(x) : "Undefined x";
-		assert !LayoutUtils.isNone(y) : "Undefined y";
+		// isNoneでは番兵の算術結果(NONE+10等)もNaNも素通りする。
+		// ここは表示リストに載る全ての位置が通る唯一の隘路なので、
+		// 「印刷物としてあり得る範囲か」で弾く(LayoutUtils.isDrawable参照)
+		assert LayoutUtils.isDrawable(x) : "描画位置xが異常: " + x + " (" + drawable + ")";
+		assert LayoutUtils.isDrawable(y) : "描画位置yが異常: " + y + " (" + drawable + ")";
 		if (this.drawables == null) {
 			this.drawables = new ArrayList<ArrangedDrawable>();
 		}

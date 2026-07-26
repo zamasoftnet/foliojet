@@ -52,6 +52,62 @@ public final class LayoutUtils {
 		return v == NONE;
 	}
 
+	/**
+	 * 表示リストに載ってよい座標・寸法の絶対値の上限(ポイント)。
+	 *
+	 * <p>
+	 * 1e8pt は約3,500km。PDFのページ寸法の上限14,400pt(200インチ)の
+	 * 7,000倍近くあり、正当なレイアウトが届く値ではありません。逆に、
+	 * {@link #NONE}(10<sup>308</sup>級)やそれに算術を施した値、
+	 * {@code Double.MAX_VALUE}を「制約なし」として持ち回った値が
+	 * 位置や確定寸法へ漏れた場合は必ずこれを超えます。
+	 * </p>
+	 */
+	public static final double DRAWABLE_LIMIT = 1e8;
+
+	/**
+	 * 描画へ渡してよい値か(有限で、印刷物としてあり得る範囲か)を返します。
+	 *
+	 * <p>
+	 * <b>{@link #isNone(double)}では足りない理由。</b>
+	 * {@code isNone}は<b>番兵値そのもの</b>としか一致しないので、
+	 * <b>倍率が変わる演算を通った番兵</b>({@code NONE / 2}、
+	 * {@code -NONE}、座標変換のスケール)を検出できません——値は
+	 * 10<sup>307</sup>級のゴミ座標のままなのに素通りします。
+	 * {@code NaN}も同じ穴を通ります({@code NaN != NONE}なので
+	 * {@code isNone(NaN)}は偽)。どちらも例外にはならず、
+	 * <b>内容が紙面のどこにも現れないまま静かに欠落する</b>形で出ます。
+	 * 帳票用途ではこれが最悪の壊れ方なので、範囲で弾きます。
+	 * </p>
+	 *
+	 * <p>
+	 * ({@code NONE + 10}のような加算は逃げ道になりません。この規模の
+	 * doubleの刻み幅は10<sup>292</sup>程度あり、値が1ビットも変わらない
+	 * ためです。)
+	 * </p>
+	 *
+	 * <p>
+	 * {@code NaN}は全ての比較が偽になるため、この2つの不等式で自動的に
+	 * 弾かれます(明示的な{@code isNaN}は不要)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>守れない穴。</b>{@code NONE - NONE}は0になります。番兵同士の差は
+	 * もっともらしい座標に化けるので、範囲では検出できません
+	 * (テスト{@code DrawableRangeGuardTest}に記録済み)。
+	 * </p>
+	 *
+	 * <p>
+	 * 用途は<b>assertによるfail closed</b>です。本番ではassertが無効なので
+	 * コストはゼロ。制約値({@code max-width}の「上限なし」を表す
+	 * {@code Double.MAX_VALUE}など)にこれを掛けてはいけません——制約は
+	 * 正当に巨大です。掛けてよいのは<b>位置と確定した寸法</b>だけです。
+	 * </p>
+	 */
+	public static final boolean isDrawable(double v) {
+		return v > -DRAWABLE_LIMIT && v < DRAWABLE_LIMIT;
+	}
+
 	public static final double THRESHOLD = .5;
 
 	/**
@@ -105,9 +161,9 @@ public final class LayoutUtils {
 	 */
 	public static void drawText(GC gc, FontPolicyList fontPolicy, double fontSize, String text, double x, double y,
 			double width) throws GraphicsException {
-		assert !LayoutUtils.isNone(x);
-		assert !LayoutUtils.isNone(y);
-		assert !LayoutUtils.isNone(width);
+		assert isDrawable(x) : "描画位置xが異常: " + x;
+		assert isDrawable(y) : "描画位置yが異常: " + y;
+		assert isDrawable(width) : "描画幅が異常: " + width;
 		try (final var gcState = gc.begin()) {
 			gc.transform(AffineTransform.getTranslateInstance(x, y));
 
