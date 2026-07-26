@@ -187,6 +187,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	private static final int KEEP_ARTIFACTS_BELOW = 20_000;
 
+	/**
+	 * watchdogを超えて生き残ったスレッドの数。<b>止められないので数える</b>。
+	 */
+	private static final java.util.concurrent.atomic.AtomicInteger LEAKED_WORKERS =
+			new java.util.concurrent.atomic.AtomicInteger();
+
+	/**
+	 * これを超えたら掃過ごと止める。漏れた1本はレイアウト1件分のヒープと
+	 * 64MBのスタック予約を抱えるので、数本で測定条件が変わってしまう。
+	 */
+	private static final int MAX_LEAKED_WORKERS = 4;
+
 	private static boolean reportMode() {
 		return System.getProperty("foliojet.fuzzReport") != null;
 	}
@@ -253,8 +265,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (m.contains("紙面外への配置")) {
 			return "紙面外への配置";
 		}
-		if (m.contains("停止しない")) {
-			return "停止しない";
+		if (m.contains("watchdogを超えたスレッドが")) {
+			return "掃過が過負荷(測定不能)";
+		}
+		if (m.contains("watchdog超過")) {
+			// **「停止しない」と言い切らない**。掃過が過負荷のときは正常な
+			// 文書でも超える(2026-07-27に実証)。無限ループの証拠には
+			// ならないので、種別名でそれを明示する
+			return "watchdog超過(停止性は未確定)";
 		}
 		if (m.contains("ページ数が過大")) {
 			return "ページ数過大";
@@ -453,7 +471,33 @@ public class RandomDocumentFuzzTest extends TestCase {
 		worker.start();
 		worker.join(WATCHDOG_MS);
 		// 不変条件2: 停止する
-		assertFalse("停止しない (" + html + ")", worker.isAlive());
+		if (worker.isAlive()) {
+			// **watchdogは検出するだけで、止まらないスレッドを止められない。**
+			// Thread.stop()は現代のJavaでは使えず、エンジンに協調的な中断点も
+			// ない。したがって漏れたスレッドは走り続け、**レイアウト1件分の
+			// ヒープと64MBのスタック予約を抱えたまま**残る。
+			//
+			// これは自己増幅する(2026-07-27に10万文書の掃過が7時間停止して
+			// 発覚): ヒープ逼迫 → GCが回り続けて全体が遅くなる → watchdogを
+			// 超える文書が増える → さらに漏れる。**2万シードでは0件、
+			// 5万シードでは頻発**という、規模に依存した測定になっていた。
+			//
+			// 止められない以上、せめて(a)優先度を落として掃過の足を
+			// 引っ張らせない (b)一定数を超えたら掃過ごと止める。
+			// **黙って遅くなるより、大きな音を立てて止まるほうがよい。**
+			try {
+				worker.setPriority(Thread.MIN_PRIORITY);
+			} catch (final RuntimeException ignore) {
+				// 優先度を下げられなくても続行する
+			}
+			final int leaked = LEAKED_WORKERS.incrementAndGet();
+			if (leaked > MAX_LEAKED_WORKERS) {
+				throw new AssertionError("watchdogを超えたスレッドが" + leaked + "本たまった。"
+						+ "掃過が過負荷になっており、以後の測定は信用できない"
+						+ "(-Dfoliojet.fuzzThreads を減らすか -PtestHeap を増やすこと)。最後の文書: " + html);
+			}
+			fail("watchdog超過 " + (WATCHDOG_MS / 1000) + "秒 (" + html + ")");
+		}
 		// 不変条件1: 例外で中断しない
 		if (failure[0] != null) {
 			throw new AssertionError("変換が例外で終わった (" + html + ")", failure[0]);
