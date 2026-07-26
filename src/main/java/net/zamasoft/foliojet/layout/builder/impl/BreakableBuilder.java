@@ -827,6 +827,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		// ページをはみ出した浮動ボックスが存在する
+		if (this.paintsNothingBeyondPage(box, pageStart)) {
+			return FloatCommitKind.PLACED;
+		}
 		pageStart -= this.getFlow().box.getFrame().getFramePageStart(this.getRootBox().getBlockParams().flow);
 		switch (box.getType()) {
 		case BLOCK:
@@ -859,6 +862,57 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		default:
 			throw new IllegalStateException();
 		}
+	}
+
+	/**
+	 * この浮動体の<b>ページからはみ出した部分に、紙へ残るものが何もない</b>
+	 * かを返します(2026-07-26新設)。
+	 *
+	 * <p>
+	 * <b>絶対要件「意図しない白紙ページを作らない」の直接の原因。</b>
+	 * 浮動体が紙をはみ出すと切断が予約され、{@link #endFlowBlock()}の
+	 * 浮動体切断ループが<b>必ず1ページ作る</b>。ところが、はみ出しているのが
+	 * <b>箱だけ</b>(=内容はこのページに収まっている・枠線も背景もない)の
+	 * ときは、その断片は何も描かないので<b>白紙のページが1枚増えるだけ</b>に
+	 * なる。最小形は次のとおり:
+	 * </p>
+	 *
+	 * <pre>
+	 * &lt;!-- 60x60ptの紙、writing-mode:vertical-rl --&gt;
+	 * &lt;div style="float:left;width:79pt"&gt;T9&lt;/div&gt;
+	 * </pre>
+	 *
+	 * <p>
+	 * 縦書きなので{@code width}はページ軸。内容の"T9"は1ページ目に収まるが、
+	 * 箱は19ptはみ出す。この19ptには何もない。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>判定は安全側へ倒す</b>——次のどれかに当たれば「描く」とみなして
+	 * 従来どおり切断する:
+	 * </p>
+	 * <ul>
+	 * <li>コンテナでない(置換要素など。中身を問えない)</li>
+	 * <li>枠線・背景が見える(断片にも描くものがある)</li>
+	 * <li>入れ子の浮動体がある({@code getContentSize()}はこれを含まないので、
+	 * はみ出した先に何かある可能性を否定できない)</li>
+	 * </ul>
+	 */
+	private boolean paintsNothingBeyondPage(final IFloatBox box, final double pageStart) {
+		if (!(box instanceof AbstractContainerBox containerBox)) {
+			return false;
+		}
+		if (containerBox.getFrame().isVisible()) {
+			return false;
+		}
+		final Container container = containerBox.getContainer();
+		if (container.hasFloatings()) {
+			return false;
+		}
+		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final double contentEnd = pageStart + containerBox.getFrame().getFramePageStart(progression)
+				+ container.getContentSize();
+		return LayoutUtils.compare(contentEnd, this.getPageLimit()) <= 0;
 	}
 
 	@Override

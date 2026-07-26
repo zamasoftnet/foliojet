@@ -125,30 +125,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>既知の未解決</b>: 末尾に空ページが1枚余分に出るシード
-	 * (2026-07-25、本テスト自身が発見)。3件とも症状は同じ——幅より広い
-	 * 内容を持つフロートがはみ出したあと、全内容が最終ページに収まって
-	 * いるのに、さらに空ページが1枚出る。
+	 * <b>既知の未解決</b>: 末尾に空ページが1枚余分に出るシード。
 	 *
 	 * <p>
-	 * <b>原因は特定済み</b>(2026-07-26): {@code BreakableBuilder.endFlowBlock}
-	 * の「ルートボックス内の浮動ボックスを切断」ループが、
-	 * {@code pageAxis = getPageLimit() + 1}と高さを人為的に膨らませて
-	 * {@code autoBreak()}を呼ぶ。{@code breakFloats}が空でない状態で
-	 * ルート直下の最後のブロックが終わると、<b>必ず1ページ余分に作られる</b>。
-	 * 通常はその新ページに浮動体の残余が載るので正しいが、
-	 * 「浮動体より広い内容が既にはみ出して描き終わっている」場合は
-	 * 残余に描くものがなく、空ページだけが残る。
+	 * <b>2026-07-26に既定シードの範囲では解消したので空にした。</b>
+	 * 原因は{@code BreakableBuilder.classifyFloatPlacement}が
+	 * 「箱だけがはみ出しているのか、はみ出した先に描くものがあるのか」を
+	 * 区別していなかったこと。区別を入れた
+	 * ({@code paintsNothingBeyondPage})結果、6,000シードでの発生が
+	 * <b>88件→47件</b>へ減り、既定60シードでは0件になった。
 	 * </p>
 	 *
 	 * <p>
-	 * 直すには「保留中の浮動体が実際に描くものを持つか」を分割前に判定する
-	 * 必要があり、排除域機構(必須4機能の一つ)の再設計を伴う。
-	 * 影響は末尾1ページのみで、内容の消失はない。<b>既知として除外</b>し、
-	 * <b>これ以外のシードが落ちたら失敗</b>させる(=新しい退行だけを検出)。
-	 * 解消したらこの集合を空にすること。
+	 * <b>残り47件は別の機序</b>で、まだ縮小できていない。既定シードには
+	 * 当たらないので回帰は緑のまま、掃過
+	 * ({@code -Dfoliojet.fuzzReport=1 -Dfoliojet.fuzzSeeds=6000})でだけ
+	 * 見える。**この集合へ安易に追加しないこと**——追加は「直せないと
+	 * 判断した」という意思表示であり、既定の回帰から永久に隠れる。
+	 * </p>
 	 */
-	private static final java.util.Set<Integer> KNOWN_TRAILING_BLANK_PAGE = java.util.Set.of(35);
+	private static final java.util.Set<Integer> KNOWN_TRAILING_BLANK_PAGE = java.util.Set.of();
 
 	/**
 	 * <b>既知の未解決</b>: 変換が例外で終わるシード(2026-07-26、
@@ -156,16 +152,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *
 	 * <ul>
 	 * <li><b>textBuilderが開いたまま</b>ブロック境界を越える
-	 * ({@code BreakableBuilder}の{@code startFlowBlock}/{@code endFlowBlock}/
-	 * {@code flush}のassert)。strictで333文書に1件</li>
+	 * ({@code BlockBuilder.requireNoOpenTextBuilder})。strictで400文書に1件</li>
 	 * <li><b>flowStackの深さと継続の深さが食い違う</b>
-	 * ({@code RootBuilder.pageBreak}の"break flow failed")。strictで750文書に1件</li>
+	 * ({@code RootBuilder.pageBreak}の"break flow failed")。strictで1,000文書に1件</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * <b>本番ではクラッシュしない</b>——assertionはテストでのみ有効。かわりに
-	 * 不変条件が破れた状態で処理が続く。出力への影響は未評価。
-	 * どちらも改ページ・継続機構の中枢なので、原因を特定してから直す。
+	 * <b>どちらもfail closed済み</b>(2026-07-26に確認)。assertではなく
+	 * {@code ContinuationInvariantViolationException}なので、<b>本番でも
+	 * 変換が失敗する</b>——黙って壊れた出力を出すことはない。
+	 * {@code -PnoAssertions}で掃過しても件数が変わらないことで確かめた。
+	 * </p>
+	 *
+	 * <p>
+	 * fail closed化する前は実際に内容が消えていた(seed 890で
+	 * {@code column-count:3}のブロックが丸ごと落ちた)。どちらも改ページ・
+	 * 継続機構の中枢なので、原因を特定してから直す。
 	 * 再現手順は`copperpdf4/docs/PLAN.md`。
 	 * </p>
 	 */
