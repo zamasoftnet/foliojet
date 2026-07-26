@@ -56,7 +56,18 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	private Map<String, String> props = null;
 
-	private byte aborted = 0;
+	/**
+	 * 中断要求(0=なし)。
+	 *
+	 * <p>
+	 * <b>volatile が要る。</b>{@link net.zamasoft.foliojet.driver.DirectSession}は
+	 * レイアウトを専用スレッド({@code foliojet-layout})で走らせるので、
+	 * {@link #abort(byte)}を呼ぶスレッドと{@link #checkAbort(byte)}を読む
+	 * スレッドが別になる。volatileがないと書き込みが見えず、
+	 * <b>止まったり止まらなかったりする</b>(2026-07-27)。
+	 * </p>
+	 */
+	private volatile byte aborted = 0;
 
 	private Locale locale;
 
@@ -178,6 +189,49 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	}
 
+	/**
+	 * <b>進捗が止まったら中断する締切</b>(2026-07-27新設)。
+	 *
+	 * <p>
+	 * <b>壁時計の締切にしてはいけない。</b>1万ページの正当な帳票が
+	 * 打ち切られてしまう。見るのは<b>「ページが1枚も出ない状態が続いた
+	 * 時間」</b>で、これなら文書の大きさに依存しない——長い文書はページを
+	 * 出し続けるので当たらず、詰まったものは必ず当たる。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>値の根拠(実測、2026-07-27)</b>。自動表のページ間隔:
+	 * </p>
+	 *
+	 * <table border="1">
+	 * <tr><th>行数</th><th>ページ数</th><th>中央値</th><th>p99</th><th>最大</th></tr>
+	 * <tr><td>10,000</td><td>209</td><td>2ms</td><td>17ms</td><td>1.3秒</td></tr>
+	 * <tr><td>40,000</td><td>834</td><td>1ms</td><td>7ms</td><td>3.8秒</td></tr>
+	 * <tr><td>100,000</td><td>2,084</td><td>2ms</td><td>11ms</td><td>9.4秒</td></tr>
+	 * </table>
+	 *
+	 * <p>
+	 * 最大間隔は測定パス由来で<b>文書の大きさに比例して伸びる</b>ので、
+	 * 実測最大の13倍を取った。100万行規模の測定パスも通る見込み。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>オプションにしない。</b>「オプトインの安全弁は事故に遭った人しか
+	 * 使わない」([[LESSONS]] §6.9b)——既定で効かせる。
+	 * </p>
+	 */
+	private static final long NO_PROGRESS_LIMIT_NANOS = 120L * 1_000_000_000L;
+
+	/** 最後にページを出した時刻。{@link #checkAbort(byte)}が締切に使う。 */
+	private volatile long lastProgressNanos = System.nanoTime();
+
+	/**
+	 * ページを1枚出したことを記録します。締切はこれを基準に測ります。
+	 */
+	protected final void noteProgress() {
+		this.lastProgressNanos = System.nanoTime();
+	}
+
 	public void abort(byte mode) {
 		if (this.aborted != mode) {
 			this.message(CTIMessageCodes.INFO_ABORT);
@@ -185,10 +239,25 @@ public abstract class AbstractUserAgent implements UserAgent {
 		this.aborted = mode;
 	}
 
-	protected void checkAbort(byte mode) {
+	/**
+	 * <b>協調的な中断点</b>。中断要求が出ていれば{@link AbortException}を
+	 * 投げます。長く走るループの先頭で呼んでください。
+	 *
+	 * <p>
+	 * コストはvolatile 1個の読み取り。<b>行・表の行・ページといった粗い
+	 * 粒度</b>に置くこと——グリフ単位に置いてはいけません。
+	 * </p>
+	 */
+	public void checkAbort(byte mode) {
 		if (this.aborted == mode || this.aborted == AbortException.ABORT_FORCE) {
 			this.message(CTIMessageCodes.INFO_ABORT);
 			throw new AbortException(this.aborted);
+		}
+		if (System.nanoTime() - this.lastProgressNanos > NO_PROGRESS_LIMIT_NANOS) {
+			// ページが1枚も出ないまま既定時間を過ぎた。詰まっているとみなす
+			this.message(CTIMessageCodes.INFO_ABORT);
+			this.aborted = AbortException.ABORT_FORCE;
+			throw new AbortException(AbortException.ABORT_FORCE);
 		}
 	}
 

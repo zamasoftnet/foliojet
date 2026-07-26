@@ -714,6 +714,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 
 	public GC nextPage() {
 		this.checkAbort(CTISession.ABORT_FORCE);
+		this.noteProgress();
 		try {
 			this.preparePDFWriter();
 			if (this.isMeasurePass()) {

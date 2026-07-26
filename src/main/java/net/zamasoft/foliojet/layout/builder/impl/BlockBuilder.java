@@ -346,6 +346,29 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return this.layoutStack.getPageContext();
 	}
 
+	/**
+	 * <b>協調的な中断点</b>(2026-07-27新設)。長く走るループの先頭で
+	 * 呼びます。
+	 *
+	 * <p>
+	 * <b>ページの境目だけでは足りない。</b>変換を外から止める手段は
+	 * {@code abort()}しかないが、それは旗を立てるだけで、エンジンが旗を
+	 * 読む場所がなければ何も起きない。従来は読む場所が
+	 * {@code UserAgent.nextPage()}=ページの境目だけだったので、
+	 * <b>1ページの処理が終わらない文書は永久に止められなかった</b>。
+	 * </p>
+	 *
+	 * <p>
+	 * 見るのは{@code ABORT_FORCE}だけ。{@code ABORT_NORMAL}は
+	 * 「次のページの区切りで綺麗に止める」意味なので、ページの途中では
+	 * 反応してはいけない。
+	 * </p>
+	 */
+	protected final void checkAbort() {
+		this.getPageContext().getPageGenerator().getUserAgent()
+				.checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
+	}
+
 	private int getFloatingCount() {
 		return this.floatings == null ? 0 : this.floatings.size();
 	}

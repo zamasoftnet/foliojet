@@ -924,6 +924,7 @@ public class RootBuilder extends BreakableBuilder {
 			final int depth, final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot,
 			final BlockBuilder target, final net.zamasoft.foliojet.layout.fragment.WorklistTailGate tailGate) {
 		while (true) {
+			this.checkAbort();
 			assert !this.resumeScopes.isEmpty();
 			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
 					.continueFragment(frame.recipe(), frame.state(), frame.container(), frame.crossExtent());

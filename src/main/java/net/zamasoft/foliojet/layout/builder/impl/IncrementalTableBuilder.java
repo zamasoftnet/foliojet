@@ -695,6 +695,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 				&& this.bindRowGroupBox.getTableRowGroupPos().rowGroupType == RowGroupType.BODY) {
 			// 自動改ページチェック
 			for (;;) {
+				this.builder.getPageContext().getPageGenerator().getUserAgent()
+						.checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 				double pageBottom = this.builder.getPageLimit() - this.builder.getPageAxis();
 				// System.err.println(this.pageAxis + "/" + pageBottom);
 				if (LayoutUtils.compare(this.pageSize, pageBottom) > 0) {
@@ -796,6 +798,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 		if (groupLast && this.bindRowGroupBox != null && this.rowGroupBox != null) {
 			boolean forceBreak = true;
 			for (;;) {
+				this.builder.getPageContext().getPageGenerator().getUserAgent()
+						.checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 				breakMode = this.bindRowGroupBox.getTableRowGroupPos().pageBreakAfter;
 				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
 					break;

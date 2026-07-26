@@ -251,6 +251,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	private final boolean breakByClear(final FlowPos pos) {
 		// ブロックのclearによる改ページ
+		this.checkAbort();
 		this.requireNoOpenTextBuilder("(no context)");
 		boolean breakFloats = false;
 		switch (pos.clear) {
@@ -399,6 +400,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				for (;;) {
+					this.checkAbort();
 					// テーブルの強制改ページチェック
 					if (this.mode == MODE_PAGE_BREAK) {
 						TableForceBreakMode mode = this.firstTableForceBreak(tableBox);
@@ -443,6 +445,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				for (;;) {
+					this.checkAbort();
 					if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
 						break;
 					}
@@ -513,6 +516,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		super.addRescueBound(box);
 		if (!this.isRestyling() && this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			for (;;) {
+				this.checkAbort();
 				if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
 					break;
 				}
@@ -677,6 +681,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// ルートボックス内の浮動ボックスを切断
 			if (this.flowStack.size() == 1) {
 				while (!this.breakFloats.isEmpty()) {
+					this.checkAbort();
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [floats]");
 					}
