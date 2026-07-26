@@ -460,9 +460,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 
 		final Throwable[] failure = new Throwable[1];
+		final DirectSession[] session = new DirectSession[1];
 		final Thread worker = new Thread(() -> {
 			try {
-				convert(html, outDir);
+				convert(html, outDir, session);
 			} catch (final Throwable t) {
 				failure[0] = t;
 			}
@@ -472,10 +473,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 		worker.join(WATCHDOG_MS);
 		// 不変条件2: 停止する
 		if (worker.isAlive()) {
-			// **watchdogは検出するだけで、止まらないスレッドを止められない。**
-			// Thread.stop()は現代のJavaでは使えず、エンジンに協調的な中断点も
-			// ない。したがって漏れたスレッドは走り続け、**レイアウト1件分の
-			// ヒープと64MBのスタック予約を抱えたまま**残る。
+			// **まず実際に止めにいく**(2026-07-27)。エンジンに協調的な
+			// 中断点(`UserAgent.checkAbort`)を入れたので、ページの途中でも
+			// 止まる。放置すると**レイアウト1件分のヒープと64MBのスタック
+			// 予約を抱えたまま**残り、掃過が自己増幅的に詰まる。
+			final DirectSession s = session[0];
+			if (s != null) {
+				try {
+					s.abort(jp.cssj.cti2.CTISession.ABORT_FORCE);
+					worker.join(5_000L);
+				} catch (final Exception ignore) {
+					// 中断要求が通らなくても以下の封じ込めへ進む
+				}
+			}
+		}
+		if (worker.isAlive()) {
+			// 中断要求を出しても止まらなかった。Thread.stop()は現代のJavaでは
+			// 使えないので、ここから先は**数えて封じ込める**しかない。
 			//
 			// これは自己増幅する(2026-07-27に10万文書の掃過が7時間停止して
 			// 発覚): ヒープ逼迫 → GCが回り続けて全体が遅くなる → watchdogを
@@ -624,12 +638,25 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private static void convert(final File html, final File outDir) throws Exception {
+		convert(html, outDir, new DirectSession[1]);
+	}
+
+	/**
+	 * @param sessionOut watchdogが中断要求を出せるよう、生成したセッションを
+	 *                   ここへ書き出す。<b>放置ではなく実際に止めるため</b>
+	 *                   (2026-07-27)——止められないスレッドはレイアウト1件分の
+	 *                   ヒープと64MBのスタック予約を抱えたまま残り、掃過が
+	 *                   自己増幅的に詰まる
+	 */
+	private static void convert(final File html, final File outDir, final DirectSession[] sessionOut)
+			throws Exception {
 		// 出力先はスレッド単位。システムプロパティだとプロセス全体で共有され、
 		// 並列掃過でダンプ先が互いに上書きされる(2026-07-26)
 		try (AutoCloseable scope = DisplayListDumper.scopedDir(outDir.getPath())) {
 			final File pdf = new File(outDir, "out.pdf");
 			try (OutputStream out = new FileOutputStream(pdf)) {
 				final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				sessionOut[0] = session;
 				try {
 					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
