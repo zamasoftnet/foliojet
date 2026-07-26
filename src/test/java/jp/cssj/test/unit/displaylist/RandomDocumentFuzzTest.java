@@ -48,6 +48,9 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <li><b>内容が失われない</b>——文書に埋めた一意なトークンが、すべて
  * 出力の表示リストに現れる。STRICTモード限定(下記)</li>
  * <li><b>意図しない白紙ページがない</b>——STRICTモード限定</li>
+ * <li><b>説明のつかない紙面外への配置がない</b>——はみ出し量が文書中の
+ * 最大の明示サイズの2倍を超えない。CSSの{@code overflow}既定は
+ * {@code visible}なので「紙面内」は要求できない。STRICTモード限定</li>
  * </ol>
  *
  * <h2>2つのモード</h2>
@@ -211,6 +214,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (m.contains("内容が失われた")) {
 			return "内容の消失";
+		}
+		if (m.contains("紙面外への配置")) {
+			return "紙面外への配置";
 		}
 		if (m.contains("停止しない")) {
 			return "停止しない";
@@ -460,6 +466,59 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
+		// 不変条件6: 説明のつかない紙面外への配置がない
+		assertNoUnexplainedOffPage(doc, pages, html);
+	}
+
+	/**
+	 * <b>不変条件6</b>: 内容が、作者の指定では説明できないほど紙面の外へ
+	 * 出ていないこと(2026-07-26新設)。
+	 *
+	 * <p>
+	 * <b>なぜ「紙面内」では駄目か。</b>CSSの{@code overflow}の既定値は
+	 * {@code visible}で、<b>箱からはみ出した内容を紙の外に描くのは正しい
+	 * 挙動</b>である。生成器は60×60ptの紙に250ptの箱を置くような病的な
+	 * 文書を作るので、素朴に「紙面内」を要求すると3000文書中356文書
+	 * (11.9%)が引っかかり、そのほとんどが正当だった。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>そこで「作者が指定した大きさで説明できるか」で切る。</b> はみ出し量が
+	 * 文書中の最大の明示サイズの2倍以内なら、指定の帰結として説明できる
+	 * ものとして見逃す。この基準で切ると<b>横書きは1件も残らず、縦書きだけ
+	 * 19件残った</b>(3000文書)。書字方向でこれほど非対称なら、原因は
+	 * 生成器ではなく実装側にある。詳細は
+	 * `copperpdf4/docs/REVIEW-STATISTICS.md` §12。
+	 * </p>
+	 *
+	 * <p>
+	 * 検査4「内容が失われない」はトークンが表示リストに<b>現れるか</b>しか
+	 * 見ないので、紙面外に描かれた内容を合格させる。ここはその穴を埋める。
+	 * </p>
+	 */
+	private static void assertNoUnexplainedOffPage(final Generated doc, final File[] pages, final File html)
+			throws Exception {
+		final double slack = 2 * doc.maxExplicitSize();
+		double worst = 0;
+		String worstAt = null;
+		for (final File page : pages) {
+			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
+			final Matcher m = POS_IN_DUMP.matcher(dump);
+			while (m.find()) {
+				final double x = Double.parseDouble(m.group(1)), y = Double.parseDouble(m.group(2));
+				// 紙面をまるごと1枚分はみ出して初めて数える(端の1ptは論外に
+				// してよいが、そこを厳しくすると罫線の丸めで揺れる)
+				final double over = Math.max(Math.max(-x - doc.pageWidth(), x - 2 * doc.pageWidth()),
+						Math.max(-y - doc.pageHeight(), y - 2 * doc.pageHeight()));
+				if (over > worst) {
+					worst = over;
+					worstAt = "x=" + x + " y=" + y + " " + page.getName();
+				}
+			}
+		}
+		assertTrue("紙面外への配置 " + Math.round(worst) + "pt (紙面" + Math.round(doc.pageWidth()) + "x"
+				+ Math.round(doc.pageHeight()) + "pt, 最大明示サイズ" + Math.round(doc.maxExplicitSize()) + "pt, " + worstAt
+				+ ") (" + html + ")", worst <= slack);
 	}
 
 	private static void convert(final File html, final File outDir) throws Exception {
@@ -487,8 +546,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 	// 生成器
 	// ------------------------------------------------------------------
 
-	private record Generated(String html, List<String> tokens) {
+	/**
+	 * @param pageWidth       紙面の幅(pt)
+	 * @param pageHeight      紙面の高さ(pt)
+	 * @param maxExplicitSize この文書が指定した{@code width}/{@code height}の
+	 *                        最大値(pt)。不変条件6で「作者が指定した大きさの
+	 *                        帰結として説明できるはみ出しか」を判定するのに使う
+	 */
+	private record Generated(String html, List<String> tokens, double pageWidth, double pageHeight,
+			double maxExplicitSize) {
 	}
+
+	/** 表示リストの1行から描画位置を拾う。 */
+	private static final Pattern POS_IN_DUMP = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+)");
+
+	/** 生成器が出す明示サイズ({@code width:120pt}等)。 */
+	private static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
 
 	/** ページ寸法の候補(極端に小さいものを含む)。 */
 	private static final int[][] PAGE_SIZES = { { 200, 200 }, { 300, 150 }, { 120, 400 }, { 595, 842 }, { 60, 60 } };
@@ -521,7 +594,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("</style></head><body>\n");
 		s.append(body);
 		s.append("\n</body></html>\n");
-		return new Generated(s.toString(), tokens);
+		final String out = s.toString();
+		// 生成器が出した明示サイズの最大値。生成箇所が複数に散っているので、
+		// 引数で持ち回るより出来上がった文書から拾うほうが取りこぼさない
+		double maxExplicit = 0;
+		final Matcher em = EXPLICIT_SIZE.matcher(out);
+		while (em.find()) {
+			maxExplicit = Math.max(maxExplicit, Double.parseDouble(em.group(1)));
+		}
+		return new Generated(out, tokens, size[0], size[1], maxExplicit);
 	}
 
 	/** 一意なトークン(行分割で割れないよう空白を含めない)。 */
