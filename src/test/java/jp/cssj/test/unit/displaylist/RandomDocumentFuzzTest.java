@@ -223,7 +223,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
 		// なり、種別が1つに潰れる(2026-07-26に踏んだ)
 		if (t instanceof ExcludedByOversizedBox) {
-			return "(除外)紙面に収まらない箱がある文書の白紙ページ";
+			// 除外の理由は同じ(版面が破綻した文書)だが、どちらの不変条件が
+			// 引っかかったのかは残す——除外の内訳が変わったことに
+			// 気づけなくなるため
+			return String.valueOf(t.getMessage()).startsWith("白紙ページ") ? "(除外)版面が破綻した文書の白紙ページ"
+					: "(除外)版面が破綻した文書の紙面外配置";
 		}
 		final StringBuilder chain = new StringBuilder();
 		for (Throwable c = t; c != null; c = c.getCause()) {
@@ -497,7 +501,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 除外は「見なかったことにする」ではなく**別の種別として数える**:
 		// 除外が増えたことに気づけなくなると、本当の退行を見落とす。
 		if (!blanks.isEmpty()) {
-			if (doc.oversized()) {
+			if (doc.beyondEngineControl()) {
 				throw new ExcludedByOversizedBox("白紙ページ " + blanks + " (" + html + ")");
 			}
 			fail("白紙ページ " + blanks + " (" + html + ")");
@@ -561,9 +565,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 				}
 			}
 		}
-		assertTrue("紙面外への配置 " + Math.round(worst) + "pt (紙面" + Math.round(doc.pageWidth()) + "x"
+		if (worst <= slack) {
+			return;
+		}
+		final String detail = "紙面外への配置 " + Math.round(worst) + "pt (紙面" + Math.round(doc.pageWidth()) + "x"
 				+ Math.round(doc.pageHeight()) + "pt, 最大明示サイズ" + Math.round(doc.maxExplicitSize()) + "pt, " + worstAt
-				+ ") (" + html + ")", worst <= slack);
+				+ ") (" + html + ")";
+		// 白紙ページと同じ除外基準を適用する(2026-07-26)。版面が破綻して
+		// いる文書ではエンジンの振る舞いを問えない
+		if (doc.beyondEngineControl()) {
+			throw new ExcludedByOversizedBox(detail);
+		}
+		fail(detail);
 	}
 
 	private static void convert(final File html, final File outDir) throws Exception {
@@ -599,7 +612,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                        帰結として説明できるはみ出しか」を判定するのに使う
 	 */
 	private record Generated(String html, List<String> tokens, double pageWidth, double pageHeight,
-			double maxExplicitSize, boolean oversized) {
+			double maxExplicitSize, boolean oversized, boolean tinyPage) {
+
+		/** 版面が破綻していて、エンジンの振る舞いを問えない文書か。 */
+		boolean beyondEngineControl() {
+			return this.oversized || this.tinyPage;
+		}
 	}
 
 	/** 表示リストの1行から描画位置を拾う。 */
@@ -652,7 +670,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		while (em.find()) {
 			maxExplicit = Math.max(maxExplicit, Double.parseDouble(em.group(1)));
 		}
-		return new Generated(out, tokens, size[0], size[1], maxExplicit, isOversized(out, size));
+		return new Generated(out, tokens, size[0], size[1], maxExplicit, isOversized(out, size),
+				isTinyPage(out, size));
 	}
 
 	/**
@@ -694,6 +713,40 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// フォントサイズは行の高さになるので、ページ方向の寸法と比べる
 		return maxOf(FONT_SIZE, html) > contentHeight;
 	}
+
+	/**
+	 * この文書の紙面が<b>そもそも組版できない大きさ</b>かを返します
+	 * (2026-07-26新設)。
+	 *
+	 * <p>
+	 * 基準は「内容領域が基準フォントサイズの{@value #MIN_PAGE_CHARS}倍
+	 * (=約{@value #MIN_PAGE_CHARS}文字)に満たない軸がある」。生成器は
+	 * 60x60ptの紙に13ptのフォントという文書を作る——<b>1行4文字</b>で、
+	 * 行分割も浮動体も段組も意味のある版面にならず、エンジンがどう
+	 * 振る舞っても正解がない。実在する最小の印刷物(ラベル・値札)でも
+	 * この比率にはならない。
+	 * </p>
+	 *
+	 * <p>
+	 * 除外されるのは実質「60x60ptかつフォント8pt以上」だけで、
+	 * 他の紙面(120x400・200x200・300x150・A4)は生成器が出す
+	 * フォントサイズの範囲(6〜13pt)では該当しない。
+	 * </p>
+	 */
+	private static boolean isTinyPage(final String html, final int[] pageSize) {
+		final Matcher pm = PAGE_MARGIN.matcher(html);
+		final double margin = pm.find() ? Double.parseDouble(pm.group(1)) : 0;
+		final Matcher fm = FONT_SIZE.matcher(html);
+		if (!fm.find()) {
+			return false;
+		}
+		final double font = Double.parseDouble(fm.group(1));
+		final double least = font * MIN_PAGE_CHARS;
+		return pageSize[0] - 2 * margin < least || pageSize[1] - 2 * margin < least;
+	}
+
+	/** 「組版できる紙面」の下限を文字数で表したもの。 */
+	private static final int MIN_PAGE_CHARS = 8;
 
 	private static double maxOf(final Pattern pattern, final String html) {
 		double max = 0;
