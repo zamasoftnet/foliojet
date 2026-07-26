@@ -121,7 +121,16 @@ public class HTMLParser implements Parser {
 			throws SAXException, IOException {
 		// バイトストリーム
 		// BOMチェック
-		InputStream in = new BufferedInputStream(new LegacyCommentInputStream(source.getInputStream()));
+		// 緩衝は**内側にも**要る(2026-07-27)。
+		//
+		// LegacyCommentInputStreamは1バイトずつ`super.read()`を呼ぶ実装なので、
+		// 外側のBufferedInputStreamだけでは**生のストリームに対して
+		// 1バイト1回のread**になる——実測でプロファイルの最上位に
+		// `FileInputStream.read0`が30%現れていた。
+		//
+		// 内側の緩衝で、その1バイトずつの読みがメモリ上で完結する。
+		InputStream in = new BufferedInputStream(
+				new LegacyCommentInputStream(new BufferedInputStream(source.getInputStream(), 64 * 1024)));
 		String encoding = XMLUtils.checkBOM(in);
 
 		if (encoding != null) {
