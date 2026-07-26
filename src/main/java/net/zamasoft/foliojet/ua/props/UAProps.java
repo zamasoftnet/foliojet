@@ -457,33 +457,7 @@ public final class UAProps {
 			"processing.fail-on-fatal-error", true);
 
 
-	/**
-	 * 実際のformat処理を、大きいstackサイズを持つ専用スレッドで実行します
-	 * (既定false、2026-07-23新設)。
-	 *
-	 * <p>
-	 * 極端に深いネスト構造(実測: 深さ1000以上)を持つ文書は、
-	 * {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox
-	 * .splitForContinuation}の相互再帰がJVMデフォルトのスレッド
-	 * stackサイズを超え{@code StackOverflowError}になりうる
-	 * (`docs/history/2026-07-22-m6d-splitpageaxis-iteration
-	 * -investigation.md`参照)。既定は無効——通常の文書には影響を
-	 * 与えないよう、この対策を必要とする呼び出し側だけが明示的に
-	 * 有効化する。
-	 * </p>
-	 */
-	public static final BooleanPropManager PROCESSING_LARGE_STACK_THREAD = new BooleanPropManager(
-			"processing.large-stack-thread", false);
-
-	/**
-	 * {@link #PROCESSING_LARGE_STACK_THREAD}有効時のstackサイズ(バイト)
-	 * です(既定64MB、2026-07-23新設)。深さ5000の実文書規模ネストで
-	 * 実証済みの値。
-	 */
-	public static final IntegerPropManager PROCESSING_LARGE_STACK_THREAD_SIZE = new IntegerPropManager(
-			"processing.large-stack-thread.size", 64 * 1024 * 1024);
-
-	/**
+		/**
 	 * レイアウトソース(LayoutSource)のテキストpayloadをheapへinline
 	 * 保持する上限(bytes)です(既定8MB、2026-07-24新設——E-6増分3b-2)。
 	 *
@@ -682,8 +656,6 @@ public final class UAProps {
 			PROCESSING_MIDDLE_PASS,
 			PROCESSING_PAGE_REFERENCES,
 			PROCESSING_FAIL_ON_FATAL_ERROR,
-			PROCESSING_LARGE_STACK_THREAD,
-			PROCESSING_LARGE_STACK_THREAD_SIZE,
 			PROCESSING_TEXT_SPILL_BUDGET,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,

@@ -118,9 +118,6 @@ public class ConcurrentConvertTest extends TestCase {
 				// ワーカーが終了できなくなる(2026-07-26に実際に踏んだ)
 				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(
 						new java.io.PrintStream(java.io.OutputStream.nullOutputStream())));
-				if (System.getProperty("foliojet.concurrentLargeStack") != null) {
-					session.property("processing.large-stack-thread", "true");
-				}
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");

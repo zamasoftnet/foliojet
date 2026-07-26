@@ -174,8 +174,12 @@ public class DeepNestingRestyleTest extends TestCase {
 	 * ようやくrestyle系自体の反復化の要否を実測で判断できる。
 	 * </p>
 	 */
-	public void testDepth1000OpenChainAcrossPageBreaksCurrentlyOverflows() throws Exception {
-		this.assertCurrentlyOverflows(1000, 300);
+	public void testDepth1000OpenChainAcrossPageBreaks() throws Exception {
+		// 2026-07-26: レイアウトを常に64MBスタックの専用スレッドで実行する
+		// ようにした(DirectSession.LAYOUT_STACK_SIZE)ため、深さ1000は
+		// 成功するようになった。反復化したのではなく、スタックを増やして
+		// 実務上の問題を解消した形(相互再帰自体は残っている)。
+		this.runDeepOpenChain(1000, 300);
 	}
 
 	/**
@@ -183,8 +187,9 @@ public class DeepNestingRestyleTest extends TestCase {
 	 * 確認済みの深さと同水準)。同じく現状は{@code splitPageAxis}経由で
 	 * {@code StackOverflowError}に到達する(クラスjavadoc参照)。
 	 */
-	public void testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows() throws Exception {
-		this.assertCurrentlyOverflows(5000, 300);
+	public void testDepth5000OpenChainAcrossPageBreaks() throws Exception {
+		// 同上。実測では深さ5000に必要なstackは8MBで、64MBは8倍の余裕がある
+		this.runDeepOpenChain(5000, 300);
 	}
 
 	/**
@@ -242,64 +247,6 @@ public class DeepNestingRestyleTest extends TestCase {
 	 */
 	public void testDepth5000SucceedsWithLargeStackThreadProperty() throws Exception {
 		this.runDeepOpenChain(5000, 300, true);
-	}
-
-	/**
-	 * restyle系反復化前の現状の既知の限界を固定する。
-	 *
-	 * <p>
-	 * {@code DirectSession.transcode(Source)}は{@code catch (Throwable t)}で
-	 * 予期しない例外を捕捉し、原因(cause)を保持しないまま
-	 * {@code TranscoderException}へ包み直す(ログにのみ出力する)ため、
-	 * {@code TranscoderException}の原因チェーンからは元の
-	 * {@code StackOverflowError}を辿れない。そのため一時的な
-	 * {@link Handler}を{@code DirectSession}のロガーへ差し込み、
-	 * ログ出力された{@code Throwable}を直接検査する。
-	 * </p>
-	 */
-	private void assertCurrentlyOverflows(int depth, int leafLines) throws Exception {
-		final Logger sessionLogger = Logger.getLogger(DirectSession.class.getName());
-		final Throwable[] logged = new Throwable[1];
-		final Handler capture = new Handler() {
-			public void publish(LogRecord record) {
-				if (record.getThrown() != null) {
-					logged[0] = record.getThrown();
-				}
-			}
-
-			public void flush() {
-			}
-
-			public void close() {
-			}
-		};
-		sessionLogger.addHandler(capture);
-		try {
-			try {
-				this.runDeepOpenChain(depth, leafLines);
-				fail("restyle系(または関連する反復化未対応の再帰)が解消した可能性があります。"
-						+ "深さ" + depth + "が例外なく成功しました——このテストを「成功する」側の"
-						+ "アサーションへ書き換えてください(クラスjavadoc参照)。");
-			} catch (TranscoderException e) {
-				Throwable cause = logged[0];
-				while (cause != null && !(cause instanceof StackOverflowError)) {
-					cause = cause.getCause();
-				}
-				assertTrue("深さ" + depth + "の失敗原因がStackOverflowErrorではありません"
-						+ "(想定外の別の不具合の可能性、ログ捕捉分=" + logged[0] + "): " + e,
-						cause instanceof StackOverflowError);
-				// StackOverflowErrorの発生箇所を記録しておく(restyle系か、
-				// それ以外の未対応の再帰かを切り分けるため)。
-				System.err.println("深さ" + depth + "でのStackOverflowError発生箇所(先頭20フレーム):");
-				StackTraceElement[] trace = cause.getStackTrace();
-				System.err.println("  total frames=" + trace.length);
-				for (int i = 0; i < Math.min(20, trace.length); ++i) {
-					System.err.println("  at " + trace[i]);
-				}
-			}
-		} finally {
-			sessionLogger.removeHandler(capture);
-		}
 	}
 
 	private void runDeepOpenChain(int depth, int leafLines) throws Exception {

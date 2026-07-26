@@ -650,41 +650,84 @@ public class DirectSession extends AbstractCTISession
 		this.reset();
 	}
 
-	/** {@link #runOnLargeStackIfEnabled}へ渡す、実際のformat呼び出し1回分です。 */
+	/** {@link #runOnLargeStack}へ渡す、実際のformat呼び出し1回分です。 */
 	@FunctionalInterface
 	private interface LargeStackTask {
 		void run() throws AbortException, TranscoderException;
 	}
 
 	/**
-	 * {@code task}(実際には{@code formatter.format(...)}の1呼び出し)を
-	 * 実行します。{@code processing.large-stack-thread}が有効な場合は、
-	 * 大きいstackサイズを持つ専用スレッド上で実行する(2026-07-23新設)。
+	 * レイアウトを実行するスレッドのstackサイズです(2026-07-26に定数化)。
+	 *
+	 * <h2>なぜ常にこのスレッドを使うのか</h2>
 	 *
 	 * <p>
-	 * 極端に深いネスト構造の文書は{@code FlowContainer.splitPageAxis}↔
-	 * {@code AbstractBlockBox.splitForContinuation}の相互再帰が
-	 * JVMデフォルトのスレッドstackサイズを超え{@code StackOverflowError}
-	 * になりうることを実証済み(`docs/history/2026-07-22
-	 * -m6d-splitpageaxis-iteration-investigation.md`参照)。既定は
-	 * 無効——通常の文書やこの対策を必要としない呼び出し側の挙動・
-	 * スレッド前提は一切変えない。
+	 * 改ページ・継続の機構には<b>反復化されていない相互再帰</b>が残っており、
+	 * 深い文書でJVM既定のstackを超えて{@code StackOverflowError}になります。
+	 * 該当するのは2系統で、いずれも反復化を検討したうえで見送っています——
+	 * {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox
+	 * .splitForContinuation}(2026-07-22の調査)と、
+	 * {@code RootBuilder.restyleFrame}→再生→{@code pageBreak}→再開→
+	 * {@code restyleFrame}の循環(2026-07-26に独立2者へ相談。
+	 * 「レイアウト構築とイベント再生全体を協調的状態機械へ全面書き換え」が
+	 * 必要で、難度は見送った{@code splitPageAxis}より上、という評価で一致)。
+	 * </p>
+	 *
+	 * <p>
+	 * 従来は{@code processing.large-stack-thread}というオプトインでしたが、
+	 * <b>既定で無効だと利用者が事故に遭ってから設定することになる</b>ため、
+	 * 常時有効の定数へ変更しました。
+	 * </p>
+	 *
+	 * <h2>値の根拠(2026-07-26の実測)</h2>
+	 *
+	 * <table border="1">
+	 * <caption>ネスト深さと必要stackサイズ(同一プロセスで2回連続変換)</caption>
+	 * <tr><th>文書</th><th>必要stack</th></tr>
+	 * <tr><td>ネスト深さ200</td><td>1MB</td></tr>
+	 * <tr><td>ネスト深さ1000(実文書規模——e-gov法令ページ相当)</td><td>2MB</td></tr>
+	 * <tr><td>ネスト深さ5000</td><td>8MB</td></tr>
+	 * <tr><td>段組の入れ子+極小ページ(restyle循環が216段)</td><td>2MB</td></tr>
+	 * </table>
+	 *
+	 * <p>
+	 * 実測の最大が8MBなので、<b>64MBは8倍の余裕</b>があります。stackサイズは
+	 * OSへの<b>予約</b>であって、実際に触れたページ分しかコミットされません。
+	 * したがって並行変換しても実メモリは再帰の深さ分しか増えません。
+	 * </p>
+	 *
+	 * <h2>コスト(実測)</h2>
+	 *
+	 * <p>
+	 * 変換ごとにスレッドを1つ作るコストは<b>+0.34 ms/変換</b>
+	 * (小さい文書で5.05→5.39 ms、約6.7%)。実文書は1変換あたり数百ms〜
+	 * なので相対的には無視できます。
 	 * </p>
 	 */
-	private void runOnLargeStackIfEnabled(final LargeStackTask task) throws AbortException, TranscoderException {
-		if (!UAProps.PROCESSING_LARGE_STACK_THREAD.getBoolean(this.ua)) {
-			task.run();
-			return;
-		}
-		final int stackSize = UAProps.PROCESSING_LARGE_STACK_THREAD_SIZE.getInteger(this.ua);
+	private static final int LAYOUT_STACK_SIZE = 64 * 1024 * 1024;
+
+	/**
+	 * {@code task}(実際には{@code formatter.format(...)}の1呼び出し)を、
+	 * {@link #LAYOUT_STACK_SIZE}のstackを持つ専用スレッドで実行します。
+	 */
+	private void runOnLargeStack(final LargeStackTask task) throws AbortException, TranscoderException {
+		final int stackSize = LAYOUT_STACK_SIZE;
 		final Throwable[] failure = new Throwable[1];
+		// 別スレッドで走らせるので、**呼び出し側スレッドのThreadLocalは
+		// 引き継がない**。外から設定される方針だけを明示的に渡す
+		// (2026-07-26に常時有効化した際、RescuePolicyの引き継ぎ漏れで
+		// テストが4件落ちて発覚。ThreadLocalを増やしたらここも増やすこと)。
+		final net.zamasoft.foliojet.layout.rescue.RescuePolicy rescuePolicy = net.zamasoft.foliojet.layout.rescue.RescuePolicy
+				.current();
+		final String displayListDir = net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDir();
 		final Thread worker = new Thread(null, () -> {
-			try {
+			try (var policy = rescuePolicy.scoped();
+					var dump = net.zamasoft.foliojet.layout.draw.DisplayListDumper.scopedDir(displayListDir)) {
 				task.run();
 			} catch (Throwable t) {
 				failure[0] = t;
 			}
-		}, "foliojet-large-stack-format", stackSize);
+		}, "foliojet-layout", stackSize);
 		worker.start();
 		// 割り込まれてもworkerの完了までjoinし続ける(2026-07-25)。
 		// 途中で抜けると、呼び出し側がsessionをcloseし入力ストリームを
@@ -759,7 +802,7 @@ public class DirectSession extends AbstractCTISession
 				// 再代入されるとeffectively finalでなくなりコンパイルできない
 				// (2026-07-23、imageTestのfresh jarビルドで実際に検出)。
 				final Source formatSource = source;
-				this.runOnLargeStackIfEnabled(() -> formatter.format(formatSource, this.ua));
+				this.runOnLargeStack(() -> formatter.format(formatSource, this.ua));
 			} else {
 				// 複数パス
 				((RandomResultUserAgent) this.ua).setResults(results);
@@ -781,7 +824,7 @@ public class DirectSession extends AbstractCTISession
 							final TeeInputStream in = new TeeInputStream(source.getInputStream(), out)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 								source.getEncoding());
-						this.runOnLargeStackIfEnabled(() -> formatter.format(fileSource, this.ua));
+						this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 					}
 					// 中間処理
 					for (int remaining = passCount; remaining > 1; --remaining) {
@@ -792,7 +835,7 @@ public class DirectSession extends AbstractCTISession
 						try (final InputStream in = new FileInputStream(tmpFile)) {
 							final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 									source.getEncoding());
-							this.runOnLargeStackIfEnabled(() -> formatter.format(fileSource, this.ua));
+							this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 						}
 					}
 					// 目的物生成
@@ -803,7 +846,7 @@ public class DirectSession extends AbstractCTISession
 								source.getEncoding());
 						this.ua.getUAContext().setPassCount(1);
 						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-						this.runOnLargeStackIfEnabled(() -> formatter.format(fileSource, this.ua));
+						this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 					}
 				} finally {
 					if (tmpFile != null) {

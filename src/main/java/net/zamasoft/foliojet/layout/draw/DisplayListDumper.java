@@ -45,6 +45,14 @@ public final class DisplayListDumper {
 	 * @param dir 出力先(nullでこのスレッドの設定を外す)
 	 * @return 閉じると元の設定へ戻すハンドル
 	 */
+	/**
+	 * このスレッドに設定されている出力先を返します({@code null}なら未設定)。
+	 * レイアウトを別スレッドで実行する側が引き継ぐために使います。
+	 */
+	public static String currentDir() {
+		return DIR_OVERRIDE.get();
+	}
+
 	public static AutoCloseable scopedDir(final String dir) {
 		final String saved = DIR_OVERRIDE.get();
 		if (dir == null) {
