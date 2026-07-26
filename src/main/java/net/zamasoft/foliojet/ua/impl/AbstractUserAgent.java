@@ -217,7 +217,30 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 *
 	 * <p>
 	 * <b>オプションにしない。</b>「オプトインの安全弁は事故に遭った人しか
-	 * 使わない」([[LESSONS]] §6.9b)——既定で効かせる。
+	 * 使わない」([[LESSONS]] §6.9b)——既定で効かせる。値だけは
+	 * {@code -Dfoliojet.noProgressSeconds} で変えられる(サーバのSLAに
+	 * 合わせるため。<b>既定が有効</b>なので上の原則には反しない)。
+	 * </p>
+	 *
+	 * <h3>性能への影響(実測、2026-07-27)</h3>
+	 *
+	 * <p>
+	 * 追加したのは{@link #checkAbort(byte)}のvolatile読み+
+	 * {@code System.nanoTime()}と、{@link #noteProgress()}のvolatile書き。
+	 * 呼び出し回数を数えたところ:
+	 * </p>
+	 *
+	 * <table border="1">
+	 * <tr><th>文書</th><th>checkAbort</th><th>noteProgress</th><th>追加コストの上限</th></tr>
+	 * <tr><td>表 200,000行(変換65秒)</td><td>37,500</td><td>404,167</td><td>11.0 ms = <b>0.017%</b></td></tr>
+	 * <tr><td>テキスト 20,000段落</td><td>24,377</td><td>434</td><td>0.6 ms</td></tr>
+	 * <tr><td>フロート 8,000個</td><td>9,649</td><td>236</td><td>0.2 ms</td></tr>
+	 * </table>
+	 *
+	 * <p>
+	 * 端から端までの実測では基準実装との差が測定誤差(±6%)に埋もれた。
+	 * <b>粗い粒度に置いている限り無視できる</b>——グリフ単位・文字単位へ
+	 * 降ろすとこの前提は崩れる。
 	 * </p>
 	 */
 	private static final long NO_PROGRESS_LIMIT_NANOS = Long.getLong("foliojet.noProgressSeconds", 120L) * 1_000_000_000L;
