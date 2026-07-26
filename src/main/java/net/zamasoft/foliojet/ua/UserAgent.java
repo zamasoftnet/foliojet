@@ -70,6 +70,18 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	public void checkAbort(byte mode);
 
 	/**
+	 * <b>実際に仕事が1単位進んだ</b>ことを記録します。締切はこれを基準に
+	 * 「詰まっているか」を測ります。
+	 *
+	 * <p>
+	 * <b>「コードが動いた」ではなく「仕事が終わった」場所で呼ぶこと。</b>
+	 * 空回りするループから呼ぶと、進捗を偽装して締切を無効にしてしまいます。
+	 * 現在の呼び出し元: ページの出力・画像の読み込み完了・表の行の確定。
+	 * </p>
+	 */
+	public void noteProgress();
+
+	/**
 	 * 画像を取得します。
 	 */
 	public Image getImage(Source source) throws IOException;

@@ -217,6 +217,10 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			final TableRowBox row = (TableRowBox) box;
 			final List<TableRowBox> rows = (ArrayList<TableRowBox>) this.rowGroupToRows.get(rowGroup);
 			rows.add(row);
+			// 行1つの収集は**実際に進んだ仕事**。保持型の表は全行を読み終える
+			// まで1ページも出さないので、ここが進捗の唯一の信号になる
+			// (2026-07-27、40万行=37.5秒の無出力区間の正体)
+			this.noteTableProgress();
 			this.rowToCells.put(row, new ArrayList<CellContent>());
 		}
 			break;
@@ -1197,6 +1201,8 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 				TableRowBox rowBox = (TableRowBox) rows.get(j);
 				rowBox.setLineSize(tableInnerSize);
 				rowGroup.addTableRow(rowBox);
+				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
+				this.noteTableProgress();
 				@SuppressWarnings("unchecked")
 				final List<CellContent> cells = (List<CellContent>) this.rowToCells.get(rowBox);
 				if (measuredPageAxis != null) {
@@ -1411,6 +1417,27 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		return FixedColumnWidths.cellSpec(cell.getCellBox(), cell.colspan,
 				this.tableBox.getTableParams().flow, refSize);
 	}
+
+	/**
+	 * 表の行を1つ確定したことを記録します(2026-07-27新設)。
+	 *
+	 * <p>
+	 * 締切({@code AbstractUserAgent}の「進捗が止まったら中断する」)は
+	 * ページの出力を進捗とみなすが、<b>巨大な自動表の測定パスでは
+	 * ページが出ないまま長く走る</b>。実測で40万行=37.5秒、外挿すると
+	 * 100万行で約94秒に達し、既定の120秒に迫っていた(2026-07-27)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>「コードが動いた」ではなく「仕事が終わった」を数えること。</b>
+	 * 行の確定は各行1回きりの単調な仕事なので、空回りするループが
+	 * 進捗を偽装できない。
+	 * </p>
+	 */
+	private void noteTableProgress() {
+		this.layoutStack.getPageContext().getPageGenerator().getUserAgent().noteProgress();
+	}
+
 }
 
 /**

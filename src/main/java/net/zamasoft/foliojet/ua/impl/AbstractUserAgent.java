@@ -220,7 +220,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 * 使わない」([[LESSONS]] §6.9b)——既定で効かせる。
 	 * </p>
 	 */
-	private static final long NO_PROGRESS_LIMIT_NANOS = 120L * 1_000_000_000L;
+	private static final long NO_PROGRESS_LIMIT_NANOS = Long.getLong("foliojet.noProgressSeconds", 120L) * 1_000_000_000L;
 
 	/** 最後にページを出した時刻。{@link #checkAbort(byte)}が締切に使う。 */
 	private volatile long lastProgressNanos = System.nanoTime();
@@ -228,7 +228,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 	/**
 	 * ページを1枚出したことを記録します。締切はこれを基準に測ります。
 	 */
-	protected final void noteProgress() {
+	public final void noteProgress() {
 		this.lastProgressNanos = System.nanoTime();
 	}
 
@@ -254,7 +254,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			throw new AbortException(this.aborted);
 		}
 		if (System.nanoTime() - this.lastProgressNanos > NO_PROGRESS_LIMIT_NANOS) {
-			// ページが1枚も出ないまま既定時間を過ぎた。詰まっているとみなす
+			// 仕事が1単位も進まないまま既定時間を過ぎた。詰まっているとみなす
 			this.message(CTIMessageCodes.INFO_ABORT);
 			this.aborted = AbortException.ABORT_FORCE;
 			throw new AbortException(AbortException.ABORT_FORCE);
@@ -499,6 +499,9 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	public Image getImage(final Source source) throws IOException {
 		Image image = this.loadImage(source);
+		// 画像1枚の読み込みは**実際に進んだ仕事**。大きな画像・複雑なSVGが
+		// 続く文書では、ページとページの間でここだけが進む(2026-07-27)
+		this.noteProgress();
 		AffineTransform pixelToUnit = this.getPixelToUnit();
 		if (!pixelToUnit.isIdentity()) {
 			image = new TransformedImage(image, this.pixelToUnit);

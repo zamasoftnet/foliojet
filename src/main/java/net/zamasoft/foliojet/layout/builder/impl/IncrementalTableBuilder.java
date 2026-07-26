@@ -540,6 +540,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			rowBox.setLineSize(this.tableInnerSize);
 			rowBox.setPageSize(rowSize);
 			this.bindRowGroupBox.addTableRow(rowBox);
+			// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
+			this.noteTableProgress();
 			if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
 				// つぶし境界
 				this.addBorderRowSize(rowSize);
@@ -636,6 +638,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			for (int row = 0; row < this.rowsUnit.size(); ++row) {
 				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
 				this.bindRowGroupBox.addTableRow(rowBox);
+				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
+				this.noteTableProgress();
 			}
 
 			// セルの高さ設定(共有核 — P2-5 (c)。baseline は寸法収集時に適用済み)
@@ -1117,6 +1121,27 @@ public class IncrementalTableBuilder implements TableBuilder {
 		// 指定の導出は FixedColumnWidths に統合(P2-2)
 		return FixedColumnWidths.cellSpec(cellBox, cell.colspan, tableFlow, refSize);
 	}
+
+	/**
+	 * 表の行を1つ確定したことを記録します(2026-07-27新設)。
+	 *
+	 * <p>
+	 * 締切({@code AbstractUserAgent}の「進捗が止まったら中断する」)は
+	 * ページの出力を進捗とみなすが、<b>巨大な自動表の測定パスでは
+	 * ページが出ないまま長く走る</b>。実測で40万行=37.5秒、外挿すると
+	 * 100万行で約94秒に達し、既定の120秒に迫っていた(2026-07-27)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>「コードが動いた」ではなく「仕事が終わった」を数えること。</b>
+	 * 行の確定は各行1回きりの単調な仕事なので、空回りするループが
+	 * 進捗を偽装できない。
+	 * </p>
+	 */
+	private void noteTableProgress() {
+		this.builder.getPageContext().getPageGenerator().getUserAgent().noteProgress();
+	}
+
 }
 
 /**
