@@ -146,6 +146,31 @@ public class Drawer implements Comparable<Drawer> {
 		}
 	}
 
+	/**
+	 * この表示リストに<b>紙へ残るものが一つもない</b>かを返します
+	 * (2026-07-26新設)。子Drawerも再帰的に見ます。
+	 *
+	 * <p>
+	 * 「意図しない白紙ページを作らない」という絶対要件の判定に使います。
+	 * 本文・{@code position:fixed}・{@code @page}マージンボックスは
+	 * すべて同じ表示リストへ積まれるので、<b>ここが空であることが
+	 * 「白紙」の定義そのもの</b>になります。
+	 * </p>
+	 */
+	public boolean isEmpty() {
+		if (this.drawables != null && !this.drawables.isEmpty()) {
+			return false;
+		}
+		if (this.drawers != null) {
+			for (int i = 0; i < this.drawers.size(); ++i) {
+				if (!this.drawers.get(i).isEmpty()) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	public void visitDrawable(Drawable drawable, double x, double y) {
 		this.addDrawable(drawable, x, y, this.artifact);
 	}

@@ -191,11 +191,40 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return System.getProperty("foliojet.fuzzReport") != null;
 	}
 
+	/**
+	 * <b>紙面に収まらない箱を含む文書</b>で白紙ページが出た、という印
+	 * (2026-07-26新設)。失敗ではなく<b>除外</b>として扱う。
+	 *
+	 * <p>
+	 * 2026-07-26のユーザー裁定: 「意図的にやらないとこうはならないと
+	 * 言えるレアケースは、デザイナの責任として取りこぼしてよい」。
+	 * 紙面より大きい不可分な箱を置いた文書は、エンジンがどう振る舞っても
+	 * ——はみ出させるか、次ページへ送るか——版面が破綻している。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>例外にしているのは、集計モードで件数を出すため。</b> 単に検査を
+	 * 飛ばすと、除外が増えたことに気づけなくなる。除外の増加は
+	 * 「生成器が変わった」か「本当の退行が除外に紛れ込んだ」かの
+	 * どちらかであり、どちらも見逃してはならない。
+	 * </p>
+	 */
+	private static final class ExcludedByOversizedBox extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByOversizedBox(final String message) {
+			super(message);
+		}
+	}
+
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	private static String classify(final Throwable t) {
 		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
 		// なり、種別が1つに潰れる(2026-07-26に踏んだ)
+		if (t instanceof ExcludedByOversizedBox) {
+			return "(除外)紙面に収まらない箱がある文書の白紙ページ";
+		}
 		final StringBuilder chain = new StringBuilder();
 		for (Throwable c = t; c != null; c = c.getCause()) {
 			chain.append(String.valueOf(c.getMessage())).append(' ');
@@ -343,6 +372,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 					failures.add("seed=" + seed + ": 既知の未解決だったが通った。"
 							+ "KNOWN_TRAILING_BLANK_PAGE から外すこと");
 				}
+			} catch (final ExcludedByOversizedBox excluded) {
+				// 除外。集計モードでのみ数える(sweepParallel側で拾う)
+				continue;
 			} catch (final Throwable t) {
 				if (report) {
 					final String k = classify(t);
@@ -458,7 +490,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return; // WILDは1〜3だけ
 		}
 		// 不変条件5: 意図しない白紙ページがない
-		assertTrue("白紙ページ " + blanks + " (" + html + ")", blanks.isEmpty());
+		//
+		// **紙面に収まらない箱を含む文書は除外する**(2026-07-26のユーザー裁定)。
+		// エンジンがどう振る舞っても版面は破綻しており——はみ出させるか、
+		// 次ページへ送るか——寸法を直すのは組版を指定した側の責任である。
+		// 除外は「見なかったことにする」ではなく**別の種別として数える**:
+		// 除外が増えたことに気づけなくなると、本当の退行を見落とす。
+		if (!blanks.isEmpty()) {
+			if (doc.oversized()) {
+				throw new ExcludedByOversizedBox("白紙ページ " + blanks + " (" + html + ")");
+			}
+			fail("白紙ページ " + blanks + " (" + html + ")");
+		}
 		// 不変条件4: 内容が失われない
 		final String all = String.join("", seen);
 		final List<String> lost = new ArrayList<>();
@@ -556,7 +599,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                        帰結として説明できるはみ出しか」を判定するのに使う
 	 */
 	private record Generated(String html, List<String> tokens, double pageWidth, double pageHeight,
-			double maxExplicitSize) {
+			double maxExplicitSize, boolean oversized) {
 	}
 
 	/** 表示リストの1行から描画位置を拾う。 */
@@ -564,6 +607,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** 生成器が出す明示サイズ({@code width:120pt}等)。 */
 	private static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
+
+	private static final Pattern EXPLICIT_WIDTH = Pattern.compile("width:(\\d+)pt");
+	private static final Pattern EXPLICIT_HEIGHT = Pattern.compile("height:(\\d+)pt");
+	private static final Pattern FONT_SIZE = Pattern.compile("(?:font-size:|font:normal )(\\d+)pt");
+	private static final Pattern PAGE_MARGIN = Pattern.compile("@page\\{margin:(\\d+)pt");
 
 	/** ページ寸法の候補(極端に小さいものを含む)。 */
 	private static final int[][] PAGE_SIZES = { { 200, 200 }, { 300, 150 }, { 120, 400 }, { 595, 842 }, { 60, 60 } };
@@ -604,7 +652,56 @@ public class RandomDocumentFuzzTest extends TestCase {
 		while (em.find()) {
 			maxExplicit = Math.max(maxExplicit, Double.parseDouble(em.group(1)));
 		}
-		return new Generated(out, tokens, size[0], size[1], maxExplicit);
+		return new Generated(out, tokens, size[0], size[1], maxExplicit, isOversized(out, size));
+	}
+
+	/**
+	 * この文書が<b>紙面の内容領域に収まらない箱</b>を含むかを返します
+	 * (2026-07-26新設)。
+	 *
+	 * <p>
+	 * <b>収まらないものを置いた文書は、白紙ページの検査から除外します。</b>
+	 * エンジンがどう振る舞っても版面は破綻しており(はみ出させるか、
+	 * 次ページへ送るか)、寸法を直すのは組版を指定した側の責任だからです
+	 * ——2026-07-26のユーザー裁定。
+	 * </p>
+	 *
+	 * <p>
+	 * 判定は生成器が出した値だけで行います。実測では、白紙ページを出す
+	 * 33文書のうち<b>28文書</b>がこれに該当しました。残り5件のうち2件は
+	 * 50x50pt(1.7cm角=切手より小さい)の紙で、これも実質同じ性質です。
+	 * 追うべきは残り3件——190x190pt・110x390pt・280x130pt という
+	 * <b>実在する寸法で、かつ全要素が紙面に収まる</b>文書です。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>除外は「見なかったことにする」ではありません。</b> 集計モードでは
+	 * 除外分も件数として出します——除外が増えたことに気づけなくなると、
+	 * 本当の退行を見落とすからです。
+	 * </p>
+	 */
+	private static boolean isOversized(final String html, final int[] pageSize) {
+		final Matcher pm = PAGE_MARGIN.matcher(html);
+		final double margin = pm.find() ? Double.parseDouble(pm.group(1)) : 0;
+		final double contentWidth = pageSize[0] - 2 * margin;
+		final double contentHeight = pageSize[1] - 2 * margin;
+		if (maxOf(EXPLICIT_WIDTH, html) > contentWidth) {
+			return true;
+		}
+		if (maxOf(EXPLICIT_HEIGHT, html) > contentHeight) {
+			return true;
+		}
+		// フォントサイズは行の高さになるので、ページ方向の寸法と比べる
+		return maxOf(FONT_SIZE, html) > contentHeight;
+	}
+
+	private static double maxOf(final Pattern pattern, final String html) {
+		double max = 0;
+		final Matcher m = pattern.matcher(html);
+		while (m.find()) {
+			max = Math.max(max, Double.parseDouble(m.group(1)));
+		}
+		return max;
 	}
 
 	/** 一意なトークン(行分割で割れないよう空白を含めない)。 */
