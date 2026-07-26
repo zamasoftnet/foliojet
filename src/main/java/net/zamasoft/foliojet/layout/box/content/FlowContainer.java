@@ -149,45 +149,6 @@ public class FlowContainer implements Container {
 		return this.floatings != null && this.floatings.getCount() > 0;
 	}
 
-	public boolean paintsNothing(final int budget) {
-		if (budget <= 0) {
-			return false;
-		}
-		if (this.hasFlows()) {
-			for (int i = 0; i < this.flows.size(); ++i) {
-				if (!boxPaintsNothing(((Flow) this.flows.get(i)).box, budget - 1)) {
-					return false;
-				}
-			}
-		}
-		if (this.hasFloatings()) {
-			for (int i = 0; i < this.floatings.getCount(); ++i) {
-				if (!boxPaintsNothing(this.floatings.getFloating(i).box, budget - 1)) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * 1つのボックスが紙に何も残さないかを返します。
-	 *
-	 * <p>
-	 * 容器でないもの(テキスト・置換要素・ルビ)は<b>常に描く</b>と
-	 * みなします。容器は、枠線・背景が見えれば描く、見えなければ中身へ降ります。
-	 * </p>
-	 */
-	static boolean boxPaintsNothing(final net.zamasoft.foliojet.layout.box.IBox box, final int budget) {
-		if (!(box instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox containerBox)) {
-			return false;
-		}
-		if (containerBox.getFrame().isVisible()) {
-			return false;
-		}
-		return containerBox.getContainer().paintsNothing(budget);
-	}
-
 	public double getFirstAscent() {
 		final Flow flow = this.getFirstFlow();
 		if (flow == null) {

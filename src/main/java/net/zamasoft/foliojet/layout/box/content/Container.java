@@ -34,28 +34,6 @@ public interface Container {
 
 	public boolean hasFloatings();
 
-	/**
-	 * この容器が<b>紙に何も残さない</b>かを返します(2026-07-26新設)。
-	 *
-	 * <p>
-	 * 絶対要件「意図しない白紙ページを作らない」の判定に使います。
-	 * 「子が一つもない」では足りません——<b>空のフロートしか持たない
-	 * フロート</b>のように、子はあるが誰も描かない構造があるためです
-	 * (実測の最小形: {@code <div style="float:left"><div style="float:right">
-	 * </div></div>})。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>判定は安全側へ倒します</b>——分からなければ「描く」と答えること。
-	 * 深い入れ子では{@code budget}が尽きた時点で「描く」を返します
-	 * (再帰の深さを予算で打ち切る。このコードベースはボックス木の再帰を
-	 * 順次反復化しており、新しい無制限再帰を足さない方針です)。
-	 * </p>
-	 *
-	 * @param budget 残りの探索予算。0以下なら「描く」を返すこと
-	 */
-	public boolean paintsNothing(int budget);
-
 	public double getFirstAscent();
 
 	public double getLastDescent();

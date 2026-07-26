@@ -107,18 +107,6 @@ public class ColumnsContainer implements Container {
 		return 0;
 	}
 
-	public boolean paintsNothing(final int budget) {
-		if (budget <= 0) {
-			return false;
-		}
-		for (int i = 0; i < this.columns.size(); ++i) {
-			if (!this.columns.get(i).paintsNothing(budget - 1)) {
-				return false;
-			}
-		}
-		return true;
-	}
-
 	public double getContentSize() {
 		return this.getLastColumn().getContentSize();
 	}
