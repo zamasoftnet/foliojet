@@ -159,39 +159,13 @@ tasks.named('test') {
     systemProperty 'java.awt.headless', 'true'
     systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
     systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath
-    if (System.getProperty('foliojet.debugTailShadow') != null) {
-        systemProperty 'foliojet.debugTailShadow', System.getProperty('foliojet.debugTailShadow')
-    }
-    if (System.getProperty('foliojet.convertOne') != null) {
-        systemProperty 'foliojet.convertOne', System.getProperty('foliojet.convertOne')
-    }
-    if (System.getProperty('foliojet.convertOneBlank') != null) {
-        systemProperty 'foliojet.convertOneBlank', System.getProperty('foliojet.convertOneBlank')
-    }
-    ['concurrentDoc','concurrentRuns','concurrentThreads','concurrentLargeStack'].each { k ->
-        if (System.getProperty("foliojet.$k") != null) {
-            systemProperty "foliojet.$k", System.getProperty("foliojet.$k")
-        }
-    }
-    if (System.getProperty('foliojet.fuzzThreads') != null) {
-        systemProperty 'foliojet.fuzzThreads', System.getProperty('foliojet.fuzzThreads')
-    }
-    if (System.getProperty('foliojet.fuzzReport') != null) {
-        systemProperty 'foliojet.fuzzReport', System.getProperty('foliojet.fuzzReport')
-    }
-    if (System.getProperty('foliojet.probeBreak') != null) {
-        systemProperty 'foliojet.probeBreak', System.getProperty('foliojet.probeBreak')
-    }
-    if (System.getProperty('foliojet.fuzzSeeds') != null) {
-        systemProperty 'foliojet.fuzzSeeds', System.getProperty('foliojet.fuzzSeeds')
-    }
-    if (System.getProperty('foliojet.perf') != null) {
-        // 性能ハーネス(LineBreakerPerfHarness等)の手動実行スイッチ
-        systemProperty 'foliojet.perf', System.getProperty('foliojet.perf')
-    }
-    if (System.getProperty('foliojet.noTwoPassRangeBind') != null) {
-        // E-6 TwoPass range bindのkill switch(退避・保持量before/after計測用)
-        systemProperty 'foliojet.noTwoPassRangeBind', System.getProperty('foliojet.noTwoPassRangeBind')
+    // foliojet.* は一つ残らずテストJVMへ渡す。
+    // 以前は1つずつ if で列挙しており、**新しい調査用スイッチを足すたびに
+    // ここも直す必要があった**——忘れると「プロパティを渡したのに何も
+    // 起きない」という、原因の分かりにくい空振りになる(2026-07-26に踏んだ)。
+    // 個別に列挙して守るものは何もないので一括で渡す。
+    System.getProperties().stringPropertyNames().findAll { it.startsWith('foliojet.') }.each { k ->
+        systemProperty k, System.getProperty(k)
     }
 
     doFirst {
