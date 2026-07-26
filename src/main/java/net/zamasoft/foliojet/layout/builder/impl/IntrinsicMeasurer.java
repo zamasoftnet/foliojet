@@ -91,15 +91,24 @@ final class IntrinsicMeasurer {
 		FlowPos pos = (FlowPos) flowBox.getPos();
 		this.clearFloatAdvance(pos.clear);
 
-		double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow);
-		this.lineFrame += flowBox.getFrame().getFrameLineExtent(params.flow);
+		// 段組の中の内容は、外側から見ると段数倍の行方向寸法を要する。
+		// **拡大するのは新しく足す分だけ**——{@link #lineFrame}は祖先の枠を
+		// 積んだ累積値で、各階層で既に拡大済みである。従来はこれを各
+		// startFlowで掛け直しており、入れ子の深さに対して**指数的に**
+		// 膨らんでいた(2026-07-26に修正)。
+		//
+		// 実測: 4段の中に2段を入れた文書で
+		// lineFrame 33 → 132 → 532 → 4256 と膨らみ、その途中値から
+		// maxLineSizeを採っていた。結果、収縮幅の測定が紙面の31倍を返し、
+		// 段が紙面の外へ並んだ(REVIEW-STATISTICS §12)。
+		double frameAdd = flowBox.getFrame().getFrameLineExtent(params.flow);
+		if (flowBox.getColumnCount() > 0) {
+			frameAdd += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
+		}
+		final double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow) * this.columnCount;
+		this.lineFrame += frameAdd * this.columnCount;
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
 		assert !LayoutUtils.isNone(this.lineFrame);
-		if (flowBox.getColumnCount() > 0) {
-			this.lineFrame += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
-		}
-		this.lineFrame *= this.columnCount;
-		lineSize *= this.columnCount;
 		if (this.lineFrame > this.minLineSize) {
 			this.minLineSize = this.lineFrame;
 		}
@@ -126,15 +135,16 @@ final class IntrinsicMeasurer {
 		BlockParams params = containerBox.getBlockParams();
 		BlockParams flowParams = flowBox.getBlockParams();
 		this.columnCount /= flowBox.getColumnCount();
-		this.lineFrame /= this.columnCount;
+		// startFlowと対称に、**足した分だけ**を同じ倍率で戻す
 		if (flowBox.getColumnCount() > 0) {
-			this.lineFrame -= flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
+			this.lineFrame -= flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1)
+					* this.columnCount;
 		}
 
 		switch (params.flow) {
 		case WritingMode.TB:
 			// 横書き
-			this.lineFrame -= flowBox.getFrame().getFrameWidth();
+			this.lineFrame -= flowBox.getFrame().getFrameWidth() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameHeight();
 			if (flowParams.size.getWidthType() == LengthType.ABSOLUTE) {
 				// 固定幅フロー
@@ -144,7 +154,7 @@ final class IntrinsicMeasurer {
 		case WritingMode.LR:
 		case WritingMode.RL:
 			// 縦書き
-			this.lineFrame -= flowBox.getFrame().getFrameHeight();
+			this.lineFrame -= flowBox.getFrame().getFrameHeight() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameWidth();
 			if (flowParams.size.getHeightType() == LengthType.ABSOLUTE) {
 				// 固定幅フロー
