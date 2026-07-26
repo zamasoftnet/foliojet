@@ -818,6 +818,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
 			return FloatCommitKind.PLACED;
 		}
+		if (this.findColumnBreak() != null) {
+			// 段組の中の浮動体(2026-07-26)。ここでのページ軸は
+			// **段に分割される前の「帯」の座標**なので、ページの上限と
+			// 比べても意味がない——帯は段の数だけ長くなるのが正常である。
+			//
+			// 判定は段の{@link ColumnBuilder}が自分の上限(=段の長さ)で
+			// 行う。両方が記録すると、段側で正しく処理された後もルート側の
+			// 予約が残り、{@link #endFlowBlock()}の浮動体切断ループが
+			// **描くもののないページを1枚作る**。
+			//
+			// 実測(2026-07-26、6,000シード): 末尾の空ページが47件→32件。
+			// 「帯の座標をページの上限と比べていた」ことは計測で確認した
+			// ——同じ浮動体が、ルート側では{@code pageStart=176.08}
+			// (上限190)、段側では{@code pageStart=58.24}(上限58.24)と
+			// 二重に分類されていた。
+			return FloatCommitKind.PLACED;
+		}
 
 		double pageAxis = pageStart;
 		pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
