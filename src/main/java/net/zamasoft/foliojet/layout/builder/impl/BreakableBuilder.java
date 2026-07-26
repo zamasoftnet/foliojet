@@ -915,6 +915,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * はみ出した先に何かある可能性を否定できない)</li>
 	 * </ul>
 	 */
+	/**
+	 * {@link Container#paintsNothing(int)}に渡す探索予算。ボックス木の
+	 * 現実的な入れ子深さに対して十分で、かつ深い病的入力で時間を食わない値。
+	 */
+	private static final int PAINTS_NOTHING_BUDGET = 64;
+
 	private boolean paintsNothingBeyondPage(final IFloatBox box, final double pageStart) {
 		if (!(box instanceof AbstractContainerBox containerBox)) {
 			return false;
@@ -923,7 +929,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return false;
 		}
 		final Container container = containerBox.getContainer();
+		if (container.paintsNothing(PAINTS_NOTHING_BUDGET)) {
+			// 中身が誰も描かない。はみ出させても紙面は変わらない
+			// (2026-07-26。最小形は「空のフロートしか持たないフロート」——
+			// 従来はhasFloatings()で諦めており、白紙ページが残っていた)
+			return true;
+		}
 		if (container.hasFloatings()) {
+			// 浮動体はgetContentSize()に含まれないので、以降の判定では
+			// 「はみ出した先に何かある」可能性を否定できない
 			return false;
 		}
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
