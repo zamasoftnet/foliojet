@@ -286,6 +286,29 @@ public class FlowContainer implements Container {
 		return end;
 	}
 
+	public boolean paintsAnything() {
+		if (this.absolutes != null) {
+			// 絶対配置は静的位置と無関係に描かれうる。読み切れないので
+			// 「描く」と見なす(安全側)
+			return true;
+		}
+		if (this.flows != null) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				if (((Flow) this.flows.get(i)).box.paintsAnything()) {
+					return true;
+				}
+			}
+		}
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				if (this.floatings.getFloating(i).box.paintsAnything()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * 何も描かない子({@code paintedPageExtent==0})は<b>位置によらず0</b>を
 	 * 寄与します——「ページの奥に置かれた、何も描かない箱」で

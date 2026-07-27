@@ -167,6 +167,28 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return this.getPageExtent(flow);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * テキストは<b>行の中にしか描かれません</b>。行が占めるページ方向の高さが
+	 * 0なら、字面も下線も置く場所がない=何も描きません
+	 * ({@link #getPageSize()}は最後の行の終端、つまり全行の高さの合計)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>行が1本もない場合はここも「描く」と答えます</b>——
+	 * {@link #paintedPageExtent}が
+	 * {@link LayoutUtils#PAINTS_UNKNOWN}を返すためです。切断された段落の
+	 * 尾部断片は「中身をこれからソース再生で受け取る器」であり、空だからと
+	 * 捨てると<b>内容が消えます</b>(そちらのjavadoc参照)。
+	 * </p>
+	 */
+	@Override
+	public boolean paintsAnything() {
+		return LayoutUtils.compare(this.paintedPageExtent(this.params.flow), 0) > 0;
+	}
+
 	public final double getWidth() {
 		if (this.params.flow.isVertical()) {
 			// 縦書き

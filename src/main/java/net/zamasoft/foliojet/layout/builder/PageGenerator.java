@@ -13,7 +13,20 @@ public interface PageGenerator {
 
 	public PageBox nextPage();
 
-	public void drawPage(PageBox page) throws GraphicsException;
+	/**
+	 * ページを出力します。
+	 *
+	 * <p>
+	 * <b>何も描かないページは出力されません</b>(css-break-3 §4.4、
+	 * 2026-07-28)。落とされたページは番号も面(recto/verso)も消費しない
+	 * ため、呼び出し側がページの並びを数えているなら返り値を見る必要が
+	 * あります。
+	 * </p>
+	 *
+	 * @param page 確定したページ
+	 * @return 実際に出力したなら true、何も描かないので落としたなら false
+	 */
+	public boolean drawPage(PageBox page) throws GraphicsException;
 
 	/**
 	 * レイアウトソースログを返します(M6b v3)。持たない実装は null。

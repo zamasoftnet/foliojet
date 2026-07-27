@@ -64,6 +64,26 @@ public interface Container {
 	 */
 	public double paintedPageEnd();
 
+	/**
+	 * この内容が<b>紙に何か描くか</b>を返します(2026-07-28新設)。
+	 *
+	 * <p>
+	 * {@link #paintedPageEnd()}が「ページ方向のどこまで描くか」という距離を
+	 * 答えるのに対し、こちらは有無だけを答えます。距離0は「何も描かない」と
+	 * ほぼ同義ですが、<b>ほぼ</b>でしかありません(行方向にだけ広がる枠、
+	 * 段間罫)。何も描かないページを出力から落とす判定
+	 * ({@code StyleBuilder.drawPage}、css-break-3 §4.4)には、
+	 * ずれのないこちらを使います。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>判定は必ず安全側(=描く)へ倒します。</b>
+	 * </p>
+	 *
+	 * @return 紙に何か描く(かもしれない)なら true
+	 */
+	public boolean paintsAnything();
+
 	public double getCutPoint(double pageAxis);
 
 	/**

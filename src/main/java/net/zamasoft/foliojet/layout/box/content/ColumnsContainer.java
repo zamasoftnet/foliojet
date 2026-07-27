@@ -120,6 +120,19 @@ public class ColumnsContainer implements Container {
 		return end;
 	}
 
+	public boolean paintsAnything() {
+		// 段間罫(column-rule)は中身がなくても引かれる
+		if (this.box.getBlockParams().columns.rule.isVisible()) {
+			return true;
+		}
+		for (int i = 0; i < this.columns.size(); ++i) {
+			if (this.columns.get(i).paintsAnything()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public double getCutPoint(double pageAxis) {
 		FlowContainer first = (FlowContainer) this.columns.get(0);
 		return first.getCutPoint(pageAxis);

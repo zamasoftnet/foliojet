@@ -298,6 +298,53 @@ public class PageBox extends AbstractBlockBox {
 		return false;
 	}
 
+	/**
+	 * このページが<b>強制改ページで始まった</b>か(2026-07-28新設)。
+	 *
+	 * <p>
+	 * {@code page-break-before/after: always|left|right} は「白紙でも1枚出す」
+	 * ことを作者が明示した指定です。何も描かないページを落とす規則
+	 * (css-break-3 §4.4、{@code StyleBuilder.drawPage})は、この印がある
+	 * ページには適用しません。
+	 * </p>
+	 */
+	private boolean forcedBreakOrigin = false;
+
+	/**
+	 * このページが強制改ページで始まったことを記録します
+	 * ({@code RootBuilder.pageBreak} 専用)。
+	 */
+	public final void markForcedBreakOrigin() {
+		this.forcedBreakOrigin = true;
+	}
+
+	/**
+	 * このページが強制改ページで始まったなら true を返します。
+	 */
+	public final boolean isForcedBreakOrigin() {
+		return this.forcedBreakOrigin;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * ページには本文のほかに<b>固定配置</b>({@code position:fixed})が
+	 * 載ります。これは前のページの描画で登録され、以後の全ページに
+	 * 描かれるため、コンテナを歩いても見つかりません。
+	 * </p>
+	 */
+	@Override
+	public boolean paintsAnything() {
+		if (this.fixeds != null && !this.fixeds.isEmpty()) {
+			return true;
+		}
+		if (this.toAddFixeds != null && !this.toAddFixeds.isEmpty()) {
+			return true;
+		}
+		return super.paintsAnything();
+	}
+
 	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis) {
 		throw new UnsupportedOperationException();
 	}

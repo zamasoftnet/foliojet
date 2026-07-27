@@ -303,6 +303,28 @@ public class StyleBuilder implements PageGenerator {
 	private int pageNumber = 0;
 	private int maxPageNumber = Integer.MAX_VALUE;
 
+	/**
+	 * 実際に出力したページ数(2026-07-28、css-break-3 §4.4)。
+	 *
+	 * <p>
+	 * 何も描かないページは出力しませんが、<b>1枚も出さない</b>のは別の
+	 * 破綻(0ページのPDF)なので、最初の1枚だけは無条件で出します。
+	 * </p>
+	 */
+	private int emittedPages = 0;
+
+	/**
+	 * 直前のページ面。落としたページの面を返すために覚えます
+	 * ({@link #nextPage()}が {@code imposition.nextPageSide()} で進める)。
+	 */
+	private CSSElement previousPageSide = null;
+
+	/** そのページで {@code @page} の counter-increment が加えた量。 */
+	private Value[] appliedPageIncrements = null;
+
+	/** そのページで page カウンタを自動加算したか(css-page-3 §6.1)。 */
+	private boolean appliedAutoPageIncrement = false;
+
 	private FlowBlockBox htmlRootBlock = null;
 	private Background background = null;
 	private WritingMode progression = WritingMode.TB;
@@ -2784,6 +2806,9 @@ public class StyleBuilder implements PageGenerator {
 		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
 		this.segment.trimToOpenElements();
 		// ページスタイル
+		// 面(recto/verso)は nextPageSide() が進める。落としたページは面を
+		// 消費しないので、進める前の値を覚えておく(discardPage が戻す)
+		this.previousPageSide = this.ua.getPassContext().getPageSide();
 		this.pageElement = this.imposition.nextPageSide();
 		Declaration declaration = this.styleContext.nextPage(this.pageElement);
 		CSSStyle pageStyle = CSSStyle.getCSSStyle(this.ua, null, this.pageElement);
@@ -2857,6 +2882,9 @@ public class StyleBuilder implements PageGenerator {
 			// @page の counter-increment が page を明示した場合はそちらが優先
 			this.ua.getPassContext().getCounterScope(0, true).increment("page", 1);
 		}
+		// 落としたページは番号を消費しない(discardPage が同じ順序で戻す)
+		this.appliedPageIncrements = increments;
+		this.appliedAutoPageIncrement = !pageIncremented;
 
 		// ルートのスタイルを適用
 		if (this.background == null) {
@@ -2911,7 +2939,92 @@ public class StyleBuilder implements PageGenerator {
 		return new PageBox(params, this.ua);
 	}
 
-	public void drawPage(final PageBox pageBox) throws GraphicsException {
+	/**
+	 * このページが<b>紙に何も描かない</b>ので出力しないでよいかを返します
+	 * (2026-07-28新設、css-break-3 §4.4「各フラグメンテナは0でない量の
+	 * 内容を取る」)。
+	 *
+	 * <p>
+	 * ページが描きうるものは4種類あり、<b>全部</b>を見ます:
+	 * </p>
+	 * <ol>
+	 * <li>本文(フロー・浮動体・絶対配置)——{@link PageBox#paintsAnything()}</li>
+	 * <li>{@code @page} の背景・枠線——同上(ページ枠は PageBox のフレーム)</li>
+	 * <li>固定配置({@code position:fixed})——同上</li>
+	 * <li>ページマージンボックス(柱・ノンブル)——ここで宣言の有無を見る。
+	 * 宣言があれば中身が空でも<b>出す</b>(安全側。組んでみないと分からない)</li>
+	 * </ol>
+	 *
+	 * <p>
+	 * <b>面付けのトンボ・ノンブル(output.crop / output.note)は数えません。</b>
+	 * それは版面ではなく印刷指示であり、「内容のないページ」の判定を
+	 * 変えるべきものではないからです。
+	 * </p>
+	 *
+	 * <p>
+	 * 落とさない場合が2つあります。<b>強制改ページで始まったページ</b>は
+	 * 作者が明示的に求めた白紙なので残します
+	 * ({@code page-break-after:always} で末尾に1枚出す、
+	 * {@code page-break-before:right} で丁合を合わせる)。
+	 * <b>まだ1枚も出していない場合</b>も残します——0ページのPDFは出力として
+	 * 破綻しており、白紙1枚のほうがまだ正しいからです。
+	 * </p>
+	 */
+	private boolean paintsNothing(final PageBox pageBox) {
+		if (this.emittedPages == 0) {
+			// 0ページのPDFは作らない
+			return false;
+		}
+		if (pageBox.isForcedBreakOrigin()) {
+			// 作者が意図した白紙
+			return false;
+		}
+		if (pageBox.paintsAnything()) {
+			return false;
+		}
+		// ページマージンボックス(柱・ノンブル)は宣言があれば描くとみなす
+		return this.styleContext.pageMarginBoxes(this.pageElement).isEmpty();
+	}
+
+	/**
+	 * 何も描かないページを取り消します(2026-07-28新設)。
+	 *
+	 * <p>
+	 * <b>ページ番号も面も消費させません。</b> {@link #nextPage()}が進めたもの
+	 * だけを、逆順に、そのまま戻します。次に作られるページは同じ番号・同じ面
+	 * ・同じ {@code @page} スタイルを受け取ります——落としたページの識別が
+	 * そっくり次のページへ引き継がれる、という形です。これで
+	 * {@code counter(page)}に穴があかず、両面印刷の表裏も入れ替わりません。
+	 * </p>
+	 */
+	private void discardPage() {
+		final PassContext pc = this.ua.getPassContext();
+		if (this.appliedAutoPageIncrement) {
+			pc.getCounterScope(0, true).increment("page", -1);
+		}
+		if (this.appliedPageIncrements != null) {
+			for (int i = 0; i < this.appliedPageIncrements.length; ++i) {
+				final CounterSetValue counterSet = (CounterSetValue) this.appliedPageIncrements[i];
+				final String name = counterSet.getName();
+				if (isReservedCounterName(name)) {
+					// nextPage() も加算していない
+					continue;
+				}
+				pc.getCounterScope(0, true).increment(name, -counterSet.getValue());
+			}
+		}
+		pc.setPageSide(this.previousPageSide);
+		--this.pageNumber;
+	}
+
+	public boolean drawPage(final PageBox pageBox) throws GraphicsException {
+		// 何も描かないページは出力しない(css-break-3 §4.4)。判定は
+		// imposition.nextPage()(=PDFのページを作る地点)より前に済ませる
+		// ——作ってしまってから取り消すのではなく、作らない
+		if (this.paintsNothing(pageBox)) {
+			this.discardPage();
+			return false;
+		}
 		// ページサイズ決定
 		if (UAProps.OUTPUT_EXPAND_WITH_CONTENT.getBoolean(ua)) {
 			this.imposition.setPageWidth(pageBox.getVisualWidth());
@@ -2996,6 +3109,8 @@ public class StyleBuilder implements PageGenerator {
 			}
 		}
 		StyleBuilder.this.imposition.closePage();
+		++this.emittedPages;
+		return true;
 	}
 
 	public void finish() throws GraphicsException {

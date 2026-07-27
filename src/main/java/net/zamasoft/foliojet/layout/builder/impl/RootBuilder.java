@@ -790,10 +790,17 @@ public class RootBuilder extends BreakableBuilder {
 		// 改ページ実行
 		//
 		this.finishLayout();
-		this.pageGenerator.drawPage(this.pageBox);
+		// 何も描かないページは出力されない(css-break-3 §4.4)。落ちた
+		// ページは面(recto/verso)を消費しないので、こちらの面の追跡も
+		// 進めてはならない——進めると以後の左右改ページが全部裏返る
+		final boolean emitted = this.pageGenerator.drawPage(this.pageBox);
 		final PageBox pageBox = this.pageBox;
 		this.pageBox = this.pageGenerator.nextPage();
-		if (this.pageSide != PageBreakMode.AUTO) {
+		if (mode instanceof BreakMode.ForceBreakMode) {
+			// 強制改ページで始まったページは、白紙でも作者の意図として残す
+			this.pageBox.markForcedBreakOrigin();
+		}
+		if (emitted && this.pageSide != PageBreakMode.AUTO) {
 			this.pageSide = (this.pageSide == PageBreakMode.VERSO) ? PageBreakMode.RECTO : PageBreakMode.VERSO;
 		}
 

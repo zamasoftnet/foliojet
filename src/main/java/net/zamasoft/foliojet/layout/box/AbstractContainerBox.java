@@ -95,6 +95,20 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * 枠線・背景を持つ箱は描きます。持たない箱は<b>中身が描くかどうか</b>が
+	 * そのまま答えです(余った指定寸法・内容の後ろの余白は何も描かない)。
+	 * 不透明度0は「描かない」ですが、あえて見ません——安全側だからです。
+	 * </p>
+	 */
+	@Override
+	public boolean paintsAnything() {
+		return this.frame.isVisible() || this.container.paintsAnything();
+	}
+
+	/**
 	 * コンテナボックスのパラメータを返します。
 	 * 
 	 * @return
