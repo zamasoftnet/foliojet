@@ -51,6 +51,9 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <li><b>説明のつかない紙面外への配置がない</b>——はみ出し量が文書中の
  * 最大の明示サイズの2倍を超えない。CSSの{@code overflow}既定は
  * {@code visible}なので「紙面内」は要求できない。STRICTモード限定</li>
+ * <li><b>読み順が保たれる</b>——文書順で先のトークンが、後のトークンより
+ * 後のページに現れない。ページ<b>内</b>の描画順は実装の都合なので問わない。
+ * フロートは正当に読み順を変えるので対象外。STRICTモード限定</li>
  * </ol>
  *
  * <h2>2つのモード</h2>
@@ -272,6 +275,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (m.contains("紙面外への配置")) {
 			return "紙面外への配置";
+		}
+		if (m.contains("読み順が入れ替わった")) {
+			return "読み順の逆転";
 		}
 		if (m.contains("watchdogを超えたスレッドが")) {
 			return "掃過が過負荷(測定不能)";
@@ -550,6 +556,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 		java.util.Arrays.sort(pages);
 		final Set<String> seen = new LinkedHashSet<>();
+		// トークンが**最初に現れたページ**(不変条件7)。ページ内の描画順は
+		// 実装の都合(rowspanのセルは跨ぐ行が確定してから描かれる)なので、
+		// ページ粒度でしか順序を問えない
+		final java.util.Map<String, Integer> firstPage = new java.util.HashMap<String, Integer>();
 		final List<Integer> blanks = new ArrayList<>();
 		for (int i = 0; i < pages.length; ++i) {
 			final String dump = Files.readString(Path.of(pages[i].toURI()), StandardCharsets.UTF_8);
@@ -566,9 +576,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final Matcher m = TEXT_IN_DUMP.matcher(dump);
 			while (m.find()) {
 				seen.add(m.group(1));
+				firstPage.putIfAbsent(m.group(1), i);
 				if (m.group(2) != null) {
 					// ルビのふりがな側
 					seen.add(m.group(2));
+					firstPage.putIfAbsent(m.group(2), i);
 				}
 			}
 		}
@@ -600,6 +612,75 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
 		// 不変条件6: 説明のつかない紙面外への配置がない
 		assertNoUnexplainedOffPage(doc, pages, html);
+		// 不変条件7: 読み順が保たれる(まだ報告のみ)
+		checkReadingOrder(doc, firstPage, html);
+	}
+
+	/**
+	 * <b>不変条件7(まだ報告のみ)</b>: 内容の読み順が保たれること
+	 * (2026-07-27新設)。
+	 *
+	 * <p>
+	 * <b>埋める穴。</b> 不変条件4はトークンが<b>どこかに</b>現れるかしか
+	 * 見ないので、{@code T5}が{@code T3}より前に描かれても通ります。
+	 * 帳票で表の行が入れ替わったら致命的ですが、この壊れ方を検出する手段が
+	 * 現在ひとつもありません。不変条件6が「現れるが<b>場所</b>が異常」を
+	 * 埋めたのと同じ構図で、ここは「現れるが<b>順序</b>が異常」を埋めます。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>素朴な定義は使えません。</b> フロートは後続の宣言が前の行の横へ
+	 * 持ち上がり、絶対配置はどこへでも置けるので、全トークンで順序を
+	 * 要求すると正当な文書が軒並み落ちます(§12で素朴な「紙面内」が
+	 * 3000文書中356文書=11.9%を誤検出したのと同型)。そこで<b>生成器に
+	 * 記録させ</b>、フロート・絶対配置の部分木を除きます。段組・表・改ページは
+	 * 内容を順に流すだけなので対象に残します。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>再出現は初出だけを見ます。</b> {@code seen}は描画順の
+	 * {@code LinkedHashSet}なので、同じトークンが複数ページに出ても
+	 * (将来{@code thead}の繰り返しを生成する場合など)最初の1回で判定します。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>固定する前に測りました</b>(§6.9j)。報告のみのモードで20,000文書を
+	 * 掃過して<b>12件</b>——狙いの帯です。5件を個別に確認したところ
+	 * <b>例外なく単一の機序</b>で、いずれも真陽性でした。他の種別の件数は
+	 * 導入前と完全に一致しており、生成器の乱数列を乱していません。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>最初の定式化は捨てました</b>(1回目)。描画順で比べたところ
+	 * seed 0 で即発火し、原因は{@code rowspan}のセルが「跨ぐ行が確定してから
+	 * 描かれる」ことでした——<b>表示リストは描画順であって読み順ではない</b>。
+	 * ページ粒度に変えたのが現行(2回目)です。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>見つけた欠陥</b>: 分割された{@code rowspan}セルの内容が、先頭の断片
+	 * ではなく<b>継続断片</b>に描かれる。seed 130では同じ行が2ページに出て、
+	 * 前ページが{@code [ ][ ][T12]}、次ページが{@code [T10][T11][ ]}になった
+	 * ——枠は両方にあるのに文字が片方にしかない。既存の検出器は全て素通り
+	 * する(トークンは現れる・白紙でない・紙面内)。
+	 * </p>
+	 */
+	private static void checkReadingOrder(final Generated doc, final java.util.Map<String, Integer> firstPage,
+			final File html) {
+		int prev = -1;
+		String prevToken = null;
+		for (final String t : doc.orderedTokens()) {
+			final Integer at = firstPage.get(t);
+			if (at == null) {
+				continue; // 消失は不変条件4の担当
+			}
+			if (at.intValue() < prev) {
+				throw new AssertionError("読み順が入れ替わった: 文書順では" + prevToken + "→" + t + " だが、" + t
+						+ "はページ" + (at.intValue() + 1) + "、" + prevToken + "はページ" + (prev + 1) + " (" + html + ")");
+			}
+			prev = at.intValue();
+			prevToken = t;
+		}
 	}
 
 	/**
@@ -707,12 +788,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                        最大値(pt)。不変条件6で「作者が指定した大きさの
 	 *                        帰結として説明できるはみ出しか」を判定するのに使う
 	 */
-	private record Generated(String html, List<String> tokens, double pageWidth, double pageHeight,
-			double maxExplicitSize, boolean oversized, boolean tinyPage) {
+	private record Generated(String html, List<String> tokens, Set<String> reorderable, double pageWidth,
+			double pageHeight, double maxExplicitSize, boolean oversized, boolean tinyPage) {
 
 		/** 版面が破綻していて、エンジンの振る舞いを問えない文書か。 */
 		boolean beyondEngineControl() {
 			return this.oversized || this.tinyPage;
+		}
+
+		/**
+		 * 読み順が保たれるべきトークンを<b>文書順に</b>返します。
+		 *
+		 * <p>
+		 * フロートと絶対配置の部分木は除きます——どちらも<b>正当に</b>
+		 * 読み順を変えるからです。段組・表・改ページは内容を順に流すだけ
+		 * なので対象に残します。
+		 * </p>
+		 */
+		List<String> orderedTokens() {
+			final List<String> ordered = new ArrayList<String>();
+			for (final String t : this.tokens) {
+				if (!this.reorderable.contains(t)) {
+					ordered.add(t);
+				}
+			}
+			return ordered;
 		}
 	}
 
@@ -756,11 +856,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static Generated generate(final int seed, final boolean strict) {
 		final Random r = new Random(seed * 7919L + (strict ? 1 : 2));
 		final List<String> tokens = new ArrayList<>();
+		// 並べ替えが正当なトークン(フロート・絶対配置の部分木の中)。
+		// 事後に表示リストから推定せず、**知っている側**に記録させる
+		final Set<String> reorderable = new LinkedHashSet<String>();
 		final StringBuilder body = new StringBuilder();
 		final int[] counter = { 0 };
 		final int roots = 1 + r.nextInt(4);
 		for (int i = 0; i < roots; ++i) {
-			appendNode(body, r, 3, strict, tokens, counter);
+			appendNode(body, r, 3, strict, tokens, counter, reorderable, false);
 		}
 		final int[] size = PAGE_SIZES[r.nextInt(PAGE_SIZES.length)];
 		final StringBuilder s = new StringBuilder();
@@ -787,7 +890,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		while (em.find()) {
 			maxExplicit = Math.max(maxExplicit, Double.parseDouble(em.group(1)));
 		}
-		return new Generated(out, tokens, size[0], size[1], maxExplicit, isOversized(out, size),
+		return new Generated(out, tokens, reorderable, size[0], size[1], maxExplicit, isOversized(out, size),
 				isTinyPage(out, size));
 	}
 
@@ -875,16 +978,21 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/** 一意なトークン(行分割で割れないよう空白を含めない)。 */
-	private static String token(final List<String> tokens, final int[] counter) {
+	private static String token(final List<String> tokens, final int[] counter, final Set<String> reorderable,
+			final boolean inReorderable) {
 		final String t = "T" + (counter[0]++);
 		tokens.add(t);
+		if (inReorderable) {
+			reorderable.add(t);
+		}
 		return t;
 	}
 
 	private static void appendNode(final StringBuilder s, final Random r, final int depth, final boolean strict,
-			final List<String> tokens, final int[] counter) {
+			final List<String> tokens, final int[] counter, final Set<String> reorderable,
+			final boolean inReorderable) {
 		if (depth <= 0) {
-			s.append("<p>").append(token(tokens, counter)).append("</p>\n");
+			s.append("<p>").append(token(tokens, counter, reorderable, inReorderable)).append("</p>\n");
 			return;
 		}
 		final int kind = r.nextInt(strict ? 12 : 14);
@@ -893,20 +1001,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 			s.append("<p>");
 			final int n = 1 + r.nextInt(6);
 			for (int i = 0; i < n; ++i) {
-				s.append(token(tokens, counter)).append(' ');
+				s.append(token(tokens, counter, reorderable, inReorderable)).append(' ');
 			}
 			s.append("</p>\n");
 		}
 		case 1 -> { // 入れ子ブロック
 			s.append("<div style=\"margin:").append(r.nextInt(8)).append("pt;padding:").append(r.nextInt(6))
 					.append("pt;border:").append(r.nextInt(3)).append("pt solid black\">\n");
-			appendChildren(s, r, depth, strict, tokens, counter);
+			appendChildren(s, r, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
 		case 2 -> { // フロート
 			s.append("<div style=\"float:").append(r.nextBoolean() ? "left" : "right").append(";width:")
 					.append(10 + r.nextInt(120)).append("pt\">\n");
-			appendChildren(s, r, depth, strict, tokens, counter);
+			// フロートの中身は**正当に**読み順が変わる(前の行の横へ持ち上がる)
+			// ので、不変条件7の対象から外す
+			appendChildren(s, r, depth, strict, tokens, counter, reorderable, true);
 			s.append("</div>\n");
 		}
 		case 3 -> { // 表(rowspan/colspanつき)
@@ -923,7 +1033,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					if (r.nextInt(4) == 0) {
 						s.append(" rowspan=\"").append(1 + r.nextInt(3)).append('"');
 					}
-					s.append('>').append(token(tokens, counter)).append("</td>");
+					s.append('>').append(token(tokens, counter, reorderable, inReorderable)).append("</td>");
 				}
 				s.append("</tr>\n");
 			}
@@ -932,18 +1042,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 		case 4 -> { // 段組
 			s.append("<div style=\"column-count:").append(2 + r.nextInt(3)).append(";column-gap:")
 					.append(r.nextInt(20)).append("pt\">\n");
-			appendChildren(s, r, depth, strict, tokens, counter);
+			appendChildren(s, r, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
 		case 5 -> { // 書字方向の入れ子
 			s.append("<div style=\"writing-mode:").append(WRITING_MODES[r.nextInt(WRITING_MODES.length)])
 					.append("\">\n");
-			appendChildren(s, r, depth, strict, tokens, counter);
+			appendChildren(s, r, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
 		case 6 -> { // インラインブロック・大きいフォント(救済分割の入口)
 			s.append("<p><span style=\"display:inline-block;width:").append(10 + r.nextInt(200)).append("pt;height:")
-					.append(10 + r.nextInt(200)).append("pt\">").append(token(tokens, counter))
+					.append(10 + r.nextInt(200)).append("pt\">").append(token(tokens, counter, reorderable, inReorderable))
 					.append("</span></p>\n");
 		}
 		case 7 -> { // リスト(マーカー・list-style)
@@ -954,7 +1064,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					.append("\">\n");
 			final int n = 1 + r.nextInt(4);
 			for (int i = 0; i < n; ++i) {
-				s.append("<li>").append(token(tokens, counter)).append("</li>\n");
+				s.append("<li>").append(token(tokens, counter, reorderable, inReorderable)).append("</li>\n");
 			}
 			s.append("</").append(tag).append(">\n");
 		}
@@ -962,8 +1072,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			s.append("<p>");
 			final int n = 1 + r.nextInt(3);
 			for (int i = 0; i < n; ++i) {
-				s.append("<ruby>").append(token(tokens, counter)).append("<rt>")
-						.append(token(tokens, counter)).append("</rt></ruby>");
+				s.append("<ruby>").append(token(tokens, counter, reorderable, inReorderable)).append("<rt>")
+						.append(token(tokens, counter, reorderable, inReorderable)).append("</rt></ruby>");
 			}
 			s.append("</p>\n");
 		}
@@ -978,11 +1088,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			s.append("<div style=\"clear:")
 					.append(new String[] { "left", "right", "both" }[r.nextInt(3)]).append("\">")
 					.append("<span style=\"font-size:").append(6 + r.nextInt(40)).append("pt\">")
-					.append(token(tokens, counter)).append("</span></div>\n");
+					.append(token(tokens, counter, reorderable, inReorderable)).append("</span></div>\n");
 		}
 		case 11 -> { // avoid ヒント(改ページ判定を揺さぶる)
 			s.append("<div style=\"page-break-inside:avoid;margin:").append(r.nextInt(6)).append("pt\">\n");
-			appendChildren(s, r, depth, strict, tokens, counter);
+			appendChildren(s, r, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
 		case 12 -> { // WILDのみ: 絶対配置
@@ -997,10 +1107,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private static void appendChildren(final StringBuilder s, final Random r, final int depth, final boolean strict,
-			final List<String> tokens, final int[] counter) {
+			final List<String> tokens, final int[] counter, final Set<String> reorderable,
+			final boolean inReorderable) {
 		final int n = 1 + r.nextInt(3);
 		for (int i = 0; i < n; ++i) {
-			appendNode(s, r, depth - 1, strict, tokens, counter);
+			appendNode(s, r, depth - 1, strict, tokens, counter, reorderable, inReorderable);
 		}
 	}
 }
