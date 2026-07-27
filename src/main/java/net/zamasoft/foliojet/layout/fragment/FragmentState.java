@@ -4,6 +4,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * ブロック断片の継続状態です(ARCHITECTURE §5.7 C1)。
@@ -20,7 +21,10 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
  * <p>
  * 段組を貫通する改ページ(columnSpanning=旧 FLAGS_COLUMN)では
  * フレームを切らず、前断片の使用量を内容実寸まで広げます
- * (フレーム継続策 — C4 でこの状態ごと廃止予定)。
+ * (フレーム継続策 — C4 でこの状態ごと廃止予定)。ただし切断線が
+ * 内始端辺以上にある(={@code pageLimit <= 0}、前断片が内容を
+ * 一切取れない)場合はフレーム継続策を適用しない — 理由は
+ * {@link #of} 参照。
  * </p>
  *
  * @param prevFrame      前断片のフレーム(ページ終端側の辺を落とした形)
@@ -35,6 +39,25 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 
 	/**
 	 * 切断の断片状態を計算します(純関数)。
+	 *
+	 * <p>
+	 * <b>フレーム継続策は「前断片が内容を取れた」場合に限る</b>
+	 * (2026-07-27)。段組貫通の改ページ({@code columnSpanning})は
+	 * 前後の断片で枠を切らないため、継続断片は<b>始端フレームを丸ごと
+	 * 引き継ぐ</b>。切断線が内始端辺以上({@code pageLimit <= 0})の
+	 * ときにこれを適用すると、前断片は内容を1つも取らないまま、
+	 * 継続断片が元と寸分違わぬ幾何(同じ始端フレーム = 同じ開始位置)で
+	 * 再構成される。次のページでも同じ判定が出るため、
+	 * <b>白紙ページを1枚ずつ永久に生成し続ける</b>——ページは
+	 * {@code PDFWriterImpl.pageOutputs}に保持されるのでヒープは単調増加し、
+	 * 最終的にOutOfMemoryErrorになる(1.2KBの文書で9分15秒・数GB、
+	 * 段組を含む極小ページのファジング5シードも同一原因)。
+	 * css-break-3 §4.4 の「各フラグメンテナは0でない量の内容を取る」に
+	 * 従い、この退化ケースでは通常の切断(始端辺を落とす)へ落とす。
+	 * こうすると継続断片の始端フレームが消えて次ページの空きが実際に
+	 * 増えるため、必ず前進する。{@code pageLimit > 0} の通常経路は
+	 * 一切変えない。
+	 * </p>
 	 *
 	 * @param flow              書字方向
 	 * @param columnSpanning    段組を貫通する改ページ(フレーム継続策)
@@ -54,7 +77,7 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 		double limit = Math.max(pageLimit, 0);
 
 		final AbsoluteRectFrame prevFrame, nextFrame;
-		if (columnSpanning) {
+		if (columnSpanning && LayoutUtils.compare(pageLimit, 0) > 0) {
 			// 複数カラムの場合は境界を残し、高さを内容に合わせる
 			prevFrame = nextFrame = frame;
 			limit = Math.max(limit, contentSize);
