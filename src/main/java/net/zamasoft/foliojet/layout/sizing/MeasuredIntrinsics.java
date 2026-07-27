@@ -86,6 +86,25 @@ public final class MeasuredIntrinsics {
 		// 0070-table-layout/float-in-auto-4.html の4フロートが
 		// 376/414.5/276/216 → 全て500pt=ページ幅)。表をrecipe化する将来の
 		// 増分は、ここに表専用のゲートを足すこと。
+		if (!log.isIntact(selfId + 1, endId - 1)) {
+			// **範囲が疎になっていたら模倣計測へ**(2026-07-27新設)。
+			//
+			// `compact()`は水位より前から「開いている(未対応の)Start」だけを
+			// 残すので、破断時にまだ開いていた要素は**Startだけ残って中身が
+			// 消えた**状態になる。後で閉じると`endOf()`は疎な保持列の上で
+			// もっともらしい終端を返し、`contains*`の各ゲートも保持列しか
+			// 見ないので何も検出しない。
+			//
+			// その先の`SourceReplayer.measure`は**フォールバックを持たず
+			// 例外を投げる**(「範囲は呼び出し側が生きているうちに確定させる
+			// 契約」)。ここで確かめないと変換ごと止まる。
+			//
+			// 同型の欠陥を`RootBuilder.stampRanges`で実際に踏んだ
+			// (10万文書に15件、`吸収済み再生範囲が失われました`)。こちらは
+			// 再現を見つけていないが、機序は同一で、**戻り値nullという
+			// 安全な逃げ道が既にある**ので塞いでおく。
+			return null;
+		}
 		if (log.containsOpaque(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
 				|| log.containsMulticol(selfId + 1, endId - 1)
 				|| log.containsMixedFlow(selfId + 1, endId - 1, template.flow)) {

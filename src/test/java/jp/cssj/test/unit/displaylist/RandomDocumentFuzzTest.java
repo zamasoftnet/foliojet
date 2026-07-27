@@ -250,6 +250,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// AssertionErrorのスタックはTranscoderExceptionへ包む段で
 		// 失われており(causeにも入らない)、発生箇所では分けられない。
 		// 種別を粗くすると「残り何件か」の推定が過小になる(2026-07-26)
+		if (m.contains("auto page break repeated")) {
+			// livelockガードが止めたもの。`Unexpected error.`を含むので、
+			// 分けないとtextBuilderの枠に紛れて集計が嘘になる(2026-07-27)
+			return "進捗のない自動改ページ(ガードが停止)";
+		}
+		if (m.contains("再生範囲") || m.contains("range is not intact")) {
+			return "再生範囲が欠けている";
+		}
 		if (m.contains("break flow failed")) {
 			return "不変条件: flowStack深さ≠継続深さ";
 		}
