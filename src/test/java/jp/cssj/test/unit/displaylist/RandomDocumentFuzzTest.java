@@ -375,6 +375,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private void sweep(final boolean strict) throws Exception {
+		// **特定のシードだけを走らせる入口**(2026-07-27新設)。
+		// 大規模な掃過では成果物を使い回して捨てるので、後から
+		// 「seed 27648で内容が消えた」と分かっても再現できなかった。
+		// 生成器は決定的なので、シードを指定すれば必ず同じ文書になる。
+		final String only = System.getProperty("foliojet.fuzzOnlySeed");
+		if (only != null) {
+			final int seed = Integer.parseInt(only);
+			System.out.println("[fuzzOnly] mode=" + (strict ? "strict" : "wild") + " seed=" + seed);
+			try {
+				checkOne(seed, strict);
+				System.out.println("[fuzzOnly]   通った");
+			} catch (final Throwable t) {
+				System.out.println("[fuzzOnly]   " + classify(t) + " : " + t);
+			}
+			return;
+		}
 		final int seeds = seedCount();
 		final boolean report = reportMode();
 		if (report) {
@@ -442,7 +458,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 保たない。失敗したシードは同じシードで再実行すれば必ず再現する
 		// (生成器は決定的)ので、成功したシードの成果物は捨ててよい。
 		// 保存ディレクトリもシードで分けず使い回す(2026-07-26)
-		final boolean keep = !reportMode() || seedCount() <= KEEP_ARTIFACTS_BELOW;
+		final boolean keep = System.getProperty("foliojet.fuzzOnlySeed") != null || !reportMode()
+				|| seedCount() <= KEEP_ARTIFACTS_BELOW;
 		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
 		final File html = new File("local/fuzz/" + (strict ? "strict" : "wild") + "-" + slot + ".html");
 		html.getParentFile().mkdirs();

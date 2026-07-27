@@ -268,11 +268,57 @@ public class ColumnsContainer implements Container {
 		this.columns.add(container);
 	}
 
+	/**
+	 * 段に分かれた内容を組み直します。
+	 *
+	 * <p>
+	 * <b>読みながら書いてはいけない</b>(2026-07-27修正)。従来は生きた
+	 * {@link #columns}を走査しながら、その同じリストへ組み直していた:
+	 * </p>
+	 *
+	 * <ul>
+	 * <li>{@link #addFlow}は常に<b>現在の最終カラム</b>へ書き込む
+	 * ({@link #getLastColumn()})</li>
+	 * <li>{@link #newColumn()}は走査中のリストへ追加する</li>
+	 * <li>再生側の{@code FlowContainer}は自分の{@code flows}を取り出して
+	 * {@code null}にする</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * 結果、<b>読み出して空にしている容器と、組み直し先が同一</b>になり、
+	 * 内容が黙って消えていた。先に写しを取り、空のカラムを1つ据えてから
+	 * 写しを読む——{@code AbstractContainerBox.balance()}が既に踏んでいる
+	 * 手順と同じ形である。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>開いた尾({@code shape})を渡してよいのは最終カラムだけ。</b>
+	 * {@code shape}はこのボックスの論理フロー全体の「開いた尾」を表すので、
+	 * 最終カラム以外に渡すと{@code FlowContainer.restyleItem}が
+	 * open-chain降下を選び、{@code FlowBlockBox.restyle}が
+	 * <b>{@code endFlowBlock()}を意図的に省く</b>ため、そのボックスが
+	 * {@code flowStack}に開いたまま残る。次のカラムはその中に組まれ、
+	 * {@code <ol>}が自分の{@code <li>}の中に入る、という壊れ方をする。
+	 * </p>
+	 *
+	 * <p>
+	 * 実測(2026-07-27、10万文書の掃過で発見。20,000文書に1件):
+	 * 3重に入れ子にした段組で、内側の内容が丸ごと消えていた。
+	 * 経緯は`copperpdf4/docs/consultations/consult-nested-multicol-content-loss-2026-07-27.md`。
+	 * </p>
+	 */
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
 			boolean restyleAbsolutes) {
-		for (int i = 0; i < this.columns.size(); ++i) {
-			FlowContainer container = (FlowContainer) this.columns.get(i);
-			container.restyle(builder, shape, restyleAbsolutes);
+		final List<Container> snapshot = new ArrayList<Container>(this.columns);
+		this.columns.clear();
+		final FlowContainer fresh = new FlowContainer();
+		fresh.setBox(this.box);
+		this.columns.add(fresh);
+		final int last = snapshot.size() - 1;
+		for (int i = 0; i <= last; ++i) {
+			final FlowContainer container = (FlowContainer) snapshot.get(i);
+			container.restyle(builder,
+					i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, restyleAbsolutes);
 		}
 	}
 }
