@@ -54,7 +54,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 頭打ちにする。
  * </p>
  *
- * <h2>機序2(未修正)</h2>
+ * <h2>機序2(修正済み・このテストが固定する)</h2>
  *
  * <p>
  * <b>段に収まらない不可分な箱</b>(画像・インラインブロック)があると、
@@ -65,13 +65,14 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 段組の中ではそれが<b>無条件に改段する</b>{@code ColumnBuilder.pageBreak()}
  * である。実測(seed 46577)では{@code column-count:4}が<b>14段</b>まで増え、
  * 内容が y=2,835(紙面は842pt)へ描かれた。残り2件(seeds 45399, 46577)が
- * これ。
+ * これだった。
  * </p>
  *
  * <p>
- * <b>「段を使い切ったら{@code false}を返す」は入れてはいけません</b>
- * (2026-07-28に実測して撤回)。ビルダーの各所が<b>「要求した改ページは
- * 必ず起きる」</b>を前提に書かれており、{@code false}を返すと次々に壊れます:
+ * <b>「段を使い切ったら{@code false}を返す」だけでは入りません</b>
+ * (2026-07-28に一度実測して撤回した)。ビルダーの各所が<b>「要求した改ページは
+ * 必ず起きる」</b>を前提に書かれており、素朴に{@code false}を返すと次々に
+ * 壊れます:
  * </p>
  * <ol>
  * <li>{@code endFlowBlock()}の浮動体切断ループ({@code breakFloats}は
@@ -79,13 +80,40 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <li>{@code flush()}の行間改ページ(直後に{@code textBuilder}を無検査で
  * 使う)——AssertionError/NPE</li>
  * <li>1と2を個別に直しても、再生中の{@code TextBuilder.finish()}で別の
- * assertionが発火</li>
+ * assertionが発火(空のテキストブロックを閉じてしまうため)</li>
  * </ol>
+ *
  * <p>
- * 50,000シードの掃過で<b>strict 102件 + wild 65件</b>の新規失敗
- * ({@code textBuilderが開いたまま})を出したため元に戻しました。機序2を
- * 直すには「もう断片を作れない」をビルダー全体の契約として扱う作業が必要で、
- * 1つの変更で安全に収まりません。
+ * <b>入った形</b>(2026-07-28): 戻り値を後から見て取り繕うのをやめ、
+ * <b>飛ぶ前に訊く</b>{@code BreakableBuilder.canFragmentFurther()}を
+ * 契約として足した。既定は{@code true}、{@code ColumnBuilder}だけが
+ * 「段を使い切った」ときに{@code false}を返す。危険な2か所——
+ * {@code flush()}の行間改ページと{@code endFlowBlock()}の浮動体切断ループ
+ * ——は、改ページを<b>試みる前に</b>これを見て、テキストブロックを閉じずに
+ * 素通りする/予約を捨てて抜ける。あわせて
+ * {@code ColumnBuilder.pageBreak()}は、<b>自動</b>改ページで段数を
+ * 使い切っていたら{@code beginBreak()}を呼んでから{@code false}を返す
+ * ({@code RootBuilder.pageBreak()}が「改ページ点なし」で{@code false}を
+ * 返すときと同じ契約——{@code breakFloats}が空になることが上記ループの
+ * 停止条件になっている)。<b>強制</b>改ページは作者が段を要求したものなので
+ * 従来どおり段を作る({@code ContinuationStats.guardBreakProgress}が自動
+ * 改ページだけを見張るのと同じ理由)。
+ * </p>
+ *
+ * <p>
+ * <b>この判定は「失敗しても壊れない」側に倒すこと</b>——最初の実装は
+ * {@code canFragmentFurther()}を{@code findColumnBreak() != null ||
+ * canColumnBreak()}としており、50,000シードの掃過で<b>strict 3件 +
+ * wild 5件</b>の変換失敗を出しました(seeds 2928/40824/41678,
+ * 10322/10538/15952/19100/37455)。入れ子の段組が{@code flowStack}に
+ * <b>あっても</b>{@code columnBreak()}は{@code Keep}/{@code Move}で
+ * 失敗しうるため、「訊いたら大丈夫と言われたのに飛べなかった」が起きます。
+ * <b>この失敗の見え方に注意</b>: 種別名は
+ * {@code 不変条件: textBuilderが開いたまま}ですが、実際に発火するのは
+ * {@code BreakableBuilder.flush()}の{@code assert this.textBuilder != null}
+ * ——つまり<b>開いたままではなく null</b> です
+ * ({@code RandomDocumentFuzzTest.classify}が{@code "Unexpected error."}を
+ * 一括でこの名前に寄せているだけ)。
  * </p>
  *
  * <h2>判定について</h2>
@@ -157,6 +185,90 @@ public class OffPageColumnTest extends TestCase {
 	}
 
 	/**
+	 * 機序2: <b>段に収まらない不可分な箱</b>が段を無限に増やす
+	 * (seed 46577の縮小形。画像を{@code display:inline-block}へ置き換えた
+	 * だけで、表示リストの数値は元の文書と<b>1ptも変わらない</b>ことを
+	 * 確認済み——修正前の最悪はみ出しはどちらも{@code y=2835.08}の1,151pt)。
+	 *
+	 * <p>
+	 * {@code column-count:4}に対して<b>14段</b>できていた。段は行方向
+	 * (この文書は縦書きなので<b>y</b>)に{@code i×(段幅+段間)}で並ぶので、
+	 * 段が増えるほど内容はまっすぐ紙の外へ出ていく。
+	 * </p>
+	 */
+	private static final String COLUMN_BUDGET = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="595pt"?>
+			<?jp.cssj.property name="output.page-height" value="842pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:5pt}
+			body{margin:0;font:normal 13pt/1.2 serif;writing-mode:vertical-rl}
+			p,div,td{margin:0;padding:0}
+			table{border-collapse:separate;table-layout:fixed}
+			td{border:1pt solid black}
+			</style></head><body>
+			<div style="column-count:4;column-gap:19pt">
+			<div style="float:right;width:44pt">
+			<p>T0 T1 T2 T3 T4 T5 </p>
+			<p><span style="display:inline-block;width:249pt;height:236pt">T6</span></p>
+			</div>
+			<table><tbody>
+			<tr><td>T7</td><td rowspan="3">T8</td><td colspan="2">T9</td></tr>
+			<tr><td>T10</td><td>T11</td><td colspan="3">T12</td></tr>
+			<tr><td>T13</td><td colspan="1" rowspan="3">T14</td><td rowspan="3">T15</td></tr>
+			</tbody></table>
+			</div>
+			</body></html>
+			""";
+
+	/**
+	 * <b>段数の上限を超えて段を作らない</b>ことを固定します(2026-07-28新設)。
+	 *
+	 * <p>
+	 * 判定は2本立てです。1本目は不変条件6と同じ基準(明示サイズ249ptなので
+	 * 猶予は498pt)——修正前は<b>1,151pt</b>で落ちます。ただしこれは
+	 * 「ひどさ」の判定であって<b>段数</b>の判定ではないので、2本目に
+	 * <b>行方向(この文書ではy)に描かれるものが紙面の高さに収まる</b>ことを
+	 * 要求します。段は{@code i×(段幅+段間)=i×212.75pt}に並ぶので、
+	 * 4段なら最後の段は{@code y=596..789.75}——実測の最大は{@code y=707.58}
+	 * です。5段目ができた時点で{@code y≧808.75}になり、この検査は落ちます
+	 * (修正前の実測は{@code y=2835.08}=14段)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>紙面の高さ(842pt)を閾値にしているのは、それが「段が紙に収まって
+	 * いる」と言えるいちばん素直な線だから</b>です。{@code overflow}の既定は
+	 * {@code visible}なので<b>ページ方向</b>(x)のはみ出しは正当であり、
+	 * ここでは問いません——実際、修正後も{@code T6}の断片は{@code x=620.8}
+	 * (紙面幅595pt)に描かれます。これが本修正の設計そのもので、
+	 * <b>分割できない行方向へ伸ばす代わりに、最後の段の中であふれさせる</b>。
+	 * </p>
+	 */
+	public void testColumnCountIsNotExceeded() throws Exception {
+		final File dir = assertNoUnexplainedOffPage("column-budget", COLUMN_BUDGET, 595, 842, 249, 16);
+
+		double maxY = 0;
+		String at = null;
+		final File[] pages = dir.listFiles((d, n) -> n.endsWith(".txt"));
+		java.util.Arrays.sort(pages);
+		for (final File page : pages) {
+			final String dump = java.nio.file.Files.readString(page.toPath(), StandardCharsets.UTF_8);
+			final Matcher m = POS_IN_DUMP.matcher(dump);
+			while (m.find()) {
+				final double y = Double.parseDouble(m.group(2));
+				if (y > maxY) {
+					maxY = y;
+					at = m.group(0) + " " + page.getName();
+				}
+			}
+		}
+		assertTrue("段を作りすぎている: 行方向の最大 y=" + Math.round(maxY) + "pt (紙面の高さ842pt, " + at
+				+ ")。段は i×212.75pt に並ぶので、これは段" + (int) Math.floor(maxY / 212.75 + 1) + "に相当する"
+				+ "(column-count は 4)", maxY <= 842);
+	}
+
+	/**
 	 * 変換して、(1) 説明のつかない紙面外への配置がないこと、(2) T0..T(n-1) の
 	 * トークンが全部どこかのページに現れること、を検査します。
 	 *
@@ -166,8 +278,9 @@ public class OffPageColumnTest extends TestCase {
 	 * @param pageHeight      紙面の高さ(pt)
 	 * @param maxExplicitSize 文書が指定した{@code width}/{@code height}の最大値
 	 * @param tokenCount      文書が持つ T トークンの数
+	 * @return 表示リストのダンプを置いた作業ディレクトリ(追加の判定用)
 	 */
-	private static void assertNoUnexplainedOffPage(final String name, final String html, final double pageWidth,
+	private static File assertNoUnexplainedOffPage(final String name, final String html, final double pageWidth,
 			final double pageHeight, final double maxExplicitSize, final int tokenCount) throws Exception {
 		final File dir = new File("local/off-page-column/" + name);
 		dir.mkdirs();
@@ -247,5 +360,6 @@ public class OffPageColumnTest extends TestCase {
 			}
 		}
 		assertTrue(name + ": 内容が失われた " + lost, lost.isEmpty());
+		return dir;
 	}
 }

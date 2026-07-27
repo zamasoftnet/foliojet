@@ -586,6 +586,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				continue;
 			}
 
+			if (!this.canFragmentFurther()) {
+				// もう断片を作れない(段組が段を使い切った)。ここで
+				// テキストブロックを閉じると、開き直せないまま
+				// this.textBuilder が null で使われる。**閉じずに**
+				// その場であふれさせる(2026-07-28)
+				continue;
+			}
+
 			super.endTextBlock();
 
 			if (LOG.isLoggable(Level.FINE)) {
@@ -682,6 +690,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (this.flowStack.size() == 1) {
 				while (!this.breakFloats.isEmpty()) {
 					this.checkAbort();
+					if (!this.canFragmentFurther()) {
+						// もう断片を作れない(段組が段を使い切った)。
+						// 予約を消さずに抜けると**無限ループ**する
+						// (breakFloatsはbeginBreak()でしか空にならない)。
+						// 浮動体は最後の段の中に残してあふれさせる
+						// (2026-07-28)
+						this.breakFloats.clear();
+						break;
+					}
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [floats]");
 					}
@@ -1054,6 +1071,32 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	protected abstract boolean pageBreak(BreakMode mode, byte flags);
+
+	/**
+	 * このビルダーが<b>まだ断片(ページ/段)を作れる</b>かを返します
+	 * (2026-07-28新設)。
+	 *
+	 * <p>
+	 * <b>「要求した改ページは必ず起きる」はこのファイルの各所の前提</b>で、
+	 * それが破れるとどこかが壊れます({@code RootBuilder.pageBreak()}は
+	 * 以前から「改ページ点なし」で{@code false}を返しており、前提のほうが
+	 * 嘘だった)——{@link #flush()}の行間改ページは
+	 * 直後に{@link #textBuilder}を無検査で使い、{@link #endFlowBlock()}の
+	 * 浮動体切断ループは{@code breakFloats}が空になるまで回り続けます。
+	 * {@code pageBreak()}の戻り値を後から見て取り繕うのではなく、
+	 * <b>飛ぶ前に訊く</b>ためのフックです。
+	 * </p>
+	 *
+	 * <p>
+	 * 既定は{@code true}——{@link RootBuilder}は紙を何枚でも作れる
+	 * (作れない場合は{@code pageBreak()}が{@code false}を返し、そこは
+	 * 従来どおり呼び出し側が処理する)。{@link ColumnBuilder}だけが、
+	 * {@code column-count}を使い切ったときに{@code false}を返します。
+	 * </p>
+	 */
+	protected boolean canFragmentFurther() {
+		return true;
+	}
 
 	/**
 	 * 改ページ・改段の共通前処理です。断片(ページ/段)をまたぐ際に
