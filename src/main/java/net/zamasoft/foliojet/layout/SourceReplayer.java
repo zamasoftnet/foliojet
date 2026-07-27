@@ -316,11 +316,21 @@ public final class SourceReplayer {
 	 */
 	public static boolean replay(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
-		assert !log.containsMulticol(fromId, toId);
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
 			return false;
 		}
+		// 段組ゲートの再確認は capture の後(2026-07-27)。
+		// containsMulticol は「範囲が保持されていない」を判定不能として
+		// true に倒す(indexOf<0 で即 true)ため、compact で範囲が失われた
+		// だけの正常なフォールバックを invariant 違反と誤認していた
+		// (刻印〜消費の間に入れ子改ページが compact を走らせる。
+		// stampRanges 時点では段組なし・intact と確認済みで、範囲を失う
+		// ことは呼び出し側が想定している——RootBuilder.replayFromSource は
+		// ボックスを残しており box-restyle へ落ちる)。capture が成功した
+		// 後なら intact が保証されるので、ここでの true は本当に段組を
+		// 含んでいることを意味する
+		assert !log.containsMulticol(fromId, toId) : "段組を含む範囲がソース再生されようとしました: [" + fromId + ", " + toId + "]";
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
 		drive(doc, slice);
 		doc.finishReplay();
