@@ -258,6 +258,46 @@ public abstract class AbstractContainerBox extends AbstractBox
 		if (!replayed) {
 			oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
 		}
+		assert replayed ? sameText(oldCont, this.container) : true : balanceLostText(oldCont, this.container);
+	}
+
+	/**
+	 * 段組の組み直しで<b>文字が失われていない</b>ことを確かめます
+	 * (2026-07-27新設、assert専用)。
+	 *
+	 * <p>
+	 * ソース再生が成功すると、古い容器は用済みとしてそのまま捨てられる。
+	 * ところが再生で作り直せるのは<b>このボックス自身の内容</b>だけなので、
+	 * 他所から紛れ込んだ内容があると<b>一緒に黙って消える</b>。
+	 * </p>
+	 *
+	 * <p>
+	 * 実際に踏んだ(2026-07-27): restyleの順序の誤りで別の段組のフロートが
+	 * この容器へ係留されており、ここで消えて「20万文書に1件の内容の消失」に
+	 * なっていた。原因側は直したが、<b>ここが静かな消失を生む増幅器である</b>
+	 * ことは変わらない。同種の誤りが再び入ったとき、静かに消すのではなく
+	 * 大きな音を立てさせる。
+	 * </p>
+	 *
+	 * <p>
+	 * 本番ではassertが無効なのでコストはゼロ。テストでは文書の文字量に
+	 * 比例した走査が1回増えるが、<b>絶対要件「内容の消失」を守る値段として
+	 * 妥当</b>(ユーザー方針: テストだけに影響するassertは積極的に入れる)。
+	 * </p>
+	 */
+	private static boolean sameText(final Container before, final Container after) {
+		return collectText(before).equals(collectText(after));
+	}
+
+	private static String balanceLostText(final Container before, final Container after) {
+		return "段組の組み直しで文字が変わった。他所の内容が紛れ込んで捨てられた疑い: 前=" + collectText(before)
+				+ " 後=" + collectText(after);
+	}
+
+	private static String collectText(final Container container) {
+		final StringBuilder sb = new StringBuilder();
+		container.eachFlowBox(b -> b.getText(sb));
+		return sb.toString();
 	}
 
 	public final AbsoluteRectFrame getFrame() {
