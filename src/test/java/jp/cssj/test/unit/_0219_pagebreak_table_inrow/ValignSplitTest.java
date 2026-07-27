@@ -111,12 +111,27 @@ public class ValignSplitTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** bottomセルの1行目: verticalAlign≈90.9で1ページ目下端。 */
+	/**
+	 * bottomセルの1行目: 1ページ目の下端付近。
+	 *
+	 * <p>
+	 * 2026-07-27に90.5→89.4へ更新した。従来はverticalAlign≈90.9をそのまま
+	 * 先頭断片へ載せていたが、現在は{@code TableCellBox.split}が
+	 * 「先頭の不可分単位が前断片に残る範囲」まで整列余白を詰めるので、
+	 * 1行目が0.94ptだけ断片の始端側へ寄る。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>この文書では読み順の逆転は起きていない</b>(文字は従来から
+	 * 1ページ目にある)。整列余白の詰めが波及した副次的な位置変化であり、
+	 * 方向は「自分の枠の内側へ寄る」ため退行ではない。
+	 * </p>
+	 */
 	public boolean check_ba(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("ba: " + y);
 			assertEquals(1, pageNumber);
-			assertEquals(90.5, y, 1);
+			assertEquals(89.4, y, 1);
 			return true;
 		}
 		return false;

@@ -27,4 +27,4 @@ drawer z=0
   x=200.00 y=55.52 Text["と" asc=8.09 desc=2.00]
   x=200.00 y=65.61 Text["な" asc=8.09 desc=2.00]
   x=200.00 y=75.71 Text["に" asc=8.09 desc=2.00]
-  x=250.00 y=90.34 Text["は" asc=8.60 desc=2.41]
+  x=250.00 y=89.40 Text["は" asc=8.60 desc=2.41]

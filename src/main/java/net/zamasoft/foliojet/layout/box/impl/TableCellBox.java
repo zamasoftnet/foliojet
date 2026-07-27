@@ -486,12 +486,35 @@ public class TableCellBox extends AbstractContainerBox {
 		// verticalAlign=0から始まる——元セルの先頭側余白は前断片で
 		// 消費済みであり、残余内容を再アラインしない(2026-07-24文書化、
 		// docs/history/2026-07-23-a3b-goal-narrowed.md参照)。
+		// ただし整列余白は「セル全体が1つの断片に収まる」前提でしか意味を
+		// 持たない。確定セル高がrowspanや背の高い隣接セルのせいで内容より
+		// ずっと大きいと、**余白だけで切断線を越えてしまい**、内容が1単位も
+		// 前断片に残らない。前ページには境界だけ・文字は次ページ、という
+		// 読み順の逆転になる(2026-07-27、不変条件7で検出。seed 130 では
+		// 行2が[ ][ ][T12]と[T10][T11][ ]に割れた)。
+		// そこで**先頭の不可分単位(先頭行)が前断片に残る範囲まで**しか
+		// 余白を残さない。余白が足りている通常のセルには当たらない
+		// (条件が成立するのは、余白のせいで前断片が内容ゼロになる場合だけ)。
+		final double savedVerticalAlign = this.verticalAlign;
+		if (this.verticalAlign > 0) {
+			final double fragmentInner = pageLimit - this.frame.getFramePageStart(this.params.flow);
+			// getCutPoint(0) は「0以上で最初に現れる切断可能位置」= 先頭の
+			// 不可分単位の下端(純粋な問い合わせ。段組の均し
+			// AbstractContainerBox でも同じ意味で使っている)
+			final double firstUnitEnd = this.container.getCutPoint(0);
+			if (LayoutUtils.compare(this.verticalAlign + firstUnitEnd, fragmentInner) > 0) {
+				this.verticalAlign = Math.max(0, fragmentInner - firstUnitEnd);
+			}
+		}
 		pageLimit -= this.verticalAlign;
 		final SplitResult result = super.split(pageLimit, mode, flags);
 		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode
 		// + "/flags=" + flags + "/" + (nextBox == null) + "/"
 		// + (nextBox == this));
 		if (!(result instanceof SplitResult.Split(final IPageBreakableBox remainder))) {
+			// 切断されなかった(丸ごと残る・丸ごと移動する)場合、セルは
+			// 確定高のまま描かれるので整列余白を元に戻す
+			this.verticalAlign = savedVerticalAlign;
 			assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0;
 			return result;
 		}
