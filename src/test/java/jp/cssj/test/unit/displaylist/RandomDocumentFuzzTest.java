@@ -319,6 +319,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (m.contains("読み順が入れ替わった")) {
 			return "読み順の逆転";
 		}
+		if (m.contains("内容が複製された")) {
+			return "内容の複製";
+		}
 		if (m.contains("watchdogを超えたスレッドが")) {
 			return "掃過が過負荷(測定不能)";
 		}
@@ -657,6 +660,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 実装の都合(rowspanのセルは跨ぐ行が確定してから描かれる)なので、
 		// ページ粒度でしか順序を問えない
 		final java.util.Map<String, Integer> firstPage = new java.util.HashMap<String, Integer>();
+		// トークンごとの「1ページ内での最大描画回数」(不変条件8)
+		final java.util.Map<String, int[]> drawn = new java.util.HashMap<String, int[]>();
 		final List<Integer> blanks = new ArrayList<>();
 		for (int i = 0; i < pages.length; ++i) {
 			final String dump = Files.readString(Path.of(pages[i].toURI()), StandardCharsets.UTF_8);
@@ -670,15 +675,37 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (!drew) {
 				blanks.add(i + 1);
 			}
-			final Matcher m = TEXT_IN_DUMP.matcher(dump);
-			while (m.find()) {
-				seen.add(m.group(1));
-				firstPage.putIfAbsent(m.group(1), i);
-				if (m.group(2) != null) {
-					// ルビのふりがな側
-					seen.add(m.group(2));
-					firstPage.putIfAbsent(m.group(2), i);
+			// **同一ページ内**で数える。字がページ境界を物理的に跨ぐと、
+			// 同じ字が前後のページに分けて描かれる——これは正当なので、
+			// ページを跨いだ合計で数えると誤検出になる(50,000文書で603件)
+			final java.util.Map<String, int[]> onThisPage = new java.util.HashMap<String, int[]>();
+			for (final String raw : dump.split("\n")) {
+				final Matcher m = TEXT_IN_DUMP.matcher(raw);
+				// **artifact 印の描画は数えない**(不変条件8、2026-07-28)。
+				// タグ付きPDFの artifact は「論理構造に属さない描画」で、
+				// 救済分割などでエンジンが**意図的に**重複させたものである。
+				// これを複製として数えると50,000文書中7,227件(14.5%)が
+				// 誤検出になった(§12の素朴な「紙面内」11.9%と同型)。
+				final boolean artifact = raw.contains(" artifact ");
+				while (m.find()) {
+					seen.add(m.group(1));
+					firstPage.putIfAbsent(m.group(1), i);
+					if (!artifact) {
+						countTokens(m.group(1), onThisPage);
+					}
+					if (m.group(2) != null) {
+						// ルビのふりがな側
+						seen.add(m.group(2));
+						firstPage.putIfAbsent(m.group(2), i);
+						if (!artifact) {
+							countTokens(m.group(2), onThisPage);
+						}
+					}
 				}
+			}
+			for (final var e : onThisPage.entrySet()) {
+				final int[] max = drawn.computeIfAbsent(e.getKey(), x -> new int[1]);
+				max[0] = Math.max(max[0], e.getValue()[0]);
 			}
 		}
 
@@ -707,10 +734,87 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
+		// 不変条件8: 内容が複製されない(まだ報告のみ)
+		checkNoDuplication(doc, drawn, html);
 		// 不変条件6: 説明のつかない紙面外への配置がない
 		assertNoUnexplainedOffPage(doc, pages, html);
 		// 不変条件7: 読み順が保たれる(まだ報告のみ)
 		checkReadingOrder(doc, firstPage, html);
+	}
+
+	/**
+	 * 表示リストの1つのテキスト実行からトークンを数えます。
+	 *
+	 * <p>
+	 * 実行は{@code Text["T0 T1 T2"]}のように<b>複数のトークンを含みうる</b>
+	 * ので、空白で割ってから数えます。部分一致で数えてはいけません——
+	 * {@code T1}は{@code T10}の部分文字列です(不変条件4の
+	 * {@code contains}はこの弱さを持っており、ここでは繰り返さない)。
+	 * </p>
+	 */
+	private static void countTokens(final String run, final java.util.Map<String, int[]> drawn) {
+		for (final String piece : run.split("[ \t]+")) {
+			if (TOKEN.matcher(piece).matches()) {
+				drawn.computeIfAbsent(piece, x -> new int[1])[0]++;
+			}
+		}
+	}
+
+	/** 生成器が埋めるトークンの形。 */
+	private static final Pattern TOKEN = Pattern.compile("T[0-9]+");
+
+	/**
+	 * <b>不変条件8(まだ報告のみ)</b>: 内容が複製されないこと
+	 * (2026-07-28新設)。
+	 *
+	 * <p>
+	 * <b>埋める穴。</b> 既存の不変条件はどれも「同じ内容が2回描かれる」ことを
+	 * 捕まえません——内容は失われず(4合格)、白紙もなく(5合格)、紙面内
+	 * (6合格)だからです。seed 118665 の最小形では入れ子段組が同じソース範囲を
+	 * 二重に再生し、ページ2に{@code T0, T2, T3, T4, T3, T4}——
+	 * <b>T3/T4が別の段へ二重に</b>——が出ていました。不変条件7(読み順)が
+	 * <b>偶然</b>引っかかっただけで、複製そのものは誰も見ていませんでした。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>帳票では逆転より重い。</b> 金額の行が2回出る出力は、
+	 * 黙って壊れた出力の中でも最悪の部類です。
+	 * </p>
+	 *
+	 * <p>
+	 * 生成器のトークンは一意なので、<b>正しい出力では各トークンが1ページ内で
+	 * ちょうど1回</b>描かれます。表ヘッダの繰り返し({@code thead})を生成する
+	 * ようにしたら、そのトークンはここから除外すること——繰り返しは正当です。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>定式化を2回やり直した</b>(§6.9j)。50,000文書での誤検出:
+	 * </p>
+	 *
+	 * <ol>
+	 * <li>素朴に「全ページ合計で2回以上」→ <b>7,227件(14.5%)</b>。
+	 * {@code artifact}印の描画を数えていた——タグ付きPDFの artifact は
+	 * 「論理構造に属さない描画」で、救済分割などでエンジンが<b>意図的に</b>
+	 * 重複させたものである</li>
+	 * <li>artifactを除いて合計で数える→ <b>603件(1.2%)</b>。字がページ境界を
+	 * <b>物理的に跨ぐ</b>と同じ字が前後のページに分けて描かれる。これは正当</li>
+	 * <li><b>同一ページ内</b>で数える→ <b>160件(0.32%)</b>。標本を確認した
+	 * ところ真陽性で、機序は<b>入れ子段組の二重再生</b>だった
+	 * (最小形: {@code column-count:2}の中の{@code column-count:2})</li>
+	 * </ol>
+	 */
+	private static void checkNoDuplication(final Generated doc, final java.util.Map<String, int[]> drawn,
+			final File html) {
+		final List<String> dup = new ArrayList<String>();
+		for (final String token : doc.tokens()) {
+			final int[] n = drawn.get(token);
+			if (n != null && n[0] > 1) {
+				dup.add(token + "×" + n[0]);
+			}
+		}
+		if (!dup.isEmpty()) {
+			throw new AssertionError("内容が複製された " + dup + " (" + html + ")");
+		}
 	}
 
 	/**
