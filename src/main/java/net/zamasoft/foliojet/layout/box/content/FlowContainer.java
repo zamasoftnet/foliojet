@@ -1621,6 +1621,7 @@ public class FlowContainer implements Container {
 		final CollectedItems collected = this.collectItems(builder, restyleAbsolutes, prefix);
 		if (collected.items() != null) {
 			Collections.sort(collected.items());
+			moveOpenChainTailLast(collected.items(), collected.lastFlow(), shape);
 			int size = collected.items().size();
 			for (int i = 0; i < size; ++i) {
 				this.restyleItem(builder, collected.items(), i, size, collected.lastFlow(), shape, depth,
@@ -1790,8 +1791,54 @@ public class FlowContainer implements Container {
 		final CollectedItems collected = this.collectItems(builder, restyleAbsolutes, prefix);
 		if (collected.items() != null) {
 			Collections.sort(collected.items());
+			moveOpenChainTailLast(collected.items(), collected.lastFlow(), shape);
 			stack.push(new RestyleFrame(collected.items(), collected.lastFlow(), shape, shape.depth()));
 		}
+	}
+
+	/**
+	 * <b>開いたまま降りるボックスは、必ず最後に処理する</b>(2026-07-27新設)。
+	 *
+	 * <p>
+	 * {@link #collectItems}はfloatとflowを1つのリストへ合流し、呼び出し側が
+	 * serial順に並べる。ところが{@code aggregateFloatings}が子から引き取った
+	 * floatは<b>子の採番のまま</b>入るため、親子の採番が混ざり、
+	 * {@code lastFlow}が末尾に来る保証がない。
+	 * </p>
+	 *
+	 * <p>
+	 * {@code lastFlow}が開いた尾のとき{@code FlowBlockBox.restyle}は
+	 * <b>{@code endFlowBlock()}を意図的に省く</b>ので、その後ろに残った項目は
+	 * <b>開いたままの他人のボックスの中へ</b>組まれる。flowはボックスの同一性で
+	 * 再係留されるので影響を受けないが、<b>floatは「そのとき開いているフロー」へ
+	 * 位置的に係留される</b>({@code BlockBuilder.commitFloatPlacement})ため、
+	 * 順序の誤りだけで別の部分木へ移ってしまう。その部分木が
+	 * {@code balance()}のソース再駆動で捨てられると、内容が黙って消える。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>{@code OpenText}は対象外。</b>ライブ構築の{@code toAddFloating}と
+	 * 同じ保留になるため並べ替えは不要で、実測では並べ替えると
+	 * {@code FloatPagebreakTest}・{@code ImageAfterAvoidTest}が落ちる。
+	 * </p>
+	 *
+	 * <p>
+	 * 実測(2026-07-27、20万文書の掃過で発見。50,000文書に1件):
+	 * 段組の中のフロートの内容が丸ごと消えていた。
+	 * </p>
+	 */
+	private static void moveOpenChainTailLast(final List<BoxHolder> items, final Flow lastFlow,
+			final net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
+		if (lastFlow == null || !(shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenChain)) {
+			return;
+		}
+		// BoxHolder は equals を上書きしないので indexOf は同一性比較
+		final int at = items.indexOf(lastFlow);
+		if (at < 0 || at == items.size() - 1) {
+			return;
+		}
+		items.remove(at);
+		items.add(lastFlow);
 	}
 
 	/**
