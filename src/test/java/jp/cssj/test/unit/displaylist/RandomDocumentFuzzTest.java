@@ -295,9 +295,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (m.contains("break flow failed")) {
 			return "不変条件: flowStack深さ≠継続深さ";
 		}
-		if (m.contains("Unexpected error.")) {
+		if (m.contains("text builder still open")) {
 			return "不変条件: textBuilderが開いたまま";
 		}
+		// **ここで`Unexpected error.`を丸めない**(2026-07-28)。
+		// これは TranscoderException の汎用ラッパ文言で、原因を問わず付く。
+		// 以前はこれを「textBuilderが開いたまま」と決めつけており、
+		// **まったく別の欠陥をその名前で報告していた**——実際に踏んだ:
+		// assert が落ちたのは `textBuilder != null` の側、つまり
+		// **開いていたのではなく null だった**のに、名前がそう言わないので
+		// 私(と修正者)は誤った機序を追いかけた。
+		// 名前の付いていない変換失敗は**発生箇所で分ける**(detailKey)。
+		// 同じ文言でも別の場所で落ちていれば別の欠陥である。
 		if (m.contains("白紙ページ")) {
 			return "白紙ページ";
 		}
