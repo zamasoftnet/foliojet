@@ -146,6 +146,27 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return line.getPageEnd();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * <b>行が1本もないテキストブロックは「測れない」</b>——切断された段落の
+	 * 尾部断片は、まだソースから再生されていない中身を待っている状態であり、
+	 * 「何も描かない」と断じてはいけない(断じると、白紙ページの抑止判定が
+	 * その断片ごと捨ててよいと誤り、<b>内容が消える</b>)。
+	 * {@link net.zamasoft.foliojet.layout.util.LayoutUtils#PAINTS_UNKNOWN}を
+	 * 返して、判定を常に安全側(=描くものがある)へ倒す。
+	 * {@link #getPageSize()}が空リストで例外になることの防波堤でもある。
+	 * </p>
+	 */
+	@Override
+	public double paintedPageExtent(final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		if (this.lines.isEmpty()) {
+			return LayoutUtils.PAINTS_UNKNOWN;
+		}
+		return this.getPageExtent(flow);
+	}
+
 	public final double getWidth() {
 		if (this.params.flow.isVertical()) {
 			// 縦書き

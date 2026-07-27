@@ -53,6 +53,24 @@ public final class LayoutUtils {
 	}
 
 	/**
+	 * 「この箱が紙のどこまで描くかは測れない」を表す番兵です(2026-07-27新設)。
+	 *
+	 * <p>
+	 * {@link net.zamasoft.foliojet.layout.box.IBox#paintedPageExtent}が返す
+	 * 値で、<b>まだ中身が確定していない断片</b>(ソースからの再生を待つ
+	 * テキストブロックの尾部など)に使います。判定側では「どこまでも描く」
+	 * ように振る舞うので、白紙ページの抑止判定は必ず<b>安全側</b>
+	 * (=改ページする・断片を捨てない)へ倒れます。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>この値をレイアウトの寸法として使ってはいけません。</b>
+	 * 用途は「描くものがあるか」の比較だけです。
+	 * </p>
+	 */
+	public static final double PAINTS_UNKNOWN = Double.POSITIVE_INFINITY;
+
+	/**
 	 * 表示リストに載ってよい座標・寸法の絶対値の上限(ポイント)。
 	 *
 	 * <p>

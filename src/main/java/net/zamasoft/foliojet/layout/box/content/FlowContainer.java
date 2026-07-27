@@ -263,6 +263,39 @@ public class FlowContainer implements Container {
 		return flow.pageAxis + flow.box.getPageExtent(this.box.getBlockParams().flow);
 	}
 
+	public double paintedPageEnd() {
+		if (this.absolutes != null) {
+			// 絶対配置は静的位置と無関係に描かれうる。読み切れないので
+			// 「箱いっぱいに描く」と見なす(安全側)
+			return this.box.getInnerPageExtent(this.box.getBlockParams().flow);
+		}
+		final WritingMode flow = this.box.getBlockParams().flow;
+		double end = 0;
+		if (this.flows != null) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				final Flow f = (Flow) this.flows.get(i);
+				end = Math.max(end, paintedEndOf(f.pageAxis, f.box, flow));
+			}
+		}
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				final Floating floating = this.floatings.getFloating(i);
+				end = Math.max(end, paintedEndOf(floating.pageAxis, floating.box, flow));
+			}
+		}
+		return end;
+	}
+
+	/**
+	 * 何も描かない子({@code paintedPageExtent==0})は<b>位置によらず0</b>を
+	 * 寄与します——「ページの奥に置かれた、何も描かない箱」で
+	 * {@link #paintedPageEnd()}が0でなくなるのを防ぎます。
+	 */
+	private static double paintedEndOf(final double pageAxis, final IBox box, final WritingMode flow) {
+		final double extent = box.paintedPageExtent(flow);
+		return LayoutUtils.compare(extent, 0) <= 0 ? 0 : pageAxis + extent;
+	}
+
 	public double getCutPoint(double pageAxis) {
 		final WritingMode flow = this.box.getBlockParams().flow;
 		if (this.hasFlows()) {

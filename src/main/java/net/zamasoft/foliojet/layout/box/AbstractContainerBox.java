@@ -16,6 +16,7 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.Length;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder;
@@ -61,6 +62,36 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	public final Container getContainer() {
 		return this.container;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * 枠線・背景が見える箱は箱いっぱいに描きます。見えない箱は<b>中身が描く
+	 * ところまで</b>しか描かず、中身が何も描かなければ<b>0</b>になります
+	 * (余った指定寸法・内容の後ろの余白は何も描かない)。
+	 * 書字方向が問い合わせ側と違う箱はページ軸が一致しないため、
+	 * 幾何寸法をそのまま返します(安全側)。
+	 * </p>
+	 */
+	@Override
+	public double paintedPageExtent(final WritingMode flow) {
+		final double full = this.getPageExtent(flow);
+		if (this.frame.isVisible()) {
+			return full;
+		}
+		final BlockParams params = this.getBlockParams();
+		if (params.flow != flow) {
+			return full;
+		}
+		final double inner = this.container.paintedPageEnd();
+		if (LayoutUtils.compare(inner, 0) <= 0) {
+			// 中身が何も描かない = この箱は何も描かない
+			return 0;
+		}
+		final double painted = this.frame.getFramePageStart(flow) + inner;
+		return params.overflow == OverflowMode.HIDDEN ? Math.min(full, painted) : painted;
 	}
 
 	/**

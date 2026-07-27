@@ -97,6 +97,30 @@ public interface IBox {
 	}
 
 	/**
+	 * この箱が<b>実際に紙へ描く</b>ページ方向の寸法を返します(2026-07-27新設)。
+	 *
+	 * <p>
+	 * {@link #getPageExtent(WritingMode)}が<b>箱の幾何</b>を返すのに対し、
+	 * こちらは<b>描画の実測</b>です。既定は「箱いっぱいに描く」——テキスト・
+	 * 置換要素・枠線や背景を持つ箱はこれで正しい。中身を問える箱
+	 * ({@link AbstractContainerBox})だけが、中身の描く範囲まで縮めます。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>0を返すことは「何も描かない」を意味します。</b>
+	 * ページからはみ出した部分に描くものがあるかの判定に使います——
+	 * 描くものがないのに断片を作ると白紙のページが1枚増えるだけです
+	 * (css-break-3 §4.4)。
+	 * </p>
+	 *
+	 * @param flow 軸を決める書字方向(通常は包含ブロックのもの)
+	 * @return 描画が及ぶページ方向の寸法(何も描かなければ0)
+	 */
+	public default double paintedPageExtent(WritingMode flow) {
+		return this.getPageExtent(flow);
+	}
+
+	/**
 	 * 与えられた書字方向での行方向の内部寸法を返します。
 	 *
 	 * @param flow 軸を決める書字方向

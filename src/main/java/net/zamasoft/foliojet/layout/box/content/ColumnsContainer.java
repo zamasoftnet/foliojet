@@ -111,6 +111,15 @@ public class ColumnsContainer implements Container {
 		return this.getLastColumn().getContentSize();
 	}
 
+	public double paintedPageEnd() {
+		// 段は同じページ軸範囲に並ぶので、最も深くまで描く段を採る
+		double end = 0;
+		for (int i = 0; i < this.columns.size(); ++i) {
+			end = Math.max(end, this.columns.get(i).paintedPageEnd());
+		}
+		return end;
+	}
+
 	public double getCutPoint(double pageAxis) {
 		FlowContainer first = (FlowContainer) this.columns.get(0);
 		return first.getCutPoint(pageAxis);

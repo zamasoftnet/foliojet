@@ -40,6 +40,30 @@ public interface Container {
 
 	public double getContentSize();
 
+	/**
+	 * この内容が<b>実際に紙へ描く</b>ページ方向の終端(内辺基準)を返します。
+	 *
+	 * <p>
+	 * {@link #getContentSize()}が「最後のフローの箱の終わり」という<b>箱の
+	 * 幾何</b>を返すのに対し、こちらは<b>描画の実測</b>です。両者は次の2点で
+	 * ずれます:
+	 * </p>
+	 * <ul>
+	 * <li>浮動体は{@code getContentSize()}に入らないが、紙には描かれる</li>
+	 * <li>枠線も背景も持たない箱の余った寸法(内容より大きい指定寸法・
+	 * 内容の後ろの余白)は、箱としては存在しても<b>何も描かない</b></li>
+	 * </ul>
+	 *
+	 * <p>
+	 * 「ページからはみ出した部分に描くものがあるか」の判定にはこちらを使い
+	 * ます——描くものがないのに断片を作ると、<b>白紙のページが1枚増える</b>
+	 * (css-break-3 §4.4「各フラグメンテナは0でない量の内容を取る」違反)。
+	 * </p>
+	 *
+	 * @return 描画が及ぶページ方向の終端(内辺基準。何も描かなければ0)
+	 */
+	public double paintedPageEnd();
+
 	public double getCutPoint(double pageAxis);
 
 	/**

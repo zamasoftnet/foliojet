@@ -719,7 +719,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 自動改ページ
 				final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
 				// System.err.println(pageAxis+"/"+pageLimit);
-				if (LayoutUtils.compare(pageAxis, pageLimit) > 0) {
+				if (LayoutUtils.compare(pageAxis, pageLimit) > 0 && this.paintsBeyondPage(flow, flowBox)) {
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [interflow]" + "/" + flowBox.getParams().element);
 					}
@@ -916,25 +916,55 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * <ul>
 	 * <li>コンテナでない(置換要素など。中身を問えない)</li>
 	 * <li>枠線・背景が見える(断片にも描くものがある)</li>
-	 * <li>入れ子の浮動体がある({@code getContentSize()}はこれを含まないので、
-	 * はみ出した先に何かある可能性を否定できない)</li>
+	 * <li>書字方向がページ進行方向と違う(ページ軸が一致しないので比較できない)</li>
 	 * </ul>
+	 *
+	 * <p>
+	 * <b>2026-07-27</b>: 判定の実測を{@code getContentSize()}から
+	 * {@link Container#paintedPageEnd()}へ替えた。{@code getContentSize()}は
+	 * <b>入れ子の浮動体を含まない</b>ため、浮動体を持つ箱では
+	 * 「はみ出した先に何かある可能性を否定できない」として判定を諦めていた
+	 * ——ところが生成器が作る文書では<b>浮動体の中身がまた浮動体</b>という形が
+	 * ごく普通に出る(掃過20,000件の白紙ページ18件中5件がこの形)。
+	 * {@code paintedPageEnd()}は入れ子の浮動体も、枠線を持たない箱の
+	 * 「中身の後ろの余り」も正しく数えるので、諦める必要がなくなった。
+	 * </p>
 	 */
 	private boolean paintsNothingBeyondPage(final IFloatBox box, final double pageStart) {
-		if (!(box instanceof AbstractContainerBox containerBox)) {
-			return false;
-		}
-		if (containerBox.getFrame().isVisible()) {
-			return false;
-		}
-		final Container container = containerBox.getContainer();
-		if (container.hasFloatings()) {
-			return false;
-		}
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
-		final double contentEnd = pageStart + containerBox.getFrame().getFramePageStart(progression)
-				+ container.getContentSize();
+		final double contentEnd = pageStart + box.paintedPageExtent(progression);
 		return LayoutUtils.compare(contentEnd, this.getPageLimit()) <= 0;
+	}
+
+	/**
+	 * いま閉じたブロックが<b>ページの内終端より先に何かを描く</b>かを返します
+	 * (2026-07-27新設)。
+	 *
+	 * <p>
+	 * {@link #endFlowBlock()}のブロック間自動改ページ(interflow)は
+	 * <b>カーソル位置</b>——すなわち箱の幾何——だけを見ていた。ところが
+	 * 「箱はページをはみ出しているが、はみ出した先には何も描かれない」形が
+	 * 実在する。段組の段の高さが空き容量より大きく決まる場合が代表例で、
+	 * その6ptの余りには内容も枠線もない。ここで改ページすると、継続断片には
+	 * <b>描くものが1つもない</b>ため<b>白紙のページが1枚増えるだけ</b>になる
+	 * (css-break-3 §4.4「各フラグメンテナは0でない量の内容を取る」違反)。
+	 * </p>
+	 *
+	 * <p>
+	 * 判定は浮動体の{@link #paintsNothingBeyondPage}と同じ原理・同じ実測
+	 * ({@link net.zamasoft.foliojet.layout.box.IBox#paintedPageExtent})で、
+	 * 枠線・背景を持つ箱や書字方向の違う箱では従来どおり幾何寸法を使う
+	 * (安全側=改ページする)。
+	 * </p>
+	 */
+	private boolean paintsBeyondPage(final Flow flow, final FlowBlockBox flowBox) {
+		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final double painted = flowBox.paintedPageExtent(progression);
+		if (LayoutUtils.compare(painted, 0) <= 0) {
+			// 何も描かない箱。位置によらず改ページの理由にならない
+			return false;
+		}
+		return LayoutUtils.compare(flow.pageAxis + painted, this.getPageLimit()) > 0;
 	}
 
 	@Override
