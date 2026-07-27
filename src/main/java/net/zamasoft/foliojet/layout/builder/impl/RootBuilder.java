@@ -26,6 +26,52 @@ public class RootBuilder extends BreakableBuilder {
 	private static final Logger LOG = Logger.getLogger(RootBuilder.class.getName());
 
 	/**
+	 * 進捗のない自動改ページ(ライブロック)の検出用の状態です(2026-07-27新設)。
+	 * 直前の自動改ページ時点の「状態の指紋」と、それが変わらないまま
+	 * 繰り返した回数を持ちます。詳細は
+	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationStats#STALLED_AUTO_BREAK_LIMIT}。
+	 */
+	private long lastBreakIngest = Long.MIN_VALUE;
+	private int lastBreakDepth = -1;
+	private double lastBreakPageAxis = Double.NaN;
+	private int lastBreakTarget = 0;
+	private int stalledBreakRun = 0;
+
+	/**
+	 * 自動改ページが1回転しても状態が全く変わっていないかを検査します。
+	 *
+	 * <p>
+	 * <b>強制改ページは対象外</b>——作者が枚数を指定した改ページは、
+	 * 内容を消費しなくても正しい(実測でも97回連続する例がある)。
+	 * </p>
+	 *
+	 * @param mode 今回の改ページのモード
+	 */
+	private void guardBreakProgress(final BreakMode mode) {
+		if (!(mode instanceof BreakMode.AutoBreakMode auto)) {
+			// 強制改ページは進捗で測らない。指紋も持ち越さない
+			this.stalledBreakRun = 0;
+			this.lastBreakDepth = -1;
+			return;
+		}
+		final net.zamasoft.foliojet.layout.fragment.LayoutSource source = this.pageGenerator.getLayoutSource();
+		final long ingest = (source == null) ? -1L : source.nextId();
+		final int depth = this.flowStack.size();
+		final int target = (auto.box == null) ? 0 : System.identityHashCode(auto.box.getParams().element);
+		if (ingest == this.lastBreakIngest && depth == this.lastBreakDepth
+				&& Double.compare(this.pageAxis, this.lastBreakPageAxis) == 0 && target == this.lastBreakTarget) {
+			++this.stalledBreakRun;
+		} else {
+			this.stalledBreakRun = 0;
+			this.lastBreakIngest = ingest;
+			this.lastBreakDepth = depth;
+			this.lastBreakPageAxis = this.pageAxis;
+			this.lastBreakTarget = target;
+		}
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun);
+	}
+
+	/**
 	 * 改ページ残余の再構築で、丸ごと移動した閉じた部分木をボックス再生の
 	 * 代わりにソースイベントから再駆動します(M6b segment-restyle)。
 	 * 移行期間中は opt-in です。
@@ -493,7 +539,17 @@ public class RootBuilder extends BreakableBuilder {
 				// 絶対配置を含む部分木のソース再生置換は係留・deferred bindの
 				// 二重化を生むため従来どおりbox-restyleへフォールバックさせる
 				// (LayoutSource.containsAbsoluteのjavadoc参照)
-				if (endId >= 0 && !log.containsOpaque(startId, endId) && !log.containsAbsolute(startId, endId)
+				// isIntact(2026-07-27): compactは「開いているStart」だけを
+				// 水位より前から残すので、破断時にまだ開いていた要素は
+				// 「Startだけ残って中身が消えた」状態になりうる。その要素が
+				// 後で閉じるとendOf()は疎な保持列の上で終端を返してしまい、
+				// 穴あきの範囲を再生可能と誤って刻印する。吸収済み範囲
+				// (prefixItems)はボックスを運搬しない=フォールバック不能
+				// なので、刻印の時点で密度を確かめる(確かめないと
+				// replaySubtreeが「吸収済み再生範囲が失われました」で
+				// 変換ごと停止する。実測: 掃過10万件中15件)
+				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
+						&& !log.containsAbsolute(startId, endId)
 						&& !log.containsMulticol(startId, endId)
 						&& !log.containsMixedFlow(startId, endId, rootFlow)) {
 					ranges.put(box,
@@ -554,6 +610,7 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.flowStack.isEmpty()) {
 			return false;
 		}
+		this.guardBreakProgress(mode);
 
 		// ボックスの高さを計算
 		for (int i = 0; i < this.flowStack.size(); ++i) {

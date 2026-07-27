@@ -866,9 +866,31 @@ public final class LayoutSource implements AutoCloseable {
 	 * 場合は null(呼び出し側の契約に応じてフォールバックまたは失敗)。
 	 */
 	public ReplaySlice capture(final long fromId, final long toId) {
+		if (!this.isIntact(fromId, toId)) {
+			return null;
+		}
+		return new ReplaySlice(fromId, toId);
+	}
+
+	/**
+	 * [fromId, toId] が欠落なく保持されているかを返します
+	 * ({@link #capture}の可否判定そのもの。リースを取らずに問い合わせる
+	 * ためのもので、再生範囲を<b>記録する側</b>
+	 * ({@code RootBuilder.stampRanges})が使います)。
+	 *
+	 * <p>
+	 * <b>なぜ記録時にも要るか(2026-07-27)</b>: {@link #compact(long)}は
+	 * 「開いている(未対応の)Start」だけを水位より前から残すため、
+	 * 破断時にまだ開いていた要素は<b>Startだけが残り中身が消えた</b>
+	 * 状態になる。その要素が後で閉じると{@link #endOf(long)}は疎な
+	 * 保持列を走って一見もっともらしい終端を返すので、密度を見ない限り
+	 * 「再生可能」と誤判定される。
+	 * </p>
+	 */
+	public boolean isIntact(final long fromId, final long toId) {
 		final int index = this.indexOf(fromId);
 		if (index < 0 || toId < fromId) {
-			return null;
+			return false;
 		}
 		// EventId は連番で付与され、破棄されても順序は保たれる(狭義単調
 		// 増加)。よって entries[index].id == fromId かつ
@@ -876,13 +898,10 @@ public final class LayoutSource implements AutoCloseable {
 		// 強制的に連番 == 穴なし(旧実装の1件ずつの逐次検証と等価)
 		final long offset = toId - fromId;
 		if (offset > this.entries.size() - 1 - index) {
-			return null;
+			return false;
 		}
 		final int last = index + (int) offset;
-		if (this.entries.get(last).id() != toId) {
-			return null;
-		}
-		return new ReplaySlice(fromId, toId);
+		return this.entries.get(last).id() == toId;
 	}
 
 	/**

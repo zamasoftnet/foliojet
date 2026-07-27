@@ -492,8 +492,62 @@ public final class ContinuationStats {
 	 */
 	public static final int OPEN_CHAIN_DEPTH_ALARM_THRESHOLD = 64;
 
+	/**
+	 * <b>進捗のない自動改ページ</b>の連続回数の最大値です(2026-07-27新設)。
+	 * 「同じ状態のまま改ページだけが繰り返される」ライブロックの観測値。
+	 */
+	public static final AtomicLong MAX_STALLED_AUTO_BREAK_RUN = new AtomicLong();
+
+	/** {@link #STALLED_AUTO_BREAK_LIMIT}に到達した回数です(2026-07-27新設)。 */
+	public static final AtomicLong STALLED_AUTO_BREAK_ALARMS = new AtomicLong();
+
+	/**
+	 * {@link #guardBreakProgress}の安全閾値です(2026-07-27新設)。
+	 *
+	 * <p>
+	 * <b>実測に基づく</b>: 全873テストを計測したところ、状態が変わらないまま
+	 * 連続する<b>自動</b>改ページは最大5回だった
+	 * ({@code FloatSplitCommitSmokeTest})。強制改ページは97回まで観測された
+	 * ため、ガードは自動改ページに限定している——強制改ページは
+     * 「作者が枚数を指定した」ものであり、進捗の有無で測ってはいけない。
+	 * この閾値は実測最大の50倍で、ここへ到達したら実装のライブロックである
+	 * という強い証拠になる。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>なぜ必要か</b>: このライブロックは1回転ごとに白紙のPDFページを
+	 * 1枚割り当てる。ページは{@code PDFWriterImpl.pageOutputs}に恒久保持
+	 * されるためヒープは単調増加し、4GBでも枯渇する。さらに
+	 * {@code AbstractUserAgent.checkAbort}の無進捗締切は
+	 * 「ページが出たこと」を進捗とみなすので<b>発火しない</b>
+	 * (2026-07-27に実測: 1.6KBの文書で約45,000ページ・OOM)。
+	 * </p>
+	 */
+	public static final int STALLED_AUTO_BREAK_LIMIT = 256;
+
 	private ContinuationStats() {
 		// counters
+	}
+
+	/**
+	 * 自動改ページが進捗しているかを検査し、同一状態の反復が安全閾値
+	 * ({@link #STALLED_AUTO_BREAK_LIMIT})に達したら
+	 * {@link ContinuationInvariantViolationException}を投げます
+	 * (2026-07-27新設)。
+	 *
+	 * @param stalledRun 直前の自動改ページと状態が変わらないまま繰り返した回数
+	 */
+	public static void guardBreakProgress(final int stalledRun) {
+		MAX_STALLED_AUTO_BREAK_RUN.accumulateAndGet(stalledRun, Math::max);
+		if (stalledRun >= STALLED_AUTO_BREAK_LIMIT) {
+			STALLED_AUTO_BREAK_ALARMS.incrementAndGet();
+			final String message = "auto page break repeated " + stalledRun
+					+ " times without any progress (same break target, same page cursor, same flow depth, no new "
+					+ "source events); the layout is livelocked and every repetition allocates a blank PDF page "
+					+ "that is retained until the document is written";
+			java.util.logging.Logger.getLogger(ContinuationStats.class.getName()).warning(message);
+			throw new ContinuationInvariantViolationException(message);
+		}
 	}
 
 	/**
@@ -539,6 +593,8 @@ public final class ContinuationStats {
 		COLUMN_RESTYLE_CHAIN_FIRINGS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
+		MAX_STALLED_AUTO_BREAK_RUN.set(0);
+		STALLED_AUTO_BREAK_ALARMS.set(0);
 		RANGE_FIRST_BINDS.set(0);
 		LEGACY_RECORD_BINDS.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);

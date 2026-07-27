@@ -81,6 +81,13 @@ public class EnduranceTest extends TestCase {
 
 	private static final File WORK_DIR = new File("local/unittest/endurance");
 
+	/**
+	 * 画像の<b>絶対URI</b>。相対パスにするとフィクスチャを動かした瞬間に
+	 * 画像が黙って消え、別の文書になる(2026-07-27)。
+	 */
+	private static final String RED_PNG_URI = new File("files/unittest/red.png").getAbsoluteFile().toURI()
+			.toString();
+
 	// ------------------------------------------------------------------
 	// 1. テキストspill上界(常時CI)
 	// ------------------------------------------------------------------
@@ -398,8 +405,13 @@ public class EnduranceTest extends TestCase {
 					+ "div#o{writing-mode:vertical-rl;width:100pt;height:" + orthogonalPt + "pt;background:#dddddd}"
 					+ "p#huge{font:normal " + linePt + "pt/1 serif}</style>\n");
 			w.write("</head><body>\n");
-			// WORK_DIR(local/unittest/endurance)からの相対
-			w.write("<img src=\"../../../files/unittest/red.png\" id=\"f\" />\n");
+			// **絶対URIで書く**(2026-07-27)。以前は WORK_DIR
+			// (local/unittest/endurance)からの相対 `../../../` を決め打ち
+			// していたが、この形は**フィクスチャを別の場所へ動かすと画像が
+			// 黙って消え、別の文書になる**。RandomDocumentFuzzTest の同型の
+			// 脆さに1時間費やした——再現を縮小しようとコピーしたら再現せず、
+			// 「入力パスで挙動が変わる」という誤った結論に達した。
+			w.write("<img src=\"" + RED_PNG_URI + "\" id=\"f\" />\n");
 			w.write("<div id=\"o\">O</div>\n");
 			w.write("<p id=\"huge\">A</p>\n");
 			w.write("<p id=\"after\">after</p>\n");
