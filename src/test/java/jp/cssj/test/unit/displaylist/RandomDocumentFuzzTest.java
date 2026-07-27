@@ -122,6 +122,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 		sweep(false);
 	}
 
+	/**
+	 * 掃過を開始するシード({@code -Dfoliojet.fuzzFrom})。
+	 *
+	 * <p>
+	 * <b>100年目標の3,000万文書は1回で回せない</b>(6,000万文書=28時間前後)。
+	 * 生成器は決定的なので、100万件ずつ30回に分けても連続実行と同じ文書集合に
+	 * なる。途中で落ちても、そこまでの結果は積算できる。
+	 * </p>
+	 */
+	private static int seedFrom() {
+		final String v = System.getProperty("foliojet.fuzzFrom");
+		return v == null ? 0 : Integer.parseInt(v);
+	}
+
+	/** 途中経過を出す間隔。3,000万件で3,000行——落ちても到達点が残る。 */
+	private static final int PROGRESS_EVERY = 10_000;
+
 	private static int seedCount() {
 		final String v = System.getProperty("foliojet.fuzzSeeds");
 		return v == null ? DEFAULT_SEEDS : Integer.parseInt(v);
@@ -201,6 +218,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 64MBのスタック予約を抱えるので、数本で測定条件が変わってしまう。
 	 */
 	private static final int MAX_LEAKED_WORKERS = 4;
+
+	/**
+	 * 規模に比例した漏れワーカーの上限(2026-07-28)。
+	 *
+	 * <p>
+	 * 2万件で4本という値は、3,000万件では<b>確率的に必ず踏む</b>。
+	 * ただし上限を撤廃してはいけない——漏れた1本はレイアウト1件分のヒープと
+	 * 64MBのスタック予約を抱えるので、放置すると自己増幅する(§10.3)。
+	 * 止める設計は維持し、閾値だけを規模に比例させる(10万件に1本)。
+	 * </p>
+	 */
+	private static int maxLeakedWorkers() {
+		return Math.max(MAX_LEAKED_WORKERS, seedCount() / 100_000);
+	}
 
 	private static boolean reportMode() {
 		return System.getProperty("foliojet.fuzzReport") != null;
@@ -344,15 +375,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 				new java.util.concurrent.ConcurrentHashMap<>();
 		final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> seedsOf =
 				new java.util.concurrent.ConcurrentHashMap<>();
-		final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger(0);
+		final int from = seedFrom();
+		final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger(from);
+		final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger();
 		final long began = System.currentTimeMillis();
 		final Thread[] workers = new Thread[threads];
 		for (int w = 0; w < threads; ++w) {
 			workers[w] = new Thread(() -> {
 				for (;;) {
 					final int seed = next.getAndIncrement();
-					if (seed >= seeds) {
+					if (seed >= from + seeds) {
 						return;
+					}
+					final int n = done.incrementAndGet();
+					if (n % PROGRESS_EVERY == 0) {
+						System.out.println("[fuzzProgress] " + (strict ? "strict" : "wild") + " " + n + "/" + seeds
+								+ " 経過" + ((System.currentTimeMillis() - began) / 1000) + "s "
+								+ new java.util.TreeMap<>(classCount));
 					}
 					try {
 						checkOne(seed, strict);
@@ -377,7 +416,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			t.join();
 		}
 		final long ms = System.currentTimeMillis() - began;
-		System.out.println("[fuzzReport] mode=" + (strict ? "strict" : "wild") + " seeds=" + seeds + " threads="
+		System.out.println("[fuzzReport] mode=" + (strict ? "strict" : "wild") + " seeds=" + seeds
+				+ (from == 0 ? "" : " from=" + from) + " threads="
 				+ threads + " elapsed=" + (ms / 1000) + "s (" + String.format("%.2f", ms / (double) seeds)
 				+ " ms/文書)");
 		if (classCount.isEmpty()) {
@@ -415,7 +455,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final List<Integer> knownStillFailing = new ArrayList<>();
 		final java.util.TreeMap<String, int[]> classCount = new java.util.TreeMap<>();
 		final java.util.TreeMap<String, java.util.List<Integer>> seedsOf = new java.util.TreeMap<>();
-		for (int seed = 0; seed < seeds; ++seed) {
+		for (int seed = seedFrom(), end = seedFrom() + seeds; seed < end; ++seed) {
 			final boolean known = !report && strict
 					&& (KNOWN_TRAILING_BLANK_PAGE.contains(seed) || KNOWN_INVARIANT_VIOLATION.contains(seed));
 			try {
@@ -536,7 +576,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				// 優先度を下げられなくても続行する
 			}
 			final int leaked = LEAKED_WORKERS.incrementAndGet();
-			if (leaked > MAX_LEAKED_WORKERS) {
+			if (leaked > maxLeakedWorkers()) {
 				throw new AssertionError("watchdogを超えたスレッドが" + leaked + "本たまった。"
 						+ "掃過が過負荷になっており、以後の測定は信用できない"
 						+ "(-Dfoliojet.fuzzThreads を減らすか -PtestHeap を増やすこと)。最後の文書: " + html);
