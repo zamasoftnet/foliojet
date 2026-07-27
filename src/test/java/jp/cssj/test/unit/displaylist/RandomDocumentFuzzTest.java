@@ -719,6 +719,27 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final Pattern FONT_SIZE = Pattern.compile("(?:font-size:|font:normal )(\\d+)pt");
 	private static final Pattern PAGE_MARGIN = Pattern.compile("@page\\{margin:(\\d+)pt");
 
+	/**
+	 * 生成する文書が参照する画像の<b>絶対URI</b>(2026-07-27)。
+	 *
+	 * <p>
+	 * <b>相対パスにしてはいけない。</b>従来は
+	 * {@code ../../files/unittest/red.png}を埋めていたため、生成された文書は
+	 * <b>`local/fuzz/`に置いたときだけ画像が解決した</b>。縮小や再現のために
+	 * 他所へコピーすると<b>画像が黙って消え、別の文書になる</b>——失敗が
+	 * 再現しなくなり、「パスによって挙動が変わる」という誤った結論を招いた
+	 * (2026-07-27に実際に踏んだ)。
+	 * </p>
+	 *
+	 * <p>
+	 * 画像が入るかどうかでページ数が変わる(実測で2ページ↔3ページ)ので、
+	 * <b>再現性の前提そのもの</b>である。同型の脆さが{@code EnduranceTest}
+	 * にもある({@code ../../../}を決め打ち)。
+	 * </p>
+	 */
+	private static final String RED_PNG_URI = new File("files/unittest/red.png").getAbsoluteFile().toURI()
+			.toString();
+
 	/** ページ寸法の候補(極端に小さいものを含む)。 */
 	private static final int[][] PAGE_SIZES = { { 200, 200 }, { 300, 150 }, { 120, 400 }, { 595, 842 }, { 60, 60 } };
 
@@ -940,7 +961,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		case 9 -> { // 置換要素(画像。救済分割の本来の動機)
 			// altは描かれないのでトークンにしない(オラクルが誤検出する)
-			s.append("<p><img src=\"../../files/unittest/red.png\" alt=\"img\"")
+			s.append("<p><img src=\"").append(RED_PNG_URI).append("\" alt=\"img\"")
 					.append(" style=\"display:").append(r.nextBoolean() ? "block" : "inline")
 					.append(";width:").append(10 + r.nextInt(250)).append("pt;height:")
 					.append(10 + r.nextInt(250)).append("pt\" /></p>\n");
