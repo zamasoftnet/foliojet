@@ -49,6 +49,13 @@ final class IntrinsicMeasurer {
 	private int columnCount = 1;
 
 	/**
+	 * {@link #minLineSize}が段数倍を含むか(2026-07-28)。
+	 * {@link net.zamasoft.foliojet.layout.sizing.IntrinsicSizes#columnInflated()}
+	 * を参照。
+	 */
+	private boolean columnInflated = false;
+
+	/**
 	 * 現在の行幅。
 	 */
 	private double lineAxis = 0;
@@ -75,7 +82,7 @@ final class IntrinsicMeasurer {
 	}
 
 	IntrinsicSizes sizes() {
-		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize);
+		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize, this.columnInflated);
 	}
 
 	void start(AbstractContainerBox containerBox) {
@@ -121,6 +128,10 @@ final class IntrinsicMeasurer {
 		this.textIndent = flowBox.getTextIndent();
 		this.blockHead = true;
 
+		if (flowBox.getColumnCount() >= 2) {
+			// ここから内側の最小内容寸法は段数倍で積まれる(2026-07-28)
+			this.columnInflated = true;
+		}
 		this.columnCount *= flowBox.getColumnCount();
 		// 元コードでは flowStack.add(flowBox) 後の getFlowBox().getLineSize() を参照していたが、
 		// push 後の getFlowBox() は flowBox 自身なので等価。
@@ -286,6 +297,7 @@ final class IntrinsicMeasurer {
 	}
 
 	void table(final IntrinsicSizes tableSizes) {
+		this.columnInflated |= tableSizes.columnInflated();
 		this.minLineSize = Math.max(this.minLineSize, tableSizes.minContent() * this.columnCount);
 		this.maxLineSize = Math.max(this.maxLineSize, tableSizes.maxContent() * this.columnCount);
 	}
@@ -305,6 +317,7 @@ final class IntrinsicMeasurer {
 			minLineAxis = maxLineAxis = floatingBox.getLineExtent(floatFlow);
 		} else {
 			final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
+			this.columnInflated |= childSizes.columnInflated();
 			final double frameLine = floatingBox.getFrame().getFrameLineExtent(floatFlow);
 			minLineAxis = childSizes.minContent() + frameLine;
 			maxLineAxis = childSizes.maxContent() + frameLine;
@@ -401,6 +414,7 @@ final class IntrinsicMeasurer {
 					pageSize = pageFrame;
 				} else {
 					final IntrinsicSizes stfSizes = stfBuilder.getIntrinsicSizes();
+					this.columnInflated |= stfSizes.columnInflated();
 					if (cParams.flow.isVertical() == params.flow.isVertical()) {
 						minAdvance = stfSizes.minContent() + lineFrame;
 						maxAdvance = stfSizes.maxContent() + lineFrame;

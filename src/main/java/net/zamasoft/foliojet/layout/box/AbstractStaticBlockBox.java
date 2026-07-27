@@ -112,6 +112,38 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 						- this.frame.getFrameLineExtent(flow);
 			}
 			lineExtent = Sizing.fitContent(minLineAxis, lineExtent, limitLine);
+			if (!table && sizes.columnInflated() && limitLine > 0 && lineExtent > limitLine) {
+				// **段数倍で膨らんだ最小内容寸法で紙の行軸を超えない**
+				// (2026-07-28)。
+				//
+				// `fit-content`は`max(min-content, min(available, max-content))`
+				// なので、**最小内容寸法が使える空間より大きいとそれがそのまま
+				// 採用される**。画面のブラウザではそれで正しい——はみ出した
+				// ぶんはスクロールで読める。しかし紙には続きがない。しかも
+				// **行軸は分割できない**(ページ分割はページ軸にしか効かない)
+				// ので、行軸をはみ出した内容は次のページへ送られるのではなく、
+				// 紙の外の座標にそのまま描かれる。
+				//
+				// 段組の最小内容寸法は「段数 × 中身の最小内容寸法 + 段間」
+				// ——**段数倍に膨らみ**、入れ子にすれば積で効く。実測
+				// (2026-07-28、seed 25503): 200pt紙に高さ823ptのフロート
+				// (= 4段 × 196pt + 3 × 13pt)ができ、内容が y=-623 に
+				// 描かれた。**段は狭くできる**(行軸を段数で割り直すだけ)
+				// ので、この下限は守らなくてよい。段は細くなるが紙には載る
+				// ——横書きがこの欠陥を1件も出さないのと同じ状態になる。
+				//
+				// **段数倍が効いたときだけ**にするのが肝心
+				// ({@code columnInflated})。`height:150mm`の画像のように
+				// 作者が明示した不可分な箱から来た最小内容寸法まで縮めると、
+				// 箱だけ縮んで中身は縮まず、**はみ出しが増える**。実測で
+				// 400pt紙の`writing-mode:vertical-rl`の箱が425.2→316ptに
+				// 縮み、画像が段送りされずその場ではみ出した
+				// (`WritingModeColumnTest`)。
+				//
+				// 明示された`min-*`は下でこの値を上書きするので、作者の
+				// 指定は従来どおり通る。
+				lineExtent = limitLine;
+			}
 		}
 		final double maxLine = LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
 		if (!LayoutUtils.isNone(maxLine) && lineExtent > maxLine) {
