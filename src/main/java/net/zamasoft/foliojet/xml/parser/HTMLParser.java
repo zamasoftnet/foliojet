@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
-import java.util.ArrayDeque;
 
 import net.zamasoft.balancer.ElementProps;
 import net.zamasoft.balancer.SAXParser;
@@ -107,7 +106,15 @@ public class HTMLParser implements Parser {
 	protected void parseReader(final UserAgent ua, final Source source, final SAXParser parser)
 			throws SAXException, IOException {
 		// キャラクタストリーム
-		try (Reader in = new BufferedReader(new LegacyCommentReader(source.getReader()))) {
+		//
+		// 緩衝は**内側にも**要る(2026-07-27)。バイト経路(parseStream)と
+		// 同じ理由で、LegacyCommentReaderは1文字ずつ`super.read()`を呼ぶ。
+		// 下層は`InputStreamReader`なので生のreadシステムコールにはならないが、
+		// `StreamDecoder`が呼び出しごとに一時オブジェクトを作るため、
+		// **13MBの和文文書で316MBを確保していた**(実測、2026-07-27)。
+		// 内側のBufferedReaderで、その1文字ずつの読みが配列上で完結する。
+		try (Reader in = new BufferedReader(
+				new LegacyCommentReader(new BufferedReader(source.getReader(), 64 * 1024)))) {
 			String encoding = source.getEncoding();
 			if (encoding != null) {
 				ua.getDocumentContext().setEncoding(encoding);
@@ -203,46 +210,92 @@ public class HTMLParser implements Parser {
 		return text.substring(0, gt) + "--" + text.substring(gt);
 	}
 
+	/**
+	 * 閉じられていないレガシーコメントを補正しながら読むストリームです。
+	 *
+	 * <p>
+	 * <b>1バイトずつ扱うので、実装の素朴さがそのまま費用になる。</b>
+	 * 2026-07-27まで {@code ArrayDeque<Integer>} に積んでおり、11MBの文書で
+	 * 1,100万回のボクシングとデック操作が走っていた。可変長のバイトキューへ
+	 * 置き換えてある——<b>確保は一度きり、要素あたりの割り当てはゼロ</b>。
+	 * </p>
+	 *
+	 * <p>
+	 * 併せて、下層にも緩衝が要る({@link #parseStream}参照)。外側の
+	 * {@code BufferedInputStream}だけでは、ここが1バイトずつ呼ぶせいで
+	 * <b>生のストリームに対して1バイト1回のread</b>になっていた。
+	 * </p>
+	 */
 	private static class LegacyCommentInputStream extends FilterInputStream {
-		private final ArrayDeque<Integer> pending = new ArrayDeque<Integer>();
+		/** 先読み済みのバイト列。{@code [head, tail)} が有効範囲。 */
+		private byte[] pending = new byte[64];
+
+		private int head = 0, tail = 0;
 
 		LegacyCommentInputStream(InputStream in) {
 			super(in);
 		}
 
-		public int read() throws IOException {
-			if (this.pending.isEmpty()) {
-				this.fill();
+		private void push(final int b) {
+			if (this.tail == this.pending.length) {
+				if (this.head > 0) {
+					// 前詰めで済むならそれで済ませる
+					System.arraycopy(this.pending, this.head, this.pending, 0, this.tail - this.head);
+					this.tail -= this.head;
+					this.head = 0;
+				} else {
+					this.pending = java.util.Arrays.copyOf(this.pending, this.pending.length * 2);
+				}
 			}
-			return this.pending.isEmpty() ? -1 : this.pending.removeFirst().intValue();
+			this.pending[this.tail++] = (byte) b;
+		}
+
+		private int available0() {
+			return this.tail - this.head;
+		}
+
+		public int read() throws IOException {
+			if (this.head == this.tail) {
+				this.head = this.tail = 0;
+				this.fill();
+				if (this.head == this.tail) {
+					return -1;
+				}
+			}
+			return this.pending[this.head++] & 0xFF;
 		}
 
 		public int read(byte[] b, int off, int len) throws IOException {
 			if (len == 0) {
 				return 0;
 			}
-			int first = this.read();
-			if (first == -1) {
-				return -1;
-			}
-			b[off] = (byte) first;
-			int count = 1;
+			// **要求された分を埋めきること。** 溜まっている分だけ返すと、
+			// 呼び出し側(BufferedInputStream)は1バイトずつしか受け取れず、
+			// 外側の緩衝が無効になる——実測で1文書あたり5秒遅くなった
+			// (2026-07-27に一度そう書いて踏んだ)。
+			int count = 0;
 			while (count < len) {
-				int c = this.read();
-				if (c == -1) {
-					break;
+				if (this.head == this.tail) {
+					this.head = this.tail = 0;
+					this.fill();
+					if (this.head == this.tail) {
+						break;
+					}
 				}
-				b[off + count] = (byte) c;
-				++count;
+				// 溜まっている分は**まとめて**写す(従来は1バイトずつだった)
+				final int n = Math.min(len - count, this.available0());
+				System.arraycopy(this.pending, this.head, b, off + count, n);
+				this.head += n;
+				count += n;
 			}
-			return count;
+			return count == 0 ? -1 : count;
 		}
 
 		private void fill() throws IOException {
 			int c = super.read();
 			if (c != '<') {
 				if (c != -1) {
-					this.pending.add(Integer.valueOf(c));
+					this.push(c);
 				}
 				return;
 			}
@@ -253,15 +306,15 @@ public class HTMLParser implements Parser {
 				this.readComment();
 				return;
 			}
-			this.pending.add(Integer.valueOf(c));
+			this.push(c);
 			if (c1 != -1) {
-				this.pending.add(Integer.valueOf(c1));
+				this.push(c1);
 			}
 			if (c2 != -1) {
-				this.pending.add(Integer.valueOf(c2));
+				this.push(c2);
 			}
 			if (c3 != -1) {
-				this.pending.add(Integer.valueOf(c3));
+				this.push(c3);
 			}
 		}
 
@@ -275,9 +328,8 @@ public class HTMLParser implements Parser {
 			for (;;) {
 				int c = super.read();
 				if (c == -1) {
-					byte[] fixed = closeLastOpenComment(out.toByteArray());
-					for (byte b : fixed) {
-						this.pending.add(Integer.valueOf(b & 0xFF));
+					for (byte b : closeLastOpenComment(out.toByteArray())) {
+						this.push(b & 0xFF);
 					}
 					return;
 				}
@@ -285,9 +337,8 @@ public class HTMLParser implements Parser {
 				if (c == '-') {
 					++dashCount;
 				} else if (c == '>' && dashCount >= 2) {
-					byte[] bytes = out.toByteArray();
-					for (byte b : bytes) {
-						this.pending.add(Integer.valueOf(b & 0xFF));
+					for (byte b : out.toByteArray()) {
+						this.push(b & 0xFF);
 					}
 					return;
 				} else {
@@ -297,46 +348,80 @@ public class HTMLParser implements Parser {
 		}
 	}
 
+	/**
+	 * {@link LegacyCommentInputStream}の文字版です。
+	 *
+	 * <p>
+	 * <b>両者は必ず同じ形に保つこと。</b>2026-07-27まで、バイト版だけが
+	 * 緩衝とキューの手当てを受け、こちらは取り残されていた——
+	 * 双子の一方だけを直すと、この非対称がそのまま次の欠陥になる。
+	 * </p>
+	 */
 	private static class LegacyCommentReader extends FilterReader {
-		private final ArrayDeque<Integer> pending = new ArrayDeque<Integer>();
+		/** 先読み済みの文字列。{@code [head, tail)} が有効範囲。 */
+		private char[] pending = new char[64];
+
+		private int head = 0, tail = 0;
 
 		LegacyCommentReader(Reader in) {
 			super(in);
 		}
 
-		public int read() throws IOException {
-			if (this.pending.isEmpty()) {
-				this.fill();
+		private void push(final int c) {
+			if (this.tail == this.pending.length) {
+				if (this.head > 0) {
+					// 前詰めで済むならそれで済ませる
+					System.arraycopy(this.pending, this.head, this.pending, 0, this.tail - this.head);
+					this.tail -= this.head;
+					this.head = 0;
+				} else {
+					this.pending = java.util.Arrays.copyOf(this.pending, this.pending.length * 2);
+				}
 			}
-			return this.pending.isEmpty() ? -1 : this.pending.removeFirst().intValue();
+			this.pending[this.tail++] = (char) c;
+		}
+
+		public int read() throws IOException {
+			if (this.head == this.tail) {
+				this.head = this.tail = 0;
+				this.fill();
+				if (this.head == this.tail) {
+					return -1;
+				}
+			}
+			return this.pending[this.head++];
 		}
 
 		public int read(char[] cbuf, int off, int len) throws IOException {
 			if (len == 0) {
 				return 0;
 			}
-			int first = this.read();
-			if (first == -1) {
-				return -1;
-			}
-			cbuf[off] = (char) first;
-			int count = 1;
+			// **要求された分を埋めきること。** 溜まっている分だけ返すと、
+			// 呼び出し側(BufferedReader)は1文字ずつしか受け取れず、
+			// 外側の緩衝が無効になる(バイト版と同じ罠)
+			int count = 0;
 			while (count < len) {
-				int c = this.read();
-				if (c == -1) {
-					break;
+				if (this.head == this.tail) {
+					this.head = this.tail = 0;
+					this.fill();
+					if (this.head == this.tail) {
+						break;
+					}
 				}
-				cbuf[off + count] = (char) c;
-				++count;
+				// 溜まっている分は**まとめて**写す
+				final int n = Math.min(len - count, this.tail - this.head);
+				System.arraycopy(this.pending, this.head, cbuf, off + count, n);
+				this.head += n;
+				count += n;
 			}
-			return count;
+			return count == 0 ? -1 : count;
 		}
 
 		private void fill() throws IOException {
 			int c = super.read();
 			if (c != '<') {
 				if (c != -1) {
-					this.pending.add(Integer.valueOf(c));
+					this.push(c);
 				}
 				return;
 			}
@@ -347,15 +432,15 @@ public class HTMLParser implements Parser {
 				this.readComment();
 				return;
 			}
-			this.pending.add(Integer.valueOf(c));
+			this.push(c);
 			if (c1 != -1) {
-				this.pending.add(Integer.valueOf(c1));
+				this.push(c1);
 			}
 			if (c2 != -1) {
-				this.pending.add(Integer.valueOf(c2));
+				this.push(c2);
 			}
 			if (c3 != -1) {
-				this.pending.add(Integer.valueOf(c3));
+				this.push(c3);
 			}
 		}
 
@@ -368,7 +453,7 @@ public class HTMLParser implements Parser {
 				if (c == -1) {
 					String fixed = closeLastOpenComment(out.toString());
 					for (int i = 0; i < fixed.length(); ++i) {
-						this.pending.add(Integer.valueOf(fixed.charAt(i)));
+						this.push(fixed.charAt(i));
 					}
 					return;
 				}
@@ -377,7 +462,7 @@ public class HTMLParser implements Parser {
 					++dashCount;
 				} else if (c == '>' && dashCount >= 2) {
 					for (int i = 0; i < out.length(); ++i) {
-						this.pending.add(Integer.valueOf(out.charAt(i)));
+						this.push(out.charAt(i));
 					}
 					return;
 				} else {
