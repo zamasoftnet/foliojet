@@ -168,6 +168,17 @@ tasks.named('test') {
         systemProperty k, System.getProperty(k)
     }
 
+    // 調査用スイッチ(-Dfoliojet.fuzzShrink 等)を付けたときだけ、テストの
+    // 標準出力をそのまま見せる。既定では隠したまま——通常のフルテストで
+    // 数万行を流すと gradle のメッセージ経路が詰まる(LESSONS.md §3.16)。
+    // これが無いと `[shrink]` の出力は build/test-results の XML を
+    // 掘らないと読めず、**縮小器の自己検査の結果を見落とす**。
+    if (System.getProperties().stringPropertyNames().any {
+        it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzReport']
+    }) {
+        testLogging.showStandardStreams = true
+    }
+
     doFirst {
         new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
     }

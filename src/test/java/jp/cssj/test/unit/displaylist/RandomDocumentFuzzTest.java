@@ -264,7 +264,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
-	private static String classify(final Throwable t) {
+	static String classify(final Throwable t) {
 		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
 		// なり、種別が1つに潰れる(2026-07-26に踏んだ)
@@ -438,6 +438,37 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private void sweep(final boolean strict) throws Exception {
+		// **失敗したシードを自動で最小化する入口**(2026-07-28新設)。
+		// 掃過は数分で終わるのに1件の診断に数時間かかるので、縮小は
+		// 機械にやらせる。述語の作り方は {@link FuzzShrinker} を参照
+		// ——ここを雑に書くと偽の最小形が出る(LESSONS.md §3.15)
+		final String shrinkSeed = System.getProperty("foliojet.fuzzShrink");
+		if (shrinkSeed != null) {
+			final String mode = System.getProperty("foliojet.fuzzShrinkMode", "strict");
+			if ("both".equals(mode) || strict == "strict".equals(mode)) {
+				FuzzShrinker.shrink(Integer.parseInt(shrinkSeed.trim()), strict);
+			}
+			return;
+		}
+		// **ファイルを縮小する入口**(2026-07-28新設)。手で書いた再現文書や、
+		// 縮小器自身の検算(答えの分かっている文書を水増ししてから縮小させる)に使う
+		final String shrinkFile = System.getProperty("foliojet.fuzzShrinkFile");
+		if (shrinkFile != null) {
+			if (strict) {
+				FuzzShrinker.shrinkFile(new File(shrinkFile));
+			}
+			return;
+		}
+		// **任意のHTMLを同じ検査にかける入口**(2026-07-28新設)。縮小した
+		// 文書が「生成器を通さない普通の経路」でも同じ種別で落ちることを
+		// 確かめるために使う
+		final String checkFile = System.getProperty("foliojet.fuzzCheckFile");
+		if (checkFile != null) {
+			if (strict) {
+				FuzzShrinker.checkFile(new File(checkFile));
+			}
+			return;
+		}
 		// **特定のシードだけを走らせる入口**(2026-07-27新設)。
 		// 大規模な掃過では成果物を使い回して捨てるので、後から
 		// 「seed 27648で内容が消えた」と分かっても再現できなかった。
@@ -525,12 +556,29 @@ public class RandomDocumentFuzzTest extends TestCase {
 				|| seedCount() <= KEEP_ARTIFACTS_BELOW;
 		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
 		final File html = new File("local/fuzz/" + (strict ? "strict" : "wild") + "-" + slot + ".html");
+		final File outDir = new File("local/fuzz/dl-" + (strict ? "strict" : "wild") + "-" + slot);
+		checkDocument(doc, html, outDir, strict, "fuzz-" + seed);
+	}
+
+	/**
+	 * <b>生成済みの文書</b>を1件検査する(2026-07-28に{@code checkOne}から分離)。
+	 *
+	 * <p>
+	 * 分離したのは{@link FuzzShrinker}の<b>述語</b>として使うため。縮小器が
+	 * 検査するのは<b>生成器が作った文書ではない</b>ので、{@link Generated}を
+	 * 外から渡せなければならない——ここを{@code seed}から作り直す設計にすると、
+	 * 縮小後の文書に<b>元の文書のトークン表</b>を当ててしまい、「削ったから
+	 * 消えた」を「内容の消失」と誤判定する(`LESSONS.md` §3.15 の6例目に
+	 * なるところだった)。
+	 * </p>
+	 */
+	static void checkDocument(final Generated doc, final File html, final File outDir, final boolean strict,
+			final String workerName) throws Exception {
 		html.getParentFile().mkdirs();
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(html), StandardCharsets.UTF_8)) {
 			w.write(doc.html);
 		}
 
-		final File outDir = new File("local/fuzz/dl-" + (strict ? "strict" : "wild") + "-" + slot);
 		outDir.mkdirs();
 		final File[] old = outDir.listFiles();
 		if (old != null) {
@@ -547,7 +595,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			} catch (final Throwable t) {
 				failure[0] = t;
 			}
-		}, "fuzz-" + seed);
+		}, workerName);
 		worker.setDaemon(true);
 		worker.start();
 		worker.join(WATCHDOG_MS);
@@ -837,7 +885,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                        最大値(pt)。不変条件6で「作者が指定した大きさの
 	 *                        帰結として説明できるはみ出しか」を判定するのに使う
 	 */
-	private record Generated(String html, List<String> tokens, Set<String> reorderable, double pageWidth,
+	record Generated(String html, List<String> tokens, Set<String> reorderable, double pageWidth,
 			double pageHeight, double maxExplicitSize, boolean oversized, boolean tinyPage) {
 
 		/** 版面が破綻していて、エンジンの振る舞いを問えない文書か。 */
@@ -869,7 +917,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final Pattern POS_IN_DUMP = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+)");
 
 	/** 生成器が出す明示サイズ({@code width:120pt}等)。 */
-	private static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
+	static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
 
 	private static final Pattern EXPLICIT_WIDTH = Pattern.compile("width:(\\d+)pt");
 	private static final Pattern EXPLICIT_HEIGHT = Pattern.compile("height:(\\d+)pt");
@@ -902,7 +950,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	private static final String[] WRITING_MODES = { "horizontal-tb", "vertical-rl", "vertical-lr" };
 
-	private static Generated generate(final int seed, final boolean strict) {
+	static Generated generate(final int seed, final boolean strict) {
 		final Random r = new Random(seed * 7919L + (strict ? 1 : 2));
 		final List<String> tokens = new ArrayList<>();
 		// 並べ替えが正当なトークン(フロート・絶対配置の部分木の中)。
@@ -968,7 +1016,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 本当の退行を見落とすからです。
 	 * </p>
 	 */
-	private static boolean isOversized(final String html, final int[] pageSize) {
+	static boolean isOversized(final String html, final int[] pageSize) {
 		final Matcher pm = PAGE_MARGIN.matcher(html);
 		final double margin = pm.find() ? Double.parseDouble(pm.group(1)) : 0;
 		final double contentWidth = pageSize[0] - 2 * margin;
@@ -1002,7 +1050,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * フォントサイズの範囲(6〜13pt)では該当しない。
 	 * </p>
 	 */
-	private static boolean isTinyPage(final String html, final int[] pageSize) {
+	static boolean isTinyPage(final String html, final int[] pageSize) {
 		final Matcher pm = PAGE_MARGIN.matcher(html);
 		final double margin = pm.find() ? Double.parseDouble(pm.group(1)) : 0;
 		final Matcher fm = FONT_SIZE.matcher(html);
