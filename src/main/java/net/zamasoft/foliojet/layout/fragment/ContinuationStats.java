@@ -537,17 +537,35 @@ public final class ContinuationStats {
 	 *
 	 * @param stalledRun 直前の自動改ページと状態が変わらないまま繰り返した回数
 	 */
-	public static void guardBreakProgress(final int stalledRun) {
+	public static boolean guardBreakProgress(final int stalledRun) {
 		MAX_STALLED_AUTO_BREAK_RUN.accumulateAndGet(stalledRun, Math::max);
 		if (stalledRun >= STALLED_AUTO_BREAK_LIMIT) {
 			STALLED_AUTO_BREAK_ALARMS.incrementAndGet();
 			final String message = "auto page break repeated " + stalledRun
 					+ " times without any progress (same break target, same page cursor, same flow depth, no new "
-					+ "source events); the layout is livelocked and every repetition allocates a blank PDF page "
-					+ "that is retained until the document is written";
+					+ "source events); the layout is livelocked, so page breaking is abandoned and the content is "
+					+ "laid out in place (it may overflow the page)";
 			java.util.logging.Logger.getLogger(ContinuationStats.class.getName()).warning(message);
-			throw new ContinuationInvariantViolationException(message);
+			// **例外ではなく「改ページをあきらめる」を返す**(2026-07-29)。
+			//
+			// ここまで来たライブロックは実在する
+			// (`FloatSplitPlan.classify`の分岐表5の逃げ道へ構造的に到達
+			// できない浮動体。`docs/NEXT-SESSION.md`)。従来はここで
+			// {@code ContinuationInvariantViolationException}を投げていたが、
+			// それは<b>変換の失敗</b>であり、{@code ARCHITECTURE.md} §5.13 は
+			// 変換の失敗を「常にエンジンの不具合」と定めている
+			// ——版面が破綻した文書であることを理由に除外できない。
+			//
+			// 同§5.13は「紙面に収まらない箱を含む文書でも、エンジンは
+			// <b>はみ出させるなり次ページへ送るなりして出力を返さなければ
+			// ならない</b>」とも定めている。したがって**出力を返す側**へ倒す。
+			//
+			// この閾値(256)を使うのは、**偽陽性がないと分かっている**唯一の
+			// 点だからである。低い閾値(2)で同じことをすると正当な改ページ
+			// まで潰す(実測: `FloatTableTest`が4ページ→3ページに退行)。
+			return true;
 		}
+		return false;
 	}
 
 	/**

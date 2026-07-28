@@ -47,12 +47,16 @@ public class RootBuilder extends BreakableBuilder {
 	 *
 	 * @param mode 今回の改ページのモード
 	 */
-	private void guardBreakProgress(final BreakMode mode) {
+	/**
+	 * @return ライブロックが確定したので<b>改ページをあきらめる</b>べきなら true
+	 *         ({@code ContinuationStats.guardBreakProgress}参照)
+	 */
+	private boolean guardBreakProgress(final BreakMode mode) {
 		if (!(mode instanceof BreakMode.AutoBreakMode auto)) {
 			// 強制改ページは進捗で測らない。指紋も持ち越さない
 			this.stalledBreakRun = 0;
 			this.lastBreakDepth = -1;
-			return;
+			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource source = this.pageGenerator.getLayoutSource();
 		final long ingest = (source == null) ? -1L : source.nextId();
@@ -68,7 +72,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.lastBreakPageAxis = this.pageAxis;
 			this.lastBreakTarget = target;
 		}
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun);
+		return net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun);
 	}
 
 	/**
@@ -668,7 +672,11 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.flowStack.isEmpty()) {
 			return false;
 		}
-		this.guardBreakProgress(mode);
+		if (this.guardBreakProgress(mode)) {
+			// ライブロック確定。改ページをやめて内容をその場へ置く
+			// (呼び出し側は false を「改ページ点なし」として扱う)
+			return false;
+		}
 
 		// ボックスの高さを計算
 		for (int i = 0; i < this.flowStack.size(); ++i) {
