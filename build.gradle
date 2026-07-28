@@ -155,7 +155,11 @@ tasks.named('test') {
         exclude 'jp/cssj/test/unit/_1060_META/HTMLEUCTest.class'
     }
 
-    systemProperty 'java.io.tmpdir', 'local'
+    // 一時ディレクトリ。既定の `local` は /mnt/f(DrvFs)にあり、掃過では
+    // LayoutSource の spill 等でここへも書くため I/O 律速の一因になる。
+    // -PtestTmpDir=/dev/shm/foliojet のように速い場所を指せる(2026-07-28)
+    systemProperty 'java.io.tmpdir',
+            project.hasProperty('testTmpDir') ? project.property('testTmpDir') : 'local'
     systemProperty 'java.awt.headless', 'true'
     systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
     systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath

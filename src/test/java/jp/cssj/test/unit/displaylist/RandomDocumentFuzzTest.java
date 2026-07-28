@@ -600,8 +600,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final boolean keep = System.getProperty("foliojet.fuzzOnlySeed") != null || !reportMode()
 				|| seedCount() <= KEEP_ARTIFACTS_BELOW;
 		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
-		final File html = new File("local/fuzz/" + (strict ? "strict" : "wild") + "-" + slot + ".html");
-		final File outDir = new File("local/fuzz/dl-" + (strict ? "strict" : "wild") + "-" + slot);
+		final File html = new File(workDir(), (strict ? "strict" : "wild") + "-" + slot + ".html");
+		final File outDir = new File(workDir(), "dl-" + (strict ? "strict" : "wild") + "-" + slot);
 		checkDocument(doc, html, outDir, strict, "fuzz-" + seed);
 	}
 
@@ -1118,6 +1118,33 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	private static final String RED_PNG_URI = new File("files/unittest/red.png").getAbsoluteFile().toURI()
 			.toString();
+
+	/**
+	 * 掃過の作業ディレクトリ({@code -Dfoliojet.fuzzWorkDir})。既定は
+	 * {@code local/fuzz}。
+	 *
+	 * <p>
+	 * <b>掃過の律速はCPUではなくI/Oである</b>(2026-07-28に実測)。
+	 * 1文書ごとに文書HTML・表示リストのダンプ・PDFを書くため、既定の
+	 * {@code local/}が{@code /mnt/f}(WSLのDrvFs=Windowsファイルシステム)に
+	 * あると、12スレッドでもワーカーのCPU時間が経過時間の1.2倍にしかならず、
+	 * 残りはI/O待ちで積まれる。tmpfs({@code /dev/shm})やWSL側のext4
+	 * ({@code /}配下)を指すと大きく変わる。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>失敗の再現性は損なわれない。</b> 生成器は決定的なので、
+	 * シード番号さえ分かれば{@code -Dfoliojet.fuzzOnlySeed}でいつでも
+	 * 同じ文書を作り直せる。文書が参照する画像は既に絶対URIなので
+	 * (下記{@link #RED_PNG_URI})、作業ディレクトリを移しても
+	 * 同じ文書になる。
+	 * </p>
+	 */
+	static File workDir() {
+		final File dir = new File(System.getProperty("foliojet.fuzzWorkDir", "local/fuzz"));
+		dir.mkdirs();
+		return dir;
+	}
 
 	/** ページ寸法の候補(極端に小さいものを含む)。 */
 	private static final int[][] PAGE_SIZES = { { 200, 200 }, { 300, 150 }, { 120, 400 }, { 595, 842 }, { 60, 60 } };
