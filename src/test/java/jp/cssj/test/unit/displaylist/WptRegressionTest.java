@@ -18,18 +18,31 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>インラインの中の{@code column-span:all}</b>で変換が落ちないことを
- * 固定します(2026-07-28新設)。
+ * <b>WPTコーパスで見つかった不具合</b>の回帰テストです(2026-07-28新設)。
  *
  * <p>
- * WPT(`css/css-multicol`)を不変条件1〜3にかけたときに見つかった
- * クラッシュです({@link WptCorpusTest})。2,409文書中10件が同一原因で
- * {@code IndexOutOfBoundsException: Index -1 out of bounds for length 0}
- * になっていました。20万文書のランダム掃過では<b>一度も出ていません</b>
- * ——生成器が「インラインの中のぶち抜き」を作らないためです。
+ * WPT(`css/css-break`・`css-multicol`・`css-page`)の2,409文書を不変条件
+ * 1〜3(例外で中断しない・停止する・ページ数が有界)にかけて見つけたもの
+ * です({@link WptCorpusTest})。<b>20万文書のランダム掃過では1件も出て
+ * いません</b>——生成器が作らない形(インラインの中のぶち抜き、
+ * {@code column-width:0}、32bit幅の枠線)を突いたためです。
  * </p>
  *
- * <h2>機序</h2>
+ * <p>
+ * <b>再現条件は問題ごとに違います。</b> ぶち抜きと枠線は既定のA4でも落ちますが、
+ * {@code column-width:0}は<b>小さい紙面でないと再現しません</b>。掃過が
+ * 120x120ptで回しているのはそのためで、テストも同じ条件を作ります。
+ * 「小さい紙面でだけページ数が爆発する」種類(grid等)は、退化した幾何の
+ * 問題として別に扱います(`docs/NEXT-SESSION.md`)。
+ * </p>
+ *
+ * <h2>機序: インラインの中の{@code column-span:all}</h2>
+ *
+ * <p>
+ * 2,409文書中10件が同一原因で
+ * {@code IndexOutOfBoundsException: Index -1 out of bounds for length 0}
+ * になっていました。
+ * </p>
  *
  * <p>
  * {@code DocumentBuilder.startBox}のFLOW分岐は、ぶち抜き
@@ -60,7 +73,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * ずれるだけ</b>で直らないことを確認済みです(`docs/NEXT-SESSION.md`)。
  * </p>
  */
-public class ColumnSpanInInlineTest extends TestCase {
+public class WptRegressionTest extends TestCase {
 	static {
 		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
 		System.setProperty("jp.cssj.driver.default",
@@ -72,7 +85,7 @@ public class ColumnSpanInInlineTest extends TestCase {
 	/** 1文書あたりの上限時間。通常は1秒未満で終わる。 */
 	private static final long WATCHDOG_MS = 60_000L;
 
-	public ColumnSpanInInlineTest(String name) {
+	public WptRegressionTest(String name) {
 		super(name);
 	}
 
@@ -136,6 +149,60 @@ public class ColumnSpanInInlineTest extends TestCase {
 		convertWithin("spanner-in-inline-text", SPANNER_IN_INLINE_WITH_TEXT);
 	}
 
+	/**
+	 * {@code column-width:0}が現実的な時間で終わること(2026-07-28、WPT
+	 * {@code css-multicol/zero-column-width-layout.html})。
+	 *
+	 * <p>
+	 * css-multicol-1 §3.1は「{@code column-width:0}は指定値・計算値としては
+	 * 正当だが、<b>使用値が1pxを下回ることはない</b>」と定めています。
+	 * 丸めないと{@code LayoutUtils.getColumnCount}の除算が0除算になり、
+	 * {@code (int)Infinity} = 2,147,483,647段を作ろうとします。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>厳密には無限ループではなく「極端に遅い」</b>——実測すると修正前でも
+	 * <b>約50秒</b>で終わります。掃過の打ち切りが30秒なので「停止しない」と
+	 * 分類されていました。したがってこのテストは<b>短い予算</b>で測ります
+	 * ——既定の60秒だと修正を戻しても緑のままで、回帰を検出できません
+	 * (2026-07-28に実際に踏んだ)。修正後は1秒未満です。
+	 * </p>
+	 */
+	public void testZeroColumnWidthIsFast() throws Exception {
+		// **文書は組み立てず、WPTの原本をそのまま使う**
+		// (files/unittest/0490-robustness/wpt-zero-column-width.html)。
+		// 骨格だけを写した最小形をいくつも試したが、どれも再現しなかった。
+		// **小さい紙面**も必須で、しかもPIではなくセッションプロパティで
+		// 与えないと再現しない(WPTの掃過と同じ経路にすること)
+		convertWithinFile("wpt-zero-column-width.html", "120x120", 15_000L);
+	}
+
+	/**
+	 * 巨大な{@code border-width}でも変換が失敗しないこと(2026-07-28、WPT
+	 * {@code css-break/grid/grid-large-end-border-crash.html})。
+	 *
+	 * <p>
+	 * {@code 4294967295px}は3.22e9ptになり、
+	 * {@code BackgroundBorderDrawable}の「描画高が異常」assertで<b>変換が
+	 * 失敗</b>していました。{@code Border.MAX_WIDTH}へ丸めます——
+	 * {@code colspan}/{@code rowspan}をHTML Standardの上限へ丸めたのと
+	 * 同じ立場です。
+	 * </p>
+	 */
+	public void testHugeBorderWidthDoesNotFail() throws Exception {
+		convertWithin("huge-border", """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				</head><body>
+				<div style="column-count:2; column-fill:auto; border-bottom:4294967295px solid">
+				<div style="display:grid; padding-top:1px; border-bottom:4294967295px solid">
+				<div></div>
+				</div>
+				</div>
+				</body></html>
+				""");
+	}
+
 	public void testReplacedSpannerInsideInline() throws Exception {
 		final File png = new File("files/unittest/red.png");
 		assertTrue("テスト画像が見つからない: " + png.getAbsolutePath(), png.isFile());
@@ -148,33 +215,69 @@ public class ColumnSpanInInlineTest extends TestCase {
 	 * 終わることを確認します({@code SpanRobustnessTest}と同じ形)。
 	 */
 	private static void convertWithin(final String name, final String html) throws Exception {
-		final File dir = new File("local/unittest/column-span-in-inline");
+		convertWithin(name, html, null);
+	}
+
+	/**
+	 * {@code files/unittest/0490-robustness/}に置いた文書をそのまま変換します。
+	 *
+	 * <p>
+	 * 他のケースは文書をここで組み立てますが({@code docs/LESSONS.md} §6.9h)、
+	 * <b>骨格を写すと再現しない</b>ものはWPTの原本を取り込んで使います。
+	 * 再現しない最小形で固定しても、修正を戻したときに落ちないので
+     * 回帰テストになりません。
+	 * </p>
+	 */
+	private static void convertWithinFile(final String fileName, final String pageSize, final long budgetMs)
+			throws Exception {
+		final File input = new File("files/unittest/0490-robustness/" + fileName);
+		assertTrue("テスト文書が見つからない: " + input.getAbsolutePath(), input.isFile());
+		final File dir = new File("local/unittest/wpt-regression");
+		dir.mkdirs();
+		runWithin(fileName, input, new File(dir, fileName + ".pdf"), pageSize, budgetMs);
+	}
+
+	/**
+	 * @param pageSize {@code "120x120"}(pt)のような紙面指定。{@code null}なら既定。
+	 *                 <b>PIではなくセッションプロパティで与えます</b>——WPTの掃過
+	 *                 ({@link WptCorpusTest})がそうしているためで、PIで書くと
+	 *                 同じ条件にならず、修正を戻してもテストが緑のままになります
+	 *                 (2026-07-28に実際に踏んだ)
+	 */
+	private static void convertWithin(final String name, final String html, final String pageSize) throws Exception {
+		final File dir = new File("local/unittest/wpt-regression");
 		dir.mkdirs();
 		final File input = new File(dir, name + ".html");
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(input), StandardCharsets.UTF_8)) {
 			w.write(html);
 		}
 
+		runWithin(name, input, new File(dir, name + ".pdf"), pageSize, WATCHDOG_MS);
+	}
+
+	/** 別スレッドで変換し、{@code budgetMs}以内に例外なく終わることを確認します。 */
+	private static void runWithin(final String name, final File input, final File pdf, final String pageSize,
+			final long budgetMs) throws Exception {
 		final Throwable[] failure = new Throwable[1];
 		final Thread worker = new Thread(() -> {
 			try {
-				convert(input, new File(dir, name + ".pdf"));
+				convert(input, pdf, pageSize);
 			} catch (final Throwable t) {
 				failure[0] = t;
 			}
-		}, "column-span-in-inline-" + name);
+		}, "wpt-regression-" + name);
 		worker.setDaemon(true);
 		worker.start();
-		worker.join(WATCHDOG_MS);
+		worker.join(budgetMs);
 		if (worker.isAlive()) {
-			fail(name + ": " + WATCHDOG_MS + "ms以内に変換が終わりませんでした");
+			fail(name + ": " + budgetMs + "ms以内に変換が終わりませんでした");
 		}
 		if (failure[0] != null) {
 			throw new AssertionError(name + ": 変換が例外で終わりました", failure[0]);
 		}
 	}
 
-	private static void convert(final File input, final File pdf) throws Exception {
+	private static void convert(final File input, final File pdf, final String pageSize) throws Exception {
 		try (OutputStream out = new FileOutputStream(pdf)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
@@ -183,6 +286,11 @@ public class ColumnSpanInInlineTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
+				if (pageSize != null) {
+					final int x = pageSize.indexOf('x');
+					session.property("output.page-width", pageSize.substring(0, x) + "pt");
+					session.property("output.page-height", pageSize.substring(x + 1) + "pt");
+				}
 				CTISessionHelper.transcodeFile(session, input, "text/html", null);
 			} finally {
 				session.close();

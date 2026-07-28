@@ -718,16 +718,41 @@ public final class LayoutUtils {
 		return lineSize;
 	}
 
+	/**
+	 * {@code column-width}の<b>使用値</b>の下限(1px = 0.75pt)です。
+	 *
+	 * <p>
+	 * css-multicol-1 §3.1は「{@code column-width:0}は指定値・計算値としては
+	 * 正当だが、<b>使用値が1pxを下回ることはない</b>」と定めています。
+	 * 実ブラウザも同じです。
+	 * </p>
+	 *
+	 * <p>
+	 * これは体裁の問題ではなく<b>停止性の問題</b>です。0を通すと
+	 * {@link #getColumnCount}の除算が0除算になり、{@code (int)Infinity} =
+	 * 2,147,483,647段を作ろうとして事実上停止しません
+	 * (WPT {@code css-multicol/zero-column-width-layout.html})。
+	 * </p>
+	 */
+	private static final double MIN_COLUMN_WIDTH = 0.75;
+
 	public static int getColumnCount(final AbstractContainerBox box) {
 		final BlockParams params = box.getBlockParams();
 		if (LayoutUtils.isNone(params.columns.width)) {
 			return params.columns.count;
 		}
 		final double lineSize = LayoutUtils.getMaxAdvance(box);
-		if (params.columns.width >= lineSize) {
+		// 使用値の下限を効かせてから割る({@link #MIN_COLUMN_WIDTH}参照)。
+		// gapは負になりえないので、これで除数は必ず正になる
+		final double width = Math.max(params.columns.width, MIN_COLUMN_WIDTH);
+		if (width >= lineSize) {
 			return 1;
 		}
-		return (int) Math.floor((lineSize + params.columns.gap) / (params.columns.width + params.columns.gap));
+		final int count = (int) Math.floor((lineSize + params.columns.gap) / (width + params.columns.gap));
+		// 上の分岐で width < lineSize なので count >= 1 のはずだが、
+		// lineSize が NaN/巨大値のときに 0 や負に落ちないことを保証する
+		// ——段数0は呼び出し側が「段組でない」と読むので、意味が変わる
+		return Math.max(1, count);
 	}
 
 	public static void setupImposition(final UserAgent ua, final Imposition imposition) {
