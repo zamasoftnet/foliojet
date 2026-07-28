@@ -1121,8 +1121,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * にもある({@code ../../../}を決め打ち)。
 	 * </p>
 	 */
-	private static final String RED_PNG_URI = new File("files/unittest/red.png").getAbsoluteFile().toURI()
-			.toString();
+	/**
+	 * 画像の位置は{@code -Dfoliojet.fuzzImage}で差し替えられます(2026-07-29)。
+	 *
+	 * <p>
+	 * 既定の{@code files/unittest/red.png}は{@code /mnt/f}(DrvFs)にあり、
+	 * <b>文書ごとに開いて復号し直す</b>ため掃過の主要な費用になっていた
+	 * (スレッドダンプで、働いているレイアウトスレッドのほとんどが
+	 * {@code PNGImageReader.readMetadata}だった)。tmpfsへ複製して
+	 * ここを指せば大きく落ちる。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>再現性は損なわれない。</b> 失敗の再現は保存されたHTMLではなく
+	 * <b>シード番号</b>から行う({@code -Dfoliojet.fuzzOnlySeed})ので、
+	 * 生成時に有効な画像パスが使われれば足りる。絶対URIにする理由
+	 * (相対パスだと置き場所で文書が変わる)は従来どおり。
+	 * </p>
+	 */
+	private static final String RED_PNG_URI = new File(
+			System.getProperty("foliojet.fuzzImage", "files/unittest/red.png")).getAbsoluteFile().toURI().toString();
 
 	/**
 	 * 掃過の作業ディレクトリ({@code -Dfoliojet.fuzzWorkDir})。既定は
