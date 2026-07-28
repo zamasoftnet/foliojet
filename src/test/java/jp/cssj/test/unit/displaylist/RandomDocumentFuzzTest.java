@@ -696,6 +696,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 不変条件3: ページ数が有界
 		assertTrue("ページ数が過大 " + pages.length + " (" + html + ")", pages.length <= MAX_PAGES);
 
+		// **WILDはここまで**(2026-07-28)。不変条件4〜8はSTRICT限定なので、
+		// 以下の読み込み・解析はWILDでは結果を一切使わない——従来は全ページを
+		// 読んで解析してから捨てていた(早期returnは解析の**後**にあった)。
+		// 実測では誤差程度の差しか出なかったが、捨てる仕事を残す理由もない
+		if (!strict) {
+			return;
+		}
+
 		java.util.Arrays.sort(pages);
 		final Set<String> seen = new LinkedHashSet<>();
 		// トークンが**最初に現れたページ**(不変条件7)。ページ内の描画順は
@@ -751,9 +759,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 
-		if (!strict) {
-			return; // WILDは1〜3だけ
-		}
 		// 不変条件5: 意図しない白紙ページがない
 		//
 		// **紙面に収まらない箱を含む文書は除外する**(2026-07-26のユーザー裁定)。
