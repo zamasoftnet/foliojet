@@ -1,7 +1,9 @@
 resume PAGE
   root-fragment depth=4
    chain-fragment depth=3
-     replay-subtree serial=2
+     restyle-box serial=2
+  restyle-float serial=1
+  restyle-text serial=2
      restyle-chain serial=3
     replay-subtree serial=1
     restyle-chain serial=2

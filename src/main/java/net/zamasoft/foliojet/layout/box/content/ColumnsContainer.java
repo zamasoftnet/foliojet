@@ -337,10 +337,21 @@ public class ColumnsContainer implements Container {
 		fresh.setBox(this.box);
 		this.columns.add(fresh);
 		final int last = snapshot.size() - 1;
-		for (int i = 0; i <= last; ++i) {
-			final FlowContainer container = (FlowContainer) snapshot.get(i);
-			container.restyle(builder,
-					i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, restyleAbsolutes);
+		// 段の組み直しでは、どの段の断片も「自分が記録した分しか持って
+		// いない」——切断テキストの尾部再生(charOffsetからソース末尾まで)
+		// を全段で封じる。開いた尾は{@code shape}が最終段へ運び、
+		// {@code restyleItem}の{@code open}分岐が元々尾部再生を通さない
+		// (2026-07-28。封じないと段2が"T2 T3 T4"、段3が"T3 T4"を
+		// 描く: local/shrink/strict-118665-min.html)
+		FlowContainer.pushTailSeal();
+		try {
+			for (int i = 0; i <= last; ++i) {
+				final FlowContainer container = (FlowContainer) snapshot.get(i);
+				container.restyle(builder,
+						i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, restyleAbsolutes);
+			}
+		} finally {
+			FlowContainer.popTailSeal();
 		}
 	}
 }

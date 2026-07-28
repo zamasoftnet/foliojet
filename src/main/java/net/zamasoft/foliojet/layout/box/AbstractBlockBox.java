@@ -269,7 +269,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		if (nextContainer == null) {
 			return net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP;
 		}
-		if (nextContainer == this.container) {
+		if (nextContainer == this.splitMoveSentinel()) {
+			// 段組コンテナは切断を最終段へ委譲するので、MOVEの目印は
+			// 最終段になる(splitMoveSentinel参照)。ここを this.container
+			// とだけ比べていたため、段組の最終段が「残余」と誤読され、
+			// **段組の中に残ったまま**継続断片としても組まれていた
+			// (2026-07-28、local/shrink/strict-739-min.html)
 			assert childFrame == null;
 			return net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
 		}
@@ -318,7 +323,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		if (nextContainer == null) {
 			return net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.KEEP;
 		}
-		if (nextContainer == this.container) {
+		if (nextContainer == this.splitMoveSentinel()) {
 			return net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.MOVE;
 		}
 		final boolean vertical = this.params.flow.isVertical();
@@ -346,6 +351,19 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// 持たないため、旧 params.sourceEventId=-1 の無効化は不要
 		// (無効化しないと再生が分割進捗を巻き戻し無限改ページ、という
 		// 危険は「断片にアンカーが継承されない」ことで構造的に防がれる)
+		//
+		// 2026-07-28: 上の「構造的に防がれる」は**後ろ半分にしか効かない**。
+		// 前断片(this)はアンカーを持ったまま残るので、これをソースから
+		// 再生すると要素全体——継続断片が持っている残りを含む——が
+		// 組み直され、継続断片の再開と内容が二重になる。通常は前断片が
+		// 前ページ/前段に残って二度と再開されないので表に出ないが、
+		// 入れ子段組の段バランスでは`ColumnsContainer.restyle`が全段を
+		// 一本に組み直すため、前断片と継続断片が**同じ残余に並ぶ**。
+		// そこで改段が起きると前断片は「丸ごと移動する閉じた部分木」と
+		// 見なされ、`stampRanges`→`replayFromSource`で要素全体が再生
+		// される(実測: local/shrink/strict-347-min.html で `<li>` が
+		// 同じページに二度描かれる)。切断した側でここを塞ぐ。
+		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,

@@ -1751,6 +1751,64 @@ public class FlowContainer implements Container {
 	}
 
 	/**
+	 * 「この組み直しは尾部ではない」区間の深さです(2026-07-28新設)。
+	 *
+	 * <p>
+	 * 切断されたテキストブロックの尾部再生({@code replayTextFrom})は、
+	 * 断片の{@code breakToken}が持つ文字位置から<b>ソースの末尾まで</b>を
+	 * 流す。断片が「その流れの最後の断片」であるかぎり正しい——残りは
+	 * 全部その断片のものだからである。
+	 * </p>
+	 *
+	 * <p>
+	 * ところが{@link ColumnsContainer#restyle}は<b>全ての段を一本に
+	 * 組み直す</b>。先頭の段の断片も、最後の段の断片も、同じ組み直しの
+	 * 中で再開される。先頭側の断片に「末尾まで」を流させると、後続の段の
+	 * 断片が持っている分まで組まれ、<b>同じページに同じ文字が二度描かれる</b>
+	 * (実測: local/shrink/strict-118665-min.html。段2が "T2 T3 T4"、
+	 * 段3が "T3 T4" を描いていた)。
+	 * </p>
+	 *
+	 * <p>
+	 * 断片は流れを分割して持っているので、<b>最後の段以外は自分の分しか
+	 * 持っていない</b>。最後の段だけが「末尾まで」を名乗れる——
+	 * {@code ColumnsContainer.restyle}が開いた尾({@code shape})を
+	 * 最終段にだけ渡すのと同じ理由・同じ境界である。ここが立っている間、
+	 * 尾部再生は行わずボックス再生(自分の行だけを再演)へ落とす。
+	 * </p>
+	 *
+	 * <p>
+	 * ThreadLocalなのは{@link #worklistOverrideDepth}と同じ理由(複数変換の
+	 * 並行実行)。カウンタなのは入れ子の段組で対称にpush/popするため。
+	 * </p>
+	 */
+	private static final ThreadLocal<int[]> tailSealDepth = ThreadLocal.withInitial(() -> new int[1]);
+
+	/**
+	 * {@link #tailSealDepth}を1増やします。必ず{@link #popTailSeal}と
+	 * try/finallyで対にすること。
+	 */
+	public static void pushTailSeal() {
+		++tailSealDepth.get()[0];
+	}
+
+	/** {@link #tailSealDepth}を1減らします。 */
+	public static void popTailSeal() {
+		final int[] depth = tailSealDepth.get();
+		if (depth[0] <= 0) {
+			tailSealDepth.remove();
+			throw new IllegalStateException("popTailSeal without a matching push");
+		}
+		if (--depth[0] == 0) {
+			tailSealDepth.remove();
+		}
+	}
+
+	private static boolean isTailSealed() {
+		return tailSealDepth.get()[0] > 0;
+	}
+
+	/**
 	 * worklist executorの1段です(2026-07-22新設、B6a1)。sort済み
 	 * {@code items}・次に処理するindex・その段の{@code lastFlow}/
 	 * {@code shape}/trace用{@code depth}を保持する可変クラス。
@@ -2034,7 +2092,11 @@ public class FlowContainer implements Container {
 					// 多数の失敗を示した — 残る実質は live shaper の保留
 					// バッファと builder テキスト状態の受け渡し(deliveredCharEnd
 					// と unitizer 保留の境界)であり、M3b のトークン再開で回収する
-					if (!open
+					// isTailSealed(2026-07-28): 段の組み直しの最中は、どの
+					// 断片も「自分が記録した分しか持っていない」ので、
+					// charOffsetからソース末尾までを流す尾部再生をしては
+					// いけない({@code FlowContainer.pushTailSeal}参照)
+					if (!open && !isTailSealed()
 							&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 							&& builder.getPageContext() != null) {

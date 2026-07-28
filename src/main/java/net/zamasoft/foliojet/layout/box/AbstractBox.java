@@ -16,6 +16,17 @@ public abstract class AbstractBox implements IBox {
 	 */
 	private long sourceAnchor = -1;
 
+	/**
+	 * この箱が既に切断され、内容の一部を継続断片へ渡したかどうかです
+	 * (2026-07-28新設)。{@link #getSourceAnchor()}は「この箱を生んだ
+	 * 要素の開始イベント」であり、<b>切断後も前断片側に残り続ける</b>
+	 * ——継続断片はレシピ構築でアンカーを持たないので、切断で無効化
+	 * されるのは<b>後ろ半分だけ</b>だった。前断片をソースから再生すると
+	 * <b>要素全体</b>(=継続断片が持っている残りを含む)が組み直され、
+	 * 継続断片の再開と二重になる。
+	 */
+	private boolean fragmented = false;
+
 	public final long getSourceAnchor() {
 		return this.sourceAnchor;
 	}
@@ -23,6 +34,14 @@ public abstract class AbstractBox implements IBox {
 	public final void setSourceAnchor(final long id) {
 		assert this.sourceAnchor == -1 : "アンカーは付与後不変: " + this.sourceAnchor + " -> " + id;
 		this.sourceAnchor = id;
+	}
+
+	public final boolean isSourceReplayable() {
+		return this.sourceAnchor >= 0 && !this.fragmented;
+	}
+
+	public final void markFragmented() {
+		this.fragmented = true;
 	}
 
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {

@@ -295,8 +295,12 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// 内容をソースから再構築できる(M6c)。ボックス再生と違い非破壊で、
 		// 将来は容量プローブの反復にも使える。範囲不明・Opaque 含み・
 		// 分割済み(アンカー無効)の場合はボックス再生へフォールバック
+		// ——「アンカー無効」は継続断片側にしか効かないので、前断片側は
+		// isSourceReplayable()で明示的に外す(2026-07-28。切断済みの
+		// multicol を子範囲から組み直すと、継続断片が持っている残りまで
+		// この断片に入り、内容が二重になる)
 		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
-		final boolean replayed = root != null && root.isSegmentRestyle()
+		final boolean replayed = root != null && root.isSegmentRestyle() && this.isSourceReplayable()
 				&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
 						root.getPageGenerator().getLayoutSource(), this.getSourceAnchor(), columnBuilder,
 						root.getPageGenerator());
@@ -529,6 +533,32 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 	}
 
+	/**
+	 * {@code this.container.splitPageAxis()}が返す<b>MOVE の目印</b>
+	 * (「全部移動した」を表す自己参照)と比較すべきコンテナを返します
+	 * (2026-07-28新設)。
+	 *
+	 * <p>
+	 * {@link ColumnsContainer}は切断を<b>最終段へ委譲してその結果を
+	 * そのまま返す</b>ので、MOVEの目印は段組コンテナ自身ではなく
+	 * <b>最終段</b>になる。{@code this.container}と比べると一致せず、
+	 * <b>最終段が「残余コンテナ」として解釈される</b>——ところがその
+	 * 最終段は<b>段組コンテナの中に残ったまま</b>なので、同じ内容が
+	 * 前の段と継続断片の両方から描かれる(2026-07-28実測、
+	 * local/shrink/strict-739-min.html: 入れ子段組で T4 が二度描かれる)。
+	 * </p>
+	 *
+	 * <p>
+	 * {@link #prepareColumnCut}は最初からこの比較を行っている
+	 * ({@code activeColumn})。{@code ContainerCut.Plain}のjavadocが
+	 * 「層ごとに何とidentity比較するかが違う」と記していた差の、
+	 * 誤っていた側をこちらへ揃える。
+	 * </p>
+	 */
+	protected final Container splitMoveSentinel() {
+		return this.container instanceof ColumnsContainer columns ? columns.getLastColumn() : this.container;
+	}
+
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final BreakMode xmode = BreakMode.absorbColumn(mode, this.getColumnCount());
@@ -537,7 +567,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		if (nextContainer == null) {
 			return SplitResult.KEEP;
 		}
-		if (nextContainer == this.container) {
+		if (nextContainer == this.splitMoveSentinel()) {
 			return SplitResult.MOVE;
 		}
 		return new SplitResult.Split(

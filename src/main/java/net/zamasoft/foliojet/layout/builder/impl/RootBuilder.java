@@ -531,7 +531,11 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 			final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
 		container.eachFlowBox(box -> {
-			final long startId = box.getSourceAnchor();
+			// isSourceReplayable(2026-07-28): 切断済みの前断片はアンカーを
+			// 持ち続けるが、その範囲は継続断片が持っている残りも含む。
+			// 刻印すると再開で要素全体が再生され、継続断片の再開と二重に
+			// なる(入れ子段組の段バランスで実測)。ボックス再生へ落とす
+			final long startId = box.isSourceReplayable() ? box.getSourceAnchor() : -1;
 			if (startId >= 0) {
 				final long endId = log.endOf(startId);
 				// containsAbsolute(E-6増分4e): 絶対配置は増分4e以前はOpaque
@@ -548,8 +552,22 @@ public class RootBuilder extends BreakableBuilder {
 				// なので、刻印の時点で密度を確かめる(確かめないと
 				// replaySubtreeが「吸収済み再生範囲が失われました」で
 				// 変換ごと停止する。実測: 掃過10万件中15件)
+				// containsFloat(2026-07-28): 部分木の中のフロートは
+				// 「最近接ブロック祖先のコンテナに係留されるので部分木と
+				// 一緒に動く」——という前提が段組では崩れる。フロートは
+				// 集約({@code aggregateFloatings})で段のコンテナへ**引き上げ
+				// られる**ため、部分木が丸ごと移動しても<b>フロートは元の
+				// 段に残る</b>。その部分木をソースから再生すると、引き上げ
+				// られた側とあわせて<b>二度組まれる</b>(実測:
+				// local/shrink/strict-29708-min.html ほか。float内の
+				// "T3 T4" が同じページに二度描かれる)。
+				// {@code SourceReplayer.canReplayChildren}と
+				// {@code replayTextTail}は最初からこのゲートを持っており、
+				// 「係留の再実行(二重化)の危険」を同じ理由で避けている——
+				// ここだけ抜けていた。ボックス再生へ落とす
 				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
 						&& !log.containsAbsolute(startId, endId)
+						&& !log.containsFloat(startId, endId)
 						&& !log.containsMulticol(startId, endId)
 						&& !log.containsMixedFlow(startId, endId, rootFlow)) {
 					ranges.put(box,
