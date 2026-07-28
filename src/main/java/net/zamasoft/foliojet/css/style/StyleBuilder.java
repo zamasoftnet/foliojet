@@ -2970,9 +2970,29 @@ public class StyleBuilder implements PageGenerator {
 	 * 破綻しており、白紙1枚のほうがまだ正しいからです。
 	 * </p>
 	 */
-	private boolean paintsNothing(final PageBox pageBox) {
-		if (this.emittedPages == 0) {
-			// 0ページのPDFは作らない
+	private boolean paintsNothing(final PageBox pageBox, final boolean lastPage,
+			final boolean closedByForcedBreak) {
+		if (this.emittedPages == 0 && (lastPage || closedByForcedBreak)) {
+			// **0ページのPDFは作らない**。ただし「まだ1枚も出していない」
+			// だけでは落とさない理由にならない(2026-07-29)——後続の
+			// ページに内容があるなら、先頭の白紙は落として構わない。
+			//
+			// 従来は最初の1枚を無条件で残していたため、**内容が2ページ目
+			// から始まる文書で1ページ目が白紙のまま出ていた**
+			// (掃過 seed 597668 / 1954254。実測では3ページのうち
+			// 1ページ目だけが`drawer z=0`のみだった)。
+			//
+			// `lastPage`は呼び出し元が区別する: `RootBuilder.pageBreak`は
+			// 改ページで確定したページなので**後続がある**(false)、
+			// `RootBuilder.finish`は文書の最後(true)。
+			//
+			// `closedByForcedBreak`も残す理由になる——先頭要素の
+			// {@code page-break-before:always}は「その前に紙を1枚」という
+			// 作者の要求であり、生じた白紙は意図されたものである
+			// (`files/unittest/0120-float/float-break-always.html`)。
+			// {@code isForcedBreakOrigin}は「強制改ページで**始まった**
+			// ページ」を見るので、強制改ページで**閉じられた**先頭ページは
+			// そちらでは拾えない。
 			return false;
 		}
 		if (pageBox.isForcedBreakOrigin()) {
@@ -3017,11 +3037,12 @@ public class StyleBuilder implements PageGenerator {
 		--this.pageNumber;
 	}
 
-	public boolean drawPage(final PageBox pageBox) throws GraphicsException {
+	public boolean drawPage(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak)
+			throws GraphicsException {
 		// 何も描かないページは出力しない(css-break-3 §4.4)。判定は
 		// imposition.nextPage()(=PDFのページを作る地点)より前に済ませる
 		// ——作ってしまってから取り消すのではなく、作らない
-		if (this.paintsNothing(pageBox)) {
+		if (this.paintsNothing(pageBox, lastPage, closedByForcedBreak)) {
 			this.discardPage();
 			return false;
 		}

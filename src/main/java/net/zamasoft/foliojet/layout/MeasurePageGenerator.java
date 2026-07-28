@@ -66,7 +66,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 		return this.lastPage;
 	}
 
-	public boolean drawPage(final PageBox page) {
+	public boolean drawPage(final PageBox page, final boolean lastPage, final boolean closedByForcedBreak) {
 		// 測定のみ: 何も出力しない。ページを落とすこともないので true
 		return true;
 	}

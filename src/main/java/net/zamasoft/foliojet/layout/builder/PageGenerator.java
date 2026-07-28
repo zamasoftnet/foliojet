@@ -23,10 +23,17 @@ public interface PageGenerator {
 	 * あります。
 	 * </p>
 	 *
-	 * @param page 確定したページ
+	 * @param page     確定したページ
+	 * @param lastPage このページが<b>文書の最後</b>か(2026-07-29新設)。
+	 *                 何も描かないページを落としてよいかの判定に使う——
+	 *                 最後でなければ後続の内容があるので落としてよいが、
+	 *                 最後なら落とすと0ページのPDFになりうる
+	 * @param closedByForcedBreak このページを閉じたのが<b>強制改ページ</b>か。
+	 *                 先頭要素の{@code page-break-before:always}のように、
+	 *                 作者が要求した結果としての白紙は残す
 	 * @return 実際に出力したなら true、何も描かないので落としたなら false
 	 */
-	public boolean drawPage(PageBox page) throws GraphicsException;
+	public boolean drawPage(PageBox page, boolean lastPage, boolean closedByForcedBreak) throws GraphicsException;
 
 	/**
 	 * レイアウトソースログを返します(M6b v3)。持たない実装は null。
