@@ -263,8 +263,50 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
+	/**
+	 * <b>直交フローが親の行軸へはみ出した</b>、という印(2026-07-28新設)。
+	 * 失敗ではなく<b>除外</b>として扱う。
+	 *
+	 * <p>
+	 * 縦書きの中の横書き(またはその逆)は、2026-07-22の改ページ契約で
+	 * <b>原子的</b>と定めた({@code ContinuationCapability.ORTHOGONAL_FLOW}、
+	 * {@code supportsPageSplitThrough}が{@code false})。その箱が親の
+	 * <b>行軸</b>方向に紙面を超えると、エンジンには打つ手がない——
+	 * 改ページが進むのは<b>ページ軸</b>で、新しい紙は行軸に新しい空間を
+	 * 与えないからである(実測: 3ページ目へ送っても{@code y=0.00→100.80}
+	 * のまま1ptも変わらない)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>CSS標準はこれを「自動段組化」で解こうとしている</b>
+	 * (css-writing-modes-4 §7.3 auto-multicol: はみ出した内容を包含ブロックの
+	 * 流れ方向へ段として折り返し、T字型ドキュメントを避ける)。しかし
+	 * 当の仕様が<b>at-risk</b>(CR期間中に削除されうる)と認めており、
+	 * 「この要件は<b>すべてのブロックコンテナ</b>に多段組フローを自動的に
+	 * 発生させる」と自ら書いている。Blinkは旧実装の切り刻みを<b>やめて</b>
+	 * 単体内容を溢れさせる方針へ移り、WPTにも「長い直交フローが分断される」
+	 * ことを要求するテストは1件も無い(2026-07-28にコーパスを実査)。
+	 * </p>
+	 *
+	 * <p>
+	 * したがって<b>溢れさせるのは実ブラウザと同じ挙動</b>であり、
+	 * 組版を指定した側の責任とする(2026-07-28のユーザー裁定)。
+	 * ARCHITECTURE.md §5.13「仕様(=組版を指定した側の責任)」に連なる。
+	 * </p>
+	 */
+	private static final class ExcludedByOrthogonalLineAxis extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByOrthogonalLineAxis(final String message) {
+			super(message);
+		}
+	}
+
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	static String classify(final Throwable t) {
+		if (t instanceof ExcludedByOrthogonalLineAxis) {
+			return "(除外)直交フローの行軸はみ出し";
+		}
 		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
 		// なり、種別が1つに潰れる(2026-07-26に踏んだ)
@@ -931,6 +973,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final double slack = 2 * doc.maxExplicitSize();
 		double worst = 0;
 		String worstAt = null;
+		boolean worstIsY = false;
 		for (final File page : pages) {
 			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
 			final Matcher m = POS_IN_DUMP.matcher(dump);
@@ -938,10 +981,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 				final double x = Double.parseDouble(m.group(1)), y = Double.parseDouble(m.group(2));
 				// 紙面をまるごと1枚分はみ出して初めて数える(端の1ptは論外に
 				// してよいが、そこを厳しくすると罫線の丸めで揺れる)
-				final double over = Math.max(Math.max(-x - doc.pageWidth(), x - 2 * doc.pageWidth()),
-						Math.max(-y - doc.pageHeight(), y - 2 * doc.pageHeight()));
+				final double overX = Math.max(-x - doc.pageWidth(), x - 2 * doc.pageWidth());
+				final double overY = Math.max(-y - doc.pageHeight(), y - 2 * doc.pageHeight());
+				final double over = Math.max(overX, overY);
 				if (over > worst) {
 					worst = over;
+					worstIsY = overY >= overX;
 					worstAt = "x=" + x + " y=" + y + " " + page.getName();
 				}
 			}
@@ -956,6 +1001,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// いる文書ではエンジンの振る舞いを問えない
 		if (doc.beyondEngineControl()) {
 			throw new ExcludedByOversizedBox(detail);
+		}
+		// 直交フローが親の**行軸**へ溢れた場合も除外(2026-07-28のユーザー
+		// 裁定。{@link ExcludedByOrthogonalLineAxis}に理由を書いた)。
+		// **ページ軸への溢れは除外しない**——そちらは改ページで直せるので、
+		// 直らなければエンジンの欠陥である。この区別を落とすと、
+		// 直交フローを含む文書のはみ出しを何でも見逃すことになる
+		final boolean overflowInLineAxis = worstIsY != pageAxisIsY(doc.html());
+		if (overflowInLineAxis && hasOrthogonalFlow(doc.html())) {
+			throw new ExcludedByOrthogonalLineAxis(detail + " [直交フローの行軸]");
 		}
 		fail(detail);
 	}
@@ -1184,6 +1238,56 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** 「組版できる紙面」の下限を文字数で表したもの。 */
 	private static final int MIN_PAGE_CHARS = 8;
+
+	/** {@code writing-mode} の宣言(body・style属性のどちらも拾う)。 */
+	private static final Pattern WRITING_MODE = Pattern.compile("writing-mode\\s*:\\s*([a-z-]+)");
+
+	/**
+	 * この文書が<b>直交フロー</b>(軸の異なる{@code writing-mode}の入れ子)を
+	 * 含むかを返します(2026-07-28新設)。
+	 *
+	 * <p>
+	 * <b>述語は文書の字面だけから計算する</b>——3,000万文書の掃過では
+	 * 1件ずつ人が判断できない(ARCHITECTURE.md §5.13)。生成器は
+	 * {@code writing-mode}を{@code body}のスタイル規則と要素の
+	 * {@code style}属性にしか書かないので、宣言を全部拾って
+	 * <b>縦横の軸が2種類以上現れるか</b>だけを見れば足りる。
+	 * </p>
+	 *
+	 * <p>
+	 * 入れ子関係(どちらが祖先か)は見ない。軸が2種類ある時点で、
+	 * どこかに必ず直交する境界があるからである。生成器が同じ軸の
+	 * 方向違い({@code vertical-rl}と{@code vertical-lr})しか出さない
+	 * 文書は、ここでは直交とみなさない——そちらは
+	 * {@code SAME_AXIS_DIRECTION_CHANGE}であり、行軸の長さは変わらない。
+	 * </p>
+	 */
+	static boolean hasOrthogonalFlow(final String html) {
+		boolean vertical = false, horizontal = false;
+		final Matcher m = WRITING_MODE.matcher(html);
+		while (m.find()) {
+			if (m.group(1).startsWith("vertical")) {
+				vertical = true;
+			} else {
+				horizontal = true;
+			}
+		}
+		// bodyに宣言が無ければ既定(horizontal-tb)が効いている
+		return vertical && (horizontal || !BODY_WRITING_MODE.matcher(html).find());
+	}
+
+	/** {@code body}規則の{@code writing-mode}(紙面の軸を決める)。 */
+	private static final Pattern BODY_WRITING_MODE = Pattern
+			.compile("body\\s*\\{[^}]*writing-mode\\s*:\\s*([a-z-]+)");
+
+	/**
+	 * 紙面のページ軸が縦(y)かを返します。{@code body}が縦書きなら
+	 * ページ軸は<b>横(x)</b>、行軸が縦(y)になる。
+	 */
+	static boolean pageAxisIsY(final String html) {
+		final Matcher m = BODY_WRITING_MODE.matcher(html);
+		return !(m.find() && m.group(1).startsWith("vertical"));
+	}
 
 	private static double maxOf(final Pattern pattern, final String html) {
 		double max = 0;
