@@ -64,7 +64,7 @@ public record FloatMeasurement(
 	 */
 	public static FloatMeasurement of(final int ordinal, final Floatings.Floating floating,
 			final WritingMode ownerFlow) {
-		final double pageExtent = floating.box.getPageExtent(ownerFlow);
+		final double pageExtent = occupiedPageExtent(floating.box, ownerFlow);
 		final BoxType boxType = floating.box.getType();
 		final boolean sameWritingAxis;
 		final PageBreakMode pageBreakInside;
@@ -79,5 +79,36 @@ public record FloatMeasurement(
 		return new FloatMeasurement(ordinal, floating.serial, floating.box, floating.pageAxis,
 				floating.pageAxis + pageExtent, pageExtent, sameWritingAxis,
 				LayoutUtils.compare(floating.pageAxis, 0) <= 0, boxType, pageBreakInside);
+	}
+
+	/**
+	 * 浮動体が<b>ページ軸上で実際に占める</b>寸法を返します(2026-07-28新設)。
+	 *
+	 * <p>
+	 * {@code getPageExtent()}は<b>箱の幾何</b>しか答えないため、ページ軸
+	 * 方向の寸法を明示した浮動体(縦書きの{@code width}、横書きの
+	 * {@code height})では、指定寸法を超えた中身が
+	 * {@code overflow:visible}のまま箱の外へ描かれても<b>0扱い</b>に
+	 * なっていた。その結果{@link FloatSplitPlan#classify}の分岐表1
+	 * (全体が切断線以前)が成立し、<b>切断されないまま紙の外まで中身が
+	 * 並ぶ</b>(local/shrink/strict-149858-min.html)。
+	 * </p>
+	 *
+	 * <p>
+	 * これは通常フローの{@code FlowContainer.computeFlowBottoms()}が
+	 * すでに{@code Math.max(内寸, getContentSize())}で行っている補正と
+	 * 同じもので、浮動体だけがこの補正を欠いていた。{@code max}を取るのは
+	 * 「何も描かない余りの寸法」でも従来どおり切断予約されるようにする
+	 * ため——描画量が幾何より小さいときの抑制は
+	 * {@code BreakableBuilder.paintsNothingBeyondPage()}の役目である。
+	 * </p>
+	 *
+	 * @param box       対象の浮動体
+	 * @param ownerFlow ページ軸を決めるownerの書字方向
+	 * @return 幾何寸法と描画が及ぶ寸法の大きいほう
+	 */
+	private static double occupiedPageExtent(final net.zamasoft.foliojet.layout.box.IFloatBox box,
+			final WritingMode ownerFlow) {
+		return Math.max(box.getPageExtent(ownerFlow), box.paintedPageExtent(ownerFlow));
 	}
 }

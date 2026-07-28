@@ -858,14 +858,20 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return FloatCommitKind.PLACED;
 		}
 
-		double pageAxis = pageStart;
-		pageAxis += box.getPageExtent(this.getRootBox().getBlockParams().flow);
-		if (LayoutUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
-			// 下部がはみ出していない場合は分割しない
-			return FloatCommitKind.PLACED;
-		}
-
-		// ページをはみ出した浮動ボックスが存在する
+		// 2026-07-28: ここは長らく「箱の幾何」(getPageExtent)だけを見て
+		// いた。**箱がページに収まっていても、中身が箱をはみ出して紙の外へ
+		// 出ることがある**——ページ軸方向の寸法を明示した浮動体
+		// (縦書きのwidth、横書きのheight)がそれで、指定寸法を超えた中身は
+		// overflow:visibleのまま描かれる。幾何だけで「収まっている」と
+		// 判定すると切断が予約されず、**改ページが一度も起きないまま**
+		// 中身が紙の外まで並ぶ(local/shrink/strict-149858-min.html:
+		// float:right;width:0pt の中身が120pt幅の紙で x=-145 まで進む)。
+		//
+		// 判定は{@link #paintsNothingBeyondPage}——「はみ出した先に紙へ
+		// 残るものがあるか」——だけでよい。これは幾何より小さくも大きくも
+		// なりうる正しい実測で、旧・幾何判定はこの実測が幾何と一致する
+		// 場合の重複でしかなかった(幾何>上限・実測<=上限は下の判定が、
+		// 幾何<=上限・実測<=上限は同じくPLACEDを返す)。
 		if (this.paintsNothingBeyondPage(box, pageStart)) {
 			return FloatCommitKind.PLACED;
 		}
