@@ -150,6 +150,48 @@ public class WptRegressionTest extends TestCase {
 	}
 
 	/**
+	 * ぶち抜きが<b>インラインの中のブロックのさらに中</b>にある形
+	 * (2026-07-28、WPT {@code multicol-span-all-children-height-010} と
+	 * {@code inline-with-spanner-in-overflowed-container-before-multicol-float})。
+	 *
+	 * <p>
+	 * 直接の子である場合(上の2件)とは<b>発生箇所が違う</b>。
+	 * {@code startColumnSpan}は段組を抜けるために祖先のフローブロックを
+	 * 順に閉じるが、各周回の最後で{@code restoreInlines}を呼んでいたため、
+	 * <b>開き直したインラインが次の周回の{@code endContainer()}を跨いで</b>
+	 * いた。{@code endContainer}は{@code textParamsStack}の先頭を外し、
+	 * さらに{@code textShaper}(=その先の{@code InlineParamsStack})を
+	 * 捨てるので、閉じるときに<b>3つのスタックが同時にずれる</b>。
+	 * </p>
+	 *
+	 * <p>
+	 * この{@code restoreInlines}は{@code startBox}の{@code closeInlines}と
+	 * 対になるべき登録を<b>先取り</b>していた——対の相手は本来
+	 * {@code endBox}側である。先取りをやめ、{@code endColumnSpan}側の
+	 * 対応する{@code closeInlines}も外した。
+	 * </p>
+	 */
+	private static final String SPANNER_IN_BLOCK_IN_INLINE = """
+			<!DOCTYPE html>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			</head><body>
+			<div style="columns:2; width:100px">
+			<span>
+			<div style="height:20px">
+			<div>
+			<div style="column-span:all; height:10px; background:green"></div>
+			</div>
+			</div>
+			</span>
+			</div>
+			</body></html>
+			""";
+
+	public void testSpannerInsideBlockInsideInline() throws Exception {
+		convertWithin("spanner-in-block-in-inline", SPANNER_IN_BLOCK_IN_INLINE);
+	}
+
+	/**
 	 * {@code column-width:0}が現実的な時間で終わること(2026-07-28、WPT
 	 * {@code css-multicol/zero-column-width-layout.html})。
 	 *

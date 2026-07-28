@@ -301,6 +301,27 @@ public class DocumentBuilder implements TableBuilderHost {
 			return;
 		}
 
+		// **ここでインラインを開き直さない**(2026-07-28)。
+		//
+		// かつては各周回の最後に {@code restoreInlines(blockBox.getParams())}
+		// を呼んでいたが、これは {@code startBox(blockBox)} の
+		// {@code closeInlines(params)} と対になるべき登録を**先取り**する
+		// もので、対の相手は本来 {@code endBox(blockBox)} 側の
+		// {@code restoreInlines} である。
+		//
+		// 先取りするとインラインが**開いたまま**次の周回の
+		// {@code endContainer()} を跨ぐ。{@code endContainer()}は
+		// {@code textParamsStack}の先頭を「コンテナのparams」と決めて外し、
+		// さらに{@code textShaper}を捨てる(=その先の
+		// {@code InlineParamsStack}も消える)ので、開いていたインラインを
+		// 閉じるときに **3つのスタックが同時にずれる**。
+		// 症状は{@code InlineParamsStack.current}の`Index -1`
+		// (WPT css-multicol/multicol-span-all-children-height-010 等)。
+		//
+		// 開き直さなければ、登録は {@code endBox(blockBox)} が通常どおり
+		// 消費する——ぶち抜きでない場合とまったく同じ経路になる。
+		// これに合わせて {@code endColumnSpan} 側の {@code closeInlines}
+		// (開き直した分を閉じ直すための対)も外した。
 		final List<AbstractBlockBox> flows = new ArrayList<AbstractBlockBox>();
 		for (;;) {
 			final AbstractBlockBox blockBox = (AbstractBlockBox) builder.getFlowBox();
@@ -313,14 +334,12 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.endContainer();
 				builder.endFlowBlock();
 				this.startContainer();
-				this.restoreInlines(blockBox.getParams());
 				colParams.columns = oldColumns;
 				break;
 			} else {
 				this.endContainer();
 				builder.endFlowBlock();
 				this.startContainer();
-				this.restoreInlines(blockBox.getParams());
 			}
 		}
 		this.columnSpanStack.add(flows);
@@ -336,7 +355,8 @@ public class DocumentBuilder implements TableBuilderHost {
 		final List<?> flows = (List<?>) this.columnSpanStack.remove(this.columnSpanStack.size() - 1);
 		for (int i = flows.size() - 1; i >= 0; --i) {
 			FlowBlockBox flowBox = (FlowBlockBox) flows.get(i);
-			this.closeInlines(flowBox.getBlockParams());
+			// {@code startColumnSpan}が開き直さなくなったので、ここで
+			// 閉じ直すものも無い(対で外した。理由は同関数のコメント)
 			this.endContainer();
 			if (flowBox.getColumnCount() > 1) {
 				flowBox = new MulticolumnBlockBox(flowBox.getBlockParams(), flowBox.getFlowPos());
