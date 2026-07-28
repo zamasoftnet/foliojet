@@ -437,11 +437,21 @@ public class DocumentBuilder implements TableBuilderHost {
 
 			// ぶちぬき
 			final FlowPos pos = blockBox.getFlowPos();
+			// **インラインを閉じるのが先**(2026-07-28)。開いているインラインは
+			// ぶち抜き前の文脈で開かれたものなので、その文脈で閉じなければ
+			// ならない。{@code startColumnSpan}は段組を抜けるために
+			// {@code endFlowBlock}まで戻す——つまり{@code containerBuilder}が
+			// 差し替わり、{@code closeInlines}が出す{@code endInline}は
+			// **対応する{@code startInline}を見ていない新しい
+			// StyledTextUnitizer**へ届く。そのInlineParamsStackは根しか
+			// 積んでいないので、popが根を外して
+			// {@code InlineParamsStack.current}が空リストを引く
+			// (WPTのcolumn-span:all文書10件がここで落ちていた:
+			// css-multicol/multicol-span-all-019 等)
+			this.closeInlines(params);
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.startColumnSpan(pos);
 			}
-
-			this.closeInlines(params);
 			this.endContainer();
 			final Builder builder = this.containerBuilder().builder;
 			if (params.flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
@@ -584,7 +594,6 @@ public class DocumentBuilder implements TableBuilderHost {
 			if (builder.getRootBox() != box) {
 				builder.endFlowBlock();
 				this.startContainer();
-				this.restoreInlines(box.getParams());
 			} else {
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
 				final Builder parentBuilder = this.containerBuilder().builder;
@@ -600,7 +609,6 @@ public class DocumentBuilder implements TableBuilderHost {
 					parentBuilder.addBound(blockBox);
 				}
 				this.startContainer();
-				this.restoreInlines(box.getParams());
 			}
 
 			final FlowPos pos = blockBox.getFlowPos();
@@ -608,6 +616,10 @@ public class DocumentBuilder implements TableBuilderHost {
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.endColumnSpan(pos);
 			}
+			// **インラインの復元は最後**(2026-07-28)。startBoxで
+			// closeInlines→startColumnSpanの順にしたので、その鏡像として
+			// endColumnSpan→restoreInlinesの順でなければ入れ子が交差する
+			this.restoreInlines(box.getParams());
 		}
 			break;
 
@@ -710,21 +722,23 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 通常のフロー
 			// ぶちぬき
 			final FlowPos pos = ((FlowReplacedBox) replacedBox).getFlowPos();
+			// インラインを閉じるのが先(理由はstartBoxのFLOWと同じ)。
+			// builderの取得は**startColumnSpanの後**——段組を抜けると
+			// containerBuilderが差し替わるので、addBound先は新しい方
+			this.closeInlines(replacedBox.getParams());
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.startColumnSpan(pos);
 			}
-
 			final Builder builder = this.containerBuilder().builder;
-			this.closeInlines(replacedBox.getParams());
 			this.endContainer();
 			builder.addBound(replacedBox);
 			this.startContainer();
-			this.restoreInlines(replacedBox.getParams());
 
 			// ぶち抜き復帰
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.endColumnSpan(pos);
 			}
+			this.restoreInlines(replacedBox.getParams());
 		}
 			break;
 
