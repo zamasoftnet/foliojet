@@ -981,8 +981,25 @@ public class RandomDocumentFuzzTest extends TestCase {
 		boolean worstIsY = false;
 		for (final File page : pages) {
 			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
-			final Matcher m = POS_IN_DUMP.matcher(dump);
-			while (m.find()) {
+			for (final String raw : dump.split("\n")) {
+				// **artifact 印の描画は数えない**(2026-07-29、不変条件8が
+				// 2026-07-28に同じ理由で入れたものと同型)。
+				//
+				// 紙面より大きい不可分な箱は、各ページが**同じ箱を平行移動
+				// して**描くことで表現される——3ページに跨る箱なら、
+				// 3ページ目の原点は2ページ分**上**(縦書きなら左)にある。
+				// その座標は「紙面外への配置」ではなく、**箱が跨いでいる
+				// ことの正しい表現**である。
+				//
+				// 実測(seed 422410、最小形611バイト): 121.72ptの表が60ptの
+				// 紙に3ページで描かれ、2ページ目が y=-60、3ページ目が
+				// y=-120。どちらも artifact 印つきで、これを数えると
+				// 「紙面外60pt」と報告される。
+				if (raw.contains(" artifact ")) {
+					continue;
+				}
+				final Matcher m = POS_IN_DUMP.matcher(raw);
+				while (m.find()) {
 				final double x = Double.parseDouble(m.group(1)), y = Double.parseDouble(m.group(2));
 				// 紙面をまるごと1枚分はみ出して初めて数える(端の1ptは論外に
 				// してよいが、そこを厳しくすると罫線の丸めで揺れる)
@@ -993,6 +1010,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					worst = over;
 					worstIsY = overY >= overX;
 					worstAt = "x=" + x + " y=" + y + " " + page.getName();
+				}
 				}
 			}
 		}
