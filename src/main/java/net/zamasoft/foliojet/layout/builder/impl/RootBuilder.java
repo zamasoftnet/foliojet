@@ -79,13 +79,53 @@ public class RootBuilder extends BreakableBuilder {
 	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
 
 	/**
-	 * 切断段落の尾部ソース再生(M6b v3)。既定有効(退避フラグのみ)。
-	 * 従来 OFF の原因だった「charOffset 座標の ±1 文字の不安定さ」は、
-	 * 整形器の保留グリフ排出が次の文字のオフセットを流用していたバグ
-	 * (pdfg2d FontManagerImpl.CharacterHandler)で、修正済み(2026-07-17)。
-	 * これによりグリフのソース対応は正確な1:1になり、ログ座標と一致する。
+	 * 切断段落の尾部ソース再生(M6b v3)。<b>既定無効</b>
+	 * (2026-07-28。{@code -Dfoliojet.segmentRestyle.textTail=true} で有効化)。
+	 *
+	 * <p>
+	 * <b>この機構には上限が無い。</b> 尾部再生は「{@code breakToken} の
+	 * 文字位置から<b>ソースの末尾まで</b>」を流す({@code replayTextTail})。
+	 * 断片が流れの最後なら正しいが、<b>そうでないことを知る手段が無い</b>
+	 * ——終端は次の兄弟の {@code SourceAnchor} から導く設計だったが、
+	 * 継続断片はレシピ構築でアンカーを持たない({@code -1})。しかも
+	 * 実測すると次の断片は<b>同じ items に並ばない</b>(別の段・別の
+	 * コンテナにいる)ため、そもそも兄弟として見えない。結果
+	 * {@code cap} がログ末尾になり、後続の断片が組む分まで先に組む。
+	 * </p>
+	 *
+	 * <p>
+	 * {@code ColumnsContainer.restyle} の {@code pushTailSeal} はこの穴の
+	 * <b>一部</b>(段の組み直しの最中)しか塞いでいない。残りは外側の
+	 * PAGE 再開で {@code sealed=false} のまま発火する。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>実測(2026-07-28)</b>: 掃過で最後まで残っていた「内容の複製」
+	 * 3件(seed 115029 / 184116 / 186070)は<b>いずれもこれ単独が原因</b>で、
+	 * 無効化すると3件とも複製も消失もゼロになる。さらに、この機構の
+	 * <b>専用の基準出力そのものが複製を焼き込んでいた</b>——
+	 * {@code 0460-segment-restyle/nested-break-in-replay.html} の
+	 * {@code <p id="b1">} は 12×4+8=<b>56文字</b>だが、基準は
+	 * <b>59文字</b>を描いており「ろはに」が二重になっている。無効時は
+	 * ちょうど56文字になる。基準は2026-07-17に、この欠陥を含んだまま
+	 * 採取されていた。
+	 * </p>
+	 *
+	 * <p>
+	 * 無効化の代償は<b>測って無い</b>: 430クラス890テストのうち、出力が
+	 * 変わったのは上記の専用文書<b>1件だけ</b>(と、その再開トレース)。
+	 * 断片は自分の {@code TextReplaySlice} を持っており境界付きで権威が
+	 * あるので、ボックス再生へ落ちても内容は失われない。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>再有効化するなら上限を与えること</b>——断片に「自分の内容が
+	 * 終わるソース文字位置」を持たせ、event-id ではなく<b>文字レベル</b>の
+	 * 上限として {@code replayTextTail} へ渡す。詳細は
+	 * {@code copperpdf4/docs/NEXT-SESSION.md}。
+	 * </p>
 	 */
-	private static final boolean TEXT_TAIL_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle.textTail");
+	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");
 
 	/**
 	 * 破断(改ページ・改段)の残余再構築スコープのスタックです(M6b。

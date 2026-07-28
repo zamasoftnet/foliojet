@@ -164,7 +164,12 @@ tasks.named('test') {
     // ここも直す必要があった**——忘れると「プロパティを渡したのに何も
     // 起きない」という、原因の分かりにくい空振りになる(2026-07-26に踏んだ)。
     // 個別に列挙して守るものは何もないので一括で渡す。
-    System.getProperties().stringPropertyNames().findAll { it.startsWith('foliojet.') }.each { k ->
+    // net.zamasoft.foliojet.debug.* も同じ理由で一括で渡す(2026-07-28)。
+    // 再開トレース(resume-trace.dir)は渡されていなかったため、指定しても
+    // 何も出ず、上のコメントが書いているのと同じ空振りを起こしていた。
+    System.getProperties().stringPropertyNames().findAll {
+        it.startsWith('foliojet.') || it.startsWith('net.zamasoft.foliojet.debug.')
+    }.each { k ->
         systemProperty k, System.getProperty(k)
     }
 

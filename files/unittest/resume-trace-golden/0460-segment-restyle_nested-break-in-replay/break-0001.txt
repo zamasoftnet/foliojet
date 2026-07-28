@@ -2,6 +2,6 @@ resume PAGE
   root-fragment depth=3
    chain-fragment depth=2
     restyle-box serial=1
-  text-tail serial=1
+  restyle-text serial=1
     restyle-chain serial=2
    restyle-text-open serial=1

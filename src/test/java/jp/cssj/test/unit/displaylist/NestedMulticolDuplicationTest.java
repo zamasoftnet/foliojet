@@ -199,6 +199,49 @@ public class NestedMulticolDuplicationTest extends TestCase {
 			""";
 
 	/**
+	 * 経路5: <b>上限の無い尾部再生</b>({@code seed 186070}、2026-07-28追加)。
+	 *
+	 * <p>
+	 * 経路2の{@code pushTailSeal}は{@code ColumnsContainer.restyle}の中しか
+	 * 覆っていない。この文書は<b>外側のPAGE再開</b>で尾部再生が発火するので
+	 * 封印をすり抜ける。{@code <p>T17 T18 T19 T20</p>}の断片が
+	 * {@code breakToken}の文字位置から<b>ソース末尾まで</b>を流し、
+	 * 後続の断片が組む{@code T18 T19 T20}を先に組んでしまう。
+	 * </p>
+	 *
+	 * <p>
+	 * 終端は次の兄弟の{@code SourceAnchor}から導く設計だったが、継続断片は
+	 * アンカーを持たず、しかも次の断片は<b>同じitemsに並ばない</b>
+	 * (別の段にいる)ため兄弟として見えない。上限を与えられないので
+	 * 尾部再生自体を既定で止めた({@code RootBuilder.TEXT_TAIL_RESTYLE})。
+	 * </p>
+	 */
+	private static final String UNBOUNDED_TEXT_TAIL = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="60pt"?>
+			<?jp.cssj.property name="output.page-height" value="60pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:10pt}
+			body{margin:0;font:normal 10pt/1.2 serif;writing-mode:vertical-lr}
+			p,div{margin:0;padding:0}
+			</style></head><body>
+			<div style="float:left;width:55pt">
+			<div style="clear:left"><span style="font-size:16pt">T2</span></div>
+			</div>
+			<div style="column-count:3;column-gap:14pt">
+			<div style="float:left;width:30pt">
+			<div style="column-count:4;column-gap:14pt">
+			<p>T15</p>
+			<p>T16</p>
+			</div>
+			</div>
+			<p>T17 T18 T19 T20 </p>
+			</div>
+			</body></html>
+			""";
+
+	/**
 	 * 経路2が使う画像の絶対URIです。作業ディレクトリはgradleが
 	 * {@code rootProject.projectDir}に固定しています。
 	 */
@@ -223,6 +266,10 @@ public class NestedMulticolDuplicationTest extends TestCase {
 
 	public void testSubtreeWithFloatIsNotReplayedFromSource() throws Exception {
 		assertNoDuplication("float-subtree-replay", FLOAT_SUBTREE_REPLAY, "T2", "T3", "T4", "T5");
+	}
+
+	public void testTextTailDoesNotRunPastItsOwnFragment() throws Exception {
+		assertNoDuplication("unbounded-text-tail", UNBOUNDED_TEXT_TAIL, "T2", "T15", "T16", "T17", "T18", "T19", "T20");
 	}
 
 	/**
