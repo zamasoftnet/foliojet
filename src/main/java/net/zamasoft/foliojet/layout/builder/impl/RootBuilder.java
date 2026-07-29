@@ -62,6 +62,9 @@ public class RootBuilder extends BreakableBuilder {
 		final long ingest = (source == null) ? -1L : source.nextId();
 		final int depth = this.flowStack.size();
 		final int target = (auto.box == null) ? 0 : System.identityHashCode(auto.box.getParams().element);
+		if (System.getProperty("foliojet.debug.breakFingerprint") != null && ingest != this.lastBreakIngest) {
+			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis);
+		}
 		if (ingest == this.lastBreakIngest && depth == this.lastBreakDepth
 				&& Double.compare(this.pageAxis, this.lastBreakPageAxis) == 0 && target == this.lastBreakTarget) {
 			++this.stalledBreakRun;
@@ -683,9 +686,21 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		if (this.guardBreakProgress(mode)) {
-			// ライブロック確定。改ページをやめて内容をその場へ置く
-			// (呼び出し側は false を「改ページ点なし」として扱う)
-			return false;
+			// **ライブロック確定。あきらめるのではなく、逃げ道へ入れる**
+			// (2026-07-29)。
+			//
+			// 以前はここで false を返して改ページを放棄していたが、それは
+			// 内容を1つも消費しないので同じ状態へ戻るだけだった
+			// (seed 213026で実測: 120秒・1ページも出ず・あきらめ17,522回、
+			// ingestは87で停止)。
+			//
+			// 停滞の実体は「紙面に収まらない浮動体が、送り先で同じ相対位置
+			// へ再配置されて再び溢れる」循環で、これを断つ逃げ道
+			// ({@code FloatSplitPlan}の分岐表5「先頭ならはみ出させて置く」)
+			// は既にある。ただし条件が`fragmentHead()`(pageAxis<=0)なので、
+			// 停滞点(実測 pageAxis=154.6)では決して成立しない。
+			// そこで**この一回だけ first 扱いにするビットを立てて続行する**。
+			flags |= IPageBreakableBox.FLAGS_LIVELOCK;
 		}
 
 		// ボックスの高さを計算

@@ -40,6 +40,28 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_FIRST_ROW = 8;
 
 	/**
+	 * <b>ライブロックが確定した</b>ことを示します(2026-07-29新設)。
+	 *
+	 * <p>
+	 * 前進保証ガード({@code ContinuationStats.guardBreakProgress})が
+	 * 「状態が全く変わらない自動改ページが256回続いた」と判定したときだけ
+	 * 立ちます。実測での正当な最大値は5回なので、正常な文書がこの
+	 * ビットを踏むことはありません。
+   * </p>
+	 *
+	 * <p>
+	 * 立っている間は、浮動体の分類({@code FloatSplitPlan.classify})が
+	 * <b>物理的にフラグメント先頭でなくても first として扱います</b>。
+	 * これにより「先頭ならはみ出させてでも置く」という既にある逃げ道
+	 * (分岐表5・5-R)へ到達でき、送り続ける循環が切れます。
+	 * はみ出しは{@code ARCHITECTURE.md} §5.13
+	 * 「はみ出させるなり次ページへ送るなりして出力を返さなければならない」
+	 * に従う扱いです。
+	 * </p>
+	 */
+	public static final byte FLAGS_LIVELOCK = 16;
+
+	/**
 	 * マルチカラムでの改ページです。
 	 */
 

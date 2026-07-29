@@ -172,7 +172,11 @@ public record FloatSplitPlan(
 	 * @return 行き先計画
 	 */
 	public static FloatItemPlan classify(final FloatMeasurement m, final double pageLimit, final byte flags) {
-		final boolean first = (flags & IPageBreakableBox.FLAGS_FIRST) != 0 && m.fragmentHead();
+		// ライブロック確定時は物理位置を問わずfirst扱いにして、
+		// 「はみ出させてでも置く」逃げ道(分岐表5・5-R)へ到達させる
+		// (2026-07-29、{@link IPageBreakableBox#FLAGS_LIVELOCK})
+		final boolean first = ((flags & IPageBreakableBox.FLAGS_FIRST) != 0 && m.fragmentHead())
+				|| (flags & IPageBreakableBox.FLAGS_LIVELOCK) != 0;
 		if (LayoutUtils.compare(m.pageEnd(), pageLimit) <= 0) {
 			// 分岐表1: 全体が切断線以前
 			return new FloatItemPlan.Keep(m);
