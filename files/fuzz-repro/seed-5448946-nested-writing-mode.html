@@ -1,0 +1,41 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="60pt"?>
+<?jp.cssj.property name="output.page-height" value="60pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>seed 5448946 の最小再現: 入れ子の書字方向でページが分かれない</title>
+<!--
+  掃過 from=4000000 strict で見つかった失敗(2026-07-29)。
+
+    紙面外への配置 4pt (紙面60x60pt, 最大明示サイズ0pt, x=124.32 y=6.0)
+
+  60x60ptの紙に対して、4つの行が次の位置に並ぶ。ページは1枚しか出ない。
+
+    T0 x=56.20 / T1 x=88.24 / T3 x=104.48 / T4 x=120.72
+
+  内側の vertical-lr は行を +x 方向へ積む。16.24ptずつ進み、
+  紙の右端(60pt)を越えても**改ページが起きない**。越えた分は
+  紙面外に置かれ、見えなくなる。
+
+  次の5つが揃ったときだけ再現する(1つでも欠けると通る):
+
+    1. body が vertical-rl
+    2. その中の div が horizontal-tb
+    3. さらにその中の div が vertical-lr
+    4. 先頭に 22pt 以上のインライン(20pt では通る)
+    5. 後続に無名テキストとブロックの両方がある
+
+  確認:
+    ./gradlew test --tests "*RandomDocumentFuzzTest*"       -Dfoliojet.fuzzCheckFile=files/fuzz-repro/seed-5448946-nested-writing-mode.html
+--><style>
+@page{margin:0pt}
+body{font:normal 7pt/1.2 serif;writing-mode:vertical-rl}
+</style></head><body>
+<div style="writing-mode:horizontal-tb">
+<div style="writing-mode:vertical-lr">
+<span style="font-size:25pt">T0</span>
+<p>T1</p>
+T3
+<p>T4</p>
+</div>
+</div>
+</body></html>
