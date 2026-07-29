@@ -72,7 +72,17 @@ public class RootBuilder extends BreakableBuilder {
 			this.lastBreakPageAxis = this.pageAxis;
 			this.lastBreakTarget = target;
 		}
-		return net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun);
+		if (net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun)) {
+			// **あきらめは1回だけ**(2026-07-29)。カウンタを戻さないと、
+			// 閾値へ到達して以降の自動改ページが<b>全て</b>拒否され、
+			// ページが1枚も出なくなる。その結果
+			// `AbstractUserAgent`の無進捗締切(120秒)に掛かり、
+			// 変換が`Aborted.`で終わる(seed 213026で警告3,909回を実測)。
+			this.stalledBreakRun = 0;
+			this.lastBreakDepth = -1;
+			return true;
+		}
+		return false;
 	}
 
 	/**

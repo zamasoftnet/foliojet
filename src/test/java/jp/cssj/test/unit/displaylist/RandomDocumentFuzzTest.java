@@ -91,7 +91,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final int DEFAULT_SEEDS = 60;
 
 	/** 1文書あたりの上限時間。通常は1秒未満で終わる。 */
-	private static final long WATCHDOG_MS = 30_000L;
+	private static final long WATCHDOG_MS = Long.getLong("foliojet.fuzzWatchdogMs", 30_000L);
 
 	/** ページ数の上限。生成する内容量から見て明らかに過大な値。 */
 	private static final int MAX_PAGES = 300;
