@@ -297,7 +297,20 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.textBuilder != null) {
 			this.endTextBlock();
 		}
-		return true;
+		// **改ページできなかったなら false を返す**(2026-07-29)。
+		//
+		// 呼び出し側({@link #startFlowBlock})は
+		// {@code while (this.breakByClear(pos));} と回す。改ページに
+		// 失敗したときは`pageAxis`を巻き戻して**呼ぶ前と全く同じ状態**へ
+		// 戻すので、ここで true を返すと同じ呼び出しが永久に繰り返される。
+		// `this.breakFloats`も変わらないため、分岐の結果も毎回同じになる。
+		//
+		// 実測(seed 213026): 1ページも出ないまま120秒回り続け、
+		// 内側であきらめが17,522回起きていた。`autoBreak`が false を
+		// 返す道は、フロートのライブロックを検出した前進保証ガード
+		// ({@code ContinuationStats.guardBreakProgress})が改ページを
+		// 放棄したときに通る。
+		return breaked;
 	}
 
 	public final void addBound(IBox box) {
