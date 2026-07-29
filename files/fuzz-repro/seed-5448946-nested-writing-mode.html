@@ -24,6 +24,19 @@
     4. 先頭に 22pt 以上のインライン(20pt では通る)
     5. 後続に無名テキストとブロックの両方がある
 
+  【決着(2026-07-30)】組版は直さない。「直交フロー3段以上の入れ子」として
+  除外に決めた(ユーザー裁定)。理由は
+  RandomDocumentFuzzTest.ExcludedByNestedOrthogonalFlow のjavadocに書いた。
+  要点は、vertical-rl のblock開始辺が紙の右端であり、その中で block 方向が
+  +x へ反転すれば外向きに進む——**座標変換の誤りではない**こと。
+  紙幅を変えるとずれも比例する(200pt幅なら x=200.5)。
+
+  【残した穴】紙面外配置の判定は「紙幅1枚分」の余裕を持つため、
+  内容を100%失った文書が合格しうる。内側を vertical-rl にした版は
+  全4文字が紙の外(x=113.06/94.32/78.08/61.84、紙は60pt)で白紙になるのに、
+  最大113.06 < 閾値120で通る。向きの非対称ではなく余裕が広すぎるだけ。
+  締めるには掃過での検証が要るため、掃過中断中は手を付けない。
+
   確認:
     ./gradlew test --tests "*RandomDocumentFuzzTest*"       -Dfoliojet.fuzzCheckFile=files/fuzz-repro/seed-5448946-nested-writing-mode.html
 --><style>

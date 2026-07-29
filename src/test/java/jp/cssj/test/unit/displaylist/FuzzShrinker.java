@@ -302,6 +302,13 @@ final class FuzzShrinker {
 		System.out.println("[fuzzCheckFile]   tokens=" + doc.tokens() + " reorderable=" + doc.reorderable() + " page="
 				+ doc.pageWidth() + "x" + doc.pageHeight() + " maxExplicit=" + doc.maxExplicitSize() + " oversized="
 				+ doc.oversized() + " tiny=" + doc.tinyPage());
+		// 除外の判定に効く軸の入れ替わり回数も出す。2以上で
+		// {@code ExcludedByNestedOrthogonalFlow}の対象になるため、
+		// **除外が広がりすぎていないか**をこの値で確かめられる(2026-07-30)
+		System.out.println("[fuzzCheckFile]   直交フローの軸の入れ替わり="
+				+ RandomDocumentFuzzTest.orthogonalAxisChanges(html)
+				+ " (2以上なら紙面外配置を除外) 直交フローあり="
+				+ RandomDocumentFuzzTest.hasOrthogonalFlow(html));
 		final File dir = new File("local/shrink");
 		dir.mkdirs();
 		final File work = new File(dir, "check-" + file.getName());

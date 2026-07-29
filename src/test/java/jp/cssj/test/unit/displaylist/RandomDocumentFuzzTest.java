@@ -322,6 +322,50 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
+	/**
+	 * <b>直交フローが3段以上入れ子になった</b>文書での紙面外配置、という印
+	 * (2026-07-30新設)。失敗ではなく<b>除外</b>として扱う。
+	 *
+	 * <p>
+	 * 2026-07-30のユーザー裁定(seed 5448946)。{@code body}が
+	 * {@code vertical-rl}、その中が{@code horizontal-tb}、さらにその中が
+	 * {@code vertical-lr}——のように軸が2回以上入れ替わると、内容は紙の
+	 * 外へ出て<b>1文字も見えなくなる</b>。実測(60x60ptの紙):
+	 * </p>
+	 *
+	 * <pre>
+	 * T0 x= 60.50   T1 x= 93.66   T3 x=109.90   T4 x=126.14   (出力は1ページ)
+	 * </pre>
+	 *
+	 * <p>
+	 * <b>これは座標変換の誤りではない。</b>{@code vertical-rl}のblock開始辺は
+	 * 紙の<b>右端</b>である。その中でblock方向が{@code +x}へ反転すれば、
+	 * 右端から外向きに進む。だから先頭が{@code 紙幅+0.5pt}に来る——
+	 * 向きの反転を素直に合成した結果であり、紙幅を変えるとずれも比例する
+	 * (200pt幅なら{@code x=200.5})。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>正解が定義できない。</b>直交フローの利用可能blockサイズは
+	 * css-writing-modes-4 §7.3でも曖昧で、実ブラウザ間でも一致しない。
+	 * ここが3段になると「どこで改ページすべきか」に定義が無い。
+	 * 400万文書に1件、現実の帳票や書籍では起きない形である。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>除外は狭く限定する。</b>判定は{@link #orthogonalAxisChanges}が2以上
+	 * ——軸が2回入れ替わることだけを見る。「直交フローを含む」まで広げると、
+	 * 普通の縦書き文書での本物の紙面外バグを見逃す。
+	 * </p>
+	 */
+	private static final class ExcludedByNestedOrthogonalFlow extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByNestedOrthogonalFlow(final String message) {
+			super(message);
+		}
+	}
+
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	static String classify(final Throwable t) {
 		if (t instanceof ExcludedByUntypesettableFloat) {
@@ -329,6 +373,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (t instanceof ExcludedByOrthogonalLineAxis) {
 			return "(除外)直交フローの行軸はみ出し";
+		}
+		if (t instanceof ExcludedByNestedOrthogonalFlow) {
+			return "(除外)直交フロー3段以上の入れ子";
 		}
 		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
@@ -1068,6 +1115,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (overflowInLineAxis && hasOrthogonalFlow(doc.html())) {
 			throw new ExcludedByOrthogonalLineAxis(detail + " [直交フローの行軸]");
 		}
+		// 直交フローが3段以上入れ子になった文書も除外(2026-07-30のユーザー
+		// 裁定。{@link ExcludedByNestedOrthogonalFlow}に理由を書いた)。
+		// **2段は除外しない**——普通の縦書き中の横書きでの紙面外は
+		// 本物の欠陥である
+		if (orthogonalAxisChanges(doc.html()) >= 2) {
+			throw new ExcludedByNestedOrthogonalFlow(detail + " [直交フロー3段以上]");
+		}
 		fail(detail);
 	}
 
@@ -1420,6 +1474,71 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		// bodyに宣言が無ければ既定(horizontal-tb)が効いている
 		return vertical && (horizontal || !BODY_WRITING_MODE.matcher(html).find());
+	}
+
+	/** 開始タグ・終了タグと、その{@code style}の{@code writing-mode}。 */
+	private static final Pattern TAG_OR_WM = Pattern
+			.compile("</(\\w+)>|<(\\w+)([^>]*)>");
+	private static final Pattern STYLE_WRITING_MODE = Pattern
+			.compile("writing-mode\\s*:\\s*([a-z-]+)");
+
+	/**
+	 * 入れ子をたどって、<b>軸(縦/横)が何回入れ替わるか</b>の最大値を返します。
+	 *
+	 * <p>
+	 * {@link #hasOrthogonalFlow}は「縦と横が同居するか」しか見ないので、
+	 * <b>2段</b>(普通の縦書き中の横書き)と<b>3段</b>
+	 * ({@code vertical-rl}→{@code horizontal-tb}→{@code vertical-lr})を
+	 * 区別できない。除外を後者だけに絞るために深さを数える。
+	 * </p>
+	 *
+	 * <p>
+	 * 属性を持たないタグは軸を変えないので、スタックには積むだけでよい。
+	 * 自己終了タグ({@code <br/>})は入れ子を作らないため、深さに影響しない
+	 * ——{@code style}に{@code writing-mode}を持たないので積んでも同じ値が
+	 * 続き、入れ替わり回数は増えない。
+	 * </p>
+	 */
+	static int orthogonalAxisChanges(final String html) {
+		final Matcher bm = BODY_WRITING_MODE.matcher(html);
+		final boolean rootVertical = bm.find() && bm.group(1).startsWith("vertical");
+		final java.util.ArrayDeque<Boolean> axis = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Integer> changes = new java.util.ArrayDeque<>();
+		axis.push(Boolean.valueOf(rootVertical));
+		changes.push(Integer.valueOf(0));
+		int worst = 0;
+		final int bodyAt = html.indexOf("<body");
+		final Matcher m = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			m.region(bodyAt, html.length());
+		}
+		while (m.find()) {
+			if (m.group(1) != null) {          // 終了タグ
+				if (axis.size() > 1) {
+					axis.pop();
+					changes.pop();
+				}
+				continue;
+			}
+			final String attrs = String.valueOf(m.group(3));
+			if (attrs.endsWith("/")) {         // 自己終了タグは入れ子を作らない
+				continue;
+			}
+			boolean vertical = axis.peek().booleanValue();
+			int n = changes.peek().intValue();
+			final Matcher wm = STYLE_WRITING_MODE.matcher(attrs);
+			if (wm.find()) {
+				final boolean v = wm.group(1).startsWith("vertical");
+				if (v != vertical) {
+					vertical = v;
+					++n;
+					worst = Math.max(worst, n);
+				}
+			}
+			axis.push(Boolean.valueOf(vertical));
+			changes.push(Integer.valueOf(n));
+		}
+		return worst;
 	}
 
 	/** {@code body}規則の{@code writing-mode}(紙面の軸を決める)。 */
