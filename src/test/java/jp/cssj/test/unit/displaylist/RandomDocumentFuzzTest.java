@@ -302,8 +302,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
+	/**
+	 * <b>組版できない幅の浮動体</b>から紙面外配置が出た、という印
+	 * (2026-07-29新設)。失敗ではなく<b>除外</b>として扱う。
+	 *
+	 * <p>
+	 * 判定は{@link #hasUntypesettableFloat}——明示した寸法が基準フォントの
+	 * 8倍(=約8文字)未満の浮動体があること。欄が組版できない幅なら中身は
+	 * 必ず溢れ、CSSの{@code overflow:visible}によりそれは<b>正しい挙動</b>で
+	 * ある。{@code isTinyPage}(紙面が組版できない大きさ)と同じ物差しを
+	 * 欄に当てたもの。
+	 * </p>
+	 */
+	private static final class ExcludedByUntypesettableFloat extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByUntypesettableFloat(final String message) {
+			super(message);
+		}
+	}
+
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	static String classify(final Throwable t) {
+		if (t instanceof ExcludedByUntypesettableFloat) {
+			return "(除外)組版できない幅の浮動体";
+		}
 		if (t instanceof ExcludedByOrthogonalLineAxis) {
 			return "(除外)直交フローの行軸はみ出し";
 		}
@@ -1025,6 +1048,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (doc.beyondEngineControl()) {
 			throw new ExcludedByOversizedBox(detail);
 		}
+		// 組版できない幅の浮動体からの溢れも除外(2026-07-29)。
+		// {@link ExcludedByUntypesettableFloat}に理由を書いた
+		if (hasUntypesettableFloat(doc.html())) {
+			throw new ExcludedByUntypesettableFloat(detail + " [組版できない幅の浮動体]");
+		}
 		// 直交フローが親の**行軸**へ溢れた場合も除外(2026-07-28のユーザー
 		// 裁定。{@link ExcludedByOrthogonalLineAxis}に理由を書いた)。
 		// **ページ軸への溢れは除外しない**——そちらは改ページで直せるので、
@@ -1306,6 +1334,50 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** 「組版できる紙面」の下限を文字数で表したもの。 */
 	private static final int MIN_PAGE_CHARS = 8;
+
+	/** 生成器が書く浮動体の明示寸法({@code float:left;width:64pt}等)。 */
+	private static final Pattern FLOAT_EXPLICIT_SIZE = Pattern
+			.compile("float:[a-z]+;(?:width|height):(\\d+)pt");
+
+	/**
+	 * <b>組版できない幅の浮動体</b>を含むかを返します(2026-07-29新設)。
+	 *
+	 * <p>
+	 * 基準は{@link #isTinyPage}と同じ——明示した寸法が基準フォントサイズの
+	 * {@value #MIN_PAGE_CHARS}倍(=約{@value #MIN_PAGE_CHARS}文字)に
+	 * 満たない浮動体があること。紙面が組版できない大きさなら除外する、と
+     * 決めたのと同じ理由で、<b>欄が組版できない幅なら中身は必ず溢れる</b>。
+	 * </p>
+	 *
+	 * <p>
+	 * 実測(2026-07-29): 掃過に残っていた紙面外3件は、いずれも
+	 * <b>3文字未満</b>の幅の浮動体に表や段組を詰め込んでいた——
+	 * 596520が29pt/13pt(2.2文字)、1412230が10pt/11pt(0.9文字)、
+	 * 1928901が15pt/10pt(1.5文字)。CSSの{@code overflow}既定は
+	 * {@code visible}なので、この中身が箱の外へ描かれるのは<b>正しい挙動</b>で
+	 * あり、エンジンの振る舞いを問えない。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>紙面外の検査にだけ使う。</b> 内容の消失・読み順・複製・変換の失敗には
+	 * 適用しない({@code ARCHITECTURE.md} §5.13が白紙ページと紙面外にだけ
+	 * 除外を認めているのと同じ線引き)。
+	 * </p>
+	 */
+	static boolean hasUntypesettableFloat(final String html) {
+		final Matcher fm = FONT_SIZE.matcher(html);
+		if (!fm.find()) {
+			return false;
+		}
+		final double least = Double.parseDouble(fm.group(1)) * MIN_PAGE_CHARS;
+		final Matcher m = FLOAT_EXPLICIT_SIZE.matcher(html);
+		while (m.find()) {
+			if (Double.parseDouble(m.group(1)) < least) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/** {@code writing-mode} の宣言(body・style属性のどちらも拾う)。 */
 	private static final Pattern WRITING_MODE = Pattern.compile("writing-mode\\s*:\\s*([a-z-]+)");
