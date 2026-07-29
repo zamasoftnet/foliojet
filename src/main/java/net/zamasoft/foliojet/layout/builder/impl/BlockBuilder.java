@@ -998,17 +998,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
 		double lineStart = lineStart0;
 		double lineEnd = lineEnd0;
-		// **送られてきた継続は、紙面の限界より下へは回さない**(2026-07-29)。
-		// 既存フロートの下へ回し続けると、送り先でも同じ相対配置が再現して
-		// 永久に送り続ける(実測: seed 213026 で520回)。限界で止めれば
-		// `fragmentHead()`が真になりうる位置に留まり、既にある逃げ道
-		// (`FloatSplitPlan`の分岐表5・5-R)へ到達する。
-		// **重なりやはみ出しは許容する**——css-pageの議論(案1)が
-		// 「継続を先頭から始めると、はみ出しかfloat同士の重なりが生じる」と
-		// 明記しており、Blinkもmonolithicな内容を分断せずはみ出させる。
-		// 探索そのものは飛ばさない(飛ばすと`clear`が壊れる——実測で
-		// `_0110_clear`の5クラスが退行した)
-		final double descentLimit = box.consumeDeferredContinuation() ? this.floatDescentLimit() : Double.MAX_VALUE;
 		if (!exclusions.isEmpty()) {
 			final List<FloatExclusion> ascending = exclusions.ascendingByPageEnd();
 			pageStart = Math.max(pageStart, ascending.get(ascending.size() - 1).pageSpan().start());
@@ -1027,10 +1016,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 				// 余裕がない場合は１つ下りて再探索
 				if (found.startExclusion() == null && found.endExclusion() == null) {
-					break;
-				}
-				if (LayoutUtils.compare(pageStart, descentLimit) >= 0) {
-					// 送られてきた継続は限界より下へ回さない(上記)
 					break;
 				}
 				if (found.endExclusion() == null) {
@@ -1063,12 +1048,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 	final void commitFloatPlacement(final FloatPlacementDelta delta) {
 		if (delta.kind() != FloatCommitKind.PLACED) {
 			this.recordBreakFloat(delta.side());
-		}
-		if (delta.kind() == FloatCommitKind.MOVE_TO_NEXT) {
-			// 送られた継続は、次フラグメントで**紙面の限界より下へは
-			// 回さない**({@link #floatDescentLimit})。`MOVE_BY_CLEAR`は
-			// 含めない——`clear`の先送りは正常な繰り返しである
-			delta.box().markDeferredContinuation();
 		}
 		// 配置
 		final double lineOffset = delta.lineSpan().start();
@@ -1506,15 +1485,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 */
 	FloatCommitKind classifyFloatPlacement(IFloatBox box, double pageStart) {
 		return FloatCommitKind.PLACED;
-	}
-
-	/**
-	 * <b>送られてきた継続</b>を配置するとき、これ以上ページ軸方向へ
-	 * 下ろさない上限です(2026-07-29新設)。基底実装は上限なし
-	 * (改ページ文脈を持たないbuilderは継続を受け取らない)。
-	 */
-	double floatDescentLimit() {
-		return Double.MAX_VALUE;
 	}
 
 	/**

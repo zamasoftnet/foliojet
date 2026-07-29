@@ -550,6 +550,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 				System.out.println("[fuzzOnly]   通った");
 			} catch (final Throwable t) {
 				System.out.println("[fuzzOnly]   " + classify(t) + " : " + t);
+				// **必ず落とすこと**(2026-07-29)。以前はここで握り潰して
+				// いたため、このモードは失敗しても常に exit=0・failures=0 を
+				// 返した。「修正できた」と誤認する事故が実際に起きた
+				// (seed 213026。掃過は落ち続けていたのに、この入口で
+				// 確認して直ったと報告した)。表示だけの確認装置は嘘をつく。
+				throw new AssertionError("seed " + seed + " (" + (strict ? "strict" : "wild") + ") が失敗した: " + t, t);
 			}
 			return;
 		}

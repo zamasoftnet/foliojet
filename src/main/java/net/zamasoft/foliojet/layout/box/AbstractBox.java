@@ -44,23 +44,6 @@ public abstract class AbstractBox implements IBox {
 		this.fragmented = true;
 	}
 
-	/**
-	 * <b>丸ごと次のフラグメントへ送られた継続</b>である、という一回限りの印
-	 * です(2026-07-29新設)。<b>恒久的にしてはいけない</b>——立てっぱなしに
-	 * すると正当な送りまで抑止してページ数が減る(実測で8クラス・3クラスの退行)。
-	 */
-	private boolean deferredContinuation = false;
-
-	public final void markDeferredContinuation() {
-		this.deferredContinuation = true;
-	}
-
-	public final boolean consumeDeferredContinuation() {
-		final boolean was = this.deferredContinuation;
-		this.deferredContinuation = false;
-		return was;
-	}
-
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {
 		AffineTransform ct = this.getParams().transform;
 		if (ct.isIdentity()) {

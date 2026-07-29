@@ -990,18 +990,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		return LayoutUtils.compare(flow.pageAxis + painted, this.getPageLimit()) > 0;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>
-	 * 改ページ文脈では<b>紙面の限界</b>が上限になります(2026-07-29)。
-	 * </p>
-	 */
-	@Override
-	double floatDescentLimit() {
-		return this.getPageLimit();
-	}
-
 	@Override
 	void recordBreakFloat(final FloatSide side) {
 		this.breakFloats.add(side);

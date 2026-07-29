@@ -192,11 +192,9 @@ public class Floatings {
 				sourceSide.add(floating);
 				allWholeMoves = false;
 			}
-			case FloatSplitPlan.FloatItemPlan.Move move -> {
+			case FloatSplitPlan.FloatItemPlan.Move move ->
 				// 分岐表2、および4→5フォールスルーの非first: 丸ごと送る
-				floating.box.markDeferredContinuation();
 				remainderSide.add(floating);
-			}
 			case FloatSplitPlan.FloatItemPlan.RescueOnCommit(final FloatMeasurement rescued,
 					final net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice) -> {
 				// 分岐表5-R(2026-07-25、救済分割・増分7): 元台帳をhead、

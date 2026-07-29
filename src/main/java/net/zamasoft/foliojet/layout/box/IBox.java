@@ -48,12 +48,6 @@ public interface IBox {
 	 */
 	public void markFragmented();
 
-	/** 丸ごと次のフラグメントへ送られた継続であることを記録します(2026-07-29)。 */
-	public void markDeferredContinuation();
-
-	/** 上の印を読み<b>同時に消します</b>(一回限り。恒久化すると正当な送りを潰す)。 */
-	public boolean consumeDeferredContinuation();
-
 	/**
 	 * ボックスのタイプを返します。
 	 *
