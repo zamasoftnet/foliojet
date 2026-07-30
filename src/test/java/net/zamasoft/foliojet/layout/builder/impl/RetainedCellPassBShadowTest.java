@@ -80,6 +80,12 @@ public class RetainedCellPassBShadowTest extends TestCase {
 			"0242-table-height/table-height.html", //
 			"0242-table-height/rowspan.html", //
 			"0390-writing-mode/vert-cell-in-hriz.html", //
+			// DP増分5(2026-07-30): キャプション付き表のPass C適格化の
+			// shadow証明——キャプションのbindは行処理の完全に外側(上部=
+			// 行高計算前・下部=addBound後)にあり、セルのPass B計測値は
+			// legacy一括bindの実寸とbit一致するはず
+			"0240-table/float-table-caption.html", //
+			"0460-segment-restyle/moved-table-caption.html", //
 	};
 
 	/** 200行fixtureの本文行数・列数(RetentionHighWaterReportTestと同型)。 */

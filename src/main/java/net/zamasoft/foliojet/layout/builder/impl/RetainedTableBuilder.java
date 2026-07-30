@@ -1170,17 +1170,22 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 * 表Pass C(行単位逐次bind)の表単位適格判定です(E-6増分5b-2、
 	 * 2026-07-24——codex設計§4.4のPass B/C。fail closed)。適格条件:
 	 * <ul>
-	 * <li>キャプションなし(キャプションはOpaque記録のレガシービルダーで
-	 * 行構造の外——1つでもあれば表全体を従来経路へ)</li>
 	 * <li>全実セルがPass B計測可能({@link CellContent#isPassBMeasurable}:
 	 * seal済みrange、またはrecords空の空セル。ネストビルダー含みセル等の
 	 * seal不適格セル・段組セルが1つでもあれば表全体を従来経路へ)</li>
 	 * </ul>
+	 *
+	 * <p>
+	 * 2026-07-30(DP増分5): 旧「キャプションなし」条件は撤去した。
+	 * キャプションのbindは行処理の完全に外側(上部=行高計算前・下部=
+	 * addBound後)にあり、Pass C切替の影響を受けない——
+	 * {@code RetainedCellPassBShadowTest}のキャプション付き表fixtureで
+	 * Pass B計測値とlegacy一括bind実寸のbit一致(maxDiff=0.0)を証明の上で
+	 * 解禁した。キャプション自身のbind(records再演)はこの判定の対象外の
+	 * ままである。
+	 * </p>
 	 */
 	private boolean isRowSequentialBindEligible() {
-		if (!this.topCaptions.isEmpty() || !this.bottomCaptions.isEmpty()) {
-			return false;
-		}
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			final List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
 			for (int j = 0; j < rows.size(); ++j) {
