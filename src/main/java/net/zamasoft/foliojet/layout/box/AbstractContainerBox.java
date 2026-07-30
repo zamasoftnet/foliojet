@@ -398,24 +398,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 	protected abstract AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning);
 
 	/**
-	 * @deprecated {@link #prepareColumnCut(double, BreakMode, byte, BreakPlan)}
-	 *             + {@link #commitPreparedColumn(PreparedColumnCut)}へ分離した
-	 *             (2026-07-21、M6b Phase B4-Step2)。移行期間中のlegacy wrapper
-	 *             として挙動を保つ。
-	 */
-	@Deprecated
-	public Container newColumn(double pageLimit, final BreakMode mode, final byte flags) {
-		return switch (this.prepareColumnCut(pageLimit, mode, flags, null)) {
-		case ColumnCutResult.Keep keep -> null;
-		case ColumnCutResult.Move move -> null;
-		case ColumnCutResult.Cut(final PreparedColumnCut prepared) -> {
-			this.commitPreparedColumn(prepared);
-			yield prepared.ownerRemainder();
-		}
-		};
-	}
-
-	/**
 	 * 改段の切断だけを行い、ownerへの新column追加・builder resume開始は
 	 * まだcommitしません(2026-07-21新設、M6b Phase B4-Step2)。
 	 *
@@ -562,8 +544,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final BreakMode xmode = BreakMode.absorbColumn(mode, this.getColumnCount());
-		// コンテナ側の三義的返値の解釈はここに集約(コンテナ内部の型付けは M4-A3b)
-		final Container nextContainer = this.container.splitPageAxis(pageLimit, xmode, flags);
+		// コンテナ側の三義的返値の解釈はここに集約(コンテナ内部の型付けは M4-A3b)。
+		// planなし切断は常にPlain——旧3引数splitPageAxisはこのPlain写像の
+		// wrapperだった(増分5で一本化)
+		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
+				.splitPageAxis(pageLimit, xmode, flags, null)).container();
 		if (nextContainer == null) {
 			return SplitResult.KEEP;
 		}

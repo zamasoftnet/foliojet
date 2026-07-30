@@ -8,8 +8,8 @@ import net.zamasoft.foliojet.layout.box.content.Container;
  * COLUMN継続のowner直下の残余です(2026-07-21新設、M6b Phase B B4。
  * 2026-07-25時点で{@link ColumnContinuation}・{@link ContinuationValidator}
  * から使われている)。PAGE継続のroot fragmentと異なり、ownerボックス自体は
- * fragment再構成されない({@code AbstractContainerBox.newColumn()}が
- * 同一インスタンスへ新しい空Containerを追加するだけ)ため、
+ * fragment再構成されない({@code AbstractContainerBox.commitPreparedColumn()}
+ * が同一インスタンスへ新しい空Containerを追加するだけ)ため、
  * 継続フレームではなくこの専用型で表す(ChatGPT Pro相談、
  * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
  * 参照)。

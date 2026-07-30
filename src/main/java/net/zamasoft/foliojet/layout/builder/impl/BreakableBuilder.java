@@ -1266,42 +1266,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		final RootBuilder root = this.getPageContext();
 		if (root == null) {
-			// 2026-07-21(M6b Phase B4-Step4): 型付き経路(prepareColumnContinuation/
-			// resumeColumn)はRootBuilderのメソッドとして実装されているため、
-			// rootless文脈では使えない(range stampingなし)。
-			//
-			// 2026-07-30(legacy再帰撤去=増分3): この分岐の存在理由だった
-			// 隔離バランスプローブ(M6c-2〜M6c-5のTwoPassBuilder系)は
-			// 2026-07-25の排除域P2撤回で全撤去済みで、現在は死んだ入口と
-			// 考えられる——全unittestコーパス+狙い撃ち合成文書(inline-block/
-			// float/表セル/absolute内の段組balance)でROOTLESS_COLUMN_RESTYLES
-			// は0、静的にも全LayoutStack連鎖はRootBuilderで終端する(nullの
-			// layoutStackは非BreakableなTableRowBoxのcell-bind用BlockBuilderと
-			// columnBreak不能なTwoPassBlockBuilderのみ)。ただしクラッシュ排除は
-			// 絶対要件のため物理削除はせず、万一到達した場合も旧再帰driverでは
-			// なく統一worklist driverで駆動する(gateを通らない入口をここに
-			// 残さない)。物理削除の判断は増分5のwrapper整理と併せて行う。
-			final Container container = breakFlow.box.newColumn(pageAxis, mode, flags);
-			if (container == null) {
-				return false;
-			}
-			this.pruneFlowStackTo(breakFlow);
-			this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
-			// 2026-07-23(排除域P1増分1): 保持されたhidden flow分の空台帳を
-			// 積み直す(これらのflowは再startFlowBlockされないため必須)。
-			this.rebuildNoOverflowFloatingScopes();
-			this.beginRestyling();
-			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordRootlessColumnRestyle(depth);
-			try {
-				container.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth), false);
-			} finally {
-				this.endRestyling();
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
-				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
-			}
-			return true;
+			// 2026-07-30(legacy再帰撤去=増分5、ユーザー裁定による物理削除):
+			// かつてここにはrootless文脈(M6c段バランスprobe等の
+			// TwoPassBuilder系)向けのlegacy改段経路があった。その存在理由
+			// だった隔離バランスプローブは2026-07-25の排除域P2撤回で全撤去
+			// 済みで、死んだ入口であることを実測(全unittestコーパス+
+			// 狙い撃ち合成文書で発火0)・静的(全LayoutStack連鎖は
+			// RootBuilderで終端)・歴史の三面から確認した(経緯はPLAN §2と
+			// consult-codex-2026-07-30-*.txt)。万一未知のrootless文脈が
+			// 出現した場合は、黙って劣化した改段(range stampingなし)を
+			// 行うのではなく、型付き不変条件違反として即座に停止する。
+			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+					"column break requested without a RootBuilder page context; the rootless COLUMN path was "
+							+ "removed on 2026-07-30 after the isolated balance probes (its only known caller) "
+							+ "were retired on 2026-07-25 — an unknown rootless context has appeared and must be "
+							+ "investigated (see copperpdf4 docs/PLAN.md §2)");
 		}
 
 		// 2026-07-21(M6b Phase B4-Step4): 相対open pathの収集可能プレフィックス

@@ -243,16 +243,6 @@ public class ColumnsContainer implements Container {
 		return false;
 	}
 
-	public Container splitPageAxis(final double pageLimit, final BreakMode mode, final byte flags) {
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnsSplitAttempt();
-		final FlowContainer lastColumn = this.getLastColumn();
-		final Container result = lastColumn.splitPageAxis(pageLimit, mode, flags);
-		if (this.columns.size() > 1 && result == lastColumn) {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnMoveCandidate();
-		}
-		return result;
-	}
-
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(final double pageLimit,
 			final BreakMode mode, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnsSplitAttempt();

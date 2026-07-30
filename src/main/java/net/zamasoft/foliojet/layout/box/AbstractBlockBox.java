@@ -319,7 +319,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 				.absorbColumn(mode, this.getColumnCount());
-		final Container nextContainer = this.container.splitPageAxis(pageLimit, xmode, flags);
+		// planなし切断は常にPlain(legacy契約: null=KEEP/sentinel=MOVE/他=残余)。
+		// 旧3引数splitPageAxisはこのPlain写像のwrapperだった(増分5で一本化)
+		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
+				.splitPageAxis(pageLimit, xmode, flags, null)).container();
 		if (nextContainer == null) {
 			return net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.KEEP;
 		}

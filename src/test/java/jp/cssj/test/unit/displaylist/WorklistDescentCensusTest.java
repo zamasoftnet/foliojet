@@ -100,35 +100,29 @@ public class WorklistDescentCensusTest extends TestCase {
 	}
 
 	/**
-	 * rootless COLUMN経路({@code BreakableBuilder.columnBreak()}の
-	 * {@code root == null}分岐)が段組系代表fixtureで発火しないことの固定
-	 * (2026-07-30、増分3)。この分岐の存在理由だった隔離バランス
-	 * プローブは2026-07-25に全撤去済みで、全コーパス+合成文書の実測でも
-	 * 発火0——死んだ入口と考えられる。<b>このassertが落ちたら「未知の
-	 * rootless文脈が出現した」ことを意味する</b>ので、削除せず到達経路を
-	 * 調査すること(分岐自体は統一worklist driverで駆動されるため挙動は
-	 * 安全だが、想定外の到達は設計前提の崩れを示す)。
+	 * 段バランス系fixtureの完走確認(2026-07-30、増分5)。かつてここは
+	 * rootless COLUMN経路(columnBreakのroot==null分岐)の不発火を
+	 * カウンタで固定していたが、増分5のユーザー裁定で分岐ごと物理削除
+	 * し、到達時は{@code ContinuationInvariantViolationException}で
+	 * 即座に停止する形になった——未知のrootless文脈が出現すれば
+	 * これらのfixture(または任意の変換)が例外で落ちることが検出器。
 	 */
-	public void testRootlessColumnPathStaysUnreached() throws Exception {
+	public void testColumnBalanceCompletesWithoutRootlessPath() throws Exception {
 		ContinuationStats.reset();
 		this.transcode(new File("files/unittest/0415-column-fill/v-balance.html"), "census-v-balance");
 		this.transcode(new File("files/unittest/0415-column-fill/h-balance.html"), "census-h-balance");
 		this.transcode(new File("files/unittest/0400-column-count/columns-float.html"), "census-rootless-cf");
-		assertEquals("rootless COLUMN経路が発火——未知のrootless文脈が出現(到達経路を調査すること)", 0,
-				ContinuationStats.ROOTLESS_COLUMN_RESTYLES.get());
+		assertEquals("worklist executorが互換フォールバックへ落ちました", 0,
+				ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
 	}
 
 	/** {@code reset()}が観測カウンタを戻すことの確認。 */
 	public void testResetClearsCounters() {
 		ContinuationStats.WORKLIST_COMPAT_FALLBACKS.set(7);
 		ContinuationStats.MULTICOL_NATIVE_DESCENTS.set(7);
-		ContinuationStats.ROOTLESS_COLUMN_RESTYLES.set(7);
-		ContinuationStats.MAX_ROOTLESS_COLUMN_OPEN_DEPTH.set(7);
 		ContinuationStats.reset();
 		assertEquals(0, ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
 		assertEquals(0, ContinuationStats.MULTICOL_NATIVE_DESCENTS.get());
-		assertEquals(0, ContinuationStats.ROOTLESS_COLUMN_RESTYLES.get());
-		assertEquals(0, ContinuationStats.MAX_ROOTLESS_COLUMN_OPEN_DEPTH.get());
 	}
 
 	private void transcode(File source, String name) throws Exception {

@@ -683,17 +683,11 @@ public class FlowContainer implements Container {
 		this.absolutes.pushDraw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
-	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags) {
-		// legacy 契約(null=KEEP / this=MOVE / 他=残余)。plan なしでは
-		// フレームは生成されない
-		return ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.splitPageAxis(pageLimit, mode, flags,
-				null)).container();
-	}
-
 	/**
-	 * 継続化計画付きのページ方向切断です(C1d-C)。単一実装 — legacy の
-	 * 3引数版はこの Plain 写像。plan が選択したチェーンメンバー(常に
-	 * 末尾フロー)の断片は WithFrame の返り値で親へ伝播する。
+	 * 継続化計画付きのページ方向切断です(C1d-C)。単一実装(旧3引数版
+	 * =Plain写像のwrapperは増分5で撤去し、呼び出し側がPlainを直接
+	 * 剥がす)。plan が選択したチェーンメンバー(常に末尾フロー)の
+	 * 断片は WithFrame の返り値で親へ伝播する。
 	 */
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, final BreakMode mode,
 			final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {

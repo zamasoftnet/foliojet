@@ -137,8 +137,6 @@ public interface Container {
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			Deque<DrawStep> worklist);
 
-	public Container splitPageAxis(double pageLimit, final BreakMode mode, final byte flags);
-
 	/**
 	 * 浮動ボックス(直接保持分+子flowの再帰集約)をページ分割し、移動分の
 	 * 行き先を型で返します(2026-07-24、P2-4)。
