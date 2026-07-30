@@ -50,4 +50,40 @@ public class FontFeaturesTest extends AbstractTestCase {
 		}
 		return false;
 	}
+
+	/** 既定: スラッシュ対(kern負)が効き、素の幅6×3.48=20.88ptより狭い。 */
+	public boolean check_d(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertTrue("kerned width must be narrower: " + box.getWidth(), box.getWidth() < 20.88 - 0.001);
+			return true;
+		}
+		return false;
+	}
+
+	/** "kern" off: 明示無効化で素の幅ちょうど(slash advance 348/1000em × 6)。 */
+	public boolean check_e(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertEquals(20.88, box.getWidth(), 0.01);
+			return true;
+		}
+		return false;
+	}
+
+	/** 既定: fi合字(advance 671 < f+i=710)が効き、14.20ptより狭い。 */
+	public boolean check_f(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertTrue("ligated width must be narrower: " + box.getWidth(), box.getWidth() < 14.20 - 0.001);
+			return true;
+		}
+		return false;
+	}
+
+	/** "liga" 0, "kern" 0: 素の幅ちょうど(f 385 + i 325)×2/1000em。 */
+	public boolean check_g(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertEquals(14.20, box.getWidth(), 0.01);
+			return true;
+		}
+		return false;
+	}
 }
