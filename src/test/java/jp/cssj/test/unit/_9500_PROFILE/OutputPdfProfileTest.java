@@ -191,6 +191,36 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		assertTrue("PDF/UA-1 must carry the pdfuaid identifier", pdf.contains("pdfuaid:part"));
 	}
 
+	/**
+	 * タグ付きPDF欠陥①(z-indexで別Drawerになると子の構造要素が親の兄弟に
+	 * なる)の専用回帰テストです(B-3で解消済み・タスク#22で追加、
+	 * 2026-07-31)。z-index:1の内側Divが外側Divの子のまま(Documentの
+	 * 直接の子はDiv 1つだけ)であることをStructElemの/P参照から固定する。
+	 */
+	public void testZIndexKeepsStructureNesting() throws Exception {
+		final String pdf = this.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-z-index.html");
+		// objnum -> (role, parent objnum) をStructElem辞書から抽出
+		final java.util.regex.Matcher m = java.util.regex.Pattern
+				.compile("(\\d+) 0 obj\\s*<<\\s*/Type /StructElem\\s*/S /(\\w+)\\s*/P (\\d+) 0 R")
+				.matcher(pdf);
+		final java.util.Map<Integer, String> roles = new java.util.HashMap<>();
+		final java.util.Map<Integer, Integer> parents = new java.util.HashMap<>();
+		while (m.find()) {
+			roles.put(Integer.parseInt(m.group(1)), m.group(2));
+			parents.put(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(3)));
+		}
+		final Integer documentElem = roles.entrySet().stream().filter(e -> e.getValue().equals("Document"))
+				.map(java.util.Map.Entry::getKey).findFirst().orElse(null);
+		assertNotNull("a Document structure element must exist", documentElem);
+		final long divsUnderDocument = roles.entrySet().stream()
+				.filter(e -> e.getValue().equals("Div") && documentElem.equals(parents.get(e.getKey()))).count();
+		final long nestedDivs = roles.entrySet().stream().filter(e -> e.getValue().equals("Div")
+				&& "Div".equals(roles.get(parents.get(e.getKey())))).count();
+		// 欠陥①が再発するとz-indexのDivがDocument直下の兄弟になる(=2/0)
+		assertEquals("only the outer Div may sit under Document", 1, divsUnderDocument);
+		assertEquals("the z-index Div must stay nested in the outer Div", 1, nestedDivs);
+	}
+
 	/** PDF/UA-2(2.0UA-2): PDF 2.0基底+part 2/rev+PDF 2.0構造名前空間。 */
 	public void testPdfUa2Profile() throws Exception {
 		this.session.property("output.pdf.version", "2.0UA-2");
