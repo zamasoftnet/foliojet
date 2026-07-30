@@ -589,12 +589,18 @@ public class RootBuilder extends BreakableBuilder {
 				// 「係留の再実行(二重化)の危険」を同じ理由で避けている——
 				// ここだけ抜けていた。ボックス再生へ落とす
 				// containsTable(表セット、2026-07-30): 表のrecipe記録化により
-				// 表はOpaqueでなくなった。BLOCK内replaySubtreeでの表再構築
-				// (auto列幅の再確定含む)は未検証のため、表を含む部分木は
-				// 従来どおりbox-restyleへ(T-c=restyleItem case TABLEの直接
-				// replayとは別段階。codex増分11で解禁を検討)
+				// 表はOpaqueでなくなった。<b>TABLE自身を根とする範囲だけ</b>
+				// 刻印を許可する(T-b。消費者はrestyleItem case TABLEの直接
+				// replay=T-c)——表を「含む」BLOCK部分木のreplaySubtreeでの
+				// 表再構築は未検証のため従来どおりbox-restyleへ(codex増分11で
+				// 解禁を検討)。根が表のとき自身のStart(startId)は範囲に
+				// 含まれて当然なので内容側(startId+1〜)だけを検査し、
+				// セル内の入れ子表はfail closedで従来どおり弾く
+				final long tableCheckFrom = box instanceof net.zamasoft.foliojet.layout.box.impl.TableBox
+						? startId + 1
+						: startId;
 				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
-						&& !log.containsTable(startId, endId)
+						&& !log.containsTable(tableCheckFrom, endId)
 						&& !log.containsAbsolute(startId, endId)
 						&& !log.containsFloat(startId, endId)
 						&& !log.containsMulticol(startId, endId)

@@ -669,6 +669,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final TableBox splitTableBox() {
 		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TABLE_FRAGMENTS.incrementAndGet();
+		// 表セット T-b(2026-07-30): 前断片(this)はアンカーを保持し続けるが、
+		// その範囲は継続断片が持っている残り(row切断の進捗)も含む——
+		// 前断片をソース再生すると表全体が再構築されて分割の進捗が巻き戻る。
+		// AbstractBlockBoxの実分割と同じく断片化の印を付け、
+		// isSourceReplayable()=falseでstampRanges/再生の対象から外す
+		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
 		// フレームの切断判定は TableCutter に純化(C4-T2)
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames frames = net.zamasoft.foliojet.layout.fragment.TableCutter

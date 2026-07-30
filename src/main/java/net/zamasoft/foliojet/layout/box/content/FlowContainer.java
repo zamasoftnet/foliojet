@@ -2213,9 +2213,24 @@ public class FlowContainer implements Container {
 				case TABLE: {
 					// テーブル
 					TableBox tableBox = (TableBox) holder.getBox();
-					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-table",
-							"serial=" + holder.serial);
-					builder.addBound(tableBox);
+					// 表セット T-c(2026-07-30、ユーザー承認によるG-1裁定の更新):
+					// 破断時に刻印済み(stampRangesのTABLE根範囲)の表は
+					// ソース再駆動で作り直す——BLOCK分岐のreplayFromSourceと
+					// 同型のfail closed(範囲なし・範囲欠損・非Root/Column文脈は
+					// 従来どおりbox-restyle=addBoundへ)。これがG-1で不在だった
+					// 「表recipeの消費者」であり、TABLE_REPLAYSカウンタが
+					// 非空振りを検出する
+					if ((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
+							|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
+							&& builder.getPageContext() != null
+							&& builder.getPageContext().replayFromSource(tableBox, builder)) {
+						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "replay-table",
+								"serial=" + holder.serial);
+					} else {
+						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-table",
+								"serial=" + holder.serial);
+						builder.addBound(tableBox);
+					}
 				}
 					break;
 				case RESCUE: {

@@ -43,6 +43,7 @@ public class DualPathCensusProbeTest extends TestCase {
 		java.util.Arrays.sort(dirFiles);
 		long totalRange = 0, totalLegacy = 0, totalCellRange = 0, totalCellLegacy = 0, totalPassC = 0,
 				totalLegacyRows = 0, totalDocs = 0, legacyDocs = 0;
+		final long tableReplays0 = net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.TABLE_REPLAYS.get();
 		final java.util.Map<ContinuationStats.TwoPassSealReject, Long> rejects = new java.util.EnumMap<>(
 				ContinuationStats.TwoPassSealReject.class);
 		for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
@@ -96,6 +97,8 @@ public class DualPathCensusProbeTest extends TestCase {
 		System.out.println("[DP-TOTAL] table: passC=" + totalPassC + " legacyBindRows=" + totalLegacyRows);
 		System.out.println("[DP-TOTAL] sealRejects=" + rejects);
 		System.out.println("[DP-TOTAL] legacyOrigins=" + origins);
+		System.out.println("[DP-TOTAL] tableReplays="
+				+ (net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.TABLE_REPLAYS.get() - tableReplays0));
 	}
 
 	private void transcode(File source) throws Exception {
