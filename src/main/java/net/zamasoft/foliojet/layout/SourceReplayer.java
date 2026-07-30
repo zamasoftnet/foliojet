@@ -294,12 +294,27 @@ public final class SourceReplayer {
 	 */
 	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder target, final PageGenerator pageGenerator) {
+		bindTwoPassRange(log, fromId, toId, target, pageGenerator, false);
+	}
+
+	/**
+	 * {@code scratch}=trueは使い捨て計測(表Pass Bの複製セル計測——
+	 * {@code CellPassBMeasurer})用の再駆動です(absolute吸収=codex増分9、
+	 * 2026-07-30)。再構築される絶対配置ブロックのseal・prepareBind・係留を
+	 * スキップする——scratch再生でsealすると本物のリースを取得したまま
+	 * replicaごと破棄され、リース孤児化とseal:bind収支の破れになる
+	 * (TwoPassRangeBindParityTestの収支検出器が実際に検出した)。
+	 * 絶対配置はflow外でセルの計測値(使用ページ方向寸法・first ascent)に
+	 * 寄与しないため、スキップは計測等価(Pass B shadowのbit一致が固定)。
+	 */
+	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
+			final BlockBuilder target, final PageGenerator pageGenerator, final boolean scratch) {
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
 			throw new IllegalStateException(
 					"seal済みTwoPass範囲が失われました(リースが守っているはずの範囲): [" + fromId + ", " + toId + "]");
 		}
-		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
+		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, scratch);
 		drive(doc, slice);
 		doc.finishReplay();
 	}

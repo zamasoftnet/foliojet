@@ -821,6 +821,44 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
+	 * [fromId, toId] の範囲内の全絶対配置Start({@code BoxRecipe.Absolute})が
+	 * {@code ownedAnchors}と<b>完全一致</b>するかを返します(absolute吸収=
+	 * codex増分9、2026-07-30。副作用なし)。
+	 *
+	 * <p>
+	 * {@code containsAbsolute}(1件でもあればfalse=fail closed)の
+	 * 「全件owned(親recordsが排他所有を証明済み)なら許可、1件でも
+	 * unmatchedならreject」への置換に使う。unmatchedなStartは「外側
+	 * contextまたは別実行計画(表セル等)に属するabsolute」の兆候であり、
+	 * 吸収すると係留の二重化またはリースの孤児化を生む。範囲先頭が
+	 * 失われている(compact済み)場合もfalse。
+	 * </p>
+	 */
+	public boolean absoluteStartsExactly(final long fromId, final long toId,
+			final java.util.Set<Long> ownedAnchors) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return false;
+		}
+		int matched = 0;
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Absolute) {
+				if (!ownedAnchors.contains(entry.id())) {
+					return false;
+				}
+				++matched;
+			}
+		}
+		// ownedAnchorsの全IDが範囲内の実Absolute Startであること
+		// (収集側が範囲・種別を検証済みだが、二重防壁として数で照合)
+		return matched == ownedAnchors.size();
+	}
+
+	/**
 	 * 一回の再生が読むイベント範囲の streaming ビューです(E-6増分3a、
 	 * 2026-07-24: 全量 List コピーの所有から「store(本体)+範囲
 	 * [fromId, toId]+保持リース」への参照ビューへ変更)。

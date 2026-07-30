@@ -264,8 +264,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		 * (seal:bind 1:1検証を汚さない)。
 		 */
 		void measureInto(final BlockBuilder builder) {
+			// scratch=true: 使い捨て計測。再構築される絶対配置のseal・係留を
+			// スキップ(リース孤児化の防止——absolute吸収=codex増分9)
 			net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(this.source, this.fromId, this.toId, builder,
-					this.pageGenerator);
+					this.pageGenerator, true);
 		}
 
 		/**
@@ -691,18 +693,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// collectAbsorbableNested/コミット相が吸収する。非適格表
 		// (float/inline/absolute配置・キャプション付き)はOpaque記録の
 		// ため上のOPAQUE_RANGEが引き続き弾く
-		if (log.containsAbsolute(fromId, toId)) {
-			// E-6増分4e: 絶対配置を「含む」範囲は不適格のまま(増分4e以前は
-			// Opaque記録によりOPAQUE_RANGEが捕捉していた分類の分離)。
-			// 絶対配置はcontext builderへ係留済み+deferred bindを持つため、
-			// 範囲再生で再構築すると二重登録・リース取り残しになる。なお
-			// context builderがこの録画中のTwoPassビルダー自身の場合は
-			// NESTED_BUILDER(AbsoluteBlockレコード)でも捕捉されるが、
-			// contextが録画の外(ページルート等)の場合はレコードが残らない
-			// ため、このログ側ゲートが唯一の防壁になる
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.ABSOLUTE_RANGE);
-			return;
-		}
+		// 絶対配置(旧ABSOLUTE_RANGE即reject)はowned型付け(absolute吸収=
+		// codex増分9、2026-07-30)で解禁——親recordsが排他所有を証明できた
+		// absolute Startだけを許可し、1件でもunmatched(外側context・
+		// 別実行計画の所有)があれば下のabsoluteStartsExactlyで従来どおり
+		// rejectする。TwoPass録画中のabsoluteはcontextがTwoPassのため
+		// 係留・prepareBindを一切通らず(DocumentBuilder.endBoxの
+		// !isTwoPass()ガード)、吸収しても二重登録にならない
 		// DP増分6(2026-07-30): 段組を含む範囲(MULTICOL_RANGE)のrejectは
 		// 撤去した。範囲再生側のDocumentBuilderはfixed multicolを
 		// ColumnBuilderで・autoをstartFlowBlockで駆動し(liveと同一分岐)、
@@ -723,9 +720,18 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// 範囲外リース等)は従来どおりNESTED_BUILDERでfail closed。
 		final List<TwoPassBlockBuilder> absorbable = new ArrayList<TwoPassBlockBuilder>();
 		final List<RetainedTableBuilder> absorbableTables = new ArrayList<RetainedTableBuilder>();
+		final java.util.Set<Long> ownedAbsoluteAnchors = new java.util.HashSet<Long>();
 		if (!collectAbsorbableNested(legacy.records, log, fromId, toId, absorbable, absorbableTables,
+				ownedAbsoluteAnchors,
 				java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<TwoPassBlockBuilder, Boolean>()))) {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NESTED_BUILDER);
+			return;
+		}
+		if (!log.absoluteStartsExactly(fromId, toId, ownedAbsoluteAnchors)) {
+			// absolute吸収(codex増分9): 範囲内のAbsolute Startのうち親records
+			// が所有を証明できないものが残る(外側context・別実行計画の所有、
+			// またはrecords解放済み孫range内)——fail closed
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.ABSOLUTE_RANGE);
 			return;
 		}
 		// 範囲の完全性(連番で穴なし)の最終検証。probeのリースは即時解放
@@ -772,7 +778,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private static boolean collectAbsorbableNested(final List<Recorded> records,
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
 			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
-			final java.util.Set<TwoPassBlockBuilder> seen) {
+			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
 		for (final Recorded recorded : records) {
 			final TwoPassBlockBuilder child;
 			if (recorded instanceof Recorded.StfBlock stf) {
@@ -784,7 +790,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					// インラインテーブル(表吸収=codex増分5)。TableEvent側と
 					// identity重複するためseenではなくabandonedフラグと
 					// outTablesの重複チェックで冪等化する
-					if (!collectAbsorbableTable(inlineTable, log, fromId, toId, out, outTables, seen)) {
+					if (!collectAbsorbableTable(inlineTable, log, fromId, toId, out, outTables,
+							ownedAbsoluteAnchors, seen)) {
 						return false;
 					}
 					continue;
@@ -796,16 +803,36 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// セルリースが全て親範囲に包含されるなら吸収可能。
 				// キャプション付き・分割済み等はfail closed
 				if (!(tableEvent.builder() instanceof RetainedTableBuilder retained)
-						|| !collectAbsorbableTable(retained, log, fromId, toId, out, outTables, seen)) {
+						|| !collectAbsorbableTable(retained, log, fromId, toId, out, outTables,
+								ownedAbsoluteAnchors, seen)) {
 					return false;
 				}
 				continue;
-			} else if (recorded instanceof Recorded.AbsoluteBlock) {
-				return false;
+			} else if (recorded instanceof Recorded.AbsoluteBlock absoluteBlock) {
+				// absolute吸収(codex増分9、2026-07-30): 親recordsが排他所有する
+				// absoluteだけを吸収可能とする。所有証明=①原箱のanchorが
+				// 親範囲内の実Absolute Startであること ②原箱が未係留かつ
+				// bind予約(builder/DeferredBind)を持たないこと(TwoPass録画中
+				// のabsoluteは構造的に常に未係留——DocumentBuilder.endBoxの
+				// !isTwoPass()ガード) ③anchor重複なし。収集したanchor群は
+				// seal側のabsoluteStartsExactlyが範囲内全Startと完全一致照合する
+				final TwoPassBlockBuilder absChild = absoluteBlock.builder();
+				if (!(absChild
+						.getRootBox() instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absBox)) {
+					return false;
+				}
+				final long anchor = absBox.getSourceAnchor();
+				if (anchor < fromId || anchor > toId
+						|| !(log.get(anchor) instanceof net.zamasoft.foliojet.layout.fragment.LayoutSource.Start start
+								&& start.recipe() instanceof net.zamasoft.foliojet.layout.segment.BoxRecipe.Absolute)
+						|| !absBox.isUnattachedForParentRange() || !ownedAbsoluteAnchors.add(anchor)) {
+					return false;
+				}
+				child = absChild;
 			} else {
 				continue;
 			}
-			if (!collectAbsorbableChild(child, log, fromId, toId, out, outTables, seen)) {
+			if (!collectAbsorbableChild(child, log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
 				return false;
 			}
 		}
@@ -819,7 +846,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private static boolean collectAbsorbableChild(final TwoPassBlockBuilder child,
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
 			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
-			final java.util.Set<TwoPassBlockBuilder> seen) {
+			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
 		if (!seen.add(child)) {
 			return true;
 		}
@@ -832,7 +859,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 		}
 		case ReplayBody.LegacyRecords childLegacy -> {
-			if (!collectAbsorbableNested(childLegacy.records, log, fromId, toId, out, outTables, seen)) {
+			if (!collectAbsorbableNested(childLegacy.records, log, fromId, toId, out, outTables,
+					ownedAbsoluteAnchors, seen)) {
 				return false;
 			}
 		}
@@ -861,13 +889,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private static boolean collectAbsorbableTable(final RetainedTableBuilder retained,
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
 			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
-			final java.util.Set<TwoPassBlockBuilder> seen) {
+			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
 		for (int i = 0; i < outTables.size(); ++i) {
 			if (outTables.get(i) == retained) {
 				return true;
 			}
 		}
-		if (!retained.collectAbsorbableInto(log, fromId, toId, out, outTables, seen)) {
+		if (!retained.collectAbsorbableInto(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
 			return false;
 		}
 		outTables.add(retained);
@@ -882,8 +910,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 */
 	boolean collectAbsorbableSelf(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
 			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
-			final java.util.Set<TwoPassBlockBuilder> seen) {
-		return collectAbsorbableChild(this, log, fromId, toId, out, outTables, seen);
+			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
+		return collectAbsorbableChild(this, log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen);
 	}
 
 	/**

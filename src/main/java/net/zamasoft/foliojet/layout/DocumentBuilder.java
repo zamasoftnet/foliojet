@@ -108,9 +108,20 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private final List<Object> columnSpanStack = new ArrayList<Object>();
 
+	/**
+	 * 使い捨て計測(表Pass Bの複製セル計測)駆動か(absolute吸収=codex
+	 * 増分9、2026-07-30)。trueのとき、再構築される絶対配置ブロックの
+	 * seal・prepareBind・係留をスキップする——scratchでsealすると本物の
+	 * リースを取得したままreplicaごと破棄されリース孤児化する。絶対配置は
+	 * flow外でセルの計測値に寄与しないためスキップは計測等価
+	 * ({@code SourceReplayer.bindTwoPassRange}のscratch引数参照)。
+	 */
+	private final boolean scratchMeasurement;
+
 	public DocumentBuilder(PageGenerator pageGenerator) {
 		this.pageGenerator = pageGenerator;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
+		this.scratchMeasurement = false;
 	}
 
 	/**
@@ -120,7 +131,14 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * プロトコルを再駆動するためのものです。
 	 */
 	public DocumentBuilder(PageGenerator pageGenerator, BlockBuilder existingRoot) {
-		this(pageGenerator);
+		this(pageGenerator, existingRoot, false);
+	}
+
+	/** {@code scratch}については{@link #scratchMeasurement}参照。 */
+	public DocumentBuilder(PageGenerator pageGenerator, BlockBuilder existingRoot, boolean scratch) {
+		this.pageGenerator = pageGenerator;
+		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
+		this.scratchMeasurement = scratch;
 		this.startContainerBuilder(existingRoot);
 		this.startContainer();
 	}
@@ -690,6 +708,14 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 絶対位置指定
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
+			if (this.scratchMeasurement) {
+				// 使い捨て計測(表Pass B)駆動: seal・prepareBind・係留を
+				// スキップし、子builderをreplicaごと破棄する(sealすると
+				// 本物のリースを取得したまま破棄されリース孤児化する。
+				// 絶対配置はflow外で計測値に寄与しないため計測等価——
+				// absolute吸収=codex増分9、2026-07-30)
+				break;
+			}
 			if (entry.builder instanceof TwoPassBlockBuilder sealable) {
 				// E-6増分4a/4b: 録画完了点でのrange seal。E-6増分4eの
 				// recipe記録化により絶対配置も適格になる(旧NO_RANGE=81の解消)。

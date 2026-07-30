@@ -336,7 +336,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 */
 	boolean collectAbsorbableInto(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
 			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
-			final java.util.Set<TwoPassBlockBuilder> seen) {
+			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
 		if (this.abandoned) {
 			return false;
 		}
@@ -360,8 +360,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						continue;
 					}
 					final TwoPassBlockBuilder unsealed = cell.unsealedBuilderOrNull();
-					if (unsealed == null
-							|| !unsealed.collectAbsorbableSelf(log, fromId, toId, out, outTables, seen)) {
+					if (unsealed == null || !unsealed.collectAbsorbableSelf(log, fromId, toId, out, outTables,
+							ownedAbsoluteAnchors, seen)) {
 						return false;
 					}
 				}

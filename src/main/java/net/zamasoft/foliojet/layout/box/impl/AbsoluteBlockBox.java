@@ -90,6 +90,18 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		}
 	}
 
+	/**
+	 * このボックスがどのcontext builderにも係留されておらず、bind予約
+	 * (ビルダー保持/DeferredBind)も持たないかを返します(absolute吸収=
+	 * codex増分9、2026-07-30)。TwoPass録画中のabsoluteはcontextがTwoPassの
+	 * ためprepareBind/addBound/inline登録を一切通らず、常にこの状態——
+	 * 親のrange化はこの証明の上でのみボックスを吸収できる(deferredBind
+	 * 保持中のボックスを吸収するとリースが誰にもbind/closeされなくなる)。
+	 */
+	public final boolean isUnattachedForParentRange() {
+		return this.builder == null && this.deferredBind == null;
+	}
+
 	public final void shrinkToFit(IFramedBox containerBox, IntrinsicSizes sizes) {
 		final double minLineAxis = sizes.minContent(), maxLineAxis = sizes.maxContent();
 		double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
