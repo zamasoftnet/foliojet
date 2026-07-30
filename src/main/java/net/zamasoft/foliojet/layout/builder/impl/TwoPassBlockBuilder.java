@@ -675,10 +675,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.ABSOLUTE_RANGE);
 			return;
 		}
-		if (log.containsMulticol(fromId, toId)) {
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.MULTICOL_RANGE);
-			return;
-		}
+		// DP増分6(2026-07-30): 段組を含む範囲(MULTICOL_RANGE)のrejectは
+		// 撤去した。範囲再生側のDocumentBuilderはfixed multicolを
+		// ColumnBuilderで・autoをstartFlowBlockで駆動し(liveと同一分岐)、
+		// balanceも同じ機構が決定的に再実行する——両駆動のパリティは
+		// TwoPassRangeBindParityTestのfloat-STF内/表セル内/absolute内段組
+		// 文書で固定する。「未検証」が唯一のreject理由だった
+		// (ContinuationStats.TwoPassSealReject旧MULTICOL_RANGEのjavadoc)。
 		// DP増分4(2026-07-30): 書字方向混在(MIXED_FLOW_RANGE)のrejectは
 		// 撤去した。旧bindRecords自身がStartFlowの軸不一致でサブビルダーを
 		// 作っており(下のbindRecords参照)、範囲再生側のDocumentBuilderにも

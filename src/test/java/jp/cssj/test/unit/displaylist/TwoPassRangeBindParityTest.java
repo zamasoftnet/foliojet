@@ -99,6 +99,13 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			// DP増分4(2026-07-30): MIXED_FLOW_RANGE reject撤去のパリティ
 			// 固定——絶対配置内の縦横混在(旧来この文書だけがrejectしていた)
 			"0390-writing-mode/absolute.html", //
+			// DP増分6(2026-07-30): MULTICOL_RANGE reject撤去のパリティ固定
+			// ——float-STF内/表セル内/absolute内/column-fill付きfloat内の段組
+			// (旧来rejectしていた全corpus形)
+			"0400-column-count/float-stf.html", //
+			"0400-column-count/table-cell.html", //
+			"0410-column-width/absolute.html", //
+			"0415-column-fill/float-height.html", //
 			// E-6増分5a回帰(2026-07-24、040-8BITS_ASCII.htmlのNPE):
 			// soft hyphen(U+00AD)のみのセルはtextShaperだけが作られ
 			// ビルダーへ何も届かない——bind時のclose連鎖の空flushの固定

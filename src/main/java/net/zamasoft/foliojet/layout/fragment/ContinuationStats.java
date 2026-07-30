@@ -301,8 +301,6 @@ public final class ContinuationStats {
 		 * ({@code LayoutSource.containsAbsolute}のjavadoc参照)。
 		 */
 		ABSOLUTE_RANGE,
-		/** 範囲に段組(multicol)を含む(列機構との相互作用は未検証)。 */
-		MULTICOL_RANGE,
 		/**
 		 * recordsにネストしたビルダー(StfBlock/AbsoluteBlock/InlineBlockEvent/
 		 * TableEvent)を含む。ネストした子が既にsealしたリースを親のrange化で
