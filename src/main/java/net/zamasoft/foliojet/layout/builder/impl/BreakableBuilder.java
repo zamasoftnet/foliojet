@@ -1230,14 +1230,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected boolean columnBreak(final Flow breakFlow, final BreakMode mode, byte flags, final double lastFrame,
 			int depth) {
-		// 2026-07-21: この改段(COLUMN)経路は、下の container.restyle(...,
-		// OpenShape.of(depth), ...) が RootBuilder.pageBreak()の
-		// BreakPlan/深さガード機構を完全に迂回する独立経路であり、
-		// 2026-07-20時点では深さガードが一切存在しなかった(ChatGPT Pro
-		// 相談で発見、docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
-		// depthはこの時点で既にパラメータとして確定しており、以降の
-		// newColumn()呼び出しより前(状態変異が一切起きる前)に検査できる。
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(depth, true);
+		// 2026-07-21: この改段(COLUMN)経路はRootBuilder.pageBreak()の
+		// BreakPlan機構を迂回する独立経路(ChatGPT Pro相談で発見、
+		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+		// 2026-07-30(増分4c): worklist一本化に伴い深さ64の例外ガードは
+		// 退役し、観測用の最大深さ記録だけを残した。
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenDepth(depth, true);
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnOwnerColumnCount(breakFlow.box.getColumnCount());
 		this.beginBreak();
 

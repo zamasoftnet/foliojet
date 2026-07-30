@@ -555,32 +555,6 @@ public final class ContinuationStats {
 
 
 	/**
-	 * PAGE経路(RootBuilder.pageBreak)での深さアラーム発火回数
-	 * ({@code OpenTailShape}の深さが閾値以上になった回数。2026-07-20、
-	 * M6b Phase B着手前の暫定安全策として旧{@code OPEN_CHAIN_DEPTH_ALARMS}
-	 * で導入し、2026-07-21にCOLUMN側と分離)。
-	 */
-	public static final AtomicLong PAGE_OPEN_DEPTH_ALARMS = new AtomicLong();
-
-	/**
-	 * COLUMN経路(BreakableBuilder.columnBreak、段組内の改段)での
-	 * 深さアラーム発火回数(2026-07-21新設)。この経路は2026-07-20時点では
-	 * ガード自体が存在せず、無防備だった(ChatGPT Pro相談で発見、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
-	 */
-	public static final AtomicLong COLUMN_OPEN_DEPTH_ALARMS = new AtomicLong();
-
-	/**
-	 * {@link #PAGE_OPEN_DEPTH_ALARMS}/{@link #COLUMN_OPEN_DEPTH_ALARMS}の
-	 * 閾値。実文書でこの深さの開いた祖先チェーンが必要になることは通常
-	 * ありえない、十分に保守的なアラーム線(素のStackOverflowErrorが
-	 * 起きうる深さよりずっと手前)として設定している——実際にここへ
-	 * 到達した場合は、想定より深いopen-chainが実在するという強い証拠で
-	 * あり、M6b Phase Bの着手根拠になる。
-	 */
-	public static final int OPEN_CHAIN_DEPTH_ALARM_THRESHOLD = 64;
-
-	/**
 	 * <b>進捗のない自動改ページ</b>の連続回数の最大値です(2026-07-27新設)。
 	 * 「同じ状態のまま改ページだけが繰り返される」ライブロックの観測値。
 	 */
@@ -657,27 +631,26 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * 開いたままの祖先チェーンの深さを検査し、安全閾値
-	 * ({@link #OPEN_CHAIN_DEPTH_ALARM_THRESHOLD})以上ならログ警告の上、
-	 * {@link ContinuationDepthLimitExceededException}を投げます
-	 * (2026-07-21、PAGE/COLUMNの両経路で共有する単一の実装。以前は
-	 * {@code RootBuilder.resumeFrame()}内にのみこのチェックがあり、
-	 * {@code BreakableBuilder.columnBreak()}は完全に素通りしていた)。
+	 * 開いたままの祖先チェーンの深さを記録します(2026-07-21新設、
+	 * PAGE/COLUMNの両経路で共有する単一の実装)。
+	 *
+	 * <p>
+	 * 2026-07-30(legacy再帰撤去=増分4c): 旧{@code guardOpenDepth}は
+	 * 「FlowContainer.restyleのOpenChain再帰がStackOverflowErrorを起こす
+	 * 前に止める」ために深さ64で型付き例外を投げていたが、worklist
+	 * executorが唯一のdriverになりOpenChain降下は非再帰となったため、
+	 * このガードは<b>偽のクラッシュ要因</b>でしかなくなった——例外・
+	 * アラーム・閾値({@code ContinuationDepthLimitExceededException}/
+	 * {@code PAGE/COLUMN_OPEN_DEPTH_ALARMS}/64)を退役し、観測用の
+	 * 最大深さ記録だけを残した(codex相談
+	 * consult-codex-2026-07-30-increment4-removal-spec.txt §3)。
+	 * </p>
 	 *
 	 * @param openDepth 開いたままの祖先チェーンの深さ({@link OpenShape#depth()})
 	 * @param column    true なら改段(COLUMN)経路、false なら改ページ(PAGE)経路
 	 */
-	public static void guardOpenDepth(final int openDepth, final boolean column) {
+	public static void recordOpenDepth(final int openDepth, final boolean column) {
 		(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);
-		if (openDepth >= OPEN_CHAIN_DEPTH_ALARM_THRESHOLD) {
-			(column ? COLUMN_OPEN_DEPTH_ALARMS : PAGE_OPEN_DEPTH_ALARMS).incrementAndGet();
-			final String message = "open ancestor chain depth=" + openDepth + " reached the safety alarm threshold ("
-					+ OPEN_CHAIN_DEPTH_ALARM_THRESHOLD + ") on the " + (column ? "COLUMN" : "PAGE")
-					+ " continuation path; FlowContainer.restyle's OpenChain branch is still recursive and would "
-					+ "risk an uncontrolled StackOverflowError beyond this point (see docs/PLAN.md \"M6b Phase B\")";
-			java.util.logging.Logger.getLogger(ContinuationStats.class.getName()).warning(message);
-			throw new ContinuationDepthLimitExceededException(message);
-		}
 	}
 
 	public static void reset() {
@@ -702,8 +675,6 @@ public final class ContinuationStats {
 		MULTICOL_NATIVE_DESCENTS.set(0);
 		ROOTLESS_COLUMN_RESTYLES.set(0);
 		MAX_ROOTLESS_COLUMN_OPEN_DEPTH.set(0);
-		PAGE_OPEN_DEPTH_ALARMS.set(0);
-		COLUMN_OPEN_DEPTH_ALARMS.set(0);
 		MAX_STALLED_AUTO_BREAK_RUN.set(0);
 		STALLED_AUTO_BREAK_ALARMS.set(0);
 		RANGE_FIRST_BINDS.set(0);

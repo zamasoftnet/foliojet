@@ -846,14 +846,10 @@ public class RootBuilder extends BreakableBuilder {
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child : null;
 		}
 
-		// 2026-07-21: 深さガードを旧ページ出力(drawPage)より前に検査する。
-		// 終端の OpenTailShape 深さはこの時点で既に確定している
-		// (splitForContinuation が破断時に計算済み)ため、以前のように
-		// resumeFrame() 内(旧ページ出力・drawPage 後)まで待つ必要がない。
-		// ここで止めれば、旧ページの確定・出力が既に済んでいる以外の
-		// 状態変異が一切ない、より安全な地点で中断できる
-		// (ChatGPT Pro相談で指摘、
-		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+		// 2026-07-21: 終端の OpenTailShape 深さはこの時点で既に確定している
+		// (splitForContinuation が破断時に計算済み)。2026-07-30(増分4c):
+		// worklist一本化でOpenChain降下が非再帰となったため深さ64の型付き
+		// 例外ガードは退役し、観測用の最大深さ記録だけを残した。
 		{
 			final int terminalOpenDepth;
 			if (rootChildFrame == null) {
@@ -870,7 +866,7 @@ public class RootBuilder extends BreakableBuilder {
 					throw new IllegalStateException("innerFrames walk must terminate on a non-Child tail");
 				};
 			}
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(terminalOpenDepth, false);
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenDepth(terminalOpenDepth, false);
 		}
 
 		// ソースログの水位 = 残余の閉じたアイテムの最小 EventId(M6b v3)。
@@ -1118,19 +1114,9 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 					final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
-				// 2026-07-21: 主たる深さガードは RootBuilder.pageBreak() が
-				// 旧ページ出力(drawPage)より前に既に検査済み(この
-				// resumeFrame() の呼び出しに至った時点で必ず一度合格して
-				// いる)。ここでの再検査は防御の重複であり、本来は発火
-				// しないはずだが、念のため同一の閾値・例外で保護しておく。
-				// 注意: index>0(index==0でないOpenTailShape)の場合、
-				// このswitch文より前のChild分岐の反復で既に
-				// startFlowBlock/restyleFrameが実行済みであり、「ここまで
-				// 状態変異なし」という主張は成立しない——「状態変異前」と
-				// 言えるのは pageBreak() 側の検査地点(旧ページ出力より前)
-				// だけである(ChatGPT Pro相談で指摘、
-				// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardOpenDepth(shape.depth(), false);
+				// 2026-07-30(増分4c): かつてここにあった深さガードの重複
+				// 検査(pageBreak()側の主検査に対する防御の重複)は、深さ
+				// ガード自体の退役に伴い削除した。
 				// 2026-07-22(B6a1): rooted PAGE/COLUMNでかつ残存tailが
 				// 全てPLAIN_FLOWと予測された継続だけ、この末尾のOpenChain
 				// 実行をworklist executorへ切り替える。広範囲検証

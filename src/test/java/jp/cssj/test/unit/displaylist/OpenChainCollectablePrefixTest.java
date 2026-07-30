@@ -66,16 +66,12 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  *
  * <p>
- * <b>残る制約</b>: この修正は「段組等の<i>外側</i>のplainラッパー深さ」
- * だけを再帰リスクから除外する。段組ボックス<i>自身の内側</i>が深く
- * ネストしていれば、同じ安全閾値
- * ({@code ContinuationStats.OPEN_CHAIN_DEPTH_ALARM_THRESHOLD}=64)に
- * 依然到達しうる。この場合、2026-07-20時点では本番・テストの区別なく
- * {@link net.zamasoft.foliojet.layout.fragment.ContinuationDepthLimitExceededException}
- * を投げて安全に停止する(ガード地点では新ページに何も書き込まれて
- * おらず、状態変異なしに中断できることを独立レビューで確認済み)。
- * {@code DirectSession.transcode}の既存{@code catch(Throwable)}が
- * {@code TranscoderException(STATE_BROKEN, FATAL_UNEXPECTED)}へ変換する。
+ * <b>深さガードの退役(2026-07-30、legacy再帰撤去=増分4c)</b>:
+ * かつては段組ボックス<i>自身の内側</i>の深いネストが安全閾値(64)で
+ * 型付き例外により停止していたが、worklist executorが唯一のdriverと
+ * なりOpenChain降下が非再帰になったため、ガード・例外・アラームは
+ * 退役した。深いネストは例外なく完走する
+ * ({@link #testDeepNestingInsideMulticolCompletesIteratively})。
  * </p>
  */
 public class OpenChainCollectablePrefixTest extends TestCase {
@@ -98,7 +94,6 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		assertEquals("表リーフはOpenChainを発火させないはずです", 0, ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
 		assertEquals("表リーフの開きテイルは深さ1(開きテキストのみ)のはずです", 1,
 				ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
-		assertEquals(0, ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
 	}
 
 	/**
@@ -124,7 +119,6 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 				300);
 		assertEquals("B3a後はPAGE側の開きテイル深さは常に1(開きテキストのみ)のはずです", 1,
 				ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
-		assertEquals("プレフィックス切り詰め後は安全閾値に達しないはずです", 0, ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
 		assertEquals("B3a後はMULTICOLがプレフィックススキャンを止めないはずです", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
 		assertEquals("PAGE側のOpenChainは完全に消えるはずです", 0, ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
@@ -375,34 +369,23 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 
 	/**
 	 * 段組<i>自身の内側</i>を深くネストさせた場合(外側は5段のみと浅い)、
-	 * プレフィックス切り詰めの対象外(違反箇所より内側)であるため、
-	 * 依然として安全閾値(64)へ到達しうる。この場合、素の
-	 * {@code StackOverflowError}ではなく、型付きの
-	 * {@code ContinuationDepthLimitExceededException}経由の
-	 * {@code TranscoderException}として安全に停止することを確認する。
+	 * COLUMN経路({@code BreakableBuilder.columnBreak}、段組内の改段)の
+	 * open深さが旧安全閾値(64)を超える——かつてはここで型付き例外により
+	 * 停止していた(2026-07-21、COLUMN経路のガード新設をこのテストが
+	 * 検証していた)。
 	 *
 	 * <p>
-	 * <b>2026-07-21追記</b>: 実際に発火するのはPAGE経路
-	 * ({@code RootBuilder.pageBreak}/{@code resumeFrame})ではなく
-	 * COLUMN経路({@code BreakableBuilder.columnBreak}、段組内の改段)
-	 * だった——80段のネストは2カラムの1カラム分の高さに収まらず、
-	 * ページ全体が改ページを要する前に段組内部で改段が先に必要になるため。
-	 * COLUMN経路は2026-07-20時点ではガード自体が存在せず無防備だった
-	 * (ChatGPT Pro相談で発見、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
-	 * このテストが実測でそれを裏付けた——当初「PAGE側の深さガードの
-	 * 検証」のつもりで書いたが、実際にはCOLUMN側ガードの新設を検証する
-	 * テストになっている。
+	 * 2026-07-30(legacy再帰撤去=増分4c): worklist executorが唯一の
+	 * driverとなりOpenChain降下が非再帰になったため、深さガードは退役
+	 * した。同じ文書が<b>例外なく完走</b>し、実際に旧閾値を超える深さの
+	 * COLUMN open tailが観測される(空振りでないことの証明)ことを固定
+	 * する。
 	 * </p>
 	 */
-	public void testDeepNestingInsideMulticolTripsDepthGuard() throws Exception {
-		try {
-			this.run("nesting-inside-multicol", 5, (w, leafLines) -> this.writeMulticolLeaf(w, 80, leafLines), 300);
-			fail("段組内側の深いネストは安全閾値に到達し、TranscoderExceptionになるはずです");
-		} catch (TranscoderException e) {
-			assertTrue("COLUMN経路の安全閾値アラームが記録されているはずです",
-					ContinuationStats.COLUMN_OPEN_DEPTH_ALARMS.get() > 0);
-		}
+	public void testDeepNestingInsideMulticolCompletesIteratively() throws Exception {
+		this.run("nesting-inside-multicol", 5, (w, leafLines) -> this.writeMulticolLeaf(w, 80, leafLines), 300);
+		assertTrue("旧閾値64を超える深さのCOLUMN open tailが観測されるはずです(fixtureが弱体化していないか)",
+				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get() >= 64);
 	}
 
 	/**
@@ -624,7 +607,7 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " OPEN_TAILS="
 				+ ContinuationStats.OPEN_TAILS.get() + " UNCHAINED_RESTYLES=" + ContinuationStats.UNCHAINED_RESTYLES.get()
 				+ " MAX_PAGE_OPEN_TAIL_DEPTH=" + ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get()
-				+ " PAGE_OPEN_DEPTH_ALARMS=" + ContinuationStats.PAGE_OPEN_DEPTH_ALARMS.get());
+				+ " MAX_COLUMN_OPEN_TAIL_DEPTH=" + ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get());
 	}
 
 	private File generate(String name, int depth, LeafWriter leaf, int leafLines) throws IOException {
