@@ -213,9 +213,13 @@ public class DisplayListGoldenTest extends TestCase {
 		if (rangeBinds == 0) {
 			failures.add("TwoPass range bindがgoldenコーパスで一度も発火していません(空虚な緑)");
 		}
-		if (seals != rangeBinds) {
-			failures.add("seal適格数とrange bind数が一致しません(リース取り残しの疑い): seals=" + seals
-					+ ", rangeBinds=" + rangeBinds);
+		// DP増分3: 親range化に吸収された子seal(SUBSUMED)はbindされずに
+		// リースを手放すため、完了条件はseals == binds + subsumed
+		final long subsumed = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TWO_PASS_SEALS_SUBSUMED.get();
+		System.err.println("  TWO_PASS_SEALS_SUBSUMED=" + subsumed);
+		if (seals != rangeBinds + subsumed) {
+			failures.add("seal適格数とrange bind+吸収数が一致しません(リース取り残しの疑い): seals=" + seals
+					+ ", rangeBinds=" + rangeBinds + ", subsumed=" + subsumed);
 		}
 		// E-6増分5a: 表セルのrange化の配線検証+リース1:1検出。コーパスは
 		// auto表(0240/0242/0330等)を含むためセルsealが実際に発火する

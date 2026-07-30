@@ -157,6 +157,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		 */
 		record Empty() implements ReplayBody {
 		}
+
+		/**
+		 * 親のrange化に吸収された後の状態です(DP増分3、2026-07-30——
+		 * codex相談 consult-codex-2026-07-30-dualpath-endgame.txt
+		 * NESTED_BUILDER解消)。親の{@code SourceRangeBody}が子の範囲を
+		 * 包含し、bindは親の範囲再生(SegmentExecutor)が子の内容ごと
+		 * 再構築する——このビルダーへのbind要求は契約違反
+		 * ({@link Detached}と同じ扱い)。子が保持していたリースは吸収時に
+		 * 解放済み(親リースが先に取得されているためcompact可能水位は
+		 * 後退しない)。
+		 */
+		record Subsumed() implements ReplayBody {
+		}
 	}
 
 	/**
@@ -670,15 +683,16 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.MIXED_FLOW_RANGE);
 			return;
 		}
-		for (final Recorded recorded : legacy.records) {
-			// ネストしたビルダーを含む場合は不適格(leaf限定——理由は
-			// TwoPassSealReject.NESTED_BUILDERのjavadoc。子が既に取得した
-			// リースを親のrange化で孤児にしない構造的保証でもある)
-			if (recorded instanceof Recorded.StfBlock || recorded instanceof Recorded.AbsoluteBlock
-					|| recorded instanceof Recorded.InlineBlockEvent || recorded instanceof Recorded.TableEvent) {
-				reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NESTED_BUILDER);
-				return;
-			}
+		// DP増分3(2026-07-30): ネストしたビルダーは「吸収可能」なら親の
+		// range化を妨げない——検証相(副作用なし)で全子孫を列挙し、
+		// コミット相で親リース取得後に子リースを閉じる(先に親リースが
+		// あるためcompact可能水位は後退しない)。吸収不能(表・絶対配置・
+		// 範囲外リース等)は従来どおりNESTED_BUILDERでfail closed。
+		final List<TwoPassBlockBuilder> absorbable = new ArrayList<TwoPassBlockBuilder>();
+		if (!collectAbsorbableNested(legacy.records, log, fromId, toId, absorbable,
+				java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<TwoPassBlockBuilder, Boolean>()))) {
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NESTED_BUILDER);
+			return;
 		}
 		// 範囲の完全性(連番で穴なし)の最終検証。probeのリースは即時解放
 		try (net.zamasoft.foliojet.layout.fragment.LayoutSource.ReplaySlice probe = log.capture(fromId, toId)) {
@@ -687,9 +701,99 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				return;
 			}
 		}
-		// seal: 以後の再生元は範囲参照。recordsはこの差し替えで手放される
+		// seal(コミット相): 以後の再生元は範囲参照。recordsはこの差し替えで
+		// 手放される。子は親リース取得後に吸収(リース解放+Subsumed化)する
 		this.body = new ReplayBody.SourceRangeBody(log, pageGenerator, fromId, toId, log.retainFrom(fromId));
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealEligible();
+		for (final TwoPassBlockBuilder child : absorbable) {
+			child.subsumeIntoParentRange();
+		}
+	}
+
+	/**
+	 * 親range化の検証相です(DP増分3)。records内のネストビルダーを
+	 * identity重複排除しつつ走査し、全てが「親範囲へ吸収可能」なら
+	 * {@code out}へ列挙してtrueを返します(副作用なし)。吸収可能条件:
+	 * <ul>
+	 * <li>{@code StfBlock}・{@code InlineBlockEvent}(TwoPass実測)の子で、
+	 * seal済み({@code SourceRangeBody})なら同じLayoutSource上かつ親範囲に
+	 * 包含されるリースを持つ</li>
+	 * <li>未seal({@code LegacyRecords})なら孫を再帰的に検証(孫も
+	 * 吸収対象として列挙——seal済みの子は自分のseal時に既に孫を吸収済みの
+	 * ため再帰不要)</li>
+	 * <li>空本文({@code Empty})は無条件で可</li>
+	 * </ul>
+	 * 表({@code TableEvent}・Retained表実測の{@code InlineBlockEvent})は
+	 * セル・キャプションのリース/DeferredBindの再帰解放
+	 * ({@code RetainedTableBuilder.abandonForParentRange}相当)が未実装の
+	 * ため吸収不可(表recipe裁定後の増分で扱う)。{@code AbsoluteBlock}は
+	 * 係留・DeferredBind二重化防止のため吸収不可(通常はABSOLUTE_RANGEの
+	 * ログ側ゲートが先に親をrejectする——ここはfail closedの二重防壁)。
+	 */
+	private static boolean collectAbsorbableNested(final List<Recorded> records,
+			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
+			final List<TwoPassBlockBuilder> out, final java.util.Set<TwoPassBlockBuilder> seen) {
+		for (final Recorded recorded : records) {
+			final TwoPassBlockBuilder child;
+			if (recorded instanceof Recorded.StfBlock stf) {
+				child = stf.builder();
+			} else if (recorded instanceof Recorded.InlineBlockEvent inlineBlock) {
+				if (!(inlineBlock.measure() instanceof TwoPassBlockBuilder measured)) {
+					// Retained表の実測(インラインテーブル)——吸収不可
+					return false;
+				}
+				child = measured;
+			} else if (recorded instanceof Recorded.TableEvent || recorded instanceof Recorded.AbsoluteBlock) {
+				return false;
+			} else {
+				continue;
+			}
+			if (!seen.add(child)) {
+				continue;
+			}
+			switch (child.body) {
+			case ReplayBody.SourceRangeBody childRange -> {
+				if (childRange.source() != log || childRange.fromId() < fromId || childRange.toId() > toId) {
+					// 別ソース・親範囲外のリース——構造的には起きないが
+					// fail closed(吸収すると孤児リースになる)
+					return false;
+				}
+			}
+			case ReplayBody.LegacyRecords childLegacy -> {
+				if (!collectAbsorbableNested(childLegacy.records, log, fromId, toId, out, seen)) {
+					return false;
+				}
+			}
+			case ReplayBody.Empty empty -> {
+				// リースなし。無条件で可
+			}
+			case ReplayBody.Detached detached -> {
+				// DeferredBindへ持ち出し済み(絶対配置等)——所有が外にある
+				return false;
+			}
+			case ReplayBody.Subsumed subsumed -> {
+				// 二重吸収は契約違反相当——fail closed
+				return false;
+			}
+			}
+			out.add(child);
+		}
+		return true;
+	}
+
+	/**
+	 * 親のrange化に吸収されます(DP増分3のコミット相)。呼び出し時点で
+	 * 親のリースは取得済みであること(子リース解放でcompact可能水位が
+	 * 後退しないための順序契約)。リースcloseは冪等・非throwing。
+	 */
+	private void subsumeIntoParentRange() {
+		if (this.body instanceof ReplayBody.SourceRangeBody range) {
+			range.lease().close();
+			// seal適格(TWO_PASS_SEALS_ELIGIBLE)として数えられたがbindは
+			// されない——seal:bind 1:1検出の完了条件はSUBSUMEDを加えた形
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealSubsumed();
+		}
+		this.body = new ReplayBody.Subsumed();
 	}
 
 	private static void reject(final net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject reason) {
@@ -755,6 +859,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		case ReplayBody.Detached detached ->
 			// E-6増分4e: DeferredBindへ持ち出し済み。bindはDeferredBindが担う
 			throw new IllegalStateException("DeferredBindへ持ち出し済みのビルダーへのbind");
+		case ReplayBody.Subsumed subsumed ->
+			// DP増分3: 親の範囲再生が内容ごと再構築する。個別bindは契約違反
+			throw new IllegalStateException("親のrange化に吸収済みのビルダーへのbind");
 		}
 	}
 

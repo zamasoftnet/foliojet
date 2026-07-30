@@ -380,6 +380,19 @@ public final class ContinuationStats {
 	/** 空本文bind(no-op)の回数です(DP増分2)。 */
 	public static final AtomicLong TWO_PASS_EMPTY_BINDS = new AtomicLong();
 
+	/**
+	 * seal済み(適格計上済み)ビルダーが親のrange化に吸収され、bindされずに
+	 * リースを手放した回数です(DP増分3、2026-07-30)。seal:bind 1:1検出の
+	 * 完了条件は{@code TWO_PASS_SEALS_ELIGIBLE == RANGE_FIRST_BINDS +
+	 * TWO_PASS_SEALS_SUBSUMED}——DisplayListGoldenTestが固定する。
+	 */
+	public static final AtomicLong TWO_PASS_SEALS_SUBSUMED = new AtomicLong();
+
+	/** 親range化への吸収の集計です(DP増分3)。 */
+	public static void recordTwoPassSealSubsumed() {
+		TWO_PASS_SEALS_SUBSUMED.incrementAndGet();
+	}
+
 	/** 空本文sealの集計です(DP増分2)。 */
 	public static void recordTwoPassEmptySeal() {
 		TWO_PASS_EMPTY_SEALS.incrementAndGet();
@@ -690,6 +703,7 @@ public final class ContinuationStats {
 		LEGACY_RECORD_BINDS.set(0);
 		TWO_PASS_EMPTY_SEALS.set(0);
 		TWO_PASS_EMPTY_BINDS.set(0);
+		TWO_PASS_SEALS_SUBSUMED.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);

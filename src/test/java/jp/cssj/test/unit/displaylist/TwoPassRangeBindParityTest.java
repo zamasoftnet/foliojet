@@ -48,9 +48,12 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <p>
  * あわせて「空虚な緑の防止」: range側の実行で(a)seal適格
  * (records解放)が実際に発火したこと、(b)range bindが実際に発火した
- * こと、(c)不適格分類(ネストビルダー=NESTED_BUILDER)が実際に計上される
- * こと、(d)絶対配置のrecipe記録化(E-6増分4e)後このコーパスでNO_RANGEが
- * 残らないことを固定し、適格/不適格の実測をstderrへレポートする。
+ * こと、(c)ネストビルダーの親range化への吸収(DP増分3、2026-07-30——
+ * 旧NESTED_BUILDER rejectの解消)が実際に発火し、このコーパスで
+ * NESTED_BUILDERが残らないこと、(d)絶対配置のrecipe記録化(E-6増分4e)後
+ * このコーパスでNO_RANGEが残らないこと、(e)seal:bind:吸収のリース収支
+ * (seals == binds + subsumed)を固定し、適格/不適格の実測をstderrへ
+ * レポートする。
  * </p>
  */
 public class TwoPassRangeBindParityTest extends TestCase {
@@ -115,6 +118,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		final List<String> failures = new ArrayList<>();
 		long rangeBinds = 0;
 		long sealsEligible = 0;
+		long sealsSubsumed = 0;
 		long cellSeals = 0;
 		long cellRangeBinds = 0;
 		final Map<ContinuationStats.TwoPassSealReject, Long> rejects = new EnumMap<>(
@@ -152,6 +156,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			this.dump(doc, name + "-range", rangeDir, defaultStylesheet, true);
 			rangeBinds += ContinuationStats.RANGE_FIRST_BINDS.get();
 			sealsEligible += ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get();
+			sealsSubsumed += ContinuationStats.TWO_PASS_SEALS_SUBSUMED.get();
 			cellSeals += ContinuationStats.CELL_RANGE_SEALS.get();
 			cellRangeBinds += ContinuationStats.CELL_RANGE_BINDS.get();
 			for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
@@ -192,8 +197,14 @@ public class TwoPassRangeBindParityTest extends TestCase {
 				cellRangeBinds);
 		assertEquals("絶対配置のrecipe記録化(4e)後、このコーパスでNO_RANGEは残らないはずです", 0,
 				(long) rejects.get(ContinuationStats.TwoPassSealReject.NO_RANGE));
-		assertTrue("ネストビルダーの不適格(NESTED_BUILDER)が計上されていません",
-				rejects.get(ContinuationStats.TwoPassSealReject.NESTED_BUILDER) > 0);
+		// DP増分3(2026-07-30): 非表のネストビルダーは親range化に吸収される
+		// ようになった——このコーパス(表を含む範囲はOPAQUEゲートが先に弾く)
+		// でNESTED_BUILDERは残らず、吸収が実際に発火する
+		assertEquals("nested lease吸収(DP増分3)後、非表ネストはNESTED_BUILDERにならないはずです", 0,
+				(long) rejects.get(ContinuationStats.TwoPassSealReject.NESTED_BUILDER));
+		assertTrue("nested吸収(TWO_PASS_SEALS_SUBSUMED)が一度も発火していません(空虚な緑)", sealsSubsumed > 0);
+		assertEquals("seal適格数とrange bind+吸収数が一致しません(リース取り残しの疑い)", sealsEligible,
+				rangeBinds + sealsSubsumed);
 
 		// 適格/不適格の実測レポート(表外float/absolute/inline-blockの母数
 		// = seal試行の総数)
@@ -202,6 +213,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		s.append("[E-6 two-pass range bind]\n");
 		s.append("  RANGE_FIRST_BINDS=").append(rangeBinds).append('\n');
 		s.append("  TWO_PASS_SEALS_ELIGIBLE=").append(sealsEligible).append('\n');
+		s.append("  TWO_PASS_SEALS_SUBSUMED=").append(sealsSubsumed).append('\n');
 		s.append("  CELL_RANGE_SEALS=").append(cellSeals).append('\n');
 		s.append("  CELL_RANGE_BINDS=").append(cellRangeBinds).append('\n');
 		for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
