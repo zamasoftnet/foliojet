@@ -670,6 +670,28 @@ public class DocumentBuilder implements TableBuilderHost {
 				sealable.sealBodyForRangeBind();
 			}
 			final Builder parentBuilder = this.containerBuilder().builder;
+			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
+				// 脚注F2/F3(2026-07-31、consult-codex-2026-07-31-footnote.txt
+				// §3): 本文は親のflowへ入れない(呼び出し位置にはF1の
+				// ::footnote-callだけが残る)。組み上がった本文ボックスを
+				// ページ脚注台帳(RootBuilder)へ渡し、ページ下端領域に
+				// 描かれる。scratch計測・再生等でRootBuilderが根に無い
+				// 文脈では台帳が無い=どこにも置かれない(本文はflow外
+				// なので測定等価。two-passのseal→bindは通常どおり対に
+				// なりリースは孤児化しない)
+				final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
+				if (entry.builder.isTwoPass()) {
+					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+					noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+					final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
+					contentBuilder.bind(noteBuilder);
+					noteBuilder.close();
+				}
+				if (this.pageContextBuilder() instanceof RootBuilder root) {
+					root.addFootnote(noteBox);
+				}
+				break;
+			}
 			if (!parentBuilder.isTwoPass()) {
 				final BlockBuilder boundBuilder = (BlockBuilder) parentBuilder;
 				final FloatBlockBox floatBox = (FloatBlockBox) entry.builder.getRootBox();

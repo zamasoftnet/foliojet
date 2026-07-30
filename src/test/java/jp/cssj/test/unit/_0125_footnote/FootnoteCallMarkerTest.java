@@ -35,6 +35,8 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("marker must prefix the note body: " + text, text.startsWith("1. first note"));
+			// F3: 本文はページ下端の脚注領域へ移る(3件が文書順に積まれる)
+			assertEquals(724.87, y, 1);
 			return true;
 		}
 		return false;
@@ -45,6 +47,7 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("second note must be numbered 2: " + text, text.startsWith("2. second note"));
+			assertEquals(739.88, y, 1);
 			return true;
 		}
 		return false;
@@ -54,6 +57,7 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("third note must be numbered 3: " + text, text.startsWith("3. third note"));
+			assertEquals(754.88, y, 1);
 			return true;
 		}
 		return false;
@@ -64,7 +68,8 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("call number must follow the reference text: " + text, text.startsWith("Alpha1"));
-			assertTrue("body text must remain: " + text, text.contains("beta."));
+			assertTrue("call line must remain in the body flow: " + text, text.contains("beta."));
+			assertTrue("the reference paragraph must stay near the page top: y=" + y, y < 100);
 			return true;
 		}
 		return false;

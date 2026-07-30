@@ -182,6 +182,7 @@ import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
+import net.zamasoft.foliojet.layout.box.params.FootnotePos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -312,11 +313,15 @@ final class StyleBoxEmitter {
 			final InlinePos pos = new InlinePos();
 			this.mapper.setupInlinePos(pos, style);
 			blockBox = new InlineBlockBox(params, pos);
+		} else if (floating == CSSFloatValue.FOOTNOTE && !params.flow.isVertical()) {
+			// 脚注F2(2026-07-31): FootnotePos(PosType=FLOAT)で分離builderの
+			// ライフサイクルへ流す。左右floatと違いFloatSide/clear等は使わず、
+			// 終了時に親へaddBoundされずページ脚注台帳へ渡る。縦書きは
+			// 初期サブセット外(下のelseで通常フロー=F1挙動へ)
+			final FootnotePos pos = new FootnotePos();
+			this.mapper.setupStaticPos(pos, style);
+			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating != CSSFloatValue.NONE && floating != CSSFloatValue.FOOTNOTE) {
-			// FOOTNOTEは左右floatではない(ページ下端領域へ移す。F3で配線)。
-			// setupFloatPosのFloatSide二択に流さず、配線までは通常フローで
-			// その場に描く——float:footnote未対応時代(解析エラーで無視)と
-			// 同じ見た目
 			final FloatPos pos = new FloatPos();
 			this.mapper.setupFloatPos(pos, style, this.context.isRightSide());
 			blockBox = new FloatBlockBox(params, pos);

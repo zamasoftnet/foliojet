@@ -1217,11 +1217,86 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	protected void finishLayout() {
+		this.attachFootnotes();
 		this.pageBox.finishLayout(this.pageBox);
 	}
 
 	public void finish() {
 		this.finishLayout();
 		this.pageGenerator.drawPage(this.pageBox, true, false);
+	}
+
+	// ------------------------------------------------------------------
+	// 脚注(F2/F3、2026-07-31——consult-codex-2026-07-31-footnote.txt §3。
+	// 初期サブセットはオーナー承認済み: 文書通番・保守的確保・
+	// 巨大脚注は型付きエラー・縦書き/段組/@footnote/分割は後続増分)
+
+	/** このページに置く脚注ボックス(文書順)。 */
+	private final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> pageFootnotes = new java.util.ArrayList<>();
+
+	/**
+	 * 脚注領域の予約量(gap込み、ページ方向)。ページ内で単調非減少——
+	 * 呼び出しが次ページへ移っても返さない「保守的確保」(前ページ下端に
+	 * 空きが残り得る。明示的仕様逸脱)。
+	 */
+	private double footnoteReservation = 0;
+
+	/** 本文と脚注領域の間隙(UA固定。separator罫線は後続増分)。 */
+	private static final double FOOTNOTE_GAP = 6;
+
+	/**
+	 * 完成した脚注本文をこのページの台帳へ加えます
+	 * ({@code DocumentBuilder.endBox}のFLOAT分岐から)。予約量が増えて
+	 * 本文容量({@link #getPageLimit()})が縮み、以後の溢れ検査・改ページが
+	 * 新しい容量で行われる。既に組んだ本文は既存のsplitPageAxisが前方で
+	 * 切る(全ページ再レイアウトはしない)。
+	 */
+	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
+		final double noteExtent = noteBox.getHeight();
+		final double base = super.getPageLimit();
+		if (this.footnoteReservation
+				+ (this.pageFootnotes.isEmpty() ? FOOTNOTE_GAP : 0) + noteExtent > base - MIN_PAGE_LIMIT) {
+			// 空ページの最大脚注領域にも収まらない場合に無限ページ送りへ
+			// 陥らないための型付き失敗(初期サブセットの合意事項)。
+			// F4(次ページ送り)導入後は「そのページに入らない」だけなら
+			// 送りで解決し、ここは「どのページにも入らない」場合に残る
+			throw new FootnoteOverflowException(
+					"footnote too large for the page: " + noteExtent + "pt (page capacity "
+							+ (base - MIN_PAGE_LIMIT) + "pt)");
+		}
+		if (this.pageFootnotes.isEmpty()) {
+			this.footnoteReservation += FOOTNOTE_GAP;
+		}
+		this.pageFootnotes.add(noteBox);
+		this.footnoteReservation += noteExtent;
+	}
+
+	@Override
+	public double getPageLimit() {
+		final double base = super.getPageLimit();
+		if (this.footnoteReservation == 0) {
+			return base;
+		}
+		return Math.max(MIN_PAGE_LIMIT, base - this.footnoteReservation);
+	}
+
+	/**
+	 * ページ確定時に脚注をページ下端(内辺の版面下端から予約量だけ
+	 * 戻った位置)へ配置し、台帳を次ページ用に空にします。floatとして
+	 * ページのコンテナへ入れるため、描画はflowと同じ経路(floatパス)を
+	 * 通り、以後の分割対象にはならない(確定後の追加)。
+	 */
+	private void attachFootnotes() {
+		if (this.pageFootnotes.isEmpty()) {
+			return;
+		}
+		final double base = super.getPageLimit();
+		double pageAxis = base - this.footnoteReservation + FOOTNOTE_GAP;
+		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox : this.pageFootnotes) {
+			this.pageBox.getContainer().addFloating(noteBox, 0, pageAxis);
+			pageAxis += noteBox.getHeight();
+		}
+		this.pageFootnotes.clear();
+		this.footnoteReservation = 0;
 	}
 }
