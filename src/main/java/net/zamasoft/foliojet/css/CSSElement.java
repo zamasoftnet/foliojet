@@ -97,6 +97,19 @@ public class CSSElement implements StructureElement {
 	public static final CSSElement MARKER = new CSSElement("marker");
 
 	/**
+	 * {@code ::footnote-call}擬似要素です(脚注F0、2026-07-31——設計は
+	 * consult-codex-2026-07-31-footnote.txt)。呼び出し位置に残る番号
+	 * マーカー。合成はF1で配線する。
+	 */
+	public static final CSSElement FOOTNOTE_CALL = new CSSElement("footnote-call");
+
+	/**
+	 * {@code ::footnote-marker}擬似要素です(脚注F0)。脚注本文先頭の番号。
+	 * 合成はF1で配線する。
+	 */
+	public static final CSSElement FOOTNOTE_MARKER = new CSSElement("footnote-marker");
+
+	/**
 	 * 匿名要素です。
 	 */
 	public static final CSSElement ANON = new CSSElement((String)null);

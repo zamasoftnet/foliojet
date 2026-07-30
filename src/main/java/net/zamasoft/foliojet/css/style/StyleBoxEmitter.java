@@ -312,7 +312,11 @@ final class StyleBoxEmitter {
 			final InlinePos pos = new InlinePos();
 			this.mapper.setupInlinePos(pos, style);
 			blockBox = new InlineBlockBox(params, pos);
-		} else if (floating != CSSFloatValue.NONE) {
+		} else if (floating != CSSFloatValue.NONE && floating != CSSFloatValue.FOOTNOTE) {
+			// FOOTNOTEは左右floatではない(ページ下端領域へ移す。F3で配線)。
+			// setupFloatPosのFloatSide二択に流さず、配線までは通常フローで
+			// その場に描く——float:footnote未対応時代(解析エラーで無視)と
+			// 同じ見た目
 			final FloatPos pos = new FloatPos();
 			this.mapper.setupFloatPos(pos, style, this.context.isRightSide());
 			blockBox = new FloatBlockBox(params, pos);
@@ -551,7 +555,8 @@ final class StyleBoxEmitter {
 					this.mapper.setupInlinePos(pos, style);
 					inline = true;
 					replacedBox = new InlineReplacedBox(params, pos);
-				} else if (floating != CSSFloatValue.NONE) {
+				} else if (floating != CSSFloatValue.NONE && floating != CSSFloatValue.FOOTNOTE) {
+					// FOOTNOTEはcreateBlockBoxと同じ理由で通常フローへ(F3まで)
 					final FloatPos pos = new FloatPos();
 					params = new ReplacedParams();
 					this.mapper.setupReplacedParams(image, params, style, this.context.isInBody(), this.pageSequence);

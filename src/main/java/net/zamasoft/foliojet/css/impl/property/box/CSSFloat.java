@@ -53,6 +53,9 @@ public class CSSFloat extends AbstractPrimitivePropertyInfo {
 				return CSSFloatValue.START_VALUE;
 			} else if (ident.equals("end")) {
 				return CSSFloatValue.END_VALUE;
+			} else if (ident.equals("footnote")) {
+				// GCPM/Prince系の脚注float(F0、2026-07-31)
+				return CSSFloatValue.FOOTNOTE_VALUE;
 			}
 		}
 		throw new PropertyException();
