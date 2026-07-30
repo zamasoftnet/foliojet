@@ -233,6 +233,40 @@ class CellContent {
 	}
 
 	/**
+	 * 親range化への吸収です(表吸収=codex増分5のコミット相、2026-07-30)。
+	 * seal済み(RangeContent)のセルだけを処理する——DeferredBindのリースを
+	 * 解放し、セル側のSUBSUMED収支を計上した上で、実セル参照だけの保持
+	 * (extended相当。bind経路は{@code isExtended}スキップで到達しない)へ
+	 * 落とす。未seal(records保持)のセルビルダーは検証相
+	 * ({@code TwoPassBlockBuilder.collectAbsorbableNested})が吸収一覧へ
+	 * 直接列挙し、コミット相が{@code subsumeIntoParentRange}するため
+	 * ここではno-op。extendedも実セル側が処理するためno-op。
+	 */
+	void abandonForParentRange() {
+		if (this.cell instanceof RangeContent range) {
+			range.body().abandonForParentRange();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellRangeSealSubsumed();
+			this.cell = range.cellBox();
+		}
+	}
+
+	/**
+	 * 表吸収の検証相(副作用なし)がseal済みセルの範囲包含を検査するための
+	 * 読み取りです(codex増分5)。RangeContentでなければnull。
+	 */
+	TwoPassBlockBuilder.DeferredBind sealedBodyOrNull() {
+		return this.cell instanceof RangeContent range ? range.body() : null;
+	}
+
+	/**
+	 * 未seal(records保持)のセルビルダーを返します(表吸収の検証相用。
+	 * seal済み・extendedはnull)。
+	 */
+	TwoPassBlockBuilder unsealedBuilderOrNull() {
+		return this.cell instanceof TwoPassBlockBuilder builder ? builder : null;
+	}
+
+	/**
 	 * 表Pass B(行計測)がこのセルをscratch計測できるかを返します
 	 * (E-6増分5b-2、2026-07-24——表単位のPass C適格判定の部品。
 	 * fail closed)。適格は次の2態:

@@ -267,6 +267,28 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(this.source, this.fromId, this.toId, builder,
 					this.pageGenerator);
 		}
+
+		/**
+		 * このseal済み本文が{@code log}上の[from, to]に包含されるかを
+		 * 返します(表吸収=codex増分5、2026-07-30。親range化の検証相が使う
+		 * ——副作用なし)。
+		 */
+		boolean within(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long from, final long to) {
+			return this.source == log && this.fromId >= from && this.toId <= to;
+		}
+
+		/**
+		 * 親のrange化への吸収です(表吸収=codex増分5のコミット相)。
+		 * リースを冪等closeし、seal:bind収支のSUBSUMED側(グローバル)を
+		 * 計上する(セル固有のCELL_RANGE_SEALS_SUBSUMEDは呼び出し側の
+		 * {@code CellContent}が計上する——DeferredBindは絶対配置とセルの
+		 * 共用型のため)。呼び出し時点で親のリースは取得済みであること
+		 * (compact可能水位の順序契約)。
+		 */
+		void abandonForParentRange() {
+			this.lease.close();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealSubsumed();
+		}
 	}
 
 	protected final LayoutStack layoutStack;
@@ -663,14 +685,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
 			return;
 		}
-		if (log.containsTable(fromId, toId)) {
-			// 表セット(2026-07-30): recipe記録化以前は表がOpaque記録で上の
-			// OPAQUE_RANGEが捕捉していた分類の分離。TwoPass範囲再生での
-			// 表再構築はRetainedTableのリース/DeferredBind所有の再帰処理
-			// (codex増分5)が揃うまでfail closed
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.TABLE_RANGE);
-			return;
-		}
+		// 表を含む範囲(旧TABLE_RANGE reject)は表吸収(codex増分5、
+		// 2026-07-30)で解禁——範囲内の適格表はrecipe再生で再構築でき、
+		// 記録済みRetained計画のリース(セルのDeferredBind)は下の
+		// collectAbsorbableNested/コミット相が吸収する。非適格表
+		// (float/inline/absolute配置・キャプション付き)はOpaque記録の
+		// ため上のOPAQUE_RANGEが引き続き弾く
 		if (log.containsAbsolute(fromId, toId)) {
 			// E-6増分4e: 絶対配置を「含む」範囲は不適格のまま(増分4e以前は
 			// Opaque記録によりOPAQUE_RANGEが捕捉していた分類の分離)。
@@ -702,7 +722,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// あるためcompact可能水位は後退しない)。吸収不能(表・絶対配置・
 		// 範囲外リース等)は従来どおりNESTED_BUILDERでfail closed。
 		final List<TwoPassBlockBuilder> absorbable = new ArrayList<TwoPassBlockBuilder>();
-		if (!collectAbsorbableNested(legacy.records, log, fromId, toId, absorbable,
+		final List<RetainedTableBuilder> absorbableTables = new ArrayList<RetainedTableBuilder>();
+		if (!collectAbsorbableNested(legacy.records, log, fromId, toId, absorbable, absorbableTables,
 				java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<TwoPassBlockBuilder, Boolean>()))) {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NESTED_BUILDER);
 			return;
@@ -720,6 +741,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassSealEligible();
 		for (final TwoPassBlockBuilder child : absorbable) {
 			child.subsumeIntoParentRange();
+		}
+		for (final RetainedTableBuilder table : absorbableTables) {
+			// 表吸収(codex増分5): seal済みセルのリース解放+計画のabandon。
+			// 親の範囲再生がソースから表全体を再構築する
+			table.abandonForParentRange();
 		}
 	}
 
@@ -745,53 +771,119 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 */
 	private static boolean collectAbsorbableNested(final List<Recorded> records,
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
-			final List<TwoPassBlockBuilder> out, final java.util.Set<TwoPassBlockBuilder> seen) {
+			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final java.util.Set<TwoPassBlockBuilder> seen) {
 		for (final Recorded recorded : records) {
 			final TwoPassBlockBuilder child;
 			if (recorded instanceof Recorded.StfBlock stf) {
 				child = stf.builder();
 			} else if (recorded instanceof Recorded.InlineBlockEvent inlineBlock) {
-				if (!(inlineBlock.measure() instanceof TwoPassBlockBuilder measured)) {
-					// Retained表の実測(インラインテーブル)——吸収不可
+				if (inlineBlock.measure() instanceof TwoPassBlockBuilder measured) {
+					child = measured;
+				} else if (inlineBlock.measure() instanceof RetainedTableBuilder inlineTable) {
+					// インラインテーブル(表吸収=codex増分5)。TableEvent側と
+					// identity重複するためseenではなくabandonedフラグと
+					// outTablesの重複チェックで冪等化する
+					if (!collectAbsorbableTable(inlineTable, log, fromId, toId, out, outTables, seen)) {
+						return false;
+					}
+					continue;
+				} else {
 					return false;
 				}
-				child = measured;
-			} else if (recorded instanceof Recorded.TableEvent || recorded instanceof Recorded.AbsoluteBlock) {
+			} else if (recorded instanceof Recorded.TableEvent tableEvent) {
+				// 表吸収(codex増分5、2026-07-30): 記録済みRetained計画の
+				// セルリースが全て親範囲に包含されるなら吸収可能。
+				// キャプション付き・分割済み等はfail closed
+				if (!(tableEvent.builder() instanceof RetainedTableBuilder retained)
+						|| !collectAbsorbableTable(retained, log, fromId, toId, out, outTables, seen)) {
+					return false;
+				}
+				continue;
+			} else if (recorded instanceof Recorded.AbsoluteBlock) {
 				return false;
 			} else {
 				continue;
 			}
-			if (!seen.add(child)) {
-				continue;
-			}
-			switch (child.body) {
-			case ReplayBody.SourceRangeBody childRange -> {
-				if (childRange.source() != log || childRange.fromId() < fromId || childRange.toId() > toId) {
-					// 別ソース・親範囲外のリース——構造的には起きないが
-					// fail closed(吸収すると孤児リースになる)
-					return false;
-				}
-			}
-			case ReplayBody.LegacyRecords childLegacy -> {
-				if (!collectAbsorbableNested(childLegacy.records, log, fromId, toId, out, seen)) {
-					return false;
-				}
-			}
-			case ReplayBody.Empty empty -> {
-				// リースなし。無条件で可
-			}
-			case ReplayBody.Detached detached -> {
-				// DeferredBindへ持ち出し済み(絶対配置等)——所有が外にある
+			if (!collectAbsorbableChild(child, log, fromId, toId, out, outTables, seen)) {
 				return false;
 			}
-			case ReplayBody.Subsumed subsumed -> {
-				// 二重吸収は契約違反相当——fail closed
-				return false;
-			}
-			}
-			out.add(child);
 		}
 		return true;
+	}
+
+	/**
+	 * 子ビルダー1個の吸収可否検証です(検証相・副作用なし。DP増分3の
+	 * 子検証を表吸収=codex増分5でヘルパへ共通化)。
+	 */
+	private static boolean collectAbsorbableChild(final TwoPassBlockBuilder child,
+			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
+			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final java.util.Set<TwoPassBlockBuilder> seen) {
+		if (!seen.add(child)) {
+			return true;
+		}
+		switch (child.body) {
+		case ReplayBody.SourceRangeBody childRange -> {
+			if (childRange.source() != log || childRange.fromId() < fromId || childRange.toId() > toId) {
+				// 別ソース・親範囲外のリース——構造的には起きないが
+				// fail closed(吸収すると孤児リースになる)
+				return false;
+			}
+		}
+		case ReplayBody.LegacyRecords childLegacy -> {
+			if (!collectAbsorbableNested(childLegacy.records, log, fromId, toId, out, outTables, seen)) {
+				return false;
+			}
+		}
+		case ReplayBody.Empty empty -> {
+			// リースなし。無条件で可
+		}
+		case ReplayBody.Detached detached -> {
+			// DeferredBindへ持ち出し済み(絶対配置等)——所有が外にある
+			return false;
+		}
+		case ReplayBody.Subsumed subsumed -> {
+			// 二重吸収は契約違反相当——fail closed
+			return false;
+		}
+		}
+		out.add(child);
+		return true;
+	}
+
+	/**
+	 * 記録済みRetained表計画1個の吸収可否検証です(表吸収=codex増分5、
+	 * 検証相・副作用なし)。TableEventとInlineBlockEvent(インライン
+	 * テーブル)は同一計画をidentityで共有しうるため、outTablesの重複を
+	 * 冪等スキップする。
+	 */
+	private static boolean collectAbsorbableTable(final RetainedTableBuilder retained,
+			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
+			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final java.util.Set<TwoPassBlockBuilder> seen) {
+		for (int i = 0; i < outTables.size(); ++i) {
+			if (outTables.get(i) == retained) {
+				return true;
+			}
+		}
+		if (!retained.collectAbsorbableInto(log, fromId, toId, out, outTables, seen)) {
+			return false;
+		}
+		outTables.add(retained);
+		return true;
+	}
+
+	/**
+	 * 表の未sealセルビルダー用の自己検証入口です(表吸収=codex増分5。
+	 * {@code RetainedTableBuilder.collectAbsorbableInto}が呼ぶ——
+	 * {@link #collectAbsorbableChild}と同じ検証をこのビルダー自身へ適用。
+	 * セル内の孫表も{@code outTables}へ貫通する)。
+	 */
+	boolean collectAbsorbableSelf(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
+			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final java.util.Set<TwoPassBlockBuilder> seen) {
+		return collectAbsorbableChild(this, log, fromId, toId, out, outTables, seen);
 	}
 
 	/**

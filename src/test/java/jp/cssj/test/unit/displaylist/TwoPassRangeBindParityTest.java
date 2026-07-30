@@ -131,6 +131,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		long sealsSubsumed = 0;
 		long cellSeals = 0;
 		long cellRangeBinds = 0;
+		long cellSealsSubsumed = 0;
 		final Map<ContinuationStats.TwoPassSealReject, Long> rejects = new EnumMap<>(
 				ContinuationStats.TwoPassSealReject.class);
 		for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
@@ -169,6 +170,7 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			sealsSubsumed += ContinuationStats.TWO_PASS_SEALS_SUBSUMED.get();
 			cellSeals += ContinuationStats.CELL_RANGE_SEALS.get();
 			cellRangeBinds += ContinuationStats.CELL_RANGE_BINDS.get();
+			cellSealsSubsumed += ContinuationStats.CELL_RANGE_SEALS_SUBSUMED.get();
 			for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
 				rejects.merge(r, ContinuationStats.twoPassSealRejects(r), Long::sum);
 			}
@@ -203,8 +205,8 @@ public class TwoPassRangeBindParityTest extends TestCase {
 		// E-6増分5a: 表セルのrange化がこのコーパスで実際に発火し、seal数と
 		// bind数が一致する(リース1:1——取り残しはcompactを永久にclampする)
 		assertTrue("表セルのrange seal(E-6増分5a)が一度も発火していません", cellSeals > 0);
-		assertEquals("セルseal数とセルrange bind数が一致しません(セルのリース取り残しの疑い)", cellSeals,
-				cellRangeBinds);
+		assertEquals("セルseal数とセルrange bind+吸収数が一致しません(セルのリース取り残しの疑い)", cellSeals,
+				cellRangeBinds + cellSealsSubsumed);
 		assertEquals("絶対配置のrecipe記録化(4e)後、このコーパスでNO_RANGEは残らないはずです", 0,
 				(long) rejects.get(ContinuationStats.TwoPassSealReject.NO_RANGE));
 		// DP増分3(2026-07-30): 非表のネストビルダーは親range化に吸収される

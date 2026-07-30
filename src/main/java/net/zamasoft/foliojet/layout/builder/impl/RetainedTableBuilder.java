@@ -314,6 +314,82 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
+	 * 親のrange化に吸収済みかです(表吸収=codex増分5、2026-07-30)。
+	 * trueのとき{@link #prepareLayout}/{@link #bind}は契約違反——親の
+	 * 範囲再生がソースから表全体を再構築するため、この計画が使われる
+	 * ことはない。
+	 */
+	private boolean abandoned;
+
+	/**
+	 * 表吸収の検証相です(codex増分5、2026-07-30。<b>副作用なし</b>)。
+	 * この記録済みRetained計画が親のrange化に吸収可能かを判定し、
+	 * 未sealセルビルダー(とその孫)を{@code out}へ列挙します。
+	 * 吸収可能条件(fail closed):
+	 * <ul>
+	 * <li>キャプションなし(キャプション付き表の親範囲はキャプションの
+	 * Opaque記録によりOPAQUE_RANGEで先にrejectされるため構造的に
+	 * 到達しないはずだが、二重防壁)</li>
+	 * <li>seal済みセルのリースが同一LayoutSource上かつ親範囲に包含</li>
+	 * <li>未sealセルの孫records・キャプション等が全て吸収可能</li>
+	 * </ul>
+	 */
+	boolean collectAbsorbableInto(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
+			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final java.util.Set<TwoPassBlockBuilder> seen) {
+		if (this.abandoned) {
+			return false;
+		}
+		if (!this.topCaptions.isEmpty() || !this.bottomCaptions.isEmpty()) {
+			return false;
+		}
+		for (int i = 0; i < this.rowGroups.size(); ++i) {
+			final List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
+			for (int j = 0; j < rows.size(); ++j) {
+				final List<CellContent> cells = this.rowToCells.get(rows.get(j));
+				for (int k = 0; k < cells.size(); ++k) {
+					final CellContent cell = cells.get(k);
+					if (cell.isExtended()) {
+						continue;
+					}
+					final TwoPassBlockBuilder.DeferredBind sealed = cell.sealedBodyOrNull();
+					if (sealed != null) {
+						if (!sealed.within(log, fromId, toId)) {
+							return false;
+						}
+						continue;
+					}
+					final TwoPassBlockBuilder unsealed = cell.unsealedBuilderOrNull();
+					if (unsealed == null
+							|| !unsealed.collectAbsorbableSelf(log, fromId, toId, out, outTables, seen)) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * 親のrange化への吸収です(表吸収=codex増分5のコミット相)。
+	 * seal済みセルのリースを解放し、以後のprepareLayout/bindを契約違反へ。
+	 * 未sealセルビルダーは検証相が親の吸収一覧へ列挙済みで、親側の
+	 * コミットがsubsumeするためここでは触れない。
+	 */
+	void abandonForParentRange() {
+		this.abandoned = true;
+		for (int i = 0; i < this.rowGroups.size(); ++i) {
+			final List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
+			for (int j = 0; j < rows.size(); ++j) {
+				final List<CellContent> cells = this.rowToCells.get(rows.get(j));
+				for (int k = 0; k < cells.size(); ++k) {
+					cells.get(k).abandonForParentRange();
+				}
+			}
+		}
+	}
+
+	/**
 	 * セルclose(録画完了点)時のrange sealです(E-6増分5a、2026-07-24——
 	 * codex設計§4.2/§4.3)。直前にnewContextで開いたセルのCellContentを、
 	 * 適格なら「IntrinsicSizes数値+SourceRange(+lease)」保持へ切り替え、
@@ -414,6 +490,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 * テーブルと各カラムの最大幅、最小幅を確定します。 内側のテーブルから順に実行します。
 	 */
 	public void prepareLayout() {
+		if (this.abandoned) {
+			// 表吸収(codex増分5): 親の範囲再生が表を再構築するため到達しない
+			throw new IllegalStateException("親のrange化に吸収済みの表計画へのprepareLayout");
+		}
 		TableParams tableParams = this.tableBox.getTableParams();
 
 		// 行の順番をならす
@@ -672,6 +752,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	public void bind(final net.zamasoft.foliojet.layout.builder.Builder host) {
+		if (this.abandoned) {
+			// 表吸収(codex増分5): 親の範囲再生が表を再構築するため到達しない
+			throw new IllegalStateException("親のrange化に吸収済みの表計画へのbind");
+		}
 		// bindは実測済み内容を実レイアウトへ再駆動する操作で、hostは常に
 		// BlockBuilder(直接のaddTableでも、TwoPassBlockBuilderのTableEvent
 		// 再生でも、渡ってくるのは実ビルダー)。ここで一度だけ絞り込む。

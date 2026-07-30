@@ -294,14 +294,6 @@ public final class ContinuationStats {
 		 */
 		OPAQUE_RANGE,
 		/**
-		 * 範囲に表(recipe記録)を含む(表セット、2026-07-30)。表の
-		 * recipe記録化以前はOpaque記録のためOPAQUE_RANGEが捕捉していた
-		 * 分類の分離——TwoPass範囲再生での表再構築(表bind順序・
-		 * RetainedTableのリース/DeferredBind所有)はcodex増分5
-		 * (RetainedTable再帰abandon)で扱うまでfail closed。
-		 */
-		TABLE_RANGE,
-		/**
 		 * 範囲に絶対配置ブロックのStartを含む(E-6増分4e)。増分4e以前は
 		 * 絶対配置がOpaque記録だったためOPAQUE_RANGEに含まれていた分類の
 		 * 分離——絶対配置はcontext builderへ係留済み+deferred bindを持つ
@@ -395,6 +387,21 @@ public final class ContinuationStats {
 	/** 親range化への吸収の集計です(DP増分3)。 */
 	public static void recordTwoPassSealSubsumed() {
 		TWO_PASS_SEALS_SUBSUMED.incrementAndGet();
+	}
+
+	/**
+	 * seal済み表セル(CELL_RANGE_SEALS計上済み)が親のrange化に吸収され、
+	 * bindされずにリースを手放した回数です(表吸収=codex増分5、
+	 * 2026-07-30)。セル側のリース収支の完了条件は
+	 * {@code CELL_RANGE_SEALS == CELL_RANGE_BINDS +
+	 * CELL_RANGE_SEALS_SUBSUMED}——DisplayListGoldenTest/
+	 * TwoPassRangeBindParityTestが固定する。
+	 */
+	public static final AtomicLong CELL_RANGE_SEALS_SUBSUMED = new AtomicLong();
+
+	/** 表セルseal吸収の集計です(表吸収=codex増分5)。 */
+	public static void recordCellRangeSealSubsumed() {
+		CELL_RANGE_SEALS_SUBSUMED.incrementAndGet();
 	}
 
 	/** 空本文sealの集計です(DP増分2)。 */
@@ -708,6 +715,7 @@ public final class ContinuationStats {
 		TWO_PASS_EMPTY_SEALS.set(0);
 		TWO_PASS_EMPTY_BINDS.set(0);
 		TWO_PASS_SEALS_SUBSUMED.set(0);
+		CELL_RANGE_SEALS_SUBSUMED.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);

@@ -226,9 +226,14 @@ public class DisplayListGoldenTest extends TestCase {
 		if (cellSeals == 0) {
 			failures.add("表セルのrange seal(E-6増分5a)がgoldenコーパスで一度も発火していません(空虚な緑)");
 		}
-		if (cellSeals != cellRangeBinds) {
-			failures.add("セルseal数とセルrange bind数が一致しません(セルのリース取り残しの疑い): cellSeals="
-					+ cellSeals + ", cellRangeBinds=" + cellRangeBinds);
+		// 表吸収(codex増分5): 親range化に吸収されたセルseal(SUBSUMED)は
+		// bindされずにリースを手放すため、完了条件はseals == binds + subsumed
+		final long cellSubsumed = net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_RANGE_SEALS_SUBSUMED
+				.get();
+		System.err.println("  CELL_RANGE_SEALS_SUBSUMED=" + cellSubsumed);
+		if (cellSeals != cellRangeBinds + cellSubsumed) {
+			failures.add("セルseal数とセルrange bind+吸収数が一致しません(セルのリース取り残しの疑い): cellSeals="
+					+ cellSeals + ", cellRangeBinds=" + cellRangeBinds + ", cellSubsumed=" + cellSubsumed);
 		}
 		// E-6増分5b-2: 表Pass C(行単位逐次bind)の配線検証。コーパスは全実セル
 		// 適格のRetained表を含むため、Pass Cが一度も発火しないのは空虚な緑
