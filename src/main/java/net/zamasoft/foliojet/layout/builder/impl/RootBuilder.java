@@ -1261,6 +1261,13 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox;
 		boolean committed = false;
 
+		/**
+		 * ページローカルの脚注番号です(F5、1始まり。未採番は-1)。番号の
+		 * スコープはnote配置ページではなく<b>callが残ったページ</b>——
+		 * carry-inされたnoteは後続ページでもcallページの番号を保つ。
+		 */
+		int assignedNumber = -1;
+
 		FootnoteEntry(final long id, final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
 			this.id = id;
 			this.noteBox = noteBox;
@@ -1350,7 +1357,19 @@ public class RootBuilder extends BreakableBuilder {
 			this.footnoteReservation = 0;
 			return;
 		}
-		final java.util.Set<Long> retained = this.collectFootnoteCallIds(this.pageBox);
+		final FootnoteCallScan scan = this.scanFootnoteCalls(this.pageBox);
+		final java.util.Set<Long> retained = scan.ids();
+		// F5: 採番——このページにcallが残った未採番entryへ、FIFO(文書順)で
+		// 1から割り当てる。committed(過去ページで採番済みのcarry-in)は
+		// 再採番しない
+		{
+			int nextNumber = 1;
+			for (final FootnoteEntry entry : this.pendingFootnotes) {
+				if (!entry.committed && retained.contains(entry.id)) {
+					entry.assignedNumber = nextNumber++;
+				}
+			}
+		}
 		// 配置計画(変異なしで全件の行き先を確定してから一度だけcommit)
 		int attachCount = 0;
 		double attachedExtent = 0;
@@ -1376,10 +1395,40 @@ public class RootBuilder extends BreakableBuilder {
 				++i;
 			}
 		}
+		// F5: このページの確定木に残ったcallラベルを解決する(markerは
+		// note側なのでattach時)。pendingに居ないIDのラベル(過去に配置済み
+		// のnote内marker等)はスキップ
+		{
+			final java.util.Map<Long, Integer> numbers = new java.util.HashMap<>();
+			for (final FootnoteEntry entry : this.pendingFootnotes) {
+				if (entry.assignedNumber > 0) {
+					numbers.put(entry.id, entry.assignedNumber);
+				}
+			}
+			for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : scan.labels()) {
+				if (!label.isMarker()) {
+					final Integer number = numbers.get(label.getFootnoteId());
+					if (number != null) {
+						label.resolve(number);
+					}
+				}
+			}
+		}
 		final double base = super.getPageLimit();
 		double pageAxis = base - attachedExtent;
 		for (int i = 0; i < attachCount; ++i) {
 			final FootnoteEntry entry = this.pendingFootnotes.removeFirst();
+			if (entry.assignedNumber < 0) {
+				throw new FootnoteOverflowException(
+						"footnote attached without an assigned number: id=" + entry.id);
+			}
+			// note本文先頭の::footnote-markerラベルをcallページの番号で解決
+			for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
+					.scanFootnoteCalls(entry.noteBox).labels()) {
+				if (label.isMarker()) {
+					label.resolve(entry.assignedNumber);
+				}
+			}
 			this.pageBox.getContainer().addFloating(entry.noteBox, 0, pageAxis);
 			pageAxis += entry.noteBox.getHeight();
 		}
@@ -1387,15 +1436,20 @@ public class RootBuilder extends BreakableBuilder {
 		this.footnoteReservation = 0;
 	}
 
+	/** 走査結果: callのID集合と、見つかった脚注ラベル(call/marker両方)。 */
+	private record FootnoteCallScan(java.util.Set<Long> ids,
+			java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels) {
+	}
+
 	/**
-	 * 確定したページの箱木から::footnote-callの論理ID集合を採取します
-	 * (F4答申の候補A改)。行跨ぎで同一callのインライン断片が複製されても
+	 * 箱木から脚注のcall ID集合とラベル原子を採取します(F4答申の候補A改+
+	 * F5のラベル解決)。行跨ぎで同一callのインライン断片が複製されても
 	 * 集合なので1件に畳まれる。走査は明示worklistの反復DFS(flow・float・
 	 * 行・インラインのみ。表・絶対配置内のcallは初期サブセット外)。
 	 */
-	private java.util.Set<Long> collectFootnoteCallIds(
-			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
+	private FootnoteCallScan scanFootnoteCalls(final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
 		final java.util.Set<Long> ids = new java.util.HashSet<>();
+		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels = new java.util.ArrayList<>();
 		final java.util.ArrayDeque<Object> work = new java.util.ArrayDeque<>();
 		work.push(root);
 		while (!work.isEmpty()) {
@@ -1407,6 +1461,10 @@ public class RootBuilder extends BreakableBuilder {
 					ids.add(params.footnoteId);
 				}
 			}
+			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractReplacedBox replaced
+					&& replaced.getReplacedParams().image instanceof net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label) {
+				labels.add(label);
+			}
 			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox container) {
 				container.getContainer().eachFlowBox(work::push);
 				container.getContainer().eachFloatingBox(work::push);
@@ -1416,6 +1474,6 @@ public class RootBuilder extends BreakableBuilder {
 				textBox.forEachInlineBox(work::push);
 			}
 		}
-		return ids;
+		return new FootnoteCallScan(ids, labels);
 	}
 }

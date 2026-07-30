@@ -28,6 +28,9 @@ public class FootnoteCarryInTest extends AbstractTestCase {
 	public boolean check_n1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals("note 1 must stay on the calling page", 1, pageNumber);
+			final StringBuilder buff = new StringBuilder();
+			box.getText(buff);
+			assertTrue("marker must carry number 1: " + buff, buff.toString().startsWith("1. "));
 			return true;
 		}
 		return false;
@@ -37,6 +40,12 @@ public class FootnoteCarryInTest extends AbstractTestCase {
 	public boolean check_n2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals("note 2 must be carried to the next page", 2, pageNumber);
+			// F5: carry-inの番号はnote配置ページで再採番されず、callページ
+			// (page 1)の番号2を保つ(最重要fixture——F5答申F5-e)
+			final StringBuilder buff = new StringBuilder();
+			box.getText(buff);
+			assertTrue("carried marker must keep the call-page number 2: " + buff,
+					buff.toString().startsWith("2. "));
 			return true;
 		}
 		return false;

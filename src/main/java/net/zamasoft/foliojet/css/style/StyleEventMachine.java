@@ -621,10 +621,9 @@ final class StyleEventMachine {
 			}
 		}
 
-		// コンテンツ生成(脚注F1: ::footnote-call/::footnote-markerも
-		// 利用者のcontent指定を同じ機構で解釈する)
-		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE || ce == CSSElement.FOOTNOTE_CALL
-				|| ce == CSSElement.FOOTNOTE_MARKER) {
+		// コンテンツ生成(脚注のcall/markerはF5でfootnotePseudo側の
+		// ラベルコンパイルへ移った——番号を文字として焼き込まないため)
+		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
 			final Value[] contents = Content.get(style);
 			if (contents != null) {
 				for (int i = 0; i < contents.length; ++i) {
@@ -1257,18 +1256,58 @@ final class StyleEventMachine {
 			}
 		}
 		this.startStyle(pseudoStyle);
-		if (Content.get(pseudoStyle) == null) {
-			// UA既定内容: 脚注番号
-			int number = 0;
-			final CounterScope scope = this.ua.getPassContext().getCounterScope(0, false);
-			if (scope != null && scope.defined("footnote")) {
-				number = scope.get("footnote");
+		// F5(2026-07-31、consult-codex-2026-07-31-footnote-f5.txt): 番号を
+		// 文字として焼き込まず、footnoteId付きの未解決ラベル原子
+		// (FootnoteLabelImageを持つInlineReplacedBox)として発行する。
+		// ページ確定時にRootBuilderが「callが残ったページ」ごとに1から
+		// 採番して解決する。欄幅は桁数に依存しない固定欄(意図的仕様逸脱)
+		final boolean isMarker = pseudoCe == CSSElement.FOOTNOTE_MARKER;
+		String prefix = "";
+		String suffix = isMarker ? ". " : "";
+		final Value[] labelContents = Content.get(pseudoStyle);
+		if (labelContents != null) {
+			// 受け付けるのは literal* counter(footnote,decimal) literal* のみ。
+			// それ以外は型付きunsupported——黙って文書通番を焼き込まない
+			final StringBuilder pre = new StringBuilder();
+			final StringBuilder post = new StringBuilder();
+			boolean seenCounter = false;
+			for (final Value v : labelContents) {
+				if (v instanceof StringValue sv) {
+					(seenCounter ? post : pre).append(sv.getString());
+				} else if (v instanceof CounterValue cv && !seenCounter && cv.getName().equals("footnote")
+						&& cv.getStyle() == net.zamasoft.foliojet.css.value.ListStyleTypeValue.DECIMAL) {
+					seenCounter = true;
+				} else {
+					throw new net.zamasoft.foliojet.layout.builder.impl.FootnoteOverflowException(
+							"unsupported footnote label content (only literals and counter(footnote) are supported): "
+									+ v);
+				}
 			}
-			final String text = pseudoCe == CSSElement.FOOTNOTE_MARKER ? number + ". " : String.valueOf(number);
-			final char[] chars = text.toCharArray();
-			this.checkMarker();
-			this.sink.characters(-1, chars, 0, chars.length, true);
+			if (!seenCounter) {
+				// 番号を含まないliteralのみのラベルは通常の生成内容として発行
+				// (ページ採番の対象にしない——記号脚注等)
+				final String text = pre.toString();
+				if (!text.isEmpty()) {
+					final char[] chars = text.toCharArray();
+					this.checkMarker();
+					this.sink.characters(-1, chars, 0, chars.length, true);
+				}
+				this.endStyle();
+				this.styleContext.endElement();
+				return;
+			}
+			prefix = pre.toString();
+			suffix = post.toString();
 		}
+		final ReplacedParams rparams = new ReplacedParams();
+		this.mapper.setupParams(rparams, pseudoStyle);
+		rparams.image = new net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage(pseudoStyle.footnoteId,
+				isMarker, prefix, suffix, pseudoStyle.getFontStyle(), this.ua.getFontManager());
+		final InlinePos labelPos = new InlinePos();
+		this.mapper.setupInlinePos(labelPos, pseudoStyle);
+		final AbstractReplacedBox labelBox = new InlineReplacedBox(rparams, labelPos);
+		this.checkMarker();
+		this.sink.replaced(labelBox);
 		this.endStyle();
 		this.styleContext.endElement();
 	}
