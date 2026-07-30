@@ -79,12 +79,22 @@ final class RecordingLayoutSink {
 	 */
 	void start(final INonReplacedBox box) {
 		// recipe化できる種別は Start(recipe) として記録し、未対応の種別
-		// (F-4実測では表本体とその内側の表キャプションのみ)は Opaque として
-		// 位置だけ占有する(範囲に Opaque を含む再生はフォールバック)
+		// (表キャプション・非適格な表等)は Opaque として位置だけ占有する
+		// (範囲に Opaque を含む再生はフォールバック)
 		final LayoutSource.BoxKind kind = boxKind(box);
 		if (kind != null) {
+			// TABLEだけは「外側TableBoxのTablePos」ではなく「内側blockBoxの
+			// FlowPos」を凍結する(G-1の記録契約の是正、2026-07-30復活)。
+			// TableBox.getPos()はfinalで常にTablePos.POSを返し配置種別を
+			// 持たない——配置(FLOW/FLOAT/INLINE/ABSOLUTE)は内側blockBox側に
+			// ある。再生側(BoxRecipeBoxFactoryのTABLE分岐)がparamsを共有して
+			// new TableBox(params, new FlowBlockBox(params, pos))を作る構造と
+			// 対になる。外側posのままだと(FlowPos)キャストでCCEになる
+			final net.zamasoft.foliojet.layout.box.params.Pos pos = kind == LayoutSource.BoxKind.TABLE
+					? ((net.zamasoft.foliojet.layout.box.impl.TableBox) box).getBlockBox().getPos()
+					: box.getPos();
 			box.setSourceAnchor(this.layoutSource
-					.append(new LayoutSource.Start(BoxRecipe.freeze(kind, box.getParams(), box.getPos()))));
+					.append(new LayoutSource.Start(BoxRecipe.freeze(kind, box.getParams(), pos))));
 		} else {
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Opaque()));
 		}
@@ -196,19 +206,20 @@ final class RecordingLayoutSink {
 			return LayoutSource.BoxKind.INSIDE_MARKER;
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableBox.class) {
-			// 表本体は Opaque として記録し、単独再生の対象から外す。
-			//
-			// G-1実験(2026-07-25、撤去済み): 表を recipe 記録化する実験を
-			// 実装して全436文書で実測したが、表の recipe を消費する経路が
-			// 存在しない(FlowContainer.restyleItem の case TABLE は
-			// replayFromSource を試さず builder.addBound へ直行する)ため
-			// 得るものがなく、消費者を作らない結論で一式撤去した。
-			// 再挑戦する場合の注意: TableBox.getPos() は final で常に
-			// TablePos.POS を返し配置種別を持たない——配置
-			// (FLOW/FLOAT/INLINE/ABSOLUTE)を持つのは内側の blockBox
-			// (TableBox.getBlockBox().getPos())側なので、記録側は内側 pos を
-			// 渡す契約にする必要がある(外側 pos のままだと FlowPos への
-			// キャストで ClassCastException)。
+			// 表セット(2026-07-30、G-1裁定のユーザー承認による更新):
+			// 内側blockBoxが素のFlowBlockBox+素のFlowPos(通常フロー配置)
+			// かつparams alias成立の表だけをrecipe記録する。再生側
+			// (BoxRecipeBoxFactoryのTABLE分岐)が作れるのは
+			// new TableBox(params, new FlowBlockBox(params, FlowPos))だけの
+			// ため、float/inline-table/absolute配置の表・非aliasはfail
+			// closedでOpaqueのまま。記録側は内側posを渡す契約(start参照)。
+			final net.zamasoft.foliojet.layout.box.impl.TableBox tableBox = (net.zamasoft.foliojet.layout.box.impl.TableBox) box;
+			final net.zamasoft.foliojet.layout.box.AbstractBlockBox blockBox = tableBox.getBlockBox();
+			if (blockBox.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
+					&& blockBox.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class
+					&& blockBox.getParams() == tableBox.getTableParams()) {
+				return LayoutSource.BoxKind.TABLE;
+			}
 			return null;
 		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox.class) {

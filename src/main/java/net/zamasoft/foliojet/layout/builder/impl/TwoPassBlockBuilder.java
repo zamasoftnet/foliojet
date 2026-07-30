@@ -663,6 +663,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
 			return;
 		}
+		if (log.containsTable(fromId, toId)) {
+			// 表セット(2026-07-30): recipe記録化以前は表がOpaque記録で上の
+			// OPAQUE_RANGEが捕捉していた分類の分離。TwoPass範囲再生での
+			// 表再構築はRetainedTableのリース/DeferredBind所有の再帰処理
+			// (codex増分5)が揃うまでfail closed
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.TABLE_RANGE);
+			return;
+		}
 		if (log.containsAbsolute(fromId, toId)) {
 			// E-6増分4e: 絶対配置を「含む」範囲は不適格のまま(増分4e以前は
 			// Opaque記録によりOPAQUE_RANGEが捕捉していた分類の分離)。

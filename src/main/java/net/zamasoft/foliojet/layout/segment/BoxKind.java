@@ -16,8 +16,13 @@ package net.zamasoft.foliojet.layout.segment;
  * </p>
  */
 public enum BoxKind {
-	FLOW, MULTICOL, INLINE, MARKER, FLOAT_BLOCK, INLINE_BLOCK, INSIDE_MARKER, TABLE_ROW_GROUP, TABLE_ROW, TABLE_CELL,
-	TABLE_COLUMN_GROUP, TABLE_COLUMN,
+	FLOW, MULTICOL, INLINE, MARKER, FLOAT_BLOCK, INLINE_BLOCK, INSIDE_MARKER,
+	/**
+	 * テーブル(TableBox。blockBoxはparams共有+内側posで再構成)。
+	 * G-1調査後に一旦撤去、表セット実装のユーザー承認(2026-07-30、
+	 * G-1裁定の更新)で復活。
+	 */
+	TABLE, TABLE_ROW_GROUP, TABLE_ROW, TABLE_CELL, TABLE_COLUMN_GROUP, TABLE_COLUMN,
 	/** 絶対配置ブロック(AbsoluteBlockBox)。E-6増分4e(2026-07-24)で追加。 */
 	ABSOLUTE;
 }

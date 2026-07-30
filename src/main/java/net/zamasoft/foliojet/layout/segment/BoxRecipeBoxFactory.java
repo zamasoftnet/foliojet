@@ -56,6 +56,16 @@ public final class BoxRecipeBoxFactory {
 	private BoxRecipeBoxFactory() {
 	}
 
+	/**
+	 * 再生で{@code TableBox}を再構築した回数です(G-1調査、2026-07-25。
+	 * 表セット実装のユーザー承認——2026-07-30——で復活)。このファクトリの
+	 * 呼び出し元は全てreplay駆動({@code SegmentExecutor})なので、この値が
+	 * そのまま「表がソース再生で作り直された回数」になる。表replay消費者
+	 * (T-c)の非空振り証明に使う——G-1時点ではこの値が常に0
+	 * (消費者不在)だったことが「recipe記録化単体は無意味」の根拠だった。
+	 */
+	public static final java.util.concurrent.atomic.AtomicLong TABLE_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
+
 	/** {@code recipe}のテンプレートをmaterializeし、対応する新品の{@code IBox}を返す。 */
 	public static INonReplacedBox create(final BoxRecipe recipe) {
 		return switch (recipe) {
@@ -70,6 +80,9 @@ public final class BoxRecipeBoxFactory {
 			create(LayoutSource.BoxKind.INLINE_BLOCK, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.InsideMarker r ->
 			create(LayoutSource.BoxKind.INSIDE_MARKER, r.params().materialize(), r.pos().materialize());
+		// Tableのparams共有(alias)はカーネル側で行うため、ここは
+		// materializeを1回ずつ呼ぶだけでよい
+		case BoxRecipe.Table r -> create(LayoutSource.BoxKind.TABLE, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableRowGroup r ->
 			create(LayoutSource.BoxKind.TABLE_ROW_GROUP, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableRow r ->
@@ -103,6 +116,14 @@ public final class BoxRecipeBoxFactory {
 		case FLOAT_BLOCK -> new FloatBlockBox((BlockParams) params, (FloatPos) pos);
 		case INLINE_BLOCK -> new InlineBlockBox((BlockParams) params, (InlinePos) pos);
 		case INSIDE_MARKER -> new InsideMarkerBox((BlockParams) params, (InlinePos) pos);
+		case TABLE -> {
+			// 外側のTableBoxと内側のFlowBlockBoxはTableParamsを共有する
+			// (alias構造の一元点——live/recipeの両駆動で同じ。記録適格が
+			// params aliasを要求するのはこの再構成と対のため)
+			final TableParams tableParams = (TableParams) params;
+			TABLE_REPLAYS.incrementAndGet();
+			yield new TableBox(tableParams, new FlowBlockBox(tableParams, (FlowPos) pos));
+		}
 		case TABLE_ROW_GROUP -> new TableRowGroupBox((InnerTableParams) params, (TableRowGroupPos) pos);
 		case TABLE_ROW -> new TableRowBox((InnerTableParams) params, (TableRowPos) pos);
 		case TABLE_CELL -> new TableCellBox((BlockParams) params, (TableCellPos) pos, new FlowContainer());

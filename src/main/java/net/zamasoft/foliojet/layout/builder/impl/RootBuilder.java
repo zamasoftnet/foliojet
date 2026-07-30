@@ -588,7 +588,13 @@ public class RootBuilder extends BreakableBuilder {
 				// {@code replayTextTail}は最初からこのゲートを持っており、
 				// 「係留の再実行(二重化)の危険」を同じ理由で避けている——
 				// ここだけ抜けていた。ボックス再生へ落とす
+				// containsTable(表セット、2026-07-30): 表のrecipe記録化により
+				// 表はOpaqueでなくなった。BLOCK内replaySubtreeでの表再構築
+				// (auto列幅の再確定含む)は未検証のため、表を含む部分木は
+				// 従来どおりbox-restyleへ(T-c=restyleItem case TABLEの直接
+				// replayとは別段階。codex増分11で解禁を検討)
 				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
+						&& !log.containsTable(startId, endId)
 						&& !log.containsAbsolute(startId, endId)
 						&& !log.containsFloat(startId, endId)
 						&& !log.containsMulticol(startId, endId)

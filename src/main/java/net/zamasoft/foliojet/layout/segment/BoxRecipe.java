@@ -85,6 +85,13 @@ public sealed interface BoxRecipe {
 		// InsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
 		case INSIDE_MARKER -> new InsideMarker(BlockParamsTemplate.freeze((BlockParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
+		// TableBoxはTableParams+「内側blockBoxのFlowPos」を使う。
+		// 外側TableBox.getPos()は常にTablePos(FlowPosではない)なので、
+		// 記録側(RecordingLayoutSink.start)はTableBox.getBlockBox().getPos()を
+		// 渡す契約。BoxKind.TABLEは内側blockBoxが素のFlowPosのときだけ
+		// 記録されるためcastは成立する(G-1の記録契約の是正、2026-07-30復活)
+		case TABLE -> new Table(TableParamsTemplate.freeze((TableParams) params),
+				FlowPosTemplate.freeze((FlowPos) pos));
 		// TableRowGroupBoxはInnerTableParams/TableRowGroupPosを使う(既存コード確認済み)
 		case TABLE_ROW_GROUP -> new TableRowGroup(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableRowGroupPosTemplate.freeze((TableRowGroupPos) pos));
@@ -192,6 +199,23 @@ public sealed interface BoxRecipe {
 	record InsideMarker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.INSIDE_MARKER;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
+	}
+
+	/**
+	 * 表({@code TableBox})——{@code TableParams}と<b>内側blockBoxの</b>
+	 * {@code FlowPos}を使う(外側{@code TableBox.getPos()}は常に
+	 * {@code TablePos}で配置種別を持たない。{@code RecordingLayoutSink}が
+	 * 内側posを渡す契約)。G-1調査後に一旦撤去、表セット実装のユーザー
+	 * 承認(2026-07-30、G-1裁定の更新)で復活。
+	 */
+	record Table(TableParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.TABLE;
 		}
 
 		public WritingMode flowOrNull() {

@@ -287,12 +287,20 @@ public final class ContinuationStats {
 		/** 子イベント範囲が空(空のfloat等。records解放の益がない)。 */
 		EMPTY_RANGE,
 		/**
-		 * 範囲にOpaqueを含む。F-4実測(2026-07-25)ではOpaqueの発生源は
-		 * <b>表(全ての表)とその内側の表キャプションのみ</b>
-		 * ({@code LayoutSource.BoxKind#TABLE}のjavadoc参照。ルビ由来の
-		 * Opaqueは注釈付きテキスト化で160→0)。
+		 * 範囲にOpaqueを含む。表セット(2026-07-30)以降のOpaque発生源は
+		 * <b>非適格な表(float/inline-table/absolute配置等)と表キャプション
+		 * のみ</b>(通常フロー配置の適格な表はTABLE_RANGEへ分類が移った。
+		 * ルビ由来のOpaqueは注釈付きテキスト化で160→0)。
 		 */
 		OPAQUE_RANGE,
+		/**
+		 * 範囲に表(recipe記録)を含む(表セット、2026-07-30)。表の
+		 * recipe記録化以前はOpaque記録のためOPAQUE_RANGEが捕捉していた
+		 * 分類の分離——TwoPass範囲再生での表再構築(表bind順序・
+		 * RetainedTableのリース/DeferredBind所有)はcodex増分5
+		 * (RetainedTable再帰abandon)で扱うまでfail closed。
+		 */
+		TABLE_RANGE,
 		/**
 		 * 範囲に絶対配置ブロックのStartを含む(E-6増分4e)。増分4e以前は
 		 * 絶対配置がOpaque記録だったためOPAQUE_RANGEに含まれていた分類の

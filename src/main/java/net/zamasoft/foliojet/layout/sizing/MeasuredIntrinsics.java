@@ -78,14 +78,17 @@ public final class MeasuredIntrinsics {
 		if (endId < 0 || endId <= selfId + 1) {
 			return null;
 		}
-		// 表を含む範囲は下のcontainsOpaqueが捕捉して模倣計測へ落ちる
-		// (表は常にOpaque記録——StyleBuilder.boxKindのTableBox分岐)。
-		// 表をrecipe記録化するとこの実測(∞幅/0幅のscratchページへの再生)が
-		// 表へも適用されてしまい、%指定セル・auto列幅がscratch幅基準で
-		// 解決されてmax-contentが発散し、shrink-to-fitの幅が壊れる(G-1実測:
-		// 0070-table-layout/float-in-auto-4.html の4フロートが
-		// 376/414.5/276/216 → 全て500pt=ページ幅)。表をrecipe化する将来の
-		// 増分は、ここに表専用のゲートを足すこと。
+		if (log.containsTable(selfId + 1, endId - 1)) {
+			// 表を含む範囲は模倣計測へフォールバック(表セット、2026-07-30:
+			// recipe記録化以前は表がOpaque記録で下のcontainsOpaqueが捕捉
+			// していた)。この実測(∞幅/0幅のscratchページへの再生)を表へ
+			// 適用すると、%指定セル・auto列幅がscratch幅基準で解決されて
+			// max-contentが発散し、shrink-to-fitの幅が壊れる(G-1実測:
+			// 0070-table-layout/float-in-auto-4.html の4フロートが
+			// 376/414.5/276/216 → 全て500pt=ページ幅)。実測の適用拡大は
+			// 出力を変えるため、E-6増分4eの絶対配置と同じく恒久ゲート。
+			return null;
+		}
 		if (!log.isIntact(selfId + 1, endId - 1)) {
 			// **範囲が疎になっていたら模倣計測へ**(2026-07-27新設)。
 			//

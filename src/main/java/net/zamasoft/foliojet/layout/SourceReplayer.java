@@ -152,11 +152,13 @@ public final class SourceReplayer {
 		// 次の兄弟アイテムの手前まで
 		final long cap = endIdExclusive < 0 ? log.nextId() : endIdExclusive;
 		final long toId = log.tailBound(fromId, cap) - 1;
-		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsFloat(fromId, toId)
-				|| log.containsAbsolute(fromId, toId)) {
+		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsTable(fromId, toId)
+				|| log.containsFloat(fromId, toId) || log.containsAbsolute(fromId, toId)) {
 			// フロート・絶対配置を含む尾部の再生は係留の再実行(二重化)の
 			// 危険があるためフォールバック(replayChildren と同じゲート。
-			// 絶対配置は増分4e以前はOpaque記録でcontainsOpaqueが捕捉していた)
+			// 絶対配置は増分4e以前はOpaque記録でcontainsOpaqueが捕捉していた。
+			// 表は表セット——2026-07-30——のrecipe記録化以前はOpaque記録で
+			// 同様に捕捉されていた——尾部内での表再構築は未検証のため維持)
 			return false;
 		}
 		// live パイプライン(shaper)が未配達のまま保留している文字は
@@ -231,10 +233,11 @@ public final class SourceReplayer {
 		// フロート・絶対配置の係留、入れ子段組・縦横混在の再現は未検証の
 		// ためフォールバック(絶対配置は増分4e以前はOpaque記録で
 		// containsOpaqueが捕捉していた——挙動維持のゲート分離)。
-		// 表もOpaque記録なのでcontainsOpaqueが捕捉する(表全体の再構築=
-		// auto列幅の再確定を含むため未検証。表をrecipe化する将来の増分は
-		// MeasuredIntrinsicsと揃えて表専用のゲートを足すこと)。
-		return !(log.containsOpaque(selfId + 1, endId - 1)
+		// 表(表セット、2026-07-30): recipe記録化以前はOpaque記録で
+		// containsOpaqueが捕捉していた。バランス再駆動での表全体再構築
+		// (auto列幅の再確定を含む)は未検証のため、表専用のゲートで
+		// 従来挙動を維持する(MeasuredIntrinsicsと同型)。
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsTable(selfId + 1, endId - 1)
 				|| log.containsFloat(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
 				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));
 	}

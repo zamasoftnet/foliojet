@@ -76,6 +76,15 @@ public final class LayoutSource implements AutoCloseable {
 		INLINE_BLOCK,
 		/** 内部マーカー(InsideMarkerBox)。 */
 		INSIDE_MARKER,
+		/**
+		 * テーブル(TableBox。blockBoxはparams共有+<b>内側blockBoxのpos</b>で
+		 * 再構成——外側{@code TableBox.getPos()}は常に{@code TablePos}で
+		 * 配置種別を持たない)。G-1調査(2026-07-25)後に一旦撤去、表セット
+		 * 実装のユーザー承認(2026-07-30、G-1裁定の更新)で復活。記録適格は
+		 * {@code RecordingLayoutSink.boxKind}のTableBox分岐(exact class+
+		 * params alias、fail closed)。
+		 */
+		TABLE,
 		/** テーブル行グループ(TableRowGroupBox)。 */
 		TABLE_ROW_GROUP,
 		/** テーブル行(TableRowBox)。 */
@@ -101,7 +110,7 @@ public final class LayoutSource implements AutoCloseable {
 	 * 再生は{@code BoxRecipeBoxFactory.create(BoxRecipe)}のmaterializeで
 	 * 新品のボックスを作る——liveのparams/pos({@code CSSElement}グラフ
 	 * 含む)はログに残らない。freezeは{@code StyleBuilder.boxKind}が
-	 * 非nullを返す全13 kind(E-6増分4eでABSOLUTE追加)をカバーする総関数
+	 * 非nullを返す全14 kind(E-6増分4eでABSOLUTE、表セットでTABLE追加)をカバーする総関数
 	 * ({@code ReplacedRecipe.freeze}と違い失敗変種はない)。生成内容・マーカー番号等は解決済みの
 	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません。
 	 */
@@ -623,7 +632,12 @@ public final class LayoutSource implements AutoCloseable {
 		// フロートが入る場合の再生可否は呼び出し側の containsFloat ゲートが
 		// 判定する(再生は係留を再実行するため二重化の危険がある)
 		return switch (kind) {
-		case FLOW, MULTICOL -> true;
+		// TABLE: 表は段落を終わらせるブロック級(G-1実装と同一。旧Opaque
+		// 記録時代は++depth貫通だったが、尾部が表を含めばcontainsTable/
+		// containsOpaqueゲートが再生を拒否していたため、早期停止で尾部を
+		// 表の手前で切る方が適格範囲が広がるだけで出力は不変——G-1が
+		// 436文書byte-parityで実証済み)
+		case FLOW, MULTICOL, TABLE -> true;
 		default -> false;
 		};
 	}
@@ -725,6 +739,43 @@ public final class LayoutSource implements AutoCloseable {
 			// ReplacedRecipe.freezeの分類とBoxRecipeBoxFactory.createReplacedが対)
 			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe)
 					&& recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * [fromId, toId] の範囲に表({@link BoxKind#TABLE})の Start が
+	 * 含まれていれば true を返します(G-1、2026-07-25。表セット実装の
+	 * ユーザー承認——2026-07-30——で復活)。
+	 *
+	 * <p>
+	 * <b>なぜ必要か(G-1実測)</b>: 表のrecipe記録化で「範囲を再生できる」
+	 * ようになっても、<b>再生してよいか</b>は消費側ごとに別問題である。
+	 * {@code MeasuredIntrinsics}(実レイアウト実測)は、表を含む範囲を
+	 * 通し始めると固有寸法が「模倣計測」から「∞幅scratchページへの実
+	 * source replay計測」へ<b>アルゴリズムごと切り替わり</b>、出力が壊れる
+	 * ——実測では{@code 0070-table-layout/float-in-auto-4.html}の
+	 * shrink-to-fitフロート幅が376/414.5/276/216 → 全て500pt(=ページ幅)へ
+	 * 発散した(∞幅ページでは表の%指定セルが1e6基準で解決されるため)。
+	 * E-6増分4eが絶対配置に対して{@link #containsAbsolute}で行った
+	 * 切り分けと同型のゲート。表replay消費者(T-c)が解禁するのは
+	 * {@code restyleItem case TABLE}の直接replayだけで、これらの間接
+	 * 消費側は明示的に段階解禁するまで表を含む範囲を通さない。
+	 * </p>
+	 */
+	public boolean containsTable(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Table) {
 				return true;
 			}
 		}
