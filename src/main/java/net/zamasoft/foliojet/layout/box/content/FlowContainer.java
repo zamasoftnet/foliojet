@@ -1812,11 +1812,38 @@ public class FlowContainer implements Container {
 	}
 
 	/**
+	 * 現スレッドに尾部封印({@link #tailSealDepth})が残っているかを
+	 * 返します(2026-07-30、増分1)。正常なら変換完了後は必ずfalse——
+	 * trueが残るとそのスレッドの以後の変換で尾部再生が全て封じられる
+	 * ため、テストがリーク検査に使う。
+	 */
+	public static boolean hasOpenTailSeal() {
+		return isTailSealed();
+	}
+
+	/**
+	 * 現スレッドにworklist override({@link #worklistOverrideDepth})が
+	 * 残っているかを返します(2026-07-30、増分1。リーク検査用)。
+	 */
+	public static boolean hasWorklistOverride() {
+		return isWorklistMode();
+	}
+
+	/**
+	 * worklist executorのスタック要素です(2026-07-30、legacy再帰撤去=
+	 * 増分1で導入)。従来は{@link RestyleFrame}単型だったが、MULTICOL
+	 * native降下({@link MulticolRestyleScope})を再帰なしで表すため
+	 * 和型へ一般化した。
+	 */
+	private sealed interface WorklistStep permits RestyleFrame, MulticolRestyleScope {
+	}
+
+	/**
 	 * worklist executorの1段です(2026-07-22新設、B6a1)。sort済み
 	 * {@code items}・次に処理するindex・その段の{@code lastFlow}/
 	 * {@code shape}/trace用{@code depth}を保持する可変クラス。
 	 */
-	private static final class RestyleFrame {
+	private static final class RestyleFrame implements WorklistStep {
 		final List<BoxHolder> items;
 		final Flow lastFlow;
 		final net.zamasoft.foliojet.layout.fragment.OpenShape shape;
@@ -1829,6 +1856,35 @@ public class FlowContainer implements Container {
 			this.lastFlow = lastFlow;
 			this.shape = shape;
 			this.depth = depth;
+		}
+	}
+
+	/**
+	 * {@link ColumnsContainer#restyle}の状態機械を再帰なしで表すscopeです
+	 * (2026-07-30、増分1)。{@code ColumnsContainer.beginRestyleScope()}
+	 * 済みの旧段snapshotを保持し、executorが段をindex昇順に1つずつ
+	 * {@link RestyleFrame}としてpushする——親frameをpauseしたままLIFOで
+	 * 積むことで、旧経路(MULTICOL全体を深さ優先で完了してから親の後続
+	 * itemへ戻る)と同じ順序を保存する。全段完了で
+	 * {@code ColumnsContainer.endRestyleScope()}(尾部封印の解除)。
+	 *
+	 * <p>
+	 * 開いた尾({@code inner})を渡すのは最終段だけ・それ以前は
+	 * {@code CLOSED}——{@link ColumnsContainer#restyle}と同じ境界
+	 * (最終段以外に渡すと開いたままの他人のボックスの中へ組まれる)。
+	 * MULTICOL ownerの{@code endFlowBlock()}は呼ばない({@code inner}は
+	 * OpenChain/OpenTextで決してClosedにならないため、legacyの
+	 * {@code FlowBlockBox.restyle()}と同じく省く)。
+	 * </p>
+	 */
+	private static final class MulticolRestyleScope implements WorklistStep {
+		final List<Container> snapshot;
+		final net.zamasoft.foliojet.layout.fragment.OpenShape inner;
+		int nextColumn = 0;
+
+		MulticolRestyleScope(List<Container> snapshot, net.zamasoft.foliojet.layout.fragment.OpenShape inner) {
+			this.snapshot = snapshot;
+			this.inner = inner;
 		}
 	}
 
@@ -1868,7 +1924,7 @@ public class FlowContainer implements Container {
 	 */
 	private void restyleWorklist(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
 			boolean restyleAbsolutes, List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
-		final Deque<RestyleFrame> stack = new ArrayDeque<>();
+		final Deque<WorklistStep> stack = new ArrayDeque<>();
 		this.pushWorklistFrame(stack, builder, shape, restyleAbsolutes, prefix);
 		final ChainDescender worklistDescender = (b, containerBox, inner) -> {
 			final Container childContainer = containerBox.getContainer();
@@ -1878,33 +1934,74 @@ public class FlowContainer implements Container {
 				// (上記javadocの実バグ修正)。
 				b.startFlowBlock(flowBox);
 				childFc.pushWorklistFrame(stack, b, inner, false, List.of());
+			} else if (childContainer instanceof ColumnsContainer columns
+					&& containerBox instanceof FlowBlockBox flowBox) {
+				// MULTICOL native降下(2026-07-30、増分1)。legacy再帰
+				// (FlowBlockBox.restyle()→ColumnsContainer.restyle())が
+				// 行うのと同じ順序: startFlowBlock→snapshot/clear/fresh/
+				// 尾部封印(beginRestyleScope)→旧段の再生をscopeとして
+				// 積む。endFlowBlockはinnerが決してClosedにならないため
+				// legacy同様呼ばない。
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordMulticolNativeDescent();
+				b.startFlowBlock(flowBox);
+				stack.push(new MulticolRestyleScope(columns.beginRestyleScope(), inner));
 			} else {
-				// 改ページ契約上atomicな境界(表・段組等、またはFlowBlockBox
-				// でない子コンテナ)。worklist化の対象外——通常の
-				// (再帰)フォールバックへ委ねる(再入したrestyle()も
-				// 同じisWorklistMode()判定を通る)。MULTICOL native化
-				// (増分1)完了後は常時0を固定すべき観測点。
+				// 未知のコンテナ/ボックス組み合わせ。通常の(再帰)
+				// フォールバックへ委ねる(再入したrestyle()も同じ
+				// isWorklistMode()判定を通る)。増分4でfail closedへ
+				// 変える予定の観測点——常時0を固定すべき値。
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistRecursiveFallback();
 				containerBox.restyle(b, inner);
 			}
 		};
-		while (!stack.isEmpty()) {
-			final RestyleFrame frame = stack.peek();
-			if (frame.items == null || frame.nextIndex >= frame.items.size()) {
-				stack.pop();
-				continue;
+		try {
+			while (!stack.isEmpty()) {
+				final WorklistStep step = stack.peek();
+				if (step instanceof MulticolRestyleScope scope) {
+					if (scope.nextColumn >= scope.snapshot.size()) {
+						// 全段完了。pop→封印解除の順(逆にすると解除が
+						// 例外を投げた場合にfinally清算と二重解除になる)
+						stack.pop();
+						ColumnsContainer.endRestyleScope();
+						continue;
+					}
+					final int c = scope.nextColumn++;
+					final FlowContainer column = (FlowContainer) scope.snapshot.get(c);
+					// 開いた尾は最終段だけ・それ以前はCLOSED
+					// (ColumnsContainer.restyleと同じ境界)
+					final net.zamasoft.foliojet.layout.fragment.OpenShape columnShape = c == scope.snapshot.size() - 1
+							? scope.inner
+							: net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED;
+					column.pushWorklistFrame(stack, builder, columnShape, false, List.of());
+					continue;
+				}
+				final RestyleFrame frame = (RestyleFrame) step;
+				if (frame.items == null || frame.nextIndex >= frame.items.size()) {
+					stack.pop();
+					continue;
+				}
+				final int i = frame.nextIndex++;
+				// restyleItem()はthisのインスタンス状態を一切参照しない
+				// (items/lastFlow/shape等パラメータのみで完結する)ため、
+				// frameがどのFlowContainerに由来するかによらず同じ呼び出しで
+				// 正しく動く——呼び出し先はthis固定でよい。
+				this.restyleItem(builder, frame.items, i, frame.items.size(), frame.lastFlow, frame.shape, frame.depth,
+						worklistDescender);
 			}
-			final int i = frame.nextIndex++;
-			// restyleItem()はthisのインスタンス状態を一切参照しない
-			// (items/lastFlow/shape等パラメータのみで完結する)ため、
-			// frameがどのFlowContainerに由来するかによらず同じ呼び出しで
-			// 正しく動く——呼び出し先はthis固定でよい。
-			this.restyleItem(builder, frame.items, i, frame.items.size(), frame.lastFlow, frame.shape, frame.depth,
-					worklistDescender);
+		} finally {
+			// 例外時の清算: スタックに残ったMulticolRestyleScopeの
+			// 尾部封印を必ず解除する(正常完了時はスタック空でno-op)。
+			// 放置するとThreadLocalのtailSealDepthが正のまま残り、
+			// 以後この変換の尾部再生が全て封じられる。
+			while (!stack.isEmpty()) {
+				if (stack.pop() instanceof MulticolRestyleScope) {
+					ColumnsContainer.endRestyleScope();
+				}
+			}
 		}
 	}
 
-	private void pushWorklistFrame(Deque<RestyleFrame> stack, BlockBuilder builder,
+	private void pushWorklistFrame(Deque<WorklistStep> stack, BlockBuilder builder,
 			net.zamasoft.foliojet.layout.fragment.OpenShape shape, boolean restyleAbsolutes,
 			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		final CollectedItems collected = this.collectItems(builder, restyleAbsolutes, prefix);

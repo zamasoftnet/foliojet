@@ -720,10 +720,23 @@ public class DirectSession extends AbstractCTISession
 		final net.zamasoft.foliojet.layout.rescue.RescuePolicy rescuePolicy = net.zamasoft.foliojet.layout.rescue.RescuePolicy
 				.current();
 		final String displayListDir = net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDir();
+		// worklist override(テストがdriver等価性検証のため外から強制する
+		// 場合のみ真。2026-07-30、legacy再帰撤去=増分1。旧driver撤去
+		// (増分4)でoverride機構ごと退役する一時的な運搬)
+		final boolean worklistOverride = net.zamasoft.foliojet.layout.box.content.FlowContainer.hasWorklistOverride();
 		final Thread worker = new Thread(null, () -> {
 			try (var policy = rescuePolicy.scoped();
 					var dump = net.zamasoft.foliojet.layout.draw.DisplayListDumper.scopedDir(displayListDir)) {
-				task.run();
+				if (worklistOverride) {
+					net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();
+				}
+				try {
+					task.run();
+				} finally {
+					if (worklistOverride) {
+						net.zamasoft.foliojet.layout.box.content.FlowContainer.popWorklistOverride();
+					}
+				}
 			} catch (Throwable t) {
 				failure[0] = t;
 			}

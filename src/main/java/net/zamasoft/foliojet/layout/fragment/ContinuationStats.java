@@ -138,6 +138,14 @@ public final class ContinuationStats {
 	public static final AtomicLong WORKLIST_RECURSIVE_FALLBACKS = new AtomicLong();
 
 	/**
+	 * worklist driverがMULTICOL境界を再帰なしのnative scope
+	 * ({@code FlowContainer.MulticolRestyleScope})として降下した回数です
+	 * (2026-07-30新設、増分1)。native化の非空振り証明
+	 * (「テストが実際にこの経路を通った」ことの確認)に使う。
+	 */
+	public static final AtomicLong MULTICOL_NATIVE_DESCENTS = new AtomicLong();
+
+	/**
 	 * 現在の継続経路(PAGE/COLUMN)を追跡するスタックです(2026-07-21、B1)。
 	 * {@link ResumeTrace#begin(String)}と同じ「入れ子破断はスタックで
 	 * 表現する」設計だが、こちらはデバッグ用プロパティに関わらず常に
@@ -198,6 +206,14 @@ public final class ContinuationStats {
 	 */
 	public static void recordWorklistRecursiveFallback() {
 		WORKLIST_RECURSIVE_FALLBACKS.incrementAndGet();
+	}
+
+	/**
+	 * worklist driverがMULTICOL境界をnative scopeとして降下する直前に
+	 * 呼びます({@link #MULTICOL_NATIVE_DESCENTS}参照)。
+	 */
+	public static void recordMulticolNativeDescent() {
+		MULTICOL_NATIVE_DESCENTS.incrementAndGet();
 	}
 
 	/** {@code ColumnsContainer.splitPageAxis}の試行回数です(M6c-1でAPI集約)。 */
@@ -656,6 +672,7 @@ public final class ContinuationStats {
 		COLUMN_RESTYLE_CHAIN_FIRINGS.set(0);
 		LEGACY_RECURSIVE_DESCENTS.set(0);
 		WORKLIST_RECURSIVE_FALLBACKS.set(0);
+		MULTICOL_NATIVE_DESCENTS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
 		MAX_STALLED_AUTO_BREAK_RUN.set(0);
