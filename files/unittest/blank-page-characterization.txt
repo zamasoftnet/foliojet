@@ -4,6 +4,7 @@
 # 更新は差分を目視確認してから行うこと。
 0120-float/float-break-always.html	0001,0010,0012
 0120-float/inline-float-break.html	0001
+0125-footnote/footnote-oversized.html	!conversion-failed
 0130-display/all-none.html	0001
 1000-TABLE/root-table.html	0001
 1060-META/double-decl-meta.html	0001

@@ -79,21 +79,41 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		this.validateUa("files/unittest/9520-UA/ua-multipage.html");
 	}
 
+	/**
+	 * PDF/UA-2(2.0UA-2、タスク#21——2026-07-31)の検証です。PDF 2.0基底+
+	 * pdfuaid:part 2/rev+PDF 2.0標準構造名前空間(/Namespaces、各要素の/NS)。
+	 */
+	public void testPdfUa2Compliant() throws Exception {
+		this.session.property("output.pdf.version", "2.0UA-2");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.validate("files/unittest/9520-UA/ua.html", PDFAFlavour.PDFUA_2, "PDF/UA-2");
+	}
+
+	/** UA-2でPDF 1.7専用ロール(Sect/BlockQuote等)を含む文書も通ること。 */
+	public void testPdfUa2LegacyRoles() throws Exception {
+		this.session.property("output.pdf.version", "2.0UA-2");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.validate("files/unittest/9520-UA/ua2-roles.html", PDFAFlavour.PDFUA_2, "PDF/UA-2");
+	}
+
 	private void validateUa(final String path) throws Exception {
+		this.validate(path, PDFAFlavour.PDFUA_1, "PDF/UA-1");
+	}
+
+	private void validate(final String path, final PDFAFlavour flavour, final String label) throws Exception {
 		CTISessionHelper.transcodeFile(this.session, new File(path), "text/html", null);
 		this.session.close();
 		this.closed = true;
 
-		try (final var parser = Foundries.defaultInstance().createParser(new FileInputStream(this.file),
-				PDFAFlavour.PDFUA_1);
-				final var validator = Foundries.defaultInstance().createValidator(PDFAFlavour.PDFUA_1, false)) {
+		try (final var parser = Foundries.defaultInstance().createParser(new FileInputStream(this.file), flavour);
+				final var validator = Foundries.defaultInstance().createValidator(flavour, false)) {
 			final var result = validator.validate(parser);
 			if (!result.isCompliant()) {
 				final String failures = result.getTestAssertions().stream()
 						.filter(a -> a.getStatus() == TestAssertion.Status.FAILED)
 						.map(a -> a.getRuleId() + " " + a.getMessage() + " @ " + a.getLocation().getContext())
 						.distinct().collect(Collectors.joining("\n"));
-				fail("veraPDF PDF/UA-1 failures:\n" + failures);
+				fail("veraPDF " + label + " failures:\n" + failures);
 			}
 		}
 	}

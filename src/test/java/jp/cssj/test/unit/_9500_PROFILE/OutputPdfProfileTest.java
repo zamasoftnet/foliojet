@@ -191,6 +191,20 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		assertTrue("PDF/UA-1 must carry the pdfuaid identifier", pdf.contains("pdfuaid:part"));
 	}
 
+	/** PDF/UA-2(2.0UA-2): PDF 2.0基底+part 2/rev+PDF 2.0構造名前空間。 */
+	public void testPdfUa2Profile() throws Exception {
+		this.session.property("output.pdf.version", "2.0UA-2");
+		this.session.property("output.pdf.tagged.lang", "ja");
+		final String pdf = this.transcodeAndRead();
+		assertTrue("PDF/UA-2 must use a PDF 2.0 header", pdf.startsWith("%PDF-2.0"));
+		assertTrue("PDF/UA-2 must be tagged", pdf.contains("/StructTreeRoot"));
+		assertTrue("pdfuaid part must be 2", pdf.contains("<pdfuaid:part>2</pdfuaid:part>"));
+		assertTrue("pdfuaid rev must identify the 2024 revision",
+				pdf.contains("<pdfuaid:rev>2024</pdfuaid:rev>"));
+		assertTrue("the structure tree must declare the PDF 2.0 namespace",
+				pdf.contains("/Namespaces") && pdf.contains("http://iso.org/pdf2/ssn"));
+	}
+
 	public void testAes256Encryption() throws Exception {
 		this.session.property("output.pdf.version", "2.0");
 		this.session.property("output.pdf.encryption", "v5");

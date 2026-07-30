@@ -227,6 +227,10 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		case V1_7UA1:
 			params = params.withVersion(PDFParams.Version.V_1_7);
 			break;
+		case V2_0UA2:
+			// PDF/UA-2(ISO 14289-2:2024)はPDF 2.0基底
+			params = params.withVersion(PDFParams.Version.V_2_0);
+			break;
 		case V2_0:
 			params = params.withVersion(PDFParams.Version.V_2_0);
 			break;
@@ -238,12 +242,13 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		// 論理構造が必須なので自動で有効化し、それ以外は output.pdf.tagged で選ぶ。
 		{
 			OutputPdfVersion versionCode = UAProps.OUTPUT_PDF_VERSION.get(this);
-			final boolean pdfua = versionCode == OutputPdfVersion.V1_7UA1;
 			if (net.zamasoft.foliojet.ua.props.TaggedPdf.isActive(this)) {
 				String lang = UAProps.OUTPUT_PDF_TAGGED_LANG.getString(this);
-				params = params.withTagged(pdfua
-						? net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua(lang)
-						: new net.zamasoft.pdfg2d.pdf.params.TaggedParams(lang, false));
+				params = params.withTagged(switch (versionCode) {
+				case V1_7UA1 -> net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua(lang);
+				case V2_0UA2 -> net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua2(lang);
+				default -> new net.zamasoft.pdfg2d.pdf.params.TaggedParams(lang, false);
+				});
 			}
 		}
 
