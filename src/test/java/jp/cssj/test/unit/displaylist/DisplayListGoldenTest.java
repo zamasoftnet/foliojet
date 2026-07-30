@@ -240,6 +240,17 @@ public class DisplayListGoldenTest extends TestCase {
 		if (passCTables == 0) {
 			failures.add("表Pass C(E-6増分5b-2)がgoldenコーパスで一度も発火していません(空虚な緑)");
 		}
+		// 増分10(2026-07-30): 表の全セル先行bind(旧経路)はこのコーパスで
+		// 0を固定する。表吸収(codex増分5)・absolute吸収(増分9)により
+		// 全Retained表がPass C適格になった——旧経路はseal不適格セル
+		// (キャプション付き表入りセル等、野生文書で発生しうる)向けの
+		// 安全fallbackとして残す(bindRecordsと同じ終着形。物理撤去は
+		// 「不適格を変換失敗にする」仕様変更を伴うため不採用——
+		// クラッシュ排除・変換失敗排除の絶対要件)
+		if (legacyBindRows != 0) {
+			failures.add("表の全セル先行bind(旧経路)がgoldenコーパスで発火しました(増分10の0固定の退行): "
+					+ legacyBindRows);
+		}
 	}
 
 	private void checkDocument(String doc, int passCount, List<String> failures) throws Exception {
