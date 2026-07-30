@@ -106,6 +106,12 @@ public class DisplayListGoldenTest extends TestCase {
 			// 「ちょうど割り切れる高さ」で余分なページを作らないこと
 			"0480-rescue-split/huge-font-line.html", //
 			"0480-rescue-split/huge-font-exact.html", //
+			// 脚注(F0〜F5、2026-07-31)。call/markerラベル・脚注領域の座標・
+			// ページ毎採番・本文短縮・carry-in番号保持を描画順ごと固定する
+			"0125-footnote/footnote-f1.html", //
+			"0125-footnote/footnote-pagereset.html", //
+			"0125-footnote/footnote-pagelimit.html", //
+			"0125-footnote/footnote-carryin.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //
 			"0480-rescue-split/orthogonal-block-exact.html", //

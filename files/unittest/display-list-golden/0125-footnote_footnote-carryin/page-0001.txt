@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=357.89 FootnoteLabel["1. " w=18.00 h=12.00]
+  x=0.00 y=369.89 Text["tall" asc=10.91 desc=4.09]
+  x=18.34 y=369.89 Text["note" asc=10.91 desc=4.09]
+  x=42.00 y=369.89 Text["1" asc=10.91 desc=4.09]
+  x=0.00 y=0.00 Text["One" asc=20.78 desc=4.09]
+  x=19.99 y=0.00 FootnoteLabel["1" w=4.98 h=9.96]
+  x=27.97 y=0.00 Text["text." asc=20.78 desc=4.09]
+  x=0.00 y=24.88 Text["Two" asc=20.78 desc=4.09]
+  x=23.08 y=24.88 FootnoteLabel["2" w=4.98 h=9.96]
+  x=31.06 y=24.88 Text["text." asc=20.78 desc=4.09]

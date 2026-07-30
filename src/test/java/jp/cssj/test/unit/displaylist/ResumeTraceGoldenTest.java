@@ -43,6 +43,10 @@ public class ResumeTraceGoldenTest extends TestCase {
 	private static final String[] DOCUMENTS = { //
 			"0460-segment-restyle/mid-paragraph.html", //
 			"0460-segment-restyle/moved-blocks.html", //
+			// 脚注(F4/F5): 予約起因のavoid移動と本文短縮の再開操作列を固定
+			// (脚注機構の追加でreplay/restyle分岐が意図せず変わらないこと)
+			"0125-footnote/footnote-avoidmove.html", //
+			"0125-footnote/footnote-pagelimit.html", //
 			"0460-segment-restyle/text-tail-avoid.html", //
 			"0460-segment-restyle/float-in-moved.html", //
 			"0460-segment-restyle/float-split-in-chain.html", //

@@ -259,6 +259,17 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			this.image = image;
 		}
 
+		@Override
+		public String describe() {
+			// 脚注ラベル(F5)は解決済み番号を表示リストへ出す——goldenが
+			// 座標だけでなく番号文字そのものを固定できるように
+			if (this.image instanceof net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label) {
+				return String.format(java.util.Locale.ROOT, "FootnoteLabel[\"%s\" w=%.2f h=%.2f]",
+						label.getAltString(), this.width, this.height);
+			}
+			return super.describe();
+		}
+
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			super.innerDraw(gc, x, y);
 			x += this.frame.getFrameLeft();
