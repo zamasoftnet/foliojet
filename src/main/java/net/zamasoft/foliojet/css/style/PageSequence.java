@@ -503,6 +503,9 @@ final class PageSequence {
 		// フロー
 		pageBox.drawFlow(drawer, visitor);
 
+		// 脚注separator罫線(flow後・fixed前。装飾なのでartifact)
+		pageBox.drawFootnoteSeparator(drawer);
+
 		if (gc != null) {
 			// 固定
 			pageBox.drawFixed(drawer, visitor);

@@ -103,3 +103,4 @@ drawer z=0
   x=21.00 y=715.18 Text["48" asc=10.91 desc=4.09]
   x=0.00 y=730.19 Text["line" asc=10.91 desc=4.09]
   x=21.00 y=730.19 Text["49" asc=10.91 desc=4.09]
+  x=0.00 y=750.55 artifact FootnoteSeparator[w=174.43 h=0.50]

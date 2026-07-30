@@ -17,3 +17,4 @@ drawer z=0
   x=6.00 y=90.07 Text["Custom" asc=20.78 desc=4.09]
   x=43.34 y=90.07 FootnoteLabel["[3]" w=11.61 h=9.96]
   x=57.96 y=90.07 Text["end." asc=20.78 desc=4.09]
+  x=0.00 y=718.36 artifact FootnoteSeparator[w=174.43 h=0.50]

@@ -1287,8 +1287,17 @@ public class RootBuilder extends BreakableBuilder {
 
 	private double footnoteReservation = 0;
 
-	/** 本文と脚注領域の間隙(UA固定。separator罫線は後続増分)。 */
+	/** 本文と脚注領域の間隙(UA固定。separator罫線はこのgapの中央)。 */
 	private static final double FOOTNOTE_GAP = 6;
+
+	/**
+	 * 脚注のページ方向占有量です(axis-neutral——F6/F7答申②)。箱の幾何と
+	 * 描画実測の大きい方(既存floatのoccupied-page-extent規則と同じ)。
+	 */
+	private double footnoteExtent(final net.zamasoft.foliojet.layout.box.IBox box) {
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.pageBox.getBlockParams().flow;
+		return Math.max(box.getPageExtent(flow), box.paintedPageExtent(flow));
+	}
 
 	/**
 	 * 完成した脚注本文を台帳へ加えます({@code DocumentBuilder.endBox}の
@@ -1297,7 +1306,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 容量で行われる。容量を超えた分は予約されず次ページへ送られる(F4)。
 	 */
 	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
-		final double noteExtent = noteBox.getHeight();
+		final double noteExtent = this.footnoteExtent(noteBox);
 		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
 		if (FOOTNOTE_GAP + noteExtent > maxArea) {
 			// 空ページの最大脚注領域にも収まらない——送り続けて無限に
@@ -1321,7 +1330,7 @@ public class RootBuilder extends BreakableBuilder {
 		for (final FootnoteEntry entry : this.pendingFootnotes) {
 			if (i >= this.footnoteReservedCount) {
 				final double cost = (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
-						+ entry.noteBox.getHeight();
+						+ this.footnoteExtent(entry.noteBox);
 				if (this.footnoteReservation + cost > maxArea) {
 					break;
 				}
@@ -1381,7 +1390,7 @@ public class RootBuilder extends BreakableBuilder {
 					break;
 				}
 				++attachCount;
-				attachedExtent += entry.noteBox.getHeight();
+				attachedExtent += this.footnoteExtent(entry.noteBox);
 				++i;
 			}
 		}
@@ -1430,7 +1439,12 @@ public class RootBuilder extends BreakableBuilder {
 				}
 			}
 			this.pageBox.getContainer().addFloating(entry.noteBox, 0, pageAxis);
-			pageAxis += entry.noteBox.getHeight();
+			pageAxis += this.footnoteExtent(entry.noteBox);
+		}
+		if (attachCount > 0) {
+			// separator罫線(F6/F7答申①): 既存gapの中央に置くため予約は
+			// 増えない。描画はPageSequence.drawPageのflow後(artifact)
+			this.pageBox.setFootnoteSeparatorAxis(base - attachedExtent - FOOTNOTE_GAP / 2);
 		}
 		this.footnoteReservedCount = 0;
 		this.footnoteReservation = 0;

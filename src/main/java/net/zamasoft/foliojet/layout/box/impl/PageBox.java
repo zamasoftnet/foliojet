@@ -529,6 +529,76 @@ public class PageBox extends AbstractBlockBox {
 		this.draw(this, drawer, visitor, null, new AffineTransform(), x, y, x, y);
 	}
 
+	/**
+	 * 脚注separator罫線のページ方向位置です(脚注F6/F7答申①、2026-07-31。
+	 * 版面内辺原点の論理container座標——RootBuilderがaddFloatingへ渡す
+	 * (0,pageAxis)と同じ座標系)。脚注の無いページは-1。
+	 */
+	private double footnoteSeparatorAxis = -1;
+
+	public void setFootnoteSeparatorAxis(final double pageAxis) {
+		this.footnoteSeparatorAxis = pageAxis;
+	}
+
+	/** separator罫線の太さと、版面行方向幅に対する長さの割合(UA固定)。 */
+	private static final double FOOTNOTE_SEPARATOR_THICKNESS = 0.5;
+
+	/**
+	 * 脚注separator罫線を描きます({@code PageSequence.drawPage}のflow後・
+	 * fixed前)。装飾なのでartifact(タグ付きPDFの構造要素に入れない)。
+	 * ページのframeはmarginのみのため本文コンテナ原点は(0,0)
+	 * (答申の座標対応)。
+	 */
+	public void drawFootnoteSeparator(final Drawer drawer) {
+		if (this.footnoteSeparatorAxis < 0) {
+			return;
+		}
+		final BlockParams params = this.getBlockParams();
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = params.flow;
+		final double length = this.getInnerLineExtent(flow) / 3;
+		final double axis = this.footnoteSeparatorAxis - FOOTNOTE_SEPARATOR_THICKNESS / 2;
+		final java.awt.geom.Rectangle2D.Double rect;
+		if (!flow.isVertical()) {
+			// TB: 版面下端寄りの水平線(行方向の始端から1/3)
+			rect = new java.awt.geom.Rectangle2D.Double(0, axis, length, FOOTNOTE_SEPARATOR_THICKNESS);
+		} else if (flow == net.zamasoft.foliojet.layout.box.params.WritingMode.RL) {
+			// vertical-rl: block-end=左端側の垂直線
+			rect = new java.awt.geom.Rectangle2D.Double(
+					this.getInnerPageExtent(flow) - axis - FOOTNOTE_SEPARATOR_THICKNESS, 0,
+					FOOTNOTE_SEPARATOR_THICKNESS, length);
+		} else {
+			// vertical-lr: block-end=右端側の垂直線
+			rect = new java.awt.geom.Rectangle2D.Double(axis, 0, FOOTNOTE_SEPARATOR_THICKNESS, length);
+		}
+		drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
+	}
+
+	/** separator罫線のdrawableです(装飾。構造要素に入れない)。 */
+	private static final class FootnoteSeparatorDrawable
+			extends net.zamasoft.foliojet.layout.draw.AbstractDrawable {
+		private final java.awt.geom.Rectangle2D.Double rect;
+
+		FootnoteSeparatorDrawable(final PageBox pageBox, final java.awt.geom.Rectangle2D.Double rect) {
+			super(pageBox, null, 1f, new AffineTransform());
+			this.rect = rect;
+		}
+
+		@Override
+		public void innerDraw(final net.zamasoft.pdfg2d.gc.GC gc, final double x, final double y)
+				throws net.zamasoft.pdfg2d.gc.GraphicsException {
+			try (final var state = gc.begin()) {
+				gc.setFillPaint(net.zamasoft.pdfg2d.gc.paint.GrayColor.BLACK);
+				gc.fill(new java.awt.geom.Rectangle2D.Double(x, y, this.rect.width, this.rect.height));
+			}
+		}
+
+		@Override
+		public String describe() {
+			return String.format(java.util.Locale.ROOT, "FootnoteSeparator[w=%.2f h=%.2f]", this.rect.width,
+					this.rect.height);
+		}
+	}
+
 	public final void drawFixed(Drawer drawer, Visitor visitor) {
 		double x = this.offsetX + this.frame.getFrameLeft() - this.frame.margin.left;
 		double y = this.offsetY + this.frame.getFrameTop() - this.frame.margin.top;
