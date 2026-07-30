@@ -1661,32 +1661,24 @@ public class FlowContainer implements Container {
 
 	/**
 	 * 吸収された再生範囲(C1c)を serial 順で合流させながら再開します。
+	 *
+	 * <p>
+	 * 2026-07-30(legacy再帰撤去=増分4a): worklist executorが唯一の
+	 * driverになった。従来はここに{@code isWorklistMode()}分岐と旧再帰
+	 * driver(forループ+{@code RECURSIVE_DESCENDER})が並存し、
+	 * {@code RootBuilder}が継続ごとに適格判定(WorklistTailGate)して
+	 * 選んでいた——増分1でMULTICOL native scope降下のバイト等価を証明、
+	 * 増分2でgateをMULTICOL許可へ拡張、増分3でrootless COLUMNも接続し、
+	 * legacy駆動へ入る入口が消えたため分岐ごと撤去した(codex相談
+	 * docs/consultations/consult-codex-2026-07-30-increment4-removal-spec.txt)。
+	 * TEXT/BLOCK/TABLE/REPLACEDの意味は{@link #restyleItem}が担い、
+	 * OpenChain降下だけが明示スタック(worklist)で駆動される。
+	 * </p>
 	 */
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
 			boolean restyleAbsolutes,
 			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
-		if (isWorklistMode()) {
-			// 2026-07-22(B6a1): 明示スタック駆動のworklist executor
-			// (`RootBuilder`が適格判定した継続のterminal restyleのみ、
-			// pushWorklistOverride/popWorklistOverrideで囲まれている間)。
-			// 呼び出し元(AbstractContainerBox.restyle/RootBuilder
-			// .restyleFrame)は一切変更せずこのpublic restyle()自体が
-			// 分岐する。
-			this.restyleWorklist(builder, shape, restyleAbsolutes, prefix);
-			return;
-		}
-		// トレース・水位の互換表示は旧 depth 値
-		final int depth = shape.depth();
-		final CollectedItems collected = this.collectItems(builder, restyleAbsolutes, prefix);
-		if (collected.items() != null) {
-			Collections.sort(collected.items());
-			moveOpenChainTailLast(collected.items(), collected.lastFlow(), shape);
-			int size = collected.items().size();
-			for (int i = 0; i < size; ++i) {
-				this.restyleItem(builder, collected.items(), i, size, collected.lastFlow(), shape, depth,
-						RECURSIVE_DESCENDER);
-			}
-		}
+		this.restyleWorklist(builder, shape, restyleAbsolutes, prefix);
 	}
 
 	/**
@@ -1848,6 +1840,13 @@ public class FlowContainer implements Container {
 		final Flow lastFlow;
 		final net.zamasoft.foliojet.layout.fragment.OpenShape shape;
 		final int depth;
+		/**
+		 * 処理開始時点のitems数(2026-07-30、増分4a)。旧forループが
+		 * ループ前に{@code int size}を固定していた契約の正確な保存——
+		 * {@code size}は次itemの終端アンカー判定にも渡るため、都度
+		 * {@code items.size()}を読み直すと途中変更に対する意味が変わる。
+		 */
+		final int size;
 		int nextIndex = 0;
 
 		RestyleFrame(List<BoxHolder> items, Flow lastFlow, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
@@ -1856,6 +1855,7 @@ public class FlowContainer implements Container {
 			this.lastFlow = lastFlow;
 			this.shape = shape;
 			this.depth = depth;
+			this.size = items == null ? 0 : items.size();
 		}
 	}
 
@@ -1926,34 +1926,6 @@ public class FlowContainer implements Container {
 			boolean restyleAbsolutes, List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		final Deque<WorklistStep> stack = new ArrayDeque<>();
 		this.pushWorklistFrame(stack, builder, shape, restyleAbsolutes, prefix);
-		final ChainDescender worklistDescender = (b, containerBox, inner) -> {
-			final Container childContainer = containerBox.getContainer();
-			if (childContainer instanceof FlowContainer childFc && containerBox instanceof FlowBlockBox flowBox) {
-				// legacy再帰(FlowBlockBox.restyle())が暗黙に行う
-				// startFlowBlockを、push分岐でも明示的に再現する
-				// (上記javadocの実バグ修正)。
-				b.startFlowBlock(flowBox);
-				childFc.pushWorklistFrame(stack, b, inner, false, List.of());
-			} else if (childContainer instanceof ColumnsContainer columns
-					&& containerBox instanceof FlowBlockBox flowBox) {
-				// MULTICOL native降下(2026-07-30、増分1)。legacy再帰
-				// (FlowBlockBox.restyle()→ColumnsContainer.restyle())が
-				// 行うのと同じ順序: startFlowBlock→snapshot/clear/fresh/
-				// 尾部封印(beginRestyleScope)→旧段の再生をscopeとして
-				// 積む。endFlowBlockはinnerが決してClosedにならないため
-				// legacy同様呼ばない。
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordMulticolNativeDescent();
-				b.startFlowBlock(flowBox);
-				stack.push(new MulticolRestyleScope(columns.beginRestyleScope(), inner));
-			} else {
-				// 未知のコンテナ/ボックス組み合わせ。通常の(再帰)
-				// フォールバックへ委ねる(再入したrestyle()も同じ
-				// isWorklistMode()判定を通る)。増分4でfail closedへ
-				// 変える予定の観測点——常時0を固定すべき値。
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistRecursiveFallback();
-				containerBox.restyle(b, inner);
-			}
-		};
 		try {
 			while (!stack.isEmpty()) {
 				final WorklistStep step = stack.peek();
@@ -1976,7 +1948,7 @@ public class FlowContainer implements Container {
 					continue;
 				}
 				final RestyleFrame frame = (RestyleFrame) step;
-				if (frame.items == null || frame.nextIndex >= frame.items.size()) {
+				if (frame.items == null || frame.nextIndex >= frame.size) {
 					stack.pop();
 					continue;
 				}
@@ -1985,8 +1957,8 @@ public class FlowContainer implements Container {
 				// (items/lastFlow/shape等パラメータのみで完結する)ため、
 				// frameがどのFlowContainerに由来するかによらず同じ呼び出しで
 				// 正しく動く——呼び出し先はthis固定でよい。
-				this.restyleItem(builder, frame.items, i, frame.items.size(), frame.lastFlow, frame.shape, frame.depth,
-						worklistDescender);
+				this.restyleItem(builder, frame.items, i, frame.size, frame.lastFlow, frame.shape, frame.depth,
+						stack);
 			}
 		} finally {
 			// 例外時の清算: スタックに残ったMulticolRestyleScopeの
@@ -2134,29 +2106,62 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * {@code OpenChain}の子孫へ降りる方法です(2026-07-22新設、B6a1)。
-	 * legacy再帰driverは{@code containerBox.restyle(builder, inner)}を
-	 * 直接呼ぶ(再帰)。worklist driver({@link #restyleWorklist})は、
-	 * 子コンテナが{@link FlowContainer}であれば
-	 * 再帰せず明示スタックへ新しいframeをpushする——この差し替え1点
-	 * だけがlegacy/worklistの違いであり、それ以外のTEXT/BLOCK/TABLE/
-	 * REPLACEDの意味は{@link #restyleItem}を両driverが共有するため
-	 * 一切複製されない。
+	 * 互換フォールバック({@link #descendWorklist})を警告済みの
+	 * box/containerクラス対です(2026-07-30、増分4b。同じ対の大量ログを
+	 * 防ぐ——初回だけWARNINGを出す)。
 	 */
-	@FunctionalInterface
-	private interface ChainDescender {
-		void descend(BlockBuilder builder, net.zamasoft.foliojet.layout.box.AbstractContainerBox containerBox,
-				net.zamasoft.foliojet.layout.fragment.OpenShape inner);
-	}
+	private static final java.util.Set<String> WARNED_FALLBACK_PAIRS = java.util.concurrent.ConcurrentHashMap
+			.newKeySet();
 
-	/** legacy再帰driver用の{@link ChainDescender}——常に直接再帰する、旧来どおりの挙動。 */
-	private static final ChainDescender RECURSIVE_DESCENDER = (builder, containerBox, inner) -> {
-		// legacy再帰撤去(増分0): 旧driverが実際に再帰した段数だけを数える
-		// 観測点。rooted PAGE/COLUMN・rootless COLUMNの全legacy入口を
-		// ここ一箇所で捕捉する(consult-codex-2026-07-30 §4)。
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLegacyRecursiveDescent();
-		containerBox.restyle(builder, inner);
-	};
+	/**
+	 * {@code OpenChain}の子孫へ1段降ります(2026-07-30、増分4bで
+	 * {@code ChainDescender} interface+2実装のlambdaから具体helperへ
+	 * 畳み込み——worklist driverが唯一のdriverになり、差し替え点としての
+	 * 意味が消えたため)。
+	 *
+	 * <ul>
+	 * <li>plain flow({@link FlowContainer}子): legacy再帰
+	 * ({@code FlowBlockBox.restyle()})が暗黙に行うstartFlowBlockを
+	 * 明示的に再現し、frameをpushする(2026-07-22の実バグ修正——
+	 * 素通りすると{@code flowStack}が育たずinvariant違反)</li>
+	 * <li>MULTICOL({@link ColumnsContainer}子): native scope降下
+	 * (増分1)。startFlowBlock→beginRestyleScope→scopeをpush。
+	 * endFlowBlockはinnerが決してClosedにならないため呼ばない</li>
+	 * <li>未知の組み合わせ: <b>互換フォールバック</b>——カウンタ+初回
+	 * 警告の上で{@code containerBox.restyle(builder, inner)}の多態的
+	 * 意味を維持する。fail closed例外にしないのはクラッシュ排除の絶対
+	 * 要件による(「非PLAIN/MULTICOL tailは構造的に不可能」の証明は
+	 * 全入口に対しては強くない——codex相談
+	 * consult-codex-2026-07-30-increment4-removal-spec.txt §3。
+	 * 将来の未知FlowBlockBoxサブタイプはMULTICOLへ分類されるが
+	 * containerがColumnsContainerである型保証もない)。再入した
+	 * restyle()は無条件worklistなので旧driverは復活しない</li>
+	 * </ul>
+	 */
+	private static void descendWorklist(Deque<WorklistStep> stack, BlockBuilder builder,
+			net.zamasoft.foliojet.layout.box.AbstractContainerBox containerBox,
+			net.zamasoft.foliojet.layout.fragment.OpenShape inner) {
+		final Container childContainer = containerBox.getContainer();
+		if (childContainer instanceof FlowContainer childFc && containerBox instanceof FlowBlockBox flowBox) {
+			builder.startFlowBlock(flowBox);
+			childFc.pushWorklistFrame(stack, builder, inner, false, List.of());
+		} else if (childContainer instanceof ColumnsContainer columns && containerBox instanceof FlowBlockBox flowBox) {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordMulticolNativeDescent();
+			builder.startFlowBlock(flowBox);
+			stack.push(new MulticolRestyleScope(columns.beginRestyleScope(), inner));
+		} else {
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistRecursiveFallback();
+			final String pair = containerBox.getClass().getName() + "/"
+					+ (childContainer == null ? "null" : childContainer.getClass().getName());
+			if (WARNED_FALLBACK_PAIRS.add(pair)) {
+				java.util.logging.Logger.getLogger(FlowContainer.class.getName())
+						.warning("OpenChain descent fell back to polymorphic restyle for unknown box/container pair "
+								+ pair + "; the worklist executor cannot represent this container as a frame "
+								+ "(expected FlowContainer or ColumnsContainer under FlowBlockBox)");
+			}
+			containerBox.restyle(builder, inner);
+		}
+	}
 
 	/**
 	 * sort済み{@code items}の1件を処理する共有dispatchです(2026-07-22、
@@ -2167,12 +2172,12 @@ public class FlowContainer implements Container {
 	 * 参照)が、この共有dispatchを複製せずそのまま呼べるようにする
 	 * ための下ごしらえ——TEXT/BLOCK/TABLE/REPLACEDの意味を二重実装
 	 * しない、というcodex設計相談の要件(却下案「switch全体を新
-	 * executor側へコピーする」)に対応する。{@code OpenChain}降下の
-	 * 方法だけは{@code descender}へ委譲し、legacy再帰driver/worklist
-	 * driverで差し替える。
+	 * executor側へコピーする」)に対応する。{@code OpenChain}降下は
+	 * {@link #descendWorklist}が明示スタック({@code stack})へ積む
+	 * (増分4bでdescender差し替え機構を畳んだ——worklistが唯一のdriver)。
 	 */
 	private void restyleItem(BlockBuilder builder, List<BoxHolder> items, int i, int size, Flow lastFlow,
-			net.zamasoft.foliojet.layout.fragment.OpenShape shape, int depth, ChainDescender descender) {
+			net.zamasoft.foliojet.layout.fragment.OpenShape shape, int depth, Deque<WorklistStep> stack) {
 		// 以下2重の{}は抽出前のインデント(if/forの2階層)をそのまま残す
 		// ための意図的なもの——大量行の再インデントによる誤りを避けた
 		{
@@ -2258,7 +2263,7 @@ public class FlowContainer implements Container {
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-chain",
 										"serial=" + holder.serial);
 								net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainFiring();
-								descender.descend(builder, containerBox, inner);
+								descendWorklist(stack, builder, containerBox, inner);
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 									&& builder.getPageContext() != null
