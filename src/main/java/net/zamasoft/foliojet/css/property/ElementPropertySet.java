@@ -231,6 +231,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(FontVariant.INFO);
 		reg(FontWeight.INFO);
 		reg(FontSize.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.INFO);
 		reg(TextIndent.INFO);
 		reg(TextAlign.INFO);
 		reg(TextDecoration.INFO);

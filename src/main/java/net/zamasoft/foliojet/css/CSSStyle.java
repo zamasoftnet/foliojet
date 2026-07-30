@@ -344,8 +344,12 @@ public class CSSStyle {
 		Weight weight = FontWeight.get(this);
 		Direction direction = net.zamasoft.foliojet.css.impl.property.text.Direction.getFontDirection(this);
 		FontPolicyList policy = CSSJFontPolicy.get(this);
+		// font-variant-east-asian由来のタグをfont-feature-settingsの明示タグで
+		// 上書きしてOpenType feature列へ正規化する(css-fonts-3の優先順)
+		final var features = net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.get(this).featureSet()
+				.override(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.get(this));
 
-		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy);
+		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features);
 		return this.fontStyle;
 	}
 

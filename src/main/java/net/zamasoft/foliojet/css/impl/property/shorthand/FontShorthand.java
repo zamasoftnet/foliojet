@@ -9,14 +9,18 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.FontValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
+import net.zamasoft.foliojet.css.value.FontFeatureSettingsValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
+import net.zamasoft.foliojet.css.value.FontVariantEastAsianValue;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.impl.property.font.CSSFontFamily;
 import net.zamasoft.foliojet.css.impl.property.font.CSSFontStyle;
+import net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings;
 import net.zamasoft.foliojet.css.impl.property.font.FontSize;
 import net.zamasoft.foliojet.css.impl.property.font.FontVariant;
+import net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian;
 import net.zamasoft.foliojet.css.impl.property.font.FontWeight;
 import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -44,6 +48,8 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(FontSize.INFO, global);
 			primitives.set(LineHeight.INFO, global);
 			primitives.set(CSSFontFamily.INFO, global);
+			primitives.set(FontFeatureSettings.INFO, global);
+			primitives.set(FontVariantEastAsian.INFO, global);
 			return;
 		} else if (tokens.peek() instanceof CssToken.Ident systemFont) {
 			String ident = systemFont.lower();
@@ -58,6 +64,8 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 						AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 				primitives.set(LineHeight.INFO, KeywordValue.NORMAL);
 				primitives.set(CSSFontFamily.INFO, defaultFamily);
+				primitives.set(FontFeatureSettings.INFO, FontFeatureSettingsValue.NORMAL_VALUE);
+				primitives.set(FontVariantEastAsian.INFO, FontVariantEastAsianValue.NORMAL_VALUE);
 				return;
 			}
 		}
@@ -130,6 +138,10 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 		}
 		primitives.set(FontWeight.INFO, fontWeight);
 		primitives.set(CSSFontFamily.INFO, fontFamily);
+		// css-fonts-3: fontショートハンドは対象外のfont系プロパティも
+		// 初期値へリセットする
+		primitives.set(FontFeatureSettings.INFO, FontFeatureSettingsValue.NORMAL_VALUE);
+		primitives.set(FontVariantEastAsian.INFO, FontVariantEastAsianValue.NORMAL_VALUE);
 	}
 
 }
