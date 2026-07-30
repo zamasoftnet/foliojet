@@ -679,10 +679,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.MULTICOL_RANGE);
 			return;
 		}
-		if (log.containsMixedFlow(fromId, toId, this.getRootBox().getBlockParams().flow)) {
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.MIXED_FLOW_RANGE);
-			return;
-		}
+		// DP増分4(2026-07-30): 書字方向混在(MIXED_FLOW_RANGE)のrejectは
+		// 撤去した。旧bindRecords自身がStartFlowの軸不一致でサブビルダーを
+		// 作っており(下のbindRecords参照)、範囲再生側のDocumentBuilderにも
+		// 同型の分岐がある——両駆動のパリティはTwoPassRangeBindParityTestの
+		// 縦横混在文書で固定する。balance()等の別用途のmixed-flowゲート
+		// (SourceReplayer側)はこの増分の対象外。
 		// DP増分3(2026-07-30): ネストしたビルダーは「吸収可能」なら親の
 		// range化を妨げない——検証相(副作用なし)で全子孫を列挙し、
 		// コミット相で親リース取得後に子リースを閉じる(先に親リースが

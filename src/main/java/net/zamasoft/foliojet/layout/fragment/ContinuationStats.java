@@ -303,8 +303,6 @@ public final class ContinuationStats {
 		ABSOLUTE_RANGE,
 		/** 範囲に段組(multicol)を含む(列機構との相互作用は未検証)。 */
 		MULTICOL_RANGE,
-		/** 範囲に書字方向の異なる内容を含む(サブビルダー文脈の再現は未検証)。 */
-		MIXED_FLOW_RANGE,
 		/**
 		 * recordsにネストしたビルダー(StfBlock/AbsoluteBlock/InlineBlockEvent/
 		 * TableEvent)を含む。ネストした子が既にsealしたリースを親のrange化で
