@@ -109,33 +109,25 @@ public final class ContinuationStats {
 	public static final AtomicLong COLUMN_RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
 	/**
-	 * legacy再帰driver({@code FlowContainer.RECURSIVE_DESCENDER})が
-	 * 実際に{@code containerBox.restyle(builder, inner)}へ同期再帰した
-	 * 回数です(2026-07-30新設、legacy再帰撤去=増分0)。
+	 * worklist executorの{@code descendWorklist}が、OpenChain降下先の
+	 * box/container組み合わせをframe/scopeとして表現できず、多態的な
+	 * {@code containerBox.restyle(builder, inner)}互換フォールバックへ
+	 * 落ちた回数です(2026-07-30新設、増分0。増分4fで
+	 * 旧{@code WORKLIST_RECURSIVE_FALLBACKS}から改名——旧driver撤去後は
+	 * 「再帰driverへの退避」ではなく「未知型の互換経路」の意味)。
+	 * 既知の全型(FlowBlockBox配下のFlowContainer/ColumnsContainer)で
+	 * 常時0を固定し、将来の新しいコンテナ型が黙ってこの経路へ入ることを
+	 * 検出する(初回のみWARNINGログも出る)。
 	 *
 	 * <p>
-	 * {@link #RESTYLE_CHAIN_FIRINGS}はlegacy/worklist両driverが共有する
-	 * dispatch内で加算されるため両者を合算してしまい、旧driverの残存を
-	 * 直接測れない(codex相談
-	 * docs/consultations/consult-codex-2026-07-30-multicol-descent-proof.txt
-	 * §4)。このカウンタはrooted PAGE・rooted COLUMN・rootless COLUMNの
-	 * 全legacy入口を{@code RECURSIVE_DESCENDER}一箇所で捕捉し、OpenText
-	 * だけの旧forループは誤計上しない。撤去完了の証明条件は「全fixtureで
-	 * 常時0」。
+	 * なお旧{@code LEGACY_RECURSIVE_DESCENTS}(旧再帰driverの発火数)は
+	 * 増分4fで削除した——producerである{@code RECURSIVE_DESCENDER}自体が
+	 * 物理撤去され、常時0の定数と化したため(撤去の証明過程は
+	 * docs/consultations/consult-codex-2026-07-30-*.txtと
+	 * {@code WorklistDescentCensusTest}の履歴に残る)。
 	 * </p>
 	 */
-	public static final AtomicLong LEGACY_RECURSIVE_DESCENTS = new AtomicLong();
-
-	/**
-	 * worklist driverの{@code worklistDescender}が、子コンテナを
-	 * {@link net.zamasoft.foliojet.layout.box.content.FlowContainer}の
-	 * frameとしてpushできず{@code containerBox.restyle(b, inner)}へ
-	 * 同期再帰フォールバックした回数です(2026-07-30新設、増分0)。
-	 * MULTICOL native worklist化(増分1)完了後は常時0を固定し、将来の
-	 * 新しい{@code FlowBlockBox}サブタイプが黙って再帰経路を復活させる
-	 * ことを検出する。
-	 */
-	public static final AtomicLong WORKLIST_RECURSIVE_FALLBACKS = new AtomicLong();
+	public static final AtomicLong WORKLIST_COMPAT_FALLBACKS = new AtomicLong();
 
 	/**
 	 * worklist driverがMULTICOL境界を再帰なしのnative scope
@@ -148,9 +140,9 @@ public final class ContinuationStats {
 	/**
 	 * rootless COLUMN経路({@code BreakableBuilder.columnBreak()}の
 	 * {@code root == null}分岐——M6c段バランスprobe等のTwoPassBuilder系)
-	 * のterminal restyle回数です(2026-07-30新設、増分3)。
-	 * {@code WorklistTailGate}を一切通らない独立したlegacy入口の
-	 * 到達実態を測る。
+	 * のterminal restyle回数です(2026-07-30新設、増分3)。死んだ入口と
+	 * 考えられる分岐の到達実態を測る(発火したら未知のrootless文脈の
+	 * 出現——{@code WorklistDescentCensusTest}が検出する)。
 	 */
 	public static final AtomicLong ROOTLESS_COLUMN_RESTYLES = new AtomicLong();
 
@@ -209,19 +201,11 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * legacy再帰driverの{@code RECURSIVE_DESCENDER}が同期再帰する直前に
-	 * 呼びます({@link #LEGACY_RECURSIVE_DESCENTS}参照)。
+	 * worklist executorが互換フォールバックへ落ちる直前に呼びます
+	 * ({@link #WORKLIST_COMPAT_FALLBACKS}参照)。
 	 */
-	public static void recordLegacyRecursiveDescent() {
-		LEGACY_RECURSIVE_DESCENTS.incrementAndGet();
-	}
-
-	/**
-	 * worklist driverが再帰フォールバックする直前に呼びます
-	 * ({@link #WORKLIST_RECURSIVE_FALLBACKS}参照)。
-	 */
-	public static void recordWorklistRecursiveFallback() {
-		WORKLIST_RECURSIVE_FALLBACKS.incrementAndGet();
+	public static void recordWorklistCompatFallback() {
+		WORKLIST_COMPAT_FALLBACKS.incrementAndGet();
 	}
 
 	/**
@@ -670,8 +654,7 @@ public final class ContinuationStats {
 		RESTYLE_CHAIN_FIRINGS.set(0);
 		PAGE_RESTYLE_CHAIN_FIRINGS.set(0);
 		COLUMN_RESTYLE_CHAIN_FIRINGS.set(0);
-		LEGACY_RECURSIVE_DESCENTS.set(0);
-		WORKLIST_RECURSIVE_FALLBACKS.set(0);
+		WORKLIST_COMPAT_FALLBACKS.set(0);
 		MULTICOL_NATIVE_DESCENTS.set(0);
 		ROOTLESS_COLUMN_RESTYLES.set(0);
 		MAX_ROOTLESS_COLUMN_OPEN_DEPTH.set(0);

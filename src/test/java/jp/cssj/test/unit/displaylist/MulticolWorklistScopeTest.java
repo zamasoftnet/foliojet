@@ -37,7 +37,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code MULTICOL_NATIVE_DESCENTS > 0}(native scope降下が実際に
  * 通った)</li>
  * <li><b>フォールバック0</b>: 全文書で
- * {@code WORKLIST_RECURSIVE_FALLBACKS == 0}(未知コンテナの互換
+ * {@code WORKLIST_COMPAT_FALLBACKS == 0}(未知コンテナの互換
  * フォールバックへ逃げていない)</li>
  * <li><b>内容保存</b>: インライン文書の期待トークン(T2等)が全ページを
  * 通して<b>ちょうど1回</b>描かれる——消失も複製もない
@@ -190,7 +190,7 @@ public class MulticolWorklistScopeTest extends TestCase {
 		assertTrue(name + ": ページが出ていません", !dumps.isEmpty());
 
 		assertEquals(name + ": worklist駆動が互換フォールバックへ逃げました", 0,
-				ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get());
+				ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
 		if (expectNativeDescent) {
 			assertTrue(name + ": native降下が空振り(MULTICOL経路を通っていない)",
 					ContinuationStats.MULTICOL_NATIVE_DESCENTS.get() > 0);

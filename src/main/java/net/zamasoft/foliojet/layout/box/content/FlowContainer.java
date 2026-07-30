@@ -1819,14 +1819,14 @@ public class FlowContainer implements Container {
 	/**
 	 * {@code OpenChain}を明示スタックで駆動するworklist executor本体
 	 * です(2026-07-22新設、B6a1——`docs/consultations/consult-b6a1
-	 * -explicit-worklist-executor-codex.txt`の設計をそのまま実装)。
-	 * TEXT/BLOCK/TABLE/REPLACEDの意味は{@link #restyleItem}をlegacy
-	 * 再帰driverと共有し、複製しない——{@code OpenChain}降下だけが
-	 * 違う: 子コンテナが{@link FlowContainer}であれば再帰せず新しい
-	 * {@link RestyleFrame}をこの{@code Deque}へpushする。子コンテナが
-	 * FlowContainerでない(表・段組等)場合は改ページ契約上atomicな
-	 * 境界でありworklist化の対象外——{@code containerBox.restyle
-	 * (builder, inner)}への通常の(再帰)フォールバックへ委ねる。
+	 * -explicit-worklist-executor-codex.txt`の設計をそのまま実装。
+	 * 2026-07-30の増分4で<b>唯一のdriver</b>となった——旧再帰driverとの
+	 * 並存期の経緯は{@link #restyle}のjavadoc参照)。
+	 * TEXT/BLOCK/TABLE/REPLACEDの意味は{@link #restyleItem}が担い、
+	 * {@code OpenChain}降下は{@link #descendWorklist}が
+	 * {@link RestyleFrame}(plain flow)または
+	 * {@link MulticolRestyleScope}(段組)としてこの{@code Deque}へ
+	 * pushする。
 	 *
 	 * <p>
 	 * <b>2026-07-22の実バグ修正</b>:
@@ -2078,7 +2078,7 @@ public class FlowContainer implements Container {
 			builder.startFlowBlock(flowBox);
 			stack.push(new MulticolRestyleScope(columns.beginRestyleScope(), inner));
 		} else {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistRecursiveFallback();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistCompatFallback();
 			final String pair = containerBox.getClass().getName() + "/"
 					+ (childContainer == null ? "null" : childContainer.getClass().getName());
 			if (WARNED_FALLBACK_PAIRS.add(pair)) {

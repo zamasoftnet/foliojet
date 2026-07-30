@@ -16,21 +16,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * legacy再帰driver撤去(PLAN §2「新旧2経路の一本化」)の増分0:
- * {@link ContinuationStats#LEGACY_RECURSIVE_DESCENTS}と
- * {@link ContinuationStats#WORKLIST_RECURSIVE_FALLBACKS}の到達形を
- * 現状のまま固定する観測テストです(2026-07-30、codex相談
- * docs/consultations/consult-codex-2026-07-30-multicol-descent-proof.txt
- * §5 増分0)。
+ * worklist executor(唯一のOpenChain driver)の到達形censusです
+ * (2026-07-30、legacy再帰撤去=PLAN §2「新旧2経路の一本化」)。
  *
  * <p>
- * 増分0時点は「MULTICOL含みfixtureでlegacyが正」の到達形カタログだった
- * (columns-float=2・page-first=2・入れ子段組=3)。増分2(gateの
- * MULTICOL許可、2026-07-30)で全fixtureが「legacy==0」へ反転済み。
- * 撤去完了(増分4)後は0固定の回帰ガードとして残す。
+ * <b>歴史</b>: 旧{@code LegacyRecursiveDescentCensusTest}(増分0)は
+ * 「どのfixtureが旧再帰driverを発火させるか」のカタログだった
+ * (columns-float=2・page-first=2・入れ子段組=3)。増分2のgate切替で
+ * 全fixtureがlegacy 0へ反転し、増分4で旧driverとその観測カウンタ
+ * ({@code LEGACY_RECURSIVE_DESCENTS})自体が物理撤去されたため、
+ * 残る観測点(互換フォールバック・native降下・rootless入口)の
+ * 0/非0固定へ再定義した。
  * </p>
  */
-public class LegacyRecursiveDescentCensusTest extends TestCase {
+public class WorklistDescentCensusTest extends TestCase {
 	static {
 		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
 		System.setProperty("jp.cssj.driver.default",
@@ -40,37 +39,26 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * MULTICOL上のfloatを跨ぐ改ページ: 残存tailにMULTICOLが残る代表
-	 * fixture。増分0時点(gateがMULTICOLをlegacyへ落としていた)は
-	 * legacy=2——増分2(2026-07-30、gateのMULTICOL許可)でworklist駆動
-	 * となり0へ反転した。
+	 * MULTICOL tailを含む代表fixture+plainチェーン: worklistがチェーンを
+	 * 実際に駆動し(非空振り)、互換フォールバックへ一切落ちないことを
+	 * 固定する。
 	 */
-	public void testColumnsFloatUsesWorklist() throws Exception {
+	public void testChainsRunOnWorklistWithoutFallback() throws Exception {
 		ContinuationStats.reset();
 		this.transcode(new File("files/unittest/0400-column-count/columns-float.html"), "census-columns-float");
-		assertTrue("チェーン発火が観測されていません(fixtureが弱体化)",
-				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
-		assertEquals("columns-float.htmlでlegacy再帰が発火(増分2の切替が退行)", 0,
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
-	}
-
-	/**
-	 * 先頭ページからの段組: PAGE経由でMULTICOL tailが残る代表fixture。
-	 * 増分0時点はlegacy=2——増分2で0へ反転した。
-	 */
-	public void testPageFirstUsesWorklist() throws Exception {
-		ContinuationStats.reset();
 		this.transcode(new File("files/unittest/0400-column-count/page-first.html"), "census-page-first");
+		this.transcode(new File("files/unittest/0400-column-count/v-frame.html"), "census-v-frame");
+		this.transcode(new File("files/unittest/0460-segment-restyle/float-split-in-chain.html"), "census-plain-chain");
 		assertTrue("チェーン発火が観測されていません(fixtureが弱体化)",
 				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
-		assertEquals("page-first.htmlでlegacy再帰が発火(増分2の切替が退行)", 0,
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
+		assertEquals("worklist executorが互換フォールバックへ落ちました(未知のbox/container組み合わせの出現)", 0,
+				ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
 	}
 
 	/**
 	 * 入れ子段組で開いたチェーンがMULTICOL境界を貫通する代表文書
 	 * ({@code NestedMulticolDuplicationTest}の経路3 MOVE_SENTINELと
-	 * 同型。増分0時点の実測legacy=3、増分2以後はnative降下で処理)。
+	 * 同型)。native scope降下の非空振りを固定する。
 	 *
 	 * <p>
 	 * 注意: {@code 0400-column-count/nest.html}は1ページ内で完結し
@@ -105,40 +93,10 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 		}
 		ContinuationStats.reset();
 		this.transcode(input, "census-nested-multicol");
-		assertTrue("入れ子段組でnative降下が観測されていません(増分2の切替が退行)",
+		assertTrue("入れ子段組でnative降下が観測されていません",
 				ContinuationStats.MULTICOL_NATIVE_DESCENTS.get() > 0);
-		assertEquals("入れ子段組でlegacy再帰が発火(増分2の切替が退行)", 0,
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
-	}
-
-	/**
-	 * plainなチェーン破断(MULTICOL tailなし): worklist driverが処理し、
-	 * legacy再帰は発火しない。v-frame.htmlは実測chain=11・legacy=0で、
-	 * 「チェーンは大量に発火するがすべてworklistが処理する」ことの証拠。
-	 */
-	public void testPlainChainDoesNotFireLegacyDescent() throws Exception {
-		ContinuationStats.reset();
-		this.transcode(new File("files/unittest/0460-segment-restyle/float-split-in-chain.html"), "census-plain-chain");
-		this.transcode(new File("files/unittest/0400-column-count/v-frame.html"), "census-v-frame");
-		assertTrue("チェーン発火が観測されていません(fixtureが弱体化)",
-				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
-		assertEquals("plainチェーン破断でlegacy再帰が発火(worklist gateの退行)", 0,
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
-	}
-
-	/**
-	 * 現状のgate({@code WORKLIST_ELIGIBLE} = 残存tailすべて
-	 * PLAIN_FLOW)の下では、worklist driverが再帰フォールバックへ
-	 * 落ちることは決してない——この不変条件を全代表fixtureで固定する。
-	 * MULTICOL native化(増分1)後も0のまま維持すべき値。
-	 */
-	public void testWorklistNeverFallsBackToRecursion() throws Exception {
-		ContinuationStats.reset();
-		this.transcode(new File("files/unittest/0400-column-count/columns-float.html"), "census-fb1");
-		this.transcode(new File("files/unittest/0400-column-count/v-frame.html"), "census-fb2");
-		this.transcode(new File("files/unittest/0460-segment-restyle/float-split-in-chain.html"), "census-fb3");
-		assertEquals("worklist driverが再帰フォールバックへ落ちました", 0,
-				ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get());
+		assertEquals("worklist executorが互換フォールバックへ落ちました", 0,
+				ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
 	}
 
 	/**
@@ -148,7 +106,7 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 	 * プローブは2026-07-25に全撤去済みで、全コーパス+合成文書の実測でも
 	 * 発火0——死んだ入口と考えられる。<b>このassertが落ちたら「未知の
 	 * rootless文脈が出現した」ことを意味する</b>ので、削除せず到達経路を
-	 * 調査すること(分岐自体は統一worklist driverへ接続済みのため挙動は
+	 * 調査すること(分岐自体は統一worklist driverで駆動されるため挙動は
 	 * 安全だが、想定外の到達は設計前提の崩れを示す)。
 	 */
 	public void testRootlessColumnPathStaysUnreached() throws Exception {
@@ -160,13 +118,17 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 				ContinuationStats.ROOTLESS_COLUMN_RESTYLES.get());
 	}
 
-	/** {@code reset()}が新カウンタも戻すことの確認。 */
-	public void testResetClearsNewCounters() {
-		ContinuationStats.LEGACY_RECURSIVE_DESCENTS.set(7);
-		ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.set(7);
+	/** {@code reset()}が観測カウンタを戻すことの確認。 */
+	public void testResetClearsCounters() {
+		ContinuationStats.WORKLIST_COMPAT_FALLBACKS.set(7);
+		ContinuationStats.MULTICOL_NATIVE_DESCENTS.set(7);
+		ContinuationStats.ROOTLESS_COLUMN_RESTYLES.set(7);
+		ContinuationStats.MAX_ROOTLESS_COLUMN_OPEN_DEPTH.set(7);
 		ContinuationStats.reset();
-		assertEquals(0, ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
-		assertEquals(0, ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get());
+		assertEquals(0, ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
+		assertEquals(0, ContinuationStats.MULTICOL_NATIVE_DESCENTS.get());
+		assertEquals(0, ContinuationStats.ROOTLESS_COLUMN_RESTYLES.get());
+		assertEquals(0, ContinuationStats.MAX_ROOTLESS_COLUMN_OPEN_DEPTH.get());
 	}
 
 	private void transcode(File source, String name) throws Exception {
