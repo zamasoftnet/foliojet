@@ -24,27 +24,29 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * MULTICOL native worklist化(legacy再帰撤去=増分1、2026-07-30)の
- * 等価性証明です。routingは未変更のため本番ではまだこの経路に入らない
- * ——このテストが{@code FlowContainer.pushWorklistOverride()}で強制的に
- * worklist driverへ流し、次の3点を固定する:
+ * MULTICOL native worklist化(legacy再帰撤去=増分1〜2、2026-07-30)の
+ * 検証です。本番routing(gate)と強制worklist駆動の2回変換で次を固定する:
  *
  * <ol>
- * <li><b>バイト等価</b>: legacy駆動とworklist駆動で全ページの
- * display-list dumpが一致する。順序特性(startFlowBlock順・旧段index
- * 昇順・開いた尾は最終段のみ)の証明はこのバイト一致に包含される</li>
- * <li><b>非空振り</b>: 強制worklist駆動で
- * {@code MULTICOL_NATIVE_DESCENTS > 0}(テストが実際にnative降下を
- * 通った)かつ{@code WORKLIST_RECURSIVE_FALLBACKS == 0}(同期再帰へ
- * 逃げていない)</li>
+ * <li><b>バイト等価</b>: 本番routing(gateがMULTICOL tailをworklistへ
+ * 流す)と全域強制worklistで全ページのdisplay-list dumpが一致する</li>
+ * <li><b>非空振り</b>: MULTICOL境界を貫通する文書で
+ * {@code MULTICOL_NATIVE_DESCENTS > 0}、全文書で
+ * {@code LEGACY_RECURSIVE_DESCENTS == 0}かつ
+ * {@code WORKLIST_RECURSIVE_FALLBACKS == 0}</li>
  * <li><b>リークなし</b>: 各変換後に尾部封印(tailSeal)もworklist
  * overrideもThreadLocalへ残らない</li>
  * </ol>
  *
  * <p>
- * 増分2(WorklistTailGateのMULTICOL許可)後は本番経路がここを通る。
+ * <b>歴史的経緯</b>: 増分1(routing不変)の時点では1回目の変換が
+ * legacy再帰駆動であり、このテストは「legacy駆動とworklist駆動の
+ * バイト等価」の証明だった(foliojet4 67c2414。順序特性——
+ * startFlowBlock順・旧段index昇順・開いた尾は最終段のみ——の証明は
+ * バイト一致に包含)。増分2のgate切替で本番もworklistとなったため、
+ * 現在は「本番routingの回帰ガード+全域強制との一致」として運用する。
  * codex相談: docs/consultations/
- * consult-codex-2026-07-30-multicol-descent-proof.txt §5 増分1。
+ * consult-codex-2026-07-30-multicol-descent-proof.txt §5。
  * </p>
  */
 public class MulticolWorklistScopeTest extends TestCase {
@@ -153,7 +155,7 @@ public class MulticolWorklistScopeTest extends TestCase {
 	}
 
 	/**
-	 * 1文書をlegacy駆動と強制worklist駆動で変換し、dumpバイト一致・
+	 * 1文書を本番routingと全域強制worklistで変換し、dumpバイト一致・
 	 * カウンタ・リークなしを検査します。
 	 *
 	 * @param name               出力ディレクトリ名
@@ -161,9 +163,8 @@ public class MulticolWorklistScopeTest extends TestCase {
 	 * @param html               インライン文書({@code source}と排他)
 	 * @param expectNativeDescent 開いたチェーンがMULTICOL境界を貫通し、
 	 *                            native降下が発火するはずの文書ならtrue。
-	 *                            falseの文書はlegacy発火の原因がplainな
-	 *                            チェーン降下だけ(2026-07-30実測)で、
-	 *                            worklist駆動ではframe pushで完結する
+	 *                            falseの文書はチェーンがplainなboxだけを
+	 *                            通り(2026-07-30実測)、frame pushで完結する
 	 */
 	private static void assertLegacyWorklistEquivalence(final String name, final File source, final String html,
 			final boolean expectNativeDescent) throws Exception {
@@ -178,24 +179,27 @@ public class MulticolWorklistScopeTest extends TestCase {
 			}
 		}
 
-		final List<String> legacyDump = transcodeAndDump(name + "/legacy", input, false);
-		final long legacyDescents = ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get();
-		assertTrue(name + ": legacy駆動でlegacy再帰が観測されていません(fixtureが弱体化)", legacyDescents > 0);
-		assertEquals(name + ": legacy駆動でnative降下が発火(routingが変わっている)", 0,
-				ContinuationStats.MULTICOL_NATIVE_DESCENTS.get());
+		final List<String> productionDump = transcodeAndDump(name + "/production", input, false);
+		final long productionLegacy = ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get();
+		final long productionNative = ContinuationStats.MULTICOL_NATIVE_DESCENTS.get();
+		assertEquals(name + ": 本番routingでlegacy再帰が発火(増分2の切替が退行)", 0, productionLegacy);
+		if (expectNativeDescent) {
+			assertTrue(name + ": 本番routingでnative降下が空振り(MULTICOL経路を通っていない)",
+					productionNative > 0);
+		}
 
 		final List<String> worklistDump = transcodeAndDump(name + "/worklist", input, true);
 		final long worklistLegacy = ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get();
 		final long worklistFallbacks = ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get();
 		final long nativeDescents = ContinuationStats.MULTICOL_NATIVE_DESCENTS.get();
-		System.out.println("[EQ] " + name + " legacyRun.legacy=" + legacyDescents + " worklistRun.native="
-				+ nativeDescents + " worklistRun.fallback=" + worklistFallbacks);
+		System.out.println("[EQ] " + name + " production.native=" + productionNative + " forced.native="
+				+ nativeDescents + " forced.fallback=" + worklistFallbacks);
 
 		// 等価性(本丸)を先に検査する——カウンタの期待が外れた場合も
 		// 「出力は合っているのか」が失敗メッセージから分かるように
-		assertEquals(name + ": ページ数が不一致", legacyDump.size(), worklistDump.size());
-		for (int i = 0; i < legacyDump.size(); ++i) {
-			assertEquals(name + ": ページ" + (i + 1) + "のdisplay-listが不一致", legacyDump.get(i),
+		assertEquals(name + ": ページ数が不一致", productionDump.size(), worklistDump.size());
+		for (int i = 0; i < productionDump.size(); ++i) {
+			assertEquals(name + ": ページ" + (i + 1) + "のdisplay-listが不一致", productionDump.get(i),
 					worklistDump.get(i));
 		}
 

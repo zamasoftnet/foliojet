@@ -28,31 +28,29 @@ public enum WorklistTailGate {
 	NO_LEGACY_OPEN_TAIL,
 	/**
 	 * 未収集のlegacy開きが残り、そこに{@link ContinuationCapability
-	 * #PLAIN_FLOW}以外のレベル(float・absolute・書字方向不一致
-	 * 祖先等)が含まれる。改ページ契約(ARCHITECTURE.md §5.10)どおり
-	 * legacy OpenChain再帰(段組貫通MOVE専用の経路)で駆動する。
+	 * #PLAIN_FLOW}・{@link ContinuationCapability#MULTICOL}以外のレベル
+	 * (書字方向不一致祖先・{@code UNSUPPORTED_BOX}等)が含まれる。
+	 * 改ページ契約(ARCHITECTURE.md §5.10)の障壁により通常は到達しない
+	 * 設計だが、gateとしてはfail closed(legacy OpenChain再帰)へ倒す。
 	 *
 	 * <p>
-	 * <b>この分岐は構造的に発生しうる(F-4、2026-07-25)</b>:
-	 * {@link ContinuationCapability#MULTICOL}は
-	 * {@link ContinuationCapability#supportsPageSplitThrough}が真
-	 * (段組を貫通する改ページを許す)である一方、収集可能プレフィックス
-	 * スキャンは{@code PLAIN_FLOW}でしか進まないため、段組レベルは必ず
-	 * <b>未収集tail側</b>に残りここへ到達する(436文書全数の実測でも3件:
-	 * 0400-column-count/columns-float・0400-column-count/page-first・
-	 * 0415-column-fill/probe-nested)。つまりこの分岐は型・構造の上で
-	 * ゼロにならず、「実測0だからlegacy再帰を撤去する」という道は
-	 * 塞がっている。撤去条件は<b>worklist executorが{@code MULTICOL}
-	 * レベルの降下を正しく扱えることの証明</b>である(現在の
-	 * {@code restyleWorklist}は非{@code FlowContainer}の子を通常の再帰
-	 * フォールバックへ委ねており、この降下は未検証)。
+	 * 経緯: 2026-07-25(F-4)時点ではMULTICOLもここへ落ちていた
+	 * (「収集不可かつ貫通可」の唯一の分類のため、段組レベルは必ず
+	 * 未収集tail側に残る——436文書実測で3件: columns-float・page-first・
+	 * probe-nested)。2026-07-30の増分1でworklist executorがMULTICOLを
+	 * native scope({@code FlowContainer.MulticolRestyleScope})として
+	 * 降下できることをlegacy駆動とのバイト等価で証明し
+	 * ({@code MulticolWorklistScopeTest})、増分2で残存許可を
+	 * {@code PLAIN_FLOW || MULTICOL}へ拡張した(codex相談
+	 * consult-codex-2026-07-30-multicol-descent-proof.txt §5)。
 	 * </p>
 	 */
 	LEGACY_RECURSION,
 	/**
 	 * 未収集のlegacy開きが残るが、その全レベルが{@link
-	 * ContinuationCapability#PLAIN_FLOW}(幹と同じ書字方向の素の
-	 * FlowBlockBoxの一直線)。worklist executorで駆動する。
+	 * ContinuationCapability#PLAIN_FLOW}または{@link
+	 * ContinuationCapability#MULTICOL}(幹と同じ書字方向)。worklist
+	 * executorで駆動する(MULTICOLはnative scope降下——増分2で許可)。
 	 */
 	WORKLIST_ELIGIBLE;
 
@@ -72,7 +70,9 @@ public enum WorklistTailGate {
 		}
 		for (int i = firstOpenPathIndex; i < snapshot.depth(); ++i) {
 			if (!(snapshot.levels().get(i).role() instanceof OpenPathSnapshot.OpenLevelRole.Ancestor(
-					final ContinuationCapability capability)) || capability != ContinuationCapability.PLAIN_FLOW) {
+					final ContinuationCapability capability))
+					|| (capability != ContinuationCapability.PLAIN_FLOW
+							&& capability != ContinuationCapability.MULTICOL)) {
 				return LEGACY_RECURSION;
 			}
 		}

@@ -24,10 +24,10 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * §5 増分0)。
  *
  * <p>
- * 「MULTICOL含みfixtureでlegacyが正」の各assertは、増分2(gateの
- * MULTICOL許可)で「== 0」へ反転させる予定の到達形カタログでもある。
- * 撤去完了(増分4)後は全fixtureで両カウンタ常時0となり、このテストは
- * 反転済みassertごと退役するか、0固定の回帰ガードとして残す。
+ * 増分0時点は「MULTICOL含みfixtureでlegacyが正」の到達形カタログだった
+ * (columns-float=2・page-first=2・入れ子段組=3)。増分2(gateの
+ * MULTICOL許可、2026-07-30)で全fixtureが「legacy==0」へ反転済み。
+ * 撤去完了(増分4)後は0固定の回帰ガードとして残す。
  * </p>
  */
 public class LegacyRecursiveDescentCensusTest extends TestCase {
@@ -40,30 +40,37 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * MULTICOL上のfloatを跨ぐ改ページ: 残存tailにMULTICOLが残り
-	 * {@code WorklistTailGate.LEGACY_RECURSION}となる代表fixture。
+	 * MULTICOL上のfloatを跨ぐ改ページ: 残存tailにMULTICOLが残る代表
+	 * fixture。増分0時点(gateがMULTICOLをlegacyへ落としていた)は
+	 * legacy=2——増分2(2026-07-30、gateのMULTICOL許可)でworklist駆動
+	 * となり0へ反転した。
 	 */
-	public void testColumnsFloatFiresLegacyDescent() throws Exception {
+	public void testColumnsFloatUsesWorklist() throws Exception {
 		ContinuationStats.reset();
 		this.transcode(new File("files/unittest/0400-column-count/columns-float.html"), "census-columns-float");
-		assertTrue("columns-float.htmlでlegacy再帰が観測されていません(増分2でこの期待を==0へ反転する)",
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get() > 0);
+		assertTrue("チェーン発火が観測されていません(fixtureが弱体化)",
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
+		assertEquals("columns-float.htmlでlegacy再帰が発火(増分2の切替が退行)", 0,
+				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
 	}
 
 	/**
 	 * 先頭ページからの段組: PAGE経由でMULTICOL tailが残る代表fixture。
+	 * 増分0時点はlegacy=2——増分2で0へ反転した。
 	 */
-	public void testPageFirstFiresLegacyDescent() throws Exception {
+	public void testPageFirstUsesWorklist() throws Exception {
 		ContinuationStats.reset();
 		this.transcode(new File("files/unittest/0400-column-count/page-first.html"), "census-page-first");
-		assertTrue("page-first.htmlでlegacy再帰が観測されていません(増分2でこの期待を==0へ反転する)",
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get() > 0);
+		assertTrue("チェーン発火が観測されていません(fixtureが弱体化)",
+				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get() > 0);
+		assertEquals("page-first.htmlでlegacy再帰が発火(増分2の切替が退行)", 0,
+				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
 	}
 
 	/**
-	 * 入れ子段組で内側MULTICOLがdescendant barrierとしてlegacy tailに
-	 * 残る代表文書({@code NestedMulticolDuplicationTest}の経路3
-	 * MOVE_SENTINELと同型。実測legacy=3)。
+	 * 入れ子段組で開いたチェーンがMULTICOL境界を貫通する代表文書
+	 * ({@code NestedMulticolDuplicationTest}の経路3 MOVE_SENTINELと
+	 * 同型。増分0時点の実測legacy=3、増分2以後はnative降下で処理)。
 	 *
 	 * <p>
 	 * 注意: {@code 0400-column-count/nest.html}は1ページ内で完結し
@@ -71,7 +78,7 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 	 * プローブ実測。codex相談の想定fixtureを実測で差し替えた)。
 	 * </p>
 	 */
-	public void testNestedMulticolFiresLegacyDescent() throws Exception {
+	public void testNestedMulticolUsesNativeDescent() throws Exception {
 		final File input = new File("local/unittest/continuation/census-nested-multicol.html");
 		input.getParentFile().mkdirs();
 		try (java.io.Writer w = new java.io.OutputStreamWriter(new java.io.FileOutputStream(input),
@@ -98,8 +105,10 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 		}
 		ContinuationStats.reset();
 		this.transcode(input, "census-nested-multicol");
-		assertTrue("入れ子段組でlegacy再帰が観測されていません(増分2でこの期待を==0へ反転する)",
-				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get() > 0);
+		assertTrue("入れ子段組でnative降下が観測されていません(増分2の切替が退行)",
+				ContinuationStats.MULTICOL_NATIVE_DESCENTS.get() > 0);
+		assertEquals("入れ子段組でlegacy再帰が発火(増分2の切替が退行)", 0,
+				ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get());
 	}
 
 	/**

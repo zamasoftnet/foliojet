@@ -115,12 +115,30 @@ public class WorklistTailGateTest extends TestCase {
 		assertPageGate(WorklistTailGate.WORKLIST_ELIGIBLE, snapshot, new Continuation(3, frame, Map.of()));
 	}
 
-	/** split-stopped(非PLAIN_FLOW残存): 段組levelが残るためlegacy再帰。 */
-	public void testSplitStoppedWithMulticolIsLegacyRecursion() {
+	/**
+	 * split-stopped(MULTICOL残存): 増分2(2026-07-30)でworklist適格へ
+	 * 反転——worklist executorがMULTICOLをnative scope降下できるため
+	 * ({@code MulticolWorklistScopeTest}でlegacy駆動とのバイト等価を証明済み)。
+	 */
+	public void testSplitStoppedWithMulticolIsWorklistEligible() {
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
 				level(0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
 				new OpenPathSnapshot.OpenLevelDescriptor(1, MulticolumnBlockBox.class, WritingMode.TB,
 						2, 1, new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.MULTICOL)),
+				level(2, new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW)));
+		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
+
+		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(RECIPE, null, null, 0,
+				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(3)));
+		assertPageGate(WorklistTailGate.WORKLIST_ELIGIBLE, snapshot, new Continuation(3, frame, Map.of()));
+	}
+
+	/** split-stopped(ORTHOGONAL_FLOW残存): 増分2以後もfail closed(legacy)。 */
+	public void testSplitStoppedWithOrthogonalIsLegacyRecursion() {
+		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = List.of(
+				level(0, new OpenPathSnapshot.OpenLevelRole.Anchor(OpenPathSnapshot.AnchorKind.PAGE_ROOT)),
+				new OpenPathSnapshot.OpenLevelDescriptor(1, FlowBlockBox.class, WritingMode.RL,
+						1, 1, new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.ORTHOGONAL_FLOW)),
 				level(2, new OpenPathSnapshot.OpenLevelRole.Ancestor(ContinuationCapability.PLAIN_FLOW)));
 		final OpenPathSnapshot snapshot = new OpenPathSnapshot(WritingMode.TB, descriptors, Optional.empty());
 
@@ -140,10 +158,20 @@ public class WorklistTailGateTest extends TestCase {
 				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.PLAIN_FLOW), null);
 	}
 
-	/** COLUMN childなし(snapshot depth&gt;1、非PLAIN_FLOW残存): legacy再帰。 */
-	public void testColumnNoChildNonPlainFlowIsLegacyRecursion() {
-		assertColumnGate(WorklistTailGate.LEGACY_RECURSION,
+	/**
+	 * COLUMN childなし(snapshot depth&gt;1、MULTICOL残存): 増分2で
+	 * worklist適格へ反転(owner内側のdescendant MULTICOLもnative scope
+	 * 降下で駆動する)。
+	 */
+	public void testColumnNoChildMulticolIsWorklistEligible() {
+		assertColumnGate(WorklistTailGate.WORKLIST_ELIGIBLE,
 				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.MULTICOL), null);
+	}
+
+	/** COLUMN childなし(snapshot depth&gt;1、書字方向不一致残存): 増分2以後もlegacy。 */
+	public void testColumnNoChildOrthogonalIsLegacyRecursion() {
+		assertColumnGate(WorklistTailGate.LEGACY_RECURSION,
+				columnSnapshot(ContinuationCapability.PLAIN_FLOW, ContinuationCapability.ORTHOGONAL_FLOW), null);
 	}
 
 	/** COLUMN貫通チェーン完全収集: 終端は開きテキストのみ。 */
