@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>font-feature-settings / font-variant-east-asian</title>
+<style type="text/css">
+/* pdfg2dのテスト用CJKフォント(jp78/palt等を持つ)。foliojet4は
+   settings.gradleで同じsibling checkoutを必須参照している */
+@font-face {
+	font-family: 'tf';
+	src: url('../../../../../../zamasoftnet-public/pdfg2d/pdfg2d-font/src/test/resources/data/test.otf');
+}
+body { font-family: 'tf'; font-size: 10pt; }
+</style>
+</head>
+<body>
+<div>あ<span id="a">、、、、、、、、、、</span>あ</div>
+<div>あ<span id="b" style="font-feature-settings: 'palt' 1">、、、、、、、、、、</span>あ</div>
+<div>あ<span id="c" style="font-variant-east-asian: jis78">丈</span>あ</div>
+</body>
+</html>
