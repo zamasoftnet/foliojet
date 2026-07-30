@@ -1882,7 +1882,9 @@ public class FlowContainer implements Container {
 				// 改ページ契約上atomicな境界(表・段組等、またはFlowBlockBox
 				// でない子コンテナ)。worklist化の対象外——通常の
 				// (再帰)フォールバックへ委ねる(再入したrestyle()も
-				// 同じisWorklistMode()判定を通る)。
+				// 同じisWorklistMode()判定を通る)。MULTICOL native化
+				// (増分1)完了後は常時0を固定すべき観測点。
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordWorklistRecursiveFallback();
 				containerBox.restyle(b, inner);
 			}
 		};
@@ -2051,8 +2053,13 @@ public class FlowContainer implements Container {
 	}
 
 	/** legacy再帰driver用の{@link ChainDescender}——常に直接再帰する、旧来どおりの挙動。 */
-	private static final ChainDescender RECURSIVE_DESCENDER = (builder, containerBox,
-			inner) -> containerBox.restyle(builder, inner);
+	private static final ChainDescender RECURSIVE_DESCENDER = (builder, containerBox, inner) -> {
+		// legacy再帰撤去(増分0): 旧driverが実際に再帰した段数だけを数える
+		// 観測点。rooted PAGE/COLUMN・rootless COLUMNの全legacy入口を
+		// ここ一箇所で捕捉する(consult-codex-2026-07-30 §4)。
+		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLegacyRecursiveDescent();
+		containerBox.restyle(builder, inner);
+	};
 
 	/**
 	 * sort済み{@code items}の1件を処理する共有dispatchです(2026-07-22、

@@ -109,6 +109,35 @@ public final class ContinuationStats {
 	public static final AtomicLong COLUMN_RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
 	/**
+	 * legacy再帰driver({@code FlowContainer.RECURSIVE_DESCENDER})が
+	 * 実際に{@code containerBox.restyle(builder, inner)}へ同期再帰した
+	 * 回数です(2026-07-30新設、legacy再帰撤去=増分0)。
+	 *
+	 * <p>
+	 * {@link #RESTYLE_CHAIN_FIRINGS}はlegacy/worklist両driverが共有する
+	 * dispatch内で加算されるため両者を合算してしまい、旧driverの残存を
+	 * 直接測れない(codex相談
+	 * docs/consultations/consult-codex-2026-07-30-multicol-descent-proof.txt
+	 * §4)。このカウンタはrooted PAGE・rooted COLUMN・rootless COLUMNの
+	 * 全legacy入口を{@code RECURSIVE_DESCENDER}一箇所で捕捉し、OpenText
+	 * だけの旧forループは誤計上しない。撤去完了の証明条件は「全fixtureで
+	 * 常時0」。
+	 * </p>
+	 */
+	public static final AtomicLong LEGACY_RECURSIVE_DESCENTS = new AtomicLong();
+
+	/**
+	 * worklist driverの{@code worklistDescender}が、子コンテナを
+	 * {@link net.zamasoft.foliojet.layout.box.content.FlowContainer}の
+	 * frameとしてpushできず{@code containerBox.restyle(b, inner)}へ
+	 * 同期再帰フォールバックした回数です(2026-07-30新設、増分0)。
+	 * MULTICOL native worklist化(増分1)完了後は常時0を固定し、将来の
+	 * 新しい{@code FlowBlockBox}サブタイプが黙って再帰経路を復活させる
+	 * ことを検出する。
+	 */
+	public static final AtomicLong WORKLIST_RECURSIVE_FALLBACKS = new AtomicLong();
+
+	/**
 	 * 現在の継続経路(PAGE/COLUMN)を追跡するスタックです(2026-07-21、B1)。
 	 * {@link ResumeTrace#begin(String)}と同じ「入れ子破断はスタックで
 	 * 表現する」設計だが、こちらはデバッグ用プロパティに関わらず常に
@@ -153,6 +182,22 @@ public final class ContinuationStats {
 	public static void recordChainFiring() {
 		RESTYLE_CHAIN_FIRINGS.incrementAndGet();
 		(isColumnPath() ? COLUMN_RESTYLE_CHAIN_FIRINGS : PAGE_RESTYLE_CHAIN_FIRINGS).incrementAndGet();
+	}
+
+	/**
+	 * legacy再帰driverの{@code RECURSIVE_DESCENDER}が同期再帰する直前に
+	 * 呼びます({@link #LEGACY_RECURSIVE_DESCENTS}参照)。
+	 */
+	public static void recordLegacyRecursiveDescent() {
+		LEGACY_RECURSIVE_DESCENTS.incrementAndGet();
+	}
+
+	/**
+	 * worklist driverが再帰フォールバックする直前に呼びます
+	 * ({@link #WORKLIST_RECURSIVE_FALLBACKS}参照)。
+	 */
+	public static void recordWorklistRecursiveFallback() {
+		WORKLIST_RECURSIVE_FALLBACKS.incrementAndGet();
 	}
 
 	/** {@code ColumnsContainer.splitPageAxis}の試行回数です(M6c-1でAPI集約)。 */
@@ -609,6 +654,8 @@ public final class ContinuationStats {
 		RESTYLE_CHAIN_FIRINGS.set(0);
 		PAGE_RESTYLE_CHAIN_FIRINGS.set(0);
 		COLUMN_RESTYLE_CHAIN_FIRINGS.set(0);
+		LEGACY_RECURSIVE_DESCENTS.set(0);
+		WORKLIST_RECURSIVE_FALLBACKS.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
 		MAX_STALLED_AUTO_BREAK_RUN.set(0);
