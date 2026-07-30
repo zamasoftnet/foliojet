@@ -86,6 +86,10 @@ public class RetainedCellPassBShadowTest extends TestCase {
 			// legacy一括bindの実寸とbit一致するはず
 			"0240-table/float-table-caption.html", //
 			"0460-segment-restyle/moved-table-caption.html", //
+			// DP増分6(2026-07-30): 段組セル(td{column-count:2})のPass B
+			// replica計測——replicaは空のFlowContainerで開始し、範囲再生中の
+			// 改段commitがColumnsContainerを遅延生成する(liveと同じ経路)
+			"0400-column-count/table-cell.html", //
 	};
 
 	/** 200行fixtureの本文行数・列数(RetentionHighWaterReportTestと同型)。 */
