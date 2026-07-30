@@ -220,6 +220,51 @@ public final class RowLayoutEngine {
 	 * @param autoRows    自動高さの行
 	 * @param rowRatios   %指定行の比率(なければ 0)
 	 */
+	/**
+	 * セルのページ軸要求寸法です(A-4、2026-07-30。両ビルダーの同型計算の
+	 * 統合): 実測値と、ABSOLUTE指定(content-boxなら枠を加算)の大きい方。
+	 * 演算順は旧実装のまま。
+	 */
+	public static double demandPageSize(final double measured,
+			final net.zamasoft.foliojet.layout.box.params.BlockParams cellParams,
+			final net.zamasoft.foliojet.layout.box.impl.TableCellBox cellBox, final boolean vertical) {
+		double cellSize = measured;
+		if (vertical) {
+			if (cellParams.size.getWidthType() == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				double width = cellParams.size.getWidth();
+				if (cellParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {
+					width += cellBox.getFrame().getFrameWidth();
+				}
+				cellSize = Math.max(cellSize, width);
+			}
+		} else {
+			if (cellParams.size.getHeightType() == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				double height = cellParams.size.getHeight();
+				if (cellParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {
+					height += cellBox.getFrame().getFrameHeight();
+				}
+				cellSize = Math.max(cellSize, height);
+			}
+		}
+		return cellSize;
+	}
+
+	/**
+	 * rowspanの分配要求を登録します(A-4。同一(row,span)は1つにまとめ、
+	 * 要求値は最大を採る——両ビルダーの同型登録の統合)。
+	 */
+	public static void addSpannedDemand(final java.util.Map<Rowspan, Rowspan> rowspans,
+			final java.util.List<Rowspan> rowspanList, final int row, final int span, final double size) {
+		final Rowspan key = new Rowspan(row, span);
+		Rowspan rowspan = rowspans.get(key);
+		if (rowspan == null) {
+			rowspan = key;
+			rowspans.put(key, rowspan);
+			rowspanList.add(rowspan);
+		}
+		rowspan.min = Math.max(rowspan.min, size);
+	}
+
 	public static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
 			final boolean[] noAdjRows, final boolean[] autoRows, final double[] rowRatios) {
 		for (int j = 0; j < rowspanList.size(); ++j) {

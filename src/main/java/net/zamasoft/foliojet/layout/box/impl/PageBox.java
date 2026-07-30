@@ -214,6 +214,34 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	private final java.util.Set<Long> openStructKeys = new java.util.HashSet<>();
 
+	/**
+	 * タグ付きPDFの構造宣言先(B-3、2026-07-30)。PageSequence.drawPageが
+	 * 表示リスト構築の前に設定する。untagged・非PDF出力ではnullのまま
+	 * (declareは呼ばれずnull参照が流れる=従来のno-opと同じ)。
+	 */
+	private net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut = null;
+
+	/** 文書順の構造の入れ子(宣言済みrefのスタック)。 */
+	private final java.util.ArrayDeque<net.zamasoft.pdfg2d.pdf.StructureRef> structStack = new java.util.ArrayDeque<>();
+
+	public void setStructOutput(final net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut) {
+		this.structOut = structOut;
+	}
+
+	/** structStackはnullを積めない(ArrayDeque)ので、番兵で包む。 */
+	private net.zamasoft.pdfg2d.pdf.StructureRef declareStruct(final String role, final String scope) {
+		final net.zamasoft.pdfg2d.pdf.StructureRef parent = this.structStack.isEmpty() ? null
+				: this.structStack.peek() == NULL_STRUCT ? null : this.structStack.peek();
+		if (this.structOut == null) {
+			return null;
+		}
+		return this.structOut.declareStructElement(parent, role, scope);
+	}
+
+	/** ArrayDequeはnull要素を許さないための番兵(untagged時の占位)。 */
+	private static final net.zamasoft.pdfg2d.pdf.StructureRef NULL_STRUCT = new net.zamasoft.pdfg2d.pdf.StructureRef() {
+	};
+
 	/** Marks the element's structure open; false when it already is. */
 	private boolean openStruct(final Object element) {
 		if (element instanceof net.zamasoft.foliojet.css.StructureElement se && se.elementKey() >= 0) {
@@ -257,19 +285,25 @@ public class PageBox extends AbstractBlockBox {
 		if (role == null || !this.openStruct(element)) {
 			return 0;
 		}
+		// B-3(2026-07-30): 構造はこの走査(文書順)で即宣言し、描画は
+		// PaintCommandが保持する参照へルーティングする。z-indexで別の
+		// stacking contextに積まれても、/Kの論理順はここで確定済み
 		if (role.equals("TH")) {
 			// PDF/UA: a header cell needs a Scope when the table has no
 			// Headers/IDs association.
-			drawer.visitDrawable(
-					net.zamasoft.foliojet.layout.draw.StructDrawable.begin("TH", net.zamasoft.foliojet.ua.props.TaggedPdf
-							.headerScope(element)),
-					x, y);
+			final var ref = this.declareStruct("TH", net.zamasoft.foliojet.ua.props.TaggedPdf.headerScope(element));
+			this.structStack.push(ref == null ? NULL_STRUCT : ref);
+			drawer.setCurrentStructRef(ref);
 			return 1;
 		}
-		drawer.visitDrawable(net.zamasoft.foliojet.layout.draw.StructDrawable.begin(role), x, y);
+		final var ref = this.declareStruct(role, null);
+		this.structStack.push(ref == null ? NULL_STRUCT : ref);
+		drawer.setCurrentStructRef(ref);
 		if (role.equals("LI")) {
 			// PDF/UA: an LI's content must sit in an LBody.
-			drawer.visitDrawable(net.zamasoft.foliojet.layout.draw.StructDrawable.begin("LBody"), x, y);
+			final var lbody = this.declareStruct("LBody", null);
+			this.structStack.push(lbody == null ? NULL_STRUCT : lbody);
+			drawer.setCurrentStructRef(lbody);
 			return 2;
 		}
 		return 1;
@@ -289,9 +323,13 @@ public class PageBox extends AbstractBlockBox {
 			return;
 		}
 		for (int i = 0; i < count; ++i) {
-			drawer.visitDrawable(net.zamasoft.foliojet.layout.draw.StructDrawable.end(), x, y);
+			if (!this.structStack.isEmpty()) {
+				this.structStack.pop();
+			}
 		}
 		this.closeStruct(element);
+		final var top = this.structStack.peek();
+		drawer.setCurrentStructRef(top == NULL_STRUCT ? null : top);
 	}
 
 	public final boolean isSpecifiedPageSize() {

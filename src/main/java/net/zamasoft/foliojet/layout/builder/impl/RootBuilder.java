@@ -26,6 +26,12 @@ public class RootBuilder extends BreakableBuilder {
 	private static final Logger LOG = Logger.getLogger(RootBuilder.class.getName());
 
 	/**
+	 * 自動改ページごとの指紋をダンプするデバッグスイッチ。ホットパスで
+	 * 毎回{@code System.getProperty}(同期Hashtable)を引かないよう起動時に固定します。
+	 */
+	private static final boolean DEBUG_BREAK_FINGERPRINT = System.getProperty("foliojet.debug.breakFingerprint") != null;
+
+	/**
 	 * 進捗のない自動改ページ(ライブロック)の検出用の状態です(2026-07-27新設)。
 	 * 直前の自動改ページ時点の「状態の指紋」と、それが変わらないまま
 	 * 繰り返した回数を持ちます。詳細は
@@ -62,7 +68,7 @@ public class RootBuilder extends BreakableBuilder {
 		final long ingest = (source == null) ? -1L : source.nextId();
 		final int depth = this.flowStack.size();
 		final int target = (auto.box == null) ? 0 : System.identityHashCode(auto.box.getParams().element);
-		if (System.getProperty("foliojet.debug.breakFingerprint") != null && ingest != this.lastBreakIngest) {
+		if (DEBUG_BREAK_FINGERPRINT && ingest != this.lastBreakIngest) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis);
 		}
 		if (ingest == this.lastBreakIngest && depth == this.lastBreakDepth

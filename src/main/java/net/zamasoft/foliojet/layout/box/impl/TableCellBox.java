@@ -507,7 +507,15 @@ public class TableCellBox extends AbstractContainerBox {
 			}
 		}
 		pageLimit -= this.verticalAlign;
-		final SplitResult result = super.split(pageLimit, mode, flags);
+		final SplitResult result;
+		try {
+			result = super.split(pageLimit, mode, flags);
+		} catch (RuntimeException | Error e) {
+			// 途中で失敗したら詰めた整列余白を戻す(縮んだままだと、
+			// 失敗後にこのセルを描く経路で余白が失われる)
+			this.verticalAlign = savedVerticalAlign;
+			throw e;
+		}
 		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode
 		// + "/flags=" + flags + "/" + (nextBox == null) + "/"
 		// + (nextBox == this));

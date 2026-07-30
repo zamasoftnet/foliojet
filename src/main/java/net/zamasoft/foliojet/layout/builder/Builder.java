@@ -41,11 +41,11 @@ public interface Builder extends GlyphHandler, LayoutStack {
 	public void addBound(IBox box);
 
 	/**
-	 * 構築済みのテーブルを追加します。
-	 * 
-	 * @param tableBuilder
+	 * 構築済みのRetained表を追加します(A-2、2026-07-30: 実装が
+	 * RetainedTableBuilderへキャストする暗黙の前提を型へ昇格)。
+	 * 呼び出し元は{@link TableBuilder#finish(Builder)}のRetained実装のみ。
 	 */
-	public void addTable(TableBuilder tableBuilder);
+	public void addTable(RetainedTable tableBuilder);
 
 	/**
 	 * 新しいレイアウトコンテキストを返します。

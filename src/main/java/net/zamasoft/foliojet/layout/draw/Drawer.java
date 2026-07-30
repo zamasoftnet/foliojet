@@ -1,27 +1,36 @@
 package net.zamasoft.foliojet.layout.draw;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
+import net.zamasoft.pdfg2d.pdf.StructureRef;
+import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
- * 描画可能なオブジェクトを描画します。
+ * 1つのstacking contextの表示リストです。paint command列と、子の
+ * stacking context(z-index順に描く)を保持します。
+ *
+ * <p>
+ * 描画順は「自分のpaint command→子contextを(z, 挿入順)で整列して順に」
+ * ——以前は{@code Collections.sort}の安定性へ暗黙に依存していたが、
+ * 挿入順を明示の順序キーに昇格した(B-1、2026-07-30。全順序なので
+ * 何度整列しても同じ結果になり、dump/drawが同じ順序を共有する)。
+ * </p>
  *
  * @author MIYABE Tatsuhiko
- * @version $Id: Drawer.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class Drawer implements Comparable<Drawer> {
+public class Drawer {
 	/**
-	 * 位置が決められた描画可能ボックスです。
-	 *
-	 * @author MIYABE Tatsuhiko
-	 * @version $Id: Drawer.java 1552 2018-04-26 01:43:24Z miyabe $
+	 * 位置が決められた描画可能ボックス(paint command)です。
 	 */
-	protected static class ArrangedDrawable {
+	protected static class PaintCommand {
 		private final Drawable drawable;
 		private final double x, y;
 		/**
@@ -30,17 +39,22 @@ public class Drawer implements Comparable<Drawer> {
 		 */
 		private final boolean artifact;
 
-		public ArrangedDrawable(Drawable drawable, double x, double y) {
-			this(drawable, x, y, false);
-		}
+		/**
+		 * このcommandが属する宣言済み構造要素(B-3、2026-07-30)。
+		 * 構造の順序は宣言時(文書順)に確定済みで、描画はこの参照へ
+		 * ルーティングするだけ——z順で描いても構造は乱れない。
+		 * untaggedでは常にnull。
+		 */
+		private final StructureRef structRef;
 
-		public ArrangedDrawable(Drawable drawable, double x, double y, boolean artifact) {
+		public PaintCommand(Drawable drawable, double x, double y, boolean artifact, StructureRef structRef) {
 			assert !LayoutUtils.isNone(x) : "Undefined x";
 			assert !LayoutUtils.isNone(y) : "Undefined y";
 			this.drawable = drawable;
 			this.x = x;
 			this.y = y;
 			this.artifact = artifact;
+			this.structRef = structRef;
 		}
 
 		public boolean isArtifact() {
@@ -48,22 +62,52 @@ public class Drawer implements Comparable<Drawer> {
 		}
 
 		public void draw(GC gc) throws GraphicsException {
-			if (this.artifact) {
-				// 見た目は同じまま、論理構造には入れない。GCがartifactに
-				// 対応しない(untagged PDF等)場合はno-opのscopeが返るため、
-				// 出力はartifactでない場合と完全に一致する。
-				try (final GC.State scope = gc.beginArtifactScope()) {
+			final PDFPageOutput structOut = (this.structRef != null && gc instanceof PDFGC pdfgc
+					&& pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out) ? out : null;
+			if (structOut != null) {
+				structOut.beginStructContent(this.structRef);
+			}
+			try {
+				if (this.artifact) {
+					// 見た目は同じまま、論理構造には入れない。GCがartifactに
+					// 対応しない(untagged PDF等)場合はno-opのscopeが返るため、
+					// 出力はartifactでない場合と完全に一致する。
+					try (final GC.State scope = gc.beginArtifactScope()) {
+						this.drawable.draw(gc, this.x, this.y);
+					}
+				} else {
 					this.drawable.draw(gc, this.x, this.y);
 				}
-			} else {
-				this.drawable.draw(gc, this.x, this.y);
+			} finally {
+				if (structOut != null) {
+					structOut.endStructContent();
+				}
 			}
 		}
 	}
 
+	/** 子stacking contextと、その挿入順(同zの順序キー)です。 */
+	private static final class StackingContextEntry implements Comparable<StackingContextEntry> {
+		private final Drawer drawer;
+		private final int insertionOrdinal;
+
+		StackingContextEntry(final Drawer drawer, final int insertionOrdinal) {
+			this.drawer = drawer;
+			this.insertionOrdinal = insertionOrdinal;
+		}
+
+		@Override
+		public int compareTo(final StackingContextEntry o) {
+			if (this.drawer.z != o.drawer.z) {
+				return this.drawer.z < o.drawer.z ? -1 : 1;
+			}
+			return Integer.compare(this.insertionOrdinal, o.insertionOrdinal);
+		}
+	}
+
 	protected final int z;
-	protected List<ArrangedDrawable> drawables = null;
-	protected List<Drawer> drawers = null;
+	protected List<PaintCommand> paintCommands = null;
+	private List<StackingContextEntry> stackingContexts = null;
 
 	/**
 	 * このDrawerへ以後追加される内容をartifactとして出すか
@@ -80,6 +124,21 @@ public class Drawer implements Comparable<Drawer> {
 
 	/** {@link #artifactView()}が返す共有ビュー(遅延生成)。 */
 	private Drawer artifactView = null;
+
+	/**
+	 * 以後追加されるcommandが属する宣言済み構造要素(B-3、2026-07-30)。
+	 * 文書順の走査(表示リストの構築)中にPageBox.beginStruct/endStructが
+	 * 更新する。untaggedでは常にnull。
+	 */
+	private StructureRef currentStructRef = null;
+
+	public void setCurrentStructRef(final StructureRef ref) {
+		this.currentStructRef = ref;
+	}
+
+	public StructureRef getCurrentStructRef() {
+		return this.currentStructRef;
+	}
 
 	public Drawer(int z) {
 		this.z = z;
@@ -98,10 +157,10 @@ public class Drawer implements Comparable<Drawer> {
 	 *
 	 * <p>
 	 * 重要: ラッパーDrawerを<b>子として</b>追加してはいけません。現在の
-	 * {@link #draw(GC)}は通常のDrawableを先に描き、子Drawerをz順で
-	 * 安定ソートしてから描くため、子を1段増やすと既存の重なり順が
+	 * {@link #draw(GC)}は通常のDrawableを先に描き、子Drawerをz順(同zは
+	 * 挿入順)で整列してから描くため、子を1段増やすと既存の重なり順が
 	 * 変わってしまいます(答申§3)。このビューは新しいz階層を作らず、
-	 * 追加をそのままこのDrawerの表示リストへ流し、ArrangedDrawableに
+	 * 追加をそのままこのDrawerの表示リストへ流し、PaintCommandに
 	 * 印だけを付けます。
 	 * </p>
 	 *
@@ -124,24 +183,30 @@ public class Drawer implements Comparable<Drawer> {
 
 	/**
 	 * このDrawerと、既に追加済み・今後追加されるすべての内容をartifactに
-	 * します(子Drawerへも再帰的に伝播)。
+	 * します(子Drawerへも反復的に伝播)。
 	 */
 	protected void markArtifact() {
-		if (this.artifact) {
-			return;
-		}
-		this.artifact = true;
-		if (this.drawables != null) {
-			for (int i = 0; i < this.drawables.size(); ++i) {
-				final ArrangedDrawable arranged = this.drawables.get(i);
-				if (!arranged.artifact) {
-					this.drawables.set(i, new ArrangedDrawable(arranged.drawable, arranged.x, arranged.y, true));
+		final Deque<Drawer> work = new ArrayDeque<>();
+		work.push(this);
+		while (!work.isEmpty()) {
+			final Drawer drawer = work.pop();
+			if (drawer.artifact) {
+				continue;
+			}
+			drawer.artifact = true;
+			if (drawer.paintCommands != null) {
+				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
+					final PaintCommand command = drawer.paintCommands.get(i);
+					if (!command.artifact) {
+						// artifact化は構造からも外す(B-3: 構造参照を落とす)
+						drawer.paintCommands.set(i, new PaintCommand(command.drawable, command.x, command.y, true, null));
+					}
 				}
 			}
-		}
-		if (this.drawers != null) {
-			for (int i = 0; i < this.drawers.size(); ++i) {
-				this.drawers.get(i).markArtifact();
+			if (drawer.stackingContexts != null) {
+				for (int i = 0; i < drawer.stackingContexts.size(); ++i) {
+					work.push(drawer.stackingContexts.get(i).drawer);
+				}
 			}
 		}
 	}
@@ -160,10 +225,11 @@ public class Drawer implements Comparable<Drawer> {
 		// 「印刷物としてあり得る範囲か」で弾く(LayoutUtils.isDrawable参照)
 		assert LayoutUtils.isDrawable(x) : "描画位置xが異常: " + x + " (" + drawable + ")";
 		assert LayoutUtils.isDrawable(y) : "描画位置yが異常: " + y + " (" + drawable + ")";
-		if (this.drawables == null) {
-			this.drawables = new ArrayList<ArrangedDrawable>();
+		if (this.paintCommands == null) {
+			this.paintCommands = new ArrayList<PaintCommand>();
 		}
-		this.drawables.add(new ArrangedDrawable(drawable, x, y, artifact));
+		// artifactは論理構造に入れない(構造参照も持たせない)
+		this.paintCommands.add(new PaintCommand(drawable, x, y, artifact, artifact ? null : this.currentStructRef));
 	}
 
 	public void visitDrawer(Drawer drawer) {
@@ -171,71 +237,84 @@ public class Drawer implements Comparable<Drawer> {
 	}
 
 	/**
-	 * 子Drawerを追加します。{@code artifact}が真なら子(とその子孫)へ
-	 * 属性を伝播します。
+	 * 子stacking contextを追加します。{@code artifact}が真なら子(とその
+	 * 子孫)へ属性を伝播します。挿入順が同zの順序キーになります。
 	 */
 	protected void addDrawer(Drawer drawer, boolean artifact) {
 		if (artifact) {
 			drawer.markArtifact();
 		}
-		if (this.drawers == null) {
-			this.drawers = new ArrayList<Drawer>();
+		if (this.stackingContexts == null) {
+			this.stackingContexts = new ArrayList<StackingContextEntry>();
 		}
-		this.drawers.add(drawer);
+		// 子stacking contextへ現在の構造参照を引き継ぐ(B-3)——z順で描かれても
+		// 子の内容は文書順の親要素に属する
+		drawer.setCurrentStructRef(this.currentStructRef);
+		this.stackingContexts.add(new StackingContextEntry(drawer, this.stackingContexts.size()));
+	}
+
+	/**
+	 * 子contextを(z, 挿入順)で整列して返します。全順序なので冪等です。
+	 */
+	private List<StackingContextEntry> sortedContexts() {
+		Collections.sort(this.stackingContexts);
+		return this.stackingContexts;
 	}
 
 	public void draw(GC gc) throws GraphicsException {
-		if (this.drawables != null) {
-			for (int i = 0; i < this.drawables.size(); ++i) {
-				ArrangedDrawable drawable = (ArrangedDrawable) this.drawables.get(i);
-				drawable.draw(gc);
+		// 前順走査(自分のpaint command→z順の子)。反復化(B-1、2026-07-30)
+		final Deque<Drawer> work = new ArrayDeque<>();
+		work.push(this);
+		while (!work.isEmpty()) {
+			final Drawer drawer = work.pop();
+			if (drawer.paintCommands != null) {
+				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
+					drawer.paintCommands.get(i).draw(gc);
+				}
+			}
+			if (drawer.stackingContexts != null) {
+				final List<StackingContextEntry> sorted = drawer.sortedContexts();
+				for (int i = sorted.size() - 1; i >= 0; --i) {
+					work.push(sorted.get(i).drawer);
+				}
 			}
 		}
-
-		if (this.drawers != null) {
-			// z-indexによるソート
-			// 原則ドキュメントの開始順に整列するため、順序が安定したソートアルゴリズムを使用すること
-			Collections.sort(this.drawers);
-			for (int i = 0; i < this.drawers.size(); ++i) {
-				Drawer drawer = (Drawer) this.drawers.get(i);
-				drawer.draw(gc);
-			}
-		}
-	}
-
-	public int compareTo(Drawer o) {
-		Drawer a1 = this;
-		Drawer a2 = (Drawer) o;
-		long s1 = a1.z;
-		long s2 = a2.z;
-		return s1 < s2 ? -1 : s1 > s2 ? 1 : 0;
 	}
 
 	/**
 	 * 表示リストをテキストとしてダンプします。draw()と同じ順序で出力します。
 	 */
 	public void dump(StringBuilder sb, String indent) {
-		sb.append(indent).append("drawer z=").append(this.z);
-		if (this.artifact) {
-			// 通常の描画では立たないため、既存のgoldenは不変
-			sb.append(" artifact");
+		// draw()と同じ前順走査の反復化。インデントだけ階層に追随する
+		record DumpStep(Drawer drawer, String indent) {
 		}
-		sb.append('\n');
-		if (this.drawables != null) {
-			for (int i = 0; i < this.drawables.size(); ++i) {
-				ArrangedDrawable drawable = this.drawables.get(i);
-				sb.append(indent).append("  ")
-						.append(String.format(java.util.Locale.ROOT, "x=%.2f y=%.2f ", drawable.x, drawable.y));
-				if (drawable.artifact) {
-					sb.append("artifact ");
-				}
-				sb.append(drawable.drawable.describe()).append('\n');
+		final Deque<DumpStep> work = new ArrayDeque<>();
+		work.push(new DumpStep(this, indent));
+		while (!work.isEmpty()) {
+			final DumpStep step = work.pop();
+			final Drawer drawer = step.drawer;
+			sb.append(step.indent).append("drawer z=").append(drawer.z);
+			if (drawer.artifact) {
+				// 通常の描画では立たないため、既存のgoldenは不変
+				sb.append(" artifact");
 			}
-		}
-		if (this.drawers != null) {
-			Collections.sort(this.drawers);
-			for (int i = 0; i < this.drawers.size(); ++i) {
-				this.drawers.get(i).dump(sb, indent + "  ");
+			sb.append('\n');
+			if (drawer.paintCommands != null) {
+				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
+					final PaintCommand command = drawer.paintCommands.get(i);
+					sb.append(step.indent).append("  ")
+							.append(String.format(java.util.Locale.ROOT, "x=%.2f y=%.2f ", command.x, command.y));
+					if (command.artifact) {
+						sb.append("artifact ");
+					}
+					sb.append(command.drawable.describe()).append('\n');
+				}
+			}
+			if (drawer.stackingContexts != null) {
+				final List<StackingContextEntry> sorted = drawer.sortedContexts();
+				for (int i = sorted.size() - 1; i >= 0; --i) {
+					work.push(new DumpStep(sorted.get(i).drawer, step.indent + "  "));
+				}
 			}
 		}
 	}
@@ -260,12 +339,19 @@ public class Drawer implements Comparable<Drawer> {
 			this.artifact = true;
 		}
 
+		// 構造参照はオーナーと共有(ビュー自身は何も持たない)——
+		// もっともartifactの追加は構造参照を持たないので実際には使われない
+		@Override
+		public StructureRef getCurrentStructRef() {
+			return this.owner.getCurrentStructRef();
+		}
+
 		@Override
 		public Drawer artifactView() {
 			return this;
 		}
 
-		// markArtifactは基底の早期returnで済む(ビューは常にartifact)。
+		// markArtifactは基底の早期continueで済む(ビューは常にartifact)。
 		// オーナーへ伝播してはいけない——オーナーには通常内容も入る。
 
 		@Override

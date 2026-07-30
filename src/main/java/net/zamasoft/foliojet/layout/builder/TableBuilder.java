@@ -20,12 +20,14 @@ public interface TableBuilder {
 	public Builder newContext(AbstractContainerBox box);
 
 	/**
-	 * この表がIncremental(早期コミット可能)な実行計画で構築されていれば
-	 * trueを返します(2026-07-19、C4-C: 旧isOnePass()を
-	 * {@link net.zamasoft.foliojet.layout.builder.impl.TableBuildPlan.Mode}
-	 * の語彙へ統一。意味は不変)。
+	 * 表の終了処理を行います(A-2、2026-07-30)。実行計画の終端は実装ごとに
+	 * 異なる(Incremental=残余のコミットとレイアウト終了、Retained=
+	 * {@code host.addTable(this)}による全体bind)ため、呼び出し側が
+	 * isIncrementalを問うて分岐するのではなく実装自身に委ねる
+	 * (tell-don't-ask——{@link #prepareEnterCell}と同じ方針。
+	 * 旧{@code isIncremental()}はこの移行で撤去した)。
 	 */
-	public boolean isIncremental();
+	public void finish(Builder host);
 
 	/**
 	 * セル/キャプションに入る直前(newContext呼び出し前)に呼ばれます

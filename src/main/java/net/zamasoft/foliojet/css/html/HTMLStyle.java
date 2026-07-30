@@ -611,13 +611,11 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyWidthHeight("APPLET", style);
 			HTMLStyleUtils.applyHSpaceVSpace("APPLET", style);
 			HTMLStyleUtils.applyImageAlign("APPLET", style);
-			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
 			HTMLStyle.applyBrokenImage(style, ce.atts.getValue("alt"));
 		}
 			break;
 		case HTMLCodes.AREA: {
 			// <AREA href shape coords>
-			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			if (this.imageMap == null) {
 				break;
 			}
@@ -717,7 +715,6 @@ public class HTMLStyle {
 		// BIG/BLINK: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.BLOCKQUOTE: {
 			// <BLOCKQUOTE>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyQuoteMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 		}
@@ -728,7 +725,6 @@ public class HTMLStyle {
 			// topmargin leftmargin rightmargin bottommargin
 			// bgcolor background bgproperties -scroll
 			// text link -vlink -alink>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			AbsoluteLengthValue px8 = AbsoluteLengthValue.create(ua, 8, Unit.PX);
 			style.set(Margin.TOP, px8);
 			style.set(Margin.RIGHT, px8);
@@ -830,7 +826,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.CAPTION: {
 			// <CAPTION align valign>
-			style.set(Display.INFO, DisplayValue.TABLE_CAPTION_VALUE);
 			style.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 			String align = ce.atts.getValue("align");
 			if (align == null) {
@@ -846,7 +841,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.CENTER: {
 			// <CENTER>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.CENTER_VALUE);
 		}
@@ -878,20 +872,17 @@ public class HTMLStyle {
 					}
 				}
 			}
-			style.set(Display.INFO, DisplayValue.TABLE_COLUMN_GROUP_VALUE);
 			applyTableColumn("COLGROUP", style);
 		}
 			break;
 		case HTMLCodes.COL: {
 			// <COL align bgcolor -charoff span valign width>
-			style.set(Display.INFO, DisplayValue.TABLE_COLUMN_VALUE);
 			applyTableColumn("COL", style);
 		}
 			break;
 		// COMMENT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.DD: {
 			// <DD>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 		}
@@ -900,7 +891,6 @@ public class HTMLStyle {
 		// DFN: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
 		case HTMLCodes.DIR: {
 			// <DIR type -compact>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
@@ -916,13 +906,11 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.DIV: {
 			// <DIV align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyleUtils.applyBlockAlign("DIV", style);
 		}
 			break;
 		case HTMLCodes.DL: {
 			// <DL -compact>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 		}
@@ -944,7 +932,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.FIELDSET: {
 			// <FIELDSET align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			style.set(Padding.TOP, EM__5);
 			style.set(Padding.RIGHT, EM__5);
@@ -983,24 +970,8 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.FORM: {
-			// <FORM>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-		}
-			break;
-		case HTMLCodes.FRAME: {
-			// <FRAME>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
-		case HTMLCodes.FRAMESET: {
-			// <FRAMESET>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
 		case HTMLCodes.H1: {
 			// <H1 align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(2));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
@@ -1010,7 +981,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.H2: {
 			// <H2 align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(1.5));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
@@ -1020,7 +990,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.H3: {
 			// <H3 align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(1.17));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
@@ -1030,7 +999,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.H4: {
 			// <H4 align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
@@ -1039,7 +1007,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.H5: {
 			// <H5 align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(0.83));
@@ -1049,7 +1016,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.H6: {
 			// <H6 align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(FontWeight.INFO, FontWeightValue.BOLDER_VALUE);
 			style.set(FontSize.INFO, RelativeLengthValue.em(0.75));
 			style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
@@ -1060,7 +1026,6 @@ public class HTMLStyle {
 		// HEAD: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.HR: {
 			// <HR align color noshade size width>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			LengthValue margin = RelativeLengthValue.em(.5);
 			HTMLStyle.applyParagraphMargins(style, margin);
 
@@ -1149,15 +1114,9 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.HTML: {
-			// <HTML>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-		}
-			break;
 		// I: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.IFRAME: {
 			// <IFRAME>
-			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
 			HTMLStyleUtils.applyWidthHeight("IFRAME", style);
 			HTMLStyleUtils.applyHSpaceVSpace("IFRAME", style);
 			HTMLStyleUtils.applyImageAlign("IFRAME", style);
@@ -1193,7 +1152,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.IMG: {
 			// <IMG src alt border width height hspace vspace align usemap>
-			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			HTMLStyleUtils.applyWidthHeight("IMG", style);
 			HTMLStyleUtils.applyHSpaceVSpace("IMG", style);
 			HTMLStyleUtils.applyImageAlign("IMG", style);
@@ -1284,7 +1242,6 @@ public class HTMLStyle {
 		case HTMLCodes.LI: {
 			// <LI type value>
 			// valueはStyleBuilderで処理
-			style.set(Display.INFO, DisplayValue.LIST_ITEM_VALUE);
 			String type = ce.atts.getValue("type");
 			if (type != null) {
 				Value value = HTMLStyleUtils.toListStyleType(type);
@@ -1298,20 +1255,13 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.LISTING: {
 			// <LISTING>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 			style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_VALUE);
 			style.set(TextAlign.INFO, TextAlignValue.START_VALUE);
 		}
 			break;
-		case HTMLCodes.LINK: {
-			// <LINK>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
 		case HTMLCodes.MAP: {
 			// <MAP name>
-			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 
 			Map<Object, ImageMap> imageMaps = style.getUserAgent().getUAContext().getImageMaps();
 			String mapName = ce.atts.getValue("name");
@@ -1325,7 +1275,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.MARQUEE: {
 			// <MARQUEE bgcolor width height hspace vspace>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyleUtils.applyBGColor("MARQUEE", style);
 			HTMLStyleUtils.applyWidthHeight("MARQUEE", style);
 			HTMLStyleUtils.applyHSpaceVSpace("MARQUEE", style);
@@ -1333,20 +1282,9 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.MENU: {
 			// <MENU type -compact>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
-		}
-			break;
-		case HTMLCodes.META: {
-			// <META>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
-		case HTMLCodes.NEXTID: {
-			// <NEXTID>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
 		}
 			break;
 		// NOBR: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
@@ -1366,7 +1304,6 @@ public class HTMLStyle {
 		case HTMLCodes.OL: {
 			// <OL type -compact start>
 			// startはStyleBuilderで処理
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyListMargins(style, AbsoluteLengthValue.create(ua, 40, Unit.PX));
 			String type = ce.atts.getValue("type");
@@ -1383,33 +1320,14 @@ public class HTMLStyle {
 			style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
 		}
 			break;
-		case HTMLCodes.OPTGROUP: {
-			// <OPTGROUP>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			style.set(Margin.LEFT, EM_1);
-		}
-			break;
-		case HTMLCodes.OPTION: {
-			// <OPTION>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
-			style.set(Height.INFO, EM_1);
-		}
-			break;
 		case HTMLCodes.P: {
 			// <P align>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			HTMLStyleUtils.applyBlockAlign("P", style);
 		}
 			break;
-		case HTMLCodes.PARAM: {
-			// <PARAM>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
 		case HTMLCodes.PLAINTEXT: {
 			// <PLAINTEXT>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 			style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_VALUE);
 			style.set(TextAlign.INFO, TextAlignValue.START_VALUE);
@@ -1417,7 +1335,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.PRE: {
 			// <PRE cols width wrap>
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 			String wrap = ce.atts.getValue("wrap");
 			if (wrap != null) {
@@ -1453,10 +1370,6 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.Q: {
-			// <Q>
-		}
-			break;
 		// ルビは注釈付きテキスト(2026-07-25仕様裁定、docs/history/
 		// 2026-07-25-ruby-annotation-spec-decision.md): ruby/rb/rtは
 		// 役割マーカー(-cssj-ruby)だけを与え、通常のINLINEとして流す
@@ -1480,11 +1393,6 @@ public class HTMLStyle {
 			// <RT>
 			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RT_VALUE);
-		}
-			break;
-		case HTMLCodes.RP: {
-			// <RP>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
 		}
 			break;
 		// S/SCRIPT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
@@ -1537,11 +1445,6 @@ public class HTMLStyle {
 			style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 		}
 			break;
-		case HTMLCodes.SERVER: {
-			// <SERVER>
-			style.set(Display.INFO, DisplayValue.NONE_VALUE);
-		}
-			break;
 		// SMALL/SPAN/STRIKE/STRONG/STYLE/SUB/SUP: 既定値はUAデフォルトスタイルシート
 		// (html-ua.css)に移行(2026-07-19)。SPANは属性駆動のロジックがなく既定値も無いため
 		// Javaケース自体が不要だった
@@ -1555,7 +1458,6 @@ public class HTMLStyle {
 			// -bordercolordark
 			// -bordercolorlight
 			// -cols -summary>
-			style.set(Display.INFO, DisplayValue.TABLE_VALUE);
 
 			Value cellspacing = null;
 			{
@@ -1699,7 +1601,6 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.TBODY: {
 			// <TBODY align bgcolor valign -charoff>
-			style.set(Display.INFO, DisplayValue.TABLE_ROW_GROUP_VALUE);
 			HTMLStyle.applyTableRows("TBODY", style);
 		}
 			break;
@@ -1723,20 +1624,17 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.TFOOT: {
 			// <TFOOT align bgcolor valign -charoff>
-			style.set(Display.INFO, DisplayValue.TABLE_FOOTER_GROUP_VALUE);
 			HTMLStyle.applyTableRows("TFOOT", style);
 		}
 			break;
 		case HTMLCodes.THEAD: {
 			// <THEAD align bgcolor valign -charoff>
-			style.set(Display.INFO, DisplayValue.TABLE_HEADER_GROUP_VALUE);
 			HTMLStyle.applyTableRows("THEAD", style);
 		}
 			break;
 		case HTMLCodes.TR: {
 			// <TR bordercolor background bgcolor align valign height
 			// -charoff,-bordercolordark,-bordercolorlight>
-			style.set(Display.INFO, DisplayValue.TABLE_ROW_VALUE);
 			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.START_VALUE);
 			HTMLStyleUtils.applyBlockAlign("TR", style);
 			HTMLStyleUtils.applyBackground("TR", style);
@@ -1833,7 +1731,6 @@ public class HTMLStyle {
 				}
 			}
 
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 			if (depth == 0) {
 				HTMLStyle.applyParagraphMargins(style, EM_1_12);
 			}

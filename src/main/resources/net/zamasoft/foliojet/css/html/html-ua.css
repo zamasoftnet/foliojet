@@ -128,3 +128,82 @@ xmp {
 	white-space: pre;
 	text-align: start;
 }
+
+/*
+ * StyleBuilder解体・増分6の第1弾(2026-07-30)。属性駆動ロジックを
+ * 持たない完全移行ケース(旧HTMLStyle.javaのcaseは削除済み)。
+ */
+
+form, html {
+	display: block;
+}
+
+frame, frameset, link, meta, nextid, param, rp, server {
+	display: none;
+}
+
+optgroup {
+	display: block;
+	margin-left: 1em;
+}
+
+option {
+	display: block;
+	height: 1em;
+}
+
+/*
+ * StyleBuilder解体・増分6の第2弾(2026-07-30)。部分移行ケースのうち
+ * 無条件のdisplay既定値だけをCSSへ(属性駆動ロジックはJavaに残存)。
+ * TD/TH・フォーム部品・ruby系は移行しない(codexの移行不可分類)。
+ */
+
+blockquote, body, center, dd, dir, div, dl, fieldset,
+h1, h2, h3, h4, h5, h6, hr, listing, marquee, menu, ol, p,
+plaintext, pre, ul {
+	display: block;
+}
+
+applet, iframe {
+	display: inline-block;
+}
+
+area, img, map {
+	display: inline;
+}
+
+li {
+	display: list-item;
+}
+
+caption {
+	display: table-caption;
+}
+
+table {
+	display: table;
+}
+
+colgroup {
+	display: table-column-group;
+}
+
+col {
+	display: table-column;
+}
+
+tbody {
+	display: table-row-group;
+}
+
+thead {
+	display: table-header-group;
+}
+
+tfoot {
+	display: table-footer-group;
+}
+
+tr {
+	display: table-row;
+}

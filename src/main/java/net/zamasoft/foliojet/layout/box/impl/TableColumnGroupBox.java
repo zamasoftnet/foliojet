@@ -52,20 +52,17 @@ public class TableColumnGroupBox extends TableColumnBox {
 
 	/**
 	 * 葉の列(および子を持たない列グループ)を文書順に走査します。
-	 * 旧来の手動スタックによる再帰走査4箇所を置き換えるためのものです。
+	 * {@link #eachColumn}の葉だけを拾うビューです。
 	 *
 	 * @param consumer 各列に適用する処理
 	 */
 	public final void forEachColumn(java.util.function.Consumer<TableColumnBox> consumer) {
-		for (int i = 0; i < this.getTableColumnCount(); ++i) {
-			final TableColumnBox column = this.getTableColumn(i);
-			if (column.getType() == BoxType.TABLE_COLUMN_GROUP
-					&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
-				((TableColumnGroupBox) column).forEachColumn(consumer);
-			} else {
+		this.eachColumn((column, col, span) -> {
+			if (column.getType() != BoxType.TABLE_COLUMN_GROUP
+					|| ((TableColumnGroupBox) column).getTableColumnCount() == 0) {
 				consumer.accept(column);
 			}
-		}
+		});
 	}
 
 	/**
@@ -77,28 +74,43 @@ public class TableColumnGroupBox extends TableColumnBox {
 		void visit(TableColumnBox column, int col, int span);
 	}
 
-	/**
-	 * 列と列グループをカラム位置付きで走査します。両表ビルダーに7箇所
-	 * あった手動スタックの RECURSE 走査の置き換えです。
-	 */
-	public final void eachColumn(final ColumnVisitor visitor) {
-		eachColumn(this, 0, visitor);
+	/** {@link #eachColumn}の走査フレーム(グループと、次に見る子)。 */
+	private static final class ColumnWalkFrame {
+		final TableColumnGroupBox group;
+		int next = 0;
+
+		ColumnWalkFrame(final TableColumnGroupBox group) {
+			this.group = group;
+		}
 	}
 
-	private static int eachColumn(final TableColumnGroupBox group, int col, final ColumnVisitor visitor) {
-		for (int i = 0; i < group.getTableColumnCount(); ++i) {
-			final TableColumnBox column = group.getTableColumn(i);
+	/**
+	 * 列と列グループをカラム位置付きで走査します。両表ビルダーに7箇所
+	 * あった手動スタックの RECURSE 走査の置き換えです。再帰しない
+	 * (設計不変条件6——A-5で明示スタックへ反復化、2026-07-30。
+	 * 訪問順・colの数え方は旧再帰版と同一)。
+	 */
+	public final void eachColumn(final ColumnVisitor visitor) {
+		final java.util.ArrayDeque<ColumnWalkFrame> stack = new java.util.ArrayDeque<>();
+		stack.push(new ColumnWalkFrame(this));
+		int col = 0;
+		while (!stack.isEmpty()) {
+			final ColumnWalkFrame frame = stack.peek();
+			if (frame.next >= frame.group.getTableColumnCount()) {
+				stack.pop();
+				continue;
+			}
+			final TableColumnBox column = frame.group.getTableColumn(frame.next++);
 			if (column.getType() == BoxType.TABLE_COLUMN_GROUP
 					&& ((TableColumnGroupBox) column).getTableColumnCount() > 0) {
 				visitor.visit(column, col, ((TableColumnGroupBox) column).getTableColumnCount());
-				col = eachColumn((TableColumnGroupBox) column, col, visitor);
+				stack.push(new ColumnWalkFrame((TableColumnGroupBox) column));
 			} else {
 				final int span = column.getTableColumnPos().span;
 				visitor.visit(column, col, span);
 				col += span;
 			}
 		}
-		return col;
 	}
 
 	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,

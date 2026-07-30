@@ -78,8 +78,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		record InlineBlockEvent(InlineBlockQuad quad, TwoPass measure) implements Recorded {
 		}
 
-		/** テーブル。 */
-		record TableEvent(RetainedTableBuilder builder) implements Recorded {
+		/** テーブル(Retained実行計画のみ——Incrementalは録画対象にならない)。 */
+		record TableEvent(net.zamasoft.foliojet.layout.builder.RetainedTable builder) implements Recorded {
 		}
 	}
 
@@ -499,8 +499,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.addRecord(new Recorded.ReplacedEvent(replacedBox));
 	}
 
-	public void addTable(TableBuilder tableBuilder) {
-		RetainedTableBuilder autoTableBuilder = (RetainedTableBuilder) tableBuilder;
+	public void addTable(net.zamasoft.foliojet.layout.builder.RetainedTable autoTableBuilder) {
 		autoTableBuilder.prepareLayout();
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
 		this.measurer.table(tableSizes);
@@ -879,7 +878,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				if (DEBUG) {
 					System.err.println("TABLE");
 				}
-				final RetainedTableBuilder tableBuilder = tableEvent.builder();
+				final net.zamasoft.foliojet.layout.builder.RetainedTable tableBuilder = tableEvent.builder();
 				switch (tableBuilder.getTableBox().getBlockBox().getPos().getType()) {
 				case FLOAT:
 				case FLOW:

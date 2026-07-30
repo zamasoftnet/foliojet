@@ -73,4 +73,84 @@ public class RowLayoutEngineTest extends TestCase {
 		assertEquals(46.5, sizes[0], 0.01);
 		assertEquals(46.5, sizes[1], 0.01);
 	}
+
+	// ---- A-0(2026-07-30): A-4(行窓要求の共有)に先立ち、分配カスケード
+	// (%→連結でのみ拡張された自動行→自動行→全行)の各段と演算の
+	// ビット厳密性を固定する特性テスト ----
+
+	private static net.zamasoft.foliojet.layout.builder.impl.Rowspan span(final int row, final int span,
+			final double min) {
+		final net.zamasoft.foliojet.layout.builder.impl.Rowspan s = new net.zamasoft.foliojet.layout.builder.impl.Rowspan(
+				row, span);
+		s.min = min;
+		return s;
+	}
+
+	public void testSpannedPrefersRowsExtendedOnlyBySpan() {
+		// 中央の行だけが「連結によってのみ拡張された自動行」(noAdj=false)
+		// → 不足30は全て中央へ
+		final double[] sizes = { 10, 10, 10 };
+		final boolean[] noAdj = { true, false, true };
+		final boolean[] auto = { true, true, true };
+		final double[] ratios = { 0, 0, 0 };
+		RowLayoutEngine.distributeSpannedRowSizes(sizes, List.of(span(0, 3, 60)), noAdj, auto, ratios);
+		assertEquals(10, sizes[0], 0.0);
+		assertEquals(40, sizes[1], 0.0);
+		assertEquals(10, sizes[2], 0.0);
+	}
+
+	public void testSpannedFallsBackToAutoRows() {
+		// 連結専用行なし(全行に非連結セルあり)→ 自動行(row1)だけへ
+		final double[] sizes = { 10, 10 };
+		final boolean[] noAdj = { true, true };
+		final boolean[] auto = { false, true };
+		final double[] ratios = { 0, 0 };
+		RowLayoutEngine.distributeSpannedRowSizes(sizes, List.of(span(0, 2, 50)), noAdj, auto, ratios);
+		assertEquals(10, sizes[0], 0.0);
+		assertEquals(40, sizes[1], 0.0);
+	}
+
+	public void testSpannedSpreadsOverAllRowsAsLastResort() {
+		// 全行が自動(autoCount==span)は「全行へ均等」の最終段に落ちる。
+		// 1/3の循環小数もビット単位で旧実装と一致すること(doubleToLongBits)
+		final double[] sizes = { 10, 10, 10 };
+		final boolean[] noAdj = { false, false, false };
+		final boolean[] auto = { true, true, true };
+		final double[] ratios = { 0, 0, 0 };
+		RowLayoutEngine.distributeSpannedRowSizes(sizes, List.of(span(0, 3, 31)), noAdj, auto, ratios);
+		final double expected = 10 + 1.0 / 3;
+		for (int i = 0; i < 3; ++i) {
+			assertEquals("row " + i, Double.doubleToLongBits(expected), Double.doubleToLongBits(sizes[i]));
+		}
+	}
+
+	public void testSpannedWindowClippedAtTableEnd() {
+		// 表末尾を越える連結(空行の打ち切り)でも配列外を触らず、
+		// 実在する行だけで分配する
+		final double[] sizes = { 10 };
+		final boolean[] noAdj = { false };
+		final boolean[] auto = { true };
+		final double[] ratios = { 0 };
+		RowLayoutEngine.distributeSpannedRowSizes(sizes, List.of(span(0, 2, 40)), noAdj, auto, ratios);
+		assertEquals(40, sizes[0], 0.0);
+	}
+
+	public void testSpannedProcessesSortedSpansCumulatively() {
+		// SPAN_COMPARATORの短い順に処理され、後続の連結は前の分配結果を
+		// 前提に不足だけを埋める(累積の固定)
+		final double[] sizes = { 10, 10, 10 };
+		final boolean[] noAdj = { false, false, false };
+		final boolean[] auto = { true, true, true };
+		final double[] ratios = { 0, 0, 0 };
+		final java.util.List<net.zamasoft.foliojet.layout.builder.impl.Rowspan> spans = new java.util.ArrayList<>(
+				List.of(span(0, 3, 60), span(0, 2, 40)));
+		spans.sort(net.zamasoft.foliojet.layout.builder.impl.Rowspan.SPAN_COMPARATOR);
+		RowLayoutEngine.distributeSpannedRowSizes(sizes, spans, noAdj, auto, ratios);
+		// span(0,2,40): 不足20→row0/row1へ10ずつ → {20,20,10}
+		// span(0,3,60): 合計50、不足10→3行へ10/3ずつ
+		final double third = 10.0 / 3;
+		assertEquals(Double.doubleToLongBits(20 + third), Double.doubleToLongBits(sizes[0]));
+		assertEquals(Double.doubleToLongBits(20 + third), Double.doubleToLongBits(sizes[1]));
+		assertEquals(Double.doubleToLongBits(10 + third), Double.doubleToLongBits(sizes[2]));
+	}
 }

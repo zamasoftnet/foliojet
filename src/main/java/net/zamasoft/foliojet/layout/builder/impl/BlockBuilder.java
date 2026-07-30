@@ -692,6 +692,71 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.lineAxis -= frameHead;
 	}
 
+	/**
+	 * 通常フローのボックスのauto margin・表整列(align)を物理マージンへ
+	 * 解決します(addBoundから抽出した純計算、2026-07-30。演算順は
+	 * 旧実装のまま。{@code amargin}へ書き込む)。
+	 *
+	 * <p>
+	 * 注意: 旧コード同様、渡された{@code lineSize}からframeSizeを引いた
+	 * 値を分配式に使う(呼び出し側の{@code lineSize}は変更されない——
+	 * 旧実装でもこの計算より後に{@code lineSize}を読む箇所はない)。
+	 * </p>
+	 */
+	private static void resolveAutoMargins(final boolean vertical, final AbsoluteRectFrame frame, final Insets margin,
+			final AbsoluteInsets amargin, final double cLineSize, double lineSize, final double xMarginStart,
+			final double xMarginEnd, final Align align) {
+		double frameSize, marginStart, marginEnd;
+		if (vertical) {
+			frameSize = frame.getFrameHeight();
+			marginStart = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
+			marginEnd = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
+		} else {
+			frameSize = frame.getFrameWidth();
+			marginStart = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
+			marginEnd = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
+		}
+		lineSize -= frameSize;
+		if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
+			// 左右のマージンを同じにする
+			marginStart = marginEnd = (cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd) / 2.0;
+		} else if (LayoutUtils.isNone(marginStart)) {
+			// 左が不確定
+			marginStart = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+		} else if (LayoutUtils.isNone(marginEnd)) {
+			// 右が不確定
+			marginEnd = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+		} else {
+			// 制限しすぎ
+			switch (align) {
+			case Align.START:
+				// 左寄せ
+				marginEnd = 0;
+				break;
+			case Align.END:
+				// 右寄せ
+				marginStart += cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+				break;
+			case Align.CENTER:
+				// 中央
+				double remainder = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+				remainder /= 2.0;
+				marginStart += remainder;
+				marginEnd += remainder;
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		if (vertical) {
+			amargin.top = marginStart + xMarginStart;
+			amargin.bottom = marginEnd + xMarginEnd;
+		} else {
+			amargin.left = marginStart + xMarginStart;
+			amargin.right = marginEnd + xMarginEnd;
+		}
+	}
+
 	public void addBound(IBox box) {
 		// M3c: float・絶対配置はTextBuilderの実状態(lineAxis/pageAxis)を
 		// 読むため、K-P蓄積中なら先にlegacyへ確定させる
@@ -771,58 +836,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 			xMarginEnd = lineStop - lineEnd;
 
 			//
-			// ■ 通常のフローのマージンの計算
+			// ■ 通常のフローのマージンの計算(純計算は resolveAutoMargins へ — 2026-07-30)
 			//
 			if (align != null) {
-				double frameSize, marginStart, marginEnd;
-				if (vertical) {
-					frameSize = frame.getFrameHeight();
-					marginStart = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
-					marginEnd = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
-				} else {
-					frameSize = frame.getFrameWidth();
-					marginStart = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
-					marginEnd = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
-				}
-				lineSize -= frameSize;
-				if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
-					// 左右のマージンを同じにする
-					marginStart = marginEnd = (cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd) / 2.0;
-				} else if (LayoutUtils.isNone(marginStart)) {
-					// 左が不確定
-					marginStart = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
-				} else if (LayoutUtils.isNone(marginEnd)) {
-					// 右が不確定
-					marginEnd = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
-				} else {
-					// 制限しすぎ
-					switch (align) {
-					case Align.START:
-						// 左寄せ
-						marginEnd = 0;
-						break;
-					case Align.END:
-						// 右寄せ
-						marginStart += cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
-						break;
-					case Align.CENTER:
-						// 中央
-						double remainder = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
-						remainder /= 2.0;
-						marginStart += remainder;
-						marginEnd += remainder;
-						break;
-					default:
-						throw new IllegalStateException();
-					}
-				}
-				if (vertical) {
-					amargin.top = marginStart + xMarginStart;
-					amargin.bottom = marginEnd + xMarginEnd;
-				} else {
-					amargin.left = marginStart + xMarginStart;
-					amargin.right = marginEnd + xMarginEnd;
-				}
+				resolveAutoMargins(vertical, frame, margin, amargin, cLineSize, lineSize, xMarginStart, xMarginEnd,
+						align);
 			}
 			if (amargin.top >= 0) {
 				if (amargin.top > this.poLastMargin) {
@@ -1207,10 +1225,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
-	public void addTable(final TableBuilder tableBuilder) {
-		final RetainedTableBuilder autoTableBuilder = (RetainedTableBuilder) tableBuilder;
-		autoTableBuilder.prepareLayout();
-		autoTableBuilder.bind(this);
+	public void addTable(final net.zamasoft.foliojet.layout.builder.RetainedTable tableBuilder) {
+		tableBuilder.prepareLayout();
+		tableBuilder.bind(this);
 	}
 
 	public Builder newBuilder(AbstractBlockBox blockBox) {

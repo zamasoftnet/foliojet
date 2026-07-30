@@ -12,6 +12,9 @@ package net.zamasoft.foliojet.layout.fragment;
  * 変更しない(ChatGPT Pro相談で得たB1のスコープ、
  * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
  * </p>
+ *
+ * @see PaginationContract 書字方向によるatomic判定そのものの正本
+ *      (breakDepth障壁・splitPageAxisの軸判定はそちらへ集約、2026-07-30)
  */
 public enum ContinuationCapability {
 	/** plain {@code FlowBlockBox}、ルートと同一書字方向——収集可能。 */

@@ -60,16 +60,10 @@ public final class TableBuilderLifecycle {
 	}
 
 	/**
-	 * 表の終了時に、開始側のルーティング結果と一致させるため、条件を
-	 * 再計算せずtableBuilder自身に問うて終了処理を行います。
+	 * 表の終了時の処理です。実行計画ごとの終端はtableBuilder自身が知って
+	 * いる(A-2、2026-07-30: 旧isIncremental()分岐+castをtell-don't-askへ)。
 	 */
 	public static void finish(TableBuilder tableBuilder, Builder builder) {
-		if (!tableBuilder.isIncremental()) {
-			// Retained
-			builder.addTable(tableBuilder);
-		} else {
-			// Incremental(table-layout:fixed相当)
-			((IncrementalTableBuilder) tableBuilder).endLayout();
-		}
+		tableBuilder.finish(builder);
 	}
 }

@@ -921,9 +921,12 @@ public class FlowContainer implements Container {
 				break;
 			case BLOCK:
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
-				// 改ページ禁止でかつページの頭でない場合、またはページ進行方向が違う場合は内部で改ページしない
+				// 改ページ禁止でかつページの頭でない場合(§5.11)、または軸が
+				// 食い違う場合(PaginationContract.splitsInPageAxis=false、
+				// §5.10ルール3)は内部で改ページせずREPLACEDと同じatomic経路へ
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
-						&& vertical == cParams.flow.isVertical()) {
+						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(vertical,
+								cParams.flow)) {
 					if (plan != null && plan.selects(prevFlow.box)) {
 						// C1d-C: チェーンメンバーの継続化。断片はボックスでは
 						// なくフレームとして返り値で親へ伝播する

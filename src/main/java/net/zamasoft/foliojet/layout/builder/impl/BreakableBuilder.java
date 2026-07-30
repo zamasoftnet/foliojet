@@ -234,9 +234,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// -contract-consultation.md参照): 軸違い(TB⇄RL/LR)だけでなく
 			// 同軸内の方向違い(RL⇄LR)もこの祖先チェーンをatomicにする
 			// (直交writing-mode表と同じ扱いを、通常フローのブロックにも
-			// 一般化する)。WritingModeはenumなので参照比較で十分
-			// (isVertical()だけの比較では軸が同じRL/LRの違いを見逃す)。
-			if (this.getFlow().box.getBlockParams().flow != flowBox.getBlockParams().flow) {
+			// 一般化する)。判定はPaginationContractが正本
+			if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(
+					this.getFlow().box.getBlockParams().flow, flowBox.getBlockParams().flow)) {
 				this.breakDepth = 0;
 			}
 		} else {

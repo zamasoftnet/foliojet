@@ -573,6 +573,10 @@ public abstract class AbstractUserAgent implements UserAgent {
 	private PrepareMode currentMode = PrepareMode.DOCUMENT;
 
 	public void prepare(PrepareMode mode) {
+		// パスの切り替えは進捗である。前のパス(特にページを1枚も出さない
+		// STRUCTURE_SCAN)の経過を持ち越すと、次のパスの最初の中断点が
+		// 締切超過を誤検出する(2026-07-30)
+		this.noteProgress();
 		this.currentMode = mode;
 		this.fontMagnification = -1;
 		this.pixelsPerInch = -1;

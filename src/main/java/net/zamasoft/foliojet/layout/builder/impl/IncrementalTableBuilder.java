@@ -229,39 +229,10 @@ public class IncrementalTableBuilder implements TableBuilder {
 			columnCount = TableColumnSpecs.countColumns(this.columnGroupBox);
 		}
 		columnCount = Math.max(this.cells == null ? 0 : this.cells.size(), columnCount);
-		double refSize = tableInnerSize;
-		if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-			// 分離境界
-			refSize -= columnCount * lineBorderSpacing;
-		}
-		refSize = Math.max(0, refSize);
-		final FixedColumnWidths.Spec[] colgroupSpecs;
-		if (this.columnGroupBox != null) {
-			colgroupSpecs = TableColumnSpecs.colgroupSpecs(this.columnGroupBox, columnCount, refSize,
-					tableParams.borderCollapse == TableParams.BORDER_SEPARATE ? lineBorderSpacing : 0);
-		} else {
-			colgroupSpecs = new FixedColumnWidths.Spec[columnCount];
-		}
-		final FixedColumnWidths.Spec[] cellSpecs = new FixedColumnWidths.Spec[columnCount];
-		if (this.cells != null) {
-			for (int i = 0; i < columnCount; ++i) {
-				if (i >= this.cells.size()) {
-					continue;
-				}
-				final CellContent cell = (CellContent) this.cells.get(i);
-				final FixedColumnWidths.Spec spec = this.fixedCellSpec(cell, refSize, containerBox,
-						lineBorderSpacing);
-				cellSpecs[i] = spec;
-				for (int j = 1; j < cell.colspan; ++j) {
-					++i;
-					if (i < columnCount) {
-						cellSpecs[i] = spec;
-					}
-				}
-			}
-		}
-		final FixedColumnWidths.Result result = FixedColumnWidths.distribute(colgroupSpecs, cellSpecs,
-				tableInnerSize);
+		final FixedColumnWidths.Result result = FixedTableSizing.resolve(this.columnGroupBox, this.cells,
+				columnCount, tableInnerSize, tableParams.borderCollapse == TableParams.BORDER_SEPARATE,
+				lineBorderSpacing,
+				(cell, refSize) -> this.fixedCellSpec(cell, refSize, containerBox, lineBorderSpacing));
 		this.columnSizes = result.sizes();
 		tableInnerSize = result.innerSize();
 
@@ -429,11 +400,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 				hborders.add(lastBorder);
 
 				final boolean unitLastRow = row == this.cellsUnit.size() - 1;
-				final List<?> nextCells = unitLastRow ? this.cells : (List<?>) this.cellsUnit.get(row + 1);
+				final List<CellContent> nextCells = unitLastRow ? this.cells : this.cellsUnit.get(row + 1);
 				// 次行はまず単位内、単位末尾ではストリーミング側の保留行
-				final TableRowBox nextRowBox = unitLastRow ? this.rowBox : (TableRowBox) this.rowsUnit.get(row + 1);
+				final TableRowBox nextRowBox = unitLastRow ? this.rowBox : this.rowsUnit.get(row + 1);
 				CollapsedBorderRules.collapseRow(firstBorder, lastBorder, lineBorder, ax, tableParams,
-						this.columnGroupBox, rowGroupParams, (TableRowBox) this.rowsUnit.get(row), cells, nextRowBox,
+						this.columnGroupBox, rowGroupParams, this.rowsUnit.get(row), cells, nextRowBox,
 						nextCells, firstRow && row == 0, lastRow && unitLastRow, groupFirst && row == 0,
 						groupLast && unitLastRow, row == 0, !groupLast || !unitLastRow, this.columnSizes.length);
 			}
@@ -441,10 +412,10 @@ public class IncrementalTableBuilder implements TableBuilder {
 
 		// セルのレイアウト
 		for (int row = 0; row < this.cellsUnit.size(); ++row) {
-			final List<?> cells = (List<?>) this.cellsUnit.get(row);
-			final TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
+			final List<CellContent> cells = this.cellsUnit.get(row);
+			final TableRowBox rowBox = this.rowsUnit.get(row);
 			for (int i = 0; i < cells.size(); ++i) {
-				CellContent cell = (CellContent) cells.get(i);
+				CellContent cell = cells.get(i);
 				int span = cell.colspan;
 				if (cell.isExtended()) {
 					i += span - 1;
@@ -481,26 +452,12 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 				cellBox.prepareLayout(this.builder.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
 
-				double size = this.columnSizes[i];
-				for (int j = 1; j < span; ++j) {
-					size += this.columnSizes[++i];
-				}
 				// 直交書字方向のセルの行方向寸法は内容の実測から
-				// (TwoPass と同じ規約。旧実装は fontSize*10 の仮寸法 —
-				// 0390-writing-mode/orthogonal-cell-fixed.html で是正)
-				if (this.vertical) {
-					cellBox.setHeight(size);
-					if (!cellBox.getBlockParams().flow.isVertical()) {
-						cellBox.setWidth(cell.getBuilder().getIntrinsicSizes().maxContent()
-								+ cellBox.getFrame().getFrameWidth() + tableParams.borderSpacingH);
-					}
-				} else {
-					cellBox.setWidth(size);
-					if (cellBox.getBlockParams().flow.isVertical()) {
-						cellBox.setHeight(cell.getBuilder().getIntrinsicSizes().maxContent()
-								+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
-					}
-				}
+				// (TwoPass と同じ規約 — 共有核 TableCellMetrics 参照)
+				final double size = TableCellMetrics.spannedLineSize(this.columnSizes, i, span);
+				i += span - 1;
+				TableCellMetrics.applyLineAxis(cellBox, () -> cell.getBuilder().getIntrinsicSizes(), size,
+						this.vertical, tableParams);
 				final BlockBuilder cellBindBuilder = new BlockBuilder(this.builder, cellBox);
 				cell.getBuilder().bind(cellBindBuilder);
 				cellBindBuilder.close();
@@ -510,13 +467,12 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 		if (this.cellsUnit.size() == 1) {
 			// rowspanによる連結がない場合の高さ計算
-			final List<?> cells = (List<?>) this.cellsUnit.get(0);
-			final TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(0);
+			final List<CellContent> cells = this.cellsUnit.get(0);
+			final TableRowBox rowBox = this.rowsUnit.get(0);
 			double rowSize = this.getSpecificRowSize(rowBox);
-			@SuppressWarnings("unchecked")
-			final double rowAscent = CellContent.maxFirstAscent((List<CellContent>) cells);
+			final double rowAscent = CellContent.maxFirstAscent(cells);
 			for (int i = 0; i < cells.size(); ++i) {
-				final CellContent cell = (CellContent) cells.get(i);
+				final CellContent cell = cells.get(i);
 				final TableCellBox cellBox = cell.getCellBox();
 				final BlockParams cellParams = cellBox.getBlockParams();
 				double cellSize;
@@ -555,18 +511,17 @@ public class IncrementalTableBuilder implements TableBuilder {
 			boolean[] autoRows = new boolean[this.cellsUnit.size()];
 
 			for (int row = 0; row < this.cellsUnit.size(); ++row) {
-				List<?> cells = (List<?>) this.cellsUnit.get(row);
-				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
+				List<CellContent> cells = this.cellsUnit.get(row);
+				TableRowBox rowBox = this.rowsUnit.get(row);
 				final RowLayoutEngine.RowSpec rowSpec = RowLayoutEngine.rowSpec(rowBox.getInnerTableParams());
 				double rowSize = rowSpec.size();
 				// 0% 指定も自動行として扱う(共有核 rowSpec の規約に統一)
 				if (rowSpec.auto()) {
 					autoRows[row] = true;
 				}
-				@SuppressWarnings("unchecked")
-				final double rowAscent = CellContent.maxFirstAscent((List<CellContent>) cells);
+				final double rowAscent = CellContent.maxFirstAscent(cells);
 				for (int i = 0; i < cells.size(); ++i) {
-					CellContent cell = (CellContent) cells.get(i);
+					CellContent cell = cells.get(i);
 					if (cell.isExtended()) {
 						i += cell.colspan - 1;
 						continue;
@@ -574,14 +529,9 @@ public class IncrementalTableBuilder implements TableBuilder {
 					final TableCellBox cellBox = cell.getCellBox();
 					cellBox.baseline(rowAscent);
 					final BlockParams cellParams = cellBox.getBlockParams();
-					double cellSize = cellBox.getHeight();
-					if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
-						double height = cellParams.size.getHeight();
-						if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-							height += cellBox.getFrame().getFrameHeight();
-						}
-						cellSize = Math.max(cellSize, height);
-					}
+					// 要求寸法は共有核へ(A-4)。この窓経路は従来どおり高さ軸固定
+					final double cellSize = RowLayoutEngine.demandPageSize(cellBox.getHeight(), cellParams, cellBox,
+							false);
 
 					int cellRowspan = Math.min(this.cellsUnit.size() - row, cell.rowspan);
 					if (cellRowspan <= 1) {
@@ -589,15 +539,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 						noAdjRows[row] = true;
 						rowSize = Math.max(rowSize, cellSize);
 					} else {
-						// 連結された行
-						Rowspan key = new Rowspan(row, cellRowspan);
-						Rowspan rowspan = (Rowspan) rowspans.get(key);
-						if (rowspan == null) {
-							rowspan = key;
-							rowspans.put(key, rowspan);
-							rowspanList.add(rowspan);
-						}
-						rowspan.min = Math.max(rowspan.min, cellSize);
+						// 連結された行(登録は共有核へ — A-4)
+						RowLayoutEngine.addSpannedDemand(rowspans, rowspanList, row, cellRowspan, cellSize);
 					}
 					i += cell.colspan - 1;
 				}
@@ -610,7 +553,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				final double[] rowSizes = new double[this.rowsUnit.size()];
 				final double[] rowRatios = new double[this.rowsUnit.size()];
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
-					final TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
+					final TableRowBox rowBox = this.rowsUnit.get(row);
 					rowSizes[row] = rowBox.getPageSize();
 					if (rowBox.getInnerTableParams().size.getType() == LengthType.RELATIVE) {
 						rowRatios[row] = rowBox.getInnerTableParams().size.getLength();
@@ -618,7 +561,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 				RowLayoutEngine.distributeSpannedRowSizes(rowSizes, rowspanList, noAdjRows, autoRows, rowRatios);
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
-					((TableRowBox) this.rowsUnit.get(row)).setPageSize(rowSizes[row]);
+					this.rowsUnit.get(row).setPageSize(rowSizes[row]);
 				}
 			}
 
@@ -626,17 +569,17 @@ public class IncrementalTableBuilder implements TableBuilder {
 			if (rowGroupParams.size.getType() == LengthType.ABSOLUTE) {
 				final double[] rowSizes = new double[this.rowsUnit.size()];
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
-					rowSizes[row] = ((TableRowBox) this.rowsUnit.get(row)).getPageSize();
+					rowSizes[row] = this.rowsUnit.get(row).getPageSize();
 				}
 				RowLayoutEngine.distributeGroupSize(rowSizes, rowGroupParams.size.getLength());
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
-					((TableRowBox) this.rowsUnit.get(row)).setPageSize(rowSizes[row]);
+					this.rowsUnit.get(row).setPageSize(rowSizes[row]);
 				}
 			}
 
 			// 行の追加
 			for (int row = 0; row < this.rowsUnit.size(); ++row) {
-				TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(row);
+				TableRowBox rowBox = this.rowsUnit.get(row);
 				this.bindRowGroupBox.addTableRow(rowBox);
 				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
 				this.noteTableProgress();
@@ -646,7 +589,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			{
 				final double[] unitRowSizes = new double[this.rowsUnit.size()];
 				for (int i = 0; i < this.rowsUnit.size(); ++i) {
-					unitRowSizes[i] = ((TableRowBox) this.rowsUnit.get(i)).getPageSize();
+					unitRowSizes[i] = this.rowsUnit.get(i).getPageSize();
 				}
 				for (int i = 0; i < this.rowsUnit.size(); ++i) {
 					CellContent.applyCellExtents(this.cellsUnit.get(i), unitRowSizes, i, Double.NaN, this.vertical);
@@ -655,14 +598,14 @@ public class IncrementalTableBuilder implements TableBuilder {
 			if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
 				// つぶし境界
 				for (int i = 0; i < this.rowsUnit.size(); ++i) {
-					TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(i);
+					TableRowBox rowBox = this.rowsUnit.get(i);
 					double rowSize = rowBox.getPageSize();
 					this.pageSize += rowSize;
 					this.addBorderRowSize(rowSize);
 				}
 			} else {
 				for (int i = 0; i < this.rowsUnit.size(); ++i) {
-					TableRowBox rowBox = (TableRowBox) this.rowsUnit.get(i);
+					TableRowBox rowBox = this.rowsUnit.get(i);
 					double rowSize = rowBox.getPageSize();
 					this.pageSize += rowSize;
 				}
@@ -953,7 +896,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 		if (!this.cellsUnit.isEmpty()) {
 			// rowspanで連結されたセルの補完(共有核 — P2-2)
-			CellContent.complementRowspan(this.cells, (List<?>) this.cellsUnit.get(this.cellsUnit.size() - 1));
+			CellContent.complementRowspan(this.cells, this.cellsUnit.get(this.cellsUnit.size() - 1));
 		}
 	}
 
@@ -1061,8 +1004,9 @@ public class IncrementalTableBuilder implements TableBuilder {
 		this.builder.endFlowBlock();
 	}
 
-	public boolean isIncremental() {
-		return true;
+	public void finish(final net.zamasoft.foliojet.layout.builder.Builder host) {
+		// Incrementalは行単位で既にコミット済み。残余の確定だけを行う
+		this.endLayout();
 	}
 
 	/**

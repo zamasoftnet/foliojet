@@ -1,0 +1,1307 @@
+package net.zamasoft.foliojet.css.style;
+
+import net.zamasoft.foliojet.layout.box.params.Fiducial;
+
+import net.zamasoft.foliojet.layout.box.params.AutoPosition;
+
+import net.zamasoft.foliojet.layout.box.params.RowGroupType;
+
+import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
+
+import net.zamasoft.foliojet.layout.box.params.Align;
+
+import net.zamasoft.foliojet.layout.box.params.FloatSide;
+
+import net.zamasoft.foliojet.layout.box.params.OverflowMode;
+
+import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
+
+import net.zamasoft.foliojet.layout.box.params.ClearMode;
+
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
+
+import java.awt.geom.AffineTransform;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.Declaration;
+import net.zamasoft.foliojet.css.StyleContext;
+import net.zamasoft.foliojet.css.html.HTMLStyle;
+import net.zamasoft.foliojet.css.lang.LanguageProfile;
+import net.zamasoft.foliojet.css.lang.LanguageProfileBundle;
+import net.zamasoft.foliojet.css.lang.WordHyphenatorBundle;
+import net.zamasoft.foliojet.css.util.BoxValueUtils;
+import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
+import net.zamasoft.foliojet.css.util.ValueUtils;
+import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.AttrValue;
+import net.zamasoft.foliojet.css.value.CSSFloatValue;
+import net.zamasoft.foliojet.css.value.CaptionSideValue;
+import net.zamasoft.foliojet.css.value.ContentFunctionValue;
+import net.zamasoft.foliojet.css.value.CounterSetValue;
+import net.zamasoft.foliojet.css.value.CounterValue;
+import net.zamasoft.foliojet.css.value.CountersValue;
+import net.zamasoft.foliojet.css.value.DisplayValue;
+import net.zamasoft.foliojet.css.value.ListStylePositionValue;
+import net.zamasoft.foliojet.css.value.PageBreakValue;
+import net.zamasoft.foliojet.css.value.PercentageValue;
+import net.zamasoft.foliojet.css.value.PositionValue;
+import net.zamasoft.foliojet.css.value.QuoteValue;
+import net.zamasoft.foliojet.css.value.QuotesValue;
+import net.zamasoft.foliojet.css.value.StringFunctionValue;
+import net.zamasoft.foliojet.css.value.StringSetEntryValue;
+import net.zamasoft.foliojet.css.value.StringValue;
+import net.zamasoft.foliojet.css.value.TargetCounterValue;
+import net.zamasoft.foliojet.css.value.TargetTextValue;
+import net.zamasoft.foliojet.css.value.TextAlignValue;
+import net.zamasoft.foliojet.css.value.URIValue;
+import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.css.value.ValueListValue;
+import net.zamasoft.foliojet.css.value.VisibilityValue;
+import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundImage;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundPosition;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundRepeat;
+import net.zamasoft.foliojet.css.impl.property.table.BorderCollapse;
+import net.zamasoft.foliojet.css.impl.property.table.BorderSpacing;
+import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
+import net.zamasoft.foliojet.css.impl.property.box.CSSFloat;
+import net.zamasoft.foliojet.css.impl.property.box.CSSPosition;
+import net.zamasoft.foliojet.css.impl.property.table.CaptionSide;
+import net.zamasoft.foliojet.css.impl.property.box.Clear;
+import net.zamasoft.foliojet.css.impl.property.content.Content;
+import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
+import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
+import net.zamasoft.foliojet.css.impl.property.content.StringSet;
+import net.zamasoft.foliojet.css.impl.property.text.Direction;
+import net.zamasoft.foliojet.css.impl.property.box.Display;
+import net.zamasoft.foliojet.css.impl.property.table.EmptyCells;
+import net.zamasoft.foliojet.css.impl.property.font.FontSize;
+import net.zamasoft.foliojet.css.impl.property.box.BlockSize;
+import net.zamasoft.foliojet.css.impl.property.box.Height;
+import net.zamasoft.foliojet.css.impl.property.text.Hyphens;
+import net.zamasoft.foliojet.css.impl.property.text.LetterSpacing;
+import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
+import net.zamasoft.foliojet.css.impl.property.content.ListStyleImage;
+import net.zamasoft.foliojet.css.impl.property.content.ListStylePosition;
+import net.zamasoft.foliojet.css.impl.property.content.ListStyleType;
+import net.zamasoft.foliojet.css.impl.property.box.MaxHeight;
+import net.zamasoft.foliojet.css.impl.property.box.MaxWidth;
+import net.zamasoft.foliojet.css.impl.property.box.MinHeight;
+import net.zamasoft.foliojet.css.impl.property.box.MinWidth;
+import net.zamasoft.foliojet.css.impl.property.page.Orphans;
+import net.zamasoft.foliojet.css.impl.property.box.Overflow;
+import net.zamasoft.foliojet.css.impl.property.page.PageBreakAfter;
+import net.zamasoft.foliojet.css.impl.property.page.PageBreakBefore;
+import net.zamasoft.foliojet.css.impl.property.page.PageBreakInside;
+import net.zamasoft.foliojet.css.impl.property.content.Quotes;
+import net.zamasoft.foliojet.css.impl.property.table.TableLayout;
+import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
+import net.zamasoft.foliojet.css.impl.property.text.TextDecoration;
+import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
+import net.zamasoft.foliojet.css.impl.property.text.TextTransform;
+import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
+import net.zamasoft.foliojet.css.impl.property.box.Visibility;
+import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
+import net.zamasoft.foliojet.css.impl.property.page.Widows;
+import net.zamasoft.foliojet.css.impl.property.box.Width;
+import net.zamasoft.foliojet.css.impl.property.text.WordSpacing;
+import net.zamasoft.foliojet.css.impl.property.box.ZIndex;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
+import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
+import net.zamasoft.foliojet.css.impl.property.box.BoxSizing;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnCount;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnFill;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnGap;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleColor;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleStyle;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleWidth;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnSpan;
+import net.zamasoft.foliojet.css.impl.property.column.ColumnWidth;
+import net.zamasoft.foliojet.css.impl.property.box.Opacity;
+import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
+import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisColor;
+import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisStyle;
+import net.zamasoft.foliojet.css.impl.property.text.TextFillColor;
+import net.zamasoft.foliojet.css.impl.property.text.TextShadow;
+import net.zamasoft.foliojet.css.impl.property.text.TextStrokeColor;
+import net.zamasoft.foliojet.css.impl.property.text.TextStrokeWidth;
+import net.zamasoft.foliojet.css.impl.property.box.Transform;
+import net.zamasoft.foliojet.css.impl.property.box.TransformOrigin;
+import net.zamasoft.foliojet.css.impl.property.text.TextWrapStyle;
+import net.zamasoft.foliojet.css.impl.property.text.WordWrap;
+import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
+import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
+import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.layout.DocumentBuilder;
+import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
+import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
+import net.zamasoft.foliojet.layout.box.content.FlowContainer;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
+import net.zamasoft.foliojet.layout.box.impl.PageBox;
+import net.zamasoft.foliojet.layout.box.impl.TableBox;
+import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
+import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
+import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
+import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
+import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
+import net.zamasoft.foliojet.layout.box.params.PosType;
+import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
+import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
+import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.Background;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.Border;
+import net.zamasoft.foliojet.layout.box.params.Columns;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
+import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.InlineParams;
+import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
+import net.zamasoft.foliojet.layout.box.params.Insets;
+import net.zamasoft.foliojet.layout.box.params.Offset;
+import net.zamasoft.foliojet.layout.box.params.Params;
+import net.zamasoft.foliojet.layout.box.params.RectBorder;
+import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
+import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
+import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
+import net.zamasoft.foliojet.layout.box.params.TableCellPos;
+import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
+import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
+import net.zamasoft.foliojet.layout.box.params.TableRowPos;
+
+import net.zamasoft.foliojet.layout.builder.PageGenerator;
+import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
+import net.zamasoft.foliojet.layout.draw.Drawer;
+import net.zamasoft.foliojet.layout.imposition.Imposition;
+import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
+import net.zamasoft.foliojet.layout.util.IntList;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.util.TextUtils;
+import net.zamasoft.foliojet.layout.visitor.Visitor;
+import net.zamasoft.foliojet.ua.AbortException;
+import net.zamasoft.foliojet.ua.CounterScope;
+import net.zamasoft.foliojet.ua.NamedStringState;
+import net.zamasoft.foliojet.ua.PageRef;
+import net.zamasoft.foliojet.ua.PageRef.Fragment;
+import net.zamasoft.foliojet.ua.PassContext;
+import net.zamasoft.foliojet.ua.PendingStringSet;
+import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.props.OutputPageLimitAbort;
+import net.zamasoft.foliojet.ua.props.OutputPrintMode;
+import net.zamasoft.foliojet.ua.props.UAProps;
+import net.zamasoft.foliojet.xml.vocab.XHTML;
+import net.zamasoft.zstream.resolver.Source;
+import net.zamasoft.zstream.resolver.util.URIHelper;
+import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
+import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
+import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
+import net.zamasoft.foliojet.css.impl.property.border.BorderRadius;
+import net.zamasoft.foliojet.css.impl.property.box.Padding;
+import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
+import net.zamasoft.foliojet.css.impl.property.box.Inset;
+import net.zamasoft.foliojet.css.impl.property.border.Corner;
+import net.zamasoft.foliojet.css.impl.property.box.Side;
+import net.zamasoft.foliojet.ua.AbsoluteFontSize;
+import net.zamasoft.foliojet.ua.BoundSide;
+
+/**
+ * スタイルイベント(startStyle/characters/endStyle)の状態機械です
+ * (StyleBuilder解体・増分5、2026-07-30。本体はStyleBuilderから逐語移動
+ * ——挙動不変)。カウンタ・named string・target参照・リストマーカー・
+ * quotes・generated content・::first-letterの状態を所有する。
+ *
+ * <p>
+ * ::before/::after/::first-letterの合成イベントは自己の
+ * {@code startStyle}/{@code endStyle}への再入(深さは疑似要素の
+ * 入れ子で有界)。M6a Segmentの記録点は旧コードの位置のまま。
+ * </p>
+ */
+final class StyleEventMachine {
+	private static final Logger LOG = Logger.getLogger(StyleEventMachine.class.getName());
+
+	private static final boolean DEBUG = false;
+
+	private static final ValueListValue LF = new ValueListValue(new Value[] { new StringValue("\n") });
+
+	private static final RelativeLengthValue EM_1_618 = RelativeLengthValue.em(1.618);
+	private static final RelativeLengthValue EM_1_414 = RelativeLengthValue.em(1.414);
+	private static final RelativeLengthValue EM_1_4 = RelativeLengthValue.em(1.4);
+
+	private final StyleBuildContext context;
+	private final Segment segment;
+	private final RecordingLayoutSink sink;
+	private final BoxStyleMapper mapper;
+	private final StyleBoxEmitter emitter;
+	private final PageSequence pageSequence;
+	private final UserAgent ua;
+	private final StyleContext styleContext;
+
+	private boolean warnedReservedCounter = false;
+	private boolean warnedUnconvergedTarget = false;
+	private int depth = 0;
+	private int quoteLevel = 0;
+	/** リストアイテム用のカウンタ。要素は int[]{深さ, 値} 。 */
+	private final List<int[]> listCounterStack = new ArrayList<int[]>();
+	private Marker marker = null;
+	private boolean firstLetter = false;
+
+	StyleEventMachine(final StyleBuildContext context, final Segment segment, final RecordingLayoutSink sink,
+			final BoxStyleMapper mapper, final StyleBoxEmitter emitter, final PageSequence pageSequence,
+			final UserAgent ua, final StyleContext styleContext) {
+		this.context = context;
+		this.segment = segment;
+		this.sink = sink;
+		this.mapper = mapper;
+		this.emitter = emitter;
+		this.pageSequence = pageSequence;
+		this.ua = ua;
+		this.styleContext = styleContext;
+	}
+
+	void startStyle(CSSStyle style) {
+		if (DEBUG) {
+			System.err.println(style.path());
+		}
+		final CSSElement ce = style.getCSSElement();
+
+		short explDisplay = Display.get(style);
+
+		if (!ce.isPseudoElement()) {
+			// 本流のセグメント記録(M6a)
+			this.segment.startStyle(style);
+		}
+		if (this.context.getCurrentStyle() != null) {
+			WHILE: while (this.context.getCurrentStyle().isAnonStyle()) {
+				// 匿名スタイルの終了
+
+				// 静的要素のみに適用
+				final byte pos = CSSPosition.get(style);
+				if (pos != PositionValue.STATIC && pos != PositionValue.RELATIVE) {
+					break WHILE;
+				}
+
+				{
+					// テーブル関係
+					final short anonDisplay = Display.get(this.context.getCurrentStyle());
+					switch (explDisplay) {
+					case DisplayValue.TABLE_HEADER_GROUP:
+					case DisplayValue.TABLE_FOOTER_GROUP:
+					case DisplayValue.TABLE_ROW_GROUP:
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_ROW:
+						case DisplayValue.TABLE_ROW_GROUP:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					case DisplayValue.TABLE_CELL:
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_ROW_GROUP:
+						case DisplayValue.TABLE:
+						case DisplayValue.INLINE_TABLE:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					case DisplayValue.INLINE:
+					case DisplayValue.BLOCK:
+					case DisplayValue.LIST_ITEM:
+					case DisplayValue.INLINE_BLOCK:
+					case DisplayValue.TABLE:
+					case DisplayValue.INLINE_TABLE:
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_ROW:
+							CSSStyle parent = this.context.getCurrentStyle().getParentStyle();
+							if (!parent.isAnonStyle() || !parent.getParentStyle().isAnonStyle()) {
+								break WHILE;
+							}
+						case DisplayValue.TABLE_ROW_GROUP:
+						case DisplayValue.TABLE:
+						case DisplayValue.INLINE_TABLE:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					default:
+						break WHILE;
+					}
+				}
+				if (style.getParentStyle() == this.context.getCurrentStyle()) {
+					style.removeAnonStyle();
+				}
+				this.emitter._endStyle();
+			}
+		}
+
+		// BR
+		if (XHTML.BR_ELEM.equalsElement(ce)) {
+			// クリアランス、強制改ページは後にブロックを生成する
+			ClearMode clear = Clear.get(style);
+			PageBreakMode pageBreakBefore = this.mapper.toPageBreak(PageBreakBefore.get(style), this.context.isRightSide());
+			PageBreakMode pageBreakAfter = this.mapper.toPageBreak(PageBreakAfter.get(style), this.context.isRightSide());
+			if (clear != ClearMode.NONE || pageBreakBefore != PageBreakMode.AUTO
+					|| pageBreakAfter != PageBreakMode.AUTO) {
+				// クリアランス等の実行
+				final FlowPos pos = new FlowPos();
+				pos.clear = clear;
+				pos.pageBreakBefore = pageBreakBefore;
+				pos.pageBreakAfter = pageBreakAfter;
+				BlockParams params = new BlockParams();
+				params.fontStyle = style.getFontStyle();
+				params.fontManager = this.ua.getFontManager();
+				params.lineBreakRules = LanguageProfileBundle
+						.getLanguageProfile(style.getCSSElement().lang).getLineBreakRules(style);
+				params.direction = Direction.get(style);
+				params.flow = BlockFlow.get(style);
+				params.element = ce;
+				final Insets margin = Insets.create(0, 0, -LineHeight.get(style), 0, LengthType.ABSOLUTE,
+						LengthType.ABSOLUTE, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
+				params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER,
+						Background.NULL_BACKGROUND, Insets.NULL_INSETS);
+				// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
+				FlowBlockBox flowBox = new FlowBlockBox(params, pos);
+				this.sink.start(flowBox);
+				this.sink.end();
+			}
+		}
+
+		this.emitter._startStyle(style);
+
+		this.firstLetter = true;
+		if (!ce.isPseudoElement()) {
+			++this.depth;
+		}
+		int depth = this.depth;
+
+		// カウンターリセット
+		Value[] resets = CounterReset.get(style);
+		if (resets != null) {
+			final PassContext pc = this.ua.getPassContext();
+			for (int i = 0; i < resets.length; ++i) {
+				CounterSetValue counterSet = (CounterSetValue) resets[i];
+				String name = counterSet.getName();
+				if (StyleBuilder.isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
+				int value = counterSet.getValue();
+				CounterScope scope = pc.getCounterScope(0, false);
+				if (scope != null && scope.defined(name)) {
+					scope.reset(name, value);
+					continue;
+				}
+				pc.getCounterScope(depth, true).reset(name, value);
+			}
+		}
+
+		// カウンター加算
+		final Value[] increments = CounterIncrement.get(style);
+		if (increments != null) {
+			final PassContext pc = this.ua.getPassContext();
+			for (int i = 0; i < increments.length; ++i) {
+				CounterSetValue counterSet = (CounterSetValue) increments[i];
+				String name = counterSet.getName();
+				if (StyleBuilder.isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
+				int delta = counterSet.getValue();
+				int level = depth;
+				for (; level > 0; --level) {
+					CounterScope scope = pc.getCounterScope(level, false);
+					if (scope != null && scope.defined(name)) {
+						break;
+					}
+				}
+				pc.getCounterScope(level, true).increment(name, delta);
+			}
+		}
+
+		// string-set(GCPM)。counter()/attr()/文字列は文書順=build時に確定させる
+		// (呼び出しタイミングではなくelementKeyで先後を判定するNamedStringStateの
+		// 契約を守るため)。content()を含むエントリのみ、要素のボックスが確定する
+		// draw時(AbstractVisitor.visitBox)まで解決を保留する。
+		final Value[] stringSets = StringSet.get(style);
+		if (stringSets != null) {
+			final long elementKey = ce.elementKey;
+			for (int i = 0; i < stringSets.length; ++i) {
+				final StringSetEntryValue entry = (StringSetEntryValue) stringSets[i];
+				final Value[] parts = entry.getParts();
+				final List<Object> resolvedParts = new ArrayList<Object>(parts.length);
+				boolean needsContent = false;
+				for (int j = 0; j < parts.length; ++j) {
+					final Value part = parts[j];
+					if (part instanceof ContentFunctionValue) {
+						resolvedParts.add(PendingStringSet.CONTENT);
+						needsContent = true;
+					} else {
+						resolvedParts.add(this.resolveStringSetPart(part, ce, depth));
+					}
+				}
+				final String name = entry.getName();
+				if (!needsContent) {
+					final StringBuilder buff = new StringBuilder();
+					for (int j = 0; j < resolvedParts.size(); ++j) {
+						buff.append((String) resolvedParts.get(j));
+					}
+					this.ua.getPassContext().getNamedStringState().set(name, buff.toString(), elementKey);
+				} else {
+					List<PendingStringSet> pending = this.ua.getPassContext().getPendingStringSets().get(elementKey);
+					if (pending == null) {
+						pending = new ArrayList<PendingStringSet>();
+						this.ua.getPassContext().getPendingStringSets().put(elementKey, pending);
+					}
+					pending.add(new PendingStringSet(name, resolvedParts));
+				}
+			}
+		}
+
+		// マーカー
+		if (explDisplay == DisplayValue.LIST_ITEM) {
+			int[] counter = null;
+			if (!this.listCounterStack.isEmpty()) {
+				counter = (int[]) this.listCounterStack.get(this.listCounterStack.size() - 1);
+				if (counter[0] == depth) {
+					++counter[1];
+				} else {
+					counter = null;
+				}
+			}
+			if (counter == null) {
+				int start = 1;
+				CSSStyle parentStyle = style;
+				for (parentStyle = parentStyle
+						.getParentStyle(); parentStyle != null; parentStyle = parentStyle
+								.getParentStyle()) {
+					CSSElement parentCe = parentStyle.getCSSElement();
+					if (parentCe == null) {
+						continue;
+					}
+					if (XHTML.UL_ELEM.equalsElement(parentCe)) {
+						break;
+					}
+					if (XHTML.OL_ELEM.equalsElement(parentCe)) {
+						String str = parentCe.atts.getValue("start");
+						if (str != null) {
+							try {
+								start = Integer.parseInt(str);
+							} catch (NumberFormatException e) {
+								ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "OL", "start" + str);
+							}
+						}
+						break;
+					}
+				}
+				counter = new int[] { depth, start };
+				this.listCounterStack.add(counter);
+			}
+			if (style.getCSSElement() != null && XHTML.LI_ELEM.equalsElement(style.getCSSElement())) {
+				String value = style.getCSSElement().atts.getValue("value");
+				if (value != null) {
+					try {
+						counter[1] = Integer.parseInt(value);
+					} catch (NumberFormatException e) {
+						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "LI", "value" + value);
+					}
+				}
+			}
+
+			int number = counter[1];
+			InlinePos pos = new InlinePos();
+			// 2026-07-21新設: ::marker(CSS Lists)。BEFORE/AFTERと同じ
+			// 仕組みでCSSElement.MARKERをカスケード解決し、限定的な
+			// プロパティ(color/font-*等)だけliの実スタイルへ上書きする。
+			// list-style-type/list-style-position等は::markerの対象
+			// プロパティではないため、常にliの実スタイル(style)から
+			// 読む(仕様どおり)。
+			this.styleContext.startElement(CSSElement.MARKER);
+			final Declaration markerDeclaration = this.styleContext.merge(null);
+			CSSStyle markerStyle = style;
+			if (markerDeclaration != null) {
+				markerStyle = CSSStyle.getCSSStyle(this.ua, style, CSSElement.MARKER);
+				markerDeclaration.applyProperties(markerStyle);
+			}
+			this.styleContext.endElement();
+			BlockParams params = new BlockParams();
+			this.mapper.setupBlockParams(params, markerStyle, this.context.getCurrentStyle(), this.context.isInBody(), this.pageSequence);
+			this.mapper.setupInlinePos(pos, markerStyle);
+			params.frame = RectFrame.NULL_FRAME;
+			short listStyleType = ListStyleType.get(style);
+			Image image = ListStyleImage.get(style);
+			if (image == null) {
+				image = GeneratedValueUtils.format(listStyleType, params.color, params.fontStyle);
+			}
+			this.marker = null;
+			Marker marker = null;
+			if (image == null) {
+				String str = GeneratedValueUtils.format(number, listStyleType);
+				if (str != null) {
+					marker = new Marker();
+					String dot = GeneratedValueUtils.period(listStyleType);
+					marker.text = (str + dot + ' ').toCharArray();
+				}
+			} else {
+				marker = new Marker();
+				ReplacedParams rparams = new ReplacedParams();
+				this.mapper.setupParams(rparams, markerStyle);
+				rparams.image = image;
+				marker.imageBox = new InlineReplacedBox(rparams, pos);
+			}
+			if (marker != null) {
+				switch (ListStylePosition.get(style)) {
+				case ListStylePositionValue.INSIDE:
+					// 内部マーカー
+					marker.box = new net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox(params, pos);
+					this.marker(marker);
+					break;
+				case ListStylePositionValue.OUTSIDE:
+					// 外部マーカー
+					marker.box = new OutsideMarkerBox(params, pos);
+					this.marker = marker;
+					break;
+				default:
+					throw new IllegalStateException();
+				}
+			}
+		}
+
+		// コンテンツ生成
+		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
+			final Value[] contents = Content.get(style);
+			if (contents != null) {
+				for (int i = 0; i < contents.length; ++i) {
+					final Value v = contents[i];
+					switch (v) {
+					case StringValue stringValue: {
+						// 文字列
+						String str = stringValue.getString();
+						if (str.length() > 0) {
+							char[] ch = str.toCharArray();
+							this.checkMarker();
+							this.sink.characters(-1, ch, 0, ch.length, true);
+						}
+					}
+						break;
+					case URIValue uriValue: {
+						// 画像
+						URI uri = uriValue.getURI();
+						try {
+							Source source = this.ua.resolve(uri);
+							try {
+								Image image = this.ua.getImage(source);
+								ReplacedParams rparams = new ReplacedParams();
+								this.mapper.setupParams(rparams, style);
+								rparams.image = image;
+								AbstractReplacedBox replaced = new InlineReplacedBox(rparams,
+										new InlinePos());
+								this.checkMarker();
+								this.sink.replaced(replaced);
+							} finally {
+								this.ua.release(source);
+							}
+						} catch (Exception e) {
+							LOG.log(Level.FINE, "Missing image", e);
+							this.ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
+						}
+					}
+						break;
+
+					case CounterValue counter: {
+						// カウンタ
+						final String name = counter.getName();
+						final short counterStyle = counter.getStyle();
+						int number = 0;
+						final PassContext pc = this.ua.getPassContext();
+						for (int level = depth; level >= 0; --level) {
+							CounterScope scope = pc.getCounterScope(level, false);
+							if (scope != null && scope.defined(name)) {
+								number = scope.get(name);
+								break;
+							}
+						}
+						this.counter(number, counterStyle, style);
+					}
+						break;
+
+					case CountersValue counters: {
+						// カウンタ
+						final String name = counters.getName();
+						final String delim = counters.getDelimiter();
+						final short counterStyle = counters.getStyle();
+						boolean first = true;
+						final PassContext pc = this.ua.getPassContext();
+						for (int level = 0; level <= depth; ++level) {
+							CounterScope scope = pc.getCounterScope(level, false);
+							if (scope != null && scope.defined(name)) {
+								if (!first && delim != null && delim.length() > 0) {
+									char[] ch = delim.toCharArray();
+									this.checkMarker();
+									this.sink.characters(-1, ch, 0, ch.length, true);
+								}
+								first = false;
+								final int number = scope.get(name);
+								this.counter(number, counterStyle, style);
+							}
+						}
+					}
+						break;
+
+					case QuoteValue quote: {
+						// 引用符
+						Value[] quotesList = Quotes.get(style);
+
+						switch (quote.getQuote()) {
+						case QuoteValue.OPEN_QUOTE: {
+							if (quotesList != null) {
+								String str = ((QuotesValue) quotesList[Math.min(this.quoteLevel,
+										quotesList.length - 1)]).getOpen();
+								if (str.length() > 0) {
+									char[] ch = str.toCharArray();
+									this.checkMarker();
+									this.sink.characters(-1, ch, 0, ch.length, true);
+								}
+							}
+							++this.quoteLevel;
+						}
+							break;
+
+						case QuoteValue.CLOSE_QUOTE: {
+							if (this.quoteLevel > 0) {
+								--this.quoteLevel;
+								if (quotesList != null) {
+									String str = ((QuotesValue) quotesList[Math.min(this.quoteLevel,
+											quotesList.length - 1)]).getClose();
+									if (str.length() > 0) {
+										char[] ch = str.toCharArray();
+										this.checkMarker();
+										this.sink.characters(-1, ch, 0, ch.length, true);
+									}
+								}
+							}
+						}
+							break;
+
+						case QuoteValue.NO_OPEN_QUOTE: {
+							++this.quoteLevel;
+						}
+							break;
+
+						case QuoteValue.NO_CLOSE_QUOTE: {
+							if (this.quoteLevel > 0) {
+								--this.quoteLevel;
+							}
+						}
+							break;
+
+						default:
+							throw new IllegalStateException();
+						}
+					}
+						break;
+					case AttrValue attr: {
+						// 属性
+						CSSElement parentCe = style.getParentStyle().getCSSElement();
+						if (parentCe.atts != null) {
+							String str = parentCe.atts.getValue(attr.getName());
+							if (str != null && str.length() > 0) {
+								char[] ch = str.toCharArray();
+								this.checkMarker();
+								this.sink.characters(-1, ch, 0, ch.length, true);
+							}
+						}
+					}
+						break;
+					case StringFunctionValue sf: {
+						// string()(GCPM)
+						String str = this.ua.getPassContext().getNamedStringState().get(sf.getName(), sf.getMode());
+						if (str != null && str.length() > 0) {
+							char[] ch = str.toCharArray();
+							this.checkMarker();
+							this.sink.characters(-1, ch, 0, ch.length, true);
+						}
+					}
+						break;
+					case TargetCounterValue pageRefFunc: {
+						// ページ番号
+						String ref = this.resolveTargetRef(pageRefFunc.getType(), pageRefFunc.getRef(), style);
+						if (ref != null) {
+							this.pageRef(pageRefFunc, ref);
+						}
+					}
+						break;
+					case TargetTextValue targetText: {
+						// ターゲットのテキスト
+						String ref = this.resolveTargetRef(targetText.getType(), targetText.getRef(), style);
+						if (ref != null) {
+							this.targetText(targetText, ref);
+						}
+					}
+						break;
+					default:
+						throw new IllegalStateException(String.valueOf(v));
+					}
+				}
+			}
+		}
+
+		// before
+		if (ce != CSSElement.AFTER && ce != CSSElement.BEFORE
+				&& CSSJInternalImage.getImage(style) == null) {
+			// :before
+			CSSElement beforeCe = CSSElement.BEFORE;
+			this.styleContext.startElement(beforeCe);
+			final Declaration beforeDeclaration = this.styleContext.merge(null);
+			if (beforeDeclaration != null || HTMLStyle.hasBeforeContent(ce)) {
+				CSSStyle beforeStyle = CSSStyle.getCSSStyle(this.ua, style, beforeCe);
+				HTMLStyle.applyBeforeStyle(beforeStyle);
+				if (beforeDeclaration != null) {
+					beforeDeclaration.applyProperties(beforeStyle);
+				}
+				if (Content.get(beforeStyle) != null && Display.get(beforeStyle) != DisplayValue.NONE) {
+					this.startStyle(beforeStyle);
+					this.endStyle();
+				}
+			}
+			this.styleContext.endElement();
+		}
+	}
+
+	/**
+	 * {@code string-set}の値リストの1要素(build時に確定できるもの、
+	 * {@link ContentFunctionValue}は呼び出し側で個別に扱う)を文字列へ
+	 * 解決する。画像ベースの{@code list-style-type}は文字列として意味を
+	 * 持たないため空文字列として扱う。
+	 */
+	private String resolveStringSetPart(Value part, CSSElement ce, int depth) {
+		if (part instanceof StringValue str) {
+			return str.getString();
+		} else if (part instanceof CounterValue counter) {
+			final String name = counter.getName();
+			final short counterStyle = counter.getStyle();
+			int number = 0;
+			final PassContext pc = this.ua.getPassContext();
+			for (int level = depth; level >= 0; --level) {
+				CounterScope scope = pc.getCounterScope(level, false);
+				if (scope != null && scope.defined(name)) {
+					number = scope.get(name);
+					break;
+				}
+			}
+			final String str = GeneratedValueUtils.format(number, counterStyle);
+			return str != null ? str : "";
+		} else if (part instanceof CountersValue counters) {
+			final String name = counters.getName();
+			final String delim = counters.getDelimiter();
+			final short counterStyle = counters.getStyle();
+			final StringBuilder buff = new StringBuilder();
+			final PassContext pc = this.ua.getPassContext();
+			boolean first = true;
+			for (int level = 0; level <= depth; ++level) {
+				CounterScope scope = pc.getCounterScope(level, false);
+				if (scope != null && scope.defined(name)) {
+					if (!first && delim != null && delim.length() > 0) {
+						buff.append(delim);
+					}
+					first = false;
+					final String str = GeneratedValueUtils.format(scope.get(name), counterStyle);
+					if (str != null) {
+						buff.append(str);
+					}
+				}
+			}
+			return buff.toString();
+		} else if (part instanceof AttrValue attr) {
+			if (ce.atts != null) {
+				final String str = ce.atts.getValue(attr.getName());
+				if (str != null) {
+					return str;
+				}
+			}
+			return "";
+		}
+		return "";
+	}
+
+	private void counter(int number, short counterStyle, CSSStyle style) {
+		final String str = GeneratedValueUtils.format(number, counterStyle);
+		if (str != null) {
+			char[] ch = str.toCharArray();
+			this.checkMarker();
+			// カウンタ
+			this.sink.characters(-1, ch, 0, ch.length, true);
+		} else {
+			final ReplacedParams rparams = new ReplacedParams();
+			this.mapper.setupParams(rparams, style);
+			rparams.image = GeneratedValueUtils.format(counterStyle, CSSColor.get(style), style.getFontStyle());
+			if (rparams.image != null) {
+				final AbstractReplacedBox replaced = new InlineReplacedBox(rparams, new InlinePos());
+				this.checkMarker();
+				this.sink.replaced(replaced);
+			}
+		}
+	}
+
+	/**
+	 * {@code counter-reset}/{@code counter-increment}で予約カウンタ名
+	 * ({@code pages})が指定された場合の警告(1文書につき1回のみ)。
+	 * css-page-3 §6.1の{@code pages}はUA予約であり、著者が明示しても
+	 * 無視して継続する(警告+縮退、例外にはしない方針)。
+	 */
+	void warnReservedCounter(String name) {
+		if (!this.warnedReservedCounter) {
+			this.warnedReservedCounter = true;
+			LOG.warning("counter '" + name + "' is reserved by the UA (total page count) and cannot be "
+					+ "reset/incremented by author style; ignoring.");
+		}
+	}
+
+	/**
+	 * {@code target-counter()}系/{@code target-text()}のtarget参照
+	 * (ATTR/REF)を、実際に{@code PageRef}へ問い合わせるための
+	 * {@code "#id"}文字列(またはhref)へ解決する。属性値が無い場合は
+	 * {@code null}。
+	 */
+	private String resolveTargetRef(byte type, String ref, CSSStyle style) {
+		switch (type) {
+		case TargetCounterValue.ATTR: {
+			// 属性から
+			CSSElement parentCe = style.getParentStyle().getCSSElement();
+			if (parentCe.atts == null) {
+				return null;
+			}
+			String str = parentCe.atts.getValue(ref);
+			if (str == null) {
+				return null;
+			}
+			if (!ref.equals("href") && str.indexOf("#") == -1) {
+				// 互換性のため
+				str = "#" + str;
+			}
+			return str;
+		}
+		case TargetCounterValue.REF: {
+			// ID指定
+			String id = ref;
+			if (id.indexOf("#") == -1) {
+				// 互換性のため
+				id = "#" + id;
+			}
+			return id;
+		}
+		default:
+			throw new IllegalStateException();
+		}
+	}
+
+	/**
+	 * 収束性の軽量チェック: 最終パスで解決したフラグメントが今回パスで
+	 * 書き込まれたものではなく(1パス以上前のstaleな値のまま)確定した
+	 * 場合、1文書につき1回だけ警告する。振動検出・自動再試行は行わない
+	 * (自動昇格断念の判断と同じ方針)。
+	 */
+	private void checkTargetConverged(PageRef pageRef, Fragment frag) {
+		if (this.warnedUnconvergedTarget || !this.ua.isLastPass()) {
+			return;
+		}
+		if (frag.generation < pageRef.getGeneration()) {
+			this.warnedUnconvergedTarget = true;
+			LOG.warning("target-counter()/target-counters()/target-text() did not resolve to a fresh value "
+					+ "by the final layout pass; consider increasing processing.pass-count.");
+		}
+	}
+
+	private void targetText(TargetTextValue targetText, String ref) {
+		PageRef pageRef = this.ua.getUAContext().getPageRef();
+		if (pageRef == null) {
+			return;
+		}
+		try {
+			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
+					this.ua.getDocumentContext().getBaseURI(), ref);
+			Fragment frag = pageRef.getFragment(uri);
+			if (frag == null) {
+				return;
+			}
+			this.checkTargetConverged(pageRef, frag);
+			if (frag.text == null || frag.text.length() == 0) {
+				return;
+			}
+			char[] ch = frag.text.toCharArray();
+			this.checkMarker();
+			// ターゲットテキスト
+			this.sink.characters(-1, ch, 0, ch.length, true);
+		} catch (URISyntaxException e) {
+			this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
+		}
+	}
+
+	private void pageRef(TargetCounterValue pageRefFunc, String ref) {
+		PageRef pageRef = this.ua.getUAContext().getPageRef();
+		if (pageRef == null) {
+			return;
+		}
+
+		try {
+			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
+					this.ua.getDocumentContext().getBaseURI(), ref);
+			String sep = pageRefFunc.getSeparator();
+			String counter = pageRefFunc.getCounter();
+			char[] ch;
+			if (sep == null) {
+				Fragment frag = pageRef.getFragment(uri);
+				if (frag == null) {
+					return;
+				}
+				this.checkTargetConverged(pageRef, frag);
+				int count = frag.getCounterValue(counter);
+				String str = GeneratedValueUtils.format(count, pageRefFunc.getNumberStyleType());
+				if (str == null) {
+					return;
+				}
+				ch = str.toCharArray();
+			} else {
+				Collection<?> frags = pageRef.getFragments(uri);
+				if (frags == null || frags.isEmpty()) {
+					return;
+				}
+				IntList counts = new IntList();
+				for (Iterator<?> j = frags.iterator(); j.hasNext();) {
+					Fragment fragment = (Fragment) j.next();
+					this.checkTargetConverged(pageRef, fragment);
+					int count = fragment.getCounterValue(counter);
+					if (!counts.contains(count)) {
+						counts.add(count);
+					}
+				}
+				StringBuilder buff = new StringBuilder();
+				for (int j = 0; j < counts.size(); ++j) {
+					if (buff.length() > 0) {
+						buff.append(sep);
+					}
+					String str = GeneratedValueUtils.format(counts.get(j), pageRefFunc.getNumberStyleType());
+					if (str != null) {
+						buff.append(str);
+					}
+				}
+				if (buff.length() <= 0) {
+					return;
+				}
+				ch = buff.toString().toCharArray();
+			}
+			this.checkMarker();
+			// ページ参照
+			this.sink.characters(-1, ch, 0, ch.length, true);
+		} catch (URISyntaxException e) {
+			this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
+		}
+	}
+
+
+
+	void characters(int charOffset, char[] ch, int off, int len) {
+		assert len > 0;
+		if (this.context.getHtmlRootBlock() == null && this.context.getCurrentStyle() != null) {
+			// 本文の中
+			this.segment.characters(charOffset, ch, off, len); // 本流のセグメント記録(M6a)
+			if (!this.context.isInTextBlock()) {
+				// ブロック補完のためにテキストブロックの開始をチェック
+				// net.zamasoft.foliojet.layoutパッケージを直接利用する場合のために、
+				// StyledTextUnitizerでも同じ処理をしています。
+				final CSSStyle style = this.context.getCurrentStyle();
+				TEXTBLOCK: switch (WhiteSpace.get(style)) {
+				case AbstractTextParams.WHITE_SPACE_NORMAL:
+				case AbstractTextParams.WHITE_SPACE_NOWRAP:
+					// 空白か制御コード以外の文字が必要
+					for (int i = 0; i < len; ++i) {
+						char c = ch[i + off];
+						if (!TextUtils.isWhiteSpace(c)) {
+							break TEXTBLOCK;
+						}
+					}
+					return;
+
+				case AbstractTextParams.WHITE_SPACE_PRE_LINE:
+					// 改行コードか空白か制御コード以外の文字が必要
+					for (int i = 0; i < len; ++i) {
+						char c = ch[i + off];
+						if (!TextUtils.isWhiteSpace(c) || c == '\n') {
+							break TEXTBLOCK;
+						}
+					}
+					return;
+				case AbstractTextParams.WHITE_SPACE_PRE:
+				case AbstractTextParams.WHITE_SPACE_PRE_WRAP:
+					break;
+				default:
+					throw new IllegalStateException();
+				}
+				this.context.setInTextBlock(true);
+			}
+
+			if (this.firstLetter) {
+				this.firstLetter = false;
+
+				// :first-letter
+				this.styleContext.startElement(CSSElement.FIRST_LETTER);
+				final Declaration declaration = this.styleContext.merge(null);
+				this.styleContext.endElement();
+				if (declaration != null) {
+					final CSSStyle firstLetterStyle = CSSStyle.getCSSStyle(this.ua, this.context.getCurrentStyle(),
+							CSSElement.FIRST_LETTER);
+					declaration.applyProperties(firstLetterStyle);
+					if (Display.get(firstLetterStyle) != DisplayValue.NONE) {
+						this.startStyle(firstLetterStyle);
+						final LanguageProfile lang = LanguageProfileBundle
+								.getLanguageProfile(this.context.getCurrentStyle().getCSSElement().lang);
+						int first = lang.countFirstLetter(ch, off, len);
+						this.checkMarker();
+						this.sink.characters(charOffset, ch, off, first, false);
+						len -= first;
+						off += first;
+						charOffset += first;
+						this.endStyle();
+					}
+					if (len == 0) {
+						return;
+					}
+				}
+			}
+			this.checkMarker();
+
+			if (this.context.getCurrentStyle() != null) {
+				WHILE: while (this.context.getCurrentStyle().isAnonStyle()) {
+					// 匿名スタイルの終了
+					final short anonDisplay = Display.get(this.context.getCurrentStyle());
+					switch (anonDisplay) {
+					case DisplayValue.TABLE_ROW:
+						CSSStyle parent = this.context.getCurrentStyle().getParentStyle();
+						if (!parent.isAnonStyle() || !parent.getParentStyle().isAnonStyle()) {
+							break WHILE;
+						}
+					case DisplayValue.TABLE_ROW_GROUP:
+					case DisplayValue.TABLE:
+					case DisplayValue.INLINE_TABLE:
+						break;
+					default:
+						break WHILE;
+					}
+					this.emitter._endStyle();
+				}
+			}
+
+			String em = TextEmphasisStyle.get(this.context.getCurrentStyle());
+			if (em == null || em.length() == 0) {
+				this.sink.characters(charOffset, ch, off, len, false);
+			} else {
+				// 圏点
+				final char[] emc = em.toCharArray();
+				final boolean vert = BlockFlow.get(this.context.getCurrentStyle()).isVertical();
+				Value color = this.context.getCurrentStyle().get(TextEmphasisColor.INFO);
+				if (color == KeywordValue.DEFAULT) {
+					color = this.context.getCurrentStyle().get(CSSColor.INFO);
+				}
+				for (int i = 0; i < len; ++i) {
+					final CSSStyle eb = this.context.getCurrentStyle().inheritAnonStyle(CSSElement.ANON);
+					eb.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
+					eb.set(CSSPosition.INFO, PositionValue.RELATIVE_VALUE);
+					eb.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
+					if (vert) {
+						eb.set(LineHeight.INFO, EM_1_618);
+					} else {
+						eb.set(LineHeight.INFO, EM_1_414);
+					}
+					this.emitter._startStyle(eb);
+					final CSSStyle et = eb.inheritAnonStyle(CSSElement.ANON);
+					et.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
+					et.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
+					et.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
+					et.set(CSSColor.INFO, color);
+					et.set(FontSize.INFO, PercentageValue.HALF);
+					if (vert) {
+						et.set(Height.INFO, PercentageValue.FULL);
+						et.set(Inset.LEFT, EM_1_4);
+					} else {
+						et.set(Width.INFO, PercentageValue.FULL);
+						et.set(Inset.BOTTOM, EM_1_4);
+					}
+					et.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
+					this.emitter._startStyle(et);
+					this.sink.characters(-1, emc, 0, 1, false);
+					this.emitter._endStyle();
+					this.sink.characters(charOffset, ch, i + off, 1, false);
+					this.emitter._endStyle();
+				}
+			}
+		}
+	}
+
+
+	void checkMarker() {
+		if (this.marker == null) {
+			return;
+		}
+		// 外部マーカー
+		Marker marker = this.marker;
+		this.marker = null;
+		this.marker(marker);
+	}
+
+	private void marker(Marker marker) {
+		this.sink.start(marker.box);
+		if (marker.text != null) {
+			// マーカーのテキスト
+			this.sink.characters(-1, marker.text, 0, marker.text.length, false);
+		} else if (marker.imageBox != null) {
+			this.sink.replaced(marker.imageBox);
+		}
+		this.sink.end();
+	}
+
+
+	void endStyle() {
+		CSSStyle style = this.context.getCurrentStyle();
+		if (DEBUG) {
+			System.err.println("/" + style.path());
+		}
+
+		final CSSElement ce = style.getCSSElement();
+		if (ce != CSSElement.AFTER && ce != CSSElement.BEFORE
+				&& CSSJInternalImage.getImage(style) == null) {
+			// :after
+			boolean br = XHTML.BR_ELEM.equalsElement(ce);
+			CSSElement afterCe = CSSElement.AFTER;
+			this.styleContext.startElement(afterCe);
+			final Declaration afterDeclaration = this.styleContext.merge(null);
+			if (afterDeclaration != null || br || HTMLStyle.hasAfterContent(ce)) {
+				CSSStyle afterStyle = CSSStyle.getCSSStyle(this.ua, style, afterCe);
+				HTMLStyle.applyAfterStyle(afterStyle);
+				if (br) {
+					afterStyle.set(Content.INFO, LF);
+					afterStyle.set(Clear.INFO, KeywordValue.INHERIT);
+				}
+				if (afterDeclaration != null) {
+					afterDeclaration.applyProperties(afterStyle);
+				}
+				if (br && Display.get(afterStyle) == DisplayValue.INLINE) {
+					PageBreakMode pageBreakBefore = this.mapper.toPageBreak(PageBreakBefore.get(afterStyle), this.context.isRightSide());
+					PageBreakMode pageBreakAfter = this.mapper.toPageBreak(PageBreakAfter.get(afterStyle), this.context.isRightSide());
+					if ((pageBreakBefore != PageBreakMode.AUTO
+							&& pageBreakBefore != PageBreakMode.AVOID)
+							|| (pageBreakAfter != PageBreakMode.AUTO
+									&& pageBreakAfter != PageBreakMode.AVOID)) {
+						afterStyle.set(Display.INFO, DisplayValue.BLOCK_VALUE);
+					}
+				}
+				if (Content.get(afterStyle) != null && Display.get(afterStyle) != DisplayValue.NONE) {
+					this.startStyle(afterStyle);
+					this.endStyle();
+				}
+			}
+			this.styleContext.endElement();
+		}
+
+		// 匿名スタイルを終了
+		while (this.context.getCurrentStyle().isAnonStyle()) {
+			this.emitter._endStyle();
+		}
+
+		// 明示されたスタイルを終了
+		style = this.context.getCurrentStyle();
+		if (!style.getCSSElement().isPseudoElement()) {
+			// 本流のセグメント記録(M6a)
+			this.segment.endStyle(style);
+		}
+		this.emitter._endStyle();
+		if (this.context.getCurrentStyle() != null) {
+			short explDisplay = Display.get(style);
+			WHILE: while (this.context.getCurrentStyle().isInsertedAnonStyle()) {
+				// 匿名スタイルの終了
+				final short anonDisplay = Display.get(this.context.getCurrentStyle());
+				switch (explDisplay) {
+				case DisplayValue.TABLE_CELL:
+					switch (anonDisplay) {
+					case DisplayValue.TABLE_ROW:
+						// セルを終わるときは行で止める
+						break WHILE;
+					}
+					break;
+				case DisplayValue.TABLE_ROW:
+					switch (anonDisplay) {
+					// 行を終わるときは行グループで止める
+					case DisplayValue.TABLE_ROW_GROUP:
+						break WHILE;
+					}
+					break;
+				case DisplayValue.INLINE:
+				case DisplayValue.BLOCK:
+				case DisplayValue.LIST_ITEM:
+				case DisplayValue.INLINE_BLOCK:
+				case DisplayValue.TABLE:
+				case DisplayValue.INLINE_TABLE:
+					switch (anonDisplay) {
+					// 匿名セルが生成されている場合は行で止める
+					case DisplayValue.TABLE_ROW:
+						break WHILE;
+					}
+					break;
+				}
+				if (style.getParentStyle() == this.context.getCurrentStyle()) {
+					style.removeAnonStyle();
+				}
+				this.emitter._endStyle();
+			}
+		}
+
+		if (!style.getCSSElement().isPseudoElement()) {
+			// リスト用カウンタのクリア
+			if (!this.listCounterStack.isEmpty()) {
+				int[] counter = (int[]) this.listCounterStack.get(this.listCounterStack.size() - 1);
+				if (counter[0] > this.depth) {
+					this.listCounterStack.remove(this.listCounterStack.size() - 1);
+				}
+			}
+			--this.depth;
+		}
+		this.firstLetter = false;
+	}
+
+}

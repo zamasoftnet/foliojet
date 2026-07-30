@@ -75,7 +75,7 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * @author MIYABE Tatsuhiko
  * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class RetainedTableBuilder implements TableBuilder, TwoPass {
+public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builder.RetainedTable {
 	/**
 	 * 構築中のテーブルセルです。
 	 * 
@@ -215,7 +215,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			final TableRowGroupBox rowGroup = (TableRowGroupBox) this.innerTableStack
 					.get(this.innerTableStack.size() - 1);
 			final TableRowBox row = (TableRowBox) box;
-			final List<TableRowBox> rows = (ArrayList<TableRowBox>) this.rowGroupToRows.get(rowGroup);
+			final List<TableRowBox> rows = this.rowGroupToRows.get(rowGroup);
 			rows.add(row);
 			// 行1つの収集は**実際に進んだ仕事**。保持型の表は全行を読み終える
 			// まで1ページも出さないので、ここが進捗の唯一の信号になる
@@ -343,7 +343,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 	 * ループするだけ。行・列寸法は assemble で後から設定される。
 	 */
 	private TableCollapsedBorders createBorders(int columnCount, int headerRowCount, int bodyRowCount,
-			int footerRowCount, List<List<?>> rowLists, List<List<?>> cellLists) {
+			int footerRowCount, List<List<TableRowBox>> rowLists, List<List<CellContent>> cellLists) {
 		final TableParams params = this.tableBox.getTableParams();
 		final BorderAxes ax = this.vertical ? BorderAxes.VERTICAL : BorderAxes.HORIZONTAL;
 		final List<Border[]> headerH = new ArrayList<>(), headerV = new ArrayList<>();
@@ -352,9 +352,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		final int totalRows = headerRowCount + bodyRowCount + footerRowCount;
 		int globalRow = 0;
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			final TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
+			final TableRowGroupBox rowGroup = this.rowGroups.get(i);
 			final InnerTableParams rowGroupParams = rowGroup.getInnerTableParams();
-			final List<?> rows = rowLists.get(i);
+			final List<TableRowBox> rows = rowLists.get(i);
 			final List<Border[]> hborders, vborders;
 			switch (rowGroup.getTableRowGroupPos().rowGroupType) {
 			case RowGroupType.HEADER:
@@ -386,12 +386,11 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 				hborders.add(lastBorder);
 
 				final boolean groupLastRow = j == rows.size() - 1;
-				@SuppressWarnings("unchecked")
-				final List<CellContent> cells = (List<CellContent>) cellLists.get(globalRow);
-				final TableRowBox nextRowBox = groupLastRow ? null : (TableRowBox) rows.get(j + 1);
-				final List<?> nextCells = groupLastRow ? null : cellLists.get(globalRow + 1);
+				final List<CellContent> cells = cellLists.get(globalRow);
+				final TableRowBox nextRowBox = groupLastRow ? null : rows.get(j + 1);
+				final List<CellContent> nextCells = groupLastRow ? null : cellLists.get(globalRow + 1);
 				CollapsedBorderRules.collapseRow(firstBorder, lastBorder, lineBorder, ax, params,
-						this.columnGroupBox, rowGroupParams, (TableRowBox) rows.get(j), cells, nextRowBox, nextCells,
+						this.columnGroupBox, rowGroupParams, rows.get(j), cells, nextRowBox, nextCells,
 						globalRow == 0, globalRow == totalRows - 1, j == 0, groupLastRow, j == 0, !groupLastRow,
 						columnCount);
 				++globalRow;
@@ -436,15 +435,15 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		}
 
 		int headerRowCount = 0, bodyRowCount = 0, footerRowCount = 0;
-		List<List<?>> rowLists = new ArrayList<List<?>>();
-		List<List<?>> cellLists = new ArrayList<List<?>>();
+		List<List<TableRowBox>> rowLists = new ArrayList<List<TableRowBox>>();
+		List<List<CellContent>> cellLists = new ArrayList<List<CellContent>>();
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
-			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroup);
+			TableRowGroupBox rowGroup = this.rowGroups.get(i);
+			List<TableRowBox> rows = this.rowGroupToRows.get(rowGroup);
 			rowLists.add(rows);
 			for (int j = 0; j < rows.size(); ++j) {
-				TableRowBox row = (TableRowBox) rows.get(j);
-				List<?> cells = (List<?>) this.rowToCells.get(row);
+				TableRowBox row = rows.get(j);
+				List<CellContent> cells = this.rowToCells.get(row);
 				cellLists.add(cells);
 				columnCount = Math.max(columnCount, cells.size());
 			}
@@ -518,12 +517,12 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		// セルの幅計算
 		int row = 0;
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			List<?> rows = (List<?>) this.rowGroupToRows.get(this.rowGroups.get(i));
+			List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
 			for (int j = 0; j < rows.size(); ++j) {
-				List<?> cells = (List<?>) this.rowToCells.get(rows.get(j));
+				List<CellContent> cells = this.rowToCells.get(rows.get(j));
 				// 指定幅
 				for (int col = 0; col < cells.size(); ++col) {
-					final CellContent cell = (CellContent) cells.get(col);
+					final CellContent cell = cells.get(col);
 					if (cell.isExtended()) {
 						continue;
 					}
@@ -643,9 +642,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		int realCellCount = 0;
 		long retainedCellGlyphs = 0;
 		for (int i = 0; i < cellLists.size(); ++i) {
-			final List<?> cells = cellLists.get(i);
+			final List<CellContent> cells = cellLists.get(i);
 			for (int j = 0; j < cells.size(); ++j) {
-				final CellContent cell = (CellContent) cells.get(j);
+				final CellContent cell = cells.get(j);
 				if (!cell.isExtended()) {
 					++realCellCount;
 					// E-6増分5a: 表終端時点でrecordsが保持しているglyph数の
@@ -669,7 +668,13 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			double[] columnSizes, double specifiedPageSize, double tableInnerSize) {
 	}
 
-	public void bind(final BlockBuilder builder) {
+	public void bind(final net.zamasoft.foliojet.layout.builder.Builder host) {
+		// bindは実測済み内容を実レイアウトへ再駆動する操作で、hostは常に
+		// BlockBuilder(直接のaddTableでも、TwoPassBlockBuilderのTableEvent
+		// 再生でも、渡ってくるのは実ビルダー)。ここで一度だけ絞り込む。
+		// 完全な型伝播(bind連鎖とSourceReplayer.bindTwoPassRangeの
+		// Builder化)はA-2bとしてPLAN.md §1.5に記録済み
+		final BlockBuilder builder = (BlockBuilder) host;
 		final TableShape shape = this.resolveShape(builder);
 		final int rowCount = this.bindRows(shape);
 		this.assemble(builder, shape, rowCount);
@@ -762,40 +767,16 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 				tableSize = lineSize;
 			}
 			tableSize -= tableFrame;
-			double refSize = tableSize;
-			if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
-				// 分離境界
-				refSize -= columnCount * lineBorderSpacing;
-			}
-			refSize = Math.max(0, refSize);
-			final FixedColumnWidths.Spec[] colgroupSpecs;
 			if (this.columnGroupBox != null) {
 				this.tableBox.setTableColumnGroup(this.columnGroupBox);
-				// 行方向の境界間隔は論理軸で採る(旧実装は縦書きでも
-				// borderSpacingH を加算していた — OnePass と同じ論理軸へ正規化。
-				// 0390-writing-mode/vert-fixed-colgroup-spacing.html で固定)
-				colgroupSpecs = TableColumnSpecs.colgroupSpecs(this.columnGroupBox, columnCount, refSize,
-						tableParams.borderCollapse == TableParams.BORDER_SEPARATE ? lineBorderSpacing : 0);
-			} else {
-				colgroupSpecs = new FixedColumnWidths.Spec[columnCount];
 			}
-			final List<?> cells = (List<?>) this.rowToCells.get(this.firstRowBox);
-			final FixedColumnWidths.Spec[] cellSpecs = new FixedColumnWidths.Spec[columnCount];
-			for (int i = 0; i < columnCount; ++i) {
-				if (i >= cells.size()) {
-					continue;
-				}
-				final CellContent cell = (CellContent) cells.get(i);
-				final FixedColumnWidths.Spec spec = this.fixedCellSpec(cell, refSize);
-				cellSpecs[i] = spec;
-				for (int j = 1; j < cell.colspan; ++j) {
-					++i;
-					if (i < columnCount) {
-						cellSpecs[i] = spec;
-					}
-				}
-			}
-			final FixedColumnWidths.Result result = FixedColumnWidths.distribute(colgroupSpecs, cellSpecs, tableSize);
+			// 行方向の境界間隔は論理軸で採る(旧実装は縦書きでも
+			// borderSpacingH を加算していた — OnePass と同じ論理軸へ正規化。
+			// 0390-writing-mode/vert-fixed-colgroup-spacing.html で固定)
+			final FixedColumnWidths.Result result = FixedTableSizing.resolve(this.columnGroupBox,
+					this.rowToCells.get(this.firstRowBox), columnCount, tableSize,
+					tableParams.borderCollapse == TableParams.BORDER_SEPARATE, lineBorderSpacing,
+					this::fixedCellSpec);
 			columnSizes = result.sizes();
 			tableSize = result.innerSize() + tableFrame;
 		} else {
@@ -902,7 +883,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		// ヘッダ・内容・フッタ
 		int rowCount = 0; // 行数
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+			List<TableRowBox> rows = this.rowGroupToRows.get(rowGroups.get(i));
 			rowCount += rows.size();
 		}
 
@@ -930,7 +911,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			int rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
 				TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
+				List<TableRowBox> rows = this.rowGroupToRows.get(rowGroupBox);
 
 				// 連結された行
 				Map<Rowspan, Rowspan> rowspans = new HashMap<Rowspan, Rowspan>();
@@ -940,7 +921,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 
 				// 行高さ/セルのレイアウト
 				for (int j = 0; j < rows.size(); ++j) {
-					TableRowBox rowBox = (TableRowBox) rows.get(j);
+					TableRowBox rowBox = rows.get(j);
 					double rowSize;
 
 					// 指定された行高さの計算(共有核 — P2-5 (c))
@@ -952,9 +933,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 					}
 
 					// セル内のレイアウト
-					List<?> cells = (List<?>) this.rowToCells.get(rowBox);
+					List<CellContent> cells = this.rowToCells.get(rowBox);
 					for (int k = 0; k < cells.size(); ++k) {
-						CellContent cell = (CellContent) cells.get(k);
+						CellContent cell = cells.get(k);
 						int span = cell.colspan;
 						TableCellBox cellBox = cell.getCellBox();
 						if (cell.isExtended()) {
@@ -983,25 +964,11 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 							}
 						}
 
-						// セルの中身を再構築
-						double size = columnSizes[k];
-						for (int l = 1; l < span; ++l) {
-							size += columnSizes[++k];
-							assert !LayoutUtils.isNone(columnSizes[k]);
-						}
-						if (this.vertical) {
-							cellBox.setHeight(size);
-							if (!cellParams.flow.isVertical()) {
-								cellBox.setWidth(cell.getIntrinsicSizes().maxContent() + cellBox.getFrame().getFrameWidth()
-										+ tableParams.borderSpacingH);
-							}
-						} else {
-							cellBox.setWidth(size);
-							if (cellParams.flow.isVertical()) {
-								cellBox.setHeight(cell.getIntrinsicSizes().maxContent()
-										+ cellBox.getFrame().getFrameHeight() + tableParams.borderSpacingV);
-							}
-						}
+						// セルの中身を再構築(軸寸法は共有核 TableCellMetrics)
+						final double size = TableCellMetrics.spannedLineSize(columnSizes, k, span);
+						k += span - 1;
+						TableCellMetrics.applyLineAxis(cellBox, cell::getIntrinsicSizes, size, this.vertical,
+								tableParams);
 						if (measuredPageAxis != null) {
 							// E-6増分5b-2 Pass B: bindせずscratch計測(複製box上に
 							// 作った木は値の採取後に破棄——この時点でbind済みセル
@@ -1030,40 +997,17 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 							noAdjRows[j] = true;
 						} else {
 							// 連結された行(連結では％高さはautoとする)
-							Rowspan key = new Rowspan(j, cellRowspan);
-							Rowspan rowspan = (Rowspan) rowspans.get(key);
-							if (rowspan == null) {
-								rowspan = key;
-								rowspans.put(key, rowspan);
-								rowspanList.add(rowspan);
-							}
-							double cellSize;
-							if (this.vertical) {
-								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
-								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
-									double width = cellParams.size.getWidth();
-									if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-										width += cellBox.getFrame().getFrameWidth();
-									}
-									cellSize = Math.max(cellSize, width);
-								}
-							} else {
-								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
-								if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
-									double height = cellParams.size.getHeight();
-									if (cellParams.boxSizing == BoxSizingMode.CONTENT_BOX) {
-										height += cellBox.getFrame().getFrameHeight();
-									}
-									cellSize = Math.max(cellSize, height);
-								}
-							}
-							rowspan.min = Math.max(rowspan.min, cellSize);
+							// 要求寸法・登録とも共有核へ(A-4)
+							final double cellSize = RowLayoutEngine.demandPageSize(
+									this.boundPageAxisSize(measuredPageAxis, cellBox), cellParams, cellBox,
+									this.vertical);
+							RowLayoutEngine.addSpannedDemand(rowspans, rowspanList, j, cellRowspan, cellSize);
 						}
 					}
 
 					// ベースラインをそろえる
 					for (int k = 0; k < cells.size(); ++k) {
-						final CellContent cell = (CellContent) cells.get(k);
+						final CellContent cell = cells.get(k);
 						if (cell.isExtended()) {
 							continue;
 						}
@@ -1104,17 +1048,17 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 					final int groupStart = rowIndex - rows.size();
 					final double[] rowSizes = new double[rows.size()];
 					for (int j = 0; j < rows.size(); ++j) {
-						rowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
+						rowSizes[j] = rows.get(j).getPageSize();
 					}
 					RowLayoutEngine.distributeSpannedRowSizes(rowSizes, rowspanList, noAdjRows, autoRows,
 							java.util.Arrays.copyOfRange(rowRatios, groupStart, rowIndex));
 					for (int j = 0; j < rows.size(); ++j) {
-						((TableRowBox) rows.get(j)).setPageSize(rowSizes[j]);
+						rows.get(j).setPageSize(rowSizes[j]);
 					}
 				}
 				// 内容の高さ計算
 				for (int j = 0; j < rows.size(); ++j) {
-					TableRowBox rowBox = (TableRowBox) rows.get(j);
+					TableRowBox rowBox = rows.get(j);
 					rowSizeSum += rowBox.getPageSize();
 				}
 			}
@@ -1125,18 +1069,18 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			final double[] rowSizes = new double[rowCount];
 			int rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				List<TableRowBox> rows = this.rowGroupToRows.get(rowGroups.get(i));
 				for (int j = 0; j < rows.size(); ++j) {
-					rowSizes[rowIndex++] = ((TableRowBox) rows.get(j)).getPageSize();
+					rowSizes[rowIndex++] = rows.get(j).getPageSize();
 				}
 			}
 			rowSizeSum += RowLayoutEngine.distributePercentRowSizes(rowSizes, rowRatios, specifiedPageSize,
 					specifiedPageSize - rowSizeSum);
 			rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				List<TableRowBox> rows = this.rowGroupToRows.get(rowGroups.get(i));
 				for (int j = 0; j < rows.size(); ++j) {
-					((TableRowBox) rows.get(j)).setPageSize(rowSizes[rowIndex++]);
+					rows.get(j).setPageSize(rowSizes[rowIndex++]);
 				}
 			}
 		}
@@ -1148,17 +1092,17 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			if (params.size.getType() != LengthType.ABSOLUTE) {
 				continue;
 			}
-			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroupBox);
+			List<TableRowBox> rows = this.rowGroupToRows.get(rowGroupBox);
 			final double[] rowSizes = new double[rows.size()];
 			for (int j = 0; j < rows.size(); ++j) {
-				rowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
+				rowSizes[j] = rows.get(j).getPageSize();
 			}
 			// 戻り値(増分)は以降どこにも読まれないため破棄する(P2、外部設計レビュー2026-07-19で発見:
 			// 直後の「テーブル高さを適用」ブロックはrowBox.getPageSize()から都度読み直すため
 			// rowSizeSumのこれ以降の値は死んでいた)
 			RowLayoutEngine.distributeGroupSize(rowSizes, params.size.getLength());
 			for (int j = 0; j < rows.size(); ++j) {
-				((TableRowBox) rows.get(j)).setPageSize(rowSizes[j]);
+				rows.get(j).setPageSize(rowSizes[j]);
 			}
 		}
 
@@ -1171,9 +1115,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			final boolean[] autoRows = new boolean[rowCount];
 			int rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				List<TableRowBox> rows = this.rowGroupToRows.get(rowGroups.get(i));
 				for (int j = 0; j < rows.size(); ++j) {
-					final TableRowBox rowBox = (TableRowBox) rows.get(j);
+					final TableRowBox rowBox = rows.get(j);
 					rowSizes[rowIndex] = rowBox.getPageSize();
 					autoRows[rowIndex] = rowBox.getInnerTableParams().size.getType() == LengthType.AUTO;
 					++rowIndex;
@@ -1182,29 +1126,28 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			RowLayoutEngine.distributeTableSize(rowSizes, autoRows, specifiedPageSize);
 			rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroups.get(i));
+				List<TableRowBox> rows = this.rowGroupToRows.get(rowGroups.get(i));
 				for (int j = 0; j < rows.size(); ++j) {
-					((TableRowBox) rows.get(j)).setPageSize(rowSizes[rowIndex++]);
+					rows.get(j).setPageSize(rowSizes[rowIndex++]);
 				}
 			}
 		}
 
 		// セル高さ確定(共有核 — P2-5 (c))
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			TableRowGroupBox rowGroup = (TableRowGroupBox) this.rowGroups.get(i);
-			List<?> rows = (List<?>) this.rowGroupToRows.get(rowGroup);
+			TableRowGroupBox rowGroup = this.rowGroups.get(i);
+			List<TableRowBox> rows = this.rowGroupToRows.get(rowGroup);
 			final double[] groupRowSizes = new double[rows.size()];
 			for (int j = 0; j < rows.size(); ++j) {
-				groupRowSizes[j] = ((TableRowBox) rows.get(j)).getPageSize();
+				groupRowSizes[j] = rows.get(j).getPageSize();
 			}
 			for (int j = 0; j < rows.size(); ++j) {
-				TableRowBox rowBox = (TableRowBox) rows.get(j);
+				TableRowBox rowBox = rows.get(j);
 				rowBox.setLineSize(tableInnerSize);
 				rowGroup.addTableRow(rowBox);
 				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
 				this.noteTableProgress();
-				@SuppressWarnings("unchecked")
-				final List<CellContent> cells = (List<CellContent>) this.rowToCells.get(rowBox);
+				final List<CellContent> cells = this.rowToCells.get(rowBox);
 				if (measuredPageAxis != null) {
 					// E-6増分5b-2 Pass C: 行単位の逐次bind。確定行高の適用
 					// (applyCellExtents)・baseline整列(maxFirstAscent)の直前に
@@ -1314,7 +1257,7 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			this.tableBox.setTableHeader(this.headerGroup);
 		}
 		for (int i = 0; i < this.bodyGroups.size(); ++i) {
-			this.tableBox.addTableBody((TableRowGroupBox) this.bodyGroups.get(i));
+			this.tableBox.addTableBody(this.bodyGroups.get(i));
 		}
 		if (this.footerGroup != null) {
 			this.tableBox.setTableFooter(this.footerGroup);
@@ -1350,9 +1293,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 			}
 			int row = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				List<?> rows = (List<?>) this.rowGroupToRows.get(this.rowGroups.get(i));
+				List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
 				for (int j = 0; j < rows.size(); ++j) {
-					double rowHeight = ((TableRowBox) rows.get(j)).getPageSize();
+					double rowHeight = rows.get(j).getPageSize();
 					this.borders.setRowSize(row++, rowHeight);
 				}
 			}
@@ -1400,8 +1343,9 @@ public class RetainedTableBuilder implements TableBuilder, TwoPass {
 		}
 	}
 
-	public boolean isIncremental() {
-		return false;
+	public void finish(final net.zamasoft.foliojet.layout.builder.Builder host) {
+		// Retainedは全行を読み終えて初めてコミットできる(A-2)
+		host.addTable(this);
 	}
 
 	/**

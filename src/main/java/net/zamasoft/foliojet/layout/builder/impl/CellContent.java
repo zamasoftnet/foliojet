@@ -86,9 +86,9 @@ class CellContent {
 	 * @param cells      当行のセル列(追記される)
 	 * @param upperCells 前行のセル列
 	 */
-	static void complementRowspan(final java.util.List<CellContent> cells, final java.util.List<?> upperCells) {
+	static void complementRowspan(final java.util.List<CellContent> cells, final java.util.List<CellContent> upperCells) {
 		while (upperCells.size() > cells.size()) {
-			final CellContent upperCell = (CellContent) upperCells.get(cells.size());
+			final CellContent upperCell = upperCells.get(cells.size());
 			if (upperCell.rowspan > 1) {
 				for (int colspan = upperCell.colspan; colspan >= 1; --colspan) {
 					cells.add(new CellContent(upperCell.getCellBox(), upperCell.rowspan - 1, colspan));

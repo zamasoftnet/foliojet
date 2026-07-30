@@ -204,7 +204,7 @@ final class CollapsedBorderRules {
 	static void collapseRow(final Border[] firstBorder, final Border[] lastBorder, final Border[] lineBorder,
 			final BorderAxes ax, final TableParams tableParams, final TableColumnGroupBox colgroup,
 			final InnerTableParams rowGroupParams, final TableRowBox rowBox, final List<CellContent> cells,
-			final TableRowBox nextRowBox, final List<?> nextCells, final boolean tableFirst,
+			final TableRowBox nextRowBox, final List<CellContent> nextCells, final boolean tableFirst,
 			final boolean tableLast, final boolean groupFirst, final boolean groupLast, final boolean rowFirst,
 			final boolean hasNextRow, final int columnCount) {
 		// テーブル境界
@@ -287,7 +287,7 @@ final class CollapsedBorderRules {
 		if (hasNextRow) {
 			final InnerTableParams nextRowParams = nextRowBox.getInnerTableParams();
 			for (int j = 0, n = Math.min(nextCells.size(), columnCount); j < n; ++j) {
-				final CellContent nextCell = (CellContent) nextCells.get(j);
+				final CellContent nextCell = nextCells.get(j);
 				final TableCellPos cellPos = nextCell.getCellBox().getTableCellPos();
 				if (nextCell.rowspan == cellPos.rowspan) {
 					lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],
@@ -343,7 +343,7 @@ final class CollapsedBorderRules {
 		// 次の行の上
 		if (hasNextRow) {
 			for (int j = 0, n = Math.min(nextCells.size(), columnCount); j < n; ++j) {
-				final CellContent cell = (CellContent) nextCells.get(j);
+				final CellContent cell = nextCells.get(j);
 				final BlockParams cellParams = cell.getCellBox().getBlockParams();
 				if (cell.rowspan == cell.getCellBox().getTableCellPos().rowspan) {
 					lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j],

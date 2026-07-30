@@ -289,7 +289,7 @@ final class MarginBoxes {
 			params.frame = RectFrame.create(
 					BoxValueUtils.toInsets(Margin.get(style, Side.TOP), Margin.get(style, Side.RIGHT),
 							Margin.get(style, Side.BOTTOM), Margin.get(style, Side.LEFT)),
-					StyleBuilder.createRectBorder(style), StyleBuilder.createBackground(style),
+					BoxStyleMapper.createRectBorder(style), BoxStyleMapper.createBackground(style),
 					BoxValueUtils.toInsets(Padding.get(style, Side.TOP), Padding.get(style, Side.RIGHT),
 							Padding.get(style, Side.BOTTOM), Padding.get(style, Side.LEFT)));
 			params.color = TextFillColor.get(style);
