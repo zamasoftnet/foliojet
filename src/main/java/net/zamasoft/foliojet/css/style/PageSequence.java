@@ -84,6 +84,14 @@ final class PageSequence {
 	private int emittedPages = 0;
 
 	/**
+	 * タグ付きPDF構造要素のページ横断レジストリです(欠陥②の修正、
+	 * 2026-07-30)。文書(このPageSequence)単位で1つ持ち、各ページの
+	 * PageBoxへ配線する。untagged/非PDF出力ではlookupが起きないだけで
+	 * 無害。
+	 */
+	private final net.zamasoft.foliojet.layout.box.impl.TaggedStructureContext structContext = new net.zamasoft.foliojet.layout.box.impl.TaggedStructureContext();
+
+	/**
 	 * 直前のページ面。落としたページの面を返すために覚えます
 	 * ({@link #nextPage()}が {@code imposition.nextPageSide()} で進める)。
 	 */
@@ -480,10 +488,12 @@ final class PageSequence {
 		}
 
 		// B-3(2026-07-30): 構造宣言先を表示リスト構築の前に配線する
-		// (文書順の走査中に宣言し、描画はz順になっても構造は乱れない)
+		// (文書順の走査中に宣言し、描画はz順になっても構造は乱れない)。
+		// 欠陥②の修正(2026-07-30): ページ横断レジストリ(this.structContext)
+		// も渡し、継続断片が初出時のStructElemへ内容を継ぎ足せるようにする
 		if (gc instanceof net.zamasoft.pdfg2d.pdf.gc.PDFGC pdfgc
 				&& pdfgc.getPDFGraphicsOutput() instanceof net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut) {
-			pageBox.setStructOutput(structOut);
+			pageBox.setStructOutput(structOut, this.structContext);
 		}
 		final Visitor visitor = this.ua.getVisitor(gc);
 		visitor.startPage();
@@ -512,6 +522,9 @@ final class PageSequence {
 				marginState.close();
 			}
 		}
+		// 欠陥②の修正: ページ横断レジストリの清算(このページで継続
+		// されなかった要素の宣言を破棄——保持量をページ内要素数に有界化)
+		this.structContext.endPage();
 		this.imposition.closePage();
 		++this.emittedPages;
 		return true;

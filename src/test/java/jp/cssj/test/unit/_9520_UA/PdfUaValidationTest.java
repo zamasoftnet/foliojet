@@ -67,6 +67,18 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		assertTrue("the link must become a Link structure element", pdf.contains("/S /Link"));
 	}
 
+	/**
+	 * ページを跨ぐ段落・リスト項目・繰り返しヘッダ付きの表を含む文書の
+	 * PDF/UA-1検証です(欠陥②=StructElem分裂の修正、2026-07-30)。継続を
+	 * 1つのStructElemへ併合した構造(複数ページのMCIDを/Type /MCRで持つ)が
+	 * veraPDFの構造検査(L→LI→LBody、Table→TR→TH/TD等)を通ることを固定する。
+	 */
+	public void testPdfUa1MultiPage() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.validateUa("files/unittest/9520-UA/ua-multipage.html");
+	}
+
 	private void validateUa(final String path) throws Exception {
 		CTISessionHelper.transcodeFile(this.session, new File(path), "text/html", null);
 		this.session.close();

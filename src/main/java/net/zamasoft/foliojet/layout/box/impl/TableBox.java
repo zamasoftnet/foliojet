@@ -66,6 +66,14 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	protected TableRowGroupBox headerGroupBox = null;
 
+	/**
+	 * この表が分割の継続断片(splitTableBoxで作られた後ろ半分)かどうかです
+	 * (タグ付きPDF欠陥②の修正、2026-07-30)。継続断片に表示されるヘッダは
+	 * 「同じ要素の反復表示」であって継続ではない——{@link #isRepeatedGroup}
+	 * が使う。
+	 */
+	private boolean tableContinuation = false;
+
 	protected List<TableRowGroupBox> bodyGroups = null;
 
 	protected TableRowGroupBox footerGroupBox = null;
@@ -364,7 +372,15 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 		// 浮動ボックス(列グループは対象外)
 		for (int i = 0; i < groupCount; ++i) {
-			groups.get(i).floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, groupXs[i], groupYs[i]);
+			final TableRowGroupBox group = groups.get(i);
+			final boolean repetition = this.isRepeatedGroup(group);
+			if (repetition) {
+				pageBox.pushStructRepetition();
+			}
+			group.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, groupXs[i], groupYs[i]);
+			if (repetition) {
+				pageBox.popStructRepetition();
+			}
 		}
 
 		// 内容
@@ -388,9 +404,31 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 		worklist.push(w -> pageBox.endStruct(fdrawer, this.params.element, structCount, fx, fy));
 		for (int i = contentBoxes.size() - 1; i >= 0; --i) {
-			worklist.push(IBox.drawStep(contentBoxes.get(i), pageBox, drawer, visitor, clip, transform, contextX,
-					contextY, contentXs.get(i), contentYs.get(i)));
+			final IBox content = contentBoxes.get(i);
+			final boolean repetition = this.isRepeatedGroup(content);
+			if (repetition) {
+				// LIFOなので実行順は push→drawStep→pop になる
+				worklist.push(w -> pageBox.popStructRepetition());
+			}
+			worklist.push(IBox.drawStep(content, pageBox, drawer, visitor, clip, transform, contextX, contextY,
+					contentXs.get(i), contentYs.get(i)));
+			if (repetition) {
+				worklist.push(w -> pageBox.pushStructRepetition());
+			}
 		}
+	}
+
+	/**
+	 * このグループの表示が「同じ要素の反復」かを返します(タグ付きPDF
+	 * 欠陥②の修正、2026-07-30)。継続断片のヘッダと、後続断片を持つ断片の
+	 * フッタが該当する(ヘッダの原本は先頭断片、フッタの原本は最終断片)。
+	 * 反復の描画中はページ横断レジストリを迂回し、従来どおりページごとの
+	 * StructElemを宣言する——継続として併合すると同じ内容がページ数ぶん
+	 * 1つの要素に重複してしまう。
+	 */
+	private boolean isRepeatedGroup(final IBox box) {
+		return (box == this.headerGroupBox && this.tableContinuation)
+				|| (box == this.footerGroupBox && this.isFragmented());
 	}
 
 	public final void pushGetTextSteps(final StringBuilder textBuff, Deque<GetTextStep> worklist) {
@@ -681,6 +719,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
 		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
 		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
+		// タグ付きPDF欠陥②(2026-07-30): 継続断片のヘッダは「反復表示」
+		// (isRepeatedGroup参照)
+		nextTable.tableContinuation = true;
 		if (vertical) {
 			nextTable.height = this.height;
 		} else {

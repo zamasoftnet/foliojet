@@ -44,6 +44,15 @@ public abstract class AbstractBox implements IBox {
 		this.fragmented = true;
 	}
 
+	/**
+	 * この箱が切断済み(前断片側)かを返します(タグ付きPDF欠陥②の修正、
+	 * 2026-07-30——表の反復フッタ判定「切断された断片のフッタは反復表示」
+	 * が使う)。
+	 */
+	public final boolean isFragmented() {
+		return this.fragmented;
+	}
+
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {
 		AffineTransform ct = this.getParams().transform;
 		if (ct.isIdentity()) {

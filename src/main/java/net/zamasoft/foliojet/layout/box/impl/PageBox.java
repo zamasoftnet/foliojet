@@ -221,21 +221,54 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	private net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut = null;
 
+	/**
+	 * 構造要素のページ横断レジストリです(欠陥②の修正、2026-07-30)。
+	 * {@code PageSequence}が文書単位で保持し、ページごとにここへ渡される。
+	 * untagged時はnull。
+	 */
+	private TaggedStructureContext structContext = null;
+
+	/**
+	 * 反復表示(表の繰り返しヘッダ/フッタ)の描画中の深さです(欠陥②の
+	 * 修正、2026-07-30)。正の間、{@link #beginStruct}はページ横断
+	 * レジストリを迂回する——反復は「同じ要素の再表示」であって継続では
+	 * ないため、併合すると1つのStructElemに同じ内容がページ数ぶん重複する。
+	 * 従来どおりページごとの独立した宣言に留める(反復のartifact化は
+	 * 別増分で検討)。
+	 */
+	private int structRepetitionDepth = 0;
+
 	/** 文書順の構造の入れ子(宣言済みrefのスタック)。 */
 	private final java.util.ArrayDeque<net.zamasoft.pdfg2d.pdf.StructureRef> structStack = new java.util.ArrayDeque<>();
 
-	public void setStructOutput(final net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut) {
+	public void setStructOutput(final net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut,
+			final TaggedStructureContext structContext) {
 		this.structOut = structOut;
+		this.structContext = structContext;
+	}
+
+	/** 反復表示(繰り返しヘッダ/フッタ)区間の開始(worklist stepから)。 */
+	public void pushStructRepetition() {
+		++this.structRepetitionDepth;
+	}
+
+	/** {@link #pushStructRepetition}の対の終了。 */
+	public void popStructRepetition() {
+		--this.structRepetitionDepth;
+	}
+
+	/** 現在の構造の親(スタック頂上。空・番兵はnull=StructTreeRoot直下)。 */
+	private net.zamasoft.pdfg2d.pdf.StructureRef structParent() {
+		final var top = this.structStack.peek();
+		return top == NULL_STRUCT ? null : top;
 	}
 
 	/** structStackはnullを積めない(ArrayDeque)ので、番兵で包む。 */
 	private net.zamasoft.pdfg2d.pdf.StructureRef declareStruct(final String role, final String scope) {
-		final net.zamasoft.pdfg2d.pdf.StructureRef parent = this.structStack.isEmpty() ? null
-				: this.structStack.peek() == NULL_STRUCT ? null : this.structStack.peek();
 		if (this.structOut == null) {
 			return null;
 		}
-		return this.structOut.declareStructElement(parent, role, scope);
+		return this.structOut.declareStructElement(this.structParent(), role, scope);
 	}
 
 	/** ArrayDequeはnull要素を許さないための番兵(untagged時の占位)。 */
@@ -285,18 +318,41 @@ public class PageBox extends AbstractBlockBox {
 		if (role == null || !this.openStruct(element)) {
 			return 0;
 		}
+		// 欠陥②の修正(2026-07-30): 継続断片は初出時に宣言済みの
+		// StructureRefを再利用し、1論理要素=1 StructElemにする(内容の
+		// MCIDが複数ページに跨る——pdfg2dの/Type /MCR /Pg)。反復表示
+		// (structRepetitionDepth>0)と匿名・擬似要素(elementKey<0)は
+		// 対象外で、従来どおりページごとに宣言する
+		final long elementKey = this.structRepetitionDepth == 0 && this.structContext != null
+				&& element instanceof net.zamasoft.foliojet.css.StructureElement se ? se.elementKey() : -1;
+		final String scope = role.equals("TH") ? net.zamasoft.foliojet.ua.props.TaggedPdf.headerScope(element) : null;
+		if (elementKey >= 0) {
+			final TaggedStructureContext.Binding binding = this.structContext.lookup(elementKey);
+			if (binding != null) {
+				if (java.util.Objects.equals(binding.role(), role)
+						&& java.util.Objects.equals(binding.scope(), scope)
+						&& binding.parent() == this.structParent()) {
+					// 継続: 再宣言せず既存refへ内容を継ぎ足す
+					for (final var ref : binding.refs()) {
+						this.structStack.push(ref == null ? NULL_STRUCT : ref);
+					}
+					drawer.setCurrentStructRef(binding.contentRef());
+					return binding.refs().length;
+				}
+				// role/scope/親の不一致——構造が変わる再宣言は欠陥②の再発
+				// なので本来は不変条件違反だが、クラッシュ排除の絶対要件に
+				// 従い警告の上で従来どおりの新規宣言(=旧挙動)へ倒す
+				java.util.logging.Logger.getLogger(PageBox.class.getName())
+						.warning("tagged-PDF continuation mismatch for elementKey=" + elementKey + ": declared=("
+								+ binding.role() + "," + binding.scope() + ") now=(" + role + "," + scope
+								+ "); falling back to a fresh StructElem (element split across pages)");
+			}
+		}
 		// B-3(2026-07-30): 構造はこの走査(文書順)で即宣言し、描画は
 		// PaintCommandが保持する参照へルーティングする。z-indexで別の
 		// stacking contextに積まれても、/Kの論理順はここで確定済み
-		if (role.equals("TH")) {
-			// PDF/UA: a header cell needs a Scope when the table has no
-			// Headers/IDs association.
-			final var ref = this.declareStruct("TH", net.zamasoft.foliojet.ua.props.TaggedPdf.headerScope(element));
-			this.structStack.push(ref == null ? NULL_STRUCT : ref);
-			drawer.setCurrentStructRef(ref);
-			return 1;
-		}
-		final var ref = this.declareStruct(role, null);
+		final var parent = this.structParent();
+		final var ref = this.declareStruct(role, scope);
 		this.structStack.push(ref == null ? NULL_STRUCT : ref);
 		drawer.setCurrentStructRef(ref);
 		if (role.equals("LI")) {
@@ -304,7 +360,15 @@ public class PageBox extends AbstractBlockBox {
 			final var lbody = this.declareStruct("LBody", null);
 			this.structStack.push(lbody == null ? NULL_STRUCT : lbody);
 			drawer.setCurrentStructRef(lbody);
+			if (elementKey >= 0 && ref != null) {
+				this.structContext.register(elementKey, new TaggedStructureContext.Binding(
+						new net.zamasoft.pdfg2d.pdf.StructureRef[] { ref, lbody }, role, scope, parent));
+			}
 			return 2;
+		}
+		if (elementKey >= 0 && ref != null) {
+			this.structContext.register(elementKey, new TaggedStructureContext.Binding(
+					new net.zamasoft.pdfg2d.pdf.StructureRef[] { ref }, role, scope, parent));
 		}
 		return 1;
 	}
@@ -328,8 +392,7 @@ public class PageBox extends AbstractBlockBox {
 			}
 		}
 		this.closeStruct(element);
-		final var top = this.structStack.peek();
-		drawer.setCurrentStructRef(top == NULL_STRUCT ? null : top);
+		drawer.setCurrentStructRef(this.structParent());
 	}
 
 	public final boolean isSpecifiedPageSize() {

@@ -73,19 +73,15 @@ public class PDFVisitor extends AbstractVisitor {
 			// Emit the whole group (all buttons collected by paint time) at the
 			// position of its first button, wrapped in one Form element.
 			final String fieldName = name;
-			final var formRef = this.declareStruct("Form");
-			this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+			this.visitStructContent("Form", out -> {
 				final RadioGroup rg = new RadioGroup(fieldName, group.tooltip, group.selectedValue, group.disabled,
 						false, group.buttons);
-				out.beginStructContent(formRef);
 				try {
 					out.addRadioGroup(rg);
 				} catch (UnsupportedOperationException e) {
 					this.formsSupported = false;
-				} finally {
-					out.endStructContent();
 				}
-			}), 0, 0);
+			});
 		}
 	}
 
@@ -148,15 +144,7 @@ public class PDFVisitor extends AbstractVisitor {
 		// Emit at paint time and in document order so that, when tagged, the
 		// annotation nests in a Link structure element under the enclosing block
 		// rather than at the document root. No-op when untagged.
-		final var linkRef = this.declareStruct("Link");
-		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
-			out.beginStructContent(linkRef);
-			try {
-				out.addAnnotation(link);
-			} finally {
-				out.endStructContent();
-			}
-		}), 0, 0);
+		this.visitStructContent("Link", out -> out.addAnnotation(link));
 	}
 
 	@Override
@@ -250,24 +238,20 @@ public class PDFVisitor extends AbstractVisitor {
 		final SelectBuilder select = new SelectBuilder(name, rect, atts.getValue("title"),
 				atts.getValue("disabled") != null, combo);
 		this.pendingSelects.add(select);
-		final var formRef = this.declareStruct("Form");
 		// Emit at paint time; the option list is complete by then.
-		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+		this.visitStructContent("Form", out -> {
 			String selected = select.selected;
 			if (selected == null && select.combo && !select.options.isEmpty()) {
 				selected = select.options.get(0);
 			}
 			final ChoiceField field = new ChoiceField(select.name, select.rect, select.options, selected, select.combo,
 					select.tooltip, 0, select.disabled, false);
-			out.beginStructContent(formRef);
 			try {
 				out.addFormField(field);
 			} catch (UnsupportedOperationException e) {
 				this.formsSupported = false;
-			} finally {
-				out.endStructContent();
 			}
-		}), 0, 0);
+		});
 	}
 
 	@Override
@@ -300,24 +284,38 @@ public class PDFVisitor extends AbstractVisitor {
 		return null;
 	}
 
+	/**
+	 * {@code role}の構造要素を宣言し(文書順)、描画時にその内容
+	 * ({@code beginStructContent}〜{@code endStructContent}に挟んで)として
+	 * {@code action}を実行するdrawableを積みます(4箇所で重複していた
+	 * 定型の集約、2026-07-30)。
+	 */
+	private void visitStructContent(final String role, final PDFOutputDrawable.Action action) {
+		final var ref = this.declareStruct(role);
+		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
+			out.beginStructContent(ref);
+			try {
+				action.run(out);
+			} finally {
+				out.endStructContent();
+			}
+		}), 0, 0);
+	}
+
 	private void emit(FormField field) {
 		if (!this.formsSupported) {
 			return;
 		}
-		final var formRef = this.declareStruct("Form");
 		// Emit at paint time and in document order so the widget nests in a Form
 		// structure element under the enclosing block (PDF/UA). No-op untagged.
-		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
-			out.beginStructContent(formRef);
+		this.visitStructContent("Form", out -> {
 			try {
 				out.addFormField(field);
 			} catch (UnsupportedOperationException e) {
 				// The target profile forbids interactive forms; stop trying.
 				this.formsSupported = false;
-			} finally {
-				out.endStructContent();
 			}
-		}), 0, 0);
+		});
 	}
 
 	protected void addFragment(String id, Point2D location) {
