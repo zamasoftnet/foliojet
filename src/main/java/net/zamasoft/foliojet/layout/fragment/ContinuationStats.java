@@ -146,6 +146,22 @@ public final class ContinuationStats {
 	public static final AtomicLong MULTICOL_NATIVE_DESCENTS = new AtomicLong();
 
 	/**
+	 * rootless COLUMN経路({@code BreakableBuilder.columnBreak()}の
+	 * {@code root == null}分岐——M6c段バランスprobe等のTwoPassBuilder系)
+	 * のterminal restyle回数です(2026-07-30新設、増分3)。
+	 * {@code WorklistTailGate}を一切通らない独立したlegacy入口の
+	 * 到達実態を測る。
+	 */
+	public static final AtomicLong ROOTLESS_COLUMN_RESTYLES = new AtomicLong();
+
+	/**
+	 * rootless COLUMN経路のterminal restyleに渡されたopen深さの最大値
+	 * です(2026-07-30新設、増分3)。depth&gt;1(OpenChainを含み旧再帰
+	 * driverへ入る)が実文書で起きるかの観測に使う。
+	 */
+	public static final AtomicLong MAX_ROOTLESS_COLUMN_OPEN_DEPTH = new AtomicLong();
+
+	/**
 	 * 現在の継続経路(PAGE/COLUMN)を追跡するスタックです(2026-07-21、B1)。
 	 * {@link ResumeTrace#begin(String)}と同じ「入れ子破断はスタックで
 	 * 表現する」設計だが、こちらはデバッグ用プロパティに関わらず常に
@@ -214,6 +230,17 @@ public final class ContinuationStats {
 	 */
 	public static void recordMulticolNativeDescent() {
 		MULTICOL_NATIVE_DESCENTS.incrementAndGet();
+	}
+
+	/**
+	 * rootless COLUMN経路のterminal restyle直前に呼びます
+	 * ({@link #ROOTLESS_COLUMN_RESTYLES}参照)。
+	 *
+	 * @param openDepth restyleへ渡すopen深さ({@link OpenShape#depth()}相当)
+	 */
+	public static void recordRootlessColumnRestyle(final int openDepth) {
+		ROOTLESS_COLUMN_RESTYLES.incrementAndGet();
+		MAX_ROOTLESS_COLUMN_OPEN_DEPTH.accumulateAndGet(openDepth, Math::max);
 	}
 
 	/** {@code ColumnsContainer.splitPageAxis}の試行回数です(M6c-1でAPI集約)。 */
@@ -673,6 +700,8 @@ public final class ContinuationStats {
 		LEGACY_RECURSIVE_DESCENTS.set(0);
 		WORKLIST_RECURSIVE_FALLBACKS.set(0);
 		MULTICOL_NATIVE_DESCENTS.set(0);
+		ROOTLESS_COLUMN_RESTYLES.set(0);
+		MAX_ROOTLESS_COLUMN_OPEN_DEPTH.set(0);
 		PAGE_OPEN_DEPTH_ALARMS.set(0);
 		COLUMN_OPEN_DEPTH_ALARMS.set(0);
 		MAX_STALLED_AUTO_BREAK_RUN.set(0);

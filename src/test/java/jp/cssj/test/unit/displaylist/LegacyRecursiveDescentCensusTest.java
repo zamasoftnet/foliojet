@@ -141,6 +141,25 @@ public class LegacyRecursiveDescentCensusTest extends TestCase {
 				ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get());
 	}
 
+	/**
+	 * rootless COLUMN経路({@code BreakableBuilder.columnBreak()}の
+	 * {@code root == null}分岐)が段組系代表fixtureで発火しないことの固定
+	 * (2026-07-30、増分3)。この分岐の存在理由だった隔離バランス
+	 * プローブは2026-07-25に全撤去済みで、全コーパス+合成文書の実測でも
+	 * 発火0——死んだ入口と考えられる。<b>このassertが落ちたら「未知の
+	 * rootless文脈が出現した」ことを意味する</b>ので、削除せず到達経路を
+	 * 調査すること(分岐自体は統一worklist driverへ接続済みのため挙動は
+	 * 安全だが、想定外の到達は設計前提の崩れを示す)。
+	 */
+	public void testRootlessColumnPathStaysUnreached() throws Exception {
+		ContinuationStats.reset();
+		this.transcode(new File("files/unittest/0415-column-fill/v-balance.html"), "census-v-balance");
+		this.transcode(new File("files/unittest/0415-column-fill/h-balance.html"), "census-h-balance");
+		this.transcode(new File("files/unittest/0400-column-count/columns-float.html"), "census-rootless-cf");
+		assertEquals("rootless COLUMN経路が発火——未知のrootless文脈が出現(到達経路を調査すること)", 0,
+				ContinuationStats.ROOTLESS_COLUMN_RESTYLES.get());
+	}
+
 	/** {@code reset()}が新カウンタも戻すことの確認。 */
 	public void testResetClearsNewCounters() {
 		ContinuationStats.LEGACY_RECURSIVE_DESCENTS.set(7);

@@ -1270,8 +1270,19 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (root == null) {
 			// 2026-07-21(M6b Phase B4-Step4): 型付き経路(prepareColumnContinuation/
 			// resumeColumn)はRootBuilderのメソッドとして実装されているため、
-			// rootless文脈(M6c段バランスprobe等のTwoPassBuilder系)では
-			// 使えない。旧来どおりlegacy経路(range stampingなし)のまま。
+			// rootless文脈では使えない(range stampingなし)。
+			//
+			// 2026-07-30(legacy再帰撤去=増分3): この分岐の存在理由だった
+			// 隔離バランスプローブ(M6c-2〜M6c-5のTwoPassBuilder系)は
+			// 2026-07-25の排除域P2撤回で全撤去済みで、現在は死んだ入口と
+			// 考えられる——全unittestコーパス+狙い撃ち合成文書(inline-block/
+			// float/表セル/absolute内の段組balance)でROOTLESS_COLUMN_RESTYLES
+			// は0、静的にも全LayoutStack連鎖はRootBuilderで終端する(nullの
+			// layoutStackは非BreakableなTableRowBoxのcell-bind用BlockBuilderと
+			// columnBreak不能なTwoPassBlockBuilderのみ)。ただしクラッシュ排除は
+			// 絶対要件のため物理削除はせず、万一到達した場合も旧再帰driverでは
+			// なく統一worklist driverで駆動する(gateを通らない入口をここに
+			// 残さない)。物理削除の判断は増分5のwrapper整理と併せて行う。
 			final Container container = breakFlow.box.newColumn(pageAxis, mode, flags);
 			if (container == null) {
 				return false;
@@ -1284,9 +1295,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			this.beginRestyling();
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordRootlessColumnRestyle(depth);
+			net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();
 			try {
 				container.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth), false);
 			} finally {
+				net.zamasoft.foliojet.layout.box.content.FlowContainer.popWorklistOverride();
 				this.endRestyling();
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
