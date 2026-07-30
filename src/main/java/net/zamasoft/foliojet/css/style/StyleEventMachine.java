@@ -61,6 +61,7 @@ import net.zamasoft.foliojet.css.value.StringSetEntryValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.TargetCounterValue;
 import net.zamasoft.foliojet.css.value.TargetTextValue;
+import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -404,6 +405,19 @@ final class StyleEventMachine {
 			}
 		}
 
+		// 脚注F1(2026-07-31、consult-codex-2026-07-31-footnote.txt §3):
+		// float:footnoteの要素は開始時に脚注番号(engine-ownedの文書通番、
+		// globalスコープの"footnote"カウンタ)を進め、呼び出し位置=親の
+		// インライン流へ::footnote-callを合成する。ページごとのリセットは
+		// ページローカル再生増分(F5)まで保留。本文のページ下端への移動は
+		// F3で配線——それまで本文はその場に描かれる
+		final boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
+				&& CSSFloat.get(style) == CSSFloatValue.FOOTNOTE;
+		if (footnote) {
+			this.ua.getPassContext().getCounterScope(0, true).increment("footnote", 1);
+			this.footnotePseudo(style, CSSElement.FOOTNOTE_CALL);
+		}
+
 		this.emitter._startStyle(style);
 
 		this.firstLetter = true;
@@ -604,8 +618,10 @@ final class StyleEventMachine {
 			}
 		}
 
-		// コンテンツ生成
-		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
+		// コンテンツ生成(脚注F1: ::footnote-call/::footnote-markerも
+		// 利用者のcontent指定を同じ機構で解釈する)
+		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE || ce == CSSElement.FOOTNOTE_CALL
+				|| ce == CSSElement.FOOTNOTE_MARKER) {
 			final Value[] contents = Content.get(style);
 			if (contents != null) {
 				for (int i = 0; i < contents.length; ++i) {
@@ -783,8 +799,14 @@ final class StyleEventMachine {
 			}
 		}
 
-		// before
-		if (ce != CSSElement.AFTER && ce != CSSElement.BEFORE
+		// 脚注F1: 本文先頭へ::footnote-marker(番号)を合成する。
+		// リストマーカー→footnote-marker→::beforeの順で本文頭に並ぶ
+		if (footnote) {
+			this.footnotePseudo(style, CSSElement.FOOTNOTE_MARKER);
+		}
+
+		// before(合成擬似要素自身には::before/::afterを作らない)
+		if (!ce.isPseudoElement()
 				&& CSSJInternalImage.getImage(style) == null) {
 			// :before
 			CSSElement beforeCe = CSSElement.BEFORE;
@@ -1196,6 +1218,46 @@ final class StyleEventMachine {
 		this.sink.end();
 	}
 
+	/**
+	 * {@code ::footnote-call}/{@code ::footnote-marker}を合成します(脚注F1、
+	 * 2026-07-31——consult-codex-2026-07-31-footnote.txt §3)。利用者の同名
+	 * 擬似要素規則をカスケードし、{@code content}指定があればそれを
+	 * ({@link #startStyle}の生成機構で)、無ければUA既定=脚注番号
+	 * (globalスコープの"footnote"カウンタ、markerは区切り付き)を発行する。
+	 * callのUA既定は上付きの小さな番号(利用者規則が後から上書きする)。
+	 */
+	private void footnotePseudo(final CSSStyle style, final CSSElement pseudoCe) {
+		this.styleContext.startElement(pseudoCe);
+		final Declaration declaration = this.styleContext.merge(null);
+		final CSSStyle pseudoStyle = CSSStyle.getCSSStyle(this.ua, style, pseudoCe);
+		if (pseudoCe == CSSElement.FOOTNOTE_CALL) {
+			pseudoStyle.set(VerticalAlign.INFO, VerticalAlignValue.SUPER_VALUE);
+			pseudoStyle.set(FontSize.INFO, PercentageValue.create(83));
+		}
+		if (declaration != null) {
+			declaration.applyProperties(pseudoStyle);
+		}
+		if (Display.get(pseudoStyle) == DisplayValue.NONE) {
+			this.styleContext.endElement();
+			return;
+		}
+		this.startStyle(pseudoStyle);
+		if (Content.get(pseudoStyle) == null) {
+			// UA既定内容: 脚注番号
+			int number = 0;
+			final CounterScope scope = this.ua.getPassContext().getCounterScope(0, false);
+			if (scope != null && scope.defined("footnote")) {
+				number = scope.get("footnote");
+			}
+			final String text = pseudoCe == CSSElement.FOOTNOTE_MARKER ? number + ". " : String.valueOf(number);
+			final char[] chars = text.toCharArray();
+			this.checkMarker();
+			this.sink.characters(-1, chars, 0, chars.length, true);
+		}
+		this.endStyle();
+		this.styleContext.endElement();
+	}
+
 
 	void endStyle() {
 		CSSStyle style = this.context.getCurrentStyle();
@@ -1204,9 +1266,10 @@ final class StyleEventMachine {
 		}
 
 		final CSSElement ce = style.getCSSElement();
-		if (ce != CSSElement.AFTER && ce != CSSElement.BEFORE
+		if (!ce.isPseudoElement()
 				&& CSSJInternalImage.getImage(style) == null) {
-			// :after
+			// :after(合成擬似要素自身には作らない——脚注F1でce判定を
+			// AFTER/BEFORE個別からisPseudoElementへ一般化)
 			boolean br = XHTML.BR_ELEM.equalsElement(ce);
 			CSSElement afterCe = CSSElement.AFTER;
 			this.styleContext.startElement(afterCe);

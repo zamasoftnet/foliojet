@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>footnote F1: call/marker synthesis</title>
+<style type="text/css">
+body { font-size: 12pt; }
+#fn3::footnote-call { content: "[" counter(footnote) "]"; }
+</style>
+</head>
+<body>
+<p id="p1">Alpha<span id="fn1" style="float: footnote">first note</span> beta.</p>
+<p>Gamma<span id="fn2" style="float: footnote">second note</span> delta.</p>
+<p id="p3">Custom<span id="fn3" style="float: footnote">third note</span> end.</p>
+</body>
+</html>
