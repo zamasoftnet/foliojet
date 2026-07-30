@@ -325,14 +325,69 @@ public final class ContinuationStats {
 		}
 	}
 
+	/**
+	 * legacy records bindの由来分類です(DP増分0、2026-07-30——codex相談
+	 * consult-codex-2026-07-30-dualpath-endgame.txt 増分0)。
+	 * {@code LEGACY_RECORD_BINDS}は全records bindの総数で由来を
+	 * 区別しないため、縮退の進捗を由来別に固定する。
+	 */
+	public enum LegacyBindOrigin {
+		/** 表外のfloat/absolute/inline-block等(DocumentBuilder駆動)。 */
+		TOPLEVEL,
+		/** Incremental表のセル。 */
+		INCREMENTAL_CELL,
+		/** Incremental表のキャプション。 */
+		INCREMENTAL_CAPTION,
+		/** Retained表のセル(seal不適格)。 */
+		RETAINED_CELL,
+		/** Retained表のキャプション。 */
+		RETAINED_CAPTION,
+		/** ネストした実測ビルダー(shrink-to-fit内のfloat等)。 */
+		NESTED
+	}
+
+	private static final Map<LegacyBindOrigin, AtomicLong> LEGACY_RECORD_BINDS_BY_ORIGIN = new EnumMap<>(
+			LegacyBindOrigin.class);
+	static {
+		for (final LegacyBindOrigin o : LegacyBindOrigin.values()) {
+			LEGACY_RECORD_BINDS_BY_ORIGIN.put(o, new AtomicLong());
+		}
+	}
+
+	/** {@code origin}由来のlegacy records bind回数です(DP増分0)。 */
+	public static long legacyRecordBinds(final LegacyBindOrigin origin) {
+		return LEGACY_RECORD_BINDS_BY_ORIGIN.get(origin).get();
+	}
+
 	/** range bind(SourceRangeBody)の発火の集計です(E-6増分4a/4b)。 */
 	public static void recordTwoPassRangeBind() {
 		RANGE_FIRST_BINDS.incrementAndGet();
 	}
 
-	/** records bind(LegacyRecords)の発火の集計です(E-6増分4a/4b)。 */
-	public static void recordTwoPassLegacyRecordBind() {
+	/** records bind(LegacyRecords)の発火の集計です(E-6増分4a/4b。DP増分0で由来別集計を追加)。 */
+	public static void recordTwoPassLegacyRecordBind(final LegacyBindOrigin origin) {
 		LEGACY_RECORD_BINDS.incrementAndGet();
+		LEGACY_RECORD_BINDS_BY_ORIGIN.get(origin).incrementAndGet();
+	}
+
+	/**
+	 * 空本文seal(records経路からの切り離し)の回数です(DP増分2、
+	 * 2026-07-30)。ソース範囲もrecordsも空のビルダーがclose時に
+	 * {@code ReplayBody.Empty}へ切り替わった回数。
+	 */
+	public static final AtomicLong TWO_PASS_EMPTY_SEALS = new AtomicLong();
+
+	/** 空本文bind(no-op)の回数です(DP増分2)。 */
+	public static final AtomicLong TWO_PASS_EMPTY_BINDS = new AtomicLong();
+
+	/** 空本文sealの集計です(DP増分2)。 */
+	public static void recordTwoPassEmptySeal() {
+		TWO_PASS_EMPTY_SEALS.incrementAndGet();
+	}
+
+	/** 空本文bind(no-op)の集計です(DP増分2)。 */
+	public static void recordTwoPassEmptyBind() {
+		TWO_PASS_EMPTY_BINDS.incrementAndGet();
 	}
 
 	/** seal適格の集計です(E-6増分4a/4b)。 */
@@ -633,6 +688,8 @@ public final class ContinuationStats {
 		STALLED_AUTO_BREAK_ALARMS.set(0);
 		RANGE_FIRST_BINDS.set(0);
 		LEGACY_RECORD_BINDS.set(0);
+		TWO_PASS_EMPTY_SEALS.set(0);
+		TWO_PASS_EMPTY_BINDS.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);
@@ -641,6 +698,9 @@ public final class ContinuationStats {
 		TABLE_LEGACY_BINDROWS.set(0);
 		TABLE_PASS_B_CELL_MEASURES.set(0);
 		for (final AtomicLong counter : TWO_PASS_SEAL_REJECTS.values()) {
+			counter.set(0);
+		}
+		for (final AtomicLong counter : LEGACY_RECORD_BINDS_BY_ORIGIN.values()) {
 			counter.set(0);
 		}
 		for (final AtomicLong counter : CAPABILITY_SCAN_STOPS.values()) {

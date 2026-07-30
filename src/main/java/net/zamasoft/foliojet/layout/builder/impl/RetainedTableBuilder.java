@@ -271,6 +271,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 	public final Builder newContext(AbstractContainerBox box) {
 		final Builder builder = new TwoPassBlockBuilder(this.layoutStack, box);
+		((TwoPassBlockBuilder) builder).tagLegacyBindOrigin(box.getType() == BoxType.TABLE_CELL
+				? net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.RETAINED_CELL
+				: net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.RETAINED_CAPTION);
 		switch (box.getType()) {
 		case BLOCK: {
 			// キャプション

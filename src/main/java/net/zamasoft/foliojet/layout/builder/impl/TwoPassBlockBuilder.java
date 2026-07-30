@@ -144,6 +144,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		 */
 		record Detached() implements ReplayBody {
 		}
+
+		/**
+		 * 空本文です(DP増分2、2026-07-30——codex相談
+		 * consult-codex-2026-07-30-dualpath-endgame.txt 増分1)。子イベント
+		 * 範囲が空(空セル{@code <td></td>}・空float等)のビルダーは、旧来
+		 * EMPTY_RANGEでseal不適格とされ空のrecords bind(何も再演しない
+		 * ループ)へ落ちていた——bindが本文非依存であることは表Pass Bの
+		 * 空セル特別扱い({@code hasEmptyRecordedBody})が既に前提として
+		 * いた事実で、これを型で表しrecords経路から切り離す。bindはno-op、
+		 * リースは不要(範囲を参照しない)。
+		 */
+		record Empty() implements ReplayBody {
+		}
 	}
 
 	/**
@@ -270,6 +283,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * InlineBlockEvent へ内包されます。
 	 */
 	private TwoPass pendingInlineBlock;
+
+	/**
+	 * legacy records bindの由来分類です(DP増分0、2026-07-30)。生成側が
+	 * {@link #tagLegacyBindOrigin}で付与し、records bind時の由来別集計に
+	 * 使う。既定は表外(DocumentBuilder駆動のfloat/absolute/inline-block)。
+	 */
+	private net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin legacyBindOrigin = net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.TOPLEVEL;
+
+	/** {@link #legacyBindOrigin}を付与します(DP増分0。生成直後に一度だけ)。 */
+	public void tagLegacyBindOrigin(
+			final net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin origin) {
+		this.legacyBindOrigin = origin;
+	}
 
 	public TwoPassBlockBuilder(LayoutStack layoutStack, AbstractContainerBox containerBox) {
 		this.layoutStack = layoutStack;
@@ -516,6 +542,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// * 絶対配置の位置調整を構築後に行わないといけないため
 		// * そのままにしています。
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this, stfBox);
+		builder.tagLegacyBindOrigin(
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.NESTED);
 		final AbstractContainerBox box = this.getFlowBox();
 		stfBox.firstPassLayout(box);
 		switch (stfBox.getPos().getType()) {
@@ -605,7 +633,17 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final long fromId = anchor + 1;
 		final long toId = endId - 1;
 		if (toId < fromId) {
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.EMPTY_RANGE);
+			if (legacy.records.isEmpty()) {
+				// DP増分2: 空本文はrecords経路から切り離す(bindは本文
+				// 非依存のno-op。リース不要)。ソース範囲が空でもrecordsが
+				// 非空でありうるか(生成コンテンツ等)は証明していないため、
+				// 「両方空」のときだけEmpty化するfail closed——records非空
+				// なら従来どおりEMPTY_RANGE rejectでrecords bindが内容を保つ
+				this.body = new ReplayBody.Empty();
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptySeal();
+			} else {
+				reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.EMPTY_RANGE);
+			}
 			return;
 		}
 		if (log.containsOpaque(fromId, toId)) {
@@ -676,7 +714,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * ({@code CellContent.isPassBMeasurable})の部品。
 	 */
 	boolean hasEmptyRecordedBody() {
-		return this.body instanceof ReplayBody.LegacyRecords legacy && legacy.records.isEmpty();
+		// DP増分2: seal済みの空本文(Empty)も「bindが何も再演しない空本文」
+		return this.body instanceof ReplayBody.Empty
+				|| this.body instanceof ReplayBody.LegacyRecords legacy && legacy.records.isEmpty();
 	}
 
 	public DeferredBind detachDeferredBind() {
@@ -705,9 +745,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 		}
 		case ReplayBody.LegacyRecords legacy -> {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassLegacyRecordBind();
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassLegacyRecordBind(this.legacyBindOrigin);
 			this.bindRecords(builder, legacy.records);
 		}
+		case ReplayBody.Empty empty ->
+			// DP増分2: 空本文のbindはno-op(旧来も空recordsのループで
+			// 何も再演しなかった——BlockBuilderのopen/closeは呼び出し側)
+			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptyBind();
 		case ReplayBody.Detached detached ->
 			// E-6増分4e: DeferredBindへ持ち出し済み。bindはDeferredBindが担う
 			throw new IllegalStateException("DeferredBindへ持ち出し済みのビルダーへのbind");
@@ -953,8 +997,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public boolean isEmpty() {
 		// seal済み(SourceRangeBody)は適格判定が空範囲を除外しているため
-		// 常に非空(E-6増分4a)
-		return this.body instanceof ReplayBody.LegacyRecords legacy && legacy.records.isEmpty();
+		// 常に非空(E-6増分4a)。空本文seal(Empty、DP増分2)は空
+		return this.hasEmptyRecordedBody();
 	}
 
 	/**

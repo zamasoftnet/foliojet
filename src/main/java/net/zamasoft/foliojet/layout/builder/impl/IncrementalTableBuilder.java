@@ -117,6 +117,14 @@ public class IncrementalTableBuilder implements TableBuilder {
 	// 構築中の行のセルリストです。
 	private List<CellContent> cells = null;
 
+	/**
+	 * 直前に{@link #newContext}で開いたセルです(DP増分1、2026-07-30——
+	 * Retained実装のE-6増分5aと同型)。close時sealの対象として
+	 * {@link #sealCellContext}が消費する。セルは行内で逐次(同時に
+	 * 開くセルは1つ)のため単一フィールドでよい。
+	 */
+	private CellContent pendingSealCell;
+
 	public IncrementalTableBuilder(TableBox tableBox) {
 		this.tableBox = tableBox;
 		this.vertical = tableBox.getTableParams().flow.isVertical();
@@ -456,10 +464,13 @@ public class IncrementalTableBuilder implements TableBuilder {
 				// (TwoPass と同じ規約 — 共有核 TableCellMetrics 参照)
 				final double size = TableCellMetrics.spannedLineSize(this.columnSizes, i, span);
 				i += span - 1;
-				TableCellMetrics.applyLineAxis(cellBox, () -> cell.getBuilder().getIntrinsicSizes(), size,
+				// DP増分1: seal済みセル(RangeContent)にも対応する
+				// CellContent経由へ一本化(Retainedのbind共有核と同じ入口。
+				// 再生元の分岐とseal:bind 1:1カウンタはCellContentが担う)
+				TableCellMetrics.applyLineAxis(cellBox, () -> cell.getIntrinsicSizes(), size,
 						this.vertical, tableParams);
 				final BlockBuilder cellBindBuilder = new BlockBuilder(this.builder, cellBox);
-				cell.getBuilder().bind(cellBindBuilder);
+				cell.bind(cellBindBuilder);
 				cellBindBuilder.close();
 				Cell source = rowBox.addTableSourceCell(cellBox);
 				this.cellToSource.put(cellBox, source);
@@ -900,6 +911,31 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 	}
 
+	/**
+	 * セルclose(録画完了点)時のrange sealです(DP増分1、2026-07-30——
+	 * Retained実装のE-6増分5a {@code RetainedTableBuilder.sealCellContext}
+	 * と同型。TableBuilder既定のno-opを置き換える)。適格判定は
+	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}と同一のfail closed。
+	 * Incrementalのセルは行単位flushの{@code cell.bind()}で一度だけ
+	 * bindされ、ヘッダ/フッタのページ反復はbind済みボックスの複製で
+	 * 行われる(再bindしない)ため、seal→単一bindのリース寿命は
+	 * float/absolute(DocumentBuilder close時seal)と同じ。
+	 */
+	@Override
+	public void sealCellContext(final Builder cellBuilder) {
+		final CellContent cell = this.pendingSealCell;
+		if (cell == null) {
+			// キャプション等、seal対象のセルが開いていないコンテキスト
+			return;
+		}
+		this.pendingSealCell = null;
+		if (cell.isExtended() || cell.getBuilder() != cellBuilder) {
+			// 構造的には起きない(セルは逐次)が、fail closedで無視する
+			return;
+		}
+		cell.sealForRangeBind();
+	}
+
 	public Builder newContext(AbstractContainerBox box) {
 		Builder builder;
 		switch (box.getType()) {
@@ -907,6 +943,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			// キャプション
 			FlowBlockBox caption = (FlowBlockBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, caption);
+			((TwoPassBlockBuilder) builder).tagLegacyBindOrigin(
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.INCREMENTAL_CAPTION);
 			switch (((TableCaptionPos) caption.getPos()).captionSide) {
 			case CaptionSideMode.BEFORE:
 				this.topCaptions.add(builder);
@@ -926,6 +964,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			// セル
 			TableCellBox cellBox = (TableCellBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, cellBox);
+			((TwoPassBlockBuilder) builder).tagLegacyBindOrigin(
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.INCREMENTAL_CELL);
 			int colspan = cellBox.getTableCellPos().colspan;
 			if (this.columnSizes != null) {
 				int remainder = this.columnSizes.length - this.cells.size();
@@ -940,6 +980,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 				this.cells.add(new CellContent(cell.getCellBox(), cell.rowspan, i));
 			}
 			this.complementRowspan();
+			// DP増分1: close時sealの対象として記憶する(列数超過で捨てられた
+			// セル(上のremainder<=0のbreak)はCellContent化されないため
+			// ここへ到達せず、sealもされない——bindされないビルダーをsealすると
+			// リースが解放されないままになるので、この非対称が正しい)
+			this.pendingSealCell = cell;
 		}
 			break;
 

@@ -213,6 +213,10 @@ class CellContent {
 		if (this.cell instanceof RangeContent range) {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellRangeBind();
 			range.body().bind(cellBindBuilder);
+		} else if (this.getBuilder().hasEmptyRecordedBody()) {
+			// DP増分2: 空本文セル(Empty seal済み、または records空のまま)。
+			// bindは何も再演しないため、legacy records経路としては数えない
+			this.getBuilder().bind(cellBindBuilder);
 		} else {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellLegacyBind();
 			this.getBuilder().bind(cellBindBuilder);
