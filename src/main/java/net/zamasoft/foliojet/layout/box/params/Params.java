@@ -24,6 +24,17 @@ public abstract class Params {
 	public StructureElement element = null;
 
 	/**
+	 * 脚注の論理識別子です(脚注F4、2026-07-31——
+	 * consult-codex-2026-07-31-footnote-f4.txt)。engine-ownedの単調な
+	 * 通し番号で、CSSには非公開。脚注元要素の本文ボックスと
+	 * {@code ::footnote-call}擬似要素のインラインボックスが同じIDを持ち、
+	 * ページ確定時の「呼び出しがこのページに残ったか」の集合判定に使う。
+	 * 表示上の番号(counter "footnote")とは独立(ページ毎再採番=F5に備える)。
+	 * 脚注と無関係のボックスは-1。
+	 */
+	public long footnoteId = -1;
+
+	/**
 	 * ボックスの奥行きです。
 	 */
 	public int zIndexValue = 0;

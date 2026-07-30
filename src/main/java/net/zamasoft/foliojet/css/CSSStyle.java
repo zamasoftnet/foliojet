@@ -82,6 +82,14 @@ public class CSSStyle {
 	private FontStyle fontStyle = null;
 
 	/**
+	 * 脚注の論理識別子です(脚注F4、CSS非公開のengine-owned側路——
+	 * {@code Params.footnoteId}参照)。StyleEventMachineが脚注元要素の
+	 * styleと::footnote-call擬似styleへ同じIDを設定し、
+	 * {@code BoxStyleMapper.setupParams}がbox paramsへ写す。既定-1。
+	 */
+	public long footnoteId = -1;
+
+	/**
 	 * カスタムプロパティ(--name)の宣言値(生トークン列、var()は未解決のまま)。
 	 * 通常のプロパティのvalues[]/computedValues[](ElementPropertySet.CODESで
 	 * 採番された固定コード空間)とは別枠で管理する。カスタムプロパティ名は

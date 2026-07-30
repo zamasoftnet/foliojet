@@ -414,6 +414,9 @@ final class StyleEventMachine {
 		final boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
 				&& CSSFloat.get(style) == CSSFloatValue.FOOTNOTE;
 		if (footnote) {
+			// F4: 論理ID(表示番号とは独立)を元要素と::footnote-callの両方へ。
+			// ページ確定時の「callがこのページに残ったか」の集合判定に使う
+			style.footnoteId = this.nextFootnoteId++;
 			this.ua.getPassContext().getCounterScope(0, true).increment("footnote", 1);
 			this.footnotePseudo(style, CSSElement.FOOTNOTE_CALL);
 		}
@@ -1226,10 +1229,14 @@ final class StyleEventMachine {
 	 * (globalスコープの"footnote"カウンタ、markerは区切り付き)を発行する。
 	 * callのUA既定は上付きの小さな番号(利用者規則が後から上書きする)。
 	 */
+	/** 脚注の論理ID採番(F4。表示番号のcounter "footnote"とは独立)。 */
+	private long nextFootnoteId = 0;
+
 	private void footnotePseudo(final CSSStyle style, final CSSElement pseudoCe) {
 		this.styleContext.startElement(pseudoCe);
 		final Declaration declaration = this.styleContext.merge(null);
 		final CSSStyle pseudoStyle = CSSStyle.getCSSStyle(this.ua, style, pseudoCe);
+		pseudoStyle.footnoteId = style.footnoteId;
 		if (pseudoCe == CSSElement.FOOTNOTE_CALL) {
 			pseudoStyle.set(VerticalAlign.INFO, VerticalAlignValue.SUPER_VALUE);
 			pseudoStyle.set(FontSize.INFO, PercentageValue.create(83));
@@ -1238,8 +1245,16 @@ final class StyleEventMachine {
 			declaration.applyProperties(pseudoStyle);
 		}
 		if (Display.get(pseudoStyle) == DisplayValue.NONE) {
-			this.styleContext.endElement();
-			return;
+			if (pseudoCe == CSSElement.FOOTNOTE_CALL) {
+				// F4: ::footnote-callのdisplay:noneはinlineへ強制する(意図的
+				// 仕様逸脱)。callのインラインボックスはページ確定時の所属
+				// 判定の唯一の事実で、消すと脚注の配置先が決められない
+				// (consult-codex-2026-07-31-footnote-f4.txt)。markerは消してよい
+				pseudoStyle.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
+			} else {
+				this.styleContext.endElement();
+				return;
+			}
 		}
 		this.startStyle(pseudoStyle);
 		if (Content.get(pseudoStyle) == null) {

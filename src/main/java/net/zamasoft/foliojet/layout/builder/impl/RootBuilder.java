@@ -866,6 +866,10 @@ public class RootBuilder extends BreakableBuilder {
 			// 強制改ページで始まったページは、白紙でも作者の意図として残す
 			this.pageBox.markForcedBreakOrigin();
 		}
+		// 脚注F4: 送られてきた脚注(carry-in)を新ページの容量へ最優先で
+		// 再予約する——継続本文がrestyle・構築される前でなければ、予約
+		// なしの容量で組まれてしまう
+		this.reserveFootnotes();
 		if (emitted && this.pageSide != PageBreakMode.AUTO) {
 			this.pageSide = (this.pageSide == PageBreakMode.VERSO) ? PageBreakMode.RECTO : PageBreakMode.VERSO;
 		}
@@ -1223,52 +1227,102 @@ public class RootBuilder extends BreakableBuilder {
 
 	public void finish() {
 		this.finishLayout();
+		// 脚注F4: 容量送りされた脚注が残っていれば、note-onlyページを
+		// pendingが空になるまで生成する。前進しない回(1件も配置できない)は
+		// call消失か走査欠落の不変条件違反として型付き失敗にする
+		// (送り続けて無限ページを生まない)
+		while (!this.pendingFootnotes.isEmpty()) {
+			final int before = this.pendingFootnotes.size();
+			this.pageGenerator.drawPage(this.pageBox, false, false);
+			this.pageBox = this.pageGenerator.nextPage();
+			this.reserveFootnotes();
+			this.finishLayout();
+			if (this.pendingFootnotes.size() >= before) {
+				throw new FootnoteOverflowException("footnote never attached (missing call?): "
+						+ this.pendingFootnotes.size() + " pending at EOF");
+			}
+		}
 		this.pageGenerator.drawPage(this.pageBox, true, false);
 	}
 
 	// ------------------------------------------------------------------
-	// 脚注(F2/F3、2026-07-31——consult-codex-2026-07-31-footnote.txt §3。
-	// 初期サブセットはオーナー承認済み: 文書通番・保守的確保・
-	// 巨大脚注は型付きエラー・縦書き/段組/@footnote/分割は後続増分)
-
-	/** このページに置く脚注ボックス(文書順)。 */
-	private final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> pageFootnotes = new java.util.ArrayList<>();
+	// 脚注(F2〜F4、2026-07-31——consult-codex-2026-07-31-footnote.txt §3と
+	// 同-f4.txt。初期サブセットはオーナー承認済み: 文書通番・保守的確保・
+	// 空ページにも入らない巨大脚注は型付きエラー・縦書き/段組/@footnote/
+	// 分割は後続増分)
 
 	/**
-	 * 脚注領域の予約量(gap込み、ページ方向)。ページ内で単調非減少——
-	 * 呼び出しが次ページへ移っても返さない「保守的確保」(前ページ下端に
-	 * 空きが残り得る。明示的仕様逸脱)。
+	 * 未配置の脚注1件です。{@code committed}は「呼び出しが過去の確定
+	 * ページに残った」——容量送り(carry-in)された脚注は次ページで
+	 * callゼロ件でも最優先で配置しなければならない(F4答申の要点)。
 	 */
+	private static final class FootnoteEntry {
+		final long id;
+		final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox;
+		boolean committed = false;
+
+		FootnoteEntry(final long id, final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
+			this.id = id;
+			this.noteBox = noteBox;
+		}
+	}
+
+	/** 未配置の脚注(文書順が正本。箱木の走査順はbidi等で崩れるため)。 */
+	private final java.util.ArrayDeque<FootnoteEntry> pendingFootnotes = new java.util.ArrayDeque<>();
+
+	/**
+	 * 現ページに予約済みのpending先頭prefixの件数と、その予約量
+	 * (gap込み、ページ方向)。予約はページ内で単調非減少——呼び出しが
+	 * 次ページへ移っても返さない「保守的確保」(前ページ下端に空きが
+	 * 残り得る。明示的仕様逸脱)。
+	 */
+	private int footnoteReservedCount = 0;
+
 	private double footnoteReservation = 0;
 
 	/** 本文と脚注領域の間隙(UA固定。separator罫線は後続増分)。 */
 	private static final double FOOTNOTE_GAP = 6;
 
 	/**
-	 * 完成した脚注本文をこのページの台帳へ加えます
-	 * ({@code DocumentBuilder.endBox}のFLOAT分岐から)。予約量が増えて
-	 * 本文容量({@link #getPageLimit()})が縮み、以後の溢れ検査・改ページが
-	 * 新しい容量で行われる。既に組んだ本文は既存のsplitPageAxisが前方で
-	 * 切る(全ページ再レイアウトはしない)。
+	 * 完成した脚注本文を台帳へ加えます({@code DocumentBuilder.endBox}の
+	 * FLOAT分岐から)。現ページの容量に入る分だけ予約が伸び、本文容量
+	 * ({@link #getPageLimit()})が縮んで以後の溢れ検査・改ページが新しい
+	 * 容量で行われる。容量を超えた分は予約されず次ページへ送られる(F4)。
 	 */
 	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
 		final double noteExtent = noteBox.getHeight();
-		final double base = super.getPageLimit();
-		if (this.footnoteReservation
-				+ (this.pageFootnotes.isEmpty() ? FOOTNOTE_GAP : 0) + noteExtent > base - MIN_PAGE_LIMIT) {
-			// 空ページの最大脚注領域にも収まらない場合に無限ページ送りへ
-			// 陥らないための型付き失敗(初期サブセットの合意事項)。
-			// F4(次ページ送り)導入後は「そのページに入らない」だけなら
-			// 送りで解決し、ここは「どのページにも入らない」場合に残る
-			throw new FootnoteOverflowException(
-					"footnote too large for the page: " + noteExtent + "pt (page capacity "
-							+ (base - MIN_PAGE_LIMIT) + "pt)");
+		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
+		if (FOOTNOTE_GAP + noteExtent > maxArea) {
+			// 空ページの最大脚注領域にも収まらない——送り続けて無限に
+			// ページを生むことを禁じる型付き失敗(単体超過のみ。累積超過は
+			// F4の次ページ送りで解決する)
+			throw new FootnoteOverflowException("footnote too large for any page: " + noteExtent
+					+ "pt (max footnote area " + maxArea + "pt)");
 		}
-		if (this.pageFootnotes.isEmpty()) {
-			this.footnoteReservation += FOOTNOTE_GAP;
+		this.pendingFootnotes
+				.addLast(new FootnoteEntry(noteBox.getParams().footnoteId, noteBox));
+		this.reserveFootnotes();
+	}
+
+	/**
+	 * pendingの先頭prefixのうち現ページの最大脚注領域に収まる分まで
+	 * 予約を伸ばします(FIFO——途中を飛ばさない)。
+	 */
+	private void reserveFootnotes() {
+		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
+		int i = 0;
+		for (final FootnoteEntry entry : this.pendingFootnotes) {
+			if (i >= this.footnoteReservedCount) {
+				final double cost = (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
+						+ entry.noteBox.getHeight();
+				if (this.footnoteReservation + cost > maxArea) {
+					break;
+				}
+				this.footnoteReservation += cost;
+				++this.footnoteReservedCount;
+			}
+			++i;
 		}
-		this.pageFootnotes.add(noteBox);
-		this.footnoteReservation += noteExtent;
 	}
 
 	@Override
@@ -1281,22 +1335,87 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * ページ確定時に脚注をページ下端(内辺の版面下端から予約量だけ
-	 * 戻った位置)へ配置し、台帳を次ページ用に空にします。floatとして
-	 * ページのコンテナへ入れるため、描画はflowと同じ経路(floatパス)を
-	 * 通り、以後の分割対象にはならない(確定後の追加)。
+	 * ページ確定時の脚注の清算です(finishLayoutから=分割完了後・描画前)。
+	 * 確定した箱木に残った::footnote-callのID集合を採取し、pendingの
+	 * 先頭から「carry-in済み(committed)またはcallがこのページに残った」
+	 * 連続prefixだけを版面下端へ配置する。callがこのページに残ったが
+	 * 配置されなかった脚注(容量送り・順序保持)はcommittedにして次ページで
+	 * 最優先配置。配置座標は予約高ではなく実配置分の合計高で下端揃え
+	 * (call移動で一部を送った場合、予約高のままだと下端に浮く)。
+	 * 台帳状態は配置ゼロ件でも必ず清算する(次ページへ漏らさない)。
 	 */
 	private void attachFootnotes() {
-		if (this.pageFootnotes.isEmpty()) {
+		if (this.pendingFootnotes.isEmpty()) {
+			this.footnoteReservedCount = 0;
+			this.footnoteReservation = 0;
 			return;
 		}
-		final double base = super.getPageLimit();
-		double pageAxis = base - this.footnoteReservation + FOOTNOTE_GAP;
-		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox : this.pageFootnotes) {
-			this.pageBox.getContainer().addFloating(noteBox, 0, pageAxis);
-			pageAxis += noteBox.getHeight();
+		final java.util.Set<Long> retained = this.collectFootnoteCallIds(this.pageBox);
+		// 配置計画(変異なしで全件の行き先を確定してから一度だけcommit)
+		int attachCount = 0;
+		double attachedExtent = 0;
+		{
+			int i = 0;
+			for (final FootnoteEntry entry : this.pendingFootnotes) {
+				if (i >= this.footnoteReservedCount
+						|| (!entry.committed && !retained.contains(entry.id))) {
+					break;
+				}
+				++attachCount;
+				attachedExtent += entry.noteBox.getHeight();
+				++i;
+			}
 		}
-		this.pageFootnotes.clear();
+		// 配置されない残りのうち、callがこのページに残ったものはcarry-in
+		{
+			int i = 0;
+			for (final FootnoteEntry entry : this.pendingFootnotes) {
+				if (i >= attachCount && retained.contains(entry.id)) {
+					entry.committed = true;
+				}
+				++i;
+			}
+		}
+		final double base = super.getPageLimit();
+		double pageAxis = base - attachedExtent;
+		for (int i = 0; i < attachCount; ++i) {
+			final FootnoteEntry entry = this.pendingFootnotes.removeFirst();
+			this.pageBox.getContainer().addFloating(entry.noteBox, 0, pageAxis);
+			pageAxis += entry.noteBox.getHeight();
+		}
+		this.footnoteReservedCount = 0;
 		this.footnoteReservation = 0;
+	}
+
+	/**
+	 * 確定したページの箱木から::footnote-callの論理ID集合を採取します
+	 * (F4答申の候補A改)。行跨ぎで同一callのインライン断片が複製されても
+	 * 集合なので1件に畳まれる。走査は明示worklistの反復DFS(flow・float・
+	 * 行・インラインのみ。表・絶対配置内のcallは初期サブセット外)。
+	 */
+	private java.util.Set<Long> collectFootnoteCallIds(
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
+		final java.util.Set<Long> ids = new java.util.HashSet<>();
+		final java.util.ArrayDeque<Object> work = new java.util.ArrayDeque<>();
+		work.push(root);
+		while (!work.isEmpty()) {
+			final Object node = work.pop();
+			if (node instanceof net.zamasoft.foliojet.layout.box.IBox box) {
+				final net.zamasoft.foliojet.layout.box.params.Params params = box.getParams();
+				if (params != null && params.element == net.zamasoft.foliojet.css.CSSElement.FOOTNOTE_CALL
+						&& params.footnoteId >= 0) {
+					ids.add(params.footnoteId);
+				}
+			}
+			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox container) {
+				container.getContainer().eachFlowBox(work::push);
+				container.getContainer().eachFloatingBox(work::push);
+			} else if (node instanceof net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock) {
+				textBlock.forEachLine(work::push);
+			} else if (node instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox textBox) {
+				textBox.forEachInlineBox(work::push);
+			}
+		}
+		return ids;
 	}
 }

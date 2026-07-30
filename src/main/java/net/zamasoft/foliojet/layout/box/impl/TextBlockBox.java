@@ -217,6 +217,17 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return this.getHeight();
 	}
 
+	/**
+	 * 行ボックスを列挙します(読み取り専用。脚注F4のcall走査用に公開)。
+	 *
+	 * @param action 各行に適用する処理
+	 */
+	public final void forEachLine(final java.util.function.Consumer<net.zamasoft.foliojet.layout.box.AbstractLineBox> action) {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			action.accept(this.lines.get(i).box);
+		}
+	}
+
 	public final void addLine(AbstractLineBox lineBox, double pageAxis) {
 		assert !LayoutUtils.isNone(pageAxis);
 		this.lines.add(new Line(lineBox, pageAxis));

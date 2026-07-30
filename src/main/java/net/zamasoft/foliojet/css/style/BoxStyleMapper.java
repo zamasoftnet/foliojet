@@ -398,6 +398,7 @@ final class BoxStyleMapper {
 	 */
 	void setupParams(Params params, CSSStyle style) {
 		params.element = style.getCSSElement();
+		params.footnoteId = style.footnoteId;
 		if (Visibility.get(style) == VisibilityValue.VISIBLE) {
 			params.opacity = Opacity.get(style);
 		} else {

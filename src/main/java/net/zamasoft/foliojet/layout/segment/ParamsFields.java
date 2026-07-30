@@ -29,19 +29,20 @@ import net.zamasoft.foliojet.layout.box.params.Params;
  * 再生セッション内のintern({@code SegmentExecutor})が保つ。
  * </p>
  */
-record ParamsFields(StructureElement element, int zIndexValue, byte zIndexType, float opacity,
+record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, byte zIndexType, float opacity,
 		AffineTransform transform, Offset transformOrigin) {
 	ParamsFields {
 		transform = new AffineTransform(transform);
 	}
 
 	static ParamsFields freeze(final Params source) {
-		return new ParamsFields(StructureToken.freeze(source.element), source.zIndexValue, source.zIndexType,
-				source.opacity, source.transform, source.transformOrigin);
+		return new ParamsFields(StructureToken.freeze(source.element), source.footnoteId, source.zIndexValue,
+				source.zIndexType, source.opacity, source.transform, source.transformOrigin);
 	}
 
 	void materializeInto(final Params target) {
 		target.element = this.element;
+		target.footnoteId = this.footnoteId;
 		target.zIndexValue = this.zIndexValue;
 		target.zIndexType = this.zIndexType;
 		target.opacity = this.opacity;

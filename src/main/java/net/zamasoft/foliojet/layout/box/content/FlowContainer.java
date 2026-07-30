@@ -429,6 +429,15 @@ public class FlowContainer implements Container {
 		}
 	}
 
+	@Override
+	public void eachFloatingBox(final java.util.function.Consumer<IFloatBox> consumer) {
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				consumer.accept(this.floatings.getFloating(i).box);
+			}
+		}
+	}
+
 	protected Flow getFirstFlow() {
 		if (this.flows == null || this.flows.isEmpty()) {
 			return null;

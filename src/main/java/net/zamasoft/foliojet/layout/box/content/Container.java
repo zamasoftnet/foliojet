@@ -185,4 +185,12 @@ public interface Container {
 	 * 通常フローの子ボックスを順に渡します(M6b診断用)。
 	 */
 	public void eachFlowBox(java.util.function.Consumer<IFlowBox> consumer);
+
+	/**
+	 * 浮動ボックスを順に渡します(読み取り専用。脚注F4のcall走査用——
+	 * float内に置かれた脚注呼び出しも数えられるように)。
+	 */
+	public default void eachFloatingBox(java.util.function.Consumer<IFloatBox> consumer) {
+		// 既定は浮動なし
+	}
 }

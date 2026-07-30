@@ -77,6 +77,24 @@ public abstract class AbstractTextBox extends AbstractBox {
 	 */
 	protected List<Object> contents = null;
 
+	/**
+	 * 直接の子インラインボックスを列挙します(読み取り専用。脚注F4の
+	 * call走査用に公開——consult-codex-2026-07-31-footnote-f4.txt)。
+	 * 入れ子のインラインへは降りない(呼び出し側が反復DFSで降りる)。
+	 *
+	 * @param action 各子インラインに適用する処理
+	 */
+	public final void forEachInlineBox(final java.util.function.Consumer<IInlineBox> action) {
+		if (this.contents == null) {
+			return;
+		}
+		for (int i = 0; i < this.contents.size(); ++i) {
+			if (this.contents.get(i) instanceof Inline inline) {
+				action.accept(inline.box);
+			}
+		}
+	}
+
 	protected double ascent = 0;
 
 	protected double descent = 0;
