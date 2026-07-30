@@ -9,7 +9,11 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
@@ -24,29 +28,33 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * MULTICOL native worklist化(legacy再帰撤去=増分1〜2、2026-07-30)の
- * 検証です。本番routing(gate)と強制worklist駆動の2回変換で次を固定する:
+ * MULTICOL native worklist降下(legacy再帰撤去=増分1〜4、2026-07-30)の
+ * 本番routing回帰ガードです。各fixtureを本番routingで1回変換し、次を
+ * 固定する:
  *
  * <ol>
- * <li><b>バイト等価</b>: 本番routing(gateがMULTICOL tailをworklistへ
- * 流す)と全域強制worklistで全ページのdisplay-list dumpが一致する</li>
  * <li><b>非空振り</b>: MULTICOL境界を貫通する文書で
- * {@code MULTICOL_NATIVE_DESCENTS > 0}、全文書で
- * {@code LEGACY_RECURSIVE_DESCENTS == 0}かつ
- * {@code WORKLIST_RECURSIVE_FALLBACKS == 0}</li>
- * <li><b>リークなし</b>: 各変換後に尾部封印(tailSeal)もworklist
- * overrideもThreadLocalへ残らない</li>
+ * {@code MULTICOL_NATIVE_DESCENTS > 0}(native scope降下が実際に
+ * 通った)</li>
+ * <li><b>フォールバック0</b>: 全文書で
+ * {@code WORKLIST_RECURSIVE_FALLBACKS == 0}(未知コンテナの互換
+ * フォールバックへ逃げていない)</li>
+ * <li><b>内容保存</b>: インライン文書の期待トークン(T2等)が全ページを
+ * 通して<b>ちょうど1回</b>描かれる——消失も複製もない
+ * ({@code NestedMulticolDuplicationTest}と同型の検査)</li>
+ * <li><b>リークなし</b>: 変換後に尾部封印(tailSeal)がThreadLocalへ
+ * 残らない</li>
  * </ol>
  *
  * <p>
- * <b>歴史的経緯</b>: 増分1(routing不変)の時点では1回目の変換が
- * legacy再帰駆動であり、このテストは「legacy駆動とworklist駆動の
- * バイト等価」の証明だった(foliojet4 67c2414。順序特性——
- * startFlowBlock順・旧段index昇順・開いた尾は最終段のみ——の証明は
- * バイト一致に包含)。増分2のgate切替で本番もworklistとなったため、
- * 現在は「本番routingの回帰ガード+全域強制との一致」として運用する。
+ * <b>歴史的経緯</b>: 増分1(routing不変)の時点では「legacy再帰駆動と
+ * 強制worklist駆動のdisplay-listバイト等価」の証明だった(foliojet4
+ * 67c2414)。増分2でgateが切り替わり、増分4でoverride機構ごと旧driver
+ * が物理撤去されたため、driver比較は不可能かつ不要となり、本番routing
+ * の回帰ガードへ再定義した(同一実装を2回走らせる比較は決定的な順序
+ * 退行を検出できない——display-listの固定はtier1のgolden群が担う)。
  * codex相談: docs/consultations/
- * consult-codex-2026-07-30-multicol-descent-proof.txt §5。
+ * consult-codex-2026-07-30-increment4-removal-spec.txt §5。
  * </p>
  */
 public class MulticolWorklistScopeTest extends TestCase {
@@ -61,7 +69,10 @@ public class MulticolWorklistScopeTest extends TestCase {
 	/** 打ち切り時間。実測は1件あたり数秒未満。 */
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 入れ子段組(3段中2段)——MOVE_SENTINEL型。実測legacy=3。 */
+	/** display-listのテキスト描画行から中身を取り出す。 */
+	private static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
+
+	/** 入れ子段組(3段中2段)——MOVE_SENTINEL型。チェーンがMULTICOL境界を貫通する。 */
 	private static final String NESTED_MULTICOL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="595pt"?>
@@ -77,28 +88,6 @@ public class MulticolWorklistScopeTest extends TestCase {
 			T4
 			<p></p>
 			T6
-			</div>
-			</div>
-			</body></html>
-			""";
-
-	/** 縦書き・二重の段組・{@code <ol>}——SPLIT_FRAGMENT_REPLAY型。実測legacy=2。 */
-	private static final String VERTICAL_NESTED = """
-			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
-			<?jp.cssj.property name="output.page-width" value="120pt"?>
-			<?jp.cssj.property name="output.page-height" value="400pt"?>
-			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-			<style>
-			@page{margin:10pt}
-			body{margin:0;font:normal 7pt/1.2 serif;writing-mode:vertical-lr}
-			</style></head><body>
-			<div style="column-count:2">
-			<div style="column-count:2">
-			<span style="display:inline-block;width:42pt"></span>
-			<ol>
-			T24
-			<li>T25</li>
-			</ol>
 			</div>
 			</div>
 			</body></html>
@@ -128,46 +117,64 @@ public class MulticolWorklistScopeTest extends TestCase {
 			</body></html>
 			""";
 
-	public void testNestedMulticolEquivalence() throws Exception {
-		// この文書は「開いたチェーンがMULTICOL境界を貫通する」形
-		// (native降下の非空振り証明を担う)
-		assertLegacyWorklistEquivalence("nested-multicol", null, NESTED_MULTICOL, true);
+	/** 縦書き・二重の段組・{@code <ol>}——SPLIT_FRAGMENT_REPLAY型。 */
+	private static final String VERTICAL_NESTED = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="120pt"?>
+			<?jp.cssj.property name="output.page-height" value="400pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:10pt}
+			body{margin:0;font:normal 7pt/1.2 serif;writing-mode:vertical-lr}
+			</style></head><body>
+			<div style="column-count:2">
+			<div style="column-count:2">
+			<span style="display:inline-block;width:42pt"></span>
+			<ol>
+			T24
+			<li>T25</li>
+			</ol>
+			</div>
+			</div>
+			</body></html>
+			""";
+
+	public void testNestedMulticolNativeDescent() throws Exception {
+		assertProductionRouting("nested-multicol", null, NESTED_MULTICOL, true, "T2", "T4", "T6");
 	}
 
-	public void testTripleMulticolEquivalence() throws Exception {
-		assertLegacyWorklistEquivalence("triple-multicol", null, TRIPLE_MULTICOL, true);
+	public void testTripleMulticolNativeDescent() throws Exception {
+		assertProductionRouting("triple-multicol", null, TRIPLE_MULTICOL, true, "T2", "T4", "T5", "T6");
 	}
 
-	public void testVerticalNestedEquivalence() throws Exception {
-		// 二重段組だが開いたチェーン自体は内側段組の中のplainなboxを
-		// 通る(実測native=0)——MULTICOL境界はitemの通常replayで組まれる
-		assertLegacyWorklistEquivalence("vertical-nested", null, VERTICAL_NESTED, false);
+	public void testVerticalNestedNoFallback() throws Exception {
+		assertProductionRouting("vertical-nested", null, VERTICAL_NESTED, false, "T24", "T25");
 	}
 
-	public void testColumnsFloatEquivalence() throws Exception {
-		assertLegacyWorklistEquivalence("columns-float",
-				new File("files/unittest/0400-column-count/columns-float.html"), null, false);
+	public void testColumnsFloatNoFallback() throws Exception {
+		assertProductionRouting("columns-float", new File("files/unittest/0400-column-count/columns-float.html"), null,
+				false);
 	}
 
-	public void testPageFirstEquivalence() throws Exception {
-		assertLegacyWorklistEquivalence("page-first",
-				new File("files/unittest/0400-column-count/page-first.html"), null, false);
+	public void testPageFirstNoFallback() throws Exception {
+		assertProductionRouting("page-first", new File("files/unittest/0400-column-count/page-first.html"), null,
+				false);
 	}
 
 	/**
-	 * 1文書を本番routingと全域強制worklistで変換し、dumpバイト一致・
-	 * カウンタ・リークなしを検査します。
+	 * 1文書を本番routingで変換し、カウンタ・トークン保存・リークなしを
+	 * 検査します。
 	 *
-	 * @param name               出力ディレクトリ名
-	 * @param source             入力ファイル({@code html}と排他)
-	 * @param html               インライン文書({@code source}と排他)
+	 * @param name                出力ディレクトリ名
+	 * @param source              入力ファイル({@code html}と排他)
+	 * @param html                インライン文書({@code source}と排他)
 	 * @param expectNativeDescent 開いたチェーンがMULTICOL境界を貫通し、
-	 *                            native降下が発火するはずの文書ならtrue。
-	 *                            falseの文書はチェーンがplainなboxだけを
-	 *                            通り(2026-07-30実測)、frame pushで完結する
+	 *                            native降下が発火するはずの文書ならtrue
+	 * @param expectedTokens      全ページを通してちょうど1回描かれるべき
+	 *                            トークン(インライン文書のみ)
 	 */
-	private static void assertLegacyWorklistEquivalence(final String name, final File source, final String html,
-			final boolean expectNativeDescent) throws Exception {
+	private static void assertProductionRouting(final String name, final File source, final String html,
+			final boolean expectNativeDescent, final String... expectedTokens) throws Exception {
 		final File input;
 		if (source != null) {
 			input = source;
@@ -179,40 +186,36 @@ public class MulticolWorklistScopeTest extends TestCase {
 			}
 		}
 
-		final List<String> productionDump = transcodeAndDump(name + "/production", input, false);
-		final long productionLegacy = ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get();
-		final long productionNative = ContinuationStats.MULTICOL_NATIVE_DESCENTS.get();
-		assertEquals(name + ": 本番routingでlegacy再帰が発火(増分2の切替が退行)", 0, productionLegacy);
+		final List<String> dumps = transcodeAndDump(name + "/production", input);
+		assertTrue(name + ": ページが出ていません", !dumps.isEmpty());
+
+		assertEquals(name + ": worklist駆動が互換フォールバックへ逃げました", 0,
+				ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get());
 		if (expectNativeDescent) {
-			assertTrue(name + ": 本番routingでnative降下が空振り(MULTICOL経路を通っていない)",
-					productionNative > 0);
+			assertTrue(name + ": native降下が空振り(MULTICOL経路を通っていない)",
+					ContinuationStats.MULTICOL_NATIVE_DESCENTS.get() > 0);
 		}
 
-		final List<String> worklistDump = transcodeAndDump(name + "/worklist", input, true);
-		final long worklistLegacy = ContinuationStats.LEGACY_RECURSIVE_DESCENTS.get();
-		final long worklistFallbacks = ContinuationStats.WORKLIST_RECURSIVE_FALLBACKS.get();
-		final long nativeDescents = ContinuationStats.MULTICOL_NATIVE_DESCENTS.get();
-		System.out.println("[EQ] " + name + " production.native=" + productionNative + " forced.native="
-				+ nativeDescents + " forced.fallback=" + worklistFallbacks);
-
-		// 等価性(本丸)を先に検査する——カウンタの期待が外れた場合も
-		// 「出力は合っているのか」が失敗メッセージから分かるように
-		assertEquals(name + ": ページ数が不一致", productionDump.size(), worklistDump.size());
-		for (int i = 0; i < productionDump.size(); ++i) {
-			assertEquals(name + ": ページ" + (i + 1) + "のdisplay-listが不一致", productionDump.get(i),
-					worklistDump.get(i));
-		}
-
-		assertEquals(name + ": 強制worklist駆動でlegacy再帰が発火", 0, worklistLegacy);
-		assertEquals(name + ": worklist駆動が同期再帰フォールバックへ逃げました", 0, worklistFallbacks);
-		if (expectNativeDescent) {
-			assertTrue(name + ": native降下が空振り(MULTICOL経路を通っていない)", nativeDescents > 0);
+		if (expectedTokens.length > 0) {
+			final Map<String, Integer> counts = new LinkedHashMap<>();
+			for (final String dump : dumps) {
+				final Matcher m = TEXT.matcher(dump);
+				while (m.find()) {
+					for (final String word : m.group(1).trim().split("\\s+")) {
+						counts.merge(word, 1, Integer::sum);
+					}
+				}
+			}
+			for (final String token : expectedTokens) {
+				final Integer n = counts.get(token);
+				assertNotNull(name + ": トークン" + token + "が消失", n);
+				assertEquals(name + ": トークン" + token + "が複製", 1, n.intValue());
+			}
 		}
 	}
 
-	/** 変換してページごとのdisplay-list dumpを返します。カウンタは変換直前にresetします。 */
-	private static List<String> transcodeAndDump(final String name, final File input, final boolean forceWorklist)
-			throws Exception {
+	/** 本番routingで変換してページごとのdisplay-list dumpを返します。カウンタは変換直前にresetします。 */
+	private static List<String> transcodeAndDump(final String name, final File input) throws Exception {
 		final File dir = new File("local/unittest/multicol-worklist/" + name);
 		dir.mkdirs();
 		final File[] old = dir.listFiles((d, n) -> n.endsWith(".txt"));
@@ -223,36 +226,22 @@ public class MulticolWorklistScopeTest extends TestCase {
 		}
 		ContinuationStats.reset();
 		final Throwable[] failure = new Throwable[1];
-		// NestedMulticolDuplicationTestと同じ64MBスタックのworker(深い
-		// 入れ子でも本テストの関心事(driver等価)以外で落とさない)
 		final Thread worker = new Thread(null, () -> {
 			try (OutputStream out = new FileOutputStream(new File(dir, "out.pdf"));
 					AutoCloseable scope = DisplayListDumper.scopedDir(dir.getPath())) {
-				if (forceWorklist) {
-					FlowContainer.pushWorklistOverride();
-				}
+				final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 				try {
-					final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
-					try {
-						session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-						session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
-						session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
-						session.property("input.include", "**");
-						session.property("input.property-pi", "true");
-						CTISessionHelper.transcodeFile(session, input, "text/html", null);
-					} finally {
-						session.close();
-					}
+					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+					session.property("input.include", "**");
+					session.property("input.property-pi", "true");
+					CTISessionHelper.transcodeFile(session, input, "text/html", null);
 				} finally {
-					if (forceWorklist) {
-						FlowContainer.popWorklistOverride();
-					}
-					if (FlowContainer.hasOpenTailSeal()) {
-						throw new AssertionError(name + ": 尾部封印がリークしています");
-					}
-					if (!forceWorklist && FlowContainer.hasWorklistOverride()) {
-						throw new AssertionError(name + ": worklist overrideがリークしています");
-					}
+					session.close();
+				}
+				if (FlowContainer.hasOpenTailSeal()) {
+					throw new AssertionError(name + ": 尾部封印がリークしています");
 				}
 			} catch (final Throwable t) {
 				failure[0] = t;
@@ -268,7 +257,6 @@ public class MulticolWorklistScopeTest extends TestCase {
 
 		final File[] pages = dir.listFiles((d, n) -> n.endsWith(".txt"));
 		assertNotNull(name + ": ページが1枚も出ていない", pages);
-		assertTrue(name + ": ページが1枚も出ていない", pages.length > 0);
 		java.util.Arrays.sort(pages);
 		final List<String> dumps = new ArrayList<>();
 		for (final File page : pages) {

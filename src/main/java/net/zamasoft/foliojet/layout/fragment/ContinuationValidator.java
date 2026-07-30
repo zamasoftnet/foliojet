@@ -36,9 +36,11 @@ public final class ContinuationValidator {
 	}
 
 	/**
-	 * 検証済みopen pathの形の要約です(検証walkの副産物)。
-	 * {@link WorklistTailGate#of(OpenPathSnapshot, PathShape)}のtail policy
-	 * 直接導出(E-3増分3)が、programの{@code ResumeTail}の代わりに使う。
+	 * 検証済みopen pathの形の要約です(検証walkの副産物)。COLUMN継続の
+	 * 終端開き形の正本({@code ColumnContinuation.pathShape()})として実行に
+	 * 使われる(かつてはtail policy——{@code WorklistTailGate}——の直接
+	 * 導出にも使われていたが、2026-07-30のlegacy再帰撤去=増分4dでgateは
+	 * 退役した)。
 	 *
 	 * @param firstOpenPathIndex 最初の未収集open path index(チェーンとして
 	 *                           first-classに歩けるframeの直後の位置。全レベル

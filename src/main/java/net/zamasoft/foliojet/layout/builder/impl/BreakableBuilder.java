@@ -1294,11 +1294,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordRootlessColumnRestyle(depth);
-			net.zamasoft.foliojet.layout.box.content.FlowContainer.pushWorklistOverride();
 			try {
 				container.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.of(depth), false);
 			} finally {
-				net.zamasoft.foliojet.layout.box.content.FlowContainer.popWorklistOverride();
 				this.endRestyling();
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
 				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();

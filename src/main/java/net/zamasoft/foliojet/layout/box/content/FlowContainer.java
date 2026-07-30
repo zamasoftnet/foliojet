@@ -1682,70 +1682,6 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 継続ごとの限定的なworklist有効化カウンタです(2026-07-22新設、
-	 * B6a1)。{@code RootBuilder}が「この継続はrooted PAGE/COLUMNで
-	 * 残存tailが全てPLAIN_FLOW」({@code WorklistTailGate
-	 * .WORKLIST_ELIGIBLE})と判定した場合にのみ
-	 * {@link #pushWorklistOverride}/{@link #popWorklistOverride}で
-	 * 該当のterminal restyle呼び出しだけを囲む(try/finally必須)。
-	 * カウンタ(bool ではなく)にしているのは、入れ子の破断
-	 * (`ResumeTrace`の「nested resume」相当)でも安全に対称にpush/pop
-	 * できるようにするため。
-	 */
-	private static final ThreadLocal<int[]> worklistOverrideDepth = ThreadLocal.withInitial(() -> new int[1]);
-
-	/**
-	 * {@link #worklistOverrideDepth}を1増やします。必ず{@link #popWorklistOverride}とtry/finallyで対にすること。
-	 *
-	 * <p>
-	 * 2026-07-25(独立レビュー指摘): 素の{@code static int}だと複数変換の
-	 * 並行実行で他スレッドのrestyleまでworklist扱いになり得たため
-	 * ThreadLocalへ変更した。2026-07-24に{@code ContinuationStats}の
-	 * 継続経路スタックと{@code ResumeTrace}のバッファを同じ理由で
-	 * ThreadLocal化した際の取りこぼし。
-	 * </p>
-	 */
-	public static void pushWorklistOverride() {
-		++worklistOverrideDepth.get()[0];
-	}
-
-	/**
-	 * {@link #worklistOverrideDepth}を1減らします。
-	 *
-	 * <p>
-	 * 2026-07-25(独立レビュー指摘): 0まで戻ったらThreadLocalを除去する。
-	 * この変換で二度と使わない値をスレッドへ残すと、スレッドプール上では
-	 * スレッドの寿命だけ滞留するため。あわせて非対称なpop(pushとの
-	 * try/finally対応が崩れている)を即時例外にする——静かに負の値へ
-	 * 落ちると、以後この変換の間ずっとworklist経路が無効化され、
-	 * 「なぜかlegacy経路を通る」という追いにくい不具合になる。
-	 * </p>
-	 */
-	public static void popWorklistOverride() {
-		final int[] depth = worklistOverrideDepth.get();
-		if (depth[0] <= 0) {
-			worklistOverrideDepth.remove();
-			throw new IllegalStateException("popWorklistOverride without a matching push");
-		}
-		if (--depth[0] == 0) {
-			worklistOverrideDepth.remove();
-		}
-	}
-
-	/**
-	 * {@code OpenChain}を明示スタックで駆動するworklist executorの
-	 * 選択判定です(2026-07-22新設、B6a1)。{@link #worklistOverrideDepth}
-	 * >0——`RootBuilder`が継続ごとに適格性判定({@code WorklistTailGate})
-	 * した上で有効化している間——のみ真。広範囲検証(12+414+591文書・
-	 * 3層検証すべてlegacyと完全一致)を経て、2026-07-24に
-	 * `foliojet.openTailExecutor`切替スイッチ(グローバル強制worklist/
-	 * legacy退避)は撤去した(B6検証インフラ退役)。
-	 */
-	private static boolean isWorklistMode() {
-		return worklistOverrideDepth.get()[0] > 0;
-	}
-
-	/**
 	 * 「この組み直しは尾部ではない」区間の深さです(2026-07-28新設)。
 	 *
 	 * <p>
@@ -1773,7 +1709,7 @@ public class FlowContainer implements Container {
 	 * </p>
 	 *
 	 * <p>
-	 * ThreadLocalなのは{@link #worklistOverrideDepth}と同じ理由(複数変換の
+	 * ThreadLocalなのは{@code ContinuationStats}の継続経路スタックと同じ理由(複数変換の
 	 * 並行実行)。カウンタなのは入れ子の段組で対称にpush/popするため。
 	 * </p>
 	 */
@@ -1811,14 +1747,6 @@ public class FlowContainer implements Container {
 	 */
 	public static boolean hasOpenTailSeal() {
 		return isTailSealed();
-	}
-
-	/**
-	 * 現スレッドにworklist override({@link #worklistOverrideDepth})が
-	 * 残っているかを返します(2026-07-30、増分1。リーク検査用)。
-	 */
-	public static boolean hasWorklistOverride() {
-		return isWorklistMode();
 	}
 
 	/**
