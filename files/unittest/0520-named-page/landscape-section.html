@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>named page N4: landscape section via @page size</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+p, div { margin: 0; }
+@page { margin: 30pt; @top-center { content: "P"; } }
+@page wide { size: landscape; @top-center { content: "W"; } }
+</style>
+</head>
+<body>
+<p>portrait one</p>
+<div style="page: wide"><p>landscape section</p></div>
+<p>portrait again</p>
+</body>
+</html>

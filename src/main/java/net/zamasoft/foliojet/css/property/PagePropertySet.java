@@ -25,6 +25,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Padding;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
+import net.zamasoft.foliojet.css.impl.property.page.PageSize;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -48,6 +49,8 @@ public final class PagePropertySet extends PropertySet {
 				BackgroundAttachment.INFO, BackgroundPosition.INFO_X);
 		put(CounterIncrement.INFO, CounterReset.INFO);
 		put(BackgroundSize.INFO_WIDTH);
+		// 名前付きページN3/N4(consult-codex-2026-07-31-named-pages.txt)
+		put(PageSize.INFO);
 	}
 
 	public static PropertySet getInstance() {

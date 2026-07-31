@@ -132,6 +132,7 @@ import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
 import net.zamasoft.foliojet.css.impl.property.border.Corner;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
+import net.zamasoft.foliojet.css.impl.property.page.PageSize;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -415,6 +416,10 @@ public final class ElementPropertySet extends PropertySet {
 		reg(CSSJHtmlTableBorder.INFO);
 		reg(CSSJInternalImage.INFO);
 		reg(CSSJInternalLink.INFO);
+
+		// @page専用特性: カスケード用コードのみ割り当てる(名前解決は
+		// PagePropertySetに限定し、要素へのsize指定は受け付けない)
+		regCode(PageSize.INFO);
 	}
 
 	private static final PropertySet INSTANCE = new ElementPropertySet();

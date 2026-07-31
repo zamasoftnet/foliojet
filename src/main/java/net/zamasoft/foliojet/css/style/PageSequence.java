@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.Declaration;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.page.PageSize;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
 import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
@@ -17,6 +18,7 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.CounterSetValue;
+import net.zamasoft.foliojet.css.value.PageSizeValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
@@ -228,6 +230,9 @@ final class PageSequence {
 	/** 現在(生成済み)のページの名前です(宣言解決・柱・空白判定用)。 */
 	private String pageName;
 
+	/** size:autoの文書既定寸法です(N3/N4——初回nextPageで捕捉)。 */
+	private double defaultPageWidth = -1, defaultPageHeight = -1;
+
 	void setPageName(final String pageName) {
 		this.pendingPageName = pageName;
 	}
@@ -335,9 +340,17 @@ final class PageSequence {
 		final LanguageProfile lang = LanguageProfileBundle.getLanguageProfile(pageStyle.getCSSElement().lang);
 		params.lineBreakRules = lang.getLineBreakRules(pageStyle);
 
-		// ページのサイズ
-		double width = this.imposition.getPageWidth();
-		double height = this.imposition.getPageHeight();
+		// ページのサイズ(N3/N4: @page sizeがoutput既定を上書きする。
+		// size:autoの既定は初回に捕捉した文書既定へ必ず戻す——impositionの
+		// 現在値はdrawPageが前ページの寸法へ書き換えるため状態が漏れる)
+		if (this.defaultPageWidth <= 0) {
+			this.defaultPageWidth = this.imposition.getPageWidth();
+			this.defaultPageHeight = this.imposition.getPageHeight();
+		}
+		final PageSizeValue pageSize = PageSize.get(pageStyle);
+		final double[] resolvedSize = pageSize.resolve(this.defaultPageWidth, this.defaultPageHeight);
+		double width = resolvedSize[0];
+		double height = resolvedSize[1];
 
 		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
 			if (this.imposition.getBoundSide() == BoundSide.LEFT) {

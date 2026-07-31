@@ -151,6 +151,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// N2a: page名遷移の強制改ページ(author breakとの合成で二重に
 			// 送らない)と、無名への復帰を固定する
 			"0520-named-page/transition-no-double-break.html", //
+			// N3/N4: @page sizeのlandscape章(可変ページ寸法)。柱の中央位置
+			// (=ページ幅/2)がportrait→landscape→portraitで往復することを
+			// 固定する
+			"0520-named-page/landscape-section.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //
