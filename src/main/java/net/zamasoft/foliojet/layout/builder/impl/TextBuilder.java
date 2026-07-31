@@ -207,6 +207,8 @@ public class TextBuilder {
 		// される)。縦書きも同一機構(gapは論理inline軸のxadvance——A3)
 		this.autospace.setFlags(params.textAutospace);
 		this.autospace.setTrimOff(params.textSpacingTrimOff);
+		// 和文詰めH1: 行末句読点のぶら下げ(hanging-punctuation: allow-end)
+		this.hangingEnd = params.hangingPunctuationEnd;
 
 		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}
@@ -623,6 +625,11 @@ public class TextBuilder {
 		// System.out.println("endLine: " + this.textBuffer);
 		// 和文詰めA2: 実際の行分割はpairを断つ(行を跨ぐgapは入らない)
 		this.autospace.reset();
+		// 和文詰めT2/H1: この行の行末詰め/ぶら下げ量(align前に設定)
+		if (this.pendingEndHang != 0) {
+			this.lineBox.setEndHangAdvance(this.pendingEndHang);
+			this.pendingEndHang = 0;
+		}
 		boolean lineAdded = false;
 		if (this.drawLine(last)) {
 			final AbstractLineBox lineBox = this.lineBox;
@@ -849,6 +856,39 @@ public class TextBuilder {
 	/** 和文詰めA2: text-autospaceのpair追跡。 */
 	private final net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
 
+	/** 和文詰めH1: hanging-punctuation: allow-endの有効フラグ。 */
+	private boolean hangingEnd;
+
+	/** 和文詰めT2/H1: 次のnewLineで完了する行の行末詰め/ぶら下げ量。 */
+	private double pendingEndHang;
+
+	/**
+	 * 追い込み(T2)/ぶら下げ(H1)の行末許容量です(和文詰め——
+	 * consult-codex-2026-07-31-text-spacing.txt T2/H1)。バッファ末尾の
+	 * glyphが対象約物のとき、行に収まる方を優先順(trim→hang)で返す。
+	 * 対象外・どちらでも収まらないときは0(従来の追い出しへ)。
+	 */
+	private double endAllowance(final double lineAxis, final double maxLineAxis) {
+		if (this.textBuffer.isEmpty()) {
+			return 0;
+		}
+		final Element tail = (Element) this.textBuffer.get(this.textBuffer.size() - 1);
+		if (!(tail instanceof TextImpl text) || text.getGlyphCount() <= 0) {
+			return 0;
+		}
+		if (text.getFontStyle().getDirection() == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
+			return 0; // 縦書きは対象外(trim=T1a同、hang=横確立後の次増分)
+		}
+		final int cp = Character.codePointBefore(text.getChars(), text.getCharCount());
+		final int gid = text.getGlyphIds()[text.getGlyphCount() - 1];
+		final double fontSize = text.getFontStyle().getSize();
+		final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics = text.getFontMetrics();
+		return net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.endAllowance(cp,
+				net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(metrics, gid, fontSize),
+				this.autospace.isTrimOff(), this.hangingEnd, metrics.getAdvance(gid), fontSize,
+				lineAxis - maxLineAxis);
+	}
+
 	public void startTextRun(FontStyle fontStyle, FontMetrics fontMetrics) {
 		// System.err.println("TBBR: "+fontStyle);
 		assert this.text == null;
@@ -1073,6 +1113,14 @@ public class TextBuilder {
 				double maxLineAxis = this.maxLineSize - this.textIndent;
 				// System.err.println("TB flush: " + lineAxis + "/" + maxLineAxis);
 				if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
+					// 和文詰めT2/H1: 行末の追い込み(trim)/ぶら下げ(hang)で
+					// 収まるなら、この位置(バッファ全体)で改行して行末
+					// 許容量を行へ渡す(従来=前のopportunityへの追い出し)
+					final double allowance = this.endAllowance(lineAxis, maxLineAxis);
+					if (allowance > 0) {
+						this.opportunity = this.captureOpportunity();
+						this.pendingEndHang = allowance;
+					}
 					// テキストブロックの途中での折り返し
 					final boolean ret = this.newLine(false);
 					return ret;

@@ -232,7 +232,8 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		assert !LayoutUtils.isNone(pageAxis);
 		this.lines.add(new Line(lineBox, pageAxis));
 		// この拡張はIE互換モードでなければ、あまり意味はない
-		this.lineSize = Math.max(lineBox.getLineSize(), this.lineSize);
+		// (T2/H1: 行末の詰め/ぶら下げ分は論理幅から除く=effective基準)
+		this.lineSize = Math.max(lineBox.getLineSize() - lineBox.getEndHangAdvance(), this.lineSize);
 	}
 
 	public final void finishLayoutSelf(IFramedBox containerBox) {

@@ -141,6 +141,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めT1b(2026-07-31)。text-spacing-trim: normal(=T1aで
 			// 移管した詰め)とspace-all(全角のまま)の対比を固定する
 			"0510-text-spacing/trim-pairs.html", //
+			// 和文詰めT2/H1(2026-07-31)。行末ぶら下げ(allow-end)の
+			// 追い込みと、行末trimの条件付き半角化を固定する
+			"0510-text-spacing/hanging-end.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

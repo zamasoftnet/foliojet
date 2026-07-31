@@ -68,6 +68,43 @@ public final class JapaneseSpacingResolver {
 		return JapaneseSpacingClass.of(firstCodePoint) == JapaneseSpacingClass.OPENING ? -PAIR_TRIM : 0;
 	}
 
+	/**
+	 * 行末の追い込み(T2)/ぶら下げ(H1)の許容量です(和文詰め——
+	 * consult-codex-2026-07-31-text-spacing.txt T2/H1の純関数)。
+	 * 行末glyphが対象約物のとき、行に収まる方を優先順(trim→hang)で
+	 * 返す。対象外・どちらでも収まらないときは0(従来の追い出しへ)。
+	 *
+	 * @param codePoint 行末のcode point
+	 * @param wide      全角相当か({@link #isWide})
+	 * @param trimOff   text-spacing-trim: space-all
+	 * @param hangEnd   hanging-punctuation: allow-end
+	 * @param advance   行末glyphのadvance(hang量)
+	 * @param fontSize  行末runのfont-size(trim量=0.5em)
+	 * @param overflow  行幅超過量(lineAxis-maxLineAxis。正のとき呼ぶ)
+	 */
+	public static double endAllowance(final int codePoint, final boolean wide, final boolean trimOff,
+			final boolean hangEnd, final double advance, final double fontSize, final double overflow) {
+		if (!wide) {
+			return 0;
+		}
+		final JapaneseSpacingClass cls = JapaneseSpacingClass.of(codePoint);
+		if (cls != JapaneseSpacingClass.CLOSING && cls != JapaneseSpacingClass.PUNCTUATION) {
+			return 0;
+		}
+		// (1) 行末trim: 半角化で収まるなら詰める
+		if (!trimOff) {
+			final double trim = PAIR_TRIM * fontSize;
+			if (overflow <= trim) {
+				return trim;
+			}
+		}
+		// (2) ぶら下げ: 句読点のみ・そのglyphの全advance
+		if (hangEnd && cls == JapaneseSpacingClass.PUNCTUATION && overflow <= advance) {
+			return advance;
+		}
+		return 0;
+	}
+
 	/** wide判定(metrics換算: font単位750/1000 ⇔ 0.75×font-size)。 */
 	public static boolean isWide(final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid,
 			final double fontSize) {

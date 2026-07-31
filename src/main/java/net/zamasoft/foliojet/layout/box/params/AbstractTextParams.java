@@ -125,6 +125,12 @@ public abstract class AbstractTextParams extends Params {
 	public boolean textSpacingTrimOff = false;
 
 	/**
+	 * 行末句読点のぶら下げ(hanging-punctuation: allow-end)です
+	 * (和文詰めH1。既定false=none)。
+	 */
+	public boolean hangingPunctuationEnd = false;
+
+	/**
 	 * 単語間
 	 */
 	public double wordSpacing = 0;

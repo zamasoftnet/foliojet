@@ -480,6 +480,9 @@ final class BoxStyleMapper {
 		params.textAutospace = net.zamasoft.foliojet.css.impl.property.text.TextAutospace.getFlags(style);
 		// 和文詰めT1b: space-all=約物詰め無効
 		params.textSpacingTrimOff = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.isSpaceAll(style);
+		// 和文詰めH1: 行末句読点のぶら下げ
+		params.hangingPunctuationEnd = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
+				.isAllowEnd(style);
 		params.fontStyle = style.getFontStyle();
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle

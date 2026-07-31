@@ -75,6 +75,22 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	 * @param maxLineAxis 最大行幅
 	 * @param last        ブロックの末尾または改行された行
 	 */
+	/**
+	 * 行末の詰め/ぶら下げ分です(和文詰めT2/H1——
+	 * consult-codex-2026-07-31-text-spacing.txt)。行の配置・均等割りは
+	 * この分を除いた実効行幅を基準にし、glyph自体は通常どおり描画される
+	 * (ぶら下げ句読点・半角化された行末約物のはみ出しはink扱い)。
+	 */
+	private double endHangAdvance;
+
+	public void setEndHangAdvance(final double endHangAdvance) {
+		this.endHangAdvance = endHangAdvance;
+	}
+
+	public double getEndHangAdvance() {
+		return this.endHangAdvance;
+	}
+
 	public void align(double textIndent, double offset, double maxLineAxis, boolean last) {
 		// 行方向アラインメント
 		assert this.contents != null && !this.contents.isEmpty();
@@ -83,7 +99,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		this.reorderBidi();
 		this.last = last;
 		AbstractLineParams params = this.getLineParams();
-		double lineWidth = this.lineSize + textIndent;
+		// T2/H1: 実効行幅(行末の詰め/ぶら下げ分を除く)
+		double lineWidth = this.lineSize - this.endHangAdvance + textIndent;
 		textIndent += offset;
 		final byte textAlign = last ? params.textAlignLast : params.textAlign;
 		switch (textAlign) {

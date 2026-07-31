@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>hanging-punctuation H1 / line-end trim T2</title>
+<style type="text/css">
+@font-face {
+	font-family: 'ipam';
+	src: url('ipam.otf');
+}
+body { font-size: 12pt; margin: 0; font-family: 'ipam'; }
+p { margin: 0; width: 60pt; }
+</style>
+</head>
+<body>
+<p id="off">あああああ、あああ</p>
+<p id="on" style="hanging-punctuation: allow-end">あああああ、あああ</p>
+<p id="trim" style="width: 66pt">ああああ「あ」あああ</p>
+<p id="trimoff" style="width: 66pt; text-spacing-trim: space-all">ああああ「あ」あああ</p>
+</body>
+</html>
