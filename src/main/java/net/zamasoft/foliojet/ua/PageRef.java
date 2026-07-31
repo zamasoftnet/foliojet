@@ -197,9 +197,9 @@ public class PageRef {
 				char[] page = GeneratedValueUtils.format(child.getCounterValue(counter), type).toCharArray();
 				handler.characters(page, 0, page.length);
 				handler.endElement(XHTML.SPAN_ELEM.uri, XHTML.SPAN_ELEM.lName, XHTML.SPAN_ELEM.qName);
-				handler.endElement(XHTML.LI_ELEM.uri, XHTML.LI_ELEM.lName, XHTML.LI_ELEM.qName);
-
 				handler.endElement(XHTML.A_ELEM.uri, XHTML.A_ELEM.lName, XHTML.A_ELEM.qName);
+
+				handler.endElement(XHTML.LI_ELEM.uri, XHTML.LI_ELEM.lName, XHTML.LI_ELEM.qName);
 			}
 			toSAX(handler, counter, type, attsi, child);
 		}

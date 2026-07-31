@@ -35,7 +35,7 @@ public class CSSJMLHandlerFilter extends DefaultXMLHandlerFilter {
 					String counter = atts.getValue("counter");
 					if (counter != null) {
 						short type;
-						String typeStr = atts.getValue("counter");
+						String typeStr = atts.getValue("type");
 						if (typeStr == null) {
 							type = ListStyleTypeValue.DECIMAL;
 						} else {
