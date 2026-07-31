@@ -313,11 +313,12 @@ final class StyleBoxEmitter {
 			final InlinePos pos = new InlinePos();
 			this.mapper.setupInlinePos(pos, style);
 			blockBox = new InlineBlockBox(params, pos);
-		} else if (floating == CSSFloatValue.FOOTNOTE && !params.flow.isVertical()) {
+		} else if (floating == CSSFloatValue.FOOTNOTE) {
 			// 脚注F2(2026-07-31): FootnotePos(PosType=FLOAT)で分離builderの
 			// ライフサイクルへ流す。左右floatと違いFloatSide/clear等は使わず、
 			// 終了時に親へaddBoundされずページ脚注台帳へ渡る。縦書きは
-			// 初期サブセット外(下のelseで通常フロー=F1挙動へ)
+			// F7で解禁(占有量はaxis-neutral、領域は版面block-end、番号
+			// ラベルは直立の限定縦中横=意図的仕様逸脱)
 			final FootnotePos pos = new FootnotePos();
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);

@@ -414,6 +414,18 @@ final class StyleEventMachine {
 		final boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
 				&& CSSFloat.get(style) == CSSFloatValue.FOOTNOTE;
 		if (footnote) {
+			// F7: 段組祖先内の脚注は段の高さが不揃いになり得る(予約が
+			// ページ容量を縮めても組済みの段は再配分されない)。型付き失敗に
+			// せず警告して続行(クラッシュ排除方針。脚注領域自体はページ
+			// 全幅で置かれる——consult-codex-2026-07-31-footnote-f6f7.txt §4)
+			for (CSSStyle ancestor = style.getParentStyle(); ancestor != null; ancestor = ancestor
+					.getParentStyle()) {
+				if (ColumnCount.get(ancestor) > 1) {
+					java.util.logging.Logger.getLogger(StyleEventMachine.class.getName())
+							.warning("footnote inside a multi-column ancestor: column heights may become uneven");
+					break;
+				}
+			}
 			// F4: 論理ID(表示番号とは独立)を元要素と::footnote-callの両方へ。
 			// ページ確定時の「callがこのページに残ったか」の集合判定に使う
 			style.footnoteId = this.nextFootnoteId++;

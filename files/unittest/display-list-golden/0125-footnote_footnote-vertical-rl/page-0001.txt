@@ -1,0 +1,11 @@
+drawer z=0
+  x=18.00 y=0.00 FootnoteLabel["1. " w=18.00 h=12.00]
+  x=18.00 y=12.00 Text["縦注一" asc=9.00 desc=9.00]
+  x=0.00 y=0.00 FootnoteLabel["2. " w=18.00 h=12.00]
+  x=0.00 y=12.00 Text["縦注二" asc=9.00 desc=9.00]
+  x=279.33 y=0.00 Text["縦一" asc=13.47 desc=7.20]
+  x=295.02 y=24.00 FootnoteLabel["1" w=4.98 h=9.96]
+  x=279.33 y=33.96 Text["本文" asc=13.47 desc=7.20]
+  x=295.02 y=57.96 FootnoteLabel["2" w=4.98 h=9.96]
+  x=279.33 y=67.92 Text["続き" asc=13.47 desc=7.20]
+  x=38.75 y=0.00 artifact FootnoteSeparator[w=0.50 h=100.00]

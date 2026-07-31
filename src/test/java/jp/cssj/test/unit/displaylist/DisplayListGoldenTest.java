@@ -113,6 +113,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0125-footnote/footnote-pagelimit.html", //
 			"0125-footnote/footnote-carryin.html", //
 			"0125-footnote/footnote-split.html", //
+			"0125-footnote/footnote-vertical-rl.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //
 			"0480-rescue-split/orthogonal-block-exact.html", //
