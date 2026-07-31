@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -7,9 +8,13 @@ import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.impl.GridItemBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
+import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.builder.LayoutContext;
+import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
 
 /**
@@ -68,16 +73,15 @@ public final class GridBuilder {
 
 	/** 合成itemのparams(Gridの文字属性を継承し、frame等は中立へ戻す)。 */
 	private BlockParams itemParams() {
-		final BlockParams params = net.zamasoft.foliojet.layout.segment.BlockParamsTemplate
-				.freeze(this.gridBox.getGridParams()).materialize();
+		final BlockParams params = BlockParamsTemplate.freeze(this.gridBox.getGridParams()).materialize();
 		params.frame = RectFrame.NULL_FRAME;
 		params.element = null;
 		params.footnoteId = -1;
 		params.opacity = 1f;
-		params.zIndexType = net.zamasoft.foliojet.layout.box.params.Params.Z_INDEX_AUTO;
+		params.zIndexType = Params.Z_INDEX_AUTO;
 		params.zIndexValue = 0;
-		params.transform = new java.awt.geom.AffineTransform();
-		params.columns = net.zamasoft.foliojet.layout.box.params.Columns.NONE_COLUMNS;
+		params.transform = new AffineTransform();
+		params.columns = Columns.NONE_COLUMNS;
 		return params;
 	}
 
@@ -141,7 +145,7 @@ public final class GridBuilder {
 			this.gridBox.getContainer().addFlow(item, placement.rowStarts()[this.layout.rowOf(i)]);
 		}
 		this.gridBox.setPageAxis(placement.totalExtent());
-		final net.zamasoft.foliojet.layout.builder.LayoutContext.Flow active = this.host.getFlow();
+		final LayoutContext.Flow active = this.host.getFlow();
 		assert active.box == this.gridBox : "Grid終端でactive flowがGridではない: " + active.box;
 		this.host.setPageAxis(active.pageAxis + this.gridBox.getInnerPageExtent(params.flow));
 	}
