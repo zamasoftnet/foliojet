@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G4c: overlapping definite items</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="g" style="display: grid; grid-template-columns: 60pt 60pt; column-gap: 10pt; width: 130pt">
+<div id="p" style="grid-column: 1; grid-row: 1"><div style="width: 40pt; height: 20pt; background: #caa"></div></div>
+<div id="q" style="grid-column: 1; grid-row: 1"><div style="width: 30pt; height: 10pt; background: #aac"></div></div>
+<div id="r" style="grid-column: 2; grid-row: 1"><div style="width: 30pt; height: 15pt; background: #aca"></div></div>
+</div>
+<div id="after">after</div>
+</body>
+</html>
