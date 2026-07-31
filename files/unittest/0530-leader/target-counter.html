@@ -1,0 +1,27 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>leader() + target-counter (TOC standard form)</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+	counter-increment: page;
+}
+body { font-size: 10pt; line-height: 1; margin: 0; }
+h2 { font: 10pt/1 monospace; margin: 0; }
+h2 + h2 { page-break-before: always; }
+a { display: block; }
+a::after { content: leader(dotted) target-counter(attr(href), page); }
+    </style>
+  </head>
+
+  <body>
+    <a href="#a" id="aa">First</a>
+    <a href="#c" id="bb">Third</a>
+    <h2 id="a">見出し</h2>
+    <h2 id="b">見出し</h2>
+    <h2 id="c">見出し</h2>
+  </body>
+</html>

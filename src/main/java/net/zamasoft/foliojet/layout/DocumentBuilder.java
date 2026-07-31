@@ -1033,6 +1033,17 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.containerBuilder().getStyledTextUnitizer().characters(charOffset, ch, off, len, lineFeed);
 	}
 
+	/**
+	 * {@code leader()}を現在のインライン文脈へ流します(leader() L1——
+	 * consult-codex-2026-07-31-leader.txt)。shape・幅の割り付けは
+	 * {@code StyledTextUnitizer.leader}以降が駆動のたびに行う。
+	 */
+	public void addLeader(final String pattern) {
+		this.requirePage();
+		this.requireGridAnonymousItem();
+		this.containerBuilder().getStyledTextUnitizer().leader(pattern);
+	}
+
 	public void end() {
 		this.requirePage();
 		this.endContainer();

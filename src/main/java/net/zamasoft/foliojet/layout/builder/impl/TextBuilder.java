@@ -549,6 +549,12 @@ public class TextBuilder {
 			ascent = control.getAscent();
 			descent = control.getDescent();
 			assert !LayoutUtils.isNone(ascent + descent);
+		} else if (e instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
+			// leader() L1: パターンの寸法で行高さに参加する
+			textBox.addLeader(leader);
+			ascent = leader.runs[0].getAscent();
+			descent = leader.runs[0].getDescent();
+			assert !LayoutUtils.isNone(ascent + descent);
 		} else {
 			throw new IllegalStateException();
 		}
@@ -715,6 +721,7 @@ public class TextBuilder {
 
 		boolean content;
 		if (count > 0) {
+			this.allocateLeaders(count, last);
 			for (int i = 0; i < count; ++i) {
 				Element e = (Element) this.textBuffer.get(i);
 				if (e instanceof Text) {
@@ -799,6 +806,9 @@ public class TextBuilder {
 					} else if (quad instanceof Control) {
 						final Control control = (Control) quad;
 						this.addElement(control);
+					} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leaderQuad) {
+						// leader() L1: 割り付け済みの幅で行へ格納する
+						this.addElement(leaderQuad);
 					} else {
 						throw new IllegalStateException();
 					}
@@ -837,6 +847,74 @@ public class TextBuilder {
 		this.opportunity = this.captureOpportunity();
 		this.builder.checkFloatings();
 		return content;
+	}
+
+	/**
+	 * 選択済みの行範囲のleaderへ残余幅を割り付けます(leader() L1——
+	 * consult-codex-2026-07-31-leader.txt Q2)。
+	 *
+	 * <p>
+	 * 必ず全leaderを最小幅へ戻してから配分する(TwoPassの記録再生で同一
+	 * インスタンスが再駆動されても前回の割り付けが漏れないように)。行が
+	 * テキスト途中で分割される場合(=行が満杯)は残余が定義上≈0なので
+	 * 最小幅のまま。行末スペースのつぶし分は残余に含める(align前に
+	 * 取り除かれるため)。justifyより先にleaderが残余を消費するので、
+	 * leader行の文字間justifyは自然に≈0になる。
+	 * </p>
+	 */
+	private void allocateLeaders(final int count, final boolean last) {
+		List<net.zamasoft.foliojet.layout.text.LeaderQuad> leaders = null;
+		double natural = 0;
+		for (int i = 0; i < count; ++i) {
+			final Element e = (Element) this.textBuffer.get(i);
+			if (e instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
+				leader.advance = leader.minAdvance;
+				leader.endOffset = 0;
+				if (leaders == null) {
+					leaders = new ArrayList<>();
+				}
+				leaders.add(leader);
+			}
+			natural += e.getAdvance();
+		}
+		if (leaders == null) {
+			return;
+		}
+		if (!last && count > 0 && this.textBuffer.get(count - 1) instanceof Text tail
+				&& this.opportunity.glyphCount() > 0 && this.opportunity.glyphCount() != tail.getGlyphCount()) {
+			// 行がテキスト途中で分割される=満杯。残余≈0なので最小幅のまま
+			return;
+		}
+		// 行末スペース(align前につぶされる)は行幅に数えない
+		double trailing = 0;
+		for (int i = count - 1; i >= 0; --i) {
+			final Element e = (Element) this.textBuffer.get(i);
+			if (e instanceof Control control) {
+				trailing += control.getAdvance();
+				continue;
+			}
+			if (e.getAdvance() <= 0) {
+				continue;
+			}
+			break;
+		}
+		final double extra = (this.maxLineSize - this.textIndent) - (natural - trailing);
+		if (extra > 0) {
+			final double share = extra / leaders.size();
+			for (final net.zamasoft.foliojet.layout.text.LeaderQuad leader : leaders) {
+				leader.advance += share;
+				this.lineAxis += share;
+			}
+		}
+		// 行末位相揃えの原点: 各leaderの終端から行内容の終端までの距離
+		double after = -trailing;
+		for (int i = count - 1; i >= 0; --i) {
+			final Element e = (Element) this.textBuffer.get(i);
+			if (e instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
+				leader.endOffset = Math.max(0, after);
+			}
+			after += e.getAdvance();
+		}
 	}
 
 	/**
@@ -1021,6 +1099,10 @@ public class TextBuilder {
 			default:
 				throw new IllegalStateException();
 			}
+		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad) {
+			// leader() L1: 最小幅(パターン1周期)で行分割判断に参加する。
+			// 幅の割り付けはdrawLineの先頭
+			this.lineHead = false;
 		} else {
 			AbstractTextParams params;
 			if (this.textParamStack == null || this.textParamStack.isEmpty()) {

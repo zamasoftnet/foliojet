@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
+import net.zamasoft.foliojet.css.value.LeaderValue;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
 import net.zamasoft.foliojet.css.value.StringFunctionValue;
@@ -113,6 +114,8 @@ public class Content extends AbstractPrimitivePropertyInfo {
 					values.add(parseTargetText(func.argStream()));
 				} else if (func.is("string")) {
 					values.add(parseStringFunc(func.argStream()));
+				} else if (func.is("leader")) {
+					values.add(parseLeader(func.argStream()));
 				} else {
 					throw new PropertyException();
 				}
@@ -209,6 +212,39 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			}
 		}
 		return new StringFunctionValue(name, mode);
+	}
+
+	/**
+	 * {@code leader(dotted|solid|space|<string>)}(css-content-3、
+	 * consult-codex-2026-07-31-leader.txt)。キーワードは正規化し、
+	 * 改行除去後に空になる文字列は構文エラー(ゼロ周期の無限反復を
+	 * 避ける)。
+	 */
+	private static LeaderValue parseLeader(TokenStream params) throws PropertyException {
+		final CssToken first = params.hasNext() ? params.next() : null;
+		if (first == null || params.hasNext()) {
+			throw new PropertyException();
+		}
+		if (first instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "dotted":
+				return LeaderValue.DOTTED;
+			case "solid":
+				return LeaderValue.SOLID;
+			case "space":
+				return LeaderValue.SPACE;
+			default:
+				throw new PropertyException();
+			}
+		}
+		if (first instanceof CssToken.Str str) {
+			final String pattern = str.value().replaceAll("[\\r\\n]", "");
+			if (pattern.isEmpty()) {
+				throw new PropertyException();
+			}
+			return new LeaderValue(pattern);
+		}
+		throw new PropertyException();
 	}
 
 	/** ref/attr()解決先の型+ID文字列。 */

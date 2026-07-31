@@ -127,7 +127,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	protected final void add(Object content) {
 		assert content instanceof Text || content instanceof Control || content instanceof Inline
-				|| content instanceof IAbsoluteBox;
+				|| content instanceof IAbsoluteBox
+				|| content instanceof net.zamasoft.foliojet.layout.text.LeaderQuad;
 		if (this.contents == null) {
 			this.contents = new ArrayList<Object>();
 		}
@@ -251,6 +252,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.add(control);
 	}
 
+	/** {@code leader()}を追加します(leader() L1、幅は割り付け済み)。 */
+	public final void addLeader(final net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
+		this.add(leader);
+	}
+
 	/**
 	 * インラインを追加します。
 	 * 
@@ -328,6 +334,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// 位置に影響しない
 			}
 
+			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
+				// leaderは残余を先に消費するので伸長点を作らない
+			}
+
 			default -> throw new IllegalStateException();
 			}
 		}
@@ -386,6 +396,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 			case IAbsoluteBox absoluteBox -> {
 				// 位置に影響しない
+			}
+
+			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
+				// 割り付け済み——justifyの伸長対象外
 			}
 
 			default -> throw new IllegalStateException();
@@ -606,6 +620,77 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
+	/**
+	 * {@code leader()}の反復描画です(leader() L2——
+	 * consult-codex-2026-07-31-leader.txt Q3)。shape済みパターン1周期を
+	 * 「論理的な行末」を原点とする固定グリッドへ反復描画する(同じ行末
+	 * 座標を持つ複数行のドットが縦に揃う)。グリッドへ完全に入るセル
+	 * だけを描き、タグ付きPDFではartifact(装飾)として囲む。論理
+	 * テキストへは反復文字列を混入させない。
+	 */
+	protected static class LeaderDrawable extends AbstractDrawable {
+		private final net.zamasoft.foliojet.layout.text.LeaderQuad leader;
+		private final AbstractTextParams params;
+		private final double ascent, descent;
+
+		LeaderDrawable(PageBox pageBox, Shape clip, AffineTransform transform, AbstractTextParams params,
+				net.zamasoft.foliojet.layout.text.LeaderQuad leader, double ascent, double descent) {
+			super(pageBox, clip, params.opacity, transform);
+			this.leader = leader;
+			this.params = params;
+			this.ascent = ascent;
+			this.descent = descent;
+		}
+
+		/** グリッドのセル区間 [kmin, kmax](コピー数はkmax-kmin+1)。 */
+		private long[] cellRange() {
+			final double p = this.leader.minAdvance;
+			final double end = this.leader.advance;
+			final double gridOrigin = end + this.leader.endOffset;
+			// セルk: [gridOrigin-(k+1)p, gridOrigin-kp)。完全に[0,end]内のみ
+			final long kmin = (long) Math.ceil((gridOrigin - end) / p - 0.0001);
+			final long kmax = (long) Math.floor((gridOrigin) / p - 1 + 0.0001);
+			return new long[] { kmin, kmax };
+		}
+
+		public String describe() {
+			final StringBuilder pattern = new StringBuilder();
+			for (final Text run : this.leader.runs) {
+				pattern.append(run.getChars(), 0, run.getCharCount());
+			}
+			final long[] range = this.cellRange();
+			final long copies = Math.max(0, range[1] - range[0] + 1);
+			return String.format(java.util.Locale.ROOT, "Leader[\"%s\" advance=%.2f offset=%.2f copies=%d]", pattern,
+					this.leader.advance, this.leader.endOffset, copies);
+		}
+
+		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
+			final double p = this.leader.minAdvance;
+			final double gridOrigin = this.leader.advance + this.leader.endOffset;
+			final long[] range = this.cellRange();
+			if (range[1] < range[0]) {
+				return;
+			}
+			try (final var artifact = gc.beginArtifactScope(); final var gcState = gc.begin()) {
+				if (this.params.color != null) {
+					gc.setFillPaint(this.params.color);
+				}
+				final boolean vertical = this.params.flow.isVertical();
+				for (long k = range[0]; k <= range[1]; ++k) {
+					double cell = gridOrigin - (k + 1) * p;
+					for (final Text run : this.leader.runs) {
+						if (vertical) {
+							gc.drawText(run, x + this.descent, y + cell);
+						} else {
+							gc.drawText(run, x + cell, y + this.ascent);
+						}
+						cell += run.getAdvance();
+					}
+				}
+			}
+		}
+	}
+
 	protected static class TextDecorationDrawable extends AbstractDrawable {
 		protected final AbstractTextParams params;
 		protected final Decoration decoration;
@@ -723,6 +808,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Control control ->
 				// 空白
 				localSteps.add(w -> textBuff.append(control.getControlChar()));
+			case net.zamasoft.foliojet.layout.text.LeaderQuad leader ->
+				// 反復ドット列は論理テキストへ混入させない——単一の空白のみ
+				localSteps.add(w -> textBuff.append(' '));
 			default -> throw new IllegalStateException();
 			}
 		}
@@ -928,6 +1016,33 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 
+			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
+				// leader() L2: 反復パターンの描画(グリフ列としては実体化
+				// しない——行末原点の固定グリッドで位相を揃える)
+				if (lineParams.opacity != 0 && len > 0) {
+					final int foff = off, flen = len;
+					final double ftx = tx, fty = ty;
+					localSteps.add(w -> drawer.visitDrawable(
+							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
+					len = 0;
+				}
+				if (!decoration) {
+					dx = xx;
+					dy = yy;
+					decoration = true;
+				}
+				if (lineParams.opacity != 0) {
+					final double fx = xx, fy = yy;
+					localSteps.add(w -> drawer.visitDrawable(new LeaderDrawable(pageBox, clip, transform,
+							this.getTextParams(), leader, this.ascent, this.descent), fx, fy));
+				}
+				if (vertical) {
+					yy += leader.getAdvance();
+				} else {
+					xx += leader.getAdvance();
+				}
+			}
+
 			default -> throw new IllegalStateException();
 			}
 		}
@@ -1103,6 +1218,15 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 
+			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
+				// leaderは字形選択に関与しない——幅だけ進める
+				if (vertical) {
+					yy += leader.getAdvance();
+				} else {
+					xx += leader.getAdvance();
+				}
+			}
+
 			default -> throw new IllegalStateException();
 			}
 		}
@@ -1166,6 +1290,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Control control -> gh.control(control);
+
+			case net.zamasoft.foliojet.layout.text.LeaderQuad leader ->
+				// 再駆動でquadを流し直す(幅はdrawLineが割り付け直す)
+				gh.control(leader);
 
 			default -> throw new IllegalStateException();
 			}

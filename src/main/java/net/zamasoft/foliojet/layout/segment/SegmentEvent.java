@@ -69,4 +69,13 @@ public sealed interface SegmentEvent {
 	 */
 	record Barrier(java.util.Optional<BoxKind> kind, BarrierReason reason) implements SegmentEvent {
 	}
+
+	/**
+	 * {@code leader()}です(css-content-3、leader() L1——
+	 * consult-codex-2026-07-31-leader.txt。旧
+	 * {@code LayoutSource.Leader}と1:1)。payloadは正規化済みパターン
+	 * 文字列のみで、shape・幅の割り付けは駆動のたびに行う。
+	 */
+	record Leader(String pattern) implements SegmentEvent {
+	}
 }

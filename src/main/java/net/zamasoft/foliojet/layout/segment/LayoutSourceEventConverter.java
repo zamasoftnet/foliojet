@@ -57,6 +57,8 @@ public final class LayoutSourceEventConverter {
 		// マーカー)ため常にBarrier化する
 		case LayoutSource.Opaque opaque ->
 			new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
+		// leader() L1: パターン文字列のみの不変payload(1:1変換)
+		case LayoutSource.Leader(final String pattern) -> new SegmentEvent.Leader(pattern);
 		};
 	}
 }

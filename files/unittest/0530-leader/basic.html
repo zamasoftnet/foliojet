@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>leader() L1: basic allocation and phase alignment</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; width: 300pt; }
+p { margin: 0; }
+.lead::after { content: leader(dotted); }
+.solid::after { content: leader(solid); }
+.custom::after { content: leader('. '); }
+</style>
+</head>
+<body>
+<p><span class="lead">Alpha</span>5</p>
+<p><span class="lead">Beta section</span>12</p>
+<p><span class="solid">Gamma</span>34</p>
+<p><span class="custom">Delta</span>567</p>
+</body>
+</html>

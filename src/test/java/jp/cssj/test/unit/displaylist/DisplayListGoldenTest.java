@@ -165,6 +165,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// N2b: 文書先頭の名前付き内容。無名の初期ページが白紙のまま
 			// 差し替わり、1ページ目から新名の柱と寸法になることを固定する
 			"0520-named-page/doc-head-transition.html", //
+			// leader() L1(2026-07-31): dotted/solid/custom、残余の割り付け、
+			// 行末原点の位相揃え(1桁/2桁の行でドット列が縦に揃う)を固定する
+			"0530-leader/basic.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

@@ -53,7 +53,7 @@ import net.zamasoft.foliojet.layout.segment.TextSpill;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource implements AutoCloseable {
-	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque {
+	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque, Leader {
 	}
 
 	/**
@@ -149,6 +149,16 @@ public final class LayoutSource implements AutoCloseable {
 		public Chars(final int charOffset, final char[] ch, final boolean fixed) {
 			this(charOffset, new TextPayload.Inline(ch), fixed);
 		}
+	}
+
+	/**
+	 * {@code leader()}です(css-content-3、
+	 * consult-codex-2026-07-31-leader.txt L1)。payloadは正規化済み
+	 * パターン文字列のみ——shape・幅の割り付けは再生のたびに
+	 * {@code StyledTextUnitizer.leader}が行うため、再生間で可変状態を
+	 * 共有しない(LeaderQuadは駆動ごとに新規生成)。
+	 */
+	public record Leader(String pattern) implements Event {
 	}
 
 	/**
@@ -513,6 +523,8 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			case Replaced replaced -> {
 			}
+			case Leader leader -> {
+			}
 			}
 		}
 		kept.addAll(open);
@@ -551,6 +563,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case Leader leader -> {
 			}
 			}
 		}
@@ -623,6 +637,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case Leader leader -> {
 			}
 			}
 		}

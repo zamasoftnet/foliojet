@@ -220,6 +220,9 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			default:
 				throw new IllegalStateException();
 			}
+		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad) {
+			// leader() L1: shape済み・最小幅設定済み——ここでの計算は不要
+			this.journal.inline();
 		} else {
 			// 制御コード
 			Control control = (Control) quad;

@@ -807,6 +807,13 @@ final class StyleEventMachine {
 						}
 					}
 						break;
+					case net.zamasoft.foliojet.css.value.LeaderValue leader: {
+						// leader() L1: 正規化済みパターンをそのまま搬送する
+						// (shape・幅の割り付けはレイアウト側)
+						this.checkMarker();
+						this.sink.leader(leader.getPattern());
+					}
+						break;
 					default:
 						throw new IllegalStateException(String.valueOf(v));
 					}

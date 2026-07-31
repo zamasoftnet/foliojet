@@ -141,6 +141,14 @@ final class RecordingLayoutSink {
 	}
 
 	/**
+	 * {@code leader()}をログに記録してから doc に渡します(leader() L1)。
+	 */
+	void leader(final String pattern) {
+		this.layoutSource.append(new LayoutSource.Leader(pattern));
+		this.doc.addLeader(pattern);
+	}
+
+	/**
 	 * テキストをログに記録してから doc に渡します(M6b v3)。
 	 */
 	void characters(final int charOffset, final char[] ch, final int off, final int len, final boolean fixed) {

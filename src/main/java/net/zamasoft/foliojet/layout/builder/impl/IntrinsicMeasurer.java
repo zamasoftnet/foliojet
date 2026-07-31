@@ -466,6 +466,11 @@ final class IntrinsicMeasurer {
 				minAdvance = maxAdvance = quad.getAdvance();
 				pageSize = inlineQuad.getBox().getPageExtent(cParams.flow);
 			}
+		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
+			// leader() L1: min-content/max-contentともにパターン1周期分
+			// (割り付け済みadvanceを読まない——再計測時の漏れ防止)
+			minAdvance = maxAdvance = leader.minAdvance;
+			pageSize = 0;
 		} else {
 			minAdvance = maxAdvance = quad.getAdvance();
 			pageSize = 0;

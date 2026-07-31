@@ -263,6 +263,75 @@ public class StyledTextUnitizer {
 	}
 
 	/**
+	 * {@code leader()}を配達します(leader() L1——
+	 * consult-codex-2026-07-31-leader.txt)。パターンを現在のスタイルで
+	 * 自己完結shapeし({@code RubyUnitBox.shape}と同型)、可変幅の
+	 * {@link net.zamasoft.foliojet.layout.text.LeaderQuad}を制御として
+	 * 流す。駆動のたびに新規生成する(記録再生間で割り付け幅を共有
+	 * しない)。
+	 */
+	public void leader(final String pattern) {
+		if (this.rubyCollector != null) {
+			// ルビ単位内は文字のみ(仕様)
+			return;
+		}
+		this.requireTextShaper();
+		final AbstractTextParams params = this.getTextParams();
+		final net.zamasoft.pdfg2d.gc.text.TextImpl[] runs = shapeLeaderPattern(params, pattern);
+		if (runs.length == 0) {
+			// どのフォントにもグリフがない——埋め物なし
+			return;
+		}
+		this.textShaper.control(new net.zamasoft.foliojet.layout.text.LeaderQuad(runs));
+		this.followingChar = 'x';
+	}
+
+	/** パターン1周期の自己完結shape({@code FootnoteLabelImage.shape}と同型)。 */
+	private static net.zamasoft.pdfg2d.gc.text.TextImpl[] shapeLeaderPattern(final AbstractTextParams params,
+			final String pattern) {
+		final List<net.zamasoft.pdfg2d.gc.text.TextImpl> runs = new ArrayList<>();
+		final net.zamasoft.pdfg2d.gc.text.GlyphHandler collector = new net.zamasoft.pdfg2d.gc.text.GlyphHandler() {
+			private net.zamasoft.pdfg2d.gc.text.TextImpl current = null;
+
+			public void startTextRun(final int co, final net.zamasoft.pdfg2d.gc.font.FontStyle fs,
+					final net.zamasoft.pdfg2d.gc.font.FontMetrics fm) {
+				this.current = new net.zamasoft.pdfg2d.gc.text.TextImpl(co, fs, fm);
+			}
+
+			public void glyph(final int co, final char[] ch, final int coff, final byte clen, final int gid) {
+				this.current.appendGlyph(ch, coff, clen, gid);
+			}
+
+			public void endTextRun() {
+				if (this.current.getGlyphCount() > 0) {
+					this.current.pack();
+					// 和文詰めT1a: font層から移管したrun内約物詰めを適用
+					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.applyRunTrims(this.current);
+					runs.add(this.current);
+				}
+				this.current = null;
+			}
+
+			public void control(final TextControl control) {
+				// パターンに制御コードは含まれない(パース時に改行除去済み)
+			}
+
+			public void flush() {
+			}
+
+			public void close() {
+			}
+		};
+		final TextShaper shaper = params.fontManager.getTextShaper();
+		shaper.setGlyphHandler(collector);
+		shaper.fontStyle(params.fontStyle);
+		final char[] ch = pattern.toCharArray();
+		shaper.characters(-1, ch, 0, ch.length);
+		shaper.close();
+		return runs.toArray(new net.zamasoft.pdfg2d.gc.text.TextImpl[runs.size()]);
+	}
+
+	/**
 	 * 対応がついたルビ単位を1つ、atomic inline({@code RubyUnitBox}を
 	 * インラインブロック扱いのquadに載せる)として下流へ配達します
 	 * (2026-07-25、注釈付きテキスト方式)。

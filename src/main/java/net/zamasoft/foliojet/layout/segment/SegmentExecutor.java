@@ -124,6 +124,9 @@ public final class SegmentExecutor {
 			this.doc.addReplacedBox(box);
 		}
 		case SegmentEvent.Barrier barrier -> throw new IllegalStateException("barrier event in replay range: " + barrier);
+		// leader() L1: 駆動のたびにshape・割り付けし直す(可変状態を再生間で
+		// 共有しない——LeaderQuadはaddLeaderが新規生成する)
+		case SegmentEvent.Leader(final String pattern) -> this.doc.addLeader(pattern);
 		}
 		++this.eventId;
 	}
