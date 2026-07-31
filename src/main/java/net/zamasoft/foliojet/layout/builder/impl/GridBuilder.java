@@ -336,9 +336,19 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		// fixed=指定長・auto=base/growth limit+stretch・fr=find-frで
 		// 確定する。基準幅はGridコンテナのcontent-box行幅
 		// (TwoPass経由ではshrink-to-fit確定後の幅)
+		// G5c: justify-contentのused value。positional(start/center/end)の
+		// ときauto列の残余stretchを止め、残余をトラック群のoffsetへ回す
+		final BoxAlignment justifyContent = BoxAlignment.resolve(BoxAlignment.AUTO, params.justifyContent);
 		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, this.columnContributions(plan),
-				this.gridBox.getLineSize(), this.columnGap);
+				this.gridBox.getLineSize(), this.columnGap, justifyContent == BoxAlignment.STRETCH);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
+		double trackLineExtent = this.columnGap * (this.tracks.size() - 1);
+		for (final double w : widths) {
+			trackLineExtent += w;
+		}
+		final double freeLine = Math.max(0, this.gridBox.getLineSize() - trackLineExtent);
+		final double contentX = justifyContent == BoxAlignment.CENTER ? freeLine / 2
+				: justifyContent == BoxAlignment.END ? freeLine : 0;
 		// G5b: itemごとのjustify used value・bind幅・行方向オフセットを
 		// bind前に全件確定する(途中bind後のフォールバックは不可能——
 		// 答申Q3)。stretch=area幅(現行)、start/center/end=fit-content幅
@@ -380,8 +390,33 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		// 空行は高さ0だが隣接rowGapは残る=仕様のgutter挙動)
 		final double[] rowHeights = net.zamasoft.foliojet.layout.sizing.GridRowSizing.resolve(plan.areas(),
 				extents, plan.rowCount(), this.rowGap);
+		// G5e: align-content——明示高Gridの余白。content distributionが先、
+		// item self alignmentは後(調整後の行高を参照する)
+		double trackPageExtent = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
+		for (final double h : rowHeights) {
+			trackPageExtent += h;
+		}
+		double contentY = 0;
+		if (!this.items.isEmpty()) {
+			this.gridBox.setPageAxis(trackPageExtent);
+			final double freePage = Math.max(0,
+					this.gridBox.getInnerPageExtent(params.flow) - trackPageExtent);
+			if (freePage > 0) {
+				final BoxAlignment alignContent = BoxAlignment.resolve(BoxAlignment.AUTO, params.alignContent);
+				if (alignContent == BoxAlignment.STRETCH) {
+					// 現サブセットの行は全implicit auto——均等分配(空行も対象)
+					final double share = freePage / rowHeights.length;
+					for (int r = 0; r < rowHeights.length; ++r) {
+						rowHeights[r] += share;
+					}
+				} else {
+					contentY = alignContent == BoxAlignment.CENTER ? freePage / 2
+							: alignContent == BoxAlignment.END ? freePage : 0;
+				}
+			}
+		}
 		final double[] rowStarts = new double[rowHeights.length];
-		double cursor = 0;
+		double cursor = contentY;
 		for (int r = 0; r < rowHeights.length; ++r) {
 			rowStarts[r] = cursor;
 			cursor += rowHeights[r];
@@ -395,7 +430,7 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		for (int i = 0; i < count; ++i) {
 			final GridItemBox itemBox = this.items.get(i).itemBox;
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			itemBox.setGridLineOffset(layout.columnStart(area.column()) + itemXOffsets[i]);
+			itemBox.setGridLineOffset(contentX + layout.columnStart(area.column()) + itemXOffsets[i]);
 			double areaHeight = this.rowGap * (area.rowSpan() - 1);
 			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
 				areaHeight += rowHeights[r];

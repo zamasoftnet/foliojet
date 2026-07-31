@@ -130,6 +130,14 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(25.0, w[1], 0.001);
 	}
 
+	/** G5c: positional justify-contentではauto列の残余stretchを止める。 */
+	public void testPositionalNoAutoStretch() {
+		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(80), AUTO),
+				perColumn(new double[] { 0, 30 }, new double[] { 0, 70 }), 300, 10, false);
+		assertEquals(80.0, w[0], 0.001);
+		assertEquals(70.0, w[1], 0.001); // max-content上限まで。残余140はoffsetへ
+	}
+
 	/** span不足分配(G4d): fixed+autoを跨ぐspanはauto側だけが伸びる。 */
 	public void testSpanDeficitToAuto() {
 		// [40pt auto]、span1のauto contribution 20、span2 item min=max=100

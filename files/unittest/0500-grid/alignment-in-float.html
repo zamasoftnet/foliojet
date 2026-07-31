@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G5e: alignment in shrink-to-fit float (parity)</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="f" style="float: left; background: #eef">
+<div id="gg" style="display: grid; grid-template-columns: 60pt 60pt; width: 120pt; justify-items: center">
+<div id="p"><div style="width: 30pt; height: 10pt; background: #ccc"></div></div>
+<div id="q" style="justify-self: end"><div style="width: 30pt; height: 10pt; background: #caa"></div></div>
+</div>
+</div>
+</body>
+</html>

@@ -122,6 +122,9 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			// Grid G4d(2026-07-31): float内の明示配置+span sizingの
 			// legacy/range parity固定
 			"0500-grid/explicit-placement-in-float.html", //
+			// Grid G5e(2026-07-31): float内alignment(container値+self
+			// override)のlegacy/range parity固定
+			"0500-grid/alignment-in-float.html", //
 	};
 
 	/**

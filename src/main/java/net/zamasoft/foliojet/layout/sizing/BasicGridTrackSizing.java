@@ -52,17 +52,28 @@ public final class BasicGridTrackSizing {
 	public record Intrinsics(double min, double max) {
 	}
 
+	/** {@code stretchAutoTracks=true}での解決(既定=justify-content:normal)。 */
+	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks,
+			final List<ItemContribution> items, final double available, final double columnGap) {
+		return resolve(tracks, items, available, columnGap, true);
+	}
+
 	/**
 	 * トラック幅を解決します。
 	 *
-	 * @param tracks    列テンプレート(fixed/auto/fr)
-	 * @param items     各itemの列contribution
-	 * @param available Gridコンテナのcontent-box行幅
-	 * @param columnGap 列間gap
+	 * @param tracks            列テンプレート(fixed/auto/fr)
+	 * @param items             各itemの列contribution
+	 * @param available         Gridコンテナのcontent-box行幅
+	 * @param columnGap         列間gap
+	 * @param stretchAutoTracks 手順(4)のauto列への残余stretchを行うか
+	 *                          (G5c——justify-contentがstart/center/endの
+	 *                          ときfalse: auto列はmax-content上限までの
+	 *                          成長で止め、残余をcontent offsetに残す)
 	 * @return 各列の確定幅(NaN・負値を返さない)
 	 */
 	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks,
-			final List<ItemContribution> items, final double available, final double columnGap) {
+			final List<ItemContribution> items, final double available, final double columnGap,
+			final boolean stretchAutoTracks) {
 		final int n = tracks.size();
 		final Sized sized = size(tracks, items, columnGap);
 		final double[] widths = sized.base.clone();
@@ -82,8 +93,9 @@ public final class BasicGridTrackSizing {
 			return widths;
 		}
 		// (2) auto列をgrowth limitまで均等成長→(4) なお残る分は均等stretch
+		// (justify-contentがpositionalのときはstretchせず残余を残す——G5c)
 		free -= growAutos(widths, sized.limit, sized.auto, sized.autoCount, free);
-		if (free > 1e-9) {
+		if (stretchAutoTracks && free > 1e-9) {
 			final double share = free / sized.autoCount;
 			for (int i = 0; i < n; ++i) {
 				if (sized.auto[i]) {
