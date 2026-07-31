@@ -7,10 +7,10 @@ import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.layout.builder.impl.FootnoteOverflowException;
 
 /**
- * 脚注F4の境界: 空ページの最大脚注領域(≈755.9pt)にも収まらない
- * 800ptの脚注は、次ページへ送り続けず型付き失敗になる
- * (consult-codex-2026-07-31-footnote-f4.txt 検証fixture 6の単体超過側。
- * 累積超過の送りはFootnoteCarryInTestが固定)。
+ * 脚注F4/F6の境界: どのページにも入らない<b>atomicな</b>巨大脚注
+ * (800pt+page-break-inside:avoid——固定高ブロックは高さ切断できるため
+ * avoidで分割を禁じたもの)は、送り続けず型付き失敗になる。分割可能な
+ * 巨大脚注はF6が複数ページへ置く(FootnoteSplitTest)。
  */
 public class FootnoteOversizedTest extends AbstractTestCase {
 	public FootnoteOversizedTest(String name) {
@@ -34,7 +34,8 @@ public class FootnoteOversizedTest extends AbstractTestCase {
 			boolean found = false;
 			while (t != null) {
 				if (t instanceof FootnoteOverflowException
-						|| (t.getMessage() != null && t.getMessage().contains("footnote too large"))) {
+						|| (t.getMessage() != null && (t.getMessage().contains("footnote too large")
+								|| t.getMessage().contains("footnote cannot be placed")))) {
 					found = true;
 					break;
 				}
