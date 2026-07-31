@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=0.00 Text["a" asc=10.31 desc=4.09]
+  x=120.00 y=0.00 Text["b" asc=10.31 desc=4.09]
+  x=0.00 y=60.00 Text["c" asc=10.31 desc=4.09]
+  x=120.00 y=60.00 Text["d" asc=10.31 desc=4.09]
+  x=0.00 y=100.00 Text["after" asc=10.31 desc=4.09]

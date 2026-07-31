@@ -113,6 +113,12 @@ public class DisplayListGoldenTest extends TestCase {
 			"0125-footnote/footnote-pagelimit.html", //
 			"0125-footnote/footnote-carryin.html", //
 			"0125-footnote/footnote-vertical-rl.html", //
+			// Grid G1(2026-07-31)。固定トラックの列開始・行開始・gap・
+			// Grid総高(後続ブロックの位置)と、不適格Grid(1fr)のG0
+			// フォールバック+atomicページ送りを固定する
+			"0500-grid/fixed-2x2.html", //
+			"0500-grid/mixed-items.html", //
+			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //
 			"0480-rescue-split/orthogonal-block-exact.html", //

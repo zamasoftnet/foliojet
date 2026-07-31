@@ -27,6 +27,7 @@ import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
+import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
@@ -47,6 +48,8 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.builder.TableBuilderHost;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.GridBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.GridBuilderLifecycle;
 import net.zamasoft.foliojet.layout.builder.impl.IncrementalTableBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.StyledTextUnitizer;
@@ -196,9 +199,13 @@ public class DocumentBuilder implements TableBuilderHost {
 	private ContainerBuilderEntry containerBuilder() {
 		int index = this.builderStack.size() - 1;
 		Object o = this.builderStack.get(index);
-		while (o instanceof TableBuilder) {
+		while (o instanceof TableBuilder || o instanceof GridBuilder) {
 			// テーブル内でセル外のinline, block, テキスト等をテーブルの前に置くため
 			// 一般的なブラウザの動作による
+			// GridBuilderのskipは安全網(答申はskip不要としたが、item外へ
+			// 漏れた経路がcastで落ちるより宿主へ流す方が頑健。捕捉すべき
+			// 内容は3つの入口——startBox/characters/addReplacedBox——で
+			// item化するので、ここへ落ちるのは未配線経路のみ)
 			--index;
 			assert index >= 0 : "builderStack が全て TableBuilder で、周囲のコンテナが見つかりません";
 			o = this.builderStack.get(index);
@@ -267,6 +274,83 @@ public class DocumentBuilder implements TableBuilderHost {
 		"閉じるべき TableBuilder が builderStack の末尾にありません: " + this.builderStack;
 		TableBuilder builder = (TableBuilder) this.builderStack.remove(this.builderStack.size() - 1);
 		return builder;
+	}
+
+	/**
+	 * Grid直下(boxStack末尾が当のGridBox)で次の内容を待っている
+	 * {@link GridBuilder}を返します(Grid G1b、2026-07-31——
+	 * consult-codex-2026-07-31-grid-g1.txt §3)。builderStack末尾が
+	 * GridBuilder本体のとき、または末尾が開いているitemのentryで
+	 * その直下がGridBuilderのとき(itemの中の入れ子内容は末尾boxが
+	 * GridBoxでないため対象外になる)。
+	 */
+	private GridBuilder gridAwaitingDirectChild() {
+		if (this.boxStack.isEmpty() || this.builderStack.isEmpty()) {
+			return null;
+		}
+		final Object tail = this.boxStack.get(this.boxStack.size() - 1);
+		final int index = this.builderStack.size() - 1;
+		final Object top = this.builderStack.get(index);
+		if (top instanceof GridBuilder grid) {
+			return grid.getGridBox() == tail ? grid : null;
+		}
+		if (top instanceof ContainerBuilderEntry && index > 0
+				&& this.builderStack.get(index - 1) instanceof GridBuilder grid //
+				&& grid.hasOpenItem() && grid.getGridBox() == tail) {
+			return grid;
+		}
+		return null;
+	}
+
+	/** {@code box}の終端で畳むべき{@link GridBuilder}を返します。 */
+	private GridBuilder gridEndingAt(final IBox box) {
+		final int index = this.builderStack.size() - 1;
+		final Object top = this.builderStack.get(index);
+		if (top instanceof GridBuilder grid && grid.getGridBox() == box) {
+			return grid;
+		}
+		if (top instanceof ContainerBuilderEntry && index > 0
+				&& this.builderStack.get(index - 1) instanceof GridBuilder grid //
+				&& grid.hasOpenItem() && grid.getGridBox() == box) {
+			return grid;
+		}
+		return null;
+	}
+
+	/** 開いている匿名item(直接テキスト用)を畳みます。element itemは対象外。 */
+	private void closeGridAnonymousItem(final GridBuilder grid) {
+		if (grid.hasOpenItem() && !grid.hasOpenElementItem()) {
+			this.endContainer();
+			this.endContainerBuilder();
+			grid.itemClosed();
+		}
+	}
+
+	/** Grid直下の直接テキスト/インライン用に匿名itemを用意します。 */
+	private void requireGridAnonymousItem() {
+		final GridBuilder grid = this.gridAwaitingDirectChild();
+		if (grid != null && !grid.hasOpenItem()) {
+			this.startContainerBuilder(grid.requireAnonymousItem());
+			this.startContainer();
+		}
+	}
+
+	/** Grid直下にelement itemを開きます(開いている匿名itemは畳む)。 */
+	private GridBuilder startGridElementItem() {
+		final GridBuilder grid = this.gridAwaitingDirectChild();
+		if (grid != null) {
+			this.closeGridAnonymousItem(grid);
+			this.startContainerBuilder(grid.startElementItem());
+			this.startContainer();
+		}
+		return grid;
+	}
+
+	/** element itemの一件分を畳みます(one-shot経路と子endBox後の共通処理)。 */
+	private void endGridElementItem(final GridBuilder grid) {
+		this.endContainer();
+		this.endContainerBuilder();
+		grid.itemClosed();
 	}
 
 	/**
@@ -403,6 +487,22 @@ public class DocumentBuilder implements TableBuilderHost {
 			System.err.println("startBox: " + box.getParams().element);
 		}
 		this.requirePage();
+		// Grid直下の子はitem(固定トラック幅の合成ボックス)へ包んでから
+		// 既存switchへ流す(Grid G1b)。ブロックレベル(FLOW/TABLE)は
+		// element item、インラインは匿名itemへ。float/absoluteはG1では
+		// item化せず宿主文脈のまま(記録して先送り——CSS的にはfloatは
+		// grid itemだが、固定トラックのG1では位置決めが未定義)
+		switch (box.getPos().getType()) {
+		case FLOW:
+		case TABLE:
+			this.startGridElementItem();
+			break;
+		case INLINE:
+			this.requireGridAnonymousItem();
+			break;
+		default:
+			break;
+		}
 		switch (box.getPos().getType()) {
 		case TABLE: {
 			// テーブル
@@ -495,6 +595,12 @@ public class DocumentBuilder implements TableBuilderHost {
 			if (params.flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
 					&& !blockBox.isFixedMulticolumn()) {
 				builder.startFlowBlock(blockBox);
+				// Grid本体の開始: 適格なら構築coordinatorを積み、以後の
+				// 直接子をitem化する(Grid G1b)。不適格ならBlockBox同然の
+				// フォールバック(G0)のまま
+				if (blockBox instanceof GridBox gridBox && GridBuilderLifecycle.eligible(gridBox, builder)) {
+					this.builderStack.add(GridBuilderLifecycle.start(builder, gridBox));
+				}
 			} else {
 				// ページ進行方向が違う場合
 				final Builder newBuilder = builder.newBuilder(blockBox);
@@ -625,6 +731,17 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case FLOW: {
+			// Grid終端: 匿名itemを畳み、coordinatorを外して配置を確定する
+			// (Grid G1b)。finish()はhostのactive flowがまだGridである間
+			// ——下のendFlowBlockより前——に呼ぶ(itemの配置と親カーソル
+			// 同期はGrid flowに対して行うため)
+			final GridBuilder endingGrid = this.gridEndingAt(box);
+			if (endingGrid != null) {
+				this.closeGridAnonymousItem(endingGrid);
+				final Object popped = this.builderStack.remove(this.builderStack.size() - 1);
+				assert popped == endingGrid : "Grid終端でbuilderStack末尾がGridBuilderではありません: " + popped;
+				endingGrid.finish();
+			}
 			// 通常のフロー
 			this.endContainer();
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
@@ -780,10 +897,31 @@ public class DocumentBuilder implements TableBuilderHost {
 		default:
 			throw new IllegalStateException();
 		}
+
+		// Grid直下のelement itemは子box一つで完結する——子のendBox直後に畳む
+		// (Grid G1b。入れ子の子は末尾boxがGridBoxでないため反応しない)
+		final GridBuilder grid = this.gridAwaitingDirectChild();
+		if (grid != null && grid.hasOpenElementItem()) {
+			this.endGridElementItem(grid);
+		}
 	}
 
 	public void addReplacedBox(AbstractReplacedBox replacedBox) {
 		this.requirePage();
+
+		// Grid直下の置換要素はitem化する(Grid G1b): ブロックレベルは
+		// one-shotのelement item、インラインは匿名itemへ
+		GridBuilder oneShotGrid = null;
+		switch (replacedBox.getPos().getType()) {
+		case FLOW:
+			oneShotGrid = this.startGridElementItem();
+			break;
+		case INLINE:
+			this.requireGridAnonymousItem();
+			break;
+		default:
+			break;
+		}
 
 		switch (replacedBox.getPos().getType()) {
 		case FLOW: {
@@ -856,6 +994,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		default:
 			throw new IllegalStateException();
 		}
+
+		if (oneShotGrid != null) {
+			this.endGridElementItem(oneShotGrid);
+		}
 	}
 
 	public void characters(int charOffset, char[] ch, int off, int len, boolean lineFeed) {
@@ -871,6 +1013,8 @@ public class DocumentBuilder implements TableBuilderHost {
 			System.err.println(charOffset + "/" + new String(ch, off, len));
 		}
 		this.requirePage();
+		// Grid直下の直接テキストは匿名itemへ(Grid G1b)
+		this.requireGridAnonymousItem();
 		this.containerBuilder().getStyledTextUnitizer().characters(charOffset, ch, off, len, lineFeed);
 	}
 
