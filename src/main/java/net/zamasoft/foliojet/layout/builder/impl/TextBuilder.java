@@ -202,10 +202,10 @@ public class TextBuilder {
 			this.breakWord = AbstractTextParams.WORD_WRAP_NORMAL;
 		}
 		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing, this.builder.getFlowBox().getLineSize());
-		// 和文詰めA2: 実効フラグの追従(インライン境界で切替わる。pair状態は
-		// 維持——境界を挟むpairは現在要素の値で判定される)。縦書きはA3まで
-		// 対象外
-		this.autospace.setFlags(params.flow.isVertical() ? 0 : params.textAutospace);
+		// 和文詰めA2/A3: 実効フラグの追従(インライン境界で切替わる。pair
+		// 状態は維持——境界を挟むpairは現在要素の値で判定される)。
+		// 縦書きも同一機構(gapは論理inline軸のxadvance——A3)
+		this.autospace.setFlags(params.textAutospace);
 
 		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}

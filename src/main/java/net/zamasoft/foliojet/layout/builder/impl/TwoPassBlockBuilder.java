@@ -1243,7 +1243,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			this.autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
 			final net.zamasoft.foliojet.layout.box.params.AbstractTextParams params = //
 					(net.zamasoft.foliojet.layout.box.params.AbstractTextParams) this.getRootBox().getParams();
-			this.autospace.setFlags(params.flow.isVertical() ? 0 : params.textAutospace);
+			this.autospace.setFlags(params.textAutospace);
 		}
 		final double gap = this.autospace.gapBefore(ch, coff, this.text.getFontStyle().getSize());
 		// appendGlyph は記録用 TextImpl を構築しつつアドバンスを返すため、

@@ -125,6 +125,10 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			// Grid G5e(2026-07-31): float内alignment(container値+self
 			// override)のlegacy/range parity固定
 			"0500-grid/alignment-in-float.html", //
+			// 和文詰めA3(2026-07-31): float内autospaceのlegacy/range parity
+			// (records再生はtoGlyphsがxadvanceを運ばず、両経路とも再構築時に
+			// trackerが再適用する——その決定性の固定)
+			"0510-text-spacing/autospace-in-float.html", //
 	};
 
 	/**

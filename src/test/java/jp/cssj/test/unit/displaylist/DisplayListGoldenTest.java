@@ -136,6 +136,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めA2(2026-07-31)。text-autospaceのgap(0.125em)を
 			// run境界のx座標で固定する(off/on/numeric限定/明示空白抑止)
 			"0510-text-spacing/autospace-horizontal.html", //
+			"0510-text-spacing/autospace-vertical.html", //
+			"0510-text-spacing/autospace-in-float.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

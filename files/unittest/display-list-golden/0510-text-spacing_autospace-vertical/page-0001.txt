@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=0.00 Text["漢" asc=7.20 desc=7.20]
+  x=1.20 y=12.00 Text["A" asc=6.00 desc=6.00]
+  x=0.00 y=20.66 Text["字" asc=7.20 desc=7.20]
+  x=1.20 y=32.66 Text["1" asc=6.00 desc=6.00]
+  x=0.00 y=38.66 Text["数" asc=7.20 desc=7.20]
+  x=0.00 y=200.00 Text["漢" asc=7.20 desc=7.20]
+  x=1.20 y=213.50 Text["A" asc=6.00 desc=6.00]
+  x=0.00 y=223.66 Text["字" asc=7.20 desc=7.20]
+  x=1.20 y=237.16 Text["1" asc=6.00 desc=6.00]
+  x=0.00 y=244.66 Text["数" asc=7.20 desc=7.20]
