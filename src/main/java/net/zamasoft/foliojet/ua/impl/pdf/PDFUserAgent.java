@@ -10,6 +10,8 @@ import java.net.URISyntaxException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -80,7 +82,13 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	private PDFWriter pdfWriter = null, xpdfWriter = null;
 	private final PDFMetaInfo metaInfo;
 	private Pattern watermark = null;
-	private PDFGroupImage watermarkGroup = null;
+	/**
+	 * 背面透かしのグループ画像です。ページ寸法ごとにキャッシュする——
+	 * {@code @page size}(名前付きページN3/N4)でページ毎に寸法が変わり得る
+	 * ため、最初のページの寸法で作った1個を使い回すと覆う範囲が不正になる
+	 * (N5、consult-codex-2026-07-31-named-pages.txt)。
+	 */
+	private final Map<String, PDFGroupImage> watermarkGroups = new HashMap<>();
 
 	protected PDFVisitor visitor = null;
 
@@ -779,9 +787,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				// 背面
 				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
 				if (mode == OutputPdfWatermarkMode.BACK) {
-					if (this.watermarkGroup == null) {
+					final String dims = w + "x" + h;
+					PDFGroupImage watermarkGroup = this.watermarkGroups.get(dims);
+					if (watermarkGroup == null) {
 						PDFPageOutput out = (PDFPageOutput) gc.getPDFGraphicsOutput();
-						this.watermarkGroup = out.getPdfWriter().createGroupImage(this.pageWidth, this.pageHeight);
+						watermarkGroup = out.getPdfWriter().createGroupImage(w, h);
 						int flags = 0;
 						if (!UAProps.OUTPUT_PDF_WATERMARK_VIEW.getBoolean(this)) {
 							if (this.pdfWriter.getParams().version().v >= PDFParams.Version.V_1_5.v) {
@@ -800,9 +810,9 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 							}
 						}
 						if (flags != 0) {
-							this.watermarkGroup.setOCG(flags);
+							watermarkGroup.setOCG(flags);
 						}
-						PDFGC ggc = new PDFGC(this.watermarkGroup);
+						PDFGC ggc = new PDFGC(watermarkGroup);
 						ggc.setFillPaint(this.watermark);
 						double opacity = UAProps.OUTPUT_PDF_WATERMARK_OPACITY.getDouble(PDFUserAgent.this);
 						if (opacity != 1) {
@@ -818,9 +828,10 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 						}
 						Rectangle2D mask = new Rectangle2D.Double(0, 0, w, h);
 						ggc.fill(mask);
-						this.watermarkGroup.close();
+						watermarkGroup.close();
+						this.watermarkGroups.put(dims, watermarkGroup);
 					}
-					gc.drawImage(this.watermarkGroup);
+					gc.drawImage(watermarkGroup);
 				}
 			}
 			return gc;
@@ -1002,7 +1013,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			this.builder = null;
 			this.pdfWriter = null;
 			this.watermark = null;
-			this.watermarkGroup = null;
+			this.watermarkGroups.clear();
 		}
 		this.results.end();
 	}
@@ -1019,6 +1030,6 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		}
 		this.pdfWriter = null;
 		this.watermark = null;
-		this.watermarkGroup = null;
+		this.watermarkGroups.clear();
 	}
 }
