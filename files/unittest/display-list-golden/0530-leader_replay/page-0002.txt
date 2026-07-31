@@ -1,0 +1,10 @@
+drawer z=0
+  x=0.00 y=2.79 Text["Six" asc=10.32 desc=2.89]
+  x=16.01 y=2.79 Leader["." advance=177.99 offset=6.00 copies=59]
+  x=194.00 y=0.00 Text["6" asc=13.11 desc=6.89]
+  x=0.00 y=22.79 Text["Seven" asc=10.32 desc=2.89]
+  x=29.81 y=22.79 Leader["." advance=164.19 offset=6.00 copies=54]
+  x=194.00 y=20.00 Text["7" asc=13.11 desc=6.89]
+  x=0.00 y=42.79 Text["Eight" asc=10.32 desc=2.89]
+  x=26.00 y=42.79 Leader["." advance=168.00 offset=6.00 copies=55]
+  x=194.00 y=40.00 Text["8" asc=13.11 desc=6.89]

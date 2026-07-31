@@ -1,0 +1,7 @@
+drawer z=0
+  x=510.08 y=0.00 Text["序章" asc=6.00 desc=6.00]
+  x=510.08 y=24.00 Leader["." advance=170.00 offset=6.00 copies=56]
+  x=508.88 y=194.00 Text["3" asc=7.20 desc=7.20]
+  x=495.68 y=0.00 Text["第一章" asc=6.00 desc=6.00]
+  x=495.68 y=36.00 Leader["." advance=152.00 offset=12.00 copies=50]
+  x=494.48 y=188.00 Text["12" asc=7.20 desc=7.20]

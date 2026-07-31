@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>leader() H1: leaders across a page break (range replay)</title>
+<style type="text/css">
+@page { size: 200pt 100pt; margin: 0; }
+body { font-size: 12pt; margin: 0; }
+p { margin: 0; line-height: 20pt; }
+.lead::after { content: leader(dotted); }
+</style>
+</head>
+<body>
+<!-- 高さ100ptのページに20pt行×8 → 2ページ目へ跨ぐ -->
+<p><span class="lead">One</span>1</p>
+<p><span class="lead">Two</span>2</p>
+<p><span class="lead">Three</span>3</p>
+<p><span class="lead">Four</span>4</p>
+<p><span class="lead">Five</span>5</p>
+<p><span class="lead">Six</span>6</p>
+<p><span class="lead">Seven</span>7</p>
+<p><span class="lead">Eight</span>8</p>
+</body>
+</html>

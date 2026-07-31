@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>leader() H1: justify does not stretch leader lines; normal justify intact</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; width: 220pt; }
+p { margin: 0; text-align: justify; }
+.lead::after { content: leader(dotted); }
+</style>
+</head>
+<body>
+<p><span class="lead">Justified entry</span>9</p>
+<p>plain justified words wrap here and stretch across lines normally</p>
+</body>
+</html>

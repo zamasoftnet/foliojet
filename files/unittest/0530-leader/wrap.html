@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>leader() H1: wrapping long titles</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; width: 200pt; }
+p { margin: 0; }
+.lead::after { content: leader(dotted); }
+</style>
+</head>
+<body>
+<p><span class="lead">A very long chapter title that wraps onto multiple lines</span>42</p>
+<p><span class="lead">Short</span>7</p>
+</body>
+</html>

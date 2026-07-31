@@ -168,6 +168,19 @@ public class DisplayListGoldenTest extends TestCase {
 			// leader() L1(2026-07-31): dotted/solid/custom、残余の割り付け、
 			// 行末原点の位相揃え(1桁/2桁の行でドット列が縦に揃う)を固定する
 			"0530-leader/basic.html", //
+			// leader() H1: 長い章題の折り返し(リーダーは最終行のみ)と
+			// 短い行の対比を固定する
+			"0530-leader/wrap.html", //
+			// leader() H1: 同一行の複数leaderが残余を等分することを固定する
+			"0530-leader/multiple.html", //
+			// leader() H1: leader行はjustifyの伸長が≈0(先に残余を消費)、
+			// 通常行のjustifyは退行しないことを固定する
+			"0530-leader/justify.html", //
+			// leader() V1: vertical-rlでの割り付け(軸中立)と縦描画を固定する
+			"0530-leader/vertical.html", //
+			// leader() H1: 改ページを跨ぐ目次(@page sizeで小ページ化)。
+			// 範囲再生でLeaderイベントが再駆動され幅が漏れないことを固定する
+			"0530-leader/replay.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

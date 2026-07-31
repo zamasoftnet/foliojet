@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=0.00 Text["A" asc=10.31 desc=4.09]
+  x=8.66 y=-0.01 Leader["." advance=137.66 offset=153.67 copies=45]
+  x=146.33 y=-0.01 Text["B" asc=10.32 desc=2.89]
+  x=154.33 y=-0.01 Leader["." advance=137.66 offset=8.00 copies=45]
+  x=292.00 y=-0.01 Text["C" asc=10.32 desc=2.89]
