@@ -634,6 +634,21 @@ public class RootBuilder extends BreakableBuilder {
 		return true;
 	}
 
+	@Override
+	protected final boolean supportsNamedPages() {
+		return true;
+	}
+
+	@Override
+	protected final String currentPageName() {
+		return this.pageGenerator.getPageName();
+	}
+
+	@Override
+	protected final void setNextPageName(final String pageName) {
+		this.pageGenerator.setPageName(pageName);
+	}
+
 	public final RootBuilder getPageContext() {
 		return this;
 	}

@@ -218,22 +218,30 @@ final class PageSequence {
 	}
 
 	/**
-	 * 現在のページ名です(名前付きページN1b。null=無名。N1bではroot
-	 * (文書要素)のused valueで全ページ一律——文書途中の遷移はN2)。
+	 * 次に生成されるページからのページ名です(名前付きページN2a。
+	 * null=無名。境界裁定(BreakableBuilder)が改ページに先立って設定
+	 * する——生成済みページの解決を汚染しないよう、確定値は
+	 * {@link #pageName}へnextPage()時に捕捉する)。
 	 */
+	private String pendingPageName;
+
+	/** 現在(生成済み)のページの名前です(宣言解決・柱・空白判定用)。 */
 	private String pageName;
 
 	void setPageName(final String pageName) {
-		this.pageName = pageName;
+		this.pendingPageName = pageName;
 	}
 
 	String getPageName() {
-		return this.pageName;
+		// 境界裁定の比較対象=「これから置く内容のページ名」=pending
+		return this.pendingPageName;
 	}
 
 	PageBox nextPage() {
 		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
 		this.segment.trimToOpenElements();
+		// 名前付きページN2a: このページの名前を確定
+		this.pageName = this.pendingPageName;
 		// ページスタイル
 		// 面(recto/verso)は nextPageSide() が進める。落としたページは面を
 		// 消費しないので、進める前の値を覚えておく(discardPage が戻す)

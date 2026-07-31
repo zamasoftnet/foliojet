@@ -167,6 +167,44 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		return new TableForceBreakMode(box, at.breakMode(), at.rowGroup(), at.row());
 	}
 
+	/**
+	 * 名前付きページの遷移をサポートするかです(N2a——ページ文脈の
+	 * {@code RootBuilder}のみtrue。列分割等の{@code ColumnBuilder}は
+	 * ページ名の裁定に関与しない)。
+	 */
+	protected boolean supportsNamedPages() {
+		return false;
+	}
+
+	/** 現在のページ名です(N2a。{@link #supportsNamedPages}がtrueのときのみ)。 */
+	protected String currentPageName() {
+		return null;
+	}
+
+	/** 次に生成されるページからのページ名を設定します(N2a)。 */
+	protected void setNextPageName(final String pageName) {
+	}
+
+	/**
+	 * class-A境界のページ名遷移を裁定します(名前付きページN2a——
+	 * consult-codex-2026-07-31-named-pages.txt Q2)。名前が変わるとき、
+	 * 名前を先に切り替えてtrueを返す(呼び出し側は明示改ページの処理後、
+	 * まだ改ページしていなければ遷移用の改ページを1回行う——author
+	 * breakとの合成で二重に送らない)。合成ボックス(element==null)は
+	 * 境界に関与しない。
+	 */
+	private boolean resolveNamedPageTransition(final net.zamasoft.foliojet.layout.box.IBox box) {
+		if (!this.supportsNamedPages() || this.isRestyling() || box.getParams().element == null
+				|| !(box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos pos)) {
+			return false;
+		}
+		if (java.util.Objects.equals(pos.pageName, this.currentPageName())) {
+			return false;
+		}
+		this.setNextPageName(pos.pageName);
+		return true;
+	}
+
 	public void startFlowBlock(FlowBlockBox flowBox) {
 		this.requireNoOpenTextBuilder(flowBox.getParams().element);
 
@@ -191,6 +229,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 			// 直前での強制改ページチェック
 			if (this.mode == MODE_PAGE_BREAK) {
+				// 名前付きページN2a: 名前を先に切り替える(以降の改ページは
+				// どれも新しい名前でページを作る)
+				final boolean namedTransition = this.resolveNamedPageTransition(flowBox);
 				if (this.breakAfter != null && canBreakAfter) {
 					// 前のpage-break-afterによる改ページ
 					this.forceBreak(this.breakAfter);
@@ -225,6 +266,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				default:
 					throw new IllegalStateException();
+				}
+				if (namedTransition && this.canBreakBefore) {
+					// 明示改ページが無ければ遷移自身が1回送る(forceBreak後は
+					// canBreakBefore=falseのため二重には送らない。ページ先頭
+					// での遷移も改ページなし——空白ページを作らない。その
+					// 場合ページ自体は旧名で生成済み=マージン差は既知の限界
+					// (N2bの未確定ページ差し替えで解消予定)、柱は描画時に
+					// 新名で解決される)
+					this.forceBreak(PageBreakMode.PAGE);
 				}
 			}
 		}
@@ -359,6 +409,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		// 直前での強制改ページチェック
 		if (this.mode == MODE_PAGE_BREAK) {
+			// 名前付きページN2a: startFlowBlockと同じ裁定(float/表/置換)
+			final boolean namedTransition = this.resolveNamedPageTransition(box);
 			if (this.breakAfter != null) {
 				// 前のpage-break-afterによる改ページ
 				this.forceBreak(this.breakAfter);
@@ -391,6 +443,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				break;
 			default:
 				throw new IllegalStateException(String.valueOf(pageBreakBefore));
+			}
+			if (namedTransition && this.canBreakBefore) {
+				this.forceBreak(PageBreakMode.PAGE);
 			}
 		}
 

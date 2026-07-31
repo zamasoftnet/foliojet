@@ -148,6 +148,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 柱が出て、chapter:firstが特異性で先頭ページに勝つこと・
 			// 無名@pageのマージンは継承合成されることを固定する
 			"0520-named-page/named-margin-box.html", //
+			// N2a: page名遷移の強制改ページ(author breakとの合成で二重に
+			// 送らない)と、無名への復帰を固定する
+			"0520-named-page/transition-no-double-break.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

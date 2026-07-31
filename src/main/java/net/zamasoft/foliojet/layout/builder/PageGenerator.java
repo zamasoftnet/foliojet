@@ -14,6 +14,20 @@ public interface PageGenerator {
 	public PageBox nextPage();
 
 	/**
+	 * 現在のページ名です(名前付きページN2。null=無名)。
+	 */
+	public default String getPageName() {
+		return null;
+	}
+
+	/**
+	 * 次に生成されるページからのページ名を設定します(名前付きページN2。
+	 * scratch計測等のページ概念を持たない実装ではno-op)。
+	 */
+	public default void setPageName(String pageName) {
+	}
+
+	/**
 	 * ページを出力します。
 	 *
 	 * <p>

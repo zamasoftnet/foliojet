@@ -430,6 +430,16 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		return this.pageSequence.nextPage();
 	}
 
+	@Override
+	public String getPageName() {
+		return this.pageSequence.getPageName();
+	}
+
+	@Override
+	public void setPageName(String pageName) {
+		this.pageSequence.setPageName(pageName);
+	}
+
 	public boolean drawPage(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak)
 			throws GraphicsException {
 		return this.pageSequence.drawPage(pageBox, lastPage, closedByForcedBreak);
