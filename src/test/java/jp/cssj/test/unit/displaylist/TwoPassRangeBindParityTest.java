@@ -119,6 +119,9 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			"0500-grid/grid-in-float.html", //
 			"0500-grid/grid-in-float-shrink.html", //
 			"0500-grid/nested-grid.html", //
+			// Grid G4d(2026-07-31): float内の明示配置+span sizingの
+			// legacy/range parity固定
+			"0500-grid/explicit-placement-in-float.html", //
 	};
 
 	/**

@@ -222,13 +222,7 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		}
 		GridPlacementResolver.Plan plan = null;
 		if (GridPlacementResolver.resolve(specs, n) instanceof GridPlacementResolver.Result.Resolved resolved) {
-			plan = resolved.plan();
-			for (final GridPlacementResolver.GridArea area : plan.areas()) {
-				if (area.rowSpan() > 1) {
-					plan = null; // row spanの行高不足分配はG4d
-					break;
-				}
-			}
+			plan = resolved.plan(); // rowSpanはGridRowSizingの不足分配で対応(G4d)
 		}
 		if (plan == null) {
 			GRID_PLACEMENT_FALLBACKS.incrementAndGet();
@@ -242,22 +236,17 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		return plan;
 	}
 
-	/**
-	 * planに基づく列ごとのitem contribution(min/max-contentの最大)です。
-	 * column spanのあるitemの寄与はG4bでは未分配(不足分配はG4d——
-	 * fixed track主体の使用では影響しない。答申Q2)。
-	 */
-	private void columnContributions(final GridPlacementResolver.Plan plan, final double[] colMin,
-			final double[] colMax) {
+	/** planに基づく各itemの列contributionです(G4d——span込み)。 */
+	private List<BasicGridTrackSizing.ItemContribution> columnContributions(
+			final GridPlacementResolver.Plan plan) {
+		final List<BasicGridTrackSizing.ItemContribution> contributions = new ArrayList<>(this.items.size());
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			if (area.columnSpan() != 1) {
-				continue;
-			}
 			final GridItemContent item = this.items.get(i);
-			colMin[area.column()] = Math.max(colMin[area.column()], item.sizes.minContent());
-			colMax[area.column()] = Math.max(colMax[area.column()], item.sizes.maxContent());
+			contributions.add(new BasicGridTrackSizing.ItemContribution(area.column(), area.columnSpan(),
+					item.sizes.minContent(), item.sizes.maxContent()));
 		}
+		return contributions;
 	}
 
 	/**
@@ -270,35 +259,27 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 	 */
 	@Override
 	public IntrinsicSizes getIntrinsicSizes() {
-		final int n = this.tracks.size();
 		final GridPlacementResolver.Plan plan = this.placementPlan();
-		final double[] colMin = new double[n];
-		final double[] colMax = new double[n];
-		this.columnContributions(plan, colMin, colMax);
+		final BasicGridTrackSizing.Intrinsics line = BasicGridTrackSizing.intrinsics(this.tracks,
+				this.columnContributions(plan), this.columnGap);
 		boolean columnInflated = false;
 		final double[] rowMinPage = new double[Math.max(1, plan.rowCount())];
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			rowMinPage[area.row()] = Math.max(rowMinPage[area.row()], item.sizes.minPage());
-			columnInflated |= item.sizes.columnInflated();
-		}
-		double min = this.columnGap * (n - 1);
-		double max = min;
-		for (int i = 0; i < n; ++i) {
-			if (this.tracks.get(i) instanceof GridTrackListValue.Fixed fixed) {
-				min += fixed.length();
-				max += fixed.length();
-			} else {
-				min += colMin[i];
-				max += colMax[i];
+			// rowSpanは各行へ均等の近似(不足分配の粗い相当——bind後の
+			// 実高解決はGridRowSizingが正確に行う)
+			final double perRow = item.sizes.minPage() / area.rowSpan();
+			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
+				rowMinPage[r] = Math.max(rowMinPage[r], perRow);
 			}
+			columnInflated |= item.sizes.columnInflated();
 		}
 		double minPage = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
 		for (int r = 0; r < rowMinPage.length; ++r) {
 			minPage += rowMinPage[r];
 		}
-		return new IntrinsicSizes(min, max, minPage, columnInflated);
+		return new IntrinsicSizes(line.min(), line.max(), minPage, columnInflated);
 	}
 
 	@Override
@@ -353,11 +334,7 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		// fixed=指定長・auto=base/growth limit+stretch・fr=find-frで
 		// 確定する。基準幅はGridコンテナのcontent-box行幅
 		// (TwoPass経由ではshrink-to-fit確定後の幅)
-		final int n = this.tracks.size();
-		final double[] colMin = new double[n];
-		final double[] colMax = new double[n];
-		this.columnContributions(plan, colMin, colMax);
-		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, colMin, colMax,
+		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, this.columnContributions(plan),
 				this.gridBox.getLineSize(), this.columnGap);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
 		// 幅確定→本文bind。span itemの幅=跨ぐトラック幅の合計+内側gap
@@ -375,12 +352,10 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 			GRID_ITEM_BINDS.incrementAndGet();
 			extents[i] = item.itemBox.getPageExtent(params.flow);
 		}
-		// 行高解決(planベース——G4b。rowSpanは常に1=placementPlan()が保証。
+		// 行高解決(G4d: rowSpanの不足分配込み——GridRowSizing。
 		// 空行は高さ0だが隣接rowGapは残る=仕様のgutter挙動)
-		final double[] rowHeights = new double[Math.max(1, plan.rowCount())];
-		for (int i = 0; i < this.items.size(); ++i) {
-			rowHeights[plan.areas().get(i).row()] = Math.max(rowHeights[plan.areas().get(i).row()], extents[i]);
-		}
+		final double[] rowHeights = net.zamasoft.foliojet.layout.sizing.GridRowSizing.resolve(plan.areas(),
+				extents, plan.rowCount(), this.rowGap);
 		final double[] rowStarts = new double[rowHeights.length];
 		double cursor = 0;
 		for (int r = 0; r < rowHeights.length; ++r) {

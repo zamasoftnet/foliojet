@@ -5,33 +5,35 @@ import java.util.List;
 import net.zamasoft.foliojet.css.value.GridTrackListValue;
 
 /**
- * Gridのトラック幅解決です(Grid G3b、2026-07-31——
- * consult-codex-2026-07-31-grid-g3.txt Q2)。boxに依存しない純粋計算。
- * CSS Grid仕様§11の印刷向けサブセット: 各トラックはbase(下限)と
- * growth limit(成長上限)を持つ。
+ * Gridのトラック幅解決です(Grid G3b/G3c/G4d、2026-07-31——
+ * consult-codex-2026-07-31-grid-g3.txt Q2、-grid-g4.txt Q2)。
+ * boxに依存しない純粋計算。CSS Grid仕様§11/§12の印刷向けサブセット:
+ * 各トラックはbase(下限)とgrowth limit(成長上限)を持つ。
  *
  * <table border="1">
  * <tr><th>track</th><th>base</th><th>growth limit</th></tr>
  * <tr><td>fixed</td><td>指定長</td><td>指定長</td></tr>
- * <tr><td>auto</td><td>列内itemの最大min-content</td><td>最大max-content</td></tr>
- * <tr><td>fr</td><td>列内itemの最大min-content</td><td>∞(残余分配)</td></tr>
+ * <tr><td>auto</td><td>span1 itemの最大min-content+span不足分配</td><td>最大max-content+span不足分配</td></tr>
+ * <tr><td>fr</td><td>同上(min-content床)</td><td>∞(残余分配)</td></tr>
  * </table>
+ *
+ * <p>
+ * span itemの不足分配(G4d、仕様§12.5の簡約): span1を先に集約し、
+ * spanの小さい順に「不足=contribution−内側gap−跨ぐトラックの現寸の
+ * 合計」を、fixedを増やさずauto(均等)またはfr(weight比——frを跨ぐ
+ * 場合)へ分配する。同一span長のitemはplanned increase(最大必要増分)
+ * へ蓄積してまとめて反映=item走査順に依存しない。増やせるトラックが
+ * 無ければトラックは変えずitem overflowを許容。
+ * </p>
  *
  * <p>
  * 解決手順: (1)base合計+gapが利用可能幅を超えたら縮めずそのまま
  * overflow(min-content床は常に守る=内容欠落よりはみ出しの安全側)。
  * (2)正の残余はauto列をgrowth limitまで均等成長。(3)fr列があれば
- * 非fr確定後の残余をbase床付きfind-frで分配(G3c——単独{@code 1fr}は
- * 仕様の{@code minmax(auto,1fr)}相当でmin-content床を持ち、
- * weight合計が1未満なら残余の一部だけを充填する)。(4)frが無く
- * auto列があれば、なお残る残余を既定stretch相当で均等加算。
- * (5)どちらも無ければ残余は末尾に残す(G1の固定列と同じ)。
- * </p>
- *
- * <p>
- * 仕様との既知の差(答申Q2): automatic minimumの厳密解決
- * (width/aspect-ratio/max-width考慮)・spanning item分配・%トラック・
- * fit-content/minmax・alignment一般はやらない。
+ * 非fr確定後の残余をbase床付きfind-frで分配(単独{@code 1fr}は仕様の
+ * {@code minmax(auto,1fr)}相当、weight合計1未満はpartial fill)。
+ * (4)frが無くauto列があれば、なお残る残余を既定stretch相当で均等加算。
+ * (5)どちらも無ければ残余は末尾に残す。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -42,71 +44,183 @@ public final class BasicGridTrackSizing {
 		// static
 	}
 
+	/** item 1件の列方向contribution(G4d——span対応)。 */
+	public record ItemContribution(int column, int span, double minContent, double maxContent) {
+	}
+
+	/** 行方向の固有寸法(Grid全体のcontent-box contribution)。 */
+	public record Intrinsics(double min, double max) {
+	}
+
 	/**
 	 * トラック幅を解決します。
 	 *
 	 * @param tracks    列テンプレート(fixed/auto/fr)
-	 * @param colMin    列ごとのitem min-contentの最大(空列は0)
-	 * @param colMax    列ごとのitem max-contentの最大(空列は0)
+	 * @param items     各itemの列contribution
 	 * @param available Gridコンテナのcontent-box行幅
 	 * @param columnGap 列間gap
 	 * @return 各列の確定幅(NaN・負値を返さない)
 	 */
-	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks, final double[] colMin,
-			final double[] colMax, final double available, final double columnGap) {
+	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks,
+			final List<ItemContribution> items, final double available, final double columnGap) {
 		final int n = tracks.size();
-		final double[] widths = new double[n];
-		final double[] limits = new double[n];
-		final boolean[] auto = new boolean[n];
-		final double[] frWeight = new double[n];
-		final boolean[] fr = new boolean[n];
+		final Sized sized = size(tracks, items, columnGap);
+		final double[] widths = sized.base.clone();
 		double base = columnGap * (n - 1);
-		int autoCount = 0, frCount = 0;
 		for (int i = 0; i < n; ++i) {
-			switch (tracks.get(i)) {
-			case GridTrackListValue.Fixed f -> {
-				widths[i] = f.length();
-				limits[i] = f.length();
-			}
-			case GridTrackListValue.Auto ignore -> {
-				widths[i] = Math.max(0, colMin[i]);
-				limits[i] = Math.max(widths[i], colMax[i]);
-				auto[i] = true;
-				++autoCount;
-			}
-			case GridTrackListValue.Fr flex -> {
-				// 単独frはminmax(auto,1fr)相当——min-content床を持つ
-				widths[i] = Math.max(0, colMin[i]);
-				limits[i] = Double.POSITIVE_INFINITY;
-				fr[i] = true;
-				frWeight[i] = Math.max(0, flex.weight());
-				++frCount;
-			}
-			}
 			base += widths[i];
 		}
 		double free = available - base;
-		if (free <= 0 || (autoCount == 0 && frCount == 0)) {
+		if (free <= 0 || (sized.autoCount == 0 && sized.frCount == 0)) {
 			// (1)(5) 縮めない(overflow)。可変列が無ければ残余は末尾に残す
 			return widths;
 		}
-		if (frCount > 0) {
+		if (sized.frCount > 0) {
 			// (2') frと共存するauto列はgrowth limitまで成長してから残余をfrへ
-			growAutos(widths, limits, auto, autoCount, free);
-			distributeFr(widths, colMin, fr, frWeight, available, columnGap, n);
+			growAutos(widths, sized.limit, sized.auto, sized.autoCount, free);
+			distributeFr(widths, sized.base, sized.fr, sized.frWeight, available, columnGap, n);
 			return widths;
 		}
 		// (2) auto列をgrowth limitまで均等成長→(4) なお残る分は均等stretch
-		free -= growAutos(widths, limits, auto, autoCount, free);
+		free -= growAutos(widths, sized.limit, sized.auto, sized.autoCount, free);
 		if (free > 1e-9) {
-			final double share = free / autoCount;
+			final double share = free / sized.autoCount;
 			for (int i = 0; i < n; ++i) {
-				if (auto[i]) {
+				if (sized.auto[i]) {
 					widths[i] += share;
 				}
 			}
 		}
 		return widths;
+	}
+
+	/**
+	 * Grid全体の行方向content-box固有寸法です(G3d2/G4d)。
+	 * min=gap+Σbase(span不足分配込み)、max=gap+Σ(fixed長|max
+	 * contribution)。
+	 */
+	public static Intrinsics intrinsics(final List<GridTrackListValue.TrackSize> tracks,
+			final List<ItemContribution> items, final double columnGap) {
+		final int n = tracks.size();
+		final Sized sized = size(tracks, items, columnGap);
+		double min = columnGap * (n - 1);
+		double max = min;
+		for (int i = 0; i < n; ++i) {
+			min += sized.base[i];
+			max += tracks.get(i) instanceof GridTrackListValue.Fixed fixed ? fixed.length() : sized.maxContrib[i];
+		}
+		return new Intrinsics(min, max);
+	}
+
+	/** base/limit/maxContribの集約結果(span不足分配込み)。 */
+	private record Sized(double[] base, double[] limit, double[] maxContrib, boolean[] auto, boolean[] fr,
+			double[] frWeight, int autoCount, int frCount) {
+	}
+
+	private static Sized size(final List<GridTrackListValue.TrackSize> tracks, final List<ItemContribution> items,
+			final double columnGap) {
+		final int n = tracks.size();
+		final double[] base = new double[n];
+		final double[] limit = new double[n];
+		final double[] maxContrib = new double[n];
+		final boolean[] auto = new boolean[n];
+		final boolean[] fr = new boolean[n];
+		final double[] frWeight = new double[n];
+		int autoCount = 0, frCount = 0;
+		for (int i = 0; i < n; ++i) {
+			switch (tracks.get(i)) {
+			case GridTrackListValue.Fixed f -> {
+				base[i] = f.length();
+				limit[i] = f.length();
+				maxContrib[i] = f.length();
+			}
+			case GridTrackListValue.Auto ignore -> {
+				auto[i] = true;
+				++autoCount;
+			}
+			case GridTrackListValue.Fr flex -> {
+				fr[i] = true;
+				frWeight[i] = Math.max(0, flex.weight());
+				++frCount;
+			}
+			}
+		}
+		// span1のcontributionを先に集約
+		int maxSpan = 1;
+		for (final ItemContribution item : items) {
+			maxSpan = Math.max(maxSpan, item.span());
+			if (item.span() != 1 || !(auto[item.column()] || fr[item.column()])) {
+				continue;
+			}
+			base[item.column()] = Math.max(base[item.column()], Math.max(0, item.minContent()));
+			maxContrib[item.column()] = Math.max(maxContrib[item.column()], Math.max(0, item.maxContent()));
+		}
+		// span itemの不足分配(G4d): spanの小さい順・同一span長は
+		// planned increase(最大必要増分)へ蓄積してまとめて反映
+		for (int span = 2; span <= maxSpan; ++span) {
+			final double[] plannedBase = new double[n];
+			final double[] plannedMax = new double[n];
+			for (final ItemContribution item : items) {
+				if (item.span() != span) {
+					continue;
+				}
+				final int from = item.column(), to = item.column() + span;
+				final double gaps = columnGap * (span - 1);
+				boolean spansFr = false;
+				double frWeightSum = 0;
+				int growable = 0;
+				double curBase = 0, curMax = 0;
+				for (int c = from; c < to; ++c) {
+					curBase += base[c] + plannedBase[c];
+					curMax += (auto[c] || fr[c] ? maxContrib[c] : base[c]) + plannedMax[c];
+					if (fr[c]) {
+						spansFr = true;
+						frWeightSum += frWeight[c];
+					}
+					if (auto[c] || fr[c]) {
+						++growable;
+					}
+				}
+				if (growable == 0) {
+					continue; // fixedのみを跨ぐ——トラックを増やさずoverflow
+				}
+				final double deficitMin = item.minContent() - gaps - curBase;
+				final double deficitMax = item.maxContent() - gaps - curMax;
+				for (int c = from; c < to; ++c) {
+					if (!(auto[c] || fr[c])) {
+						continue;
+					}
+					final double shareMin;
+					final double shareMax;
+					if (spansFr) {
+						// frを跨ぐ: fr trackへweight比(weight合計0は均等)
+						if (!fr[c]) {
+							continue;
+						}
+						final double ratio = frWeightSum > 0 ? frWeight[c] / frWeightSum : 1.0 / growable;
+						shareMin = Math.max(0, deficitMin) * ratio;
+						shareMax = Math.max(0, deficitMax) * ratio;
+					} else {
+						shareMin = Math.max(0, deficitMin) / growable;
+						shareMax = Math.max(0, deficitMax) / growable;
+					}
+					plannedBase[c] = Math.max(plannedBase[c], shareMin);
+					plannedMax[c] = Math.max(plannedMax[c], shareMax);
+				}
+			}
+			for (int c = 0; c < n; ++c) {
+				base[c] += plannedBase[c];
+				maxContrib[c] += plannedMax[c];
+			}
+		}
+		for (int i = 0; i < n; ++i) {
+			if (auto[i]) {
+				limit[i] = Math.max(base[i], maxContrib[i]);
+			} else if (fr[i]) {
+				limit[i] = Double.POSITIVE_INFINITY;
+			}
+		}
+		return new Sized(base, limit, maxContrib, auto, fr, frWeight, autoCount, frCount);
 	}
 
 	/**
@@ -147,11 +261,11 @@ public final class BasicGridTrackSizing {
 	/**
 	 * fr列へ残余を分配します(G3c——base床付きfind-fr、答申Q2)。
 	 * 非fr列の確定後、fr列は残余全体からweight比で取る。
-	 * {@code oneFr*weight}がmin-content床を割る列は床で凍結して再計算。
-	 * weight合計が1未満のときは1へ切り上げ、残余の一部だけを充填する
-	 * (仕様のpartial fill——0.5frは残余の50%)。
+	 * {@code oneFr*weight}がbase床(span不足分配込み)を割る列は床で
+	 * 凍結して再計算。weight合計が1未満のときは1へ切り上げ、残余の
+	 * 一部だけを充填する(仕様のpartial fill——0.5frは残余の50%)。
 	 */
-	private static void distributeFr(final double[] widths, final double[] colMin, final boolean[] fr,
+	private static void distributeFr(final double[] widths, final double[] floors, final boolean[] fr,
 			final double[] frWeight, final double available, final double columnGap, final int n) {
 		double remaining = available - columnGap * (n - 1);
 		for (int i = 0; i < n; ++i) {
@@ -178,7 +292,7 @@ public final class BasicGridTrackSizing {
 				if (!fr[i] || frozen[i]) {
 					continue;
 				}
-				final double floor = Math.max(0, colMin[i]);
+				final double floor = Math.max(0, floors[i]);
 				if (oneFr * frWeight[i] < floor) {
 					widths[i] = floor;
 					frozen[i] = true;

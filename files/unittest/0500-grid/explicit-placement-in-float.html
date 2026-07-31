@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G4d: column span intrinsics in shrink-to-fit float</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="f" style="float: left; background: #eef">
+<div id="gg" style="display: grid; grid-template-columns: 40pt auto">
+<div id="a" style="grid-column: 1 / 3"><div style="width: 100pt; height: 10pt; background: #ccc"></div></div>
+<div id="b" style="grid-column: 2"><div style="width: 20pt; height: 10pt; background: #ccc"></div></div>
+</div>
+</div>
+</body>
+</html>
