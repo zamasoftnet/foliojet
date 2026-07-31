@@ -118,6 +118,13 @@ public abstract class AbstractTextParams extends Params {
 	public byte textAutospace = 0;
 
 	/**
+	 * 連続約物の詰め(text-spacing-trim)の無効化です(和文詰めT1b。
+	 * {@code true}=space-all=詰めなし。既定false=normal=T1aで
+	 * font層から移管した詰め)。
+	 */
+	public boolean textSpacingTrimOff = false;
+
+	/**
 	 * 単語間
 	 */
 	public double wordSpacing = 0;

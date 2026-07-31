@@ -478,6 +478,8 @@ final class BoxStyleMapper {
 		params.textTransform = TextTransform.get(style);
 		// 和文詰めA1: 実効フラグ(幾何はA2で配線)
 		params.textAutospace = net.zamasoft.foliojet.css.impl.property.text.TextAutospace.getFlags(style);
+		// 和文詰めT1b: space-all=約物詰め無効
+		params.textSpacingTrimOff = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.isSpaceAll(style);
 		params.fontStyle = style.getFontStyle();
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle

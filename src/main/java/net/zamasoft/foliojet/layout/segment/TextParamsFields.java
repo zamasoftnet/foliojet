@@ -42,7 +42,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, double textStrokeWidth,
 		Color textStrokeColor,
-		TextShadow[] textShadows, byte rubyRole, byte textAutospace) {
+		TextShadow[] textShadows, byte rubyRole, byte textAutospace, boolean textSpacingTrimOff) {
 	TextParamsFields {
 		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
 		// TextShadowはfinalフィールドのみで実質不変)
@@ -55,7 +55,8 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
 				source.textStrokeWidth,
-				source.textStrokeColor, source.textShadows, source.rubyRole, source.textAutospace);
+				source.textStrokeColor, source.textShadows, source.rubyRole, source.textAutospace,
+				source.textSpacingTrimOff);
 	}
 
 	/**
@@ -86,5 +87,6 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.textShadows = this.textShadows == null ? null : this.textShadows.clone();
 		target.rubyRole = this.rubyRole;
 		target.textAutospace = this.textAutospace;
+		target.textSpacingTrimOff = this.textSpacingTrimOff;
 	}
 }

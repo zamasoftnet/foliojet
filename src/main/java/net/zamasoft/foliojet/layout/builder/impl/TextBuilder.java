@@ -202,10 +202,11 @@ public class TextBuilder {
 			this.breakWord = AbstractTextParams.WORD_WRAP_NORMAL;
 		}
 		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing, this.builder.getFlowBox().getLineSize());
-		// 和文詰めA2/A3: 実効フラグの追従(インライン境界で切替わる。pair
-		// 状態は維持——境界を挟むpairは現在要素の値で判定される)。
-		// 縦書きも同一機構(gapは論理inline軸のxadvance——A3)
+		// 和文詰めA2/A3/T1b: 実効フラグ・trim policyの追従(インライン境界で
+		// 切替わる。pair状態は維持——境界を挟むpairは現在要素の値で判定
+		// される)。縦書きも同一機構(gapは論理inline軸のxadvance——A3)
 		this.autospace.setFlags(params.textAutospace);
+		this.autospace.setTrimOff(params.textSpacingTrimOff);
 
 		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}
@@ -240,7 +241,8 @@ public class TextBuilder {
 		final int prevGid = head.getGlyphIds()[head.getGlyphCount() - 1];
 		final int gid = tail.getGlyphIds()[0];
 		double trim = 0;
-		if (head.getFontStyle().getDirection() != net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB
+		if (!this.autospace.isTrimOff()
+				&& head.getFontStyle().getDirection() != net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB
 				&& this.fontMetrics.getKerning(prevGid, gid) == 0) {
 			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.pairTrim(prevCp,
 					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,

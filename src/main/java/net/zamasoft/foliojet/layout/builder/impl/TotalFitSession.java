@@ -158,6 +158,9 @@ final class TotalFitSession {
 				: TotalFit.LastLinePolicy.RAGGED;
 		this.baseParams = params;
 		this.applyTextState(params);
+		// 和文詰めT1b: trim policy(autospace有効段落はpretty対象外のため
+		// flagsは0のまま)
+		this.spacing.setTrimOff(params.textSpacingTrimOff);
 	}
 
 	/**

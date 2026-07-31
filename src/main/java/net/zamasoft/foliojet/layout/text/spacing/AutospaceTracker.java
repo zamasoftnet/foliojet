@@ -28,14 +28,26 @@ public final class AutospaceTracker {
 
 	private int prevGid = -1;
 
+	private boolean trimOff;
+
 	/** 実効フラグを設定します(インライン境界でのparams切替に追従)。 */
 	public void setFlags(final byte flags) {
 		this.flags = flags;
 	}
 
+	/** 約物詰めの無効化(text-spacing-trim: space-all——T1b)を設定します。 */
+	public void setTrimOff(final boolean trimOff) {
+		this.trimOff = trimOff;
+	}
+
 	/** 現在の実効フラグです(分割点の逆適用の再計算用)。 */
 	public byte getFlags() {
 		return this.flags;
+	}
+
+	/** 約物詰めが無効か(分割点の逆適用の再計算用)。 */
+	public boolean isTrimOff() {
+		return this.trimOff;
 	}
 
 	/**
@@ -50,7 +62,8 @@ public final class AutospaceTracker {
 	 */
 	public double trimBefore(final char[] ch, final int coff, final int gid, final TextImpl currentText,
 			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final double fontSize) {
-		if (this.prevCodePoint < 0 || this.prevGid < 0 || currentText == null || this.prevText != currentText) {
+		if (this.trimOff || this.prevCodePoint < 0 || this.prevGid < 0 || currentText == null
+				|| this.prevText != currentText) {
 			return 0;
 		}
 		if (currentText.getFontStyle()

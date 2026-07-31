@@ -303,9 +303,13 @@ public class RubyUnitBox extends InlineBlockBox {
 			public void endTextRun() {
 				if (this.current.getGlyphCount() > 0) {
 					this.current.pack();
-					// 和文詰めT1a: font層から移管したrun内約物詰めを適用
-					// (ルビ単位内の連続約物——移管前と同じ見た目を維持)
-					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.applyRunTrims(this.current);
+					// 和文詰めT1a/T1b: font層から移管したrun内約物詰めを適用
+					// (ルビ単位内の連続約物——移管前と同じ見た目を維持。
+					// text-spacing-trim: space-allで無効化)
+					if (!src.textSpacingTrimOff) {
+						net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
+								.applyRunTrims(this.current);
+					}
 					runs.add(this.current);
 				}
 				this.current = null;

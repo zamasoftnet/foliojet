@@ -138,6 +138,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0510-text-spacing/autospace-horizontal.html", //
 			"0510-text-spacing/autospace-vertical.html", //
 			"0510-text-spacing/autospace-in-float.html", //
+			// 和文詰めT1b(2026-07-31)。text-spacing-trim: normal(=T1aで
+			// 移管した詰め)とspace-all(全角のまま)の対比を固定する
+			"0510-text-spacing/trim-pairs.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

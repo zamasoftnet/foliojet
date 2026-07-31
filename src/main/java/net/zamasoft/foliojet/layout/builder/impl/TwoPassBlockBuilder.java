@@ -1244,6 +1244,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			final net.zamasoft.foliojet.layout.box.params.AbstractTextParams params = //
 					(net.zamasoft.foliojet.layout.box.params.AbstractTextParams) this.getRootBox().getParams();
 			this.autospace.setFlags(params.textAutospace);
+			this.autospace.setTrimOff(params.textSpacingTrimOff);
 		}
 		final double fontSize = this.text.getFontStyle().getSize();
 		final double gap = this.autospace.gapBefore(ch, coff, fontSize);
