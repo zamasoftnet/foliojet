@@ -118,6 +118,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// フォールバック+atomicページ送りを固定する
 			"0500-grid/fixed-2x2.html", //
 			"0500-grid/mixed-items.html", //
+			"0500-grid/auto-columns.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

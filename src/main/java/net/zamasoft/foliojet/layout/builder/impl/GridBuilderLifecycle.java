@@ -16,9 +16,10 @@ public final class GridBuilderLifecycle {
 	}
 
 	/**
-	 * G1のトラック配置を適用できるGridかを判定します
-	 * (consult-codex-2026-07-31-grid-g1.txt §1.1)。不適格(auto/fr列・
+	 * トラック配置を適用できるGridかを判定します
+	 * (consult-codex-2026-07-31-grid-g1.txt §1.1)。不適格(fr列=G3c・
 	 * 明示行トラック・縦書き・TwoPass親)はG0の単一列フローへ落とす。
+	 * auto列はG3b(consult-codex-2026-07-31-grid-g3.txt Q2)で適格化。
 	 */
 	public static boolean eligible(final GridBox gridBox, final Builder builder) {
 		final GridParams params = gridBox.getGridParams();
@@ -26,7 +27,7 @@ public final class GridBuilderLifecycle {
 			return false;
 		}
 		for (final GridTrackListValue.TrackSize track : params.templateColumns) {
-			if (!(track instanceof GridTrackListValue.Fixed)) {
+			if (!(track instanceof GridTrackListValue.Fixed || track instanceof GridTrackListValue.Auto)) {
 				return false;
 			}
 		}

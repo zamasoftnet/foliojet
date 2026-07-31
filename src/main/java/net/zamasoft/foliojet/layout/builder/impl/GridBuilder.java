@@ -17,6 +17,7 @@ import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
+import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
 
 /**
@@ -57,7 +58,10 @@ public final class GridBuilder {
 
 	private final GridBox gridBox;
 
-	private final FixedGridLayout layout;
+	/** 列テンプレート(fixed/auto。frは適格判定で除外——G3c)。 */
+	private final List<GridTrackListValue.TrackSize> tracks;
+
+	private final double columnGap, rowGap;
 
 	private final List<GridItemContent> items = new ArrayList<>();
 
@@ -73,11 +77,9 @@ public final class GridBuilder {
 		this.host = host;
 		this.gridBox = gridBox;
 		final GridParams params = gridBox.getGridParams();
-		final double[] widths = new double[params.templateColumns.size()];
-		for (int i = 0; i < widths.length; ++i) {
-			widths[i] = ((GridTrackListValue.Fixed) params.templateColumns.get(i)).length();
-		}
-		this.layout = new FixedGridLayout(widths, params.columnGap, params.rowGap);
+		this.tracks = params.templateColumns;
+		this.columnGap = params.columnGap;
+		this.rowGap = params.rowGap;
 	}
 
 	public GridBox getGridBox() {
@@ -128,9 +130,9 @@ public final class GridBuilder {
 
 	private TwoPassBlockBuilder startItem(final boolean anonymous) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
-		final int index = this.items.size();
-		final GridItemBox itemBox = new GridItemBox(this.itemParams(), new FlowPos(),
-				this.layout.columnWidth(this.layout.columnOf(index)));
+		// 幅は暫定(auto列は未解決)。録画・計測は幅非依存で、確定幅は
+		// finish()のbind直前にsetTrackWidthで入る(G3b)
+		final GridItemBox itemBox = new GridItemBox(this.itemParams(), new FlowPos(), 0);
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.host, itemBox);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
@@ -168,20 +170,35 @@ public final class GridBuilder {
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでGrid終端に到達";
 		final GridParams params = this.gridBox.getGridParams();
-		// 幅確定(固定列=構築時と同値)→本文bind。PageAtomicBox契約により
-		// Grid flowがactiveな間に全bindが完了する(ページbreakは走らない)
+		// トラック幅解決(G3b): 列ごとのitem固有寸法contribution
+		// (min/max-contentの最大)から、fixed=指定長・auto=base/growth
+		// limit+stretchで確定する。基準幅はGridコンテナのcontent-box行幅
+		final int n = this.tracks.size();
+		final double[] colMin = new double[n];
+		final double[] colMax = new double[n];
+		for (int i = 0; i < this.items.size(); ++i) {
+			final GridItemContent item = this.items.get(i);
+			final int col = i % n;
+			colMin[col] = Math.max(colMin[col], item.sizes.minContent());
+			colMax[col] = Math.max(colMax[col], item.sizes.maxContent());
+		}
+		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, colMin, colMax,
+				this.gridBox.getLineSize(), this.columnGap);
+		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
+		// 幅確定→本文bind。PageAtomicBox契約によりGrid flowがactiveな間に
+		// 全bindが完了する(ページbreakは走らない)
 		final double[] extents = new double[this.items.size()];
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
-			item.bind(this.host, this.layout.columnWidth(this.layout.columnOf(i)));
+			item.bind(this.host, layout.columnWidth(layout.columnOf(i)));
 			GRID_ITEM_BINDS.incrementAndGet();
 			extents[i] = item.itemBox.getPageExtent(params.flow);
 		}
-		final FixedGridLayout.Placement placement = this.layout.place(extents);
+		final FixedGridLayout.Placement placement = layout.place(extents);
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemBox itemBox = this.items.get(i).itemBox;
-			itemBox.setGridLineOffset(this.layout.columnStart(this.layout.columnOf(i)));
-			this.gridBox.getContainer().addFlow(itemBox, placement.rowStarts()[this.layout.rowOf(i)]);
+			itemBox.setGridLineOffset(layout.columnStart(layout.columnOf(i)));
+			this.gridBox.getContainer().addFlow(itemBox, placement.rowStarts()[layout.rowOf(i)]);
 		}
 		this.gridBox.setPageAxis(placement.totalExtent());
 		final LayoutContext.Flow active = this.host.getFlow();
