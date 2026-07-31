@@ -112,6 +112,13 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			// (BlockBuilder.flushのnullガード)。制御文字・ゼロ幅文字の
 			// セルのlive/replay対称性も同時にカバーする
 			"0240-table/cell-control-chars.html", //
+			// Grid G3d3(2026-07-31): GRID_RANGE reject撤去のパリティ固定——
+			// legacy(GridEvent bind)とrange(GRIDレシピ再構築)の両経路が
+			// 同じGridBuilder.bindの幾何に到達すること。ネストGridと
+			// shrink-to-fit幅伝播も同時にカバーする
+			"0500-grid/grid-in-float.html", //
+			"0500-grid/grid-in-float-shrink.html", //
+			"0500-grid/nested-grid.html", //
 	};
 
 	/**

@@ -232,10 +232,32 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 
 	@Override
 	public void abandonForParentRange() {
-		// G3d3で本使用(親rangeの範囲再生がGrid全体を再構築する)。
-		// item録画への参照を手放すだけでよい——合成itemはLayoutSource
-		// 非記録のためリースを持たない
+		// 親rangeの範囲再生がGrid全体を再構築する(G3d3)。item録画への
+		// 参照を手放すだけでよい——合成itemはLayoutSource非記録のため
+		// リースを持たない(item本文内のseal済み子リースは検証相で
+		// 列挙され、親のコミット相がsubsumeで解放する)
 		this.items.clear();
+	}
+
+	/**
+	 * 親range化の検証相です(Grid G3d3——consult-codex-2026-07-31-grid-g3.txt
+	 * Q3のG3d3、副作用なし)。全itemの本文を通常のネストビルダーとして
+	 * 検証・列挙する。itemの本文がseal済み子(float等)のリースを含む
+	 * 場合も、この再帰で親範囲への包含が証明される。bind済みのGridは
+	 * 吸収不可(構造的に到達しないがfail closed)。
+	 */
+	boolean collectAbsorbableItems(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
+			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
+		if (this.bound) {
+			return false;
+		}
+		for (final GridItemContent item : this.items) {
+			if (!item.body.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** bindは一度きり(二重bindはLegacyRecordsのlive box変異——答申Q5)。 */

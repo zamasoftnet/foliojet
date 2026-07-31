@@ -312,11 +312,11 @@ public final class ContinuationStats {
 		/** 範囲の完全性検証(capture)に失敗(compact済みの穴)。 */
 		RANGE_NOT_INTACT,
 		/**
-		 * 範囲にGridのStartを含む(Grid G1d、2026-07-31)。TwoPass計測は
-		 * GridBuilder不活性(G0の単一列積み)で行われる一方、範囲再生は
-		 * DocumentBuilder経由でGridBuilderが活性化するため、計測と
-		 * bindの幾何が食い違う。item側のTwoPass計測が入る(G3)まで
-		 * Gridを含む本文はLegacyRecords bindに留める(両passともG0で一貫)。
+		 * 範囲にGridのStartを含む(Grid G1d、2026-07-31)。G3d1の
+		 * RetainedGrid/GridEventでrecords側もGridBuilderの実トラック配置を
+		 * 通るようになり、範囲再生との幾何一致(パリティ)が確立したため
+		 * <b>G3d3(同日)でrejectは撤去済み</b>——現在この理由は発火しない
+		 * (GridEventのitem本文は通常のネスト子として親rangeへ吸収される)。
 		 */
 		GRID_RANGE
 	}

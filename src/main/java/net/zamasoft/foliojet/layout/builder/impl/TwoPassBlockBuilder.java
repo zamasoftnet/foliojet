@@ -701,14 +701,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
 			return;
 		}
-		if (log.containsGrid(fromId, toId)) {
-			// Grid G1d(2026-07-31): TwoPass計測はGridBuilder不活性(G0)の
-			// まま行われるが、範囲再生はDocumentBuilder経由でGridBuilderが
-			// 活性化するため幾何が食い違う。itemのTwoPass計測が入る(G3)
-			// までLegacyRecords bindに留める(両passともG0で一貫)
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.GRID_RANGE);
-			return;
-		}
+		// Gridを含む範囲(旧GRID_RANGE reject=G1d)はG3d3で解禁——G3d1の
+		// RetainedGrid/GridEventによりrecords側もGridBuilderの実トラック
+		// 配置を通り、範囲再生(DocumentBuilder駆動の新品GridBuilder)と
+		// 幾何が一致する(パリティはTwoPassRangeBindParityTestのgrid文書
+		// 3件で固定)。GridEventのitem本文は下のcollectAbsorbableNestedが
+		// 通常の子として吸収する
 		// 表を含む範囲(旧TABLE_RANGE reject)は表吸収(codex増分5、
 		// 2026-07-30)で解禁——範囲内の適格表はrecipe再生で再構築でき、
 		// 記録済みRetained計画のリース(セルのDeferredBind)は下の
@@ -827,6 +825,16 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				if (!(tableEvent.builder() instanceof RetainedTableBuilder retained)
 						|| !collectAbsorbableTable(retained, log, fromId, toId, out, outTables,
 								ownedAbsoluteAnchors, seen)) {
+					return false;
+				}
+				continue;
+			} else if (recorded instanceof Recorded.GridEvent gridEvent) {
+				// Grid吸収(G3d3): 実行計画のitem本文(合成item——LayoutSource
+				// 非記録・リースなし)を通常のネスト子として検証・列挙する。
+				// 親の範囲再生がGRIDレシピ(G0c)からGrid全体を再構築する。
+				// 計画自体のabandonは不要——recordsごと手放される
+				if (!(gridEvent.builder() instanceof GridBuilder gridPlan) || !gridPlan
+						.collectAbsorbableItems(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
 					return false;
 				}
 				continue;
