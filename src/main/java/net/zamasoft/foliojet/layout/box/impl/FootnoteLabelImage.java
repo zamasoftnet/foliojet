@@ -194,6 +194,8 @@ public final class FootnoteLabelImage implements net.zamasoft.pdfg2d.gc.image.Im
 			public void endTextRun() {
 				if (this.current.getGlyphCount() > 0) {
 					this.current.pack();
+					// 和文詰めT1a: font層から移管したrun内約物詰めを適用
+					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.applyRunTrims(this.current);
 					runs.add(this.current);
 				}
 				this.current = null;

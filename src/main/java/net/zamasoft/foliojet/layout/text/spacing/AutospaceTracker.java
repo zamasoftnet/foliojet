@@ -22,15 +22,48 @@ public final class AutospaceTracker {
 
 	private TextImpl prevText;
 
-	private int prevGlyphIndex = -1;
-
 	private int prevCodePoint = -1;
 
 	private double prevFontSize;
 
+	private int prevGid = -1;
+
 	/** 実効フラグを設定します(インライン境界でのparams切替に追従)。 */
 	public void setFlags(final byte flags) {
 		this.flags = flags;
+	}
+
+	/** 現在の実効フラグです(分割点の逆適用の再計算用)。 */
+	public byte getFlags() {
+		return this.flags;
+	}
+
+	/**
+	 * 同一run内の直前glyphとの約物詰め(正値。0=なし)です(T1a——
+	 * font層から移管。GPOSが非0のpairはスキップ、run境界は対象外=
+	 * 移管元と同じ適用範囲)。縦書きrun(FontStyle方向TB)は対象外——
+	 * 移管元はvert置換gidのtoChar逆引きが成立せず縦書きでは詰めが
+	 * 効いていなかった(縦書きの行頭処理は天付きが担う。縦中横の
+	 * 横書きrunは対象=旧挙動と同一)。
+	 *
+	 * @param currentText 現在追記中のrun({@code null}=新run)
+	 */
+	public double trimBefore(final char[] ch, final int coff, final int gid, final TextImpl currentText,
+			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final double fontSize) {
+		if (this.prevCodePoint < 0 || this.prevGid < 0 || currentText == null || this.prevText != currentText) {
+			return 0;
+		}
+		if (currentText.getFontStyle()
+				.getDirection() == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
+			return 0;
+		}
+		if (metrics.getKerning(this.prevGid, gid) != 0) {
+			return 0;
+		}
+		final int cp = Character.codePointAt(ch, coff);
+		return JapaneseSpacingResolver.pairTrim(this.prevCodePoint,
+				JapaneseSpacingResolver.isWide(metrics, this.prevGid, fontSize), cp,
+				JapaneseSpacingResolver.isWide(metrics, gid, fontSize)) * fontSize;
 	}
 
 	/** 現在のcluster先頭と直前clusterの間のgap(絶対量)です。 */
@@ -48,30 +81,22 @@ public final class AutospaceTracker {
 	}
 
 	/**
-	 * gapを直前glyphのxadvanceへ焼き込みます(直前glyphの後=現在glyphの
-	 * 前のアキ。live構築のTextBuilder用——TwoPass計測は記録textを変異
-	 * させず計測器へだけ渡す: records再生はtoGlyphsでxadvanceを運ばず
-	 * 再構築時にtrackerが再適用するため)。
+	 * cluster処理後の状態更新です。適用側の規約: 調整(gap−trim)は
+	 * <b>現在glyphのxadvance</b>(=そのglyphの手前のアキ——
+	 * CIDKeyedFont/ルビdistributeと同じ)へ載せる。
 	 */
-	public void applyGap(final double gap) {
-		if (this.prevText != null) {
-			this.prevText.addXAdvance(this.prevGlyphIndex, gap);
-		}
-	}
-
-	/** cluster処理後の状態更新です。 */
 	public void glyphAdded(final TextImpl text, final double fontSize, final char[] ch, final int coff,
-			final byte clen) {
+			final byte clen, final int gid) {
 		this.prevText = text;
-		this.prevGlyphIndex = text == null ? -1 : text.getGlyphCount() - 1;
 		this.prevCodePoint = Character.codePointBefore(ch, coff + clen);
 		this.prevFontSize = fontSize;
+		this.prevGid = gid;
 	}
 
 	/** pair状態を破棄します(行分割・TextControl)。 */
 	public void reset() {
 		this.prevText = null;
-		this.prevGlyphIndex = -1;
 		this.prevCodePoint = -1;
+		this.prevGid = -1;
 	}
 }

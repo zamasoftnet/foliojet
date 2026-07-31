@@ -67,4 +67,46 @@ public final class JapaneseSpacingResolver {
 	public static double verticalHeadIndent(final int firstCodePoint) {
 		return JapaneseSpacingClass.of(firstCodePoint) == JapaneseSpacingClass.OPENING ? -PAIR_TRIM : 0;
 	}
+
+	/** wide判定(metrics換算: font単位750/1000 ⇔ 0.75×font-size)。 */
+	public static boolean isWide(final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid,
+			final double fontSize) {
+		return metrics.getWidth(gid) > fontSize * 0.75;
+	}
+
+	/**
+	 * 組み立て済みrun内の全隣接pairへ約物詰めをxadvanceで適用します
+	 * (T1a——font層から撤去した詰めの、独自appendGlyphループ経路
+	 * (RubyUnitBox・FootnoteLabelImage等)用の代替。GPOSカーニングが
+	 * 非0のpairはスキップ=移管元と同じ優先)。
+	 */
+	public static void applyRunTrims(final net.zamasoft.pdfg2d.gc.text.TextImpl text) {
+		final int glyphCount = text.getGlyphCount();
+		if (glyphCount < 2) {
+			return;
+		}
+		if (text.getFontStyle().getDirection() == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
+			return; // 縦書きrunは対象外(AutospaceTracker.trimBeforeと同じ理由)
+		}
+		final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics = text.getFontMetrics();
+		final double fontSize = text.getFontStyle().getSize();
+		final char[] chars = text.getChars();
+		final byte[] clusterLengths = text.getClusterLengths();
+		final int[] gids = text.getGlyphIds();
+		int charIndex = clusterLengths[0];
+		int prevCp = Character.codePointBefore(chars, charIndex);
+		for (int i = 1; i < glyphCount; ++i) {
+			final int cp = Character.codePointAt(chars, charIndex);
+			if (metrics.getKerning(gids[i - 1], gids[i]) == 0) {
+				final double trim = pairTrim(prevCp, isWide(metrics, gids[i - 1], fontSize), cp,
+						isWide(metrics, gids[i], fontSize)) * fontSize;
+				if (trim > 0) {
+					// xadvance[i]=glyph iの手前のアキ(負=詰め)
+					text.addXAdvance(i, -trim);
+				}
+			}
+			charIndex += clusterLengths[i];
+			prevCp = Character.codePointBefore(chars, charIndex);
+		}
+	}
 }

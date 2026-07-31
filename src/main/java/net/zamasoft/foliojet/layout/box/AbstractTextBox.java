@@ -350,7 +350,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 				char[] ch = text.getChars();
 				byte[] clens = text.getClusterLengths();
-				double[] xadvances = text.getXAdvances(true);
+				// 和文詰めT1a: 既存の調整(約物詰め・autospace gap)を保全して
+				// 均等割りを上乗せする(getXAdvances(true)は配列をリセット
+				// してしまい、font層から移管した詰めが消える)
+				double[] xadvances = ((net.zamasoft.pdfg2d.gc.text.TextImpl) text).ensureXAdvances();
 				int k = 0;
 				for (int j = 0; j < glen; ++j) {
 					char c1 = ch[k];

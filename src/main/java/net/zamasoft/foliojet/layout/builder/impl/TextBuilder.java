@@ -224,6 +224,35 @@ public class TextBuilder {
 	}
 
 	/**
+	 * run内分割境界のpair調整(autospace gap−約物詰め)を再計算します
+	 * (T1a——分割で境界が行を跨ぐとき、適用済み調整を逆適用するため。
+	 * 調整は純関数のため記録不要で再計算できる。autospaceのflagsは
+	 * 現在値で近似——inline切替と旧run内分割が複合した場合のみ不正確、
+	 * consultations記録済み)。
+	 */
+	private double boundaryAdjustment(final TextImpl head, final TextImpl tail) {
+		final char[] headChars = head.getChars();
+		final int prevCp = Character.codePointBefore(headChars, head.getCharCount());
+		final int cp = Character.codePointAt(tail.getChars(), 0);
+		final double fontSize = head.getFontStyle().getSize();
+		final double gap = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.gapEm(prevCp, cp,
+				this.autospace.getFlags()) * fontSize;
+		final int prevGid = head.getGlyphIds()[head.getGlyphCount() - 1];
+		final int gid = tail.getGlyphIds()[0];
+		double trim = 0;
+		if (head.getFontStyle().getDirection() != net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB
+				&& this.fontMetrics.getKerning(prevGid, gid) == 0) {
+			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.pairTrim(prevCp,
+					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,
+							prevGid, fontSize),
+					cp, net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,
+							gid, fontSize))
+					* fontSize;
+		}
+		return gap - trim;
+	}
+
+	/**
 	 * 現在構築中の行の位置を調整します。
 	 */
 	private void locateLine() {
@@ -695,8 +724,18 @@ public class TextBuilder {
 							e = text.split(this.opportunity.glyphCount());
 							TextImpl prevText = (TextImpl) e;
 							// 分割部分のカーニングを取り消して位置を計算する
+							// (T1a: font層kernはGPOSのみ——約物詰め/autospaceの
+							// 逆適用は下で行う)
 							this.lineAxis += this.fontMetrics.getKerning(prevText.glyphIds[prevText.glyphCount - 1],
 									text.glyphIds[0]);
+							// 分割境界のpair調整の逆適用(旧splitのkern復元と
+							// 等価)。調整は現在glyph=分割後のtail先頭の
+							// xadvance[0]に載っている
+							final double edgeAdjustment = this.boundaryAdjustment(prevText, text);
+							if (edgeAdjustment != 0) {
+								text.addXAdvance(0, -edgeAdjustment);
+								this.lineAxis -= edgeAdjustment;
+							}
 							this.textBuffer.add(i, e);
 						}
 					}
@@ -824,15 +863,17 @@ public class TextBuilder {
 		// }
 		// this.flush();
 		// }
-		// 和文詰めA2: 直前clusterとの境界のautospace gap(text-autospace)
-		double autospaceGap = this.autospace.gapBefore(ch, coff,
-				this.fontStyle == null ? 0 : this.fontStyle.getSize());
+		// 和文詰めA2/T1a: 直前clusterとの境界の調整——autospace gap(正)と
+		// 約物詰め(負、同一run内のみ=移管元のfont層kernと同範囲)
+		final double fontSize = this.fontStyle == null ? 0 : this.fontStyle.getSize();
+		double autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
+		double punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize);
 		if (this.breakWord == AbstractTextParams.WORD_WRAP_BREAK_WORD && this.unitAdvance > 0) {
 			if (this.firstUnit) {
 				this.locateLine();
 				this.firstUnit = false;
 			}
-			double lineAxis = this.unitAdvance + this.letterSpacing + autospaceGap;
+			double lineAxis = this.unitAdvance + this.letterSpacing + autospaceGap - punctuationTrim;
 			if (this.text == null) {
 				lineAxis += this.fontMetrics.getAdvance(gid);
 			} else {
@@ -842,9 +883,9 @@ public class TextBuilder {
 			if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
 				this.flush();
 				// flushが実際に行を分割した場合はtrackerがリセット済み——
-				// 行を跨ぐpairにgapは入らない(再計算)
-				autospaceGap = this.autospace.gapBefore(ch, coff,
-						this.fontStyle == null ? 0 : this.fontStyle.getSize());
+				// 行を跨ぐpairに調整は入らない(再計算)
+				autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
+				punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize);
 			}
 		}
 
@@ -859,13 +900,15 @@ public class TextBuilder {
 		final double advance = this.text.appendGlyph(ch, coff, clen, gid) + this.letterSpacing;
 		this.unitAdvance += advance;
 		this.lineAxis += advance;
-		if (autospaceGap > 0) {
-			// 直前glyphのxadvanceへ焼き込み+行会計へ加算(A2)
-			this.autospace.applyGap(autospaceGap);
-			this.unitAdvance += autospaceGap;
-			this.lineAxis += autospaceGap;
+		final double adjustment = autospaceGap - punctuationTrim;
+		if (adjustment != 0) {
+			// 現在glyphのxadvance(=そのglyphの手前のアキ——CIDKeyedFont/
+			// ルビdistributeと同じ規約)へ焼き込み+行会計へ加算(A2/T1a)
+			this.text.addXAdvance(this.text.getGlyphCount() - 1, adjustment);
+			this.unitAdvance += adjustment;
+			this.lineAxis += adjustment;
 		}
-		this.autospace.glyphAdded(this.text, this.fontStyle.getSize(), ch, coff, clen);
+		this.autospace.glyphAdded(this.text, fontSize, ch, coff, clen, gid);
 		this.lastSpaceAdvance = 0;
 		this.lineHead = false;
 

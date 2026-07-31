@@ -1,5 +1,5 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=35.66 h=14.89]
   x=0.00 y=0.00 Text["漢" asc=10.80 desc=4.09]
-  x=13.50 y=0.48 Text["A" asc=10.32 desc=2.89]
-  x=23.66 y=0.00 Text["字" asc=10.80 desc=4.09]
+  x=12.00 y=0.48 Text["A" asc=10.32 desc=2.89]
+  x=22.16 y=0.00 Text["字" asc=10.80 desc=4.09]

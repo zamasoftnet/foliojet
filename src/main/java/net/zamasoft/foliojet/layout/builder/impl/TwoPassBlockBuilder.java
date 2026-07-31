@@ -1245,15 +1245,21 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					(net.zamasoft.foliojet.layout.box.params.AbstractTextParams) this.getRootBox().getParams();
 			this.autospace.setFlags(params.textAutospace);
 		}
-		final double gap = this.autospace.gapBefore(ch, coff, this.text.getFontStyle().getSize());
+		final double fontSize = this.text.getFontStyle().getSize();
+		final double gap = this.autospace.gapBefore(ch, coff, fontSize);
+		// T1a: 同一run内の約物詰め(font層から移管)。記録textは変異させず
+		// 計測値だけ旧base挙動どおりtrimを差し引く(min/max両方——trim
+		// pairは禁則で不可分。再構築時はTextBuilder側trackerが再適用)
+		final double trim = this.autospace.trimBefore(ch, coff, gid, this.text,
+				this.text.getFontMetrics(), fontSize);
 		// appendGlyph は記録用 TextImpl を構築しつつアドバンスを返すため、
 		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
 		double advance = this.text.appendGlyph(ch, coff, clen, gid);
 		if (gap > 0) {
 			this.measurer.autospaceGap(gap);
 		}
-		this.measurer.glyph(advance);
-		this.autospace.glyphAdded(null, this.text.getFontStyle().getSize(), ch, coff, clen);
+		this.measurer.glyph(advance - trim);
+		this.autospace.glyphAdded(this.text, fontSize, ch, coff, clen, gid);
 		// E-6増分1(2026-07-24): glyph保持量の概算観測(加算のみ、挙動不変)
 		++this.glyphCount;
 	}

@@ -136,6 +136,13 @@ final class TotalFitSession {
 
 	private TextImpl mirrorText;
 
+	/**
+	 * 和文詰めT1a: 同一run内の約物詰めの追跡(autospace有効段落は
+	 * pretty対象外のためflagsは常に0=trim判定のみ使用)。
+	 */
+	private final net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker spacing = //
+			new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
+
 	private double pendingBoxWidth = 0;
 
 	private int flushOrdinal = 0;
@@ -327,8 +334,15 @@ final class TotalFitSession {
 			this.mirrorText.setLetterSpacing(this.letterSpacing);
 		}
 		final char[] cluster = Arrays.copyOfRange(ch, coff, coff + clen);
-		final double advance = this.mirrorText.appendGlyph(cluster, 0, clen, gid) + this.letterSpacing;
+		// T1a: 同一run内の約物詰め(font層から移管)を候補幅へ反映
+		// (autospace有効段落はpretty対象外のためtrimのみ。最終bindは
+		// TextBuilder側trackerがxadvanceで適用する——旧font層kern時代と
+		// 同じく分割点の復元はモデル化しない)
+		final double trim = this.spacing.trimBefore(cluster, 0, gid, this.mirrorText, this.fontMetrics,
+				this.fontStyle.getSize());
+		final double advance = this.mirrorText.appendGlyph(cluster, 0, clen, gid) + this.letterSpacing - trim;
 		this.pendingBoxWidth += advance;
+		this.spacing.glyphAdded(this.mirrorText, this.fontStyle.getSize(), cluster, 0, clen, gid);
 		this.events.add(new Recorded.Glyph(charOffset, cluster, clen, gid));
 		if (this.mirrorText.getGlyphCount() > 10000) {
 			// TextBuilder.glyph()の長大ラン分割と同じ地点でミラーも切る
