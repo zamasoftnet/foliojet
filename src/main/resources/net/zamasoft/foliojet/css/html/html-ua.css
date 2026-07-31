@@ -207,3 +207,13 @@ tfoot {
 tr {
 	display: table-row;
 }
+
+/*
+ * 和文詰めA1(2026-07-31、consult-codex-2026-07-31-text-spacing.txt Q4):
+ * text-autospaceのcomputed initialは仕様どおりnormal(和欧文間スペース
+ * あり)だが、既存文書の互換のためUA既定でoffにする(Safari 18.4と同じ
+ * 方式)。既定on化するときはこの1行を変えるだけでよい。
+ */
+html {
+	text-autospace: no-autospace;
+}

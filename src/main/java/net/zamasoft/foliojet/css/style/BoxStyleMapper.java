@@ -476,6 +476,8 @@ final class BoxStyleMapper {
 		params.letterSpacing = LetterSpacing.get(style);
 		params.wordSpacing = WordSpacing.get(style);
 		params.textTransform = TextTransform.get(style);
+		// 和文詰めA1: 実効フラグ(幾何はA2で配線)
+		params.textAutospace = net.zamasoft.foliojet.css.impl.property.text.TextAutospace.getFlags(style);
 		params.fontStyle = style.getFontStyle();
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle

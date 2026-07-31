@@ -252,6 +252,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextAlign.INFO);
 		reg(TextDecoration.INFO);
 		reg(LetterSpacing.INFO);
+		// 和文詰めA1(consult-codex-2026-07-31-text-spacing.txt)
+		reg(net.zamasoft.foliojet.css.impl.property.text.TextAutospace.INFO);
 		reg(WordSpacing.INFO);
 		reg(TextTransform.INFO);
 		reg(UnicodeBidi.INFO);

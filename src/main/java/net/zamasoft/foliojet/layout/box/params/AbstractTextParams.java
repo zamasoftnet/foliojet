@@ -111,6 +111,13 @@ public abstract class AbstractTextParams extends Params {
 	public Length letterSpacing = Length.ZERO_LENGTH;
 
 	/**
+	 * 和欧文間スペース(text-autospace)の実効フラグです(和文詰めA1。
+	 * {@code TextAutospaceValue.ALPHA}|{@code NUMERIC}のbit——0=なし。
+	 * 幾何はA2で配線)。
+	 */
+	public byte textAutospace = 0;
+
+	/**
 	 * 単語間
 	 */
 	public double wordSpacing = 0;
