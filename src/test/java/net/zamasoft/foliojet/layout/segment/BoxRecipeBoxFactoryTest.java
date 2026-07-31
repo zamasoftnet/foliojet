@@ -140,6 +140,43 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		assertEquals(Align.CENTER, ((FlowPos) box.getPos()).align);
 	}
 
+	/** BoxKind.GRIDはGridBoxへ再構築され、トラック定義とgapを保つ(Grid G0c)。 */
+	public void testGridRecipeCreatesGridBox() {
+		final net.zamasoft.foliojet.layout.box.params.GridParams params = new net.zamasoft.foliojet.layout.box.params.GridParams();
+		copyBlockParams(blockParams(), params);
+		params.templateColumns = java.util.List.of(new net.zamasoft.foliojet.css.value.GridTrackListValue.Fixed(100),
+				net.zamasoft.foliojet.css.value.GridTrackListValue.Auto.INSTANCE,
+				new net.zamasoft.foliojet.css.value.GridTrackListValue.Fr(2));
+		params.rowGap = 7;
+		params.columnGap = 3;
+		final BoxRecipe recipe = new BoxRecipe.Grid(GridParamsTemplate.freeze(params),
+				FlowPosTemplate.freeze(new FlowPos()));
+		final long before = BoxRecipeBoxFactory.GRID_REPLAYS.get();
+		final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.impl.GridBox);
+		final net.zamasoft.foliojet.layout.box.params.GridParams out = ((net.zamasoft.foliojet.layout.box.impl.GridBox) box)
+				.getGridParams();
+		assertEquals(3, out.templateColumns.size());
+		assertEquals(7.0, out.rowGap, 0);
+		assertEquals(3.0, out.columnGap, 0);
+		assertEquals(before + 1, BoxRecipeBoxFactory.GRID_REPLAYS.get());
+		// PageAtomicBoxの印も再構築で保たれる(クラス固有なので自明だが
+		// 契約として固定)
+		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox);
+	}
+
+	private static void copyBlockParams(final BlockParams source, final BlockParams target) {
+		final BlockParamsTemplate t = BlockParamsTemplate.freeze(source);
+		final BlockParams m = t.materialize();
+		// materializeの内容をtargetへ移す最短経路が無いため、テストでは
+		// fontStyle等の必須フィールドだけを写す
+		target.fontStyle = source.fontStyle;
+		target.fontManager = source.fontManager;
+		target.lineBreakRules = source.lineBreakRules;
+		target.flow = source.flow;
+		target.element = source.element;
+	}
+
 	/** MulticolumnBlockBoxもFLOWと同じテンプレート組で再構築される。 */
 	public void testMulticolRecipeCreatesMulticolumnBlockBox() {
 		final BoxRecipe recipe = new BoxRecipe.Multicol(BlockParamsTemplate.freeze(blockParams()),

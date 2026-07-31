@@ -100,7 +100,13 @@ public final class LayoutSource implements AutoCloseable {
 		 * Opaque記録からrecipe記録へ昇格——末尾追加なのは既存ordinalを
 		 * 変えないため({@code segment.BoxKind}と並びを揃える)。
 		 */
-		ABSOLUTE;
+		ABSOLUTE,
+		/**
+		 * Gridコンテナ(GridBox。Grid G0c、2026-07-31——
+		 * consult-codex-2026-07-31-grid.txt §3.7。末尾追加は既存ordinal
+		 * 維持のため)。
+		 */
+		GRID;
 	}
 
 	/**
@@ -637,7 +643,7 @@ public final class LayoutSource implements AutoCloseable {
 		// containsOpaqueゲートが再生を拒否していたため、早期停止で尾部を
 		// 表の手前で切る方が適格範囲が広がるだけで出力は不変——G-1が
 		// 436文書byte-parityで実証済み)
-		case FLOW, MULTICOL, TABLE -> true;
+		case FLOW, MULTICOL, TABLE, GRID -> true;
 		default -> false;
 		};
 	}

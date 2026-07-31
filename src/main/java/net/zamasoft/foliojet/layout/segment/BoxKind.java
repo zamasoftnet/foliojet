@@ -24,5 +24,7 @@ public enum BoxKind {
 	 */
 	TABLE, TABLE_ROW_GROUP, TABLE_ROW, TABLE_CELL, TABLE_COLUMN_GROUP, TABLE_COLUMN,
 	/** 絶対配置ブロック(AbsoluteBlockBox)。E-6増分4e(2026-07-24)で追加。 */
-	ABSOLUTE;
+	ABSOLUTE,
+	/** Gridコンテナ(Grid G0c。LayoutSource.BoxKindと並びを揃える)。 */
+	GRID;
 }

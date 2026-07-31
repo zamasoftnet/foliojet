@@ -66,6 +66,9 @@ public final class BoxRecipeBoxFactory {
 	 */
 	public static final java.util.concurrent.atomic.AtomicLong TABLE_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
+	/** 再生で{@code GridBox}を再構築した回数です(Grid G0c——G7の観測点)。 */
+	public static final java.util.concurrent.atomic.AtomicLong GRID_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
+
 	/** {@code recipe}のテンプレートをmaterializeし、対応する新品の{@code IBox}を返す。 */
 	public static INonReplacedBox create(final BoxRecipe recipe) {
 		return switch (recipe) {
@@ -95,6 +98,7 @@ public final class BoxRecipeBoxFactory {
 			create(LayoutSource.BoxKind.TABLE_COLUMN, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.Absolute r ->
 			create(LayoutSource.BoxKind.ABSOLUTE, r.params().materialize(), r.pos().materialize());
+		case BoxRecipe.Grid r -> create(LayoutSource.BoxKind.GRID, r.params().materialize(), r.pos().materialize());
 		};
 	}
 
@@ -131,6 +135,13 @@ public final class BoxRecipeBoxFactory {
 		case TABLE_COLUMN -> new TableColumnBox((InnerTableParams) params, (TableColumnPos) pos);
 		// E-6増分4e: 絶対配置ブロック(StyleBuilder:1166の生成と同型)
 		case ABSOLUTE -> new AbsoluteBlockBox((BlockParams) params, (AbsolutePos) pos);
+		// Grid G0c: 再生消費者の非空振り証明用にGRID_REPLAYSを数える
+		// (TABLE_REPLAYSと同型)
+		case GRID -> {
+			GRID_REPLAYS.incrementAndGet();
+			yield new net.zamasoft.foliojet.layout.box.impl.GridBox(
+					(net.zamasoft.foliojet.layout.box.params.GridParams) params, (FlowPos) pos);
+		}
 		};
 	}
 

@@ -190,6 +190,14 @@ final class RecordingLayoutSink {
 		if (type == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class) {
 			return LayoutSource.BoxKind.MULTICOL;
 		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.GridBox.class) {
+			// Grid G0c: exact class+素のFlowPosのみ(他のサブクラス・posは
+			// fail closedでOpaqueへ)
+			if (box.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class) {
+				return LayoutSource.BoxKind.GRID;
+			}
+			return null;
+		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBox.class) {
 			return LayoutSource.BoxKind.INLINE;
 		}

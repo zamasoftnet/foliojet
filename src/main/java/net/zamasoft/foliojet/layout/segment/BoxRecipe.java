@@ -112,6 +112,9 @@ public sealed interface BoxRecipe {
 		// AbsolutePosTemplateはReplacedRecipe.Absoluteで実績あり)
 		case ABSOLUTE -> new Absolute(BlockParamsTemplate.freeze((BlockParams) params),
 				AbsolutePosTemplate.freeze((AbsolutePos) pos));
+		// GridBoxはGridParams/FlowPosを使う(Grid G0c)
+		case GRID -> new Grid(GridParamsTemplate.freeze((net.zamasoft.foliojet.layout.box.params.GridParams) params),
+				FlowPosTemplate.freeze((FlowPos) pos));
 		};
 	}
 
@@ -218,6 +221,19 @@ public sealed interface BoxRecipe {
 			return BoxKind.TABLE;
 		}
 
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
+	}
+
+	/** Gridコンテナ(Grid G0c、2026-07-31)。 */
+	record Grid(GridParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
+		@Override
+		public BoxKind kind() {
+			return BoxKind.GRID;
+		}
+
+		@Override
 		public WritingMode flowOrNull() {
 			return this.params.flow();
 		}
