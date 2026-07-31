@@ -395,6 +395,13 @@ final class PageSequence {
 	 * 4種すべてを見る。トンボ・ノンブルは数えない)。
 	 */
 	private boolean paintsNothing(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak) {
+		if (pageBox.isNamedTransitionClosed() && !pageBox.paintsAnything()) {
+			// ページ先頭でのページ名遷移により閉じられた白紙ページ(N2b)。
+			// 柱の宣言や強制改ページ起点でも落とす——旧名の未確定ページを
+			// 新名で作り直す差し替えと等価にする(遷移改ページの後には必ず
+			// 遷移先の内容が続くため、0ページのPDFにはならない)
+			return true;
+		}
 		if (this.emittedPages == 0 && (lastPage || closedByForcedBreak)) {
 			// **0ページのPDFは作らない**。ただし「まだ1枚も出していない」
 			// だけでは落とさない理由にならない(2026-07-29)——後続の

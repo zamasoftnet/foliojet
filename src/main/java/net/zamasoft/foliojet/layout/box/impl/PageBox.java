@@ -427,6 +427,24 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
+	 * ページ先頭でのページ名遷移により閉じられたことの印です(名前付き
+	 * ページN2b)。この印があり、かつ何も描いていないページは、柱の宣言や
+	 * {@link #isForcedBreakOrigin()}に関わらず出力から落とす——旧名の
+	 * ページを捨てて新名で作り直す「未確定ページの差し替え」と等価になる。
+	 */
+	private boolean namedTransitionClosed = false;
+
+	/** ページ名遷移による閉鎖を記録します({@code RootBuilder.pageBreak}専用)。 */
+	public final void markNamedTransitionClosed() {
+		this.namedTransitionClosed = true;
+	}
+
+	/** このページがページ名遷移で閉じられたなら true を返します。 */
+	public final boolean isNamedTransitionClosed() {
+		return this.namedTransitionClosed;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>

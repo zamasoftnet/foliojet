@@ -193,6 +193,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * breakとの合成で二重に送らない)。合成ボックス(element==null)は
 	 * 境界に関与しない。
 	 */
+	/**
+	 * ページ名遷移の改ページを送ります(N2b)。{@code namedTransition}印付き
+	 * のため、閉じられるページが白紙なら出力から落ちる。
+	 */
+	private void namedTransitionBreak() {
+		this.forceBreak(new ForceBreakMode(this.getFlowBox(), PageBreakMode.PAGE, true));
+	}
+
 	private boolean resolveNamedPageTransition(final net.zamasoft.foliojet.layout.box.IBox box) {
 		if (!this.supportsNamedPages() || this.isRestyling() || box.getParams().element == null
 				|| !(box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos pos)) {
@@ -267,14 +275,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				default:
 					throw new IllegalStateException();
 				}
-				if (namedTransition && this.canBreakBefore) {
+				if (namedTransition) {
 					// 明示改ページが無ければ遷移自身が1回送る(forceBreak後は
-					// canBreakBefore=falseのため二重には送らない。ページ先頭
-					// での遷移も改ページなし——空白ページを作らない。その
-					// 場合ページ自体は旧名で生成済み=マージン差は既知の限界
-					// (N2bの未確定ページ差し替えで解消予定)、柱は描画時に
-					// 新名で解決される)
-					this.forceBreak(PageBreakMode.PAGE);
+					// canBreakBefore=falseのため二重には送らない)。ページ先頭
+					// (canBreakBefore=false)でも送る——旧ページは白紙なら
+					// drawPageのnamedTransition判定で落ち、面もカウンタも
+					// 消費しない=旧名の未確定ページを新名で作り直す差し替えと
+					// 等価(N2b)。可視インクが既にあればページとして残る
+					this.namedTransitionBreak();
 				}
 			}
 		}
@@ -444,8 +452,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			default:
 				throw new IllegalStateException(String.valueOf(pageBreakBefore));
 			}
-			if (namedTransition && this.canBreakBefore) {
-				this.forceBreak(PageBreakMode.PAGE);
+			if (namedTransition) {
+				this.namedTransitionBreak();
 			}
 		}
 

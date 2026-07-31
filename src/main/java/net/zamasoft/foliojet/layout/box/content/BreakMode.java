@@ -93,11 +93,23 @@ public abstract class BreakMode {
 
 		public final PageBreakMode breakType;
 
+		/**
+		 * ページ名遷移(名前付きページN2b)による改ページかです。閉じられる
+		 * ページが白紙なら出力から落とす(作者の明示改ページと違い、白紙を
+		 * 保存する理由にならない)。
+		 */
+		public final boolean namedTransition;
+
 		public ForceBreakMode(IBox box, PageBreakMode breakType) {
+			this(box, breakType, false);
+		}
+
+		public ForceBreakMode(IBox box, PageBreakMode breakType, boolean namedTransition) {
 			assert breakType == PageBreakMode.PAGE || breakType == PageBreakMode.COLUMN
 					|| breakType == PageBreakMode.VERSO || breakType == PageBreakMode.RECTO;
 			this.box = box;
 			this.breakType = breakType;
+			this.namedTransition = namedTransition;
 		}
 
 		public String toString() {

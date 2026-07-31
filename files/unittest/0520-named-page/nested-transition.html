@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>named page N2b: nested start/end propagation</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+p, div { margin: 0; }
+@page { margin: 30pt; @top-center { content: "PLAIN"; } }
+@page appendix { @top-center { content: "APPENDIX"; } }
+</style>
+</head>
+<body>
+<p>intro</p>
+<div><!-- 無名ラッパー: 深部の遷移が伝播すること -->
+<div style="page: appendix"><p>appendix first</p><p>appendix second</p></div>
+<p>back to plain</p>
+</div>
+<p>outro</p>
+</body>
+</html>

@@ -873,6 +873,10 @@ public class RootBuilder extends BreakableBuilder {
 		// 何も描かないページは出力されない(css-break-3 §4.4)。落ちた
 		// ページは面(recto/verso)を消費しないので、こちらの面の追跡も
 		// 進めてはならない——進めると以後の左右改ページが全部裏返る
+		if (mode instanceof ForceBreakMode force && force.namedTransition) {
+			// 名前遷移で閉じたページは白紙なら落とす(N2b——drawPageが判定)
+			this.pageBox.markNamedTransitionClosed();
+		}
 		final boolean emitted = this.pageGenerator.drawPage(this.pageBox, false,
 				mode instanceof BreakMode.ForceBreakMode);
 		final PageBox pageBox = this.pageBox;

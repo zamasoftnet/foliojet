@@ -155,6 +155,16 @@ public class DisplayListGoldenTest extends TestCase {
 			// (=ページ幅/2)がportrait→landscape→portraitで往復することを
 			// 固定する
 			"0520-named-page/landscape-section.html", //
+			// N2b: 無名ラッパー内の深部で名前が変わっても遷移が伝播し、
+			// A→B→A が3セクションになることを固定する
+			"0520-named-page/nested-transition.html", //
+			// N2b: 明示改ページ直後(ページ先頭)の名前遷移。旧名の白紙
+			// ページは落ち、新名の柱とlandscape寸法で作り直されることを
+			// 固定する
+			"0520-named-page/head-transition.html", //
+			// N2b: 文書先頭の名前付き内容。無名の初期ページが白紙のまま
+			// 差し替わり、1ページ目から新名の柱と寸法になることを固定する
+			"0520-named-page/doc-head-transition.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

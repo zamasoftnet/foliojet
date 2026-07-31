@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>named page N2b: transition at page head replaces uncommitted page</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+p, div { margin: 0; }
+@page { margin: 30pt; @top-center { content: "PLAIN"; } }
+@page wide { size: landscape; @top-center { content: "WIDE"; } }
+</style>
+</head>
+<body>
+<p>intro</p>
+<div style="page-break-before: always"><!-- 明示改ページで未確定ページができた直後に名前遷移 -->
+<div style="page: wide"><p>wide content</p></div>
+</div>
+<p>outro</p>
+</body>
+</html>

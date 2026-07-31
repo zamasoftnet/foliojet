@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=0.00 Text["wide" asc=10.91 desc=4.09]
+  x=26.33 y=0.00 Text["content" asc=10.91 desc=4.09]
+  x=375.28 y=-22.20 Text["WIDE" asc=10.31 desc=4.09]
