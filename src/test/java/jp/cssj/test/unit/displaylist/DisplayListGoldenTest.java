@@ -129,6 +129,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0500-grid/empty-row-gap.html", //
 			"0500-grid/explicit-placement-in-float.html", //
 			"0500-grid/row-span-auto.html", //
+			"0500-grid/alignment-items.html", //
 			"0500-grid/oversized-atomic.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //

@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.impl.GridItemBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.BoxAlignment;
 import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
@@ -24,6 +25,7 @@ import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
 import net.zamasoft.foliojet.layout.sizing.GridPlacementResolver;
+import net.zamasoft.foliojet.layout.sizing.Sizing;
 
 /**
  * Gridの構築coordinatorです(Grid G1b、2026-07-31——
@@ -337,18 +339,40 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, this.columnContributions(plan),
 				this.gridBox.getLineSize(), this.columnGap);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
-		// 幅確定→本文bind。span itemの幅=跨ぐトラック幅の合計+内側gap
-		// (G4b)。PageAtomicBox契約によりGrid flowがactiveな間に全bindが
-		// 完了する(ページbreakは走らない)
-		final double[] extents = new double[this.items.size()];
-		for (int i = 0; i < this.items.size(); ++i) {
+		// G5b: itemごとのjustify used value・bind幅・行方向オフセットを
+		// bind前に全件確定する(途中bind後のフォールバックは不可能——
+		// 答申Q3)。stretch=area幅(現行)、start/center/end=fit-content幅
+		// (min-content床——max(min, min(area, max)))+余白×{0,0.5,1}。
+		// 負余白は0へ丸める(印刷向けsafe: start側overflow)
+		final int count = this.items.size();
+		final double[] itemWidths = new double[count];
+		final double[] itemXOffsets = new double[count];
+		final BoxAlignment[] aligns = new BoxAlignment[count];
+		for (int i = 0; i < count; ++i) {
 			final GridItemContent item = this.items.get(i);
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			double areaWidth = this.columnGap * (area.columnSpan() - 1);
 			for (int c = area.column(); c < area.column() + area.columnSpan(); ++c) {
 				areaWidth += widths[c];
 			}
-			item.bind(target, areaWidth);
+			final BoxAlignment justify = BoxAlignment.resolve(item.spec.justifySelf(), params.justifyItems);
+			aligns[i] = BoxAlignment.resolve(item.spec.alignSelf(), params.alignItems);
+			if (justify == BoxAlignment.STRETCH) {
+				itemWidths[i] = areaWidth;
+			} else {
+				itemWidths[i] = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(), areaWidth);
+				final double free = Math.max(0, areaWidth - itemWidths[i]);
+				itemXOffsets[i] = justify == BoxAlignment.CENTER ? free / 2
+						: justify == BoxAlignment.END ? free : 0;
+			}
+			assert itemWidths[i] >= 0 && !Double.isNaN(itemWidths[i]) : "不正なitem幅: " + itemWidths[i];
+		}
+		// 幅確定→本文bind。PageAtomicBox契約によりGrid flowがactiveな間に
+		// 全bindが完了する(ページbreakは走らない)
+		final double[] extents = new double[count];
+		for (int i = 0; i < count; ++i) {
+			final GridItemContent item = this.items.get(i);
+			item.bind(target, itemWidths[i]);
 			GRID_ITEM_BINDS.incrementAndGet();
 			extents[i] = item.itemBox.getPageExtent(params.flow);
 		}
@@ -365,11 +389,21 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 				cursor += this.rowGap;
 			}
 		}
-		for (int i = 0; i < this.items.size(); ++i) {
+		// G5d: align used valueによるページ方向オフセット(areaは
+		// span行群+内側gap。stretchは現行互換の上詰め近似——真の
+		// used-height stretchは後続。負余白は0へ丸める)
+		for (int i = 0; i < count; ++i) {
 			final GridItemBox itemBox = this.items.get(i).itemBox;
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			itemBox.setGridLineOffset(layout.columnStart(area.column()));
-			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()]);
+			itemBox.setGridLineOffset(layout.columnStart(area.column()) + itemXOffsets[i]);
+			double areaHeight = this.rowGap * (area.rowSpan() - 1);
+			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
+				areaHeight += rowHeights[r];
+			}
+			final double free = Math.max(0, areaHeight - extents[i]);
+			final double yOffset = aligns[i] == BoxAlignment.CENTER ? free / 2
+					: aligns[i] == BoxAlignment.END ? free : 0;
+			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
 		}
 		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
 		final LayoutContext.Flow active = target.getFlow();
