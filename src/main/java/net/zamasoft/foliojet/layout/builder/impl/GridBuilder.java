@@ -3,12 +3,14 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.impl.GridItemBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Columns;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
@@ -21,8 +23,18 @@ import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
  * Gridの構築coordinatorです(Grid G1b、2026-07-31——
  * consult-codex-2026-07-31-grid-g1.txt §1)。{@code TableBuilder}と同じく
  * {@code DocumentBuilder.builderStack}に積まれるが{@code Builder}ではない。
- * 直接子ごとに固定幅の{@link GridItemBox}+独立{@code BlockBuilder}を
- * 開き、Grid終端で{@link FixedGridLayout}の結果に従って配置する。
+ * 直接子ごとに固定幅の{@link GridItemBox}+item builderを開き、
+ * Grid終端で{@link FixedGridLayout}の結果に従って配置する。
+ *
+ * <p>
+ * G3a(consult-codex-2026-07-31-grid-g3.txt): itemの本文は
+ * {@link TwoPassBlockBuilder}で録画し、Grid終端に「幅確定→bind→
+ * 行高計測→配置」の順で組む。固定列では幅は構築時から不変のため
+ * 結果はG1(直接構築)と同一——固有寸法スナップショットは
+ * auto/fr列(G3b/c)の下準備。副作用: TwoPass内のGridは不活性の
+ * ため、item内へネストしたGridはG0(単一列)へ退行する
+ * (G3d1のGridEventで回復予定)。
+ * </p>
  *
  * <p>
  * G1サブセット: 固定長列のみ・行はauto(行内item実高の最大)・
@@ -32,16 +44,25 @@ import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
  */
 public final class GridBuilder {
 
+	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
+	public static final AtomicLong GRID_ITEM_RECORDS = new AtomicLong();
+
+	/** bindされたitem数。 */
+	public static final AtomicLong GRID_ITEM_BINDS = new AtomicLong();
+
+	/** 空の匿名itemを破棄した数(slot非消費)。 */
+	public static final AtomicLong GRID_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
+
 	private final BlockBuilder host;
 
 	private final GridBox gridBox;
 
 	private final FixedGridLayout layout;
 
-	private final List<GridItemBox> items = new ArrayList<>();
+	private final List<GridItemContent> items = new ArrayList<>();
 
 	/** 開いているitemのbuilder(elementまたは匿名)。閉じているときnull。 */
-	private BlockBuilder openItemBuilder;
+	private TwoPassBlockBuilder openItemBuilder;
 
 	private GridItemBox openItemBox;
 
@@ -71,7 +92,11 @@ public final class GridBuilder {
 		return this.openItemBuilder != null;
 	}
 
-	/** 合成itemのparams(Gridの文字属性を継承し、frame等は中立へ戻す)。 */
+	/**
+	 * 合成itemのparams(Gridの文字属性を継承し、frame等は中立へ戻す)。
+	 * G3a追補(答申Q1): Grid本体のwidth/min/max-widthがitemの固有寸法へ
+	 * 混入しないようsize系も中立化する。
+	 */
 	private BlockParams itemParams() {
 		final BlockParams params = BlockParamsTemplate.freeze(this.gridBox.getGridParams()).materialize();
 		params.frame = RectFrame.NULL_FRAME;
@@ -82,28 +107,31 @@ public final class GridBuilder {
 		params.zIndexValue = 0;
 		params.transform = new AffineTransform();
 		params.columns = Columns.NONE_COLUMNS;
+		params.size = Dimension.AUTO_DIMENSION;
+		params.minSize = Dimension.ZERO_DIMENSION;
+		params.maxSize = Dimension.AUTO_DIMENSION;
 		return params;
 	}
 
 	/** 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。 */
-	public BlockBuilder startElementItem() {
+	public TwoPassBlockBuilder startElementItem() {
 		return this.startItem(false);
 	}
 
 	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
-	public BlockBuilder requireAnonymousItem() {
+	public TwoPassBlockBuilder requireAnonymousItem() {
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
 			return null; // 既に開いている(積み直し不要)
 		}
 		return this.startItem(true);
 	}
 
-	private BlockBuilder startItem(final boolean anonymous) {
+	private TwoPassBlockBuilder startItem(final boolean anonymous) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		final int index = this.items.size();
 		final GridItemBox itemBox = new GridItemBox(this.itemParams(), new FlowPos(),
 				this.layout.columnWidth(this.layout.columnOf(index)));
-		final BlockBuilder builder = new BlockBuilder(this.host, itemBox);
+		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.host, itemBox);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
 		this.openItemAnonymous = anonymous;
@@ -111,38 +139,49 @@ public final class GridBuilder {
 	}
 
 	/**
-	 * 開いているitemを確定します(builderのclose後に呼ぶ)。空の匿名item
-	 * (空白のみ等)はslotを消費させず破棄する。
+	 * 開いているitemを確定します(録画完了点)。空の匿名item(空白のみ等)は
+	 * slotを消費させず破棄する。合成itemはLayoutSource非記録
+	 * (sourceAnchor=-1)のためrange sealは行わない——本文はGrid終端の
+	 * bindまでLegacyRecordsのまま(答申Q1)。
 	 */
 	public void itemClosed() {
+		final TwoPassBlockBuilder builder = this.openItemBuilder;
 		final GridItemBox itemBox = this.openItemBox;
 		final boolean anonymous = this.openItemAnonymous;
 		this.openItemBuilder = null;
 		this.openItemBox = null;
 		this.openItemAnonymous = false;
-		if (anonymous && itemBox.getContainer().getContentSize() == 0 && !itemBox.paintsAnything()) {
+		if (anonymous && builder.hasEmptyRecordedBody() && !itemBox.paintsAnything()) {
+			GRID_ITEM_EMPTY_ANON_DROPS.incrementAndGet();
 			return;
 		}
-		this.items.add(itemBox);
+		GRID_ITEM_RECORDS.incrementAndGet();
+		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous));
 	}
 
 	/**
-	 * Grid終端の配置です。全itemをトラック座標でGridコンテナへ追加し、
-	 * Grid内高と親flowカーソルを同期する(独立item builderは親カーソルを
-	 * 進めないため、同期しないと後続ブロックが重なる——答申の補正点)。
+	 * Grid終端の組み立てです(G3a: 幅確定→bind→行高計測→配置の四段)。
+	 * 全itemをトラック座標でGridコンテナへ追加し、Grid内高と親flow
+	 * カーソルを同期する(独立item builderは親カーソルを進めないため、
+	 * 同期しないと後続ブロックが重なる——G1答申の補正点)。
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでGrid終端に到達";
 		final GridParams params = this.gridBox.getGridParams();
+		// 幅確定(固定列=構築時と同値)→本文bind。PageAtomicBox契約により
+		// Grid flowがactiveな間に全bindが完了する(ページbreakは走らない)
 		final double[] extents = new double[this.items.size()];
-		for (int i = 0; i < extents.length; ++i) {
-			extents[i] = this.items.get(i).getPageExtent(params.flow);
+		for (int i = 0; i < this.items.size(); ++i) {
+			final GridItemContent item = this.items.get(i);
+			item.bind(this.host, this.layout.columnWidth(this.layout.columnOf(i)));
+			GRID_ITEM_BINDS.incrementAndGet();
+			extents[i] = item.itemBox.getPageExtent(params.flow);
 		}
 		final FixedGridLayout.Placement placement = this.layout.place(extents);
 		for (int i = 0; i < this.items.size(); ++i) {
-			final GridItemBox item = this.items.get(i);
-			item.setGridLineOffset(this.layout.columnStart(this.layout.columnOf(i)));
-			this.gridBox.getContainer().addFlow(item, placement.rowStarts()[this.layout.rowOf(i)]);
+			final GridItemBox itemBox = this.items.get(i).itemBox;
+			itemBox.setGridLineOffset(this.layout.columnStart(this.layout.columnOf(i)));
+			this.gridBox.getContainer().addFlow(itemBox, placement.rowStarts()[this.layout.rowOf(i)]);
 		}
 		this.gridBox.setPageAxis(placement.totalExtent());
 		final LayoutContext.Flow active = this.host.getFlow();

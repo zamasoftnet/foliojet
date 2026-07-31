@@ -21,8 +21,17 @@ public class GridFixedLayoutTest extends AbstractTestCase {
 	private double baseX = Double.NaN, baseY = Double.NaN;
 
 	protected void transcode() throws Exception {
+		final long records = net.zamasoft.foliojet.layout.builder.impl.GridBuilder.GRID_ITEM_RECORDS.get();
+		final long binds = net.zamasoft.foliojet.layout.builder.impl.GridBuilder.GRID_ITEM_BINDS.get();
 		File file = new File("files/unittest/0500-grid/fixed-2x2.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
+		// G3a(consult-codex-2026-07-31-grid-g3.txt Q3): 録画したitemは
+		// 全て一度だけbindされる(要素間の空白は上流のwhite-space処理で
+		// 吸収され、匿名itemを開かない——2026-07-31実測)
+		final long dRecords = net.zamasoft.foliojet.layout.builder.impl.GridBuilder.GRID_ITEM_RECORDS.get() - records;
+		final long dBinds = net.zamasoft.foliojet.layout.builder.impl.GridBuilder.GRID_ITEM_BINDS.get() - binds;
+		assertEquals("record数=bind数", dRecords, dBinds);
+		assertEquals("4item", 4, dRecords);
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {

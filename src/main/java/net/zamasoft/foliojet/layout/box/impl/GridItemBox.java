@@ -26,4 +26,12 @@ public class GridItemBox extends FlowBlockBox {
 	public void setGridLineOffset(final double lineOffset) {
 		this.offsetX = lineOffset;
 	}
+
+	/**
+	 * 確定したトラック幅を設定します(Grid G3a: bind直前に呼ぶ。
+	 * 固定列では構築時の値と同じ。auto/fr列=G3b/cで解決値が入る)。
+	 */
+	public void setTrackWidth(final double trackWidth) {
+		this.width = trackWidth;
+	}
 }
