@@ -87,53 +87,66 @@ public class StyleContext {
 	}
 
 	/**
-	 * ページの開始に対して、対応するスタイル宣言を返します。
-	 *
-	 * @param page
-	 * @return
+	 * ページの開始に対して、対応するスタイル宣言を返します(無名ページ)。
 	 */
 	public Declaration nextPage(CSSElement page) {
-		Declaration result = new Declaration();
-		result.merge(this.styleSheet.page);
-		if (page.isPseudoClass(CSSElement.PC_LEFT)) {
-			result.merge(this.styleSheet.leftPage);
-		}
-		if (page.isPseudoClass(CSSElement.PC_RIGHT)) {
-			result.merge(this.styleSheet.rightPage);
-		}
-		if (page.isPseudoClass(CSSElement.PC_FIRST)) {
-			result.merge(this.styleSheet.firstPage);
+		return this.nextPage(page, null);
+	}
+
+	/**
+	 * ページの開始に対して、対応するスタイル宣言を返します(名前付き
+	 * ページN1a——特異性(f,g,h)昇順→出現順にmergeし後勝ち)。
+	 *
+	 * @param page     ページ擬似要素(first/left/rightの擬似クラス)
+	 * @param pageName 現在のページ名(null=無名)
+	 */
+	public Declaration nextPage(CSSElement page, String pageName) {
+		final Declaration result = new Declaration();
+		for (final PageRule rule : this.matchingPageRules(page, pageName)) {
+			result.merge(rule.declaration);
 		}
 		return result;
 	}
 
 	/**
 	 * ページに対して適用されるマージンボックスの宣言を返します
-	 * (擬似ページの合成順は {@link #nextPage(CSSElement)} と同一)。
-	 *
-	 * @param page ページ擬似要素
-	 * @return ボックス名→宣言(宣言のないボックスは含まれない)
+	 * (合成順は {@link #nextPage(CSSElement, String)} と同一)。
 	 */
 	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page) {
+		return this.pageMarginBoxes(page, null);
+	}
+
+	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page, String pageName) {
 		final Map<MarginBoxName, Declaration> result = new EnumMap<MarginBoxName, Declaration>(MarginBoxName.class);
-		mergeMarginBoxes(result, this.styleSheet.pageMarginBoxes);
-		if (page.isPseudoClass(CSSElement.PC_LEFT)) {
-			mergeMarginBoxes(result, this.styleSheet.leftPageMarginBoxes);
-		}
-		if (page.isPseudoClass(CSSElement.PC_RIGHT)) {
-			mergeMarginBoxes(result, this.styleSheet.rightPageMarginBoxes);
-		}
-		if (page.isPseudoClass(CSSElement.PC_FIRST)) {
-			mergeMarginBoxes(result, this.styleSheet.firstPageMarginBoxes);
+		for (final PageRule rule : this.matchingPageRules(page, pageName)) {
+			for (Map.Entry<MarginBoxName, Declaration> e : rule.marginBoxes.entrySet()) {
+				result.computeIfAbsent(e.getKey(), k -> new Declaration()).merge(e.getValue());
+			}
 		}
 		return result;
 	}
 
-	private static void mergeMarginBoxes(Map<MarginBoxName, Declaration> result,
-			Map<MarginBoxName, Declaration> boxes) {
-		for (Map.Entry<MarginBoxName, Declaration> e : boxes.entrySet()) {
-			result.computeIfAbsent(e.getKey(), k -> new Declaration()).merge(e.getValue());
+	/** 適合規則を特異性昇順(同値は出現順)で返します。 */
+	private List<PageRule> matchingPageRules(CSSElement page, String pageName) {
+		byte pseudo = 0;
+		if (page.isPseudoClass(CSSElement.PC_FIRST)) {
+			pseudo |= PageRule.PSEUDO_FIRST;
 		}
+		if (page.isPseudoClass(CSSElement.PC_LEFT)) {
+			pseudo |= PageRule.PSEUDO_LEFT;
+		}
+		if (page.isPseudoClass(CSSElement.PC_RIGHT)) {
+			pseudo |= PageRule.PSEUDO_RIGHT;
+		}
+		final List<PageRule> matched = new ArrayList<PageRule>();
+		for (final PageRule rule : this.styleSheet.pageRules) {
+			if (rule.matches(pageName, pseudo)) {
+				matched.add(rule);
+			}
+		}
+		// 安定ソート=同特異性は出現順を保つ
+		matched.sort(java.util.Comparator.comparingInt(PageRule::specificity));
+		return matched;
 	}
 
 	/**

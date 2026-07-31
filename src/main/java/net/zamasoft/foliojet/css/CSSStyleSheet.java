@@ -55,18 +55,12 @@ public class CSSStyleSheet {
 	 */
 	private final List<Condition> hasConditions = new ArrayList<Condition>();
 
-	/** ページの宣言。 */
-	Declaration page, firstPage, leftPage, rightPage;
-
-	/** ページマージンボックスの宣言(擬似ページ別)。 */
-	final Map<MarginBoxName, Declaration> pageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
-			MarginBoxName.class);
-	final Map<MarginBoxName, Declaration> firstPageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
-			MarginBoxName.class);
-	final Map<MarginBoxName, Declaration> leftPageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
-			MarginBoxName.class);
-	final Map<MarginBoxName, Declaration> rightPageMarginBoxes = new EnumMap<MarginBoxName, Declaration>(
-			MarginBoxName.class);
+	/**
+	 * 構造化された{@code @page}規則の列です(名前付きページN1a、
+	 * 2026-07-31——旧4バケット(無名/first/left/right)を置き換え。
+	 * 適用はStyleContextが特異性(f,g,h)昇順→出現順のmergeで行う)。
+	 */
+	final List<PageRule> pageRules = new ArrayList<PageRule>();
 
 	/**
 	 * cascadeレイヤーの出現順を登録する台帳です(2026-07-21新設、CSS
@@ -285,62 +279,26 @@ public class CSSStyleSheet {
 	}
 
 	/**
-	 * ページ宣言を追加します。
+	 * 構造化された{@code @page}規則を追加します(名前付きページN1a)。
+	 * 規則ごとに1件——宣言とマージンボックスを同じ特異性・出現順で持つ。
 	 *
-	 * @param pseudoPage
-	 * @param declaration
+	 * @param name        ページ名(null=無名)
+	 * @param pseudoMask  要求する擬似ページ({@link PageRule#PSEUDO_FIRST}等)
+	 * @param declaration 通常宣言(null可)
+	 * @return 追加した規則(呼び出し側がマージンボックスを詰める)
 	 */
-	public void addPage(String pseudoPage, Declaration declaration) {
-		if (declaration == null) {
-			return;
-		}
-		if (pseudoPage == null) {
-			if (this.page == null) {
-				this.page = new Declaration();
-			}
-			this.page.merge(declaration);
-		} else if (pseudoPage.equals("first")) {
-			if (this.firstPage == null) {
-				this.firstPage = new Declaration();
-			}
-			this.firstPage.merge(declaration);
-		} else if (pseudoPage.equals("left")) {
-			if (this.leftPage == null) {
-				this.leftPage = new Declaration();
-			}
-			this.leftPage.merge(declaration);
-		} else if (pseudoPage.equals("right")) {
-			if (this.rightPage == null) {
-				this.rightPage = new Declaration();
-			}
-			this.rightPage.merge(declaration);
-		}
+	public PageRule addPageRule(String name, byte pseudoMask, Declaration declaration) {
+		final PageRule rule = new PageRule(name, pseudoMask, declaration, this.pageRules.size());
+		this.pageRules.add(rule);
+		return rule;
 	}
 
-	/**
-	 * ページマージンボックスの宣言を追加します(css-page-3 §7)。
-	 *
-	 * @param pseudoPage  @page の擬似ページ(null / first / left / right)
-	 * @param box         マージンボックス名
-	 * @param declaration 宣言
-	 */
-	public void addPageMarginBox(String pseudoPage, MarginBoxName box, Declaration declaration) {
+	/** 規則へマージンボックス宣言を追加します。 */
+	public void addPageRuleMarginBox(PageRule rule, MarginBoxName box, Declaration declaration) {
 		if (declaration == null) {
 			return;
 		}
-		final Map<MarginBoxName, Declaration> boxes;
-		if (pseudoPage == null) {
-			boxes = this.pageMarginBoxes;
-		} else if (pseudoPage.equals("first")) {
-			boxes = this.firstPageMarginBoxes;
-		} else if (pseudoPage.equals("left")) {
-			boxes = this.leftPageMarginBoxes;
-		} else if (pseudoPage.equals("right")) {
-			boxes = this.rightPageMarginBoxes;
-		} else {
-			return;
-		}
-		boxes.computeIfAbsent(box, k -> new Declaration()).merge(declaration);
+		rule.marginBoxes.computeIfAbsent(box, k -> new Declaration()).merge(declaration);
 	}
 
 }

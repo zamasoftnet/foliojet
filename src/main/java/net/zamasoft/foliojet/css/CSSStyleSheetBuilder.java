@@ -372,48 +372,72 @@ public class CSSStyleSheetBuilder {
 	}
 
 	private void page(CSSPageRule pageRule, URI uri, boolean mediaOk) {
-		String name = null, pseudo = null;
-		List<String> selectors = pageRule.getAllSelectors();
-		if (!selectors.isEmpty()) {
-			String selector = selectors.get(0);
-			int colon = selector.indexOf(':');
-			if (colon == -1) {
-				name = selector;
-			} else {
-				if (colon > 0) {
-					name = selector.substring(0, colon);
+		if (!mediaOk) {
+			return;
+		}
+		// 名前付きページN1a(consult-codex-2026-07-31-named-pages.txt Q1):
+		// セレクタリスト全件を処理し、名前+複合擬似(chapter:first等)を
+		// 構造化PageRuleへ。未対応の擬似(:blank等)はそのセレクタのみ無効
+		final List<String> selectors = pageRule.getAllSelectors();
+		final List<String> names = new ArrayList<String>();
+		final List<Byte> masks = new ArrayList<Byte>();
+		if (selectors.isEmpty()) {
+			names.add(null);
+			masks.add((byte) 0);
+		} else {
+			selector: for (final String selector : selectors) {
+				String name = null;
+				byte mask = 0;
+				final String[] parts = selector.split(":", -1);
+				if (!parts[0].isEmpty()) {
+					name = parts[0];
 				}
-				pseudo = selector.substring(colon + 1);
+				for (int i = 1; i < parts.length; ++i) {
+					final String pseudo = parts[i];
+					if ("first".equalsIgnoreCase(pseudo)) {
+						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_FIRST;
+					} else if ("left".equalsIgnoreCase(pseudo)) {
+						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_LEFT;
+					} else if ("right".equalsIgnoreCase(pseudo)) {
+						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_RIGHT;
+					} else if ("-cssj-page-content".equalsIgnoreCase(pseudo)) {
+						// 4で廃止された独自機能(3.xの@page :-cssj-page-content)
+						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+								"@page :-cssj-page-content は廃止されました。@page のマージンボックスを使用してください");
+						continue selector;
+					} else {
+						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+								"未対応のページ擬似クラスです: :" + pseudo);
+						continue selector;
+					}
+				}
+				names.add(name);
+				masks.add(mask);
 			}
 		}
-		if ("-cssj-page-content".equalsIgnoreCase(pseudo)) {
-			// 4で廃止された独自機能(3.xの@page :-cssj-page-content)。
-			// 標準の@pageマージンボックスへの移行を促す
-			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
-					"@page :-cssj-page-content は廃止されました。@page のマージンボックスを使用してください");
+		if (names.isEmpty()) {
 			return;
 		}
-		if (name != null) {
-			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), "名前つきページはサポートしていません");
-			return;
-		}
-		if (mediaOk) {
-			Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
-					PagePropertySet.getInstance(), this.ua, uri);
-			this.cssStyleSheet.addPage(pseudo, declaration);
+		final Declaration declaration = DeclarationParser.convert(pageDeclarations(pageRule), null,
+				PagePropertySet.getInstance(), this.ua, uri);
+		for (int s = 0; s < names.size(); ++s) {
+			final net.zamasoft.foliojet.css.PageRule rule = this.cssStyleSheet.addPageRule(names.get(s),
+					masks.get(s), declaration);
 
 			// ページマージンボックス(@top-center等、css-page-3 §7)
 			for (ICSSPageRuleMember member : pageRule.getAllMembers()) {
 				if (member instanceof CSSPageMarginBlock marginBlock) {
 					final MarginBoxName box = MarginBoxName.fromSymbol(marginBlock.getPageMarginSymbol());
 					if (box == null) {
-						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
-								"未知のページマージンボックスです: " + marginBlock.getPageMarginSymbol());
+						if (s == 0) {
+							this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+									"未知のページマージンボックスです: " + marginBlock.getPageMarginSymbol());
+						}
 						continue;
 					}
 					Declaration boxDeclaration = DeclarationParser.convert(marginBlock.getAllDeclarations(), null,
 							ElementPropertySet.getInstance(), this.ua, uri);
-					this.cssStyleSheet.addPageMarginBox(pseudo, box, boxDeclaration);
+					this.cssStyleSheet.addPageRuleMarginBox(rule, box, boxDeclaration);
 				}
 			}
 		}
