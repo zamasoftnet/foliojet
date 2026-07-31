@@ -233,6 +233,14 @@ public final class ElementPropertySet extends PropertySet {
 		reg(FontSize.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.INFO);
+		// Grid G0(consult-codex-2026-07-31-grid.txt)
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.COLUMNS);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.ROWS);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.COLUMN_START);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.COLUMN_END);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_START);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_END);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.RowGap.INFO);
 		reg(TextIndent.INFO);
 		reg(TextAlign.INFO);
 		reg(TextDecoration.INFO);
@@ -284,6 +292,9 @@ public final class ElementPropertySet extends PropertySet {
 		put(MarginShorthand.INFO);
 		put(PaddingShorthand.INFO);
 		put(FontShorthand.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.COLUMN);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.ROW);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.GapShorthand.INFO);
 		put(BackgroundShorthand.INFO);
 		put(ListStyleShorthand.INFO);
 

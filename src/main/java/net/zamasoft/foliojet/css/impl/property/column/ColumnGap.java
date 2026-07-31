@@ -25,8 +25,27 @@ import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ColumnGap();
 
+	/**
+	 * 段組用の使用値です({@code normal}=1em。従来挙動)。Grid G0で
+	 * {@code normal}をcomputed valueに残す形へ変更した——multicolは
+	 * ここで1emへ、Gridは{@link #getForGrid}で0へ解決する
+	 * (consult-codex-2026-07-31-grid.txt §2)。
+	 */
 	public static double get(CSSStyle style) {
-		return ((AbsoluteLengthValue) style.get(INFO)).getLength();
+		final Value value = style.get(INFO);
+		if (value == net.zamasoft.foliojet.css.value.KeywordValue.NORMAL) {
+			return net.zamasoft.foliojet.css.impl.property.font.FontSize.get(style);
+		}
+		return ((AbsoluteLengthValue) value).getLength();
+	}
+
+	/** Grid用の使用値です({@code normal}=0)。 */
+	public static double getForGrid(CSSStyle style) {
+		final Value value = style.get(INFO);
+		if (value == net.zamasoft.foliojet.css.value.KeywordValue.NORMAL) {
+			return 0;
+		}
+		return ((AbsoluteLengthValue) value).getLength();
 	}
 
 	protected ColumnGap() {
@@ -34,7 +53,7 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return RelativeLengthValue.em(1).toAbsoluteLength(style);
+		return net.zamasoft.foliojet.css.value.KeywordValue.NORMAL;
 	}
 
 	public boolean isInherited() {
@@ -42,13 +61,16 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
+		if (value == net.zamasoft.foliojet.css.value.KeywordValue.NORMAL) {
+			return value;
+		}
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isNormal(lu)) {
-			return RelativeLengthValue.em(1);
+			return net.zamasoft.foliojet.css.value.KeywordValue.NORMAL;
 		}
 		LengthValue value = BorderValueUtils.toBorderWidth(ua, lu);
 		if (value == null) {
