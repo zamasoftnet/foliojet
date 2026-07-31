@@ -13,14 +13,17 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
  * する)。祖先(`AbstractStaticPos`)のフィールドは{@link PosFields}へ
  * 委譲する(合成)。
  */
-record BlockLevelPosFields(PosFields staticFields, PageBreakMode pageBreakBefore, PageBreakMode pageBreakAfter) {
+record BlockLevelPosFields(PosFields staticFields, PageBreakMode pageBreakBefore, PageBreakMode pageBreakAfter,
+		String pageName) {
 	static BlockLevelPosFields freeze(final AbstractBlockLevelPos source) {
-		return new BlockLevelPosFields(PosFields.freeze(source), source.pageBreakBefore, source.pageBreakAfter);
+		return new BlockLevelPosFields(PosFields.freeze(source), source.pageBreakBefore, source.pageBreakAfter,
+				source.pageName);
 	}
 
 	void materializeInto(final AbstractBlockLevelPos target) {
 		this.staticFields.materializeInto(target);
 		target.pageBreakBefore = this.pageBreakBefore;
 		target.pageBreakAfter = this.pageBreakAfter;
+		target.pageName = this.pageName;
 	}
 }

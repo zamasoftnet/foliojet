@@ -217,6 +217,20 @@ final class PageSequence {
 		return PageBreakMode.AUTO;
 	}
 
+	/**
+	 * 現在のページ名です(名前付きページN1b。null=無名。N1bではroot
+	 * (文書要素)のused valueで全ページ一律——文書途中の遷移はN2)。
+	 */
+	private String pageName;
+
+	void setPageName(final String pageName) {
+		this.pageName = pageName;
+	}
+
+	String getPageName() {
+		return this.pageName;
+	}
+
 	PageBox nextPage() {
 		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
 		this.segment.trimToOpenElements();
@@ -225,7 +239,7 @@ final class PageSequence {
 		// 消費しないので、進める前の値を覚えておく(discardPage が戻す)
 		this.previousPageSide = this.ua.getPassContext().getPageSide();
 		this.pageElement = this.imposition.nextPageSide();
-		Declaration declaration = this.styleContext.nextPage(this.pageElement);
+		Declaration declaration = this.styleContext.nextPage(this.pageElement, this.pageName);
 		CSSStyle pageStyle = CSSStyle.getCSSStyle(this.ua, null, this.pageElement);
 
 		// デフォルトのマージン
@@ -391,7 +405,7 @@ final class PageSequence {
 			return false;
 		}
 		// ページマージンボックス(柱・ノンブル)は宣言があれば描くとみなす
-		return this.styleContext.pageMarginBoxes(this.pageElement).isEmpty();
+		return this.styleContext.pageMarginBoxes(this.pageElement, this.pageName).isEmpty();
 	}
 
 	/**
@@ -511,7 +525,7 @@ final class PageSequence {
 			pageBox.drawFixed(drawer, visitor);
 
 			// ページマージンボックス(css-page-3。本文の後に描く=仕様の描画順)
-			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, pageBox, drawer, visitor);
+			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor);
 
 			visitor.endPage();
 		}

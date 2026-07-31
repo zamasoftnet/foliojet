@@ -296,6 +296,11 @@ final class BoxStyleMapper {
 		if (CSSPosition.get(style) != PositionValue.STATIC) {
 			pos.offset = this.createRelativeOffset(style);
 		}
+		// 名前付きページN1b: pageのused value(最も近い非autoの祖先)を
+		// ブロックレベル配置へ運ぶ(境界判定=N2の入力)
+		if (pos instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos blockLevel) {
+			blockLevel.pageName = net.zamasoft.foliojet.css.impl.property.page.PageProperty.getUsed(style);
+		}
 	}
 
 	/**

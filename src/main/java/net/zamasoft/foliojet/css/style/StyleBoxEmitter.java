@@ -281,6 +281,13 @@ final class StyleBoxEmitter {
 				params.flow = progression;
 			}
 			this.pageSequence.setProgression(progression);
+			// 名前付きページN1b: root(html)のpage used valueを全ページへ
+			// 適用する(文書途中の遷移・body以下の名前はN2——
+			// consult-codex-2026-07-31-named-pages.txt)
+			if (this.context.getHtmlRootBlock() != null && this.context.getHtmlRootBlock()
+					.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos blockLevel) {
+				this.pageSequence.setPageName(blockLevel.pageName);
+			}
 			// 右とじ
 			boolean right;
 			OutputPrintMode printMode = UAProps.OUTPUT_PRINT_MODE.get(this.ua);

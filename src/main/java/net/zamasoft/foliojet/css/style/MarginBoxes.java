@@ -94,8 +94,8 @@ final class MarginBoxes {
 	 * @param visitor      ビジタ
 	 */
 	static void draw(final UserAgent ua, final StyleContext styleContext, final CSSElement pageElement,
-			final PageBox pageBox, final Drawer drawer, final Visitor visitor) {
-		final Map<MarginBoxName, Declaration> declarations = styleContext.pageMarginBoxes(pageElement);
+			final String pageName, final PageBox pageBox, final Drawer drawer, final Visitor visitor) {
+		final Map<MarginBoxName, Declaration> declarations = styleContext.pageMarginBoxes(pageElement, pageName);
 		if (declarations.isEmpty()) {
 			return;
 		}

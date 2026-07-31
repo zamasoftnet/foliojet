@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>named page N1b: named margin boxes</title>
+<style type="text/css">
+html { page: chapter; }
+body { font-size: 12pt; margin: 0; }
+p { margin: 0; }
+@page { margin: 30pt; @top-center { content: "PLAIN"; } }
+@page chapter { @top-center { content: "CHAPTER"; } @bottom-center { content: counter(page); } }
+@page chapter:first { @top-center { content: "CHAPTER-FIRST"; } }
+</style>
+</head>
+<body>
+<p>page one</p>
+<p style="page-break-before: always">page two</p>
+</body>
+</html>

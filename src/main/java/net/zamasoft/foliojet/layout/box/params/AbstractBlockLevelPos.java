@@ -17,6 +17,12 @@ public abstract class AbstractBlockLevelPos extends AbstractStaticPos {
 	 */
 	public PageBreakMode pageBreakAfter = PageBreakMode.AUTO;
 
+	/**
+	 * ページ名のused value(名前付きページN1b。null=無名。最も近い
+	 * 非autoの祖先から解決済み——境界判定はN2)。
+	 */
+	public String pageName = null;
+
 	public String toString() {
 		return super.toString() + "[pageBreakBefore=" + this.pageBreakBefore + ",pageBreakAfter=" + this.pageBreakAfter
 				+ "]";

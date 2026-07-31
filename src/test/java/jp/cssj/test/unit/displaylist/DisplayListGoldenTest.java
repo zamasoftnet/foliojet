@@ -144,6 +144,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めT2/H1(2026-07-31)。行末ぶら下げ(allow-end)の
 			// 追い込みと、行末trimの条件付き半角化を固定する
 			"0510-text-spacing/hanging-end.html", //
+			// 名前付きページN1b(2026-07-31)。rootのpage名で@page chapterの
+			// 柱が出て、chapter:firstが特異性で先頭ページに勝つこと・
+			// 無名@pageのマージンは継承合成されることを固定する
+			"0520-named-page/named-margin-box.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //
