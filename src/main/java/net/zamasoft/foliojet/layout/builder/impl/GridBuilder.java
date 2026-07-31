@@ -23,6 +23,7 @@ import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
+import net.zamasoft.foliojet.layout.sizing.GridPlacementResolver;
 
 /**
  * Gridの構築coordinatorです(Grid G1b、2026-07-31——
@@ -65,6 +66,12 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 
 	/** 空の匿名itemを破棄した数(slot非消費)。 */
 	public static final AtomicLong GRID_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
+
+	/**
+	 * 明示配置が未対応でcontainer単位のsource-order配置へ戻した数
+	 * (G4b——silent capの禁止。1件だけauto化しない=答申Q5)。
+	 */
+	public static final AtomicLong GRID_PLACEMENT_FALLBACKS = new AtomicLong();
 
 	private final Builder host;
 
@@ -194,6 +201,65 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		return this.gridBox;
 	}
 
+	/** 確定済み配置plan(G4b——getIntrinsicSizesとbindが必ず共有する)。 */
+	private GridPlacementResolver.Plan placementPlan;
+
+	/**
+	 * 配置planを一度だけ確定します(G4b、答申Q3)。明示配置が未対応
+	 * (implicit column・負行・上限超過)またはrowSpan&gt;1(G4d予定)の
+	 * ときはcontainer単位でG3のsource-order配置(col=i%n、row=i/n)へ
+	 * 戻す——1件だけauto化するとoccupancy/cursor経由で後続全itemが
+	 * ずれるため(答申Q5の最重要則)。
+	 */
+	private GridPlacementResolver.Plan placementPlan() {
+		if (this.placementPlan != null) {
+			return this.placementPlan;
+		}
+		final int n = this.tracks.size();
+		final List<net.zamasoft.foliojet.layout.box.params.GridItemSpec> specs = new ArrayList<>(this.items.size());
+		for (final GridItemContent item : this.items) {
+			specs.add(item.spec);
+		}
+		GridPlacementResolver.Plan plan = null;
+		if (GridPlacementResolver.resolve(specs, n) instanceof GridPlacementResolver.Result.Resolved resolved) {
+			plan = resolved.plan();
+			for (final GridPlacementResolver.GridArea area : plan.areas()) {
+				if (area.rowSpan() > 1) {
+					plan = null; // row spanの行高不足分配はG4d
+					break;
+				}
+			}
+		}
+		if (plan == null) {
+			GRID_PLACEMENT_FALLBACKS.incrementAndGet();
+			final GridPlacementResolver.GridArea[] areas = new GridPlacementResolver.GridArea[this.items.size()];
+			for (int i = 0; i < areas.length; ++i) {
+				areas[i] = new GridPlacementResolver.GridArea(i % n, i / n, 1, 1);
+			}
+			plan = new GridPlacementResolver.Plan(List.of(areas), n, (areas.length + n - 1) / n);
+		}
+		this.placementPlan = plan;
+		return plan;
+	}
+
+	/**
+	 * planに基づく列ごとのitem contribution(min/max-contentの最大)です。
+	 * column spanのあるitemの寄与はG4bでは未分配(不足分配はG4d——
+	 * fixed track主体の使用では影響しない。答申Q2)。
+	 */
+	private void columnContributions(final GridPlacementResolver.Plan plan, final double[] colMin,
+			final double[] colMax) {
+		for (int i = 0; i < this.items.size(); ++i) {
+			final GridPlacementResolver.GridArea area = plan.areas().get(i);
+			if (area.columnSpan() != 1) {
+				continue;
+			}
+			final GridItemContent item = this.items.get(i);
+			colMin[area.column()] = Math.max(colMin[area.column()], item.sizes.minContent());
+			colMax[area.column()] = Math.max(colMax[area.column()], item.sizes.maxContent());
+		}
+	}
+
 	/**
 	 * Grid全体のcontent-box固有寸法contributionです(G3d2、答申Q2/G3d2)。
 	 * 行方向: min=gap+Σ(fixed長|列内item min-contentの最大)、
@@ -205,18 +271,16 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 	@Override
 	public IntrinsicSizes getIntrinsicSizes() {
 		final int n = this.tracks.size();
+		final GridPlacementResolver.Plan plan = this.placementPlan();
 		final double[] colMin = new double[n];
 		final double[] colMax = new double[n];
+		this.columnContributions(plan, colMin, colMax);
 		boolean columnInflated = false;
-		final int rows = (this.items.size() + n - 1) / n;
-		final double[] rowMinPage = new double[Math.max(1, rows)];
+		final double[] rowMinPage = new double[Math.max(1, plan.rowCount())];
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
-			final int col = i % n;
-			colMin[col] = Math.max(colMin[col], item.sizes.minContent());
-			colMax[col] = Math.max(colMax[col], item.sizes.maxContent());
-			final int row = i / n;
-			rowMinPage[row] = Math.max(rowMinPage[row], item.sizes.minPage());
+			final GridPlacementResolver.GridArea area = plan.areas().get(i);
+			rowMinPage[area.row()] = Math.max(rowMinPage[area.row()], item.sizes.minPage());
 			columnInflated |= item.sizes.columnInflated();
 		}
 		double min = this.columnGap * (n - 1);
@@ -230,8 +294,8 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 				max += colMax[i];
 			}
 		}
-		double minPage = rows > 1 ? this.rowGap * (rows - 1) : 0;
-		for (int r = 0; r < rows; ++r) {
+		double minPage = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
+		for (int r = 0; r < rowMinPage.length; ++r) {
 			minPage += rowMinPage[r];
 		}
 		return new IntrinsicSizes(min, max, minPage, columnInflated);
@@ -284,38 +348,55 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		this.bound = true;
 		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final GridParams params = this.gridBox.getGridParams();
-		// トラック幅解決(G3b/c): 列ごとのitem固有寸法contribution
-		// (min/max-contentの最大)から、fixed=指定長・auto=base/growth
-		// limit+stretch・fr=find-frで確定する。基準幅はGridコンテナの
-		// content-box行幅(TwoPass経由ではshrink-to-fit確定後の幅)
+		final GridPlacementResolver.Plan plan = this.placementPlan();
+		// トラック幅解決(G3b/c): planに基づく列contribution(G4b)から、
+		// fixed=指定長・auto=base/growth limit+stretch・fr=find-frで
+		// 確定する。基準幅はGridコンテナのcontent-box行幅
+		// (TwoPass経由ではshrink-to-fit確定後の幅)
 		final int n = this.tracks.size();
 		final double[] colMin = new double[n];
 		final double[] colMax = new double[n];
-		for (int i = 0; i < this.items.size(); ++i) {
-			final GridItemContent item = this.items.get(i);
-			final int col = i % n;
-			colMin[col] = Math.max(colMin[col], item.sizes.minContent());
-			colMax[col] = Math.max(colMax[col], item.sizes.maxContent());
-		}
+		this.columnContributions(plan, colMin, colMax);
 		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, colMin, colMax,
 				this.gridBox.getLineSize(), this.columnGap);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
-		// 幅確定→本文bind。PageAtomicBox契約によりGrid flowがactiveな間に
-		// 全bindが完了する(ページbreakは走らない)
+		// 幅確定→本文bind。span itemの幅=跨ぐトラック幅の合計+内側gap
+		// (G4b)。PageAtomicBox契約によりGrid flowがactiveな間に全bindが
+		// 完了する(ページbreakは走らない)
 		final double[] extents = new double[this.items.size()];
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
-			item.bind(target, layout.columnWidth(layout.columnOf(i)));
+			final GridPlacementResolver.GridArea area = plan.areas().get(i);
+			double areaWidth = this.columnGap * (area.columnSpan() - 1);
+			for (int c = area.column(); c < area.column() + area.columnSpan(); ++c) {
+				areaWidth += widths[c];
+			}
+			item.bind(target, areaWidth);
 			GRID_ITEM_BINDS.incrementAndGet();
 			extents[i] = item.itemBox.getPageExtent(params.flow);
 		}
-		final FixedGridLayout.Placement placement = layout.place(extents);
+		// 行高解決(planベース——G4b。rowSpanは常に1=placementPlan()が保証。
+		// 空行は高さ0だが隣接rowGapは残る=仕様のgutter挙動)
+		final double[] rowHeights = new double[Math.max(1, plan.rowCount())];
+		for (int i = 0; i < this.items.size(); ++i) {
+			rowHeights[plan.areas().get(i).row()] = Math.max(rowHeights[plan.areas().get(i).row()], extents[i]);
+		}
+		final double[] rowStarts = new double[rowHeights.length];
+		double cursor = 0;
+		for (int r = 0; r < rowHeights.length; ++r) {
+			rowStarts[r] = cursor;
+			cursor += rowHeights[r];
+			if (r < rowHeights.length - 1) {
+				cursor += this.rowGap;
+			}
+		}
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemBox itemBox = this.items.get(i).itemBox;
-			itemBox.setGridLineOffset(layout.columnStart(layout.columnOf(i)));
-			this.gridBox.getContainer().addFlow(itemBox, placement.rowStarts()[layout.rowOf(i)]);
+			final GridPlacementResolver.GridArea area = plan.areas().get(i);
+			itemBox.setGridLineOffset(layout.columnStart(area.column()));
+			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()]);
 		}
-		this.gridBox.setPageAxis(placement.totalExtent());
+		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
 		final LayoutContext.Flow active = target.getFlow();
 		assert active.box == this.gridBox : "Grid bindでactive flowがGridではない: " + active.box;
 		target.setPageAxis(active.pageAxis + this.gridBox.getInnerPageExtent(params.flow));
