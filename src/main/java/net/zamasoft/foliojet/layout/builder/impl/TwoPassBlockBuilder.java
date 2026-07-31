@@ -81,6 +81,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		/** テーブル(Retained実行計画のみ——Incrementalは録画対象にならない)。 */
 		record TableEvent(net.zamasoft.foliojet.layout.builder.RetainedTable builder) implements Recorded {
 		}
+
+		/** Grid実行計画(Grid G3d1——TableEventと同型)。 */
+		record GridEvent(net.zamasoft.foliojet.layout.builder.RetainedGrid builder) implements Recorded {
+		}
 	}
 
 	/**
@@ -572,6 +576,16 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			this.pendingInlineBlock = autoTableBuilder;
 			break;
 		}
+	}
+
+	public void addGrid(final net.zamasoft.foliojet.layout.builder.RetainedGrid gridBuilder) {
+		// Grid G3d1/d2(consult-codex-2026-07-31-grid-g3.txt Q3): TwoPass
+		// 宿主では実行計画を録画し、Gridのcontent-box固有寸法を計測器へ
+		// 伝える(GridBoxのframeはstartFlowBlock→measurer.startFlowの
+		// 通常経路が一度だけ加算する——二重計上防止は答申Q5)。
+		// Gridは常にFLOW配置のためpendingInlineBlock相当はない
+		this.measurer.grid(gridBuilder.getIntrinsicSizes());
+		this.addRecord(new Recorded.GridEvent(gridBuilder));
 	}
 
 	public Builder newBuilder(final AbstractBlockBox stfBox) {
@@ -1163,6 +1177,20 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				default:
 					throw new IllegalStateException();
 				}
+			}
+				break;
+
+			case Recorded.GridEvent gridEvent: {
+				if (DEBUG) {
+					System.err.println("GRID");
+				}
+				// Grid G3d1: 直前のStartFlow(GridBox)でactive flowがGridに
+				// なっている。bindがトラック解決→item bind→配置→カーソル
+				// 同期まで行い、続くEndFlowが通常どおりGridを畳む
+				if (textUnitizer != null) {
+					textUnitizer.flush();
+				}
+				gridEvent.builder().bind(builder);
 			}
 				break;
 

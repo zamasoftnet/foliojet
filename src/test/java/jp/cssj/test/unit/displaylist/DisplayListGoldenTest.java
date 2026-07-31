@@ -119,6 +119,10 @@ public class DisplayListGoldenTest extends TestCase {
 			"0500-grid/fixed-2x2.html", //
 			"0500-grid/mixed-items.html", //
 			"0500-grid/auto-columns.html", //
+			"0500-grid/intrinsic-auto-fr.html", //
+			"0500-grid/grid-in-float.html", //
+			"0500-grid/grid-in-float-shrink.html", //
+			"0500-grid/nested-grid.html", //
 			"0500-grid/atomic-move.html", //
 			"0480-rescue-split/tall-inline-block.html", //
 			"0480-rescue-split/orthogonal-block.html", //

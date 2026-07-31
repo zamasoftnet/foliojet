@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G3d1: nested grid inside item</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="g" style="display: grid; grid-template-columns: 100pt 100pt; width: 200pt">
+<div id="inner" style="display: grid; grid-template-columns: 40pt 40pt; width: 80pt">
+<div id="n1"><div style="width: 30pt; height: 10pt; background: #ccc"></div></div>
+<div id="n2"><div style="width: 30pt; height: 10pt; background: #ccc"></div></div>
+</div>
+<div id="b"><div style="width: 50pt; height: 30pt; background: #ccc"></div></div>
+</div>
+<div id="after">after</div>
+</body>
+</html>

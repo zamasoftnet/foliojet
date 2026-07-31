@@ -1230,6 +1230,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		tableBuilder.bind(this);
 	}
 
+	public void addGrid(final net.zamasoft.foliojet.layout.builder.RetainedGrid gridBuilder) {
+		// Grid G3d1: 通常フローでは即時bind(トラック解決→item bind→配置)
+		gridBuilder.bind(this);
+	}
+
 	public Builder newBuilder(AbstractBlockBox blockBox) {
 		final Builder builder;
 		AbstractContainerBox containerBox;

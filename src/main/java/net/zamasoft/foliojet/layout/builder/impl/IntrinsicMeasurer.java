@@ -302,6 +302,13 @@ final class IntrinsicMeasurer {
 		this.maxLineSize = Math.max(this.maxLineSize, tableSizes.maxContent() * this.columnCount);
 	}
 
+	/** Grid全体のcontent-box contributionです(Grid G3d2——tableと同型)。 */
+	void grid(final IntrinsicSizes gridSizes) {
+		this.columnInflated |= gridSizes.columnInflated();
+		this.minLineSize = Math.max(this.minLineSize, gridSizes.minContent() * this.columnCount);
+		this.maxLineSize = Math.max(this.maxLineSize, gridSizes.maxContent() * this.columnCount);
+	}
+
 	void fitFloating(TwoPassBlockBuilder childBuilder) {
 		FloatBlockBox floatingBox = (FloatBlockBox) childBuilder.getRootBox();
 		this.clearFloatAdvance(floatingBox.getFloatPos().clear);

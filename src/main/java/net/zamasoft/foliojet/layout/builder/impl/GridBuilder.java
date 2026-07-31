@@ -15,8 +15,11 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
+import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
+import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
 
@@ -38,12 +41,20 @@ import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
  * </p>
  *
  * <p>
- * G1サブセット: 固定長列のみ・行はauto(行内item実高の最大)・
+ * G3d1(RetainedGrid化): 宿主がBlockBuilderなら{@code finish()}→
+ * {@code addGrid}が即時{@link #bind}を呼ぶ。TwoPass宿主(幅なし
+ * float等)では録画の{@code GridEvent}に保持され、幅確定後の
+ * records bindで同じ{@link #bind}を通る——両経路の幾何は単一実装。
+ * 固有寸法contribution({@link #getIntrinsicSizes})はG3d2。
+ * </p>
+ *
+ * <p>
+ * サブセット: 列はfixed/auto/fr・行はauto(行内item実高の最大)・
  * source-order row auto-placement。適格判定は
  * {@link GridBuilderLifecycle#eligible}。
  * </p>
  */
-public final class GridBuilder {
+public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.RetainedGrid {
 
 	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
 	public static final AtomicLong GRID_ITEM_RECORDS = new AtomicLong();
@@ -54,7 +65,10 @@ public final class GridBuilder {
 	/** 空の匿名itemを破棄した数(slot非消費)。 */
 	public static final AtomicLong GRID_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
 
-	private final BlockBuilder host;
+	private final Builder host;
+
+	/** item builderの親LayoutStack({@code host}と同一インスタンス)。 */
+	private final LayoutStack hostStack;
 
 	private final GridBox gridBox;
 
@@ -73,17 +87,14 @@ public final class GridBuilder {
 	/** 開いているitemが匿名(直接テキスト)か。 */
 	private boolean openItemAnonymous;
 
-	GridBuilder(final BlockBuilder host, final GridBox gridBox) {
+	GridBuilder(final Builder host, final GridBox gridBox) {
 		this.host = host;
+		this.hostStack = (LayoutStack) host;
 		this.gridBox = gridBox;
 		final GridParams params = gridBox.getGridParams();
 		this.tracks = params.templateColumns;
 		this.columnGap = params.columnGap;
 		this.rowGap = params.rowGap;
-	}
-
-	public GridBox getGridBox() {
-		return this.gridBox;
 	}
 
 	public boolean hasOpenElementItem() {
@@ -133,7 +144,7 @@ public final class GridBuilder {
 		// 幅は暫定(auto列は未解決)。録画・計測は幅非依存で、確定幅は
 		// finish()のbind直前にsetTrackWidthで入る(G3b)
 		final GridItemBox itemBox = new GridItemBox(this.itemParams(), new FlowPos(), 0);
-		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.host, itemBox);
+		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
 		this.openItemAnonymous = anonymous;
@@ -162,17 +173,92 @@ public final class GridBuilder {
 	}
 
 	/**
-	 * Grid終端の組み立てです(G3a: 幅確定→bind→行高計測→配置の四段)。
-	 * 全itemをトラック座標でGridコンテナへ追加し、Grid内高と親flow
-	 * カーソルを同期する(独立item builderは親カーソルを進めないため、
-	 * 同期しないと後続ブロックが重なる——G1答申の補正点)。
+	 * Grid終端です(G3d1): 実行計画としてホストへ渡す。BlockBuilderは
+	 * 即時{@link #bind}、TwoPassは録画のGridEventに保持して幅確定後に
+	 * bindする。
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでGrid終端に到達";
+		this.host.addGrid(this);
+	}
+
+	@Override
+	public GridBox getGridBox() {
+		return this.gridBox;
+	}
+
+	/**
+	 * Grid全体のcontent-box固有寸法contributionです(G3d2、答申Q2/G3d2)。
+	 * 行方向: min=gap+Σ(fixed長|列内item min-contentの最大)、
+	 * max=gap+Σ(fixed長|列内item max-contentの最大)(auto/frとも——
+	 * frのmax-content contributionは内容由来)。ページ方向minは
+	 * 行ごとのitem minPage最大の合計+rowGap。frameは含めない
+	 * (計測器の通常経路が一度だけ加算する)。
+	 */
+	@Override
+	public IntrinsicSizes getIntrinsicSizes() {
+		final int n = this.tracks.size();
+		final double[] colMin = new double[n];
+		final double[] colMax = new double[n];
+		boolean columnInflated = false;
+		final int rows = (this.items.size() + n - 1) / n;
+		final double[] rowMinPage = new double[Math.max(1, rows)];
+		for (int i = 0; i < this.items.size(); ++i) {
+			final GridItemContent item = this.items.get(i);
+			final int col = i % n;
+			colMin[col] = Math.max(colMin[col], item.sizes.minContent());
+			colMax[col] = Math.max(colMax[col], item.sizes.maxContent());
+			final int row = i / n;
+			rowMinPage[row] = Math.max(rowMinPage[row], item.sizes.minPage());
+			columnInflated |= item.sizes.columnInflated();
+		}
+		double min = this.columnGap * (n - 1);
+		double max = min;
+		for (int i = 0; i < n; ++i) {
+			if (this.tracks.get(i) instanceof GridTrackListValue.Fixed fixed) {
+				min += fixed.length();
+				max += fixed.length();
+			} else {
+				min += colMin[i];
+				max += colMax[i];
+			}
+		}
+		double minPage = rows > 1 ? this.rowGap * (rows - 1) : 0;
+		for (int r = 0; r < rows; ++r) {
+			minPage += rowMinPage[r];
+		}
+		return new IntrinsicSizes(min, max, minPage, columnInflated);
+	}
+
+	@Override
+	public void abandonForParentRange() {
+		// G3d3で本使用(親rangeの範囲再生がGrid全体を再構築する)。
+		// item録画への参照を手放すだけでよい——合成itemはLayoutSource
+		// 非記録のためリースを持たない
+		this.items.clear();
+	}
+
+	/** bindは一度きり(二重bindはLegacyRecordsのlive box変異——答申Q5)。 */
+	private boolean bound;
+
+	/**
+	 * Gridの組み立てです(G3a: 幅確定→bind→行高計測→配置の四段)。
+	 * 全itemをトラック座標でGridコンテナへ追加し、Grid内高とホストflow
+	 * カーソルを同期する(独立item builderは親カーソルを進めないため、
+	 * 同期しないと後続ブロックが重なる——G1答申の補正点)。ホストの
+	 * active flowが当のGridBoxである間に呼ぶこと(liveはDocumentBuilder
+	 * のFLOW終端、records bindはStartFlow(GridBox)とEndFlowの間)。
+	 */
+	@Override
+	public void bind(final Builder hostBuilder) {
+		assert !this.bound : "Gridの二重bind";
+		this.bound = true;
+		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final GridParams params = this.gridBox.getGridParams();
-		// トラック幅解決(G3b): 列ごとのitem固有寸法contribution
+		// トラック幅解決(G3b/c): 列ごとのitem固有寸法contribution
 		// (min/max-contentの最大)から、fixed=指定長・auto=base/growth
-		// limit+stretchで確定する。基準幅はGridコンテナのcontent-box行幅
+		// limit+stretch・fr=find-frで確定する。基準幅はGridコンテナの
+		// content-box行幅(TwoPass経由ではshrink-to-fit確定後の幅)
 		final int n = this.tracks.size();
 		final double[] colMin = new double[n];
 		final double[] colMax = new double[n];
@@ -190,7 +276,7 @@ public final class GridBuilder {
 		final double[] extents = new double[this.items.size()];
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
-			item.bind(this.host, layout.columnWidth(layout.columnOf(i)));
+			item.bind(target, layout.columnWidth(layout.columnOf(i)));
 			GRID_ITEM_BINDS.incrementAndGet();
 			extents[i] = item.itemBox.getPageExtent(params.flow);
 		}
@@ -201,8 +287,8 @@ public final class GridBuilder {
 			this.gridBox.getContainer().addFlow(itemBox, placement.rowStarts()[layout.rowOf(i)]);
 		}
 		this.gridBox.setPageAxis(placement.totalExtent());
-		final LayoutContext.Flow active = this.host.getFlow();
-		assert active.box == this.gridBox : "Grid終端でactive flowがGridではない: " + active.box;
-		this.host.setPageAxis(active.pageAxis + this.gridBox.getInnerPageExtent(params.flow));
+		final LayoutContext.Flow active = target.getFlow();
+		assert active.box == this.gridBox : "Grid bindでactive flowがGridではない: " + active.box;
+		target.setPageAxis(active.pageAxis + this.gridBox.getInnerPageExtent(params.flow));
 	}
 }

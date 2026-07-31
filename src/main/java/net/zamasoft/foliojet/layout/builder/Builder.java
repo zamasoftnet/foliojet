@@ -48,6 +48,13 @@ public interface Builder extends GlyphHandler, LayoutStack {
 	public void addTable(RetainedTable tableBuilder);
 
 	/**
+	 * 構築済みのGrid実行計画を追加します(Grid G3d1、2026-07-31——
+	 * {@link #addTable}と同型)。BlockBuilderは即時bind、TwoPassは
+	 * 録画({@code GridEvent})+固有寸法contributionへ。
+	 */
+	public void addGrid(RetainedGrid gridBuilder);
+
+	/**
 	 * 新しいレイアウトコンテキストを返します。
 	 * 
 	 * @param stfBox

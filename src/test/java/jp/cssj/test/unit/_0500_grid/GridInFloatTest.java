@@ -9,11 +9,11 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 
 /**
- * Grid G1dのテストです。幅なしfloat(TwoPass計測)の中のGridは
- * GridBuilderが活性化せずG0(単一列積み)で両passとも一貫し、
- * floatのrange sealはGRID_RANGEで弾かれてLegacyRecords bindに
- * 留まる(範囲再生だけがGridBuilderを活性化して計測と食い違う
- * 事故の防止)。
+ * TwoPass宿主内Gridのテストです。G1dでは幅なしfloat内のGridは
+ * G0(単一列積み)だったが、G3d1のRetainedGrid/GridEventにより
+ * LegacyRecords bind経路で実トラック配置(2列)になる。floatの
+ * range sealは引き続きGRID_RANGEで弾かれLegacyRecordsに留まる
+ * (範囲再生とのparity確立=G3d3までのゲート)。
  */
 public class GridInFloatTest extends AbstractTestCase {
 	public GridInFloatTest(String name) {
@@ -41,20 +41,21 @@ public class GridInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** G0フォールバック: トラック配置されず単一列に積まれる。 */
+	/** G3d1: float内でも実トラック配置(2列目=+60)。 */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
-			assertEquals(this.baseX, x, 0.1);
-			assertEquals(this.baseY + 20, y, 0.1);
+			assertEquals(this.baseX + 60, x, 0.1);
+			assertEquals(this.baseY, y, 0.1);
 			return true;
 		}
 		return false;
 	}
 
+	/** 2行目1列目。 */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
-			assertEquals(this.baseY + 40, y, 0.1);
+			assertEquals(this.baseY + 20, y, 0.1);
 			return true;
 		}
 		return false;
