@@ -310,7 +310,15 @@ public final class ContinuationStats {
 		 */
 		NESTED_BUILDER,
 		/** 範囲の完全性検証(capture)に失敗(compact済みの穴)。 */
-		RANGE_NOT_INTACT
+		RANGE_NOT_INTACT,
+		/**
+		 * 範囲にGridのStartを含む(Grid G1d、2026-07-31)。TwoPass計測は
+		 * GridBuilder不活性(G0の単一列積み)で行われる一方、範囲再生は
+		 * DocumentBuilder経由でGridBuilderが活性化するため、計測と
+		 * bindの幾何が食い違う。item側のTwoPass計測が入る(G3)まで
+		 * Gridを含む本文はLegacyRecords bindに留める(両passともG0で一貫)。
+		 */
+		GRID_RANGE
 	}
 
 	private static final Map<TwoPassSealReject, AtomicLong> TWO_PASS_SEAL_REJECTS = new EnumMap<>(

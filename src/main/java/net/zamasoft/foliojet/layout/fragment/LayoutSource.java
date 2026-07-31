@@ -670,6 +670,30 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
+	 * [fromId, toId] の範囲に Grid の Start が含まれていれば true を
+	 * 返します(Grid G1d、2026-07-31)。TwoPass計測はGridBuilder不活性
+	 * (G0)、DocumentBuilder経由の範囲再生は活性のため、両者が混ざる
+	 * 消費側(range seal・実測計測)はGridを含む範囲をフォールバック
+	 * させる({@code ContinuationStats.TwoPassSealReject.GRID_RANGE})。
+	 */
+	public boolean containsGrid(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Grid) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * [fromId, toId] の範囲にマルチカラムの Start が含まれていれば
 	 * true を返します(M6c: 段組内容の再生は列機構(columnBreak/balance)
 	 * との相互作用が未検証のためフォールバックさせる)。

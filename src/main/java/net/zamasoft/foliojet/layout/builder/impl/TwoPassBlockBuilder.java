@@ -687,6 +687,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
 			return;
 		}
+		if (log.containsGrid(fromId, toId)) {
+			// Grid G1d(2026-07-31): TwoPass計測はGridBuilder不活性(G0)の
+			// まま行われるが、範囲再生はDocumentBuilder経由でGridBuilderが
+			// 活性化するため幾何が食い違う。itemのTwoPass計測が入る(G3)
+			// までLegacyRecords bindに留める(両passともG0で一貫)
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.GRID_RANGE);
+			return;
+		}
 		// 表を含む範囲(旧TABLE_RANGE reject)は表吸収(codex増分5、
 		// 2026-07-30)で解禁——範囲内の適格表はrecipe再生で再構築でき、
 		// 記録済みRetained計画のリース(セルのDeferredBind)は下の

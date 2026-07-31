@@ -116,6 +116,13 @@ public final class MeasuredIntrinsics {
 			// (recipe記録化による実測の適用拡大は挙動不変制約で見送り)
 			return null;
 		}
+		if (log.containsGrid(selfId + 1, endId - 1)) {
+			// Grid G1d(2026-07-31): 実測(scratch再生)はGridBuilderが
+			// 活性化しトラック配置で測る一方、TwoPass本経路の計測・bindは
+			// G0(単一列)のまま——混ぜると幅・高さが食い違う。itemの
+			// TwoPass計測が入る(G3)まで模倣計測へフォールバック
+			return null;
+		}
 		if (log.containsFloat(selfId + 1, endId - 1)) {
 			// フロートを含む内容は模倣計測へ: max-content では並置フロートの
 			// 幅は累積するが、無限幅 scratch の事後読み取りは各フロートの
