@@ -20,6 +20,55 @@ public class LayoutSourceTest extends TestCase {
 						.freeze(new net.zamasoft.foliojet.layout.box.params.FlowPos())));
 	}
 
+	private static LayoutSource.Event tableStart() {
+		return new LayoutSource.Start(new net.zamasoft.foliojet.layout.segment.BoxRecipe.Table(
+				net.zamasoft.foliojet.layout.segment.TableParamsTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.TableParams()),
+				net.zamasoft.foliojet.layout.segment.FlowPosTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.FlowPos())));
+	}
+
+	private static LayoutSource.Event captionStart() {
+		return new LayoutSource.Start(new net.zamasoft.foliojet.layout.segment.BoxRecipe.Caption(
+				net.zamasoft.foliojet.layout.segment.BlockParamsTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.BlockParams()),
+				net.zamasoft.foliojet.layout.segment.TableCaptionPosTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.TableCaptionPos())));
+	}
+
+	/**
+	 * caption recipe化C1/C2のプロトコルテストです
+	 * (consult-codex-2026-08-01-caption-recipe.txt Q1の範囲別扱い表)。
+	 */
+	public void testCaptionContextCompleteRange() {
+		final LayoutSource log = new LayoutSource();
+		final long block = log.append(start()); // BLOCK
+		final long table = log.append(tableStart()); // TABLE
+		final long caption = log.append(captionStart()); // CAPTION
+		log.append(new LayoutSource.Chars(0, "c".toCharArray(), false));
+		final long captionEnd = log.append(new LayoutSource.EndBlock());
+		final long tableEnd = log.append(new LayoutSource.EndBlock());
+		final long blockEnd = log.append(new LayoutSource.EndBlock());
+
+		// containsCaption: 含有検出
+		assertTrue(log.containsCaption(block, blockEnd));
+		assertTrue(log.containsCaption(caption, caption));
+		assertFalse(log.containsCaption(block, table));
+
+		// TABLE→CAPTION / BLOCK→TABLE→CAPTION: 適格
+		assertTrue(log.isContextCompleteRange(table, tableEnd));
+		assertTrue(log.isContextCompleteRange(block, blockEnd));
+		// CAPTION単独範囲: 不適格(G-1の直接原因)
+		assertFalse(log.isContextCompleteRange(caption, captionEnd));
+		// tableStart+1..tableEnd-1(先頭がCAPTION、TABLE Startなし): 不適格
+		assertFalse(log.isContextCompleteRange(table + 1, tableEnd - 1));
+		// CAPTIONを途中で切る範囲(開いたまま終わる): 不適格
+		assertFalse(log.isContextCompleteRange(table, caption));
+		// CAPTION Startの直前で終わる範囲: 適格(caption非含有——
+		// 開いたTABLEが残るため不適格が正しい)
+		assertFalse(log.isContextCompleteRange(block, table));
+	}
+
 	public void testEventIdStableAcrossCompaction() {
 		final LayoutSource log = new LayoutSource();
 		final long body = log.append(start()); // 開いたまま

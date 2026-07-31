@@ -241,7 +241,7 @@ public final class SourceReplayer {
 		// 直接replay)の内容にキャプションが現れうる——containsTableは入れ子
 		// 表しか見ないため、recipe化後はここで明示的に弾く(C2の
 		// context-complete検証で解禁するまでrouting不変)
-		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsCaption(selfId + 1, endId - 1)
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.observeCaptionGate(selfId + 1, endId - 1)
 				|| log.containsTable(selfId + 1, endId - 1)
 				|| log.containsFloat(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
 				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));

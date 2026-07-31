@@ -725,6 +725,99 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
+	 * [fromId, toId] の範囲が文脈依存kindについて自己完結しているかを
+	 * 返します(caption recipe化C2、2026-08-01——
+	 * consult-codex-2026-08-01-caption-recipe.txt Q1)。単なる
+	 * 「根がCAPTIONでない」より強い検証で、次を全て要求する:
+	 *
+	 * <ul>
+	 * <li>各CAPTION Startの時点で、範囲内で開いた明示的なTABLEが
+	 * スタック上にある(CAPTIONが範囲の根になる経路を構造的に禁止——
+	 * G-1の単独replay根クラッシュの再発防止)</li>
+	 * <li>範囲の終端で、範囲内から始まったboxが開いたまま残っていない
+	 * (CAPTIONを途中で切る範囲の禁止)</li>
+	 * <li>範囲内に対応の取れないEndBlockがない</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * 疎な範囲の検出は{@link #isIntact}の担当(呼び出し側が合成する)。
+	 * Opaqueは「未知の開始イベント」としてスタックに積むがTABLEを確立
+	 * しない(fail closed)。C2ではshadow観測のみに使い、実routingは
+	 * {@link #containsCaption}の一律拒否のまま——C4で実ゲートへ昇格する。
+	 * </p>
+	 */
+	/**
+	 * C1のcaption一律ゲート+C2のshadow観測です。範囲がキャプションを
+	 * 含むならtrue(=呼び出し側は従来どおりbox-restyleへ)を返しつつ、
+	 * C4の実ゲート(context-complete検証)なら通したか弾いたかを
+	 * {@code ContinuationStats.CAPTION_CONTEXT_ACCEPTS}/
+	 * {@code CAPTION_ROOT_REJECTS}へ観測する。routingは観測結果に
+	 * 依存しない(C4で観測値の妥当性を確認してから切り替える)。
+	 */
+	public boolean observeCaptionGate(final long fromId, final long toId) {
+		if (!this.containsCaption(fromId, toId)) {
+			return false;
+		}
+		if (this.isContextCompleteRange(fromId, toId)) {
+			ContinuationStats.CAPTION_CONTEXT_ACCEPTS.incrementAndGet();
+		} else {
+			ContinuationStats.CAPTION_ROOT_REJECTS.incrementAndGet();
+		}
+		return true;
+	}
+
+	public boolean isContextCompleteRange(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return false;
+		}
+		// 範囲内で開いたkind列(CAPTIONに対するTABLEの確立を問う)
+		final java.util.ArrayDeque<net.zamasoft.foliojet.layout.segment.BoxKind> stack = new java.util.ArrayDeque<>();
+		int tableDepth = 0;
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			switch (entry.event()) {
+			case Start(final BoxRecipe recipe) -> {
+				final net.zamasoft.foliojet.layout.segment.BoxKind kind = recipe.kind();
+				if (kind == net.zamasoft.foliojet.layout.segment.BoxKind.CAPTION && tableDepth == 0) {
+					// 範囲内にTABLEの確立がないCAPTION(単独根・表の外)
+					return false;
+				}
+				if (kind == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
+					++tableDepth;
+				}
+				stack.push(kind);
+			}
+			case Opaque opaque -> {
+				// 未知の開始イベントはスタック対応を保証できない——fail
+				// closedで不適格(Opaque範囲はいずれにせよcontainsOpaqueが弾く)
+				return false;
+			}
+			case EndBlock end -> {
+				if (stack.isEmpty()) {
+					// 範囲外で開いたboxを閉じるEndBlock(範囲がboxを跨ぐ)
+					return false;
+				}
+				if (stack.pop() == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
+					--tableDepth;
+				}
+			}
+			case Chars chars -> {
+			}
+			case Replaced replaced -> {
+			}
+			case Leader leader -> {
+			}
+			}
+		}
+		// 範囲内から始まったboxが全て閉じていること
+		return stack.isEmpty();
+	}
+
+	/**
 	 * [fromId, toId] の範囲に Grid の Start が含まれていれば true を
 	 * 返します(Grid G1d、2026-07-31)。TwoPass計測はGridBuilder不活性
 	 * (G0)、DocumentBuilder経由の範囲再生は活性のため、両者が混ざる

@@ -76,6 +76,19 @@ public final class SegmentExecutor {
 	private final java.util.HashMap<Long, StructureToken> structureTokens = new java.util.HashMap<>();
 
 	/**
+	 * この再生セッション内で開いているboxのkind列です(caption recipe化
+	 * C2の最終防衛、2026-08-01——consult-codex-2026-08-01-caption-recipe
+	 * .txt Q1)。文脈依存kind(CAPTION)がTABLEの確立なしに
+	 * {@code doc.startBox()}へ届く経路を、範囲適格判定(context-complete
+	 * 検証)をすり抜けた場合でも型付き例外で止める——G-1の単独replay根
+	 * クラッシュ(ClassCastException)を仕様化された失敗に変える。
+	 */
+	private final java.util.ArrayDeque<BoxKind> openKinds = new java.util.ArrayDeque<>();
+
+	/** {@link #openKinds}中のTABLEの数(CAPTIONの文脈判定用)。 */
+	private int openTables;
+
+	/**
 	 * @param doc    駆動先(新品の{@code DocumentBuilder})
 	 * @param fromId 範囲先頭のEventId(sliceのordinalと1:1)
 	 */
@@ -106,12 +119,28 @@ public final class SegmentExecutor {
 	public void execute(final SegmentEvent event) {
 		switch (event) {
 		case SegmentEvent.BeginBox(final BoxRecipe recipe) -> {
+			final BoxKind kind = recipe.kind();
+			if (kind == BoxKind.CAPTION && this.openTables == 0) {
+				// 最終防衛(C2): 表文脈なしのCAPTIONは範囲適格判定が
+				// 通さない契約——ここへ届いたら適格判定の欠陥
+				throw new IllegalStateException(
+						"表文脈(TABLE Start)の確立なしにCAPTIONを再生しようとしました: eventId=" + this.eventId);
+			}
+			if (kind == BoxKind.TABLE) {
+				++this.openTables;
+			}
+			this.openKinds.push(kind);
 			final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
 			this.internStructureToken(box.getParams());
 			box.setSourceAnchor(this.eventId);
 			this.doc.startBox(box);
 		}
-		case SegmentEvent.EndBox end -> this.doc.endBox();
+		case SegmentEvent.EndBox end -> {
+			if (!this.openKinds.isEmpty() && this.openKinds.pop() == BoxKind.TABLE) {
+				--this.openTables;
+			}
+			this.doc.endBox();
+		}
 		case SegmentEvent.Text(final int sourceOffset, final String text, final boolean fixed) -> {
 			// toCharArray()は毎回freshな配列(下流のin-place変換に安全)
 			final char[] ch = text.toCharArray();

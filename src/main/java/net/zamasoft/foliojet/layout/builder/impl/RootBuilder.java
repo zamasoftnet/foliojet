@@ -606,7 +606,7 @@ public class RootBuilder extends BreakableBuilder {
 				// キャプションを弾く。C2のcontext-complete検証で解禁するまで
 				// routing不変
 				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
-						&& !log.containsCaption(startId, endId)
+						&& !log.observeCaptionGate(startId, endId)
 						&& !log.containsTable(tableCheckFrom, endId)
 						&& !log.containsAbsolute(startId, endId)
 						&& !log.containsFloat(startId, endId)

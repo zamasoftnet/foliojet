@@ -262,10 +262,16 @@ public class DocumentBuilder implements TableBuilderHost {
 		// いなければならない。破れていると builderStack の末尾はただの
 		// ContainerBuilderEntry のままキャストに失敗する(表キャプションの
 		// 単独ソース再生クラッシュ、2026-07-18 で実際に発生・修正済み)。
-		assert top instanceof TableBuilder : //
-		"表構造の外(先行する TABLE 開始イベントなし)で TABLE_CELL/TABLE_ROW 系ボックスを"
-				+ "構築しようとしました。単独ソース再生の対象になっていないか確認してください: top=" + top;
-		return (TableBuilder) top;
+		// caption recipe化C2(2026-08-01): assert無効の本番でも黙って
+		// ClassCastExceptionにせず、通常の実行時例外として型付きで止める
+		// (G-1再発防止の本体は範囲適格のcontext-complete検証と
+		// SegmentExecutorのkindスタック——これは最終防衛)
+		if (!(top instanceof TableBuilder tableBuilder)) {
+			throw new IllegalStateException(
+					"表構造の外(先行する TABLE 開始イベントなし)で TABLE_CELL/TABLE_ROW/CAPTION 系ボックスを"
+							+ "構築しようとしました。単独ソース再生の対象になっていないか確認してください: top=" + top);
+		}
+		return tableBuilder;
 	}
 
 	private TableBuilder endTableBuilder() {
