@@ -1,8 +1,0 @@
-drawer z=0
-  x=0.00 y=680.46 Text["line050" asc=10.91 desc=4.09]
-  x=0.00 y=695.46 Text["line051" asc=10.91 desc=4.09]
-  x=0.00 y=710.47 Text["line052" asc=10.91 desc=4.09]
-  x=0.00 y=725.48 Text["line053" asc=10.91 desc=4.09]
-  x=0.00 y=740.48 Text["line054" asc=10.91 desc=4.09]
-  x=0.00 y=755.49 Text["line055" asc=10.31 desc=4.09]
-  x=0.00 y=677.21 artifact FootnoteSeparator[w=174.43 h=0.50]

@@ -1237,10 +1237,8 @@ public class RootBuilder extends BreakableBuilder {
 			this.pageBox = this.pageGenerator.nextPage();
 			this.reserveFootnotes();
 			this.finishLayout();
-			// F6: 分割中はentry数が減らなくてもtailが縮めば前進(断片配置で
-			// footnoteProgressedが立つ)。前進の無い回は、どのページにも
-			// 置けない脚注(atomicな巨大内容やcall消失)として型付き失敗に
-			// する(無限ページ防止)
+			// 前進の無い回は、どのページにも置けない脚注(call消失等)と
+			// して型付き失敗にする(無限ページ防止)
 			if (!this.footnoteProgressed) {
 				throw new FootnoteOverflowException("footnote cannot be placed"
 						+ " (too large atomic content or missing call): " + this.pendingFootnotes.size()
@@ -1264,8 +1262,7 @@ public class RootBuilder extends BreakableBuilder {
 	private static final class FootnoteEntry {
 		final long id;
 
-		/** 未配置の先頭断片です(F6: 分割で前半を配置するとtailへ差し替わる)。 */
-		net.zamasoft.foliojet.layout.box.impl.FloatBlockBox currentBox;
+		final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox;
 
 		boolean committed = false;
 
@@ -1276,19 +1273,9 @@ public class RootBuilder extends BreakableBuilder {
 		 */
 		int assignedNumber = -1;
 
-		/** 配置済み断片数です(F6の前進性判定にも使う)。 */
-		int fragmentOrdinal = 0;
-
-		/**
-		 * 未配置断片のページ方向占有量の見積りです(F6)。materialize直後の
-		 * 継続断片はレイアウト前で実測が取れない(Infinity)ため、分割時に
-		 * 「分割前extent−前半extent」の算術で持ち回る。-1=実測を使う。
-		 */
-		double extentEstimate = -1;
-
 		FootnoteEntry(final long id, final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
 			this.id = id;
-			this.currentBox = noteBox;
+			this.noteBox = noteBox;
 		}
 	}
 
@@ -1317,14 +1304,6 @@ public class RootBuilder extends BreakableBuilder {
 		return Math.max(box.getPageExtent(flow), box.paintedPageExtent(flow));
 	}
 
-	/** entryの未配置断片の占有量(分割直後は算術見積りが優先)。 */
-	private double footnoteExtent(final FootnoteEntry entry) {
-		if (entry.extentEstimate >= 0) {
-			return entry.extentEstimate;
-		}
-		return this.footnoteExtent(entry.currentBox);
-	}
-
 	/**
 	 * 完成した脚注本文を台帳へ加えます({@code DocumentBuilder.endBox}の
 	 * FLOAT分岐から)。現ページの容量に入る分だけ予約が伸び、本文容量
@@ -1332,9 +1311,17 @@ public class RootBuilder extends BreakableBuilder {
 	 * 容量で行われる。容量を超えた分は予約されず次ページへ送られる(F4)。
 	 */
 	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
-		// F6: 単体超過でも構造境界があれば分割で救えるため、ここでは
-		// 例外にしない。どのページにも置けない脚注(atomicな巨大内容や
-		// call消失)はfinish()の前進性ガードが型付き失敗にする
+		final double noteExtent = this.footnoteExtent(noteBox);
+		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
+		if (FOOTNOTE_GAP + noteExtent > maxArea) {
+			// 空ページの最大脚注領域にも収まらない——病的なレイアウトとして
+			// 救済(複数ページ分割)せず型付き失敗にする(オーナー裁定
+			// 2026-07-31: 分割機構F6は実装後に撤去。復元が必要になったら
+			// c9592cd参照)。版面の9割超を占める単一脚注だけが該当し、
+			// それ未満はF4の丸ごと送りで次ページへ置ける
+			throw new FootnoteOverflowException("footnote too large for any page: " + noteExtent
+					+ "pt (max footnote area " + maxArea + "pt)");
+		}
 		this.pendingFootnotes
 				.addLast(new FootnoteEntry(noteBox.getParams().footnoteId, noteBox));
 		this.reserveFootnotes();
@@ -1345,41 +1332,14 @@ public class RootBuilder extends BreakableBuilder {
 	 * 予約を伸ばします(FIFO——途中を飛ばさない)。
 	 */
 	private void reserveFootnotes() {
-		// F6: 直前ページで分割・materializeされた継続断片は行内容が
-		// replay sliceのまま(未再構築)なので、新ページの予約前に復元する
-		// (通常floatのFloating.restyleと同じ経路。addBoundはしない——
-		// 脚注は台帳が配置する)。復元後は実測extentが使える
-		for (final FootnoteEntry entry : this.pendingFootnotes) {
-			if (entry.extentEstimate >= 0) {
-				final BlockBuilder tailBuilder = new BlockBuilder(this, entry.currentBox);
-				entry.currentBox.restyle(tailBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
-				tailBuilder.close();
-				entry.extentEstimate = -1;
-			}
-		}
 		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
 		int i = 0;
 		for (final FootnoteEntry entry : this.pendingFootnotes) {
 			if (i >= this.footnoteReservedCount) {
 				final double cost = (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
-						+ this.footnoteExtent(entry);
+						+ this.footnoteExtent(entry.noteBox);
 				if (this.footnoteReservation + cost > maxArea) {
-					// F6: 丸ごとは入らない先頭entryは、callが過去ページで
-					// 確定済み(committed)の場合に限り分割候補として部分
-					// 予約する。同一ページのcallに対して残領域を貪欲に
-					// 予約すると本文が圧縮されてcall自体が次ページへ
-					// 押し出される(予約→call位置の循環)ため、未確定の
-					// callには従来どおり丸ごと送り(F4)で対応する
-					final double remaining = maxArea - this.footnoteReservation
-							- (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0);
-					if (this.footnoteSplitCandidate == null && entry.committed
-							&& entry.currentBox.getContainer()
-									.getCutPointBelow(remaining - entry.currentBox.getFrame()
-											.getFramePageStart(this.pageBox.getBlockParams().flow)) > 0) {
-						this.footnoteSplitCandidate = entry;
-						this.footnoteReservation += (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
-								+ Math.min(remaining, this.footnoteExtent(entry));
-					}
+					// 入らない分はF4のFIFO送り(次ページで再予約)
 					break;
 				}
 				this.footnoteReservation += cost;
@@ -1388,9 +1348,6 @@ public class RootBuilder extends BreakableBuilder {
 			++i;
 		}
 	}
-
-	/** F6: このページで分割配置を試みる先頭entry(部分予約済み)。 */
-	private FootnoteEntry footnoteSplitCandidate = null;
 
 	@Override
 	public double getPageLimit() {
@@ -1415,7 +1372,6 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.pendingFootnotes.isEmpty()) {
 			this.footnoteReservedCount = 0;
 			this.footnoteReservation = 0;
-			this.footnoteSplitCandidate = null;
 			return;
 		}
 		final FootnoteCallScan scan = this.scanFootnoteCalls(this.pageBox);
@@ -1443,45 +1399,8 @@ public class RootBuilder extends BreakableBuilder {
 					break;
 				}
 				++attachCount;
-				attachedExtent += this.footnoteExtent(entry);
+				attachedExtent += this.footnoteExtent(entry.noteBox);
 				++i;
-			}
-		}
-		// F6: 丸ごと配置のprefix直後の分割候補(部分予約済み)を、callが
-		// このページに残った(またはcarry-in)場合だけ実際に切断する。
-		// 切断はここで一度だけ——予約段階では箱を変異させない
-		net.zamasoft.foliojet.layout.box.impl.FloatBlockBox splitHead = null;
-		FootnoteEntry splitEntry = null;
-		if (this.footnoteSplitCandidate != null && attachCount == this.footnoteReservedCount) {
-			final FootnoteEntry entry = this.footnoteSplitCandidate;
-			// FIFO: 分割候補は必ず丸ごとprefixの直後(reserveFootnotesの構造)
-			if (entry.committed || retained.contains(entry.id)) {
-				final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
-				final double availableOuter = maxArea - attachedExtent
-						- (attachedExtent == 0 ? FOOTNOTE_GAP : 0);
-				final double before = this.footnoteExtent(entry);
-				final var cut = entry.currentBox.splitFloatFragment(0, availableOuter,
-						net.zamasoft.foliojet.layout.box.content.BreakMode.DEFAULT_BREAK_MODE,
-						net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_SPLIT);
-				if (cut instanceof net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Prepared prepared) {
-					// 前半=変異済みのcurrentBox、後半=materializeしたtail。
-					// tailはレイアウト前で実測できない(Infinity)ため、
-					// 占有量は算術見積り(before−head)で持ち回る
-					splitHead = entry.currentBox;
-					splitEntry = entry;
-					final double headExtent = this.footnoteExtent(splitHead);
-					entry.currentBox = (net.zamasoft.foliojet.layout.box.impl.FloatBlockBox) prepared
-							.fragment().materialize();
-					final double tailEstimate = before - headExtent;
-					if (headExtent <= 0 || tailEstimate <= 0 || tailEstimate >= before) {
-						throw new FootnoteOverflowException("footnote split made no progress: id=" + entry.id
-								+ " head=" + headExtent + " tailEstimate=" + tailEstimate + " before=" + before);
-					}
-					entry.extentEstimate = tailEstimate;
-					attachedExtent += headExtent;
-					entry.committed = true;
-				}
-				// KEEP/MOVE: 丸ごとcarry-in(下のcommittedループが印を付ける)
 			}
 		}
 		// 配置されない残りのうち、callがこのページに残ったものはcarry-in
@@ -1523,46 +1442,25 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			// note本文先頭の::footnote-markerラベルをcallページの番号で解決
 			for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
-					.scanFootnoteCalls(entry.currentBox).labels()) {
+					.scanFootnoteCalls(entry.noteBox).labels()) {
 				if (label.isMarker()) {
 					label.resolve(entry.assignedNumber);
 				}
 			}
-			this.pageBox.getContainer().addFloating(entry.currentBox, 0, pageAxis);
-			pageAxis += this.footnoteExtent(entry);
-			++entry.fragmentOrdinal;
+			this.pageBox.getContainer().addFloating(entry.noteBox, 0, pageAxis);
+			pageAxis += this.footnoteExtent(entry.noteBox);
 			this.footnoteProgressed = true;
 		}
-		if (splitHead != null) {
-			// F6: 分割前半。markerは前半に含まれる(先頭行より前で切らない
-			// ことをreserveのpreflightが担保)。entry自体はtailを持って
-			// deque先頭に残る(最終断片を配置した時だけremoveFirst)
-			if (splitEntry.assignedNumber < 0) {
-				throw new FootnoteOverflowException(
-						"footnote head attached without an assigned number: id=" + splitEntry.id);
-			}
-			for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
-					.scanFootnoteCalls(splitHead).labels()) {
-				if (label.isMarker()) {
-					label.resolve(splitEntry.assignedNumber);
-				}
-			}
-			this.pageBox.getContainer().addFloating(splitHead, 0, pageAxis);
-			pageAxis += this.footnoteExtent(splitHead);
-			++splitEntry.fragmentOrdinal;
-			this.footnoteProgressed = true;
-		}
-		if (attachCount > 0 || splitHead != null) {
+		if (attachCount > 0) {
 			// separator罫線(F6/F7答申①): 既存gapの中央に置くため予約は
 			// 増えない。描画はPageSequence.drawPageのflow後(artifact)
 			this.pageBox.setFootnoteSeparatorAxis(base - attachedExtent - FOOTNOTE_GAP / 2);
 		}
 		this.footnoteReservedCount = 0;
 		this.footnoteReservation = 0;
-		this.footnoteSplitCandidate = null;
 	}
 
-	/** 直近のattachで配置(断片含む)が進んだか(finish()の前進性ガード)。 */
+	/** 直近のattachで配置が進んだか(finish()の前進性ガード)。 */
 	private boolean footnoteProgressed = false;
 
 	/** 走査結果: callのID集合と、見つかった脚注ラベル(call/marker両方)。 */
