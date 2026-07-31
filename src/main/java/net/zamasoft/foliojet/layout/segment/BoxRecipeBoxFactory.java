@@ -66,6 +66,12 @@ public final class BoxRecipeBoxFactory {
 	 */
 	public static final java.util.concurrent.atomic.AtomicLong TABLE_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
+	/**
+	 * CAPTION recipeのmaterialize回数です(caption recipe化C1——C4の
+	 * 表文脈replay解禁で>0になる。TABLE_REPLAYSと同型の非空振り証明)。
+	 */
+	public static final java.util.concurrent.atomic.AtomicLong CAPTION_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
+
 	/** 再生で{@code GridBox}を再構築した回数です(Grid G0c——G7の観測点)。 */
 	public static final java.util.concurrent.atomic.AtomicLong GRID_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
@@ -99,6 +105,8 @@ public final class BoxRecipeBoxFactory {
 		case BoxRecipe.Absolute r ->
 			create(LayoutSource.BoxKind.ABSOLUTE, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.Grid r -> create(LayoutSource.BoxKind.GRID, r.params().materialize(), r.pos().materialize());
+		case BoxRecipe.Caption r ->
+			create(LayoutSource.BoxKind.CAPTION, r.params().materialize(), r.pos().materialize());
 		};
 	}
 
@@ -141,6 +149,12 @@ public final class BoxRecipeBoxFactory {
 			GRID_REPLAYS.incrementAndGet();
 			yield new net.zamasoft.foliojet.layout.box.impl.GridBox(
 					(net.zamasoft.foliojet.layout.box.params.GridParams) params, (FlowPos) pos);
+		}
+		// caption recipe化C1: 再生消費者の非空振り証明用(C4で>0になる)
+		case CAPTION -> {
+			CAPTION_REPLAYS.incrementAndGet();
+			yield new FlowBlockBox((BlockParams) params,
+					(net.zamasoft.foliojet.layout.box.params.TableCaptionPos) pos);
 		}
 		};
 	}

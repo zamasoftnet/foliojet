@@ -599,7 +599,14 @@ public class RootBuilder extends BreakableBuilder {
 				final long tableCheckFrom = box instanceof net.zamasoft.foliojet.layout.box.impl.TableBox
 						? startId + 1
 						: startId;
+				// containsCaption(caption recipe化C1、2026-08-01): キャプション
+				// はOpaque記録からrecipe記録へ移ったが、文脈依存kind(囲み
+				// TableBuilderが必要)のため含む範囲は従来どおりbox-restyleへ
+				// ——表根の範囲(tableCheckFrom=startId+1)でも内容の
+				// キャプションを弾く。C2のcontext-complete検証で解禁するまで
+				// routing不変
 				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
+						&& !log.containsCaption(startId, endId)
 						&& !log.containsTable(tableCheckFrom, endId)
 						&& !log.containsAbsolute(startId, endId)
 						&& !log.containsFloat(startId, endId)

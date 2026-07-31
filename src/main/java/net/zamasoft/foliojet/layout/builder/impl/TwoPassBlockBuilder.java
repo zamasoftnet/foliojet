@@ -697,7 +697,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 			return;
 		}
-		if (log.containsOpaque(fromId, toId)) {
+		if (log.containsOpaque(fromId, toId) || log.containsCaption(fromId, toId)) {
+			// containsCaption(caption recipe化C1): キャプションはOpaque記録
+			// からrecipe記録へ移ったが、C2のcontext-complete検証までは
+			// 従来と同じ範囲を同じ理由(OPAQUE_RANGE)で弾く——routing不変。
+			// 旧コメントの「キャプション付き表はOpaque記録のためここが弾く」
+			// はこの分岐が引き継いだ
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
 			return;
 		}

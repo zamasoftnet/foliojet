@@ -140,6 +140,36 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		assertEquals(Align.CENTER, ((FlowPos) box.getPos()).align);
 	}
 
+	/**
+	 * BoxKind.CAPTIONはTableCaptionPos付きFlowBlockBoxへ、captionSide・
+	 * align等の非デフォルト値も保持したまま再構築される(caption recipe化
+	 * C1——consult-codex-2026-08-01-caption-recipe.txt)。
+	 */
+	public void testCaptionRecipeCreatesCaptionBox() {
+		final BlockParams params = blockParams();
+		params.orphans = 7;
+		final net.zamasoft.foliojet.layout.box.params.TableCaptionPos pos = new net.zamasoft.foliojet.layout.box.params.TableCaptionPos();
+		pos.align = Align.CENTER;
+		pos.captionSide = net.zamasoft.foliojet.layout.box.params.CaptionSideMode.AFTER;
+
+		final BoxRecipe recipe = new BoxRecipe.Caption(BlockParamsTemplate.freeze(params),
+				TableCaptionPosTemplate.freeze(pos));
+		assertEquals(BoxKind.CAPTION, recipe.kind());
+		final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+
+		assertTrue(box instanceof FlowBlockBox);
+		final net.zamasoft.foliojet.layout.box.params.TableCaptionPos out = (net.zamasoft.foliojet.layout.box.params.TableCaptionPos) box
+				.getPos();
+		assertEquals(net.zamasoft.foliojet.layout.box.params.PosType.TABLE_CAPTION, out.getType());
+		assertEquals(net.zamasoft.foliojet.layout.box.params.CaptionSideMode.AFTER, out.captionSide);
+		assertEquals(Align.CENTER, out.align);
+		assertEquals(7, ((BlockParams) box.getParams()).orphans);
+
+		// materializeは呼び出しごとに独立した新品を返す
+		final INonReplacedBox box2 = BoxRecipeBoxFactory.create(recipe);
+		assertTrue(box.getPos() != box2.getPos());
+	}
+
 	/** BoxKind.GRIDはGridBoxへ再構築され、トラック定義とgapを保つ(Grid G0c)。 */
 	public void testGridRecipeCreatesGridBox() {
 		final net.zamasoft.foliojet.layout.box.params.GridParams params = new net.zamasoft.foliojet.layout.box.params.GridParams();

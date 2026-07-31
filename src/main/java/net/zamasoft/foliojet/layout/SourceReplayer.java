@@ -237,7 +237,12 @@ public final class SourceReplayer {
 		// containsOpaqueが捕捉していた。バランス再駆動での表全体再構築
 		// (auto列幅の再確定を含む)は未検証のため、表専用のゲートで
 		// 従来挙動を維持する(MeasuredIntrinsicsと同型)。
-		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsTable(selfId + 1, endId - 1)
+		// containsCaption(caption recipe化C1): 表根(restyleItem case TABLEの
+		// 直接replay)の内容にキャプションが現れうる——containsTableは入れ子
+		// 表しか見ないため、recipe化後はここで明示的に弾く(C2の
+		// context-complete検証で解禁するまでrouting不変)
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsCaption(selfId + 1, endId - 1)
+				|| log.containsTable(selfId + 1, endId - 1)
 				|| log.containsFloat(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
 				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));
 	}

@@ -115,12 +115,30 @@ public sealed interface BoxRecipe {
 		// GridBoxはGridParams/FlowPosを使う(Grid G0c)
 		case GRID -> new Grid(GridParamsTemplate.freeze((net.zamasoft.foliojet.layout.box.params.GridParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
+		// 表キャプションはFlowBlockBox+TableCaptionPos(caption recipe化C1)
+		case CAPTION -> new Caption(BlockParamsTemplate.freeze((BlockParams) params),
+				TableCaptionPosTemplate.freeze((net.zamasoft.foliojet.layout.box.params.TableCaptionPos) pos));
 		};
 	}
 
 	record Flow(BlockParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
 			return BoxKind.FLOW;
+		}
+
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
+	}
+
+	/**
+	 * 表キャプション({@code FlowBlockBox}+{@code TableCaptionPos}。
+	 * caption recipe化C1)。文脈依存kind——再生には同一範囲内で先行する
+	 * TABLE Startの確立が必要(C2のcontext-completeゲートが正本)。
+	 */
+	record Caption(BlockParamsTemplate params, TableCaptionPosTemplate pos) implements BoxRecipe {
+		public BoxKind kind() {
+			return BoxKind.CAPTION;
 		}
 
 		public WritingMode flowOrNull() {

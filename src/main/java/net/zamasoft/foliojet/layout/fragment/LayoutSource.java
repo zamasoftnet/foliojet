@@ -106,7 +106,15 @@ public final class LayoutSource implements AutoCloseable {
 		 * consult-codex-2026-07-31-grid.txt §3.7。末尾追加は既存ordinal
 		 * 維持のため)。
 		 */
-		GRID;
+		GRID,
+		/**
+		 * 表キャプション(FlowBlockBox+TableCaptionPos。caption recipe化
+		 * C1、2026-08-01——consult-codex-2026-08-01-caption-recipe.txt)。
+		 * 文脈依存kind: 再生には同一範囲内で先行するTABLE Startの確立が
+		 * 必要で、範囲の根にはなれない(C1ではcontainsCaptionの一律
+		 * ゲートで再生対象外、C2でcontext-complete検証へ置換予定)。
+		 */
+		CAPTION;
 	}
 
 	/**
@@ -679,6 +687,37 @@ public final class LayoutSource implements AutoCloseable {
 				break;
 			}
 			if (entry.event() instanceof Opaque) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * [fromId, toId] の範囲に表キャプション({@link BoxKind#CAPTION})の
+	 * Start が含まれていれば true を返します(caption recipe化C1、
+	 * 2026-08-01——consult-codex-2026-08-01-caption-recipe.txt)。
+	 *
+	 * <p>
+	 * キャプションは文脈依存kind(再生に囲みTableBuilderが必要)のため、
+	 * C1では従来のOpaque記録と同じ範囲を同じ判定で弾く(routing不変)。
+	 * C2でcontext-complete検証(範囲内に対応するTABLE Startの確立)へ
+	 * 置換する。なお{@code replayTextTail}の尾部範囲はこの検査を
+	 * 持たない——キャプションStartへ到達する前に必ずTABLE Start
+	 * (block級)で{@code tailBound}が停止するため構造的に含まれない。
+	 * </p>
+	 */
+	public boolean containsCaption(final long fromId, final long toId) {
+		int index = this.indexOf(fromId);
+		if (index < 0) {
+			return true;
+		}
+		for (; index < this.entries.size(); ++index) {
+			final Entry entry = this.entries.get(index);
+			if (entry.id() > toId) {
+				break;
+			}
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Caption) {
 				return true;
 			}
 		}

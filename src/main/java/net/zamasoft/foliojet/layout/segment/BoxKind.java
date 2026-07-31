@@ -26,5 +26,13 @@ public enum BoxKind {
 	/** 絶対配置ブロック(AbsoluteBlockBox)。E-6増分4e(2026-07-24)で追加。 */
 	ABSOLUTE,
 	/** Gridコンテナ(Grid G0c。LayoutSource.BoxKindと並びを揃える)。 */
-	GRID;
+	GRID,
+	/**
+	 * 表キャプション(caption recipe化C1、2026-08-01——
+	 * consult-codex-2026-08-01-caption-recipe.txt)。文脈依存kind:
+	 * 同一範囲内に対応するTABLE Startの確立が必要で、範囲の根には
+	 * なれない(C2のcontext-completeゲートが正本)。末尾追加は既存
+	 * ordinal維持のため。
+	 */
+	CAPTION;
 }
