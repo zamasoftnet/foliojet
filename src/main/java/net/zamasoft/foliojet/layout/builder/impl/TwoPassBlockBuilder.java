@@ -1227,15 +1227,33 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
+	/** 和文詰めA2: text-autospaceのpair追跡(初回glyphで遅延初期化)。 */
+	private net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker autospace;
+
 	public void startTextRun(int charOffset, final FontStyle fontStyle, final FontMetrics fontMetrics) {
 		this.text = new TextImpl(charOffset, fontStyle, fontMetrics);
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
+		// 和文詰めA2: 境界gapを計測器のmax-contentへ計上する(記録textは
+		// 変異させない——records再生はtoGlyphsでxadvanceを運ばず、再構築
+		// 時にTextBuilder側trackerが再適用するため。min-content(atomic
+		// unit)にも入れない: 和欧文境界は分割機会でgapは分割時に消える)
+		if (this.autospace == null) {
+			this.autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
+			final net.zamasoft.foliojet.layout.box.params.AbstractTextParams params = //
+					(net.zamasoft.foliojet.layout.box.params.AbstractTextParams) this.getRootBox().getParams();
+			this.autospace.setFlags(params.flow.isVertical() ? 0 : params.textAutospace);
+		}
+		final double gap = this.autospace.gapBefore(ch, coff, this.text.getFontStyle().getSize());
 		// appendGlyph は記録用 TextImpl を構築しつつアドバンスを返すため、
 		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
 		double advance = this.text.appendGlyph(ch, coff, clen, gid);
+		if (gap > 0) {
+			this.measurer.autospaceGap(gap);
+		}
 		this.measurer.glyph(advance);
+		this.autospace.glyphAdded(null, this.text.getFontStyle().getSize(), ch, coff, clen);
 		// E-6増分1(2026-07-24): glyph保持量の概算観測(加算のみ、挙動不変)
 		++this.glyphCount;
 	}
@@ -1248,6 +1266,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void control(final TextControl quad) {
+		// 和文詰めA2: 制御はpairを断つ(TextBuilder側と同じ規約——幅0の
+		// インライン開始/終了だけはpairを維持)
+		if (this.autospace != null && !(quad instanceof InlineQuad inlineQuad
+				&& (inlineQuad.getType() == InlineQuad.INLINE_START
+						|| inlineQuad.getType() == InlineQuad.INLINE_END)
+				&& inlineQuad.getAdvance() == 0)) {
+			this.autospace.reset();
+		}
 		final TwoPass inlineBlockMeasure;
 		if (quad instanceof InlineBlockQuad inlineBlockQuad && !inlineBlockQuad.box.isPreMeasured()) {
 			// ネストした実測ビルダーをイベントに内包する(旧: recordInlineBlocks 側チャネル)

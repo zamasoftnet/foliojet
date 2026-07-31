@@ -202,6 +202,10 @@ public class TextBuilder {
 			this.breakWord = AbstractTextParams.WORD_WRAP_NORMAL;
 		}
 		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing, this.builder.getFlowBox().getLineSize());
+		// 和文詰めA2: 実効フラグの追従(インライン境界で切替わる。pair状態は
+		// 維持——境界を挟むpairは現在要素の値で判定される)。縦書きはA3まで
+		// 対象外
+		this.autospace.setFlags(params.flow.isVertical() ? 0 : params.textAutospace);
 
 		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}
@@ -586,6 +590,8 @@ public class TextBuilder {
 	 */
 	private boolean newLine(boolean last) {
 		// System.out.println("endLine: " + this.textBuffer);
+		// 和文詰めA2: 実際の行分割はpairを断つ(行を跨ぐgapは入らない)
+		this.autospace.reset();
 		boolean lineAdded = false;
 		if (this.drawLine(last)) {
 			final AbstractLineBox lineBox = this.lineBox;
@@ -799,6 +805,9 @@ public class TextBuilder {
 	FontStyle fontStyle;
 	FontMetrics fontMetrics;
 
+	/** 和文詰めA2: text-autospaceのpair追跡。 */
+	private final net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
+
 	public void startTextRun(FontStyle fontStyle, FontMetrics fontMetrics) {
 		// System.err.println("TBBR: "+fontStyle);
 		assert this.text == null;
@@ -815,12 +824,15 @@ public class TextBuilder {
 		// }
 		// this.flush();
 		// }
+		// 和文詰めA2: 直前clusterとの境界のautospace gap(text-autospace)
+		double autospaceGap = this.autospace.gapBefore(ch, coff,
+				this.fontStyle == null ? 0 : this.fontStyle.getSize());
 		if (this.breakWord == AbstractTextParams.WORD_WRAP_BREAK_WORD && this.unitAdvance > 0) {
 			if (this.firstUnit) {
 				this.locateLine();
 				this.firstUnit = false;
 			}
-			double lineAxis = this.unitAdvance + this.letterSpacing;
+			double lineAxis = this.unitAdvance + this.letterSpacing + autospaceGap;
 			if (this.text == null) {
 				lineAxis += this.fontMetrics.getAdvance(gid);
 			} else {
@@ -829,6 +841,10 @@ public class TextBuilder {
 			final double maxLineAxis = this.maxLineSize - this.textIndent;
 			if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
 				this.flush();
+				// flushが実際に行を分割した場合はtrackerがリセット済み——
+				// 行を跨ぐpairにgapは入らない(再計算)
+				autospaceGap = this.autospace.gapBefore(ch, coff,
+						this.fontStyle == null ? 0 : this.fontStyle.getSize());
 			}
 		}
 
@@ -843,6 +859,13 @@ public class TextBuilder {
 		final double advance = this.text.appendGlyph(ch, coff, clen, gid) + this.letterSpacing;
 		this.unitAdvance += advance;
 		this.lineAxis += advance;
+		if (autospaceGap > 0) {
+			// 直前glyphのxadvanceへ焼き込み+行会計へ加算(A2)
+			this.autospace.applyGap(autospaceGap);
+			this.unitAdvance += autospaceGap;
+			this.lineAxis += autospaceGap;
+		}
+		this.autospace.glyphAdded(this.text, this.fontStyle.getSize(), ch, coff, clen);
 		this.lastSpaceAdvance = 0;
 		this.lineHead = false;
 
@@ -867,6 +890,16 @@ public class TextBuilder {
 
 	public void control(TextControl quad) {
 		assert this.text == null;
+		// 和文詰めA2: 制御(空白・改行・置換要素等)はpairを断つ(明示
+		// 空白のあるpairへautospaceは入らない)。ただし幅0のインライン
+		// 開始/終了は単なる境界でpairを維持する(spanを跨ぐ和欧境界も
+		// autospaceの対象——仕様どおり)
+		if (!(quad instanceof InlineQuad inlineQuad
+				&& (inlineQuad.getType() == InlineQuad.INLINE_START
+						|| inlineQuad.getType() == InlineQuad.INLINE_END)
+				&& inlineQuad.getAdvance() == 0)) {
+			this.autospace.reset();
+		}
 		if (quad instanceof Control) {
 			// 制御コード
 			Control control = (Control) quad;

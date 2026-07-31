@@ -212,6 +212,11 @@ final class TotalFitSession {
 	 * white-space/word-wrapが初期版の対応範囲かを検査します。
 	 */
 	private static boolean textStateSupported(final AbstractTextParams params) {
+		if (params.textAutospace != 0) {
+			// 和文詰めA2: autospace有効段落はgreedyへフォールバック
+			// (K-P側のpair gap discount対応はP1——答申Q5)
+			return false;
+		}
 		switch (params.whiteSpace) {
 		case AbstractTextParams.WHITE_SPACE_PRE:
 		case AbstractTextParams.WHITE_SPACE_PRE_WRAP:

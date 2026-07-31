@@ -353,6 +353,16 @@ final class IntrinsicMeasurer {
 		}
 	}
 
+	/**
+	 * 和文詰めA2: text-autospaceの境界gapです。max-content(行)にのみ
+	 * 計上する——和欧文境界は分割機会でgapは分割時に消えるため、
+	 * min-content(atomic unit)には入れない(高々0.125icの過小は
+	 * 安全側の近似として記録)。
+	 */
+	void autospaceGap(final double gap) {
+		this.lineAxis += gap;
+	}
+
 	void glyph(double advance) {
 		advance += this.letterSpacing;
 		this.atomicLineSize += advance;
