@@ -5,6 +5,9 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>font-feature-settings / font-variant-east-asian</title>
 <style type="text/css">
+/* text-autospace既定normal化(2026-08-01)への対応: font featureの幅をそのまま固定する検査のため、この検査ではoffに固定 */
+body { text-autospace: no-autospace; }
+
 /* pdfg2dのテスト用CJKフォント(jp78/palt等を持つ)。foliojet4は
    settings.gradleで同じsibling checkoutを必須参照している */
 @font-face {

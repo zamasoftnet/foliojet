@@ -222,11 +222,11 @@ final class TotalFitSession {
 	 * white-space/word-wrapが初期版の対応範囲かを検査します。
 	 */
 	private static boolean textStateSupported(final AbstractTextParams params) {
-		if (params.textAutospace != 0) {
-			// 和文詰めA2: autospace有効段落はgreedyへフォールバック
-			// (K-P側のpair gap discount対応はP1——答申Q5)
-			return false;
-		}
+		// 和文詰めA2→既定on化(2026-08-01): autospaceはプロパティでは蹴らない。
+		// text-autospace既定normal化でプロパティ検査は全段落を蹴ってしまい、
+		// 純英文・純和文のprettyまで死ぬため、実際にギャップが発生した時点で
+		// recordGlyphがabortToLegacyする内容ベースの判定へ精密化した
+		// (ギャップを含む段落がK-P対象外である点はP1——答申Q5——のまま不変)
 		switch (params.whiteSpace) {
 		case AbstractTextParams.WHITE_SPACE_PRE:
 		case AbstractTextParams.WHITE_SPACE_PRE_WRAP:
@@ -252,6 +252,10 @@ final class TotalFitSession {
 				&& params.whiteSpace != AbstractTextParams.WHITE_SPACE_PRE_WRAP;
 		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing,
 				this.builder.getFlowBox().getLineSize());
+		// 既定on化(2026-08-01): ミラーtrackerにもautospaceフラグを載せ、
+		// recordGlyphのgapBefore検査(ギャップ実発生でabortToLegacy)を
+		// TextBuilder側(changeTextState)と同じ粒度で追随させる
+		this.spacing.setFlags(params.textAutospace);
 	}
 
 	/** 記録中であればtrueを返します。 */
@@ -337,8 +341,16 @@ final class TotalFitSession {
 			this.mirrorText.setLetterSpacing(this.letterSpacing);
 		}
 		final char[] cluster = Arrays.copyOfRange(ch, coff, coff + clen);
+		// 既定on化(2026-08-01): autospaceギャップが実際に発生する段落のみ
+		// K-P対象外(K-P側のpair gap discount対応はP1——答申Q5——のまま)。
+		// プロパティ検査ではなく実発生で判定することで、text-autospace既定
+		// normal下でも純英文・純和文の段落はprettyを保つ
+		if (this.spacing.gapBefore(cluster, 0, this.fontStyle.getSize()) != 0) {
+			this.abortToLegacy();
+			return false;
+		}
 		// T1a: 同一run内の約物詰め(font層から移管)を候補幅へ反映
-		// (autospace有効段落はpretty対象外のためtrimのみ。最終bindは
+		// (ギャップ発生段落はpretty対象外のためtrimのみ。最終bindは
 		// TextBuilder側trackerがxadvanceで適用する——旧font層kern時代と
 		// 同じく分割点の復元はモデル化しない)
 		final double trim = this.spacing.trimBefore(cluster, 0, gid, this.mirrorText, this.fontMetrics,
@@ -374,6 +386,16 @@ final class TotalFitSession {
 	boolean recordControl(final TextControl quad) {
 		if (!this.recording() || !this.checkCapacity()) {
 			return false;
+		}
+		// 既定on化(2026-08-01): ミラーtrackerのpair状態をTextBuilder.control
+		// と同じ規約で断つ(幅0のインライン開始/終了だけはpairを維持)。
+		// これが無いと「あ text」のような空白を挟む和欧の並びで
+		// gapBefore検査が偽のギャップを検出し、K-Pが不要に中断される
+		if (!(quad instanceof InlineQuad inlineQuad
+				&& (inlineQuad.getType() == InlineQuad.INLINE_START
+						|| inlineQuad.getType() == InlineQuad.INLINE_END)
+				&& inlineQuad.getAdvance() == 0)) {
+			this.spacing.reset();
 		}
 		if (quad instanceof Control control) {
 			switch (control.getControlChar()) {

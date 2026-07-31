@@ -209,11 +209,11 @@ tr {
 }
 
 /*
- * 和文詰めA1(2026-07-31、consult-codex-2026-07-31-text-spacing.txt Q4):
- * text-autospaceのcomputed initialは仕様どおりnormal(和欧文間スペース
- * あり)だが、既存文書の互換のためUA既定でoffにする(Safari 18.4と同じ
- * 方式)。既定on化するときはこの1行を変えるだけでよい。
+ * 和文詰めA1→既定on化(2026-08-01、オーナー裁定): text-autospaceの
+ * 初期値は仕様どおりnormal(和欧文間の四分アキ)で、UA既定でも
+ * 打ち消さない。**根拠は標準追従ではなく、本プロダクトが印刷用である
+ * こと**(ブラウザの現状はUA既定off=Safari 18.4方式であり、当初は
+ * それに合わせてここで html { text-autospace: no-autospace } としていた)。
+ * 印刷品質では和欧文間アキが既定であるべき、という製品判断。
+ * 抑止したい文書は text-autospace: no-autospace を明示すればよい。
  */
-html {
-	text-autospace: no-autospace;
-}
