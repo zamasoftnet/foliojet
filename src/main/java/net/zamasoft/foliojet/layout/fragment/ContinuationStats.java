@@ -271,6 +271,27 @@ public final class ContinuationStats {
 	public static final AtomicLong TWO_PASS_SEALS_ELIGIBLE = new AtomicLong();
 
 	/**
+	 * 表キャプションがOpaque(再生不能)として記録された回数です
+	 * (caption recipe化C0の観測、2026-08-01——
+	 * consult-codex-2026-08-01-caption-recipe.txt。C1のrecipe記録化で
+	 * 0になるべき値。これを含む親範囲はcontainsOpaqueで不適格になる
+	 * ——legacy残23件のうちTOPLEVEL 10件の原因)。
+	 */
+	public static final AtomicLong CAPTION_OPAQUE_RECORDS = new AtomicLong();
+
+	/**
+	 * キャプションStartが再生範囲の根(または表文脈なし)として拒否された
+	 * 回数です(C2のcontext-completeゲート——C0時点では常に0)。
+	 */
+	public static final AtomicLong CAPTION_ROOT_REJECTS = new AtomicLong();
+
+	/**
+	 * キャプションを含む範囲が表文脈確立済みとして受理された回数です
+	 * (C2——C0時点では常に0)。
+	 */
+	public static final AtomicLong CAPTION_CONTEXT_ACCEPTS = new AtomicLong();
+
+	/**
 	 * TwoPass range seal({@code TwoPassBlockBuilder.sealBodyForRangeBind})の
 	 * 不適格理由です(E-6増分4a/4b)。判定はfail closed——少しでも怪しい
 	 * 範囲は{@code LegacyRecords}を継続する。
@@ -725,6 +746,9 @@ public final class ContinuationStats {
 		TWO_PASS_SEALS_SUBSUMED.set(0);
 		CELL_RANGE_SEALS_SUBSUMED.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);
+		CAPTION_OPAQUE_RECORDS.set(0);
+		CAPTION_ROOT_REJECTS.set(0);
+		CAPTION_CONTEXT_ACCEPTS.set(0);
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);
 		CELL_LEGACY_BINDS.set(0);

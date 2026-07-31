@@ -43,6 +43,7 @@ public class DualPathCensusProbeTest extends TestCase {
 		java.util.Arrays.sort(dirFiles);
 		long totalRange = 0, totalLegacy = 0, totalCellRange = 0, totalCellLegacy = 0, totalPassC = 0,
 				totalLegacyRows = 0, totalDocs = 0, legacyDocs = 0;
+		long totalCaptionOpaque = 0, totalCaptionRootRejects = 0, totalCaptionContextAccepts = 0;
 		final long tableReplays0 = net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.TABLE_REPLAYS.get();
 		final java.util.Map<ContinuationStats.TwoPassSealReject, Long> rejects = new java.util.EnumMap<>(
 				ContinuationStats.TwoPassSealReject.class);
@@ -78,6 +79,9 @@ public class DualPathCensusProbeTest extends TestCase {
 				totalCellLegacy += cellLegacy;
 				totalPassC += ContinuationStats.TABLE_PASS_C_TABLES.get();
 				totalLegacyRows += legacyRows;
+				totalCaptionOpaque += ContinuationStats.CAPTION_OPAQUE_RECORDS.get();
+				totalCaptionRootRejects += ContinuationStats.CAPTION_ROOT_REJECTS.get();
+				totalCaptionContextAccepts += ContinuationStats.CAPTION_CONTEXT_ACCEPTS.get();
 				for (final ContinuationStats.TwoPassSealReject r : ContinuationStats.TwoPassSealReject.values()) {
 					rejects.merge(r, ContinuationStats.twoPassSealRejects(r), Long::sum);
 				}
@@ -99,6 +103,10 @@ public class DualPathCensusProbeTest extends TestCase {
 		System.out.println("[DP-TOTAL] legacyOrigins=" + origins);
 		System.out.println("[DP-TOTAL] tableReplays="
 				+ (net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.TABLE_REPLAYS.get() - tableReplays0));
+		// caption recipe化C0(2026-08-01): C1でopaque→0、C2でrejects/accepts
+		// が動き出し、C4でCAPTION_REPLAYS>0になる予定の観測列
+		System.out.println("[DP-TOTAL] caption: opaqueRecords=" + totalCaptionOpaque + " rootRejects="
+				+ totalCaptionRootRejects + " contextAccepts=" + totalCaptionContextAccepts);
 	}
 
 	private void transcode(File source) throws Exception {

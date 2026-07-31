@@ -191,6 +191,13 @@ final class RecordingLayoutSink {
 				// キャプションを recipe 化するには、根の種別に対する適格
 				// ゲート(context-dependent kind の禁止)を先に設計すること。
 				// 試作コード(BoxKind.TABLE_CAPTION 一式)は撤去済み。
+				//
+				// caption recipe化C0(2026-08-01、consult-codex-2026-08-01-
+				// caption-recipe.txt): 設計答申を取得済み——「根禁止」ではなく
+				// 「同一範囲内に対応するTABLE Startの確立を要求する
+				// context-complete検証」で解禁する。C1でこの分岐がCAPTION
+				// recipe記録へ置き換わるまで、Opaque記録量を観測する
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.CAPTION_OPAQUE_RECORDS.incrementAndGet();
 				return null;
 			}
 			return LayoutSource.BoxKind.FLOW;
