@@ -42,8 +42,6 @@ import net.zamasoft.pdfg2d.gc.text.Element;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
-import net.zamasoft.foliojet.layout.text.breaking.BitSetCharacterSet;
-import net.zamasoft.foliojet.layout.text.breaking.CharacterSet;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Tab;
@@ -56,7 +54,6 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
  * @version $Id: TextBuilder.java 1593 2019-12-03 07:02:17Z miyabe $
  */
 public class TextBuilder {
-	private static final CharacterSet CL01 = new BitSetCharacterSet("‘“（〔［｛〈《「『【⦅〖«〝");
 
 	/**
 	 * タブの幅です。
@@ -282,7 +279,8 @@ public class TextBuilder {
 		this.minLineAxis = lineStart - this.builder.lineAxis;
 		// System.out.println("NewLine:"+lineStart+"/"+this.maxLineSize);
 
-		// 天付き
+		// 天付き(和文詰めS1: 判定はJapaneseSpacingResolverへ移管——
+		// consult-codex-2026-07-31-text-spacing.txt。挙動は不変)
 		if (!this.last && this.lineBox.getLineParams().flow.isVertical()) {
 			for (int i = 0; i < this.textBuffer.size(); ++i) {
 				Element e = (Element) this.textBuffer.get(i);
@@ -290,10 +288,11 @@ public class TextBuilder {
 					continue;
 				}
 				if (e instanceof Text) {
-					Text text = (Text) e;
-					char c = text.getChars()[0];
-					if (CL01.contains(c)) {
-						this.textIndent = -text.getFontStyle().getSize() * .5;
+					final Text text = (Text) e;
+					final double headIndent = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
+							.verticalHeadIndent(text.getChars()[0]);
+					if (headIndent != 0) {
+						this.textIndent = headIndent * text.getFontStyle().getSize();
 					}
 				}
 				break;
