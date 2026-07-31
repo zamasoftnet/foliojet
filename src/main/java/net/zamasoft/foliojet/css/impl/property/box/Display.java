@@ -111,9 +111,20 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		case DisplayValue.BLOCK:
 		case DisplayValue.LIST_ITEM:
 		case DisplayValue.TABLE:
+		case DisplayValue.GRID:
 			break;
 		default:
 			throw new IllegalStateException();
+		}
+
+		// Grid直接子のblock化(Grid G0——css-grid-1 §6。inline系の子は
+		// 匿名itemではなくブロックへ昇格させる)
+		if (display == DisplayValue.INLINE || display == DisplayValue.INLINE_BLOCK) {
+			final CSSStyle gridParent = style.getParentStyle();
+			if (gridParent != null && Display.get(gridParent) == DisplayValue.GRID) {
+				value = DisplayValue.BLOCK_VALUE;
+				display = DisplayValue.BLOCK;
+			}
 		}
 
 		// 置換ボックスのための変換
@@ -141,6 +152,12 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		case DisplayValue.TABLE_COLUMN_GROUP:
 			if (CSSJInternalImage.getImage(style) != null) {
 				return DisplayValue.NONE_VALUE;
+			}
+			break;
+
+		case DisplayValue.GRID:
+			if (CSSJInternalImage.getImage(style) != null) {
+				return DisplayValue.BLOCK_VALUE;
 			}
 			break;
 
@@ -207,6 +224,8 @@ public class Display extends AbstractPrimitivePropertyInfo {
 					return DisplayValue.TABLE_ROW_VALUE;
 				} else if (ident.equals("table-cell")) {
 					return DisplayValue.TABLE_CELL_VALUE;
+				} else if (ident.equals("grid")) {
+					return DisplayValue.GRID_VALUE;
 				} else if (ident.equals("table-caption")) {
 					return DisplayValue.TABLE_CAPTION_VALUE;
 				}

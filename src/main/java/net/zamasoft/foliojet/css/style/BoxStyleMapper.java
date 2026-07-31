@@ -396,6 +396,20 @@ final class BoxStyleMapper {
 	 * @param params
 	 * @param style
 	 */
+	/**
+	 * Gridコンテナのパラメータを設定します(Grid G0)。
+	 */
+	void setupGridParams(net.zamasoft.foliojet.layout.box.params.GridParams params, CSSStyle style,
+			CSSStyle parentStyle, boolean inBody, PageSequence pageSequence) {
+		this.setupBlockParams(params, style, parentStyle, inBody, pageSequence);
+		params.templateColumns = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.getColumns(style)
+				.getTracks();
+		params.templateRows = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.getRows(style)
+				.getTracks();
+		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
+		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
+	}
+
 	void setupParams(Params params, CSSStyle style) {
 		params.element = style.getCSSElement();
 		params.footnoteId = style.footnoteId;

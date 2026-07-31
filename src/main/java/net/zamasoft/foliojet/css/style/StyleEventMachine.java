@@ -344,6 +344,7 @@ final class StyleEventMachine {
 						break;
 					case DisplayValue.INLINE:
 					case DisplayValue.BLOCK:
+					case DisplayValue.GRID:
 					case DisplayValue.LIST_ITEM:
 					case DisplayValue.INLINE_BLOCK:
 					case DisplayValue.TABLE:

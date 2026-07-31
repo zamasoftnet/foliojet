@@ -53,6 +53,22 @@ public final class PaginationContract {
 	}
 
 	/**
+	 * ボックス自身を見る変種です(Grid G0、2026-07-31)。
+	 * {@link net.zamasoft.foliojet.layout.box.PageAtomicBox}の印を持つ
+	 * ボックス(Grid等の「常時分割不可」)は書字方向に関わらずatomic境界。
+	 *
+	 * @param outer 親フローの書字方向
+	 * @param box   子ブロック
+	 */
+	public static boolean isChainAtomicBoundary(final WritingMode outer,
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+			return true;
+		}
+		return isChainAtomicBoundary(outer, box.getBlockParams().flow);
+	}
+
+	/**
 	 * ページ進行軸が{@code vertical}(縦書きか)の文脈で、書字方向
 	 * {@code inner}の子ブロックをその場で切断できるか(切断がページ軸の
 	 * 幾何として意味を持つか)を判定します。
@@ -65,5 +81,17 @@ public final class PaginationContract {
 	 */
 	public static boolean splitsInPageAxis(final boolean vertical, final WritingMode inner) {
 		return vertical == inner.isVertical();
+	}
+
+	/**
+	 * ボックス自身を見る変種です(Grid G0)。{@code PageAtomicBox}は
+	 * その場の幾何学的切断も行わない(丸ごと送り→visual rescue)。
+	 */
+	public static boolean splitsInPageAxis(final boolean vertical,
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+			return false;
+		}
+		return splitsInPageAxis(vertical, box.getBlockParams().flow);
 	}
 }

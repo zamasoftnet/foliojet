@@ -487,6 +487,7 @@ final class StyleBoxEmitter {
 
 					case DisplayValue.TABLE:
 					case DisplayValue.BLOCK:
+					case DisplayValue.GRID:
 					case DisplayValue.LIST_ITEM:
 					case DisplayValue.INLINE_TABLE:
 					case DisplayValue.INLINE:
@@ -640,6 +641,32 @@ final class StyleBoxEmitter {
 		}
 			break;
 
+		case DisplayValue.GRID: {
+			// Grid G0(consult-codex-2026-07-31-grid.txt §1.1): 通常フロー
+			// 文脈のみGridBox(PageAtomicBox=常時分割不可)。float/absolute/
+			// fixedのGridコンテナは初期サブセット外で通常blockへフォール
+			// バック(内容は失わない)
+			final net.zamasoft.foliojet.layout.box.params.GridParams params = new net.zamasoft.foliojet.layout.box.params.GridParams();
+			this.mapper.setupGridParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
+					this.pageSequence);
+			final AbstractBlockBox blockBox;
+			if ((position == PositionValue.STATIC || position == PositionValue.RELATIVE)
+					&& floating == CSSFloatValue.NONE) {
+				final FlowPos pos = new FlowPos();
+				this.mapper.setupFlowPos(pos, style, this.context.isRightSide());
+				final CSSStyle parentStyle = style.getParentStyle();
+				if (parentStyle != null) {
+					pos.align = CSSJHtmlAlign.get(parentStyle);
+				}
+				blockBox = new net.zamasoft.foliojet.layout.box.impl.GridBox(params, pos);
+			} else {
+				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
+			}
+			this.requireRoot(params.direction, params.flow);
+			this.sink.start(blockBox);
+		}
+			break;
+
 		case DisplayValue.TABLE:
 		case DisplayValue.INLINE_TABLE: {
 			// テーブル
@@ -785,6 +812,7 @@ final class StyleBoxEmitter {
 		case DisplayValue.TABLE:
 		case DisplayValue.INLINE_TABLE:
 		case DisplayValue.BLOCK:
+		case DisplayValue.GRID:
 		case DisplayValue.LIST_ITEM:
 		case DisplayValue.TABLE_CAPTION:
 		case DisplayValue.TABLE_COLUMN_GROUP:

@@ -236,7 +236,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// (直交writing-mode表と同じ扱いを、通常フローのブロックにも
 			// 一般化する)。判定はPaginationContractが正本
 			if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(
-					this.getFlow().box.getBlockParams().flow, flowBox.getBlockParams().flow)) {
+					this.getFlow().box.getBlockParams().flow, flowBox)) {
 				this.breakDepth = 0;
 			}
 		} else {
