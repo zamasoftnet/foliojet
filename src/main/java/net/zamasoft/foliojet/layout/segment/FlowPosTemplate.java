@@ -19,9 +19,11 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
  * 防御的コピーは不要(2026-07-22 Stage2で不変recordへ置換)。
  * </p>
  */
-public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan) {
+public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan,
+		net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItem) {
 	public static FlowPosTemplate freeze(final FlowPos source) {
-		return new FlowPosTemplate(NormalFlowPosFields.freeze(source), source.align, source.columnSpan);
+		return new FlowPosTemplate(NormalFlowPosFields.freeze(source), source.align, source.columnSpan,
+				source.gridItem);
 	}
 
 	/** 呼び出しごとに新品の{@code FlowPos}を返す(複数回呼んでも互いに影響しない)。 */
@@ -30,6 +32,7 @@ public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte colu
 		this.common.materializeInto(pos);
 		pos.align = this.align;
 		pos.columnSpan = this.columnSpan;
+		pos.gridItem = this.gridItem;
 		return pos;
 	}
 }

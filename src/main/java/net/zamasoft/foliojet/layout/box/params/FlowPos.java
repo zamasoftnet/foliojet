@@ -20,6 +20,12 @@ public class FlowPos extends AbstractNormalFlowPos implements Pos {
 	 */
 	public byte columnSpan = COLUMN_SPAN_SINGLE;
 
+	/**
+	 * Grid itemの明示配置です(Grid G4a)。Grid直下の子としてitem化
+	 * されるときだけ参照される(それ以外の要素では無視)。
+	 */
+	public GridItemSpec gridItem = GridItemSpec.AUTO;
+
 	public PosType getType() {
 		return PosType.FLOW;
 	}

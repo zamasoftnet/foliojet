@@ -335,15 +335,30 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/** Grid直下にelement itemを開きます(開いている匿名itemは畳む)。 */
-	private GridBuilder startGridElementItem() {
+	/**
+	 * Grid直下にelement itemを開きます(開いている匿名itemは畳む)。
+	 * {@code spec}はauthored childのFlowPosからの明示配置スナップショット
+	 * (G4a——consult-codex-2026-07-31-grid-g4.txt Q1)。
+	 */
+	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec) {
 		final GridBuilder grid = this.gridAwaitingDirectChild();
 		if (grid != null) {
 			this.closeGridAnonymousItem(grid);
-			this.startContainerBuilder(grid.startElementItem());
+			this.startContainerBuilder(grid.startElementItem(spec));
 			this.startContainer();
 		}
 		return grid;
+	}
+
+	/** boxの明示配置指定を取り出します(FlowPosを持たない配置はauto)。 */
+	private static net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItemSpecOf(final IBox box) {
+		if (box.getPos() instanceof FlowPos flowPos) {
+			return flowPos.gridItem;
+		}
+		if (box instanceof TableBox table && table.getBlockBox().getPos() instanceof FlowPos flowPos) {
+			return flowPos.gridItem;
+		}
+		return net.zamasoft.foliojet.layout.box.params.GridItemSpec.AUTO;
 	}
 
 	/** element itemの一件分を畳みます(one-shot経路と子endBox後の共通処理)。 */
@@ -495,7 +510,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		switch (box.getPos().getType()) {
 		case FLOW:
 		case TABLE:
-			this.startGridElementItem();
+			this.startGridElementItem(gridItemSpecOf(box));
 			break;
 		case INLINE:
 			this.requireGridAnonymousItem();
@@ -914,7 +929,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		GridBuilder oneShotGrid = null;
 		switch (replacedBox.getPos().getType()) {
 		case FLOW:
-			oneShotGrid = this.startGridElementItem();
+			oneShotGrid = this.startGridElementItem(gridItemSpecOf(replacedBox));
 			break;
 		case INLINE:
 			this.requireGridAnonymousItem();

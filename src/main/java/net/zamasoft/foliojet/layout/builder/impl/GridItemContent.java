@@ -28,12 +28,16 @@ final class GridItemContent {
 
 	final boolean anonymous;
 
+	/** 明示配置指定(G4a——authored childのFlowPosからのスナップショット)。 */
+	final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec;
+
 	GridItemContent(final GridItemBox itemBox, final TwoPassBlockBuilder body, final IntrinsicSizes sizes,
-			final boolean anonymous) {
+			final boolean anonymous, final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec) {
 		this.itemBox = itemBox;
 		this.body = body;
 		this.sizes = sizes;
 		this.anonymous = anonymous;
+		this.spec = spec;
 	}
 
 	/**

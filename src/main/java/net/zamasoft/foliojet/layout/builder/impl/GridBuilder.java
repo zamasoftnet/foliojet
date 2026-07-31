@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
@@ -87,6 +88,9 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 	/** 開いているitemが匿名(直接テキスト)か。 */
 	private boolean openItemAnonymous;
 
+	/** 開いているitemの明示配置指定(G4a)。 */
+	private GridItemSpec openItemSpec = GridItemSpec.AUTO;
+
 	GridBuilder(final Builder host, final GridBox gridBox) {
 		this.host = host;
 		this.hostStack = (LayoutStack) host;
@@ -127,8 +131,8 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 	}
 
 	/** 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。 */
-	public TwoPassBlockBuilder startElementItem() {
-		return this.startItem(false);
+	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec) {
+		return this.startItem(false, spec);
 	}
 
 	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
@@ -136,10 +140,10 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
 			return null; // 既に開いている(積み直し不要)
 		}
-		return this.startItem(true);
+		return this.startItem(true, GridItemSpec.AUTO);
 	}
 
-	private TwoPassBlockBuilder startItem(final boolean anonymous) {
+	private TwoPassBlockBuilder startItem(final boolean anonymous, final GridItemSpec spec) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		// 幅は暫定(auto列は未解決)。録画・計測は幅非依存で、確定幅は
 		// finish()のbind直前にsetTrackWidthで入る(G3b)
@@ -148,6 +152,7 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
 		this.openItemAnonymous = anonymous;
+		this.openItemSpec = spec;
 		return builder;
 	}
 
@@ -161,15 +166,17 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		final TwoPassBlockBuilder builder = this.openItemBuilder;
 		final GridItemBox itemBox = this.openItemBox;
 		final boolean anonymous = this.openItemAnonymous;
+		final GridItemSpec spec = this.openItemSpec;
 		this.openItemBuilder = null;
 		this.openItemBox = null;
 		this.openItemAnonymous = false;
+		this.openItemSpec = GridItemSpec.AUTO;
 		if (anonymous && builder.hasEmptyRecordedBody() && !itemBox.paintsAnything()) {
 			GRID_ITEM_EMPTY_ANON_DROPS.incrementAndGet();
 			return;
 		}
 		GRID_ITEM_RECORDS.incrementAndGet();
-		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous));
+		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous, spec));
 	}
 
 	/**

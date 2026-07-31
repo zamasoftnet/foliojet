@@ -360,6 +360,17 @@ final class BoxStyleMapper {
 		pos.pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), rightSide);
 		pos.pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), rightSide);
 		pos.columnSpan = ColumnSpan.get(style);
+		// Grid G4a: 明示配置の4 longhand(Grid直下でitem化されるときだけ
+		// 参照される。全autoはsingleton共有)
+		pos.gridItem = net.zamasoft.foliojet.layout.box.params.GridItemSpec.of(
+				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.COLUMN_START),
+				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.COLUMN_END),
+				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_START),
+				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_END));
 	}
 
 	/**
