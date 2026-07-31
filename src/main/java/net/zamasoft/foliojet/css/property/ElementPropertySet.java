@@ -241,6 +241,13 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_START);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_END);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.RowGap.INFO);
+		// Grid G5a(consult-codex-2026-07-31-grid-g5.txt)
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_ITEMS);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_ITEMS);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_SELF);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT);
+		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT);
 		reg(TextIndent.INFO);
 		reg(TextAlign.INFO);
 		reg(TextDecoration.INFO);

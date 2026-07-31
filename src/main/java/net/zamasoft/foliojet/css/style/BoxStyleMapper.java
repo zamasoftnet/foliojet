@@ -360,8 +360,8 @@ final class BoxStyleMapper {
 		pos.pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), rightSide);
 		pos.pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), rightSide);
 		pos.columnSpan = ColumnSpan.get(style);
-		// Grid G4a: 明示配置の4 longhand(Grid直下でitem化されるときだけ
-		// 参照される。全autoはsingleton共有)
+		// Grid G4a/G5a: 明示配置4 longhand+self alignment 2値(Grid直下で
+		// item化されるときだけ参照される。全autoはsingleton共有)
 		pos.gridItem = net.zamasoft.foliojet.layout.box.params.GridItemSpec.of(
 				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.COLUMN_START),
@@ -370,7 +370,11 @@ final class BoxStyleMapper {
 				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_START),
 				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
-						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_END));
+						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_END),
+				toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_SELF)),
+				toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF)));
 	}
 
 	/**
@@ -419,6 +423,21 @@ final class BoxStyleMapper {
 				.getTracks();
 		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
+		// G5a: コンテナ側alignment 4値(used value解決はbind時——再生決定性)
+		params.justifyItems = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
+				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_ITEMS));
+		params.alignItems = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
+				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_ITEMS));
+		params.justifyContent = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
+				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT));
+		params.alignContent = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
+				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
+	}
+
+	/** CSS値→layout値(同名対応)。 */
+	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toBoxAlignment(
+			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
+		return net.zamasoft.foliojet.layout.box.params.BoxAlignment.valueOf(value.name());
 	}
 
 	void setupParams(Params params, CSSStyle style) {

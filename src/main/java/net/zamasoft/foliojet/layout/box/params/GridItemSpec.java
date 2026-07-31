@@ -12,18 +12,26 @@ import net.zamasoft.foliojet.css.value.GridLineValue;
  * @author MIYABE Tatsuhiko
  */
 public record GridItemSpec(GridLineValue columnStart, GridLineValue columnEnd, GridLineValue rowStart,
-		GridLineValue rowEnd) {
+		GridLineValue rowEnd, BoxAlignment justifySelf, BoxAlignment alignSelf) {
 
-	/** 全auto(既定)。 */
+	/** 全auto(既定——4線autoかつself 2値もauto)。 */
 	public static final GridItemSpec AUTO = new GridItemSpec(GridLineValue.AUTO_VALUE, GridLineValue.AUTO_VALUE,
-			GridLineValue.AUTO_VALUE, GridLineValue.AUTO_VALUE);
+			GridLineValue.AUTO_VALUE, GridLineValue.AUTO_VALUE, BoxAlignment.AUTO, BoxAlignment.AUTO);
 
 	public static GridItemSpec of(final GridLineValue columnStart, final GridLineValue columnEnd,
-			final GridLineValue rowStart, final GridLineValue rowEnd) {
-		if (columnStart.isAuto() && columnEnd.isAuto() && rowStart.isAuto() && rowEnd.isAuto()) {
+			final GridLineValue rowStart, final GridLineValue rowEnd, final BoxAlignment justifySelf,
+			final BoxAlignment alignSelf) {
+		if (columnStart.isAuto() && columnEnd.isAuto() && rowStart.isAuto() && rowEnd.isAuto()
+				&& justifySelf == BoxAlignment.AUTO && alignSelf == BoxAlignment.AUTO) {
 			return AUTO;
 		}
-		return new GridItemSpec(columnStart, columnEnd, rowStart, rowEnd);
+		return new GridItemSpec(columnStart, columnEnd, rowStart, rowEnd, justifySelf, alignSelf);
+	}
+
+	/** 配置4値のみの生成(self系はauto——G4系テスト用)。 */
+	public static GridItemSpec of(final GridLineValue columnStart, final GridLineValue columnEnd,
+			final GridLineValue rowStart, final GridLineValue rowEnd) {
+		return of(columnStart, columnEnd, rowStart, rowEnd, BoxAlignment.AUTO, BoxAlignment.AUTO);
 	}
 
 	public boolean isAuto() {

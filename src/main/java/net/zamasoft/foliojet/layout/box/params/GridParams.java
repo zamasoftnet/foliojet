@@ -25,4 +25,16 @@ public class GridParams extends BlockParams {
 
 	/** 列間隔(絶対長。columnGapのnormalはGridでは0)。 */
 	public double columnGap = 0;
+
+	/** itemの行方向既定配置(G5a。normalはGridではstretch)。 */
+	public BoxAlignment justifyItems = BoxAlignment.NORMAL;
+
+	/** itemのページ方向既定配置(G5a)。 */
+	public BoxAlignment alignItems = BoxAlignment.NORMAL;
+
+	/** トラック群の行方向配置(G5a)。 */
+	public BoxAlignment justifyContent = BoxAlignment.NORMAL;
+
+	/** 行群のページ方向配置(G5a。明示高Gridで意味を持つ)。 */
+	public BoxAlignment alignContent = BoxAlignment.NORMAL;
 }

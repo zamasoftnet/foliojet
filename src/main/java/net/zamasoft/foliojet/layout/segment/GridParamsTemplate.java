@@ -19,10 +19,15 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * </p>
  */
 public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListValue.TrackSize> templateColumns,
-		List<GridTrackListValue.TrackSize> templateRows, double rowGap, double columnGap) {
+		List<GridTrackListValue.TrackSize> templateRows, double rowGap, double columnGap,
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment justifyItems,
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignItems,
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment justifyContent,
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignContent) {
 	public static GridParamsTemplate freeze(final GridParams source) {
 		return new GridParamsTemplate(BlockParamsFields.freeze(source), source.templateColumns,
-				source.templateRows, source.rowGap, source.columnGap);
+				source.templateRows, source.rowGap, source.columnGap, source.justifyItems, source.alignItems,
+				source.justifyContent, source.alignContent);
 	}
 
 	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
@@ -38,6 +43,10 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		p.templateRows = this.templateRows;
 		p.rowGap = this.rowGap;
 		p.columnGap = this.columnGap;
+		p.justifyItems = this.justifyItems;
+		p.alignItems = this.alignItems;
+		p.justifyContent = this.justifyContent;
+		p.alignContent = this.alignContent;
 		return p;
 	}
 }
