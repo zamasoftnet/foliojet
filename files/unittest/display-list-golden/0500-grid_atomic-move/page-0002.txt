@@ -1,5 +1,5 @@
 drawer z=0
   x=0.00 y=0.00 Text["alpha" asc=10.31 desc=4.09]
-  x=0.00 y=14.40 Text["beta" asc=10.31 desc=4.09]
-  x=0.00 y=28.80 Text["gamma" asc=10.31 desc=4.09]
-  x=0.00 y=43.20 Text["delta" asc=10.31 desc=4.09]
+  x=100.00 y=0.00 Text["beta" asc=10.31 desc=4.09]
+  x=0.00 y=14.40 Text["gamma" asc=10.31 desc=4.09]
+  x=100.00 y=14.40 Text["delta" asc=10.31 desc=4.09]

@@ -63,6 +63,67 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(100.0, w[1], 0.001);
 	}
 
+	/** fr比例分配と、fixed/autoとの共存(G3c)。 */
+	public void testFrProportionalAndMixed() {
+		// 1fr 2fr → 100/200
+		final double[] w = BasicGridTrackSizing.resolve(
+				List.of(new GridTrackListValue.Fr(1), new GridTrackListValue.Fr(2)), new double[2], new double[2],
+				300, 0);
+		assertEquals(100.0, w[0], 0.001);
+		assertEquals(200.0, w[1], 0.001);
+
+		// fixed 60 + auto(max50) + 1fr、gap0、W=300 → 60/50/190
+		final double[] m = BasicGridTrackSizing.resolve(
+				List.of(fixed(60), AUTO, new GridTrackListValue.Fr(1)), new double[] { 0, 30, 0 },
+				new double[] { 0, 50, 0 }, 300, 0);
+		assertEquals(60.0, m[0], 0.001);
+		assertEquals(50.0, m[1], 0.001);
+		assertEquals(190.0, m[2], 0.001);
+	}
+
+	/** 単独0.5frは残余の50%だけ充填(weight合計1未満の切り上げ)。 */
+	public void testFrPartialFill() {
+		final double[] w = BasicGridTrackSizing.resolve(List.of(new GridTrackListValue.Fr(0.5)), new double[] { 0 },
+				new double[] { 0 }, 200, 0);
+		assertEquals(100.0, w[0], 0.001);
+	}
+
+	/** frのmin-content床: 割る列は床で凍結して残余を再計算。 */
+	public void testFrBaseFloorFreeze() {
+		// 1fr 1fr、W=100、col0のmin=80 → col0=80、col1=20
+		final double[] w = BasicGridTrackSizing.resolve(
+				List.of(new GridTrackListValue.Fr(1), new GridTrackListValue.Fr(1)), new double[] { 80, 0 },
+				new double[] { 80, 0 }, 100, 0);
+		assertEquals(80.0, w[0], 0.001);
+		assertEquals(20.0, w[1], 0.001);
+	}
+
+	/** fr異常系: base合計超過・幅0・weight0でNaN/負値を返さない。 */
+	public void testFrDegenerateCases() {
+		// base合計(80+70)がW=100を超過 → 床のままoverflow
+		final double[] over = BasicGridTrackSizing.resolve(
+				List.of(new GridTrackListValue.Fr(1), new GridTrackListValue.Fr(1)), new double[] { 80, 70 },
+				new double[] { 80, 70 }, 100, 0);
+		assertEquals(80.0, over[0], 0.001);
+		assertEquals(70.0, over[1], 0.001);
+
+		// W=0
+		final double[] zero = BasicGridTrackSizing.resolve(List.of(new GridTrackListValue.Fr(1)),
+				new double[] { 0 }, new double[] { 0 }, 0, 0);
+		assertEquals(0.0, zero[0], 0.001);
+
+		// weight 0(床なし→0、床あり→床)
+		final double[] w0 = BasicGridTrackSizing.resolve(
+				List.of(new GridTrackListValue.Fr(0), new GridTrackListValue.Fr(1)), new double[] { 0, 0 },
+				new double[] { 0, 0 }, 100, 0);
+		assertEquals(0.0, w0[0], 0.001);
+		assertEquals(100.0, w0[1], 0.001);
+		for (final double v : new double[] { over[0], over[1], zero[0], w0[0], w0[1] }) {
+			assertFalse(Double.isNaN(v));
+			assertTrue(v >= 0);
+		}
+	}
+
 	/** 空auto列(itemなし)は0起点でstretchのみ受ける。幅0コンテナも安全。 */
 	public void testEmptyAutoColumnAndZeroContainer() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(AUTO, AUTO), new double[] { 50, 0 },

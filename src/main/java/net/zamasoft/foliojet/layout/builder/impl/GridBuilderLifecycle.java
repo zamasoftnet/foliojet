@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
-import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
@@ -17,19 +16,15 @@ public final class GridBuilderLifecycle {
 
 	/**
 	 * トラック配置を適用できるGridかを判定します
-	 * (consult-codex-2026-07-31-grid-g1.txt §1.1)。不適格(fr列=G3c・
-	 * 明示行トラック・縦書き・TwoPass親)はG0の単一列フローへ落とす。
-	 * auto列はG3b(consult-codex-2026-07-31-grid-g3.txt Q2)で適格化。
+	 * (consult-codex-2026-07-31-grid-g1.txt §1.1)。不適格(明示行
+	 * トラック・縦書き・TwoPass親)はG0の単一列フローへ落とす。
+	 * 列種はfixed(G1)/auto(G3b)/fr(G3c)の全部が適格
+	 * (consult-codex-2026-07-31-grid-g3.txt Q2)。
 	 */
 	public static boolean eligible(final GridBox gridBox, final Builder builder) {
 		final GridParams params = gridBox.getGridParams();
 		if (params.templateColumns.isEmpty() || !params.templateRows.isEmpty()) {
 			return false;
-		}
-		for (final GridTrackListValue.TrackSize track : params.templateColumns) {
-			if (!(track instanceof GridTrackListValue.Fixed || track instanceof GridTrackListValue.Auto)) {
-				return false;
-			}
 		}
 		if (params.flow.isVertical()) {
 			return false;
