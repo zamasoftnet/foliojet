@@ -62,4 +62,50 @@ public class FlowCutterTest extends TestCase {
 				new boolean[] { false });
 		assertNotNull(p);
 	}
+
+	// ---- stepFlags(自動改ページ主ループのフラグ計算、二相分離・増分1) ----
+
+	private static final byte FIRST = net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST;
+	private static final byte LAST = net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_LAST;
+	private static final byte SPLIT = net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_SPLIT;
+
+	public void testStepFlagsHeadFlowKeepsFirst() {
+		// 始端に接するフロー(pageAxis=0): FIRSTは落とさない
+		final FlowCutter.StepFlags s = FlowCutter.stepFlags(100, 0, 0, 3, false, (byte) (FIRST | LAST | SPLIT));
+		assertEquals(100.0, s.splitLine(), 0);
+		assertTrue((s.positionMask() & FIRST) != 0);
+		// 非末尾なのでLASTは落ちる
+		assertTrue((s.positionMask() & LAST) == 0);
+		assertEquals((byte) (FIRST | SPLIT), s.splitFlags());
+	}
+
+	public void testStepFlagsDetachedFlowDropsFirst() {
+		// 始端から離れたフロー(pageAxis>0): FIRSTを落とし、splitLineはローカル化
+		final FlowCutter.StepFlags s = FlowCutter.stepFlags(100, 40, 1, 3, false, (byte) (FIRST | SPLIT));
+		assertEquals(60.0, s.splitLine(), 0);
+		assertTrue((s.positionMask() & FIRST) == 0);
+		assertEquals(SPLIT, s.splitFlags());
+	}
+
+	public void testStepFlagsTailFlowOfForeignBreakKeepsLast() {
+		// 末尾フローかつ自動改ページの対象が自分でない: LASTを保持
+		final FlowCutter.StepFlags s = FlowCutter.stepFlags(100, 40, 2, 3, false, (byte) (FIRST | LAST));
+		assertTrue((s.positionMask() & LAST) != 0);
+		assertEquals(LAST, s.splitFlags());
+	}
+
+	public void testStepFlagsOwnerTargetDropsLastEvenAtTail() {
+		// 自動改ページの対象がこのコンテナ自身なら末尾でもLASTを落とす
+		final FlowCutter.StepFlags s = FlowCutter.stepFlags(100, 0, 2, 3, true, (byte) (FIRST | LAST));
+		assertTrue((s.positionMask() & LAST) == 0);
+		assertEquals(FIRST, s.splitFlags());
+	}
+
+	public void testStepFlagsPassesThroughOtherBits() {
+		// positionMaskは0xFF起点のため、FIRST/LAST以外のビット(SPLIT等)は
+		// 常に外側flagsのまま透過する
+		final byte others = (byte) (0xFF & ~(FIRST | LAST));
+		final FlowCutter.StepFlags s = FlowCutter.stepFlags(100, 40, 1, 3, false, others);
+		assertEquals(others, s.splitFlags());
+	}
 }

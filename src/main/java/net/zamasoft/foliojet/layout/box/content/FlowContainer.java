@@ -871,17 +871,12 @@ public class FlowContainer implements Container {
 		// 上から下へチェックする
 		for (int i = lastOrphan; i < this.flows.size(); ++i) {
 			Flow prevFlow = (Flow) this.flows.get(i);
-			final double splitLine = pageLimit - prevFlow.pageAxis;
-			byte lflags = (byte) 0xFF;
-			if (LayoutUtils.compare(prevFlow.pageAxis, 0) > 0) {
-				// ボックスの上端がページの上部から離れている場合は、前ページに残さない。
-				lflags ^= IPageBreakableBox.FLAGS_FIRST;
-			}
-			if (((AutoBreakMode) mode).box == this.box || (i != (this.flows.size() - 1))) {
-				// 現在のフローまたは途中のフローは自由に扱う
-				lflags ^= IPageBreakableBox.FLAGS_LAST;
-			}
-			byte xflags = (byte) (lflags & flags);
+			// フラグ計算は FlowCutter に純化(二相分離・増分1、2026-08-01)
+			final FlowCutter.StepFlags step = FlowCutter.stepFlags(pageLimit, prevFlow.pageAxis, i, this.flows.size(),
+					((AutoBreakMode) mode).box == this.box, flags);
+			final double splitLine = step.splitLine();
+			final byte lflags = step.positionMask();
+			final byte xflags = step.splitFlags();
 
 			// System.err.println("M: xflags=" + xflags + "/flags=" + flags
 			// + "/flows.size=" + this.flows.size() + "/i=" + i

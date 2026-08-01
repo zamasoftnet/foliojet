@@ -234,6 +234,54 @@ public final class FlowCutter {
 	}
 
 	/**
+	 * 自動改ページ主ループの1ステップ分のフラグ計算結果です
+	 * (splitPageAxis二相分離・増分1、2026-08-01)。
+	 *
+	 * @param splitLine    このフローのローカル座標での切断線
+	 *                     (pageLimit - フローのpageAxis)
+	 * @param positionMask フローの物理位置由来のマスク(旧lflags。
+	 *                     FIRST=フローが始端に接している、LAST=末尾かつ
+	 *                     自動改ページの対象がこのコンテナ自身でない)
+	 * @param splitFlags   positionMaskと外側flagsのAND(旧xflags。
+	 *                     split()へ渡す実効フラグ)
+	 */
+	public record StepFlags(double splitLine, byte positionMask, byte splitFlags) {
+	}
+
+	/**
+	 * 自動改ページ主ループの各ステップのフラグを計算します
+	 * (FlowContainer.splitPageAxis 872-884の純化)。
+	 *
+	 * <p>
+	 * positionMaskは0xFFから落とす方式のため、FIRST/LAST以外のビット
+	 * (FLAGS_SPLIT等)は常に通す——この性質はsplitFlagsのANDで外側
+	 * flagsの当該ビットをそのまま透過させるために必要。
+	 * </p>
+	 *
+	 * @param pageLimit             現在の切断線(pushback後は押し戻し済みの値)
+	 * @param flowPageAxis          フローのページ方向始端位置
+	 * @param index                 フローのインデックス
+	 * @param flowCount             フロー総数
+	 * @param autoBreakTargetsOwner 自動改ページの対象ボックスがこの
+	 *                              コンテナ自身か
+	 * @param outerFlags            外側から渡されたFLAGS_*のビット和
+	 * @return ステップのフラグ計算結果
+	 */
+	public static StepFlags stepFlags(final double pageLimit, final double flowPageAxis, final int index,
+			final int flowCount, final boolean autoBreakTargetsOwner, final byte outerFlags) {
+		byte positionMask = (byte) 0xFF;
+		if (LayoutUtils.compare(flowPageAxis, 0) > 0) {
+			// ボックスの上端がページの上部から離れている場合は、前ページに残さない
+			positionMask ^= IPageBreakableBox.FLAGS_FIRST;
+		}
+		if (autoBreakTargetsOwner || index != flowCount - 1) {
+			// 現在のフローまたは途中のフローは自由に扱う
+			positionMask ^= IPageBreakableBox.FLAGS_LAST;
+		}
+		return new StepFlags(pageLimit - flowPageAxis, positionMask, (byte) (positionMask & outerFlags));
+	}
+
+	/**
 	 * 切断線以下に収まる最後のフローの直後のインデックスを返します
 	 * (0=収まるフローなし、length=全フローが収まる)。
 	 *
