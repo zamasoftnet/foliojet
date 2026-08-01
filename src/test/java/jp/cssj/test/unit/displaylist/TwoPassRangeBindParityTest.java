@@ -129,6 +129,11 @@ public class TwoPassRangeBindParityTest extends TestCase {
 			// (records再生はtoGlyphsがxadvanceを運ばず、両経路とも再構築時に
 			// trackerが再適用する——その決定性の固定)
 			"0510-text-spacing/autospace-in-float.html", //
+			// caption recipe化C3(2026-08-01): キャプション本文のclose時
+			// range seal——float内のキャプション付きRetained表(上側+
+			// caption-side: bottom)で、caption bodyのlegacy records bindと
+			// range bindのdisplay list一致を固定する
+			"0240-table/caption-in-float.html", //
 	};
 
 	/**

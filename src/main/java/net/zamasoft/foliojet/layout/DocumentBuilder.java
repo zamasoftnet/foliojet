@@ -704,12 +704,23 @@ public class DocumentBuilder implements TableBuilderHost {
 			// キャプション
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
-			// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
-			// (Retained実装のみ。適格ならCellContentがrecords解放+
-			// range+lease保持へ切り替わる。キャプションはOpaque記録
-			// (StyleBuilder.boxKindがTableCaptionPosでnull)のためsealは
-			// 構造的に不適格——実装側はセル以外を無視する)
-			this.tableBuilder().sealCellContext(entry.builder);
+			if (box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.TABLE_CAPTION
+					&& entry.builder instanceof TwoPassBlockBuilder sealable) {
+				// caption recipe化C3(2026-08-01、consult-codex-2026-08-01-
+				// caption-recipe.txt): キャプション本文の録画完了点での
+				// range seal(float/inline-blockのclose時sealと同型)。
+				// C1のrecipe記録化でendOf(anchor)が引けるようになり、body
+				// レンジ[anchor+1, endId-1]は箱自身のStartを含まないため
+				// 単独CAPTION再生(G-1)の形にはならない。caption builder
+				// 自身はtop/bottomCaptionsに保持され、後で通常どおり
+				// bind(anonBuilder)される——そのbindがrange駆動になる
+				sealable.sealBodyForRangeBind();
+			} else {
+				// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
+				// (Retained実装のみ。適格ならCellContentがrecords解放+
+				// range+lease保持へ切り替わる)
+				this.tableBuilder().sealCellContext(entry.builder);
+			}
 			assert this.builderStack.size() != 1;
 		}
 			break;
