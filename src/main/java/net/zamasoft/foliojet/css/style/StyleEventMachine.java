@@ -271,10 +271,12 @@ final class StyleEventMachine {
 	private final StyleBoxEmitter emitter;
 	private final PageSequence pageSequence;
 	private final UserAgent ua;
+
+	/** 生成コンテンツの参照解決(string-set/target-*系、増分14で分離)。 */
+	private final GeneratedContentResolver generated;
 	private final StyleContext styleContext;
 
 	private boolean warnedReservedCounter = false;
-	private boolean warnedUnconvergedTarget = false;
 	private int depth = 0;
 	private int quoteLevel = 0;
 	/** リストアイテム用のカウンタ。要素は int[]{深さ, 値} 。 */
@@ -292,6 +294,7 @@ final class StyleEventMachine {
 		this.emitter = emitter;
 		this.pageSequence = pageSequence;
 		this.ua = ua;
+		this.generated = new GeneratedContentResolver(ua);
 		this.styleContext = styleContext;
 	}
 
@@ -504,7 +507,7 @@ final class StyleEventMachine {
 						resolvedParts.add(PendingStringSet.CONTENT);
 						needsContent = true;
 					} else {
-						resolvedParts.add(this.resolveStringSetPart(part, ce, depth));
+						resolvedParts.add(this.generated.stringSetPart(part, ce, depth));
 					}
 				}
 				final String name = entry.getName();
@@ -793,7 +796,7 @@ final class StyleEventMachine {
 						break;
 					case TargetCounterValue pageRefFunc: {
 						// ページ番号
-						String ref = this.resolveTargetRef(pageRefFunc.getType(), pageRefFunc.getRef(), style);
+						String ref = GeneratedContentResolver.targetRef(pageRefFunc.getType(), pageRefFunc.getRef(), style);
 						if (ref != null) {
 							this.pageRef(pageRefFunc, ref);
 						}
@@ -801,7 +804,7 @@ final class StyleEventMachine {
 						break;
 					case TargetTextValue targetText: {
 						// ターゲットのテキスト
-						String ref = this.resolveTargetRef(targetText.getType(), targetText.getRef(), style);
+						String ref = GeneratedContentResolver.targetRef(targetText.getType(), targetText.getRef(), style);
 						if (ref != null) {
 							this.targetText(targetText, ref);
 						}
@@ -855,55 +858,6 @@ final class StyleEventMachine {
 	 * 解決する。画像ベースの{@code list-style-type}は文字列として意味を
 	 * 持たないため空文字列として扱う。
 	 */
-	private String resolveStringSetPart(Value part, CSSElement ce, int depth) {
-		if (part instanceof StringValue str) {
-			return str.getString();
-		} else if (part instanceof CounterValue counter) {
-			final String name = counter.getName();
-			final short counterStyle = counter.getStyle();
-			int number = 0;
-			final PassContext pc = this.ua.getPassContext();
-			for (int level = depth; level >= 0; --level) {
-				CounterScope scope = pc.getCounterScope(level, false);
-				if (scope != null && scope.defined(name)) {
-					number = scope.get(name);
-					break;
-				}
-			}
-			final String str = GeneratedValueUtils.format(number, counterStyle);
-			return str != null ? str : "";
-		} else if (part instanceof CountersValue counters) {
-			final String name = counters.getName();
-			final String delim = counters.getDelimiter();
-			final short counterStyle = counters.getStyle();
-			final StringBuilder buff = new StringBuilder();
-			final PassContext pc = this.ua.getPassContext();
-			boolean first = true;
-			for (int level = 0; level <= depth; ++level) {
-				CounterScope scope = pc.getCounterScope(level, false);
-				if (scope != null && scope.defined(name)) {
-					if (!first && delim != null && delim.length() > 0) {
-						buff.append(delim);
-					}
-					first = false;
-					final String str = GeneratedValueUtils.format(scope.get(name), counterStyle);
-					if (str != null) {
-						buff.append(str);
-					}
-				}
-			}
-			return buff.toString();
-		} else if (part instanceof AttrValue attr) {
-			if (ce.atts != null) {
-				final String str = ce.atts.getValue(attr.getName());
-				if (str != null) {
-					return str;
-				}
-			}
-			return "";
-		}
-		return "";
-	}
 
 	private void counter(int number, short counterStyle, CSSStyle style) {
 		final String str = GeneratedValueUtils.format(number, counterStyle);
@@ -944,55 +898,8 @@ final class StyleEventMachine {
 	 * {@code "#id"}文字列(またはhref)へ解決する。属性値が無い場合は
 	 * {@code null}。
 	 */
-	private String resolveTargetRef(byte type, String ref, CSSStyle style) {
-		switch (type) {
-		case TargetCounterValue.ATTR: {
-			// 属性から
-			CSSElement parentCe = style.getParentStyle().getCSSElement();
-			if (parentCe.atts == null) {
-				return null;
-			}
-			String str = parentCe.atts.getValue(ref);
-			if (str == null) {
-				return null;
-			}
-			if (!ref.equals("href") && str.indexOf("#") == -1) {
-				// 互換性のため
-				str = "#" + str;
-			}
-			return str;
-		}
-		case TargetCounterValue.REF: {
-			// ID指定
-			String id = ref;
-			if (id.indexOf("#") == -1) {
-				// 互換性のため
-				id = "#" + id;
-			}
-			return id;
-		}
-		default:
-			throw new IllegalStateException();
-		}
-	}
 
-	/**
-	 * 収束性の軽量チェック: 最終パスで解決したフラグメントが今回パスで
-	 * 書き込まれたものではなく(1パス以上前のstaleな値のまま)確定した
-	 * 場合、1文書につき1回だけ警告する。振動検出・自動再試行は行わない
-	 * (自動昇格断念の判断と同じ方針)。
-	 */
-	private void checkTargetConverged(PageRef pageRef, Fragment frag) {
-		if (this.warnedUnconvergedTarget || !this.ua.isLastPass()) {
-			return;
-		}
-		if (frag.generation < pageRef.getGeneration()) {
-			this.warnedUnconvergedTarget = true;
-			LOG.warning("target-counter()/target-counters()/target-text() did not resolve to a fresh value "
-					+ "by the final layout pass; consider increasing processing.pass-count.");
-		}
-	}
-
+	
 	private void targetText(TargetTextValue targetText, String ref) {
 		PageRef pageRef = this.ua.getUAContext().getPageRef();
 		if (pageRef == null) {
@@ -1005,7 +912,7 @@ final class StyleEventMachine {
 			if (frag == null) {
 				return;
 			}
-			this.checkTargetConverged(pageRef, frag);
+			this.generated.checkConverged(pageRef, frag);
 			if (frag.text == null || frag.text.length() == 0) {
 				return;
 			}
@@ -1035,7 +942,7 @@ final class StyleEventMachine {
 				if (frag == null) {
 					return;
 				}
-				this.checkTargetConverged(pageRef, frag);
+				this.generated.checkConverged(pageRef, frag);
 				int count = frag.getCounterValue(counter);
 				String str = GeneratedValueUtils.format(count, pageRefFunc.getNumberStyleType());
 				if (str == null) {
@@ -1050,7 +957,7 @@ final class StyleEventMachine {
 				IntList counts = new IntList();
 				for (Iterator<?> j = frags.iterator(); j.hasNext();) {
 					Fragment fragment = (Fragment) j.next();
-					this.checkTargetConverged(pageRef, fragment);
+					this.generated.checkConverged(pageRef, fragment);
 					int count = fragment.getCounterValue(counter);
 					if (!counts.contains(count)) {
 						counts.add(count);
