@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F3c: align-items / align-self</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.f { display: flex; width: 200pt; }
+.t { flex: 0 0 40pt; height: 40pt; }
+.i { flex: 0 0 40pt; height: 20pt; }
+</style>
+</head>
+<body>
+<div class="f" style="align-items: center"><div class="t" id="tall1">T</div><div class="i" id="c1">c</div></div>
+<div class="f" style="align-items: flex-end"><div class="t" id="tall2">T</div><div class="i" id="e1">e</div>
+<div class="i" id="o1" style="align-self: flex-start">o</div></div>
+</body>
+</html>

@@ -346,7 +346,32 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 				// 自然位置は自margin込みのため、offsetは先行分の累積
 				item.itemBox.setFlexLineOffset(lineCursor);
 				lineCursor += item.itemBox.getLineExtent(params.flow) + (i < line.to() - 1 ? between : 0);
-				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor);
+				// cross軸整列(F3c——§9.6。align-self:auto→align-items、
+				// baselineはパーサ段階で不受理=startへ倒れない宣言無効)
+				final net.zamasoft.foliojet.layout.box.params.BoxAlignment align = net.zamasoft.foliojet.layout.box.params.BoxAlignment
+						.resolve(item.spec.alignSelf(), params.alignItems);
+				double crossOffset = 0;
+				if (align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH) {
+					// cross autoのitemだけ行高まで伸長——takeover設計により
+					// authoredの背景・枠がそのまま追随する(F1dの狙い)
+					final BlockParams itemParams = item.itemBox.getBlockParams();
+					final boolean vertical = itemParams.flow.isVertical();
+					if ((vertical ? itemParams.size.getWidthType() : itemParams.size.getHeightType()) == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+						final double deficit = lineExtent - item.itemBox.getPageExtent(params.flow);
+						if (deficit > 0) {
+							item.itemBox.setPageAxis(
+									item.itemBox.getInnerPageExtent(params.flow) + deficit);
+						}
+					}
+				} else {
+					final double freeCross = lineExtent - item.itemBox.getPageExtent(params.flow);
+					crossOffset = align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.CENTER
+							? Math.max(0, freeCross / 2)
+							: align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.END
+									? Math.max(0, freeCross)
+									: 0;
+				}
+				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor + crossOffset);
 			}
 			// 行のcross size=行内itemのouter cross最大(§9.4のbaselineなし形)。
 			// 行間はrow-gap(F2c)
