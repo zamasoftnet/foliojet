@@ -230,10 +230,28 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 * </p>
 	 *
 	 * <p>
-	 * <b>オプションにしない。</b>「オプトインの安全弁は事故に遭った人しか
-	 * 使わない」([[LESSONS]] §6.9b)——既定で効かせる。値だけは
-	 * {@code -Dfoliojet.noProgressSeconds} で変えられる(サーバのSLAに
-	 * 合わせるため。<b>既定が有効</b>なので上の原則には反しない)。
+	 * <b>製品既定は無制限(オーナー裁定2026-08-01で反転)</b>。導入時
+	 * (2026-07-27)は「オプトインの安全弁は事故に遭った人しか使わない」
+	 * ([[LESSONS]] §6.9b)を根拠に既定有効としたが、この弁は
+	 * <b>ユーザーの正当なジョブを殺しうる</b>点であの原則の適用対象では
+	 * ない。上の非対称論理(小さすぎる側は正当な文書が失敗する)を徹底
+	 * すると誤爆ゼロの値は無制限だけであり、実際に「120秒を超える正当な
+	 * 待ち」のクラスが実在した(ストリーミング入力の間隙——遅いDB
+	 * カーソルからの帳票逐次生成。入力待ちは進捗に数えられない)。
+	 * クライアント側の遅延・切断の検出はネットワーク層の責務で、そちらには
+	 * 設定可能なタイムアウトが既にある(CTIP {@code jp.cssj.cssjd.timeout}
+	 * =既定180秒、RESTセッション=既定3分)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>ハングアップ検出は主にテストハーネスの用途</b>(掃過・CIで
+	 * ライブロックを失敗として検出する——実績はseed 213026等)のため、
+	 * foliojet4のtestタスク・copperpdf4/devのデーモン/CLI起動が
+	 * {@code -Dfoliojet.noProgressSeconds=120}を明示設定する。本番でも
+	 * SLA上必要ならこのプロパティで有効化できる(0以下=無制限)。
+	 * 残存リスクとして「エンジンが真にハングし、かつクライアントが
+	 * 無期限に待ち続ける」場合はワーカースレッドが再起動まで塞がるが、
+	 * 既知のライブロッククラスは逃げ道実装(2026-07-29)で解消済み。
 	 * </p>
 	 *
 	 * <h3>性能への影響(実測、2026-07-27)</h3>
@@ -257,7 +275,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 * 降ろすとこの前提は崩れる。
 	 * </p>
 	 */
-	private static final long NO_PROGRESS_LIMIT_NANOS = Long.getLong("foliojet.noProgressSeconds", 120L) * 1_000_000_000L;
+	private static final long NO_PROGRESS_LIMIT_NANOS = Long.getLong("foliojet.noProgressSeconds", 0L)
+			* 1_000_000_000L;
 
 	/** 最後にページを出した時刻。{@link #checkAbort(byte)}が締切に使う。 */
 	private volatile long lastProgressNanos = System.nanoTime();
@@ -290,8 +309,9 @@ public abstract class AbstractUserAgent implements UserAgent {
 			this.message(CTIMessageCodes.INFO_ABORT);
 			throw new AbortException(this.aborted);
 		}
-		if (System.nanoTime() - this.lastProgressNanos > NO_PROGRESS_LIMIT_NANOS) {
-			// 仕事が1単位も進まないまま既定時間を過ぎた。詰まっているとみなす
+		if (NO_PROGRESS_LIMIT_NANOS > 0 && System.nanoTime() - this.lastProgressNanos > NO_PROGRESS_LIMIT_NANOS) {
+			// 仕事が1単位も進まないまま設定時間を過ぎた。詰まっているとみなす
+			// (0以下=無制限が製品既定。テストハーネスは120秒を明示設定)
 			this.message(CTIMessageCodes.INFO_ABORT);
 			this.aborted = AbortException.ABORT_FORCE;
 			throw new AbortException(AbortException.ABORT_FORCE);

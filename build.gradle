@@ -161,6 +161,11 @@ tasks.named('test') {
     systemProperty 'java.io.tmpdir',
             project.hasProperty('testTmpDir') ? project.property('testTmpDir') : 'local'
     systemProperty 'java.awt.headless', 'true'
+    // ハングアップ検出(進捗なし締切)。製品既定は無制限(オーナー裁定
+    // 2026-08-01——誤爆すると正当な文書が失敗するため)で、ライブロックを
+    // 失敗として検出したいテストハーネス側が明示的に有効化する。
+    // -Dfoliojet.noProgressSeconds を外から渡せば下の一括転送が上書きする
+    systemProperty 'foliojet.noProgressSeconds', '120'
     systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
     systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath
     // foliojet.* は一つ残らずテストJVMへ渡す。
