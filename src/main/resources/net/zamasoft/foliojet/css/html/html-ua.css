@@ -366,3 +366,32 @@ table {
 button, select {
 	font-size: medium;
 }
+
+/*
+ * 第4弾(2026-08-02): フォームコントロール・ルビの静的既定値。
+ * 属性(cols/rows/size)・disabled分岐・padding(thin=境界幅キーワードは
+ * CSSのpaddingでは表現不可)・-cssj-ruby(内部プロパティ)はJava側に残る。
+ */
+
+textarea {
+	display: inline-block;
+	width: 20ex;
+	height: 4em;
+	background-color: white;
+	border: thin inset;
+	white-space: nowrap;
+}
+
+select {
+	display: inline-block;
+	position: relative;
+	overflow: hidden;
+	line-height: 1;
+	background-color: white;
+	border: thin inset;
+	white-space: nowrap;
+}
+
+ruby, rb, rt {
+	display: inline;
+}

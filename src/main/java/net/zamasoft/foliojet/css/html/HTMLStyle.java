@@ -1304,19 +1304,16 @@ public class HTMLStyle {
 		// font-size等の要素既定スタイルは不要になった。
 		case HTMLCodes.RUBY: {
 			// <RUBY>
-			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RUBY_VALUE);
 		}
 			break;
 		case HTMLCodes.RB: {
 			// <RB> XHTML5では非標準
-			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RB_VALUE);
 		}
 			break;
 		case HTMLCodes.RT: {
 			// <RT>
-			style.set(Display.INFO, DisplayValue.INLINE_VALUE);
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RT_VALUE);
 		}
 			break;
@@ -1329,10 +1326,9 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.SELECT: {
-			// <SELECT size>
-			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
-			style.set(CSSPosition.INFO, PositionValue.RELATIVE_VALUE);
-			// font-size: mediumはhtml-ua.cssに移行(2026-08-02)
+			// <SELECT size> display/position/overflow/line-height/background/
+			// border/white-spaceの既定はhtml-ua.cssに移行(2026-08-02)。
+			// heightは後段のpadding計算が参照するためJava側に残す
 			style.set(Height.INFO, EM_1);
 			{
 				String str = ce.atts.getValue("size");
@@ -1344,30 +1340,16 @@ public class HTMLStyle {
 					}
 				}
 			}
-			style.set(Overflow.INFO, OverflowValue.HIDDEN_VALUE);
-			style.set(LineHeight.INFO, RealValue.create(1));
-
 			if (ce.atts.getValue("disabled") != null) {
 				style.set(CSSColor.INFO, ColorValueUtils.DIMGRAY);
 				style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
-			} else {
-				style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 			}
 			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
-			style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.TOP, thin);
-			style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.LEFT, thin);
-			style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.BOTTOM, thin);
-			style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.RIGHT, thin);
 			style.set(Padding.TOP, thin, CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.RIGHT, AbsoluteLengthValue.create(ua, Height.getLength(style).getLength()),
 					CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.BOTTOM, thin, CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.LEFT, thin, CSSStyle.MODE_IMPORTANT);
-			style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 		}
 			break;
 		// SMALL/SPAN/STRIKE/STRONG/STYLE/SUB/SUP: 既定値はUAデフォルトスタイルシート
@@ -1596,8 +1578,8 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.TEXTAREA: {
 			// <TEXTAREA cols rows disabled wrap>
-			style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
-			style.set(Width.INFO, EX_20);
+			// display/width/height/background/border/white-spaceの既定は
+			// html-ua.cssに移行(2026-08-02)
 			{
 				String str = ce.atts.getValue("cols");
 				if (str != null) {
@@ -1608,7 +1590,6 @@ public class HTMLStyle {
 					}
 				}
 			}
-			style.set(Height.INFO, EM_4);
 			{
 				String str = ce.atts.getValue("rows");
 				if (str != null) {
@@ -1622,24 +1603,13 @@ public class HTMLStyle {
 			if (ce.atts.getValue("disabled") != null) {
 				style.set(CSSColor.INFO, ColorValueUtils.GRAY);
 			}
-			style.set(BackgroundColor.INFO, ColorValueUtils.WHITE);
 			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
-			style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.TOP, thin);
-			style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.LEFT, thin);
-			style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.BOTTOM, thin);
-			style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
-			style.set(BorderWidth.RIGHT, thin);
 			style.set(Padding.TOP, thin);
 			style.set(Padding.RIGHT, thin);
 			style.set(Padding.BOTTOM, thin);
 			style.set(Padding.LEFT, thin);
 			if (ce.atts.getValue("wrap") != null) {
 				style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_WRAP_VALUE);
-			} else {
-				style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 			}
 		}
 			break;
