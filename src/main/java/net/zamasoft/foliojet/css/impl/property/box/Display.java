@@ -112,18 +112,23 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		case DisplayValue.LIST_ITEM:
 		case DisplayValue.TABLE:
 		case DisplayValue.GRID:
+		case DisplayValue.FLEX:
 			break;
 		default:
 			throw new IllegalStateException();
 		}
 
-		// Grid直接子のblock化(Grid G0——css-grid-1 §6。inline系の子は
+		// Grid/Flex直接子のblock化(Grid G0——css-grid-1 §6、Flex F0a——
+		// css-flexbox-1 §4「flex itemはblockify」。inline系の子は
 		// 匿名itemではなくブロックへ昇格させる)
 		if (display == DisplayValue.INLINE || display == DisplayValue.INLINE_BLOCK) {
-			final CSSStyle gridParent = style.getParentStyle();
-			if (gridParent != null && Display.get(gridParent) == DisplayValue.GRID) {
-				value = DisplayValue.BLOCK_VALUE;
-				display = DisplayValue.BLOCK;
+			final CSSStyle flexParent = style.getParentStyle();
+			if (flexParent != null) {
+				final byte parentDisplay = Display.get(flexParent);
+				if (parentDisplay == DisplayValue.GRID || parentDisplay == DisplayValue.FLEX) {
+					value = DisplayValue.BLOCK_VALUE;
+					display = DisplayValue.BLOCK;
+				}
 			}
 		}
 
@@ -156,6 +161,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			break;
 
 		case DisplayValue.GRID:
+		case DisplayValue.FLEX:
 			if (CSSJInternalImage.getImage(style) != null) {
 				return DisplayValue.BLOCK_VALUE;
 			}
@@ -226,6 +232,10 @@ public class Display extends AbstractPrimitivePropertyInfo {
 					return DisplayValue.TABLE_CELL_VALUE;
 				} else if (ident.equals("grid")) {
 					return DisplayValue.GRID_VALUE;
+				} else if (ident.equals("flex")) {
+					// Flex F0a(consult-codex-2026-08-02-flexbox.txt)。
+					// inline-flexは初期サブセット外(未対応値として宣言無効)
+					return DisplayValue.FLEX_VALUE;
 				} else if (ident.equals("table-caption")) {
 					return DisplayValue.TABLE_CAPTION_VALUE;
 				}

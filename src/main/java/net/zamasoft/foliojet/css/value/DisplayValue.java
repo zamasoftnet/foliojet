@@ -34,7 +34,9 @@ public enum DisplayValue implements Value {
 
 	TABLE_CAPTION_VALUE(DisplayValue.TABLE_CAPTION),
 
-	GRID_VALUE(DisplayValue.GRID);
+	GRID_VALUE(DisplayValue.GRID),
+
+	FLEX_VALUE(DisplayValue.FLEX);
 	public static final byte NONE = 0;
 
 	public static final byte BLOCK = 1;
@@ -69,6 +71,8 @@ public enum DisplayValue implements Value {
 
 	/** CSS Grid(G0、2026-07-31——断片化なしサブセット)。 */
 	public static final byte GRID = 16;
+
+	public static final byte FLEX = 17;
 
 	private final byte display;
 
@@ -115,6 +119,8 @@ public enum DisplayValue implements Value {
 
 		case GRID:
 			return "grid";
+		case FLEX:
+			return "flex";
 		default:
 			throw new IllegalStateException();
 		}

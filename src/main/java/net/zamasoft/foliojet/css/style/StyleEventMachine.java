@@ -348,6 +348,7 @@ final class StyleEventMachine {
 					case DisplayValue.INLINE:
 					case DisplayValue.BLOCK:
 					case DisplayValue.GRID:
+					case DisplayValue.FLEX:
 					case DisplayValue.LIST_ITEM:
 					case DisplayValue.INLINE_BLOCK:
 					case DisplayValue.TABLE:

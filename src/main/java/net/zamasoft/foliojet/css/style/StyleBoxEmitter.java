@@ -494,6 +494,7 @@ final class StyleBoxEmitter {
 					case DisplayValue.TABLE:
 					case DisplayValue.BLOCK:
 					case DisplayValue.GRID:
+					case DisplayValue.FLEX:
 					case DisplayValue.LIST_ITEM:
 					case DisplayValue.INLINE_TABLE:
 					case DisplayValue.INLINE:
@@ -546,6 +547,9 @@ final class StyleBoxEmitter {
 
 		// ボックスの種類ごとの処理
 		switch (display) {
+		case DisplayValue.FLEX:
+			// Flex F0a(consult-codex-2026-08-02-flexbox.txt): レイアウト
+			// 未配線のため通常ブロックへ縮退(F0bでFlexBox+atomicへ)
 		case DisplayValue.BLOCK:
 		case DisplayValue.INLINE_BLOCK: {
 			// ブロック
@@ -819,6 +823,7 @@ final class StyleBoxEmitter {
 		case DisplayValue.INLINE_TABLE:
 		case DisplayValue.BLOCK:
 		case DisplayValue.GRID:
+		case DisplayValue.FLEX:
 		case DisplayValue.LIST_ITEM:
 		case DisplayValue.TABLE_CAPTION:
 		case DisplayValue.TABLE_COLUMN_GROUP:
