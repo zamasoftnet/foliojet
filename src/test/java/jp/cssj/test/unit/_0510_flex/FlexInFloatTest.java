@@ -8,11 +8,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * TwoPass宿主(幅なしfloat)内のFlexコンテナのテストです(Flex F0c)。
- * floatの本文はSourceRangeBodyへseal(records解放)され、bindは範囲再生
- * (FLEXレシピからFlexBoxを再構築)を通る——FLEX_REPLAYSの増加で
- * 空虚な緑を防ぐ({@code GridInFloatTest}と同型)。F0は単一列縮退の
- * ため、itemは縦積み。
+ * TwoPass宿主(幅なしfloat)内のFlexコンテナのテストです(Flex F1f)。
+ * RetainedFlex/FlexEventによりTwoPass宿主でもFlexBuilderが活性化し
+ * (row配置)、floatの本文はSourceRangeBodyへseal(records解放)されて
+ * bindは範囲再生(FLEXレシピからFlexBoxを再構築)を通る——
+ * FLEX_REPLAYSの増加で空虚な緑を防ぐ({@code GridInFloatTest}のG3d3形)。
  */
 public class FlexInFloatTest extends AbstractTestCase {
 	public FlexInFloatTest(String name) {
@@ -24,15 +24,16 @@ public class FlexInFloatTest extends AbstractTestCase {
 	protected void transcode() throws Exception {
 		final long rejectsBefore = net.zamasoft.foliojet.layout.fragment.ContinuationStats
 				.twoPassSealRejects(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE);
+		final long replaysBefore = net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.FLEX_REPLAYS.get();
 		File file = new File("files/unittest/0510-flex/flex-in-float.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
-		// Flex F1d: 範囲再生はFlexBuilder活性・recordsはF0単一列のため、
-		// Flexを含む範囲のsealはFLEX_RANGEでfail closed(Grid G1dと同型)。
-		// F1fのRetainedFlex/FlexEventでparity確立後に解禁し、このassertを
-		// FLEX_REPLAYS>0(GridInFloatTestのG3d3形)へ戻す
-		assertTrue("FLEX_RANGE rejectが発火すること",
+		// F1f: FLEX_RANGE rejectは解除され、floatのbindは範囲再生が
+		// FLEXレシピからFlexBoxを再構築する(空虚な緑の防止)
+		assertEquals("FLEX_RANGE rejectは発火しないこと", rejectsBefore,
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.twoPassSealRejects(
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE) > rejectsBefore);
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE));
+		assertTrue("範囲再生がFlexBoxを再構築すること",
+				net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.FLEX_REPLAYS.get() > replaysBefore);
 	}
 
 	public boolean check_p(IBox box, int pageNumber, double x, double y) {
@@ -44,21 +45,21 @@ public class FlexInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** F0: 単一列縮退のため2番目のitemは直下(+20)。 */
+	/** F1f: TwoPass宿主でもrow配置(2番目のitemは主軸+30pt)。 */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
-			assertEquals(this.baseX, x, 0.1);
-			assertEquals(this.baseY + 20, y, 0.1);
+			assertEquals(this.baseX + 30, x, 0.1);
+			assertEquals(this.baseY, y, 0.1);
 			return true;
 		}
 		return false;
 	}
 
-	/** 3番目のitemはさらに直下(+40)。 */
+	/** 3番目のitemは主軸+60pt。 */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
-			assertEquals(this.baseX, x, 0.1);
-			assertEquals(this.baseY + 40, y, 0.1);
+			assertEquals(this.baseX + 60, x, 0.1);
+			assertEquals(this.baseY, y, 0.1);
 			return true;
 		}
 		return false;

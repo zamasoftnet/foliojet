@@ -309,6 +309,13 @@ final class IntrinsicMeasurer {
 		this.maxLineSize = Math.max(this.maxLineSize, gridSizes.maxContent() * this.columnCount);
 	}
 
+	/** Flex全体のcontent-box contributionです(Flex F1f——gridと同型)。 */
+	void flex(final IntrinsicSizes flexSizes) {
+		this.columnInflated |= flexSizes.columnInflated();
+		this.minLineSize = Math.max(this.minLineSize, flexSizes.minContent() * this.columnCount);
+		this.maxLineSize = Math.max(this.maxLineSize, flexSizes.maxContent() * this.columnCount);
+	}
+
 	void fitFloating(TwoPassBlockBuilder childBuilder) {
 		FloatBlockBox floatingBox = (FloatBlockBox) childBuilder.getRootBox();
 		this.clearFloatAdvance(floatingBox.getFloatPos().clear);

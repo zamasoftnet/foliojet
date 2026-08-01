@@ -18,8 +18,9 @@ public final class FlexBuilderLifecycle {
 	/**
 	 * row配置を適用できるFlexかを判定します(consult-codex-2026-08-02-
 	 * flexbox.txt「段階的fallback規則」F1: TB+row+nowrapのみ)。
-	 * 宿主はF1dではBlockBuilderのみ(TwoPass=F1f、column=F4、
-	 * reverse/wrap=F2/F5、縦書き=F6)。
+	 * 宿主はBlockBuilderに加えてTwoPass(F1f——実行計画をFlexEventとして
+	 * 録画し幅確定後にbind)も適格(column=F4、reverse/wrap=F2/F5、
+	 * 縦書き=F6)。
 	 */
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
@@ -29,7 +30,7 @@ public final class FlexBuilderLifecycle {
 		if (params.flow.isVertical()) {
 			return false;
 		}
-		return builder instanceof BlockBuilder;
+		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
 	}
 
 	/** FlexBuilderを開始します(適格判定済みであること)。 */

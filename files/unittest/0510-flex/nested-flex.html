@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F1f: nested flex inside item</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="ff" style="display: flex; width: 300pt">
+<div id="a" style="flex: 0 0 180pt"><div id="inner" style="display: flex">
+<div id="x" style="flex: 0 0 50pt; height: 20pt">x</div>
+<div id="y" style="flex: 0 0 70pt; height: 20pt">y</div>
+</div></div>
+<div id="b" style="flex: 0 0 100pt; height: 10pt">b</div>
+</div>
+</body>
+</html>

@@ -85,6 +85,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		/** Grid実行計画(Grid G3d1——TableEventと同型)。 */
 		record GridEvent(net.zamasoft.foliojet.layout.builder.RetainedGrid builder) implements Recorded {
 		}
+
+		/** Flex実行計画(Flex F1f——GridEventと同型)。 */
+		record FlexEvent(net.zamasoft.foliojet.layout.builder.RetainedFlex builder) implements Recorded {
+		}
 	}
 
 	/**
@@ -588,6 +592,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.addRecord(new Recorded.GridEvent(gridBuilder));
 	}
 
+	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
+		// Flex F1f(addGridと同型): 実行計画を録画し、Flexのcontent-box
+		// 固有寸法を計測器へ伝える(frameは通常経路が一度だけ加算)
+		this.measurer.flex(flexBuilder.getIntrinsicSizes());
+		this.addRecord(new Recorded.FlexEvent(flexBuilder));
+	}
+
 	public Builder newBuilder(final AbstractBlockBox stfBox) {
 		// * TODO 絶対幅の場合はBoundContainerContextが使えますが、
 		// * 絶対配置の位置調整を構築後に行わないといけないため
@@ -704,12 +715,6 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 旧コメントの「キャプション付き表はOpaque記録のためここが弾く」
 			// はこの分岐が引き継いだ
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
-			return;
-		}
-		if (log.containsFlex(fromId, toId)) {
-			// Flex F1d: 範囲再生はFlexBuilder活性(row配置)、recordsはF0の
-			// 単一列——G1dのGRID_RANGEと同型のfail closed。F1fで解禁予定
-			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE);
 			return;
 		}
 		// Gridを含む範囲(旧GRID_RANGE reject=G1d)はG3d3で解禁——G3d1の
@@ -845,6 +850,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				// 親の範囲再生がGRIDレシピ(G0c)からGrid全体を再構築する。
 				// 計画自体のabandonは不要——recordsごと手放される
 				if (!(gridEvent.builder() instanceof GridBuilder gridPlan) || !gridPlan
+						.collectAbsorbableItems(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+					return false;
+				}
+				continue;
+			} else if (recorded instanceof Recorded.FlexEvent flexEvent) {
+				// Flex吸収(F1f——Grid吸収と同型): itemの本文を通常のネスト子
+				// として検証・列挙し、親の範囲再生がFLEXレシピ(F0c)から
+				// Flex全体を再構築する
+				if (!(flexEvent.builder() instanceof FlexBuilder flexPlan) || !flexPlan
 						.collectAbsorbableItems(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
 					return false;
 				}
@@ -1210,6 +1224,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					textUnitizer.flush();
 				}
 				gridEvent.builder().bind(builder);
+			}
+				break;
+
+			case Recorded.FlexEvent flexEvent: {
+				if (DEBUG) {
+					System.err.println("FLEX");
+				}
+				// Flex F1f(GridEventと同型): 直前のStartFlow(FlexBox)で
+				// active flowがFlexになっている
+				if (textUnitizer != null) {
+					textUnitizer.flush();
+				}
+				flexEvent.builder().bind(builder);
 			}
 				break;
 

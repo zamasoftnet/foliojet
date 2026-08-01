@@ -1235,6 +1235,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		gridBuilder.bind(this);
 	}
 
+	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
+		// Flex F1f: 通常フローでは即時bind(§9.7解決→item bind→row配置)
+		flexBuilder.bind(this);
+	}
+
 	public Builder newBuilder(AbstractBlockBox blockBox) {
 		final Builder builder;
 		AbstractContainerBox containerBox;

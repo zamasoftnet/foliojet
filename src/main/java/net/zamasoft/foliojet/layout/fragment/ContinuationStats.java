@@ -341,11 +341,11 @@ public final class ContinuationStats {
 		 */
 		GRID_RANGE,
 		/**
-		 * 範囲にFlexのStartを含む(Flex F1d、2026-08-02)。範囲再生
-		 * (DocumentBuilder駆動)はFlexBuilderが活性化しrow配置で組む一方、
-		 * records側はF0の単一列flowのまま——混ぜると幾何が食い違う
-		 * (Grid G1dと同じ機序)。F1fのRetainedFlex/FlexEventでparity確立後に
-		 * 解禁する。
+		 * 範囲にFlexのStartを含む(Flex F1d、2026-08-02)。F1fの
+		 * RetainedFlex/FlexEventによりrecords側もFlexBuilderのrow配置を
+		 * 通るようになり、範囲再生との幾何一致が確立したため
+		 * <b>F1f(同日)でrejectは撤去済み</b>——現在この理由は発火しない
+		 * (FlexEventのitem本文は通常のネスト子として親rangeへ吸収される)。
 		 */
 		FLEX_RANGE
 	}

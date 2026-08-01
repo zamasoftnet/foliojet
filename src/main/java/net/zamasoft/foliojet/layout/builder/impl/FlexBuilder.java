@@ -42,7 +42,7 @@ import net.zamasoft.foliojet.layout.sizing.FlexLengthResolver;
  * F1f。
  * </p>
  */
-public final class FlexBuilder {
+public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.RetainedFlex {
 
 	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
 	public static final AtomicLong FLEX_ITEM_RECORDS = new AtomicLong();
@@ -80,6 +80,7 @@ public final class FlexBuilder {
 		this.flexBox = flexBox;
 	}
 
+	@Override
 	public FlexBox getFlexBox() {
 		return this.flexBox;
 	}
@@ -173,13 +174,24 @@ public final class FlexBuilder {
 	}
 
 	/**
-	 * Flex終端です。宿主がBlockBuilderのみ(適格判定)なので即時bind。
-	 * F1e: 全itemをFlexItemMetricsResolverで数値化し、§9.7
-	 * (FlexLengthResolver)で主軸内寸を解決する。
+	 * Flex終端です(F1f): 実行計画としてホストへ渡す。BlockBuilderは
+	 * 即時{@link #bind}、TwoPassは録画のFlexEventに保持して幅確定後に
+	 * bindする。
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでFlex終端に到達";
-		final BlockBuilder target = (BlockBuilder) this.host;
+		this.host.addFlex(this);
+	}
+
+	/**
+	 * Flexの組み立てです(F1e: 全itemをFlexItemMetricsResolverで数値化し、
+	 * §9.7=FlexLengthResolverで主軸内寸を解決してrow配置)。ホストの
+	 * active flowが当のFlexBoxである間に呼ぶこと(liveはDocumentBuilderの
+	 * FLOW終端、records bindはStartFlow(FlexBox)とEndFlowの間)。
+	 */
+	@Override
+	public void bind(final net.zamasoft.foliojet.layout.builder.Builder hostBuilder) {
+		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final double containerInner = this.flexBox.getLineSize();
 		final java.util.List<FlexItemMetrics> metrics = new ArrayList<>(this.items.size());
 		for (int i = 0; i < this.items.size(); ++i) {
@@ -199,7 +211,7 @@ public final class FlexBuilder {
 					p.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE,
 					item.sizes.minContent(), item.sizes.maxContent(), containerInner)));
 		}
-		this.bind(target, FlexLengthResolver.resolve(metrics, containerInner, 0));
+		this.bindRow(target, FlexLengthResolver.resolve(metrics, containerInner, 0));
 	}
 
 	/** Dimensionの線方向値(auto=NaN。%はコンテナ主軸内寸基準で解決)。 */
@@ -225,11 +237,62 @@ public final class FlexBuilder {
 	private boolean bound;
 
 	/**
+	 * Flex全体のcontent-box固有寸法contributionです(F1f——§9.9の
+	 * 単一行row近似)。行方向: min=Σ(item min-content+枠の絶対部)、
+	 * max=Σ(item max-content+同)。%枠は基準未確定のため絶対部のみ
+	 * (控えめな近似——確定幅はbind時に正確に解決される)。ページ方向
+	 * min=item minPageの最大(単一行)。frameは含めない(計測器の
+	 * 通常経路が一度だけ加算する)。
+	 */
+	@Override
+	public net.zamasoft.foliojet.layout.sizing.IntrinsicSizes getIntrinsicSizes() {
+		double min = 0, max = 0, minPage = 0;
+		boolean columnInflated = false;
+		for (final FlexItemContent item : this.items) {
+			final RectFrame frame = item.itemBox.getBlockParams().frame;
+			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0)
+					+ frame.border.getLeft().width + frame.border.getRight().width;
+			min += item.sizes.minContent() + extra;
+			max += item.sizes.maxContent() + extra;
+			minPage = Math.max(minPage, item.sizes.minPage());
+			columnInflated |= item.sizes.columnInflated();
+		}
+		return new net.zamasoft.foliojet.layout.sizing.IntrinsicSizes(min, max, minPage, columnInflated);
+	}
+
+	@Override
+	public void abandonForParentRange() {
+		// 親rangeの範囲再生がFlex全体を再構築する(GridBuilderと同型)。
+		// 合成itemはLayoutSource非記録のためリースを持たない
+		this.items.clear();
+	}
+
+	/**
+	 * 親range化の検証相です(F1f——GridBuilder.collectAbsorbableItemsと
+	 * 同型、副作用なし)。全itemの本文を通常のネストビルダーとして
+	 * 検証・列挙する。bind済みは吸収不可(fail closed)。
+	 */
+	boolean collectAbsorbableItems(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
+			final long toId, final java.util.List<TwoPassBlockBuilder> out,
+			final java.util.List<RetainedTableBuilder> outTables, final java.util.Set<Long> ownedAbsoluteAnchors,
+			final java.util.Set<TwoPassBlockBuilder> seen) {
+		if (this.bound) {
+			return false;
+		}
+		for (final FlexItemContent item : this.items) {
+			if (!item.body.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * 単一行rowの組み立てです(幅確定→bind→cross実測→配置→親カーソル
 	 * 同期——GridBuilder.bindと同じ骨格)。PageAtomicBox契約により
 	 * Flex flowがactiveな間に全bindが完了する。
 	 */
-	private void bind(final BlockBuilder target, final double[] mainSizes) {
+	private void bindRow(final BlockBuilder target, final double[] mainSizes) {
 		assert !this.bound : "Flexの二重bind";
 		this.bound = true;
 		final FlexParams params = this.flexBox.getFlexParams();

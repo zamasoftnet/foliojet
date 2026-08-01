@@ -54,6 +54,9 @@ public interface Builder extends GlyphHandler, LayoutStack {
 	 */
 	public void addGrid(RetainedGrid gridBuilder);
 
+	/** Flex実行計画の組み込みです(Flex F1f——addGridと同型)。 */
+	public void addFlex(RetainedFlex flexBuilder);
+
 	/**
 	 * 新しいレイアウトコンテキストを返します。
 	 * 
