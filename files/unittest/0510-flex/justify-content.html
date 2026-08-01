@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F3b: justify-content distribution</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.f { display: flex; width: 200pt; }
+.i { flex: 0 0 40pt; height: 20pt; }
+</style>
+</head>
+<body>
+<div class="f"><div class="i" id="s1">s</div><div class="i">s</div></div>
+<div class="f" style="justify-content: flex-end"><div class="i" id="e1">e</div><div class="i">e</div></div>
+<div class="f" style="justify-content: center"><div class="i" id="c1">c</div><div class="i" id="c2">c</div></div>
+<div class="f" style="justify-content: space-between"><div class="i" id="b1">b</div><div class="i" id="b2">b</div></div>
+<div class="f" style="justify-content: space-evenly"><div class="i" id="v1">v</div><div class="i" id="v2">v</div></div>
+</body>
+</html>

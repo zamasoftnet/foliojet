@@ -325,17 +325,27 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 			final net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line line = lines.get(li);
 			final double[] mainSizes = FlexLengthResolver.resolve(metrics.subList(line.from(), line.to()),
 					containerInner, params.columnGap);
-			double lineCursor = 0;
+			// 先に全itemをbindしてouter寸法を確定(F3b: justify-contentの
+			// 余白分配はbind後のouter実測が要る)
+			double lineUsed = params.columnGap * (line.count() - 1);
 			double lineExtent = 0;
 			for (int i = line.from(); i < line.to(); ++i) {
 				final FlexItemContent item = this.items.get(i);
 				item.bind(target, mainSizes[i - line.from()]);
 				FLEX_ITEM_BINDS.incrementAndGet();
-				// 自然位置は自margin込みのため、offsetは先行itemのouter合計
-				item.itemBox.setFlexLineOffset(lineCursor);
-				lineCursor += item.itemBox.getLineExtent(params.flow)
-						+ (i < line.to() - 1 ? params.columnGap : 0);
+				lineUsed += item.itemBox.getLineExtent(params.flow);
 				lineExtent = Math.max(lineExtent, item.itemBox.getPageExtent(params.flow));
+			}
+			// 主軸の余白分配(§9.5——負余白はsafe start=0。stretchは
+			// justify-contentではflex-start扱い)
+			final double free = containerInner - lineUsed;
+			double lineCursor = params.justifyContent.leadingOffset(free, line.count());
+			final double between = params.columnGap + params.justifyContent.betweenOffset(free, line.count());
+			for (int i = line.from(); i < line.to(); ++i) {
+				final FlexItemContent item = this.items.get(i);
+				// 自然位置は自margin込みのため、offsetは先行分の累積
+				item.itemBox.setFlexLineOffset(lineCursor);
+				lineCursor += item.itemBox.getLineExtent(params.flow) + (i < line.to() - 1 ? between : 0);
 				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor);
 			}
 			// 行のcross size=行内itemのouter cross最大(§9.4のbaselineなし形)。
