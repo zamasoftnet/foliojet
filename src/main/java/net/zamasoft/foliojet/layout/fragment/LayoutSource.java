@@ -312,6 +312,7 @@ public final class LayoutSource implements AutoCloseable {
 	public long append(final Event event) {
 		final long id = this.nextId++;
 		this.entries.add(new Entry(id, event));
+		this.indexEvent(id, event); // RangeSummary(2026-08-01)
 		// E-6増分3b-2: inline text payloadの予算会計(append/compactで対称)
 		if (event instanceof Chars chars && chars.payload() instanceof TextPayload.Inline inline) {
 			this.liveInlineTextBytes += (long) inline.utf16Length() * 2;
@@ -410,6 +411,109 @@ public final class LayoutSource implements AutoCloseable {
 	 * id 以降で最初に保持されているイベントの位置を返します(内部用)。
 	 * compaction で疎になった id 列を二分探索します。
 	 */
+	/**
+	 * 範囲適格判定の疎な逆引き索引です(RangeSummary、2026-08-01——
+	 * エレガンス改善B)。「特別イベント」(Opaque・CAPTION・TABLE・float・
+	 * absolute・multicol・grid・縦横flow開始)のidだけをカテゴリ別に保持し、
+	 * {@code containsX(from,to)}を範囲の線形走査からO(log k)の二分探索へ
+	 * 置き換える(kはカテゴリ内件数——通常ページあたり数個)。
+	 *
+	 * <p>
+	 * idは追記順に単調増加なのでリストは常にソート済み。メモリは
+	 * 「特別イベント数×8B」のみで、全イベント並走の累積配列(約40B/
+	 * イベント)を避けた——メモリ効率化の指示と両立する設計。
+	 * {@code compact()}はkept再構築に相乗りして索引も作り直す。
+	 * 線形実装との等価性は{@code LayoutSourceTest}の乱数プロパティテストが
+	 * 固定する。
+	 * </p>
+	 */
+	private static final class SparseIndex {
+		private long[] ids = new long[4];
+		private int size = 0;
+
+		void add(final long id) {
+			if (this.size == this.ids.length) {
+				this.ids = java.util.Arrays.copyOf(this.ids, this.size * 2);
+			}
+			this.ids[this.size++] = id;
+		}
+
+		void clear() {
+			this.size = 0;
+		}
+
+		/** [fromId, toId] に1件でもあるか(両端含む)。 */
+		boolean anyInRange(final long fromId, final long toId) {
+			int low = 0, high = this.size - 1;
+			// fromId以上の最初の位置
+			while (low <= high) {
+				final int mid = (low + high) >>> 1;
+				if (this.ids[mid] < fromId) {
+					low = mid + 1;
+				} else {
+					high = mid - 1;
+				}
+			}
+			return low < this.size && this.ids[low] <= toId;
+		}
+	}
+
+	private final SparseIndex opaqueIds = new SparseIndex();
+	private final SparseIndex captionIds = new SparseIndex();
+	private final SparseIndex tableIds = new SparseIndex();
+	private final SparseIndex multicolIds = new SparseIndex();
+	private final SparseIndex gridIds = new SparseIndex();
+	private final SparseIndex absoluteIds = new SparseIndex();
+	private final SparseIndex floatIds = new SparseIndex();
+	private final SparseIndex verticalFlowIds = new SparseIndex();
+	private final SparseIndex horizontalFlowIds = new SparseIndex();
+
+	/** 追記/再構築時のカテゴリ分類です(containsX系と同じ検出条件)。 */
+	private void indexEvent(final long id, final Event event) {
+		switch (event) {
+		case Opaque opaque -> this.opaqueIds.add(id);
+		case Start(final BoxRecipe recipe) -> {
+			switch (recipe) {
+			case BoxRecipe.Caption c -> this.captionIds.add(id);
+			case BoxRecipe.Table t -> this.tableIds.add(id);
+			case BoxRecipe.Multicol m -> this.multicolIds.add(id);
+			case BoxRecipe.Grid g -> this.gridIds.add(id);
+			case BoxRecipe.Absolute a -> this.absoluteIds.add(id);
+			case BoxRecipe.FloatBlock f -> this.floatIds.add(id);
+			default -> {
+			}
+			}
+			if (recipe.flowOrNull() instanceof net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+				(flow.isVertical() ? this.verticalFlowIds : this.horizontalFlowIds).add(id);
+			}
+		}
+		case Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe) -> {
+			if (recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
+				this.floatIds.add(id);
+			}
+		}
+		default -> {
+		}
+		}
+	}
+
+	/** {@code compact()}後の索引再構築です(kept走査に相乗り)。 */
+	private void rebuildIndexes() {
+		this.opaqueIds.clear();
+		this.captionIds.clear();
+		this.tableIds.clear();
+		this.multicolIds.clear();
+		this.gridIds.clear();
+		this.absoluteIds.clear();
+		this.floatIds.clear();
+		this.verticalFlowIds.clear();
+		this.horizontalFlowIds.clear();
+		for (int i = 0; i < this.entries.size(); ++i) {
+			final Entry entry = this.entries.get(i);
+			this.indexEvent(entry.id(), entry.event());
+		}
+	}
+
 	private int indexOf(final long id) {
 		int low = 0;
 		int high = this.entries.size() - 1;
@@ -543,6 +647,7 @@ public final class LayoutSource implements AutoCloseable {
 		}
 		this.entries.clear();
 		this.entries.addAll(kept);
+		this.rebuildIndexes(); // RangeSummary(2026-08-01)
 		// 生きているリースの範囲は compact 後も保持されている
 		assert this.retentionLeases.isEmpty() || this.indexOf(this.retentionLeases.firstKey()) >= 0
 				|| this.retentionLeases.firstKey() >= this.nextId : this.retentionLeases.firstKey();
@@ -680,21 +785,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * 含まれていれば true を返します。
 	 */
 	public boolean containsOpaque(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			if (entry.event() instanceof Opaque) {
-				return true;
-			}
-		}
-		return false;
+		return this.opaqueIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲に表キャプション({@link BoxKind#CAPTION})の
@@ -711,21 +809,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * </p>
 	 */
 	public boolean containsCaption(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Caption) {
-				return true;
-			}
-		}
-		return false;
+		return this.captionIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲が文脈依存kindについて自己完結しているかを
@@ -853,21 +944,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * させる({@code ContinuationStats.TwoPassSealReject.GRID_RANGE})。
 	 */
 	public boolean containsGrid(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Grid) {
-				return true;
-			}
-		}
-		return false;
+		return this.gridIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲にマルチカラムの Start が含まれていれば
@@ -875,21 +959,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * との相互作用が未検証のためフォールバックさせる)。
 	 */
 	public boolean containsMulticol(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Multicol) {
-				return true;
-			}
-		}
-		return false;
+		return this.multicolIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲に、指定の書字方向と異なる内容が含まれていれば
@@ -898,27 +975,15 @@ public final class LayoutSource implements AutoCloseable {
 	 */
 	public boolean containsMixedFlow(final long fromId, final long toId,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 「targetと違う向きのflow開始が範囲内に
+		// あるか」——照会されるのは常に文書主方向と逆側の索引で、それは
+		// 典型文書では疎(横文書なら縦flow開始、縦文書なら横flow開始)
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		final boolean vertical = rootFlow.isVertical();
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			// flowOrNull()はInnerTableParams系(flowを持たない)でnull——
-			// 旧liveログのparams instanceof AbstractTextParams判定と同値
-			// (E-6増分3b-4、凍結済みStartから読む)
-			if (entry.event() instanceof Start(final BoxRecipe recipe)
-					&& recipe.flowOrNull() instanceof net.zamasoft.foliojet.layout.box.params.WritingMode flow
-					&& flow.isVertical() != vertical) {
-				return true;
-			}
-		}
-		return false;
+		return (rootFlow.isVertical() ? this.horizontalFlowIds : this.verticalFlowIds).anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲に浮動配置の Start が含まれていれば
@@ -926,30 +991,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * 再現が未検証のためフォールバックさせる)。
 	 */
 	public boolean containsFloat(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			// recipeのFloatBlock変種 ⇔ FloatBlockBox ⇔ FloatPos(PosType.FLOAT)
-			// の1:1対応(StyleBuilder.boxKindのクラス判定とBoxRecipe.freezeが対
-			// ——E-6増分3b-4、旧pos.getType()==FLOAT判定と同値)
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.FloatBlock) {
-				return true;
-			}
-			// recipeのFloat変種 ⇔ FloatReplacedBox ⇔ PosType.FLOAT(1:1対応。
-			// ReplacedRecipe.freezeの分類とBoxRecipeBoxFactory.createReplacedが対)
-			if (entry.event() instanceof Replaced(final net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe)
-					&& recipe.generationKind() == net.zamasoft.foliojet.layout.segment.ReplacedRecipe.GenerationKind.FLOAT) {
-				return true;
-			}
-		}
-		return false;
+		return this.floatIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲に表({@link BoxKind#TABLE})の Start が
@@ -972,21 +1021,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * </p>
 	 */
 	public boolean containsTable(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Table) {
-				return true;
-			}
-		}
-		return false;
+		return this.tableIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲に絶対配置ブロックの Start が含まれていれば
@@ -1008,23 +1050,14 @@ public final class LayoutSource implements AutoCloseable {
 	 * </p>
 	 */
 	public boolean containsAbsolute(final long fromId, final long toId) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
+		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
+		// fromId不在時のfail closed(true)は従来どおり
+		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() > toId) {
-				break;
-			}
-			// recipeのAbsolute変種 ⇔ AbsoluteBlockBox ⇔ AbsolutePosの1:1対応
-			// (StyleBuilder.boxKindのクラス判定とBoxRecipe.freezeが対)
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Absolute) {
-				return true;
-			}
-		}
-		return false;
+		return this.absoluteIds.anyInRange(fromId, toId);
 	}
+
 
 	/**
 	 * [fromId, toId] の範囲内の全絶対配置Start({@code BoxRecipe.Absolute})が
