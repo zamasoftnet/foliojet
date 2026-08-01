@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F4c: content basis always falls back</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div style="display: flex; flex-direction: column; width: 200pt; height: 100pt">
+<div id="p" style="flex-basis: content; height: 40pt">p</div>
+<div id="q" style="flex: 0 0 30pt">q</div>
+</div>
+</body>
+</html>

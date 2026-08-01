@@ -24,12 +24,12 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 	private double e0Y = Double.NaN;
 
 	protected void transcode() throws Exception {
-		final long fallbacksBefore = net.zamasoft.foliojet.layout.builder.impl.FlexBuilder.FLEX_COLUMN_FALLBACKS
+		final long fallbacksBefore = net.zamasoft.foliojet.layout.builder.impl.FlexBuilder.FLEX_COLUMN_FALLBACKS_AUTO_MAIN
 				.get();
 		File file = new File("files/unittest/0510-flex/column-fixed-basis.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
-		assertEquals("auto高columnはコンテナ単位fallback", fallbacksBefore + 1,
-				net.zamasoft.foliojet.layout.builder.impl.FlexBuilder.FLEX_COLUMN_FALLBACKS.get());
+		assertEquals("auto高columnはコンテナ単位fallback(AUTO_MAIN_SIZE)", fallbacksBefore + 1,
+				net.zamasoft.foliojet.layout.builder.impl.FlexBuilder.FLEX_COLUMN_FALLBACKS_AUTO_MAIN.get());
 	}
 
 	public boolean check_p(IBox box, int pageNumber, double x, double y) {

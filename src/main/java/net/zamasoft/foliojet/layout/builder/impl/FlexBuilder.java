@@ -53,8 +53,11 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 	/** 空の匿名itemを破棄した数。 */
 	public static final AtomicLong FLEX_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
 
-	/** column主軸のbasis/height未確定によるコンテナ単位fallback数(F4b)。 */
-	public static final AtomicLong FLEX_COLUMN_FALLBACKS = new AtomicLong();
+	/** columnのbasis:contentによるコンテナ単位fallback数(F4c——恒久サブセット外)。 */
+	public static final AtomicLong FLEX_COLUMN_FALLBACKS_CONTENT_BASIS = new AtomicLong();
+
+	/** columnのbasis:auto+主軸auto(内容高要求)によるfallback数(F4c)。 */
+	public static final AtomicLong FLEX_COLUMN_FALLBACKS_AUTO_MAIN = new AtomicLong();
 
 	private final Builder host;
 
@@ -335,18 +338,30 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 		final double innerMain = this.flexBox.getInnerPageExtent(params.flow);
 		final int count = this.items.size();
 		final int[] seq = this.visualOrder();
+		// F4c: 内容依存basisは恒久サブセット外(consult-codex-2026-08-02-
+		// flexbox-f4c.txt——probe/模倣計測は却下、解禁はLayoutSource再生
+		// モデル拡張(b)の独立プロジェクト)。全itemを事前走査し、一件でも
+		// 不適格なら本文を一度もbindせずコンテナ単位fallback。判定は
+		// 論理page軸(縦書きcolumnの主軸=物理width)
+		for (final FlexItemContent item : this.items) {
+			final BlockParams p = item.itemBox.getBlockParams();
+			if (item.spec.basis().isContent()) {
+				// basis:contentは主軸指定に関係なく内容高を要求する
+				FLEX_COLUMN_FALLBACKS_CONTENT_BASIS.incrementAndGet();
+				this.bindFallback(target);
+				return;
+			}
+			if (item.spec.basis().isAuto()
+					&& p.size.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+				FLEX_COLUMN_FALLBACKS_AUTO_MAIN.incrementAndGet();
+				this.bindFallback(target);
+				return;
+			}
+		}
 		final java.util.List<FlexItemMetrics> metrics = new ArrayList<>(count);
 		for (int k = 0; k < count; ++k) {
 			final FlexItemContent item = this.items.get(seq[k]);
 			final BlockParams p = item.itemBox.getBlockParams();
-			if ((item.spec.basis().isAuto() || item.spec.basis().isContent())
-					&& p.size.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
-				// basis auto→heightプロパティ。それもautoなら内容高が要る
-				// (F4cのprobe)——コンテナ単位fallback
-				FLEX_COLUMN_FALLBACKS.incrementAndGet();
-				this.bindFallback(target);
-				return;
-			}
 			final RectFrame frame = p.frame;
 			// 縦方向margin/paddingの%基準はインライン寸法(コンテナ行内寸)
 			final double mainFrame = insetsPage(frame.padding, innerLine) + borderPage(frame);
@@ -359,6 +374,8 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 					maxPageValue(p.maxSize, innerMain), mainFrame, insetsPage(frame.margin, innerLine),
 					p.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX,
 					p.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE,
+					// min-main:autoのminPage利用はF4bの既知近似(正確な
+					// content minimumは幅依存——F4c答申に記録)
 					item.sizes.minPage(), item.sizes.minPage(), innerMain)));
 		}
 		// columnの主軸gap=row-gap(block軸間隔)。justifyは§9.5と同じ算術
