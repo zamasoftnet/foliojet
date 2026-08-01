@@ -108,4 +108,80 @@ public class FlowCutterTest extends TestCase {
 		final FlowCutter.StepFlags s = FlowCutter.stepFlags(100, 40, 1, 3, false, others);
 		assertEquals(others, s.splitFlags());
 	}
+
+	// ---- resolveKeep(Keep観測の解決、二相分離・増分3) ----
+
+	public void testResolveKeepAtPageTailKeepsAll() {
+		assertEquals(FlowCutter.KeepResolution.KEEP_ALL, FlowCutter.resolveKeep(2, 1, LAST));
+	}
+
+	public void testResolveKeepUntowedExaminesNext() {
+		// i >= lastOrphan: 牽引されていない→次のフローへ
+		assertEquals(FlowCutter.KeepResolution.EXAMINE_NEXT, FlowCutter.resolveKeep(2, 1, (byte) 0));
+	}
+
+	public void testResolveKeepTowedBecomesMove() {
+		// i < lastOrphan: 改ページ禁止の牽引下→Move扱い(最も直感に反する規則)
+		assertEquals(FlowCutter.KeepResolution.TREAT_AS_MOVE, FlowCutter.resolveKeep(0, 2, (byte) 0));
+	}
+
+	// ---- resolveMove(Move観測の解決、二相分離・増分4) ----
+
+	private static FlowCutter.MoveResolution resolveMove(final byte positionMask, final byte outerFlags,
+			final int index, final int lastOrphan, final boolean ignoreAvoid) {
+		// FLOW_STARTS等のフィクスチャ(2フロー、[1]がavoid-beforeで接続)を
+		// pushback入力に流用する。pageLimit=100
+		return FlowCutter.resolveMove(positionMask, outerFlags, index, lastOrphan, ignoreAvoid, 90, 100, FLOW_STARTS,
+				FLOW_EXTENTS, AVOID_BEFORE, AVOID_AFTER, FLOW_END_FRAMES, null, null, null);
+	}
+
+	public void testResolveMovePhysicalFirstWithOuterSplitCutsHead() {
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, SPLIT, 0, 0, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Terminal t
+				&& t.action() instanceof FlowCutter.PreDecision.CutHead c && c.atLimit() == 90);
+	}
+
+	public void testResolveMovePhysicalFirstTowedRestartsIgnoringAvoid() {
+		// 物理FIRST+外側FIRST+i<lastOrphan: avoid無視でlastOrphanから再走
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, FIRST, 0, 2, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.RestartIgnoringAvoid restart
+				&& restart.nextIndex() == 2);
+	}
+
+	public void testResolveMovePhysicalFirstAtPageHeadTailCutsTail() {
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, (byte) (FIRST | LAST), 1, 1, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Terminal t
+				&& t.action() instanceof FlowCutter.PreDecision.CutTail);
+	}
+
+	public void testResolveMovePhysicalFirstAtPageHeadKeepsFloats() {
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, FIRST, 1, 1, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Terminal t
+				&& t.action() instanceof FlowCutter.PreDecision.KeepFloats);
+	}
+
+	public void testResolveMovePhysicalFirstElsewhereMovesAll() {
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, (byte) 0, 0, 0, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Terminal t
+				&& t.action() instanceof FlowCutter.PreDecision.MoveAll);
+	}
+
+	public void testResolveMoveNonFirstWithAvoidPushesBack() {
+		// フィクスチャの[1]はavoid-before接続: 押し戻しが返る
+		final FlowCutter.MoveResolution r = resolveMove((byte) 0, (byte) 0, 1, 1, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Pushback);
+		assertEquals(60, ((FlowCutter.MoveResolution.Pushback) r).newPageLimit(), 1);
+	}
+
+	public void testResolveMoveIgnoreAvoidSkipsPushback() {
+		// ignoreAvoid再走中はavoid判定を再適用しない
+		final FlowCutter.MoveResolution r = resolveMove((byte) 0, (byte) 0, 1, 1, true);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Partition);
+	}
+
+	public void testResolveMoveNonFirstBeyondOrphanPartitions() {
+		// i > lastOrphan: pushback対象外→partition
+		final FlowCutter.MoveResolution r = resolveMove((byte) 0, (byte) 0, 1, 0, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Partition);
+	}
 }

@@ -282,6 +282,136 @@ public final class FlowCutter {
 	}
 
 	/**
+	 * Keep観測の解決結果です(二相分離・増分3、2026-08-01)。
+	 */
+	public enum KeepResolution {
+		/** ページの末尾: コンテナ全体をこの断片に残して確定。 */
+		KEEP_ALL,
+		/** 牽引されていない: 次のフローの検分へ進む。 */
+		EXAMINE_NEXT,
+		/** 改ページ禁止の牽引下(index&lt;lastOrphan): Move扱いへ変換。 */
+		TREAT_AS_MOVE
+	}
+
+	/**
+	 * 主ループでフローがKeep(切断せずこちら側に残る)を観測したときの
+	 * 解決規則です。最も直感に反する「Keepが牽引によりMoveへ変わる」を
+	 * 純関数として固定する。
+	 *
+	 * @param index      現在のフローインデックス
+	 * @param lastOrphan 切断線以下に収まる最後のフローの直後のインデックス
+	 * @param splitFlags このステップの実効フラグ({@link StepFlags#splitFlags})
+	 * @return 解決結果
+	 */
+	public static KeepResolution resolveKeep(final int index, final int lastOrphan, final byte splitFlags) {
+		if ((splitFlags & IPageBreakableBox.FLAGS_LAST) != 0) {
+			// ページの末尾で残す場合は、全て残す
+			return KeepResolution.KEEP_ALL;
+		}
+		if (index >= lastOrphan) {
+			// 改ページ禁止により牽引されていない
+			return KeepResolution.EXAMINE_NEXT;
+		}
+		// 続くボックスで牽引する
+		return KeepResolution.TREAT_AS_MOVE;
+	}
+
+	/**
+	 * Move観測(分割不可能で全体を送る)の解決結果です
+	 * (二相分離・増分4、2026-08-01)。
+	 */
+	public sealed interface MoveResolution {
+		/**
+		 * コンテナ全体の結論が確定(CutHead/CutTail/KeepFloats/MoveAllの
+		 * いずれか。切断線は調整前のprevPageSize)。
+		 */
+		record Terminal(PreDecision action) implements MoveResolution {
+		}
+
+		/**
+		 * 改ページ禁止を無視してlastOrphanから再走する
+		 * (切断線はpreDecide後の再開用値へ巻き戻す)。
+		 *
+		 * @param nextIndex 次に実際に検分するインデックス(=lastOrphan)
+		 */
+		record RestartIgnoringAvoid(int nextIndex) implements MoveResolution {
+		}
+
+		/** ブロック間の改ページ禁止による押し戻し。 */
+		record Pushback(int resumeIndex, double newPageLimit) implements MoveResolution {
+		}
+
+		/** このフローから後ろを次断片へ移送する(partition確定)。 */
+		record Partition() implements MoveResolution {
+		}
+	}
+
+	/**
+	 * 主ループでフローがMove(分割不可能で全体を送る)を観測したときの
+	 * 解決規則です(FlowContainer.splitPageAxis 旧1026-1065の純化)。
+	 *
+	 * <p>
+	 * 物理FIRST(positionMask)と外側FIRST(outerFlags)は別物——前者は
+	 * フローがコンテナ始端に接しているか、後者は親から見てこのコンテナが
+	 * ページ先頭にあるか。
+	 * </p>
+	 *
+	 * @param positionMask このステップの物理位置マスク({@link StepFlags#positionMask})
+	 * @param outerFlags   外側から渡されたFLAGS_*のビット和
+	 * @param index        現在のフローインデックス
+	 * @param lastOrphan   切断線以下に収まる最後のフローの直後のインデックス
+	 * @param ignoreAvoid  改ページ禁止無視の再走中か
+	 * @param prevPageSize 調整前の切断線(終端行動の実行に使う)
+	 * @param pageLimit    現在の切断線(pushback判定に使う)
+	 * @param flowPageStarts    {@link #avoidPushback}に渡す計測値
+	 * @param flowPageExtents   同上
+	 * @param avoidBefore       同上
+	 * @param avoidAfter        同上
+	 * @param flowPageEndFrames 同上
+	 * @param floatPageStarts   同上
+	 * @param floatPageExtents  同上
+	 * @param floatUncut        同上
+	 * @return 解決結果
+	 */
+	public static MoveResolution resolveMove(final byte positionMask, final byte outerFlags, final int index,
+			final int lastOrphan, final boolean ignoreAvoid, final double prevPageSize, final double pageLimit,
+			final double[] flowPageStarts, final double[] flowPageExtents, final boolean[] avoidBefore,
+			final boolean[] avoidAfter, final double[] flowPageEndFrames, final double[] floatPageStarts,
+			final double[] floatPageExtents, final boolean[] floatUncut) {
+		if ((positionMask & IPageBreakableBox.FLAGS_FIRST) != 0) {
+			// ボックスの先頭(物理FIRST)
+			if ((outerFlags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
+				// 強制切断
+				return new MoveResolution.Terminal(new PreDecision.CutHead(prevPageSize));
+			}
+			if ((outerFlags & IPageBreakableBox.FLAGS_FIRST) != 0) {
+				// ページの先頭
+				if (index < lastOrphan) {
+					// 改ページ禁止を無視する
+					return new MoveResolution.RestartIgnoringAvoid(lastOrphan);
+				}
+				if ((outerFlags & IPageBreakableBox.FLAGS_LAST) != 0) {
+					// 末尾なら切断
+					return new MoveResolution.Terminal(new PreDecision.CutTail(prevPageSize));
+				}
+				// 前ページに残す
+				return new MoveResolution.Terminal(new PreDecision.KeepFloats(prevPageSize));
+			}
+			// 全部移動
+			return new MoveResolution.Terminal(new PreDecision.MoveAll());
+		}
+		if (!ignoreAvoid && index > 0 && index <= lastOrphan) {
+			// ボックスの2つめ以降の要素に限る: ブロック間の改ページ禁止
+			final AvoidPushback pushback = avoidPushback(index, pageLimit, flowPageStarts, flowPageExtents,
+					avoidBefore, avoidAfter, flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
+			if (pushback != null) {
+				return new MoveResolution.Pushback(pushback.resumeIndex(), pushback.newPageLimit());
+			}
+		}
+		return new MoveResolution.Partition();
+	}
+
+	/**
 	 * 切断線以下に収まる最後のフローの直後のインデックスを返します
 	 * (0=収まるフローなし、length=全フローが収まる)。
 	 *

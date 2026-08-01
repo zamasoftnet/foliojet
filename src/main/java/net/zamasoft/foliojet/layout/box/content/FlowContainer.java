@@ -1037,74 +1037,51 @@ public class FlowContainer implements Container {
 			// + "/lastOrphan="+lastOrphan+ "/xflags="+xflags+"/" +
 			// this.box.getParams().element);
 			if (outcome instanceof ProbeOutcome.Keep) {
-				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {
-					// ページの末尾で残す場合は、全て残す
+				// Keepの解決規則はFlowCutterに純化(二相分離・増分3)。
+				// TREAT_AS_MOVE=牽引によるMove化はProbeが最終配置でない代表例
+				switch (FlowCutter.resolveKeep(i, lastOrphan, xflags)) {
+				case KEEP_ALL:
 					return plain(null);
-				}
-				if (i >= lastOrphan) {
-					// 改ページ禁止により牽引されていない
+				case EXAMINE_NEXT:
 					continue;
+				case TREAT_AS_MOVE:
+					outcome = ProbeOutcome.MOVE;
+					break;
 				}
-				// 続くボックスで牽引する(KeepはここでMove扱いへ変わる——
-				// Probeが最終配置でない代表例)
-				outcome = ProbeOutcome.MOVE;
 			}
 			if (outcome instanceof ProbeOutcome.Move) {
-				// 分割不可能な場合
-				if ((lflags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-					// ボックスの先頭
+				// 分割不可能な場合。解決規則はFlowCutterに純化(二相分離・
+				// 増分4)——ここは決定の適用だけを行う
+				final FlowCutter.MoveResolution resolution = FlowCutter.resolveMove(lflags, flags, i, lastOrphan,
+						ignoreAvoid, prevPageSize, pageLimit, flowPageStarts, flowPageExtents, avoidBefore,
+						avoidAfter, flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
+				switch (resolution) {
+				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
+					return plain(switch (action) {
+					case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
+					case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
+					case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this
+							.splitFloatingsKeepingOwner(atLimit, flags);
+					case FlowCutter.PreDecision.MoveAll moveAll -> this;
+					default -> throw new IllegalStateException(String.valueOf(action));
+					});
+				case FlowCutter.MoveResolution.RestartIgnoringAvoid(final int nextIndex):
+					// 改ページ禁止を無視して再走(切断線は再開用値へ巻き戻す)
 					pageLimit = savePageLimit;
-					if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
-						// 強制切断
-						return plain(this.cutHead(prevPageSize, flags));
-					}
-					if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-						// ページの先頭
-						if (i < lastOrphan) {
-							// 改ページ禁止を無視する
-							i = lastOrphan - 1;
-							ignoreAvoid = true;
-							continue;
-						}
-						if ((flags & IPageBreakableBox.FLAGS_LAST) != 0) {
-							// 末尾なら切断
-							return plain(this.cutTail(prevPageSize, flags));
-						}
-						// 前ページに残す
-						return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
-					}
-					// 全部移動
-					return plain(this);
+					i = nextIndex - 1; // forの++i前提
+					ignoreAvoid = true;
+					continue;
+				case FlowCutter.MoveResolution.Pushback(final int resumeIndex, final double newPageLimit):
+					// ブロック間の改ページ禁止の場合
+					i = resumeIndex;
+					pageLimit = newPageLimit;
+					continue;
+				case FlowCutter.MoveResolution.Partition partition:
+					nextBox = this.applyPartition(i, outcome);
+					break;
 				}
-				if (!ignoreAvoid && i > 0 && i <= lastOrphan) {
-					// ボックスの2つめ以降の要素に限る
-					// ブロック間の改ページ禁止のチェック(判定は FlowCutter に純化)
-					final FlowCutter.AvoidPushback pushback = FlowCutter.avoidPushback(i, pageLimit, flowPageStarts,
-							flowPageExtents, avoidBefore, avoidAfter, flowPageEndFrames, floatPageStarts,
-							floatPageExtents, floatUncut);
-					if (pushback != null) {
-						// ブロック間の改ページ禁止の場合
-						i = pushback.resumeIndex();
-						pageLimit = pushback.newPageLimit();
-						continue;
-					}
-				}
-				nextBox = new FlowContainer();
-				nextBox.flows = new ArrayList<Flow>();
 			} else {
-				// Split: 変異済み先頭はthis側に残り、残余だけを送る
-				nextBox = new FlowContainer();
-				nextBox.addFlow(((ProbeOutcome.Split) outcome).remainder(), 0);
-				++i;
-			}
-			int remove = 0;
-			for (int j = i; j < this.flows.size(); ++j) {
-				Flow f = (Flow) this.flows.get(j);
-				nextBox.flows.add(f);
-				++remove;
-			}
-			for (int j = 0; j < remove; ++j) {
-				this.flows.remove(this.flows.size() - 1);
+				nextBox = this.applyPartition(i, outcome);
 			}
 			break;
 		}
@@ -1142,6 +1119,37 @@ public class FlowContainer implements Container {
 
 	private static net.zamasoft.foliojet.layout.fragment.ContainerCut plain(final Container container) {
 		return new net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain(container);
+	}
+
+	/**
+	 * 主ループの結論を実際のフロー移送として適用する唯一のcommit地点です
+	 * (二相分離・増分6、2026-08-01)。
+	 *
+	 * <p>
+	 * Move: 現在のフローを<b>含めて</b>後続を次断片へ送る(B3b-2の
+	 * 「Moveなのに元側から除去せず二重描画」の再発をここで構造的に防ぐ)。
+	 * Split: 変異済み先頭はthis側に残し、残余+後続を送る。
+	 * </p>
+	 */
+	private FlowContainer applyPartition(final int index, final ProbeOutcome outcome) {
+		final FlowContainer nextBox = new FlowContainer();
+		final int from;
+		if (outcome instanceof ProbeOutcome.Split(final IFlowBox remainder)) {
+			nextBox.addFlow(remainder, 0);
+			from = index + 1;
+		} else {
+			assert outcome instanceof ProbeOutcome.Move : outcome;
+			nextBox.flows = new ArrayList<Flow>();
+			from = index;
+		}
+		for (int j = from; j < this.flows.size(); ++j) {
+			nextBox.flows.add(this.flows.get(j));
+		}
+		for (int j = this.flows.size() - 1; j >= from; --j) {
+			this.flows.remove(j);
+		}
+		assert this.flows.size() == from : this.flows.size() + "/" + from;
+		return nextBox;
 	}
 
 	/**
