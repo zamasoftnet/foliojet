@@ -22,11 +22,17 @@ public class FlexInFloatTest extends AbstractTestCase {
 	private double baseX = Double.NaN, baseY = Double.NaN;
 
 	protected void transcode() throws Exception {
-		final long replaysBefore = net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.FLEX_REPLAYS.get();
+		final long rejectsBefore = net.zamasoft.foliojet.layout.fragment.ContinuationStats
+				.twoPassSealRejects(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE);
 		File file = new File("files/unittest/0510-flex/flex-in-float.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
-		assertTrue("範囲再生がFlexBoxを再構築すること",
-				net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.FLEX_REPLAYS.get() > replaysBefore);
+		// Flex F1d: 範囲再生はFlexBuilder活性・recordsはF0単一列のため、
+		// Flexを含む範囲のsealはFLEX_RANGEでfail closed(Grid G1dと同型)。
+		// F1fのRetainedFlex/FlexEventでparity確立後に解禁し、このassertを
+		// FLEX_REPLAYS>0(GridInFloatTestのG3d3形)へ戻す
+		assertTrue("FLEX_RANGE rejectが発火すること",
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.twoPassSealRejects(
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE) > rejectsBefore);
 	}
 
 	public boolean check_p(IBox box, int pageNumber, double x, double y) {

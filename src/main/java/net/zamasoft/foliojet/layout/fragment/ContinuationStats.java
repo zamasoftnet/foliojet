@@ -339,7 +339,15 @@ public final class ContinuationStats {
 		 * <b>G3d3(同日)でrejectは撤去済み</b>——現在この理由は発火しない
 		 * (GridEventのitem本文は通常のネスト子として親rangeへ吸収される)。
 		 */
-		GRID_RANGE
+		GRID_RANGE,
+		/**
+		 * 範囲にFlexのStartを含む(Flex F1d、2026-08-02)。範囲再生
+		 * (DocumentBuilder駆動)はFlexBuilderが活性化しrow配置で組む一方、
+		 * records側はF0の単一列flowのまま——混ぜると幾何が食い違う
+		 * (Grid G1dと同じ機序)。F1fのRetainedFlex/FlexEventでparity確立後に
+		 * 解禁する。
+		 */
+		FLEX_RANGE
 	}
 
 	private static final Map<TwoPassSealReject, AtomicLong> TWO_PASS_SEAL_REJECTS = new EnumMap<>(

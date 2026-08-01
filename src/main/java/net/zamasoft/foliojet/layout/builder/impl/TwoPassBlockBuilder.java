@@ -706,6 +706,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE);
 			return;
 		}
+		if (log.containsFlex(fromId, toId)) {
+			// Flex F1d: 範囲再生はFlexBuilder活性(row配置)、recordsはF0の
+			// 単一列——G1dのGRID_RANGEと同型のfail closed。F1fで解禁予定
+			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE);
+			return;
+		}
 		// Gridを含む範囲(旧GRID_RANGE reject=G1d)はG3d3で解禁——G3d1の
 		// RetainedGrid/GridEventによりrecords側もGridBuilderの実トラック
 		// 配置を通り、範囲再生(DocumentBuilder駆動の新品GridBuilder)と

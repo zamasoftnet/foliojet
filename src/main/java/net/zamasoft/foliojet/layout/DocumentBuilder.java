@@ -48,6 +48,8 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.builder.TableBuilderHost;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.FlexBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.FlexBuilderLifecycle;
 import net.zamasoft.foliojet.layout.builder.impl.GridBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.GridBuilderLifecycle;
 import net.zamasoft.foliojet.layout.builder.impl.IncrementalTableBuilder;
@@ -199,7 +201,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	private ContainerBuilderEntry containerBuilder() {
 		int index = this.builderStack.size() - 1;
 		Object o = this.builderStack.get(index);
-		while (o instanceof TableBuilder || o instanceof GridBuilder) {
+		while (o instanceof TableBuilder || o instanceof GridBuilder || o instanceof FlexBuilder) {
 			// テーブル内でセル外のinline, block, テキスト等をテーブルの前に置くため
 			// 一般的なブラウザの動作による
 			// GridBuilderのskipは安全網(答申はskip不要としたが、item外へ
@@ -374,6 +376,101 @@ public class DocumentBuilder implements TableBuilderHost {
 		grid.itemClosed();
 	}
 
+	/** Flex直下で次の内容を待っているFlexBuilderです(gridAwaitingDirectChildの鏡像、Flex F1d)。 */
+	private FlexBuilder flexAwaitingDirectChild() {
+		if (this.boxStack.isEmpty() || this.builderStack.isEmpty()) {
+			return null;
+		}
+		final Object tail = this.boxStack.get(this.boxStack.size() - 1);
+		final int index = this.builderStack.size() - 1;
+		final Object top = this.builderStack.get(index);
+		if (top instanceof FlexBuilder flex) {
+			return flex.getFlexBox() == tail ? flex : null;
+		}
+		if (top instanceof ContainerBuilderEntry && index > 0
+				&& this.builderStack.get(index - 1) instanceof FlexBuilder flex //
+				&& flex.hasOpenItem() && flex.getFlexBox() == tail) {
+			return flex;
+		}
+		return null;
+	}
+
+	/** {@code box}の終端で畳むべきFlexBuilderです(gridEndingAtの鏡像)。 */
+	private FlexBuilder flexEndingAt(final IBox box) {
+		final int index = this.builderStack.size() - 1;
+		final Object top = this.builderStack.get(index);
+		if (top instanceof FlexBuilder flex && flex.getFlexBox() == box) {
+			return flex;
+		}
+		if (top instanceof ContainerBuilderEntry && index > 0
+				&& this.builderStack.get(index - 1) instanceof FlexBuilder flex //
+				&& flex.hasOpenItem() && flex.getFlexBox() == box) {
+			return flex;
+		}
+		return null;
+	}
+
+	/**
+	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
+	 * そのFlexBuilderを返します(Flex F1d——authored boxのendBox対応付け)。
+	 */
+	private FlexBuilder flexItemEndingAt(final IBox box) {
+		final int index = this.builderStack.size() - 1;
+		if (index > 0 && this.builderStack.get(index) instanceof ContainerBuilderEntry
+				&& this.builderStack.get(index - 1) instanceof FlexBuilder flex //
+				&& flex.isElementItemSource(box)) {
+			return flex;
+		}
+		return null;
+	}
+
+	/** 開いている匿名itemを畳みます(closeGridAnonymousItemの鏡像)。 */
+	private void closeFlexAnonymousItem(final FlexBuilder flex) {
+		if (flex.hasOpenItem() && !flex.hasOpenElementItem()) {
+			this.endContainer();
+			this.endContainerBuilder();
+			flex.itemClosed();
+		}
+	}
+
+	/** Flex直下の直接テキスト/インライン用に匿名itemを用意します。 */
+	private void requireFlexAnonymousItem() {
+		final FlexBuilder flex = this.flexAwaitingDirectChild();
+		if (flex != null && !flex.hasOpenItem()) {
+			this.startContainerBuilder(flex.requireAnonymousItem());
+			this.startContainer();
+		}
+	}
+
+	/** Flex直下に中立wrapperのelement itemを開きます(非plain子・表・置換用)。 */
+	private FlexBuilder startFlexNeutralElementItem(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec) {
+		final FlexBuilder flex = this.flexAwaitingDirectChild();
+		if (flex != null) {
+			this.closeFlexAnonymousItem(flex);
+			this.startContainerBuilder(flex.startNeutralElementItem(spec));
+			this.startContainer();
+		}
+		return flex;
+	}
+
+	/** boxの伸縮指定を取り出します(FlowPosを持たない配置は既定)。 */
+	private static net.zamasoft.foliojet.layout.box.params.FlexItemSpec flexItemSpecOf(final IBox box) {
+		if (box.getPos() instanceof FlowPos flowPos) {
+			return flowPos.flexItem;
+		}
+		if (box instanceof TableBox table && table.getBlockBox().getPos() instanceof FlowPos flowPos) {
+			return flowPos.flexItem;
+		}
+		return net.zamasoft.foliojet.layout.box.params.FlexItemSpec.DEFAULT;
+	}
+
+	/** element itemの一件分を畳みます(endGridElementItemの鏡像)。 */
+	private void endFlexElementItem(final FlexBuilder flex) {
+		this.endContainer();
+		this.endContainerBuilder();
+		flex.itemClosed();
+	}
+
 	/**
 	 * {@link TableBuilderHost}実装(C4-C深化、2026-07-19)。
 	 * {@link TableBuilder}実装(現状は{@link IncrementalTableBuilder}のみ)が
@@ -524,6 +621,41 @@ public class DocumentBuilder implements TableBuilderHost {
 		default:
 			break;
 		}
+		// Flex直下の子はitem化してから既存switchへ流す(Flex F1d)。
+		// plainなブロックはtakeover(authoredのparams/posをFlexItemBoxへ
+		// 引き継ぎ、元の外箱は構築しない——答申の最重要プロトタイプ条件)。
+		// 非plain(表・入れ子コンテナ・縦書き)は中立wrapper、インラインは
+		// 匿名itemへ。float/absoluteはGrid同様に宿主文脈のまま
+		{
+			final FlexBuilder flexHost = this.flexAwaitingDirectChild();
+			if (flexHost != null) {
+				switch (box.getPos().getType()) {
+				case FLOW:
+					if (box.getClass() == FlowBlockBox.class
+							&& !((FlowBlockBox) box).getBlockParams().flow.isVertical()) {
+						final FlowBlockBox sourceBox = (FlowBlockBox) box;
+						this.closeInlines(sourceBox.getBlockParams());
+						this.closeFlexAnonymousItem(flexHost);
+						this.endContainer();
+						this.startContainerBuilder(
+								flexHost.startElementItem(sourceBox, flexItemSpecOf(box)));
+						this.startContainer();
+						this.boxStack.add(box);
+						return;
+					}
+					this.startFlexNeutralElementItem(flexItemSpecOf(box));
+					break;
+				case TABLE:
+					this.startFlexNeutralElementItem(flexItemSpecOf(box));
+					break;
+				case INLINE:
+					this.requireFlexAnonymousItem();
+					break;
+				default:
+					break;
+				}
+			}
+		}
 		switch (box.getPos().getType()) {
 		case TABLE: {
 			// テーブル
@@ -621,6 +753,12 @@ public class DocumentBuilder implements TableBuilderHost {
 				// フォールバック(G0)のまま
 				if (blockBox instanceof GridBox gridBox && GridBuilderLifecycle.eligible(gridBox, builder)) {
 					this.builderStack.add(GridBuilderLifecycle.start(builder, gridBox));
+				}
+				// Flex本体の開始(Flex F1d——Gridと同じ形。不適格はF0の
+				// 単一列フローのまま)
+				if (blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flexBox
+						&& FlexBuilderLifecycle.eligible(flexBox, builder)) {
+					this.builderStack.add(FlexBuilderLifecycle.start(builder, flexBox));
 				}
 			} else {
 				// ページ進行方向が違う場合
@@ -763,6 +901,17 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case FLOW: {
+			// Flexのtakeover element item終端(Flex F1d): authored boxは
+			// 構築されていないため、通常のendFlowBlockではなくitemを畳む
+			final FlexBuilder flexItemHost = this.flexItemEndingAt(box);
+			if (flexItemHost != null) {
+				this.endContainer();
+				this.endContainerBuilder();
+				flexItemHost.itemClosed();
+				this.startContainer();
+				this.restoreInlines(box.getParams());
+				break;
+			}
 			// Grid終端: 匿名itemを畳み、coordinatorを外して配置を確定する
 			// (Grid G1b)。finish()はhostのactive flowがまだGridである間
 			// ——下のendFlowBlockより前——に呼ぶ(itemの配置と親カーソル
@@ -773,6 +922,14 @@ public class DocumentBuilder implements TableBuilderHost {
 				final Object popped = this.builderStack.remove(this.builderStack.size() - 1);
 				assert popped == endingGrid : "Grid終端でbuilderStack末尾がGridBuilderではありません: " + popped;
 				endingGrid.finish();
+			}
+			// Flex終端(Flex F1d——Grid終端と同じ形)
+			final FlexBuilder endingFlex = this.flexEndingAt(box);
+			if (endingFlex != null) {
+				this.closeFlexAnonymousItem(endingFlex);
+				final Object poppedFlex = this.builderStack.remove(this.builderStack.size() - 1);
+				assert poppedFlex == endingFlex : "Flex終端でbuilderStack末尾がFlexBuilderではありません: " + poppedFlex;
+				endingFlex.finish();
 			}
 			// 通常のフロー
 			this.endContainer();
@@ -936,6 +1093,12 @@ public class DocumentBuilder implements TableBuilderHost {
 		if (grid != null && grid.hasOpenElementItem()) {
 			this.endGridElementItem(grid);
 		}
+		// Flex直下の中立element item(表・非plain子)も同様に畳む(Flex F1d。
+		// takeover itemはendBoxのFLOW分岐で畳み済み)
+		final FlexBuilder flexTail = this.flexAwaitingDirectChild();
+		if (flexTail != null && flexTail.hasOpenElementItem()) {
+			this.endFlexElementItem(flexTail);
+		}
 	}
 
 	public void addReplacedBox(AbstractReplacedBox replacedBox) {
@@ -944,12 +1107,15 @@ public class DocumentBuilder implements TableBuilderHost {
 		// Grid直下の置換要素はitem化する(Grid G1b): ブロックレベルは
 		// one-shotのelement item、インラインは匿名itemへ
 		GridBuilder oneShotGrid = null;
+		FlexBuilder oneShotFlex = null;
 		switch (replacedBox.getPos().getType()) {
 		case FLOW:
 			oneShotGrid = this.startGridElementItem(gridItemSpecOf(replacedBox));
+			oneShotFlex = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox));
 			break;
 		case INLINE:
 			this.requireGridAnonymousItem();
+			this.requireFlexAnonymousItem();
 			break;
 		default:
 			break;
@@ -1027,6 +1193,9 @@ public class DocumentBuilder implements TableBuilderHost {
 			throw new IllegalStateException();
 		}
 
+		if (oneShotFlex != null) {
+			this.endFlexElementItem(oneShotFlex);
+		}
 		if (oneShotGrid != null) {
 			this.endGridElementItem(oneShotGrid);
 		}
@@ -1047,6 +1216,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.requirePage();
 		// Grid直下の直接テキストは匿名itemへ(Grid G1b)
 		this.requireGridAnonymousItem();
+		this.requireFlexAnonymousItem();
 		this.containerBuilder().getStyledTextUnitizer().characters(charOffset, ch, off, len, lineFeed);
 	}
 
@@ -1058,6 +1228,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	public void addLeader(final String pattern) {
 		this.requirePage();
 		this.requireGridAnonymousItem();
+		this.requireFlexAnonymousItem();
 		this.containerBuilder().getStyledTextUnitizer().leader(pattern);
 	}
 
