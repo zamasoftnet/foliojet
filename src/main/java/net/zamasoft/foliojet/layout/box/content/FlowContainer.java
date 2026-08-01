@@ -693,6 +693,32 @@ public class FlowContainer implements Container {
 	}
 
 	/**
+	 * 自動改ページ主ループの1回の切断試行で観測した結果です
+	 * (二相分離・増分2、2026-08-01)。従来のIFlowBox sentinel
+	 * (null=Keep、元ボックスidentity=Move、その他=Split残余)を型に
+	 * 置換した。「Probe(検分)」であって最終配置ではない——Keepは
+	 * 牽引(i&lt;lastOrphan)でMoveへ変換されうるし、pushback巻き戻しで
+	 * 同じフローが2回検分されうる。Frame(チェーン継続)は即時terminal
+	 * のため型に含めない。
+	 */
+	private sealed interface ProbeOutcome {
+		/** ボックス全体をthis側に残す(暫定)。 */
+		record Keep() implements ProbeOutcome {
+		}
+
+		/** ボックス全体を次断片へ送る。 */
+		record Move() implements ProbeOutcome {
+		}
+
+		/** 切断され、残余を次断片へ送る(変異済み先頭はthis側に残る)。 */
+		record Split(IFlowBox remainder) implements ProbeOutcome {
+		}
+
+		ProbeOutcome KEEP = new Keep();
+		ProbeOutcome MOVE = new Move();
+	}
+
+	/**
 	 * 継続化計画付きのページ方向切断です(C1d-C)。単一実装(旧3引数版
 	 * =Plain写像のwrapperは増分5で撤去し、呼び出し側がPlainを直接
 	 * 剥がす)。plan が選択したチェーンメンバー(常に末尾フロー)の
@@ -884,7 +910,7 @@ public class FlowContainer implements Container {
 			// + "/this.box=" + this.box.getParams().element
 			// + "/prevFlow=" + prevFlow.box.getParams().element);
 
-			IFlowBox nextFlowBox;
+			ProbeOutcome outcome;
 			switch (prevFlow.box.getType()) {
 			case TABLE:
 			case TEXT_BLOCK: {
@@ -902,16 +928,19 @@ public class FlowContainer implements Container {
 					if (!LayoutUtils.isNone(unbreakableEnd) && LayoutUtils.compare(splitLine, unbreakableEnd) < 0) {
 						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
 						if (rescued != null) {
-							nextFlowBox = rescued;
+							// rescueSplitは成功時にthis.flows[i]を先頭断片へ
+							// 置換済み——残余tailはSplitの残余と同じ扱い
+							outcome = new ProbeOutcome.Split(rescued);
 							break;
 						}
 					}
 				}
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-				nextFlowBox = switch (prevFlowBox.split(splitLine, mode, xflags)) {
-				case SplitResult.Keep keep -> null;
-				case SplitResult.Move move -> prevFlow.box;
-				case SplitResult.Split(final IPageBreakableBox remainder) -> (IFlowBox) remainder;
+				outcome = switch (prevFlowBox.split(splitLine, mode, xflags)) {
+				case SplitResult.Keep keep -> ProbeOutcome.KEEP;
+				case SplitResult.Move move -> ProbeOutcome.MOVE;
+				case SplitResult.Split(final IPageBreakableBox remainder) -> new ProbeOutcome.Split(
+						(IFlowBox) remainder);
 				case SplitResult.Frame frame -> throw new IllegalStateException(
 						"チェーン継続は表・テキストでは起きない");
 				};
@@ -935,8 +964,8 @@ public class FlowContainer implements Container {
 						sawChainMember = true;
 						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
 								plan)) {
-						case SplitResult.Keep keep -> nextFlowBox = null;
-						case SplitResult.Move move -> nextFlowBox = prevFlow.box;
+						case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
+						case SplitResult.Move move -> outcome = ProbeOutcome.MOVE;
 						case SplitResult.Frame(
 								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
 							// Existing指定では結果は常にcollectedNext自身
@@ -953,16 +982,17 @@ public class FlowContainer implements Container {
 					}
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 					switch (prevFlowBox.split(splitLine, mode, xflags)) {
-					case SplitResult.Keep keep -> nextFlowBox = null;
-					case SplitResult.Move move -> nextFlowBox = prevFlow.box;
-					case SplitResult.Split(final IPageBreakableBox remainder) -> nextFlowBox = (IFlowBox) remainder;
+					case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
+					case SplitResult.Move move -> outcome = ProbeOutcome.MOVE;
+					case SplitResult.Split(final IPageBreakableBox remainder) -> outcome = new ProbeOutcome.Split(
+							(IFlowBox) remainder);
 					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
 					}
 					break;
 				}
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {
 					// 末尾の場合、改ページ禁止は必ず送る
-					nextFlowBox = prevFlow.box;
+					outcome = ProbeOutcome.MOVE;
 					break;
 				}
 			case RESCUE:
@@ -987,14 +1017,14 @@ public class FlowContainer implements Container {
 						// つれて伸びるため基準にならない
 						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
 						if (rescued != null) {
-							nextFlowBox = rescued;
+							outcome = new ProbeOutcome.Split(rescued);
 							break;
 						}
 					}
-					nextFlowBox = null;
+					outcome = ProbeOutcome.KEEP;
 				} else {
 					// 次ページに送る
-					nextFlowBox = prevFlow.box;
+					outcome = ProbeOutcome.MOVE;
 				}
 			}
 				break;
@@ -1002,11 +1032,11 @@ public class FlowContainer implements Container {
 				throw new IllegalStateException(prevFlow.box.toString());
 			}
 
-			// System.err.println("ACB H: leave=" + (nextFlowBox == null)
-			// + "/pass=" + (nextFlowBox == prevFlow.box) + "/i=" + i
+			// System.err.println("ACB H: leave=" + (outcome instanceof ProbeOutcome.Keep)
+			// + "/pass=" + (outcome instanceof ProbeOutcome.Move) + "/i=" + i
 			// + "/lastOrphan="+lastOrphan+ "/xflags="+xflags+"/" +
 			// this.box.getParams().element);
-			if (nextFlowBox == null) {
+			if (outcome instanceof ProbeOutcome.Keep) {
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {
 					// ページの末尾で残す場合は、全て残す
 					return plain(null);
@@ -1015,10 +1045,11 @@ public class FlowContainer implements Container {
 					// 改ページ禁止により牽引されていない
 					continue;
 				}
-				// 続くボックスで牽引する
-				nextFlowBox = prevFlow.box;
+				// 続くボックスで牽引する(KeepはここでMove扱いへ変わる——
+				// Probeが最終配置でない代表例)
+				outcome = ProbeOutcome.MOVE;
 			}
-			if (nextFlowBox == prevFlow.box) {
+			if (outcome instanceof ProbeOutcome.Move) {
 				// 分割不可能な場合
 				if ((lflags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 					// ボックスの先頭
@@ -1061,8 +1092,9 @@ public class FlowContainer implements Container {
 				nextBox = new FlowContainer();
 				nextBox.flows = new ArrayList<Flow>();
 			} else {
+				// Split: 変異済み先頭はthis側に残り、残余だけを送る
 				nextBox = new FlowContainer();
-				nextBox.addFlow(nextFlowBox, 0);
+				nextBox.addFlow(((ProbeOutcome.Split) outcome).remainder(), 0);
 				++i;
 			}
 			int remove = 0;
