@@ -24,7 +24,14 @@ public final class FlexBuilderLifecycle {
 	 */
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
-		if (params.flexDirection != FlexDirection.ROW || params.flexWrap != FlexWrap.NOWRAP) {
+		if (params.flexDirection != FlexDirection.ROW || params.flexWrap == FlexWrap.WRAP_REVERSE) {
+			return false;
+		}
+		if (params.flexWrap == FlexWrap.WRAP
+				&& (params.flow.isVertical() ? params.size.getWidthType() : params.size.getHeightType())
+						!= net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			// F2b: wrapはautoのcross sizeのみ(definite crossの余白分配=
+			// align-contentはF3dで解禁)
 			return false;
 		}
 		if (params.flow.isVertical()) {

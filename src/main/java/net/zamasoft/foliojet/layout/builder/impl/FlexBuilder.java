@@ -211,7 +211,17 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 					p.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE,
 					item.sizes.minContent(), item.sizes.maxContent(), containerInner)));
 		}
-		this.bindRow(target, FlexLengthResolver.resolve(metrics, containerInner, 0));
+		final java.util.List<net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line> lines;
+		if (this.flexBox.getFlexParams().flexWrap.isWrap()) {
+			// F2b: 行分割はouter hypothetical main size基準(§9.3 step 5)
+			lines = net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.breakLines(metrics, containerInner, 0);
+		} else if (this.items.isEmpty()) {
+			lines = java.util.List.of();
+		} else {
+			lines = java.util.List
+					.of(new net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line(0, this.items.size()));
+		}
+		this.bindLines(target, metrics, lines, containerInner);
 	}
 
 	/** Dimensionの線方向値(auto=NaN。%はコンテナ主軸内寸基準で解決)。 */
@@ -288,28 +298,39 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 	}
 
 	/**
-	 * 単一行rowの組み立てです(幅確定→bind→cross実測→配置→親カーソル
-	 * 同期——GridBuilder.bindと同じ骨格)。PageAtomicBox契約により
-	 * Flex flowがactiveな間に全bindが完了する。
+	 * 行群の組み立てです(行ごとに§9.7解決→幅確定→bind→cross実測→
+	 * 配置、行はcross方向へ積む——GridBuilder.bindと同じ骨格。F2bで
+	 * 複数行化)。PageAtomicBox契約によりFlex flowがactiveな間に全bindが
+	 * 完了する。
 	 */
-	private void bindRow(final BlockBuilder target, final double[] mainSizes) {
+	private void bindLines(final BlockBuilder target,
+			final java.util.List<FlexItemMetrics> metrics,
+			final java.util.List<net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line> lines,
+			final double containerInner) {
 		assert !this.bound : "Flexの二重bind";
 		this.bound = true;
 		final FlexParams params = this.flexBox.getFlexParams();
-		final int count = this.items.size();
-		double lineCursor = 0;
-		double maxExtent = 0;
-		for (int i = 0; i < count; ++i) {
-			final FlexItemContent item = this.items.get(i);
-			item.bind(target, mainSizes[i]);
-			FLEX_ITEM_BINDS.incrementAndGet();
-			// 自然位置は自margin込みのため、offsetは先行itemのouter合計
-			item.itemBox.setFlexLineOffset(lineCursor);
-			lineCursor += item.itemBox.getLineExtent(params.flow);
-			maxExtent = Math.max(maxExtent, item.itemBox.getPageExtent(params.flow));
-			this.flexBox.getContainer().addFlow(item.itemBox, 0);
+		double crossCursor = 0;
+		for (int li = 0; li < lines.size(); ++li) {
+			final net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line line = lines.get(li);
+			final double[] mainSizes = FlexLengthResolver.resolve(metrics.subList(line.from(), line.to()),
+					containerInner, 0);
+			double lineCursor = 0;
+			double lineExtent = 0;
+			for (int i = line.from(); i < line.to(); ++i) {
+				final FlexItemContent item = this.items.get(i);
+				item.bind(target, mainSizes[i - line.from()]);
+				FLEX_ITEM_BINDS.incrementAndGet();
+				// 自然位置は自margin込みのため、offsetは先行itemのouter合計
+				item.itemBox.setFlexLineOffset(lineCursor);
+				lineCursor += item.itemBox.getLineExtent(params.flow);
+				lineExtent = Math.max(lineExtent, item.itemBox.getPageExtent(params.flow));
+				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor);
+			}
+			// 行のcross size=行内itemのouter cross最大(§9.4のbaselineなし形)
+			crossCursor += lineExtent;
 		}
-		this.flexBox.setPageAxis(this.items.isEmpty() ? 0 : maxExtent);
+		this.flexBox.setPageAxis(crossCursor);
 		this.syncHostCursor(target, params);
 	}
 
