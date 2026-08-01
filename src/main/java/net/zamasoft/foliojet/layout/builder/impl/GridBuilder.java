@@ -158,6 +158,11 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 		// finish()のbind直前にsetTrackWidthで入る(G3b)
 		final GridItemBox itemBox = new GridItemBox(this.itemParams(), new FlowPos(), 0);
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
+		// census origin分離(2026-08-01): grid item由来のrecords bindを
+		// TOPLEVELから分ける(診断の健全化。records bind運用自体は
+		// 恒久的に正当な終着形——LegacyBindOrigin.GRID_ITEMのjavadoc参照)
+		builder.tagLegacyBindOrigin(
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.GRID_ITEM);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
 		this.openItemAnonymous = anonymous;

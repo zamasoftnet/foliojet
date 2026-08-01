@@ -368,7 +368,17 @@ public final class ContinuationStats {
 		/** Retained表のキャプション。 */
 		RETAINED_CAPTION,
 		/** ネストした実測ビルダー(shrink-to-fit内のfloat等)。 */
-		NESTED
+		NESTED,
+		/**
+		 * Gridアイテム(GridBuilderのTwoPass録画。2026-08-01に分離——
+		 * それまでTOPLEVELへ合算されcensusの診断を濁していた)。Gridは
+		 * 断片化なし限定でアイテムのrecordsは同一ページ内で完結する
+		 * 短命保持のため、records bind運用は**恒久的に正当な終着形**
+		 * (オーナー裁定2026-08-01。range化はしない——parityはG3d3で
+		 * byte一致証明済み、利益はcensus数字とピークメモリ僅少のみで
+		 * GridBuilder文脈へのrange replay配管のリスクに見合わない)。
+		 */
+		GRID_ITEM
 	}
 
 	private static final Map<LegacyBindOrigin, AtomicLong> LEGACY_RECORD_BINDS_BY_ORIGIN = new EnumMap<>(
