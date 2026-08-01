@@ -25,12 +25,15 @@ public final class FlexBuilderLifecycle {
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
 		if (!params.flexDirection.isRow()) {
-			// F4b: columnはnowrap+definite主軸(絶対長height)のみ。
-			// indefinite主軸のauto basisはitem実高が要る(F4cのprobe)
-			if (params.flexWrap != FlexWrap.NOWRAP) {
+			// F4b/F4d: columnはdefinite主軸(絶対長)のみ(内容依存basisは
+			// F4c裁定で恒久サブセット外——bindColumnのclassifierが弾く)。
+			// wrapはさらにcross(線方向)も絶対長のとき解禁(F4c答申の
+			// 適格条件——列幅の事前cross sizingが要るため)
+			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				return false;
 			}
-			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			if (params.flexWrap != FlexWrap.NOWRAP
+					&& params.size.getLineType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				return false;
 			}
 			return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
