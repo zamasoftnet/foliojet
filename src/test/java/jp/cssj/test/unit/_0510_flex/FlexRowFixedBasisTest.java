@@ -23,16 +23,10 @@ public class FlexRowFixedBasisTest extends AbstractTestCase {
 	protected void transcode() throws Exception {
 		final long recordsBefore = FlexBuilder.FLEX_ITEM_RECORDS.get();
 		final long bindsBefore = FlexBuilder.FLEX_ITEM_BINDS.get();
-		final long anonBefore = FlexBuilder.fallbacksByReason(FlexBuilder.FallbackReason.ANONYMOUS_ITEM);
-		final long basisBefore = FlexBuilder.fallbacksByReason(FlexBuilder.FallbackReason.INDEFINITE_BASIS);
 		File file = new File("files/unittest/0510-flex/row-fixed-basis.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 		assertEquals("record数=3", recordsBefore + 3, FlexBuilder.FLEX_ITEM_RECORDS.get());
 		assertEquals("bind数=3", bindsBefore + 3, FlexBuilder.FLEX_ITEM_BINDS.get());
-		assertEquals("匿名fallback非発火", anonBefore,
-				FlexBuilder.fallbacksByReason(FlexBuilder.FallbackReason.ANONYMOUS_ITEM));
-		assertEquals("basis fallback非発火", basisBefore,
-				FlexBuilder.fallbacksByReason(FlexBuilder.FallbackReason.INDEFINITE_BASIS));
 	}
 
 	public boolean check_p(IBox box, int pageNumber, double x, double y) {

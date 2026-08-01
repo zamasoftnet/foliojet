@@ -5,9 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.FlexBasisValue;
-import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.layout.box.impl.FlexBox;
 import net.zamasoft.foliojet.layout.box.impl.FlexItemBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
@@ -23,6 +20,9 @@ import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
+import net.zamasoft.foliojet.layout.sizing.FlexItemMetrics;
+import net.zamasoft.foliojet.layout.sizing.FlexItemMetricsResolver;
+import net.zamasoft.foliojet.layout.sizing.FlexLengthResolver;
 
 /**
  * Flexの構築coordinatorです(Flex F1d、2026-08-02——
@@ -32,13 +32,14 @@ import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
  * Flex終端で単一行rowへ配置する。
  *
  * <p>
- * F1dのサイズ決定はdefinite basis(絶対長さ・%)のみ:
- * 全element itemがdefinite basisならrow配置({@link #bind})、
- * 匿名itemやbasis auto/contentが混ざればコンテナ単位で
- * {@link #bindFallback}(単一列縮退)。item 1件だけの縮退は禁止
- * (行分割・free space・orderが全て変わる——答申の段階的fallback規則)。
- * §9.7(FlexLengthResolver)とauto/content basisの配線はF1e、
- * TwoPass宿主(RetainedFlex)はF1f。
+ * F1e: 各itemを{@code FlexItemMetricsResolver}(basis auto/content=
+ * TwoPass録画の内在サイズ、min-size:auto=§4.5)で数値化し、
+ * {@code FlexLengthResolver}(§9.7)でgrow/shrinkを解決してrow配置する。
+ * 匿名テキストitemもcontent由来で常に配置可能なため、F1dのコンテナ単位
+ * fallbackは撤去(将来の子で判る不適格が再び現れるF4cで、コンテナ単位
+ * bindFallback+理由別カウンタの形をこのクラスへ戻す——答申の段階的
+ * fallback規則。item 1件だけの縮退は禁止)。TwoPass宿主(RetainedFlex)は
+ * F1f。
  * </p>
  */
 public final class FlexBuilder {
@@ -51,21 +52,6 @@ public final class FlexBuilder {
 
 	/** 空の匿名itemを破棄した数。 */
 	public static final AtomicLong FLEX_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
-
-	/** コンテナ単位fallbackの理由(silent fallbackの禁止——答申Q1)。 */
-	public enum FallbackReason {
-		/** 匿名item(直接テキスト)が混ざった(basisを持てない)。 */
-		ANONYMOUS_ITEM,
-		/** basisがauto/content/未解決(F1eで解禁)。 */
-		INDEFINITE_BASIS;
-
-		final AtomicLong count = new AtomicLong();
-	}
-
-	/** 理由別fallback観測です。 */
-	public static long fallbacksByReason(final FallbackReason reason) {
-		return reason.count.get();
-	}
 
 	private final Builder host;
 
@@ -187,51 +173,52 @@ public final class FlexBuilder {
 	}
 
 	/**
-	 * Flex終端です。F1dは宿主がBlockBuilderのみ(適格判定)なので
-	 * 即時bind——row配置できる条件が揃わなければコンテナ単位fallback。
+	 * Flex終端です。宿主がBlockBuilderのみ(適格判定)なので即時bind。
+	 * F1e: 全itemをFlexItemMetricsResolverで数値化し、§9.7
+	 * (FlexLengthResolver)で主軸内寸を解決する。
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでFlex終端に到達";
 		final BlockBuilder target = (BlockBuilder) this.host;
-		final double[] mainSizes = new double[this.items.size()];
-		FallbackReason reason = null;
+		final double containerInner = this.flexBox.getLineSize();
+		final java.util.List<FlexItemMetrics> metrics = new ArrayList<>(this.items.size());
 		for (int i = 0; i < this.items.size(); ++i) {
 			final FlexItemContent item = this.items.get(i);
-			if (item.anonymous) {
-				reason = FallbackReason.ANONYMOUS_ITEM;
-				break;
-			}
-			final Double size = this.definiteBasis(item.spec.basis());
-			if (size == null) {
-				reason = FallbackReason.INDEFINITE_BASIS;
-				break;
-			}
-			mainSizes[i] = size;
+			final BlockParams p = item.itemBox.getBlockParams();
+			final RectFrame frame = p.frame;
+			final double mainFrame = insetsLine(frame.padding, containerInner)
+					+ frame.border.getLeft().width + frame.border.getRight().width;
+			metrics.add(FlexItemMetricsResolver.resolve(new FlexItemMetricsResolver.Input(i,
+					item.spec.grow(), item.spec.shrink(), item.spec.basis(),
+					lineValue(p.size, containerInner),
+					item.spec.minWidthAuto() ? Double.NaN
+							: Math.max(0, zeroIfNaN(lineValue(p.minSize, containerInner))),
+					maxLineValue(p.maxSize, containerInner), mainFrame,
+					insetsLine(frame.margin, containerInner),
+					p.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX,
+					p.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE,
+					item.sizes.minContent(), item.sizes.maxContent(), containerInner)));
 		}
-		if (reason != null) {
-			reason.count.incrementAndGet();
-			this.bindFallback(target);
-		} else {
-			this.bind(target, mainSizes);
-		}
+		this.bind(target, FlexLengthResolver.resolve(metrics, containerInner, 0));
 	}
 
-	/**
-	 * definite basisの内寸解決(F1d: 絶対長さ・コンテナ主軸内寸に対する%。
-	 * box-sizingの正規化とwidth由来basisはF1eでFlexItemMetricsResolverへ
-	 * 一本化する)。解決不能はnull。
-	 */
-	private Double definiteBasis(final FlexBasisValue basis) {
-		if (basis.isAuto() || basis.isContent()) {
-			return null;
+	/** Dimensionの線方向値(auto=NaN。%はコンテナ主軸内寸基準で解決)。 */
+	private static double lineValue(final Dimension size, final double base) {
+		// F1は横書きのみ(eligible)——線方向=width
+		if (size.getWidthType() == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			return Double.NaN;
 		}
-		if (basis.getSize() instanceof AbsoluteLengthValue length) {
-			return Math.max(0, length.getLength());
-		}
-		if (basis.getSize() instanceof PercentageValue percent) {
-			return Math.max(0, this.flexBox.getLineSize() * percent.getRatio());
-		}
-		return null;
+		return size.getWidth() + size.getWidthRatio() * base;
+	}
+
+	private static double zeroIfNaN(final double value) {
+		return Double.isNaN(value) ? 0 : value;
+	}
+
+	/** max-widthの線方向値(なし=+∞)。 */
+	private static double maxLineValue(final Dimension size, final double base) {
+		final double value = lineValue(size, base);
+		return Double.isNaN(value) ? Double.POSITIVE_INFINITY : Math.max(0, value);
 	}
 
 	/** bindは一度きり。 */
@@ -263,36 +250,6 @@ public final class FlexBuilder {
 		this.syncHostCursor(target, params);
 	}
 
-	/**
-	 * 単一列縮退です(F0相当の見た目へ寄せる: itemはコンテナ内寸いっぱいの
-	 * ブロックとして縦積み)。マージン相殺は行わない——F0のプレーンflowとの
-	 * 既知の差(fixtureはmargin 0で固定)。
-	 */
-	private void bindFallback(final BlockBuilder target) {
-		assert !this.bound : "Flexの二重bind";
-		this.bound = true;
-		final FlexParams params = this.flexBox.getFlexParams();
-		double pageCursor = 0;
-		for (final FlexItemContent item : this.items) {
-			// 中立itemは内寸いっぱい(NULL_FRAME)。takeover itemは枠ぶんを
-			// 引いたcontent-box幅(通常flowのauto幅相当。auto marginは0)
-			item.bind(target, this.fallbackContentWidth(item));
-			FLEX_ITEM_BINDS.incrementAndGet();
-			this.flexBox.getContainer().addFlow(item.itemBox, pageCursor);
-			pageCursor += item.itemBox.getPageExtent(params.flow);
-		}
-		this.flexBox.setPageAxis(pageCursor);
-		this.syncHostCursor(target, params);
-	}
-
-	/** fallback時のitem content-box幅(コンテナ内寸−margin/border/padding線和)。 */
-	private double fallbackContentWidth(final FlexItemContent item) {
-		final RectFrame frame = item.itemBox.getBlockParams().frame;
-		final double base = this.flexBox.getLineSize();
-		final double line = insetsLine(frame.margin, base) + insetsLine(frame.padding, base)
-				+ frame.border.getLeft().width + frame.border.getRight().width;
-		return Math.max(0, base - line);
-	}
 
 	/** 線方向のInsets合計(絶対部+比率×基準。autoは0)。 */
 	private static double insetsLine(final net.zamasoft.foliojet.layout.box.params.Insets insets,
