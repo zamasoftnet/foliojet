@@ -993,6 +993,7 @@ public class TextBuilder {
 				this.locateLine();
 				this.firstUnit = false;
 			}
+			// 折返し予測(式の定義はGlyphMeasureStep。加算順は従来を保存)
 			double lineAxis = this.unitAdvance + this.letterSpacing + autospaceGap - punctuationTrim;
 			if (this.text == null) {
 				lineAxis += this.fontMetrics.getAdvance(gid);
@@ -1017,10 +1018,14 @@ public class TextBuilder {
 			this.textBuffer.add(this.text);
 		}
 
-		final double advance = this.text.appendGlyph(ch, coff, clen, gid) + this.letterSpacing;
+		// CSS幅式の唯一の定義(GlyphMeasureStep)を通す。行会計への加算は
+		// 従来どおりbaseAndSpacing→adjustmentの2段(浮動小数点順を保存)
+		final net.zamasoft.foliojet.layout.text.GlyphMeasureStep step = new net.zamasoft.foliojet.layout.text.GlyphMeasureStep(
+				this.text.appendGlyph(ch, coff, clen, gid), this.letterSpacing, autospaceGap, punctuationTrim);
+		final double advance = step.baseAndSpacing();
 		this.unitAdvance += advance;
 		this.lineAxis += advance;
-		final double adjustment = autospaceGap - punctuationTrim;
+		final double adjustment = step.adjustment();
 		if (adjustment != 0) {
 			// 現在glyphのxadvance(=そのglyphの手前のアキ——CIDKeyedFont/
 			// ルビdistributeと同じ規約)へ焼き込み+行会計へ加算(A2/T1a)

@@ -74,8 +74,7 @@ public class MyURIResolver extends URIResolver {
 				throw new MalformedURLException(purlStr);
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// 呼び出し側(BatikのURIResolver経路)がログ・代替処理を行う
 			throw e;
 		}
 	}

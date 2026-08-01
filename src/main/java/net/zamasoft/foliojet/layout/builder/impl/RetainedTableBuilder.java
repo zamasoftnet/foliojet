@@ -857,7 +857,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 			break;
 		default:
-			new IllegalStateException();
+			// 2026-08-01: throw漏れを修正(例外を生成して捨てていた)。
+			// FLOW/INLINE/FLOAT/ABSOLUTE以外の配置で表が来るのは論理エラー
+			throw new IllegalStateException(String.valueOf(blockBox.getPos().getType()));
 		}
 
 		final int columnCount = this.columnWidths.mins().length;

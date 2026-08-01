@@ -355,7 +355,11 @@ final class TotalFitSession {
 		// 同じく分割点の復元はモデル化しない)
 		final double trim = this.spacing.trimBefore(cluster, 0, gid, this.mirrorText, this.fontMetrics,
 				this.fontStyle.getSize());
-		final double advance = this.mirrorText.appendGlyph(cluster, 0, clen, gid) + this.letterSpacing - trim;
+		// TextBuilder.glyph()と同じCSS幅式(GlyphMeasureStep)で候補幅を出す
+		// ——式の分岐drift(幅会計3系統)をここで封じる。gap≠0は上でK-P
+		// 対象外へ離脱済みのためgap=0
+		final double advance = new net.zamasoft.foliojet.layout.text.GlyphMeasureStep(
+				this.mirrorText.appendGlyph(cluster, 0, clen, gid), this.letterSpacing, 0, trim).totalAdvance();
 		this.pendingBoxWidth += advance;
 		this.spacing.glyphAdded(this.mirrorText, this.fontStyle.getSize(), cluster, 0, clen, gid);
 		this.events.add(new Recorded.Glyph(charOffset, cluster, clen, gid));

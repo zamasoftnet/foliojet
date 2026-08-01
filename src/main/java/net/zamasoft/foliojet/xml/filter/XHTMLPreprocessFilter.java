@@ -20,6 +20,9 @@ import org.xml.sax.helpers.AttributesImpl;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
+	private static final java.util.logging.Logger LOG = java.util.logging.Logger
+			.getLogger(XHTMLPreprocessFilter.class.getName());
+
 	/** ドキュメントのデフォルトのスタイル付け方式。 */
 	private String defaultStyleType = Constants.CSS_MIME_TYPE;
 
@@ -231,8 +234,9 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 								this.ua.setProperty(UAProps.OUTPUT_PAGE_WIDTH.name, width + "px");
 								this.ua.setProperty(UAProps.OUTPUT_PAGE_HEIGHT.name, height + "px");
 							} catch (Exception e) {
-								e.printStackTrace();
-								// ignore
+								// 不正なviewport指定は無視して既定のページ寸法で続行
+								LOG.log(java.util.logging.Level.WARNING, "Ignoring malformed viewport PI: " + content,
+										e);
 							}
 						} else if (this.useMetaInfo) {
 							// 文書情報
