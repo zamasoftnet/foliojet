@@ -201,6 +201,88 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.forceBreak(new ForceBreakMode(this.getFlowBox(), PageBreakMode.PAGE, true));
 	}
 
+	/**
+	 * page-break-beforeの裁定です(2026-08-01、{@code startFlowBlock}と
+	 * {@code addBound}に逐語重複していたswitchの一本化)。強制改ページ
+	 * すべきモードを返す。AVOIDの副作用({@code interflowBreak}解除、
+	 * {@code startFlowBlock}側のみ)は呼び出し側に残す。
+	 *
+	 * @return {@code forceBreak}すべきモード、改ページ不要なら{@code null}
+	 */
+	private PageBreakMode resolveForcedBreakBefore(final PageBreakMode pageBreakBefore) {
+		switch (pageBreakBefore) {
+		case PageBreakMode.PAGE:
+		case PageBreakMode.COLUMN:
+			if (this.canBreakBefore) {
+				return pageBreakBefore;
+			}
+			return null;
+		case PageBreakMode.VERSO:
+		case PageBreakMode.RECTO:
+			if (!this.isRestyling() && (this.canBreakBefore || pageBreakBefore != this.pageSide)) {
+				return pageBreakBefore;
+			}
+			return null;
+		case PageBreakMode.IF_VERSO:
+			if (!this.isRestyling() && this.pageSide == PageBreakMode.VERSO) {
+				return PageBreakMode.RECTO;
+			}
+			return null;
+		case PageBreakMode.IF_RECTO:
+			if (!this.isRestyling() && this.pageSide == PageBreakMode.RECTO) {
+				return PageBreakMode.VERSO;
+			}
+			return null;
+		case PageBreakMode.AUTO:
+		case PageBreakMode.AVOID:
+			return null;
+		default:
+			throw new IllegalStateException(String.valueOf(pageBreakBefore));
+		}
+	}
+
+	/**
+	 * page-break-afterの裁定です(2026-08-01、{@code addBound}と
+	 * {@code endFlowBlock}で食い違っていたswitchの一本化)。PAGE/COLUMNと
+	 * 同面のVERSO/RECTOは次の境界まで遅延({@code breakAfter})、反対面の
+	 * VERSO/RECTOとIF_*は即時改ページ。従来{@code addBound}側は
+	 * IF_VERSO/IF_RECTOのcaseを持たず、正規のCSS値(浮動体の
+	 * {@code page-break-after: if-recto}等)でIllegalStateExceptionに
+	 * 落ちていた——{@code endFlowBlock}側の裁定へ統一して解消。
+	 * AVOIDの副作用({@code interflowBreak}解除)は呼び出し側に残す。
+	 */
+	private void applyBreakAfter(final PageBreakMode pageBreakAfter) {
+		switch (pageBreakAfter) {
+		case PageBreakMode.PAGE:
+		case PageBreakMode.COLUMN:
+			this.breakAfter = pageBreakAfter;
+			break;
+		case PageBreakMode.VERSO:
+		case PageBreakMode.RECTO:
+			if (pageBreakAfter != this.pageSide) {
+				this.forceBreak(pageBreakAfter);
+				break;
+			}
+			this.breakAfter = pageBreakAfter;
+			break;
+		case PageBreakMode.IF_VERSO:
+			if (this.pageSide == PageBreakMode.VERSO) {
+				this.forceBreak(PageBreakMode.RECTO);
+			}
+			break;
+		case PageBreakMode.IF_RECTO:
+			if (this.pageSide == PageBreakMode.RECTO) {
+				this.forceBreak(PageBreakMode.VERSO);
+			}
+			break;
+		case PageBreakMode.AUTO:
+		case PageBreakMode.AVOID:
+			break;
+		default:
+			throw new IllegalStateException(String.valueOf(pageBreakAfter));
+		}
+	}
+
 	private boolean resolveNamedPageTransition(final net.zamasoft.foliojet.layout.box.IBox box) {
 		if (!this.supportsNamedPages() || this.isRestyling() || box.getParams().element == null
 				|| !(box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos pos)) {
@@ -244,36 +326,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					// 前のpage-break-afterによる改ページ
 					this.forceBreak(this.breakAfter);
 				}
-				switch (pos.pageBreakBefore) {
-				case PageBreakMode.PAGE:
-				case PageBreakMode.COLUMN:
-					if (this.canBreakBefore) {
-						this.forceBreak(pos.pageBreakBefore);
-					}
-					break;
-				case PageBreakMode.VERSO:
-				case PageBreakMode.RECTO:
-					if (!this.isRestyling() && (this.canBreakBefore || pos.pageBreakBefore != this.pageSide)) {
-						this.forceBreak(pos.pageBreakBefore);
-					}
-					break;
-				case PageBreakMode.IF_VERSO:
-					if (!this.isRestyling() && this.pageSide == PageBreakMode.VERSO) {
-						this.forceBreak(PageBreakMode.RECTO);
-					}
-					break;
-				case PageBreakMode.IF_RECTO:
-					if (!this.isRestyling() && this.pageSide == PageBreakMode.RECTO) {
-						this.forceBreak(PageBreakMode.VERSO);
-					}
-					break;
-				case PageBreakMode.AVOID:
+				final PageBreakMode forced = this.resolveForcedBreakBefore(pos.pageBreakBefore);
+				if (forced != null) {
+					this.forceBreak(forced);
+				} else if (pos.pageBreakBefore == PageBreakMode.AVOID) {
 					this.interflowBreak = false;
-					break;
-				case PageBreakMode.AUTO:
-					break;
-				default:
-					throw new IllegalStateException();
 				}
 				if (namedTransition) {
 					// 明示改ページが無ければ遷移自身が1回送る(forceBreak後は
@@ -423,34 +480,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 前のpage-break-afterによる改ページ
 				this.forceBreak(this.breakAfter);
 			}
-			switch (pageBreakBefore) {
-			case PageBreakMode.PAGE:
-			case PageBreakMode.COLUMN:
-				if (this.canBreakBefore) {
-					this.forceBreak(pageBreakBefore);
-				}
-				break;
-			case PageBreakMode.VERSO:
-			case PageBreakMode.RECTO:
-				if (!this.isRestyling() && (this.canBreakBefore || pageBreakBefore != this.pageSide)) {
-					this.forceBreak(pageBreakBefore);
-				}
-				break;
-			case PageBreakMode.IF_VERSO:
-				if (!this.isRestyling() && this.pageSide == PageBreakMode.VERSO) {
-					this.forceBreak(PageBreakMode.RECTO);
-				}
-				break;
-			case PageBreakMode.IF_RECTO:
-				if (!this.isRestyling() && this.pageSide == PageBreakMode.RECTO) {
-					this.forceBreak(PageBreakMode.VERSO);
-				}
-				break;
-			case PageBreakMode.AUTO:
-			case PageBreakMode.AVOID:
-				break;
-			default:
-				throw new IllegalStateException(String.valueOf(pageBreakBefore));
+			final PageBreakMode forced = this.resolveForcedBreakBefore(pageBreakBefore);
+			if (forced != null) {
+				this.forceBreak(forced);
 			}
 			if (namedTransition) {
 				this.namedTransitionBreak();
@@ -551,27 +583,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		// 直後での強制改ページチェック
 		if (this.mode == MODE_PAGE_BREAK) {
-			switch (pageBreakAfter) {
-			case PageBreakMode.PAGE:
-			case PageBreakMode.COLUMN:
-				this.breakAfter = pageBreakAfter;
-				break;
-			case PageBreakMode.VERSO:
-			case PageBreakMode.RECTO:
-				if (pageBreakAfter != this.pageSide) {
-					this.forceBreak(pageBreakAfter);
-					break;
-				}
-				this.breakAfter = pageBreakAfter;
-				break;
-			case PageBreakMode.AVOID:
+			if (pageBreakAfter == PageBreakMode.AVOID) {
 				this.interflowBreak = false;
-				break;
-			case PageBreakMode.AUTO:
-				break;
-			default:
-				throw new IllegalStateException();
 			}
+			this.applyBreakAfter(pageBreakAfter);
 		}
 	}
 
@@ -820,30 +835,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				}
 			}
 
-			// 直後での強制改ページチェック
+			// 直後での強制改ページチェック(AVOIDのinterflowBreak解除は上で
+			// 済んでいる)
 			if (this.mode == MODE_PAGE_BREAK) {
-				switch (pos.pageBreakAfter) {
-				case PageBreakMode.IF_VERSO:
-					if (this.pageSide == PageBreakMode.VERSO) {
-						this.forceBreak(PageBreakMode.RECTO);
-					}
-					break;
-				case PageBreakMode.IF_RECTO:
-					if (this.pageSide == PageBreakMode.RECTO) {
-						this.forceBreak(PageBreakMode.VERSO);
-					}
-					break;
-				case PageBreakMode.VERSO:
-				case PageBreakMode.RECTO:
-					if (pos.pageBreakAfter != this.pageSide) {
-						this.forceBreak(pos.pageBreakAfter);
-						break;
-					}
-				case PageBreakMode.PAGE:
-				case PageBreakMode.COLUMN:
-					this.breakAfter = pos.pageBreakAfter;
-					break;
-				}
+				this.applyBreakAfter(pos.pageBreakAfter);
 			}
 		}
 	}
