@@ -115,6 +115,9 @@ public sealed interface BoxRecipe {
 		// GridBoxはGridParams/FlowPosを使う(Grid G0c)
 		case GRID -> new Grid(GridParamsTemplate.freeze((net.zamasoft.foliojet.layout.box.params.GridParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
+		// FlexBoxはFlexParams/FlowPosを使う(Flex F0c)
+		case FLEX -> new Flex(FlexParamsTemplate.freeze((net.zamasoft.foliojet.layout.box.params.FlexParams) params),
+				FlowPosTemplate.freeze((FlowPos) pos));
 		// 表キャプションはFlowBlockBox+TableCaptionPos(caption recipe化C1)
 		case CAPTION -> new Caption(BlockParamsTemplate.freeze((BlockParams) params),
 				TableCaptionPosTemplate.freeze((net.zamasoft.foliojet.layout.box.params.TableCaptionPos) pos));
@@ -249,6 +252,19 @@ public sealed interface BoxRecipe {
 		@Override
 		public BoxKind kind() {
 			return BoxKind.GRID;
+		}
+
+		@Override
+		public WritingMode flowOrNull() {
+			return this.params.flow();
+		}
+	}
+
+	/** Flexコンテナ(Flex F0c、2026-08-02)。 */
+	record Flex(FlexParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
+		@Override
+		public BoxKind kind() {
+			return BoxKind.FLEX;
 		}
 
 		@Override

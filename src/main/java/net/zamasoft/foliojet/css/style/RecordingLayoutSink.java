@@ -213,6 +213,13 @@ final class RecordingLayoutSink {
 			}
 			return null;
 		}
+		if (type == net.zamasoft.foliojet.layout.box.impl.FlexBox.class) {
+			// Flex F0c: Gridと同じくexact class+素のFlowPosのみ
+			if (box.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class) {
+				return LayoutSource.BoxKind.FLEX;
+			}
+			return null;
+		}
 		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBox.class) {
 			return LayoutSource.BoxKind.INLINE;
 		}

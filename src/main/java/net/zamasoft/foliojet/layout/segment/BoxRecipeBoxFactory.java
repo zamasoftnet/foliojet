@@ -75,6 +75,9 @@ public final class BoxRecipeBoxFactory {
 	/** 再生で{@code GridBox}を再構築した回数です(Grid G0c——G7の観測点)。 */
 	public static final java.util.concurrent.atomic.AtomicLong GRID_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
+	/** 再生で{@code FlexBox}を再構築した回数です(Flex F0c——非空振り観測点)。 */
+	public static final java.util.concurrent.atomic.AtomicLong FLEX_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
+
 	/** {@code recipe}のテンプレートをmaterializeし、対応する新品の{@code IBox}を返す。 */
 	public static INonReplacedBox create(final BoxRecipe recipe) {
 		return switch (recipe) {
@@ -105,6 +108,7 @@ public final class BoxRecipeBoxFactory {
 		case BoxRecipe.Absolute r ->
 			create(LayoutSource.BoxKind.ABSOLUTE, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.Grid r -> create(LayoutSource.BoxKind.GRID, r.params().materialize(), r.pos().materialize());
+		case BoxRecipe.Flex r -> create(LayoutSource.BoxKind.FLEX, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.Caption r ->
 			create(LayoutSource.BoxKind.CAPTION, r.params().materialize(), r.pos().materialize());
 		};
@@ -149,6 +153,12 @@ public final class BoxRecipeBoxFactory {
 			GRID_REPLAYS.incrementAndGet();
 			yield new net.zamasoft.foliojet.layout.box.impl.GridBox(
 					(net.zamasoft.foliojet.layout.box.params.GridParams) params, (FlowPos) pos);
+		}
+		// Flex F0c: GRIDと同型の再構築+非空振り観測
+		case FLEX -> {
+			FLEX_REPLAYS.incrementAndGet();
+			yield new net.zamasoft.foliojet.layout.box.impl.FlexBox(
+					(net.zamasoft.foliojet.layout.box.params.FlexParams) params, (FlowPos) pos);
 		}
 		// caption recipe化C1: 再生消費者の非空振り証明用(C4で>0になる)
 		case CAPTION -> {

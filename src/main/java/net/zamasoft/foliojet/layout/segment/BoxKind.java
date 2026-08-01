@@ -34,5 +34,11 @@ public enum BoxKind {
 	 * なれない(C2のcontext-completeゲートが正本)。末尾追加は既存
 	 * ordinal維持のため。
 	 */
-	CAPTION;
+	CAPTION,
+	/**
+	 * Flexコンテナ(Flex F0c、2026-08-02——
+	 * consult-codex-2026-08-02-flexbox.txt。LayoutSource.BoxKindと並びを
+	 * 揃える。末尾追加は既存ordinal維持のため)。
+	 */
+	FLEX;
 }

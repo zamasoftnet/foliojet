@@ -123,6 +123,12 @@ public final class MeasuredIntrinsics {
 			// TwoPass計測が入る(G3)まで模倣計測へフォールバック
 			return null;
 		}
+		if (log.containsFlex(selfId + 1, endId - 1)) {
+			// Flex F0c(2026-08-02): F0時点では再生も単一列縮退で挙動同一
+			// だが、F1dでscratch再生側だけFlexBuilderが活性化する——
+			// Grid G1dと同じ食い違いを先回りでfail closedに塞ぐ
+			return null;
+		}
 		if (log.containsFloat(selfId + 1, endId - 1)) {
 			// フロートを含む内容は模倣計測へ: max-content では並置フロートの
 			// 幅は累積するが、無限幅 scratch の事後読み取りは各フロートの

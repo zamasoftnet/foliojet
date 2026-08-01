@@ -287,12 +287,13 @@ public class LayoutSourceTest extends TestCase {
 	public void testRangeSummaryMatchesLinearScan() {
 		final java.util.Random random = new java.util.Random(20260801L);
 		final LayoutSource log = new LayoutSource();
-		final int kinds = 8;
+		final int kinds = 9;
 		final java.util.List<long[]> truth = new java.util.ArrayList<>(); // {id, kindOrdinal}
-		final int OPAQUE = 0, CAPTION = 1, TABLE = 2, MULTICOL = 3, GRID = 4, ABSOLUTE = 5, FLOATB = 6, VFLOW = 7;
+		final int OPAQUE = 0, CAPTION = 1, TABLE = 2, MULTICOL = 3, GRID = 4, ABSOLUTE = 5, FLOATB = 6, VFLOW = 7,
+				FLEX = 8;
 		final java.util.ArrayDeque<Long> open = new java.util.ArrayDeque<>();
 		for (int i = 0; i < 400; ++i) {
-			final int roll = random.nextInt(12);
+			final int roll = random.nextInt(13);
 			final long id;
 			switch (roll) {
 			case 0 -> {
@@ -335,6 +336,11 @@ public class LayoutSourceTest extends TestCase {
 				truth.add(new long[] { id, VFLOW });
 				open.push(id);
 			}
+			case 12 -> {
+				id = log.append(flex());
+				truth.add(new long[] { id, FLEX });
+				open.push(id);
+			}
 			case 8, 9 -> {
 				id = log.append(start()); // 横flowのFLOW
 				open.push(id);
@@ -361,12 +367,13 @@ public class LayoutSourceTest extends TestCase {
 
 	private static void verifyAgainstTruth(final LayoutSource log, final java.util.List<long[]> truth,
 			final long minFrom, final long maxId, final java.util.Random random) {
-		final int OPAQUE = 0, CAPTION = 1, TABLE = 2, MULTICOL = 3, GRID = 4, ABSOLUTE = 5, FLOATB = 6, VFLOW = 7;
+		final int OPAQUE = 0, CAPTION = 1, TABLE = 2, MULTICOL = 3, GRID = 4, ABSOLUTE = 5, FLOATB = 6, VFLOW = 7,
+				FLEX = 8;
 		final net.zamasoft.foliojet.layout.box.params.WritingMode horizontal = net.zamasoft.foliojet.layout.box.params.WritingMode.TB;
 		for (int q = 0; q < 500; ++q) {
 			final long from = minFrom + (long) (random.nextDouble() * (maxId - minFrom + 1));
 			final long to = from + (long) (random.nextDouble() * (maxId - from + 1));
-			final boolean[] expect = new boolean[8];
+			final boolean[] expect = new boolean[9];
 			for (final long[] t : truth) {
 				if (t[0] >= from && t[0] <= to) {
 					expect[(int) t[1]] = true;
@@ -378,6 +385,7 @@ public class LayoutSourceTest extends TestCase {
 			assertEquals("table" + at, expect[TABLE], log.containsTable(from, to));
 			assertEquals("multicol" + at, expect[MULTICOL], log.containsMulticol(from, to));
 			assertEquals("grid" + at, expect[GRID], log.containsGrid(from, to));
+			assertEquals("flex" + at, expect[FLEX], log.containsFlex(from, to));
 			assertEquals("absolute" + at, expect[ABSOLUTE], log.containsAbsolute(from, to));
 			assertEquals("float" + at, expect[FLOATB], log.containsFloat(from, to));
 			// 横rootに対するmixedFlow=縦flow開始の存在
@@ -413,6 +421,14 @@ public class LayoutSourceTest extends TestCase {
 		return new LayoutSource.Start(new net.zamasoft.foliojet.layout.segment.BoxRecipe.Grid(
 				net.zamasoft.foliojet.layout.segment.GridParamsTemplate
 						.freeze(new net.zamasoft.foliojet.layout.box.params.GridParams()),
+				net.zamasoft.foliojet.layout.segment.FlowPosTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.FlowPos())));
+	}
+
+	private static LayoutSource.Event flex() {
+		return new LayoutSource.Start(new net.zamasoft.foliojet.layout.segment.BoxRecipe.Flex(
+				net.zamasoft.foliojet.layout.segment.FlexParamsTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.FlexParams()),
 				net.zamasoft.foliojet.layout.segment.FlowPosTemplate
 						.freeze(new net.zamasoft.foliojet.layout.box.params.FlowPos())));
 	}

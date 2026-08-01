@@ -114,7 +114,13 @@ public final class LayoutSource implements AutoCloseable {
 		 * 必要で、範囲の根にはなれない(C1ではcontainsCaptionの一律
 		 * ゲートで再生対象外、C2でcontext-complete検証へ置換予定)。
 		 */
-		CAPTION;
+		CAPTION,
+		/**
+		 * Flexコンテナ(FlexBox。Flex F0c、2026-08-02——
+		 * consult-codex-2026-08-02-flexbox.txt。末尾追加は既存ordinal
+		 * 維持のため)。
+		 */
+		FLEX;
 	}
 
 	/**
@@ -463,6 +469,7 @@ public final class LayoutSource implements AutoCloseable {
 	private final SparseIndex tableIds = new SparseIndex();
 	private final SparseIndex multicolIds = new SparseIndex();
 	private final SparseIndex gridIds = new SparseIndex();
+	private final SparseIndex flexIds = new SparseIndex();
 	private final SparseIndex absoluteIds = new SparseIndex();
 	private final SparseIndex floatIds = new SparseIndex();
 	private final SparseIndex verticalFlowIds = new SparseIndex();
@@ -478,6 +485,7 @@ public final class LayoutSource implements AutoCloseable {
 			case BoxRecipe.Table t -> this.tableIds.add(id);
 			case BoxRecipe.Multicol m -> this.multicolIds.add(id);
 			case BoxRecipe.Grid g -> this.gridIds.add(id);
+			case BoxRecipe.Flex f -> this.flexIds.add(id);
 			case BoxRecipe.Absolute a -> this.absoluteIds.add(id);
 			case BoxRecipe.FloatBlock f -> this.floatIds.add(id);
 			default -> {
@@ -775,7 +783,9 @@ public final class LayoutSource implements AutoCloseable {
 		// CAPTION: 表キャプションも段落を終わらせるブロック級(caption
 		// recipe化C4——depth 0のCAPTION Startを尾部が含むと、キャプション
 		// 全体がtext-tail範囲へ紛れ込む。表と同じく早期停止で手前で切る)
-		case FLOW, MULTICOL, TABLE, GRID, CAPTION -> true;
+		// FLEX: Flexコンテナも段落を終わらせるブロック級(Flex F0c。
+		// GRIDと同じ扱い)
+		case FLOW, MULTICOL, TABLE, GRID, CAPTION, FLEX -> true;
 		default -> false;
 		};
 	}
@@ -950,6 +960,21 @@ public final class LayoutSource implements AutoCloseable {
 			return true;
 		}
 		return this.gridIds.anyInRange(fromId, toId);
+	}
+
+	/**
+	 * [fromId, toId] の範囲に Flex の Start が含まれていれば true を
+	 * 返します(Flex F0c、2026-08-02)。F0時点ではFlexBuilderが存在せず
+	 * 再生は挙動同一だが、F1d以降scratch再生でFlexBuilderが活性化する
+	 * 一方TwoPass本経路は縮退のまま——Grid G1dと同じ機序を先回りで
+	 * fail closedに塞ぐ。
+	 */
+	public boolean containsFlex(final long fromId, final long toId) {
+		// fromId不在時のfail closed(true)はcontainsGridと同じ
+		if (this.indexOf(fromId) < 0) {
+			return true;
+		}
+		return this.flexIds.anyInRange(fromId, toId);
 	}
 
 

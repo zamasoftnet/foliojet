@@ -195,6 +195,26 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox);
 	}
 
+	/** BoxKind.FLEXはFlexBoxへ再構築される(Flex F0c)。 */
+	public void testFlexRecipeCreatesFlexBox() {
+		final net.zamasoft.foliojet.layout.box.params.FlexParams params = new net.zamasoft.foliojet.layout.box.params.FlexParams();
+		copyBlockParams(blockParams(), params);
+		params.orphans = 7;
+		final BoxRecipe recipe = new BoxRecipe.Flex(FlexParamsTemplate.freeze(params),
+				FlowPosTemplate.freeze(new FlowPos()));
+		final long before = BoxRecipeBoxFactory.FLEX_REPLAYS.get();
+		final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox);
+		assertEquals(7, ((BlockParams) box.getParams()).orphans);
+		assertEquals(before + 1, BoxRecipeBoxFactory.FLEX_REPLAYS.get());
+		// PageAtomicBoxの印(F0bのatomic移動)も再構築で保たれる
+		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox);
+		// materializeは呼び出しごとに独立した新品を返す
+		final INonReplacedBox box2 = BoxRecipeBoxFactory.create(recipe);
+		assertTrue(box.getParams() != box2.getParams());
+		assertTrue(box.getPos() != box2.getPos());
+	}
+
 	private static void copyBlockParams(final BlockParams source, final BlockParams target) {
 		final BlockParamsTemplate t = BlockParamsTemplate.freeze(source);
 		final BlockParams m = t.materialize();
