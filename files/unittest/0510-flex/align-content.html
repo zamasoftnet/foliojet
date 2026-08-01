@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F3d: align-content over definite cross</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.f { display: flex; flex-wrap: wrap; width: 100pt; height: 100pt; align-items: flex-start; }
+.i { flex: 0 0 40pt; height: 20pt; }
+.m { height: 10pt; }
+</style>
+</head>
+<body>
+<div class="m" id="m1">-</div>
+<div class="f" style="align-content: center">
+<div class="i" id="p">p</div><div class="i">q</div><div class="i" id="r">r</div><div class="i">s</div>
+</div>
+<div class="m" id="m2">-</div>
+<div class="f" style="align-content: space-between">
+<div class="i" id="t">t</div><div class="i">u</div><div class="i" id="v">v</div><div class="i">w</div>
+</div>
+<div class="m" id="m3">-</div>
+<div style="display: flex; width: 100pt; height: 60pt">
+<div id="card2" style="flex: 0 0 40pt; background: #efe">c</div>
+</div>
+</body>
+</html>

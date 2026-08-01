@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F3e: auto margins</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.f { display: flex; width: 200pt; align-items: flex-start; }
+.i { flex: 0 0 40pt; height: 20pt; }
+</style>
+</head>
+<body>
+<div class="f" style="justify-content: center"><div class="i" id="a1">a</div>
+<div class="i" id="a2" style="margin-left: auto">b</div></div>
+<div class="f"><div class="i t" id="tallm" style="height: 40pt">T</div>
+<div class="i" id="cm" style="margin-top: auto; margin-bottom: auto">m</div>
+<div class="i" id="em" style="margin-top: auto">e</div></div>
+</body>
+</html>

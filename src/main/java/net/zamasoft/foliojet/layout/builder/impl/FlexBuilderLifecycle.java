@@ -27,11 +27,14 @@ public final class FlexBuilderLifecycle {
 		if (params.flexDirection != FlexDirection.ROW || params.flexWrap == FlexWrap.WRAP_REVERSE) {
 			return false;
 		}
+		final net.zamasoft.foliojet.layout.box.params.LengthType crossType = params.flow.isVertical()
+				? params.size.getWidthType()
+				: params.size.getHeightType();
 		if (params.flexWrap == FlexWrap.WRAP
-				&& (params.flow.isVertical() ? params.size.getWidthType() : params.size.getHeightType())
-						!= net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
-			// F2b: wrapはautoのcross sizeのみ(definite crossの余白分配=
-			// align-contentはF3dで解禁)
+				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			// F3d: wrapのdefinite crossは絶対長のみ解禁(%crossは
+			// サブセット外のまま)
 			return false;
 		}
 		if (params.flow.isVertical()) {
