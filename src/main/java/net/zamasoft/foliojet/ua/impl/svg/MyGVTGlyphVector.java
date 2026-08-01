@@ -138,7 +138,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		int glen = text.getGlyphCount();
 		int[] gids = text.getGlyphIds();
 		double letterSpacing = text.getLetterSpacing();
-		double[] xadvances = text.getXAdvances(false);
+		final net.zamasoft.pdfg2d.gc.text.GlyphAdvances xadvances = text.xAdvances();
 		FontMetrics fm = text.getFontMetrics();
 		AffineTransform at;
 		{
@@ -171,7 +171,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 					double dy = fm.getAdvance(pgid) + letterSpacing;
 					dy -= fm.getKerning(pgid, gid);
 					if (xadvances != null) {
-						dy += xadvances[i];
+						dy += xadvances.get(i);
 					}
 					at.preConcatenate(AffineTransform.getTranslateInstance(0, dy));
 				}
@@ -207,7 +207,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 						dx -= fm.getKerning(pgid, gid);
 					}
 					if (xadvances != null) {
-						dx += xadvances[i];
+						dx += xadvances.get(i);
 					}
 					at.preConcatenate(AffineTransform.getTranslateInstance(dx, 0));
 				}

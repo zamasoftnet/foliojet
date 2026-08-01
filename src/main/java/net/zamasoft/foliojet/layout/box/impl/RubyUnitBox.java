@@ -330,9 +330,10 @@ public class RubyUnitBox extends InlineBlockBox {
 		final double per = extra / glyphCount;
 		boolean first = true;
 		for (final TextImpl text : texts) {
-			final double[] xadvances = text.getXAdvances(true);
-			for (int i = 0; i < xadvances.length; ++i) {
-				xadvances[i] = first ? per / 2.0 : per;
+			// 調整を作り直す(reset後のaddは代入と等価)
+			text.resetXAdvances();
+			for (int i = 0; i < text.getGlyphCount(); ++i) {
+				text.addXAdvance(i, first ? per / 2.0 : per);
 				first = false;
 			}
 		}
