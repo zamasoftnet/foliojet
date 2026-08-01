@@ -24,8 +24,22 @@ public final class FlexBuilderLifecycle {
 	 */
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
-		if (params.flexDirection != FlexDirection.ROW || params.flexWrap == FlexWrap.WRAP_REVERSE) {
+		if (params.flexDirection == FlexDirection.ROW_REVERSE
+				|| params.flexDirection == FlexDirection.COLUMN_REVERSE
+				|| params.flexWrap == FlexWrap.WRAP_REVERSE) {
+			// reverse系はF5b/F5c
 			return false;
+		}
+		if (params.flexDirection == FlexDirection.COLUMN) {
+			// F4b: columnはnowrap+definite主軸(絶対長height)のみ。
+			// indefinite主軸のauto basisはitem実高が要る(F4cのprobe)
+			if (params.flexWrap != FlexWrap.NOWRAP || params.flow.isVertical()) {
+				return false;
+			}
+			if (params.size.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				return false;
+			}
+			return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
 		}
 		final net.zamasoft.foliojet.layout.box.params.LengthType crossType = params.flow.isVertical()
 				? params.size.getWidthType()

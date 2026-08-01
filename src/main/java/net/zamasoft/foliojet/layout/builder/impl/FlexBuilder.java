@@ -53,6 +53,9 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 	/** 空の匿名itemを破棄した数。 */
 	public static final AtomicLong FLEX_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
 
+	/** column主軸のbasis/height未確定によるコンテナ単位fallback数(F4b)。 */
+	public static final AtomicLong FLEX_COLUMN_FALLBACKS = new AtomicLong();
+
 	private final Builder host;
 
 	/** item builderの親LayoutStack({@code host}と同一インスタンス)。 */
@@ -192,6 +195,10 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 	@Override
 	public void bind(final net.zamasoft.foliojet.layout.builder.Builder hostBuilder) {
 		final BlockBuilder target = (BlockBuilder) hostBuilder;
+		if (this.flexBox.getFlexParams().flexDirection == net.zamasoft.foliojet.layout.box.params.FlexDirection.COLUMN) {
+			this.bindColumn(target);
+			return;
+		}
 		final double containerInner = this.flexBox.getLineSize();
 		final java.util.List<FlexItemMetrics> metrics = new ArrayList<>(this.items.size());
 		for (int i = 0; i < this.items.size(); ++i) {
@@ -305,6 +312,143 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * columnの組み立てです(F4b——主軸=page軸。§9.7はdefinite basis/height
+	 * のみで解決し、未確定itemが1つでもあればコンテナ単位で単一列縮退
+	 * (item単位の縮退は禁止——答申の段階的fallback規則)。crossは
+	 * align-items(stretch=内寸いっぱい、start/center/end=fit-content幅)、
+	 * 主軸配置はjustify-content。auto marginはcolumnサブセット外=0扱い。
+	 */
+	private void bindColumn(final BlockBuilder target) {
+		assert !this.bound : "Flexの二重bind";
+		this.bound = true;
+		final FlexParams params = this.flexBox.getFlexParams();
+		final double innerLine = this.flexBox.getLineSize();
+		// 主軸(page)の内寸: 指定高(eligibleで絶対長を保証)は
+		// getInnerPageExtentが返す(G5eの手筋)
+		final double innerMain = this.flexBox.getInnerPageExtent(params.flow);
+		final int count = this.items.size();
+		final java.util.List<FlexItemMetrics> metrics = new ArrayList<>(count);
+		for (int i = 0; i < count; ++i) {
+			final FlexItemContent item = this.items.get(i);
+			final BlockParams p = item.itemBox.getBlockParams();
+			if ((item.spec.basis().isAuto() || item.spec.basis().isContent())
+					&& p.size.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				// basis auto→heightプロパティ。それもautoなら内容高が要る
+				// (F4cのprobe)——コンテナ単位fallback
+				FLEX_COLUMN_FALLBACKS.incrementAndGet();
+				this.bindFallback(target);
+				return;
+			}
+			final RectFrame frame = p.frame;
+			// 縦方向margin/paddingの%基準はインライン寸法(コンテナ行内寸)
+			final double mainFrame = insetsPage(frame.padding, innerLine)
+					+ frame.border.getTop().width + frame.border.getBottom().width;
+			metrics.add(FlexItemMetricsResolver.resolve(new FlexItemMetricsResolver.Input(i,
+					item.spec.grow(), item.spec.shrink(), item.spec.basis(),
+					pageValue(p.size, innerMain),
+					item.spec.minHeightAuto() ? Double.NaN
+							: Math.max(0, zeroIfNaN(pageValue(p.minSize, innerMain))),
+					maxPageValue(p.maxSize, innerMain), mainFrame, insetsPage(frame.margin, innerLine),
+					p.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX,
+					p.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE,
+					item.sizes.minPage(), item.sizes.minPage(), innerMain)));
+		}
+		// columnの主軸gap=row-gap(block軸間隔)。justifyは§9.5と同じ算術
+		final double[] mainSizes = FlexLengthResolver.resolve(metrics, innerMain, params.rowGap);
+		double used = count > 0 ? params.rowGap * (count - 1) : 0;
+		for (int i = 0; i < count; ++i) {
+			used += mainSizes[i] + metrics.get(i).outerMainExtra();
+		}
+		final double free = innerMain - used;
+		double mainCursor = params.justifyContent.leadingOffset(free, count);
+		final double between = params.rowGap + params.justifyContent.betweenOffset(free, count);
+		for (int i = 0; i < count; ++i) {
+			final FlexItemContent item = this.items.get(i);
+			final BlockParams p = item.itemBox.getBlockParams();
+			final RectFrame frame = p.frame;
+			final double lineExtras = insetsLine(frame.margin, innerLine) + insetsLine(frame.padding, innerLine)
+					+ frame.border.getLeft().width + frame.border.getRight().width;
+			final net.zamasoft.foliojet.layout.box.params.BoxAlignment align = net.zamasoft.foliojet.layout.box.params.BoxAlignment
+					.resolve(item.spec.alignSelf(), params.alignItems);
+			final double crossWidth;
+			if (p.size.getWidthType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+				// 明示幅(border-boxは枠を引いて内寸へ。marginは含まない)
+				final double borderBoxAdjust = p.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+						? lineExtras - insetsLine(frame.margin, innerLine)
+						: 0;
+				crossWidth = Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust);
+			} else if (align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH) {
+				crossWidth = Math.max(0, innerLine - lineExtras);
+			} else {
+				crossWidth = net.zamasoft.foliojet.layout.sizing.Sizing.fitContent(item.sizes.minContent(),
+						item.sizes.maxContent(), Math.max(0, innerLine - lineExtras));
+			}
+			item.bind(target, crossWidth);
+			FLEX_ITEM_BINDS.incrementAndGet();
+			// 主軸(page)寸法を確定(§9.7の結果——指定高より優先)
+			item.itemBox.setPageAxis(mainSizes[i]);
+			// cross整列(line軸): start/stretch=0、center/end=残余
+			final double freeCross = Math.max(0, innerLine - item.itemBox.getLineExtent(params.flow));
+			final double crossOffset = align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.CENTER
+					? freeCross / 2
+					: align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.END ? freeCross : 0;
+			item.itemBox.setFlexLineOffset(crossOffset);
+			this.flexBox.getContainer().addFlow(item.itemBox, mainCursor);
+			mainCursor += mainSizes[i] + metrics.get(i).outerMainExtra() + (i < count - 1 ? between : 0);
+		}
+		this.flexBox.setPageAxis(count == 0 ? 0 : Math.max(innerMain, mainCursor));
+		this.syncHostCursor(target, params);
+	}
+
+	/**
+	 * 単一列縮退です(F4b——columnのbasis/height未確定時。itemはコンテナ
+	 * 内寸いっぱいのブロックとして縦積み。マージン相殺は行わない)。
+	 */
+	private void bindFallback(final BlockBuilder target) {
+		final FlexParams params = this.flexBox.getFlexParams();
+		final double innerLine = this.flexBox.getLineSize();
+		double pageCursor = 0;
+		for (final FlexItemContent item : this.items) {
+			final RectFrame frame = item.itemBox.getBlockParams().frame;
+			final double lineExtras = insetsLine(frame.margin, innerLine) + insetsLine(frame.padding, innerLine)
+					+ frame.border.getLeft().width + frame.border.getRight().width;
+			item.bind(target, Math.max(0, innerLine - lineExtras));
+			FLEX_ITEM_BINDS.incrementAndGet();
+			this.flexBox.getContainer().addFlow(item.itemBox, pageCursor);
+			pageCursor += item.itemBox.getPageExtent(params.flow);
+		}
+		this.flexBox.setPageAxis(pageCursor);
+		this.syncHostCursor(target, params);
+	}
+
+	/** Dimensionのpage方向値(auto=NaN。%は主軸内寸基準)。横書き=height。 */
+	private static double pageValue(final Dimension size, final double base) {
+		if (size.getHeightType() == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			return Double.NaN;
+		}
+		return size.getHeight() + size.getHeightRatio() * base;
+	}
+
+	/** max-heightのpage方向値(なし=+∞)。 */
+	private static double maxPageValue(final Dimension size, final double base) {
+		final double value = pageValue(size, base);
+		return Double.isNaN(value) ? Double.POSITIVE_INFINITY : Math.max(0, value);
+	}
+
+	/** page方向のInsets合計(絶対部+比率×基準。autoは0)。 */
+	private static double insetsPage(final net.zamasoft.foliojet.layout.box.params.Insets insets,
+			final double base) {
+		double sum = 0;
+		if (insets.getTopType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			sum += insets.getTop() + insets.getTopRatio() * base;
+		}
+		if (insets.getBottomType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			sum += insets.getBottom() + insets.getBottomRatio() * base;
+		}
+		return sum;
 	}
 
 	/**
