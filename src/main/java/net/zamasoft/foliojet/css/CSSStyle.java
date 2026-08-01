@@ -190,6 +190,8 @@ public class CSSStyle {
 	public Value get(PrimitivePropertyInfo info) {
 		short code = ElementPropertySet.getCode(info);
 		if (code == -1) {
+			// fail-loud(2026-08-01): setと同じ登録漏れ検出(本番は既定値で続行)
+			assert false : "カスケード用コード未割当のプロパティがgetされました(登録漏れ): " + info.getName();
 			return info.getDefault(this);
 		}
 		// 継承の親方向探索は元々 this.parentStyle.get(info) の再帰だったが、
@@ -315,6 +317,13 @@ public class CSSStyle {
 	public void set(PrimitivePropertyInfo info, Value value, byte mode) {
 		short code = ElementPropertySet.getCode(info);
 		if (code == -1) {
+			// fail-loud(2026-08-01): 解釈可能なプロパティのコード未割当は
+			// 登録漏れ(ElementPropertySetのreg/regCode)であり、開発・テスト
+			// (-ea)では即座に落とす。@page sizeで「黙って捨てられて長い
+			// デバッグになった」実害の再発防止。本番(-eaなし)は従来どおり
+			// WARNで続行(クラッシュ排除)。静的な網羅検査は
+			// PropertyCodeRegistryTestが行う
+			assert false : "カスケード用コード未割当のプロパティがsetされました(登録漏れ): " + info.getName();
 			this.ua.message(MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, info.getName());
 			return;
 		}

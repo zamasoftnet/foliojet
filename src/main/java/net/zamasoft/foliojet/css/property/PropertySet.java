@@ -43,6 +43,17 @@ public abstract class PropertySet {
 		return this.nameToInfo.get(name);
 	}
 
+	/**
+	 * 登録済みプロパティの列挙です(登録整合性テスト用——
+	 * {@code PropertyCodeRegistryTest}が「全ての解釈可能プロパティは
+	 * カスケード用コードを持つ」を静的に検査する。@page sizeで実際に
+	 * 踏んだ「名前登録だけしてコード未割当→set()が黙って落ちる」罠の
+	 * 再発防止、2026-08-01)。
+	 */
+	final java.util.Collection<PropertyInfo> registeredInfos() {
+		return java.util.Collections.unmodifiableCollection(this.nameToInfo.values());
+	}
+
 	public final Property parseDeclaration(String name, List<CssToken> value, UserAgent ua, URI uri,
 			boolean important) {
 		if (isCustomPropertyName(name)) {
