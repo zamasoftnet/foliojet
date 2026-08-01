@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.lang;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.TextTransformValue;
 import net.zamasoft.foliojet.css.value.ValueListValue;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 
 /**
  * 各言語のための固有の機能です。
@@ -62,5 +62,5 @@ public interface LanguageProfile {
 	 * @param style
 	 * @return
 	 */
-	public LineBreakRules getLineBreakRules(final CSSStyle style);
+	public TextBreakingRules getTextBreakingRules(final CSSStyle style);
 }

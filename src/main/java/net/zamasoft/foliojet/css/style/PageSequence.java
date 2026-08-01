@@ -338,7 +338,7 @@ final class PageSequence {
 		params.fontStyle = pageStyle.getFontStyle();
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle.getLanguageProfile(pageStyle.getCSSElement().lang);
-		params.lineBreakRules = lang.getLineBreakRules(pageStyle);
+		params.lineBreakRules = lang.getTextBreakingRules(pageStyle);
 
 		// ページのサイズ(N3/N4: @page sizeがoutput既定を上書きする。
 		// size:autoの既定は初回に捕捉した文書既定へ必ず戻す——impositionの

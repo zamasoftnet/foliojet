@@ -40,7 +40,7 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.Text;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 import net.zamasoft.pdfg2d.pdf.font.cid.missing.MissingCIDFontSource;
@@ -291,7 +291,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		if (this.contents == null) {
 			return 0;
 		}
-		LineBreakRules hyph = this.getTextParams().lineBreakRules;
+		TextBreakingRules hyph = this.getTextParams().lineBreakRules;
 		int count = 0;
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
@@ -348,7 +348,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		if (this.contents == null) {
 			return;
 		}
-		LineBreakRules hyph = this.getTextParams().lineBreakRules;
+		TextBreakingRules hyph = this.getTextParams().lineBreakRules;
 		for (int i = 0; i < this.contents.size(); ++i) {
 			double da = 0;
 			switch (this.contents.get(i)) {

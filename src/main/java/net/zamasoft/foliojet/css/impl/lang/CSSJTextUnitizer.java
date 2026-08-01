@@ -5,14 +5,14 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.text.InlineParamsStack;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
-import net.zamasoft.foliojet.layout.text.breaking.TextUnitizer;
+import net.zamasoft.pdfg2d.gc.text.breaking.impl.TextAtomizer;
 
 /**
  * インライン境界(InlineQuad)を追跡して行分割規則を切り替える unitizer です。
  * パイプラインの先頭ステージとして InlineParamsStack を駆動し、
  * 下流ステージ(WordHyphenator 等)は同じスタックを共有して読み取ります。
  */
-public class CSSJTextUnitizer extends TextUnitizer {
+public class CSSJTextUnitizer extends TextAtomizer {
 
 	private final InlineParamsStack inlineContext;
 
@@ -32,13 +32,13 @@ public class CSSJTextUnitizer extends TextUnitizer {
 			case InlineQuad.INLINE_START: {
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				this.inlineContext.push(inlineStartQuad.box.getTextParams());
-				this.setLineBreakRules(this.inlineContext.current().lineBreakRules);
+				this.setTextBreakingRules(this.inlineContext.current().lineBreakRules);
 			}
 				break;
 
 			case InlineQuad.INLINE_END: {
 				this.inlineContext.pop();
-				this.setLineBreakRules(this.inlineContext.current().lineBreakRules);
+				this.setTextBreakingRules(this.inlineContext.current().lineBreakRules);
 			}
 				break;
 

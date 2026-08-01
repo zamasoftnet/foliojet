@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 /**
@@ -38,7 +38,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  * </p>
  */
 record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow, byte direction,
-		FontManager fontManager, LineBreakRules lineBreakRules, Length letterSpacing, double wordSpacing,
+		FontManager fontManager, TextBreakingRules lineBreakRules, Length letterSpacing, double wordSpacing,
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, double textStrokeWidth,
 		Color textStrokeColor,

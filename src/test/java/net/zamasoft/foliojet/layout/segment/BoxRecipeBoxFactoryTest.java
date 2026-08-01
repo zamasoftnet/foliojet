@@ -36,7 +36,7 @@ import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
@@ -82,7 +82,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 	};
 
 	/** {@code InlineBox}のコンストラクタはさらに{@code lineBreakRules}/{@code fontManager}もnon-null要求する。 */
-	private static final LineBreakRules DUMMY_LINE_BREAK_RULES = new LineBreakRules() {
+	private static final TextBreakingRules DUMMY_LINE_BREAK_RULES = new TextBreakingRules() {
 		public boolean atomic(final char c1, final char c2) {
 			return false;
 		}

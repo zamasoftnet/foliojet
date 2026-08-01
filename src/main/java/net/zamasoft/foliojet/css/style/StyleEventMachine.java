@@ -391,7 +391,7 @@ final class StyleEventMachine {
 				params.fontStyle = style.getFontStyle();
 				params.fontManager = this.ua.getFontManager();
 				params.lineBreakRules = LanguageProfileBundle
-						.getLanguageProfile(style.getCSSElement().lang).getLineBreakRules(style);
+						.getLanguageProfile(style.getCSSElement().lang).getTextBreakingRules(style);
 				params.direction = Direction.get(style);
 				params.flow = BlockFlow.get(style);
 				params.element = ce;

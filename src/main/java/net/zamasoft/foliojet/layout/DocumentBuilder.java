@@ -77,7 +77,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	protected static class ContainerBuilderEntry {
 		public final Builder builder;
 
-		protected StyledTextUnitizer styledTextUnitizer = null;
+		protected StyledTextUnitizer styledTextAtomizer = null;
 
 		public ContainerBuilderEntry(Builder builder) {
 			this.builder = builder;
@@ -89,10 +89,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		 * @return
 		 */
 		public StyledTextUnitizer getStyledTextUnitizer() {
-			if (this.styledTextUnitizer == null) {
-				this.styledTextUnitizer = new StyledTextUnitizer(this.builder);
+			if (this.styledTextAtomizer == null) {
+				this.styledTextAtomizer = new StyledTextUnitizer(this.builder);
 			}
-			return this.styledTextUnitizer;
+			return this.styledTextAtomizer;
 		}
 	}
 

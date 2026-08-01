@@ -12,8 +12,8 @@ import net.zamasoft.foliojet.css.impl.property.text.WordBreak;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJNoBreakCharacters;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
-import net.zamasoft.foliojet.layout.text.breaking.JapaneseLineBreakRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.impl.JapaneseBreakingRules;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -22,11 +22,11 @@ public class LanguageProfile_ja implements LanguageProfile {
 	private static final ValueListValue QUOTES = new ValueListValue(
 			new Value[] { new QuotesValue("「", "」"), new QuotesValue("『", "』"), });
 
-	private final LineBreakRules normalHyph = new JapaneseLineBreakRules();
+	private final TextBreakingRules normalHyph = new JapaneseBreakingRules();
 
-	private final LineBreakRules breakAllHyph = new BreakAllHyphenation();
+	private final TextBreakingRules breakAllHyph = new BreakAllHyphenation();
 
-	private final LineBreakRules keepAllHyph = new JapaneseKeepAllHyphenation();
+	private final TextBreakingRules keepAllHyph = new JapaneseKeepAllHyphenation();
 
 	public String getLanguage() {
 		return "ja";
@@ -142,7 +142,7 @@ public class LanguageProfile_ja implements LanguageProfile {
 		}
 	}
 
-	public LineBreakRules getLineBreakRules(final CSSStyle style) {
+	public TextBreakingRules getTextBreakingRules(final CSSStyle style) {
 		// 禁則処理
 		switch (WordBreak.get(style)) {
 		case WordBreakValue.NORMAL:

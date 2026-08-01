@@ -492,7 +492,7 @@ final class BoxStyleMapper {
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle
 				.getLanguageProfile(style.getCSSElement().lang);
-		params.lineBreakRules = lang.getLineBreakRules(style);
+		params.lineBreakRules = lang.getTextBreakingRules(style);
 		params.hyphens = Hyphens.get(style);
 		if (params.hyphens == AbstractTextParams.HYPHENS_AUTO) {
 			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getCSSElement().lang);

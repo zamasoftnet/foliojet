@@ -296,7 +296,7 @@ final class MarginBoxes {
 			params.fontStyle = style.getFontStyle();
 			params.fontManager = ua.getFontManager();
 			params.lineBreakRules = LanguageProfileBundle.getLanguageProfile(style.getCSSElement().lang)
-					.getLineBreakRules(style);
+					.getTextBreakingRules(style);
 			params.direction = Direction.get(style);
 			params.flow = WritingMode.TB;
 			params.textAlign = TextAlign.get(style);

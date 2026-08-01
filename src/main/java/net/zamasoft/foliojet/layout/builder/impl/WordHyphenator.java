@@ -35,7 +35,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 	/**
 	 * ソース中の U+00AD を表すマーカーです。StyledTextUnitizer が字形化の前に
 	 * 発行し、WordHyphenator が SoftHyphen に変換して消費します(下流には流れません)。
-	 * JOIN 扱いのため TextUnitizer はこの前後を分割しません。
+	 * JOIN 扱いのため TextAtomizer はこの前後を分割しません。
 	 */
 	static final class Marker extends TextControl {
 		final int charOffset;

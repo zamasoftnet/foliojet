@@ -14,7 +14,7 @@ import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
-import net.zamasoft.foliojet.layout.text.breaking.LineBreakRules;
+import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 
 /**
  * グリフフィルタの<b>プロトコル保存検査キット</b>です(2026-08-01、
@@ -63,7 +63,7 @@ public class GlyphFilterConformanceTest extends TestCase {
 		}
 	};
 
-	private static final LineBreakRules DUMMY_LINE_BREAK_RULES = new LineBreakRules() {
+	private static final TextBreakingRules DUMMY_LINE_BREAK_RULES = new TextBreakingRules() {
 		public boolean atomic(final char c1, final char c2) {
 			return false;
 		}
@@ -211,7 +211,7 @@ public class GlyphFilterConformanceTest extends TestCase {
 				out.controls.contains(control));
 	}
 
-	public void testCssjTextUnitizerConservesProtocol() throws Exception {
+	public void testCssjTextAtomizerConservesProtocol() throws Exception {
 		final Recording out = new Recording();
 		final FilterGlyphHandler unitizer = new CSSJTextUnitizer(new InlineParamsStack(params()));
 		unitizer.setGlyphHandler(out);
