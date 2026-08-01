@@ -195,17 +195,29 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox);
 	}
 
-	/** BoxKind.FLEXはFlexBoxへ再構築される(Flex F0c)。 */
+	/** BoxKind.FLEXはFlexBoxへ再構築され、direction/wrap/itemSpecを保つ(Flex F0c/F1a)。 */
 	public void testFlexRecipeCreatesFlexBox() {
 		final net.zamasoft.foliojet.layout.box.params.FlexParams params = new net.zamasoft.foliojet.layout.box.params.FlexParams();
 		copyBlockParams(blockParams(), params);
 		params.orphans = 7;
+		params.flexDirection = net.zamasoft.foliojet.layout.box.params.FlexDirection.COLUMN;
+		params.flexWrap = net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP;
+		final FlowPos sourcePos = new FlowPos();
+		final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec = net.zamasoft.foliojet.layout.box.params.FlexItemSpec
+				.of(2, 3, net.zamasoft.foliojet.css.value.FlexBasisValue.CONTENT_VALUE,
+						net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO, 0, true, false);
+		sourcePos.flexItem = spec;
 		final BoxRecipe recipe = new BoxRecipe.Flex(FlexParamsTemplate.freeze(params),
-				FlowPosTemplate.freeze(new FlowPos()));
+				FlowPosTemplate.freeze(sourcePos));
 		final long before = BoxRecipeBoxFactory.FLEX_REPLAYS.get();
 		final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
 		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox);
-		assertEquals(7, ((BlockParams) box.getParams()).orphans);
+		final net.zamasoft.foliojet.layout.box.params.FlexParams out = ((net.zamasoft.foliojet.layout.box.impl.FlexBox) box)
+				.getFlexParams();
+		assertEquals(7, out.orphans);
+		assertSame(net.zamasoft.foliojet.layout.box.params.FlexDirection.COLUMN, out.flexDirection);
+		assertSame(net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP, out.flexWrap);
+		assertSame(spec, ((FlowPos) box.getPos()).flexItem);
 		assertEquals(before + 1, BoxRecipeBoxFactory.FLEX_REPLAYS.get());
 		// PageAtomicBoxの印(F0bのatomic移動)も再構築で保たれる
 		assertTrue(box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox);
@@ -213,6 +225,9 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		final INonReplacedBox box2 = BoxRecipeBoxFactory.create(recipe);
 		assertTrue(box.getParams() != box2.getParams());
 		assertTrue(box.getPos() != box2.getPos());
+		// 全既定specはsingleton共有のままround tripする
+		final FlowPos defaultPos = FlowPosTemplate.freeze(new FlowPos()).materialize();
+		assertSame(net.zamasoft.foliojet.layout.box.params.FlexItemSpec.DEFAULT, defaultPos.flexItem);
 	}
 
 	private static void copyBlockParams(final BlockParams source, final BlockParams target) {

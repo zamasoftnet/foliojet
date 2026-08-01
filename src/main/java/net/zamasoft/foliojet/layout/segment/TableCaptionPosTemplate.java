@@ -18,10 +18,11 @@ import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
  * </p>
  */
 public record TableCaptionPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan,
-		net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItem, CaptionSideMode captionSide) {
+		net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItem,
+		net.zamasoft.foliojet.layout.box.params.FlexItemSpec flexItem, CaptionSideMode captionSide) {
 	public static TableCaptionPosTemplate freeze(final TableCaptionPos source) {
 		return new TableCaptionPosTemplate(NormalFlowPosFields.freeze(source), source.align, source.columnSpan,
-				source.gridItem, source.captionSide);
+				source.gridItem, source.flexItem, source.captionSide);
 	}
 
 	/** 呼び出しごとに新品の{@code TableCaptionPos}を返す。 */
@@ -31,6 +32,7 @@ public record TableCaptionPosTemplate(NormalFlowPosFields common, Align align, b
 		pos.align = this.align;
 		pos.columnSpan = this.columnSpan;
 		pos.gridItem = this.gridItem;
+		pos.flexItem = this.flexItem;
 		pos.captionSide = this.captionSide;
 		return pos;
 	}

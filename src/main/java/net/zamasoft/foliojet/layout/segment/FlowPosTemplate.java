@@ -20,10 +20,11 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
  * </p>
  */
 public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan,
-		net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItem) {
+		net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItem,
+		net.zamasoft.foliojet.layout.box.params.FlexItemSpec flexItem) {
 	public static FlowPosTemplate freeze(final FlowPos source) {
 		return new FlowPosTemplate(NormalFlowPosFields.freeze(source), source.align, source.columnSpan,
-				source.gridItem);
+				source.gridItem, source.flexItem);
 	}
 
 	/** 呼び出しごとに新品の{@code FlowPos}を返す(複数回呼んでも互いに影響しない)。 */
@@ -33,6 +34,7 @@ public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte colu
 		pos.align = this.align;
 		pos.columnSpan = this.columnSpan;
 		pos.gridItem = this.gridItem;
+		pos.flexItem = this.flexItem;
 		return pos;
 	}
 }

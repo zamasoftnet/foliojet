@@ -379,6 +379,33 @@ final class BoxStyleMapper {
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_SELF)),
 				toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF)));
+		// Flex F1a: 伸縮3値+自動最小サイズ復元用のmin宣言有無(Flex直下で
+		// item化されるときだけ参照される。全既定はsingleton共有。
+		// alignSelfはF3c、orderはF5aで解析)
+		pos.flexItem = net.zamasoft.foliojet.layout.box.params.FlexItemSpec.of(
+				net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.get(style,
+						net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.GROW),
+				net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.get(style,
+						net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.SHRINK),
+				net.zamasoft.foliojet.css.impl.property.flex.FlexBasisProperty.get(style),
+				net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO, 0,
+				!minSizeDeclared(style, false), !minSizeDeclared(style, true));
+	}
+
+	/**
+	 * min-width(vertical=falseのとき)/min-height(同true)が著者宣言
+	 * されているかを返します(Flex F1a——自動最小サイズ§4.5の判定材料。
+	 * {@code MinWidth.get}/{@code MinHeight.get}の解決順と同じく物理
+	 * プロパティ優先で、論理プロパティは書字方向で対応付ける)。
+	 */
+	private static boolean minSizeDeclared(final CSSStyle style, final boolean height) {
+		if (style.isDeclared(height ? net.zamasoft.foliojet.css.impl.property.box.MinHeight.INFO
+				: net.zamasoft.foliojet.css.impl.property.box.MinWidth.INFO)) {
+			return true;
+		}
+		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
+		return style.isDeclared(height == vertical ? net.zamasoft.foliojet.css.impl.property.box.MinInlineSize.INFO
+				: net.zamasoft.foliojet.css.impl.property.box.MinBlockSize.INFO);
 	}
 
 	/**
@@ -440,8 +467,19 @@ final class BoxStyleMapper {
 
 	void setupFlexParams(net.zamasoft.foliojet.layout.box.params.FlexParams params, CSSStyle style,
 			CSSStyle parentStyle, boolean inBody, PageSequence pageSequence) {
-		// Flex F0b: 骨格のみ(direction/wrap/整列/gapはF1a以降)
 		this.setupBlockParams(params, style, parentStyle, inBody, pageSequence);
+		// Flex F1a: direction/wrap(整列はF3a、gapはF2c)
+		params.flexDirection = switch (net.zamasoft.foliojet.css.impl.property.flex.FlexDirectionProperty.get(style)) {
+		case ROW -> net.zamasoft.foliojet.layout.box.params.FlexDirection.ROW;
+		case ROW_REVERSE -> net.zamasoft.foliojet.layout.box.params.FlexDirection.ROW_REVERSE;
+		case COLUMN -> net.zamasoft.foliojet.layout.box.params.FlexDirection.COLUMN;
+		case COLUMN_REVERSE -> net.zamasoft.foliojet.layout.box.params.FlexDirection.COLUMN_REVERSE;
+		};
+		params.flexWrap = switch (net.zamasoft.foliojet.css.impl.property.flex.FlexWrapProperty.get(style)) {
+		case NOWRAP -> net.zamasoft.foliojet.layout.box.params.FlexWrap.NOWRAP;
+		case WRAP -> net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP;
+		case WRAP_REVERSE -> net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP_REVERSE;
+		};
 	}
 
 	/** CSS値→layout値(同名対応)。 */

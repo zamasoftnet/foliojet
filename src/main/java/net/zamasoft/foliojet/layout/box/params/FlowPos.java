@@ -26,6 +26,12 @@ public class FlowPos extends AbstractNormalFlowPos implements Pos {
 	 */
 	public GridItemSpec gridItem = GridItemSpec.AUTO;
 
+	/**
+	 * Flex itemの伸縮・整列指定です(Flex F1a)。Flex直下の子として
+	 * item化されるときだけ参照される(それ以外の要素では無視)。
+	 */
+	public FlexItemSpec flexItem = FlexItemSpec.DEFAULT;
+
 	public PosType getType() {
 		return PosType.FLOW;
 	}

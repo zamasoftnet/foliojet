@@ -6,13 +6,17 @@ package net.zamasoft.foliojet.layout.box.params;
  * {@code BlockParams}拡張)。
  *
  * <p>
- * F0時点は骨格のみ(内容配置は単一列の通常フロー縮退)。
- * direction/wrap/整列/gapのフィールドはF1a以降で追加する——
- * 答申の推奨形: direction/wrap/justifyContent(FlexContentAlignment)/
- * alignItems(BoxAlignment)/alignContent/rowGap/columnGap。
+ * F1a時点はdirection/wrapのみ(内容配置はまだ単一列の通常フロー縮退)。
+ * 整列(justifyContent=FlexContentAlignment/alignItems=BoxAlignment/
+ * alignContent)はF3a、rowGap/columnGapはF2cで追加する。
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public class FlexParams extends BlockParams {
+	/** 主軸方向(flex-direction。BlockParams.direction=文字方向と別物)。 */
+	public FlexDirection flexDirection = FlexDirection.ROW;
+
+	/** 折り返し(flex-wrap)。 */
+	public FlexWrap flexWrap = FlexWrap.NOWRAP;
 }

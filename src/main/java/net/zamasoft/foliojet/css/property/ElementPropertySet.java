@@ -249,6 +249,12 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT);
+		// Flex F1a(consult-codex-2026-08-02-flexbox.txt)
+		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexDirectionProperty.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexWrapProperty.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.GROW);
+		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.SHRINK);
+		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexBasisProperty.INFO);
 		reg(TextIndent.INFO);
 		reg(TextAlign.INFO);
 		reg(TextDecoration.INFO);
@@ -308,6 +314,8 @@ public final class ElementPropertySet extends PropertySet {
 		put(FontShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.COLUMN);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.ROW);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.FlexShorthand.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.FlexFlowShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GapShorthand.INFO);
 		put(BackgroundShorthand.INFO);
 		put(ListStyleShorthand.INFO);

@@ -1,6 +1,8 @@
 package net.zamasoft.foliojet.layout.segment;
 
+import net.zamasoft.foliojet.layout.box.params.FlexDirection;
 import net.zamasoft.foliojet.layout.box.params.FlexParams;
+import net.zamasoft.foliojet.layout.box.params.FlexWrap;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
@@ -10,13 +12,13 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * consult-codex-2026-08-02-flexbox.txt F0c。{@code GridParamsTemplate}と同型)。
  *
  * <p>
- * F0cの{@code FlexParams}は骨格(固有フィールドなし)のため共通部のみ。
- * F1aでdirection/wrap/整列/gapが増えたらここへ追随する。
+ * direction/wrapはenumのためそのまま保持できる。F2c(gap)・F3a(整列)の
+ * フィールド追加時はここへ追随する。
  * </p>
  */
-public record FlexParamsTemplate(BlockParamsFields common) {
+public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDirection, FlexWrap flexWrap) {
 	public static FlexParamsTemplate freeze(final FlexParams source) {
-		return new FlexParamsTemplate(BlockParamsFields.freeze(source));
+		return new FlexParamsTemplate(BlockParamsFields.freeze(source), source.flexDirection, source.flexWrap);
 	}
 
 	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
@@ -28,6 +30,8 @@ public record FlexParamsTemplate(BlockParamsFields common) {
 	public FlexParams materialize() {
 		final FlexParams p = new FlexParams();
 		this.common.materializeInto(p);
+		p.flexDirection = this.flexDirection;
+		p.flexWrap = this.flexWrap;
 		return p;
 	}
 }
