@@ -54,6 +54,8 @@ import net.zamasoft.pdfg2d.gc.paint.Pattern;
 import net.zamasoft.pdfg2d.pdf.Attachment;
 import net.zamasoft.pdfg2d.pdf.PDFGraphicsOutput;
 import net.zamasoft.pdfg2d.pdf.FacturX;
+import net.zamasoft.pdfg2d.pdf.params.OutputIntent;
+import net.zamasoft.pdfg2d.pdf.params.RenderingIntent;
 import net.zamasoft.pdfg2d.pdf.PDFMetaInfo;
 import net.zamasoft.pdfg2d.pdf.PDFOutput;
 import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
@@ -259,6 +261,58 @@ final class PDFParamsResolver {
 			metaInfo.setFacturX(new FacturX(UAProps.OUTPUT_PDF_FACTURX_DOCUMENT_TYPE.getString(ua),
 					UAProps.OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME.getString(ua),
 					UAProps.OUTPUT_PDF_FACTURX_VERSION.getString(ua), facturXLevel));
+		}
+
+		// 出力インテント(PDF/X適合の実質要件——PLAN §2の2位、2026-08-02。
+		// WeasyPrint v67のPDF/X+ICC出荷で無償エンジンに並ばれた項目)
+		final String oiIdentifier = UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.getString(ua);
+		if (oiIdentifier != null) {
+			byte[] icc = null;
+			int components = 4;
+			final String iccUri = UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.getString(ua);
+			if (iccUri != null) {
+				try {
+					final net.zamasoft.zstream.resolver.Source source = ua
+							.resolve(URIHelper.create("UTF-8", iccUri));
+					try (java.io.InputStream in = source.getInputStream();
+							java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream()) {
+						in.transferTo(buffer);
+						icc = buffer.toByteArray();
+					} finally {
+						ua.release(source);
+					}
+					components = iccColorComponents(icc);
+					if (components == -1) {
+						ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
+								UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
+						icc = null;
+						components = 4;
+					}
+				} catch (final Exception e) {
+					ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
+							UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
+					icc = null;
+				}
+			}
+			params = params.withOutputIntent(new OutputIntent(oiIdentifier,
+					UAProps.OUTPUT_PDF_OUTPUT_INTENT_CONDITION.getString(ua),
+					UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.getString(ua),
+					UAProps.OUTPUT_PDF_OUTPUT_INTENT_INFO.getString(ua), icc, components));
+		}
+
+		// レンダリングインテント(コンテンツストリーム既定のri演算子)
+		final String renderingIntent = UAProps.OUTPUT_PDF_RENDERING_INTENT.getString(ua);
+		if (renderingIntent != null) {
+			switch (renderingIntent.toLowerCase()) {
+			case "perceptual" -> params = params.withRenderingIntent(RenderingIntent.PERCEPTUAL);
+			case "relative-colorimetric" ->
+				params = params.withRenderingIntent(RenderingIntent.RELATIVE_COLORIMETRIC);
+			case "saturation" -> params = params.withRenderingIntent(RenderingIntent.SATURATION);
+			case "absolute-colorimetric" ->
+				params = params.withRenderingIntent(RenderingIntent.ABSOLUTE_COLORIMETRIC);
+			default -> ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_RENDERING_INTENT.name,
+					renderingIntent);
+			}
 		}
 
 		// カラー
@@ -605,5 +659,22 @@ final class PDFParamsResolver {
 		r3p.setExtract(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_EXTRACT.getBoolean(ua));
 		r3p.setAssemble(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_ASSEMBLE.getBoolean(ua));
 		r3p.setPrintHigh(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_PRINT_HIGH.getBoolean(ua));
+	}
+
+	/**
+	 * ICCプロファイルヘッダの色空間シグネチャ(オフセット16..19)から
+	 * 色成分数を判別します(CMYK=4、RGB=3、GRAY=1。判別不能は-1)。
+	 */
+	private static int iccColorComponents(final byte[] icc) {
+		if (icc == null || icc.length < 20) {
+			return -1;
+		}
+		final String sig = new String(icc, 16, 4, java.nio.charset.StandardCharsets.US_ASCII);
+		return switch (sig) {
+		case "CMYK" -> 4;
+		case "RGB " -> 3;
+		case "GRAY" -> 1;
+		default -> -1;
+		};
 	}
 }

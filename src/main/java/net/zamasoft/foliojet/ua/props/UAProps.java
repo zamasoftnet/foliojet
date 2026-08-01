@@ -518,6 +518,44 @@ public final class UAProps {
 			"output.pdf.facturx.version", "1.0");
 
 	/**
+	 * 出力インテントの出力条件識別名です(例: JC200103、FOGRA39)。
+	 * 設定するとカタログへ/OutputIntentsを出力します(PDF/Xの適合要件)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER = new StringPropManager(
+			"output.pdf.output-intent.identifier", null);
+
+	/**
+	 * 出力インテントの出力条件の人間可読名です。
+	 */
+	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_CONDITION = new StringPropManager(
+			"output.pdf.output-intent.condition", null);
+
+	/**
+	 * 出力インテントのレジストリ名です(既定はICC特性化レジストリ)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_REGISTRY = new StringPropManager(
+			"output.pdf.output-intent.registry", "http://www.color.org");
+
+	/**
+	 * 出力インテントの補足説明です(未登録条件のPDF/Xで推奨)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_INFO = new StringPropManager(
+			"output.pdf.output-intent.info", null);
+
+	/**
+	 * 出力インテントへ埋め込むICCプロファイルのURIです(DestOutputProfile)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE = new StringPropManager(
+			"output.pdf.output-intent.icc-profile", null);
+
+	/**
+	 * 既定のレンダリングインテントです(perceptual, relative-colorimetric,
+	 * saturation, absolute-colorimetricのいずれか)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_RENDERING_INTENT = new StringPropManager(
+			"output.pdf.rendering-intent", null);
+
+	/**
 	 * 背表紙幅です。
 	 */
 	public static final StringPropManager OUTPUT_MARKS_SPINE_WIDTH = new StringPropManager("output.marks.spine-width",
@@ -691,6 +729,12 @@ public final class UAProps {
 			OUTPUT_PDF_FACTURX_DOCUMENT_TYPE,
 			OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME,
 			OUTPUT_PDF_FACTURX_VERSION,
+			OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER,
+			OUTPUT_PDF_OUTPUT_INTENT_CONDITION,
+			OUTPUT_PDF_OUTPUT_INTENT_REGISTRY,
+			OUTPUT_PDF_OUTPUT_INTENT_INFO,
+			OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE,
+			OUTPUT_PDF_RENDERING_INTENT,
 			OUTPUT_MARKS_SPINE_WIDTH,
 			OUTPUT_PDF_ENCRYPTION_V4_CFM,
 			OUTPUT_PDF_WATERMARK_URI,
