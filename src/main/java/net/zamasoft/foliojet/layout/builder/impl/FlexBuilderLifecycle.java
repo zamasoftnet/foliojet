@@ -24,10 +24,6 @@ public final class FlexBuilderLifecycle {
 	 */
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
-		if (params.flexWrap == FlexWrap.WRAP_REVERSE) {
-			// wrap-reverseはF5c
-			return false;
-		}
 		if (!params.flexDirection.isRow()) {
 			// F4b: columnはnowrap+definite主軸(絶対長height)のみ。
 			// indefinite主軸のauto basisはitem実高が要る(F4cのprobe)
@@ -42,7 +38,7 @@ public final class FlexBuilderLifecycle {
 		final net.zamasoft.foliojet.layout.box.params.LengthType crossType = params.flow.isVertical()
 				? params.size.getWidthType()
 				: params.size.getHeightType();
-		if (params.flexWrap == FlexWrap.WRAP
+		if (params.flexWrap.isWrap()
 				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
 				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			// F3d: wrapのdefinite crossは絶対長のみ解禁(%crossは

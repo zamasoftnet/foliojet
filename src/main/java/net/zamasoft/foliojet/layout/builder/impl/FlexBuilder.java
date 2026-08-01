@@ -561,17 +561,31 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 			// §9.4: 単一行(nowrap)+definite crossの行高=コンテナ内cross
 			lineExtents[0] = innerCross;
 		}
-		// 相3: cross整列(F3c——align-contentで確定した行高に対して行う)
+		// 相3: cross整列(F3c——align-contentで確定した行高に対して行う)。
+		// wrap-reverse(F5c)は行の視覚順を反転(align-contentの分配算術は
+		// 反転後の並びへそのまま適用される)
+		final boolean crossReversed = params.flexWrap == net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP_REVERSE;
 		double crossCursor = leadingCross;
-		for (int li = 0; li < lines.size(); ++li) {
+		for (int v = 0; v < lines.size(); ++v) {
+			final int li = crossReversed ? lines.size() - 1 - v : v;
 			final net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line line = lines.get(li);
 			final double lineExtent = lineExtents[li];
 			for (int k = line.from(); k < line.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
 				// align-self:auto→align-items合成(§9.6。baselineはパーサ
 				// 段階で不受理=宣言無効)
-				final net.zamasoft.foliojet.layout.box.params.BoxAlignment align = net.zamasoft.foliojet.layout.box.params.BoxAlignment
+				net.zamasoft.foliojet.layout.box.params.BoxAlignment align = net.zamasoft.foliojet.layout.box.params.BoxAlignment
 						.resolve(item.spec.alignSelf(), params.alignItems);
+				if (crossReversed) {
+					// F5c: cross反転でstart/endを交換(無印start/endも
+					// flex-start/endと同扱い——flexでの慣用が圧倒的にflex-*
+					// のため。厳密な書字方向基準start/endはサブセット外)
+					align = align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.START
+							? net.zamasoft.foliojet.layout.box.params.BoxAlignment.END
+							: align == net.zamasoft.foliojet.layout.box.params.BoxAlignment.END
+									? net.zamasoft.foliojet.layout.box.params.BoxAlignment.START
+									: align;
+				}
 				// cross軸auto marginはalign-self/stretchより先(§8.1、F3e):
 				// start側autoで終端寄せ、両側autoで中央
 				final boolean crossStartAuto = crossMarginAuto(item, false);
@@ -607,7 +621,7 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 				}
 				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor + crossOffset);
 			}
-			crossCursor += lineExtent + (li < lines.size() - 1 ? betweenCross : 0);
+			crossCursor += lineExtent + (v < lines.size() - 1 ? betweenCross : 0);
 		}
 		this.flexBox.setPageAxis(this.items.isEmpty() ? 0 : Math.max(content, crossCursor));
 		this.syncHostCursor(target, params);
