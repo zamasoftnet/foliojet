@@ -217,3 +217,152 @@ tr {
  * 印刷品質では和欧文間アキが既定であるべき、という製品判断。
  * 抑止したい文書は text-autospace: no-autospace を明示すればよい。
  */
+
+/*
+ * 大規模switch文からの段階移行・第3弾(2026-08-02)。属性駆動のロジックを
+ * 持たない静的既定値を移行した。論理プロパティのshorthand(margin-block等)は
+ * 未実装のためlonghandで書く。旧Java実装(applyParagraphMargins/
+ * applyListMargins/applyQuoteMargins)は親のwriting-mode基準で物理辺を
+ * 決めていたが、CSS論理プロパティは自身のwriting-mode基準——要素自身が
+ * writing-modeを変える場合のみ差が出る(標準動作の側に寄せた)。
+ */
+
+body {
+	margin: 8px;
+}
+
+/* 段落系のblock方向マージン(旧applyParagraphMargins) */
+p, dl, dir, menu, ol, blockquote, fieldset {
+	margin-block-start: 1.12em;
+	margin-block-end: 1.12em;
+}
+
+ul {
+	margin-block-start: 1.12em;
+	margin-block-end: 1.12em;
+}
+
+/* UL入れ子(UL祖先を持つUL)は段落マージンなし——旧実装のUL深さ
+   カウントと同じ結果になる(OL内のULは深さ0扱いで上のマージンが付く) */
+ul ul {
+	margin-block-start: 0;
+	margin-block-end: 0;
+}
+
+h1 {
+	font-size: 2em;
+	margin-block-start: 0.67em;
+	margin-block-end: 0.67em;
+}
+
+h2 {
+	font-size: 1.5em;
+	margin-block-start: 0.75em;
+	margin-block-end: 0.75em;
+}
+
+h3 {
+	font-size: 1.17em;
+	margin-block-start: 0.83em;
+	margin-block-end: 0.83em;
+}
+
+h4 {
+	margin-block-start: 1.12em;
+	margin-block-end: 1.12em;
+}
+
+h5 {
+	font-size: 0.83em;
+	margin-block-start: 1.5em;
+	margin-block-end: 1.5em;
+}
+
+h6 {
+	font-size: 0.75em;
+	margin-block-start: 1.67em;
+	margin-block-end: 1.67em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-weight: bolder;
+	page-break-after: avoid;
+}
+
+hr {
+	margin-block-start: 0.5em;
+	margin-block-end: 0.5em;
+}
+
+/* 引用ブロックのinline方向インデント(旧applyQuoteMargins) */
+blockquote {
+	margin-inline-start: 40px;
+	margin-inline-end: 40px;
+}
+
+/* リストのinline-startインデント(旧applyListMargins) */
+dd, dir, menu, ol, ul {
+	margin-inline-start: 40px;
+}
+
+dd, dl, menu, ol, ul {
+	page-break-before: avoid;
+}
+
+ol {
+	list-style-type: decimal;
+}
+
+/* ULのマーカーはUL入れ子深さで変える(旧実装のUL深さカウントと同じ
+   結果——固有性 ul < ul ul < ul ul ul で深い規則が勝つ) */
+ul {
+	list-style-type: disc;
+}
+
+ul ul {
+	list-style-type: circle;
+}
+
+ul ul ul {
+	list-style-type: square;
+}
+
+caption {
+	text-align: center;
+}
+
+center {
+	text-align: center;
+}
+
+th {
+	font-weight: bold;
+	text-align: center;
+}
+
+/* font-familyのmonospace化はFontValueUtils.toFontFamily()の非対称性の
+   ためJava側に残る(listing/plaintext/pre/xmp/code/kbd/samp/tt) */
+listing, plaintext, pre {
+	white-space: pre;
+	text-align: start;
+}
+
+legend {
+	position: absolute;
+	margin-top: -1em;
+}
+
+fieldset {
+	padding: 0.5em;
+	border: thin groove;
+}
+
+table {
+	text-align: left;
+	text-indent: 0;
+	border-spacing: 2px;
+}
+
+button, select {
+	font-size: medium;
+}
