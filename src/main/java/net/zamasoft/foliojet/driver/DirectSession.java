@@ -64,7 +64,6 @@ import net.zamasoft.pdfg2d.font.FontSourceManager;
 import net.zamasoft.pdfg2d.pdf.font.ConfigurablePDFFontSourceManager;
 import net.zamasoft.pdfg2d.pdf.font.PDFFontSource;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.commons.io.input.TeeInputStream;
 import org.xml.sax.SAXException;
@@ -359,7 +358,7 @@ public class DirectSession extends AbstractCTISession
 
 	public void resource(final Source source) throws IOException {
 		try (OutputStream out = this.resource((SourceMetadata) source); InputStream in = source.getInputStream()) {
-			IOUtils.copy(in, out);
+			in.transferTo(out);
 		}
 	}
 

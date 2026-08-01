@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.ua.impl.image;
 
+import net.zamasoft.pdfg2d.util.ImageInputStreamProxy;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.util.Iterator;

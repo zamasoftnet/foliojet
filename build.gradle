@@ -12,7 +12,6 @@ def dependencyVersions = [
     cti              : '2.2.3',
     pdfg2d           : '1.3.0-SNAPSHOT',
     zstream          : '1.0.0-SNAPSHOT',
-    commonsIo        : '2.21.0',
     batik            : '1.19',
     metadataExtractor: '2.20.0',
     imageioJpeg      : '3.13.1',
@@ -106,7 +105,6 @@ dependencies {
     api "net.zamasoft:zstream-resolver:${dependencyVersions.zstream}"
     api "io.github.mimidesunya:pdfg2d-svg:${dependencyVersions.pdfg2d}"
     api "net.zamasoft:html-balancer:${dependencyVersions.htmlBalancer}"
-    api "commons-io:commons-io:${dependencyVersions.commonsIo}"
     api "org.apache.xmlgraphics:batik-svggen:${dependencyVersions.batik}"
     api "org.apache.xmlgraphics:batik-script:${dependencyVersions.batik}"
     api "org.apache.xmlgraphics:batik-ext:${dependencyVersions.batik}"

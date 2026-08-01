@@ -206,7 +206,7 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
-import net.zamasoft.foliojet.layout.util.IntList;
+import net.zamasoft.pdfg2d.util.IntList;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;

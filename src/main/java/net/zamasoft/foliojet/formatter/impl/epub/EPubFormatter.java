@@ -47,7 +47,6 @@ import net.zamasoft.zstream.resolver.protocol.zip.ZIPFileSource;
 import net.zamasoft.zstream.resolver.protocol.zip.ZIPFileSourceResolver;
 import net.zamasoft.pdfg2d.gc.GC;
 
-import org.apache.commons.io.IOUtils;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
@@ -134,7 +133,7 @@ public class EPubFormatter implements Formatter {
 				epubFile = File.createTempFile("epub", ".epub");
 				try (final OutputStream out = new FileOutputStream(epubFile)) {
 					final InputStream in = source.getInputStream();
-					IOUtils.copy(in, out);
+					in.transferTo(out);
 				}
 			}
 			try {
