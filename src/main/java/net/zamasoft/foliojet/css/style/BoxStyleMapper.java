@@ -438,6 +438,12 @@ final class BoxStyleMapper {
 				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
 	}
 
+	void setupFlexParams(net.zamasoft.foliojet.layout.box.params.FlexParams params, CSSStyle style,
+			CSSStyle parentStyle, boolean inBody, PageSequence pageSequence) {
+		// Flex F0b: 骨格のみ(direction/wrap/整列/gapはF1a以降)
+		this.setupBlockParams(params, style, parentStyle, inBody, pageSequence);
+	}
+
 	/** CSS値→layout値(同名対応)。 */
 	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toBoxAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {

@@ -547,9 +547,6 @@ final class StyleBoxEmitter {
 
 		// ボックスの種類ごとの処理
 		switch (display) {
-		case DisplayValue.FLEX:
-			// Flex F0a(consult-codex-2026-08-02-flexbox.txt): レイアウト
-			// 未配線のため通常ブロックへ縮退(F0bでFlexBox+atomicへ)
 		case DisplayValue.BLOCK:
 		case DisplayValue.INLINE_BLOCK: {
 			// ブロック
@@ -648,6 +645,32 @@ final class StyleBoxEmitter {
 			final AbstractBlockBox listItem = this.createBlockBox(style, params, position, display, floating);
 			this.requireRoot(params.direction, params.flow);
 			this.sink.start(listItem);
+		}
+			break;
+
+		case DisplayValue.FLEX: {
+			// Flex F0b(consult-codex-2026-08-02-flexbox.txt): 通常フロー
+			// 文脈のみFlexBox(PageAtomicBox=常時分割不可)。float/absolute/
+			// fixedのFlexコンテナは初期サブセット外で通常blockへフォール
+			// バック(内容は失わない)。内容配置はF1まで単一列フロー
+			final net.zamasoft.foliojet.layout.box.params.FlexParams params = new net.zamasoft.foliojet.layout.box.params.FlexParams();
+			this.mapper.setupFlexParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
+					this.pageSequence);
+			final AbstractBlockBox blockBox;
+			if ((position == PositionValue.STATIC || position == PositionValue.RELATIVE)
+					&& floating == CSSFloatValue.NONE) {
+				final FlowPos pos = new FlowPos();
+				this.mapper.setupFlowPos(pos, style, this.context.isRightSide());
+				final CSSStyle parentStyle = style.getParentStyle();
+				if (parentStyle != null) {
+					pos.align = CSSJHtmlAlign.get(parentStyle);
+				}
+				blockBox = new net.zamasoft.foliojet.layout.box.impl.FlexBox(params, pos);
+			} else {
+				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
+			}
+			this.requireRoot(params.direction, params.flow);
+			this.sink.start(blockBox);
 		}
 			break;
 
