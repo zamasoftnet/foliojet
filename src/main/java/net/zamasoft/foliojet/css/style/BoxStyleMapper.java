@@ -388,7 +388,9 @@ final class BoxStyleMapper {
 				net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.get(style,
 						net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.SHRINK),
 				net.zamasoft.foliojet.css.impl.property.flex.FlexBasisProperty.get(style),
-				net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO, 0,
+				toFlexItemAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF),
+						net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO), 0,
 				!minSizeDeclared(style, false), !minSizeDeclared(style, true));
 	}
 
@@ -483,12 +485,63 @@ final class BoxStyleMapper {
 		// F2c: gapはGridと同じrow-gap/column-gapを共用(gapショートハンド込み)
 		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
+		// F3a: 整列(プロパティはGridと共用。flex既定: align-items=stretch、
+		// content系normal)
+		params.justifyContent = toFlexContentAlignment(
+				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT));
+		params.alignItems = toFlexItemAlignment(
+				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_ITEMS),
+				net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH);
+		params.alignContent = toFlexContentAlignment(
+				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
+	}
+
+	/** content distribution値のFlex側写像(flex-start/endはF5bまでstart/end)。 */
+	private static net.zamasoft.foliojet.layout.box.params.FlexContentAlignment toFlexContentAlignment(
+			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
+		return switch (value) {
+		case AUTO, NORMAL -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.NORMAL;
+		case FLEX_START, START -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.START;
+		case FLEX_END, END -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.END;
+		case CENTER -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.CENTER;
+		case STRETCH -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.STRETCH;
+		case SPACE_BETWEEN -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.SPACE_BETWEEN;
+		case SPACE_AROUND -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.SPACE_AROUND;
+		case SPACE_EVENLY -> net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.SPACE_EVENLY;
+		};
+	}
+
+	/** self alignment値のFlex側写像(normalは文脈既定へ、flex-start/endはstart/end)。 */
+	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toFlexItemAlignment(
+			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value,
+			final net.zamasoft.foliojet.layout.box.params.BoxAlignment normal) {
+		return switch (value) {
+		case AUTO -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO;
+		case NORMAL -> normal;
+		case FLEX_START, START -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.START;
+		case FLEX_END, END -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.END;
+		case CENTER -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.CENTER;
+		case STRETCH -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH;
+		default -> normal;
+		};
 	}
 
 	/** CSS値→layout値(同名対応)。 */
 	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toBoxAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
-		return net.zamasoft.foliojet.layout.box.params.BoxAlignment.valueOf(value.name());
+		// Flex F3aで増えた値のGrid側縮退: flex-start/endはstart/end相当、
+		// space-*はGrid未対応のためNORMALへ(答申F3aのリスク対応——
+		// CSSプロパティはdisplay非依存でGridへも流入する)
+		return switch (value) {
+		case FLEX_START -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.START;
+		case FLEX_END -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.END;
+		case SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY ->
+			net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL;
+		default -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.valueOf(value.name());
+		};
 	}
 
 	void setupParams(Params params, CSSStyle style) {

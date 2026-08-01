@@ -17,10 +17,12 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * </p>
  */
 public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDirection, FlexWrap flexWrap,
-		double rowGap, double columnGap) {
+		double rowGap, double columnGap, net.zamasoft.foliojet.layout.box.params.FlexContentAlignment justifyContent,
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignItems,
+		net.zamasoft.foliojet.layout.box.params.FlexContentAlignment alignContent) {
 	public static FlexParamsTemplate freeze(final FlexParams source) {
 		return new FlexParamsTemplate(BlockParamsFields.freeze(source), source.flexDirection, source.flexWrap,
-				source.rowGap, source.columnGap);
+				source.rowGap, source.columnGap, source.justifyContent, source.alignItems, source.alignContent);
 	}
 
 	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
@@ -36,6 +38,9 @@ public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDir
 		p.flexWrap = this.flexWrap;
 		p.rowGap = this.rowGap;
 		p.columnGap = this.columnGap;
+		p.justifyContent = this.justifyContent;
+		p.alignItems = this.alignItems;
+		p.alignContent = this.alignContent;
 		return p;
 	}
 }

@@ -58,7 +58,11 @@ public class GridAlignmentParserTest extends TestCase {
 	public void testRejected() {
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_ITEMS, "auto") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.ALIGN_ITEMS, "baseline") instanceof PropertyException);
-		assertTrue(parse(GridAlignmentProperty.JUSTIFY_CONTENT, "space-between") instanceof PropertyException);
+		// space-*はFlex F3aでcontent系の受理値になった(Grid mapperがNORMALへ
+		// 縮退)。self/items系では引き続き宣言無効
+		assertTrue(parse(GridAlignmentProperty.JUSTIFY_ITEMS, "space-between") instanceof PropertyException);
+		assertTrue(parse(GridAlignmentProperty.ALIGN_SELF, "space-evenly") instanceof PropertyException);
+		assertTrue(parse(GridAlignmentProperty.JUSTIFY_CONTENT, "auto") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.ALIGN_SELF, "safe center") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_SELF, "unsafe end") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.ALIGN_ITEMS, "center extra") instanceof PropertyException);

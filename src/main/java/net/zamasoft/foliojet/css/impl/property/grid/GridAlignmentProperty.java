@@ -28,11 +28,18 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 
 	private static final List<BoxAlignmentValue> ITEMS_VALUES = List.of(BoxAlignmentValue.NORMAL,
-			BoxAlignmentValue.START, BoxAlignmentValue.CENTER, BoxAlignmentValue.END, BoxAlignmentValue.STRETCH);
+			BoxAlignmentValue.START, BoxAlignmentValue.CENTER, BoxAlignmentValue.END, BoxAlignmentValue.STRETCH,
+			BoxAlignmentValue.FLEX_START, BoxAlignmentValue.FLEX_END);
 
 	private static final List<BoxAlignmentValue> SELF_VALUES = List.of(BoxAlignmentValue.AUTO,
 			BoxAlignmentValue.NORMAL, BoxAlignmentValue.START, BoxAlignmentValue.CENTER, BoxAlignmentValue.END,
-			BoxAlignmentValue.STRETCH);
+			BoxAlignmentValue.STRETCH, BoxAlignmentValue.FLEX_START, BoxAlignmentValue.FLEX_END);
+
+	/** content系(justify-content/align-content)はspace-*も受理(Flex F3a)。 */
+	private static final List<BoxAlignmentValue> CONTENT_VALUES = List.of(BoxAlignmentValue.NORMAL,
+			BoxAlignmentValue.START, BoxAlignmentValue.CENTER, BoxAlignmentValue.END, BoxAlignmentValue.STRETCH,
+			BoxAlignmentValue.FLEX_START, BoxAlignmentValue.FLEX_END, BoxAlignmentValue.SPACE_BETWEEN,
+			BoxAlignmentValue.SPACE_AROUND, BoxAlignmentValue.SPACE_EVENLY);
 
 	public static final PrimitivePropertyInfo JUSTIFY_ITEMS = new GridAlignmentProperty("justify-items",
 			ITEMS_VALUES, BoxAlignmentValue.NORMAL);
@@ -47,10 +54,10 @@ public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 			BoxAlignmentValue.AUTO);
 
 	public static final PrimitivePropertyInfo JUSTIFY_CONTENT = new GridAlignmentProperty("justify-content",
-			ITEMS_VALUES, BoxAlignmentValue.NORMAL);
+			CONTENT_VALUES, BoxAlignmentValue.NORMAL);
 
 	public static final PrimitivePropertyInfo ALIGN_CONTENT = new GridAlignmentProperty("align-content",
-			ITEMS_VALUES, BoxAlignmentValue.NORMAL);
+			CONTENT_VALUES, BoxAlignmentValue.NORMAL);
 
 	public static BoxAlignmentValue get(CSSStyle style, PrimitivePropertyInfo info) {
 		return (BoxAlignmentValue) style.get(info);

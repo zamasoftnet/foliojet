@@ -6,9 +6,8 @@ package net.zamasoft.foliojet.layout.box.params;
  * {@code BlockParams}拡張)。
  *
  * <p>
- * F1a時点はdirection/wrapのみ(内容配置はまだ単一列の通常フロー縮退)。
- * 整列(justifyContent=FlexContentAlignment/alignItems=BoxAlignment/
- * alignContent)はF3a、rowGap/columnGapはF2cで追加する。
+ * 整列のused value解決はFlexBuilder側(alignItemsの既定stretchと
+ * itemのalignSelf=AUTOの合成はF3c)。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -25,4 +24,13 @@ public class FlexParams extends BlockParams {
 
 	/** item間gap(column-gap——rowコンテナでは主軸方向)。 */
 	public double columnGap;
+
+	/** 主軸のcontent distribution(justify-content。F3b)。 */
+	public FlexContentAlignment justifyContent = FlexContentAlignment.NORMAL;
+
+	/** itemのcross軸整列の既定(align-items。F3c)。 */
+	public BoxAlignment alignItems = BoxAlignment.STRETCH;
+
+	/** 行群のcross軸分配(align-content。F3d)。 */
+	public FlexContentAlignment alignContent = FlexContentAlignment.NORMAL;
 }
