@@ -697,7 +697,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 			return;
 		}
-		if (log.containsOpaque(fromId, toId) || log.observeCaptionGate(fromId, toId)) {
+		if (log.containsOpaque(fromId, toId) || log.captionSealGate(fromId, toId)) {
 			// containsCaption(caption recipe化C1): キャプションはOpaque記録
 			// からrecipe記録へ移ったが、C2のcontext-complete検証までは
 			// 従来と同じ範囲を同じ理由(OPAQUE_RANGE)で弾く——routing不変。

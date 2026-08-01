@@ -667,7 +667,10 @@ public final class LayoutSource implements AutoCloseable {
 		// containsOpaqueゲートが再生を拒否していたため、早期停止で尾部を
 		// 表の手前で切る方が適格範囲が広がるだけで出力は不変——G-1が
 		// 436文書byte-parityで実証済み)
-		case FLOW, MULTICOL, TABLE, GRID -> true;
+		// CAPTION: 表キャプションも段落を終わらせるブロック級(caption
+		// recipe化C4——depth 0のCAPTION Startを尾部が含むと、キャプション
+		// 全体がtext-tail範囲へ紛れ込む。表と同じく早期停止で手前で切る)
+		case FLOW, MULTICOL, TABLE, GRID, CAPTION -> true;
 		default -> false;
 		};
 	}
@@ -747,12 +750,19 @@ public final class LayoutSource implements AutoCloseable {
 	 * </p>
 	 */
 	/**
-	 * C1のcaption一律ゲート+C2のshadow観測です。範囲がキャプションを
-	 * 含むならtrue(=呼び出し側は従来どおりbox-restyleへ)を返しつつ、
-	 * C4の実ゲート(context-complete検証)なら通したか弾いたかを
-	 * {@code ContinuationStats.CAPTION_CONTEXT_ACCEPTS}/
-	 * {@code CAPTION_ROOT_REJECTS}へ観測する。routingは観測結果に
-	 * 依存しない(C4で観測値の妥当性を確認してから切り替える)。
+	 * キャプションの一律ゲート+観測です(ページ破断頻度の再生経路用——
+	 * {@code stampRanges}/{@code canReplayChildren})。範囲がキャプションを
+	 * 含むなら常にtrue(=box-restyleへ)。
+	 *
+	 * <p>
+	 * <b>C4で実ゲート化を試み、撤回した(2026-08-01実測)</b>: キャプション
+	 * 付き多ページ表(0217のthead/tfoot反復、100px頁)をページ破断のたびに
+	 * 表全体replayする形になり、Java heap spaceで変換死(tableReplays
+	 * 37→3891)。破断頻度で駆動される経路の解禁は、replay一回性が保証される
+	 * bind経路と性質が違う——bind一回のTwoPass seal側だけ実ゲート
+	 * ({@link #captionSealGate})とし、こちらは恒久的に一律拒否+観測に
+	 * 留める。
+	 * </p>
 	 */
 	public boolean observeCaptionGate(final long fromId, final long toId) {
 		if (!this.containsCaption(fromId, toId)) {
@@ -763,6 +773,24 @@ public final class LayoutSource implements AutoCloseable {
 		} else {
 			ContinuationStats.CAPTION_ROOT_REJECTS.incrementAndGet();
 		}
+		return true;
+	}
+
+	/**
+	 * キャプションの実ゲートです(bind一回性のあるTwoPass seal専用、C4)。
+	 * キャプションを含む範囲でも、context-complete検証(範囲内に対応する
+	 * TABLE Startの確立・完全閉鎖)を満たせば吸収・range bindを許可する。
+	 * CAPTION単独根・途中切断の形(G-1のクラッシュ形)は恒久的にreject。
+	 */
+	public boolean captionSealGate(final long fromId, final long toId) {
+		if (!this.containsCaption(fromId, toId)) {
+			return false;
+		}
+		if (this.isContextCompleteRange(fromId, toId)) {
+			ContinuationStats.CAPTION_CONTEXT_ACCEPTS.incrementAndGet();
+			return false;
+		}
+		ContinuationStats.CAPTION_ROOT_REJECTS.incrementAndGet();
 		return true;
 	}
 

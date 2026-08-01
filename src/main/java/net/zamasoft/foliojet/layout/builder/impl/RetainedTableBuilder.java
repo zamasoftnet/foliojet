@@ -340,8 +340,22 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		if (this.abandoned) {
 			return false;
 		}
-		if (!this.topCaptions.isEmpty() || !this.bottomCaptions.isEmpty()) {
-			return false;
+		// caption recipe化C4(2026-08-01): キャプションも親range化の吸収対象
+		// (C3のclose時sealでSourceRangeBody保持——検証相で親範囲内リースで
+		// あることを確かめ、コミット相は親のsubsumeが処理する。吸収された
+		// 表計画はabandonForParentRangeでbindRowsごと破棄されるため、
+		// subsumed後のcaption bindは発生しない)
+		for (int c = 0; c < this.topCaptions.size(); ++c) {
+			if (!(this.topCaptions.get(c) instanceof TwoPassBlockBuilder caption)
+					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+				return false;
+			}
+		}
+		for (int c = 0; c < this.bottomCaptions.size(); ++c) {
+			if (!(this.bottomCaptions.get(c) instanceof TwoPassBlockBuilder caption)
+					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+				return false;
+			}
 		}
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			final List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
