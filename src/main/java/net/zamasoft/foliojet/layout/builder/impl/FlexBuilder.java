@@ -64,7 +64,7 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
  * コンテナ単位で単一列縮退させる(item単位の縮退は禁止)。
  * </p>
  */
-public final class FlexBuilder implements RetainedFlex {
+public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
 	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
 	public static final AtomicLong FLEX_ITEM_RECORDS = new AtomicLong();
@@ -109,6 +109,11 @@ public final class FlexBuilder implements RetainedFlex {
 		this.host = host;
 		this.hostStack = (LayoutStack) host;
 		this.flexBox = flexBox;
+	}
+
+	@Override
+	public net.zamasoft.foliojet.layout.box.IBox getItemHostBox() {
+		return this.flexBox;
 	}
 
 	@Override
@@ -442,9 +447,20 @@ public final class FlexBuilder implements RetainedFlex {
 		return new CrossDistribution(leading, between);
 	}
 
-	/** align-self:auto→align-itemsの合成used value(§9.6)。 */
-	private BoxAlignment resolveAlign(final FlexItemContent item) {
-		return BoxAlignment.resolve(item.spec.alignSelf(), this.flexBox.getFlexParams().alignItems);
+	/**
+	 * align-self:auto→align-itemsの合成used value(§9.6)。wrap-reverse
+	 * (cross軸反転)ではstart/endを交換する——無印start/endも
+	 * flex-start/endと同扱い(flexでの慣用が圧倒的にflex-*のため。
+	 * 厳密な書字方向基準start/endはサブセット外)。
+	 */
+	private BoxAlignment resolveAlign(final FlexItemContent item, final boolean crossReversed) {
+		final BoxAlignment align = BoxAlignment.resolve(item.spec.alignSelf(),
+				this.flexBox.getFlexParams().alignItems);
+		if (crossReversed) {
+			return align == BoxAlignment.START ? BoxAlignment.END
+					: align == BoxAlignment.END ? BoxAlignment.START : align;
+		}
+		return align;
 	}
 
 	// ------------------------------------------------------------------
@@ -520,14 +536,7 @@ public final class FlexBuilder implements RetainedFlex {
 			final double lineExtent = lineExtents[li];
 			for (int k = line.from(); k < line.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
-				BoxAlignment align = this.resolveAlign(item);
-				if (crossReversed) {
-					// F5c: cross反転でstart/endを交換(無印start/endも
-					// flex-start/endと同扱い——flexでの慣用が圧倒的にflex-*
-					// のため。厳密な書字方向基準start/endはサブセット外)
-					align = align == BoxAlignment.START ? BoxAlignment.END
-							: align == BoxAlignment.END ? BoxAlignment.START : align;
-				}
+				final BoxAlignment align = this.resolveAlign(item, crossReversed);
 				// cross軸auto marginはalign-self/stretchより先(§8.1、F3e):
 				// start側autoで終端寄せ、両側autoで中央
 				final boolean crossStartAuto = this.crossMarginAuto(item, false);
@@ -564,8 +573,8 @@ public final class FlexBuilder implements RetainedFlex {
 	 * 一切読まずに、列cross=列内itemの明示幅/fit-contentの最大、
 	 * align-content分配、stretch itemの列幅追随まで確定してからbindする)。
 	 * 主軸寸法はbind後にsetPageAxisで課す(§9.7の結果——指定高より優先)。
-	 * auto marginはcolumnサブセット外。wrap-reverseは列順のみ反転
-	 * (item整列のstart/end反転はrowと未対称——挙動保存の既知課題)。
+	 * auto marginはcolumnサブセット外。wrap-reverseは列順とitem整列の
+	 * start/endをrowと対称に反転する。
 	 */
 	private void placeColumn(final BlockBuilder target, final MainAxis axis, final int[] seq,
 			final List<FlexItemMetrics> metrics, final List<FlexLineBreaker.Line> cols,
@@ -586,7 +595,7 @@ public final class FlexBuilder implements RetainedFlex {
 				final RectFrame frame = p.frame;
 				final double lineExtras = insetsLine(frame.margin, innerLine)
 						+ insetsLine(frame.padding, innerLine) + borderLine(frame);
-				final BoxAlignment align = this.resolveAlign(item);
+				final BoxAlignment align = this.resolveAlign(item, false);
 				final double crossWidth;
 				if (p.size.getLineType(params.flow) != LengthType.AUTO) {
 					// 明示幅(border-boxは枠を引いて内寸へ。marginは含まない)
@@ -616,7 +625,7 @@ public final class FlexBuilder implements RetainedFlex {
 				for (int k = col.from(); k < col.to(); ++k) {
 					final int oi = seq[k];
 					final FlexItemContent item = this.items.get(oi);
-					if (this.resolveAlign(item) == BoxAlignment.STRETCH && item.itemBox.getBlockParams().size
+					if (this.resolveAlign(item, false) == BoxAlignment.STRETCH && item.itemBox.getBlockParams().size
 							.getLineType(params.flow) == LengthType.AUTO) {
 						crossWidthByOriginal[oi] = Math.max(crossWidthByOriginal[oi],
 								colCross[ci] - itemCrossExtras[oi]);
@@ -647,9 +656,11 @@ public final class FlexBuilder implements RetainedFlex {
 				final FlexItemContent item = this.items.get(seq[k]);
 				// 主軸(page)寸法を確定(§9.7の結果——指定高より優先)
 				item.itemBox.setPageAxis(mainSizeByOriginal[seq[k]]);
-				// cross整列(line軸): 列内の残余+列開始位置
+				// cross整列(line軸): 列内の残余+列開始位置。wrap-reverseは
+				// rowと対称にstart/endを反転(2026-08-02——一本化の照合で
+				// 発見した非対称の解消)
 				final double freeCross = Math.max(0, colCross[ci] - item.itemBox.getLineExtent(params.flow));
-				final BoxAlignment align = this.resolveAlign(item);
+				final BoxAlignment align = this.resolveAlign(item, crossReversed);
 				final double crossOffset = align == BoxAlignment.CENTER ? freeCross / 2
 						: align == BoxAlignment.END ? freeCross : 0;
 				item.itemBox.setFlexLineOffset(crossCursor + crossOffset, params.flow.isVertical());

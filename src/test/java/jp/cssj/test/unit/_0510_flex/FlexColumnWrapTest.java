@@ -53,4 +53,31 @@ public class FlexColumnWrapTest extends AbstractTestCase {
 		}
 		return false;
 	}
+
+	private double w3X = Double.NaN, w3Y = Double.NaN;
+
+	/**
+	 * wrap-reverse: 列順反転で論理2列目(item 3)が視覚先頭(左)。
+	 * align-items: flex-endはcross反転によりrowと対称にstart側
+	 * (列の左端)へ倒れる——2026-08-02の非対称解消の固定。
+	 */
+	public boolean check_w3(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.BLOCK) {
+			this.w3X = x;
+			this.w3Y = y;
+			assertEquals("コンテナ高(100)直下の次コンテナ左端", this.baseX, x, 0.1);
+			return true;
+		}
+		return false;
+	}
+
+	/** 論理1列目(item 1,2)は視覚2列目=+50。整列も左詰め(反転済みflex-end)。 */
+	public boolean check_w1(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.BLOCK) {
+			assertEquals(this.w3X + 50, x, 0.1);
+			assertEquals(this.w3Y, y, 0.1);
+			return true;
+		}
+		return false;
+	}
 }

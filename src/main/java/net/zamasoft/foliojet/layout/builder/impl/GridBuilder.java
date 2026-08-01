@@ -58,7 +58,8 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
  * {@link GridBuilderLifecycle#eligible}。
  * </p>
  */
-public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.RetainedGrid {
+public final class GridBuilder
+		implements net.zamasoft.foliojet.layout.builder.RetainedGrid, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
 	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
 	public static final AtomicLong GRID_ITEM_RECORDS = new AtomicLong();
@@ -201,6 +202,11 @@ public final class GridBuilder implements net.zamasoft.foliojet.layout.builder.R
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでGrid終端に到達";
 		this.host.addGrid(this);
+	}
+
+	@Override
+	public net.zamasoft.foliojet.layout.box.IBox getItemHostBox() {
+		return this.gridBox;
 	}
 
 	@Override
