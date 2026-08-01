@@ -27,10 +27,10 @@ public final class FlexBuilderLifecycle {
 		if (!params.flexDirection.isRow()) {
 			// F4b: columnはnowrap+definite主軸(絶対長height)のみ。
 			// indefinite主軸のauto basisはitem実高が要る(F4cのprobe)
-			if (params.flexWrap != FlexWrap.NOWRAP || params.flow.isVertical()) {
+			if (params.flexWrap != FlexWrap.NOWRAP) {
 				return false;
 			}
-			if (params.size.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				return false;
 			}
 			return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
@@ -43,9 +43,6 @@ public final class FlexBuilderLifecycle {
 				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			// F3d: wrapのdefinite crossは絶対長のみ解禁(%crossは
 			// サブセット外のまま)
-			return false;
-		}
-		if (params.flow.isVertical()) {
 			return false;
 		}
 		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;

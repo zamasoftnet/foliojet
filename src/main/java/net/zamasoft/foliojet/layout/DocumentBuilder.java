@@ -632,7 +632,8 @@ public class DocumentBuilder implements TableBuilderHost {
 				switch (box.getPos().getType()) {
 				case FLOW:
 					if (box.getClass() == FlowBlockBox.class
-							&& !((FlowBlockBox) box).getBlockParams().flow.isVertical()) {
+							&& ((FlowBlockBox) box).getBlockParams().flow == flexHost.getFlexBox()
+									.getFlexParams().flow) {
 						final FlowBlockBox sourceBox = (FlowBlockBox) box;
 						this.closeInlines(sourceBox.getBlockParams());
 						this.closeFlexAnonymousItem(flexHost);
@@ -764,6 +765,13 @@ public class DocumentBuilder implements TableBuilderHost {
 				// ページ進行方向が違う場合
 				final Builder newBuilder = builder.newBuilder(blockBox);
 				this.startContainerBuilder(newBuilder);
+				// F6: 直交フローのFlexコンテナにもcoordinatorを付ける
+				// (容れ物はnewBuilder——TwoPassならFlexEventとして録画され、
+				// shrinkToFit後のbindでrow/column配置される)
+				if (blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox orthoFlex
+						&& FlexBuilderLifecycle.eligible(orthoFlex, newBuilder)) {
+					this.builderStack.add(FlexBuilderLifecycle.start(newBuilder, orthoFlex));
+				}
 			}
 			this.startContainer();
 		}

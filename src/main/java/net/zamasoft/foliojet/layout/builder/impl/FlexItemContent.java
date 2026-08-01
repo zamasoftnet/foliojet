@@ -38,7 +38,7 @@ final class FlexItemContent {
 	 * TwoPassライフサイクル。{@code GridItemContent.bind}と同型)。
 	 */
 	void bind(final BlockBuilder host, final double mainSize) {
-		this.itemBox.setFlexMainSize(mainSize);
+		this.itemBox.setFlexMainSize(mainSize, this.itemBox.getBlockParams().flow.isVertical());
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		this.body.bind(target);
 		target.close();

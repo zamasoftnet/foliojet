@@ -23,13 +23,24 @@ public class FlexItemBox extends FlowBlockBox {
 		super(params, pos);
 	}
 
-	/** 主軸方向のitem開始位置(Flexコンテナ内辺原点、自然位置からの相対)を設定します。 */
-	public void setFlexLineOffset(final double lineOffset) {
-		this.offsetX = lineOffset;
+	/**
+	 * 線方向のitem開始位置(Flexコンテナ内辺原点、自然位置からの相対)を
+	 * 設定します(F6: 縦書きでは物理Y)。
+	 */
+	public void setFlexLineOffset(final double lineOffset, final boolean vertical) {
+		if (vertical) {
+			this.offsetY = lineOffset;
+		} else {
+			this.offsetX = lineOffset;
+		}
 	}
 
-	/** 確定した主軸内寸(content-box)を設定します(bind直前に呼ぶ)。 */
-	public void setFlexMainSize(final double mainSize) {
-		this.width = mainSize;
+	/** 確定した線方向内寸(content-box)を設定します(bind直前に呼ぶ。縦書き=高さ)。 */
+	public void setFlexMainSize(final double mainSize, final boolean vertical) {
+		if (vertical) {
+			this.height = mainSize;
+		} else {
+			this.width = mainSize;
+		}
 	}
 }
