@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F5b: row-reverse / column-reverse</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.i { flex: 0 0 40pt; height: 20pt; }
+</style>
+</head>
+<body>
+<div style="display: flex; flex-direction: row-reverse; width: 200pt">
+<div class="i" id="a">a</div>
+<div class="i" id="b">b</div>
+</div>
+<div style="display: flex; flex-direction: row-reverse; justify-content: flex-end; width: 200pt">
+<div class="i" id="p">p</div>
+<div class="i" id="q">q</div>
+</div>
+<div style="display: flex; flex-direction: column-reverse; width: 200pt; height: 100pt">
+<div class="i" id="v">v</div>
+<div class="i" id="w">w</div>
+</div>
+</body>
+</html>

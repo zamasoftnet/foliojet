@@ -390,7 +390,8 @@ final class BoxStyleMapper {
 				net.zamasoft.foliojet.css.impl.property.flex.FlexBasisProperty.get(style),
 				toFlexItemAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF),
-						net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO), 0,
+						net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO),
+				net.zamasoft.foliojet.css.impl.property.flex.OrderProperty.get(style),
 				!minSizeDeclared(style, false), !minSizeDeclared(style, true));
 	}
 
@@ -487,9 +488,10 @@ final class BoxStyleMapper {
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
 		// F3a: 整列(プロパティはGridと共用。flex既定: align-items=stretch、
 		// content系normal)
-		params.justifyContent = toFlexContentAlignment(
+		params.justifyContent = toFlexJustify(
 				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
-						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT));
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT),
+				params.flexDirection.isReverse());
 		params.alignItems = toFlexItemAlignment(
 				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_ITEMS),
@@ -499,7 +501,32 @@ final class BoxStyleMapper {
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
 	}
 
-	/** content distribution値のFlex側写像(flex-start/endはF5bまでstart/end)。 */
+	/**
+	 * justify-contentのFlex側写像です(F5b)。reverse主軸ではflex-start/
+	 * flex-end/normal/stretch(いずれもflex-start相当)が物理END側になる。
+	 * 無印start/endは書字方向基準のため反転しない(答申F5bの
+	 * 「startとflex-startを同一視できない」)。
+	 */
+	private static net.zamasoft.foliojet.layout.box.params.FlexContentAlignment toFlexJustify(
+			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value, final boolean reversed) {
+		if (reversed) {
+			switch (value) {
+			case AUTO:
+			case NORMAL:
+			case STRETCH:
+			case FLEX_START:
+				return net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.END;
+			case FLEX_END:
+				return net.zamasoft.foliojet.layout.box.params.FlexContentAlignment.START;
+			default:
+				break;
+			}
+		}
+		return toFlexContentAlignment(value);
+	}
+
+	/** content distribution値のFlex側写像(align-content用。flex-*の
+	 * cross反転はF5cのwrap-reverseで扱う)。 */
 	private static net.zamasoft.foliojet.layout.box.params.FlexContentAlignment toFlexContentAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
 		return switch (value) {

@@ -255,6 +255,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.GROW);
 		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.SHRINK);
 		reg(net.zamasoft.foliojet.css.impl.property.flex.FlexBasisProperty.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.flex.OrderProperty.INFO);
 		reg(TextIndent.INFO);
 		reg(TextAlign.INFO);
 		reg(TextDecoration.INFO);

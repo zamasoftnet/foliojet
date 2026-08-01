@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F5a: order changes visual position only</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.i { flex: 0 0 40pt; height: 20pt; }
+</style>
+</head>
+<body>
+<div style="display: flex; width: 200pt">
+<div class="i" id="a">a</div>
+<div class="i" id="b" style="order: -1">b</div>
+<div class="i" id="c" style="order: 1">c</div>
+<div class="i" id="d">d</div>
+</div>
+</body>
+</html>
