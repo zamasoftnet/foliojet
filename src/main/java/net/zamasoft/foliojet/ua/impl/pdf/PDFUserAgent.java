@@ -503,11 +503,27 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 					this.message(MessageCodes.WARN_MISSING_ATTACHMENT, uri.toString());
 					continue;
 				}
+				String relationship = this.getProperty(prefix + "relationship");
+				if (relationship != null) {
+					// PDF/A-3のAFRelationship名へ正規化(電子インボイスは
+					// alternative——2026-08-02)
+					switch (relationship.toLowerCase()) {
+					case "alternative" -> relationship = "Alternative";
+					case "data" -> relationship = "Data";
+					case "source" -> relationship = "Source";
+					case "supplement" -> relationship = "Supplement";
+					case "unspecified" -> relationship = "Unspecified";
+					default -> {
+						this.message(MessageCodes.WARN_BAD_IO_PROPERTY, prefix + "relationship", relationship);
+						relationship = null;
+					}
+					}
+				}
 				try {
 					if (mimeType == null) {
 						mimeType = attachmetSource.getMimeType();
 					}
-					Attachment att = new Attachment(description, mimeType);
+					Attachment att = new Attachment(description, mimeType, relationship);
 					try (OutputStream out = this.pdfWriter.addAttachment(name, att);
 							InputStream in = attachmetSource.getInputStream()) {
 						for (int len = in.read(buff); len != -1; len = in.read(buff)) {

@@ -53,6 +53,7 @@ import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
 import net.zamasoft.pdfg2d.pdf.Attachment;
 import net.zamasoft.pdfg2d.pdf.PDFGraphicsOutput;
+import net.zamasoft.pdfg2d.pdf.FacturX;
 import net.zamasoft.pdfg2d.pdf.PDFMetaInfo;
 import net.zamasoft.pdfg2d.pdf.PDFOutput;
 import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
@@ -247,6 +248,17 @@ final class PDFParamsResolver {
 					ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_META_MOD_DATE.name, modDate);
 				}
 			}
+		}
+
+		// 電子インボイス(Factur-X/ZUGFeRD——2026-08-02、PLAN §2の時限1位)。
+		// conformance-levelの設定で有効化し、XMPのfx:拡張スキーマを出す。
+		// 請求書XML自体はoutput.pdf.attachments.*(relationship=alternative)
+		// で添付する——検証器はXMPと添付の両方を見る
+		final String facturXLevel = UAProps.OUTPUT_PDF_FACTURX_CONFORMANCE_LEVEL.getString(ua);
+		if (facturXLevel != null) {
+			metaInfo.setFacturX(new FacturX(UAProps.OUTPUT_PDF_FACTURX_DOCUMENT_TYPE.getString(ua),
+					UAProps.OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME.getString(ua),
+					UAProps.OUTPUT_PDF_FACTURX_VERSION.getString(ua), facturXLevel));
 		}
 
 		// カラー

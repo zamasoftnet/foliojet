@@ -491,6 +491,33 @@ public final class UAProps {
 			null);
 
 	/**
+	 * 電子インボイス(Factur-X/ZUGFeRD)のXMP適合レベルです。設定すると
+	 * fx:拡張スキーマがXMPへ出力されます(請求書XML自体は
+	 * output.pdf.attachments.*でrelationship=alternativeとして添付する)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_FACTURX_CONFORMANCE_LEVEL = new StringPropManager(
+			"output.pdf.facturx.conformance-level", null);
+
+	/**
+	 * Factur-Xの文書種別です(既定INVOICE)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_FACTURX_DOCUMENT_TYPE = new StringPropManager(
+			"output.pdf.facturx.document-type", "INVOICE");
+
+	/**
+	 * Factur-Xの請求書XMLファイル名です(既定factur-x.xml。添付名と
+	 * 一致させること)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME = new StringPropManager(
+			"output.pdf.facturx.document-file-name", "factur-x.xml");
+
+	/**
+	 * Factur-Xのプロファイル版です(既定1.0)。
+	 */
+	public static final StringPropManager OUTPUT_PDF_FACTURX_VERSION = new StringPropManager(
+			"output.pdf.facturx.version", "1.0");
+
+	/**
 	 * 背表紙幅です。
 	 */
 	public static final StringPropManager OUTPUT_MARKS_SPINE_WIDTH = new StringPropManager("output.marks.spine-width",
@@ -660,6 +687,10 @@ public final class UAProps {
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,
+			OUTPUT_PDF_FACTURX_CONFORMANCE_LEVEL,
+			OUTPUT_PDF_FACTURX_DOCUMENT_TYPE,
+			OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME,
+			OUTPUT_PDF_FACTURX_VERSION,
 			OUTPUT_MARKS_SPINE_WIDTH,
 			OUTPUT_PDF_ENCRYPTION_V4_CFM,
 			OUTPUT_PDF_WATERMARK_URI,
