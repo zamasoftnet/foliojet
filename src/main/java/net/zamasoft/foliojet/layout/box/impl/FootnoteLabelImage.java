@@ -174,49 +174,10 @@ public final class FootnoteLabelImage implements net.zamasoft.pdfg2d.gc.image.Im
 		return advance;
 	}
 
-	/** RubyUnitBox.shapeと同型の自己完結整形(collector→TextImpl列)。 */
+	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
 	private TextImpl[] shape(final String text) {
-		if (text.isEmpty()) {
-			return new TextImpl[0];
-		}
-		final List<TextImpl> runs = new ArrayList<>();
-		final GlyphHandler collector = new GlyphHandler() {
-			private TextImpl current = null;
-
-			public void startTextRun(final int co, final FontStyle fs, final FontMetrics fm) {
-				this.current = new TextImpl(co, fs, fm);
-			}
-
-			public void glyph(final int co, final char[] ch, final int coff, final byte clen, final int gid) {
-				this.current.appendGlyph(ch, coff, clen, gid);
-			}
-
-			public void endTextRun() {
-				if (this.current.getGlyphCount() > 0) {
-					this.current.pack();
-					// 和文詰めT1a: font層から移管したrun内約物詰めを適用
-					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.applyRunTrims(this.current);
-					runs.add(this.current);
-				}
-				this.current = null;
-			}
-
-			public void control(final TextControl control) {
-				// ラベルに制御コードは含まれない
-			}
-
-			public void flush() {
-			}
-
-			public void close() {
-			}
-		};
-		final TextShaper shaper = this.fontManager.getTextShaper();
-		shaper.setGlyphHandler(collector);
-		shaper.fontStyle(this.fontStyle);
-		final char[] ch = text.toCharArray();
-		shaper.characters(-1, ch, 0, ch.length);
-		shaper.close();
-		return runs.toArray(new TextImpl[runs.size()]);
+		return net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(this.fontManager, this.fontStyle, text, -1,
+				false);
 	}
+
 }

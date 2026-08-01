@@ -4,27 +4,15 @@ import net.zamasoft.pdfg2d.gc.text.TextControl;
 
 /**
  * テキスト中の文字以外の埋め物です。
- * 
+ *
+ * <p>
+ * 分類マーカー(foliojetの語彙)であり、定数({@code JOIN}/{@code BREAK}/
+ * {@code CONTINUE_BEFORE}/{@code CONTINUE_AFTER})と{@code getString()}は
+ * {@link TextControl}から継承する(2026-08-01の一本化で同内容の再宣言を
+ * 撤去した)。
+ * </p>
+ *
  * @author MIYABE Tatsuhiko
- * @version $Id: Quad.java 1565 2018-07-04 11:51:25Z miyabe $
  */
 public abstract class Quad extends TextControl {
-	// U+200B ZERO WIDTH SPACE
-	// U+00A0 NO-BREAK SPACE
-	// U+2060 WORD JOINER
-	/** 文字列を区切りません。 */
-	public static final String JOIN = "";
-	/** 文字列を区切ります。 */
-	public static final String BREAK = "\u200B";
-	/** 前の文字として扱います。Quad自体は後の文字列の前にくっつきます。 */
-	public static final String CONTINUE_BEFORE = "\u200B\u2060";
-	/** 前の文字として扱います。Quad自体は前の文字列の後にくっつきます。 */
-	public static final String CONTINUE_AFTER = "\u2060\u200B";
-
-	/**
-	 * 相当する文字列です。
-	 * 
-	 * @return
-	 */
-	public abstract String getString();
 }

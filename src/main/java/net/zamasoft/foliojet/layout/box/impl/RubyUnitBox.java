@@ -278,61 +278,13 @@ public class RubyUnitBox extends InlineBlockBox {
 				sourceEnd);
 	}
 
-	/**
-	 * 文字列を単一スタイルで整形し、フォントフォールバックのラン列を
-	 * 返します。live構築と同じ{@code TextShaper}を使うため、字形・幅は
-	 * 通常のテキストと一致します。
-	 */
+	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
 	private static TextImpl[] shape(final InlineParams src, final FontStyle fontStyle, final String text,
 			final int charOffset) {
-		if (text.isEmpty()) {
-			return new TextImpl[0];
-		}
-		final List<TextImpl> runs = new ArrayList<>();
-		final GlyphHandler collector = new GlyphHandler() {
-			private TextImpl current = null;
-
-			public void startTextRun(final int co, final FontStyle fs, final FontMetrics fm) {
-				this.current = new TextImpl(co, fs, fm);
-			}
-
-			public void glyph(final int co, final char[] ch, final int coff, final byte clen, final int gid) {
-				this.current.appendGlyph(ch, coff, clen, gid);
-			}
-
-			public void endTextRun() {
-				if (this.current.getGlyphCount() > 0) {
-					this.current.pack();
-					// 和文詰めT1a/T1b: font層から移管したrun内約物詰めを適用
-					// (ルビ単位内の連続約物——移管前と同じ見た目を維持。
-					// text-spacing-trim: space-allで無効化)
-					if (!src.textSpacingTrimOff) {
-						net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
-								.applyRunTrims(this.current);
-					}
-					runs.add(this.current);
-				}
-				this.current = null;
-			}
-
-			public void control(final TextControl control) {
-				// 単位内に制御コードは流れない(組み立て時に除去済み)
-			}
-
-			public void flush() {
-			}
-
-			public void close() {
-			}
-		};
-		final TextShaper shaper = src.fontManager.getTextShaper();
-		shaper.setGlyphHandler(collector);
-		shaper.fontStyle(fontStyle);
-		final char[] ch = text.toCharArray();
-		shaper.characters(charOffset, ch, 0, ch.length);
-		shaper.close();
-		return runs.toArray(new TextImpl[0]);
+		return net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle, text,
+				charOffset, src.textSpacingTrimOff);
 	}
+
 
 	private static double totalAdvance(final TextImpl[] texts) {
 		double advance = 0;

@@ -277,7 +277,9 @@ public class StyledTextUnitizer {
 		}
 		this.requireTextShaper();
 		final AbstractTextParams params = this.getTextParams();
-		final net.zamasoft.pdfg2d.gc.text.TextImpl[] runs = shapeLeaderPattern(params, pattern);
+		// 一本化(2026-08-01): 自己完結shapeはRunCollector+TrimmedRunsへ
+		final net.zamasoft.pdfg2d.gc.text.TextImpl[] runs = net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns
+				.shape(params.fontManager, params.fontStyle, pattern, -1, false);
 		if (runs.length == 0) {
 			// どのフォントにもグリフがない——埋め物なし
 			return;
@@ -286,50 +288,7 @@ public class StyledTextUnitizer {
 		this.followingChar = 'x';
 	}
 
-	/** パターン1周期の自己完結shape({@code FootnoteLabelImage.shape}と同型)。 */
-	private static net.zamasoft.pdfg2d.gc.text.TextImpl[] shapeLeaderPattern(final AbstractTextParams params,
-			final String pattern) {
-		final List<net.zamasoft.pdfg2d.gc.text.TextImpl> runs = new ArrayList<>();
-		final net.zamasoft.pdfg2d.gc.text.GlyphHandler collector = new net.zamasoft.pdfg2d.gc.text.GlyphHandler() {
-			private net.zamasoft.pdfg2d.gc.text.TextImpl current = null;
 
-			public void startTextRun(final int co, final net.zamasoft.pdfg2d.gc.font.FontStyle fs,
-					final net.zamasoft.pdfg2d.gc.font.FontMetrics fm) {
-				this.current = new net.zamasoft.pdfg2d.gc.text.TextImpl(co, fs, fm);
-			}
-
-			public void glyph(final int co, final char[] ch, final int coff, final byte clen, final int gid) {
-				this.current.appendGlyph(ch, coff, clen, gid);
-			}
-
-			public void endTextRun() {
-				if (this.current.getGlyphCount() > 0) {
-					this.current.pack();
-					// 和文詰めT1a: font層から移管したrun内約物詰めを適用
-					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.applyRunTrims(this.current);
-					runs.add(this.current);
-				}
-				this.current = null;
-			}
-
-			public void control(final TextControl control) {
-				// パターンに制御コードは含まれない(パース時に改行除去済み)
-			}
-
-			public void flush() {
-			}
-
-			public void close() {
-			}
-		};
-		final TextShaper shaper = params.fontManager.getTextShaper();
-		shaper.setGlyphHandler(collector);
-		shaper.fontStyle(params.fontStyle);
-		final char[] ch = pattern.toCharArray();
-		shaper.characters(-1, ch, 0, ch.length);
-		shaper.close();
-		return runs.toArray(new net.zamasoft.pdfg2d.gc.text.TextImpl[runs.size()]);
-	}
 
 	/**
 	 * 対応がついたルビ単位を1つ、atomic inline({@code RubyUnitBox}を
