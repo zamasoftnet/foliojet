@@ -19,4 +19,10 @@ public class FlexParams extends BlockParams {
 
 	/** 折り返し(flex-wrap)。 */
 	public FlexWrap flexWrap = FlexWrap.NOWRAP;
+
+	/** 行間gap(row-gap——rowコンテナではcross方向)。 */
+	public double rowGap;
+
+	/** item間gap(column-gap——rowコンテナでは主軸方向)。 */
+	public double columnGap;
 }

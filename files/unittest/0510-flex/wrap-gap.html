@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex F2c: gap affects breaking and line stacking</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="ff" style="display: flex; flex-wrap: wrap; width: 100pt; column-gap: 30pt; row-gap: 10pt">
+<div id="p" style="flex: 0 0 40pt; height: 20pt">p</div>
+<div id="q" style="flex: 0 0 40pt; height: 20pt">q</div>
+<div id="r" style="flex: 0 0 40pt; height: 20pt">r</div>
+</div>
+<div id="after" style="height: 10pt">after</div>
+</body>
+</html>

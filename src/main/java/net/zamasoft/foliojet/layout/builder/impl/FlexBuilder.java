@@ -214,7 +214,8 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 		final java.util.List<net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line> lines;
 		if (this.flexBox.getFlexParams().flexWrap.isWrap()) {
 			// F2b: 行分割はouter hypothetical main size基準(§9.3 step 5)
-			lines = net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.breakLines(metrics, containerInner, 0);
+			lines = net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.breakLines(metrics, containerInner,
+					this.flexBox.getFlexParams().columnGap);
 		} else if (this.items.isEmpty()) {
 			lines = java.util.List.of();
 		} else {
@@ -258,14 +259,23 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 	public net.zamasoft.foliojet.layout.sizing.IntrinsicSizes getIntrinsicSizes() {
 		double min = 0, max = 0, minPage = 0;
 		boolean columnInflated = false;
+		final boolean wrap = this.flexBox.getFlexParams().flexWrap.isWrap();
 		for (final FlexItemContent item : this.items) {
 			final RectFrame frame = item.itemBox.getBlockParams().frame;
 			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0)
 					+ frame.border.getLeft().width + frame.border.getRight().width;
-			min += item.sizes.minContent() + extra;
+			// wrap時のminは「最大item」(行ごとに折り返せる)、nowrapは総和
+			min = wrap ? Math.max(min, item.sizes.minContent() + extra) : min + item.sizes.minContent() + extra;
 			max += item.sizes.maxContent() + extra;
 			minPage = Math.max(minPage, item.sizes.minPage());
 			columnInflated |= item.sizes.columnInflated();
+		}
+		if (this.items.size() > 1) {
+			final double gaps = this.flexBox.getFlexParams().columnGap * (this.items.size() - 1);
+			max += gaps;
+			if (!wrap) {
+				min += gaps;
+			}
 		}
 		return new net.zamasoft.foliojet.layout.sizing.IntrinsicSizes(min, max, minPage, columnInflated);
 	}
@@ -314,7 +324,7 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 		for (int li = 0; li < lines.size(); ++li) {
 			final net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line line = lines.get(li);
 			final double[] mainSizes = FlexLengthResolver.resolve(metrics.subList(line.from(), line.to()),
-					containerInner, 0);
+					containerInner, params.columnGap);
 			double lineCursor = 0;
 			double lineExtent = 0;
 			for (int i = line.from(); i < line.to(); ++i) {
@@ -323,12 +333,14 @@ public final class FlexBuilder implements net.zamasoft.foliojet.layout.builder.R
 				FLEX_ITEM_BINDS.incrementAndGet();
 				// 自然位置は自margin込みのため、offsetは先行itemのouter合計
 				item.itemBox.setFlexLineOffset(lineCursor);
-				lineCursor += item.itemBox.getLineExtent(params.flow);
+				lineCursor += item.itemBox.getLineExtent(params.flow)
+						+ (i < line.to() - 1 ? params.columnGap : 0);
 				lineExtent = Math.max(lineExtent, item.itemBox.getPageExtent(params.flow));
 				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor);
 			}
-			// 行のcross size=行内itemのouter cross最大(§9.4のbaselineなし形)
-			crossCursor += lineExtent;
+			// 行のcross size=行内itemのouter cross最大(§9.4のbaselineなし形)。
+			// 行間はrow-gap(F2c)
+			crossCursor += lineExtent + (li < lines.size() - 1 ? params.rowGap : 0);
 		}
 		this.flexBox.setPageAxis(crossCursor);
 		this.syncHostCursor(target, params);

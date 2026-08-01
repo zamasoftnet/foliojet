@@ -16,9 +16,11 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * フィールド追加時はここへ追随する。
  * </p>
  */
-public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDirection, FlexWrap flexWrap) {
+public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDirection, FlexWrap flexWrap,
+		double rowGap, double columnGap) {
 	public static FlexParamsTemplate freeze(final FlexParams source) {
-		return new FlexParamsTemplate(BlockParamsFields.freeze(source), source.flexDirection, source.flexWrap);
+		return new FlexParamsTemplate(BlockParamsFields.freeze(source), source.flexDirection, source.flexWrap,
+				source.rowGap, source.columnGap);
 	}
 
 	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
@@ -32,6 +34,8 @@ public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDir
 		this.common.materializeInto(p);
 		p.flexDirection = this.flexDirection;
 		p.flexWrap = this.flexWrap;
+		p.rowGap = this.rowGap;
+		p.columnGap = this.columnGap;
 		return p;
 	}
 }

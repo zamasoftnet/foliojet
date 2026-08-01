@@ -480,6 +480,9 @@ final class BoxStyleMapper {
 		case WRAP -> net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP;
 		case WRAP_REVERSE -> net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP_REVERSE;
 		};
+		// F2c: gapはGridと同じrow-gap/column-gapを共用(gapショートハンド込み)
+		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
+		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
 	}
 
 	/** CSS値→layout値(同名対応)。 */
