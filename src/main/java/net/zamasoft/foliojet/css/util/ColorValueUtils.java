@@ -1324,6 +1324,263 @@ public final class ColorValueUtils {
 		throw new IllegalArgumentException();
 	}
 
+	/** 色相トークン(数値または角度)を度で返します。 */
+	private static double toHueDegrees(final CssToken token) throws IllegalArgumentException {
+		if (token instanceof CssToken.Num num) {
+			return num.value();
+		}
+		if (token instanceof CssToken.Dim dim) {
+			return switch (dim.unit()) {
+			case DEG -> dim.value();
+			case GRAD -> dim.value() * 0.9;
+			case RAD -> Math.toDegrees(dim.value());
+			default -> throw new IllegalArgumentException();
+			};
+		}
+		throw new IllegalArgumentException();
+	}
+
+	/**
+	 * 0..1の単位数値です(%は/100、数値はそのまま——Color 4系関数用。
+	 * 旧toColorComponentの「整数は/255」ヒューリスティックはrgbレガシー
+	 * 専用のためここでは使わない)。
+	 */
+	private static float toUnitNumber(final CssToken token) throws IllegalArgumentException {
+		if (token instanceof CssToken.Percent percent) {
+			return (float) (percent.value() / 100.0);
+		}
+		if (token instanceof CssToken.Num num) {
+			return (float) num.value();
+		}
+		throw new IllegalArgumentException();
+	}
+
+	/** 省略可能な「/ アルファ」を読みます(なければ1)。 */
+	private static float toOptionalAlpha(final TokenStream args) throws IllegalArgumentException {
+		if (args.eatSlash()) {
+			return toUnitNumber(nextComponent(args));
+		}
+		return 1;
+	}
+
+	/**
+	 * hsl/hslaです(CSS Color 3——Web由来CSSの入力互換。旧カンマ構文と
+	 * 現代のスペース+スラッシュ構文の両方を受ける)。
+	 */
+	private static ColorValue toHSLColorValue(final TokenStream args) {
+		try {
+			final double h = ((toHueDegrees(nextComponent(args)) % 360) + 360) % 360;
+			final float sat = toUnitNumber(nextComponent(args));
+			final float light = toUnitNumber(nextComponent(args));
+			float alpha = 1;
+			if (args.eatSlash()) {
+				alpha = toUnitNumber(nextComponent(args));
+			} else if (args.hasNext()) {
+				alpha = toUnitNumber(nextComponent(args));
+			}
+			final double c = (1 - Math.abs(2 * light - 1)) * sat;
+			final double x = c * (1 - Math.abs((h / 60) % 2 - 1));
+			final double m = light - c / 2;
+			final double[] rgb = switch ((int) (h / 60)) {
+			case 0 -> new double[] { c, x, 0 };
+			case 1 -> new double[] { x, c, 0 };
+			case 2 -> new double[] { 0, c, x };
+			case 3 -> new double[] { 0, x, c };
+			case 4 -> new double[] { x, 0, c };
+			default -> new double[] { c, 0, x };
+			};
+			return fromMaybeAlpha((float) (rgb[0] + m), (float) (rgb[1] + m), (float) (rgb[2] + m), alpha);
+		} catch (final IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * oklch/oklabです(CSS Color 4)。L=数値0..1または%、C=数値または
+	 * %(基準0.4)、H=角度。sRGBへ変換して保持する(印刷パイプラインは
+	 * RGB/CMYK——広色域はsRGBへクリップ)。
+	 */
+	private static ColorValue toOKColorValue(final TokenStream args, final boolean lch) {
+		try {
+			final float lightness = toUnitNumber(nextComponent(args));
+			final double a1;
+			final double b1;
+			if (lch) {
+				final CssToken chromaToken = nextComponent(args);
+				final double chroma;
+				if (chromaToken instanceof CssToken.Percent percent) {
+					chroma = percent.value() / 100.0 * 0.4;
+				} else if (chromaToken instanceof CssToken.Num num) {
+					chroma = num.value();
+				} else {
+					return null;
+				}
+				final double hue = Math.toRadians(toHueDegrees(nextComponent(args)));
+				a1 = chroma * Math.cos(hue);
+				b1 = chroma * Math.sin(hue);
+			} else {
+				a1 = toOKLabAxis(nextComponent(args));
+				b1 = toOKLabAxis(nextComponent(args));
+			}
+			final float alpha = toOptionalAlpha(args);
+			final double[] rgb = oklabToSRGB(lightness, a1, b1);
+			return fromMaybeAlpha((float) rgb[0], (float) rgb[1], (float) rgb[2], alpha);
+		} catch (final IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	/** oklabのa/b軸(数値または%——基準±0.4)。 */
+	private static double toOKLabAxis(final CssToken token) throws IllegalArgumentException {
+		if (token instanceof CssToken.Percent percent) {
+			return percent.value() / 100.0 * 0.4;
+		}
+		if (token instanceof CssToken.Num num) {
+			return num.value();
+		}
+		throw new IllegalArgumentException();
+	}
+
+	/** OKLab→sRGB(標準行列。ガンマ符号化+0..1クリップ)。 */
+	private static double[] oklabToSRGB(final double lightness, final double a, final double b) {
+		final double l_ = lightness + 0.3963377774 * a + 0.2158037573 * b;
+		final double m_ = lightness - 0.1055613458 * a - 0.0638541728 * b;
+		final double s_ = lightness - 0.0894841775 * a - 1.2914855480 * b;
+		final double l = l_ * l_ * l_;
+		final double m = m_ * m_ * m_;
+		final double sv = s_ * s_ * s_;
+		final double lr = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * sv;
+		final double lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * sv;
+		final double lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * sv;
+		return new double[] { gammaEncode(lr), gammaEncode(lg), gammaEncode(lb) };
+	}
+
+	/** sRGB→OKLab(color-mixの補間空間用)。 */
+	private static double[] srgbToOKLab(final double red, final double green, final double blue) {
+		final double lr = gammaDecode(red);
+		final double lg = gammaDecode(green);
+		final double lb = gammaDecode(blue);
+		final double l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+		final double m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+		final double sv = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+		return new double[] { 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * sv,
+				1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * sv,
+				0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * sv };
+	}
+
+	private static double gammaEncode(final double linear) {
+		final double clipped = Math.min(1, Math.max(0, linear));
+		return clipped <= 0.0031308 ? clipped * 12.92 : 1.055 * Math.pow(clipped, 1 / 2.4) - 0.055;
+	}
+
+	private static double gammaDecode(final double encoded) {
+		return encoded <= 0.04045 ? encoded / 12.92 : Math.pow((encoded + 0.055) / 1.055, 2.4);
+	}
+
+	private static ColorValue fromMaybeAlpha(final float red, final float green, final float blue,
+			final float alpha) {
+		final float r = Math.min(1, Math.max(0, red));
+		final float g = Math.min(1, Math.max(0, green));
+		final float b = Math.min(1, Math.max(0, blue));
+		return alpha >= 1 ? fromRGBComponents(r, g, b) : fromRGBAComponents(r, g, b, Math.max(0, alpha));
+	}
+
+	/**
+	 * color-mixです(CSS Color 5のうちin srgb/oklab/oklch——Tailwind v4の
+	 * 透明度ユーティリティが多用する。補間は仕様どおり
+	 * アルファpremultiplied)。
+	 */
+	private static ColorValue toColorMix(final UserAgent ua, final TokenStream args) {
+		try {
+			if (!args.eat("in")) {
+				return null;
+			}
+			final String space = args.ident();
+			if (space == null) {
+				return null;
+			}
+			final ColorValue color1 = toMixArgColor(ua, nextComponent(args));
+			Float p1 = eatPercent(args);
+			final ColorValue color2 = toMixArgColor(ua, nextComponent(args));
+			Float p2 = eatPercent(args);
+			if (color1 == null || color2 == null) {
+				return null;
+			}
+			if (p1 == null && p2 == null) {
+				p1 = 0.5f;
+				p2 = 0.5f;
+			} else if (p1 == null) {
+				p1 = 1 - p2;
+			} else if (p2 == null) {
+				p2 = 1 - p1;
+			}
+			final float sum = p1 + p2;
+			if (sum <= 0) {
+				return null;
+			}
+			final float w1 = p1 / sum;
+			final float w2 = p2 / sum;
+			final float a1 = color1.getAlpha();
+			final float a2 = color2.getAlpha();
+			final float alpha = a1 * w1 + a2 * w2;
+			if (alpha <= 0) {
+				return fromRGBAComponents(0, 0, 0, 0);
+			}
+			final double[] c1;
+			final double[] c2;
+			switch (space.toLowerCase()) {
+			case "srgb":
+				c1 = new double[] { color1.getRed(), color1.getGreen(), color1.getBlue() };
+				c2 = new double[] { color2.getRed(), color2.getGreen(), color2.getBlue() };
+				break;
+			case "oklab":
+			case "oklch":
+				// oklchの色相最短弧は実装簡略化のためoklab直線補間で代替
+				// (無彩色・近色相では同一。記録済みの近似)
+				c1 = srgbToOKLab(color1.getRed(), color1.getGreen(), color1.getBlue());
+				c2 = srgbToOKLab(color2.getRed(), color2.getGreen(), color2.getBlue());
+				break;
+			default:
+				return null;
+			}
+			final double[] mixed = new double[3];
+			for (int i = 0; i < 3; ++i) {
+				// アルファpremultiplied補間(CSS Color 4 §interpolation)
+				mixed[i] = (c1[i] * a1 * w1 + c2[i] * a2 * w2) / alpha;
+			}
+			final double[] rgb = space.equalsIgnoreCase("srgb") ? mixed
+					: oklabToSRGB(mixed[0], mixed[1], mixed[2]);
+			return fromMaybeAlpha((float) rgb[0], (float) rgb[1], (float) rgb[2], alpha);
+		} catch (final IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	/** 直後の%トークンがあれば0..1で返します(なければnull)。 */
+	private static Float eatPercent(final TokenStream args) {
+		while (args.eatComma()) {
+			// skip
+		}
+		if (args.hasNext() && args.peek() instanceof CssToken.Percent percent) {
+			args.next();
+			return (float) (percent.value() / 100.0);
+		}
+		return null;
+	}
+
+	/**
+	 * color-mix/light-darkの引数の色です(transparentをrgba(0,0,0,0)として
+	 * 受ける——Tailwind v4の透明度ユーティリティが多用する。単独の色指定
+	 * としてのtransparentは従来どおり各プロパティ側のisTransparentが扱い、
+	 * toColor本体の挙動は変えない)。
+	 */
+	private static ColorValue toMixArgColor(final UserAgent ua, final CssToken token) {
+		if (isTransparent(token)) {
+			return fromRGBAComponents(0, 0, 0, 0);
+		}
+		return toColor(ua, token);
+	}
+
 	/**
 	 * transparent であればtrueを返します。
 	 */
@@ -1353,6 +1610,25 @@ public final class ColorValueUtils {
 			}
 			if (func.is("-cssj-gray")) {
 				return toGrayColorValue(func.argStream());
+			}
+			// CSS Color 3/4(2026-08-02、PLAN §2の3位——Tailwind v4が
+			// oklchを既定採用し、未対応だと色宣言が全滅する入力互換対応)
+			if (func.is("hsl") || func.is("hsla")) {
+				return toHSLColorValue(func.argStream());
+			}
+			if (func.is("oklch")) {
+				return toOKColorValue(func.argStream(), true);
+			}
+			if (func.is("oklab")) {
+				return toOKColorValue(func.argStream(), false);
+			}
+			if (func.is("color-mix")) {
+				return toColorMix(ua, func.argStream());
+			}
+			if (func.is("light-dark")) {
+				// 印刷は常にlight(ページメディアにダークモードはない——
+				// 第2引数は読み捨て)
+				return toMixArgColor(ua, nextComponent(func.argStream()));
 			}
 		}
 		return null;
