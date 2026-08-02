@@ -107,6 +107,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// normal/break-word/anywhere・counter-setが入れ子を作らずに
 			// 既存カウンタへ代入すること・未知の名前はその要素に作られること
 			"3080-MODERN-CSS/standard-aliases.html", //
+			// フォーム部品の幾何(2026-08-02)。ボタンのラベルが箱の内側の
+			// どこに置かれるか、入力欄・選択・複数行の寸法を固定する
+			"3080-MODERN-CSS/form-controls.html", //
 			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
 			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
 			// artifact印・ページ数をここで固定する
