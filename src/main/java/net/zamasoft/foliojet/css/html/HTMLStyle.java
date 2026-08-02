@@ -197,12 +197,18 @@ public class HTMLStyle {
 			// <SELECT>
 			UserAgent ua = style.getUserAgent();
 			CSSStyle parent = style.getParentStyle();
-			double size = LengthUtils.convert(ua, Height.getLength(parent).getLength(), Unit.PT,
-					Unit.PX);
+			// **矢印の寸法はpt(版面の単位)で作る**(2026-08-02)。従来は
+			// PXへ変換した値を渡していたため、pt座標へ置かれた矢印が
+			// 1/0.75倍に膨らんでいた(10pt指定が13.33ptで描かれる)
+			double size = Height.getLength(parent).getLength();
 			style.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
 			double border = BorderWidth.get(parent, Side.TOP);
-			style.set(Inset.TOP, AbsoluteLengthValue.create(ua, -border * 2));
-			style.set(Inset.RIGHT, AbsoluteLengthValue.create(ua, -Height.getLength(parent).getLength() - border));
+			// **箱の内側へ置く**(2026-08-02)。SELECT本体は右に1em分の
+			// paddingを確保しているのに、矢印は負のinsetで箱の外へ出て
+			// おり、後続の内容と重なっていた(実測: 幅31ptの箱に対して
+			// 矢印がx=25..41)
+			style.set(Inset.TOP, AbsoluteLengthValue.create(ua, border));
+			style.set(Inset.RIGHT, AbsoluteLengthValue.create(ua, border));
 			CSSJInternalImage.setImage(style, new SelectImage(parentCe.atts.getValue("disabled") != null, size));
 			style.set(Content.INFO, EMPTY);
 		}
@@ -1346,7 +1352,11 @@ public class HTMLStyle {
 			}
 			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(Padding.TOP, thin, CSSStyle.MODE_IMPORTANT);
-			style.set(Padding.RIGHT, AbsoluteLengthValue.create(ua, Height.getLength(style).getLength()),
+			// **矢印の実際の描画幅ぶん空ける**(2026-08-02)。SelectImageは
+			// 16単位固定の座標で描かれる(幅は定数16)ため、1emだけ空けても
+			// 小さいフォントでは選択中の文字と重なっていた。描画側を比例化
+			// するのが本筋だが、視覚回帰の危険があるので確保量を実寸へ合わせる
+			style.set(Padding.RIGHT, AbsoluteLengthValue.create(ua, 16),
 					CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.BOTTOM, thin, CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.LEFT, thin, CSSStyle.MODE_IMPORTANT);
