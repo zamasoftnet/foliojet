@@ -92,6 +92,10 @@ public class DisplayListGoldenTest extends TestCase {
 			"3080-MODERN-CSS/logical-properties.html", //
 			"3000-SELECTOR/is-not-where-descendant.html", //
 			"3080-MODERN-CSS/var.html", //
+			// CSS Nesting(2026-08-02)。子孫結合・&(先頭/非先頭/複合)・
+			// 相対セレクタ・セレクタリスト直積・3層入れ子・入れ子後宣言の
+			// 順序保存を要素幅で固定する
+			"3080-MODERN-CSS/nesting.html", //
 			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
 			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
 			// artifact印・ページ数をここで固定する

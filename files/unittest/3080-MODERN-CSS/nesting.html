@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+#container {
+	width: 300pt;
+}
+.t {
+	display: block;
+	height: 12pt;
+	background-color: #cccccc;
+}
+
+/* 基本の入れ子(子孫結合): #basic-wrap .t -> 100pt */
+#basic-wrap {
+	.t {
+		width: 100pt;
+	}
+}
+
+/* &による親結合: .amp.on のみ60pt(.ampだけの要素は300ptのまま) */
+.amp {
+	&.on {
+		width: 60pt;
+	}
+}
+
+/* 明示コンビネータ(相対セレクタ): 直接子のみ80pt(孫は300ptのまま) */
+#comb {
+	> .t {
+		width: 80pt;
+	}
+}
+
+/* セレクタリスト親の直積展開: .la/.lb 双方の下で40pt */
+.la, .lb {
+	.t {
+		width: 40pt;
+	}
+}
+
+/* 多段入れ子(3層): #l1 #l2 .t -> 120pt */
+#l1 {
+	#l2 {
+		.t {
+			width: 120pt;
+		}
+	}
+}
+
+/* 入れ子規則の後の宣言: 順序どおり後勝ちで70pt(50ptは上書きされる) */
+#late {
+	width: 50pt;
+	.dummy {
+		color: red;
+	}
+	width: 70pt;
+}
+
+/* 非先頭の&: .theme #ctxleaf -> 90pt */
+#ctxleaf {
+	.theme & {
+		width: 90pt;
+	}
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="container">
+      <div id="basic-wrap">
+        <div class="t">BASIC</div>
+      </div>
+      <div class="t amp on">AMPON</div>
+      <div class="t amp">AMPOFF</div>
+      <div id="comb">
+        <div class="t">CHILD</div>
+        <div>
+          <div class="t">GRANDCHILD</div>
+        </div>
+      </div>
+      <div class="la">
+        <div class="t">LISTA</div>
+      </div>
+      <div class="lb">
+        <div class="t">LISTB</div>
+      </div>
+      <div id="l1">
+        <div id="l2">
+          <div class="t">DEEP</div>
+        </div>
+      </div>
+      <div class="t" id="late">LATE</div>
+      <div class="theme">
+        <div class="t" id="ctxleaf">THEMED</div>
+      </div>
+    </div>
+  </body>
+
+</html>

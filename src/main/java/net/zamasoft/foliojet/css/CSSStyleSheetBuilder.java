@@ -20,6 +20,7 @@ import com.helger.css.decl.CSSMediaQuery;
 import com.helger.css.decl.CSSMediaRule;
 import com.helger.css.decl.CSSPageMarginBlock;
 import com.helger.css.decl.CSSPageRule;
+import com.helger.css.decl.CSSSelector;
 import com.helger.css.decl.CSSStyleRule;
 import com.helger.css.decl.CSSSupportsConditionDeclaration;
 import com.helger.css.decl.CSSSupportsConditionNegation;
@@ -130,16 +131,7 @@ public class CSSStyleSheetBuilder {
 			if (!mediaOk) {
 				return;
 			}
-			final List<Selector> selectors;
-			try {
-				selectors = SelectorConverter.convertList(styleRule.getAllSelectors());
-			} catch (CSSException e) {
-				// 解釈できないセレクタを含む規則は無視する
-				return;
-			}
-			Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
-					ElementPropertySet.getInstance(), this.ua, uri);
-			this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+			this.styleRule(styleRule, uri, layer, null);
 		} else if (rule instanceof CSSMediaRule mediaRule) {
 			boolean ok = false;
 			for (CSSMediaQuery query : mediaRule.getAllMediaQueries()) {
@@ -168,6 +160,88 @@ public class CSSStyleSheetBuilder {
 			this.layer(layerRule, uri, mediaOk, layerNamePrefix);
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+	}
+
+	/**
+	 * スタイル規則です(CSS Nesting対応、2026-08-02——PLAN §2の4位。
+	 * ph-css 8.2の入れ子ASTを平坦化する)。
+	 *
+	 * <p>
+	 * 入れ子セレクタは**テキスト置換**で親と結合する: {@code &}は親セレクタ
+	 * 文字列に置換、{@code &}なしは子孫結合({@code 親 子})。親がセレクタ
+	 * リストのときは直積で展開する。仕様の{@code :is()}脱糖と違い固有性は
+	 * 分岐ごとに評価される(Sass等のプリプロセッサと同じ挙動——記録済みの
+	 * 簡略化)。入れ子の後の宣言(CSSNestedDeclarations)は同セレクタの
+	 * 追加規則として出現順に登録され、カスケード順が保たれる。規則内に
+	 * 入れ子になった条件規則(@media等)はサブセット外として無視する。
+	 * </p>
+	 */
+	private void styleRule(final CSSStyleRule styleRule, final URI uri, final int layer,
+			final List<String> parentSelectorTexts) {
+		// 結合済みセレクタ文字列(入れ子の再帰用に常に計算する)
+		final List<String> selfTexts = new ArrayList<>();
+		for (final CSSSelector selector : styleRule.getAllSelectors()) {
+			final String text = selector.getAsCSSString();
+			if (parentSelectorTexts == null) {
+				selfTexts.add(text);
+			} else {
+				for (final String parent : parentSelectorTexts) {
+					selfTexts.add(combineNestedSelector(parent, text));
+				}
+			}
+		}
+		final List<Selector> selectors;
+		try {
+			if (parentSelectorTexts == null) {
+				selectors = SelectorConverter.convertList(styleRule.getAllSelectors());
+			} else {
+				selectors = this.parseSelectorTexts(selfTexts);
+			}
+		} catch (final CSSException e) {
+			// 解釈できないセレクタを含む規則は無視する(入れ子ごと)
+			return;
+		}
+		if (selectors == null) {
+			return;
+		}
+		if (styleRule.hasDeclarations()) {
+			final Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
+					ElementPropertySet.getInstance(), this.ua, uri);
+			this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+		}
+		for (final com.helger.css.decl.ICSSNestedRule nested : styleRule.getAllRules()) {
+			if (nested instanceof CSSStyleRule nestedStyle) {
+				this.styleRule(nestedStyle, uri, layer, selfTexts);
+			} else if (nested instanceof com.helger.css.decl.CSSNestedDeclarations nestedDecls) {
+				// 入れ子規則の後に現れた宣言——同セレクタで順序どおり追加
+				if (nestedDecls.hasDeclarations()) {
+					final Declaration declaration = DeclarationParser.convert(nestedDecls.getAllDeclarations(),
+							null, ElementPropertySet.getInstance(), this.ua, uri);
+					this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+				}
+			}
+			// 規則内の@media/@supports等はサブセット外(無視)
+		}
+	}
+
+	/** 入れ子セレクタの結合({@code &}=親置換、なければ子孫結合)。 */
+	private static String combineNestedSelector(final String parent, final String child) {
+		final String trimmed = child.trim();
+		if (trimmed.indexOf('&') >= 0) {
+			return trimmed.replace("&", parent);
+		}
+		return parent + " " + trimmed;
+	}
+
+	/** 結合済みセレクタ文字列群を再解析します(解釈不能はnull)。 */
+	private List<Selector> parseSelectorTexts(final List<String> texts) throws CSSException {
+		final CascadingStyleSheet sheet = CSSReader
+				.readFromStringReader(String.join(",", texts) + "{}", DeclarationParser.settings());
+		if (sheet == null || sheet.getRuleCount() != 1
+				|| !(sheet.getRuleAtIndex(0) instanceof CSSStyleRule reparsed)) {
+			return null;
+		}
+		return SelectorConverter.convertList(reparsed.getAllSelectors());
 	}
 
 	/**
