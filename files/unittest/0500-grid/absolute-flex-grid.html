@@ -1,0 +1,44 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+	line-height: 12pt;
+}
+/* 絶対配置のdisplayはブロック化される(CSS Display 3 §2.7)。
+   flex/grid/table-row等を絶対配置しても静的位置はブロックとして決まる
+   ——2026-08-02まで、ここが既知の値の列挙だったため実在のページ
+   (position:absolute かつ display:flex)でクラッシュしていた */
+.abs {
+	position: absolute;
+	left: 10pt;
+	width: 60pt;
+	height: 12pt;
+	background-color: #cccccc;
+}
+#f { top: 0; display: flex; }
+#g { top: 12pt; display: grid; }
+#r { top: 24pt; display: table-row; }
+#c { top: 36pt; display: table-cell; }
+#ib { top: 48pt; display: inline-block; }
+#lt { top: 60pt; display: list-item; }
+    </style>
+  </head>
+
+  <body>
+    <div id="f" class="abs">FLEX</div>
+    <div id="g" class="abs">GRID</div>
+    <div id="r" class="abs">ROW</div>
+    <div id="c" class="abs">CELL</div>
+    <div id="ib" class="abs">INLINEBLOCK</div>
+    <div id="lt" class="abs">LISTITEM</div>
+  </body>
+
+</html>

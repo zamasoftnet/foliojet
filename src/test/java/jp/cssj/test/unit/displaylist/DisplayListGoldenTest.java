@@ -152,6 +152,11 @@ public class DisplayListGoldenTest extends TestCase {
 			"0500-grid/alignment-content.html", //
 			"0500-grid/alignment-in-float.html", //
 			"0500-grid/oversized-atomic.html", //
+			// 絶対配置のdisplayブロック化(2026-08-02)。position:absoluteの
+			// display(flex/grid/table-row/table-cell/inline-block/list-item)
+			// が例外にならず、静的位置がブロックとして決まることを固定する
+			// ——実在のページ(yahoo.co.jp)のクラッシュ回帰
+			"0500-grid/absolute-flex-grid.html", //
 			// 和文詰めA2(2026-07-31)。text-autospaceのgap(0.125em)を
 			// run境界のx座標で固定する(off/on/numeric限定/明示空白抑止)
 			"0510-text-spacing/autospace-horizontal.html", //

@@ -336,13 +336,16 @@ final class BoxStyleMapper {
 				pos.autoPosition = AutoPosition.INLINE;
 				break;
 
-			case DisplayValue.BLOCK:
-			case DisplayValue.TABLE:
-			case DisplayValue.LIST_ITEM:
+			default:
+				// 絶対配置の要素はdisplayがブロック化される(CSS Display 3
+				// §2.7)。ここへ来るのはinline-block/inline-table以外の
+				// 全ての値で、静的位置はブロックとして決まる。
+				// **既知の値を並べて残りを例外にしていたため、後から
+				// displayを増やすたびにクラッシュしていた**(2026-08-02に
+				// position:absolute + display:flex の実文書で発覚)。
+				// 列挙をやめ、ブロック化の規則そのものを書く
 				pos.autoPosition = AutoPosition.BLOCK;
 				break;
-			default:
-				throw new IllegalStateException(style.get(Display.INFO).toString());
 			}
 			break;
 		case PositionValue.FIXED:
