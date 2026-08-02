@@ -185,6 +185,79 @@ public class PdfIoPropertyTest extends TestCase {
 		cases.add(of("output.pdf.platform-encoding",
 				props("output.pdf.platform-encoding", "UTF-8"), "%PDF"));
 
+		// Factur-X の残り(添付名・文書種別・版)。XMPへ出る
+		cases.add(of("output.pdf.facturx.document-type",
+				props("output.pdf.version", "1.7A-3", "output.pdf.facturx.conformance-level", "BASIC",
+						"output.pdf.facturx.document-type", "ORDER"),
+				"ORDER"));
+		cases.add(of("output.pdf.facturx.version",
+				props("output.pdf.version", "1.7A-3", "output.pdf.facturx.conformance-level", "BASIC",
+						"output.pdf.facturx.version", "9.9"),
+				"9.9"));
+		cases.add(of("output.pdf.facturx.document-file-name",
+				props("output.pdf.version", "1.7A-3", "output.pdf.facturx.conformance-level", "BASIC",
+						"output.pdf.facturx.document-file-name", "probe-invoice.xml"),
+				"probe-invoice.xml"));
+
+		// 出力インテントの残り(レジストリ・補足説明)
+		cases.add(of("output.pdf.output-intent.registry",
+				props("output.pdf.output-intent.identifier", "PROBE-COND",
+						"output.pdf.output-intent.registry", "https://probe.example/registry"),
+				"probe.example/registry"));
+		cases.add(of("output.pdf.output-intent.info",
+				props("output.pdf.output-intent.identifier", "PROBE-COND",
+						"output.pdf.output-intent.info", "PROBE-INTENT-INFO"),
+				"PROBE-INTENT-INFO"));
+
+		// すかしの詳細(配置・不透明度・表示/印刷の切り替え)
+		final String watermark = new File("files/unittest/red.png").toURI().toString();
+		cases.add(of("output.pdf.watermark.mode",
+				props("output.pdf.watermark.uri", watermark, "output.pdf.watermark.mode", "tile"), "%PDF"));
+		cases.add(of("output.pdf.watermark.opacity",
+				props("output.pdf.watermark.uri", watermark, "output.pdf.watermark.opacity", "0.5"), "%PDF"));
+		cases.add(of("output.pdf.watermark.print",
+				props("output.pdf.watermark.uri", watermark, "output.pdf.watermark.print", "false"), "%PDF"));
+		cases.add(of("output.pdf.watermark.view",
+				props("output.pdf.watermark.uri", watermark, "output.pdf.watermark.view", "false"), "%PDF"));
+
+		// 画像の上限(縮小されても変換できること)
+		cases.add(of("output.pdf.image.max-width", LINKS,
+				props("output.pdf.image.max-width", "10"), "/Subtype /Image"));
+		cases.add(of("output.pdf.image.max-height", LINKS,
+				props("output.pdf.image.max-height", "10"), "/Subtype /Image"));
+		cases.add(of("output.pdf.jpeg-image", LINKS, props("output.pdf.jpeg-image", "true"), "/Subtype /Image"));
+
+		// 既定フォント・色・解像度・文字寸法
+		cases.add(of("output.default-font-family", props("output.default-font-family", "monospace"), "%PDF"));
+		cases.add(of("output.color", props("output.color", "cmyk"), "%PDF"));
+		cases.add(of("output.resolution", props("output.resolution", "72"), "%PDF"));
+		cases.add(of("output.text-size", props("output.text-size", "1.5"), "%PDF"));
+		cases.add(of("output.print-mode", props("output.print-mode", "single-side"), "%PDF"));
+		cases.add(of("output.auto-rotate", props("output.auto-rotate", "true"), "%PDF"));
+		cases.add(of("output.clip", props("output.clip", "true"), "%PDF"));
+		cases.add(of("output.expand-with-content", props("output.expand-with-content", "true"), "%PDF"));
+		cases.add(of("output.n-up.order", props("output.n-up", "2", "output.n-up.order", "vertical"), "%PDF"));
+		cases.add(of("output.marks.spine-width",
+				props("output.marks", "crop", "output.marks.spine-width", "10pt"), "%PDF"));
+		cases.add(of("output.page-margins", props("output.page-margins", "20pt"), "%PDF"));
+		cases.add(of("output.broken-image", props("output.broken-image", "cross"), "%PDF"));
+		cases.add(of("output.page-limit.abort", props("output.page-limit", "10",
+				"output.page-limit.abort", "force"), "%PDF"));
+		cases.add(of("processing.fail-on-fatal-error", props("processing.fail-on-fatal-error", "true"), "%PDF"));
+		cases.add(of("processing.middle-pass", props("processing.middle-pass", "false"), "%PDF"));
+		cases.add(of("input.html.change-default-namespace",
+				props("input.html.change-default-namespace", "true"), "%PDF"));
+		cases.add(of("input.stylesheet.titles", props("input.stylesheet.titles", "probe"), "%PDF"));
+		cases.add(of("input.filters", props("input.filters", ""), "%PDF"));
+		cases.add(of("input.http.connection.timeout", props("input.http.connection.timeout", "5000"), "%PDF"));
+		cases.add(of("input.http.socket.timeout", props("input.http.socket.timeout", "5000"), "%PDF"));
+		cases.add(of("input.http.proxy.authentication.user",
+				props("input.http.proxy.authentication.user", "u",
+						"input.http.proxy.authentication.password", "p"), "%PDF"));
+		cases.add(of("input.xslt.default-stylesheet", props("input.xslt.default-stylesheet", ""), "%PDF"));
+		cases.add(of("output.image.antialias", props("output.image.antialias", "true"), "%PDF"));
+		cases.add(of("output.image.resolution", props("output.image.resolution", "96"), "%PDF"));
+
 		return cases;
 	}
 
