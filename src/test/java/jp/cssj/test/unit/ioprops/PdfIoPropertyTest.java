@@ -72,6 +72,9 @@ public class PdfIoPropertyTest extends TestCase {
 	/** 見出しを持つ文書(しおりの検査用)。 */
 	private static final File HEADINGS = new File("files/unittest/0010-link/absolute.html");
 
+	/** 現ライセンスで使えないと警告されたプロパティ。 */
+	private final List<String> licenseBlocked = new ArrayList<>();
+
 	private static Map<String, String> props(final String... kv) {
 		final Map<String, String> map = new LinkedHashMap<>();
 		for (int i = 0; i < kv.length; i += 2) {
@@ -122,10 +125,11 @@ public class PdfIoPropertyTest extends TestCase {
 				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.num-copies", "3"), "/NumCopies 3"));
 		cases.add(of("output.pdf.viewer-preferences.duplex",
 				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.duplex", "simplex"), "/Duplex"));
-		// **print-scalingは開発ビルドのライセンスで使えない**(2026-08-02実測:
-		// 「Cannot use I/O property ... under current license.」で無視される)。
-		// エンジンの欠陥ではないので、ここでは検査しない。ライセンスに
-		// 依存しない検査環境を用意できたら戻すこと
+		// print-scalingはライセンスによっては使えない。使えない環境では
+		// この件を自動で飛ばす(下のlicenseBlocked判定)
+		cases.add(of("output.pdf.viewer-preferences.print-scaling",
+				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.print-scaling", "scaling-none"),
+				"/PrintScaling"));
 
 		// 開いたときに実行するJavaScript
 		cases.add(of("output.pdf.open-action.java-script",
@@ -263,8 +267,14 @@ public class PdfIoPropertyTest extends TestCase {
 
 	public void testIoPropertiesReachTheOutput() throws Exception {
 		final List<String> failures = new ArrayList<>();
+		int skipped = 0;
 		for (final Case c : cases()) {
 			final String pdf = this.convert(c.document(), c.props());
+			if (this.licenseBlocked.stream().anyMatch(b -> c.props().containsKey(b))) {
+				// 現ライセンスで使えないプロパティ(警告281B)は検査しない
+				++skipped;
+				continue;
+			}
 			boolean ok = false;
 			for (final String expected : c.expected()) {
 				if (pdf.contains(expected)) {
@@ -277,8 +287,11 @@ public class PdfIoPropertyTest extends TestCase {
 			}
 		}
 		if (!failures.isEmpty()) {
-			fail("出力に反映されない入出力プロパティが" + failures.size() + "件: " + String.join(" / ", failures));
+			fail("出力に反映されない入出力プロパティが" + failures.size() + "件(ライセンスで飛ばした件数="
+					+ skipped + "): " + String.join(" / ", failures));
 		}
+		System.out.println("[ioprops] 検査 " + (cases().size() - skipped) + "件, ライセンスで飛ばした "
+				+ skipped + "件");
 	}
 
 	/** 圧縮を切って変換し、PDFを文字列として返します。 */
@@ -288,6 +301,13 @@ public class PdfIoPropertyTest extends TestCase {
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
+				this.licenseBlocked.clear();
+				session.setMessageHandler((code, args, mes) -> {
+					if (code == net.zamasoft.foliojet.message.MessageCodes.WARN_LICENSE_CONSTRAINT_IO
+							&& args != null && args.length > 0) {
+						this.licenseBlocked.add(args[0]);
+					}
+				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");

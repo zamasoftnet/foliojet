@@ -127,6 +127,17 @@ dependencies {
 
 tasks.named('test') {
     useJUnit()
+    // ライセンスを与えて実行する口(2026-08-02)。既定は無ライセンス
+    // (limited)で、これまでの実行条件を変えない。
+    //   -PlicenseKey=license-key.standard
+    // を付けると copperpdf4 の dev/build/conf を設定ディレクトリとして
+    // 使い、その鍵で動く。ライセンスでしか使えない入出力プロパティ
+    // (viewer-preferences の一部・HTTP認証など)を検査するために要る。
+    if (project.hasProperty('licenseKey')) {
+        def copperConf = file('../copperpdf4/dev/build/conf')
+        systemProperty 'jp.cssj.copper.config', copperConf.absolutePath
+        systemProperty 'jp.cssj.copper.license-key', project.property('licenseKey')
+    }
     // -PnoAssertions で本番と同じ条件(assertion無効)にする。
     // 「不変条件が破れたまま処理が続くと出力はどうなるか」を測るため
     enableAssertions = !project.hasProperty('noAssertions')
