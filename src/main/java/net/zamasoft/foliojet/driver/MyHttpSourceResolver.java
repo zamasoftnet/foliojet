@@ -197,7 +197,16 @@ class MySourceResolver implements SourceResolver {
 			Source source = this.cachedResolver.resolve(uri);
 			return new MySource(source, this.cachedResolver);
 		} catch (FileNotFoundException e) {
-			if (this.userResolver != null) {
+			// **HTTP/HTTPSは設定済みのリゾルバを優先する**(2026-08-02)。
+			// 差し込まれたリゾルバ(CLIやCTIドライバがsetSourceResolverで
+			// 入れる汎用リゾルバ)が先に取ってしまうと、入出力プロパティで
+			// 設定したUser-Agent・ヘッダ・プロキシ・Cookie・認証が
+			// **どれも効かない**。実測: 既定のUser-Agent(CopperPDF)も
+			// input.http.header.*の指定も送られず、JDK既定の
+			// Java/21.0.11が飛んでいた(Wikipediaが403で取得できない)
+			final String scheme = uri.getScheme();
+			final boolean http = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+			if (this.userResolver != null && !http) {
 				try {
 					Source source = this.userResolver.resolve(uri);
 					return new MySource(source, this.userResolver);
@@ -205,8 +214,18 @@ class MySourceResolver implements SourceResolver {
 					// ignore
 				}
 			}
-			Source source = this.restrictedResolver.resolve(uri, force);
-			return new MySource(source, this.restrictedResolver);
+			try {
+				Source source = this.restrictedResolver.resolve(uri, force);
+				return new MySource(source, this.restrictedResolver);
+			} catch (FileNotFoundException e2) {
+				if (this.userResolver == null || !http) {
+					throw e2;
+				}
+				// 設定済み経路で見つからないHTTPは、差し込まれた
+				// リゾルバ(独自の取得手段を持つ埋め込み利用)へ回す
+				Source source = this.userResolver.resolve(uri);
+				return new MySource(source, this.userResolver);
+			}
 		}
 	}
 
