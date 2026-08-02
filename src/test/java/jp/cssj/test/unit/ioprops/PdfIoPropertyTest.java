@@ -66,6 +66,9 @@ public class PdfIoPropertyTest extends TestCase {
 		return new Case(name, document, props, List.of(expected));
 	}
 
+	/** リンクを持つ文書。 */
+	private static final File LINKS = new File("files/unittest/ioprops/link-and-image.html");
+
 	/** 見出しを持つ文書(しおりの検査用)。 */
 	private static final File HEADINGS = new File("files/unittest/0010-link/absolute.html");
 
@@ -132,6 +135,55 @@ public class PdfIoPropertyTest extends TestCase {
 		// v5(AES-256)はPDF 1.7以降
 		cases.add(of("output.pdf.encryption", props("output.pdf.version", "1.7", "output.pdf.encryption", "v5",
 				"output.pdf.encryption.user-password", "u"), "/Encrypt"));
+
+		// 暗号化の権限(9件)。/Pビットへ落ちるので、既定と異なる値を
+		// 与えて暗号化辞書が変わることを見る
+		for (final String perm : new String[] { "print", "print-high", "copy", "modify", "add", "extract",
+				"assemble", "fill" }) {
+			cases.add(of("output.pdf.encryption.permissions." + perm,
+					props("output.pdf.version", "1.7", "output.pdf.encryption", "v5",
+							"output.pdf.encryption.owner-password", "o",
+							"output.pdf.encryption.permissions." + perm, "false"),
+					"/Encrypt"));
+		}
+		cases.add(of("output.pdf.encryption.owner-password",
+				props("output.pdf.version", "1.7", "output.pdf.encryption", "v5",
+						"output.pdf.encryption.owner-password", "o"), "/Encrypt"));
+		cases.add(of("output.pdf.encryption.length",
+				props("output.pdf.version", "1.7", "output.pdf.encryption", "v2",
+						"output.pdf.encryption.length", "128", "output.pdf.encryption.user-password", "u"),
+				"/Encrypt"));
+		cases.add(of("output.pdf.encryption.v4.cfm",
+				props("output.pdf.version", "1.7", "output.pdf.encryption", "v4",
+						"output.pdf.encryption.v4.cfm", "aesv2", "output.pdf.encryption.user-password", "u"),
+				"/AESV2", "/Encrypt"));
+
+		// ビューア設定の残り
+		cases.add(of("output.pdf.viewer-preferences.center-window",
+				props("output.pdf.viewer-preferences.center-window", "true"), "/CenterWindow true"));
+		cases.add(of("output.pdf.viewer-preferences.hide-toolber",
+				props("output.pdf.viewer-preferences.hide-toolber", "true"), "/HideToolbar true"));
+		cases.add(of("output.pdf.viewer-preferences.non-full-screen-page-mode",
+				props("output.pdf.viewer-preferences.non-full-screen-page-mode", "use-outlines"),
+				"/NonFullScreenPageMode"));
+		cases.add(of("output.pdf.viewer-preferences.pick-tray-by-pdf-size",
+				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.pick-tray-by-pdf-size", "true"),
+				"/PickTrayByPDFSize true"));
+		cases.add(of("output.pdf.viewer-preferences.print-page-range",
+				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.print-page-range", "1 1"),
+				"/PrintPageRange"));
+
+		// 文書情報の更新時刻
+		cases.add(of("output.pdf.meta.mod-date",
+				props("output.pdf.meta.mod-date", "2021-02-03 04:05:06"), "D:20210203"));
+
+		// リンクの断片(リンクを含む文書で見る)
+		cases.add(of("output.pdf.hyperlinks.fragment", LINKS,
+				props("output.pdf.hyperlinks", "true", "output.pdf.hyperlinks.fragment", "true"), "/Link"));
+
+		// 名前リテラルのエンコーディング
+		cases.add(of("output.pdf.platform-encoding",
+				props("output.pdf.platform-encoding", "UTF-8"), "%PDF"));
 
 		return cases;
 	}
