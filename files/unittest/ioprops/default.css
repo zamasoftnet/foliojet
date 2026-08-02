@@ -1,0 +1,2 @@
+p { color: red; }
+body:before { content: "PROBE-DEFAULT-CSS"; }
