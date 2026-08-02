@@ -1210,13 +1210,27 @@ final class StyleEventMachine {
 	/** 脚注の論理ID採番(F4。表示番号のcounter "footnote"とは独立)。 */
 	private long nextFootnoteId = 0;
 
-	/** 表の構造(行・行グループ・列)の直下か——セルの中はfalse。 */
+	/**
+	 * インラインを直接置けない表の構造(表・行・行グループ・列)の中か。
+	 * 間に{@code display:inline}が挟まることがあるので、<b>インラインを
+	 * 置ける祖先</b>(ブロック・セル・flex等)に当たるまで遡る。
+	 */
 	private static boolean inTableStructure(final CSSStyle style) {
-		final CSSStyle parent = style.getParentStyle();
-		if (parent == null) {
-			return false;
+		for (CSSStyle parent = style.getParentStyle(); parent != null; parent = parent.getParentStyle()) {
+			switch (Display.get(parent)) {
+			case DisplayValue.INLINE:
+			case DisplayValue.INLINE_BLOCK:
+				continue;
+			default:
+				return isTableStructure(Display.get(parent));
+			}
 		}
-		switch (Display.get(parent)) {
+		return false;
+	}
+
+	/** インラインを直接置けない表の構造か。 */
+	private static boolean isTableStructure(final byte display) {
+		switch (display) {
 		case DisplayValue.TABLE:
 		case DisplayValue.INLINE_TABLE:
 		case DisplayValue.TABLE_ROW:

@@ -35,6 +35,15 @@ public class Display extends AbstractPrimitivePropertyInfo {
 	public Value getComputedValue(Value value, CSSStyle style) {
 		byte display = ((DisplayValue) value).getDisplay();
 
+		// **ページ単位のfloat(脚注・ページフロート)はブロック化する**
+		// (2026-08-02、掃過で発覚)。これらは版面から切り離して置くため
+		// 常にブロック箱として作られる。displayがtable系のまま残ると、
+		// 子のtbody/trが「表の箱」を要求して構築に失敗していた
+		// ——絶対配置のdisplayブロック化と同じ理由(CSS Display 3 §2.7)
+		if (display != DisplayValue.NONE && CSSFloatValue.isPageLevel(CSSFloat.get(style))) {
+			return DisplayValue.BLOCK_VALUE;
+		}
+
 		// 浮動体のための変換
 		switch (display) {
 		case DisplayValue.INLINE_TABLE: {
