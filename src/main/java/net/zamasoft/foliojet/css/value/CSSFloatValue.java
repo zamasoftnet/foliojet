@@ -14,7 +14,11 @@ public enum CSSFloatValue implements Value {
 
 	END_VALUE(CSSFloatValue.END),
 
-	FOOTNOTE_VALUE(CSSFloatValue.FOOTNOTE);
+	FOOTNOTE_VALUE(CSSFloatValue.FOOTNOTE),
+
+	PAGE_TOP_VALUE(CSSFloatValue.PAGE_TOP),
+
+	PAGE_BOTTOM_VALUE(CSSFloatValue.PAGE_BOTTOM);
 	public static final byte NONE = 0;
 
 	public static final byte LEFT = 1;
@@ -31,6 +35,23 @@ public enum CSSFloatValue implements Value {
 	 * 通常フローとして描かれる。
 	 */
 	public static final byte FOOTNOTE = 5;
+
+	/**
+	 * ページフロート(GCPM/Prince系の{@code float: top})です
+	 * (2026-08-02——PLAN §2の1位)。版面の上端へ寄せる。
+	 */
+	public static final byte PAGE_TOP = 6;
+
+	/**
+	 * ページフロート({@code float: bottom})です。版面の下端
+	 * (脚注があればその上)へ寄せる。
+	 */
+	public static final byte PAGE_BOTTOM = 7;
+
+	/** ページ単位で配置するフロート(脚注・ページフロート)か。 */
+	public static boolean isPageLevel(final byte floating) {
+		return floating == FOOTNOTE || floating == PAGE_TOP || floating == PAGE_BOTTOM;
+	}
 
 	private final byte floating;
 

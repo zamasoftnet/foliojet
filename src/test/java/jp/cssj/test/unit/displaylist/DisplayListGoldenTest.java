@@ -121,6 +121,10 @@ public class DisplayListGoldenTest extends TestCase {
 			"0125-footnote/footnote-pagelimit.html", //
 			"0125-footnote/footnote-carryin.html", //
 			"0125-footnote/footnote-vertical-rl.html", //
+			// ページフロート(2026-08-02)。float: bottomが版面下端(脚注が
+			// あればその上)へ、float: topが次ページ先頭へ置かれ、以後の
+			// フローがその下から始まることを座標で固定する
+			"0125-footnote/page-float.html", //
 			// Grid G1(2026-07-31)。固定トラックの列開始・行開始・gap・
 			// Grid総高(後続ブロックの位置)と、不適格Grid(1fr)のG0
 			// フォールバック+atomicページ送りを固定する

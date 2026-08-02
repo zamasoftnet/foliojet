@@ -183,6 +183,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FootnotePos;
+import net.zamasoft.foliojet.layout.box.params.PageFloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -319,6 +320,13 @@ final class StyleBoxEmitter {
 			final InlinePos pos = new InlinePos();
 			this.mapper.setupInlinePos(pos, style);
 			blockBox = new InlineBlockBox(params, pos);
+		} else if (floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BOTTOM) {
+			// ページフロート(2026-08-02): 脚注と同じくPosType=FLOATのまま
+			// 分離builderのライフサイクルへ流し、終了時にページ台帳
+			// (RootBuilder)へ渡す。回り込み幾何には関与しない
+			final PageFloatPos pos = new PageFloatPos(floating == CSSFloatValue.PAGE_TOP);
+			this.mapper.setupStaticPos(pos, style);
+			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating == CSSFloatValue.FOOTNOTE) {
 			// 脚注F2(2026-07-31): FootnotePos(PosType=FLOAT)で分離builderの
 			// ライフサイクルへ流す。左右floatと違いFloatSide/clear等は使わず、
@@ -328,7 +336,7 @@ final class StyleBoxEmitter {
 			final FootnotePos pos = new FootnotePos();
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
-		} else if (floating != CSSFloatValue.NONE && floating != CSSFloatValue.FOOTNOTE) {
+		} else if (floating != CSSFloatValue.NONE && !CSSFloatValue.isPageLevel(floating)) {
 			final FloatPos pos = new FloatPos();
 			this.mapper.setupFloatPos(pos, style, this.context.isRightSide());
 			blockBox = new FloatBlockBox(params, pos);
@@ -569,8 +577,9 @@ final class StyleBoxEmitter {
 					this.mapper.setupInlinePos(pos, style);
 					inline = true;
 					replacedBox = new InlineReplacedBox(params, pos);
-				} else if (floating != CSSFloatValue.NONE && floating != CSSFloatValue.FOOTNOTE) {
-					// FOOTNOTEはcreateBlockBoxと同じ理由で通常フローへ(F3まで)
+				} else if (floating != CSSFloatValue.NONE && !CSSFloatValue.isPageLevel(floating)) {
+					// 置換要素のページ単位float(脚注・ページフロート)は
+					// 通常フローへ(ブロック要素で包めば従来どおり効く)
 					final FloatPos pos = new FloatPos();
 					params = new ReplacedParams();
 					this.mapper.setupReplacedParams(image, params, style, this.context.isInBody(), this.pageSequence);

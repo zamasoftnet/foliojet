@@ -1,0 +1,56 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	size: 200pt 150pt;
+	margin: 10pt;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+	line-height: 12pt;
+}
+p {
+	margin: 0;
+}
+/* 上端ページフロート: 次ページの先頭へ置かれる(top-next相当) */
+.top-figure {
+	float: top;
+	width: 100pt;
+	height: 24pt;
+	background-color: #cccccc;
+}
+/* 下端ページフロート: 現ページの版面下端(脚注があればその上)へ */
+.bottom-figure {
+	float: bottom;
+	width: 80pt;
+	height: 20pt;
+	background-color: #999999;
+}
+.note {
+	float: footnote;
+}
+    </style>
+  </head>
+
+  <body>
+    <p>L01</p>
+    <div class="bottom-figure">BOTTOM</div>
+    <p>L02<span class="note">N1</span></p>
+    <div class="top-figure">TOP</div>
+    <p>L03</p>
+    <p>L04</p>
+    <p>L05</p>
+    <p>L06</p>
+    <p>L07</p>
+    <p>L08</p>
+    <p>L09</p>
+    <p>L10</p>
+    <p>L11</p>
+    <p>L12</p>
+  </body>
+
+</html>

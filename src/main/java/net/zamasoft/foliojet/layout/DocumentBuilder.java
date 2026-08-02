@@ -913,6 +913,23 @@ public class DocumentBuilder implements TableBuilderHost {
 				sealable.sealBodyForRangeBind();
 			}
 			final Builder parentBuilder = this.containerBuilder().builder;
+			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloatPos) {
+				// ページフロート(2026-08-02): 脚注と同じ経路で本文から
+				// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
+				// 再生)ではどこにも置かれない=測定等価
+				final FloatBlockBox pageFloatBox = (FloatBlockBox) entry.builder.getRootBox();
+				if (entry.builder.isTwoPass()) {
+					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+					pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+					final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
+					contentBuilder.bind(pageFloatBuilder);
+					pageFloatBuilder.close();
+				}
+				if (this.pageContextBuilder() instanceof RootBuilder root) {
+					root.addPageFloat(pageFloatBox, pageFloatPos.top);
+				}
+				break;
+			}
 			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
 				// 脚注F2/F3(2026-07-31、consult-codex-2026-07-31-footnote.txt
 				// §3): 本文は親のflowへ入れない(呼び出し位置にはF1の
