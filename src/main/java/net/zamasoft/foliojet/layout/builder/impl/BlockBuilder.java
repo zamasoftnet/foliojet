@@ -373,8 +373,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * </p>
 	 */
 	protected final void checkAbort() {
-		this.getPageContext().getPageGenerator().getUserAgent()
-				.checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
+		// ページ文脈を持たないbuilder(表セルの再レイアウト用)では
+		// 中断の旗を読む相手が居ない——外から止める必要があるループは
+		// 版面側で回るため、ここは何もしないでよい(2026-08-02、掃過のNPE)
+		final RootBuilder root = this.getPageContext();
+		if (root == null) {
+			return;
+		}
+		root.getPageGenerator().getUserAgent().checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 	}
 
 	private int getFloatingCount() {
