@@ -89,6 +89,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"3080-MODERN-CSS/calc.html", //
 			"3000-SELECTOR/is-not-where-sibling.html", //
 			"3070-AT-RULE/media-supports.html", //
+			// @page の marks / bleed(2026-08-02)。CSSから指定した断ち代の
+			// 分だけ紙面が広がり、版面がその内側へ寄ることを座標で固定する
+			"3070-AT-RULE/page-marks-bleed.html", //
 			"3080-MODERN-CSS/logical-properties.html", //
 			"3000-SELECTOR/is-not-where-descendant.html", //
 			"3080-MODERN-CSS/var.html", //

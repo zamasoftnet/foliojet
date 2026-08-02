@@ -8,6 +8,8 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.Declaration;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.page.PageBleed;
+import net.zamasoft.foliojet.css.impl.property.page.PageMarks;
 import net.zamasoft.foliojet.css.impl.property.page.PageSize;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
@@ -347,6 +349,18 @@ final class PageSequence {
 			this.defaultPageWidth = this.imposition.getPageWidth();
 			this.defaultPageHeight = this.imposition.getPageHeight();
 		}
+		// トンボと断ち代(2026-08-02): CSSで明示された場合だけ
+		// output.marks / output.trims を上書きする(size:autoと同じ考え方)
+		final net.zamasoft.foliojet.css.value.PageMarksValue marks = PageMarks.get(pageStyle);
+		if (marks != net.zamasoft.foliojet.css.value.PageMarksValue.UNSPECIFIED) {
+			this.imposition.setCrop(marks.isCrop());
+			this.imposition.setCross(marks.isCross());
+		}
+		final double bleed = PageBleed.get(pageStyle);
+		if (bleed >= 0) {
+			this.imposition.setTrims(bleed, bleed, bleed, bleed);
+		}
+
 		final PageSizeValue pageSize = PageSize.get(pageStyle);
 		final double[] resolvedSize = pageSize.resolve(this.defaultPageWidth, this.defaultPageHeight);
 		double width = resolvedSize[0];

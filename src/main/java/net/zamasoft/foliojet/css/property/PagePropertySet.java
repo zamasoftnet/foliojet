@@ -25,6 +25,8 @@ import net.zamasoft.foliojet.css.impl.property.box.Padding;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
+import net.zamasoft.foliojet.css.impl.property.page.PageBleed;
+import net.zamasoft.foliojet.css.impl.property.page.PageMarks;
 import net.zamasoft.foliojet.css.impl.property.page.PageSize;
 
 /**
@@ -51,6 +53,8 @@ public final class PagePropertySet extends PropertySet {
 		put(BackgroundSize.INFO_WIDTH);
 		// 名前付きページN3/N4(consult-codex-2026-07-31-named-pages.txt)
 		put(PageSize.INFO);
+		put(PageMarks.INFO);
+		put(PageBleed.INFO);
 	}
 
 	public static PropertySet getInstance() {
