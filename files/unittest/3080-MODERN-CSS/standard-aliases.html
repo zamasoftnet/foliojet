@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+	line-height: 12pt;
+}
+div {
+	display: block;
+}
+
+/* overflow-wrap(標準名。従来は-cssj-word-wrap/word-wrapのみ) */
+#wrap-normal, #wrap-break, #wrap-anywhere {
+	width: 40pt;
+	background-color: #dddddd;
+}
+#wrap-normal { overflow-wrap: normal; }
+#wrap-break { overflow-wrap: break-word; }
+#wrap-anywhere { overflow-wrap: anywhere; }
+
+/* counter-set(CSS Lists 3)。入れ子を作らず既存カウンタへ代入する */
+#counters {
+	counter-reset: chap 0;
+}
+.chap:before {
+	content: "[" counter(chap) "]";
+}
+/* 子で counter-set —— 親の chap を書き換える(新しい入れ子を作らない) */
+#set-existing {
+	counter-set: chap 7;
+}
+/* どこにも無い名前は、その要素に作られる */
+#set-new {
+	counter-set: fresh 3;
+}
+#set-new:before {
+	content: "(" counter(fresh) ")";
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="wrap-normal">AAAAAAAAAAAAAA</div>
+    <div id="wrap-break">BBBBBBBBBBBBBB</div>
+    <div id="wrap-anywhere">CCCCCCCCCCCCCC</div>
+    <div id="counters">
+      <div class="chap">CH1</div>
+      <div id="set-existing">
+        <div class="chap">CH2</div>
+      </div>
+      <div class="chap">CH3</div>
+    </div>
+    <div id="set-new">NEW</div>
+    <p style="text-combine-upright: all;">TCU</p>
+  </body>
+
+</html>

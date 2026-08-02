@@ -30,7 +30,11 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (lu instanceof CssToken.Ident ident) {
-			if (ident.is("horizontal")) {
+			// all は text-combine-upright(標準名)の値、horizontal は
+			// -cssj-text-combine/-epub-text-combine の値(2026-08-02)。
+			// 縦中横として同じ意味なので同じ処理へ寄せる。仕様の
+			// digits <integer> は未対応
+			if (ident.is("horizontal") || ident.is("all")) {
 				primitives.set(Direction.INFO, DirectionValue.LTR_VALUE);
 				primitives.set(BlockFlow.INFO, BlockFlowValue.TB_VALUE);
 				primitives.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);

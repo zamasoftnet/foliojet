@@ -46,6 +46,11 @@ public class WordWrap extends AbstractPrimitivePropertyInfo {
 				return WordWrapValue.NORMAL_VALUE;
 			} else if (ident.equals("break-word")) {
 				return WordWrapValue.BREAK_WORD_VALUE;
+			} else if (ident.equals("anywhere")) {
+				// overflow-wrap: anywhere(2026-08-02)。仕様との差は
+				// 最小内容幅の計算だけで、行分割の挙動はbreak-wordと同じ
+				// ——この実装では区別しない(記録済みの簡略化)
+				return WordWrapValue.BREAK_WORD_VALUE;
 			}
 		}
 		throw new PropertyException();

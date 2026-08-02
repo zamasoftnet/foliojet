@@ -100,6 +100,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// additive/numeric+pad+negative/alphabetic/extendsの表現と
 			// prefix・suffix、counter()経路(prefix/suffixなし)を固定する
 			"3080-MODERN-CSS/counter-style.html", //
+			// 標準名の別名とcounter-set(2026-08-02)。overflow-wrapの
+			// normal/break-word/anywhere・counter-setが入れ子を作らずに
+			// 既存カウンタへ代入すること・未知の名前はその要素に作られること
+			"3080-MODERN-CSS/standard-aliases.html", //
 			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
 			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
 			// artifact印・ページ数をここで固定する

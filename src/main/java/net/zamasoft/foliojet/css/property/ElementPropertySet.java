@@ -22,6 +22,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Clip;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
 import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
+import net.zamasoft.foliojet.css.impl.property.content.CounterSet;
 import net.zamasoft.foliojet.css.impl.property.content.StringSet;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
@@ -280,6 +281,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(Content.INFO);
 		reg(Quotes.INFO);
 		reg(CounterReset.INFO);
+		reg(CounterSet.INFO);
 		reg(CounterIncrement.INFO);
 		reg(StringSet.INFO);
 		reg(ListStyleType.INFO);
@@ -402,6 +404,8 @@ public final class ElementPropertySet extends PropertySet {
 		alias("text-align-last", TextAlignLast.INFO);
 		alias("writing-mode", WritingModeShorthand.INFO);
 		alias("word-wrap", WordWrap.INFO);
+		alias("overflow-wrap", WordWrap.INFO);
+		alias("text-combine-upright", TextCombineShorthand.INFO);
 		alias("column-count", ColumnCount.INFO);
 		alias("column-width", ColumnWidth.INFO);
 		alias("column-gap", ColumnGap.INFO);

@@ -84,6 +84,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Clear;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
 import net.zamasoft.foliojet.css.impl.property.content.CounterReset;
+import net.zamasoft.foliojet.css.impl.property.content.CounterSet;
 import net.zamasoft.foliojet.css.impl.property.content.StringSet;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
@@ -465,6 +466,37 @@ final class StyleEventMachine {
 					continue;
 				}
 				pc.getCounterScope(depth, true).reset(name, value);
+			}
+		}
+
+		// カウンターの設定(counter-set、CSS Lists 3——2026-08-02)。
+		// 新しい入れ子は作らず、一番内側の既存カウンタへ代入する
+		// (探索はcounter-incrementと同じ。無ければこの要素に作る)
+		final Value[] sets = CounterSet.get(style);
+		if (sets != null) {
+			final PassContext pc = this.ua.getPassContext();
+			for (int i = 0; i < sets.length; ++i) {
+				final CounterSetValue counterSet = (CounterSetValue) sets[i];
+				final String name = counterSet.getName();
+				if (StyleBuilder.isReservedCounterName(name)) {
+					this.warnReservedCounter(name);
+					continue;
+				}
+				int level = depth;
+				for (; level > 0; --level) {
+					final CounterScope scope = pc.getCounterScope(level, false);
+					if (scope != null && scope.defined(name)) {
+						break;
+					}
+				}
+				if (level == 0) {
+					final CounterScope root = pc.getCounterScope(0, false);
+					if (root == null || !root.defined(name)) {
+						// どこにも無い——この要素に作る
+						level = depth;
+					}
+				}
+				pc.getCounterScope(level, true).reset(name, counterSet.getValue());
 			}
 		}
 
