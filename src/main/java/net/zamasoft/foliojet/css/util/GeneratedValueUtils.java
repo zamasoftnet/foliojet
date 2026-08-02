@@ -50,7 +50,12 @@ public final class GeneratedValueUtils {
 		} else if (ident.equals("upper-latin")) {
 			return ListStyleTypeValue.UPPER_LATIN_VALUE;
 		} else if (ident.equals("hebrew")) {
-			return ListStyleTypeValue.DECIMAL_VALUE;
+			// hebrew/armenian/georgianは字形を持たず算用数字で表す
+			// (format/periodが3つともDECIMALへ落ちる)。hebrewだけが
+			// DECIMALのコードを返していて、HEBREWの分岐が到達不能な
+			// 死にコードになっていたため対称化した(2026-08-02)。
+			// 実際の記号が要るなら@counter-styleで定義できる
+			return ListStyleTypeValue.HEBREW_VALUE;
 		} else if (ident.equals("armenian")) {
 			return ListStyleTypeValue.ARMENIAN_VALUE;
 		} else if (ident.equals("georgian")) {
