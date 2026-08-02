@@ -418,8 +418,23 @@ final class StyleEventMachine {
 		// インライン流へ::footnote-callを合成する。ページごとのリセットは
 		// ページローカル再生増分(F5)まで保留。本文のページ下端への移動は
 		// F3で配線——それまで本文はその場に描かれる
-		final boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
+		boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
 				&& CSSFloat.get(style) == CSSFloatValue.FOOTNOTE;
+		if (footnote && inTableStructure(style)) {
+			// **表の構造の内側(行・行グループ・列)では脚注にしない**
+			// (2026-08-02、掃過で発覚)。呼び出し(::footnote-call)は
+			// インラインとして親へ合成されるが、表の構造の直下は
+			// インラインを置けず、TableBuilderを要求する箱の構築に
+			// 落ちて変換が失敗していた。セルの中は従来どおり脚注になる。
+			// 表の構造の直下のインラインを匿名セルへ包む機構へ載せるのが
+			// 本筋(PLANの脚注残)——それまでは通常のfloat扱いへ縮退する
+			if (!this.warnedFootnoteInTableStructure) {
+				this.warnedFootnoteInTableStructure = true;
+				LOG.warning("float: footnote inside a table structure (row/row-group/column)"
+						+ " is not supported; treated as a normal float");
+			}
+			footnote = false;
+		}
 		if (footnote) {
 			// F7: 段組祖先内の脚注は段の高さが不揃いになり得る(予約が
 			// ページ容量を縮めても組済みの段は再配分されない)。型付き失敗に
@@ -1195,6 +1210,30 @@ final class StyleEventMachine {
 	/** 脚注の論理ID採番(F4。表示番号のcounter "footnote"とは独立)。 */
 	private long nextFootnoteId = 0;
 
+	/** 表の構造(行・行グループ・列)の直下か——セルの中はfalse。 */
+	private static boolean inTableStructure(final CSSStyle style) {
+		final CSSStyle parent = style.getParentStyle();
+		if (parent == null) {
+			return false;
+		}
+		switch (Display.get(parent)) {
+		case DisplayValue.TABLE:
+		case DisplayValue.INLINE_TABLE:
+		case DisplayValue.TABLE_ROW:
+		case DisplayValue.TABLE_ROW_GROUP:
+		case DisplayValue.TABLE_HEADER_GROUP:
+		case DisplayValue.TABLE_FOOTER_GROUP:
+		case DisplayValue.TABLE_COLUMN:
+		case DisplayValue.TABLE_COLUMN_GROUP:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** 表構造内の脚注の警告は1文書に1回。 */
+	private boolean warnedFootnoteInTableStructure = false;
+
 	private void footnotePseudo(final CSSStyle style, final CSSElement pseudoCe) {
 		this.styleContext.startElement(pseudoCe);
 		final Declaration declaration = this.styleContext.merge(null);
@@ -1207,17 +1246,22 @@ final class StyleEventMachine {
 		if (declaration != null) {
 			declaration.applyProperties(pseudoStyle);
 		}
-		if (Display.get(pseudoStyle) == DisplayValue.NONE) {
-			if (pseudoCe == CSSElement.FOOTNOTE_CALL) {
-				// F4: ::footnote-callのdisplay:noneはinlineへ強制する(意図的
-				// 仕様逸脱)。callのインラインボックスはページ確定時の所属
-				// 判定の唯一の事実で、消すと脚注の配置先が決められない
-				// (consult-codex-2026-07-31-footnote-f4.txt)。markerは消してよい
-				pseudoStyle.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
-			} else {
-				this.styleContext.endElement();
-				return;
-			}
+		if (pseudoCe == CSSElement.FOOTNOTE_CALL) {
+			// F4: ::footnote-callは**常にinline**へ強制する(意図的仕様逸脱)。
+			// callのインラインボックスはページ確定時の所属判定の唯一の事実で、
+			// 消すと脚注の配置先が決められない
+			// (consult-codex-2026-07-31-footnote-f4.txt)。
+			// **2026-08-02に「display:noneのときだけ」から拡張した**——
+			// displayの計算値は親に依存し(表の匿名整形)、
+			// `display:table`の要素にfloat:footnoteを付けると、この擬似要素が
+			// table-cellへ計算されてTableBuilderを要求し、変換が失敗していた。
+			// callは親のフローに置かれるインライン原子なので、脚注要素の
+			// 表整形を継がせてはならない
+			pseudoStyle.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
+		} else if (Display.get(pseudoStyle) == DisplayValue.NONE) {
+			// markerは消してよい
+			this.styleContext.endElement();
+			return;
 		}
 		this.startStyle(pseudoStyle);
 		// F5(2026-07-31、consult-codex-2026-07-31-footnote-f5.txt): 番号を

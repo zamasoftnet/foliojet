@@ -342,8 +342,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return box == null ? 0 : box.getInnerHeight() - frameHeight;
 	}
 
+	/**
+	 * ページ文脈(根のbuilder)です。<b>持たないことがある</b>——表セルの
+	 * 再レイアウト用builder({@code TableRowBox}が
+	 * {@code new BlockBuilder(null, ...)}で作る)は版面に紐づかないため。
+	 * 呼び出し側は既にnullを想定しており({@code optimizedTextEnabled}の
+	 * 「ページ文脈を持たない再レイアウト用ビルダー」分岐等)、ここだけが
+	 * null安全でなかった(2026-08-02、掃過のNPEで発覚)。
+	 */
 	public RootBuilder getPageContext() {
-		return this.layoutStack.getPageContext();
+		return this.layoutStack == null ? null : this.layoutStack.getPageContext();
 	}
 
 	/**

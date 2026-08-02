@@ -1270,13 +1270,21 @@ public class RootBuilder extends BreakableBuilder {
 			this.reserveBottomFloats();
 			this.resetFragmentCursor(this.placeTopPageFloats(), 0);
 			this.finishLayout();
-			// 前進の無い回は、どのページにも置けない脚注(call消失等)と
-			// して型付き失敗にする(無限ページ防止)
+			// 前進の無い回は、呼び出しがどのページにも残らなかった脚注
+			// (表のセル・絶対配置の中にある呼び出しは走査の対象外)。
+			// **変換は失敗させない**(ARCHITECTURE.md §5.13)——次の回は
+			// 呼び出しの有無に関わらず先頭から置き、それでも進まなければ
+			// 残りを捨てて警告する(無限ページを作らないため)
 			if (!this.footnoteProgressed && !this.pageFloatProgressed) {
-				throw new FootnoteOverflowException("footnote or page float cannot be placed"
-						+ " (too large atomic content or missing call): " + this.pendingFootnotes.size()
-						+ " footnotes / " + (this.pendingTopFloats.size() + this.pendingBottomFloats.size())
-						+ " page floats pending at EOF");
+				if (this.forceFootnoteAttach) {
+					LOG.warning("giving up on footnotes whose calls were never found: "
+							+ this.pendingFootnotes.size() + " pending at EOF");
+					this.pendingFootnotes.clear();
+					this.pendingTopFloats.clear();
+					this.pendingBottomFloats.clear();
+					break;
+				}
+				this.forceFootnoteAttach = true;
 			}
 		}
 		this.pageGenerator.drawPage(this.pageBox, true, false);
@@ -1347,13 +1355,15 @@ public class RootBuilder extends BreakableBuilder {
 	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
 		final double noteExtent = this.footnoteExtent(noteBox);
 		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
-		if (FOOTNOTE_GAP + noteExtent > maxArea) {
-			// 空ページの最大脚注領域にも収まらない——病的なレイアウトとして
-			// 救済(複数ページ分割)せず型付き失敗にする(オーナー裁定
-			// 2026-07-31: 分割機構F6は実装後に撤去。復元が必要になったら
-			// c9592cd参照)。版面の9割超を占める単一脚注だけが該当し、
-			// それ未満はF4の丸ごと送りで次ページへ置ける
-			throw new FootnoteOverflowException("footnote too large for any page: " + noteExtent
+		if (FOOTNOTE_GAP + noteExtent > maxArea && !this.warnedOversizedFootnote) {
+			// 空ページの最大脚注領域にも収まらない脚注(版面の9割超を占める
+			// 単一脚注)。**変換は失敗させない**——ARCHITECTURE.md §5.13
+			// (2026-07-26/27のユーザー裁定)が「変換が失敗することは常に
+			// エンジンの不具合。版面が破綻した文書の除外は変換の失敗には
+			// 適用しない」と定めているため。溢れさせて置き、警告する
+			// (2026-08-02。従来はFootnoteOverflowExceptionだった)
+			this.warnedOversizedFootnote = true;
+			LOG.warning("footnote larger than the page area; placing it anyway: " + noteExtent
 					+ "pt (max footnote area " + maxArea + "pt)");
 		}
 		this.pendingFootnotes
@@ -1373,6 +1383,14 @@ public class RootBuilder extends BreakableBuilder {
 				final double cost = (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
 						+ this.footnoteExtent(entry.noteBox);
 				if (this.footnoteReservation + cost > maxArea) {
+					// **先頭の1件だけは必ず予約する**(2026-08-02)。
+					// 版面より大きい脚注は何ページ送っても入らないため、
+					// ここで諦めると前進せず変換が失敗する(§5.13違反)。
+					// 予約は版面の上限で頭打ちにし、実体は溢れさせて置く
+					if (this.footnoteReservedCount == 0 && i == 0) {
+						this.footnoteReservation = maxArea;
+						this.footnoteReservedCount = 1;
+					}
 					// 入らない分はF4のFIFO送り(次ページで再予約)
 					break;
 				}
@@ -1566,8 +1584,9 @@ public class RootBuilder extends BreakableBuilder {
 		{
 			int i = 0;
 			for (final FootnoteEntry entry : this.pendingFootnotes) {
+				final boolean forced = this.forceFootnoteAttach && i == 0;
 				if (i >= this.footnoteReservedCount
-						|| (!entry.committed && !retained.contains(entry.id))) {
+						|| (!entry.committed && !retained.contains(entry.id) && !forced)) {
 					break;
 				}
 				++attachCount;
@@ -1609,8 +1628,9 @@ public class RootBuilder extends BreakableBuilder {
 		for (int i = 0; i < attachCount; ++i) {
 			final FootnoteEntry entry = this.pendingFootnotes.removeFirst();
 			if (entry.assignedNumber < 0) {
-				throw new FootnoteOverflowException(
-						"footnote attached without an assigned number: id=" + entry.id);
+				// 呼び出しが走査で見つからなかった脚注(表のセル等)。
+				// 変換を失敗させず、文書順の通番で採番する(§5.13)
+				entry.assignedNumber = (int) (entry.id + 1);
 			}
 			// note本文先頭の::footnote-markerラベルをcallページの番号で解決
 			for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
@@ -1635,6 +1655,15 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** 直近のattachで配置が進んだか(finish()の前進性ガード)。 */
 	private boolean footnoteProgressed = false;
+
+	/** 版面より大きい脚注の警告は1文書に1回。 */
+	private boolean warnedOversizedFootnote = false;
+
+	/**
+	 * 呼び出しが見つからない脚注でも先頭から強制的に置くか(finish()の
+	 * 前進保証、2026-08-02)。
+	 */
+	private boolean forceFootnoteAttach = false;
 
 	/** 走査結果: callのID集合と、見つかった脚注ラベル(call/marker両方)。 */
 	private record FootnoteCallScan(java.util.Set<Long> ids,

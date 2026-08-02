@@ -43,6 +43,9 @@ import net.zamasoft.pdfg2d.gc.text.TextShaper;
  */
 public final class FootnoteLabelImage implements net.zamasoft.pdfg2d.gc.image.Image, ReplacedBoxImage {
 
+	private static final java.util.logging.Logger LOG = java.util.logging.Logger
+			.getLogger(FootnoteLabelImage.class.getName());
+
 	private final long footnoteId;
 
 	/** markerなら2桁欄+右揃え、callなら1桁欄+左詰め(超過は右へ張り出し)。 */
@@ -133,14 +136,28 @@ public final class FootnoteLabelImage implements net.zamasoft.pdfg2d.gc.image.Im
 		return this.resolvedNumber < 0 ? "" : this.prefix + this.resolvedNumber + this.suffix;
 	}
 
+	/** 採番漏れの警告は1回だけ(掃過で大量に出さない)。 */
+	private static final java.util.concurrent.atomic.AtomicBoolean WARNED_UNRESOLVED =
+			new java.util.concurrent.atomic.AtomicBoolean();
+
 	@Override
 	public void drawTo(final GC gc) throws GraphicsException {
-		if (this.resolvedNumber < 0) {
-			// 未解決のまま描くと文書通番も0も黙って出せない——型付き失敗
-			// (クラッシュ型の一貫性。解決漏れ=採番走査の欠落を隠さない)
-			throw new IllegalStateException("unresolved footnote label: id=" + this.footnoteId);
+		int number = this.resolvedNumber;
+		if (number < 0) {
+			// **採番漏れでも変換は失敗させない**(2026-08-02。絶対要件=
+			// クラッシュ・変換の失敗の不在)。呼び出しの走査は版面のflow・
+			// float・行・インラインだけを歩くため、表のセルや絶対配置の
+			// 中にある呼び出しは採番されない(PLANの脚注残:
+			// 表・絶対配置文脈のcall走査)。番号を消すと内容の消失に
+			// なるので、**文書順の通番**へ落として描き、1回だけ警告する
+			number = (int) (this.footnoteId + 1);
+			if (WARNED_UNRESOLVED.compareAndSet(false, true)) {
+				LOG.warning("footnote label was not numbered by the page scan"
+						+ " (a call inside a table cell or an absolutely positioned box);"
+						+ " falling back to the document order number: id=" + this.footnoteId);
+			}
 		}
-		final String text = this.prefix + this.resolvedNumber + this.suffix;
+		final String text = this.prefix + number + this.suffix;
 		final TextImpl[] runs = this.shape(text);
 		double advance = 0;
 		for (final TextImpl run : runs) {

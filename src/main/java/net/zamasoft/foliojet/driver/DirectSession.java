@@ -507,17 +507,28 @@ public class DirectSession extends AbstractCTISession
 				try {
 					this.ua.finish();
 				} catch (BrokenResultException e1) {
-					throw new TranscoderException(TranscoderException.STATE_BROKEN, code, null, mes);
+					throw failure(code, mes, t);
 				}
 				return;
 			}
-			throw new TranscoderException(TranscoderException.STATE_BROKEN, code, null, mes);
+			// **原因を繋ぐ**(2026-08-02): ログには出していたが呼び出し側へ
+			// 渡す例外には原因が付いておらず、掃過の分類が
+			// 「TranscoderException@DirectSession.transcode」1種類へ潰れて
+			// いた。何種類の欠陥が残っているかが数えられない
+			throw failure(code, mes, t);
 		} finally {
 			if (!this.continuous) {
 				this.ua.dispose();
 				this.ua = null;
 			}
 		}
+	}
+
+	/** 予期しない失敗を、原因を保ったまま包みます。 */
+	private static TranscoderException failure(final short code, final String mes, final Throwable cause) {
+		final TranscoderException e = new TranscoderException(TranscoderException.STATE_BROKEN, code, null, mes);
+		e.initCause(cause);
+		return e;
 	}
 
 	private void prepareDefaultProperties() throws IOException {

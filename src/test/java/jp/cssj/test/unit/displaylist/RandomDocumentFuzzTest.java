@@ -595,6 +595,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			t.join();
 		}
 		final long ms = System.currentTimeMillis() - began;
+		if (reportMode()) {
+			reportFeatureCoverage(strict, seeds, from);
+		}
 		System.out.println("[fuzzReport] mode=" + (strict ? "strict" : "wild") + " seeds=" + seeds
 				+ (from == 0 ? "" : " from=" + from) + " threads="
 				+ threads + " elapsed=" + (ms / 1000) + "s (" + String.format("%.2f", ms / (double) seeds)
@@ -604,6 +607,109 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		for (final String k : new java.util.TreeSet<>(classCount.keySet())) {
 			System.out.println("[fuzzReport]   " + k + " : " + classCount.get(k).get() + "件 seeds=" + seedsOf.get(k));
+		}
+	}
+
+	/**
+	 * <b>1文書あたり何機能を網羅したか</b>を測ります(2026-08-02、ユーザー
+	 * 指摘)。「N文書・0失敗」は単機能の信頼度しか語らない——欠陥は機能の
+	 * <b>組み合わせ</b>に居るので、指標は<b>ペア被覆率</b>(全機能ペアのうち
+	 * 実際に同居したペアの割合)にする。
+	 *
+	 * <p>
+	 * 文書の生成は決定的なので、掃過とは別に作り直して数えても同じ集合に
+	 * なる(変換はしないため安い)。標本は先頭2,000シードまで。
+	 * </p>
+	 */
+	private static void reportFeatureCoverage(final boolean strict, final int seeds, final int from) {
+		final int sample = Math.min(seeds, 2000);
+		final java.util.List<String> features = java.util.List.of("display:flex", "display:grid",
+				"display:inline-block", "display:list-item", "display:table", "display:none", "position:absolute",
+				"position:relative", "float:left", "float:right", "float:footnote", "float:top", "float:bottom",
+				"writing-mode:vertical", "overflow:hidden", "<table", "<ul", "<ol", "<ruby", "<img", "<form",
+				"<input", "<select", "<textarea", "<button", "page-break-before", "page-break-inside",
+				"list-style-type", "clear:", "columns");
+		final int n = features.size();
+		final java.util.Map<Integer, java.util.Set<Long>> combos = new java.util.HashMap<>();
+		long featureTotal = 0;
+		for (int i = 0; i < sample; ++i) {
+			final String doc = generate(from + i, strict).html();
+			final boolean[] has = new boolean[n];
+			int count = 0;
+			for (int f = 0; f < n; ++f) {
+				has[f] = doc.contains(features.get(f));
+				if (has[f]) {
+					++count;
+				}
+			}
+			featureTotal += count;
+			final int[] present = new int[count];
+			int at = 0;
+			for (int f = 0; f < n; ++f) {
+				if (has[f]) {
+					present[at++] = f;
+				}
+			}
+			recordCombos(present, count, combos);
+		}
+		final StringBuilder tways = new StringBuilder();
+		for (int t = 2; t <= 5; ++t) {
+			final long total = binomial(n, t);
+			final java.util.Set<Long> set = combos.get(t);
+			final long got = set == null ? 0 : set.size();
+			if (tways.length() > 0) {
+				tways.append(' ');
+			}
+			tways.append(t).append("組 ").append(String.format("%.1f", got * 100.0 / total)).append('%');
+		}
+		System.out.println("[fuzzReport] mode=" + (strict ? "strict" : "wild") + " 機能被覆: 1文書あたり平均"
+				+ String.format("%.1f", featureTotal / (double) sample) + "機能 / " + n + "機能中、"
+				+ tways + " (標本" + sample + "文書)");
+	}
+
+	/** {@code n}個から{@code t}個を選ぶ組の数です。 */
+	private static long binomial(final int n, final int t) {
+		long v = 1;
+		for (int i = 0; i < t; ++i) {
+			v = v * (n - i) / (i + 1);
+		}
+		return v;
+	}
+
+	/**
+	 * 文書が持つ機能の集合から、t個の組(t=2..5)を全て列挙して記録します
+	 * (2026-08-02、ユーザー指摘——組み合わせはペアで止めない)。機能は
+	 * 63種以下なので、組は{@code long}のビットマスクで一意に表せる。
+	 */
+	private static void recordCombos(final int[] present, final int count,
+			final java.util.Map<Integer, java.util.Set<Long>> combos) {
+		for (int t = 2; t <= 5; ++t) {
+			if (count < t) {
+				break;
+			}
+			final int[] idx = new int[t];
+			for (int i = 0; i < t; ++i) {
+				idx[i] = i;
+			}
+			final java.util.Set<Long> set = combos.computeIfAbsent(t, k -> new java.util.HashSet<>());
+			while (true) {
+				long mask = 0;
+				for (int i = 0; i < t; ++i) {
+					mask |= 1L << present[idx[i]];
+				}
+				set.add(mask);
+				int i = t - 1;
+				while (i >= 0 && idx[i] == count - t + i) {
+					--i;
+				}
+				if (i < 0) {
+					break;
+				}
+				++idx[i];
+				for (int j = i + 1; j < t; ++j) {
+					idx[j] = idx[j - 1] + 1;
+				}
+			}
 		}
 	}
 
@@ -1346,9 +1452,34 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final Set<String> reorderable = new LinkedHashSet<String>();
 		final StringBuilder body = new StringBuilder();
 		final int[] counter = { 0 };
-		final int roots = 1 + r.nextInt(4);
-		for (int i = 0; i < roots; ++i) {
-			appendNode(body, r, 3, strict, tokens, counter, reorderable, false);
+		// **1文書あたりの機能数を指標にする**(2026-08-02、ユーザー指摘)。
+		// t個の機能の組は、機能k個の文書がC(k,t)個を一度に被覆する——
+		// つまり密度はtの次数で効く。「小さい文書×多数」では、文書数を
+		// いくら積んでも3組・4組は被覆されない。
+		// 3/4の文書は全種別を一巡半〜二巡ぶん詰め込み、1/4は小さいまま
+		// 残す(欠陥が出たときの切り分けを速く保つため)
+		final boolean dense = r.nextInt(4) != 0;
+		if (dense) {
+			final int kinds = nodeKinds(strict);
+			final int[] order = new int[kinds];
+			for (int i = 0; i < kinds; ++i) {
+				order[i] = i;
+			}
+			for (int i = kinds - 1; i > 0; --i) {
+				final int j = r.nextInt(i + 1);
+				final int t = order[i];
+				order[i] = order[j];
+				order[j] = t;
+			}
+			final int nodes = kinds + kinds / 2 + r.nextInt(kinds);
+			for (int i = 0; i < nodes; ++i) {
+				appendNode(body, r, 3, strict, tokens, counter, reorderable, false, order[i % kinds]);
+			}
+		} else {
+			final int roots = 1 + r.nextInt(4);
+			for (int i = 0; i < roots; ++i) {
+				appendNode(body, r, 3, strict, tokens, counter, reorderable, false);
+			}
 		}
 		final int[] size = PAGE_SIZES[r.nextInt(PAGE_SIZES.length)];
 		final StringBuilder s = new StringBuilder();
@@ -1632,14 +1763,107 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return t;
 	}
 
+	/**
+	 * <b>レイアウトを決めるプロパティを直交に振る修飾</b>です(2026-08-02)。
+	 *
+	 * <p>
+	 * 生成器は「パターンごとに書かれたHTML」の集まりで、絶対配置の箱は
+	 * 常に素の{@code div}、フロートは常に{@code div}……とパターン内に
+	 * プロパティが焼き込まれていた。そのため<b>パターンをまたぐ組み合わせ
+	 * (position × display × float × writing-mode)が一度も生成されず</b>、
+	 * 200万文書を通しても`position:absolute`かつ`display:flex`が
+	 * クラッシュする欠陥に到達できなかった(2026-08-02、yahoo.co.jpで発覚)。
+	 * ここで独立に振ることで、パターン数を増やさずに直積を作る。
+	 * </p>
+	 *
+	 * <p>
+	 * 内容を消す値(`display:none`・`visibility:hidden`)と紙面外へ飛ばす
+	 * 値はSTRICT(内容保存を検査する)では引かない。
+	 * </p>
+	 */
+	private static String layoutMods(final Random r, final boolean strict) {
+		// 半分は素のまま(素朴な文書も出続けるようにする)
+		if (r.nextBoolean()) {
+			return "";
+		}
+		final StringBuilder mods = new StringBuilder();
+		final String[] displays = strict
+				? new String[] { "block", "inline-block", "flex", "grid", "list-item", "table", "inline" }
+				: new String[] { "block", "inline-block", "flex", "grid", "list-item", "table", "table-row",
+						"table-cell", "inline", "none" };
+		if (r.nextBoolean()) {
+			mods.append("display:").append(displays[r.nextInt(displays.length)]).append(';');
+		}
+		if (r.nextBoolean()) {
+			// **内容を紙面順から動かす値はSTRICTでは引かない**。絶対配置・
+			// ページfloat・脚注は「文書順に1度だけ現れる」というSTRICTの
+			// 前提(読み順・複製・消失の検査)を仕様どおりに壊すため、
+			// これらはWILD(クラッシュ・停止性・ページ数だけを見る)専用
+			final String[] positions = strict ? new String[] { "static", "relative" }
+					: new String[] { "static", "relative", "absolute" };
+			final String position = positions[r.nextInt(positions.length)];
+			mods.append("position:").append(position).append(';');
+			if (!position.equals("static")) {
+				mods.append("top:").append(r.nextInt(40) - 10).append("pt;left:")
+						.append(r.nextInt(40) - 10).append("pt;");
+			}
+		}
+		if (r.nextBoolean()) {
+			// footnote/top/bottomはページ単位のfloat(2026-07-31・08-02に追加)
+			final String[] floats = strict ? new String[] { "none", "left", "right" }
+					: new String[] { "none", "left", "right", "footnote", "top", "bottom", "start", "end" };
+			mods.append("float:").append(floats[r.nextInt(floats.length)]).append(';');
+		}
+		if (r.nextBoolean()) {
+			mods.append("writing-mode:").append(WRITING_MODES[r.nextInt(WRITING_MODES.length)]).append(';');
+		}
+		if (!strict && r.nextBoolean()) {
+			mods.append("overflow:hidden;visibility:")
+					.append(r.nextBoolean() ? "hidden" : "visible").append(';');
+		}
+		if (mods.length() == 0) {
+			return "";
+		}
+		// 寸法を与えないとflex/gridの経路が痩せるため、たまに付ける
+		if (r.nextBoolean()) {
+			mods.append("width:").append(20 + r.nextInt(120)).append("pt;");
+		}
+		return mods.toString();
+	}
+
+	/** 生成できるノード種別の数です(STRICTは内容を動かす種別を含まない)。 */
+	private static int nodeKinds(final boolean strict) {
+		return strict ? 13 : 15;
+	}
+
 	private static void appendNode(final StringBuilder s, final Random r, final int depth, final boolean strict,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable,
 			final boolean inReorderable) {
+		appendNode(s, r, depth, strict, tokens, counter, reorderable, inReorderable, -1);
+	}
+
+	private static void appendNode(final StringBuilder s, final Random r, final int depth, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable,
+			final boolean inReorderable, final int forcedKind) {
+		final String mods = layoutMods(r, strict);
+		if (!mods.isEmpty()) {
+			// 修飾は包む(パターン側の記述を壊さずに組み合わせを作る)
+			s.append("<div style=\"").append(mods).append("\">\n");
+			appendPlainNode(s, r, depth, strict, tokens, counter, reorderable, inReorderable, forcedKind);
+			s.append("</div>\n");
+			return;
+		}
+		appendPlainNode(s, r, depth, strict, tokens, counter, reorderable, inReorderable, forcedKind);
+	}
+
+	private static void appendPlainNode(final StringBuilder s, final Random r, final int depth, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable,
+			final boolean inReorderable, final int forcedKind) {
 		if (depth <= 0) {
 			s.append("<p>").append(token(tokens, counter, reorderable, inReorderable)).append("</p>\n");
 			return;
 		}
-		final int kind = r.nextInt(strict ? 12 : 14);
+		final int kind = forcedKind >= 0 ? forcedKind : r.nextInt(nodeKinds(strict));
 		switch (kind) {
 		case 0 -> { // 段落(複数トークン)
 			s.append("<p>");
@@ -1739,7 +1963,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 			appendChildren(s, r, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
-		case 12 -> { // WILDのみ: 絶対配置
+		case 12 -> { // フォーム部品(値テキストは描画されないためトークンにしない)
+			s.append("<form>");
+			final int n = 1 + r.nextInt(3);
+			for (int i = 0; i < n; ++i) {
+				switch (r.nextInt(6)) {
+				case 0 -> s.append("<input type=\"text\" value=\"x\" size=\"")
+						.append(1 + r.nextInt(20)).append("\" />");
+				case 1 -> s.append("<input type=\"checkbox\" checked=\"checked\" />");
+				case 2 -> s.append("<input type=\"radio\" />");
+				case 3 -> s.append("<textarea rows=\"").append(1 + r.nextInt(4)).append("\">x</textarea>");
+				case 4 -> s.append("<select><option>x</option><option>y</option></select>");
+				default -> s.append("<button type=\"button\">")
+						.append(token(tokens, counter, reorderable, inReorderable)).append("</button>");
+				}
+			}
+			s.append("</form>\n");
+		}
+		case 13 -> { // WILDのみ: 絶対配置
 			s.append("<div style=\"position:absolute;top:").append(r.nextInt(300) - 50).append("pt;left:")
 					.append(r.nextInt(300) - 50).append("pt\">").append("X").append("</div>\n");
 		}

@@ -4,13 +4,27 @@ import java.io.File;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
-import net.zamasoft.foliojet.layout.builder.impl.FootnoteOverflowException;
 
 /**
  * 脚注F4/F6の境界: どのページにも入らない<b>atomicな</b>巨大脚注
  * (800pt+page-break-inside:avoid——固定高ブロックは高さ切断できるため
- * avoidで分割を禁じたもの)は、送り続けず型付き失敗になる。分割可能な
- * 巨大脚注はF6が複数ページへ置く(FootnoteSplitTest)。
+ * avoidで分割を禁じたもの)の契約です。
+ *
+ * <p>
+ * <b>2026-08-02に契約が変わった。</b> 従来は型付きエラー
+ * ({@code FootnoteOverflowException})で変換を失敗させていたが、
+ * {@code ARCHITECTURE.md} §5.13(2026-07-26/27のユーザー裁定)が
+ * 「<b>変換が失敗することは常にエンジンの不具合</b>。版面が破綻した文書の
+ * 除外は変換の失敗には適用しない」と定めているため、<b>失敗させず、
+ * 警告して溢れさせて置く</b>へ縮退させた。改良後の生成器による掃過では、
+ * この型の失敗が2,000シード中531件(失敗全体の77%)を占めていた。
+ * </p>
+ *
+ * <p>
+ * ここで固定するのは「<b>変換が成功すること</b>」だけである。置かれた結果
+ * (紙面外へ溢れる)の見た目は問わない——版面より大きい脚注をどう見せるかは
+ * 組版を指定した側の責任(§5.13)。
+ * </p>
  */
 public class FootnoteOversizedTest extends AbstractTestCase {
 	public FootnoteOversizedTest(String name) {
@@ -24,24 +38,6 @@ public class FootnoteOversizedTest extends AbstractTestCase {
 
 	@Override
 	public void testDocument() throws Exception {
-		try {
-			this.transcode();
-			fail("an oversized footnote must fail with a typed error");
-		} catch (Exception e) {
-			// 変換経路(TranscoderException)はcause鎖でなくメッセージへ畳む
-			// ため、FootnoteOverflowExceptionのメッセージで判定する
-			Throwable t = e;
-			boolean found = false;
-			while (t != null) {
-				if (t instanceof FootnoteOverflowException
-						|| (t.getMessage() != null && (t.getMessage().contains("footnote too large")
-								|| t.getMessage().contains("footnote cannot be placed")))) {
-					found = true;
-					break;
-				}
-				t = t.getCause();
-			}
-			assertTrue("the failure must carry the FootnoteOverflowException message: " + e, found);
-		}
+		this.transcode();
 	}
 }
