@@ -115,11 +115,66 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	public void testStrictDocumentsPreserveEverything() throws Exception {
+		checkFuzzImage();
 		sweep(true);
 	}
 
 	public void testWildDocumentsNeverCrashOrHang() throws Exception {
+		checkFuzzImage();
 		sweep(false);
+	}
+
+	/**
+	 * {@code -Dfoliojet.fuzzImage}で差し替えた画像が、既定の画像と
+	 * <b>同じ寸法か</b>を確かめます(2026-08-02)。
+	 *
+	 * <p>
+	 * この指定はI/Oの速い場所へ画像を移すためのもので、<b>同じ画像の
+	 * 置き場所を変えるだけ</b>が前提である。寸法の違う画像を指すと版面が
+	 * 変わり、シード番号が指す文書が黙って別物になる——過去の掃過結果と
+	 * 突き合わせられなくなるため、続行せずに落とす。
+	 * </p>
+	 */
+	private static void checkFuzzImage() throws Exception {
+		final String path = System.getProperty("foliojet.fuzzImage");
+		if (path == null) {
+			return;
+		}
+		final int[] replaced = pngSize(new File(path));
+		final int[] original = pngSize(new File(DEFAULT_FUZZ_IMAGE));
+		if (replaced == null || original == null) {
+			return;
+		}
+		if (replaced[0] != original[0] || replaced[1] != original[1]) {
+			fail("-Dfoliojet.fuzzImage の画像は既定と同じ寸法でなければならない"
+					+ "(シードが指す文書が変わってしまう): " + path + " は "
+					+ replaced[0] + "x" + replaced[1] + "、既定の " + DEFAULT_FUZZ_IMAGE + " は "
+					+ original[0] + "x" + original[1]);
+		}
+	}
+
+	/** PNGのIHDRから寸法を読みます(読めなければnull)。 */
+	private static int[] pngSize(final File file) throws Exception {
+		if (!file.isFile()) {
+			return null;
+		}
+		final byte[] head = new byte[24];
+		try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+			if (in.readNBytes(head, 0, head.length) != head.length) {
+				return null;
+			}
+		}
+		// 8バイトの署名 + 長さ4 + "IHDR" + 幅4 + 高さ4
+		if (head[0] != (byte) 0x89 || head[12] != 'I' || head[13] != 'H' || head[14] != 'D'
+				|| head[15] != 'R') {
+			return null;
+		}
+		return new int[] { readInt(head, 16), readInt(head, 20) };
+	}
+
+	private static int readInt(final byte[] b, final int offset) {
+		return ((b[offset] & 0xFF) << 24) | ((b[offset + 1] & 0xFF) << 16) | ((b[offset + 2] & 0xFF) << 8)
+				| (b[offset + 3] & 0xFF);
 	}
 
 	/**
@@ -1245,8 +1300,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * (相対パスだと置き場所で文書が変わる)は従来どおり。
 	 * </p>
 	 */
+	/** 掃過に使う既定の画像です(差し替え時の寸法照合の原本)。 */
+	private static final String DEFAULT_FUZZ_IMAGE = "files/unittest/red.png";
+
 	private static final String RED_PNG_URI = new File(
-			System.getProperty("foliojet.fuzzImage", "files/unittest/red.png")).getAbsoluteFile().toURI().toString();
+			System.getProperty("foliojet.fuzzImage", DEFAULT_FUZZ_IMAGE)).getAbsoluteFile().toURI().toString();
 
 	/**
 	 * 掃過の作業ディレクトリ({@code -Dfoliojet.fuzzWorkDir})。既定は
