@@ -22,6 +22,7 @@ import com.helger.css.decl.CSSPageMarginBlock;
 import com.helger.css.decl.CSSPageRule;
 import com.helger.css.decl.CSSSelector;
 import com.helger.css.decl.CSSStyleRule;
+import com.helger.css.decl.CSSUnknownRule;
 import com.helger.css.decl.CSSSupportsConditionDeclaration;
 import com.helger.css.decl.CSSSupportsConditionNegation;
 import com.helger.css.decl.CSSSupportsConditionNested;
@@ -32,6 +33,9 @@ import com.helger.css.decl.ICSSPageRuleMember;
 import com.helger.css.decl.ICSSSupportsConditionMember;
 import com.helger.css.decl.ICSSTopLevelRule;
 import com.helger.css.reader.CSSReader;
+
+import net.zamasoft.foliojet.css.counterstyle.CounterStyleDef;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyleParser;
 import com.helger.css.writer.CSSWriterSettings;
 
 import net.zamasoft.foliojet.css.parser.CSSException;
@@ -158,8 +162,51 @@ public class CSSStyleSheetBuilder {
 			this.fontFace(fontFaceRule, uri);
 		} else if (rule instanceof CSSLayerRule layerRule) {
 			this.layer(layerRule, uri, mediaOk, layerNamePrefix);
+		} else if (rule instanceof CSSUnknownRule unknownRule) {
+			// ph-cssは@counter-styleを未知のat-ruleとして本文ごと渡す
+			if (mediaOk && "@counter-style".equalsIgnoreCase(unknownRule.getDeclaration())) {
+				this.counterStyle(unknownRule);
+			}
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+	}
+
+	/**
+	 * 著者定義カウンタスタイルです({@code @counter-style}、2026-08-02——
+	 * PLAN §2の5位。漢数字・いろは等の和文実需とWeb由来CSSの入力互換)。
+	 *
+	 * <p>
+	 * ph-cssは本規則を{@link CSSUnknownRule}(名前・引数・本文の文字列)
+	 * として渡すため、本文をダミーの規則へ包んで読み直し、宣言の並びを
+	 * {@link CounterStyleParser}へ渡す。登録簿は{@code UAContext}にあり、
+	 * {@code list-style-type: <name>}の側は名前からコードを引くだけなので
+	 * 規則の出現順に依存しない。
+	 * </p>
+	 */
+	private void counterStyle(final CSSUnknownRule rule) {
+		final String name = rule.getParameterList();
+		if (name == null || name.trim().isEmpty()) {
+			return;
+		}
+		final String body = rule.getBody();
+		if (body == null) {
+			return;
+		}
+		final CascadingStyleSheet sheet = CSSReader.readFromStringReader("*{" + body + "}",
+				DeclarationParser.settings());
+		if (sheet == null || sheet.getRuleCount() != 1
+				|| !(sheet.getRuleAtIndex(0) instanceof CSSStyleRule holder)) {
+			return;
+		}
+		final List<String[]> descriptors = new ArrayList<>();
+		for (final CSSDeclaration declaration : holder.getAllDeclarations()) {
+			descriptors.add(new String[] { declaration.getProperty(),
+					declaration.getExpression().getAsCSSString(MEDIA_WRITER_SETTINGS, 0) });
+		}
+		final CounterStyleDef def = CounterStyleParser.parse(descriptors);
+		if (def != null) {
+			this.ua.getUAContext().getCounterStyles().define(name.trim(), def);
+		}
 	}
 
 	/**

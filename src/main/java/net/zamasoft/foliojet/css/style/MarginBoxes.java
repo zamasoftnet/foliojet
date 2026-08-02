@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.Declaration;
 import net.zamasoft.foliojet.css.MarginBoxName;
 import net.zamasoft.foliojet.css.StyleContext;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
@@ -271,9 +272,9 @@ final class MarginBoxes {
 				switch (v) {
 				case StringValue str -> text.append(str.getString());
 				case CounterValue counter -> text
-						.append(GeneratedValueUtils.format(counterValue(ua, counter.getName()), counter.getStyle()));
+						.append(CounterStyles.of(ua).format(counterValue(ua, counter.getName()), counter.getStyle()));
 				case CountersValue counters -> text.append(
-						GeneratedValueUtils.format(counterValue(ua, counters.getName()), counters.getStyle()));
+						CounterStyles.of(ua).format(counterValue(ua, counters.getName()), counters.getStyle()));
 				case StringFunctionValue sf -> {
 					final String str = ua.getPassContext().getNamedStringState().get(sf.getName(), sf.getMode());
 					if (str != null) {

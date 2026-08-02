@@ -39,6 +39,7 @@ import net.zamasoft.foliojet.css.lang.LanguageProfile;
 import net.zamasoft.foliojet.css.lang.LanguageProfileBundle;
 import net.zamasoft.foliojet.css.lang.WordHyphenatorBundle;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
@@ -607,11 +608,14 @@ final class StyleEventMachine {
 			this.marker = null;
 			Marker marker = null;
 			if (image == null) {
-				String str = GeneratedValueUtils.format(number, listStyleType);
+				final CounterStyles counterStyles = CounterStyles.of(this.ua);
+				String str = counterStyles.format(number, listStyleType);
 				if (str != null) {
 					marker = new Marker();
-					String dot = GeneratedValueUtils.period(listStyleType);
-					marker.text = (str + dot + ' ').toCharArray();
+					// 前後の記号は組み込みなら従来の句点、著者定義なら
+					// prefix/suffix記述子(既定は".")を使う
+					marker.text = (counterStyles.prefix(listStyleType) + str
+							+ counterStyles.suffix(listStyleType) + ' ').toCharArray();
 				}
 			} else {
 				marker = new Marker();
@@ -861,7 +865,7 @@ final class StyleEventMachine {
 	 */
 
 	private void counter(int number, short counterStyle, CSSStyle style) {
-		final String str = GeneratedValueUtils.format(number, counterStyle);
+		final String str = CounterStyles.of(this.ua).format(number, counterStyle);
 		if (str != null) {
 			char[] ch = str.toCharArray();
 			this.checkMarker();
@@ -945,7 +949,7 @@ final class StyleEventMachine {
 				}
 				this.generated.checkConverged(pageRef, frag);
 				int count = frag.getCounterValue(counter);
-				String str = GeneratedValueUtils.format(count, pageRefFunc.getNumberStyleType());
+				String str = CounterStyles.of(this.ua).format(count, pageRefFunc.getNumberStyleType());
 				if (str == null) {
 					return;
 				}
@@ -969,7 +973,7 @@ final class StyleEventMachine {
 					if (buff.length() > 0) {
 						buff.append(sep);
 					}
-					String str = GeneratedValueUtils.format(counts.get(j), pageRefFunc.getNumberStyleType());
+					String str = CounterStyles.of(this.ua).format(counts.get(j), pageRefFunc.getNumberStyleType());
 					if (str != null) {
 						buff.append(str);
 					}

@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+ol {
+	margin: 0;
+	padding: 0;
+	list-style-position: inside;
+}
+
+/* 循環(記号を繰り返し使う) */
+@counter-style circled {
+	system: cyclic;
+	symbols: "*" "+" "#";
+	suffix: ") ";
+}
+/* 固定(範囲外はfallbackのdecimalへ) */
+@counter-style fixed3 {
+	system: fixed 1;
+	symbols: "A" "B" "C";
+	suffix: ". ";
+}
+/* 加算(ローマ数字方式) */
+@counter-style roman-lite {
+	system: additive;
+	additive-symbols: 10 "X", 5 "V", 1 "I";
+	suffix: ". ";
+}
+/* 位取り+パディング+負数 */
+@counter-style padded {
+	system: numeric;
+	symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
+	pad: 3 "0";
+	negative: "(" ")";
+	prefix: "[";
+	suffix: "] ";
+}
+/* 双射(alphabetic) */
+@counter-style two-letters {
+	system: alphabetic;
+	symbols: "a" "b";
+	suffix: ": ";
+}
+/* 拡張(組み込みを基にsuffixだけ変える) */
+@counter-style dashed-decimal {
+	system: extends decimal;
+	suffix: " - ";
+}
+
+#cyc li { list-style-type: circled; }
+#fix li { list-style-type: fixed3; }
+#add li { list-style-type: roman-lite; }
+#pad li { list-style-type: padded; }
+#two li { list-style-type: two-letters; }
+#ext li { list-style-type: dashed-decimal; }
+/* 未定義の名前はdecimalへ落ちる */
+#unknown li { list-style-type: no-such-style; }
+
+/* counter()での利用(マーカー以外の経路)。prefix/suffixは付かない */
+#gen {
+	counter-reset: chapter 12;
+	display: block;
+}
+#gen p:before {
+	content: counter(chapter, roman-lite) "/";
+}
+/* 負数(パディングは符号の内側) */
+#neg {
+	counter-reset: n -5;
+	display: block;
+}
+#neg p:before {
+	content: counter(n, padded);
+}
+    </style>
+  </head>
+
+  <body>
+    <ol id="cyc">
+      <li>A</li>
+      <li>B</li>
+      <li>C</li>
+      <li>D</li>
+    </ol>
+    <ol id="fix">
+      <li>A</li>
+      <li>B</li>
+      <li>C</li>
+      <li>D</li>
+    </ol>
+    <ol id="add">
+      <li>A</li>
+      <li>B</li>
+      <li>C</li>
+    </ol>
+    <ol id="pad">
+      <li>A</li>
+      <li>B</li>
+    </ol>
+    <ol id="two">
+      <li>A</li>
+      <li>B</li>
+      <li>C</li>
+    </ol>
+    <ol id="ext">
+      <li>A</li>
+      <li>B</li>
+    </ol>
+    <ol id="unknown">
+      <li>A</li>
+    </ol>
+    <div id="gen">
+      <p>GEN</p>
+    </div>
+    <div id="neg">
+      <p>NEG</p>
+    </div>
+  </body>
+
+</html>

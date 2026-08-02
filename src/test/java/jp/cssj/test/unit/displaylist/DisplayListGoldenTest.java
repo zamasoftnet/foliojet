@@ -96,6 +96,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// 相対セレクタ・セレクタリスト直積・3層入れ子・入れ子後宣言の
 			// 順序保存を要素幅で固定する
 			"3080-MODERN-CSS/nesting.html", //
+			// @counter-style(2026-08-02)。cyclic/fixed(範囲外fallback)/
+			// additive/numeric+pad+negative/alphabetic/extendsの表現と
+			// prefix・suffix、counter()経路(prefix/suffixなし)を固定する
+			"3080-MODERN-CSS/counter-style.html", //
 			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
 			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
 			// artifact印・ページ数をここで固定する

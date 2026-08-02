@@ -72,9 +72,9 @@ public class StringSet extends AbstractPrimitivePropertyInfo {
 					parts.add(new StringValue(str.value()));
 				} else if (lu instanceof CssToken.Func func) {
 					if (func.is("counter")) {
-						parts.add(Content.parseCounter(func.argStream()));
+						parts.add(Content.parseCounter(func.argStream(), ua));
 					} else if (func.is("counters")) {
-						parts.add(Content.parseCounters(func.argStream()));
+						parts.add(Content.parseCounters(func.argStream(), ua));
 					} else if (func.is("attr")) {
 						final TokenStream params = func.argStream();
 						final String attrName = params.ident();

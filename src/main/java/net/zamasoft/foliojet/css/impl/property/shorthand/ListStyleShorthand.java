@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.URIValue;
@@ -56,7 +57,10 @@ public class ListStyleShorthand extends AbstractShorthandPropertyInfo {
 
 				final Value position = GeneratedValueUtils.toListStylePosition(ident.name());
 				if (position == null) {
-					throw new PropertyException();
+					// 組み込みでも位置キーワードでもない識別子は
+					// 著者定義カウンタスタイルの名前とみなす
+					primitives.set(ListStyleType.INFO, CounterStyles.styleValue(ua, ident.name()));
+					continue;
 				}
 				primitives.set(ListStylePosition.INFO, position);
 			} else {

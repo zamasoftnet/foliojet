@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.css.style;
 
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
@@ -51,7 +52,7 @@ final class GeneratedContentResolver {
 					break;
 				}
 			}
-			final String str = GeneratedValueUtils.format(number, counterStyle);
+			final String str = CounterStyles.of(this.ua).format(number, counterStyle);
 			return str != null ? str : "";
 		} else if (part instanceof CountersValue counters) {
 			final String name = counters.getName();
@@ -67,7 +68,7 @@ final class GeneratedContentResolver {
 						buff.append(delim);
 					}
 					first = false;
-					final String str = GeneratedValueUtils.format(scope.get(name), counterStyle);
+					final String str = CounterStyles.of(this.ua).format(scope.get(name), counterStyle);
 					if (str != null) {
 						buff.append(str);
 					}

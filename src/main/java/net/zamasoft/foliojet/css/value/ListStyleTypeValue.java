@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.value;
 /**
  * @author MIYABE Tatsuhiko
  */
-public enum ListStyleTypeValue implements Value {
+public enum ListStyleTypeValue implements ListStyleTypeSource {
 	NONE_VALUE(ListStyleTypeValue.NONE),
 
 	DISC_VALUE(ListStyleTypeValue.DISC),
@@ -95,6 +95,14 @@ public enum ListStyleTypeValue implements Value {
 	public static final short _CSSJ_FULL_WIDTH_DECIMAL = 21;
 
 	public static final short _CSSJ_CJK_DECIMAL = 22;
+
+	/**
+	 * 著者定義カウンタスタイル({@code @counter-style})に割り当てる
+	 * コードの先頭です(2026-08-02)。これ以上のコードは
+	 * {@code CounterStyles}(文書ごとの登録簿)が名前ごとに配る。
+	 * 組み込みの追加余地を空けてある。
+	 */
+	public static final short FIRST_CUSTOM = 1000;
 
 	private final short listStyleType;
 

@@ -6,9 +6,9 @@ package net.zamasoft.foliojet.css.value;
 public class CountersValue implements Value {
 	private final String name, delimiter;
 
-	private final ListStyleTypeValue style;
+	private final ListStyleTypeSource style;
 
-	public CountersValue(String name, String delimiter, ListStyleTypeValue style) {
+	public CountersValue(String name, String delimiter, ListStyleTypeSource style) {
 		this.name = name;
 		this.delimiter = delimiter;
 		this.style = style;

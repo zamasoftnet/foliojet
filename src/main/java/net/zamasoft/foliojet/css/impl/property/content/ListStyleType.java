@@ -6,7 +6,8 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
+import net.zamasoft.foliojet.css.value.ListStyleTypeSource;
 import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -20,7 +21,7 @@ public class ListStyleType extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ListStyleType();
 
 	public static short get(CSSStyle style) {
-		ListStyleTypeValue value = (ListStyleTypeValue) style.get(INFO);
+		ListStyleTypeSource value = (ListStyleTypeSource) style.get(INFO);
 		return value.getListStyleType();
 	}
 
@@ -50,11 +51,10 @@ public class ListStyleType extends AbstractPrimitivePropertyInfo {
 		} else {
 			throw new PropertyException();
 		}
-		final Value value = GeneratedValueUtils.toListStyleType(text);
-		if (value == null) {
-			throw new PropertyException();
-		}
-		return value;
+		// 組み込みにない名前は著者定義カウンタスタイル(@counter-style)
+		// として扱う。定義が後から現れても、定義がまったく無くても
+		// (その場合はdecimalへ落ちる)よい——CSSに出現順の制約はない
+		return CounterStyles.styleValue(ua, text);
 	}
 
 }

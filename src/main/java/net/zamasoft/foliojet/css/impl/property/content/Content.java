@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
+import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
@@ -94,9 +94,9 @@ public class Content extends AbstractPrimitivePropertyInfo {
 				}
 			} else if (lu instanceof CssToken.Func func) {
 				if (func.is("counter")) {// <counter>
-					values.add(parseCounter(func.argStream()));
+					values.add(parseCounter(func.argStream(), ua));
 				} else if (func.is("counters")) {// <counters>
-					values.add(parseCounters(func.argStream()));
+					values.add(parseCounters(func.argStream(), ua));
 				} else if (func.is("attr")) {// attr(x)
 					final TokenStream params = func.argStream();
 					final String name = params.ident();
@@ -105,11 +105,11 @@ public class Content extends AbstractPrimitivePropertyInfo {
 					}
 					values.add(new AttrValue(name));
 				} else if (func.is("-cssj-page-ref")) {
-					values.add(parsePageRef(func.argStream()));
+					values.add(parsePageRef(func.argStream(), ua));
 				} else if (func.is("target-counter")) {
-					values.add(parseTargetCounter(func.argStream()));
+					values.add(parseTargetCounter(func.argStream(), ua));
 				} else if (func.is("target-counters")) {
-					values.add(parseTargetCounters(func.argStream()));
+					values.add(parseTargetCounters(func.argStream(), ua));
 				} else if (func.is("target-text")) {
 					values.add(parseTargetText(func.argStream()));
 				} else if (func.is("string")) {
@@ -130,7 +130,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 	}
 
 	/** package-visible: {@link StringSet}が{@code counter()}パースを再利用する。 */
-	static CounterValue parseCounter(TokenStream params) throws PropertyException {
+	static CounterValue parseCounter(TokenStream params, UserAgent ua) throws PropertyException {
 		final String id = params.ident();
 		if (id == null) {
 			throw new PropertyException();
@@ -143,15 +143,11 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		if (listStyle == null || params.hasNext()) {
 			throw new PropertyException();
 		}
-		final ListStyleTypeValue styleType = GeneratedValueUtils.toListStyleType(listStyle);
-		if (styleType == null) {
-			throw new PropertyException();
-		}
-		return new CounterValue(id, styleType.getListStyleType());
+		return new CounterValue(id, CounterStyles.styleCode(ua, listStyle));
 	}
 
 	/** package-visible: {@link StringSet}が{@code counters()}パースを再利用する。 */
-	static CountersValue parseCounters(TokenStream params) throws PropertyException {
+	static CountersValue parseCounters(TokenStream params, UserAgent ua) throws PropertyException {
 		final String id = params.ident();
 		if (id == null) {
 			throw new PropertyException();
@@ -169,11 +165,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		if (listStyle == null || params.hasNext()) {
 			throw new PropertyException();
 		}
-		final ListStyleTypeValue styleType = GeneratedValueUtils.toListStyleType(listStyle);
-		if (styleType == null) {
-			throw new PropertyException();
-		}
-		return new CountersValue(id, delimiter, styleType);
+		return new CountersValue(id, delimiter, CounterStyles.styleValue(ua, listStyle));
 	}
 
 	/** {@code string(name[, first|start|last|first-except])} */
@@ -276,7 +268,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	private static TargetCounterValue parsePageRef(TokenStream params) throws PropertyException {
+	private static TargetCounterValue parsePageRef(TokenStream params, UserAgent ua) throws PropertyException {
 		final TargetRef target = parseTargetRef(params);
 		if (!params.eatComma()) {
 			throw new PropertyException("カンマが必要です");
@@ -295,11 +287,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			if (typeStr == null) {
 				throw new PropertyException("数字タイプが必要です");
 			}
-			final ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
-			if (typeValue == null) {
-				throw new PropertyException("数字タイプが不正です");
-			}
-			numberStyleType = typeValue.getListStyleType();
+			numberStyleType = CounterStyles.styleCode(ua, typeStr);
 			if (params.hasNext()) {
 				if (!params.eatComma()) {
 					throw new PropertyException("カンマが必要です");
@@ -314,7 +302,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 	}
 
 	/** {@code target-counter(target, counter-name, counter-style?)} */
-	private static TargetCounterValue parseTargetCounter(TokenStream params) throws PropertyException {
+	private static TargetCounterValue parseTargetCounter(TokenStream params, UserAgent ua) throws PropertyException {
 		final TargetRef target = parseTargetRef(params);
 		if (!params.eatComma()) {
 			throw new PropertyException("カンマが必要です");
@@ -332,17 +320,13 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			if (typeStr == null) {
 				throw new PropertyException("数字タイプが必要です");
 			}
-			final ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
-			if (typeValue == null) {
-				throw new PropertyException("数字タイプが不正です");
-			}
-			numberStyleType = typeValue.getListStyleType();
+			numberStyleType = CounterStyles.styleCode(ua, typeStr);
 		}
 		return new TargetCounterValue(target.type(), target.ref(), counter, numberStyleType, null);
 	}
 
 	/** {@code target-counters(target, counter-name, separator, counter-style?)} */
-	private static TargetCounterValue parseTargetCounters(TokenStream params) throws PropertyException {
+	private static TargetCounterValue parseTargetCounters(TokenStream params, UserAgent ua) throws PropertyException {
 		final TargetRef target = parseTargetRef(params);
 		if (!params.eatComma()) {
 			throw new PropertyException("カンマが必要です");
@@ -367,11 +351,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			if (typeStr == null) {
 				throw new PropertyException("数字タイプが必要です");
 			}
-			final ListStyleTypeValue typeValue = GeneratedValueUtils.toListStyleType(typeStr);
-			if (typeValue == null) {
-				throw new PropertyException("数字タイプが不正です");
-			}
-			numberStyleType = typeValue.getListStyleType();
+			numberStyleType = CounterStyles.styleCode(ua, typeStr);
 		}
 		return new TargetCounterValue(target.type(), target.ref(), counter, numberStyleType, separator);
 	}

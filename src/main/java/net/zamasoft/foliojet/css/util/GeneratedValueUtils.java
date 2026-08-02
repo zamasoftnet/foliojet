@@ -127,6 +127,10 @@ public final class GeneratedValueUtils {
 		case ListStyleTypeValue.NONE:
 			return null;
 		default:
+			if (listStyleType >= ListStyleTypeValue.FIRST_CUSTOM) {
+				// 著者定義カウンタスタイルは常に文字列で表す
+				return null;
+			}
 			throw new IllegalArgumentException(String.valueOf(listStyleType));
 		}
 	}
