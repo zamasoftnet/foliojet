@@ -847,6 +847,14 @@ public class DirectSession extends AbstractCTISession
 						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
 						this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 					}
+					// 収束の報告(2026-08-02): 最終パスで前方参照が読んだ
+					// 値が、そのパスのうちに変わっていたら pass-count が
+					// 足りない。前方参照そのものは正常なので警告しない
+					if (this.ua.getUAContext().getPageRef().isUnconverged()) {
+						LOG.warning("target-counter()/target-counters()/target-text() resolved to a value"
+								+ " that changed during the final layout pass;"
+								+ " consider increasing processing.pass-count.");
+					}
 				} finally {
 					if (tmpFile != null) {
 						// 削除失敗を黙殺しない(2026-07-24アーキレビューE-1)。

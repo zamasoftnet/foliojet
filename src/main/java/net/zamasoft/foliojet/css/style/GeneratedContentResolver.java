@@ -26,12 +26,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * @author MIYABE Tatsuhiko
  */
 final class GeneratedContentResolver {
-	private static final java.util.logging.Logger LOG = java.util.logging.Logger
-			.getLogger(GeneratedContentResolver.class.getName());
-
 	private final UserAgent ua;
-
-	private boolean warnedUnconvergedTarget = false;
 
 	GeneratedContentResolver(final UserAgent ua) {
 		this.ua = ua;
@@ -126,13 +121,15 @@ final class GeneratedContentResolver {
 	 * (自動昇格断念の判断と同じ方針)。
 	 */
 	void checkConverged(PageRef pageRef, Fragment frag) {
-		if (this.warnedUnconvergedTarget || !this.ua.isLastPass()) {
+		if (!this.ua.isLastPass()) {
 			return;
 		}
 		if (frag.generation < pageRef.getGeneration()) {
-			this.warnedUnconvergedTarget = true;
-			LOG.warning("target-counter()/target-counters()/target-text() did not resolve to a fresh value "
-					+ "by the final layout pass; consider increasing processing.pass-count.");
+			// 前方参照(参照先はこのパスではまだ組まれていない)。前パスの
+			// 値を読むこと自体は正常で、**その値がこのパスで変わったとき
+			// だけ**非収束になる。判定はPageRef側(参照先が書き直される
+			// 時点)で行い、警告は最終パスの完了後に1度だけ出す
+			frag.staleConsumed = true;
 		}
 	}
 }

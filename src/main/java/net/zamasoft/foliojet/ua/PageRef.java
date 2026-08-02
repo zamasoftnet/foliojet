@@ -45,6 +45,7 @@ public class PageRef {
 
 	public void reset() {
 		++this.generation;
+		this.unconverged = false;
 		while (this.sectionStack.size() > 1) {
 			this.sectionStack.remove(this.sectionStack.size() - 1);
 		}
@@ -70,6 +71,41 @@ public class PageRef {
 	 * @param counters
 	 * @param text 参照先要素の描画テキスト({@code target-text()}用、無ければ{@code null})
 	 */
+	/**
+	 * 最終パスで<b>実際に収束していなかった</b>ことを検出した印です
+	 * (2026-08-02)。「前方参照が前パスの値を読んだ」だけでは非収束では
+	 * ない——前パスと同じ値なら結果は正しい。読まれた値が同じパスの
+	 * うちに<b>変わった</b>ときだけ、その参照は誤った値を出している。
+	 */
+	private boolean unconverged = false;
+
+	/**
+	 * 最終パスで、前方参照が読んだ値がそのパスのうちに変わったか
+	 * (=pass-countを増やすべき状態か)。
+	 */
+	public boolean isUnconverged() {
+		return this.unconverged;
+	}
+
+	/** 参照先の値が変わったか(収束判定用)。 */
+	private static boolean changed(final Counter[] before, final Counter[] after, final String textBefore,
+			final String textAfter) {
+		if (!java.util.Objects.equals(textBefore, textAfter)) {
+			return true;
+		}
+		final int beforeCount = before == null ? 0 : before.length;
+		final int afterCount = after == null ? 0 : after.length;
+		if (beforeCount != afterCount) {
+			return true;
+		}
+		for (int i = 0; i < beforeCount; ++i) {
+			if (!before[i].name.equals(after[i].name) || before[i].value != after[i].value) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public void addFragment(URI uri, Counter[] counters, String text) {
 		int[] seq = (int[]) this.uriToSeq.get(uri);
 		if (seq == null) {
@@ -82,6 +118,12 @@ public class PageRef {
 		for (Iterator<Fragment> i = list.iterator(); i.hasNext();) {
 			Fragment f = i.next();
 			if (f.uid == seq[0]) {
+				if (f.staleConsumed && changed(f.counters, counters, f.text, text)) {
+					// このパスで既に前パスの値を読まれており、しかも値が
+					// 変わった=その参照は誤った値を出している
+					this.unconverged = true;
+				}
+				f.staleConsumed = false;
 				f.counters = counters;
 				f.text = text;
 				f.generation = this.generation;
@@ -223,6 +265,13 @@ public class PageRef {
 
 		/** このフラグメントが書き込まれた{@link PageRef}の世代番号。 */
 		public int generation;
+
+		/**
+		 * 最終パスで、まだこのパスの値が書かれていない状態
+		 * (=前方参照)で読まれたか。{@link PageRef#isUnconverged()}の
+		 * 判定に使う。
+		 */
+		public boolean staleConsumed;
 
 		protected Fragment(int uid, URI uri, Counter[] counters) {
 			this.uid = uid;
