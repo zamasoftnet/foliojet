@@ -155,7 +155,7 @@ public class StyleContext {
 	 * @return
 	 */
 	public Declaration merge(Declaration declaration) {
-		return this.merge(declaration, null);
+		return this.merge(declaration, null, null);
 	}
 
 	/**
@@ -175,6 +175,14 @@ public class StyleContext {
 	 * @param userAgentOut 非nullなら、UA出所の規則をその要素0へ分離する。
 	 */
 	public Declaration merge(Declaration declaration, Declaration[] userAgentOut) {
+		return this.merge(declaration, userAgentOut, null);
+	}
+
+	/**
+	 * @param importantOut 非nullなら、レイヤーを使った規則があるとき
+	 *                     important宣言を反転順で合成したものをその要素0へ置く
+	 */
+	public Declaration merge(Declaration declaration, Declaration[] userAgentOut, Declaration[] importantOut) {
 		if (DEBUG) {
 			for (int i = 0; i < this.elementStack.size(); ++i) {
 				CSSElement ce = (CSSElement) this.elementStack.get(i);
@@ -235,7 +243,29 @@ public class StyleContext {
 			}
 			declaration.merge(tempDecl);
 		}
+		// **@layerと!importantの併用**: importantどうしはレイヤー順が反転する
+		// (CSS Cascade 5)。レイヤーを使った規則が2つ以上あるときだけ、
+		// important宣言を反転順でもう一度重ねる材料を作る(2026-08-03)
+		if (importantOut != null && usesLayers(result)) {
+			final List<Rule> importantRules = new ArrayList<Rule>(result);
+			Collections.sort(importantRules, RuleComparator.IMPORTANT);
+			final Declaration importantDecl = new Declaration();
+			for (int i = 0; i < importantRules.size(); ++i) {
+				importantDecl.merge(importantRules.get(i).getDeclaration());
+			}
+			importantOut[0] = importantDecl;
+		}
 		return declaration;
+	}
+
+	/** レイヤーに属する規則が含まれるか(反転の合成をする価値があるか)。 */
+	private static boolean usesLayers(final List<Rule> rules) {
+		for (int i = 0; i < rules.size(); ++i) {
+			if (rules.get(i).getLayer() != Rule.NO_LAYER) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -736,15 +766,28 @@ class RuleComparator implements Comparator<Object> {
 	 * layer優先順位反転は未対応、{@link Rule#getLayer()}参照)。
 	 */
 	public int compare(Object o1, Object o2) {
-		Rule rule1 = (Rule) o1;
-		Rule rule2 = (Rule) o2;
+		return compare((Rule) o1, (Rule) o2, false);
+	}
+
+	/**
+	 * {@code important}がtrueなら<b>レイヤーの順序を反転</b>して比較します
+	 * (2026-08-03新設)。
+	 *
+	 * <p>
+	 * CSS Cascade 5では、{@code !important}の宣言どうしの強さは
+	 * <b>通常と逆</b>になる——レイヤーに属さない宣言が<b>最弱</b>で、
+	 * <b>先に現れたレイヤー</b>ほど強い。Chrome・Firefox・Safariとも
+	 * 仕様どおり(2026-08-03、独立相談で確認)。
+	 * </p>
+	 */
+	static int compare(final Rule rule1, final Rule rule2, final boolean important) {
 		int origin = rule1.getOrigin().compareTo(rule2.getOrigin());
 		if (origin != 0) {
 			return origin;
 		}
 		int layer = Integer.compare(rule1.getLayer(), rule2.getLayer());
 		if (layer != 0) {
-			return layer;
+			return important ? -layer : layer;
 		}
 		int specificity = rule1.getSpecificity().compareTo(rule2.getSpecificity());
 		if (specificity != 0) {
@@ -752,5 +795,12 @@ class RuleComparator implements Comparator<Object> {
 		}
 		return Integer.compare(rule1.getOrder(), rule2.getOrder());
 	}
+
+	/** {@code !important}の宣言どうしの比較子(レイヤー順が反転する)。 */
+	static final Comparator<Object> IMPORTANT = new Comparator<Object>() {
+		public int compare(final Object o1, final Object o2) {
+			return RuleComparator.compare((Rule) o1, (Rule) o2, true);
+		}
+	};
 
 }

@@ -37,13 +37,16 @@ public class Rule {
 	 * (レイヤーに属さない規則)が常に最優先。origin・specificity・
 	 * 出現順の間、origin直後に比較される(CSS Cascading and
 	 * Inheritance: origin/importance → layer → specificity → order)。
-	 * {@code !important}によるレイヤー優先順位の反転(仕様上は
-	 * importantな宣言は先に現れたレイヤーが後のレイヤーに優先する)は
-	 * 未対応——本エンジンの現在の適用モデル(cascade順に規則を1回だけ
-	 * 適用し、important指定済みプロパティへの以後のnormal上書きだけを
-	 * 禁止する単純な仕組み)ではこの反転を素直に表現できないため、既知の
-	 * 簡略化として記録する(CSS仕様全体準拠は目的ではない、ChatGPT/
-	 * 過去の方針判断と同じ扱い)。
+	 * {@code !important}によるレイヤー優先順位の反転(importantな宣言は
+	 * <b>先に現れたレイヤー</b>が後のレイヤーに優先し、レイヤー外が最弱)は
+	 * <b>2026-08-03に対応した</b>——通常順で一度カスケードを適用したあと、
+	 * important宣言だけを反転順でもう一度重ねる
+	 * ({@link Declaration#applyImportantProperties}、
+	 * {@code RuleComparator.IMPORTANT})。importantどうしは後勝ちなので、
+	 * 最も強いものが最後に載る。レイヤーを使った規則が無い文書では
+	 * 反転の合成そのものを行わない(費用ゼロ)。
+	 * なお<b>UA由来のimportantが著者のimportantより強い</b>という
+	 * origin側の反転は未対応(印刷用途で影響する場面が無いため)。
 	 */
 	private final int layer;
 

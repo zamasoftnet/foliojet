@@ -80,6 +80,34 @@ public class Declaration {
 		}
 	}
 
+	/**
+	 * {@code !important}が付いた宣言だけを適用します(2026-08-03新設)。
+	 *
+	 * <p>
+	 * {@code @layer}と{@code !important}を併用したときの<b>優先順位の反転</b>
+	 * (CSS Cascade 5——importantどうしではレイヤー外が最弱・先のレイヤーほど
+	 * 強い)を表すために使います。通常の順序で一度カスケードを適用したあと、
+	 * important宣言だけを<b>反転した順序でもう一度</b>適用する
+	 * ({@link CSSStyle#set}はimportantどうしなら後勝ちなので、最も強い
+	 * important宣言が最後に載る)。normal宣言を二度適用しないよう、ここでは
+	 * important以外を触らない。
+	 * </p>
+	 */
+	public void applyImportantProperties(CSSStyle style) {
+		for (int i = 0; i < this.properties.size(); ++i) {
+			Property property = (Property) this.properties.get(i);
+			if (property.isImportant() && property instanceof CustomProperty) {
+				property.applyProperty(style);
+			}
+		}
+		for (int i = 0; i < this.properties.size(); ++i) {
+			Property property = (Property) this.properties.get(i);
+			if (property.isImportant() && !(property instanceof CustomProperty)) {
+				property.applyProperty(style);
+			}
+		}
+	}
+
 	public String toString() {
 		StringBuilder buff = new StringBuilder();
 		for (int i = 0; i < this.properties.size(); ++i) {

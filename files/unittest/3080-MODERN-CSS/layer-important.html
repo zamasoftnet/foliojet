@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+@page { margin: 0; }
+body { margin: 0; font: 10pt monospace; }
+div { height: 12pt; background-color: #cccccc; }
+
+@layer first, second;
+
+/* 通常の宣言: 後のレイヤーが勝つ -> 200pt */
+@layer first {
+  #normal { width: 100pt; }
+}
+@layer second {
+  #normal { width: 200pt; }
+}
+
+/* !important: **先のレイヤーが勝つ**(CSS Cascade 5で反転) -> 100pt */
+@layer first {
+  #important-layer { width: 100pt !important; }
+}
+@layer second {
+  #important-layer { width: 200pt !important; }
+}
+
+/* !important: レイヤー外は**最弱** -> レイヤー内の100ptが勝つ */
+@layer first {
+  #important-unlayered { width: 100pt !important; }
+}
+#important-unlayered { width: 300pt !important; }
+
+/* 通常の宣言ではレイヤー外が最強 -> 300pt */
+@layer second {
+  #normal-unlayered { width: 100pt; }
+}
+#normal-unlayered { width: 300pt; }
+    </style>
+  </head>
+  <body>
+    <div id="normal">NORMAL</div>
+    <div id="important-layer">IMPORTANTLAYER</div>
+    <div id="important-unlayered">IMPORTANTUNLAYERED</div>
+    <div id="normal-unlayered">NORMALUNLAYERED</div>
+  </body>
+</html>

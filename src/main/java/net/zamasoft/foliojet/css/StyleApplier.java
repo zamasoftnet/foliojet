@@ -67,7 +67,10 @@ public class StyleApplier {
 		// HTML仕様の重ね順にするため(2026-08-03)
 		this.styleContext.startElement(ce);
 		final Declaration[] uaDeclaration = new Declaration[1];
-		Declaration declaration = this.styleContext.merge(null, uaDeclaration);
+		// @layer と !important を併用したときの反転(CSS Cascade 5)。
+		// レイヤーを使った規則があるときだけ中身が入る(2026-08-03)
+		final Declaration[] importantDeclaration = new Declaration[1];
+		Declaration declaration = this.styleContext.merge(null, uaDeclaration, importantDeclaration);
 
 		// インラインスタイル宣言
 		String inlineStyleDecl;
@@ -97,6 +100,12 @@ public class StyleApplier {
 		// CSSスタイル
 		if (declaration != null) {
 			declaration.applyProperties(style);
+		}
+		// **!important のレイヤー順は反転する**(CSS Cascade 5)。通常順で
+		// 一度重ねたあと、important宣言だけを反転順でもう一度重ねる——
+		// importantどうしは後勝ちなので、最も強いものが最後に載る
+		if (importantDeclaration[0] != null) {
+			importantDeclaration[0].applyImportantProperties(style);
 		}
 
 		short display = Display.get(style);
