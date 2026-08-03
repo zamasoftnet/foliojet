@@ -84,6 +84,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0140-content/counters.html", //
 			"0450-hyphens/hyphens.html", //
 			"0450-hyphens/word-then-paren.html", //
+			"0510-flex/float-item.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			"3000-SELECTOR/nth.html", //
 			"3000-SELECTOR/dir.html", //

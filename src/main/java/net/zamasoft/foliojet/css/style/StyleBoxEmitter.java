@@ -421,6 +421,25 @@ final class StyleBoxEmitter {
 				final CSSStyle parentStyle = style.getParentStyle();
 				if (parentStyle != null) {
 					final short parentDisplay = Display.get(parentStyle);
+					// **flexアイテム・gridアイテムのfloatは効かない**
+					// (CSS Flexbox §3「float and clear do not create floating or
+					// clearance for flex items」、CSS Grid §3も同文)。
+					//
+					// 2026-08-03まで無視しておらず、flexコンテナの子に
+					// {@code float:left} があると<b>ページを跨げない浮動体</b>に
+					// なっていた。紙面を超える内容がその中にあると、全部が1枚目に
+					// 積まれて残りが紙の外へ出る——<b>内容の消失</b>である。
+					//
+					// Sphinxのclassicテーマがまさにこの形
+					// ({@code div.document{display:flex}} +
+					// {@code div.documentwrapper{float:left;width:100%}})で、
+					// Python公式ドキュメントを取り込んだところ23ページ分の本文が
+					// 1ページに潰れた。技術文書の多くがSphinx製なので影響は広い。
+					// 回帰は files/unittest/0510-flex/float-item.html。
+					// (inline-flex/inline-gridは未実装なのでここには来ない)
+					if (parentDisplay == DisplayValue.FLEX || parentDisplay == DisplayValue.GRID) {
+						style.set(CSSFloat.INFO, CSSFloatValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
+					}
 					switch (display) {
 					case DisplayValue.TABLE_CELL: {
 						// CSS 2.1 17.2.1 #1
