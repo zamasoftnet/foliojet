@@ -297,6 +297,34 @@ public class TableCollapsedBorders {
 	 * @param nextTable
 	 * @return
 	 */
+	/**
+	 * 元の並びの<b>末尾</b>を、行き先の長さぶんだけ写します。
+	 *
+	 * <p>
+	 * 行き先が元より長いことがある——分割後の表の本体行数が、分割前より
+	 * <b>多く</b>なる場合である(段組の中の表を無名の行が包み直すなど、
+	 * 表が組み直される経路で起きる。2026-08-03に実測:
+	 * {@code local/shrink/w56-min.html})。従来は
+	 * {@code System.arraycopy(src, src.length - n, ...)} と直に書いていた
+	 * ため、その場合に添字が負になり
+	 * {@code ArrayIndexOutOfBoundsException} で変換ごと落ちていた。
+	 * </p>
+	 *
+	 * <p>
+	 * 行数の食い違い自体は下の {@code origBodyRowCount != prev + next} の
+	 * 分岐が想定しており(境界の罫線を落とす)、ここで写せない先頭側は
+	 * 罫線なし(null)のままにする。
+	 * </p>
+	 */
+	private static void copyTail(final Object src, final Object dst) {
+		final int srcLength = java.lang.reflect.Array.getLength(src);
+		final int dstLength = java.lang.reflect.Array.getLength(dst);
+		final int count = Math.min(srcLength, dstLength);
+		if (count > 0) {
+			System.arraycopy(src, srcLength - count, dst, dstLength - count, count);
+		}
+	}
+
 	public TableCollapsedBorders splitPageAxis(final TableBox prevTable, final TableBox nextTable,
 			final int origBodyRowCount) {
 		// 前のテーブルのtable-body-groupの数と行の数を計算
@@ -321,8 +349,7 @@ public class TableCollapsedBorders {
 		}
 		Border[][] nextHBorders = new Border[this.columnSizes.length][nextBodyRowCount + 1];
 		for (int i = 0; i < this.columnSizes.length; ++i) {
-			System.arraycopy(hborders[i], this.bodyVborders.length - nextBodyRowCount, nextHBorders[i], 0,
-					nextBodyRowCount + 1);
+			copyTail(hborders[i], nextHBorders[i]);
 		}
 		if (origBodyRowCount != (prevBodyRowCount + nextBodyRowCount)) {
 			for (int i = 0; i < this.columnSizes.length; ++i) {
@@ -336,12 +363,18 @@ public class TableCollapsedBorders {
 		this.bodyVborders = new Border[prevBodyRowCount][];
 		System.arraycopy(vborders, 0, this.bodyVborders, 0, prevBodyRowCount);
 		Border[][] nextVBorders = new Border[nextBodyRowCount][];
-		System.arraycopy(vborders, vborders.length - nextBodyRowCount, nextVBorders, 0, nextBodyRowCount);
+		copyTail(vborders, nextVBorders);
+		// 写せなかった先頭側(元より行が増えた場合)は空の並びで埋める。
+		// nullのままだと getVBorder が NullPointerException になる
+		for (int i = 0; i < nextVBorders.length; ++i) {
+			if (nextVBorders[i] == null) {
+				nextVBorders[i] = new Border[this.columnSizes.length + 1];
+			}
+		}
 
 		// 行の高さ
 		final double[] nextRowSizes = new double[nextBodyRowCount];
-		System.arraycopy(this.bodyRowSizes, this.bodyRowSizes.length - nextBodyRowCount, nextRowSizes, 0,
-				nextBodyRowCount);
+		copyTail(this.bodyRowSizes, nextRowSizes);
 
 		TableCollapsedBorders nextBorders = new TableCollapsedBorders(this.columnSizes, this.headerRowSizes,
 				this.headerVborders, this.headerHborders, nextRowSizes, nextVBorders, nextHBorders, this.footerRowSizes,
@@ -359,7 +392,7 @@ public class TableCollapsedBorders {
 			}
 		}
 		nextBorders.bodyRowSizes = new double[nextBodyRowCount];
-		System.arraycopy(rowSizes, rowSizes.length - nextBodyRowCount, nextBorders.bodyRowSizes, 0, nextBodyRowCount);
+		copyTail(rowSizes, nextBorders.bodyRowSizes);
 		if (nextBodyGroupCount > 0) {
 			TableRowGroupBox bodyGroup = nextTable.getTableBody(0);
 			int rowCount = bodyGroup.getTableRowCount();

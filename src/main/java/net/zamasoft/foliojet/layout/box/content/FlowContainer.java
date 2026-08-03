@@ -828,19 +828,38 @@ public class FlowContainer implements Container {
 		// 主ループ前の判定は FlowCutter に純化されている(M4-A2)
 		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, pageSize, pageInnerSize, frameStart, flags,
 				this.flows != null && !this.flows.isEmpty());
-		if (!(pre instanceof FlowCutter.PreDecision.Proceed(final double adjustedPageLimit))) {
-			return plain(switch (pre) {
-			case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
-			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatingsKeepingOwner(atLimit,
-					flags);
-			case FlowCutter.PreDecision.MoveAll moveAll -> this;
-			case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this
-					.splitFloatingsMovingOwner(atLimit, flags);
-			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
-			case FlowCutter.PreDecision.Proceed proceed -> throw new IllegalStateException();
-			});
+		// **開いたままの末尾フローがあるなら「このページに残す」を選べない**
+		// (2026-08-03)。planが選んでいる末尾フローは、まだ組み立て中で
+		// 開いているフロー(継続チェーンの一員)である。ここで
+		// KeepFloats(=所有者はこのページに残し、溢れた浮動体だけ送る)を
+		// 選ぶと、そのフローは次のページに存在しなくなるのに文書としては
+		// まだ閉じていない——再開後の流し込みスタックが継続の深さより
+		// 浅くなり、ContinuationInvariantViolationException になる。
+		//
+		// 起きるのは「本文は尽きたが、ページフロートや脚注の都合で改ページが
+		// 要る」とき(このとき残り高さは0になる)。実際に
+		// files/fuzz-repro/flowstack-depth-pagefloat-footnote.html の2回目の
+		// 改ページがこれで、vertical-lr + float:top + float:footnote +
+		// float:left の4つが揃ったときだけ再現した。
+		final boolean openTailSelected = plan != null && this.flows != null && !this.flows.isEmpty()
+				&& plan.selects(((Flow) this.flows.get(this.flows.size() - 1)).box);
+		if (openTailSelected && pre instanceof FlowCutter.PreDecision.KeepFloats(final double keepLimit)) {
+			pageLimit = keepLimit;
+		} else {
+			if (!(pre instanceof FlowCutter.PreDecision.Proceed(final double adjustedPageLimit))) {
+				return plain(switch (pre) {
+				case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
+				case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this
+						.splitFloatingsKeepingOwner(atLimit, flags);
+				case FlowCutter.PreDecision.MoveAll moveAll -> this;
+				case FlowCutter.PreDecision.MoveWithFloats(final double atLimit) -> this
+						.splitFloatingsMovingOwner(atLimit, flags);
+				case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
+				case FlowCutter.PreDecision.Proceed proceed -> throw new IllegalStateException();
+				});
+			}
+			pageLimit = adjustedPageLimit;
 		}
-		pageLimit = adjustedPageLimit;
 
 		// 通常のフローで指定位置にさしかかっているボックスを特定
 		final BlockParams params = this.box.getBlockParams();
@@ -861,7 +880,21 @@ public class FlowContainer implements Container {
 
 		if (lastOrphan == this.flows.size()) {
 			// 切断線以下のフローがない場合
-			if ((flags & IPageBreakableBox.FLAGS_LAST) == 0) {
+			//
+			// **開いたままの末尾フローは、動かす内容が無くても継続させる**
+			// (2026-08-03)。planが選んでいる末尾フローは「まだ組み立て中で
+			// 開いている」フロー(継続チェーンの一員)である。ここで
+			// 「前のページに残す」と、そのフローは次のページに存在しなく
+			// なるのに、文書としてはまだ閉じていない——再開後の流し込み
+			// スタックが継続の深さより浅くなり、
+			// ContinuationInvariantViolationException になる。
+			//
+			// 起きるのは「本文は尽きたが、ページフロートや脚注の都合で
+			// 改ページが要る」ときで、実際に
+			// files/fuzz-repro/flowstack-depth-pagefloat-footnote.html の
+			// 2回目の改ページがこれだった(vertical-lr + float:top +
+			// float:footnote + float:left の組み合わせ)。
+			if ((flags & IPageBreakableBox.FLAGS_LAST) == 0 && !openTailSelected) {
 				if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
 					return plain(this.cutTail(prevPageSize, flags));
 				}
