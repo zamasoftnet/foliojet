@@ -123,6 +123,9 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     // veraPDF (greenfield parser) for automated PDF/UA conformance validation
     testImplementation 'org.verapdf:validation-model:1.26.5'
+    // 出力PDFの名前付き宛先(id断片・しおり)を読むため(2026-08-03)。
+    // 宛先は表示リストの描画命令ではないので、goldenのダンプには出てこない
+    testImplementation 'org.apache.pdfbox:pdfbox:3.0.3'
 }
 
 // ---------------------------------------------------------------------------

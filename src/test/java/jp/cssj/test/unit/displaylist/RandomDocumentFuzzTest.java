@@ -1018,12 +1018,90 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
+		// 不変条件9: PDFの宛先(id断片)が失われない
+		checkFragments(doc, outDir, html);
 		// 不変条件8: 内容が複製されない(まだ報告のみ)
 		checkNoDuplication(doc, drawn, html);
 		// 不変条件6: 説明のつかない紙面外への配置がない
 		assertNoUnexplainedOffPage(doc, pages, html);
 		// 不変条件7: 読み順が保たれる(まだ報告のみ)
 		checkReadingOrder(doc, firstPage, html);
+	}
+
+	/**
+	 * <b>不変条件9: PDFの宛先(id断片)が失われない</b>(2026-08-03新設)。
+	 *
+	 * <p>
+	 * 生成器は段落に{@code id="pN"}を振る({@code id}属性は版面に影響しない
+	 * ——生成する文書はidセレクタを使わないので、既存のシードの結果は
+	 * 変わらない)。名前付き宛先は{@code output.pdf.hyperlinks.fragment}の
+	 * 既定onで出るので、出力PDFには同じ名前の宛先が並ぶはずである。
+	 * <b>仮に組んだページを捨てる経路</b>で
+	 * 宛先の登録が取り消されないと、捨てたページの中で完結していた要素の
+	 * 宛先が失われる——表示リストには宛先が出てこないため、既存の検出器は
+	 * どれも素通りする(PLAN §3で「検出器未実装」としていた穴)。
+	 * </p>
+	 *
+	 * <p>
+	 * 宛先は描画命令ではないので、ここだけは<b>出力PDFを実際に読む</b>
+	 * (PDFBox)。読めない場合は検査を飛ばす——PDFの健全性は他の検査の
+	 * 担当で、ここで二重に落とす意味がない。
+	 * </p>
+	 */
+	private static void checkFragments(final Generated doc, final File outDir, final File html) throws Exception {
+		final java.util.Set<String> expected = new java.util.LinkedHashSet<>();
+		final java.util.regex.Matcher m = java.util.regex.Pattern.compile("id=\"(p[0-9]+)\"").matcher(doc.html());
+		while (m.find()) {
+			expected.add(m.group(1));
+		}
+		if (System.getProperty("foliojet.debug.noFragments") != null) {
+			// 検出器自身の検算用。この名前の宛先は決して出力されないので、
+			// これを付けて落ちなければ**検出器が空振りしている**と分かる
+			expected.add("p-not-emitted");
+		}
+		if (expected.isEmpty()) {
+			return;
+		}
+		final File pdf = new File(outDir, "out.pdf");
+		if (System.getProperty("foliojet.debug.fragTrace") != null) {
+			System.err.println("[frag] 期待=" + expected.size() + " pdf=" + pdf + " 存在=" + pdf.isFile());
+		}
+		if (!pdf.isFile() || pdf.length() == 0) {
+			return;
+		}
+		final java.util.Set<String> found = new java.util.LinkedHashSet<>();
+		try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+			final org.apache.pdfbox.pdmodel.PDDocumentNameDictionary names = document.getDocumentCatalog().getNames();
+			if (names == null || names.getDests() == null) {
+				// 宛先が1つも無い = 全部失われている
+				fail("PDFの宛先が1つも無い(期待 " + expected.size() + " 件): " + html);
+				return;
+			}
+			collectDestinationNamesRaw(names.getDests(), found);
+		} catch (final java.io.IOException e) {
+			// PDFとして読めない場合はここでは問わない
+			return;
+		}
+		final java.util.List<String> lost = new ArrayList<>();
+		for (final String id : expected) {
+			if (!found.contains(id)) {
+				lost.add(id);
+			}
+		}
+		assertTrue("PDFの宛先が失われた " + lost + " / 期待" + expected.size() + "件 (" + html + ")", lost.isEmpty());
+	}
+
+	/** 宛先の名前ツリーを再帰的に集めます。 */
+	private static void collectDestinationNamesRaw(final org.apache.pdfbox.pdmodel.common.PDNameTreeNode<?> node,
+			final java.util.Set<String> out) throws java.io.IOException {
+		if (node.getNames() != null) {
+			out.addAll(node.getNames().keySet());
+		}
+		if (node.getKids() != null) {
+			for (final org.apache.pdfbox.pdmodel.common.PDNameTreeNode<?> kid : node.getKids()) {
+				collectDestinationNamesRaw(kid, out);
+			}
+		}
 	}
 
 	/**
@@ -1312,6 +1390,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 					session.property("input.include", "**");
 					session.property("input.property-pi", "true");
+					// 名前付き宛先(id断片)は `output.pdf.hyperlinks.fragment`
+					// の既定onで出るので、ここでの指定は要らない(2026-08-03に
+					// 確認。不変条件9=checkFragments が読む)
 					CTISessionHelper.transcodeFile(session, html, "text/html", null);
 				} finally {
 					session.close();
@@ -1871,13 +1952,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final List<String> tokens, final int[] counter, final Set<String> reorderable,
 			final boolean inReorderable, final int forcedKind) {
 		if (depth <= 0) {
-			s.append("<p>").append(token(tokens, counter, reorderable, inReorderable)).append("</p>\n");
+			s.append("<p id=\"p").append(counter[0]).append("\">")
+					.append(token(tokens, counter, reorderable, inReorderable)).append("</p>\n");
 			return;
 		}
 		final int kind = forcedKind >= 0 ? forcedKind : r.nextInt(nodeKinds(strict));
 		switch (kind) {
 		case 0 -> { // 段落(複数トークン)
-			s.append("<p>");
+			s.append("<p id=\"p").append(counter[0]).append("\">");
 			final int n = 1 + r.nextInt(6);
 			for (int i = 0; i < n; ++i) {
 				s.append(token(tokens, counter, reorderable, inReorderable)).append(' ');
