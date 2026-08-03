@@ -926,6 +926,8 @@ public class RootBuilder extends BreakableBuilder {
 		// resume が serial 順で残アイテムと合流させて再駆動する。
 		// walk depth はフレームの tail から導出(Child=0、OpenTailShape=d)
 		final int depth = this.flowStack.size();
+		// 破断時に何が積まれていたかを控える(不変条件が破れたときだけ使う)
+		final String flowsAtBreak = this.describeFlowStack();
 		java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> rootPrefix = java.util.List
 				.of();
 		final java.util.List<java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange>> framePrefixes = new java.util.ArrayList<>(
@@ -996,9 +998,12 @@ public class RootBuilder extends BreakableBuilder {
 		// 継続し、検知されないコンテンツ破損に至る恐れがあるため、
 		// テスト・本番を問わず例外を投げる形に変更する。
 		if (this.flowStack.size() != continuation.depth()) {
+			// **何が積まれていたか/積み直されたかまで書く。** 深さの数字だけでは
+			// どの流し込みが落ちたのか分からず、診断に何時間もかかった(2026-08-03)
 			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
 					"break flow failed (flowStack.size()=" + this.flowStack.size() + ", continuation.depth()="
-							+ continuation.depth() + "): " + this.getFlowBox().getParams().element);
+							+ continuation.depth() + ")\n  破断時: " + flowsAtBreak + "\n  再開後: "
+							+ this.describeFlowStack());
 		}
 
 		if (LOG.isLoggable(Level.FINE)) {
@@ -1023,6 +1028,21 @@ public class RootBuilder extends BreakableBuilder {
 		return true;
 	}
 
+	/** 流し込みスタックの中身を人が読める形にします(不変条件の診断用)。 */
+	private String describeFlowStack() {
+		final StringBuilder out = new StringBuilder();
+		for (int i = 0; i < this.flowStack.size(); ++i) {
+			final Flow flow = (Flow) this.flowStack.get(i);
+			if (i > 0) {
+				out.append(" / ");
+			}
+			out.append(flow.box.getClass().getSimpleName());
+			if (flow.box.getParams() != null && flow.box.getParams().element != null) {
+				out.append('<').append(flow.box.getParams().element).append('>');
+			}
+		}
+		return out.toString();
+	}
 
 	/**
 	 * 移動した閉じた部分木のソース再駆動を試みます(M6b)。改ページの

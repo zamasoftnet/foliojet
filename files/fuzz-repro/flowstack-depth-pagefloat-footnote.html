@@ -1,0 +1,60 @@
+<!--
+  「flowStack深さ≠継続深さ」の最小再現(2026-08-03、seed 5 から縮小)。
+  604バイト・6要素。次の4つが**すべて揃ったときだけ**落ちる——どれか1つを
+  外すと通る(実測):
+    1. writing-mode: vertical-lr
+    2. float: top(ページフロート)
+    3. float: footnote
+    4. float: left
+  破断時のスタックは html / body(深さ2)だが、再開後は html だけになる。
+  bodyの残りが全て非フロー(フロート)なので開いた尾が空になり、
+  bodyが積み直されないまま深さの検査に当たる。
+-->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="60pt"?>
+<?jp.cssj.property name="output.page-height" value="60pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>fuzz 5</title>
+<style>
+@page{margin:0pt}
+body{font:normal 6pt/1.2 serif;writing-mode:vertical-lr}
+</style></head><body>
+
+<div><span style="font-size:28pt">T0</span></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="float:top">
+
+<div style="width:45pt">
+
+</div>
+
+
+</div>
+
+
+<div style="float:footnote">
+
+</div>
+<div style="float:left">
+
+</div>
+
+
+</body></html>
