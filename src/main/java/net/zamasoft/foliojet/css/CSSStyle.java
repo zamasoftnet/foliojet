@@ -299,12 +299,28 @@ public class CSSStyle {
 	 * しうるため)。
 	 */
 	public List<CssToken> getCustomProperty(String name) {
+		final CSSStyle owner = this.getCustomPropertyOwner(name);
+		return owner == null ? null : owner.customProperties.get(name);
+	}
+
+	/**
+	 * そのカスタムプロパティを<b>宣言している</b>スタイルを返します
+	 * (2026-08-03新設)。見つからなければnull。
+	 *
+	 * <p>
+	 * 値の中の{@code var()}は、<b>宣言した要素の文脈</b>で解決しなければ
+	 * なりません(CSS Variables 1: カスタムプロパティの計算値は
+	 * 「{@code var()}を置換した後のトークン列」であり、<b>継承より前に</b>
+	 * 計算される)。祖先で{@code --y: calc(var(--x) + 1px)}と書き、子で
+	 * {@code --x}だけ変えても、継承した{@code --y}は<b>祖先の</b>
+	 * {@code --x}で計算された値のままです。Chrome・Firefox・Safariとも
+	 * 仕様どおり(2026-08-03、独立相談で確認)。
+	 * </p>
+	 */
+	public CSSStyle getCustomPropertyOwner(String name) {
 		for (CSSStyle style = this; style != null; style = style.parentStyle) {
-			if (style.customProperties != null) {
-				List<CssToken> tokens = style.customProperties.get(name);
-				if (tokens != null) {
-					return tokens;
-				}
+			if (style.customProperties != null && style.customProperties.get(name) != null) {
+				return style;
 			}
 		}
 		return null;

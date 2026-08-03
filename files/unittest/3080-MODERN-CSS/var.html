@@ -91,6 +91,19 @@ body {
 	width: 40pt;
 	width: var(--undefined-no-fallback);
 }
+/* **継承したカスタムプロパティは子で再評価しない**(2026-08-03)。
+   祖先で --derived を var(--base) から作り、子で --base を変えても、
+   継承した --derived は祖先の値で計算済み -> 100pt(33ptにならない) */
+.owner {
+	--own-base: 100pt;
+	--derived: var(--own-base);
+}
+.owner .redefine {
+	--own-base: 33pt;
+}
+#inherited-computed {
+	width: var(--derived);
+}
 /* !important: 詳細度は.imp-low(クラス)より#important-test(ID)の方が
    高いが、!importantが優先されるため.imp-lowの5ptが勝つ(15ptは無視) */
 #important-test {
@@ -120,6 +133,7 @@ body {
       <div id="shorthand-margin">SHORTHANDMARGIN</div>
       <div id="important-test" class="imp-low">IMPORTANTTEST</div>
       <div id="invalid-var">INVALIDVAR</div>
+      <div class="owner"><div class="redefine"><div id="inherited-computed">INHERITEDCOMPUTED</div></div></div>
     </div>
   </body>
 

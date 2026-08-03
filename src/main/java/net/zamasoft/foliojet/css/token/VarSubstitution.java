@@ -94,11 +94,18 @@ public final class VarSubstitution {
 			fallback = args.subList(commaIndex + 1, args.size());
 		}
 		if (!resolving.contains(name)) {
-			List<CssToken> declared = style.getCustomProperty(name);
+			// **宣言した要素の文脈で解決する**(2026-08-03)。カスタム
+			// プロパティの計算値は「var()を置換した後のトークン列」であり、
+			// 継承より前に計算される(CSS Variables 1)。祖先で
+			// `--y: calc(var(--x) + 1px)` と書き、子で `--x` だけ変えても、
+			// 継承した `--y` は**祖先の** `--x` で計算された値のままになる。
+			// 従来は現在の要素で解決していたため、子で再評価されていた
+			final CSSStyle owner = style.getCustomPropertyOwner(name);
+			List<CssToken> declared = owner == null ? null : owner.getCustomProperty(name);
 			if (declared != null) {
 				Set<String> nextResolving = new HashSet<String>(resolving);
 				nextResolving.add(name);
-				List<CssToken> resolvedDeclared = substitute(declared, style, nextResolving, depth + 1);
+				List<CssToken> resolvedDeclared = substitute(declared, owner, nextResolving, depth + 1);
 				if (resolvedDeclared != null) {
 					return resolvedDeclared;
 				}
