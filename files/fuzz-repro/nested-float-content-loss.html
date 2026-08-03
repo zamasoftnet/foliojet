@@ -1,0 +1,185 @@
+<!--
+  「入れ子の浮動体で内容が消える」最小再現(2026-08-03、strict seed 17 から縮小)。
+  末尾近くの次の構造で T96 が出力から消える:
+
+    <div style="width:21pt">
+      <div style="display:table">
+        <div style="float:right">
+          <ul>...</ul>
+          <div style="float:left">T96</div>   ← 消える
+          <div style="border:2pt solid black"></div>
+        </div>
+      </div>
+    </div>
+
+  **4つすべてが揃ったときだけ**消える(実測。どれか1つを外すと残る):
+    1. 外側の狭い幅(width:21pt)
+    2. display:table
+    3. 外側の float:right
+    4. 内側の float:left
+
+  縮小器は固定点に到達済み(これ以上どの操作でも種別を保てない)。
+
+  検査方法:
+    ./gradlew test --tests '*RandomDocumentFuzzTest*' \
+      -Dfoliojet.fuzzCheckFile=files/fuzz-repro/nested-float-content-loss.html
+-->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="595pt"?>
+<?jp.cssj.property name="output.page-height" value="842pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>fuzz 17</title>
+<style>
+@page{margin:0pt}
+body{font:normal 13pt/1.2 serif}
+td{border:1pt solid black}
+</style></head><body>
+
+<img src="file:/mnt/f/dev/CopperPDF/copper4/foliojet4/files/unittest/red.png" style="height:142pt" />
+
+
+T16 T17 T18 T19 
+
+
+
+
+
+
+
+T24
+
+
+
+
+
+<div>
+T35 T36 
+</div>
+<span style="font-size:44pt">T37</span>
+
+
+
+<div style="margin:5pt;padding:3pt">
+<span style="display:inline-block"></span>
+<div style="writing-mode:vertical-rl">
+T39
+</div>
+<span style="font-size:21pt">T40</span>
+</div>
+
+<div style="writing-mode:vertical-rl">
+
+
+
+T43
+
+</div>
+
+
+
+
+<ul style="list-style-position:inside">
+<li></li>
+</ul>
+T47
+<form><textarea></textarea></form>
+
+<span style="display:inline-block"></span>
+
+
+
+
+
+
+<div style="margin:6pt;border:2pt solid black">
+
+T51
+
+</div>
+
+<span style="display:inline-block;height:33pt"></span>
+
+
+
+<div style="width:0pt">
+
+T57 T58 T59 T60 T61 
+
+
+
+<img src="file:/mnt/f/dev/CopperPDF/copper4/foliojet4/files/unittest/red.png" style="height:235pt" />
+
+T62
+
+T63
+
+T64
+
+
+
+
+
+
+
+T66
+
+
+
+</div>
+<div style="writing-mode:vertical-rl">
+T67T69T71
+</div>
+<img src="file:/mnt/f/dev/CopperPDF/copper4/foliojet4/files/unittest/red.png" style="height:132pt" />
+<div>
+T73 
+</div>
+<table>
+T77
+<td>T81</td>
+<tr><td>T85</td></tr>
+</table>
+<div style="width:21pt">
+
+<ol>
+<li>T86</li>
+<li>T87</li>
+<li>T88</li>
+<li>T89</li>
+</ol>
+
+
+
+T91
+
+
+
+T92
+T93
+
+
+
+<div style="display:table">
+<div style="float:right">
+<ul>
+<li>T94</li>
+<li>T95</li>
+</ul>
+<div style="float:left">
+T96
+</div>
+<div style="border:2pt solid black">
+
+
+</div>
+</div>
+</div>
+
+</div>
+
+
+
+T116
+
+
+
+</body></html>
