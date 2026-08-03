@@ -55,7 +55,9 @@ public abstract class AbstractBox implements IBox {
 
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {
 		AffineTransform ct = this.getParams().transform;
-		if (ct.isIdentity()) {
+		final double txRatio = this.getParams().transformTxRatio;
+		final double tyRatio = this.getParams().transformTyRatio;
+		if (ct.isIdentity() && txRatio == 0 && tyRatio == 0) {
 			return transform;
 		}
 		transform = new AffineTransform(transform);
@@ -94,6 +96,12 @@ public abstract class AbstractBox implements IBox {
 
 		transform.translate(ax, ay);
 		transform.concatenate(ct);
+		if (txRatio != 0 || tyRatio != 0) {
+			// **割合の平行移動はここで解く**(2026-08-03)。基準はこの箱自身の
+			// 寸法。平行移動だけの指定に限って持ち越しているので、行列との
+			// 順序は問わない(平行移動どうしは可換)
+			transform.translate(this.getWidth() * txRatio, this.getHeight() * tyRatio);
+		}
 		transform.translate(-ax, -ay);
 		return transform;
 	}

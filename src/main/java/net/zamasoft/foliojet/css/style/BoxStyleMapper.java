@@ -583,6 +583,8 @@ final class BoxStyleMapper {
 			params.opacity = 0f;
 		}
 		params.transform = Transform.get(style);
+		params.transformTxRatio = Transform.getTxRatio(style);
+		params.transformTyRatio = Transform.getTyRatio(style);
 		params.transformOrigin = TransformOrigin.get(style);
 		params.zIndexType = ZIndex.getType(style);
 		if (params.zIndexType == Params.Z_INDEX_SPECIFIED) {

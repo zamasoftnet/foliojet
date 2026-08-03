@@ -48,6 +48,13 @@ public abstract class Params {
 
 	private static final AffineTransform IDENTITY_TRANSFORM = new AffineTransform();
 	public AffineTransform transform = IDENTITY_TRANSFORM;
+
+	/**
+	 * {@code translate()}の割合成分(2026-08-03新設)。描画時に箱の幅・高さを
+	 * 掛けて平行移動に足す——割合の基準がその要素自身の境界箱なので、
+	 * 解析時には行列へ畳めない。
+	 */
+	public double transformTxRatio = 0, transformTyRatio = 0;
 	public Offset transformOrigin = Offset.HALF_OFFSET;
 
 	public abstract ParamsType getType();

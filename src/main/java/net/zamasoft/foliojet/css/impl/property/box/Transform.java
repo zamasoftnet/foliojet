@@ -29,6 +29,16 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		return value.getTransform();
 	}
 
+	/** {@code translate()}の割合成分(要素の幅に掛ける)。 */
+	public static double getTxRatio(CSSStyle style) {
+		return ((TransformValue) style.get(INFO)).getTxRatio();
+	}
+
+	/** {@code translate()}の割合成分(要素の高さに掛ける)。 */
+	public static double getTyRatio(CSSStyle style) {
+		return ((TransformValue) style.get(INFO)).getTyRatio();
+	}
+
 	protected Transform() {
 		super("-cssj-transform");
 	}
@@ -50,6 +60,10 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		AffineTransform at = null;
+		// translate()の割合成分。要素の寸法が要るので行列へ畳めない
+		// (TransformValueのjavadoc参照)。平行移動だけの指定に限り持ち越す
+		final double[] ratio = new double[2];
+		boolean translateOnly = true;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
 			if (lu instanceof CssToken.Ident) {
@@ -76,6 +90,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.concatenate(t);
 				}
 			} else if (func.is("rotate")) {
+				translateOnly = false;
 				double angle = getAngle(params);
 				if (at == null) {
 					at = AffineTransform.getRotateInstance(angle);
@@ -83,6 +98,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.rotate(angle);
 				}
 			} else if (func.is("scale")) {
+				translateOnly = false;
 				double sx = getFloatValue(params);
 				double sy;
 				if (!params.hasNext()) {
@@ -96,6 +112,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.scale(sx, sy);
 				}
 			} else if (func.is("scaleX")) {
+				translateOnly = false;
 				double sx = getFloatValue(params);
 				if (at == null) {
 					at = AffineTransform.getScaleInstance(sx, 1);
@@ -103,6 +120,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.scale(sx, 1);
 				}
 			} else if (func.is("scaleY")) {
+				translateOnly = false;
 				double sy = getFloatValue(params);
 				if (at == null) {
 					at = AffineTransform.getScaleInstance(1, sy);
@@ -110,6 +128,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.scale(1, sy);
 				}
 			} else if (func.is("skew")) {
+				translateOnly = false;
 				double shx = getAngle(params);
 				double shy;
 				if (!params.hasNext()) {
@@ -123,6 +142,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.shear(Math.tan(shx), Math.tan(shy));
 				}
 			} else if (func.is("skewX")) {
+				translateOnly = false;
 				double shx = getAngle(params);
 				if (at == null) {
 					at = AffineTransform.getShearInstance(Math.tan(shx), 0);
@@ -130,6 +150,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.shear(Math.tan(shx), 0);
 				}
 			} else if (func.is("skewY")) {
+				translateOnly = false;
 				double shy = getAngle(params);
 				if (at == null) {
 					at = AffineTransform.getShearInstance(0, Math.tan(shy));
@@ -137,12 +158,12 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.shear(0, Math.tan(shy));
 				}
 			} else if (func.is("translate")) {
-				double tx = getLengthValue(ua, params);
+				double tx = getLengthOrRatio(ua, params, ratio, 0);
 				double ty;
 				if (!params.hasNext()) {
 					ty = 0;
 				} else {
-					ty = getLengthValue(ua, params);
+					ty = getLengthOrRatio(ua, params, ratio, 1);
 				}
 				if (at == null) {
 					at = AffineTransform.getTranslateInstance(tx, ty);
@@ -150,14 +171,14 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.translate(tx, ty);
 				}
 			} else if (func.is("translateX")) {
-				double tx = getLengthValue(ua, params);
+				double tx = getLengthOrRatio(ua, params, ratio, 0);
 				if (at == null) {
 					at = AffineTransform.getTranslateInstance(tx, 0);
 				} else {
 					at.translate(tx, 0);
 				}
 			} else if (func.is("translateY")) {
-				double ty = getLengthValue(ua, params);
+				double ty = getLengthOrRatio(ua, params, ratio, 1);
 				if (at == null) {
 					at = AffineTransform.getTranslateInstance(0, ty);
 				} else {
@@ -166,6 +187,14 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 			} else {
 				throw new PropertyException();
 			}
+		}
+		if (ratio[0] != 0 || ratio[1] != 0) {
+			if (!translateOnly) {
+				// 回転・拡大と混ざると順序が効くので畳めない。従来どおり
+				// 指定全体を無効にする(黙って0にしない)
+				throw new PropertyException();
+			}
+			return TransformValue.create(at == null ? new AffineTransform() : at, ratio[0], ratio[1]);
 		}
 		if (at == null) {
 			return KeywordValue.NONE;
@@ -201,8 +230,25 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		throw new PropertyException();
 	}
 
-	private double getLengthValue(UserAgent ua, TokenStream params) throws PropertyException {
+	/**
+	 * 平行移動の量。<b>割合はここでは解かず</b>{@code ratio}へ積む
+	 * ——その要素自身の境界箱が基準なので、解析時には寸法が無い。
+	 */
+	private double getLengthOrRatio(UserAgent ua, TokenStream params, double[] ratio, int axis)
+			throws PropertyException {
 		final CssToken token = nextParam(params);
+		if (token instanceof CssToken.Percent percent) {
+			ratio[axis] += percent.value() / 100.0;
+			return 0;
+		}
+		return toLength(ua, token);
+	}
+
+	private double getLengthValue(UserAgent ua, TokenStream params) throws PropertyException {
+		return toLength(ua, nextParam(params));
+	}
+
+	private double toLength(UserAgent ua, CssToken token) throws PropertyException {
 		AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 		if (length == null) {
 			if (token instanceof CssToken.Num num) {
