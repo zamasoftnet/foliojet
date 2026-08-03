@@ -92,6 +92,23 @@ public class WordHyphenator implements FilterGlyphHandler {
 	private boolean buffering = false;
 
 	/**
+	 * <b>下流にテキストランが開いているか</b>(2026-08-03新設)。
+	 *
+	 * <p>
+	 * バッファは単語の途中から始まりうる——{@link #checkBuffering()}は
+	 * {@link #startTextRun}だけでなく{@link #glyph}からも呼ばれるので、
+	 * <b>下流が既にランを開いた状態でバッファが始まる</b>ことがある。この状態を
+	 * 再生側が知らないと、{@link #processBuffer()}が二重にランを開く。
+	 *
+	 * <p>
+	 * 実際に踏んだのは「{@code hyphens:auto}の語の直後に開き括弧」——
+	 * {@code expanduser(} で、分割機会の制御イベントがランを開いたまま届き、
+	 * 次のバッファの再生が二重に{@code startTextRun}を呼んで下流の表明に当たる。
+	 * 句点・読点では起きない(分割機会を作らないため)。
+	 */
+	private boolean outRunOpen = false;
+
+	/**
 	 * 自動分綴を適用できる単語(全文字が字母で置換要素等を含まない)。
 	 */
 	private boolean autoBreaks = true;
@@ -127,6 +144,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 			this.events.add(new RunStart(charOffset, fontStyle, fontMetrics));
 		} else {
 			this.out.startTextRun(charOffset, fontStyle, fontMetrics);
+			this.outRunOpen = true;
 		}
 	}
 
@@ -135,6 +153,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 			this.events.add(RUN_END);
 		} else {
 			this.out.endTextRun();
+			this.outRunOpen = false;
 		}
 	}
 
@@ -246,7 +265,11 @@ public class WordHyphenator implements FilterGlyphHandler {
 		FontStyle fs = this.bufFontStyle;
 		FontMetrics fm = this.bufFontMetrics;
 		int runCharOffset = 0;
-		boolean runPending = false, runOpen = false;
+		// **ランの開閉は局所変数ではなくフィールドで持つ**(2026-08-03)。
+		// バッファが単語の途中から始まると、下流には既にランが開いている
+		// ({@link #outRunOpen}のjavadoc参照)。局所変数で始めると、その場合に
+		// 二重にランを開いてしまう
+		boolean runPending = false;
 		int bi = 0;
 		for (int i = 0; i < this.events.size(); ++i) {
 			final Object ev = this.events.get(i);
@@ -257,9 +280,9 @@ public class WordHyphenator implements FilterGlyphHandler {
 				runCharOffset = rs.charOffset();
 				runPending = true;
 			} else if (ev == RUN_END) {
-				if (runOpen) {
+				if (this.outRunOpen) {
 					this.out.endTextRun();
-					runOpen = false;
+					this.outRunOpen = false;
 				}
 				runPending = false;
 			} else if (ev instanceof Glyph) {
@@ -270,32 +293,45 @@ public class WordHyphenator implements FilterGlyphHandler {
 				}
 				if (bi < breaks.length && breaks[bi] == g.wordOffset() && g.wordOffset() > 0) {
 					++bi;
-					if (runOpen) {
+					if (this.outRunOpen) {
 						this.out.endTextRun();
-						runOpen = false;
+						this.outRunOpen = false;
 					}
 					this.out.control(new SoftHyphen(g.charOffset(), hyphenText(g.charOffset(), fs, fm)));
 					this.out.flush();
 				}
-				if (!runOpen) {
+				if (!this.outRunOpen) {
 					this.out.startTextRun(runPending ? runCharOffset : g.charOffset(), fs, fm);
-					runOpen = true;
+					this.outRunOpen = true;
 					runPending = false;
 				}
 				this.out.glyph(g.charOffset(), g.ch(), 0, g.clen(), g.gid());
 			} else if (ev instanceof Marker) {
 				final Marker marker = (Marker) ev;
-				assert !runOpen;
 				if (fm != null) {
 					this.out.control(new SoftHyphen(marker.charOffset, hyphenText(marker.charOffset, fs, fm)));
 					this.out.flush();
 				}
 			} else {
-				assert !runOpen;
 				this.out.control((TextControl) ev);
 			}
 		}
-		assert !runOpen;
+		// **ここでランが開いたままでも正しい**(2026-08-03)。以前は
+		// {@code assert !runOpen}を3箇所に置いていたが、これは「バッファした
+		// 単語は必ず endTextRun で終わる」という誤った前提だった。
+		//
+		// 実際には<b>語の直後に開き括弧が来ると、分割機会の制御イベントが
+		// ランを開いたまま届く</b>——`expanduser(` で踏む(`.`や`,`では
+		// 起きない)。再生は上流から来た順序をそのまま流しているので、
+		// この状態は上流の状態と一致しており、下流も問題なく受ける。
+		// 実測: assertを無効にすると `ex-pan-du-ser()` と正しく分綴された
+		// 1ページのPDFが出る。
+		//
+		// 影響は「-eaで動かした環境だけが AssertionError で変換に失敗する」
+		// ——開発とテストの全層がこれで落ちる。実物大の文書(Python公式
+		// ドキュメント)を取り込んだ第0波の1件目で踏んだ。掃過2000万文書は
+		// 一度も踏んでいない(生成器が `語+開き括弧` を作らないため)。
+		// 回帰は files/unittest/0450-hyphens/word-then-paren.html。
 		this.events.clear();
 		this.word.setLength(0);
 	}

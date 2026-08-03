@@ -1,0 +1,45 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>flexアイテムの割合指定</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      .flex { display: flex; }
+      p { margin: 0; background-color: #ddeeff; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **flexアイテムの width/padding の割合が効くこと。**
+
+      2026-08-03まで、純粋な割合(LengthType.RELATIVE)は値の欄に割合が
+      入るのに、FlexBuilderが「長さ+割合×基準」で読んでいた。その結果
+      width:50% が「0.5pt」と読まれ、自動最小サイズでmin-content幅へ
+      潰れていた。Bootstrap 5のグリッドは .row > * { width: 100% } と
+      .col-N { width: X% } で組まれているので、Bootstrapで作られた文書は
+      全部が1語ずつ改行される版面になっていた。実物大の文書を取り込んだ
+      第0波の1件目で発覚(PLAN §3)。
+
+      紙面400pt・余白0なので、50%=200pt、25%=100pt、10%padding=40pt。
+    -->
+    <div class="flex">
+      <p id="p" style="flex: 0 0 auto; width: 50%">half</p>
+      <p id="q" style="flex: 0 0 auto; width: 25%">quarter</p>
+    </div>
+
+    <!-- flexの指定なし(width だけ)でも同じ -->
+    <div class="flex">
+      <p id="r" style="width: 75%">three quarters</p>
+      <p id="s">rest</p>
+    </div>
+
+    <!-- 割合のpadding。基準はコンテナの主軸内寸 -->
+    <div class="flex">
+      <p id="t" style="flex: 0 0 auto; width: 50%; padding-left: 10%">padded</p>
+      <p id="u">after</p>
+    </div>
+  </body>
+</html>

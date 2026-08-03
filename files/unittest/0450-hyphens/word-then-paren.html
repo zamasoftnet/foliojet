@@ -1,0 +1,29 @@
+<?jp.cssj.property name="output.page-width" value="240pt"?>
+<?jp.cssj.property name="output.page-height" value="160pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>hyphens:auto の直後に開き括弧が来る</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 12pt/1.2 serif; hyphens: auto; }
+      div { width: 60pt; margin-bottom: 6pt; background-color: Yellow; }
+    </style>
+  </head>
+  <body>
+    <!--
+      語の直後に開き括弧が来ると、分割機会の制御イベントが**テキストランを
+      開いたまま**WordHyphenatorの再生へ届く。以前はそこに assert !runOpen が
+      あり、-ea で動かした環境(開発デーモン・全テスト層)が AssertionError で
+      変換に失敗した。2026-08-03、Python公式ドキュメントを取り込んで発見。
+      句点・読点では起きない——開き括弧だけが分割機会を作るため。
+    -->
+    <div>expanduser()</div>
+    <div>ab()</div>
+    <div>call expanduser() now</div>
+    <div>expanduser(</div>
+    <!-- 起きない側。分綴そのものが壊れていないことの対照 -->
+    <div>expanduser.</div>
+    <div>expanduser</div>
+  </body>
+</html>

@@ -761,18 +761,49 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 
 	/** Dimensionの線方向値(auto=NaN。%は基準寸法で解決。縦書き=高さ)。 */
 	private double lineValue(final Dimension size, final double base) {
-		if (size.getLineType(this.flow()) == LengthType.AUTO) {
-			return Double.NaN;
-		}
-		return size.getLineLength(this.flow()) + size.getLineRatio(this.flow()) * base;
+		return axisValue(size.getLineType(this.flow()), size.getLineLength(this.flow()),
+				size.getLineRatio(this.flow()), base);
 	}
 
 	/** Dimensionのpage方向値(auto=NaN。%は基準寸法で解決。縦書き=幅)。 */
 	private double pageValue(final Dimension size, final double base) {
-		if (size.getPageType(this.flow()) == LengthType.AUTO) {
+		return axisValue(size.getPageType(this.flow()), size.getPageLength(this.flow()),
+				size.getPageRatio(this.flow()), base);
+	}
+
+	/**
+	 * 寸法値の解決です。
+	 *
+	 * <p>
+	 * <b>{@link LengthType#RELATIVE}(純粋な割合)は値の欄に割合が入る</b>
+	 * ({@code Length.create(ratio, RELATIVE)})。割合の欄が使われるのは
+	 * {@link LengthType#MIXED}(calc()で絶対長と割合が混ざった場合)だけである。
+	 *
+	 * <p>
+	 * 2026-08-03まで、ここは型を見ずに「長さ+割合×基準」で計算していた。
+	 * その結果<b>{@code width: 66.66%} のflexアイテムが「0.67pt」と読まれ、
+	 * 自動最小サイズに切り上げられてmin-content幅へ潰れていた</b>。
+	 * Bootstrap 5のグリッドは {@code .row > * { width: 100% }} と
+	 * {@code .col-N { width: X% }} で組まれているため、<b>Bootstrapで作られた
+	 * 文書は全部が1語ずつ改行される版面になっていた</b>。実物大の文書を
+	 * 取り込んだ第0波の1件目で発覚(PLAN §3)。掃過2000万文書は一度も
+	 * 捕まえていない——生成器がflexアイテムに%幅を書かないため。
+	 * 回帰は files/unittest/3120-FLEXBOX/percentage-width.html。
+	 */
+	private static double axisValue(final LengthType type, final double length, final double ratio,
+			final double base) {
+		switch (type) {
+		case AUTO:
 			return Double.NaN;
+		case ABSOLUTE:
+			return length;
+		case RELATIVE:
+			return length * base;
+		case MIXED:
+			return length + ratio * base;
+		default:
+			throw new IllegalStateException(String.valueOf(type));
 		}
-		return size.getPageLength(this.flow()) + size.getPageRatio(this.flow()) * base;
 	}
 
 	private static double zeroIfNaN(final double value) {
@@ -789,25 +820,33 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return insetsAxis(insets, base, !this.flow().isVertical());
 	}
 
-	/** 指定物理軸のInsets合計(horizontal=true: 上下、false: 左右)。 */
+	/**
+	 * 指定物理軸のInsets合計(horizontal=true: 上下、false: 左右)。
+	 *
+	 * <p>
+	 * 割合の読み方は{@link #axisValue}と同じ落とし穴がある——{@code RELATIVE}は
+	 * 値の欄に割合が入る。{@code padding: 5%} のflexアイテムが0.05pt扱いに
+	 * なっていた(2026-08-03に幅の件と一緒に修正)。
+	 */
 	private static double insetsAxis(final Insets insets, final double base, final boolean horizontal) {
 		double sum = 0;
 		if (horizontal) {
-			if (insets.getTopType() != LengthType.AUTO) {
-				sum += insets.getTop() + insets.getTopRatio() * base;
-			}
-			if (insets.getBottomType() != LengthType.AUTO) {
-				sum += insets.getBottom() + insets.getBottomRatio() * base;
-			}
+			sum += insetValue(insets.getTopType(), insets.getTop(), insets.getTopRatio(), base);
+			sum += insetValue(insets.getBottomType(), insets.getBottom(), insets.getBottomRatio(), base);
 		} else {
-			if (insets.getLeftType() != LengthType.AUTO) {
-				sum += insets.getLeft() + insets.getLeftRatio() * base;
-			}
-			if (insets.getRightType() != LengthType.AUTO) {
-				sum += insets.getRight() + insets.getRightRatio() * base;
-			}
+			sum += insetValue(insets.getLeftType(), insets.getLeft(), insets.getLeftRatio(), base);
+			sum += insetValue(insets.getRightType(), insets.getRight(), insets.getRightRatio(), base);
 		}
 		return sum;
+	}
+
+	/** Insetsの1辺(autoは0として合計に寄与しない)。 */
+	private static double insetValue(final LengthType type, final double length, final double ratio,
+			final double base) {
+		if (type == LengthType.AUTO) {
+			return 0;
+		}
+		return axisValue(type, length, ratio, base);
 	}
 
 	/** 線方向のborder幅合計(縦書き=上下)。 */
