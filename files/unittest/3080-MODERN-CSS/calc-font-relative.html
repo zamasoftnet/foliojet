@@ -1,0 +1,40 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>calc() の中のフォント相対単位</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      html { font-size: 16px; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      div { background-color: #ddeeff; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **calc() の中の em/rem が効くこと。**
+
+      2026-08-03まで、フォント相対単位を含む calc() は<b>丸ごと無効</b>だった
+      (解析時に解こうとして失敗し、宣言ごと捨てていた)。em はその要素の、
+      rem は根要素の font-size が要るので、解けるのは計算値の段階である。
+
+      W3C仕様書は自己リンク記号(¶)を左余白へ出すのに
+      `left: calc(-1 * (3.5rem - 26px))` と書いており、これが効かないため
+      記号が本文に重なっていた。実物大の文書を取り込んだ第1波で発覚(PLAN §3)。
+
+      html の font-size は 16px なので 1rem=16px=12pt。
+      body の font-size は 10pt なので 1em=10pt。
+      期待幅: A=12pt+10pt=22pt、B=24pt、C=20pt、D=100pt-12pt=88pt、
+      E=(1rem+1em)*2=44pt。
+    -->
+    <div id="p" style="width: calc(1rem + 1em)">A</div>
+    <div id="q" style="width: calc(2rem)">B</div>
+    <div id="r" style="width: calc(1em * 2)">C</div>
+    <div id="s" style="width: calc(100pt - 1rem)">D</div>
+    <div id="t" style="width: calc((1rem + 1em) * 2)">E</div>
+    <!-- 対照: calcの外のremと、割合混在 -->
+    <div id="u" style="width: 2rem">F 対照(calcなし)</div>
+    <div id="v" style="width: calc(50% + 1rem)">G 割合と混在</div>
+  </body>
+</html>

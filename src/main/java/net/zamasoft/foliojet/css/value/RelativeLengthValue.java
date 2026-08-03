@@ -20,6 +20,11 @@ public final class RelativeLengthValue implements LengthValue {
 		this.value = value;
 	}
 
+	/** 単位を指定して生成します(calc()のフォント相対成分の解決に使う)。 */
+	public static RelativeLengthValue of(Unit unit, double value) {
+		return new RelativeLengthValue(unit, value);
+	}
+
 	public static RelativeLengthValue em(double value) {
 		return new RelativeLengthValue(Unit.EM, value);
 	}

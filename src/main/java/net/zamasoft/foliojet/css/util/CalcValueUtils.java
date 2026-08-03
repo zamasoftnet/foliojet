@@ -8,6 +8,8 @@ import java.util.Locale;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.token.Unit;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.RealValue;
@@ -63,31 +65,72 @@ public final class CalcValueUtils {
 		return result != null ? result.toValue(ua) : null;
 	}
 
-	/** 内部評価通貨: {@code <number>}か{@code <length-percentage>}のいずれか。 */
+	/**
+	 * 内部評価通貨: {@code <number>}か{@code <length-percentage>}のいずれか。
+	 *
+	 * <p>
+	 * <b>フォント相対単位(em/ex/rem/ch)は解析時には解けない</b>ので、単位ごとの
+	 * 係数として別に持つ(2026-08-03)。加減は成分ごと、数との乗除は全成分に効く
+	 * ——どちらもフォント寸法に対して線形なので、後で寸法を掛けても等価である。
+	 */
 	private static final class Quantity {
 		final boolean isNumber;
 		final double number;
 		final double absolute;
 		final double ratio;
+		final double em, ex, rem, ch;
 
 		static Quantity number(double v) {
-			return new Quantity(true, v, 0, 0);
+			return new Quantity(true, v, 0, 0, 0, 0, 0, 0);
 		}
 
 		static Quantity length(double absolute, double ratio) {
-			return new Quantity(false, 0, absolute, ratio);
+			return new Quantity(false, 0, absolute, ratio, 0, 0, 0, 0);
 		}
 
-		private Quantity(boolean isNumber, double number, double absolute, double ratio) {
+		static Quantity length(double absolute, double ratio, double em, double ex, double rem, double ch) {
+			return new Quantity(false, 0, absolute, ratio, em, ex, rem, ch);
+		}
+
+		/** フォント相対単位1つ分。 */
+		static Quantity font(Unit unit, double v) {
+			switch (unit) {
+			case EM:
+				return length(0, 0, v, 0, 0, 0);
+			case EX:
+				return length(0, 0, 0, v, 0, 0);
+			case REM:
+				return length(0, 0, 0, 0, v, 0);
+			case CH:
+				return length(0, 0, 0, 0, 0, v);
+			default:
+				return null;
+			}
+		}
+
+		private Quantity(boolean isNumber, double number, double absolute, double ratio, double em, double ex,
+				double rem, double ch) {
 			this.isNumber = isNumber;
 			this.number = number;
 			this.absolute = absolute;
 			this.ratio = ratio;
+			this.em = em;
+			this.ex = ex;
+			this.rem = rem;
+			this.ch = ch;
 		}
 
-		QuantityValue toValue(UserAgent ua) {
+		boolean hasFont() {
+			return this.em != 0 || this.ex != 0 || this.rem != 0 || this.ch != 0;
+		}
+
+		Value toValue(UserAgent ua) {
 			if (this.isNumber) {
 				return RealValue.create(this.number);
+			}
+			if (this.hasFont()) {
+				// フォント寸法が定まる計算値の段階で解く
+				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.em, this.ex, this.rem, this.ch);
 			}
 			return CalcLengthValue.create(ua, this.absolute, this.ratio);
 		}
@@ -161,7 +204,8 @@ public final class CalcValueUtils {
 				return null;
 			}
 			return a.isNumber ? Quantity.number(a.number + b.number)
-					: Quantity.length(a.absolute + b.absolute, a.ratio + b.ratio);
+					: Quantity.length(a.absolute + b.absolute, a.ratio + b.ratio, a.em + b.em, a.ex + b.ex,
+							a.rem + b.rem, a.ch + b.ch);
 		case MINUS:
 			if (a.isNumber != b.isNumber) {
 				if (b.isNumber && b.number == 0) {
@@ -170,16 +214,19 @@ public final class CalcValueUtils {
 				return null;
 			}
 			return a.isNumber ? Quantity.number(a.number - b.number)
-					: Quantity.length(a.absolute - b.absolute, a.ratio - b.ratio);
+					: Quantity.length(a.absolute - b.absolute, a.ratio - b.ratio, a.em - b.em, a.ex - b.ex,
+							a.rem - b.rem, a.ch - b.ch);
 		case TIMES:
 			if (a.isNumber && b.isNumber) {
 				return Quantity.number(a.number * b.number);
 			}
 			if (a.isNumber) {
-				return Quantity.length(b.absolute * a.number, b.ratio * a.number);
+				return Quantity.length(b.absolute * a.number, b.ratio * a.number, b.em * a.number, b.ex * a.number,
+						b.rem * a.number, b.ch * a.number);
 			}
 			if (b.isNumber) {
-				return Quantity.length(a.absolute * b.number, a.ratio * b.number);
+				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.em * b.number, a.ex * b.number,
+						a.rem * b.number, a.ch * b.number);
 			}
 			// length同士の掛け算はCSS仕様上も無効
 			return null;
@@ -188,7 +235,8 @@ public final class CalcValueUtils {
 				return null;
 			}
 			return a.isNumber ? Quantity.number(a.number / b.number)
-					: Quantity.length(a.absolute / b.number, a.ratio / b.number);
+					: Quantity.length(a.absolute / b.number, a.ratio / b.number, a.em / b.number, a.ex / b.number,
+							a.rem / b.number, a.ch / b.number);
 		default:
 			return null;
 		}
@@ -202,11 +250,12 @@ public final class CalcValueUtils {
 		if (token instanceof CssToken.Percent percent) {
 			return Quantity.length(0, percent.value() / 100.0);
 		}
-		if (token instanceof CssToken.Dim) {
+		if (token instanceof CssToken.Dim dim) {
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 			if (length == null) {
-				// em/ex/rem/ch等のフォント相対単位、または未知の単位(現時点では非対応)
-				return null;
+				// **フォント相対単位は係数として持ち越す**(2026-08-03)。
+				// 未知の単位はここでもnull(評価失敗)
+				return Quantity.font(dim.unit(), dim.value());
 			}
 			return Quantity.length(length.getLength(), 0);
 		}

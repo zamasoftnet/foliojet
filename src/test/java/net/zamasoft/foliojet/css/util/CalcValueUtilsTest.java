@@ -16,6 +16,7 @@ import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -221,11 +222,31 @@ public class CalcValueUtilsTest extends TestCase {
 		assertNull(CalcValueUtils.toCalc(userAgent(), token));
 	}
 
-	public void testCalcWithRelativeUnitReturnsNull() {
-		// em/ex/rem/chはCSSStyleが定まるまで解決できないため現時点は非対応(無効値)
+	/**
+	 * <b>フォント相対単位は係数として持ち越す</b>(2026-08-03)。
+	 *
+	 * <p>
+	 * em/ex/rem/ch はCSSStyleが定まるまで解決できないが、<b>解けないことと
+	 * 無効であることは違う</b>。2026-08-03まではここで無効値にしていたため、
+	 * {@code left: calc(-1 * (3.5rem - 26px))}(W3C仕様書が自己リンク記号を
+	 * 左余白へ出す書き方)のような指定が丸ごと捨てられていた。今は絶対成分・
+	 * 割合成分と分けたまま計算値の段階まで運び、
+	 * {@code ValueUtils.emExToAbsoluteLength}で解く。
+	 */
+	public void testCalcWithRelativeUnitKeepsComponents() {
 		CssToken token = parseCalcToken("width: calc(1em + 2px)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
-		assertNull(value);
+		assertTrue("フォント相対成分を持つ値になる: " + value, value instanceof CalcFontRelativeValue);
+		// 2px は 1.5pt。em の係数は解決前なので値そのものが残る
+		assertEquals("calc(1.5pt + 0.0% + 1.0em + 0.0ex + 0.0rem + 0.0ch)", value.toString());
+	}
+
+	/** 数との乗算はフォント相対成分にも効く(線形なので後で寸法を掛けても等価)。 */
+	public void testCalcRelativeUnitScales() {
+		CssToken token = parseCalcToken("width: calc(-1 * (3.5rem - 26px))");
+		Value value = CalcValueUtils.toCalc(userAgent(), token);
+		assertTrue(value instanceof CalcFontRelativeValue);
+		assertEquals("calc(19.5pt + 0.0% + 0.0em + 0.0ex + -3.5rem + 0.0ch)", value.toString());
 	}
 
 	public void testCalcWithVarReturnsNull() {

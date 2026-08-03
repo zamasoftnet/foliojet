@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.zstream.resolver.util.URIHelper;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
 
@@ -148,6 +149,12 @@ public final class ValueUtils {
 	public static Value emExToAbsoluteLength(Value value, CSSStyle style) {
 		if (value instanceof RelativeLengthValue relative) {
 			return relative.toAbsoluteLength(style);
+		}
+		// **calc()の中のフォント相対単位もここで解く**(2026-08-03)。
+		// 解析時には要素のfont-sizeが無いので、絶対成分・割合成分と分けたまま
+		// ここまで持ち回っている({@link CalcFontRelativeValue})
+		if (value instanceof CalcFontRelativeValue calc) {
+			return calc.resolve(style);
 		}
 		return value;
 	}
