@@ -922,7 +922,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 					pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 					final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
-					contentBuilder.bind(pageFloatBuilder);
+					// 浮動体・脚注と同じ理由で、使い捨て計測の最中は消費しない
+					contentBuilder.bind(pageFloatBuilder, this.scratchMeasurement);
 					pageFloatBuilder.close();
 				}
 				if (this.pageContextBuilder() instanceof RootBuilder root) {
