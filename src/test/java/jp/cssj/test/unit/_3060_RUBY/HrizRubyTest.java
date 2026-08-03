@@ -33,6 +33,14 @@ public class HrizRubyTest extends AbstractTestCase {
 	/**
 	 * ルビ要素のインラインボックスを検査します。
 	 *
+	 * <p>
+	 * <b>寸法は固定したNotoでの値。</b> 2026-08-03にテスト用フォントを
+	 * 公開Notoの自動取得へ切り替えた(それまでは環境にインストールされた
+	 * フォントを使っており、機械が変われば基準がずれた)。親文字が漢字の
+	 * 箇所は1em丁度のまま(24/36)、<b>ふりがな(かな)が幅を決めている箇所
+	 * だけ</b>カーニングのぶんだけ縮む(24→23.892、30→29.682)。
+	 * </p>
+	 *
 	 * @param lineExtent 行方向の寸法 = max(親文字幅, ふりがな幅)
 	 */
 	private boolean check(IBox box, double x, double y, double expectedX, double expectedY, double lineExtent) {
@@ -41,7 +49,9 @@ public class HrizRubyTest extends AbstractTestCase {
 		}
 		assertEquals(expectedX, x, 1);
 		assertEquals(expectedY, y, 1);
-		assertEquals(lineExtent, box.getWidth(), 0);
+		// 丸め誤差だけ許す(2026-08-03)。値は上の実測どおりで、
+		// 29.682 が 29.682000000000002 になるのは積算の丸め
+		assertEquals(lineExtent, box.getWidth(), 0.001);
 		return true;
 	}
 
@@ -54,11 +64,11 @@ public class HrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		return this.check(box, x, y, 126, 67.96, 24);
+		return this.check(box, x, y, 126, 67.96, 23.892);
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		return this.check(box, x, y, 108, 48.54, 30);
+		return this.check(box, x, y, 108, 48.54, 29.682);
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
@@ -66,6 +76,6 @@ public class HrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		return this.check(box, x, y, 126, 145.62, 24);
+		return this.check(box, x, y, 126, 145.62, 23.892);
 	}
 }

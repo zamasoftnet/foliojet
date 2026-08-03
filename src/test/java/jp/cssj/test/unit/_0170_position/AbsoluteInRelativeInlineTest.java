@@ -22,7 +22,11 @@ public class AbsoluteInRelativeInlineTest extends AbstractTestCase {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(30, x, 0);
-			assertEquals(5, y, 0);
+			// 4.393 は**固定したNoto**での値(2026-08-03にテスト用フォントを
+			// 公開Notoの自動取得へ切り替えた)。相対配置のインラインの中の
+			// 絶対配置なので、基準の位置が行の基線=フォントの上端量に従う。
+			// 旧値5.0は環境にインストールされたフォントでの値
+			assertEquals(4.393, y, 0.001);
 			assertEquals(38, box.getWidth(), 0);
 			return true;
 		}
@@ -33,7 +37,11 @@ public class AbsoluteInRelativeInlineTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(x + "/" + y + "/" + box.getWidth());
 			assertEquals(31, x, 0);
-			assertEquals(5, y, 0);
+			// 4.393 は**固定したNoto**での値(2026-08-03にテスト用フォントを
+			// 公開Notoの自動取得へ切り替えた)。相対配置のインラインの中の
+			// 絶対配置なので、基準の位置が行の基線=フォントの上端量に従う。
+			// 旧値5.0は環境にインストールされたフォントでの値
+			assertEquals(4.393, y, 0.001);
 			assertEquals(38, box.getWidth(), 0);
 			return true;
 		}

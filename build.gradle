@@ -125,7 +125,95 @@ dependencies {
     testImplementation 'org.verapdf:validation-model:1.26.5'
 }
 
+// ---------------------------------------------------------------------------
+// テスト用フォントの取得(2026-08-03)
+//
+// **テストは環境のフォントを使わない。** 以前は
+// src/test/resources/conf/profiles/fonts/fonts.xml に
+// <all-system-fonts /> があり、その機械にインストールされたフォントが
+// 全部登録されていた。テストの期待値は文字の座標を固定するものなので、
+// 機械が変われば基準がずれる——テストにならない。
+//
+// 代わりに公開されている Noto を取得して使う。版は URL と SHA-256 で
+// 固定する(GitHub のリリース資産は不変)。取得済みなら何もしないので、
+// 2回目以降とオフラインでも動く。copperpdf4/dev/build.gradle の同名
+// タスクと同じ資産を使う。
+// ---------------------------------------------------------------------------
+def testFontDir = layout.buildDirectory.dir('fonts/noto-auto')
+def testConfDir = layout.buildDirectory.dir('testconf')
+def testFontArchives = [
+        [name: '16_NotoSansJP.zip',
+         url : 'https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/16_NotoSansJP.zip',
+         sha256: '2bbdd2c20f30670b39ca735c96d75f1fdabdb348103e43b820cf17701fd22b18'],
+        [name: '12_NotoSerifJP.zip',
+         url : 'https://github.com/notofonts/noto-cjk/releases/download/Serif2.003/12_NotoSerifJP.zip',
+         sha256: '53bdd2a6e4eb63bf24f7890e018dddb94366e3555d0814c72b74fbb128f328f0'],
+        [name: '11_NotoSansMonoCJKjp.zip',
+         url : 'https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/11_NotoSansMonoCJKjp.zip',
+         sha256: '6c8faf475ce78fa37486dd5d8920e4bb4450b1b0f3c497edf3ba2d25cf52ab78'],
+]
+
+static String sha256OfFile(File file) {
+    java.security.MessageDigest digest = java.security.MessageDigest.getInstance('SHA-256')
+    file.withInputStream { input ->
+        byte[] buffer = new byte[65536]
+        int read
+        while ((read = input.read(buffer)) != -1) {
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().encodeHex().toString()
+}
+
+tasks.register('fetchTestFonts') {
+    group = 'verification'
+    description = 'テストで使う Noto フォントを公開リリースから取得します(版はハッシュで固定)。'
+    def outDir = testFontDir.get().asFile
+    def dlDir = layout.buildDirectory.dir('fonts/download').get().asFile
+    outputs.dir(outDir)
+    outputs.upToDateWhen { new File(outDir, 'NotoSansJP-Regular.otf').isFile() }
+    doLast {
+        outDir.mkdirs()
+        dlDir.mkdirs()
+        testFontArchives.each { archive ->
+            def zip = new File(dlDir, archive.name)
+            if (!zip.isFile() || sha256OfFile(zip) != archive.sha256) {
+                logger.lifecycle("テスト用フォントを取得します: ${archive.name}")
+                zip.withOutputStream { out ->
+                    new URL(archive.url).withInputStream { input -> out << input }
+                }
+                def actual = sha256OfFile(zip)
+                if (actual != archive.sha256) {
+                    zip.delete()
+                    throw new GradleException(
+                            "${archive.name} のハッシュが一致しません: 期待=${archive.sha256} 実際=${actual}")
+                }
+            }
+            // .otf だけを平らに取り出す(書庫によって SubsetOTF/JP/ 配下にある)
+            copy {
+                from zipTree(zip)
+                include '**/*.otf'
+                eachFile { it.relativePath = new RelativePath(true, it.name) }
+                includeEmptyDirs = false
+                into outDir
+            }
+        }
+    }
+}
+
+// テストが使う設定ディレクトリ。src/test/resources/conf をそのまま使うと
+// 取得したフォントを作業ツリーへ置くことになるので、build の下へ組み立てる。
+tasks.register('prepareTestConf', Copy) {
+    dependsOn tasks.named('fetchTestFonts')
+    from('src/test/resources/conf')
+    into testConfDir
+    from(testFontDir) {
+        into 'profiles/fonts/truetype/noto-auto'
+    }
+}
+
 tasks.named('test') {
+    dependsOn tasks.named('prepareTestConf')
     useJUnit()
     // ライセンスを与えて実行する口(2026-08-02)。既定は無ライセンス
     // (limited)で、これまでの実行条件を変えない。
@@ -175,8 +263,8 @@ tasks.named('test') {
     // 失敗として検出したいテストハーネス側が明示的に有効化する。
     // -Dfoliojet.noProgressSeconds を外から渡せば下の一括転送が上書きする
     systemProperty 'foliojet.noProgressSeconds', '120'
-    systemProperty 'jp.cssj.copper.config', file('src/test/resources/conf').absolutePath
-    systemProperty 'jp.cssj.driver.default', file('src/test/resources/conf/profiles/default.properties').absolutePath
+    systemProperty 'jp.cssj.copper.config', testConfDir.get().asFile.absolutePath
+    systemProperty 'jp.cssj.driver.default', testConfDir.get().file('profiles/default.properties').asFile.absolutePath
     // foliojet.* は一つ残らずテストJVMへ渡す。
     // 以前は1つずつ if で列挙しており、**新しい調査用スイッチを足すたびに
     // ここも直す必要があった**——忘れると「プロパティを渡したのに何も

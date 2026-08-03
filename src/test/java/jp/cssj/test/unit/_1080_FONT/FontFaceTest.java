@@ -23,12 +23,13 @@ public class FontFaceTest extends AbstractTestCase {
 			System.err.println("width/"+box.getWidth());
 			assertEquals(186, x, 1);
 			// ph-css移行(2026-07)で unicode-range が実際に効くようになった。
-			// myfont1 は U+100-FFFF 限定のため ASCII は範囲外となり、
-			// fonts.policy=embedded の本テスト環境では ASCII のフォールバック先が
-			// 無く MISSING フォントで描画される(width 245.124)。
-			// 旧値252は unicode-range が無視され ipam の半角(0.5em)で
-			// 描画されていた時期の値。
-			assertEquals(245.124, box.getWidth(), 1);
+			// myfont1 は U+100-FFFF 限定のため ASCII は範囲外となる。
+			// 2026-08-03にテスト用フォントを公開Notoの自動取得へ切り替えた
+			// ことで、**ASCIIの受け皿がNotoになった**(Notoはラテン文字を
+			// 持つ)。旧値245.124は受け皿が無くMISSINGフォントで描かれて
+			// いた時期の値、さらに旧い252は unicode-range が無視され
+			// ipamの半角(0.5em)で描かれていた時期の値。
+			assertEquals(232.38, box.getWidth(), 1);
 			return true;
 		}
 		return false;

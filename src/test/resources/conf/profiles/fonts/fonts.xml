@@ -170,7 +170,45 @@
 
 		<!-- Javaで利用可能な全てのインストールされたフォント types: (cid-identity||embedded) cmap: 横書きcmapエンコーディング名 
 			vcmap: 縦書きcmapエンコーディング名 -->
-		<all-system-fonts types="cid-identity embedded" />
+		<!--
+			**環境のフォントは使わない**(2026-08-03)。以前はここに
+			<all-system-fonts types="cid-identity embedded" /> があり、その機械に
+			インストールされたフォントが全部登録されていた。テストの期待値は
+			文字の座標を固定するものなので、機械が変われば基準がずれる。
+
+			代わりに gradle の fetchTestFonts が公開リリースから取得する Noto を
+			明示的に登録する(版はURLとSHA-256で固定)。実体は
+			build/testconf/profiles/fonts/truetype/noto-auto に置かれる。
+		-->
+		<font-file src="truetype/noto-auto/NotoSansJP-Regular.otf" types="cid-identity embedded"
+		           weight="400">
+			<alias name="ゴシック" />
+			<alias name="Gothic" />
+			<alias name="Noto Sans JP" />
+		</font-file>
+		<font-file src="truetype/noto-auto/NotoSansJP-Bold.otf" types="cid-identity embedded"
+		           weight="700">
+			<alias name="ゴシック" />
+			<alias name="Gothic" />
+			<alias name="Noto Sans JP" />
+		</font-file>
+		<font-file src="truetype/noto-auto/NotoSerifJP-Regular.otf" types="cid-identity embedded"
+		           weight="400">
+			<alias name="明朝" />
+			<alias name="Mincho" />
+			<alias name="Noto Serif JP" />
+		</font-file>
+		<font-file src="truetype/noto-auto/NotoSerifJP-Bold.otf" types="cid-identity embedded"
+		           weight="700">
+			<alias name="明朝" />
+			<alias name="Mincho" />
+			<alias name="Noto Serif JP" />
+		</font-file>
+		<font-file src="truetype/noto-auto/NotoSansMonoCJKjp-Regular.otf" types="cid-identity embedded"
+		           weight="400">
+			<alias name="等幅" />
+			<alias name="Noto Sans Mono CJK JP" />
+		</font-file>
 	</cid-fonts>
 
 	<!-- 一般フォント <generic-fonts> -->
