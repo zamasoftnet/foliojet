@@ -219,9 +219,18 @@
 		<!-- サンセリフ体フォント <sans-serif> font-family: カンマで区切ったフォント名のリスト -->
 		<sans-serif
 			font-family="Helvetica,Gothic,UniKS-Gothic,UniCNS-Ming,UniGB-Heiti" />
-		<!-- 等幅フォント <monospace> font-family: カンマで区切ったフォント名のリスト -->
+		<!-- 等幅フォント <monospace> font-family: カンマで区切ったフォント名のリスト
+
+			**先頭を本物の等幅フォントにする**(2026-08-03)。以前の先頭は
+			Gothic(プロポーショナル)で、`font: 12pt/1 monospace` の ASCII の
+			送り幅が等幅にならず、_0050_white_space/PageBreakByBrTest 等の
+			座標が期待値と合わないため隔離されていた
+			(docs/history/2026-07-25-quarantined-tests.md の群2。再開条件は
+			「総称ファミリの解決を見直すとき」)。フォントを固定した今、
+			取得した Noto Sans Mono CJK JP を先頭に置く。
+		-->
 		<monospace
-			font-family="Gothic,UniKS-Gothic,UniCNS-Ming,UniGB-Heiti" />
+			font-family="Noto Sans Mono CJK JP,Gothic,UniKS-Gothic,UniCNS-Ming,UniGB-Heiti" />
 		<!-- 装飾体フォント <fantasy> font-family: カンマで区切ったフォント名のリスト -->
 		<fantasy
 			font-family="Comic-Sans-MS,Gothic,UniKS-Gothic,UniCNS-Ming,UniGB-Heiti" />

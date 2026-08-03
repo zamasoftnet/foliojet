@@ -24,12 +24,13 @@ public class FontFaceTest extends AbstractTestCase {
 			assertEquals(186, x, 1);
 			// ph-css移行(2026-07)で unicode-range が実際に効くようになった。
 			// myfont1 は U+100-FFFF 限定のため ASCII は範囲外となる。
-			// 2026-08-03にテスト用フォントを公開Notoの自動取得へ切り替えた
-			// ことで、**ASCIIの受け皿がNotoになった**(Notoはラテン文字を
-			// 持つ)。旧値245.124は受け皿が無くMISSINGフォントで描かれて
-			// いた時期の値、さらに旧い252は unicode-range が無視され
-			// ipamの半角(0.5em)で描かれていた時期の値。
-			assertEquals(232.38, box.getWidth(), 1);
+			// 2026-08-03にテスト用フォントを公開Notoの自動取得へ切り替え、
+			// さらに総称フォント monospace の先頭を Noto Sans Mono CJK JP に
+			// した。**ASCIIの受け皿が本物の等幅フォント(半角=0.5em)になった**
+			// ため 252.0 に戻った——これは unicode-range が無視されていた時期の
+			// 値と同じだが、由来が違う(当時はipamの半角、今は等幅フォントの
+			// 半角)。途中の245.124は受け皿が無くMISSINGで描かれていた時期の値。
+			assertEquals(252.0, box.getWidth(), 1);
 			return true;
 		}
 		return false;

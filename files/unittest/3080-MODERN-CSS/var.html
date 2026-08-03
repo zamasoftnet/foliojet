@@ -83,6 +83,14 @@ body {
 	margin: var(--gap);
 }
 
+/* **置換に失敗した宣言は下位の宣言を復活させない**(2026-08-03)。
+   CSS Variables 1「使用値計算時に無効」。unsetと同じ扱いになるので、
+   widthは非継承特性=初期値auto -> 親の300ptいっぱいに広がる。
+   従来は何もsetしなかったため40ptが生き残っていた */
+#invalid-var {
+	width: 40pt;
+	width: var(--undefined-no-fallback);
+}
 /* !important: 詳細度は.imp-low(クラス)より#important-test(ID)の方が
    高いが、!importantが優先されるため.imp-lowの5ptが勝つ(15ptは無視) */
 #important-test {
@@ -111,6 +119,7 @@ body {
       <div id="calc-mix">CALCMIX</div>
       <div id="shorthand-margin">SHORTHANDMARGIN</div>
       <div id="important-test" class="imp-low">IMPORTANTTEST</div>
+      <div id="invalid-var">INVALIDVAR</div>
     </div>
   </body>
 

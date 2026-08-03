@@ -243,8 +243,14 @@ tasks.named('test') {
     // 隔離中のテスト。`-PincludeQuarantined`で除外を解除して現状を確認できる。
     // 理由と再開条件は docs/history/2026-07-25-quarantined-tests.md を参照。
     if (!project.hasProperty('includeQuarantined')) {
-        exclude 'jp/cssj/test/unit/_0050_white_space/PageBreakByBrTest.class'
-        exclude 'jp/cssj/test/unit/_0360_text_indent/PageBreakByWrapTest.class'
+        // PageBreakByBrTest と PageBreakByWrapTest は隔離解除した(2026-08-03)。
+        // どちらも `font: 12pt/1 monospace` のASCIIの送り幅に依存しており、
+        // 総称フォント monospace が等幅でないフォントへ解決されるために
+        // 落ちていた。テスト用フォントを固定し、monospace の先頭を
+        // Noto Sans Mono CJK JP にしたところ、**元の期待値のまま通った**
+        // ——期待値が正しく、フォント解決の側が原因だったことの裏付け。
+        // FlowTest だけは別問題(CJKの段組で、期待値165はcopper3.2時代のもの)
+        // なので隔離を続ける。
         exclude 'jp/cssj/test/unit/_0410_column_width/FlowTest.class'
         exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclMetaTest.class'
         exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclTest.class'

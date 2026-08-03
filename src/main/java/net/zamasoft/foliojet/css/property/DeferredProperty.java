@@ -61,16 +61,55 @@ public final class DeferredProperty implements Property {
 	public void applyProperty(CSSStyle style) {
 		List<CssToken> substituted = VarSubstitution.substitute(this.tokens, style);
 		if (substituted == null) {
+			this.applyInvalidAtComputedValueTime(style);
 			return;
 		}
 		Property resolved;
 		try {
 			resolved = this.propertyInfo.parse(new TokenStream(substituted), this.ua, this.uri, this.important);
 		} catch (PropertyException e) {
+			this.applyInvalidAtComputedValueTime(style);
 			return;
 		}
 		if (resolved != null) {
 			resolved.applyProperty(style);
+		}
+	}
+
+	/**
+	 * 「使用値計算時に無効」を適用します(2026-08-03)。
+	 *
+	 * <p>
+	 * <b>何もしないのでは足りない。</b> 従来はここで {@code return} していた
+	 * ため、同じ要素の<b>下位の宣言が生き残って</b>いた——
+	 * {@code p { color: blue; color: var(--未定義) }} で青のままになる。
+	 * カスケードで勝ったのは {@code var()} の側なので、青は既に負けており、
+	 * 復活してはならない。
+	 * </p>
+	 *
+	 * <p>
+	 * 仕様(CSS Variables 1「invalid at computed-value time」)では、この宣言は
+	 * {@code unset} を指定したのと同じ扱いになる——継承特性なら継承値、
+	 * 非継承特性なら初期値。{@link CSSStyle}は{@code unset}をそのとおりに
+	 * 解決するので、明示的に置く。Chrome・Firefoxとも同じ挙動
+	 * (2026-08-03に確認)。
+	 * </p>
+	 */
+	private void applyInvalidAtComputedValueTime(final CSSStyle style) {
+		// 一括指定(shorthand)もあるので、値を直に置かず**同じ解析器へ
+		// `unset` を通す**。そうすれば一括指定は自分の個別指定すべてへ
+		// 展開してくれる(CSS全体キーワードはどのプロパティも受け付ける)
+		final Property unset;
+		try {
+			unset = this.propertyInfo.parse(new TokenStream(java.util.List.of(CssToken.Keyword.UNSET)), this.ua,
+					this.uri, this.important);
+		} catch (PropertyException e) {
+			// 全体キーワードを拒むプロパティは無い想定。仮に来ても、
+			// 従来どおり何もしないより悪くはならない
+			return;
+		}
+		if (unset != null) {
+			unset.applyProperty(style);
 		}
 	}
 
