@@ -155,6 +155,26 @@ public class StyleContext {
 	 * @return
 	 */
 	public Declaration merge(Declaration declaration) {
+		return this.merge(declaration, null);
+	}
+
+	/**
+	 * 合致した規則を合成します。
+	 *
+	 * <p>
+	 * {@code userAgentOut} を渡すと、<b>UA既定スタイルシート
+	 * ({@code html-ua.css})の規則だけをそこへ分離</b>し、戻り値には著者側
+	 * だけを合成します。HTMLの属性由来の既定値(presentational hints)を
+	 * 両者の<b>間</b>に挟むためです——HTML仕様では属性由来の指定はUA既定より
+	 * 強く、著者スタイルシートより弱い。1つに合成すると{@code html-ua.css}が
+	 * {@code cellspacing="0"}のような属性を上書きしてしまう(2026-08-01の
+	 * HTMLStyle移行で実際に起きた。表の行が2pxずつ高くなり、基準画像が
+	 * 3件食い違った——原因の特定は2026-08-03)。
+	 * </p>
+	 *
+	 * @param userAgentOut 非nullなら、UA出所の規則をその要素0へ分離する。
+	 */
+	public Declaration merge(Declaration declaration, Declaration[] userAgentOut) {
 		if (DEBUG) {
 			for (int i = 0; i < this.elementStack.size(); ++i) {
 				CSSElement ce = (CSSElement) this.elementStack.get(i);
@@ -206,6 +226,13 @@ public class StyleContext {
 		for (int i = 0; i < result.size(); ++i) {
 			Rule rule = (Rule) result.get(i);
 			Declaration tempDecl = rule.getDeclaration();
+			if (userAgentOut != null && rule.getOrigin() == Origin.USER_AGENT) {
+				if (userAgentOut[0] == null) {
+					userAgentOut[0] = new Declaration();
+				}
+				userAgentOut[0].merge(tempDecl);
+				continue;
+			}
 			declaration.merge(tempDecl);
 		}
 		return declaration;

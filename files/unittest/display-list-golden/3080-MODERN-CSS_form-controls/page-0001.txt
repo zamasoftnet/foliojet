@@ -12,5 +12,5 @@ drawer z=0
   x=0.00 y=69.72 AbsoluteRectFrame[w=37.00 h=16.00]
   x=2.00 y=71.72 Text["OPT" asc=9.60 desc=2.40]
   x=19.00 y=71.72 AbsoluteRectFrame[w=16.00 h=12.00]
-  x=0.00 y=85.72 AbsoluteRectFrame[w=104.00 h=44.00]
+  x=0.00 y=85.72 AbsoluteRectFrame[w=104.00 h=24.00]
   x=2.00 y=87.72 Text["AREA" asc=9.00 desc=3.00]

@@ -61,9 +61,13 @@ public class StyleApplier {
 
 	public void startStyle(CSSStyle style) {
 		CSSElement ce = style.getCSSElement();
-		// スタイルシートのスタイル宣言
+		// スタイルシートのスタイル宣言。
+		// **UA既定スタイルシートは分けて受け取る**——HTMLの属性由来の既定値
+		// (presentational hints)はUA既定より強く著者より弱い、という
+		// HTML仕様の重ね順にするため(2026-08-03)
 		this.styleContext.startElement(ce);
-		Declaration declaration = this.styleContext.merge(null);
+		final Declaration[] uaDeclaration = new Declaration[1];
+		Declaration declaration = this.styleContext.merge(null, uaDeclaration);
 
 		// インラインスタイル宣言
 		String inlineStyleDecl;
@@ -82,7 +86,12 @@ public class StyleApplier {
 			}
 		}
 
-		// HTMLスタイル
+		// UA既定スタイルシート(html-ua.css)
+		if (uaDeclaration[0] != null) {
+			uaDeclaration[0].applyProperties(style);
+		}
+
+		// HTMLスタイル(属性由来の既定値。UA既定より強い)
 		this.html.applyStyle(style);
 
 		// CSSスタイル
