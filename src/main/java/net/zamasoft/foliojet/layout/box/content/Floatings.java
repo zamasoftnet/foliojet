@@ -98,6 +98,15 @@ public class Floatings {
 	public void addFloating(Floating floating) {
 		assert !LayoutUtils.isNone(floating.pageAxis) : "Undefined pageAxis";
 		assert !LayoutUtils.isNone(floating.lineAxis) : "Undefined lineAxis";
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			final StringBuilder where = new StringBuilder();
+			final StackTraceElement[] st = new Throwable().getStackTrace();
+			for (int k = 1; k < Math.min(st.length, 8); ++k) {
+				where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
+			}
+			System.err.println("[float] 台帳へ box=" + System.identityHashCode(floating.getBox()) + " 台帳="
+					+ System.identityHashCode(this) + where);
+		}
 		this.floatings.add(floating);
 	}
 

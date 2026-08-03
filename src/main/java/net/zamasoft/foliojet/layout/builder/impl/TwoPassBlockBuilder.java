@@ -1023,8 +1023,38 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void bind(BlockBuilder builder) {
+		this.bind(builder, false);
+	}
+
+	/**
+	 * 記録した本文を{@code builder}へ再生します。
+	 *
+	 * <p>
+	 * <b>{@code scratch}=trueは使い捨て計測の最中の再生</b>です(2026-08-03
+	 * 新設)。使用権(リース)を<b>解放せず</b>、統計にも数えません——同じ
+	 * 範囲を本番のbindがもう一度読むからです。
+	 * </p>
+	 *
+	 * <p>
+	 * これが無かったために、<b>使い捨ての計測が本文を使い切ってしまい、
+	 * 本番では空になる</b>という内容消失が起きていた。表の行の計測は
+	 * 記録した範囲を捨てるつもりで再生するが、その途中で入れ子の浮動体の
+	 * 本文が「本番として」bindされ、使用権が閉じられていた。再現は
+	 * {@code files/fuzz-repro/nested-float-content-loss.html}(細い箱・
+	 * 表・右寄せ・左寄せの4つが揃うと、内側の浮動体の文字が消える)。
+	 * 絶対配置は同じ問題を2026-07-30に別の形(scratchでは丸ごと飛ばす)で
+	 * 塞いであるが、浮動体は計測値に寄与するため飛ばせない——だから
+	 * 「消費しない再生」が要る。
+	 * </p>
+	 */
+	public void bind(BlockBuilder builder, boolean scratch) {
 		switch (this.body) {
 		case ReplayBody.SourceRangeBody range -> {
+			if (scratch) {
+				net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(range.source(), range.fromId(),
+						range.toId(), builder, range.pageGenerator(), true);
+				break;
+			}
 			// E-6増分4b: seal済み範囲からのSegmentExecutor駆動bind。
 			// リースはbindの完了・失敗を問わず解放する(取り残すと以後の
 			// compactが永久にclampされる——LayoutSource.ReplaySliceと同じ規約)

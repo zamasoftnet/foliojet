@@ -324,7 +324,13 @@ public final class SourceReplayer {
 		// (files/fuzz-repro/nested-float-content-loss.html)の切り分けに使った
 		// ——受理(BlockBuilder)・配置・再生(Floatings)と対で読むこと。
 		if (System.getProperty("foliojet.debug.floatTrace") != null) {
-			System.err.println("[float] === 2パス再駆動 scratch=" + scratch + " 範囲=[" + fromId + "," + toId + "]");
+			final StringBuilder where = new StringBuilder();
+			final StackTraceElement[] st = new Throwable().getStackTrace();
+			for (int k = 1; k < Math.min(st.length, 9); ++k) {
+				where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
+			}
+			System.err.println("[float] === 2パス再駆動 scratch=" + scratch + " 範囲=[" + fromId + "," + toId + "]"
+					+ where);
 		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, scratch);
 		drive(doc, slice);

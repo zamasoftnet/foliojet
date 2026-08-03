@@ -944,7 +944,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 					noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 					final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
-					contentBuilder.bind(noteBuilder);
+					// 浮動体と同じ理由で、使い捨て計測の最中は消費しない
+					contentBuilder.bind(noteBuilder, this.scratchMeasurement);
 					noteBuilder.close();
 				}
 				if (this.pageContextBuilder() instanceof RootBuilder root) {
@@ -960,7 +961,10 @@ public class DocumentBuilder implements TableBuilderHost {
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 					floatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 					final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
-					contentBuilder.bind(floatBuilder);
+					// **使い捨て計測の最中は本文を消費しない**(2026-08-03)。
+					// ここで本番のbindをすると使用権が閉じ、あとの本番では
+					// 空になる(内容消失。TwoPassBlockBuilder.bindのjavadoc参照)
+					contentBuilder.bind(floatBuilder, this.scratchMeasurement);
 					floatBuilder.close();
 				}
 				final FloatPos pos = (FloatPos) box.getPos();
