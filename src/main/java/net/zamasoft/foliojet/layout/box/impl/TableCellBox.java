@@ -526,18 +526,23 @@ public class TableCellBox extends AbstractContainerBox {
 			assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0;
 			return result;
 		}
-		final TableCellBox nextBox = (TableCellBox) remainder;
-		if (this.container.hasFloatings()) {
-			pageLimit -= this.frame.getFramePageStart(this.params.flow);
-			// P2-4: 型付きAPIへ移行。セルとその残余セルのcontainerは常に
-			// 同型なので、残余側が段組(非FlowContainer)なのは自分も段組の
-			// 場合だけ——そのときはColumnsContainer実装がtargetを見ずに
-			// KEEP_OWNERを返すため、フォールバックのKEEPは実際には使われない
-			final net.zamasoft.foliojet.layout.box.content.FloatTransferTarget target = nextBox.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flowContainer
-					? new net.zamasoft.foliojet.layout.box.content.FloatTransferTarget.Existing(flowContainer)
-					: net.zamasoft.foliojet.layout.box.content.FloatTransferTarget.KEEP;
-			this.container.splitFloatings(target, pageLimit, flags);
-		}
+		// **浮動体をここで移送し直さない**(2026-08-03)。
+		//
+		// 上の super.split() は AbstractContainerBox.split →
+		// FlowContainer.splitPageAxis と降りていき、その最後で
+		// splitFloatings(Existing(残余のcontainer), ...) まで済ませている。
+		// ここでもう一度 splitFloatings を呼ぶと、次の二重の害がある:
+		//
+		// 1. **既に切断済みの浮動体をもう一度切断する。** 1回目で内容は
+		//    残余断片へ移っているので、2回目は**中身が空の断片**を作る
+		// 2. **移送先の台帳を上書きする。** FlowContainer.remainderWith は
+		//    `container.floatings = moved` と代入するので、1回目に移した
+		//    内容入りの断片が、2回目の空の断片で置き換わる
+		//
+		// 結果として、浮動体の中身が出力から**黙って消えていた**。再現は
+		// files/fuzz-repro/nested-float-content-loss.html(細い箱・表・
+		// 右寄せ・左寄せの4つが揃うと内側の浮動体の文字が消える)。
+		// 原因の特定にはcodex・agyへの独立相談が効いた。
 		return result;
 	}
 }

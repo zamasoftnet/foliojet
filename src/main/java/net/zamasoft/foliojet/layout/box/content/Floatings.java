@@ -184,6 +184,15 @@ public class Floatings {
 	public FloatSplitResult splitPageAxis(final AbstractContainerBox box, final double pageLimit,
 			final byte flags) {
 		assert !this.floatings.isEmpty();
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			final StringBuilder where = new StringBuilder();
+			final StackTraceElement[] st = new Throwable().getStackTrace();
+			for (int k = 1; k < Math.min(st.length, 9); ++k) {
+				where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
+			}
+			System.err.println("[float] 分割呼出 台帳=" + System.identityHashCode(this) + " 数="
+					+ this.floatings.size() + where);
+		}
 		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
 		// 分類はここで全floatについて確定する。旧実装はfloat iのsplit実行後に
 		// float i+1を分類していたが、各floatのboxは独立でsplitは他floatの
@@ -268,7 +277,12 @@ public class Floatings {
 					// 元のFloatingはthis側に残り、残余は座標(0,0)=
 					// 次フラグメント先頭、serial引き継ぎでnext側へ
 					sourceSide.add(floating);
-					remainderSide.add(new Floating(fragment.serial(), fragment.materialize(), 0, 0));
+					final net.zamasoft.foliojet.layout.box.IFloatBox tailBox = fragment.materialize();
+					if (System.getProperty("foliojet.debug.floatTrace") != null) {
+						System.err.println("[float] 残余断片 元=" + System.identityHashCode(floating.getBox()) + " 断片="
+								+ System.identityHashCode(tailBox));
+					}
+					remainderSide.add(new Floating(fragment.serial(), tailBox, 0, 0));
 					allWholeMoves = false;
 				}
 				}
