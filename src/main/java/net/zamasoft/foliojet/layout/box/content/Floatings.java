@@ -52,6 +52,12 @@ public class Floatings {
 				// ブロックボックス
 				// 匿名ボックス
 				AbstractContainerBox floatBox = (AbstractContainerBox) this.box;
+				if (System.getProperty("foliojet.debug.floatTrace") != null) {
+					final net.zamasoft.foliojet.layout.box.content.Container c = floatBox.getContainer();
+					System.err.println("[float] 再生 box=" + System.identityHashCode(floatBox) + " container="
+							+ (c == null ? "null" : c.getClass().getSimpleName() + " flows="
+									+ (c instanceof FlowContainer fc ? String.valueOf(fc.flowCountForDebug()) : "?")));
+				}
 				BlockBuilder floatBindBuilder = new BlockBuilder(builder, floatBox);
 				floatBox.restyle(floatBindBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 				floatBindBuilder.close();

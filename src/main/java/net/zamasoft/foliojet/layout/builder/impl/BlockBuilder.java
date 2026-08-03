@@ -891,6 +891,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			// 浮動体
 			final IFloatBox floatBox = (IFloatBox) box;
+			if (System.getProperty("foliojet.debug.floatTrace") != null) {
+				final StringBuilder where = new StringBuilder();
+				final StackTraceElement[] st = new Throwable().getStackTrace();
+				for (int k = 1; k < Math.min(st.length, 7); ++k) {
+					where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
+				}
+				System.err.println("[float] 受理 side=" + floatBox.getFloatPos().floating + " box="
+						+ System.identityHashCode(floatBox) + " 経路" + where);
+			}
 			if (this.textBuilder != null && this.textBuilder.getLineAxis() > 0) {
 				this.toAddFloating(floatBox);
 			} else {
@@ -1161,6 +1170,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	private void addFloating(IFloatBox box) {
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			System.err.println("[float] 配置 side=" + box.getFloatPos().floating + " box="
+					+ System.identityHashCode(box) + " builder=" + System.identityHashCode(this));
+		}
 		if (LOG.isLoggable(Level.FINE)) {
 			LOG.fine("Add float: " + box.getParams().element + "/" + this.getFlow().box.getParams().element);
 		}

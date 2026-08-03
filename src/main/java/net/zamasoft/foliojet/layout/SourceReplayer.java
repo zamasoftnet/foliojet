@@ -319,6 +319,13 @@ public final class SourceReplayer {
 			throw new IllegalStateException(
 					"seal済みTwoPass範囲が失われました(リースが守っているはずの範囲): [" + fromId + ", " + toId + "]");
 		}
+		// -Dfoliojet.debug.floatTrace=1 で浮動体の一生を追う(2026-08-03新設)。
+		// 「入れ子の浮動体で内容が消える」
+		// (files/fuzz-repro/nested-float-content-loss.html)の切り分けに使った
+		// ——受理(BlockBuilder)・配置・再生(Floatings)と対で読むこと。
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			System.err.println("[float] === 2パス再駆動 scratch=" + scratch + " 範囲=[" + fromId + "," + toId + "]");
+		}
 		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, scratch);
 		drive(doc, slice);
 		doc.finishReplay();

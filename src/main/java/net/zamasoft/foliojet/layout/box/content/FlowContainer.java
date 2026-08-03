@@ -1525,6 +1525,12 @@ public class FlowContainer implements Container {
 	 * 直接保持分と子flow [0..index) の浮動ボックスを分割・集約します
 	 * (P2-4で旧private 3引数版のsentinel状態機械を型付きへ置換)。
 	 */
+	/** 診断用: 保持しているフロー数と直接の浮動体数。 */
+	int flowCountForDebug() {
+		return (this.flows == null ? 0 : this.flows.size()) * 100
+				+ (this.floatings == null ? 0 : this.floatings.getCount());
+	}
+
 	private FloatAggregate aggregateFloatings(final double pageLimit, final byte flags, final int index) {
 		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
 		// lflagsのLAST判定は旧実装では「現在の」this.flows.size()を見ていた
