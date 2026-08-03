@@ -1848,8 +1848,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final String mods = layoutMods(r, strict);
 		if (!mods.isEmpty()) {
 			// 修飾は包む(パターン側の記述を壊さずに組み合わせを作る)
+			//
+			// **浮動体にしたなら、その中身は読み順の検査から外す**
+			// (2026-08-03)。フロートは入りきらなければ次のページへ送られ、
+			// 後続の本文はこのページに残る——文書順とページ順が食い違うのは
+			// CSSの仕様どおりで、欠陥ではない。専用の生成経路
+			// (`<div style="float:left;width:..">`)は既に
+			// {@code inReorderable=true}で子を作っていたが、こちらの修飾
+			// 経由でフロートになった場合が漏れていた。実際に strict の
+			// seed 6/9/12/15 が「読み順が入れ替わった」と誤検出していた
+			// (T28が`float:right`の中にあった)。
+			final boolean floated = mods.contains("float:") && !mods.contains("float:none");
 			s.append("<div style=\"").append(mods).append("\">\n");
-			appendPlainNode(s, r, depth, strict, tokens, counter, reorderable, inReorderable, forcedKind);
+			appendPlainNode(s, r, depth, strict, tokens, counter, reorderable, inReorderable || floated, forcedKind);
 			s.append("</div>\n");
 			return;
 		}
