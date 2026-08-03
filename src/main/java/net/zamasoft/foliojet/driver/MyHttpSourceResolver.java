@@ -53,6 +53,18 @@ class MySourceResolver implements SourceResolver {
 	protected RestrictedSourceResolver restrictedResolver = new RestrictedSourceResolver();
 	private MyHttpSourceResolver httpResolver = null;
 
+	/**
+	 * {@code input.include} / {@code input.exclude} が1つでも設定されたか。
+	 *
+	 * <p>
+	 * <b>設定されているなら、それが全スキームの取得を縛る。</b> 設定が
+	 * 無いときは縛りが存在しないので、差し込まれたリゾルバを先に使う従来の
+	 * 順序のままにする(制限の既定は「一致するものが無ければ拒否」なので、
+	 * 無条件に先へ出すと設定していない利用者の取得が全部止まる)。
+	 * </p>
+	 */
+	private boolean restricted = false;
+
 	public void setup(URI uri, Map<String, String> props, MessageHandler mh) {
 		this.closeHttpResolver();
 		CompositeSourceResolver resolver = CompositeSourceResolver.createGenericCompositeSourceResolver();
@@ -153,10 +165,12 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	public void include(URI uriPattern) {
+		this.restricted = true;
 		this.restrictedResolver.include(uriPattern);
 	}
 
 	public void exclude(URI uriPattern) {
+		this.restricted = true;
 		this.restrictedResolver.exclude(uriPattern);
 	}
 
@@ -173,6 +187,7 @@ class MySourceResolver implements SourceResolver {
 		this.restrictedResolver.reset();
 		this.cachedResolver.reset();
 		this.userResolver = null;
+		this.restricted = false;
 	}
 
 	private void closeHttpResolver() {
@@ -206,7 +221,15 @@ class MySourceResolver implements SourceResolver {
 			// Java/21.0.11が飛んでいた(Wikipediaが403で取得できない)
 			final String scheme = uri.getScheme();
 			final boolean http = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
-			if (this.userResolver != null && !http) {
+			// **制限が設定されているなら、それを先に効かせる**(2026-08-03、
+			// オーナー裁定)。差し込まれたリゾルバが先にローカルファイルを
+			// 解決してしまうと、input.include/input.excludeが素通りになる。
+			// コマンドラインもウェブアプリも汎用リゾルバを差し込むため、
+			// 信頼できないHTMLを変換するサーバー用途でローカルファイルの
+			// 読み出しを止められない状態だった。拒否(SecurityException)は
+			// ここで確定し、差し込まれたリゾルバへは回さない
+			final boolean aclFirst = this.restricted || http;
+			if (this.userResolver != null && !aclFirst) {
 				try {
 					Source source = this.userResolver.resolve(uri);
 					return new MySource(source, this.userResolver);
@@ -218,11 +241,12 @@ class MySourceResolver implements SourceResolver {
 				Source source = this.restrictedResolver.resolve(uri, force);
 				return new MySource(source, this.restrictedResolver);
 			} catch (FileNotFoundException e2) {
-				if (this.userResolver == null || !http) {
+				if (this.userResolver == null || !aclFirst) {
 					throw e2;
 				}
-				// 設定済み経路で見つからないHTTPは、差し込まれた
-				// リゾルバ(独自の取得手段を持つ埋め込み利用)へ回す
+				// **許可されているが取れなかった**ものは、差し込まれた
+				// リゾルバ(独自の取得手段を持つ埋め込み利用)へ回す。
+				// 拒否された場合はSecurityExceptionなのでここへ来ない
 				Source source = this.userResolver.resolve(uri);
 				return new MySource(source, this.userResolver);
 			}
