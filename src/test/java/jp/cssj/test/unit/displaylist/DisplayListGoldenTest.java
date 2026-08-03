@@ -57,6 +57,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0390-writing-mode/vert-fixed-colgroup-spacing.html", //
 			"0390-writing-mode/orthogonal-cell-fixed.html", //
 			"0240-table/z-order.html", //
+			"0240-table/rowspan-after-empty-row.html", //
 			"0242-table-height/percent-rowspan-groups.html", //
 			"0242-table-height/group-size-empty-rows.html", //
 			"0242-table-height/zero-percent-row-rowspan.html", //

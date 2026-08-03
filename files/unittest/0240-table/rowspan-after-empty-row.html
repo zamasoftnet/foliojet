@@ -1,0 +1,28 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>rowspan after empty row</title>
+<style type="text/css">
+@page { margin: 0; }
+body { margin: 0; font: 10pt monospace; }
+table { border-collapse: collapse; table-layout: fixed; width: 200pt; }
+td { border: 1pt solid black; height: 20pt; }
+</style>
+</head>
+<body>
+<!--
+  2列目に rowspan=3 のセルがある表。**2行目にセルが1つも無い**。
+  1列目が rowspan=1 なので、繰り越しの補完が2列目まで進まず、
+  rowspan が打ち切られていた(2026-08-03に再現条件を特定)。
+
+  **このgoldenは現状(誤った出力)の記録であり、正しさの記録ではない。**
+  空のグリッドスロットを入れて直したら、値は変わる(変わることが正しい)。
+-->
+<table>
+<tr><td id="a">A</td><td id="b" rowspan="3">B</td></tr>
+<tr></tr>
+<tr><td id="c">C</td></tr>
+</table>
+</body>
+</html>
