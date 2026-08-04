@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.util.GapValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.KeywordValue;
@@ -53,7 +54,7 @@ public class RowGap extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isNormal(lu)) {
 			return KeywordValue.NORMAL;
 		}
-		final Value value = ValueUtils.toLength(ua, lu);
+		final Value value = GapValueUtils.toGap(ua, lu);
 		if (value == null) {
 			throw new PropertyException();
 		}

@@ -7,6 +7,7 @@ import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
+import net.zamasoft.foliojet.css.util.GapValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
@@ -72,7 +73,10 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isNormal(lu)) {
 			return net.zamasoft.foliojet.css.value.KeywordValue.NORMAL;
 		}
-		LengthValue value = BorderValueUtils.toBorderWidth(ua, lu);
+		// **calc() を通すこと**(2026-08-04)。column-gap は multicol と Grid/Flex で
+		// 共用しており、それまで BorderValueUtils.toBorderWidth しか通していな
+		// かったので calc() を書くと宣言ごと落ちていた。窓口は GapValueUtils
+		final Value value = GapValueUtils.toGap(ua, lu);
 		if (value == null) {
 			throw new PropertyException();
 		}

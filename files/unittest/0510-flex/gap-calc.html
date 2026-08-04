@@ -1,0 +1,52 @@
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="500pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>gap に calc() を書く</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      :root { --spacing: 4pt; }
+      .row { display: flex; margin-bottom: 14pt; }
+      .grid { display: grid; grid-template-columns: auto auto auto;
+              justify-content: start; margin-bottom: 14pt; }
+      .a { gap: 24pt; }
+      .b { gap: var(--spacing); }
+      .c { gap: calc(var(--spacing) * 6); }
+      .d { gap: calc(4pt * 6); }
+      .e { gap: calc(20pt + 4pt); }
+      .f { column-gap: calc(var(--spacing) * 6); }
+      .g { gap: calc(var(--spacing)*6) calc(var(--spacing)*6); }
+    </style>
+  </head>
+  <body>
+    <!--
+      **gap は calc() を受ける。**
+
+      2026-08-04まで gap / row-gap / column-gap は素の長さしか読まず、
+      calc() を書くと宣言ごと捨てていた。同じ calc() が margin・padding では
+      効いていたので気づきにくかった。
+
+      **Tailwind CSS v4 は gap-4 を gap: calc(var(--spacing) * 4) に展開する**
+      ので、Tailwind v4 で作られたページは**間隔が軒並みゼロ**になっていた。
+      実地コーパス第9波(近年のCSS)で、tailwindcss.com のナビゲーションが
+      「v4.3PlDocsBlogShowcasePartners」とくっついて出て発覚した。
+
+      読む場所が3つに散らばっていた(RowGap・ColumnGap・GapShorthand)ので、
+      窓口を GapValueUtils へ集めてある。**1箇所だけ直すと残りが残る形**
+      だった——実際 column-gap は multicol と共用で別の変換を通していた。
+
+      1行目から順に、間隔が 24pt / 4pt / 24pt / 24pt / 24pt / 24pt / 24pt /
+      24pt になるのが正しい。
+    -->
+    <div class="row a"><span>A</span><span>B</span><span>C</span></div>
+    <div class="row b"><span>A</span><span>B</span><span>C</span></div>
+    <div class="row c"><span>A</span><span>B</span><span>C</span></div>
+    <div class="row d"><span>A</span><span>B</span><span>C</span></div>
+    <div class="row e"><span>A</span><span>B</span><span>C</span></div>
+    <div class="row f"><span>A</span><span>B</span><span>C</span></div>
+    <div class="row g"><span>A</span><span>B</span><span>C</span></div>
+    <div class="grid c"><span>A</span><span>B</span><span>C</span></div>
+  </body>
+</html>

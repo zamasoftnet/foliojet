@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.util.GapValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -53,7 +54,7 @@ public class GapShorthand extends AbstractShorthandPropertyInfo {
 		if (ValueUtils.isNormal(lu)) {
 			return KeywordValue.NORMAL;
 		}
-		final Value value = ValueUtils.toLength(ua, lu);
+		final Value value = GapValueUtils.toGap(ua, lu);
 		if (value == null) {
 			throw new PropertyException();
 		}
