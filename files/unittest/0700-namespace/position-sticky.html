@@ -1,0 +1,35 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>position: sticky</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      .sticky { position: sticky; top: 0; }
+      .rel { position: relative; }
+      .abs { position: absolute; left: 20pt; top: 5pt; background: #cfc; }
+      .box { width: 120pt; height: 30pt; border: 1pt solid #000; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **position: sticky は relative として扱う。**
+
+      css-position-3 の定義は「relative と同じように配置するが、ずらす量は
+      最も近い祖先のスクロール領域を基準に決める」。紙にはスクロール領域が
+      無いのでずれ幅は常に0になり、relative と同じに落ちる。
+
+      2026-08-05まで不正な値として宣言ごと捨てていた。結果は static で実害は
+      小さかったが、(1)「Invalid value "sticky"」が全ページ分出て本物の警告を
+      埋め、(2)**relative は包含ブロックを作る**ので子の絶対配置の基準が
+      static のときとずれる——(2)は実際に版面が変わる。
+
+      1行目(sticky)と2行目(relative)で、中の絶対配置の箱が**同じ位置**に
+      来るのが正しい。
+    -->
+    <div class="sticky box">sticky<span class="abs">A</span></div>
+    <div class="rel box">relative<span class="abs">A</span></div>
+  </body>
+</html>

@@ -51,6 +51,23 @@ public class CSSPosition extends AbstractPrimitivePropertyInfo {
 				return PositionValue.ABSOLUTE_VALUE;
 			} else if (ident.equals("fixed")) {
 				return PositionValue.FIXED_VALUE;
+			} else if (ident.equals("sticky")) {
+				// **sticky は relative として扱う**(2026-08-05)。
+				//
+				// css-position-3 の定義は「relative と同じように配置するが、
+				// ずらす量は<b>最も近い祖先のスクロール領域</b>を基準に決める」。
+				// 紙にはスクロール領域が無いので、ずれ幅は常に0になり、
+				// **relative と同じ**に落ちる。ブラウザの印刷も同じ結果になる。
+				//
+				// それまでは不正な値として宣言ごと捨てていた。結果は static で
+				// 実害は小さかったが、
+				//   ・「Invalid value "sticky" on 'position'」が全ページ分出て
+				//     本物の警告を埋めていた(実地コーパスで多数)
+				//   ・relative は包含ブロックを作るので、子の絶対配置の基準が
+				//     static のときとずれる——ここは実際に版面が変わる
+				// 実地コーパス第13波(vercel/IBM Carbon等、サイドバー付きの
+				// 文書サイトはほぼ全部この作り)で見つけた。
+				return PositionValue.RELATIVE_VALUE;
 			}
 		}
 		throw new PropertyException();

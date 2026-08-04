@@ -1,0 +1,36 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>xmlns の無い math/svg</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 12pt/1.2 serif; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **HTMLの <math>/<svg> は xmlns を書かない。**
+
+      HTML5はこの2つを foreign content として構文解析の段階で正しい名前空間へ
+      入れる(ブラウザは全部そうする)ので、著者は何も書かない。XMLの規則しか
+      知らない経路を通すと XHTML の要素になり、**MathMLが平らな文字列になる**。
+      しかも <annotation> の中の生のLaTeXまで一緒に出る。
+
+      2026-08-05に実地コーパス第11波(ar5iv)で発覚した。arXivが今HTMLを
+      出している形(ar5iv/LaTeXML)がまさに xmlns 無しで、h_{t} が
+      「htsubscript … h_{t}」と出ていた。
+
+      **2箇所で守っている。片方だけでは効かない**——HTMLParser が名前空間を
+      与え、XHTMLNSFilter がそれをXHTMLへ潰さない。後者は「接頭辞の宣言が
+      無く局所名と修飾名が同じ」要素を一律XHTMLにするので、素通しにすると
+      <math> も巻き込まれる(実際そうなっていた)。
+
+      1行目(xmlns付き)と2行目(xmlns無し)が**同じ組版になる**のが正しい。
+      どちらも h に t の下付きが付いた数式で、"h_{t}" という文字列は出ない。
+    -->
+    <p>1 <math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>h</mi><mi>t</mi></msub><annotation encoding="application/x-tex">h_{t}</annotation></semantics></math></p>
+    <p>2 <math><semantics><msub><mi>h</mi><mi>t</mi></msub><annotation encoding="application/x-tex">h_{t}</annotation></semantics></math></p>
+  </body>
+</html>

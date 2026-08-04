@@ -5,6 +5,7 @@ import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
+import net.zamasoft.foliojet.xml.vocab.Foreign;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 /**
@@ -49,7 +50,12 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		boolean isHTML;
-		if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
+		// **HTML5のforeign contentはXHTMLへ潰さない**(2026-08-05)。下の2つめの
+		// 条件は「接頭辞の宣言が無く、局所名と修飾名が同じ」要素を一律XHTMLに
+		// するので、素通しにすると <math>/<svg> も巻き込まれる。詳細は Foreign
+		if (Foreign.is(uri)) {
+			isHTML = false;
+		} else if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
 			uri = XHTML.URI;
 			lName = qName = qName.toLowerCase();
 			isHTML = true;
@@ -91,7 +97,9 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 	}
 
 	public void endElement(String uri, String lName, String qName) throws SAXException {
-		if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
+		if (Foreign.is(uri)) {
+			// foreign content はそのまま通す(startElementと対)
+		} else if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
 			uri = XHTML.URI;
 			lName = qName = lName.toLowerCase();
 		} else if (uri.equals(XHTML.URI)) {

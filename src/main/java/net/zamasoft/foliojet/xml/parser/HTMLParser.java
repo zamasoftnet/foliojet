@@ -21,6 +21,7 @@ import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.SourceLocator;
 import net.zamasoft.foliojet.xml.XMLHandler;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
+import net.zamasoft.foliojet.xml.vocab.Foreign;
 import net.zamasoft.zstream.resolver.Source;
 
 import org.htmlunit.cyberneko.xerces.xni.Augmentations;
@@ -42,6 +43,7 @@ import net.zamasoft.foliojet.ua.CompatibleMode;
  * @version $Id: HTMLParser.java 1608 2021-04-18 03:57:50Z miyabe $
  */
 public class HTMLParser implements Parser {
+
 	public void parse(final UserAgent ua, final Source source, XMLHandler xmlHandler) throws SAXException, IOException {
 		final SAXParser parser = new SAXParser();
 
@@ -57,6 +59,54 @@ public class HTMLParser implements Parser {
 		XMLDocumentFilter[] filters = { new DefaultFilter() {
 			private boolean firstElement = true;
 
+			/**
+			 * <b>HTML5のforeign content</b>——{@code <math>}/{@code <svg>}の
+			 * 名前空間(入れ子の深さ。0なら外)。
+			 */
+			private String foreignURI = null;
+			private int foreignDepth = 0;
+
+			/**
+			 * {@code <math>}/{@code <svg>}とその子孫にHTML5の名前空間を与える。
+			 *
+			 * <p>
+			 * <b>HTMLでは{@code xmlns}を書かないのが普通である。</b>HTML5は
+			 * これらをforeign contentとして扱い、構文解析の段階で正しい名前空間へ
+			 * 入れる(ブラウザは全部そうする)。NekoHTMLはそこまでやらないので
+			 * ここで補う——**やらないとMathMLが平らな文字列になり、しかも
+			 * {@code <annotation>}の中の生のLaTeXまで一緒に出る**。arXivが今
+			 * HTMLを出している形(ar5iv/LaTeXML)がまさにこれで、
+			 * {@code h_{t}}が「htsubscript … h_{t}」と出ていた
+			 * (2026-08-05、実地コーパス第11波)。
+			 *
+			 * <p>
+			 * <b>簡略化している点</b>: HTML5が定める復帰点(integration point
+			 * ——{@code <foreignObject>}や
+			 * {@code <annotation-xml encoding="text/html">}の内側はHTMLへ戻る)は
+			 * 見ていない。深さだけで数える。印刷用途では、その内側にHTMLを
+			 * 書き戻す文書が実地でほぼ無いため。
+			 */
+			private void applyForeign(QName element) {
+				if (this.foreignDepth == 0) {
+					if (element.getUri() == null) {
+						final String uri = Foreign.uriOf(element.getLocalpart());
+						if (uri == null) {
+							return;
+						}
+						this.foreignURI = uri;
+						element.setUri(uri);
+					} else if (Foreign.is(element.getUri())) {
+						// xmlns が書いてある場合。NekoHTMLが既に付けている
+						this.foreignURI = element.getUri();
+					} else {
+						return;
+					}
+				} else if (element.getUri() == null) {
+					element.setUri(this.foreignURI);
+				}
+				++this.foreignDepth;
+			}
+
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext namespaceContext,
 					Augmentations augs) throws XNIException {
 				super.startDocument(locator, encoding, namespaceContext, augs);
@@ -64,7 +114,8 @@ public class HTMLParser implements Parser {
 			}
 
 			public void startElement(QName element, XMLAttributes attributes, Augmentations augs) throws XNIException {
-				if (!changeDefaultNamespace) {
+				this.applyForeign(element);
+				if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
 					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
 						element.setUri(null);
 					}
@@ -80,12 +131,35 @@ public class HTMLParser implements Parser {
 			}
 
 			public void endElement(QName element, Augmentations augs) throws XNIException {
-				if (!changeDefaultNamespace) {
+				if (this.foreignDepth > 0) {
+					if (element.getUri() == null) {
+						element.setUri(this.foreignURI);
+					}
+					if (--this.foreignDepth == 0) {
+						this.foreignURI = null;
+					}
+				}
+				if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
 					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
 						element.setUri(null);
 					}
 				}
 				super.endElement(element, augs);
+			}
+
+			public void emptyElement(QName element, XMLAttributes attributes, Augmentations augs) throws XNIException {
+				// 空要素は開いてすぐ閉じる。foreign の深さは増減させない
+				final int depth = this.foreignDepth;
+				final String uri = this.foreignURI;
+				this.applyForeign(element);
+				this.foreignDepth = depth;
+				this.foreignURI = uri;
+				if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
+					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
+						element.setUri(null);
+					}
+				}
+				super.emptyElement(element, attributes, augs);
 			}
 
 		}, balancer };
