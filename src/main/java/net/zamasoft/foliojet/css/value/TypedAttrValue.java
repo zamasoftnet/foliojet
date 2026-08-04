@@ -30,7 +30,13 @@ import net.zamasoft.foliojet.css.token.Unit;
 public final class TypedAttrValue implements QuantityValue, PaintValue {
 	/** 取り出す型。 */
 	public enum Kind {
-		LENGTH, COLOR, NUMBER, INTEGER
+		LENGTH, COLOR, NUMBER, INTEGER,
+		/**
+		 * 属性の中身を<b>font-familyの値そのもの</b>(カンマ区切りの並び)として
+		 * 解釈する(2026-08-03、{@code <font face>}の移送用)。CSS Values 5には
+		 * 無い独自の型で、{@code type(<custom-ident>+)}の代わりに使う。
+		 */
+		FONT_FAMILY
 	}
 
 	private final String name;
@@ -89,6 +95,8 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 			return null;
 		}
 		switch (this.kind) {
+		case FONT_FAMILY:
+			return net.zamasoft.foliojet.css.util.FontValueUtils.toFontFamily(raw);
 		case COLOR: {
 			// HTMLのbgcolor等は「red」も「#ff0000」も「ff0000」も来る
 			Value named = net.zamasoft.foliojet.css.util.ColorValueUtils.toColorValue(raw);

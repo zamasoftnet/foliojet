@@ -45,8 +45,26 @@ public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
+	/**
+	 * <b>CSSから書けるようにした</b>(2026-08-03)。構文は
+	 * {@code -cssj-html-table-border: <length> <color>?}。
+	 * 表の {@code border}/{@code bordercolor} 属性をCSSへ移送するために要る
+	 * ——この値は表からセルへ罫線の幅と色を配る内部の通り道である。
+	 */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		throw new UnsupportedOperationException();
+		final net.zamasoft.foliojet.css.value.LengthValue width = net.zamasoft.foliojet.css.util.BorderValueUtils
+				.toBorderWidth(ua, lu);
+		if (width == null) {
+			throw new PropertyException();
+		}
+		net.zamasoft.foliojet.css.value.ColorValue color = null;
+		if (tokens.hasNext()) {
+			color = net.zamasoft.foliojet.css.util.ColorValueUtils.toColor(ua, tokens.next());
+			if (color == null) {
+				throw new PropertyException();
+			}
+		}
+		return new net.zamasoft.foliojet.css.value.internal.CSSJHtmlTableBorderValue(width, color);
 	}
 }

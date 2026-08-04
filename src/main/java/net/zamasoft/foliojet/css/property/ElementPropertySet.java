@@ -419,6 +419,12 @@ public final class ElementPropertySet extends PropertySet {
 		alias("column-rule", ColumnRuleShorthand.INFO);
 		alias("columns", ColumnsShorthand.INFO);
 
+		// 論理境界プロパティ(2026-08-03)。border-block-start-* ほか12個
+		for (net.zamasoft.foliojet.css.impl.property.border.LogicalBorder info : //
+				net.zamasoft.foliojet.css.impl.property.border.LogicalBorder.all()) {
+			reg(info);
+		}
+
 		// Extensions
 		reg(CSSJFontPolicy.INFO);
 		reg(CSSJRuby.INFO);

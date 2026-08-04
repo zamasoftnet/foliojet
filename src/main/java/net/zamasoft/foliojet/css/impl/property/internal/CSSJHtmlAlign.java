@@ -43,8 +43,22 @@ public class CSSJHtmlAlign extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
+	/** CSSから書けるようにした(2026-08-03)。start | end | center。 */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		throw new UnsupportedOperationException();
+		if (lu instanceof CssToken.Ident ident) {
+			final String name = ident.name().toLowerCase();
+			switch (name) {
+			case "start":
+				return net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue.START_VALUE;
+			case "end":
+				return net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue.END_VALUE;
+			case "center":
+				return net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue.CENTER_VALUE;
+			default:
+				break;
+			}
+		}
+		throw new PropertyException();
 	}
 }

@@ -38,7 +38,11 @@ public final class BorderWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static double get(CSSStyle style, Side side) {
-		return ((AbsoluteLengthValue) style.get(BY_SIDE[side.resolve(style).ordinal()])).getLength();
+		final Side physical = side.resolve(style);
+		Value declared = style.isDeclared(BY_SIDE[physical.ordinal()]) ? null
+				: LogicalBorder.declaredFor(style, LogicalBorder.Aspect.WIDTH, physical);
+		return ((AbsoluteLengthValue) (declared != null ? declared : style.get(BY_SIDE[physical.ordinal()])))
+				.getLength();
 	}
 
 	/**

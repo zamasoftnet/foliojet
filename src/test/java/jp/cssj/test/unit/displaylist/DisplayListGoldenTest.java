@@ -96,6 +96,8 @@ public class DisplayListGoldenTest extends TestCase {
 			"3080-MODERN-CSS/calc-font-relative.html", //
 			// 型付きattr()(2026-08-03)。HTMLの表現属性をCSSから扱う土台
 			"3080-MODERN-CSS/typed-attr.html", //
+			// 論理境界プロパティ(2026-08-03)。border-block-end等12個
+			"3080-MODERN-CSS/logical-borders.html", //
 			"3000-SELECTOR/is-not-where-sibling.html", //
 			"3070-AT-RULE/media-supports.html", //
 			// @page の marks / bleed(2026-08-02)。CSSから指定した断ち代の

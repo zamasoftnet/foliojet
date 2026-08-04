@@ -47,8 +47,13 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
+	/** CSSから書けるようにした(2026-08-03)。{@code <length>}(attr()も可)。 */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		throw new UnsupportedOperationException();
+		final Value value = net.zamasoft.foliojet.css.util.BoxValueUtils.toPositiveLength(ua, lu);
+		if (value == null) {
+			throw new PropertyException();
+		}
+		return value;
 	}
 }

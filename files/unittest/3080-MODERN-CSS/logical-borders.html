@@ -1,0 +1,38 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>論理境界プロパティ</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      div { width: 100pt; height: 20pt; background-color: #eef; margin-bottom: 6pt; }
+
+      /*
+        **論理境界プロパティ**(2026-08-03新設)。書字方向でどの物理辺になるかが
+        変わる。HTMLの <hr noshade>(block方向の終端側だけに罫線)を
+        CSSで書けるようにするために実装した。
+
+        横書き(TB)なら block-end = 下、inline-start = 左。
+        縦書き(vertical-rl)なら block-end = 左、inline-start = 上。
+      */
+      #p { border-block-end-width: 4pt; border-block-end-style: solid; }
+      #q { border-inline-start-width: 4pt; border-inline-start-style: solid; }
+      #r { border-block-start-width: 4pt; border-block-start-style: solid;
+           border-block-start-color: #c00; }
+      /* 物理側の宣言が勝つ(既存の論理寸法プロパティと同じ規約) */
+      #s { border-block-end-width: 4pt; border-block-end-style: solid;
+           border-bottom-width: 1pt; }
+      .vert { writing-mode: vertical-rl; height: 60pt; }
+      #t { border-block-end-width: 4pt; border-block-end-style: solid; }
+    </style>
+  </head>
+  <body>
+    <div id="p">A block-end(下)</div>
+    <div id="q">B inline-start(左)</div>
+    <div id="r">C block-start(上・赤)</div>
+    <div id="s">D 物理が勝つ(1pt)</div>
+    <div class="vert"><div id="t">E 縦書きのblock-end(左)</div></div>
+  </body>
+</html>

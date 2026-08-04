@@ -37,7 +37,10 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static net.zamasoft.pdfg2d.gc.paint.Color get(CSSStyle style, Side side) {
-		Value value = style.get(BY_SIDE[side.resolve(style).ordinal()]);
+		final Side physical = side.resolve(style);
+		Value declared = style.isDeclared(BY_SIDE[physical.ordinal()]) ? null
+				: LogicalBorder.declaredFor(style, LogicalBorder.Aspect.COLOR, physical);
+		Value value = declared != null ? declared : style.get(BY_SIDE[physical.ordinal()]);
 		if (value == KeywordValue.TRANSPARENT) {
 			return null;
 		}
