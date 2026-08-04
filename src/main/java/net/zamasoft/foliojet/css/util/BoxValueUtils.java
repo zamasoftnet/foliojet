@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css.util;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
+import net.zamasoft.foliojet.css.value.TypedAttrValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
@@ -35,6 +36,12 @@ public final class BoxValueUtils {
 	public static Value toMarginWidth(UserAgent ua, CssToken token) throws PropertyException {
 		if (token instanceof CssToken.Ident ident) {
 			return ident.is("auto") ? KeywordValue.AUTO : null;
+		}
+		// 型付き attr()(2026-08-03)。属性はその要素のものなので、解決は計算値の
+		// 段階(ValueUtils.emExToAbsoluteLength)で行う
+		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH);
+		if (attr != null) {
+			return attr;
 		}
 		Value calc = CalcValueUtils.toCalc(ua, token);
 		if (calc != null) {
@@ -144,6 +151,10 @@ public final class BoxValueUtils {
 	 * @return
 	 */
 	public static QuantityValue toPositiveLength(UserAgent ua, CssToken token) {
+		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH);
+		if (attr != null) {
+			return (QuantityValue) attr;
+		}
 		Value calc = CalcValueUtils.toCalc(ua, token);
 		QuantityValue value;
 		if (calc instanceof RealValue) {

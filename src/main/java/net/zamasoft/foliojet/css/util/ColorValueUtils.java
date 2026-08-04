@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.css.value.BackgroundAttachmentValue;
 import net.zamasoft.foliojet.css.value.BackgroundRepeatValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.PaintValue;
+import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BackgroundClipValue;
 import net.zamasoft.foliojet.css.value.css3.LinearGradientValue;
 import net.zamasoft.foliojet.layout.util.DoubleList;
@@ -1638,6 +1639,13 @@ public final class ColorValueUtils {
 	 * &lt;background-color&gt; を値に変換します。
 	 */
 	public static PaintValue toPaint(UserAgent ua, CssToken token) {
+		// 型付き attr()(2026-08-03)。属性から色を取る(bgcolor/text/link等の
+		// 移送に要る)。解決は計算値の段階で、長さと同じ窓口が行う
+		Value attr = AttrValueUtils.toTypedAttr(ua, token,
+				net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR);
+		if (attr instanceof PaintValue paint) {
+			return paint;
+		}
 		PaintValue value = toColor(ua, token);
 		if (value != null) {
 			return value;

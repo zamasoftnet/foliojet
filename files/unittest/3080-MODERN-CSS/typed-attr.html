@@ -1,0 +1,40 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>型付き attr()</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      div { background-color: #ddeeff; }
+
+      /*
+        **型付き attr()**(CSS Values 5、Chromeは133で出荷)。
+        HTMLの表現属性をCSSから扱えるようにするための土台(2026-08-03新設)。
+        属性はその要素のものなので、解決は計算値の段階で行う。
+
+        紙面400pt。96dpiなので 100px = 75pt、200px = 150pt。
+      */
+      #p { width: attr(data-w px); }              /* 単位の短縮形 */
+      #q { width: attr(data-w type(length)); }    /* 型指定 */
+      /*
+        **既知の制限**: Chromeが使う `type(<length>)` の山括弧付きは、この
+        製品の字句解析が山括弧を落とすため受け付けない。移送に必要なのは
+        単位の短縮形(attr(width px))なので、当面はこの形を使う。
+      */
+      #r { width: attr(missing px, 120pt); }      /* 属性が無い → フォールバック */
+      #s { width: attr(data-bad px, 60pt); }      /* 解釈できない → フォールバック */
+      #t { background-color: attr(data-c type(color), lime); }
+      #u { width: attr(data-w px, 10pt); }        /* フォールバックがあっても属性優先 */
+    </style>
+  </head>
+  <body>
+    <div id="p" data-w="200">A 属性200 → 200px=150pt</div>
+    <div id="q" data-w="100pt">B 属性100pt → 100pt</div>
+    <div id="r">C 属性無し → フォールバック120pt</div>
+    <div id="s" data-bad="abc">D 解釈不能 → フォールバック60pt</div>
+    <div id="t" data-c="red">E 色の属性 → 赤</div>
+    <div id="u" data-w="80">F 属性優先 → 80px=60pt</div>
+  </body>
+</html>

@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css.impl.property.text;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
@@ -38,7 +39,9 @@ public class CSSColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return value;
+		// 型付き attr()(2026-08-03)。色も属性から取れる(bgcolor/text/link等の
+		// 移送に要る)。解決の窓口は長さと同じ
+		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

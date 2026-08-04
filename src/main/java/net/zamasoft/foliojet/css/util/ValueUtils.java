@@ -15,6 +15,8 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
+import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.TypedAttrValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
 
@@ -155,6 +157,13 @@ public final class ValueUtils {
 		// ここまで持ち回っている({@link CalcFontRelativeValue})
 		if (value instanceof CalcFontRelativeValue calc) {
 			return calc.resolve(style);
+		}
+		// 型付き attr()(2026-08-03)。属性を読んで値にする。解決できず
+		// フォールバックも無い場合は null を返し、呼び出し側(DeferredProperty)が
+		// 「使用値計算時に無効」として unset 相当に落とす
+		if (value instanceof TypedAttrValue attr) {
+			final Value resolved = attr.resolve(style);
+			return resolved == null ? KeywordValue.NONE : emExToAbsoluteLength(resolved, style);
 		}
 		return value;
 	}
