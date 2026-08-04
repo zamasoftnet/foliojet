@@ -478,3 +478,38 @@ hr[width] { inline-size: attr(width px); }
 hr { margin-left: auto; margin-right: auto; }
 hr[align=right] { margin-left: auto; margin-right: 0; }
 hr[align=left]  { margin-left: 0; margin-right: auto; }
+
+/*
+ * 第7弾(2026-08-03): 列挙値の属性を属性セレクタへ一括移送。
+ * Javaの分岐(equalsIgnoreCase の連鎖)と1対1で対応する。
+ */
+
+br[clear=all], br[clear=both] { clear: both; }
+br[clear=left]  { clear: left; }
+br[clear=right] { clear: right; }
+
+bdo[dir=ltr] { unicode-bidi: bidi-override; direction: ltr; }
+bdo[dir=rtl] { unicode-bidi: bidi-override; direction: rtl; }
+
+/* CAPTION: 既定は下側への改ページ回避。align/valign=bottom で表の下へ */
+caption { page-break-after: avoid; }
+caption[align=bottom], caption[valign=bottom] {
+	caption-side: bottom;
+	page-break-before: avoid;
+	page-break-after: auto;
+}
+
+/*
+ * リストの type 属性。Javaは**先頭1文字**で判定していた('1'/'a'/'A'/'i'/'I')
+ * ので、前方一致の属性セレクタが同値になる。それ以外はCSSのキーワードとして
+ * そのまま解釈される(disc/circle/square など)。
+ */
+ol[type^="1"], ul[type^="1"], li[type^="1"], dir[type^="1"] { list-style-type: decimal; }
+ol[type^="a"], ul[type^="a"], li[type^="a"], dir[type^="a"] { list-style-type: lower-latin; }
+ol[type^="A"], ul[type^="A"], li[type^="A"], dir[type^="A"] { list-style-type: upper-latin; }
+ol[type^="i"], ul[type^="i"], li[type^="i"], dir[type^="i"] { list-style-type: lower-roman; }
+ol[type^="I"], ul[type^="I"], li[type^="I"], dir[type^="I"] { list-style-type: upper-roman; }
+ol[type=disc],   ul[type=disc],   li[type=disc],   dir[type=disc]   { list-style-type: disc; }
+ol[type=circle], ul[type=circle], li[type=circle], dir[type=circle] { list-style-type: circle; }
+ol[type=square], ul[type=square], li[type=square], dir[type=square] { list-style-type: square; }
+ol[type=none],   ul[type=none],   li[type=none],   dir[type=none]   { list-style-type: none; }

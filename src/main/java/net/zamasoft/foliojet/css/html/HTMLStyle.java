@@ -736,24 +736,9 @@ public class HTMLStyle {
 		}
 			break;
 		// BGSOUND: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		case HTMLCodes.BDO: {
-			// <BDO dir>
-			String dir = ce.atts.getValue("dir");
-			if (dir != null) {
-				if (dir.equalsIgnoreCase("ltr")) {
-					style.set(UnicodeBidi.INFO, UnicodeBidiValue.BIDI_OVERRIDE_VALUE);
-					style.set(Direction.INFO, DirectionValue.LTR_VALUE);
-				} else if (dir.equalsIgnoreCase("rtl")) {
-					style.set(UnicodeBidi.INFO, UnicodeBidiValue.BIDI_OVERRIDE_VALUE);
-					style.set(Direction.INFO, DirectionValue.RTL_VALUE);
-				} else {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BDO", "dir", dir);
-				}
-			}
-		}
+		case HTMLCodes.BDO:
+			// <BDO dir> は html-ua.css へ移送済み(2026-08-03)
 			break;
-		// BIG/BLINK: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		// BLOCKQUOTE: 既定値(margin-block/margin-inline)はhtml-ua.cssに移行(2026-08-02)
 		case HTMLCodes.BODY: {
 			// <BODY background bgproperties link -vlink -alink>
 			//
@@ -779,19 +764,8 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyBackground("BODY", style);
 		}
 			break;
-		case HTMLCodes.BR: {
-			// <BR clear>
-			String clear = ce.atts.getValue("clear");
-			if (clear != null) {
-				if (clear.equalsIgnoreCase("all") || clear.equalsIgnoreCase("both")) {
-					style.set(Clear.INFO, ClearValue.BOTH_VALUE);
-				} else if (clear.equalsIgnoreCase("left")) {
-					style.set(Clear.INFO, ClearValue.LEFT_VALUE);
-				} else if (clear.equalsIgnoreCase("right")) {
-					style.set(Clear.INFO, ClearValue.RIGHT_VALUE);
-				}
-			}
-		}
+		case HTMLCodes.BR:
+			// <BR clear> は html-ua.css へ移送済み(2026-08-03)
 			break;
 		case HTMLCodes.BUTTON: {
 			// <BUTTON disabled>
@@ -799,20 +773,8 @@ public class HTMLStyle {
 			HTMLStyle.applyButton(style, ce.atts.getValue("disabled") != null);
 		}
 			break;
-		case HTMLCodes.CAPTION: {
-			// <CAPTION align valign>
-			// text-align: centerはhtml-ua.cssに移行(2026-08-02)
-			String align = ce.atts.getValue("align");
-			if (align == null) {
-				align = ce.atts.getValue("valign");
-			}
-			if (align != null && align.equals("bottom")) {
-				style.set(CaptionSide.INFO, CaptionSideValue.BOTTOM_VALUE);
-				style.set(PageBreakBefore.INFO, PageBreakValue.AVOID_VALUE);
-			} else {
-				style.set(PageBreakAfter.INFO, PageBreakValue.AVOID_VALUE);
-			}
-		}
+		case HTMLCodes.CAPTION:
+			// <CAPTION align valign> は html-ua.css へ移送済み(2026-08-03)
 			break;
 		case HTMLCodes.CENTER: {
 			// <CENTER> text-align: centerはhtml-ua.cssに移行(2026-08-02)。
@@ -859,18 +821,9 @@ public class HTMLStyle {
 		// DD: 既定値(margin-inline-start/page-break-before)はhtml-ua.cssに移行(2026-08-02)
 		// DEL: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		// DFN: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
-		case HTMLCodes.DIR: {
-			// <DIR type -compact> 静的マージンはhtml-ua.cssに移行(2026-08-02)
-			String type = ce.atts.getValue("type");
-			if (type != null) {
-				Value value = HTMLStyleUtils.toListStyleType(type);
-				if (value != null) {
-					style.set(ListStyleType.INFO, value);
-				} else {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "DIR", "type", type);
-				}
-			}
-		}
+		case HTMLCodes.DIR:
+			// <DIR type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
+			// 前方一致の属性セレクタで同値)
 			break;
 		case HTMLCodes.DIV: {
 			// <DIV align>
@@ -1114,19 +1067,9 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		case HTMLCodes.LI: {
-			// <LI type value>
-			// valueはStyleBuilderで処理
-			String type = ce.atts.getValue("type");
-			if (type != null) {
-				Value value = HTMLStyleUtils.toListStyleType(type);
-				if (value != null) {
-					style.set(ListStyleType.INFO, value);
-				} else {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "LI", "type", type);
-				}
-			}
-		}
+		case HTMLCodes.LI:
+			// <LI type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
+			// 前方一致の属性セレクタで同値)
 			break;
 		case HTMLCodes.LISTING: {
 			// <LISTING> white-space/text-alignはhtml-ua.cssに移行(2026-08-02)。
@@ -1169,19 +1112,9 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyImageBorder("OBJECT", style);
 		}
 			break;
-		case HTMLCodes.OL: {
-			// <OL type -compact start>
-			// startはStyleBuilderで処理。静的既定値はhtml-ua.cssに移行(2026-08-02)
-			String type = ce.atts.getValue("type");
-			if (type != null) {
-				Value value = HTMLStyleUtils.toListStyleType(type);
-				if (value != null) {
-					style.set(ListStyleType.INFO, value);
-				} else {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "OL", "type" + type);
-				}
-			}
-		}
+		case HTMLCodes.OL:
+			// <OL type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
+			// 前方一致の属性セレクタで同値)
 			break;
 		case HTMLCodes.P: {
 			// <P align> margin-blockはhtml-ua.cssに移行(2026-08-02)
@@ -1552,22 +1485,10 @@ public class HTMLStyle {
 		}
 			break;
 		// TITLE/U: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		case HTMLCodes.UL: {
-			// <UL type -compact> 深さ別のマージン・マーカー既定は
-			// html-ua.cssのul/ul ul/ul ul ulセレクタに移行(2026-08-02、
-			// 固有性で深い規則が勝つ=旧UL深さカウントと同じ結果)
-			String type = ce.atts.getValue("type");
-			if (type != null) {
-				Value value = HTMLStyleUtils.toListStyleType(type);
-				if (value != null) {
-					style.set(ListStyleType.INFO, value);
-				} else {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "UL", "type", type);
-				}
-			}
-		}
+		case HTMLCodes.UL:
+			// <UL type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
+			// 前方一致の属性セレクタで同値)
 			break;
-		// VAR: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.VIDEO: {
 			// <VIDEO width height poster>(display:inline-blockはhtml-ua.cssへ移行)
 			HTMLStyleUtils.applyWidthHeight("VIDEO", style);
