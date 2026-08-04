@@ -159,7 +159,7 @@ public class HTMLStyle {
 				break;
 
 			case HTMLStyleUtils.INPUT_FILE: {
-				HTMLStyle.applyButton(style, parentCe.atts.getValue("disabled") != null);
+				HTMLStyle.applyPseudoButton(style, parentCe.atts.getValue("disabled") != null);
 				style.set(Content.INFO, new ValueListValue(new Value[] { new StringValue("選択...") }));
 			}
 				break;
@@ -181,6 +181,7 @@ public class HTMLStyle {
 		case HTMLCodes.ISINDEX:
 			// <ISINDEX>
 			HTMLStyle.applyTextField(style, false, null);
+			applyPseudoFieldWidth(style, null);
 			style.set(Content.INFO, WBR);
 			break;
 		case HTMLCodes.Q: {
@@ -232,6 +233,7 @@ public class HTMLStyle {
 			if (type == HTMLStyleUtils.INPUT_FILE) {
 				HTMLStyle.applyTextField(style, parentCe.atts.getValue("disabled") != null,
 						parentCe.atts.getValue("size"));
+				applyPseudoFieldWidth(style, parentCe.atts.getValue("size"));
 				style.set(Content.INFO, WBR);
 			}
 			break;
@@ -281,37 +283,18 @@ public class HTMLStyle {
 		}
 	}
 
+	/**
+	 * ボタンの既定値は<b>html-ua.cssへ移送済み</b>(2026-08-03)。属性由来の
+	 * 既定値(presentational hint)ではなくUAスタイルシートの規則になったので、
+	 * 著者CSSが上書きできる——本来の強さ関係である。
+	 *
+	 * <p>
+	 * 移送前はここに {@code height: 1em} が埋まっており、行の高さや上下
+	 * パディングを持つボタンでラベルが箱の外へはみ出していた。<b>Javaの中の
+	 * 既定値は誰も見ないまま残る</b>という教訓の実例。
+	 */
 	private static void applyButton(CSSStyle style, boolean disabled) {
-		UserAgent ua = style.getUserAgent();
-		style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
-		// **高さは内容で決める**(2026-08-03)。以前はここで {@code height: 1em} を
-		// 強制していたため、<b>行の高さや上下パディングを持つボタンでラベルが箱の
-		// 外へはみ出していた</b>——ボタンは1em、文字は1.5emで、下半分が箱の下に
-		// 垂れる。実ブラウザのボタンは内容依存(height: auto)である。
-		//
-		// これは属性由来の既定値(presentational hint)なので著者CSSより弱く、
-		// 高さを明示しないCSS(Bootstrapの .btn は上下パディングで高さを作る)
-		// では上書きされずに残っていた。Bootstrapの部品見本を取り込んだ第3波で
-		// 発覚(PLAN §3)。回帰は files/unittest/3080-MODERN-CSS/form-controls.html。
-		if (disabled) {
-			style.set(CSSColor.INFO, ColorValueUtils.DIMGRAY);
-		}
-		style.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
-		style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
-		AbsoluteLengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
-		style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderWidth.TOP, thin);
-		style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderWidth.LEFT, thin);
-		style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderWidth.BOTTOM, thin);
-		style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
-		style.set(BorderWidth.RIGHT, thin);
-		style.set(Padding.TOP, thin);
-		style.set(Padding.BOTTOM, thin);
-		style.set(Padding.LEFT, thin);
-		style.set(Padding.RIGHT, thin);
-		style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
+		// 移送済み(html-ua.css の button / input[type=button] ほか)
 	}
 
 	private static void applyImage(CSSStyle style, String src, final String type, String alt) {
@@ -519,17 +502,60 @@ public class HTMLStyle {
 		}
 	}
 
-	private static void applyTextField(CSSStyle style, boolean disabled, String size) {
-		UserAgent ua = style.getUserAgent();
+	/**
+	 * <b>擬似要素の入力欄の幅</b>。要素側の幅はhtml-ua.cssへ移送したが
+	 * (2026-08-03)、{@code ::before}で作る入力欄にはその選択子が届かない
+	 * ——擬似要素は元の要素の属性を持たないため。ここだけJavaに残る。
+	 */
+	/**
+	 * <b>擬似要素のボタン</b>({@code <input type=file>}の「選択...」)。
+	 * 要素側のボタンの既定値はhtml-ua.cssへ移送したが(2026-08-03)、
+	 * {@code ::before}で作るボタンにはその選択子が届かないのでここに残る。
+	 * 値は移送前のapplyButtonと同じ。
+	 */
+	private static void applyPseudoButton(CSSStyle style, boolean disabled) {
+		final UserAgent ua = style.getUserAgent();
 		style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
-		style.set(CSSJAutoWidth.INFO, EX_20);
+		if (disabled) {
+			style.set(CSSColor.INFO, ColorValueUtils.DIMGRAY);
+		}
+		style.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
+		style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
+		final AbsoluteLengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
+		style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.TOP, thin);
+		style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.LEFT, thin);
+		style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.BOTTOM, thin);
+		style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
+		style.set(BorderWidth.RIGHT, thin);
+		style.set(Padding.TOP, thin);
+		style.set(Padding.BOTTOM, thin);
+		style.set(Padding.LEFT, thin);
+		style.set(Padding.RIGHT, thin);
+		style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
+	}
+
+	private static void applyPseudoFieldWidth(CSSStyle style, String size) {
 		if (size != null) {
 			try {
 				style.set(CSSJAutoWidth.INFO, RelativeLengthValue.ex(NumberUtils.parseDouble(size)));
+				return;
 			} catch (NumberFormatException e) {
-				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "INPUT", "size", size);
+				style.getUserAgent().message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "INPUT", "size", size);
 			}
 		}
+		style.set(CSSJAutoWidth.INFO, EX_20);
+	}
+
+	private static void applyTextField(CSSStyle style, boolean disabled, String size) {
+		UserAgent ua = style.getUserAgent();
+		style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
+		// 幅は html-ua.css へ移送済み(2026-08-03、型付きattr()の実装で
+		// 書けるようになった)。**既定の20exもCSS側に置く**——ここで
+		// style.set すると属性由来の層(UAシートより強い)になり、CSSの
+		// 規則が負けるため
 
 		style.set(Height.INFO, KeywordValue.AUTO);
 		if (disabled) {

@@ -369,9 +369,56 @@ button, select {
 
 /*
  * 第4弾(2026-08-02): フォームコントロール・ルビの静的既定値。
- * 属性(cols/rows/size)・disabled分岐・padding(thin=境界幅キーワードは
- * CSSのpaddingでは表現不可)・-cssj-ruby(内部プロパティ)はJava側に残る。
+ *
+ * 第5弾(2026-08-03): **前回「Javaに残る」と書いた3つのうち2つが解けた**。
+ *  - 属性(size): 型付き attr() を実装したのでCSSで書ける
+ *  - disabled分岐: [disabled] の属性セレクタで書ける
+ *  - padding(thin): 境界幅キーワードはpaddingで使えないので実値(1pt)を書く。
+ *    UAのthinが1px以外の設定なら差が出るが、goldenがバイト一致することで
+ *    現在の設定での同値性を確かめている
+ * 残るのは -cssj-ruby(内部プロパティ)と、INPUTの型の既定(type属性が
+ * 無い/未知のときtextとみなす規則)——後者はCSSのセレクタでは書けない。
  */
+
+/*
+ * ボタン(2026-08-03移送)。**ここに height:1em が埋まっていて、行の高さを
+ * 持つボタンでラベルが箱の外へはみ出していた**——Javaの中では誰も見ない。
+ */
+button,
+input[type=button], input[type=reset], input[type=submit] {
+	display: inline-block;
+	text-align: center;
+	background-color: lightgray;
+	border: thin outset;
+	/* Javaは padding にも thin(=このUAでは1pt)を使っていた。CSSのpaddingでは
+	   境界幅キーワードが使えないので実値を書く——goldenのバイト一致で同値性を
+	   確かめている */
+	padding: 1pt;
+	white-space: nowrap;
+}
+
+button[disabled],
+input[type=button][disabled], input[type=reset][disabled], input[type=submit][disabled] {
+	color: dimgray;
+}
+
+/*
+ * 一行入力欄の幅。既定20ex、size属性があればその値(型付きattr()、2026-08-03)。
+ * **既定もCSS側へ置くこと**——Javaのstyle.set()は属性由来の層(hint)なので
+ * UAシートより強く、既定をJavaに残すとこの規則が負ける。
+ *
+ * 選択子が長いのは、HTMLの「type属性が無い/未知なら text とみなす」規則を
+ * CSSで書くと :not() の連鎖になるため(一律 input にするとチェックボックスが
+ * 20ex角になる——実際に踏んだ)。
+ */
+input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]),
+isindex {
+	-cssj-auto-width: 20ex;
+}
+
+input[size]:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]) {
+	-cssj-auto-width: attr(size ex, 20ex);
+}
 
 textarea {
 	display: inline-block;

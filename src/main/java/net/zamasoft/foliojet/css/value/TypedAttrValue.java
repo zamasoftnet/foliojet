@@ -115,7 +115,18 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 			if (Double.isNaN(v)) {
 				return null;
 			}
-			return AbsoluteLengthValue.create(style.getUserAgent(), v, this.unit);
+			// **フォント相対単位は絶対長として作らない**(2026-08-03)。
+			// em/ex/rem/ch はフォント寸法が要るので、相対長のまま返して
+			// 同じ窓口(emExToAbsoluteLength)に解かせる
+			switch (this.unit) {
+			case EM:
+			case EX:
+			case REM:
+			case CH:
+				return RelativeLengthValue.of(this.unit, v);
+			default:
+				return AbsoluteLengthValue.create(style.getUserAgent(), v, this.unit);
+			}
 		}
 		}
 	}
