@@ -575,3 +575,33 @@ input[align=right]  { float: right; }
 input[align=top]    { vertical-align: top; }
 input[align=middle] { vertical-align: middle; }
 input[align=bottom] { vertical-align: baseline; }
+
+/*
+ * 第10弾(2026-08-03): 表の属性のうち、値が素直に写るものを移送。
+ *
+ * **border / bordercolor / cellpadding は移送できない**——表からセルへ配る
+ * 内部の値({@code -cssj-html-table-border} 等)が具象の長さ・色を要求する
+ * 型で、未解決の attr() を持ち回れない。値型を attr() 対応にする改修が要る。
+ */
+table[cellspacing] { border-spacing: attr(cellspacing px, 2px); }
+
+/* rules が指定されていれば罫線は重ね合わせで描く */
+table:is([rules=all],[rules=groups],[rules=rows],[rules=cols],[rules=none]) {
+	border-collapse: collapse;
+}
+
+/* 表・セルの寸法と背景色 */
+table[width]  { width: attr(width px); }
+table[height] { height: attr(height px); }
+table[hspace] { margin-left: attr(hspace px); margin-right: attr(hspace px); }
+table[vspace] { margin-top: attr(vspace px); margin-bottom: attr(vspace px); }
+table[bgcolor], tr[bgcolor], td[bgcolor], th[bgcolor],
+thead[bgcolor], tbody[bgcolor], tfoot[bgcolor],
+col[bgcolor], colgroup[bgcolor] {
+	background-color: attr(bgcolor type(color));
+}
+
+td[width], th[width]   { width: attr(width px); }
+td[height], th[height] { height: attr(height px); }
+col[width], colgroup[width] { width: attr(width px); }
+td[nowrap], th[nowrap] { white-space: nowrap; }
