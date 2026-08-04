@@ -77,6 +77,21 @@ final class IntrinsicMeasurer {
 
 	private final List<IBox> inlineStack = new ArrayList<IBox>();
 
+	/**
+	 * フローに入る直前の{@link #minLineSize}/{@link #maxLineSize}と、そのフローが
+	 * 外側へ差し出す行方向の寸法(祖先の枠込み)を積む(2026-08-04)。
+	 *
+	 * <p>
+	 * <b>固定幅のフローは、外から見た寸法をその幅で確定させる</b>——中の内容が
+	 * はみ出していても外へは漏らさない。従来はこれを{@code endFlow}で
+	 * {@code maxLineSize = minLineSize = flowBox.getWidth()}と<b>代入</b>して
+	 * 実現しており、<b>先に測った兄弟の寸法まで消していた</b>。子が
+	 * 「広い箱→狭い箱」の順に並ぶと最後の狭い箱の幅が全体の幅になり、
+	 * 表のセル・絶対配置・フレックス項目が内容より狭く作られていた
+	 * (material-web のタブ見出しが重なって発覚)。
+	 */
+	private final List<double[]> flowSizeStack = new ArrayList<double[]>();
+
 	IntrinsicMeasurer(TwoPassBlockBuilder builder) {
 		this.builder = builder;
 	}
@@ -113,6 +128,8 @@ final class IntrinsicMeasurer {
 			frameAdd += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
 		}
 		final double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow) * this.columnCount;
+		// 中に入る前の値と、このフロー自身が差し出す寸法を控える(endFlowで使う)
+		this.flowSizeStack.add(new double[] { this.minLineSize, this.maxLineSize, lineSize });
 		this.lineFrame += frameAdd * this.columnCount;
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
 		assert !LayoutUtils.isNone(this.lineFrame);
@@ -152,28 +169,30 @@ final class IntrinsicMeasurer {
 					* this.columnCount;
 		}
 
+		final double[] entered = this.flowSizeStack.remove(this.flowSizeStack.size() - 1);
+		final boolean fixedLineSize;
 		switch (params.flow) {
 		case WritingMode.TB:
 			// 横書き
 			this.lineFrame -= flowBox.getFrame().getFrameWidth() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameHeight();
-			if (flowParams.size.getWidthType() == LengthType.ABSOLUTE) {
-				// 固定幅フロー
-				this.maxLineSize = this.minLineSize = flowBox.getWidth();
-			}
+			fixedLineSize = flowParams.size.getWidthType() == LengthType.ABSOLUTE;
 			break;
 		case WritingMode.LR:
 		case WritingMode.RL:
 			// 縦書き
 			this.lineFrame -= flowBox.getFrame().getFrameHeight() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameWidth();
-			if (flowParams.size.getHeightType() == LengthType.ABSOLUTE) {
-				// 固定幅フロー
-				this.maxLineSize = this.minLineSize = flowBox.getHeight();
-			}
+			fixedLineSize = flowParams.size.getHeightType() == LengthType.ABSOLUTE;
 			break;
 		default:
 			throw new IllegalStateException();
+		}
+		if (fixedLineSize) {
+			// **固定幅フロー**。中の内容は外へ漏らさず、このフロー自身が
+			// 差し出す寸法だけを残す。**兄弟の寸法は消さない**(2026-08-04)
+			this.minLineSize = Math.max(entered[0], entered[2]);
+			this.maxLineSize = Math.max(entered[1], entered[2]);
 		}
 
 		assert !LayoutUtils.isNone(this.lineFrame);
