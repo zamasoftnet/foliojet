@@ -1,0 +1,55 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="500pt"?>
+<html lang="ja">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>表の frame と rules</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      table { margin-bottom: 4pt; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **frame と rules**(html-ua.css 第10〜12弾で移送)。
+      frame は表の外周のどの辺に罫線を引くか、rules は内側のどこに引くか。
+
+      Java 版では frame が border 属性の設定に潰されて効いていなかった。
+      CSS へ移した際に border より後に書いたので**効くようになった**。
+      hsides は水平な辺(上下)、vsides は垂直な辺(左右)。
+    -->
+    <table border="1" frame="hsides"><tr><td>hsides 上下</td></tr></table>
+    <table border="1" frame="vsides"><tr><td>vsides 左右</td></tr></table>
+    <table border="1" frame="above"><tr><td>above 上</td></tr></table>
+    <table border="1" frame="below"><tr><td>below 下</td></tr></table>
+    <table border="1" frame="lhs"><tr><td>lhs 左</td></tr></table>
+    <table border="1" frame="rhs"><tr><td>rhs 右</td></tr></table>
+    <table border="1" frame="void"><tr><td>void 無し</td></tr></table>
+    <table border="1" frame="box"><tr><td>box 四辺</td></tr></table>
+    <table border="1"><tr><td>frame 無し(四辺)</td></tr></table>
+
+    <table border="1" rules="rows">
+      <tr><td>rules=rows</td><td>行の間だけ</td></tr>
+      <tr><td>2行目</td><td>b</td></tr>
+    </table>
+    <table border="1" rules="cols">
+      <tr><td>rules=cols</td><td>列の間だけ</td></tr>
+      <tr><td>2行目</td><td>b</td></tr>
+    </table>
+    <table border="1" rules="groups">
+      <thead><tr><th>rules=groups</th><th>行群の間</th></tr></thead>
+      <tbody><tr><td>本体</td><td>b</td></tr></tbody>
+    </table>
+    <table border="1" rules="none">
+      <tr><td>rules=none</td><td>内側なし</td></tr>
+      <tr><td>2行目</td><td>b</td></tr>
+    </table>
+
+    <!-- align / valign / cellpadding / bordercolor -->
+    <table border="2" bordercolor="#c00" cellpadding="6">
+      <tr valign="top"><td>行の valign を継ぐ</td><td align="right">右寄せ</td></tr>
+      <tr><td valign="bottom">自分の valign</td><td align="center">中央</td></tr>
+    </table>
+  </body>
+</html>

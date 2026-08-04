@@ -128,7 +128,16 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return this.aspect == Aspect.WIDTH ? ValueUtils.emExToAbsoluteLength(value, style) : value;
+		if (this.aspect == Aspect.STYLE) {
+			return value;
+		}
+		// 幅も色も型付き attr() を解く(2026-08-04)。色は解けなければ
+		// currentColor へ落とす——BorderColor.get() は ColorValue を要求する
+		value = ValueUtils.emExToAbsoluteLength(value, style);
+		if (this.aspect == Aspect.COLOR && (value == KeywordValue.NONE || value == KeywordValue.DEFAULT)) {
+			value = style.get(net.zamasoft.foliojet.css.impl.property.text.CSSColor.INFO);
+		}
+		return value;
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

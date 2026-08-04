@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
+import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -64,7 +65,12 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		if (value == KeywordValue.DEFAULT) {
+		// **型付き attr() をここで解く**(2026-08-04)。解かずに通すと
+		// BorderColor.get() の ColorValue へのキャストで落ちる
+		// (<table border bordercolor> で実際に落ちた)
+		value = ValueUtils.emExToAbsoluteLength(value, style);
+		if (value == KeywordValue.DEFAULT || value == KeywordValue.NONE) {
+			// DEFAULT は currentColor。NONE は解決できなかった attr()
 			value = style.get(CSSColor.INFO);
 		}
 		return value;

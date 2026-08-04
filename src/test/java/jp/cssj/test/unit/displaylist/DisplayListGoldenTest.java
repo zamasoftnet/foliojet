@@ -58,6 +58,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0390-writing-mode/orthogonal-cell-fixed.html", //
 			"0240-table/z-order.html", //
 			"0240-table/rowspan-after-empty-row.html", //
+			// 表の属性(frame/rules/align/valign/bordercolor)をCSSへ移した際の
+			// 罫線の座標を固定する(2026-08-04)
+			"0240-table/frame-rules.html", //
 			"3080-MODERN-CSS/layer-important.html", //
 			"0242-table-height/percent-rowspan-groups.html", //
 			"0242-table-height/group-size-empty-rows.html", //

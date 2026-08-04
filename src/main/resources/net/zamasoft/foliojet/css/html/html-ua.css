@@ -644,8 +644,9 @@ table[border][bordercolor] {
 table[frame=void]   { border-style: none; }
 table[frame=above]  { border-style: outset none none none; }
 table[frame=below]  { border-style: none none outset none; }
-table[frame=hsides] { border-style: none outset none outset; }
-table[frame=vsides] { border-style: outset none outset none; }
+/* hsides は水平な辺(上下)、vsides は垂直な辺(左右)。border-style は上右下左 */
+table[frame=hsides] { border-style: outset none outset none; }
+table[frame=vsides] { border-style: none outset none outset; }
 table[frame=lhs]    { border-style: none none none outset; }
 table[frame=rhs]    { border-style: none outset none none; }
 table[frame=box], table[frame=border] { border-style: outset; }
