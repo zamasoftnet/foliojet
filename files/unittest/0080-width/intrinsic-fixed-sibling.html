@@ -1,0 +1,54 @@
+<?jp.cssj.property name="output.page-width" value="500pt"?>
+<?jp.cssj.property name="output.page-height" value="560pt"?>
+<html lang="ja">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>固定幅の子と内在寸法</title>
+    <style type="text/css">
+      @page { margin: 20pt; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      .box { border: 1pt solid #c00; }
+      .w80 { width: 80pt; height: 8pt; background-color: #ccc; }
+      .w20 { width: 20pt; height: 8pt; background-color: #999; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **固定幅の子は兄弟の内在寸法を消してはいけない**(2026-08-04)。
+
+      収縮して幅を決める箱(フロート・表のセル・絶対配置・フレックス項目・
+      inline-block)の中に、幅を指定した子を「広い→狭い」の順に置く。
+      どの文脈でも枠の幅は 80pt + 枠 1pt×2 = 82pt 前後になるのが正しい。
+
+      直す前は `IntrinsicMeasurer.endFlow` が固定幅のフローで
+      max/min を**代入**していたため、**最後の子の幅**(20pt)が
+      全体の幅になっていた。フロートと inline-block だけは別経路で無事
+      だったので、この文書は**文脈を横に並べて**押さえる。
+
+      「狭い→広い」も併記する——順序を入れ替えると偶然正しくなるので、
+      両方が同じ幅になることまで見ないと退行を捕まえられない。
+    -->
+    <p>A: float / 広い→狭い</p>
+    <div style="overflow:hidden"><div class="box" style="float:left"><div class="w80"></div><div class="w20"></div></div></div>
+    <p>B: float / 狭い→広い</p>
+    <div style="overflow:hidden"><div class="box" style="float:left"><div class="w20"></div><div class="w80"></div></div></div>
+
+    <p>C: 表のセル / 広い→狭い</p>
+    <table style="width:auto"><tr><td class="box"><div class="w80"></div><div class="w20"></div></td></tr></table>
+    <p>D: 表のセル / 狭い→広い</p>
+    <table style="width:auto"><tr><td class="box"><div class="w20"></div><div class="w80"></div></td></tr></table>
+
+    <p>E: absolute / 広い→狭い</p>
+    <div style="position:relative; height:26pt"><div class="box" style="position:absolute; left:0; top:0"><div class="w80"></div><div class="w20"></div></div></div>
+    <p>F: absolute / 狭い→広い</p>
+    <div style="position:relative; height:26pt"><div class="box" style="position:absolute; left:0; top:0"><div class="w20"></div><div class="w80"></div></div></div>
+
+    <p>G: フレックス項目 / 広い→狭い</p>
+    <div style="display:flex"><div class="box"><div class="w80"></div><div class="w20"></div></div></div>
+    <p>H: フレックス項目 / 狭い→広い</p>
+    <div style="display:flex"><div class="box"><div class="w20"></div><div class="w80"></div></div></div>
+
+    <p>I: inline-block / 広い→狭い</p>
+    <div><span class="box" style="display:inline-block"><div class="w80"></div><div class="w20"></div></span></div>
+  </body>
+</html>
