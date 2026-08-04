@@ -513,3 +513,40 @@ ol[type=disc],   ul[type=disc],   li[type=disc],   dir[type=disc]   { list-style
 ol[type=circle], ul[type=circle], li[type=circle], dir[type=circle] { list-style-type: circle; }
 ol[type=square], ul[type=square], li[type=square], dir[type=square] { list-style-type: square; }
 ol[type=none],   ul[type=none],   li[type=none],   dir[type=none]   { list-style-type: none; }
+
+/*
+ * 第8弾(2026-08-03): 論理境界プロパティと型付きattr()が入ったので、
+ * 残っていた属性由来の既定値をまとめて移送する。
+ */
+
+/* HR: noshade / color 指定時は block 方向の終端側だけに罫線 */
+hr:is([noshade],[color]) { border-block-end-style: solid; }
+hr:is([noshade],[color])[size]  { border-block-end-width: attr(size px); }
+hr[color] { border-block-end-color: attr(color type(color)); }
+
+/* PRE: cols は em、width 属性は長さ(width が後勝ち) */
+pre[cols]  { width: attr(cols em); }
+pre[width] { width: attr(width px); }
+pre[wrap]  { white-space: pre-wrap; }
+
+/* TEXTAREA */
+textarea[cols] { width: attr(cols ex); }
+textarea[rows] { height: attr(rows em); }
+textarea[disabled] { color: gray; }
+textarea { padding: 1pt; }
+textarea[wrap] { white-space: pre-wrap; }
+
+/* IFRAME */
+iframe { border: medium inset; }
+iframe[frameborder="0"], iframe[frameborder=no] { border-style: none; }
+iframe[width]  { width: attr(width px); }
+iframe[height] { height: attr(height px); }
+iframe[hspace] { margin-left: attr(hspace px); margin-right: attr(hspace px); }
+iframe[vspace] { margin-top: attr(vspace px); margin-bottom: attr(vspace px); }
+iframe[marginwidth]  { margin-left: attr(marginwidth px); margin-right: attr(marginwidth px); }
+iframe[marginheight] { margin-top: attr(marginheight px); margin-bottom: attr(marginheight px); }
+iframe[align=left]  { float: left; }
+iframe[align=right] { float: right; }
+iframe[align=top]    { vertical-align: top; }
+iframe[align=middle] { vertical-align: middle; }
+iframe[align=bottom] { vertical-align: baseline; }

@@ -133,6 +133,12 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
+		// 型付き attr()(2026-08-03)。属性から罫線の幅・色を取る
+		final Value attrValue = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu, this.aspect == Aspect.COLOR ? net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR
+						: net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.LENGTH);
+		if (attrValue != null) {
+			return attrValue;
+		}
 		final Value value;
 		switch (this.aspect) {
 		case STYLE:

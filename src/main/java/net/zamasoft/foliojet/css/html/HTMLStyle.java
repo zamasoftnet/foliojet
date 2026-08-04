@@ -904,80 +904,14 @@ public class HTMLStyle {
 		}
 			break;
 		// HEAD: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		case HTMLCodes.HR: {
-			// <HR color noshade size>
-			//
-			// **align・width(inline-size)・4辺insetの罫線・size(太さ)は
-			// html-ua.css へ移送済み**(2026-08-03、型付きattr())。
-			// ここに残るのは noshade/color 指定時の「片側だけの罫線」——
-			// 親の書字方向で物理側が決まるが、border-block-end 等の
-			// **論理境界プロパティが未実装**のためCSSで書けない。
-			ColorValue color = null;
-			{
-				String str = ce.atts.getValue("color");
-				if (str != null) {
-					color = HTMLStyleUtils.parseColor(str);
-					if (color == null) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "HR", "color", str);
-					}
-				}
-			}
-			if (ce.atts.getValue("noshade") != null || color != null) {
-				LengthValue size = null;
-				String str = ce.atts.getValue("size");
-				if (str != null) {
-					size = ValueUtils.toLength(ua, true, str);
-					if (size == null) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "HR", "size", str);
-					}
-				}
-				final CSSStyle pStyle = style.getParentStyle();
-				final Side blockEnd = pStyle != null ? LogicalSide.BLOCK_END.toPhysical(pStyle) : Side.BOTTOM;
-				style.set(BorderStyle.forSide(blockEnd), BorderStyleValue.SOLID_VALUE);
-				if (size != null) {
-					style.set(BorderWidth.forSide(blockEnd), size);
-				}
-				if (color != null) {
-					style.set(BorderColor.forSide(blockEnd), color);
-				}
-			}
-		}
+		case HTMLCodes.HR:
+			// <HR align color noshade size width> は html-ua.css へ移送済み
+			// (2026-08-03)。片側罫線は border-block-end-* を実装して書けるように
+			// なった
 			break;
-		// I: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		case HTMLCodes.IFRAME: {
-			// <IFRAME>
-			HTMLStyleUtils.applyWidthHeight("IFRAME", style);
-			HTMLStyleUtils.applyHSpaceVSpace("IFRAME", style);
-			HTMLStyleUtils.applyImageAlign("IFRAME", style);
-			HTMLStyleUtils.applyMarginWidthMarginHeight("IFRAME", style);
-			boolean border = true;
-			{
-				String str = ce.atts.getValue("frameborder");
-				if (str != null) {
-					str = str.trim().toLowerCase();
-					try {
-						if (str.equals("1") || str.equals("yes")) {
-							border = true;
-						} else if (str.equals("0") || str.equals("no")) {
-							border = false;
-						}
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "IFRAME", "frameborder", str);
-					}
-				}
-			}
-			if (border) {
-				LengthValue medium = ua.getBorderWidth(BorderWidthKeyword.MEDIUM);
-				style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.TOP, medium);
-				style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.LEFT, medium);
-				style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.BOTTOM, medium);
-				style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.RIGHT, medium);
-			}
-		}
+		case HTMLCodes.IFRAME:
+			// <IFRAME width height hspace vspace align marginwidth marginheight
+			// frameborder> は html-ua.css へ移送済み(2026-08-03)
 			break;
 		case HTMLCodes.IMG: {
 			// <IMG src alt border width height hspace vspace align usemap>
@@ -1128,47 +1062,13 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.PRE: {
-			// <PRE cols width wrap> white-space: pre/text-alignはhtml-ua.cssに
-			// 移行(2026-08-02)。font-familyはtoFontFamily()の非対称性のため残す
+			// <PRE cols width wrap> は html-ua.css へ移送済み(2026-08-03)。
+			// **font-family だけ残る**——FontValueUtils.toFontFamily() が
+			// 既定ファミリを暗黙に足すため、CSSで monospace と書くと値が
+			// 変わってしまう(既知の非対称性)
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
-			String wrap = ce.atts.getValue("wrap");
-			if (wrap != null) {
-				style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_WRAP_VALUE);
-			}
-			{
-				String str = ce.atts.getValue("cols");
-				if (str != null) {
-					try {
-						Value cols = RelativeLengthValue.em(NumberUtils.parseDouble(str));
-						style.set(Width.INFO, cols);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "PRE", "cols", str);
-					}
-				}
-			}
-			{
-				String str = ce.atts.getValue("width");
-				if (str != null) {
-					try {
-						QuantityValue length = HTMLStyleUtils.parseLength(ua, str);
-						if (length.isNegative()) {
-							throw new NumberFormatException();
-						}
-						style.set(Width.INFO, length);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "PRE", "width", str);
-					}
-				}
-			}
 		}
 			break;
-		// ルビは注釈付きテキスト(2026-07-25仕様裁定、docs/history/
-		// 2026-07-25-ruby-annotation-spec-decision.md): ruby/rb/rtは
-		// 役割マーカー(-cssj-ruby)だけを与え、通常のINLINEとして流す
-		// (StyleBuilderがdisplayをINLINEへ強制する)。単位の組み立て・
-		// ふりがなの半サイズ描画は文字処理層(StyledTextUnitizer/
-		// RubyUnitBox)が行うため、旧箱方式のline-height/text-align/
-		// font-size等の要素既定スタイルは不要になった。
 		case HTMLCodes.RUBY: {
 			// <RUBY>
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RUBY_VALUE);
@@ -1447,44 +1347,10 @@ public class HTMLStyle {
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
-		case HTMLCodes.TEXTAREA: {
-			// <TEXTAREA cols rows disabled wrap>
-			// display/width/height/background/border/white-spaceの既定は
-			// html-ua.cssに移行(2026-08-02)
-			{
-				String str = ce.atts.getValue("cols");
-				if (str != null) {
-					try {
-						style.set(Width.INFO, RelativeLengthValue.ex(NumberUtils.parseDouble(str)));
-					} catch (NumberFormatException e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TEXTAREA", "cols", str);
-					}
-				}
-			}
-			{
-				String str = ce.atts.getValue("rows");
-				if (str != null) {
-					try {
-						style.set(Height.INFO, RelativeLengthValue.em(NumberUtils.parseDouble(str)));
-					} catch (NumberFormatException e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TEXTAREA", "rows", str);
-					}
-				}
-			}
-			if (ce.atts.getValue("disabled") != null) {
-				style.set(CSSColor.INFO, ColorValueUtils.GRAY);
-			}
-			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
-			style.set(Padding.TOP, thin);
-			style.set(Padding.RIGHT, thin);
-			style.set(Padding.BOTTOM, thin);
-			style.set(Padding.LEFT, thin);
-			if (ce.atts.getValue("wrap") != null) {
-				style.set(WhiteSpace.INFO, WhiteSpaceValue.PRE_WRAP_VALUE);
-			}
-		}
+		case HTMLCodes.TEXTAREA:
+			// <TEXTAREA cols rows disabled wrap> は html-ua.css へ移送済み
+			// (2026-08-03)
 			break;
-		// TITLE/U: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.UL:
 			// <UL type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
 			// 前方一致の属性セレクタで同値)
