@@ -731,15 +731,30 @@ public class BlockBuilder implements Builder, LayoutContext {
 			marginEnd = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
 		}
 		lineSize -= frameSize;
-		if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
+		// **包含ブロックより広い箱では auto マージンを0にする**(2026-08-03)。
+		//
+		// CSS 2.1 §10.3.3: 幅が指定されていて合計が包含ブロックを超える場合、
+		// {@code direction: ltr} では{@code margin-right}の指定が無視される
+		// ——つまり<b>箱は始端に揃い、終端側へ溢れる</b>。従来は余りを機械的に
+		// 2で割っていたため、余りが負のときに<b>負の始端マージン</b>ができ、
+		// 内容の左半分が紙の外へ出て切れていた。
+		//
+		// 固定幅の版面を{@code margin: 0 auto}で中央寄せする作りは実地で
+		// 極めて多い(総務省統計局のページを取り込んだ第3波で発覚、PLAN §3)。
+		// 紙幅より広い版面はどのみち溢れるが、<b>始端側を守れば読める</b>。
+		final double autoRemainder = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+		if (autoRemainder < 0 && (LayoutUtils.isNone(marginStart) || LayoutUtils.isNone(marginEnd))) {
+			marginStart = LayoutUtils.isNone(marginStart) ? 0 : marginStart;
+			marginEnd = LayoutUtils.isNone(marginEnd) ? 0 : marginEnd;
+		} else if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
 			// 左右のマージンを同じにする
-			marginStart = marginEnd = (cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd) / 2.0;
+			marginStart = marginEnd = autoRemainder / 2.0;
 		} else if (LayoutUtils.isNone(marginStart)) {
 			// 左が不確定
-			marginStart = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+			marginStart = autoRemainder;
 		} else if (LayoutUtils.isNone(marginEnd)) {
 			// 右が不確定
-			marginEnd = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
+			marginEnd = autoRemainder;
 		} else {
 			// 制限しすぎ
 			switch (align) {

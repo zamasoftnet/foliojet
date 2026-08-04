@@ -140,6 +140,18 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 			}
 			final double remainder = containerBox.getLineSize() - this.width;
+			// **包含ブロックより広い箱では始端に揃える**（2026-08-03）。
+			//
+			// CSS 2.1 §10.3.3: 幅が指定されていて合計が包含ブロックを超える場合、
+			// direction: ltr では margin-right の指定が無視される——箱は始端に揃い、
+			// 終端側へ溢れる。従来は余りを機械的に2で割っていたため、余りが負の
+			// ときに**負の始端マージン**ができ、内容の左半分が紙の外へ出て
+			// 切れていた。固定幅の版面を margin: 0 auto で中央寄せする作りは
+			// 実地で極めて多い（総務省統計局のページを取り込んだ第3波で発覚、PLAN §3）。
+			// 紙幅より広い版面はどのみち溢れるが、**始端側を守れば読める**。
+			if (remainder < 0) {
+				align = Align.START;
+			}
 			switch (align) {
 			case Align.START:
 				this.frame.margin.right = remainder;
@@ -403,9 +415,20 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					// 固定幅の場合
 					marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
 					marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
-					if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
+					final double autoRemainder = lineSize - this.width - this.frame.getFrameWidth();
+					if (autoRemainder < 0 && (LayoutUtils.isNone(marginLeft) || LayoutUtils.isNone(marginRight))) {
+						// **包含ブロックより広い箱は始端に揃える**（2026-08-03）。
+						// CSS 2.1 §10.3.3: 幅が指定されていて合計が包含ブロックを超える場合、
+						// direction: ltr では margin-right の指定が無視される——箱は始端に
+						// 揃い、終端側へ溢れる。従来は余りを機械的に2で割っており、
+						// 余りが負のときに**負の左マージン**ができて内容の左半分が
+						// 紙の外へ出ていた。固定幅の版面を margin: 0 auto で中央寄せする
+						// 作りは実地で極めて多い（総務省統計局のページで発覚、PLAN §3）。
+						marginLeft = LayoutUtils.isNone(marginLeft) ? 0 : marginLeft;
+						marginRight = LayoutUtils.isNone(marginRight) ? 0 : marginRight;
+					} else if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 						// 左右のマージンを同じにする
-						marginLeft = marginRight = (lineSize - this.width - this.frame.getFrameWidth()) / 2.0;
+						marginLeft = marginRight = autoRemainder / 2.0;
 					} else {
 						if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
 							// 左が不確定

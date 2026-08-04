@@ -284,7 +284,15 @@ public class HTMLStyle {
 	private static void applyButton(CSSStyle style, boolean disabled) {
 		UserAgent ua = style.getUserAgent();
 		style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
-		style.set(Height.INFO, EM_1);
+		// **高さは内容で決める**(2026-08-03)。以前はここで {@code height: 1em} を
+		// 強制していたため、<b>行の高さや上下パディングを持つボタンでラベルが箱の
+		// 外へはみ出していた</b>——ボタンは1em、文字は1.5emで、下半分が箱の下に
+		// 垂れる。実ブラウザのボタンは内容依存(height: auto)である。
+		//
+		// これは属性由来の既定値(presentational hint)なので著者CSSより弱く、
+		// 高さを明示しないCSS(Bootstrapの .btn は上下パディングで高さを作る)
+		// では上書きされずに残っていた。Bootstrapの部品見本を取り込んだ第3波で
+		// 発覚(PLAN §3)。回帰は files/unittest/3080-MODERN-CSS/form-controls.html。
 		if (disabled) {
 			style.set(CSSColor.INFO, ColorValueUtils.DIMGRAY);
 		}
