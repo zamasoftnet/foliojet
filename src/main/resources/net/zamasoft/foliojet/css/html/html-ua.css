@@ -442,3 +442,39 @@ select {
 ruby, rb, rt {
 	display: inline;
 }
+
+/*
+ * 第6弾(2026-08-03): 属性由来の既定値のうち、型付きattr()と属性セレクタで
+ * 書けるものを移送する。**Javaのstyle.set()は属性由来の層(UAシートより強く
+ * 著者CSSより弱い)**なので、移送先の規則はUA起源になる——著者CSSに負ける
+ * 点は同じで、UAシート内では特異性で決まる。
+ */
+
+/* BODY の余白属性(古いHTMLで多用される) */
+body[marginwidth]  { margin-left: attr(marginwidth px); margin-right: attr(marginwidth px); }
+body[marginheight] { margin-top: attr(marginheight px); margin-bottom: attr(marginheight px); }
+body[topmargin]    { margin-top: attr(topmargin px); }
+body[rightmargin]  { margin-right: attr(rightmargin px); }
+body[leftmargin]   { margin-left: attr(leftmargin px); }
+body[bottommargin] { margin-bottom: attr(bottommargin px); }
+
+/* BODY の色属性 */
+body[bgcolor] { background-color: attr(bgcolor type(color)); }
+body[text]    { color: attr(text type(color)); }
+
+/*
+ * HR。noshade も color も無い場合は4辺のinset(彫り込み)。
+ * **片側だけの罫線(noshade/color指定時)は書けない**——親の書字方向で
+ * 物理側が決まるが、border-block-end 等の論理境界プロパティが未実装のため。
+ * そこはJavaに残る。
+ */
+hr:not([noshade]):not([color]) {
+	border: 1px inset;
+}
+
+hr[size]:not([noshade]):not([color])  { block-size: attr(size px); }
+hr[width] { inline-size: attr(width px); }
+
+hr { margin-left: auto; margin-right: auto; }
+hr[align=right] { margin-left: auto; margin-right: 0; }
+hr[align=left]  { margin-left: 0; margin-right: auto; }

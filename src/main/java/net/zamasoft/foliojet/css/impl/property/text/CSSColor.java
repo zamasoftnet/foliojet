@@ -46,6 +46,13 @@ public class CSSColor extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
+		// 型付き attr()(2026-08-03)。ColorValueUtils.toColor は具象の
+		// ColorValue を返す契約なので、未解決値はここで受ける
+		final Value attr = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu,
+				net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR);
+		if (attr != null) {
+			return attr;
+		}
 		final Value value = ColorValueUtils.toColor(ua, lu);
 		if (value != null) {
 			return value;

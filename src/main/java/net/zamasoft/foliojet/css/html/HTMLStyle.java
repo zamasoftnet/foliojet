@@ -755,59 +755,12 @@ public class HTMLStyle {
 		// BIG/BLINK: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		// BLOCKQUOTE: 既定値(margin-block/margin-inline)はhtml-ua.cssに移行(2026-08-02)
 		case HTMLCodes.BODY: {
-			// <BODY
-			// marginwidth marginheight
-			// topmargin leftmargin rightmargin bottommargin
-			// bgcolor background bgproperties -scroll
-			// text link -vlink -alink>
-			// 既定margin 8pxはhtml-ua.cssに移行(2026-08-02)
-			HTMLStyleUtils.applyMarginWidthMarginHeight("BODY", style);
-			{
-				String str = ce.atts.getValue("topmargin");
-				if (str != null) {
-					try {
-						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(Margin.TOP, length);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "topmargin", str);
-					}
-				}
-			}
-			{
-				String str = ce.atts.getValue("rightmargin");
-				if (str != null) {
-					try {
-						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(Margin.RIGHT, length);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "rightmargin", str);
-					}
-				}
-			}
-			{
-				String str = ce.atts.getValue("leftmargin");
-				if (str != null) {
-					try {
-						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(Margin.LEFT, length);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "leftmargin", str);
-					}
-				}
-			}
-			{
-				String str = ce.atts.getValue("bottommargin");
-				if (str != null) {
-					try {
-						Value length = HTMLStyleUtils.parseLength(ua, str);
-						style.set(Margin.BOTTOM, length);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "bottommargin", str);
-					}
-				}
-			}
-			HTMLStyleUtils.applyBGColor("BODY", style);
-			HTMLStyleUtils.applyBackground("BODY", style);
+			// <BODY background bgproperties link -vlink -alink>
+			//
+			// **余白属性(marginwidth/marginheight/topmargin/rightmargin/
+			// leftmargin/bottommargin)・bgcolor・text は html-ua.css へ移送済み**
+			// (2026-08-03、型付きattr())。ここに残るのは背景画像の資源解決と、
+			// 子孫へ配る必要のある link 色。
 			{
 				String str = ce.atts.getValue("bgproperties");
 				if (str != null && str.equalsIgnoreCase("fixed")) {
@@ -823,16 +776,7 @@ public class HTMLStyle {
 					}
 				}
 			}
-			{
-				String str = ce.atts.getValue("text");
-				if (str != null) {
-					ColorValue color = HTMLStyleUtils.parseColor(str);
-					style.set(CSSColor.INFO, color);
-					if (color == null) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "BODY", "text" + str);
-					}
-				}
-			}
+			HTMLStyleUtils.applyBackground("BODY", style);
 		}
 			break;
 		case HTMLCodes.BR: {
@@ -1008,9 +952,13 @@ public class HTMLStyle {
 			break;
 		// HEAD: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.HR: {
-			// <HR align color noshade size width>
-			// margin-block 0.5emはhtml-ua.cssに移行(2026-08-02)
-
+			// <HR color noshade size>
+			//
+			// **align・width(inline-size)・4辺insetの罫線・size(太さ)は
+			// html-ua.css へ移送済み**(2026-08-03、型付きattr())。
+			// ここに残るのは noshade/color 指定時の「片側だけの罫線」——
+			// 親の書字方向で物理側が決まるが、border-block-end 等の
+			// **論理境界プロパティが未実装**のためCSSで書けない。
 			ColorValue color = null;
 			{
 				String str = ce.atts.getValue("color");
@@ -1021,9 +969,8 @@ public class HTMLStyle {
 					}
 				}
 			}
-
-			LengthValue size = null;
-			{
+			if (ce.atts.getValue("noshade") != null || color != null) {
+				LengthValue size = null;
 				String str = ce.atts.getValue("size");
 				if (str != null) {
 					size = ValueUtils.toLength(ua, true, str);
@@ -1031,47 +978,7 @@ public class HTMLStyle {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "HR", "size", str);
 					}
 				}
-			}
-
-			QuantityValue width = null;
-			{
-				String str = ce.atts.getValue("width");
-				if (str != null) {
-					try {
-						width = HTMLStyleUtils.parseLength(ua, str);
-						if (width.isNegative()) {
-							throw new NumberFormatException();
-						}
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "HR", "width", str);
-					}
-				}
-			}
-
-			final CSSStyle pStyle = style.getParentStyle();
-			if (ce.atts.getValue("noshade") == null && color == null) {
-				LengthValue border = AbsoluteLengthValue.create(ua, 1, Unit.PX);
-				style.set(BorderStyle.TOP, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.TOP, border);
-				style.set(BorderStyle.RIGHT, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.RIGHT, border);
-				style.set(BorderStyle.BOTTOM, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.BOTTOM, border);
-				style.set(BorderStyle.LEFT, BorderStyleValue.INSET_VALUE);
-				style.set(BorderWidth.LEFT, border);
-
-				// size(太さ)=block-size、width属性(長さ)=inline-size
-				// (2026-07-20、-cssj-direction-mode廃止により論理プロパティへ
-				// 一本化)
-				if (size != null) {
-					style.set(BlockSize.INFO, size);
-				}
-				if (width != null) {
-					style.set(InlineSize.INFO, width);
-				}
-			} else {
-				// 罫線を1辺だけ描く(block-end側。2026-07-20、
-				// -cssj-direction-mode廃止により論理プロパティへ一本化)
+				final CSSStyle pStyle = style.getParentStyle();
 				final Side blockEnd = pStyle != null ? LogicalSide.BLOCK_END.toPhysical(pStyle) : Side.BOTTOM;
 				style.set(BorderStyle.forSide(blockEnd), BorderStyleValue.SOLID_VALUE);
 				if (size != null) {
@@ -1080,19 +987,6 @@ public class HTMLStyle {
 				if (color != null) {
 					style.set(BorderColor.forSide(blockEnd), color);
 				}
-				if (width != null) {
-					style.set(InlineSize.INFO, width);
-				}
-			}
-
-			String align = ce.atts.getValue("align");
-			if ("right".equalsIgnoreCase(align)) {
-				style.set(Margin.LEFT, KeywordValue.AUTO);
-			} else if ("left".equalsIgnoreCase(align)) {
-				style.set(Margin.RIGHT, KeywordValue.AUTO);
-			} else {
-				style.set(Margin.LEFT, KeywordValue.AUTO);
-				style.set(Margin.RIGHT, KeywordValue.AUTO);
 			}
 		}
 			break;

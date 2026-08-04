@@ -105,6 +105,11 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 		}
 		case LENGTH:
 		default: {
+			// **割合も受ける**(2026-08-03)。HTMLの width="50%" は日常的
+			if (raw.endsWith("%")) {
+				final double pct = parseNumber(raw.substring(0, raw.length() - 1).trim(), false);
+				return Double.isNaN(pct) ? null : PercentageValue.create(pct);
+			}
 			// 単位が付いていれば尊重し、無ければ指定された単位を補う
 			// (HTMLの width="200" は 200px の意味)
 			final Value length = net.zamasoft.foliojet.css.util.ValueUtils.toLength(style.getUserAgent(), false, raw);
