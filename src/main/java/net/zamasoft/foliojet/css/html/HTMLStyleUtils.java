@@ -34,7 +34,6 @@ import net.zamasoft.foliojet.css.impl.property.box.Width;
 import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.util.NumberUtils;
@@ -43,10 +42,8 @@ import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
 import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
-import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
-
 public final class HTMLStyleUtils {
 	private HTMLStyleUtils() {
 		// unused

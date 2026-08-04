@@ -14,36 +14,23 @@ import java.util.logging.Logger;
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.css.util.LengthUtils;
-import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.BackgroundAttachmentValue;
-import net.zamasoft.foliojet.css.value.BorderCollapseValue;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
-import net.zamasoft.foliojet.css.value.CaptionSideValue;
-import net.zamasoft.foliojet.css.value.ClearValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
-import net.zamasoft.foliojet.css.value.OverflowValue;
-import net.zamasoft.foliojet.css.value.PageBreakInsideValue;
-import net.zamasoft.foliojet.css.value.PageBreakValue;
-import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
-import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
-import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.TextDecorationValue;
 import net.zamasoft.foliojet.css.value.UnicodeBidiValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
-import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.css.value.WhiteSpaceValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
@@ -56,36 +43,20 @@ import net.zamasoft.foliojet.css.impl.part.SelectImage;
 import net.zamasoft.foliojet.css.impl.part.UnprintBrokenImage;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
-import net.zamasoft.foliojet.css.impl.property.table.BorderCollapse;
-import net.zamasoft.foliojet.css.impl.property.table.BorderSpacing;
 import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
 import net.zamasoft.foliojet.css.impl.property.font.CSSFontFamily;
 import net.zamasoft.foliojet.css.impl.property.box.CSSPosition;
-import net.zamasoft.foliojet.css.impl.property.table.CaptionSide;
-import net.zamasoft.foliojet.css.impl.property.box.Clear;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
 import net.zamasoft.foliojet.css.impl.property.font.FontSize;
 import net.zamasoft.foliojet.css.impl.property.font.FontWeight;
 import net.zamasoft.foliojet.css.impl.property.box.Height;
-import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
-import net.zamasoft.foliojet.css.impl.property.content.ListStyleType;
-import net.zamasoft.foliojet.css.impl.property.box.Overflow;
-import net.zamasoft.foliojet.css.impl.property.page.PageBreakAfter;
-import net.zamasoft.foliojet.css.impl.property.page.PageBreakBefore;
-import net.zamasoft.foliojet.css.impl.property.page.PageBreakInside;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
 import net.zamasoft.foliojet.css.impl.property.text.TextDecoration;
-import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
 import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
-import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
 import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
-import net.zamasoft.foliojet.css.impl.property.box.Width;
-import net.zamasoft.foliojet.css.impl.property.box.BlockSize;
-import net.zamasoft.foliojet.css.impl.property.box.InlineSize;
 import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
@@ -93,8 +64,6 @@ import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlCellPadding;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlTableBorder;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
-import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.ImageMap.Area;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -108,7 +77,6 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
-import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
 import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
 import net.zamasoft.foliojet.css.impl.property.box.Padding;
@@ -119,7 +87,6 @@ import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.CompatibleMode;
-
 public class HTMLStyle {
 	private static final Logger LOG = Logger.getLogger(HTMLStyle.class.getName());
 
@@ -355,41 +322,30 @@ public class HTMLStyle {
 	private static void applyTableCell(String elem, CSSStyle style) {
 		UserAgent ua = style.getUserAgent();
 		CSSElement ce = style.getCSSElement();
-		style.set(Display.INFO, DisplayValue.TABLE_CELL_VALUE);
-		style.set(PageBreakInside.INFO, PageBreakInsideValue.AVOID_VALUE);
-
-		style.set(VerticalAlign.INFO, VerticalAlignValue.MIDDLE_VALUE);
-		{
-			String str = ce.atts.getValue("valign");
-			if (str != null) {
-				HTMLStyleUtils.applyVAlign(elem, style, str);
-			} else {
-				CSSStyle parentStyle = style.getParentStyle();
-				LOOP: while (parentStyle != null) {
-					CSSElement parentCe = parentStyle.getCSSElement();
-					switch (HTMLCodes.code(parentCe)) {
-					case HTMLCodes.TR:
-					case HTMLCodes.THEAD:
-					case HTMLCodes.TBODY:
-					case HTMLCodes.TFOOT:
-					case HTMLCodes.TABLE:
-						str = parentCe.atts.getValue("valign");
-						if (str == null) {
-							break;
-						}
-						HTMLStyleUtils.applyVAlign(elem, style, str);
-						break LOOP;
+		// display/page-break-inside/vertical-alignの既定、自分のvalign・align、
+		// width/height/bgcolor/nowrapはhtml-ua.cssへ移送済み(2026-08-04)
+		if (ce.atts.getValue("valign") == null) {
+			// **祖先のうち最も近いvalignを継ぐ**。セレクタでは「近さ」を表せない
+			CSSStyle parentStyle = style.getParentStyle();
+			LOOP: while (parentStyle != null) {
+				CSSElement parentCe = parentStyle.getCSSElement();
+				switch (HTMLCodes.code(parentCe)) {
+				case HTMLCodes.TR:
+				case HTMLCodes.THEAD:
+				case HTMLCodes.TBODY:
+				case HTMLCodes.TFOOT:
+				case HTMLCodes.TABLE:
+					String str = parentCe.atts.getValue("valign");
+					if (str == null) {
+						break;
 					}
-					parentStyle = parentStyle.getParentStyle();
+					HTMLStyleUtils.applyVAlign(elem, style, str);
+					break LOOP;
 				}
+				parentStyle = parentStyle.getParentStyle();
 			}
 		}
-		HTMLStyleUtils.applyWidthHeight(elem, style);
-		HTMLStyleUtils.applyBGColor(elem, style);
 		HTMLStyleUtils.applyBackground(elem, style);
-		if (ce.atts.getValue("nowrap") != null) {
-			style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
-		}
 		LengthValue cellpadding = CSSJHtmlCellPadding.get(style);
 		style.set(Padding.TOP, cellpadding, CSSStyle.MODE_WEAK);
 		style.set(Padding.RIGHT, cellpadding, CSSStyle.MODE_WEAK);
@@ -418,7 +374,6 @@ public class HTMLStyle {
 			style.set(BorderStyle.LEFT, borderStyle);
 			style.set(BorderWidth.LEFT, thin);
 		}
-		HTMLStyleUtils.applyBlockAlign(elem, style);
 		CSSStyle parent = style.getParentStyle();
 		for (; parent != null; parent = parent.getParentStyle()) {
 			CSSElement parentCe = parent.getCSSElement();
@@ -454,52 +409,13 @@ public class HTMLStyle {
 	}
 
 	private static void applyTableColumn(String elem, CSSStyle style) {
-		CSSElement ce = style.getCSSElement();
-		UserAgent ua = style.getUserAgent();
-		HTMLStyleUtils.applyBGColor(elem, style);
-		String width = ce.atts.getValue("width");
-		if (width != null) {
-			try {
-				QuantityValue length = HTMLStyleUtils.parseLength(ua, width);
-				if (length.isNegative()) {
-					throw new NumberFormatException();
-				}
-				style.set(Width.INFO, length);
-			} catch (Exception e) {
-				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "width", width);
-			}
-		}
-		HTMLStyleUtils.applyBlockAlign(elem, style);
-		HTMLStyleUtils.applyVAlign(elem, style, ce.atts.getValue("valign"));
-
+		// bgcolor/width/align/valignはhtml-ua.cssへ移送済み(2026-08-04)。
+		// 表からセルへ配るcellpaddingだけが残る
 		LengthValue cellpadding = CSSJHtmlCellPadding.get(style);
 		style.set(Padding.TOP, cellpadding, CSSStyle.MODE_WEAK);
 		style.set(Padding.RIGHT, cellpadding, CSSStyle.MODE_WEAK);
 		style.set(Padding.BOTTOM, cellpadding, CSSStyle.MODE_WEAK);
 		style.set(Padding.LEFT, cellpadding, CSSStyle.MODE_WEAK);
-	}
-
-	private static void applyTableRows(String elem, CSSStyle style) {
-		style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.START_VALUE);
-		UserAgent ua = style.getUserAgent();
-		HTMLStyleUtils.applyBlockAlign(elem, style);
-		HTMLStyleUtils.applyBGColor(elem, style);
-		CSSJHtmlTableBorderValue border = CSSJHtmlTableBorder.get(style);
-		if (!border.getWidth().isZero()) {
-			CSSStyle parent = style.getParentStyle();
-			for (; parent != null; parent = parent.getParentStyle()) {
-				CSSElement parentCe = parent.getCSSElement();
-				if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
-					if ("groups".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
-						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.TOP, ua.getBorderWidth(BorderWidthKeyword.THIN));
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(BorderWidthKeyword.THIN));
-					}
-					break;
-				}
-			}
-		}
 	}
 
 	/**
@@ -1072,22 +988,9 @@ public class HTMLStyle {
 		case HTMLCodes.SELECT: {
 			// <SELECT size> display/position/overflow/line-height/background/
 			// border/white-spaceの既定はhtml-ua.cssに移行(2026-08-02)。
-			// heightは後段のpadding計算が参照するためJava側に残す
-			style.set(Height.INFO, EM_1);
-			{
-				String str = ce.atts.getValue("size");
-				if (str != null) {
-					try {
-						style.set(Height.INFO, RelativeLengthValue.em(NumberUtils.parseDouble(str)));
-					} catch (NumberFormatException e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "SELECT", "size", str);
-					}
-				}
-			}
-			if (ce.atts.getValue("disabled") != null) {
-				style.set(CSSColor.INFO, ColorValueUtils.DIMGRAY);
-				style.set(BackgroundColor.INFO, ColorValueUtils.LIGHTGRAY);
-			}
+			// size(高さ)とdisabledの配色もhtml-ua.cssへ移送済み(2026-08-04)。
+			// **パディングだけ残る**——右のパディングは矢印の実寸に合わせた
+			// 装置単位の値で、CSSの長さでは書けない
 			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(Padding.TOP, thin, CSSStyle.MODE_IMPORTANT);
 			// **矢印の実際の描画幅ぶん空ける**(2026-08-02)。SelectImageは
@@ -1104,164 +1007,26 @@ public class HTMLStyle {
 		// (html-ua.css)に移行(2026-07-19)。SPANは属性駆動のロジックがなく既定値も無いため
 		// Javaケース自体が不要だった
 		case HTMLCodes.TABLE: {
-			// <TABLE width height
-			// bgcolor background align
-			// hspace vspace
-			// border frame
-			// rules cellspacing cellpadding
-			// bordercolor
-			// -bordercolordark
-			// -bordercolorlight
-			// -cols -summary>
-
-			// 既定border-spacing 2pxはhtml-ua.cssに移行(2026-08-02)
-			{
-				String str = ce.atts.getValue("cellspacing");
-				if (str != null) {
-					Value cellspacing = ValueUtils.toLength(ua, true, str);
-					if (cellspacing == null) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TABLE", "cellspacing" + str);
-					} else {
-						style.set(BorderSpacing.INFO_H, cellspacing);
-						style.set(BorderSpacing.INFO_V, cellspacing);
-					}
-				}
-			}
-			LengthValue borderWidth = AbsoluteLengthValue.ZERO;
-			{
-				String str = ce.atts.getValue("border");
-				if (str != null) {
-					if (str.length() == 0) {
-						borderWidth = ua.getBorderWidth(BorderWidthKeyword.THIN);
-					} else {
-						borderWidth = ValueUtils.toLength(ua, true, str);
-						if (borderWidth == null) {
-							ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TABLE", "border", str);
-							borderWidth = ua.getBorderWidth(BorderWidthKeyword.THIN);
-						}
-					}
-				}
-			}
-
-			HTMLStyleUtils.applyWidthHeight("TABLE", style);
-			HTMLStyleUtils.applyHSpaceVSpace("TABLE", style);
-			HTMLStyleUtils.applyBGColor("TABLE", style);
-			HTMLStyleUtils.applyBackground("TABLE", style);
-			HTMLStyleUtils.applyTableAlign("TABLE", style);
-			{
-				String str = ce.atts.getValue("frame");
-				if (str != null) {
-					if (str.equalsIgnoreCase("void")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
-					} else if (str.equalsIgnoreCase("above")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
-					} else if (str.equalsIgnoreCase("below")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
-					} else if (str.equalsIgnoreCase("hsides")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
-					} else if (str.equalsIgnoreCase("vsides")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
-					} else if (str.equalsIgnoreCase("lhs")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.OUTSET_VALUE);
-					} else if (str.equalsIgnoreCase("rhs")) {
-						style.set(BorderStyle.TOP, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.RIGHT, BorderStyleValue.OUTSET_VALUE);
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.NONE_VALUE);
-						style.set(BorderStyle.LEFT, BorderStyleValue.NONE_VALUE);
-					}
-				}
-			}
-			// text-align/text-indent既定はhtml-ua.cssに移行(2026-08-02)。
-			// font-sizeは互換モード条件付きのためJava側に残す
+			// <TABLE background> のみ残る。
+			//
+			// **cellspacing・cellpadding・border・bordercolor・frame・rules・
+			// width・height・hspace・vspace・bgcolor・align は html-ua.css へ
+			// 移送済み**(2026-08-03)。値をセルへ配る内部プロパティ
+			// (-cssj-html-table-border / -cssj-html-cell-padding)はCSSから
+			// 書けるようにし、attr()を計算値の段階で解くようにした。
+			//
+			// font-size は互換モードでのみ設定するのでここに残る。
 			if (style.getUserAgent().getDocumentContext().getCompatibleMode() == CompatibleMode.NORMAL) {
 				style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 			}
-			LengthValue cellpadding = null;
-			{
-				String str = ce.atts.getValue("cellpadding");
-				if (str != null) {
-					cellpadding = ValueUtils.toLength(ua, true, str);
-					if (cellpadding == null) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TABLE", "cellpadding", str);
-					}
-				}
-			}
-			if (cellpadding == null) {
-				cellpadding = AbsoluteLengthValue.create(ua, 1, Unit.PX);
-			}
-			CSSJHtmlCellPadding.set(style, cellpadding);
-			ColorValue borderColor = null;
-			{
-				String str = ce.atts.getValue("bordercolor");
-				if (str != null) {
-					borderColor = HTMLStyleUtils.parseColor(str);
-					if (borderColor == null) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TABLE", "bordercolor", str);
-					}
-				}
-			}
-			{
-				BorderStyleValue borderStyle;
-				if (borderColor == null) {
-					borderStyle = BorderStyleValue.OUTSET_VALUE;
-				} else {
-					borderStyle = BorderStyleValue.SOLID_VALUE;
-					style.set(BorderColor.TOP, borderColor);
-					style.set(BorderColor.RIGHT, borderColor);
-					style.set(BorderColor.BOTTOM, borderColor);
-					style.set(BorderColor.LEFT, borderColor);
-				}
-				CSSJHtmlTableBorder.set(style, new CSSJHtmlTableBorderValue(borderWidth, borderColor));
-
-				style.set(BorderStyle.TOP, borderStyle);
-				style.set(BorderWidth.TOP, borderWidth);
-				style.set(BorderStyle.RIGHT, borderStyle);
-				style.set(BorderWidth.RIGHT, borderWidth);
-				style.set(BorderStyle.BOTTOM, borderStyle);
-				style.set(BorderWidth.BOTTOM, borderWidth);
-				style.set(BorderStyle.LEFT, borderStyle);
-				style.set(BorderWidth.LEFT, borderWidth);
-			}
-
-			{
-				String str = ce.atts.getValue("rules");
-				if (str != null) {
-					if (str.equalsIgnoreCase("all") || str.equalsIgnoreCase("groups") || str.equalsIgnoreCase("rows")
-							|| str.equalsIgnoreCase("cols") || str.equalsIgnoreCase("none")) {
-						style.set(BorderCollapse.INFO, BorderCollapseValue.COLLAPSE_VALUE);
-					}
-				}
-			}
-		}
-			break;
-		case HTMLCodes.TBODY: {
-			// <TBODY align bgcolor valign -charoff>
-			HTMLStyle.applyTableRows("TBODY", style);
+			HTMLStyleUtils.applyTableAlign("TABLE", style);
+			HTMLStyleUtils.applyBackground("TABLE", style);
 		}
 			break;
 		case HTMLCodes.TD: {
 			// <TD bordercolor background bgcolor
 			// align valign height width nowrap colspan rowspan
 			// -charoff,-bordercolordark,-bordercolorlight>
-			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.START_VALUE);
 			HTMLStyle.applyTableCell("TD", style);
 		}
 			break;
@@ -1270,51 +1035,15 @@ public class HTMLStyle {
 			// align valign height width nowrap colspan rowspan
 			// -charoff,-bordercolordark,-bordercolorlight>
 			// font-weight/text-alignはhtml-ua.cssに移行(2026-08-02)
-			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.START_VALUE);
 			HTMLStyle.applyTableCell("TH", style);
-		}
-			break;
-		case HTMLCodes.TFOOT: {
-			// <TFOOT align bgcolor valign -charoff>
-			HTMLStyle.applyTableRows("TFOOT", style);
-		}
-			break;
-		case HTMLCodes.THEAD: {
-			// <THEAD align bgcolor valign -charoff>
-			HTMLStyle.applyTableRows("THEAD", style);
 		}
 			break;
 		case HTMLCodes.TR: {
 			// <TR bordercolor background bgcolor align valign height
 			// -charoff,-bordercolordark,-bordercolorlight>
-			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.START_VALUE);
-			HTMLStyleUtils.applyBlockAlign("TR", style);
+			// align/bgcolor/height/rules=rowsはhtml-ua.cssへ移送済み
+			// (2026-08-04)。backgroundだけは資源の解決が要るので残る
 			HTMLStyleUtils.applyBackground("TR", style);
-			HTMLStyleUtils.applyBGColor("TR", style);
-			{
-				String str = ce.atts.getValue("height");
-				if (str != null) {
-					try {
-						Value height = HTMLStyleUtils.parseLength(ua, str);
-						style.set(Height.INFO, height);
-					} catch (Exception e) {
-						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TR", "height", str);
-					}
-				}
-			}
-			CSSStyle parent = style.getParentStyle();
-			for (; parent != null; parent = parent.getParentStyle()) {
-				CSSElement parentCe = parent.getCSSElement();
-				if (HTMLCodes.code(parentCe) == HTMLCodes.TABLE) {
-					if ("rows".equalsIgnoreCase(parentCe.atts.getValue("rules"))) {
-						style.set(BorderStyle.TOP, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.TOP, ua.getBorderWidth(BorderWidthKeyword.THIN));
-						style.set(BorderStyle.BOTTOM, BorderStyleValue.SOLID_VALUE);
-						style.set(BorderWidth.BOTTOM, ua.getBorderWidth(BorderWidthKeyword.THIN));
-					}
-					break;
-				}
-			}
 		}
 			break;
 		case HTMLCodes.TT: {

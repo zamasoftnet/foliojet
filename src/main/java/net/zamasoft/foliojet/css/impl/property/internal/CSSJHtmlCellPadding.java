@@ -35,8 +35,13 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 		super("-cssj-html-cellpadding");
 	}
 
+	/**
+	 * <b>宣言した要素(表)で解いてから継承させる</b>(2026-08-03)。
+	 * {@code attr(cellpadding px)} や {@code em} は要素依存なので、
+	 * 未解決のまま継承するとセル側で別の値になってしまう。
+	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return value;
+		return net.zamasoft.foliojet.css.util.ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
 	public Value getDefault(CSSStyle style) {

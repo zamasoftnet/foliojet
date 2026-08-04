@@ -579,9 +579,8 @@ input[align=bottom] { vertical-align: baseline; }
 /*
  * 第10弾(2026-08-03): 表の属性のうち、値が素直に写るものを移送。
  *
- * **border / bordercolor / cellpadding は移送できない**——表からセルへ配る
- * 内部の値({@code -cssj-html-table-border} 等)が具象の長さ・色を要求する
- * 型で、未解決の attr() を持ち回れない。値型を attr() 対応にする改修が要る。
+ * border / bordercolor / cellpadding は第11弾で移送した(内部プロパティ側で
+ * attr() を計算値の段階まで持ち回れるようにした)。
  */
 table[cellspacing] { border-spacing: attr(cellspacing px, 2px); }
 
@@ -605,3 +604,126 @@ td[width], th[width]   { width: attr(width px); }
 td[height], th[height] { height: attr(height px); }
 col[width], colgroup[width] { width: attr(width px); }
 td[nowrap], th[nowrap] { white-space: nowrap; }
+
+/*
+ * 第11弾(2026-08-03): 表の罫線・パディングの属性。
+ *
+ * **値を子孫へ流すのは内部プロパティのまま**——継承カスタムプロパティでも
+ * 書けるが、全要素に継承枠が増えるので10万行の表で効く。値が要るのは
+ * cellpadding と bordercolor の2つだけなので、既存の内部プロパティに
+ * attr() を解かせる形にした(宣言した表で解いてから継承される)。
+ * それ以外(罫線の有無・rules・frame)は**子孫選択子で書けるので継承不要**。
+ */
+table { -cssj-html-cellpadding: 1px; }
+table[cellpadding] { -cssj-html-cellpadding: attr(cellpadding px, 1px); }
+
+/* border 属性: 表自身の罫線と、セルへ配る値 */
+table[border] {
+	-cssj-html-table-border: attr(border px, 1pt);
+	/* ショートハンドは attr() を受けないのでロングハンドで書く */
+	border-top-width: attr(border px, 1pt);
+	border-right-width: attr(border px, 1pt);
+	border-bottom-width: attr(border px, 1pt);
+	border-left-width: attr(border px, 1pt);
+	border-style: outset;
+}
+table[border][bordercolor] {
+	-cssj-html-table-border: attr(border px, 1pt) attr(bordercolor type(color));
+	border-style: solid;
+	border-top-color: attr(bordercolor type(color));
+	border-right-color: attr(bordercolor type(color));
+	border-bottom-color: attr(bordercolor type(color));
+	border-left-color: attr(bordercolor type(color));
+}
+
+/*
+ * frame 属性。**移送して初めて効くようになる**——Javaでは frame が設定した
+ * 4辺の border-style を後段が無条件で上書きしており、事実上無効だった
+ * (2026-08-03に移送中に発見。互換より正しさを優先するオーナー判断で直す)。
+ */
+table[frame=void]   { border-style: none; }
+table[frame=above]  { border-style: outset none none none; }
+table[frame=below]  { border-style: none none outset none; }
+table[frame=hsides] { border-style: none outset none outset; }
+table[frame=vsides] { border-style: outset none outset none; }
+table[frame=lhs]    { border-style: none none none outset; }
+table[frame=rhs]    { border-style: none outset none none; }
+table[frame=box], table[frame=border] { border-style: outset; }
+
+/*
+ * 第12弾(2026-08-04): 表の align / valign / 行の高さ、SELECT の size。
+ *
+ * align は本文の寄せ(text-align)と箱自体の寄せ(-cssj-html-align)の
+ * 両方を動かす。どちらもCSSから書けるので素直に写る。TABLE の align だけは
+ * 意味が違う(float/中央寄せマージン)ので Java の applyTableAlign に残す。
+ *
+ * valign は **自分の属性ぶんだけ**移送する。属性を持たないセルが
+ * 祖先(TR/THEAD/TBODY/TFOOT/TABLE)のうち **最も近いもの** の valign を
+ * 引き継ぐ規則は、セレクタでは「近さ」を表せないため Java 側に残る。
+ *
+ * 性能: すべて要素名で始まるので、該当要素以外では評価されない
+ * (CSSStyleSheet の候補バケツ分け)。
+ */
+tr, td, th, thead, tbody, tfoot, col, colgroup { -cssj-html-align: start; }
+
+tr[align=center], td[align=center], th[align=center],
+thead[align=center], tbody[align=center], tfoot[align=center],
+col[align=center], colgroup[align=center],
+tr[align=middle], td[align=middle], th[align=middle],
+thead[align=middle], tbody[align=middle], tfoot[align=middle],
+col[align=middle], colgroup[align=middle] {
+	text-align: center;
+	-cssj-html-align: center;
+}
+tr[align=left], td[align=left], th[align=left],
+thead[align=left], tbody[align=left], tfoot[align=left],
+col[align=left], colgroup[align=left] {
+	text-align: left;
+	-cssj-html-align: start;
+}
+tr[align=right], td[align=right], th[align=right],
+thead[align=right], tbody[align=right], tfoot[align=right],
+col[align=right], colgroup[align=right] {
+	text-align: right;
+	-cssj-html-align: end;
+}
+tr[align=justify], td[align=justify], th[align=justify],
+thead[align=justify], tbody[align=justify], tfoot[align=justify],
+col[align=justify], colgroup[align=justify] {
+	text-align: justify;
+	-cssj-html-align: start;
+}
+
+/* セルの既定と、自分の valign */
+td, th {
+	display: table-cell;
+	page-break-inside: avoid;
+	vertical-align: middle;
+}
+td[valign=top], th[valign=top], col[valign=top], colgroup[valign=top] { vertical-align: top; }
+td[valign=bottom], th[valign=bottom], col[valign=bottom], colgroup[valign=bottom] { vertical-align: bottom; }
+td[valign=baseline], th[valign=baseline], col[valign=baseline], colgroup[valign=baseline] { vertical-align: baseline; }
+td[valign=center], th[valign=center], col[valign=center], colgroup[valign=center],
+td[valign=middle], th[valign=middle], col[valign=middle], colgroup[valign=middle] { vertical-align: middle; }
+
+tr[height] { height: attr(height px); }
+
+/*
+ * rules=rows は行に、rules=groups は行グループに罫線。groups は border 属性が
+ * 実際に罫線を出すときだけ効く(Java 版の「表の罫線幅が0でないこと」に対応)。
+ */
+table[rules=rows] tr {
+	border-top: thin solid;
+	border-bottom: thin solid;
+}
+table[border]:not([border="0"])[rules=groups] thead,
+table[border]:not([border="0"])[rules=groups] tbody,
+table[border]:not([border="0"])[rules=groups] tfoot {
+	border-top: thin solid;
+	border-bottom: thin solid;
+}
+
+/* SELECT: size は行数(em)。既定は1行 */
+select { height: 1em; }
+select[size] { height: attr(size em, 1em); }
+select[disabled] { color: dimgray; background-color: lightgray; }
