@@ -926,56 +926,33 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.INPUT: {
 			// <INPUT type disabled size src border width height align>
-			style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
+			//
+			// **font-size・hidden・align・一行入力欄の見た目は html-ua.css へ
+			// 移送済み**(2026-08-03)。ここに残るのは資源解決(type=image)と、
+			// 内部で描くチェックボックス・ラジオボタンの絵。
 			byte type = HTMLStyleUtils.getInputType(ce.atts.getValue("type"));
 			switch (type) {
-			case HTMLStyleUtils.INPUT_BUTTON:
-			case HTMLStyleUtils.INPUT_RESET:
-			case HTMLStyleUtils.INPUT_SUBMIT: {
-				HTMLStyle.applyButton(style, ce.atts.getValue("disabled") != null);
-				HTMLStyleUtils.applyImageAlign("INPUT", style);
-			}
-				break;
 			case HTMLStyleUtils.INPUT_IMAGE: {
 				HTMLStyleUtils.applyWidthHeight("INPUT", style);
 				String src = ce.atts.getValue("src");
 				String alt = ce.atts.getValue("alt");
 				HTMLStyle.applyImage(style, src, null, alt);
-				HTMLStyleUtils.applyImageAlign("INPUT", style);
 				HTMLStyleUtils.applyImageBorder("INPUT", style);
 			}
 				break;
-			case HTMLStyleUtils.INPUT_HIDDEN: {
-				style.set(Display.INFO, DisplayValue.NONE_VALUE);
-			}
-				break;
-			case HTMLStyleUtils.INPUT_CHECKBOX: {
+			case HTMLStyleUtils.INPUT_CHECKBOX:
 				CSSJInternalImage.setImage(style,
 						new CheckBoxImage(ce.atts.getValue("checked") != null, ce.atts.getValue("disabled") != null));
-				HTMLStyleUtils.applyImageAlign("INPUT", style);
-			}
 				break;
-			case HTMLStyleUtils.INPUT_RADIO: {
+			case HTMLStyleUtils.INPUT_RADIO:
 				CSSJInternalImage.setImage(style, new RadioButtonImage(ce.atts.getValue("checked") != null,
 						ce.atts.getValue("disabled") != null));
-				HTMLStyleUtils.applyImageAlign("INPUT", style);
-			}
-				break;
-			case HTMLStyleUtils.INPUT_TEXT:
-			case HTMLStyleUtils.INPUT_PASSWORD: {
-				HTMLStyle.applyTextField(style, ce.atts.getValue("disabled") != null, ce.atts.getValue("size"));
-				HTMLStyleUtils.applyImageAlign("INPUT", style);
-			}
-				break;
-			case HTMLStyleUtils.INPUT_FILE:
 				break;
 			default:
-				throw new IllegalStateException();
+				break;
 			}
 		}
 			break;
-		// INS/U: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		// ISINDEX/KEYGEN/LABEL: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
 		case HTMLCodes.KBD: {
 			// <KBD>
 			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と

@@ -550,3 +550,28 @@ iframe[align=right] { float: right; }
 iframe[align=top]    { vertical-align: top; }
 iframe[align=middle] { vertical-align: middle; }
 iframe[align=bottom] { vertical-align: baseline; }
+
+/* 第9弾(2026-08-03): INPUT。type の既定(無い/未知は text)は :not() 連鎖で書く */
+input { font-size: medium; }
+input[type=hidden] { display: none; }
+
+input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]):not([type=file]) {
+	display: inline-block;
+	height: auto;
+	background-color: white;
+	border: thin inset;
+	padding: 1pt;
+	white-space: nowrap;
+}
+
+input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]):not([type=file])[disabled] {
+	color: dimgray;
+	background-color: lightgray;
+}
+
+/* align 属性(画像と同じ規則) */
+input[align=left]   { float: left; }
+input[align=right]  { float: right; }
+input[align=top]    { vertical-align: top; }
+input[align=middle] { vertical-align: middle; }
+input[align=bottom] { vertical-align: baseline; }
