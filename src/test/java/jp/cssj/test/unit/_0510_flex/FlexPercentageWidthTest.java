@@ -64,10 +64,19 @@ public class FlexPercentageWidthTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 割合のpaddingを含めても外寸は50%(=200pt)のまま。 */
+	/**
+	 * 割合のpaddingは<b>外寸に足される</b>(box-sizingの既定はcontent-box)。
+	 * width:50%=200pt + padding-left:10%=40pt で、次のitemは240pt右。
+	 *
+	 * <p>
+	 * 2026-08-04まではここが200ptだった——<b>flexアイテムの箱がpadding・
+	 * marginの実寸解決を一度も通っておらず、行方向のflexアイテムでは
+	 * どちらも丸ごと消えていた</b>。実地コーパス第6波のcheckout-formで
+	 * ラベルの1文字目が切れて発覚。旧期待値はその欠陥を写したもの。
+	 */
 	public boolean check_u(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
-			assertEquals(this.baseX + 200, x, 0.1);
+			assertEquals(this.baseX + 240, x, 0.1);
 			return true;
 		}
 		return false;

@@ -1,0 +1,56 @@
+<?jp.cssj.property name="output.page-width" value="420pt"?>
+<?jp.cssj.property name="output.page-height" value="420pt"?>
+<html lang="ja">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>flexアイテムのパディングとマージン</title>
+    <style type="text/css">
+      @page { margin: 20pt; }
+      body { margin: 0; font: normal 10pt/1.2 serif; }
+      .f { display: flex; }
+      .i { border: 1pt solid #c00; }
+      .blk { display: block; width: 30pt; height: 8pt; background-color: #ccc; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **flexアイテムのpadding・marginが効くこと**(2026-08-04)。
+
+      通常のフローの箱は firstPassLayout / calculateSize が padding・margin の
+      相対値を実寸(AbsoluteInsets)へ直すが、**flexアイテムの箱はそのどちらも
+      通らない**ため実寸が0のままだった。結果、**行方向のflexアイテムは
+      パディングもマージンも丸ごと消えていた**(縦方向はcross寸法の計算路が
+      別に padding を引くので偶然効いていた——だから片方向だけ見ても
+      捕まらない)。
+
+      Bootstrapのグリッドは `.row > * { padding-inline: … }` で組まれるので、
+      実在のページでは列の内容が枠に貼りついていた。実地コーパス第6波の
+      checkout-form でラベルの1文字目が切れて発覚。
+
+      枠は1pt、中身は30×8pt。padding 20pt なら外寸は 30+40+2 = 72pt。
+    -->
+    <p>A: padding 四辺 20pt(外寸72pt)</p>
+    <div class="f"><div class="i" style="padding:20pt"><div class="blk"></div></div></div>
+
+    <p>B: padding-left だけ(外寸52pt・高さ10pt)</p>
+    <div class="f"><div class="i" style="padding-left:20pt"><div class="blk"></div></div></div>
+
+    <p>C: padding-top だけ(外寸32pt・高さ30pt)</p>
+    <div class="f"><div class="i" style="padding-top:20pt"><div class="blk"></div></div></div>
+
+    <p>D: margin-left 20pt(箱が20pt右へ)</p>
+    <div class="f"><div class="i" style="margin-left:20pt"><div class="blk"></div></div></div>
+
+    <p>E: 幅を明示しても足される(width:100pt + padding-left:20pt = 122pt)</p>
+    <div class="f"><div class="i" style="width:100pt; padding-left:20pt"><div class="blk"></div></div></div>
+
+    <p>F: flex:1 でも同じ</p>
+    <div class="f"><div class="i" style="flex:1; padding-left:20pt"><div class="blk"></div></div></div>
+
+    <p>G: 縦方向のflex(こちらは以前から効いていた側)</p>
+    <div class="f" style="flex-direction:column"><div class="i" style="padding-left:20pt"><div class="blk"></div></div></div>
+
+    <p>H: 比較用のブロック(flexではない)</p>
+    <div><div class="i" style="padding:20pt"><div class="blk"></div></div></div>
+  </body>
+</html>

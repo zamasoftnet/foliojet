@@ -37,7 +37,20 @@ final class FlexItemContent {
 	 * 確定した主軸内寸で本文を一度だけbindします(録画→計測→bindの
 	 * TwoPassライフサイクル。{@code GridItemContent.bind}と同型)。
 	 */
-	void bind(final BlockBuilder host, final double mainSize) {
+	void bind(final BlockBuilder host, final double mainSize, final double insetBase) {
+		// **枠の実寸解決**(2026-08-04)。通常のフローの箱は
+		// firstPassLayout / calculateSize が padding・margin の相対値(%・em)を
+		// 実寸(AbsoluteInsets)へ直すが、**flexアイテムの箱はそのどちらも
+		// 通らない**ため実寸が0のままだった。結果、行方向のflexアイテムは
+		// パディングもマージンも丸ごと消えていた——Bootstrapのグリッドは
+		// `.row > * { padding-inline: … }` で組まれているので、実在の
+		// ページでは列の内容が枠に貼りついていた(実地コーパス第6波の
+		// checkout-form でラベルの1文字目が切れて発覚)。
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = this.itemBox.getFrame();
+		net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding,
+				insetBase);
+		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
+				insetBase);
 		this.itemBox.setFlexMainSize(mainSize, this.itemBox.getBlockParams().flow.isVertical());
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		this.body.bind(target);

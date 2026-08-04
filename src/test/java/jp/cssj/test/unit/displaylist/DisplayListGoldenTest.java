@@ -91,6 +91,10 @@ public class DisplayListGoldenTest extends TestCase {
 			"0450-hyphens/hyphens.html", //
 			"0450-hyphens/word-then-paren.html", //
 			"0510-flex/float-item.html", //
+			// flexアイテムのpadding・marginの実寸解決(2026-08-04)。行方向では
+			// どちらも丸ごと消えていた——縦方向は別経路で偶然効いていたので
+			// 片方向だけ見ても捕まらない
+			"0510-flex/item-padding-margin.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			"3000-SELECTOR/nth.html", //
 			"3000-SELECTOR/dir.html", //

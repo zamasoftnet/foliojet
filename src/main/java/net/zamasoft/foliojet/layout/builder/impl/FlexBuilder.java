@@ -479,7 +479,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final FlexParams params = this.flexBox.getFlexParams();
 		// bindはソース順(F5a——Tagged PDFの読み順・構造をソース順に保つ)
 		for (int i = 0; i < this.items.size(); ++i) {
-			this.items.get(i).bind(target, mainSizeByOriginal[i]);
+			this.items.get(i).bind(target, mainSizeByOriginal[i], axis.marginBase);
 			FLEX_ITEM_BINDS.incrementAndGet();
 		}
 		// 行ごとの主軸配置(線offset)。crossは行分配後
@@ -635,7 +635,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		}
 		// bindはソース順(F5a——Tagged PDFの読み順・構造をソース順に保つ)
 		for (int i = 0; i < count; ++i) {
-			this.items.get(i).bind(target, crossWidthByOriginal[i]);
+			this.items.get(i).bind(target, crossWidthByOriginal[i], axis.marginBase);
 			FLEX_ITEM_BINDS.incrementAndGet();
 		}
 		// 配置は視覚順。列はcross方向へ積む(wrap-reverseは列順反転)
@@ -686,7 +686,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final RectFrame frame = item.itemBox.getBlockParams().frame;
 			final double lineExtras = insetsLine(frame.margin, innerLine) + insetsLine(frame.padding, innerLine)
 					+ borderLine(frame);
-			item.bind(target, Math.max(0, innerLine - lineExtras));
+			item.bind(target, Math.max(0, innerLine - lineExtras), innerLine);
 			FLEX_ITEM_BINDS.incrementAndGet();
 			this.flexBox.getContainer().addFlow(item.itemBox, pageCursor);
 			pageCursor += item.itemBox.getPageExtent(params.flow);
