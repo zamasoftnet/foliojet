@@ -313,9 +313,17 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 *
 	 * <p>
 	 * <b>直すときの注意</b>: 単純に後から{@code finishLayoutSelf}を呼ぶだけでは
-	 * 足りない。割合の解決に<b>正しい包含ブロック</b>が要るので、登録時に
-	 * 包含ブロックを覚えておくか、登録の時点で走査済みなら即座に確定させる
-	 * 必要がある。
+	 * 足りない。割合の解決に<b>正しい包含ブロック</b>が要る。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>潰した仮説</b>(2026-08-06):「走査が済んだ容器へ<b>あとから</b>
+	 * 登録された箱が取り残される」——<b>誤り</b>。{@code Absolutes}に
+	 * 走査済みの印を持たせ、以後の登録をその場で確定させても
+	 * <b>16件のまま変わらなかった</b>。つまり取り残された箱の登録先は
+	 * {@code FlowContainer}の絶対配置一覧ではないか、あるいは<b>その容器
+	 * 自体が一度も走査されていない</b>(ページの箱から辿れない場所にある)。
+	 * 次はそこから当たること。
 	 * </p>
 	 */
 	private void resolveUnfinishedMargins() {
