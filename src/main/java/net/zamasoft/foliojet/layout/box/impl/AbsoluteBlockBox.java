@@ -269,9 +269,55 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		return true;
 	}
 
+	/**
+	 * <b>解決されなかった余白は0として描く</b>(2026-08-05)。
+	 *
+	 * <p>
+	 * {@link #finishLayoutSelf}が走らないまま描画へ届く絶対配置の箱がある。
+	 * そのとき{@code frame.margin}は未解決(NONE=1.7e308)のままで、
+	 * {@code AbstractBlockBox.pushDrawSteps}の
+	 * {@code assert !isNone(y)}が落ち、<b>変換全体が失敗する</b>。
+	 *
+	 * <p>
+	 * 実地コーパス第2波の {@code github-readme} がこれで、
+	 * {@code .markdown-heading .anchor{position:absolute;top:50%;height:28px;
+	 * display:flex;margin:auto}} という形。**GitHubのREADMEの見出しリンクは
+	 * どのページにもある**ので、実利用者の入力として極めてありふれている。
+	 *
+	 * <p>
+	 * <b>これは対症療法である。</b>本筋は「描画には届くのに
+	 * {@code finishLayoutSelf}が走らない箱がある」という構造の取りこぼしを
+	 * 塞ぐこと——絶対配置の箱は包含ブロックの{@code finishLayout}走査で
+	 * 拾われるはずで、拾われない経路が残っている。ただし
+	 * <b>変換を止めるより静的位置へ落とすほうが害が小さい</b>
+	 * (絶対要件は「変換の失敗が無いこと」)。
+	 */
+	private void resolveUnfinishedMargins() {
+		final AbsoluteInsets margin = this.frame.margin;
+		if (LayoutUtils.isNone(margin.top)) {
+			margin.top = 0;
+		}
+		if (LayoutUtils.isNone(margin.bottom)) {
+			margin.bottom = 0;
+		}
+		if (LayoutUtils.isNone(margin.left)) {
+			margin.left = 0;
+		}
+		if (LayoutUtils.isNone(margin.right)) {
+			margin.right = 0;
+		}
+		if (LayoutUtils.isNone(this.width)) {
+			this.width = 0;
+		}
+		if (LayoutUtils.isNone(this.height)) {
+			this.height = 0;
+		}
+	}
+
 	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
+		this.resolveUnfinishedMargins();
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			Drawer newDrawer = new Drawer(this.params.zIndexValue);
 			drawer.visitDrawer(newDrawer);
