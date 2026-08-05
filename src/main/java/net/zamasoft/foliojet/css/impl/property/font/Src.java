@@ -62,14 +62,15 @@ public class Src extends AbstractPrimitivePropertyInfo {
 	 * </p>
 	 *
 	 * <p>
-	 * 対応しているのは sfnt(truetype/opentype)・WOFF・TrueType Collection。
-	 * <b>WOFF2はBrotli伸長が要るため未対応</b>(pdfg2dの{@code FontFile}が
-	 * {@code wOFF}と{@code ttcf}しか見ない)。EOTとSVGフォントも未対応。
+	 * 対応しているのは sfnt(truetype/opentype)・WOFF・WOFF2・
+	 * TrueType Collection。<b>EOTとSVGフォントは未対応</b>。
 	 * </p>
 	 */
 	private static boolean unsupportedFormat(String format) {
 		switch (format.toLowerCase(java.util.Locale.ROOT)) {
-		case "woff2":
+		// **WOFF2は2026-08-06に対応したので、ここから外した。**
+		// 外し忘れると、実在サイトのほとんど(`format("woff2")` を先頭に
+		// 書く)で新しい実装が一度も使われない
 		case "svg":
 		case "embedded-opentype":
 			return true;
@@ -85,7 +86,7 @@ public class Src extends AbstractPrimitivePropertyInfo {
 			return false;
 		}
 		final String lower = path.toLowerCase(java.util.Locale.ROOT);
-		return lower.endsWith(".woff2") || lower.endsWith(".eot") || lower.endsWith(".svg");
+		return lower.endsWith(".eot") || lower.endsWith(".svg");
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

@@ -5,11 +5,11 @@
 <!--
   **@font-face の src の選び方を固定する**(2026-08-05)。
 
-  pdfg2d が読めるのは sfnt(truetype/opentype)・WOFF・TrueType Collection。
-  **WOFF2 は Brotli 伸長が要るため未対応**。そこで foliojet 側で
-  `format('woff2')` と拡張子 `.woff2`/`.eot`/`.svg` の src を候補から外し、
-  **後続の候補へ落ちる**ようにした。実地コーパスでは woff2 が1265件・
-  woff が323件で、現代のサイトはほぼこの形。
+  pdfg2d が読めるのは sfnt(truetype/opentype)・WOFF・WOFF2・
+  TrueType Collection。**EOTとSVGフォントは未対応**なので、foliojet 側で
+  `format()` と拡張子から候補を外し、**後続の候補へ落ちる**ようにしてある。
+  (WOFF2は2026-08-06に対応したので外す対象から除いた——外し忘れると
+  実在サイトのほとんどで新しい実装が一度も使われない)
 
   **この検査の限界を書いておく。** ここに置いた broken.woff2 は
   wOF2 マジックだけの偽物で、**フィルタが無くても** FontFile の段階で
