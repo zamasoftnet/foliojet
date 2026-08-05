@@ -346,17 +346,17 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * </p>
 	 *
 	 * <p>
-	 * <b>有力な経路</b>(2026-08-06、コードから):
-	 * {@link net.zamasoft.foliojet.layout.box.content.FlowContainer#extractReplayable}
-	 * は、次ページで再生する閉じた部分木を<b>{@code flows.remove(i)} で容器から
-	 * 外す</b>(C1c 吸収)。<b>「描画の木には居るのに寸法決めの木に居ない」
-	 * という今回の形とそのまま一致する。</b>外された箱に絶対配置が登録されて
-	 * いれば、その容器は二度と走査されない。
+	 * <b>潰した仮説3</b>(2026-08-06): 「{@code extractReplayable}(C1c 吸収)が
+	 * {@code flows.remove} で外した部分木に登録されている」——<b>誤り</b>。
+	 * 吸収された箱を控えて突き合わせたが、<b>16件とも吸収されていない</b>。
+	 * 形は一致していたが実物は違った。
 	 *
 	 * <p>
-	 * <b>次の一手</b>: 吸収された箱を控えておき、取り残された16件の登録先と
-	 * 突き合わせる。一致するなら、吸収の時点でその部分木の絶対配置を
-	 * 確定させる(または再生後の箱へ引き継ぐ)のが筋。
+	 * <b>次の一手</b>: 容器から外す経路は他にもある
+	 * ({@code FlowContainer} の {@code flows.remove} は3箇所、
+	 * {@code flows.set} で差し替える箇所もある)。同じやり方で1つずつ
+	 * 突き合わせるのが確実。<b>推測でコードを変えないこと</b>——ここまで
+	 * 3つの仮説がいずれも「形は合うが実物は違う」で外れている。
 	 * </p>
 	 * </p>
 	 */
