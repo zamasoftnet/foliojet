@@ -1,0 +1,143 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>t</title><style>@page{size:500pt 200pt;margin:10pt} body{margin:0;font:9pt serif} table{border-collapse:collapse;width:100%} td,th{border:1pt solid #000;padding:1pt}</style></head><body>
+<!--
+  **継続ページで colspan の列が失われる。**
+
+  ページ1は9列だが、**ページ2以降は8列**になる——`colspan="2"` が張っていた
+  2列が1列に潰れ、その先の列がすべてずれる。
+
+    page1 列幅: [22.1, 100.0, 132.2, 44.3, 27.3, 27.3, 34.6, 28.8, 63.4]
+    page2 列幅: [22.1, 100.0, 132.2, 44.3, 27.3, 27.3, 63.4, 63.4]
+                                                        ^^^^^^^^^^^^ 2列が1列に
+
+  実地コーパス第15波(2026-08-05、tzdata-list)で見つけた。Wikipediaの
+  タイムゾーン一覧で **p13〜p20 に連続して**「Canonical−02:0002:00-02」と
+  読めない重なりが出ていた——**指摘がページの途中から始まる**のが手掛かり
+  だった(1ページ目は正しい)。
+
+  **小さい表では再現しない。** 改ページを跨がないと出ない:
+  colspan 単独・幅を強制した縮小・行ごとにセル数が違う形の3つを試して
+  いずれも正しく組めた。**継続の経路を疑うこと。**
+-->
+<table>
+<tr><th>CC</th><th>TZ identifier</th><th>Comments</th><th>Type</th><th colspan="2">UTC offset</th><th>Source</th><th>Notes</th></tr>
+<tr><td>c0</td><td>America/Location_0</td><td>a fairly long comment column that consumes width 0</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c1</td><td>America/Location_1</td><td>a fairly long comment column that consumes width 1</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c2</td><td>America/Location_2</td><td>a fairly long comment column that consumes width 2</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c3</td><td>America/Location_3</td><td>a fairly long comment column that consumes width 3</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c4</td><td>America/Location_4</td><td>a fairly long comment column that consumes width 4</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c5</td><td>America/Location_5</td><td>a fairly long comment column that consumes width 5</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c6</td><td>America/Location_6</td><td>a fairly long comment column that consumes width 6</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c7</td><td>America/Location_7</td><td>a fairly long comment column that consumes width 7</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c8</td><td>America/Location_8</td><td>a fairly long comment column that consumes width 8</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c9</td><td>America/Location_9</td><td>a fairly long comment column that consumes width 9</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c10</td><td>America/Location_10</td><td>a fairly long comment column that consumes width 10</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c11</td><td>America/Location_11</td><td>a fairly long comment column that consumes width 11</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c12</td><td>America/Location_12</td><td>a fairly long comment column that consumes width 12</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c13</td><td>America/Location_13</td><td>a fairly long comment column that consumes width 13</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c14</td><td>America/Location_14</td><td>a fairly long comment column that consumes width 14</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c15</td><td>America/Location_15</td><td>a fairly long comment column that consumes width 15</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c16</td><td>America/Location_16</td><td>a fairly long comment column that consumes width 16</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c17</td><td>America/Location_17</td><td>a fairly long comment column that consumes width 17</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c18</td><td>America/Location_18</td><td>a fairly long comment column that consumes width 18</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c19</td><td>America/Location_19</td><td>a fairly long comment column that consumes width 19</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c20</td><td>America/Location_20</td><td>a fairly long comment column that consumes width 20</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c21</td><td>America/Location_21</td><td>a fairly long comment column that consumes width 21</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c22</td><td>America/Location_22</td><td>a fairly long comment column that consumes width 22</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c23</td><td>America/Location_23</td><td>a fairly long comment column that consumes width 23</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c24</td><td>America/Location_24</td><td>a fairly long comment column that consumes width 24</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c25</td><td>America/Location_25</td><td>a fairly long comment column that consumes width 25</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c26</td><td>America/Location_26</td><td>a fairly long comment column that consumes width 26</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c27</td><td>America/Location_27</td><td>a fairly long comment column that consumes width 27</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c28</td><td>America/Location_28</td><td>a fairly long comment column that consumes width 28</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c29</td><td>America/Location_29</td><td>a fairly long comment column that consumes width 29</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c30</td><td>America/Location_30</td><td>a fairly long comment column that consumes width 30</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c31</td><td>America/Location_31</td><td>a fairly long comment column that consumes width 31</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c32</td><td>America/Location_32</td><td>a fairly long comment column that consumes width 32</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c33</td><td>America/Location_33</td><td>a fairly long comment column that consumes width 33</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c34</td><td>America/Location_34</td><td>a fairly long comment column that consumes width 34</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c35</td><td>America/Location_35</td><td>a fairly long comment column that consumes width 35</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c36</td><td>America/Location_36</td><td>a fairly long comment column that consumes width 36</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c37</td><td>America/Location_37</td><td>a fairly long comment column that consumes width 37</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c38</td><td>America/Location_38</td><td>a fairly long comment column that consumes width 38</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c39</td><td>America/Location_39</td><td>a fairly long comment column that consumes width 39</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c40</td><td>America/Location_40</td><td>a fairly long comment column that consumes width 40</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c41</td><td>America/Location_41</td><td>a fairly long comment column that consumes width 41</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c42</td><td>America/Location_42</td><td>a fairly long comment column that consumes width 42</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c43</td><td>America/Location_43</td><td>a fairly long comment column that consumes width 43</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c44</td><td>America/Location_44</td><td>a fairly long comment column that consumes width 44</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c45</td><td>America/Location_45</td><td>a fairly long comment column that consumes width 45</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c46</td><td>America/Location_46</td><td>a fairly long comment column that consumes width 46</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c47</td><td>America/Location_47</td><td>a fairly long comment column that consumes width 47</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c48</td><td>America/Location_48</td><td>a fairly long comment column that consumes width 48</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c49</td><td>America/Location_49</td><td>a fairly long comment column that consumes width 49</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c50</td><td>America/Location_50</td><td>a fairly long comment column that consumes width 50</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c51</td><td>America/Location_51</td><td>a fairly long comment column that consumes width 51</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c52</td><td>America/Location_52</td><td>a fairly long comment column that consumes width 52</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c53</td><td>America/Location_53</td><td>a fairly long comment column that consumes width 53</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c54</td><td>America/Location_54</td><td>a fairly long comment column that consumes width 54</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c55</td><td>America/Location_55</td><td>a fairly long comment column that consumes width 55</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c56</td><td>America/Location_56</td><td>a fairly long comment column that consumes width 56</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c57</td><td>America/Location_57</td><td>a fairly long comment column that consumes width 57</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c58</td><td>America/Location_58</td><td>a fairly long comment column that consumes width 58</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c59</td><td>America/Location_59</td><td>a fairly long comment column that consumes width 59</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c60</td><td>America/Location_60</td><td>a fairly long comment column that consumes width 60</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c61</td><td>America/Location_61</td><td>a fairly long comment column that consumes width 61</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c62</td><td>America/Location_62</td><td>a fairly long comment column that consumes width 62</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c63</td><td>America/Location_63</td><td>a fairly long comment column that consumes width 63</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c64</td><td>America/Location_64</td><td>a fairly long comment column that consumes width 64</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c65</td><td>America/Location_65</td><td>a fairly long comment column that consumes width 65</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c66</td><td>America/Location_66</td><td>a fairly long comment column that consumes width 66</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c67</td><td>America/Location_67</td><td>a fairly long comment column that consumes width 67</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c68</td><td>America/Location_68</td><td>a fairly long comment column that consumes width 68</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c69</td><td>America/Location_69</td><td>a fairly long comment column that consumes width 69</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c70</td><td>America/Location_70</td><td>a fairly long comment column that consumes width 70</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c71</td><td>America/Location_71</td><td>a fairly long comment column that consumes width 71</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c72</td><td>America/Location_72</td><td>a fairly long comment column that consumes width 72</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c73</td><td>America/Location_73</td><td>a fairly long comment column that consumes width 73</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c74</td><td>America/Location_74</td><td>a fairly long comment column that consumes width 74</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c75</td><td>America/Location_75</td><td>a fairly long comment column that consumes width 75</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c76</td><td>America/Location_76</td><td>a fairly long comment column that consumes width 76</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c77</td><td>America/Location_77</td><td>a fairly long comment column that consumes width 77</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c78</td><td>America/Location_78</td><td>a fairly long comment column that consumes width 78</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c79</td><td>America/Location_79</td><td>a fairly long comment column that consumes width 79</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c80</td><td>America/Location_80</td><td>a fairly long comment column that consumes width 80</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c81</td><td>America/Location_81</td><td>a fairly long comment column that consumes width 81</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c82</td><td>America/Location_82</td><td>a fairly long comment column that consumes width 82</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c83</td><td>America/Location_83</td><td>a fairly long comment column that consumes width 83</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c84</td><td>America/Location_84</td><td>a fairly long comment column that consumes width 84</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c85</td><td>America/Location_85</td><td>a fairly long comment column that consumes width 85</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c86</td><td>America/Location_86</td><td>a fairly long comment column that consumes width 86</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c87</td><td>America/Location_87</td><td>a fairly long comment column that consumes width 87</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c88</td><td>America/Location_88</td><td>a fairly long comment column that consumes width 88</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c89</td><td>America/Location_89</td><td>a fairly long comment column that consumes width 89</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c90</td><td>America/Location_90</td><td>a fairly long comment column that consumes width 90</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c91</td><td>America/Location_91</td><td>a fairly long comment column that consumes width 91</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c92</td><td>America/Location_92</td><td>a fairly long comment column that consumes width 92</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c93</td><td>America/Location_93</td><td>a fairly long comment column that consumes width 93</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c94</td><td>America/Location_94</td><td>a fairly long comment column that consumes width 94</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c95</td><td>America/Location_95</td><td>a fairly long comment column that consumes width 95</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c96</td><td>America/Location_96</td><td>a fairly long comment column that consumes width 96</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c97</td><td>America/Location_97</td><td>a fairly long comment column that consumes width 97</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c98</td><td>America/Location_98</td><td>a fairly long comment column that consumes width 98</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c99</td><td>America/Location_99</td><td>a fairly long comment column that consumes width 99</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c100</td><td>America/Location_100</td><td>a fairly long comment column that consumes width 100</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c101</td><td>America/Location_101</td><td>a fairly long comment column that consumes width 101</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c102</td><td>America/Location_102</td><td>a fairly long comment column that consumes width 102</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c103</td><td>America/Location_103</td><td>a fairly long comment column that consumes width 103</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c104</td><td>America/Location_104</td><td>a fairly long comment column that consumes width 104</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c105</td><td>America/Location_105</td><td>a fairly long comment column that consumes width 105</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c106</td><td>America/Location_106</td><td>a fairly long comment column that consumes width 106</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c107</td><td>America/Location_107</td><td>a fairly long comment column that consumes width 107</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c108</td><td>America/Location_108</td><td>a fairly long comment column that consumes width 108</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c109</td><td>America/Location_109</td><td>a fairly long comment column that consumes width 109</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c110</td><td>America/Location_110</td><td>a fairly long comment column that consumes width 110</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c111</td><td>America/Location_111</td><td>a fairly long comment column that consumes width 111</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c112</td><td>America/Location_112</td><td>a fairly long comment column that consumes width 112</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c113</td><td>America/Location_113</td><td>a fairly long comment column that consumes width 113</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c114</td><td>America/Location_114</td><td>a fairly long comment column that consumes width 114</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c115</td><td>America/Location_115</td><td>a fairly long comment column that consumes width 115</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c116</td><td>America/Location_116</td><td>a fairly long comment column that consumes width 116</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c117</td><td>America/Location_117</td><td>a fairly long comment column that consumes width 117</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c118</td><td>America/Location_118</td><td>a fairly long comment column that consumes width 118</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+<tr><td>c119</td><td>America/Location_119</td><td>a fairly long comment column that consumes width 119</td><td>Canonical</td><td>-02:00</td><td>-02:00</td><td colspan="2">-02</td><td>southamerica</td></tr>
+</table></body></html>
