@@ -99,6 +99,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"1080-FONT/font-face-format.html", //
 			"0450-hyphens/hyphens.html", //
 			"0450-hyphens/word-then-paren.html", //
+			// 入れ子のフレックス(2026-08-05)。項目自身が宣言した幅を内在寸法に
+			// 数えておらず、空きが負になって中の項目が幅0へ潰れていた
+			"0510-flex/nested-flex-child-lost.html", //
 			"0510-flex/float-item.html", //
 			// flexアイテムのpadding・marginの実寸解決(2026-08-04)。行方向では
 			// どちらも丸ごと消えていた——縦方向は別経路で偶然効いていたので

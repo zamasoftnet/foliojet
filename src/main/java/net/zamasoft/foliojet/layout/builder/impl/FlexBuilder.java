@@ -712,11 +712,29 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		boolean columnInflated = false;
 		final boolean wrap = this.flexBox.getFlexParams().flexWrap.isWrap();
 		for (final FlexItemContent item : this.items) {
-			final RectFrame frame = item.itemBox.getBlockParams().frame;
+			final BlockParams itemParams = item.itemBox.getBlockParams();
+			final RectFrame frame = itemParams.frame;
 			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0) + borderLine(frame);
+			// **項目自身が宣言した寸法を数えること**(2026-08-05)。
+			// これを見ずに中身の寸法だけを足していたため、`width:20pt` を
+			// 持つが中身が空の項目は0と数えられ、**入れ子のフレックス容器の
+			// 内在寸法が文字ぶんだけ**になっていた。すると外側から見た
+			// 主軸の空きが負になり、既定の flex-shrink で中の項目が
+			// 幅0に潰れる——「入れ子のフレックスで子が消える」の正体。
+			// bind時(FlexItemMetricsResolver)と同じく flex-basis を優先する。
+			final double declared = declaredLineBase(item);
+			double itemMin = item.sizes.minContent();
+			double itemMax = item.sizes.maxContent();
+			if (!Double.isNaN(declared)) {
+				final double outer = itemParams.boxSizing == BoxSizingMode.BORDER_BOX
+						? Math.max(declared, insetsLine(frame.padding, 0) + borderLine(frame))
+						: declared + insetsLine(frame.padding, 0) + borderLine(frame);
+				itemMin = Math.max(itemMin, outer - insetsLine(frame.padding, 0) - borderLine(frame));
+				itemMax = Math.max(itemMax, outer - insetsLine(frame.padding, 0) - borderLine(frame));
+			}
 			// wrap時のminは「最大item」(行ごとに折り返せる)、nowrapは総和
-			min = wrap ? Math.max(min, item.sizes.minContent() + extra) : min + item.sizes.minContent() + extra;
-			max += item.sizes.maxContent() + extra;
+			min = wrap ? Math.max(min, itemMin + extra) : min + itemMin + extra;
+			max += itemMax + extra;
 			minPage = Math.max(minPage, item.sizes.minPage());
 			columnInflated |= item.sizes.columnInflated();
 		}
@@ -728,6 +746,21 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			}
 		}
 		return new IntrinsicSizes(min, max, minPage, columnInflated);
+	}
+
+	/**
+	 * 項目が<b>自分で宣言した</b>線方向の基準寸法です(不定ならNaN)。
+	 * {@code flex-basis} を {@code width} より優先するのは
+	 * {@link FlexItemMetricsResolver} と同じ順序です。
+	 */
+	private double declaredLineBase(final FlexItemContent item) {
+		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = item.spec.basis();
+		if (!basis.isAuto() && !basis.isContent()
+				&& basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length) {
+			// 割合の基準は容器の内寸で、この段階では未確定なので数えない
+			return length.getLength();
+		}
+		return lineValue(item.itemBox.getBlockParams().size, 0);
 	}
 
 	@Override
