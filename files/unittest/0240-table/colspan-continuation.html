@@ -33,6 +33,11 @@
     (`remainder = this.columnSizes.length - this.cells.size()`)
   - CSSでは表の列数は**全行の最大**なので、行を1つ見ただけで確定するのは誤り。
     ただし上のA/Bの食い違いは、これだけでは説明できていない
+
+  **潰した仮説**(2026-08-05、agyの答申を検証):
+  「明示の <colgroup> が無いと columnGroupBox が null で、継続ページへ列モデルが
+  運ばれない」——**誤り**。`<colgroup><col>x9` を明示しても page2 は8列のまま。
+  **コード変更なしで反証できる**形なので、次の人はまずこれを確認してよい
 -->
 <table>
 <tr><th>CC</th><th>TZ identifier</th><th>Comments</th><th>Type</th><th colspan="2">UTC offset</th><th>Source</th><th>Notes</th></tr>
