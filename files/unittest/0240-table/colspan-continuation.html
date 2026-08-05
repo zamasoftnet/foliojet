@@ -16,7 +16,23 @@
 
   **小さい表では再現しない。** 改ページを跨がないと出ない:
   colspan 単独・幅を強制した縮小・行ごとにセル数が違う形の3つを試して
-  いずれも正しく組めた。**継続の経路を疑うこと。**
+  いずれも正しく組めた。
+
+  **行の順序で結果が変わる**(2026-08-05実測):
+
+    A: ヘッダ(8列)が先頭 -> page1=9列, page2以降=8列
+    B: 本文(9列)のみ     -> page1=8列, page2以降=8列   ← 全行9列なのに最初から8
+
+  なので「先頭行で列数が決まる」という単純な話ではない。
+
+  **疑っている場所**: IncrementalTableBuilder。
+  - `firstLayout()` が `columnCount = Math.max(this.cells.size(), columnCount)`
+    で列数を確定し、`this.columnSizes` に固定する(TABLE_ROW の
+    `firstRow = (this.columnSizes == null)` で1回だけ走る)
+  - 以降のセルは `colspan = Math.min(colspan, remainder)` で切り詰められる
+    (`remainder = this.columnSizes.length - this.cells.size()`)
+  - CSSでは表の列数は**全行の最大**なので、行を1つ見ただけで確定するのは誤り。
+    ただし上のA/Bの食い違いは、これだけでは説明できていない
 -->
 <table>
 <tr><th>CC</th><th>TZ identifier</th><th>Comments</th><th>Type</th><th colspan="2">UTC offset</th><th>Source</th><th>Notes</th></tr>
