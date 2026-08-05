@@ -10,14 +10,22 @@
       .outer { display: flex; }
       .f { display: flex; }
       .a::after { content: ""; display: block; width: 20pt; height: 12pt; background: #c00; }
-      .auto::after { content: ""; width: 20pt; height: 12pt; background: #00c; }
+      .real { width: 20pt; height: 12pt; background: #00c; }
     </style>
   </head>
   <body>
     <!--
-      **フレックス項目になる擬似要素は箱を持つ**(CSS Display 3 §2.7 =
-      フレックス項目はblockify、CSS Flexbox §4)。`content` が空でも、
-      幅・高さ・背景を持つ箱として組まれなければならない。
+      **フレックスコンテナがフレックス項目でもあるとき、子の箱が落ちる。**
+
+      2026-08-05に真の姿が分かった。**擬似要素の問題ではない**——素の
+      `<span>` でも同じく落ちる。落ちるのは「display:flex の要素が、それ自体
+      別の flex コンテナの項目でもある」場合で、そのときだけ子の箱が
+      **どこにも描かれず場所も取らない**(完全な消失)。明示幅を与えても
+      `flex:0 0 120pt` にしても直らないので、内在寸法の問題でもない。
+
+      `DocumentBuilder.startBox` の intake は正しい(計装で確認——
+      coordinator も host も正しい内側の FlexBox を指す)。落ちているのは
+      その先である。
 
       実地コーパス第7波(2026-08-04、mdn-svg)で見つけた。MDNのパンくずは
 
@@ -39,9 +47,10 @@
 
         4. display を明示せずブロック化に任せた場合(2と同じ形)
     -->
+    <!-- 1・3 は出る。2・4 は消える(入れ子のときだけ) -->
     <div class="f a">1</div>
     <div class="outer"><div class="f a">2</div><div>x</div></div>
-    <div class="outer"><div class="a">3</div><div>x</div></div>
-    <div class="outer"><div class="f auto">4</div><div>x</div></div>
+    <div class="f">3<span class="real"></span></div>
+    <div class="outer"><div class="f">4<span class="real"></span></div><div>x</div></div>
   </body>
 </html>
