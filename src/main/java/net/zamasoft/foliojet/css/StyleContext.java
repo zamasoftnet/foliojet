@@ -668,8 +668,20 @@ public class StyleContext {
 			if (attr == null || value == null || value.isEmpty()) {
 				return false;
 			}
-			attr = attr.toLowerCase();
-			value = value.toLowerCase();
+			// **大文字小文字は区別する**(2026-08-05に修正)。CSS Selectors では
+			// 属性セレクタの値比較は既定で case-sensitive で、区別しないのは
+			// `i` フラグを付けたときだけ。ここは無条件に両辺を小文字化しており、
+			// `li[type^="a"]`(小文字ローマ数字/英字)と `li[type^="A"]` が
+			// **どちらも同じ要素に当たって後勝ち**していた——`<li type="a">` が
+			// `H.`、`<li type="i">` が `X.` と大文字で出る。
+			//
+			// **この差は基準画像で0.027%しかなく、imageTest の許容2%に
+			// 隠れていた。** 基準を作り直す前に新旧を並べて目視して見つけた。
+			//
+			// なお `=` と `~=` は HTML の歴史的な「値を大文字小文字を無視して
+			// 比較する属性」の一覧(type/align/valign等)に合わせて
+			// 区別しないまま残している。前方・後方・部分一致にはその一覧が
+			// 適用されないので、ここだけが標準どおりになる。
 			switch (condition.getConditionType()) {
 			case PREFIX_ATTRIBUTE_CONDITION:
 				return attr.startsWith(value);

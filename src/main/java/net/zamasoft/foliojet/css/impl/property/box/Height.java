@@ -61,8 +61,32 @@ public class Height extends AbstractPrimitivePropertyInfo {
 		return false;
 	}
 
+	/**
+	 * <b>負の長さは無効値として初期値へ落とします</b>(2026-08-05)。
+	 *
+	 * <p>
+	 * CSSでは width/height に負の値は書けず、{@link #parseValue} の
+	 * {@code toPositiveLength} が弾いている。ところが {@code attr()} と
+	 * {@code calc()} は<b>その要素の属性・文脈が要る</b>ので解決は計算値の
+	 * 段階になり、構文解析時の検査を素通りする。
+	 * </p>
+	 *
+	 * <p>
+	 * 実害: 2026-08-03に表の表現属性をUA CSSへ移送して
+	 * {@code table[width] { width: attr(width px) }} としたとき、
+	 * {@code <table width="-500">} が幅16.5pt(最小内容幅)へ潰れ、
+	 * セルの文字が1文字ずつ縦に折れるようになった。同じ意味を
+	 * {@code style="width:-500px"} と書けば正しく無視される、という
+	 * 経路依存の食い違いだった。<b>基準画像の差は0.35%で、
+	 * imageTest の許容2%に隠れていた</b>(2026-08-05に目視で発見)。
+	 * </p>
+	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return ValueUtils.emExToAbsoluteLength(value, style);
+		final Value resolved = ValueUtils.emExToAbsoluteLength(value, style);
+		if (resolved instanceof net.zamasoft.foliojet.css.value.QuantityValue q && q.isNegative()) {
+			return KeywordValue.AUTO;
+		}
+		return resolved;
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

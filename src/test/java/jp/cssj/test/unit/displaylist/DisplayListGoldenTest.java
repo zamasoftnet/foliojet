@@ -44,6 +44,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 固定幅の子が兄弟の内在寸法を消していた欠陥(2026-08-04)。
 			// フロート/セル/絶対/フレックス/inline-block を横に並べて押さえる
 			"0080-width/intrinsic-fixed-sibling.html", //
+			// 負の width/height 属性(2026-08-05)。attr() は計算値の段階でしか
+			// 解けないので parseValue の非負検査を素通りし、表が最小内容幅へ潰れていた
+			"0080-width/negative-attr-width.html", //
 			"0120-float/auto-width.html", //
 			// margin:auto の表の直後の浮動体(2026-08-05)。行方向カーソルの
 			// 押し引きが非対称で、フロートが x=-106.75(紙の左外)へ飛んでいた
@@ -99,6 +102,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 片方向だけ見ても捕まらない
 			"0510-flex/item-padding-margin.html", //
 			"0470-margin-boxes/margin-boxes.html", //
+			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
+			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
+			"3000-SELECTOR/attr-prefix-case.html", //
 			"3000-SELECTOR/nth.html", //
 			"3000-SELECTOR/dir.html", //
 			"3000-SELECTOR/html5-elements.html", //

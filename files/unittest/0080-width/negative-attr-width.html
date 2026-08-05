@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>負の width/height 属性は無視されること</title>
+<!--
+  **欠陥(2026-08-05に修正)**: `<table width="-500">` が最小内容幅(16.5pt)へ
+  潰れ、セルの文字が1文字ずつ縦に折れていた。同じ意味を
+  `style="width:-500px"` と書けば正しく無視される、という**経路依存の食い違い**。
+
+  原因は 2026-08-03 の表の表現属性→UA CSS 移送。
+  `table[width] { width: attr(width px) }` としたとき、旧 `applyWidthHeight` が
+  持っていた負値の検査が落ちた。`attr()` はその要素の属性が要るので解決が
+  **計算値の段階**になり、`parseValue` の `toPositiveLength` を素通りする。
+
+  **この差は基準画像で0.35%しかなく、imageTest の許容2%に隠れていた。**
+  数字は緑のまま、表が読めなくなっていた。見つけたのは基準画像を作り直す前に
+  新旧を並べて目視したから。
+-->
+<style>
+@page { size: 400pt 300pt; margin: 6pt }
+body { margin: 0; font: 10pt serif }
+table { border: 1pt solid red }
+div { border: 1pt solid blue }
+</style></head><body>
+<table width="-500"><tr><td>A 属性が負(無視され内容幅になる)</td></tr></table>
+<table style="width:-500px"><tr><td>B CSSが負(従来から無視される)</td></tr></table>
+<table width="500"><tr><td>C 属性が正(375ptになる)</td></tr></table>
+<table><tr><td>D 指定なし</td></tr></table>
+<div height="-100">E 高さ属性が負</div>
+<img src="../0080-width/../../unittest/0080-width/negative-attr-width.html" width="-40" alt="F 画像の負幅">
+</body></html>

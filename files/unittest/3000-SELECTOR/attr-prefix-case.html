@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>属性の前方一致は大文字小文字を区別すること</title>
+<!--
+  **欠陥(2026-08-05に修正)**: `[att^=..]` `[att$=..]` `[att*=..]` が両辺を
+  小文字化して比較しており、**大文字小文字を区別していなかった**。
+  CSS Selectors では属性セレクタの値比較は既定で case-sensitive で、
+  区別しないのは `i` フラグを付けたときだけ。
+
+  実害: UA CSS の `li[type^="a"]{lower-latin}` と `li[type^="A"]{upper-latin}` が
+  **どちらも同じ要素に当たって後勝ち**し、`<li type="a">` が `H.`、
+  `<li type="i">` が `X.` と大文字で出ていた。
+
+  **この差は基準画像で0.027%しかなく、imageTest の許容2%に隠れていた。**
+  基準を作り直す前に新旧を並べて目視して見つけた。数字は緑のままだった。
+-->
+<style>
+@page { size: 300pt 240pt; margin: 6pt }
+body { margin: 0; font: 10pt serif }
+p { margin: 0 }
+[data-k^="a"] { color: #00c }
+[data-k^="A"] { color: #c00 }
+[data-k$="z"] { border-left: 4pt solid #0a0 }
+[data-k$="Z"] { border-left: 4pt solid #fa0 }
+[data-k*="mid"] { background: #eef }
+[data-k*="MID"] { background: #fee }
+</style></head><body>
+<p data-k="abc">1 前方a → 青</p>
+<p data-k="Abc">2 前方A → 赤</p>
+<p data-k="xyz">3 後方z → 緑の縦線</p>
+<p data-k="xyZ">4 後方Z → 橙の縦線</p>
+<p data-k="qmidq">5 部分mid → 薄青の地</p>
+<p data-k="qMIDq">6 部分MID → 薄赤の地</p>
+<ol>
+  <li type="1">アイテム</li>
+  <li type="a">小文字の英字 h. になること</li>
+  <li type="A">大文字の英字 I. になること</li>
+  <li type="i">小文字のローマ数字 x. になること</li>
+  <li type="I">大文字のローマ数字 XI. になること</li>
+</ol>
+</body></html>
