@@ -47,6 +47,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 負の width/height 属性(2026-08-05)。attr() は計算値の段階でしか
 			// 解けないので parseValue の非負検査を素通りし、表が最小内容幅へ潰れていた
 			"0080-width/negative-attr-width.html", //
+			// 改ページを跨いだ相対配置(2026-08-06)。確定ページの容器が寸法決めの
+			// 走査から外れると、ずらし量が0のまま静かに出ていた
+			"0170-position/relative-offset-after-break.html", //
 			"0120-float/auto-width.html", //
 			// margin:auto の表の直後の浮動体(2026-08-05)。行方向カーソルの
 			// 押し引きが非対称で、フロートが x=-106.75(紙の左外)へ飛んでいた

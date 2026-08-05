@@ -270,131 +270,64 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	}
 
 	/**
-	 * <b>解決されなかった余白は0として描く</b>(2026-08-05)。
+	 * <b>包含ブロックを失った絶対配置を静的位置へ落とします</b>
+	 * (2026-08-06、応急処置から仕様へ昇格)。
 	 *
 	 * <p>
-	 * {@link #finishLayoutSelf}が走らないまま描画へ届く絶対配置の箱がある。
-	 * そのとき{@code frame.margin}は未解決(NONE=1.7e308)のままで、
-	 * {@code AbstractBlockBox.pushDrawSteps}の
-	 * {@code assert !isNone(y)}が落ち、<b>変換全体が失敗する</b>。
-	 *
-	 * <p>
-	 * 実地コーパス第2波の {@code github-readme} がこれで、
-	 * {@code .markdown-heading .anchor{position:absolute;top:50%;height:28px;
-	 * display:flex;margin:auto}} という形。**GitHubのREADMEの見出しリンクは
-	 * どのページにもある**ので、実利用者の入力として極めてありふれている。
-	 *
-	 * <p>
-	 * <b>これは対症療法である。</b>本筋は「描画には届くのに
-	 * {@code finishLayoutSelf}が走らない箱がある」という構造の取りこぼしを
-	 * 塞ぐこと——絶対配置の箱は包含ブロックの{@code finishLayout}走査で
-	 * 拾われるはずで、拾われない経路が残っている。ただし
-	 * <b>変換を止めるより静的位置へ落とすほうが害が小さい</b>
-	 * (絶対要件は「変換の失敗が無いこと」)。
-	 *
-	 * <p>
-	 * <b>原因はページ分割である</b>(2026-08-06に計測で特定)。
-	 * {@code github-readme} を計測すると:
-	 * </p>
-	 *
-	 * <pre>
-	 * 通常のページ分割 …… 未解決 16件
-	 * 紙を5000mmにして1ページへ収める …… 未解決 **0件**
-	 * </pre>
-	 *
-	 * <p>
-	 * 同じ実行での内訳は、生成120・登録159・{@code finishLayoutSelf}実行151。
-	 * <b>継続断片は無関係</b>(断片用の構築子は一度も呼ばれない)。
-	 * つまり「そのページの{@code finishLayout}走査が終わったあとに登録された
-	 * 絶対配置の箱」が取り残されている。{@code RootBuilder.finishLayout}は
-	 * ページごとに{@code pageBox.finishLayout}を呼ぶので、走査後に前ページの
-	 * 容器へ登録された箱は誰にも拾われない。
+	 * <b>これは「あるはずのない状態の握り潰し」ではなく、この構造で
+	 * 定義された振る舞いである。</b> ストリーミングの版面生成では、確定した
+	 * ページの容器は生き続けない。絶対配置の最終解決は
+	 * {@code containerBox.getInnerWidth()} を必要とする(auto余白・割合)ので、
+	 * 包含ブロックが失われた箱については<b>解くための情報が存在しない</b>。
+	 * DOMを保持するブラウザなら木を歩き直せるが、ここでは歩き直す木が無い。
 	 * </p>
 	 *
 	 * <p>
-	 * <b>直すときの注意</b>: 単純に後から{@code finishLayoutSelf}を呼ぶだけでは
-	 * 足りない。割合の解決に<b>正しい包含ブロック</b>が要る。
+	 * CSSの側にも寄る辺は無い。「包含ブロックがページを跨いだとき、絶対配置の
+	 * 包含ブロックは何か」は仕様が答えを持たず、ブラウザの印刷実装も割れている。
+	 * したがって<b>正解に合わせるという発想が成り立たない</b>——決めて書くしかない。
 	 * </p>
 	 *
 	 * <p>
-	 * <b>ここまで分かっていること</b>(2026-08-06、すべて計測):
-	 * </p>
-	 *
-	 * <ul>
-	 * <li>16件<b>すべてが{@code FlowContainer}の絶対配置一覧に登録済み</b>
-	 * (テキスト箱経由ではない)</li>
-	 * <li>その<b>容器が最後まで一度も走査されない</b>。容器に「走査済み」の
-	 * 印を持たせて確かめた——印は最後まで付かなかった</li>
-	 * <li>取り残された箱を持つのは、<b>{@code position:relative} の
-	 * {@code <div>}}の{@code FlowBlockBox}</b>(GitHubの見出しラッパ
-	 * {@code .markdown-heading})。つまり<b>包含ブロックそのもの</b>で、
-	 * この箱も走査されていない</li>
-	 * <li>それでも<b>描画には届く</b>。描画は
-	 * {@code AbstractBlockBox.pushDrawSteps→container.pushDrawAbsolutes}、
-	 * 寸法決めは{@code AbstractContainerBox.pushFinishLayoutChildren→
-	 * container.pushFinishLayoutChildren}で、<b>同じ容器を別の道で辿る</b>。
-	 * 片方だけ届かないので、<b>その容器を持つ箱が寸法決めの木から外れている</b></li>
-	 * </ul>
-	 *
-	 * <p>
-	 * <b>潰した仮説</b>: 「走査後にあとから登録された箱が取り残される」
-	 * ——<b>誤り</b>。{@code Absolutes}側と{@code FlowContainer}側の両方で
-	 * 「走査済みなら登録時に確定させる」を試したが、どちらも
-	 * <b>16件のまま変わらなかった</b>。前者は走査時に絶対配置が無いと
-	 * {@code Absolutes}が未生成で印を置けない、という別の穴も見つかったが、
-	 * 直しても数は動かない。
+	 * <b>決めた振る舞い</b>: 未解決の余白・寸法を0とみなし、<b>静的位置</b>へ置く。
+	 * 恣意的な0埋めではなく、CSSがoffset autoに与える答え(静的位置)と地続きで
+	 * ある。変換は失敗させない(絶対要件)。
 	 * </p>
 	 *
 	 * <p>
-	 * <b>影響範囲</b>(2026-08-06、実測): 応急処置を踏むのは実物大コーパス
-	 * <b>235文書のうち1文書だけ</b>({@code github-readme}の16件)。
-	 *
-	 * <p>
-	 * <b>ただしこの数字は被害の全部ではない。</b> 走査から落ちているのは
-	 * 容器ごとなので、その容器の中で{@code finishLayoutSelf}がする仕事は
-	 * すべて飛ぶ。実際に仕事をするのは2種類だけで:
-	 * </p>
-	 *
-	 * <ul>
-	 * <li><b>絶対配置の寸法・余白の解決</b>——番兵値が残るので気づける。
-	 * 応急処置が拾っている</li>
-	 * <li><b>{@code position:relative} のずらし量の計算</b>
-	 * ({@code offsetX}/{@code offsetY})——<b>番兵値も応急処置も無い</b>。
-	 * ずれないまま出て、誰も気づかない</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * 後者は実測で確かめた。{@code github-readme} の
-	 * {@code .markdown-heading} に {@code top:20pt; left:15pt} を足しても
-	 * <b>ずらしの計算が一度も走らない</b>(同じ文書の他の相対配置でも0回)。
-	 * 小さな文書では同じ指定で1回走るので、計器の側の問題ではない。
-	 * <b>つまり応急処置は被害の半分しか覆っていない。</b>
+	 * <b>これで覆えるのは片方だけ</b>という点に注意。走査から落ちる容器では
+	 * {@code finishLayoutSelf} の仕事がすべて飛ぶが、実際に仕事をするのは
+	 * 2種類しかない——絶対配置の解決(ここ)と、
+	 * {@code position:relative} のずらし量。後者は<b>包含ブロックを必要としない</b>
+	 * ので走査に預ける理由が無く、2026-08-06に描画直前でも確定させるようにした
+	 * ({@code AbstractContainerBox.resolveRelativeOffset})。
 	 * </p>
 	 *
 	 * <p>
-	 * <b>だから応急処置は「残すべきだが、これで終わりにはできない」。</b>
-	 * 変換を止めないための最後の砦としては正しく、構造を直したあとも
-	 * 残す価値がある。一方で(1)発火しても何も記録しないので誰も知りようが
-	 * なく、(2)相対配置の取りこぼしには何もしていない。
+	 * <b>発火は数える</b>({@link #FALLBACK_COUNT})。定義された振る舞いでも、
+	 * どれだけ踏んでいるかを知らないまま放置しない。実測(2026-08-06)では
+	 * 実物大コーパス235文書のうち{@code github-readme}の16件だけだった。
 	 * </p>
 	 *
 	 * <p>
-	 * <b>潰した仮説3</b>(2026-08-06): 「{@code extractReplayable}(C1c 吸収)が
-	 * {@code flows.remove} で外した部分木に登録されている」——<b>誤り</b>。
-	 * 吸収された箱を控えて突き合わせたが、<b>16件とも吸収されていない</b>。
-	 * 形は一致していたが実物は違った。
-	 *
-	 * <p>
-	 * <b>次の一手</b>: 容器から外す経路は他にもある
-	 * ({@code FlowContainer} の {@code flows.remove} は3箇所、
-	 * {@code flows.set} で差し替える箇所もある)。同じやり方で1つずつ
-	 * 突き合わせるのが確実。<b>推測でコードを変えないこと</b>——ここまで
-	 * 3つの仮説がいずれも「形は合うが実物は違う」で外れている。
-	 * </p>
+	 * <b>直せるならなお良い</b>: 容器が走査から落ちる仕組みは未特定で、
+	 * 仮説を3つ実測で潰してある(継続断片・走査後の登録・C1c吸収のいずれも
+	 * 誤り)。塞げれば静的位置への退避は発火しなくなる。ただし
+	 * <b>塞いだあともこの退避は残すこと</b>——別の経路で同じ状況が起きても
+	 * 変換を止めないための最後の砦である。
 	 * </p>
 	 */
+	/** 静的位置への退避が発火した回数(定義された振る舞いだが数は知りたい)。 */
+	public static final java.util.concurrent.atomic.AtomicLong FALLBACK_COUNT =
+			new java.util.concurrent.atomic.AtomicLong();
+
 	private void resolveUnfinishedMargins() {
 		final AbsoluteInsets margin = this.frame.margin;
+		if (LayoutUtils.isNone(margin.top) || LayoutUtils.isNone(margin.bottom) || LayoutUtils.isNone(margin.left)
+				|| LayoutUtils.isNone(margin.right) || LayoutUtils.isNone(this.width)
+				|| LayoutUtils.isNone(this.height)) {
+			FALLBACK_COUNT.incrementAndGet();
+		}
 		if (LayoutUtils.isNone(margin.top)) {
 			margin.top = 0;
 		}

@@ -50,6 +50,33 @@ public abstract class AbstractContainerBox extends AbstractBox
 	protected double minPageAxis = 0, maxPageAxis = Double.MAX_VALUE;
 	protected double offsetX = 0, offsetY = 0;
 
+	/**
+	 * <b>相対配置のずらしを確定します</b>(2026-08-06新設)。
+	 *
+	 * <p>
+	 * この計算は<b>包含ブロックを一切必要としません</b>——
+	 * {@code LayoutUtils.computeOffsetX/Y} は引数の容器を使わず、
+	 * 絶対長ならその値、割合とautoなら0を返すだけである(割合は未実装の
+	 * まま。既存のTODO)。したがって<b>いつ呼んでも同じ値</b>になる。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>なぜ寸法決めの走査任せにしないか。</b> ストリーミングでは、
+	 * 確定したページの容器が走査から外れることがあり、そこに居た箱は
+	 * {@code finishLayoutSelf}を通らない。ずらし量には番兵値が無いので
+	 * <b>0のまま静かに出て誰も気づかない</b>(実測: github-readmeで
+	 * {@code top:20pt}を与えてもずれない)。包含ブロックが要らない値まで
+	 * 走査に預ける理由は無いので、描画の直前にも確定させる。
+	 * </p>
+	 */
+	protected final void resolveRelativeOffset(final net.zamasoft.foliojet.layout.box.params.Offset offset) {
+		if (offset == null) {
+			return;
+		}
+		this.offsetX = net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetX(offset, this);
+		this.offsetY = net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetY(offset, this);
+	}
+
 	protected Container container;
 
 	protected AbstractContainerBox(Dimension size, Dimension minSize, Container container) {

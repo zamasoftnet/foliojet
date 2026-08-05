@@ -125,6 +125,11 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y, Deque<FramesStep> worklist) {
+		// 相対配置のずらしをここでも確定させる(包含ブロックを使わない値なので
+		// いつ呼んでも同じ。理由は resolveRelativeOffset の説明)
+		if (this.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractStaticPos sp) {
+			this.resolveRelativeOffset(sp.offset);
+		}
 		// SPEC CSS 2.1 9.9.1 #1
 		x += this.offsetX;
 		y += this.offsetY;

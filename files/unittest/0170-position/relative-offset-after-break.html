@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>改ページを跨いでも相対配置のずらしが効くこと</title>
+<!--
+  **欠陥(2026-08-06に修正)**: ストリーミングでは、確定したページの容器が
+  寸法決めの走査から外れることがある。そこに居た箱は `finishLayoutSelf` を
+  通らず、**相対配置のずらし量が0のまま静かに出ていた**。
+  ずらし量には番兵値が無いので、例外も警告も出ない。
+
+  **この計算は包含ブロックを一切必要としない**——computeOffsetX/Y は
+  引数の容器を使わず、絶対長ならその値、割合とautoなら0を返すだけである。
+  したがって走査に預ける理由が無く、描画の直前にも確定させるようにした。
+
+  ここでは2ページ目にも同じ形を置く。**どちらのページでも同じだけずれる**のが正。
+-->
+<style>
+@page { size: 200pt 90pt; margin: 6pt }
+body { margin: 0; font: 10pt serif }
+.r { position: relative; top: 12pt; left: 15pt }
+p { margin: 0 }
+</style></head><body>
+<p class="r">1ページ目のずらし</p>
+<p>a</p><p>a</p><p>a</p><p>a</p>
+<p class="r">2ページ目のずらし</p>
+<p>b</p>
+</body></html>
