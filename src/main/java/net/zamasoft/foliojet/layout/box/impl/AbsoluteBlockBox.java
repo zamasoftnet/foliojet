@@ -346,6 +346,15 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * </p>
 	 *
 	 * <p>
+	 * <b>影響範囲</b>(2026-08-06、実測): 実物大コーパス<b>235文書のうち
+	 * 1文書だけ</b>({@code github-readme}の16件)。変換の失敗は無く、
+	 * その文書では取り残されるのが元々ほぼ見えない要素なので実害も無い。
+	 * ただし<b>「まれな条件」とは限らない</b>——
+	 * {@code position:relative} の中の {@code position:absolute} が改ページを
+	 * 跨ぐ、というのはよくある書き方で、コーパスが偶然1つしか含んで
+	 * いないだけかもしれない。
+	 *
+	 * <p>
 	 * <b>潰した仮説3</b>(2026-08-06): 「{@code extractReplayable}(C1c 吸収)が
 	 * {@code flows.remove} で外した部分木に登録されている」——<b>誤り</b>。
 	 * 吸収された箱を控えて突き合わせたが、<b>16件とも吸収されていない</b>。
