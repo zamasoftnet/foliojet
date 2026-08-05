@@ -346,10 +346,18 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * </p>
 	 *
 	 * <p>
-	 * <b>次の一手</b>: この{@code <div>}の{@code Flow}が、どの容器の
-	 * {@code flows}に入っているかを見る。描画には出て寸法決めに出ないので、
-	 * <b>親の{@code flows}から外れたあとも描画木からは参照されている</b>形の
-	 * はずである(ページを跨ぐ移動・再構築の経路が怪しい)。
+	 * <b>有力な経路</b>(2026-08-06、コードから):
+	 * {@link net.zamasoft.foliojet.layout.box.content.FlowContainer#extractReplayable}
+	 * は、次ページで再生する閉じた部分木を<b>{@code flows.remove(i)} で容器から
+	 * 外す</b>(C1c 吸収)。<b>「描画の木には居るのに寸法決めの木に居ない」
+	 * という今回の形とそのまま一致する。</b>外された箱に絶対配置が登録されて
+	 * いれば、その容器は二度と走査されない。
+	 *
+	 * <p>
+	 * <b>次の一手</b>: 吸収された箱を控えておき、取り残された16件の登録先と
+	 * 突き合わせる。一致するなら、吸収の時点でその部分木の絶対配置を
+	 * 確定させる(または再生後の箱へ引き継ぐ)のが筋。
+	 * </p>
 	 * </p>
 	 */
 	private void resolveUnfinishedMargins() {
