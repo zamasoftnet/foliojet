@@ -317,13 +317,34 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * </p>
 	 *
 	 * <p>
-	 * <b>潰した仮説</b>(2026-08-06):「走査が済んだ容器へ<b>あとから</b>
-	 * 登録された箱が取り残される」——<b>誤り</b>。{@code Absolutes}に
-	 * 走査済みの印を持たせ、以後の登録をその場で確定させても
-	 * <b>16件のまま変わらなかった</b>。つまり取り残された箱の登録先は
-	 * {@code FlowContainer}の絶対配置一覧ではないか、あるいは<b>その容器
-	 * 自体が一度も走査されていない</b>(ページの箱から辿れない場所にある)。
-	 * 次はそこから当たること。
+	 * <b>ここまで分かっていること</b>(2026-08-06、すべて計測):
+	 * </p>
+	 *
+	 * <ul>
+	 * <li>16件<b>すべてが{@code FlowContainer}の絶対配置一覧に登録済み</b>
+	 * (テキスト箱経由ではない)</li>
+	 * <li>その<b>容器が最後まで一度も走査されない</b>。容器に「走査済み」の
+	 * 印を持たせて確かめた——印は最後まで付かなかった</li>
+	 * <li>それでも<b>描画には届く</b>。描画は
+	 * {@code AbstractBlockBox.pushDrawSteps→container.pushDrawAbsolutes}、
+	 * 寸法決めは{@code AbstractContainerBox.pushFinishLayoutChildren→
+	 * container.pushFinishLayoutChildren}で、<b>同じ容器を別の道で辿る</b>。
+	 * 片方だけ届かないので、<b>その容器を持つ箱が寸法決めの木から外れている</b></li>
+	 * </ul>
+	 *
+	 * <p>
+	 * <b>潰した仮説</b>: 「走査後にあとから登録された箱が取り残される」
+	 * ——<b>誤り</b>。{@code Absolutes}側と{@code FlowContainer}側の両方で
+	 * 「走査済みなら登録時に確定させる」を試したが、どちらも
+	 * <b>16件のまま変わらなかった</b>。前者は走査時に絶対配置が無いと
+	 * {@code Absolutes}が未生成で印を置けない、という別の穴も見つかったが、
+	 * 直しても数は動かない。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>次の一手</b>: 描画の木には居て寸法決めの木に居ない箱を突き止める。
+	 * {@code pushDrawSteps}が走った箱を控えておき、{@code finishLayout}の
+	 * 走査が触れた箱と突き合わせるのが早い。
 	 * </p>
 	 */
 	private void resolveUnfinishedMargins() {
