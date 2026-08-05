@@ -291,6 +291,32 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * 拾われるはずで、拾われない経路が残っている。ただし
 	 * <b>変換を止めるより静的位置へ落とすほうが害が小さい</b>
 	 * (絶対要件は「変換の失敗が無いこと」)。
+	 *
+	 * <p>
+	 * <b>原因はページ分割である</b>(2026-08-06に計測で特定)。
+	 * {@code github-readme} を計測すると:
+	 * </p>
+	 *
+	 * <pre>
+	 * 通常のページ分割 …… 未解決 16件
+	 * 紙を5000mmにして1ページへ収める …… 未解決 **0件**
+	 * </pre>
+	 *
+	 * <p>
+	 * 同じ実行での内訳は、生成120・登録159・{@code finishLayoutSelf}実行151。
+	 * <b>継続断片は無関係</b>(断片用の構築子は一度も呼ばれない)。
+	 * つまり「そのページの{@code finishLayout}走査が終わったあとに登録された
+	 * 絶対配置の箱」が取り残されている。{@code RootBuilder.finishLayout}は
+	 * ページごとに{@code pageBox.finishLayout}を呼ぶので、走査後に前ページの
+	 * 容器へ登録された箱は誰にも拾われない。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>直すときの注意</b>: 単純に後から{@code finishLayoutSelf}を呼ぶだけでは
+	 * 足りない。割合の解決に<b>正しい包含ブロック</b>が要るので、登録時に
+	 * 包含ブロックを覚えておくか、登録の時点で走査済みなら即座に確定させる
+	 * 必要がある。
+	 * </p>
 	 */
 	private void resolveUnfinishedMargins() {
 		final AbsoluteInsets margin = this.frame.margin;
