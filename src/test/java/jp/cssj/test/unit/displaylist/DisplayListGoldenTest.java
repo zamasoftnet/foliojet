@@ -149,6 +149,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
 			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
 			// artifact印・ページ数をここで固定する
+			// HTMLに直接書いたSVG(2026-08-06)。xmlns を書かないと名前空間の
+			// 宣言が組み立て器へ渡らず、丸ごと描画されなかった
+			"3050-IMG/inline-svg-implicit-ns.html", //
 			"3050-IMG/rescue-tall.html", //
 			"3050-IMG/rescue-tall-vert.html", //
 			"3050-IMG/rescue-exact.html", //

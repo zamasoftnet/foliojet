@@ -598,7 +598,19 @@ public class CSSProcessor implements XMLHandler {
 				this.inlineObject = factory.createInlineObject();
 				this.inlineObject.setDocumentLocator(this.saxLocator);
 			}
-			if (!this.namespaces.isEmpty()) {
+			// **既定の名前空間の宣言を必ず添えること**(2026-08-06)。
+			// HTMLに直接書いたSVGは `xmlns` を書かない——HTMLの構文解析器が
+			// 暗黙に付ける決まりだからである。ところがここから先の
+			// 組み立て器(Batikの SAXSVGDocumentFactory)は**属性の xmlns を
+			// 見て**要素の種類を決めるので、宣言が無いと中身が
+			// GenericElement になり、`GenericElement cannot be cast to
+			// SVGOMSVGElement` で丸ごと描画されない。
+			// `xmlns` を明示した書き方だけが動く、という食い違いだった。
+			final boolean hasDefaultNamespace = this.namespaces.containsKey("")
+					|| atts.getIndex("http://www.w3.org/2000/xmlns/", "xmlns") >= 0
+					|| atts.getIndex("xmlns") >= 0;
+			final boolean addDefaultNamespace = !hasDefaultNamespace && uri != null && !uri.isEmpty();
+			if (!this.namespaces.isEmpty() || addDefaultNamespace) {
 				this.attsi.clear();
 				this.attsi.setAttributes(atts);
 				atts = this.attsi;
@@ -608,6 +620,9 @@ public class CSSProcessor implements XMLHandler {
 					String namespaceURI = (String) entry.getValue();
 					this.attsi.addAttribute("http://www.w3.org/2000/xmlns/", prefix,
 							prefix.length() == 0 ? "xmlns" : "xmlns:" + prefix, "CDATA", namespaceURI);
+				}
+				if (addDefaultNamespace) {
+					this.attsi.addAttribute("http://www.w3.org/2000/xmlns/", "xmlns", "xmlns", "CDATA", uri);
 				}
 			}
 			try {

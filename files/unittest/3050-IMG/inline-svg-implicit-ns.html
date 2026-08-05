@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>xmlns を書かないインラインSVGが描画されること</title>
+<!--
+  **欠陥(2026-08-06に修正)**: HTMLに直接書いた `<svg>` が、`xmlns` を
+  書いていないと**丸ごと描画されなかった**。HTMLの構文解析器は名前空間を
+  暗黙に付ける決まりなので、実在のページはまず `xmlns` を書かない。
+
+  原因は、インラインオブジェクトへ渡すSAXの事象に**名前空間の宣言を
+  添えていなかった**こと。受け側の組み立て器は属性の `xmlns` を見て要素の
+  種類を決めるため、宣言が無いと中身が GenericElement になり
+  `GenericElement cannot be cast to SVGOMSVGElement` で失敗する。
+  **`xmlns` を明示した書き方だけが動く**、という食い違いだった
+  (github-readme の変換ログにこの失敗が多数出ていた)。
+
+  1行目(xmlnsなし)と2行目(xmlnsあり)が**同じ大きさの箱**になるのが正。
+-->
+<style>
+@page { size: 200pt 120pt; margin: 6pt }
+body { margin: 0; font: 10pt serif }
+</style></head><body>
+<p>前 <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#c00"/></svg> 後</p>
+<p>前 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><rect width="24" height="24" fill="#00c"/></svg> 後</p>
+</body></html>
