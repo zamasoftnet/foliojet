@@ -94,6 +94,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0400-column-count/nest.html", //
 			"0350-line-height/small-line-height.html", //
 			"0140-content/counters.html", //
+			// 読めない形式の @font-face src を飛ばすこと(2026-08-05)。
+			// 読み込みが非同期なので、失敗しても次の候補へ落ちていなかった
+			"1080-FONT/font-face-format.html", //
 			"0450-hyphens/hyphens.html", //
 			"0450-hyphens/word-then-paren.html", //
 			"0510-flex/float-item.html", //

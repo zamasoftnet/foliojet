@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html><head><meta charset="utf-8">
+<title>読めない形式の src を飛ばして次の候補へ落ちること</title>
+<!--
+  **@font-face の src の選び方を固定する**(2026-08-05)。
+
+  pdfg2d が読めるのは sfnt(truetype/opentype)・WOFF・TrueType Collection。
+  **WOFF2 は Brotli 伸長が要るため未対応**。そこで foliojet 側で
+  `format('woff2')` と拡張子 `.woff2`/`.eot`/`.svg` の src を候補から外し、
+  **後続の候補へ落ちる**ようにした。実地コーパスでは woff2 が1265件・
+  woff が323件で、現代のサイトはほぼこの形。
+
+  **この検査の限界を書いておく。** ここに置いた broken.woff2 は
+  wOF2 マジックだけの偽物で、**フィルタが無くても** FontFile の段階で
+  同期的に失敗して次候補へ落ちるため、この文書だけでは
+  「フィルタが効いているか」を判別できない(実測で確認済み)。
+  本当に判別するには**実在する正しい woff2** が要るが、第三者フォントの
+  同梱はオーナー判断なので置いていない。ここで固定できるのは
+  「壊れた src があっても後続の実在フォントが使われる」ことまで。
+
+  A と B が同じ送り幅になれば正しい(どちらも ipam.otf)。
+-->
+<style>
+body { text-autospace: no-autospace; font-size: 36pt }
+@font-face {
+	font-family: 'skipfmt';
+	/* 1つめは format() ヒントで、2つめは拡張子だけで飛ばされる */
+	/* **実在するが読めない** woff2 を先に置く。存在しないファイルだと
+	   既存の src.exists() で弾かれてしまい、この欠陥を素通りしてしまう
+	   (2026-08-05、初版のテストがまさにこれで判別できていなかった) */
+	src: url('broken.woff2') format('woff2'),
+	     url('ipam.otf');
+	unicode-range: U+100-FFFF;
+}
+@font-face {
+	font-family: 'direct';
+	src: url('ipam.otf');
+	unicode-range: U+100-FFFF;
+}
+div.a { font-family: 'skipfmt' monospace }
+div.b { font-family: 'direct' monospace }
+</style></head><body>
+<div class="a">あいうえおかきくけこ</div>
+<div class="b">あいうえおかきくけこ</div>
+</body></html>
