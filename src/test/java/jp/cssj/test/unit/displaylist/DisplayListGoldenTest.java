@@ -45,6 +45,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// フロート/セル/絶対/フレックス/inline-block を横に並べて押さえる
 			"0080-width/intrinsic-fixed-sibling.html", //
 			"0120-float/auto-width.html", //
+			// margin:auto の表の直後の浮動体(2026-08-05)。行方向カーソルの
+			// 押し引きが非対称で、フロートが x=-106.75(紙の左外)へ飛んでいた
+			"0120-float/after-auto-margin-table.html", //
 			"0120-float/nested-float-shrink.html", //
 			"0120-float/collapse-float-measure.html", //
 			"0120-float/float-in-moved-block.html", //

@@ -579,7 +579,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.flowStack == null) {
 			this.flowStack = new ArrayList<Flow>();
 		}
-		final Flow flow = new Flow(flowBox, this.lineAxis, this.pageAxis);
+		final Flow flow = new Flow(flowBox, this.lineAxis, this.pageAxis, frameHead);
 		this.flowStack.add(flow);
 		this.breakToken = BreakToken.NONE;
 	}
@@ -644,7 +644,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final Flow parentFlow = this.getFlow();
 		final BlockParams parentParams = parentFlow.box.getBlockParams();
 		final AbsoluteRectFrame frame = flowBox.getFrame();
-		final double marginEnd, frameEnd, frameHead;
+		final double marginEnd, frameEnd;
 		boolean bordered;
 		if (parentParams.flow.isVertical()) {
 			// 縦書き
@@ -659,7 +659,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 			}
 			frameEnd = frame.getFrameLeft();
-			frameHead = frame.getFrameTop();
 		} else {
 			// 横書き
 			marginEnd = frame.margin.bottom;
@@ -673,7 +672,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 			}
 			frameEnd = frame.getFrameBottom();
-			frameHead = frame.getFrameLeft();
 		}
 		if (bordered) {
 			if (marginEnd >= 0) {
@@ -703,7 +701,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.pageAxis += frameEnd;
 
 		parentFlow.box.setPageAxis(this.pageAxis - parentFlow.pageAxis);
-		this.lineAxis -= frameHead;
+		// **積んだ量をそのまま戻す。** frame から取り直してはいけない——
+		// margin:auto はフローの内側で解決されるので、積んだ 0 に対して
+		// 106.75 を引く、といった食い違いが起きる(Flow.frameHead の説明)
+		this.lineAxis -= flow.frameHead;
 	}
 
 	/**

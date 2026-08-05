@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=82.00 h=0.00]
+  x=0.00 y=0.00 AbsoluteRectFrame[w=82.00 h=16.80]
+  x=6.00 y=0.00 Text["C" asc=7.73 desc=3.07]
+  x=13.50 y=24.30 BackgroundBorder[w=115.45 h=27.30]
+  x=128.95 y=24.30 BackgroundBorder[w=137.55 h=27.30]
+  x=6.00 y=16.80 TableBorder[w=268.00 h=42.30]
+  x=21.75 y=32.55 Text["t3" asc=7.73 desc=3.07]
+  x=137.20 y=32.55 Text["t3b" asc=7.73 desc=3.07]
