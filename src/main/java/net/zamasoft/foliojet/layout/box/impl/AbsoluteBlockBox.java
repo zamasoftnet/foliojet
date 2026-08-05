@@ -325,6 +325,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * (テキスト箱経由ではない)</li>
 	 * <li>その<b>容器が最後まで一度も走査されない</b>。容器に「走査済み」の
 	 * 印を持たせて確かめた——印は最後まで付かなかった</li>
+	 * <li>取り残された箱を持つのは、<b>{@code position:relative} の
+	 * {@code <div>}}の{@code FlowBlockBox}</b>(GitHubの見出しラッパ
+	 * {@code .markdown-heading})。つまり<b>包含ブロックそのもの</b>で、
+	 * この箱も走査されていない</li>
 	 * <li>それでも<b>描画には届く</b>。描画は
 	 * {@code AbstractBlockBox.pushDrawSteps→container.pushDrawAbsolutes}、
 	 * 寸法決めは{@code AbstractContainerBox.pushFinishLayoutChildren→
@@ -342,9 +346,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * </p>
 	 *
 	 * <p>
-	 * <b>次の一手</b>: 描画の木には居て寸法決めの木に居ない箱を突き止める。
-	 * {@code pushDrawSteps}が走った箱を控えておき、{@code finishLayout}の
-	 * 走査が触れた箱と突き合わせるのが早い。
+	 * <b>次の一手</b>: この{@code <div>}の{@code Flow}が、どの容器の
+	 * {@code flows}に入っているかを見る。描画には出て寸法決めに出ないので、
+	 * <b>親の{@code flows}から外れたあとも描画木からは参照されている</b>形の
+	 * はずである(ページを跨ぐ移動・再構築の経路が怪しい)。
 	 * </p>
 	 */
 	private void resolveUnfinishedMargins() {
