@@ -1303,10 +1303,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
-		// 和文詰めA2: 境界gapを計測器のmax-contentへ計上する(記録textは
-		// 変異させない——records再生はtoGlyphsでxadvanceを運ばず、再構築
-		// 時にTextBuilder側trackerが再適用するため。min-content(atomic
-		// unit)にも入れない: 和欧文境界は分割機会でgapは分割時に消える)
+		// 和文詰めA2/T1a: gap・trimは計測値にだけ効かせ、記録textは変異させ
+		// ない——records再生はtoGlyphsでxadvanceを運ばず、再構築時に
+		// TextBuilder側trackerが再適用するため。min/maxへの計上方針と
+		// 幅式はIntrinsicMeasurer.glyph(GlyphMeasureStep)に集約(増分5)
 		if (this.autospace == null) {
 			this.autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
 			final net.zamasoft.foliojet.layout.box.params.AbstractTextParams params = //
@@ -1316,18 +1316,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 		final double fontSize = this.text.getFontStyle().getSize();
 		final double gap = this.autospace.gapBefore(ch, coff, fontSize);
-		// T1a: 同一run内の約物詰め(font層から移管)。記録textは変異させず
-		// 計測値だけ旧base挙動どおりtrimを差し引く(min/max両方——trim
-		// pairは禁則で不可分。再構築時はTextBuilder側trackerが再適用)
 		final double trim = this.autospace.trimBefore(ch, coff, gid, this.text,
 				this.text.getFontMetrics(), fontSize);
 		// appendGlyph は記録用 TextImpl を構築しつつアドバンスを返すため、
 		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
-		double advance = this.text.appendGlyph(ch, coff, clen, gid);
-		if (gap > 0) {
-			this.measurer.autospaceGap(gap);
-		}
-		this.measurer.glyph(advance - trim);
+		this.measurer.glyph(this.text.appendGlyph(ch, coff, clen, gid), gap, trim);
 		this.autospace.glyphAdded(this.text, fontSize, ch, coff, clen, gid);
 		// E-6増分1(2026-07-24): glyph保持量の概算観測(加算のみ、挙動不変)
 		++this.glyphCount;

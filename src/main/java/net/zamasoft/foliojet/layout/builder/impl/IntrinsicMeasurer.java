@@ -26,6 +26,7 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.TwoPass;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
+import net.zamasoft.foliojet.layout.text.GlyphMeasureStep;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.layout.control.LineBreak;
@@ -380,17 +381,33 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
-	 * 和文詰めA2: text-autospaceの境界gapです。max-content(行)にのみ
-	 * 計上する——和欧文境界は分割機会でgapは分割時に消えるため、
-	 * min-content(atomic unit)には入れない(高々0.125icの過小は
-	 * 安全側の近似として記録)。
+	 * 1グリフ分の幅を計上します。CSS幅式の成分の定義は
+	 * {@link GlyphMeasureStep}(唯一の定義。85点計画増分5でintrinsic系統を
+	 * 接続し、幅会計3系統の統合が完了)。
+	 *
+	 * <p>
+	 * <b>intrinsic計測の方針は行会計と2点違う</b>ので、
+	 * {@code baseAndSpacing()+adjustment()}の正規2段ではなく成分別に足す:
+	 * </p>
+	 *
+	 * <ul>
+	 * <li>和文詰めA2: 境界gapは<b>max-content(行)にのみ</b>計上する
+	 * ——和欧文境界は分割機会でgapは分割時に消えるため、min-content
+	 * (atomic unit)には入れない(高々0.125icの過小は安全側の近似として
+	 * 記録)。trimはmin/max両方(trim pairは禁則で不可分、T1a)</li>
+	 * <li>加算順は従来を保存する: gap→(base−trim)+letter-spacing。
+	 * 正規順(base+letter-spacing)と最終ULPが変わりうるため、golden
+	 * 全件バイト一致(再生成禁止)の完了条件の下では順序を動かせない</li>
+	 * </ul>
 	 */
-	void autospaceGap(final double gap) {
-		this.lineAxis += gap;
-	}
-
-	void glyph(double advance) {
-		advance += this.letterSpacing;
+	void glyph(final double baseAdvance, final double autospaceGap, final double punctuationTrim) {
+		final GlyphMeasureStep step = new GlyphMeasureStep(baseAdvance, this.letterSpacing, autospaceGap,
+				punctuationTrim);
+		if (step.autospaceGap() > 0) {
+			this.lineAxis += step.autospaceGap();
+		}
+		double advance = step.baseAdvance() - step.punctuationTrim();
+		advance += step.letterSpacing();
 		this.atomicLineSize += advance;
 		this.lineAxis += advance;
 		double minPageAxis = this.getCurrentLineHeight() + this.pageFrame;
