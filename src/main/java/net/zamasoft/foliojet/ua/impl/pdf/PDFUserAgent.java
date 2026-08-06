@@ -323,23 +323,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 						if (flags != 0) {
 							watermarkGroup.setOCG(flags);
 						}
-						PDFGC ggc = new PDFGC(watermarkGroup);
-						ggc.setFillPaint(this.watermark);
-						double opacity = UAProps.OUTPUT_PDF_WATERMARK_OPACITY.getDouble(PDFUserAgent.this);
-						if (opacity != 1) {
-							if (this.pdfWriter.getParams().version() == PDFParams.Version.V_PDFA1B) {
-								this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-										UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name, String.valueOf(opacity), "PDF/A-1");
-							} else if (this.pdfWriter.getParams().version() == PDFParams.Version.V_PDFX1A) {
-								this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-										UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name, String.valueOf(opacity), "PDF/X-1a");
-							} else {
-								ggc.setFillAlpha((float) opacity);
-							}
-						}
-						Rectangle2D mask = new Rectangle2D.Double(0, 0, w, h);
-						ggc.fill(mask);
-						watermarkGroup.close();
+						this.paintWatermark(watermarkGroup, null, w, h);
 						this.watermarkGroups.put(dims, watermarkGroup);
 					}
 					gc.drawImage(watermarkGroup);
@@ -349,6 +333,50 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		} catch (IOException e) {
 			throw new GraphicsException(e);
 		}
+	}
+
+	/**
+	 * 透かしパターンを塗って、グループ画像を閉じます(2026-08-06、85点計画
+	 * ua残増分)。
+	 *
+	 * <p>
+	 * 背面(BACK=ページ内容の下に直接描く)と前面(FRONT=注釈の
+	 * appearanceにする)は仕込み先が違うだけで、「パターンをopacityつきで
+	 * 矩形に塗る」部分と<b>opacityの規格警告(PDF/A-1・PDF/X-1aは透明を
+	 * 使えない)</b>は同一だった——ほぼ逐語の複製が2箇所にあり、警告を
+	 * 直すとき片方を忘れる形をしていた。ここが唯一の定義。
+	 * 仕込み先ごとの表示制御(BACKのOCGフラグ・FRONTの注釈Fフラグ)は
+	 * 機構が違うので呼び出し側に残る。
+	 * </p>
+	 *
+	 * @param group      この上へ塗り、このメソッドが閉じる
+	 * @param scale      塗りに先立って適用する拡大(FRONTの注釈座標系。
+	 *                   BACKはnull)
+	 * @param maskWidth  塗る矩形の幅
+	 * @param maskHeight 塗る矩形の高さ
+	 */
+	private void paintWatermark(final PDFGroupImage group, final AffineTransform scale, final double maskWidth,
+			final double maskHeight) throws IOException {
+		final PDFGC gc = new PDFGC(group);
+		if (scale != null) {
+			gc.transform(scale);
+		}
+		gc.setFillPaint(this.watermark);
+		final double opacity = UAProps.OUTPUT_PDF_WATERMARK_OPACITY.getDouble(this);
+		if (opacity != 1) {
+			final PDFParams.Version version = group.getPdfWriter().getParams().version();
+			if (version == PDFParams.Version.V_PDFA1B) {
+				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name,
+						String.valueOf(opacity), "PDF/A-1");
+			} else if (version == PDFParams.Version.V_PDFX1A) {
+				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name,
+						String.valueOf(opacity), "PDF/X-1a");
+			} else {
+				gc.setFillAlpha((float) opacity);
+			}
+		}
+		gc.fill(new Rectangle2D.Double(0, 0, maskWidth, maskHeight));
+		group.close();
 	}
 
 	public void closePage(final GC gc) throws IOException {
@@ -374,33 +402,12 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 							Rectangle2D rect = this.getShape().getBounds2D();
 							final PDFGroupImage group = pageOut.getPdfWriter().createGroupImage(rect.getWidth(),
 									rect.getHeight());
-							final PDFGC gc = new PDFGC(group);
+							AffineTransform scale = null;
 							if (at != null) {
-								AffineTransform atd = new AffineTransform();
-								atd.scale(at.getScaleX(), at.getScaleY());
-								gc.transform(atd);
+								scale = new AffineTransform();
+								scale.scale(at.getScaleX(), at.getScaleY());
 							}
-
-							gc.setFillPaint(PDFUserAgent.this.watermark);
-							final double opacity = UAProps.OUTPUT_PDF_WATERMARK_OPACITY.getDouble(PDFUserAgent.this);
-							if (opacity != 1) {
-								PDFParams params = pageOut.getPdfWriter().getParams();
-								if (params.version() == PDFParams.Version.V_PDFA1B) {
-									message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-											UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name, String.valueOf(opacity),
-											"PDF/A-1");
-								} else if (params.version() == PDFParams.Version.V_PDFX1A) {
-									message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-											UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name, String.valueOf(opacity),
-											"PDF/X-1a");
-								} else {
-									gc.setFillAlpha((float) opacity);
-								}
-							}
-							final Rectangle2D mask = new Rectangle2D.Double(0, 0, PDFUserAgent.this.pageWidth,
-									PDFUserAgent.this.pageHeight);
-							gc.fill(mask);
-							group.close();
+							paintWatermark(group, scale, PDFUserAgent.this.pageWidth, PDFUserAgent.this.pageHeight);
 
 							// 印刷時だけ表示するフラグ
 							out.writeName("F");
