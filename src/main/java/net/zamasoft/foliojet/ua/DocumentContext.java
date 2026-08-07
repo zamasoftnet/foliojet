@@ -11,6 +11,16 @@ public class DocumentContext {
 
 	private CompatibleMode compatibleMode = CompatibleMode.NORMAL;
 
+	/**
+	 * インラインSVGへ持ち込む著者CSSのSVG向け部分集合です(2026-08-07)。
+	 * 収集・注入・var()解決の仕組みは{@link net.zamasoft.foliojet.css.SVGAuthorCss}参照。
+	 */
+	private final net.zamasoft.foliojet.css.SVGAuthorCss svgAuthorCss = new net.zamasoft.foliojet.css.SVGAuthorCss();
+
+	public net.zamasoft.foliojet.css.SVGAuthorCss getSVGAuthorCss() {
+		return this.svgAuthorCss;
+	}
+
 	public void setBaseURI(URI baseURI) {
 		this.baseURI = baseURI;
 	}

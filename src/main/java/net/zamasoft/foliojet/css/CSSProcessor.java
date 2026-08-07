@@ -625,6 +625,23 @@ public class CSSProcessor implements XMLHandler {
 					this.attsi.addAttribute("http://www.w3.org/2000/xmlns/", "xmlns", "xmlns", "CDATA", uri);
 				}
 			}
+			// インラインSVGのcurrentColor解決(2026-08-07)。HTML側の
+			// カスケードで決まったcolorの計算値を、切り出したSVG文書の
+			// ルートへプレゼンテーション属性として焼き込む。SVG文書は
+			// HTML文書のスタイル文脈から切り離されるため、これが無いと
+			// fill="currentColor" のアイコンが継承色を失って黒になる
+			if ("svg".equalsIgnoreCase(lName) && atts.getValue("color") == null) {
+				if (atts != this.attsi) {
+					this.attsi.clear();
+					this.attsi.setAttributes(atts);
+					atts = this.attsi;
+				}
+				final net.zamasoft.pdfg2d.gc.paint.Color color = net.zamasoft.foliojet.css.impl.property.text.CSSColor
+						.get(style);
+				this.attsi.addAttribute("", "color", "color", "CDATA",
+						"rgb(" + Math.round(color.getRed() * 255f) + "," + Math.round(color.getGreen() * 255f) + ","
+								+ Math.round(color.getBlue() * 255f) + ")");
+			}
 			try {
 				this.inlineObject.startDocument();
 				this.inlineObject.startElement(uri, lName, qName, atts);
@@ -635,6 +652,11 @@ public class CSSProcessor implements XMLHandler {
 			this.inlineObjectDepth = 1;
 			HTMLStyleUtils.applyWidthHeight(lName, style);
 			this.inlineObjectStyle = style;
+			if (this.inlineObject instanceof StyleAwareInlineObject styleAware) {
+				// 著者CSSのvar()をこのSVGの位置のカスタムプロパティで
+				// 解決するためのスタイル文脈(SVGAuthorCss.toCssText)
+				styleAware.setHostStyle(style);
+			}
 			return;
 		}
 

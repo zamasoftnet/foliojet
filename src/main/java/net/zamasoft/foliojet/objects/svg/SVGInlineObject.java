@@ -23,8 +23,16 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 import net.zamasoft.foliojet.css.token.Unit;
 
-public class SVGInlineObject extends SAXSVGDocumentFactory implements InlineObject {
+public class SVGInlineObject extends SAXSVGDocumentFactory
+		implements net.zamasoft.foliojet.css.StyleAwareInlineObject {
 	protected SVGImageLoader loader = null;
+
+	/** ホスト文書側のsvg要素のスタイル(著者CSSのvar()解決の文脈)。 */
+	private net.zamasoft.foliojet.css.CSSStyle hostStyle;
+
+	public void setHostStyle(net.zamasoft.foliojet.css.CSSStyle style) {
+		this.hostStyle = style;
+	}
 
 	public SVGInlineObject() {
 		super(XMLResourceDescriptor.getXMLParserClassName());
@@ -125,6 +133,37 @@ public class SVGInlineObject extends SAXSVGDocumentFactory implements InlineObje
 		}
 		doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", path);
 		doc.setParsedURL(new ParsedURL(uri.toString()));
+
+		// HTML文書の著者CSSのSVG向け部分集合を<style>として注入する
+		// (2026-08-07)。インラインSVGは独立文書としてBatikに渡されるため、
+		// これが無いとCSSクラスでfill/strokeを塗るアイコンがSVG既定の
+		// fill=blackで黒く塗り潰れる(qiitaのいいねボタンで発覚)。
+		// 収集と濾過はCSSStyleSheetBuilder.collectSVGStyleRule、var()の
+		// 解決(hostStyleの文脈)はSVGAuthorCss.toCssText参照。
+		// ルートの先頭へ入れるのは、SVG内の既存<style>や style属性が
+		// あとから重なって勝てるようにするため(カスケードの出現順)
+		final String svgAuthorCss = ua.getDocumentContext().getSVGAuthorCss().toCssText(this.hostStyle);
+		this.hostStyle = null;
+		if (!svgAuthorCss.isEmpty()) {
+			// **規則ごとに別々の<style>にする**(2026-08-07)。Batikは
+			// スタイルシート内に1つでも読めない値があるとシート全体を
+			// 無効にする(qiitaのdisplay:flexで全アイコンが素の黒に
+			// 戻った)。SVGAuthorCss側の白リストで大半は防ぐが、想定外の
+			// 値が1つ混ざっても被害がその規則に閉じるよう、失敗の単位を
+			// 規則へ落とす
+			final org.w3c.dom.Element root = doc.getDocumentElement();
+			org.w3c.dom.Node anchor = root.getFirstChild();
+			for (final String rule : svgAuthorCss.split("\n")) {
+				if (rule.isEmpty()) {
+					continue;
+				}
+				final org.w3c.dom.Element styleElement = doc.createElementNS("http://www.w3.org/2000/svg", "style");
+				styleElement.setAttributeNS(null, "type", "text/css");
+				styleElement.appendChild(doc.createCDATASection(rule));
+				root.insertBefore(styleElement, anchor);
+			}
+		}
+
 		Image image = this.loader.getImage(uri.toString(), doc, ua);
 		double scale = LengthUtils.convert(ua, 1.0, Unit.PX, Unit.PT);
 		if (scale != 1) {

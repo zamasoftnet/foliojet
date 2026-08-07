@@ -255,6 +255,7 @@ public class CSSStyleSheetBuilder {
 			final Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
 					ElementPropertySet.getInstance(), this.ua, uri);
 			this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+			this.collectSVGStyleRule(selfTexts, styleRule.getAllDeclarations());
 		}
 		for (final com.helger.css.decl.ICSSNestedRule nested : styleRule.getAllRules()) {
 			if (nested instanceof CSSStyleRule nestedStyle) {
@@ -265,11 +266,106 @@ public class CSSStyleSheetBuilder {
 					final Declaration declaration = DeclarationParser.convert(nestedDecls.getAllDeclarations(),
 							null, ElementPropertySet.getInstance(), this.ua, uri);
 					this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+					this.collectSVGStyleRule(selfTexts, nestedDecls.getAllDeclarations());
 				}
 			}
 			// 規則内の@media/@supports等はサブセット外(無視)
 		}
 	}
+
+	/**
+	 * インラインSVG向けの著者CSS部分集合の収集です(2026-08-07)。
+	 * インラインSVGはBatikの独立文書として描かれ、HTML文書のスタイル
+	 * シートが届かない(CSSクラスでfill/strokeを塗るアイコンシステムが
+	 * 全部黒くなる)。そこでSVGプレゼンテーション系の宣言を含む規則
+	 * だけを{@link net.zamasoft.foliojet.ua.DocumentContext}へ集め、
+	 * SVG文書へ&lt;style&gt;注入してBatik側でカスケードさせる。
+	 *
+	 * <p>
+	 * セレクタはBatikのCSS2世代のパーサが読める形(タグ・クラス・id・
+	 * 子孫・{@code >}・{@code *})だけを通す。擬似クラスや属性セレクタ、
+	 * エスケープ入りのクラス名は捨てる——SVG文書の中にはHTML側の祖先が
+	 * 存在しないので、文脈を要するセレクタはどのみち正しく評価できない。
+	 * 同じ理由で、HTML祖先を含む子孫セレクタは「一致しない」側へ倒れる
+	 * (過剰適用はしない)。var()を含む宣言はBatikが解決できないので捨てる。
+	 * </p>
+	 */
+	private void collectSVGStyleRule(final List<String> selectorTexts,
+			final Iterable<CSSDeclaration> declarations) {
+		if (this.origin != Origin.AUTHOR) {
+			return;
+		}
+		List<SVGAuthorCss.Decl> decls = null;
+		boolean hasCore = false;
+		for (final CSSDeclaration d : declarations) {
+			final String prop = d.getProperty().toLowerCase(java.util.Locale.ROOT);
+			final boolean core = SVG_PAINT_PROPS.contains(prop);
+			if (!core && !SVG_AUX_PROPS.contains(prop)) {
+				continue;
+			}
+			hasCore |= core;
+			// 値は生トークン列のまま持つ。var()はここでは解決できない
+			// (要素の文脈が要る)ので、注入時まで遅延する(SVGAuthorCss参照)
+			final List<CssToken> tokens = Tokens.fromExpression(d.getExpression());
+			if (tokens.isEmpty()) {
+				continue;
+			}
+			if (decls == null) {
+				decls = new ArrayList<SVGAuthorCss.Decl>();
+			}
+			decls.add(new SVGAuthorCss.Decl(prop, tokens, d.isImportant()));
+		}
+		if (decls == null || !hasCore) {
+			// SVG固有の描画プロパティを1つも含まない規則は持ち込まない。
+			// color/display/font系はHTML汎用で、これらだけの規則まで拾うと
+			// 実サイトでは数千規則になり(qiitaで6,234規則)、注入が肥大する
+			// 上にBatikが読めない値(display:flex等)を引く確率が上がる
+			return;
+		}
+		StringBuilder sels = null;
+		for (final String text : selectorTexts) {
+			final String t = text.trim();
+			if (t.isEmpty() || !BATIK_SAFE_SELECTOR.matcher(t).matches()) {
+				continue;
+			}
+			if (sels == null) {
+				sels = new StringBuilder();
+			} else {
+				sels.append(',');
+			}
+			sels.append(t);
+		}
+		if (sels == null) {
+			return;
+		}
+		this.ua.getDocumentContext().getSVGAuthorCss().addRule(new SVGAuthorCss.Rule(sels.toString(), decls));
+	}
+
+	/**
+	 * インラインSVGへ持ち込む「SVG固有の描画プロパティ」。規則の採否は
+	 * この集合を1つでも含むかで決める(collectSVGStyleRule参照)。
+	 */
+	private static final java.util.Set<String> SVG_PAINT_PROPS = java.util.Set.of( //
+			"fill", "fill-opacity", "fill-rule", //
+			"stroke", "stroke-width", "stroke-opacity", "stroke-linecap", "stroke-linejoin", //
+			"stroke-miterlimit", "stroke-dasharray", "stroke-dashoffset", //
+			"stop-color", "stop-opacity", "opacity", //
+			"clip-path", "clip-rule", "mask", "filter", //
+			"marker-start", "marker-mid", "marker-end", //
+			"text-anchor", "dominant-baseline", "baseline-shift");
+
+	/**
+	 * 採用された規則にだけ同乗させるHTML汎用プロパティ(継承・
+	 * currentColor・可視性のため)。
+	 */
+	private static final java.util.Set<String> SVG_AUX_PROPS = java.util.Set.of( //
+			"color", "display", "visibility", //
+			"font-family", "font-size", "font-weight", "font-style", //
+			"letter-spacing", "word-spacing");
+
+	/** BatikのCSS2世代パーサへ安全に渡せるセレクタの形。 */
+	private static final java.util.regex.Pattern BATIK_SAFE_SELECTOR = java.util.regex.Pattern
+			.compile("[-_a-zA-Z0-9.#*>\\s]+");
 
 	/** 入れ子セレクタの結合({@code &}=親置換、なければ子孫結合)。 */
 	private static String combineNestedSelector(final String parent, final String child) {
