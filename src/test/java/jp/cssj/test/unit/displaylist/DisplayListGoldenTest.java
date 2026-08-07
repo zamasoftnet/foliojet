@@ -174,6 +174,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// artifact印・ページ数をここで固定する
 			// HTMLに直接書いたSVG(2026-08-06)。xmlns を書かないと名前空間の
 			// 宣言が組み立て器へ渡らず、丸ごと描画されなかった
+			// 読み込めないobjectの子(フォールバック内容)が描かれること
+			// (2026-08-07)。AltTextImage導入(2026-08-06)でobjectが置換
+			// ボックス化され子が消えていた——acid2の目の消失として発覚
+			"3050-IMG/object-fallback.html", //
 			"3050-IMG/inline-svg-implicit-ns.html", //
 			// viewBoxのみ(width/height属性なし)のインラインSVGを、CSSクラス/
 			// インラインstyleでサイズ指定(2026-08-06)。属性読み出しがXHTML

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>objectのフォールバック内容</title>
+<!--
+読み込めないobjectの子(フォールバック内容)が描かれることの回帰
+(2026-08-07)。2026-08-06のAltTextImage導入で、読み込み失敗のobjectが
+置換ボックス化され子が丸ごと消えていた——acid2の目(失敗するobjectの
+中の入れ子objectのdata:PNG)の消失として発覚し、bisectで特定した。
+入れ子の形(acid2と同型)と、altがフォールバックを潰さないことも見る。
+-->
+<style>@page { size: 300pt 200pt; margin: 10pt } body { margin: 0; font-size: 12pt }</style>
+</head>
+<body>
+<p>単純: <object data="data:application/x-unknown,ERROR">フォールバック文</object></p>
+<p>入れ子: <object data="data:application/x-unknown,ERROR"><object
+  data="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAFElEQVR4nGNkOMGABzDhk2QYsdIA/fIA3DaUOMYAAAAASUVORK5CYII="
+  width="20" height="20">内側フォールバック(出ない)</object></object></p>
+<p>alt付き: <object data="data:application/x-unknown,ERROR" alt="ALT">alt付きフォールバック文</object></p>
+<p>後の段落</p>
+</body>
+</html>

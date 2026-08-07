@@ -221,7 +221,13 @@ public class HTMLStyle {
 		}
 	}
 
-	private static void applyBrokenImage(CSSStyle style, String alt) {
+	/**
+	 * @param fallbackContent
+	 *            要素がHTML仕様のフォールバック内容(子要素)を持つか
+	 *            (object/applet)。既定のbroken-image=noneでは置換ボックスを
+	 *            作らず、子=フォールバックを描かせる
+	 */
+	private static void applyBrokenImage(CSSStyle style, String alt, boolean fallbackContent) {
 		UserAgent ua = style.getUserAgent();
 		OutputBrokenImage brokenimage = UAProps.OUTPUT_BROKEN_IMAGE.get(ua);
 		if (brokenimage == OutputBrokenImage.ANNOTATION
@@ -242,6 +248,14 @@ public class HTMLStyle {
 			CSSJInternalImage.setImage(style, new NullImage(alt));
 			return;
 		case NONE:
+			// **objectとappletは置換ボックス化してはならない**(2026-08-07)。
+			// これらの子要素はHTML仕様の正規のフォールバック手段で、置換
+			// ボックスにすると子が丸ごと描かれない——acid2の目(失敗する
+			// objectの中の入れ子objectのdata:PNG)が消える退行として発覚した
+			// (2026-08-06のAltTextImage導入で混入、bisectで特定)。
+			if (fallbackContent) {
+				return;
+			}
 			// **画像を全く設定しないと置換ボックスにならず、CSSのwidth/height
 			// が無視されて縮退する**(2026-08-06、woocommerce.comのdisplay:table
 			// 図キャプションが単語ごとの縦長列に潰れる欠陥で発覚。詳細は
@@ -270,6 +284,11 @@ public class HTMLStyle {
 	}
 
 	private static void applyImage(CSSStyle style, String src, final String type, String alt) {
+		applyImage(style, src, type, alt, false);
+	}
+
+	private static void applyImage(CSSStyle style, String src, final String type, String alt,
+			boolean fallbackContent) {
 		if (src != null) {
 			final UserAgent ua = style.getUserAgent();
 			final URI uri;
@@ -295,7 +314,12 @@ public class HTMLStyle {
 				LOG.log(Level.FINE, "Missing image", e);
 				ua.message(MessageCodes.WARN_MISSING_IMAGE, src);
 			}
-			HTMLStyle.applyBrokenImage(style, alt);
+			HTMLStyle.applyBrokenImage(style, alt, fallbackContent);
+			if (fallbackContent && CSSJInternalImage.getImage(style) == null) {
+				// フォールバック内容(子)を描かせる——altでContentを
+				// 上書きすると子が消える
+				return;
+			}
 		}
 		if (alt != null) {
 			style.set(Content.INFO, new ValueListValue(new Value[] { new StringValue(alt) }));
@@ -572,7 +596,8 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyWidthHeight("APPLET", style);
 			HTMLStyleUtils.applyHSpaceVSpace("APPLET", style);
 			HTMLStyleUtils.applyImageAlign("APPLET", style);
-			HTMLStyle.applyBrokenImage(style, ce.atts.getValue("alt"));
+			// appletの子もobjectと同じフォールバック内容
+			HTMLStyle.applyBrokenImage(style, ce.atts.getValue("alt"), true);
 		}
 			break;
 		case HTMLCodes.AREA: {
@@ -940,7 +965,8 @@ public class HTMLStyle {
 			String src = ce.atts.getValue("data");
 			String type = ce.atts.getValue("type");
 			String alt = ce.atts.getValue("alt");
-			HTMLStyle.applyImage(style, src, type, alt);
+			// objectの子はHTML仕様のフォールバック内容(applyBrokenImage参照)
+			HTMLStyle.applyImage(style, src, type, alt, true);
 			HTMLStyleUtils.applyImageBorder("OBJECT", style);
 		}
 			break;

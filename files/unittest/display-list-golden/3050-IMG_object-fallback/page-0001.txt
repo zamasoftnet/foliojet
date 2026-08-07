@@ -1,0 +1,8 @@
+drawer z=0
+  x=0.00 y=13.44 Text["単純:" asc=10.91 desc=4.09]
+  x=30.34 y=14.03 Text["フォールバック文" asc=10.32 desc=2.89]
+  x=0.00 y=41.89 Text["入れ子:" asc=15.00 desc=4.09]
+  x=42.34 y=41.89 AbsoluteRectFrame[w=15.00 h=15.00]
+  x=0.00 y=74.42 Text["alt付き:" asc=10.91 desc=4.09]
+  x=43.84 y=75.01 Text["alt付きフォールバック文" asc=10.32 desc=2.89]
+  x=0.00 y=102.87 Text["後の段落" asc=10.80 desc=3.60]
