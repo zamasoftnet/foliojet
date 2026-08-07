@@ -276,7 +276,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			y += this.frame.getFrameTop();
 			double width = this.width - this.frame.getFrameWidth();
 			double height = this.height - this.frame.getFrameHeight();
-			if (width > 0 && height > 0) {
+			// 固有サイズ0の画像はスケール計算がゼロ除算(Infinity)になるため
+			// 描画しない(壊れた変換行列でバックエンドを巻き込むより安全)
+			if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
 				double imageWidth = this.image.getWidth();
 				double imageHeight = this.image.getHeight();
 				final AffineTransform at = AffineTransform.getTranslateInstance(x, y);

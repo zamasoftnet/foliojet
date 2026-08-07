@@ -32,7 +32,17 @@ public class MyURIResolver extends URIResolver {
 			if (baseURI != null && baseURI.length() == 0) {
 				baseURI = null;
 			}
-			if (baseURI == null && uri.charAt(0) == '#') {
+			// フラグメントのみの参照(#id)は基底URIによらず常に同一文書内で
+			// 解決する(WHATWG URL/SVG 2のsame-document reference)。基底が
+			// data:等のopaque URIの場合、ParsedURL(base, "#id")経由の解決は
+			// 「別文書」と誤認して参照文字列自体の再パースに至り
+			// "Content is not allowed in prolog"で失敗する(2026-08-06に
+			// yahoo.co.jpのアイコンで発覚)。かつてはこの失敗を
+			// SVGImageLoader側でclip-path属性を剥がして再試行する迂回路で
+			// 吸収していたが、クリップされない塗り矩形が露出する
+			// (アイコンが灰色の四角になる)ため、ここでの同一文書解決に
+			// 一本化した(2026-08-07)。
+			if (uri.charAt(0) == '#') {
 				return getNodeByFragment(uri.substring(1), ref);
 			}
 

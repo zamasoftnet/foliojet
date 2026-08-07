@@ -40,6 +40,7 @@ public class MyBridgeContext extends BridgeContext {
 		this.putBridge(new MySVGTextElementBridge(this.ua));
 		this.putBridge(new MySVGImageElementBridge(this.ua));
 		this.putBridge(new MySVGAElementBridge(this.ua));
+		this.putBridge(new MySVGStopElementBridge());
 	}
 
 	public URIResolver createURIResolver(SVGDocument doc, DocumentLoader dl) {
