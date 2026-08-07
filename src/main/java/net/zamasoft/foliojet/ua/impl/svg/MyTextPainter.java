@@ -10,8 +10,12 @@ import java.awt.font.TextAttribute;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.batik.bridge.DefaultFontFamilyResolver;
+import org.apache.batik.bridge.FontFace;
+import org.apache.batik.bridge.FontFamilyResolver;
 import org.apache.batik.bridge.StrokingTextPainter;
 import org.apache.batik.bridge.TextSpanLayout;
+import org.apache.batik.gvt.font.GVTFontFamily;
 import org.apache.batik.gvt.text.TextPaintInfo;
 
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -37,6 +41,51 @@ class MyTextPainter extends StrokingTextPainter {
 		this.fm = ua.getFontManager();
 		this.rules = TextBreakingRulesBundle.getRules(null);
 	}
+
+	/**
+	 * 「どの指定フォントでも表示できない文字」へのフォント割当を、AWTの
+	 * システムフォント解決ではなくチャンクの解決済みフォント(先頭=
+	 * {@link MyGVTFont})へ落とします(2026-08-07)。
+	 *
+	 * <p>
+	 * 旧同梱batik-all 1.14には{@code StrokingTextPainter}のこの箇所を
+	 * 書き換えるパッチが入っていた(product/lib/batik-patch.txt)。batik
+	 * 1.19ではこの解決器がprotectedメソッドで差し替えられるため、jarへの
+	 * パッチを廃止してここで同じ結果を得る: {@code getFamilyThatCanDisplay}
+	 * がnullを返すと、呼び出し側はdefaultFont(=チャンクの解決済み
+	 * フォントの先頭)へ落ちる。未割当になるのは解決済みリストの全フォント
+	 * (UA既定を含む)が表示できない文字だけなので、どのフォントを選んでも
+	 * 豆腐になる点は同じ——AWT由来のGVTFontが混ざると{@code paintTextRuns}
+	 * が{@code fallbackFontStyle}経由でrun全体を既定フォントへ差し替えて
+	 * しまうため、null固定が正しい。
+	 * </p>
+	 */
+	@Override
+	protected FontFamilyResolver getFontFamilyResolver() {
+		return NO_SYSTEM_FONT_RESOLVER;
+	}
+
+	private static final FontFamilyResolver NO_SYSTEM_FONT_RESOLVER = new FontFamilyResolver() {
+		public GVTFontFamily resolve(String familyName) {
+			return DefaultFontFamilyResolver.SINGLETON.resolve(familyName);
+		}
+
+		public GVTFontFamily resolve(String familyName, FontFace fontFace) {
+			return DefaultFontFamilyResolver.SINGLETON.resolve(familyName, fontFace);
+		}
+
+		public GVTFontFamily loadFont(java.io.InputStream in, FontFace fontFace) throws Exception {
+			return DefaultFontFamilyResolver.SINGLETON.loadFont(in, fontFace);
+		}
+
+		public GVTFontFamily getDefault() {
+			return DefaultFontFamilyResolver.SINGLETON.getDefault();
+		}
+
+		public GVTFontFamily getFamilyThatCanDisplay(char c) {
+			return null;
+		}
+	};
 
 	protected void paintTextRuns(@SuppressWarnings("rawtypes") List textRuns, Graphics2D g2d) {
 		// TODO 輪郭だけの描画
