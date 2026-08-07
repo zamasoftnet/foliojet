@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>paddingを持つflexコンテナの表セル内在幅</title>
+<!--
+IntrinsicMeasurerのtable/grid/flex寄与がlineFrame(自箱と祖先の枠の
+累積)を足していなかった欠陥の回帰(2026-08-08)。padding-rightを持つ
+flexコンテナが表の自動レイアウトでpaddingぶん過小に測られ、bind時に
+paddingを引かれて内容が常に狭くなり、overflow:hiddenと組むとテキストが
+クリップされていた(GitHubのファイル一覧でファイル名が切れる形で発覚)。
+remでもpxでも同じ。期待: nowrapのテキストが切れず全文出ること。
+-->
+<style>
+@page { size: 400pt 250pt; margin: 10pt }
+body { margin: 0; font-size: 12pt }
+table { border-collapse: collapse }
+td { border: 1px solid #999; padding: 2px }
+.col { display: flex; align-items: center; column-gap: 10px; padding-right: 16px }
+.colrem { display: flex; align-items: center; column-gap: 10px; padding-right: 1rem }
+.oh { overflow: hidden }
+.nw { white-space: nowrap }
+.icon { display: inline-block; width: 16px; height: 16px; background: #54aeff }
+</style>
+</head>
+<body>
+<p>A: padding-right:16px のflex列</p>
+<table><tr><td>
+  <div class="col"><span class="icon"></span><div class="oh"><span class="nw">compiler-directory-name</span></div></div>
+</td><td>2列目</td></tr></table>
+<p>B: padding-right:1rem のflex列</p>
+<table><tr><td>
+  <div class="colrem"><span class="icon"></span><div class="oh"><span class="nw">compiler-directory-name</span></div></div>
+</td><td>2列目</td></tr></table>
+<p>C: 祖先ラッパーのpadding越しの表</p>
+<div style="padding: 0 20px">
+<table><tr><td>
+  <div style="display:flex; column-gap:10px"><span class="icon"></span><div class="oh"><span class="nw">compiler-directory-name</span></div></div>
+</td><td>2列目</td></tr></table>
+</div>
+<p>後の段落</p>
+</body>
+</html>

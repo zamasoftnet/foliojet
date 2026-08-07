@@ -316,24 +316,36 @@ final class IntrinsicMeasurer {
 		}
 	}
 
+	/**
+	 * 表・Grid・Flexのcontent-box contributionです。
+	 * <p>
+	 * **{@link #lineFrame}(自箱と祖先の枠の累積)を必ず足すこと**
+	 * (2026-08-08)。これを足していなかったため、padding/borderを持つ
+	 * flexコンテナ(やその祖先ラッパー)が表の自動レイアウトのセル計測で
+	 * 枠のぶん過小に数えられ、bind時に枠を引かれて**内容が枠ぶんだけ
+	 * 常に狭くなっていた**。GitHubのファイル一覧(padding-right:16pxの
+	 * flex列)でファイル名がクリップされる欠陥として発覚。浮動体の
+	 * 寄与({@code floating})は従来からlineFrameを足しており、その形に
+	 * 揃える。
+	 */
+	private void spannedContribution(final IntrinsicSizes sizes) {
+		this.columnInflated |= sizes.columnInflated();
+		this.minLineSize = Math.max(this.minLineSize, sizes.minContent() * this.columnCount + this.lineFrame);
+		this.maxLineSize = Math.max(this.maxLineSize, sizes.maxContent() * this.columnCount + this.lineFrame);
+	}
+
 	void table(final IntrinsicSizes tableSizes) {
-		this.columnInflated |= tableSizes.columnInflated();
-		this.minLineSize = Math.max(this.minLineSize, tableSizes.minContent() * this.columnCount);
-		this.maxLineSize = Math.max(this.maxLineSize, tableSizes.maxContent() * this.columnCount);
+		this.spannedContribution(tableSizes);
 	}
 
 	/** Grid全体のcontent-box contributionです(Grid G3d2——tableと同型)。 */
 	void grid(final IntrinsicSizes gridSizes) {
-		this.columnInflated |= gridSizes.columnInflated();
-		this.minLineSize = Math.max(this.minLineSize, gridSizes.minContent() * this.columnCount);
-		this.maxLineSize = Math.max(this.maxLineSize, gridSizes.maxContent() * this.columnCount);
+		this.spannedContribution(gridSizes);
 	}
 
 	/** Flex全体のcontent-box contributionです(Flex F1f——gridと同型)。 */
 	void flex(final IntrinsicSizes flexSizes) {
-		this.columnInflated |= flexSizes.columnInflated();
-		this.minLineSize = Math.max(this.minLineSize, flexSizes.minContent() * this.columnCount);
-		this.maxLineSize = Math.max(this.maxLineSize, flexSizes.maxContent() * this.columnCount);
+		this.spannedContribution(flexSizes);
 	}
 
 	void fitFloating(TwoPassBlockBuilder childBuilder) {
