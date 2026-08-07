@@ -63,9 +63,29 @@ public class MarkdownParser implements Parser {
 	private static final java.util.List<org.commonmark.Extension> EXTENSIONS = java.util.List
 			.of(org.commonmark.ext.gfm.tables.TablesExtension.create());
 
+	/**
+	 * Markdown既定スタイル(A4レポート、markdown-ua.css)。Markdownには表示仕様が
+	 * ないため、FolioJetの既定としてA4レポート向けのデザインを与える。head内の
+	 * {@code <style>}として注入するので、文書側の生HTMLの{@code <style>}(bodyに
+	 * 現れる)が後勝ちで個別に上書きできる。XSLT結合(join.xslt)はbodyだけを
+	 * 取り出すため、マニュアル等のドキュメントビルドには影響しない。
+	 * CSS側は山括弧・アンパサンド禁止(XHTML要素内容として埋め込むため)。
+	 */
+	private static final String DEFAULT_STYLE = loadDefaultStyle();
+
+	private static String loadDefaultStyle() {
+		try (InputStream in = MarkdownParser.class
+				.getResourceAsStream("/net/zamasoft/foliojet/css/html/markdown-ua.css");
+				Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+			return readAll(reader);
+		} catch (IOException e) {
+			throw new IllegalStateException("markdown-ua.css を読み込めません", e);
+		}
+	}
+
 	public static String toHtml(String markdown) {
 		final org.commonmark.parser.Parser parser = org.commonmark.parser.Parser.builder().extensions(EXTENSIONS)
-				.build();
+				.inlineParserFactory(CjkFriendlyInlineParser::new).build();
 		final Node document = parser.parse(markdown);
 		final HtmlRenderer renderer = HtmlRenderer.builder().extensions(EXTENSIONS).build();
 		final String body = renderer.render(document);
@@ -77,8 +97,8 @@ public class MarkdownParser implements Parser {
 		// 「外部サブセット未読のため未定義実体はエラーにしない」というXML 1.0仕様の
 		// 緩和規定(WFC: Entity Declared)が働き、SAXParseExceptionにならない
 		// (2026-07-19、4910_mathml.mdの&PlusMinus;/&InvisibleTimes;で実際に発生した)。
-		return "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/></head><body>"
-				+ body + "</body></html>";
+		return "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/><style type=\"text/css\">"
+				+ DEFAULT_STYLE + "</style></head><body>" + body + "</body></html>";
 	}
 
 	private static String read(Source source, String encoding) throws IOException {

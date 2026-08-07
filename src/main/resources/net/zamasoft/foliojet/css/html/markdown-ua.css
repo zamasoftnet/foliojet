@@ -1,0 +1,125 @@
+/*
+ * Markdown入力の既定スタイル(A4レポート)です。
+ *
+ * Markdownには表示仕様がないため、FolioJetでは「A4のレポートとして印刷する」
+ * ことを想定した既定デザインを与える(オーナー方針2026-08-07)。このスタイルは
+ * MarkdownParserが生成するHTMLのhead内style要素として注入されるため、文書内の
+ * 生HTMLのstyle要素(bodyに現れ、後に解釈される)で個別に上書きできる。
+ * XSLT結合(join.xslt)はbodyだけを取り出すので、マニュアル等のビルドには
+ * 影響しない。注意: この内容はXHTMLの要素内容としてそのまま埋め込まれるため、
+ * ファイル全体を通じて山括弧とアンパサンドを使ってはならない(XML整形式違反)。
+ *
+ * デザイン方針(オーナー指示2026-08-07): 白黒印刷を前提とし、色・囲み・
+ * 飾り罫を使わないTeX風の端正な組版とする。本文は明朝(serif)・両端揃え、
+ * 見出しは太字と余白だけで階層を示す。表はbooktabs流(縦罫なし、上下の太罫と
+ * ヘッダ下の細罫のみ)。ウェブ的な装飾(色付きバー、背景色、角丸)は禁止。
+ */
+
+@page {
+	size: A4;
+	margin: 25mm 22mm;
+
+	/* counter(pages)は多重パス(pass-count 2以上)でないと0になるため、
+	   単一パスでも常に正しいページ番号のみを既定とする */
+	@bottom-center {
+		content: counter(page);
+		font-family: serif;
+		font-size: 9pt;
+	}
+}
+
+html {
+	font-size: 10.5pt;
+}
+
+body {
+	font-family: serif;
+	line-height: 1.7;
+	color: #000000;
+	text-align: justify;
+}
+
+p {
+	margin-block-start: 0.5em;
+	margin-block-end: 0.5em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: serif;
+	font-weight: bold;
+	line-height: 1.35;
+	color: #000000;
+}
+
+/* LaTeX article系の見出しスケール(装飾なし、太字と余白のみ) */
+h1 {
+	font-size: 1.75em;
+	margin-block-start: 1.6em;
+	margin-block-end: 0.8em;
+}
+
+h2 {
+	font-size: 1.4em;
+	margin-block-start: 1.6em;
+	margin-block-end: 0.7em;
+}
+
+h3 {
+	font-size: 1.15em;
+	margin-block-start: 1.4em;
+	margin-block-end: 0.6em;
+}
+
+a {
+	color: #000000;
+	text-decoration: none;
+}
+
+/* booktabs流: 縦罫なし・上下太罫・ヘッダ下細罫。背景色なし */
+table {
+	border-collapse: collapse;
+	margin-block-start: 1em;
+	margin-block-end: 1em;
+	border-top: 1pt solid #000000;
+	border-bottom: 1pt solid #000000;
+}
+
+th, td {
+	padding: 0.3em 0.8em;
+	text-align: start;
+}
+
+th {
+	font-weight: bold;
+	border-bottom: 0.5pt solid #000000;
+}
+
+/* TeXのquote環境: 左右インデントのみ。背景・罫は使わない */
+blockquote {
+	margin-block-start: 0.8em;
+	margin-block-end: 0.8em;
+	margin-inline-start: 2em;
+	margin-inline-end: 2em;
+}
+
+code {
+	font-size: 0.92em;
+}
+
+/* verbatim環境: 素のmonospaceブロック。囲み・背景なし */
+pre {
+	margin-block-start: 1em;
+	margin-block-end: 1em;
+	line-height: 1.45;
+}
+
+hr {
+	border: none;
+	border-top: 0.5pt solid #000000;
+	margin-block-start: 1.5em;
+	margin-block-end: 1.5em;
+}
+
+img {
+	max-width: 100%;
+}
