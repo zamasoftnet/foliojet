@@ -78,6 +78,8 @@ public class CSSStyle {
 
 	private Value[] values = null;
 	private Value[] computedValues = null;
+	/** {@link #get}が消費(クリア)した宣言の記録({@link #isDeclared}用)。 */
+	private java.util.BitSet consumedDeclared = null;
 	private boolean[] importants = null;
 	private FontStyle fontStyle = null;
 
@@ -212,8 +214,13 @@ public class CSSStyle {
 			}
 			Value raw = style.values != null ? style.values[code] : null;
 			if (raw != null) {
-				// 継承(読み出し次第クリア)
+				// 継承(読み出し次第クリア)。クリア後もisDeclaredが宣言有無を
+				// 答えられるよう、消費済みビットに記録する
 				style.values[code] = null;
+				if (style.consumedDeclared == null) {
+					style.consumedDeclared = new java.util.BitSet(ElementPropertySet.getCodeSize());
+				}
+				style.consumedDeclared.set(code);
 			}
 			if (raw == KeywordValue.UNSET) {
 				// unset: 継承特性ならinherit相当、非継承特性ならinitial相当
@@ -251,15 +258,17 @@ public class CSSStyle {
 
 	/**
 	 * このスタイルの直下(継承元をたどらず)でプロパティが明示的に宣言されて
-	 * いるか(cascade適用によりvalues[]にまだ書き込まれたままか)を返します。
-	 * 論理プロパティ(margin-inline-start等)と対応する物理プロパティ
-	 * (margin-top等)が同じ辺を指す場合にどちらを優先するかの判定に使います
-	 * (物理側が明示指定されていれば物理を優先し、無ければ論理側を見る)。
+	 * いるか返します。論理プロパティ(margin-inline-start等)と対応する物理
+	 * プロパティ(margin-top等)が同じ辺を指す場合にどちらを優先するかの判定や、
+	 * Flexの自動最小サイズ(§4.5、min宣言有無)の判定に使います。
 	 * <p>
-	 * <b>注意</b>: {@link #get}はこのスタイル階層のvalues[code]を読み出し
-	 * 次第クリアします(継承解決の一部)。そのため、この判定は対応する
-	 * {@link #get}呼び出しより前に行う必要があります——先にgetしてしまうと
-	 * 明示指定の有無にかかわらずfalseになります。
+	 * {@link #get}はこのスタイル階層のvalues[code]を読み出し次第クリアする
+	 * (継承解決の一部)が、クリア時に消費済みビットへ記録するため、この判定は
+	 * getの前後どちらで呼んでも同じ結果を返す。かつては「getより前に呼ぶ」
+	 * という順序制約があり、BlockParams構築(MinWidth.get)後にFlexItemSpecを
+	 * 構築する経路でmin-width宣言が常に「なし」と誤判定され、フロー内容が
+	 * 空のflexアイテムがmin-widthを無視して幅0になっていた(2026-08-07、
+	 * yahoo.co.jpの順位バッジ消失として発覚)。
 	 * </p>
 	 */
 	public boolean isDeclared(PrimitivePropertyInfo info) {
@@ -267,7 +276,10 @@ public class CSSStyle {
 		if (code == -1) {
 			return false;
 		}
-		return this.values != null && this.values[code] != null;
+		if (this.values != null && this.values[code] != null) {
+			return true;
+		}
+		return this.consumedDeclared != null && this.consumedDeclared.get(code);
 	}
 
 	/**
