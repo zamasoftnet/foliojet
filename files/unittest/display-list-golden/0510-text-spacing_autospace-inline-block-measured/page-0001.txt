@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=61.88 h=18.62]
+  x=0.00 y=0.00 Text["2,980.0円" asc=13.50 desc=5.12]
+  x=61.88 y=3.18 Text["|END" asc=10.32 desc=2.89]

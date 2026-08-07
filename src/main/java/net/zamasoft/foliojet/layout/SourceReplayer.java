@@ -115,6 +115,27 @@ public final class SourceReplayer {
 		wrapperParams.lineBreakRules = template.lineBreakRules;
 		wrapperParams.flow = template.flow;
 		wrapperParams.direction = template.direction;
+		// ラッパー直下へ裸のテキストが流れると、そのテキスト状態は行頭で
+		// ラッパーの params から取り直される(BuilderGlyphHandler)。元
+		// ブロックのテキスト組版パラメータを写さないと autospace や
+		// letter-spacing が脱落し、実測が模倣計測より痩せて折返しを誤る
+		// (kabutan「2,980.0円」2026-08-08)。組版に効く継承フィールドを写す
+		wrapperParams.letterSpacing = template.letterSpacing;
+		wrapperParams.wordSpacing = template.wordSpacing;
+		wrapperParams.textTransform = template.textTransform;
+		wrapperParams.whiteSpace = template.whiteSpace;
+		wrapperParams.wordWrap = template.wordWrap;
+		wrapperParams.textWrapStyle = template.textWrapStyle;
+		wrapperParams.hyphens = template.hyphens;
+		wrapperParams.hyphenator = template.hyphenator;
+		wrapperParams.textAutospace = template.textAutospace;
+		wrapperParams.textSpacingTrimOff = template.textSpacingTrimOff;
+		wrapperParams.hangingPunctuationEnd = template.hangingPunctuationEnd;
+		wrapperParams.textAlign = template.textAlign;
+		wrapperParams.textAlignLast = template.textAlignLast;
+		wrapperParams.textIndent = template.textIndent;
+		wrapperParams.lineHeight = template.lineHeight;
+		wrapperParams.firstLineStyle = template.firstLineStyle;
 		doc.startBox(new FlowBlockBox(wrapperParams, new FlowPos()));
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>text-autospace: inline-block shrink-to-fit uses measured intrinsics with gap (kabutan 2026-08-08)</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div, p { margin: 0; }
+</style>
+</head>
+<body>
+<!-- inline-blockのshrink-to-fitはM2c実測(scratch再生)を採用しうる。
+     再生ラッパーへtext-autospaceが持ち越されないと、latin→CJK境界の
+     gap(0.125em)分だけ実測が痩せ、「2,980.0円」が「2,980.0/円」で
+     折返す(円が2行目へ落ちる)。1行に収まれば正。 -->
+<div><span id="ib" style="display: inline-block; font-size: 20px; background: #eef">2,980.0円</span><span>|END</span></div>
+</body>
+</html>
