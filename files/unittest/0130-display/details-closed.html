@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>details: 閉じたものはsummary以外を出さない</title>
+<!--
+UA既定 `details:not([open]) > *:not(summary) { display: none }` の回帰
+(2026-08-08)。従来は「常に開いた状態で組む」方針だったが、no-JS
+ナビゲーションを閉じたdetailsで畳むサイト(bbc.com)でメニュー全体が
+紙面へ露出し本文へ重なった。Chromeの印刷も閉じたまま印刷する。
+-->
+<style>@page { size: 400pt 200pt; margin: 10pt } body { margin: 0; font-size: 12pt }</style>
+</head>
+<body>
+<p>前の段落</p>
+<details>
+  <summary>閉じた見出し(出る)</summary>
+  <p>閉じた中身。この文は描画されてはならない。</p>
+  <div>これも出ない</div>
+</details>
+<details open>
+  <summary>開いた見出し(出る)</summary>
+  <p>開いた中身。この文はブロックとして描画される。</p>
+</details>
+<p>後の段落</p>
+</body>
+</html>

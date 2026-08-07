@@ -28,6 +28,18 @@ dialog:not([open]) {
 	display: none;
 }
 
+/*
+ * 閉じたdetailsはsummary以外を表示しない(HTML仕様のUA既定と同じ)。
+ * 従来は「常に開いた状態で組む」方針だったが、no-JSナビゲーションを
+ * 閉じたdetailsで畳むサイト(bbc.com等)でメニュー全体が紙面へ露出し
+ * 本文に重なった(2026-08-08)。Chromeの印刷も閉じたまま印刷する。
+ * 開いて印刷したい場合は文書側で open 属性か
+ * details > * { display: block !important } を与えればよい。
+ */
+details:not([open]) > *:not(summary) {
+	display: none;
+}
+
 audio, canvas {
 	display: inline;
 }
