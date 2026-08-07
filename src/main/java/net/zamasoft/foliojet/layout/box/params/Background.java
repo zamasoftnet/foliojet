@@ -168,43 +168,62 @@ public class Background {
 
 				// サイズ
 				double imageWidth = 0, imageHeight = 0;
-				Dimension size = this.backgroundImage.size;
-				switch (size.getWidthType()) {
-				case ABSOLUTE:
-					imageWidth = size.getWidth();
-					break;
-				case RELATIVE:
-					imageWidth = size.getWidth() * paddingWidth;
-					break;
-				case AUTO:
-					break;
-				default:
-					throw new IllegalStateException();
-				}
-				switch (size.getHeightType()) {
-				case ABSOLUTE:
-					imageHeight = size.getHeight();
-					break;
-				case RELATIVE:
-					imageHeight = size.getHeight() * paddingHeight;
-					break;
-				case AUTO:
-					break;
-				default:
-					throw new IllegalStateException();
-				}
-				if (size.getWidthType() == LengthType.AUTO) {
-					if (size.getHeightType() == LengthType.AUTO) {
+				if (this.backgroundImage.fit != BackgroundFit.NONE) {
+					// background-size: contain/cover(2026-08-06)。箱の実寸が
+					// 分かるここで初めて縦横比を比較して実寸を決める
+					// (BackgroundFit/BackgroundSize.getFitのコメント参照)
+					double natW = this.backgroundImage.image.getWidth();
+					double natH = this.backgroundImage.image.getHeight();
+					if (natW > 0 && natH > 0) {
+						double scale = this.backgroundImage.fit == BackgroundFit.CONTAIN
+								? Math.min(paddingWidth / natW, paddingHeight / natH)
+								: Math.max(paddingWidth / natW, paddingHeight / natH);
+						imageWidth = natW * scale;
+						imageHeight = natH * scale;
+					}
+				} else {
+					Dimension size = this.backgroundImage.size;
+					switch (size.getWidthType()) {
+					case ABSOLUTE:
+						imageWidth = size.getWidth();
+						break;
+					case RELATIVE:
+						imageWidth = size.getWidth() * paddingWidth;
+						break;
+					case AUTO:
+						break;
+					default:
 						throw new IllegalStateException();
 					}
-					imageWidth = imageHeight * this.backgroundImage.image.getWidth()
-							/ this.backgroundImage.image.getHeight();
-				} else if (size.getHeightType() == LengthType.AUTO) {
-					imageHeight = imageWidth * this.backgroundImage.image.getHeight()
-							/ this.backgroundImage.image.getWidth();
+					switch (size.getHeightType()) {
+					case ABSOLUTE:
+						imageHeight = size.getHeight();
+						break;
+					case RELATIVE:
+						imageHeight = size.getHeight() * paddingHeight;
+						break;
+					case AUTO:
+						break;
+					default:
+						throw new IllegalStateException();
+					}
+					if (size.getWidthType() == LengthType.AUTO) {
+						if (size.getHeightType() == LengthType.AUTO) {
+							throw new IllegalStateException();
+						}
+						imageWidth = imageHeight * this.backgroundImage.image.getWidth()
+								/ this.backgroundImage.image.getHeight();
+					} else if (size.getHeightType() == LengthType.AUTO) {
+						imageHeight = imageWidth * this.backgroundImage.image.getHeight()
+								/ this.backgroundImage.image.getWidth();
+					}
 				}
 
-				if (imageWidth > 0 && imageHeight > 0) {
+				// 画像固有サイズのゼロも弾く: 0のままスケール計算(265-266行)に
+				// 進むとInfinity倍率のPattern生成(BufferedImage)が
+				// "Width (0) and height (0) cannot be <= 0"で変換ごと中断する
+				if (imageWidth > 0 && imageHeight > 0 && this.backgroundImage.image.getWidth() > 0
+						&& this.backgroundImage.image.getHeight() > 0) {
 					double offX = pbLeft;
 					double offY = pbTop;
 					if (this.backgroundImage.attachment == BackgroundImage.ATTACHMENT_FIXED) {

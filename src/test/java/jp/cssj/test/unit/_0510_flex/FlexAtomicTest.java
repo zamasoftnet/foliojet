@@ -8,10 +8,18 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Flex F0bのatomic契約テストです(consult-codex-2026-08-02-flexbox.txt)。
- * ページ残量に入らないFlexコンテナは内部分割されず丸ごとpage 2へ移る
- * (PageAtomicBox——css-flexbox-1 §10の断片化はinformativeのため非対応)。
- * F0時点の内容配置は単一列の通常フロー(行分割・伸縮はF1以降)。
+ * flex行分割({@code page-break-inside: avoid})の契約テストです
+ * (2026-08-07、Bug C以降)。
+ *
+ * <p>
+ * F0b時点はflexが常時atomic(css-flexbox-1 §10の断片化はinformativeの
+ * ため非対応)で、この文書はその既定挙動を確かめていた。Bug C
+ * (テーブル行と同型の行分割、{@code FlexBox.split}参照)導入後は
+ * 既定でflex行も強制分割されるため、代わりに明示{@code
+ * page-break-inside: avoid}が正しく「丸ごと次ページへ」を強制する
+ * ことを確かめる形へ更新した(fixture側に{@code page-break-inside:
+ * avoid}を追加)。
+ * </p>
  */
 public class FlexAtomicTest extends AbstractTestCase {
 	public FlexAtomicTest(String name) {
@@ -23,7 +31,7 @@ public class FlexAtomicTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** Flexは分割されず丸ごと次ページへ(PageAtomicBox)。 */
+	/** page-break-inside: avoid の flex は分割されず丸ごと次ページへ。 */
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals("the flex container must move to page 2 as a whole", 2, pageNumber);

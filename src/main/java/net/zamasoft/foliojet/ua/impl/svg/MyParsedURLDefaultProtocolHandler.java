@@ -42,7 +42,23 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 			} else {
 				uri = URIHelper.create("UTF-8", base.toString());
 				if (href != null) {
-					uri = uri.resolve(href);
+					if (uri.isOpaque() && href.startsWith("#")) {
+						// **opaque URI(data:等)を基底にした同一文書内の断片参照**
+						// (2026-08-06、premiumアイコンのclip-path="url(#id)"が
+						// 空白になる問題で発覚)。java.net.URI#resolve()は
+						// opaqueな基底に対してRFC3986の相対解決規則を適用
+						// できず、基底を無視してhrefそのもの(#clip0のみ、
+						// scheme/ssp無し)を返してしまう——BatikがそれをS
+						// 「別文書」と誤認してclip-path等のurl(#id)参照を
+						// 解決できず、クリップ領域が空(＝描画結果が消える)
+						// になっていた。scheme+生のscheme-specific-partは
+						// 保ったままfragmentだけ差し替えて同一文書参照に
+						// する(getRawSchemeSpecificPart()を使い、既にpercent
+						// エンコード済みのデータを再エンコードして壊さない)
+						uri = new URI(uri.getScheme() + ":" + uri.getRawSchemeSpecificPart() + href);
+					} else {
+						uri = uri.resolve(href);
+					}
 				}
 			}
 			this.buildParsedURLData(pURL, uri);

@@ -47,6 +47,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 負の width/height 属性(2026-08-05)。attr() は計算値の段階でしか
 			// 解けないので parseValue の非負検査を素通りし、表が最小内容幅へ潰れていた
 			"0080-width/negative-attr-width.html", //
+			// 読み込みに失敗したimgがCSSのwidth/heightを無視して0x0に
+			// 縮退する欠陥(2026-08-06)。詳細はfixture自身のコメント参照
+			"0080-width/broken-image-declared-size.html", //
 			// 改ページを跨いだ相対配置(2026-08-06)。確定ページの容器が寸法決めの
 			// 走査から外れると、ずらし量が0のまま静かに出ていた
 			"0170-position/relative-offset-after-break.html", //
@@ -110,6 +113,13 @@ public class DisplayListGoldenTest extends TestCase {
 			// どちらも丸ごと消えていた——縦方向は別経路で偶然効いていたので
 			// 片方向だけ見ても捕まらない
 			"0510-flex/item-padding-margin.html", //
+			// resolveRelativeOffsetの代入がFlex/Gridの主軸配置を上書きする
+			// 欠陥(2026-08-06)。AbstractContainerBox.javaのjavadoc参照。
+			// 2番目以降のitemが原点(x=0)へ潰れて重なっていた
+			"0510-flex/row-position-static-offset.html", //
+			// flex行分割(2026-08-07、Bug C)。行を跨ぐ強制分割で、同じ行の
+			// item同士が同一切断線に揃わず階段状にずれていた
+			"0510-flex/row-split-across-break.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
@@ -155,6 +165,15 @@ public class DisplayListGoldenTest extends TestCase {
 			// HTMLに直接書いたSVG(2026-08-06)。xmlns を書かないと名前空間の
 			// 宣言が組み立て器へ渡らず、丸ごと描画されなかった
 			"3050-IMG/inline-svg-implicit-ns.html", //
+			// viewBoxのみ(width/height属性なし)のインラインSVGを、CSSクラス/
+			// インラインstyleでサイズ指定(2026-08-06)。属性読み出しがXHTML
+			// 名前空間限定で、foreign content配下の属性を読み落としていた
+			"3050-IMG/svg-css-size-no-attrs.html", //
+			// 逆スラッシュエスケープ入りのクラスセレクタ(2026-08-06)。ph-cssが
+			// セレクタの生文字列をそのまま返し、CSS識別子エスケープを解決しない
+			// ため、Tailwindのバリアント接頭辞(hover:・lg:・[&_svg]:等)由来の
+			// クラスがHTMLのclass属性(エスケープ無し)と常に不一致だった
+			"3050-IMG/svg-escaped-class-selector.html", //
 			"3050-IMG/rescue-tall.html", //
 			"3050-IMG/rescue-tall-vert.html", //
 			"3050-IMG/rescue-exact.html", //
@@ -181,6 +200,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// Grid総高(後続ブロックの位置)と、不適格Grid(1fr)のG0
 			// フォールバック+atomicページ送りを固定する
 			"0500-grid/fixed-2x2.html", //
+			// minmax()/max()/min()の仕様外の近似対応(2026-08-06)。
+			// GridTemplateTracks.javaのクラスjavadoc参照——最大値だけ採用し
+			// 最小値は捨てる。yahoo.co.jpの実物CSSで発覚した未対応を埋める
+			"0500-grid/minmax-max-approx.html", //
 			"0500-grid/mixed-items.html", //
 			"0500-grid/auto-columns.html", //
 			"0500-grid/intrinsic-auto-fr.html", //

@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=300.00 h=30.00]
+  x=0.00 y=0.00 AbsoluteRectFrame[w=60.00 h=20.00]
+  x=60.00 y=0.00 AbsoluteRectFrame[w=80.00 h=30.00]
+  x=140.00 y=0.00 AbsoluteRectFrame[w=100.00 h=20.00]
+  x=0.00 y=0.00 Text["p" asc=10.31 desc=4.09]
+  x=60.00 y=0.00 Text["q" asc=10.31 desc=4.09]
+  x=140.00 y=0.00 Text["r" asc=10.31 desc=4.09]
+  x=0.00 y=30.00 Text["after" asc=10.31 desc=4.09]

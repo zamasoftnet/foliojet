@@ -77,7 +77,10 @@ public class StyleApplier {
 		if (this.changeDefaultNamespace) {
 			inlineStyleDecl = ce.atts.getValue(XHTML.STYLE_ATTR.lName);
 		} else {
-			inlineStyleDecl = ce.atts.getValue(XHTML.URI, XHTML.STYLE_ATTR.lName);
+			// **SVG/MathMLなどforeign content配下の要素はXHTML名前空間の
+			// styleを持たない**(HTML5構文解析仕様どおり。2026-08-06、
+			// インラインSVGサイズ崩れバグ調査で判明)。無修飾でも試す
+			inlineStyleDecl = XHTML.getAttr(ce.atts, XHTML.STYLE_ATTR.lName);
 		}
 		if (inlineStyleDecl != null) {
 			inlineStyleDecl = inlineStyleDecl.trim();

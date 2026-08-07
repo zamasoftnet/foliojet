@@ -43,6 +43,62 @@ public final class SelectorConverter {
 	}
 
 	/**
+	 * CSSの識別子エスケープ({@code \X}・{@code \XXXXXX}形式)を復号します。
+	 *
+	 * <p>
+	 * <b>ph-cssの{@code CSSSelectorSimpleMember.getValue()}はセレクタの生の
+	 * 文字列をそのまま返し、識別子エスケープを解決しない</b>(2026-08-06、
+	 * 実物大コーパスのTailwind CSS——`hover:`・`lg:`・`[&_svg]:size-4`のような
+	 * 状態/レスポンシブ/アリビトラリのバリアント接頭辞をコロン・角括弧・
+	 * アンパサンド等の逆スラッシュエスケープでクラス名にした形——で発覚)。
+	 * 一方HTMLの{@code class}属性値にエスケープは無い(素の文字列)ため、
+	 * 逆スラッシュを残したまま比較すると{@code ce.isStyleClass()}が常に
+	 * 不一致になり、該当クラスに紐づく宣言(width/height・visibility等)が
+	 * 一つも適用されなかった。クラス名・ID名だけでなく要素名・擬似クラス名
+	 * にも同じ理屈が及ぶため、値を取り出す全箇所で復号する。
+	 * </p>
+	 */
+	private static String unescapeCssIdent(String s) {
+		if (s.indexOf('\\') < 0) {
+			return s;
+		}
+		StringBuilder buf = new StringBuilder(s.length());
+		int i = 0;
+		int len = s.length();
+		while (i < len) {
+			char c = s.charAt(i);
+			if (c == '\\' && i + 1 < len) {
+				char next = s.charAt(i + 1);
+				if (isHexDigit(next)) {
+					int start = i + 1;
+					int end = start;
+					while (end < len && end < start + 6 && isHexDigit(s.charAt(end))) {
+						++end;
+					}
+					int codePoint = Integer.parseInt(s.substring(start, end), 16);
+					buf.appendCodePoint(codePoint);
+					i = end;
+					// 16進エスケープ直後の単一の空白は区切りとして消費される(CSS Syntax仕様)
+					if (i < len && Character.isWhitespace(s.charAt(i))) {
+						++i;
+					}
+				} else {
+					buf.append(next);
+					i += 2;
+				}
+			} else {
+				buf.append(c);
+				++i;
+			}
+		}
+		return buf.toString();
+	}
+
+	private static boolean isHexDigit(char c) {
+		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+	}
+
+	/**
 	 * CSS2.1で単一コロン記法が許される擬似要素。
 	 */
 	private static boolean isLegacyPseudoElement(String name) {
@@ -110,14 +166,14 @@ public final class SelectorConverter {
 				CSSSelectorSimpleMember simple = (CSSSelectorSimpleMember) member;
 				String value = simple.getValue();
 				if (simple.isHash()) {
-					conditions.add(new ValueCondition(ConditionType.ID_CONDITION, value.substring(1)));
+					conditions.add(new ValueCondition(ConditionType.ID_CONDITION, unescapeCssIdent(value.substring(1))));
 				} else if (simple.isClass()) {
-					conditions.add(new ValueCondition(ConditionType.CLASS_CONDITION, value.substring(1)));
+					conditions.add(new ValueCondition(ConditionType.CLASS_CONDITION, unescapeCssIdent(value.substring(1))));
 				} else if (simple.isPseudo()) {
 					if (value.startsWith("::")) {
-						pseudoElement = value.substring(2);
+						pseudoElement = unescapeCssIdent(value.substring(2));
 					} else {
-						String name = value.substring(1);
+						String name = unescapeCssIdent(value.substring(1));
 						if (isLegacyPseudoElement(name)) {
 							pseudoElement = name;
 						} else if (name.equalsIgnoreCase("first-of-type")) {
@@ -154,7 +210,7 @@ public final class SelectorConverter {
 						name = name.substring(bar + 1);
 					}
 					if (!name.equals("*")) {
-						localName = name;
+						localName = unescapeCssIdent(name);
 					}
 				}
 			} else if (member instanceof CSSSelectorAttribute) {

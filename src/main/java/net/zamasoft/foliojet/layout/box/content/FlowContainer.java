@@ -145,6 +145,21 @@ public class FlowContainer implements Container {
 		return this.flows != null && !this.flows.isEmpty();
 	}
 
+	public final int getFlowCount() {
+		return this.flows == null ? 0 : this.flows.size();
+	}
+
+	public final void migrateFlowsFrom(final int fromIndex, final Container dest, final double crossShift) {
+		if (this.flows == null || fromIndex >= this.flows.size()) {
+			return;
+		}
+		for (int i = fromIndex; i < this.flows.size(); ++i) {
+			final Flow flow = this.flows.get(i);
+			dest.addFlow(flow.box, flow.pageAxis - crossShift);
+		}
+		this.flows = fromIndex <= 0 ? null : new ArrayList<Flow>(this.flows.subList(0, fromIndex));
+	}
+
 	public boolean hasFloatings() {
 		return this.floatings != null && this.floatings.getCount() > 0;
 	}

@@ -124,4 +124,25 @@ public final class XHTML {
 
 	/** Image map reference. */
 	public static final AttributeNode USEMAP_ATTR = new AttributeNode("usemap");
+
+	/**
+	 * {@code class}・{@code style}などの属性値を取る。
+	 *
+	 * <p>
+	 * <b>SVG/MathMLなどforeign content配下の要素では属性はXHTML名前空間に
+	 * 入らない</b>——HTML5構文解析仕様どおりで、{@code xlink:}/{@code xml:}
+	 * 以外の属性は無修飾のままである(2026-08-06、実物大コーパスの
+	 * インラインSVGサイズ崩れバグ調査で判明)。XHTML名前空間で見つから
+	 * なければ無修飾(qName)でも試すことで、SVG要素上の{@code class}/
+	 * {@code style}/{@code width}/{@code height}などが読み落とされて
+	 * CSSに反映されない不具合を防ぐ。
+	 * </p>
+	 */
+	public static String getAttr(org.xml.sax.Attributes atts, String localName) {
+		String value = atts.getValue(URI, localName);
+		if (value == null) {
+			value = atts.getValue(localName);
+		}
+		return value;
+	}
 }

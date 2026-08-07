@@ -1,2 +1,6 @@
-resume COLUMN
-   restyle-text-open serial=2
+resume PAGE
+  root-fragment depth=4
+   chain-fragment depth=3
+    chain-fragment depth=2
+     chain-fragment depth=1
+   restyle-text-open serial=1

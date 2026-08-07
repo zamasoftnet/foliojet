@@ -35,6 +35,7 @@ import net.zamasoft.foliojet.css.value.WhiteSpaceValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue;
 import net.zamasoft.foliojet.css.value.internal.CSSJHtmlTableBorderValue;
+import net.zamasoft.foliojet.css.impl.part.AltTextImage;
 import net.zamasoft.foliojet.css.impl.part.BrokenImage;
 import net.zamasoft.foliojet.css.impl.part.CheckBoxImage;
 import net.zamasoft.foliojet.css.impl.part.NullImage;
@@ -241,9 +242,13 @@ public class HTMLStyle {
 			CSSJInternalImage.setImage(style, new NullImage(alt));
 			return;
 		case NONE:
-			if (alt != null) {
-				CSSJInternalImage.setText(style, alt);
-			}
+			// **画像を全く設定しないと置換ボックスにならず、CSSのwidth/height
+			// が無視されて縮退する**(2026-08-06、woocommerce.comのdisplay:table
+			// 図キャプションが単語ごとの縦長列に潰れる欠陥で発覚。詳細は
+			// AltTextImageのjavadoc参照)。CSSJInternalImageは画像とテキストを
+			// 同じ枠で管理する(排他)——setText()の代わりにsetImage()して
+			// alt文字列はAltTextImage自身に描かせる
+			CSSJInternalImage.setImage(style, new AltTextImage(ua, alt));
 			return;
 		default:
 			throw new IllegalStateException();
@@ -1085,6 +1090,20 @@ public class HTMLStyle {
 		{
 			String hidden = ce.atts.getValue("hidden");
 			if (hidden != null) {
+				style.set(Display.INFO, DisplayValue.NONE_VALUE);
+			}
+		}
+
+		// @popover(Popover API、2026-08-07)。UA既定は
+		// `[popover]:not(:popover-open){display:none}`——:popover-openは
+		// JSでshowPopover()が呼ばれて初めて成立する状態で、静的なHTML
+		// (このエンジンの入力)には反映されないため、popover属性がある
+		// 要素は常にdisplay:noneが正しい既定値になる(実地: vercel.comの
+		// ロゴクリックメニュー・製品メガメニューがpage内容に重なって
+		// 描かれていた——popover属性の既定非表示が未実装だった)。
+		{
+			String popover = ce.atts.getValue("popover");
+			if (popover != null) {
 				style.set(Display.INFO, DisplayValue.NONE_VALUE);
 			}
 		}

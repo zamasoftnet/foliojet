@@ -438,7 +438,7 @@ public class CSSProcessor implements XMLHandler {
 		String href = Constants.XLINK_HREF_ATTR.getValue(atts);
 
 		// クラス
-		String styleClass = atts.getValue(XHTML.URI, XHTML.CLASS_ATTR.lName);
+		String styleClass = XHTML.getAttr(atts, XHTML.CLASS_ATTR.lName);
 		String styleClasses[];
 		if (styleClass == null) {
 			styleClasses = null;
@@ -486,10 +486,10 @@ public class CSSProcessor implements XMLHandler {
 		this.firstChild = true;
 
 		// ID
-		String id = atts.getValue(XHTML.URI, XHTML.ID_ATTR.lName);
+		String id = XHTML.getAttr(atts, XHTML.ID_ATTR.lName);
 
 		// 言語
-		String lang = atts.getValue(XHTML.URI, XHTML.LANG_ATTR.lName);
+		String lang = XHTML.getAttr(atts, XHTML.LANG_ATTR.lName);
 		if (lang != null) {
 			lang = lang.trim().toLowerCase();
 		}
@@ -561,7 +561,7 @@ public class CSSProcessor implements XMLHandler {
 
 		// :dir() 用の方向性。dir="auto" の一次強方向文字判定は先読みを要する
 		// ため対象外(継承値へフォールスルー、CSS-SUPPORT.md参照)
-		String dirAttr = atts.getValue(XHTML.URI, XHTML.DIR_ATTR.lName);
+		String dirAttr = XHTML.getAttr(atts, XHTML.DIR_ATTR.lName);
 		final String dir;
 		if (dirAttr != null && dirAttr.equalsIgnoreCase("ltr")) {
 			dir = "ltr";

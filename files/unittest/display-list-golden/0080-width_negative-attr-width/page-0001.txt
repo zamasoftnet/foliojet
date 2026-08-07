@@ -14,5 +14,4 @@ drawer z=0
   x=12.97 y=60.27 Text["指定なし" asc=9.09 desc=3.41]
   x=1.00 y=77.02 Text["E" asc=9.09 desc=3.41]
   x=9.61 y=77.02 Text["高さ属性が負" asc=9.09 desc=3.41]
-  x=0.00 y=91.02 Text["F" asc=8.60 desc=2.41]
-  x=8.06 y=91.02 Text["画像の負幅" asc=8.60 desc=2.41]
+  x=0.00 y=90.53 AbsoluteRectFrame[w=40.00 h=40.00]

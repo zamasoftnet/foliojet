@@ -225,7 +225,72 @@ public final class ValueUtils {
 	 * 参照文字列を基底URIで解決してURI値にします。
 	 */
 	public static URIValue createURIValue(String encoding, URI baseURI, String href) throws URISyntaxException {
-		URI uri = URIHelper.resolve(encoding, baseURI, href);
+		URI uri;
+		try {
+			uri = URIHelper.resolve(encoding, baseURI, href);
+		} catch (URISyntaxException e) {
+			// **URIHelper.resolve()の不正文字サニタイズはbaseURIがhttp/https
+			// の時にしか効かない**(2026-08-06、実物のyahoo.co.jpで発覚)。
+			// アイコン用SVGを`url("data:image/svg+xml;charset=utf-8,
+			// %3Csvg width='80' height='80'...")`のようにリテラル空白混じり
+			// で埋め込むのはブラウザ向けCSSでは普通に見る書き方——ブラウザは
+			// 常に許容するが、こちらはbaseURIがfile://(ローカルHTML変換や
+			// インライン&lt;style&gt;)だとURI構文エラーで例外になり、
+			// 背景画像がまるごと消える。base URIのスキームに関係なくブラウザ
+			// と同じ寛容さにするため、例外時だけ最小限の不正文字を
+			// %エンコードして一度だけ再試行する
+			String sanitized = sanitizeForURI(href);
+			if (sanitized.equals(href)) {
+				throw e;
+			}
+			uri = URIHelper.resolve(encoding, baseURI, sanitized);
+		}
 		return URIValue.create(uri);
+	}
+
+	/**
+	 * URIとして不正な(未エスケープの)文字を%エンコードします。
+	 *
+	 * <p>
+	 * {@code '}のようなRFC3986のsub-delimsは正当な文字なので触らない
+	 * ——実際に例外を起こすのは空白等、常にエスケープが必要な文字。
+	 * 既存の{@code %XX}エスケープは対象にせず素通りさせる(二重エンコード
+	 * を避ける)。
+	 * </p>
+	 */
+	private static String sanitizeForURI(String href) {
+		StringBuilder sb = null;
+		for (int i = 0; i < href.length(); ++i) {
+			char c = href.charAt(i);
+			boolean illegal;
+			switch (c) {
+			case ' ':
+			case '"':
+			case '<':
+			case '>':
+			case '`':
+			case '{':
+			case '}':
+			case '|':
+			case '\\':
+			case '^':
+				illegal = true;
+				break;
+			default:
+				illegal = c <= 0x20 || c == 0x7f;
+			}
+			if (illegal) {
+				if (sb == null) {
+					sb = new StringBuilder(href.length() + 16);
+					sb.append(href, 0, i);
+				}
+				sb.append('%');
+				sb.append(Character.forDigit((c >> 4) & 0xf, 16));
+				sb.append(Character.forDigit(c & 0xf, 16));
+			} else if (sb != null) {
+				sb.append(c);
+			}
+		}
+		return sb == null ? href : sb.toString();
 	}
 }

@@ -898,7 +898,8 @@ final class BoxStyleMapper {
 		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
 		if (image != null) {
 			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image, BackgroundRepeat.get(style),
-					BackgroundAttachment.get(style), BackgroundPosition.get(style), BackgroundSize.get(style, image));
+					BackgroundAttachment.get(style), BackgroundPosition.get(style), BackgroundSize.get(style, image),
+					BackgroundSize.getFit(style));
 		} else {
 			backgroundImage = null;
 		}

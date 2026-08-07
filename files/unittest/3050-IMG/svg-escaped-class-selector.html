@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>逆スラッシュエスケープを含むクラスセレクタで子孫SVGにサイズが効くこと</title>
+<!--
+  **欠陥(2026-08-06に修正)**: ph-css(com.helger.css)のセレクタ解析器は、
+  `CSSSelectorSimpleMember.getValue()`でセレクタの生の文字列をそのまま
+  返し、CSS識別子エスケープ(`\X`形式)を解決しない。一方HTMLの`class`属性
+  値にエスケープは無い(素の文字列)。そのため`.a\:b`のようなエスケープ
+  入りのクラスセレクタは、逆スラッシュを残したまま`class="a:b"`と
+  文字列比較され、常に不一致になっていた。
+
+  この形はTailwind CSSが状態/レスポンシブ/アリビトラリのバリアントを
+  クラス名にする際に必ず使う(`hover:`→`.hover\:...`、`lg:`→`.lg\:...`、
+  `[&_svg]:size-4`→`.\[\&_svg\]\:size-4`等)。実物コーパス
+  (shadcn-docsのGitHubアイコン)で発覚: 10個以上の同時マッチクラスの
+  うちエスケープ入りの1つ(`svg`の子孫セレクタでwidth/heightを24pxに
+  縮める規則)が常に不一致になり、`viewBox`の座標のまま巨大に描画されて
+  いた。
+
+  修正: `SelectorConverter.unescapeCssIdent()`を追加し、クラス・ID・
+  要素名・擬似クラス名を取り出す全箇所で復号するようにした。
+
+  3行とも「前」「四角」「後」が並び、四角は**同じ小さな正方形**に
+  なるのが正(修正前は1行目だけ巨大化していた——2・3行目はエスケープの
+  無い単純な祖先クラス名なので、そもそも壊れていなかった)。
+-->
+<style>
+@page { size: 300pt 150pt; margin: 6pt }
+body { margin: 0; font: 10pt serif }
+.\[\&_svg\]\:size-4 svg { width: 18pt; height: 18pt; }
+.hover\:size-4 svg { width: 18pt; height: 18pt; }
+.plain-wrap svg { width: 18pt; height: 18pt; }
+</style></head><body>
+<p>前 <a class="[&_svg]:size-4"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0c0"/></svg></a> 後</p>
+<p>前 <a class="hover:size-4"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#c00"/></svg></a> 後</p>
+<p>前 <a class="plain-wrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#00c"/></svg></a> 後</p>
+</body></html>

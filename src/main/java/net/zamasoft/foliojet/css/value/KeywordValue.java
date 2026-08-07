@@ -18,7 +18,12 @@ public enum KeywordValue implements Value {
 
 	INITIAL("initial"),
 
-	UNSET("unset");
+	UNSET("unset"),
+
+	/** background-sizeのキーワード形式(2026-08-06、BackgroundSize参照)。 */
+	CONTAIN("contain"),
+
+	COVER("cover");
 
 	private final String text;
 

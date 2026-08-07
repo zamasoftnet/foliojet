@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>クラス/インラインstyleでサイズ指定したviewBoxのみのSVGが小さく収まること</title>
+<!--
+  **欠陥(2026-08-06に修正)**: `viewBox` はあるが `width`/`height` 属性が
+  無いインラインSVGを、CSSクラスやインラインstyleの `width`/`height` で
+  サイズ指定しても**まったく反映されなかった**——`width`/`height` 属性を
+  直接書いた場合だけ効いていた。
+
+  原因は StyleApplier.startStyle / CSSProcessor.startElement の属性読み
+  出しが `atts.getValue(XHTML.URI, name)` (XHTML名前空間限定)だったこと。
+  HTML5の構文解析仕様どおり、SVG/MathMLなどforeign content配下の要素の
+  属性(class・style・width・heightなど)はXHTML名前空間に入らない。実物
+  コーパス(tailwind-landing・shadcn-docs)のインラインSVGアイコンは軒並み
+  この形——`class="h-8 ..."` でサイズ指定し、`width`/`height` 属性は
+  書かない——で、viewBox座標(例:512x512)がそのままCSS pxとして使われ、
+  アイコンがページを埋め尽くすほど巨大化していた。
+
+  修正: XHTML.getAttr() でXHTML名前空間→無修飾(qName)の順に試すよう
+  にした(HTMLStyleUtils.applyWidthHeightは元から無修飾で読んでいて
+  正しく効いていたので、その挙動に合わせた)。
+
+  1〜3行目とも「前」「四角」「後」が並び、四角は**同じ小さな正方形
+  (18pt=24px相当)**になるのが正。四角のSVGは viewBox="0 0 512 512" だが、
+  CSS/属性で width/height を24pxに指定しているので、その通りの大きさで
+  描画されること(修正前は1・2行目が viewBox の座標そのまま=巨大に
+  描画されていた)。
+-->
+<style>
+@page { size: 300pt 150pt; margin: 6pt }
+body { margin: 0; font: 10pt serif }
+svg.by-class { width: 24px; height: 24px; display: inline; }
+</style></head><body>
+<p>前 <svg class="by-class" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0c0"/></svg> 後</p>
+<p>前 <svg style="width:24px;height:24px;display:inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#c00"/></svg> 後</p>
+<p>前 <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#00c"/></svg> 後</p>
+</body></html>

@@ -530,10 +530,17 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		// 行の視覚順を反転
 		final boolean crossReversed = params.flexWrap == FlexWrap.WRAP_REVERSE;
 		double crossCursor = dist.leading();
+		// **改ページ用の行境界の記録**(2026-08-07、Bug C)。addFlowと同じ
+		// 順序でitemを積んでおくことで、FlexBox.splitが「どのitemがどの行に
+		// 属すか」をコンテナ越しに探さず直接引ける(TableRowGroupBoxの
+		// rows/cellsリストと同じ役割)
+		final List<FlexBox.Line> flexLines = new ArrayList<>(lines.size());
+		final List<FlexItemBox> flexLineItems = new ArrayList<>(this.items.size());
 		for (int v = 0; v < lines.size(); ++v) {
 			final int li = crossReversed ? lines.size() - 1 - v : v;
 			final FlexLineBreaker.Line line = lines.get(li);
 			final double lineExtent = lineExtents[li];
+			final int lineStartFlow = flexLineItems.size();
 			for (int k = line.from(); k < line.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
 				final BoxAlignment align = this.resolveAlign(item, crossReversed);
@@ -562,8 +569,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 							: align == BoxAlignment.END ? Math.max(0, freeCross) : 0;
 				}
 				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor + crossOffset);
+				flexLineItems.add(item.itemBox);
 			}
+			flexLines.add(new FlexBox.Line(lineStartFlow, line.to() - line.from(), lineExtent));
 			crossCursor += lineExtent + (v < lines.size() - 1 ? dist.between() : 0);
+		}
+		if (!this.items.isEmpty()) {
+			this.flexBox.setFlexLines(flexLines, flexLineItems);
 		}
 		this.flexBox.setPageAxis(this.items.isEmpty() ? 0 : Math.max(content, crossCursor));
 	}

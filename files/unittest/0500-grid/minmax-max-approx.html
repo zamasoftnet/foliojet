@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid: minmax()/max()の仕様外の近似対応(最大値だけ採用)</title>
+<!--
+  **{@code minmax()}・{@code max()}/{@code min()}は仕様外の近似対応**
+  (2026-08-06、GridTemplateTracks.javaのクラスjavadoc参照)。本来のGrid
+  track sizing algorithmは実装していない——{@code minmax(min, max)}は
+  最大値だけを採用し最小値は捨てる。yahoo.co.jpの実物CSS
+  (grid-template-columns: max(44px,4.4rem) repeat(9,minmax(30px,auto))
+  minmax(54px,auto))と、Tailwindのgrid-cols-N
+  (grid-template-columns: repeat(3,minmax(0,1fr)))の両方を近似できる
+  ことを固定する。
+
+  1行目(#g1)は3列とも幅100ptの固定長トラックへ畳み込まれる
+  (minmax(0,100pt)→100pt、minmax(50pt,100pt)→100pt、
+  max(30pt,100pt)→100pt)。#g1の3つの子要素が同じ幅で並ぶのが正。
+-->
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="g1" style="display: grid; grid-template-columns: minmax(0pt,100pt) minmax(50pt,100pt) max(30pt,100pt); column-gap: 10pt; width: 320pt">
+<div id="a" style="height: 20pt; background: #9cf">a</div>
+<div id="b" style="height: 20pt; background: #9cf">b</div>
+<div id="c" style="height: 20pt; background: #9cf">c</div>
+</div>
+<div id="after">after</div>
+</body>
+</html>

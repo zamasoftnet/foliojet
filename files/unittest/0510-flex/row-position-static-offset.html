@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex row: 2番目以降のitemがposition:relativeの上書きで原点へ潰れないこと</title>
+<!--
+  **欠陥(2026-08-06に修正)**: `AbstractContainerBox.resolveRelativeOffset`
+  (同日新設)が`position:relative`のずらし量を`this.offsetX =`と代入して
+  いたため、Flex/Gridが`setFlexLineOffset`/`setGridLineOffset`で計算した
+  主軸配置が描画直前に0へ上書きされていた——1番目のitemは元々offsetX=0
+  なので影響が無く気づきにくいが、2番目以降のitemが全部原点(x=0)へ
+  集まって重なる。実物のyahoo.co.jpの検索ボタン(input+button)で発覚:
+  ボタンがinputの右ではなく左(原点)に出て、他の多くのアイコンも原点へ
+  寄っていた。
+
+  既存の幾何アサーションテスト(FlexRowFixedBasisTest等)はこの欠陥を
+  検出できなかった——TestPDFVisitor経由のx/y取得が、実際のPDFページ
+  描画(pushFramesSteps/pushDrawSteps)とは別の経路を通っていた可能性が
+  ある(未確認)。このテストはdisplay-list(実際の描画命令の記録)を
+  比較するため、この種の「描画直前に値が壊れる」欠陥を確実に捕まえる。
+
+  修正: Flex/GridのitemBoxに`baseOffsetX`/`baseOffsetY`を新設し、
+  `resolveRelativeOffset`はその上へ加算するようにした(代入ではない)。
+
+  #q・#rが#pと同じ高さで、それぞれ+60pt・+140ptの位置に並ぶのが正
+  (#pの直後に重ならず、原点に集まらない)。
+-->
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+</style>
+</head>
+<body>
+<div id="ff" style="display: flex; width: 300pt; background: #eef">
+<div id="p" style="flex-basis: 60pt; height: 20pt; background: #fee">p</div>
+<div id="q" style="flex-basis: 80pt; height: 30pt; background: #efe">q</div>
+<div id="r" style="flex-basis: 100pt; height: 20pt; background: #eef">r</div>
+</div>
+<div id="after" style="height: 10pt">after</div>
+</body>
+</html>

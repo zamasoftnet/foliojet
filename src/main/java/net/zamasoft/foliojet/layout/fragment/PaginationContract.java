@@ -63,9 +63,40 @@ public final class PaginationContract {
 	public static boolean isChainAtomicBoundary(final WritingMode outer,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+			// **flex行分割(2026-08-07、Bug C)でもここはtrueのまま**——
+			// isChainAtomicBoundaryとsplitsInPageAxisは意図的に強さが違う
+			// (このファイル冒頭のコメント参照)。row-split対象のFlexBoxを
+			// ここでも「atomicでない」にすると、open-chain継続の
+			// {@code BreakPlan}がFlexBoxをチェーンメンバーとして選べて
+			// しまい、{@code FlowContainer.splitPageAxis}が
+			// {@code FlexBox.split}を直接呼ぶ経路ではなく
+			// {@code splitForContinuation}(ソース再生ベースの汎用継続)
+			// へ迂回する——結果、行の強制分割で作った継続itemの位置が、
+			// BlockBuilderの逐次カーソルで無関係に上書きされ、cross軸の
+			// 揃えが崩れる(実測で確認: 3枚のカードが階段状にずれた)。
+			// splitsInPageAxisだけ緩め、split()は直接呼ばせつつチェーンへは
+			// 絶対に入れない、という非対称をテーブルと同じ理由で踏襲する
 			return true;
 		}
 		return isChainAtomicBoundary(outer, box.getBlockParams().flow);
+	}
+
+	/**
+	 * {@link net.zamasoft.foliojet.layout.box.impl.FlexBox}のPageAtomicBox
+	 * からの限定的な脱出です(2026-08-07、Bug C——flex行分割)。
+	 *
+	 * <p>
+	 * {@code flex-direction:row}でline境界情報が確定している場合のみ、
+	 * {@code FlexBox}自身の{@code split}が行単位の強制分割(テーブル行と
+	 * 同型)を実装しているため、{@link #splitsInPageAxis}に限って
+	 * PageAtomicBoxの「常にatomic」を上書きする。line境界が無い構成
+	 * (column-direction等)は対象外のまま——nowrapのcolumn-directionは
+	 * 元々itemが縦に積まれるだけでCSS的に正しいため、わざわざ行分割機構を
+	 * 適用する理由が無い(調査時の結論)。
+	 * </p>
+	 */
+	private static boolean isFlexRowSplitEligible(final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
+		return box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flexBox && flexBox.hasRowSplitLines();
 	}
 
 	/**
@@ -89,7 +120,7 @@ public final class PaginationContract {
 	 */
 	public static boolean splitsInPageAxis(final boolean vertical,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
-		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox && !isFlexRowSplitEligible(box)) {
 			return false;
 		}
 		return splitsInPageAxis(vertical, box.getBlockParams().flow);

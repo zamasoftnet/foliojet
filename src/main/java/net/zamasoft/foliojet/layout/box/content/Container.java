@@ -193,4 +193,26 @@ public interface Container {
 	public default void eachFloatingBox(java.util.function.Consumer<IFloatBox> consumer) {
 		// 既定は浮動なし
 	}
+
+	/**
+	 * 保持しているflowの個数を返します(2026-08-07、Flex行分割用
+	 * {@code FlexBox.split})。
+	 */
+	public default int getFlowCount() {
+		throw new UnsupportedOperationException(this.getClass().getName());
+	}
+
+	/**
+	 * flow一覧のうち{@code fromIndex}(0基点、追加順)以降を{@code dest}へ
+	 * 移し、このコンテナ自身は先頭からfromIndex個だけを残します
+	 * (2026-08-07、Flex行分割専用——テーブルの行グループが独自の
+	 * {@code rows}リストを直接操作するのと同じ理由で、複数の兄弟を
+	 * 一括して次の断片へ持ち越す必要があり、単一子継続を前提とする
+	 * 共通のFragmentRecipe/splitPageAxis経路には乗らない)。
+	 * 移った側は{@code pageAxis}から{@code crossShift}を引いた値で
+	 * 再登録する(継続コンテナの原点は切断線)。
+	 */
+	public default void migrateFlowsFrom(int fromIndex, Container dest, double crossShift) {
+		throw new UnsupportedOperationException(this.getClass().getName());
+	}
 }

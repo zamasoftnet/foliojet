@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>読み込みに失敗したimgもCSSのwidth/heightを反映すること</title>
+<!--
+  **欠陥(2026-08-06に修正)**: 読み込みに失敗した<img>は画像を全く
+  設定しないため置換ボックスにならず、CSSのwidth/height(HTML属性由来の
+  ヒントも著者CSSの上書きも含む)が完全に無視されて0x0に縮退していた。
+  実物のwoocommerce.comのドキュメントページで発覚: display:tableの図
+  キャプションパターン(WordPressの画像+figcaption定番構成)で画像が
+  読み込めないと、幅を決める要素が無くなりtable全体がmin-content(最長
+  単語幅)まで潰れ、figcaptionが単語ごとに1行の縦長の列になっていた。
+
+  修正: HTMLStyle.applyBrokenImage()のNONEケース(既定)で
+  CSSJInternalImage.setImage()にAltTextImage(新設)を設定し、置換
+  ボックスの経路を維持したままalt文字列を自前で描画するようにした。
+  これによりBoxStyleMapper.setupReplacedParams()がCSSのwidth/heightを
+  正しく参照するようになる。
+
+  #aは明示的なwidth/heightで置換ボックスの実寸が反映されることを、
+  #bは無指定(既定40x40のAltTextImage自身の原寸)で正しくauto解決
+  されることを確認する。
+-->
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+img { display: block; }
+#a { width: 100pt; height: 60pt; }
+</style>
+</head>
+<body>
+<img id="a" src="does-not-exist.png" alt="">
+<img id="b" src="does-not-exist.png" alt="">
+</body>
+</html>

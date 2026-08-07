@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex行分割(Bug C、2026-08-07)</title>
+<!--
+  **欠陥(2026-08-07に修正)**: flexの行(line)がページ境界を跨ぐとき、
+  同じ行のitem同士が同じ物理切断線に揃わず、各itemが独立に改ページして
+  縦にずれる/丸ごと次ページへ送られて崩れていた(FlexBoxがPageAtomicBox
+  のまま、行単位の協調分割が無かった)。テーブル行(TableRowBox/
+  TableRowGroupBox)と同型の契約——「収まる行は素通り、境界行は全item
+  を同一切断線へ揃えて強制分割」——をFlexBox.splitへ実装した。
+
+  この文書は3枚のカードを横に並べたflex行を、ページ1の残り約30ptしか
+  ない位置に置く。各カードは4行のテキストを持つので1枚には収まらない。
+  正しく直せば、3枚とも1行目までがページ1に同じ高さで残り、2〜4行目が
+  3枚ともページ2の同じY位置(先頭)に揃って現れる。
+-->
+<style type="text/css">
+@page { size: 300pt 200pt; margin: 0; }
+body { margin: 0; font-family: sans-serif; font-size: 8pt; }
+.spacer { height: 170pt; }
+.row { display: flex; }
+.card { flex: 1; border: 1pt solid #333; padding: 4pt; box-sizing: border-box; }
+.card p { margin: 0; }
+</style>
+</head>
+<body>
+<div class="spacer">spacer</div>
+<div class="row">
+  <div class="card"><p>Card A line1</p><p>Card A line2</p><p>Card A line3</p><p>Card A line4</p></div>
+  <div class="card"><p>Card B line1</p><p>Card B line2</p><p>Card B line3</p><p>Card B line4</p></div>
+  <div class="card"><p>Card C line1</p><p>Card C line2</p><p>Card C line3</p><p>Card C line4</p></div>
+</div>
+</body>
+</html>

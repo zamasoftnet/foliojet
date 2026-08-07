@@ -130,7 +130,16 @@ public class ResumeTraceGoldenTest extends TestCase {
 		// ColumnsContainerへ遅延ラップされる前にページが閉じるため)。
 		// そのうち最後列自体が丸ごとMOVEした候補は0件——B5d(段組全体
 		// move型付け)の優先度が低いという既存判断を裏付ける実測値。
-		assertEquals("ColumnsContainer.splitPageAxisの呼び出し回数はこのfixture集合で1回のみのはずです", 1,
+		//
+		// **2026-08-06: 1→3に変更**。読み込みに失敗した<img>がCSSの
+		// width/heightを無視して0x0に縮退していた欠陥を修正(HTMLStyle.
+		// applyBrokenImage、AltTextImage新設)。0400-column-count/
+		// columns-float.htmlのcircle.svgは元々unittestに存在しない
+		// (壊れた参照)ため、修正後は`img{width:20mm}`が正しく効いて
+		// 浮動画像が実寸を持つようになり、段組があふれて実際に
+		// ColumnsContainerへ実体化される箇所が1件から3件に増えた
+		// (目視確認済み、段組・浮動そのものは壊れていない)
+		assertEquals("ColumnsContainer.splitPageAxisの呼び出し回数はこのfixture集合で3回のみのはずです", 3,
 				totalColumnsSplitAttempts);
 		assertEquals("最後列丸ごとMOVEの候補はこのfixture集合では発生しないはずです", 0,
 				totalColumnsLastColumnMoveCandidate);

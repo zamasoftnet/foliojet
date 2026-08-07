@@ -51,13 +51,33 @@ public abstract class AbstractContainerBox extends AbstractBox
 	protected double offsetX = 0, offsetY = 0;
 
 	/**
+	 * <b>Flex/Gridの主軸配置(行/トラック開始位置)</b>(2026-08-06新設)。
+	 *
+	 * <p>
+	 * {@code offsetX}/{@code offsetY}は本来{@code position:relative}の
+	 * ずらし量専用の場所だが、{@code FlexItemBox.setFlexLineOffset}/
+	 * {@code GridItemBox.setGridLineOffset}が同じ場所へ直接書き込んでいた
+	 * ——Flex/Gridアイテムには通常フローのカーソル位置という概念が無く、
+	 * 既存の{@code offsetX}を使い回すのが簡便だったため。ここへ
+	 * {@link #resolveRelativeOffset}が{@code position:relative}のずらし量を
+	 * <b>代入</b>すると、Flex/Gridが計算した配置が丸ごと消える(実地: 検索
+	 * ボタンが左右逆転・アイコンが原点へ集まる)。この{@code baseOffsetX}/
+	 * {@code baseOffsetY}へFlex/Gridの配置を退避し、
+	 * {@code resolveRelativeOffset}はこの上へ<b>加算</b>することで両立する。
+	 * </p>
+	 */
+	protected double baseOffsetX = 0, baseOffsetY = 0;
+
+	/**
 	 * <b>相対配置のずらしを確定します</b>(2026-08-06新設)。
 	 *
 	 * <p>
 	 * この計算は<b>包含ブロックを一切必要としません</b>——
 	 * {@code LayoutUtils.computeOffsetX/Y} は引数の容器を使わず、
 	 * 絶対長ならその値、割合とautoなら0を返すだけである(割合は未実装の
-	 * まま。既存のTODO)。したがって<b>いつ呼んでも同じ値</b>になる。
+	 * まま。既存のTODO)。したがって<b>いつ呼んでも同じ値</b>になる
+	 * ({@link #baseOffsetX}/{@link #baseOffsetY}を基準に毎回同じ結果へ
+	 * 収束するため、複数回呼んでも安全)。
 	 * </p>
 	 *
 	 * <p>
@@ -73,8 +93,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 		if (offset == null) {
 			return;
 		}
-		this.offsetX = net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetX(offset, this);
-		this.offsetY = net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetY(offset, this);
+		this.offsetX = this.baseOffsetX + net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetX(offset, this);
+		this.offsetY = this.baseOffsetY + net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetY(offset, this);
 	}
 
 	protected Container container;

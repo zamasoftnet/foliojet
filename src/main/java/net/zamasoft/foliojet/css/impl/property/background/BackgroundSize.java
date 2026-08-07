@@ -34,8 +34,23 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 
 	private static final PrimitivePropertyInfo[] PRIMITIVES = { INFO_WIDTH, INFO_HEIGHT };
 
+	public static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style) {
+		Value widthValue = style.get(INFO_WIDTH);
+		if (widthValue == KeywordValue.CONTAIN) {
+			return net.zamasoft.foliojet.layout.box.params.BackgroundFit.CONTAIN;
+		}
+		if (widthValue == KeywordValue.COVER) {
+			return net.zamasoft.foliojet.layout.box.params.BackgroundFit.COVER;
+		}
+		return net.zamasoft.foliojet.layout.box.params.BackgroundFit.NONE;
+	}
+
 	public static Dimension get(CSSStyle style, Image image) {
 		Value widthValue = style.get(INFO_WIDTH);
+		if (widthValue == KeywordValue.CONTAIN || widthValue == KeywordValue.COVER) {
+			// 実寸はgetFit()を見た描画側が計算する
+			return Dimension.AUTO_DIMENSION;
+		}
 		Value heightValue = style.get(INFO_HEIGHT);
 		LengthType widthType;
 		double width;
@@ -108,6 +123,27 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		Value w, h;
 
 		final CssToken lu = tokens.next();
+		// **contain/coverキーワード形式**(2026-08-06)。単独値のみ許され、
+		// 幅高さの2値構文とは併用不可(仕様通り、後続トークンがあれば無効)。
+		// これまで未対応で、`ValueUtils.toLength`が失敗して例外になり
+		// 既定のauto/autoへ丸ごと落ちていた——auto/autoは画像の原寸表示を
+		// 意味するため、実寸より大きい画像(スプライト等)では箱の中に
+		// ごく一部だけが表示される欠陥になっていた
+		// (yahoo.co.jpのサイドバーアイコンで発覚)
+		if (ValueUtils.isKeyword(lu, "contain")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, KeywordValue.CONTAIN),
+					new Entry(BackgroundSize.INFO_HEIGHT, KeywordValue.CONTAIN) };
+		}
+		if (ValueUtils.isKeyword(lu, "cover")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, KeywordValue.COVER),
+					new Entry(BackgroundSize.INFO_HEIGHT, KeywordValue.COVER) };
+		}
 		if (ValueUtils.isAuto(lu)) {
 			w = KeywordValue.AUTO;
 		} else {

@@ -22,8 +22,19 @@ public class GridItemBox extends FlowBlockBox {
 		this.width = trackWidth;
 	}
 
-	/** 行方向のトラック開始位置(Gridコンテナ内辺原点)を設定します。 */
+	/**
+	 * 行方向のトラック開始位置(Gridコンテナ内辺原点)を設定します。
+	 *
+	 * <p>
+	 * {@code baseOffsetX}にも同じ値を退避する(2026-08-06)。
+	 * {@code AbstractContainerBox.resolveRelativeOffset}が
+	 * {@code position:relative}のずらし量をこの上へ加算するための基準値
+	 * ——退避しないと、そちらが{@code offsetX}を代入で上書きしてGridの
+	 * 配置が消える(FlexItemBox.setFlexLineOffsetと同じ理由)。
+	 * </p>
+	 */
 	public void setGridLineOffset(final double lineOffset) {
+		this.baseOffsetX = lineOffset;
 		this.offsetX = lineOffset;
 	}
 

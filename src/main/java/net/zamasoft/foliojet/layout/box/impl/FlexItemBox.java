@@ -26,13 +26,39 @@ public class FlexItemBox extends FlowBlockBox {
 	/**
 	 * 線方向のitem開始位置(Flexコンテナ内辺原点、自然位置からの相対)を
 	 * 設定します(F6: 縦書きでは物理Y)。
+	 *
+	 * <p>
+	 * {@code baseOffsetX}/{@code baseOffsetY}にも同じ値を退避する
+	 * (2026-08-06)。{@code AbstractContainerBox.resolveRelativeOffset}が
+	 * {@code position:relative}のずらし量をこの上へ加算するための基準値
+	 * ——退避しないと、そちらが{@code offsetX}を代入で上書きしてFlexの
+	 * 配置が消える(検索ボタンの左右逆転・アイコンの原点集約はこれが原因)。
+	 * </p>
 	 */
 	public void setFlexLineOffset(final double lineOffset, final boolean vertical) {
 		if (vertical) {
+			this.baseOffsetY = lineOffset;
 			this.offsetY = lineOffset;
 		} else {
+			this.baseOffsetX = lineOffset;
 			this.offsetX = lineOffset;
 		}
+	}
+
+	/**
+	 * {@link #setFlexLineOffset}で設定した線方向位置を読みます
+	 * (2026-08-07、Flex行分割用)。
+	 *
+	 * <p>
+	 * 行を跨いで強制分割した残余{@link FlexItemBox}は{@code fragmentRecipe}が
+	 * 新規生成するため線方向位置を引き継がない——分割後に呼び出し側が
+	 * これで読んだ元の値を残余へ{@link #setFlexLineOffset}し直す必要がある
+	 * (cross軸の位置はitemではなくコンテナのFlow側が持つので、こちらは
+	 * 触らなくてよい)。
+	 * </p>
+	 */
+	public double getFlexLineOffset(final boolean vertical) {
+		return vertical ? this.baseOffsetY : this.baseOffsetX;
 	}
 
 	/** 確定した線方向内寸(content-box)を設定します(bind直前に呼ぶ。縦書き=高さ)。 */
