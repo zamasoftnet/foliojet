@@ -29,11 +29,17 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 	protected final double upm, width, height;
 	protected Color color = Color.BLACK;
 
-	public BarcodeImage(UserAgent ua, Symbol symbol, String message) {
+	/** 1モジュール単位の物理寸法(mm)。 */
+	protected final double unitMm;
+
+	public BarcodeImage(UserAgent ua, Symbol symbol, String message, double unitMm) {
 		this.ua = ua;
 		this.symbol = symbol;
 		this.message = message;
-		this.upm = LengthUtils.convert(ua, 1.0, Unit.MM, Unit.PT);
+		this.unitMm = unitMm;
+		// Okapiの幾何は「モジュール」単位の整数。1単位=unitMm(mm)として
+		// 物理寸法へ倍率をかける(BarcodeInlineObjectの単位系コメント参照)
+		this.upm = LengthUtils.convert(ua, unitMm, Unit.MM, Unit.PT);
 		this.width = Math.max(1, symbol.getWidth()) * this.upm;
 		this.height = Math.max(1, symbol.getHeight()) * this.upm;
 	}
@@ -46,7 +52,7 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 		// symbol/messageは構築後不変の描画内容なので共有してよい。
 		// setReplacedBoxで受け取る状態(現状はcolorのみの候補)は
 		// インスタンスごとに独立になる(E-6増分3b-3)
-		final BarcodeImage duplicate = new BarcodeImage(this.ua, this.symbol, this.message);
+		final BarcodeImage duplicate = new BarcodeImage(this.ua, this.symbol, this.message, this.unitMm);
 		duplicate.color = this.color;
 		return duplicate;
 	}
