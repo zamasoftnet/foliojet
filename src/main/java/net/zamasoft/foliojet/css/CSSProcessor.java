@@ -117,7 +117,16 @@ public class CSSProcessor implements XMLHandler {
 	public CSSProcessor(UserAgent ua, Imposition imposition) {
 		this.ua = ua;
 		this.imposition = imposition;
-		StyleContext styleContext = new StyleContext(new CSSStyleSheet(), this.ua.getUAContext().getSelectorFacts());
+		// パス持ち越しスタイルシート(2026-08-08)。body内の<style>は
+		// 1パスでは前方の要素へ遡及できないが、pass-count>=2なら前の
+		// パス(STRUCTURE_SCAN含む)で収集済みの規則を最初から適用できる。
+		// 寿命はUAContext.getCarriedStyleSheetのjavadoc参照
+		CSSStyleSheet carried = this.ua.getUAContext().getCarriedStyleSheet();
+		if (carried == null) {
+			carried = new CSSStyleSheet();
+			this.ua.getUAContext().setCarriedStyleSheet(carried);
+		}
+		StyleContext styleContext = new StyleContext(carried, this.ua.getUAContext().getSelectorFacts());
 
 		this.styleSheetBuilder = new CSSStyleSheetBuilder(this.ua);
 		this.styleSheetBuilder.setCSSStyleSheet(styleContext.styleSheet);

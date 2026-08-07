@@ -616,6 +616,12 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// 1回だけリセットすれば足りる。
 			this.getUAContext().getSelectorFacts().reset();
 		}
+		if (mode == PrepareMode.STRUCTURE_SCAN || mode == PrepareMode.DOCUMENT) {
+			// パス持ち越しスタイルシートは変換(文書)の開始でクリアする
+			// (UAContext.getCarriedStyleSheetのjavadoc参照)。中間・最終
+			// パスは前のパスの収集を引き継ぐ
+			this.getUAContext().setCarriedStyleSheet(null);
+		}
 		this.documentContext = new DocumentContext();
 	}
 
