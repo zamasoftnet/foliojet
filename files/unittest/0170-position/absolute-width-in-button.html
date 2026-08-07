@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>絶対配置の子のwidth:100% — button親とdiv親の対比</title>
+<!--
+yahoo.co.jp検証(2026-08-07)で発見した「buttonとdivで絶対配置の子の
+width:100%の解決が変わる(div親では幅が潰れて縦積み)」の再現。
+2つの箱は同じ幾何になるべき: 絶対配置の子のwidth:100%は
+包含ブロック(position:relativeの親のpadding box)の幅に解決される。
+-->
+<style>
+@page { size: 400pt 200pt; margin: 10pt }
+body { margin: 0; font-size: 12pt; }
+.host { position: relative; display: block; width: 300px; height: 40px;
+        border: 1px solid black; padding: 0; margin: 0 0 60px 0;
+        background: #eee; font-size: 12pt; text-align: left; }
+.drop { position: absolute; top: 100%; left: 0; width: 100%;
+        background: #cce; }
+.item { display: inline-block; }
+</style>
+</head>
+<body>
+<div class="host">
+  <div class="drop"><span class="item">alpha</span> <span class="item">beta</span> <span class="item">gamma</span></div>
+</div>
+<button class="host">
+  <div class="drop"><span class="item">alpha</span> <span class="item">beta</span> <span class="item">gamma</span></div>
+</button>
+</body>
+</html>

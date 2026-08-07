@@ -19,6 +19,15 @@ figcaption, details, dialog, hgroup, summary {
 	display: block;
 }
 
+/*
+ * HTML仕様のUA既定。open属性のないネイティブダイアログは非表示
+ * (JSでshowModal()等が呼ばれるまで出ない)。これが無いと確認
+ * ダイアログの本文が紙面に露出する(2026-08-07、qiitaで発覚)。
+ */
+dialog:not([open]) {
+	display: none;
+}
+
 audio, canvas {
 	display: inline;
 }

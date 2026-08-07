@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>display:contents 基本</title>
+<!--
+display:contents(CSS Display 3 §2.5、2026-08-07実装)の回帰。
+確かめること:
+ 1. contents要素自身の箱(border/background/margin/padding)は描かれない
+ 2. 子はそのまま親の箱へ流れる(ブロックの縦積みが崩れない)
+ 3. 継承は効く(contents要素のcolor/font-sizeが子・直下テキストに届く)
+ 4. flexコンテナ内のcontentsの子は個別にflexアイテムになる
+ 5. 表の中のcontentsラッパー越しのセルは正しく行へ組まれる
+ 6. 置換要素(img)のcontentsはnoneと同じ(描かれない)
+ 7. 入れ子のcontentsも透過する
+MDNの main{display:contents} で本文が全滅していた欠陥の回帰でもある。
+-->
+<style>
+body { font-size: 12pt; margin: 0; }
+.contents { display: contents; border: 10pt solid red; background: red;
+            margin: 30pt; padding: 30pt; color: green; font-size: 18pt; }
+.flex { display: flex; }
+.flex > * , .flex .item { border: 1pt solid blue; }
+.cell { display: table-cell; border: 1pt solid black; padding: 2pt; }
+.row { display: table-row; }
+.table { display: table; border-collapse: collapse; }
+</style>
+</head>
+<body>
+<p>前の段落</p>
+<div class="contents">
+  <p>contentsの子ブロック1(緑・18pt)</p>
+  <p>contentsの子ブロック2</p>
+  直下のテキスト(これも緑・18ptで組まれる)
+</div>
+<p>間の段落(黒・12ptに戻る)</p>
+<div class="flex">
+  <div class="item">item A</div>
+  <div class="contents">
+    <div class="item">item B(contents越し)</div>
+    <div class="item">item C(contents越し)</div>
+  </div>
+  <div class="item">item D</div>
+</div>
+<div class="table">
+  <div class="contents">
+    <div class="row">
+      <div class="cell">セル1</div>
+      <div class="cell">セル2(contents越しの行)</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="contents">
+      <div class="cell">セル3(contents越しのセル)</div>
+      <div class="cell">セル4</div>
+    </div>
+  </div>
+</div>
+<div class="contents">
+  <div class="contents">
+    <p>入れ子のcontentsの子(これも緑・18pt)</p>
+  </div>
+</div>
+<p>画像のcontentsは描かれない:
+<img class="contents" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" width="100" height="100" alt="">
+<span>直後のインライン</span></p>
+<p>後の段落</p>
+</body>
+</html>

@@ -420,7 +420,9 @@ final class StyleBoxEmitter {
 				// タグの補完
 				final CSSStyle parentStyle = style.getParentStyle();
 				if (parentStyle != null) {
-					final short parentDisplay = Display.get(parentStyle);
+					// display:contentsの祖先は箱を作らないため、匿名箱の補完は
+					// 最も近い非contents祖先を親と見なして判定する(2026-08-07)
+					final short parentDisplay = Display.getFlattenedParentDisplay(style);
 					// **flexアイテム・gridアイテムのfloatは効かない**
 					// (CSS Flexbox §3「float and clear do not create floating or
 					// clearance for flex items」、CSS Grid §3も同文)。
@@ -538,6 +540,10 @@ final class StyleBoxEmitter {
 							anon.set(Display.INFO, DisplayValue.TABLE_CELL_VALUE);
 							inserted = anon;
 						}
+						break;
+
+					case DisplayValue.CONTENTS:
+						// contents要素自身は箱を作らないので補完も不要
 						break;
 
 					default:
@@ -851,6 +857,14 @@ final class StyleBoxEmitter {
 		}
 			break;
 
+		case DisplayValue.CONTENTS:
+			// display:contents(CSS Display 3 §2.5、2026-08-07)。要素自身の
+			// 箱は作らず、子は現在開いている箱(最も近い非contents祖先の箱)へ
+			// そのまま流れる。スタイルはスタックへ積む——子のスタイル解決は
+			// このスタイルを親として継承する。直下のテキストは
+			// StyleEventMachine.charactersが匿名インラインで包む
+			break;
+
 		default:
 			throw new IllegalStateException();
 		}
@@ -866,10 +880,13 @@ final class StyleBoxEmitter {
 			this.context.setInBody(true);
 			this._startStyle(style);
 		}
-		if (CSSJInternalImage.getImage(style) == null) {
+		final byte endDisplay = Display.get(style);
+		// contentsは開くときに箱を作っていない(openBoxのCONTENTS分岐)ので
+		// 閉じる箱もない
+		if (CSSJInternalImage.getImage(style) == null && endDisplay != DisplayValue.CONTENTS) {
 			this.sink.end();
 		}
-		switch (Display.get(style)) {
+		switch (endDisplay) {
 		case DisplayValue.TABLE:
 		case DisplayValue.INLINE_TABLE:
 		case DisplayValue.BLOCK:
@@ -892,6 +909,7 @@ final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.INLINE:
+		case DisplayValue.CONTENTS:
 			break;
 
 		default:

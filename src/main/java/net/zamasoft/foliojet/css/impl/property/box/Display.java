@@ -32,8 +32,35 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		super("display");
 	}
 
+	/**
+	 * display:contentsの祖先を飛ばした、箱の木の上での実質の親displayを
+	 * 返します(2026-08-07)。contents要素は箱を作らないため、匿名箱の補完や
+	 * flex/gridアイテム化の判定は最も近い非contents祖先を親と見なす必要が
+	 * あります。親が無ければNONEを返します(呼び出し側の既定分岐に落ちる)。
+	 */
+	public static byte getFlattenedParentDisplay(CSSStyle style) {
+		for (CSSStyle p = style.getParentStyle(); p != null; p = p.getParentStyle()) {
+			final byte d = Display.get(p);
+			if (d != DisplayValue.CONTENTS) {
+				return d;
+			}
+		}
+		return DisplayValue.NONE;
+	}
+
 	public Value getComputedValue(Value value, CSSStyle style) {
 		byte display = ((DisplayValue) value).getDisplay();
+
+		// display:contents(CSS Display 3 §2.5)。要素自身の箱を作らない。
+		// 置換要素(img等)のcontentsは「中身」が置換内容そのものなので
+		// noneと同じ振る舞いになる(仕様どおり)。float/positionは箱が
+		// 無いので適用されない——以下の変換は全て通らない
+		if (display == DisplayValue.CONTENTS) {
+			if (CSSJInternalImage.getImage(style) != null) {
+				return DisplayValue.NONE_VALUE;
+			}
+			return DisplayValue.CONTENTS_VALUE;
+		}
 
 		// **ページ単位のfloat(脚注・ページフロート)はブロック化する**
 		// (2026-08-02、掃過で発覚)。これらは版面から切り離して置くため
@@ -85,7 +112,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			// テーブル外のキャプションはブロック扱い
 			final CSSStyle parentStyle = style.getParentStyle();
 			if (parentStyle != null) {
-				switch (Display.get(parentStyle)) {
+				switch (Display.getFlattenedParentDisplay(style)) {
 				case DisplayValue.TABLE:
 				case DisplayValue.TABLE_COLUMN_GROUP:
 				case DisplayValue.TABLE_COLUMN:
@@ -133,7 +160,9 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		if (display == DisplayValue.INLINE || display == DisplayValue.INLINE_BLOCK) {
 			final CSSStyle flexParent = style.getParentStyle();
 			if (flexParent != null) {
-				final byte parentDisplay = Display.get(flexParent);
+				// contents祖先は飛ばす——contentsの子はflex/gridの直接の
+				// アイテムになる(CSS Display 3 §2.5)
+				final byte parentDisplay = Display.getFlattenedParentDisplay(style);
 				if (parentDisplay == DisplayValue.GRID || parentDisplay == DisplayValue.FLEX) {
 					value = DisplayValue.BLOCK_VALUE;
 					display = DisplayValue.BLOCK;
@@ -218,6 +247,8 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				return DisplayValue.INLINE_BLOCK_VALUE;
 			} else if (ident.equals("list-item")) {
 				return DisplayValue.LIST_ITEM_VALUE;
+			} else if (ident.equals("contents")) {
+				return DisplayValue.CONTENTS_VALUE;
 				// run-in は非対応(4で廃止。CSS Display 3 でも at-risk)。
 				// 未対応値として宣言ごと無効にする(モダンブラウザと同じ)
 			} else {

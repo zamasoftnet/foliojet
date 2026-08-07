@@ -53,6 +53,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 改ページを跨いだ相対配置(2026-08-06)。確定ページの容器が寸法決めの
 			// 走査から外れると、ずらし量が0のまま静かに出ていた
 			"0170-position/relative-offset-after-break.html", //
+			// 絶対配置の子のwidth:100%がbutton親とdiv親で同じ幅に解決される
+			// こと(2026-08-07、yahoo.co.jpの検索候補ドロップダウンで発覚)
+			"0170-position/absolute-width-in-button.html", //
 			"0120-float/auto-width.html", //
 			// margin:auto の表の直後の浮動体(2026-08-05)。行方向カーソルの
 			// 押し引きが非対称で、フロートが x=-106.75(紙の左外)へ飛んでいた
@@ -124,6 +127,13 @@ public class DisplayListGoldenTest extends TestCase {
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
 			"3000-SELECTOR/attr-prefix-case.html", //
+			// dialog:not([open])のUA既定(2026-08-07)。open属性のない
+			// ネイティブダイアログが紙面に露出しないことを固定する
+			"0130-display/dialog-closed.html", //
+			// display:contents(2026-08-07)。箱の透過・継承・flexアイテム化・
+			// 表の中のラッパー・置換要素のnone化を固定する。MDNの
+			// main{display:contents}で本文が全滅していた欠陥の回帰
+			"0130-display/contents-basic.html", //
 			"3000-SELECTOR/nth.html", //
 			"3000-SELECTOR/dir.html", //
 			"3000-SELECTOR/html5-elements.html", //

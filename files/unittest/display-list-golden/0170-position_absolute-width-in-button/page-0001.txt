@@ -1,0 +1,12 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=226.50 h=76.50]
+  x=0.75 y=30.75 AbsoluteRectFrame[w=225.00 h=15.01]
+  x=0.75 y=31.36 Text["alpha" asc=10.31 desc=4.09]
+  x=29.74 y=31.36 Text["beta" asc=10.31 desc=4.09]
+  x=52.73 y=31.36 Text["gamma" asc=10.31 desc=4.09]
+  x=0.00 y=76.50 AbsoluteRectFrame[w=226.50 h=76.50]
+  x=0.75 y=78.45 Text["​" asc=10.32 desc=2.89]
+  x=0.75 y=107.25 AbsoluteRectFrame[w=225.00 h=15.01]
+  x=0.75 y=107.86 Text["alpha" asc=10.31 desc=4.09]
+  x=29.74 y=107.86 Text["beta" asc=10.31 desc=4.09]
+  x=52.73 y=107.86 Text["gamma" asc=10.31 desc=4.09]

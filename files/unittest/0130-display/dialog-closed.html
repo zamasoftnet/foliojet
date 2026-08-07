@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>dialog: open属性のないダイアログは出ない</title>
+<!--
+UA既定 `dialog:not([open]) { display: none }` の回帰。
+これが無いと、JSでshowModal()されるまで出ないはずの確認ダイアログの
+本文が紙面に露出する(2026-08-07、qiitaの「Delete article」で発覚)。
+著者CSSがdisplayを与えた場合はUA既定に勝つ(3つめのdialog)。
+-->
+</head>
+<body>
+<p>前の段落</p>
+<dialog>閉じたダイアログ。この文は描画されてはならない。</dialog>
+<dialog open>開いたダイアログ。この文はブロックとして描画される。</dialog>
+<dialog style="display: block">著者がdisplayを与えたダイアログ。これも描画される。</dialog>
+<p>後の段落</p>
+</body>
+</html>

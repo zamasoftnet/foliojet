@@ -418,7 +418,9 @@ final class StyleEventMachine {
 		// インライン流へ::footnote-callを合成する。ページごとのリセットは
 		// ページローカル再生増分(F5)まで保留。本文のページ下端への移動は
 		// F3で配線——それまで本文はその場に描かれる
+		// display:contentsは箱を作らないのでfloatも適用されない(CSS Display 3)
 		boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
+				&& explDisplay != DisplayValue.CONTENTS
 				&& CSSFloat.get(style) == CSSFloatValue.FOOTNOTE;
 		if (footnote && inTableStructure(style)) {
 			// **表の構造の内側(行・行グループ・列)では脚注にしない**
@@ -1131,6 +1133,17 @@ final class StyleEventMachine {
 				}
 			}
 
+			// display:contentsの直下のテキストは、contents要素のスタイルを
+			// 継承する匿名インラインで包む(2026-08-07)。contentsは箱を
+			// 作らないため、素通しにするとテキストが外側の箱のパラメータ
+			// (=contentsより上の祖先のスタイル)で組まれ、contents要素に
+			// 書かれたcolor/font等の継承が失われる
+			final boolean inContents = Display.get(this.context.getCurrentStyle()) == DisplayValue.CONTENTS;
+			if (inContents) {
+				final CSSStyle contentsInline = this.context.getCurrentStyle().inheritAnonStyle(CSSElement.ANON);
+				contentsInline.set(Display.INFO, DisplayValue.INLINE_VALUE);
+				this.emitter._startStyle(contentsInline);
+			}
 			String em = TextEmphasisStyle.get(this.context.getCurrentStyle());
 			if (em == null || em.length() == 0) {
 				this.sink.characters(charOffset, ch, off, len, false);
@@ -1173,6 +1186,10 @@ final class StyleEventMachine {
 					this.sink.characters(charOffset, ch, i + off, 1, false);
 					this.emitter._endStyle();
 				}
+			}
+			if (inContents) {
+				// contents直下テキストの匿名インラインを閉じる
+				this.emitter._endStyle();
 			}
 		}
 	}
@@ -1220,6 +1237,7 @@ final class StyleEventMachine {
 			switch (Display.get(parent)) {
 			case DisplayValue.INLINE:
 			case DisplayValue.INLINE_BLOCK:
+			case DisplayValue.CONTENTS:
 				continue;
 			default:
 				return isTableStructure(Display.get(parent));

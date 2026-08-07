@@ -36,7 +36,9 @@ public enum DisplayValue implements Value {
 
 	GRID_VALUE(DisplayValue.GRID),
 
-	FLEX_VALUE(DisplayValue.FLEX);
+	FLEX_VALUE(DisplayValue.FLEX),
+
+	CONTENTS_VALUE(DisplayValue.CONTENTS);
 	public static final byte NONE = 0;
 
 	public static final byte BLOCK = 1;
@@ -73,6 +75,12 @@ public enum DisplayValue implements Value {
 	public static final byte GRID = 16;
 
 	public static final byte FLEX = 17;
+
+	/**
+	 * CSS Display 3 §2.5。要素自身の箱を作らず、子をそのまま親の箱へ
+	 * 流す(2026-08-07。MDN等モダンサイトのレイアウトラッパーで多用)。
+	 */
+	public static final byte CONTENTS = 18;
 
 	private final byte display;
 
@@ -121,6 +129,8 @@ public enum DisplayValue implements Value {
 			return "grid";
 		case FLEX:
 			return "flex";
+		case CONTENTS:
+			return "contents";
 		default:
 			throw new IllegalStateException();
 		}
