@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>float: 行の途中の行末側フロートの同一行配置 (kabutan 2026-08-08)</title>
+<style type="text/css">
+body { margin: 0; font-size: 13px; }
+.w { width: 320px; border: 1px solid #39f; margin-bottom: 8px; }
+.fr { float: right; background: #fda; }
+.ib { display: inline-block; background: #dfd; }
+</style>
+</head>
+<body>
+<!-- 行内容の後に現れたfloat:rightは、残り幅に収まるなら現在行の
+     上端に置かれ、行がその場で狭まる(ブラウザと同じ)。各variantで
+     FLOATが先行内容と同じyに載れば正。収まらない場合(F)は従来
+     どおり次の帯へ落ちる。 -->
+<div class="w">A text<div class="fr">FLOAT</div></div>
+<div class="w"><span class="ib">B ib</span><div class="fr">FLOAT</div></div>
+<div class="w"><span class="ib">C ib</span><div class="fr ib">FLOAT-ib</div></div>
+<div class="w">D text<div class="fr ib">FLOAT-ib</div></div>
+<div class="w" style="height:25px"><span class="ib">E ib h25</span><div class="fr ib">FLOAT-ib</div></div>
+<div class="w" style="width:120px">F 残り幅に収まらない場合は次の帯へ<div class="fr">WIDE-FLOAT-1234567890</div></div>
+</body>
+</html>

@@ -917,7 +917,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 						+ System.identityHashCode(floatBox) + " 経路" + where);
 			}
 			if (this.textBuilder != null && this.textBuilder.getLineAxis() > 0) {
-				this.toAddFloating(floatBox);
+				// 行の途中に現れたフロート。行末側で現在行の残り幅に
+				// 収まるなら現在行の上端へ置き、行をその場で狭める
+				// (CSS 2.1 §9.5、ブラウザと同じ。kabutan 2026-08-08)。
+				// 収まらないとき・行頭側・clear付きは従来どおり行末まで
+				// 先送りして次の帯へ置く
+				if (!this.tryFloatOnCurrentLine(floatBox)) {
+					this.toAddFloating(floatBox);
+				}
 			} else {
 				this.addFloating(floatBox);
 			}
@@ -1161,6 +1168,63 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * 
 	 * @param box
 	 */
+	/**
+	 * 行の途中に現れた行末側フロートの、現在行への同一行配置の試みです
+	 * (2026-08-08)。CSS 2.1 §9.5の「行の途中のフロートは、収まるなら
+	 * 現在の行ボックスの上端に置き、行ボックスを狭める」のうち、既配置の
+	 * 内容を動かさずに済む行末側だけを実装する(行頭側は既配置内容の
+	 * 再配置が必要になるため、従来どおり行末で先送りする)。
+	 *
+	 * @return 配置したら true。false なら呼び出し側が従来の先送りへ回す
+	 */
+	private boolean tryFloatOnCurrentLine(final IFloatBox box) {
+		final FloatPos pos = box.getFloatPos();
+		if (pos.floating != FloatSide.END) {
+			return false;
+		}
+		// clearは排除帯の走査(scanFloatPlacementBand)がそのまま解決する。
+		// clearが現在行の上端より下を要求する場合はpageStart検査で
+		// 先送りに落ちる(021-RIGHT_clearのclear:left、Chrome実測と一致)
+		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final double lineWidth = box.getLineExtent(progression);
+		final double pageWidth = box.getPageExtent(progression);
+		// 現在行の上端(開いている行の高さは含めない)
+		final double lineTop = this.pageAxis + this.textBuilder.getPageAxis();
+		final double lineStart0 = this.lineAxis;
+		final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
+		double lineEnd = lineEnd0;
+		final ExclusionSpace exclusions = this.snapshotExclusions();
+		if (!exclusions.isEmpty()) {
+			// 「以前のフロートの上端より上に置かない」制約を現在行の
+			// 上端が満たさないなら、同一行配置はできない
+			final List<FloatExclusion> ascending = exclusions.ascendingByPageEnd();
+			if (LayoutUtils.compare(ascending.get(ascending.size() - 1).pageSpan().start(), lineTop) > 0) {
+				return false;
+			}
+			final ExclusionSpace.FloatPlacementScan found = exclusions.scanFloatPlacementBand(lineTop, lineStart0,
+					lineEnd0, pos.clear);
+			if (LayoutUtils.compare(found.pageStart(), lineTop) != 0) {
+				return false;
+			}
+			lineEnd = found.lineEnd();
+		}
+		final double lineOffset = lineEnd - lineWidth;
+		// 現在行の既存内容(textIndent+確定・未確定アドバンス)がフロートの
+		// 手前に収まるなら、行の使用可能幅をその場で狭める
+		if (!this.textBuilder.narrowCurrentLine(lineOffset)) {
+			return false;
+		}
+		this.commitFloatPlacement(new FloatPlacementDelta(box, FloatSide.END,
+				new AxisSpan(lineOffset, lineOffset + lineWidth), new AxisSpan(lineTop, lineTop + pageWidth),
+				this.classifyFloatPlacement(box, lineTop)));
+		if (this.floatings != null) {
+			// 台帳の底辺昇順を回復する(addFloating(IFloatBox)と同じ。
+			// 現在行の上端は既存フロートの底辺より上のことがある)
+			Collections.sort(this.floatings, FLOAT_COMP);
+		}
+		return true;
+	}
+
 	private void toAddFloating(IFloatBox box) {
 		if (this.toAddFloatings == null) {
 			this.toAddFloatings = new ArrayList<IFloatBox>();

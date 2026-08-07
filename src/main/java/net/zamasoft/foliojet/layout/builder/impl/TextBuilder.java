@@ -614,6 +614,28 @@ public class TextBuilder {
 		return this.pageAxis + this.lineBox.getPageSize();
 	}
 
+	/**
+	 * 行末側フロートの同一行配置({@code BlockBuilder.tryFloatOnCurrentLine}
+	 * ——2026-08-08)のために、構築中の行の使用可能幅を絶対座標
+	 * {@code newAbsLineEnd}まで狭めます。行がまだ配置されていない
+	 * (locateLine前)場合や、既存の内容(textIndent+確定・未確定
+	 * アドバンス)が新しい幅に収まらない場合は、状態を変えずに
+	 * {@code false}を返します。
+	 */
+	boolean narrowCurrentLine(final double newAbsLineEnd) {
+		if (this.lineBox == null || this.firstUnit) {
+			return false;
+		}
+		final double newMaxLineSize = newAbsLineEnd - (this.builder.lineAxis + this.minLineAxis);
+		if (LayoutUtils.compare(newMaxLineSize, this.textIndent + this.lineAxis) < 0) {
+			return false;
+		}
+		if (newMaxLineSize < this.maxLineSize) {
+			this.maxLineSize = newMaxLineSize;
+		}
+		return true;
+	}
+
 	double getPageAxis() {
 		return this.pageAxis;
 	}

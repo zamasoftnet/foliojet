@@ -57,6 +57,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// こと(2026-08-07、yahoo.co.jpの検索候補ドロップダウンで発覚)
 			"0170-position/absolute-width-in-button.html", //
 			"0120-float/auto-width.html", //
+			// 行の途中の行末側フロートの同一行配置(2026-08-08、kabutan)。
+			// 収まる場合は現在行の上端(variant A〜E)、収まらない場合は
+			// 従来の次の帯(variant F)
+			"0120-float/float-end-midline.html", //
 			// margin:auto の表の直後の浮動体(2026-08-05)。行方向カーソルの
 			// 押し引きが非対称で、フロートが x=-106.75(紙の左外)へ飛んでいた
 			"0120-float/after-auto-margin-table.html", //
@@ -123,6 +127,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// flex行分割(2026-08-07、Bug C)。行を跨ぐ強制分割で、同じ行の
 			// item同士が同一切断線に揃わず階段状にずれていた
 			"0510-flex/row-split-across-break.html", //
+			// paddingを持つflexコンテナの表セル内在幅(2026-08-08)。
+			// IntrinsicMeasurerのflex/grid/table寄与がlineFrameを足して
+			// おらず、枠ぶん狭くなってGitHubのファイル名が切れていた
+			"0510-flex/padded-flex-in-auto-cell.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
@@ -130,6 +138,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// dialog:not([open])のUA既定(2026-08-07)。open属性のない
 			// ネイティブダイアログが紙面に露出しないことを固定する
 			"0130-display/dialog-closed.html", //
+			// 閉じたdetailsはsummary以外を出さない(2026-08-08)。bbc.comの
+			// no-JSナビ露出で発覚。開いたdetailsとの対比を固定する
+			"0130-display/details-closed.html", //
 			// display:contents(2026-08-07)。箱の透過・継承・flexアイテム化・
 			// 表の中のラッパー・置換要素のnone化を固定する。MDNの
 			// main{display:contents}で本文が全滅していた欠陥の回帰
@@ -244,6 +255,10 @@ public class DisplayListGoldenTest extends TestCase {
 			"0510-text-spacing/autospace-horizontal.html", //
 			"0510-text-spacing/autospace-vertical.html", //
 			"0510-text-spacing/autospace-in-float.html", //
+			// M2c実測ラッパーへのtext-autospace持ち越し(2026-08-08)。
+			// inline-blockのshrink-to-fit実測がlatin→CJK境界のgapを
+			// 含む幅で1行に収まることを固定する(kabutan回帰)
+			"0510-text-spacing/autospace-inline-block-measured.html", //
 			// 和文詰めT1b(2026-07-31)。text-spacing-trim: normal(=T1aで
 			// 移管した詰め)とspace-all(全角のまま)の対比を固定する
 			"0510-text-spacing/trim-pairs.html", //
