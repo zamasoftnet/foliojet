@@ -9,6 +9,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.PercentageValue;
+import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
@@ -36,7 +38,23 @@ public final class BorderRadius extends AbstractPrimitivePropertyInfo {
 
 	public static Radius get(CSSStyle style, Corner corner) {
 		final BorderRadiusValue r = (BorderRadiusValue) style.get(BY_CORNER[corner.resolve(style).ordinal()]);
-		return Radius.create(((AbsoluteLengthValue) r.hr).getLength(), ((AbsoluteLengthValue) r.vr).getLength());
+		// パーセント成分は寸法確定後の描画時に解決するため比率のまま運ぶ
+		final double hr, hrRatio, vr, vrRatio;
+		if (r.hr instanceof PercentageValue percent) {
+			hr = 0;
+			hrRatio = percent.getRatio();
+		} else {
+			hr = ((AbsoluteLengthValue) r.hr).getLength();
+			hrRatio = 0;
+		}
+		if (r.vr instanceof PercentageValue percent) {
+			vr = 0;
+			vrRatio = percent.getRatio();
+		} else {
+			vr = ((AbsoluteLengthValue) r.vr).getLength();
+			vrRatio = 0;
+		}
+		return Radius.create(hr, vr, hrRatio, vrRatio);
 	}
 
 	public Value getDefault(CSSStyle style) {
@@ -49,8 +67,9 @@ public final class BorderRadius extends AbstractPrimitivePropertyInfo {
 
 	public Value getComputedValue(Value value, CSSStyle style) {
 		final BorderRadiusValue r = (BorderRadiusValue) value;
-		final AbsoluteLengthValue hr = (AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(r.hr, style);
-		final AbsoluteLengthValue vr = (AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(r.vr, style);
+		// パーセントは計算値でも比率のまま(emExToAbsoluteLengthは%を素通し)
+		final QuantityValue hr = (QuantityValue) ValueUtils.emExToAbsoluteLength(r.hr, style);
+		final QuantityValue vr = (QuantityValue) ValueUtils.emExToAbsoluteLength(r.vr, style);
 		return BorderRadiusValue.create(hr, vr);
 	}
 

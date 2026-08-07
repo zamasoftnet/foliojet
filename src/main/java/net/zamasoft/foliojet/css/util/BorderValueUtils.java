@@ -4,6 +4,7 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
@@ -78,17 +79,17 @@ public final class BorderValueUtils {
 		if (first == null) {
 			return null;
 		}
-		LengthValue hr = ValueUtils.toLength(ua, first);
+		QuantityValue hr = toRadiusComponent(ua, first);
 		if (hr == null) {
 			return null;
 		}
-		LengthValue vr;
+		QuantityValue vr;
 		if (tokens.hasNext()) {
 			CssToken second = tokens.next();
 			if (tokens.hasNext()) {
 				return null;
 			}
-			vr = ValueUtils.toLength(ua, second);
+			vr = toRadiusComponent(ua, second);
 			if (vr == null) {
 				return null;
 			}
@@ -96,5 +97,18 @@ public final class BorderValueUtils {
 			vr = hr;
 		}
 		return BorderRadiusValue.create(hr, vr);
+	}
+
+	/**
+	 * border-radiusの半径成分({@code <length-percentage>})を値にします。
+	 * パーセントは水平半径ならボックス幅・垂直半径なら高さ基準で、寸法確定後の
+	 * 描画時に解決される({@code RectBorder.Radius#resolve})。longhand
+	 * ({@link #toBorderRadius})とshorthand(BorderRadiusShorthand)の両方が使う。
+	 */
+	public static QuantityValue toRadiusComponent(UserAgent ua, CssToken token) {
+		if (token instanceof CssToken.Percent) {
+			return ValueUtils.toPercentage(token);
+		}
+		return ValueUtils.toLength(ua, token);
 	}
 }

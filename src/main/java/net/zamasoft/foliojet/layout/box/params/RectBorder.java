@@ -20,6 +20,13 @@ public class RectBorder {
 
 		public final double hr, vr;
 
+		/**
+		 * パーセント半径の比率成分(border-radius:50%等)。水平はボックス幅、
+		 * 垂直はボックス高さに掛ける(CSS Backgrounds §5.1)。寸法はレイアウト
+		 * 確定まで分からないため、描画側が{@link #resolve}で絶対値へ解決する。
+		 */
+		public final double hrRatio, vrRatio;
+
 		public static Radius create(double hr, double vr) {
 			if (hr == 0 && vr == 0) {
 				return ZERO_RADIUS;
@@ -27,14 +34,35 @@ public class RectBorder {
 			return new Radius(hr, vr);
 		}
 
+		public static Radius create(double hr, double vr, double hrRatio, double vrRatio) {
+			if (hrRatio == 0 && vrRatio == 0) {
+				return create(hr, vr);
+			}
+			return new Radius(hr, vr, hrRatio, vrRatio);
+		}
+
 		public Radius(double hr, double vr) {
+			this(hr, vr, 0, 0);
+		}
+
+		private Radius(double hr, double vr, double hrRatio, double vrRatio) {
 			this.hr = hr;
 			this.vr = vr;
+			this.hrRatio = hrRatio;
+			this.vrRatio = vrRatio;
+		}
+
+		/** ボックス寸法でパーセント成分を絶対値へ解決した半径を返します。 */
+		public Radius resolve(double width, double height) {
+			if (this.hrRatio == 0 && this.vrRatio == 0) {
+				return this;
+			}
+			return create(this.hr + width * this.hrRatio, this.vr + height * this.vrRatio);
 		}
 
 		public boolean equals(Object o) {
 			final Radius r = (Radius) o;
-			return r.hr == this.hr && r.vr == this.vr;
+			return r.hr == this.hr && r.vr == this.vr && r.hrRatio == this.hrRatio && r.vrRatio == this.vrRatio;
 		}
 	}
 

@@ -886,10 +886,11 @@ public class BorderRenderer {
 	}
 
 	public Shape getBorderShape(RectBorder border, double x, double y, double w, double h) {
-		final Radius topLeft = border.getTopLeft();
-		final Radius topRight = border.getTopRight();
-		final Radius bottomLeft = border.getBottomLeft();
-		final Radius bottomRight = border.getBottomRight();
+		// border-radiusのパーセント成分はボックス寸法確定後のここで解決する
+		final Radius topLeft = border.getTopLeft().resolve(w, h);
+		final Radius topRight = border.getTopRight().resolve(w, h);
+		final Radius bottomLeft = border.getBottomLeft().resolve(w, h);
+		final Radius bottomRight = border.getBottomRight().resolve(w, h);
 
 		/* NoAndroid begin */
 		if (topLeft == Radius.ZERO_RADIUS && topRight == Radius.ZERO_RADIUS && bottomLeft == Radius.ZERO_RADIUS
@@ -983,10 +984,11 @@ public class BorderRenderer {
 		final Border right = border.getRight();
 		final Border bottom = border.getBottom();
 
-		final Radius topLeft = border.getTopLeft();
-		final Radius topRight = border.getTopRight();
-		final Radius bottomLeft = border.getBottomLeft();
-		final Radius bottomRight = border.getBottomRight();
+		// border-radiusのパーセント成分はボックス寸法確定後のここで解決する
+		final Radius topLeft = border.getTopLeft().resolve(w, h);
+		final Radius topRight = border.getTopRight().resolve(w, h);
+		final Radius bottomLeft = border.getBottomLeft().resolve(w, h);
+		final Radius bottomRight = border.getBottomRight().resolve(w, h);
 
 		final double topLeftHr = Math.min(w / 2, topLeft.hr);
 		final double topLeftVr = Math.min(h / 2, topLeft.vr);

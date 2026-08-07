@@ -5,8 +5,8 @@ import java.net.URI;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
-import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.util.BorderValueUtils;
+import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.css3.BorderRadiusValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -32,9 +32,9 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BorderRadius.BOTTOM_LEFT, global);
 			return;
 		}
-		final LengthValue tlh, trh, brh, blh;
+		final QuantityValue tlh, trh, brh, blh;
 
-		tlh = ValueUtils.toLength(ua, tokens.next());
+		tlh = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 		if (tlh == null) {
 			throw new PropertyException();
 		}
@@ -51,7 +51,7 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
-		trh = ValueUtils.toLength(ua, tokens.next());
+		trh = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 		if (trh == null) {
 			throw new PropertyException();
 		}
@@ -70,7 +70,7 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
-		brh = ValueUtils.toLength(ua, tokens.next());
+		brh = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 		if (brh == null) {
 			throw new PropertyException();
 		}
@@ -89,7 +89,7 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 			parseVertical(tokens, ua, primitives, tlh, trh, brh, blh);
 			return;
 		}
-		blh = ValueUtils.toLength(ua, tokens.next());
+		blh = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 		if (blh == null) {
 			throw new PropertyException();
 		}
@@ -112,20 +112,20 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 	}
 
 	private void parseVertical(TokenStream tokens, final UserAgent ua, final Primitives primitives,
-			final LengthValue tlh, final LengthValue trh, final LengthValue brh, final LengthValue blh)
+			final QuantityValue tlh, final QuantityValue trh, final QuantityValue brh, final QuantityValue blh)
 			throws PropertyException {
 		if (!tokens.hasNext()) {
 			throw new PropertyException();
 		}
-		final LengthValue tlv, trv, brv, blv;
-		tlv = ValueUtils.toLength(ua, tokens.next());
+		final QuantityValue tlv, trv, brv, blv;
+		tlv = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 		if (tlv == null) {
 			throw new PropertyException();
 		}
 		if (!tokens.hasNext()) {
 			trv = brv = blv = tlv;
 		} else {
-			trv = ValueUtils.toLength(ua, tokens.next());
+			trv = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 			if (trv == null) {
 				throw new PropertyException();
 			}
@@ -133,14 +133,14 @@ public class BorderRadiusShorthand extends AbstractShorthandPropertyInfo {
 				brv = tlv;
 				blv = trv;
 			} else {
-				brv = ValueUtils.toLength(ua, tokens.next());
+				brv = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 				if (brv == null) {
 					throw new PropertyException();
 				}
 				if (!tokens.hasNext()) {
 					blv = trv;
 				} else {
-					blv = ValueUtils.toLength(ua, tokens.next());
+					blv = BorderValueUtils.toRadiusComponent(ua, tokens.next());
 					if (blv == null) {
 						throw new PropertyException();
 					}
