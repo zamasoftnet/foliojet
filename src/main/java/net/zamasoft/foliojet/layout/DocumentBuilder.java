@@ -398,7 +398,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * wrapperが引き取る({@link FlexBuilder#startNeutralElementItem}参照)。
 	 */
 	private FlexBuilder startFlexNeutralElementItem(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec,
-			final net.zamasoft.foliojet.layout.box.params.BlockParams authored) {
+			final FlexBuilder.NeutralTransfer authored) {
 		if (this.coordinatorAwaitingDirectChild() instanceof FlexBuilder flex) {
 			this.closeAnonymousItem(flex);
 			this.startContainerBuilder(flex.startNeutralElementItem(spec, authored));
@@ -591,7 +591,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					return;
 				}
 				this.startFlexNeutralElementItem(flexItemSpecOf(box),
-						box instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox acb ? acb.getBlockParams()
+						box instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox acb
+								? FlexBuilder.NeutralTransfer.of(acb.getBlockParams())
 								: null);
 				break;
 			case TABLE:
@@ -1074,8 +1075,12 @@ public class DocumentBuilder implements TableBuilderHost {
 		case FLOW:
 			oneShot = this.startGridElementItem(gridItemSpecOf(replacedBox));
 			if (oneShot == null) {
-				// 置換要素の寸法は置換側の機構(calculateReplacedSize)が担う
-				oneShot = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox), null);
+				// 行方向の寸法指定はwrapperへ引き取る(FlexBuilder.NeutralTransfer
+				// 参照——%幅のsvg等は二パス計測で0になるため、wrapperが引き取ら
+				// ないとflex base sizeが0へ潰れる)。寸法解決自体は従来どおり
+				// 置換側の機構(calculateReplacedSize)が担う
+				oneShot = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox),
+						FlexBuilder.NeutralTransfer.of(replacedBox.getReplacedParams()));
 			}
 			break;
 		case INLINE:

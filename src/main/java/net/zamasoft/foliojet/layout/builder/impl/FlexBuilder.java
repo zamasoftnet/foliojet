@@ -164,6 +164,30 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
+	 * 中立wrapperへ引き取るauthored寸法の束です(2026-08-09にBlockParams
+	 * 直渡しから一般化——置換要素のReplacedParamsはBlockParamsではない)。
+	 */
+	public record NeutralTransfer(Dimension size, Dimension minSize, Dimension maxSize, BoxSizingMode boxSizing,
+			Insets margin) {
+		public static NeutralTransfer of(final BlockParams p) {
+			return p == null ? null : new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin);
+		}
+
+		/**
+		 * 置換要素からの引き取り(2026-08-09)。これが無いとwrapperが常に
+		 * size:autoになり、flex base sizeがmaxContent=二パス計測値へ落ちる。
+		 * 置換要素の%幅は二パス計測時に基準が無く(LayoutUtils.
+		 * calculateReplacedSizeがtwoPass中はrefWidth=NONE)、内在寸法の
+		 * 無いsvg(viewBoxのみ・width=100%)は0で測られるため、item主軸0
+		 * →幅0へ潰れていた(NHKニュースのナビのシェブロンが消えた実バグの
+		 * 後半)。bind時はwrapperの確定幅がlineSizeとして子の%基準になる。
+		 */
+		public static NeutralTransfer of(final net.zamasoft.foliojet.layout.box.params.ReplacedParams p) {
+			return new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin);
+		}
+	}
+
+	/**
 	 * 非plain子(表・入れ子コンテナ等)用の中立wrapper element itemを開きます。
 	 *
 	 * <p>
@@ -179,21 +203,21 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * 背景・枠が子から乖離する)。
 	 * </p>
 	 */
-	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final BlockParams authored) {
+	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final NeutralTransfer authored) {
 		final BlockParams wrapper = this.itemParams();
 		final boolean transfer = authored != null;
 		if (transfer) {
 			final boolean vertical = this.flow().isVertical();
-			wrapper.size = lineOnly(authored.size, vertical);
-			wrapper.minSize = lineOnly(authored.minSize, vertical);
-			wrapper.maxSize = lineOnly(authored.maxSize, vertical);
-			wrapper.boxSizing = authored.boxSizing;
+			wrapper.size = lineOnly(authored.size(), vertical);
+			wrapper.minSize = lineOnly(authored.minSize(), vertical);
+			wrapper.maxSize = lineOnly(authored.maxSize(), vertical);
+			wrapper.boxSizing = authored.boxSizing();
 			// autoマージンはitem(wrapper)レベルの自由空間を吸収する(§8.1)
 			// ため、autoの辺だけwrapperへ引き取る(2026-08-09——Bootstrapの
 			// navbar .ml-auto、入れ子コンテナが右端へ寄らない実バグ)。
 			// 内側に残るautoはwrapper内の自由空間が0のため無害(二重シフト
 			// しない)。非autoのマージンは内側で視覚上等価のため移さない
-			final Insets margin = authored.frame.margin;
+			final Insets margin = authored.margin();
 			if (margin.getTopType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO
 					|| margin.getBottomType() == LengthType.AUTO || margin.getLeftType() == LengthType.AUTO) {
 				wrapper.frame = RectFrame.create(

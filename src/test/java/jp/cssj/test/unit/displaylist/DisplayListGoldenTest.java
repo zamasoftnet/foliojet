@@ -159,6 +159,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// specifiedPageAxis不設定でFragmentStateが指定高を残量へ分割せず、
 			// 継続断片が指定高をフル再解決して行が膨らんでいた
 			"0510-flex/fixed-height-item-split.html", //
+			// %幅の置換要素のflex item(2026-08-09)。中立wrapperがauthored寸法を
+			// 引き取らず、内在寸法なしsvgのwidth:100%が二パス計測の0のまま
+			// 幅0へ潰れていた(NHKナビのシェブロン空箱の後半)
+			"0510-flex/percent-replaced-item.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
