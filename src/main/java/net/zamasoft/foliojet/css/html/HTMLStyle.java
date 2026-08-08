@@ -191,9 +191,19 @@ public class HTMLStyle {
 		CSSElement parentCe = style.getParentStyle().getCSSElement();
 		short code = HTMLCodes.code(parentCe);
 		switch (code) {
-		case HTMLCodes.BUTTON:
+		case HTMLCodes.BUTTON: {
 			// <BUTTON>
-			style.set(Content.INFO, WBR);
+			// 空ボタンでも高さ(ベースライン)を確保するためのZWSP。ただし
+			// flex/gridコンテナのボタンでは、この::beforeが独立itemになって
+			// 1行/1セルを占有し、実内容(アイコン等)を箱の外へ押し出す
+			// (NHKニュースのナビのシェブロンが空箱になった実バグ、
+			// 2026-08-09)。Chromeにこの注入は無いので、flex/gridでは
+			// 注入しない
+			final byte display = Display.get(style.getParentStyle());
+			if (display != DisplayValue.FLEX && display != DisplayValue.GRID) {
+				style.set(Content.INFO, WBR);
+			}
+		}
 			break;
 		case HTMLCodes.INPUT:
 			// <INPUT>

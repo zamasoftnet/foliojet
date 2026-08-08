@@ -1,0 +1,32 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>flex/gridコンテナのbuttonへUAのZWSPを注入しない</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 12pt; }
+      .grid { display: grid; place-items: center; width: 26px; height: 26px;
+              border: 1px solid #909091; }
+      .flex { display: flex; align-items: center; width: 26px; height: 26px;
+              border: 1px solid #909091; }
+      .inner { width: 12px; height: 12px; background: #333; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **flex/gridコンテナのbuttonにはUAのZWSP(::before content)を
+      注入しない**(2026-08-09)。空ボタンの高さ確保のためのZWSPが、
+      flex/gridでは独立itemとして1行/1セルを占有し、実内容(アイコン)を
+      箱の外へ押し出していた(NHKニュースのナビのシェブロンが空箱に
+      なった実バグの半分)。
+      期待: A(grid)・B(flex)とも.innerが箱の内側に描かれ、ZWSPの
+      テキスト行が表示リストに現れない。C(通常のbutton)は従来どおり
+      ZWSPを保つ(空ボタンの高さ確保)。
+    -->
+    <div>A <button class="grid"><span class="inner"></span></button></div>
+    <div>B <button class="flex"><span class="inner"></span></button></div>
+    <div>C <button>text</button></div>
+  </body>
+</html>
