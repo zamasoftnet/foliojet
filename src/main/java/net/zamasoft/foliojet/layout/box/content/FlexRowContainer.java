@@ -48,6 +48,17 @@ public final class FlexRowContainer extends FlowContainer {
 	private Map<IFlowBox, Anchor> anchored;
 
 	/**
+	 * アンカー時点の内容進行の終端(コンテンツ原点基準、2026-08-08)。
+	 * 汎用restyleはitemを縦積みで再登録するためbuilderカーソルが
+	 * 「Σitem高」まで進む——item座標を復元しても、カーソル(と、そこから
+	 * endFlowBlockが書き戻すコンテナのheight/contentSize)は縦積みの値の
+	 * ままになり、flexコンテナの箱高が内容高のほぼ2倍に膨らんでいた
+	 * (yahoo.co.jp天気モジュールの熱中症指数〜雨雲レーダー間の余白)。
+	 * 復元時にカーソルを差分だけ巻き戻すための基準値。
+	 */
+	private double anchoredContentEnd;
+
+	/**
 	 * 寸法(width/height)も復元するか。自己アンカー(丸ごと移動後の
 	 * 再構築——itemの寸法は変わらないのが正)でのみtrue。分割継続
 	 * ({@link #anchorCurrent})では、以降の再分割がitemの寸法を正当に
@@ -78,6 +89,17 @@ public final class FlexRowContainer extends FlowContainer {
 		for (final Flow f : this.flows) {
 			this.anchored.put(f.box, new Anchor(f.pageAxis, f.box.getWidth(), f.box.getHeight()));
 		}
+		this.anchoredContentEnd = this.contentEnd();
+	}
+
+	/** 現在のflowsの内容進行の終端(pageAxis+item内容高の最大)。 */
+	private double contentEnd() {
+		final boolean vertical = this.box != null && this.box.getBlockParams().flow.isVertical();
+		double end = 0;
+		for (final Flow f : this.flows) {
+			end = Math.max(end, f.pageAxis + (vertical ? f.box.getWidth() : f.box.getHeight()));
+		}
+		return end;
 	}
 
 	@Override
@@ -94,12 +116,29 @@ public final class FlexRowContainer extends FlowContainer {
 			this.anchorCurrent(true);
 		}
 		super.restyle(builder, shape, restyleAbsolutes, prefix);
-		this.restoreAnchoredPageAxis();
+		this.restoreAnchoredPageAxis(builder);
 	}
 
-	private void restoreAnchoredPageAxis() {
+	private void restoreAnchoredPageAxis(final BlockBuilder builder) {
 		if (this.anchored == null || this.flows == null) {
 			return;
+		}
+		if (this.restoreExtents && builder != null) {
+			// 縦積み再登録で進んだbuilderカーソルを、アンカー時点の内容
+			// 進行との差分だけ巻き戻す。この後のendFlowBlockがカーソルから
+			// コンテナのheight/contentSizeを書き戻すため、ここを直せば
+			// 箱高も追随する。分割継続(restoreExtents=false)は以降の
+			// 再分割がカーソルを正として進むため触らない
+			final double stackedEnd = this.contentEnd();
+			final double delta = stackedEnd - this.anchoredContentEnd;
+			if (delta > 0) {
+				builder.setPageAxis(builder.getPageAxis() - delta);
+				if (this.box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flex) {
+					// item側のendFlowBlockが親へ書いた縦積みのcontentSizeは
+					// Math.maxの単調増加で残るため、代入で戻す
+					flex.restoreContentExtent(this.anchoredContentEnd);
+				}
+			}
 		}
 		for (int i = 0; i < this.flows.size(); ++i) {
 			final Flow f = this.flows.get(i);

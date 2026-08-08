@@ -52,6 +52,23 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 public class FlexBox extends FlowBlockBox implements PageAtomicBox {
 
 	/**
+	 * restyle再構築で膨らんだpage軸の内容寸法を復元します(2026-08-08、
+	 * {@code FlexRowContainer.restoreAnchoredPageAxis}専用)。汎用再構築は
+	 * itemを縦積みで再登録するため、item側のendFlowBlockが親であるこの箱へ
+	 * Σitem高を書き込む——{@code setPageAxis}のcontentSizeはMath.maxの
+	 * 単調増加なので、後から正しい値を渡しても縦積みの値が残る。
+	 * ここだけは代入で戻す。
+	 */
+	public void restoreContentExtent(final double content) {
+		this.contentSize = content;
+		if (this.getBlockParams().flow.isVertical()) {
+			this.width = content;
+		} else {
+			this.height = content;
+		}
+	}
+
+	/**
 	 * 1本のflex行(line)のページ軸帳簿です(2026-08-07、Bug C)。
 	 *
 	 * @param startFlow コンテナのflow一覧上でこの行の先頭itemが占める
