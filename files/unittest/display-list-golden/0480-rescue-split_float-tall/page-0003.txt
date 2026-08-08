@@ -1,5 +1,5 @@
 drawer z=0
-  x=0.00 y=-400.00 artifact AbsoluteRectFrame[w=100.00 h=500.00]
+  x=0.00 y=-400.00 artifact AbsoluteRectFrame[w=100.00 h=500.00] clip=[0.00 0.00 100.00 100.00]
   x=100.00 y=0.00 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
   x=100.00 y=10.51 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]
   x=100.00 y=21.01 Text["ABCDEFGHIJ" asc=8.09 desc=2.41]

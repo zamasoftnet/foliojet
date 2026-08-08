@@ -23,7 +23,13 @@ public enum KeywordValue implements Value {
 	/** background-sizeのキーワード形式(2026-08-06、BackgroundSize参照)。 */
 	CONTAIN("contain"),
 
-	COVER("cover");
+	COVER("cover"),
+
+	/**
+	 * mask-imageのグラデーション近似の内部マーカー(2026-08-09、MaskImage参照)。
+	 * CSSのキーワードではない。
+	 */
+	CLIP("clip");
 
 	private final String text;
 

@@ -40,6 +40,24 @@ public abstract class AbstractDrawable implements Drawable {
 				m[3], m[4], m[5]);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * クリップ形状の外接矩形を出力します(2026-08-09)。クリップを使わない
+	 * 既存goldenは不変。
+	 * </p>
+	 */
+	@Override
+	public final String describeClip() {
+		if (this.clip == null) {
+			return "";
+		}
+		final java.awt.geom.Rectangle2D b = this.clip.getBounds2D();
+		return String.format(java.util.Locale.ROOT, " clip=[%.2f %.2f %.2f %.2f]", b.getX(), b.getY(), b.getWidth(),
+				b.getHeight());
+	}
+
 	public final void draw(GC gc, double x, double y) throws GraphicsException {
 		GC.State state = null;
 		if (this.clip != null || !this.transform.isIdentity()) {

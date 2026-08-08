@@ -307,7 +307,7 @@ public class Drawer {
 					if (command.artifact) {
 						sb.append("artifact ");
 					}
-					sb.append(command.drawable.describe()).append('\n');
+					sb.append(command.drawable.describe()).append(command.drawable.describeClip()).append('\n');
 				}
 			}
 			if (drawer.stackingContexts != null) {

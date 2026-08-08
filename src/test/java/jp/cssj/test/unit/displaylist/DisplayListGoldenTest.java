@@ -184,6 +184,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// 捨てられrem全寸法が1.6倍になる欠陥(e-gov)と、%混在line-heightの
 			// ClassCastExceptionの回帰
 			"3080-MODERN-CSS/calc-font-size.html", //
+			// mask-imageのグラデーション近似(2026-08-09)。本文抜粋の
+			// フェードアウト・イディオムをボックスクリップで近似する。
+			// 5ch.ioでマスク無視によりはみ出し本文が後続へ重なった欠陥の回帰
+			"3080-MODERN-CSS/mask-image-clip.html", //
 			// 型付きattr()(2026-08-03)。HTMLの表現属性をCSSから扱う土台
 			"3080-MODERN-CSS/typed-attr.html", //
 			// 論理境界プロパティ(2026-08-03)。border-block-end等12個

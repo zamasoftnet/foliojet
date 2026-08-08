@@ -1,4 +1,4 @@
 drawer z=0
   x=0.00 y=0.00 CollapsedBorders[1x1]
-  x=0.00 y=-400.00 artifact AbsoluteRectFrame[w=100.00 h=500.00]
+  x=0.00 y=-400.00 artifact AbsoluteRectFrame[w=100.00 h=500.00] clip=[0.00 0.00 100.00 100.00]
   x=0.00 y=100.00 Text["後続" asc=8.00 desc=2.00]

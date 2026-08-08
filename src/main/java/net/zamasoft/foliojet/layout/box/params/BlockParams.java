@@ -27,6 +27,12 @@ public class BlockParams extends AbstractLineParams {
 
 	public OverflowMode overflow = OverflowMode.VISIBLE;
 
+	/**
+	 * mask-imageのグラデーション近似によるペイントクリップ(MaskImage参照)。
+	 * overflow: hiddenと同じ描画クリップだけを適用し、レイアウトには影響しない。
+	 */
+	public boolean paintClip = false;
+
 	public Columns columns = Columns.NONE_COLUMNS;
 
 	public ParamsType getType() {
@@ -37,6 +43,7 @@ public class BlockParams extends AbstractLineParams {
 		return super.toString() + "[frame=" + this.frame + "[firstLineStyle=" + this.firstLineStyle
 				+ ",pageBreakInside=" + this.pageBreakInside + ",orphans=" + this.orphans + ",widows=" + this.widows
 				+ ",size=" + this.size + ",minSize=" + this.minSize + ",maxSize=" + this.maxSize + ",boxSizing="
-				+ this.boxSizing + ",overflow=" + this.overflow + ",columns=" + this.columns + "]";
+				+ this.boxSizing + ",overflow=" + this.overflow + ",paintClip=" + this.paintClip + ",columns="
+				+ this.columns + "]";
 	}
 }

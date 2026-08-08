@@ -30,13 +30,13 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
  */
 record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLineParamsTemplate firstLineStyle,
 		PageBreakMode pageBreakInside, byte orphans, byte widows, Dimension size, Dimension minSize,
-		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow, Columns columns) {
+		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow, boolean paintClip, Columns columns) {
 	static BlockParamsFields freeze(final BlockParams source) {
 		final FirstLineParamsTemplate firstLineStyle = source.firstLineStyle == null ? null
 				: FirstLineParamsTemplate.freeze(source.firstLineStyle);
 		return new BlockParamsFields(LineParamsFields.freeze(source), source.frame, firstLineStyle,
 				source.pageBreakInside, source.orphans, source.widows, source.size, source.minSize, source.maxSize,
-				source.boxSizing, source.overflow, source.columns);
+				source.boxSizing, source.overflow, source.paintClip, source.columns);
 	}
 
 	/**
@@ -57,6 +57,7 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		target.maxSize = this.maxSize;
 		target.boxSizing = this.boxSizing;
 		target.overflow = this.overflow;
+		target.paintClip = this.paintClip;
 		target.columns = this.columns;
 	}
 }

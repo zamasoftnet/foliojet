@@ -1,0 +1,52 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/UTF-8">
+    <title>mask-imageのグラデーション近似(ボックスクリップ)</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 12pt; }
+      .clamp {
+        max-height: 36pt; /* 3行分。中身は5行あり2行はみ出す */
+        mask-image: linear-gradient(180deg, #000 60%, transparent);
+        background: #eef;
+      }
+      .webkit {
+        max-height: 36pt;
+        -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent);
+        background: #efe;
+      }
+      .nomask {
+        max-height: 36pt;
+        background: #fee;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      **本文抜粋のフェードアウト・イディオム。**
+      max-heightで箱を固定し、mask-imageのグラデーションで下端を
+      フェードさせる(overflow: hiddenは書かない——マスクがはみ出しを
+      透明にするため画面では困らない)。5ch.ioのスレッド一覧で、マスクを
+      無視するとはみ出した本文が後続の日時+ID行・次スレ見出しに重なった。
+
+      Copperはグラデーションのmask-imageをペイントのボックスクリップへ
+      近似する(MaskImage参照)。期待:
+      - A(mask-image)とB(-webkit-mask-image)は L4/L5 が描かれるが
+        clip=[...高さ36pt]で見えない(ダンプにclip=が付く)。
+      - C(マスクなし)は従来どおりはみ出しがそのまま描かれ、clip=なし。
+      - AFTERの行はどの箱にも重ならない位置(y=箱3つ分+はみ出し)に出る。
+    -->
+    <div class="clamp">
+      <div>A-L1</div><div>A-L2</div><div>A-L3</div><div>A-L4</div><div>A-L5</div>
+    </div>
+    <div class="webkit">
+      <div>B-L1</div><div>B-L2</div><div>B-L3</div><div>B-L4</div><div>B-L5</div>
+    </div>
+    <div class="nomask">
+      <div>C-L1</div><div>C-L2</div><div>C-L3</div><div>C-L4</div><div>C-L5</div>
+    </div>
+    <div>AFTER</div>
+  </body>
+</html>

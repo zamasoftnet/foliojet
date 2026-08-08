@@ -100,6 +100,7 @@ import net.zamasoft.foliojet.css.impl.property.box.MaxWidth;
 import net.zamasoft.foliojet.css.impl.property.box.MinHeight;
 import net.zamasoft.foliojet.css.impl.property.box.MinWidth;
 import net.zamasoft.foliojet.css.impl.property.page.Orphans;
+import net.zamasoft.foliojet.css.impl.property.box.MaskImage;
 import net.zamasoft.foliojet.css.impl.property.box.Overflow;
 import net.zamasoft.foliojet.css.impl.property.page.PageBreakAfter;
 import net.zamasoft.foliojet.css.impl.property.page.PageBreakBefore;
@@ -720,6 +721,7 @@ final class BoxStyleMapper {
 		params.boxSizing = BoxSizing.get(style);
 
 		params.overflow = Overflow.get(style);
+		params.paintClip = MaskImage.isClip(style);
 		params.frame = this.createRectFrame(style, inBody, pageSequence);
 
 		byte columnCount = (byte) Math.min(Byte.MAX_VALUE, ColumnCount.get(style));

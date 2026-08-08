@@ -1,4 +1,4 @@
 drawer z=0
-  x=-400.00 y=0.00 artifact AbsoluteRectFrame[w=500.00 h=50.00]
-  x=-400.00 y=0.00 artifact Text["塊" asc=5.00 desc=5.00]
+  x=-400.00 y=0.00 artifact AbsoluteRectFrame[w=500.00 h=50.00] clip=[0.00 0.00 100.00 50.00]
+  x=-400.00 y=0.00 artifact Text["塊" asc=5.00 desc=5.00] clip=[0.00 0.00 100.00 50.00]
   x=100.00 y=0.00 Text["後続" asc=5.00 desc=5.00]

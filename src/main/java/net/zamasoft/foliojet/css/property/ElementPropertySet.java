@@ -129,6 +129,7 @@ import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
 import net.zamasoft.foliojet.css.impl.property.border.BorderRadius;
 import net.zamasoft.foliojet.css.impl.property.box.Padding;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.box.MaskImage;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
 import net.zamasoft.foliojet.css.impl.property.border.Corner;
@@ -230,6 +231,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(Visibility.INFO);
 		reg(Overflow.INFO);
 		reg(Clip.INFO);
+		reg(MaskImage.INFO);
 		reg(CSSFontFamily.INFO);
 		reg(CSSFontStyle.INFO);
 		reg(FontVariant.INFO);
@@ -380,6 +382,7 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-text-fill-color", TextFillColor.INFO);
 		alias("-webkit-text-stroke", TextStrokeShorthand.INFO);
 		alias("-webkit-background-clip", BackgroundClip.INFO);
+		alias("-webkit-mask-image", MaskImage.INFO);
 
 		alias("oeb-column-number", ColumnCount.INFO);
 		alias("-epub-writing-mode", WritingModeShorthand.INFO);

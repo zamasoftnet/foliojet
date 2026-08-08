@@ -22,4 +22,13 @@ public interface Drawable {
 		String name = this.getClass().getSimpleName();
 		return name.isEmpty() ? this.getClass().getName() : name;
 	}
+
+	/**
+	 * 表示リストダンプ用に、描画時クリップの1行表現を返します(2026-08-09)。
+	 * クリップ無しは空文字列。ダンプの座標はクリップ前の値のため、クリップを
+	 * 含む回帰はこれが無いとgoldenに一切現れない({@code tf=}と同じ穴)。
+	 */
+	public default String describeClip() {
+		return "";
+	}
 }
