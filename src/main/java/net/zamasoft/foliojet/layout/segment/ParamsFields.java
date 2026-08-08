@@ -30,14 +30,15 @@ import net.zamasoft.foliojet.layout.box.params.Params;
  * </p>
  */
 record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, byte zIndexType, float opacity,
-		AffineTransform transform, Offset transformOrigin) {
+		AffineTransform transform, double transformTxRatio, double transformTyRatio, Offset transformOrigin) {
 	ParamsFields {
 		transform = new AffineTransform(transform);
 	}
 
 	static ParamsFields freeze(final Params source) {
 		return new ParamsFields(StructureToken.freeze(source.element), source.footnoteId, source.zIndexValue,
-				source.zIndexType, source.opacity, source.transform, source.transformOrigin);
+				source.zIndexType, source.opacity, source.transform, source.transformTxRatio, source.transformTyRatio,
+				source.transformOrigin);
 	}
 
 	void materializeInto(final Params target) {
@@ -47,6 +48,13 @@ record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, 
 		target.zIndexType = this.zIndexType;
 		target.opacity = this.opacity;
 		target.transform = new AffineTransform(this.transform);
+		// %のtranslate成分(要素寸法が要るため行列へ畳めず別持ち——
+		// Params.transformTxRatio/TyRatio)。2026-08-08まで凍結対象から
+		// 漏れており、純粋な translate(-50%) 等(行列は恒等)が
+		// 再具現化で丸ごと消えていた——yahoo.co.jpの検索ボタンの虫眼鏡
+		// (::beforeのtranslateY(-50%))が半個ぶん下にずれた実バグ
+		target.transformTxRatio = this.transformTxRatio;
+		target.transformTyRatio = this.transformTyRatio;
 		target.transformOrigin = this.transformOrigin;
 	}
 }

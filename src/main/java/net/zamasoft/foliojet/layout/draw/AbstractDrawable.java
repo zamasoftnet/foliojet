@@ -23,6 +23,23 @@ public abstract class AbstractDrawable implements Drawable {
 		this.transform = transform;
 	}
 
+	/**
+	 * 表示リストダンプ用に、非恒等のGC変換を{@code describe}文字列へ
+	 * 追記します(2026-08-08)。ダンプの座標はGC変換前の値のため、
+	 * transformを含む回帰はこれが無いとgoldenに一切現れない
+	 * (ParamsFieldsの%translate脱落を10日間素通りさせた穴)。
+	 * 変換を使わない既存goldenは不変。
+	 */
+	protected final String describeTransform(final String base) {
+		if (this.transform.isIdentity()) {
+			return base;
+		}
+		final double[] m = new double[6];
+		this.transform.getMatrix(m);
+		return base + String.format(java.util.Locale.ROOT, " tf=[%.2f %.2f %.2f %.2f %.2f %.2f]", m[0], m[1], m[2],
+				m[3], m[4], m[5]);
+	}
+
 	public final void draw(GC gc, double x, double y) throws GraphicsException {
 		GC.State state = null;
 		if (this.clip != null || !this.transform.isIdentity()) {

@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=104.25 h=33.00]
+  x=52.13 y=18.38 AbsoluteRectFrame[w=10.50 h=10.50] tf=[1.00 0.00 0.00 1.00 -52.13 -10.88]
+  x=66.38 y=12.75 Text["検索" asc=9.00 desc=2.25]

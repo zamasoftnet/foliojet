@@ -139,6 +139,12 @@ public class DisplayListGoldenTest extends TestCase {
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
 			"3000-SELECTOR/attr-prefix-case.html", //
+			// %のtranslate成分のfreeze/materialize持ち越し(2026-08-08、
+			// yahoo検索ボタンの虫眼鏡)。記録再生を通るインライン文脈の
+			// 絶対配置のtranslateY(-50%)がgoldenのtf=行列に現れることを
+			// 固定する(ダンプ座標はGC変換前のため、tf=出力が無いと
+			// transform退行は一切見えない)
+			"0490-transform/percent-translate-inline-context.html", //
 			// dialog:not([open])のUA既定(2026-08-07)。open属性のない
 			// ネイティブダイアログが紙面に露出しないことを固定する
 			"0130-display/dialog-closed.html", //

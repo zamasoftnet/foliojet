@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+@page{size:400pt 300pt;margin:10pt}
+body{margin:0;font-family:sans-serif;font-size:12px}
+.btn{position:relative;width:139px;height:34px;background:#4070ff;margin-bottom:10px}
+.center{position:absolute;top:50%;left:50%;width:100%;font-size:0;transform:translateY(-50%) translateX(-50%)}
+.label{position:relative;display:inline-block;padding-left:19px;font-size:15px;line-height:15px;color:#fff}
+.label:before{position:absolute;top:50%;left:0;display:inline-block;width:14px;height:14px;content:"";background:#ff0;transform:translateY(-50%)}
+</style></head><body>
+<!-- yahoo検索ボタンの虫眼鏡ズレ最小再現(2026-08-08)。
+     期待(Chrome): アイコンはボタン上下中央。
+     現状: ラッパー(.center abs)のtransformは効くが、その内側の
+     .label:before(abs)のtranslateY(-50%)が落ち、半個ぶん(7px)下へ。
+     ラッパーを除去した単体(.btn>.label直下)では:beforeのtransformは
+     正しく効く=絶対配置入れ子文脈でのみ落ちる -->
+<div class="btn"><span class="center"><span class="label">検索</span></span></div>
+</body></html>

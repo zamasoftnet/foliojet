@@ -32,6 +32,7 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 
 	@Override
 	public String describe() {
-		return String.format(java.util.Locale.ROOT, "AbsoluteRectFrame[w=%.2f h=%.2f]", this.width, this.height);
+		return this.describeTransform(
+				String.format(java.util.Locale.ROOT, "AbsoluteRectFrame[w=%.2f h=%.2f]", this.width, this.height));
 	}
 }
