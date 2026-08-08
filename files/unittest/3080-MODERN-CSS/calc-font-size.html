@@ -1,0 +1,41 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>font-size / line-height に書かれたフォント相対単位入り calc()</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      /*
+        **現代のCSSリセットの root font-size 縮小イディオム。**
+        62.5% と等価で、1rem=10px にして rem 計算を十進で書きやすくする。
+        2026-08-09まで、font-size への「フォント相対単位を含む calc()」は
+        FontValueUtils.toFontSize が捨てていた(CalcFontRelativeValue 非対応)。
+        その結果この宣言が丸ごと無効になり root が 16px のままとなり、
+        rem 寸法の全てが 1.6 倍になった(e-gov.go.jp 全体が1.6倍で実測)。
+      */
+      html { font-size: calc(1em * 0.625); } /* 16px * 0.625 = 10px */
+      body { margin: 0; font-size: 1.6rem; } /* 10px * 1.6 = 16px = 12pt */
+      div { background-color: #ddeeff; }
+    </style>
+  </head>
+  <body>
+    <!--
+      期待値(表示リストの asc/desc はフォントサイズに比例する):
+      本文 = 16px = 12pt。
+      A: calc(1rem + 2px) = 10+2 = 12px = 9pt(remは root=10px 基準)。
+      B: calc(1em / 2) = 16/2 = 8px = 6pt(font-sizeのemは親基準)。
+      C: calc(25% + 6px) = 4+6 = 10px = 7.5pt(%とpxの混在、従来から可)。
+      D: line-height: calc(50% + 0.5em) = 8+8 = 16px = 12pt。
+         %とフォント相対単位が混在した line-height は 2026-08-09 まで
+         計算値に%が残って LineHeight.get のキャストで落ちていた
+        (ClassCastException——クラッシュしないことの回帰でもある)。
+         内容を1語にしてあるのは、空白を含む行は行箱が指定line-heightを
+         超えて伸びる(既存の別現象)ため——期待値の検算を単純に保つ。
+    -->
+    <div id="a" style="font-size: calc(1rem + 2px)">A-rem-in-calc</div>
+    <div id="b" style="font-size: calc(1em / 2)">B-em-in-calc</div>
+    <div id="c" style="font-size: calc(25% + 6px)">C-percent-mix</div>
+    <div id="d" style="line-height: calc(50% + 0.5em)">D-lineheight-mix</div>
+  </body>
+</html>

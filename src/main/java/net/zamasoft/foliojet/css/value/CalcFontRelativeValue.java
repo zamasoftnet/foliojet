@@ -58,6 +58,19 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	}
 
 	/**
+	 * 絶対成分だけを倍率倍した値を返します。font-sizeプロパティはズーム倍率
+	 * ({@link net.zamasoft.foliojet.ua.UserAgent#getFontMagnification})を絶対
+	 * 長さにだけ適用する規約で、フォント相対成分は基準のフォント寸法自体が
+	 * 倍率適用済みのため掛けない。
+	 */
+	public Value scaleAbsolute(double factor) {
+		if (factor == 1 || this.absolute == 0) {
+			return this;
+		}
+		return new CalcFontRelativeValue(this.absolute * factor, this.ratio, this.em, this.ex, this.rem, this.ch);
+	}
+
+	/**
 	 * <b>フォント寸法が定まるまで零かどうかは分からない</b>ので、全成分が0の
 	 * ときだけ零と答える(この型はそもそも成分が非零のときにしか作られない)。
 	 */

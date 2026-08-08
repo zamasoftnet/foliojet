@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
@@ -359,6 +360,13 @@ public final class FontValueUtils {
 			}
 			if (calc instanceof PercentageValue percentage) {
 				return percentage.isNegative() ? null : percentage;
+			}
+			if (calc instanceof CalcFontRelativeValue fontRelative) {
+				// em/rem等のフォント相対成分は計算値の段階(FontSize.getComputedValue)
+				// で親のフォントを基準に解く。現代のCSSリセットは根要素へ
+				// font-size: calc(1em * 0.625) (=62.5%相当)と書くことがあり、
+				// ここで捨てると全rem寸法が1.6倍になる(e-govで実測)
+				return fontRelative.isNegative() ? null : fontRelative.scaleAbsolute(ua.getFontMagnification());
 			}
 			return null;
 		}

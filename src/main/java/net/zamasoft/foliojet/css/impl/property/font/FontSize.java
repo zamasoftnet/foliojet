@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.FontValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RelativeSizeValue;
@@ -45,6 +46,12 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 		CSSStyle parentStyle = style.getParentStyle();
 		if (parentStyle == null) {
 			parentStyle = style;
+		}
+		if (value instanceof CalcFontRelativeValue fontRelative) {
+			// font-size自身のem/ex/rem/chは親のフォントを基準に解く(単独の
+			// RelativeLengthValueと同じ規約。根要素ではプロパティ初期値=medium
+			// が基準になる)。解決後は%成分の有無に応じて下の分岐へ流れる
+			value = fontRelative.resolve(parentStyle);
 		}
 		if (value instanceof PercentageValue percentage) {
 			double fontSize = FontSize.get(parentStyle);

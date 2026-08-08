@@ -179,6 +179,11 @@ public class DisplayListGoldenTest extends TestCase {
 			// calc()の中のフォント相対単位(2026-08-03)。em/remは計算値の
 			// 段階でしか解けないので、絶対成分・割合成分と分けて持ち回る
 			"3080-MODERN-CSS/calc-font-relative.html", //
+			// font-size/line-heightに書かれたフォント相対単位入りcalc()
+			// (2026-08-09)。root font-size縮小イディオムcalc(1em * 0.625)が
+			// 捨てられrem全寸法が1.6倍になる欠陥(e-gov)と、%混在line-heightの
+			// ClassCastExceptionの回帰
+			"3080-MODERN-CSS/calc-font-size.html", //
 			// 型付きattr()(2026-08-03)。HTMLの表現属性をCSSから扱う土台
 			"3080-MODERN-CSS/typed-attr.html", //
 			// 論理境界プロパティ(2026-08-03)。border-block-end等12個
