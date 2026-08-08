@@ -108,7 +108,30 @@ public class FlexItemBox extends FlowBlockBox {
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
 		final FlowPos pos = this.getFlowPos();
-		return (state, container) -> new FlexItemBox(params, pos, state.nextSize(), state.nextMinSize(),
-				state.nextFrame(), container);
+		// 線方向(主軸)は指定寸法でなく**flex解決後の使用寸法**を継続断片へ
+		// 運ぶ(2026-08-08)。FragmentStateのnextSizeは行方向の指定寸法を
+		// そのまま残すため、width:100%のitemがflex-shrinkで縮んでいた場合、
+		// 継続側の%再解決が縮小前の幅を復元してしまい、隣のitem
+		// (flex-shrink:0の固定幅サイドバー)を紙面外へ押し出す——
+		// asahi.comトップの速報ニュース欄が時刻だけ残して消えた実バグ。
+		// レシピはthisを保持しない規約のため、値でキャプチャする
+		final boolean vertical = params.flow.isVertical();
+		// Dimensionのabsolute値はbox-sizingスケール(BORDER_BOXなら解決時に
+		// 枠が控除される——AbstractStaticBlockBox)。内寸this.width/heightへ
+		// 枠ぶんを足し戻してから運ぶ
+		final double usedMain = (vertical ? this.height : this.width)
+				+ (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+						? this.frame.getBorderLineExtent(params.flow)
+						: 0);
+		return (state, container) -> {
+			final net.zamasoft.foliojet.layout.box.params.Dimension ns = state.nextSize();
+			final net.zamasoft.foliojet.layout.box.params.Dimension sized = vertical
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(ns.getWidth(), ns.getWidthRatio(),
+							usedMain, 0, ns.getWidthType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					: net.zamasoft.foliojet.layout.box.params.Dimension.create(usedMain, 0, ns.getHeight(),
+							ns.getHeightRatio(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
+							ns.getHeightType());
+			return new FlexItemBox(params, pos, sized, state.nextMinSize(), state.nextFrame(), container);
+		};
 	}
 }

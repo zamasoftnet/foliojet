@@ -83,9 +83,8 @@ public final class FlexItemMetricsResolver {
 	}
 
 	/**
-	 * basisの寸法解決(絶対長さ・解決可能な%)。auto/content/未解決%は
-	 * null(auto経路へ)。calc等の非絶対量も初期サブセット外として
-	 * auto扱い(黙って0にしない)。
+	 * basisの寸法解決(絶対長さ・%・calc()の絶対+%混在)。auto/content/
+	 * 未解決%はnull(auto経路へ)。
 	 */
 	private static Double basisSize(final Input in) {
 		if (in.basis().isAuto() || in.basis().isContent()) {
@@ -100,6 +99,16 @@ public final class FlexItemMetricsResolver {
 		}
 		if (size instanceof AbsoluteLengthValue length) {
 			return inner(length.getLength(), in);
+		}
+		if (size instanceof net.zamasoft.foliojet.css.value.CalcLengthValue calc) {
+			// calc(50% - 16px)等。%成分と同じくコンテナ主軸がdefiniteの
+			// ときだけ解決する(indefiniteならauto扱い)——旧実装はcalcを
+			// 一律auto扱いしており、asahi.comトップの
+			// flex-basis:calc(50% - 16px)がmin-contentへ潰れていた(2026-08-08)
+			if (Double.isNaN(in.containerInnerMain())) {
+				return null;
+			}
+			return inner(calc.getAbsolute() + in.containerInnerMain() * calc.getRatio(), in);
 		}
 		return null;
 	}

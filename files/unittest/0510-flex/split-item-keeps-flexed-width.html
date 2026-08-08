@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* ページ跨ぎ分割の継続断片が、flexで縮んだitemの使用幅を保つこと。
+   旧実装はFragmentStateが行方向の指定寸法(width:100%)を運び、継続側の
+   %再解決が縮小前の幅を復元→flex-shrink:0の固定幅サイドを紙面外へ
+   押し出した(asahi.comトップの速報ニュース欄、2026-08-08)。
+   期待: 全ページでMAIN外寸609pt(=812px)・SIDEはx=812pxに225pt幅。 */
+@page { size: 1220px 400px; margin: 0; }
+body { margin: 0; font: 12px sans-serif; }
+div { margin: 0; padding: 0; border: 0; box-sizing: border-box; }
+.row { display: flex; flex-direction: row-reverse; justify-content: space-between; flex-wrap: nowrap; }
+.side { display: block; width: 300px; flex-basis: 300px; flex-shrink: 0; min-width: 300px; margin-right: 16px; background: #ccf; }
+.main { display: block; width: 100%; padding-right: 24px; background: #ffc; }
+.tall { height: 600px; background: #eee; }
+.item { height: 90px; border-bottom: 1px solid #999; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="side">
+    <div class="item">S1</div><div class="item">S2</div><div class="item">S3</div>
+    <div class="item">S4</div><div class="item">S5</div><div class="item">S6</div>
+    <div class="item">S7</div><div class="item">S8</div>
+  </div>
+  <div class="main">
+    <div>MAIN-TOP</div>
+    <div class="tall">TALL</div>
+    <div>MAIN-BOTTOM</div>
+  </div>
+</div>
+</body>
+</html>

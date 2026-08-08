@@ -135,6 +135,13 @@ public class DisplayListGoldenTest extends TestCase {
 			// yahoo)。restyle再構築でも2セルが同じ上端に整列し、絶対配置の
 			// 数字だけを持つmin-width itemの寸法が保たれることを固定する
 			"0510-flex/pushed-row-absolute-child.html", //
+			// flex-basis:calc(50% - 16px)の解決(2026-08-08、asahi)。旧実装は
+			// calcを一律auto扱いでmin-contentへ潰れた
+			"0510-flex/basis-calc.html", //
+			// ページ跨ぎ分割の継続断片がflexで縮んだ使用幅を保つ(2026-08-08、
+			// asahi)。指定width:100%の%再解決で固定幅サイドが紙面外へ
+			// 押し出されていた
+			"0510-flex/split-item-keeps-flexed-width.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた

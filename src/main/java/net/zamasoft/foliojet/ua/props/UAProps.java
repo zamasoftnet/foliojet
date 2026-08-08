@@ -63,16 +63,20 @@ public final class UAProps {
 	public static final BooleanPropManager INPUT_HTTP_REFERER = new BooleanPropManager("input.http.referer", true);
 
 	/**
-	 * 接続タイムアウトです。
+	 * 接続タイムアウトです。0は無制限。
+	 * 既定を無制限から60秒へ変更(2026-08-08)——応答しないサーバ1台で
+	 * 変換全体が永久に止まるのを防ぐ。
 	 */
 	public static final IntegerPropManager INPUT_HTTP_CONNECTION_TIMEOUT = new IntegerPropManager(
-			"input.http.connection.timeout", 0);
+			"input.http.connection.timeout", 60000);
 
 	/**
-	 * ソケットタイムアウトです。
+	 * ソケットタイムアウトです(応答待ち・読み取り停止の上限)。0は無制限。
+	 * 既定を無制限から60秒へ変更(2026-08-08)——kakaku.comの外部リソース
+	 * 1本の配信停止で変換が2000秒超ハングした実バグの再発防止。
 	 */
 	public static final IntegerPropManager INPUT_HTTP_SOCKET_TIMEOUT = new IntegerPropManager(
-			"input.http.socket.timeout", 0);
+			"input.http.socket.timeout", 60000);
 
 	/**
 	 * プロクシホスト名です。

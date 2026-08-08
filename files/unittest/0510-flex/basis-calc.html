@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* flex-basis: calc(絶対+%) の解決。旧実装はcalcを一律auto扱いし、
+   width指定の無いitemがmin-contentへ潰れた(asahi.comトップの
+   flex-basis:calc(50% - 16px)、2026-08-08)。
+   期待: FIRST = 860*0.5-16 = 414px、LISTは指定幅414px。 */
+body { margin: 0; font: 12px sans-serif; }
+.row { display: flex; width: 860px; }
+.first { flex: 0 1 calc(50% - 16px); background: #fcc; }
+.list { flex: 0 1 auto; width: 414px; background: #cfc; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="first">FIRST</div>
+  <div class="list">LIST</div>
+</div>
+</body>
+</html>
