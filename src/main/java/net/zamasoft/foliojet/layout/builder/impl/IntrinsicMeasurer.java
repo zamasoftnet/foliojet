@@ -195,6 +195,24 @@ final class IntrinsicMeasurer {
 			this.minLineSize = Math.max(entered[0], entered[2]);
 			this.maxLineSize = Math.max(entered[1], entered[2]);
 		}
+		{
+			// min-width(絶対長のみ)は最小内容寸法の床になる(2026-08-08、
+			// css-sizingのouter contribution)。最大側は解決済み幅の提供値
+			// (startFlowのlineSize)が自然に運ぶが、最小側は内容minのみで、
+			// min-width:100pxの入れ子grid(NHKナビのセクションピル)の
+			// ラッパーがテキスト幅までflex-shrinkされてピル背景が隣の
+			// タブへ重なっていた。%・calcは基準未確定のため数えない
+			final WritingMode selfFlow = flowParams.flow;
+			final net.zamasoft.foliojet.layout.box.params.Dimension minSpec = flowParams.minSize;
+			if (minSpec.getLineType(selfFlow) == LengthType.ABSOLUTE && minSpec.getLineLength(selfFlow) > 0) {
+				final double bb = flowParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+						? flowBox.getFrame().getBorderLineExtent(selfFlow)
+						: 0;
+				final double outer = this.lineFrame + (Math.max(0, minSpec.getLineLength(selfFlow) - bb)
+						+ flowBox.getFrame().getBorderLineExtent(selfFlow)) * this.columnCount;
+				this.minLineSize = Math.max(this.minLineSize, outer);
+			}
+		}
 
 		assert !LayoutUtils.isNone(this.lineFrame);
 
@@ -362,23 +380,58 @@ final class IntrinsicMeasurer {
 	 * 揃える。
 	 */
 	private void spannedContribution(final IntrinsicSizes sizes) {
+		this.spannedContribution(sizes, null);
+	}
+
+	private void spannedContribution(final IntrinsicSizes sizes, final AbstractContainerBox box) {
 		this.columnInflated |= sizes.columnInflated();
-		this.minLineSize = Math.max(this.minLineSize, sizes.minContent() * this.columnCount + this.lineFrame);
-		this.maxLineSize = Math.max(this.maxLineSize, sizes.maxContent() * this.columnCount + this.lineFrame);
+		double min = sizes.minContent();
+		double max = sizes.maxContent();
+		if (box != null) {
+			// コンテナ自身のwidth/min-width/max-width(絶対長のみ)で寄与を
+			// クランプする(2026-08-08、css-sizingのouter contribution)。
+			// これが無いと min-width:100px の入れ子grid(NHKのナビの
+			// セクションピル)のラッパーがテキスト幅までflex-shrinkされ、
+			// 100pxで描かれるピルの背景が隣のタブへ重なっていた。
+			// %・calcはコンテナ主軸未確定のため従来どおり数えない
+			final WritingMode flow = box.getBlockParams().flow;
+			final double bb = box.getBlockParams().boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+					? box.getFrame().getBorderLineExtent(flow)
+					: 0;
+			final net.zamasoft.foliojet.layout.box.params.Dimension size = box.getBlockParams().size;
+			if (size.getLineType(flow) == LengthType.ABSOLUTE) {
+				min = max = Math.max(0, size.getLineLength(flow) - bb);
+			}
+			final net.zamasoft.foliojet.layout.box.params.Dimension maxSize = box.getBlockParams().maxSize;
+			if (maxSize.getLineType(flow) == LengthType.ABSOLUTE) {
+				final double v = Math.max(0, maxSize.getLineLength(flow) - bb);
+				min = Math.min(min, v);
+				max = Math.min(max, v);
+			}
+			final net.zamasoft.foliojet.layout.box.params.Dimension minSize = box.getBlockParams().minSize;
+			if (minSize.getLineType(flow) == LengthType.ABSOLUTE) {
+				final double v = Math.max(0, minSize.getLineLength(flow) - bb);
+				min = Math.max(min, v);
+				max = Math.max(max, v);
+			}
+		}
+		this.minLineSize = Math.max(this.minLineSize, min * this.columnCount + this.lineFrame);
+		this.maxLineSize = Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame);
 	}
 
 	void table(final IntrinsicSizes tableSizes) {
+		// 表の幅は表側のアルゴリズムが持つため従来どおりクランプしない
 		this.spannedContribution(tableSizes);
 	}
 
 	/** Grid全体のcontent-box contributionです(Grid G3d2——tableと同型)。 */
-	void grid(final IntrinsicSizes gridSizes) {
-		this.spannedContribution(gridSizes);
+	void grid(final IntrinsicSizes gridSizes, final AbstractContainerBox gridBox) {
+		this.spannedContribution(gridSizes, gridBox);
 	}
 
 	/** Flex全体のcontent-box contributionです(Flex F1f——gridと同型)。 */
-	void flex(final IntrinsicSizes flexSizes) {
-		this.spannedContribution(flexSizes);
+	void flex(final IntrinsicSizes flexSizes, final AbstractContainerBox flexBox) {
+		this.spannedContribution(flexSizes, flexBox);
 	}
 
 	void fitFloating(TwoPassBlockBuilder childBuilder) {

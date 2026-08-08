@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* min-width付き入れ子コンテナのmin-content寄与。旧実装はmin-widthが
+   最小内容寸法へ算入されず(最大側は解決済み幅の提供値が運ぶ)、
+   flex-shrinkでラッパーがテキスト幅まで縮み、min-width:100pxで描かれる
+   ピルの背景が隣のitemへ重なった(NHKニュースのナビのセクションピル、
+   2026-08-08)。期待: ピルitemは100px(75pt)を保ち、NEXTはx=75ptから。 */
+body { margin: 0; font: 14px sans-serif; }
+.row { display: flex; align-items: center; width: 100px; background: #eee; }
+.pill { height: 40px; min-width: 100px; padding-inline: 8px; display: grid;
+        place-items: center; background: #36c; color: #fff; box-sizing: border-box; }
+.next { background: #fc6; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div><a class="pill">ABC</a></div>
+  <ul style="display:flex;margin:0;padding:0;list-style:none"><li class="next">NEXT</li></ul>
+</div>
+</body>
+</html>

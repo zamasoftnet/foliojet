@@ -199,7 +199,26 @@ public final class MeasuredIntrinsics {
 				// 幅指定のブロックは指定幅がそのまま使用幅
 				return margins + (vertical ? block.getHeight() : block.getWidth());
 			}
-			return margins + block.getFrame().getBorderLineExtent(flow) + usedLineExtent(block.getContainer(), flow);
+			double inner = block.getFrame().getBorderLineExtent(flow) + usedLineExtent(block.getContainer(), flow);
+			// min-width/max-width(絶対長のみ)でクランプする(2026-08-08、
+			// css-sizingのouter contribution)。scratchページ上のauto幅ブロックは
+			// 利用可能幅の解決でmin-widthが実寸へ反映されないことがあり、
+			// min-width:100pxの入れ子grid(NHKナビのセクションピル)の
+			// ラッパーがテキスト幅までflex-shrinkされてピル背景が隣へ
+			// 重なっていた。%・calcは基準未確定のため数えない
+			final net.zamasoft.foliojet.layout.box.params.BlockParams bp = block.getBlockParams();
+			final double bb = bp.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+					? block.getFrame().getBorderLineExtent(flow)
+					: 0;
+			if (bp.maxSize.getLineType(flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				inner = Math.min(inner, Math.max(0, bp.maxSize.getLineLength(flow) - bb)
+						+ block.getFrame().getBorderLineExtent(flow));
+			}
+			if (bp.minSize.getLineType(flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				inner = Math.max(inner, Math.max(0, bp.minSize.getLineLength(flow) - bb)
+						+ block.getFrame().getBorderLineExtent(flow));
+			}
+			return margins + inner;
 		}
 		default:
 			// 置換要素等は実寸

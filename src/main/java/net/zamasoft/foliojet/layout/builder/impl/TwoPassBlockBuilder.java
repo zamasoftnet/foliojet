@@ -588,14 +588,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// 伝える(GridBoxのframeはstartFlowBlock→measurer.startFlowの
 		// 通常経路が一度だけ加算する——二重計上防止は答申Q5)。
 		// Gridは常にFLOW配置のためpendingInlineBlock相当はない
-		this.measurer.grid(gridBuilder.getIntrinsicSizes());
+		this.measurer.grid(gridBuilder.getIntrinsicSizes(), gridBuilder.getGridBox());
 		this.addRecord(new Recorded.GridEvent(gridBuilder));
 	}
 
 	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
 		// Flex F1f(addGridと同型): 実行計画を録画し、Flexのcontent-box
 		// 固有寸法を計測器へ伝える(frameは通常経路が一度だけ加算)
-		this.measurer.flex(flexBuilder.getIntrinsicSizes());
+		this.measurer.flex(flexBuilder.getIntrinsicSizes(), flexBuilder.getFlexBox());
 		this.addRecord(new Recorded.FlexEvent(flexBuilder));
 	}
 

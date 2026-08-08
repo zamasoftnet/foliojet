@@ -148,6 +148,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 入れ子flexコンテナitemの行方向寸法指定(2026-08-08、asahi)。
 			// 中立wrapperが寸法を引き取り、子は充填で解決する
 			"0510-flex/nested-container-item-width.html", //
+			// min-width付き入れ子コンテナのmin寄与(2026-08-08、NHKナビ)。
+			// 旧実装はflex-shrinkでmin-width未満に縮み背景が隣へ重なった
+			"0510-flex/min-width-nested-container.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
