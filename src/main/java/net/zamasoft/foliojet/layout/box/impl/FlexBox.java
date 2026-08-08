@@ -82,6 +82,14 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox {
 
 	public FlexBox(final FlexParams params, final FlowPos pos) {
 		super(params, pos);
+		// flexのitem配置(主軸整列)は汎用のrestyle再構築(逐次積み上げ)で
+		// 壊れるため、常に自己アンカーで復元するコンテナを使う(2026-08-08。
+		// 従来は分割継続断片だけがFlexRowContainerで守られており、絶対配置
+		// 子を含むflex行がページ跨ぎで丸ごと移動したとき(ソース再生の
+		// containsAbsoluteゲートでrestyleへ落ちる)にitemが階段状にずれた
+		// ——yahoo.co.jpの天気モジュール)
+		this.container = new net.zamasoft.foliojet.layout.box.content.FlexRowContainer();
+		this.container.setBox(this);
 	}
 
 	public final FlexParams getFlexParams() {

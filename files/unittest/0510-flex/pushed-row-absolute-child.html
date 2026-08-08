@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: ページ跨ぎで丸ごと移動した行の絶対配置子とitem寸法 (yahoo 2026-08-08)</title>
+<style type="text/css">
+@page { size: 400pt 300pt; margin: 10pt; }
+body { margin: 0; font-family: sans-serif; font-size: 12px; }
+.spacer { background: #eee; }
+.row { display: flex; justify-content: space-between; padding-top: 6px; padding-bottom: 8px;
+       border-top: 1px solid #cedaf3; margin: 0; padding-left: 0; list-style: none; }
+.cell { position: relative; flex: 1 1; padding-right: 6px; padding-left: 5px; }
+.cell:not(:first-child):after { position: absolute; top: 0; bottom: 0; left: 0; width: 1px;
+       content: ""; background-color: #cedaf3; }
+.rline { display: flex; align-items: center; justify-content: center; padding: 10px 0; width: 300px; }
+.badge { position: relative; min-width: 16px; height: 35px; color: #fff; background-color: #f14b43; }
+.badge-num { position: absolute; top: 0; display: inline-block; min-width: 16px; height: 35px;
+       font-size: 11px; line-height: 35px; text-align: center; }
+.arrow { display: flex; align-items: center; justify-content: center; width: 22px; }
+.rtext { flex: 1 1; min-width: 0; }
+dl, dt, dd { margin: 0; }
+</style>
+</head>
+<body>
+<!-- 絶対配置子(::after仕切り)を含むflex行は、ソース再生の
+     containsAbsoluteゲートによりrestyle再構築で運ばれる。
+     観点1(天気): スペーサで行を丸ごと次ページへ押し出したとき、
+     2セルが同じ上端に整列すること(壊れると2セル目がitem高さぶん
+     階段状に落ちる)。
+     観点2(順位バッジ): 絶対配置の数字だけを持つmin-width:16pxの
+     itemが、押し出し後もwidth 16px/height 35pxを保つこと(壊れると
+     行全幅の色帯になる)。 -->
+<div class="spacer" style="height:255pt">spacer</div>
+<div style="width:300px"><ul class="row">
+<li class="cell"><dl><dt><span style="display:block">今日の天気</span></dt>
+<dd style="display:inline-block;vertical-align:middle"><svg width="38" height="20" xmlns="http://www.w3.org/2000/svg"><rect width="38" height="20" fill="#fc0"/></svg></dd>
+<dd style="display:inline-block;vertical-align:middle"><span>34℃ 26℃ 0%</span></dd></dl>
+<div style="margin-top:8px"><span style="display:block">熱中症指数</span></div></li>
+<li class="cell"><dl><dt><span style="display:block">明日の天気</span></dt>
+<dd style="display:inline-block;vertical-align:middle"><svg width="38" height="20" xmlns="http://www.w3.org/2000/svg"><rect width="38" height="20" fill="#aaa"/></svg></dd>
+<dd style="display:inline-block;vertical-align:middle"><span>34℃ 26℃ 20%</span></dd></dl>
+<div style="margin-top:8px"><span style="display:block">熱中症指数</span></div></li>
+</ul></div>
+<div class="rline">
+<span class="badge"><span class="badge-num">1</span></span>
+<div class="arrow"><svg width="10" height="10" xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10" fill="#c00"/></svg></div>
+<div class="rtext"><p style="margin:0">被災世帯</p></div>
+</div>
+</body>
+</html>

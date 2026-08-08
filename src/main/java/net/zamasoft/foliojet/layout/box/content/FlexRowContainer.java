@@ -35,29 +35,64 @@ import net.zamasoft.foliojet.layout.fragment.OpenShape;
  * </p>
  */
 public final class FlexRowContainer extends FlowContainer {
-	private Map<IFlowBox, Double> anchored;
 
 	/**
-	 * 現在{@link #flows}にある全itemのpageAxisを正としてスナップショット
+	 * itemの確定配置のスナップショットです(2026-08-08にpageAxis単独から
+	 * 拡張)。widthとheightはrestyle再構築が再解決で潰す
+	 * ({@code startFlowBlock.calculateSize}が主軸寸法を包含幅へ、
+	 * {@code endFlowBlock}が内容高へ)ため、位置と一緒に復元する。
+	 */
+	private record Anchor(double pageAxis, double width, double height) {
+	}
+
+	private Map<IFlowBox, Anchor> anchored;
+
+	/**
+	 * 寸法(width/height)も復元するか。自己アンカー(丸ごと移動後の
+	 * 再構築——itemの寸法は変わらないのが正)でのみtrue。分割継続
+	 * ({@link #anchorCurrent})では、以降の再分割がitemの寸法を正当に
+	 * 縮めるためfalse(trueにすると再分割の帳簿が壊れ、複数ページの
+	 * flexが2ページへ潰れる——0510-flex/float-itemで実測)。
+	 */
+	private boolean restoreExtents;
+
+	/**
+	 * 現在{@link #flows}にある全itemの配置を正としてスナップショット
 	 * します。{@code FlexBox.split}が{@code addFlow}/{@code migrateFlowsFrom}
 	 * で{@code cont}の組み立てを終えた直後(=restyleに触れられる前)に
-	 * 一度だけ呼ぶ。
+	 * 一度だけ呼ぶ。それ以外の再構築({@link #restyle}参照)は入口で
+	 * 自己アンカーする。
 	 */
 	public void anchorCurrent() {
+		this.anchorCurrent(false);
+	}
+
+	private void anchorCurrent(final boolean withExtents) {
 		if (this.flows == null) {
 			return;
 		}
 		if (this.anchored == null) {
 			this.anchored = new HashMap<>();
 		}
+		this.restoreExtents = withExtents;
 		for (final Flow f : this.flows) {
-			this.anchored.put(f.box, f.pageAxis);
+			this.anchored.put(f.box, new Anchor(f.pageAxis, f.box.getWidth(), f.box.getHeight()));
 		}
 	}
 
 	@Override
 	public void restyle(final BlockBuilder builder, final OpenShape shape, final boolean restyleAbsolutes,
 			final List<SourceRange> prefix) {
+		if (this.anchored == null) {
+			// 分割継続断片(FlexBox.splitが組み立て直後にanchorCurrent済み)
+			// 以外のrestyle——ページ跨ぎの丸ごと移動など——でも、restyleに
+			// 触れられる前の現在位置を正としてその場でアンカーする
+			// (2026-08-08。restyle前のflowsはFlexBuilder.placeRowが確定
+			// させた主軸整列を保持している)。この経路は寸法も復元する
+			// (startFlowBlock/endFlowBlockの再解決がwidth:autoを包含幅へ、
+			// height:autoを内容高へ潰す——yahoo.co.jpの順位バッジ)
+			this.anchorCurrent(true);
+		}
 		super.restyle(builder, shape, restyleAbsolutes, prefix);
 		this.restoreAnchoredPageAxis();
 	}
@@ -68,9 +103,16 @@ public final class FlexRowContainer extends FlowContainer {
 		}
 		for (int i = 0; i < this.flows.size(); ++i) {
 			final Flow f = this.flows.get(i);
-			final Double want = this.anchored.get(f.box);
-			if (want != null && f.pageAxis != want.doubleValue()) {
-				this.flows.set(i, new Flow(f.serial, f.box, want));
+			final Anchor want = this.anchored.get(f.box);
+			if (want == null) {
+				continue;
+			}
+			if (f.pageAxis != want.pageAxis()) {
+				this.flows.set(i, new Flow(f.serial, f.box, want.pageAxis()));
+			}
+			if (this.restoreExtents && f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
+					&& (item.getWidth() != want.width() || item.getHeight() != want.height())) {
+				item.restoreExtents(want.width(), want.height());
 			}
 		}
 	}

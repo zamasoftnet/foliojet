@@ -131,6 +131,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// IntrinsicMeasurerのflex/grid/table寄与がlineFrameを足して
 			// おらず、枠ぶん狭くなってGitHubのファイル名が切れていた
 			"0510-flex/padded-flex-in-auto-cell.html", //
+			// 絶対配置子を含むflex行のページ跨ぎ丸ごと移動(2026-08-08、
+			// yahoo)。restyle再構築でも2セルが同じ上端に整列し、絶対配置の
+			// 数字だけを持つmin-width itemの寸法が保たれることを固定する
+			"0510-flex/pushed-row-absolute-child.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
