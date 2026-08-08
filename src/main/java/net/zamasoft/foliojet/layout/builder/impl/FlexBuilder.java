@@ -163,9 +163,44 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return builder;
 	}
 
-	/** 非plain子(表・入れ子コンテナ等)用の中立wrapper element itemを開きます。 */
-	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec) {
-		return this.startItem(new FlexItemBox(this.itemParams(), new FlowPos()), false, spec);
+	/**
+	 * 非plain子(表・入れ子コンテナ等)用の中立wrapper element itemを開きます。
+	 *
+	 * <p>
+	 * {@code authored}(非null時)はauthored childのparamsで、<b>行方向の
+	 * 寸法指定(size/min/max)をwrapperへ引き取る</b>(2026-08-08)。
+	 * 旧実装はwrapperが常にsize:autoで、入れ子flexコンテナの
+	 * {@code width:50%}等が丸ごと落ちてshrink-to-fitへ潰れていた
+	 * (asahi.comトップの高校野球ストリップが1文字幅の縦積みになった
+	 * 実バグ)。子側の二重解決は{@link FlexItemBox#markNeutralLineFill}の
+	 * フラグ経由で充填(auto)扱いにして防ぐ——子paramsの直接変異は
+	 * item本体の再生(再具現化)で失われるため使えない。page方向は
+	 * wrapperをautoのままにして子の指定を生かす(wrapperだけが伸びると
+	 * 背景・枠が子から乖離する)。
+	 * </p>
+	 */
+	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final BlockParams authored) {
+		final BlockParams wrapper = this.itemParams();
+		final boolean transfer = authored != null;
+		if (transfer) {
+			final boolean vertical = this.flow().isVertical();
+			wrapper.size = lineOnly(authored.size, vertical);
+			wrapper.minSize = lineOnly(authored.minSize, vertical);
+			wrapper.maxSize = lineOnly(authored.maxSize, vertical);
+			wrapper.boxSizing = authored.boxSizing;
+		}
+		final FlexItemBox itemBox = new FlexItemBox(wrapper, new FlowPos());
+		if (transfer) {
+			itemBox.markNeutralLineFill();
+		}
+		return this.startItem(itemBox, false, spec);
+	}
+
+	/** 行方向成分だけ残したDimension(page方向はauto。縦書きの行方向=高さ)。 */
+	private static Dimension lineOnly(final Dimension d, final boolean vertical) {
+		return vertical
+				? Dimension.create(0, 0, d.getHeight(), d.getHeightRatio(), LengthType.AUTO, d.getHeightType())
+				: Dimension.create(d.getWidth(), d.getWidthRatio(), 0, 0, d.getWidthType(), LengthType.AUTO);
 	}
 
 	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */

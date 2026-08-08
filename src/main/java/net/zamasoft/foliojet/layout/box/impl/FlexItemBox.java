@@ -19,8 +19,29 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
  */
 public class FlexItemBox extends FlowBlockBox {
 
+	/**
+	 * 中立wrapperがauthored childの行方向寸法指定を引き取ったか
+	 * (2026-08-08、{@code FlexBuilder.startNeutralElementItem})。
+	 * trueのとき、直下の子は行方向指定をauto(wrapper充填)として解決する
+	 * ({@code FlowBlockBox.calculateSize})——wrapperと子の双方が%を
+	 * 解決すると二重適用になるため。子のparams側で中立化しないのは、
+	 * item本体の再生がchildの記録から再具現化されるため、liveの変異が
+	 * 残らないから(検証済み——asahi.comの高校野球ストリップ)。
+	 */
+	private boolean neutralLineFill;
+
 	public FlexItemBox(final BlockParams params, final FlowPos pos) {
 		super(params, pos);
+	}
+
+	/** 行方向寸法の引き取りを記録します(中立wrapper専用)。 */
+	public void markNeutralLineFill() {
+		this.neutralLineFill = true;
+	}
+
+	/** {@link #markNeutralLineFill}参照。 */
+	public boolean isNeutralLineFill() {
+		return this.neutralLineFill;
 	}
 
 	/**
@@ -123,6 +144,7 @@ public class FlexItemBox extends FlowBlockBox {
 				+ (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 						? this.frame.getBorderLineExtent(params.flow)
 						: 0);
+		final boolean fill = this.neutralLineFill;
 		return (state, container) -> {
 			final net.zamasoft.foliojet.layout.box.params.Dimension ns = state.nextSize();
 			final net.zamasoft.foliojet.layout.box.params.Dimension sized = vertical
@@ -131,7 +153,12 @@ public class FlexItemBox extends FlowBlockBox {
 					: net.zamasoft.foliojet.layout.box.params.Dimension.create(usedMain, 0, ns.getHeight(),
 							ns.getHeightRatio(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
 							ns.getHeightType());
-			return new FlexItemBox(params, pos, sized, state.nextMinSize(), state.nextFrame(), container);
+			final FlexItemBox next = new FlexItemBox(params, pos, sized, state.nextMinSize(), state.nextFrame(),
+					container);
+			if (fill) {
+				next.markNeutralLineFill();
+			}
+			return next;
 		};
 	}
 }

@@ -1,0 +1,7 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=300.00 h=12.60]
+  x=0.00 y=0.00 AbsoluteRectFrame[w=141.75 h=12.60]
+  x=450.00 y=0.00 AbsoluteRectFrame[w=150.00 h=12.60]
+  x=450.00 y=0.00 AbsoluteRectFrame[w=47.25 h=12.60]
+  x=5.25 y=0.00 Text["白樺学園と東日大昌平が対戦" asc=9.45 desc=3.15]
+  x=455.25 y=0.00 Text["第二試合" asc=9.45 desc=3.15]

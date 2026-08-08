@@ -392,11 +392,16 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
-	/** Flex直下に中立wrapperのelement itemを開きます(非plain子・表・置換用)。 */
-	private FlexBuilder startFlexNeutralElementItem(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec) {
+	/**
+	 * Flex直下に中立wrapperのelement itemを開きます(非plain子・表・置換用)。
+	 * {@code authored}(非null)はchildのparamsで、行方向の寸法指定を
+	 * wrapperが引き取る({@link FlexBuilder#startNeutralElementItem}参照)。
+	 */
+	private FlexBuilder startFlexNeutralElementItem(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec,
+			final net.zamasoft.foliojet.layout.box.params.BlockParams authored) {
 		if (this.coordinatorAwaitingDirectChild() instanceof FlexBuilder flex) {
 			this.closeAnonymousItem(flex);
-			this.startContainerBuilder(flex.startNeutralElementItem(spec));
+			this.startContainerBuilder(flex.startNeutralElementItem(spec, authored));
 			this.startContainer();
 			return flex;
 		}
@@ -585,10 +590,13 @@ public class DocumentBuilder implements TableBuilderHost {
 					this.boxStack.add(box);
 					return;
 				}
-				this.startFlexNeutralElementItem(flexItemSpecOf(box));
+				this.startFlexNeutralElementItem(flexItemSpecOf(box),
+						box instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox acb ? acb.getBlockParams()
+								: null);
 				break;
 			case TABLE:
-				this.startFlexNeutralElementItem(flexItemSpecOf(box));
+				// 表の寸法解決は表側の機構が担うため引き取らない
+				this.startFlexNeutralElementItem(flexItemSpecOf(box), null);
 				break;
 			default:
 				break;
@@ -1066,7 +1074,8 @@ public class DocumentBuilder implements TableBuilderHost {
 		case FLOW:
 			oneShot = this.startGridElementItem(gridItemSpecOf(replacedBox));
 			if (oneShot == null) {
-				oneShot = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox));
+				// 置換要素の寸法は置換側の機構(calculateReplacedSize)が担う
+				oneShot = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox), null);
 			}
 			break;
 		case INLINE:

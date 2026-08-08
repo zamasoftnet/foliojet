@@ -198,6 +198,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	public void calculateSize(LayoutStack layoutStack, double xmargin, double lineSize) {
 		final AbstractContainerBox containerBox = layoutStack.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
+		// Flexの中立wrapperが行方向の寸法指定を引き取っている場合、直下の
+		// 子は行方向を充填(auto)として解決する(2026-08-08——wrapperと
+		// 子の双方が%を解決すると二重適用になる。FlexItemBox参照)
+		final boolean neutralLineFill = containerBox instanceof FlexItemBox item && item.isNeutralLineFill();
 		if (this.params.flow.isVertical()) {
 			// 縦書きのフロー
 			this.specifiedPageAxis = this.size.getWidthType() == LengthType.ABSOLUTE
@@ -232,7 +236,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// 縦書きのフロー
 			marginLeft = amargin.left;
 			marginRight = amargin.right;
-			this.height = LayoutUtils.computeDimensionHeight(this.size, lineSize);
+			this.height = neutralLineFill ? LayoutUtils.NONE
+					: LayoutUtils.computeDimensionHeight(this.size, lineSize);
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(this.height)) {
 				this.height -= this.frame.getBorderHeight();
 			}
@@ -405,7 +410,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// 横書きのフロー
 			marginTop = amargin.top;
 			marginBottom = amargin.bottom;
-			this.width = LayoutUtils.computeDimensionWidth(this.size, lineSize);
+			this.width = neutralLineFill ? LayoutUtils.NONE
+					: LayoutUtils.computeDimensionWidth(this.size, lineSize);
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(this.width)) {
 				this.width -= this.frame.getBorderWidth();
 			}
