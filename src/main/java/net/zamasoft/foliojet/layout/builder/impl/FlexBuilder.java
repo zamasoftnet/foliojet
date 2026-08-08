@@ -188,6 +188,22 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			wrapper.minSize = lineOnly(authored.minSize, vertical);
 			wrapper.maxSize = lineOnly(authored.maxSize, vertical);
 			wrapper.boxSizing = authored.boxSizing;
+			// autoマージンはitem(wrapper)レベルの自由空間を吸収する(§8.1)
+			// ため、autoの辺だけwrapperへ引き取る(2026-08-09——Bootstrapの
+			// navbar .ml-auto、入れ子コンテナが右端へ寄らない実バグ)。
+			// 内側に残るautoはwrapper内の自由空間が0のため無害(二重シフト
+			// しない)。非autoのマージンは内側で視覚上等価のため移さない
+			final Insets margin = authored.frame.margin;
+			if (margin.getTopType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO
+					|| margin.getBottomType() == LengthType.AUTO || margin.getLeftType() == LengthType.AUTO) {
+				wrapper.frame = RectFrame.create(
+						Insets.create(0, 0, 0, 0,
+								margin.getTopType() == LengthType.AUTO ? LengthType.AUTO : LengthType.ABSOLUTE,
+								margin.getRightType() == LengthType.AUTO ? LengthType.AUTO : LengthType.ABSOLUTE,
+								margin.getBottomType() == LengthType.AUTO ? LengthType.AUTO : LengthType.ABSOLUTE,
+								margin.getLeftType() == LengthType.AUTO ? LengthType.AUTO : LengthType.ABSOLUTE),
+						null, null, null);
+			}
 		}
 		final FlexItemBox itemBox = new FlexItemBox(wrapper, new FlowPos());
 		if (transfer) {

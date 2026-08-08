@@ -1,0 +1,47 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>入れ子コンテナitemの主軸autoマージン</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 12pt; }
+      .nav { display: flex; background: #eef; }
+      .brand { background: #fdd; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **Bootstrapのnavbar .ml-auto イディオム。**
+      flexコンテナ(またはtable等の非plain子)がflex itemでもあるとき、
+      中立wrapperがauthoredのautoマージンを引き取らず、§8.1の
+      「autoマージンが主軸の自由空間を吸収する」が働かなかった
+      (5ch.ioヘッダのナビが右端へ寄らない実バグ、2026-08-09)。
+      autoの辺だけwrapperの枠へ移す——内側に残るautoはwrapper内の
+      自由空間が0のため無害(二重シフトしない)。
+
+      期待(いずれも高さ12ptの行):
+      A: 対照。plain子のmargin-left:autoは従来から効く(右端)。
+      B: 入れ子flexコンテナ+margin-left:auto → 右端(x=400-中身幅)。
+      C: 入れ子flexコンテナ+margin:0 auto(両側auto) → 中央。
+      D: 入れ子flexコンテナ+マージン指定なし → 左端(従来どおり)。
+    -->
+    <div class="nav">
+      <div class="brand">LOGO</div>
+      <div style="margin-left: auto; background: #dfd">A-plain</div>
+    </div>
+    <div class="nav">
+      <div class="brand">LOGO</div>
+      <div style="margin-left: auto; background: #ddf; display: flex"><div>B-nested</div></div>
+    </div>
+    <div class="nav">
+      <div class="brand">LOGO</div>
+      <div style="margin-left: auto; margin-right: auto; background: #ffd; display: flex"><div>C-center</div></div>
+    </div>
+    <div class="nav">
+      <div class="brand">LOGO</div>
+      <div style="background: #fdf; display: flex"><div>D-plain-pos</div></div>
+    </div>
+  </body>
+</html>
