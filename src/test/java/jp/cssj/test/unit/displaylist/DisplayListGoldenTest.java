@@ -155,6 +155,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// authoredのautoマージンを引き取らず.ml-autoの右寄せが効かなかった
 			// (5ch.ioヘッダの実バグ)
 			"0510-flex/auto-margin-nested-container.html", //
+			// 固定高itemを持つflex行のページ跨ぎ分割(2026-08-09)。
+			// specifiedPageAxis不設定でFragmentStateが指定高を残量へ分割せず、
+			// 継続断片が指定高をフル再解決して行が膨らんでいた
+			"0510-flex/fixed-height-item-split.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた

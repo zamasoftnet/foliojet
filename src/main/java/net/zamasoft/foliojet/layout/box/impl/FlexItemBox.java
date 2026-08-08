@@ -32,6 +32,23 @@ public class FlexItemBox extends FlowBlockBox {
 
 	public FlexItemBox(final BlockParams params, final FlowPos pos) {
 		super(params, pos);
+		this.markSpecifiedPageAxisFromSize();
+	}
+
+	/**
+	 * flex itemは寸法をFlexBuilderが注入するため、{@code specifiedPageAxis}を
+	 * 立てる唯一の場所である{@code AbstractStaticBlockBox.calculateSize}の
+	 * 該当分岐を通らないことがある(2026-08-09)。その場合ページ跨ぎ分割の
+	 * 残量計算({@code FragmentState.of})が「指定寸法なし」と誤認して
+	 * ページ方向の指定寸法を残量へ分割せず、継続断片が指定高を<b>フルに</b>
+	 * 再解決する——固定高itemを持つflex行がページを跨ぐと、継続側の行が
+	 * ほぼ指定高まるごと膨らみ、後続内容を押し下げていた(flex丸ごと移動の
+	 * replay経路の変形として記録されていた実バグ)。絶対長のときだけ立てる
+	 * (%はflexの基準が要るため保守的に従来どおり)。
+	 */
+	private void markSpecifiedPageAxisFromSize() {
+		this.specifiedPageAxis = this.size
+				.getPageType(this.getBlockParams().flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
 	}
 
 	/** 行方向寸法の引き取りを記録します(中立wrapper専用)。 */
@@ -111,6 +128,7 @@ public class FlexItemBox extends FlowBlockBox {
 			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame,
 			final net.zamasoft.foliojet.layout.box.content.Container container) {
 		super(params, pos, size, minSize, frame, container);
+		this.markSpecifiedPageAxisFromSize();
 	}
 
 	/**
