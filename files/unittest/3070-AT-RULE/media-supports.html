@@ -63,6 +63,28 @@ p {
 	}
 }
 
+/* メディアクエリのem/remは要素の文脈が無いため常に初期フォントサイズ
+   (16px)基準(Media Queries Level 3 §6)。2026-08-09まで評価不能として
+   @media全体を不成立にしていた——実サイトは(min-width: 70rem)のように
+   書き、5ch.ioではdisplay:none解除が効かずサイドバーが丸ごと消えた。
+   ページ幅210mm=793.7px。 */
+/* 40rem=640px <= 793.7px -> 一致 */
+@media (min-width: 40rem) {
+	#rem-min-hit { font-size: 16pt; }
+}
+/* 70rem=1120px > 793.7px -> 不一致 */
+@media (min-width: 70rem) {
+	#rem-min-miss { font-size: 16pt; }
+}
+/* 50em=800px >= 793.7px -> 一致 */
+@media (max-width: 50em) {
+	#em-max-hit { font-size: 16pt; }
+}
+/* 40em=640px < 793.7px -> 不一致 */
+@media (max-width: 40em) {
+	#em-max-miss { font-size: 16pt; }
+}
+
 /* @supports: 対応済みプロパティ */
 @supports (font-size: 10pt) {
 	#supports-hit { font-size: 16pt; }
@@ -93,6 +115,10 @@ p {
     <p id="max-width-miss">MAXWIDTHMISS</p>
     <p id="orientation-hit">ORIENTATIONHIT</p>
     <p id="orientation-miss">ORIENTATIONMISS</p>
+    <p id="rem-min-hit">REMMINHIT</p>
+    <p id="rem-min-miss">REMMINMISS</p>
+    <p id="em-max-hit">EMMAXHIT</p>
+    <p id="em-max-miss">EMMAXMISS</p>
     <p id="screen-miss">SCREENMISS</p>
     <p id="not-screen-hit">NOTSCREENHIT</p>
     <p id="nested-hit">NESTEDHIT</p>

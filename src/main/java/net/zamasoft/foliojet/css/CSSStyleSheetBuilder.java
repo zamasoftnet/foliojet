@@ -487,6 +487,9 @@ public class CSSStyleSheetBuilder {
 		String valueText = expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0);
 		AbsoluteLengthValue value = ValueUtils.toAbsoluteLength(this.ua, false, valueText);
 		if (value == null) {
+			value = this.mediaFontRelativeLength(valueText);
+		}
+		if (value == null) {
 			return false;
 		}
 		double length = value.getLength();
@@ -507,6 +510,35 @@ public class CSSStyleSheetBuilder {
 			// aspect-ratio等の未対応特性は保守的に不一致とする
 			return false;
 		}
+	}
+
+	/**
+	 * メディアクエリのem/remを解決します。メディアクエリには要素の文脈が
+	 * 無いため、どちらも<b>初期フォントサイズ</b>(medium)基準で静的に
+	 * 解決できる(Media Queries Level 3 §6)。実サイトは
+	 * {@code (min-width: 70rem)}のようにremで書くことがあり、ここで
+	 * 落とすと@media全体が不成立になる(5ch.ioのサイドバーが
+	 * display:noneのまま丸ごと消えた欠陥で実測)。ex/chは
+	 * フォントメトリクスが要るため引き続き未対応(nullを返す)。
+	 */
+	private AbsoluteLengthValue mediaFontRelativeLength(String valueText) {
+		String text = valueText.trim().toLowerCase(java.util.Locale.ROOT);
+		String number;
+		if (text.endsWith("rem")) {
+			number = text.substring(0, text.length() - 3);
+		} else if (text.endsWith("em")) {
+			number = text.substring(0, text.length() - 2);
+		} else {
+			return null;
+		}
+		final double ratio;
+		try {
+			ratio = Double.parseDouble(number.trim());
+		} catch (NumberFormatException e) {
+			return null;
+		}
+		return AbsoluteLengthValue.create(this.ua,
+				ratio * this.ua.getFontSize(net.zamasoft.foliojet.ua.AbsoluteFontSize.MEDIUM));
 	}
 
 	private Double pageWidth, pageHeight;
