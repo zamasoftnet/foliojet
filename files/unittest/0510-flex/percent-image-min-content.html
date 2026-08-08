@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* %寸法の置換要素のmin-content寄与は0(css-sizingの循環%、Chromeと同じ)。
+   旧実装はwidth:100%の画像(自然幅148px)が自然幅でminを吊り上げ、
+   mainが縮めずflex-shrink:0のsideを紙面外へ押し出した
+   (asahi.comトップの速報ニュース欄、2026-08-08)。
+   期待: main=120px(90pt)へ縮み、side(80px=60pt)がx=90ptに載る。 */
+body { margin: 0; font: 12px sans-serif; }
+div { margin: 0; padding: 0; box-sizing: border-box; }
+.row { display: flex; width: 200px; }
+.main { width: 100%; background: #ffc; }
+.main img { display: block; width: 100%; }
+.side { flex: 0 0 80px; min-width: 80px; background: #ccf; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="main"><img src="../kappa.png"></div>
+  <div class="side">S</div>
+</div>
+</body>
+</html>

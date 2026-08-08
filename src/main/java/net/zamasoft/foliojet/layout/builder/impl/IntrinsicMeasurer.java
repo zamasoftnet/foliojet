@@ -204,6 +204,26 @@ final class IntrinsicMeasurer {
 				this.builder.getFlowBox().getLineSize());
 	}
 
+	/**
+	 * 置換要素の行方向min-content寄与です(2026-08-08)。行方向寸法が
+	 * %(循環パーセント)の置換要素は、解決値(自然寸法由来)でなく0を
+	 * 寄与とする(css-sizingの循環%の扱い、Chromeと同じ)——旧実装は
+	 * width:100%の大判画像が自然幅でminを吊り上げ、flexコンテナのitemが
+	 * 縮めなくなって隣のflex-shrink:0の固定幅サイドバーを紙面外へ押し出す
+	 * 実バグになっていた(asahi.comトップの速報ニュース欄)。calc(絶対+%)は
+	 * 絶対成分だけを寄与とする。
+	 */
+	private static double lineMinContribution(final double usedLine,
+			final LengthType lineType, final double lineSpecAbsolute) {
+		if (lineType == LengthType.RELATIVE) {
+			return 0;
+		}
+		if (lineType == LengthType.MIXED) {
+			return Math.max(0, lineSpecAbsolute);
+		}
+		return usedLine;
+	}
+
 	void bound(final AbstractReplacedBox replacedBox) {
 		switch (replacedBox.getPos().getType()) {
 		case FLOW: {
@@ -218,18 +238,22 @@ final class IntrinsicMeasurer {
 			BlockParams params = containerBox.getBlockParams();
 			if (params.flow.isVertical()) {
 				// 縦書き
-				minLineAxis = replacedBox.getHeight();
+				minLineAxis = lineMinContribution(replacedBox.getHeight(),
+						replacedBox.getReplacedParams().size.getHeightType(),
+						replacedBox.getReplacedParams().size.getHeight());
 				minPageAxis = replacedBox.getWidth();
-				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
-					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
-				}
+				maxLineAxis = replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE
+						? replacedBox.getReplacedParams().size.getHeight()
+						: replacedBox.getHeight();
 			} else {
 				// 横書き
-				minLineAxis = replacedBox.getWidth();
+				minLineAxis = lineMinContribution(replacedBox.getWidth(),
+						replacedBox.getReplacedParams().size.getWidthType(),
+						replacedBox.getReplacedParams().size.getWidth());
 				minPageAxis = replacedBox.getHeight();
-				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
-					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
-				}
+				maxLineAxis = replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE
+						? replacedBox.getReplacedParams().size.getWidth()
+						: replacedBox.getWidth();
 			}
 			minPageAxis += this.pageFrame;
 			minLineAxis *= this.columnCount;
@@ -257,18 +281,27 @@ final class IntrinsicMeasurer {
 			this.clearFloatAdvance(floatingBox.getFloatPos().clear);
 			LayoutUtils.calculateReplacedSize(this.builder, replacedBox);
 
+			// フロートの排除域(advance)は使用寸法で数える——minLineSizeへの
+			// 寄与だけ%を0にする(下のusedLineAxis/minLineAxisの使い分け)
 			double minLineAxis, minPageAxis, maxLineAxis = 0;
+			final double usedLineAxis;
 			BlockParams params = containerBox.getBlockParams();
 			if (params.flow.isVertical()) {
 				// 縦書き
-				minLineAxis = replacedBox.getHeight();
+				usedLineAxis = replacedBox.getHeight();
+				minLineAxis = lineMinContribution(usedLineAxis,
+						replacedBox.getReplacedParams().size.getHeightType(),
+						replacedBox.getReplacedParams().size.getHeight());
 				minPageAxis = replacedBox.getWidth();
 				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
 				}
 			} else {
 				// 横書き
-				minLineAxis = replacedBox.getWidth();
+				usedLineAxis = replacedBox.getWidth();
+				minLineAxis = lineMinContribution(usedLineAxis,
+						replacedBox.getReplacedParams().size.getWidthType(),
+						replacedBox.getReplacedParams().size.getWidth());
 				minPageAxis = replacedBox.getHeight();
 				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();
@@ -284,11 +317,11 @@ final class IntrinsicMeasurer {
 
 			switch (floatingBox.getFloatPos().floating) {
 			case FloatSide.START: {
-				this.maxStartFloatAdvance += minLineAxis;
+				this.maxStartFloatAdvance += usedLineAxis;
 			}
 				break;
 			case FloatSide.END: {
-				this.maxEndFloatAdvance += minLineAxis;
+				this.maxEndFloatAdvance += usedLineAxis;
 			}
 				break;
 			default:

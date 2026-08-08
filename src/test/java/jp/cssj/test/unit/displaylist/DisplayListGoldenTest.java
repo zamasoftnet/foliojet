@@ -142,6 +142,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// asahi)。指定width:100%の%再解決で固定幅サイドが紙面外へ
 			// 押し出されていた
 			"0510-flex/split-item-keeps-flexed-width.html", //
+			// %寸法の置換要素のmin-content寄与は0(2026-08-08、asahi)。旧実装は
+			// 自然幅がminを吊り上げflex itemが縮めなくなっていた
+			"0510-flex/percent-image-min-content.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
