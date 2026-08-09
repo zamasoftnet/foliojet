@@ -1027,7 +1027,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	private boolean paintsNothingBeyondPage(final IFloatBox box, final double pageStart) {
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
 		final double contentEnd = pageStart + box.paintedPageExtent(progression);
-		return LayoutUtils.compare(contentEnd, this.getPageLimit()) <= 0;
+		// 1pt未満のはみ出しは「何も描かない」に含める(2026-08-10)。
+		// px→pt換算の0.75刻み端数の集積で、視覚上無意味なスリバー
+		// (実測0.5625pt——pc.watch.impress.co.jp)がページ限界を越えると、
+		// SPLIT予約→後続clearの強制改ページ→(中身が空のheight箱だけで
+		// 分割点が無い場合)float全体の次ページ移設、という連鎖で本文が
+		// 丸ごと1〜2ページ落ちていた。判定は描画実測(paintedPageExtent)の
+		// ままなので、幾何が小さく中身が紙外へ伸びる形(OffPageFloatTestが
+		// 保護する2026-07-28の欠陥)は従来どおり切断される
+		return contentEnd - this.getPageLimit() < 1.0;
 	}
 
 	/**

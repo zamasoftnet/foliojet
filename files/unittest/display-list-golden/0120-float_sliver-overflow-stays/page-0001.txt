@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=60.00]
+  x=0.00 y=60.00 AbsoluteRectFrame[w=120.00 h=240.00]
+  x=0.00 y=71.20 Text["FLOAT-TOP" asc=8.59 desc=3.41]
+  x=0.00 y=0.00 Text["SPACER" asc=8.59 desc=3.41]

@@ -1,0 +1,30 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>1pt未満のはみ出しfloatはその場に置く</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 12pt; }
+      .spacer { height: 60pt; background: #eee; }
+      .fl { float: left; width: 120pt; background: #dfd; }
+      .tall { height: 228.6pt; }
+      .clear { clear: both; }
+    </style>
+  </head>
+  <body>
+    <!--
+      float終端がページ限界を0.5ptだけ越える(60+12+228.6=300.6)。
+      px→pt換算の端数集積で現実に起きる形(pc.watch.impress.co.jpで
+      実測0.5625pt。2026-08-10)。1pt未満のはみ出しはPLACED扱いとし、
+      SPLIT予約→clearの強制改ページ→float全量移設の連鎖を防ぐ。
+      期待: FLOAT-TOPは1ページ目。clear後のAFTERは2ページ目
+      (clearはfloat終端300.5より下=次ページ)。
+    -->
+    <div class="spacer">SPACER</div>
+    <div class="fl"><p>FLOAT-TOP</p><div class="tall"></div></div>
+    <div class="clear"></div>
+    <p>AFTER</p>
+  </body>
+</html>
