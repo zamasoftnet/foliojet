@@ -1,0 +1,21 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?><!DOCTYPE html>
+<html><head><style>
+body{margin:8px;}
+#menu{float:left;width:100pt;margin:0;padding:0;background:#eef;}
+#menu li{padding:3px 5px 3px 10px;}
+.main{margin:0 10pt 0 110pt;background:#fef;}
+#cb{margin-right:60pt;}
+#tbl{display:table;width:100%;background:#dfd;}
+</style></head><body>
+<!--
+  左floatの横に幅が入るwidth:100%の表は、float下端へ下ろさず
+  横(最上部)へ置く(2026-08-10、cocoon.apache.orgで実測——従来は
+  開始側floatだと無条件clearingで、本文の表が丸ごと次ページへ
+  落ちていた。ExclusionSpace.findBoundAvoidanceのSTART分岐)。
+  期待: MARKER-TBLが1ページ目の最上部(ナビの横)。
+-->
+
+<ul id="menu"><li>N1</li><li>N2</li><li>N3</li><li>N4</li><li>N5</li><li>N6</li><li>N7</li><li>N8</li><li>N9</li><li>N10</li><li>N11</li><li>N12</li><li>N13</li><li>N14</li><li>N15</li><li>N16</li><li>N17</li><li>N18</li><li>N19</li><li>N20</li><li>N21</li><li>N22</li><li>N23</li><li>N24</li><li>N25</li><li>N26</li><li>N27</li><li>N28</li><li>N29</li><li>N30</li></ul>
+<div class="main"><div id="cb"><div id="tbl"><p>MARKER-TBL</p></div></div></div>
+</body></html>

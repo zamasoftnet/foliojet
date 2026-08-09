@@ -233,12 +233,17 @@ public final class ExclusionSpace {
 			}
 			switch (exclusion.side()) {
 			case START:
-				xMarginStart = 0;
-				// BlockBuilder.computeBoundAvoidanceの対応するjavadoc参照:
-				// 既存コードはこの分岐でもループ後のclearance適用と同じ
-				// 経路を通るため、ここもclearing扱いにする(2026-07-23
-				// 発見の実挙動)。
-				return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+				// END側と対称に「横に入るか」を検査する(2026-08-10)。従来は
+				// 開始側floatだと無条件にclearing扱い=常に下ろしていたため、
+				// 幅が十分でも表がfloat下端まで落ちた(cocoon.apache.orgの
+				// 左ナビ約630pt+width:100%表で、本文が丸ごとページ2へ)。
+				// Chromeはfloat右端(178px)と表左端(193px)が非干渉なら
+				// 最上部へ並べる(実測)。入らない場合は従来どおり下ろす
+				if (LayoutUtils.compare(lineEnd - exclusion.lineSpan().end(), lineSize) < 0) {
+					return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
+				}
+				xMarginStart = Math.max(xMarginStart, exclusion.lineSpan().end());
+				break;
 			case END:
 				if (LayoutUtils.compare(exclusion.lineSpan().start() - xMarginStart, lineSize) < 0) {
 					lineEnd = lineStop;
