@@ -3,6 +3,4 @@ drawer z=0
   x=46.99 y=0.00 Text["first" asc=10.31 desc=4.09]
   x=0.00 y=14.40 Text["appendix" asc=10.31 desc=4.09]
   x=46.99 y=14.40 Text["second" asc=10.31 desc=4.09]
-margin-boxes
-drawer z=0
   x=237.97 y=-22.20 Text["APPENDIX" asc=10.31 desc=4.09]

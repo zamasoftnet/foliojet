@@ -1,9 +1,7 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=24.20]
   x=100.00 y=0.00 AbsoluteRectFrame[w=100.00 h=24.20]
   x=200.00 y=0.00 AbsoluteRectFrame[w=100.00 h=24.20]
-drawer z=0
   x=5.00 y=0.00 Text["Card" asc=7.01 desc=2.59]
   x=24.56 y=0.00 Text["A" asc=7.01 desc=2.59]
   x=32.12 y=0.00 Text["line3" asc=7.01 desc=2.59]

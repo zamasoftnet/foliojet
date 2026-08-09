@@ -1,4 +1,3 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=60.00 h=34.80]
   x=0.00 y=34.80 AbsoluteRectFrame[w=60.00 h=20.40]
@@ -6,7 +5,6 @@ drawer z=0
   x=0.00 y=90.00 AbsoluteRectFrame[w=60.00 h=20.40]
   x=0.00 y=110.40 AbsoluteRectFrame[w=60.00 h=20.40]
   x=0.00 y=130.80 AbsoluteRectFrame[w=60.00 h=20.40]
-drawer z=0
   x=0.00 y=0.00 Text["ex" asc=10.31 desc=4.09]
   x=11.51 y=0.00 Text["p" asc=10.31 desc=4.09]
   x=17.51 y=0.00 Text["an" asc=10.31 desc=4.09]

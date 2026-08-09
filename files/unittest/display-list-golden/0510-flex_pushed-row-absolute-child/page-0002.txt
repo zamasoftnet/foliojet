@@ -1,8 +1,6 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=380.00 h=1.00]
   x=0.00 y=1.00 AbsoluteRectFrame[w=225.00 h=53.85]
-drawer z=0
   x=3.75 y=6.25 Text["今日の天気" asc=8.10 desc=2.70]
   x=3.75 y=17.05 AbsoluteRectFrame[w=28.50 h=15.00]
   x=34.75 y=19.40 Text["34℃" asc=7.74 desc=2.17]

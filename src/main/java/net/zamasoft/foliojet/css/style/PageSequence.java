@@ -554,11 +554,6 @@ final class PageSequence {
 		final Visitor visitor = this.ua.getVisitor(gc);
 		visitor.startPage();
 
-		// 紙のキャンバス(ページ自身の背景・境界)。紙全面が持ち場なので
-		// ビューポートstart側クリップの対象外(最下層として先に描く)
-		final Drawer canvasDrawer = new Drawer(0);
-		pageBox.drawCanvas(canvasDrawer);
-
 		final Drawer drawer = new Drawer(0);
 
 		// フロー
@@ -567,16 +562,12 @@ final class PageSequence {
 		// 脚注separator罫線(flow後・fixed前。装飾なのでartifact)
 		pageBox.drawFootnoteSeparator(drawer);
 
-		// ページマージンボックスは別ドロワーへ(css-page-3の描画順を
-		// 明示するとともに、本文の最上層より常に上に描く)
-		final Drawer marginDrawer = new Drawer(0);
 		if (gc != null) {
 			// 固定
 			pageBox.drawFixed(drawer, visitor);
 
 			// ページマージンボックス(css-page-3。本文の後に描く=仕様の描画順)
-			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, marginDrawer,
-					visitor);
+			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor);
 
 			visitor.endPage();
 		}
@@ -584,10 +575,8 @@ final class PageSequence {
 		// 描画処理を非同期で実行
 		// PDFでは描画処理は非常に早く終わる
 		if (gc != null) {
-			DisplayListDumper.dumpPage(canvasDrawer, drawer, marginDrawer, this.pageNumber);
-			canvasDrawer.draw(gc);
+			DisplayListDumper.dumpPage(drawer, this.pageNumber);
 			drawer.draw(gc);
-			marginDrawer.draw(gc);
 			if (marginState != null) {
 				marginState.close();
 			}

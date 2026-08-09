@@ -1,4 +1,3 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=678.00 h=300.00]
   x=0.00 y=10.80 AbsoluteRectFrame[w=660.00 h=289.20]
@@ -7,7 +6,6 @@ drawer z=0
   x=678.00 y=67.50 AbsoluteRectFrame[w=225.00 h=67.50]
   x=678.00 y=135.00 AbsoluteRectFrame[w=225.00 h=67.50]
   x=678.00 y=202.50 AbsoluteRectFrame[w=225.00 h=67.50]
-drawer z=0
   x=0.00 y=0.00 Text["MAIN-TOP" asc=7.89 desc=2.91]
   x=0.00 y=10.80 Text["TALL" asc=7.89 desc=2.91]
   x=678.00 y=0.00 Text["S1" asc=7.89 desc=2.91]

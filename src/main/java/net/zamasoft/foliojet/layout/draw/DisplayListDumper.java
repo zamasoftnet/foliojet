@@ -71,14 +71,8 @@ public final class DisplayListDumper {
 
 	/**
 	 * ダンプが有効な場合、ページの表示リストを書き出します。
-	 *
-	 * @param canvasDrawer 紙のキャンバス(ページ自身の背景・境界)の
-	 *                     ドロワー。本文より先(最下層)に描かれる。
-	 * @param marginDrawer ページマージンボックスのドロワー(本文とは別に
-	 *                     描かれる——PageSequence.drawPage参照)。空なら
-	 *                     セクションを出力しない。
 	 */
-	public static void dumpPage(Drawer canvasDrawer, Drawer drawer, Drawer marginDrawer, int pageNumber) {
+	public static void dumpPage(Drawer drawer, int pageNumber) {
 		String dir = DIR_OVERRIDE.get();
 		if (dir == null) {
 			dir = System.getProperty(DIR_PROPERTY);
@@ -87,15 +81,7 @@ public final class DisplayListDumper {
 			return;
 		}
 		StringBuilder sb = new StringBuilder();
-		if (!canvasDrawer.isEmpty()) {
-			sb.append("canvas\n");
-			canvasDrawer.dump(sb, "");
-		}
 		drawer.dump(sb, "");
-		if (!marginDrawer.isEmpty()) {
-			sb.append("margin-boxes\n");
-			marginDrawer.dump(sb, "");
-		}
 		try {
 			File d = new File(dir);
 			d.mkdirs();

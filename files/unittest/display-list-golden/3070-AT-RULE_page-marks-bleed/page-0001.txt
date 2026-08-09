@@ -1,5 +1,3 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=90.00 h=12.00]
-drawer z=0
   x=0.00 y=0.00 Text["MARKS" asc=9.00 desc=3.00]

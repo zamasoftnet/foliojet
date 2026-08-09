@@ -1,7 +1,5 @@
-canvas
 drawer z=0
   x=0.00 y=195.00 AbsoluteRectFrame[w=300.00 h=30.00]
-drawer z=0
   x=0.00 y=0.00 Text["SPACER" asc=7.89 desc=2.91]
   x=0.00 y=199.50 AbsoluteRectFrame[w=268.23 h=25.50]
   x=0.00 y=199.50 Text["TALL" asc=7.89 desc=2.91]

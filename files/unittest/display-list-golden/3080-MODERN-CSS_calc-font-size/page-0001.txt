@@ -1,10 +1,8 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=10.80]
   x=0.00 y=10.80 AbsoluteRectFrame[w=400.00 h=7.20]
   x=0.00 y=18.00 AbsoluteRectFrame[w=400.00 h=9.00]
   x=0.00 y=27.00 AbsoluteRectFrame[w=400.00 h=12.00]
-drawer z=0
   x=0.00 y=0.00 Text["A-rem-in-calc" asc=7.73 desc=3.07]
   x=0.00 y=10.80 Text["B-em-in-calc" asc=5.15 desc=2.05]
   x=0.00 y=18.00 Text["C-percent-mix" asc=6.44 desc=2.56]

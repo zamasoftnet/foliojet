@@ -1,10 +1,8 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=45.00 h=92.40]
   x=0.00 y=92.40 AbsoluteRectFrame[w=45.00 h=49.20]
   x=0.00 y=141.60 AbsoluteRectFrame[w=45.00 h=34.80]
   x=0.00 y=176.40 AbsoluteRectFrame[w=45.00 h=63.60]
-drawer z=0
   x=0.00 y=0.00 Text["hy" asc=10.31 desc=4.09]
   x=12.06 y=0.00 Text["ph" asc=10.31 desc=4.09]
   x=24.06 y=0.00 Text["en-" asc=10.31 desc=4.09]

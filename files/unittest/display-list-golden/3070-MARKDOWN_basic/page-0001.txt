@@ -1,7 +1,5 @@
-canvas
 drawer z=0
   x=6.00 y=210.62 AbsoluteRectFrame[w=458.55 h=32.00]
-drawer z=0
   x=6.00 y=16.00 Text["H1HEADING" asc=9.00 desc=3.00]
   x=6.00 y=44.00 Text["H2HEADING" asc=9.00 desc=3.00]
   x=6.00 y=63.00 Text["Paragraph" asc=11.82 desc=6.21]
@@ -24,6 +22,4 @@ drawer z=0
   x=6.00 y=244.83 Text["CODEBLOCKTEXT" asc=8.31 desc=1.93]
   x=6.00 y=270.96 Text["LINKTEXT" asc=9.03 desc=2.53]
   x=6.00 y=291.45 Text["RAWHTMLTEXT" asc=11.64 desc=6.21]
-margin-boxes
-drawer z=0
   x=233.03 y=730.19 Text["1" asc=7.73 desc=3.07]

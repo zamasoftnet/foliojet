@@ -1,4 +1,3 @@
-canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 769.89]
   x=110.00 y=0.00 AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 769.89]
@@ -20,7 +19,6 @@ drawer z=0
   x=110.00 y=736.00 AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 769.89]
   x=0.00 y=828.00 AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 769.89]
   x=110.00 y=828.00 AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 769.89]
-drawer z=0
   x=1.00 y=1.00 Text["r1a" asc=10.31 desc=4.09] clip=[0.00 0.00 210.00 769.89]
   x=111.00 y=1.00 Text["r1b" asc=10.31 desc=4.09] clip=[0.00 0.00 210.00 769.89]
   x=1.00 y=93.00 Text["r2a" asc=10.31 desc=4.09] clip=[0.00 0.00 210.00 769.89]

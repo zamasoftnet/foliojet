@@ -540,23 +540,12 @@ public class PageBox extends AbstractBlockBox {
 		return (state, container) -> new PageBox(params, ua, container);
 	}
 
-	/**
-	 * ページ自身の枠(紙のキャンバス背景・境界)を描きます。紙全面が
-	 * 持ち場なのでビューポートのstart側クリップの対象外
-	 * ({@code PageSequence.drawPage}が本文より先に別ドロワーで描く)。
-	 */
-	public final void drawCanvas(Drawer drawer) {
-		double x = -this.frame.margin.left;
-		double y = -this.frame.margin.top;
-		this.frames(this, drawer, null, new AffineTransform(), x, y);
-	}
-
 	public final void drawFlow(Drawer drawer, Visitor visitor) {
 		double x = -this.frame.margin.left;
 		double y = -this.frame.margin.top;
+		this.frames(this, drawer, null, new AffineTransform(), x, y);
 		this.draw(this, drawer, visitor, null, new AffineTransform(), x, y, x, y);
 	}
-
 
 	/**
 	 * 脚注separator罫線のページ方向位置です(脚注F6/F7答申①、2026-07-31。

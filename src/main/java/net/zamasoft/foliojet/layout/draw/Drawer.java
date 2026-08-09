@@ -107,23 +107,6 @@ public class Drawer {
 
 	protected final int z;
 	protected List<PaintCommand> paintCommands = null;
-
-	/**
-	 * 描くものが何も無いか(自分にも子stacking contextにも)。
-	 */
-	public final boolean isEmpty() {
-		if (this.paintCommands != null && !this.paintCommands.isEmpty()) {
-			return false;
-		}
-		if (this.stackingContexts != null) {
-			for (int i = 0; i < this.stackingContexts.size(); ++i) {
-				if (!this.stackingContexts.get(i).drawer.isEmpty()) {
-					return false;
-				}
-			}
-		}
-		return true;
-	}
 	private List<StackingContextEntry> stackingContexts = null;
 
 	/**
