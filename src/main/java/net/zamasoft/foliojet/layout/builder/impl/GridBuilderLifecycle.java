@@ -24,7 +24,12 @@ public final class GridBuilderLifecycle {
 	 */
 	public static boolean eligible(final GridBox gridBox, final Builder builder) {
 		final GridParams params = gridBox.getGridParams();
-		if (params.templateColumns.isEmpty() || !params.templateRows.isEmpty()) {
+		// grid-template-columns無し(=暗黙の単一autoカラム)も適格(2026-08-09)。
+		// 従来はG0の単一列フローへ落としており、place-items等のitem整列が
+		// 一切効かなかった(NHKニュースのボタンのアイコン中央寄せ)。
+		// GridBoxは不適格でもPageAtomicのため、適格化で改ページ特性は
+		// 変わらない。暗黙トラックの補完はGridBuilderのコンストラクタが行う
+		if (!params.templateRows.isEmpty()) {
 			return false;
 		}
 		if (params.flow.isVertical()) {

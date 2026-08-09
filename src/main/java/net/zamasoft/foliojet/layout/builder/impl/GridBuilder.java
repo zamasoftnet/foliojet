@@ -106,7 +106,11 @@ public final class GridBuilder
 		this.hostStack = (LayoutStack) host;
 		this.gridBox = gridBox;
 		final GridParams params = gridBox.getGridParams();
-		this.tracks = params.templateColumns;
+		// template無しは暗黙の単一autoカラム(2026-08-09、
+		// GridBuilderLifecycle.eligible参照)
+		this.tracks = params.templateColumns.isEmpty()
+				? List.of(net.zamasoft.foliojet.css.value.GridTrackListValue.Auto.INSTANCE)
+				: params.templateColumns;
 		this.columnGap = params.columnGap;
 		this.rowGap = params.rowGap;
 	}

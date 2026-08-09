@@ -41,22 +41,22 @@ public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 			BoxAlignmentValue.FLEX_START, BoxAlignmentValue.FLEX_END, BoxAlignmentValue.SPACE_BETWEEN,
 			BoxAlignmentValue.SPACE_AROUND, BoxAlignmentValue.SPACE_EVENLY);
 
-	public static final PrimitivePropertyInfo JUSTIFY_ITEMS = new GridAlignmentProperty("justify-items",
+	public static final GridAlignmentProperty JUSTIFY_ITEMS = new GridAlignmentProperty("justify-items",
 			ITEMS_VALUES, BoxAlignmentValue.NORMAL);
 
-	public static final PrimitivePropertyInfo ALIGN_ITEMS = new GridAlignmentProperty("align-items", ITEMS_VALUES,
+	public static final GridAlignmentProperty ALIGN_ITEMS = new GridAlignmentProperty("align-items", ITEMS_VALUES,
 			BoxAlignmentValue.NORMAL);
 
-	public static final PrimitivePropertyInfo JUSTIFY_SELF = new GridAlignmentProperty("justify-self", SELF_VALUES,
+	public static final GridAlignmentProperty JUSTIFY_SELF = new GridAlignmentProperty("justify-self", SELF_VALUES,
 			BoxAlignmentValue.AUTO);
 
-	public static final PrimitivePropertyInfo ALIGN_SELF = new GridAlignmentProperty("align-self", SELF_VALUES,
+	public static final GridAlignmentProperty ALIGN_SELF = new GridAlignmentProperty("align-self", SELF_VALUES,
 			BoxAlignmentValue.AUTO);
 
-	public static final PrimitivePropertyInfo JUSTIFY_CONTENT = new GridAlignmentProperty("justify-content",
+	public static final GridAlignmentProperty JUSTIFY_CONTENT = new GridAlignmentProperty("justify-content",
 			CONTENT_VALUES, BoxAlignmentValue.NORMAL);
 
-	public static final PrimitivePropertyInfo ALIGN_CONTENT = new GridAlignmentProperty("align-content",
+	public static final GridAlignmentProperty ALIGN_CONTENT = new GridAlignmentProperty("align-content",
 			CONTENT_VALUES, BoxAlignmentValue.NORMAL);
 
 	public static BoxAlignmentValue get(CSSStyle style, PrimitivePropertyInfo info) {
@@ -87,15 +87,24 @@ public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final BoxAlignmentValue value = this.eatValue(tokens);
+		if (value == null || tokens.hasNext()) {
+			// 未知キーワード、またはsafe/unsafe等の複合はサブセット外(宣言無効)
+			throw new PropertyException();
+		}
+		return value;
+	}
+
+	/**
+	 * ストリーム先頭が受理可能なキーワードなら消費して返します
+	 * (place-*ショートハンド用。2026-08-09)。無ければnull。
+	 */
+	public BoxAlignmentValue eatValue(final TokenStream tokens) {
 		for (final BoxAlignmentValue value : this.accepted) {
 			if (tokens.eat(value.toString())) {
-				if (tokens.hasNext()) {
-					// safe/unsafe等の複合はサブセット外(宣言無効)
-					throw new PropertyException();
-				}
 				return value;
 			}
 		}
-		throw new PropertyException();
+		return null;
 	}
 }

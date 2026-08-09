@@ -324,6 +324,9 @@ public final class ElementPropertySet extends PropertySet {
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.FlexShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.FlexFlowShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GapShorthand.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.PlaceShorthand.ITEMS);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.PlaceShorthand.SELF);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.PlaceShorthand.CONTENT);
 		put(BackgroundShorthand.INFO);
 		put(ListStyleShorthand.INFO);
 
