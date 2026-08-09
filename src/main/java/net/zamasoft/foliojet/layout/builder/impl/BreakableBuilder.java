@@ -1127,6 +1127,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * @return
 	 */
 	private boolean autoBreak() {
+		if (System.getProperty("foliojet.debug.breakTrace") != null) {
+			System.err.println("[break] pageAxis=" + this.pageAxis + " flow="
+					+ this.getFlowBox().getParams().element + " stack="
+					+ (this.flowStack == null ? 0 : this.flowStack.size()));
+		}
 		byte flags = IPageBreakableBox.FLAGS_FIRST;
 		// 改カラム可能なブロックを検索
 		final ColumnBreakPoint columnBreak = this.findColumnBreak();
