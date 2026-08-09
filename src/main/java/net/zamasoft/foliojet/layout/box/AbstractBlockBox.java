@@ -328,6 +328,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// 旧3引数splitPageAxisはこのPlain写像のwrapperだった(増分5で一本化)
 		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
 				.splitPageAxis(pageLimit, xmode, flags, null)).container();
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			final String kind = nextContainer == null ? "KEEP"
+					: (nextContainer == this.splitMoveSentinel() ? "MOVE" : "SPLIT");
+			System.err.println("[float-split] " + kind + " el=" + this.params.element + " innerLimit=" + pageLimit
+					+ " flags=" + flags);
+		}
 		if (nextContainer == null) {
 			return net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.KEEP;
 		}
