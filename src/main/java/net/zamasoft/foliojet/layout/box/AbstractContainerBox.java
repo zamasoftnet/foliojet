@@ -138,7 +138,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 			return 0;
 		}
 		final double painted = this.frame.getFramePageStart(flow) + inner;
-		return params.overflow == OverflowMode.HIDDEN || params.paintClip ? Math.min(full, painted) : painted;
+		return params.overflow.clipsPaint() || params.paintClip ? Math.min(full, painted) : painted;
 	}
 
 	/**
@@ -430,7 +430,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	protected final Shape clip(Shape clip, double x, double y) {
 		final BlockParams params = this.getBlockParams();
-		if (params.overflow != OverflowMode.HIDDEN && !params.paintClip) {
+		if (!params.overflow.clipsPaint() && !params.paintClip) {
 			return clip;
 		}
 		Rectangle2D.Double newClip = new Rectangle2D.Double(

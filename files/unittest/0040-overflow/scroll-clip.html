@@ -1,0 +1,40 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>overflow:scroll/autoのブラウザ同様クリップ</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 12pt; }
+      .scroll { height: 36pt; overflow: scroll; background: #eef; }
+      .auto { height: 36pt; overflow: auto; background: #efe; }
+      .visible { height: 36pt; overflow: visible; background: #fee; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **スクロールコンテナ(overflow:scroll/auto)は印刷でもブラウザ同様に
+      「見えている範囲」でクリップする**(2026-08-09オーナー裁定)。
+      従来ははみ出しをそのまま描いており、absolute配置のタブ見出し等が
+      全展開の中身と重なっていた(asahi.comの速報ニュース欄 p-tab)。
+      期待:
+      - A(scroll)・B(auto)は5行のうち3行ぶんでクリップされ(ダンプに
+        clip=が付く)、L4/L5は描かれるが見えない。
+      - C(visible)は従来どおりはみ出しがそのまま描かれ、clip=なし。
+      - AFTERはC のはみ出しの下に重ならず、3箱ぶんの直後に出る。
+      なおBFC成立・float封じ込めのレイアウト効果は従来どおりhiddenのみ
+      (クリップは描画だけ)。
+    -->
+    <div class="scroll">
+      <div>A-L1</div><div>A-L2</div><div>A-L3</div><div>A-L4</div><div>A-L5</div>
+    </div>
+    <div class="auto">
+      <div>B-L1</div><div>B-L2</div><div>B-L3</div><div>B-L4</div><div>B-L5</div>
+    </div>
+    <div class="visible">
+      <div>C-L1</div><div>C-L2</div><div>C-L3</div><div>C-L4</div><div>C-L5</div>
+    </div>
+    <div>AFTER</div>
+  </body>
+</html>

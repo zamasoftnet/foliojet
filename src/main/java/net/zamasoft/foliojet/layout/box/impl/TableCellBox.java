@@ -316,7 +316,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 		transform = this.transform(transform, x, y);
 
-		if (this.params.overflow == OverflowMode.HIDDEN) {
+		if (this.params.overflow.clipsPaint()) {
 			// クリッピング
 			clip = this.clip(clip, x, y);
 		}

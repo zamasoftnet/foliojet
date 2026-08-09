@@ -11,9 +11,11 @@ public enum OverflowValue implements Value {
 
 	HIDDEN_VALUE(OverflowMode.HIDDEN),
 
-	AUTO_VALUE(OverflowMode.SCROLL),
+	// 2026-08-09まで両者のOverflowModeが入れ替わっていた(HIDDEN以外を
+	// 区別する処理が無かったため実害なし)。クリップ導入を機に正した
+	AUTO_VALUE(OverflowMode.AUTO),
 
-	SCROLL_VALUE(OverflowMode.AUTO);
+	SCROLL_VALUE(OverflowMode.SCROLL);
 
 	private final OverflowMode overflow;
 
