@@ -58,6 +58,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0170-position/absolute-width-in-button.html", //
 			"0120-float/auto-width.html", //
 			"0120-float/sliver-overflow-stays.html", //
+			"0120-float/floats-only-block-first-child-move.html", //
 			// 行の途中の行末側フロートの同一行配置(2026-08-08、kabutan)。
 			// 収まる場合は現在行の上端(variant A〜E)、収まらない場合は
 			// 従来の次の帯(variant F)

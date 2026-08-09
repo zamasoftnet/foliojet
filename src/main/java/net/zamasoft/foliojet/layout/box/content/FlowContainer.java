@@ -1103,6 +1103,11 @@ public class FlowContainer implements Container {
 				final FlowCutter.MoveResolution resolution = FlowCutter.resolveMove(lflags, flags, i, lastOrphan,
 						ignoreAvoid, prevPageSize, pageLimit, flowPageStarts, flowPageExtents, avoidBefore,
 						avoidAfter, flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
+				if (System.getProperty("foliojet.debug.floatTrace") != null) {
+					System.err.println("[cut-move] owner=" + this.box.getParams().element + " child="
+							+ prevFlow.box.getParams().element + " i=" + i + " resolution=" + resolution + " pageLimit="
+							+ pageLimit + " floats=" + (floatPageStarts == null ? 0 : floatPageStarts.length));
+				}
 				switch (resolution) {
 				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
 					return plain(switch (action) {

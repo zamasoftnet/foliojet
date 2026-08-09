@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=260.00]
+  x=0.00 y=0.00 AbsoluteRectFrame[w=150.00 h=194.40]
+  x=150.00 y=11.20 Text["ATOMIC" asc=8.59 desc=3.41]
+  x=0.00 y=271.20 Text["AFTER" asc=8.59 desc=3.41]

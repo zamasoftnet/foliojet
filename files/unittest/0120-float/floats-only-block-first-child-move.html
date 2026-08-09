@@ -1,0 +1,36 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>floatが主内容のブロックで先頭子がMoveしてもfloat頭断片を残す</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 12pt; }
+      .spacer { height: 60pt; background: #eee; }
+      .fl { float: left; width: 150pt; background: #dfd; }
+      .tall { height: 400pt; }
+      .atomic { page-break-inside: avoid; height: 260pt; background: #fdd; }
+      .clear { clear: both; }
+    </style>
+  </head>
+  <body>
+    <!--
+      in-flow内容が実質floatだけのブロック(#pg)で、in-flowの先頭子
+      (.atomic、avoidで分割不能・60+260=320で切断線300をまたぐ)がMoveに解決
+      されるとき、従来はMoveAll=切断線をまたぐfloat(頭断片60..300)ごと
+      次ページへ移設され、1ページ目が空いた(ニュースサイト3件の
+      「本文が丸ごとページ落ち」の根因。2026-08-10)。
+      現在は切断可能なcrossing floatがあればPartition: floatの頭断片
+      (FLOAT-TOP側)は1ページ目に残り、.atomicは2ページ目へ移る。
+      期待: FLOAT-TOPが1ページ目、ATOMICが2ページ目。
+    -->
+    <div class="spacer">SPACER</div>
+    <div id="pg">
+      <div class="fl"><p>FLOAT-TOP</p><div class="tall"></div></div>
+      <div class="atomic"><p>ATOMIC</p></div>
+      <div class="clear"></div>
+    </div>
+    <p>AFTER</p>
+  </body>
+</html>

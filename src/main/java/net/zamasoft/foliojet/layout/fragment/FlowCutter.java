@@ -397,7 +397,30 @@ public final class FlowCutter {
 				// 前ページに残す
 				return new MoveResolution.Terminal(new PreDecision.KeepFloats(prevPageSize));
 			}
-			// 全部移動
+			// 全部移動——ただし切断線をまたぐ切断可能なfloatが台帳にあるなら
+			// 区切る(Partition: 子は移動し、floatはsplitFloatingsが独立に
+			// 分割して頭断片をこのページへ残す)。ここでMoveAllにすると、
+			// 既にこのページへ敷かれたfloat(頭断片)ごと箱が次ページへ
+			// 移設され、本文が丸ごとページ落ちする(pc.watch.impress.co.jp
+			// ほかニュースサイト3件で実測、2026-08-10。in-flow内容が実質
+			// floatだけのブロック+先頭子がMoveの組で発火)。切断不能
+			// (置換要素/page-break-inside:avoid=floatUncut)なcrossing
+			// floatは従来どおりMoveAllを妨げない——avoidPushbackの
+			// 不変条件と同型
+			if (floatPageStarts != null) {
+				for (int k = 0; k < floatPageStarts.length; ++k) {
+					if (LayoutUtils.compare(floatPageStarts[k], pageLimit) >= 0) {
+						continue;
+					}
+					if (LayoutUtils.compare(floatPageStarts[k] + floatPageExtents[k], pageLimit) <= 0) {
+						continue;
+					}
+					if (floatUncut[k]) {
+						continue;
+					}
+					return new MoveResolution.Partition();
+				}
+			}
 			return new MoveResolution.Terminal(new PreDecision.MoveAll());
 		}
 		if (!ignoreAvoid && index > 0 && index <= lastOrphan) {
