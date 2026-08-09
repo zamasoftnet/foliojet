@@ -1110,6 +1110,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * 親ボックスのpage extent拡張)。
 	 */
 	final void commitFloatPlacement(final FloatPlacementDelta delta) {
+		if (System.getProperty("foliojet.debug.breakTrace") != null) {
+			System.err.println("[float-commit] kind=" + delta.kind() + " el=" + delta.box().getParams().element
+					+ " pageSpan=" + delta.pageSpan().start() + ".." + delta.pageSpan().end() + " limit="
+					+ (this instanceof BreakableBuilder bb ? bb.getPageLimit() : Double.NaN));
+		}
 		if (delta.kind() != FloatCommitKind.PLACED) {
 			this.recordBreakFloat(delta.side());
 		}
