@@ -99,6 +99,81 @@ public final class SelectorConverter {
 	}
 
 	/**
+	 * 妥当な(=セレクタリストを無効化しない)擬似クラス名の台帳です。
+	 *
+	 * <p>
+	 * CSSでは<b>無効なセレクタを1つでも含むセレクタリストは規則ごと
+	 * 破棄される</b>。未知の擬似クラスを「決して一致しない条件」として
+	 * 受理してしまうと、この仕様に依存したブラウザ判別ハック
+	 * ({@code _::-webkit-full-page-media, _:future, :root body .foo}の
+	 * ようなSafari専用規則)がCopperPDFにだけ適用されてしまう
+	 * (pc.watch.impress.co.jpで実測、2026-08-09)。ここに載っている名前は
+	 * 「解釈はしないが規則は殺さない」(インタラクティブ系など)、
+	 * 載っていない名前は規則ごと無効(Chromeと同じ側に倒す)。
+	 * </p>
+	 */
+	private static final java.util.Set<String> VALID_PSEUDO_CLASSES = java.util.Set.of(
+			// リンク・ユーザー操作系(印刷では一致しないが妥当)
+			"link", "visited", "any-link", "local-link", "hover", "active", "focus", "focus-visible",
+			"focus-within", "target", "target-within", "scope",
+			// 構造系
+			"root", "empty", "first-child", "last-child", "only-child", "first-of-type", "last-of-type",
+			"only-of-type", "nth-child", "nth-last-child", "nth-of-type", "nth-last-of-type",
+			// 論理コンビネータ
+			"is", "where", "not", "has",
+			// 入力状態系
+			"enabled", "disabled", "checked", "indeterminate", "default", "placeholder-shown", "autofill",
+			"read-only", "read-write", "required", "optional", "valid", "invalid", "user-valid",
+			"user-invalid", "in-range", "out-of-range", "blank",
+			// 言語・方向
+			"lang", "dir",
+			// 表示状態系
+			"defined", "fullscreen", "modal", "picture-in-picture", "popover-open", "open", "closed",
+			// ページ(@page文脈だが要素側に現れても殺さない)
+			"first", "left", "right",
+			// Shadow DOM(未対応だが妥当な構文)
+			"host", "host-context",
+			// Chromeが受理する-webkit-系(実サイトで使われる代表)
+			"-webkit-any", "-webkit-autofill", "-webkit-full-screen");
+
+	/**
+	 * 妥当な擬似要素名の台帳です({@link #VALID_PSEUDO_CLASSES}と同じ趣旨)。
+	 * {@code -webkit-}接頭辞の擬似要素は名前を問わず妥当(一致しない)
+	 * ——CSS仕様がウェブ互換のために明文で認める特例で、Chromeも同じ。
+	 * だからこそSafariハックは{@code ::-webkit-full-page-media}(どの
+	 * ブラウザでも規則を殺さない)と{@code :future}(Safari以外は規則ごと
+	 * 無効)の組で書かれる。
+	 */
+	private static final java.util.Set<String> VALID_PSEUDO_ELEMENTS = java.util.Set.of(
+			"before", "after", "first-line", "first-letter", "marker", "selection", "placeholder",
+			"backdrop", "cue", "cue-region", "file-selector-button", "details-content", "target-text",
+			"spelling-error", "grammar-error", "highlight", "part", "slotted",
+			// GCPM脚注(CopperPDFが実装)
+			"footnote-call", "footnote-marker");
+
+	/**
+	 * 未知の擬似クラス/擬似要素なら{@link CSSException}を投げます
+	 * (呼び出し側のセレクタリスト処理が規則ごと破棄する)。
+	 */
+	private static void requireValidPseudoClass(final String name) throws CSSException {
+		final int paren = name.indexOf('(');
+		final String bare = (paren >= 0 ? name.substring(0, paren) : name).toLowerCase(Locale.ROOT);
+		if (!VALID_PSEUDO_CLASSES.contains(bare)) {
+			throw new CSSException("未知の擬似クラスを含むセレクタです: :" + name);
+		}
+	}
+
+	private static void requireValidPseudoElement(final String name) throws CSSException {
+		final String bare = name.toLowerCase(Locale.ROOT);
+		if (bare.startsWith("-webkit-")) {
+			return;
+		}
+		if (!VALID_PSEUDO_ELEMENTS.contains(bare)) {
+			throw new CSSException("未知の擬似要素を含むセレクタです: ::" + name);
+		}
+	}
+
+	/**
 	 * CSS2.1で単一コロン記法が許される擬似要素。
 	 */
 	private static boolean isLegacyPseudoElement(String name) {
@@ -172,6 +247,7 @@ public final class SelectorConverter {
 				} else if (simple.isPseudo()) {
 					if (value.startsWith("::")) {
 						pseudoElement = unescapeCssIdent(value.substring(2));
+						requireValidPseudoElement(pseudoElement);
 					} else {
 						String name = unescapeCssIdent(value.substring(1));
 						if (isLegacyPseudoElement(name)) {
@@ -198,6 +274,9 @@ public final class SelectorConverter {
 							// 非対称。2026-07-18 実測で確認)。関数呼び出しの形を
 							// していればここで検出する
 							Condition functional = tryConvertFunctionalPseudo(name);
+							if (functional == null) {
+								requireValidPseudoClass(name);
+							}
 							conditions.add(functional != null ? functional
 									: new ValueCondition(ConditionType.PSEUDO_CLASS_CONDITION, name));
 						}
@@ -219,14 +298,17 @@ public final class SelectorConverter {
 				conditions.add(new SelectorListCondition(ConditionType.NOT_CONDITION,
 						convertList(((CSSSelectorMemberNot) member).getAllSelectors())));
 			} else if (member instanceof CSSSelectorMemberPseudoIs) {
+				// :is()の引数はforgivingリスト(無効なセレクタはその引数だけ
+				// 落とし、規則は無効化しない。CSS Selectors 4)
 				conditions.add(new SelectorListCondition(ConditionType.IS_CONDITION,
-						convertList(((CSSSelectorMemberPseudoIs) member).getAllSelectors())));
+						convertForgivingList(((CSSSelectorMemberPseudoIs) member).getAllSelectors())));
 			} else if (member instanceof CSSSelectorMemberPseudoWhere) {
 				// :where()は:is()とマッチング判定は同じだが、詳細度は常にゼロ
 				// (CSS Selectors4仕様)。別のConditionTypeで区別する
 				// (SelectorListCondition.getSpecificity参照)。
+				// 引数は:is()と同じforgivingリスト
 				conditions.add(new SelectorListCondition(ConditionType.WHERE_CONDITION,
-						convertList(((CSSSelectorMemberPseudoWhere) member).getAllSelectors())));
+						convertForgivingList(((CSSSelectorMemberPseudoWhere) member).getAllSelectors())));
 			} else if (member instanceof CSSSelectorMemberPseudoHas) {
 				List<CSSSelector> hasArgs = ((CSSSelectorMemberPseudoHas) member).getAllSelectors();
 				List<Selector> relativeSelectors = new ArrayList<Selector>(hasArgs.size());
@@ -250,6 +332,7 @@ public final class SelectorConverter {
 					// 未対応の関数型擬似クラス(nth-last-child等)は不一致条件として扱う。
 					// nth-child/nth-of-type はここに来ない(ph-cssの実装上
 					// CSSSelectorSimpleMember側で処理される。上のisPseudo()分岐参照)
+					requireValidPseudoClass(name);
 					conditions.add(new ValueCondition(ConditionType.PSEUDO_CLASS_CONDITION,
 							name + "(" + param + ")"));
 				}
@@ -286,6 +369,22 @@ public final class SelectorConverter {
 		List<Selector> result = new ArrayList<Selector>(selectors.size());
 		for (CSSSelector selector : selectors) {
 			result.add(convert(selector));
+		}
+		return result;
+	}
+
+	/**
+	 * forgivingセレクタリスト({@code :is()}/{@code :where()}の引数)の変換です。
+	 * 解釈できないセレクタはその項だけ落とし、例外は投げません。
+	 */
+	static List<Selector> convertForgivingList(List<CSSSelector> selectors) {
+		List<Selector> result = new ArrayList<Selector>(selectors.size());
+		for (CSSSelector selector : selectors) {
+			try {
+				result.add(convert(selector));
+			} catch (CSSException e) {
+				// forgiving: この項だけ無かったことにする
+			}
 		}
 		return result;
 	}

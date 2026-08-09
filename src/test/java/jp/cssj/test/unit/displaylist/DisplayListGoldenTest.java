@@ -214,6 +214,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// overflow:scroll/autoのブラウザ同様クリップ(2026-08-09オーナー
 			// 裁定)。従来ははみ出しをそのまま描き、絶対配置のタブ見出し等が
 			// 全展開の中身と重なっていた(asahi p-tab)
+			"0025-selector/invalid-list.html", //
 			"0040-overflow/scroll-clip.html", //
 			"0040-overflow/axis-properties.html", //
 			// flex/gridコンテナのbuttonへUAのZWSP(::before)を注入しない
