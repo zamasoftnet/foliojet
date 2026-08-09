@@ -21,6 +21,7 @@ import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.Fiducial;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
@@ -352,6 +353,18 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
 		this.resolveUnfinishedMargins();
+		if (this.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
+			// position:fixedはビューポート(=版面)に貼り付き、ビューポートの
+			// 外はスクロールしても到達できないためブラウザは4辺とも描かない。
+			// クリップしないと、負座標へ退避したoff-canvas UI(kanaloco.jpの
+			// #site-menuドロワー等)の端が用紙余白に描かれる(2026-08-09)。
+			// フロー内容には適用しない——印刷のブリード・トンボ・表の
+			// 境界は版面の外に描くのが正当(imageTestのmarks/border-collapse
+			// 群で実測)
+			final java.awt.geom.Rectangle2D.Double icb = new java.awt.geom.Rectangle2D.Double(0, 0,
+					pageBox.getWidth(), pageBox.getHeight());
+			clip = clip == null ? icb : icb.createIntersection((java.awt.geom.Rectangle2D) clip);
+		}
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			Drawer newDrawer = new Drawer(this.params.zIndexValue);
 			drawer.visitDrawer(newDrawer);

@@ -215,6 +215,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// 裁定)。従来ははみ出しをそのまま描き、絶対配置のタブ見出し等が
 			// 全展開の中身と重なっていた(asahi p-tab)
 			"0040-overflow/scroll-clip.html", //
+			"0040-overflow/axis-properties.html", //
 			// flex/gridコンテナのbuttonへUAのZWSP(::before)を注入しない
 			// (2026-08-09)。ZWSPが独立itemになりアイコンを箱外へ押し出していた
 			"3080-MODERN-CSS/button-flex-grid-content.html", //

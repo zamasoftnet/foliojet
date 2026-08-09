@@ -122,6 +122,7 @@ import net.zamasoft.foliojet.css.impl.property.shorthand.BorderWidthShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.FontShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.ListStyleShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.MarginShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.OverflowShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.PaddingShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.WritingModeShorthand;
 import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
@@ -229,7 +230,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(VerticalAlign.INFO);
 		reg(ZIndex.INFO);
 		reg(Visibility.INFO);
-		reg(Overflow.INFO);
+		reg(Overflow.INFO_X);
+		reg(Overflow.INFO_Y);
 		reg(Clip.INFO);
 		reg(MaskImage.INFO);
 		reg(CSSFontFamily.INFO);
@@ -318,6 +320,7 @@ public final class ElementPropertySet extends PropertySet {
 		put(BorderWidthShorthand.INFO);
 		put(MarginShorthand.INFO);
 		put(PaddingShorthand.INFO);
+		put(OverflowShorthand.INFO);
 		put(FontShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.COLUMN);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.ROW);

@@ -1,0 +1,46 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>overflow-x/overflow-yと2値のoverflow</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 10pt; line-height: 12pt; }
+      div { height: 36pt; }
+      .ox { overflow-x: hidden; background: #eef; }
+      .oy { overflow-y: scroll; background: #efe; }
+      .two { overflow: hidden auto; background: #fee; }
+      .drawer { position: fixed; top: 200pt; left: -90pt; width: 80pt;
+                overflow-y: scroll; background: #ddd; }
+      .badge { position: absolute; top: 4pt; left: 70pt; width: 40pt;
+               height: 20pt; background: #f00; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **overflow-x/overflow-yは単一のクリップ判定へ畳む**(2026-08-09)。
+      CSS Overflow 3では片軸が非visibleなら他軸のvisibleはautoへ計算
+      されるため、印刷では「両軸visibleのときだけvisible」で正確。
+      従来は軸別プロパティが未知として捨てられ、off-canvasドロワー
+      (overflow-y:scroll)から食み出したバッジが紙面に描かれていた
+      (kanaloco.jpの#site-menuで実測)。
+      期待:
+      - A(overflow-x:hidden)・B(overflow-y:scroll)・C(overflow:hidden auto)
+        はいずれも5行のうち3行ぶんでクリップされる(ダンプにclip=)。
+      - fixedのドロワー(左外)内のバッジはドロワーのクリップに収まり、
+        紙面内に赤箱が現れない。
+    -->
+    <div class="ox">
+      <div>A-L1</div><div>A-L2</div><div>A-L3</div><div>A-L4</div><div>A-L5</div>
+    </div>
+    <div class="oy">
+      <div>B-L1</div><div>B-L2</div><div>B-L3</div><div>B-L4</div><div>B-L5</div>
+    </div>
+    <div class="two">
+      <div>C-L1</div><div>C-L2</div><div>C-L3</div><div>C-L4</div><div>C-L5</div>
+    </div>
+    <div>AFTER</div>
+    <div class="drawer"><span class="badge"></span>MENU</div>
+  </body>
+</html>
