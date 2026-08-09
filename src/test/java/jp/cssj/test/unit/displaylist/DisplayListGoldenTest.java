@@ -204,6 +204,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 捨てられrem全寸法が1.6倍になる欠陥(e-gov)と、%混在line-heightの
 			// ClassCastExceptionの回帰
 			"3080-MODERN-CSS/calc-font-size.html", //
+			// bodyの無いHTML断片(2026-08-09、e-Gov法令HTML)。TagBalancerの
+			// html/body合成が開いた要素の内側へ注入され木が崩壊していた
+			"3030-FRAGMENT/body-less-fragment.html", //
 			// mask-imageのグラデーション近似(2026-08-09)。本文抜粋の
 			// フェードアウト・イディオムをボックスクリップで近似する。
 			// 5ch.ioでマスク無視によりはみ出し本文が後続へ重なった欠陥の回帰

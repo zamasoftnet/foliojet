@@ -1,0 +1,8 @@
+drawer z=0
+  x=6.00 y=6.00 Text["最初の見出し" asc=17.28 desc=5.76]
+  x=63.60 y=30.10 Text["二番目の見出し" asc=22.70 desc=6.37]
+  x=18.00 y=70.20 Text["本文の段落。" asc=10.32 desc=2.89]
+  x=18.00 y=84.60 Text["目次リンク" asc=10.32 desc=2.89]
+  x=18.00 y=84.60 TextDecorationDrawable
+  x=78.00 y=84.60 Text["(付記)" asc=10.32 desc=2.89]
+  x=78.00 y=84.60 TextDecorationDrawable

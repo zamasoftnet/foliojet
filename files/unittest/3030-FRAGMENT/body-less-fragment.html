@@ -1,0 +1,16 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<div style="margin-bottom: 12px;">
+<div id="a" style="font-size: 1.6rem;">最初の見出し</div>
+<div id="b" style="font-size: 2.2rem; padding-inline-start: calc(1.6rem * 3);"><span>二番目の見出し</span></div>
+</div>
+<section id="s1"><div style="text-indent: 1em;"><span>本文の段落。</span></div></section>
+<section id="s2"><div style="margin-left: 1em;"><a href="#s1">目次リンク</a><a href="#s1"><span>(付記)</span></a></div></section>
+<!--
+  bodyの無いHTML断片(e-Gov法令HTML形式)の回帰(2026-08-09)。
+  TagBalancerがhtml/head/bodyを開いた要素の内側へ注入して木全体が
+  崩壊し(兄弟が入れ子に・スタイルが1要素ずれ・全祖先が閉じない=
+  ストリーミング破れでOOM)、XHTMLPreprocessFilterも全SAXイベントを
+  録画し続けていた。期待: 完全なhtml/bodyで包んだ場合と同一のレイアウト
+  (見出し2つが兄弟・1.6rem/2.2rem各自のサイズ・リンク下線はリンクのみ)。
+-->
