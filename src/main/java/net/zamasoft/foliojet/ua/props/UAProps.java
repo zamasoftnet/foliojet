@@ -79,6 +79,20 @@ public final class UAProps {
 			"input.http.socket.timeout", 60000);
 
 	/**
+	 * 変換をまたぐHTTP応答キャッシュ(2026-08-10)。認証情報・Cookieを
+	 * 伴わないGETだけが対象で、応答の{@code Cache-Control}
+	 * (no-store/no-cache/private/max-age)を尊重する。@importされた
+	 * ウェブフォントCSS等、毎変換同じ外部リソースを取り直す遅延の解消。
+	 */
+	public static final BooleanPropManager INPUT_HTTP_CACHE = new BooleanPropManager("input.http.cache", true);
+
+	/**
+	 * HTTP応答キャッシュの保持期間(秒)です。0はキャッシュ無効。
+	 * 応答が{@code max-age}を持つ場合は短い方を使う。
+	 */
+	public static final IntegerPropManager INPUT_HTTP_CACHE_TTL = new IntegerPropManager("input.http.cache.ttl", 600);
+
+	/**
 	 * プロクシホスト名です。
 	 */
 	public static final StringPropManager INPUT_HTTP_PROXY_HOST = new StringPropManager("input.http.proxy.host", null);
@@ -656,6 +670,8 @@ public final class UAProps {
 			INPUT_HTTP_REFERER,
 			INPUT_HTTP_CONNECTION_TIMEOUT,
 			INPUT_HTTP_SOCKET_TIMEOUT,
+			INPUT_HTTP_CACHE,
+			INPUT_HTTP_CACHE_TTL,
 			INPUT_HTTP_PROXY_HOST,
 			INPUT_HTTP_PROXY_PORT,
 			INPUT_HTTP_PROXY_AUTHENTICATION_USER,

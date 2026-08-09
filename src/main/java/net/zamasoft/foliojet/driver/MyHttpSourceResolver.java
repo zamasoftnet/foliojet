@@ -87,6 +87,9 @@ class MySourceResolver implements SourceResolver {
 
 		httpResolver.setConnectionTimeout(UAProps.INPUT_HTTP_CONNECTION_TIMEOUT.getInteger(props, mh));
 		httpResolver.setRequestTimeout(UAProps.INPUT_HTTP_SOCKET_TIMEOUT.getInteger(props, mh));
+		httpResolver.setCacheTtl(UAProps.INPUT_HTTP_CACHE.getBoolean(props, mh)
+				? UAProps.INPUT_HTTP_CACHE_TTL.getInteger(props, mh)
+				: 0);
 
 		// プロクシ
 		String proxyHost = UAProps.INPUT_HTTP_PROXY_HOST.getString(props);
@@ -280,6 +283,7 @@ class MyHttpSourceResolver implements SourceResolver {
 	private final CookieManager cookieManager = new CookieManager();
 	private final List<HttpCredential> credentials = new ArrayList<HttpCredential>();
 	private boolean preemptiveAuth = false;
+	private int cacheTtl = 0;
 	protected URI refURI = null;
 
 	protected List<Entry<String, String>> headers = null;
@@ -299,6 +303,14 @@ class MyHttpSourceResolver implements SourceResolver {
 
 	public void setConnectionTimeout(int timeout) {
 		this.connectionTimeout = timeout;
+	}
+
+	/**
+	 * 変換をまたぐHTTP応答キャッシュのTTL(秒)です。0はキャッシュ無効。
+	 * 安全条件と設計は{@link HttpResponseCache}に集約しています。
+	 */
+	public void setCacheTtl(int cacheTtl) {
+		this.cacheTtl = cacheTtl;
 	}
 
 	public void setRequestTimeout(int timeout) {
@@ -363,7 +375,54 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	public Source resolve(URI uri) throws IOException {
-		return new MyHttpSource(uri, this.httpClient(), this.createHttpRequest(uri));
+		final HttpRequest request = this.createHttpRequest(uri);
+		final String cacheKey = this.cacheKey(uri, request);
+		if (cacheKey != null) {
+			final HttpResponseCache.Entry entry = HttpResponseCache.get(cacheKey, this.cacheTtl);
+			if (entry != null) {
+				return new CachedHttpSource(uri, entry);
+			}
+		}
+		return new MyHttpSource(uri, this.httpClient(), request, cacheKey);
+	}
+
+	/**
+	 * この要求のキャッシュキーを返します。キャッシュ対象外なら
+	 * {@code null}(安全条件と設計は{@link HttpResponseCache}に集約)。
+	 *
+	 * <p>
+	 * 要求側の除外は3つ: (1)Authorizationヘッダを送る(preemptive認証・
+	 * カスタムヘッダ)、(2)当該ホストに一致する資格情報がある(401応答への
+	 * Authenticator反応で利用者固有の応答になり得る)、(3)当該URIへ送られる
+	 * Cookieがある(変換中のSet-Cookieで増えるため、要求を作る都度検査)。
+	 * </p>
+	 */
+	private String cacheKey(final URI uri, final HttpRequest request) {
+		if (this.cacheTtl <= 0) {
+			return null;
+		}
+		if (request.headers().firstValue("Authorization").isPresent()) {
+			return null;
+		}
+		if (this.findCredential(uri.getHost(), uri.getPort()) != null) {
+			return null;
+		}
+		try {
+			final List<String> cookies = this.cookieManager.get(uri, Map.of()).get("Cookie");
+			if (cookies != null && !cookies.isEmpty()) {
+				return null;
+			}
+		} catch (final IOException e) {
+			return null;
+		}
+		// キーはURI+経路(プロクシ)+送信ヘッダ全体。ヘッダで応答を変える
+		// サーバー(Referer判定のhotlink保護等)が混線しないよう、送る
+		// ヘッダが1つでも違えば別エントリにする
+		final StringBuilder key = new StringBuilder(uri.toASCIIString());
+		key.append('\n').append(this.proxyHost).append(':').append(this.proxyPort);
+		new java.util.TreeMap<>(request.headers().map())
+				.forEach((name, values) -> key.append('\n').append(name).append(':').append(values));
+		return key.toString();
 	}
 
 	public void release(Source source) {
@@ -531,6 +590,7 @@ class MyHttpSourceResolver implements SourceResolver {
 	class MyHttpSource extends AbstractSource {
 		private final HttpClient httpClient;
 		private final HttpRequest request;
+		private final String cacheKey;
 		private CompletableFuture<HttpResponse<InputStream>> responseFuture;
 		private HttpResponse<InputStream> response;
 		private InputStream in;
@@ -541,10 +601,11 @@ class MyHttpSourceResolver implements SourceResolver {
 		private long lastModified = -1;
 		private long contentLength = -1;
 
-		MyHttpSource(URI uri, HttpClient httpClient, HttpRequest request) {
+		MyHttpSource(URI uri, HttpClient httpClient, HttpRequest request, String cacheKey) {
 			super(uri);
 			this.httpClient = httpClient;
 			this.request = request;
+			this.cacheKey = cacheKey;
 			this.startConnection();
 		}
 
@@ -614,8 +675,52 @@ class MyHttpSourceResolver implements SourceResolver {
 					break;
 				}
 			}
+			// 応答側のキャッシュ判定(要求側は resolve() の cacheKey)。
+			// 本文を上限まで先読みして保存する——EOF検出契機の保存は
+			// GZIPInputStreamが下位ストリームを-1まで読み切るとは限らず
+			// (トレーラはバッファ内で消費され得る)、gzip配信のCSSという
+			// 主目的で不発になるため。上限超過時は読んだ分+残りを
+			// 連結して素通しする(設計は HttpResponseCache に集約)
+			if (this.cacheKey != null && this.isCacheableResponse()) {
+				final byte[] head = body.readNBytes(HttpResponseCache.MAX_ENTRY_BYTES + 1);
+				if (head.length <= HttpResponseCache.MAX_ENTRY_BYTES) {
+					HttpResponseCache.put(this.cacheKey,
+							new HttpResponseCache.Entry(head, this.mimeType, this.encoding, this.lastModified,
+									System.currentTimeMillis(),
+									parseMaxAge(this.response.headers().firstValue("Cache-Control").orElse(null))));
+					body.close();
+					body = new java.io.ByteArrayInputStream(head);
+				} else {
+					body = new java.io.SequenceInputStream(new java.io.ByteArrayInputStream(head), body);
+				}
+			}
 			this.in = body;
 			return this.in;
+		}
+
+		/**
+		 * 応答が共有キャッシュへ保存してよいものかを返します。
+		 * 200のGET応答で、Set-Cookieが無く、Cache-Controlが
+		 * no-store/no-cache/privateのいずれも含まず、Vary:*でないこと。
+		 */
+		private boolean isCacheableResponse() {
+			if (this.response.statusCode() != 200) {
+				return false;
+			}
+			if (this.response.headers().firstValue("Set-Cookie").isPresent()) {
+				return false;
+			}
+			if ("*".equals(this.response.headers().firstValue("Vary").orElse(null))) {
+				return false;
+			}
+			final String cacheControl = this.response.headers().firstValue("Cache-Control").orElse(null);
+			if (cacheControl != null) {
+				final String lower = cacheControl.toLowerCase();
+				if (lower.contains("no-store") || lower.contains("no-cache") || lower.contains("private")) {
+					return false;
+				}
+			}
+			return true;
 		}
 
 		public Reader getReader() throws IOException {
@@ -719,6 +824,92 @@ class MyHttpSourceResolver implements SourceResolver {
 			} catch (Exception e) {
 				return -1;
 			}
+		}
+	}
+
+	/**
+	 * 応答の{@code Cache-Control}からmax-age(秒)を取り出します。
+	 * 共有キャッシュなのでs-maxageを優先し、どちらも無ければ-1。
+	 */
+	static long parseMaxAge(final String cacheControl) {
+		if (cacheControl == null) {
+			return -1;
+		}
+		long maxAge = -1;
+		long sMaxAge = -1;
+		for (final String part : cacheControl.split(",")) {
+			final String token = part.trim().toLowerCase();
+			try {
+				if (token.startsWith("s-maxage=")) {
+					sMaxAge = Long.parseLong(token.substring("s-maxage=".length()).trim());
+				} else if (token.startsWith("max-age=")) {
+					maxAge = Long.parseLong(token.substring("max-age=".length()).trim());
+				}
+			} catch (final NumberFormatException e) {
+				// 不正な値は無指定とみなす
+			}
+		}
+		return sMaxAge >= 0 ? sMaxAge : maxAge;
+	}
+
+	/**
+	 * {@link HttpResponseCache}のエントリを提供するSourceです。中身は
+	 * 解凍済みバイト列なので、ネットワークにも{@code HttpClient}にも
+	 * 触れません。
+	 */
+	static final class CachedHttpSource extends AbstractSource {
+		private final HttpResponseCache.Entry entry;
+
+		CachedHttpSource(final URI uri, final HttpResponseCache.Entry entry) {
+			super(uri);
+			this.entry = entry;
+		}
+
+		public String getMimeType() {
+			return this.entry.mimeType();
+		}
+
+		public String getEncoding() {
+			return this.entry.encoding();
+		}
+
+		public long getLength() {
+			return this.entry.body().length;
+		}
+
+		public boolean exists() {
+			return true;
+		}
+
+		public boolean isInputStream() {
+			return true;
+		}
+
+		public boolean isReader() {
+			return this.entry.encoding() != null;
+		}
+
+		public InputStream getInputStream() {
+			return new java.io.ByteArrayInputStream(this.entry.body());
+		}
+
+		public Reader getReader() throws IOException {
+			if (this.entry.encoding() == null) {
+				throw new UnsupportedOperationException("Encoding not set");
+			}
+			return new InputStreamReader(this.getInputStream(), this.entry.encoding());
+		}
+
+		public File getFile() {
+			throw new UnsupportedOperationException();
+		}
+
+		public SourceValidity getValidity() {
+			return new HttpValidity(this.entry.lastModified());
+		}
+
+		public void close() {
+			// メモリ上のバイト列なので解放するものがない
 		}
 	}
 

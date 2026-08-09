@@ -220,6 +220,226 @@ public class MyHttpSourceResolverTest extends TestCase {
 		}
 	}
 
+	/**
+	 * 2026-08-10: 変換をまたぐHTTP応答キャッシュ。@importされたウェブ
+	 * フォントCSS等を毎変換取り直す遅延(law3で実測)の解消。別々の
+	 * リゾルバ(=別々の変換)から同じURIを取得しても、サーバーへの
+	 * 到達は1回であることを確認する。
+	 */
+	public void testResponseCacheServesRepeatConversionsFromMemory() throws Exception {
+		HttpResponseCache.clear();
+		java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+		server.createContext("/font.css", exchange -> {
+			try {
+				hits.incrementAndGet();
+				byte[] body = "@font-face{font-family:x}".getBytes(StandardCharsets.UTF_8);
+				exchange.getResponseHeaders().set("Content-Type", "text/css; charset=UTF-8");
+				exchange.sendResponseHeaders(200, body.length);
+				exchange.getResponseBody().write(body);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.start();
+		try {
+			URI uri = new URI("http", null, server.getAddress().getHostString(), server.getAddress().getPort(),
+					"/font.css", null, null);
+			String first = this.fetch(uri, r -> r.setCacheTtl(600));
+			String second = this.fetch(uri, r -> r.setCacheTtl(600));
+			assertEquals("@font-face{font-family:x}", first);
+			assertEquals(first, second);
+			assertEquals("2回目はキャッシュから返るべき", 1, hits.get());
+		} finally {
+			server.stop(0);
+			HttpResponseCache.clear();
+		}
+	}
+
+	/**
+	 * gzip配信(fonts.googleapis.comの実態)でも、解凍済みの本文が
+	 * キャッシュされ2回目はサーバーへ行かないことを確認する。
+	 */
+	public void testResponseCacheStoresDecompressedGzipBody() throws Exception {
+		HttpResponseCache.clear();
+		String text = "@font-face{font-family:gz}";
+		ByteArrayOutputStream gzipped = new ByteArrayOutputStream();
+		try (GZIPOutputStream gzipOut = new GZIPOutputStream(gzipped)) {
+			gzipOut.write(text.getBytes(StandardCharsets.UTF_8));
+		}
+		byte[] gzippedBody = gzipped.toByteArray();
+		java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+		server.createContext("/font.css", exchange -> {
+			try {
+				hits.incrementAndGet();
+				exchange.getResponseHeaders().set("Content-Type", "text/css; charset=UTF-8");
+				exchange.getResponseHeaders().set("Content-Encoding", "gzip");
+				exchange.sendResponseHeaders(200, gzippedBody.length);
+				exchange.getResponseBody().write(gzippedBody);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.start();
+		try {
+			URI uri = new URI("http", null, server.getAddress().getHostString(), server.getAddress().getPort(),
+					"/font.css", null, null);
+			assertEquals(text, this.fetch(uri, r -> r.setCacheTtl(600)));
+			assertEquals(text, this.fetch(uri, r -> r.setCacheTtl(600)));
+			assertEquals("2回目はキャッシュから返るべき", 1, hits.get());
+		} finally {
+			server.stop(0);
+			HttpResponseCache.clear();
+		}
+	}
+
+	/**
+	 * 安全条件: 認証情報(当該ホストの資格情報)・Cookie・
+	 * Cache-Control: no-store・TTL0のいずれかがあればキャッシュしない。
+	 * Cookieは初回応答のSet-Cookieが保存を止め(応答側)、2回目の要求は
+	 * Cookieを送るため対象外(要求側)——両側の判定を1本で検査する。
+	 */
+	public void testResponseCacheIsBypassedForAuthCookieNoStoreAndZeroTtl() throws Exception {
+		java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+		server.createContext("/plain.txt", exchange -> {
+			try {
+				hits.incrementAndGet();
+				byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+				exchange.sendResponseHeaders(200, body.length);
+				exchange.getResponseBody().write(body);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.createContext("/cookie.txt", exchange -> {
+			try {
+				hits.incrementAndGet();
+				byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+				exchange.getResponseHeaders().set("Set-Cookie", "sid=abc");
+				exchange.sendResponseHeaders(200, body.length);
+				exchange.getResponseBody().write(body);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.createContext("/nostore.txt", exchange -> {
+			try {
+				hits.incrementAndGet();
+				byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+				exchange.getResponseHeaders().set("Cache-Control", "no-store");
+				exchange.sendResponseHeaders(200, body.length);
+				exchange.getResponseBody().write(body);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.start();
+		try {
+			String host = server.getAddress().getHostString();
+			int port = server.getAddress().getPort();
+
+			// 資格情報が当該ホストに一致する場合は要求側で対象外
+			HttpResponseCache.clear();
+			hits.set(0);
+			URI plain = new URI("http", null, host, port, "/plain.txt", null, null);
+			this.fetch(plain, r -> {
+				r.setCacheTtl(600);
+				r.addAuthentication(host, -1, "user", "pass");
+			});
+			this.fetch(plain, r -> {
+				r.setCacheTtl(600);
+				r.addAuthentication(host, -1, "user", "pass");
+			});
+			assertEquals("資格情報があればキャッシュされないべき", 2, hits.get());
+
+			// Set-Cookie付き応答は保存されず、Cookieを送る要求は対象外。
+			// 同一リゾルバ(CookieManager共有)で2回取得する
+			HttpResponseCache.clear();
+			hits.set(0);
+			URI cookie = new URI("http", null, host, port, "/cookie.txt", null, null);
+			MyHttpSourceResolver resolver = new MyHttpSourceResolver();
+			resolver.setCacheTtl(600);
+			try {
+				this.read(resolver, cookie);
+				this.read(resolver, cookie);
+			} finally {
+				resolver.close();
+			}
+			assertEquals("Cookieが絡む取得はキャッシュされないべき", 2, hits.get());
+
+			// no-store応答は保存されない
+			HttpResponseCache.clear();
+			hits.set(0);
+			URI nostore = new URI("http", null, host, port, "/nostore.txt", null, null);
+			this.fetch(nostore, r -> r.setCacheTtl(600));
+			this.fetch(nostore, r -> r.setCacheTtl(600));
+			assertEquals("no-store応答はキャッシュされないべき", 2, hits.get());
+
+			// TTL0(input.http.cache=false相当)は最初から対象外
+			HttpResponseCache.clear();
+			hits.set(0);
+			this.fetch(plain, r -> r.setCacheTtl(0));
+			this.fetch(plain, r -> r.setCacheTtl(0));
+			assertEquals("TTL0ならキャッシュされないべき", 2, hits.get());
+		} finally {
+			server.stop(0);
+			HttpResponseCache.clear();
+		}
+	}
+
+	/**
+	 * 応答のmax-ageはTTLより短ければ優先される(max-age=0は即時失効)。
+	 */
+	public void testResponseCacheHonorsMaxAge() throws Exception {
+		HttpResponseCache.clear();
+		java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+		server.createContext("/expire.txt", exchange -> {
+			try {
+				hits.incrementAndGet();
+				byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+				exchange.getResponseHeaders().set("Cache-Control", "max-age=0");
+				exchange.sendResponseHeaders(200, body.length);
+				exchange.getResponseBody().write(body);
+			} finally {
+				exchange.close();
+			}
+		});
+		server.start();
+		try {
+			URI uri = new URI("http", null, server.getAddress().getHostString(), server.getAddress().getPort(),
+					"/expire.txt", null, null);
+			this.fetch(uri, r -> r.setCacheTtl(600));
+			this.fetch(uri, r -> r.setCacheTtl(600));
+			assertEquals("max-age=0は即時失効すべき", 2, hits.get());
+		} finally {
+			server.stop(0);
+			HttpResponseCache.clear();
+		}
+	}
+
+	/** リゾルバを設定して1回取得し、本文を文字列で返します。 */
+	private String fetch(URI uri, java.util.function.Consumer<MyHttpSourceResolver> setup) throws Exception {
+		MyHttpSourceResolver resolver = new MyHttpSourceResolver();
+		setup.accept(resolver);
+		try {
+			return this.read(resolver, uri);
+		} finally {
+			resolver.close();
+		}
+	}
+
+	private String read(MyHttpSourceResolver resolver, URI uri) throws Exception {
+		Source source = resolver.resolve(uri);
+		try {
+			return new String(source.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+		} finally {
+			resolver.release(source);
+		}
+	}
+
 	private void handleAsset(HttpExchange exchange, CountDownLatch requested, CountDownLatch releaseResponse)
 			throws IOException {
 		requested.countDown();
