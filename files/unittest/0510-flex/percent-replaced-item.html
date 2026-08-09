@@ -24,13 +24,21 @@
       0で測られ、幅0へ潰れていた——NHKニュースのナビのシェブロンが
       空箱になった実バグの後半。position:relative祖先はcontextBox
       フォールバック経路の再現条件(これが無いと偽装的に直って見える)。
-      期待: svgのボックスが13.5pt(=span 18pxの100%)で、ボタン枠の
-      内側に描かれる。
+      期待: A=svgのボックスが13.5pt(=span 18pxの100%)でボタン枠の
+      内側に描かれる。B=width:50%はwrapperが9pxへ解決し、子は充填で
+      同じ9px=6.75pt(二重適用で4.5px=25%相当へ縮まないこと——
+      LayoutUtils.calculateReplacedSizeの充填参照)。
     -->
     <div class="rel">
       <div class="row">
         <div class="btn">
           <span class="wrap"><svg width="100%" height="100%" viewBox="0 0 20 20" fill="none"
+            xmlns="http://www.w3.org/2000/svg"><path
+            d="M10.468 12.071C10.208 12.331 9.80499 12.331 9.54499 12.071L5.57999 8.10599C5.33299 7.85899 5.50199 7.44299 5.85299 7.44299H14.147C14.498 7.44299 14.667 7.85899 14.42 8.10599L10.468 12.071Z"
+            fill="currentColor"></path></svg></span>
+        </div>
+        <div class="btn">
+          <span class="wrap"><svg width="50%" height="50%" viewBox="0 0 20 20" fill="none"
             xmlns="http://www.w3.org/2000/svg"><path
             d="M10.468 12.071C10.208 12.331 9.80499 12.331 9.54499 12.071L5.57999 8.10599C5.33299 7.85899 5.50199 7.44299 5.85299 7.44299H14.147C14.498 7.44299 14.667 7.85899 14.42 8.10599L10.468 12.071Z"
             fill="currentColor"></path></svg></span>

@@ -620,7 +620,7 @@ public final class LayoutUtils {
 		//
 		// ■ 幅と高さの計算
 		//
-		final double refWidth, refHeight, refMaxWidth, refMaxHeight;
+		double refWidth, refHeight, refMaxWidth, refMaxHeight;
 		final AbstractContainerBox containerBox = builder.getFlowBox();
 		final BlockParams params = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
@@ -699,6 +699,32 @@ public final class LayoutUtils {
 					}
 				} else {
 					refMaxWidth = refWidth = lineSize;
+				}
+			}
+		}
+		// 中立wrapper(flex item)の行方向充填(2026-08-09)。wrapperが
+		// authoredの%をflexコンテナ基準で解決済み(NeutralTransfer)のため、
+		// 子が同じ%をwrapper内寸へ再適用すると二重になる(width:50%が
+		// 25%相当へ縮む)。子の式がwrapper内寸ちょうどを返すよう%の基準を
+		// 差し替える——100%は不動点で従来と同値。絶対長は二重にならないので
+		// 触らない。子自身のmarginはアイコン用途で実質使われないため
+		// 考慮しない(使われた場合はみ出す側=安全でない側に倒れない)
+		if (containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
+				&& item.isNeutralLineFill()) {
+			final Dimension size = replacedBox.getReplacedParams().size;
+			if (params.flow.isVertical()) {
+				final double innerHeight = containerBox.getInnerHeight();
+				if (size.getHeightType() == LengthType.RELATIVE && size.getHeight() != 0) {
+					refHeight = refMaxHeight = innerHeight / size.getHeight();
+				} else if (size.getHeightType() == LengthType.MIXED && size.getHeightRatio() != 0) {
+					refHeight = refMaxHeight = (innerHeight - size.getHeight()) / size.getHeightRatio();
+				}
+			} else {
+				final double innerWidth = containerBox.getInnerWidth();
+				if (size.getWidthType() == LengthType.RELATIVE && size.getWidth() != 0) {
+					refWidth = refMaxWidth = innerWidth / size.getWidth();
+				} else if (size.getWidthType() == LengthType.MIXED && size.getWidthRatio() != 0) {
+					refWidth = refMaxWidth = (innerWidth - size.getWidth()) / size.getWidthRatio();
 				}
 			}
 		}
