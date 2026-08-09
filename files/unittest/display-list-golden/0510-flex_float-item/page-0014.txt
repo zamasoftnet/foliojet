@@ -1,7 +1,0 @@
-drawer z=0
-  x=0.00 y=0.00 Text["line" asc=9.09 desc=3.41]
-  x=17.50 y=0.00 Text["118" asc=9.09 desc=3.41]
-  x=0.00 y=12.51 Text["line" asc=9.09 desc=3.41]
-  x=17.50 y=12.51 Text["119" asc=9.09 desc=3.41]
-  x=0.00 y=25.01 Text["line" asc=9.09 desc=3.41]
-  x=17.50 y=25.01 Text["120" asc=9.09 desc=3.41]

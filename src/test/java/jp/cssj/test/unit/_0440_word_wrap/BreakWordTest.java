@@ -22,7 +22,7 @@ public class BreakWordTest extends AbstractTestCase {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(94, box.getWidth(), 1);
-			assertEquals(336, box.getHeight(), 1);
+			assertEquals(324.4, box.getHeight(), 1);
 			return true;
 		}
 		return false;
@@ -33,7 +33,7 @@ public class BreakWordTest extends AbstractTestCase {
 			System.err.println("width: " + box.getWidth());
 			System.err.println("height: " + box.getHeight());
 			assertEquals(94, box.getWidth(), 1);
-			assertEquals(365, box.getHeight(), 1);
+			assertEquals(353.2, box.getHeight(), 1);
 			return true;
 		}
 		return false;

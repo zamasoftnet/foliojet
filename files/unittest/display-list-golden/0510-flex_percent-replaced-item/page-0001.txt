@@ -1,3 +1,5 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=19.50 h=21.00]
-  x=0.75 y=0.75 AbsoluteRectFrame[w=13.50 h=13.50]
+  x=19.50 y=0.00 AbsoluteRectFrame[w=19.50 h=21.00]
+  x=3.00 y=3.75 AbsoluteRectFrame[w=13.50 h=13.50]
+  x=22.50 y=3.75 AbsoluteRectFrame[w=6.75 h=6.75]

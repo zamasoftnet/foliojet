@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=12.00]
+  x=0.00 y=12.00 AbsoluteRectFrame[w=400.00 h=12.00]
+  x=0.00 y=24.00 AbsoluteRectFrame[w=400.00 h=12.00]
+  x=0.00 y=0.00 Text["SINGLEWORD" asc=9.11 desc=2.89]
+  x=0.00 y=12.00 Text["MULTI" asc=9.11 desc=2.89]
+  x=42.10 y=12.00 Text["word" asc=9.11 desc=2.89]
+  x=69.88 y=12.00 Text["line" asc=9.11 desc=2.89]
+  x=0.00 y=24.00 Text["third" asc=9.11 desc=2.89]
+  x=25.67 y=24.00 Text["line" asc=9.11 desc=2.89]
+  x=46.67 y=24.00 Text["here" asc=9.11 desc=2.89]

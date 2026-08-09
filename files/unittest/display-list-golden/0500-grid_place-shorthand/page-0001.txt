@@ -1,0 +1,13 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=120.00 h=66.00]
+  x=45.00 y=24.00 AbsoluteRectFrame[w=30.00 h=12.00]
+  x=0.00 y=66.00 AbsoluteRectFrame[w=120.00 h=66.00]
+  x=45.00 y=114.00 AbsoluteRectFrame[w=30.00 h=12.00]
+  x=0.00 y=126.00 AbsoluteRectFrame[w=120.00 h=66.00]
+  x=90.00 y=174.00 AbsoluteRectFrame[w=30.00 h=12.00]
+  x=0.00 y=186.00 AbsoluteRectFrame[w=120.00 h=66.00]
+  x=45.00 y=210.00 AbsoluteRectFrame[w=30.00 h=12.00]
+  x=45.00 y=24.00 Text["A" asc=8.59 desc=3.41]
+  x=45.00 y=114.00 Text["B" asc=8.59 desc=3.41]
+  x=90.00 y=174.00 Text["C" asc=8.59 desc=3.41]
+  x=45.00 y=210.00 Text["D" asc=8.59 desc=3.41]

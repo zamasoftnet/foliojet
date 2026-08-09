@@ -163,6 +163,14 @@ public class DisplayListGoldenTest extends TestCase {
 			// 引き取らず、内在寸法なしsvgのwidth:100%が二パス計測の0のまま
 			// 幅0へ潰れていた(NHKナビのシェブロン空箱の後半)
 			"0510-flex/percent-replaced-item.html", //
+			// 空白を含む行の行箱が指定line-heightを超えない(2026-08-09、
+			// pdfg2d)。WhiteSpace controlのメトリクスがフォントリスト最大で
+			// 単語(先頭フォント)と不整合、空白入りの行だけ+4〜5%伸びていた
+			"0350-line-height/space-run-height.html", //
+			// place-items/place-self/place-contentショートハンド(2026-08-09)。
+			// NHKナビのボタンのplace-items:centerが宣言無効でアイコンが
+			// 左上に寄っていた
+			"0500-grid/place-shorthand.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
@@ -200,6 +208,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// フェードアウト・イディオムをボックスクリップで近似する。
 			// 5ch.ioでマスク無視によりはみ出し本文が後続へ重なった欠陥の回帰
 			"3080-MODERN-CSS/mask-image-clip.html", //
+			// overflow:scroll/autoのブラウザ同様クリップ(2026-08-09オーナー
+			// 裁定)。従来ははみ出しをそのまま描き、絶対配置のタブ見出し等が
+			// 全展開の中身と重なっていた(asahi p-tab)
+			"0040-overflow/scroll-clip.html", //
 			// flex/gridコンテナのbuttonへUAのZWSP(::before)を注入しない
 			// (2026-08-09)。ZWSPが独立itemになりアイコンを箱外へ押し出していた
 			"3080-MODERN-CSS/button-flex-grid-content.html", //

@@ -1,0 +1,28 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>空白を含む行の行箱が指定line-heightを超えない</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font-size: 16px; }
+      div { line-height: 16px; background: #eef; }
+    </style>
+  </head>
+  <body>
+    <!--
+      **空白(WhiteSpace control)のascent/descentは先頭フォントの値を
+      使う**(2026-08-09、pdfg2d)。従来はフォントリスト全体の最大
+      (CJKフォールバック込み)を使っており、advanceや単語の整形
+      (先頭フォント)と不整合だった。行箱はmax(asc)+max(desc)で
+      合成されるため、**空白を含む行だけ**が指定line-heightを超えて
+      +4〜5%伸びていた(16pxで+0.6pt。e-gov検証の副産物として発見)。
+      期待: A(単語1つ)とB(空白入り複数語)の行箱がどちらも
+      ちょうど12pt(=16px)で一致し、Cの行送りも12pt刻みになる。
+    -->
+    <div>SINGLEWORD</div>
+    <div>MULTI word line</div>
+    <div>third line here</div>
+  </body>
+</html>

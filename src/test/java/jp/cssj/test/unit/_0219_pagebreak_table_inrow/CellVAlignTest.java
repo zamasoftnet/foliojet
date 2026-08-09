@@ -21,7 +21,7 @@ public class CellVAlignTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(y);
-			assertEquals(181, y, 1);
+			assertEquals(186.4, y, 1);
 			assertEquals(1, pageNumber);
 			return true;
 		}

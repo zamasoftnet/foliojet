@@ -26,7 +26,7 @@ public class ColumnsInAbsoluteTest extends AbstractTestCase {
 			assertEquals(7, x, 1);
 			assertEquals(7, y, 1);
 			assertEquals(32, box.getWidth(), 1);
-			assertEquals(49, box.getHeight(), 1);
+			assertEquals(47.2, box.getHeight(), 1);
 			return true;
 		}
 		return false;

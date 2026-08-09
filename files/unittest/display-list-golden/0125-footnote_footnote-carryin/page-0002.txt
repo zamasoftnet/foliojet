@@ -1,6 +1,6 @@
 drawer z=0
   x=0.00 y=357.89 FootnoteLabel["2. " w=18.00 h=12.00]
-  x=0.00 y=369.89 Text["tall" asc=10.91 desc=4.09]
-  x=18.34 y=369.89 Text["note" asc=10.91 desc=4.09]
-  x=42.00 y=369.89 Text["2" asc=10.91 desc=4.09]
+  x=0.00 y=369.89 Text["tall" asc=10.31 desc=4.09]
+  x=18.34 y=369.89 Text["note" asc=10.31 desc=4.09]
+  x=42.00 y=369.89 Text["2" asc=10.31 desc=4.09]
   x=0.00 y=354.64 artifact FootnoteSeparator[w=174.43 h=0.50]

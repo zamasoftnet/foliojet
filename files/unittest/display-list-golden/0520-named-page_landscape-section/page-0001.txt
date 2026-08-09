@@ -1,4 +1,4 @@
 drawer z=0
-  x=0.00 y=0.00 Text["portrait" asc=10.91 desc=4.09]
-  x=38.33 y=0.00 Text["one" asc=10.91 desc=4.09]
+  x=0.00 y=0.00 Text["portrait" asc=10.31 desc=4.09]
+  x=38.33 y=0.00 Text["one" asc=10.31 desc=4.09]
   x=264.30 y=-22.20 Text["P" asc=10.31 desc=4.09]

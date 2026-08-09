@@ -33,7 +33,7 @@ public class TableCellTest extends AbstractTestCase {
 			// 段幅36.16ptは12ptの和文3字ぶんで、実際に表示リストは
 			// 1行3字で折り返している。
 			assertEquals(80.4, x, 1);
-			assertEquals(210.3, y, 1);
+			assertEquals(211.8, y, 1);
 			assertEquals(36.2, box.getWidth(), 1);
 			assertEquals(57.6, box.getHeight(), 1);
 			return true;

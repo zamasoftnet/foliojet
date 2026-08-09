@@ -21,7 +21,7 @@ public class TextTopBottomTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("a " + y);
-			assertEquals(711, y, 1);
+			assertEquals(706.5, y, 1);
 			return true;
 		}
 		return false;
@@ -30,7 +30,7 @@ public class TextTopBottomTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("b " + y);
-			assertEquals(684, y, 1);
+			assertEquals(680.1, y, 1);
 			return true;
 		}
 		return false;

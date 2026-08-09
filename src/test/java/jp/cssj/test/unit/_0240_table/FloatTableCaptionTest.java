@@ -26,7 +26,7 @@ public class FloatTableCaptionTest extends AbstractTestCase {
 			assertEquals(151, x, 1);
 			assertEquals(0, y, 1);
 			assertEquals(48, box.getWidth(), 1);
-			assertEquals(34, box.getHeight(), 1);
+			assertEquals(32.8, box.getHeight(), 1);
 			return true;
 		}
 		return false;
@@ -39,7 +39,7 @@ public class FloatTableCaptionTest extends AbstractTestCase {
 			System.err.println("w: "+box.getWidth());
 			System.err.println("h: "+box.getHeight());
 			assertEquals(0, x, 1);
-			assertEquals(1, y, 1);
+			assertEquals(0, y, 1);
 			assertEquals(69, box.getWidth(), 1);
 			assertEquals(13, box.getHeight(), 1);
 			return true;

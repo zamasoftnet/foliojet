@@ -1,4 +1,4 @@
 drawer z=0
-  x=0.00 y=0.00 Text["chapter" asc=10.91 desc=4.09]
-  x=38.32 y=0.00 Text["body" asc=10.91 desc=4.09]
+  x=0.00 y=0.00 Text["chapter" asc=10.31 desc=4.09]
+  x=38.32 y=0.00 Text["body" asc=10.31 desc=4.09]
   x=240.30 y=-22.20 Text["CHAPTER" asc=10.31 desc=4.09]

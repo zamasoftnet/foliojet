@@ -51,7 +51,7 @@ public class AbsoluteTest extends AbstractTestCase {
 			assertEquals(15, x, 1);
 			assertEquals(150, y, 1);
 			assertEquals(229, box.getWidth(), 1);
-			assertEquals(34, box.getHeight(), 1);
+			assertEquals(32.8, box.getHeight(), 1);
 			return true;
 		}
 		return false;

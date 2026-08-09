@@ -1,6 +1,6 @@
 drawer z=0
-  x=0.00 y=0.00 Text["text-one" asc=10.91 desc=4.09]
+  x=0.00 y=0.00 Text["text-one" asc=10.31 desc=4.09]
   x=120.00 y=0.00 Text["a" asc=10.31 desc=4.09]
   x=0.00 y=40.00 AbsoluteRectFrame[w=40.00 h=25.00]
-  x=120.00 y=40.00 Text["text-two" asc=10.91 desc=4.09]
+  x=120.00 y=40.00 Text["text-two" asc=10.31 desc=4.09]
   x=0.00 y=65.00 Text["after" asc=10.31 desc=4.09]

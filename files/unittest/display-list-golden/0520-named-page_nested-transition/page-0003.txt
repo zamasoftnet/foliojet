@@ -1,6 +1,6 @@
 drawer z=0
-  x=0.00 y=0.00 Text["back" asc=10.91 desc=4.09]
-  x=25.66 y=0.00 Text["to" asc=10.91 desc=4.09]
-  x=37.99 y=0.00 Text["plain" asc=10.91 desc=4.09]
-  x=0.00 y=15.01 Text["outro" asc=10.31 desc=4.09]
+  x=0.00 y=0.00 Text["back" asc=10.31 desc=4.09]
+  x=25.66 y=0.00 Text["to" asc=10.31 desc=4.09]
+  x=37.99 y=0.00 Text["plain" asc=10.31 desc=4.09]
+  x=0.00 y=14.40 Text["outro" asc=10.31 desc=4.09]
   x=249.97 y=-22.20 Text["PLAIN" asc=10.31 desc=4.09]
