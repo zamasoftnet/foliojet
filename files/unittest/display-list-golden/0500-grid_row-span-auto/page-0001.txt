@@ -1,5 +1,7 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=40.00 h=50.00]
   x=60.00 y=0.00 AbsoluteRectFrame[w=40.00 h=20.00]
   x=60.00 y=27.50 AbsoluteRectFrame[w=40.00 h=15.00]
+drawer z=0
   x=0.00 y=50.00 Text["after" asc=10.31 desc=4.09]

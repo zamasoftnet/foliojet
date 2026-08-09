@@ -1,8 +1,10 @@
+canvas
 drawer z=0
   x=0.00 y=14.40 AbsoluteRectFrame[w=23.00 h=23.00]
   x=7.00 y=21.40 AbsoluteRectFrame[w=9.00 h=9.00]
   x=0.00 y=51.80 AbsoluteRectFrame[w=23.00 h=23.00]
   x=1.75 y=58.80 AbsoluteRectFrame[w=9.00 h=9.00]
+drawer z=0
   x=0.00 y=0.00 Text["A" asc=10.31 desc=4.09]
   x=0.00 y=37.40 Text["B" asc=10.31 desc=4.09]
   x=0.00 y=74.80 Text["C" asc=13.52 desc=6.09]

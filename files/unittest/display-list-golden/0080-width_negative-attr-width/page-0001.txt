@@ -1,5 +1,7 @@
+canvas
 drawer z=0
   x=0.00 y=75.64 AbsoluteRectFrame[w=388.00 h=14.41]
+drawer z=0
   x=0.00 y=0.00 TableBorder[w=162.88 h=18.91]
   x=3.25 y=3.25 Text["A" asc=9.00 desc=3.41]
   x=12.97 y=3.25 Text["属性が負(無視され内容幅になる)" asc=9.00 desc=3.41]

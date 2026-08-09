@@ -1,8 +1,10 @@
+canvas
 drawer z=0
   x=0.00 y=197.11 AbsoluteRectFrame[w=35.00 h=24.34]
   x=35.00 y=197.11 AbsoluteRectFrame[w=160.74 h=24.34]
   x=195.74 y=197.11 AbsoluteRectFrame[w=160.74 h=24.34]
   x=356.48 y=197.11 AbsoluteRectFrame[w=35.00 h=24.34]
+drawer z=0
   x=0.00 y=13.44 Text["前の段落" asc=10.80 desc=3.60]
   x=0.00 y=48.00 Text["contentsの子ブロック1(緑・18pt)" asc=16.20 desc=6.14]
   x=0.00 y=90.50 Text["contentsの子ブロック2" asc=16.20 desc=6.14]

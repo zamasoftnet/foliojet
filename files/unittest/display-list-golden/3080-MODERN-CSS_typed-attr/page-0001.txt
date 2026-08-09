@@ -1,3 +1,4 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=150.00 h=12.41]
   x=0.00 y=12.41 AbsoluteRectFrame[w=100.00 h=12.41]
@@ -5,6 +6,7 @@ drawer z=0
   x=0.00 y=49.64 AbsoluteRectFrame[w=60.00 h=37.23]
   x=0.00 y=86.88 AbsoluteRectFrame[w=400.00 h=12.41]
   x=0.00 y=99.29 AbsoluteRectFrame[w=60.00 h=24.82]
+drawer z=0
   x=0.00 y=0.00 Text["A" asc=9.00 desc=3.41]
   x=9.72 y=0.00 Text["属性200" asc=9.00 desc=3.41]
   x=48.47 y=0.00 Text["→" asc=9.00 desc=3.41]

@@ -1,8 +1,10 @@
+canvas
 drawer z=0
   x=0.00 y=24.82 AbsoluteRectFrame[w=288.00 h=12.41]
   x=0.00 y=37.23 AbsoluteRectFrame[w=288.00 h=12.41]
   x=0.00 y=49.64 AbsoluteRectFrame[w=288.00 h=12.41]
   x=0.00 y=62.06 AbsoluteRectFrame[w=288.00 h=12.41]
+drawer z=0
   x=0.00 y=0.00 Text["1" asc=9.00 desc=3.41]
   x=7.50 y=0.00 Text["前方a" asc=9.00 desc=3.41]
   x=35.69 y=0.00 Text["→" asc=9.00 desc=3.41]

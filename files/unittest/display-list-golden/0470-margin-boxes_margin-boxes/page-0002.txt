@@ -27,6 +27,8 @@ drawer z=0
   x=21.39 y=84.00 Text["page" asc=7.59 desc=2.41]
   x=42.77 y=84.00 Text["content" asc=7.59 desc=2.41]
   x=74.71 y=84.00 Text["line" asc=7.59 desc=2.41]
+margin-boxes
+drawer z=0
   x=0.00 y=-22.20 Text["TL" asc=10.31 desc=4.09]
   x=46.50 y=-22.20 Text["Chapter" asc=10.31 desc=4.09]
   x=87.50 y=-22.20 Text["2" asc=10.31 desc=4.09]

@@ -1,3 +1,4 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=241.50 h=19.20]
   x=0.00 y=19.20 AbsoluteRectFrame[w=241.50 h=19.20]
@@ -5,6 +6,7 @@ drawer z=0
   x=0.00 y=57.60 AbsoluteRectFrame[w=241.50 h=19.20]
   x=0.00 y=76.80 AbsoluteRectFrame[w=241.50 h=26.25]
   x=0.00 y=103.05 AbsoluteRectFrame[w=91.50 h=31.30]
+drawer z=0
   x=207.91 y=0.75 AbsoluteRectFrame[w=32.84 h=11.70]
   x=207.91 y=0.75 Text["FLOAT" asc=8.37 desc=3.33]
   x=0.75 y=0.75 Text["A" asc=8.37 desc=3.33]

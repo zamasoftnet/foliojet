@@ -1,5 +1,7 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=90.00 h=121.01]
   x=90.00 y=0.00 AbsoluteRectFrame[w=60.00 h=121.01]
+drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=90.00 h=121.01]
   x=90.00 y=0.00 Text["S" asc=7.89 desc=2.91]

@@ -1,5 +1,7 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=310.50 h=10.80]
   x=310.50 y=0.00 AbsoluteRectFrame[w=310.50 h=10.80]
+drawer z=0
   x=0.00 y=0.00 Text["FIRST" asc=7.89 desc=2.91]
   x=310.50 y=0.00 Text["LIST" asc=7.89 desc=2.91]

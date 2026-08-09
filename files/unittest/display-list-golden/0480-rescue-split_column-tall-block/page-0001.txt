@@ -1,5 +1,7 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=50.00 h=500.00] clip=[0.00 0.00 50.00 200.00]
   x=160.00 y=-200.00 artifact AbsoluteRectFrame[w=50.00 h=500.00] clip=[160.00 0.00 50.00 200.00]
+drawer z=0
   x=40.00 y=0.00 Text["縦" asc=5.00 desc=5.00] clip=[0.00 0.00 50.00 200.00]
   x=200.00 y=-200.00 artifact Text["縦" asc=5.00 desc=5.00] clip=[160.00 0.00 50.00 200.00]

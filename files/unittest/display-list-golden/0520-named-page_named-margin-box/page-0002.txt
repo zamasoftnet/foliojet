@@ -1,5 +1,7 @@
 drawer z=0
   x=0.00 y=0.00 Text["page" asc=10.31 desc=4.09]
   x=25.66 y=0.00 Text["two" asc=10.31 desc=4.09]
+margin-boxes
+drawer z=0
   x=240.30 y=-22.20 Text["CHAPTER" asc=10.31 desc=4.09]
   x=264.64 y=789.69 Text["2" asc=10.31 desc=4.09]

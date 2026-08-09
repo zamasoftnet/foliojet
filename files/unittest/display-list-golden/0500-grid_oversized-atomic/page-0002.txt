@@ -1,3 +1,4 @@
+canvas
 drawer z=0
   x=0.00 y=-769.89 artifact AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 140.11]
   x=110.00 y=-769.89 artifact AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 140.11]
@@ -19,6 +20,7 @@ drawer z=0
   x=110.00 y=-33.89 artifact AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 140.11]
   x=0.00 y=58.11 artifact AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 140.11]
   x=110.00 y=58.11 artifact AbsoluteRectFrame[w=100.00 h=82.00] clip=[0.00 0.00 210.00 140.11]
+drawer z=0
   x=1.00 y=-768.89 artifact Text["r1a" asc=10.31 desc=4.09] clip=[0.00 0.00 210.00 140.11]
   x=111.00 y=-768.89 artifact Text["r1b" asc=10.31 desc=4.09] clip=[0.00 0.00 210.00 140.11]
   x=1.00 y=-676.89 artifact Text["r2a" asc=10.31 desc=4.09] clip=[0.00 0.00 210.00 140.11]

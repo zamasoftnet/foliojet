@@ -1,3 +1,5 @@
+canvas
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=380.00 h=50.00]
   x=21.00 y=21.00 AbsoluteRectFrame[w=30.00 h=8.00]
+drawer z=0
