@@ -24,9 +24,13 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * Markdown入力(MarkdownParser)の表示リストgolden比較テストです。
  *
  * <p>
- * MarkdownはCommonMarkでHTMLへ変換したうえで既存のHTMLParser経路に委譲する
- * 実装のため、このテストは変換の正しさ(見出し・段落・強調・リスト・
- * コードブロック・引用・水平線・リンク・生HTML透過)を確認する。
+ * MarkdownはCommonMarkの構文木からXNIイベントを直接発行してTagBalancerへ
+ * 流す実装(MarkdownParser参照)のため、このテストは変換の正しさ(見出し・
+ * 段落・強調・リスト・コードブロック・引用・水平線・リンク・生HTML透過)を
+ * 確認する。rawhtml.mdは生HTMLブロックの<b>後続内容</b>の被覆——断片
+ * スキャナが合成するhtml/head/body骨組みイベントを素通しすると、断片ごとの
+ * end bodyが外側のbodyを閉じて以降の内容がbodyの外に落ちる(2026-08-10に
+ * 実際に起きた欠陥。basic.mdは生HTMLが末尾のみで掛からなかった)。
  * MIME型はファイル拡張子(.md)から自動判定させる(mimeType引数にnull)ことで、
  * 実運用の入力経路(拡張子判定)もあわせて検証する。
  * </p>
@@ -42,6 +46,7 @@ public class MarkdownGoldenTest extends TestCase {
 
 	private static final String[] DOCUMENTS = { //
 			"3070-MARKDOWN/basic.md", //
+			"3070-MARKDOWN/rawhtml.md", //
 	};
 
 	public void testMarkdown() throws Exception {
