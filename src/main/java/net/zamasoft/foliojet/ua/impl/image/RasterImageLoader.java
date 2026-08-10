@@ -73,7 +73,11 @@ public class RasterImageLoader implements ImageLoader {
 		}
 		try { // ImageIOによるラスタ画像の取得
 			JPEGImageReader cir = null;
+			ImageReader jdkJpeg = null;
 			Iterator<ImageReader> iri = ImageIO.getImageReaders(imageIn);
+			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+				System.err.println("[img] source=" + source.getURI() + " isFile=" + source.isFile());
+			}
 			ImageReader ir = null;
 			while (iri != null && iri.hasNext()) {
 				ir = iri.next();
@@ -84,6 +88,15 @@ public class RasterImageLoader implements ImageLoader {
 						imageIn.seek(0);
 						if (ir instanceof JPEGImageReader) {
 							cir = (JPEGImageReader)ir;
+							ir = null;
+							continue;
+						}
+						if (ir.getClass().getName().startsWith("com.sun.imageio.plugins.jpeg.")) {
+							// JDK標準のJPEGリーダはCMYK(4成分)を読めないため
+							// 後回しにする。ImageIOレジストリの登録順は環境で
+							// 変わる(デーモンではJDKが先に並ぶことを実測)ので、
+							// 順序に依存せずTwelveMonkeys優先を保証する(2026-08-10)
+							jdkJpeg = ir;
 							ir = null;
 							continue;
 						}
@@ -99,8 +112,9 @@ public class RasterImageLoader implements ImageLoader {
 			if (ir == null) {
 				if (cir != null) {
 					ir = cir;
-				}
-				else {
+				} else if (jdkJpeg != null) {
+					ir = jdkJpeg;
+				} else {
 					throw new IOException("ImageIOがサポートしない画像形式です");
 				}
 			}
@@ -110,6 +124,9 @@ public class RasterImageLoader implements ImageLoader {
 				}
 			}
 			imageIn.seek(0);
+			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+				System.err.println("[img] chosen=" + ir.getClass().getName());
+			}
 			
 			int orientation = 1;
 			try {
@@ -125,7 +142,21 @@ public class RasterImageLoader implements ImageLoader {
 				// ignore
 			}
 
-			final Image image = new RasterImageImpl(G2DUtils.loadImage(ir, imageIn));
+			final java.awt.image.BufferedImage decoded;
+			try {
+				decoded = G2DUtils.loadImage(ir, imageIn);
+			} catch (final RuntimeException | IOException e) {
+				if (System.getProperty("foliojet.debug.imageTrace") != null) {
+					System.err.println("[img] load failed: " + e);
+					e.printStackTrace();
+				}
+				throw e;
+			}
+			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+				System.err.println("[img] decoded " + decoded.getWidth() + "x" + decoded.getHeight() + " type="
+						+ decoded.getType());
+			}
+			final Image image = new RasterImageImpl(decoded);
 			if (orientation == 1) {
 				return image;
 			}
