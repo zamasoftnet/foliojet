@@ -73,8 +73,16 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final WritingMode flow = this.params.flow;
 		{
 			final LengthType pageType = this.params.size.getPageType(flow);
+			// 直交ブロック(親と書字方向の軸が違う)のページ軸%の基準は
+			// 親の線軸で、これは常に確定している——ここを親のページ軸
+			// (isSpecifiedPageSize)で判定すると縦書き文書内の横ブロックの
+			// height:100%が未確定扱い→AUTOフォールスルーで0になり、
+			// firstPassLayoutが親線軸基準で出した正しい値を潰す(2026-08-10、
+			// 実書籍の資料図版ページ全滅で発見)
+			final boolean orthogonal = cParams.flow.isVertical() != flow.isVertical();
 			this.specifiedPageAxis = pageType == LengthType.ABSOLUTE || (pageType.needsReference() && (!table
-					&& (this.getPos().getType() == PosType.INLINE || containerBox.isSpecifiedPageSize())));
+					&& (this.getPos().getType() == PosType.INLINE || orthogonal
+							|| containerBox.isSpecifiedPageSize())));
 		}
 
 		//
@@ -107,8 +115,14 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			if (cParams.flow.isVertical() == flow.isVertical() || containerBox.isSpecifiedPageSize()) {
 				limitLine = cLine - this.frame.getFrameLineExtent(flow);
 			} else {
-				// 親の幅が不確定の場合はページ寸法を限度とする
-				limitLine = (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth())
+				// 親の幅が不確定の場合はページ寸法を限度とする。基準は
+				// ページの**内容域**(マージンの内側)——物理寸法を使うと
+				// fit-contentがマージンへ食い込む幅を許してしまう
+				// (2026-08-10、縦書き書籍の資料図版ページで実測)
+				final AbstractContainerBox fixedLineBox = flow.isVertical() ? layoutStack.getFixedHeightFlowBox()
+						: layoutStack.getFixedWidthFlowBox();
+				limitLine = (fixedLineBox != null ? fixedLineBox.getInnerLineExtent(flow)
+						: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth()))
 						- this.frame.getFrameLineExtent(flow);
 			}
 			lineExtent = Sizing.fitContent(minLineAxis, lineExtent, limitLine);
@@ -282,8 +296,13 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			fixedPageBox = containerBox;
 		}
 		// 台帳#3 解消(2026-07-17): 旧実装は縦書きでも InnerHeight を参照
-		// していた。ページ方向%の基準は論理ページ軸の内寸(縦書き=幅)
-		final double cPage = fixedPageBox.getInnerPageExtent(flow);
+		// していた。ページ方向%の基準は論理ページ軸の内寸(縦書き=幅)。
+		// ただし直交ブロックのページ軸は親の線軸に一致するため、基準は
+		// 包含ブロックの線軸内寸(2026-08-10、specifiedPageAxisの直交条件と対)
+		final BlockParams cParams = containerBox.getBlockParams();
+		final double cPage = (cParams.flow.isVertical() != flow.isVertical())
+				? containerBox.getInnerLineExtent(cParams.flow)
+				: fixedPageBox.getInnerPageExtent(flow);
 		final double cLine = table ? containerBox.getInnerLineExtent(flow)
 				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
 		// ページ方向の%は基準が確定している場合のみ解決する

@@ -230,14 +230,29 @@ final class IntrinsicMeasurer {
 	 * 縮めなくなって隣のflex-shrink:0の固定幅サイドバーを紙面外へ押し出す
 	 * 実バグになっていた(asahi.comトップの速報ニュース欄)。calc(絶対+%)は
 	 * 絶対成分だけを寄与とする。
+	 *
+	 * <p>
+	 * <b>max側の循環%も同じ扱い</b>(2026-08-10)。寸法がautoでも
+	 * max-width:100%等の%上限が付いていれば要素は容器に合わせて縮められる
+	 * ので、min寄与は0(MIXEDは絶対成分を上限としてクランプ)。旧実装は
+	 * 自然寸法由来の解決値がminを吊り上げ、fit-contentの容器
+	 * (縦書き書籍の資料図版ページ=直交ブロック)が紙幅制限に勝って
+	 * 紙面からはみ出す実バグになっていた。
 	 */
 	private static double lineMinContribution(final double usedLine,
-			final LengthType lineType, final double lineSpecAbsolute) {
+			final LengthType lineType, final double lineSpecAbsolute,
+			final LengthType maxLineType, final double maxLineSpecAbsolute) {
 		if (lineType == LengthType.RELATIVE) {
 			return 0;
 		}
 		if (lineType == LengthType.MIXED) {
 			return Math.max(0, lineSpecAbsolute);
+		}
+		if (maxLineType == LengthType.RELATIVE) {
+			return 0;
+		}
+		if (maxLineType == LengthType.MIXED) {
+			return Math.min(usedLine, Math.max(0, maxLineSpecAbsolute));
 		}
 		return usedLine;
 	}
@@ -258,7 +273,9 @@ final class IntrinsicMeasurer {
 				// 縦書き
 				minLineAxis = lineMinContribution(replacedBox.getHeight(),
 						replacedBox.getReplacedParams().size.getHeightType(),
-						replacedBox.getReplacedParams().size.getHeight());
+						replacedBox.getReplacedParams().size.getHeight(),
+						replacedBox.getReplacedParams().maxSize.getHeightType(),
+						replacedBox.getReplacedParams().maxSize.getHeight());
 				minPageAxis = replacedBox.getWidth();
 				maxLineAxis = replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE
 						? replacedBox.getReplacedParams().size.getHeight()
@@ -267,7 +284,9 @@ final class IntrinsicMeasurer {
 				// 横書き
 				minLineAxis = lineMinContribution(replacedBox.getWidth(),
 						replacedBox.getReplacedParams().size.getWidthType(),
-						replacedBox.getReplacedParams().size.getWidth());
+						replacedBox.getReplacedParams().size.getWidth(),
+						replacedBox.getReplacedParams().maxSize.getWidthType(),
+						replacedBox.getReplacedParams().maxSize.getWidth());
 				minPageAxis = replacedBox.getHeight();
 				maxLineAxis = replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE
 						? replacedBox.getReplacedParams().size.getWidth()
@@ -309,7 +328,9 @@ final class IntrinsicMeasurer {
 				usedLineAxis = replacedBox.getHeight();
 				minLineAxis = lineMinContribution(usedLineAxis,
 						replacedBox.getReplacedParams().size.getHeightType(),
-						replacedBox.getReplacedParams().size.getHeight());
+						replacedBox.getReplacedParams().size.getHeight(),
+						replacedBox.getReplacedParams().maxSize.getHeightType(),
+						replacedBox.getReplacedParams().maxSize.getHeight());
 				minPageAxis = replacedBox.getWidth();
 				if (replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
@@ -319,7 +340,9 @@ final class IntrinsicMeasurer {
 				usedLineAxis = replacedBox.getWidth();
 				minLineAxis = lineMinContribution(usedLineAxis,
 						replacedBox.getReplacedParams().size.getWidthType(),
-						replacedBox.getReplacedParams().size.getWidth());
+						replacedBox.getReplacedParams().size.getWidth(),
+						replacedBox.getReplacedParams().maxSize.getWidthType(),
+						replacedBox.getReplacedParams().maxSize.getWidth());
 				minPageAxis = replacedBox.getHeight();
 				if (replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE) {
 					maxLineAxis = replacedBox.getReplacedParams().size.getWidth();

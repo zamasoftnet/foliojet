@@ -1,0 +1,6 @@
+drawer z=0
+  x=134.64 y=0.00 AbsoluteRectFrame[w=65.36 h=100.00]
+  x=134.64 y=10.00 AbsoluteRectFrame[w=32.68 h=26.71]
+  x=134.64 y=0.00 Text["HORIZONTAL" asc=7.59 desc=2.41]
+  x=157.32 y=10.00 Text["VERT" asc=5.00 desc=5.00]
+  x=124.64 y=0.00 Text["縦の本文" asc=5.00 desc=5.00]

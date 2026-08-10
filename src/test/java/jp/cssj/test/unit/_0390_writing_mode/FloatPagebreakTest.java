@@ -42,9 +42,11 @@ public class FloatPagebreakTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(-22, x, 1);
+			// 直交ブロックのfit-content限度はページ内容域(2026-08-10)——
+			// 旧値(x=-22, w=194)は物理ページ基準でマージンへ食い込んでいた
+			assertEquals(0, x, 1);
 			assertEquals(121, y, 1);
-			assertEquals(194, box.getWidth(), 0);
+			assertEquals(171.65, box.getWidth(), 0.1);
 			return true;
 		}
 		return false;

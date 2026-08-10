@@ -154,13 +154,21 @@ public final class LayoutUtils {
 	 * 2パス化の判定はこの述語ファミリに一元化されます(ARCHITECTURE.md §5.2b)。
 	 * 絶対配置は ABSOLUTE 指定のみを固定とみなします(%やインセット由来は内容依存)。
 	 *
-	 * @param containerBox 包含ブロック(軸の判定に使用)
+	 * <p>
+	 * 軸は<b>ボックス自身の書字方向</b>で判定する(2026-08-10)。shrinkToFitの
+	 * 内部軸系(this.params.flow)と同じ軸でなければならない——親のflowで
+	 * 判定すると直交ブロックで軸がずれ、「自身の線軸はautoなのにページ軸の
+	 * 指定を見て実測不要」と誤判定し、線軸fit-contentが空実測の0になって
+	 * 内容ごと消えていた(縦書き文書内のheight付き横ブロック)。
+	 * 親と同軸のボックスでは従来と同値。
+	 *
+	 * @param containerBox 包含ブロック(現在は未使用。呼び出し側の文脈を残す)
 	 * @param blockBox     対象ボックス
 	 * @return 実測が必要であればtrue
 	 */
 	public static boolean needsIntrinsicSizing(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
-		final LengthType lineType = blockBox.getBlockParams().size
-				.getLineType(containerBox.getBlockParams().flow);
+		final BlockParams params = blockBox.getBlockParams();
+		final LengthType lineType = params.size.getLineType(params.flow);
 		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
 			return lineType != LengthType.ABSOLUTE;
 		}

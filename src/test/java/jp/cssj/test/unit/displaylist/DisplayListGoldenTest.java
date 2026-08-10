@@ -81,6 +81,8 @@ public class DisplayListGoldenTest extends TestCase {
 			"0390-writing-mode/vert-cell-specified-pagebreak.html", //
 			"0390-writing-mode/vert-fixed-colgroup-spacing.html", //
 			"0390-writing-mode/orthogonal-cell-fixed.html", //
+			// 直交ブロックのページ軸%は親の線軸基準(2026-08-10修正の固定)
+			"0390-writing-mode/orthogonal-page-axis-percent.html", //
 			"0240-table/z-order.html", //
 			"0240-table/rowspan-after-empty-row.html", //
 			// 表の属性(frame/rules/align/valign/bordercolor)をCSSへ移した際の

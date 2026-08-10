@@ -36,9 +36,12 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(-22, x, 1);
+			// 直交ブロックのfit-content限度はページ内容域(2026-08-10)——
+			// 以下の旧値は一様に16.35pt(物理ページと内容域の差)だけ
+			// マージンへ食い込んでいた
+			assertEquals(-6, x, 1);
 			assertEquals(225, y, 1);
-			assertEquals(288, box.getWidth(), 0);
+			assertEquals(271.65, box.getWidth(), 0.1);
 			return true;
 		}
 		return false;
@@ -49,9 +52,9 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(-16, x, 1);
+			assertEquals(0, x, 1);
 			assertEquals(6, y, 0);
-			assertEquals(288, box.getWidth(), 0);
+			assertEquals(271.65, box.getWidth(), 0.1);
 			return true;
 		}
 		return false;
@@ -62,7 +65,7 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(-6, x, 1);
+			assertEquals(10, x, 1);
 			assertEquals(16, y, 0);
 			assertEquals(50, box.getWidth(), 0);
 			return true;
@@ -75,9 +78,9 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(-6, x, 1);
-			assertEquals(36, y, 1);
-			assertEquals(268, box.getWidth(), 0);
+			assertEquals(10, x, 1);
+			assertEquals(46, y, 1);
+			assertEquals(251.65, box.getWidth(), 0.1);
 			return true;
 		}
 		return false;
@@ -88,8 +91,8 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(-6, x, 1);
-			assertEquals(76, y, 1);
+			assertEquals(10, x, 1);
+			assertEquals(86, y, 1);
 			assertEquals(30, box.getWidth(), 0);
 			return true;
 		}

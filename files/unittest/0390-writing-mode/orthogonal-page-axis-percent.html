@@ -1,0 +1,25 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>直交ブロックのページ軸%は親の線軸を基準に解決する</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 serif; writing-mode: vertical-rl; }
+/* 縦書き文書内の横ブロック。height(=このブロックのページ軸)の%は
+   親の線軸(ページ内容域の高さ200pt)基準——50%なら100pt。
+   2026-08-10以前は%基準が未確定扱いで0に潰れ、内容ごと消えていた */
+div.h { writing-mode: horizontal-tb; height: 50%; background: #ddd; }
+/* 対称形: 横ブロックの中の縦ブロック。width(=ページ軸)の%は
+   親の線軸(このdivの幅)基準 */
+div.v { writing-mode: vertical-rl; width: 50%; background: #bbb; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<div class="h"><p id="a">HORIZONTAL</p><div class="v"><p id="b">VERT</p></div></div>
+<p id="c">縦の本文</p>
+</body>
+</html>
