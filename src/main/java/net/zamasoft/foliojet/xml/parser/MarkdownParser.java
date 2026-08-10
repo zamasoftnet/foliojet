@@ -88,7 +88,31 @@ public class MarkdownParser implements Parser {
 				.inlineParserFactory(CjkFriendlyInlineParser::new).build();
 		final Node document = parser.parse(markdown);
 		final HtmlRenderer renderer = HtmlRenderer.builder().extensions(EXTENSIONS).build();
-		final String body = renderer.render(document);
+		String body = renderer.render(document);
+
+		// 生HTMLの<style>はheadへ巻き上げる(2026-08-10)。body内に残すと、
+		// (1)ストリーミング構築ではbodyのボックスが既に開いているため、
+		// body/html自身に効くプロパティ——writing-mode: vertical-rl等——が
+		// 遡って適用されない(縦書き書籍のMarkdown原稿で実測: フォントや
+		// @pageは効くのに縦書きだけ効かず、原因に気づきにくい)、
+		// (2)XHTML的にもbody直下のstyleは不正、という2つの問題がある。
+		// 既定スタイル(markdown-ua.css)の後ろへ原文の出現順で連結するので、
+		// 「文書側のstyleが後勝ちで上書きする」という既存の約束は変わらない
+		final StringBuilder hoisted = new StringBuilder();
+		final java.util.regex.Matcher styleBlock = java.util.regex.Pattern
+				.compile("<style\\b[^>]*>(.*?)</style\\s*>", java.util.regex.Pattern.DOTALL | java.util.regex.Pattern.CASE_INSENSITIVE)
+				.matcher(body);
+		if (styleBlock.find()) {
+			final StringBuilder rest = new StringBuilder();
+			int last = 0;
+			do {
+				rest.append(body, last, styleBlock.start());
+				hoisted.append(styleBlock.group(1));
+				last = styleBlock.end();
+			} while (styleBlock.find());
+			rest.append(body, last, body.length());
+			body = rest.toString();
+		}
 
 		// DOCTYPEはbareな<!DOCTYPE html>ではなくXHTML1.0 StrictのSYSTEM識別子付きにする。
 		// これにより、XSLT結合(join.xslt/Saxonのdocument())時にXML宣言済み外部DTDが
@@ -98,7 +122,8 @@ public class MarkdownParser implements Parser {
 		// 緩和規定(WFC: Entity Declared)が働き、SAXParseExceptionにならない
 		// (2026-07-19、4910_mathml.mdの&PlusMinus;/&InvisibleTimes;で実際に発生した)。
 		return "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/><style type=\"text/css\">"
-				+ DEFAULT_STYLE + "</style></head><body>" + body + "</body></html>";
+				+ DEFAULT_STYLE + "</style><style type=\"text/css\">" + hoisted + "</style></head><body>" + body
+				+ "</body></html>";
 	}
 
 	private static String read(Source source, String encoding) throws IOException {
