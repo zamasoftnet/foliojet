@@ -43,4 +43,18 @@ public class MarkdownStyleHoistTest extends TestCase {
 		String html = MarkdownParser.toHtml("ただの本文。");
 		assertTrue(html, html.contains("ただの本文。"));
 	}
+
+	/**
+	 * input.default-stylesheet指定時は既定スタイル(markdown-ua.css)を
+	 * 注入しない(2026-08-10、オーナー裁定)。既定は「何も指定しない人の
+	 * ためのA4レポート」であり、デザインを自分で設計する利用で下敷きに
+	 * 残るとp{line-height}やノンブルが透けるため。
+	 */
+	public void testDefaultStyleOmittedWhenUserStylesheetGiven() {
+		String with = MarkdownParser.toHtml("本文。", true);
+		String without = MarkdownParser.toHtml("本文。", false);
+		assertTrue(with, with.contains("@page"));
+		assertFalse(without, without.contains("@page"));
+		assertTrue(without, without.contains("本文。"));
+	}
 }

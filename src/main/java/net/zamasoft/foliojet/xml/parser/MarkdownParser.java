@@ -42,7 +42,14 @@ public class MarkdownParser implements Parser {
 		}
 
 		final String markdown = read(source, encoding);
-		final String html = toHtml(markdown);
+		// 既定スタイル(markdown-ua.css)は、利用者がinput.default-stylesheetで
+		// 自前のスタイルシートを指定している場合は注入しない(2026-08-10、
+		// オーナー裁定)。既定はあくまで「何も指定しない人のためのA4レポート」
+		// であり、書籍などデザインを自分で設計する利用では下敷きに残ると
+		// p{line-height}やノンブルが透けて上書き合戦になるため
+		final boolean defaultStyle = net.zamasoft.foliojet.ua.props.UAProps.INPUT_DEFAULT_STYLESHEET
+				.getString(ua) == null;
+		final String html = toHtml(markdown, defaultStyle);
 
 		final Source htmlSource = new StringHtmlSource(source.getURI(), html);
 		new HTMLParser().parse(ua, htmlSource, xmlHandler);
@@ -84,6 +91,15 @@ public class MarkdownParser implements Parser {
 	}
 
 	public static String toHtml(String markdown) {
+		return toHtml(markdown, true);
+	}
+
+	/**
+	 * @param markdown     Markdown原文
+	 * @param defaultStyle 既定スタイル(markdown-ua.css)を含めるか。
+	 *                     {@code input.default-stylesheet}指定時はfalse
+	 */
+	public static String toHtml(String markdown, boolean defaultStyle) {
 		final org.commonmark.parser.Parser parser = org.commonmark.parser.Parser.builder().extensions(EXTENSIONS)
 				.inlineParserFactory(CjkFriendlyInlineParser::new).build();
 		final Node document = parser.parse(markdown);
@@ -122,8 +138,8 @@ public class MarkdownParser implements Parser {
 		// 緩和規定(WFC: Entity Declared)が働き、SAXParseExceptionにならない
 		// (2026-07-19、4910_mathml.mdの&PlusMinus;/&InvisibleTimes;で実際に発生した)。
 		return "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/><style type=\"text/css\">"
-				+ DEFAULT_STYLE + "</style><style type=\"text/css\">" + hoisted + "</style></head><body>" + body
-				+ "</body></html>";
+				+ (defaultStyle ? DEFAULT_STYLE : "") + "</style><style type=\"text/css\">" + hoisted
+				+ "</style></head><body>" + body + "</body></html>";
 	}
 
 	private static String read(Source source, String encoding) throws IOException {
