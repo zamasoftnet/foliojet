@@ -39,6 +39,21 @@ public class GridItemBox extends FlowBlockBox {
 	}
 
 	/**
+	 * {@link #setGridLineOffset}で設定した行方向位置を読みます
+	 * (2026-08-10、grid行分割用)。
+	 *
+	 * <p>
+	 * 行を跨いで強制分割した残余{@link GridItemBox}は{@code fragmentRecipe}が
+	 * 新規生成するため行方向位置を引き継がない——分割後に呼び出し側が
+	 * これで読んだ元の値を残余へ{@link #setGridLineOffset}し直す必要がある
+	 * ({@code FlexItemBox.getFlexLineOffset}と同じ理由)。
+	 * </p>
+	 */
+	public double getGridLineOffset() {
+		return this.baseOffsetX;
+	}
+
+	/**
 	 * 確定したトラック幅を設定します(Grid G3a: bind直前に呼ぶ。
 	 * 固定列では構築時の値と同じ。auto/fr列=G3b/cで解決値が入る)。
 	 */
@@ -70,7 +85,28 @@ public class GridItemBox extends FlowBlockBox {
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
 		final FlowPos pos = this.getFlowPos();
-		return (state, container) -> new GridItemBox(params, pos, state.nextSize(), state.nextMinSize(),
-				state.nextFrame(), container);
+		// 行方向は指定寸法でなく**トラック解決後の使用寸法**を継続断片へ
+		// 運ぶ(2026-08-10、G6行分割)。widthはauto(トラック幅は
+		// setTrackWidthの注入)なので、そのまま運ぶと継続断片のrestyle
+		// 再構築(startFlowBlock.calculateSize)が包含幅=グリッド全幅へ
+		// 再解決し、断片の背景がグリッド全幅の帯になる(row-split-carryの
+		// page2で実測——FlexItemBox.fragmentRecipeの2026-08-08の修正と
+		// 同じ機序)。レシピはthisを保持しない規約のため、値でキャプチャする
+		final boolean vertical = params.flow.isVertical();
+		final double usedTrack = (vertical ? this.height : this.width)
+				+ (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+						? this.frame.getBorderLineExtent(params.flow)
+						: 0);
+		return (state, container) -> {
+			final net.zamasoft.foliojet.layout.box.params.Dimension ns = state.nextSize();
+			final net.zamasoft.foliojet.layout.box.params.Dimension sized = vertical
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(ns.getWidth(), ns.getWidthRatio(),
+							usedTrack, 0, ns.getWidthType(),
+							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
+					: net.zamasoft.foliojet.layout.box.params.Dimension.create(usedTrack, 0, ns.getHeight(),
+							ns.getHeightRatio(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
+							ns.getHeightType());
+			return new GridItemBox(params, pos, sized, state.nextMinSize(), state.nextFrame(), container);
+		};
 	}
 }

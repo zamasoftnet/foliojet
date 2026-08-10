@@ -253,6 +253,47 @@ public final class GridBuilder
 		return plan;
 	}
 
+	/** 全itemがrowSpan=1か(G6行分割の適格条件)。 */
+	private static boolean allSingleRowSpan(final GridPlacementResolver.Plan plan, final int count) {
+		for (int i = 0; i < count; ++i) {
+			if (plan.areas().get(i).rowSpan() != 1) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** ソース順のままで行番号が非減少か(G6)。 */
+	private static boolean isRowMajor(final GridPlacementResolver.Plan plan, final int count) {
+		int prevRow = -1;
+		for (int i = 0; i < count; ++i) {
+			final int r = plan.areas().get(i).row();
+			if (r < prevRow) {
+				return false;
+			}
+			prevRow = r;
+		}
+		return true;
+	}
+
+	/** いずれかのitem同士がグリッド領域で重なるか(G6——重なりがあれば
+	 * flow登録順の並べ替えが描画順=文書順の仕様を壊すため対象外)。 */
+	private static boolean hasOverlap(final GridPlacementResolver.Plan plan, final int count) {
+		for (int a = 0; a < count; ++a) {
+			final GridPlacementResolver.GridArea x = plan.areas().get(a);
+			for (int b = a + 1; b < count; ++b) {
+				final GridPlacementResolver.GridArea y = plan.areas().get(b);
+				final boolean rowsMeet = x.row() < y.row() + y.rowSpan() && y.row() < x.row() + x.rowSpan();
+				final boolean colsMeet = x.column() < y.column() + y.columnSpan()
+						&& y.column() < x.column() + x.columnSpan();
+				if (rowsMeet && colsMeet) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/** planに基づく各itemの列contributionです(G4d——span込み)。 */
 	private List<BasicGridTrackSizing.ItemContribution> columnContributions(
 			final GridPlacementResolver.Plan plan) {
@@ -344,6 +385,9 @@ public final class GridBuilder
 	public void bind(final Builder hostBuilder) {
 		assert !this.bound : "Gridの二重bind";
 		this.bound = true;
+		// 原子契約の有効化(G6): トラック配置が走らないG0退行gridは
+		// 原子扱いしない(PageAtomicBox.isPageAtomicNow参照)
+		this.gridBox.markTrackLayout();
 		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final GridParams params = this.gridBox.getGridParams();
 		final GridPlacementResolver.Plan plan = this.placementPlan();
@@ -442,7 +486,29 @@ public final class GridBuilder
 		// G5d: align used valueによるページ方向オフセット(areaは
 		// span行群+内側gap。stretchは現行互換の上詰め近似——真の
 		// used-height stretchは後続。負余白は0へ丸める)
+		// 行分割(G6)の適格判定と、必要なら行優先へのflow登録順の並べ替え。
+		// 帳簿(GridBox.Row)はflow一覧の連続範囲で行を表すため、行優先順で
+		// 登録されている必要がある。ソース順が行優先でない明示配置
+		// (gigazine.netの.content——grid-rowで先頭へピン留めされたitemが
+		// DOM後方に来る)は、**itemの重なりが無い場合に限り**行優先へ
+		// 並べ替える。行内はソース順を保つ安定ソート——重なるitemの描画順は
+		// CSS仕様で文書順のため、重なりのあるgridは並べ替えず従来どおり
+		// atomicへ落とす(explicit-overlapの回帰を守る)
+		final boolean ledgerEligible = !this.items.isEmpty() && contentY == 0 && !params.flow.isVertical()
+				&& allSingleRowSpan(plan, count);
+		Integer[] order = new Integer[count];
 		for (int i = 0; i < count; ++i) {
+			order[i] = i;
+		}
+		boolean rowMajor = ledgerEligible && isRowMajor(plan, count);
+		if (ledgerEligible && !rowMajor && !hasOverlap(plan, count)) {
+			java.util.Arrays.sort(order,
+					java.util.Comparator.comparingInt(i -> plan.areas().get(i).row()));
+			rowMajor = true;
+		}
+		final double[] itemPageEnds = new double[count];
+		for (int idx = 0; idx < count; ++idx) {
+			final int i = order[idx];
 			final GridItemBox itemBox = this.items.get(i).itemBox;
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			itemBox.setGridLineOffset(contentX + layout.columnStart(area.column()) + itemXOffsets[i]);
@@ -454,8 +520,39 @@ public final class GridBuilder
 			final double yOffset = aligns[i] == BoxAlignment.CENTER ? free / 2
 					: aligns[i] == BoxAlignment.END ? free : 0;
 			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
+			// 行分割(G6)のslack判定用: 行開始からのitem実端
+			itemPageEnds[i] = yOffset + extents[i];
 		}
 		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
+		// **改ページ用の行境界の記録**(2026-08-10、G6行分割——
+		// FlexBuilder.placeRowと同型)。対象はflow順(=ソース順)が行優先で
+		// 連続し、全itemがrowSpan=1、書字が水平、align-contentの先頭余白が
+		// 無い構成だけ。帳簿を付けなければGridBox.splitは呼ばれず、従来
+		// どおりPageAtomicBoxのatomic経路(丸ごと送り/visual rescue)に
+		// 落ちるので、ゲートに引っかかっても今より悪くならない
+		if (rowMajor) {
+			final java.util.List<GridBox.Row> gridRows = new ArrayList<>();
+			final java.util.List<GridItemBox> gridRowItems = new ArrayList<>(count);
+			int rowStartFlow = 0;
+			double itemsEnd = 0;
+			int currentRow = plan.areas().get(order[0]).row();
+			for (int idx = 0; idx < count; ++idx) {
+				final int i = order[idx];
+				final int r = plan.areas().get(i).row();
+				if (r != currentRow) {
+					gridRows.add(new GridBox.Row(rowStartFlow, idx - rowStartFlow, rowStarts[currentRow],
+							rowHeights[currentRow], itemsEnd));
+					rowStartFlow = idx;
+					itemsEnd = 0;
+					currentRow = r;
+				}
+				itemsEnd = Math.max(itemsEnd, itemPageEnds[i]);
+				gridRowItems.add(this.items.get(i).itemBox);
+			}
+			gridRows.add(new GridBox.Row(rowStartFlow, count - rowStartFlow, rowStarts[currentRow],
+					rowHeights[currentRow], itemsEnd));
+			this.gridBox.setGridRows(gridRows, gridRowItems);
+		}
 		final LayoutContext.Flow active = target.getFlow();
 		assert active.box == this.gridBox : "Grid bindでactive flowがGridではない: " + active.box;
 		target.setPageAxis(active.pageAxis + this.gridBox.getInnerPageExtent(params.flow));

@@ -62,20 +62,6 @@ public class FlexItemBox extends FlowBlockBox {
 	}
 
 	/**
-	 * restyle再構築で潰れた確定寸法を復元します(2026-08-08、
-	 * {@code FlexRowContainer.restyle}専用)。itemの寸法は
-	 * {@code FlexBuilder}(item coordinator)が所有するが、ページ跨ぎ
-	 * 移動後の汎用再構築は{@code startFlowBlock.calculateSize}が
-	 * width:autoを包含幅へ、{@code endFlowBlock}がheight:autoを内容高
-	 * (絶対配置子だけなら0)へ再解決してしまう——yahoo.co.jpの
-	 * ランキング順位バッジが行全幅の色帯になった実バグ。
-	 */
-	public void restoreExtents(final double width, final double height) {
-		this.width = width;
-		this.height = height;
-	}
-
-	/**
 	 * 線方向のitem開始位置(Flexコンテナ内辺原点、自然位置からの相対)を
 	 * 設定します(F6: 縦書きでは物理Y)。
 	 *

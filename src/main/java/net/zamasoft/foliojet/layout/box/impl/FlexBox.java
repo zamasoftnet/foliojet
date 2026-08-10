@@ -49,24 +49,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  *
  * @author MIYABE Tatsuhiko
  */
-public class FlexBox extends FlowBlockBox implements PageAtomicBox {
-
-	/**
-	 * restyle再構築で膨らんだpage軸の内容寸法を復元します(2026-08-08、
-	 * {@code FlexRowContainer.restoreAnchoredPageAxis}専用)。汎用再構築は
-	 * itemを縦積みで再登録するため、item側のendFlowBlockが親であるこの箱へ
-	 * Σitem高を書き込む——{@code setPageAxis}のcontentSizeはMath.maxの
-	 * 単調増加なので、後から正しい値を渡しても縦積みの値が残る。
-	 * ここだけは代入で戻す。
-	 */
-	public void restoreContentExtent(final double content) {
-		this.contentSize = content;
-		if (this.getBlockParams().flow.isVertical()) {
-			this.width = content;
-		} else {
-			this.height = content;
-		}
-	}
+public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft.foliojet.layout.box.RowSplitBox {
 
 	/**
 	 * 1本のflex行(line)のページ軸帳簿です(2026-08-07、Bug C)。
@@ -101,11 +84,11 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox {
 		super(params, pos);
 		// flexのitem配置(主軸整列)は汎用のrestyle再構築(逐次積み上げ)で
 		// 壊れるため、常に自己アンカーで復元するコンテナを使う(2026-08-08。
-		// 従来は分割継続断片だけがFlexRowContainerで守られており、絶対配置
+		// 従来は分割継続断片だけがRowSplitContainerで守られており、絶対配置
 		// 子を含むflex行がページ跨ぎで丸ごと移動したとき(ソース再生の
 		// containsAbsoluteゲートでrestyleへ落ちる)にitemが階段状にずれた
 		// ——yahoo.co.jpの天気モジュール)
-		this.container = new net.zamasoft.foliojet.layout.box.content.FlexRowContainer();
+		this.container = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		this.container.setBox(this);
 	}
 
@@ -244,7 +227,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox {
 				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 			}
 			final double keptExtent = totalPageLimit - remaining;
-			final net.zamasoft.foliojet.layout.box.content.FlexRowContainer cont = new net.zamasoft.foliojet.layout.box.content.FlexRowContainer();
+			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
 			cont.anchorCurrent();
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
@@ -269,7 +252,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox {
 			remainders[k] = typedRemainder;
 		}
 
-		final net.zamasoft.foliojet.layout.box.content.FlexRowContainer cont = new net.zamasoft.foliojet.layout.box.content.FlexRowContainer();
+		final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		final boolean vertical = flow.isVertical();
 		double newLinePageSize = 0;
 		for (int k = 0; k < remainders.length; ++k) {

@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=150.00 h=30.00]
+  x=150.00 y=0.00 AbsoluteRectFrame[w=150.00 h=30.00]
+  x=0.00 y=30.00 AbsoluteRectFrame[w=400.00 h=90.00]
+  x=1.00 y=31.00 Text["PIN" asc=10.31 desc=4.09]
+  x=0.00 y=120.00 Text["AFTER" asc=10.31 desc=4.09]

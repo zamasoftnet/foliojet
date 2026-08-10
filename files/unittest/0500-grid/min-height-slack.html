@@ -1,0 +1,31 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G6: min-height由来の空白は行を切らず空白の中で切る(slack split)</title>
+<style type="text/css">
+@page { margin: 0; }
+body { font-size: 12pt; margin: 0; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<!--
+  gigazine.netの先頭白紙ページの縮図: min-height:260ptのgridの中身は
+  1行ぶんの小さなitemだけで、余りはalign-content:stretch既定により
+  行高へ分配される。切断線300pt(行開始y=100の200pt地点)はitem実端
+  (約17pt)より下の空白内——itemを切らず空白を切り、MARKER-MHは
+  1ページ目に残る。gridの残り(空白60pt)だけが2ページ目へ運ばれ、
+  AFTERはその後に続く。従来はgrid全体が丸ごと2ページ目へ沈み、
+  1ページ目がほぼ白紙になっていた。
+-->
+<div style="height: 100pt; background: #eee">SPACER</div>
+<div id="g" style="display: grid; grid-template-columns: 150pt 150pt; min-height: 260pt">
+<p>MARKER-MH</p>
+<p>SIDE</p>
+</div>
+<p>AFTER</p>
+</body>
+</html>

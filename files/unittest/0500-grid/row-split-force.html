@@ -1,0 +1,28 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G6: 境界行のitemを同一物理切断線で強制分割</title>
+<style type="text/css">
+@page { margin: 0; }
+body { font-size: 10pt; line-height: 20pt; margin: 0; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<!--
+  単一行×2列の切断線跨ぎ。左列8行(160pt)・右列4行(80pt)、行開始は
+  y=200なので切断線300ptは行の100pt地点。左列はL5の手前で分割され、
+  右列(全て収まる)も同じ物理線で強制分割される(テーブル行と同じ
+  契約——rowspanの無い単純化版)。L6以降が2ページ目の行頭に揃う。
+-->
+<div style="height: 200pt; background: #eee">SPACER</div>
+<div id="g" style="display: grid; grid-template-columns: 180pt 180pt">
+<div><p>L1</p><p>L2</p><p>L3</p><p>L4</p><p>L5</p><p>L6</p><p>L7</p><p>L8</p></div>
+<div><p>R1</p><p>R2</p><p>R3</p><p>R4</p></div>
+</div>
+<p>AFTER</p>
+</body>
+</html>

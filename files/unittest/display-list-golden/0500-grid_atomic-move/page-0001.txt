@@ -1,2 +1,4 @@
 drawer z=0
   x=0.00 y=0.00 Text["filler" asc=10.31 desc=4.09]
+  x=0.00 y=750.00 Text["alpha" asc=10.31 desc=4.09]
+  x=100.00 y=750.00 Text["beta" asc=10.31 desc=4.09]

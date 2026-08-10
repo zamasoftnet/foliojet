@@ -10,7 +10,9 @@ import net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange;
 import net.zamasoft.foliojet.layout.fragment.OpenShape;
 
 /**
- * flex行分割(Bug C、2026-08-07)の継続断片専用コンテナです。
+ * 行分割(flex: Bug C、2026-08-07/grid: G6、2026-08-10)を持つコンテナの
+ * item配置を、汎用restyle再構築から守るコンテナです(旧FlexRowContainer。
+ * grid行分割の導入で中身をflex/grid共通へ一般化して改名)。
  *
  * <p>
  * ページ確定後にbuilder状態をchainless再構築する経路
@@ -34,7 +36,7 @@ import net.zamasoft.foliojet.layout.fragment.OpenShape;
  * 自体を触るより影響範囲が狭い。
  * </p>
  */
-public final class FlexRowContainer extends FlowContainer {
+public final class RowSplitContainer extends FlowContainer {
 
 	/**
 	 * itemの確定配置のスナップショットです(2026-08-08にpageAxis単独から
@@ -46,17 +48,6 @@ public final class FlexRowContainer extends FlowContainer {
 	}
 
 	private Map<IFlowBox, Anchor> anchored;
-
-	/**
-	 * アンカー時点の内容進行の終端(コンテンツ原点基準、2026-08-08)。
-	 * 汎用restyleはitemを縦積みで再登録するためbuilderカーソルが
-	 * 「Σitem高」まで進む——item座標を復元しても、カーソル(と、そこから
-	 * endFlowBlockが書き戻すコンテナのheight/contentSize)は縦積みの値の
-	 * ままになり、flexコンテナの箱高が内容高のほぼ2倍に膨らんでいた
-	 * (yahoo.co.jp天気モジュールの熱中症指数〜雨雲レーダー間の余白)。
-	 * 復元時にカーソルを差分だけ巻き戻すための基準値。
-	 */
-	private double anchoredContentEnd;
 
 	/**
 	 * 寸法(width/height)も復元するか。自己アンカー(丸ごと移動後の
@@ -89,7 +80,6 @@ public final class FlexRowContainer extends FlowContainer {
 		for (final Flow f : this.flows) {
 			this.anchored.put(f.box, new Anchor(f.pageAxis, f.box.getWidth(), f.box.getHeight()));
 		}
-		this.anchoredContentEnd = this.contentEnd();
 	}
 
 	/** 現在のflowsの内容進行の終端(pageAxis+item内容高の最大)。 */
@@ -123,23 +113,7 @@ public final class FlexRowContainer extends FlowContainer {
 		if (this.anchored == null || this.flows == null) {
 			return;
 		}
-		if (this.restoreExtents && builder != null) {
-			// 縦積み再登録で進んだbuilderカーソルを、アンカー時点の内容
-			// 進行との差分だけ巻き戻す。この後のendFlowBlockがカーソルから
-			// コンテナのheight/contentSizeを書き戻すため、ここを直せば
-			// 箱高も追随する。分割継続(restoreExtents=false)は以降の
-			// 再分割がカーソルを正として進むため触らない
-			final double stackedEnd = this.contentEnd();
-			final double delta = stackedEnd - this.anchoredContentEnd;
-			if (delta > 0) {
-				builder.setPageAxis(builder.getPageAxis() - delta);
-				if (this.box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flex) {
-					// item側のendFlowBlockが親へ書いた縦積みのcontentSizeは
-					// Math.maxの単調増加で残るため、代入で戻す
-					flex.restoreContentExtent(this.anchoredContentEnd);
-				}
-			}
-		}
+		final double stackedEnd = this.contentEnd();
 		for (int i = 0; i < this.flows.size(); ++i) {
 			final Flow f = this.flows.get(i);
 			final Anchor want = this.anchored.get(f.box);
@@ -149,9 +123,33 @@ public final class FlexRowContainer extends FlowContainer {
 			if (f.pageAxis != want.pageAxis()) {
 				this.flows.set(i, new Flow(f.serial, f.box, want.pageAxis()));
 			}
-			if (this.restoreExtents && f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
+			if (this.restoreExtents && f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item
 					&& (item.getWidth() != want.width() || item.getHeight() != want.height())) {
 				item.restoreExtents(want.width(), want.height());
+			}
+		}
+		if (builder != null) {
+			// 縦積み再登録で進んだbuilderカーソルを、位置復元の前後の
+			// 内容終端差だけ巻き戻す。この後のendFlowBlockがカーソルから
+			// コンテナのheight/contentSizeを書き戻すため、ここを直せば
+			// 箱高も追随する(yahoo.co.jp天気モジュールの熱中症指数〜
+			// 雨雲レーダー間の余白)。2026-08-10まで自己アンカー
+			// (restoreExtents)限定+アンカー時点の終端を基準にしていたが、
+			// (1)分割継続断片でも縦積みが箱高を膨らませ後続内容を押し下げる
+			// (grid行分割のrow-split-carryで実測: 2item×56ptの継続断片が
+			// 112ptへ膨張)、(2)分割直後のアンカーはitem高が未確定(0)で
+			// 基準にならない——ため、復元後の実測終端を基準に常時巻き戻す。
+			// 再分割の帳簿を壊すのはitem**寸法**の復元(上のループ、
+			// restoreExtents限定のまま)であって、カーソルの巻き戻しではない
+			final double trueEnd = this.contentEnd();
+			final double delta = stackedEnd - trueEnd;
+			if (delta > 0) {
+				builder.setPageAxis(builder.getPageAxis() - delta);
+				if (this.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox host) {
+					// item側のendFlowBlockが親へ書いた縦積みのcontentSizeは
+					// Math.maxの単調増加で残るため、代入で戻す(flex/grid共通)
+					host.restoreContentExtent(trueEnd);
+				}
 			}
 		}
 	}

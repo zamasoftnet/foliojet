@@ -78,6 +78,39 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		return this.resolvedAlign;
 	}
 
+	/**
+	 * restyle再構築で膨らんだpage軸の内容寸法を復元します(2026-08-08、
+	 * {@code RowSplitContainer.restoreAnchoredPageAxis}専用。flexから
+	 * flex/grid共通へ一般化——2026-08-10)。汎用再構築はitemを縦積みで
+	 * 再登録するため、item側のendFlowBlockが親であるこの箱へΣitem高を
+	 * 書き込む——{@code setPageAxis}のcontentSizeはMath.maxの単調増加
+	 * なので、後から正しい値を渡しても縦積みの値が残る。ここだけは
+	 * 代入で戻す。
+	 */
+	public final void restoreContentExtent(final double content) {
+		this.contentSize = content;
+		if (this.getBlockParams().flow.isVertical()) {
+			this.width = content;
+		} else {
+			this.height = content;
+		}
+	}
+
+	/**
+	 * restyle再構築で潰れた確定寸法を復元します(2026-08-08、
+	 * {@code RowSplitContainer.restyle}専用。flexからflex/grid共通へ
+	 * 一般化——2026-08-10)。itemの寸法はitem coordinator(FlexBuilder/
+	 * GridBuilder)が所有するが、ページ跨ぎ移動後の汎用再構築は
+	 * {@code startFlowBlock.calculateSize}がwidth:autoを包含幅へ、
+	 * {@code endFlowBlock}がheight:autoを内容高(絶対配置子だけなら0)へ
+	 * 再解決してしまう——yahoo.co.jpのランキング順位バッジが行全幅の
+	 * 色帯になった実バグ。
+	 */
+	public final void restoreExtents(final double width, final double height) {
+		this.width = width;
+		this.height = height;
+	}
+
 	public final Pos getPos() {
 		return this.pos;
 	}

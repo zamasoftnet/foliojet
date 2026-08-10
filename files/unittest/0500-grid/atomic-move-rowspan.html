@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G6: rowSpanありは行分割の対象外(atomicのまま丸ごと移動)</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<!--
+  行分割(G6)のゲート検査: rowSpanが1でないitemを含むgridは行境界の
+  帳簿が付かず、従来どおりPageAtomicBox——ページ残量に入らなければ
+  丸ごと次ページへ移る(旧atomic-move.htmlの契約の引き継ぎ先。
+  atomic-move.html自体は行分割の対象になった)。
+-->
+<div style="height: 750pt">filler</div>
+<div id="g" style="display: grid; grid-template-columns: 100pt 1fr">
+<p style="grid-row: 1 / span 2">alpha</p>
+<p>beta</p>
+<p>gamma</p>
+<p>delta</p>
+</div>
+</body>
+</html>

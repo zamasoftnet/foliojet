@@ -1,0 +1,29 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G6: 収まらない行は丸ごと次ページへ(行単位の持ち越し)</title>
+<style type="text/css">
+@page { margin: 0; }
+body { font-size: 12pt; margin: 0; }
+#g div { height: 90pt; background: #cde; border: 1pt solid #369; }
+</style>
+</head>
+<body>
+<!--
+  3行×2列、各行92pt(90+枠2)。切断線300ptは3行目(260..352)を跨ぐが、
+  空の固定高divに分割点は無い——行全体を境界とみなし、r3a/r3bの行が
+  丸ごと2ページ目へ移る(r1/r2の行は1ページ目に残る)。
+  従来はgrid全体が丸ごと2ページ目へ沈んでいた。
+-->
+<div style="height: 80pt; background: #eee">SPACER</div>
+<div id="g" style="display: grid; grid-template-columns: 150pt 150pt">
+<div>r1a</div><div>r1b</div>
+<div>r2a</div><div>r2b</div>
+<div>r3a</div><div>r3b</div>
+</div>
+<p id="after">AFTER</p>
+</body>
+</html>

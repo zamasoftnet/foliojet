@@ -15,4 +15,20 @@ package net.zamasoft.foliojet.layout.box;
  * </p>
  */
 public interface PageAtomicBox {
+
+	/**
+	 * 原子契約が現在有効かを返します(2026-08-10、G6行分割で追加)。
+	 *
+	 * <p>
+	 * 既定はtrue(常時atomic)。GridBoxはトラック配置(GridBuilder.bind)が
+	 * 実際に走った場合だけtrueを返す——TwoPass不活性でG0(単一列の通常
+	 * フロー)へ退行した入れ子gridは、守るべきトラック配置が存在せず、
+	 * 原子扱いにすると「中身が丸ごと次ページへ沈む」だけが残る
+	 * (gigazine.netの実ページで実測: #main内の.content入れ子gridが
+	 * これで、外側#mainの行分割が入っても頭断片が空のままだった)。
+	 * </p>
+	 */
+	default boolean isPageAtomicNow() {
+		return true;
+	}
 }

@@ -62,7 +62,7 @@ public final class PaginationContract {
 	 */
 	public static boolean isChainAtomicBoundary(final WritingMode outer,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
-		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox atomic && atomic.isPageAtomicNow()) {
 			// **flex行分割(2026-08-07、Bug C)でもここはtrueのまま**——
 			// isChainAtomicBoundaryとsplitsInPageAxisは意図的に強さが違う
 			// (このファイル冒頭のコメント参照)。row-split対象のFlexBoxを
@@ -82,21 +82,20 @@ public final class PaginationContract {
 	}
 
 	/**
-	 * {@link net.zamasoft.foliojet.layout.box.impl.FlexBox}のPageAtomicBox
-	 * からの限定的な脱出です(2026-08-07、Bug C——flex行分割)。
+	 * PageAtomicBoxからの限定的な脱出です(2026-08-07、Bug C——flex行分割。
+	 * 2026-08-10のgrid行分割で{@link net.zamasoft.foliojet.layout.box.RowSplitBox}
+	 * へ一般化)。
 	 *
 	 * <p>
-	 * {@code flex-direction:row}でline境界情報が確定している場合のみ、
-	 * {@code FlexBox}自身の{@code split}が行単位の強制分割(テーブル行と
-	 * 同型)を実装しているため、{@link #splitsInPageAxis}に限って
-	 * PageAtomicBoxの「常にatomic」を上書きする。line境界が無い構成
-	 * (column-direction等)は対象外のまま——nowrapのcolumn-directionは
-	 * 元々itemが縦に積まれるだけでCSS的に正しいため、わざわざ行分割機構を
-	 * 適用する理由が無い(調査時の結論)。
+	 * 行境界の帳簿が確定している場合のみ、ボックス自身の{@code split}が
+	 * 行単位の強制分割(テーブル行と同型)を実装しているため、
+	 * {@link #splitsInPageAxis}に限ってPageAtomicBoxの「常にatomic」を
+	 * 上書きする。帳簿が無い構成(flexのcolumn-direction、gridの
+	 * rowSpan&gt;1等)は対象外のまま従来のatomic経路へ落ちる。
 	 * </p>
 	 */
-	private static boolean isFlexRowSplitEligible(final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
-		return box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flexBox && flexBox.hasRowSplitLines();
+	private static boolean isRowSplitEligible(final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
+		return box instanceof net.zamasoft.foliojet.layout.box.RowSplitBox rowSplit && rowSplit.hasRowSplitLines();
 	}
 
 	/**
@@ -120,7 +119,8 @@ public final class PaginationContract {
 	 */
 	public static boolean splitsInPageAxis(final boolean vertical,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
-		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox && !isFlexRowSplitEligible(box)) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox atomic && atomic.isPageAtomicNow()
+				&& !isRowSplitEligible(box)) {
 			return false;
 		}
 		return splitsInPageAxis(vertical, box.getBlockParams().flow);

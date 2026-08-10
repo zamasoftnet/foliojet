@@ -10,7 +10,13 @@ import net.zamasoft.foliojet.layout.box.IBox;
 /**
  * Grid G0のatomic契約テストです(consult-codex-2026-07-31-grid.txt §1.2)。
  * ページ残量に入らないGridコンテナは内部分割されず丸ごとpage 2へ移る。
- * G0時点の内容配置は単一列の通常フロー(トラック解決はG1以降)。
+ *
+ * <p>
+ * 2026-08-10(G6行分割)から、この契約は行境界の帳簿が付かない構成
+ * (rowSpan&gt;1等)だけに残る——fixtureをrowSpan入りへ差し替えて
+ * ゲートの回帰テストとする(帳簿が付く構成の分割挙動は
+ * row-split-carry / row-split-force / min-height-slack のgoldenが担う)。
+ * </p>
  */
 public class GridAtomicTest extends AbstractTestCase {
 	public GridAtomicTest(String name) {
@@ -18,7 +24,7 @@ public class GridAtomicTest extends AbstractTestCase {
 	}
 
 	protected void transcode() throws Exception {
-		File file = new File("files/unittest/0500-grid/atomic-move.html");
+		File file = new File("files/unittest/0500-grid/atomic-move-rowspan.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 

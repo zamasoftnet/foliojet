@@ -1,0 +1,35 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G6: 明示grid-rowのピン留めでDOM順が行順でなくても行分割する</title>
+<style type="text/css">
+@page { margin: 0; }
+body { font-size: 12pt; margin: 0; }
+p { margin: 0; }
+#g div { height: 88pt; background: #cde; border: 1pt solid #369; }
+#g #pin { background: #fc9; }
+</style>
+</head>
+<body>
+<!--
+  gigazine.netの.contentの縮図: DOM先頭のitemが明示grid-rowで後方の
+  行(row 3)へピン留めされ、後続のautoアイテムが行0..2へ入るため、
+  ソース順の行番号は「3,0,0,1,1,2,2」と単調でない。従来のG6適格判定は
+  これを弾いて帳簿なし=原子(丸ごと次ページ)にしていた。現在は
+  itemに重なりが無ければflow登録順を行優先へ安定ソートして帳簿を
+  付ける——切断線300ptは行3(SPACER 60+行0..2=270..360)を跨ぎ、
+  行0..2(r1〜r3)が1ページ目、PINの行が2ページ目へ割れる。
+-->
+<div style="height: 60pt; background: #eee">SPACER</div>
+<div id="g" style="display: grid; grid-template-columns: 150pt 150pt">
+<div id="pin" style="grid-row: 4"><p>PIN</p></div>
+<div><p>r1a</p></div><div><p>r1b</p></div>
+<div><p>r2a</p></div><div><p>r2b</p></div>
+<div><p>r3a</p></div><div><p>r3b</p></div>
+</div>
+<p>AFTER</p>
+</body>
+</html>

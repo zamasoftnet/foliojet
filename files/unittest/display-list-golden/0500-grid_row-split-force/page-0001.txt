@@ -1,0 +1,12 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=200.00]
+  x=0.00 y=0.00 Text["SPACER" asc=12.59 desc=7.41]
+  x=0.00 y=200.00 Text["L1" asc=12.59 desc=7.41]
+  x=0.00 y=220.00 Text["L2" asc=12.59 desc=7.41]
+  x=0.00 y=240.00 Text["L3" asc=12.59 desc=7.41]
+  x=0.00 y=260.00 Text["L4" asc=12.59 desc=7.41]
+  x=0.00 y=280.00 Text["L5" asc=12.59 desc=7.41]
+  x=180.00 y=200.00 Text["R1" asc=12.59 desc=7.41]
+  x=180.00 y=220.00 Text["R2" asc=12.59 desc=7.41]
+  x=180.00 y=240.00 Text["R3" asc=12.59 desc=7.41]
+  x=180.00 y=260.00 Text["R4" asc=12.59 desc=7.41]

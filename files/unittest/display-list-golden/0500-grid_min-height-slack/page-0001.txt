@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=400.00 h=100.00]
+  x=0.00 y=0.00 Text["SPACER" asc=10.31 desc=4.09]
+  x=0.00 y=100.00 Text["MARKER-MH" asc=10.31 desc=4.09]
+  x=150.00 y=100.00 Text["SIDE" asc=10.31 desc=4.09]
