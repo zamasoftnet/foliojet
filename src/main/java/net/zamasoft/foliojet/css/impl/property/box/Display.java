@@ -273,9 +273,23 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				} else if (ident.equals("grid")) {
 					return DisplayValue.GRID_VALUE;
 				} else if (ident.equals("flex")) {
-					// Flex F0a(consult-codex-2026-08-02-flexbox.txt)。
-					// inline-flexは初期サブセット外(未対応値として宣言無効)
+					// Flex F0a(consult-codex-2026-08-02-flexbox.txt)
 					return DisplayValue.FLEX_VALUE;
+				} else if (ident.equals("inline-flex")) {
+					// **インラインレベルのflex/gridはブロックレベルで近似**
+					// (2026-08-11)。真のinline-flexは「行の中に置ける原子箱の
+					// 中身をflexで組む」もので、外=inline-block・内=flexの
+					// 二重箱が要る。それまでは宣言ごと捨てる旧挙動より近い
+					// ——捨てるとflexコンテナがただのブロックに戻り、横に
+					// 並ぶはずのナビ13項目が縦に積まれて本文の上へ507pt
+					// 覆いかぶさっていた(sankei.comのグローバルナビで実測)。
+					// 行の中に置かれた小さなinline-flex(バッジ等)は本来より
+					// 行が分かれる——どちらの誤差を採るかはimageTestの実測で
+					// 決めた
+					return DisplayValue.FLEX_VALUE;
+				} else if (ident.equals("inline-grid")) {
+					// inline-flexと同じ近似(上のコメント参照)
+					return DisplayValue.GRID_VALUE;
 				} else if (ident.equals("table-caption")) {
 					return DisplayValue.TABLE_CAPTION_VALUE;
 				}

@@ -1,0 +1,23 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>inline-flex はブロックレベルのflexとして近似する</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+/* 宣言を捨てるとただのブロックへ戻り、項目が縦に積まれて後続を押し下げる
+   (sankei.comのグローバルナビで実測した欠陥)。横一列に並ぶのが正しい */
+nav.bar { display: inline-flex; }
+nav.bar span { margin-right: 10pt; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<p id="a">BEFORE</p>
+<nav class="bar"><span id="b">AAA</span><span id="c">BBB</span><span id="d">CCC</span></nav>
+<p id="e">AFTER</p>
+</body>
+</html>

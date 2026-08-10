@@ -680,6 +680,12 @@ public class CSSProcessor implements XMLHandler {
 			if (CSSJInternalImage.getImage(style) != null) {
 				// 画像タグの内部は無視する
 				this.noneStack = 1;
+			} else if (net.zamasoft.foliojet.css.impl.property.box.ContentVisibility
+					.get(style) == net.zamasoft.foliojet.css.value.ContentVisibilityValue.HIDDEN) {
+				// content-visibility:hidden——要素自身のボックスは残し、
+				// 中身だけレイアウトから省く(画像タグの内部無視と同じ機構。
+				// endElement側のフォールスルー条件と対)
+				this.noneStack = 1;
 			}
 		}
 	}
@@ -748,7 +754,9 @@ public class CSSProcessor implements XMLHandler {
 					// ルート要素がnoneの場合に発生する
 					return;
 				}
-				if (CSSJInternalImage.getImage(currentStyle) == null) {
+				if (CSSJInternalImage.getImage(currentStyle) == null
+						&& net.zamasoft.foliojet.css.impl.property.box.ContentVisibility
+								.get(currentStyle) != net.zamasoft.foliojet.css.value.ContentVisibilityValue.HIDDEN) {
 					return;
 				}
 			} else {

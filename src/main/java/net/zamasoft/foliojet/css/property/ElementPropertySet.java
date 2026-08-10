@@ -60,6 +60,7 @@ import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
 import net.zamasoft.foliojet.css.impl.property.text.TextTransform;
 import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
+import net.zamasoft.foliojet.css.impl.property.box.ContentVisibility;
 import net.zamasoft.foliojet.css.impl.property.box.Visibility;
 import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
 import net.zamasoft.foliojet.css.impl.property.page.Widows;
@@ -230,6 +231,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(VerticalAlign.INFO);
 		reg(ZIndex.INFO);
 		reg(Visibility.INFO);
+		reg(ContentVisibility.INFO);
 		reg(Overflow.INFO_X);
 		reg(Overflow.INFO_Y);
 		reg(Clip.INFO);

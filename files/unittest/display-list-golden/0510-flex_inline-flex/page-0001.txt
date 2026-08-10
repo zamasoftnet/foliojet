@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=0.00 Text["BEFORE" asc=8.00 desc=2.00]
+  x=0.00 y=10.00 Text["AAA" asc=8.00 desc=2.00]
+  x=25.00 y=10.00 Text["BBB" asc=8.00 desc=2.00]
+  x=50.00 y=10.00 Text["CCC" asc=8.00 desc=2.00]
+  x=0.00 y=20.00 Text["AFTER" asc=8.00 desc=2.00]

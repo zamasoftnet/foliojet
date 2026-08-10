@@ -89,6 +89,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// 罫線の座標を固定する(2026-08-04)
 			"0240-table/frame-rules.html", //
 			"3080-MODERN-CSS/layer-important.html", //
+			// content-visibility(2026-08-11): hiddenは中身だけ省く
+			"3080-MODERN-CSS/content-visibility.html", //
 			"0242-table-height/percent-rowspan-groups.html", //
 			"0242-table-height/group-size-empty-rows.html", //
 			"0242-table-height/zero-percent-row-rowspan.html", //
@@ -125,6 +127,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// どちらも丸ごと消えていた——縦方向は別経路で偶然効いていたので
 			// 片方向だけ見ても捕まらない
 			"0510-flex/item-padding-margin.html", //
+			// inline-flexのブロックレベル近似(2026-08-11)
+			"0510-flex/inline-flex.html", //
 			// resolveRelativeOffsetの代入がFlex/Gridの主軸配置を上書きする
 			// 欠陥(2026-08-06)。AbstractContainerBox.javaのjavadoc参照。
 			// 2番目以降のitemが原点(x=0)へ潰れて重なっていた

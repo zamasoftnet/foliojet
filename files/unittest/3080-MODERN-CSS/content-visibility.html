@@ -1,0 +1,27 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>content-visibility: hidden は中身だけをレイアウトから省く</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+/* hidden: 箱は残る(高さ指定があれば場所を取る)が中身は組まれない。
+   実サイトのオフキャンバスメニューがこの形で畳まれている */
+div.hidden { content-visibility: hidden; height: 20pt; background: #eee; }
+/* auto は画面表示での遅延指示。印刷では visible と同じ */
+div.auto { content-visibility: auto; }
+div.visible { content-visibility: visible; }
+p { margin: 0; }
+</style>
+</head>
+<body>
+<p id="a">BEFORE</p>
+<div class="hidden"><p id="b">HIDDENCONTENT</p></div>
+<div class="auto"><p id="c">AUTOCONTENT</p></div>
+<div class="visible"><p id="d">VISIBLECONTENT</p></div>
+<p id="e">AFTER</p>
+</body>
+</html>
