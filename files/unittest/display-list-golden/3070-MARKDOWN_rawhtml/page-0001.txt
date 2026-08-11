@@ -10,5 +10,5 @@ drawer z=0
   x=0.00 y=87.00 Text["SKELETON" asc=9.00 desc=3.00]
   x=0.00 y=104.00 Text["LASTPARAGRAPH" asc=9.00 desc=3.00]
   x=70.00 y=104.00 Text["with" asc=9.00 desc=3.00]
-  x=95.00 y=104.00 Text["INLINEHTML" asc=9.00 desc=3.00]
+  x=95.00 y=104.40 Text["INLINEHTML" asc=8.60 desc=2.41]
   x=150.00 y=104.00 Text["text." asc=9.00 desc=3.00]

@@ -47,6 +47,8 @@ public class MarkdownGoldenTest extends TestCase {
 	private static final String[] DOCUMENTS = { //
 			"3070-MARKDOWN/basic.md", //
 			"3070-MARKDOWN/rawhtml.md", //
+			// 青空文庫式ルビ(2026-08-11)
+			"3070-MARKDOWN/aozora-ruby.md", //
 	};
 
 	public void testMarkdown() throws Exception {

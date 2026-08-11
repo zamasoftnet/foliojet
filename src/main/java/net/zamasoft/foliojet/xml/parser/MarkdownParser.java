@@ -254,6 +254,13 @@ public class MarkdownParser implements Parser {
 		/** 生HTML断片の字句化器(遅延生成、断片間で共有)。 */
 		private HTMLConfiguration fragmentScanner;
 
+		/** 終了タグ1個だけの断片(Markdownのインライン生HTMLで普通に現れる)。 */
+		private static final Pattern LONE_END_TAG = Pattern
+				.compile("\s*</\s*([a-zA-Z][a-zA-Z0-9]*)\s*>\s*");
+
+		/** 断片スキャナの出口(断片ごとに原文を教える)。 */
+		private FragmentRelay fragmentRelay;
+
 		EventBridge(final UserAgent ua, final XMLHandler xmlHandler) {
 			this.ua = ua;
 			this.xmlHandler = xmlHandler;
@@ -378,7 +385,7 @@ public class MarkdownParser implements Parser {
 
 		private void emitNode(final Node node, final boolean tight) throws XNIException {
 			if (node instanceof final Text text) {
-				this.characters(text.getLiteral());
+				this.aozoraRuby(text.getLiteral());
 			} else if (node instanceof SoftLineBreak) {
 				this.characters("\n");
 			} else if (node instanceof HardLineBreak) {
@@ -570,6 +577,111 @@ public class MarkdownParser implements Parser {
 			this.head.emptyElement(name(name), atts, null);
 		}
 
+		/**
+		 * 青空文庫式のルビ記法({@code 漢字《かんじ》}・{@code ｜任意の語《よみ》})を
+		 * ルビの要素へ展開します(2026-08-11、オーナー要望)。
+		 *
+		 * <p>
+		 * 縦組みの日本語では原稿にルビを直接書けることが要る。HTMLの
+		 * {@code <ruby>}を毎回手で書くのは原稿として重すぎるので、
+		 * 青空文庫の記法をMarkdownの拡張として受ける。規則は本家に合わせる:
+		 * </p>
+		 * <ul>
+		 * <li>{@code 《}〜{@code 》}の直前が漢字の連なりなら、それを親文字にする
+		 * ({@code 狼狽《ろうばい》})。漢字には々・ヶ・〆と、CJK統合漢字
+		 * (拡張Aを含む)を数える</li>
+		 * <li>{@code ｜}(全角縦棒)があれば、そこから{@code 《}までが親文字
+		 * ({@code ｜生前退位《せいぜんたいい》}、{@code ｜1970年《いちきゅうななまるねん》})。
+		 * 漢字以外を親文字にしたいときに使う</li>
+		 * <li>親文字が見つからない{@code 《...》}は、そのままの文字として出す
+		 * ——引用符として使う原稿を壊さないため</li>
+		 * </ul>
+		 *
+		 * <p>
+		 * 展開先はHTMLの{@code <ruby>}なので、ルビの体裁はCSSで調整できる
+		 * (書籍では{@code ruby > rt}に文字寸法を指定している)。
+		 * </p>
+		 */
+		private void aozoraRuby(final String literal) throws XNIException {
+			if (literal == null || literal.isEmpty()) {
+				return;
+			}
+			final int open = literal.indexOf('《');
+			if (open < 0) {
+				this.characters(literal);
+				return;
+			}
+			int pos = 0;
+			while (pos < literal.length()) {
+				final int start = literal.indexOf('《', pos);
+				if (start < 0) {
+					break;
+				}
+				final int end = literal.indexOf('》', start + 1);
+				if (end < 0) {
+					break;
+				}
+				// 親文字の範囲を決める
+				int baseStart = -1;
+				final int bar = literal.lastIndexOf('｜', start);
+				if (bar >= pos) {
+					baseStart = bar + 1;
+				} else {
+					int i = start;
+					while (i > pos && isKanji(literal.charAt(i - 1))) {
+						--i;
+					}
+					if (i < start) {
+						baseStart = i;
+					}
+				}
+				final String reading = literal.substring(start + 1, end);
+				// 親文字が無い《》、読みが空の《》、それに**｜が無いのに
+				// 読みが仮名でない**《》は、ルビにせず普通の文字として出す。
+				// 《》は書名などの括弧としても使われるので、仮名の読みだけを
+				// ルビと見なすことで取り違えを避ける(｜を書けば何でもルビに
+				// できる)
+				if (baseStart < 0 || baseStart == start || reading.isEmpty()
+						|| (bar < pos && !isKana(reading))) {
+					this.characters(literal.substring(pos, end + 1));
+					pos = end + 1;
+					continue;
+				}
+				// 親文字の前までを普通の文字として出す(｜は出さない)
+				final int plainEnd = bar >= pos ? bar : baseStart;
+				this.characters(literal.substring(pos, plainEnd));
+				this.start("ruby");
+				this.characters(literal.substring(baseStart, start));
+				this.start("rt");
+				this.characters(reading);
+				this.end("rt");
+				this.end("ruby");
+				pos = end + 1;
+			}
+			if (pos < literal.length()) {
+				this.characters(literal.substring(pos));
+			}
+		}
+
+		/** 読みが仮名だけか(長音符・中黒・濁点等を含む)。 */
+		private static boolean isKana(final String text) {
+			for (int i = 0; i < text.length(); ++i) {
+				final char c = text.charAt(i);
+				final boolean kana = (c >= 'ぁ' && c <= 'ゟ') || (c >= '゠' && c <= 'ヿ')
+						|| c == 'ー' || c == '・' || c == '･';
+				if (!kana) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/** 青空文庫式ルビの親文字に数える文字(漢字・々・ヶ・〆)。 */
+		private static boolean isKanji(final char c) {
+			return (c >= '一' && c <= '鿿') || (c >= '㐀' && c <= '䶿') || c == '々'
+					|| c == 'ヶ' || c == '〆' || c == '〇';
+		}
+
 		private void characters(final String text) throws XNIException {
 			if (!text.isEmpty()) {
 				this.head.characters(new XMLString(text), null);
@@ -588,16 +700,27 @@ public class MarkdownParser implements Parser {
 			if (literal == null || literal.isEmpty()) {
 				return;
 			}
+			final Matcher lone = LONE_END_TAG.matcher(literal);
+			if (lone.matches()) {
+				// **終了タグだけの断片はスキャナに通さない**(2026-08-11)。
+				// 断片ごとに独立した解析になるため、内蔵バランサから見ると
+				// 対応する開始タグが無い迷子の終了タグで、黙って捨てられる
+				// ——{@code </rt>}が消えてルビ文字が後続の本文まで飲み込んで
+				// いた。開いた要素のスタックは共有のTagBalancerが持っているので、
+				// ここは自分でイベントを起こして渡すのが正しい
+				this.end(lone.group(1));
+				return;
+			}
 			if (this.fragmentScanner == null) {
 				final HTMLConfiguration config = new HTMLConfiguration();
 				config.setProperty("http://cyberneko.org/html/properties/names/elems", "match");
 				config.setProperty("http://cyberneko.org/html/properties/names/attrs", "no-change");
 				config.setFeature("http://cyberneko.org/html/features/scanner/cdata-sections", true);
-				// このfork(neko-htmlunit)の既定構成はスキャナのみで、タグの
-				// 釣り合いはfiltersで足す方式——内蔵バランサの無効化は不要
-				config.setDocumentHandler(new FragmentRelay(this.head));
+				this.fragmentRelay = new FragmentRelay(this.head);
+				config.setDocumentHandler(this.fragmentRelay);
 				this.fragmentScanner = config;
 			}
+			this.fragmentRelay.beginFragment(literal);
 			try {
 				this.fragmentScanner
 						.parse(new XMLInputSource(null, null, null, new StringReader(literal), "UTF-8"));
@@ -618,6 +741,34 @@ public class MarkdownParser implements Parser {
 		 * html/head/bodyはタグが実在しても骨組みとしては意味を持たない。
 		 */
 		private static final class FragmentRelay extends DefaultFilter {
+			/** この断片の原文に実際に書かれている終了タグの残り個数。 */
+			private final java.util.Map<String, Integer> writtenEnds = new java.util.HashMap<>();
+
+			private static final Pattern END_TAG = Pattern.compile("</\s*([a-zA-Z][a-zA-Z0-9]*)");
+
+			/**
+			 * 次に流す断片の原文を教えます。
+			 *
+			 * <p>
+			 * <b>スキャナは断片の終わりで開いたままの要素を勝手に閉じる</b>
+			 * ——このfork(neko-htmlunit)の既定構成はスキャナの後ろにバランサを
+			 * 含んでおり、切り離す手段が無い(スキャナ単体の構築子は
+			 * package-private)。素通しすると{@code <ruby>}だけの断片が
+			 * 「開いてすぐ閉じる」空要素になり、続く親文字とルビ文字が
+			 * {@code ruby}の外へ落ちる——ルビがただの文字列として本文へ
+			 * 流れ込んでいた(2026-08-11、縦組み書籍で実測)。断片をまたぐ
+			 * 釣り合いは<b>共有の{@link TagBalancer}</b>が取るので、ここでは
+			 * 原文に書かれていない終了タグを落とす。
+			 * </p>
+			 */
+			void beginFragment(final String literal) {
+				this.writtenEnds.clear();
+				final Matcher m = END_TAG.matcher(literal);
+				while (m.find()) {
+					this.writtenEnds.merge(m.group(1).toLowerCase(java.util.Locale.ROOT), 1, Integer::sum);
+				}
+			}
+
 			FragmentRelay(final XMLDocumentHandler next) {
 				this.setDocumentHandler(next);
 			}
@@ -643,9 +794,18 @@ public class MarkdownParser implements Parser {
 			}
 
 			public void endElement(QName element, Augmentations augs) throws XNIException {
-				if (!skeleton(element)) {
-					super.endElement(element, augs);
+				if (skeleton(element)) {
+					return;
 				}
+				final String key = element.getLocalpart().toLowerCase(java.util.Locale.ROOT);
+				final Integer remaining = this.writtenEnds.get(key);
+				if (remaining == null || remaining <= 0) {
+					// スキャナが補った終了タグ(原文に無い)。共有のバランサに
+					// 任せるので流さない
+					return;
+				}
+				this.writtenEnds.put(key, remaining - 1);
+				super.endElement(element, augs);
 			}
 
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext nscontext,
@@ -684,8 +844,26 @@ public class MarkdownParser implements Parser {
 				this.handler = handler;
 			}
 
+			/**
+			 * 名前空間を解決します。
+			 *
+			 * <p>
+			 * <b>名前空間の付与はHTML経路と揃えなければならない</b>
+			 * (2026-08-11)。NekoHTMLのSAXParserは、フィルタ連鎖の後ろに
+			 * 名前空間バインダを持っていて、接頭辞のない要素をHTMLの既定
+			 * 名前空間(XHTML)へ入れてからSAXへ渡す。このブリッジには
+			 * そのバインダが無いため、素のままだと名前空間なしで届き、
+			 * <b>HTML固有の処理が丸ごと効かなくなる</b>——
+			 * {@code HTMLCodes.code()}がXHTML名前空間でなければ
+			 * {@code ANY}を返すので、ルビ({@code ruby}/{@code rt})が
+			 * ただのインライン文字列として本文へ流れ込んでいた
+			 * (縦組み書籍で実測)。foreign content(SVG/MathML)は
+			 * 上流のフィルタが名前空間を入れているのでそのまま通す。
+			 * </p>
+			 */
 			private static String uri(final QName name) {
-				return name.getUri() == null ? "" : name.getUri();
+				final String uri = name.getUri();
+				return uri == null || uri.isEmpty() ? net.zamasoft.foliojet.xml.vocab.XHTML.URI : uri;
 			}
 
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext nscontext,
