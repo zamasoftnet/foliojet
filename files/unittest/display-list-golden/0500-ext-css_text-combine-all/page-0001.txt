@@ -1,0 +1,13 @@
+drawer z=0
+  x=190.00 y=0.00 Text["前" asc=5.00 desc=5.00]
+  x=190.00 y=10.00 Text["12" asc=7.59 desc=2.41]
+  x=190.00 y=20.00 Text["後" asc=5.00 desc=5.00]
+  x=180.00 y=0.00 Text["前" asc=5.00 desc=5.00]
+  x=180.00 y=10.00 Text["2016" asc=7.59 desc=2.41]
+  x=180.00 y=20.00 Text["後" asc=5.00 desc=5.00]
+  x=160.00 y=0.00 Text["前" asc=10.00 desc=10.00]
+  x=160.00 y=10.00 Text["2016" asc=7.59 desc=2.41]
+  x=160.00 y=20.00 Text["後" asc=10.00 desc=10.00]
+  x=140.00 y=0.00 Text["前" asc=10.00 desc=10.00]
+  x=140.00 y=10.00 Text["2016" asc=7.59 desc=2.41]
+  x=140.00 y=20.00 Text["後" asc=10.00 desc=10.00]

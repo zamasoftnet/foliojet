@@ -432,6 +432,15 @@ public class TextBuilder {
 				// インラインブロック・テーブルの基底線
 				final AbstractContainerBox inlineBlockBox = (AbstractContainerBox) box;
 				final BlockParams params = inlineBlockBox.getBlockParams();
+				if (params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL
+						&& lineParams.flow.isVertical() && !params.flow.isVertical()
+						&& inlineBlockBox instanceof net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox stf) {
+					// **縦中横(all)は1emのセルへ収める**(css-writing-modes-3
+					// §9.1、2026-08-11)。自然幅で組み終えたこの時点で幅を
+					// 1emへ差し替え、内容に水平アフィンを掛ける。行が使う
+					// 見かけ幅(=下のascent/descent)もこれで1emになる
+					stf.compressTextCombine(params.fontStyle.getSize());
+				}
 				switch (lineParams.flow) {
 				case WritingMode.TB:
 					// 横書き

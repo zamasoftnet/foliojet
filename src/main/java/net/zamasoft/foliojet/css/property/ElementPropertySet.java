@@ -272,6 +272,8 @@ public final class ElementPropertySet extends PropertySet {
 		// 和文詰めA1/T1b(consult-codex-2026-07-31-text-spacing.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextAutospace.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.INFO);
+		// 縦中横の種別(内部——TextCombineShorthandが設定する)
+		reg(net.zamasoft.foliojet.css.impl.property.text.TextCombineMode.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation.INFO);
 		// 名前付きページN1b(consult-codex-2026-07-31-named-pages.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.page.PageProperty.INFO);

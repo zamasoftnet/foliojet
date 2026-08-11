@@ -53,11 +53,26 @@ public abstract class AbstractBox implements IBox {
 		return this.fragmented;
 	}
 
+	/**
+	 * エンジン内部の水平圧縮率です(縦中横の1em収めなど。既定1=なし)。
+	 * 作者のCSS {@code transform}とは別物で、こちらが内側に掛かる。
+	 */
+	protected double internalScaleX() {
+		return 1;
+	}
+
+	/** 内部圧縮後に内容を中央へ寄せる物理Xのずれです(既定0)。 */
+	protected double internalOffsetX() {
+		return 0;
+	}
+
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {
 		AffineTransform ct = this.getParams().transform;
 		final double txRatio = this.getParams().transformTxRatio;
 		final double tyRatio = this.getParams().transformTyRatio;
-		if (ct.isIdentity() && txRatio == 0 && tyRatio == 0) {
+		final double isx = this.internalScaleX();
+		final double iox = this.internalOffsetX();
+		if (ct.isIdentity() && txRatio == 0 && tyRatio == 0 && isx == 1 && iox == 0) {
 			return transform;
 		}
 		transform = new AffineTransform(transform);
@@ -103,6 +118,13 @@ public abstract class AbstractBox implements IBox {
 			transform.translate(this.getWidth() * txRatio, this.getHeight() * tyRatio);
 		}
 		transform.translate(-ax, -ay);
+		if (isx != 1 || iox != 0) {
+			// 内部圧縮は箱の左端(x)を基準に掛ける。内容は自然幅で組まれて
+			// いるので、これで [x, x+セル幅] へちょうど収まる
+			transform.translate(x + iox, 0);
+			transform.scale(isx, 1);
+			transform.translate(-x, 0);
+		}
 		return transform;
 	}
 

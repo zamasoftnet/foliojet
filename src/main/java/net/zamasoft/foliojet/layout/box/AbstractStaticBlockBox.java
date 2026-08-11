@@ -42,6 +42,58 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 
 	public abstract AbstractStaticPos getStaticPos();
 
+	/**
+	 * 縦中横({@code text-combine-upright: all})の水平圧縮率です。
+	 * 1なら圧縮なし。{@link #compressTextCombine}が設定する。
+	 */
+	private double textCombineScaleX = 1;
+
+	/** 圧縮後のセル内で内容を中央へ寄せる物理Xのずれです。 */
+	private double textCombineOffsetX = 0;
+
+	protected final double internalScaleX() {
+		return this.textCombineScaleX;
+	}
+
+	protected final double internalOffsetX() {
+		return this.textCombineOffsetX;
+	}
+
+	/**
+	 * 縦中横の内容を1emのセルへ収めます(css-writing-modes-3 §9.1、
+	 * 2026-08-11)。
+	 *
+	 * <p>
+	 * 自然幅{@code W}で組み終えた<b>あと</b>に呼ぶこと。箱の幅を
+	 * {@code cellExtent}(=1em)へ差し替え、内容には
+	 * {@code min(1, cellExtent/W)}の水平アフィンを掛ける。先に幅を1emにして
+	 * 組むと数字が折り返してしまうため、この順序でなければならない。
+	 * 自然幅が1emより狭いときは等倍のままセル内で中央へ寄せる。
+	 * </p>
+	 *
+	 * <p>
+	 * 二度呼ばれても壊れないよう、圧縮済み(scaleX≠1)なら何もしない
+	 * ——2パス構成では同じ箱が再度行へ積まれることがある。
+	 * </p>
+	 *
+	 * @param cellExtent セルの幅(通常は1em)
+	 */
+	public final void compressTextCombine(final double cellExtent) {
+		if (this.textCombineScaleX != 1 || cellExtent <= 0) {
+			return;
+		}
+		final double natural = this.width;
+		if (natural <= 0) {
+			return;
+		}
+		if (natural > cellExtent) {
+			this.textCombineScaleX = cellExtent / natural;
+		} else {
+			this.textCombineOffsetX = (cellExtent - natural) / 2;
+		}
+		this.width = cellExtent;
+	}
+
 	public final boolean isSpecifiedPageSize() {
 		return this.specifiedPageAxis;
 	}

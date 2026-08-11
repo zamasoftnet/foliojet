@@ -9,6 +9,8 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.BlockFlowValue;
 import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
+import net.zamasoft.foliojet.css.value.TextCombineValue;
+import net.zamasoft.foliojet.css.impl.property.text.TextCombineMode;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
 import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
@@ -39,6 +41,12 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(BlockFlow.INFO, BlockFlowValue.TB_VALUE);
 				primitives.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 				primitives.set(LineHeight.INFO, PercentageValue.FULL);
+				// **allとhorizontalの違いは幅の扱い**(2026-08-11)。allは
+				// 1em幅へ収める(css-writing-modes-3 §9.1)、horizontalは
+				// 自然幅のまま。展開先の4プロパティでは区別が残らないので
+				// 内部プロパティで運ぶ
+				primitives.set(TextCombineMode.INFO,
+						ident.is("all") ? TextCombineValue.ALL_VALUE : TextCombineValue.HORIZONTAL_VALUE);
 			} else {
 				throw new PropertyException();
 			}

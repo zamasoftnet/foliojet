@@ -43,7 +43,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, double textStrokeWidth,
 		Color textStrokeColor,
 		TextShadow[] textShadows, byte rubyRole, byte textAutospace, boolean textSpacingTrimOff,
-		boolean hangingPunctuationEnd) {
+		boolean hangingPunctuationEnd, byte textCombine) {
 	TextParamsFields {
 		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
 		// TextShadowはfinalフィールドのみで実質不変)
@@ -57,7 +57,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
 				source.textStrokeWidth,
 				source.textStrokeColor, source.textShadows, source.rubyRole, source.textAutospace,
-				source.textSpacingTrimOff, source.hangingPunctuationEnd);
+				source.textSpacingTrimOff, source.hangingPunctuationEnd, source.textCombine);
 	}
 
 	/**
@@ -90,5 +90,6 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.textAutospace = this.textAutospace;
 		target.textSpacingTrimOff = this.textSpacingTrimOff;
 		target.hangingPunctuationEnd = this.hangingPunctuationEnd;
+		target.textCombine = this.textCombine;
 	}
 }

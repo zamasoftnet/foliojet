@@ -125,6 +125,15 @@ public abstract class AbstractTextParams extends Params {
 	public boolean textSpacingTrimOff = false;
 
 	/**
+	 * 縦中横の種別です({@link net.zamasoft.foliojet.css.value.TextCombineValue}
+	 * の定数。既定NONE)。{@code ALL}のときだけ、縦組みの行の中で
+	 * <b>1em幅へ水平圧縮</b>する(css-writing-modes-3 §9.1)。
+	 * 従来の{@code horizontal}は自然幅のまま(はみ出す)——既存の
+	 * 出力を変えないため意図的に分けている。
+	 */
+	public byte textCombine = net.zamasoft.foliojet.css.value.TextCombineValue.NONE;
+
+	/**
 	 * 行末句読点のぶら下げ(hanging-punctuation: allow-end)です
 	 * (和文詰めH1。既定false=none)。
 	 */

@@ -130,6 +130,7 @@ public final class SourceReplayer {
 		wrapperParams.hyphenator = template.hyphenator;
 		wrapperParams.textAutospace = template.textAutospace;
 		wrapperParams.textSpacingTrimOff = template.textSpacingTrimOff;
+		wrapperParams.textCombine = template.textCombine;
 		wrapperParams.hangingPunctuationEnd = template.hangingPunctuationEnd;
 		wrapperParams.textAlign = template.textAlign;
 		wrapperParams.textAlignLast = template.textAlignLast;

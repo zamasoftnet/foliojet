@@ -129,6 +129,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0510-flex/item-padding-margin.html", //
 			// inline-flexのブロックレベル近似(2026-08-11)
 			"0510-flex/inline-flex.html", //
+			// 縦中横: allは1em幅へ収める。horizontalと手動横組みは自然幅
+			// のまま(2026-08-11)
+			"0500-ext-css/text-combine-all.html", //
 			// resolveRelativeOffsetの代入がFlex/Gridの主軸配置を上書きする
 			// 欠陥(2026-08-06)。AbstractContainerBox.javaのjavadoc参照。
 			// 2番目以降のitemが原点(x=0)へ潰れて重なっていた

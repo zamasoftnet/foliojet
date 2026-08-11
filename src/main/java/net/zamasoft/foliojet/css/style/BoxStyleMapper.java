@@ -617,6 +617,8 @@ final class BoxStyleMapper {
 		params.textAutospace = net.zamasoft.foliojet.css.impl.property.text.TextAutospace.getFlags(style);
 		// 和文詰めT1b: space-all=約物詰め無効
 		params.textSpacingTrimOff = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.isSpaceAll(style);
+		// 縦中横の種別(allだけ1em幅へ圧縮する。2026-08-11)
+		params.textCombine = net.zamasoft.foliojet.css.impl.property.text.TextCombineMode.get(style);
 		// 和文詰めH1: 行末句読点のぶら下げ
 		params.hangingPunctuationEnd = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
 				.isAllowEnd(style);

@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>text-combine-upright: all は1em幅へ収める</title>
+<style>
+@page { margin: 0; }
+body {
+	writing-mode: vertical-rl;
+	font: normal 10pt/1 serif;
+	margin: 0;
+}
+p { margin: 0; }
+/* all: 桁数によらずセルは1em(=10pt)。4桁は水平に圧縮される */
+.all { text-combine-upright: all; }
+/* 従来の horizontal: 自然幅のまま(はみ出す)——挙動を変えないこと */
+.h { -epub-text-combine: horizontal; }
+/* 手で横組みにしただけのもの: これも自然幅のまま */
+.manual { writing-mode: horizontal-tb; }
+</style>
+</head>
+<body>
+<p id="a">前<span class="all">12</span>後</p>
+<p id="b">前<span class="all">2016</span>後</p>
+<p id="c">前<span class="h">2016</span>後</p>
+<p id="d">前<span class="manual">2016</span>後</p>
+</body>
+</html>
