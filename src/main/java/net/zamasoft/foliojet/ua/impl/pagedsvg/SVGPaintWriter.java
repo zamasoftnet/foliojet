@@ -20,10 +20,28 @@ import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
  * @author MIYABE Tatsuhiko
  */
 final class SVGPaintWriter {
+	/**
+	 * パターンの絵を、SVGから参照できる形へ直す手だてです。
+	 *
+	 * <p>
+	 * 共有資源へ出すのか{@code data:}へするのかは、この字面の外の都合なので
+	 * 外から渡してもらいます。書けない絵なら{@code null}を返してください。
+	 * </p>
+	 */
+	interface ImageHrefs {
+		String href(net.zamasoft.pdfg2d.gc.image.Image image) throws IOException;
+	}
+
 	private final SVGWriter writer;
+
+	private ImageHrefs images;
 
 	SVGPaintWriter(final SVGWriter writer) {
 		this.writer = writer;
+	}
+
+	void setImageHrefs(final ImageHrefs images) {
+		this.images = images;
 	}
 
 	/**
@@ -38,10 +56,62 @@ final class SVGPaintWriter {
 		case COLOR -> toHex((Color) paint);
 		case LINEAR_GRADIENT -> this.linearGradient((LinearGradient) paint);
 		case RADIAL_GRADIENT -> this.radialGradient((RadialGradient) paint);
-		// パターンはまだ直に書けないので、目に見える形で落とさず灰色で代替せず
-		// 「塗らない」を返す。呼び出し側がアウトラインへ退避する
+		case PATTERN -> this.pattern((net.zamasoft.pdfg2d.gc.paint.Pattern) paint);
+		// 知らない種類。塗らない
 		default -> null;
 		};
+	}
+
+	/**
+	 * 絵の敷き詰め。{@code background: url(...)}がこれになります。
+	 *
+	 * <p>
+	 * SVGの{@code pattern}は、1枚ぶんの升目を{@code width}/{@code height}で決めて
+	 * 繰り返します。{@code patternUnits="userSpaceOnUse"}にして、升目の大きさは
+	 * 絵の論理寸法をそのまま使います。{@link net.zamasoft.pdfg2d.gc.paint.Pattern}の
+	 * 変換は{@code patternTransform}へ渡します。
+	 * </p>
+	 *
+	 * <p>
+	 * 絵を参照にできないときは{@code null}を返します。<b>その場合は塗られません。</b>
+	 * 中途半端に単色で代えると、元と違う見た目が「正しく出ている」ように見えるので
+	 * そうしません。
+	 * </p>
+	 */
+	private String pattern(final net.zamasoft.pdfg2d.gc.paint.Pattern pattern) throws IOException {
+		if (this.images == null) {
+			return null;
+		}
+		final net.zamasoft.pdfg2d.gc.image.Image image = pattern.getImage();
+		final String href = this.images.href(image);
+		if (href == null) {
+			return null;
+		}
+		final double width = image.getWidth();
+		final double height = image.getHeight();
+		if (!(width > 0) || !(height > 0)) {
+			return null;
+		}
+		final String id = this.writer.nextId("pt");
+		final StringBuilder def = new StringBuilder(200);
+		def.append("<pattern id=\"").append(id).append("\" patternUnits=\"userSpaceOnUse\" width=\"")
+				.append(SVGWriter.number(width)).append("\" height=\"").append(SVGWriter.number(height)).append('"');
+		final java.awt.geom.AffineTransform at = pattern.getTransform();
+		if (at != null && !at.isIdentity()) {
+			def.append(" patternTransform=\"").append(matrix(at)).append('"');
+		}
+		def.append("><image x=\"0\" y=\"0\" width=\"").append(SVGWriter.number(width)).append("\" height=\"")
+				.append(SVGWriter.number(height)).append("\" preserveAspectRatio=\"none\" xlink:href=\"");
+		SVGWriter.escapeAttribute(def, href);
+		def.append("\"/></pattern>");
+		this.writer.addDef(def.toString());
+		return "url(#" + id + ")";
+	}
+
+	private static String matrix(final java.awt.geom.AffineTransform at) {
+		return "matrix(" + SVGWriter.number(at.getScaleX()) + ' ' + SVGWriter.number(at.getShearY()) + ' '
+				+ SVGWriter.number(at.getShearX()) + ' ' + SVGWriter.number(at.getScaleY()) + ' '
+				+ SVGWriter.number(at.getTranslateX()) + ' ' + SVGWriter.number(at.getTranslateY()) + ')';
 	}
 
 	/** 塗りの不透明度。{@code RGBAColor}のalphaと状態のalphaを掛けます。 */

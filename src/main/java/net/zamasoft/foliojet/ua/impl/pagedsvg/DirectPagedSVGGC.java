@@ -45,6 +45,18 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		super(writer, fonts);
 		this.resources = resources;
 		this.page = page;
+		// 敷き詰めの絵も、ふつうの画像と同じ共有資源にする
+		this.paints().setImageHrefs(this::assetHref);
+	}
+
+	/** 絵を共有資源にして、ページSVGから辿れるURIを返します。書けないならnull。 */
+	private String assetHref(final Image image) throws IOException {
+		final BufferedImage raster = this.toRaster(image);
+		if (raster == null) {
+			return null;
+		}
+		final byte[] png = this.resources.hasOriginal(raster) ? null : encodePng(raster);
+		return this.resources.image(raster, png, raster.getWidth(), raster.getHeight()).href();
 	}
 
 	/** ベクタ画像を画素へ落とすときの倍率。等倍では拡大時に粗くなる。 */
@@ -56,19 +68,20 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		while (original instanceof final WrappedImage wrapped) {
 			original = wrapped.getImage();
 		}
-		final BufferedImage raster;
-		if (original instanceof final RasterImageImpl rasterImage) {
-			if (original instanceof final EncodedRasterImage encoded) {
-				// 元のJPEGをそのまま出せる画像。再圧縮しない
-				this.resources.rememberOriginal(encoded.getImage(), encoded.getEncoded(), encoded.getMediaType(),
-						encoded.getExtension());
+		if (!(original instanceof RasterImageImpl)) {
+			// **まず絵に自分で描かせること。** 箇条書きの黒丸のように、
+			// GCの基本操作だけで描ける絵は多い。ここを飛ばして画素へ
+			// 落とすと、ベクタで済むものがPNGになって共有資源も増える。
+			// Java2Dを直に要求する絵だけが例外を投げるので、それだけ拾う
+			try {
+				image.drawTo(this);
+				return;
+			} catch (final ClassCastException e) {
+				// G2DGCを要求する絵。下のラスタ化へ回す。
+				// 実装は先頭でGCを型変換するので、ここまでに何も描いていない
 			}
-			raster = rasterImage.getImage();
-		} else {
-			// SVG画像などは自前でSVGへ書けない。Java2Dへ一度描いてから
-			// ラスタとして共有資源に出す(Batikは使わない)
-			raster = this.rasterize(image);
 		}
+		final BufferedImage raster = this.toRaster(image);
 		try {
 			final byte[] png = this.resources.hasOriginal(raster) ? null : encodePng(raster);
 			final PagedSVGResources.ImageAsset asset = this.resources.image(raster, png, raster.getWidth(),
@@ -94,6 +107,26 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		}
+	}
+
+	/**
+	 * 絵を画素にします。元のJPEGをそのまま出せるものはここで覚えておきます。
+	 * ラスタでないものはJava2Dへ一度描きます(Batikは使いません)。
+	 */
+	private BufferedImage toRaster(final Image image) throws GraphicsException {
+		Image original = image;
+		while (original instanceof final WrappedImage wrapped) {
+			original = wrapped.getImage();
+		}
+		if (original instanceof final RasterImageImpl rasterImage) {
+			if (original instanceof final EncodedRasterImage encoded) {
+				// 元のJPEGをそのまま出せる画像。再圧縮しない
+				this.resources.rememberOriginal(encoded.getImage(), encoded.getEncoded(), encoded.getMediaType(),
+						encoded.getExtension());
+			}
+			return rasterImage.getImage();
+		}
+		return this.rasterize(image);
 	}
 
 	/** SVG画像など、直接書けないものをJava2Dで一度描いて画素にします。 */

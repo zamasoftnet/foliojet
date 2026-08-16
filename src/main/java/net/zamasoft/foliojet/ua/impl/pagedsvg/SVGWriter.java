@@ -167,6 +167,23 @@ final class SVGWriter {
 		}
 	}
 
+	/** defsを組み立てるときのように、文字列へ直接積むための同じ処理です。 */
+	static void escapeAttribute(final StringBuilder out, final String value) {
+		for (int i = 0; i < value.length(); ++i) {
+			final char ch = value.charAt(i);
+			switch (ch) {
+			case '&' -> out.append("&amp;");
+			case '<' -> out.append("&lt;");
+			case '>' -> out.append("&gt;");
+			case '"' -> out.append("&quot;");
+			case '\n' -> out.append("&#10;");
+			case '\r' -> out.append("&#13;");
+			case '\t' -> out.append("&#9;");
+			default -> out.append(ch);
+			}
+		}
+	}
+
 	static void escapeText(final Writer out, final String value) throws IOException {
 		for (int i = 0; i < value.length(); ++i) {
 			final char ch = value.charAt(i);
