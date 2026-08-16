@@ -64,7 +64,7 @@ final class PagedSVGImageHandler extends DefaultImageHandler {
 			}
 			final PagedSVGResources.ImageAsset asset = this.resources.image(image, fallbackPng, image.getWidth(),
 					image.getHeight());
-			element.setAttributeNS(XLINK, "xlink:href", "../" + asset.uri());
+			element.setAttributeNS(XLINK, "xlink:href", asset.href());
 		} catch (final IOException e) {
 			throw new SVGGraphics2DIOException("Cannot externalize SVG image", e);
 		}

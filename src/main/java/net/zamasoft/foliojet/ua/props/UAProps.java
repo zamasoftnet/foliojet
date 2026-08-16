@@ -689,6 +689,18 @@ public final class UAProps {
 	public static final BooleanPropManager OUTPUT_USE_META_INFO = new BooleanPropManager("output.use-meta-info", true);
 
 	/**
+	 * Paged SVGの共有資源を参照にするか埋め込みにするかです。
+	 */
+	public static final CodePropManager<PagedSvgResourceMode> OUTPUT_PAGED_SVG_RESOURCES = new CodePropManager<>(
+			"output.paged-svg.resources", PagedSvgResourceMode.class, PagedSvgResourceMode.REFERENCE);
+
+	/**
+	 * Paged SVGのページSVGの書き出し方式です。
+	 */
+	public static final CodePropManager<PagedSvgWriter> OUTPUT_PAGED_SVG_WRITER = new CodePropManager<>(
+			"output.paged-svg.writer", PagedSvgWriter.class, PagedSvgWriter.BATIK);
+
+	/**
 	 * Paged SVGのフォントサブセットを出力するかどうかです。
 	 */
 	public static final CodePropManager<PagedSvgResourcePolicy> OUTPUT_PAGED_SVG_FONTS = new CodePropManager<>(
@@ -819,6 +831,8 @@ public final class UAProps {
 			OUTPUT_PDF_VIEWER_PREFERENCES_NUM_COPIES,
 			OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT,
 			OUTPUT_USE_META_INFO,
+			OUTPUT_PAGED_SVG_RESOURCES,
+			OUTPUT_PAGED_SVG_WRITER,
 			OUTPUT_PAGED_SVG_FONTS,
 			OUTPUT_PAGED_SVG_IMAGES);
 

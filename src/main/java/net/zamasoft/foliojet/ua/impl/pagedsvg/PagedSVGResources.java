@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.zamasoft.foliojet.ua.props.PagedSvgResourceMode;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
@@ -31,6 +32,13 @@ final class PagedSVGResources {
 	}
 
 	record ImageAsset(String uri, String sha256, String mediaType, int width, int height, boolean omitted) {
+		/**
+		 * ページSVGから書く参照先。共有資源は{@code pages/}から見た相対URIに、
+		 * 埋め込みはdata:をそのまま使います。
+		 */
+		String href() {
+			return this.uri.startsWith("data:") ? this.uri : "../" + this.uri;
+		}
 	}
 
 	private record OriginalImage(byte[] bytes, String mediaType, String extension) {
@@ -186,6 +194,7 @@ final class PagedSVGResources {
 	private final ResultEmitter emitter;
 	private PagedSvgResourcePolicy fontPolicy = PagedSvgResourcePolicy.EMIT;
 	private PagedSvgResourcePolicy imagePolicy = PagedSvgResourcePolicy.EMIT;
+	private PagedSvgResourceMode resourceMode = PagedSvgResourceMode.REFERENCE;
 	private final List<FontEntry> fonts = new ArrayList<>();
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
@@ -202,6 +211,14 @@ final class PagedSVGResources {
 	void setResourcePolicies(final PagedSvgResourcePolicy fontPolicy, final PagedSvgResourcePolicy imagePolicy) {
 		this.fontPolicy = fontPolicy;
 		this.imagePolicy = imagePolicy;
+	}
+
+	void setResourceMode(final PagedSvgResourceMode mode) {
+		this.resourceMode = mode;
+	}
+
+	boolean isEmbedding() {
+		return this.resourceMode == PagedSvgResourceMode.EMBED;
 	}
 
 	boolean hasOriginal(final RenderedImage image) {
@@ -234,6 +251,14 @@ final class PagedSVGResources {
 		final String hash = sha256(bytes);
 		ImageAsset image = this.images.get(hash);
 		if (image == null) {
+			if (this.resourceMode == PagedSvgResourceMode.EMBED) {
+				// ページSVGだけで完結させる。実体は別ファイルにしない
+				final String data = "data:" + mediaType + ";base64,"
+						+ java.util.Base64.getEncoder().encodeToString(bytes);
+				image = new ImageAsset(data, hash, mediaType, width, height, false);
+				this.images.put(hash, image);
+				return image;
+			}
 			final boolean omit = this.imagePolicy == PagedSvgResourcePolicy.OMIT;
 			image = new ImageAsset("assets/images/" + hash + '.' + extension, hash, mediaType, width, height, omit);
 			if (!omit) {

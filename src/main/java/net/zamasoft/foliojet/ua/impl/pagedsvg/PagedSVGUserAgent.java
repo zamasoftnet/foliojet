@@ -34,6 +34,7 @@ import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
+import net.zamasoft.foliojet.ua.props.PagedSvgWriter;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -53,6 +54,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private FontManagerImpl fontManager;
 	private PagedSVGGraphics2D svg;
 	private PagedSVGResources.PageData currentPage;
+	/** 独自書き出しのときだけ使う。Batikのときはnull。 */
+	private java.io.StringWriter directBuffer;
+	private SVGPageOutput directPage;
 	private PagedSVGResources resources;
 	private PagedSVGVisitor visitor;
 	private int page;
@@ -96,6 +100,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 
 	private void resetOutput() {
 		this.svg = null;
+		this.directBuffer = null;
+		this.directPage = null;
 		this.currentPage = null;
 		this.page = 0;
 		this.metadata.clear();
@@ -129,8 +135,22 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		if (number == 1) {
 			this.resources.setResourcePolicies(UAProps.OUTPUT_PAGED_SVG_FONTS.get(this),
 					UAProps.OUTPUT_PAGED_SVG_IMAGES.get(this));
+			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
 		}
 		this.currentPage = new PagedSVGResources.PageData(number, this.pageWidth, this.pageHeight);
+		if (UAProps.OUTPUT_PAGED_SVG_WRITER.get(this) == PagedSvgWriter.DIRECT) {
+			// DOMを作らず書き出す。ページの内容はここでは確定しないので、
+			// 結果への書き出しは closePage で行う(ハッシュを流しながら
+			// 取るため、結果1件は1回のストリームで書き切る必要がある)
+			try {
+				this.directBuffer = new java.io.StringWriter(1 << 14);
+				this.directPage = new SVGPageOutput(this.directBuffer, this.pageWidth, this.pageHeight);
+			} catch (final IOException e) {
+				throw new GraphicsException(e);
+			}
+			return new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
+					this.currentPage);
+		}
 		final DOMImplementation dom = GenericDOMImplementation.getDOMImplementation();
 		final Document document = dom.createDocument(SVG_NS, "svg", null);
 		final SVGGeneratorContext context = SVGGeneratorContext.createDefault(document);
@@ -148,6 +168,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			return;
 		}
 		try {
+			if (this.directPage != null) {
+				this.closeDirectPage();
+				return;
+			}
 			final Element root = this.svg.getRoot();
 			root.setAttribute("width", PagedSVGResources.number(this.currentPage.width));
 			root.setAttribute("height", PagedSVGResources.number(this.currentPage.height));
@@ -180,9 +204,45 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			throw new GraphicsException(e);
 		} finally {
 			this.svg = null;
+			this.directBuffer = null;
+			this.directPage = null;
 			this.currentPage = null;
 		}
 		this.checkAbort(CTISession.ABORT_NORMAL);
+	}
+
+	/**
+	 * 独自書き出しのページを閉じます。
+	 *
+	 * <p>
+	 * 中身は{@link java.io.StringWriter}へ組み立ててから1回で書き出します。
+	 * DOMを作らない点はそのままですが、<b>結果1件を1回のストリームで
+	 * 書き切らないとSHA-256を流しながら取れない</b>ためです。Batik版は
+	 * ページ全体のDOMを保持していたので、これでも保持量は減ります。
+	 * </p>
+	 */
+	private void closeDirectPage() throws IOException {
+		this.directPage.close();
+		final String svg = this.directBuffer.toString();
+		this.directBuffer = null;
+		this.directPage = null;
+
+		final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
+		final String svgUri = stem + ".svg";
+		final String svgSha = this.emit(svgUri, "image/svg+xml", out -> {
+			try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+				writer.write(svg);
+			}
+		});
+		final String jsonUri = stem + ".json";
+		final PagedSVGResources.PageData page = this.currentPage;
+		final String jsonSha = this.emit(jsonUri, "application/json", out -> {
+			try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+				page.writeJson(writer);
+			}
+		});
+		this.resources.addPage(new PagedSVGResources.PageAsset(this.currentPage.number, this.currentPage.width,
+				this.currentPage.height, svgUri, svgSha, jsonUri, jsonSha));
 	}
 
 	private void addFontFaces(final Element root) {
