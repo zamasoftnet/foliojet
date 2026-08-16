@@ -556,29 +556,18 @@ public abstract class AbstractUserAgent implements UserAgent {
 		// MIME型を訊くので、ここより後ろで当てるとリモート資源の取得が
 		// 走ってしまう。input.image-metricsで寸法を先に渡した場合も、
 		// この判定に当たることで初めて取得そのものが要らなくなる。
-		// data:は取得の往復が無く、URIそのものが中身なので記録しない
-		// (キーが画像本体と同じ大きさになり、書き出したXMLも膨れる)
-		final URI uri = source.getURI();
-		final boolean cacheable = uri != null && !"data".equalsIgnoreCase(uri.getScheme());
-		final boolean metricsOnly = this.isMeasurePass() || this.isStructureScanPass();
-		final String key = cacheable ? uri.toString() : null;
-		final ImageMetricsCache cache = metricsOnly && cacheable ? this.getUAContext().getImageMetrics() : null;
-		if (cache != null) {
-			final net.zamasoft.pdfg2d.gc.image.Image cached = cache.get(key);
-			if (cached != null) {
-				return cached;
-			}
-		}
 		final ImageLoader loader = PluginRegistry.getInstance().search(ImageLoader.class, source);
 		if (loader == null) {
 			throw new IOException("Unsupported image source: " + source.getURI());
 		}
-		if (cache != null && loader instanceof RasterImageLoader rasterLoader) {
-			// 同一画像の重複出現とパスの繰り返しで、資源を開いてヘッダを
-			// 読む往復が毎回発生していた(リモート資源では取得そのもの)
-			final net.zamasoft.pdfg2d.gc.image.Image metrics = rasterLoader.loadImageForLayout(source);
-			cache.put(key, metrics);
-			return metrics;
+		// 寸法しか要らないパスは画素を読まず、ヘッダだけを読む。
+		// data:はURIそのものが中身で取得の往復が無いため、従来どおり
+		// 通常の読み込みに任せる(切り替えると挙動が変わりうる)
+		final URI uri = source.getURI();
+		final boolean cacheable = uri != null && !"data".equalsIgnoreCase(uri.getScheme());
+		if (cacheable && (this.isMeasurePass() || this.isStructureScanPass())
+				&& loader instanceof RasterImageLoader rasterLoader) {
+			return rasterLoader.loadImageForLayout(source);
 		}
 		return loader.loadImage(this, source);
 	}
@@ -593,6 +582,63 @@ public abstract class AbstractUserAgent implements UserAgent {
 			image = new TransformedImage(image, this.pixelToUnit);
 		}
 		return image;
+	}
+
+	/**
+	 * 記録済みの画像寸法を、<b>資源を解決する前に</b>返します(2026-08-16)。
+	 *
+	 * <p>
+	 * 寸法しか要らないパスで、既に測った画像・{@code input.image-metrics}で
+	 * 渡された画像なら、{@link #resolve(URI)}を呼ばずに済みます。これが要るのは
+	 * <b>解決そのものが取得を伴う場合がある</b>ためです。ローカルファイルの
+	 * 解決は遅延なので{@link #loadImage}側の判定で足りますが、CTIPで
+	 * クライアントへ資源を要求する経路は<b>解決した時点で転送が起きます</b>。
+	 * 呼び出し側が解決を済ませてから{@link #getImage}を呼ぶ形だと、
+	 * 「転送してから使わない」ことになります。
+	 * </p>
+	 *
+	 * @return 記録があればその寸法、無ければ{@code null}(呼び出し側は
+	 *         これまでどおり解決して読み込む)。
+	 */
+	public Image getImageMetrics(final URI uri) {
+		if (!this.isMetricsCacheable(uri)) {
+			return null;
+		}
+		// 記録するのは getImage(Source) が返した値、つまり px→pt 変換の**適用後**。
+		// ここで再度掛けると二重になるのでそのまま返す
+		return this.getUAContext().getImageMetrics().get(uri.toString());
+	}
+
+	/**
+	 * 画像を取得し、寸法しか要らないパスなら<b>要求時のURIで</b>寸法を記録します。
+	 *
+	 * <p>
+	 * キーに解決後のURIではなく要求時のURIを使うのは、EPUBのように内部が
+	 * 相対URIで参照し合う文書があるためです。相対URIのまま記録しておけば、
+	 * 同じEPUBを別の基底(別のディレクトリ、別のサーバー)から与えても
+	 * 寸法表がそのまま当たります。
+	 * </p>
+	 */
+	public Image getImage(final URI uri, final Source source) throws IOException {
+		// **必ず getImage(Source) を通すこと。** PDFUserAgentはこれを上書きして
+		// PDFWriter側の読み込み経路(BMPやJPEG2000はここで扱われる)と
+		// 非出力パス用の寸法専用画像を担っている。loadImage()を直に呼ぶと
+		// その上書きを飛ばしてしまい、一部の画像形式が読めなくなる
+		// (2026-08-16、基準画像テスト5件の回帰で判明)
+		final Image image = this.getImage(source);
+		if (this.isMetricsCacheable(uri)) {
+			this.getUAContext().getImageMetrics().put(uri.toString(), image);
+		}
+		return image;
+	}
+
+	/**
+	 * 記録の対象か。{@code data:}は取得の往復が無く、URIそのものが中身なので
+	 * 記録しません(キーが画像本体と同じ大きさになり、書き出したXMLも膨れる)。
+	 */
+	private boolean isMetricsCacheable(final URI uri) {
+		return uri != null && (this.isMeasurePass() || this.isStructureScanPass())
+				&& !"data".equalsIgnoreCase(uri.getScheme());
 	}
 
 	public void setBoundSide(BoundSide boundSide) {
@@ -678,7 +724,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 		try {
 			final Source source = this.resolve(URIHelper.create("UTF-8", location));
 			try (java.io.InputStream in = source.getInputStream()) {
-				ImageMetricsXML.read(in, this.getUAContext().getImageMetrics());
+				ImageMetricsXML.read(in, this.getUAContext().getImageMetrics(),
+						UAProps.OUTPUT_RESOLUTION.getDouble(this));
 			} finally {
 				this.release(source);
 			}

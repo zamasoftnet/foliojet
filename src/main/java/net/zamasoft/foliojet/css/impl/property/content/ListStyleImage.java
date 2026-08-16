@@ -37,9 +37,15 @@ public class ListStyleImage extends AbstractPrimitivePropertyInfo {
 		URIValue uriValue = (URIValue) value;
 		URI uri = uriValue.getURI();
 		try {
+			// 記録済みの寸法があれば解決しない(2026-08-16)。解決が取得を伴う
+			// 経路では、ここで止めないと使わない画像を転送してしまう
+			Image known = ua.getImageMetrics(uri);
+			if (known != null) {
+				return known;
+			}
 			Source source = ua.resolve(uri);
 			try {
-				return ua.getImage(source);
+				return ua.getImage(uri, source);
 			} finally {
 				ua.release(source);
 			}

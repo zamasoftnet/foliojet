@@ -33,13 +33,21 @@ import net.zamasoft.pdfg2d.gc.image.Image;
  * </p>
  *
  * <p>
- * 記録するのは画素単位の幅と高さです({@code output.resolution}を変えても
- * 有効なまま)。EXIFの回転は適用済みの値です。
+ * <b>記録する幅と高さは出力単位(pt)です。</b> 画素値ではありません——
+ * 値は{@code getImage}が返したもの、すなわち{@code output.resolution}による
+ * px→pt変換の適用後だからです。EXIFの回転も適用済みです。
+ * </p>
+ *
+ * <p>
+ * そのため<b>解像度が違う設定で作った寸法表を混ぜてはいけません</b>。
+ * 根拠にした{@code output.resolution}を{@code resolution}属性として記録し、
+ * 読み込み時に食い違っていればその寸法表を丸ごと捨てます。黙って
+ * 誤った寸法で組むより、測り直したほうが安全です。
  * </p>
  *
  * <pre>
- * &lt;image-metrics version="1"&gt;
- *   &lt;image uri="..." width="1200" height="800"/&gt;
+ * &lt;image-metrics version="1" resolution="96"&gt;
+ *   &lt;image uri="..." width="900" height="600"/&gt;
  * &lt;/image-metrics&gt;
  * </pre>
  *
@@ -59,14 +67,29 @@ public final class ImageMetricsXML {
 	 *
 	 * @return 読み込んだ件数
 	 */
-	public static int read(final InputStream in, final ImageMetricsCache cache) throws IOException, SAXException {
+	public static int read(final InputStream in, final ImageMetricsCache cache, final double resolution)
+			throws IOException, SAXException {
 		final int[] count = { 0 };
+		final boolean[] usable = { true };
 		final DefaultHandler handler = new DefaultHandler() {
 			@Override
 			public void startElement(final String uri, final String localName, final String qName,
 					final Attributes attributes) throws SAXException {
 				final String name = localName == null || localName.isEmpty() ? qName : localName;
-				if (!"image".equals(name)) {
+				if (ROOT.equals(name)) {
+					// 解像度が違えば寸法の意味が変わる。黙って誤った寸法を
+					// 使うより捨てて測り直す
+					final String recorded = attributes.getValue("resolution");
+					if (recorded != null) {
+						try {
+							usable[0] = Math.abs(Double.parseDouble(recorded) - resolution) < 1e-6;
+						} catch (final NumberFormatException e) {
+							usable[0] = false;
+						}
+					}
+					return;
+				}
+				if (!"image".equals(name) || !usable[0]) {
 					return;
 				}
 				final String href = attributes.getValue("uri");
@@ -97,10 +120,11 @@ public final class ImageMetricsXML {
 	 * キャッシュの内容をXMLにします。URI順に並べるので、同じ内容からは
 	 * 必ず同じバイト列になります。
 	 */
-	public static byte[] write(final ImageMetricsCache cache) throws IOException {
+	public static byte[] write(final ImageMetricsCache cache, final double resolution) throws IOException {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream(256 + cache.size() * 96);
 		try (Writer out = new OutputStreamWriter(bytes, StandardCharsets.UTF_8)) {
-			out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<" + ROOT + " version=\"1\">\n");
+			out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<" + ROOT + " version=\"1\" resolution=\""
+					+ number(resolution) + "\">\n");
 			for (final Map.Entry<String, Image> entry : new TreeMap<>(cache.entries()).entrySet()) {
 				final Image image = entry.getValue();
 				out.write("  <image uri=\"");

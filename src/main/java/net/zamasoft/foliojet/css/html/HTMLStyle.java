@@ -305,6 +305,14 @@ public class HTMLStyle {
 			try {
 				uri = URIHelper.resolve(ua.getDocumentContext().getEncoding(), ua.getDocumentContext().getBaseURI(),
 						src);
+				// 寸法しか要らないパスで既に測ってあるなら、資源を解決しない。
+				// 解決した時点で取得が起きる経路(CTIPのクライアント要求)では、
+				// ここで止めないと使わない画像を転送してしまう(2026-08-16)
+				final Image known = ua.getImageMetrics(uri);
+				if (known != null) {
+					CSSJInternalImage.setImage(style, known);
+					return;
+				}
 				final Source source = ua.resolve(uri);
 				try {
 					Source wrappedSource = new SourceWrapper(source) {
@@ -312,7 +320,7 @@ public class HTMLStyle {
 							return type == null ? super.getMimeType() : type;
 						}
 					};
-					final Image image = ua.getImage(wrappedSource);
+					final Image image = ua.getImage(uri, wrappedSource);
 					if (image != null) {
 						CSSJInternalImage.setImage(style, image);
 						return;

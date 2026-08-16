@@ -86,6 +86,29 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	 */
 	public Image getImage(Source source) throws IOException;
 
+	/**
+	 * 記録済みの画像寸法を、<b>資源を解決する前に</b>返します。
+	 *
+	 * <p>
+	 * 寸法しか要らないパスで既に測った画像なら、{@link #resolve(java.net.URI)}を
+	 * 呼ばずに済みます。解決そのものが取得を伴う経路(CTIPでクライアントへ
+	 * 資源を要求する場合)では、先にこれを引かないと転送が起きてしまいます。
+	 * </p>
+	 *
+	 * @return 記録があればその寸法、無ければ{@code null}。
+	 */
+	public default Image getImageMetrics(java.net.URI uri) {
+		return null;
+	}
+
+	/**
+	 * 画像を取得し、寸法しか要らないパスなら<b>要求時のURIで</b>寸法を記録します。
+	 * 相対URIのまま記録するので、同じEPUBを別の基底から与えても当たります。
+	 */
+	public default Image getImage(java.net.URI uri, Source source) throws IOException {
+		return this.getImage(source);
+	}
+
 	public boolean isMeasurePass();
 
 	/**

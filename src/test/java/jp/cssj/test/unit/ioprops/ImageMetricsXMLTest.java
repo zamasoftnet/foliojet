@@ -15,9 +15,9 @@ public class ImageMetricsXMLTest extends TestCase {
 		written.putSize("file:/a/one.png", 1200, 800);
 		written.putSize("https://example.com/two.jpg", 640, 480);
 
-		final byte[] xml = ImageMetricsXML.write(written);
+		final byte[] xml = ImageMetricsXML.write(written, 96.0);
 		final ImageMetricsCache read = new ImageMetricsCache();
-		assertEquals(2, ImageMetricsXML.read(new ByteArrayInputStream(xml), read));
+		assertEquals(2, ImageMetricsXML.read(new ByteArrayInputStream(xml), read, 96.0));
 
 		assertEquals(2, read.size());
 		assertEquals(1200.0, read.get("file:/a/one.png").getWidth(), 0.0);
@@ -34,18 +34,18 @@ public class ImageMetricsXMLTest extends TestCase {
 		final ImageMetricsCache b = new ImageMetricsCache();
 		b.putSize("file:/a.png", 30, 40);
 		b.putSize("file:/z.png", 10, 20);
-		assertEquals(new String(ImageMetricsXML.write(a), StandardCharsets.UTF_8),
-				new String(ImageMetricsXML.write(b), StandardCharsets.UTF_8));
+		assertEquals(new String(ImageMetricsXML.write(a, 96.0), StandardCharsets.UTF_8),
+				new String(ImageMetricsXML.write(b, 96.0), StandardCharsets.UTF_8));
 	}
 
 	public void testUriIsEscaped() throws Exception {
 		final ImageMetricsCache cache = new ImageMetricsCache();
 		cache.putSize("https://example.com/a?x=1&y=2", 5, 6);
-		final byte[] xml = ImageMetricsXML.write(cache);
+		final byte[] xml = ImageMetricsXML.write(cache, 96.0);
 		assertTrue(new String(xml, StandardCharsets.UTF_8).contains("&amp;"));
 
 		final ImageMetricsCache read = new ImageMetricsCache();
-		ImageMetricsXML.read(new ByteArrayInputStream(xml), read);
+		ImageMetricsXML.read(new ByteArrayInputStream(xml), read, 96.0);
 		assertNotNull(read.get("https://example.com/a?x=1&y=2"));
 	}
 
@@ -55,7 +55,7 @@ public class ImageMetricsXMLTest extends TestCase {
 		cache.putSize("file:/a.png", 100, 200);
 		final String xml = "<image-metrics version=\"1\"><image uri=\"file:/a.png\" width=\"1\" height=\"2\"/>"
 				+ "</image-metrics>";
-		assertEquals(0, ImageMetricsXML.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), cache));
+		assertEquals(0, ImageMetricsXML.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), cache, 96.0));
 		assertEquals(100.0, cache.get("file:/a.png").getWidth(), 0.0);
 	}
 
@@ -70,7 +70,7 @@ public class ImageMetricsXMLTest extends TestCase {
 				+ "<image uri=\"file:/good.png\" width=\"10\" height=\"10\"/>"
 				+ "</image-metrics>";
 		final ImageMetricsCache cache = new ImageMetricsCache();
-		assertEquals(1, ImageMetricsXML.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), cache));
+		assertEquals(1, ImageMetricsXML.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), cache, 96.0));
 		assertEquals(1, cache.size());
 		assertNotNull(cache.get("file:/good.png"));
 	}
@@ -80,17 +80,35 @@ public class ImageMetricsXMLTest extends TestCase {
 		final String xml = "<!DOCTYPE image-metrics [<!ENTITY x \"y\">]><image-metrics/>";
 		try {
 			ImageMetricsXML.read(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)),
-					new ImageMetricsCache());
+					new ImageMetricsCache(), 96.0);
 			fail("a DOCTYPE declaration must be rejected");
 		} catch (final org.xml.sax.SAXException expected) {
 			// 期待どおり
 		}
 	}
 
+	/**
+	 * 記録は出力単位(pt)なので、依拠した解像度が違う寸法表は丸ごと捨てる。
+	 * 黙って誤った寸法で組むより測り直したほうが安全なため。
+	 */
+	public void testDifferentResolutionIsRejected() throws Exception {
+		final ImageMetricsCache written = new ImageMetricsCache();
+		written.putSize("file:/a.png", 100, 200);
+		final byte[] xml = ImageMetricsXML.write(written, 96.0);
+
+		final ImageMetricsCache same = new ImageMetricsCache();
+		assertEquals(1, ImageMetricsXML.read(new ByteArrayInputStream(xml), same, 96.0));
+
+		final ImageMetricsCache other = new ImageMetricsCache();
+		assertEquals("a metrics file made at another resolution must be discarded", 0,
+				ImageMetricsXML.read(new ByteArrayInputStream(xml), other, 144.0));
+		assertEquals(0, other.size());
+	}
+
 	public void testEmptyCacheWritesValidXml() throws Exception {
-		final byte[] xml = ImageMetricsXML.write(new ImageMetricsCache());
+		final byte[] xml = ImageMetricsXML.write(new ImageMetricsCache(), 96.0);
 		final ImageMetricsCache read = new ImageMetricsCache();
-		assertEquals(0, ImageMetricsXML.read(new ByteArrayInputStream(xml), read));
+		assertEquals(0, ImageMetricsXML.read(new ByteArrayInputStream(xml), read, 96.0));
 		assertEquals(0, read.size());
 	}
 }
