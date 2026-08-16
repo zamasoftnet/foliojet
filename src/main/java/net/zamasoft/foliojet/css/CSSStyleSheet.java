@@ -127,11 +127,21 @@ public class CSSStyleSheet {
 	 *              {@link Rule#NO_LAYER})
 	 */
 	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin, int layer) {
+		this.addRule(selectors, declaration, origin, layer, null);
+	}
+
+	/**
+	 * ルールを追加します({@code @container}の内側の規則、2026-08-15段4)。
+	 *
+	 * @param containerQuery この規則を包む{@code @container}(無ければnull)
+	 */
+	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin, int layer,
+			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		if (declaration == null) {
 			return;
 		}
 		for (Selector selector : selectors) {// ループすることに注意！
-			Rule rule = new Rule(selector, declaration, this.rules.size(), origin, layer);
+			Rule rule = new Rule(selector, declaration, this.rules.size(), origin, layer, containerQuery);
 			this.rules.add(rule);
 			this.index(rule);
 			collectHasConditions(selector, this.hasConditions);

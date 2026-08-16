@@ -1,0 +1,34 @@
+<?jp.cssj.property name="output.page-width" value="450pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>container-inline-size-switch</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	font: 10pt/1 monospace;
+	margin: 0;
+}
+.wrap {
+	container-type: inline-size;
+}
+.box:before {
+	content: "narrow-";
+}
+@container (min-width: 200pt) {
+	.box:before {
+		content: "wide-";
+	}
+}
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap" style="width: 400pt;"><div id="wide" class="box">X</div></div>
+    <div class="wrap" style="width: 40pt;"><div id="narrow" class="box">X</div></div>
+  </body>
+
+</html>

@@ -1,0 +1,43 @@
+<?jp.cssj.property name="output.page-width" value="450pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>container-nested-two-level</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	font: 10pt/1 monospace;
+	margin: 0;
+}
+#outer {
+	container-type: inline-size;
+	width: 300pt;
+}
+.mid {
+	container-type: inline-size;
+	width: 50pt;
+}
+@container (min-width: 250pt) {
+	.mid {
+		width: 100pt;
+	}
+}
+.inner:before {
+	content: "small-";
+}
+@container (min-width: 80pt) {
+	.inner:before {
+		content: "big-";
+	}
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="outer"><div class="mid"><div id="inner" class="inner">X</div></div></div>
+  </body>
+
+</html>

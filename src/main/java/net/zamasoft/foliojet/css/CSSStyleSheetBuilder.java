@@ -123,19 +123,20 @@ public class CSSStyleSheetBuilder {
 						source.getEncoding());
 			}
 			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
-				this.rule(rule, uri, true, Rule.NO_LAYER, null);
+				this.rule(rule, uri, true, Rule.NO_LAYER, null, null);
 			}
 		} finally {
 			this.uriStack.remove(this.uriStack.size() - 1);
 		}
 	}
 
-	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk, int layer, String layerNamePrefix) {
+	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk, int layer, String layerNamePrefix,
+			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		if (rule instanceof CSSStyleRule styleRule) {
 			if (!mediaOk) {
 				return;
 			}
-			this.styleRule(styleRule, uri, layer, null);
+			this.styleRule(styleRule, uri, layer, null, containerQuery);
 		} else if (rule instanceof CSSMediaRule mediaRule) {
 			boolean ok = false;
 			for (CSSMediaQuery query : mediaRule.getAllMediaQueries()) {
@@ -148,12 +149,12 @@ public class CSSStyleSheetBuilder {
 			// 以前は内側の判定だけで決まり、外側が不一致でも内側の@mediaが
 			// 独立に一致すれば適用されてしまっていた)
 			for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
-				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix);
+				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix, containerQuery);
 			}
 		} else if (rule instanceof CSSSupportsRule supportsRule) {
 			boolean ok = this.evaluateSupports(supportsRule.getAllSupportConditionMembers(), uri, 0);
 			for (ICSSTopLevelRule inner : supportsRule.getAllRules()) {
-				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix);
+				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix, containerQuery);
 			}
 		} else if (rule instanceof CSSPageRule pageRule) {
 			this.page(pageRule, uri, mediaOk);
@@ -161,11 +162,14 @@ public class CSSStyleSheetBuilder {
 			// 従来動作の踏襲: @font-faceはメディアに関係なく登録する
 			this.fontFace(fontFaceRule, uri);
 		} else if (rule instanceof CSSLayerRule layerRule) {
-			this.layer(layerRule, uri, mediaOk, layerNamePrefix);
+			this.layer(layerRule, uri, mediaOk, layerNamePrefix, containerQuery);
 		} else if (rule instanceof CSSUnknownRule unknownRule) {
-			// ph-cssは@counter-styleを未知のat-ruleとして本文ごと渡す
-			if (mediaOk && "@counter-style".equalsIgnoreCase(unknownRule.getDeclaration())) {
+			// ph-cssは@counter-style/@containerを未知のat-ruleとして本文ごと渡す
+			final String decl = unknownRule.getDeclaration();
+			if (mediaOk && "@counter-style".equalsIgnoreCase(decl)) {
 				this.counterStyle(unknownRule);
+			} else if (mediaOk && "@container".equalsIgnoreCase(decl)) {
+				this.container(unknownRule, uri, mediaOk, layer, layerNamePrefix);
 			}
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
@@ -210,6 +214,53 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
+	 * {@code @container}クエリです(2026-08-15段4で条件評価に配線——
+	 * docs/history/2026-08-15-container-queries-design.md §6)。
+	 *
+	 * <p>
+	 * ph-cssは{@code @counter-style}と同様、本規則を{@link CSSUnknownRule}
+	 * (名前・引数・本文の文字列)として渡す。ただし本文の性質が違い、
+	 * 宣言列ではなく<b>規則列</b>(入れ子のスタイル規則)なので、
+	 * {@code "*{" + body + "}"}で包まず、bodyをそのまま独立した
+	 * スタイルシートとして読み直す。得られた規則群を、{@code @media}/
+	 * {@code @supports}と同じ「条件付きで規則群を登録する」経路
+	 * ({@link #rule})へ流す。
+	 * </p>
+	 *
+	 * <p>
+	 * 段1〜3は寸法事実を記録・参照する仕組みが無く、常に不一致として
+	 * 登録するだけだった。段4からは{@link net.zamasoft.foliojet.css.container.ContainerQuery}
+	 * (段3のパーサ)で条件を解析し、規則へ{@link Rule#getContainerQuery}として
+	 * 持たせる。実際の一致判定(祖先コンテナの探索・{@code ContainerFacts}の
+	 * 参照)は{@code StyleContext.merge}が行う——ここでは常に{@code mediaOk}を
+	 * そのまま伝えて<b>登録だけ</b>する(段1の「常に偽」は撤去)。
+	 * </p>
+	 *
+	 * <p>
+	 * ネストした{@code @container}(内側の@containerが外側の@containerに
+	 * 包まれる場合)は、外側の条件を保持せず内側の条件で上書きする——
+	 * 仕様上の合成規則は定義されておらず、実コーパスにも例が無いための
+	 * 単純化(1規則が持てる{@code ContainerQuery}は1個のみ)。
+	 * </p>
+	 */
+	private void container(final CSSUnknownRule rule, final URI uri, final boolean mediaOk, final int layer,
+			final String layerNamePrefix) {
+		final String body = rule.getBody();
+		if (body == null) {
+			return;
+		}
+		final CascadingStyleSheet sheet = CSSReader.readFromStringReader(body, DeclarationParser.settings());
+		if (sheet == null) {
+			return;
+		}
+		final net.zamasoft.foliojet.css.container.ContainerQuery query = net.zamasoft.foliojet.css.container.ContainerQuery
+				.parse(rule.getParameterList(), this.ua);
+		for (final ICSSTopLevelRule inner : sheet.getAllRules()) {
+			this.rule(inner, uri, mediaOk, layer, layerNamePrefix, query);
+		}
+	}
+
+	/**
 	 * スタイル規則です(CSS Nesting対応、2026-08-02——PLAN §2の4位。
 	 * ph-css 8.2の入れ子ASTを平坦化する)。
 	 *
@@ -224,7 +275,8 @@ public class CSSStyleSheetBuilder {
 	 * </p>
 	 */
 	private void styleRule(final CSSStyleRule styleRule, final URI uri, final int layer,
-			final List<String> parentSelectorTexts) {
+			final List<String> parentSelectorTexts,
+			final net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		// 結合済みセレクタ文字列(入れ子の再帰用に常に計算する)
 		final List<String> selfTexts = new ArrayList<>();
 		for (final CSSSelector selector : styleRule.getAllSelectors()) {
@@ -254,18 +306,18 @@ public class CSSStyleSheetBuilder {
 		if (styleRule.hasDeclarations()) {
 			final Declaration declaration = DeclarationParser.convert(styleRule.getAllDeclarations(), null,
 					ElementPropertySet.getInstance(), this.ua, uri);
-			this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+			this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer, containerQuery);
 			this.collectSVGStyleRule(selfTexts, styleRule.getAllDeclarations());
 		}
 		for (final com.helger.css.decl.ICSSNestedRule nested : styleRule.getAllRules()) {
 			if (nested instanceof CSSStyleRule nestedStyle) {
-				this.styleRule(nestedStyle, uri, layer, selfTexts);
+				this.styleRule(nestedStyle, uri, layer, selfTexts, containerQuery);
 			} else if (nested instanceof com.helger.css.decl.CSSNestedDeclarations nestedDecls) {
 				// 入れ子規則の後に現れた宣言——同セレクタで順序どおり追加
 				if (nestedDecls.hasDeclarations()) {
 					final Declaration declaration = DeclarationParser.convert(nestedDecls.getAllDeclarations(),
 							null, ElementPropertySet.getInstance(), this.ua, uri);
-					this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer);
+					this.cssStyleSheet.addRule(selectors, declaration, this.origin, layer, containerQuery);
 					this.collectSVGStyleRule(selfTexts, nestedDecls.getAllDeclarations());
 				}
 			}
@@ -398,7 +450,8 @@ public class CSSStyleSheetBuilder {
 	 * 同じ考え方)。{@code !important}によるレイヤー優先順位の反転は
 	 * 未対応(docs/CSS-SUPPORT.md参照)。
 	 */
-	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, String layerNamePrefix) {
+	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, String layerNamePrefix,
+			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		final List<String> names = layerRule.getAllSelectors();
 		if (layerRule.getAllRules().isEmpty()) {
 			// 文形式(@layer a, b;)、または空ブロック(@layer a {})——
@@ -419,7 +472,7 @@ public class CSSStyleSheetBuilder {
 			childLayer = this.cssStyleSheet.registerNamedLayer(childPrefix);
 		}
 		for (ICSSTopLevelRule inner : layerRule.getAllRules()) {
-			this.rule(inner, uri, mediaOk, childLayer, childPrefix);
+			this.rule(inner, uri, mediaOk, childLayer, childPrefix, containerQuery);
 		}
 	}
 

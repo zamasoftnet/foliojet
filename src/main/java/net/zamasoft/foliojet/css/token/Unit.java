@@ -7,6 +7,8 @@ import java.util.Locale;
  */
 public enum Unit {
 	EM, EX, REM, CH, PX, IN, CM, MM, PT, PC, DEG, GRAD, RAD, MS, S, HZ, KHZ,
+	/** コンテナクエリ単位(段6、2026-08-15——css-contain-3)。 */
+	CQW, CQI,
 	/** 上記以外(テキストは {@link CssToken.Dim#unitText()} で保持)。 */
 	OTHER;
 
@@ -49,6 +51,10 @@ public enum Unit {
 			return HZ;
 		case "khz":
 			return KHZ;
+		case "cqw":
+			return CQW;
+		case "cqi":
+			return CQI;
 		default:
 			return OTHER;
 		}

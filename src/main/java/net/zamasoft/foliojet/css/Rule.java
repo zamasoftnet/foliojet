@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.css;
 
 
+import net.zamasoft.foliojet.css.container.ContainerQuery;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Specificity;
 
@@ -52,16 +53,34 @@ public class Rule {
 
 	private transient Specificity specificity = null;
 
+	/**
+	 * この規則を包む{@code @container}の名前・条件です(2026-08-15段4——
+	 * docs/history/2026-08-15-container-queries-design.md)。{@code @container}
+	 * の内側で無ければ{@code null}(通常の規則はコンテナ条件を持たない)。
+	 */
+	private final ContainerQuery containerQuery;
+
 	public Rule(Selector selector, Declaration declaration, int order, Origin origin) {
-		this(selector, declaration, order, origin, NO_LAYER);
+		this(selector, declaration, order, origin, NO_LAYER, null);
 	}
 
 	public Rule(Selector selector, Declaration declaration, int order, Origin origin, int layer) {
+		this(selector, declaration, order, origin, layer, null);
+	}
+
+	public Rule(Selector selector, Declaration declaration, int order, Origin origin, int layer,
+			ContainerQuery containerQuery) {
 		this.selector = selector;
 		this.declaration = declaration;
 		this.order = order;
 		this.origin = origin;
 		this.layer = layer;
+		this.containerQuery = containerQuery;
+	}
+
+	/** この規則を包む{@code @container}(無ければnull)。 */
+	public ContainerQuery getContainerQuery() {
+		return this.containerQuery;
 	}
 
 	/**

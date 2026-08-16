@@ -70,6 +70,12 @@ public final class ValueUtils {
 				return RelativeLengthValue.rem(dim.value());
 			case CH:
 				return RelativeLengthValue.ch(dim.value());
+			case CQW:
+			case CQI:
+				// コンテナクエリ単位(段6、2026-08-15)。RelativeLengthValueと
+				// 同じく解析時には解決せず、emExToAbsoluteLengthで使用値
+				// 計算時に解決する
+				return net.zamasoft.foliojet.css.value.ContainerRelativeLengthValue.of(dim.unit(), dim.value());
 			default:
 				break;
 			}
@@ -151,6 +157,10 @@ public final class ValueUtils {
 	public static Value emExToAbsoluteLength(Value value, CSSStyle style) {
 		if (value instanceof RelativeLengthValue relative) {
 			return relative.toAbsoluteLength(style);
+		}
+		// コンテナクエリ単位(段6、2026-08-15)。RelativeLengthValueと同じ経路
+		if (value instanceof net.zamasoft.foliojet.css.value.ContainerRelativeLengthValue containerRelative) {
+			return containerRelative.toAbsoluteLength(style);
 		}
 		// **calc()の中のフォント相対単位もここで解く**(2026-08-03)。
 		// 解析時には要素のfont-sizeが無いので、絶対成分・割合成分と分けたまま

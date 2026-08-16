@@ -82,6 +82,9 @@ import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleStyle;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleWidth;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnSpan;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnWidth;
+import net.zamasoft.foliojet.css.impl.property.container.ContainerName;
+import net.zamasoft.foliojet.css.impl.property.container.ContainerType;
+import net.zamasoft.foliojet.css.impl.property.shorthand.ContainerShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.ColumnsShorthand;
 import net.zamasoft.foliojet.css.impl.property.box.Opacity;
 import net.zamasoft.foliojet.css.impl.property.font.Src;
@@ -243,6 +246,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(FontSize.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.INFO);
 		// Grid G0(consult-codex-2026-07-31-grid.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.COLUMNS);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.ROWS);
@@ -366,12 +370,19 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextEmphasisStyle.INFO);
 		reg(TextEmphasisColor.INFO);
 		reg(Opacity.INFO);
+		// @container G2(2026-08-15段2、docs/history/2026-08-15-container-queries-design.md)
+		reg(ContainerType.INFO);
+		reg(ContainerName.INFO);
+		put(ContainerShorthand.INFO);
 		reg(BorderRadius.BOTTOM_RIGHT);
 		reg(BorderRadius.TOP_LEFT);
 		reg(BorderRadius.TOP_RIGHT);
 		reg(BorderRadius.BOTTOM_LEFT);
 		put(BorderRadiusShorthand.INFO);
 		put(TextEmphasisShorthand.INFO);
+		alias("text-emphasis", TextEmphasisShorthand.INFO);
+		alias("text-emphasis-style", TextEmphasisStyle.INFO);
+		alias("text-emphasis-color", TextEmphasisColor.INFO);
 		put(TextCombineShorthand.INFO);
 		reg(Transform.INFO);
 		reg(TransformOrigin.INFO_X);

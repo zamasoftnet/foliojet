@@ -19,6 +19,8 @@ import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
 import net.zamasoft.foliojet.css.selector.SelectorListCondition;
 import net.zamasoft.foliojet.css.selector.SimpleSelector;
+import net.zamasoft.foliojet.css.container.ContainerQuery;
+import net.zamasoft.foliojet.ua.ContainerFacts;
 import net.zamasoft.foliojet.ua.SelectorFacts;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 
@@ -40,13 +42,21 @@ public class StyleContext {
 	 */
 	private final SelectorFacts selectorFacts;
 
-	public StyleContext(CSSStyleSheet styleSheet, SelectorFacts selectorFacts) {
+	/**
+	 * {@code @container}クエリのための要素の事実(2026-08-15段4)。
+	 * {@link #selectorFacts}と同じくSTRUCTURE_SCAN開始時にリセットされ、
+	 * 複数パスにまたがって積み上げる({@link ContainerFacts}参照)。
+	 */
+	private final ContainerFacts containerFacts;
+
+	public StyleContext(CSSStyleSheet styleSheet, SelectorFacts selectorFacts, ContainerFacts containerFacts) {
 		this.styleSheet = styleSheet;
 		this.selectorFacts = selectorFacts;
+		this.containerFacts = containerFacts;
 	}
 
 	public StyleContext copy(int up) {
-		StyleContext styleContext = new StyleContext(this.styleSheet, this.selectorFacts);
+		StyleContext styleContext = new StyleContext(this.styleSheet, this.selectorFacts, this.containerFacts);
 		for (int i = 0; i < this.elementStack.size() - up; ++i) {
 			styleContext.elementStack.add(this.elementStack.get(i));
 		}
@@ -210,7 +220,8 @@ public class StyleContext {
 		List<Rule> result = null;
 		for (List<Rule> bucket : buckets) {
 		for (Rule rule : bucket) {
-			if (matchesFromPath(rule.getSelector(), this.elementStack, this.selectorFacts)) {
+			if (matchesFromPath(rule.getSelector(), this.elementStack, this.selectorFacts)
+					&& containerQueryMatches(rule.getContainerQuery(), this.elementStack, this.containerFacts)) {
 				if (result == null) {
 					result = new ArrayList<Rule>();
 				}
@@ -419,6 +430,53 @@ public class StyleContext {
 				}
 			}
 		}
+	}
+
+	/**
+	 * {@code @container}の一致判定です(2026-08-15段4——
+	 * docs/history/2026-08-15-container-queries-design.md §2/§6)。
+	 * {@code query}が{@code null}(この規則が{@code @container}の内側に
+	 * 無い)なら常に一致。そうでなければ、pathの末尾(現在の要素)の
+	 * <b>祖先</b>(末尾自身は対象外——コンテナは自分自身になれない)を
+	 * 近い順に辿り、名前が合う最初のクエリコンテナだけを使う
+	 * (仕様どおり、複数祖先を跨いだ合成はしない)。該当コンテナが
+	 * 無ければ不一致。
+	 *
+	 * <p>
+	 * 実測寸法は{@link ContainerFacts}が前パスまでに記録した値
+	 * ({@code NaN}なら未確定=常に不一致、設計§2「パス1は全クエリ偽」)。
+	 * </p>
+	 */
+	private static boolean containerQueryMatches(ContainerQuery query, List<CSSElement> path,
+			ContainerFacts facts) {
+		if (query == null) {
+			return true;
+		}
+		if (facts == null) {
+			return false;
+		}
+		final String name = query.getName();
+		for (int i = path.size() - 2; i >= 0; --i) {
+			final CSSElement ancestor = path.get(i);
+			if (ancestor.elementKey < 0 || !facts.isInlineSizeContainer(ancestor.elementKey)) {
+				continue;
+			}
+			if (name != null && !containsName(facts.getContainerNames(ancestor.elementKey), name)) {
+				continue;
+			}
+			final double inlineSize = facts.getInlineSize(ancestor.elementKey);
+			return !Double.isNaN(inlineSize) && query.getCondition().evaluate(inlineSize);
+		}
+		return false;
+	}
+
+	private static boolean containsName(String[] names, String name) {
+		for (final String candidate : names) {
+			if (candidate.equals(name)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static List<CSSElement> withLast(List<CSSElement> ancestors, CSSElement last) {
