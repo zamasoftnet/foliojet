@@ -369,6 +369,27 @@ public class DirectSession extends AbstractCTISession
 		this.resolver.setUserResolver(resolver);
 	}
 
+	/**
+	 * このセッションがローカル資源({@code file:}など)を取得してよいかを決めます。
+	 *
+	 * <p>
+	 * <b>入出力プロパティではありません。</b> クライアントからは変更できず、
+	 * サーバー(デーモン)が認証済みの利用者ごとに決めます。既定は許可なので、
+	 * 組み込み利用とコマンドラインの動作は変わりません——それらを動かす主体は
+	 * 元々そのプロセスのファイルを読めるためです。
+	 * </p>
+	 *
+	 * <p>
+	 * 遠隔の利用者に許すと、変換対象として任意のローカルファイルを指定でき、
+	 * サーバーの設定・鍵・{@code /proc}が読み出せます。公開するサーバーでは
+	 * 許可しないでください。クライアント自身が資源を送る経路(CTIPの
+	 * リソース送信・要求時送信)は、この指定に関わらず使えます。
+	 * </p>
+	 */
+	public void setLocalAccessAllowed(boolean allowed) {
+		this.resolver.setLocalAccessAllowed(allowed);
+	}
+
 	public void transcode(URI uri) throws IOException, TranscoderException {
 		this.prepareTranscode(uri);
 		final Source source = this.resolver.resolve(uri, true);

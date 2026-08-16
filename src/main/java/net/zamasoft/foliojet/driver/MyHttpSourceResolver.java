@@ -70,6 +70,42 @@ class MySourceResolver implements SourceResolver {
 	 */
 	private boolean restricted = false;
 
+	/**
+	 * 遠隔から取得してよいスキーム。これ以外は「ローカル資源」として扱う。
+	 */
+	private static final Set<String> REMOTE_SCHEMES = Set.of("http", "https", "data");
+
+	/**
+	 * ローカル資源({@code file:}など)の取得を許すか。
+	 *
+	 * <p>
+	 * <b>これは入出力プロパティではない。</b> クライアントからは変更できず、
+	 * サーバー(デーモン)が認証済みの利用者ごとに決める。既定は許可で、
+	 * 組み込み利用とコマンドラインの動作は変わらない——それらを動かす主体は
+	 * 元々そのプロセスのファイルを読めるので、制限しても意味がない。
+	 * </p>
+	 *
+	 * <p>
+	 * {@code input.include}/{@code input.exclude}ではこの用途を満たせない。
+	 * それらはクライアントが自分を縛るためのもので、セッションごとに
+	 * {@link #reset()}され、しかも主文書は{@code force}でACLを迂回する。
+	 * </p>
+	 */
+	private boolean localAccessAllowed = true;
+
+	void setLocalAccessAllowed(final boolean allowed) {
+		this.localAccessAllowed = allowed;
+	}
+
+	/**
+	 * 遠隔から取ってよいスキームか。スキームを持たないURIは現在の作業
+	 * ディレクトリのファイルを指しうるので「ローカル」として扱います。
+	 */
+	private static boolean isRemoteScheme(final URI uri) {
+		final String scheme = uri.getScheme();
+		return scheme != null && REMOTE_SCHEMES.contains(scheme.toLowerCase(java.util.Locale.ROOT));
+	}
+
 	public void setup(URI uri, Map<String, String> props, MessageHandler mh) {
 		this.closeHttpResolver();
 		final long resourceSizeLimit = UAProps.INPUT_RESOURCE_SIZE_LIMIT.getInteger(props, mh);
@@ -225,6 +261,9 @@ class MySourceResolver implements SourceResolver {
 
 	public Source resolve(URI uri, boolean force) throws IOException, SecurityException {
 		try {
+			// クライアントが CTISession.resource() で送ってきた資源。
+			// これは**クライアント自身の内容**なので、URIが file: でも
+			// サーバーのファイルを読むことにはならない
 			Source source = this.cachedResolver.resolve(uri);
 			return this.wrap(source, this.cachedResolver, force);
 		} catch (FileNotFoundException e) {
@@ -253,16 +292,37 @@ class MySourceResolver implements SourceResolver {
 					// ignore
 				}
 			}
+			// **ここから先はサーバー自身のファイルシステムを引く**。
+			// 遠隔の利用者に許していなければ、この経路へは入らせない。
+			// 差し込まれたリゾルバ(CTIPでは「サーバーから要求された資源を
+			// クライアントが都度送る」経路)は**クライアント自身の資源**なので
+			// 塞がず、そちらだけを試す
+			if (!this.localAccessAllowed && !isRemoteScheme(uri)) {
+				if (this.userResolver != null) {
+					try {
+						Source source = this.userResolver.resolve(uri);
+						return this.wrap(source, this.userResolver, force);
+					} catch (FileNotFoundException e2) {
+						// クライアントも持っていない
+					}
+				}
+				throw new SecurityException("Access to local resources is not permitted for this user: " + uri);
+			}
 			try {
 				Source source = this.restrictedResolver.resolve(uri, force);
 				return this.wrap(source, this.restrictedResolver, force);
-			} catch (FileNotFoundException e2) {
+			} catch (IOException e2) {
 				if (this.userResolver == null || !aclFirst) {
 					throw e2;
 				}
 				// **許可されているが取れなかった**ものは、差し込まれた
-				// リゾルバ(独自の取得手段を持つ埋め込み利用)へ回す。
-				// 拒否された場合はSecurityExceptionなのでここへ来ない
+				// リゾルバ(独自の取得手段を持つ埋め込み利用、CTIPなら
+				// クライアントへの要求)へ回す。拒否された場合は
+				// SecurityExceptionなのでここへ来ない。
+				// FileNotFoundException以外も回すのは、独自スキームが
+				// MalformedURLException("unknown protocol")になるため
+				// (2026-08-16)。クライアントだけが解決できるURIを
+				// input.includeと併用できなかった
 				Source source = this.userResolver.resolve(uri);
 				return this.wrap(source, this.userResolver, force);
 			}
