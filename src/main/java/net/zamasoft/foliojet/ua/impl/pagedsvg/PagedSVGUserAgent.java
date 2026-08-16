@@ -1,16 +1,19 @@
 package net.zamasoft.foliojet.ua.impl.pagedsvg;
 
 import java.awt.Dimension;
-import java.io.ByteArrayOutputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.zip.GZIPOutputStream;
 
 import org.apache.batik.dom.GenericDOMImplementation;
 import org.apache.batik.svggen.SVGGeneratorContext;
@@ -30,7 +33,6 @@ import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
-import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
@@ -54,7 +56,6 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private PagedSVGResources resources;
 	private PagedSVGVisitor visitor;
 	private int page;
-	private PagedSvgCompression compression;
 	private final Map<String, String> metadata = new LinkedHashMap<>();
 
 	public PagedSVGUserAgent() {
@@ -97,7 +98,6 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.svg = null;
 		this.currentPage = null;
 		this.page = 0;
-		this.compression = null;
 		this.metadata.clear();
 		this.resources = new PagedSVGResources(this::emit);
 		this.visitor = null;
@@ -154,22 +154,28 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			root.setAttribute("viewBox", "0 0 " + PagedSVGResources.number(this.currentPage.width) + " "
 					+ PagedSVGResources.number(this.currentPage.height));
 			this.addFontFaces(root);
-			final ByteArrayOutputStream svgBytes = new ByteArrayOutputStream(1 << 15);
-			try (var writer = new OutputStreamWriter(svgBytes, StandardCharsets.UTF_8)) {
-				this.svg.stream(root, writer, true, true);
-			}
 			final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
-			final boolean gzip = this.compression() == PagedSvgCompression.GZIP;
-			final String svgUri = stem + (gzip ? ".svgz" : ".svg");
-			final byte[] svgData = gzip ? gzip(svgBytes.toByteArray()) : svgBytes.toByteArray();
-			this.emit(svgUri, "image/svg+xml", svgData);
+			final String svgUri = stem + ".svg";
+			// **溜めずに流す**(2026-08-16)。以前はページSVG全体を
+			// ByteArrayOutputStreamへ作ってから書いていた。直列化と
+			// SHA-256は流しながらできる。圧縮は行わない——配信の都合は
+			// 受け手のほうがよく知っているので、クライアント側に任せる
+			final Element streamed = root;
+			final String svgSha = this.emit(svgUri, "image/svg+xml", out -> {
+				try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+					this.svg.stream(streamed, writer, true, true);
+				}
+			});
 
 			final String jsonUri = stem + ".json";
-			final byte[] jsonData = this.currentPage.json();
-			this.emit(jsonUri, "application/json", jsonData);
+			final PagedSVGResources.PageData page = this.currentPage;
+			final String jsonSha = this.emit(jsonUri, "application/json", out -> {
+				try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+					page.writeJson(writer);
+				}
+			});
 			this.resources.addPage(new PagedSVGResources.PageAsset(this.currentPage.number, this.currentPage.width,
-					this.currentPage.height, svgUri, PagedSVGResources.sha256(svgData), jsonUri,
-					PagedSVGResources.sha256(jsonData)));
+					this.currentPage.height, svgUri, svgSha, jsonUri, jsonSha));
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		} finally {
@@ -206,48 +212,81 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		defs.appendChild(style);
 	}
 
-	private PagedSvgCompression compression() {
-		if (this.compression == null) {
-			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
-		}
-		return this.compression;
-	}
-
-	/**
-	 * gzip圧縮します。JavaのGZIPOutputStreamはヘッダの更新時刻を0で書くので、
-	 * 同じ入力からは必ず同じバイト列になります。manifestのsha256が組み直しても
-	 * 変わらないのはこのためです。
-	 */
-	private static byte[] gzip(final byte[] bytes) throws IOException {
-		final ByteArrayOutputStream out = new ByteArrayOutputStream(bytes.length / 3 + 64);
-		try (var gzip = new GZIPOutputStream(out)) {
-			gzip.write(bytes);
-		}
-		return out.toByteArray();
+	/** 結果1件の中身を書きます。溜めずに、渡された出力へ直接書くこと。 */
+	@FunctionalInterface
+	interface ContentWriter {
+		void write(OutputStream out) throws IOException;
 	}
 
 	private void emit(final String uri, final String mimeType, final byte[] bytes) throws IOException {
+		this.emit(uri, mimeType, out -> out.write(bytes));
+	}
+
+	/**
+	 * 結果を1件書き出し、そのSHA-256を返します。
+	 *
+	 * <p>
+	 * <b>中身を溜めません</b>(2026-08-16)。ダイジェスト計算も書きながら行い、
+	 * 長さは申告しません({@code -1})。以前はページSVG全体を
+	 * {@code ByteArrayOutputStream}へ作ってから書いていました。
+	 * 画像出力・単一SVG出力は元から直接書いており、溜めていたのはここだけです。
+	 * </p>
+	 *
+	 * <p>
+	 * 返すSHA-256は<b>実際に書いたバイト列</b>に対する値なので、
+	 * manifestの記載と実体が食い違いません。
+	 * </p>
+	 */
+	private String emit(final String uri, final String mimeType, final ContentWriter content) throws IOException {
 		if (this.results == null) {
 			throw new IOException("Results is not set");
 		}
 		if (!this.results.hasNext()) {
 			throw new AbortException(CTISession.ABORT_NORMAL);
 		}
-		final var metadata = new SimpleSourceMetadata(URI.create(uri), mimeType, null, bytes.length);
+		final var metadata = new SimpleSourceMetadata(URI.create(uri), mimeType, null, -1);
 		final FragmentedOutput builder = this.results.nextBuilder(metadata);
+		final MessageDigest digest;
 		try {
-			final OutputStream out;
+			digest = MessageDigest.getInstance("SHA-256");
+		} catch (final NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
+		try {
+			final OutputStream raw;
 			if (builder instanceof SequentialOutput sequential) {
-				out = new SequentialOutputAdapter(sequential);
+				raw = new SequentialOutputAdapter(sequential);
 			} else {
 				builder.addFragment();
-				out = new FragmentOutputAdapter(builder, 0);
+				raw = new FragmentOutputAdapter(builder, 0);
 			}
-			try (out) {
-				out.write(bytes);
+			try (raw) {
+				content.write(new UnclosableOutputStream(new DigestOutputStream(raw, digest)));
 			}
 		} finally {
 			builder.close();
+		}
+		return HexFormat.of().formatHex(digest.digest());
+	}
+
+	/**
+	 * 書き手が{@code close()}しても下位を閉じない包み。
+	 * {@code OutputStreamWriter}を{@code try}で閉じて内容を確実に流し切りつつ、
+	 * 結果の境界はこちらの手順で閉じるためです。
+	 */
+	private static final class UnclosableOutputStream extends FilterOutputStream {
+		UnclosableOutputStream(final OutputStream out) {
+			super(out);
+		}
+
+		@Override
+		public void write(final byte[] b, final int off, final int len) throws IOException {
+			this.out.write(b, off, len);
+		}
+
+		@Override
+		public void close() throws IOException {
+			this.flush();
 		}
 	}
 
@@ -260,12 +299,11 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		// 画像を一度も開かずに済む。
 		final var imageMetrics = this.getUAContext().getImageMetrics();
 		if (imageMetrics.size() != 0) {
-			this.emit("metrics.xml", "application/xml", ImageMetricsXML.write(imageMetrics));
+			this.emit("metrics.xml", "application/xml", ImageMetricsXML.write(imageMetrics, UAProps.OUTPUT_RESOLUTION.getDouble(this)));
 		}
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);
-		this.emit("manifest.json", "application/json",
-				this.resources.manifest(this.metadata, binding, this.compression()));
+		this.emit("manifest.json", "application/json", this.resources.manifest(this.metadata, binding));
 		this.results.end();
 	}
 

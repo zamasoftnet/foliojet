@@ -689,12 +689,6 @@ public final class UAProps {
 	public static final BooleanPropManager OUTPUT_USE_META_INFO = new BooleanPropManager("output.use-meta-info", true);
 
 	/**
-	 * Paged SVGのページSVGの圧縮方法です。
-	 */
-	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(
-			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.GZIP);
-
-	/**
 	 * Paged SVGのフォントサブセットを出力するかどうかです。
 	 */
 	public static final CodePropManager<PagedSvgResourcePolicy> OUTPUT_PAGED_SVG_FONTS = new CodePropManager<>(
@@ -825,7 +819,6 @@ public final class UAProps {
 			OUTPUT_PDF_VIEWER_PREFERENCES_NUM_COPIES,
 			OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT,
 			OUTPUT_USE_META_INFO,
-			OUTPUT_PAGED_SVG_COMPRESSION,
 			OUTPUT_PAGED_SVG_FONTS,
 			OUTPUT_PAGED_SVG_IMAGES);
 

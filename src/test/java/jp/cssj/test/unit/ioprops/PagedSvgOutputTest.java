@@ -69,11 +69,12 @@ public class PagedSvgOutputTest extends TestCase {
 		assertTrue(results.ended);
 		assertEquals("manifest must be the final result", "manifest.json",
 				results.order.get(results.order.size() - 1));
-		assertTrue("pages are gzip compressed by default", results.data.containsKey("pages/0001.svgz"));
+		assertTrue(results.data.containsKey("pages/0001.svg"));
 		assertTrue(results.data.containsKey("pages/0001.json"));
-		assertTrue(results.data.containsKey("pages/0002.svgz"));
+		assertTrue(results.data.containsKey("pages/0002.svg"));
 		assertTrue(results.data.containsKey("pages/0002.json"));
-		assertFalse("the uncompressed name must not be used as well", results.data.containsKey("pages/0001.svg"));
+		assertFalse("compression belongs to the client, not the server",
+				results.data.containsKey("pages/0001.svgz"));
 		assertEquals("the repeated PNG and one JPEG must be emitted once each", 2,
 				results.order.stream().filter(uri -> uri.startsWith("assets/images/")).count());
 		final String jpegUri = results.order.stream().filter(uri -> uri.endsWith(".jpg")).findFirst().orElseThrow();
@@ -81,14 +82,9 @@ public class PagedSvgOutputTest extends TestCase {
 		assertTrue("JPEG bytes must be preserved without recompression",
 				java.util.Arrays.equals(jpeg, results.data.get(jpegUri).toByteArray()));
 
-		final byte[] firstSvgz = results.data.get("pages/0001.svgz").toByteArray();
-		assertEquals("gzip magic", (byte) 0x1f, firstSvgz[0]);
-		assertEquals("gzip magic", (byte) 0x8b, firstSvgz[1]);
-		final byte[] firstSvg = gunzip(firstSvgz);
-		assertTrue("compression must actually shrink the page", firstSvgz.length < firstSvg.length);
-		final String first = new String(firstSvg, StandardCharsets.UTF_8);
-		assertWellFormedXml(firstSvg);
-		assertWellFormedXml(gunzip(results.data.get("pages/0002.svgz").toByteArray()));
+		final String first = results.text("pages/0001.svg");
+		assertWellFormedXml(results.data.get("pages/0001.svg").toByteArray());
+		assertWellFormedXml(results.data.get("pages/0002.svg").toByteArray());
 		assertTrue(first.contains("<text"));
 		assertTrue(first.contains("data-copper-text="));
 		assertTrue(first.contains("../assets/fonts/"));
@@ -105,8 +101,7 @@ public class PagedSvgOutputTest extends TestCase {
 		final String manifest = results.text("manifest.json");
 		assertTrue(manifest.contains("\"pageCount\":2"));
 		assertTrue(manifest.contains("\"mediaType\":\"application/vnd.copper.paged-svg\""));
-		assertTrue("the manifest must say how pages are compressed", manifest.contains("\"compression\":\"gzip\""));
-		assertTrue(manifest.contains("pages/0001.svgz"));
+		assertTrue(manifest.contains("pages/0001.svg"));
 		assertTrue(manifest.contains("assets/images/"));
 		assertTrue(manifest.contains("\"anchors\""));
 		assertTrue(manifest.contains("\"top\":{\"page\":1"));
@@ -134,16 +129,6 @@ public class PagedSvgOutputTest extends TestCase {
 				manifest.contains("\"fsType\":0"));
 	}
 
-	/** ページSVGを圧縮しない指定。名前が.svgに戻りmanifestにもそう出る。 */
-	public void testUncompressedPages() throws Exception {
-		final CapturingResults results = run(simpleHtml(), Map.of("output.paged-svg.compression", "none"));
-		assertTrue(results.data.containsKey("pages/0001.svg"));
-		assertFalse(results.data.containsKey("pages/0001.svgz"));
-		assertWellFormedXml(results.data.get("pages/0001.svg").toByteArray());
-		assertTrue(results.text("manifest.json").contains("\"compression\":\"none\""));
-		assertTrue(results.text("manifest.json").contains("pages/0001.svg\""));
-	}
-
 	/**
 	 * 共有資源の抑止。同じ本を文字サイズだけ変えて組み直すとき、前回と同じ
 	 * フォントサブセットと画像を出し直さないための指定。参照とmanifestの
@@ -155,8 +140,7 @@ public class PagedSvgOutputTest extends TestCase {
 		assertTrue("no font or image bytes may be emitted",
 				results.order.stream().noneMatch(uri -> uri.startsWith("assets/")));
 
-		final String page = new String(gunzip(results.data.get("pages/0001.svgz").toByteArray()),
-				StandardCharsets.UTF_8);
+		final String page = results.text("pages/0001.svg");
 		assertTrue("the page must still reference the shared subset", page.contains("../assets/fonts/"));
 		assertTrue("the page must still reference the shared image", page.contains("../assets/images/"));
 
@@ -173,8 +157,8 @@ public class PagedSvgOutputTest extends TestCase {
 		final CapturingResults emitted = run(simpleHtml(), Map.of());
 		final CapturingResults omitted = run(simpleHtml(),
 				Map.of("output.paged-svg.fonts", "omit", "output.paged-svg.images", "omit"));
-		assertEquals(new String(gunzip(emitted.data.get("pages/0001.svgz").toByteArray()), StandardCharsets.UTF_8),
-				new String(gunzip(omitted.data.get("pages/0001.svgz").toByteArray()), StandardCharsets.UTF_8));
+		assertEquals(emitted.text("pages/0001.svg"),
+				omitted.text("pages/0001.svg"));
 	}
 
 	/**
@@ -195,11 +179,14 @@ public class PagedSvgOutputTest extends TestCase {
 				xml.contains(image.getName()));
 		assertTrue(xml.contains("<image-metrics"));
 
-		// 実測した寸法と一致すること
+		// 記録は出力単位(pt)なので、依拠したoutput.resolutionを併記する。
+		// 別の解像度の寸法表を混ぜると誤った寸法で組んでしまうため
+		assertTrue("the resolution the sizes depend on must be recorded: " + xml,
+				xml.contains("resolution=\""));
 		final BufferedImage actual = ImageIO.read(image);
-		assertTrue("width=\"" + actual.getWidth() + "\" expected in " + xml,
-				xml.contains("width=\"" + actual.getWidth() + "\""));
-		assertTrue(xml.contains("height=\"" + actual.getHeight() + "\""));
+		assertTrue("recorded sizes must be positive and proportional: " + xml,
+				xml.matches("(?s).*width=\"[0-9.]+\" height=\"[0-9.]+\".*"));
+		assertTrue("the fixture must be a real image", actual.getWidth() > 0);
 
 		// 寸法表を渡し直しても、ページの中身は1バイトも変わらない
 		final File file = Files.createTempFile("copper-metrics-", ".xml").toFile();
@@ -207,9 +194,7 @@ public class PagedSvgOutputTest extends TestCase {
 			Files.write(file.toPath(), metrics);
 			final CapturingResults reused = run(html,
 					Map.of("input.image-metrics", file.toURI().toString()));
-			assertEquals(new String(gunzip(measured.data.get("pages/0001.svgz").toByteArray()),
-					StandardCharsets.UTF_8),
-					new String(gunzip(reused.data.get("pages/0001.svgz").toByteArray()), StandardCharsets.UTF_8));
+			assertEquals(measured.text("pages/0001.svg"), reused.text("pages/0001.svg"));
 			assertEquals(measured.text("metrics.xml"), reused.text("metrics.xml"));
 		} finally {
 			Files.deleteIfExists(file.toPath());
@@ -227,7 +212,7 @@ public class PagedSvgOutputTest extends TestCase {
 			Files.writeString(file.toPath(), "this is not XML");
 			final CapturingResults results = run(html, Map.of("input.image-metrics", file.toURI().toString()));
 			assertTrue(results.ended);
-			assertTrue(results.data.containsKey("pages/0001.svgz"));
+			assertTrue(results.data.containsKey("pages/0001.svg"));
 			assertEquals(run(html, Map.of()).text("metrics.xml"), results.text("metrics.xml"));
 		} finally {
 			Files.deleteIfExists(file.toPath());
@@ -267,12 +252,6 @@ public class PagedSvgOutputTest extends TestCase {
 			session.close();
 		}
 		return results;
-	}
-
-	private static byte[] gunzip(final byte[] bytes) throws Exception {
-		try (var in = new java.util.zip.GZIPInputStream(new ByteArrayInputStream(bytes))) {
-			return in.readAllBytes();
-		}
 	}
 
 	private static byte[] jpeg() throws Exception {

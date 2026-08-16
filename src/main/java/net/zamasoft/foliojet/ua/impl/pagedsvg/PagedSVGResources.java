@@ -15,7 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
@@ -94,6 +93,14 @@ final class PagedSVGResources {
 
 		void useFont(final WebFontSubset font) {
 			this.fonts.put(font.family(), font.uri());
+		}
+
+		/**
+		 * ページJSONを書き出します。ページSVGと違い1ページ数KBなので、
+		 * ここは組み立ててから一度に書きます。
+		 */
+		void writeJson(final java.io.Writer out) throws IOException {
+			out.write(new String(this.json(), StandardCharsets.UTF_8));
 		}
 
 		byte[] json() {
@@ -284,12 +291,10 @@ final class PagedSVGResources {
 		}
 	}
 
-	byte[] manifest(final Map<String, String> metadata, final String binding, final PagedSvgCompression compression) {
+	byte[] manifest(final Map<String, String> metadata, final String binding) {
 		final StringBuilder json = new StringBuilder(1024 + this.pages.size() * 180);
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")
-				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"compression\":");
-		quote(json, compression.ident());
-		json.append(",\n  \"binding\":");
+				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"binding\":");
 		quote(json, binding);
 		json.append(",\n  \"metadata\":{");
 		int index = 0;
