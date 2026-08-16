@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>CSS Align: align-content on block containers</title>
+<style type="text/css">
+body { margin: 0; font: 10pt/10pt serif; }
+.outer { width: 100pt; height: 100pt; margin: 0; align-content: center; }
+.inner { width: 20pt; height: 20pt; margin: 0; }
+.char { display: inline-block; box-sizing: border-box; width: 15pt; height: 15pt;
+        margin: 0; padding: 0; writing-mode: vertical-rl; font: 10pt/10pt serif;
+        text-align: center; }
+table { border-collapse: collapse; }
+td { box-sizing: border-box; width: 20pt; height: 100pt; padding: 0;
+     vertical-align: top; }
+</style>
+</head>
+<body>
+<div id="h" class="outer"><div id="hc" class="inner">H</div></div>
+<div id="rl" class="outer" style="writing-mode:vertical-rl"><div id="rlc" class="inner">縦</div></div>
+<div id="lr" class="outer" style="writing-mode:vertical-lr"><div id="lrc" class="inner">縦</div></div>
+<div id="safe" class="outer" style="writing-mode:vertical-rl"><div id="safec" style="width:120pt;height:20pt">過</div></div>
+<div><span id="charStart" class="char"><span id="glyphStart">秘</span></span><span id="charCenter" class="char" style="align-content:center"><span id="glyphCenter">秘</span></span></div>
+<table><tr><td id="cell" style="align-content:center"><div id="cellc" class="inner">C</div></td></tr></table>
+</body>
+</html>

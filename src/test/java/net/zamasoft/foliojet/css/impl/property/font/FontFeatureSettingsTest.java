@@ -15,6 +15,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.FontFeatureSettingsValue;
 import net.zamasoft.foliojet.css.value.FontVariantEastAsianValue;
+import net.zamasoft.foliojet.css.value.FontVariantNumericValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
@@ -48,6 +49,11 @@ public class FontFeatureSettingsTest extends TestCase {
 				.parseValue(tokens("font-variant-east-asian: " + value), null, null);
 	}
 
+	private static FontVariantNumericValue parseNumeric(final String value) throws PropertyException {
+		return (FontVariantNumericValue) ((FontVariantNumeric) FontVariantNumeric.INFO)
+				.parseValue(tokens("font-variant-numeric: " + value), null, null);
+	}
+
 	private static void assertRejected(final String value) {
 		try {
 			parseSettings(value);
@@ -60,6 +66,15 @@ public class FontFeatureSettingsTest extends TestCase {
 	private static void assertEastAsianRejected(final String value) {
 		try {
 			parseEastAsian(value);
+			fail("解析が拒否されるべき値: " + value);
+		} catch (PropertyException e) {
+			// expected
+		}
+	}
+
+	private static void assertNumericRejected(final String value) {
+		try {
+			parseNumeric(value);
 			fail("解析が拒否されるべき値: " + value);
 		} catch (PropertyException e) {
 			// expected
@@ -147,5 +162,40 @@ public class FontFeatureSettingsTest extends TestCase {
 		assertEquals(1, merged.value(FontFeatureSet.packTag("palt")));
 		// font-feature-settings:normal(空集合)は上書きしない
 		assertSame(eastAsian, eastAsian.override(FontFeatureSet.EMPTY));
+	}
+
+	public void testNumericKeywords() throws Exception {
+		final FontFeatureSet set = parseNumeric(
+				"tabular-nums lining-nums diagonal-fractions ordinal slashed-zero").featureSet();
+		assertEquals(5, set.size());
+		assertEquals(1, set.value(FontFeatureSet.packTag("tnum")));
+		assertEquals(1, set.value(FontFeatureSet.packTag("lnum")));
+		assertEquals(1, set.value(FontFeatureSet.packTag("frac")));
+		assertEquals(1, set.value(FontFeatureSet.packTag("ordn")));
+		assertEquals(1, set.value(FontFeatureSet.packTag("zero")));
+	}
+
+	public void testNumericNormalAndOrder() throws Exception {
+		assertTrue(parseNumeric("normal").isNormal());
+		assertSame(FontFeatureSet.EMPTY, parseNumeric("normal").featureSet());
+		assertEquals(parseNumeric("oldstyle-nums proportional-nums").featureSet(),
+				parseNumeric("proportional-nums oldstyle-nums").featureSet());
+	}
+
+	public void testNumericRejections() {
+		assertNumericRejected("tabular-nums proportional-nums");
+		assertNumericRejected("lining-nums oldstyle-nums");
+		assertNumericRejected("diagonal-fractions stacked-fractions");
+		assertNumericRejected("ordinal ordinal");
+		assertNumericRejected("normal tabular-nums");
+		assertNumericRejected("bogus");
+	}
+
+	public void testNumericMergePrecedence() throws Exception {
+		final FontFeatureSet variants = parseEastAsian("jis78").featureSet()
+				.override(parseNumeric("tabular-nums").featureSet());
+		final FontFeatureSet merged = variants.override(parseSettings("\"tnum\" 0"));
+		assertEquals(1, merged.value(FontFeatureSet.packTag("jp78")));
+		assertEquals(0, merged.value(FontFeatureSet.packTag("tnum")));
 	}
 }

@@ -95,6 +95,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
+	/**
+	 * この箱が「後続ブロックへ重ねる外置きマーカー」だけを含むかを返す。
+	 * list-itemの先頭子が表である場合、マーカーを表セルへ混入させず、かつ
+	 * マーカー専用行で表を1行分送らないための構造判定に使う。
+	 */
+	public final boolean containsOnlyOverlayOutsideMarker() {
+		if (this.contents == null || this.contents.size() != 1) {
+			return false;
+		}
+		return this.contents.get(0) instanceof Inline inline
+				&& inline.box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox marker
+				&& marker.overlaysFollowingBlock();
+	}
+
 	protected double ascent = 0;
 
 	protected double descent = 0;
@@ -544,13 +558,21 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 		public String describe() {
 			final StringBuilder text = new StringBuilder();
+			double advance = 0;
 			for (int i = this.off; i < this.off + this.len; ++i) {
 				if (this.contents.get(i) instanceof Text t) {
 					text.append(t.getChars(), 0, t.getCharCount());
+					advance += t.getAdvance();
 				}
 			}
-			return String.format(java.util.Locale.ROOT, "Text[\"%s\" asc=%.2f desc=%.2f]", text, this.ascent,
-					this.descent);
+			final String basic = String.format(java.util.Locale.ROOT, "Text[\"%s\" asc=%.2f desc=%.2f]", text,
+					this.ascent, this.descent);
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()) {
+				return basic;
+			}
+			final boolean vertical = this.params.flow.isVertical();
+			return basic + String.format(java.util.Locale.ROOT, " w=%.2f h=%.2f", vertical ? this.ascent + this.descent : advance,
+					vertical ? advance : this.ascent + this.descent);
 		}
 
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {

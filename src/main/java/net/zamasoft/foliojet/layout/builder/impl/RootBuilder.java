@@ -33,15 +33,19 @@ public class RootBuilder extends BreakableBuilder {
 
 	/**
 	 * 進捗のない自動改ページ(ライブロック)の検出用の状態です(2026-07-27新設)。
-	 * 直前の自動改ページ時点の「状態の指紋」と、それが変わらないまま
-	 * 繰り返した回数を持ちます。詳細は
+	 * 一つの再開チェーン内で現れた自動改ページの「状態の指紋」と、
+	 * 各指紋の出現回数を持ちます。直前だけを比較すると A/B/A/B のような
+	 * 周期2以上のライブロックを検出できないためです。詳細は
 	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationStats#STALLED_AUTO_BREAK_LIMIT}。
 	 */
-	private long lastBreakIngest = Long.MIN_VALUE;
-	private int lastBreakDepth = -1;
-	private double lastBreakPageAxis = Double.NaN;
-	private int lastBreakTarget = 0;
+	private record BreakFingerprint(long ingest, int depth, long pageAxisBits, int target) {
+	}
+
+	private final java.util.Map<BreakFingerprint, Integer> breakFingerprintCounts = new java.util.HashMap<>();
+	private long breakHistoryIngest = Long.MIN_VALUE;
 	private int stalledBreakRun = 0;
+	/** LayoutSourceを持たないscratch用の自動改ページ打切り状態。 */
+	private boolean autoBreaksAbandoned = false;
 
 	/**
 	 * 自動改ページが1回転しても状態が全く変わっていないかを検査します。
@@ -54,41 +58,72 @@ public class RootBuilder extends BreakableBuilder {
 	 * @param mode 今回の改ページのモード
 	 */
 	/**
-	 * @return ライブロックが確定したので<b>改ページをあきらめる</b>べきなら true
-	 *         ({@code ContinuationStats.guardBreakProgress}参照)
+	 * @return ライブロックが確定したので改ページを放棄すべきならtrue
 	 */
 	private boolean guardBreakProgress(final BreakMode mode) {
 		if (!(mode instanceof BreakMode.AutoBreakMode auto)) {
-			// 強制改ページは進捗で測らない。指紋も持ち越さない
+			// 強制改ページは進捗で測らない。次の再開チェーンへ指紋も
+			// 持ち越さない
 			this.stalledBreakRun = 0;
-			this.lastBreakDepth = -1;
+			this.breakFingerprintCounts.clear();
+			this.breakHistoryIngest = Long.MIN_VALUE;
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource source = this.pageGenerator.getLayoutSource();
 		final long ingest = (source == null) ? -1L : source.nextId();
 		final int depth = this.flowStack.size();
-		final int target = (auto.box == null) ? 0 : System.identityHashCode(auto.box.getParams().element);
-		if (DEBUG_BREAK_FINGERPRINT && ingest != this.lastBreakIngest) {
-			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis);
-		}
-		if (ingest == this.lastBreakIngest && depth == this.lastBreakDepth
-				&& Double.compare(this.pageAxis, this.lastBreakPageAxis) == 0 && target == this.lastBreakTarget) {
-			++this.stalledBreakRun;
+		// 継続再構築のたびにboxもparams.elementも新しいインスタンスになる。
+		// identityHashCodeでは論理的に同じtbodyを毎ページ別物と見なし、
+		// 同じ入力位置・深さ・カーソルの空改ページを検出できなかった
+		// (wild seed 7662は1,475ページ)。要素の不変な記述を指紋に使う。
+		final Object element = auto.box == null || auto.box.getParams() == null ? null
+				: auto.box.getParams().element;
+		final int target;
+		if (element instanceof net.zamasoft.foliojet.css.StructureElement structure) {
+			// 実要素は文書順のelementKey、匿名/擬似要素は要素名で安定化。
+			// CSSElement.toString()はObject.toString()を先頭に含むので不可。
+			target = 31 * Long.hashCode(structure.elementKey())
+					+ java.util.Objects.hashCode(structure.lName());
 		} else {
-			this.stalledBreakRun = 0;
-			this.lastBreakIngest = ingest;
-			this.lastBreakDepth = depth;
-			this.lastBreakPageAxis = this.pageAxis;
-			this.lastBreakTarget = target;
+			target = element == null ? 0 : element.getClass().getName().hashCode();
+		}
+		// 継続再構築はtbodyと祖先を交互に切断しながら新しい入力位置まで
+		// 進み、そこでまた同じ循環を始めうる。ひとつでもライブロックが
+		// 確定した文書は、残りの自動改ページを止めて現在ページへ
+		// はみ出させる。強制改ページはこのメソッドの先頭で除外済み。
+		if (source != null ? source.areAutoBreaksAbandoned() : this.autoBreaksAbandoned) {
+			return true;
+		}
+		// 入力イベントが進んだ場合は、以前の反復は進捗済みなので捨てる。
+		// sessions が一旦空になっても履歴は捨てない。seed 7662 の周期1は
+		// 各ページの再開を終えてから次の同一改ページへ進むため、そこで
+		// 区切ると従来検出できていたライブロックを見逃してしまう。
+		if (ingest != this.breakHistoryIngest) {
+			this.breakFingerprintCounts.clear();
+			this.breakHistoryIngest = ingest;
+		}
+		final BreakFingerprint fingerprint = new BreakFingerprint(ingest, depth,
+				Double.doubleToLongBits(this.pageAxis), target);
+		final int occurrences = this.breakFingerprintCounts.merge(fingerprint, 1, Integer::sum);
+		this.stalledBreakRun = occurrences - 1;
+		if (DEBUG_BREAK_FINGERPRINT) {
+			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis
+					+ " target=" + target + " resumeDepth=" + this.sessions.size() + " stalled="
+					+ this.stalledBreakRun);
 		}
 		if (net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun)) {
-			// **あきらめは1回だけ**(2026-07-29)。カウンタを戻さないと、
-			// 閾値へ到達して以降の自動改ページが<b>全て</b>拒否され、
-			// ページが1枚も出なくなる。その結果
-			// `AbstractUserAgent`の無進捗締切(120秒)に掛かり、
-			// 変換が`Aborted.`で終わる(seed 213026で警告3,909回を実測)。
+			// ここで同じ分割をもう一度実行すれば、同じ断片を次ページへ
+			// 複製するだけになる。falseを受けた呼び出し側はループを抜け、
+			// 内容を現在の断片にはみ出して配置する(seed 7662)。
+			// breakByClearを含む全反復箇所はfalseで抜けるようになっている。
 			this.stalledBreakRun = 0;
-			this.lastBreakDepth = -1;
+			this.breakFingerprintCounts.clear();
+			this.breakHistoryIngest = Long.MIN_VALUE;
+			if (source != null) {
+				source.abandonAutoBreaks();
+			} else {
+				this.autoBreaksAbandoned = true;
+			}
 			return true;
 		}
 		return false;
@@ -660,6 +695,11 @@ public class RootBuilder extends BreakableBuilder {
 		return this;
 	}
 
+	/** 現在組版中のページです。字面輪郭の局所計測など描画前の処理が使います。 */
+	public final PageBox getCurrentPageBox() {
+		return this.pageBox;
+	}
+
 	/**
 	 * ページ生成器を返します(M6c: バランスのソース再生用)。
 	 */
@@ -686,21 +726,7 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		if (this.guardBreakProgress(mode)) {
-			// **ライブロック確定。あきらめるのではなく、逃げ道へ入れる**
-			// (2026-07-29)。
-			//
-			// 以前はここで false を返して改ページを放棄していたが、それは
-			// 内容を1つも消費しないので同じ状態へ戻るだけだった
-			// (seed 213026で実測: 120秒・1ページも出ず・あきらめ17,522回、
-			// ingestは87で停止)。
-			//
-			// 停滞の実体は「紙面に収まらない浮動体が、送り先で同じ相対位置
-			// へ再配置されて再び溢れる」循環で、これを断つ逃げ道
-			// ({@code FloatSplitPlan}の分岐表5「先頭ならはみ出させて置く」)
-			// は既にある。ただし条件が`fragmentHead()`(pageAxis<=0)なので、
-			// 停滞点(実測 pageAxis=154.6)では決して成立しない。
-			// そこで**この一回だけ first 扱いにするビットを立てて続行する**。
-			flags |= IPageBreakableBox.FLAGS_LIVELOCK;
+			return false;
 		}
 
 		// ボックスの高さを計算
@@ -1403,6 +1429,16 @@ public class RootBuilder extends BreakableBuilder {
 				final double cost = (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
 						+ this.footnoteExtent(entry.noteBox);
 				if (this.footnoteReservation + cost > maxArea) {
+					// 呼出しページに単独でも収まらない脚注は、そこで最大量を
+					// 予約してはならない。本文容量がMIN_PAGE_LIMITまで縮み、
+					// callより前の内容(特に空の段組枠)を何百ページも同じ形で
+					// 送り続けるためである(seed 7676)。まずcallを現在ページに
+					// 確定してcommittedにし、次のnote-onlyページで溢れさせて
+					// 置く。既にcarry-in済みなら下の従来経路で必ず予約する。
+					if (this.footnoteReservedCount == 0 && i == 0 && !entry.committed
+							&& !this.forceFootnoteAttach) {
+						break;
+					}
 					// **先頭の1件だけは必ず予約する**(2026-08-02)。
 					// 版面より大きい脚注は何ページ送っても入らないため、
 					// ここで諦めると前進せず変換が失敗する(§5.13違反)。
@@ -1562,7 +1598,12 @@ public class RootBuilder extends BreakableBuilder {
 				break;
 			}
 		}
-		return pageAxis;
+		// 単独で上端領域を超えるフロートは上でoverflow配置するが、本文の
+		// 開始カーソルまで版面外へ進めてはならない。そうすると再開直後の
+		// 本文が必ずもう一度改ページし、外側のContinuationを再入して
+		// open pathを一段失う(seed 91)。フロート自体の見た目は変えず、
+		// 本文にはBreakableBuilderの最低容量を残す。
+		return Math.min(pageAxis, Math.max(0, maxArea));
 	}
 
 	/** 直近のページでフロートの配置が進んだか(finish()の前進性ガード)。 */

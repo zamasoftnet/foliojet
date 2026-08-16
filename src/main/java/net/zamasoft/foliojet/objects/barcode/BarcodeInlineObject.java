@@ -186,8 +186,9 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 		case "ean8":
 			return new Ean(Ean.Mode.EAN8);
 		case "ean13":
-		case "isbn":
 			return new Ean(Ean.Mode.EAN13);
+		case "isbn":
+			return new BookJanSymbol();
 		case "ean": {
 			// 種類を明示しないbc:eanは桁数で13/8を選ぶ(旧Barcode4J互換)
 			final String digits = (this.message == null ? "" : this.message).replaceAll("[^0-9]", "");

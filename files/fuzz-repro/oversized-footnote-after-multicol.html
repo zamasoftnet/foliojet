@@ -1,0 +1,22 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>oversized footnote after multicol regression</title>
+<style>
+@page{margin:5pt}
+body{font:normal 13pt/1.2 serif;writing-mode:vertical-rl}
+</style>
+</head><body>
+T0 T1 T2
+<div style="padding:2pt;border:2pt solid black">
+  <div style="column-count:2">
+    <div style="width:132pt"></div>
+  </div>
+</div>
+<div style="float:footnote">
+  <img src="file:/dev/shm/foliojet-fuzz.png" style="display:block;width:145pt" />
+</div>
+</body>
+</html>

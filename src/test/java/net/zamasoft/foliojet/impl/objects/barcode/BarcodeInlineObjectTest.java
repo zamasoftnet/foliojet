@@ -11,6 +11,10 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.util.XMLParsers;
 import net.zamasoft.pdfg2d.gc.image.Image;
+import uk.org.okapibarcode.backend.Ean;
+import uk.org.okapibarcode.graphics.Rectangle;
+import uk.org.okapibarcode.graphics.TextAlignment;
+import uk.org.okapibarcode.graphics.TextBox;
 
 public class BarcodeInlineObjectTest extends TestCase {
 	public BarcodeInlineObjectTest(String name) {
@@ -31,6 +35,53 @@ public class BarcodeInlineObjectTest extends TestCase {
 		assertTrue(image.getWidth() > 0);
 		assertTrue(image.getHeight() > 0);
 		assertEquals("FolioJet", image.getAltString());
+	}
+
+	public void testIsbnUsesJapaneseBookJanPresentation() throws Exception {
+		BarcodeImage image = (BarcodeImage) parse(
+				"<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"9784908348143\">"
+						+ "<isbn><height>7.6mm</height><module-width>0.33mm</module-width>"
+						+ "<quiet-zone>0mm</quiet-zone><font-size>7.5pt</font-size>"
+						+ "<human-readable><placement>bottom</placement><font-name>OCRB</font-name>"
+						+ "</human-readable></isbn></barcode>");
+
+		assertTrue(image.symbol instanceof BookJanSymbol);
+		assertEquals(95, image.symbol.getWidth());
+		assertEquals("100% book JAN must be 31.35mm wide", 31.35 * 72 / 25.4, image.getWidth(), 0.000001);
+		assertEquals("7.6mm bar height rounds to 23 modules", 23.0,
+				image.symbol.getRectangles().get(0).height, 0.000001);
+		assertEquals("bar plus OCR-B row must stay within one module of the 11mm Book JAN height",
+				11.0 * 72 / 25.4, image.getHeight(), 0.33 * 72 / 25.4);
+		assertEquals("9784908348143", image.symbol.getHumanReadableText());
+		assertEquals("OCRB", image.symbol.getFontName());
+		assertEquals(1, image.symbol.getTexts().size());
+		TextBox text = image.symbol.getTexts().get(0);
+		assertEquals("9784908348143", text.text);
+		assertEquals(0.0, text.x);
+		assertEquals(95.0, text.width);
+		assertEquals(TextAlignment.JUSTIFY, text.alignment);
+		assertSame(text, ((BookJanSymbol) image.symbol).getHumanReadableBox());
+		assertEquals(2.5, BarcodeImage.calculateJustifiedLetterSpacing(95, 65, 12), 0.000001);
+		for (Rectangle rectangle : image.symbol.getRectangles()) {
+			assertEquals("book JAN guard bars must not extend", image.symbol.getRectangles().get(0).height,
+					rectangle.height);
+		}
+	}
+
+	public void testEan13KeepsGeneralPurposePresentation() throws Exception {
+		BarcodeImage image = (BarcodeImage) parse(
+				"<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"9784908348143\">"
+						+ "<ean-13><module-width>0.33mm</module-width></ean-13></barcode>");
+
+		assertTrue(image.symbol instanceof Ean);
+		assertFalse(image.symbol instanceof BookJanSymbol);
+		assertEquals(3, image.symbol.getTexts().size());
+		double firstHeight = image.symbol.getRectangles().get(0).height;
+		boolean foundShorterBar = false;
+		for (Rectangle rectangle : image.symbol.getRectangles()) {
+			foundShorterBar |= rectangle.height < firstHeight;
+		}
+		assertTrue("general EAN-13 must retain extended guard bars", foundShorterBar);
 	}
 
 	public void testJapanPostIgnoresCharactersOutsideDigitsLettersHyphen() throws Exception {

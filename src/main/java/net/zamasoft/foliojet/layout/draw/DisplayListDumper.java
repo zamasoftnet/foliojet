@@ -29,6 +29,12 @@ public final class DisplayListDumper {
 	 */
 	private static final ThreadLocal<String> DIR_OVERRIDE = new ThreadLocal<>();
 
+	/**
+	 * 表示リストへ描画物の幅・高さも出すか。大量掃過の可視領域検査だけが使い、
+	 * 通常のgoldenダンプは変えない。
+	 */
+	private static final ThreadLocal<Boolean> DETAILED_GEOMETRY = new ThreadLocal<>();
+
 	private DisplayListDumper() {
 		// utility
 	}
@@ -53,6 +59,11 @@ public final class DisplayListDumper {
 		return DIR_OVERRIDE.get();
 	}
 
+	/** 現在のスレッドで詳細な描画寸法を出す設定か。 */
+	public static boolean currentDetailedGeometry() {
+		return Boolean.TRUE.equals(DETAILED_GEOMETRY.get());
+	}
+
 	public static AutoCloseable scopedDir(final String dir) {
 		final String saved = DIR_OVERRIDE.get();
 		if (dir == null) {
@@ -65,6 +76,25 @@ public final class DisplayListDumper {
 				DIR_OVERRIDE.remove();
 			} else {
 				DIR_OVERRIDE.set(saved);
+			}
+		};
+	}
+
+	/**
+	 * このスレッドの表示リストだけへ描画寸法を追記する。返り値を閉じると元へ戻す。
+	 */
+	public static AutoCloseable scopedDetailedGeometry(final boolean enabled) {
+		final Boolean saved = DETAILED_GEOMETRY.get();
+		if (enabled) {
+			DETAILED_GEOMETRY.set(Boolean.TRUE);
+		} else {
+			DETAILED_GEOMETRY.remove();
+		}
+		return () -> {
+			if (saved == null) {
+				DETAILED_GEOMETRY.remove();
+			} else {
+				DETAILED_GEOMETRY.set(saved);
 			}
 		};
 	}

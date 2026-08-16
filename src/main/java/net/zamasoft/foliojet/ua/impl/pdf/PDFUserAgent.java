@@ -80,6 +80,9 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	private Results results, xresults;
 	private FragmentedOutput builder, xbuilder;
 	private PDFWriter pdfWriter = null, xpdfWriter = null;
+	private boolean middleStateSaved = false;
+	private net.zamasoft.pdfg2d.pdf.font.FontManagerImpl nonOutputFontManager = null;
+	private final Map<URI, Image> nonOutputImages = new HashMap<>();
 	private final PDFMetaInfo metaInfo;
 	private Pattern watermark = null;
 	/**
@@ -113,27 +116,31 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			// TranscoderHandlerがCSSProcessor(PDF生成に関わる状態を
 			// 使う側)自体を経由させないため、PDF固有の状態(results/
 			// pdfWriter/builder)には一切触れない。
+			this.resetNonOutputResources();
 			break;
 		case MIDDLE_PASS:
-			if (this.results != NopResults.SHARED_INSTANCE) {
+			if (!this.middleStateSaved) {
 				this.xresults = this.results;
-				this.results = NopResults.SHARED_INSTANCE;
 				this.xpdfWriter = this.pdfWriter;
 				this.xbuilder = this.builder;
+				this.middleStateSaved = true;
+				// 継続変換中の実出力を閉じずに一時退避する。
+				this.pdfWriter = null;
+				this.builder = null;
 			}
+			this.results = NopResults.SHARED_INSTANCE;
 			this.reset();
 			break;
 		case LAST_PASS:
-			this.results = this.xresults;
-			this.xresults = null;
-			if (this.xpdfWriter != null) {
-				this.builder = null;
-			}
 			this.reset();
-			if (this.xpdfWriter != null) {
+			if (this.middleStateSaved) {
+				this.results = this.xresults;
+				this.xresults = null;
 				this.pdfWriter = this.xpdfWriter;
 				this.xpdfWriter = null;
 				this.builder = this.xbuilder;
+				this.xbuilder = null;
+				this.middleStateSaved = false;
 			}
 			break;
 		default:
@@ -142,6 +149,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	}
 
 	private void reset() {
+		this.resetNonOutputResources();
 		if (this.builder != null) {
 			try {
 				this.builder.close();
@@ -153,6 +161,18 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.visitor = null;
 		this.pageGenerated = false;
 		this.pdfWriter = null;
+	}
+
+	private void resetNonOutputResources() {
+		if (this.nonOutputFontManager != null) {
+			this.nonOutputFontManager.close();
+			this.nonOutputFontManager = null;
+		}
+		this.nonOutputImages.clear();
+	}
+
+	private boolean isNonOutputPass() {
+		return this.isMeasurePass() || this.isStructureScanPass();
 	}
 
 	public void setBoundSide(BoundSide boundSide) {
@@ -192,6 +212,13 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 
 
 	public FontManager getFontManager() {
+		if (this.isNonOutputPass()) {
+			if (this.nonOutputFontManager == null) {
+				this.nonOutputFontManager = new net.zamasoft.pdfg2d.pdf.font.FontManagerImpl(
+						this.getUAContext().getFontSourceManager());
+			}
+			return this.nonOutputFontManager;
+		}
 		try {
 			this.preparePDFWriter();
 		} catch (IOException e) {
@@ -218,6 +245,35 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	}
 
 	public Image getImage(Source source) throws IOException {
+		if (this.isNonOutputPass()) {
+			final URI uri = source.getURI();
+			Image image = this.nonOutputImages.get(uri);
+			if (image == null) {
+				final Image loaded = super.getImage(source);
+				final double width = loaded.getWidth();
+				final double height = loaded.getHeight();
+				final String alt = loaded.getAltString();
+				image = new Image() {
+					public double getWidth() {
+						return width;
+					}
+
+					public double getHeight() {
+						return height;
+					}
+
+					public void drawTo(GC gc) {
+						// 中間パスでは描画されない寸法専用画像。
+					}
+
+					public String getAltString() {
+						return alt;
+					}
+				};
+				this.nonOutputImages.put(uri, image);
+			}
+			return image;
+		}
 		this.preparePDFWriter();
 		Image image;
 		try {
@@ -232,19 +288,14 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		return image;
 	}
 
-	public boolean isMeasurePass() {
-		return this.results == NopResults.SHARED_INSTANCE;
-	}
-
 	public GC nextPage() {
 		this.checkAbort(CTISession.ABORT_FORCE);
 		this.noteProgress();
+		if (this.isNonOutputPass()) {
+			return null;
+		}
 		try {
 			this.preparePDFWriter();
-			if (this.isMeasurePass()) {
-				this.pageGenerated = true;
-				return null;
-			}
 			double w = this.pageWidth;
 			double h = this.pageHeight;
 			if (w < PDFWriter.MIN_PAGE_WIDTH) {
@@ -554,6 +605,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 
 	public void dispose() {
 		super.dispose();
+		this.resetNonOutputResources();
 		if (this.builder != null) {
 			try {
 				this.builder.close();
@@ -562,7 +614,18 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 			this.builder = null;
 		}
+		if (this.xbuilder != null) {
+			try {
+				this.xbuilder.close();
+			} catch (IOException e) {
+				// ignore
+			}
+			this.xbuilder = null;
+		}
 		this.pdfWriter = null;
+		this.xpdfWriter = null;
+		this.xresults = null;
+		this.middleStateSaved = false;
 		this.watermark = null;
 		this.watermarkGroups.clear();
 	}

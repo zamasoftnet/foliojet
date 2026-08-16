@@ -16,8 +16,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
@@ -94,7 +94,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final long WATCHDOG_MS = Long.getLong("foliojet.fuzzWatchdogMs", 30_000L);
 
 	/** ページ数の上限。生成する内容量から見て明らかに過大な値。 */
-	private static final int MAX_PAGES = 300;
+	private static final int MAX_PAGES = Integer.getInteger("foliojet.fuzzMaxPages", 300);
+
+	/** ページ数オラクルの上限で意図的に変換を止めた印。 */
+	private static final class PageCountLimitExceeded extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		PageCountLimitExceeded(final Throwable cause) {
+			super("ページ数が過大 " + (MAX_PAGES + 1) + "以上");
+			initCause(cause);
+		}
+	}
 
 	/**
 	 * 表示リストに現れる「文字として描かれたもの」を拾います。
@@ -110,6 +120,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final Pattern TEXT_IN_DUMP = Pattern
 			.compile("(?:Text|RubyUnit)\\[\"([^\"]*)\"(?: ruby=\"([^\"]*)\")?");
 
+	/** 詳細ダンプ中の、寸法を持つ描画物の外接矩形。 */
+	private static final Pattern DRAWING_GEOMETRY_IN_DUMP = Pattern.compile(
+			"x=(-?[\\d.]+) y=(-?[\\d.]+) (?:artifact )?[^\\n]*?w=([\\d.]+) h=([\\d.]+)");
+
 	public RandomDocumentFuzzTest(String name) {
 		super(name);
 	}
@@ -122,6 +136,127 @@ public class RandomDocumentFuzzTest extends TestCase {
 	public void testWildDocumentsNeverCrashOrHang() throws Exception {
 		checkFuzzImage();
 		sweep(false);
+	}
+
+	/**
+	 * 2026-08-14の100万件掃過で「全描画が紙面外」になった先頭8シードを固定する。
+	 * 正常化して通るか、機械的に限定した専用除外になることだけを許す。
+	 */
+	public void testStrictHistoricalAllDrawingOffPageSeeds() throws Exception {
+		final int[] seeds = { 36607, 82162, 97953, 132786, 139166, 143513, 157106, 175497 };
+		final List<String> unexpected = new ArrayList<>();
+		for (final int seed : seeds) {
+			try {
+				checkOne(seed, true);
+			} catch (final Throwable t) {
+				final String kind = classify(t);
+				final String expected = switch (seed) {
+				case 36607, 82162 -> "(除外)同軸逆進行フローの組版不能幅";
+				case 132786, 143513 -> "(除外)組版できない幅の浮動体";
+				default -> null;
+				};
+				if (!kind.equals(expected)) {
+					unexpected.add(seed + "=" + kind + ": " + t);
+				}
+			}
+		}
+		assertTrue("過去の全描画紙面外シードが未分類のまま残った: " + unexpected, unexpected.isEmpty());
+	}
+
+	/**
+	 * 2026-08-15の修正後100万件再掃過に残った「全描画が紙面外」12件を固定する。
+	 * 作者指定で組版不能な3件は狭い専用除外、実装欠陥だった9件は正常完走を要求する。
+	 */
+	public void testStrictHistoricalRemainingAllDrawingOffPageSeeds() throws Exception {
+		final int[] seeds = { 266476, 324423, 372387, 591475, 763450, 778506,
+				799286, 835421, 848433, 865035, 911787, 951004 };
+		final List<String> unexpected = new ArrayList<>();
+		for (final int seed : seeds) {
+			try {
+				checkOne(seed, true);
+			} catch (final Throwable t) {
+				final String kind = classify(t);
+				final String expected = switch (seed) {
+				case 372387 -> "(除外)直交フローの組版不能幅";
+				case 324423, 865035 -> "(除外)組版できない幅の浮動体";
+				default -> null;
+				};
+				if (!kind.equals(expected)) {
+					unexpected.add(seed + "=" + kind + ": " + t);
+				}
+			}
+		}
+		assertTrue("残存した全描画紙面外シードが未解決のまま残った: " + unexpected,
+				unexpected.isEmpty());
+	}
+
+	/**
+	 * 同じ縦軸でも進行方向が変われば独立BFCを作り、内側のfloatを包含する。
+	 *
+	 * <p>
+	 * strict seed 97953の最小形。以前は{@code vertical-rl}直下の
+	 * {@code vertical-lr}を同じビルダーへ流し、floatの文字が紙面の開始辺
+	 * ちょうどから外側へ出ていた。軸の縦横だけでなくwriting-mode値全体を
+	 * 比較する回帰を、百万件掃過とは独立して固定する。
+	 * </p>
+	 */
+	public void testSameAxisWritingModeChangeContainsFloat() throws Exception {
+		final String htmlText = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n"
+				+ "<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>\n"
+				+ "<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n"
+				+ "<html><head><style>@page{margin:0}body{margin:0;font:normal 12pt/1.2 serif;"
+				+ "writing-mode:vertical-rl}</style></head><body>"
+				+ "<div style=\"writing-mode:vertical-lr\"><div style=\"float:left\">T4</div></div>"
+				+ "</body></html>";
+		final Generated doc = new Generated(htmlText, List.of("T4"), Set.of("T4"), 120, 400, 0, false, false);
+		final File root = Files.createTempDirectory("same-axis-writing-mode-float-").toFile();
+		final File html = new File(root, "input.html");
+		final File outDir = new File(root, "display-list");
+		try {
+			checkDocument(doc, html, outDir, true, "same-axis-writing-mode-float");
+		} finally {
+			final File[] outputs = outDir.listFiles();
+			if (outputs != null) {
+				for (final File output : outputs) {
+					assertTrue("一時出力を削除できない: " + output, output.delete());
+				}
+			}
+			assertTrue("一時出力ディレクトリを削除できない", !outDir.exists() || outDir.delete());
+			assertTrue("一時HTMLを削除できない", !html.exists() || html.delete());
+			assertTrue("一時ディレクトリを削除できない", root.delete());
+		}
+	}
+
+	/** 2026-08-14の百万件掃過で唯一の白紙ページだったseed 78906を固定する。 */
+	public void testStrictHistoricalBlankPageSeed() throws Exception {
+		try {
+			checkOne(78906, true);
+			fail("seed 78906は組版不能幅の専用除外になるべき");
+		} catch (final ExcludedByUntypesettableFloat expected) {
+			assertEquals("(除外)組版できない幅の浮動体", classify(expected));
+		}
+	}
+
+	/** 2026-08-14の百万件掃過で「紙面外への配置」になった7シードを固定する。 */
+	public void testStrictHistoricalOffPagePlacementSeeds() throws Exception {
+		final int[] seeds = { 321621, 473636, 473924, 526411, 651439, 776967, 867178 };
+		final List<String> unexpected = new ArrayList<>();
+		for (final int seed : seeds) {
+			try {
+				checkOne(seed, true);
+			} catch (final Throwable t) {
+				final String kind = classify(t);
+				final String expected = switch (seed) {
+				case 473924 -> "(除外)flex内の段組表によるmin-content幅";
+				case 776967 -> "(除外)同軸逆進行フローの組版不能幅";
+				default -> null;
+				};
+				if (!kind.equals(expected)) {
+					unexpected.add(seed + "=" + kind + ": " + t);
+				}
+			}
+		}
+		assertTrue("過去の紙面外配置シードが未解決のまま残った: " + unexpected, unexpected.isEmpty());
 	}
 
 	/**
@@ -255,14 +390,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 推定の入力になる(`copperpdf4/docs/REVIEW-STATISTICS.md` §8)。
 	 */
 	/**
-	 * このシード数までは、シードごとに成果物(HTML・表示リスト)を残す。
-	 * これを超える掃過では使い回して捨てる——数百万文書を残すと
-	 * ディスクが保たないため。生成器は決定的なので、失敗したシードは
-	 * 同じシードで再実行すれば再現できる。
-	 */
-	private static final int KEEP_ARTIFACTS_BELOW = 20_000;
-
-	/**
 	 * watchdogを超えて生き残ったスレッドの数。<b>止められないので数える</b>。
 	 */
 	private static final java.util.concurrent.atomic.AtomicInteger LEAKED_WORKERS =
@@ -358,12 +485,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>組版できない幅の浮動体</b>から紙面外配置が出た、という印
+	 * <b>組版できない幅の浮動体または包含ブロック</b>から白紙ページ・
+	 * 紙面外配置が出た、という印
 	 * (2026-07-29新設)。失敗ではなく<b>除外</b>として扱う。
 	 *
 	 * <p>
 	 * 判定は{@link #hasUntypesettableFloat}——明示した寸法が基準フォントの
-	 * 8倍(=約8文字)未満の浮動体があること。欄が組版できない幅なら中身は
+	 * 8倍(=約8文字)未満の浮動体、同じ下限未満の祖先に入った浮動体、または
+	 * 親・段幅より広い左右フロートがあること。欄が組版できない幅なら中身は
 	 * 必ず溢れ、CSSの{@code overflow:visible}によりそれは<b>正しい挙動</b>で
 	 * ある。{@code isTinyPage}(紙面が組版できない大きさ)と同じ物差しを
 	 * 欄に当てたもの。
@@ -421,8 +550,75 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
+	/**
+	 * <b>組版できない幅の縦書きフローでページ進行方向を反転した</b>文書での
+	 * 紙面外配置、
+	 * という印(2026-08-15新設)。失敗ではなく<b>除外</b>として扱う。
+	 *
+	 * <p>
+	 * seed 36607は{@code vertical-rl}の親の中に幅48ptの
+	 * {@code vertical-lr}を置き、その子へ幅86pt、さらに幅125ptの箱を置く。
+	 * 縮小した最小形は{@code vertical-rl}の親の中に
+	 * {@code writing-mode:vertical-lr;width:0pt}を置き、その子を再び
+	 * {@code vertical-rl}にする。幅0の辺が紙面右端にあり、そこでページ進行を
+	 * {@code +x}へ反転するため、子は右端から紙面外へ伸びる。Chromeでも同じ
+	 * 配置になるので、座標変換の欠陥ではなく、明示したゼロ幅と
+	 * {@code overflow:visible}の帰結である。
+	 * seed 82162の最小形は10pt文字に対して幅1ptの反転フローへ
+	 * {@code list-item}と表を詰めたものだった。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>除外はこの形だけに限定する。</b>{@link #hasUntypesettableOppositeProgression}
+	 * は、同じ縦軸の親子で{@code vertical-rl}/{@code vertical-lr}が反転し、
+	 * 反転した要素自身の幅が基準フォント8文字分未満、またはその幅より広い
+	 * 明示幅の子孫がある場合だけ真になる。単なる同軸反転、組版できる幅、
+	 * 直交フロー、別軸の{@code height:0}は除外しない。
+	 * </p>
+	 */
+	private static final class ExcludedByUntypesettableOppositeProgression extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByUntypesettableOppositeProgression(final String message) {
+			super(message);
+		}
+	}
+
+	/** 軸を変えた子へ基準文字送り未満の幅を明示した組版不能入力。 */
+	private static final class ExcludedByUntypesettableOrthogonalFlow extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByUntypesettableOrthogonalFlow(final String message) {
+			super(message);
+		}
+	}
+
+	/**
+	 * flex項目の自動最小幅に、段組表のmin-content幅が効いた紙面外配置。
+	 *
+	 * <p>
+	 * CSS Flexbox §4.5では非スクロールflex項目の自動最小幅をcontent-based
+	 * minimumとする。seed 473924の最小形は単一flex項目の中に3段組と表を
+	 * 入れたもので、表のmin-content幅を段数分確保するため版面より広くなる。
+	 * {@code min-width:0}を指定しない作者側CSSの帰結なので専用除外にする。
+	 * 判定は{@link #hasFlexMulticolTable}の実際の祖先関係だけに限定する。
+	 * </p>
+	 */
+	private static final class ExcludedByFlexMulticolMinContent extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByFlexMulticolMinContent(final String message) {
+			super(message);
+		}
+	}
+
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	static String classify(final Throwable t) {
+		for (Throwable c = t; c != null; c = c.getCause()) {
+			if (c instanceof PageCountLimitExceeded) {
+				return "ページ数過大";
+			}
+		}
 		if (t instanceof ExcludedByUntypesettableFloat) {
 			return "(除外)組版できない幅の浮動体";
 		}
@@ -431,6 +627,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (t instanceof ExcludedByNestedOrthogonalFlow) {
 			return "(除外)直交フロー3段以上の入れ子";
+		}
+		if (t instanceof ExcludedByUntypesettableOppositeProgression) {
+			return "(除外)同軸逆進行フローの組版不能幅";
+		}
+		if (t instanceof ExcludedByUntypesettableOrthogonalFlow) {
+			return "(除外)直交フローの組版不能幅";
+		}
+		if (t instanceof ExcludedByFlexMulticolMinContent) {
+			return "(除外)flex内の段組表によるmin-content幅";
 		}
 		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
@@ -482,6 +687,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (m.contains("紙面外への配置")) {
 			return "紙面外への配置";
+		}
+		if (m.contains("全描画が紙面外")) {
+			return "全描画が紙面外";
 		}
 		if (m.contains("読み順が入れ替わった")) {
 			return "読み順の逆転";
@@ -555,9 +763,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> seedsOf =
 				new java.util.concurrent.ConcurrentHashMap<>();
 		final int from = seedFrom();
-		final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger(from);
+		final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger(from + 1);
 		final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger();
 		final long began = System.currentTimeMillis();
+		final java.util.function.BiConsumer<Integer, Throwable> recordFailure = (seed, t) -> {
+			final String k = classify(t);
+			classCount.computeIfAbsent(k, x -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
+			final java.util.List<Integer> lst = seedsOf.computeIfAbsent(k,
+					x -> java.util.Collections.synchronizedList(new ArrayList<>()));
+			synchronized (lst) {
+				if (lst.size() < 8) {
+					lst.add(seed);
+				}
+			}
+		};
+		// 依存ライブラリの遅延初期化を並列に競わせると、冷間起動時だけ
+		// DirectSessionの初期化が失敗することがある。最初の1件を直列に
+		// 完了させてからワーカーを放つ(このシードも集計件数に含む)。
+		if (seeds > 0) {
+			try {
+				checkOne(from, strict);
+			} catch (final Throwable t) {
+				recordFailure.accept(from, t);
+			}
+			done.set(1);
+		}
 		final Thread[] workers = new Thread[threads];
 		for (int w = 0; w < threads; ++w) {
 			workers[w] = new Thread(() -> {
@@ -575,16 +805,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					try {
 						checkOne(seed, strict);
 					} catch (final Throwable t) {
-						final String k = classify(t);
-						classCount.computeIfAbsent(k, x -> new java.util.concurrent.atomic.AtomicInteger())
-								.incrementAndGet();
-						final java.util.List<Integer> lst = seedsOf.computeIfAbsent(k,
-								x -> java.util.Collections.synchronizedList(new ArrayList<>()));
-						synchronized (lst) {
-							if (lst.size() < 8) {
-								lst.add(seed);
-							}
-						}
+						recordFailure.accept(seed, t);
 					}
 				}
 			}, "fuzz-sweep-" + (strict ? "s" : "w") + w);
@@ -834,8 +1055,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 保たない。失敗したシードは同じシードで再実行すれば必ず再現する
 		// (生成器は決定的)ので、成功したシードの成果物は捨ててよい。
 		// 保存ディレクトリもシードで分けず使い回す(2026-07-26)
-		final boolean keep = System.getProperty("foliojet.fuzzOnlySeed") != null || !reportMode()
-				|| seedCount() <= KEEP_ARTIFACTS_BELOW;
+		// 集計モードは規模にかかわらずワーカー単位のスロットを使い回す。
+		// 生成器は決定的なので、報告されたシードは単独再実行で復元できる。
+		final boolean keep = System.getProperty("foliojet.fuzzOnlySeed") != null || !reportMode();
 		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
 		final File html = new File(workDir(), (strict ? "strict" : "wild") + "-" + slot + ".html");
 		final File outDir = new File(workDir(), "dl-" + (strict ? "strict" : "wild") + "-" + slot);
@@ -1007,6 +1229,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (doc.beyondEngineControl()) {
 				throw new ExcludedByOversizedBox("白紙ページ " + blanks + " (" + html + ")");
 			}
+			if (hasUntypesettableFloat(doc.html())) {
+				throw new ExcludedByUntypesettableFloat(
+						"白紙ページ " + blanks + " (" + html + ") [組版できない幅の浮動体]");
+			}
 			fail("白紙ページ " + blanks + " (" + html + ")");
 		}
 		// 不変条件4: 内容が失われない
@@ -1024,6 +1250,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		checkNoDuplication(doc, drawn, html);
 		// 不変条件6: 説明のつかない紙面外への配置がない
 		assertNoUnexplainedOffPage(doc, pages, html);
+		// 不変条件10: 少なくとも1つの本文描画が実際の紙面と交差する
+		assertSomeDrawingOnPage(doc, pages, html);
 		// 不変条件7: 読み順が保たれる(まだ報告のみ)
 		checkReadingOrder(doc, firstPage, html);
 	}
@@ -1290,7 +1518,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	private static void assertNoUnexplainedOffPage(final Generated doc, final File[] pages, final File html)
 			throws Exception {
-		final double slack = 2 * doc.maxExplicitSize();
+		final double intrinsicControlSize = defaultTextControlWidth(doc.html());
+		final double slack = 2 * Math.max(doc.maxExplicitSize(), intrinsicControlSize);
 		double worst = 0;
 		String worstAt = null;
 		boolean worstIsY = false;
@@ -1313,18 +1542,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 				if (raw.contains(" artifact ")) {
 					continue;
 				}
-				final Matcher m = POS_IN_DUMP.matcher(raw);
+				final Matcher m = DRAWING_GEOMETRY_IN_DUMP.matcher(raw);
 				while (m.find()) {
 				final double x = Double.parseDouble(m.group(1)), y = Double.parseDouble(m.group(2));
+				final double width = Double.parseDouble(m.group(3)), height = Double.parseDouble(m.group(4));
 				// 紙面をまるごと1枚分はみ出して初めて数える(端の1ptは論外に
-				// してよいが、そこを厳しくすると罫線の丸めで揺れる)
-				final double overX = Math.max(-x - doc.pageWidth(), x - 2 * doc.pageWidth());
-				final double overY = Math.max(-y - doc.pageHeight(), y - 2 * doc.pageHeight());
+				// してよいが、そこを厳しくすると罫線の丸めで揺れる)。原点だけ
+				// ではなく外接矩形の近い辺で測る。seed 473636の入力欄は
+				// x=-70でも幅124ptあり、60pt紙面へ54pt分掛かっていた。
+				final double overX = distanceBeyondWholePage(x, width, doc.pageWidth());
+				final double overY = distanceBeyondWholePage(y, height, doc.pageHeight());
 				final double over = Math.max(overX, overY);
 				if (over > worst) {
 					worst = over;
 					worstIsY = overY >= overX;
-					worstAt = "x=" + x + " y=" + y + " " + page.getName();
+					worstAt = "x=" + x + " y=" + y + " w=" + width + " h=" + height + " "
+							+ page.getName();
 				}
 				}
 			}
@@ -1333,17 +1566,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return;
 		}
 		final String detail = "紙面外への配置 " + Math.round(worst) + "pt (紙面" + Math.round(doc.pageWidth()) + "x"
-				+ Math.round(doc.pageHeight()) + "pt, 最大明示サイズ" + Math.round(doc.maxExplicitSize()) + "pt, " + worstAt
+				+ Math.round(doc.pageHeight()) + "pt, 最大指定/UA既定サイズ"
+				+ Math.round(Math.max(doc.maxExplicitSize(), intrinsicControlSize)) + "pt, " + worstAt
 				+ ") (" + html + ")";
 		// 白紙ページと同じ除外基準を適用する(2026-07-26)。版面が破綻して
 		// いる文書ではエンジンの振る舞いを問えない
 		if (doc.beyondEngineControl()) {
 			throw new ExcludedByOversizedBox(detail);
 		}
+		// 複数条件に該当するときも、より狭い同軸逆進行の分類を安定して残す。
+		if (hasUntypesettableOppositeProgression(doc.html())) {
+			throw new ExcludedByUntypesettableOppositeProgression(detail + " [同軸逆進行フローの組版不能幅]");
+		}
+		if (hasUntypesettableOrthogonalFlow(doc.html())) {
+			throw new ExcludedByUntypesettableOrthogonalFlow(detail + " [直交フローの組版不能幅]");
+		}
 		// 組版できない幅の浮動体からの溢れも除外(2026-07-29)。
 		// {@link ExcludedByUntypesettableFloat}に理由を書いた
 		if (hasUntypesettableFloat(doc.html())) {
 			throw new ExcludedByUntypesettableFloat(detail + " [組版できない幅の浮動体]");
+		}
+		if (hasFlexMulticolTable(doc.html())) {
+			throw new ExcludedByFlexMulticolMinContent(detail + " [flex内の段組表によるmin-content幅]");
 		}
 		// 直交フローが親の**行軸**へ溢れた場合も除外(2026-07-28のユーザー
 		// 裁定。{@link ExcludedByOrthogonalLineAxis}に理由を書いた)。
@@ -1364,6 +1608,132 @@ public class RandomDocumentFuzzTest extends TestCase {
 		fail(detail);
 	}
 
+	/** 外接矩形全体が紙面からさらに1枚分離れている距離。0以下なら許容範囲。 */
+	static double distanceBeyondWholePage(final double origin, final double extent, final double pageExtent) {
+		return Math.max(-(origin + extent) - pageExtent, origin - 2 * pageExtent);
+	}
+
+	private static final Pattern TEXT_CONTROL_TAG = Pattern.compile("<(input|textarea)\\b([^>]*)>",
+			Pattern.CASE_INSENSITIVE);
+	private static final Pattern INPUT_TYPE = Pattern.compile("\\btype\\s*=\\s*[\"']?([a-z]+)",
+			Pattern.CASE_INSENSITIVE);
+	private static final Pattern INPUT_SIZE = Pattern.compile("\\bsize\\s*=", Pattern.CASE_INSENSITIVE);
+	/** 試験用UA CSSの一行入力欄/textarea既定20exに外枠を加えた実寸。 */
+	private static final double DEFAULT_TEXT_CONTROL_WIDTH_PT = 124;
+
+	/**
+	 * 幅指定のない一行入力欄またはtextareaが持つUA既定幅。
+	 *
+	 * <p>
+	 * {@code html-ua.css}はこれらを20exにする。固定試験フォントでは外枠込み
+	 * 124ptで、seed 473636/526411/651439の負座標・後続インライン位置を
+	 * そのまま説明する。checkbox/radio等と{@code size}指定付き入力へ広げない。
+	 * </p>
+	 */
+	static double defaultTextControlWidth(final String html) {
+		final Matcher tag = TEXT_CONTROL_TAG.matcher(html);
+		while (tag.find()) {
+			if (tag.group(1).equalsIgnoreCase("textarea")) {
+				return DEFAULT_TEXT_CONTROL_WIDTH_PT;
+			}
+			final String attrs = tag.group(2);
+			if (INPUT_SIZE.matcher(attrs).find()) {
+				continue;
+			}
+			final Matcher typeMatcher = INPUT_TYPE.matcher(attrs);
+			if (!typeMatcher.find()) {
+				return DEFAULT_TEXT_CONTROL_WIDTH_PT;
+			}
+			final String type = typeMatcher.group(1).toLowerCase(java.util.Locale.ROOT);
+			if (!Set.of("button", "submit", "reset", "checkbox", "radio", "image", "hidden").contains(type)) {
+				return DEFAULT_TEXT_CONTROL_WIDTH_PT;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * <b>不変条件10</b>: 文書中のトークンを含む描画が、少なくとも1つは
+	 * 実際の紙面と交差すること。
+	 *
+	 * <p>
+	 * 不変条件6は、作者が明示した寸法で説明できる小さなはみ出しを許す。
+	 * そのため全トークンが紙面のすぐ外に並んでも、消失検査には現れ、
+	 * 紙面外検査の閾値には届かず合格できた。この検査は量を問わず、
+	 * <b>全内容が見えない</b>場合だけを別に捕捉する。
+	 * </p>
+	 *
+	 * <p>
+	 * 座標点だけでは判定しない。原点が紙面外でも字形の矩形が紙面へ
+	 * かかる正当な描画があるため、掃過時だけ詳細ダンプへ付けた幅・高さとの
+	 * 矩形交差で判定する。
+	 * </p>
+	 */
+	static void assertSomeDrawingOnPage(final Generated doc, final File[] pages, final File html)
+			throws Exception {
+		double nearest = Double.POSITIVE_INFINITY;
+		boolean nearestIsY = false;
+		String nearestAt = null;
+		for (final File page : pages) {
+			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
+			for (final String raw : dump.split("\n")) {
+				final Matcher m = DRAWING_GEOMETRY_IN_DUMP.matcher(raw);
+				if (!m.find()) {
+					continue;
+				}
+				final double x = Double.parseDouble(m.group(1));
+				final double y = Double.parseDouble(m.group(2));
+				final double width = Double.parseDouble(m.group(3) != null ? m.group(3) : m.group(5));
+				final double height = Double.parseDouble(m.group(4) != null ? m.group(4) : m.group(6));
+				if (rectangleIntersectsPage(x, y, width, height, doc.pageWidth(), doc.pageHeight())) {
+					return;
+				}
+				final double dx = Math.max(Math.max(-x - width, x - doc.pageWidth()), 0);
+				final double dy = Math.max(Math.max(-y - height, y - doc.pageHeight()), 0);
+				final double distance = Math.hypot(dx, dy);
+				if (distance < nearest) {
+					nearest = distance;
+					nearestIsY = dy >= dx;
+					nearestAt = "x=" + x + " y=" + y + " w=" + width + " h=" + height + " "
+							+ page.getName();
+				}
+			}
+		}
+		final String detail = "全描画が紙面外 (紙面" + Math.round(doc.pageWidth()) + "x"
+				+ Math.round(doc.pageHeight()) + "pt, 最短=" + Math.round(nearest) + "pt, " + nearestAt + ") (" + html
+				+ ")";
+		if (doc.beyondEngineControl()) {
+			throw new ExcludedByOversizedBox(detail);
+		}
+		// 複数条件に該当するときも、より狭い同軸逆進行の分類を安定して残す。
+		if (hasUntypesettableOppositeProgression(doc.html())) {
+			throw new ExcludedByUntypesettableOppositeProgression(detail + " [同軸逆進行フローの組版不能幅]");
+		}
+		if (hasUntypesettableOrthogonalFlow(doc.html())) {
+			throw new ExcludedByUntypesettableOrthogonalFlow(detail + " [直交フローの組版不能幅]");
+		}
+		if (hasUntypesettableFloat(doc.html())) {
+			throw new ExcludedByUntypesettableFloat(detail + " [組版できない幅の浮動体]");
+		}
+		if (hasFlexMulticolTable(doc.html())) {
+			throw new ExcludedByFlexMulticolMinContent(detail + " [flex内の段組表によるmin-content幅]");
+		}
+		final boolean outsideInLineAxis = nearestIsY != pageAxisIsY(doc.html());
+		if (outsideInLineAxis && hasOrthogonalFlow(doc.html())) {
+			throw new ExcludedByOrthogonalLineAxis(detail + " [直交フローの行軸]");
+		}
+		if (orthogonalAxisChanges(doc.html()) >= 2) {
+			throw new ExcludedByNestedOrthogonalFlow(detail + " [直交フロー3段以上]");
+		}
+		fail(detail);
+	}
+
+	/** 正の面積を持つ2矩形として、紙面と交差するか。境界への接触だけは含めない。 */
+	static boolean rectangleIntersectsPage(final double x, final double y, final double width, final double height,
+			final double pageWidth, final double pageHeight) {
+		return width > 0 && height > 0 && x < pageWidth && y < pageHeight && x + width > 0 && y + height > 0;
+	}
+
 	private static void convert(final File html, final File outDir) throws Exception {
 		convert(html, outDir, new DirectSession[1]);
 	}
@@ -1379,21 +1749,46 @@ public class RandomDocumentFuzzTest extends TestCase {
 			throws Exception {
 		// 出力先はスレッド単位。システムプロパティだとプロセス全体で共有され、
 		// 並列掃過でダンプ先が互いに上書きされる(2026-07-26)
-		try (AutoCloseable scope = DisplayListDumper.scopedDir(outDir.getPath())) {
+		try (AutoCloseable scope = DisplayListDumper.scopedDir(outDir.getPath());
+				AutoCloseable geometry = DisplayListDumper.scopedDetailedGeometry(true)) {
 			final File pdf = new File(outDir, "out.pdf");
 			try (OutputStream out = new FileOutputStream(pdf)) {
 				final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				final AtomicBoolean pageLimitExceeded = new AtomicBoolean();
 				sessionOut[0] = session;
 				try {
 					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+					// 数百万文書の掃過で全ページのINFOを標準エラーへ流すと、
+					// I/Oが測定時間とログ容量を支配する。ページ上限だけは型付きで
+					// 捕捉し、必要なときだけ-Dfoliojet.fuzzMessagesで全メッセージを出す。
+					session.setMessageHandler((code, args, mes) -> {
+						if (code == net.zamasoft.foliojet.message.MessageCodes.ERROR_OUT_OF_PAGE_LIMIT) {
+							pageLimitExceeded.set(true);
+						}
+						if (System.getProperty("foliojet.fuzzMessages") != null) {
+							System.err.println(mes);
+						}
+					});
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 					session.property("input.include", "**");
 					session.property("input.property-pi", "true");
+					// オラクルが許す最大枚数を超えた時点で変換自体を止める。
+					// 従来は完了後にファイル数を数えていたため、ページ爆発が
+					// 数千枚を生成してwatchdogとワーカー漏れを起こし、縮小器も
+					// 1候補30秒かかっていた(seed 7662)。上限+1枚目で停止すれば
+					// 不変条件3の意味を変えず、異常入力だけを早く封じ込められる。
+					session.property("output.page-limit", String.valueOf(MAX_PAGES));
 					// 名前付き宛先(id断片)は `output.pdf.hyperlinks.fragment`
 					// の既定onで出るので、ここでの指定は要らない(2026-08-03に
 					// 確認。不変条件9=checkFragments が読む)
-					CTISessionHelper.transcodeFile(session, html, "text/html", null);
+					try {
+						CTISessionHelper.transcodeFile(session, html, "text/html", null);
+					} catch (final jp.cssj.cti2.TranscoderException e) {
+						if (pageLimitExceeded.get()) {
+							throw new PageCountLimitExceeded(e);
+						}
+						throw e;
+					}
 				} finally {
 					session.close();
 				}
@@ -1440,9 +1835,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 表示リストの1行から描画位置を拾う。 */
-	private static final Pattern POS_IN_DUMP = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+)");
-
 	/** 生成器が出す明示サイズ({@code width:120pt}等)。 */
 	static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
 
@@ -1450,6 +1842,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final Pattern EXPLICIT_HEIGHT = Pattern.compile("height:(\\d+)pt");
 	private static final Pattern FONT_SIZE = Pattern.compile("(?:font-size:|font:normal )(\\d+)pt");
 	private static final Pattern PAGE_MARGIN = Pattern.compile("@page\\{margin:(\\d+)pt");
+	private static final Pattern PAGE_WIDTH_PROPERTY = Pattern
+			.compile("name=\"output\\.page-width\"\\s+value=\"([\\d.]+)pt\"");
 
 	/**
 	 * 生成する文書が参照する画像の<b>絶対URI</b>(2026-07-27)。
@@ -1673,10 +2067,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * <b>組版できない幅の浮動体</b>を含むかを返します(2026-07-29新設)。
 	 *
 	 * <p>
-	 * 基準は{@link #isTinyPage}と同じ——明示した寸法が基準フォントサイズの
+	 * 基準は2つ。明示した寸法が基準フォントサイズの
 	 * {@value #MIN_PAGE_CHARS}倍(=約{@value #MIN_PAGE_CHARS}文字)に
-	 * 満たない浮動体があること。紙面が組版できない大きさなら除外する、と
-     * 決めたのと同じ理由で、<b>欄が組版できない幅なら中身は必ず溢れる</b>。
+	 * 満たないか、明示した親幅・段幅より左右フロートが広いこと。
+	 * 紙面が組版できない大きさなら除外する、と決めたのと同じ理由で、
+	 * <b>欄が組版できない幅なら中身は必ず溢れる</b>。
 	 * </p>
 	 *
 	 * <p>
@@ -1704,6 +2099,159 @@ public class RandomDocumentFuzzTest extends TestCase {
 		while (m.find()) {
 			if (Double.parseDouble(m.group(1)) < least) {
 				return true;
+			}
+		}
+		return hasFloatInsideNarrowContainer(html, least) || hasOverwideFloat(html);
+	}
+
+	/** 明示幅が組版下限未満の祖先に、左右フロートが実際に入っているか。 */
+	static boolean hasFloatInsideNarrowContainer(final String html, final double least) {
+		final java.util.ArrayDeque<Boolean> narrow = new java.util.ArrayDeque<>();
+		narrow.push(Boolean.FALSE);
+		final int bodyAt = html.indexOf("<body");
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			tag.region(bodyAt, html.length());
+		}
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (narrow.size() > 1) {
+					narrow.pop();
+				}
+				continue;
+			}
+			final String attrs = String.valueOf(tag.group(3));
+			final boolean insideNarrow = narrow.peek().booleanValue();
+			if (insideNarrow && STYLE_FLOAT.matcher(attrs).find()) {
+				return true;
+			}
+			if (attrs.endsWith("/")) {
+				continue;
+			}
+			final Matcher widthMatcher = STYLE_WIDTH.matcher(attrs);
+			final boolean thisNarrow = insideNarrow
+					|| (widthMatcher.find() && Double.parseDouble(widthMatcher.group(1)) < least);
+			narrow.push(Boolean.valueOf(thisNarrow));
+		}
+		return false;
+	}
+
+	private static final Pattern STYLE_FLOAT = Pattern
+			.compile("(?:^|[;\\s\"])float\\s*:\\s*(left|right)\\s*(?:;|\"|'|$)");
+	private static final Pattern STYLE_COLUMN_COUNT = Pattern.compile("column-count\\s*:\\s*(\\d+)");
+	private static final Pattern STYLE_COLUMN_GAP = Pattern.compile("column-gap\\s*:\\s*([\\d.]+)pt");
+	private static final Pattern STYLE_FLEX = Pattern
+			.compile("(?:^|[;\\s\"])display\\s*:\\s*(?:inline-)?flex\\s*(?:;|\"|'|$)");
+
+	/**
+	 * 明示した包含幅より広い左右フロートを含むかを返す。
+	 *
+	 * <p>
+	 * 単に文書中の最大・最小を比べない。開始・終了タグをスタックでたどり、
+	 * 別の枝にある幅を結び付けない。段組はページ内容幅または親の明示幅から
+	 * {@code (幅 - 段間*(段数-1))/段数}を計算する。これでstrict seed
+	 * 132786(99pt中の126ptフロート)と143513(約25.3pt段中の89pt
+	 * フロート)だけを、作者指定による組版不能幅として識別できる。
+	 * </p>
+	 */
+	static boolean hasOverwideFloat(final String html) {
+		final Matcher pageWidthMatcher = PAGE_WIDTH_PROPERTY.matcher(html);
+		if (!pageWidthMatcher.find()) {
+			return false;
+		}
+		final Matcher marginMatcher = PAGE_MARGIN.matcher(html);
+		final double margin = marginMatcher.find() ? Double.parseDouble(marginMatcher.group(1)) : 0;
+		final double pageContentWidth = Double.parseDouble(pageWidthMatcher.group(1)) - 2 * margin;
+		if (!(pageContentWidth > 0)) {
+			return false;
+		}
+
+		final java.util.ArrayDeque<Double> childWidths = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Double> floatLimits = new java.util.ArrayDeque<>();
+		childWidths.push(Double.valueOf(pageContentWidth));
+		floatLimits.push(Double.valueOf(Double.POSITIVE_INFINITY));
+		final int bodyAt = html.indexOf("<body");
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			tag.region(bodyAt, html.length());
+		}
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (childWidths.size() > 1) {
+					childWidths.pop();
+					floatLimits.pop();
+				}
+				continue;
+			}
+			final String attrs = String.valueOf(tag.group(3));
+			if (attrs.endsWith("/")) {
+				continue;
+			}
+			final double containingWidth = childWidths.peek().doubleValue();
+			final Matcher widthMatcher = STYLE_WIDTH.matcher(attrs);
+			final Double explicitWidth = widthMatcher.find() ? Double.valueOf(widthMatcher.group(1)) : null;
+			final boolean floating = STYLE_FLOAT.matcher(attrs).find();
+			if (explicitWidth != null && explicitWidth.doubleValue() > floatLimits.peek().doubleValue()) {
+				// 自動幅floatのshrink-to-fit幅を、子孫の明示幅が包含幅より
+				// 大きくしている(seed 865035)。別枝の幅はstack上に無い。
+				return true;
+			}
+			if (explicitWidth != null && floating
+					&& explicitWidth.doubleValue() > containingWidth) {
+				return true;
+			}
+
+			double availableForChildren = explicitWidth == null ? containingWidth : explicitWidth.doubleValue();
+			final Matcher countMatcher = STYLE_COLUMN_COUNT.matcher(attrs);
+			if (countMatcher.find()) {
+				final int count = Integer.parseInt(countMatcher.group(1));
+				final Matcher gapMatcher = STYLE_COLUMN_GAP.matcher(attrs);
+				final double gap = gapMatcher.find() ? Double.parseDouble(gapMatcher.group(1)) : 0;
+				if (count > 1) {
+					availableForChildren = (availableForChildren - gap * (count - 1)) / count;
+				}
+			}
+			childWidths.push(Double.valueOf(availableForChildren));
+			floatLimits.push(Double.valueOf(floating
+					? (explicitWidth == null ? containingWidth : explicitWidth.doubleValue())
+					: floatLimits.peek().doubleValue()));
+		}
+		return false;
+	}
+
+	/** flex祖先の中で、2段以上の段組の子孫にtableがあるか。 */
+	static boolean hasFlexMulticolTable(final String html) {
+		final java.util.ArrayDeque<Boolean> flex = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Boolean> multicolInFlex = new java.util.ArrayDeque<>();
+		flex.push(Boolean.FALSE);
+		multicolInFlex.push(Boolean.FALSE);
+		final int bodyAt = html.indexOf("<body");
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			tag.region(bodyAt, html.length());
+		}
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (flex.size() > 1) {
+					flex.pop();
+					multicolInFlex.pop();
+				}
+				continue;
+			}
+			final String name = tag.group(2);
+			final String attrs = String.valueOf(tag.group(3));
+			final boolean inFlex = flex.peek().booleanValue() || STYLE_FLEX.matcher(attrs).find();
+			boolean inMulticol = multicolInFlex.peek().booleanValue();
+			final Matcher count = STYLE_COLUMN_COUNT.matcher(attrs);
+			if (inFlex && count.find() && Integer.parseInt(count.group(1)) >= 2) {
+				inMulticol = true;
+			}
+			if (inMulticol && name.equalsIgnoreCase("table")) {
+				return true;
+			}
+			if (!attrs.endsWith("/")) {
+				flex.push(Boolean.valueOf(inFlex));
+				multicolInFlex.push(Boolean.valueOf(inMulticol));
 			}
 		}
 		return false;
@@ -1751,6 +2299,123 @@ public class RandomDocumentFuzzTest extends TestCase {
 			.compile("</(\\w+)>|<(\\w+)([^>]*)>");
 	private static final Pattern STYLE_WRITING_MODE = Pattern
 			.compile("writing-mode\\s*:\\s*([a-z-]+)");
+	/** 縦書きのページ軸に対する明示寸法。 */
+	private static final Pattern STYLE_WIDTH = Pattern
+			.compile("(?:^|[;\\s\"])width\\s*:\\s*([\\d.]+)(?:pt)?\\s*(?:;|\"|'|$)");
+
+	/**
+	 * 軸を変えた子に、基準文字送りの{@value #MIN_PAGE_CHARS}倍未満の
+	 * {@code width}を明示した箇所があるか。
+	 *
+	 * <p>タグの入れ子をたどるため、別の枝にある狭幅とwriting-modeを
+	 * 結び付けない。単なる直交フロー、同軸の方向変更、{@code height:0}、
+	 * 幅指定のない自動サイズは対象外とする。</p>
+	 */
+	static boolean hasUntypesettableOrthogonalFlow(final String html) {
+		final Matcher bm = BODY_WRITING_MODE.matcher(html);
+		final String rootMode = bm.find() ? bm.group(1) : "horizontal-tb";
+		final Matcher fm = FONT_SIZE.matcher(html);
+		if (!fm.find()) {
+			return false;
+		}
+		final double least = Double.parseDouble(fm.group(1)) * MIN_PAGE_CHARS;
+		final java.util.ArrayDeque<String> modes = new java.util.ArrayDeque<>();
+		modes.push(rootMode);
+		final int bodyAt = html.indexOf("<body");
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			tag.region(bodyAt, html.length());
+		}
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (modes.size() > 1) {
+					modes.pop();
+				}
+				continue;
+			}
+			final String attrs = String.valueOf(tag.group(3));
+			if (attrs.endsWith("/")) {
+				continue;
+			}
+			final String parent = modes.peek();
+			String mode = parent;
+			final Matcher wm = STYLE_WRITING_MODE.matcher(attrs);
+			if (wm.find()) {
+				mode = wm.group(1);
+			}
+			final Matcher width = STYLE_WIDTH.matcher(attrs);
+			if (mode.startsWith("vertical-") != parent.startsWith("vertical-") && width.find()
+					&& Double.parseDouble(width.group(1)) < least) {
+				return true;
+			}
+			modes.push(mode);
+		}
+		return false;
+	}
+
+	/**
+	 * 同じ縦軸の親子でページ進行方向を反転し、反転要素の明示幅が基準文字の
+	 * {@value #MIN_PAGE_CHARS}倍未満か、その明示幅を子孫の明示幅が超える箇所を
+	 * 含むかを返します。物差しは{@link #isTinyPage}と
+	 * {@link #hasUntypesettableFloat}と同じです。
+	 *
+	 * <p>
+	 * 文字列の出現だけではなく、生成器が作るHTMLの入れ子をスタックでたどる。
+	 * これにより、別々の枝にある{@code vertical-rl}・{@code vertical-lr}・
+	 * {@code width:0}を誤って一つの除外条件に結び付けない。
+	 * </p>
+	 */
+	static boolean hasUntypesettableOppositeProgression(final String html) {
+		final Matcher bm = BODY_WRITING_MODE.matcher(html);
+		final String rootMode = bm.find() ? bm.group(1) : "horizontal-tb";
+		final Matcher fm = FONT_SIZE.matcher(html);
+		final double least = fm.find() ? Double.parseDouble(fm.group(1)) * MIN_PAGE_CHARS : 0;
+		final java.util.ArrayDeque<String> modes = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Double> reverseLimits = new java.util.ArrayDeque<>();
+		modes.push(rootMode);
+		reverseLimits.push(Double.valueOf(Double.POSITIVE_INFINITY));
+		final int bodyAt = html.indexOf("<body");
+		final Matcher m = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			m.region(bodyAt, html.length());
+		}
+		while (m.find()) {
+			if (m.group(1) != null) {
+				if (modes.size() > 1) {
+					modes.pop();
+					reverseLimits.pop();
+				}
+				continue;
+			}
+			final String attrs = String.valueOf(m.group(3));
+			if (attrs.endsWith("/")) {
+				continue;
+			}
+			final String parent = modes.peek();
+			String mode = parent;
+			final Matcher wm = STYLE_WRITING_MODE.matcher(attrs);
+			if (wm.find()) {
+				mode = wm.group(1);
+			}
+			final Matcher widthMatcher = STYLE_WIDTH.matcher(attrs);
+			final Double width = widthMatcher.find() ? Double.valueOf(widthMatcher.group(1)) : null;
+			final double inheritedLimit = reverseLimits.peek().doubleValue();
+			if (width != null && width.doubleValue() > inheritedLimit) {
+				return true;
+			}
+			double reverseLimit = inheritedLimit;
+			if (parent.startsWith("vertical-") && mode.startsWith("vertical-") && !parent.equals(mode)
+					&& width != null) {
+				if (width.doubleValue() < least) {
+					return true;
+				}
+				reverseLimit = Math.min(reverseLimit, width.doubleValue());
+			}
+			modes.push(mode);
+			reverseLimits.push(Double.valueOf(reverseLimit));
+		}
+		return false;
+	}
 
 	/**
 	 * 入れ子をたどって、<b>軸(縦/横)が何回入れ替わるか</b>の最大値を返します。
@@ -1884,9 +2549,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 					: new String[] { "static", "relative", "absolute" };
 			final String position = positions[r.nextInt(positions.length)];
 			mods.append("position:").append(position).append(';');
+			// STRICTは「作者が内容を紙面外へ動かす意図を持ち得ない」集合。
+			// relative自体は残すが、top/leftを付けると縦書きの開始辺から
+			// 全内容を紙面外へ動かせるため、変位はWILDだけで生成する。
 			if (!position.equals("static")) {
-				mods.append("top:").append(r.nextInt(40) - 10).append("pt;left:")
-						.append(r.nextInt(40) - 10).append("pt;");
+				final int top = r.nextInt(40) - 10;
+				final int left = r.nextInt(40) - 10;
+				if (!strict) {
+					mods.append("top:").append(top).append("pt;left:").append(left).append("pt;");
+				}
 			}
 		}
 		if (r.nextBoolean()) {
@@ -1940,8 +2611,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// seed 6/9/12/15 が「読み順が入れ替わった」と誤検出していた
 			// (T28が`float:right`の中にあった)。
 			final boolean floated = mods.contains("float:") && !mods.contains("float:none");
+			final boolean positioned = mods.contains("position:absolute");
 			s.append("<div style=\"").append(mods).append("\">\n");
-			appendPlainNode(s, r, depth, strict, tokens, counter, reorderable, inReorderable || floated, forcedKind);
+			appendPlainNode(s, r, depth, strict, tokens, counter, reorderable,
+					inReorderable || floated || positioned, forcedKind);
 			s.append("</div>\n");
 			return;
 		}

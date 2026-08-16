@@ -65,6 +65,38 @@ public class LimitIoPropertyTest extends TestCase {
 		assertTrue("出力量の上限で中断すること", this.failed);
 	}
 
+	/** {@code input.size-limit}: 主文書を読み切る前に上限で中断すること。 */
+	public void testInputSizeLimit() throws Exception {
+		this.convert(TWO_PAGES, props("input.size-limit", "32"));
+		assertTrue("主文書の入力上限で中断すること", this.failed);
+	}
+
+	/** {@code input.size-limit}: 既知長と同じ上限なら変換できること。 */
+	public void testInputSizeLimitExactBoundary() throws Exception {
+		this.convert(TWO_PAGES, props("input.size-limit", Long.toString(TWO_PAGES.length())));
+		assertFalse("主文書と同じ長さの上限では中断しないこと", this.failed);
+	}
+
+	/** {@code input.resource-count-limit}: 外部資源数0なら画像を取得しないこと。 */
+	public void testResourceCountLimit() throws Exception {
+		final String pdf = this.convert(WITH_IMAGE, props("input.resource-count-limit", "0"));
+		assertFalse("文書本体は読めること", this.failed);
+		assertFalse("外部画像を埋め込まないこと", pdf.contains("/Subtype /Image"));
+	}
+
+	/** {@code input.resource-size-limit}: 外部資源の累積入力0なら画像を取得しないこと。 */
+	public void testResourceSizeLimit() throws Exception {
+		final String pdf = this.convert(WITH_IMAGE, props("input.resource-size-limit", "0"));
+		assertFalse("文書本体は読めること", this.failed);
+		assertFalse("外部画像を埋め込まないこと", pdf.contains("/Subtype /Image"));
+	}
+
+	/** {@code processing.time-limit}: 複数パスを含む文書全体の締切で中断すること。 */
+	public void testProcessingTimeLimit() throws Exception {
+		this.convert(TWO_PAGES, props("processing.time-limit", "1", "processing.pass-count", "2"));
+		assertTrue("処理時間の上限で中断すること", this.failed);
+	}
+
 	/**
 	 * {@code input.include}: 資源が読めること(基準)。
 	 *

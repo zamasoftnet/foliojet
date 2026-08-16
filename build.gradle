@@ -21,7 +21,8 @@ def dependencyVersions = [
     xmlApis          : '1.4.01',
     okapiBarcode     : '0.5.5',
     jeuclid          : '3.1.14',
-    commonmark       : '0.29.0'
+    commonmark       : '0.29.0',
+    brotli4j         : '1.23.0'
 ]
 
 repositories {
@@ -106,6 +107,9 @@ dependencies {
     api "io.github.mimidesunya:pdfg2d-svg:${dependencyVersions.pdfg2d}"
     api "net.zamasoft:html-balancer:${dependencyVersions.htmlBalancer}"
     api "org.apache.xmlgraphics:batik-svggen:${dependencyVersions.batik}"
+    // SVGGraphics2DがHTML内のPNG/JPEGをdata URIとしてSVGへ埋め込む際に必要。
+    // これがないと画像を含むSVG出力がImageWriter=nullで失敗する。
+    api "org.apache.xmlgraphics:batik-codec:${dependencyVersions.batik}"
     api "org.apache.xmlgraphics:batik-script:${dependencyVersions.batik}"
     api "org.apache.xmlgraphics:batik-ext:${dependencyVersions.batik}"
     api "org.apache.xmlgraphics:batik-bridge:${dependencyVersions.batik}"
@@ -120,6 +124,19 @@ dependencies {
     api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
     api "org.commonmark:commonmark:${dependencyVersions.commonmark}"
     api "org.commonmark:commonmark-ext-gfm-tables:${dependencyVersions.commonmark}"
+    implementation "com.aayushatharva.brotli4j:brotli4j:${dependencyVersions.brotli4j}"
+    // Paged SVGのWOFF2はRFC 7932の実圧縮を使う。製品jarは一つなので、
+    // 対応する全OS/CPUの公式Brotli native providerを同梱する。
+    runtimeOnly "com.aayushatharva.brotli4j:native-linux-x86_64:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-linux-aarch64:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-linux-armv7:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-linux-s390x:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-linux-ppc64le:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-linux-riscv64:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-windows-x86_64:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-windows-aarch64:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-osx-x86_64:${dependencyVersions.brotli4j}"
+    runtimeOnly "com.aayushatharva.brotli4j:native-osx-aarch64:${dependencyVersions.brotli4j}"
     testImplementation 'junit:junit:4.13.2'
     // veraPDF (greenfield parser) for automated PDF/UA conformance validation
     testImplementation 'org.verapdf:validation-model:1.26.5'

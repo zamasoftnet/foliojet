@@ -723,6 +723,9 @@ final class BoxStyleMapper {
 		params.boxSizing = BoxSizing.get(style);
 
 		params.overflow = Overflow.get(style);
+		params.blockAlignContent = toBlockContentAlignment(
+				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
+						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
 		params.paintClip = MaskImage.isClip(style);
 		params.frame = this.createRectFrame(style, inBody, pageSequence);
 
@@ -733,6 +736,23 @@ final class BoxStyleMapper {
 					Border.create(ColumnRuleStyle.get(style), ColumnRuleWidth.get(style), ColumnRuleColor.get(style)),
 					ColumnFill.get(style));
 		}
+	}
+
+	/**
+	 * 通常ブロックの align-content used value。CSS Align §5.1.1では内容全体が
+	 * 単一のalignment subjectなので、content-distribution値は各fallbackへ
+	 * 縮退する。
+	 */
+	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toBlockContentAlignment(
+			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
+		return switch (value) {
+		case CENTER, SPACE_AROUND, SPACE_EVENLY ->
+			net.zamasoft.foliojet.layout.box.params.BoxAlignment.CENTER;
+		case END, FLEX_END -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.END;
+		case START, FLEX_START -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.START;
+		case AUTO, NORMAL -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL;
+		case STRETCH, SPACE_BETWEEN -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.START;
+		};
 	}
 
 	/**

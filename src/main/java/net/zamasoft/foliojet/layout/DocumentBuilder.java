@@ -897,6 +897,11 @@ public class DocumentBuilder implements TableBuilderHost {
 						bindBuilder.close();
 					}
 					parentBuilder.addBound(blockBox);
+				} else if (entry.builder.isTwoPass()) {
+					// 親も計測中なら、再生イベントの記録だけでなく子のouter
+					// contributionを親の固有寸法へ渡す。特に直交フローでは
+					// 子ページ軸→親行軸の変換が必要になる。
+					((TwoPassBlockBuilder) parentBuilder).fitBlock((TwoPassBlockBuilder) entry.builder);
 				}
 				this.startContainer();
 			}
@@ -917,7 +922,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 浮動体
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
-			if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+			if (!this.scratchMeasurement && entry.builder instanceof TwoPassBlockBuilder sealable) {
 				// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
 				sealable.sealBodyForRangeBind();
 			}
@@ -927,6 +932,11 @@ public class DocumentBuilder implements TableBuilderHost {
 				// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
 				// 再生)ではどこにも置かれない=測定等価
 				final FloatBlockBox pageFloatBox = (FloatBlockBox) entry.builder.getRootBox();
+				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+					// TwoPass本文では専用recordへ保留し、bind時に一度だけページ台帳へ
+					// 渡す。scratchではページ外要素なので計測へ寄与せず破棄する。
+					break;
+				}
 				if (entry.builder.isTwoPass()) {
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 					pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
@@ -950,6 +960,10 @@ public class DocumentBuilder implements TableBuilderHost {
 				// なので測定等価。two-passのseal→bindは通常どおり対に
 				// なりリースは孤児化しない)
 				final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
+				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+					// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
+					break;
+				}
 				if (entry.builder.isTwoPass()) {
 					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 					noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);

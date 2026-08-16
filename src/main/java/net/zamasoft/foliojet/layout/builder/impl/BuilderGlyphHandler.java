@@ -38,6 +38,18 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	 * 次のインラインまたはテキストの追加で改行することを示すフラグ。
 	 */
 	private boolean toLineFeed = false, wrap;
+
+	/**
+	 * 直前の文字と次の文字の間にインライン境界がある場合、その二文字の
+	 * 最も近い共通祖先で折り返しが許可されるかを保持します。
+	 *
+	 * <p>改行機会は次の文字が届いた時に判定されます。その時点の
+	 * {@link #wrap} は次の文字を包む子要素の値なので、これをそのまま使うと
+	 * 兄弟の {@code white-space:nowrap} が項目間の改行まで抑制してしまいます。
+	 * 開始タグが連続する間は最初の祖先値を保ち、終了タグが連続する間は
+	 * pop 後の（より外側の）祖先値へ更新します。</p>
+	 */
+	private Boolean boundaryWrap = null;
 	private WritingMode progression;
 
 	public BuilderGlyphHandler(Builder builder) {
@@ -157,6 +169,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		}
 		// System.out.print(new String(ch, coff, clen));
 		this.builder.glyph(charOffset, ch, coff, clen, gid);
+		this.boundaryWrap = null;
 	}
 
 	public void endTextRun() {
@@ -164,6 +177,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	}
 
 	public void control(final TextControl quad) {
+		boolean consumesBoundary = true;
 		// System.out.println(quad);
 		if (quad instanceof InlineQuad) {
 			// インラインボックス
@@ -172,6 +186,10 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
 				// インライン開始
+				if (this.boundaryWrap == null) {
+					this.boundaryWrap = Boolean.valueOf(this.wrap);
+				}
+				consumesBoundary = false;
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				final InlineBox inlineBox = inlineStartQuad.box;
 
@@ -186,6 +204,8 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				// インライン終了
 				InlineEndQuad inlineEndQuad = (InlineEndQuad) inlineQuad;
 				this.endTextBox();
+				this.boundaryWrap = Boolean.valueOf(this.wrap);
+				consumesBoundary = false;
 
 				inlineEndQuad.advance = inlineEndQuad.box.getFrame().getFrameLineEnd(this.progression);
 				break;
@@ -242,11 +262,16 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			}
 		}
 		this.builder.control(quad);
+		if (consumesBoundary) {
+			this.boundaryWrap = null;
+		}
 	}
 
 	public void flush() {
-		//System.err.println("BGH FLUSH: "+this.wrap);
-		if (!this.wrap && !this.toLineFeed) {
+		final boolean boundaryOrCurrentWrap = this.boundaryWrap == null
+				? this.wrap : this.boundaryWrap.booleanValue();
+		//System.err.println("BGH FLUSH: "+boundaryOrCurrentWrap);
+		if (!boundaryOrCurrentWrap && !this.toLineFeed) {
 			return;
 		}
 		this.toLineFeed = false;

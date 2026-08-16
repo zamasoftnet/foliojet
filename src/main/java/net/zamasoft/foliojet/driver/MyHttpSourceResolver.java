@@ -22,8 +22,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Base64;
@@ -52,6 +54,9 @@ class MySourceResolver implements SourceResolver {
 	protected SourceResolver userResolver = null;
 	protected RestrictedSourceResolver restrictedResolver = new RestrictedSourceResolver();
 	private MyHttpSourceResolver httpResolver = null;
+	private InputByteBudget resourceBudget;
+	private int resourceCountLimit = -1;
+	private final Set<URI> resourceUris = new HashSet<>();
 
 	/**
 	 * {@code input.include} / {@code input.exclude} が1つでも設定されたか。
@@ -67,6 +72,11 @@ class MySourceResolver implements SourceResolver {
 
 	public void setup(URI uri, Map<String, String> props, MessageHandler mh) {
 		this.closeHttpResolver();
+		final long resourceSizeLimit = UAProps.INPUT_RESOURCE_SIZE_LIMIT.getInteger(props, mh);
+		this.resourceBudget = resourceSizeLimit < 0 ? null
+				: new InputByteBudget(resourceSizeLimit, UAProps.INPUT_RESOURCE_SIZE_LIMIT.getName());
+		this.resourceCountLimit = UAProps.INPUT_RESOURCE_COUNT_LIMIT.getInteger(props, mh);
+		this.resourceUris.clear();
 		CompositeSourceResolver resolver = CompositeSourceResolver.createGenericCompositeSourceResolver();
 		MyHttpSourceResolver httpResolver = new MyHttpSourceResolver();
 		this.httpResolver = httpResolver;
@@ -191,6 +201,9 @@ class MySourceResolver implements SourceResolver {
 		this.cachedResolver.reset();
 		this.userResolver = null;
 		this.restricted = false;
+		this.resourceBudget = null;
+		this.resourceCountLimit = -1;
+		this.resourceUris.clear();
 	}
 
 	private void closeHttpResolver() {
@@ -213,7 +226,7 @@ class MySourceResolver implements SourceResolver {
 	public Source resolve(URI uri, boolean force) throws IOException, SecurityException {
 		try {
 			Source source = this.cachedResolver.resolve(uri);
-			return new MySource(source, this.cachedResolver);
+			return this.wrap(source, this.cachedResolver, force);
 		} catch (FileNotFoundException e) {
 			// **HTTP/HTTPSは設定済みのリゾルバを優先する**(2026-08-02)。
 			// 差し込まれたリゾルバ(CLIやCTIドライバがsetSourceResolverで
@@ -235,14 +248,14 @@ class MySourceResolver implements SourceResolver {
 			if (this.userResolver != null && !aclFirst) {
 				try {
 					Source source = this.userResolver.resolve(uri);
-					return new MySource(source, this.userResolver);
+					return this.wrap(source, this.userResolver, force);
 				} catch (FileNotFoundException e1) {
 					// ignore
 				}
 			}
 			try {
 				Source source = this.restrictedResolver.resolve(uri, force);
-				return new MySource(source, this.restrictedResolver);
+				return this.wrap(source, this.restrictedResolver, force);
 			} catch (FileNotFoundException e2) {
 				if (this.userResolver == null || !aclFirst) {
 					throw e2;
@@ -251,9 +264,26 @@ class MySourceResolver implements SourceResolver {
 				// リゾルバ(独自の取得手段を持つ埋め込み利用)へ回す。
 				// 拒否された場合はSecurityExceptionなのでここへ来ない
 				Source source = this.userResolver.resolve(uri);
-				return new MySource(source, this.userResolver);
+				return this.wrap(source, this.userResolver, force);
 			}
 		}
+	}
+
+	private Source wrap(final Source source, final SourceResolver owner, final boolean mainDocument)
+			throws IOException {
+		if (!mainDocument && this.resourceCountLimit >= 0) {
+			final boolean overLimit;
+			synchronized (this.resourceUris) {
+				this.resourceUris.add(source.getURI());
+				overLimit = this.resourceUris.size() > this.resourceCountLimit;
+			}
+			if (overLimit) {
+				owner.release(source);
+				throw new IOException(UAProps.INPUT_RESOURCE_COUNT_LIMIT.getName() + " exceeded: "
+						+ this.resourceCountLimit);
+			}
+		}
+		return new MySource(source, owner, mainDocument ? null : this.resourceBudget);
 	}
 
 	public void release(Source source) {
@@ -262,11 +292,11 @@ class MySourceResolver implements SourceResolver {
 
 }
 
-class MySource extends SourceWrapper {
+class MySource extends InputLimitedSource {
 	final SourceResolver resolver;
 
-	MySource(Source source, SourceResolver resolver) {
-		super(source);
+	MySource(Source source, SourceResolver resolver, InputByteBudget budget) {
+		super(source, budget);
 		this.resolver = resolver;
 	}
 

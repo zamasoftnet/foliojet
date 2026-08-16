@@ -1,3 +1,4 @@
 net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgentFactory
 net.zamasoft.foliojet.ua.impl.image.ImageUserAgentFactory
 net.zamasoft.foliojet.ua.impl.svg.SVGUserAgentFactory
+net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSVGUserAgentFactory

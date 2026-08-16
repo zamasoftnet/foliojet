@@ -511,7 +511,7 @@ final class PageSequence {
 		final GC gc = this.imposition.nextPage();
 
 		if (UAProps.OUTPUT_EXPAND_WITH_CONTENT.getBoolean(ua)) {
-			if (pageBox.getVisualWidth() > pageBox.getWidth()) {
+			if (gc != null && pageBox.getVisualWidth() > pageBox.getWidth()) {
 				gc.transform(AffineTransform.getTranslateInstance(pageBox.getVisualWidth() - pageBox.getWidth(), 0));
 			}
 			this.imposition.setPageWidth(pageBox.getWidth());
@@ -559,18 +559,19 @@ final class PageSequence {
 		// フロー
 		pageBox.drawFlow(drawer, visitor);
 
-		// 脚注separator罫線(flow後・fixed前。装飾なのでartifact)
-		pageBox.drawFootnoteSeparator(drawer);
-
 		if (gc != null) {
+			// 脚注separator罫線(flow後・fixed前。装飾なのでartifact)
+			pageBox.drawFootnoteSeparator(drawer);
+
 			// 固定
 			pageBox.drawFixed(drawer, visitor);
 
 			// ページマージンボックス(css-page-3。本文の後に描く=仕様の描画順)
 			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor);
 
-			visitor.endPage();
 		}
+		// NopVisitorもstring-set/named-stringのページ状態を確定する。
+		visitor.endPage();
 
 		// 描画処理を非同期で実行
 		// PDFでは描画処理は非常に早く終わる

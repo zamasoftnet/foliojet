@@ -655,7 +655,7 @@ public final class ContinuationStats {
 	 * ({@code FloatSplitCommitSmokeTest})。強制改ページは97回まで観測された
 	 * ため、ガードは自動改ページに限定している——強制改ページは
      * 「作者が枚数を指定した」ものであり、進捗の有無で測ってはいけない。
-	 * この閾値は実測最大の50倍で、ここへ到達したら実装のライブロックである
+	 * この閾値は実測最大の6倍超で、ここへ到達したら実装のライブロックである
 	 * という強い証拠になる。
 	 * </p>
 	 *
@@ -668,7 +668,7 @@ public final class ContinuationStats {
 	 * (2026-07-27に実測: 1.6KBの文書で約45,000ページ・OOM)。
 	 * </p>
 	 */
-	public static final int STALLED_AUTO_BREAK_LIMIT = 256;
+	public static final int STALLED_AUTO_BREAK_LIMIT = 32;
 
 	private ContinuationStats() {
 		// counters
@@ -705,7 +705,7 @@ public final class ContinuationStats {
 			// <b>はみ出させるなり次ページへ送るなりして出力を返さなければ
 			// ならない</b>」とも定めている。したがって**出力を返す側**へ倒す。
 			//
-			// この閾値(256)を使うのは、**偽陽性がないと分かっている**唯一の
+			// この閾値(32)を使うのは、**偽陽性がないと分かっている**安全な
 			// 点だからである。低い閾値(2)で同じことをすると正当な改ページ
 			// まで潰す(実測: `FloatTableTest`が4ページ→3ページに退行)。
 			return true;

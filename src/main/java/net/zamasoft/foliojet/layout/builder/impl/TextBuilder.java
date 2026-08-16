@@ -439,7 +439,13 @@ public class TextBuilder {
 					// §9.1、2026-08-11)。自然幅で組み終えたこの時点で幅を
 					// 1emへ差し替え、内容に水平アフィンを掛ける。行が使う
 					// 見かけ幅(=下のascent/descent)もこれで1emになる
-					stf.compressTextCombine(params.fontStyle.getSize());
+					final java.awt.geom.GeneralPath ink = new java.awt.geom.GeneralPath();
+					final RootBuilder root = this.builder.getPageContext();
+					if (root != null) {
+						stf.textShape(root.getCurrentPageBox(), ink, new java.awt.geom.AffineTransform(), 0, 0);
+					}
+					stf.compressTextCombine(params.fontStyle.getSize(), ink.getCurrentPoint() == null ? null
+							: ink.getBounds2D());
 				}
 				switch (lineParams.flow) {
 				case WritingMode.TB:
@@ -647,6 +653,14 @@ public class TextBuilder {
 
 	double getPageAxis() {
 		return this.pageAxis;
+	}
+
+	/**
+	 * 通常フローを実際に進める量。表の先頭へ重ねる外置きマーカー専用行は
+	 * 読み順上は独立したまま、後続の表と同じページ位置を使う。
+	 */
+	double getFlowPageAdvance() {
+		return this.textBlockBox.overlaysFollowingBlock() ? 0 : this.pageAxis;
 	}
 
 	double getLineAxis() {

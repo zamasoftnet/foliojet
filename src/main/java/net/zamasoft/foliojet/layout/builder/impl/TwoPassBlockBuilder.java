@@ -70,6 +70,14 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		record StfBlock(TwoPassBlockBuilder builder) implements Recorded {
 		}
 
+		/** 親のTwoPass本文から分離してページ台帳へ渡すページフロート。 */
+		record PageFloatBlock(TwoPassBlockBuilder builder, boolean top) implements Recorded {
+		}
+
+		/** 親のTwoPass本文から分離してページ台帳へ渡す脚注。 */
+		record FootnoteBlock(TwoPassBlockBuilder builder) implements Recorded {
+		}
+
 		/** 絶対配置ブロック。 */
 		record AbsoluteBlock(TwoPassBlockBuilder builder) implements Recorded {
 		}
@@ -613,7 +621,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 書字方向が違う
 		case FLOAT:
 			// 浮動体
-			this.addRecord(new Recorded.StfBlock(builder));
+			if (stfBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloat) {
+				this.addRecord(new Recorded.PageFloatBlock(builder, pageFloat.top));
+			} else if (stfBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
+				this.addRecord(new Recorded.FootnoteBlock(builder));
+			} else {
+				this.addRecord(new Recorded.StfBlock(builder));
+			}
 			break;
 
 		case ABSOLUTE:
@@ -634,6 +648,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void fitFloating(TwoPassBlockBuilder childBuilder) {
 		this.measurer.fitFloating(childBuilder);
+	}
+
+	/** ネストしたshrink-to-fitブロックの固有寸法を親の軸へ換算します。 */
+	public void fitBlock(final TwoPassBlockBuilder childBuilder) {
+		this.measurer.fitBlock(childBuilder);
 	}
 
 	/**
@@ -863,6 +882,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					return false;
 				}
 				continue;
+			} else if (recorded instanceof Recorded.PageFloatBlock pageFloat) {
+				child = pageFloat.builder();
+			} else if (recorded instanceof Recorded.FootnoteBlock footnote) {
+				child = footnote.builder();
 			} else if (recorded instanceof Recorded.AbsoluteBlock absoluteBlock) {
 				// absolute吸収(codex増分9、2026-07-30): 親recordsが排他所有する
 				// absoluteだけを吸収可能とする。所有証明=①原箱のanchorが
@@ -1068,7 +1091,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 		case ReplayBody.LegacyRecords legacy -> {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassLegacyRecordBind(this.legacyBindOrigin);
-			this.bindRecords(builder, legacy.records);
+			this.bindRecords(builder, legacy.records, scratch);
 		}
 		case ReplayBody.Empty empty ->
 			// DP増分2: 空本文のbindはno-op(旧来も空recordsのループで
@@ -1083,7 +1106,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
-	private void bindRecords(BlockBuilder builder, final List<Recorded> records) {
+	private void bindRecords(BlockBuilder builder, final List<Recorded> records, final boolean scratch) {
 		// 再レイアウト
 		if (DEBUG) {
 			System.err.println("BIND");
@@ -1204,6 +1227,42 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				stfBuilder.bind(boundBuilder);
 				boundBuilder.close();
 				builder.addBound(blockBox);
+			}
+				break;
+
+			case Recorded.PageFloatBlock pageFloatBlock: {
+				if (textUnitizer != null) {
+					textUnitizer.flush();
+				}
+				if (scratch) {
+					break;
+				}
+				final TwoPassBlockBuilder content = pageFloatBlock.builder();
+				final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box =
+						(net.zamasoft.foliojet.layout.box.impl.FloatBlockBox) content.getRootBox();
+				box.shrinkToFit(builder, content.intrinsicSizesMeasured(), false);
+				final BlockBuilder target = new BlockBuilder(builder.getPageContext(), box);
+				content.bind(target);
+				target.close();
+				builder.getPageContext().addPageFloat(box, pageFloatBlock.top());
+			}
+				break;
+
+			case Recorded.FootnoteBlock footnoteBlock: {
+				if (textUnitizer != null) {
+					textUnitizer.flush();
+				}
+				if (scratch) {
+					break;
+				}
+				final TwoPassBlockBuilder content = footnoteBlock.builder();
+				final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box =
+						(net.zamasoft.foliojet.layout.box.impl.FloatBlockBox) content.getRootBox();
+				box.shrinkToFit(builder, content.intrinsicSizesMeasured(), false);
+				final BlockBuilder target = new BlockBuilder(builder.getPageContext(), box);
+				content.bind(target);
+				target.close();
+				builder.getPageContext().addFootnote(box);
 			}
 				break;
 

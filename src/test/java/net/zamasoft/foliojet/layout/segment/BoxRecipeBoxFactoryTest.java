@@ -278,6 +278,20 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 		assertEquals(FloatSide.END, ((FloatPos) box.getPos()).floating);
 	}
 
+	/** ページフロートと脚注は再構築後も通常FloatPosへ退化しない。 */
+	public void testSpecialFloatBlockRecipePreservesPosSubtype() {
+		final INonReplacedBox footnote = BoxRecipeBoxFactory.create(new BoxRecipe.FloatBlock(
+				BlockParamsTemplate.freeze(blockParams()), FloatPosTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.FootnotePos())));
+		final INonReplacedBox pageBottom = BoxRecipeBoxFactory.create(new BoxRecipe.FloatBlock(
+				BlockParamsTemplate.freeze(blockParams()), FloatPosTemplate
+						.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false))));
+
+		assertTrue(footnote.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos);
+		assertTrue(pageBottom.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos);
+		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom.getPos()).top);
+	}
+
 	/** BoxKind.INLINE_BLOCKはInlineBlockBoxへ再構築される。 */
 	public void testInlineBlockRecipeCreatesInlineBlockBox() {
 		final BoxRecipe recipe = new BoxRecipe.InlineBlock(BlockParamsTemplate.freeze(blockParams()),

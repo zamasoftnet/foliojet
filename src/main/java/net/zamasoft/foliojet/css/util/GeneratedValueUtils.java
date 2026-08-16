@@ -72,7 +72,7 @@ public final class GeneratedValueUtils {
 			return ListStyleTypeValue.KATAKANA_IROHA_VALUE;
 		} else if (ident.equals("-cssj-full-width-decimal") || ident.equals("-cssj-decimal-full-width")) {
 			return ListStyleTypeValue._CSSJ_FULL_WIDTH_DECIMAL_VALUE;
-		} else if (ident.equals("-cssj-cjk-decimal")) {
+		} else if (ident.equals("cjk-decimal") || ident.equals("-cssj-cjk-decimal")) {
 			return ListStyleTypeValue._CSSJ_CJK_DECIMAL_VALUE;
 		} else if (ident.equals("none")) {
 			return ListStyleTypeValue.NONE_VALUE;

@@ -80,6 +80,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected TextBuilder textBuilder = null;
 
 	/**
+	 * 上流の {@code GlyphHandler} で現在開いているテキストランです。
+	 *
+	 * <p>行間の断片化は {@link #textBuilder} を閉じることがありますが、
+	 * shaper 側の同じランはその後も glyph を送り続けられます。その場合は
+	 * 次の glyph で新しい {@link TextBuilder} とランを遅延再開するため、
+	 * ランのフォント状態を builder の寿命とは独立に保持します。</p>
+	 */
+	private FontStyle openRunFontStyle = null;
+	private FontMetrics openRunFontMetrics = null;
+
+	/**
 	 * ブロック境界で<b>テキストビルダーが開いたままでない</b>ことを検査します
 	 * (2026-07-26、assertから fail-closed へ昇格)。
 	 *
@@ -136,10 +147,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * 追加済みの浮動ボックスです。
 	 */
 	protected List<Floating> floatings = null;
-	/**
-	 * overflow:hidden;に追加された浮動ボックスです
-	 */
+	/** overflow:hiddenまたはwriting-mode変更で独立したfloat台帳。 */
 	private List<List<Floating>> noOverflowFloatings = null;
+	/** {@link #noOverflowFloatings}と同じ順で、その台帳を所有するflow box。 */
+	private List<AbstractContainerBox> independentFloatScopeOwners = null;
 
 	/**
 	 * {@link #floatings}台帳の世代カウンタです(2026-07-24、E-5——codex
@@ -489,6 +500,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	public void startFlowBlock(final FlowBlockBox flowBox) {
 		this.requireNoOpenTextBuilder("(no context)");
 		AbstractContainerBox containerBox = this.getFlowBox();
+		final BlockParams cParams = containerBox.getBlockParams();
 		double xmargin = 0;
 		double lineSize = containerBox.getLineSize();
 		if (flowBox.getColumnCount() > 1) {
@@ -503,15 +515,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();
 
-		if (flowBox.getBlockParams().overflow == OverflowMode.HIDDEN) {
-			// hidden指定されたボックス内のfloatは外に影響しない
+		if (establishesIndependentFloatScope(flowBox, cParams)) {
+			// overflow:hiddenとwriting-mode変更はいずれも独立BFCを作り、
+			// 内側のfloatを親の排除域へ漏らさない。
 			if (this.noOverflowFloatings == null) {
 				this.noOverflowFloatings = new ArrayList<List<Floating>>();
+				this.independentFloatScopeOwners = new ArrayList<AbstractContainerBox>();
 			}
 			this.noOverflowFloatings.add(new ArrayList<Floating>());
+			this.independentFloatScopeOwners.add(flowBox);
 		}
 
-		final BlockParams cParams = this.getFlowBox().getBlockParams();
 		final AbsoluteRectFrame frame = flowBox.getFrame();
 
 		if (pos.clear != ClearMode.NONE && this.getFloatingCount() > 0) {
@@ -621,19 +635,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return snapshot;
 	}
 
-							public void endFlowBlock() {
+	public void endFlowBlock() {
 		this.requireNoOpenTextBuilder("(no context)");
 		final Flow flow = (Flow) this.flowStack.remove(this.flowStack.size() - 1);
 		final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
 		final BlockParams params = flowBox.getBlockParams();
+		final Flow parentFlow = this.getFlow();
+		final BlockParams parentParams = parentFlow.box.getBlockParams();
 
 		if (flowBox.getColumnCount() > 1 && params.columns.fill == Columns.FILL_BALANCE) {
 			// カラムのバランス
 			this.pageAxis = flow.pageAxis;
 			flowBox.balance(this);
 		}
-		if (flowBox.getBlockParams().overflow == OverflowMode.HIDDEN) {
-			// hidden指定されたボックス内のfloatは外に影響しない
+		if (establishesIndependentFloatScope(flowBox, parentParams)) {
+			// 独立BFC内のfloatを親の排除域から外す。
+			assert this.independentFloatScopeOwners.get(this.independentFloatScopeOwners.size() - 1) == flowBox;
+			this.independentFloatScopeOwners.remove(this.independentFloatScopeOwners.size() - 1);
 			List<?> floatings = (List<?>) this.noOverflowFloatings.remove(this.noOverflowFloatings.size() - 1);
 			if (this.floatings != null) {
 				this.floatings.removeAll(floatings);
@@ -641,8 +659,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 
-		final Flow parentFlow = this.getFlow();
-		final BlockParams parentParams = parentFlow.box.getBlockParams();
 		final AbsoluteRectFrame frame = flowBox.getFrame();
 		final double marginEnd, frameEnd;
 		boolean bordered;
@@ -1140,7 +1156,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.extendParents(pageStart, delta.pageSpan().extent());
 	}
 
-				private void extendParents(final double pageStart, final double pageWidth) {
+	private void extendParents(final double pageStart, final double pageWidth) {
 		// 浮動ボックスによる上位ボックスの幅の拡張
 		Flow contextFlow = this.getSubContextFlow();
 		double pageAxis = pageStart + pageWidth;
@@ -1150,13 +1166,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 			for (; i >= 0; --i) {
 				contextFlow = (Flow) this.flowStack.get(i);
 				final BlockParams params = contextFlow.box.getBlockParams();
-				if (params.overflow == OverflowMode.HIDDEN) {
+				if (this.independentFloatScopeOwners != null
+						&& this.independentFloatScopeOwners.contains(contextFlow.box)) {
 					contextFlow.box.setPageAxis(pageAxis - contextFlow.pageAxis);
-					if (params.overflow == OverflowMode.HIDDEN) {
-						// overflowで高さが指定されている場合は、外に影響しない
-						pageAxis = contextFlow.box.getInnerPageExtent(contextFlow.box.getBlockParams().flow)
-								+ contextFlow.pageAxis;
-					}
+					// overflow:hiddenの指定寸法、またはwriting-mode変更BFCが
+					// 確定した内側extentだけを上位へ伝える。
+					pageAxis = contextFlow.box.getInnerPageExtent(params.flow) + contextFlow.pageAxis;
 				}
 			}
 		} else {
@@ -1323,18 +1338,33 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected final void rebuildNoOverflowFloatingScopes() {
 		assert this.floatings == null;
 		this.noOverflowFloatings = null;
+		this.independentFloatScopeOwners = null;
 		if (this.flowStack == null) {
 			return;
 		}
+		BlockParams parentParams = this.contextFlow.box.getBlockParams();
 		for (int i = 0; i < this.flowStack.size(); ++i) {
 			final Flow flow = (Flow) this.flowStack.get(i);
-			if (flow.box.getBlockParams().overflow == OverflowMode.HIDDEN) {
+			final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
+			if (establishesIndependentFloatScope(flowBox, parentParams)) {
 				if (this.noOverflowFloatings == null) {
 					this.noOverflowFloatings = new ArrayList<List<Floating>>();
+					this.independentFloatScopeOwners = new ArrayList<AbstractContainerBox>();
 				}
 				this.noOverflowFloatings.add(new ArrayList<Floating>());
+				this.independentFloatScopeOwners.add(flowBox);
 			}
+			parentParams = flowBox.getBlockParams();
 		}
+	}
+
+	/** CSS Writing Modes 3 §3.2とoverflowによる独立BFCのfloat境界。 */
+	private static boolean establishesIndependentFloatScope(final FlowBlockBox flowBox,
+			final BlockParams parentParams) {
+		final BlockParams params = flowBox.getBlockParams();
+		return params.overflow == OverflowMode.HIDDEN
+				|| (params.flow.isVertical() == parentParams.flow.isVertical()
+						&& params.flow != parentParams.flow);
 	}
 
 	public void addTable(final net.zamasoft.foliojet.layout.builder.RetainedTable tableBuilder) {
@@ -1503,6 +1533,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void startTextRun(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) {
+		this.openRunFontStyle = fontStyle;
+		this.openRunFontMetrics = fontMetrics;
 		if (this.textBuilder == null) {
 			// System.err.println("begin1");
 			this.requireTextBlock();
@@ -1518,14 +1550,34 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null && this.textSession.recordGlyph(charOffset, ch, coff, clen, gid)) {
 			return;
 		}
+		if (this.textBuilder == null) {
+			// flush()中の行間断片化がTextBuilderだけを閉じ、shaperの
+			// テキストランは継続している場合がある。次のglyphが実際に
+			// 到着した時点でだけ継続ブロックを作る（末尾で空の
+			// TextBuilderを合成しない）。
+			if (this.openRunFontStyle == null || this.openRunFontMetrics == null) {
+				throw new IllegalStateException("glyph outside a text run");
+			}
+			this.requireTextBlock();
+			this.textBuilder.startTextRun(this.openRunFontStyle, this.openRunFontMetrics);
+		}
 		this.textBuilder.glyph(charOffset, ch, coff, clen, gid);
 	}
 
 	public void endTextRun() {
-		if (this.textSession != null && this.textSession.recordRunEnd()) {
-			return;
+		try {
+			if (this.textSession != null && this.textSession.recordRunEnd()) {
+				return;
+			}
+			// ラン末尾の直前で断片化し、その後にglyphが無い場合は
+			// TextBuilderを作り直す必要がない。
+			if (this.textBuilder != null) {
+				this.textBuilder.endTextRun();
+			}
+		} finally {
+			this.openRunFontStyle = null;
+			this.openRunFontMetrics = null;
 		}
-		this.textBuilder.endTextRun();
 	}
 
 	public void control(final TextControl quad) {
@@ -1607,7 +1659,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				this.textSession.finishSession();
 			}
 			this.textBuilder.finish();
-			this.pageAxis += this.textBuilder.getPageAxis();
+			this.pageAxis += this.textBuilder.getFlowPageAdvance();
 			this.textBuilder = null;
 		}
 		final Flow flow = this.getFlow();

@@ -255,6 +255,55 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		return this.bodyGroups == null ? 0 : this.bodyGroups.size();
 	}
 
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>
+	 * 表は {@link AbstractContainerBox} 系ではないため、何もしなければ
+	 * {@link IBox} の安全側の既定値 ({@code true}) を返します。しかし、行・列・
+	 * 背景・罫線を一つも持たない空表は実際には何も描きません。縦組みで末尾の
+	 * 空表に明示幅があると、幅だけを理由に次ページへ送られ、その空ページが
+	 * 「描く可能性あり」と誤認されて残っていました (fuzz seed 5141)。
+	 * </p>
+	 *
+	 * <p>
+	 * HTML の匿名表ボックス生成は、空の {@code display:table} にも匿名の行・
+	 * セルを作り得ます。そのため「行がある」だけでは判定せず、列・行・セルの
+	 * 背景・罫線・内容まで {@code paintsAnything()} でたどります。つぶし境界は
+	 * 実際に見える境界があるかを調べます。
+	 * </p>
+	 */
+	@Override
+	public boolean paintsAnything() {
+		if (this.params.opacity == 0) {
+			return false;
+		}
+		if (this.params.frame.background.isVisible()) {
+			return true;
+		}
+		if (this.params.borderCollapse == TableParams.BORDER_SEPARATE) {
+			if (this.frame.frame.border.isVisible()) {
+				return true;
+			}
+		} else if (this.borders != null && this.borders.paintsAnything()) {
+			return true;
+		}
+		if (this.columnGroupBox != null && this.columnGroupBox.paintsAnything()) {
+			return true;
+		}
+		if (this.headerGroupBox != null && this.headerGroupBox.paintsAnything()) {
+			return true;
+		}
+		if (this.bodyGroups != null) {
+			for (int i = 0; i < this.bodyGroups.size(); ++i) {
+				if (this.bodyGroups.get(i).paintsAnything()) {
+					return true;
+				}
+			}
+		}
+		return this.footerGroupBox != null && this.footerGroupBox.paintsAnything();
+	}
+
 	private void drawBorders(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x, double y,
 			double xx, double yy) {
 		switch (this.params.borderCollapse) {

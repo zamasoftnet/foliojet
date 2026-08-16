@@ -177,7 +177,7 @@ public enum ListStyleTypeValue implements ListStyleTypeSource {
 			return "-cssj-full-width-decimal";
 
 		case _CSSJ_CJK_DECIMAL:
-			return "-cssj-cjk-decimal";
+			return "cjk-decimal";
 
 		case NONE:
 			return "none";

@@ -690,8 +690,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (LOG.isLoggable(Level.FINE)) {
 				LOG.fine("page break [interline]/" + pageAxis + "/" + this.widows);
 			}
-			this.autoBreak();
-			assert this.textBuilder != null : String.valueOf(this);
+			final boolean broke = this.autoBreak();
+			if (!broke || this.textBuilder == null) {
+				// RootBuilder.pageBreak()は、切断対象がKEEP/MOVEで改ページ点を
+				// 作れない場合にfalseを返す。この時点で元のTextBuilderは
+				// endTextBlock()により現在の断片へ確定済みなので、空の継続
+				// TextBuilderを作ってはいけない。次のrunが実際に来れば
+				// startTextRun()が通常どおり遅延生成する。改ページに成功しても
+				// 切断行に残余イベントが無ければ再開側はTextBuilderを作らない。
+				// この場合も同様に、存在しないrunを合成せずflushを終える。
+				return;
+			}
 
 			// TextRunを復帰
 			this.textBuilder.startTextRun(tbb.fontStyle, tbb.fontMetrics);
@@ -796,6 +805,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					// 必ず切断させるため高さを拡張
 					this.pageAxis = this.getPageLimit() + 1;
 					this.autoBreak();
+					if (this.textBuilder != null) {
+						// 切断したfloatが次の断片でもはみ出す場合、継続の再生が
+						// テキストブロックを開き、breakFloatsをもう一度予約する。
+						// 次のループ反復は再びブロック境界から改段するので、
+						// breakByClear()と同じく各切断直後に閉じておく。
+						this.endTextBlock();
+					}
 				}
 			}
 
@@ -1301,6 +1317,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected boolean columnBreak(final Flow breakFlow, final BreakMode mode, byte flags, final double lastFrame,
 			int depth) {
+		// 表セルの再計測などページ文脈を持たないbuilderには、継続断片を
+		// 登録・再開するRootBuilderがない。入口が複数あるため、ここを最後の
+		// 共通防壁にし、自動改段は「改段点なし」として呼出側へ返す。
+		// 強制改段はforceBreak側のfail-closed判定へ委ねる。
+		if (this.getPageContext() == null) {
+			this.beginBreak();
+			return false;
+		}
 		// 2026-07-21: この改段(COLUMN)経路はRootBuilder.pageBreak()の
 		// BreakPlan機構を迂回する独立経路(ChatGPT Pro相談で発見、
 		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
@@ -1336,23 +1360,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		final RootBuilder root = this.getPageContext();
-		if (root == null) {
-			// 2026-07-30(legacy再帰撤去=増分5、ユーザー裁定による物理削除):
-			// かつてここにはrootless文脈(M6c段バランスprobe等の
-			// TwoPassBuilder系)向けのlegacy改段経路があった。その存在理由
-			// だった隔離バランスプローブは2026-07-25の排除域P2撤回で全撤去
-			// 済みで、死んだ入口であることを実測(全unittestコーパス+
-			// 狙い撃ち合成文書で発火0)・静的(全LayoutStack連鎖は
-			// RootBuilderで終端)・歴史の三面から確認した(経緯はPLAN §2と
-			// consult-codex-2026-07-30-*.txt)。万一未知のrootless文脈が
-			// 出現した場合は、黙って劣化した改段(range stampingなし)を
-			// 行うのではなく、型付き不変条件違反として即座に停止する。
-			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
-					"column break requested without a RootBuilder page context; the rootless COLUMN path was "
-							+ "removed on 2026-07-30 after the isolated balance probes (its only known caller) "
-							+ "were retired on 2026-07-25 — an unknown rootless context has appeared and must be "
-							+ "investigated (see copperpdf4 docs/PLAN.md §2)");
-		}
 
 		// 2026-07-21(M6b Phase B4-Step4): 相対open pathの収集可能プレフィックス
 		// (自動改段のPLAIN_FLOWのみ、force改段では常に空——

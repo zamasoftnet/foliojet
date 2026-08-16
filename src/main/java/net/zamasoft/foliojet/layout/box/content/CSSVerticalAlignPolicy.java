@@ -5,7 +5,9 @@ import net.zamasoft.foliojet.layout.box.AbstractTextBox;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 
 /**
- * CSS 2.1で定義されるvertical-alignを計算します。
+ * {@code vertical-align}を計算します。キーワードの基礎的な意味はCSS 2.1
+ * §10.8.1を参照しますが、FolioJet全体のCSS実装範囲をCSS 2.1に限定するものでは
+ * ありません。
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: CSSVerticalAlignPolicy.java 1622 2022-05-02 06:22:56Z miyabe $

@@ -2,6 +2,8 @@ package net.zamasoft.foliojet.layout.segment;
 
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
+import net.zamasoft.foliojet.layout.box.params.FootnotePos;
+import net.zamasoft.foliojet.layout.box.params.PageFloatPos;
 
 /**
  * {@link FloatPos}(浮動体の配置パラメータ、{@link BoxKind#FLOAT_BLOCK}
@@ -17,14 +19,27 @@ import net.zamasoft.foliojet.layout.box.params.FloatSide;
  * 不変recordへ置換)。
  * </p>
  */
-public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating) {
+
+public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, Kind kind) {
+	public enum Kind {
+		NORMAL, FOOTNOTE, PAGE_TOP, PAGE_BOTTOM
+	}
+
 	public static FloatPosTemplate freeze(final FloatPos source) {
-		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating);
+		final Kind kind = source instanceof FootnotePos ? Kind.FOOTNOTE
+				: source instanceof PageFloatPos pageFloat ? pageFloat.top ? Kind.PAGE_TOP : Kind.PAGE_BOTTOM
+						: Kind.NORMAL;
+		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating, kind);
 	}
 
 	/** 呼び出しごとに新品の{@code FloatPos}を返す(複数回呼んでも互いに影響しない)。 */
 	public FloatPos materialize() {
-		final FloatPos pos = new FloatPos();
+		final FloatPos pos = switch (this.kind) {
+		case NORMAL -> new FloatPos();
+		case FOOTNOTE -> new FootnotePos();
+		case PAGE_TOP -> new PageFloatPos(true);
+		case PAGE_BOTTOM -> new PageFloatPos(false);
+		};
 		this.common.materializeInto(pos);
 		pos.floating = this.floating;
 		return pos;

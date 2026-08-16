@@ -308,6 +308,18 @@ final class StyleEventMachine {
 
 		short explDisplay = Display.get(style);
 
+		// @container G4(2026-08-15段4、docs/history/2026-08-15-container-queries-design.md §2):
+		// container-type: inline-sizeの要素は、この時点(スタイル確定・
+		// レイアウトより前)で「クエリコンテナである」ことと名前を記録する。
+		// 実測inline-sizeはレイアウト確定後(AbstractVisitor.visitBox)で
+		// 別途書き込む。擬似要素はelementKeyが安定しない(-1)ため対象外
+		if (!ce.isPseudoElement() && ce.elementKey >= 0
+				&& net.zamasoft.foliojet.css.impl.property.container.ContainerType.get(style) //
+						== net.zamasoft.foliojet.css.value.ContainerTypeValue.INLINE_SIZE) {
+			this.ua.getUAContext().getContainerFacts().setInlineSizeContainer(ce.elementKey,
+					net.zamasoft.foliojet.css.impl.property.container.ContainerName.get(style));
+		}
+
 		if (!ce.isPseudoElement()) {
 			// 本流のセグメント記録(M6a)
 			this.segment.startStyle(style);
@@ -455,6 +467,20 @@ final class StyleEventMachine {
 			style.footnoteId = this.nextFootnoteId++;
 			this.ua.getPassContext().getCounterScope(0, true).increment("footnote", 1);
 			this.footnotePseudo(style, CSSElement.FOOTNOTE_CALL);
+		}
+
+		// 外置きリストマーカーは通常、最初の文字が作る行へ遅延して置く。
+		// ただし最初の子が表なら、その文字は最初のセルの中で初めて現れる。
+		// そこまで遅延するとマーカーがセル内容に混入し、行分割時に
+		// 「マーカーだけ前断片、セル本文は後断片」となって隣のセルより
+		// 本文が後のページへ逆転する(seed 455)。表を開く前、まだ
+		// list-item の直下にいる時点でマーカーを確定させる。
+		if (this.marker != null
+				&& (explDisplay == DisplayValue.TABLE || explDisplay == DisplayValue.INLINE_TABLE)) {
+			if (this.marker.box instanceof OutsideMarkerBox outsideMarker) {
+				outsideMarker.setOverlaysFollowingBlock(true);
+			}
+			this.checkMarker();
 		}
 
 		this.emitter._startStyle(style);

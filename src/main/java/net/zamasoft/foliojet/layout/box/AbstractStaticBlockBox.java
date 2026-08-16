@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.box;
 
+import java.awt.geom.Rectangle2D;
+
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 import net.zamasoft.foliojet.layout.sizing.Sizing;
@@ -77,8 +79,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	 * </p>
 	 *
 	 * @param cellExtent セルの幅(通常は1em)
+	 * @param inkBounds  圧縮前のローカル座標における字面の輪郭。取得できない場合はnull
 	 */
-	public final void compressTextCombine(final double cellExtent) {
+	public final void compressTextCombine(final double cellExtent, final Rectangle2D inkBounds) {
 		if (this.textCombineScaleX != 1 || cellExtent <= 0) {
 			return;
 		}
@@ -88,7 +91,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 		if (natural > cellExtent) {
 			this.textCombineScaleX = cellExtent / natural;
-		} else {
+		}
+		if (inkBounds != null && !inkBounds.isEmpty()) {
+			// 送り幅ではなく実際の墨の中心を1emセルの中心へ置く。
+			// 数字は同じadvanceでも左右サイドベアリングが字形ごとに異なるため、
+			// 左端基準で縮小すると二桁ページ番号が数字ごとに横へ揺れる
+			// (2026-08-13、実書籍の目次で41/43/45を1200dpi実測)。
+			this.textCombineOffsetX = cellExtent / 2.0
+					- this.textCombineScaleX * inkBounds.getCenterX();
+		} else if (natural <= cellExtent) {
 			this.textCombineOffsetX = (cellExtent - natural) / 2;
 		}
 		this.width = cellExtent;
@@ -325,7 +336,6 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.width = lineExtent;
 			this.height = pageExtent;
 		}
-
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
 	}

@@ -236,6 +236,13 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		this.lineSize = Math.max(lineBox.getLineSize() - lineBox.getEndHangAdvance(), this.lineSize);
 	}
 
+	/**
+	 * 表の直前へ独立して出力した外置きマーカー専用ブロックか。
+	 */
+	public final boolean overlaysFollowingBlock() {
+		return this.lines.size() == 1 && this.lines.get(0).box.containsOnlyOverlayOutsideMarker();
+	}
+
 	public final void finishLayoutSelf(IFramedBox containerBox) {
 	}
 

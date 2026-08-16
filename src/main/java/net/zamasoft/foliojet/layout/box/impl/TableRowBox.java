@@ -182,6 +182,24 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		return this.cells.size();
 	}
 
+	/** 表示される行背景または元セルを持つか。rowspan の延長セルは重複して見ない。 */
+	@Override
+	public boolean paintsAnything() {
+		if (this.params.opacity == 0) {
+			return false;
+		}
+		if (this.params.background.isVisible()) {
+			return true;
+		}
+		for (int i = 0; i < this.cells.size(); ++i) {
+			final Cell cell = this.cells.get(i);
+			if (cell.isSource() && cell.getCellBox().paintsAnything()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public final void finishLayoutSelf(IFramedBox containerBox) {
 	}
 

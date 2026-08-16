@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
@@ -217,6 +218,22 @@ public abstract class AbstractVisitor implements Visitor {
 		final StructureElement ce = box.getParams().element;
 		if (ce == null || ce.atts() == null) {
 			return;
+		}
+
+		// @container G4(2026-08-15段4、docs/history/2026-08-15-container-queries-design.md §2):
+		// レイアウト確定後のこの時点で、クエリコンテナ(container-type:
+		// inline-size、StyleEventMachine.startStyleが先に記録済み)の
+		// used inline-sizeをContainerFactsへ書き込む。flow軸に応じて
+		// width/heightのどちらがインライン軸かを決める(縦書きはheight)。
+		// 次のパスのStyleContext.mergeが読む(このパス自身の後続要素の
+		// 評価には使わない——パスNの寸法はパスN+1のクエリ評価に使う設計)
+		if (ce.elementKey() >= 0) {
+			final net.zamasoft.foliojet.ua.ContainerFacts containerFacts = this.ua.getUAContext()
+					.getContainerFacts();
+			if (containerFacts.isInlineSizeContainer(ce.elementKey()) && box.getParams() instanceof BlockParams bp) {
+				final double inlineSize = bp.flow.isVertical() ? box.getHeight() : box.getWidth();
+				containerFacts.setInlineSize(ce.elementKey(), inlineSize);
+			}
 		}
 
 		final PageRef pageRef;

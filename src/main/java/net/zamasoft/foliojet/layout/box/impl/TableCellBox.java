@@ -144,6 +144,29 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	/**
+	 * セル内容へ適用する論理ブロック軸の整列量です。明示された
+	 * {@code align-content} は、HTML/CSS2由来の {@code vertical-align}
+	 * より優先します。通常値では従来のセル整列をそのまま保ちます。
+	 */
+	private double contentAlignmentOffset() {
+		return this.params.blockAlignContent == net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL
+				? this.verticalAlign
+				: this.blockContentAlignmentOffset();
+	}
+
+	@Override
+	protected double blockAlignedX(final double x) {
+		return this.params.flow.isVertical()
+				? x + LayoutUtils.pageAxisSign(this.params.flow) * this.contentAlignmentOffset()
+				: x;
+	}
+
+	@Override
+	protected double blockAlignedY(final double y) {
+		return this.params.flow.isVertical() ? y : y + this.contentAlignmentOffset();
+	}
+
+	/**
 	 * 表Pass B(行計測)用のscratch複製を作ります(E-6増分5b-1、2026-07-24——
 	 * codex設計§4.4「確定列幅でセルrangeを再生し寸法だけ取得して破棄」の
 	 * 計測プリミティブの部品)。prepareLayout・列幅適用
@@ -296,13 +319,8 @@ public class TableCellBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		if (this.params.flow.isVertical()) {
-			// vertical-align はページ方向のずらし。向きはRLだけ負
-			// (2026-07-25、vertical-lr対応。従来はRL専用に -= していた)
-			x += LayoutUtils.pageAxisSign(this.params.flow) * this.verticalAlign;
-		} else {
-			y += this.verticalAlign;
-		}
+		x = this.blockAlignedX(x);
+		y = this.blockAlignedY(y);
 		this.container.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
 
@@ -322,13 +340,8 @@ public class TableCellBox extends AbstractContainerBox {
 		}
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		if (this.params.flow.isVertical()) {
-			// vertical-align はページ方向のずらし。向きはRLだけ負
-			// (2026-07-25、vertical-lr対応。従来はRL専用に -= していた)
-			x += LayoutUtils.pageAxisSign(this.params.flow) * this.verticalAlign;
-		} else {
-			y += this.verticalAlign;
-		}
+		x = this.blockAlignedX(x);
+		y = this.blockAlignedY(y);
 		// floatsはIBox.drawと同じく完結した1つの入口点なので、自前の
 		// ワークリストを作って最後まで消化してから返る(2026-07-20)
 		final java.util.Deque<DrawStep> worklist = new java.util.ArrayDeque<>();
@@ -369,13 +382,8 @@ public class TableCellBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
-		if (this.params.flow.isVertical()) {
-			// vertical-align はページ方向のずらし。向きはRLだけ負
-			// (2026-07-25、vertical-lr対応。従来はRL専用に -= していた)
-			x += LayoutUtils.pageAxisSign(this.params.flow) * this.verticalAlign;
-		} else {
-			y += this.verticalAlign;
-		}
+		x = this.blockAlignedX(x);
+		y = this.blockAlignedY(y);
 
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 

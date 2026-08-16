@@ -7,7 +7,6 @@ import java.util.logging.Logger;
 import jp.cssj.cti2.TranscoderException;
 import jp.cssj.cti2.helpers.CTIMessageCodes;
 import net.zamasoft.foliojet.formatter.Formatter;
-import net.zamasoft.foliojet.ua.impl.SinglePageImposition;
 import net.zamasoft.foliojet.ua.impl.image.RasterImageLoader;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
@@ -46,7 +45,7 @@ public class ImageFormatter implements Formatter {
 			double iw = image.getWidth();
 			double ih = image.getHeight();
 
-			Imposition imposition = new SinglePageImposition(ua);
+			Imposition imposition = LayoutUtils.createImposition(ua);
 			imposition.setPageWidth(iw);
 			imposition.setPageHeight(ih);
 			LayoutUtils.setupImposition(ua, imposition);

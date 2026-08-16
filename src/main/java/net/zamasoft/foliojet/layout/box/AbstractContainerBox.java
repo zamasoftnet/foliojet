@@ -403,6 +403,42 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.height;
 	}
 
+	/**
+	 * 通常ブロックの {@code align-content} が内容原点へ加える論理ブロック軸量。
+	 * 明示寸法に余白がある場合だけ働き、オーバーフロー時は仕様のsafe既定に
+	 * 従ってstart(0)へ戻す。Flex/Gridは固有ビルダーで配置済みなので除外する。
+	 */
+	protected final double blockContentAlignmentOffset() {
+		final BlockParams params = this.getBlockParams();
+		if (params instanceof net.zamasoft.foliojet.layout.box.params.FlexParams
+				|| params instanceof net.zamasoft.foliojet.layout.box.params.GridParams) {
+			return 0;
+		}
+		final net.zamasoft.foliojet.layout.box.params.BoxAlignment alignment = params.blockAlignContent;
+		if (alignment == net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL
+				|| alignment == net.zamasoft.foliojet.layout.box.params.BoxAlignment.START
+				|| alignment == net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH
+				|| alignment == net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO) {
+			return 0;
+		}
+		final double free = this.getInnerPageExtent(params.flow) - this.container.getContentSize();
+		if (LayoutUtils.compare(free, 0) <= 0) {
+			return 0;
+		}
+		return alignment == net.zamasoft.foliojet.layout.box.params.BoxAlignment.CENTER ? free / 2 : free;
+	}
+
+	/** 論理ブロック軸の整列量を物理座標へ反映する。 */
+	protected double blockAlignedX(final double x) {
+		final WritingMode flow = this.getBlockParams().flow;
+		return flow.isVertical() ? x + LayoutUtils.pageAxisSign(flow) * this.blockContentAlignmentOffset() : x;
+	}
+
+	/** 論理ブロック軸の整列量を物理座標へ反映する。 */
+	protected double blockAlignedY(final double y) {
+		return this.getBlockParams().flow.isVertical() ? y : y + this.blockContentAlignmentOffset();
+	}
+
 	public final void addFlow(IFlowBox box, double pageAxis) {
 		this.container.addFlow(box, pageAxis);
 	}
@@ -629,6 +665,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 		transform = this.transform(transform, x, y);
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
+		x = this.blockAlignedX(x);
+		y = this.blockAlignedY(y);
 		this.container.pushTextShapeSteps(pageBox, path, transform, x, y, worklist);
 	}
 

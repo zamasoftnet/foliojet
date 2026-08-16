@@ -50,6 +50,20 @@ public class TableColumnGroupBox extends TableColumnBox {
 		return this.columns == null ? 0 : this.columns.size();
 	}
 
+	/** 列グループ自身または子列に表示される背景があるか。 */
+	@Override
+	public boolean paintsAnything() {
+		if (super.paintsAnything()) {
+			return true;
+		}
+		for (int i = 0; i < this.getTableColumnCount(); ++i) {
+			if (this.getTableColumn(i).paintsAnything()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * 葉の列(および子を持たない列グループ)を文書順に走査します。
 	 * {@link #eachColumn}の葉だけを拾うビューです。

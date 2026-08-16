@@ -1,0 +1,28 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<style>
+@page { margin: 20pt; }
+body {
+  margin: 0;
+  writing-mode: vertical-rl;
+  font-family: "Noto Sans JP", sans-serif;
+	-cssj-font-policy: embedded;
+  font-size: 12pt;
+  line-height: 2;
+}
+p { margin: 0 0 0 12pt; }
+.tcy { text-combine-upright: all; }
+.tnum { font-feature-settings: "tnum" 1; }
+.numeric { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<p>頁<span id="t41" class="tcy">41</span>頁<span id="t43" class="tcy">43</span>頁<span id="t45" class="tcy">45</span></p>
+<p>頁<span id="f41" class="tcy tnum">41</span>頁<span id="f43" class="tcy tnum">43</span>頁<span id="f45" class="tcy tnum">45</span></p>
+<p>頁<span id="n41" class="tcy numeric">41</span>頁<span id="n43" class="tcy numeric">43</span>頁<span id="n45" class="tcy numeric">45</span></p>
+<p id="dash">甲—乙―丙――丁</p>
+</body>
+</html>

@@ -155,6 +155,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
+		x = this.blockAlignedX(x);
+		y = this.blockAlignedY(y);
 		this.container.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
 	
@@ -181,11 +183,15 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		y += this.frame.getFrameTop();
 		assert !LayoutUtils.isNone(x);
 		assert !LayoutUtils.isNone(y);
+		final double contentBoxX = x;
+		final double contentBoxY = y;
+		x = this.blockAlignedX(x);
+		y = this.blockAlignedY(y);
 
 		final boolean contextBox = this.isContextBox();
 		if (contextBox) {
-			contextX = x - this.frame.padding.left;
-			contextY = y - this.frame.padding.top;
+			contextX = contentBoxX - this.frame.padding.left;
+			contextY = contentBoxY - this.frame.padding.top;
 		}
 
 		// Tagged PDF: open a structure element for a mappable HTML block so the
@@ -198,8 +204,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// 元の実行順(floatings→flows→absolutes→endStruct)を保つため、
 		// スタックへは逆順でpushする
 		worklist.push(w -> pageBox.endStruct(drawer, this.params.element, structCount, fx, fy));
-		this.container.pushDrawAbsolutes(pageBox, drawer, visitor, absolutesClip, transform, contextX, contextY, x, y,
-				worklist);
+		this.container.pushDrawAbsolutes(pageBox, drawer, visitor, absolutesClip, transform, contextX, contextY,
+				contentBoxX, contentBoxY, worklist);
 		this.container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 		this.container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
 				worklist);

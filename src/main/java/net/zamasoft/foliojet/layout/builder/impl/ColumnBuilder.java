@@ -36,7 +36,11 @@ public class ColumnBuilder extends BreakableBuilder {
 	 */
 	@Override
 	protected final boolean canFragmentFurther() {
-		return this.contextFlow.box.canColumnBreak();
+		// 表セルの再計測など、ページ文脈を持たないbuilderでは継続先を
+		// RootBuilderへ登録できない。ここで「改段可能」と答えると
+		// columnBreak()まで進んでからrootless不変条件違反になる。
+		// 計測用の閉じた断片では、その場であふれさせるのが安全である。
+		return this.getPageContext() != null && this.contextFlow.box.canColumnBreak();
 	}
 
 	/**
@@ -78,7 +82,8 @@ public class ColumnBuilder extends BreakableBuilder {
 	 * </p>
 	 */
 	protected final boolean pageBreak(BreakMode mode, byte flags) {
-		if (mode instanceof AutoBreakMode && !this.contextFlow.box.canColumnBreak()) {
+		if (mode instanceof AutoBreakMode
+				&& (this.getPageContext() == null || !this.contextFlow.box.canColumnBreak())) {
 			// 段を使い切った。ここで段を足すと行方向へ紙の外まで伸びるので、
 			// 最後の段の中であふれさせる(ブラウザが column-count を
 			// 使い切ったときと同じ振る舞い)

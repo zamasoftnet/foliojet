@@ -19,10 +19,24 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 public class OutsideMarkerBox extends InlineBlockBox {
 	private double lineAxis;
 
+	/**
+	 * 表がlist-itemの先頭子であるため、表の外で先行出力されたマーカーか。
+	 * この場合のマーカー専用行は表の先頭位置へ重ね、通常フローを進めない。
+	 */
+	private boolean overlaysFollowingBlock;
+
 	public OutsideMarkerBox(BlockParams params, InlinePos pos) {
 		super(params, pos);
 		params.whiteSpace = AbstractTextParams.WHITE_SPACE_NOWRAP;
 		params.textIndent = Length.ZERO_LENGTH;
+	}
+
+	public final void setOverlaysFollowingBlock(final boolean overlaysFollowingBlock) {
+		this.overlaysFollowingBlock = overlaysFollowingBlock;
+	}
+
+	public final boolean overlaysFollowingBlock() {
+		return this.overlaysFollowingBlock;
 	}
 
 	public void firstPassLayout(AbstractContainerBox containerBox) {

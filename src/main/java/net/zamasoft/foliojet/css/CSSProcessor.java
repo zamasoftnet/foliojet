@@ -126,7 +126,8 @@ public class CSSProcessor implements XMLHandler {
 			carried = new CSSStyleSheet();
 			this.ua.getUAContext().setCarriedStyleSheet(carried);
 		}
-		StyleContext styleContext = new StyleContext(carried, this.ua.getUAContext().getSelectorFacts());
+		StyleContext styleContext = new StyleContext(carried, this.ua.getUAContext().getSelectorFacts(),
+				this.ua.getUAContext().getContainerFacts());
 
 		this.styleSheetBuilder = new CSSStyleSheetBuilder(this.ua);
 		this.styleSheetBuilder.setCSSStyleSheet(styleContext.styleSheet);

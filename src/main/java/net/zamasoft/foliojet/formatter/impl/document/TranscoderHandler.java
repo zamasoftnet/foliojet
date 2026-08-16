@@ -8,11 +8,9 @@ import java.util.StringTokenizer;
 
 import net.zamasoft.foliojet.css.CSSProcessor;
 import net.zamasoft.foliojet.css.scan.StructureScanHandler;
-import net.zamasoft.foliojet.ua.impl.NUpImposition;
-import net.zamasoft.foliojet.ua.impl.NopImposition;
-import net.zamasoft.foliojet.ua.impl.SinglePageImposition;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -243,22 +241,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				exitPoint.setXMLHandler(new StructureScanHandler(this.ua.getUAContext().getSelectorFacts()));
 			} else {
 				// CSSの処理
-				Imposition imposition;
-				if (this.ua.isMeasurePass()) {
-					imposition = new NopImposition(this.ua);
-				} else {
-					int nUp = UAProps.OUTPUT_N_UP.getInteger(this.ua);
-					if (nUp > 1) {
-						imposition = new NUpImposition(this.ua, nUp,
-								UAProps.OUTPUT_N_UP_ORDER.get(this.ua));
-					} else {
-						if (nUp < 1) {
-							this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_N_UP.name,
-									String.valueOf(nUp));
-						}
-						imposition = new SinglePageImposition(this.ua);
-					}
-				}
+				Imposition imposition = LayoutUtils.createImposition(this.ua);
 				CSSProcessor cssProcessor = new CSSProcessor(this.ua, imposition);
 				if (ssh != null) {
 					cssProcessor.setStyleSheetSelector(ssh);

@@ -106,6 +106,9 @@ public class DirectSession extends AbstractCTISession
 
 	private IOException pipeException = null;
 
+	/** 現在の文書変換の単調時刻による締切。0は無制限。 */
+	private volatile long processingDeadlineNanos;
+
 	private File profileFile;
 
 	private static final Map<File, FontSourceManager> FONT_CACHE = Collections
@@ -457,7 +460,18 @@ public class DirectSession extends AbstractCTISession
 		final FontSourceManager fsm = this.getFontSourceManager();
 		this.ua.getUAContext().setFontSourceManager(fsm);
 
-		// 変換を実行
+		// 変換を実行。締切は複数パス全体で共有し、各パスごとに
+		// リセットしない。
+		final long timeLimitMillis = UAProps.PROCESSING_TIME_LIMIT.getLong(this.ua);
+		if (timeLimitMillis > 0) {
+			final long now = System.nanoTime();
+			final long duration = timeLimitMillis > Long.MAX_VALUE / 1_000_000L
+					? Long.MAX_VALUE : timeLimitMillis * 1_000_000L;
+			this.processingDeadlineNanos = duration == Long.MAX_VALUE || now > Long.MAX_VALUE - duration
+					? Long.MAX_VALUE : now + duration;
+		} else {
+			this.processingDeadlineNanos = 0;
+		}
 		try {
 			this.format(source);
 			if (!this.continuous) {
@@ -517,6 +531,7 @@ public class DirectSession extends AbstractCTISession
 			// いた。何種類の欠陥が残っているかが数えられない
 			throw failure(code, mes, t);
 		} finally {
+			this.processingDeadlineNanos = 0;
 			if (!this.continuous) {
 				this.ua.dispose();
 				this.ua = null;
@@ -543,7 +558,13 @@ public class DirectSession extends AbstractCTISession
 			Entry<?, ?> e = (Entry<?, ?>) i.next();
 			String name = (String) e.getKey();
 			String value = (String) e.getValue();
-			this.property(name, value);
+			// CTIクライアントが先に指定した値を、後から読むプロファイルの
+			// 既定値で上書きしてはならない。特にフォント方針をプロファイルが
+			// 持つ場合、output.pdf.fonts.policy=outlines が無視されていた。
+			// include/exclude は累積指定なので従来どおり追加する。
+			if (SPECIAL_PROPERTIES.contains(name) || !this.props.containsKey(name)) {
+				this.property(name, value);
+			}
 		}
 	}
 
@@ -730,9 +751,13 @@ public class DirectSession extends AbstractCTISession
 		final net.zamasoft.foliojet.layout.rescue.RescuePolicy rescuePolicy = net.zamasoft.foliojet.layout.rescue.RescuePolicy
 				.current();
 		final String displayListDir = net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDir();
+		final boolean detailedDisplayListGeometry = net.zamasoft.foliojet.layout.draw.DisplayListDumper
+				.currentDetailedGeometry();
 		final Thread worker = new Thread(null, () -> {
 			try (var policy = rescuePolicy.scoped();
-					var dump = net.zamasoft.foliojet.layout.draw.DisplayListDumper.scopedDir(displayListDir)) {
+					var dump = net.zamasoft.foliojet.layout.draw.DisplayListDumper.scopedDir(displayListDir);
+					var geometry = net.zamasoft.foliojet.layout.draw.DisplayListDumper
+							.scopedDetailedGeometry(detailedDisplayListGeometry)) {
 				task.run();
 			} catch (Throwable t) {
 				failure[0] = t;
@@ -745,16 +770,38 @@ public class DirectSession extends AbstractCTISession
 		// 出力破損・sessionとの競合・非daemonスレッドによるJVM残留の経路。
 		// 割り込みは握りつぶさず、完了後に呼び出し元スレッドへ復元する。
 		boolean interrupted = false;
+		boolean timedOut = false;
 		for (;;) {
 			try {
-				worker.join();
-				break;
+				final long deadline = this.processingDeadlineNanos;
+				if (deadline == 0 || timedOut) {
+					worker.join();
+					break;
+				}
+				final long remaining = deadline - System.nanoTime();
+				if (remaining <= 0) {
+					timedOut = true;
+					// abortは協調的中断の真実源。interruptはHTTP読み取り等の
+					// 待機を早く解除する補助であり、workerの終了までは必ずjoinする。
+					this.ua.abort(ABORT_FORCE);
+					worker.interrupt();
+					continue;
+				}
+				final long waitMillis = Math.max(1L,
+						Math.min(1000L, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remaining)));
+				worker.join(waitMillis);
+				if (!worker.isAlive()) {
+					break;
+				}
 			} catch (InterruptedException e) {
 				interrupted = true;
 			}
 		}
 		if (interrupted) {
 			Thread.currentThread().interrupt();
+		}
+		if (timedOut) {
+			throw new AbortException(ABORT_FORCE);
 		}
 		if (failure[0] instanceof AbortException ae) {
 			throw ae;
@@ -780,6 +827,11 @@ public class DirectSession extends AbstractCTISession
 	 */
 	protected void format(Source source) throws AbortException, TranscoderException {
 		// @format
+		final long inputLimit = UAProps.INPUT_SIZE_LIMIT.getLong(this.ua);
+		if (inputLimit >= 0) {
+			source = new InputLimitedSource(source,
+					new InputByteBudget(inputLimit, UAProps.INPUT_SIZE_LIMIT.getName()));
+		}
 		final Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, source);
 		Results results = this.results;
 		long limit = UAProps.OUTPUT_SIZE_LIMIT.getLong(this.ua);
@@ -865,6 +917,22 @@ public class DirectSession extends AbstractCTISession
 						LOG.warning("target-counter()/target-counters()/target-text() resolved to a value"
 								+ " that changed during the final layout pass;"
 								+ " consider increasing processing.pass-count.");
+					}
+					// @container G5(2026-08-15段5、設計§3/§4): 最終パスで
+					// コンテナのused inline-sizeが直前の値から不動点に達して
+					// いなければ、黙って出さず診断する(出力自体は最終パスの
+					// 値のまま使う——設計§4「fail closedを破らない」)
+					if (!this.ua.getUAContext().getContainerFacts().isConverged()) {
+						LOG.warning("@container query evaluated against a container inline-size that"
+								+ " changed during the final layout pass;"
+								+ " consider increasing processing.pass-count.");
+					}
+					// 振動(周期2)は狭いほうへ固定して確定させた。紙面は破綻
+					// しないが、著者の書いたクエリのとおりには組まれていない
+					if (this.ua.getUAContext().getContainerFacts().hasOscillation()) {
+						LOG.warning("@container query oscillated between two container inline-sizes;"
+								+ " pinned the narrower one. The layout is stable but may not match"
+								+ " the authored query.");
 					}
 				} finally {
 					if (tmpFile != null) {

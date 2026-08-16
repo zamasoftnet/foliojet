@@ -28,6 +28,13 @@ public class BlockParams extends AbstractLineParams {
 	public OverflowMode overflow = OverflowMode.VISIBLE;
 
 	/**
+	 * 通常ブロックコンテナの内容全体をブロック軸に配置する
+	 * {@code align-content} (CSS Box Alignment Level 3 §5.1.1)。
+	 * Flex/Grid は各レイアウト固有の同名フィールドを使う。
+	 */
+	public BoxAlignment blockAlignContent = BoxAlignment.NORMAL;
+
+	/**
 	 * mask-imageのグラデーション近似によるペイントクリップ(MaskImage参照)。
 	 * overflow: hiddenと同じ描画クリップだけを適用し、レイアウトには影響しない。
 	 */
@@ -43,7 +50,8 @@ public class BlockParams extends AbstractLineParams {
 		return super.toString() + "[frame=" + this.frame + "[firstLineStyle=" + this.firstLineStyle
 				+ ",pageBreakInside=" + this.pageBreakInside + ",orphans=" + this.orphans + ",widows=" + this.widows
 				+ ",size=" + this.size + ",minSize=" + this.minSize + ",maxSize=" + this.maxSize + ",boxSizing="
-				+ this.boxSizing + ",overflow=" + this.overflow + ",paintClip=" + this.paintClip + ",columns="
+				+ this.boxSizing + ",overflow=" + this.overflow + ",blockAlignContent=" + this.blockAlignContent
+				+ ",paintClip=" + this.paintClip + ",columns="
 				+ this.columns + "]";
 	}
 }

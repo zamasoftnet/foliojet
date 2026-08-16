@@ -24,6 +24,9 @@ import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
+import net.zamasoft.foliojet.ua.impl.NUpImposition;
+import net.zamasoft.foliojet.ua.impl.NopImposition;
+import net.zamasoft.foliojet.ua.impl.SinglePageImposition;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputMarks;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -787,6 +790,25 @@ public final class LayoutUtils {
 		// lineSize が NaN/巨大値のときに 0 や負に落ちないことを保証する
 		// ——段数0は呼び出し側が「段組でない」と読むので、意味が変わる
 		return Math.max(1, count);
+	}
+
+	/**
+	 * 現在の処理段階と出力設定に対応する面付けを作ります。
+	 * 中間パスと構造走査ではページの論理的な進行だけを保ち、GCや
+	 * serializerを一切起動しません。
+	 */
+	public static Imposition createImposition(final UserAgent ua) {
+		if (ua.isMeasurePass() || ua.isStructureScanPass()) {
+			return new NopImposition(ua);
+		}
+		final int nUp = UAProps.OUTPUT_N_UP.getInteger(ua);
+		if (nUp > 1) {
+			return new NUpImposition(ua, nUp, UAProps.OUTPUT_N_UP_ORDER.get(ua));
+		}
+		if (nUp < 1) {
+			ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_N_UP.name, String.valueOf(nUp));
+		}
+		return new SinglePageImposition(ua);
 	}
 
 	public static void setupImposition(final UserAgent ua, final Imposition imposition) {

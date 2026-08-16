@@ -226,13 +226,14 @@ final class FuzzShrinker {
 		// --- 自己検査3: 退化入力では再現しないこと ---
 		final String emptied = emptyBody(original.html());
 		final String emptyClass = probe.classOf(emptied);
-		if (target.equals(emptyClass)) {
+		if (target.equals(emptyClass) && probe.lastSeverity >= minSeverity) {
 			System.out.println("[shrink] 中止: <body>を空にしても同じ種別(" + emptyClass + ")が出る。"
 					+ "この述語は退化解で満たせるので縮小に使えない(LESSONS.md §3.15 の4例目)");
 			return;
 		}
-		System.out.println("[shrink] 自己検査3 OK: 空の<body>では再現しない(" + emptyClass + ", "
-				+ probe.lastPages + "ページ)。退化判定でも拒否: " + degenerate(emptied));
+		System.out.println("[shrink] 自己検査3 OK: 空の<body>では目標を満たさない(" + emptyClass + ", 深刻度"
+				+ probe.lastSeverity + ", " + probe.lastPages + "ページ)。退化判定でも拒否: "
+				+ degenerate(emptied));
 
 		// --- 縮小 ---
 		final int maxEvals = Integer.getInteger("foliojet.fuzzShrinkEvals", DEFAULT_MAX_EVALS).intValue();
@@ -406,12 +407,15 @@ final class FuzzShrinker {
 	 * </p>
 	 *
 	 * <p>
-	 * 深刻度が連続量なのは紙面外配置だけなので、他の種別は{@code 1}を返して
-	 * 「深刻度では区別しない」と表明する。
+	 * 紙面外配置では超過量、白紙ページでは最後の白紙のページ番号を使う。
+	 * 後者により、内容を全部消して得た1ページだけの白紙を「末尾の余分な
+	 * 白紙ページ」と取り違えない。他の種別は{@code 1}を返す。
 	 * </p>
 	 */
 	private static final Pattern OFF_PAGE_DETAIL = Pattern
 			.compile("紙面外への配置 (\\d+)pt \\(紙面\\d+x\\d+pt, 最大明示サイズ(\\d+)pt");
+
+	private static final Pattern BLANK_PAGE_DETAIL = Pattern.compile("白紙ページ \\[(\\d+(?:, \\d+)*)\\]");
 
 	static double severity(final Throwable t) {
 		for (Throwable c = t; c != null; c = c.getCause()) {
@@ -423,6 +427,14 @@ final class FuzzShrinker {
 			if (od.find()) {
 				// はみ出し量から「作者の指定で説明できる分」を引いた超過
 				return Double.parseDouble(od.group(1)) - 2 * Double.parseDouble(od.group(2));
+			}
+			final Matcher bd = BLANK_PAGE_DETAIL.matcher(m);
+			if (bd.find()) {
+				int last = 0;
+				for (final String page : bd.group(1).split(", ")) {
+					last = Math.max(last, Integer.parseInt(page));
+				}
+				return last;
 			}
 		}
 		return 1;
@@ -774,8 +786,9 @@ final class FuzzShrinker {
 				continue;
 			}
 			final String style = n.attr("style");
+			final boolean floated = style != null && style.contains("float:") && !style.contains("float:none");
 			final boolean here = inReorderable
-					|| (style != null && (style.contains("float:") || style.contains("position:absolute")));
+					|| (style != null && (floated || style.contains("position:absolute")));
 			collectTokens(n.children, here, tokens, reorderable);
 		}
 	}

@@ -55,6 +55,12 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		this.pageSize = pageSize;
 	}
 
+	/** 列は内容を持たず、実描画経路と同じく背景が見える場合だけ描く。 */
+	@Override
+	public boolean paintsAnything() {
+		return this.params.opacity != 0 && this.params.background.isVisible();
+	}
+
 	public final void finishLayoutSelf(IFramedBox containerBox) {
 		// ignore
 	}

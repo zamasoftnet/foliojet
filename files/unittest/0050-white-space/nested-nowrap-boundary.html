@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>nowrap is scoped to each inline</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: 10pt/10pt serif; }
+ul { writing-mode: vertical-rl; width: 100pt; height: 120pt; margin: 0; padding: 0; }
+li { margin: 0; white-space: normal; }
+.item { white-space: nowrap; }
+.locked { white-space: nowrap; }
+.item::after {
+  content: "\2060" target-counter(attr(data-target), page);
+  text-combine-upright: all;
+}
+</style>
+</head>
+<body>
+<ul><li><a id="a" class="item" data-target="#ta"><span>甲乙丙丁戊己</span></a><span>／</span><a id="b" class="item" data-target="#tb"><span>庚辛壬癸甲乙</span></a><span>／</span><a id="c" class="item" data-target="#tc"><span>丙丁戊己庚辛</span></a><span>／</span><a id="d" class="item" data-target="#td"><span>壬癸甲乙丙丁</span></a></li></ul>
+<ul><li class="locked"><a id="e" class="item" data-target="#ta"><span>甲乙丙丁戊己</span></a><span>／</span><a id="f" class="item" data-target="#tb"><span>庚辛壬癸甲乙</span></a><span>／</span><a id="g" class="item" data-target="#tc"><span>丙丁戊己庚辛</span></a><span>／</span><a id="h" class="item" data-target="#td"><span>壬癸甲乙丙丁</span></a></li></ul>
+<div id="ta">a</div><div id="tb">b</div><div id="tc">c</div><div id="td">d</div>
+</body>
+</html>

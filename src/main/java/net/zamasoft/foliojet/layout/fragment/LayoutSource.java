@@ -53,6 +53,19 @@ import net.zamasoft.foliojet.layout.segment.TextSpill;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource implements AutoCloseable {
+	/** 文書内で一度でも自動改ページのライブロックが確定したか。 */
+	private boolean autoBreaksAbandoned = false;
+
+	/** この入力位置での自動改ページが既にライブロックしたか。 */
+	public boolean areAutoBreaksAbandoned() {
+		return this.autoBreaksAbandoned;
+	}
+
+	/** この入力位置での自動改ページを文書の残りの処理でも拒否します。 */
+	public void abandonAutoBreaks() {
+		this.autoBreaksAbandoned = true;
+	}
+
 	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque, Leader {
 	}
 

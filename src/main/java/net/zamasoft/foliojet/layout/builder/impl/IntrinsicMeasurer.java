@@ -502,6 +502,42 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
+	 * ネストしたshrink-to-fitブロックのouter contributionを親へ加えます。
+	 *
+	 * <p>直交フローでは子のページ軸が親の行軸になるため、min/max-contentを
+	 * そのまま足してはならない。インラインブロックの計測
+	 * ({@link #control(TextControl, TwoPass)})と同じ軸変換を行う。</p>
+	 */
+	void fitBlock(final TwoPassBlockBuilder childBuilder) {
+		final AbstractContainerBox block = childBuilder.getRootBox();
+		final WritingMode parentFlow = this.builder.getFlowBox().getBlockParams().flow;
+		final WritingMode childFlow = block.getBlockParams().flow;
+		final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
+		this.columnInflated |= childSizes.columnInflated();
+
+		final double frameLine = block.getFrame().getFrameLineExtent(parentFlow);
+		final double framePage = block.getFrame().getFramePageExtent(parentFlow);
+		final double minLine;
+		final double maxLine;
+		final double minPage;
+		if (parentFlow.isVertical() == childFlow.isVertical()) {
+			minLine = childSizes.minContent() + frameLine;
+			maxLine = childSizes.maxContent() + frameLine;
+			minPage = childSizes.minPage() + framePage;
+		} else {
+			// 子のページ方向の最小厚みが、親から見た行方向の幅になる。
+			minLine = maxLine = childSizes.minPage() + frameLine;
+			minPage = childSizes.minContent() + framePage;
+		}
+
+		this.minLineSize = Math.max(this.minLineSize,
+				minLine * this.columnCount + this.lineFrame);
+		this.maxLineSize = Math.max(this.maxLineSize,
+				maxLine * this.columnCount + this.lineFrame);
+		this.minPageSize = Math.max(this.minPageSize, minPage + this.pageFrame);
+	}
+
+	/**
 	 * 1グリフ分の幅を計上します。CSS幅式の成分の定義は
 	 * {@link GlyphMeasureStep}(唯一の定義。85点計画増分5でintrinsic系統を
 	 * 接続し、幅会計3系統の統合が完了)。

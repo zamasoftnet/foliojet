@@ -180,6 +180,21 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(net.zamasoft.foliojet.layout.box.params.ClearMode.BOTH, m2.clear);
 	}
 
+	/** 特殊floatの実行時型と上下指定もrecipe化で失わない。 */
+	public void testSpecialFloatKindsSurviveMaterialize() {
+		final FloatPos footnote = FloatPosTemplate
+				.freeze(new net.zamasoft.foliojet.layout.box.params.FootnotePos()).materialize();
+		final FloatPos pageTop = FloatPosTemplate
+				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(true)).materialize();
+		final FloatPos pageBottom = FloatPosTemplate
+				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false)).materialize();
+
+		assertTrue(footnote instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos);
+		assertTrue(pageTop instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos);
+		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageTop).top);
+		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom).top);
+	}
+
 	/**
 	 * InnerTableParams(Paramsを直接継承、AbstractTextParamsを経由しない)
 	 * もParamsFields経由で同じ独立性契約を満たす。

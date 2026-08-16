@@ -40,6 +40,7 @@ import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class ImageUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private Results results, xresults;
+	private boolean middleStateSaved = false;
 
 	protected FontManagerImpl fontManager;
 
@@ -55,14 +56,19 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		super.prepare(mode);
 		switch (mode) {
 		case MIDDLE_PASS:
-			if (this.results != NopResults.SHARED_INSTANCE) {
+			if (!this.middleStateSaved) {
 				this.xresults = this.results;
-				this.results = NopResults.SHARED_INSTANCE;
+				this.middleStateSaved = true;
 			}
+			this.results = NopResults.SHARED_INSTANCE;
 			this.reset();
 			break;
 		case LAST_PASS:
-			this.results = this.xresults;
+			if (this.middleStateSaved) {
+				this.results = this.xresults;
+				this.xresults = null;
+				this.middleStateSaved = false;
+			}
 			this.reset();
 			break;
 		}
@@ -87,6 +93,10 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 
 	public GC nextPage() {
 		this.checkAbort(CTISession.ABORT_FORCE);
+		if (this.isMeasurePass() || this.isStructureScanPass()) {
+			this.noteProgress();
+			return null;
+		}
 		final Point2D size = new Point2D.Double(this.pageWidth, this.pageHeight);
 		final double ppi = UAProps.OUTPUT_IMAGE_RESOLUTION.getDouble(this);
 		final double pxPerPt = ppi / 72;
@@ -116,6 +126,9 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 
 	public void closePage(GC gc) throws IOException {
 		super.closePage(gc);
+		if (gc == null) {
+			return;
+		}
 		String mimeType = UAProps.OUTPUT_TYPE.getString(this);
 		SourceMetadata metaSource = new SimpleSourceMetadata(URI.create("#" + (++this.page)), mimeType, null, -1);
 		FragmentedOutput builder = this.results.nextBuilder(metaSource);

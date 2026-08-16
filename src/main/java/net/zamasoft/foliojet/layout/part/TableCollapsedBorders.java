@@ -134,6 +134,29 @@ public class TableCollapsedBorders {
 		return this.headerRowSizes.length + this.bodyRowSizes.length + this.footerRowSizes.length;
 	}
 
+	/** つぶし境界モデルに、実際に描かれる境界が一つでもあるか。 */
+	public boolean paintsAnything() {
+		final int rows = this.getRowCount();
+		final int columns = this.getColumnCount();
+		for (int column = 0; column < columns; ++column) {
+			for (int index = 0; index <= rows; ++index) {
+				final Border border = this.getHBorder(column, index);
+				if (border != null && border.isVisible()) {
+					return true;
+				}
+			}
+		}
+		for (int row = 0; row < rows; ++row) {
+			for (int index = 0; index <= columns; ++index) {
+				final Border border = this.getVBorder(row, index);
+				if (border != null && border.isVisible()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * 行の高さを返します。
 	 * 
@@ -325,6 +348,14 @@ public class TableCollapsedBorders {
 		}
 	}
 
+	/** 元の先頭を、行き先へ収まる分だけ写す。増えた末尾側は未指定のままにする。 */
+	private static void copyHead(final Object src, final Object dst) {
+		final int count = Math.min(java.lang.reflect.Array.getLength(src), java.lang.reflect.Array.getLength(dst));
+		if (count > 0) {
+			System.arraycopy(src, 0, dst, 0, count);
+		}
+	}
+
 	public TableCollapsedBorders splitPageAxis(final TableBox prevTable, final TableBox nextTable,
 			final int origBodyRowCount) {
 		// 前のテーブルのtable-body-groupの数と行の数を計算
@@ -345,7 +376,7 @@ public class TableCollapsedBorders {
 		Border[][] hborders = this.bodyHborders;
 		this.bodyHborders = new Border[this.columnSizes.length][prevBodyRowCount + 1];
 		for (int i = 0; i < this.columnSizes.length; ++i) {
-			System.arraycopy(hborders[i], 0, this.bodyHborders[i], 0, prevBodyRowCount + 1);
+			copyHead(hborders[i], this.bodyHborders[i]);
 		}
 		Border[][] nextHBorders = new Border[this.columnSizes.length][nextBodyRowCount + 1];
 		for (int i = 0; i < this.columnSizes.length; ++i) {
@@ -361,7 +392,12 @@ public class TableCollapsedBorders {
 		// 垂直境界
 		Border[][] vborders = this.bodyVborders;
 		this.bodyVborders = new Border[prevBodyRowCount][];
-		System.arraycopy(vborders, 0, this.bodyVborders, 0, prevBodyRowCount);
+		copyHead(vborders, this.bodyVborders);
+		for (int i = 0; i < this.bodyVborders.length; ++i) {
+			if (this.bodyVborders[i] == null) {
+				this.bodyVborders[i] = new Border[this.columnSizes.length + 1];
+			}
+		}
 		Border[][] nextVBorders = new Border[nextBodyRowCount][];
 		copyTail(vborders, nextVBorders);
 		// 写せなかった先頭側(元より行が増えた場合)は空の並びで埋める。
@@ -383,7 +419,7 @@ public class TableCollapsedBorders {
 		// 行
 		final double[] rowSizes = this.bodyRowSizes;
 		this.bodyRowSizes = new double[prevBodyRowCount];
-		System.arraycopy(rowSizes, 0, this.bodyRowSizes, 0, prevBodyRowCount);
+		copyHead(rowSizes, this.bodyRowSizes);
 		if (prevBodyGroupCount > 0) {
 			TableRowGroupBox bodyGroup = prevTable.getTableBody(prevBodyGroupCount - 1);
 			int rowCount = bodyGroup.getTableRowCount();

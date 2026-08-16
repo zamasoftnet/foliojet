@@ -79,6 +79,23 @@ public final class UAProps {
 			"input.http.socket.timeout", 60000);
 
 	/**
+	 * 主文書の最大入力サイズです。負数は無制限です。
+	 */
+	public static final LongPropManager INPUT_SIZE_LIMIT = new LongPropManager("input.size-limit", -1L);
+
+	/**
+	 * 主文書から解決する外部資源の累積最大入力サイズです。負数は無制限です。
+	 */
+	public static final LongPropManager INPUT_RESOURCE_SIZE_LIMIT = new LongPropManager(
+			"input.resource-size-limit", -1L);
+
+	/**
+	 * 主文書から解決する相異なる外部資源URIの最大数です。負数は無制限です。
+	 */
+	public static final IntegerPropManager INPUT_RESOURCE_COUNT_LIMIT = new IntegerPropManager(
+			"input.resource-count-limit", -1);
+
+	/**
 	 * 変換をまたぐHTTP応答キャッシュ(2026-08-10)。認証情報・Cookieを
 	 * 伴わないGETだけが対象で、応答の{@code Cache-Control}
 	 * (no-store/no-cache/private/max-age)を尊重する。@importされた
@@ -456,6 +473,11 @@ public final class UAProps {
 	 * 処理回数です。
 	 */
 	public static final IntegerPropManager PROCESSING_PASS_COUNT = new IntegerPropManager("processing.pass-count", 1);
+
+	/**
+	 * 1文書の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。
+	 */
+	public static final LongPropManager PROCESSING_TIME_LIMIT = new LongPropManager("processing.time-limit", 0L);
 
 	/**
 	 * データを実際には生成しない、中間のパスを実行します。

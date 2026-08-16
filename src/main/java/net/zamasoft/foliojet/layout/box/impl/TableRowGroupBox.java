@@ -92,6 +92,23 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		return (TableRowBox) this.rows.get(i);
 	}
 
+	/** 表示される行背景またはセル内容を持つか。匿名の空行は false。 */
+	@Override
+	public boolean paintsAnything() {
+		if (this.params.opacity == 0) {
+			return false;
+		}
+		if (this.params.background.isVisible()) {
+			return true;
+		}
+		for (int i = 0; i < this.getTableRowCount(); ++i) {
+			if (this.getTableRow(i).paintsAnything()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public final void finishLayoutSelf(IFramedBox containerBox) {
 	}
 

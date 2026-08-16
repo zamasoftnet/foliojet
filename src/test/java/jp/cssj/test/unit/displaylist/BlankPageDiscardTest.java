@@ -184,6 +184,29 @@ public class BlankPageDiscardTest extends TestCase {
 			""";
 
 	/**
+	 * 境界3b: 縦組みの末尾に、残り幅より大きい空の table box がある形。
+	 *
+	 * <p>
+	 * fuzz seed 5141 の縮小形。修正前は空表が {@code IBox.paintsAnything()}
+	 * の安全側既定値を返すため、2ページ目が白紙のまま残った。表に内容・背景・
+	 * 罫線がない場合だけ落とし、先行する本文は残す。
+	 * </p>
+	 */
+	private static final String EMPTY_TABLE_TRAILING = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="595pt"?>
+			<?jp.cssj.property name="output.page-height" value="842pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:10pt}
+			body{font:normal 11pt/1.2 serif;writing-mode:vertical-lr}
+			</style></head><body>
+			<div style="width:502pt">T0</div>
+			<div style="display:table;width:74pt"><div></div></div>
+			</body></html>
+			""";
+
+	/**
 	 * 境界4: 境界2と同じ文書に、<b>面の目印</b>だけを足したもの。
 	 *
 	 * <p>
@@ -238,6 +261,13 @@ public class BlankPageDiscardTest extends TestCase {
 		pages.assertTokens(1);
 		assertEquals("forced-trailing: ページ数", 2, pages.count());
 		assertEquals("forced-trailing: 意図した白紙が消えた", List.of(2), pages.blanks());
+	}
+
+	public void testTrailingEmptyTableDoesNotCreateBlankPage() throws Exception {
+		final Pages pages = convert("empty-table-trailing", EMPTY_TABLE_TRAILING);
+		pages.assertNoBlank();
+		pages.assertTokens(1);
+		assertEquals("empty-table-trailing: ページ数", 1, pages.count());
 	}
 
 	/**
