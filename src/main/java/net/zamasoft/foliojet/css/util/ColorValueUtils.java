@@ -1254,10 +1254,63 @@ public final class ColorValueUtils {
 				}
 				a = ds[i];
 			}
+			normalizeGradientStops(ds);
 
 			return new LinearGradientValue(angle, ds, colors.toArray(new Color[colors.size()]));
 		} catch (IllegalArgumentException e) {
 			return null;
+		}
+	}
+
+	/**
+	 * カラーストップの位置を<b>厳密な単調増加</b>へ正規化します(2026-08-16)。
+	 *
+	 * <p>
+	 * CSSでは前のストップより小さい位置は前の位置まで引き上げられ、
+	 * <b>同じ位置を重ねることも正当</b>です(いわゆるハードストップ——
+	 * {@code linear-gradient(red 50%, blue 50%)}で境界をくっきり切る書き方)。
+	 * ところが実際に塗る{@code java.awt.MultipleGradientPaint}は位置が
+	 * 厳密に増加していることを要求し、そうでなければ
+	 * {@code IllegalArgumentException: Keyframe fractions must be increasing}
+	 * を投げます。これは描画の失敗では済まず、<b>そのページの変換ごと
+	 * 中断させて内容を全て失わせていました</b>(実サイトのコーパスで
+	 * elife-art・shadcn-docsの2件が丸ごと変換不能だった原因)。
+	 * </p>
+	 *
+	 * <p>
+	 * そこで、重なった位置には表現可能な最小の差だけを与えて追い出します。
+	 * 差は{@code 1e-5}で、幅1000ptの版面でも0.01pt未満——見た目の
+	 * ハードストップは保ったまま、AWTの要求を満たせます。
+	 * </p>
+	 */
+	private static void normalizeGradientStops(final double[] ds) {
+		final double epsilon = 1e-5;
+		for (int i = 0; i < ds.length; ++i) {
+			if (Double.isNaN(ds[i])) {
+				ds[i] = i == 0 ? 0 : ds[i - 1];
+			}
+			if (ds[i] < 0) {
+				ds[i] = 0;
+			} else if (ds[i] > 1) {
+				ds[i] = 1;
+			}
+			if (i > 0 && ds[i] <= ds[i - 1]) {
+				// CSSは後退を許さない(前の位置まで引き上げる)。その上で
+				// AWTのために最小差を空ける
+				ds[i] = ds[i - 1] + epsilon;
+			}
+		}
+		// 末尾が1を超えたら、後ろから詰め直して1以下に収める
+		if (ds[ds.length - 1] > 1) {
+			ds[ds.length - 1] = 1;
+			for (int i = ds.length - 2; i >= 0; --i) {
+				if (ds[i] >= ds[i + 1]) {
+					ds[i] = ds[i + 1] - epsilon;
+				}
+			}
+			if (ds[0] < 0) {
+				ds[0] = 0;
+			}
 		}
 	}
 
