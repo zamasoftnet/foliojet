@@ -16,6 +16,10 @@ public class UAContext {
 
 	private final SelectorFacts selectorFacts = new SelectorFacts();
 
+	private final ContainerFacts containerFacts = new ContainerFacts();
+
+	private final ImageMetricsCache imageMetrics = new ImageMetricsCache();
+
 	private final CounterStyles counterStyles = new CounterStyles();
 
 	private FontSourceManager fsm;
@@ -44,6 +48,19 @@ public class UAContext {
 
 	public SelectorFacts getSelectorFacts() {
 		return this.selectorFacts;
+	}
+
+	/** {@code @container}クエリのための要素の事実(2026-08-15段4)。 */
+	public ContainerFacts getContainerFacts() {
+		return this.containerFacts;
+	}
+
+	/**
+	 * 画像の固有寸法のキャッシュです(2026-08-16)。同じ画像の重複出現と
+	 * パスの繰り返しで、資源を開き直してヘッダを読み直すのを避けます。
+	 */
+	public ImageMetricsCache getImageMetrics() {
+		return this.imageMetrics;
 	}
 
 	/**

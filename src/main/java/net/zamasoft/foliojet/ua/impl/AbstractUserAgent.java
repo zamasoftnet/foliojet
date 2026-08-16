@@ -24,6 +24,8 @@ import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageLoader;
+import net.zamasoft.foliojet.ua.ImageMetricsCache;
+import net.zamasoft.foliojet.ua.impl.image.RasterImageLoader;
 import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.UAContext;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -551,6 +553,20 @@ public abstract class AbstractUserAgent implements UserAgent {
 		if (loader == null) {
 			throw new IOException("Unsupported image source: " + source.getURI());
 		}
+		if ((this.isMeasurePass() || this.isStructureScanPass()) && loader instanceof RasterImageLoader rasterLoader) {
+			// 寸法しか要らないパス。同じURIは開き直さない(2026-08-16)——
+			// 同一画像の重複出現とパスの繰り返しで、資源を開いてヘッダを
+			// 読む往復が毎回発生していた(リモート資源では取得そのもの)
+			final String key = source.getURI() == null ? null : source.getURI().toString();
+			final ImageMetricsCache cache = this.getUAContext().getImageMetrics();
+			final net.zamasoft.pdfg2d.gc.image.Image cached = cache.get(key);
+			if (cached != null) {
+				return cached;
+			}
+			final net.zamasoft.pdfg2d.gc.image.Image metrics = rasterLoader.loadImageForLayout(source);
+			cache.put(key, metrics);
+			return metrics;
+		}
 		return loader.loadImage(this, source);
 	}
 
@@ -615,18 +631,29 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// 段階的に確定させるものではないため、STRUCTURE_SCAN開始時
 			// 1回だけリセットすれば足りる。
 			this.getUAContext().getSelectorFacts().reset();
+			// ContainerFactsもSelectorFactsと同じ寿命(STRUCTURE_SCAN開始時
+			// 1回だけリセット、以降の全パスで積み上げ・上書き)。
+			// 設計はdocs/history/2026-08-15-container-queries-design.md §2
+			this.getUAContext().getContainerFacts().reset();
+		}
+		if (mode == PrepareMode.MIDDLE_PASS || mode == PrepareMode.LAST_PASS) {
+			// 段5(設計§3): このパスの書き込み前の値をスナップショットし、
+			// パス終了後の不動点判定(DirectSession.format参照)に使う
+			this.getUAContext().getContainerFacts().beginPass();
 		}
 		if (mode == PrepareMode.STRUCTURE_SCAN || mode == PrepareMode.DOCUMENT) {
 			// パス持ち越しスタイルシートは変換(文書)の開始でクリアする
 			// (UAContext.getCarriedStyleSheetのjavadoc参照)。中間・最終
 			// パスは前のパスの収集を引き継ぐ
 			this.getUAContext().setCarriedStyleSheet(null);
+			// 画像寸法も同じ寿命。別の文書では同じURIが違う内容を指しうる
+			this.getUAContext().getImageMetrics().reset();
 		}
 		this.documentContext = new DocumentContext();
 	}
 
 	public boolean isMeasurePass() {
-		return false;
+		return this.currentMode == PrepareMode.MIDDLE_PASS;
 	}
 
 	public boolean isStructureScanPass() {
