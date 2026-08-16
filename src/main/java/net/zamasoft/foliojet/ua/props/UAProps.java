@@ -52,6 +52,14 @@ public final class UAProps {
 			null);
 
 	/**
+	 * 画像の寸法をあらかじめ記したXMLです。レイアウトのために画像を読み込む代わりに
+	 * この寸法を使うので、多パス処理や同じ本の組み直しが速くなります。
+	 * Paged SVGは同じ形式のXMLを<code>metrics.xml</code>として出力するので、
+	 * それをそのまま次回の指定に使えます。
+	 */
+	public static final StringPropManager INPUT_IMAGE_METRICS = new StringPropManager("input.image-metrics", null);
+
+	/**
 	 * デフォルトのXSLTスタイルシートです。
 	 */
 	public static final StringPropManager INPUT_XSLT_DEFAULT_STYLESHEET = new StringPropManager(
@@ -680,6 +688,24 @@ public final class UAProps {
 	 */
 	public static final BooleanPropManager OUTPUT_USE_META_INFO = new BooleanPropManager("output.use-meta-info", true);
 
+	/**
+	 * Paged SVGのページSVGの圧縮方法です。
+	 */
+	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(
+			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.GZIP);
+
+	/**
+	 * Paged SVGのフォントサブセットを出力するかどうかです。
+	 */
+	public static final CodePropManager<PagedSvgResourcePolicy> OUTPUT_PAGED_SVG_FONTS = new CodePropManager<>(
+			"output.paged-svg.fonts", PagedSvgResourcePolicy.class, PagedSvgResourcePolicy.EMIT);
+
+	/**
+	 * Paged SVGの画像を出力するかどうかです。
+	 */
+	public static final CodePropManager<PagedSvgResourcePolicy> OUTPUT_PAGED_SVG_IMAGES = new CodePropManager<>(
+			"output.paged-svg.images", PagedSvgResourcePolicy.class, PagedSvgResourcePolicy.EMIT);
+
 	private static final java.util.List<PropManager> ALL = java.util.List.of(
 			INPUT_PROPERTY_PI,
 			INPUT_FILTERS,
@@ -688,6 +714,7 @@ public final class UAProps {
 			INPUT_NORMALIZE_TEXT,
 			INPUT_DEFAULT_ENCODING,
 			INPUT_DEFAULT_STYLESHEET,
+			INPUT_IMAGE_METRICS,
 			INPUT_XSLT_DEFAULT_STYLESHEET,
 			INPUT_HTTP_REFERER,
 			INPUT_HTTP_CONNECTION_TIMEOUT,
@@ -797,7 +824,10 @@ public final class UAProps {
 			OUTPUT_PDF_VIEWER_PREFERENCES_PRINT_PAGE_RANGE,
 			OUTPUT_PDF_VIEWER_PREFERENCES_NUM_COPIES,
 			OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT,
-			OUTPUT_USE_META_INFO);
+			OUTPUT_USE_META_INFO,
+			OUTPUT_PAGED_SVG_COMPRESSION,
+			OUTPUT_PAGED_SVG_FONTS,
+			OUTPUT_PAGED_SVG_IMAGES);
 
 	/**
 	 * 定義済みの全プロパティを返します。

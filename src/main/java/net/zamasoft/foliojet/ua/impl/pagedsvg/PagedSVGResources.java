@@ -15,6 +15,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
+import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
 
@@ -29,7 +31,7 @@ final class PagedSVGResources {
 			String jsonSha256) {
 	}
 
-	record ImageAsset(String uri, String sha256, String mediaType, int width, int height) {
+	record ImageAsset(String uri, String sha256, String mediaType, int width, int height, boolean omitted) {
 	}
 
 	private record OriginalImage(byte[] bytes, String mediaType, String extension) {
@@ -150,7 +152,11 @@ final class PagedSVGResources {
 		}
 	}
 
+	/** sha256がnull・bytesが-1なら、実体を出力せず参照だけ残した資源です。 */
 	private record FontAsset(WebFontSubset subset, String sha256, int bytes) {
+		boolean omitted() {
+			return this.sha256 == null;
+		}
 	}
 
 	private static final class FontEntry {
@@ -171,6 +177,8 @@ final class PagedSVGResources {
 	}
 
 	private final ResultEmitter emitter;
+	private PagedSvgResourcePolicy fontPolicy = PagedSvgResourcePolicy.EMIT;
+	private PagedSvgResourcePolicy imagePolicy = PagedSvgResourcePolicy.EMIT;
 	private final List<FontEntry> fonts = new ArrayList<>();
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
@@ -182,6 +190,15 @@ final class PagedSVGResources {
 
 	PagedSVGResources(final ResultEmitter emitter) {
 		this.emitter = emitter;
+	}
+
+	void setResourcePolicies(final PagedSvgResourcePolicy fontPolicy, final PagedSvgResourcePolicy imagePolicy) {
+		this.fontPolicy = fontPolicy;
+		this.imagePolicy = imagePolicy;
+	}
+
+	boolean hasOriginal(final RenderedImage image) {
+		return this.originalImages.containsKey(image);
 	}
 
 	WebFontSubset font(final FontSource source, final ShapedFont font, final WebFontSubset.Mode mode,
@@ -210,8 +227,11 @@ final class PagedSVGResources {
 		final String hash = sha256(bytes);
 		ImageAsset image = this.images.get(hash);
 		if (image == null) {
-			image = new ImageAsset("assets/images/" + hash + '.' + extension, hash, mediaType, width, height);
-			this.emitter.emit(image.uri, mediaType, bytes);
+			final boolean omit = this.imagePolicy == PagedSvgResourcePolicy.OMIT;
+			image = new ImageAsset("assets/images/" + hash + '.' + extension, hash, mediaType, width, height, omit);
+			if (!omit) {
+				this.emitter.emit(image.uri, mediaType, bytes);
+			}
 			this.images.put(hash, image);
 		}
 		return image;
@@ -251,6 +271,12 @@ final class PagedSVGResources {
 
 	void emitFonts() throws IOException {
 		for (final FontEntry entry : this.fonts) {
+			if (this.fontPolicy == PagedSvgResourcePolicy.OMIT) {
+				// build()はBrotli圧縮を伴うので、出力しないなら組み立てもしない。
+				// sha256とバイト数はここでしか得られないのでmanifestからも落ちる。
+				this.emittedFonts.add(new FontAsset(entry.subset, null, -1));
+				continue;
+			}
 			final byte[] bytes = entry.subset.build();
 			final String hash = sha256(bytes);
 			this.emitter.emit(entry.subset.uri(), "font/woff2", bytes);
@@ -258,10 +284,12 @@ final class PagedSVGResources {
 		}
 	}
 
-	byte[] manifest(final Map<String, String> metadata, final String binding) {
+	byte[] manifest(final Map<String, String> metadata, final String binding, final PagedSvgCompression compression) {
 		final StringBuilder json = new StringBuilder(1024 + this.pages.size() * 180);
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")
-				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"binding\":");
+				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"compression\":");
+		quote(json, compression.ident());
+		json.append(",\n  \"binding\":");
 		quote(json, binding);
 		json.append(",\n  \"metadata\":{");
 		int index = 0;
@@ -289,8 +317,12 @@ final class PagedSVGResources {
 			quote(json, font.subset.sourceName());
 			json.append(",\"uri\":");
 			quote(json, font.subset.uri());
-			json.append(",\"sha256\":\"").append(font.sha256).append("\",\"bytes\":").append(font.bytes)
-					.append(",\"glyphs\":").append(font.subset.glyphCount() - 1)
+			if (font.omitted()) {
+				json.append(",\"omitted\":true");
+			} else {
+				json.append(",\"sha256\":\"").append(font.sha256).append("\",\"bytes\":").append(font.bytes);
+			}
+			json.append(",\"glyphs\":").append(font.subset.glyphCount() - 1)
 					.append(",\"fsType\":").append(font.subset.embeddingLicenseFlags()).append('}');
 		}
 		json.append("\n  ],\n  \"images\":[");
@@ -304,7 +336,11 @@ final class PagedSVGResources {
 			json.append(",\"sha256\":\"").append(image.sha256).append("\",\"mediaType\":");
 			quote(json, image.mediaType);
 			json.append(",\"width\":").append(image.width)
-					.append(",\"height\":").append(image.height).append('}');
+					.append(",\"height\":").append(image.height);
+			if (image.omitted) {
+				json.append(",\"omitted\":true");
+			}
+			json.append('}');
 		}
 		json.append("\n  ],\n  \"anchors\":{");
 		index = 0;

@@ -25,6 +25,7 @@ import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageLoader;
 import net.zamasoft.foliojet.ua.ImageMetricsCache;
+import net.zamasoft.foliojet.ua.ImageMetricsXML;
 import net.zamasoft.foliojet.ua.impl.image.RasterImageLoader;
 import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.UAContext;
@@ -34,6 +35,7 @@ import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.SourceResolver;
+import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.image.Image;
@@ -549,20 +551,31 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	protected Image loadImage(final Source source) throws IOException {
-		final ImageLoader loader = PluginRegistry.getInstance().search(ImageLoader.class, source);
-		if (loader == null) {
-			throw new IOException("Unsupported image source: " + source.getURI());
-		}
-		if ((this.isMeasurePass() || this.isStructureScanPass()) && loader instanceof RasterImageLoader rasterLoader) {
-			// 寸法しか要らないパス。同じURIは開き直さない(2026-08-16)——
-			// 同一画像の重複出現とパスの繰り返しで、資源を開いてヘッダを
-			// 読む往復が毎回発生していた(リモート資源では取得そのもの)
-			final String key = source.getURI() == null ? null : source.getURI().toString();
-			final ImageMetricsCache cache = this.getUAContext().getImageMetrics();
+		// 寸法しか要らないパスでは、記録済みの寸法を**資源に触れる前に**返す
+		// (2026-08-16)。PluginRegistry.searchはローダを選ぶためにSourceの
+		// MIME型を訊くので、ここより後ろで当てるとリモート資源の取得が
+		// 走ってしまう。input.image-metricsで寸法を先に渡した場合も、
+		// この判定に当たることで初めて取得そのものが要らなくなる。
+		// data:は取得の往復が無く、URIそのものが中身なので記録しない
+		// (キーが画像本体と同じ大きさになり、書き出したXMLも膨れる)
+		final URI uri = source.getURI();
+		final boolean cacheable = uri != null && !"data".equalsIgnoreCase(uri.getScheme());
+		final boolean metricsOnly = this.isMeasurePass() || this.isStructureScanPass();
+		final String key = cacheable ? uri.toString() : null;
+		final ImageMetricsCache cache = metricsOnly && cacheable ? this.getUAContext().getImageMetrics() : null;
+		if (cache != null) {
 			final net.zamasoft.pdfg2d.gc.image.Image cached = cache.get(key);
 			if (cached != null) {
 				return cached;
 			}
+		}
+		final ImageLoader loader = PluginRegistry.getInstance().search(ImageLoader.class, source);
+		if (loader == null) {
+			throw new IOException("Unsupported image source: " + source.getURI());
+		}
+		if (cache != null && loader instanceof RasterImageLoader rasterLoader) {
+			// 同一画像の重複出現とパスの繰り返しで、資源を開いてヘッダを
+			// 読む往復が毎回発生していた(リモート資源では取得そのもの)
 			final net.zamasoft.pdfg2d.gc.image.Image metrics = rasterLoader.loadImageForLayout(source);
 			cache.put(key, metrics);
 			return metrics;
@@ -648,8 +661,30 @@ public abstract class AbstractUserAgent implements UserAgent {
 			this.getUAContext().setCarriedStyleSheet(null);
 			// 画像寸法も同じ寿命。別の文書では同じURIが違う内容を指しうる
 			this.getUAContext().getImageMetrics().reset();
+			this.loadImageMetrics();
 		}
 		this.documentContext = new DocumentContext();
+	}
+
+	/**
+	 * {@code input.image-metrics}で渡された寸法表を読み込みます。
+	 * 読めなくても組版は続けられる(実測に戻るだけ)ので警告に留めます。
+	 */
+	private void loadImageMetrics() {
+		final String location = UAProps.INPUT_IMAGE_METRICS.getString(this);
+		if (location == null || location.isEmpty()) {
+			return;
+		}
+		try {
+			final Source source = this.resolve(URIHelper.create("UTF-8", location));
+			try (java.io.InputStream in = source.getInputStream()) {
+				ImageMetricsXML.read(in, this.getUAContext().getImageMetrics());
+			} finally {
+				this.release(source);
+			}
+		} catch (final Exception e) {
+			this.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.INPUT_IMAGE_METRICS.name, location);
+		}
 	}
 
 	public boolean isMeasurePass() {

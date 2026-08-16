@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.batik.dom.GenericDOMImplementation;
 import org.apache.batik.svggen.SVGGeneratorContext;
@@ -24,10 +25,14 @@ import jp.cssj.cti2.results.Results;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.BrokenResultException;
+import net.zamasoft.foliojet.ua.ImageMetricsXML;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
+import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
+import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
+import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
@@ -49,6 +54,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private PagedSVGResources resources;
 	private PagedSVGVisitor visitor;
 	private int page;
+	private PagedSvgCompression compression;
 	private final Map<String, String> metadata = new LinkedHashMap<>();
 
 	public PagedSVGUserAgent() {
@@ -91,6 +97,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.svg = null;
 		this.currentPage = null;
 		this.page = 0;
+		this.compression = null;
 		this.metadata.clear();
 		this.resources = new PagedSVGResources(this::emit);
 		this.visitor = null;
@@ -119,6 +126,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			return null;
 		}
 		final int number = ++this.page;
+		if (number == 1) {
+			this.resources.setResourcePolicies(UAProps.OUTPUT_PAGED_SVG_FONTS.get(this),
+					UAProps.OUTPUT_PAGED_SVG_IMAGES.get(this));
+		}
 		this.currentPage = new PagedSVGResources.PageData(number, this.pageWidth, this.pageHeight);
 		final DOMImplementation dom = GenericDOMImplementation.getDOMImplementation();
 		final Document document = dom.createDocument(SVG_NS, "svg", null);
@@ -148,8 +159,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 				this.svg.stream(root, writer, true, true);
 			}
 			final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
-			final String svgUri = stem + ".svg";
-			final byte[] svgData = svgBytes.toByteArray();
+			final boolean gzip = this.compression() == PagedSvgCompression.GZIP;
+			final String svgUri = stem + (gzip ? ".svgz" : ".svg");
+			final byte[] svgData = gzip ? gzip(svgBytes.toByteArray()) : svgBytes.toByteArray();
 			this.emit(svgUri, "image/svg+xml", svgData);
 
 			final String jsonUri = stem + ".json";
@@ -194,6 +206,26 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		defs.appendChild(style);
 	}
 
+	private PagedSvgCompression compression() {
+		if (this.compression == null) {
+			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
+		}
+		return this.compression;
+	}
+
+	/**
+	 * gzip圧縮します。JavaのGZIPOutputStreamはヘッダの更新時刻を0で書くので、
+	 * 同じ入力からは必ず同じバイト列になります。manifestのsha256が組み直しても
+	 * 変わらないのはこのためです。
+	 */
+	private static byte[] gzip(final byte[] bytes) throws IOException {
+		final ByteArrayOutputStream out = new ByteArrayOutputStream(bytes.length / 3 + 64);
+		try (var gzip = new GZIPOutputStream(out)) {
+			gzip.write(bytes);
+		}
+		return out.toByteArray();
+	}
+
 	private void emit(final String uri, final String mimeType, final byte[] bytes) throws IOException {
 		if (this.results == null) {
 			throw new IOException("Results is not set");
@@ -223,9 +255,17 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
 		this.resources.emitFonts();
+		// 測った画像の寸法を残す。次に同じ本を別の文字サイズ・画面サイズで
+		// 組むとき input.image-metrics に渡せば、寸法しか要らないパスで
+		// 画像を一度も開かずに済む。
+		final var imageMetrics = this.getUAContext().getImageMetrics();
+		if (imageMetrics.size() != 0) {
+			this.emit("metrics.xml", "application/xml", ImageMetricsXML.write(imageMetrics));
+		}
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);
-		this.emit("manifest.json", "application/json", this.resources.manifest(this.metadata, binding));
+		this.emit("manifest.json", "application/json",
+				this.resources.manifest(this.metadata, binding, this.compression()));
 		this.results.end();
 	}
 

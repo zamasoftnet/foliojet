@@ -53,11 +53,16 @@ final class PagedSVGImageHandler extends DefaultImageHandler {
 	protected void handleHREF(final RenderedImage image, final Element element, final SVGGeneratorContext context)
 			throws SVGGraphics2DIOException {
 		try {
-			final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-			if (!ImageIO.write(image, "png", bytes)) {
-				throw new IOException("No PNG writer is available");
+			// 元のJPEGをそのまま出す画像では、ここで作るPNGは捨てられる。作らない。
+			byte[] fallbackPng = null;
+			if (!this.resources.hasOriginal(image)) {
+				final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+				if (!ImageIO.write(image, "png", bytes)) {
+					throw new IOException("No PNG writer is available");
+				}
+				fallbackPng = bytes.toByteArray();
 			}
-			final PagedSVGResources.ImageAsset asset = this.resources.image(image, bytes.toByteArray(), image.getWidth(),
+			final PagedSVGResources.ImageAsset asset = this.resources.image(image, fallbackPng, image.getWidth(),
 					image.getHeight());
 			element.setAttributeNS(XLINK, "xlink:href", "../" + asset.uri());
 		} catch (final IOException e) {

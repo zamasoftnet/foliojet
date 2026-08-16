@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.ua;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -62,5 +63,53 @@ public final class ImageMetricsCache {
 	/** 記録件数(診断用)。 */
 	public int size() {
 		return this.metrics == null ? 0 : this.metrics.size();
+	}
+
+	/** 記録済みのURIと寸法(書き出し用)。空でも{@code null}は返しません。 */
+	public Map<String, Image> entries() {
+		return this.metrics == null ? Map.of() : Collections.unmodifiableMap(this.metrics);
+	}
+
+	/**
+	 * 幅と高さだけを持つ{@link Image}を記録します。
+	 * {@code input.image-metrics}から読み込んだ寸法を入れるのに使います。
+	 */
+	public void putSize(final String uri, final double width, final double height) {
+		this.put(uri, new SizeOnlyImage(width, height));
+	}
+
+	/**
+	 * 画素を持たない寸法だけの画像です。{@code drawTo}は何もしません——
+	 * この値が使われるのは寸法しか要らないパスだけで、実際に描く最終パスでは
+	 * {@link net.zamasoft.foliojet.ua.impl.AbstractUserAgent#loadImage}が
+	 * このキャッシュを引かないためです。
+	 */
+	private static final class SizeOnlyImage implements Image {
+		private final double width, height;
+
+		SizeOnlyImage(final double width, final double height) {
+			this.width = width;
+			this.height = height;
+		}
+
+		@Override
+		public double getWidth() {
+			return this.width;
+		}
+
+		@Override
+		public double getHeight() {
+			return this.height;
+		}
+
+		@Override
+		public void drawTo(final net.zamasoft.pdfg2d.gc.GC gc) {
+			// 寸法だけの画像なので描くものが無い
+		}
+
+		@Override
+		public String getAltString() {
+			return null;
+		}
 	}
 }
