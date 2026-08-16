@@ -37,6 +37,39 @@ public class BarcodeInlineObjectTest extends TestCase {
 		assertEquals("FolioJet", image.getAltString());
 	}
 
+	/**
+	 * <b>QRの自然寸法は正方形であること。</b>
+	 *
+	 * <p>
+	 * {@code quiet-zone}は1次元バーコード由来で横にしか効かなかった。そのため
+	 * {@code symbol.getWidth()}だけが静止帯ぶん広がり、自然寸法が33×25セルの
+	 * 長方形になっていた。利用側が正方形の枠を与えると、その枠に合わせて縦へ
+	 * 引き伸ばされ、セルが正方形でなくなる。読めはするが規格から外れる。
+	 * </p>
+	 */
+	public void testQrCodeQuietZoneAppliesToAllFourSides() throws Exception {
+		BarcodeImage image = (BarcodeImage) parse(
+				"<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"https://jigensha.info\">"
+						+ "<qr><module-width>0.6mm</module-width><quiet-zone>2.4mm</quiet-zone></qr></barcode>");
+		assertEquals("the quiet zone must be the same on both axes", image.symbol.getQuietZoneHorizontal(),
+				image.symbol.getQuietZoneVertical());
+		assertEquals("a QR symbol must be square in modules", image.symbol.getWidth(), image.symbol.getHeight());
+		assertEquals("a QR symbol must be square in physical size", image.getWidth(), image.getHeight(), 0.000001);
+		// 25セル + 四方4セル = 33セル。1セル0.6mmなら19.8mm角
+		assertEquals("version 2 plus the mandatory quiet zone is 19.8mm", 19.8 * 72 / 25.4, image.getWidth(),
+				0.000001);
+	}
+
+	/** 縦を明示したときは、その値が優先されること。 */
+	public void testExplicitVerticalQuietZoneStillWins() throws Exception {
+		BarcodeImage image = (BarcodeImage) parse(
+				"<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"FolioJet\">"
+						+ "<qr><module-width>1mm</module-width><quiet-zone>4mm</quiet-zone>"
+						+ "<quiet-zone-vertical>0mm</quiet-zone-vertical></qr></barcode>");
+		assertEquals(4, image.symbol.getQuietZoneHorizontal());
+		assertEquals(0, image.symbol.getQuietZoneVertical());
+	}
+
 	public void testIsbnUsesJapaneseBookJanPresentation() throws Exception {
 		BarcodeImage image = (BarcodeImage) parse(
 				"<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"9784908348143\">"

@@ -237,13 +237,27 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 		}
 	}
 
+	/** 面で読む記号かどうか。静止帯を四方同じにしてよいものです。 */
+	private static boolean isTwoDimensional(final Symbol symbol) {
+		return symbol instanceof QrCode || symbol instanceof DataMatrix || symbol instanceof AztecCode
+				|| symbol instanceof Pdf417;
+	}
+
 	private void applyCommon(Symbol symbol, double unitMm) throws Exception {
 		// 高さ系: 物理長→モジュール単位
 		setUnits(symbol, "setBarHeight", this.getMm("height", "bar-height", "barHeight"), unitMm);
 		// 静止帯: "10mw"のmw単位はそのまま、物理長は換算
-		setUnits(symbol, "setQuietZoneHorizontal",
-				this.getMmOrModules("quiet-zone", "quiet-zone-horizontal", "quietZone"), unitMm);
-		setUnits(symbol, "setQuietZoneVertical", this.getMmOrModules("quiet-zone-vertical", "vertical-quiet-zone"),
+		final Length horizontalQuietZone = this.getMmOrModules("quiet-zone", "quiet-zone-horizontal", "quietZone");
+		final Length verticalQuietZone = this.getMmOrModules("quiet-zone-vertical", "vertical-quiet-zone");
+		setUnits(symbol, "setQuietZoneHorizontal", horizontalQuietZone, unitMm);
+		// 2次元シンボルの静止帯は四方が同じ(QRならISO/IEC 18004が四辺に4セル
+		// 要求する)。縦横で分ける書き方は1次元バーコード由来なので、
+		// 縦を明示しなければ横と同じ値を使う。
+		// **ここを分けたままにすると symbol.getWidth() だけが静止帯ぶん広がり、
+		// 自然寸法が長方形になる。** 正方形の枠を与えた利用側では、その枠に
+		// 合わせて縦へ引き伸ばされ、セルが正方形でなくなる
+		setUnits(symbol, "setQuietZoneVertical",
+				verticalQuietZone == null && isTwoDimensional(symbol) ? horizontalQuietZone : verticalQuietZone,
 				unitMm);
 		// 文字サイズ: pt既定→モジュール単位
 		final Double fontPt = this.getPt("font-size", "fontSize");
