@@ -698,7 +698,7 @@ public final class UAProps {
 	 * Paged SVGのページSVGの書き出し方式です。
 	 */
 	public static final CodePropManager<PagedSvgWriter> OUTPUT_PAGED_SVG_WRITER = new CodePropManager<>(
-			"output.paged-svg.writer", PagedSvgWriter.class, PagedSvgWriter.BATIK);
+			"output.paged-svg.writer", PagedSvgWriter.class, PagedSvgWriter.DIRECT);
 
 	/**
 	 * Paged SVGのフォントサブセットを出力するかどうかです。

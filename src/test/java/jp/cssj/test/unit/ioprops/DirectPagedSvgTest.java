@@ -58,10 +58,15 @@ public class DirectPagedSvgTest extends TestCase {
 				+ "</body></html>";
 	}
 
+	/** どちらの書き出しを指しているかを取り違えないための定数。既定はdirect。 */
+	private static final Map<String, String> BATIK = Map.of("output.paged-svg.writer", "batik");
+
+	private static final Map<String, String> DIRECT = Map.of("output.paged-svg.writer", "direct");
+
 	/** 独自書き出しでもページ・資源・目次が従来と同じ形で出ること。 */
 	public void testDirectWriterMatchesBatik() throws Exception {
-		final CapturingResults batik = run(Map.of());
-		final CapturingResults direct = run(Map.of("output.paged-svg.writer", "direct"));
+		final CapturingResults batik = run(BATIK);
+		final CapturingResults direct = run(DIRECT);
 
 		assertEquals("page count must match", pageCount(batik), pageCount(direct));
 		assertTrue("at least two pages are expected", pageCount(direct) >= 2);
@@ -146,9 +151,8 @@ public class DirectPagedSvgTest extends TestCase {
 	 * </p>
 	 */
 	public void testImageIsDrawnAtTheSameSizeAsBatik() throws Exception {
-		final double[] batik = imageBox(run(Map.of()).data.get("pages/0001.svg").toByteArray());
-		final double[] direct = imageBox(
-				run(Map.of("output.paged-svg.writer", "direct")).data.get("pages/0001.svg").toByteArray());
+		final double[] batik = imageBox(run(BATIK).data.get("pages/0001.svg").toByteArray());
+		final double[] direct = imageBox(run(DIRECT).data.get("pages/0001.svg").toByteArray());
 		assertNotNull("batik must draw the image", batik);
 		assertNotNull("the direct writer must draw the image", direct);
 		// 1ptより細かい差は座標の丸めなので許す
