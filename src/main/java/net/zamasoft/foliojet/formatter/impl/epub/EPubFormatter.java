@@ -32,16 +32,20 @@ import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
 import net.zamasoft.foliojet.xml.XMLHandler;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
+import net.zamasoft.foliojet.epub.ArchiveFile;
+import net.zamasoft.foliojet.epub.BaseURISourceResolver;
 import net.zamasoft.foliojet.epub.Container;
 import net.zamasoft.foliojet.epub.Container.Rootfile;
 import net.zamasoft.foliojet.epub.Contents;
 import net.zamasoft.foliojet.epub.EPubFile;
 import net.zamasoft.foliojet.epub.Item;
 import net.zamasoft.foliojet.epub.ItemRef;
+import net.zamasoft.foliojet.epub.ResolvedArchiveFile;
 import net.zamasoft.foliojet.epub.ZipArchiveFile;
 import net.zamasoft.foliojet.epub.util.WritingModeHandler;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
+import net.zamasoft.zstream.resolver.util.SourceWrapper;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.zstream.resolver.protocol.zip.ZIPFileSource;
 import net.zamasoft.zstream.resolver.protocol.zip.ZIPFileSourceResolver;
@@ -60,6 +64,12 @@ public class EPubFormatter implements Formatter {
 	public static final BooleanPropManager REPLACE_NUMBERS = new BooleanPropManager(
 			"x.net.zamasoft.foliojet.formatter.impl.epub.replace-numbers", false);
 
+	/**
+	 * EPUBの中身がディレクトリとして与えられることを示すMIME型です。
+	 * ZIPを送らず、必要な項目だけを基底URIの下から取ります。
+	 */
+	public static final String DIRECTORY_MEDIA_TYPE = "application/epub+directory";
+
 	public boolean match(final Source key) {
 		final Source source = (Source) key;
 		try {
@@ -67,8 +77,13 @@ public class EPubFormatter implements Formatter {
 			if (uri.length() >= 5 && uri.substring(uri.length() - 5).equalsIgnoreCase(".epub")) {
 				return true;
 			}
+			// ディレクトリ形式。末尾が「.epub/」なら拡張子指定だけで選べる
+			if (uri.length() >= 6 && uri.substring(uri.length() - 6).equalsIgnoreCase(".epub/")) {
+				return true;
+			}
 			final String mimeType = source.getMimeType();
-			if (mimeType != null && mimeType.equals("application/epub+zip")) {
+			if (mimeType != null
+					&& (mimeType.equals("application/epub+zip") || mimeType.equals(DIRECTORY_MEDIA_TYPE))) {
 				return true;
 			}
 		} catch (IOException e) {
@@ -124,7 +139,16 @@ public class EPubFormatter implements Formatter {
 		return pageElement;
 	}
 
+	/** 項目のパスから実体を開きます。ZIPとディレクトリで違うのはここだけです。 */
+	private interface EntryOpener {
+		Source open(URI path, String mediaType) throws IOException;
+	}
+
 	public void format(final Source source, final UserAgent ua) throws AbortException, TranscoderException {
+		if (isDirectory(source)) {
+			this.formatDirectory(source, ua);
+			return;
+		}
 		try {
 			final File epubFile;
 			if (source.isFile()) {
@@ -145,8 +169,65 @@ public class EPubFormatter implements Formatter {
 					resolver.setDefaultScheme("zip");
 					ua.setSourceResolver(resolver);
 
+					this.formatEPub(new ZipArchiveFile(epubFile, zip),
+							(path, mediaType) -> new ZIPFileSource(zip, path, mediaType), ua);
+				}
+			} finally {
+				if (!source.isFile()) {
+					epubFile.delete();
+				}
+			}
+		} catch (Exception e) {
+			short code = MessageCodes.ERROR_PLUGIN;
+			String[] args = new String[] { "net.zamasoft.foliojet.plugins.epub", e.getLocalizedMessage() };
+			String mes = MessageCodeUtils.toString(code, args);
+			ua.message(code, args);
+			LOG.log(Level.WARNING, mes, e);
+			throw new TranscoderException(code, args, mes);
+		}
+	}
+
+	/**
+	 * EPUBの中身がディレクトリとして与えられる場合。ZIPを取得も展開もせず、
+	 * 必要な項目だけを基底URIの下から取ります。
+	 */
+	private void formatDirectory(final Source source, final UserAgent ua)
+			throws AbortException, TranscoderException {
+		try {
+			final URI base = toDirectoryURI(source.getURI());
+			// EPUB内部は相対URIで参照し合う。ZIPの zip: スキームと同じ役目を
+			// 「基底URIへの相対解決」が果たす
+			final BaseURISourceResolver entries = new BaseURISourceResolver(ua.getSourceResolver(), base);
+			final CompositeSourceResolver resolver = new CompositeSourceResolver();
+			resolver.setDefaultSourceResolver(entries);
+			ua.setSourceResolver(resolver);
+
+			this.formatEPub(new ResolvedArchiveFile(entries), (path, mediaType) -> {
+				final Source entry = entries.resolve(path);
+				return mediaType == null ? entry : new SourceWrapper(entry) {
+					@Override
+					public String getMimeType() {
+						return mediaType;
+					}
+				};
+			}, ua);
+		} catch (Exception e) {
+			short code = MessageCodes.ERROR_PLUGIN;
+			String[] args = new String[] { "net.zamasoft.foliojet.plugins.epub", e.getLocalizedMessage() };
+			String mes = MessageCodeUtils.toString(code, args);
+			ua.message(code, args);
+			LOG.log(Level.WARNING, mes, e);
+			throw new TranscoderException(code, args, mes);
+		}
+	}
+
+	private void formatEPub(final ArchiveFile archive, final EntryOpener opener, final UserAgent ua)
+			throws Exception {
+		{
+			{
+				{
 					// メタ情報解析
-					final EPubFile epub = new EPubFile(new ZipArchiveFile(epubFile, zip));
+					final EPubFile epub = new EPubFile(archive);
 					Container container = epub.readContainer();
 
 					final Rootfile root = container.rootfiles[0];
@@ -219,7 +300,7 @@ public class EPubFormatter implements Formatter {
 						ua.getPassContext().resetNonPageCounters();
 						final URI path = URIHelper.create("UTF-8", ir.item.fullPath);
 						ua.getDocumentContext().setBaseURI(path);
-						final Source zSource = new ZIPFileSource(zip, path, ir.item.mediaType);
+						final Source zSource = opener.open(path, ir.item.mediaType);
 						final String mimeType = zSource.getMimeType();
 						if (mimeType.equals("application/xhtml+xml")) {
 							ParserFactory pf = PluginRegistry.getInstance()
@@ -243,19 +324,35 @@ public class EPubFormatter implements Formatter {
 						}
 					}
 				}
-			} finally {
-				if (!source.isFile()) {
-					epubFile.delete();
-				}
 			}
-		} catch (Exception e) {
-			short code = MessageCodes.ERROR_PLUGIN;
-			String[] args = new String[] { "net.zamasoft.foliojet.plugins.epub", e.getLocalizedMessage() };
-			String mes = MessageCodeUtils.toString(code, args);
-			ua.message(code, args);
-			LOG.log(Level.WARNING, mes, e);
-			throw new TranscoderException(code, args, mes);
 		}
+	}
+
+	/** EPUBの中身がディレクトリとして与えられているか。 */
+	private static boolean isDirectory(final Source source) {
+		try {
+			final String mimeType = source.getMimeType();
+			if (DIRECTORY_MEDIA_TYPE.equals(mimeType)) {
+				return true;
+			}
+		} catch (final IOException e) {
+			// MIME型が取れないならURIで判断する
+		}
+		final URI uri = source.getURI();
+		if (uri == null) {
+			return false;
+		}
+		final String path = uri.getPath();
+		return path != null && path.endsWith("/");
+	}
+
+	/** 末尾を{@code /}に揃えます。相対解決の基点になるためです。 */
+	private static URI toDirectoryURI(final URI uri) {
+		if (uri == null) {
+			throw new IllegalArgumentException("EPUB directory URI is missing");
+		}
+		final String text = uri.toString();
+		return text.endsWith("/") ? uri : URI.create(text + "/");
 	}
 }
 
