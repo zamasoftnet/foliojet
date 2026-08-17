@@ -279,6 +279,16 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					cont.addFlow(remainders[k], 0);
 					newRowExtent = Math.max(newRowExtent, remainders[k].getPageExtent(flow));
 				}
+				// **継続行の高さは残余の量を下回らせない**(2026-08-17)。
+				// remainderはこの時点では未レイアウト(アンカー復元前)で、
+				// getPageExtentがほぼ0を返しうる。それを帳簿に書くと、次の
+				// splitの境界探索が「全行が切断線の手前に収まる」と誤読して
+				// **空の継続断片**を返し、残余(1itemが複数ページぶんの
+				// 文書では数万pt)が頭断片に積み残って紙外へ描かれる
+				// (eLife論文で実測: 95ページぶんが3ページ目に積み上がった)。
+				// 幾何学的に、残余は「元の行の高さ − このページで消費した量」
+				// を下回らない。
+				newRowExtent = Math.max(newRowExtent, boundaryRow.extent() - remaining);
 				final List<GridItemBox> contItems = new ArrayList<>(
 						remainders.length + this.rowItems.size() - (boundaryRow.startFlow() + boundaryItems.length));
 				for (final GridItemBox rem : remainders) {

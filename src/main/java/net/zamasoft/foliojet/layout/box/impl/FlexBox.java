@@ -260,6 +260,12 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			cont.addFlow(remainders[k], 0);
 			newLinePageSize = Math.max(newLinePageSize, remainders[k].getPageExtent(flow));
 		}
+		// **継続行の高さは残余の量を下回らせない**(2026-08-17、GridBox.splitの
+		// 同名の補正と同じ帳簿誤りに対する防御)。remainderは未レイアウトで
+		// getPageExtentがほぼ0を返しうる。flexの境界探索は累積和なので
+		// gridの「空の継続断片」(実害)までは起きないが、行が複数ある
+		// 継続で後続行の切断位置がずれる。幾何学的な下限で守る。
+		newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - remaining);
 		final List<FlexItemBox> contItems = new ArrayList<>(remainders.length
 				+ (this.lineItems.size() - (boundaryLine.startFlow() + boundaryItems.length)));
 		for (final FlexItemBox rem : remainders) {
