@@ -49,8 +49,13 @@ public class MaxHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	private Value getDefault(UserAgent ua) {
-		// return KeywordValue.NONE;
-		return ua.getMaxSize();
+		// **初期値は none**(2026-08-17)。以前は UA の
+		// {@code getMaxSize()}(=14400pt。PDFの<b>用紙</b>寸法の限界)を
+		// 返していたが、これは箱の高さの上限ではない。14400ptより高い
+		// ブロック(長い表など)は{@code AbstractBlockBox}でこの値へ
+		// 切り詰められ、改ページが永久に進まなくなる——w3c-jlreqの用語表が
+		// 32回の無進捗改ページでライブロックし、変換が失敗していた。
+		return KeywordValue.NONE;
 	}
 
 	public Value getDefault(CSSStyle style) {

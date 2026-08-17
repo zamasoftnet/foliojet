@@ -10,6 +10,7 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -37,7 +38,8 @@ public final class MaxInlineSize extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return style.getUserAgent().getMaxSize();
+		// **初期値は none**(2026-08-17、max-heightと同じ理由)。
+		return KeywordValue.NONE;
 	}
 
 	public boolean isInherited() {
@@ -51,7 +53,7 @@ public final class MaxInlineSize extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (ValueUtils.isNone(lu)) {
-			return ua.getMaxSize();
+			return KeywordValue.NONE;
 		}
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);
 		if (value == null) {

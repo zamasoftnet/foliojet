@@ -49,8 +49,10 @@ public class MaxWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	private Value getDefault(UserAgent ua) {
-		// return KeywordValue.NONE;
-		return ua.getMaxSize();
+		// **初期値は none**(2026-08-17、max-heightと同じ理由)。
+		// UAの{@code getMaxSize()}はPDFの用紙寸法の限界であって、
+		// 箱の寸法の上限ではない。
+		return KeywordValue.NONE;
 	}
 
 	public Value getDefault(CSSStyle style) {
