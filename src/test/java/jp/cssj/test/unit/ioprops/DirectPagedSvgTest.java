@@ -161,6 +161,41 @@ public class DirectPagedSvgTest extends TestCase {
 		assertTrue("the manifest must still list the pages", manifest.contains("pages/0001.svg"));
 	}
 
+	/**
+	 * ページJSONを出さない指定では、ページSVGだけが出てmanifestからも落ちること。
+	 *
+	 * <p>
+	 * 見た目はページSVGが持つので、検索も選択もしない使い方(印刷、画像化)では
+	 * 読み取り用の面が要らない。
+	 * </p>
+	 */
+	public void testPageDataCanBeOmitted() throws Exception {
+		final CapturingResults r = run(Map.of("output.paged-svg.writer", "direct",
+				"output.paged-svg.page-data", "omit"));
+
+		assertTrue("the page SVG must still be emitted", r.data.containsKey("pages/0001.svg"));
+		assertFalse("no page JSON may be emitted", r.data.containsKey("pages/0001.json"));
+		assertFalse("nothing under pages/ may be JSON",
+				r.order.stream().anyMatch(u -> u.startsWith("pages/") && u.endsWith(".json")));
+
+		// manifestは読み口として残り、ページSVGは載るがdataは落ちる
+		final String manifest = r.text("manifest.json");
+		assertTrue("the manifest must still list the page SVG", manifest.contains("pages/0001.svg"));
+		assertFalse("the manifest must not point at a page JSON", manifest.contains("\"data\""));
+		assertFalse("the manifest must not carry a page JSON hash", manifest.contains("dataSha256"));
+
+		// 文字はページSVGに残る(ただしPUAの符号位置なので、読み取るならJSONが要る)
+		assertTrue("the original characters must stay in the page SVG",
+				r.text("pages/0001.svg").contains("data-copper-text="));
+	}
+
+	/** 既定はページJSONを出す。 */
+	public void testPageDataIsEmittedByDefault() throws Exception {
+		final CapturingResults r = run(DIRECT);
+		assertTrue("the page JSON must be emitted by default", r.data.containsKey("pages/0001.json"));
+		assertTrue("the manifest must point at it", r.text("manifest.json").contains("\"data\""));
+	}
+
 	/** 既定は参照。同じ画像の実体は1つで済む。 */
 	public void testReferencedResourcesAreDefault() throws Exception {
 		final CapturingResults r = run(Map.of("output.paged-svg.writer", "direct"));

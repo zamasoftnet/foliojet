@@ -715,6 +715,12 @@ public final class UAProps {
 			"output.pdf.deflate-level", -1);
 
 	/**
+	 * ページごとの読み取り用データ(ページJSON)を返すかどうかです。
+	 */
+	public static final CodePropManager<PagedSvgPageData> OUTPUT_PAGED_SVG_PAGE_DATA = new CodePropManager<>(
+			"output.paged-svg.page-data", PagedSvgPageData.class, PagedSvgPageData.EMIT);
+
+	/**
 	 * ページSVGとページJSONをgzipで縮めて返すかどうかです。
 	 */
 	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(

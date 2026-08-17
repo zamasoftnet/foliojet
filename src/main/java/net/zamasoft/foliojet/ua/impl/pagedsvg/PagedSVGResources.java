@@ -416,9 +416,14 @@ final class PagedSVGResources {
 			json.append("\n    {\"number\":").append(page.number).append(",\"width\":")
 					.append(number(page.width)).append(",\"height\":").append(number(page.height)).append(",\"svg\":");
 			quote(json, page.svgUri);
-			json.append(",\"svgSha256\":\"").append(page.svgSha256).append("\",\"data\":");
-			quote(json, page.jsonUri);
-			json.append(",\"dataSha256\":\"").append(page.jsonSha256).append("\"}");
+			json.append(",\"svgSha256\":\"").append(page.svgSha256).append('"');
+			// ページJSONを出さない指定なら、そのURIとハッシュは書かない
+			if (page.jsonUri != null) {
+				json.append(",\"data\":");
+				quote(json, page.jsonUri);
+				json.append(",\"dataSha256\":\"").append(page.jsonSha256).append('"');
+			}
+			json.append('}');
 		}
 		json.append("\n  ]\n}\n");
 		return json.toString().getBytes(StandardCharsets.UTF_8);

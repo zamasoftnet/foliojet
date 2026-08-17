@@ -35,6 +35,7 @@ import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
+import net.zamasoft.foliojet.ua.props.PagedSvgPageData;
 import net.zamasoft.foliojet.ua.props.PagedSvgWriter;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
@@ -194,9 +195,11 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 				}
 			});
 
-			final String jsonUri = this.pageUri(stem, ".json");
+			// 読み取り用データが要らない使い方なら出さない
+			final String jsonUri = this.emitsPageData() ? this.pageUri(stem, ".json") : null;
 			final PagedSVGResources.PageData page = this.currentPage;
-			final String jsonSha = this.emit(jsonUri, "application/json", out -> {
+			final String jsonSha = jsonUri == null ? null
+					: this.emit(jsonUri, "application/json", out -> {
 				try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 					page.writeJson(writer);
 				}
@@ -237,9 +240,11 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 				writer.write(svg);
 			}
 		});
-		final String jsonUri = this.pageUri(stem, ".json");
+		// 読み取り用データが要らない使い方なら出さない
+		final String jsonUri = this.emitsPageData() ? this.pageUri(stem, ".json") : null;
 		final PagedSVGResources.PageData page = this.currentPage;
-		final String jsonSha = this.emit(jsonUri, "application/json", out -> {
+		final String jsonSha = jsonUri == null ? null
+				: this.emit(jsonUri, "application/json", out -> {
 			try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 				page.writeJson(writer);
 			}
@@ -356,6 +361,11 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private boolean isCompressed(final String uri) {
 		return this.compression == PagedSvgCompression.GZIP
 				&& (uri.endsWith(".svgz") || uri.endsWith(".json.gz"));
+	}
+
+	/** ページごとの読み取り用データ(ページJSON)を返すかどうか。 */
+	private boolean emitsPageData() {
+		return UAProps.OUTPUT_PAGED_SVG_PAGE_DATA.get(this) == PagedSvgPageData.EMIT;
 	}
 
 	/** 縮める設定なら{@code .svgz}/{@code .json.gz}へ、そうでなければそのまま。 */
