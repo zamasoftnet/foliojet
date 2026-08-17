@@ -146,7 +146,13 @@ final class WebFontSubset {
 		return shape;
 	}
 
-	byte[] build() throws IOException {
+	/**
+	 * WOFF2を組み立てます。
+	 *
+	 * @param quality Brotliの品質(1〜11)。11は極端に遅い割に小さくならない
+	 *                ({@code output.paged-svg.font-compression}参照)
+	 */
+	byte[] build(final int quality) throws IOException {
 		final SubsetFont subset = new SubsetFont();
 		final BBox bbox = CFFGenerator.calculateSubsetBBox(subset);
 		final ByteArrayOutputStream cffBytes = new ByteArrayOutputStream(1 << 14);
@@ -167,7 +173,7 @@ final class WebFontSubset {
 		tables.add(new TableData("name", nameTable()));
 		tables.add(new TableData("post", postTable()));
 		tables.sort(Comparator.comparing(TableData::tag));
-		return Woff2.wrap(tables);
+		return Woff2.wrap(tables, quality);
 	}
 
 	private byte[] cmapTable() throws IOException {
@@ -404,7 +410,7 @@ final class WebFontSubset {
 				"lcar", "mort", "morx", "opbd", "prop", "trak", "Zapf", "Silf", "Glat", "Gloc", "Feat",
 				"Sill" };
 
-		static byte[] wrap(final List<TableData> tables) throws IOException {
+		static byte[] wrap(final List<TableData> tables, final int quality) throws IOException {
 			final ByteArrayOutputStream directoryBytes = new ByteArrayOutputStream();
 			final ByteArrayOutputStream plainBytes = new ByteArrayOutputStream();
 			for (final TableData table : tables) {
@@ -416,7 +422,7 @@ final class WebFontSubset {
 				writeBase128(directoryBytes, table.data.length);
 				plainBytes.write(table.data);
 			}
-			final byte[] compressed = brotliCompress(plainBytes.toByteArray());
+			final byte[] compressed = brotliCompress(plainBytes.toByteArray(), quality);
 			final int totalSfntSize = 12 + tables.size() * 16
 					+ tables.stream().mapToInt(t -> (t.data.length + 3) & ~3).sum();
 			final int contentLength = 48 + directoryBytes.size() + compressed.length;
@@ -503,10 +509,10 @@ final class WebFontSubset {
 		 * WOFF2用のFONT modeで実圧縮する。未知のOS/CPUでは正しい非圧縮
 		 * RFC 7932 streamへ落とし、Paged SVG出力そのものは失わせない。
 		 */
-		private static byte[] brotliCompress(final byte[] input) throws IOException {
+		private static byte[] brotliCompress(final byte[] input, final int quality) throws IOException {
 			try {
 				Brotli4jLoader.ensureAvailability();
-				return Encoder.compress(input, Encoder.Parameters.create(11, 22, Encoder.Mode.FONT));
+				return Encoder.compress(input, Encoder.Parameters.create(quality, 22, Encoder.Mode.FONT));
 			} catch (final UnsatisfiedLinkError | ExceptionInInitializerError e) {
 				return brotliStore(input);
 			}

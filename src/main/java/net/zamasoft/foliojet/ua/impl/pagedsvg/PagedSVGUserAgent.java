@@ -11,6 +11,7 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.zip.GZIPOutputStream;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -33,6 +34,7 @@ import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
+import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.foliojet.ua.props.PagedSvgWriter;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -54,6 +56,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private FontManagerImpl fontManager;
 	private PagedSVGGraphics2D svg;
 	private PagedSVGResources.PageData currentPage;
+	/** 縮めて返すかどうか。ページSVGとページJSONにだけ効く。 */
+	private PagedSvgCompression compression = PagedSvgCompression.NONE;
 	/** 独自書き出しのときだけ使う。Batikのときはnull。 */
 	private java.io.StringWriter directBuffer;
 	private SVGPageOutput directPage;
@@ -136,6 +140,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.resources.setResourcePolicies(UAProps.OUTPUT_PAGED_SVG_FONTS.get(this),
 					UAProps.OUTPUT_PAGED_SVG_IMAGES.get(this));
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
+			this.resources.setFontCompression(UAProps.OUTPUT_PAGED_SVG_FONT_COMPRESSION.getInteger(this));
+			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
 		}
 		this.currentPage = new PagedSVGResources.PageData(number, this.pageWidth, this.pageHeight);
 		if (UAProps.OUTPUT_PAGED_SVG_WRITER.get(this) == PagedSvgWriter.DIRECT) {
@@ -179,7 +185,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 					+ PagedSVGResources.number(this.currentPage.height));
 			this.addFontFaces(root);
 			final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
-			final String svgUri = stem + ".svg";
+			final String svgUri = this.pageUri(stem, ".svg");
 			// **溜めずに流す**(2026-08-16)。以前はページSVG全体を
 			// ByteArrayOutputStreamへ作ってから書いていた。直列化と
 			// SHA-256は流しながらできる。圧縮は行わない——配信の都合は
@@ -191,7 +197,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 				}
 			});
 
-			final String jsonUri = stem + ".json";
+			final String jsonUri = this.pageUri(stem, ".json");
 			final PagedSVGResources.PageData page = this.currentPage;
 			final String jsonSha = this.emit(jsonUri, "application/json", out -> {
 				try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
@@ -228,13 +234,13 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.directPage = null;
 
 		final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
-		final String svgUri = stem + ".svg";
+		final String svgUri = this.pageUri(stem, ".svg");
 		final String svgSha = this.emit(svgUri, "image/svg+xml", out -> {
 			try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 				writer.write(svg);
 			}
 		});
-		final String jsonUri = stem + ".json";
+		final String jsonUri = this.pageUri(stem, ".json");
 		final PagedSVGResources.PageData page = this.currentPage;
 		final String jsonSha = this.emit(jsonUri, "application/json", out -> {
 			try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
@@ -321,12 +327,46 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 				raw = new FragmentOutputAdapter(builder, 0);
 			}
 			try (raw) {
-				content.write(new UnclosableOutputStream(new DigestOutputStream(raw, digest)));
+				// SHA-256は**実際に渡すバイト**に対して取る。だから縮める場合は
+				// digestを外側(gzipの出口)に置く。受け手はmanifestの値を
+				// 保存したファイルへそのまま当てられる
+				final OutputStream digested = new DigestOutputStream(raw, digest);
+				if (this.isCompressed(uri)) {
+					// GZIPOutputStreamはcloseでトレーラを書くので閉じる必要があるが、
+					// 下位まで閉じさせない
+					try (var gzip = new GZIPOutputStream(new UnclosableOutputStream(digested))) {
+						content.write(new UnclosableOutputStream(gzip));
+					}
+				} else {
+					content.write(new UnclosableOutputStream(digested));
+				}
 			}
 		} finally {
 			builder.close();
 		}
 		return HexFormat.of().formatHex(digest.digest());
+	}
+
+	/**
+	 * gzipで縮めて返す結果かどうか。
+	 *
+	 * <p>
+	 * 縮めるのは文字で書かれたページSVGとページJSONだけです。共有WOFF2と
+	 * PNG/JPEGは既に圧縮済みで縮まないうえ、二重に包むと受け手の手間が増えます。
+	 * {@code manifest.json}は読み口なので、そのままにします。
+	 * </p>
+	 */
+	private boolean isCompressed(final String uri) {
+		return this.compression == PagedSvgCompression.GZIP
+				&& (uri.endsWith(".svgz") || uri.endsWith(".json.gz"));
+	}
+
+	/** 縮める設定なら{@code .svgz}/{@code .json.gz}へ、そうでなければそのまま。 */
+	private String pageUri(final String stem, final String extension) {
+		if (this.compression != PagedSvgCompression.GZIP) {
+			return stem + extension;
+		}
+		return stem + (".svg".equals(extension) ? ".svgz" : extension + ".gz");
 	}
 
 	/**

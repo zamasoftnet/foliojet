@@ -5,6 +5,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -195,6 +196,9 @@ final class PagedSVGResources {
 	private PagedSvgResourcePolicy fontPolicy = PagedSvgResourcePolicy.EMIT;
 	private PagedSvgResourcePolicy imagePolicy = PagedSvgResourcePolicy.EMIT;
 	private PagedSvgResourceMode resourceMode = PagedSvgResourceMode.REFERENCE;
+
+	/** 共有WOFF2のBrotli品質。既定は5(11は126倍遅くて5.2ポイント縮むだけ)。 */
+	private int fontCompression = 5;
 	private final List<FontEntry> fonts = new ArrayList<>();
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
@@ -211,6 +215,11 @@ final class PagedSVGResources {
 	void setResourcePolicies(final PagedSvgResourcePolicy fontPolicy, final PagedSvgResourcePolicy imagePolicy) {
 		this.fontPolicy = fontPolicy;
 		this.imagePolicy = imagePolicy;
+	}
+
+	void setFontCompression(final int quality) {
+		// Brotliが受ける範囲へ丸める。外れた指定で落とさない
+		this.fontCompression = Math.max(1, Math.min(11, quality));
 	}
 
 	void setResourceMode(final PagedSvgResourceMode mode) {
@@ -302,17 +311,35 @@ final class PagedSVGResources {
 	}
 
 	void emitFonts() throws IOException {
-		for (final FontEntry entry : this.fonts) {
-			if (this.fontPolicy == PagedSvgResourcePolicy.OMIT) {
-				// build()はBrotli圧縮を伴うので、出力しないなら組み立てもしない。
-				// sha256とバイト数はここでしか得られないのでmanifestからも落ちる。
+		if (this.fontPolicy == PagedSvgResourcePolicy.OMIT) {
+			// build()はBrotli圧縮を伴うので、出力しないなら組み立てもしない。
+			// sha256とバイト数はここでしか得られないのでmanifestからも落ちる。
+			for (final FontEntry entry : this.fonts) {
 				this.emittedFonts.add(new FontAsset(entry.subset, null, -1));
-				continue;
 			}
-			final byte[] bytes = entry.subset.build();
-			final String hash = sha256(bytes);
+			return;
+		}
+		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
+		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
+		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す
+		final int quality = this.fontCompression;
+		final List<byte[]> built;
+		try {
+			built = this.fonts.parallelStream().map(entry -> {
+				try {
+					return entry.subset.build(quality);
+				} catch (final IOException e) {
+					throw new UncheckedIOException(e);
+				}
+			}).toList();
+		} catch (final UncheckedIOException e) {
+			throw e.getCause();
+		}
+		for (int i = 0; i < this.fonts.size(); ++i) {
+			final FontEntry entry = this.fonts.get(i);
+			final byte[] bytes = built.get(i);
 			this.emitter.emit(entry.subset.uri(), "font/woff2", bytes);
-			this.emittedFonts.add(new FontAsset(entry.subset, hash, bytes.length));
+			this.emittedFonts.add(new FontAsset(entry.subset, sha256(bytes), bytes.length));
 		}
 	}
 

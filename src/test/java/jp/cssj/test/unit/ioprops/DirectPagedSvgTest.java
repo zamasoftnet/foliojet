@@ -204,6 +204,47 @@ public class DirectPagedSvgTest extends TestCase {
 		return new double[] { sx, sy };
 	}
 
+	/**
+	 * gzipで返すと、ページSVGとページJSONだけが縮んで名前が変わること。
+	 *
+	 * <p>
+	 * 共有WOFF2とPNGは既に圧縮済みなので触らない。{@code manifest.json}は
+	 * 読み口なのでそのまま。SHA-256は<b>実際に渡すバイト</b>、つまり縮めた後の
+	 * バイトに対して取る。
+	 * </p>
+	 */
+	public void testGzipCompressesOnlyTheTextResults() throws Exception {
+		final CapturingResults plain = run(DIRECT);
+		final CapturingResults gzip = run(Map.of("output.paged-svg.writer", "direct",
+				"output.paged-svg.compression", "gzip"));
+
+		assertTrue("the page SVG must be named .svgz", gzip.data.containsKey("pages/0001.svgz"));
+		assertTrue("the page data must be named .json.gz", gzip.data.containsKey("pages/0001.json.gz"));
+		assertFalse("the uncompressed names must be gone", gzip.data.containsKey("pages/0001.svg"));
+		assertTrue("the manifest must stay readable", gzip.data.containsKey("manifest.json"));
+		assertTrue("the manifest must point at the compressed page",
+				gzip.text("manifest.json").contains("pages/0001.svgz"));
+
+		final byte[] compressed = gzip.data.get("pages/0001.svgz").toByteArray();
+		assertTrue("the page must actually shrink",
+				compressed.length < plain.data.get("pages/0001.svg").toByteArray().length);
+		// 展開すると縮めなかったときと同じ中身になること
+		try (var in = new java.util.zip.GZIPInputStream(new ByteArrayInputStream(compressed))) {
+			assertEquals("gzip must be lossless", plain.text("pages/0001.svg"),
+					new String(in.readAllBytes(), StandardCharsets.UTF_8));
+		}
+
+		// 共有資源は素のまま
+		for (final String uri : gzip.data.keySet()) {
+			assertFalse("shared resources must not be wrapped: " + uri,
+					uri.endsWith(".woff2.gz") || uri.endsWith(".png.gz"));
+		}
+
+		// manifestのSHA-256は縮めた後のバイトに対して取る
+		assertTrue("the manifest must record the stored bytes",
+				gzip.text("manifest.json").contains(sha256(compressed)));
+	}
+
 	/** manifestのSHA-256が実体と一致すること。流しながら取っているので特に確かめる。 */
 	public void testManifestHashesMatchTheBytes() throws Exception {
 		final CapturingResults direct = run(Map.of("output.paged-svg.writer", "direct"));
