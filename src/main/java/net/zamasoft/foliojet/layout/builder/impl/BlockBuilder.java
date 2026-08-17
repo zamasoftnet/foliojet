@@ -1532,6 +1532,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return true;
 	}
 
+	/**
+	 * 開いているテキストランのフォントを返します(無ければ{@code null})。
+	 * 途中で作り直された{@link TextBuilder}がフォントを引き継げなかった
+	 * ときの復元元です(2026-08-17。{@link #glyph}が遅延生成でこれを使うのと
+	 * 同じ値)。
+	 */
+	FontStyle getOpenRunFontStyle() {
+		return this.openRunFontStyle;
+	}
+
+	/** @see #getOpenRunFontStyle() */
+	FontMetrics getOpenRunFontMetrics() {
+		return this.openRunFontMetrics;
+	}
+
 	public void startTextRun(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) {
 		this.openRunFontStyle = fontStyle;
 		this.openRunFontMetrics = fontMetrics;

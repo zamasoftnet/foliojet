@@ -525,6 +525,11 @@ public class TextBuilder {
 	}
 
 	private void endInline() {
+		// 開始のないINLINE_ENDは黙って捨てる(2026-08-17。control()の
+		// INLINE_ENDと同じ理由)
+		if (this.inlineStack == null || this.inlineStack.isEmpty()) {
+			return;
+		}
 		Inline inline = (Inline) this.inlineStack.remove(this.inlineStack.size() - 1);
 		if (inline != null) {
 			InlineBox inlineBox = inline.box;
@@ -1021,6 +1026,25 @@ public class TextBuilder {
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
+		// **フォントを引き継げていないときは開いているランから復元する**
+		// (2026-08-17)。前進保証ガードが自動改ページを放棄すると、途中で
+		// 作り直されたTextBuilderがstartTextRunを受け取らないまま字を受け取る
+		// ことがある。BlockBuilder.glyphがTextBuilderを遅延生成するときに使う
+		// のと同じ値なので、ここで補っても組み方は変わらない。
+		// **落としてはいけない**——ライブロックは版面の劣化で済ませ、変換は
+		// 完走させる(ARCHITECTURE §5.13)。
+		if (this.fontStyle == null || this.fontMetrics == null) {
+			final FontStyle openStyle = this.builder.getOpenRunFontStyle();
+			final FontMetrics openMetrics = this.builder.getOpenRunFontMetrics();
+			if (openStyle != null && openMetrics != null) {
+				this.fontStyle = openStyle;
+				this.fontMetrics = openMetrics;
+			} else {
+				// 復元元も無い。字を測れないので捨てる(内容は既に
+				// ライブロックの放棄で落ちている範囲)
+				return;
+			}
+		}
 		// if (this.breakWord && this.unitAdvance > 0) {
 		// if (this.firstUnit) {
 		// this.locateLine();
@@ -1182,8 +1206,17 @@ public class TextBuilder {
 
 			case InlineQuad.INLINE_END: {
 				final InlineEndQuad inlineEndQuad = (InlineEndQuad) inlineQuad;
-				this.textParamStack.remove(this.textParamStack.size() - 1);
-				if (this.textParamStack.isEmpty()) {
+				// **開始のないINLINE_ENDを受け取りうる**(2026-08-17)。
+				// 前進保証ガードが自動改ページを放棄すると、内容はその場へ
+				// はみ出して配置され、途中で作り直されたビルダーが対応する
+				// INLINE_STARTを見ないまま閉じだけを受け取る。ガードの契約
+				// (ARCHITECTURE §5.13)は<b>変換を失敗させずに劣化させる</b>
+				// ことなので、ここで落ちてはいけない——実測: w3c-jlreqの
+				// 用語表がNullPointerExceptionで変換ごと失敗していた
+				if (this.textParamStack != null && !this.textParamStack.isEmpty()) {
+					this.textParamStack.remove(this.textParamStack.size() - 1);
+				}
+				if (this.textParamStack == null || this.textParamStack.isEmpty()) {
 					params = this.lineBox.getTextParams();
 				} else {
 					final InlineBox box = (InlineBox) this.textParamStack.get(this.textParamStack.size() - 1);
