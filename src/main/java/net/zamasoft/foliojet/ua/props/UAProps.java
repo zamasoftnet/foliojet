@@ -689,7 +689,8 @@ public final class UAProps {
 	public static final BooleanPropManager OUTPUT_USE_META_INFO = new BooleanPropManager("output.use-meta-info", true);
 
 	/**
-	 * Paged SVGの共有資源を参照にするか埋め込みにするかです。
+	 * Paged SVGの共有資源(フォントのサブセットと画像)の渡し方です。
+	 * 参照・埋め込み・送らないの3つから選びます。
 	 */
 	public static final CodePropManager<PagedSvgResourceMode> OUTPUT_PAGED_SVG_RESOURCES = new CodePropManager<>(
 			"output.paged-svg.resources", PagedSvgResourceMode.class, PagedSvgResourceMode.REFERENCE);
@@ -736,17 +737,6 @@ public final class UAProps {
 	public static final IntegerPropManager OUTPUT_PAGED_SVG_FONT_COMPRESSION = new IntegerPropManager(
 			"output.paged-svg.font-compression", 5);
 
-	/**
-	 * Paged SVGのフォントサブセットを出力するかどうかです。
-	 */
-	public static final CodePropManager<PagedSvgResourcePolicy> OUTPUT_PAGED_SVG_FONTS = new CodePropManager<>(
-			"output.paged-svg.fonts", PagedSvgResourcePolicy.class, PagedSvgResourcePolicy.EMIT);
-
-	/**
-	 * Paged SVGの画像を出力するかどうかです。
-	 */
-	public static final CodePropManager<PagedSvgResourcePolicy> OUTPUT_PAGED_SVG_IMAGES = new CodePropManager<>(
-			"output.paged-svg.images", PagedSvgResourcePolicy.class, PagedSvgResourcePolicy.EMIT);
 
 	private static final java.util.List<PropManager> ALL = java.util.List.of(
 			INPUT_PROPERTY_PI,
@@ -870,10 +860,8 @@ public final class UAProps {
 			OUTPUT_PAGED_SVG_RESOURCES,
 			OUTPUT_PAGED_SVG_WRITER,
 			OUTPUT_PAGED_SVG_FONT_COMPRESSION,
-			OUTPUT_PAGED_SVG_COMPRESSION,
 			OUTPUT_PDF_DEFLATE_LEVEL,
-			OUTPUT_PAGED_SVG_FONTS,
-			OUTPUT_PAGED_SVG_IMAGES);
+			OUTPUT_PAGED_SVG_COMPRESSION);
 
 	/**
 	 * 定義済みの全プロパティを返します。

@@ -136,7 +136,7 @@ public class PagedSvgOutputTest extends TestCase {
 	 */
 	public void testResourceSuppression() throws Exception {
 		final CapturingResults results = run(simpleHtml(),
-				Map.of("output.paged-svg.fonts", "omit", "output.paged-svg.images", "omit"));
+				Map.of("output.paged-svg.resources", "omit"));
 		assertTrue("no font or image bytes may be emitted",
 				results.order.stream().noneMatch(uri -> uri.startsWith("assets/")));
 
@@ -156,7 +156,7 @@ public class PagedSvgOutputTest extends TestCase {
 	public void testSuppressedResourceUrisMatchEmittedOnes() throws Exception {
 		final CapturingResults emitted = run(simpleHtml(), Map.of());
 		final CapturingResults omitted = run(simpleHtml(),
-				Map.of("output.paged-svg.fonts", "omit", "output.paged-svg.images", "omit"));
+				Map.of("output.paged-svg.resources", "omit"));
 		assertEquals(emitted.text("pages/0001.svg"),
 				omitted.text("pages/0001.svg"));
 	}

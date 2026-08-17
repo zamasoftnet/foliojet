@@ -133,6 +133,34 @@ public class DirectPagedSvgTest extends TestCase {
 		}
 	}
 
+	/**
+	 * {@code omit}はフォントと画像をまとめて止めること。
+	 *
+	 * <p>
+	 * 以前は{@code output.paged-svg.fonts}と{@code output.paged-svg.images}に
+	 * 分かれていたが、どちらも「受け手にどう届けるか」の話なので
+	 * {@code output.paged-svg.resources}へ統合した。参照・埋め込み・送らないは
+	 * 互いに排他である。
+	 * </p>
+	 */
+	public void testOmitStopsFontsAndImagesTogether() throws Exception {
+		final CapturingResults r = run(Map.of("output.paged-svg.writer", "direct",
+				"output.paged-svg.resources", "omit"));
+
+		assertFalse("no font asset may be emitted",
+				r.order.stream().anyMatch(u -> u.startsWith("assets/fonts/")));
+		assertFalse("no image asset may be emitted",
+				r.order.stream().anyMatch(u -> u.startsWith("assets/images/")));
+
+		// 参照とmanifestの記載は残る。受け手が前回の資源を使えるようにするため
+		final String first = r.text("pages/0001.svg");
+		assertTrue("the page must still reference the shared subset", first.contains("../assets/fonts/"));
+		assertTrue("the page must still reference the shared image", first.contains("../assets/images/"));
+		final String manifest = r.text("manifest.json");
+		assertTrue("the manifest must mark the fonts as omitted", manifest.contains("\"omitted\":true"));
+		assertTrue("the manifest must still list the pages", manifest.contains("pages/0001.svg"));
+	}
+
 	/** 既定は参照。同じ画像の実体は1つで済む。 */
 	public void testReferencedResourcesAreDefault() throws Exception {
 		final CapturingResults r = run(Map.of("output.paged-svg.writer", "direct"));

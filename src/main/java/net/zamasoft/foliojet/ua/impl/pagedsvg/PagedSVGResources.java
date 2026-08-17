@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.zamasoft.foliojet.ua.props.PagedSvgResourceMode;
-import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
 
@@ -193,8 +192,6 @@ final class PagedSVGResources {
 	}
 
 	private final ResultEmitter emitter;
-	private PagedSvgResourcePolicy fontPolicy = PagedSvgResourcePolicy.EMIT;
-	private PagedSvgResourcePolicy imagePolicy = PagedSvgResourcePolicy.EMIT;
 	private PagedSvgResourceMode resourceMode = PagedSvgResourceMode.REFERENCE;
 
 	/** 共有WOFF2のBrotli品質。既定は5(11は126倍遅くて5.2ポイント縮むだけ)。 */
@@ -210,11 +207,6 @@ final class PagedSVGResources {
 
 	PagedSVGResources(final ResultEmitter emitter) {
 		this.emitter = emitter;
-	}
-
-	void setResourcePolicies(final PagedSvgResourcePolicy fontPolicy, final PagedSvgResourcePolicy imagePolicy) {
-		this.fontPolicy = fontPolicy;
-		this.imagePolicy = imagePolicy;
 	}
 
 	void setFontCompression(final int quality) {
@@ -268,7 +260,7 @@ final class PagedSVGResources {
 				this.images.put(hash, image);
 				return image;
 			}
-			final boolean omit = this.imagePolicy == PagedSvgResourcePolicy.OMIT;
+			final boolean omit = this.resourceMode == PagedSvgResourceMode.OMIT;
 			image = new ImageAsset("assets/images/" + hash + '.' + extension, hash, mediaType, width, height, omit);
 			if (!omit) {
 				this.emitter.emit(image.uri, mediaType, bytes);
@@ -311,7 +303,7 @@ final class PagedSVGResources {
 	}
 
 	void emitFonts() throws IOException {
-		if (this.fontPolicy == PagedSvgResourcePolicy.OMIT) {
+		if (this.resourceMode == PagedSvgResourceMode.OMIT) {
 			// build()はBrotli圧縮を伴うので、出力しないなら組み立てもしない。
 			// sha256とバイト数はここでしか得られないのでmanifestからも落ちる。
 			for (final FontEntry entry : this.fonts) {

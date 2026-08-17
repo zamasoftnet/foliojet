@@ -35,7 +35,6 @@ import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
-import net.zamasoft.foliojet.ua.props.PagedSvgResourcePolicy;
 import net.zamasoft.foliojet.ua.props.PagedSvgWriter;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
@@ -137,8 +136,6 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		}
 		final int number = ++this.page;
 		if (number == 1) {
-			this.resources.setResourcePolicies(UAProps.OUTPUT_PAGED_SVG_FONTS.get(this),
-					UAProps.OUTPUT_PAGED_SVG_IMAGES.get(this));
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
 			this.resources.setFontCompression(UAProps.OUTPUT_PAGED_SVG_FONT_COMPRESSION.getInteger(this));
 			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
