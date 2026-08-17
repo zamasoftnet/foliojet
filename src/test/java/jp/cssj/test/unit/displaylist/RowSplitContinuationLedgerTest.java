@@ -131,6 +131,56 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		assertTrue("末尾のflexコンテナが改ページされていない(ページ数=" + pages + ")", pages >= 8);
 	}
 
+	/**
+	 * <b>body自体がcolumn flexでも最後まで改ページされる</b>
+	 * (2026-08-17、godoc-pkgの根治)。
+	 *
+	 * <p>
+	 * column方向flexは行帳簿を持たずatomic——救済分割が1回働いても、
+	 * 従来の{@code endFlowBlock}のはみ出し検査は<b>1回だけ</b>だったため、
+	 * 残余が2ページ目に置かれたまま再検査されず、はみ出したまま終わった
+	 * (実測: pkg.go.devのページが2ページ・重なり1,088万対)。修正は
+	 * PageAtomicBoxを閉じたときだけ検査を入るまで繰り返すこと
+	 * (無条件のループは白紙ページ抑止とfuzzの既存挙動を壊す)。
+	 * </p>
+	 */
+	public void testBodyAsColumnFlexPaginatesToTheEnd() throws Exception {
+		final StringBuilder html = new StringBuilder();
+		html.append("""
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="200pt"?>
+				<?jp.cssj.property name="output.page-height" value="200pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>
+				@page{margin:10pt}
+				body{font:normal 9pt/1.2 serif;margin:0;display:flex;flex-direction:column}
+				</style></head><body>
+				<header>HEAD</header>
+				<main>
+				""");
+		for (int i = 0; i < PARAGRAPHS; ++i) {
+			html.append("<p>Paragraph ").append(i).append(" text that wraps a bit more here.</p>\n");
+		}
+		html.append("</main>\n<footer>FOOT</footer>\n</body></html>\n");
+
+		final File dir = new File("local/row-split-ledger/body-column-flex");
+		dir.mkdirs();
+		final File[] old = dir.listFiles();
+		if (old != null) {
+			for (final File f : old) {
+				f.delete();
+			}
+		}
+		final File input = new File(dir, "input.html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(input), StandardCharsets.UTF_8)) {
+			w.write(html.toString());
+		}
+		final int pages = convertFile("body-column-flex", dir, input);
+		// 救済分割は行の途中でも幾何学的に切るため、通常の行分割(60ページ)
+		// よりページ数は少なくなる(実測35)。修正前は2ページだった
+		assertTrue("bodyのcolumn flexが最後まで組まれていない(ページ数=" + pages + ")", pages >= 20);
+	}
+
 	private static int convertFile(final String name, final File dir, final File input) throws Exception {
 		final Throwable[] failure = new Throwable[1];
 		final Thread worker = new Thread(null, () -> {

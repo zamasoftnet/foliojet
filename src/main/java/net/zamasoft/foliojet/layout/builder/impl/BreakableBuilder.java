@@ -855,14 +855,36 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// System.out.println(this.pageAxis+"/"+ pageLimit);
 			if (this.interflowBreak) {
 				// 一番下のボックスの境界下辺がページの内底辺をはみ出していた場合
-				// 自動改ページ
-				final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
-				// System.err.println(pageAxis+"/"+pageLimit);
-				if (LayoutUtils.compare(pageAxis, pageLimit) > 0 && this.paintsBeyondPage(flow, flowBox)) {
+				// 自動改ページ。**閉じたのがflex/grid(PageAtomicBox)なら
+				// 入るまで繰り返す**(2026-08-17)。従来は1回だけだったため、
+				// 複数ページぶんの分割不能ボックス——
+				// body{display:flex;flex-direction:column}の実文書など——が
+				// 救済分割を1回受けた後、残余が2ページ目に置かれたまま
+				// 再検査されず、はみ出したまま終わっていた。TABLEのaddBoundの
+				// for(;;)と同じ形で、これらのボックスにはここが唯一の
+				// 自動改ページ機会だから繰り返しもここが担う。通常ブロックは
+				// 行単位の検査が別にあるので従来どおり1回(無条件のループは
+				// 白紙ページ抑止・fuzzの既存挙動を壊すと実測で確認済み)。
+				// autoBreakがfalse(前進保証ガードの放棄等)を返したら抜ける
+				// ので無限ループにはならない
+				final boolean repeat = flowBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox;
+				for (;;) {
+					final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
+					// System.err.println(pageAxis+"/"+pageLimit);
+					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0 || !this.paintsBeyondPage(flow, flowBox)) {
+						break;
+					}
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [interflow]" + "/" + flowBox.getParams().element);
 					}
-					this.autoBreak();
+					this.checkAbort();
+					if (!this.autoBreak() || !repeat || this.flowStack.isEmpty()) {
+						// autoBreakは改ページ中にflowStackを空にすることがある
+						// (fuzzで実測: 空のまま再取得するとIndexOutOfBounds)
+						break;
+					}
+					// 改ページ後のフローを取り直す(切断で作り直されている)
+					flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
 				}
 			}
 
