@@ -702,47 +702,10 @@ public final class UAProps {
 			"output.paged-svg.writer", PagedSvgWriter.class, PagedSvgWriter.DIRECT);
 
 	/**
-	 * PDFのストリームを縮めるdeflateの水準(-1、または0〜9)です。
-	 *
-	 * <p>
-	 * {@code -1}はzlibの既定(実質6)です。{@code 1}が最も速く、{@code 9}が
-	 * 最も小さくなります。314ページの書籍で計った実測では、水準を下げても
-	 * 出力はほとんど変わらず、時間もほとんど変わりませんでした。既定のままで
-	 * 構いません。大量に捌くサーバーで詰めたいときだけ下げてください。
-	 * </p>
-	 */
-	public static final IntegerPropManager OUTPUT_PDF_DEFLATE_LEVEL = new IntegerPropManager(
-			"output.pdf.deflate-level", -1);
-
-	/**
-	 * ページごとの読み取り用データ(ページJSON)を返すかどうかです。
-	 */
-	public static final CodePropManager<PagedSvgPageData> OUTPUT_PAGED_SVG_PAGE_DATA = new CodePropManager<>(
-			"output.paged-svg.page-data", PagedSvgPageData.class, PagedSvgPageData.EMIT);
-
-	/**
 	 * ページSVGとページJSONをgzipで縮めて返すかどうかです。
 	 */
 	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(
 			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.NONE);
-
-	/**
-	 * 共有WOFF2を作るときのBrotliの品質(1〜11)です。
-	 *
-	 * <p>
-	 * 11が最小になりますが、極端に遅くなります。7.75MBのフォントで計った実測では
-	 * 品質5が0.11秒で49.0%、9が1.04秒で46.4%、11が13.85秒で43.8%でした。
-	 * <b>11は5の126倍の時間をかけて5.2ポイント縮めるだけ</b>です。
-	 * </p>
-	 *
-	 * <p>
-	 * 低い品質でも十分に縮むので、既定は5にしています。容量を詰めたい配信でだけ
-	 * 上げてください。
-	 * </p>
-	 */
-	public static final IntegerPropManager OUTPUT_PAGED_SVG_FONT_COMPRESSION = new IntegerPropManager(
-			"output.paged-svg.font-compression", 5);
-
 
 	private static final java.util.List<PropManager> ALL = java.util.List.of(
 			INPUT_PROPERTY_PI,
@@ -865,8 +828,6 @@ public final class UAProps {
 			OUTPUT_USE_META_INFO,
 			OUTPUT_PAGED_SVG_RESOURCES,
 			OUTPUT_PAGED_SVG_WRITER,
-			OUTPUT_PAGED_SVG_FONT_COMPRESSION,
-			OUTPUT_PDF_DEFLATE_LEVEL,
 			OUTPUT_PAGED_SVG_COMPRESSION);
 
 	/**

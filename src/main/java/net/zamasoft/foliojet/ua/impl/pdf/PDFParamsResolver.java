@@ -335,10 +335,6 @@ final class PDFParamsResolver {
 			throw new IllegalStateException();
 		}
 
-		// deflateの水準。範囲外は既定へ落として変換を止めない
-		final int deflateLevel = UAProps.OUTPUT_PDF_DEFLATE_LEVEL.getInteger(ua);
-		params = params.withDeflateLevel(deflateLevel < -1 || deflateLevel > 9 ? -1 : deflateLevel);
-
 		// 圧縮
 		switch (UAProps.OUTPUT_PDF_COMPRESSION.get(ua)) {
 		case NONE:

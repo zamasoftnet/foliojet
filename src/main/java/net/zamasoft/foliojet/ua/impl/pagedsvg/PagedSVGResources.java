@@ -194,8 +194,16 @@ final class PagedSVGResources {
 	private final ResultEmitter emitter;
 	private PagedSvgResourceMode resourceMode = PagedSvgResourceMode.REFERENCE;
 
-	/** 共有WOFF2のBrotli品質。既定は5(11は126倍遅くて5.2ポイント縮むだけ)。 */
-	private int fontCompression = 5;
+	/**
+	 * 共有WOFF2を作るときのBrotliの品質。
+	 *
+	 * <p>
+	 * 5に固定している。7.75MBのフォントで計った実測では、品質5が0.11秒で49.0%、
+	 * 9が1.04秒で46.4%、11が13.85秒で43.8%だった。<b>11は5の126倍の時間をかけて
+	 * 5.2ポイント縮めるだけ</b>で、割に合わない。設定として出す価値も無い。
+	 * </p>
+	 */
+	private static final int FONT_COMPRESSION = 5;
 	private final List<FontEntry> fonts = new ArrayList<>();
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
@@ -207,11 +215,6 @@ final class PagedSVGResources {
 
 	PagedSVGResources(final ResultEmitter emitter) {
 		this.emitter = emitter;
-	}
-
-	void setFontCompression(final int quality) {
-		// Brotliが受ける範囲へ丸める。外れた指定で落とさない
-		this.fontCompression = Math.max(1, Math.min(11, quality));
 	}
 
 	void setResourceMode(final PagedSvgResourceMode mode) {
@@ -314,7 +317,7 @@ final class PagedSVGResources {
 		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
 		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
 		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す
-		final int quality = this.fontCompression;
+		final int quality = FONT_COMPRESSION;
 		final List<byte[]> built;
 		try {
 			built = this.fonts.parallelStream().map(entry -> {
@@ -416,14 +419,9 @@ final class PagedSVGResources {
 			json.append("\n    {\"number\":").append(page.number).append(",\"width\":")
 					.append(number(page.width)).append(",\"height\":").append(number(page.height)).append(",\"svg\":");
 			quote(json, page.svgUri);
-			json.append(",\"svgSha256\":\"").append(page.svgSha256).append('"');
-			// ページJSONを出さない指定なら、そのURIとハッシュは書かない
-			if (page.jsonUri != null) {
-				json.append(",\"data\":");
-				quote(json, page.jsonUri);
-				json.append(",\"dataSha256\":\"").append(page.jsonSha256).append('"');
-			}
-			json.append('}');
+			json.append(",\"svgSha256\":\"").append(page.svgSha256).append("\",\"data\":");
+			quote(json, page.jsonUri);
+			json.append(",\"dataSha256\":\"").append(page.jsonSha256).append("\"}");
 		}
 		json.append("\n  ]\n}\n");
 		return json.toString().getBytes(StandardCharsets.UTF_8);
