@@ -779,6 +779,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					canBreakAfter = true;
 				}
 			}
+			if (blockBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+				// **flex/gridを閉じたら、末尾のはみ出し検査を必ず有効にする**
+				// (2026-08-17)。中身はTwoPass録画(MODE_NO_BREAK)で組まれ、
+				// addBound()の先頭のearly-returnを通るため、通常ブロックと
+				// 違いinterflowBreakを一度も立てないまま閉じる。bindで
+				// カーソルが一括で進むこれらのボックスにとって、この後の
+				// interflow検査は**唯一の自動改ページ機会**——直前の内容が
+				// フラグをfalseのまま残していると(実測: pandocマニュアルの
+				// navの後の.container{display:flex})検査がスキップされ、
+				// 本文全体130,000ptが1ページに積み上がって紙外へ流出した。
+				// 直前に通常のaddBoundがあれば偶然動くため、発症が文書構造に
+				// 依存して見えづらい。
+				this.canBreakBefore = true;
+				this.interflowBreak = true;
+			}
 			break;
 		}
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {

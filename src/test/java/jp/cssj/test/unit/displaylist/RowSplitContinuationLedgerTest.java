@@ -78,6 +78,93 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		assertTrue("flexの巨大itemが最後まで組まれていない(ページ数=" + pages + ")", pages >= 40);
 	}
 
+	/**
+	 * <b>文書末尾のflexコンテナが、直前の内容に関係なく改ページされる</b>
+	 * (2026-08-17、pandocマニュアルの根治)。
+	 *
+	 * <p>
+	 * flex/gridの中身はTwoPass録画で組まれ{@code addBound}のearly-returnを
+	 * 通るため、{@code interflowBreak}を立てないまま閉じる。コンテナが
+	 * 最後の子だと{@code endFlowBlock}末尾のはみ出し検査が唯一の
+	 * 自動改ページ機会だが、直前のnav(inline-flex)がフラグをfalseのまま
+	 * 残すと検査がスキップされ、本文全体が1ページに積み上がった
+	 * (実測: pandocマニュアル130,000pt)。修正はPageAtomicBoxを閉じたとき
+	 * 検査を必ず有効にすること({@code BreakableBuilder.endFlowBlock})。
+	 * </p>
+	 */
+	public void testTrailingFlexAfterInlineFlexNavPaginates() throws Exception {
+		final StringBuilder html = new StringBuilder();
+		html.append("""
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="200pt"?>
+				<?jp.cssj.property name="output.page-height" value="200pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>
+				@page{margin:10pt}
+				body{font:normal 9pt/1.2 serif;margin:0}
+				.container{display:flex}
+				nav > ul{display:inline-flex;flex-wrap:wrap}
+				</style></head><body>
+				<nav><ul><li><a href="#">A</a></li></ul></nav>
+				<div class="container">
+				<main>
+				""");
+		for (int i = 0; i < PARAGRAPHS; ++i) {
+			html.append("<p>Paragraph ").append(i).append(" text that wraps a bit more here.</p>\n");
+		}
+		// 後続の内容は置かない——コンテナが最後の子であることが再現条件
+		html.append("</main>\n<div>SIDE</div>\n</div>\n</body></html>\n");
+
+		final File dir = new File("local/row-split-ledger/trailing-flex");
+		dir.mkdirs();
+		final File[] old = dir.listFiles();
+		if (old != null) {
+			for (final File f : old) {
+				f.delete();
+			}
+		}
+		final File input = new File(dir, "input.html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(input), StandardCharsets.UTF_8)) {
+			w.write(html.toString());
+		}
+		final int pages = convertFile("trailing-flex", dir, input);
+		assertTrue("末尾のflexコンテナが改ページされていない(ページ数=" + pages + ")", pages >= 8);
+	}
+
+	private static int convertFile(final String name, final File dir, final File input) throws Exception {
+		final Throwable[] failure = new Throwable[1];
+		final Thread worker = new Thread(null, () -> {
+			try (OutputStream out = new FileOutputStream(new File(dir, "out.pdf"));
+					AutoCloseable scope = DisplayListDumper.scopedDir(dir.getPath())) {
+				final DirectSession session = (DirectSession) new DirectDriver()
+						.getSession(URI.create("copper:direct:"), null);
+				try {
+					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+					session.property("input.include", "**");
+					session.property("input.property-pi", "true");
+					CTISessionHelper.transcodeFile(session, input, "text/html", null);
+				} finally {
+					session.close();
+				}
+			} catch (final Throwable t) {
+				failure[0] = t;
+			}
+		}, name, 64L * 1024 * 1024);
+		worker.setDaemon(true);
+		worker.start();
+		worker.join(WATCHDOG_MS);
+		assertFalse(name + ": 変換が" + WATCHDOG_MS / 1000 + "秒で終わらない", worker.isAlive());
+		if (failure[0] != null) {
+			throw new AssertionError(name + ": 変換が例外で終わった", failure[0]);
+		}
+		final File[] pages = dir.listFiles((d, n) -> n.endsWith(".txt"));
+		assertNotNull(name + ": ページが1枚も出ていない", pages);
+		assertTrue(name + ": ページが1枚も出ていない", pages.length > 0);
+		return pages.length;
+	}
+
 	private static int convert(final String name, final String wrapCss) throws Exception {
 		final StringBuilder html = new StringBuilder();
 		html.append("""
