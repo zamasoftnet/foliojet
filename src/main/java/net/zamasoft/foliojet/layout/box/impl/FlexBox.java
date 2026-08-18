@@ -199,8 +199,16 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// 制約ではない——下のxflags構築が元々FLAGS_LASTを運ばないため、
 		// 検査を外すだけで安全に扱える
 		if (!this.hasRowSplitLines()) {
-			// 通常はPaginationContractの特例により、line境界が無ければこの
-			// メソッド自体が呼ばれない(atomic経路へ回る)。防御的フォールバック
+			if (!this.isPageAtomicNow()) {
+				// F0退行(flex配置なし)は中身が単一列の通常フローなので、
+				// 通常ブロックの構造分割へ委譲する(2026-08-18)。これが無いと
+				// 「帳簿なし+非原子」の閉じた箱がフラグメント先頭でKEEPされ、
+				// ページ底を越えた内容が描かれず失われる(stripe-docsで実測:
+				// 3687ptの内側flexが2ページ目に丸ごと置かれ、以降が消えた)
+				return super.split(pageLimit, mode, flags);
+			}
+			// 原子側の防御的フォールバック(通常はPaginationContractの特例に
+			// より、line境界が無ければこのメソッド自体が呼ばれない)
 			return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 		}
 		final WritingMode flow = this.getBlockParams().flow;
