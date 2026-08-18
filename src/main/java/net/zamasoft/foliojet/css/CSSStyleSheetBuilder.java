@@ -111,6 +111,9 @@ public class CSSStyleSheetBuilder {
 	public void parse(InputSource source) throws IOException, CSSException {
 		String css = read(source.getReader());
 		css = css.replace("{literal}", "").replace("{/literal}", "");
+		// 未閉鎖コメントは終端で暗黙に閉じる(DeclarationParser参照——
+		// ph-cssの字句解析はここで回復できず、シート全体が破棄されてしまう)
+		css = DeclarationParser.closeUnterminatedComment(css);
 		CascadingStyleSheet sheet = CSSReader.readFromStringReader(css, DeclarationParser.settings());
 		if (sheet == null) {
 			throw new CSSException("スタイルシートを解析できません");
