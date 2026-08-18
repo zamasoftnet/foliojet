@@ -334,6 +334,16 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			remainders[k] = typedRemainder;
 		}
 
+		// 保持側の実消費(2026-08-19——GridBox.splitの同名の補正と同じ。
+		// 切断は不可分な内容を丸ごと残余へ送るため、保持断片の実内容は
+		// 切断線より早く終わりうる。実描画終端を基準に保持断片を閉じ、
+		// 継続の行開始も同じ量だけ引く)
+		double consumed = 0;
+		for (int k = 0; k < boundaryItems.length; ++k) {
+			consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
+		}
+		consumed = Math.min(consumed, remaining);
+		final double keptEnd = boundaryLine.start() + consumed;
 		final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		final boolean vertical = flow.isVertical();
 		double newLinePageSize = 0;
@@ -347,13 +357,12 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// getPageExtentがほぼ0を返しうる。flexの境界探索は累積和なので
 		// gridの「空の継続断片」(実害)までは起きないが、行が複数ある
 		// 継続で後続行の切断位置がずれる。幾何学的な下限で守る。
-		newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - remaining);
+		newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - consumed);
 		// item単位では「分割前のitem高 − 保持側の実測高」も下回らない
 		// (2026-08-18——GridBox.splitの同名の補正と同じ。保持側は不可分な
 		// 内容を残余へ送って利用可能量より早く終わりうる)
 		for (int k = 0; k < boundaryItems.length; ++k) {
-			newLinePageSize = Math.max(newLinePageSize,
-					preExtents[k] - boundaryItems[k].getPageExtent(flow));
+			newLinePageSize = Math.max(newLinePageSize, preExtents[k] - consumed);
 		}
 		final List<FlexItemBox> contItems = new ArrayList<>(remainders.length
 				+ (this.lineItems.size() - (boundaryLine.startFlow() + boundaryItems.length)));
@@ -365,19 +374,19 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 
 		if (boundary + 1 < this.lines.size()) {
 			final Line nextLine = this.lines.get(boundary + 1);
-			((Container) this.container).migrateFlowsFrom(nextLine.startFlow(), cont, totalPageLimit);
+			((Container) this.container).migrateFlowsFrom(nextLine.startFlow(), cont, keptEnd);
 			int shift = boundaryItems.length;
 			for (int j = boundary + 1; j < this.lines.size(); ++j) {
 				final Line old = this.lines.get(j);
-				// startは移送(−totalPageLimit)後の実描画位置と一致させる
-				contLines.add(new Line(shift, old.itemCount(), old.start() - totalPageLimit, old.pageSize()));
+				// startは移送(−keptEnd)後の実描画位置と一致させる
+				contLines.add(new Line(shift, old.itemCount(), old.start() - keptEnd, old.pageSize()));
 				shift += old.itemCount();
 			}
 			contItems.addAll(this.lineItems.subList(nextLine.startFlow(), this.lineItems.size()));
 		}
 
 		cont.anchorCurrent();
-		final AbstractContainerBox continuation = this.splitPage(cont, totalPageLimit, false);
+		final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 		if (continuation instanceof FlexBox contFlex) {
 			contFlex.markFlexLayout();
 			contFlex.setFlexLines(contLines, contItems);

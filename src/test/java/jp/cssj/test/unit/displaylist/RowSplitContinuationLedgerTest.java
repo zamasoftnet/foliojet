@@ -182,6 +182,91 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		assertTrue("bodyのcolumn flexが最後まで組まれていない(ページ数=" + pages + ")", pages >= 20);
 	}
 
+	/**
+	 * <b>保持側が切断線より早く終わる境界行で、次行が残余に重ならない</b>
+	 * (2026-08-19、smolcssの根治)。
+	 *
+	 * <p>
+	 * 行の強制分割は不可分な内容({@code page-break-inside:avoid}のブロック等)を
+	 * 丸ごと残余へ送るため、保持側の実内容は切断線より早く終わりうる。
+	 * 従来は移送・保持断片寸法が切断線基準だったため、残余の実内容
+	 * (=元の行高−実消費>元の行高−切断線ぶん)が「旧幾何−切断線」で固定した
+	 * 次行の開始位置に重なった(smolcss: 前の記事のフッタに次の記事の本文が
+	 * 重なる)。修正は保持側の実描画終端({@code paintedPageExtent})基準。
+	 * </p>
+	 */
+	public void testKeptSideEndingEarlyDoesNotOverlapNextRow() throws Exception {
+		final StringBuilder html = new StringBuilder();
+		html.append("""
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="200pt"?>
+				<?jp.cssj.property name="output.page-height" value="200pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>
+				@page{margin:10pt}
+				body{font:normal 9pt/1.2 serif;margin:0}
+				.wrap{display:grid}
+				.atomic{page-break-inside:avoid}
+				</style></head><body><div class="wrap">
+				<article>
+				""");
+		// 保持側になる段落(切断線の手前で終わる)
+		for (int i = 0; i < 10; ++i) {
+			html.append("<p>Alpha paragraph ").append(i).append(" fills the kept side of row A.</p>\n");
+		}
+		// 不可分ブロック(切断線を跨ぐため丸ごと残余へ送られる)
+		html.append("<div class=\"atomic\">");
+		for (int i = 0; i < 8; ++i) {
+			html.append("<p>Atomic line ").append(i).append("</p>");
+		}
+		html.append("</div>\n<p>ATAIL marks the end of row A.</p>\n</article>\n<article>\n");
+		html.append("<p>BHEAD starts row B here.</p>\n");
+		for (int i = 0; i < 6; ++i) {
+			html.append("<p>Bravo paragraph ").append(i).append(".</p>\n");
+		}
+		html.append("</article>\n</div></body></html>\n");
+
+		final File dir = new File("local/row-split-ledger/kept-early-end");
+		dir.mkdirs();
+		final File[] old = dir.listFiles();
+		if (old != null) {
+			for (final File f : old) {
+				f.delete();
+			}
+		}
+		final File input = new File(dir, "input.html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(input), StandardCharsets.UTF_8)) {
+			w.write(html.toString());
+		}
+		final int pages = convertFile("kept-early-end", dir, input);
+		assertTrue("行分割が起きていない(ページ数=" + pages + ")", pages >= 2);
+		// 同一ページにATAIL(行Aの末尾)とBHEAD(行Bの先頭)が載るなら、
+		// BHEADは必ずATAILより下に置かれる
+		boolean checked = false;
+		for (int p = 1; p <= pages; ++p) {
+			final java.util.List<String> lines = java.nio.file.Files.readAllLines(
+					new File(dir, String.format("page-%04d.txt", p)).toPath(), StandardCharsets.UTF_8);
+			double atail = Double.NaN, bhead = Double.NaN;
+			for (final String line : lines) {
+				final java.util.regex.Matcher m = java.util.regex.Pattern
+						.compile("y=([0-9.-]+) (?:artifact )?Text\\[\"(ATAIL|BHEAD)\"").matcher(line);
+				if (m.find()) {
+					if ("ATAIL".equals(m.group(2))) {
+						atail = Double.parseDouble(m.group(1));
+					} else {
+						bhead = Double.parseDouble(m.group(1));
+					}
+				}
+			}
+			if (!Double.isNaN(atail) && !Double.isNaN(bhead)) {
+				checked = true;
+				assertTrue("p" + p + "で行Bの先頭(y=" + bhead + ")が行Aの残余(y=" + atail + ")に重なっています",
+						bhead > atail);
+			}
+		}
+		assertTrue("ATAILとBHEADが同一ページに現れず、重なり検査ができていません(フィクスチャ要調整)", checked);
+	}
+
 	private static int convertFile(final String name, final File dir, final File input) throws Exception {
 		final Throwable[] failure = new Throwable[1];
 		final Thread worker = new Thread(null, () -> {

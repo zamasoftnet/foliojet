@@ -277,6 +277,20 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					}
 					remainders[k] = typedRemainder;
 				}
+				// **保持側の実消費**(2026-08-19)。切断は不可分な内容を丸ごと
+				// 残余へ送るため、保持断片の実内容は切断線remainingより早く
+				// 終わりうる(smolcssで実測50pt)。従来は移送・保持断片寸法を
+				// 切断線基準にしていたため、残余の実内容が「旧幾何−切断線」で
+				// 固定した次行の開始位置に重なった。実描画終端
+				// (paintedPageExtent——枠が見える箱は箱いっぱい=従来どおり
+				// 切断線に落ちる安全側)を基準に、保持断片を実消費で閉じ、
+				// 継続の行開始も同じ量だけ引く。
+				double consumed = 0;
+				for (int k = 0; k < boundaryItems.length; ++k) {
+					consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
+				}
+				consumed = Math.min(consumed, remaining);
+				final double keptEnd = boundaryRow.start() + consumed;
 				final RowSplitContainer cont = new RowSplitContainer();
 				double newRowExtent = 0;
 				for (int k = 0; k < remainders.length; ++k) {
@@ -293,7 +307,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// (eLife論文で実測: 95ページぶんが3ページ目に積み上がった)。
 				// 幾何学的に、残余は「元の行の高さ − このページで消費した量」
 				// を下回らない。
-				newRowExtent = Math.max(newRowExtent, boundaryRow.extent() - remaining);
+				newRowExtent = Math.max(newRowExtent, boundaryRow.extent() - consumed);
 				// さらに、item単位では「分割前のitem高 − 保持側の実測高」を
 				// 下回らない(2026-08-18)。切断は不可分な内容(行・原子ブロック)を
 				// 丸ごと残余へ送るため、保持側の実消費は利用可能量remainingより
@@ -302,8 +316,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// (smolcssで実測: 保持側が原子のデモ箱を送って~65pt早く終わり、
 				// 次の記事の本文が前の記事のフッタに重なった)
 				for (int k = 0; k < boundaryItems.length; ++k) {
-					newRowExtent = Math.max(newRowExtent,
-							preExtents[k] - boundaryItems[k].getPageExtent(flow));
+					newRowExtent = Math.max(newRowExtent, preExtents[k] - consumed);
 				}
 				final List<GridItemBox> contItems = new ArrayList<>(
 						remainders.length + this.rowItems.size() - (boundaryRow.startFlow() + boundaryItems.length));
@@ -314,18 +327,18 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				contRows.add(new Row(0, boundaryItems.length, 0, newRowExtent, newRowExtent));
 				if (boundary + 1 < this.rows.size()) {
 					final Row nextRow = this.rows.get(boundary + 1);
-					((Container) this.container).migrateFlowsFrom(nextRow.startFlow(), cont, pageLimit);
+					((Container) this.container).migrateFlowsFrom(nextRow.startFlow(), cont, keptEnd);
 					int shift = boundaryItems.length;
 					for (int j = boundary + 1; j < this.rows.size(); ++j) {
 						final Row old = this.rows.get(j);
-						contRows.add(new Row(shift, old.itemCount(), old.start() - pageLimit, old.extent(),
+						contRows.add(new Row(shift, old.itemCount(), old.start() - keptEnd, old.extent(),
 								old.itemsEnd()));
 						shift += old.itemCount();
 					}
 					contItems.addAll(this.rowItems.subList(nextRow.startFlow(), this.rowItems.size()));
 				}
 				cont.anchorCurrent();
-				final AbstractContainerBox continuation = this.splitPage(cont, pageLimit, false);
+				final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 				if (continuation instanceof GridBox contGrid) {
 					contGrid.markTrackLayout();
 					contGrid.setGridRows(contRows, contItems);
