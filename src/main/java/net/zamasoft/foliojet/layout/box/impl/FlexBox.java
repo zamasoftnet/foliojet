@@ -277,6 +277,11 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// 境界行:未分割(Keep判定)だったitemも強制分割する
 		final byte forcedFlags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 		final FlexItemBox[] remainders = new FlexItemBox[boundaryItems.length];
+		// 分割前のitem高(下の残余下限の計算用)
+		final double[] preExtents = new double[boundaryItems.length];
+		for (int k = 0; k < boundaryItems.length; ++k) {
+			preExtents[k] = boundaryItems[k].getPageExtent(flow);
+		}
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			final SplitResult r = probed[k] instanceof SplitResult.Split ? probed[k]
 					: boundaryItems[k].split(remaining, mode, forcedFlags);
@@ -302,6 +307,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// gridの「空の継続断片」(実害)までは起きないが、行が複数ある
 		// 継続で後続行の切断位置がずれる。幾何学的な下限で守る。
 		newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - remaining);
+		// item単位では「分割前のitem高 − 保持側の実測高」も下回らない
+		// (2026-08-18——GridBox.splitの同名の補正と同じ。保持側は不可分な
+		// 内容を残余へ送って利用可能量より早く終わりうる)
+		for (int k = 0; k < boundaryItems.length; ++k) {
+			newLinePageSize = Math.max(newLinePageSize,
+					preExtents[k] - boundaryItems[k].getPageExtent(flow));
+		}
 		final List<FlexItemBox> contItems = new ArrayList<>(remainders.length
 				+ (this.lineItems.size() - (boundaryLine.startFlow() + boundaryItems.length)));
 		for (final FlexItemBox rem : remainders) {

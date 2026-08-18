@@ -262,6 +262,11 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// 境界行: 未分割(Keep判定)だったitemも強制分割する
 				final byte forcedFlags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 				final GridItemBox[] remainders = new GridItemBox[boundaryItems.length];
+				// 分割前のitem高(下の残余下限の計算用)
+				final double[] preExtents = new double[boundaryItems.length];
+				for (int k = 0; k < boundaryItems.length; ++k) {
+					preExtents[k] = boundaryItems[k].getPageExtent(flow);
+				}
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					final SplitResult r = probed[k] instanceof SplitResult.Split ? probed[k]
 							: boundaryItems[k].split(remaining, mode, forcedFlags);
@@ -289,6 +294,17 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// 幾何学的に、残余は「元の行の高さ − このページで消費した量」
 				// を下回らない。
 				newRowExtent = Math.max(newRowExtent, boundaryRow.extent() - remaining);
+				// さらに、item単位では「分割前のitem高 − 保持側の実測高」を
+				// 下回らない(2026-08-18)。切断は不可分な内容(行・原子ブロック)を
+				// 丸ごと残余へ送るため、保持側の実消費は利用可能量remainingより
+				// 小さくなりうる——上の下限(extent−remaining)だけだと残余を
+				// 過小記帳し、次ページで後続行が継続行の実内容に重なる
+				// (smolcssで実測: 保持側が原子のデモ箱を送って~65pt早く終わり、
+				// 次の記事の本文が前の記事のフッタに重なった)
+				for (int k = 0; k < boundaryItems.length; ++k) {
+					newRowExtent = Math.max(newRowExtent,
+							preExtents[k] - boundaryItems[k].getPageExtent(flow));
+				}
 				final List<GridItemBox> contItems = new ArrayList<>(
 						remainders.length + this.rowItems.size() - (boundaryRow.startFlow() + boundaryItems.length));
 				for (final GridItemBox rem : remainders) {
