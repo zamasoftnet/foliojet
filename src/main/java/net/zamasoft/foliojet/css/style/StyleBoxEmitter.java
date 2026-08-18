@@ -309,6 +309,50 @@ final class StyleBoxEmitter {
 		}
 	}
 
+	/**
+	 * ルート直下の<b>全面絶対配置ラッパー</b>かを返します(2026-08-17。
+	 * 判断の背景は呼び出し側のコメント参照)。
+	 *
+	 * <p>
+	 * 条件は意図的に狭い: (1) 親がhtml/body(それより深い全面配置は
+	 * モーダルの背景等、重ねる意図がありうる)、(2) 寸法が
+	 * {@code width:100%}かつ{@code height:100%}、または上下左右の
+	 * insetが全て0——どちらも「ビューポートに一致させる」意図の
+	 * 定型だけを拾う。
+	 * </p>
+	 */
+	private static boolean isFullViewportWrapper(final CSSStyle style) {
+		final CSSStyle parentStyle = style.getParentStyle();
+		if (parentStyle == null) {
+			return false;
+		}
+		final Object pe = parentStyle.getCSSElement();
+		if (!(pe instanceof CSSElement pce)) {
+			return false;
+		}
+		final String pName = pce.lName();
+		if (!"body".equalsIgnoreCase(pName) && !"html".equalsIgnoreCase(pName)) {
+			return false;
+		}
+		if (isFullRatio(Width.get(style)) && isFullRatio(Height.get(style))) {
+			return true;
+		}
+		return isZeroLength(Inset.get(style, net.zamasoft.foliojet.css.impl.property.box.Side.TOP))
+				&& isZeroLength(Inset.get(style, net.zamasoft.foliojet.css.impl.property.box.Side.RIGHT))
+				&& isZeroLength(Inset.get(style, net.zamasoft.foliojet.css.impl.property.box.Side.BOTTOM))
+				&& isZeroLength(Inset.get(style, net.zamasoft.foliojet.css.impl.property.box.Side.LEFT));
+	}
+
+	private static boolean isFullRatio(final Value value) {
+		return value instanceof net.zamasoft.foliojet.css.value.PercentageValue percentage
+				&& percentage.getRatio() >= 1.0;
+	}
+
+	private static boolean isZeroLength(final Value value) {
+		return value instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length
+				&& length.getLength() == 0;
+	}
+
 	AbstractBlockBox createBlockBox(CSSStyle style, BlockParams params, byte position, byte display,
 			byte floating) {
 		final AbstractBlockBox blockBox;
@@ -415,7 +459,28 @@ final class StyleBoxEmitter {
 
 			// SPEC CSS 2.1 9.7の計算はDisplayクラスで実装済み
 			final byte display = Display.get(style);
-			final byte position = CSSPosition.get(style);
+			byte position = CSSPosition.get(style);
+			if (position == PositionValue.ABSOLUTE && isFullViewportWrapper(style)) {
+				// **ルート直下の全面絶対配置は通常フローへ落とす**(2026-08-17)。
+				//
+				// Read the Docsテーマの
+				// {@code .wy-grid-for-nav{position:absolute;width:100%;height:100%}}
+				// のような**画面用の全面レイアウトラッパー**が本文全体を包む
+				// 作りは、ドキュメントサイトに広く使われている(実地コーパスの
+				// mathjax-docs・rtd-themeの2文書がこれで、テーマのprint CSSも
+				// 解除し忘れている)。絶対配置は分割しない設計
+				// (ARCHITECTURE §5.10——透かし・装飾の意図的なはみ出しを
+				// 勝手に切ると誤りになる)なので、そのままでは数百ページぶんの
+				// 本文が**丸ごと1ページに積み上がって内容が全損**する。
+				//
+				// 印刷では「ビューポートいっぱいに広げる」指定に意味がなく、
+				// Chromeの印刷も中身をページへ流す。対象は
+				// **body/html直下・width:100%かつheight:100%(またはinset:0
+				// 相当)**に限る——透かし・裁ち落とし等の局所的な絶対配置には
+				// 影響しない。採否はimageTest 592文書0差分と実地コーパスの
+				// 実測で確認した(ユーザー承認2026-08-17)。
+				position = PositionValue.STATIC;
+			}
 			if (position == PositionValue.STATIC || position == PositionValue.RELATIVE) {
 				// タグの補完
 				final CSSStyle parentStyle = style.getParentStyle();
