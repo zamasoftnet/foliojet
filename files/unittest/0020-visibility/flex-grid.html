@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>不可視の中のflex/grid</title>
+  </head>
+
+  <body>
+    <h1>不可視の中のflex/grid</h1>
+    <p>以下のflex/gridコンテナはvisibility:hiddenの中にあり、中身も見えません。</p>
+    <div style="visibility: hidden">
+      <div style="display: flex" id="a">flexの中身も不可視</div>
+      <div style="display: grid" id="b">gridの中身も不可視</div>
+    </div>
+    <div style="display: flex" id="c">可視のflex</div>
+  </body>
+
+</html>

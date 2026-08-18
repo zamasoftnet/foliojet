@@ -140,7 +140,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		params.frame = RectFrame.NULL_FRAME;
 		params.element = null;
 		params.footnoteId = -1;
-		params.opacity = 1f;
+		// **コンテナの実効opacityを引き継ぐ**(2026-08-18)。以前は1fへ
+		// 戻していたが、visibility:hiddenはopacity 0へ写像される
+		// (BoxStyleMapper.setupParams)ため、hiddenなコンテナの匿名・
+		// 中立itemだけが描かれてしまう——e-Statのドロップダウンメニューが
+		// 本文に重なって出た実欠陥(重なり1,462対)。authored itemは
+		// 自分のstyleからvisibilityを継承するので元から正しい。
+		params.opacity = this.flexBox.getFlexParams().opacity;
 		params.zIndexType = Params.Z_INDEX_AUTO;
 		params.zIndexValue = 0;
 		params.transform = new AffineTransform();
