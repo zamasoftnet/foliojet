@@ -176,8 +176,9 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 			w.write(html.toString());
 		}
 		final int pages = convertFile("body-column-flex", dir, input);
-		// 救済分割は行の途中でも幾何学的に切るため、通常の行分割(60ページ)
-		// よりページ数は少なくなる(実測35)。修正前は2ページだった
+		// 当時は救済分割で35ページ(帯が行の途中を切る)。2026-08-18の
+		// F0非原子化(FlexBox.isPageAtomicNow)以降は通常の行分割で組まれる
+		// ためページ数はさらに増える——下限はどちらの経路でも成り立つ値
 		assertTrue("bodyのcolumn flexが最後まで組まれていない(ページ数=" + pages + ")", pages >= 20);
 	}
 

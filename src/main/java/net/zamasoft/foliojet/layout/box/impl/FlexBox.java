@@ -28,18 +28,19 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * </p>
  *
  * <p>
- * <b>行分割(2026-08-07、Bug C)</b>: {@code flex-direction:row}(主軸=行
- * 方向)で{@link #setFlexLines}によりline境界情報が設定されている場合に
- * 限り、{@link #hasRowSplitLines()}がtrueになり、
+ * <b>行分割(2026-08-07、Bug C)</b>: {@link #setFlexLines}によりline境界
+ * 情報が設定されている場合に限り、{@link #hasRowSplitLines()}がtrueになり、
  * {@code PaginationContract}の特例(同ファイル参照)を通じて
  * {@link #split}が実際に呼ばれる——テーブルの行が「同一物理切断線に
  * 揃えて強制分割し、揃わないitemは丸ごと次断片へ」という契約
  * ({@code TableRowGroupBox}/{@code TableRowBox}参照)を、rowspanの無い
- * 単純化版として適用する。line境界が無ければ(column-direction、
- * またはF4c/F4dの対象外構成)従来通りPageAtomicBoxのまま——丸ごと送りか
- * visual rescueへ落ちる。この使い分けは意図的で、column-directionの
- * nowrapは元々「itemが縦に積まれるだけ」でCSS的に正しい挙動のため、
- * わざわざ行分割機構を適用する理由が無い(調査時の結論)。
+ * 単純化版として適用する。境界情報はrow方向の行({@code FlexBuilder.placeRow})
+ * のほか、<b>単一列のcolumn方向でもitem1つを1行として合成する</b>
+ * (2026-08-18——app shell型のbody column flex(min-height:100vhの縦flex)が
+ * 実文書の37%で全文atomicになり、救済分割の帯境界で行がスライスされて
+ * いた。{@code placeColumn}の単一列とF4c縮退経路{@code bindFallback}が
+ * 対象。主軸整列leading>0は帳簿0基点とずれるため対象外)。line境界が
+ * 無ければ従来通りPageAtomicBoxのまま——丸ごと送りかvisual rescueへ落ちる。
  * </p>
  *
  * <p>
@@ -80,6 +81,17 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 */
 	private List<FlexItemBox> lineItems;
 
+	/**
+	 * flex配置({@code FlexBuilder}のplaceRow/placeColumn/bindFallback)が
+	 * 実際に走ったか。走っていなければ中身は単一列の通常フロー
+	 * (F0退行——column+auto高のapp shell型が代表)で、守るべきflex配置が
+	 * 無いため原子契約を主張しない({@link #isPageAtomicNow}。
+	 * {@link GridBox#isPageAtomicNow}のtrackLayoutと同じ設計判断——
+	 * 2026-08-18、bbc-japan等の実文書37%が全文atomic→救済分割の帯境界で
+	 * 行がスライスされていた)。
+	 */
+	private boolean flexLayout;
+
 	public FlexBox(final FlexParams params, final FlowPos pos) {
 		super(params, pos);
 		// flexのitem配置(主軸整列)は汎用のrestyle再構築(逐次積み上げ)で
@@ -119,6 +131,21 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 */
 	public final boolean hasRowSplitLines() {
 		return this.lines != null && !this.lines.isEmpty();
+	}
+
+	/** flex配置が走ったことを記録します({@code FlexBuilder}の各配置経路が呼ぶ)。 */
+	public final void markFlexLayout() {
+		this.flexLayout = true;
+	}
+
+	/**
+	 * 原子契約はflex配置が実際に走ったコンテナだけが主張する(2026-08-18——
+	 * {@link GridBox#isPageAtomicNow}と同じ形。F0退行の単一列通常フローは
+	 * 通常ブロックとして行単位に改ページされる)。
+	 */
+	@Override
+	public final boolean isPageAtomicNow() {
+		return this.flexLayout;
 	}
 
 	/**
@@ -232,6 +259,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			cont.anchorCurrent();
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 			if (continuation instanceof FlexBox contFlex) {
+				contFlex.markFlexLayout();
 				contFlex.setFlexLines(shiftLines(this.lines, boundary),
 						this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size()));
 			}
@@ -289,6 +317,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		cont.anchorCurrent();
 		final AbstractContainerBox continuation = this.splitPage(cont, totalPageLimit, false);
 		if (continuation instanceof FlexBox contFlex) {
+			contFlex.markFlexLayout();
 			contFlex.setFlexLines(contLines, contItems);
 		}
 		return new SplitResult.Split(continuation);

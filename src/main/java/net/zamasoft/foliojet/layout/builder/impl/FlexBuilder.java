@@ -558,6 +558,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final List<FlexItemMetrics> metrics, final List<FlexLineBreaker.Line> lines,
 			final double[] mainSizeByOriginal) {
 		final FlexParams params = this.flexBox.getFlexParams();
+		this.flexBox.markFlexLayout();
 		// bindはソース順(F5a——Tagged PDFの読み順・構造をソース順に保つ)
 		for (int i = 0; i < this.items.size(); ++i) {
 			this.items.get(i).bind(target, mainSizeByOriginal[i], axis.marginBase);
@@ -673,6 +674,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final List<FlexItemMetrics> metrics, final List<FlexLineBreaker.Line> cols,
 			final double[] mainSizeByOriginal) {
 		final FlexParams params = this.flexBox.getFlexParams();
+		this.flexBox.markFlexLayout();
 		final double innerLine = axis.marginBase;
 		final int count = this.items.size();
 		// 列cross幅=列内itemのcross(明示幅/stretch/fit-content)最大
@@ -735,6 +737,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final boolean crossReversed = params.flexWrap == FlexWrap.WRAP_REVERSE;
 		double crossCursor = dist.leading();
 		double lastMainEnd = 0;
+		// 単一列(nowrap)のitem開始offset——ページ軸帳簿の合成用(下)
+		final double[] singleColStarts = cols.size() == 1 ? new double[count] : null;
+		double singleColLeading = 0;
+		final List<FlexItemBox> singleColItems = cols.size() == 1 ? new ArrayList<>(count) : null;
 		for (int v = 0; v < cols.size(); ++v) {
 			final int ci = crossReversed ? cols.size() - 1 - v : v;
 			final FlexLineBreaker.Line col = cols.get(ci);
@@ -745,6 +751,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final MainDistribution main = this.distributeMain(axis.mainBase - used, col.count(), 0,
 					axis.mainGap());
 			double mainCursor = main.leading();
+			singleColLeading = main.leading();
 			for (int k = col.from(); k < col.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
 				// 主軸(page)寸法を確定(§9.7の結果——指定高より優先)
@@ -758,6 +765,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 						: align == BoxAlignment.END ? freeCross : 0;
 				item.itemBox.setFlexLineOffset(crossCursor + crossOffset, params.flow.isVertical());
 				this.flexBox.getContainer().addFlow(item.itemBox, mainCursor);
+				if (singleColStarts != null) {
+					singleColStarts[singleColItems.size()] = mainCursor;
+					singleColItems.add(item.itemBox);
+				}
 				mainCursor += mainSizeByOriginal[seq[k]] + metrics.get(k).outerMainExtra()
 						+ (k < col.to() - 1 ? main.between() : 0);
 			}
@@ -765,6 +776,21 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			crossCursor += colCross[ci] + (v < cols.size() - 1 ? dist.between() : 0);
 		}
 		this.flexBox.setPageAxis(count == 0 ? 0 : Math.max(axis.mainBase, lastMainEnd));
+		// **ページ軸帳簿の合成**(2026-08-18): 単一列のcolumnはitemがページ軸へ
+		// 積まれるだけなので、item1つを1行とする帳簿を渡せばrow方向と同じ
+		// 行分割機構({@code FlexBox.split})がそのまま働く——従来はatomicで
+		// 救済分割(帯クリップ)に落ち、実文書の37%(app shell型のbody flex)で
+		// 行が帯境界でスライスされていた。leading>0(center等の主軸整列)は
+		// 帳簿の0基点とitem開始がずれ切断位置を誤るため対象外(atomic維持)。
+		if (singleColItems != null && !singleColItems.isEmpty() && singleColLeading == 0) {
+			final List<FlexBox.Line> flexLines = new ArrayList<>(singleColItems.size());
+			for (int k = 0; k < singleColItems.size(); ++k) {
+				final double end = k + 1 < singleColItems.size() ? singleColStarts[k + 1]
+						: singleColStarts[k] + singleColItems.get(k).getPageExtent(params.flow);
+				flexLines.add(new FlexBox.Line(k, 1, end - singleColStarts[k]));
+			}
+			this.flexBox.setFlexLines(flexLines, singleColItems);
+		}
 	}
 
 	/**
@@ -773,8 +799,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 */
 	private void bindFallback(final BlockBuilder target) {
 		final FlexParams params = this.flexBox.getFlexParams();
+		this.flexBox.markFlexLayout();
 		final double innerLine = this.flexBox.getLineSize();
 		double pageCursor = 0;
+		final List<FlexBox.Line> flexLines = new ArrayList<>(this.items.size());
+		final List<FlexItemBox> flexLineItems = new ArrayList<>(this.items.size());
 		for (final FlexItemContent item : this.items) {
 			final RectFrame frame = item.itemBox.getBlockParams().frame;
 			final double lineExtras = insetsLine(frame.margin, innerLine) + insetsLine(frame.padding, innerLine)
@@ -782,9 +811,17 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			item.bind(target, Math.max(0, innerLine - lineExtras), innerLine);
 			FLEX_ITEM_BINDS.incrementAndGet();
 			this.flexBox.getContainer().addFlow(item.itemBox, pageCursor);
-			pageCursor += item.itemBox.getPageExtent(params.flow);
+			final double extent = item.itemBox.getPageExtent(params.flow);
+			// item1つ=1行のページ軸帳簿(2026-08-18——placeColumnの合成と同じ。
+			// 縮退経路も縦積みなので行分割機構がそのまま適用できる)
+			flexLines.add(new FlexBox.Line(flexLineItems.size(), 1, extent));
+			flexLineItems.add(item.itemBox);
+			pageCursor += extent;
 		}
 		this.flexBox.setPageAxis(pageCursor);
+		if (!flexLineItems.isEmpty()) {
+			this.flexBox.setFlexLines(flexLines, flexLineItems);
+		}
 		this.syncHostCursor(target, params);
 	}
 
