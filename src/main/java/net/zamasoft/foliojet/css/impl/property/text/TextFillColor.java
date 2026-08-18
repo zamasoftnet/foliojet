@@ -24,7 +24,14 @@ public class TextFillColor extends AbstractPrimitivePropertyInfo {
 	public static net.zamasoft.pdfg2d.gc.paint.Color get(CSSStyle style) {
 		Value value = style.get(TextFillColor.INFO);
 		if (value == KeywordValue.TRANSPARENT) {
-			return null;
+			// 完全透明の色実体を返す(2026-08-18)。以前はnullを返していたが、
+			// 描画側(AbstractTextBox等)の「nullなら色を設定しない」は
+			// **既定の黒のまま描く**という意味で、transparentのつもりの文字が
+			// 黒く見えていた——prism-editor(透明textarea+ハイライトpreの
+			// 重ね)でコードが二重に見える実欠陥(chartjs-docs)。
+			// alpha 0で描けばcolor:transparentと同じ扱いになり、
+			// text-stroke併用のアウトライン文字も正しく残る
+			return net.zamasoft.pdfg2d.gc.paint.RGBAColor.create(0, 0, 0, 0);
 		}
 		if (value == KeywordValue.DEFAULT) {
 			return CSSColor.get(style);
