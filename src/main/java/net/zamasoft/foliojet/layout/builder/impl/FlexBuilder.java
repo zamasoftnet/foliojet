@@ -622,6 +622,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final int li = crossReversed ? lines.size() - 1 - v : v;
 			final FlexLineBreaker.Line line = lines.get(li);
 			final double lineExtent = lineExtents[li];
+			final double lineStart = crossCursor;
 			final int lineStartFlow = flexLineItems.size();
 			for (int k = line.from(); k < line.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
@@ -653,7 +654,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor + crossOffset);
 				flexLineItems.add(item.itemBox);
 			}
-			flexLines.add(new FlexBox.Line(lineStartFlow, line.to() - line.from(), lineExtent));
+			flexLines.add(new FlexBox.Line(lineStartFlow, line.to() - line.from(), lineStart, lineExtent));
 			crossCursor += lineExtent + (v < lines.size() - 1 ? dist.between() : 0);
 		}
 		if (!this.items.isEmpty()) {
@@ -780,14 +781,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		// 積まれるだけなので、item1つを1行とする帳簿を渡せばrow方向と同じ
 		// 行分割機構({@code FlexBox.split})がそのまま働く——従来はatomicで
 		// 救済分割(帯クリップ)に落ち、実文書の37%(app shell型のbody flex)で
-		// 行が帯境界でスライスされていた。leading>0(center等の主軸整列)は
-		// 帳簿の0基点とitem開始がずれ切断位置を誤るため対象外(atomic維持)。
-		if (singleColItems != null && !singleColItems.isEmpty() && singleColLeading == 0) {
+		// 行が帯境界でスライスされていた。行のstartを帳簿に
+		// 持つため主軸整列leading>0(center等)もそのまま扱える(2026-08-19)。
+		if (singleColItems != null && !singleColItems.isEmpty()) {
 			final List<FlexBox.Line> flexLines = new ArrayList<>(singleColItems.size());
 			for (int k = 0; k < singleColItems.size(); ++k) {
 				final double end = k + 1 < singleColItems.size() ? singleColStarts[k + 1]
 						: singleColStarts[k] + singleColItems.get(k).getPageExtent(params.flow);
-				flexLines.add(new FlexBox.Line(k, 1, end - singleColStarts[k]));
+				flexLines.add(new FlexBox.Line(k, 1, singleColStarts[k], end - singleColStarts[k]));
 			}
 			this.flexBox.setFlexLines(flexLines, singleColItems);
 		}
@@ -814,7 +815,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final double extent = item.itemBox.getPageExtent(params.flow);
 			// item1つ=1行のページ軸帳簿(2026-08-18——placeColumnの合成と同じ。
 			// 縮退経路も縦積みなので行分割機構がそのまま適用できる)
-			flexLines.add(new FlexBox.Line(flexLineItems.size(), 1, extent));
+			flexLines.add(new FlexBox.Line(flexLineItems.size(), 1, pageCursor, extent));
 			flexLineItems.add(item.itemBox);
 			pageCursor += extent;
 		}

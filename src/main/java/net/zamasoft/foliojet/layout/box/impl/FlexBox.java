@@ -39,7 +39,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * (2026-08-18——app shell型のbody column flex(min-height:100vhの縦flex)が
  * 実文書の37%で全文atomicになり、救済分割の帯境界で行がスライスされて
  * いた。{@code placeColumn}の単一列とF4c縮退経路{@code bindFallback}が
- * 対象。主軸整列leading>0は帳簿0基点とずれるため対象外)。line境界が
+ * 対象。2026-08-19のLine.start導入で主軸整列leading>0も扱える)。line境界が
  * 無ければ従来通りPageAtomicBoxのまま——丸ごと送りかvisual rescueへ落ちる。
  * </p>
  *
@@ -58,11 +58,18 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 * @param startFlow コンテナのflow一覧上でこの行の先頭itemが占める
 	 *                   0基点の位置(=直前までの行のitemCountの累計)
 	 * @param itemCount この行のitem数
+	 * @param start     行のページ軸開始位置(コンテナ内辺原点=itemの
+	 *                   addFlow位置と同じ座標。2026-08-19に追加——従来の
+	 *                   累積和による境界探索は、強制分割の残余行高が
+	 *                   推定(下限)のため実描画位置と世代を重ねてずれ、
+	 *                   多段ページ分割で行が丸ごと上へ食い込んだ
+	 *                   (bootstrap-iconsのラベル重なりで実測)。
+	 *                   {@link GridBox.Row#start}と同じ設計)
 	 * @param pageSize  この行のページ軸(cross軸、row-directionでは
 	 *                   縦方向)の確定寸法——{@code FlexBuilder.placeRow}の
 	 *                   {@code lineExtents[li]}と同じ値
 	 */
-	public record Line(int startFlow, int itemCount, double pageSize) {
+	public record Line(int startFlow, int itemCount, double start, double pageSize) {
 	}
 
 	/**
@@ -225,20 +232,54 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		}
 
 		final double totalPageLimit = pageLimit;
-		double remaining = pageLimit;
-		int boundary = this.lines.size() - 1;
+		// 切断線を跨ぐ行か、切断線以降に始まる最初の行(2026-08-19に累積和から
+		// Line.startの直接比較へ変更——GridBox.splitと同じ形。理由はLineの
+		// javadoc参照)
+		int boundary = -1;
+		boolean crosses = false;
 		for (int li = 0; li < this.lines.size(); ++li) {
 			final Line line = this.lines.get(li);
-			if (li < this.lines.size() - 1 && LayoutUtils.compare(remaining, line.pageSize()) > 0) {
-				remaining -= line.pageSize();
-				continue;
+			if (LayoutUtils.compare(pageLimit, line.start()) <= 0) {
+				boundary = li;
+				break;
 			}
-			boundary = li;
-			break;
+			if (LayoutUtils.compare(pageLimit, line.start() + line.pageSize()) < 0) {
+				boundary = li;
+				crosses = true;
+				break;
+			}
+		}
+		if (boundary < 0) {
+			// 全行が切断線の手前に収まる(切断線は末尾余白内)。内容の無い
+			// 余白は次ページへ運ばずここで切り詰める(KEEP)——継続断片が
+			// min-height等を再適用して生む余白を運ぶと、内容ゼロの白紙
+			// ページが増えるだけだった(k8s-docs等で実測)。GridBoxの同名
+			// 分岐(空の継続断片が余白を運ぶ)とは意図的に異なる——gridは
+			// min-height由来の余白を行分割の対象として運ぶ設計
+			// (gigazineの根治)で回帰を守っているため合わせない
+			return SplitResult.KEEP;
 		}
 
 		final byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
 		final Line boundaryLine = this.lines.get(boundary);
+		if (!crosses) {
+			// 境界行は切断線以降に始まる——行を切らず丸ごと持ち越す
+			if (boundary == 0) {
+				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
+			}
+			final double keptExtent = boundaryLine.start();
+			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
+			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
+			cont.anchorCurrent();
+			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
+			if (continuation instanceof FlexBox contFlex) {
+				contFlex.markFlexLayout();
+				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
+						this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size()));
+			}
+			return new SplitResult.Split(continuation);
+		}
+		final double remaining = pageLimit - boundaryLine.start();
 		final FlexItemBox[] boundaryItems = new FlexItemBox[boundaryLine.itemCount()];
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			boundaryItems[k] = this.lineItems.get(boundaryLine.startFlow() + k);
@@ -261,14 +302,14 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			if (boundary == 0) {
 				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 			}
-			final double keptExtent = totalPageLimit - remaining;
+			final double keptExtent = boundaryLine.start();
 			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
 			cont.anchorCurrent();
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
-				contFlex.setFlexLines(shiftLines(this.lines, boundary),
+				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
 						this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size()));
 			}
 			return new SplitResult.Split(continuation);
@@ -320,7 +361,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			contItems.add(rem);
 		}
 		final List<Line> contLines = new ArrayList<>();
-		contLines.add(new Line(0, boundaryItems.length, newLinePageSize));
+		contLines.add(new Line(0, boundaryItems.length, 0, newLinePageSize));
 
 		if (boundary + 1 < this.lines.size()) {
 			final Line nextLine = this.lines.get(boundary + 1);
@@ -328,7 +369,8 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			int shift = boundaryItems.length;
 			for (int j = boundary + 1; j < this.lines.size(); ++j) {
 				final Line old = this.lines.get(j);
-				contLines.add(new Line(shift, old.itemCount(), old.pageSize()));
+				// startは移送(−totalPageLimit)後の実描画位置と一致させる
+				contLines.add(new Line(shift, old.itemCount(), old.start() - totalPageLimit, old.pageSize()));
 				shift += old.itemCount();
 			}
 			contItems.addAll(this.lineItems.subList(nextLine.startFlow(), this.lineItems.size()));
@@ -348,12 +390,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 * 付け替えたリストにします({@link #split}が行全体を丸ごと次断片へ
 	 * 持ち越す際に使う)。
 	 */
-	private static List<Line> shiftLines(final List<Line> lines, final int fromIndex) {
+	private static List<Line> shiftLines(final List<Line> lines, final int fromIndex, final double keptExtent) {
 		final List<Line> result = new ArrayList<>(lines.size() - fromIndex);
 		int shift = 0;
 		for (int j = fromIndex; j < lines.size(); ++j) {
 			final Line old = lines.get(j);
-			result.add(new Line(shift, old.itemCount(), old.pageSize()));
+			// startは移送(−keptExtent)後の実描画位置と一致させる
+			result.add(new Line(shift, old.itemCount(), old.start() - keptExtent, old.pageSize()));
 			shift += old.itemCount();
 		}
 		return result;
