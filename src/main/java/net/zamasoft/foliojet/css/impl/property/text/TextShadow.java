@@ -48,7 +48,11 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			if (src[i].y == null) {
 				y = 0;
 			} else {
-				y = ((AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(src[i].x, style)).getLength();
+				// **src[i].yを使う**(2026-08-18修正)。従来はコピーミスでxを
+				// 参照しており、`text-shadow: 0 1px`の影が本体と同座標に
+				// 落ちて二重描画になっていた(reveal.jsドキュメントの
+				// コードブロックで監査が重なり319対を報告した実欠陥)
+				y = ((AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(src[i].y, style)).getLength();
 			}
 			if (src[i].color == null) {
 				color = CSSColor.get(style);
