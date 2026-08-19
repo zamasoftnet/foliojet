@@ -237,6 +237,70 @@ public class HTMLStyle {
 	 *            (object/applet)。既定のbroken-image=noneでは置換ボックスを
 	 *            作らず、子=フォールバックを描かせる
 	 */
+	/**
+	 * {@code srcset}から印刷向けの候補(最高解像度)を選びます
+	 * (2026-08-20)。密度記述子(2x)は最大密度、幅記述子(640w)は
+	 * 最大幅を選ぶ。記述子なしは1x。パースできなければnull。
+	 */
+	public static String pickFromSrcset(final String srcset) {
+		if (srcset == null || srcset.isEmpty()) {
+			return null;
+		}
+		String bestUrl = null;
+		double bestScore = -1;
+		for (final String part : srcset.split(",")) {
+			final String cand = part.trim();
+			if (cand.isEmpty()) {
+				continue;
+			}
+			final int sp = cand.indexOf(' ');
+			final String url;
+			double score = 1;
+			if (sp < 0) {
+				url = cand;
+			} else {
+				url = cand.substring(0, sp);
+				final String desc = cand.substring(sp + 1).trim().toLowerCase(java.util.Locale.ROOT);
+				try {
+					if (desc.endsWith("x")) {
+						score = Double.parseDouble(desc.substring(0, desc.length() - 1));
+					} else if (desc.endsWith("w")) {
+						// 幅記述子は密度と別スケール——密度勝負にならないよう
+						// 1000で割って同程度の桁にする(最大幅を選べれば十分)
+						score = Double.parseDouble(desc.substring(0, desc.length() - 1)) / 1000.0;
+					}
+				} catch (final NumberFormatException e) {
+					continue;
+				}
+			}
+			if (score > bestScore && !url.isEmpty()) {
+				bestScore = score;
+				bestUrl = url;
+			}
+		}
+		return bestUrl;
+	}
+
+	/** 変換系が読める画像typeか(type属性なしは可)。 */
+	public static boolean isSupportedImageType(final String type) {
+		if (type == null || type.isEmpty()) {
+			return true;
+		}
+		switch (type.trim().toLowerCase(java.util.Locale.ROOT)) {
+		case "image/png":
+		case "image/jpeg":
+		case "image/jpg":
+		case "image/gif":
+		case "image/webp":
+		case "image/svg+xml":
+		case "image/bmp":
+			return true;
+		default:
+			// image/avif・image/jxl等の未対応形式はスキップ
+			return false;
+		}
+	}
+
 	private static void applyBrokenImage(CSSStyle style, String alt, boolean fallbackContent) {
 		UserAgent ua = style.getUserAgent();
 		OutputBrokenImage brokenimage = UAProps.OUTPUT_BROKEN_IMAGE.get(ua);
@@ -570,6 +634,15 @@ public class HTMLStyle {
 
 	private ColorValue linkColor = null;
 
+	/**
+	 * {@code <picture>}内で選択待ちの{@code <source>}のURLです
+	 * (2026-08-20新設)。pictureの開始でリストが有効化され、対応可能な
+	 * typeの{@code <source srcset>}から選んだ候補が積まれる。直後の
+	 * {@code <img>}が先頭候補を消費する。video/audioの{@code <source>}を
+	 * 誤って拾わないよう、picture外ではnull。
+	 */
+	private java.util.List<String> pictureSources = null;
+
 	private ImageMap imageMap = null;
 
 	public void applyStyle(CSSStyle style) {
@@ -878,11 +951,26 @@ public class HTMLStyle {
 			// frameborder> は html-ua.css へ移送済み(2026-08-03)
 			break;
 		case HTMLCodes.IMG: {
-			// <IMG src alt border width height hspace vspace align usemap>
+			// <IMG src srcset alt border width height hspace vspace align usemap>
 			HTMLStyleUtils.applyWidthHeight("IMG", style);
 			HTMLStyleUtils.applyHSpaceVSpace("IMG", style);
 			HTMLStyleUtils.applyImageAlign("IMG", style);
 			String src = ce.atts.getValue("src");
+			// picture>sourceの選択候補が先(HTML仕様の選択順)。無ければ
+			// 自身のsrcsetから最高解像度候補、それも無ければsrc(2026-08-20)
+			if (this.pictureSources != null && !this.pictureSources.isEmpty()) {
+				src = this.pictureSources.get(0);
+			} else {
+				final String fromSrcset = pickFromSrcset(ce.atts.getValue("srcset"));
+				if (fromSrcset != null && (src == null || src.isEmpty())) {
+					src = fromSrcset;
+				} else if (fromSrcset != null) {
+					// srcとsrcsetの両方がある場合も、印刷では高解像度候補を
+					// 優先する(密度記述子は同一画像の解像度違いが前提)
+					src = fromSrcset;
+				}
+			}
+			this.pictureSources = null;
 			String alt = ce.atts.getValue("alt");
 			HTMLStyle.applyImage(style, src, null, alt);
 			HTMLStyleUtils.applyImageBorder("IMG", style);
@@ -991,6 +1079,28 @@ public class HTMLStyle {
 		case HTMLCodes.OL:
 			// <OL type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
 			// 前方一致の属性セレクタで同値)
+			break;
+		case HTMLCodes.PICTURE:
+			// <PICTURE>: 中のsourceの選択候補リストを有効化する(2026-08-20)
+			this.pictureSources = new java.util.ArrayList<>();
+			break;
+		case HTMLCodes.SOURCE: {
+			// <SOURCE srcset type media>(picture用。video/audioの中は
+			// pictureSourcesがnullのため拾わない)
+			if (this.pictureSources != null) {
+				final String type = ce.atts.getValue("type");
+				final String media = ce.atts.getValue("media");
+				// media付きのバリアントはアートディレクション用——印刷の
+				// 静的評価では保守的にスキップし、無条件のsourceかimgへ
+				// 落とす。typeは変換系が読める形式のみ受ける
+				if (media == null && isSupportedImageType(type)) {
+					final String picked = pickFromSrcset(ce.atts.getValue("srcset"));
+					if (picked != null) {
+						this.pictureSources.add(picked);
+					}
+				}
+			}
+		}
 			break;
 		case HTMLCodes.P: {
 			// <P align> margin-blockはhtml-ua.cssに移行(2026-08-02)
