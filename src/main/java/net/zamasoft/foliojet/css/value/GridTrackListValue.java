@@ -17,7 +17,7 @@ public final class GridTrackListValue implements Value {
 	/**
 	 * トラック1本の寸法です。
 	 */
-	public sealed interface TrackSize permits Fixed, Auto, Fr {
+	public sealed interface TrackSize permits Fixed, Auto, Fr, ZeroMinFr {
 	}
 
 	/** 絶対長(computed時に絶対化済み、pt)。 */
@@ -43,6 +43,22 @@ public final class GridTrackListValue implements Value {
 		@Override
 		public String toString() {
 			return this.weight + "fr";
+		}
+	}
+
+	/**
+	 * {@code minmax(0, <fr>)}(2026-08-19)。frと同じ残余分配をするが、
+	 * <b>最小値0が明示されている</b>ため内容のmin-contentで基礎幅が
+	 * 膨らまない。実物のWebで頻出(Tailwindの{@code grid-cols-N}は
+	 * {@code repeat(N, minmax(0,1fr))})で、これをただの{@code fr}へ
+	 * 潰すと、コードブロック等の分割不能な長い行がトラックを押し広げ、
+	 * <b>同じgrid内の本文の折り返し幅まで広がる</b>(tailwind-v4で実測:
+	 * 版面523ptに対しトラック680pt、本文が右へはみ出す)。
+	 */
+	public record ZeroMinFr(double weight) implements TrackSize {
+		@Override
+		public String toString() {
+			return "minmax(0," + this.weight + "fr)";
 		}
 	}
 

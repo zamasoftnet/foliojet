@@ -160,9 +160,21 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			if (args.size() != 2) {
 				throw new PropertyException();
 			}
+			final CssToken minToken = args.get(0).next();
 			final CssToken maxToken = args.get(1).next();
 			if (maxToken == null || args.get(1).hasNext()) {
 				throw new PropertyException();
+			}
+			// **minmax(0, <fr>)だけは最小値0を保つ**(2026-08-19)。
+			// Tailwindのgrid-cols-Nが展開するこの形は実物のWebで頻出で、
+			// ただのfrへ潰すと内容のmin-contentがトラックを押し広げ、
+			// 同じgrid内の本文の折り返し幅まで広がる(ZeroMinFrのjavadoc)。
+			// それ以外のminmax()は従来どおり最大値だけの近似
+			if (minToken instanceof CssToken.Num zero && zero.value() == 0 && !args.get(0).hasNext()
+					&& maxToken instanceof CssToken.Dim flex && flex.unitText().equalsIgnoreCase("fr")
+					&& flex.value() >= 0) {
+				tracks.add(new GridTrackListValue.ZeroMinFr(flex.value()));
+				return;
 			}
 			this.parseLeafToken(maxToken, ua, tracks);
 			return;

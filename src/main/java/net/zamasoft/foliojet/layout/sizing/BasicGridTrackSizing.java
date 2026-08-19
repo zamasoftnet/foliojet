@@ -196,6 +196,7 @@ public final class BasicGridTrackSizing {
 		final double[] maxContrib = new double[n];
 		final boolean[] auto = new boolean[n];
 		final boolean[] fr = new boolean[n];
+		final boolean[] zeroMin = new boolean[n];
 		final double[] frWeight = new double[n];
 		int autoCount = 0, frCount = 0;
 		for (int i = 0; i < n; ++i) {
@@ -214,6 +215,15 @@ public final class BasicGridTrackSizing {
 				frWeight[i] = Math.max(0, flex.weight());
 				++frCount;
 			}
+			case GridTrackListValue.ZeroMinFr flex -> {
+				// minmax(0,<fr>): 残余分配はfrと同じだが、**最小値0が明示
+				// されている**ので内容のmin-contentでbaseを膨らませない
+				// (2026-08-19。zeroMin[i]で下のcontribution集約から外す)
+				fr[i] = true;
+				zeroMin[i] = true;
+				frWeight[i] = Math.max(0, flex.weight());
+				++frCount;
+			}
 			}
 		}
 		// span1のcontributionを先に集約
@@ -223,7 +233,9 @@ public final class BasicGridTrackSizing {
 			if (item.span() != 1 || !(auto[item.column()] || fr[item.column()])) {
 				continue;
 			}
-			base[item.column()] = Math.max(base[item.column()], Math.max(0, item.minContent()));
+			if (!zeroMin[item.column()]) {
+				base[item.column()] = Math.max(base[item.column()], Math.max(0, item.minContent()));
+			}
 			maxContrib[item.column()] = Math.max(maxContrib[item.column()], Math.max(0, item.maxContent()));
 		}
 		// span itemの不足分配(G4d): spanの小さい順・同一span長は
@@ -275,7 +287,9 @@ public final class BasicGridTrackSizing {
 						shareMin = Math.max(0, deficitMin) / growable;
 						shareMax = Math.max(0, deficitMax) / growable;
 					}
-					plannedBase[c] = Math.max(plannedBase[c], shareMin);
+					if (!zeroMin[c]) {
+						plannedBase[c] = Math.max(plannedBase[c], shareMin);
+					}
 					plannedMax[c] = Math.max(plannedMax[c], shareMax);
 				}
 			}
