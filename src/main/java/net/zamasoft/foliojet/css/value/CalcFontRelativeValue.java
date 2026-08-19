@@ -57,6 +57,23 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		return RelativeLengthValue.of(unit, value).toAbsoluteLength(style).getLength();
 	}
 
+	/** 割合成分です(2026-08-19、transformのtranslate%分解用)。 */
+	public double getRatio() {
+		return this.ratio;
+	}
+
+	/**
+	 * フォント相対成分を<b>UAの既定フォント寸法(medium)で近似解決</b>した
+	 * 絶対成分を返します(2026-08-19)。要素のfont-size文脈が無い解析段階
+	 * (transformのtranslate等)のための近似で、メディアクエリのem/rem
+	 * ({@code CSSStyleSheetBuilder.mediaFontRelativeLength})と同じ扱い。
+	 * ex/chは慣行どおりemの半分とみなす。
+	 */
+	public double approximateAbsolute(net.zamasoft.foliojet.ua.UserAgent ua) {
+		final double medium = ua.getFontSize(net.zamasoft.foliojet.ua.AbsoluteFontSize.MEDIUM);
+		return this.absolute + (this.em + this.rem) * medium + (this.ex + this.ch) * medium * 0.5;
+	}
+
 	/**
 	 * 絶対成分だけを倍率倍した値を返します。font-sizeプロパティはズーム倍率
 	 * ({@link net.zamasoft.foliojet.ua.UserAgent#getFontMagnification})を絶対

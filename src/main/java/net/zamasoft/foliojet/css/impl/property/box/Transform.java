@@ -241,6 +241,29 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 			ratio[axis] += percent.value() / 100.0;
 			return 0;
 		}
+		// **calc(%±長さ)を分解して受ける**(2026-08-19)。実物のWebは
+		// リストマーカー等を translateX(calc(-100% - 0.5em)) で自要素幅ぶん
+		// 外へ出す(shower-demo)。従来はPropertyExceptionでtransform指定
+		// 全体が無効になり、マーカーが本文の上に残って重なっていた
+		final net.zamasoft.foliojet.css.value.Value calc = net.zamasoft.foliojet.css.util.CalcValueUtils.toCalc(ua, token);
+		if (calc != null) {
+			if (calc instanceof net.zamasoft.foliojet.css.value.PercentageValue percent) {
+				ratio[axis] += percent.getRatio();
+				return 0;
+			}
+			if (calc instanceof AbsoluteLengthValue length) {
+				return length.getLength();
+			}
+			if (calc instanceof net.zamasoft.foliojet.css.value.CalcLengthValue mixed) {
+				ratio[axis] += mixed.getRatio();
+				return mixed.getAbsolute();
+			}
+			if (calc instanceof net.zamasoft.foliojet.css.value.CalcFontRelativeValue fontRel) {
+				// フォント相対成分は既定フォント寸法で近似(同メソッドjavadoc)
+				ratio[axis] += fontRel.getRatio();
+				return fontRel.approximateAbsolute(ua);
+			}
+		}
 		return toLength(ua, token);
 	}
 
