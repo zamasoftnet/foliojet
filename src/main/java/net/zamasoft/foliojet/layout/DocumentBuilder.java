@@ -349,13 +349,56 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * (G4a——consult-codex-2026-07-31-grid-g4.txt Q1)。
 	 */
 	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec) {
+		return this.startGridElementItem(spec, -1);
+	}
+
+	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
+			final double minContributionCap) {
 		if (this.coordinatorAwaitingDirectChild() instanceof GridBuilder grid) {
 			this.closeAnonymousItem(grid);
-			this.startContainerBuilder(grid.startElementItem(spec));
+			this.startContainerBuilder(grid.startElementItem(spec, minContributionCap));
 			this.startContainer();
 			return grid;
 		}
 		return null;
+	}
+
+	/**
+	 * Grid itemの行方向min-content寄与の上限を求めます(2026-08-19、
+	 * css-grid §6.6のautomatic minimum size。
+	 * {@code GridItemContent.minContributionCap}参照)。
+	 * スクロールコンテナは0、行軸のmin寸法が明示宣言(FlexItemSpecの
+	 * F1a判定を流用)されABSOLUTEならその値。それ以外は無制限(-1)。
+	 * %のminは基準未確定のため数えない(IntrinsicMeasurerと同じ規約)。
+	 */
+	private static double gridItemMinContributionCap(final IBox box) {
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params;
+		if (box instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox c) {
+			params = c.getBlockParams();
+		} else if (box instanceof TableBox table) {
+			params = table.getBlockBox().getBlockParams();
+		} else {
+			return -1;
+		}
+		if (params.overflow.clipsPaint()) {
+			return 0;
+		}
+		final net.zamasoft.foliojet.layout.box.params.FlexItemSpec flexSpec = box
+				.getPos() instanceof FlowPos flowPos ? flowPos.flexItem : null;
+		if (flexSpec == null) {
+			return -1;
+		}
+		final boolean vertical = params.flow.isVertical();
+		final boolean minAuto = vertical ? flexSpec.minHeightAuto() : flexSpec.minWidthAuto();
+		if (minAuto) {
+			return -1;
+		}
+		final net.zamasoft.foliojet.layout.box.params.Dimension minSize = params.minSize;
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = params.flow;
+		if (minSize.getLineType(flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			return Math.max(0, minSize.getLineLength(flow));
+		}
+		return -1;
 	}
 
 	/** boxの明示配置指定を取り出します(FlowPosを持たない配置はauto)。 */
@@ -561,7 +604,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		switch (box.getPos().getType()) {
 		case FLOW:
 		case TABLE:
-			this.startGridElementItem(gridItemSpecOf(box));
+			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box));
 			break;
 		case INLINE:
 			// 直接インラインの匿名item化はGrid/Flex共通(coordinator一般化)

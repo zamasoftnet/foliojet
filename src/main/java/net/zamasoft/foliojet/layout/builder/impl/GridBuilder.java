@@ -95,6 +95,8 @@ public final class GridBuilder
 
 	private GridItemBox openItemBox;
 
+	private double openItemMinCap = -1;
+
 	/** 開いているitemが匿名(直接テキスト)か。 */
 	private boolean openItemAnonymous;
 
@@ -152,7 +154,15 @@ public final class GridBuilder
 
 	/** 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。 */
 	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec) {
-		return this.startItem(false, spec);
+		return this.startItem(false, spec, -1);
+	}
+
+	/**
+	 * min-content寄与の上限つきでelement itemを開きます
+	 * ({@link GridItemContent#minContributionCap}参照。負=無制限)。
+	 */
+	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec, final double minContributionCap) {
+		return this.startItem(false, spec, minContributionCap);
 	}
 
 	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
@@ -160,10 +170,11 @@ public final class GridBuilder
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
 			return null; // 既に開いている(積み直し不要)
 		}
-		return this.startItem(true, GridItemSpec.AUTO);
+		return this.startItem(true, GridItemSpec.AUTO, -1);
 	}
 
-	private TwoPassBlockBuilder startItem(final boolean anonymous, final GridItemSpec spec) {
+	private TwoPassBlockBuilder startItem(final boolean anonymous, final GridItemSpec spec,
+			final double minContributionCap) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		// 幅は暫定(auto列は未解決)。録画・計測は幅非依存で、確定幅は
 		// finish()のbind直前にsetTrackWidthで入る(G3b)
@@ -176,6 +187,7 @@ public final class GridBuilder
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.GRID_ITEM);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
+		this.openItemMinCap = minContributionCap;
 		this.openItemAnonymous = anonymous;
 		this.openItemSpec = spec;
 		return builder;
@@ -201,7 +213,8 @@ public final class GridBuilder
 			return;
 		}
 		GRID_ITEM_RECORDS.incrementAndGet();
-		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous, spec));
+		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous, spec,
+				this.openItemMinCap));
 	}
 
 	/**
@@ -307,8 +320,12 @@ public final class GridBuilder
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			final GridItemContent item = this.items.get(i);
+			// 自動最小サイズの上書き(GridItemContent.minContributionCap参照)
+			final double itemMin = item.minContributionCap >= 0
+					? Math.min(item.sizes.minContent(), item.minContributionCap)
+					: item.sizes.minContent();
 			contributions.add(new BasicGridTrackSizing.ItemContribution(area.column(), area.columnSpan(),
-					item.sizes.minContent(), item.sizes.maxContent()));
+					itemMin, item.sizes.maxContent()));
 		}
 		return contributions;
 	}

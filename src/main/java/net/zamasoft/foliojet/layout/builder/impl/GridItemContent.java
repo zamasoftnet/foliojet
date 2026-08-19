@@ -31,13 +31,28 @@ final class GridItemContent {
 	/** 明示配置指定(G4a——authored childのFlowPosからのスナップショット)。 */
 	final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec;
 
+	/**
+	 * 行方向min-content寄与の上限です(2026-08-19。負=無制限)。
+	 * css-grid §6.6のautomatic minimum size——itemに行軸のmin寸法が
+	 * <b>明示宣言</b>されている(例: Tailwindの`min-w-0`)か、itemが
+	 * スクロールコンテナ(overflow≠visible)のとき、自動最小サイズは
+	 * 明示値(0など)になり、内容のmin-contentでトラックを押し広げない
+	 * (Chrome実測: min-width:0のitemはトラックがコンテナ幅に収まり、
+	 * 無指定なら内容min-contentまで膨らむ——react.devの`main.min-w-0`は
+	 * 前者に依存しており、無視すると本文が紙面外x=628〜へ押し出されて
+	 * 全ページ白紙になっていた)。
+	 */
+	final double minContributionCap;
+
 	GridItemContent(final GridItemBox itemBox, final TwoPassBlockBuilder body, final IntrinsicSizes sizes,
-			final boolean anonymous, final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec) {
+			final boolean anonymous, final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
+			final double minContributionCap) {
 		this.itemBox = itemBox;
 		this.body = body;
 		this.sizes = sizes;
 		this.anonymous = anonymous;
 		this.spec = spec;
+		this.minContributionCap = minContributionCap;
 	}
 
 	/**
