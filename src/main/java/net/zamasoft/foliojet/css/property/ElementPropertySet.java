@@ -391,6 +391,10 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextStrokeColor.INFO);
 		reg(TextFillColor.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.InitialLetter.INFO);
+		// font-variation-settings: 適用は@font-faceディスクリプタのみ
+		// (FontVariationSettingsのjavadoc)。要素側はカスケード用コードの
+		// 割当のために登録する(CSSStyle.setがコード無しだと黙って落ちる罠)
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariationSettings.INFO);
 		put(TextStrokeShorthand.INFO);
 		reg(TextShadow.INFO);
 
