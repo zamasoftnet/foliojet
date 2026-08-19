@@ -23,4 +23,20 @@ public interface RowSplitBox {
 	 * (丸ごと送り/visual rescue)を使う。
 	 */
 	boolean hasRowSplitLines();
+
+	/**
+	 * 行帳簿のスナップショットを返します(視覚順。各行は
+	 * {flow先頭index, item数, 行start, 行extent})。帳簿が無ければnull。
+	 * {@code RowSplitContainer}の復元時の押し下げ
+	 * ({@code restoreAnchoredPageAxis}参照)が行のグループ化に使う
+	 * (2026-08-19)。
+	 */
+	double[][] rowLedgerSnapshot();
+
+	/**
+	 * 押し下げ後の行startを帳簿へ書き戻します({@link #rowLedgerSnapshot}と
+	 * 同じ順序・件数)。帳簿と実描画位置を一致させ、以後の再分割の境界探索を
+	 * 狂わせないため(2026-08-19)。
+	 */
+	void syncRowStarts(double[] starts);
 }

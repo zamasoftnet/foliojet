@@ -140,6 +140,29 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		return this.lines != null && !this.lines.isEmpty();
 	}
 
+	@Override
+	public final double[][] rowLedgerSnapshot() {
+		if (this.lines == null || this.lines.isEmpty()) {
+			return null;
+		}
+		final double[][] result = new double[this.lines.size()][];
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = this.lines.get(i);
+			result[i] = new double[] { line.startFlow(), line.itemCount(), line.start(), line.pageSize() };
+		}
+		return result;
+	}
+
+	@Override
+	public final void syncRowStarts(final double[] starts) {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line old = this.lines.get(i);
+			if (old.start() != starts[i]) {
+				this.lines.set(i, new Line(old.startFlow(), old.itemCount(), starts[i], old.pageSize()));
+			}
+		}
+	}
+
 	/** flex配置が走ったことを記録します({@code FlexBuilder}の各配置経路が呼ぶ)。 */
 	public final void markFlexLayout() {
 		this.flexLayout = true;

@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange;
 import net.zamasoft.foliojet.layout.fragment.OpenShape;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * 行分割(flex: Bug C、2026-08-07/grid: G6、2026-08-10)を持つコンテナの
@@ -128,6 +129,7 @@ public final class RowSplitContainer extends FlowContainer {
 				item.restoreExtents(want.width(), want.height());
 			}
 		}
+		this.pushDownOverlappingRows();
 		if (builder != null) {
 			// 縦積み再登録で進んだbuilderカーソルを、位置復元の前後の
 			// 内容終端差だけ巻き戻す。この後のendFlowBlockがカーソルから
@@ -143,7 +145,9 @@ public final class RowSplitContainer extends FlowContainer {
 			// restoreExtents限定のまま)であって、カーソルの巻き戻しではない
 			final double trueEnd = this.contentEnd();
 			final double delta = stackedEnd - trueEnd;
-			if (delta > 0) {
+			// 押し下げ(下のpushDownOverlappingRows)で内容が伸びた場合は
+			// 負のdelta=カーソル前進として同じ式で扱う(2026-08-19)
+			if (delta != 0) {
 				builder.setPageAxis(builder.getPageAxis() - delta);
 				if (this.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox host) {
 					// item側のendFlowBlockが親へ書いた縦積みのcontentSizeは
@@ -152,5 +156,75 @@ public final class RowSplitContainer extends FlowContainer {
 				}
 			}
 		}
+	}
+
+	/**
+	 * <b>復元後、前の行の実内容に食い込む行を押し下げます</b>(2026-08-19)。
+	 *
+	 * <p>
+	 * 行の強制分割で作った継続断片の先頭行(残余)は、再構築(restyle)で
+	 * 元のスライス幾何より背が伸びることがある(smolcssで実測:
+	 * 折り返しの違い等で100pt超)。後続の行のアンカーは分割時の幾何で
+	 * 固定されているため、そのままでは残余の実内容が次の行に重なる。
+	 * ここで行帳簿({@link net.zamasoft.foliojet.layout.box.RowSplitBox})の
+	 * グループ単位で「前の行の実内容終端+帳簿上の行間」を下回る行を
+	 * 一律に押し下げ、アンカーと帳簿startも同期する(帳簿は以後の
+	 * 再分割の境界探索が使う)。
+	 * </p>
+	 */
+	private void pushDownOverlappingRows() {
+		if (!(this.box instanceof net.zamasoft.foliojet.layout.box.RowSplitBox rowSplit)
+				|| !rowSplit.hasRowSplitLines()) {
+			return;
+		}
+		final double[][] rows = rowSplit.rowLedgerSnapshot();
+		if (rows == null || rows.length < 2) {
+			return;
+		}
+		final boolean vertical = this.box.getBlockParams().flow.isVertical();
+		final double[] newStarts = new double[rows.length];
+		newStarts[0] = rows[0][2];
+		// 行0の実内容終端
+		double prevEnd = this.rowContentEnd(rows[0], vertical);
+		boolean shifted = false;
+		for (int r = 1; r < rows.length; ++r) {
+			final double ledgerGap = Math.max(0, rows[r][2] - (rows[r - 1][2] + rows[r - 1][3]));
+			final double required = prevEnd + ledgerGap;
+			double start = rows[r][2];
+			if (LayoutUtils.compare(start, required) < 0) {
+				final double delta = required - start;
+				final int from = (int) rows[r][0];
+				final int count = (int) rows[r][1];
+				for (int k = from; k < from + count && k < this.flows.size(); ++k) {
+					final Flow f = this.flows.get(k);
+					this.flows.set(k, new Flow(f.serial, f.box, f.pageAxis + delta));
+					final Anchor a = this.anchored.get(f.box);
+					if (a != null) {
+						// 次のrestyleで押し下げが巻き戻らないようアンカーも更新
+						this.anchored.put(f.box, new Anchor(a.pageAxis() + delta, a.width(), a.height()));
+					}
+				}
+				start = required;
+				shifted = true;
+			}
+			newStarts[r] = start;
+			prevEnd = Math.max(prevEnd, this.rowContentEnd(new double[] { rows[r][0], rows[r][1], start, rows[r][3] },
+					vertical));
+		}
+		if (shifted) {
+			rowSplit.syncRowStarts(newStarts);
+		}
+	}
+
+	/** 行({flow先頭index, item数, start, extent})の実内容終端。 */
+	private double rowContentEnd(final double[] row, final boolean vertical) {
+		final int from = (int) row[0];
+		final int count = (int) row[1];
+		double end = row[2];
+		for (int k = from; k < from + count && k < this.flows.size(); ++k) {
+			final Flow f = this.flows.get(k);
+			end = Math.max(end, f.pageAxis + (vertical ? f.box.getWidth() : f.box.getHeight()));
+		}
+		return end;
 	}
 }

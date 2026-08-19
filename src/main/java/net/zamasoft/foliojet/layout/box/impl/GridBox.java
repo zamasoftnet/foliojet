@@ -137,6 +137,30 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		return this.rows != null && !this.rows.isEmpty();
 	}
 
+	@Override
+	public final double[][] rowLedgerSnapshot() {
+		if (this.rows == null || this.rows.isEmpty()) {
+			return null;
+		}
+		final double[][] result = new double[this.rows.size()][];
+		for (int i = 0; i < this.rows.size(); ++i) {
+			final Row row = this.rows.get(i);
+			result[i] = new double[] { row.startFlow(), row.itemCount(), row.start(), row.extent() };
+		}
+		return result;
+	}
+
+	@Override
+	public final void syncRowStarts(final double[] starts) {
+		for (int i = 0; i < this.rows.size(); ++i) {
+			final Row old = this.rows.get(i);
+			if (old.start() != starts[i]) {
+				this.rows.set(i, new Row(old.startFlow(), old.itemCount(), starts[i], old.extent(),
+						old.itemsEnd()));
+			}
+		}
+	}
+
 	/** トラック配置が走ったことを記録します({@code GridBuilder.bind}が呼ぶ)。 */
 	public final void markTrackLayout() {
 		this.trackLayout = true;
