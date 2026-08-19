@@ -846,7 +846,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// System.out.println(this.nobreak);
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			final double pageLimit = this.getPageLimit();
-			final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
+			FlowBlockBox flowBox = (FlowBlockBox) flow.box;
 
 			final FlowPos pos = (FlowPos) flowBox.getPos();
 			if (pos.pageBreakAfter == PageBreakMode.AVOID) {
@@ -883,8 +883,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 						// (fuzzで実測: 空のまま再取得するとIndexOutOfBounds)
 						break;
 					}
-					// 改ページ後のフローを取り直す(切断で作り直されている)
+					// 改ページ後のフローを取り直す(切断で作り直されている)。
+					// **ボックスも取り直すこと**(2026-08-19)——切断後の末尾は
+					// 継続断片(別インスタンス)で、古い参照(保持側)は
+					// もう収まっているためpaintsBeyondPageが偽になり、
+					// 残余が紙面を越えたまま検査が終わっていた(stripe-docsの
+					// 末尾3,000pt超の積み上がりで実測)
 					flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
+					flowBox = (FlowBlockBox) flow.box;
 				}
 			}
 

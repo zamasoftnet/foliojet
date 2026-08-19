@@ -188,8 +188,16 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	 */
 	public final SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		if (!this.hasRowSplitLines()) {
-			// 通常はPaginationContractの特例により、行境界が無ければこの
-			// メソッド自体が呼ばれない(atomic経路へ回る)。防御的フォールバック
+			if (!this.isPageAtomicNow()) {
+				// G0退行(トラック配置なし)は中身が単一列の通常フローなので、
+				// 通常ブロックの構造分割へ委譲する(2026-08-19——FlexBoxの
+				// F0委譲と同じ。これが無いと「帳簿なし+非原子」の閉じた箱が
+				// フラグメント先頭でKEEPされ、ページ底を越えた内容が描かれず
+				// 失われる。stripe-docsの末尾1,636ptのG0 gridで実測)
+				return super.split(pageLimit, mode, flags);
+			}
+			// 原子側の防御的フォールバック(通常はPaginationContractの特例に
+			// より、行境界が無ければこのメソッド自体が呼ばれない)
 			return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 		}
 		final WritingMode flow = this.getBlockParams().flow;
