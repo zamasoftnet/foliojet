@@ -83,7 +83,50 @@ public final class BasicGridTrackSizing {
 		}
 		double free = available - base;
 		if (free <= 0 || (sized.autoCount == 0 && sized.frCount == 0)) {
-			// (1)(5) 縮めない(overflow)。可変列が無ければ残余は末尾に残す
+			// (1)(5) 縮めない(overflow)。可変列が無ければ残余は末尾に残す。
+			//
+			// ただし**複数列を跨ぐitemのmin-contentで膨らんだ分は縮める**
+			// (2026-08-19)。分割不能な長トークン(遺伝子名・URL・識別子)を
+			// 含むitemはmin-contentが利用可能幅を大きく超えることがあり、
+			// その不足分配(G4d)で全列が一様に太る。結果、**そのitemだけで
+             // なくgrid全体が版面を超え、無関係な兄弟(本文段落)の折り返し幅
+			// まで広がって文書全体が右へはみ出していた**(elife-artで実測:
+			// available 487ptに対しspan10 itemのmin 889ptが各列を82ptへ
+			// 押し上げ、grid合計822pt。本文53件のedge-cut/text-lostの源)。
+			// CSSでも当該itemはあふれるが、あふれるのはitem自身であって
+			// トラック群ではない——単一列itemのmin(span1、下のfloor)は
+			// 尊重したまま、span由来の超過だけを利用可能幅へ収める。
+			// **可変列だけで構成されるgridに限る**(2026-08-19)。固定長列を
+			// 含む場合、span itemの不足分配で得た床は「固定列の外側で
+			// 内容が要求する最小幅」であり、これを削ると仕様(および
+			// testSpanDeficitToFrが固定する挙動)に反する。実害のある形は
+			// 「repeat(12,1fr)のような全可変gridで、span itemの
+			// min-contentが全列を一様に太らせる」ケース
+			boolean allFlexible = true;
+			for (int i = 0; i < n && allFlexible; ++i) {
+				allFlexible = sized.auto[i] || sized.fr[i];
+			}
+			if (allFlexible && available > 0 && base > available) {
+				final double[] floor = spanFreeBase(tracks, items, columnGap, n);
+				double floorSum = columnGap * (n - 1);
+				for (int i = 0; i < n; ++i) {
+					floorSum += floor[i];
+				}
+				if (floorSum <= available) {
+					// span由来の増分だけを比例縮小して利用可能幅へ収める
+					double excess = 0;
+					for (int i = 0; i < n; ++i) {
+						excess += Math.max(0, widths[i] - floor[i]);
+					}
+					if (excess > 0) {
+						final double keep = (available - floorSum) / excess;
+						for (int i = 0; i < n; ++i) {
+							final double add = Math.max(0, widths[i] - floor[i]);
+							widths[i] = floor[i] + add * keep;
+						}
+					}
+				}
+			}
 			return widths;
 		}
 		if (sized.frCount > 0) {
@@ -104,6 +147,22 @@ public final class BasicGridTrackSizing {
 			}
 		}
 		return widths;
+	}
+
+	/**
+	 * span itemの不足分配を<b>行わない</b>基礎幅です(2026-08-19)。
+	 * 単一列itemのmin-contentと固定長だけを積む——{@link #resolve}が
+	 * 「span由来で膨らんだ分だけを縮める」ときの床に使う。
+	 */
+	private static double[] spanFreeBase(final List<GridTrackListValue.TrackSize> tracks,
+			final List<ItemContribution> items, final double columnGap, final int n) {
+		final List<ItemContribution> span1 = new java.util.ArrayList<>(items.size());
+		for (final ItemContribution item : items) {
+			if (item.span() == 1) {
+				span1.add(item);
+			}
+		}
+		return size(tracks, span1, columnGap).base;
 	}
 
 	/**
