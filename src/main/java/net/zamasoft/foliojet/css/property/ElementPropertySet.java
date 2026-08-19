@@ -390,6 +390,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextStrokeWidth.INFO);
 		reg(TextStrokeColor.INFO);
 		reg(TextFillColor.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.InitialLetter.INFO);
 		put(TextStrokeShorthand.INFO);
 		reg(TextShadow.INFO);
 

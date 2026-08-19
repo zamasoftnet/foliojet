@@ -1119,6 +1119,10 @@ final class StyleEventMachine {
 					final CSSStyle firstLetterStyle = CSSStyle.getCSSStyle(this.ua, this.context.getCurrentStyle(),
 							CSSElement.FIRST_LETTER);
 					declaration.applyProperties(firstLetterStyle);
+					// initial-letter(css-inline-3)はここでfloat+文字寸法へ
+					// 脱糖して既存機構に載せる(2026-08-20)
+					net.zamasoft.foliojet.css.impl.property.text.InitialLetter.desugar(firstLetterStyle,
+							this.context.getCurrentStyle());
 					if (Display.get(firstLetterStyle) != DisplayValue.NONE) {
 						this.startStyle(firstLetterStyle);
 						final LanguageProfile lang = LanguageProfileBundle
