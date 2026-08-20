@@ -67,6 +67,31 @@ public class FontSynthesisTest extends TestCase {
 		return new Synth(strokeBold, shearItalic);
 	}
 
+	/**
+	 * 半透明(rgba)の塗りでも疑似ボールドが放棄されないことを固定します
+	 * (2026-08-20改善。従来はfillAlpha!=1で疑似化ごと放棄され、太字が
+	 * 普通の太さで出ていた)。
+	 */
+	public void testFakeBoldAppliesToTranslucentFill() throws Exception {
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+				null);
+		try {
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.include", "**");
+			CTISessionHelper.transcodeFile(session,
+					new File("files/unittest/1080-FONT/font-synthesis-alpha.html"), "text/html", null);
+		} finally {
+			session.close();
+		}
+		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
+			final Synth p1 = scan(doc.getPage(0));
+			assertTrue("半透明塗りで疑似ボールドが放棄されています", p1.strokeBold());
+		}
+	}
+
 	public void testSynthesisNoneSuppressesFakeBoldAndItalic() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
