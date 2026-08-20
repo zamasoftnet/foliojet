@@ -253,7 +253,10 @@ public class BlankPageDiscardTest extends TestCase {
 		final Pages pages = convert("auto-mid", AUTO_MID_DOCUMENT);
 		pages.assertNoBlank();
 		pages.assertTokens(20);
-		assertEquals("auto-mid: ページ数", 3, pages.count());
+		// 2026-08-20: 「フラグメンテナ丸ごとでも収まらないavoidは無視」の
+		// 導入で、この文書の巨大avoid divがその場分割されるようになり
+		// 3頁→2頁へ詰まった(白紙なし・トークン20の意図は不変)
+		assertEquals("auto-mid: ページ数", 2, pages.count());
 	}
 
 	public void testForcedTrailingBlankPageIsKept() throws Exception {
@@ -290,10 +293,11 @@ public class BlankPageDiscardTest extends TestCase {
 		final Pages pages = convert("mid-side-mark", MID_DOCUMENT_WITH_SIDE_MARK);
 		pages.assertNoBlank();
 		pages.assertTokens(20);
-		assertEquals("mid-side-mark: ページ数", 3, pages.count());
+		// 2026-08-20: 収まらないavoidのその場分割で3頁→2頁(auto-mid参照)
+		assertEquals("mid-side-mark: ページ数", 2, pages.count());
 		final List<Integer> verso = pages.pagesContaining("VERSO");
 		assertEquals("mid-side-mark: 出力されたページの面が交互になっていない"
-				+ " ——落としたページが面を消費している", List.of(1, 3), verso);
+				+ " ——落としたページが面を消費している", List.of(1), verso);
 	}
 
 	/**
@@ -309,9 +313,12 @@ public class BlankPageDiscardTest extends TestCase {
 	public void testForcedVersoBreakStillLandsOnAVerso() throws Exception {
 		final Pages pages = convert("mid-forced-verso", MID_DOCUMENT_FORCED_VERSO);
 		pages.assertTokens(21);
-		assertEquals("mid-forced-verso: ページ数", 5, pages.count());
-		// 4ページ目は丁合合わせの強制白紙なので残る
-		assertEquals("mid-forced-verso: 丁合合わせの白紙が消えた", List.of(4), pages.blanks());
+		// 2026-08-20: 収まらないavoidのその場分割で本文が2頁に詰まり、
+		// 次の左面(3頁目)が偶々そのまま来るため丁合合わせの白紙自体が
+		// 不要になった(auto-mid参照)。「面の勘定が正しい」検証は下の
+		// VERSO着地アサーションが引き続き担う
+		assertEquals("mid-forced-verso: ページ数", 3, pages.count());
+		assertEquals("mid-forced-verso: 不要な白紙が入った", List.of(), pages.blanks());
 		final int landed = pages.pagesContaining("T20").get(0);
 		assertTrue("mid-forced-verso: page-break-before:left が recto のページ(" + landed + ")へ着いた"
 				+ " ——落としたページが面を消費している", pages.pagesContaining("VERSO").contains(landed));

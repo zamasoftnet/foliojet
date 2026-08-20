@@ -19,13 +19,42 @@ public abstract class BreakMode {
 	public static class AutoBreakMode extends BreakMode {
 		public final IBox box;
 
+		/**
+		 * フラグメンテナ(ページ/段)のページ方向内寸です(2026-08-20。
+		 * 不明なら-1)。改ページ禁止(page-break-inside:avoid)の箱が
+		 * <b>丸ごとでもフラグメンテナに収まらない</b>とき、css-breakは
+		 * avoidを無視してよい——送っても結局内部で切ることになり、
+		 * 送り元のページに大きな空白だけが残るため
+		 * (w3c-jlreqの二重言語の巨大figureで実測: 送りが2,053頁中479頁の
+		 * 「半分空きページ」を作っていた)。判定はルート版面内寸との比較
+		 * (祖先フレーム分は引いていない=安全側の近似。真の容量はこれ以下
+		 * なので「版面より大きい箱」は確実に収まらない)。
+		 */
+		public final double fragmentCapacity;
+
 		public AutoBreakMode(IBox box) {
+			this(box, -1);
+		}
+
+		public AutoBreakMode(IBox box, final double fragmentCapacity) {
 			assert box != null;
 			this.box = box;
+			this.fragmentCapacity = fragmentCapacity;
 		}
 
 		private AutoBreakMode() {
 			this.box = null;
+			this.fragmentCapacity = -1;
+		}
+
+		private AutoBreakMode(final double fragmentCapacity) {
+			this.box = null;
+			this.fragmentCapacity = fragmentCapacity;
+		}
+
+		/** 容量つきの匿名モード(flowStackが浅い場合のautoBreak用)。 */
+		public static AutoBreakMode withCapacity(final double fragmentCapacity) {
+			return new AutoBreakMode(fragmentCapacity);
 		}
 
 		public String toString() {
@@ -44,8 +73,8 @@ public abstract class BreakMode {
 	 * して振る舞う。
 	 */
 	public static final class ColumnBreakMode extends AutoBreakMode {
-		private ColumnBreakMode(IBox box) {
-			super(box);
+		private ColumnBreakMode(IBox box, final double fragmentCapacity) {
+			super(box, fragmentCapacity);
 		}
 
 		private ColumnBreakMode() {
@@ -66,7 +95,7 @@ public abstract class BreakMode {
 			return mode;
 		}
 		if (mode instanceof AutoBreakMode auto) {
-			return auto.box == null ? new ColumnBreakMode() : new ColumnBreakMode(auto.box);
+			return auto.box == null ? new ColumnBreakMode() : new ColumnBreakMode(auto.box, auto.fragmentCapacity);
 		}
 		return mode;
 	}
@@ -77,7 +106,7 @@ public abstract class BreakMode {
 	 */
 	public static BreakMode absorbColumn(final BreakMode mode, final int columnCount) {
 		if (columnCount > 1 && mode instanceof ColumnBreakMode column) {
-			return column.box == null ? DEFAULT_BREAK_MODE : new AutoBreakMode(column.box);
+			return column.box == null ? DEFAULT_BREAK_MODE : new AutoBreakMode(column.box, column.fragmentCapacity);
 		}
 		return mode;
 	}

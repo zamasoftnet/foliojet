@@ -746,7 +746,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// System.err.println(columnLimit+"/"+
 			// this.getPageLimit()+"/"+this.flowStack.size());
 			if (LayoutUtils.compare(columnLimit, this.getPageLimit() - lastFrame) > 0) {
-				final BreakMode mode = new AutoBreakMode(flow.box);
+				final BreakMode mode = new AutoBreakMode(flow.box, this.getPageLimit());
 				final byte flags = IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_LAST;
 				this.columnBreak(flow, mode, flags, lastFrame, 1);
 			}
@@ -1205,9 +1205,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		final BreakMode mode;
 		if (this.flowStack == null || this.flowStack.size() <= 1) {
-			mode = BreakMode.DEFAULT_BREAK_MODE;
+			mode = AutoBreakMode.withCapacity(this.getPageLimit());
 		} else {
-			mode = new AutoBreakMode(this.getFlowBox());
+			mode = new AutoBreakMode(this.getFlowBox(), this.getPageLimit());
 			flags |= IPageBreakableBox.FLAGS_LAST;
 		}
 		if (columnBreak != null) {

@@ -996,10 +996,19 @@ public class FlowContainer implements Container {
 				break;
 			case BLOCK:
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
+				// **フラグメンテナ丸ごとでも収まらないavoidは無視する**
+				// (2026-08-20、css-break)。送っても結局内部で切ることになり、
+				// 送り元のページに大きな空白だけが残る(w3c-jlreqの
+				// 二重言語の巨大figure——版面756ptに対し760pt超——で実測)
+				final boolean unfulfillableAvoid = cParams.pageBreakInside == PageBreakMode.AVOID
+						&& mode instanceof BreakMode.AutoBreakMode auto && auto.fragmentCapacity > 0
+						&& LayoutUtils.compare(prevFlow.box.getPageExtent(this.box.getBlockParams().flow),
+								auto.fragmentCapacity) > 0;
 				// 改ページ禁止でかつページの頭でない場合(§5.11)、または軸が
 				// 食い違う場合(PaginationContract.splitsInPageAxis=false、
 				// §5.10ルール3)は内部で改ページせずREPLACEDと同じatomic経路へ
-				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)
+				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0
+						|| unfulfillableAvoid)
 						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(vertical,
 								(AbstractContainerBox) prevFlow.box)) {
 					if (plan != null && plan.selects(prevFlow.box)) {
