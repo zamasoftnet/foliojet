@@ -395,7 +395,9 @@ public class CSSStyle {
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.get(this).featureSet())
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.get(this));
 
-		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features);
+		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features,
+				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.get(this),
+				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this));
 		return this.fontStyle;
 	}
 

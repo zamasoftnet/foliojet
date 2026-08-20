@@ -247,6 +247,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.INFO);
 		// Grid G0(consult-codex-2026-07-31-grid.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.COLUMNS);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.ROWS);
@@ -319,6 +321,7 @@ public final class ElementPropertySet extends PropertySet {
 
 		// shorthand
 		put(BorderShorthand.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.FontSynthesisShorthand.INFO);
 		put(BorderTopShorthand.INFO);
 		put(BorderLeftShorthand.INFO);
 		put(BorderRightShorthand.INFO);

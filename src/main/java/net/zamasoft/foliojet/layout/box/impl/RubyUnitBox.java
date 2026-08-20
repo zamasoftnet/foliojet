@@ -209,7 +209,7 @@ public class RubyUnitBox extends InlineBlockBox {
 		// ふりがなは親文字の半分のサイズ。ファミリ・字面・featureはrt側の指定に従う
 		final FontStyle rubyFs = new FontStyleImpl(rubyBaseFs.getFamily(), baseFs.getSize() / 2.0,
 				rubyBaseFs.getStyle(), rubyBaseFs.getWeight(), rubyBaseFs.getDirection(), rubyBaseFs.getPolicy(),
-				rubyBaseFs.getFeatures());
+				rubyBaseFs.getFeatures(), rubyBaseFs.getSynthesisWeight(), rubyBaseFs.getSynthesisStyle());
 
 		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset);
 		final TextImpl[] rubyTexts = rubyText.isEmpty() ? new TextImpl[0] : shape(rp, rubyFs, rubyText, rubyOffset);
