@@ -61,9 +61,26 @@ public class InitialLetter extends AbstractPrimitivePropertyInfo {
 		final UserAgent ua = firstLetterStyle.getUserAgent();
 		final double parentFontSize = FontSize.get(parentStyle);
 		final double lineHeight = LineHeight.get(parentStyle);
+		// 実フォントのcap高比を使う(2026-08-20、利用者了承のうえ厳密化)。
+		// OS/2 sCapHeight由来(units/em=1000規約)。異常値(全欠損の0や
+		// em超え)は慣用近似0.7へフォールバック
+		double capRatio = CAP_RATIO;
+		try {
+			// 親スタイルの確定済みFontStyleで解決する——firstLetterStyle側は
+			// この後font-size等をsetするため、ここでgetFontStyle()を呼ぶと
+			// 未確定状態が固定される(実測でドロップキャップが親サイズ相当に
+			// 潰れた)。first-letterでのfont-family上書きは稀なので親で足りる
+			final short cap = ua.getFontManager().getFontListMetrics(parentStyle.getFontStyle())
+					.getFontMetrics(0).getFontSource().getCapHeight();
+			if (cap > 200 && cap <= 1000) {
+				capRatio = cap / 1000.0;
+			}
+		} catch (final RuntimeException e) {
+			// フォント解決に失敗しても近似で続行
+		}
 		// 目標cap高: (N-1)行ぶんの行送り+親のcap高
-		final double targetCap = (v.lines() - 1) * lineHeight + parentFontSize * CAP_RATIO;
-		final double size = targetCap / CAP_RATIO;
+		final double targetCap = (v.lines() - 1) * lineHeight + parentFontSize * capRatio;
+		final double size = targetCap / capRatio;
 		firstLetterStyle.set(FontSize.INFO, AbsoluteLengthValue.create(ua, size));
 		// floatの箱高がsink行数ちょうどになるよう行の高さを絶対値で固定する
 		// (文字寸法のまま=RealValue.ONEだと箱がsink行を超え、回り込みが
