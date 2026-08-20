@@ -21,6 +21,13 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * @author MIYABE Tatsuhiko
  */
 public final class AutoColumnWidths {
+	/**
+	 * 最小内容幅の超過をどこまで潰して版面に収めるかの許容比です
+	 * (resolve参照。列minの合計が利用可能幅のこの倍率以内なら従来どおり
+	 * 比例縮小で収め、超えたら列minを保って表ごとはみ出す)。
+	 */
+	static final double MIN_OVERFLOW_TOLERANCE = 1.1;
+
 	/** 列型: 推奨幅(内容由来)。 */
 	public static final byte COLUMN_TYPE_DES = 0;
 	/** 列型: 絶対指定。 */
@@ -102,12 +109,24 @@ public final class AutoColumnWidths {
 					tableSize = w + tableFrame;
 				}
 			}
-			// minLineSize には tableFrame が含まれていることに注意
-			if (tableSize < this.minLineSize) {
-				tableSize = this.minLineSize;
-			}
+			// minLineSize には tableFrame が含まれていることに注意。
+			// 利用可能幅で切り詰めた後に最小内容幅の保証を判定する(2026-08-20。
+			// 断片間の列幅一貫は実測確認済み——resolveは表ごと1回で、分割
+			// 断片は確定済み列幅を共有するため、2026-08-18の撤回理由は現構造
+			// では成立しない)。最小内容幅が利用可能幅を超える表は、列を潰すと
+			// 内容が隣列に重なって壊れるため、列minを保って表ごと行方向へ
+			// はみ出す(CSS 2.2 17.5.2.2 / Chromeの挙動)。ただし超過が許容比
+			// 以内のわずかなものは従来どおり潰して版面に収める——セルの
+			// paddingが潰れを吸収して重なりは実質出ず(w3c-jlreqの比1.02〜1.09
+			// の表群で実測)、Chromeのように数ptだけ紙端で文字を切るより
+			// 印刷品質が高い。意図的なChromeとの差(印刷向けの品質判断)。
+			// 詳細は copperpdf4/docs/history/2026-08-20-auto-table-min-guarantee.md
 			if (tableSize > maxTableSize) {
 				tableSize = maxTableSize;
+			}
+			if (tableSize < this.minLineSize && (this.minLineSize <= maxTableSize
+					|| this.minLineSize > maxTableSize * MIN_OVERFLOW_TOLERANCE)) {
+				tableSize = this.minLineSize;
 			}
 			final double innerSize = tableSize - tableFrame;
 			// ％幅の計算
@@ -129,11 +148,13 @@ public final class AutoColumnWidths {
 			for (int i = 0; i < columnCount; ++i) {
 				minSum += this.mins[i];
 			}
-			if (minSum > maxTableSize) {
-				// 最小幅の合計が最大表幅を超える場合は比例縮小する
+			if (minSum > innerSize) {
+				// 最小幅の合計が内寸を超える場合は比例縮小する(min保証後の
+				// tableSize>=minLineSizeでは通常到達しない防御——負や退化寸法
+				// の数値ケースのみ)
 				startSizes = new double[columnCount];
 				for (int i = 0; i < columnCount; ++i) {
-					startSizes[i] = this.mins[i] * (maxTableSize - tableFrame) / minSum;
+					startSizes[i] = this.mins[i] * Math.max(0, innerSize) / minSum;
 				}
 			}
 			final ColumnDistribution.ColumnType[] distTypes = new ColumnDistribution.ColumnType[columnCount];
