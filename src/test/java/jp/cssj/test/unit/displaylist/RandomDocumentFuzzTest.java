@@ -227,14 +227,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 2026-08-14の百万件掃過で唯一の白紙ページだったseed 78906を固定する。 */
+	/**
+	 * 2026-08-14の百万件掃過で唯一の白紙ページだったseed 78906を固定する。
+	 *
+	 * <p>
+	 * 2026-08-21まで「(除外)組版できない幅の浮動体」だったが、END側
+	 * フロートの行頭クランプ(帯より広いフロートを行頭より前=紙面の外へ
+	 * 出さない。BlockBuilder.tryFloatPlacement)により**正常に組める**
+	 * ようになった。除外が不要になったのはクランプの改善効果なので、
+	 * 新しい挙動(両モード成功)を固定する。
+	 * </p>
+	 */
 	public void testStrictHistoricalBlankPageSeed() throws Exception {
-		try {
-			checkOne(78906, true);
-			fail("seed 78906は組版不能幅の専用除外になるべき");
-		} catch (final ExcludedByUntypesettableFloat expected) {
-			assertEquals("(除外)組版できない幅の浮動体", classify(expected));
-		}
+		checkOne(78906, true);
+		checkOne(78906, false);
 	}
 
 	/** 2026-08-14の百万件掃過で「紙面外への配置」になった7シードを固定する。 */

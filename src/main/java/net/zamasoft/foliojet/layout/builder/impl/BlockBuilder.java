@@ -1113,7 +1113,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 			}
 		}
-		final double lineOffset = side == FloatSide.START ? lineStart : lineEnd - lineWidth;
+		// END側は行末揃え。ただし**行頭より前(=紙面の外側)へは出さない**
+		// (2026-08-21、掃過seed 615921)。CSS 2.2 §9.5.1はSTART側フロートに
+		// 「包含ブロックの行頭端より前に出ない」を課しており、帯より広い
+		// END側フロートも同じ下限で止める。画面のブラウザは行頭側へ
+		// はみ出させる(スクロールで読める)が、紙の外に置かれた内容には
+		// 続きがない——columnInflatedクランプ(AbstractStaticBlockBox)と
+		// 同じ印刷優先の判断。発動するのは帯幅より広いフロートだけ
+		final double lineOffset = side == FloatSide.START ? lineStart
+				: Math.max(lineStart, lineEnd - lineWidth);
 		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
 		return new FloatPlacementDelta(box, side, new AxisSpan(lineOffset, lineOffset + lineWidth),
 				new AxisSpan(pageStart, pageStart + pageWidth), kind);
