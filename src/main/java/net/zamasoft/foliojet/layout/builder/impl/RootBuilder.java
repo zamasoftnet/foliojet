@@ -1295,10 +1295,29 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	protected void finishLayout() {
+		// **予約したまま置かれない脚注は、ページを無限に作る**
+		// (2026-08-21、掃過seed 439857ほか)。脚注は呼び出しが確定した
+		// ページに置かれるが、呼び出しが「入れ子の段組の中で毎回次ページへ
+		// 送られる」内容にあると、予約(版面を狭める)だけが残り、狭いせいで
+		// 内容がまた送られる——同じ形のページが上限まで積み上がる。
+		// 予約を保持したまま配置が2ページ連続で進まなければ、EOFドレインと
+		// 同じ強制配置(forceFootnoteAttach)へ切り替えて前進させる
+		final boolean hadReservation = this.footnoteReservedCount > 0;
+		this.footnoteProgressed = false;
 		final double notesExtent = this.attachFootnotes();
+		if (hadReservation && !this.footnoteProgressed) {
+			if (++this.footnoteStallPages >= 2) {
+				this.forceFootnoteAttach = true;
+			}
+		} else {
+			this.footnoteStallPages = 0;
+		}
 		this.attachBottomPageFloats(notesExtent);
 		this.pageBox.finishLayout(this.pageBox);
 	}
+
+	/** 予約を保持したまま脚注配置が進まなかった連続ページ数。 */
+	private int footnoteStallPages = 0;
 
 	public void finish() {
 		this.finishLayout();

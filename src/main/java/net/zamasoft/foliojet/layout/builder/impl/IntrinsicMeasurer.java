@@ -146,8 +146,13 @@ final class IntrinsicMeasurer {
 		this.textIndent = flowBox.getTextIndent();
 		this.blockHead = true;
 
-		if (flowBox.getColumnCount() >= 2) {
-			// ここから内側の最小内容寸法は段数倍で積まれる(2026-07-28)
+		if (flowBox.getColumnCount() >= 2 || flowBox.getBlockParams().columns.count >= 2) {
+			// ここから内側の最小内容寸法は段数倍で積まれる(2026-07-28)。
+			// **auto高さの段組はgetColumnCount()が1のまま**(段数は
+			// ColumnsContainer側が持つ)なので、指定段数(columns.count)でも
+			// 立てる——立てないとshrinkToFitの段組クランプが効かず、
+			// 縦書きの段組内float:rightが行頭より前(紙面の外)へ置かれた
+			// (2026-08-21、掃過seed 615921)
 			this.columnInflated = true;
 		}
 		this.columnCount *= flowBox.getColumnCount();

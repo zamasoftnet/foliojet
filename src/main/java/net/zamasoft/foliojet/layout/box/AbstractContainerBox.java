@@ -250,9 +250,16 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final BlockParams params = this.getBlockParams();
 		double lineSize = LayoutUtils.getMaxAdvance(this);
 		final int columnCount = this.getColumnCount();
+		if (System.getProperty("foliojet.colTrace") != null && columnCount >= 2) {
+			System.err.println("COL getLineSize raw=" + lineSize + " count=" + columnCount + " gap="
+					+ params.columns.gap + " vertical=" + params.flow.isVertical() + " el=" + this.getParams().element);
+		}
 		if (columnCount >= 2) {
-			// マルチカラム
-			lineSize = (lineSize + params.columns.gap) / columnCount - params.columns.gap;
+			// マルチカラム。**0未満にはしない**(css-multicolの used
+			// column-width は非負。gapが容器より大きい入れ子段組で負の
+			// 行幅になると、行組みが逆走して内容が紙面外へ出る——
+			// 2026-08-21、掃過seed 615921)
+			lineSize = Math.max(0, (lineSize + params.columns.gap) / columnCount - params.columns.gap);
 		}
 		return lineSize;
 	}

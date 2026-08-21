@@ -147,10 +147,39 @@ public final class MeasuredIntrinsics {
 		if (wide.getLastPage() == null || narrow.getLastPage() == null) {
 			return null;
 		}
+		if (containsMulticolBox(wide.getLastPage().getContainer())) {
+			// **auto高さの段組を含む範囲は模倣計測へ**(2026-08-21、掃過
+			// seed 615921)。上のcontainsMulticolゲートは固定寸法段組
+			// (MulticolumnBlockBox)しか索引に載らず、auto段組
+			// (FlowBlockBoxのcolumn-count)を素通ししていた。M2c実測で
+			// 測ると段数倍に膨らんだ最小内容寸法がcolumnInflatedフラグ
+			// なしで返り、shrinkToFitの段組クランプが効かない——縦書きの
+			// 段組内float:rightが行頭より前(紙面の外)へ置かれた。模倣計測
+			// (IntrinsicMeasurer)はフラグを立てるので既存クランプが働く
+			return null;
+		}
 		final double maxContent = usedLineExtent(wide.getLastPage().getContainer(), flow);
 		final double minContent = usedLineExtent(narrow.getLastPage().getContainer(), flow);
 		final double minPage = wide.getLastPage().getContainer().getContentSize();
 		return new IntrinsicSizes(minContent, maxContent, minPage);
+	}
+
+	/** 組み上がった木にauto段組(段数2以上の容器)が含まれるかを返します。 */
+	private static boolean containsMulticolBox(final Container container) {
+		final boolean[] found = { false };
+		container.eachFlowBox(box -> {
+			if (found[0]) {
+				return;
+			}
+			if (box instanceof AbstractContainerBox block) {
+				// auto高さの段組はgetColumnCount()が1のままなので指定段数で見る
+				if (block.getColumnCount() >= 2 || block.getBlockParams().columns.count >= 2
+						|| containsMulticolBox(block.getContainer())) {
+					found[0] = true;
+				}
+			}
+		});
+		return found[0];
 	}
 
 	/**

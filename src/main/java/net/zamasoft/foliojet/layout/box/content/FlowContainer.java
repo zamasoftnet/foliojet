@@ -1119,6 +1119,24 @@ public class FlowContainer implements Container {
 				}
 				switch (resolution) {
 				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
+					// **開いたままの末尾フローは前ページに置き去りにできない**
+					// (2026-08-21、掃過seed 46342ほか30件)。CutTail/KeepFloats
+					// はどちらも「フローはこのページに残し、浮動体だけ次へ送る」
+					// 決定である(cutTailは空のnextBoxへ浮動体台帳を移すだけで
+					// フローを1つも移さない)。planが選んでいる末尾フローは
+					// まだ組み立て中で開いており、次ページに存在しなくなると
+					// 再開後の流し込みスタックが継続の深さより浅くなって
+					// ContinuationInvariantViolationExceptionになる。
+					// 2026-08-03にpreDecide側の同じ穴は塞いだが、主ループの
+					// resolveMove→Terminalが残っていた。開いた末尾があるときは
+					// ownerごと次ページへ送って継続させる
+					if (openTailSelected && (action instanceof FlowCutter.PreDecision.CutTail
+							|| action instanceof FlowCutter.PreDecision.KeepFloats)) {
+						// コンテナごと次ページへ送る(MoveAll相当)。
+						// splitFloatingsMovingOwnerはRemainder時に空コンテナを
+						// 返しフローを落とすため使えない(実測)
+						return plain(this);
+					}
 					return plain(switch (action) {
 					case FlowCutter.PreDecision.CutHead(final double atLimit) -> this.cutHead(atLimit, flags);
 					case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
@@ -1153,7 +1171,8 @@ public class FlowContainer implements Container {
 			assert !((flags & IPageBreakableBox.FLAGS_LAST) != 0 && ((AutoBreakMode) mode).box != this.box);
 			final double lastFlowBottom = flowPageStarts[this.flows.size() - 1]
 					+ flowPageExtents[this.flows.size() - 1];
-			return plain(switch (FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize)) {
+			final FlowCutter.PreDecision tailAction = FlowCutter.tailDecide(flags, lastOrphan, pageInnerSize, lastFlowBottom, prevPageSize);
+			return plain(switch (tailAction) {
 			case FlowCutter.PreDecision.CutTail(final double atLimit) -> this.cutTail(atLimit, flags);
 			case FlowCutter.PreDecision.KeepFloats(final double atLimit) -> this.splitFloatingsKeepingOwner(atLimit,
 					flags);

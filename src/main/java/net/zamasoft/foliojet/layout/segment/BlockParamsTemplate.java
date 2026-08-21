@@ -27,6 +27,14 @@ public record BlockParamsTemplate(BlockParamsFields fields) {
 		return this.fields.common().text().flow();
 	}
 
+	/**
+	 * 段組(column-count 2以上)を持つかを返します
+	 * ({@code LayoutSource}の段組索引が凍結済みStartから読む。2026-08-21)。
+	 */
+	public boolean hasMultipleColumns() {
+		return this.fields.columns() != null && this.fields.columns().count >= 2;
+	}
+
 	/** 呼び出しごとに新品の{@code BlockParams}を返す(複数回呼んでも互いに影響しない)。 */
 	public BlockParams materialize() {
 		final BlockParams p = new BlockParams();

@@ -497,6 +497,14 @@ public final class LayoutSource implements AutoCloseable {
 			case BoxRecipe.Caption c -> this.captionIds.add(id);
 			case BoxRecipe.Table t -> this.tableIds.add(id);
 			case BoxRecipe.Multicol m -> this.multicolIds.add(id);
+			// **auto高さの段組(column-countつきFlow)も段組として索引する**
+			// (2026-08-21、掃過seed 615921)。従来は固定寸法段組
+			// (MulticolumnBlockBox)だけが載り、auto段組はSourceReplayerの
+			// 「段組を含む範囲はソース再生しない」防壁とMeasuredIntrinsicsの
+			// フォールバックを素通りしていた。M2c実測はスクラッチ側で
+			// 段組が再現されず、段数倍に膨らんだ幅がcolumnInflatedフラグ
+			// なしで返り、縦書きの段組内float:rightが紙面の外へ置かれた
+			case BoxRecipe.Flow f when f.params().hasMultipleColumns() -> this.multicolIds.add(id);
 			case BoxRecipe.Grid g -> this.gridIds.add(id);
 			case BoxRecipe.Flex f -> this.flexIds.add(id);
 			case BoxRecipe.Absolute a -> this.absoluteIds.add(id);
