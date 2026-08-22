@@ -228,6 +228,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	public final SplitResult split(double pageLimit, BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
+		if (System.getProperty("fj.trgtrace") != null) {
+			System.err.println("TRG id=" + System.identityHashCode(this) + " rows="
+					+ (this.rows == null ? 0 : this.rows.size()) + " limit=" + pageLimit + " pageSize="
+					+ this.pageSize + " flags=" + flags + " mode=" + mode.getClass().getSimpleName());
+		}
 		// System.err.println("TRG A:" + pageLimit + "/" + mode
 		// + "/" + flags+"/"+this.getHeight() + "/"
 		// + (this.rows == null ? 0 : this.rows.size()));

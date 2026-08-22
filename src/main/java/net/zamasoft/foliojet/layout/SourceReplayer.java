@@ -51,6 +51,23 @@ public final class SourceReplayer {
 	 */
 	public static final AtomicLong BALANCE_REPLAYS = new AtomicLong();
 
+	/**
+	 * 現在のスレッドで駆動中の部分木範囲です(2026-08-23)。
+	 *
+	 * <p>
+	 * 再生した部分木が駆動完了前に改ページすると、継続側に同じ
+	 * SourceAnchorが再付与された新品の箱が現れ、その範囲がもう一度
+	 * 刻印・再生される。再開位置が部分木のStartまで巻き戻り、同じ内容を
+	 * ページごとに作り直す(v2生成器 seed 30: 匿名セル入りの縦書き表が
+	 * 34ページに複製された)。同じ範囲への再入だけを拒否し、呼び出し側の
+	 * box-restyleフォールバック(replayFromSource==false)へ戻す。
+	 * </p>
+	 */
+	private record ActiveReplay(LayoutSource source, long fromId, long toId) {
+	}
+
+	private static final ThreadLocal<java.util.ArrayDeque<ActiveReplay>> ACTIVE_REPLAYS = new ThreadLocal<>();
+
 	private SourceReplayer() {
 		// driver
 	}
@@ -374,6 +391,16 @@ public final class SourceReplayer {
 	 */
 	public static boolean replay(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
+		java.util.ArrayDeque<ActiveReplay> active = ACTIVE_REPLAYS.get();
+		if (active != null) {
+			for (final ActiveReplay replay : active) {
+				if (replay.source() == log && replay.fromId() == fromId && replay.toId() == toId) {
+					// 駆動中の範囲への再入(ACTIVE_REPLAYSのコメント参照)。
+					// 呼び出し側が保持している箱をrestyle/addBoundする
+					return false;
+				}
+			}
+		}
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
 			return false;
@@ -389,10 +416,24 @@ public final class SourceReplayer {
 		// 後なら intact が保証されるので、ここでの true は本当に段組を
 		// 含んでいることを意味する
 		assert !log.containsMulticol(fromId, toId) : "段組を含む範囲がソース再生されようとしました: [" + fromId + ", " + toId + "]";
-		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
-		drive(doc, slice);
-		doc.finishReplay();
-		SUBTREE_REPLAYS.incrementAndGet();
-		return true;
+		if (active == null) {
+			active = new java.util.ArrayDeque<>();
+			ACTIVE_REPLAYS.set(active);
+		}
+		final ActiveReplay replay = new ActiveReplay(log, fromId, toId);
+		active.push(replay);
+		try {
+			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
+			drive(doc, slice);
+			doc.finishReplay();
+			SUBTREE_REPLAYS.incrementAndGet();
+			return true;
+		} finally {
+			assert active.peek() == replay;
+			active.pop();
+			if (active.isEmpty()) {
+				ACTIVE_REPLAYS.remove();
+			}
+		}
 	}
 }

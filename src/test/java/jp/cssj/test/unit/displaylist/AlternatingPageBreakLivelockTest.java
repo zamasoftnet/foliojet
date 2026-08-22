@@ -13,7 +13,7 @@ public class AlternatingPageBreakLivelockTest extends TestCase {
 
 	public void testStrictSeed44749Terminates() throws Exception {
 		final long alarms = ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
-		final RandomDocumentFuzzTest.Generated generated = RandomDocumentFuzzTest.generate(44749, true);
+		final RandomDocumentFuzzTest.Generated generated = RandomDocumentFuzzTest.generate(44749, true, true); // v1固定(期待挙動はv1文書のもの)
 		final File outDir = new File("build/fuzz-regressions/alternating-page-break-livelock-dl");
 		RandomDocumentFuzzTest.checkDocument(generated,
 				new File("build/fuzz-regressions/alternating-page-break-livelock.html"), outDir, true,

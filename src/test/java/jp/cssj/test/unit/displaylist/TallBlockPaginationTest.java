@@ -153,12 +153,31 @@ public class TallBlockPaginationTest extends TestCase {
 		html.append("</section>\n</body></html>\n");
 
 		final long alarms = ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
-		// 例外で終われば convert() が AssertionError を投げる。ここでは
-		// 「完走したこと」だけを要求する——内容が落ちること自体は許容
+		// 2026-08-23: ソース再生の再入拒否+表全体MOVE時の再生無効化
+		// (SourceReplayer/TableBox)でこのライブロック自体が解消し、
+		// ガード発火なしで正しく改ページされるようになった(204ページ・
+		// 各行が1回ずつ)。従来はガードの縮退(34ページ・はみ出し配置)を
+		// 期待値にしていた。既知の残: 表の後のTrailing段落は従来から
+		// 消失しており(旧実装でも0件)、これは別欠陥として扱う
 		final int pages = convert("livelock-degrade", html.toString());
 		assertTrue("ページが出ていない", pages > 0);
-		assertTrue("この文書ではガードが発火するはず(発火しないなら前提が変わっている)",
-				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get() > alarms);
+		assertEquals("ライブロックガードが発火した(解消済みのはず)", alarms,
+				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get());
+		// 全行が失われず、複製もないこと
+		final java.util.Map<String, Integer> count = new java.util.HashMap<>();
+		final File dir = new File("local/livelock-degrade");
+		for (final File f : dir.listFiles((d, name) -> name.endsWith(".txt"))) {
+			final String text = java.nio.file.Files.readString(f.toPath());
+			final java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"(R\\d+)\"").matcher(text);
+			while (m.find()) {
+				count.merge(m.group(1), 1, Integer::sum);
+			}
+		}
+		for (int i = 0; i < ROWS; ++i) {
+			final Integer c = count.get("R" + i);
+			assertNotNull("R" + i + " が消失した", c);
+			assertEquals("R" + i + " が複製された", 1, c.intValue());
+		}
 	}
 
 	/**

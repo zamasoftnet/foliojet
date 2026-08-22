@@ -569,6 +569,21 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
+	/**
+	 * 表全体を運ぶ判定の共通出口です(2026-08-23)。Moveのときソース再生を
+	 * 無効化する——表の字句的ソース区間はfoster parentingで表外へ確定した
+	 * 内容を含みうるため、MOVE後の再生は確定済み内容を複製する
+	 * ({@code AbstractBox.invalidateSourceReplay}参照)。構築済みの箱は
+	 * box-restyleフォールバックが運ぶ。
+	 */
+	private SplitResult keepOrMoveWholeTable(final byte flags) {
+		final SplitResult result = net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
+		if (result instanceof SplitResult.Move) {
+			this.invalidateSourceReplay();
+		}
+		return result;
+	}
+
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// System.err.println("TABLE A: flags=" + flags + "/pageLimit=" +
@@ -622,7 +637,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 
 		if (this.bodyGroups == null || this.bodyGroups.isEmpty()) {
-			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
+			return this.keepOrMoveWholeTable(flags);
 		}
 
 		// 上下の改ページしない部分(ヘッダ・フッタ等)の高さを差し引く
@@ -641,7 +656,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 		// テーブルのヘッダとフッタがおさまらない
 		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
-			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
+			return this.keepOrMoveWholeTable(flags);
 		}
 
 		TableBox nextTable = null;
@@ -679,8 +694,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			}
 			if (groupResult instanceof SplitResult.Move) {
 				if (i == 0) {
-					// 全部移動
+					// 全部移動(ソース再生は無効化——keepOrMoveWholeTable参照)
 					assert (flags & IPageBreakableBox.FLAGS_FIRST) == 0;
+					this.invalidateSourceReplay();
 					return SplitResult.MOVE;
 				}
 				if (!ignoreBreakAvoid) {
@@ -720,7 +736,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 
 		if (nextTable == null) {
-			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
+			return this.keepOrMoveWholeTable(flags);
 		}
 
 		int remove = 0;

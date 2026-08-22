@@ -27,6 +27,16 @@ public abstract class AbstractBox implements IBox {
 	 */
 	private boolean fragmented = false;
 
+	/**
+	 * ソース区間からの再構築を禁じるか(2026-08-23)。断片化(fragmented)
+	 * とは独立——断片化は表フッタ反復などの意味も持つため流用しない。
+	 * 表全体のMOVEで立てる: 表の字句的ソース区間には、HTMLのfoster
+	 * parentingで既に表の**外**へ確定した内容(表直下の裸テキスト)が
+	 * 含まれうるため、MOVE後にその区間を再生すると確定済み内容が複製される
+	 * (v2生成器 seed 30の縮小で発見)。
+	 */
+	private boolean sourceReplayInvalidated = false;
+
 	public final long getSourceAnchor() {
 		return this.sourceAnchor;
 	}
@@ -37,7 +47,12 @@ public abstract class AbstractBox implements IBox {
 	}
 
 	public final boolean isSourceReplayable() {
-		return this.sourceAnchor >= 0 && !this.fragmented;
+		return this.sourceAnchor >= 0 && !this.fragmented && !this.sourceReplayInvalidated;
+	}
+
+	/** 構築済みの内容を保持したまま運ぶため、ソース再生だけを無効化します。 */
+	public final void invalidateSourceReplay() {
+		this.sourceReplayInvalidated = true;
 	}
 
 	public final void markFragmented() {

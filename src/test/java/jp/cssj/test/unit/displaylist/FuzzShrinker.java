@@ -800,7 +800,44 @@ final class FuzzShrinker {
 	 */
 	private static boolean degenerate(final String html) {
 		final Generated g = analyze(html);
-		return g == null || g.tokens().isEmpty();
+		if (g == null || g.tokens().isEmpty()) {
+			return true;
+		}
+		// 表の内容モデルを壊した候補は受理しない(2026-08-23)。td/trを
+		// 剥がすと表直下の裸テキストが生まれ、HTMLパーサのfoster parenting
+		// が内容を表の**前**へ動かす——生成器のトークン順(ソース順)を
+		// 読み順の期待値とするオラクルの前提が崩れ、正当な組版を
+		// 「読み順の逆転」と誤検出する(v2 seed 30の縮小で発生。生成器
+		// 自身はこの形を作らない)
+		return breaksTableContentModel(html);
+	}
+
+	/** {@code <table>}直下の裸テキスト等、foster parentingを誘発する形か。 */
+	private static boolean breaksTableContentModel(final String html) {
+		return breaksTableContentModel(parseBody(html));
+	}
+
+	private static boolean breaksTableContentModel(final List<Node> nodes) {
+		for (final Node n : nodes) {
+			if (n.tag == null) {
+				continue;
+			}
+			final String tag = n.tag;
+			if ("table".equals(tag) || "thead".equals(tag) || "tbody".equals(tag) || "tfoot".equals(tag)
+					|| "tr".equals(tag)) {
+				for (final Node child : n.children) {
+					if (child.tag == null) {
+						if (child.text != null && !child.text.isBlank()) {
+							return true;
+						}
+					}
+				}
+			}
+			if (breaksTableContentModel(n.children)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static int countElements(final String html) {
