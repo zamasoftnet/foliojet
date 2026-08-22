@@ -244,7 +244,16 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				// 背景・境界・残余内容が次ページに描かれなかった
 				// (2026-07-25、独立レビューで発見)
 				if (row + 1 < this.rows.size()) {
-					((TableRowBox) this.rows.get(row + 1)).cutRowspanCells();
+					final TableRowBox movedHead = (TableRowBox) this.rows.get(row + 1);
+					movedHead.cutRowspanCells();
+					// 拡張エントリの無い連結セルも切る(自動改ページ経路と対。
+					// TableRowBox.cutUnextendedRowspanCells参照)
+					double above = 0;
+					for (int k = row; k >= 0; --k) {
+						final TableRowBox keptRow = (TableRowBox) this.rows.get(k);
+						above += keptRow.getPageSize();
+						keptRow.cutUnextendedRowspanCells(row + 1 - k, above, movedHead);
+					}
 				}
 				for (int j = row + 1; j < this.rows.size(); ++j) {
 					TableRowBox rowBox = (TableRowBox) this.rows.get(j);
@@ -380,6 +389,17 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 				// 持ち越す際に縦に連結されたセルを分割する
 				prevRow.cutRowspanCells();
+				// 拡張エントリの無い連結セル(空trの谷間の穴)は移動行に
+				// エントリが無く上では拾われない——保持側の行から直接切る
+				// (TableRowBox.cutUnextendedRowspanCells参照)
+				{
+					double above = 0;
+					for (int k = i - 1; k >= 0; --k) {
+						final TableRowBox keptRow = (TableRowBox) this.rows.get(k);
+						above += keptRow.getPageSize();
+						keptRow.cutUnextendedRowspanCells(i - k, above, prevRow);
+					}
+				}
 				nextRowGroup = this.splitTableRowGroup();
 				break;
 			}

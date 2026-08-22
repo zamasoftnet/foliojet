@@ -316,14 +316,33 @@ public final class GridBuilder
 	/** planに基づく各itemの列contributionです(G4d——span込み)。 */
 	private List<BasicGridTrackSizing.ItemContribution> columnContributions(
 			final GridPlacementResolver.Plan plan) {
+		return this.columnContributions(plan, -1);
+	}
+
+	/**
+	 * @param inflatedCap 段数倍で膨らんだitem min-content
+	 *                    ({@code columnInflated})の上限(負=キャップなし)。
+	 *                    トラック解決時はGridコンテナのcontent-box行幅を
+	 *                    渡す——段は狭くできるため膨張分の床は守らなくて
+	 *                    よい(AbstractStaticBlockBoxのclampと同じ理由。
+	 *                    2026-08-22、掃過seed 1879802: grid内の段組表の
+	 *                    min-contentがトラックを紙面の2.7倍へ押し広げ、
+	 *                    第2段が紙面外に描かれた)。固有寸法計測
+	 *                    (intrinsics)側はキャップせずflagを上へ運ぶ
+	 */
+	private List<BasicGridTrackSizing.ItemContribution> columnContributions(
+			final GridPlacementResolver.Plan plan, final double inflatedCap) {
 		final List<BasicGridTrackSizing.ItemContribution> contributions = new ArrayList<>(this.items.size());
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			final GridItemContent item = this.items.get(i);
 			// 自動最小サイズの上書き(GridItemContent.minContributionCap参照)
-			final double itemMin = item.minContributionCap >= 0
+			double itemMin = item.minContributionCap >= 0
 					? Math.min(item.sizes.minContent(), item.minContributionCap)
 					: item.sizes.minContent();
+			if (inflatedCap >= 0 && item.sizes.columnInflated() && itemMin > inflatedCap) {
+				itemMin = inflatedCap;
+			}
 			contributions.add(new BasicGridTrackSizing.ItemContribution(area.column(), area.columnSpan(),
 					itemMin, item.sizes.maxContent()));
 		}
@@ -421,7 +440,8 @@ public final class GridBuilder
 		// G5c: justify-contentのused value。positional(start/center/end)の
 		// ときauto列の残余stretchを止め、残余をトラック群のoffsetへ回す
 		final BoxAlignment justifyContent = BoxAlignment.resolve(BoxAlignment.AUTO, params.justifyContent);
-		final double[] widths = BasicGridTrackSizing.resolve(this.tracks, this.columnContributions(plan),
+		final double[] widths = BasicGridTrackSizing.resolve(this.tracks,
+				this.columnContributions(plan, Math.max(0, this.gridBox.getLineSize())),
 				this.gridBox.getLineSize(), this.columnGap, justifyContent == BoxAlignment.STRETCH);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
 		double trackLineExtent = this.columnGap * (this.tracks.size() - 1);

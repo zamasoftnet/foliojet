@@ -593,6 +593,68 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		return new SplitResult.Split(nextRowBox);
 	}
 
+	/**
+	 * <b>拡張エントリの無い</b>連結セルを切断します(2026-08-22)。
+	 *
+	 * <p>
+	 * 空の{@code <tr>}や短い行がrowspanの谷間に穴を作ると、穴の先の列の
+	 * 継続セルには行リスト上の延長(ExtendedCell)が作られない
+	 * ({@code CellContent.complementRowspan}は終了列で走査を打ち切る
+	 * ——リストが列位置をindexで表すため、途中へ占位を挟むと自セルの
+	 * 列がずれて挿せない)。延長が無いと行移動時の
+	 * {@link #cutRowspanCells}(移動行の延長エントリ経由)に拾われず、
+	 * セルが前ページに全高で残って読み順が逆転する(掃過seed
+	 * 1472118/1173267)。ここでは保持側の行から直接、posのrowspanが
+	 * 移動域へ届くのに延長チェーンが届かないセルを切り、残余を移動行へ
+	 * 追加する。残余は行リスト末尾に付くため中間列の穴のぶんだけ行方向
+	 * 位置が詰まるが、読み順・ページ所属は正しくなる。
+	 * </p>
+	 *
+	 * @param rowsToCut   この行から移動行までの行数(自行の次=1)
+	 * @param cutPageAxis この行のセル上端から切断線までの距離
+	 * @param target      残余を追加する移動行
+	 */
+	public final void cutUnextendedRowspanCells(final int rowsToCut, final double cutPageAxis,
+			final TableRowBox target) {
+		final boolean vertical = this.tableParams.flow.isVertical();
+		for (int i = 0; i < this.cells.size(); ++i) {
+			final Cell cell = (Cell) this.cells.get(i);
+			if (!cell.isSource()) {
+				continue;
+			}
+			final TableCellBox cellBox = cell.getCellBox();
+			if (cellBox.getTableCellPos().rowspan <= rowsToCut) {
+				// 移動域まで届かない
+				continue;
+			}
+			int chain = 0;
+			for (ExtendedCell xcell = cell.getNextExtendedCell(); xcell != null; xcell = xcell
+					.getNextExtendedCell()) {
+				++chain;
+			}
+			if (chain >= rowsToCut) {
+				// 延長が移動域に届いている——cutRowspanCellsが扱う
+				continue;
+			}
+			if (LayoutUtils.compare(cellBox.getPageExtent(this.tableParams.flow), cutPageAxis) <= 0) {
+				// 実体が切断線に届かない(空のまま)
+				continue;
+			}
+			final TableCellBox nextCell = forcedCellRemainder(cellBox, cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
+					IPageBreakableBox.FLAGS_SPLIT);
+			if (vertical) {
+				cellBox.setWidth(cutPageAxis);
+			} else {
+				cellBox.setHeight(cutPageAxis);
+			}
+			target.restyleCell(nextCell);
+			target.addTableSourceCell(nextCell);
+			target.pageSize = Math.max(target.pageSize,
+					nextCell.getPageExtent(this.tableParams.flow) / Math.max(1,
+							cellBox.getTableCellPos().rowspan - rowsToCut));
+		}
+	}
+
 	public final void cutRowspanCells() {
 		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.ROWSPAN_CUTS.incrementAndGet();
 		// 連結されたセルを強制切断する

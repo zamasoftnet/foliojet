@@ -652,6 +652,18 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					}
 					min += cellFrame;
 					des += cellFrame;
+					if (cellSizes.columnInflated()) {
+						// 段数倍で膨らんだ最小内容幅は列の床にしない(段は
+						// 狭くできる——AbstractStaticBlockBoxのclamp・
+						// GridBuilderのinflatedCapと同じ理由)。表の
+						// min-content保証は作者由来の不可分内容にだけ残す
+						// (2026-08-22、掃過seed 1931755: display:table内の
+						// 入れ子段組が表を紙面の3.3倍へ押し広げた)
+						final double avail = this.layoutStack.getFlowBox().getLineSize() - tableFrame;
+						if (avail > 0 && min > avail) {
+							min = avail;
+						}
+					}
 					double spec = 0;
 					byte type = AutoColumnWidths.COLUMN_TYPE_DES;
 
