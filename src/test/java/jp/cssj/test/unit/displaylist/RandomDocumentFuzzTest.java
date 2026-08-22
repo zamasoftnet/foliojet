@@ -855,7 +855,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				"position:relative", "float:left", "float:right", "float:footnote", "float:top", "float:bottom",
 				"writing-mode:vertical", "overflow:hidden", "<table", "<ul", "<ol", "<ruby", "<img", "<form",
 				"<input", "<select", "<textarea", "<button", "page-break-before", "page-break-inside",
-				"list-style-type", "clear:", "columns");
+				"list-style-type", "clear:", "column-count:");
 		final int n = features.size();
 		final java.util.Map<Integer, java.util.Set<Long>> combos = new java.util.HashMap<>();
 		long featureTotal = 0;

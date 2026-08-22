@@ -316,7 +316,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final int acc = this.getActualColumnCount();
 		final int columnCount = this.getColumnCount();
 		final boolean vertical = this.getBlockParams().flow.isVertical();
-		final double pageSize;
+		double pageSize;
 		if (acc >= 2) {
 			// 既に複数段に分かれて構築済みの場合は元の単一スタックが失われて
 			// いるため、旧来の均等割り(総量/段数の一回スナップ)を使う
@@ -327,6 +327,10 @@ public abstract class AbstractContainerBox extends AbstractBox
 			// 最小容量を探索する(M5-B)
 			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
 		}
+		// atomicな同軸逆進行の子は段境界で切れない——ColumnBalancerの
+		// 「境界なしなら提案位置まで進んだとみなす」近似より床を優先する
+		// (Container.balancePageSizeFloor参照。2026-08-22)
+		pageSize = Math.max(pageSize, oldCont.balancePageSizeFloor());
 
 		// 2026-07-25(排除域P2の撤回): 上の容量計算に加えて隔離セッションで
 		// 中身を丸ごと組み直す「バランスプローブ」(M6c-2〜M6c-5)は全撤去した。

@@ -41,6 +41,15 @@ public interface Container {
 	public double getContentSize();
 
 	/**
+	 * 段組バランスが下回ってはならないページ軸容量です(2026-08-22)。
+	 * 改ページ契約上atomicな同軸逆進行の子は段境界で内部切断できない
+	 * ——その全長が容量の床になる。該当する子がなければ0。
+	 */
+	public default double balancePageSizeFloor() {
+		return 0;
+	}
+
+	/**
 	 * この内容が<b>実際に紙へ描く</b>ページ方向の終端(内辺基準)を返します。
 	 *
 	 * <p>

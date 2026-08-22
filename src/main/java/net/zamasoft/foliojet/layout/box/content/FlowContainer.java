@@ -278,6 +278,35 @@ public class FlowContainer implements Container {
 		return flow.pageAxis + flow.box.getPageExtent(this.box.getBlockParams().flow);
 	}
 
+	@Override
+	public double balancePageSizeFloor() {
+		if (this.flows == null) {
+			return 0;
+		}
+		// 同軸逆進行(RL⇄LR)の子は改ページ契約でatomic——段境界で内部
+		// 切断できないため、その全長より段容量を小さくしてはならない。
+		// 従来は容量探索(getCutPointBelow)が逆進行の子の内部境界を
+		// 返し、balance()が子より狭いmaxPageAxisを固定→再構築後の
+		// contentSize(子の指定幅)が箱幅へ反映されず、親のカーソルも
+		// 狭いまま→RL端寄せ配置で内容が紙面外に描かれた(2026-08-22、
+		// 掃過seed 1871636/1106107)
+		final WritingMode outer = this.box.getBlockParams().flow;
+		double floor = 0;
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow f = (Flow) this.flows.get(i);
+			if (f.box.getType() != BoxType.BLOCK) {
+				continue;
+			}
+			final WritingMode inner = ((FlowBlockBox) f.box).getBlockParams().flow;
+			if (outer.isVertical() && inner.isVertical()
+					&& net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
+							inner)) {
+				floor = Math.max(floor, f.pageAxis + f.box.getPageExtent(outer));
+			}
+		}
+		return floor;
+	}
+
 	public double paintedPageEnd() {
 		if (this.absolutes != null) {
 			// 絶対配置は静的位置と無関係に描かれうる。読み切れないので

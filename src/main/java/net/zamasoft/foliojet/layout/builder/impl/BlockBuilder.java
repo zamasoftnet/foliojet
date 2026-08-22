@@ -1120,8 +1120,35 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// はみ出させる(スクロールで読める)が、紙の外に置かれた内容には
 		// 続きがない——columnInflatedクランプ(AbstractStaticBlockBox)と
 		// 同じ印刷優先の判断。発動するのは帯幅より広いフロートだけ
-		final double lineOffset = side == FloatSide.START ? lineStart
-				: Math.max(lineStart, lineEnd - lineWidth);
+		// 直交縦書きフロートのはみ出し描画の紙側寄せ(2026-08-22、掃過seed
+		// 1353935): 横書き包含ブロック中の縦書きフロートは、内側のページ軸
+		// (=外側の線軸)方向へoverflow:visibleの描画が箱幅を超えて伸びる。
+		// RLなら物理左へ、LRなら物理右へ——紙の外に落ちる側の超過分だけ
+		// フロートを内側へ寄せる(END側クランプと同じ印刷優先の判断)
+		final double paintedOverflow;
+		final WritingMode innerFlow;
+		if (progression == WritingMode.TB && box instanceof AbstractContainerBox innerBox
+				&& innerBox.getBlockParams().flow.isVertical()) {
+			innerFlow = innerBox.getBlockParams().flow;
+			paintedOverflow = Math.max(0,
+					box.paintedPageExtent(innerFlow) - box.getPageExtent(innerFlow));
+		} else {
+			innerFlow = progression;
+			paintedOverflow = 0;
+		}
+		final double lineOffset;
+		if (side == FloatSide.START) {
+			if (innerFlow == WritingMode.RL && paintedOverflow > 0) {
+				lineOffset = Math.min(lineStart + paintedOverflow,
+						Math.max(lineStart, lineEnd - lineWidth));
+			} else {
+				lineOffset = lineStart;
+			}
+		} else if (innerFlow == WritingMode.LR && paintedOverflow > 0) {
+			lineOffset = Math.max(lineStart, lineEnd - lineWidth - paintedOverflow);
+		} else {
+			lineOffset = Math.max(lineStart, lineEnd - lineWidth);
+		}
 		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
 		return new FloatPlacementDelta(box, side, new AxisSpan(lineOffset, lineOffset + lineWidth),
 				new AxisSpan(pageStart, pageStart + pageWidth), kind);

@@ -42,6 +42,17 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	private final java.util.Map<BreakFingerprint, Integer> breakFingerprintCounts = new java.util.HashMap<>();
+	/**
+	 * 深さを含めない第二指紋の計数(2026-08-23)。再開処理の途中で同じ
+	 * 改ページへ再入し続けるライブロック(wild seed 1490848)は、未完了
+	 * ResumeSessionとopen-tail flowが一組ずつ増えて物理深さが毎回変わる
+	 * ため、深さ入りの第一指紋では全反復が別状態に見えて発火しない。
+	 * 逆に深さを一律に補正すると、深さが安定した周期2ライブロック
+	 * (seed 44749)の検出が壊れる——両方を数え、どちらかが閾値へ達したら
+	 * 打ち切る。入力が進まず・カーソルも・対象要素も同じ改ページが33回
+	 * 重なる状況は深さ差があっても進捗ではない。
+	 */
+	private final java.util.Map<BreakFingerprint, Integer> depthFreeBreakCounts = new java.util.HashMap<>();
 	private long breakHistoryIngest = Long.MIN_VALUE;
 	private int stalledBreakRun = 0;
 	/** LayoutSourceを持たないscratch用の自動改ページ打切り状態。 */
@@ -66,6 +77,7 @@ public class RootBuilder extends BreakableBuilder {
 			// 持ち越さない
 			this.stalledBreakRun = 0;
 			this.breakFingerprintCounts.clear();
+			this.depthFreeBreakCounts.clear();
 			this.breakHistoryIngest = Long.MIN_VALUE;
 			return false;
 		}
@@ -100,12 +112,17 @@ public class RootBuilder extends BreakableBuilder {
 		// 区切ると従来検出できていたライブロックを見逃してしまう。
 		if (ingest != this.breakHistoryIngest) {
 			this.breakFingerprintCounts.clear();
+			this.depthFreeBreakCounts.clear();
 			this.breakHistoryIngest = ingest;
 		}
 		final BreakFingerprint fingerprint = new BreakFingerprint(ingest, depth,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int occurrences = this.breakFingerprintCounts.merge(fingerprint, 1, Integer::sum);
-		this.stalledBreakRun = occurrences - 1;
+		// 深さ非依存の第二指紋(depth=-1固定。フィールドコメント参照)
+		final BreakFingerprint depthFree = new BreakFingerprint(ingest, -1,
+				Double.doubleToLongBits(this.pageAxis), target);
+		final int depthFreeOccurrences = this.depthFreeBreakCounts.merge(depthFree, 1, Integer::sum);
+		this.stalledBreakRun = Math.max(occurrences, depthFreeOccurrences) - 1;
 		if (DEBUG_BREAK_FINGERPRINT) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis
 					+ " target=" + target + " resumeDepth=" + this.sessions.size() + " stalled="
@@ -118,6 +135,7 @@ public class RootBuilder extends BreakableBuilder {
 			// breakByClearを含む全反復箇所はfalseで抜けるようになっている。
 			this.stalledBreakRun = 0;
 			this.breakFingerprintCounts.clear();
+			this.depthFreeBreakCounts.clear();
 			this.breakHistoryIngest = Long.MIN_VALUE;
 			if (source != null) {
 				source.abandonAutoBreaks();
