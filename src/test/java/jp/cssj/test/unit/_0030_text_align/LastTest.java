@@ -50,8 +50,11 @@ public class LastTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x+"/"+box.getWidth());
-			assertEquals(71, x, 1);
-			assertEquals(7, box.getWidth(), 1);
+			// 2026-08-22: justifyの伸長点から禁則境界(atomic)を除外
+			// (JLREQ 3.1.11)。「ます|。」に伸長が入らなくなり右へ移動、
+			// spanの幅も伸長分を含まない素の値(行末trim済み5pt)に戻った
+			assertEquals(74, x, 1);
+			assertEquals(5, box.getWidth(), 1);
 			return true;
 		}
 		return false;

@@ -53,10 +53,10 @@ public final class AutospaceTracker {
 	/**
 	 * 同一run内の直前glyphとの約物詰め(正値。0=なし)です(T1a——
 	 * font層から移管。GPOSが非0のpairはスキップ、run境界は対象外=
-	 * 移管元と同じ適用範囲)。縦書きrun(FontStyle方向TB)は対象外——
-	 * 移管元はvert置換gidのtoChar逆引きが成立せず縦書きでは詰めが
-	 * 効いていなかった(縦書きの行頭処理は天付きが担う。縦中横の
-	 * 横書きrunは対象=旧挙動と同一)。
+	 * 移管元と同じ適用範囲)。縦書きrunもclusterのUnicode code pointで
+	 * 分類し、GSUB vert後glyphのvertical advanceでwide判定する。
+	 * xadvanceは論理inline advanceなので縦組では下向きの送りへ効く。
+	 * 縦中横の横書きrunは従来どおりhorizontal widthを使う。
 	 *
 	 * @param currentText 現在追記中のrun({@code null}=新run)
 	 */
@@ -66,17 +66,14 @@ public final class AutospaceTracker {
 				|| this.prevText != currentText) {
 			return 0;
 		}
-		if (currentText.getFontStyle()
-				.getDirection() == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
-			return 0;
-		}
 		if (metrics.getKerning(this.prevGid, gid) != 0) {
 			return 0;
 		}
 		final int cp = Character.codePointAt(ch, coff);
+		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = currentText.getFontStyle().getDirection();
 		return JapaneseSpacingResolver.pairTrim(this.prevCodePoint,
-				JapaneseSpacingResolver.isWide(metrics, this.prevGid, fontSize), cp,
-				JapaneseSpacingResolver.isWide(metrics, gid, fontSize)) * fontSize;
+				JapaneseSpacingResolver.isWide(metrics, this.prevGid, fontSize, direction), cp,
+				JapaneseSpacingResolver.isWide(metrics, gid, fontSize, direction)) * fontSize;
 	}
 
 	/** 現在のcluster先頭と直前clusterの間のgap(絶対量)です。 */

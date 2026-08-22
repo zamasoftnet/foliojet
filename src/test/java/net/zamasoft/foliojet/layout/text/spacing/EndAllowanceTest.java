@@ -35,6 +35,12 @@ public class EndAllowanceTest extends TestCase {
 		assertEquals(12.0, JapaneseSpacingResolver.endAllowance('、', true, true, true, 12, 12, 7), 0.001);
 	}
 
+	/** 縦組でも呼び出し側から渡されたvertical advanceをhang量に使う。 */
+	public void testVerticalAdvanceForHang() {
+		// 0.5em(6pt)では収まらず、vmtx由来10ptなら収まる
+		assertEquals(10.0, JapaneseSpacingResolver.endAllowance('、', true, false, true, 10, 12, 8), 0.001);
+	}
+
 	/** 対象外: 半角約物・非約物。 */
 	public void testExcluded() {
 		assertEquals(0.0, JapaneseSpacingResolver.endAllowance('、', false, false, true, 6, 12, 3), 0.001);

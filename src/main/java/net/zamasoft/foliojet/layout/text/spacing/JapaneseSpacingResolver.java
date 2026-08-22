@@ -54,6 +54,11 @@ public final class JapaneseSpacingResolver {
 				return PAIR_TRIM; // 移管元の癖: wide判定なし
 			}
 			return next == JapaneseSpacingClass.CLOSING && wide ? PAIR_TRIM : 0;
+		case MIDDLE_DOT:
+			// JLREQ 3.1.5: 中点類の後ろに始め括弧類——中点の後ろを四分アキ
+			// (字形内の四分+括弧の二分=3/4を-0.5emで四分へ。終わり括弧+中点は
+			// CLOSING側のnext!=OTHERで既に対象)
+			return next == JapaneseSpacingClass.OPENING && wide ? PAIR_TRIM : 0;
 		default:
 			return 0;
 		}
@@ -88,12 +93,14 @@ public final class JapaneseSpacingResolver {
 			return 0;
 		}
 		final JapaneseSpacingClass cls = JapaneseSpacingClass.of(codePoint);
-		if (cls != JapaneseSpacingClass.CLOSING && cls != JapaneseSpacingClass.PUNCTUATION) {
+		if (cls != JapaneseSpacingClass.CLOSING && cls != JapaneseSpacingClass.PUNCTUATION
+				&& cls != JapaneseSpacingClass.MIDDLE_DOT) {
 			return 0;
 		}
-		// (1) 行末trim: 半角化で収まるなら詰める
+		// (1) 行末trim: 半角化で収まるなら詰める(中点はJIS X 4051の
+		// 「行末中点は前四分・後ろベタ」に従い四分=0.25emのみ)
 		if (!trimOff) {
-			final double trim = PAIR_TRIM * fontSize;
+			final double trim = (cls == JapaneseSpacingClass.MIDDLE_DOT ? PAIR_TRIM / 2 : PAIR_TRIM) * fontSize;
 			if (overflow <= trim) {
 				return trim;
 			}
@@ -112,6 +119,20 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
+	 * 組方向のinline advanceに基づくwide判定です。横組は従来どおり
+	 * horizontal width、縦組はGSUB vert後glyphのvertical advanceを使う。
+	 *
+	 * @param direction runの組方向
+	 */
+	public static boolean isWide(final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid,
+			final double fontSize, final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction) {
+		if (direction == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
+			return metrics.getAdvance(gid) > fontSize * 0.75;
+		}
+		return isWide(metrics, gid, fontSize);
+	}
+
+	/**
 	 * 組み立て済みrun内の全隣接pairへ約物詰めをxadvanceで適用します
 	 * (T1a——font層から撤去した詰めの、独自appendGlyphループ経路
 	 * (RubyUnitBox・FootnoteLabelImage等)用の代替。GPOSカーニングが
@@ -122,9 +143,7 @@ public final class JapaneseSpacingResolver {
 		if (glyphCount < 2) {
 			return;
 		}
-		if (text.getFontStyle().getDirection() == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
-			return; // 縦書きrunは対象外(AutospaceTracker.trimBeforeと同じ理由)
-		}
+		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = text.getFontStyle().getDirection();
 		final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics = text.getFontMetrics();
 		final double fontSize = text.getFontStyle().getSize();
 		final char[] chars = text.getChars();
@@ -135,8 +154,8 @@ public final class JapaneseSpacingResolver {
 		for (int i = 1; i < glyphCount; ++i) {
 			final int cp = Character.codePointAt(chars, charIndex);
 			if (metrics.getKerning(gids[i - 1], gids[i]) == 0) {
-				final double trim = pairTrim(prevCp, isWide(metrics, gids[i - 1], fontSize), cp,
-						isWide(metrics, gids[i], fontSize)) * fontSize;
+				final double trim = pairTrim(prevCp, isWide(metrics, gids[i - 1], fontSize, direction), cp,
+						isWide(metrics, gids[i], fontSize, direction)) * fontSize;
 				if (trim > 0) {
 					// xadvance[i]=glyph iの手前のアキ(負=詰め)
 					text.addXAdvance(i, -trim);

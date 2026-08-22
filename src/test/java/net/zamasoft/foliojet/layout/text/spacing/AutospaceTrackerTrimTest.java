@@ -12,9 +12,9 @@ import net.zamasoft.pdfg2d.gc.text.TextImpl;
 /**
  * {@link AutospaceTracker#trimBefore}(和文詰めT1a/T1b)の決定的テスト
  * です。実フォント依存を避けたstub metrics(全角=幅12、GPOSなし)で、
- * 約物pairの詰め・GPOS優先・run境界・縦書き除外・space-all無効化を
- * 固定する(コーパスのフォントはGPOS持ちまたは半角約物のため、
- * resolver trimの発火は実文書では環境依存——ここが正本の検証)。
+ * 約物pairの詰め・GPOS優先・run境界・縦書き・space-all無効化を固定する
+ * (コーパスのフォントはGPOS持ちまたは半角約物のため、resolver trimの
+ * 発火は実文書では環境依存——ここが正本の検証)。
  */
 public class AutospaceTrackerTrimTest extends TestCase {
 
@@ -120,13 +120,30 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run2, metrics, 12), 0.001);
 	}
 
-	/** 縦書きrunは対象外(移管元はvert gidのtoChar逆引き不成立で無効だった)。 */
-	public void testVerticalExcluded() {
+	/** 縦書きrunもUnicode clusterで分類して詰める。 */
+	public void testVerticalTrim() {
 		final WideMetrics metrics = new WideMetrics(0);
 		final TextImpl run = text(metrics, FontStyle.Direction.TB, "」");
 		final AutospaceTracker tracker = new AutospaceTracker();
 		tracker.glyphAdded(run, 12, new char[] { '」' }, 0, (byte) 1, 100);
-		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12), 0.001);
+		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12), 0.001);
+	}
+
+	/** TBのwide gateとrun後処理はhorizontal widthでなくvertical advanceを使う。 */
+	public void testVerticalRunTrimUsesInlineAdvance() {
+		final FontMetrics vertical = new WideMetrics(0) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public double getWidth(final int gid) {
+				return 6;
+			}
+		};
+		final TextImpl run = text(vertical, FontStyle.Direction.TB, "」「");
+		assertEquals(24.0, run.getAdvance(), 0.001);
+		JapaneseSpacingResolver.applyRunTrims(run);
+		assertEquals(18.0, run.getAdvance(), 0.001);
+		assertEquals(-6.0, run.xAdvances().get(1), 0.001);
 	}
 
 	/** 半角約物(width≤0.75em)は詰めない(プロポーショナル約物の保護)。 */

@@ -17,10 +17,14 @@ public class TentsukiTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
+	// 2026-08-22: 縦組の約物詰め解禁(JLREQ)で」「対が-0.5em詰まり、
+	// 行の詰め込みが変わった。span#aは行1末尾(y=270)と行2頭(y=0)の
+	// 2断片、span#bは1断片(y=120)になる
+
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("y: " + y);
-			assertEquals(15, y, 0);
+			assertTrue("y=" + y, y == 270 || y == 0);
 			return true;
 		}
 		return false;
@@ -29,7 +33,7 @@ public class TentsukiTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("y: " + y);
-			assertEquals(15, y, 0);
+			assertEquals(120, y, 0);
 			return true;
 		}
 		return false;

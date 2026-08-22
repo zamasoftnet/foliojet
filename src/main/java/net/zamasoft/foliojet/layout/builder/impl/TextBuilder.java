@@ -243,14 +243,13 @@ public class TextBuilder {
 		final int prevGid = head.getGlyphIds()[head.getGlyphCount() - 1];
 		final int gid = tail.getGlyphIds()[0];
 		double trim = 0;
-		if (!this.autospace.isTrimOff()
-				&& head.getFontStyle().getDirection() != net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB
-				&& this.fontMetrics.getKerning(prevGid, gid) == 0) {
+		if (!this.autospace.isTrimOff() && this.fontMetrics.getKerning(prevGid, gid) == 0) {
+			final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = head.getFontStyle().getDirection();
 			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.pairTrim(prevCp,
 					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,
-							prevGid, fontSize),
+							prevGid, fontSize, direction),
 					cp, net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,
-							gid, fontSize))
+							gid, fontSize, direction))
 					* fontSize;
 		}
 		return gap - trim;
@@ -1004,15 +1003,14 @@ public class TextBuilder {
 		if (!(tail instanceof TextImpl text) || text.getGlyphCount() <= 0) {
 			return 0;
 		}
-		if (text.getFontStyle().getDirection() == net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.TB) {
-			return 0; // 縦書きは対象外(trim=T1a同、hang=横確立後の次増分)
-		}
 		final int cp = Character.codePointBefore(text.getChars(), text.getCharCount());
 		final int gid = text.getGlyphIds()[text.getGlyphCount() - 1];
 		final double fontSize = text.getFontStyle().getSize();
 		final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics = text.getFontMetrics();
+		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = text.getFontStyle().getDirection();
 		return net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.endAllowance(cp,
-				net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(metrics, gid, fontSize),
+				net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(metrics, gid, fontSize,
+						direction),
 				this.autospace.isTrimOff(), this.hangingEnd, metrics.getAdvance(gid), fontSize,
 				lineAxis - maxLineAxis);
 	}

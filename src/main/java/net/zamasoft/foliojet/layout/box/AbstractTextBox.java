@@ -322,7 +322,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 					char c1 = ch[k];
 					k += clens[j];
 					char c2 = ch[k - 1];
-					if (state.prevChar != 0 && hyph.canSeparate(state.prevChar, c1)) {
+					// JLREQ 3.1.11: 禁則境界(atomic)には均等アキを入れない。
+					// 適用側justifyと同一条件を保つこと(分母と加算位置の整合)
+					if (state.prevChar != 0 && hyph.canSeparate(state.prevChar, c1)
+							&& !hyph.atomic(state.prevChar, c1)) {
 						++count;
 					}
 					state.prevChar = c2;
@@ -382,7 +385,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					char c1 = ch[k];
 					k += clens[j];
 					char c2 = ch[k - 1];
-					if (state.prevChar != 0 && hyph.canSeparate(state.prevChar, c1)) {
+					if (state.prevChar != 0 && hyph.canSeparate(state.prevChar, c1)
+							&& !hyph.atomic(state.prevChar, c1)) {
 						textImpl.addXAdvance(j, unitSpacing);
 						da += unitSpacing;
 					}

@@ -68,7 +68,8 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		return this.check(box, x, y, 108, 48.54, 29.682);
+		// x=108→109.25(2026-08-22): justify伸長点の禁則境界除外(JLREQ 3.1.11)
+		return this.check(box, x, y, 109.25, 48.54, 29.682);
 	}
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
