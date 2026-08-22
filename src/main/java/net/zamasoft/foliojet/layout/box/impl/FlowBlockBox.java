@@ -340,8 +340,12 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			assert !LayoutUtils.isNone(minHeight);
 			assert !LayoutUtils.isNone(maxHeight);
 			switch (this.minSize.getWidthType()) {
+			// min/maxの%の基準は包含ブロックのpage軸内寸——判定は容器側の
+			// 確定性(containerBox)で行う。従来はthis側(sizeの確定性)を見て
+			// おり、width:66pt(確定)の箱のmax-width:90%が未確定の親幅(0)に
+			// 対して0へ潰れた(2026-08-23、v2掲過 seed 2006804)
 			case RELATIVE:
-				if (this.isSpecifiedPageSize()) {
+				if (containerBox.isSpecifiedPageSize()) {
 					minWidth = this.minSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
@@ -353,7 +357,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				minWidth = this.minSize.getWidth();
 				break;
 			case MIXED:
-				if (this.isSpecifiedPageSize()) {
+				if (containerBox.isSpecifiedPageSize()) {
 					minWidth = this.minSize.getWidth() + this.minSize.getWidthRatio() * containerBox.getInnerWidth();
 					break;
 				}
@@ -364,7 +368,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			}
 			switch (this.params.maxSize.getWidthType()) {
 			case RELATIVE:
-				if (this.isSpecifiedPageSize()) {
+				if (containerBox.isSpecifiedPageSize()) {
 					maxWidth = this.params.maxSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
@@ -376,7 +380,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				maxWidth = this.params.maxSize.getWidth();
 				break;
 			case MIXED:
-				if (this.isSpecifiedPageSize()) {
+				if (containerBox.isSpecifiedPageSize()) {
 					maxWidth = this.params.maxSize.getWidth()
 							+ this.params.maxSize.getWidthRatio() * containerBox.getInnerWidth();
 					break;

@@ -787,8 +787,11 @@ final class FuzzShrinker {
 			}
 			final String style = n.attr("style");
 			final boolean floated = style != null && style.contains("float:") && !style.contains("float:none");
+			// reverse系flex(row/column-reverse・wrap-reverse)も読み順を正当に
+			// 変える——生成器の記録規則(v2)と一致させる(2026-08-23)
 			final boolean here = inReorderable
-					|| (style != null && (floated || style.contains("position:absolute")));
+					|| (style != null && (floated || style.contains("position:absolute")
+							|| style.contains("-reverse")));
 			collectTokens(n.children, here, tokens, reorderable);
 		}
 	}

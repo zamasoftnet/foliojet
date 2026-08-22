@@ -2302,20 +2302,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (n.tag == null) {
 				if (tableId >= 0 && n.text != null) {
 					final java.util.regex.Matcher m = java.util.regex.Pattern.compile("T\\d+").matcher(n.text);
+					// 直下の裸テキスト(匿名item相当)はそれ自身で1枝
+					final int branch = m.find() ? cellSeq[0]++ : cellId;
+					m.reset();
 					while (m.find()) {
-						result.put(m.group(), new int[] { tableId, cellId });
+						result.put(m.group(), new int[] { tableId, branch });
 					}
 				}
 				continue;
 			}
 			int nextTable = tableId;
 			int nextCell = cellId;
-			if ("table".equals(n.tag) && tableId < 0) {
-				// 最外の表だけを単位にする(入れ子表は外の表の並列性に包含)
+			final String style = n.attr("style");
+			final boolean parallelContainer = "table".equals(n.tag)
+					|| (style != null && (style.contains("display:flex") || style.contains("display:grid")));
+			if (parallelContainer && tableId < 0) {
+				// 最外の並列コンテナ(表・flex・grid)だけを単位にする
+				// (入れ子は外の並列性に包含)
 				nextTable = tableSeq[0]++;
 			}
-			if (("td".equals(n.tag) || "th".equals(n.tag)) && nextTable >= 0) {
-				// セルごとに新しいid(入れ子セルは最内のセル単位で単調性を見る)
+			if ("td".equals(n.tag) || "th".equals(n.tag)) {
+				// セルごとに新しい枝(入れ子は最内のセル単位)
+				nextCell = cellSeq[0]++;
+			} else if (tableId >= 0 && cellId < 0) {
+				// 並列コンテナ直下の子要素(flex/gridのitem、表のtbody/tr等の
+				// 中間要素は後でtdが上書き)ごとに枝を切る
 				nextCell = cellSeq[0]++;
 			}
 			collectTableTokens(n.children, nextTable, nextCell, result, tableSeq, cellSeq);
