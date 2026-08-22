@@ -146,7 +146,9 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			else {
 				textClip = null;
 			}
-			final Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, clip, this.params.opacity, transform, this.frame,
+			// clip-pathは自箱の背景・境界も切る(overflowと違う)
+			final Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, this.clipWithClipPath(clip, x, y),
+					this.params.opacity, transform, this.frame,
 					this.getWidth(), this.getHeight(), textClip);
 			drawer.visitDrawable(drawable, x, y);
 		}

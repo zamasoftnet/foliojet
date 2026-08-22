@@ -727,6 +727,8 @@ final class BoxStyleMapper {
 				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
 		params.paintClip = MaskImage.isClip(style);
+		params.clipPath = net.zamasoft.foliojet.css.impl.property.box.ClipPath
+				.toShape(net.zamasoft.foliojet.css.impl.property.box.ClipPath.get(style));
 		params.frame = this.createRectFrame(style, inBody, pageSequence);
 
 		byte columnCount = (byte) Math.min(Byte.MAX_VALUE, ColumnCount.get(style));

@@ -473,17 +473,82 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	protected final Shape clip(Shape clip, double x, double y) {
 		final BlockParams params = this.getBlockParams();
-		if (!params.overflow.clipsPaint() && !params.paintClip) {
+		final boolean rectClip = params.overflow.clipsPaint() || params.paintClip;
+		final net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath = params.clipPath;
+		if (!rectClip && clipPath == null) {
 			return clip;
 		}
-		Rectangle2D.Double newClip = new Rectangle2D.Double(
-				x + this.frame.frame.border.getLeft().width + this.frame.margin.left,
-				y + this.frame.frame.border.getTop().width + this.frame.margin.top,
-				this.width + this.frame.padding.getFrameWidth(), this.height + this.frame.padding.getFrameHeight());
+		Shape newClip = null;
+		if (rectClip) {
+			newClip = new Rectangle2D.Double(
+					x + this.frame.frame.border.getLeft().width + this.frame.margin.left,
+					y + this.frame.frame.border.getTop().width + this.frame.margin.top,
+					this.width + this.frame.padding.getFrameWidth(),
+					this.height + this.frame.padding.getFrameHeight());
+		}
+		if (clipPath != null) {
+			// clip-path(2026-08-22): 参照ボックスの実寸で形状を解決する
+			final Rectangle2D.Double ref = this.clipPathReferenceRect(clipPath.referenceBox, x, y);
+			final Shape shape = clipPath.resolve(ref.x, ref.y, ref.width, ref.height);
+			newClip = newClip == null ? shape : intersectClips(newClip, shape);
+		}
 		if (clip == null) {
 			return newClip;
 		}
-		return newClip.createIntersection((Rectangle2D) clip);
+		return intersectClips(newClip, clip);
+	}
+
+	/**
+	 * {@code clip-path}だけを合成したクリップです(overflowクリップは
+	 * 含めない)。overflowは自箱の背景・枠を切らないが、clip-pathは
+	 * 自箱の描画全体(背景・境界含む)を切る(css-masking-1)——枠の
+	 * Drawable生成前にこちらを使う。
+	 */
+	protected final Shape clipWithClipPath(final Shape clip, final double x, final double y) {
+		final net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath = this.getBlockParams().clipPath;
+		if (clipPath == null) {
+			return clip;
+		}
+		final Rectangle2D.Double ref = this.clipPathReferenceRect(clipPath.referenceBox, x, y);
+		final Shape shape = clipPath.resolve(ref.x, ref.y, ref.width, ref.height);
+		return clip == null ? shape : intersectClips(shape, clip);
+	}
+
+	/** {@code clip-path}の参照ボックス矩形(物理座標)です。 */
+	private Rectangle2D.Double clipPathReferenceRect(
+			final net.zamasoft.foliojet.layout.box.params.ClipPathShape.ReferenceBox box, final double x,
+			final double y) {
+		final double ml = this.frame.margin.left, mt = this.frame.margin.top;
+		final double bl = this.frame.frame.border.getLeft().width, bt = this.frame.frame.border.getTop().width;
+		final double pl = this.frame.padding.left, pt = this.frame.padding.top;
+		return switch (box) {
+		case MARGIN_BOX -> new Rectangle2D.Double(x, y,
+				this.width + this.frame.padding.getFrameWidth() + this.frame.frame.border.getFrameWidth()
+						+ this.frame.margin.getFrameWidth(),
+				this.height + this.frame.padding.getFrameHeight() + this.frame.frame.border.getFrameHeight()
+						+ this.frame.margin.getFrameHeight());
+		case BORDER_BOX -> new Rectangle2D.Double(x + ml, y + mt,
+				this.width + this.frame.padding.getFrameWidth() + this.frame.frame.border.getFrameWidth(),
+				this.height + this.frame.padding.getFrameHeight() + this.frame.frame.border.getFrameHeight());
+		case PADDING_BOX -> new Rectangle2D.Double(x + ml + bl, y + mt + bt,
+				this.width + this.frame.padding.getFrameWidth(),
+				this.height + this.frame.padding.getFrameHeight());
+		case CONTENT_BOX -> new Rectangle2D.Double(x + ml + bl + pl, y + mt + bt + pt, this.width, this.height);
+		};
+	}
+
+	/**
+	 * クリップ同士の交差です。両方矩形なら軽量な矩形交差、どちらかが
+	 * 任意形状なら{@link java.awt.geom.Area}で交差する(2026-08-22、
+	 * clip-path対応で矩形前提を一般化)。
+	 */
+	private static Shape intersectClips(final Shape a, final Shape b) {
+		if (a instanceof Rectangle2D ra && b instanceof Rectangle2D rb) {
+			return ra.createIntersection(rb);
+		}
+		final java.awt.geom.Area area = new java.awt.geom.Area(a);
+		area.intersect(new java.awt.geom.Area(b));
+		return area;
 	}
 
 	protected abstract AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning);

@@ -40,6 +40,9 @@ public class BlockParams extends AbstractLineParams {
 	 */
 	public boolean paintClip = false;
 
+	/** {@code clip-path}の形状(なければnull。2026-08-22)。 */
+	public ClipPathShape clipPath = null;
+
 	public Columns columns = Columns.NONE_COLUMNS;
 
 	public ParamsType getType() {

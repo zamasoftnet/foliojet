@@ -239,6 +239,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(Overflow.INFO_Y);
 		reg(Clip.INFO);
 		reg(MaskImage.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.ClipPath.INFO);
 		reg(CSSFontFamily.INFO);
 		reg(CSSFontStyle.INFO);
 		reg(FontVariant.INFO);
@@ -346,6 +347,11 @@ public final class ElementPropertySet extends PropertySet {
 
 		// 互換性
 		alias("windows", Widows.INFO);
+		// css-break-3の正式名(page-break-*は旧css2名)。値パーサは
+		// page/column/recto/verso等のLevel 3値を既に受ける(2026-08-22)
+		alias("break-before", PageBreakBefore.INFO);
+		alias("break-after", PageBreakAfter.INFO);
+		alias("break-inside", PageBreakInside.INFO);
 
 		// CSS3
 		reg(BackgroundClip.INFO);
@@ -412,6 +418,7 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-text-stroke", TextStrokeShorthand.INFO);
 		alias("-webkit-background-clip", BackgroundClip.INFO);
 		alias("-webkit-mask-image", MaskImage.INFO);
+		alias("-webkit-clip-path", net.zamasoft.foliojet.css.impl.property.box.ClipPath.INFO);
 
 		alias("oeb-column-number", ColumnCount.INFO);
 		alias("-epub-writing-mode", WritingModeShorthand.INFO);

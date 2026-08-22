@@ -31,13 +31,15 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
 record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLineParamsTemplate firstLineStyle,
 		PageBreakMode pageBreakInside, byte orphans, byte widows, Dimension size, Dimension minSize,
 		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow,
-		net.zamasoft.foliojet.layout.box.params.BoxAlignment blockAlignContent, boolean paintClip, Columns columns) {
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment blockAlignContent, boolean paintClip, Columns columns,
+		net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath) {
 	static BlockParamsFields freeze(final BlockParams source) {
 		final FirstLineParamsTemplate firstLineStyle = source.firstLineStyle == null ? null
 				: FirstLineParamsTemplate.freeze(source.firstLineStyle);
 		return new BlockParamsFields(LineParamsFields.freeze(source), source.frame, firstLineStyle,
 				source.pageBreakInside, source.orphans, source.widows, source.size, source.minSize, source.maxSize,
-				source.boxSizing, source.overflow, source.blockAlignContent, source.paintClip, source.columns);
+				source.boxSizing, source.overflow, source.blockAlignContent, source.paintClip, source.columns,
+				source.clipPath);
 	}
 
 	/**
@@ -61,5 +63,6 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		target.blockAlignContent = this.blockAlignContent;
 		target.paintClip = this.paintClip;
 		target.columns = this.columns;
+		target.clipPath = this.clipPath;
 	}
 }
