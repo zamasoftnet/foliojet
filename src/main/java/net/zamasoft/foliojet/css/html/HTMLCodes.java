@@ -113,6 +113,7 @@ final public class HTMLCodes {
 	public static final short RP = 1602;
 	public static final short RT = 1603;
 	public static final short RUBY = 1604;
+	public static final short RTC = 1605;
 	public static final short S = 1701;
 	public static final short SAMP = 1702;
 	public static final short SCRIPT = 1703;
@@ -408,6 +409,8 @@ final public class HTMLCodes {
 				code = RB;
 			} else if (lName.equals("rp")) {
 				code = RP;
+			} else if (lName.equals("rtc")) {
+				code = RTC;
 			} else if (lName.equals("rt")) {
 				code = RT;
 			} else if (lName.equals("ruby")) {

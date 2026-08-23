@@ -397,7 +397,8 @@ public class CSSStyle {
 
 		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features,
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.get(this),
-				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this));
+				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this),
+				net.zamasoft.foliojet.css.impl.property.text.TextOrientation.get(this));
 		return this.fontStyle;
 	}
 

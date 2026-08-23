@@ -1,105 +1,58 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 
+import net.zamasoft.foliojet.css.value.RubyMergeValue;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 
 /**
- * ルビ単位バッファです(注釈付きテキスト方式、2026-07-25新設。
- * {@link StyledTextUnitizer}がルビコンテナの開始で生成します)。
- *
- * <p>
- * ルビコンテナ(ruby要素)の開始から終了までの文字イベントをため、
- * 「親文字列+ふりがな文字列」のペア(単位)へ切り分けて、対応が
- * ついた時点で{@link Sink}へ<b>逐次</b>配達します(確定済み単位を
- * ルビ終了までため込まない——ストリーミング処理の原則)。live構築と
- * ソース再生は同じ{@code StyledTextUnitizer}経路を通るため、この
- * 組み立ても両経路で同一に働きます(仕様裁定
- * docs/history/2026-07-25-ruby-annotation-spec-decision.md の核心)。
- * </p>
- *
- * <p>
- * 単位の切り分け規則:
- * </p>
- * <ul>
- * <li>親文字の境界は、明示的な{@code rb}(={@code RUBY_BASE})の終了か、
- * ふりがな({@code rt}={@code RUBY_TEXT})の開始である(HTML5に
- * {@code rb}は無く、ruby直下の裸テキストが親文字になる)。</li>
- * <li>親文字とふりがなはそれぞれ<b>キュー</b>へ積み、両方がそろった
- * 時点で1単位ずつ配達する。これにより
- * {@code <ruby><rb>京</rb><rb>都</rb><rt>きょう</rt><rt>と</rt></ruby>}
- * のような複数ペアが正しく対応づく。</li>
- * <li>コンテナ終了時に残った片方だけの断片は、その断片だけの単位として
- * 配達する(malformedマークアップ——rtの無いruby等——の安全側)。</li>
- * <li>単位内のマークアップ(ネストした要素)は箱を作らず、文字と
- * <b>スタイル</b>だけを拾う(断片の書式は、その断片の最初の文字の
- * 時点で有効なインラインのスタイル)。</li>
- * <li>空白・制御コードは通常の空白つぶし相当に単一スペースへ畳む
- * (行分割は単位内で起こらないため改行コードも空白扱い)。</li>
- * </ul>
- *
- * <p>
- * 作らないもの(仕様): {@code rtc}・複数注釈レベル・単位内改行・
- * オーバーハング組版・ルビ内の置換要素/インラインブロック/絶対配置。
- * </p>
+ * HTML/CSS Rubyの文字イベントを、親文字と複数注釈レベルへ正規化します。
+ * ルビ要素1個だけを有界バッファに保持し、{@code rb}/{@code rt}の対応、
+ * {@code rtc}による両側・複数段注釈、{@code ruby-merge}による熟語ルビを
+ * 同じ単位表現へ落とします。
  */
 final class RubyUnitCollector {
 
-	/**
-	 * 単位の片側(親文字またはふりがな)です。
-	 *
-	 * @param text       整形済みの文字列(空白つぶし・text-transform適用後)
-	 * @param params     この断片の書式(最初の文字の時点で有効なインライン)
-	 * @param charOffset 断片が消費したソース文字の先頭オフセット(無ければ-1)
-	 * @param charEnd    断片が消費したソース文字の終端(exclusive。無ければ-1)
-	 */
+	/** 親文字または注釈の整形前断片です。 */
 	record Segment(String text, InlineParams params, int charOffset, int charEnd) {
 	}
 
-	/** 対応がついた単位の配達先です。 */
+	/** 1注釈と、それが属する注釈レベルです。 */
+	record Annotation(Segment segment, int level) {
+	}
+
 	interface Sink {
-		/**
-		 * 単位を1つ配達します。{@code base}・{@code ruby}のどちらかは
-		 * nullのことがあります(malformedマークアップ)。
-		 */
-		void emitRubyUnit(Segment base, Segment ruby);
+		void emitRubyUnit(Segment base, List<Annotation> annotations);
+	}
+
+	private static final class Level {
+		final InlineParams params;
+		final List<Segment> annotations = new ArrayList<Segment>();
+		boolean anonymousSpanning = false;
+
+		Level(final InlineParams params) {
+			this.params = params;
+		}
 	}
 
 	private final InlineParams containerParams;
-
 	private final Sink sink;
-
-	/** コンテナ自身を1とするインラインのネスト深さです。 */
 	private int depth = 1;
-
-	/** コンテナ内で開いているインラインのスタイルです(先頭=コンテナ)。 */
 	private final List<InlineParams> paramsStack = new ArrayList<InlineParams>();
 
-	/** ふりがな範囲(rt相当)の中かどうかです。 */
-	private boolean inAnnotation = false;
-
-	/** ふりがな範囲を開始したインラインの深さです。 */
-	private int annotationDepth = 0;
-
-	/** 明示的な親文字範囲(rb相当)の深さです(0=開いていない)。 */
 	private int baseDepth = 0;
+	private int annotationDepth = 0;
+	private int annotationContainerDepth = 0;
+	private Level activeLevel = null;
 
-	/** 対応待ちの親文字・ふりがなです(有界——ルビ要素1個分)。 */
-	private final Deque<Segment> bases = new ArrayDeque<Segment>();
-
-	private final Deque<Segment> rubies = new ArrayDeque<Segment>();
-
+	private final List<Segment> bases = new ArrayList<Segment>();
+	private final List<Level> levels = new ArrayList<Level>();
 	private final StringBuilder buff = new StringBuilder();
-
 	private InlineParams buffParams = null;
-
 	private boolean pendingSpace = false;
-
 	private int buffStart = -1, buffEnd = -1;
 
 	RubyUnitCollector(final InlineParams containerParams, final Sink sink) {
@@ -112,48 +65,58 @@ final class RubyUnitCollector {
 		return this.containerParams;
 	}
 
-	/** コンテナ内でインラインが開始されました。 */
 	void startInline(final InlineParams params) {
 		++this.depth;
 		this.paramsStack.add(params);
-		if (this.inAnnotation) {
-			// ふりがなの中のマークアップは深さだけ数える
+		// rt/rb内部の装飾要素はスタイルスタックとしてだけ扱う。
+		if (this.annotationDepth != 0 || this.baseDepth != 0) {
 			return;
 		}
 		switch (params.rubyRole) {
+		case AbstractTextParams.RUBY_TEXT_CONTAINER:
+			this.flushBase();
+			this.activeLevel = new Level(params);
+			this.levels.add(this.activeLevel);
+			this.annotationContainerDepth = this.depth;
+			break;
 		case AbstractTextParams.RUBY_TEXT:
-			// ふりがなの開始 = ここまでの親文字の確定(暗黙のrb境界)
-			this.flush(this.bases);
-			this.inAnnotation = true;
+			if (this.annotationContainerDepth == 0) {
+				this.flushBase();
+				if (this.activeLevel == null) {
+					this.activeLevel = new Level(this.containerParams);
+					this.levels.add(this.activeLevel);
+				}
+			} else {
+				// rtc直下の裸テキストが先行していれば、匿名のspanning注釈。
+				this.flushAnnotation(true);
+			}
 			this.annotationDepth = this.depth;
 			break;
 		case AbstractTextParams.RUBY_BASE:
-			if (this.baseDepth == 0) {
-				// 明示的な親文字の開始 = 直前の裸テキストの確定
-				this.flush(this.bases);
-				this.baseDepth = this.depth;
+			if (!this.levels.isEmpty()) {
+				this.flushBase();
+				this.emitSegment();
 			}
+			this.flushBase();
+			this.baseDepth = this.depth;
 			break;
 		default:
 			break;
 		}
 	}
 
-	/**
-	 * コンテナ内でインラインが終了しました。コンテナ自身が閉じたら
-	 * trueを返します(呼び出し側は通常のインライン終了処理へ進む)。
-	 */
+	/** コンテナ自身が閉じたときだけtrue。 */
 	boolean endInline() {
-		if (this.inAnnotation && this.depth == this.annotationDepth) {
-			// ふりがな範囲の終了 = 断片の確定
-			this.inAnnotation = false;
-			this.flush(this.rubies);
-			this.pair();
-		} else if (!this.inAnnotation && this.baseDepth != 0 && this.depth == this.baseDepth) {
-			// 明示的な親文字範囲の終了 = 断片の確定
+		if (this.annotationDepth != 0 && this.depth == this.annotationDepth) {
+			this.flushAnnotation(false);
+			this.annotationDepth = 0;
+		} else if (this.baseDepth != 0 && this.depth == this.baseDepth) {
+			this.flushBase();
 			this.baseDepth = 0;
-			this.flush(this.bases);
-			this.pair();
+		} else if (this.annotationContainerDepth != 0 && this.depth == this.annotationContainerDepth) {
+			this.flushAnnotation(true);
+			this.annotationContainerDepth = 0;
+			this.activeLevel = null;
 		}
 		if (!this.paramsStack.isEmpty()) {
 			this.paramsStack.remove(this.paramsStack.size() - 1);
@@ -166,20 +129,23 @@ final class RubyUnitCollector {
 		return false;
 	}
 
-	/** コンテナ内の文字です。親文字またはふりがなのバッファへためます。 */
 	void characters(final int charOffset, final char[] ch, final int off, final int len) {
+		final boolean annotation = this.annotationDepth != 0 || this.annotationContainerDepth != 0;
+		if (!annotation && !this.levels.isEmpty() && containsNonWhiteSpace(ch, off, len)) {
+			// HTML5では1つのruby要素に複数segmentを置ける。注釈後に
+			// 親文字が再開した地点をsegment境界とする。
+			this.flushBase();
+			this.emitSegment();
+		}
 		for (int i = 0; i < len; ++i) {
 			final char c = ch[off + i];
 			if (charOffset >= 0) {
-				// ソース範囲は「捨てた空白」も含めて数える(単位が消費した
-				// ソースの境界——改ページ部分再生の再開位置に使う)
 				if (this.buffStart < 0) {
 					this.buffStart = charOffset + i;
 				}
 				this.buffEnd = charOffset + i + 1;
 			}
 			if (c == ' ' || TextUtils.isControl(c) || TextUtils.isWhiteSpace(c)) {
-				// 空白・制御コードは単一スペースへ畳む(先頭は捨てる)
 				this.pendingSpace = this.buff.length() > 0;
 				continue;
 			}
@@ -194,42 +160,116 @@ final class RubyUnitCollector {
 		}
 	}
 
-	/**
-	 * コンテナが正常に閉じないまま配達を強制されました(malformed——
-	 * ルビの中にブロックが現れた等)。たまっている分をその場で配達し
-	 * ますが、深さの追跡は継続します(通常のインラインスタックを
-	 * 誤popしないため)。
-	 */
+	/** malformedなブロック混入時は、現在までを安全な単位として確定する。 */
 	void drain() {
-		this.flush(this.inAnnotation ? this.rubies : this.bases);
-		this.pair();
+		if (this.annotationDepth != 0 || this.annotationContainerDepth != 0) {
+			this.flushAnnotation(this.annotationDepth == 0);
+		} else {
+			this.flushBase();
+		}
+		this.emitSegment();
 	}
 
 	private void finish() {
-		this.flush(this.inAnnotation ? this.rubies : this.bases);
-		this.pair();
-		// 片方だけ残った断片(malformed)はその断片だけの単位にする
-		while (!this.bases.isEmpty()) {
-			this.sink.emitRubyUnit(this.bases.poll(), null);
+		if (this.annotationDepth != 0 || this.annotationContainerDepth != 0) {
+			this.flushAnnotation(this.annotationDepth == 0);
+		} else {
+			this.flushBase();
 		}
-		while (!this.rubies.isEmpty()) {
-			this.sink.emitRubyUnit(null, this.rubies.poll());
+		this.emitSegment();
+	}
+
+	private void emitSegment() {
+		if (this.bases.isEmpty() && this.levels.isEmpty()) {
+			this.resetSegment();
+			return;
+		}
+		boolean merge = this.containerParams.rubyMerge == RubyMergeValue.MERGE;
+		for (final Level level : this.levels) {
+			merge |= level.anonymousSpanning && this.bases.size() > 1;
+			merge |= level.params.rubyMerge == RubyMergeValue.MERGE;
+		}
+		if (!merge && this.containerParams.rubyMerge == RubyMergeValue.AUTO) {
+			merge = this.needsAutomaticMerge();
+		}
+		for (final Level level : this.levels) {
+			if (!merge && level.params.rubyMerge == RubyMergeValue.AUTO) {
+				merge = this.needsAutomaticMerge();
+			}
+		}
+
+		if (merge) {
+			final Segment base = combine(this.bases, this.containerParams);
+			final List<Annotation> annotations = new ArrayList<Annotation>();
+			for (int level = 0; level < this.levels.size(); ++level) {
+				final Segment annotation = combine(this.levels.get(level).annotations,
+						this.levels.get(level).params);
+				if (annotation != null) {
+					annotations.add(new Annotation(annotation, level));
+				}
+			}
+			this.sink.emitRubyUnit(base, annotations);
+		} else {
+			int count = this.bases.size();
+			for (final Level level : this.levels) {
+				count = Math.max(count, level.annotations.size());
+			}
+			for (int i = 0; i < count; ++i) {
+				final Segment base = i < this.bases.size() ? this.bases.get(i) : null;
+				final List<Annotation> annotations = new ArrayList<Annotation>();
+				for (int level = 0; level < this.levels.size(); ++level) {
+					final List<Segment> candidates = this.levels.get(level).annotations;
+					if (i < candidates.size()) {
+						annotations.add(new Annotation(candidates.get(i), level));
+					}
+				}
+				this.sink.emitRubyUnit(base, annotations);
+			}
+		}
+		this.resetSegment();
+	}
+
+	private boolean needsAutomaticMerge() {
+		for (final Level level : this.levels) {
+			final int count = Math.min(this.bases.size(), level.annotations.size());
+			for (int i = 0; i < count; ++i) {
+				final String base = this.bases.get(i).text();
+				final String ruby = level.annotations.get(i).text();
+				if (ruby.codePointCount(0, ruby.length()) > base.codePointCount(0, base.length()) * 2) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private void resetSegment() {
+		this.bases.clear();
+		this.levels.clear();
+		this.activeLevel = null;
+	}
+
+	private void flushBase() {
+		final Segment segment = this.takeBuffer();
+		if (segment != null) {
+			this.bases.add(segment);
 		}
 	}
 
-	/** 親文字とふりがながそろっている分を配達します。 */
-	private void pair() {
-		while (!this.bases.isEmpty() && !this.rubies.isEmpty()) {
-			this.sink.emitRubyUnit(this.bases.poll(), this.rubies.poll());
+	private void flushAnnotation(final boolean anonymous) {
+		final Segment segment = this.takeBuffer();
+		if (segment == null) {
+			return;
 		}
+		if (this.activeLevel == null) {
+			this.activeLevel = new Level(this.containerParams);
+			this.levels.add(this.activeLevel);
+		}
+		this.activeLevel.annotations.add(segment);
+		this.activeLevel.anonymousSpanning |= anonymous;
 	}
 
-	private InlineParams currentParams() {
-		return this.paramsStack.isEmpty() ? this.containerParams : this.paramsStack.get(this.paramsStack.size() - 1);
-	}
-
-	/** バッファの内容を断片として確定し、指定のキューへ積みます。 */
-	private void flush(final Deque<Segment> queue) {
+	private Segment takeBuffer() {
 		final int start = this.buffStart, end = this.buffEnd;
 		final InlineParams params = this.buffParams == null ? this.currentParams() : this.buffParams;
 		final String text = transform(this.buff.toString(), params);
@@ -237,16 +277,40 @@ final class RubyUnitCollector {
 		this.buffParams = null;
 		this.pendingSpace = false;
 		this.buffStart = this.buffEnd = -1;
-		if (text.isEmpty()) {
-			return;
-		}
-		queue.add(new Segment(text, params, start, end));
+		return text.isEmpty() ? null : new Segment(text, params, start, end);
 	}
 
-	/**
-	 * text-transformを適用します(ルビ内のマークアップは箱にしないため、
-	 * 断片ごとの書式としてここで解決する)。
-	 */
+	private InlineParams currentParams() {
+		return this.paramsStack.isEmpty() ? this.containerParams : this.paramsStack.get(this.paramsStack.size() - 1);
+	}
+
+	private static Segment combine(final List<Segment> segments, final InlineParams fallback) {
+		if (segments.isEmpty()) {
+			return null;
+		}
+		final StringBuilder text = new StringBuilder();
+		int start = -1, end = -1;
+		for (final Segment segment : segments) {
+			text.append(segment.text());
+			if (segment.charOffset() >= 0) {
+				start = start < 0 ? segment.charOffset() : Math.min(start, segment.charOffset());
+			}
+			end = Math.max(end, segment.charEnd());
+		}
+		final InlineParams params = segments.get(0).params() == null ? fallback : segments.get(0).params();
+		return new Segment(text.toString(), params, start, end);
+	}
+
+	private static boolean containsNonWhiteSpace(final char[] ch, final int off, final int len) {
+		for (int i = 0; i < len; ++i) {
+			final char c = ch[off + i];
+			if (c != ' ' && !TextUtils.isControl(c) && !TextUtils.isWhiteSpace(c)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static String transform(final String text, final AbstractTextParams params) {
 		switch (params.textTransform) {
 		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE:

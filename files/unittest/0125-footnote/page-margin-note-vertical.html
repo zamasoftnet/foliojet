@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ vertical headnotes</title>
+    <style>
+      @page { size: 300pt 240pt; margin: 50pt; }
+      body {
+        margin: 0;
+        writing-mode: vertical-rl;
+        font: 10pt monospace;
+        line-height: 14pt;
+      }
+      p { margin: 0; }
+      .note {
+        float: -cssj-note-start;
+        width: 20pt;
+        height: 38pt;
+        padding: 2pt;
+        border: 0.5pt solid black;
+        font-size: 7pt;
+        line-height: 9pt;
+      }
+    </style>
+  </head>
+  <body>
+    <p>A1<span class="note">head one</span></p>
+    <p>A2<span class="note">head two</span></p>
+    <p>A3</p>
+  </body>
+</html>

@@ -12,7 +12,9 @@ public enum CSSJRubyValue implements Value {
 
 	RB_VALUE(CSSJRubyValue.RB),
 
-	RT_VALUE(CSSJRubyValue.RT);
+	RT_VALUE(CSSJRubyValue.RT),
+
+	RTC_VALUE(CSSJRubyValue.RTC);
 	public static final byte NONE = 0;
 
 	public static final byte RUBY = 1;
@@ -20,6 +22,8 @@ public enum CSSJRubyValue implements Value {
 	public static final byte RB = 2;
 
 	public static final byte RT = 3;
+
+	public static final byte RTC = 4;
 
 	private final byte ruby;
 
@@ -41,6 +45,8 @@ public enum CSSJRubyValue implements Value {
 			return "rb";
 		case RT:
 			return "rt";
+		case RTC:
+			return "rtc";
 		default:
 			throw new IllegalStateException();
 		}

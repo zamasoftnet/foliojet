@@ -93,7 +93,9 @@ final class PagedSVGGC extends G2DGC {
 		final StringBuilder chars = new StringBuilder(glyphCount * 2);
 		final StringBuilder xs = new StringBuilder(glyphCount * 12);
 		final StringBuilder ys = new StringBuilder(glyphCount * 12);
-		double pen = 0;
+		// xAdvance[0]はrun先頭glyphの手前の調整。style run境界の
+		// 和文約物詰めにも使うため、2文字目まで先送りしてはいけない。
+		double pen = adjustments == null ? 0 : adjustments.get(0);
 		double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
 		for (int i = 0; i < glyphCount; ++i) {

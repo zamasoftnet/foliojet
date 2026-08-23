@@ -28,15 +28,15 @@ public class TextAutospaceClassesTest extends TestCase {
 
 	/** 漢A・A漢・漢1・1漢の4方向。flagsによる選別。 */
 	public void testGap() {
-		assertEquals(0.125, TextAutospaceClasses.gapEm('漢', 'A', BOTH), 0.0001);
-		assertEquals(0.125, TextAutospaceClasses.gapEm('A', '漢', BOTH), 0.0001);
-		assertEquals(0.125, TextAutospaceClasses.gapEm('漢', '1', BOTH), 0.0001);
-		assertEquals(0.125, TextAutospaceClasses.gapEm('1', '漢', BOTH), 0.0001);
-		assertEquals(0.125, TextAutospaceClasses.gapEm('あ', 'A', BOTH), 0.0001);
+		assertEquals(0.25, TextAutospaceClasses.gapEm('漢', 'A', BOTH), 0.0001);
+		assertEquals(0.25, TextAutospaceClasses.gapEm('A', '漢', BOTH), 0.0001);
+		assertEquals(0.25, TextAutospaceClasses.gapEm('漢', '1', BOTH), 0.0001);
+		assertEquals(0.25, TextAutospaceClasses.gapEm('1', '漢', BOTH), 0.0001);
+		assertEquals(0.25, TextAutospaceClasses.gapEm('あ', 'A', BOTH), 0.0001);
 
 		assertEquals(0.0, TextAutospaceClasses.gapEm('漢', 'A', TextAutospaceValue.NUMERIC), 0.0001);
 		assertEquals(0.0, TextAutospaceClasses.gapEm('漢', '1', TextAutospaceValue.ALPHA), 0.0001);
-		assertEquals(0.125, TextAutospaceClasses.gapEm('漢', '1', TextAutospaceValue.NUMERIC), 0.0001);
+		assertEquals(0.25, TextAutospaceClasses.gapEm('漢', '1', TextAutospaceValue.NUMERIC), 0.0001);
 		assertEquals(0.0, TextAutospaceClasses.gapEm('漢', 'A', (byte) 0), 0.0001);
 	}
 

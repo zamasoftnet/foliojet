@@ -1,0 +1,27 @@
+<?jp.cssj.property name="output.page-width" value="260pt"?>
+<?jp.cssj.property name="output.page-height" value="220pt"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ justification priorities</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 12pt; line-height: 24pt; text-autospace: normal; }
+	      p { margin: 0; text-align: justify; text-align-last: justify; border-right: .2pt solid; }
+	      .p1 { width: 36pt; }
+	      .p2 { width: 40pt; }
+	      .p3 { width: 44pt; }
+	      .p4 { width: 54pt; }
+    </style>
+  </head>
+  <body>
+    <!-- 小さい余りは第1段階の欧文語間だけで消費する。 -->
+    <p class="p1">A B漢</p>
+    <!-- 語間の上限後に、第2段階の和欧間を使う。 -->
+    <p class="p2">A B漢</p>
+    <!-- 和欧間を四分から二分まで広げる。 -->
+    <p class="p3">漢A字</p>
+    <!-- 和文相互は第3段階で最大四分まで広げる。 -->
+    <p class="p4">漢字仮名</p>
+  </body>
+</html>

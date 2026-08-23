@@ -993,6 +993,25 @@ public class DocumentBuilder implements TableBuilderHost {
 				}
 				break;
 			}
+			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos notePos) {
+				// JLREQ 4.2.7の並列注。ページフロートと同じ分離builderで
+				// 組み、本文の現在位置に近い版面外の注領域へ渡す。
+				final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
+				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+					break;
+				}
+				if (entry.builder.isTwoPass()) {
+					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+					noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+					final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
+					contentBuilder.bind(noteBuilder, this.scratchMeasurement);
+					noteBuilder.close();
+				}
+				if (this.pageContextBuilder() instanceof RootBuilder root) {
+					root.addPageMarginNote(noteBox, notePos.start);
+				}
+				break;
+			}
 			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
 				// 脚注F2/F3(2026-07-31、consult-codex-2026-07-31-footnote.txt
 				// §3): 本文は親のflowへ入れない(呼び出し位置にはF1の

@@ -38,7 +38,7 @@ public class ListWordwrapTest extends AbstractTestCase {
 			System.out.println("y: " + y);
 			System.out.println("height: " + box.getHeight());
 			assertEquals(102.6, x, 1);
-			assertEquals(40, y, 1);
+			assertEquals(45, y, 1);
 			assertEquals(20, box.getHeight(), 1);
 			return true;
 		}

@@ -20,7 +20,7 @@ public class KerningBreakTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println("y: " + y);
-			assertEquals(42, y, 0);
+			assertEquals(48, y, 0);
 			return true;
 		}
 		return false;

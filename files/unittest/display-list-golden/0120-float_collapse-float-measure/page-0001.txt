@@ -1,8 +1,8 @@
 drawer z=0
   x=-36.00 y=-36.00 AbsoluteRectFrame[w=595.28 h=841.89]
   x=6.00 y=203.25 AbsoluteRectFrame[w=511.28 h=89.89]
-  x=6.00 y=60.96 AbsoluteRectFrame[w=285.00 h=179.79]
-  x=43.50 y=98.46 AbsoluteRectFrame[w=210.00 h=89.89]
+  x=6.00 y=60.96 AbsoluteRectFrame[w=288.00 h=179.79]
+  x=43.50 y=98.46 AbsoluteRectFrame[w=213.00 h=89.89]
   x=81.00 y=135.96 Text["マージン50pxのボックス" asc=10.80 desc=4.09]
   x=43.50 y=188.35 Text["マージン50pxの左浮動ボックス" asc=10.80 desc=4.09]
   x=6.00 y=16.08 Text["浮動ボックスのマージンのつぶし" asc=21.60 desc=7.20]

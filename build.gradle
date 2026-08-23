@@ -281,8 +281,8 @@ tasks.named('test') {
     // 一時ディレクトリ。既定の `local` は /mnt/f(DrvFs)にあり、掃過では
     // LayoutSource の spill 等でここへも書くため I/O 律速の一因になる。
     // -PtestTmpDir=/dev/shm/foliojet のように速い場所を指せる(2026-07-28)
-    systemProperty 'java.io.tmpdir',
-            project.hasProperty('testTmpDir') ? project.property('testTmpDir') : 'local'
+    def configuredTestTmpDir = project.hasProperty('testTmpDir') ? project.property('testTmpDir') : 'local'
+    systemProperty 'java.io.tmpdir', configuredTestTmpDir
     systemProperty 'java.awt.headless', 'true'
     // ハングアップ検出(進捗なし締切)。製品既定は無制限(オーナー裁定
     // 2026-08-01——誤爆すると正当な文書が失敗するため)で、ライブロックを
@@ -317,6 +317,10 @@ tasks.named('test') {
     }
 
     doFirst {
+        // java.io.tmpdir はJVM自身では作られない。掃過向けに
+        // -PtestTmpDir=/dev/shm/... を新規パスへ向けても、最初の一時
+        // ファイル生成で遅れて失敗しないようテスト開始前に用意する。
+        new File(configuredTestTmpDir).mkdirs()
         new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
     }
 }

@@ -29,9 +29,7 @@ public final class JapaneseSpacingResolver {
 	 * <ul>
 	 * <li>開き+開き(両方wide): 0.5</li>
 	 * <li>閉じ+{開き|閉じ|句読点}(両方wide): 0.5</li>
-	 * <li>句読点(wide)+開き: 0.5——<b>後続開き括弧のwide判定なし</b>
-	 * (移管元の演算子優先順位の癖{@code a||b&&c}をそのまま保存。
-	 * 修正するときは意図的差分として扱う)</li>
+	 * <li>句読点(wide)+開き(wide): 0.5</li>
 	 * <li>句読点(wide)+閉じ(wide): 0.5</li>
 	 * </ul>
 	 * GPOSカーニングが非0の組には適用しない(呼び出し側の契約——
@@ -51,7 +49,9 @@ public final class JapaneseSpacingResolver {
 			return next != JapaneseSpacingClass.OTHER && wide ? PAIR_TRIM : 0;
 		case PUNCTUATION:
 			if (next == JapaneseSpacingClass.OPENING) {
-				return PAIR_TRIM; // 移管元の癖: wide判定なし
+				// JLREQの二分アキは全角の約物枠を前提とする。fallback等で
+				// 後続がproportionalなら固定0.5emを引かない。
+				return wide ? PAIR_TRIM : 0;
 			}
 			return next == JapaneseSpacingClass.CLOSING && wide ? PAIR_TRIM : 0;
 		case MIDDLE_DOT:
@@ -65,12 +65,56 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 縦書き行頭の天付きインデント(em比、負値)です。行頭の最初の
-	 * 可視テキストが始め括弧類で始まるとき-0.5em(移管元:
-	 * TextBuilderの縦書き限定処理)。それ以外は0。
+	 * 行頭の天付きインデント(em比、負値)です。書字方向によらず、行頭の最初の
+	 * 可視テキストが全角相当の始め括弧類で始まるとき-0.5em(移管元:
+	 * TextBuilderの縦書き限定処理)。CSS Text 4の
+	 * {@code text-spacing-trim: trim-start}でだけ天付きにし、{@code normal}と
+	 * {@code space-all}ではJLREQが選択肢として挙げる行頭二分アキを残す。
+	 * プロポーショナル約物とそれ以外も0。
 	 */
-	public static double verticalHeadIndent(final int firstCodePoint) {
-		return JapaneseSpacingClass.of(firstCodePoint) == JapaneseSpacingClass.OPENING ? -PAIR_TRIM : 0;
+	public static double lineHeadIndent(final int firstCodePoint, final boolean wide, final boolean trimStart) {
+		return trimStart && wide && JapaneseSpacingClass.of(firstCodePoint) == JapaneseSpacingClass.OPENING ? -PAIR_TRIM
+				: 0;
+	}
+
+	/**
+	 * {@code hanging-punctuation:first}で最初の整形行の先頭から行外へ出す量。
+	 * text-spacingで既に半角化した全角始め括弧は0.5em、それ以外の対象字形は
+	 * 実advance全体をぶら下げる。
+	 */
+	public static double firstHang(final int codePoint, final boolean wide, final double advance,
+			final double fontSize, final boolean trimmedStart) {
+		if (codePoint == 0x3000) {
+			return -advance;
+		}
+		final int type = Character.getType(codePoint);
+		final boolean quoteOrBracket = type == Character.START_PUNCTUATION
+				|| type == Character.INITIAL_QUOTE_PUNCTUATION || type == Character.FINAL_QUOTE_PUNCTUATION
+				|| codePoint == 0x27 || codePoint == 0x22;
+		if (!quoteOrBracket) {
+			return 0;
+		}
+		if (trimmedStart && wide && JapaneseSpacingClass.of(codePoint) == JapaneseSpacingClass.OPENING) {
+			return -PAIR_TRIM * fontSize;
+		}
+		return -advance;
+	}
+
+	/**
+	 * 均等割りで直後を伸長してよい文字かを返します。
+	 *
+	 * <p>JLREQ 3.1.5の中点類(cl-05)は、字形が持つ前後四分のうち
+	 * 後ろをベタに保つのが原則で、行調整の無差別な伸長点にはしない。
+	 * 行頭禁則だけでは「中点の前」は守れても「中点の後」は守れないため、
+	 * justifyのcount/apply双方がこの判定を使う。</p>
+	 */
+	public static boolean allowsJustificationAfter(final int codePoint) {
+		return JapaneseSpacingClass.of(codePoint) != JapaneseSpacingClass.MIDDLE_DOT;
+	}
+
+	/** JLREQ cl-07（読点類）。cl-06（句点類）と追込み優先度を分けるために使う。 */
+	public static boolean isComma(final int codePoint) {
+		return codePoint == 0x3001 || codePoint == 0xFF0C;
 	}
 
 	/**
@@ -89,27 +133,43 @@ public final class JapaneseSpacingResolver {
 	 */
 	public static double endAllowance(final int codePoint, final boolean wide, final boolean trimOff,
 			final boolean hangEnd, final double advance, final double fontSize, final double overflow) {
-		if (!wide) {
-			return 0;
-		}
 		final JapaneseSpacingClass cls = JapaneseSpacingClass.of(codePoint);
-		if (cls != JapaneseSpacingClass.CLOSING && cls != JapaneseSpacingClass.PUNCTUATION
-				&& cls != JapaneseSpacingClass.MIDDLE_DOT) {
-			return 0;
-		}
 		// (1) 行末trim: 半角化で収まるなら詰める(中点はJIS X 4051の
 		// 「行末中点は前四分・後ろベタ」に従い四分=0.25emのみ)
 		if (!trimOff) {
-			final double trim = (cls == JapaneseSpacingClass.MIDDLE_DOT ? PAIR_TRIM / 2 : PAIR_TRIM) * fontSize;
+			final double trim = endTrim(codePoint, wide, fontSize);
 			if (overflow <= trim) {
 				return trim;
 			}
 		}
 		// (2) ぶら下げ: 句読点のみ・そのglyphの全advance
-		if (hangEnd && cls == JapaneseSpacingClass.PUNCTUATION && overflow <= advance) {
+		if (wide && hangEnd && cls == JapaneseSpacingClass.PUNCTUATION && overflow <= advance) {
 			return advance;
 		}
 		return 0;
+	}
+
+	/**
+	 * 全角の行末約物を半角化する量です。閉じ括弧・句読点は二分、
+	 * 中点類はJLREQの行末配置に従い四分を詰める。
+	 */
+	public static double endTrim(final int codePoint, final boolean wide, final double fontSize) {
+		if (!wide) {
+			return 0;
+		}
+		final JapaneseSpacingClass cls = JapaneseSpacingClass.of(codePoint);
+		if (cls == JapaneseSpacingClass.CLOSING || cls == JapaneseSpacingClass.PUNCTUATION) {
+			return PAIR_TRIM * fontSize;
+		}
+		if (cls == JapaneseSpacingClass.MIDDLE_DOT) {
+			return PAIR_TRIM / 2 * fontSize;
+		}
+		return 0;
+	}
+
+	/** {@code force-end}で常にぶら下げるJLREQ句読点のadvanceです。 */
+	public static double forceEndHang(final int codePoint, final double advance) {
+		return JapaneseSpacingClass.of(codePoint) == JapaneseSpacingClass.PUNCTUATION ? advance : 0;
 	}
 
 	/** wide判定(metrics換算: font単位750/1000 ⇔ 0.75×font-size)。 */

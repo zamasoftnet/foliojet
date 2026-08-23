@@ -18,7 +18,11 @@ public enum CSSFloatValue implements Value {
 
 	PAGE_TOP_VALUE(CSSFloatValue.PAGE_TOP),
 
-	PAGE_BOTTOM_VALUE(CSSFloatValue.PAGE_BOTTOM);
+	PAGE_BOTTOM_VALUE(CSSFloatValue.PAGE_BOTTOM),
+
+	PAGE_NOTE_START_VALUE(CSSFloatValue.PAGE_NOTE_START),
+
+	PAGE_NOTE_END_VALUE(CSSFloatValue.PAGE_NOTE_END);
 	public static final byte NONE = 0;
 
 	public static final byte LEFT = 1;
@@ -48,9 +52,16 @@ public enum CSSFloatValue implements Value {
 	 */
 	public static final byte PAGE_BOTTOM = 7;
 
+	/** 版面の論理行頭側に置く並列注（横組=左、縦組=上）。 */
+	public static final byte PAGE_NOTE_START = 8;
+
+	/** 版面の論理行末側に置く並列注（横組=右、縦組=下）。 */
+	public static final byte PAGE_NOTE_END = 9;
+
 	/** ページ単位で配置するフロート(脚注・ページフロート)か。 */
 	public static boolean isPageLevel(final byte floating) {
-		return floating == FOOTNOTE || floating == PAGE_TOP || floating == PAGE_BOTTOM;
+		return floating == FOOTNOTE || floating == PAGE_TOP || floating == PAGE_BOTTOM
+				|| floating == PAGE_NOTE_START || floating == PAGE_NOTE_END;
 	}
 
 	private final byte floating;
@@ -82,6 +93,18 @@ public enum CSSFloatValue implements Value {
 
 		case FOOTNOTE:
 			return "footnote";
+
+		case PAGE_TOP:
+			return "top";
+
+		case PAGE_BOTTOM:
+			return "bottom";
+
+		case PAGE_NOTE_START:
+			return "-cssj-note-start";
+
+		case PAGE_NOTE_END:
+			return "-cssj-note-end";
 
 		default:
 			throw new IllegalStateException();

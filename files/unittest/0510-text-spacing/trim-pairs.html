@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>text-spacing-trim T1b: normal vs space-all</title>
+<title>text-spacing-trim T1b: normal vs trim-start vs space-all</title>
 <style type="text/css">
 body { font-size: 12pt; margin: 0; }
 p { margin: 0; }
@@ -10,6 +10,7 @@ p { margin: 0; }
 </head>
 <body>
 <p id="normal">「あ」、「あ。」<span>末</span></p>
+<p id="start" style="text-spacing-trim: trim-start">「あ」、「あ。」<span>末</span></p>
 <p id="all" style="text-spacing-trim: space-all">「あ」、「あ。」<span>末</span></p>
 </body>
 </html>

@@ -1,0 +1,13 @@
+drawer z=0
+  x=206.00 y=0.00 AbsoluteRectFrame[w=39.00 h=14.00]
+  x=208.50 y=2.50 Text["note" asc=6.60 desc=2.40]
+  x=226.00 y=2.50 Text["one" asc=6.60 desc=2.40]
+  x=206.00 y=20.00 AbsoluteRectFrame[w=39.00 h=23.00]
+  x=208.50 y=22.50 Text["note" asc=6.60 desc=2.40]
+  x=226.00 y=22.50 Text["two" asc=6.60 desc=2.40]
+  x=208.50 y=31.50 Text["is" asc=6.60 desc=2.40]
+  x=219.00 y=31.50 Text["taller" asc=6.60 desc=2.40]
+  x=0.00 y=0.00 Text["L01" asc=10.00 desc=4.00]
+  x=0.00 y=14.00 Text["L02" asc=10.00 desc=4.00]
+  x=0.00 y=28.00 Text["L03" asc=10.00 desc=4.00]
+  x=0.00 y=42.00 Text["L04" asc=10.00 desc=4.00]

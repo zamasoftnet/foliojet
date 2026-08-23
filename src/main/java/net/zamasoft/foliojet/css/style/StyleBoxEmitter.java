@@ -184,6 +184,7 @@ import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FootnotePos;
 import net.zamasoft.foliojet.layout.box.params.PageFloatPos;
+import net.zamasoft.foliojet.layout.box.params.PageMarginNotePos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
@@ -369,6 +370,11 @@ final class StyleBoxEmitter {
 			// 分離builderのライフサイクルへ流し、終了時にページ台帳
 			// (RootBuilder)へ渡す。回り込み幾何には関与しない
 			final PageFloatPos pos = new PageFloatPos(floating == CSSFloatValue.PAGE_TOP);
+			this.mapper.setupStaticPos(pos, style);
+			blockBox = new FloatBlockBox(params, pos);
+		} else if (floating == CSSFloatValue.PAGE_NOTE_START || floating == CSSFloatValue.PAGE_NOTE_END) {
+			// JLREQ並列注。ページの論理行方向の余白へ分離配置する。
+			final PageMarginNotePos pos = new PageMarginNotePos(floating == CSSFloatValue.PAGE_NOTE_START);
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating == CSSFloatValue.FOOTNOTE) {

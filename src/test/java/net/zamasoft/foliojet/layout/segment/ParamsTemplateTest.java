@@ -188,11 +188,18 @@ public class ParamsTemplateTest extends TestCase {
 				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(true)).materialize();
 		final FloatPos pageBottom = FloatPosTemplate
 				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false)).materialize();
+		final FloatPos noteStart = FloatPosTemplate
+				.freeze(new net.zamasoft.foliojet.layout.box.params.PageMarginNotePos(true)).materialize();
+		final FloatPos noteEnd = FloatPosTemplate
+				.freeze(new net.zamasoft.foliojet.layout.box.params.PageMarginNotePos(false)).materialize();
 
 		assertTrue(footnote instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos);
 		assertTrue(pageTop instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos);
 		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageTop).top);
 		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom).top);
+		assertTrue(noteStart instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos);
+		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) noteStart).start);
+		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) noteEnd).start);
 	}
 
 	/**

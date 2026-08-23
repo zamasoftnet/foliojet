@@ -2,14 +2,14 @@ package net.zamasoft.foliojet.layout.text.spacing;
 
 /**
  * 和文スペーシングの文字クラスです(和文詰めS0、2026-07-31——
- * consult-codex-2026-07-31-text-spacing.txt Q2/S0。JLREQの文字クラスの
- * サブセット)。分類は必ずUnicode code point(int)で行う——既存の
+ * consult-codex-2026-07-31-text-spacing.txt Q2/S0。JLREQのうち
+ * 約物スペーシングに使う文字クラス)。分類は必ずUnicode code point(int)で行う——既存の
  * charベース禁則APIと違い補助面を落とさない(答申Q2)。
  *
  * <p>
- * 文字集合は移管元(OpenTypeFont.getKerningのCL01/CL02/CL0607、
- * TextBuilderの天付きCL01)と同一。S1の出力不変移管の基準になるため、
- * ここを変えるときは必ずdisplay-list goldenの意図的差分として扱うこと。
+	 * 文字集合はJLREQ附属書のcl-01/cl-02/cl-05〜cl-07を正本とする。
+	 * 元はOpenTypeFont.getKerningとTextBuilderから移管した集合だが、
+	 * 附属書との不一致を直す場合はdisplay-list goldenの意図的差分として扱うこと。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -31,7 +31,7 @@ public enum JapaneseSpacingClass {
 	/** 対象外。 */
 	OTHER;
 
-	private static final String CL01 = "‘“（〔［｛〈《「『【⦅〖«〝";
+	private static final String CL01 = "‘“（〔［｛〈《「『【⦅〘〖«〝";
 
 	private static final String CL02 = "’”）〕］｝〉》」』】⦆〙〗»〟";
 

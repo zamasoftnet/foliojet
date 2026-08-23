@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>JLREQ run boundary, middle dot and tentsuki</title>
+<style type="text/css">
+@page { margin: 0; size: 240pt 260pt; }
+body { font: normal 20pt/1.2 serif; margin: 0; }
+p { margin: 0; }
+span { color: red; }
+#middle { width: 110pt; text-align: justify; }
+#horizontal { width: 120pt; text-indent: 10pt; text-spacing-trim: trim-start; }
+#vertical { writing-mode: vertical-rl; width: 48pt; height: 120pt; text-indent: 10pt; text-spacing-trim: trim-start; }
+</style>
+</head>
+<body>
+<!-- closing+opening must tighten even though the opening starts a style run. -->
+<p id="run-boundary">」<span id="opening">「</span><span id="tail">あ</span></p>
+<!-- The fixed quarter-space after cl-05 is not a justification opportunity. -->
+<p id="middle">あ<span id="dot">・</span><span id="after-dot">い</span><span id="after-i">う</span><span id="after-u">え</span>お</p>
+<!-- Tentsuki applies in horizontal writing and is relative to text-indent. -->
+<p id="horizontal">「<span id="horizontal-tail">あいう</span></p>
+<!-- Tentsuki applies in vertical writing and is relative to text-indent. -->
+<p id="vertical">「<span id="vertical-tail">あいう</span></p>
+</body>
+</html>

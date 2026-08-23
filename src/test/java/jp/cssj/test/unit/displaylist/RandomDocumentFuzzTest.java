@@ -176,6 +176,41 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertEquals("同一seedの生成結果が変動する", generate(12345, true), generate(12345, true));
 	}
 
+	/** 中断時checkpointにも分類件数だけでなく再現用seedを残す。 */
+	public void testFuzzManifestCheckpointRetainsSeeds() throws Exception {
+		final Path manifest = Files.createTempFile("foliojet-fuzz-manifest-", ".json");
+		final String previous = System.getProperty("foliojet.fuzzManifest");
+		try {
+			System.setProperty("foliojet.fuzzManifest", manifest.toString());
+			final var classCount = new java.util.concurrent.ConcurrentHashMap<String,
+					java.util.concurrent.atomic.AtomicInteger>();
+			final var seedsOf = new java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>>();
+			final var defectCount = new java.util.concurrent.ConcurrentHashMap<String,
+					java.util.concurrent.atomic.AtomicInteger>();
+			final var defectSeeds = new java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>>();
+			classCount.put("ページ数過大", new java.util.concurrent.atomic.AtomicInteger(2));
+			rememberSeed(seedsOf, "ページ数過大", 123);
+			rememberSeed(seedsOf, "ページ数過大", 456);
+			defectCount.put("normalized|site=x", new java.util.concurrent.atomic.AtomicInteger(1));
+			rememberSeed(defectSeeds, "normalized|site=x", 456);
+
+			writeFuzzManifest(false, 100, 200, 2, 17, false,
+					classCount, seedsOf, defectCount, defectSeeds);
+			final String json = Files.readString(manifest, StandardCharsets.UTF_8);
+			assertTrue(json.contains("\"processed\":17"));
+			assertTrue(json.contains("\"completed\":false"));
+			assertTrue(json.contains("\"ページ数過大\":[123,456]"));
+			assertTrue(json.contains("\"normalized|site=x\":[456]"));
+		} finally {
+			if (previous == null) {
+				System.clearProperty("foliojet.fuzzManifest");
+			} else {
+				System.setProperty("foliojet.fuzzManifest", previous);
+			}
+			Files.deleteIfExists(manifest);
+		}
+	}
+
 	/**
 	 * 2026-08-14の100万件掃過で「全描画が紙面外」になった先頭8シードを固定する。
 	 * 正常化して通るか、機械的に限定した専用除外になることだけを許す。
@@ -1154,7 +1189,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		final StringBuilder chain = new StringBuilder();
 		for (Throwable c = t; c != null; c = c.getCause()) {
-			chain.append(String.valueOf(c.getMessage())).append(' ');
+			chain.append(String.valueOf(c.getMessage())).append('\0');
 		}
 		final String m = chain.toString();
 		// 変換エラーは**メッセージの形**で種別を分ける。もとの
@@ -1342,16 +1377,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 					if (seed >= from + seeds) {
 						return;
 					}
+					try {
+						checkSweepDocument(seed, strict, measurements);
+					} catch (final Throwable t) {
+						recordFailure.accept(seed, t);
+					}
 					final int n = done.incrementAndGet();
 					if (n % PROGRESS_EVERY == 0) {
 						System.out.println("[fuzzProgress] " + (strict ? "strict" : "wild") + " " + n + "/" + seeds
 								+ " 経過" + ((System.currentTimeMillis() - began) / 1000) + "s "
 								+ new java.util.TreeMap<>(classCount));
-					}
-					try {
-						checkSweepDocument(seed, strict, measurements);
-					} catch (final Throwable t) {
-						recordFailure.accept(seed, t);
+						try {
+							writeFuzzManifest(strict, from, seeds, threads, n, false,
+									classCount, seedsOf, defectCount, defectSeeds);
+						} catch (final Exception e) {
+							System.err.println("[fuzzProgress] manifestのcheckpointを書けない: " + e);
+						}
 					}
 				}
 			}, "fuzz-sweep-" + (strict ? "s" : "w") + w);
@@ -1402,7 +1443,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 				reportDiscovery(mode, "coverage/" + scope.label + "/t" + t, occurrences);
 			}
 		}
-		writeFuzzManifest(strict, from, seeds, threads, classCount);
+		writeFuzzManifest(strict, from, seeds, threads, done.get(), true,
+				classCount, seedsOf, defectCount, defectSeeds);
 	}
 
 	private void checkSweepDocument(final int seed, final boolean strict,
@@ -1535,10 +1577,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return escaped.toString();
 	}
 
-	private static void writeFuzzManifest(final boolean strict, final int from,
-			final int seeds, final int threads,
+	private static synchronized void writeFuzzManifest(final boolean strict, final int from,
+			final int seeds, final int threads, final int processed, final boolean completed,
 			final java.util.concurrent.ConcurrentHashMap<String,
-					java.util.concurrent.atomic.AtomicInteger> classCount) throws Exception {
+					java.util.concurrent.atomic.AtomicInteger> classCount,
+			final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> seedsOf,
+			final java.util.concurrent.ConcurrentHashMap<String,
+					java.util.concurrent.atomic.AtomicInteger> defectCount,
+			final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> defectSeeds)
+			throws Exception {
 		final String manifestProperty = System.getProperty("foliojet.fuzzManifest");
 		if (manifestProperty == null || manifestProperty.isBlank()) {
 			return;
@@ -1547,11 +1594,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final StringBuilder json = new StringBuilder();
 		json.append("{\"from\":").append(from)
 				.append(",\"seeds\":").append(seeds)
+				.append(",\"processed\":").append(processed)
+				.append(",\"completed\":").append(completed)
+				.append(",\"generatorVersion\":").append(GENERATOR_VERSION)
 				.append(",\"mode\":\"").append(mode)
 				.append("\",\"build\":\"").append(jsonEscape(buildIdentifier()))
 				.append("\",\"threads\":").append(threads)
-				.append(",\"completedAt\":\"").append(Instant.now())
-				.append("\",\"classificationCounts\":{");
+				.append(",\"updatedAt\":\"").append(Instant.now()).append('"');
+		if (completed) {
+			json.append(",\"completedAt\":\"").append(Instant.now()).append('"');
+		}
+		json.append(",\"classificationCounts\":{");
 		boolean first = true;
 		for (final String key : new java.util.TreeSet<>(classCount.keySet())) {
 			if (!first) {
@@ -1561,7 +1614,21 @@ public class RandomDocumentFuzzTest extends TestCase {
 			json.append('"').append(jsonEscape(key)).append("\":")
 					.append(classCount.get(key).get());
 		}
-		json.append("}}\n");
+		json.append("},\"classificationSeeds\":");
+		appendSeedMap(json, seedsOf);
+		json.append(",\"normalizedDefectCounts\":{");
+		first = true;
+		for (final String key : new java.util.TreeSet<>(defectCount.keySet())) {
+			if (!first) {
+				json.append(',');
+			}
+			first = false;
+			json.append('"').append(jsonEscape(key)).append("\":")
+					.append(defectCount.get(key).get());
+		}
+		json.append("},\"normalizedDefectSeeds\":");
+		appendSeedMap(json, defectSeeds);
+		json.append("}\n");
 
 		final Path target = Path.of(manifestProperty).toAbsolutePath();
 		Files.createDirectories(target.getParent());
@@ -1580,6 +1647,30 @@ public class RandomDocumentFuzzTest extends TestCase {
 					java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 		}
 		System.out.println("[fuzzReport] manifest=" + target);
+	}
+
+	private static void appendSeedMap(final StringBuilder json,
+			final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> seedsByKey) {
+		json.append('{');
+		boolean firstKey = true;
+		for (final String key : new java.util.TreeSet<>(seedsByKey.keySet())) {
+			if (!firstKey) {
+				json.append(',');
+			}
+			firstKey = false;
+			json.append('"').append(jsonEscape(key)).append("\":[");
+			final java.util.List<Integer> values = seedsByKey.get(key);
+			synchronized (values) {
+				for (int i = 0; i < values.size(); ++i) {
+					if (i > 0) {
+						json.append(',');
+					}
+					json.append(values.get(i));
+				}
+			}
+			json.append(']');
+		}
+		json.append('}');
 	}
 
 	/**

@@ -47,4 +47,23 @@ public class EndAllowanceTest extends TestCase {
 		assertEquals(0.0, JapaneseSpacingResolver.endAllowance('あ', true, false, true, 12, 12, 3), 0.001);
 		assertEquals(0.0, JapaneseSpacingResolver.endAllowance('「', true, false, true, 12, 12, 3), 0.001);
 	}
+
+	/** trim-bothの無条件行末詰め量。 */
+	public void testEndTrimAmount() {
+		assertEquals(6.0, JapaneseSpacingResolver.endTrim('」', true, 12), 0.001);
+		assertEquals(6.0, JapaneseSpacingResolver.endTrim('。', true, 12), 0.001);
+		assertEquals(3.0, JapaneseSpacingResolver.endTrim('・', true, 12), 0.001);
+		assertEquals(0.0, JapaneseSpacingResolver.endTrim('「', true, 12), 0.001);
+		assertEquals(0.0, JapaneseSpacingResolver.endTrim('」', false, 12), 0.001);
+	}
+
+	/** first/force-endのぶら下げ量。 */
+	public void testUnconditionalHangs() {
+		assertEquals(-6.0, JapaneseSpacingResolver.firstHang('「', true, 12, 12, true), 0.001);
+		assertEquals(-12.0, JapaneseSpacingResolver.firstHang('「', true, 12, 12, false), 0.001);
+		assertEquals(-12.0, JapaneseSpacingResolver.firstHang('\u3000', true, 12, 12, true), 0.001);
+		assertEquals(0.0, JapaneseSpacingResolver.firstHang('あ', true, 12, 12, true), 0.001);
+		assertEquals(12.0, JapaneseSpacingResolver.forceEndHang('。', 12), 0.001);
+		assertEquals(0.0, JapaneseSpacingResolver.forceEndHang('」', 12), 0.001);
+	}
 }

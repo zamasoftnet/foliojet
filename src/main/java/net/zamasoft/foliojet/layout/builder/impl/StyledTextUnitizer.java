@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.impl.RubyUnitBox;
+import net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
@@ -67,6 +68,12 @@ public class StyledTextUnitizer {
 	 * ルビ範囲内のインライン・文字イベントを横取りします。
 	 */
 	private RubyUnitCollector rubyCollector = null;
+
+	private WarichuCollector warichuCollector = null;
+
+	/** 行末側の隣接文字が確定するまで張り出し判定を保留する直前のルビ。 */
+	private RubyUnitBox pendingRubyEnd = null;
+	private InlineQuad pendingRubyQuad = null;
 
 	public StyledTextUnitizer(Builder builder) {
 		this.builder = builder;
@@ -156,6 +163,9 @@ public class StyledTextUnitizer {
 	}
 
 	public void endContainer() {
+		if (this.warichuCollector != null) {
+			this.warichuCollector.drain();
+		}
 		if (this.rubyCollector != null) {
 			// 防御: コンテナが閉じる前にルビが閉じていない(malformed——
 			// ルビの中にブロックが現れた等)場合は、たまっている分を
@@ -164,6 +174,7 @@ public class StyledTextUnitizer {
 			// インラインスタックを誤popしてスタックを壊す
 			this.rubyCollector.drain();
 		}
+		this.resolvePendingRubyEnd(false);
 		final AbstractTextParams params = (AbstractTextParams) this.textParamsStack
 				.remove(this.textParamsStack.size() - 1);
 		if (this.textShaper != null) {
@@ -181,6 +192,10 @@ public class StyledTextUnitizer {
 
 	public void startInline(InlineBox inlineBox) {
 		final InlineParams inlineParams = inlineBox.getInlineParams();
+		if (this.warichuCollector != null) {
+			this.warichuCollector.startInline(inlineParams);
+			return;
+		}
 		if (this.rubyCollector != null) {
 			// ルビ範囲内のマークアップは箱にせず、深さとスタイルだけを数える
 			// (仕様: ルビ内は文字のみ)
@@ -207,11 +222,19 @@ public class StyledTextUnitizer {
 			// ——codex独立レビュー2026-07-25
 			this.rubyCollector = new RubyUnitCollector(inlineParams,
 					(base, ruby) -> this.emitRubyUnit(inlineParams, base, ruby));
+		} else if (inlineParams.warichu) {
+			this.warichuCollector = new WarichuCollector(inlineParams,
+					segment -> this.emitWarichu(inlineParams, segment));
 		}
 	}
 
 	public void endInline() {
-		if (this.rubyCollector != null) {
+		if (this.warichuCollector != null) {
+			if (!this.warichuCollector.endInline()) {
+				return;
+			}
+			this.warichuCollector = null;
+		} else if (this.rubyCollector != null) {
 			if (!this.rubyCollector.endInline()) {
 				return;
 			}
@@ -231,10 +254,11 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineReplaced(AbstractReplacedBox inlineReplacedBox) {
-		if (this.rubyCollector != null) {
+		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)——置換要素は捨てる(F-1)
 			return;
 		}
+		this.resolvePendingRubyEnd(false);
 		this.requireTextShaper();
 		Quad quad = InlineQuad.createReplacedBoxQuad(inlineReplacedBox);
 		this.textShaper.control(quad);
@@ -242,10 +266,11 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineBlock(InlineBlockBox inlineBlockBox) {
-		if (this.rubyCollector != null) {
+		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)——インラインブロックは捨てる(F-1)
 			return;
 		}
+		this.resolvePendingRubyEnd(false);
 		this.requireTextShaper();
 		final Quad quad = InlineQuad.createInlineBlockBoxQuad(inlineBlockBox);
 		this.textShaper.control(quad);
@@ -253,10 +278,11 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineAbsolute(final IAbsoluteBox absoluteBox) {
-		if (this.rubyCollector != null) {
+		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)——絶対配置は捨てる(F-1)
 			return;
 		}
+		this.resolvePendingRubyEnd(false);
 		this.requireTextShaper();
 		final Quad quad = InlineQuad.createInlineAbsoluteBoxQuad(absoluteBox);
 		this.textShaper.control(quad);
@@ -271,10 +297,11 @@ public class StyledTextUnitizer {
 	 * しない)。
 	 */
 	public void leader(final String pattern) {
-		if (this.rubyCollector != null) {
+		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)
 			return;
 		}
+		this.resolvePendingRubyEnd(false);
 		this.requireTextShaper();
 		final AbstractTextParams params = this.getTextParams();
 		// 一本化(2026-08-01): 自己完結shapeはRunCollector+TrimmedRunsへ
@@ -296,36 +323,67 @@ public class StyledTextUnitizer {
 	 * (2026-07-25、注釈付きテキスト方式)。
 	 */
 	private void emitRubyUnit(final InlineParams container, final RubyUnitCollector.Segment base,
-			final RubyUnitCollector.Segment ruby) {
+			final List<RubyUnitCollector.Annotation> rubies) {
+		// ルビ同士は注釈が同じ行間を占めるため、境界で相互に張り出さない。
+		this.resolvePendingRubyEnd(false);
 		final String baseText = base == null ? "" : base.text();
-		final String rubyText = ruby == null ? "" : ruby.text();
 		int sourceStart = -1, sourceEnd = -1;
 		if (base != null && base.charOffset() >= 0) {
 			sourceStart = base.charOffset();
 			sourceEnd = base.charEnd();
 		}
-		if (ruby != null && ruby.charOffset() >= 0) {
-			sourceStart = sourceStart < 0 ? ruby.charOffset() : Math.min(sourceStart, ruby.charOffset());
-			sourceEnd = Math.max(sourceEnd, ruby.charEnd());
+		final List<RubyUnitBox.AnnotationInput> annotations = new ArrayList<RubyUnitBox.AnnotationInput>();
+		for (final RubyUnitCollector.Annotation ruby : rubies) {
+			final RubyUnitCollector.Segment segment = ruby.segment();
+			annotations.add(new RubyUnitBox.AnnotationInput(segment.text(), segment.params(), segment.charOffset(),
+					ruby.level()));
+			if (segment.charOffset() >= 0) {
+				sourceStart = sourceStart < 0 ? segment.charOffset() : Math.min(sourceStart, segment.charOffset());
+				sourceEnd = Math.max(sourceEnd, segment.charEnd());
+			}
 		}
 		final RubyUnitBox box = RubyUnitBox.create(container, baseText, base == null ? null : base.params(),
-				base == null ? -1 : base.charOffset(), rubyText, ruby == null ? null : ruby.params(),
-				ruby == null ? -1 : ruby.charOffset(), sourceStart, sourceEnd);
+				base == null ? -1 : base.charOffset(), annotations, sourceStart, sourceEnd);
 		if (box == null) {
 			return;
 		}
+		if (!isSafeRubyOverhangNeighbor(this.followingChar)) {
+			box.reserveStartOverhang();
+		}
 		this.requireTextShaper();
-		this.textShaper.control(InlineQuad.createInlineBlockBoxQuad(box));
+		final InlineQuad quad = InlineQuad.createInlineBlockBoxQuad(box);
+		this.textShaper.control(quad);
+		this.pendingRubyEnd = box;
+		this.pendingRubyQuad = quad;
+		this.followingChar = 'x';
+	}
+
+	private void emitWarichu(final InlineParams container, final WarichuCollector.Segment segment) {
+		this.resolvePendingRubyEnd(false);
+		final List<WarichuUnitBox> boxes = WarichuUnitBox.createFragments(container, segment.text(), segment.params(),
+				segment.sourceStart(), segment.sourceStart(), segment.sourceEnd());
+		if (boxes.isEmpty()) {
+			return;
+		}
+		this.requireTextShaper();
+		for (final WarichuUnitBox box : boxes) {
+			this.textShaper.control(InlineQuad.createInlineBlockBoxQuad(box));
+		}
 		this.followingChar = 'x';
 	}
 
 	public void characters(int charOffset, char[] ch, final int off, final int len, boolean lineFeed) {
 		assert len > 0;
+		if (this.warichuCollector != null) {
+			this.warichuCollector.characters(charOffset, ch, off, len);
+			return;
+		}
 		if (this.rubyCollector != null) {
 			// ルビ範囲内の文字は単位バッファへためる(F-1)
 			this.rubyCollector.characters(charOffset, ch, off, len);
 			return;
 		}
+		this.resolvePendingRubyEnd(isSafeRubyOverhangNeighbor(Character.codePointAt(ch, off, off + len)));
 		final AbstractTextParams params = this.getTextParams();
 
 		// テキスト処理
@@ -411,6 +469,31 @@ public class StyledTextUnitizer {
 		if (len > ooff) {
 			this._characters(charOffset + ooff, ch, off + ooff, len - ooff);
 		}
+	}
+
+	private void resolvePendingRubyEnd(final boolean safeNeighbor) {
+		if (this.pendingRubyEnd == null) {
+			return;
+		}
+		if (!safeNeighbor) {
+			this.pendingRubyEnd.reserveEndOverhang();
+			// BuilderGlyphHandlerはcontrol受理時にadvanceを写す。後から箱の
+			// 幅を戻した場合も、同じquadの送りを同期しないと描画だけ広がる。
+			this.pendingRubyQuad.advance = this.pendingRubyEnd
+					.getLineExtent(this.pendingRubyEnd.getBlockParams().flow);
+		}
+		this.pendingRubyEnd = null;
+		this.pendingRubyQuad = null;
+	}
+
+	/**
+	 * JLREQの張り出し対象を安全側に限定する。仮名・漢字は字面が親文字側に
+	 * あり注釈行と衝突しないが、欧文・約物・別のルビ箱は予約する。
+	 */
+	private static boolean isSafeRubyOverhangNeighbor(final int codePoint) {
+		final Character.UnicodeScript script = Character.UnicodeScript.of(codePoint);
+		return script == Character.UnicodeScript.HAN || script == Character.UnicodeScript.HIRAGANA
+				|| script == Character.UnicodeScript.KATAKANA;
 	}
 
 	private void _characters(int charOffset, char[] ch, int off, int len) {

@@ -1,0 +1,4 @@
+drawer z=0
+  x=4.00 y=0.00 Text["A1!?" asc=10.00 desc=10.00]
+  x=28.00 y=0.00 Text["A1!?" asc=10.00 desc=10.00]
+  x=52.00 y=0.00 Text["A1!?" asc=10.00 desc=10.00]

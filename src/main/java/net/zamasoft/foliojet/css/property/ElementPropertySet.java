@@ -58,6 +58,7 @@ import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
 import net.zamasoft.foliojet.css.impl.property.text.TextDecoration;
 import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
 import net.zamasoft.foliojet.css.impl.property.text.TextTransform;
+import net.zamasoft.foliojet.css.impl.property.text.TextOrientation;
 import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
 import net.zamasoft.foliojet.css.impl.property.box.ContentVisibility;
@@ -358,6 +359,11 @@ public final class ElementPropertySet extends PropertySet {
 		reg(BackgroundSize.INFO_WIDTH);
 		regCode(BackgroundSize.INFO_HEIGHT);
 		reg(BlockFlow.INFO);
+		reg(TextOrientation.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.RubyAlign.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.RubyMerge.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.RubyOverhang.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.RubyPosition.INFO);
 		reg(BoxSizing.INFO);
 		reg(TextAlignLast.INFO);
 		put(WritingModeShorthand.INFO);
@@ -467,6 +473,7 @@ public final class ElementPropertySet extends PropertySet {
 		// Extensions
 		reg(CSSJFontPolicy.INFO);
 		reg(CSSJRuby.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.ext.CSSJWarichu.INFO);
 		reg(CSSJBreakCharacters.INFO);
 		reg(CSSJNoBreakCharacters.INFO);
 

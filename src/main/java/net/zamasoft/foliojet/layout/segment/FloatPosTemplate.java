@@ -4,6 +4,7 @@ import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FootnotePos;
 import net.zamasoft.foliojet.layout.box.params.PageFloatPos;
+import net.zamasoft.foliojet.layout.box.params.PageMarginNotePos;
 
 /**
  * {@link FloatPos}(浮動体の配置パラメータ、{@link BoxKind#FLOAT_BLOCK}
@@ -22,11 +23,12 @@ import net.zamasoft.foliojet.layout.box.params.PageFloatPos;
 
 public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, Kind kind) {
 	public enum Kind {
-		NORMAL, FOOTNOTE, PAGE_TOP, PAGE_BOTTOM
+		NORMAL, FOOTNOTE, PAGE_TOP, PAGE_BOTTOM, PAGE_NOTE_START, PAGE_NOTE_END
 	}
 
 	public static FloatPosTemplate freeze(final FloatPos source) {
 		final Kind kind = source instanceof FootnotePos ? Kind.FOOTNOTE
+				: source instanceof PageMarginNotePos note ? note.start ? Kind.PAGE_NOTE_START : Kind.PAGE_NOTE_END
 				: source instanceof PageFloatPos pageFloat ? pageFloat.top ? Kind.PAGE_TOP : Kind.PAGE_BOTTOM
 						: Kind.NORMAL;
 		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating, kind);
@@ -39,6 +41,8 @@ public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, K
 		case FOOTNOTE -> new FootnotePos();
 		case PAGE_TOP -> new PageFloatPos(true);
 		case PAGE_BOTTOM -> new PageFloatPos(false);
+		case PAGE_NOTE_START -> new PageMarginNotePos(true);
+		case PAGE_NOTE_END -> new PageMarginNotePos(false);
 		};
 		this.common.materializeInto(pos);
 		pos.floating = this.floating;

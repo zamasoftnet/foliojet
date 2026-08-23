@@ -157,14 +157,16 @@ public class TallBlockPaginationTest extends TestCase {
 		// (SourceReplayer/TableBox)でこのライブロック自体が解消し、
 		// ガード発火なしで正しく改ページされるようになった(204ページ・
 		// 各行が1回ずつ)。従来はガードの縮退(34ページ・はみ出し配置)を
-		// 期待値にしていた。既知の残: 表の後のTrailing段落は従来から
-		// 消失しており(旧実装でも0件)、これは別欠陥として扱う
+		// 期待値にしていた。表の後のTrailing段落も同じ修正で復元したため、
+		// 下で行と後続内容の双方を固定する
 		final int pages = convert("livelock-degrade", html.toString());
 		assertTrue("ページが出ていない", pages > 0);
 		assertEquals("ライブロックガードが発火した(解消済みのはず)", alarms,
 				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get());
 		// 全行が失われず、複製もないこと
 		final java.util.Map<String, Integer> count = new java.util.HashMap<>();
+		int trailing = 0;
+		int references = 0;
 		final File dir = new File("local/livelock-degrade");
 		for (final File f : dir.listFiles((d, name) -> name.endsWith(".txt"))) {
 			final String text = java.nio.file.Files.readString(f.toPath());
@@ -172,12 +174,24 @@ public class TallBlockPaginationTest extends TestCase {
 			while (m.find()) {
 				count.merge(m.group(1), 1, Integer::sum);
 			}
+			trailing += occurrences(text, "Text[\"Trailing\"");
+			references += occurrences(text, "Text[\"References\"");
 		}
 		for (int i = 0; i < ROWS; ++i) {
 			final Integer c = count.get("R" + i);
 			assertNotNull("R" + i + " が消失した", c);
 			assertEquals("R" + i + " が複製された", 1, c.intValue());
 		}
+		assertEquals("表の後のTrailing段落が消失または複製された", 20, trailing);
+		assertEquals("表の後の見出しが消失または複製された", 1, references);
+	}
+
+	private static int occurrences(final String text, final String needle) {
+		int count = 0;
+		for (int at = 0; (at = text.indexOf(needle, at)) >= 0; at += needle.length()) {
+			++count;
+		}
+		return count;
 	}
 
 	/**

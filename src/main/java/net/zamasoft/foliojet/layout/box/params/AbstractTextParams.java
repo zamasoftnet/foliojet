@@ -77,6 +77,9 @@ public abstract class AbstractTextParams extends Params {
 	 */
 	public static final byte RUBY_TEXT = 3;
 
+	/** ルビ注釈コンテナ(rtc要素相当)です。 */
+	public static final byte RUBY_TEXT_CONTAINER = 4;
+
 	/**
 	 * ルビ役割マーカーです(2026-07-25、注釈付きテキスト方式の仕様裁定
 	 * ——docs/history/2026-07-25-ruby-annotation-spec-decision.md)。
@@ -85,6 +88,21 @@ public abstract class AbstractTextParams extends Params {
 	 * 手掛かりにします。
 	 */
 	public byte rubyRole = RUBY_NONE;
+
+	/** {@code -cssj-warichu:auto}の割注コンテナ。 */
+	public boolean warichu = false;
+
+	/** ルビ箱内の文字配置。CSS {@code ruby-align}の計算値です。 */
+	public net.zamasoft.foliojet.css.value.RubyAlignValue rubyAlign = net.zamasoft.foliojet.css.value.RubyAlignValue.SPACE_AROUND;
+
+	/** 熟語ルビの共有方法。CSS {@code ruby-merge}の計算値です。 */
+	public net.zamasoft.foliojet.css.value.RubyMergeValue rubyMerge = net.zamasoft.foliojet.css.value.RubyMergeValue.SEPARATE;
+
+	/** ルビの張り出し可否。CSS {@code ruby-overhang}の計算値です。 */
+	public boolean rubyOverhang = true;
+
+	/** 注釈レベルの配置側。CSS {@code ruby-position}の計算値です。 */
+	public net.zamasoft.foliojet.css.value.RubyPositionValue rubyPosition = net.zamasoft.foliojet.css.value.RubyPositionValue.ALTERNATE;
 
 	/**
 	 * フォントのスタイル。
@@ -125,6 +143,19 @@ public abstract class AbstractTextParams extends Params {
 	public boolean textSpacingTrimOff = false;
 
 	/**
+	 * 行頭の始め括弧を天付きにするかです。
+	 * {@code true}=text-spacing-trim: trim-start。既定のnormalとspace-allは
+	 * JLREQのもう一つの方式である行頭二分アキを残す。
+	 */
+	public boolean textSpacingTrimStart = false;
+
+	/** text-spacing-trim: trim-both/autoの常時行末詰め。 */
+	public boolean textSpacingTrimEnd = false;
+
+	/** text-spacing-trim: space-firstの初行・強制改行直後例外。 */
+	public boolean textSpacingSpaceFirst = false;
+
+	/**
 	 * 縦中横の種別です({@link net.zamasoft.foliojet.css.value.TextCombineValue}
 	 * の定数。既定NONE)。{@code ALL}のときだけ、縦組みの行の中で
 	 * <b>1em幅へ水平圧縮</b>する(css-writing-modes-3 §9.1)。
@@ -138,6 +169,12 @@ public abstract class AbstractTextParams extends Params {
 	 * (和文詰めH1。既定false=none)。
 	 */
 	public boolean hangingPunctuationEnd = false;
+
+	/** 最初の整形行の先頭約物を字下げ内へぶら下げる。 */
+	public boolean hangingPunctuationFirst = false;
+
+	/** 行末句読点を常にぶら下げる(hanging-punctuation: force-end)。 */
+	public boolean hangingPunctuationForceEnd = false;
 
 	/**
 	 * 単語間

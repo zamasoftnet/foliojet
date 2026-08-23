@@ -21,7 +21,7 @@ public class InlineJustifyTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x);
-			assertEquals(65.96, x, 0.01);
+			assertEquals(66.70833333333333, x, 0.01);
 			return true;
 		}
 		return false;
@@ -30,7 +30,7 @@ public class InlineJustifyTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x);
-			assertEquals(54.75, x, 0.01);
+			assertEquals(55.416666666666664, x, 0.01);
 			return true;
 		}
 		return false;

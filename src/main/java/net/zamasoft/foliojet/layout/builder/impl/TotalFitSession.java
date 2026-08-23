@@ -354,7 +354,7 @@ final class TotalFitSession {
 		// TextBuilder側trackerがxadvanceで適用する——旧font層kern時代と
 		// 同じく分割点の復元はモデル化しない)
 		final double trim = this.spacing.trimBefore(cluster, 0, gid, this.mirrorText, this.fontMetrics,
-				this.fontStyle.getSize());
+				this.fontStyle.getSize(), this.fontStyle.getDirection());
 		// TextBuilder.glyph()と同じCSS幅式(GlyphMeasureStep)で候補幅を出す
 		// ——式の分岐drift(幅会計3系統)をここで封じる。gap≠0は上でK-P
 		// 対象外へ離脱済みのためgap=0

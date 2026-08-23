@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=36.20 h=24.49]
+  x=0.00 y=24.49 AbsoluteRectFrame[w=40.20 h=24.49]
+  x=0.00 y=48.99 AbsoluteRectFrame[w=44.20 h=24.49]
+  x=0.00 y=73.48 AbsoluteRectFrame[w=54.20 h=24.00]
+  x=0.00 y=0.00 Text["A" asc=15.60 desc=8.89]
+  x=11.66 y=0.00 Text["B漢" asc=15.60 desc=8.89]
+  x=0.00 y=24.49 Text["A" asc=15.60 desc=8.89]
+  x=11.66 y=24.49 Text["B漢" asc=15.60 desc=8.89]
+  x=0.00 y=48.99 Text["漢A字" asc=15.60 desc=8.89]
+  x=0.00 y=73.48 Text["漢字仮名" asc=15.60 desc=8.40]

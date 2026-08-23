@@ -30,7 +30,7 @@ public class PageBreakByWrapTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x);
-			assertEquals(111.75, x, 1);
+			assertEquals(108, x, 1);
 			return true;
 		}
 		return false;

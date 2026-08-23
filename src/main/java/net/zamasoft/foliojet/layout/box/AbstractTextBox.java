@@ -176,6 +176,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 						}
 						continue;
 					}
+					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox warichuUnit) {
+						final int end = warichuUnit.getSourceEnd();
+						if (end >= 0) {
+							return end;
+						}
+						continue;
+					}
 					if (inline.box instanceof AbstractTextBox nested) {
 						final int end = nested.lastCharEnd();
 						if (end >= 0) {
@@ -203,6 +210,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (content instanceof Inline inline) {
 					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.RubyUnitBox rubyUnit) {
 						final int offset = rubyUnit.getSourceStart();
+						if (offset >= 0) {
+							return offset;
+						}
+						continue;
+					}
+					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox warichuUnit) {
+						final int offset = warichuUnit.getSourceStart();
 						if (offset >= 0) {
 							return offset;
 						}
@@ -301,12 +315,172 @@ public abstract class AbstractTextBox extends AbstractBox {
 	 * 
 	 * @return
 	 */
-	protected final int countJustificationPoints(JustificationState state) {
+	/** JLREQ 3.8.4の追出し優先段階。 */
+	protected static final int JUSTIFY_WORD_SPACE = 1;
+	protected static final int JUSTIFY_AUTOSPACE = 2;
+	protected static final int JUSTIFY_GENERAL = 3;
+	protected static final int JUSTIFY_FALLBACK = 4;
+
+	/**
+	 * この行／インラインが和文組版を含むかを返す。JLREQの段階的な行長調整は
+	 * 和文行にだけ適用し、純欧文のjustifyは従来どおり欧文の分離可能境界へ配分する。
+	 */
+	protected final boolean containsJapaneseComposition() {
+		if (this.contents == null) {
+			return false;
+		}
+		for (final Object content : this.contents) {
+			switch (content) {
+			case Text text -> {
+				final char[] chars = text.getChars();
+				for (int i = 0; i < text.getCharCount();) {
+					final int cp = Character.codePointAt(chars, i);
+					if (isJapaneseCompositionCodePoint(cp)) {
+						return true;
+					}
+					i += Character.charCount(cp);
+				}
+			}
+			case Inline inline -> {
+				if (inline.box instanceof AbstractTextBox nested && nested.containsJapaneseComposition()
+						|| inline.box instanceof net.zamasoft.foliojet.layout.box.impl.RubyUnitBox
+						|| inline.box instanceof net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox) {
+					return true;
+				}
+			}
+			case Control ctrl -> {
+				if (isJapaneseCompositionCodePoint(ctrl.getControlChar())) {
+					return true;
+				}
+			}
+			default -> {
+				// 配置物・leaderは文字組版の判定に影響しない。
+			}
+			}
+		}
+		return false;
+	}
+
+	private static boolean isJapaneseCompositionCodePoint(final int cp) {
+		if (net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.of(cp)
+				== net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH) {
+			return true;
+		}
+		// CJK約物・縦書き互換形・全角形も和文組版の一部として扱う。
+		return cp >= 0x3000 && cp <= 0x303F || cp >= 0xFE10 && cp <= 0xFE1F
+				|| cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF01 && cp <= 0xFF60
+				|| cp >= 0xFFE0 && cp <= 0xFFE6;
+	}
+
+	/** 純欧文・一般文字列における従来のjustify候補数。 */
+	protected final int countGeneralJustificationPoints(final JustificationState state) {
+		if (this.contents == null) {
+			return 0;
+		}
+		final TextBreakingRules rules = this.getTextParams().lineBreakRules;
+		int count = 0;
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> {
+				final int glyphCount = text.getGlyphCount();
+				final char[] chars = text.getChars();
+				final byte[] clusterLengths = text.getClusterLengths();
+				int offset = 0;
+				for (int j = 0; j < glyphCount; ++j) {
+					final int first = Character.codePointAt(chars, offset);
+					offset += clusterLengths[j];
+					final int last = Character.codePointBefore(chars, offset);
+					if (isGeneralJustificationBoundary(state.prevCodePoint, first, rules)) {
+						++count;
+					}
+					state.prevCodePoint = last;
+				}
+			}
+			case Inline inline -> {
+				if (inline.box.getType() == BoxType.INLINE) {
+					count += ((InlineBox) inline.box).countGeneralJustificationPoints(state);
+				}
+			}
+			case Control ctrl -> {
+				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
+					state.prevCodePoint = ctrl.getControlChar();
+				}
+			}
+			default -> {
+				// 配置物・leaderは伸長点を作らない。
+			}
+			}
+		}
+		return count;
+	}
+
+	/** 純欧文・一般文字列の各justify候補へ同じアキを加える。 */
+	protected final void justifyGeneral(final double unitSpacing, final JustificationState state) {
+		if (this.contents == null) {
+			return;
+		}
+		final TextBreakingRules rules = this.getTextParams().lineBreakRules;
+		for (int i = 0; i < this.contents.size(); ++i) {
+			double advance = 0;
+			switch (this.contents.get(i)) {
+			case Text text -> {
+				final int glyphCount = text.getGlyphCount();
+				final char[] chars = text.getChars();
+				final byte[] clusterLengths = text.getClusterLengths();
+				final net.zamasoft.pdfg2d.gc.text.TextImpl textImpl =
+						(net.zamasoft.pdfg2d.gc.text.TextImpl) text;
+				int offset = 0;
+				for (int j = 0; j < glyphCount; ++j) {
+					final int first = Character.codePointAt(chars, offset);
+					offset += clusterLengths[j];
+					final int last = Character.codePointBefore(chars, offset);
+					if (isGeneralJustificationBoundary(state.prevCodePoint, first, rules)) {
+						textImpl.addXAdvance(j, unitSpacing);
+						advance += unitSpacing;
+					}
+					state.prevCodePoint = last;
+				}
+			}
+			case Inline inline -> {
+				if (inline.box.getType() == BoxType.INLINE) {
+					final InlineBox inlineBox = (InlineBox) inline.box;
+					advance = inlineBox.getLineSize();
+					inlineBox.justifyGeneral(unitSpacing, state);
+					advance = inlineBox.getLineSize() - advance;
+				}
+			}
+			case Control ctrl -> {
+				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
+					state.prevCodePoint = ctrl.getControlChar();
+				}
+			}
+			default -> {
+				// 配置物・leaderは伸長しない。
+			}
+			}
+			if (advance != 0) {
+				this.addAdvance(advance);
+			}
+		}
+	}
+
+	private static boolean isGeneralJustificationBoundary(final int previous, final int next,
+			final TextBreakingRules rules) {
+		return previous >= 0 && previous <= Character.MAX_VALUE && next <= Character.MAX_VALUE
+				&& rules.canSeparate((char) previous, (char) next)
+				&& !rules.atomic((char) previous, (char) next);
+	}
+
+	/**
+	 * 指定した追出し段階で利用できる総調整量（pt）を返す。第4段階だけは
+	 * 上限でなく、1emの均等配分に対する重みを返す。
+	 */
+	protected final double justificationCapacity(final int priority, JustificationState state) {
 		if (this.contents == null) {
 			return 0;
 		}
 		TextBreakingRules hyph = this.getTextParams().lineBreakRules;
-		int count = 0;
+		double capacity = 0;
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
 			case Text text -> {
@@ -319,16 +493,14 @@ public abstract class AbstractTextBox extends AbstractBox {
 				byte[] clens = text.getClusterLengths();
 				int k = 0;
 				for (int j = 0; j < glen; ++j) {
-					char c1 = ch[k];
+					final int c1 = Character.codePointAt(ch, k);
 					k += clens[j];
-					char c2 = ch[k - 1];
-					// JLREQ 3.1.11: 禁則境界(atomic)には均等アキを入れない。
-					// 適用側justifyと同一条件を保つこと(分母と加算位置の整合)
-					if (state.prevChar != 0 && hyph.canSeparate(state.prevChar, c1)
-							&& !hyph.atomic(state.prevChar, c1)) {
-						++count;
-					}
-					state.prevChar = c2;
+					final int c2 = Character.codePointBefore(ch, k);
+					final double fontSize = text.getFontStyle().getSize();
+					capacity += justificationWeight(state, c1, fontSize, hyph, priority);
+					state.prevCodePoint = c2;
+					state.prevFontSize = fontSize;
+					state.wordSpaceAdvance = -1;
 				}
 			}
 
@@ -336,14 +508,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// インライン
 				if (content.box.getType() == BoxType.INLINE) {
 					InlineBox inline = (InlineBox) content.box;
-					count += inline.countJustificationPoints(state);
+					capacity += inline.justificationCapacity(priority, state);
 				}
 			}
 
 			case Control ctrl -> {
 				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
 					// 幅0のソフトハイフンは語中の伸長点を作らない
-					state.prevChar = ctrl.getControlChar();
+					if (ctrl instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace) {
+						state.beforeWordSpaceCodePoint = state.prevCodePoint;
+						state.beforeWordSpaceFontSize = state.prevFontSize;
+						state.wordSpaceAdvance = ctrl.getAdvance();
+					}
+					state.prevCodePoint = ctrl.getControlChar();
+					state.prevFontSize = this.getTextParams().fontStyle.getSize();
 				}
 			}
 
@@ -358,10 +536,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 			default -> throw new IllegalStateException();
 			}
 		}
-		return count;
+		return capacity;
 	}
 
-	protected final void justify(double unitSpacing, JustificationState state) {
+	/** 指定段階の各点へ、段階上限（第4段階は1em）×ratioを加える。 */
+	protected final void justify(final int priority, final double ratio, JustificationState state) {
 		if (this.contents == null) {
 			return;
 		}
@@ -382,15 +561,19 @@ public abstract class AbstractTextBox extends AbstractBox {
 				final net.zamasoft.pdfg2d.gc.text.TextImpl textImpl = (net.zamasoft.pdfg2d.gc.text.TextImpl) text;
 				int k = 0;
 				for (int j = 0; j < glen; ++j) {
-					char c1 = ch[k];
+					final int c1 = Character.codePointAt(ch, k);
 					k += clens[j];
-					char c2 = ch[k - 1];
-					if (state.prevChar != 0 && hyph.canSeparate(state.prevChar, c1)
-							&& !hyph.atomic(state.prevChar, c1)) {
-						textImpl.addXAdvance(j, unitSpacing);
-						da += unitSpacing;
+					final int c2 = Character.codePointBefore(ch, k);
+					final double fontSize = text.getFontStyle().getSize();
+					final double weight = justificationWeight(state, c1, fontSize, hyph, priority);
+					if (weight > 0) {
+						final double spacing = weight * ratio;
+						textImpl.addXAdvance(j, spacing);
+						da += spacing;
 					}
-					state.prevChar = c2;
+					state.prevCodePoint = c2;
+					state.prevFontSize = fontSize;
+					state.wordSpaceAdvance = -1;
 				}
 			}
 
@@ -399,7 +582,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (inline.box.getType() == BoxType.INLINE) {
 					InlineBox inlineBox = (InlineBox) inline.box;
 					da = inlineBox.getLineSize();
-					inlineBox.justify(unitSpacing, state);
+					inlineBox.justify(priority, ratio, state);
 					da = inlineBox.getLineSize() - da;
 				}
 			}
@@ -407,7 +590,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Control ctrl -> {
 				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
 					// 幅0のソフトハイフンは語中の伸長点を作らない
-					state.prevChar = ctrl.getControlChar();
+					if (ctrl instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace) {
+						state.beforeWordSpaceCodePoint = state.prevCodePoint;
+						state.beforeWordSpaceFontSize = state.prevFontSize;
+						state.wordSpaceAdvance = ctrl.getAdvance();
+					}
+					state.prevCodePoint = ctrl.getControlChar();
+					state.prevFontSize = this.getTextParams().fontStyle.getSize();
 				}
 			}
 
@@ -425,6 +614,68 @@ public abstract class AbstractTextBox extends AbstractBox {
 				this.addAdvance(da);
 			}
 		}
+	}
+
+	/** 1つの境界が指定段階で持つ上限／重み（pt）。 */
+	private static double justificationWeight(final JustificationState state, final int next,
+			final double nextFontSize, final TextBreakingRules rules, final int priority) {
+		final int prev = state.prevCodePoint;
+		if (priority == JUSTIFY_WORD_SPACE) {
+			if (state.wordSpaceAdvance < 0 || prev != ' '
+					|| !isWestern(state.beforeWordSpaceCodePoint) || !isWestern(next)) {
+				return 0;
+			}
+			final double size = Math.min(state.beforeWordSpaceFontSize > 0
+					? state.beforeWordSpaceFontSize : nextFontSize, nextFontSize);
+			// JLREQ 3.8.4: 欧文語間を通常値から最大二分まで広げる。
+			return Math.max(0, size / 2.0 - state.wordSpaceAdvance);
+		}
+		if (prev < 0 || !net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
+				.allowsJustificationAfter(prev)) {
+			return 0;
+		}
+		final net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind pk =
+				net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.of(prev);
+		final net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind nk =
+				net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.of(next);
+		final boolean japaneseLatin = pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
+				&& (nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.ALPHA
+						|| nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC)
+				|| nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
+						&& (pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.ALPHA
+								|| pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC);
+		final boolean westernInterletter = (pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.ALPHA
+				|| pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC)
+				&& (nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.ALPHA
+						|| nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC);
+		final boolean bmpPair = prev <= Character.MAX_VALUE && next <= Character.MAX_VALUE;
+		final boolean atomic = bmpPair && rules.atomic((char) prev, (char) next);
+		if (atomic && !(priority == JUSTIFY_FALLBACK && westernInterletter)) {
+			return 0;
+		}
+		final boolean normal = bmpPair ? rules.canSeparate((char) prev, (char) next)
+				: pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
+						|| nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH;
+		final double size = japaneseLatin
+				&& pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
+						? (state.prevFontSize > 0 ? state.prevFontSize : nextFontSize)
+						: japaneseLatin ? nextFontSize
+								: Math.min(state.prevFontSize > 0 ? state.prevFontSize : nextFontSize,
+										nextFontSize);
+		return switch (priority) {
+		case JUSTIFY_WORD_SPACE -> 0;
+		case JUSTIFY_AUTOSPACE -> normal && prev != ' ' && japaneseLatin ? size / 4.0 : 0;
+		case JUSTIFY_GENERAL -> normal && prev != ' ' && !japaneseLatin ? size / 4.0 : 0;
+		case JUSTIFY_FALLBACK -> normal || westernInterletter ? size : 0;
+		default -> throw new IllegalArgumentException("priority=" + priority);
+		};
+	}
+
+	private static boolean isWestern(final int codePoint) {
+		final net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind kind =
+				net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.of(codePoint);
+		return kind == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.ALPHA
+				|| kind == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC;
 	}
 
 	public abstract boolean isContextBox();

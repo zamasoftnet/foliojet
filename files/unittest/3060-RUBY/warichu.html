@@ -1,0 +1,23 @@
+<?jp.cssj.property name="output.page-width" value="260pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ warichu</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 12pt; line-height: 2.4; }
+      p { margin: 0; }
+      .w { -cssj-warichu: auto; }
+      .vert { writing-mode: vertical-rl; height: 100pt; }
+    </style>
+  </head>
+  <body>
+    <p>A<span class="w">abcdefgh</span>B</p>
+    <!-- 中央で「（」の直後や「）」の直前に割らず、禁則可能な境界を選ぶ。 -->
+    <p>C<span class="w">（abcdef）</span>D</p>
+	    <!-- 長い割注は禁則を守る二段断片になり、本文の複数行へ折り返せる。 -->
+	    <p style="width:48pt">G<span class="w">長い割注本文は複数の本文行にまたがって配置できる</span>H</p>
+	    <div class="vert">E<span class="w">abcdefgh</span>F</div>
+  </body>
+</html>

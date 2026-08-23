@@ -1,0 +1,36 @@
+<?jp.cssj.property name="output.page-width" value="260pt"?>
+<?jp.cssj.property name="output.page-height" value="430pt"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ reduction priorities</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 12pt; line-height: 24pt; text-autospace: normal; }
+      p { margin: 0; border-right: .2pt solid; }
+	      .word { width: 25pt; word-spacing: 8pt; }
+	      .end { width: 30pt; }
+	      .middle, .opening, .comma, .full-stop { width: 34pt; }
+	      .autospace { width: 38pt; }
+	      .priority { width: 47.5pt; word-spacing: 8pt; }
+    </style>
+  </head>
+  <body>
+    <!-- 第1段階: 欧文語間を四分まで詰め、AとBを同じ行へ残す。 -->
+	    <p class="word"><span>A</span> <span>B</span> C</p>
+    <!-- 第2段階: 行末句点の後ろ二分を詰める。 -->
+	    <p class="end"><span>漢</span><span>字</span><span>。</span>漢</p>
+    <!-- 第4段階: 内部cl-05の前後四分を詰める。 -->
+	    <p class="middle"><span>漢</span><span>・</span><span>字</span>仮</p>
+    <!-- 第5段階: cl-01の前を詰める。 -->
+	    <p class="opening"><span>漢</span><span>（</span><span>字</span>仮</p>
+    <!-- 第5段階: cl-07の後を詰める。 -->
+	    <p class="comma"><span>漢</span><span>、</span><span>字</span>仮</p>
+    <!-- cl-06の後は第5段階で詰めない。 -->
+	    <p class="full-stop"><span>漢</span><span>。</span><span>字</span>仮</p>
+    <!-- 第6段階: 和欧間の四分を八分まで詰める。 -->
+	    <p class="autospace"><span>漢</span><span>A</span><span>字</span>仮</p>
+	    <!-- 第1段階だけで足りるとき、後順位の和欧間は四分のまま。 -->
+	    <p class="priority"><span>A</span> <span>B</span><span>漢</span>仮</p>
+  </body>
+</html>

@@ -22,8 +22,8 @@ public class FloatInAuto2Test extends AbstractTestCase {
 		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
 			// text-autospace既定normal化(2026-08-01): セル内の和欧境界1箇所の
-			// 四分アキ(0.125em×10pt=1.25pt)がauto表の実測幅へ入る。193→194.25
-			assertEquals(194.25, box.getWidth(), 1);
+			// JLREQの四分アキ(0.25em×10pt=2.5pt)がauto表の実測幅へ入る。193→195.5
+			assertEquals(195.5, box.getWidth(), 1);
 			assertEquals(108, box.getHeight(), 1);
 			return true;
 		}

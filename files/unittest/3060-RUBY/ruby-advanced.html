@@ -1,0 +1,27 @@
+<?jp.cssj.property name="output.page-width" value="260pt"?>
+<?jp.cssj.property name="output.page-height" value="260pt"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>advanced CSS ruby</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 12pt; line-height: 2.4; }
+      p { margin: 0; }
+      .none { ruby-overhang: none; }
+      .merge { ruby-merge: merge; }
+      .auto { ruby-merge: auto; }
+      .center { ruby-align: center; }
+      .between { ruby-align: space-between; }
+      .under { ruby-position: under; }
+      .vert { writing-mode: vertical-rl; height: 80pt; }
+    </style>
+  </head>
+  <body>
+    <p><ruby>A<rt>abcdef</rt></ruby>|<ruby class="none">A<rt>abcdef</rt></ruby></p>
+    <p><ruby class="merge"><rb>A</rb><rb>B</rb><rt>abcd</rt><rt>e</rt></ruby>|<ruby class="auto"><rb>C</rb><rb>D</rb><rt>e</rt><rt>f</rt></ruby></p>
+    <p><ruby class="center">AB<rt>abcd</rt></ruby>|<ruby class="between">CD<rt>ef</rt></ruby></p>
+    <p><ruby><rb>E</rb><rb>F</rb><rtc><rt>top</rt><rt>x</rt></rtc><rtc class="under"><rt>bot</rt><rt>y</rt></rtc></ruby></p>
+    <div class="vert"><ruby><rb>G</rb><rb>H</rb><rtc><rt>top</rt><rt>x</rt></rtc><rtc class="under"><rt>bot</rt><rt>y</rt></rtc></ruby></div>
+  </body>
+</html>

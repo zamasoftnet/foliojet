@@ -51,28 +51,33 @@ public final class AutospaceTracker {
 	}
 
 	/**
-	 * 同一run内の直前glyphとの約物詰め(正値。0=なし)です(T1a——
-	 * font層から移管。GPOSが非0のpairはスキップ、run境界は対象外=
-	 * 移管元と同じ適用範囲)。縦書きrunもclusterのUnicode code pointで
+	 * 直前glyphとの約物詰め(正値。0=なし)です(T1a/E——
+	 * font層から移管。同一runでGPOSが非0のpairはスキップする。
+	 * 2026-08-23から、装飾spanやフォント切替でrunが分かれても、幅0の
+	 * インライン境界なら同じJLREQ pairとして扱う)。縦書きrunもclusterのUnicode code pointで
 	 * 分類し、GSUB vert後glyphのvertical advanceでwide判定する。
 	 * xadvanceは論理inline advanceなので縦組では下向きの送りへ効く。
 	 * 縦中横の横書きrunは従来どおりhorizontal widthを使う。
 	 *
-	 * @param currentText 現在追記中のrun({@code null}=新run)
+	 * @param currentText 現在追記中のrun({@code null}=新runの先頭glyph)
 	 */
 	public double trimBefore(final char[] ch, final int coff, final int gid, final TextImpl currentText,
-			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final double fontSize) {
-		if (this.trimOff || this.prevCodePoint < 0 || this.prevGid < 0 || currentText == null
-				|| this.prevText != currentText) {
+			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final double fontSize,
+			final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction) {
+		if (this.trimOff || this.prevCodePoint < 0 || this.prevGid < 0 || this.prevText == null) {
 			return 0;
 		}
-		if (metrics.getKerning(this.prevGid, gid) != 0) {
+		// 異なるrun/フォントの間にGPOS kerningは定義されない。同一runだけ
+		// 従来どおりGPOSを優先する。
+		if (this.prevText == currentText && metrics.getKerning(this.prevGid, gid) != 0) {
 			return 0;
 		}
 		final int cp = Character.codePointAt(ch, coff);
-		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = currentText.getFontStyle().getDirection();
+		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction prevDirection = this.prevText.getFontStyle()
+				.getDirection();
 		return JapaneseSpacingResolver.pairTrim(this.prevCodePoint,
-				JapaneseSpacingResolver.isWide(metrics, this.prevGid, fontSize, direction), cp,
+				JapaneseSpacingResolver.isWide(this.prevText.getFontMetrics(), this.prevGid, this.prevFontSize,
+						prevDirection), cp,
 				JapaneseSpacingResolver.isWide(metrics, gid, fontSize, direction)) * fontSize;
 	}
 
@@ -86,7 +91,7 @@ public final class AutospaceTracker {
 		if (gapEm == 0) {
 			return 0;
 		}
-		// 和字側runのfont-size×0.125(ic近似——クラスjavadoc)
+		// 和字側runのfont-size×0.25(ic近似——クラスjavadoc)
 		return gapEm * (TextAutospaceClasses.ideographFirst(this.prevCodePoint) ? this.prevFontSize : fontSize);
 	}
 

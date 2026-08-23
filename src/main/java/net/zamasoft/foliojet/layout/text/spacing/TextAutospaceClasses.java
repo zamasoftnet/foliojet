@@ -11,8 +11,8 @@ import net.zamasoft.foliojet.css.value.TextAutospaceValue;
  * サブセット(CSS Text 4の趣旨、逸脱は記録): 和字=漢字(基本・拡張A・
  * 互換・追加面)・仮名(拡張含む)・々〆〇。欧文字=ASCII/Latin-1/
  * Latin拡張A/ギリシア/キリルの字母。数字=ASCII数字のみ。全角英数
- * (FF01-)は和字幅のため対象外。gapは0.125ic——全角フォントでは
- * ic=emのため、和字側runのfont-size×0.125で近似する(答申の
+	 * (FF01-)は和字幅のため対象外。gapはJLREQ既定の0.25ic——全角フォントでは
+	 * ic=emのため、和字側runのfont-size×0.25で近似する(答申の
  * 「水」advance実測は将来最適化)。
  * </p>
  *
@@ -20,8 +20,8 @@ import net.zamasoft.foliojet.css.value.TextAutospaceValue;
  */
 public final class TextAutospaceClasses {
 
-	/** 和欧文間スペース量(em比=0.125ic近似)。 */
-	public static final double GAP = 0.125;
+	/** 和欧文間スペース量(em比)。JLREQ 3.2.8の四分アキ。 */
+	public static final double GAP = 0.25;
 
 	private TextAutospaceClasses() {
 		// static

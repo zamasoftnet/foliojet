@@ -94,6 +94,9 @@ public class TextBuilder {
 	 */
 	private boolean lineHead, firstUnit, last;
 
+	/** この要素の最初の整形行をまだ確定していない。 */
+	private boolean firstFormattedLine;
+
 	/**
 	 * 次のインラインまたはテキストの追加で改行する
 	 */
@@ -156,6 +159,7 @@ public class TextBuilder {
 		}
 
 		this.last = !breakToken.midLine();
+		this.firstFormattedLine = !breakToken.midFlow();
 		this.lineBox = lineBox;
 		this.lineHead = this.firstUnit = true;
 		this.lastSpaceAdvance = 0;
@@ -315,24 +319,42 @@ public class TextBuilder {
 		this.minLineAxis = lineStart - this.builder.lineAxis;
 		// System.out.println("NewLine:"+lineStart+"/"+this.maxLineSize);
 
-		// 天付き(和文詰めS1: 判定はJapaneseSpacingResolverへ移管——
-		// consult-codex-2026-07-31-text-spacing.txt。挙動は不変)
-		if (!this.last && this.lineBox.getLineParams().flow.isVertical()) {
-			for (int i = 0; i < this.textBuffer.size(); ++i) {
-				Element e = (Element) this.textBuffer.get(i);
-				if (e.getAdvance() == 0) {
-					continue;
-				}
-				if (e instanceof Text) {
-					final Text text = (Text) e;
-					final double headIndent = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
-							.verticalHeadIndent(text.getChars()[0]);
-					if (headIndent != 0) {
-						this.textIndent = headIndent * text.getFontStyle().getSize();
-					}
-				}
-				break;
+		// 天付き(和文詰めS1/JLREQ cl-01)。横書き・縦書きとも、全角相当の
+		// 始め括弧が持つ行頭側の二分アキを行外へ出す。CSS Text 4に従い
+		// trim-startだけを天付きにし、normal/space-allはJLREQのもう一つの
+		// 選択肢である行頭二分アキを残す。
+		final AbstractLineParams lineParams = this.lineBox.getLineParams();
+		// space-firstはブロック初行と強制改行直後だけ全角を保ち、
+		// 自動折返しで始まった行だけ天付きにする。this.lastは直前の
+		// 改行が強制/初行ならtrue、自動折返しならfalseという既存状態。
+		final boolean trimStart = lineParams.textSpacingTrimStart
+				|| (lineParams.textSpacingSpaceFirst && !this.last);
+		for (int i = 0; i < this.textBuffer.size(); ++i) {
+			Element e = (Element) this.textBuffer.get(i);
+			if (e.getAdvance() == 0) {
+				continue;
 			}
+			if (e instanceof Text) {
+				final Text text = (Text) e;
+				final double fontSize = text.getFontStyle().getSize();
+				final boolean wide = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
+						.isWide(text.getFontMetrics(), text.getGlyphIds()[0], fontSize,
+								text.getFontStyle().getDirection());
+				final int firstCodePoint = Character.codePointAt(text.getChars(), 0);
+				double headIndent = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
+						.lineHeadIndent(firstCodePoint, wide, trimStart) * fontSize;
+				if (lineParams.hangingPunctuationFirst && this.firstFormattedLine) {
+					headIndent += net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.firstHang(
+							firstCodePoint, wide, text.getFontMetrics().getAdvance(text.getGlyphIds()[0]), fontSize,
+							trimStart);
+				}
+				if (headIndent != 0) {
+					// ブロック先頭行でも天付きを適用し、作者指定の
+					// text-indentは基準位置として保つ。
+					this.textIndent += headIndent;
+				}
+			}
+			break;
 		}
 	}
 
@@ -687,6 +709,7 @@ public class TextBuilder {
 		}
 		boolean lineAdded = false;
 		if (this.drawLine(last)) {
+			this.firstFormattedLine = false;
 			final AbstractLineBox lineBox = this.lineBox;
 			final LineBox newLineBox = lineBox.splitLine(this.textBlockBox.getBlockParams());
 
@@ -771,6 +794,7 @@ public class TextBuilder {
 		boolean content;
 		if (count > 0) {
 			this.allocateLeaders(count, last);
+			TextImpl trimEndCandidate = null;
 			for (int i = 0; i < count; ++i) {
 				Element e = (Element) this.textBuffer.get(i);
 				if (e instanceof Text) {
@@ -805,6 +829,7 @@ public class TextBuilder {
 						}
 					}
 					this.addElement(e);
+					trimEndCandidate = (TextImpl) e;
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
 					if (!last && i == count - 1 && this.opportunity.hyphen() != null) {
@@ -861,10 +886,27 @@ public class TextBuilder {
 					} else {
 						throw new IllegalStateException();
 					}
+					// 折りたたまれる行末空白と幅0の境界は、直前の約物が
+					// 行末であることを妨げない。それ以外のインライン要素・
+					// leaderが後ろにあれば約物は行末ではない。
+					if (!(e instanceof Control) && e.getAdvance() != 0) {
+						trimEndCandidate = null;
+					}
 				} else {
 					throw new IllegalStateException();
 				}
 				this.lineAxis -= e.getAdvance();
+			}
+
+			if (trimEndCandidate != null) {
+				double endHang = this.lineBox.getEndHangAdvance();
+				if (this.lineBox.getLineParams().textSpacingTrimEnd) {
+					endHang = Math.max(endHang, this.endTrim(trimEndCandidate));
+				}
+				if (this.lineBox.getLineParams().hangingPunctuationForceEnd) {
+					endHang = Math.max(endHang, this.forceEndHang(trimEndCandidate));
+				}
+				this.lineBox.setEndHangAdvance(endHang);
 			}
 
 			double lastSpaceAdvance = 0;
@@ -989,30 +1031,263 @@ public class TextBuilder {
 	/** 和文詰めT2/H1: 次のnewLineで完了する行の行末詰め/ぶら下げ量。 */
 	private double pendingEndHang;
 
-	/**
-	 * 追い込み(T2)/ぶら下げ(H1)の行末許容量です(和文詰め——
-	 * consult-codex-2026-07-31-text-spacing.txt T2/H1)。バッファ末尾の
-	 * glyphが対象約物のとき、行に収まる方を優先順(trim→hang)で返す。
-	 * 対象外・どちらでも収まらないときは0(従来の追い出しへ)。
-	 */
-	private double endAllowance(final double lineAxis, final double maxLineAxis) {
-		if (this.textBuffer.isEmpty()) {
-			return 0;
+	/** JLREQ 3.8.3の追込み点。hangだけは描画幅を変えず実効行末を外へ出す。 */
+	private static final class JlreqShrinkPoint {
+		final TextImpl text;
+		final int glyphIndex;
+		final double capacity;
+		final boolean hang;
+
+		JlreqShrinkPoint(final TextImpl text, final int glyphIndex, final double capacity, final boolean hang) {
+			this.text = text;
+			this.glyphIndex = glyphIndex;
+			this.capacity = capacity;
+			this.hang = hang;
 		}
-		final Element tail = (Element) this.textBuffer.get(this.textBuffer.size() - 1);
-		if (!(tail instanceof TextImpl text) || text.getGlyphCount() <= 0) {
+	}
+
+	private static final class JlreqGlyph {
+		final TextImpl text;
+		final int glyphIndex;
+		final int codePoint;
+		final int gid;
+		final double fontSize;
+
+		JlreqGlyph(final TextImpl text, final int glyphIndex, final int codePoint) {
+			this.text = text;
+			this.glyphIndex = glyphIndex;
+			this.codePoint = codePoint;
+			this.gid = text.getGlyphIds()[glyphIndex];
+			this.fontSize = text.getFontStyle().getSize();
+		}
+	}
+
+	/**
+	 * 現在の分割候補をJLREQ 3.8.3の六段階（欧文語間→行末約物→行末中点→
+	 * 内部中点→括弧・読点→和欧間）で追い込む。全容量で収まらない場合は
+	 * 一切変更せず、従来どおり直前候補へ追い出す。
+	 */
+	@SuppressWarnings("unchecked")
+	private boolean tryJlreqLineShrink(final double overflow) {
+		if (!(overflow > 0)) {
+			return true;
+		}
+		final List<JlreqShrinkPoint>[] stages = new List[8];
+		for (int i = 1; i < stages.length; ++i) {
+			stages[i] = new ArrayList<>();
+		}
+
+		JlreqGlyph prev = null;
+		JlreqGlyph beforeSpace = null;
+		WhiteSpace pendingSpace = null;
+		JlreqGlyph tail = null;
+		for (final Element element : this.textBuffer) {
+			if (element instanceof TextImpl text) {
+				final char[] chars = text.getChars();
+				final byte[] clusterLengths = text.getClusterLengths();
+				int charIndex = 0;
+				for (int glyphIndex = 0; glyphIndex < text.getGlyphCount(); ++glyphIndex) {
+					final int cp = Character.codePointAt(chars, charIndex);
+					final JlreqGlyph current = new JlreqGlyph(text, glyphIndex, cp);
+					if (pendingSpace != null) {
+						if (beforeSpace != null && isWestern(beforeSpace.codePoint) && isWestern(cp)) {
+							final double min = Math.min(beforeSpace.fontSize, current.fontSize) / 4.0;
+							addJlreqShrinkPoint(stages[1], current, Math.max(0, pendingSpace.getAdvance() - min));
+						}
+						pendingSpace = null;
+						beforeSpace = null;
+						prev = null;
+					}
+					if (prev != null) {
+						addJlreqBoundaryShrinkPoints(stages, prev, current, !this.autospace.isTrimOff());
+					}
+					prev = tail = current;
+					charIndex += clusterLengths[glyphIndex];
+				}
+				continue;
+			}
+			if (element instanceof WhiteSpace whiteSpace) {
+				beforeSpace = prev;
+				pendingSpace = whiteSpace;
+				prev = null;
+				continue;
+			}
+			if (element instanceof SoftHyphen) {
+				continue;
+			}
+			if (element instanceof InlineQuad inline
+					&& (inline.getType() == InlineQuad.INLINE_START || inline.getType() == InlineQuad.INLINE_END)
+					&& inline.getAdvance() == 0) {
+				continue;
+			}
+			prev = null;
+			pendingSpace = null;
+			beforeSpace = null;
+		}
+
+		if (tail != null) {
+			addJlreqLineEndShrinkPoints(stages, tail);
+		}
+
+		double total = 0;
+		for (int stage = 1; stage < stages.length; ++stage) {
+			for (final JlreqShrinkPoint point : stages[stage]) {
+				total += point.capacity;
+			}
+		}
+		if (LayoutUtils.compare(total, overflow) < 0) {
+			return false;
+		}
+
+		double remainder = overflow;
+		double physical = 0;
+		double hang = 0;
+		for (int stage = 1; stage < stages.length && remainder > 0.0001; ++stage) {
+			double capacity = 0;
+			for (final JlreqShrinkPoint point : stages[stage]) {
+				capacity += point.capacity;
+			}
+			if (capacity <= 0) {
+				continue;
+			}
+			final double used = Math.min(remainder, capacity);
+			for (final JlreqShrinkPoint point : stages[stage]) {
+				final double amount = used * point.capacity / capacity;
+				if (point.hang) {
+					hang += amount;
+				} else if (amount != 0) {
+					point.text.addXAdvance(point.glyphIndex, -amount);
+					physical += amount;
+				}
+			}
+			remainder -= used;
+		}
+		this.lineAxis -= physical;
+		this.pendingEndHang = hang;
+		return true;
+	}
+
+	private static void addJlreqShrinkPoint(final List<JlreqShrinkPoint> points, final JlreqGlyph glyph,
+			final double capacity) {
+		if (capacity > 0.0001) {
+			points.add(new JlreqShrinkPoint(glyph.text, glyph.glyphIndex, capacity, false));
+		}
+	}
+
+	private static void addJlreqBoundaryShrinkPoints(final List<JlreqShrinkPoint>[] stages,
+			final JlreqGlyph prev, final JlreqGlyph current, final boolean punctuationTrim) {
+		final net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass pc = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass
+				.of(prev.codePoint);
+		final net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass cc = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass
+				.of(current.codePoint);
+
+		// 第4段階: cl-05の前後四分アキをベタまで詰める。
+		if (punctuationTrim) {
+			double middleDot = 0;
+			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT) {
+				middleDot += prev.fontSize / 4.0;
+			}
+			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT) {
+				middleDot += current.fontSize / 4.0;
+			}
+			addJlreqShrinkPoint(stages[4], current, middleDot);
+		}
+
+		// 第5段階: cl-01の前、cl-02/cl-07の後の二分アキ。cl-06の後は詰めない。
+		if (punctuationTrim) {
+			double punctuation = 0;
+			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.OPENING) {
+				punctuation += current.fontSize / 2.0;
+			}
+			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.CLOSING
+					|| net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isComma(prev.codePoint)) {
+				punctuation += prev.fontSize / 2.0;
+			}
+			addJlreqShrinkPoint(stages[5], current, punctuation);
+		}
+
+		// 第6段階: text-autospaceの四分アキを最小八分まで詰める。
+		final boolean japaneseLatin = isJapaneseLatinBoundary(prev.codePoint, current.codePoint);
+		final net.zamasoft.pdfg2d.gc.text.GlyphAdvances xa = current.text.xAdvances();
+		final double existing = xa == null ? 0 : xa.get(current.glyphIndex);
+		if (japaneseLatin && existing > 0) {
+			final double ideographSize = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
+					.of(prev.codePoint) == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
+							? prev.fontSize : current.fontSize;
+			addJlreqShrinkPoint(stages[6], current, Math.min(existing, ideographSize / 8.0));
+		}
+	}
+
+	private void addJlreqLineEndShrinkPoints(final List<JlreqShrinkPoint>[] stages, final JlreqGlyph tail) {
+		final net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass cls = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass
+				.of(tail.codePoint);
+		final boolean wide = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(
+				tail.text.getFontMetrics(), tail.gid, tail.fontSize, tail.text.getFontStyle().getDirection());
+		final double advance = tail.text.getFontMetrics().getAdvance(tail.gid);
+		final boolean force = this.lineBox.getLineParams().hangingPunctuationForceEnd
+				&& cls == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.PUNCTUATION;
+		if (force) {
+			stages[2].add(new JlreqShrinkPoint(null, -1, advance, true));
+			return;
+		}
+		double trim = 0;
+		if (!this.autospace.isTrimOff()) {
+			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.endTrim(tail.codePoint,
+					wide, tail.fontSize);
+			if (trim > 0) {
+				final int stage = cls == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT
+						? 3 : 2;
+				stages[stage].add(new JlreqShrinkPoint(null, -1, trim, true));
+			}
+		}
+		if (wide && this.hangingEnd
+				&& cls == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.PUNCTUATION
+				&& advance > trim) {
+			// allow-endはJLREQの六段階を使い切った後の追加救済。
+			stages[7].add(new JlreqShrinkPoint(null, -1, advance - trim, true));
+		}
+	}
+
+	private static boolean isWestern(final int codePoint) {
+		final net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind kind = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
+				.of(codePoint);
+		return kind == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.ALPHA
+				|| kind == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC;
+	}
+
+	private static boolean isJapaneseLatinBoundary(final int prev, final int current) {
+		final net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind pk = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
+				.of(prev);
+		final net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind ck = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
+				.of(current);
+		return pk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH && isWestern(current)
+				|| ck == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
+						&& isWestern(prev);
+	}
+
+	/** trim-both/autoの無条件行末詰め量です。 */
+	private double endTrim(final TextImpl text) {
+		if (text.getGlyphCount() <= 0) {
 			return 0;
 		}
 		final int cp = Character.codePointBefore(text.getChars(), text.getCharCount());
 		final int gid = text.getGlyphIds()[text.getGlyphCount() - 1];
 		final double fontSize = text.getFontStyle().getSize();
-		final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics = text.getFontMetrics();
-		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = text.getFontStyle().getDirection();
-		return net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.endAllowance(cp,
-				net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(metrics, gid, fontSize,
-						direction),
-				this.autospace.isTrimOff(), this.hangingEnd, metrics.getAdvance(gid), fontSize,
-				lineAxis - maxLineAxis);
+		return net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.endTrim(cp,
+				net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(text.getFontMetrics(), gid,
+						fontSize, text.getFontStyle().getDirection()),
+				fontSize);
+	}
+
+	/** hanging-punctuation: force-endの無条件ぶら下げ量です。 */
+	private double forceEndHang(final TextImpl text) {
+		if (text.getGlyphCount() <= 0) {
+			return 0;
+		}
+		final int cp = Character.codePointBefore(text.getChars(), text.getCharCount());
+		final int gid = text.getGlyphIds()[text.getGlyphCount() - 1];
+		return net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.forceEndHang(cp,
+				text.getFontMetrics().getAdvance(gid));
 	}
 
 	public void startTextRun(FontStyle fontStyle, FontMetrics fontMetrics) {
@@ -1054,7 +1329,8 @@ public class TextBuilder {
 		// 約物詰め(負、同一run内のみ=移管元のfont層kernと同範囲)
 		final double fontSize = this.fontStyle == null ? 0 : this.fontStyle.getSize();
 		double autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
-		double punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize);
+		double punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
+				this.fontStyle.getDirection());
 		if (this.breakWord == AbstractTextParams.WORD_WRAP_BREAK_WORD && this.unitAdvance > 0) {
 			if (this.firstUnit) {
 				this.locateLine();
@@ -1073,7 +1349,8 @@ public class TextBuilder {
 				// flushが実際に行を分割した場合はtrackerがリセット済み——
 				// 行を跨ぐpairに調整は入らない(再計算)
 				autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
-				punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize);
+				punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
+						this.fontStyle.getDirection());
 			}
 		}
 
@@ -1276,13 +1553,10 @@ public class TextBuilder {
 				double maxLineAxis = this.maxLineSize - this.textIndent;
 				// System.err.println("TB flush: " + lineAxis + "/" + maxLineAxis);
 				if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
-					// 和文詰めT2/H1: 行末の追い込み(trim)/ぶら下げ(hang)で
-					// 収まるなら、この位置(バッファ全体)で改行して行末
-					// 許容量を行へ渡す(従来=前のopportunityへの追い出し)
-					final double allowance = this.endAllowance(lineAxis, maxLineAxis);
-					if (allowance > 0) {
+					// JLREQ 3.8.3: 現候補が優先段階どおりの追込みで収まるなら
+					// バッファ全体をこの行へ残す。収まらなければ変更せず従来候補へ送る。
+					if (this.tryJlreqLineShrink(lineAxis - maxLineAxis)) {
 						this.opportunity = this.captureOpportunity();
-						this.pendingEndHang = allowance;
 					}
 					// テキストブロックの途中での折り返し
 					final boolean ret = this.newLine(false);

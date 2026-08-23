@@ -167,7 +167,10 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 			for (int i = 0; i < glen; ++i) {
 				AffineTransform at2 = at;
 				int gid = gids[i];
-				if (i > 0) {
+				if (i == 0 && xadvances != null && xadvances.get(0) != 0) {
+					at.preConcatenate(AffineTransform.getTranslateInstance(0, xadvances.get(0)));
+					at2 = at;
+				} else if (i > 0) {
 					double dy = fm.getAdvance(pgid) + letterSpacing;
 					dy -= fm.getKerning(pgid, gid);
 					if (xadvances != null) {
@@ -201,7 +204,9 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 			int pgid = 0;
 			for (int i = 0; i < glen; ++i) {
 				final int gid = gids[i];
-				if (i > 0) {
+				if (i == 0 && xadvances != null && xadvances.get(0) != 0) {
+					at.preConcatenate(AffineTransform.getTranslateInstance(xadvances.get(0), 0));
+				} else if (i > 0) {
 					double dx = fm.getAdvance(pgid) + letterSpacing;
 					if (i > 0) {
 						dx -= fm.getKerning(pgid, gid);

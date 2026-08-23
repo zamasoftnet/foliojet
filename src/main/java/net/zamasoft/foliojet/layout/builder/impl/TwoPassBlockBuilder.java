@@ -74,6 +74,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		record PageFloatBlock(TwoPassBlockBuilder builder, boolean top) implements Recorded {
 		}
 
+		/** 親のTwoPass本文から分離して版面外の並列注領域へ渡す注。 */
+		record PageMarginNoteBlock(TwoPassBlockBuilder builder, boolean start) implements Recorded {
+		}
+
 		/** 親のTwoPass本文から分離してページ台帳へ渡す脚注。 */
 		record FootnoteBlock(TwoPassBlockBuilder builder) implements Recorded {
 		}
@@ -623,6 +627,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			// 浮動体
 			if (stfBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloat) {
 				this.addRecord(new Recorded.PageFloatBlock(builder, pageFloat.top));
+			} else if (stfBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos note) {
+				this.addRecord(new Recorded.PageMarginNoteBlock(builder, note.start));
 			} else if (stfBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
 				this.addRecord(new Recorded.FootnoteBlock(builder));
 			} else {
@@ -884,6 +890,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				continue;
 			} else if (recorded instanceof Recorded.PageFloatBlock pageFloat) {
 				child = pageFloat.builder();
+			} else if (recorded instanceof Recorded.PageMarginNoteBlock note) {
+				child = note.builder();
 			} else if (recorded instanceof Recorded.FootnoteBlock footnote) {
 				child = footnote.builder();
 			} else if (recorded instanceof Recorded.AbsoluteBlock absoluteBlock) {
@@ -1248,6 +1256,24 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 				break;
 
+			case Recorded.PageMarginNoteBlock noteBlock: {
+				if (textUnitizer != null) {
+					textUnitizer.flush();
+				}
+				if (scratch) {
+					break;
+				}
+				final TwoPassBlockBuilder content = noteBlock.builder();
+				final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box =
+						(net.zamasoft.foliojet.layout.box.impl.FloatBlockBox) content.getRootBox();
+				box.shrinkToFit(builder, content.intrinsicSizesMeasured(), false);
+				final BlockBuilder target = new BlockBuilder(builder.getPageContext(), box);
+				content.bind(target);
+				target.close();
+				builder.getPageContext().addPageMarginNote(box, noteBlock.start());
+			}
+				break;
+
 			case Recorded.FootnoteBlock footnoteBlock: {
 				if (textUnitizer != null) {
 					textUnitizer.flush();
@@ -1376,7 +1402,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final double fontSize = this.text.getFontStyle().getSize();
 		final double gap = this.autospace.gapBefore(ch, coff, fontSize);
 		final double trim = this.autospace.trimBefore(ch, coff, gid, this.text,
-				this.text.getFontMetrics(), fontSize);
+				this.text.getFontMetrics(), fontSize, this.text.getFontStyle().getDirection());
 		// appendGlyph は記録用 TextImpl を構築しつつアドバンスを返すため、
 		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
 		this.measurer.glyph(this.text.appendGlyph(ch, coff, clen, gid), gap, trim);

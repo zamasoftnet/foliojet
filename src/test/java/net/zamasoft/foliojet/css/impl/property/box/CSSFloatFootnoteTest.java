@@ -50,6 +50,14 @@ public class CSSFloatFootnoteTest extends TestCase {
 		assertSame(CSSFloatValue.END_VALUE, parse("end"));
 	}
 
+	public void testJlreqParallelNoteKeywords() throws Exception {
+		assertSame(CSSFloatValue.PAGE_NOTE_START_VALUE, parse("-cssj-note-start"));
+		assertSame(CSSFloatValue.PAGE_NOTE_END_VALUE, parse("-cssj-note-end"));
+		assertEquals("-cssj-note-start", CSSFloatValue.PAGE_NOTE_START_VALUE.toString());
+		assertEquals("-cssj-note-end", CSSFloatValue.PAGE_NOTE_END_VALUE.toString());
+		assertTrue(CSSFloatValue.isPageLevel(CSSFloatValue.PAGE_NOTE_START));
+	}
+
 	public void testUnknownKeywordRejected() {
 		try {
 			parse("bogus");

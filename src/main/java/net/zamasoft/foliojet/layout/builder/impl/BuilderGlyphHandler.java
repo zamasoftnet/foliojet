@@ -7,6 +7,7 @@ import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.impl.RubyUnitBox;
+import net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
@@ -228,6 +229,13 @@ public class BuilderGlyphHandler implements GlyphHandler {
 					// 「ルビの手前」で打ち切られ、ルビ範囲がliveと再生の
 					// 双方から供給されうる)
 					final int end = rubyUnit.getSourceEnd();
+					if (end >= 0) {
+						this.deliveredCharEnd = Math.max(this.deliveredCharEnd, end);
+					}
+				} else if (inlineQuad.getBox() instanceof WarichuUnitBox warichuUnit) {
+					// 割注もCollectorが文字を横取りする合成箱なので、ルビと
+					// 同様にソース終端を明示的に前進させる。
+					final int end = warichuUnit.getSourceEnd();
 					if (end >= 0) {
 						this.deliveredCharEnd = Math.max(this.deliveredCharEnd, end);
 					}

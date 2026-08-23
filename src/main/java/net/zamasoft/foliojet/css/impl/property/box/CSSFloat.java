@@ -61,6 +61,12 @@ public class CSSFloat extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("footnote")) {
 				// GCPM/Prince系の脚注float(F0、2026-07-31)
 				return CSSFloatValue.FOOTNOTE_VALUE;
+			} else if (ident.equals("-cssj-note-start")) {
+				// JLREQの並列注（横組の傍注・縦組の頭注）
+				return CSSFloatValue.PAGE_NOTE_START_VALUE;
+			} else if (ident.equals("-cssj-note-end")) {
+				// JLREQの並列注（横組の傍注・縦組の脚注）
+				return CSSFloatValue.PAGE_NOTE_END_VALUE;
 			}
 		}
 		throw new PropertyException();

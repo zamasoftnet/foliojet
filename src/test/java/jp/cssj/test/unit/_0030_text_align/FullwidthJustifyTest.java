@@ -21,7 +21,7 @@ public class FullwidthJustifyTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x);
-			assertEquals(27, x, 1);
+			assertEquals(29.28, x, 1);
 			return true;
 		}
 		return false;

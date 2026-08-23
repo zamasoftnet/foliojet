@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
+import net.zamasoft.foliojet.css.value.RubyAlignValue;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
@@ -76,13 +77,11 @@ public class RubyUnitBox extends InlineBlockBox {
 
 	private final TextImpl[] baseTexts;
 
-	private final TextImpl[] rubyTexts;
+	/** 複数段・両側を含む注釈です。 */
+	private final RubyAnnotation[] annotations;
 
 	/** 親文字の色です(nullなら継承色のまま)。 */
 	private final Color baseColor;
-
-	/** ふりがなの色です(nullなら継承色のまま)。 */
-	private final Color rubyColor;
 
 	/**
 	 * 書字方向です。ふりがなを置く側(=行の「上」側)の決定に使います。
@@ -99,17 +98,16 @@ public class RubyUnitBox extends InlineBlockBox {
 	/** 親文字の基底線下側(縦書きは左側)の寸法です。 */
 	private final double baseDescent;
 
-	/**
-	 * ふりがな行の基底線上側(縦書きは右側)の寸法です(ふりがな無しなら
-	 * 0)。単位の寸法には算入されない(行間の余白へはみ出して描かれる)。
-	 */
-	private final double rubyAscent;
+	/** 注釈の整列用仮想幅と、実際のatomic inline幅との差。 */
+	private final double annotationOrigin;
 
-	/**
-	 * ふりがな行の基底線下側(縦書きは左側)の寸法です(ふりがな無しなら
-	 * 0)。単位の寸法には算入されない(行間の余白へはみ出して描かれる)。
-	 */
-	private final double rubyDescent;
+	/** 左右(縦組では行頭・行末)へ許した張り出し量。 */
+	private final double startHang, endHang;
+
+	/** 行頭側を予約した際に、親文字と注釈を箱内へ戻す移動量。 */
+	private double contentShift = 0;
+
+	private boolean startHangReserved = false, endHangReserved = false;
 
 	/** テキスト抽出・禁則判定用の文字列(親文字、無ければふりがな)です。 */
 	private final String text;
@@ -123,21 +121,21 @@ public class RubyUnitBox extends InlineBlockBox {
 	private final int sourceStart, sourceEnd;
 
 	private RubyUnitBox(final BlockParams params, final InlinePos pos, final RubyUnitContainer container,
-			final TextImpl[] baseTexts, final TextImpl[] rubyTexts, final Color baseColor, final Color rubyColor,
+			final TextImpl[] baseTexts, final RubyAnnotation[] annotations, final Color baseColor,
 			final WritingMode flow, final double lineExtent, final double baseAscent, final double baseDescent,
-			final double rubyAscent, final double rubyDescent, final String text, final int sourceStart,
-			final int sourceEnd) {
+			final double annotationOrigin, final double startHang, final double endHang, final String text,
+			final int sourceStart, final int sourceEnd) {
 		super(params, pos, Dimension.AUTO_DIMENSION, Dimension.ZERO_DIMENSION,
 				new AbsoluteRectFrame(RectFrame.NULL_FRAME), container);
 		this.baseTexts = baseTexts;
-		this.rubyTexts = rubyTexts;
+		this.annotations = annotations;
 		this.baseColor = baseColor;
-		this.rubyColor = rubyColor;
 		this.flow = flow;
 		this.baseAscent = baseAscent;
 		this.baseDescent = baseDescent;
-		this.rubyAscent = rubyAscent;
-		this.rubyDescent = rubyDescent;
+		this.annotationOrigin = annotationOrigin;
+		this.startHang = startHang;
+		this.endHang = endHang;
 		this.text = text;
 		this.sourceStart = sourceStart;
 		this.sourceEnd = sourceEnd;
@@ -156,6 +154,36 @@ public class RubyUnitBox extends InlineBlockBox {
 			this.height = pageExtent;
 		}
 		container.setup(baseAscent, baseDescent);
+	}
+
+	/**
+	 * 行頭側の隣接字形と衝突しうるため、張り出しを箱内へ予約します。
+	 * quadが下流へ渡る前に呼ぶことを想定します。
+	 */
+	public void reserveStartOverhang() {
+		if (this.startHangReserved || this.startHang <= 0) {
+			return;
+		}
+		this.startHangReserved = true;
+		this.contentShift += this.startHang;
+		if (this.flow.isVertical()) {
+			this.height += this.startHang;
+		} else {
+			this.width += this.startHang;
+		}
+	}
+
+	/** 行末側の隣接字形と衝突しうるため、張り出し分を幅へ戻します。 */
+	public void reserveEndOverhang() {
+		if (this.endHangReserved || this.endHang <= 0) {
+			return;
+		}
+		this.endHangReserved = true;
+		if (this.flow.isVertical()) {
+			this.height += this.endHang;
+		} else {
+			this.width += this.endHang;
+		}
 	}
 
 	/**
@@ -180,102 +208,115 @@ public class RubyUnitBox extends InlineBlockBox {
 		return this.sourceEnd;
 	}
 
-	/**
-	 * ルビ単位を組み立てます。親文字・ふりがなの両方が空の場合はnullを
-	 * 返します(単位を生成しない)。
-	 *
-	 * @param container   ルビコンテナ(ruby要素)のインラインパラメータ
-	 *                    (構造的な文脈——フォント管理・書字方向・禁則——の
-	 *                    出所)
-	 * @param baseText    親文字列(空可)
-	 * @param baseParams  親文字の書式(空のときは{@code container})
-	 * @param baseOffset  親文字列のソース文字オフセット(生成内容は-1)
-	 * @param rubyText    ふりがな文字列(空可)
-	 * @param rubyParams  ふりがなの書式(空のときは{@code container})
-	 * @param rubyOffset  ふりがな文字列のソース文字オフセット
-	 * @param sourceStart 単位が消費したソースの先頭(無ければ-1)
-	 * @param sourceEnd   単位が消費したソースの終端(無ければ-1)
-	 */
+	/** コレクタから渡す注釈入力。levelは0始まりです。 */
+	public record AnnotationInput(String text, InlineParams params, int charOffset, int level) {
+	}
+
+	private static final class RubyAnnotation {
+		final TextImpl[] texts;
+		final Color color;
+		final boolean over;
+		final boolean interCharacter;
+		final double ascent, descent, advance;
+
+		RubyAnnotation(final TextImpl[] texts, final Color color, final boolean over, final boolean interCharacter) {
+			this.texts = texts;
+			this.color = color;
+			this.over = over;
+			this.interCharacter = interCharacter;
+			this.ascent = texts.length == 0 ? 0 : maxAscent(texts);
+			this.descent = texts.length == 0 ? 0 : maxDescent(texts);
+			this.advance = totalAdvance(texts);
+		}
+	}
+
+	/** 親文字と0個以上の注釈レベルからatomic inlineを組み立てます。 */
 	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
-			final int baseOffset, final String rubyText, final InlineParams rubyParams, final int rubyOffset,
-			final int sourceStart, final int sourceEnd) {
-		if (baseText.isEmpty() && rubyText.isEmpty()) {
+			final int baseOffset, final List<AnnotationInput> annotationInputs, final int sourceStart,
+			final int sourceEnd) {
+		if (baseText.isEmpty() && annotationInputs.isEmpty()) {
 			return null;
 		}
 		final InlineParams bp = baseParams == null ? container : baseParams;
-		final InlineParams rp = rubyParams == null ? container : rubyParams;
 		final FontStyle baseFs = bp.fontStyle;
-		final FontStyle rubyBaseFs = rp.fontStyle;
-		// ふりがなは親文字の半分のサイズ。ファミリ・字面・featureはrt側の指定に従う
-		final FontStyle rubyFs = new FontStyleImpl(rubyBaseFs.getFamily(), baseFs.getSize() / 2.0,
-				rubyBaseFs.getStyle(), rubyBaseFs.getWeight(), rubyBaseFs.getDirection(), rubyBaseFs.getPolicy(),
-				rubyBaseFs.getFeatures(), rubyBaseFs.getSynthesisWeight(), rubyBaseFs.getSynthesisStyle());
-
 		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset);
-		final TextImpl[] rubyTexts = rubyText.isEmpty() ? new TextImpl[0] : shape(rp, rubyFs, rubyText, rubyOffset);
-
 		final double baseAdvance = totalAdvance(baseTexts);
-		final double rubyAdvance = totalAdvance(rubyTexts);
-		final double lineExtent = Math.max(baseAdvance, rubyAdvance);
-		if (lineExtent <= 0) {
+
+		final List<RubyAnnotation> built = new ArrayList<RubyAnnotation>();
+		double visualExtent = baseAdvance;
+		String fallbackText = "";
+		boolean overhang = container.rubyOverhang;
+		for (final AnnotationInput input : annotationInputs) {
+			final InlineParams rp = input.params() == null ? container : input.params();
+			final FontStyle rubyBaseFs = rp.fontStyle;
+			final FontStyle rubyFs = new FontStyleImpl(rubyBaseFs.getFamily(), baseFs.getSize() / 2.0,
+					rubyBaseFs.getStyle(), rubyBaseFs.getWeight(), rubyBaseFs.getDirection(), rubyBaseFs.getPolicy(),
+					rubyBaseFs.getFeatures(), rubyBaseFs.getSynthesisWeight(), rubyBaseFs.getSynthesisStyle(),
+					rubyBaseFs.getTextOrientation());
+			final TextImpl[] texts = input.text().isEmpty() ? new TextImpl[0]
+					: shape(rp, rubyFs, input.text(), input.charOffset());
+			final boolean interCharacter = !container.flow.isVertical() && rp.rubyPosition.isInterCharacter();
+			final RubyAnnotation annotation = new RubyAnnotation(texts, rp.color,
+					interCharacter || rp.rubyPosition.isOver(input.level()), interCharacter);
+			built.add(annotation);
+			if (!interCharacter) {
+				visualExtent = Math.max(visualExtent, annotation.advance);
+			}
+			overhang &= rp.rubyOverhang;
+			if (fallbackText.isEmpty()) {
+				fallbackText = input.text();
+			}
+		}
+		if (visualExtent <= 0) {
 			return null;
 		}
-		// 狭い方を単位内で均等配置する(両端に半分ずつの余白、字間に
-		// 等分の余白——旧box方式のtext-align: -cssj-justify-centerに相当)
-		distribute(baseTexts, lineExtent - baseAdvance);
-		distribute(rubyTexts, lineExtent - rubyAdvance);
 
-		// ascent/descentは実際に整形されたラン(実フォント)から取る。
-		// FontListMetricsのmax(フォールバックリスト全体の最大)を使うと、
-		// 実フォントのmetricsで行高へ寄与する周囲テキストと僅かにずれ、
-		// ルビを含む行だけ行高が微増して行送りが乱れる(2026-07-25検分で
-		// 実測0.1pt差→ページ当たり行数減を確認)。
+		// CSS Rubyは張り出し量をUA裁量とする。JLREQ/JISの上限を越えない
+		// よう、注釈フォントの0.5ic(=親文字の0.25em)までを各側へ許す。
+		final double desiredHang = Math.max(0, (visualExtent - baseAdvance) / 2.0);
+		final double hang = overhang && baseAdvance > 0 ? Math.min(baseFs.getSize() / 4.0, desiredHang) : 0;
+		final double lineExtent = Math.max(baseAdvance, visualExtent - hang * 2.0);
+		final double annotationOrigin = (lineExtent - visualExtent) / 2.0;
+
+		align(baseTexts, lineExtent - baseAdvance, bp.rubyAlign);
+		for (int i = 0; i < built.size(); ++i) {
+			final RubyAnnotation annotation = built.get(i);
+			if (annotation.interCharacter) {
+				continue;
+			}
+			final InlineParams rp = annotationInputs.get(i).params() == null ? container : annotationInputs.get(i).params();
+			align(annotation.texts, visualExtent - annotation.advance, rp.rubyAlign);
+		}
+
 		final double baseAscent;
 		final double baseDescent;
 		if (baseTexts.length > 0) {
 			baseAscent = maxAscent(baseTexts);
 			baseDescent = maxDescent(baseTexts);
 		} else {
-			// 親文字が空の単位(rt先行等)はフォールバックリストの値
 			final FontListMetrics baseFlm = bp.fontManager.getFontListMetrics(baseFs);
 			baseAscent = baseFlm.getMaxAscent();
 			baseDescent = baseFlm.getMaxDescent();
 		}
-		final double rubyAscent;
-		final double rubyDescent;
-		if (rubyTexts.length > 0) {
-			rubyAscent = maxAscent(rubyTexts);
-			rubyDescent = maxDescent(rubyTexts);
-		} else {
-			// ふりがなの無い単位(rtの後の余り等)は注釈行を持たない
-			rubyAscent = rubyDescent = 0;
-		}
 
 		final BlockParams params = new BlockParams();
-		// DOM要素ではない合成箱(identityは外側のruby InlineBoxが持つ)
 		params.element = null;
 		params.opacity = bp.opacity;
 		params.fontStyle = baseFs;
-		// 書式は親文字側(base)の指定に従う。禁則・言語依存の処理も
-		// 親文字が主体(ふりがなは単位内に閉じて分割されない)
 		params.fontManager = bp.fontManager;
 		params.lineBreakRules = bp.lineBreakRules;
 		params.direction = bp.direction;
-		// 書字方向だけは行の文脈(=ルビコンテナ)に従う
 		params.flow = container.flow;
 		params.color = bp.color;
 		params.whiteSpace = AbstractTextParams.WHITE_SPACE_NOWRAP;
-		// 行送りは行側のline-heightに従う(TextBuilderのBLOCK経路は
-		// pos.lineHeightと行のline-heightのmaxを適用する)
 		params.lineHeight = 0;
 
 		final InlinePos pos = new InlinePos();
 		pos.lineHeight = 0;
-
-		final String text = baseText.isEmpty() ? rubyText : baseText;
-		return new RubyUnitBox(params, pos, new RubyUnitContainer(), baseTexts, rubyTexts, bp.color, rp.color,
-				container.flow, lineExtent, baseAscent, baseDescent, rubyAscent, rubyDescent, text, sourceStart,
-				sourceEnd);
+		final String text = baseText.isEmpty() ? fallbackText : baseText;
+		return new RubyUnitBox(params, pos, new RubyUnitContainer(), baseTexts,
+				built.toArray(RubyAnnotation[]::new), bp.color, container.flow, lineExtent, baseAscent, baseDescent,
+				annotationOrigin, hang, hang, text, sourceStart, sourceEnd);
 	}
 
 	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
@@ -310,14 +351,9 @@ public class RubyUnitBox extends InlineBlockBox {
 		return descent;
 	}
 
-	/**
-	 * 狭い方の列へ余り{@code extra}を均等配分します。各グリフの手前へ
-	 * 等分の余白を挿入し、先頭は半分(両端に半余白)。xadvanceは
-	 * 各フォント実装がグリフの手前に適用するため({@code CIDKeyedFont}
-	 * 等)、先頭グリフのxadvance=余白/2で開始位置のオフセットも兼ねる。
-	 */
-	private static void distribute(final TextImpl[] texts, final double extra) {
-		if (extra <= DISTRIBUTE_EPSILON) {
+	/** CSS {@code ruby-align}に従って、列の余りをグリフ前進量へ配分します。 */
+	private static void align(final TextImpl[] texts, final double extra, final RubyAlignValue alignment) {
+		if (extra <= DISTRIBUTE_EPSILON || alignment == RubyAlignValue.START) {
 			return;
 		}
 		int glyphCount = 0;
@@ -327,14 +363,30 @@ public class RubyUnitBox extends InlineBlockBox {
 		if (glyphCount <= 0) {
 			return;
 		}
-		final double per = extra / glyphCount;
-		boolean first = true;
+		final double per;
+		if (alignment == RubyAlignValue.CENTER || glyphCount == 1) {
+			per = 0;
+		} else if (alignment == RubyAlignValue.SPACE_BETWEEN) {
+			per = extra / (glyphCount - 1);
+		} else {
+			per = extra / glyphCount;
+		}
+		int glyph = 0;
 		for (final TextImpl text : texts) {
-			// 調整を作り直す(reset後のaddは代入と等価)
 			text.resetXAdvances();
 			for (int i = 0; i < text.getGlyphCount(); ++i) {
-				text.addXAdvance(i, first ? per / 2.0 : per);
-				first = false;
+				final double before;
+				if (alignment == RubyAlignValue.CENTER || glyphCount == 1) {
+					before = glyph == 0 ? extra / 2.0 : 0;
+				} else if (alignment == RubyAlignValue.SPACE_BETWEEN) {
+					before = glyph == 0 ? 0 : per;
+				} else {
+					before = glyph == 0 ? per / 2.0 : per;
+				}
+				if (before != 0) {
+					text.addXAdvance(i, before);
+				}
+				++glyph;
 			}
 		}
 	}
@@ -386,29 +438,69 @@ public class RubyUnitBox extends InlineBlockBox {
 				base.append(text.getChars(), 0, text.getCharCount());
 			}
 			final StringBuilder ruby = new StringBuilder();
-			for (final TextImpl text : this.box.rubyTexts) {
-				ruby.append(text.getChars(), 0, text.getCharCount());
+			if (this.box.annotations.length > 0) {
+				appendText(ruby, this.box.annotations[0].texts);
 			}
-			return String.format(java.util.Locale.ROOT, "RubyUnit[\"%s\" ruby=\"%s\" w=%.2f h=%.2f]", base, ruby,
-					this.box.getWidth(), this.box.getHeight());
+			final StringBuilder extra = new StringBuilder();
+			for (int i = 1; i < this.box.annotations.length; ++i) {
+				final RubyAnnotation annotation = this.box.annotations[i];
+				final StringBuilder value = new StringBuilder();
+				appendText(value, annotation.texts);
+				extra.append(" ruby").append(i + 1).append(annotation.over ? "-over=\"" : "-under=\"")
+						.append(value).append('\"');
+			}
+			return String.format(java.util.Locale.ROOT, "RubyUnit[\"%s\" ruby=\"%s\"%s w=%.2f h=%.2f]", base,
+					ruby, extra, this.box.getWidth(), this.box.getHeight());
+		}
+
+		private static void appendText(final StringBuilder buff, final TextImpl[] texts) {
+			for (final TextImpl text : texts) {
+				buff.append(text.getChars(), 0, text.getCharCount());
+			}
 		}
 
 		public void innerDraw(final GC gc, final double x, final double y) throws GraphicsException {
 			final RubyUnitBox box = this.box;
 			try (final var gcState = gc.begin()) {
 				if (box.flow.isVertical()) {
-					// 縦書き: 親文字列は左からbaseDescentの縦基準線上。
-					// ふりがな列は箱の右端(x+width)の右外=行間の余白
-					// (RL/LRとも本エンジンは+x側を文字の上側に取る)
+					// 縦書き: over=右、under=左。複数段は外側へ積む。
 					final double baseX = x + box.baseDescent;
-					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y, true);
-					final double rubyX = x + box.baseDescent + box.baseAscent + box.rubyDescent;
-					this.drawRun(gc, box.rubyTexts, box.rubyColor, rubyX, y, true);
+					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y + box.contentShift, true);
+					double over = 0, under = 0;
+					for (final RubyAnnotation annotation : box.annotations) {
+						final double rubyX;
+						if (annotation.over) {
+							rubyX = x + box.baseDescent + box.baseAscent + over + annotation.descent;
+							over += annotation.ascent + annotation.descent;
+						} else {
+							rubyX = x - under - annotation.ascent;
+							under += annotation.ascent + annotation.descent;
+						}
+						this.drawRun(gc, annotation.texts, annotation.color, rubyX,
+								y + box.contentShift + box.annotationOrigin, true);
+					}
 				} else {
-					// 横書き: 親文字行が箱の中、ふりがな行は箱の上端(y)の
-					// 上外=行間の余白(基底線はy-rubyDescent)
-					this.drawRun(gc, box.rubyTexts, box.rubyColor, x, y - box.rubyDescent, false);
-					this.drawRun(gc, box.baseTexts, box.baseColor, x, y + box.baseAscent, false);
+					// 横書き: over=上、under=下。inter-characterは右側へ縦置き。
+					double over = 0, under = 0;
+					for (final RubyAnnotation annotation : box.annotations) {
+						if (annotation.interCharacter) {
+							final double rubyX = x + box.contentShift + box.getWidth() + annotation.descent;
+							final double rubyY = y + Math.max(0,
+									(box.baseAscent + box.baseDescent - annotation.advance) / 2.0);
+							this.drawRun(gc, annotation.texts, annotation.color, rubyX, rubyY, true);
+						} else if (annotation.over) {
+							this.drawRun(gc, annotation.texts, annotation.color,
+									x + box.contentShift + box.annotationOrigin,
+									y - over - annotation.descent, false);
+							over += annotation.ascent + annotation.descent;
+						} else {
+							this.drawRun(gc, annotation.texts, annotation.color,
+									x + box.contentShift + box.annotationOrigin,
+									y + box.baseAscent + box.baseDescent + under + annotation.ascent, false);
+							under += annotation.ascent + annotation.descent;
+						}
+					}
+					this.drawRun(gc, box.baseTexts, box.baseColor, x + box.contentShift, y + box.baseAscent, false);
 				}
 			}
 		}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>JLREQ features composed with standard HTML and CSS</title>
+  <style>
+    @page { size: 360pt 420pt; margin: 18pt; }
+    body { margin: 0; font: 12pt serif; line-height: 28pt; }
+    p { margin: 0 0 8pt; }
+
+    /*
+     * JLREQ 3.5.6の振分け。inline-tableは1個のatomic inlineなので、
+     * 本文の複数行へ分裂せず、最長行が幅を決め、middleで本文中心へそろう。
+     */
+    .furiwake { display: inline-table; vertical-align: middle; line-height: 1; white-space: nowrap; }
+    .furiwake-row { display: table-row; }
+    .furiwake-cell { display: table-cell; }
+
+    /*
+     * JLREQ 3.5.5の添え字。サイズは推奨例の60%、親文字群はatomic inlineにして
+     * 内部改行とjustify伸長を避ける。sup/subの位置決め自体はHTML UA CSSによる。
+     */
+    .scripted { display: inline-block; white-space: nowrap; }
+    .scripted > sup, .scripted > sub { font-size: 60%; }
+
+    .fixed-lines { line-height: 28pt; }
+    ruby { ruby-position: over; }
+    rt { font-size: 50%; }
+
+    .vertical {
+      writing-mode: vertical-rl;
+      inline-size: 175pt;
+      block-size: 70pt;
+      line-height: 28pt;
+      border: 0.5pt solid #999;
+    }
+  </style>
+</head>
+<body>
+  <p>振分け前〔<span class="furiwake"><span class="furiwake-row"><span class="furiwake-cell">第一候補</span></span><span class="furiwake-row"><span class="furiwake-cell">第二の長い候補</span></span></span>〕振分け後</p>
+  <p>添え字 <span class="scripted">H<sub>2</sub></span>O と <span class="scripted">10<sup>3</sup></span> は途中で分割しない。</p>
+  <div class="fixed-lines">基準行一<br><ruby>親文字<rt>おやもじ</rt></ruby>を含む基準行二<br>基準行三</div>
+  <div class="vertical">縦組前〔<span class="furiwake"><span class="furiwake-row"><span class="furiwake-cell">甲案</span></span><span class="furiwake-row"><span class="furiwake-cell">乙の案</span></span></span>〕縦組後</div>
+</body>
+</html>

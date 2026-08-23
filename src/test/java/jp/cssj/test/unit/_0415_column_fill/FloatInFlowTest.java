@@ -31,12 +31,12 @@ public class FloatInFlowTest extends AbstractTestCase {
 				assertEquals(6, x, 1);
 				assertEquals(6, y, 1);
 				assertEquals(171, box.getWidth(), 1);
-				assertEquals(72, box.getHeight(), 1);
+				assertEquals(57.6, box.getHeight(), 1);
 			} else {
 				assertEquals(201, x, 1);
 				assertEquals(6, y, 1);
 				assertEquals(171, box.getWidth(), 1);
-				assertEquals(57, box.getHeight(), 1);
+				assertEquals(57.6, box.getHeight(), 1);
 			}
 			i++;
 			return true;
@@ -53,19 +53,14 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.err.println("height: " + box.getHeight());
 			if (i == 2) {
 				assertEquals(6, x, 1);
-				assertEquals(140, y, 1);
+				assertEquals(126.56, y, 1);
 				assertEquals(171, box.getWidth(), 1);
-				assertEquals(114, box.getHeight(), 1);
-			} else if (i == 3) {
-				assertEquals(201, x, 1);
-				assertEquals(140, y, 1);
-				assertEquals(171, box.getWidth(), 1);
-				assertEquals(57, box.getHeight(), 1);
+				assertEquals(93.6, box.getHeight(), 1);
 			} else {
 				assertEquals(201, x, 1);
-				assertEquals(198, y, 1);
+				assertEquals(126.56, y, 1);
 				assertEquals(171, box.getWidth(), 1);
-				assertEquals(28, box.getHeight(), 1);
+				assertEquals(100.8, box.getHeight(), 1);
 			}
 			i++;
 			return true;

@@ -81,6 +81,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0390-writing-mode/vert-cell-specified-pagebreak.html", //
 			"0390-writing-mode/vert-fixed-colgroup-spacing.html", //
 			"0390-writing-mode/orthogonal-cell-fixed.html", //
+			// CSS Writing Modes: mixed/upright/sidewaysで縦/横font sourceの
+			// run分離と論理inline送りが変わることを固定する
+			"0390-writing-mode/text-orientation.html", //
 			// 直交ブロックのページ軸%は親の線軸基準(2026-08-10修正の固定)
 			"0390-writing-mode/orthogonal-page-axis-percent.html", //
 			"0240-table/z-order.html", //
@@ -108,6 +111,11 @@ public class DisplayListGoldenTest extends TestCase {
 			// ルビ単位の組み立て(複数rb/rtの対応づけ・断片の書式・
 			// ネスト・片側だけのmalformed・縦書き)を直接固定する
 			"3060-RUBY/ruby-annotation.html", //
+			"3060-RUBY/ruby-advanced.html", // CSS Ruby Level 1: merge/align/overhang/position/rtc
+			"3060-RUBY/warichu.html", // JLREQ 3.4: Copper拡張による横/縦の2段割注と禁則
+			// JLREQ 3.5.5/3.5.6: 標準HTML/CSSによる添え字と振分け、
+			// 3.6.3: ルビを行間へ出して基準行位置を保つこと
+			"0510-text-spacing/jlreq-composed-features.html", //
 			"0219-pagebreak-table-inrow/valign-split-vert.html", //
 			"0390-writing-mode/border-collapse.html", //
 			"0390-writing-mode/absolute.html", //
@@ -300,6 +308,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// あればその上)へ、float: topが次ページ先頭へ置かれ、以後の
 			// フローがその下から始まることを座標で固定する
 			"0125-footnote/page-float.html", //
+			"0125-footnote/page-margin-note-horizontal.html", // JLREQ横組の傍注（論理行末側）
+			"0125-footnote/page-margin-note-vertical.html", // JLREQ縦組の頭注（論理行頭側）
 			// Grid G1(2026-07-31)。固定トラックの列開始・行開始・gap・
 			// Grid総高(後続ブロックの位置)と、不適格Grid(1fr)のG0
 			// フォールバック+atomicページ送りを固定する
@@ -337,18 +347,26 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めA2(2026-07-31)。text-autospaceのgap(0.125em)を
 			// run境界のx座標で固定する(off/on/numeric限定/明示空白抑止)
 			"0510-text-spacing/autospace-horizontal.html", //
+			"0510-text-spacing/jlreq-justify-priority.html", // JLREQ 3.8.4の4段階追出し
+			"0510-text-spacing/jlreq-shrink-priority.html", // JLREQ 3.8.3の6段階追込み
 			"0510-text-spacing/autospace-vertical.html", //
 			"0510-text-spacing/autospace-in-float.html", //
 			// M2c実測ラッパーへのtext-autospace持ち越し(2026-08-08)。
 			// inline-blockのshrink-to-fit実測がlatin→CJK境界のgapを
 			// 含む幅で1行に収まることを固定する(kabutan回帰)
 			"0510-text-spacing/autospace-inline-block-measured.html", //
-			// 和文詰めT1b(2026-07-31)。text-spacing-trim: normal(=T1aで
-			// 移管した詰め)とspace-all(全角のまま)の対比を固定する
+			// 和文詰めT1b(2026-07-31/2026-08-23)。normal/trim-start/
+			// space-allの行頭と連続約物の対比を固定する
 			"0510-text-spacing/trim-pairs.html", //
+			// CSS Text 4の行端ポリシー。trim-both/autoの無条件行末詰めと、
+			// space-firstの初行・強制改行直後・自動折返しの差を固定する
+			"0510-text-spacing/trim-line-edges.html", //
 			// 和文詰めT2/H1(2026-07-31)。行末ぶら下げ(allow-end)の
 			// 追い込みと、行末trimの条件付き半角化を固定する
 			"0510-text-spacing/hanging-end.html", //
+			// JLREQ E/F: style run境界を跨ぐ約物詰め、中点後ろの伸長抑制、
+			// 横書き・縦書きのブロック先頭行の天付きを座標で固定する
+			"0510-text-spacing/jlreq-boundaries.html", //
 			// 名前付きページN1b(2026-07-31)。rootのpage名で@page chapterの
 			// 柱が出て、chapter:firstが特異性で先頭ページに勝つこと・
 			// 無名@pageのマージンは継承合成されることを固定する
@@ -437,15 +455,37 @@ public class DisplayListGoldenTest extends TestCase {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.reset();
 		List<String> failures = new ArrayList<>();
 		for (String doc : DOCUMENTS) {
+			if (!selectedByFilter(doc)) {
+				continue;
+			}
 			checkDocument(doc, 1, failures);
 		}
 		for (String doc : MULTI_PASS_DOCUMENTS) {
+			if (!selectedByFilter(doc)) {
+				continue;
+			}
 			checkDocument(doc, 2, failures);
 		}
-		reportTwoPassRangeBind(failures);
+		if (System.getProperty("foliojet.displayListFilter") == null) {
+			reportTwoPassRangeBind(failures);
+		}
 		if (!failures.isEmpty()) {
 			fail(String.join("\n", failures));
 		}
+	}
+
+	/** カンマ区切りの部分一致で、表示リストfixtureだけを高速に再実行する。 */
+	private static boolean selectedByFilter(final String doc) {
+		final String filter = System.getProperty("foliojet.displayListFilter");
+		if (filter == null || filter.isBlank()) {
+			return true;
+		}
+		for (final String token : filter.split(",")) {
+			if (!token.isBlank() && doc.contains(token.trim())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

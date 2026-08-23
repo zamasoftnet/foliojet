@@ -93,12 +93,15 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		final TextImpl run = text(metrics, FontStyle.Direction.LTR, "」");
 		final AutospaceTracker tracker = new AutospaceTracker();
 		tracker.glyphAdded(run, 12, new char[] { '」' }, 0, (byte) 1, 100);
-		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12), 0.001);
+		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12,
+				FontStyle.Direction.LTR), 0.001);
 
 		tracker.setTrimOff(true);
-		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12), 0.001);
+		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12,
+				FontStyle.Direction.LTR), 0.001);
 		tracker.setTrimOff(false);
-		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12), 0.001);
+		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12,
+				FontStyle.Direction.LTR), 0.001);
 	}
 
 	/** GPOS非0のpairはスキップ(font優先——移管元と同じ)。 */
@@ -107,17 +110,19 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		final TextImpl run = text(gpos, FontStyle.Direction.LTR, "」");
 		final AutospaceTracker tracker = new AutospaceTracker();
 		tracker.glyphAdded(run, 12, new char[] { '」' }, 0, (byte) 1, 100);
-		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, gpos, 12), 0.001);
+		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, gpos, 12,
+				FontStyle.Direction.LTR), 0.001);
 	}
 
-	/** run境界は対象外(移管元のfont層kernと同範囲)。 */
-	public void testRunBoundaryExcluded() {
+	/** 幅0のstyle run境界も同じpairとして詰める(JLREQ E)。 */
+	public void testRunBoundaryIncluded() {
 		final WideMetrics metrics = new WideMetrics(0);
 		final TextImpl run1 = text(metrics, FontStyle.Direction.LTR, "」");
 		final TextImpl run2 = text(metrics, FontStyle.Direction.LTR, "、");
 		final AutospaceTracker tracker = new AutospaceTracker();
 		tracker.glyphAdded(run1, 12, new char[] { '」' }, 0, (byte) 1, 100);
-		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run2, metrics, 12), 0.001);
+		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run2, metrics, 12,
+				FontStyle.Direction.LTR), 0.001);
 	}
 
 	/** 縦書きrunもUnicode clusterで分類して詰める。 */
@@ -126,7 +131,8 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		final TextImpl run = text(metrics, FontStyle.Direction.TB, "」");
 		final AutospaceTracker tracker = new AutospaceTracker();
 		tracker.glyphAdded(run, 12, new char[] { '」' }, 0, (byte) 1, 100);
-		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12), 0.001);
+		assertEquals(6.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, metrics, 12,
+				FontStyle.Direction.TB), 0.001);
 	}
 
 	/** TBのwide gateとrun後処理はhorizontal widthでなくvertical advanceを使う。 */
@@ -159,6 +165,7 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		final TextImpl run = text(narrow, FontStyle.Direction.LTR, "」");
 		final AutospaceTracker tracker = new AutospaceTracker();
 		tracker.glyphAdded(run, 12, new char[] { '」' }, 0, (byte) 1, 100);
-		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, narrow, 12), 0.001);
+		assertEquals(0.0, tracker.trimBefore(new char[] { '、' }, 0, 101, run, narrow, 12,
+				FontStyle.Direction.LTR), 0.001);
 	}
 }

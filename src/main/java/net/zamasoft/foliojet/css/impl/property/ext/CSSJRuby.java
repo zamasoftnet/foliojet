@@ -57,6 +57,8 @@ public class CSSJRuby extends AbstractPrimitivePropertyInfo {
 				return CSSJRubyValue.RB_VALUE;
 			} else if (ident.equals("rt")) {
 				return CSSJRubyValue.RT_VALUE;
+			} else if (ident.equals("rtc")) {
+				return CSSJRubyValue.RTC_VALUE;
 			}
 		}
 		throw new PropertyException();

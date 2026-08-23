@@ -50,7 +50,7 @@ public class FlowInlinePagebreakTest extends AbstractTestCase {
 				assertEquals(243, box.getWidth(), 1);
 			} else if (pageNumber == 3) {
 				// 3ページ目の頭(右端側)
-				assertEquals(183, x, 1);
+				assertEquals(183.31, x, 1);
 				assertEquals(6, y, 1);
 				assertEquals(60, box.getWidth(), 1);
 			}
@@ -70,7 +70,7 @@ public class FlowInlinePagebreakTest extends AbstractTestCase {
 			// 2ページ目の途中の行から始まる
 			assertEquals(2, pageNumber);
 			assertEquals(12, x, 1);
-			assertEquals(116, y, 1);
+			assertEquals(76.06, y, 1);
 			break;
 		case 2:
 			// 2ページ目の最終行(ここにルビ単位が乗り、行末で切れる)

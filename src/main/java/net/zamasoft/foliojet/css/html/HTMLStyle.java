@@ -1136,6 +1136,11 @@ public class HTMLStyle {
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RT_VALUE);
 		}
 			break;
+		case HTMLCodes.RTC: {
+			// <RTC>: CSS Rubyの注釈レベルコンテナ
+			style.set(CSSJRuby.INFO, CSSJRubyValue.RTC_VALUE);
+		}
+			break;
 		// S/SCRIPT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.SAMP: {
 			// <SAMP>

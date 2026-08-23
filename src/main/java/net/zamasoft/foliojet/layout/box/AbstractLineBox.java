@@ -118,13 +118,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			// 両方合わせ
 			double remainderAdvance = maxLineAxis - lineWidth;
 			if (remainderAdvance > 0) {
-				int count = this.countJustificationPoints(new JustificationState());
-				if (count > 0) {
-					double letterSpacing = remainderAdvance / count;
-					if (letterSpacing != 0) {
-						this.justify(letterSpacing, new JustificationState());
-					}
-				}
+				this.justifyByWritingSystem(remainderAdvance);
 			}
 			this.lineAlign = textIndent;
 		}
@@ -148,13 +142,15 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 				break;
 			}
 
-			int count = this.countJustificationPoints(new JustificationState());
-			if (count <= 0) {
+			final boolean japanese = this.containsJapaneseComposition();
+			final double capacity = japanese
+					? this.justificationCapacity(JUSTIFY_FALLBACK, new JustificationState())
+					: this.countGeneralJustificationPoints(new JustificationState());
+			if (capacity <= 0) {
 				this.lineAlign = (maxLineAxis - lineWidth) / 2.0 + textIndent;
 				break;
 			}
-			double letterSpacing = (remainderAdvance - fontSize) / count;
-			this.justify(letterSpacing, new JustificationState());
+			this.justifyByWritingSystem(remainderAdvance - fontSize);
 			this.lineAlign = textIndent + fontSize / 2.0;
 			break;
 
@@ -164,6 +160,44 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 		// ページ方向アラインメント
 		super.verticalAlign(this, 0);
+	}
+
+	/** 和文行はJLREQ、純欧文・一般文字列は従来の分離可能境界で両端揃えする。 */
+	private void justifyByWritingSystem(final double remainder) {
+		if (remainder <= 0) {
+			return;
+		}
+		if (this.containsJapaneseComposition()) {
+			this.justifyByJlreqPriorities(remainder);
+			return;
+		}
+		final int count = this.countGeneralJustificationPoints(new JustificationState());
+		if (count > 0) {
+			this.justifyGeneral(remainder / count, new JustificationState());
+		}
+	}
+
+	/** JLREQ 3.8.4の4段階で行の余りを配分する。 */
+	private void justifyByJlreqPriorities(double remainder) {
+		if (remainder <= 0) {
+			return;
+		}
+		for (int priority = JUSTIFY_WORD_SPACE; priority <= JUSTIFY_GENERAL && remainder > 0.0001;
+				++priority) {
+			final double capacity = this.justificationCapacity(priority, new JustificationState());
+			if (capacity <= 0) {
+				continue;
+			}
+			final double used = Math.min(remainder, capacity);
+			this.justify(priority, used / capacity, new JustificationState());
+			remainder -= used;
+		}
+		if (remainder > 0.0001) {
+			final double weight = this.justificationCapacity(JUSTIFY_FALLBACK, new JustificationState());
+			if (weight > 0) {
+				this.justify(JUSTIFY_FALLBACK, remainder / weight, new JustificationState());
+			}
+		}
 	}
 
 	public LineBox splitLine(BlockParams params) {

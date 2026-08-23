@@ -42,8 +42,12 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, double textStrokeWidth,
 		Color textStrokeColor,
-		TextShadow[] textShadows, byte rubyRole, byte textAutospace, boolean textSpacingTrimOff,
-		boolean hangingPunctuationEnd, byte textCombine) {
+		TextShadow[] textShadows, byte rubyRole, boolean warichu, net.zamasoft.foliojet.css.value.RubyAlignValue rubyAlign,
+		net.zamasoft.foliojet.css.value.RubyMergeValue rubyMerge, boolean rubyOverhang,
+		net.zamasoft.foliojet.css.value.RubyPositionValue rubyPosition, byte textAutospace, boolean textSpacingTrimOff,
+		boolean textSpacingTrimStart, boolean textSpacingTrimEnd, boolean textSpacingSpaceFirst,
+		boolean hangingPunctuationEnd, boolean hangingPunctuationFirst, boolean hangingPunctuationForceEnd,
+		byte textCombine) {
 	TextParamsFields {
 		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
 		// TextShadowはfinalフィールドのみで実質不変)
@@ -56,8 +60,12 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
 				source.textStrokeWidth,
-				source.textStrokeColor, source.textShadows, source.rubyRole, source.textAutospace,
-				source.textSpacingTrimOff, source.hangingPunctuationEnd, source.textCombine);
+				source.textStrokeColor, source.textShadows, source.rubyRole, source.warichu, source.rubyAlign, source.rubyMerge,
+				source.rubyOverhang, source.rubyPosition, source.textAutospace,
+				source.textSpacingTrimOff, source.textSpacingTrimStart, source.textSpacingTrimEnd,
+				source.textSpacingSpaceFirst, source.hangingPunctuationEnd, source.hangingPunctuationFirst,
+				source.hangingPunctuationForceEnd,
+				source.textCombine);
 	}
 
 	/**
@@ -87,9 +95,19 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.textStrokeColor = this.textStrokeColor;
 		target.textShadows = this.textShadows == null ? null : this.textShadows.clone();
 		target.rubyRole = this.rubyRole;
+		target.warichu = this.warichu;
+		target.rubyAlign = this.rubyAlign;
+		target.rubyMerge = this.rubyMerge;
+		target.rubyOverhang = this.rubyOverhang;
+		target.rubyPosition = this.rubyPosition;
 		target.textAutospace = this.textAutospace;
 		target.textSpacingTrimOff = this.textSpacingTrimOff;
+		target.textSpacingTrimStart = this.textSpacingTrimStart;
+		target.textSpacingTrimEnd = this.textSpacingTrimEnd;
+		target.textSpacingSpaceFirst = this.textSpacingSpaceFirst;
 		target.hangingPunctuationEnd = this.hangingPunctuationEnd;
+		target.hangingPunctuationFirst = this.hangingPunctuationFirst;
+		target.hangingPunctuationForceEnd = this.hangingPunctuationForceEnd;
 		target.textCombine = this.textCombine;
 	}
 }

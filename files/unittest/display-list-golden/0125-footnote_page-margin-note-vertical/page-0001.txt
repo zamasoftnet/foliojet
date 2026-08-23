@@ -1,0 +1,10 @@
+drawer z=0
+  x=175.00 y=-49.00 AbsoluteRectFrame[w=25.00 h=43.00]
+  x=188.50 y=-46.50 Text["head" asc=4.50 desc=4.50]
+  x=179.50 y=-46.50 Text["one" asc=4.50 desc=4.50]
+  x=144.00 y=-49.00 AbsoluteRectFrame[w=25.00 h=43.00]
+  x=157.50 y=-46.50 Text["head" asc=4.50 desc=4.50]
+  x=148.50 y=-46.50 Text["two" asc=4.50 desc=4.50]
+  x=186.00 y=0.00 Text["A1" asc=7.00 desc=7.00]
+  x=172.00 y=0.00 Text["A2" asc=7.00 desc=7.00]
+  x=158.00 y=0.00 Text["A3" asc=7.00 desc=7.00]

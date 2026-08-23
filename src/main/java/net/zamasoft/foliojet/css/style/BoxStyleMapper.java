@@ -615,13 +615,28 @@ final class BoxStyleMapper {
 		params.textTransform = TextTransform.get(style);
 		// 和文詰めA1: 実効フラグ(幾何はA2で配線)
 		params.textAutospace = net.zamasoft.foliojet.css.impl.property.text.TextAutospace.getFlags(style);
-		// 和文詰めT1b: space-all=約物詰め無効
+		// 和文詰めT1b: space-all=約物詰め無効、trim-start=行頭天付き
 		params.textSpacingTrimOff = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.isSpaceAll(style);
+		params.textSpacingTrimStart = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim
+				.trimsLineStart(style);
+		params.textSpacingTrimEnd = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.trimsLineEnd(style);
+		params.textSpacingSpaceFirst = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim
+				.spacesFirstLine(style);
 		// 縦中横の種別(allだけ1em幅へ圧縮する。2026-08-11)
 		params.textCombine = net.zamasoft.foliojet.css.impl.property.text.TextCombineMode.get(style);
 		// 和文詰めH1: 行末句読点のぶら下げ
 		params.hangingPunctuationEnd = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
 				.isAllowEnd(style);
+		params.hangingPunctuationFirst = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
+				.hangsFirst(style);
+		params.hangingPunctuationForceEnd = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
+				.isForceEnd(style);
+		params.rubyAlign = net.zamasoft.foliojet.css.impl.property.text.RubyAlign.get(style);
+		params.rubyMerge = net.zamasoft.foliojet.css.impl.property.text.RubyMerge.get(style);
+		params.rubyOverhang = net.zamasoft.foliojet.css.impl.property.text.RubyOverhang
+				.get(style) == net.zamasoft.foliojet.css.value.RubyOverhangValue.AUTO;
+		params.rubyPosition = net.zamasoft.foliojet.css.impl.property.text.RubyPosition.get(style);
+		params.warichu = net.zamasoft.foliojet.css.impl.property.ext.CSSJWarichu.isEnabled(style);
 		params.fontStyle = style.getFontStyle();
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle
@@ -644,6 +659,9 @@ final class BoxStyleMapper {
 			break;
 		case CSSJRubyValue.RT:
 			params.rubyRole = AbstractTextParams.RUBY_TEXT;
+			break;
+		case CSSJRubyValue.RTC:
+			params.rubyRole = AbstractTextParams.RUBY_TEXT_CONTAINER;
 			break;
 		default:
 			break;

@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ horizontal sidenotes</title>
+    <style>
+      @page { size: 300pt 240pt; margin: 50pt; }
+      body { margin: 0; font: 10pt monospace; line-height: 14pt; }
+      p { margin: 0; }
+      .note {
+        float: -cssj-note-end;
+        width: 34pt;
+        padding: 2pt;
+        border: 0.5pt solid black;
+        font-size: 7pt;
+        line-height: 9pt;
+      }
+    </style>
+  </head>
+  <body>
+    <p>L01<span class="note">note one</span></p>
+    <p>L02<span class="note">note two is taller</span></p>
+    <p>L03</p>
+    <p>L04</p>
+  </body>
+</html>

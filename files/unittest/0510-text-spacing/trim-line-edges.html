@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>text-spacing-trim line edge policies</title>
+<style type="text/css">
+@page { margin: 0; size: 180pt 180pt; }
+body { font: normal 12pt/1.2 serif; margin: 0; }
+p { margin: 0; }
+.end { width: 72pt; text-align: end; }
+#both { text-spacing-trim: trim-both; }
+#auto { text-spacing-trim: auto; }
+#first { width: 24pt; text-spacing-trim: space-first; }
+.indent { text-indent: 12pt; text-spacing-trim: trim-both; }
+#hang-first { hanging-punctuation: first; }
+#allow-end { hanging-punctuation: allow-end; }
+#force-end { hanging-punctuation: force-end; }
+</style>
+</head>
+<body>
+<!-- normal keeps a fitting closing punctuation fullwidth at line end. -->
+<p id="normal" class="end">ああ」</p>
+<!-- trim-both and this UA's high-quality auto always trim it. -->
+<p id="both" class="end">ああ」</p>
+<p id="auto" class="end">ああ」</p>
+<!-- First/forced lines stay spaced; only the soft-wrapped third line is flush. -->
+<p id="first">「あ<br>「い「う</p>
+<!-- first hangs another half-em inside the indent after trim-both. -->
+<p id="indent" class="indent">「あ</p>
+<p id="hang-first" class="indent">「あ</p>
+<!-- A fitting stop stays in with allow-end, but always hangs with force-end. -->
+<p id="allow-end" class="end">ああ。</p>
+<p id="force-end" class="end">ああ。</p>
+</body>
+</html>

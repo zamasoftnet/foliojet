@@ -7,17 +7,17 @@ import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.token.TokenStream;
-import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.TextSpacingTrimValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code text-spacing-trim}です(和文詰めT1b、2026-07-31——
  * consult-codex-2026-07-31-text-spacing.txt)。継承プロパティ。
- * 初期サブセット: {@code normal}(連続約物の詰め=T1aでfont層から
- * 移管した挙動)| {@code space-all}(詰めなし=全角のまま)。
- * {@code trim-start}/{@code trim-both}は次増分、{@code space-first}/
- * {@code trim-all}/{@code auto}はサブセット外(宣言無効)。
+ * {@code normal}/{@code space-all}/{@code space-first}/{@code trim-start}/
+ * {@code trim-both}/{@code auto}をCSS Text 4の意味で実装する。
+ * {@code auto}はUAの高品質設定として{@code trim-both}相当。
+ * {@code trim-all}は文字ごとの詰めを実装するまで宣言無効。
  *
  * @author MIYABE Tatsuhiko
  */
@@ -26,7 +26,22 @@ public class TextSpacingTrim extends AbstractPrimitivePropertyInfo {
 
 	/** {@code space-all}(詰めなし)ならtrueです。 */
 	public static boolean isSpaceAll(CSSStyle style) {
-		return style.get(INFO) == KeywordValue.NONE;
+		return ((TextSpacingTrimValue) style.get(INFO)).isSpaceAll();
+	}
+
+	/** 行頭の全角始め括弧を天付きにする値ならtrueです。 */
+	public static boolean trimsLineStart(CSSStyle style) {
+		return ((TextSpacingTrimValue) style.get(INFO)).trimsLineStart();
+	}
+
+	/** 行末の全角終わり約物を常に半角化する値ならtrueです。 */
+	public static boolean trimsLineEnd(CSSStyle style) {
+		return ((TextSpacingTrimValue) style.get(INFO)).trimsLineEnd();
+	}
+
+	/** 初行・強制改行直後だけ行頭約物を全角のままにする値ならtrueです。 */
+	public static boolean spacesFirstLine(CSSStyle style) {
+		return ((TextSpacingTrimValue) style.get(INFO)).spacesFirstLine();
 	}
 
 	protected TextSpacingTrim() {
@@ -34,7 +49,7 @@ public class TextSpacingTrim extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		return KeywordValue.NORMAL;
+		return TextSpacingTrimValue.NORMAL;
 	}
 
 	public boolean isInherited() {
@@ -50,14 +65,37 @@ public class TextSpacingTrim extends AbstractPrimitivePropertyInfo {
 			if (tokens.hasNext()) {
 				throw new PropertyException();
 			}
-			return KeywordValue.NORMAL;
+			return TextSpacingTrimValue.NORMAL;
 		}
 		if (tokens.eat("space-all")) {
 			if (tokens.hasNext()) {
 				throw new PropertyException();
 			}
-			// space-all=詰め無効。内部表現はKeywordValue.NONEを流用
-			return KeywordValue.NONE;
+			return TextSpacingTrimValue.SPACE_ALL;
+		}
+		if (tokens.eat("space-first")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return TextSpacingTrimValue.SPACE_FIRST;
+		}
+		if (tokens.eat("trim-start")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return TextSpacingTrimValue.TRIM_START;
+		}
+		if (tokens.eat("trim-both")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return TextSpacingTrimValue.TRIM_BOTH;
+		}
+		if (tokens.eat("auto")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return TextSpacingTrimValue.AUTO;
 		}
 		throw new PropertyException();
 	}

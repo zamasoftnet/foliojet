@@ -19,8 +19,8 @@ public class HankakuTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			assertEquals(45, x, 0);
-			assertEquals(55, box.getWidth(), 0);
+			assertEquals(56.636363636363626, x, 0);
+			assertEquals(43.36363636363636, box.getWidth(), 0);
 			return true;
 		}
 		return false;

@@ -932,6 +932,7 @@ public class RootBuilder extends BreakableBuilder {
 				mode instanceof BreakMode.ForceBreakMode);
 		final PageBox pageBox = this.pageBox;
 		this.pageBox = this.pageGenerator.nextPage();
+		this.resetPageMarginNoteCursors();
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			// 強制改ページで始まったページは、白紙でも作者の意図として残す
 			this.pageBox.markForcedBreakOrigin();
@@ -1348,6 +1349,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.pageFloatProgressed = false;
 			this.pageGenerator.drawPage(this.pageBox, false, false);
 			this.pageBox = this.pageGenerator.nextPage();
+			this.resetPageMarginNoteCursors();
 			this.contextFlow = new Flow(this.pageBox, 0, 0);
 			this.reserveFootnotes();
 			this.reserveBottomFloats();
@@ -1527,6 +1529,49 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** 現ページで予約済みの下端フロート件数(FIFOのprefix長)です。 */
 	private int bottomFloatReservedCount = 0;
+
+	// ------------------------------------------------------------------
+	// JLREQ 4.2.7 並列注（横組の傍注・縦組の頭注／脚注）。標準CSSに
+	// 対応する指定がないため、float:-cssj-note-start/endで版面の
+	// 論理行方向外側へ置く。本文領域は作者が@page marginで確保する。
+
+	/** 版面と並列注との既定の空き。 */
+	private static final double PAGE_MARGIN_NOTE_GAP = 6.0;
+
+	/** 現ページの各注領域で、次の注を置けるページ軸位置。 */
+	private double pageMarginNoteStartCursor = 0, pageMarginNoteEndCursor = 0;
+
+	private void resetPageMarginNoteCursors() {
+		this.pageMarginNoteStartCursor = 0;
+		this.pageMarginNoteEndCursor = 0;
+	}
+
+	/**
+	 * 並列注を本文の現在位置に近い版面外へ置く。同じ側の注はFIFOで重ねず、
+	 * ページ末に収まる場合は上へ寄せて同一ページ内に保つ。
+	 */
+	public void addPageMarginNote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox,
+			final boolean start) {
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.pageBox.getBlockParams().flow;
+		final double pageLimit = super.getPageLimit();
+		final double extent = this.footnoteExtent(noteBox);
+		final double cursor = start ? this.pageMarginNoteStartCursor : this.pageMarginNoteEndCursor;
+		double pageAxis = Math.max(cursor, Math.max(0, Math.min(this.pageAxis, pageLimit)));
+		if (extent <= pageLimit && pageAxis + extent > pageLimit) {
+			// 対応する本文位置から必要以上に離さない範囲で、ページ内へ戻す。
+			pageAxis = Math.max(cursor, pageLimit - extent);
+		}
+		final double lineAxis = start
+				? -PAGE_MARGIN_NOTE_GAP - noteBox.getLineExtent(flow)
+				: this.pageBox.getLineSize() + PAGE_MARGIN_NOTE_GAP;
+		this.pageBox.getContainer().addFloating(noteBox, lineAxis, pageAxis);
+		final double next = pageAxis + extent + PAGE_MARGIN_NOTE_GAP;
+		if (start) {
+			this.pageMarginNoteStartCursor = next;
+		} else {
+			this.pageMarginNoteEndCursor = next;
+		}
+	}
 
 	/**
 	 * ページフロートを台帳へ積みます({@code DocumentBuilder}のFLOAT
