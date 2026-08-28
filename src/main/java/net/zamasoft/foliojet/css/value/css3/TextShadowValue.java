@@ -19,9 +19,17 @@ public class TextShadowValue implements Value {
 
 		public final ColorValue color;
 
+		/** ぼかし半径(なければnull。2026-08-29)。 */
+		public final LengthValue blur;
+
 		public Shadow(LengthValue x, LengthValue y, ColorValue color) {
+			this(x, y, null, color);
+		}
+
+		public Shadow(LengthValue x, LengthValue y, LengthValue blur, ColorValue color) {
 			this.x = x;
 			this.y = y;
+			this.blur = blur;
 			this.color = color;
 		}
 	}

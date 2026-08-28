@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><style>
+@page { size: 300pt 360pt; margin: 10pt; }
+body { margin: 0; font-family: Helvetica, sans-serif; font-size: 20pt; line-height: 30pt; }
+div { height: 30pt; }
+#solid { text-decoration: underline; }
+#thick { text-decoration: underline; text-decoration-thickness: 2pt; }
+#wavy { text-decoration: underline wavy; text-decoration-thickness: 2pt; }
+#dotted { text-decoration: underline dotted; text-decoration-thickness: 2pt; }
+#dashed { text-decoration: underline dashed; text-decoration-thickness: 2pt; }
+#double { text-decoration: underline double; text-decoration-thickness: 2pt; }
+#offset { text-decoration: underline; text-decoration-thickness: 2pt; text-underline-offset: 9pt; }
+#under { text-decoration: underline; text-decoration-thickness: 2pt; text-underline-position: under; }
+#pct { text-decoration: line-through red; text-decoration-thickness: 10%; }
+#nested { text-decoration: underline wavy blue; text-decoration-thickness: 1pt; }
+#nested span { color: green; }
+</style></head><body>
+<div id="solid">MMMMMMMM</div>
+<div id="thick">MMMMMMMM</div>
+<div id="wavy">MMMMMMMM</div>
+<div id="dotted">MMMMMMMM</div>
+<div id="dashed">MMMMMMMM</div>
+<div id="double">MMMMMMMM</div>
+<div id="offset">MMMMMMMM</div>
+<div id="under">MMMMMMMM</div>
+<div id="pct">MMMMMMMM</div>
+<div id="nested">MM<span>MMMM</span>MM</div>
+</body></html>

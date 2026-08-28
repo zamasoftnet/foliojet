@@ -697,6 +697,13 @@ final class BoxStyleMapper {
 		params.decoration = TextDecoration.get(style);
 		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(AbsoluteFontSize.MEDIUM) / 2.0;
 		params.decorationColor = net.zamasoft.foliojet.css.impl.property.text.TextDecorationColor.get(style);
+		// 線種・太さ・下線位置(2026-08-29に描画へ配線。from-fontはauto扱い)
+		params.decorationStyle = net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.getStyle(style);
+		params.decorationThicknessLength = net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux
+				.getThickness(style);
+		params.underlineOffset = net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux
+				.getUnderlineOffset(style);
+		params.underlinePosition = net.zamasoft.foliojet.css.impl.property.text.TextUnderlinePosition.get(style);
 		params.textStrokeWidth = TextStrokeWidth.get(style);
 		params.textStrokeColor = TextStrokeColor.get(style);
 		params.textShadows = TextShadow.get(style);
@@ -854,11 +861,15 @@ final class BoxStyleMapper {
 		params.overflow = Overflow.get(style);
 		params.flowRoot = style.get(Display.INFO) == DisplayValue.FLOW_ROOT_VALUE;
 		// -webkit-line-clamp: N は「N行で切り、以降を隠す」(2026-08-29)。
-		// 行数で切る機構は無いので、高さの上限=N×line-height と
-		// overflow:hidden へ近似する。実サイトの抜粋・見出しの省略に使われ、
-		// 捨てると本文が丸ごと露出して後続へ重なる
+		// 行数はBlockParams.lineClampで運び、TextBuilderがN行目の後の行を
+		// 捨てて省略記号を付ける(真のline-clamp、同日夜)。高さの上限=
+		// N×line-height と overflow:hidden は、行として数えられない後続
+		// (置換ブロック・表・浮動体等)を漏らさないための保険として残す。
+		// 実サイトの抜粋・見出しの省略に使われ、捨てると本文が丸ごと露出
+		// して後続へ重なる
 		final int lineClamp = net.zamasoft.foliojet.css.impl.property.box.LineClamp.get(style);
 		if (lineClamp > 0) {
+			params.lineClamp = lineClamp;
 			final double lineHeight = net.zamasoft.foliojet.css.impl.property.font.LineHeight.get(style);
 			final double clampHeight = lineHeight * lineClamp;
 			final net.zamasoft.foliojet.layout.box.params.Dimension max = params.maxSize;

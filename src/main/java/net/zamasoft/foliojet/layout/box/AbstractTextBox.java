@@ -118,27 +118,29 @@ public abstract class AbstractTextBox extends AbstractBox {
 	public abstract AbstractTextParams getTextParams();
 
 	protected final void setDecoration(final Decoration decoration) {
-		final byte flags = (byte) (this.getTextParams().decoration & 7);
-		Color underline;
-		Color overline;
-		Color lineThrough;
+		final AbstractTextParams params = this.getTextParams();
+		final byte flags = (byte) (params.decoration & 7);
+		Decoration.Line underline;
+		Decoration.Line overline;
+		Decoration.Line lineThrough;
 		if (decoration == null) {
 			if (flags == 0) {
 				return;
 			}
 			underline = overline = lineThrough = null;
 		} else {
-			underline = decoration.underlineColor;
-			overline = decoration.overlineColor;
-			lineThrough = decoration.lineThroughColor;
+			underline = decoration.underline;
+			overline = decoration.overline;
+			lineThrough = decoration.lineThrough;
 		}
 		// text-decoration-color(2026-08-29): 指定があれば装飾線はその色、
-		// 無ければ従来どおり文字色
-		final Color color = this.getTextParams().decorationColor != null ? this.getTextParams().decorationColor
-				: this.getTextParams().color;
-		underline = ((flags & AbstractTextParams.DECORATION_UNDERLINE) != 0) ? color : underline;
-		overline = ((flags & AbstractTextParams.DECORATION_OVERLINE) != 0) ? color : overline;
-		lineThrough = ((flags & AbstractTextParams.DECORATION_LINE_THROUGH) != 0) ? color : lineThrough;
+		// 無ければ従来どおり文字色。線種・太さ・下線位置もこの要素(線の
+		// 所有者)のparamsから取り、子孫へはそのまま伝播する
+		final Color color = params.decorationColor != null ? params.decorationColor : params.color;
+		final Decoration.Line own = color == null ? null : Decoration.Line.of(color, params);
+		underline = ((flags & AbstractTextParams.DECORATION_UNDERLINE) != 0) ? own : underline;
+		overline = ((flags & AbstractTextParams.DECORATION_OVERLINE) != 0) ? own : overline;
+		lineThrough = ((flags & AbstractTextParams.DECORATION_LINE_THROUGH) != 0) ? own : lineThrough;
 		this.decoration = new Decoration(underline, overline, lineThrough);
 	}
 
@@ -841,7 +843,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 					TextShadow shadow = params.textShadows[i];
 					try (final var gcState = gc.begin()) {
 						gc.setFillPaint(shadow.color);
-						this.drawText(gc, x + shadow.x, y + shadow.y);
+						if (shadow.blur > 0) {
+							this.drawBlurredShadow(gc, shadow, x + shadow.x, y + shadow.y);
+						} else {
+							this.drawText(gc, x + shadow.x, y + shadow.y);
+						}
 					}
 				}
 			}
@@ -857,6 +863,48 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setLineWidth(this.params.textStrokeWidth);
 					gc.setStrokePaint(this.params.textStrokeColor);
 					gc.setTextMode(GC.TextMode.FILL_STROKE);
+				}
+				this.drawText(gc, x, y);
+			}
+		}
+
+		/**
+		 * ぼかし付きの影(2026-08-29)。PDFにぼかしのプリミティブが無いので、
+		 * {@code box-shadow}と同じ12段の半透明近似
+		 * ({@link net.zamasoft.foliojet.layout.util.BoxDecorationRenderer#BLUR_STEPS})
+		 * をテキストで行う: 字形を段ごとに「塗り+外側へ2d幅の縁取り」
+		 * (d=段の縁の位置、σ=blur/2)で重ね描きし、各段のアルファは全段が
+		 * 重なる中心で指定色のアルファ(0.98で頭打ち)になる{@code 1-(1-α)^(1/N)}。内側へ
+		 * 縮めた段は字形を縮められないので塗りだけ(=中心は常に指定の濃さ、
+		 * 輪郭のすぐ内側は縁取りと塗りが重なりやや濃い——本体の字形の
+		 * 下になる領域なので実用上見えない)。ぼかし0は従来どおり1回描く
+		 * (既存出力を変えない)。
+		 */
+		private void drawBlurredShadow(GC gc, TextShadow shadow, double x, double y) throws GraphicsException {
+			final float alpha = shadow.color.getAlpha();
+			if (alpha <= 0) {
+				return;
+			}
+			final double[] steps = net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.BLUR_STEPS;
+			final int n = steps.length;
+			// 不透明な影(α=1)では1段あたりのアルファも1になり、外縁まで
+			// べた塗りの塊になってしまう。中心の合成アルファを0.98で頭打ちに
+			// して、不透明色でも縁が薄れるようにする(1段あたり約0.28)
+			final float layerAlpha = (float) (1 - Math.pow(1 - Math.min(alpha, 0.98), 1.0 / n));
+			final double sigma = shadow.blur / 2;
+			gc.setStrokePaint(shadow.color);
+			gc.setFillAlpha(layerAlpha);
+			gc.setStrokeAlpha(layerAlpha);
+			gc.setLineJoin(GC.LineJoin.ROUND);
+			gc.setLineCap(GC.LineCap.ROUND);
+			gc.setLinePattern(GC.STROKE_SOLID);
+			for (int k = 0; k < n; ++k) {
+				final double d = steps[k] * sigma;
+				if (d > 0) {
+					gc.setLineWidth(d * 2);
+					gc.setTextMode(GC.TextMode.FILL_STROKE);
+				} else {
+					gc.setTextMode(GC.TextMode.FILL);
 				}
 				this.drawText(gc, x, y);
 			}
@@ -999,69 +1047,153 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setFillPaint(color);
 				}
 
-				// 装飾
-				double fontSize = this.params.fontStyle.getSize();
-				double strokeSize = fontSize * this.params.decorationThickness;
-				gc.setLineWidth(strokeSize);
+				// 装飾。太さは線ごとの指定(text-decoration-thickness)、無ければ
+				// フォントサイズ比の既定(2026-08-29)
+				final double fontSize = this.params.fontStyle.getSize();
+				final double autoThickness = fontSize * this.params.decorationThickness;
+				final net.zamasoft.pdfg2d.gc.font.FontListMetrics flm = this.params.getFontListMetrics();
 				if (this.params.flow.isVertical()) {
 					// 縦書き進行
 					x += this.descent;
 					final double lineAxis = this.height;
-					if (this.decoration.underlineColor != null) {
-						// 下線
-						gc.setStrokePaint(this.decoration.underlineColor);
-						double lineX = x - this.params.getFontListMetrics().getMaxDescent();
-						Line2D line = new Line2D.Double(lineX, y, lineX, y + lineAxis);
-						gc.draw(line);
-
+					final Decoration.Line underline = this.decoration.underline;
+					if (underline != null) {
+						// 下線。既定は文字の左側、text-underline-position: right なら右側。
+						// text-underline-offset は文字から遠ざかる向きへ
+						final double t = thicknessOf(underline, autoThickness);
+						final boolean right = underline.position() == AbstractTextParams.UNDERLINE_POSITION_RIGHT;
+						double lineX = right ? x + flm.getMaxAscent() : x - flm.getMaxDescent();
+						if (!Double.isNaN(underline.offset())) {
+							lineX += right ? underline.offset() : -underline.offset();
+						}
+						drawDecorationLine(gc, underline, t, lineX, y, lineX, y + lineAxis, true);
 					}
-					if (this.decoration.overlineColor != null) {
+					final Decoration.Line overline = this.decoration.overline;
+					if (overline != null) {
 						// 上線
-						gc.setStrokePaint(this.decoration.overlineColor);
-						double lineX = x + this.params.getFontListMetrics().getMaxAscent();
-						Line2D line = new Line2D.Double(lineX, y, lineX, y + lineAxis);
-						gc.draw(line);
+						final double lineX = x + flm.getMaxAscent();
+						drawDecorationLine(gc, overline, thicknessOf(overline, autoThickness), lineX, y, lineX,
+								y + lineAxis, true);
 					}
-					if (this.decoration.lineThroughColor != null) {
+					final Decoration.Line lineThrough = this.decoration.lineThrough;
+					if (lineThrough != null) {
 						// 打ち消し線
-						gc.setStrokePaint(this.decoration.lineThroughColor);
-						Line2D line = new Line2D.Double(x, y, x, y + lineAxis);
-						gc.draw(line);
+						drawDecorationLine(gc, lineThrough, thicknessOf(lineThrough, autoThickness), x, y, x,
+								y + lineAxis, true);
 					}
 				} else {
 					// 横書き進行
 					y += this.ascent;
 					double lineAxis = this.width;
-					if (this.decoration.underlineColor != null) {
+					final Decoration.Line underline = this.decoration.underline;
+					if (underline != null) {
 						// 下線
-						gc.setStrokePaint(this.decoration.underlineColor);
-						double descent = this.params.getFontListMetrics().getMaxDescent();
-						double lineY = y + descent;
-						// 行の下端から線の太さだけ上がった位置で押さえる
-						lineY = Math.min(y + this.descent - strokeSize, lineY);
-						Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
-						gc.draw(line);
+						final double t = thicknessOf(underline, autoThickness);
+						final double descent = flm.getMaxDescent();
+						double lineY;
+						if (underline.position() == AbstractTextParams.UNDERLINE_POSITION_UNDER) {
+							// under: ディセントの下端に線の上辺を付け、offsetがあれば
+							// その分さらに下げる(css-text-decoration-4 §2.7/§2.8)
+							lineY = y + descent + t / 2 + (Double.isNaN(underline.offset()) ? 0 : underline.offset());
+						} else if (!Double.isNaN(underline.offset())) {
+							// auto位置+offset: ベースラインを零位置として線の上辺をずらす
+							lineY = y + underline.offset() + t / 2;
+						} else {
+							lineY = y + descent;
+							// 行の下端から線の太さだけ上がった位置で押さえる
+							lineY = Math.min(y + this.descent - t, lineY);
+						}
+						drawDecorationLine(gc, underline, t, x, lineY, x + lineAxis, lineY, false);
 					}
-					if (this.decoration.overlineColor != null) {
+					final Decoration.Line overline = this.decoration.overline;
+					if (overline != null) {
 						// 上線
-						gc.setStrokePaint(this.decoration.overlineColor);
-						double ascent = this.params.getFontListMetrics().getMaxAscent();
+						final double t = thicknessOf(overline, autoThickness);
+						final double ascent = flm.getMaxAscent();
 						double lineY = y - ascent;
 						// 行の上端から線の太さだけ下がった位置で押さえる
-						lineY = Math.max(y - this.ascent + strokeSize, lineY);
-						Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
-						gc.draw(line);
+						lineY = Math.max(y - this.ascent + t, lineY);
+						drawDecorationLine(gc, overline, t, x, lineY, x + lineAxis, lineY, false);
 					}
-					if (this.decoration.lineThroughColor != null) {
+					final Decoration.Line lineThrough = this.decoration.lineThrough;
+					if (lineThrough != null) {
 						// 打ち消し線
-						gc.setStrokePaint(this.decoration.lineThroughColor);
-						double xHeight = this.params.getFontListMetrics().getMaxXHeight();
-						double lineY = y - xHeight / 2.0;
-						Line2D line = new Line2D.Double(x, lineY, x + lineAxis, lineY);
-						gc.draw(line);
+						final double xHeight = flm.getMaxXHeight();
+						final double lineY = y - xHeight / 2.0;
+						drawDecorationLine(gc, lineThrough, thicknessOf(lineThrough, autoThickness), x, lineY,
+								x + lineAxis, lineY, false);
 					}
 				}
 
+			}
+		}
+
+		private static double thicknessOf(final Decoration.Line line, final double autoThickness) {
+			return line.thickness() > 0 ? line.thickness() : autoThickness;
+		}
+
+		/**
+		 * 装飾線1本を線種に従って描きます(2026-08-29)。
+		 *
+		 * <ul>
+		 * <li>solid: 従来どおりの1本線</li>
+		 * <li>double: 太さと同じ間隔を空けた2本(全体で太さの3倍)</li>
+		 * <li>dotted/dashed: GCの線パターン(点=太さ角、破線=太さの3倍)</li>
+		 * <li>wavy: 振幅=太さ・周期=太さの4倍の2次曲線の連なり</li>
+		 * </ul>
+		 * 線パターンや線端はこのDrawableの{@code gc.begin()}ブロック内なので
+		 * 後続の描画へ漏れない。
+		 */
+		private static void drawDecorationLine(final GC gc, final Decoration.Line line, final double t,
+				final double x0, final double y0, final double x1, final double y1, final boolean vertical)
+				throws GraphicsException {
+			gc.setStrokePaint(line.color());
+			gc.setLineWidth(t);
+			switch (line.style()) {
+			case AbstractTextParams.DECORATION_STYLE_DOUBLE: {
+				final double dx = vertical ? t : 0, dy = vertical ? 0 : t;
+				gc.draw(new Line2D.Double(x0 - dx, y0 - dy, x1 - dx, y1 - dy));
+				gc.draw(new Line2D.Double(x0 + dx, y0 + dy, x1 + dx, y1 + dy));
+				break;
+			}
+			case AbstractTextParams.DECORATION_STYLE_DOTTED:
+				gc.setLineCap(GC.LineCap.BUTT);
+				gc.setLinePattern(new double[] { t, t });
+				gc.draw(new Line2D.Double(x0, y0, x1, y1));
+				break;
+			case AbstractTextParams.DECORATION_STYLE_DASHED:
+				gc.setLineCap(GC.LineCap.BUTT);
+				gc.setLinePattern(new double[] { t * 3, t * 3 });
+				gc.draw(new Line2D.Double(x0, y0, x1, y1));
+				break;
+			case AbstractTextParams.DECORATION_STYLE_WAVY: {
+				// 半周期2t・振幅tの2次曲線(制御点を±2tに置くと頂点が±tになる)。
+				// 端数の最後の半周期は長さに比例して振幅を落として端で線上に戻す
+				final double length = vertical ? y1 - y0 : x1 - x0;
+				final double half = t * 2;
+				final java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
+				path.moveTo(x0, y0);
+				double p = 0;
+				int sign = 1;
+				while (p < length) {
+					final double h = Math.min(half, length - p);
+					final double amp = 2 * t * (h / half);
+					final double cp = p + h / 2, end = p + h;
+					if (vertical) {
+						path.quadTo(x0 + sign * amp, y0 + cp, x0, y0 + end);
+					} else {
+						path.quadTo(x0 + cp, y0 - sign * amp, x0 + end, y0);
+					}
+					p = end;
+					sign = -sign;
+				}
+				gc.setLineJoin(GC.LineJoin.ROUND);
+				gc.draw(path);
+				break;
+			}
+			default:
+				gc.draw(new Line2D.Double(x0, y0, x1, y1));
+				break;
 			}
 		}
 	}

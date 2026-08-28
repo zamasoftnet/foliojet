@@ -98,6 +98,12 @@ public class TextBuilder {
 	private final BlockBuilder builder;
 
 	/**
+	 * 最も近い祖先の{@code line-clamp}の状態(無ければnull。2026-08-29)。
+	 * 行を{@link #addLine}するたびに数え、N行を超えた行は捨てる。
+	 */
+	private final net.zamasoft.foliojet.layout.builder.LineClampState lineClamp;
+
+	/**
 	 * 構築中のテキストブロック。
 	 */
 	TextBlockBox textBlockBox;
@@ -162,6 +168,7 @@ public class TextBuilder {
 
 	public TextBuilder(BlockBuilder builder, BreakToken breakToken) {
 		this.builder = builder;
+		this.lineClamp = net.zamasoft.foliojet.layout.builder.LineClampState.find(builder);
 		final Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
 		this.textBlockBox = new TextBlockBox(params, breakToken);
@@ -241,6 +248,21 @@ public class TextBuilder {
 	 * テキストブロックに行を追加します。
 	 */
 	private void addLine(AbstractLineBox lineBox) {
+		if (this.lineClamp != null) {
+			if (this.lineClamp.exhausted()) {
+				// line-clamp(2026-08-29): N行を超えた行は捨てる(高さにも
+				// 描画にも出ない)。ここで初めて「N行目の後に内容がある」と
+				// 確定するので、預かっていたN行目の省略記号を付ける
+				this.lineClamp.truncatePending();
+				return;
+			}
+			if (this.lineClamp.countLine()) {
+				// N行目。後続が無ければそのまま(省略記号なし)なので、
+				// 切り方だけ預ける。値は行を閉じた時点のものを固定する
+				final double avail = this.maxLineSize, lineStart = this.minLineAxis;
+				this.lineClamp.setPending(() -> this.applyLineClampEllipsis(lineBox, lineStart, avail));
+			}
+		}
 		this.textBlockBox.addLine(lineBox, this.pageAxis);
 		final double pageAdvance = lineBox.getAscent() + lineBox.getDescent();
 		this.pageAxis += pageAdvance;
@@ -846,6 +868,29 @@ public class TextBuilder {
 		}
 		final double clipExtent = this.minLineAxis + avail - ellipsis.getAdvance();
 		lineBox.setEllipsis(ellipsis, Math.max(0, clipExtent));
+	}
+
+	/**
+	 * {@code line-clamp}のN行目を省略記号で切ります(2026-08-29)。
+	 * {@link #applyTextOverflow}と同じ機構(クリップ+追加描画)だが、
+	 * 行が幅いっぱいでなくてもよい: 切る位置は「内容の末尾(行揃えの
+	 * ずれ込み)」と「利用可能幅−省略記号幅」の小さい方。内容が短ければ
+	 * 省略記号は内容の直後に付き、長ければ末尾の字形がクリップされて
+	 * 省略記号に置き換わる(Chromeのように最後の語を組み直しはしない)。
+	 * rtlは未対応(何もしない)。
+	 */
+	private void applyLineClampEllipsis(final AbstractLineBox lineBox, final double lineStart, final double avail) {
+		final BlockParams bp = this.textBlockBox.getBlockParams();
+		if (bp.direction != AbstractTextParams.DIRECTION_LTR || bp.fontManager == null || bp.fontStyle == null) {
+			return;
+		}
+		final TextImpl ellipsis = ellipsisText(bp);
+		if (ellipsis == null) {
+			return;
+		}
+		final double contentEnd = lineBox.getLineAlign() + lineBox.getLineSize() - lineBox.getEndHangAdvance();
+		final double boxEnd = lineStart + avail - ellipsis.getAdvance();
+		lineBox.setEllipsis(ellipsis, Math.max(0, Math.min(contentEnd, boxEnd)));
 	}
 
 	/** 省略記号のグリフ列(U+2026、無ければ"...")。作れなければnull。 */

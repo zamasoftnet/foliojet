@@ -41,6 +41,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		FontManager fontManager, TextBreakingRules lineBreakRules, Length letterSpacing, double wordSpacing,
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, Color decorationColor,
+		byte decorationStyle, double decorationThicknessLength, double underlineOffset, byte underlinePosition,
 		double textStrokeWidth,
 		Color textStrokeColor,
 		TextShadow[] textShadows, byte rubyRole, boolean warichu, net.zamasoft.foliojet.css.value.RubyAlignValue rubyAlign,
@@ -60,7 +61,8 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
-				source.decorationColor, source.textStrokeWidth,
+				source.decorationColor, source.decorationStyle, source.decorationThicknessLength,
+				source.underlineOffset, source.underlinePosition, source.textStrokeWidth,
 				source.textStrokeColor, source.textShadows, source.rubyRole, source.warichu, source.rubyAlign, source.rubyMerge,
 				source.rubyOverhang, source.rubyPosition, source.textAutospace,
 				source.textSpacingTrimOff, source.textSpacingTrimStart, source.textSpacingTrimEnd,
@@ -93,6 +95,12 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.decoration = this.decoration;
 		target.decorationThickness = this.decorationThickness;
 		target.decorationColor = this.decorationColor;
+		// 装飾線の線種・太さ・下線位置(2026-08-29)。凍結から漏らすと再生・
+		// restyleで実線・既定太さへ戻る
+		target.decorationStyle = this.decorationStyle;
+		target.decorationThicknessLength = this.decorationThicknessLength;
+		target.underlineOffset = this.underlineOffset;
+		target.underlinePosition = this.underlinePosition;
 		target.textStrokeWidth = this.textStrokeWidth;
 		target.textStrokeColor = this.textStrokeColor;
 		target.textShadows = this.textShadows == null ? null : this.textShadows.clone();

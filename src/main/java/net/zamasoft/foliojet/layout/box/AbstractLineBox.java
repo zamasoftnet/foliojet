@@ -102,6 +102,11 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		return this.ellipsis;
 	}
 
+	/** 行原点から内容の先頭までの行方向のずれ({@link #align}で決まる)。 */
+	public double getLineAlign() {
+		return this.lineAlign;
+	}
+
 	public void setEndHangAdvance(final double endHangAdvance) {
 		this.endHangAdvance = endHangAdvance;
 	}

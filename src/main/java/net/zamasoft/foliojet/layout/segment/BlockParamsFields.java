@@ -32,14 +32,15 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		PageBreakMode pageBreakInside, byte orphans, byte widows, Dimension size, Dimension minSize,
 		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment blockAlignContent, boolean paintClip, Columns columns,
-		net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath, boolean flowRoot, byte textOverflow, double aspectRatio) {
+		net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath, boolean flowRoot, byte textOverflow, double aspectRatio,
+		int lineClamp) {
 	static BlockParamsFields freeze(final BlockParams source) {
 		final FirstLineParamsTemplate firstLineStyle = source.firstLineStyle == null ? null
 				: FirstLineParamsTemplate.freeze(source.firstLineStyle);
 		return new BlockParamsFields(LineParamsFields.freeze(source), source.frame, firstLineStyle,
 				source.pageBreakInside, source.orphans, source.widows, source.size, source.minSize, source.maxSize,
 				source.boxSizing, source.overflow, source.blockAlignContent, source.paintClip, source.columns,
-				source.clipPath, source.flowRoot, source.textOverflow, source.aspectRatio);
+				source.clipPath, source.flowRoot, source.textOverflow, source.aspectRatio, source.lineClamp);
 	}
 
 	/**
@@ -69,5 +70,7 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		// aspect-ratio(2026-08-29)。凍結から漏らすと再生・restyleで比率が
 		// 消え、サムネイルの高さが内容(空)の0へ潰れる
 		target.aspectRatio = this.aspectRatio;
+		// line-clamp(2026-08-29)。漏らすと再生で行数の打ち切りが消える
+		target.lineClamp = this.lineClamp;
 	}
 }

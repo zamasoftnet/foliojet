@@ -49,6 +49,15 @@ public class BlockParams extends AbstractLineParams {
 	public byte textOverflow = TEXT_OVERFLOW_CLIP;
 
 	/**
+	 * {@code line-clamp}/{@code -webkit-line-clamp}の行数(0=none。
+	 * 2026-08-29)。このブロックのインライン内容(入れ子のブロックの行も
+	 * 含む)をN行で打ち切り、後続があればN行目の末尾を省略記号で切る
+	 * ({@code TextBuilder}と{@code LineClampState})。{@code maxSize}の
+	 * N×line-heightと{@code overflow:hidden}は保険として残す。
+	 */
+	public int lineClamp = 0;
+
+	/**
 	 * {@code display: flow-root}(2026-08-29)。overflow:hiddenと同じく
 	 * 独立BFCを作り、内側のfloatを親の排除域へ漏らさず、auto高さは
 	 * 内側のfloatの下端まで伸びる。描画クリップは掛けない。
@@ -98,7 +107,8 @@ public class BlockParams extends AbstractLineParams {
 		return super.toString() + "[frame=" + this.frame + "[firstLineStyle=" + this.firstLineStyle
 				+ ",pageBreakInside=" + this.pageBreakInside + ",orphans=" + this.orphans + ",widows=" + this.widows
 				+ ",size=" + this.size + ",minSize=" + this.minSize + ",maxSize=" + this.maxSize + ",boxSizing="
-				+ this.boxSizing + ",overflow=" + this.overflow + ",textOverflow=" + this.textOverflow + ",aspectRatio=" + this.aspectRatio
+				+ this.boxSizing + ",overflow=" + this.overflow + ",textOverflow=" + this.textOverflow + ",lineClamp=" + this.lineClamp
+				+ ",aspectRatio=" + this.aspectRatio
 				+ ",blockAlignContent=" + this.blockAlignContent
 				+ ",paintClip=" + this.paintClip + ",columns="
 				+ this.columns + "]";

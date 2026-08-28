@@ -10,8 +10,11 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
+import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -20,13 +23,15 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * (css-text-decoration-3/4)です(2026-08-29新設)。
  *
  * <p>
- * <b>構文として受理して値を保持するだけで、描画には反映しません</b>
- * (装飾線は常に実線・既定の太さ・既定の位置)。受理する理由は、
- * {@code text-decoration: underline dotted}のような短縮形が
- * 構成要素の未対応で宣言ごと捨てられ、<b>下線そのものが消える</b>
- * のを防ぐためです。個別指定は実サイト50件中10〜16件で使われて
- * いました。太さ・位置は{@code auto}/{@code from-font}/長さ/割合を、
- * 線種は{@code solid|double|dotted|dashed|wavy}を受けます。
+ * 同日中に描画へも配線した: 線種は{@link #getStyle}、太さは
+ * {@link #getThickness}(絶対長、autoなら0)、下線のずらしは
+ * {@link #getUnderlineOffset}(絶対長、autoならNaN)で
+ * {@code AbstractTextParams}へ運び、{@code AbstractTextBox}の装飾線描画が
+ * 読む。割合はいずれも1em(その要素のフォントサイズ)に対して解決する
+ * (css-text-decoration-4)。{@code from-font}はpdfg2dの{@code FontSource}
+ * が下線の太さ・位置を公開していないため{@code auto}と同じ。太さ・位置は
+ * {@code auto}/{@code from-font}/長さ/割合を、線種は
+ * {@code solid|double|dotted|dashed|wavy}を受けます。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -66,7 +71,48 @@ public final class TextDecorationAux extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return value;
+		return ValueUtils.emExToAbsoluteLength(value, style);
+	}
+
+	/** {@code text-decoration-style}の線種({@code AbstractTextParams.DECORATION_STYLE_*})。 */
+	public static byte getStyle(final CSSStyle style) {
+		final Value value = style.get(STYLE);
+		if (value instanceof StyleKeyword keyword) {
+			switch (keyword.name()) {
+			case "double":
+				return AbstractTextParams.DECORATION_STYLE_DOUBLE;
+			case "dotted":
+				return AbstractTextParams.DECORATION_STYLE_DOTTED;
+			case "dashed":
+				return AbstractTextParams.DECORATION_STYLE_DASHED;
+			case "wavy":
+				return AbstractTextParams.DECORATION_STYLE_WAVY;
+			default:
+				break;
+			}
+		}
+		return AbstractTextParams.DECORATION_STYLE_SOLID;
+	}
+
+	/** {@code text-decoration-thickness}の絶対長。{@code auto}/{@code from-font}なら0。 */
+	public static double getThickness(final CSSStyle style) {
+		return resolveLength(style.get(THICKNESS), style, 0);
+	}
+
+	/** {@code text-underline-offset}の絶対長。{@code auto}ならNaN。 */
+	public static double getUnderlineOffset(final CSSStyle style) {
+		return resolveLength(style.get(UNDERLINE_OFFSET), style, Double.NaN);
+	}
+
+	private static double resolveLength(final Value value, final CSSStyle style, final double fallback) {
+		if (value instanceof AbsoluteLengthValue length) {
+			return length.getLength();
+		}
+		if (value instanceof PercentageValue percentage) {
+			// 割合は1em(css-text-decoration-4 §2.5/§2.7)
+			return percentage.getRatio() * style.getFontStyle().getSize();
+		}
+		return fallback;
 	}
 
 	/**

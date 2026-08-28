@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><style>
+@page { size: 300pt 320pt; margin: 10pt; }
+body { margin: 0; font-family: Helvetica, sans-serif; font-size: 12pt; line-height: 16pt; }
+.box { width: 200pt; margin-bottom: 8pt; }
+/* 定番イディオム: -webkit-box + 縦orient + line-clamp + overflow:hidden */
+#three { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+#after { background: #cccccc; height: 10pt; }
+#one { line-clamp: 1; }
+#nested { line-clamp: 2; }
+#short { line-clamp: 3; }
+/* 入れ子のブロックの行も数える(仕様: ブロックコンテナの行ボックス) */
+#blocks { line-clamp: 2; }
+#blocks p { margin: 0; }
+</style></head><body>
+<div id="three" class="box">The quick brown fox jumps over the lazy dog and keeps running through the field while the sun sets slowly behind the distant hills of the quiet valley town where nobody ever hurries and every evening ends with the same calm silence.</div>
+<div id="after" class="box"></div>
+<div id="one" class="box">One line clamp of a sentence that certainly wraps onto a second line and more words.</div>
+<div id="nested" class="box">Nested <span style="color: red">red span text</span> with an inline image <img src="../red.png" width="8" height="8"> and further words that wrap past two lines for sure and then beyond that.</div>
+<div id="short" class="box">Short text.</div>
+<div id="blocks" class="box"><p>First paragraph long enough to wrap onto two lines at two hundred points wide.</p><p>Second paragraph must be hidden.</p></div>
+</body></html>

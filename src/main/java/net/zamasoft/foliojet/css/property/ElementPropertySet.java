@@ -301,6 +301,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.STYLE);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.THICKNESS);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.UNDERLINE_OFFSET);
+		reg(net.zamasoft.foliojet.css.impl.property.text.TextUnderlinePosition.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.TextDecorationShorthand.INFO);
 		reg(LetterSpacing.INFO);
 		// 和文詰めA1/T1b(consult-codex-2026-07-31-text-spacing.txt)
@@ -480,6 +481,7 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-text-decoration-line", TextDecoration.INFO);
 		alias("-webkit-text-decoration-color", net.zamasoft.foliojet.css.impl.property.text.TextDecorationColor.INFO);
 		alias("-webkit-text-decoration-style", net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.STYLE);
+		alias("-webkit-text-underline-position", net.zamasoft.foliojet.css.impl.property.text.TextUnderlinePosition.INFO);
 		alias("-webkit-background-clip", BackgroundClip.INFO);
 		alias("-webkit-mask-image", MaskImage.INFO);
 		alias("-webkit-mask-position", net.zamasoft.foliojet.css.impl.property.box.MaskPosition.INFO_X);

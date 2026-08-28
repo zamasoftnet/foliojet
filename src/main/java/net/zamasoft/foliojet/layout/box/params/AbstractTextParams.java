@@ -57,6 +57,29 @@ public abstract class AbstractTextParams extends Params {
 
 	public static final byte DECORATION_LINE_THROUGH = 0x04;
 
+	/** {@code text-decoration-style: solid}(既定)。2026-08-29。 */
+	public static final byte DECORATION_STYLE_SOLID = 0;
+
+	public static final byte DECORATION_STYLE_DOUBLE = 1;
+
+	public static final byte DECORATION_STYLE_DOTTED = 2;
+
+	public static final byte DECORATION_STYLE_DASHED = 3;
+
+	public static final byte DECORATION_STYLE_WAVY = 4;
+
+	/** {@code text-underline-position: auto}(既定)。2026-08-29。 */
+	public static final byte UNDERLINE_POSITION_AUTO = 0;
+
+	/** 下線をフォントの下端(ディセント)の下に置く。 */
+	public static final byte UNDERLINE_POSITION_UNDER = 1;
+
+	/** 縦書きで文字の左側(既定側)。 */
+	public static final byte UNDERLINE_POSITION_LEFT = 2;
+
+	/** 縦書きで文字の右側。 */
+	public static final byte UNDERLINE_POSITION_RIGHT = 3;
+
 	/**
 	 * ルビ役割なし(既定)です(2026-07-25、注釈付きテキスト方式)。
 	 */
@@ -244,6 +267,32 @@ public abstract class AbstractTextParams extends Params {
 	public Color decorationColor = null;
 
 	/**
+	 * 文字装飾の線種({@code text-decoration-style}、{@code DECORATION_STYLE_*}。
+	 * 2026-08-29)。
+	 */
+	public byte decorationStyle = DECORATION_STYLE_SOLID;
+
+	/**
+	 * 文字装飾の太さの指定値({@code text-decoration-thickness}の絶対長。
+	 * 0なら{@code auto}/{@code from-font}=フォントサイズ×
+	 * {@link #decorationThickness}。2026-08-29)。割合は1emに対して解決済み。
+	 */
+	public double decorationThicknessLength = 0;
+
+	/**
+	 * 下線の位置のずらし({@code text-underline-offset}の絶対長。NaNなら
+	 * {@code auto}。2026-08-29)。正で文字から遠ざかる。割合は1emに対して
+	 * 解決済み。
+	 */
+	public double underlineOffset = Double.NaN;
+
+	/**
+	 * 下線の位置({@code text-underline-position}、{@code UNDERLINE_POSITION_*}。
+	 * 2026-08-29)。
+	 */
+	public byte underlinePosition = UNDERLINE_POSITION_AUTO;
+
+	/**
 	 * 文字の枠の太さ
 	 */
 	public double textStrokeWidth = 0;
@@ -267,6 +316,9 @@ public abstract class AbstractTextParams extends Params {
 				+ ",whiteSpace=" + this.whiteSpace + ",wordWrap=" + this.wordWrap + ",textWrapStyle="
 				+ this.textWrapStyle + ",color=" + this.color
 				+ ",decoration=" + this.decoration + ",decorationThickness=" + this.decorationThickness
+				+ ",decorationStyle=" + this.decorationStyle + ",decorationThicknessLength="
+				+ this.decorationThicknessLength + ",underlineOffset=" + this.underlineOffset
+				+ ",underlinePosition=" + this.underlinePosition
 				+ ",textStrokeWidth=" + this.textStrokeWidth + ",textStrokeColor=" + this.textStrokeColor + "]";
 	}
 }

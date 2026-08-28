@@ -291,6 +291,16 @@ public class DisplayListGoldenTest extends TestCase {
 			// text-overflow: ellipsis(2026-08-29)。nowrap行の行末クリップと
 			// 省略記号の追加描画、clip既定・overflow:visibleでの不適用を固定
 			"0040-overflow/text-overflow-ellipsis.html", //
+			// line-clamp / -webkit-line-clamp(2026-08-29)。N行目の末尾の省略記号、
+			// N+1行目以降の抑止(ブロック高さ=N行)、N行未満の段落には付かないこと
+			"0040-overflow/line-clamp.html", //
+			// text-decoration-style/-thickness/text-underline-offset/-position
+			// (2026-08-29)。装飾線は表示リストに幾何が出ないので行の配置の固定のみ
+			// (線種の画素検査はTextDecorationStyleTest)
+			"0160-text-decoration/decoration-styles.html", //
+			// text-shadowのぼかし(2026-08-29)。表示リストは影を含まないので
+			// 幾何の固定のみ(ぼかしの広がりはTextShadowBlurTestの画素検査)
+			"0150-text-shadow/blur.html", //
 			// clip-path: path()(2026-08-29)。px座標のSVGパスがptへ換算され
 			// 参照ボックス左上を原点にクリップ矩形へ現れること
 			"3080-MODERN-CSS/clip-path-path.html", //

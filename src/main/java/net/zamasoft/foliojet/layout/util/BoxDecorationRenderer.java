@@ -43,8 +43,10 @@ public final class BoxDecorationRenderer {
 	 * ((k+0.5)/N)を外側から並べたもの。外側ほど薄くなる階段の縁が、
 	 * ガウス減衰の等確率区間に対応する。8段では濃い影(α=.5)の4倍拡大で
 	 * 段差が見えたので12段にした(1段あたりα=.15なら約1.3%、α=.5でも約6%)。
+	 * {@code text-shadow}のぼかし({@code AbstractTextBox})も同じ段を使う
+	 * (2026-08-29)。
 	 */
-	private static final double[] BLUR_STEPS = { 1.7317, 1.1503, 0.8122, 0.5485, 0.3186, 0.1046, -0.1046, -0.3186,
+	public static final double[] BLUR_STEPS = { 1.7317, 1.1503, 0.8122, 0.5485, 0.3186, 0.1046, -0.1046, -0.3186,
 			-0.5485, -0.8122, -1.1503, -1.7317 };
 
 	private BoxDecorationRenderer() {

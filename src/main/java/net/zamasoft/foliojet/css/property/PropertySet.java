@@ -171,8 +171,8 @@ public abstract class PropertySet {
 			"scroll-margin-inline", "scroll-padding-block", "scroll-padding-inline",
 			"scroll-timeline", "view-transition-name", "accent-color", "field-sizing",
 			"box-orient", "box-direction", "box-pack", "box-align", "box-flex",
-			"box-ordinal-group", "box-lines", "font-optical-sizing", "text-underline-position",
-			// zoomは2026-08-29に描画時拡大として実装(Zoom)、無視リストから外した
+			"box-ordinal-group", "box-lines", "font-optical-sizing",
+			// zoom(描画時拡大)とtext-underline-positionは2026-08-29に実装し、無視リストから外した
 			"image-rendering", "ime-mode", "font-smooth", "line-clamp-fallback");
 
 	/** 接頭辞を外した名前が{@link #IGNORED_PROPERTIES}にあるか。 */

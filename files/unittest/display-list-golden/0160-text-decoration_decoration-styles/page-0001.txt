@@ -1,0 +1,25 @@
+drawer z=0
+  x=0.00 y=0.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=0.00 TextDecorationDrawable
+  x=0.00 y=30.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=30.00 TextDecorationDrawable
+  x=0.00 y=60.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=60.00 TextDecorationDrawable
+  x=0.00 y=90.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=90.00 TextDecorationDrawable
+  x=0.00 y=120.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=120.00 TextDecorationDrawable
+  x=0.00 y=150.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=150.00 TextDecorationDrawable
+  x=0.00 y=180.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=180.00 TextDecorationDrawable
+  x=0.00 y=210.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=210.00 TextDecorationDrawable
+  x=0.00 y=240.00 Text["MMMMMMMM" asc=20.52 desc=9.48]
+  x=0.00 y=240.00 TextDecorationDrawable
+  x=0.00 y=270.00 Text["MM" asc=20.52 desc=9.48]
+  x=0.00 y=270.00 TextDecorationDrawable
+  x=33.32 y=273.32 Text["MMMM" asc=17.20 desc=4.82]
+  x=33.32 y=273.32 TextDecorationDrawable
+  x=99.96 y=270.00 Text["MM" asc=20.52 desc=9.48]
+  x=99.96 y=270.00 TextDecorationDrawable

@@ -59,7 +59,10 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			} else {
 				color = src[i].color.getColor();
 			}
-			shadows[i] = new net.zamasoft.foliojet.layout.box.params.TextShadow(x, y, color);
+			// ぼかし半径(2026-08-29)。従来は解析だけして捨てていた
+			final double blur = src[i].blur == null ? 0
+					: Math.max(0, ((AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(src[i].blur, style)).getLength());
+			shadows[i] = new net.zamasoft.foliojet.layout.box.params.TextShadow(x, y, blur, color);
 		}
 		return shadows;
 	}
@@ -99,7 +102,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 					if (shadows == null) {
 						shadows = new ArrayList<Shadow>();
 					}
-					shadows.add(new Shadow(x, y, color instanceof ColorValue cv ? cv : null));
+					shadows.add(new Shadow(x, y, blur, color instanceof ColorValue cv ? cv : null));
 				}
 				x = y = blur = null;
 				color = null;
@@ -107,8 +110,8 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			}
 			// 色は長さの前後どちらにも書ける(css-text-decoration-3)。
 			// 2026-08-29: 実サイトの `0 -1px 0 rgba(0,0,0,.3)` は3つ目の長さ
-			// (ぼかし半径)で解析失敗していた。ぼかしは受理して無視する
-			// (影はぼかさず描く——記録済みの近似)。currentcolorは
+			// (ぼかし半径)で解析失敗していた。ぼかしは2026-08-29から描画にも
+			// 反映する(box-shadowと同じ多段の半透明近似)。currentcolorは
 			// 色なし(=描画時にその要素のcolor)と同じ
 			if (color == null && ColorValueUtils.isCurrentColor(lu)) {
 				color = KeywordValue.DEFAULT;
@@ -150,7 +153,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			if (shadows == null) {
 				shadows = new ArrayList<Shadow>();
 			}
-			shadows.add(new Shadow(x, y, color instanceof ColorValue cv ? cv : null));
+			shadows.add(new Shadow(x, y, blur, color instanceof ColorValue cv ? cv : null));
 		}
 		if (shadows == null) {
 			return TextShadowValue.EMPTY_TEXT_SHADOW;

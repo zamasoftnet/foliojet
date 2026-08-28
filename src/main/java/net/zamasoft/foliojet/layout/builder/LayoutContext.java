@@ -49,6 +49,14 @@ public interface LayoutContext extends LayoutStack {
 		 */
 		public final double frameHead;
 
+		/**
+		 * このフローの箱が{@code line-clamp}を持つときの行数の状態です
+		 * (2026-08-29、{@link LineClampState#find}が遅延生成)。フローの
+		 * 寿命=箱の組版中なので、ページ継続で箱が作り直されると数え直しに
+		 * なる(既知の制限)。
+		 */
+		public LineClampState lineClamp;
+
 		public Flow(AbstractContainerBox container, double lineAxis, double pageAxis) {
 			this(container, lineAxis, pageAxis, 0);
 		}
