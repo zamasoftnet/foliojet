@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html>
+<head>
+<title>font-stretch face selection</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+/* 幅級の違う2面を1ファミリに束ねる(2026-08-29)。Barlow CondensedはOFL。
+   @font-face経路ではファイルのOS/2でなくディスクリプタが面の幅級・ウェイトを
+   定義するので、Boldのファイルでもweight既定(400)のまま条件を揃える */
+body { text-autospace: no-autospace; font-size: 36pt; }
+@font-face {
+	font-family: 'stretchy';
+	src: url(MinionPro-Regular.otf);
+}
+@font-face {
+	font-family: 'stretchy';
+	src: url(BarlowCondensed-Bold.woff2);
+	font-stretch: condensed;
+}
+div { font-family: 'stretchy'; }
+#b { font-stretch: condensed; }
+#c { font-stretch: semi-condensed; }
+#d { font-stretch: expanded; }
+#e { font-width: 75%; }
+</style>
+</head>
+<body>
+<div><span id="a">Width Sample</span></div>
+<div><span id="b">Width Sample</span></div>
+<div><span id="c">Width Sample</span></div>
+<div><span id="d">Width Sample</span></div>
+<div><span id="e">Width Sample</span></div>
+</body>
+</html>

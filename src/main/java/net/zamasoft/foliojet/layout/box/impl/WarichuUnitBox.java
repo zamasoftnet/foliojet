@@ -101,7 +101,8 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		final FontStyle srcFs = tp.fontStyle;
 		final FontStyle smallFs = new FontStyleImpl(srcFs.getFamily(), baseFs.getSize() / 2.0, srcFs.getStyle(),
 				srcFs.getWeight(), srcFs.getDirection(), srcFs.getPolicy(), srcFs.getFeatures(),
-				srcFs.getSynthesisWeight(), srcFs.getSynthesisStyle(), srcFs.getTextOrientation());
+				srcFs.getSynthesisWeight(), srcFs.getSynthesisStyle(), srcFs.getTextOrientation(),
+				srcFs.getWidthClass());
 		final TextImpl[] firstTexts = shape(tp, smallFs, first, charOffset);
 		final TextImpl[] secondTexts = shape(tp, smallFs, second, charOffset < 0 ? -1 : charOffset + split);
 		final double firstAdvance = totalAdvance(firstTexts);

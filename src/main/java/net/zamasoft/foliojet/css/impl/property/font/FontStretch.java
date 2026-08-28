@@ -26,11 +26,13 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * </p>
  *
  * <p>
- * <b>現状の効き方</b>: 値は{@code StretchedFontStyle}に載せて
- * {@code FontStyle}まで運ぶが、pdfg2dのフォント索引は
- * {@code usWidthClass}を持たず({@code FontSource}にはweight/italicだけ)、
- * 照合には使われない。索引側の変更が入れば、{@code FontStyle}の
- * {@code getWidthClass()}をそのまま照合鍵にできる。
+ * <b>効き方</b>: 幅級は{@code FontStyleImpl.widthClass}として運ばれ、
+ * pdfg2dの書体選択({@code PDFFontSourceManager.lookup})がitalic/weightの
+ * 同点の中から幅級の近い面を選ぶ(要求が通常幅以下なら狭い側を先に、
+ * 広ければ広い側を先に——css-fonts-4 §5.2)。面の幅級は{@code <font-dir>}
+ * 走査ではOS/2 {@code usWidthClass}、{@code @font-face}では
+ * {@code font-stretch}ディスクリプタから来る。幅の合成(字形の伸縮)は
+ * しないので、幅級の違う面が無ければ見た目は変わらない。
  * </p>
  */
 public class FontStretch extends AbstractPrimitivePropertyInfo {

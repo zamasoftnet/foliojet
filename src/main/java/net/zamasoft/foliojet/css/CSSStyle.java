@@ -397,16 +397,13 @@ public class CSSStyle {
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontKerning.featureSet(this))
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.get(this));
 
-		final FontStyleImpl base = new FontStyleImpl(family, size, style, weight, direction, policy, features,
+		// font-stretch(2026-08-29)は幅級(usWidthClass 1..9)としてFontStyleに
+		// 載せ、pdfg2dの書体選択がitalic/weight同点の中から幅級の近い面を選ぶ
+		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features,
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.get(this),
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this),
-				net.zamasoft.foliojet.css.impl.property.text.TextOrientation.get(this));
-		// font-stretch(2026-08-29)。normal以外のときだけ幅級を添えて運ぶ
-		// (照合に使われるのはpdfg2dの索引が幅級を持ってから——FontStretch参照)
-		final int widthClass = net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(this);
-		this.fontStyle = widthClass == net.zamasoft.foliojet.css.impl.property.font.FontStretch.NORMAL_WIDTH_CLASS
-				? base
-				: new net.zamasoft.foliojet.css.impl.property.font.StretchedFontStyle(base, widthClass);
+				net.zamasoft.foliojet.css.impl.property.text.TextOrientation.get(this),
+				net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(this));
 		return this.fontStyle;
 	}
 

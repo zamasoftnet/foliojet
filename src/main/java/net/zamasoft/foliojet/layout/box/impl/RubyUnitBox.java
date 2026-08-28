@@ -252,7 +252,7 @@ public class RubyUnitBox extends InlineBlockBox {
 			final FontStyle rubyFs = new FontStyleImpl(rubyBaseFs.getFamily(), baseFs.getSize() / 2.0,
 					rubyBaseFs.getStyle(), rubyBaseFs.getWeight(), rubyBaseFs.getDirection(), rubyBaseFs.getPolicy(),
 					rubyBaseFs.getFeatures(), rubyBaseFs.getSynthesisWeight(), rubyBaseFs.getSynthesisStyle(),
-					rubyBaseFs.getTextOrientation());
+					rubyBaseFs.getTextOrientation(), rubyBaseFs.getWidthClass());
 			final TextImpl[] texts = input.text().isEmpty() ? new TextImpl[0]
 					: shape(rp, rubyFs, input.text(), input.charOffset());
 			final boolean interCharacter = !container.flow.isVertical() && rp.rubyPosition.isInterCharacter();

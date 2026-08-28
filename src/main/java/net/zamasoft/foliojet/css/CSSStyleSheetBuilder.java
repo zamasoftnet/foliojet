@@ -785,6 +785,7 @@ public class CSSStyleSheetBuilder {
 						face.fontFamily = CSSFontFamily.get(style);
 						face.fontWeight = FontWeight.get(style);
 						face.fontStyle = CSSFontStyle.get(style);
+						face.widthClass = net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(style);
 						face.unicodeRange = CSSUnicodeRange.get(style);
 						face.variationSettings = net.zamasoft.foliojet.css.impl.property.font.FontVariationSettings
 								.get(style);
