@@ -10,8 +10,10 @@
    (2)restoreExtentsの枠控除が肥大して内寸が世代ごとに2×margin縮小
    ——固定幅本文カラムがページを追うごとに右へずれながら1文字幅へ
    潰れた(asahi.com記事ページ、2026-08-27)。
-   期待: 全ページでMAINがx=41px(=枠20px+auto margin 21px)・
-   外寸682px、SIDEはx=723pxに300px幅。 */
+   期待: 全ページでMAINがx=21px(=枠20px+auto margin 1px)・
+   外寸682px、SIDEはx=704pxに300px幅。wrapperはborder-boxなので
+   min-width:1024pxは枠込み——内寸984px、余り2px(2026-08-29。従来は
+   枠を二重に足して内寸1024px・auto margin 21pxで基準を作っていた)。 */
 @page { size: 960px 400px; margin: 0 }
 body { margin: 0; font: 12px sans-serif }
 .wrapper { box-sizing: border-box; display: flex; justify-content: start;

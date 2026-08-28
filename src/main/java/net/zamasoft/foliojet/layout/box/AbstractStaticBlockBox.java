@@ -365,16 +365,27 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		default:
 			throw new IllegalStateException();
 		}
+		// ページ方向のmin/max指定もbox-sizingのスケール。border-boxなら枠を
+		// 引いて内寸スケールへ揃えてから比べる(2026-08-29。行方向の
+		// borderBoxLineと対。従来はminPageAxis/maxPageAxisが枠込みのまま
+		// 残り、setPageAxisが内容高を枠込みの下限まで押し上げていた)
+		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			final double borderBoxPage = this.getFrame().getBorderPageExtent(flow);
+			minPage = Math.max(0, minPage - borderBoxPage);
+			if (maxPage != Double.MAX_VALUE) {
+				maxPage = Math.max(0, maxPage - borderBoxPage);
+			}
+		}
 		double pageExtent = flow.isVertical() ? this.width : this.height;
 		switch (this.size.getPageType(flow)) {
 		case RELATIVE:
 			if (context.isPagePercentDefinite()) {
 				pageExtent = this.size.getPageLength(flow) * context.percentBasePage();
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+					pageExtent = Math.max(0, pageExtent - this.getFrame().getBorderPageExtent(flow));
+				}
 				pageExtent = Math.max(pageExtent, minPage);
 				pageExtent = Math.min(pageExtent, maxPage);
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					pageExtent -= this.getFrame().getBorderPageExtent(flow);
-				}
 				minPage = maxPage = pageExtent;
 				break;
 			}
@@ -386,21 +397,21 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			break;
 		case ABSOLUTE:
 			pageExtent = this.size.getPageLength(flow);
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+				pageExtent = Math.max(0, pageExtent - this.getFrame().getBorderPageExtent(flow));
+			}
 			pageExtent = Math.max(pageExtent, minPage);
 			pageExtent = Math.min(pageExtent, maxPage);
-			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-				pageExtent -= this.getFrame().getBorderPageExtent(flow);
-			}
 			minPage = maxPage = pageExtent;
 			break;
 		case MIXED:
 			if (context.isPagePercentDefinite()) {
 				pageExtent = this.size.getPageLength(flow) + this.size.getPageRatio(flow) * context.percentBasePage();
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+					pageExtent = Math.max(0, pageExtent - this.getFrame().getBorderPageExtent(flow));
+				}
 				pageExtent = Math.max(pageExtent, minPage);
 				pageExtent = Math.min(pageExtent, maxPage);
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					pageExtent -= this.getFrame().getBorderPageExtent(flow);
-				}
 				minPage = maxPage = pageExtent;
 				break;
 			}

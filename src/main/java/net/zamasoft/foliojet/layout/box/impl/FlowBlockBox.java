@@ -273,6 +273,18 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		}
 	}
 
+	/**
+	 * 行方向のmin/max指定値(box-sizingスケール)を内容寸法のスケールへ
+	 * 換算します(2026-08-29)。border-boxなら行方向の境界+パディングを引く。
+	 * 呼び出し側でパディングは解決済みであること(computePaddingsの後)。
+	 */
+	private double lineMinMaxToContent(final double specified, final boolean lineIsHeight) {
+		if (this.params.boxSizing != BoxSizingMode.BORDER_BOX) {
+			return specified;
+		}
+		return Math.max(0, specified - (lineIsHeight ? this.frame.getBorderHeight() : this.frame.getBorderWidth()));
+	}
+
 	public void calculateSize(LayoutStack layoutStack, double xmargin, double lineSize) {
 		final AbstractContainerBox containerBox = layoutStack.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
@@ -380,13 +392,19 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, lineSize);
 					if (LayoutUtils.isNone(maxHeight)) {
 						maxHeight = Double.MAX_VALUE;
-					} else if (this.height > maxHeight) {
-						this.height = maxHeight;
-						continue;
+					} else {
+						// min/max-heightはbox-sizingのスケール。this.heightは
+						// 内寸なので、border-boxなら枠を引いてから比べる
+						// (2026-08-29。横書き側の同名処理を参照)
+						maxHeight = this.lineMinMaxToContent(maxHeight, true);
+						if (this.height > maxHeight) {
+							this.height = maxHeight;
+							continue;
+						}
 					}
 					state = 1;
 				case 1:
-					minHeight = LayoutUtils.computeDimensionHeight(this.minSize, lineSize);
+					minHeight = this.lineMinMaxToContent(LayoutUtils.computeDimensionHeight(this.minSize, lineSize), true);
 					if (this.height < minHeight) {
 						this.height = minHeight;
 						continue;
@@ -448,15 +466,26 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			default:
 				throw new IllegalStateException();
 			}
+			// ページ方向のmin/max指定はbox-sizingのスケール。this.width(内寸)と
+			// 比べる前に、border-boxなら枠を引いて内寸スケールへ揃える
+			// (2026-08-29)。従来はminPageAxis/maxPageAxisが枠込みのまま残り、
+			// setPageAxisが内容高を枠込みの下限まで押し上げていた(min-height:
+			// 40px+padding-block:8pxのborder-boxが56pxに)
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+				minWidth = Math.max(0, minWidth - this.getFrame().getBorderWidth());
+				if (maxWidth != Double.MAX_VALUE) {
+					maxWidth = Math.max(0, maxWidth - this.getFrame().getBorderWidth());
+				}
+			}
 			switch (this.size.getWidthType()) {
 			case RELATIVE:
 				if (this.isSpecifiedPageSize()) {
 					this.width = this.size.getWidth() * containerBox.getInnerWidth();
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+						this.width = Math.max(0, this.width - this.getFrame().getBorderWidth());
+					}
 					this.width = Math.max(this.width, minWidth);
 					this.width = Math.min(this.width, maxWidth);
-					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-						this.width -= this.getFrame().getBorderWidth();
-					}
 					minWidth = maxWidth = this.width;
 					break;
 				}
@@ -472,21 +501,21 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				break;
 			case ABSOLUTE:
 				this.width = this.size.getWidth();
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+					this.width = Math.max(0, this.width - this.getFrame().getBorderWidth());
+				}
 				this.width = Math.max(this.width, minWidth);
 				this.width = Math.min(this.width, maxWidth);
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					this.width -= this.getFrame().getBorderWidth();
-				}
 				minWidth = maxWidth = this.width;
 				break;
 			case MIXED:
 				if (this.isSpecifiedPageSize()) {
 					this.width = this.size.getWidth() + this.size.getWidthRatio() * containerBox.getInnerWidth();
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+						this.width = Math.max(0, this.width - this.getFrame().getBorderWidth());
+					}
 					this.width = Math.max(this.width, minWidth);
 					this.width = Math.min(this.width, maxWidth);
-					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-						this.width -= this.getFrame().getBorderWidth();
-					}
 					minWidth = maxWidth = this.width;
 					break;
 				}
@@ -598,13 +627,24 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxWidth = LayoutUtils.computeDimensionWidth(this.params.maxSize, lineSize);
 					if (LayoutUtils.isNone(maxWidth)) {
 						maxWidth = Double.MAX_VALUE;
-					} else if (this.width > maxWidth) {
-						this.width = maxWidth;
-						continue;
+					} else {
+						// min/max-widthはbox-sizingのスケール。this.widthは内寸
+						// なので、border-boxなら境界+パディングを引いてから比べる
+						// (2026-08-29)。従来は引いておらず、`min-width:100px;
+						// padding-inline:8px; box-sizing:border-box`のピル(flex item
+						// 内のgrid)が内寸100+枠16=116pxに広がった。通常フローの
+						// ブロックはAbstractStaticBlockBoxでなくここで幅が決まる
+						// (BlockBuilder.calculateSize)ため、そちらの換算だけでは
+						// 効かなかった(0510-flex/min-width-nested-container)
+						maxWidth = this.lineMinMaxToContent(maxWidth, false);
+						if (this.width > maxWidth) {
+							this.width = maxWidth;
+							continue;
+						}
 					}
 					state = 1;
 				case 1:
-					minWidth = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
+					minWidth = this.lineMinMaxToContent(LayoutUtils.computeDimensionWidth(this.minSize, lineSize), false);
 					if (this.width < minWidth) {
 						this.width = minWidth;
 						continue;
@@ -662,15 +702,23 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			default:
 				throw new IllegalStateException();
 			}
+			// ページ方向のmin/maxをborder-boxなら内寸スケールへ(2026-08-29。
+			// 縦書き側の同名処理を参照)
+			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+				minHeight = Math.max(0, minHeight - this.getFrame().getBorderHeight());
+				if (maxHeight != Double.MAX_VALUE) {
+					maxHeight = Math.max(0, maxHeight - this.getFrame().getBorderHeight());
+				}
+			}
 			switch (this.size.getHeightType()) {
 			case RELATIVE:
 				if (this.isSpecifiedPageSize()) {
 					this.height = this.size.getHeight() * containerBox.getInnerHeight();
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+						this.height = Math.max(0, this.height - this.getFrame().getBorderHeight());
+					}
 					this.height = Math.max(this.height, minHeight);
 					this.height = Math.min(this.height, maxHeight);
-					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-						this.height -= this.getFrame().getBorderHeight();
-					}
 					minHeight = this.height;
 					maxHeight = this.height;
 					break;
@@ -687,11 +735,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				break;
 			case ABSOLUTE:
 				this.height = this.size.getHeight();
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+					this.height = Math.max(0, this.height - this.getFrame().getBorderHeight());
+				}
 				this.height = Math.max(this.height, minHeight);
 				this.height = Math.min(this.height, maxHeight);
-				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-					this.height -= this.getFrame().getBorderHeight();
-				}
 				minHeight = this.height;
 				// 指定幅に固定する
 				maxHeight = this.height;
@@ -699,11 +747,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			case MIXED:
 				if (this.isSpecifiedPageSize()) {
 					this.height = this.size.getHeight() + this.size.getHeightRatio() * containerBox.getInnerHeight();
+					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+						this.height = Math.max(0, this.height - this.getFrame().getBorderHeight());
+					}
 					this.height = Math.max(this.height, minHeight);
 					this.height = Math.min(this.height, maxHeight);
-					if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
-						this.height -= this.getFrame().getBorderHeight();
-					}
 					minHeight = this.height;
 					maxHeight = this.height;
 					break;

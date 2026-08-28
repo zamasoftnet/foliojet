@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=75.00 h=12.60]
+  x=0.00 y=12.60 AbsoluteRectFrame[w=75.00 h=12.60]
+  x=0.00 y=25.20 AbsoluteRectFrame[w=75.00 h=15.60]
+  x=0.00 y=40.80 AbsoluteRectFrame[w=75.00 h=30.00]
+  x=6.00 y=0.00 Text["MIN" asc=9.20 desc=3.40]
+  x=6.00 y=12.60 Text["MAX" asc=9.20 desc=3.40]
+  x=7.50 y=26.70 Text["MAXB" asc=9.20 desc=3.40]
+  x=0.00 y=46.80 Text["MINH" asc=9.20 desc=3.40]

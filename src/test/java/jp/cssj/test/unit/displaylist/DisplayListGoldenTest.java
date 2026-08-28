@@ -195,6 +195,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// min-width付き入れ子コンテナのmin寄与(2026-08-08、NHKナビ)。
 			// 旧実装はflex-shrinkでmin-width未満に縮み背景が隣へ重なった
 			"0510-flex/min-width-nested-container.html", //
+			// box-sizing:border-boxのmin/max-widthは枠込み(2026-08-29)。通常フロー
+			// のブロック(FlowBlockBox)が枠を二重に足して116pxに広がっていた
+			"0510-flex/min-width-border-box-block.html", //
 			// 入れ子コンテナitemの主軸autoマージン(2026-08-09)。中立wrapperが
 			// authoredのautoマージンを引き取らず.ml-autoの右寄せが効かなかった
 			// (5ch.ioヘッダの実バグ)

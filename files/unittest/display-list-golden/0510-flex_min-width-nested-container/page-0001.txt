@@ -1,6 +1,6 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=75.00 h=30.00]
-  x=0.00 y=0.00 AbsoluteRectFrame[w=87.00 h=30.00]
+  x=0.00 y=0.00 AbsoluteRectFrame[w=75.00 h=30.00]
   x=75.00 y=8.70 AbsoluteRectFrame[w=28.00 h=12.60]
-  x=32.71 y=8.70 Text["ABC" asc=9.20 desc=3.40]
+  x=26.71 y=8.70 Text["ABC" asc=9.20 desc=3.40]
   x=75.00 y=8.70 Text["NEXT" asc=9.20 desc=3.40]

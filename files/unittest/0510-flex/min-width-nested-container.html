@@ -8,12 +8,8 @@
    flex-shrinkでラッパーがテキスト幅まで縮み、min-width:100pxで描かれる
    ピルの背景が隣のitemへ重なった(NHKニュースのナビのセクションピル、
    2026-08-08)。期待: ピルitemは100px(75pt)を保ち、NEXTはx=75ptから。
-   **既知の未解決(2026-08-29)**: padding-inlineが解釈されるようになった
-   結果、box-sizing:border-boxのmin-widthにパディングが二重に足され
-   ピルが116px(87pt)になる。従来はpadding-inlineが捨てられていたため
-   偶然75ptだった。goldenは現状(87pt)で再生成してある——正しい値は75pt。
-   計測経路(AbstractBlockBox/AbstractStaticBlockBox)のborder-box換算は
-   直したが、flex item内のgridではまだ別の経路で幅が決まる。 */
+   box-sizing:border-boxのmin-widthはパディング込み(2026-08-29): ピルは
+   内寸84+枠16=100pxで、116pxに広がってはならない(FlowBlockBox参照)。 */
 body { margin: 0; font: 14px sans-serif; }
 .row { display: flex; align-items: center; width: 100px; background: #eee; }
 .pill { height: 40px; min-width: 100px; padding-inline: 8px; display: grid;
