@@ -267,6 +267,95 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		assertTrue("ATAILとBHEADが同一ページに現れず、重なり検査ができていません(フィクスチャ要調整)", checked);
 	}
 
+	/**
+	 * 描画物のないflex行を極小ページで分割しても、0消費のまま同じ行を
+	 * 再分割して座標が指数的に膨張しないこと(極端掃過 STRICT seed 189)。
+	 */
+	public void testEmptyVerticalFlexRowMakesProgressAcrossTableFragments() throws Exception {
+		final String html = """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="60pt"?>
+				<?jp.cssj.property name="output.page-height" value="60pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>@page{margin:10pt} body{font:normal 12pt/1.2 serif;writing-mode:vertical-lr}</style>
+				</head><body><table>
+				<td><div style="display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;width:8em">
+				<ul></ul><input type="checkbox" /><div style="width:78%"></div>
+				<ol style="list-style-position:inside"><li></li></ol>
+				</div></td><td></td><tfoot><td>T256</td></tfoot>
+				</table></body></html>
+				""";
+		final File dir = new File(System.getProperty("java.io.tmpdir"),
+				"row-split-ledger/empty-vertical-flex-row");
+		dir.mkdirs();
+		final File[] old = dir.listFiles();
+		if (old != null) {
+			for (final File f : old) {
+				f.delete();
+			}
+		}
+		final File input = new File(dir, "input.html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(input), StandardCharsets.UTF_8)) {
+			w.write(html);
+		}
+		final int pages = convertFile("empty-vertical-flex-row", dir, input);
+		assertTrue("空flex行の分割が進んでいない(ページ数=" + pages + ")", pages <= 10);
+	}
+
+	/**
+	 * 分割中の先頭行だけを再flowし、丸ごと持ち越した後続行のpercent寸法と
+	 * 枠込み外寸を世代ごとに再加算しないこと(extreme STRICT seed 189の
+	 * 第二最小条件)。旧実装は26ページでx座標が4.97e8ptまで発散した。
+	 */
+	public void testLaterVerticalFlexRowsKeepExtentsAcrossFragments() throws Exception {
+		final String html = """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="60pt"?>
+				<?jp.cssj.property name="output.page-height" value="60pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>@page{margin:10pt}body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-lr}</style>
+				</head><body><table>
+				<thead><th>T181</th></thead>
+				<td>T223<div style="display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;width:8em">
+				<div style="flex:0 0 calc(25% + 0pt);min-width:8em"><input /><input value="x" /></div>
+				<div style="width:78%"><table><td>T230</td></table></div>
+				<ol></ol>
+				</div></td>
+				<tfoot><td>T256</td></tfoot>
+				</table></body></html>
+				""";
+		final File dir = new File(System.getProperty("java.io.tmpdir"),
+				"row-split-ledger/later-vertical-flex-rows");
+		dir.mkdirs();
+		final File[] old = dir.listFiles();
+		if (old != null) {
+			for (final File f : old) {
+				f.delete();
+			}
+		}
+		final File input = new File(dir, "input.html");
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(input), StandardCharsets.UTF_8)) {
+			w.write(html);
+		}
+		final int pages = convertFile("later-vertical-flex-rows", dir, input);
+		assertTrue("後続行の寸法が増幅している(ページ数=" + pages + ")", pages <= 30);
+		final java.util.regex.Pattern xPattern = java.util.regex.Pattern.compile("\\bx=(-?[0-9.E+-]+)");
+		final StringBuilder displayLists = new StringBuilder();
+		for (int p = 1; p <= pages; ++p) {
+			final String dl = java.nio.file.Files.readString(
+					new File(dir, String.format("page-%04d.txt", p)).toPath(), StandardCharsets.UTF_8);
+			displayLists.append(dl);
+			final java.util.regex.Matcher matcher = xPattern.matcher(dl);
+			while (matcher.find()) {
+				final double x = Double.parseDouble(matcher.group(1));
+				assertTrue("後続行のx座標が増幅しています: " + x + " (page=" + p + ")", Math.abs(x) < 500);
+			}
+		}
+		for (final String token : new String[] { "T181", "T223", "T230", "T256" }) {
+			assertTrue("内容が欠落しています: " + token, displayLists.indexOf(token) >= 0);
+		}
+	}
+
 	private static int convertFile(final String name, final File dir, final File input) throws Exception {
 		final Throwable[] failure = new Throwable[1];
 		final Thread worker = new Thread(null, () -> {

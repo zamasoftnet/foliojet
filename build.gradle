@@ -311,7 +311,7 @@ tasks.named('test') {
     // これが無いと `[shrink]` の出力は build/test-results の XML を
     // 掘らないと読めず、**縮小器の自己検査の結果を見落とす**。
     if (System.getProperties().stringPropertyNames().any {
-        it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzReport', 'foliojet.scratchDoc']
+        it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzOnlySeeds', 'foliojet.fuzzReport', 'foliojet.scratchDoc']
     }) {
         testLogging.showStandardStreams = true
     }

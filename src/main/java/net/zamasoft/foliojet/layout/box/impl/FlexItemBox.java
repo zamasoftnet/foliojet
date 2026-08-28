@@ -62,6 +62,15 @@ public class FlexItemBox extends FlowBlockBox {
 	}
 
 	/**
+	 * flex itemのauto marginはFlexBuilderが解決済み
+	 * ({@link FlowBlockBox#coordinatorOwnsAutoMargins}参照)。
+	 */
+	@Override
+	public boolean coordinatorOwnsAutoMargins() {
+		return true;
+	}
+
+	/**
 	 * 線方向のitem開始位置(Flexコンテナ内辺原点、自然位置からの相対)を
 	 * 設定します(F6: 縦書きでは物理Y)。
 	 *

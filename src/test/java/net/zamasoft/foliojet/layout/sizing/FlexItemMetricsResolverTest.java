@@ -75,6 +75,14 @@ public class FlexItemMetricsResolverTest extends TestCase {
 				.flexBaseMain(), 0);
 	}
 
+	/** 未確定%の番兵がmax-content加算でInfinityになっても§9.7へ渡さない。 */
+	public void testInfiniteMaxContentFallsBackToAutomaticMinimum() {
+		final FlexItemMetrics m = FlexItemMetricsResolver.resolve(input(FlexBasisValue.AUTO_VALUE,
+				Double.NaN, Double.NaN, NONE, 0, 0, false, false, 408, Double.POSITIVE_INFINITY, 576));
+		assertEquals(408.0, m.flexBaseMain(), 0);
+		assertEquals(408.0, m.hypotheticalMain(), 0);
+	}
+
 	/** basis:contentはwidthがあってもmax-content。 */
 	public void testContentBasis() {
 		assertEquals(200.0, FlexItemMetricsResolver

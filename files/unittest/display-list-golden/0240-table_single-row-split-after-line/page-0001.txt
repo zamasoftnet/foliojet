@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=11.20 Text["X" asc=7.59 desc=2.41]
+  x=2.25 y=45.85 Text["A" asc=7.59 desc=2.41]
+  x=2.25 y=67.05 Text["tall" asc=7.59 desc=2.41]

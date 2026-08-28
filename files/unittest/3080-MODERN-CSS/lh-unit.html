@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>lh単位</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 20pt;
+	line-height: 30pt;
+	font-family: serif;
+}
+/* 幅: 2lh = 60pt */
+#a {
+	width: 2lh;
+	height: 10pt;
+	background: red;
+}
+/* calc内: 1lh - 0.5em = 30 - 10 = 20pt */
+#b {
+	margin-left: calc(1lh - 0.5em);
+	width: 40pt;
+	height: 10pt;
+	background: blue;
+}
+/* line-height自身のlhは継承値基準: 1lh = 親(body)の30pt */
+#c {
+	line-height: 1lh;
+	background: #eee;
+}
+/* 行中に下げるMDNイディオム(transformは近似解決) */
+#d span {
+	display: inline-block;
+	width: 10pt;
+	height: 10pt;
+	background: green;
+	transform: translateY(calc(.5lh - .5em));
+}
+/* font-sizeのlhは親のline-height基準: 0.5lh = 15pt */
+#e {
+	font-size: 0.5lh;
+}
+/* 解決後に負になるcalcは0へクランプ(行が潰れることを固定) */
+#f {
+	line-height: calc(1lh - 100pt);
+	background: #cfc;
+}
+/* フォント相対成分が残るmin/maxは静的比較不能=宣言無効(width:auto) */
+#g {
+	width: max(1lh, 5pt);
+	height: 10pt;
+	background: orange;
+}
+</style>
+</head>
+<body>
+<div id="a"></div>
+<div id="b"></div>
+<div id="c">行高</div>
+<div id="d">文<span></span>字</div>
+<div id="e">半分</div>
+<div id="f">潰れ</div>
+<div id="g"></div>
+</body>
+</html>

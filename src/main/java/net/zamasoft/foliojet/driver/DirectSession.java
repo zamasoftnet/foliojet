@@ -244,6 +244,18 @@ public class DirectSession extends AbstractCTISession
 					};
 					atts.addAttribute("", "direction", "direction", "CDATA", String.valueOf(directionStr));
 
+					// 書体分類と対応スクリプト(2026-08-27)。webappのフォント
+					// 一覧の「書体」「言語」絞り込みが使う。分類はPanose/IBM
+					// familyClassからの推定で、無指定のフォントでは付かない
+					final String generic = genericOf(font);
+					if (generic != null) {
+						atts.addAttribute("", "generic", "generic", "CDATA", generic);
+					}
+					final String scripts = scriptsOf(font);
+					if (!scripts.isEmpty()) {
+						atts.addAttribute("", "scripts", "scripts", "CDATA", scripts);
+					}
+
 					handler.startElement("", "font", "font", atts);
 					atts.clear();
 
@@ -266,6 +278,85 @@ public class DirectSession extends AbstractCTISession
 			throw new RuntimeException(e);
 		}
 		return new ByteArrayInputStream(out.toByteArray());
+	}
+
+	/**
+	 * 代表コードポイントによるスクリプト判定表(ctip/fontsのscripts属性、
+	 * 2026-08-27)。ラベルは言語でなく文字体系。cmap照会だけなので
+	 * フォントあたり十数回のルックアップで済む。
+	 */
+	private static final Object[][] SCRIPT_PROBES = { //
+			{ "latin", 0x41 }, // A
+			{ "cyrillic", 0x416 }, // Ж
+			{ "greek", 0x3A9 }, // Ω
+			{ "arabic", 0x627 }, // ا
+			{ "hebrew", 0x5D0 }, // א
+			{ "devanagari", 0x905 }, // अ
+			{ "thai", 0xE01 }, // ก
+			{ "kana", 0x3042 }, // あ
+			{ "cjk", 0x6F22 }, // 漢
+			{ "hangul", 0xAC00 }, // 가
+	};
+
+	private static String scriptsOf(final FontSource font) {
+		final StringBuilder sb = new StringBuilder();
+		for (final Object[] probe : SCRIPT_PROBES) {
+			if (font.canDisplay((Integer) probe[1])) {
+				if (sb.length() > 0) {
+					sb.append(' ');
+				}
+				sb.append((String) probe[0]);
+			}
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * Panose(familyType/serifStyle/proportion)とOS/2のIBM familyClassから
+	 * 書体分類を推定します(ctip/fontsのgeneric属性、2026-08-27)。
+	 * どちらも無指定(ゼロ)のフォントはnull。
+	 */
+	private static String genericOf(final FontSource font) {
+		net.zamasoft.pdfg2d.gc.font.Panose p = null;
+		if (font instanceof net.zamasoft.pdfg2d.pdf.font.cid.CIDFontSource cid) {
+			p = cid.getPanose();
+		} else if (font instanceof net.zamasoft.pdfg2d.font.otf.OpenTypeFontSource ot) {
+			p = ot.getPanose();
+		}
+		if (p == null) {
+			return null;
+		}
+		final int ibm = p.familyClassId() & 0xFF;
+		final int familyType = p.familyType() & 0xFF;
+		if (p.proportion() == 9) {
+			return "monospace";
+		}
+		if (familyType == 3 || ibm == 10) {
+			return "cursive";
+		}
+		if (familyType == 4 || ibm == 9) {
+			return "fantasy";
+		}
+		if (familyType == 5 || ibm == 12) {
+			return "symbol";
+		}
+		if (familyType == 2) {
+			final int serif = p.serifStyle() & 0xFF;
+			if (serif >= 11 && serif <= 15) {
+				return "sans-serif";
+			}
+			if (serif >= 2 && serif <= 10) {
+				return "serif";
+			}
+			// serifStyle 0/1(any/no fit)はIBM familyClassへ委ねる
+		}
+		if (ibm == 8) {
+			return "sans-serif";
+		}
+		if (ibm >= 1 && ibm <= 7) {
+			return "serif";
+		}
+		return null;
 	}
 
 	public File getProfileFile() {
@@ -393,6 +484,12 @@ public class DirectSession extends AbstractCTISession
 	public void transcode(URI uri) throws IOException, TranscoderException {
 		this.prepareTranscode(uri);
 		final Source source = this.resolver.resolve(uri, true);
+		// 進行通知用に先開きしたストリームは自分で閉じる(2026-08-27)。
+		// resolver.release(source)はSourceオブジェクトを返すだけで、
+		// getInputStream()で開いた実ストリームまでは閉じない。閉じ漏れる
+		// と、ローカルファイル変換後もOSのファイルロックが残り続けた
+		// (webappでfile:のHTMLを変換すると削除できなくなる実害)
+		InputStream progressIn = null;
 		try {
 			Source xsource = source;
 			if (this.progressListener != null) {
@@ -403,6 +500,7 @@ public class DirectSession extends AbstractCTISession
 					}
 					InputStream in = source.getInputStream();
 					in = new BufferedInputStream(new ProgressInputStream(in, this.progressListener));
+					progressIn = in;
 					xsource = new StreamSource(uri, in, source.getMimeType(), source.getEncoding());
 				} catch (IOException e) {
 					throw new FileNotFoundException();
@@ -416,6 +514,13 @@ public class DirectSession extends AbstractCTISession
 			throw new TranscoderException(TranscoderException.STATE_BROKEN, code, args,
 					MessageCodeUtils.toString(code, args));
 		} finally {
+			if (progressIn != null) {
+				try {
+					progressIn.close();
+				} catch (IOException e) {
+					// closeの失敗は変換結果に影響しない
+				}
+			}
 			this.resolver.release(source);
 		}
 	}
@@ -854,6 +959,13 @@ public class DirectSession extends AbstractCTISession
 					new InputByteBudget(inputLimit, UAProps.INPUT_SIZE_LIMIT.getName()));
 		}
 		final Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, source);
+		MySourceResolver.PREFETCH_LOG.fine(() -> "input.prefetch=" + UAProps.INPUT_PREFETCH.getBoolean(this.ua));
+		if (UAProps.INPUT_PREFETCH.getBoolean(this.ua)) {
+			// 外部リソースの非同期先読み(input.prefetch)。主文書を読み
+			// 先行バッファ越しに流し、発見したstylesheet/imgをACL検査の上で
+			// 並列取得する。詳細はResourcePrefetcherのjavadoc
+			source = ResourcePrefetcher.wrap(source, this.resolver);
+		}
 		Results results = this.results;
 		long limit = UAProps.OUTPUT_SIZE_LIMIT.getLong(this.ua);
 		if (limit != -1L) {

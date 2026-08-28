@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+/* flex/gridコンテナ(独立整形文脈)はfloatと重ならない(CSS 2.1 §9.5、
+   2026-08-27)。従来は帯絞りがマルチカラム限定で、floatラベルの隣の
+   flexリストが重なっていた(asahi.comフッター)。期待: flex/gridの
+   コンテナはx=110px開始・幅280px。plain blockは従来どおり重なる。
+   tableが下へ落ちるのは既知の別差異(Chromeは横に置く)。 */
+@page { size: 400px 400px; margin: 0 }
+body { margin: 10px; font: 11px sans-serif }
+.f { float: left; width: 100px; height: 40px; background: #fbb }
+.sec { clear: both; padding-top: 4px }
+</style></head><body>
+<div class="sec"><div class="f">float</div><div style="display:flex; height:30px; background:#bfb"><span>flex-container</span></div></div>
+<div class="sec"><div class="f">float</div><div style="overflow:hidden; height:30px; background:#bbf">overflow-hidden</div></div>
+<div class="sec"><div class="f">float</div><div style="display:grid; height:30px; background:#ffb"><span>grid-container</span></div></div>
+<div class="sec"><div class="f">float</div><table style="background:#fbf"><tr><td>table</td></tr></table></div>
+<div class="sec"><div class="f">float</div><div style="height:30px; background:#eee">plain block (重なって正しい)</div></div>
+</body></html>

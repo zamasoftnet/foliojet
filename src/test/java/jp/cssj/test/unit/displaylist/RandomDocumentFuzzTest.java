@@ -96,6 +96,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	static final int GENERATOR_VERSION = 2;
 
+	/** v2を変えずに重い局所構造を追加する、opt-in掃過プロファイルの版。 */
+	static final int EXTREME_PROFILE_VERSION = 1;
+
+	private static boolean extremeProfile() {
+		final String value = System.getProperty("foliojet.fuzzExtreme");
+		return value != null && !value.equals("0") && !value.equalsIgnoreCase("false");
+	}
+
+	private static String generatorProfile() {
+		return extremeProfile() ? "extreme-v" + EXTREME_PROFILE_VERSION : "standard";
+	}
+
+	private static String generatorLabel() {
+		return extremeProfile() ? GENERATOR_VERSION + "/" + generatorProfile()
+				: String.valueOf(GENERATOR_VERSION);
+	}
+
 	/** 既定のシード数(回帰用。掃過は -Dfoliojet.fuzzSeeds で増やす)。 */
 	private static final int DEFAULT_SEEDS = 60;
 
@@ -105,12 +122,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/** ページ数の上限。生成する内容量から見て明らかに過大な値。 */
 	private static final int MAX_PAGES = Integer.getInteger("foliojet.fuzzMaxPages", 300);
 
+	/** extremeの絶対上限。通常は要素数×2のほうが先に効く。 */
+	private static final int EXTREME_MAX_PAGES = Integer.getInteger("foliojet.fuzzExtremeMaxPages", 4_000);
+
+	private static int pageLimit(final Generated doc) {
+		if (!doc.html().contains("data-fuzz-profile=\"extreme-v")) {
+			return MAX_PAGES;
+		}
+		// 60x60pt・内容領域40x40ptのseed 541は1,066要素から1,242ページを
+		// 正常生成した。固定300ではextremeの内容量そのものを異常扱いする。
+		// 要素数は長いテキスト量を表さない。縦書き13ptのseed 8676は655要素から
+		// 1,443ページで正常停止した(2.20ページ/要素)ため、3倍まで許容する。
+		// 無制限に広げず、絶対上限4,000ページも残す。
+		final int contentBound = Math.multiplyExact(inspectGeneratedStructure(doc.html()).elements(), 3);
+		return Math.max(MAX_PAGES, Math.min(EXTREME_MAX_PAGES, contentBound));
+	}
+
 	/** ページ数オラクルの上限で意図的に変換を止めた印。 */
 	private static final class PageCountLimitExceeded extends AssertionError {
 		private static final long serialVersionUID = 1L;
 
-		PageCountLimitExceeded(final Throwable cause) {
-			super("ページ数が過大 " + (MAX_PAGES + 1) + "以上");
+		PageCountLimitExceeded(final int limit, final Throwable cause) {
+			super("ページ数が過大 " + (limit + 1) + "以上");
 			initCause(cause);
 		}
 	}
@@ -128,6 +161,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	private static final Pattern TEXT_IN_DUMP = Pattern
 			.compile("(?:Text|RubyUnit)\\[\"([^\"]*)\"(?: ruby=\"([^\"]*)\")?");
+	/** 生成器の ordered list が生成するマーカー(本文の文字ではない)。 */
+	private static final Pattern ORDERED_LIST_MARKER = Pattern
+			.compile("(?:[0-9]+|[ivxlcdm]+)\\.|[〇一二三四五六七八九十百千万]+、");
+	/** 生成器のフォーム部品が固定で描画する、fuzzトークンではない文字。 */
+	private static final Set<String> GENERATED_CONTROL_TEXT = Set.of("x", "y", "mixed", "甲", "乙", "日本語", "العربية",
+			"日本語 العربية");
+
+	/** 表示リスト上の1つの文字実行と、そのページ番号(0基点)。 */
+	private record ObservedText(String text, int page, boolean artifact) {
+	}
 
 	/** 詳細ダンプ中の、寸法を持つ描画物の外接矩形。 */
 	private static final Pattern DRAWING_GEOMETRY_IN_DUMP = Pattern.compile(
@@ -176,6 +219,82 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertEquals("同一seedの生成結果が変動する", generate(12345, true), generate(12345, true));
 	}
 
+	/** extreme-v1の狙った高密度構造が、全seedで入り、かつ決定的であること。 */
+	public void testExtremeProfileIsDenseAndDeterministic() {
+		for (int seed = 0; seed < 32; ++seed) {
+			final Generated strict = generate(seed, true, false, true);
+			final String html = strict.html();
+			assertTrue("extreme表へ到達しない", html.contains("data-fuzz-role=\"extreme-table\""));
+			assertTrue("thead/tfoot/caption/colgroupを生成しない", html.contains("<thead>")
+					&& html.contains("<tfoot>") && html.contains("<caption>") && html.contains("<colgroup>"));
+			assertTrue("高密度flex/gridへ到達しない", html.contains("data-fuzz-role=\"extreme-layout\"")
+					&& html.contains("grid-row:") && html.contains("align-items:")
+					&& html.contains("justify-content:"));
+			assertTrue("複合リスト項目へ到達しない", html.contains("data-fuzz-role=\"extreme-list\""));
+			assertTrue("多言語/bidi/長語へ到達しない", html.contains("data-fuzz-role=\"extreme-text\"")
+					&& html.contains("dir=\"rtl\"") && html.contains("fuzzUnbreakable"));
+			assertTrue("v2標準より十分に密でない: tokens=" + strict.tokens().size(),
+					strict.tokens().size() >= 80);
+			assertTrue("extremeのページ上限が内容量に比例しない", pageLimit(strict) > MAX_PAGES);
+			assertEquals("extreme同一seedの生成結果が変動する", strict,
+					generate(seed, true, false, true));
+		}
+		final String wild = generate(0, false, false, true).html();
+		assertTrue("WILDの複雑な強制改ページ境界へ到達しない",
+				wild.contains("data-fuzz-role=\"extreme-wild-break\""));
+		final Generated denseVertical = generate(8676, true, false, true);
+		assertTrue("長文を持つ縦書きextreme文書の正常停止前にページ上限が切れる: "
+				+ pageLimit(denseVertical), pageLimit(denseVertical) >= 1_443);
+	}
+
+	/** overflow-wrap:anywhere等でトークン内部が分割されても内容消失と誤判定しない。 */
+	public void testContentOracleRestoresSplitTokensAcrossInterleavedDraws() {
+		final Set<String> expected = Set.of("T100", "T423", "T575", "T576", "T657", "T57");
+		final List<ObservedText> runs = List.of(new ObservedText("prefix T57", 0, false),
+				new ObservedText("T100", 0, false), new ObservedText("5", 0, false),
+				new ObservedText("T", 1, false), new ObservedText("1.", 2, false),
+				new ObservedText("一、", 2, false), new ObservedText("\u200b", 2, false),
+				new ObservedText("42", 2, false), new ObservedText("3", 2, false),
+				new ObservedText("T57", 3, false), new ObservedText("6", 3, false),
+				new ObservedText("T", 4, false), new ObservedText("x\u200b", 5, false),
+				new ObservedText("6", 5, false), new ObservedText("x\u200b", 6, true),
+				new ObservedText("5", 6, false), new ObservedText("7", 6, false));
+		assertEquals(0, firstObservedTokenPage("T575", runs, expected));
+		assertEquals(1, firstObservedTokenPage("T423", runs, expected));
+		assertEquals(3, firstObservedTokenPage("T576", runs, expected));
+		assertEquals(4, firstObservedTokenPage("T657", runs, expected));
+		assertEquals(-1, firstObservedTokenPage("T577", runs, expected));
+		assertEquals(0, firstObservedTokenPage("T57", runs, expected));
+	}
+
+	/** 部分一致や普通の本文越しをトークンの存在と誤認しない。 */
+	public void testContentOracleRejectsPrefixAndTextSkipping() {
+		final Set<String> expected = Set.of("T9", "T57", "T91", "T575");
+		assertEquals(-1, firstObservedTokenPage("T57",
+				List.of(new ObservedText("T575", 0, false)), expected));
+		assertEquals(-1, firstObservedTokenPage("T575",
+				List.of(new ObservedText("T57", 0, false), new ObservedText("ordinary text", 0, false),
+						new ObservedText("5", 0, false)), expected));
+		assertEquals(1, firstObservedTokenPage("T91",
+				List.of(new ObservedText("T9", 0, false), new ObservedText("1.", 0, false),
+						new ObservedText("T91", 1, false)), expected));
+		assertEquals(-1, firstObservedTokenPage("T501",
+				List.of(new ObservedText("T50", 0, true), new ObservedText("T51", 0, false),
+						new ObservedText("1", 1, false)), Set.of("T50", "T51", "T501")));
+		assertEquals(2, firstObservedTokenPage("T11",
+				List.of(new ObservedText("T1", 1, false), new ObservedText("T2", 1, false),
+						new ObservedText("1", 1, false), new ObservedText("T11", 2, false)),
+				Set.of("T1", "T2", "T11")));
+		assertEquals(1, firstObservedTokenPage("T435",
+				List.of(new ObservedText("T43", 0, false), new ObservedText("T89", 0, false),
+						new ObservedText("T105", 1, false), new ObservedText("T43", 1, false),
+						new ObservedText("5", 1, false)),
+				Set.of("T43", "T89", "T105", "T435")));
+		assertEquals(-1, firstObservedTokenPage("T575",
+				List.of(new ObservedText("T", 0, false), new ObservedText("5", 1, false),
+						new ObservedText("7", 1, false), new ObservedText("6", 1, false)), expected));
+	}
+
 	/** 中断時checkpointにも分類件数だけでなく再現用seedを残す。 */
 	public void testFuzzManifestCheckpointRetainsSeeds() throws Exception {
 		final Path manifest = Files.createTempFile("foliojet-fuzz-manifest-", ".json");
@@ -199,6 +318,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final String json = Files.readString(manifest, StandardCharsets.UTF_8);
 			assertTrue(json.contains("\"processed\":17"));
 			assertTrue(json.contains("\"completed\":false"));
+			assertTrue(json.contains("\"generatorProfile\":\"" + generatorProfile() + "\""));
 			assertTrue(json.contains("\"ページ数過大\":[123,456]"));
 			assertTrue(json.contains("\"normalized|site=x\":[456]"));
 		} finally {
@@ -287,6 +407,54 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final File outDir = new File(root, "display-list");
 		try {
 			checkDocument(doc, html, outDir, true, "same-axis-writing-mode-float");
+		} finally {
+			final File[] outputs = outDir.listFiles();
+			if (outputs != null) {
+				for (final File output : outputs) {
+					assertTrue("一時出力を削除できない: " + output, output.delete());
+				}
+			}
+			assertTrue("一時出力ディレクトリを削除できない", !outDir.exists() || outDir.delete());
+			assertTrue("一時HTMLを削除できない", !html.exists() || html.delete());
+			assertTrue("一時ディレクトリを削除できない", root.delete());
+		}
+	}
+
+	/**
+	 * 断片化後に開始のないインライン終了だけが残っても、空行を確定しない。
+	 *
+	 * <p>
+	 * extreme-v1 WILD seed 7593の最小形。表の後に空の脚注を含む段組リストを
+	 * 置くと、回復処理が捨てたINLINE_ENDを{@code drawLine()}が内容ありと誤認し、
+	 * 空の行ボックスを{@code align()}して変換が失敗していた。
+	 * </p>
+	 */
+	public void testFragmentRecoveryDoesNotAlignEmptyLine() throws Exception {
+		final String htmlText = """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="60pt"?>
+				<?jp.cssj.property name="output.page-height" value="60pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>
+				@page{margin:10pt}
+				body{font:normal 6pt/1.2 serif}
+				table{border-collapse:collapse}
+				td{border:1pt solid black}
+				</style></head><body>
+				<table>
+				<thead><th>T99</th></thead>
+				<td><div style="display:grid">T113<div></div></div></td><td></td>
+				<tfoot><td>T136</td></tfoot>
+				</table>
+				<ol><li><div style="column-count:2"><div style="float:footnote"></div></div></li></ol>
+				</body></html>
+				""";
+		final Generated doc = new Generated(htmlText, List.of(), Set.of(), 60, 60, 0, false, true);
+		final File root = Files.createTempDirectory("fragment-empty-line-").toFile();
+		final File html = new File(root, "input.html");
+		final File outDir = new File(root, "display-list");
+		try {
+			checkDocument(doc, html, outDir, false, "fragment-empty-line");
 		} finally {
 			final File[] outputs = outDir.listFiles();
 			if (outputs != null) {
@@ -1331,8 +1499,45 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
 	}
 
+	/**
+	 * 大規模掃過では、入力ごとに発生しうる既知のWARNINGを標準エラーへ流さない。
+	 * 旧ジョブは8万seedで20MBに達し、extremeは1文書の要素数が約1,000なので
+	 * ログI/Oが探索を支配する。例外・オラクル違反は別経路で必ず分類される。
+	 */
+	private static void configureSweepLogging() {
+		configureFuzzLogging(java.util.logging.Level.SEVERE);
+	}
+
+	private static void configureFuzzLogging(final java.util.logging.Level level) {
+		if (System.getProperty("foliojet.fuzzVerboseLogging") == null) {
+			final java.util.logging.Logger packageLogger = java.util.logging.Logger
+					.getLogger("net.zamasoft.foliojet");
+			packageLogger.setLevel(level);
+			final java.util.logging.Logger root = java.util.logging.Logger.getLogger("");
+			for (final java.util.logging.Handler handler : root.getHandlers()) {
+				handler.setLevel(level);
+			}
+			// 既に独自handlerを持つ子loggerも塞ぐ。以後生成されるloggerは
+			// packageLoggerを継承し、root handlerでもWARNINGを捨てる。
+			final java.util.logging.LogManager manager = java.util.logging.LogManager.getLogManager();
+			final java.util.Enumeration<String> names = manager.getLoggerNames();
+			while (names.hasMoreElements()) {
+				final String name = names.nextElement();
+				if (!name.startsWith("net.zamasoft.foliojet")) {
+					continue;
+				}
+				final java.util.logging.Logger logger = manager.getLogger(name);
+				logger.setLevel(level);
+				for (final java.util.logging.Handler handler : logger.getHandlers()) {
+					handler.setLevel(level);
+				}
+			}
+		}
+	}
+
 	/** 集計モードの並列掃過。判定は{@link #checkOne}で共通。 */
 	private void sweepParallel(final boolean strict, final int seeds) throws Exception {
+		configureSweepLogging();
 		final int threads = sweepThreads();
 		final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger> classCount =
 				new java.util.concurrent.ConcurrentHashMap<>();
@@ -1344,7 +1549,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 				new java.util.concurrent.ConcurrentHashMap<>();
 		final SweepMeasurements measurements = new SweepMeasurements();
 		final int from = seedFrom();
-		System.out.println("[fuzzManifest] {\"generatorVersion\":" + GENERATOR_VERSION + ",\"mode\":\""
+		System.out.println("[fuzzManifest] {\"generatorVersion\":" + GENERATOR_VERSION
+				+ ",\"generatorProfile\":\"" + generatorProfile() + "\",\"mode\":\""
 				+ (strict ? "strict" : "wild") + "\",\"from\":" + from + ",\"seeds\":" + seeds + "}");
 		final java.util.concurrent.atomic.AtomicInteger next = new java.util.concurrent.atomic.AtomicInteger(from + 1);
 		final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger();
@@ -1406,7 +1612,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (reportMode()) {
 			reportFeatureCoverage(strict, seeds, from);
 		}
-		System.out.println("[fuzzReport] generator=" + GENERATOR_VERSION + " mode="
+		System.out.println("[fuzzReport] generator=" + generatorLabel() + " mode="
 				+ (strict ? "strict" : "wild") + " seeds=" + seeds
 				+ (from == 0 ? "" : " from=" + from) + " threads="
 				+ threads + " elapsed=" + (ms / 1000) + "s (" + String.format("%.2f", ms / (double) seeds)
@@ -1597,7 +1803,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 				.append(",\"processed\":").append(processed)
 				.append(",\"completed\":").append(completed)
 				.append(",\"generatorVersion\":").append(GENERATOR_VERSION)
-				.append(",\"mode\":\"").append(mode)
+				.append(",\"generatorProfile\":\"").append(generatorProfile())
+				.append("\",\"mode\":\"").append(mode)
 				.append("\",\"build\":\"").append(jsonEscape(buildIdentifier()))
 				.append("\",\"threads\":").append(threads)
 				.append(",\"updatedAt\":\"").append(Instant.now()).append('"');
@@ -1720,7 +1927,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			tways.append(t).append("組 ").append(String.format("%.1f", got * 100.0 / total)).append('%');
 		}
-		System.out.println("[fuzzReport] generator=" + GENERATOR_VERSION + " mode="
+		System.out.println("[fuzzReport] generator=" + generatorLabel() + " mode="
 				+ (strict ? "strict" : "wild") + " 機能被覆: 1文書あたり平均"
 				+ String.format("%.1f", featureTotal / (double) sample) + "機能 / " + n + "機能中、"
 				+ tways + " (標本" + sample + "文書)");
@@ -1779,6 +1986,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// ——ここを雑に書くと偽の最小形が出る(LESSONS.md §3.15)
 		final String shrinkSeed = System.getProperty("foliojet.fuzzShrink");
 		if (shrinkSeed != null) {
+			// 同じAssertionErrorを数千候補で再現するため、DirectSessionの
+			// SEVEREスタックを毎回流さない。縮小器の分類・進捗は標準出力。
+			configureFuzzLogging(java.util.logging.Level.OFF);
 			final String mode = System.getProperty("foliojet.fuzzShrinkMode", "strict");
 			if ("both".equals(mode) || strict == "strict".equals(mode)) {
 				FuzzShrinker.shrink(Integer.parseInt(shrinkSeed.trim()), strict);
@@ -1804,6 +2014,34 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			return;
 		}
+		// 修正後に既知の分類seedだけを一括再検査する入口。1seedずつGradleを
+		// 起動するとコンパイル・JVM起動が支配するため、カンマ区切りを同じ
+		// テストJVMで最後まで走らせ、実失敗だけをまとめて落とす。
+		final String selected = System.getProperty("foliojet.fuzzOnlySeeds");
+		if (selected != null) {
+			final boolean v1 = System.getProperty("foliojet.fuzzV1") != null;
+			final List<String> failures = new ArrayList<>();
+			for (final String part : selected.split(",")) {
+				final int seed = Integer.parseInt(part.trim());
+				System.out.println("[fuzzOnly] generator=" + (v1 ? "1" : generatorLabel()) + " mode="
+						+ (strict ? "strict" : "wild") + " seed=" + seed);
+				try {
+					if (v1) {
+						checkOneV1(seed, strict);
+					} else {
+						checkOne(seed, strict);
+					}
+					System.out.println("[fuzzOnly]   通った");
+				} catch (final ExcludedByOversizedBox | ExcludedByUntypesettableFloat excluded) {
+					System.out.println("[fuzzOnly]   " + classify(excluded) + " : " + excluded);
+				} catch (final Throwable t) {
+					System.out.println("[fuzzOnly]   " + classify(t) + " : " + t);
+					failures.add("seed " + seed + ": " + t);
+				}
+			}
+			assertTrue(String.join("\n", failures), failures.isEmpty());
+			return;
+		}
 		// **特定のシードだけを走らせる入口**(2026-07-27新設)。
 		// 大規模な掃過では成果物を使い回して捨てるので、後から
 		// 「seed 27648で内容が消えた」と分かっても再現できなかった。
@@ -1813,7 +2051,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final int seed = Integer.parseInt(only);
 			// -Dfoliojet.fuzzV1=1 でv1分布の再現(旧掲過seedの検証用)
 			final boolean v1 = System.getProperty("foliojet.fuzzV1") != null;
-			System.out.println("[fuzzOnly] generator=" + (v1 ? 1 : GENERATOR_VERSION) + " mode="
+			System.out.println("[fuzzOnly] generator=" + (v1 ? "1" : generatorLabel()) + " mode="
 					+ (strict ? "strict" : "wild") + " seed=" + seed);
 			try {
 				if (v1) {
@@ -1876,7 +2114,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		if (report) {
-			System.out.println("[fuzzReport] generator=" + GENERATOR_VERSION + " mode="
+			System.out.println("[fuzzReport] generator=" + generatorLabel() + " mode="
 					+ (strict ? "strict" : "wild") + " seeds=" + seeds);
 			if (classCount.isEmpty()) {
 				System.out.println("[fuzzReport]   失敗なし");
@@ -1939,6 +2177,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static int checkDocument(final Generated doc, final File html, final File outDir,
 			final boolean strict, final String workerName,
 			final java.util.function.IntConsumer pageObserver) throws Exception {
+		final int pageLimit = pageLimit(doc);
 		html.getParentFile().mkdirs();
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(html), StandardCharsets.UTF_8)) {
 			w.write(doc.html);
@@ -1956,7 +2195,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final DirectSession[] session = new DirectSession[1];
 		final Thread worker = new Thread(() -> {
 			try {
-				convert(html, outDir, session);
+				convert(html, outDir, session, pageLimit);
 			} catch (final Throwable t) {
 				failure[0] = t;
 			}
@@ -2014,7 +2253,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertNotNull("ページが1枚も出ていない (" + html + ")", pages);
 		assertTrue("ページが1枚も出ていない (" + html + ")", pages.length > 0);
 		// 不変条件3: ページ数が有界
-		assertTrue("ページ数が過大 " + pages.length + " (" + html + ")", pages.length <= MAX_PAGES);
+		assertTrue("ページ数が過大 " + pages.length + " (上限" + pageLimit + ", " + html + ")",
+				pages.length <= pageLimit);
 		if (pageObserver != null) {
 			pageObserver.accept(pages.length);
 		}
@@ -2028,7 +2268,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 
 		java.util.Arrays.sort(pages);
-		final Set<String> seen = new LinkedHashSet<>();
+		final List<ObservedText> observedText = new ArrayList<>();
 		// トークンが**最初に現れたページ**(不変条件7)。ページ内の描画順は
 		// 実装の都合(rowspanのセルは跨ぐ行が確定してから描かれる)なので、
 		// ページ粒度でしか順序を問えない
@@ -2061,15 +2301,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 				// 誤検出になった(§12の素朴な「紙面内」11.9%と同型)。
 				final boolean artifact = raw.contains(" artifact ");
 				while (m.find()) {
-					seen.add(m.group(1));
-					firstPage.putIfAbsent(m.group(1), i);
+					observedText.add(new ObservedText(m.group(1), i, artifact));
 					if (!artifact) {
 						countTokens(m.group(1), onThisPage);
 					}
 					if (m.group(2) != null) {
 						// ルビのふりがな側
-						seen.add(m.group(2));
-						firstPage.putIfAbsent(m.group(2), i);
+						observedText.add(new ObservedText(m.group(2), i, artifact));
 						if (!artifact) {
 							countTokens(m.group(2), onThisPage);
 						}
@@ -2100,11 +2338,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			fail("白紙ページ " + blanks + " (" + html + ")");
 		}
 		// 不変条件4: 内容が失われない
-		final String all = String.join("", seen);
 		final List<String> lost = new ArrayList<>();
+		final Set<String> expectedTokens = Set.copyOf(doc.tokens);
 		for (final String token : doc.tokens) {
-			if (!all.contains(token)) {
+			final int page = firstObservedTokenPage(token, observedText, expectedTokens);
+			if (page < 0) {
 				lost.add(token);
+			} else {
+				firstPage.put(token, page);
 			}
 		}
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
@@ -2195,6 +2436,128 @@ public class RandomDocumentFuzzTest extends TestCase {
 				collectDestinationNamesRaw(kid, out);
 			}
 		}
+	}
+
+	/**
+	 * トークンが最初に描かれたページを返します。単一の文字実行内だけでなく、
+	 * {@code overflow-wrap:anywhere}等で複数の実行・ページへ分かれた場合も復元します。
+	 * floatやマーカーの描画順が分割片の間へ割り込むことがあるため、artifact、ordered listの数字マーカー、
+	 * 「別の完全なfuzzトークン」だけは飛ばします。普通の本文を越えた接続は、実損失を隠すので認めません。
+	 */
+	private static int firstObservedTokenPage(final String token, final List<ObservedText> runs,
+			final Set<String> expectedTokens) {
+		// 完全なトークンがどこかにあるなら、別トークンの短いprefixと数字を
+		// 繋いでより早いページを捏造しない(seed 5776のT1+1 => T11)。
+		for (final ObservedText observed : runs) {
+			if (!observed.artifact() && containsWholeToken(observed.text(), token)) {
+				return observed.page();
+			}
+		}
+		int bestPage = -1;
+		int bestSpan = Integer.MAX_VALUE;
+		int bestSkipped = Integer.MAX_VALUE;
+		for (int i = 0; i < runs.size(); ++i) {
+			if (runs.get(i).artifact()) {
+				continue;
+			}
+			final String first = runs.get(i).text();
+			for (int split = 1; split < token.length(); ++split) {
+				if (!first.endsWith(token.substring(0, split))) {
+					continue;
+				}
+				int matched = split;
+				int skipped = 0;
+				int lastPage = runs.get(i).page();
+				for (int j = i + 1; j < runs.size() && matched < token.length(); ++j) {
+					final ObservedText observed = runs.get(j);
+					final String next = observed.text();
+					// 「T9」とordered-listの「1.」を接続してT91と誤認しない。
+					// マーカーはトークン断片ではなく、割り込みとして必ず飛ばす。
+					if (ORDERED_LIST_MARKER.matcher(next).matches()) {
+						++skipped;
+						continue;
+					}
+					final int take = Math.min(next.length(), token.length() - matched);
+					if (take == 0 || !next.regionMatches(0, token, matched, take)) {
+						if (observed.artifact() || isIgnorableFormattingText(next) || isGeneratedControlText(next)
+								|| containsOnlyExpectedTokens(next, expectedTokens)) {
+							++skipped;
+							continue;
+						}
+						break;
+					}
+					matched += take;
+					lastPage = observed.page();
+					if (matched == token.length()) {
+						final int page = runs.get(i).page();
+						final int span = lastPage - page;
+						if (span < bestSpan || span == bestSpan && skipped < bestSkipped
+								|| span == bestSpan && skipped == bestSkipped && (bestPage < 0 || page < bestPage)) {
+							bestPage = page;
+							bestSpan = span;
+							bestSkipped = skipped;
+						}
+						break;
+					}
+					if (take < next.length()) {
+						break;
+					}
+				}
+			}
+		}
+		return bestPage;
+	}
+
+	/** {@code T57}を{@code T575}の部分文字列として数えない完全一致検索。 */
+	private static boolean containsWholeToken(final String run, final String token) {
+		int from = 0;
+		while (from <= run.length() - token.length()) {
+			final int at = run.indexOf(token, from);
+			if (at < 0) {
+				return false;
+			}
+			final int end = at + token.length();
+			final boolean startsClean = at == 0 || !Character.isLetterOrDigit(run.charAt(at - 1));
+			final boolean endsClean = end == run.length() || !Character.isDigit(run.charAt(end));
+			if (startsClean && endsClean) {
+				return true;
+			}
+			from = at + 1;
+		}
+		return false;
+	}
+
+	/** 描画順に割り込んだ、別の完全な fuzz トークンだけの実行か。 */
+	private static boolean containsOnlyExpectedTokens(final String run, final Set<String> expectedTokens) {
+		final Matcher matcher = TOKEN.matcher(run);
+		int end = 0;
+		boolean found = false;
+		while (matcher.find()) {
+			if (!run.substring(end, matcher.start()).isBlank() || !expectedTokens.contains(matcher.group())) {
+				return false;
+			}
+			found = true;
+			end = matcher.end();
+		}
+		return found && run.substring(end).isBlank();
+	}
+
+	/**
+	 * トークン断片の間に描かれても文字内容を持たない空白・Unicode書式文字か。
+	 * 空のフォーム部品はゼロ幅スペース(U+200B)を描画することがあり、
+	 * ページ境界で分かれた{@code "T" + "417"}の間へ入っても内容の消失では
+	 * ない(extreme strict seed 3797)。普通の本文文字は決して飛ばさない。
+	 */
+	private static boolean isIgnorableFormattingText(final String run) {
+		return run.codePoints().allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c)
+				|| Character.getType(c) == Character.FORMAT);
+	}
+
+	/** トークン断片の間へ割り込む、生成器固有のフォーム表示か。 */
+	private static boolean isGeneratedControlText(final String run) {
+		final StringBuilder visible = new StringBuilder(run.length());
+		run.codePoints().filter(c -> Character.getType(c) != Character.FORMAT).forEach(visible::appendCodePoint);
+		return GENERATED_CONTROL_TEXT.contains(visible.toString().strip());
 	}
 
 	/**
@@ -2685,7 +3048,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private static void convert(final File html, final File outDir) throws Exception {
-		convert(html, outDir, new DirectSession[1]);
+		convert(html, outDir, new DirectSession[1], MAX_PAGES);
 	}
 
 	/**
@@ -2695,7 +3058,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                   ヒープと64MBのスタック予約を抱えたまま残り、掃過が
 	 *                   自己増幅的に詰まる
 	 */
-	private static void convert(final File html, final File outDir, final DirectSession[] sessionOut)
+	private static void convert(final File html, final File outDir, final DirectSession[] sessionOut,
+			final int pageLimit)
 			throws Exception {
 		// 出力先はスレッド単位。システムプロパティだとプロセス全体で共有され、
 		// 並列掃過でダンプ先が互いに上書きされる(2026-07-26)
@@ -2727,7 +3091,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					// 数千枚を生成してwatchdogとワーカー漏れを起こし、縮小器も
 					// 1候補30秒かかっていた(seed 7662)。上限+1枚目で停止すれば
 					// 不変条件3の意味を変えず、異常入力だけを早く封じ込められる。
-					session.property("output.page-limit", String.valueOf(MAX_PAGES));
+					session.property("output.page-limit", String.valueOf(pageLimit));
 					// 名前付き宛先(id断片)は `output.pdf.hyperlinks.fragment`
 					// の既定onで出るので、ここでの指定は要らない(2026-08-03に
 					// 確認。不変条件9=checkFragments が読む)
@@ -2735,7 +3099,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 						CTISessionHelper.transcodeFile(session, html, "text/html", null);
 					} catch (final jp.cssj.cti2.TranscoderException e) {
 						if (pageLimitExceeded.get()) {
-							throw new PageCountLimitExceeded(e);
+							throw new PageCountLimitExceeded(pageLimit, e);
 						}
 						throw e;
 					}
@@ -2879,6 +3243,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                 歴史的seedの検査はこちらを使う(2026-08-23)
 	 */
 	static Generated generate(final int seed, final boolean strict, final boolean legacyV1) {
+		return generate(seed, strict, legacyV1, !legacyV1 && extremeProfile());
+	}
+
+	/**
+	 * @param extreme v2本文へextreme-v1の制約付き高密度シナリオを追加する。
+	 *                独立乱数列を使うのでfalse時のv2文書は一切変わらない。
+	 */
+	static Generated generate(final int seed, final boolean strict, final boolean legacyV1,
+			final boolean extreme) {
 		final long randomSeed = seed * 7919L + (strict ? 1 : 2);
 		final Random r = new Random(randomSeed);
 		// v1の乱数消費順を変えない。追加機能はこの独立系列だけを消費する。
@@ -2886,6 +3259,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final Random extensionRandom = legacyV1 ? null
 				: new Random(randomSeed ^ 0x6A09E667F3BCC909L
 						^ ((long) GENERATOR_VERSION << 32));
+		// extremeはv2の乱数消費順を変えない第三系列。プロファイル版をseedへ
+		// 混ぜ、将来extreme-v2を作っても同じseedの意味を黙って変えない。
+		final Random extremeRandom = extreme
+				? new Random(randomSeed ^ 0xBB67AE8584CAA73BL
+						^ ((long) EXTREME_PROFILE_VERSION << 40))
+				: null;
 		final List<String> tokens = new ArrayList<>();
 		// 並べ替えが正当なトークン(フロート・絶対配置の部分木の中)。
 		// 事後に表示リストから推定せず、**知っている側**に記録させる
@@ -2922,15 +3301,27 @@ public class RandomDocumentFuzzTest extends TestCase {
 				appendNode(body, r, extensionRandom, 3, strict, tokens, counter, reorderable, false);
 			}
 		}
+		if (extremeRandom != null) {
+			appendExtremeDocument(body, extremeRandom, strict, tokens, counter, reorderable);
+		}
 		final int[] size = PAGE_SIZES[r.nextInt(PAGE_SIZES.length)];
 		final StringBuilder s = new StringBuilder();
 		s.append("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
 		s.append("<?jp.cssj.property name=\"output.page-width\" value=\"").append(size[0]).append("pt\"?>\n");
 		s.append("<?jp.cssj.property name=\"output.page-height\" value=\"").append(size[1]).append("pt\"?>\n");
 		s.append("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
-		s.append("<title>fuzz v").append(GENERATOR_VERSION).append(' ').append(seed).append("</title>\n")
+		s.append("<title>fuzz v").append(GENERATOR_VERSION);
+		if (extreme) {
+			s.append("/extreme-v").append(EXTREME_PROFILE_VERSION);
+		}
+		s.append(' ').append(seed).append("</title>\n")
 				.append("<meta name=\"foliojet-fuzz-generator\" content=\"").append(GENERATOR_VERSION)
-				.append("\" />\n<style>\n");
+				.append("\" />\n");
+		if (extreme) {
+			s.append("<meta name=\"foliojet-fuzz-profile\" content=\"extreme-v")
+					.append(EXTREME_PROFILE_VERSION).append("\" />\n");
+		}
+		s.append("<style>\n");
 		s.append("@page{margin:").append(r.nextInt(3) * 5).append("pt}\n");
 		s.append("body{margin:0;font:normal ").append(6 + r.nextInt(8)).append("pt/1.2 serif;writing-mode:")
 				.append(WRITING_MODES[r.nextInt(WRITING_MODES.length)]).append("}\n");
@@ -2938,7 +3329,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("table{border-collapse:").append(r.nextBoolean() ? "collapse" : "separate")
 				.append(";table-layout:").append(r.nextBoolean() ? "auto" : "fixed").append("}\n");
 		s.append("td{border:1pt solid black}\n");
-		s.append("</style></head><body data-fuzz-generator=\"").append(GENERATOR_VERSION).append("\">\n");
+		s.append("</style></head><body data-fuzz-generator=\"").append(GENERATOR_VERSION).append('"');
+		if (extreme) {
+			s.append(" data-fuzz-profile=\"extreme-v").append(EXTREME_PROFILE_VERSION).append('"');
+		}
+		s.append(">\n");
 		s.append(body);
 		s.append("\n</body></html>\n");
 		final String out = s.toString();
@@ -2951,6 +3346,165 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		return new Generated(out, tokens, reorderable, size[0], size[1], maxExplicit, isOversized(out, size),
 				isTinyPage(out, size));
+	}
+
+	/**
+	 * extreme-v1の制約付きシナリオ。単に乱数の深さを上げるとDOMが指数的に
+	 * 膨らみ、ほぼ全件がwatchdog/OOMという無意味な分布になる。そこで、過去の
+	 * 構造的な穴を毎文書へ有界に組み込む。v2本文とは独立乱数列なので標準
+	 * プロファイルのseed再現性を保つ。
+	 */
+	private static void appendExtremeDocument(final StringBuilder s, final Random r, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		s.append("<div data-fuzz-role=\"extreme-document\" style=\"min-width:0;max-width:100%\">\n");
+		appendExtremeTable(s, r, strict, tokens, counter, reorderable);
+		appendExtremeLayout(s, r, strict, tokens, counter, reorderable);
+		appendExtremeList(s, r, strict, tokens, counter, reorderable);
+		appendExtremeText(s, r, tokens, counter, reorderable);
+		appendExtremeFragmentation(s, r, strict, tokens, counter, reorderable);
+		if (!strict) {
+			appendExtremeWildBreak(s, r, tokens, counter, reorderable);
+		}
+		s.append("</div>\n");
+	}
+
+	/** 有効なspanを保ったthead/tbody/tfoot・複数複雑セルの表。 */
+	private static void appendExtremeTable(final StringBuilder s, final Random r, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		s.append("<table data-fuzz-role=\"extreme-table\" style=\"width:90%;min-width:8em;max-width:100%;")
+				.append("break-inside:auto\">\n<caption>")
+				.append(token(tokens, counter, reorderable, false)).append("</caption>\n")
+				.append("<colgroup><col style=\"width:22%\" /><col span=\"2\" style=\"width:24%\" />")
+				.append("<col style=\"width:30%\" /></colgroup>\n<thead><tr>");
+		for (int i = 0; i < 4; ++i) {
+			s.append("<th>").append(token(tokens, counter, reorderable, false)).append("</th>");
+		}
+		s.append("</tr></thead>\n<tbody>\n<tr><td rowspan=\"2\">")
+				.append(token(tokens, counter, reorderable, false));
+		appendRichCellChild(s, r, 3, strict, tokens, counter, reorderable, false);
+		s.append("</td><td colspan=\"2\">").append(token(tokens, counter, reorderable, false));
+		appendLayoutContainer(s, r, 3, strict, tokens, counter, reorderable, false, r.nextBoolean());
+		s.append("</td><td>").append(token(tokens, counter, reorderable, false)).append("</td></tr>\n")
+				.append("<tr><td>").append(token(tokens, counter, reorderable, false)).append("</td><td>")
+				.append(token(tokens, counter, reorderable, false)).append("</td><td>")
+				.append(token(tokens, counter, reorderable, false)).append("</td></tr>\n");
+		for (int row = 0; row < 2; ++row) {
+			s.append("<tr>");
+			for (int col = 0; col < 4; ++col) {
+				s.append("<td>").append(token(tokens, counter, reorderable, false));
+				if (row == 0 && col == 2) {
+					appendRichCellChild(s, r, 2, strict, tokens, counter, reorderable, false);
+				}
+				s.append("</td>");
+			}
+			s.append("</tr>\n");
+		}
+		s.append("</tbody>\n<tfoot><tr><td colspan=\"4\">")
+				.append(token(tokens, counter, reorderable, false))
+				.append("</td></tr></tfoot>\n</table>\n");
+	}
+
+	/** 6 itemのflexと明示配置gridを重ね、幅交渉・折返し・順序を必ず踏む。 */
+	private static void appendExtremeLayout(final StringBuilder s, final Random r, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		final boolean reversed = !strict && r.nextBoolean();
+		s.append("<div data-fuzz-role=\"extreme-layout\" style=\"display:flex;flex-direction:")
+				.append(reversed ? "row-reverse" : "row")
+				.append(";flex-wrap:wrap;align-items:stretch;align-content:space-between;")
+				.append("justify-content:space-around;gap:calc(1pt + .25em);min-width:0;max-width:100%\">\n");
+		for (int item = 0; item < 6; ++item) {
+			s.append("<div data-fuzz-role=\"extreme-flex-item\" style=\"order:").append((item * 5) % 7)
+					.append(";flex:").append(item % 3).append(' ').append(1 + item % 2)
+					.append(" calc(18% + ").append(item).append("pt);min-width:0;align-self:")
+					.append(item % 2 == 0 ? "stretch" : "center").append("\">\n")
+					.append("<div style=\"display:grid;grid-template-columns:repeat(3,minmax(0,1fr));")
+					.append("grid-auto-flow:dense;gap:.25em;align-items:center;justify-content:space-between\">\n");
+			for (int grid = 0; grid < 4; ++grid) {
+				s.append("<div data-fuzz-role=\"extreme-grid-item\" style=\"grid-column:")
+						.append(grid == 0 ? "span 2" : String.valueOf(1 + grid % 3))
+						.append(";grid-row:span 1;min-width:0\">\n");
+				appendNode(s, r, r, 3, strict, tokens, counter, reorderable, reversed,
+						(item + grid) % nodeKinds(strict));
+				s.append("</div>\n");
+			}
+			s.append("</div></div>\n");
+		}
+		s.append("</div>\n");
+	}
+
+	/** list itemの中へruby・画像・form・段組を同居させる。 */
+	private static void appendExtremeList(final StringBuilder s, final Random r, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		s.append("<ol data-fuzz-role=\"extreme-list\" style=\"list-style-position:outside;break-inside:auto\">\n")
+				.append("<li><ruby>").append(token(tokens, counter, reorderable, false)).append("<rt>")
+				.append(token(tokens, counter, reorderable, false)).append("</rt></ruby> ");
+		for (int i = 0; i < 6; ++i) {
+			s.append("<ruby>").append(token(tokens, counter, reorderable, false)).append("<rt>")
+					.append(token(tokens, counter, reorderable, false)).append("</rt></ruby> ");
+		}
+		s.append("</li>\n<li><span>").append(token(tokens, counter, reorderable, false))
+				.append("</span><img src=\"").append(RED_PNG_URI)
+				.append("\" alt=\"img\" style=\"display:inline;width:3em;height:2em\" /><span>")
+				.append(token(tokens, counter, reorderable, false)).append("</span></li>\n")
+				.append("<li><form style=\"display:grid;grid-template-columns:1fr 1fr;gap:2pt\">")
+				.append("<input type=\"text\" value=\"mixed\" size=\"8\" />")
+				.append("<textarea rows=\"2\">日本語 العربية</textarea><select><option>甲</option>")
+				.append("<option>乙</option></select><button type=\"button\">")
+				.append(token(tokens, counter, reorderable, false)).append("</button></form></li>\n<li>");
+		appendPlainNode(s, r, r, 4, strict, tokens, counter, reorderable, false, 4);
+		s.append("</li>\n</ol>\n");
+	}
+
+	/** 長語・連続空白・CJK・RTL/bidiを、多数の追跡トークンと同じ行へ置く。 */
+	private static void appendExtremeText(final StringBuilder s, final Random r,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		s.append("<div data-fuzz-role=\"extreme-text\" style=\"min-width:0;max-width:100%;")
+				.append("overflow-wrap:anywhere;word-break:normal;widows:4;orphans:4\">\n<p id=\"p")
+				.append(counter[0]).append("\">");
+		for (int i = 0; i < 64; ++i) {
+			s.append(token(tokens, counter, reorderable, false)).append(' ');
+			s.append(switch (i % 5) {
+			case 0 -> "日本語の禁則、句読点。 ";
+			case 1 -> "Latin-hyphenation/fragmentation ";
+			case 2 -> "<span dir=\"rtl\" style=\"unicode-bidi:isolate\">العربية עברית</span> ";
+			case 3 -> "漢字かな交じり文　連続　全角空白 ";
+			default -> "emoji&#x1F642;&#x1F469;&#x200D;&#x1F4BB; ";
+			});
+		}
+		s.append("<span class=\"fuzzUnbreakable\">Supercalifragilisticexpialidocious")
+				.append("_0123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz</span></p>\n")
+				.append("<p style=\"white-space:pre-wrap\">")
+				.append(token(tokens, counter, reorderable, false))
+				.append("    spaces\nline-break\t tab ")
+				.append(token(tokens, counter, reorderable, false)).append("</p></div>\n");
+	}
+
+	/** 段バランス・avoid・深い入れ子の切断境界を有界に5枝作る。 */
+	private static void appendExtremeFragmentation(final StringBuilder s, final Random r, final boolean strict,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		s.append("<div data-fuzz-role=\"extreme-fragmentation\" style=\"column-count:3;column-fill:balance;")
+				.append("column-gap:calc(1pt + .5em);max-width:100%\">\n");
+		final int[] kinds = { 11, 5, 3, 8, 1 };
+		for (int i = 0; i < kinds.length; ++i) {
+			s.append("<div style=\"page-break-inside:avoid;break-inside:avoid-column;min-height:")
+					.append(2 + i).append("em;max-height:none\">\n");
+			appendPlainNode(s, r, r, 4, strict, tokens, counter, reorderable, false, kinds[i]);
+			s.append("</div>\n");
+		}
+		s.append("</div>\n");
+	}
+
+	/** WILDでだけ、強制改ページ・非表示・overflowの内側を複雑化する。 */
+	private static void appendExtremeWildBreak(final StringBuilder s, final Random r,
+			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
+		s.append("<div data-fuzz-role=\"extreme-wild-break\" style=\"page-break-before:always;")
+				.append("overflow:hidden;visibility:visible;max-height:80vh\">\n");
+		for (int i = 0; i < 6; ++i) {
+			appendNode(s, r, r, 4, false, tokens, counter, reorderable, false, i % nodeKinds(false));
+		}
+		s.append("<div style=\"visibility:hidden\">");
+		appendLayoutContainer(s, r, 3, false, tokens, counter, reorderable, true, true);
+		s.append("</div></div>\n");
 	}
 
 	/**
@@ -3666,10 +4220,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (r.nextBoolean()) {
 			mods.append(sizeMods(r));
 		}
+		final boolean reversedFlex = !grid && mods.indexOf("-reverse") >= 0;
 		s.append("<div style=\"").append(mods).append("\">\n");
 		final int items = 2 + r.nextInt(3);
 		for (int i = 0; i < items; ++i) {
-			appendLayoutItem(s, r, depth, strict, tokens, counter, reorderable, inReorderable, !grid, grid);
+			appendLayoutItem(s, r, depth, strict, tokens, counter, reorderable,
+					inReorderable || reversedFlex, !grid, grid);
 		}
 		s.append("</div>\n");
 	}

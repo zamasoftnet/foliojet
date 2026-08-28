@@ -487,7 +487,8 @@ final class StyleBoxEmitter {
 				// 実測で確認した(ユーザー承認2026-08-17)。
 				position = PositionValue.STATIC;
 			}
-			if (position == PositionValue.STATIC || position == PositionValue.RELATIVE) {
+			if (position == PositionValue.STATIC || position == PositionValue.RELATIVE
+					|| position == PositionValue.STICKY) {
 				// タグの補完
 				final CSSStyle parentStyle = style.getParentStyle();
 				if (parentStyle != null) {
@@ -762,7 +763,8 @@ final class StyleBoxEmitter {
 			this.mapper.setupFlexParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
 					this.pageSequence);
 			final AbstractBlockBox blockBox;
-			if ((position == PositionValue.STATIC || position == PositionValue.RELATIVE)
+			if ((position == PositionValue.STATIC || position == PositionValue.RELATIVE
+					|| position == PositionValue.STICKY)
 					&& floating == CSSFloatValue.NONE) {
 				final FlowPos pos = new FlowPos();
 				this.mapper.setupFlowPos(pos, style, this.context.isRightSide());
@@ -788,7 +790,8 @@ final class StyleBoxEmitter {
 			this.mapper.setupGridParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
 					this.pageSequence);
 			final AbstractBlockBox blockBox;
-			if ((position == PositionValue.STATIC || position == PositionValue.RELATIVE)
+			if ((position == PositionValue.STATIC || position == PositionValue.RELATIVE
+					|| position == PositionValue.STICKY)
 					&& floating == CSSFloatValue.NONE) {
 				final FlowPos pos = new FlowPos();
 				this.mapper.setupFlowPos(pos, style, this.context.isRightSide());

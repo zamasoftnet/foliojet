@@ -157,9 +157,14 @@ public class Background {
 							 *//* Android end */
 		try (final var gcState = gc.begin()) {
 			if (this.backgroundPaint != null) {
-				// 背景色
-				gc.setFillPaint(this.backgroundPaint.getPaint(shape.getBounds()));
-				gc.fill(shape);
+				// 背景色。fill paintは自分のスコープで閉じる——アルファ付きの
+				// 背景色(rgba)を外のスコープへ残すと、続く背景画像が
+				// そのアルファのまま描かれる(α=0で画像が丸ごと不可視に
+				// なったasahi.comの動画サムネイル、2026-08-27)
+				try (final var colorState = gc.begin()) {
+					gc.setFillPaint(this.backgroundPaint.getPaint(shape.getBounds()));
+					gc.fill(shape);
+				}
 			}
 			if (this.backgroundImage != null) {
 				// 背景画像描画

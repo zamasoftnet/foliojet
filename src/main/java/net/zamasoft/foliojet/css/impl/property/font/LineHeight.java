@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RealValue;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -52,8 +53,33 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
+		// SPEC css-inline-3: line-heightは負にならない。calc()のlh折り込み等で
+		// 負へ落ちた結果は宣言無効ではなく0へクランプする(css-values-4の
+		// range checking。2026-08-27)
+		return clampNonNegative(this.computeValue(value, style));
+	}
+
+	private static Value clampNonNegative(Value value) {
+		if (value instanceof AbsoluteLengthValue length && length.getLength() < 0) {
+			return AbsoluteLengthValue.ZERO;
+		}
+		return value;
+	}
+
+	private Value computeValue(Value value, CSSStyle style) {
 		if (value == KeywordValue.NORMAL || value instanceof RealValue) {
 			return value;
+		}
+		// lh単位がline-height自身に書かれた場合は、自己参照を避けるため
+		// 継承値(親のline-height、根ではUAのnormal)を基準に先に畳む
+		// (SPEC css-values-4 §6.1.2)。ここで畳んでおくことで、他プロパティの
+		// lh解決(RelativeLengthValue.toAbsoluteLength→LineHeight.get)が
+		// 再帰しないことが保証される
+		if (value instanceof RelativeLengthValue rel && rel.getUnit() == net.zamasoft.foliojet.css.token.Unit.LH) {
+			return AbsoluteLengthValue.create(style.getUserAgent(), inheritedLineHeight(style) * rel.getValue());
+		}
+		if (value instanceof CalcFontRelativeValue lhCalc && lhCalc.getLh() != 0) {
+			value = lhCalc.resolveLh(style.getUserAgent(), inheritedLineHeight(style));
 		}
 		if (value instanceof CalcFontRelativeValue fontRelative) {
 			// フォント相対成分を自要素のフォントで解いてから、残った%成分を
@@ -74,6 +100,32 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 					calc.getAbsolute() + calc.getRatio() * FontSize.get(style));
 		}
 		return ValueUtils.emExToAbsoluteLength(value, style);
+	}
+
+	/**
+	 * lh単位の基準になる継承line-height(根要素ではUAのnormal相当)です。
+	 *
+	 * <p>
+	 * 深い継承連鎖(特にボックスを作らない{@code display:contents}の連鎖)で
+	 * 各層が{@code line-height:1lh}を持つと、素朴な{@code get(parent)}の
+	 * 再帰は祖先の数だけスタックを積む。ルート側から順に計算値を確定させて
+	 * キャッシュを埋めることで、再帰深度を親1段に抑える(2026-08-27、
+	 * 独立レビュー指摘)。
+	 * </p>
+	 */
+	private static double inheritedLineHeight(CSSStyle style) {
+		final CSSStyle parent = style.getParentStyle();
+		if (parent == null) {
+			return style.getUserAgent().getNormalLineHeight() * FontSize.get(style);
+		}
+		final java.util.ArrayList<CSSStyle> chain = new java.util.ArrayList<>();
+		for (CSSStyle s = parent; s != null; s = s.getParentStyle()) {
+			chain.add(s);
+		}
+		for (int i = chain.size() - 1; i >= 1; --i) {
+			get(chain.get(i));
+		}
+		return get(parent);
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

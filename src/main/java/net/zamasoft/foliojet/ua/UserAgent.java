@@ -123,4 +123,26 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	 * 確定したか)に使います。
 	 */
 	public boolean isLastPass();
+
+	/**
+	 * 取得した画像の<b>元のバイト列</b>を使えるかを返します(2026-08-28)。
+	 *
+	 * <p>
+	 * ページ分割SVGのように、画像を「ブラウザが読む資源」として外へ出す
+	 * 出力はこれを{@code true}にします。JPEGを復号してPNGへ焼き直すのは
+	 * 時間も容量も損で、実測ではWikipedia1記事で資源が8MB相当から30.5MBへ
+	 * 膨らんでいました。PDFのように自前の画像表現へ変換する出力は
+	 * {@code false}のままにします。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>出力プロパティで判定しないこと。</b> かつては
+	 * {@code output.type}の文字列比較で決めていたが、画像を読み込む時点の
+	 * UAでは{@code application/pdf}が返るため一度も成立していなかった
+	 * (実測で判明)。能力はUA自身に訊く。
+	 * </p>
+	 */
+	public default boolean keepsEncodedImages() {
+		return false;
+	}
 }

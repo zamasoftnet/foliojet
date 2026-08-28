@@ -50,6 +50,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 
 	protected double contentSize;
 
+	/** RowSplitContainerの再構築で、子を流す前に使う一回限りの使用済み行寸法。 */
+	private double restyleLineWidth = LayoutUtils.NONE;
+	private double restyleLineHeight = LayoutUtils.NONE;
+
 	/**
 	 * 解決済みの整列です(表の auto マージン整列)。初期値は pos.align で、
 	 * shrinkToFit(table) が解決結果を保存します。共有 pos への書き戻しは
@@ -107,8 +111,48 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	 * 色帯になった実バグ。
 	 */
 	public final void restoreExtents(final double width, final double height) {
-		this.width = width;
-		this.height = height;
+		// 呼び出し側はIBox.getWidth/getHeightで採った枠込み外寸を渡す。
+		// 内寸フィールドへそのまま代入すると、restyleのたびにmargin/border/
+		// paddingをもう一度足し、枠を持つitemが世代ごとに膨らむ。
+		this.width = width - this.frame.getFrameWidth();
+		this.height = height - this.frame.getFrameHeight();
+	}
+
+	/**
+	 * 次の{@link #calculateSize}で、flex/gridが確定した使用済み行寸法を先に
+	 * 適用します。後から箱幅だけを復元すると、内側のテキストは包含幅で
+	 * 改行済みのままになり、固定幅兄弟の画像へ描画が重なるためです。
+	 */
+	public final void prepareRestyleLineExtent(final double width, final double height, final boolean vertical) {
+		if (vertical) {
+			this.restyleLineHeight = height;
+		} else {
+			this.restyleLineWidth = width;
+		}
+	}
+
+	/** 再生がボックス再構築を通らなかった場合の一回限り指定を破棄します。 */
+	public final void clearRestyleLineExtent() {
+		this.restyleLineWidth = LayoutUtils.NONE;
+		this.restyleLineHeight = LayoutUtils.NONE;
+	}
+
+	/**
+	 * item単位のauto marginを配置コーディネータ(flex §8.1)が所有するか。
+	 * flex itemのauto marginはFlexBuilderが行の自由空間から解決して
+	 * 線方向位置({@code flexLineOffset})・cross offsetへ焼き込み済みで、
+	 * marginの絶対値(amargin)は0のまま運ばれる。ページ跨ぎ継続断片の
+	 * restyle再構築が{@code calculateSize}のブロック則(§10.3.3)で
+	 * 再解決すると、(1)焼き込み済みの位置へマージンをもう一度加算し、
+	 * (2){@code restoreExtents}の枠控除が肥大して内寸が世代ごとに
+	 * 2×margin縮む——固定幅+{@code margin:0 auto}のflex item(本文カラム)が
+	 * ページを追うごとに右へずれながら1文字幅まで潰れた
+	 * (asahi.com記事ページ、2026-08-27)。trueのとき、
+	 * {@code calculateSize}はAUTOのmargin辺を再解決せず運ばれた
+	 * 絶対値のまま使う。
+	 */
+	public boolean coordinatorOwnsAutoMargins() {
+		return false;
 	}
 
 	public final Pos getPos() {
@@ -277,9 +321,13 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			marginTop = marginBottom = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.height)) {
-					// 固定幅の場合
-					marginTop = margin.getTopType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.top;
-					marginBottom = margin.getBottomType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.bottom;
+					// 固定幅の場合(auto marginは再解決しない——
+					// coordinatorOwnsAutoMarginsの説明を参照)
+					final boolean ownedMargins = this.coordinatorOwnsAutoMargins();
+					marginTop = margin.getTopType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
+							: amargin.top;
+					marginBottom = margin.getBottomType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
+							: amargin.bottom;
 					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						// 上下のマージンを同じにする
 						marginTop = marginBottom = (lineSize - this.height - this.frame.getFrameHeight()) / 2.0;
@@ -455,9 +503,13 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			marginLeft = marginRight = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.width)) {
-					// 固定幅の場合
-					marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
-					marginRight = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
+					// 固定幅の場合(auto marginは再解決しない——
+					// coordinatorOwnsAutoMarginsの説明を参照)
+					final boolean ownedMargins = this.coordinatorOwnsAutoMargins();
+					marginLeft = margin.getLeftType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
+							: amargin.left;
+					marginRight = margin.getRightType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
+							: amargin.right;
 					final double autoRemainder = lineSize - this.width - this.frame.getFrameWidth();
 					if (autoRemainder < 0 && (LayoutUtils.isNone(marginLeft) || LayoutUtils.isNone(marginRight))) {
 						// **包含ブロックより広い箱は始端に揃える**（2026-08-03）。
@@ -650,6 +702,13 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		this.frame.margin.right = marginRight;
 		this.frame.margin.bottom = marginBottom;
 		this.frame.margin.left = marginLeft;
+		if (!LayoutUtils.isNone(this.restyleLineWidth)) {
+			this.width = this.restyleLineWidth - this.frame.getFrameWidth();
+		}
+		if (!LayoutUtils.isNone(this.restyleLineHeight)) {
+			this.height = this.restyleLineHeight - this.frame.getFrameHeight();
+		}
+		this.clearRestyleLineExtent();
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
 	}
@@ -696,6 +755,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		super.restyle(builder, shape);
 		if (!(shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.Closed)) {
 			// 開いた継続: 末尾はこの箱の中で live が続く
+			return;
+		}
+		if (!builder.hasOpenFlow()) {
+			// 閉部分木の再生中にcontextFlowをownerとする改段が起きると、
+			// pruneFlowStackTo()が内側を全て消費し、継続側にもopen flowを
+			// 積み直さない場合がある。そのときだけ古い呼出しフレームから
+			// 二重に閉じない。継続が別identityで同じ深度を積み直した場合は、
+			// その新しい最上位を通常どおり1段閉じる(seed 4540)。
 			return;
 		}
 		builder.endFlowBlock();

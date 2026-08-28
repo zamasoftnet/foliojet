@@ -38,7 +38,10 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	 * 公開Notoの自動取得へ切り替えた(それまでは環境にインストールされた
 	 * フォントを使っており、機械が変われば基準がずれた)。親文字が漢字の
 	 * 箇所は1em丁度のまま(24/36)、<b>ふりがな(かな)が幅を決めている箇所
-	 * だけ</b>カーニングと{@code ruby-overhang:auto}の安全な張出し分だけ縮む。
+	 * だけ</b>{@code ruby-overhang:auto}の安全な張出し分だけ縮む。
+	 * 21.0への更新(2026-08-28): 旧値20.892は埋め込みサブセットの
+	 * 偽カーニング(サブセットGIDでフォントGIDキーのGPOS対表を誤参照
+	 * ——このかな対の実GPOSペアは存在しない)を焼き込んでいた。
 	 * </p>
 	 *
 	 * @param lineExtent 行方向の寸法 = max(親文字幅, ふりがな幅)
@@ -63,7 +66,7 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
-		return this.check(box, x, y, 101.604, 67.96, 20.892);
+		return this.check(box, x, y, 101.604, 67.96, 21.0);
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
@@ -76,6 +79,6 @@ public class LogicalHrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		return this.check(box, x, y, 101.604, 145.62, 20.892);
+		return this.check(box, x, y, 101.604, 145.62, 21.0);
 	}
 }

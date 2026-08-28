@@ -1,0 +1,7 @@
+drawer z=0
+  x=30.75 y=0.00 AbsoluteRectFrame[w=511.50 h=91.50]
+  x=30.75 y=0.00 AbsoluteRectFrame[w=495.00 h=45.75]
+  x=30.75 y=45.75 AbsoluteRectFrame[w=495.00 h=45.75]
+  x=558.00 y=0.00 AbsoluteRectFrame[w=225.00 h=0.00]
+  x=30.75 y=0.00 Text["M14" asc=7.89 desc=2.91]
+  x=30.75 y=45.75 Text["M15" asc=7.89 desc=2.91]

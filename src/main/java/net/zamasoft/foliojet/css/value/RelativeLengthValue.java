@@ -41,6 +41,10 @@ public final class RelativeLengthValue implements LengthValue {
 		return new RelativeLengthValue(Unit.CH, value);
 	}
 
+	public static RelativeLengthValue lh(double value) {
+		return new RelativeLengthValue(Unit.LH, value);
+	}
+
 	public Unit getUnit() {
 		return this.unit;
 	}
@@ -67,6 +71,13 @@ public final class RelativeLengthValue implements LengthValue {
 			FontListMetrics flm = ua.getFontManager().getFontListMetrics(fontStyle);
 			double xheight = flm.getMaxXHeight();
 			return AbsoluteLengthValue.create(ua, xheight * this.value);
+		}
+		case LH: {
+			// SPEC css-values-4: 自要素の計算済みline-height。line-height
+			// 特性自身に書かれた場合の自己参照はLineHeight.getComputedValueが
+			// 先に継承値基準で畳むため、ここへは到達しない
+			double lineHeight = net.zamasoft.foliojet.css.impl.property.font.LineHeight.get(style);
+			return AbsoluteLengthValue.create(style.getUserAgent(), lineHeight * this.value);
 		}
 		default:
 			throw new IllegalStateException(this.unit.toString());

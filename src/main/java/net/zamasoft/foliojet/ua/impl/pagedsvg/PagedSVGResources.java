@@ -6,6 +6,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -273,6 +274,47 @@ final class PagedSVGResources {
 		return image;
 	}
 
+	/** 資源の同一性を寸法表へ控える先(PagedSVGUserAgentが設定)。 */
+	private java.util.function.BiConsumer<URI, ImageAsset> assetRecorder;
+
+	void setAssetRecorder(final java.util.function.BiConsumer<URI, ImageAsset> recorder) {
+		this.assetRecorder = recorder;
+	}
+
+	/**
+	 * 描いた画像の資源同一性を、その取得元URIと結び付けて控えます
+	 * (2026-08-28)。URIは{@link SourcedImage}が運びます。
+	 */
+	void rememberAssetOf(final net.zamasoft.pdfg2d.gc.image.Image image, final ImageAsset asset) {
+		if (this.assetRecorder == null || asset.uri().startsWith("data:")) {
+			return;
+		}
+		net.zamasoft.pdfg2d.gc.image.Image i = image;
+		while (i != null) {
+			if (i instanceof final SourcedImage sourced) {
+				this.assetRecorder.accept(sourced.uri, asset);
+				return;
+			}
+			i = i instanceof final net.zamasoft.pdfg2d.gc.image.WrappedImage wrapped ? wrapped.getImage() : null;
+		}
+	}
+
+	/**
+	 * 前回の出力で書かれた資源を、バイト列を読まずに登録します
+	 * (2026-08-28、{@code resources=omit}の再変換用)。実体は出さないので
+	 * {@code omitted}として扱い、manifestにも前回と同じ同一性を書きます。
+	 */
+	ImageAsset knownImage(final net.zamasoft.foliojet.ua.ImageMetricsCache.Asset known) {
+		final ImageAsset existing = this.images.get(known.sha256());
+		if (existing != null) {
+			return existing;
+		}
+		final ImageAsset image = new ImageAsset("assets/images/" + known.sha256() + '.' + known.extension(),
+				known.sha256(), known.mediaType(), known.pixelWidth(), known.pixelHeight(), true);
+		this.images.put(known.sha256(), image);
+		return image;
+	}
+
 	void addPage(final PageAsset page) {
 		this.pages.add(page);
 	}
@@ -305,15 +347,21 @@ final class PagedSVGResources {
 		}
 	}
 
+	/**
+	 * サブセットを書き出します。
+	 *
+	 * <p>
+	 * <b>{@code omit}でもフォントは出します</b>(2026-08-28)。ページSVGが
+	 * 参照する名前({@code assets/fonts/font-0001.woff2}と
+	 * {@code CopperSubset0001})は<b>変換ごとの連番</b>で、同じ番号が別の
+	 * 変換では別のサブセットになります。出さずに前回の変換の資源を指すと、
+	 * 字形が入れ替わって描かれる——実測では文字サイズを変えた再変換で
+	 * 数字が消えたり別の位置に出たりしました。画像は内容ハッシュで名前が
+	 * 決まるので従来どおり省けます。フォントは小さい(実測0.1MB)ので、
+	 * 出す代償より取り違える害のほうが大きい。
+	 * </p>
+	 */
 	void emitFonts() throws IOException {
-		if (this.resourceMode == PagedSvgResourceMode.OMIT) {
-			// build()はBrotli圧縮を伴うので、出力しないなら組み立てもしない。
-			// sha256とバイト数はここでしか得られないのでmanifestからも落ちる。
-			for (final FontEntry entry : this.fonts) {
-				this.emittedFonts.add(new FontAsset(entry.subset, null, -1));
-			}
-			return;
-		}
 		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
 		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
 		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す

@@ -45,6 +45,7 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CSSFloatValue;
 import net.zamasoft.foliojet.css.value.CaptionSideValue;
+import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.ContentFunctionValue;
 import net.zamasoft.foliojet.css.value.CounterSetValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
@@ -52,6 +53,7 @@ import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.ListStylePositionValue;
 import net.zamasoft.foliojet.css.value.PageBreakValue;
+import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
@@ -122,6 +124,8 @@ import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.box.BoxSizing;
+import net.zamasoft.foliojet.css.impl.property.box.ObjectFit;
+import net.zamasoft.foliojet.css.impl.property.box.ObjectPosition;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnCount;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnFill;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnGap;
@@ -177,6 +181,7 @@ import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Background;
+import net.zamasoft.foliojet.layout.box.params.BackgroundFit;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Border;
 import net.zamasoft.foliojet.layout.box.params.Columns;
@@ -293,7 +298,10 @@ final class BoxStyleMapper {
 	 * @param style
 	 */
 	void setupStaticPos(final AbstractStaticPos pos, final CSSStyle style) {
-		if (CSSPosition.get(style) != PositionValue.STATIC) {
+		final byte position = CSSPosition.get(style);
+		if (position == PositionValue.STICKY) {
+			pos.offset = Offset.ZERO_OFFSET;
+		} else if (position != PositionValue.STATIC) {
 			pos.offset = this.createRelativeOffset(style);
 		}
 		// 名前付きページN1b: pageのused value(最も近い非autoの祖先)を
@@ -683,6 +691,8 @@ final class BoxStyleMapper {
 		params.minSize = BoxValueUtils.toDimension(MinWidth.get(style), MinHeight.get(style));
 		params.maxSize = BoxValueUtils.toDimension(MaxWidth.get(style), MaxHeight.get(style));
 		params.boxSizing = BoxSizing.get(style);
+		params.objectFit = ObjectFit.get(style);
+		params.objectPosition = ObjectPosition.get(style);
 
 		params.frame = this.createRectFrame(style, inBody, pageSequence);
 		params.color = CSSColor.get(style);
@@ -894,6 +904,10 @@ final class BoxStyleMapper {
 		this.setupStaticPos(pos, style);
 		pos.emptyCells = EmptyCells.get(style);
 		pos.verticalAlign = VerticalAlign.getForTableCell(style);
+		// rowspan行間のavoid相当(説明書4550)からの著者オプトアウト検出
+		// (TableCellPos.breakInsideDeclaredAuto参照)
+		pos.breakInsideDeclaredAuto = style.isDeclared(PageBreakInside.INFO)
+				&& PageBreakInside.get(style) == net.zamasoft.foliojet.layout.box.params.PageBreakMode.AUTO;
 
 		CSSElement ce = style.getCSSElement();
 		if (ce.atts != null) {
@@ -926,7 +940,10 @@ final class BoxStyleMapper {
 		}
 		pos.pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), rightSide);
 		pos.pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), rightSide);
-		if (CSSPosition.get(style) != PositionValue.STATIC) {
+		final byte position = CSSPosition.get(style);
+		if (position == PositionValue.STICKY) {
+			pos.offset = Offset.ZERO_OFFSET;
+		} else if (position != PositionValue.STATIC) {
 			pos.offset = this.createRelativeOffset(style);
 		}
 	}
@@ -939,15 +956,25 @@ final class BoxStyleMapper {
 	 */
 	static Background createBackground(CSSStyle style) {
 		Image image = BackgroundImage.get(style);
+		final Image maskImage = MaskImage.getImage(style);
+		PaintValue backgroundPaint = BackgroundColor.get(style);
 		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
 		if (image != null) {
 			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image, BackgroundRepeat.get(style),
 					BackgroundAttachment.get(style), BackgroundPosition.get(style), BackgroundSize.get(style, image),
-					BackgroundSize.getFit(style));
+					BackgroundSize.getFit(style, image));
+		} else if (maskImage != null) {
+			// 単色SVGのURLマスクは、背景色をSVGのcurrentColorへ焼き込み、
+			// 箱いっぱいに直接描く。背景色の矩形は残さない。
+			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(maskImage,
+					net.zamasoft.foliojet.layout.box.params.BackgroundImage.REPEAT_NO,
+					net.zamasoft.foliojet.layout.box.params.BackgroundImage.ATTACHMENT_SCROLL,
+					BackgroundPosition.get(style), BackgroundSize.get(style, maskImage), BackgroundFit.COVER);
+			backgroundPaint = null;
 		} else {
 			backgroundImage = null;
 		}
-		Background background = Background.create(BackgroundColor.get(style), backgroundImage, BackgroundClip.get(style));
+		Background background = Background.create(backgroundPaint, backgroundImage, BackgroundClip.get(style));
 		return background;
 	}
 
@@ -1035,25 +1062,38 @@ final class BoxStyleMapper {
 		Value bottom = Inset.get(style, Side.BOTTOM);
 		Value left = Inset.get(style, Side.LEFT);
 
-		final double x, y;
+		final double x, xRatio, y, yRatio;
 		final LengthType xType, yType;
 
 		if (top instanceof AbsoluteLengthValue length) {
 			yType = LengthType.ABSOLUTE;
 			y = length.getLength();
+			yRatio = 0;
 		} else if (top instanceof PercentageValue percentage) {
 			yType = LengthType.RELATIVE;
 			y = percentage.getRatio();
+			yRatio = 0;
+		} else if (top instanceof CalcLengthValue calc) {
+			yType = LengthType.MIXED;
+			y = calc.getAbsolute();
+			yRatio = calc.getRatio();
 		} else if (top == KeywordValue.AUTO) {
 			if (bottom instanceof AbsoluteLengthValue length) {
 				yType = LengthType.ABSOLUTE;
 				y = -length.getLength();
+				yRatio = 0;
 			} else if (bottom instanceof PercentageValue percentage) {
 				yType = LengthType.RELATIVE;
 				y = -percentage.getRatio();
+				yRatio = 0;
+			} else if (bottom instanceof CalcLengthValue calc) {
+				yType = LengthType.MIXED;
+				y = -calc.getAbsolute();
+				yRatio = -calc.getRatio();
 			} else if (bottom == KeywordValue.AUTO) {
 				yType = LengthType.AUTO;
 				y = 0;
+				yRatio = 0;
 			} else {
 				throw new IllegalStateException(String.valueOf(bottom));
 			}
@@ -1064,19 +1104,32 @@ final class BoxStyleMapper {
 		if (left instanceof AbsoluteLengthValue length) {
 			xType = LengthType.ABSOLUTE;
 			x = length.getLength();
+			xRatio = 0;
 		} else if (left instanceof PercentageValue percentage) {
 			xType = LengthType.RELATIVE;
 			x = percentage.getRatio();
+			xRatio = 0;
+		} else if (left instanceof CalcLengthValue calc) {
+			xType = LengthType.MIXED;
+			x = calc.getAbsolute();
+			xRatio = calc.getRatio();
 		} else if (left == KeywordValue.AUTO) {
 			if (right instanceof AbsoluteLengthValue length) {
 				xType = LengthType.ABSOLUTE;
 				x = -length.getLength();
+				xRatio = 0;
 			} else if (right instanceof PercentageValue percentage) {
 				xType = LengthType.RELATIVE;
 				x = -percentage.getRatio();
+				xRatio = 0;
+			} else if (right instanceof CalcLengthValue calc) {
+				xType = LengthType.MIXED;
+				x = -calc.getAbsolute();
+				xRatio = -calc.getRatio();
 			} else if (right == KeywordValue.AUTO) {
 				xType = LengthType.AUTO;
 				x = 0;
+				xRatio = 0;
 			} else {
 				throw new IllegalStateException(String.valueOf(right));
 			}
@@ -1084,7 +1137,7 @@ final class BoxStyleMapper {
 			throw new IllegalStateException(String.valueOf(left));
 		}
 
-		return Offset.create(x, y, xType, yType);
+		return Offset.create(x, xRatio, y, yRatio, xType, yType);
 	}
 
 	PageBreakMode toPageBreak(byte pageBreak, boolean rightSide) {

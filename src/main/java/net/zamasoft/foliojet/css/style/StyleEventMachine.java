@@ -330,7 +330,7 @@ final class StyleEventMachine {
 
 				// 静的要素のみに適用
 				final byte pos = CSSPosition.get(style);
-				if (pos != PositionValue.STATIC && pos != PositionValue.RELATIVE) {
+				if (pos != PositionValue.STATIC && pos != PositionValue.RELATIVE && pos != PositionValue.STICKY) {
 					break WHILE;
 				}
 

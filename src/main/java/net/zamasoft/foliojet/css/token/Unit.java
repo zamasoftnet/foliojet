@@ -6,7 +6,7 @@ import java.util.Locale;
  * 寸法トークンの単位です。
  */
 public enum Unit {
-	EM, EX, REM, CH, PX, IN, CM, MM, PT, PC, DEG, GRAD, RAD, MS, S, HZ, KHZ,
+	EM, EX, REM, CH, LH, PX, IN, CM, MM, PT, PC, DEG, GRAD, RAD, MS, S, HZ, KHZ,
 	/** コンテナクエリ単位(段6、2026-08-15——css-contain-3)。 */
 	CQW, CQI,
 	/** 上記以外(テキストは {@link CssToken.Dim#unitText()} で保持)。 */
@@ -25,6 +25,8 @@ public enum Unit {
 			return REM;
 		case "ch":
 			return CH;
+		case "lh":
+			return LH;
 		case "px":
 			return PX;
 		case "in":

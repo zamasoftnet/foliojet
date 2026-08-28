@@ -34,11 +34,28 @@ public interface Container {
 
 	public boolean hasFloatings();
 
+	/**
+	 * 固定寸法箱の断片化で、前断片が実内容を取ったかを返します。
+	 * {@code ::before}/{@code ::after}だけの装飾は内容の消費に数えません。
+	 */
+	public default boolean hasNonDecorationContent() {
+		return this.paintsAnything();
+	}
+
 	public double getFirstAscent();
 
 	public double getLastDescent();
 
 	public double getContentSize();
+
+	/**
+	 * 固定寸法箱の継続高から差し引く、前断片で実際に消費したページ方向寸法です。
+	 * 通常は{@link #getContentSize()}と同じですが、内容を次頁へ丸ごと送った結果だけを
+	 * 保持する空の断片殻は消費に数えません。
+	 */
+	public default double getConsumedPageSizeForFragmentation() {
+		return this.getContentSize();
+	}
 
 	/**
 	 * 段組バランスが下回ってはならないページ軸容量です(2026-08-22)。

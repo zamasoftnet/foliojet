@@ -238,7 +238,7 @@ public class CalcValueUtilsTest extends TestCase {
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue("フォント相対成分を持つ値になる: " + value, value instanceof CalcFontRelativeValue);
 		// 2px は 1.5pt。em の係数は解決前なので値そのものが残る
-		assertEquals("calc(1.5pt + 0.0% + 1.0em + 0.0ex + 0.0rem + 0.0ch)", value.toString());
+		assertEquals("calc(1.5pt + 0.0% + 1.0em + 0.0ex + 0.0rem + 0.0ch + 0.0lh)", value.toString());
 	}
 
 	/** 数との乗算はフォント相対成分にも効く(線形なので後で寸法を掛けても等価)。 */
@@ -246,7 +246,7 @@ public class CalcValueUtilsTest extends TestCase {
 		CssToken token = parseCalcToken("width: calc(-1 * (3.5rem - 26px))");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue(value instanceof CalcFontRelativeValue);
-		assertEquals("calc(19.5pt + 0.0% + 0.0em + 0.0ex + -3.5rem + 0.0ch)", value.toString());
+		assertEquals("calc(19.5pt + 0.0% + 0.0em + 0.0ex + -3.5rem + 0.0ch + 0.0lh)", value.toString());
 	}
 
 	public void testCalcWithVarReturnsNull() {

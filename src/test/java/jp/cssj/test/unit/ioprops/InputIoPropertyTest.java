@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
@@ -94,6 +96,23 @@ public class InputIoPropertyTest extends TestCase {
 			return;
 		}
 		assertFalse("viewportの解釈の有無で出力が変わること", on.equals(off));
+	}
+
+	/** 高さを省略した実サイト型viewportでも、指定された幅だけを適用する。 */
+	public void testViewportWidthOnly() throws Exception {
+		final File doc = new File("files/unittest/ioprops/viewport-width-only.html");
+		final String pdf = this.convert(doc, props("input.viewport", "true"));
+		if (this.skipped()) {
+			return;
+		}
+		final Matcher mediaBox = Pattern.compile(
+				"/MediaBox\\s*\\[\\s*0(?:\\.0+)?\\s+0(?:\\.0+)?\\s+([0-9.]+)\\s+([0-9.]+)\\s*\\]")
+				.matcher(pdf);
+		assertTrue("MediaBoxが見つかること", mediaBox.find());
+		assertEquals("width=1010pxがページ幅へ反映されること", 1010 * 72.0 / 96.0,
+				Double.parseDouble(mediaBox.group(1)), 0.1);
+		assertEquals("省略した高さはA4既定値を保つこと", 297 * 72.0 / 25.4,
+				Double.parseDouble(mediaBox.group(2)), 0.1);
 	}
 
 	private boolean textLooksGenerated(final String pdf) {

@@ -112,6 +112,27 @@ public final class UAProps {
 	public static final BooleanPropManager INPUT_HTTP_CACHE = new BooleanPropManager("input.http.cache", true);
 
 	/**
+	 * 主文書から発見した外部リソース(スタイルシート・画像)の非同期先読み
+	 * (2026-08-27)。ストリームレイアウトはパーサ駆動スレッド=レイアウト
+	 * スレッドで、リソースは消費点で直列に同期解決されるため、実サイトの
+	 * 変換は直列のHTTP待ちがそのままwall-clockになる。先読みは主文書の
+	 * 読み先行バッファを走査して、エンジンが確実に要求するURLだけを
+	 * 並列取得しHTTP応答キャッシュへ置く。認証情報・Cookieを伴う要求は
+	 * 対象外で、ACL(input.include/exclude)を通過したURLしか取得しない。
+	 * 失敗・非対応は静かに従来の同期経路へ退化する。
+	 *
+	 * <p>
+	 * <b>既定で有効</b>(2026-08-28、オーナー裁定)。実サイトの変換で
+	 * 効果が大きく(実測: 画像約110点の記事で24.3秒→6.4秒)、正しさは
+	 * 変わらないため。取得するのは{@code input.include}/{@code input.exclude}を
+	 * 通過したhttp(s)資源だけで、認証情報を送る要求は対象外。ACLが設定
+	 * されていない場合は{@code permits}が通さないので、差し込まれた
+	 * リゾルバ経由で資源を取る利用形態には影響しない。
+	 * </p>
+	 */
+	public static final BooleanPropManager INPUT_PREFETCH = new BooleanPropManager("input.prefetch", true);
+
+	/**
 	 * HTTP応答キャッシュの保持期間(秒)です。0はキャッシュ無効。
 	 * 応答が{@code max-age}を持つ場合は短い方を使う。
 	 */
@@ -695,17 +716,20 @@ public final class UAProps {
 	public static final CodePropManager<PagedSvgResourceMode> OUTPUT_PAGED_SVG_RESOURCES = new CodePropManager<>(
 			"output.paged-svg.resources", PagedSvgResourceMode.class, PagedSvgResourceMode.REFERENCE);
 
-	/**
-	 * Paged SVGのページSVGの書き出し方式です。
-	 */
-	public static final CodePropManager<PagedSvgWriter> OUTPUT_PAGED_SVG_WRITER = new CodePropManager<>(
-			"output.paged-svg.writer", PagedSvgWriter.class, PagedSvgWriter.DIRECT);
 
 	/**
 	 * ページSVGとページJSONをgzipで縮めて返すかどうかです。
+	 *
+	 * <p>
+	 * <b>既定はgzip</b>(2026-08-28、オーナー裁定)。ページSVGは文字が
+	 * そのまま入る素のテキストで、圧縮がよく効きます。名前は
+	 * {@code pages/NNNN.svgz}・{@code pages/NNNN.json.gz}になり、
+	 * {@code manifest.json}は読み口なので縮めません。静的配信する場合は
+	 * これらに{@code Content-Encoding: gzip}を付けてください。
+	 * </p>
 	 */
 	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(
-			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.NONE);
+			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.GZIP);
 
 	private static final java.util.List<PropManager> ALL = java.util.List.of(
 			INPUT_PROPERTY_PI,
@@ -722,6 +746,7 @@ public final class UAProps {
 			INPUT_HTTP_SOCKET_TIMEOUT,
 			INPUT_HTTP_CACHE,
 			INPUT_HTTP_CACHE_TTL,
+			INPUT_PREFETCH,
 			INPUT_HTTP_PROXY_HOST,
 			INPUT_HTTP_PROXY_PORT,
 			INPUT_HTTP_PROXY_AUTHENTICATION_USER,
@@ -827,7 +852,6 @@ public final class UAProps {
 			OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT,
 			OUTPUT_USE_META_INFO,
 			OUTPUT_PAGED_SVG_RESOURCES,
-			OUTPUT_PAGED_SVG_WRITER,
 			OUTPUT_PAGED_SVG_COMPRESSION);
 
 	/**

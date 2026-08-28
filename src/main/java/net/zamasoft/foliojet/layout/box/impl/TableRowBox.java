@@ -464,7 +464,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					(flags & IPageBreakableBox.FLAGS_FIRST) != 0,
 					(flags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0, pageLimit, this.getPageSize(),
 					this.params.pageBreakInside == PageBreakMode.AVOID, cellPageExtents, cellFlowMatch,
-					cellInsideAvoid, cellCollapsedAtStart);
+					cellInsideAvoid, cellCollapsedAtStart,
+					mode instanceof BreakMode.AutoBreakMode auto ? auto.fragmentCapacity : -1);
 			if (pre != null) {
 				return pre;
 			}

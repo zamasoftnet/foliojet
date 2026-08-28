@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>object-fit / object-position</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font: normal 10pt/1 serif;
+}
+img {
+	display: block;
+	width: 120pt;
+	height: 60pt;
+	margin: 4pt;
+}
+.contain { object-fit: contain; }
+.cover { object-fit: cover; }
+.none { object-fit: none; }
+.scale-down { object-fit: scale-down; }
+.small {
+	/* 元画像(100×100)より大きい箱: scale-downはnone相当になる */
+	width: 40pt;
+	height: 30pt;
+}
+.pos-right-bottom { object-position: right bottom; }
+.pos-percent { object-position: 25% 100%; }
+.pos-length { object-position: 10pt 5pt; }
+.pos-single { object-position: left; }
+.pos-4value { object-position: right 10pt bottom 5pt; }
+.pos-calc { object-position: calc(100% - 10pt) 50%; }
+</style>
+</head>
+<body>
+<!-- 既定(fill): 従来と同じ引き伸ばし -->
+<img src="../red.png" />
+<!-- contain: 60×60を中央へ -->
+<img class="contain" src="../red.png" />
+<!-- cover: 120×120へ拡大し上下をクリップ -->
+<img class="cover" src="../red.png" />
+<!-- none: 100×100の等倍を中央へ、上下40ptクリップ -->
+<img class="none" src="../red.png" />
+<!-- scale-down: 縮小が必要なのでcontain相当 -->
+<img class="scale-down" src="../red.png" />
+<!-- scale-down: 箱(40×30)が画像(100×100)より小さいのでcontain相当30×30 -->
+<img class="scale-down small" src="../red.png" />
+<!-- coverと位置指定の組み合わせ -->
+<img class="cover pos-right-bottom" src="../red.png" />
+<img class="contain pos-percent" src="../red.png" />
+<img class="contain pos-length" src="../red.png" />
+<!-- 単一値: leftはx=0%, y=50% -->
+<img class="contain pos-single" src="../red.png" />
+<!-- 4値構文: 右から10pt・下から5pt = dx=120-60-10=50, dy=60-60-5→高さ方向は余白0で-5 -->
+<img class="contain pos-4value" src="../red.png" />
+<!-- calc: 100%-10ptはMIXED値として解決 -->
+<img class="contain pos-calc" src="../red.png" />
+</body>
+</html>

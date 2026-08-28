@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.box.content;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,19 +46,10 @@ public final class RowSplitContainer extends FlowContainer {
 	 * ({@code startFlowBlock.calculateSize}が主軸寸法を包含幅へ、
 	 * {@code endFlowBlock}が内容高へ)ため、位置と一緒に復元する。
 	 */
-	private record Anchor(double pageAxis, double width, double height) {
+	private record Anchor(double pageAxis, double width, double height, boolean restoreExtent) {
 	}
 
 	private Map<IFlowBox, Anchor> anchored;
-
-	/**
-	 * 寸法(width/height)も復元するか。自己アンカー(丸ごと移動後の
-	 * 再構築——itemの寸法は変わらないのが正)でのみtrue。分割継続
-	 * ({@link #anchorCurrent})では、以降の再分割がitemの寸法を正当に
-	 * 縮めるためfalse(trueにすると再分割の帳簿が壊れ、複数ページの
-	 * flexが2ページへ潰れる——0510-flex/float-itemで実測)。
-	 */
-	private boolean restoreExtents;
 
 	/**
 	 * 現在{@link #flows}にある全itemの配置を正としてスナップショット
@@ -67,19 +59,31 @@ public final class RowSplitContainer extends FlowContainer {
 	 * 自己アンカーする。
 	 */
 	public void anchorCurrent() {
-		this.anchorCurrent(false);
+		this.anchorCurrent(this.flows == null ? 0 : this.flows.size());
 	}
 
-	private void anchorCurrent(final boolean withExtents) {
+	/**
+	 * 現在のitemをアンカーし、先頭{@code reflowablePrefixCount}個だけは
+	 * restyle後の寸法を採用します。行の強制分割で新しく作った残余itemは
+	 * 次の断片に合わせて縮みうる一方、後続行から丸ごと移送したitemは
+	 * 分割前の確定寸法を保つ必要があります。後者までpercent寸法を再解決
+	 * すると、膨らんだ継続箱を新しい基準に毎世代拡大するためです。
+	 */
+	public void anchorCurrent(final int reflowablePrefixCount) {
 		if (this.flows == null) {
 			return;
+		}
+		if (reflowablePrefixCount < 0 || reflowablePrefixCount > this.flows.size()) {
+			throw new IllegalArgumentException("reflowablePrefixCount=" + reflowablePrefixCount
+					+ ", flows=" + this.flows.size());
 		}
 		if (this.anchored == null) {
 			this.anchored = new HashMap<>();
 		}
-		this.restoreExtents = withExtents;
-		for (final Flow f : this.flows) {
-			this.anchored.put(f.box, new Anchor(f.pageAxis, f.box.getWidth(), f.box.getHeight()));
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow f = this.flows.get(i);
+			this.anchored.put(f.box,
+					new Anchor(f.pageAxis, f.box.getWidth(), f.box.getHeight(), i >= reflowablePrefixCount));
 		}
 	}
 
@@ -104,9 +108,32 @@ public final class RowSplitContainer extends FlowContainer {
 			// させた主軸整列を保持している)。この経路は寸法も復元する
 			// (startFlowBlock/endFlowBlockの再解決がwidth:autoを包含幅へ、
 			// height:autoを内容高へ潰す——yahoo.co.jpの順位バッジ)
-			this.anchorCurrent(true);
+			this.anchorCurrent(0);
 		}
-		super.restyle(builder, shape, restyleAbsolutes, prefix);
+		final boolean vertical = this.box.getBlockParams().flow.isVertical();
+		// 空コンテナのrestyleではflows自体がまだ作られていない。
+		final List<Flow> restyleFlows = this.flows == null ? List.of() : new ArrayList<>(this.flows);
+		for (final Flow f : restyleFlows) {
+			if (f == null) {
+				continue;
+			}
+			final Anchor want = this.anchored.get(f.box);
+			if (want != null && f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item) {
+				item.prepareRestyleLineExtent(want.width(), want.height(), vertical);
+			}
+		}
+		try {
+			super.restyle(builder, shape, restyleAbsolutes, prefix);
+		} finally {
+			for (final Flow f : restyleFlows) {
+				if (f == null) {
+					continue;
+				}
+				if (f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item) {
+					item.clearRestyleLineExtent();
+				}
+			}
+		}
 		this.restoreAnchoredPageAxis(builder);
 	}
 
@@ -124,7 +151,7 @@ public final class RowSplitContainer extends FlowContainer {
 			if (f.pageAxis != want.pageAxis()) {
 				this.flows.set(i, new Flow(f.serial, f.box, want.pageAxis()));
 			}
-			if (this.restoreExtents && f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item
+			if (want.restoreExtent() && f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item
 					&& (item.getWidth() != want.width() || item.getHeight() != want.height())) {
 				item.restoreExtents(want.width(), want.height());
 			}
@@ -135,14 +162,15 @@ public final class RowSplitContainer extends FlowContainer {
 			// 内容終端差だけ巻き戻す。この後のendFlowBlockがカーソルから
 			// コンテナのheight/contentSizeを書き戻すため、ここを直せば
 			// 箱高も追随する(yahoo.co.jp天気モジュールの熱中症指数〜
-			// 雨雲レーダー間の余白)。2026-08-10まで自己アンカー
-			// (restoreExtents)限定+アンカー時点の終端を基準にしていたが、
+			// 雨雲レーダー間の余白)。2026-08-10までは全itemの寸法を
+			// 復元する自己アンカー限定+アンカー時点の終端を基準にしていたが、
 			// (1)分割継続断片でも縦積みが箱高を膨らませ後続内容を押し下げる
 			// (grid行分割のrow-split-carryで実測: 2item×56ptの継続断片が
 			// 112ptへ膨張)、(2)分割直後のアンカーはitem高が未確定(0)で
 			// 基準にならない——ため、復元後の実測終端を基準に常時巻き戻す。
-			// 再分割の帳簿を壊すのはitem**寸法**の復元(上のループ、
-			// restoreExtents限定のまま)であって、カーソルの巻き戻しではない
+			// 再分割の帳簿を壊すのは分割残余itemの**寸法**まで復元すること
+			// (上のループでrestoreExtent=false)であって、カーソルの巻き戻し
+			// ではない
 			final double trueEnd = this.contentEnd();
 			final double delta = stackedEnd - trueEnd;
 			// 押し下げ(下のpushDownOverlappingRows)で内容が伸びた場合は
@@ -201,7 +229,8 @@ public final class RowSplitContainer extends FlowContainer {
 					final Anchor a = this.anchored.get(f.box);
 					if (a != null) {
 						// 次のrestyleで押し下げが巻き戻らないようアンカーも更新
-						this.anchored.put(f.box, new Anchor(a.pageAxis() + delta, a.width(), a.height()));
+						this.anchored.put(f.box,
+								new Anchor(a.pageAxis() + delta, a.width(), a.height(), a.restoreExtent()));
 					}
 				}
 				start = required;

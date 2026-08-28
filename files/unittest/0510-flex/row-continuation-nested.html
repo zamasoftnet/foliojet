@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>paged sticky does not shift row flex continuation</title>
+<style>
+@page { size: 842pt 595pt; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; font: 10pt/1.3 sans-serif; }
+.outer { display: flex; width: 742.5pt; margin: 0 auto; }
+.main { flex: 1; min-width: 0; max-width: 505.5pt; }
+.main-content { height: 760pt; }
+.side { width: 225pt; padding-top: 9pt; margin-left: 12pt; display: flex; flex-direction: column; }
+.ad { min-height: 230pt; margin-bottom: 12pt; }
+.rank { position: sticky; bottom: 75pt; width: 225pt; }
+h2 { height: 20pt; margin: 0; font-size: 10pt; }
+ol { margin: 0; padding: 0; list-style: none; }
+li { border-bottom: 1pt solid #ccc; }
+.link { display: block; padding: 6pt 0; }
+.row { position: relative; display: flex; }
+.number { width: 18pt; flex: none; }
+.content { display: flex; flex-grow: 1; }
+.text { flex: 1; }
+.title { margin: 0; padding: 0 0 3pt; font-size: 9.75pt; }
+.meta { font-size: 9pt; color: #949494; }
+.media { margin-left: 6pt; }
+.thumb { width: var(--thumbnail-width, auto); height: var(--thumbnail-height, auto); }
+.thumb img { display: block; width: 45pt; height: 45pt; }
+</style>
+</head>
+<body>
+<div class="outer">
+  <main class="main"><div class="main-content">MAIN</div></main>
+  <aside class="side">
+    <div class="ad"></div><div class="ad"></div>
+    <section class="rank"><h2>RANKING</h2><ol>
+      <li><div class="link"><div class="row"><span class="number">1</span><div class="content"><div class="text"><p class="title">橋の下に女の子、「気になって」戻ると川に流されていて考える暇もなく飛び込み救助</p><div class="meta">テレビ高知 8/26 6:00</div></div><div class="media"><div class="thumb" style="--thumbnail-width:45pt;--thumbnail-height:45pt"><img src="../red.png" alt="ONE"></div></div></div></div></div></li>
+      <li><div class="link"><div class="row"><span class="number">2</span><div class="content"><div id="item2" class="text"><p id="title2" class="title">関西の食卓の定番ポン酢が生産停止に背景には深刻なすだち不足対策しなければ収穫ゼロへ</p><div class="meta">関西テレビ 8/26 5:00</div></div><div class="media"><div class="thumb" style="--thumbnail-width:45pt;--thumbnail-height:45pt"><img id="thumb2" src="../red.png" alt="TWO"></div></div></div></div></div></li>
+      <li><div class="link"><div class="row"><span class="number">3</span><div class="content"><div id="item3" class="text"><p class="title">高松市の身元不明死体は男子高校生死因は急性心疾患と推定</p><div class="meta">山陽放送 8/25 18:04</div></div><div class="media"><div class="thumb" style="--thumbnail-width:45pt;--thumbnail-height:45pt"><img id="thumb3" src="../red.png" alt="THREE"></div></div></div></div></div></li>
+      <li><div class="link"><div class="row"><span class="number">4</span><div class="content"><div id="item4" class="text"><p class="title">南太平洋で大規模な火山噴火津波の有無を確認中到達予想</p><div class="meta">テレビ高知 8/25 21:15</div></div><div class="media"><div class="thumb" style="--thumbnail-width:45pt;--thumbnail-height:45pt"><img id="thumb4" src="../red.png" alt="FOUR"></div></div></div></div></div></li>
+      <li><div class="link"><div class="row"><span class="number">5</span><div class="content"><div id="item5" class="text"><p class="title">クレーンメーカーが高松市朝日町に本社移転のための新用地を取得</p><div class="meta">瀬戸内海放送 8/25 15:57</div></div><div class="media"><div class="thumb" style="--thumbnail-width:45pt;--thumbnail-height:45pt"><img id="thumb5" src="../red.png" alt="FIVE"></div></div></div></div></div></li>
+    </ol></section>
+  </aside>
+</div>
+</body>
+</html>

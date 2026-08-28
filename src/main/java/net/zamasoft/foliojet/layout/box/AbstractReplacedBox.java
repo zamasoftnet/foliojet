@@ -5,12 +5,14 @@ import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
-
-import org.w3c.dom.svg.SVGPreserveAspectRatio;
+import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
+import net.zamasoft.foliojet.layout.box.params.ObjectFitMode;
+import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 
@@ -24,7 +26,6 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.layout.part.CenteredImage;
 
 /**
  * 画像ボックスの実装です。
@@ -144,6 +145,15 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		double minWidth = LayoutUtils.computeDimensionWidth(this.params.minSize, refWidth);
 		double maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, refMaxHeight);
 		double minHeight = LayoutUtils.computeDimensionHeight(this.params.minSize, refHeight);
+		// 固有寸法計測では包含ブロックが未確定(NONE)になりうる。このとき
+		// %のmin-sizeは循環寄与なので0として扱う。番兵を数値の最小寸法として
+		// Math.maxへ渡すと、置換要素が10^308pt級へ膨張してしまう。
+		if (LayoutUtils.isNone(minWidth)) {
+			minWidth = 0;
+		}
+		if (LayoutUtils.isNone(minHeight)) {
+			minHeight = 0;
+		}
 		if (LayoutUtils.isNone(maxWidth)) {
 			maxWidth = Double.MAX_VALUE;
 		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
@@ -253,10 +263,17 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 	protected static class ReplacedBoxDrawable extends AbsoluteRectFrameDrawable {
 		protected final Image image;
 
+		protected final ObjectFitMode objectFit;
+
+		protected final Offset objectPosition;
+
 		public ReplacedBoxDrawable(PageBox pageBox, Shape clip, float opacity, AffineTransform transform,
-				AbsoluteRectFrame frame, Image image, double width, double height) {
+				AbsoluteRectFrame frame, Image image, ObjectFitMode objectFit, Offset objectPosition, double width,
+				double height) {
 			super(pageBox, clip, opacity, transform, frame, width, height, null);
 			this.image = image;
+			this.objectFit = objectFit;
+			this.objectPosition = objectPosition;
 		}
 
 		@Override
@@ -266,6 +283,19 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			if (this.image instanceof net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label) {
 				return String.format(java.util.Locale.ROOT, "FootnoteLabel[\"%s\" w=%.2f h=%.2f]",
 						label.getAltString(), this.width, this.height);
+			}
+			// object-fit/object-positionが既定でない場合は実描画矩形を出す
+			// (innerDrawの内部変換は表示リストに現れないため、goldenで
+			// 収まり方を固定できるようにここで同じ計算を晒す)。既定の
+			// 出力は従来のまま——既存goldenは不変
+			if (this.objectFit != ObjectFitMode.FILL || !isCenterPosition(this.objectPosition)) {
+				final double width = this.width - this.frame.getFrameWidth();
+				final double height = this.height - this.frame.getFrameHeight();
+				if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
+					final double[] r = this.fitRect(width, height);
+					return super.describe() + String.format(java.util.Locale.ROOT,
+							"[objectFit=%s dx=%.2f dy=%.2f w=%.2f h=%.2f]", this.objectFit, r[0], r[1], r[2], r[3]);
+				}
 			}
 			return super.describe();
 		}
@@ -279,17 +309,14 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			// 固有サイズ0の画像はスケール計算がゼロ除算(Infinity)になるため
 			// 描画しない(壊れた変換行列でバックエンドを巻き込むより安全)
 			if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
-				double imageWidth = this.image.getWidth();
-				double imageHeight = this.image.getHeight();
-				final AffineTransform at = AffineTransform.getTranslateInstance(x, y);
-				final Image image;
-				SVGPreserveAspectRatio preserveAspectRatio = null;
-				if (preserveAspectRatio != null && preserveAspectRatio.getAlign() == SVGPreserveAspectRatio.SVG_PRESERVEASPECTRATIO_XMIDYMID) {
-					image = new CenteredImage(this.image, width, height);
-				} else {
-					at.scale(width / imageWidth, height / imageHeight);
-					image = this.image;
-				}
+				final double[] r = this.fitRect(width, height);
+				final double dx = r[0], dy = r[1], drawWidth = r[2], drawHeight = r[3];
+				final AffineTransform at = AffineTransform.getTranslateInstance(x + dx, y + dy);
+				at.scale(drawWidth / this.image.getWidth(), drawHeight / this.image.getHeight());
+				// 内容ボックスからはみ出す場合(cover/none等)はブラウザ同様に
+				// クリップする
+				final boolean overflows = dx < -0.001 || dy < -0.001 || dx + drawWidth > width + 0.001
+						|| dy + drawHeight > height + 0.001;
 				try (final var gcState = gc.begin()) {
 					/* NoAndroid begin */
 					if (this.frame.frame.border.isRounded()) {
@@ -298,11 +325,85 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 						gc.clip(shape);
 					}
 					/* NoAndroid end */
+					if (overflows) {
+						gc.clip(new Rectangle2D.Double(x, y, width, height));
+					}
 					gc.transform(at);
-					gc.drawImage(image);
+					gc.drawImage(this.image);
 				}
 			}
 		}
+
+		private double[] fitRect(final double width, final double height) {
+			return objectFitRect(this.objectFit, this.objectPosition, this.image.getWidth(), this.image.getHeight(),
+					width, height);
+		}
+	}
+
+	/**
+	 * SPEC css-images-3 object-fit/object-position: 内容ボックス
+	 * (width×height)への実描画矩形{dx, dy, drawWidth, drawHeight}を
+	 * 返します。描画({@code ReplacedBoxDrawable})とリンク注釈の座標変換
+	 * ({@code AbstractVisitor})が同じ幾何を共有するための単一の計算です。
+	 * 呼び出し側で寸法が正であることを確認してください。
+	 */
+	public static double[] objectFitRect(final ObjectFitMode objectFit, final Offset objectPosition,
+			final double imageWidth, final double imageHeight, final double width, final double height) {
+		// 実描画寸法(concrete object size)
+		final double drawWidth, drawHeight;
+		switch (objectFit) {
+		case CONTAIN: {
+			double s = Math.min(width / imageWidth, height / imageHeight);
+			drawWidth = imageWidth * s;
+			drawHeight = imageHeight * s;
+			break;
+		}
+		case COVER: {
+			double s = Math.max(width / imageWidth, height / imageHeight);
+			drawWidth = imageWidth * s;
+			drawHeight = imageHeight * s;
+			break;
+		}
+		case NONE:
+			drawWidth = imageWidth;
+			drawHeight = imageHeight;
+			break;
+		case SCALE_DOWN: {
+			double s = Math.min(1, Math.min(width / imageWidth, height / imageHeight));
+			drawWidth = imageWidth * s;
+			drawHeight = imageHeight * s;
+			break;
+		}
+		default:
+			drawWidth = width;
+			drawHeight = height;
+			break;
+		}
+		// object-positionによる余白(負にもなる)への割り付け
+		final double dx = positionOffset(objectPosition.getX(), objectPosition.getXRatio(),
+				objectPosition.getXType(), width - drawWidth);
+		final double dy = positionOffset(objectPosition.getY(), objectPosition.getYRatio(),
+				objectPosition.getYType(), height - drawHeight);
+		return new double[] { dx, dy, drawWidth, drawHeight };
+	}
+
+	private static double positionOffset(double value, double ratio, LengthType type, double space) {
+		switch (type) {
+		case ABSOLUTE:
+			return value;
+		case RELATIVE:
+			return value * space;
+		case MIXED:
+			return value + ratio * space;
+		default:
+			return space / 2;
+		}
+	}
+
+	/** 既定のobject-position(50% 50%)か。Offsetは値クラスなので成分で比較する。 */
+	static boolean isCenterPosition(final Offset pos) {
+		return pos.getXType() == LengthType.RELATIVE && pos.getYType() == LengthType.RELATIVE
+				&& pos.getX() == .5 && pos.getY() == .5;
 	}
 
 	public final void pushGetTextSteps(final StringBuilder textBuff, java.util.Deque<GetTextStep> worklist) {
@@ -339,7 +440,8 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			// No-op for non-image replaced content and when untagged.
 			final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 			final Drawable drawable = new ReplacedBoxDrawable(pageBox, clip, this.params.opacity, transform, this.frame,
-					this.params.image, this.getWidth(), this.getHeight());
+					this.params.image, this.params.objectFit, this.params.objectPosition, this.getWidth(),
+					this.getHeight());
 			drawer.visitDrawable(drawable, x, y);
 			pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 		}

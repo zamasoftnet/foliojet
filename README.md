@@ -42,3 +42,8 @@ cd foliojet
 - その他 (`barcode4j`, `jeuclid-core`, `avalon-framework-impl`, `lib/Qrcode.jar`)
 
 Maven の `pom.xml` と Eclipse のプロジェクトメタデータには依存しません。
+
+## ライセンス
+
+[Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.txt)
+（全文はリポジトリの [LICENSE](./LICENSE)）

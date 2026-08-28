@@ -148,7 +148,9 @@ public final class FlexLengthResolver {
 				}
 			}
 			if (frozenThisRound == 0) {
-				throw new IllegalStateException("§9.7の反復がfreezeなしで一巡しました: iteration=" + iteration);
+				throw new IllegalStateException("§9.7の反復がfreezeなしで一巡しました: iteration=" + iteration
+						+ " available=" + available + " remaining=" + remaining + " factors=" + sumFactors
+						+ " violation=" + totalViolation + " items=" + items);
 			}
 		}
 		throw new IllegalStateException("§9.7の反復が上限(" + (n + 1) + ")を超えました");

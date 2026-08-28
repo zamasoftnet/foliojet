@@ -126,6 +126,7 @@ import net.zamasoft.foliojet.css.impl.property.shorthand.BorderTopShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.BorderWidthShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.FontShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.ListStyleShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.InsetShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.MarginShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.OverflowShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.PaddingShorthand;
@@ -332,6 +333,7 @@ public final class ElementPropertySet extends PropertySet {
 		put(BorderStyleShorthand.INFO);
 		put(BorderWidthShorthand.INFO);
 		put(MarginShorthand.INFO);
+		put(InsetShorthand.INFO);
 		put(PaddingShorthand.INFO);
 		put(OverflowShorthand.INFO);
 		put(FontShorthand.INFO);
@@ -365,6 +367,10 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.text.RubyOverhang.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.RubyPosition.INFO);
 		reg(BoxSizing.INFO);
+		// CSS Images 3: 置換要素の内容の収め方(2026-08-27)
+		reg(net.zamasoft.foliojet.css.impl.property.box.ObjectFit.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.ObjectPosition.INFO_X);
+		regCode(net.zamasoft.foliojet.css.impl.property.box.ObjectPosition.INFO_Y);
 		reg(TextAlignLast.INFO);
 		put(WritingModeShorthand.INFO);
 		reg(WordWrap.INFO);

@@ -39,6 +39,7 @@ public final class ImageMetricsCache {
 	/** 文書の開始でクリアします。 */
 	public void reset() {
 		this.metrics = null;
+		this.assets = null;
 	}
 
 	/** 記録済みの寸法(無ければnull)。 */
@@ -63,6 +64,53 @@ public final class ImageMetricsCache {
 	/** 記録件数(診断用)。 */
 	public int size() {
 		return this.metrics == null ? 0 : this.metrics.size();
+	}
+
+	/**
+	 * 出力済み資源の同一性です(2026-08-28、Paged SVGの再変換用)。
+	 *
+	 * <p>
+	 * Paged SVGのページは画像を{@code assets/images/<sha256>.<ext>}という
+	 * <b>内容ハッシュの名前</b>で参照します。そのため
+	 * {@code output.paged-svg.resources=omit}(実体を出し直さない再変換)でも、
+	 * 名前を決めるためだけに画像のバイト列を読み直す必要がありました。
+	 * 寸法と一緒にこの同一性も控えておけば、次回は画像を<b>一度も開かずに</b>
+	 * 同じ参照を書けます。
+	 * </p>
+	 *
+	 * @param sha256     資源の内容ハッシュ
+	 * @param mediaType  資源のMIME型
+	 * @param extension  資源のファイル拡張子
+	 * @param pixelWidth 画素数の幅(manifest用)
+	 * @param pixelHeight 画素数の高さ(manifest用)
+	 */
+	public record Asset(String sha256, String mediaType, String extension, int pixelWidth, int pixelHeight) {
+	}
+
+	private Map<String, Asset> assets;
+
+	/** 出力済み資源の同一性を記録します。 */
+	public void putAsset(final String uri, final Asset asset) {
+		if (uri == null || asset == null) {
+			return;
+		}
+		if (this.assets == null) {
+			this.assets = new HashMap<String, Asset>();
+		}
+		this.assets.put(uri, asset);
+	}
+
+	/** 記録済みの資源同一性(無ければnull)。 */
+	public Asset getAsset(final String uri) {
+		if (this.assets == null || uri == null) {
+			return null;
+		}
+		return this.assets.get(uri);
+	}
+
+	/** 記録済みの資源同一性(書き出し用)。 */
+	public Map<String, Asset> assets() {
+		return this.assets == null ? Map.of() : Collections.unmodifiableMap(this.assets);
 	}
 
 	/** 記録済みのURIと寸法(書き出し用)。空でも{@code null}は返しません。 */

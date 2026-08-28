@@ -58,7 +58,7 @@ public final class FlexItemMetricsResolver {
 		final double preferred = inner(in.preferredMain(), in);
 		final double max = inner(in.maxMain(), in);
 		// flex base size(§9.2.3の初期サブセット)
-		final double base;
+		double base;
 		final Double basisSize = basisSize(in);
 		if (basisSize != null) {
 			base = Math.max(0, basisSize);
@@ -76,6 +76,13 @@ public final class FlexItemMetricsResolver {
 				min = Double.isNaN(preferred) ? in.minContent() : Math.min(in.minContent(), preferred);
 				min = Math.min(min, max);
 			}
+		}
+		// max-contentは本来有限だが、未確定な%置換要素の番兵を内在計測で
+		// 加算するとInfinityへ飽和しうる。有限コンテナのshrink計算へ
+		// Infinityを渡すとscaled factorがInfinity/Infinity=NaNになり、§9.7が
+		// 進めない。循環する内在寄与は自動最小(min-content)へ縮退させる。
+		if (!Double.isFinite(base)) {
+			base = Double.isFinite(min) ? Math.max(0, min) : 0;
 		}
 		final double hypothetical = Math.min(Math.max(base, min), max);
 		return new FlexItemMetrics(in.sourceIndex(), base, hypothetical, min, max,

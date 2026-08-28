@@ -232,7 +232,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			// 全行が切断線の手前に収まる(切断線は末尾余白内)——空の
 			// 継続断片が残りの余白を運ぶ
 			final RowSplitContainer cont = new RowSplitContainer();
-			cont.anchorCurrent();
+			cont.anchorCurrent(0);
 			final AbstractContainerBox continuation = this.splitPage(cont, pageLimit, false);
 			if (continuation instanceof GridBox contGrid) {
 				contGrid.markTrackLayout();
@@ -280,7 +280,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					}
 					contItems.addAll(this.rowItems.subList(nextRow.startFlow(), this.rowItems.size()));
 				}
-				cont.anchorCurrent();
+				cont.anchorCurrent(0);
 				final AbstractContainerBox continuation = this.splitPage(cont, pageLimit, false);
 				if (continuation instanceof GridBox contGrid) {
 					contGrid.markTrackLayout();
@@ -369,7 +369,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					}
 					contItems.addAll(this.rowItems.subList(nextRow.startFlow(), this.rowItems.size()));
 				}
-				cont.anchorCurrent();
+				cont.anchorCurrent(remainders.length);
 				final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 				if (continuation instanceof GridBox contGrid) {
 					contGrid.markTrackLayout();
@@ -385,7 +385,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		final double keptExtent = boundaryRow.start();
 		final RowSplitContainer cont = new RowSplitContainer();
 		((Container) this.container).migrateFlowsFrom(boundaryRow.startFlow(), cont, keptExtent);
-		cont.anchorCurrent();
+		cont.anchorCurrent(0);
 		final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 		if (continuation instanceof GridBox contGrid) {
 			contGrid.markTrackLayout();

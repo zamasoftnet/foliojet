@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: 200pt 100pt; margin: 10pt; }
+    html, body { margin: 0; padding: 0; }
+    body { font: 16pt sans-serif; }
+    .external { color: rgb(0, 80, 170); padding-right: 1.125em; }
+    .external::after {
+      background-color: currentcolor;
+      content: "\200b" " (external)";
+      content: "\200b" / " (external)";
+      height: 1em;
+      margin-left: .125em;
+      mask-image: url(external-link-mask.svg);
+      mask-size: cover;
+      position: absolute;
+      transform: translateY(calc(.5lh - .5em));
+      width: 1em;
+    }
+  </style>
+</head>
+<body><a class="external">LINK</a></body>
+</html>

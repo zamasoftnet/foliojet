@@ -1,0 +1,12 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=60.00 h=10.00]
+  x=0.00 y=10.00 AbsoluteRectFrame[w=60.00 h=10.00]
+  x=0.00 y=20.00 AbsoluteRectFrame[w=400.00 h=30.00]
+  x=0.00 y=111.00 AbsoluteRectFrame[w=400.00 h=6.00]
+  x=0.00 y=117.00 AbsoluteRectFrame[w=400.00 h=10.00]
+  x=0.00 y=20.00 Text["行高" asc=21.00 desc=9.00]
+  x=0.00 y=50.00 Text["文" asc=21.00 desc=10.00]
+  x=20.00 y=61.00 AbsoluteRectFrame[w=10.00 h=10.00] tf=[1.00 0.00 0.00 1.00 0.00 1.20]
+  x=30.00 y=50.00 Text["字" asc=21.00 desc=10.00]
+  x=0.00 y=81.00 Text["半分" asc=19.50 desc=10.50]
+  x=0.00 y=111.00 Text["潰れ" asc=6.00 desc=0.00]

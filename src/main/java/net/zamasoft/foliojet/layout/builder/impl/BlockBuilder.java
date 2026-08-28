@@ -486,6 +486,24 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return (Flow) this.flowStack.get(this.flowStack.size() - 1);
 	}
 
+	/**
+	 * contextFlowより内側に、閉じるべきopen flowが残っているかを返します。
+	 *
+	 * <p>
+	 * 閉部分木のrestyle中にも、その内容が段からあふれると入れ子の
+	 * COLUMN継続が発生します。ownerが{@link #contextFlow}の場合、継続は
+	 * {@code pruneFlowStackTo(contextFlow)}はrestyle呼出し元が積んだフローを
+	 * 消費し、COLUMN継続が同じ構造深度を別の箱identityで積み直すことが
+	 * あります。閉じたrestyleの各Java呼出しフレームは、その新しい最上位を
+	 * 1段ずつ閉じる必要があります。一方、継続が内側を全て消費して何も
+	 * 積み直さなかった場合だけ、余った古い呼出しフレームは閉じる対象を
+	 * 持ちません(2026-08-25、extreme strict seed 4540)。
+	 * </p>
+	 */
+	public final boolean hasOpenFlow() {
+		return this.flowStack != null && !this.flowStack.isEmpty();
+	}
+
 	public int getFlowCount() {
 		return this.flowStack == null ? 1 : this.flowStack.size() + 1;
 	}
@@ -503,9 +521,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final BlockParams cParams = containerBox.getBlockParams();
 		double xmargin = 0;
 		double lineSize = containerBox.getLineSize();
-		if (flowBox.getColumnCount() > 1) {
+		if (flowBox.getColumnCount() > 1
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox) {
 			// マルチカラムの場合浮動ボックスを避ける(排除域は
-			// ExclusionSpace queryへ一本化済み——2026-07-23、P0完了)
+			// ExclusionSpace queryへ一本化済み——2026-07-23、P0完了)。
+			// flex/gridコンテナも独立整形文脈のためfloatと重ならない
+			// (CSS 2.1 §9.5——border boxがfloatのmargin boxを避ける。
+			// 2026-08-27、asahi.comフッターのfloatラベルへ隣のflexリストが
+			// 重なった実バグ)。帯はコンテナ開始時点の排除域で確定する
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
 					new AxisSpan(this.lineAxis, this.lineAxis + lineSize));
@@ -652,7 +676,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 独立BFC内のfloatを親の排除域から外す。
 			assert this.independentFloatScopeOwners.get(this.independentFloatScopeOwners.size() - 1) == flowBox;
 			this.independentFloatScopeOwners.remove(this.independentFloatScopeOwners.size() - 1);
-			List<?> floatings = (List<?>) this.noOverflowFloatings.remove(this.noOverflowFloatings.size() - 1);
+			final List<Floating> floatings = this.noOverflowFloatings.remove(this.noOverflowFloatings.size() - 1);
+			// CSS 2.1 §10.6.7: auto高さのBFCは、そのBFCに属するfloatの
+			// margin box下端を含む。通常フローのカーソルだけで高さを決めると、
+			// 改ページ後の短い本文(55.2pt)を高さにして、先頭へ移った画像float
+			// (150pt)をoverflow:hiddenで切ってしまう(Yahoo!ニュース実例)。
+			// 配置台帳のpageEndはこのbuilderと同じページ軸座標なので、scopeを
+			// 外す前にauto箱のカーソルと箱寸法をfloat下端まで伸ばす。
+			if (!flowBox.isSpecifiedPageSize()) {
+				for (int i = 0; i < floatings.size(); ++i) {
+					this.pageAxis = Math.max(this.pageAxis, floatings.get(i).pageEnd);
+				}
+				flowBox.setPageAxis(this.pageAxis - flow.pageAxis);
+			}
 			if (this.floatings != null) {
 				this.floatings.removeAll(floatings);
 				this.noteFloatingsChanged();
@@ -883,8 +919,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			//
 			// ■ 通常のフローのマージンの計算(純計算は resolveAutoMargins へ — 2026-07-30)
+			// flex itemのauto marginはFlexBuilderが解決済みのため再解決しない
+			// (FlowBlockBox.coordinatorOwnsAutoMarginsの説明を参照)
 			//
-			if (align != null) {
+			if (align != null
+					&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox fb
+							&& fb.coordinatorOwnsAutoMargins())) {
 				resolveAutoMargins(vertical, frame, margin, amargin, cLineSize, lineSize, xMarginStart, xMarginEnd,
 						align);
 			}

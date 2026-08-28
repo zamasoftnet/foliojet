@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* viewBoxのみ(width/height属性なし)のSVGの背景サイズ規則
+   (css-backgrounds-3 §background-size auto、2026-08-27)。
+   縦横比しか持たない画像のauto×autoはcontain制約で配置領域へ収める。
+   従来は代用値(viewBox寸法)を原寸として描き、ロゴSVGが数百pxのまま
+   箱からはみ出ていた(asahi.comフッターのRe:Ronロゴ)。
+   期待: b1=高さ20pxに収まる幅80px(比率4:1)、b2=幅100pxに収まる
+   高さ25px。b3(width/height属性あり)は従来どおり原寸40x10。 */
+@page { size: 300px 200px; margin: 0 }
+body { margin: 10px; font: 10px sans-serif }
+div { margin-bottom: 6px; background-color: #eee }
+.b1 { width: 200px; height: 20px;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><rect width="200" height="50" fill="%2336c"/><circle cx="25" cy="25" r="20" fill="%23fc0"/></svg>') no-repeat }
+.b2 { width: 100px; height: 60px;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><rect width="200" height="50" fill="%2336c"/><circle cx="25" cy="25" r="20" fill="%23fc0"/></svg>') no-repeat }
+.b3 { width: 200px; height: 20px;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="10" viewBox="0 0 200 50"><rect width="200" height="50" fill="%2336c"/><circle cx="25" cy="25" r="20" fill="%23fc0"/></svg>') no-repeat }
+</style>
+</head>
+<body>
+<div class="b1"></div>
+<div class="b2"></div>
+<div class="b3"></div>
+</body>
+</html>

@@ -43,31 +43,48 @@ public final class FontValueUtils {
 		while (tokens.hasNext()) {
 			CssToken token = tokens.next();
 			if (token instanceof CssToken.Ident ident) {
-				switch (ident.lower()) {
-				case "cursive":
-					list.add(FontFamily.CURSIVE_VALUE);
-					break;
-				case "fantasy":
-					list.add(FontFamily.FANTASY_VALUE);
-					break;
-				case "monospace":
-					list.add(FontFamily.MONOSPACE_VALUE);
-					break;
-				case "sans-serif":
-					list.add(FontFamily.SANS_SERIF_VALUE);
-					break;
-				case "serif":
-					list.add(FontFamily.SERIF_VALUE);
-					break;
-				default:
-					// 一般のファミリ名
-					list.add(new FontFamily(ident.name()));
-					break;
+				// SPEC css-fonts §2.1: コンマまでの連続するidentは空白で
+				// 結合した1つのファミリ名(2026-08-27)。従来はident毎に
+				// 別ファミリへ分割しており、`font-family: Zilla Slab`の
+				// ような未引用の多語名が先頭語だけの照合になって
+				// 解決できなかった(Google Fonts収録Dockerで実害)。
+				// 単独identのときだけ総称ファミリのキーワードになる
+				StringBuilder joined = null;
+				while (tokens.peek() instanceof CssToken.Ident next) {
+					tokens.next();
+					if (joined == null) {
+						joined = new StringBuilder(ident.name());
+					}
+					joined.append(' ').append(next.name());
+				}
+				if (joined != null) {
+					list.add(new FontFamily(joined.toString()));
+				} else {
+					switch (ident.lower()) {
+					case "cursive":
+						list.add(FontFamily.CURSIVE_VALUE);
+						break;
+					case "fantasy":
+						list.add(FontFamily.FANTASY_VALUE);
+						break;
+					case "monospace":
+						list.add(FontFamily.MONOSPACE_VALUE);
+						break;
+					case "sans-serif":
+						list.add(FontFamily.SANS_SERIF_VALUE);
+						break;
+					case "serif":
+						list.add(FontFamily.SERIF_VALUE);
+						break;
+					default:
+						// 一般のファミリ名
+						list.add(new FontFamily(ident.name()));
+						break;
+					}
 				}
 			} else if (token instanceof CssToken.Str str) {
 				list.add(new FontFamily(str.value()));
 			}
-			// コンマ区切り・空白区切りのどちらも許容する
 			while (tokens.eatComma()) {
 				// do nothing
 			}
@@ -335,6 +352,10 @@ public final class FontValueUtils {
 				return RelativeLengthValue.rem(dim.value());
 			case CH:
 				return RelativeLengthValue.ch(dim.value());
+			case LH:
+				// SPEC css-values-4: font-sizeのlhは親のline-height基準
+				// (FontSize.getComputedValueがparentStyleで解決する)
+				return RelativeLengthValue.lh(dim.value());
 			default:
 				// 絶対長さはフォント倍率を適用する
 				return ValueUtils.toAbsoluteLength(ua,

@@ -225,7 +225,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final boolean vertical = this.params.flow.isVertical();
 		final double crossExtent = vertical ? this.height : this.width;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit,
-				columnSpanning);
+				columnSpanning, this.shouldPreserveSpecifiedPageSize(container));
 		return this.continueFragment(state, container, crossExtent);
 	}
 
@@ -297,7 +297,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit,
-				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
+				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode,
+				this.shouldPreserveSpecifiedPageSize(nextContainer));
 		final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = childFrame != null
 				? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(childFrame)
 				: new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
@@ -352,7 +353,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final double crossExtent = vertical ? this.height : this.width;
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(pageLimit,
-				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
+				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode,
+				this.shouldPreserveSpecifiedPageSize(nextContainer));
 		return new net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Prepared(
 				new net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment(serial, recipe, state, nextContainer,
 						crossExtent));
@@ -367,6 +369,11 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	 */
 	public final net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
 			final boolean columnSpanning) {
+		return this.splitPageState(pageLimit, columnSpanning, false);
+	}
+
+	private net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
+			final boolean columnSpanning, final boolean preserveSpecifiedPageSize) {
 		// 分割されたボックスの断片は「継続物」(フレーム切断・内容消費が進行)
 		// であり、ソースから新品を再生してはならない。SourceAnchor は
 		// ボックス個体に属し(P0)、レシピ構築の断片は最初からアンカーを
@@ -390,7 +397,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
 						this.minSize, vertical ? this.width : this.height, pageLimit,
-						this.container.getContentSize(), this.isSpecifiedPageSize());
+						this.container.getContentSize(), this.isSpecifiedPageSize(), preserveSpecifiedPageSize);
 		if (vertical) {
 			this.width = state.prevPageExtent();
 		} else {
@@ -398,6 +405,27 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		}
 		this.frame = state.prevFrame();
 		return state;
+	}
+
+	/**
+	 * 強制分割で実内容を1つも取らず、内容が丸ごと次断片へ移った固定寸法箱か。
+	 * 背景・枠や実際に消費した空きを複製しない。
+	 */
+	private boolean shouldPreserveSpecifiedPageSize(final Container nextContainer) {
+		final boolean specified = this.isSpecifiedPageSize();
+		final boolean frameVisible = this.frame.isVisible();
+		final boolean previousContent = this.container.hasNonDecorationContent();
+		final double consumed = this.container.getConsumedPageSizeForFragmentation();
+		final boolean nextContent = nextContainer.hasNonDecorationContent();
+		final boolean preserve = specified && !frameVisible && !previousContent
+				&& LayoutUtils.compare(consumed, 0) <= 0 && nextContent;
+		if (!preserve) {
+			return false;
+		}
+		// inline-blockは行ボックス内に入り、通常フローのBLOCKだけを辿る
+		// 判定では置換画像まで到達できない。前断片が内容も位置も0で、継続側に
+		// 実内容があるという断片境界そのものを条件にする。
+		return true;
 	}
 
 	/**

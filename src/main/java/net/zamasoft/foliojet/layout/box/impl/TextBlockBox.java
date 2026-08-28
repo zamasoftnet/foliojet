@@ -142,6 +142,12 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final double getPageSize() {
+		// 切断残余の運搬体や、回復時に開始のないINLINE_ENDだけを
+		// 捨てたブロックは、行をまだ／もう持たない。幾何寸法は0とし、
+		// 描画有無の保守判定はpaintedPageExtent()のPAINTS_UNKNOWNへ任せる。
+		if (this.lines.isEmpty()) {
+			return 0;
+		}
 		Line line = (Line) this.lines.get(this.lines.size() - 1);
 		return line.getPageEnd();
 	}
@@ -155,8 +161,8 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * 「何も描かない」と断じてはいけない(断じると、白紙ページの抑止判定が
 	 * その断片ごと捨ててよいと誤り、<b>内容が消える</b>)。
 	 * {@link net.zamasoft.foliojet.layout.util.LayoutUtils#PAINTS_UNKNOWN}を
-	 * 返して、判定を常に安全側(=描くものがある)へ倒す。
-	 * {@link #getPageSize()}が空リストで例外になることの防波堤でもある。
+	 * 返して、判定を常に安全側(=描くものがある)へ倒す。幾何寸法を返す
+	 * {@link #getPageSize()}は空なら0だが、描画有無だけはそれと分けて扱う。
 	 * </p>
 	 */
 	@Override
@@ -456,6 +462,12 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice;
 
 	public final void restyle(final BlockBuilder builder) {
+		// sliceを持たない空ブロックは、開始のないINLINE_ENDだけを
+		// 回復的に捨てて確定したもの。再生すべきソースも行もない。
+		// 切断残余は行が空でもsliceを持つため、ここでは吸収されない。
+		if (this.slice == null && this.lines.isEmpty()) {
+			return;
+		}
 		assert this.slice != null || !this.lines.isEmpty();
 		builder.setBreakToken(this.breakToken);
 		// M3b Phase 1/2: 運搬体はスライス。分割断片は破断時に捕捉済み、

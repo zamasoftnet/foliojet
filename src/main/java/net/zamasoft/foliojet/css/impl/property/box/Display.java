@@ -136,7 +136,8 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		case DisplayValue.TABLE_CELL: {
 			final short position = CSSPosition.get(style);
 			if (CSSFloat.get(style) != CSSFloatValue.NONE
-					|| (position != PositionValue.STATIC && position != PositionValue.RELATIVE)) {
+					|| (position != PositionValue.STATIC && position != PositionValue.RELATIVE
+							&& position != PositionValue.STICKY)) {
 				value = DisplayValue.BLOCK_VALUE;
 				display = DisplayValue.BLOCK;
 			}

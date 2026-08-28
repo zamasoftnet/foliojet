@@ -1274,8 +1274,14 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	public void end() {
 		this.requirePage();
+		// output.page-limit等が入力処理を途中で打ち切ると、SAXのendElementを
+		// 受けないまま文書終端へ来る。通常のendBox経路で内側から畳み、
+		// Flex/Grid coordinatorやtwo-pass builderも対称に確定させる。
+		while (!this.boxStack.isEmpty()) {
+			this.endBox();
+		}
 		this.endContainer();
 		this.endContainerBuilder();
-		assert this.builderStack.isEmpty();
+		assert this.builderStack.isEmpty() : "document end後もbuilderStackが残っています: " + this.builderStack;
 	}
 }

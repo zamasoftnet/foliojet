@@ -4,8 +4,11 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
@@ -124,5 +127,22 @@ public class ReplacedRecipeImageIsolationTest extends TestCase {
 		assertNotSame(live, replay);
 		assertNotSame(params, replay.getReplacedParams());
 		assertSame(params.image, replay.getReplacedParams().image);
+	}
+
+	/** 未確定包含幅に対する% min-widthを番兵の実寸へ変換しない。 */
+	public void testCyclicPercentageMinimumFallsBackToZero() {
+		final ReplacedParams params = new ReplacedParams();
+		params.image = new RecordingReplacedBoxImage();
+		params.size = Dimension.create(1, 0, LengthType.RELATIVE, LengthType.AUTO);
+		params.minSize = Dimension.create(1, 0, LengthType.RELATIVE, LengthType.ABSOLUTE);
+		params.maxSize = Dimension.create(1, 0, LengthType.RELATIVE, LengthType.AUTO);
+		final InlineReplacedBox box = new InlineReplacedBox(params, new InlinePos());
+
+		box.calculateSize(LayoutUtils.NONE, LayoutUtils.NONE, LayoutUtils.NONE, LayoutUtils.NONE);
+
+		assertEquals(10.0, box.getInnerWidth(), 0);
+		assertEquals(5.0, box.getInnerHeight(), 0);
+		assertTrue(LayoutUtils.isDrawable(box.getWidth()));
+		assertTrue(LayoutUtils.isDrawable(box.getHeight()));
 	}
 }

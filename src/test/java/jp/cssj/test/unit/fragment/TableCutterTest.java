@@ -117,21 +117,30 @@ public class TableCutterTest extends TestCase {
 		final boolean[] noCollapse = { false };
 		// 切断線より下 → 全体移動
 		assertSame(SplitResult.MOVE,
-				TableCutter.rowPreDecide(false, false, -1, 30, false, extents, match, noAvoid, noCollapse));
+				TableCutter.rowPreDecide(false, false, -1, 30, false, extents, match, noAvoid, noCollapse, -1));
 		// 切断線より上(連結セルも収まる)→ 残す
 		assertSame(SplitResult.KEEP,
-				TableCutter.rowPreDecide(false, false, 40, 30, false, extents, match, noAvoid, noCollapse));
+				TableCutter.rowPreDecide(false, false, 40, 30, false, extents, match, noAvoid, noCollapse, -1));
 		// 連結セルがはみ出す → 主処理へ
 		assertNull(TableCutter.rowPreDecide(false, false, 40, 30, false, new double[] { 50 }, match, noAvoid,
-				noCollapse));
+				noCollapse, -1));
 		// 行の avoid-inside(先頭行でない)→ 移動
 		assertSame(SplitResult.MOVE,
-				TableCutter.rowPreDecide(false, false, 10, 30, true, extents, match, noAvoid, noCollapse));
+				TableCutter.rowPreDecide(false, false, 10, 30, true, extents, match, noAvoid, noCollapse, -1));
 		// 先頭行なら avoid を無視して主処理へ
-		assertNull(TableCutter.rowPreDecide(false, true, 10, 30, true, extents, match, noAvoid, noCollapse));
+		assertNull(TableCutter.rowPreDecide(false, true, 10, 30, true, extents, match, noAvoid, noCollapse, -1));
 		// 書字方向が違うセル → 移動
 		assertSame(SplitResult.MOVE, TableCutter.rowPreDecide(false, false, 10, 30, false, extents,
-				new boolean[] { false }, noAvoid, noCollapse));
+				new boolean[] { false }, noAvoid, noCollapse, -1));
+		// 行境界の優先(2026-08-27): 切断線が掛かった行が新しいフラグメンテナに
+		// 丸ごと収まるなら行ごと持ち越す
+		assertSame(SplitResult.MOVE,
+				TableCutter.rowPreDecide(false, false, 10, 30, false, extents, match, noAvoid, noCollapse, 100));
+		// 丸ごとでも収まらない行はその場で切る(主処理へ)
+		assertNull(TableCutter.rowPreDecide(false, false, 10, 300, false, new double[] { 300 }, match, noAvoid,
+				noCollapse, 100));
+		// 先頭行は従来どおり主処理へ(表全体の移動へ波及させない)
+		assertNull(TableCutter.rowPreDecide(false, true, 10, 30, false, extents, match, noAvoid, noCollapse, 100));
 	}
 
 	public void testRowPreDecidePageFirst() {
@@ -139,17 +148,17 @@ public class TableCutterTest extends TestCase {
 		final boolean[] match = { true };
 		final boolean[] noAvoid = { false };
 		// 収まるなら残す
-		assertSame(SplitResult.KEEP,
-				TableCutter.rowPreDecide(true, true, 40, 30, false, extents, match, noAvoid, new boolean[] { false }));
+		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 40, 30, false, extents, match, noAvoid,
+				new boolean[] { false }, -1));
 		// 書字方向が違えば残す(移動しない)
 		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 10, 30, false, extents,
-				new boolean[] { false }, noAvoid, new boolean[] { false }));
+				new boolean[] { false }, noAvoid, new boolean[] { false }, -1));
 		// 上部境界なし・高さゼロのセルがあれば分割を諦める
-		assertSame(SplitResult.KEEP,
-				TableCutter.rowPreDecide(true, true, 10, 30, false, extents, match, noAvoid, new boolean[] { true }));
+		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 10, 30, false, extents, match, noAvoid,
+				new boolean[] { true }, -1));
 		// それ以外は主処理(セル分割)へ
 		assertNull(TableCutter.rowPreDecide(true, true, 10, 30, false, extents, match, noAvoid,
-				new boolean[] { false }));
+				new boolean[] { false }, -1));
 	}
 
 	public void testFirstForceBreak() {

@@ -3,6 +3,10 @@ package net.zamasoft.foliojet.ua;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
+
+import net.zamasoft.pdfg2d.gc.image.Image;
 
 public class DocumentContext {
 	private URI baseURI;
@@ -10,6 +14,22 @@ public class DocumentContext {
 	private String encoding = "ISO-8859-1";
 
 	private CompatibleMode compatibleMode = CompatibleMode.NORMAL;
+
+	/**
+	 * {@code mask-image:url(...)} のSVGを、マスクに塗る色ごとに保持します。
+	 * DocumentContextはパスごとに作り直されるため、別文書へ持ち越しません。
+	 */
+	private final Map<String, Image> maskImages = new HashMap<String, Image>();
+
+	public Image getMaskImage(final String key) {
+		return this.maskImages.get(key);
+	}
+
+	public void putMaskImage(final String key, final Image image) {
+		if (key != null && image != null) {
+			this.maskImages.put(key, image);
+		}
+	}
 
 	/**
 	 * インラインSVGへ持ち込む著者CSSのSVG向け部分集合です(2026-08-07)。

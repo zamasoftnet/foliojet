@@ -593,6 +593,14 @@ final class IntrinsicMeasurer {
 				// 画像
 				final AbstractReplacedBox box = (AbstractReplacedBox) inlineQuad.getBox();
 				maxAdvance = quad.getAdvance();
+				assert LayoutUtils.isDrawable(maxAdvance) : "置換要素の未確定な行寸法が固有寸法へ混入しました: advance="
+							+ maxAdvance + ", width=" + box.getWidth() + ", height=" + box.getHeight()
+							+ ", innerWidth=" + box.getInnerWidth() + ", innerHeight=" + box.getInnerHeight()
+							+ ", frameWidth=" + box.getFrame().getFrameWidth() + ", frameHeight="
+							+ box.getFrame().getFrameHeight() + ", size=" + box.getReplacedParams().size + ", minSize="
+							+ box.getReplacedParams().minSize + ", maxSize=" + box.getReplacedParams().maxSize
+							+ ", intrinsic=" + box.getReplacedParams().image.getWidth() + "x"
+							+ box.getReplacedParams().image.getHeight();
 				minAdvance = 0;
 				if (cParams.flow.isVertical()) {
 					// 縦書き
@@ -721,8 +729,9 @@ final class IntrinsicMeasurer {
 	}
 
 	void endTextBlock() {
-		assert !LayoutUtils.isNone(this.lineAxis);
-		assert !LayoutUtils.isNone(this.lineFrame);
+		assert !LayoutUtils.isNone(this.lineAxis) : "lineAxis=" + this.lineAxis + ", atomicLineSize="
+				+ this.atomicLineSize + ", lineFrame=" + this.lineFrame + ", inlineDepth=" + this.inlineStack.size();
+		assert !LayoutUtils.isNone(this.lineFrame) : "lineFrame=" + this.lineFrame + ", lineAxis=" + this.lineAxis;
 		double minLineSize = this.atomicLineSize;
 		if (this.blockHead) {
 			minLineSize += this.textIndent;

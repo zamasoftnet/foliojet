@@ -1,17 +1,31 @@
 package net.zamasoft.foliojet.css.impl.property.box;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.util.ValueUtils;
+import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.PaintValue;
+import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
+import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
+import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader;
+import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.pdfg2d.gc.paint.Color;
+import net.zamasoft.zstream.resolver.Source;
 
 /**
  * <b>mask-imageのグラデーション形の近似</b>です(2026-08-09新設)。
@@ -39,10 +53,59 @@ import net.zamasoft.foliojet.ua.UserAgent;
  */
 public class MaskImage extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskImage();
+	private static final Logger LOG = Logger.getLogger(MaskImage.class.getName());
 
 	/** グラデーションマスクの近似としてペイントをボックスへクリップするか。 */
 	public static boolean isClip(CSSStyle style) {
 		return style.get(INFO) == KeywordValue.CLIP;
+	}
+
+	/**
+	 * URLマスクを、背景色で着色したSVG画像として返します。
+	 *
+	 * <p>PDFの任意画像アルファマスクではなく、透明背景の単色SVGを直接描く
+	 * 近似です。MDN等のアイコン用マスクでは同じ見た目になり、従来の
+	 * 「背景色の四角だけが残る」欠陥を避けます。</p>
+	 */
+	public static Image getImage(final CSSStyle style) {
+		final Value value = style.get(INFO);
+		if (!(value instanceof URIValue uriValue)) {
+			return null;
+		}
+		final PaintValue backgroundPaint = BackgroundColor.get(style);
+		if (backgroundPaint == null) {
+			return null;
+		}
+		final Color color = backgroundPaint instanceof ColorValue colorValue
+				? colorValue.getColor()
+				: CSSColor.get(style);
+		final URI uri = uriValue.getURI();
+		final String key = uri + "#mask-color=" + Math.round(color.getRed() * 255f) + ","
+				+ Math.round(color.getGreen() * 255f) + "," + Math.round(color.getBlue() * 255f) + ","
+				+ Math.round(color.getAlpha() * 255f);
+		final UserAgent ua = style.getUserAgent();
+		Image image = ua.getDocumentContext().getMaskImage(key);
+		if (image != null) {
+			return image;
+		}
+		try {
+			final Source source = ua.resolve(uri);
+			try {
+				final SVGImageLoader loader = new SVGImageLoader();
+				if (!loader.match(source)) {
+					return null;
+				}
+				image = loader.loadImage(ua, source, color);
+				ua.getDocumentContext().putMaskImage(key, image);
+				return image;
+			} finally {
+				ua.release(source);
+			}
+		} catch (Exception e) {
+			LOG.log(Level.FINE, "Missing mask image", e);
+			ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
+			return null;
+		}
 	}
 
 	private MaskImage() {
@@ -62,9 +125,35 @@ public class MaskImage extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		final CssToken first = tokens.next();
+		if (ValueUtils.isNone(first)) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return KeywordValue.NONE;
+		}
+		try {
+			final URIValue uriValue = ValueUtils.toURI(ua, uri, first);
+			if (uriValue != null) {
+				if (tokens.hasNext()) {
+					throw new PropertyException();
+				}
+				return uriValue;
+			}
+		} catch (URISyntaxException e) {
+			if (first instanceof CssToken.Uri uriToken) {
+				ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
+			}
+			throw new PropertyException();
+		}
+
 		// 複数レイヤー(カンマ区切り)を含め全トークンを読み、1つでも
-		// グラデーション関数があればクリップ近似を適用する
+		// グラデーション関数があればクリップ近似を適用する。
 		boolean clip = false;
+		if (first instanceof CssToken.Func func
+				&& func.name().toLowerCase(Locale.ROOT).endsWith("gradient")) {
+			clip = true;
+		}
 		while (tokens.hasNext()) {
 			final CssToken token = tokens.next();
 			if (token instanceof CssToken.Func func
@@ -72,7 +161,10 @@ public class MaskImage extends AbstractPrimitivePropertyInfo {
 				clip = true;
 			}
 		}
-		return clip ? KeywordValue.CLIP : KeywordValue.NONE;
+		if (!clip) {
+			throw new PropertyException();
+		}
+		return KeywordValue.CLIP;
 	}
 
 }

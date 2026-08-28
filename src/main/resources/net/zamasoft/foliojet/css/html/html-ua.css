@@ -717,9 +717,15 @@ col[align=justify], colgroup[align=justify] {
 }
 
 /* セルの既定と、自分の valign */
+/*
+ * page-break-inside: avoid をセルの既定にしない(2026-08-27撤去)。
+ * 実ブラウザのUA既定に対応物がなく、切断線が最初の行グループの先頭行に
+ * かかる表(1行ラッパー表の古典的レイアウト)全体が次ページへ送られ、
+ * 先頭ページがほぼ白紙になっていた(kawasaki-ombuds)。行を割りたくない
+ * 文書は著者CSSで break-inside: avoid を指定する。
+ */
 td, th {
 	display: table-cell;
-	page-break-inside: avoid;
 	vertical-align: middle;
 }
 td[valign=top], th[valign=top], col[valign=top], colgroup[valign=top] { vertical-align: top; }

@@ -78,38 +78,40 @@ public final class CalcValueUtils {
 		final double number;
 		final double absolute;
 		final double ratio;
-		final double em, ex, rem, ch;
+		final double em, ex, rem, ch, lh;
 
 		static Quantity number(double v) {
-			return new Quantity(true, v, 0, 0, 0, 0, 0, 0);
+			return new Quantity(true, v, 0, 0, 0, 0, 0, 0, 0);
 		}
 
 		static Quantity length(double absolute, double ratio) {
-			return new Quantity(false, 0, absolute, ratio, 0, 0, 0, 0);
+			return new Quantity(false, 0, absolute, ratio, 0, 0, 0, 0, 0);
 		}
 
-		static Quantity length(double absolute, double ratio, double em, double ex, double rem, double ch) {
-			return new Quantity(false, 0, absolute, ratio, em, ex, rem, ch);
+		static Quantity length(double absolute, double ratio, double em, double ex, double rem, double ch, double lh) {
+			return new Quantity(false, 0, absolute, ratio, em, ex, rem, ch, lh);
 		}
 
 		/** フォント相対単位1つ分。 */
 		static Quantity font(Unit unit, double v) {
 			switch (unit) {
 			case EM:
-				return length(0, 0, v, 0, 0, 0);
+				return length(0, 0, v, 0, 0, 0, 0);
 			case EX:
-				return length(0, 0, 0, v, 0, 0);
+				return length(0, 0, 0, v, 0, 0, 0);
 			case REM:
-				return length(0, 0, 0, 0, v, 0);
+				return length(0, 0, 0, 0, v, 0, 0);
 			case CH:
-				return length(0, 0, 0, 0, 0, v);
+				return length(0, 0, 0, 0, 0, v, 0);
+			case LH:
+				return length(0, 0, 0, 0, 0, 0, v);
 			default:
 				return null;
 			}
 		}
 
 		private Quantity(boolean isNumber, double number, double absolute, double ratio, double em, double ex,
-				double rem, double ch) {
+				double rem, double ch, double lh) {
 			this.isNumber = isNumber;
 			this.number = number;
 			this.absolute = absolute;
@@ -118,10 +120,11 @@ public final class CalcValueUtils {
 			this.ex = ex;
 			this.rem = rem;
 			this.ch = ch;
+			this.lh = lh;
 		}
 
 		boolean hasFont() {
-			return this.em != 0 || this.ex != 0 || this.rem != 0 || this.ch != 0;
+			return this.em != 0 || this.ex != 0 || this.rem != 0 || this.ch != 0 || this.lh != 0;
 		}
 
 		Value toValue(UserAgent ua) {
@@ -130,7 +133,8 @@ public final class CalcValueUtils {
 			}
 			if (this.hasFont()) {
 				// フォント寸法が定まる計算値の段階で解く
-				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.em, this.ex, this.rem, this.ch);
+				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.em, this.ex, this.rem, this.ch,
+						this.lh);
 			}
 			return CalcLengthValue.create(ua, this.absolute, this.ratio);
 		}
@@ -205,7 +209,7 @@ public final class CalcValueUtils {
 			}
 			return a.isNumber ? Quantity.number(a.number + b.number)
 					: Quantity.length(a.absolute + b.absolute, a.ratio + b.ratio, a.em + b.em, a.ex + b.ex,
-							a.rem + b.rem, a.ch + b.ch);
+							a.rem + b.rem, a.ch + b.ch, a.lh + b.lh);
 		case MINUS:
 			if (a.isNumber != b.isNumber) {
 				if (b.isNumber && b.number == 0) {
@@ -215,18 +219,18 @@ public final class CalcValueUtils {
 			}
 			return a.isNumber ? Quantity.number(a.number - b.number)
 					: Quantity.length(a.absolute - b.absolute, a.ratio - b.ratio, a.em - b.em, a.ex - b.ex,
-							a.rem - b.rem, a.ch - b.ch);
+							a.rem - b.rem, a.ch - b.ch, a.lh - b.lh);
 		case TIMES:
 			if (a.isNumber && b.isNumber) {
 				return Quantity.number(a.number * b.number);
 			}
 			if (a.isNumber) {
 				return Quantity.length(b.absolute * a.number, b.ratio * a.number, b.em * a.number, b.ex * a.number,
-						b.rem * a.number, b.ch * a.number);
+						b.rem * a.number, b.ch * a.number, b.lh * a.number);
 			}
 			if (b.isNumber) {
 				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.em * b.number, a.ex * b.number,
-						a.rem * b.number, a.ch * b.number);
+						a.rem * b.number, a.ch * b.number, a.lh * b.number);
 			}
 			// length同士の掛け算はCSS仕様上も無効
 			return null;
@@ -236,7 +240,7 @@ public final class CalcValueUtils {
 			}
 			return a.isNumber ? Quantity.number(a.number / b.number)
 					: Quantity.length(a.absolute / b.number, a.ratio / b.number, a.em / b.number, a.ex / b.number,
-							a.rem / b.number, a.ch / b.number);
+							a.rem / b.number, a.ch / b.number, a.lh / b.number);
 		default:
 			return null;
 		}
@@ -343,6 +347,12 @@ public final class CalcValueUtils {
 		}
 		if (a.isNumber) {
 			return Double.compare(a.number, b.number);
+		}
+		// フォント相対成分(em/ex/rem/ch/lh)が残っている値は、フォント寸法が
+		// 定まるまで大小が確定しない(2026-08-27。従来は成分を無視して
+		// absolute/ratioだけで比較しており、max(1em, 1px)が1pxになっていた)
+		if (a.hasFont() || b.hasFont()) {
+			return null;
 		}
 		if (a.ratio == 0 && b.ratio == 0) {
 			return Double.compare(a.absolute, b.absolute);

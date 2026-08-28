@@ -139,6 +139,19 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				Value w, h;
 
 				final CssToken wToken = tokens.next();
+				// contain/coverキーワード(css-backgrounds-3 §3.9、単独値のみ)。
+				// longhand側(BackgroundSize.parseValues)と対。従来未対応で
+				// PropertyExceptionにより**background宣言全体が破棄**され、
+				// 別途longhandで指定されたbackground-imageだけが残って
+				// 原寸・既定位置の暗部クロップになっていた
+				// (asahi.comの動画ランキングのサムネイルが黒く見えた、2026-08-27)
+				if (wToken instanceof CssToken.Ident sizeKw
+						&& ("cover".equals(sizeKw.lower()) || "contain".equals(sizeKw.lower()))) {
+					final Value kw = "cover".equals(sizeKw.lower()) ? KeywordValue.COVER : KeywordValue.CONTAIN;
+					primitives.set(BackgroundSize.INFO_WIDTH, kw);
+					primitives.set(BackgroundSize.INFO_HEIGHT, kw);
+					continue;
+				}
 				if (ValueUtils.isAuto(wToken)) {
 					w = KeywordValue.AUTO;
 				} else {
@@ -279,7 +292,9 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 
 			final CssToken nextlu = tokens.peek();
 			if (nextlu == null) {
-				y = x;
+				// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
+				// (2026-08-27。longhand側の修正と対)
+				y = PercentageValue.HALF;
 				primitives.set(BackgroundPosition.INFO_X, x);
 				primitives.set(BackgroundPosition.INFO_Y, y);
 				continue;
@@ -297,7 +312,9 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					tokens.next();
 					y = PercentageValue.FULL;
 				} else {
-					y = x;
+					// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
+				// (2026-08-27。longhand側の修正と対)
+				y = PercentageValue.HALF;
 				}
 			} else {
 				y = ValueUtils.toPercentage(nextlu);
@@ -305,7 +322,9 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					y = ValueUtils.toLength(ua, nextlu);
 				}
 				if (y == null) {
-					y = x;
+					// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
+				// (2026-08-27。longhand側の修正と対)
+				y = PercentageValue.HALF;
 				} else {
 					tokens.next();
 				}

@@ -1,0 +1,7 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=124.00 h=68.00]
+  x=0.00 y=64.00 AbsoluteRectFrame[w=124.00 h=68.00][objectFit=CONTAIN dx=30.00 dy=0.00 w=60.00 h=60.00]
+  x=0.00 y=128.00 AbsoluteRectFrame[w=124.00 h=68.00][objectFit=COVER dx=0.00 dy=-30.00 w=120.00 h=120.00]
+  x=0.00 y=192.00 AbsoluteRectFrame[w=124.00 h=68.00][objectFit=NONE dx=22.50 dy=-7.50 w=75.00 h=75.00]
+  x=0.00 y=256.00 AbsoluteRectFrame[w=124.00 h=68.00][objectFit=SCALE_DOWN dx=30.00 dy=0.00 w=60.00 h=60.00]
+  x=0.00 y=320.00 AbsoluteRectFrame[w=44.00 h=38.00][objectFit=SCALE_DOWN dx=5.00 dy=0.00 w=30.00 h=30.00]

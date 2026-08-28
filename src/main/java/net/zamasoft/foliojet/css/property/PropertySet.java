@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.css.property;
 
 import java.net.URI;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,8 +80,50 @@ public abstract class PropertySet {
 				return null;
 			}
 		}
-		ua.message(MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, name);
+		ua.message(isIgnored(name) ? MessageCodes.WARN_IGNORED_CSS_PROPERTY
+				: MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, name);
 		return null;
+	}
+
+	/**
+	 * 静的な組版に意味がないので<b>意図して対応しない</b>プロパティ
+	 * (2026-08-28)。
+	 *
+	 * <p>
+	 * 画面上の操作・時間変化・入力機器にしか関わらないものを挙げます。
+	 * 「まだ実装していない」ものと同じ警告にすると、実サイトの警告を数えて
+	 * 実装候補を選ぶときに混ざる——実測では1記事の未対応警告126件のうち
+	 * 45件がこの類だった。接頭辞({@code -webkit-}・{@code -moz-}・
+	 * {@code -ms-}・{@code -o-})は外して判定します。
+	 * </p>
+	 */
+	private static final Set<String> IGNORED_PROPERTIES = Set.of(
+			// 入力機器・操作
+			"cursor", "pointer-events", "user-select", "touch-action", "caret-color",
+			"resize", "appearance", "tap-highlight-color", "user-drag", "user-modify",
+			"overscroll-behavior", "overscroll-behavior-x", "overscroll-behavior-y",
+			"scroll-behavior", "scrollbar-color", "scrollbar-width", "scroll-snap-type",
+			"scroll-snap-align", "scroll-margin", "scroll-padding",
+			// 時間変化
+			"transition", "transition-property", "transition-duration",
+			"transition-timing-function", "transition-delay",
+			"animation", "animation-name", "animation-duration", "animation-timing-function",
+			"animation-delay", "animation-iteration-count", "animation-direction",
+			"animation-fill-mode", "animation-play-state", "will-change");
+
+	/** 接頭辞を外した名前が{@link #IGNORED_PROPERTIES}にあるか。 */
+	static boolean isIgnored(final String name) {
+		if (name == null) {
+			return false;
+		}
+		String bare = name.toLowerCase(java.util.Locale.ROOT);
+		for (final String prefix : new String[] { "-webkit-", "-moz-", "-ms-", "-o-" }) {
+			if (bare.startsWith(prefix)) {
+				bare = bare.substring(prefix.length());
+				break;
+			}
+		}
+		return IGNORED_PROPERTIES.contains(bare);
 	}
 
 	private static boolean isCustomPropertyName(String name) {

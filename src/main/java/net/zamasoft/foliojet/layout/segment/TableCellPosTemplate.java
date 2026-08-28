@@ -19,10 +19,10 @@ import net.zamasoft.foliojet.layout.box.params.TableCellPos;
  * </p>
  */
 public record TableCellPosTemplate(BlockLevelPosFields common, int colspan, int rowspan, EmptyCellsMode emptyCells,
-		CellAlign verticalAlign) {
+		CellAlign verticalAlign, boolean breakInsideDeclaredAuto) {
 	public static TableCellPosTemplate freeze(final TableCellPos source) {
 		return new TableCellPosTemplate(BlockLevelPosFields.freeze(source), source.colspan, source.rowspan,
-				source.emptyCells, source.verticalAlign);
+				source.emptyCells, source.verticalAlign, source.breakInsideDeclaredAuto);
 	}
 
 	/** 呼び出しごとに新品の{@code TableCellPos}を返す(複数回呼んでも互いに影響しない)。 */
@@ -33,6 +33,7 @@ public record TableCellPosTemplate(BlockLevelPosFields common, int colspan, int 
 		pos.rowspan = this.rowspan;
 		pos.emptyCells = this.emptyCells;
 		pos.verticalAlign = this.verticalAlign;
+		pos.breakInsideDeclaredAuto = this.breakInsideDeclaredAuto;
 		return pos;
 	}
 }

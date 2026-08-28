@@ -136,6 +136,7 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 			case EX:
 			case REM:
 			case CH:
+			case LH:
 				return RelativeLengthValue.of(this.unit, v);
 			default:
 				return AbsoluteLengthValue.create(style.getUserAgent(), v, this.unit);

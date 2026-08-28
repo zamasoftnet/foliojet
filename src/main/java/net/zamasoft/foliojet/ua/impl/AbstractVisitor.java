@@ -312,13 +312,36 @@ public abstract class AbstractVisitor implements Visitor {
 				// SVG Links
 				ReplacedParams params = (ReplacedParams)box.getParams();
 				ImageMap imageMap = this.ua.getUAContext().getImageMaps().remove(params.image);
-				if (imageMap != null) {
-					AffineTransform t2 = AffineTransform.getTranslateInstance(x, y);
-					t2.scale(box.getInnerWidth() / params.image.getWidth(), box.getInnerHeight() / params.image.getHeight());
+				if (imageMap != null && box.getInnerWidth() > 0 && box.getInnerHeight() > 0
+						&& params.image.getWidth() > 0 && params.image.getHeight() > 0) {
+					// object-fit/object-positionの実描画矩形に合わせる(描画の
+					// ReplacedBoxDrawableと同じ幾何を共有。2026-08-27)。
+					// 既定(fill・中央)では従来と同じ変換になる
+					final double[] r = net.zamasoft.foliojet.layout.box.AbstractReplacedBox.objectFitRect(
+							params.objectFit, params.objectPosition, params.image.getWidth(),
+							params.image.getHeight(), box.getInnerWidth(), box.getInnerHeight());
+					AffineTransform t2 = AffineTransform.getTranslateInstance(x + r[0], y + r[1]);
+					t2.scale(r[2] / params.image.getWidth(), r[3] / params.image.getHeight());
+					// 内容ボックスからはみ出す部分(cover/none等)はクリップされて
+					// 見えないため、注釈も内容ボックスと交差させる
+					final boolean fitOverflows = r[0] < -0.001 || r[1] < -0.001
+							|| r[0] + r[2] > box.getInnerWidth() + 0.001
+							|| r[1] + r[3] > box.getInnerHeight() + 0.001;
+					final Rectangle2D fitContentBox = fitOverflows
+							? new Rectangle2D.Double(x, y, box.getInnerWidth(), box.getInnerHeight())
+							: null;
 					for(ImageMap.Area link : imageMap) {
 						Shape s = link.shape;
 						if (!t2.isIdentity()) {
 							s = t2.createTransformedShape(s);
+						}
+						if (fitContentBox != null) {
+							final java.awt.geom.Area clipped = new java.awt.geom.Area(s);
+							clipped.intersect(new java.awt.geom.Area(fitContentBox));
+							if (clipped.isEmpty()) {
+								continue;
+							}
+							s = clipped;
 						}
 						if (!transform.isIdentity()) {
 							s = transform.createTransformedShape(s);

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* ページ跨ぎ分割の継続断片が、flexで解決済みのitem auto marginを
+   ブロック則(§10.3.3)で再解決しないこと。旧実装はrestyle再構築の
+   calculateSizeがmargin:0 autoを包含幅基準で再解決し、
+   (1)flexLineOffsetへ焼き込み済みの位置へマージンを二重加算、
+   (2)restoreExtentsの枠控除が肥大して内寸が世代ごとに2×margin縮小
+   ——固定幅本文カラムがページを追うごとに右へずれながら1文字幅へ
+   潰れた(asahi.com記事ページ、2026-08-27)。
+   期待: 全ページでMAINがx=41px(=枠20px+auto margin 21px)・
+   外寸682px、SIDEはx=723pxに300px幅。 */
+@page { size: 960px 400px; margin: 0 }
+body { margin: 0; font: 12px sans-serif }
+.wrapper { box-sizing: border-box; display: flex; justify-content: start;
+           min-width: 1024px; padding: 0 20px }
+.main { width: 660px; padding: 0 22px 0 0; margin: 0 auto; background: #eef }
+.aside { width: 300px; background: #fee }
+.item { height: 60px; border-bottom: 1px solid #999 }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="main">
+    <div class="item">M1</div><div class="item">M2</div><div class="item">M3</div>
+    <div class="item">M4</div><div class="item">M5</div><div class="item">M6</div>
+    <div class="item">M7</div><div class="item">M8</div><div class="item">M9</div>
+    <div class="item">M10</div><div class="item">M11</div><div class="item">M12</div>
+    <div class="item">M13</div><div class="item">M14</div><div class="item">M15</div>
+  </div>
+  <div class="aside">
+    <div class="item">S1</div><div class="item">S2</div>
+  </div>
+</div>
+</body>
+</html>

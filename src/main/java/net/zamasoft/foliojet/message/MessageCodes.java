@@ -43,6 +43,13 @@ public interface MessageCodes {
 	public static final short WARN_MISSING_FONT_FILE = 0x281E;
 	public static final short WARN_MISSING_FONT = 0x281F;
 	public static final short WARN_MISSING_FONT_OUTLINE = 0x2820;
+	/**
+	 * 静的な組版に意味がないため<b>意図して対応しない</b>プロパティ
+	 * (2026-08-28)。{@link #WARN_UNSUPPORTED_CSS_PROPERTY}(いずれ対応
+	 * しうる未実装)と区別するために分けた——実サイトの警告を数えて
+	 * 実装候補を選ぶとき、この2つが混ざっていると候補を絞れない。
+	 */
+	public static final short WARN_IGNORED_CSS_PROPERTY = 0x2821;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;

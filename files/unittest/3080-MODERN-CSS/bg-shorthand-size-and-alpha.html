@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* background shorthandの<position>/<size>キーワードとアルファ付き背景色
+   (2026-08-27、asahi.comの動画サムネイルが黒く見えた実バグ2件)。
+   (1) shorthandの /cover・/contain が未対応でPropertyExceptionになり
+       宣言全体が破棄→longhandのbackground-imageだけが原寸・既定位置で
+       残っていた。
+   (2) rgba背景色のfill paintがGCスコープに残り、続く背景画像が
+       そのアルファ(0なら不可視)で描かれていた。
+   期待: c1/c2/c3とも50x50の箱いっぱいに画像(cover)。c2は画像が
+   アルファ0の色に消されない。c4はcontainで横いっぱい・上下余白。 */
+@page { size: 300px 300px; margin: 0 }
+body { margin: 10px; font: 10px sans-serif }
+div { width: 50px; height: 50px; margin: 0 0 6px 0 }
+.c1 { background: no-repeat 50% 50%/cover; background-image: url('../blue.png') }
+.c2 { background: no-repeat 50% 50%/cover rgba(0,0,0,0); background-image: url('../blue.png') }
+.c3 { background: url('../blue.png') no-repeat 50% 50%/cover }
+.c4 { width: 60px; height: 40px; background: url('../kappa.png') no-repeat 50% 50%/contain #ffc }
+</style>
+</head>
+<body>
+<div class="c1"></div>
+<div class="c2"></div>
+<div class="c3"></div>
+<div class="c4"></div>
+</body>
+</html>

@@ -68,6 +68,11 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		while (original instanceof final WrappedImage wrapped) {
 			original = wrapped.getImage();
 		}
+		if (original instanceof final KnownAssetImage known) {
+			// 前回の出力の資源をそのまま指す(2026-08-28)。バイト列は読まない
+			this.writeImageRef(image, this.resources.knownImage(known.asset).href());
+			return;
+		}
 		if (!(original instanceof RasterImageImpl)) {
 			// **まず絵に自分で描かせること。** 箇条書きの黒丸のように、
 			// GCの基本操作だけで描ける絵は多い。ここを飛ばして画素へ
@@ -86,10 +91,27 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			final byte[] png = this.resources.hasOriginal(raster) ? null : encodePng(raster);
 			final PagedSVGResources.ImageAsset asset = this.resources.image(raster, png, raster.getWidth(),
 					raster.getHeight());
-			// 画像は「自分の論理寸法の升目」へ描かれる約束(呼び出し側は
-			// image.getWidth()/getHeight() で割った倍率を変換に積んでくる)。
-			// 単位矩形でも画素数でもない。ここを取り違えると画像だけが
-			// 別の大きさで出て、しかもXMLとしては妥当なままになる
+			// 次の再変換で画像を開かずに済むよう、資源の同一性を寸法表へ
+			// 控える(2026-08-28)。URIはUAが画像に添えている
+			this.resources.rememberAssetOf(image, asset);
+			this.writeImageRef(image, asset.href());
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
+		}
+	}
+
+	/**
+	 * 画像参照を1つ書きます。
+	 *
+	 * <p>
+	 * 画像は「自分の論理寸法の升目」へ描かれる約束(呼び出し側は
+	 * {@code image.getWidth()/getHeight()}で割った倍率を変換に積んでくる)。
+	 * 単位矩形でも画素数でもない。ここを取り違えると画像だけが別の大きさで
+	 * 出て、しかもXMLとしては妥当なままになる。
+	 * </p>
+	 */
+	private void writeImageRef(final Image image, final String href) throws GraphicsException {
+		try {
 			final SVGWriter w = this.writer;
 			w.open("image");
 			w.attr("x", 0);
@@ -98,7 +120,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			w.attr("height", image.getHeight());
 			w.attr("preserveAspectRatio", "none");
 			w.attr("transform", matrix(this.currentTransform()));
-			w.attr("xlink:href", asset.href());
+			w.attr("xlink:href", href);
 			final float alpha = this.getFillAlpha();
 			if (alpha < 1f) {
 				w.attr("opacity", alpha);
@@ -181,6 +203,17 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		final Font font = metrics.getFont();
 		if (!(font instanceof ShapedFont shaped) || hasColorGlyph(font, text)
 				|| !supportedPaint(this.getFillPaint()) || !supportedPaint(this.getStrokePaint())) {
+			// **コアフォントは文字として書く**(2026-08-28)。PDFのコア
+			// フォント(Helvetica/Times/Courier)は埋め込む実体が無いので
+			// ShapedFontにならず、従来はアウトラインへ落ちていた。SVGでは
+			// ブラウザが同等の書体を持っているので、文字のまま置ける——
+			// 実測では本文の数字とラテン文字だけが<text>から消えていた
+			final String generic = coreFontFamily(source);
+			if (generic != null && !hasColorGlyph(font, text) && supportedPaint(this.getFillPaint())
+					&& supportedPaint(this.getStrokePaint()) && text.getCharCount() == text.getGlyphCount()) {
+				this.coreText(text, sourceText, generic, metrics, x, y);
+				return;
+			}
 			this.outlineText(text, sourceText, source.getFontName(), x, y);
 			return;
 		}
@@ -246,6 +279,14 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			w.open("text");
 			w.attr("x", xs.toString());
 			w.attr("y", ys.toString());
+			// **現在の変換を付ける**(2026-08-28)。座標は利用者空間のままなので、
+			// 付けないと変換の下にある文字が別の場所へ出る——実測では記事の
+			// 見出しがx=7.5(本来43.5)に出てクリップされ、消えていた。
+			// 画像(writeImageRef)は以前から付けている
+			final java.awt.geom.AffineTransform ctm = this.currentTransform();
+			if (!ctm.isIdentity()) {
+				w.attr("transform", matrix(ctm));
+			}
 			w.attr("font-family", subset.family());
 			w.attr("font-size", size);
 			// 字送りは組版側で確定済み。閲覧側が詰めたり合字にしたりすると崩れる
@@ -265,6 +306,103 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		}
 
 		this.page.textRuns.add(new PagedSVGResources.TextRun(sourceText, subset.family(), size,
+				new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY));
+	}
+
+	/**
+	 * PDFのコアフォントに対応するCSSのフォント指定。対応が無ければ
+	 * {@code null}(従来どおりアウトラインで描く)。
+	 *
+	 * <p>
+	 * SymbolとZapfDingbatsは独自の符号化なので文字としては置けません。
+	 * </p>
+	 */
+	private static String coreFontFamily(final FontSource source) {
+		final String name = source.getFontName();
+		if (name == null) {
+			return null;
+		}
+		if (name.startsWith("Helvetica")) {
+			return "Helvetica,Arial,sans-serif";
+		}
+		if (name.startsWith("Times")) {
+			return "'Times New Roman',Times,serif";
+		}
+		if (name.startsWith("Courier")) {
+			return "'Courier New',Courier,monospace";
+		}
+		return null;
+	}
+
+	/**
+	 * コアフォントの文字列を、組版が決めた位置のまま書き出します。
+	 * 字形は閲覧側の同等書体で描かれます。
+	 */
+	private void coreText(final Text text, final String value, final String family, final FontMetricsImpl metrics,
+			final double x, final double y) throws GraphicsException {
+		final FontStyle style = text.getFontStyle();
+		final boolean vertical = style.getDirection() == FontStyle.Direction.TB;
+		final double size = style.getSize();
+		final int glyphCount = text.getGlyphCount();
+		final int[] gids = text.getGlyphIds();
+		final GlyphAdvances adjustments = text.xAdvances();
+		final StringBuilder xs = new StringBuilder(glyphCount * 12);
+		final StringBuilder ys = new StringBuilder(glyphCount * 12);
+		double pen = adjustments == null ? 0 : adjustments.get(0);
+		double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < glyphCount; ++i) {
+			if (i > 0) {
+				pen += metrics.getAdvance(gids[i - 1]) + text.getLetterSpacing()
+						- metrics.getKerning(gids[i - 1], gids[i]);
+				if (adjustments != null) {
+					pen += adjustments.get(i);
+				}
+			}
+			final double gx = vertical ? x : x + pen + metrics.getPlacementAdjustment(gids[i]);
+			final double gy = vertical ? y + pen : y;
+			if (i != 0) {
+				xs.append(' ');
+				ys.append(' ');
+			}
+			xs.append(SVGWriter.number(gx));
+			ys.append(SVGWriter.number(gy));
+			minX = Math.min(minX, gx - (vertical ? size / 2.0 : 0));
+			maxX = Math.max(maxX, gx + (vertical ? size / 2.0 : size));
+			minY = Math.min(minY, gy - (vertical ? 0 : metrics.getAscent()));
+			maxY = Math.max(maxY, gy + (vertical ? size : metrics.getDescent()));
+		}
+		try {
+			final SVGWriter w = this.writer;
+			this.openTransformGroup();
+			w.open("text");
+			w.attr("x", xs.toString());
+			w.attr("y", ys.toString());
+			final java.awt.geom.AffineTransform ctm = this.currentTransform();
+			if (!ctm.isIdentity()) {
+				w.attr("transform", matrix(ctm));
+			}
+			w.attr("font-family", family);
+			w.attr("font-size", size);
+			if (style.getStyle() != FontStyle.Style.NORMAL) {
+				w.attr("font-style", "italic");
+			}
+			if (style.getWeight() != null && style.getWeight().w >= 600) {
+				w.attr("font-weight", "bold");
+			}
+			// 字送りは組版側で確定済み
+			w.attr("font-kerning", "none");
+			w.attr("font-variant-ligatures", "none");
+			w.attr("font-feature-settings", "'kern' 0, 'liga' 0");
+			w.attr("text-rendering", "geometricPrecision");
+			this.writeTextPaint(w, style, text.getFontMetrics().getFontSource());
+			w.closeStart();
+			w.text(value);
+			w.end("text");
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
+		}
+		this.page.textRuns.add(new PagedSVGResources.TextRun(value, family, size,
 				new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY));
 	}
 

@@ -87,6 +87,11 @@ public class DisplayListGoldenTest extends TestCase {
 			// 直交ブロックのページ軸%は親の線軸基準(2026-08-10修正の固定)
 			"0390-writing-mode/orthogonal-page-axis-percent.html", //
 			"0240-table/z-order.html", //
+			// 1行だけの縦長ラッパー表は先頭ページの残量で行の内容を分割する
+			// (2026-08-27)。UA既定のセルpage-break-inside:avoid撤去の回帰。
+			// 表全体が次ページへ送られ先頭ページがほぼ白紙になっていた
+			// (kawasaki-ombuds)
+			"0240-table/single-row-split-after-line.html", //
 			"0240-table/rowspan-after-empty-row.html", //
 			// 表の属性(frame/rules/align/valign/bordercolor)をCSSへ移した際の
 			// 罫線の座標を固定する(2026-08-04)
@@ -147,6 +152,11 @@ public class DisplayListGoldenTest extends TestCase {
 			// flex行分割(2026-08-07、Bug C)。行を跨ぐ強制分割で、同じ行の
 			// item同士が同一切断線に揃わず階段状にずれていた
 			"0510-flex/row-split-across-break.html", //
+			// 継続断片のitem auto margin再解決の禁止(2026-08-27)。restyle
+			// 再構築のcalculateSizeがmargin:0 autoをブロック則で再解決し、
+			// 位置の二重シフト+restoreExtentsの枠肥大で内寸が世代ごとに
+			// 縮んでいた(asahi.com記事の本文カラムが1文字幅へ潰れた)
+			"0510-flex/auto-margin-item-fragmentation.html", //
 			// paddingを持つflexコンテナの表セル内在幅(2026-08-08)。
 			// IntrinsicMeasurerのflex/grid/table寄与がlineFrameを足して
 			// おらず、枠ぶん狭くなってGitHubのファイル名が切れていた
@@ -224,6 +234,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// 捨てられrem全寸法が1.6倍になる欠陥(e-gov)と、%混在line-heightの
 			// ClassCastExceptionの回帰
 			"3080-MODERN-CSS/calc-font-size.html", //
+			// lh単位(2026-08-27)。単独・calc内・line-height自身の自己参照
+			// (継承値基準)・transformの近似解決を固定する。MDNの外部リンク
+			// アイコン(translateY(calc(.5lh - .5em)))が上へずれていた欠陥の回帰
+			"3080-MODERN-CSS/lh-unit.html", //
 			// bodyの無いHTML断片(2026-08-09、e-Gov法令HTML)。TagBalancerの
 			// html/body合成が開いた要素の内側へ注入され木が崩壊していた
 			"3030-FRAGMENT/body-less-fragment.html", //
@@ -267,6 +281,18 @@ public class DisplayListGoldenTest extends TestCase {
 			// フォーム部品の幾何(2026-08-02)。ボタンのラベルが箱の内側の
 			// どこに置かれるか、入力欄・選択・複数行の寸法を固定する
 			"3080-MODERN-CSS/form-controls.html", //
+			// background shorthandの/cover・/containとアルファ付き背景色の
+			// GCスコープ(2026-08-27。asahi.comの動画サムネイル黒化2件)
+			"3080-MODERN-CSS/bg-shorthand-size-and-alpha.html", //
+			// insetショートハンドとinset:0+margin:autoの絶対配置センタリング
+			// (2026-08-27。asahi.comの再生アイコンが左上へ寄った)
+			"3080-MODERN-CSS/inset-center.html", //
+			// viewBoxのみのSVG背景のcontain制約(2026-08-27。asahi.com
+			// フッターのRe:Ronロゴが原寸のまま箱からはみ出ていた)
+			"3080-MODERN-CSS/bg-svg-intrinsic.html", //
+			// flex/gridコンテナのfloat回避(2026-08-27。独立整形文脈は
+			// floatと重ならない——asahi.comフッターのラベル重なり)
+			"0510-flex/container-avoids-float.html", //
 			// 救済分割(2026-07-25、増分5)。ページ先頭でもはみ出す置換要素を
 			// 幾何学的に切って次ページへ送る唯一の経路——断片の座標・
 			// artifact印・ページ数をここで固定する
@@ -276,6 +302,11 @@ public class DisplayListGoldenTest extends TestCase {
 			// (2026-08-07)。AltTextImage導入(2026-08-06)でobjectが置換
 			// ボックス化され子が消えていた——acid2の目の消失として発覚
 			"3050-IMG/object-fallback.html", //
+			// object-fit/object-position(2026-08-27)。cover/contain/none/
+			// scale-downの実描画矩形とクリップ、object-positionの
+			// キーワード・%・長さ・単一値(y=center)を固定する。
+			// jigensha.infoのサムネイルがcover無視で引き伸びていた欠陥の回帰
+			"3050-IMG/object-fit.html", //
 			"3050-IMG/inline-svg-implicit-ns.html", //
 			// viewBoxのみ(width/height属性なし)のインラインSVGを、CSSクラス/
 			// インラインstyleでサイズ指定(2026-08-06)。属性読み出しがXHTML

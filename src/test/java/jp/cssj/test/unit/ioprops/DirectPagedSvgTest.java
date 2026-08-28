@@ -22,13 +22,12 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * Batikを介さないPaged SVG書き出しの試験です。
+ * Paged SVG書き出しの試験です(2026-08-28にBatik版を廃止し、この書き出し一本)。
  *
  * <p>
- * 要は<b>従来と同じものが出ること</b>で、そこを両方式の突き合わせで見ます。
- * 座標の丸めなど細部は書き手によって変わりうるので、バイト一致ではなく
- * 「同じ資源を参照し、同じ文字を保ち、同じページ数で、XMLとして妥当」を
- * 見ています。
+ * 見るのは「同じ資源を参照し、同じ文字を保ち、期待どおりのページ数で、
+ * XMLとして妥当」であることです。座標の丸めなど細部は変わりうるので
+ * バイト一致では見ません。
  * </p>
  */
 public class DirectPagedSvgTest extends TestCase {
@@ -59,21 +58,10 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	/** どちらの書き出しを指しているかを取り違えないための定数。既定はdirect。 */
-	private static final Map<String, String> BATIK = Map.of("output.paged-svg.writer", "batik");
-
-	private static final Map<String, String> DIRECT = Map.of("output.paged-svg.writer", "direct");
-
-	/** 独自書き出しでもページ・資源・目次が従来と同じ形で出ること。 */
-	public void testDirectWriterMatchesBatik() throws Exception {
-		final CapturingResults batik = run(BATIK);
-		final CapturingResults direct = run(DIRECT);
-
-		assertEquals("page count must match", pageCount(batik), pageCount(direct));
+	/** ページ・資源・目次が期待どおりの形で出ること。 */
+	public void testPagesAreWellFormed() throws Exception {
+		final CapturingResults direct = run(Map.of());
 		assertTrue("at least two pages are expected", pageCount(direct) >= 2);
-
-		// 出力するファイルの並びが同じであること
-		assertEquals("the set of result URIs must match", batik.order, direct.order);
-
 		for (int i = 1; i <= pageCount(direct); ++i) {
 			final String name = String.format("pages/%04d.svg", i);
 			final byte[] svg = direct.data.get(name).toByteArray();
@@ -87,7 +75,7 @@ public class DirectPagedSvgTest extends TestCase {
 
 	/** 文字がテキストとして残り、共有WOFF2を参照すること。 */
 	public void testTextIsPreserved() throws Exception {
-		final CapturingResults direct = run(Map.of("output.paged-svg.writer", "direct"));
+		final CapturingResults direct = run(Map.of());
 		final String first = direct.text("pages/0001.svg");
 		assertTrue("text must stay as <text>", first.contains("<text"));
 		assertTrue("the original characters must be recoverable",
@@ -100,7 +88,7 @@ public class DirectPagedSvgTest extends TestCase {
 
 	/** 図形がpathで出て、塗りと線が付くこと。 */
 	public void testShapesBecomePaths() throws Exception {
-		final CapturingResults direct = run(Map.of("output.paged-svg.writer", "direct"));
+		final CapturingResults direct = run(Map.of());
 		final String first = direct.text("pages/0001.svg");
 		assertTrue("shapes must be emitted as <path>", first.contains("<path"));
 		assertTrue("a fill must be present", first.contains("fill=\"#"));
@@ -109,7 +97,7 @@ public class DirectPagedSvgTest extends TestCase {
 
 	/** 画像が共有資源として外に出て、data:が本文へ埋まらないこと。 */
 	public void testImagesAreExternalised() throws Exception {
-		final CapturingResults direct = run(Map.of("output.paged-svg.writer", "direct"));
+		final CapturingResults direct = run(Map.of());
 		final String first = direct.text("pages/0001.svg");
 		assertTrue("the image must reference a shared asset", first.contains("../assets/images/"));
 		assertFalse("no data: URI may be inlined", first.contains("data:image/"));
@@ -122,15 +110,12 @@ public class DirectPagedSvgTest extends TestCase {
 	 * ディレクトリへ出せない送り方のための指定。
 	 */
 	public void testEmbeddedResources() throws Exception {
-		for (final String writer : new String[] { "batik", "direct" }) {
-			final CapturingResults r = run(Map.of("output.paged-svg.writer", writer,
-					"output.paged-svg.resources", "embed"));
-			final String first = r.text("pages/0001.svg");
-			assertTrue(writer + ": the image must be inlined", first.contains("data:image/"));
-			assertFalse(writer + ": no shared image file may be emitted",
-					r.order.stream().anyMatch(u -> u.startsWith("assets/images/")));
-			assertWellFormedXml("pages/0001.svg", r.data.get("pages/0001.svg").toByteArray());
-		}
+		final CapturingResults r = run(Map.of("output.paged-svg.resources", "embed"));
+		final String first = r.text("pages/0001.svg");
+		assertTrue("the image must be inlined", first.contains("data:image/"));
+		assertFalse("no shared image file may be emitted",
+				r.order.stream().anyMatch(u -> u.startsWith("assets/images/")));
+		assertWellFormedXml("pages/0001.svg", r.data.get("pages/0001.svg").toByteArray());
 	}
 
 	/**
@@ -143,27 +128,28 @@ public class DirectPagedSvgTest extends TestCase {
 	 * 互いに排他である。
 	 * </p>
 	 */
-	public void testOmitStopsFontsAndImagesTogether() throws Exception {
-		final CapturingResults r = run(Map.of("output.paged-svg.writer", "direct",
-				"output.paged-svg.resources", "omit"));
+	public void testOmitStopsImagesButKeepsFonts() throws Exception {
+		final CapturingResults r = run(Map.of("output.paged-svg.resources", "omit"));
 
-		assertFalse("no font asset may be emitted",
-				r.order.stream().anyMatch(u -> u.startsWith("assets/fonts/")));
 		assertFalse("no image asset may be emitted",
 				r.order.stream().anyMatch(u -> u.startsWith("assets/images/")));
+		// **フォントは出す**(2026-08-28)。ページSVGが参照する名前は変換ごとの
+		// 連番で、出さずに前回の変換の資源を指すと字形が入れ替わる
+		assertTrue("the font subset must still be emitted",
+				r.order.stream().anyMatch(u -> u.startsWith("assets/fonts/")));
 
 		// 参照とmanifestの記載は残る。受け手が前回の資源を使えるようにするため
 		final String first = r.text("pages/0001.svg");
 		assertTrue("the page must still reference the shared subset", first.contains("../assets/fonts/"));
 		assertTrue("the page must still reference the shared image", first.contains("../assets/images/"));
 		final String manifest = r.text("manifest.json");
-		assertTrue("the manifest must mark the fonts as omitted", manifest.contains("\"omitted\":true"));
+		assertTrue("the manifest must mark the images as omitted", manifest.contains("\"omitted\":true"));
 		assertTrue("the manifest must still list the pages", manifest.contains("pages/0001.svg"));
 	}
 
 	/** 既定は参照。同じ画像の実体は1つで済む。 */
 	public void testReferencedResourcesAreDefault() throws Exception {
-		final CapturingResults r = run(Map.of("output.paged-svg.writer", "direct"));
+		final CapturingResults r = run(Map.of());
 		final String first = r.text("pages/0001.svg");
 		assertTrue("the default must reference a shared file", first.contains("../assets/images/"));
 		assertFalse("nothing may be inlined by default", first.contains("data:image/"));
@@ -178,17 +164,12 @@ public class DirectPagedSvgTest extends TestCase {
 	 * すべて素通りする。実際に描かれる寸法まで見て初めて捕まる。
 	 * </p>
 	 */
-	public void testImageIsDrawnAtTheSameSizeAsBatik() throws Exception {
-		final double[] batik = imageBox(run(BATIK).data.get("pages/0001.svg").toByteArray());
-		final double[] direct = imageBox(run(DIRECT).data.get("pages/0001.svg").toByteArray());
-		assertNotNull("batik must draw the image", batik);
-		assertNotNull("the direct writer must draw the image", direct);
-		// 1ptより細かい差は座標の丸めなので許す
-		assertEquals("the drawn width must match", batik[0], direct[0], 1.0);
-		assertEquals("the drawn height must match", batik[1], direct[1], 1.0);
+	public void testImageIsDrawnAtTheGivenSize() throws Exception {
+		final double[] drawn = imageBox(run(Map.of()).data.get("pages/0001.svg").toByteArray());
+		assertNotNull("the writer must draw the image", drawn);
 		// CSSで40pt×30ptを与えてある。そこから外れたら寸法の取り違え
-		assertEquals("the CSS width must be honoured", 40.0, direct[0], 1.0);
-		assertEquals("the CSS height must be honoured", 30.0, direct[1], 1.0);
+		assertEquals("the CSS width must be honoured", 40.0, drawn[0], 1.0);
+		assertEquals("the CSS height must be honoured", 30.0, drawn[1], 1.0);
 	}
 
 	/** 最初の{@code <image>}が実際に占める幅と高さを、祖先のtransformまで畳んで返します。 */
@@ -242,9 +223,8 @@ public class DirectPagedSvgTest extends TestCase {
 	 * </p>
 	 */
 	public void testGzipCompressesOnlyTheTextResults() throws Exception {
-		final CapturingResults plain = run(DIRECT);
-		final CapturingResults gzip = run(Map.of("output.paged-svg.writer", "direct",
-				"output.paged-svg.compression", "gzip"));
+		final CapturingResults plain = run(Map.of());
+		final CapturingResults gzip = run(Map.of("output.paged-svg.compression", "gzip"));
 
 		assertTrue("the page SVG must be named .svgz", gzip.data.containsKey("pages/0001.svgz"));
 		assertTrue("the page data must be named .json.gz", gzip.data.containsKey("pages/0001.json.gz"));
@@ -275,7 +255,7 @@ public class DirectPagedSvgTest extends TestCase {
 
 	/** manifestのSHA-256が実体と一致すること。流しながら取っているので特に確かめる。 */
 	public void testManifestHashesMatchTheBytes() throws Exception {
-		final CapturingResults direct = run(Map.of("output.paged-svg.writer", "direct"));
+		final CapturingResults direct = run(Map.of());
 		final String manifest = direct.text("manifest.json");
 		for (int i = 1; i <= pageCount(direct); ++i) {
 			final String name = String.format("pages/%04d.svg", i);
@@ -314,6 +294,9 @@ public class DirectPagedSvgTest extends TestCase {
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.default-font-family", "'Noto Serif JP'");
 			session.property("processing.pass-count", "2");
+			// 既定はgzip(2026-08-28)。ここはページSVGの中身を直接読むので、
+			// 個別に指定しない限り縮めない
+			session.property("output.paged-svg.compression", "none");
 			for (final Map.Entry<String, String> e : extraProps.entrySet()) {
 				session.property(e.getKey(), e.getValue());
 			}

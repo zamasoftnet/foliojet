@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.ua.impl.pagedsvg;
 
-import java.awt.Dimension;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -16,12 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
-import org.apache.batik.dom.GenericDOMImplementation;
-import org.apache.batik.svggen.SVGGeneratorContext;
-import org.w3c.dom.DOMImplementation;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.results.NopResults;
@@ -29,13 +22,13 @@ import jp.cssj.cti2.results.Results;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.BrokenResultException;
-import net.zamasoft.foliojet.ua.ImageMetricsXML;
+import net.zamasoft.foliojet.ua.ImageMetricsIO;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
-import net.zamasoft.foliojet.ua.props.PagedSvgWriter;
+import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -49,11 +42,9 @@ import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
 
 /** Produces stable URI-addressed pages, shared WOFF2 subsets and image assets. */
 public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
-	private static final String SVG_NS = "http://www.w3.org/2000/svg";
 	private Results results, savedResults;
 	private boolean middleStateSaved;
 	private FontManagerImpl fontManager;
-	private PagedSVGGraphics2D svg;
 	private PagedSVGResources.PageData currentPage;
 	/** 縮めて返すかどうか。ページSVGとページJSONにだけ効く。 */
 	private PagedSvgCompression compression = PagedSvgCompression.NONE;
@@ -102,14 +93,90 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	}
 
 	private void resetOutput() {
-		this.svg = null;
 		this.directBuffer = null;
 		this.directPage = null;
 		this.currentPage = null;
 		this.page = 0;
 		this.metadata.clear();
 		this.resources = new PagedSVGResources(this::emit);
+		// 描いた画像の資源同一性を寸法表へ控える(2026-08-28)。次の
+		// 再変換はこれを渡されれば画像を開かずに同じ参照を書ける
+		this.resources.setAssetRecorder((uri, asset) -> this.getUAContext().getImageMetrics().putAsset(uri.toString(),
+				new net.zamasoft.foliojet.ua.ImageMetricsCache.Asset(asset.sha256(), asset.mediaType(),
+						extensionOf(asset.uri()), asset.width(), asset.height())));
 		this.visitor = null;
+	}
+
+	/** 資源URI({@code assets/images/<sha>.<ext>})から拡張子を取り出します。 */
+	private static String extensionOf(final String uri) {
+		final int dot = uri.lastIndexOf('.');
+		return dot < 0 ? "bin" : uri.substring(dot + 1);
+	}
+
+	/**
+	 * 画像に取得元URIを添えます(2026-08-28)。描画時に決まる資源の同一性を
+	 * 「どのURIの画像だったか」と結び付けて{@code metrics.json}へ書くために
+	 * 必要で、包んでも描画の振る舞いは変わりません
+	 * ({@link SourcedImage})。
+	 */
+	@Override
+	public net.zamasoft.pdfg2d.gc.image.Image getImage(final URI uri,
+			final net.zamasoft.zstream.resolver.Source source) throws IOException {
+		final net.zamasoft.pdfg2d.gc.image.Image image = super.getImage(uri, source);
+		if (image == null || uri == null) {
+			return image;
+		}
+		// **描画パスでも寸法を控える**(2026-08-28)。基底は測定パスだけを
+		// 対象にするため、単一パスの変換では寸法表が空のままで
+		// metrics.jsonが出力されず、次の再変換で使えるものが何も残らなかった。
+		// 画素は持たない寸法だけの記録なので容量は無視できる
+		if (!"data".equalsIgnoreCase(uri.getScheme())) {
+			this.getUAContext().getImageMetrics().putSize(uri.toString(), image.getWidth(), image.getHeight());
+		}
+		return new SourcedImage(image, uri);
+	}
+
+	/**
+	 * 寸法だけで済むなら資源を開きません。
+	 *
+	 * <p>
+	 * 基底は測定パス・構造走査パスに限って寸法表を引きますが、Paged SVGでは
+	 * <b>描画パスでも</b>引けます(2026-08-28)。ページが書く参照は
+	 * {@code assets/images/<sha256>.<ext>}で、前回の{@code metrics.json}に
+	 * その同一性まで控えてあれば、画像を開かずに同じ参照を書けるためです。
+	 * 実体を出し直す設定では画素が要るので、{@code resources=omit}
+	 * かつ直接書き出しのときだけに限ります。
+	 * </p>
+	 */
+	@Override
+	public net.zamasoft.pdfg2d.gc.image.Image getImageMetrics(final URI uri) {
+		final net.zamasoft.pdfg2d.gc.image.Image known = super.getImageMetrics(uri);
+		if (known != null || uri == null) {
+			return known;
+		}
+		if (this.isMeasurePass() || this.isStructureScanPass()) {
+			return null;
+		}
+		if (UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this) != net.zamasoft.foliojet.ua.props.PagedSvgResourceMode.OMIT) {
+			return null;
+		}
+		final var metrics = this.getUAContext().getImageMetrics();
+		final var asset = metrics.getAsset(uri.toString());
+		final var size = metrics.get(uri.toString());
+		if (asset == null || size == null) {
+			return null;
+		}
+		return new KnownAssetImage(size.getWidth(), size.getHeight(), asset);
+	}
+
+	/**
+	 * 画像は<b>元のバイト列のまま</b>資源として出します(2026-08-28)。
+	 * ページSVGは{@code assets/images/<sha256>.<ext>}を参照するだけなので、
+	 * JPEGをPNGへ焼き直す必要がない。
+	 */
+	@Override
+	public boolean keepsEncodedImages() {
+		return true;
 	}
 
 	@Override
@@ -118,6 +185,36 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
 		}
 		return this.fontManager;
+	}
+
+	/**
+	 * この出力の既定フォント方針です。<b>SVGでは埋め込みを既定にします</b>
+	 * (2026-08-28)。
+	 *
+	 * <p>
+	 * 共通の既定は{@code output.pdf.fonts.policy}=cid-keyed、つまり
+	 * 「PDFの外部CIDフォントとして参照する」方針だが、これはSVGには
+	 * 存在しない仕組みで、SVG出力では字形をすべてアウトライン(path)へ
+	 * 落とす経路(アウトライン化)
+	 * にしかならない。実測(ja.wikipedia「地方病」68ページ):
+	 * cid-keyed 141.3MB・13.5秒に対し、embedded 32.8MB・8.9秒
+	 * ——出力4.3倍・生成時間34%の差で、しかも埋め込み側は文字が
+	 * {@code <text>}として出るため選択・検索もできる。
+	 * </p>
+	 *
+	 * <p>
+	 * 埋め込みが許されないフォント(OS/2 fsType)や字形を写せない場合は
+	 * 従来どおりアウトラインへ退化するので、
+	 * ライセンス面の意味は変わらない。利用者が
+	 * {@code output.pdf.fonts.policy}を明示した場合はそちらに従う。
+	 * </p>
+	 */
+	@Override
+	public CSSJFontPolicyValue getDefaultFontPolicy() {
+		if (this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
+			return super.getDefaultFontPolicy();
+		}
+		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
 	}
 
 	@Override
@@ -140,27 +237,17 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
 		}
 		this.currentPage = new PagedSVGResources.PageData(number, this.pageWidth, this.pageHeight);
-		if (UAProps.OUTPUT_PAGED_SVG_WRITER.get(this) == PagedSvgWriter.DIRECT) {
-			// DOMを作らず書き出す。ページの内容はここでは確定しないので、
-			// 結果への書き出しは closePage で行う(ハッシュを流しながら
-			// 取るため、結果1件は1回のストリームで書き切る必要がある)
-			try {
-				this.directBuffer = new java.io.StringWriter(1 << 14);
-				this.directPage = new SVGPageOutput(this.directBuffer, this.pageWidth, this.pageHeight);
-			} catch (final IOException e) {
-				throw new GraphicsException(e);
-			}
-			return new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
-					this.currentPage);
+		// DOMを作らず書き出す。ページの内容はここでは確定しないので、
+		// 結果への書き出しは closePage で行う(ハッシュを流しながら
+		// 取るため、結果1件は1回のストリームで書き切る必要がある)
+		try {
+			this.directBuffer = new java.io.StringWriter(1 << 14);
+			this.directPage = new SVGPageOutput(this.directBuffer, this.pageWidth, this.pageHeight);
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
 		}
-		final DOMImplementation dom = GenericDOMImplementation.getDOMImplementation();
-		final Document document = dom.createDocument(SVG_NS, "svg", null);
-		final SVGGeneratorContext context = SVGGeneratorContext.createDefault(document);
-		context.setImageHandler(new PagedSVGImageHandler(this.resources));
-		context.setPrecision(6);
-		this.svg = new PagedSVGGraphics2D(context);
-		this.svg.setSVGCanvasSize(new Dimension((int) Math.ceil(this.pageWidth), (int) Math.ceil(this.pageHeight)));
-		return new PagedSVGGC(this.svg, this.getFontManager(), this.resources, this.currentPage);
+		return new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
+				this.currentPage);
 	}
 
 	@Override
@@ -170,42 +257,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			return;
 		}
 		try {
-			if (this.directPage != null) {
-				this.closeDirectPage();
-				return;
-			}
-			final Element root = this.svg.getRoot();
-			root.setAttribute("width", PagedSVGResources.number(this.currentPage.width));
-			root.setAttribute("height", PagedSVGResources.number(this.currentPage.height));
-			root.setAttribute("viewBox", "0 0 " + PagedSVGResources.number(this.currentPage.width) + " "
-					+ PagedSVGResources.number(this.currentPage.height));
-			this.addFontFaces(root);
-			final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
-			final String svgUri = this.pageUri(stem, ".svg");
-			// **溜めずに流す**(2026-08-16)。以前はページSVG全体を
-			// ByteArrayOutputStreamへ作ってから書いていた。直列化と
-			// SHA-256は流しながらできる。圧縮は行わない——配信の都合は
-			// 受け手のほうがよく知っているので、クライアント側に任せる
-			final Element streamed = root;
-			final String svgSha = this.emit(svgUri, "image/svg+xml", out -> {
-				try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-					this.svg.stream(streamed, writer, true, true);
-				}
-			});
-
-			final String jsonUri = this.pageUri(stem, ".json");
-			final PagedSVGResources.PageData page = this.currentPage;
-			final String jsonSha = this.emit(jsonUri, "application/json", out -> {
-				try (var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-					page.writeJson(writer);
-				}
-			});
-			this.resources.addPage(new PagedSVGResources.PageAsset(this.currentPage.number, this.currentPage.width,
-					this.currentPage.height, svgUri, svgSha, jsonUri, jsonSha));
+			this.closeDirectPage();
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		} finally {
-			this.svg = null;
 			this.directBuffer = null;
 			this.directPage = null;
 			this.currentPage = null;
@@ -245,33 +300,6 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		});
 		this.resources.addPage(new PagedSVGResources.PageAsset(this.currentPage.number, this.currentPage.width,
 				this.currentPage.height, svgUri, svgSha, jsonUri, jsonSha));
-	}
-
-	private void addFontFaces(final Element root) {
-		if (this.currentPage.fonts.isEmpty()) {
-			return;
-		}
-		final Document document = root.getOwnerDocument();
-		Element defs = null;
-		for (Node node = root.getFirstChild(); node != null; node = node.getNextSibling()) {
-			if (node instanceof Element element && "defs".equals(element.getLocalName())) {
-				defs = element;
-				break;
-			}
-		}
-		if (defs == null) {
-			defs = document.createElementNS(SVG_NS, "defs");
-			root.insertBefore(defs, root.getFirstChild());
-		}
-		final Element style = document.createElementNS(SVG_NS, "style");
-		style.setAttribute("type", "text/css");
-		final StringBuilder css = new StringBuilder();
-		for (final var font : this.currentPage.fonts.entrySet()) {
-			css.append("@font-face{font-family:'").append(font.getKey()).append("';src:url('../")
-					.append(font.getValue()).append("') format('woff2');font-display:block;}");
-		}
-		style.setTextContent(css.toString());
-		defs.appendChild(style);
 	}
 
 	/** 結果1件の中身を書きます。溜めずに、渡された出力へ直接書くこと。 */
@@ -395,7 +423,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		// 画像を一度も開かずに済む。
 		final var imageMetrics = this.getUAContext().getImageMetrics();
 		if (imageMetrics.size() != 0) {
-			this.emit("metrics.xml", "application/xml", ImageMetricsXML.write(imageMetrics, UAProps.OUTPUT_RESOLUTION.getDouble(this)));
+			this.emit(ImageMetricsIO.FILE_NAME, ImageMetricsIO.MEDIA_TYPE,
+					ImageMetricsIO.write(imageMetrics, UAProps.OUTPUT_RESOLUTION.getDouble(this)));
 		}
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);

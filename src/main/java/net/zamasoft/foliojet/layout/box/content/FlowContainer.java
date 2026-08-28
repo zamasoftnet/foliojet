@@ -149,6 +149,54 @@ public class FlowContainer implements Container {
 		return this.flows == null ? 0 : this.flows.size();
 	}
 
+	@Override
+	public final boolean hasNonDecorationContent() {
+		if (this.flows != null) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				if (hasNonDecorationContent(this.flows.get(i).box)) {
+					return true;
+				}
+			}
+		}
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				if (hasNonDecorationContent(this.floatings.getFloating(i).box)) {
+					return true;
+				}
+			}
+		}
+		if (this.absolutes != null) {
+			for (int i = 0; i < this.absolutes.getCount(); ++i) {
+				final IAbsoluteBox box = this.absolutes.getAbsolute(i).box;
+				final net.zamasoft.foliojet.css.StructureElement element = box.getParams().element;
+				final boolean generatedDecoration = element != null && element.elementKey() < 0
+						&& ("before".equals(element.lName()) || "after".equals(element.lName()));
+				if (!generatedDecoration && hasNonDecorationContent(box)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private static boolean hasNonDecorationContent(final IBox box) {
+		// 空のTextBlockBoxは、通常の内容消失防止判定では「将来描くかも
+		// しれない」ため paintsAnything()==true になる。しかし断片化済みの
+		// 前半に行がないこと自体は確定しており、固定高を消費した実内容には
+		// 数えない。Yahoo!ニュースのinline wrapperがこの形になる。
+		if (box.getType() == BoxType.TEXT_BLOCK) {
+			return LayoutUtils.compare(((TextBlockBox) box).getPageSize(), 0) > 0;
+		}
+		if (!box.paintsAnything()) {
+			return false;
+		}
+		if (box.getType() != BoxType.BLOCK) {
+			return true;
+		}
+		final AbstractContainerBox containerBox = (AbstractContainerBox) box;
+		return containerBox.getFrame().isVisible() || containerBox.getContainer().hasNonDecorationContent();
+	}
+
 	public final void migrateFlowsFrom(final int fromIndex, final Container dest, final double crossShift) {
 		if (this.flows == null || fromIndex >= this.flows.size()) {
 			return;
@@ -276,6 +324,28 @@ public class FlowContainer implements Container {
 			return 0;
 		}
 		return flow.pageAxis + flow.box.getPageExtent(this.box.getBlockParams().flow);
+	}
+
+	@Override
+	public double getConsumedPageSizeForFragmentation() {
+		final double contentSize = this.getContentSize();
+		if (LayoutUtils.compare(contentSize, 0) <= 0 || this.flows == null || this.flows.isEmpty()) {
+			return contentSize;
+		}
+		// 固定高wrapperが入れ子の場合、内側wrapperの内容が丸ごと次頁へ
+		// 移っても、外側からは「空の前断片boxの高さ」がcontentSizeに見える。
+		// これは実際に消費した空きではない。開始位置0にある、断片化済みで
+		// 描画内容を持たない殻だけなら、継続高から差し引かない。
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow flow = this.flows.get(i);
+			if (LayoutUtils.compare(flow.pageAxis, 0) > 0
+					|| !(flow.box instanceof net.zamasoft.foliojet.layout.box.AbstractBox abstractBox)
+					|| !abstractBox.isFragmented()
+					|| hasNonDecorationContent(flow.box)) {
+				return contentSize;
+			}
+		}
+		return 0;
 	}
 
 	@Override
@@ -1141,11 +1211,6 @@ public class FlowContainer implements Container {
 				final FlowCutter.MoveResolution resolution = FlowCutter.resolveMove(lflags, flags, i, lastOrphan,
 						ignoreAvoid, prevPageSize, pageLimit, flowPageStarts, flowPageExtents, avoidBefore,
 						avoidAfter, flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
-				if (System.getProperty("foliojet.debug.floatTrace") != null) {
-					System.err.println("[cut-move] owner=" + this.box.getParams().element + " child="
-							+ prevFlow.box.getParams().element + " i=" + i + " resolution=" + resolution + " pageLimit="
-							+ pageLimit + " floats=" + (floatPageStarts == null ? 0 : floatPageStarts.length));
-				}
 				switch (resolution) {
 				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
 					// **開いたままの末尾フローは前ページに置き去りにできない**

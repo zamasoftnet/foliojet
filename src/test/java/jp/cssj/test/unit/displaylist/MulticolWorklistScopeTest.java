@@ -139,6 +139,56 @@ public class MulticolWorklistScopeTest extends TestCase {
 			</body></html>
 			""";
 
+	/**
+	 * 閉じた段組のbalance再生中に内側の段組が改段する最小形
+	 * (extreme strict seed 4540の縮約)。内側のCOLUMN継続は
+	 * contextFlowをownerとしてopen stackを刈り込むため、古いrestyle
+	 * 呼出しフレームが同じflowを二重終了してはならない。
+	 */
+	private static final String NESTED_BALANCE_COLUMN_BREAK = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="200pt"?>
+			<?jp.cssj.property name="output.page-height" value="200pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:0pt}
+			body{font:normal 7pt/1.2 serif;writing-mode:vertical-lr}
+			</style></head><body>
+			xy T163 xy
+			<div style="column-count:3">
+			<div style="margin:5pt;padding:5pt">
+			<textarea></textarea>
+			<div style="margin:7pt;padding:3pt">
+			<div style="display:table;float:left;width:83pt"><ol></ol></div>
+			<div style="column-count:2">
+			<div style="float:left"><table></table></div>
+			<div style="display:grid">T630</div>
+			</div></div></div></div>
+			</body></html>
+			""";
+
+	/** COLUMN継続が別identityのopen flowを積み直しても、後続内容を落とさない最小形。 */
+	private static final String NESTED_COLUMN_BREAK_TRAILING_CONTENT = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="200pt"?>
+			<?jp.cssj.property name="output.page-height" value="200pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:0pt}
+			body{font:normal 7pt/1.2 serif;writing-mode:vertical-lr}
+			</style></head><body>
+			<select></select>
+			<p><span style="display:inline-block;width:45pt"></span></p>
+			<select><option>x</option><option>y</option></select>
+			<div style="display:flex"><div style="column-count:2">
+			<div style="column-count:2">
+			<p><span style="display:inline-block;width:124pt">T364</span></p>
+			</div>
+			<div style="writing-mode:vertical-rl">T365</div>
+			</div></div>
+			</body></html>
+			""";
+
 	public void testNestedMulticolNativeDescent() throws Exception {
 		assertProductionRouting("nested-multicol", null, NESTED_MULTICOL, true, "T2", "T4", "T6");
 	}
@@ -149,6 +199,16 @@ public class MulticolWorklistScopeTest extends TestCase {
 
 	public void testVerticalNestedNoFallback() throws Exception {
 		assertProductionRouting("vertical-nested", null, VERTICAL_NESTED, false, "T24", "T25");
+	}
+
+	public void testNestedBalanceColumnBreakClosesEachFlowOnce() throws Exception {
+		assertProductionRouting("nested-balance-column-break", null, NESTED_BALANCE_COLUMN_BREAK, false, "T163",
+				"T630");
+	}
+
+	public void testNestedColumnBreakPreservesTrailingContent() throws Exception {
+		assertProductionRouting("nested-column-break-trailing", null, NESTED_COLUMN_BREAK_TRAILING_CONTENT, false,
+				"T364", "T365");
 	}
 
 	public void testColumnsFloatNoFallback() throws Exception {
@@ -199,10 +259,18 @@ public class MulticolWorklistScopeTest extends TestCase {
 		if (expectedTokens.length > 0) {
 			final Map<String, Integer> counts = new LinkedHashMap<>();
 			for (final String dump : dumps) {
-				final Matcher m = TEXT.matcher(dump);
-				while (m.find()) {
-					for (final String word : m.group(1).trim().split("\\s+")) {
-						counts.merge(word, 1, Integer::sum);
+				for (final String line : dump.split("\\n")) {
+					// 救済分割が同じ不可分箱を次ページへ平行移動して描く
+					// artifactは論理内容の複製ではない。本番fuzzオラクルと同じく
+					// トークン回数から除外する。
+					if (line.contains(" artifact ")) {
+						continue;
+					}
+					final Matcher m = TEXT.matcher(line);
+					while (m.find()) {
+						for (final String word : m.group(1).trim().split("\\s+")) {
+							counts.merge(word, 1, Integer::sum);
+						}
 					}
 				}
 			}

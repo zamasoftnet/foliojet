@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageLoader;
 import net.zamasoft.foliojet.ua.ImageMetricsCache;
-import net.zamasoft.foliojet.ua.ImageMetricsXML;
+import net.zamasoft.foliojet.ua.ImageMetricsIO;
 import net.zamasoft.foliojet.ua.impl.image.RasterImageLoader;
 import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.UAContext;
@@ -724,7 +724,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 		try {
 			final Source source = this.resolve(URIHelper.create("UTF-8", location));
 			try (java.io.InputStream in = source.getInputStream()) {
-				ImageMetricsXML.read(in, this.getUAContext().getImageMetrics(),
+				ImageMetricsIO.read(in, this.getUAContext().getImageMetrics(),
 						UAProps.OUTPUT_RESOLUTION.getDouble(this));
 			} finally {
 				this.release(source);

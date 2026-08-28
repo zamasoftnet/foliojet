@@ -930,7 +930,11 @@ public class TextBuilder {
 			for (int i = 0; i < count; ++i) {
 				this.textBuffer.remove(this.textBuffer.size() - 1);
 			}
-			content = true;
+			// 前進保証ガード後の再生では、対応する開始を見ていない
+			// INLINE_ENDだけが届くことがある。要素を消費した事実ではなく、
+			// 実際に行へ内容が入ったかで判定する。空のままalign()すると
+			// AbstractLineBoxの不変条件に反する。
+			content = this.lineBox.getContentCount() > 0;
 		} else {
 			content = false;
 		}
@@ -1617,7 +1621,8 @@ public class TextBuilder {
 		// テキストブロックの末尾
 		// assert this.textParamStack == null || this.textParamStack.isEmpty();
 		if (!this.drawLine(true)) {
-			assert this.textBlockBox.getLineCount() > 0 : this.text;
+			// 開始のないINLINE_ENDだけを回復的に捨てたTextBuilderは、
+			// 1行も持たずに終了してよい。
 			return;
 		}
 		this.lineBox.align(this.textIndent, this.minLineAxis, this.maxLineSize, true);

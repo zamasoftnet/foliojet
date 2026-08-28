@@ -147,7 +147,10 @@ final class FuzzShrinker {
 	private static void shrink(final Generated original, final String label, final boolean strict,
 			final boolean fromGenerator) throws Exception {
 		final long began = System.currentTimeMillis();
-		final File dir = new File("local/shrink");
+		// extreme文書は1候補で千ページ級になりうる。作業ツリー(DrvFs)へ
+		// 反復出力するとWindows側の監視負荷が支配するため、掃過と同じく
+		// tmpfsへ逃がせる入口を持つ。
+		final File dir = new File(System.getProperty("foliojet.fuzzShrinkDir", "local/shrink"));
 		dir.mkdirs();
 		final File work = new File(dir, label + "-work.html");
 		final File workDl = new File(dir, "dl-" + label);

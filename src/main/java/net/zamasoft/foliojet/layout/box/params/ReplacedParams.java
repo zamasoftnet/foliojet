@@ -14,6 +14,10 @@ public class ReplacedParams extends AbstractTextParams {
 
 	public BoxSizingMode boxSizing = BoxSizingMode.CONTENT_BOX;
 
+	public ObjectFitMode objectFit = ObjectFitMode.FILL;
+
+	public Offset objectPosition = Offset.HALF_OFFSET;
+
 	public RectFrame frame = RectFrame.NULL_FRAME;
 
 	/**
@@ -27,7 +31,8 @@ public class ReplacedParams extends AbstractTextParams {
 
 	public String toString() {
 		return super.toString() + "[image=" + this.image + ",size=" + this.size + ",minSize=" + this.minSize
-				+ ",maxSize=" + this.maxSize + ",boxSizing=" + this.boxSizing + ",frame=" + this.frame + ",lineHeight="
+				+ ",maxSize=" + this.maxSize + ",boxSizing=" + this.boxSizing + ",objectFit=" + this.objectFit
+				+ ",objectPosition=" + this.objectPosition + ",frame=" + this.frame + ",lineHeight="
 				+ this.lineHeight + "]";
 	}
 }

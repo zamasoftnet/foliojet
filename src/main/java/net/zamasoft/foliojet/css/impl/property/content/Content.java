@@ -66,6 +66,17 @@ public class Content extends AbstractPrimitivePropertyInfo {
 
 		ArrayList<Value> values = new ArrayList<Value>();
 		while (tokens.hasNext()) {
+			// css-content-3: visual contentの後ろには、音声・アクセシビリティ用の
+			// 代替文字列を`/`で続けられる。これは視覚媒体へ生成する内容ではない。
+			// MDNは互換用の旧宣言を先に置き、次の現代構文で上書きしているため、
+			// slashを拒否すると旧宣言の" (external)"がPDFへ露出していた。
+			if (tokens.eatSlash()) {
+				if (values.isEmpty()) {
+					throw new PropertyException();
+				}
+				parseAlternativeText(tokens, ua);
+				break;
+			}
 			final CssToken lu = tokens.next();
 			if (lu instanceof CssToken.Str str) {// <string>
 				values.add(new StringValue(str.value()));
@@ -98,12 +109,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 				} else if (func.is("counters")) {// <counters>
 					values.add(parseCounters(func.argStream(), ua));
 				} else if (func.is("attr")) {// attr(x)
-					final TokenStream params = func.argStream();
-					final String name = params.ident();
-					if (name == null || params.hasNext()) {
-						throw new PropertyException();
-					}
-					values.add(new AttrValue(name));
+					values.add(parseAttr(func.argStream()));
 				} else if (func.is("-cssj-page-ref")) {
 					values.add(parsePageRef(func.argStream(), ua));
 				} else if (func.is("target-counter")) {
@@ -127,6 +133,43 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			throw new PropertyException();
 		}
 		return new ValueListValue((Value[]) values.toArray(new Value[values.size()]));
+	}
+
+	/**
+	 * {@code / [ <string> | <counter> | <attr()> ]+}を検証して消費する。
+	 * 現在の出力媒体は視覚媒体なので、代替値は生成boxへ入れない。
+	 */
+	private static void parseAlternativeText(final TokenStream tokens, final UserAgent ua)
+			throws PropertyException {
+		boolean any = false;
+		while (tokens.hasNext()) {
+			final CssToken token = tokens.next();
+			if (token instanceof CssToken.Str) {
+				any = true;
+			} else if (token instanceof CssToken.Func func && func.is("counter")) {
+				parseCounter(func.argStream(), ua);
+				any = true;
+			} else if (token instanceof CssToken.Func func && func.is("counters")) {
+				parseCounters(func.argStream(), ua);
+				any = true;
+			} else if (token instanceof CssToken.Func func && func.is("attr")) {
+				parseAttr(func.argStream());
+				any = true;
+			} else {
+				throw new PropertyException();
+			}
+		}
+		if (!any) {
+			throw new PropertyException();
+		}
+	}
+
+	private static AttrValue parseAttr(final TokenStream params) throws PropertyException {
+		final String name = params.ident();
+		if (name == null || params.hasNext()) {
+			throw new PropertyException();
+		}
+		return new AttrValue(name);
 	}
 
 	/** package-visible: {@link StringSet}が{@code counter()}パースを再利用する。 */

@@ -293,7 +293,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			final double keptExtent = boundaryLine.start();
 			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
-			cont.anchorCurrent();
+			cont.anchorCurrent(0);
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
@@ -328,7 +328,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			final double keptExtent = boundaryLine.start();
 			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
-			cont.anchorCurrent();
+			cont.anchorCurrent(0);
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
@@ -366,6 +366,16 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
 		}
 		consumed = Math.min(consumed, remaining);
+		// 構造分割は成立しても、空itemや不可視itemだけの保持側は
+		// paintedPageExtent=0になりうる。このままkeptEnd=0で継続すると
+		// 同じ境界行を毎ページまったく消費せず再分割し、後続行の重なり
+		// 回避が世代ごとに位置を押し広げる(vertical-lr表内の空flex行で
+		// 96pt→2.37e16pt、58ページ目に描画座標assert)。分割が成立した
+		// 以上、描画物が無い場合だけは利用可能量をレイアウト上の進捗と
+		// する。描画物がある通常経路は従来どおり実描画終端を使う。
+		if (LayoutUtils.compare(consumed, 0) <= 0 && LayoutUtils.compare(remaining, 0) > 0) {
+			consumed = remaining;
+		}
 		final double keptEnd = boundaryLine.start() + consumed;
 		final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		final boolean vertical = flow.isVertical();
@@ -408,7 +418,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			contItems.addAll(this.lineItems.subList(nextLine.startFlow(), this.lineItems.size()));
 		}
 
-		cont.anchorCurrent();
+		cont.anchorCurrent(remainders.length);
 		final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 		if (continuation instanceof FlexBox contFlex) {
 			contFlex.markFlexLayout();

@@ -3,6 +3,8 @@ package net.zamasoft.foliojet.layout.segment;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.ObjectFitMode;
+import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.pdfg2d.gc.image.Image;
@@ -57,18 +59,22 @@ public final class ReplacedParamsTemplate {
 	private final Dimension minSize;
 	private final Dimension maxSize;
 	private final BoxSizingMode boxSizing;
+	private final ObjectFitMode objectFit;
+	private final Offset objectPosition;
 	private final RectFrame frame;
 	private final double lineHeight;
 	private final Image image;
 
 	private ReplacedParamsTemplate(final TextParamsFields common, final Dimension size, final Dimension minSize,
-			final Dimension maxSize, final BoxSizingMode boxSizing, final RectFrame frame, final double lineHeight,
-			final Image image) {
+			final Dimension maxSize, final BoxSizingMode boxSizing, final ObjectFitMode objectFit,
+			final Offset objectPosition, final RectFrame frame, final double lineHeight, final Image image) {
 		this.common = common;
 		this.size = size;
 		this.minSize = minSize;
 		this.maxSize = maxSize;
 		this.boxSizing = boxSizing;
+		this.objectFit = objectFit;
+		this.objectPosition = objectPosition;
 		this.frame = frame;
 		this.lineHeight = lineHeight;
 		this.image = image;
@@ -84,7 +90,8 @@ public final class ReplacedParamsTemplate {
 	public static ReplacedParamsTemplate freeze(final ReplacedParams source) {
 		final Image image = source.image instanceof ReplacedBoxImage unsafe ? unsafe.duplicate() : source.image;
 		return new ReplacedParamsTemplate(TextParamsFields.freeze(source), source.size, source.minSize,
-				source.maxSize, source.boxSizing, source.frame, source.lineHeight, image);
+				source.maxSize, source.boxSizing, source.objectFit, source.objectPosition, source.frame,
+				source.lineHeight, image);
 	}
 
 	/** 呼び出しごとに新品の{@code ReplacedParams}を返す(複数回呼んでも互いに影響しない)。 */
@@ -95,6 +102,8 @@ public final class ReplacedParamsTemplate {
 		params.minSize = this.minSize;
 		params.maxSize = this.maxSize;
 		params.boxSizing = this.boxSizing;
+		params.objectFit = this.objectFit;
+		params.objectPosition = this.objectPosition;
 		params.frame = this.frame;
 		params.lineHeight = this.lineHeight;
 		// ReplacedBoxImageはmaterializeごとに複製を配る——凍結済み複製自体を

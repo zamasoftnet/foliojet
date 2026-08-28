@@ -129,7 +129,11 @@ public final class TableCutter {
 			final boolean[] beforeCellFlowMatch) {
 		boolean breakAvoid = beforeRowBreakAfter == PageBreakMode.AVOID || rowBreakBefore == PageBreakMode.AVOID;
 		if (!breakAvoid && (i != 1 || !pageFirst)) {
-			// 連結されたセルによる改ページ禁止
+			// 連結されたセルによる改ページ禁止。rowspanが跨ぐ行間はavoid相当
+			// (説明書4550の仕様)。cuttable=著者が明示的にpage-break-inside:auto
+			// を宣言したセル(TableCellPos.breakInsideDeclaredAuto)だけが
+			// オプトアウトできる——UA既定のセルavoid撤去(2026-08-27)後も、
+			// 既定のrowspanブロックはまとめて持ち越す
 			for (int j = 0; j < beforeCellExtended.length; ++j) {
 				if (beforeCellCuttable[j]) {
 					continue;
@@ -287,10 +291,13 @@ public final class TableCutter {
 	 * @param cellInsideAvoid      各セルの page-break-inside: avoid
 	 * @param cellCollapsedAtStart 各セルが上部境界なしかつ高さゼロ
 	 *                             (分割を諦める)
+	 * @param fragmentCapacity     フラグメンテナ(ページ/段)のページ方向内寸
+	 *                             (不明なら-1。{@code AutoBreakMode.fragmentCapacity})
 	 */
 	public static SplitResult rowPreDecide(final boolean pageFirst, final boolean firstRow, final double pageLimit,
 			final double rowPageSize, final boolean rowInsideAvoid, final double[] cellPageExtents,
-			final boolean[] cellFlowMatch, final boolean[] cellInsideAvoid, final boolean[] cellCollapsedAtStart) {
+			final boolean[] cellFlowMatch, final boolean[] cellInsideAvoid, final boolean[] cellCollapsedAtStart,
+			final double fragmentCapacity) {
 		if (!pageFirst) {
 			// ページ頭ではない場合
 			if (LayoutUtils.compare(pageLimit, 0) < 0) {
@@ -329,6 +336,15 @@ public final class TableCutter {
 				}
 			}
 			if (breakAvoid && !firstRow) {
+				return SplitResult.MOVE;
+			}
+			// 行境界の切断を優先する(2026-08-27、css-break/Chrome準拠。UA既定の
+			// セルavoid撤去と対)。切断線が掛かった行が新しいフラグメンテナに
+			// 丸ごと収まるなら、行の内部では切らず行ごと持ち越す。丸ごとでも
+			// 収まらない行(1行ラッパー表の巨大な行等)は、送っても結局内部で
+			// 切ることになり送り元に大きな空白だけが残るため、その場で切る
+			if (!firstRow && fragmentCapacity > 0
+					&& LayoutUtils.compare(rowPageSize, fragmentCapacity) <= 0) {
 				return SplitResult.MOVE;
 			}
 			return null;

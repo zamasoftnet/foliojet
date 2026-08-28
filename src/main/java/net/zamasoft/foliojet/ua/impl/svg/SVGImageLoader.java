@@ -31,6 +31,7 @@ import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.foliojet.ua.impl.svg.Dimension2DImpl;
 import net.zamasoft.pdfg2d.svg.PDFGVTBuilder;
 import net.zamasoft.pdfg2d.svg.SVGImage;
@@ -105,16 +106,31 @@ public class SVGImageLoader implements ImageLoader {
 		return getImage(doc.getURL(), doc, ua);
 	}
 
+	/**
+	 * 外部SVGのルートへCSSの{@code currentColor}を焼き込んで読み込みます。
+	 * {@code mask-image:url(...)}を単色SVGとして描く近似で使用します。
+	 */
+	public Image loadImage(final UserAgent ua, final Source source, final Color color) throws IOException {
+		final SVGOMDocument doc = (SVGOMDocument) this.loadDocument(source);
+		final Element root = doc.getDocumentElement();
+		root.setAttribute("color", "rgb(" + Math.round(color.getRed() * 255f) + ","
+				+ Math.round(color.getGreen() * 255f) + "," + Math.round(color.getBlue() * 255f) + ")");
+		if (color.getAlpha() < 1f) {
+			root.setAttribute("opacity", Float.toString(color.getAlpha()));
+		}
+		return getImage(doc.getURL(), doc, ua);
+	}
+
 	public Document loadDocument(Source source) throws IOException {
 		final URI uri = source.getURI();
-		String path = uri.getPath();
-		boolean gzip;
-		if (path != null) {
-			path = path.toLowerCase();
-			gzip = path.endsWith(".svgz");
-		} else {
-			gzip = false;
-		}
+		// **拡張子の判定にだけ小文字化した複製を使う**(2026-08-28)。
+		// 以前は path 自体を小文字化して使い回しており、その値が下の
+		// xml:base にも入っていた。大文字を含むファイル名のSVG
+		// (実例: asahi.comの logo_globePlus.svg)では、xml:base 経由の
+		// 相対解決が小文字URLを作り、大文字小文字を区別するサーバーへ
+		// 存在しないURLを要求していた(実測で403)
+		final String path = uri.getPath();
+		boolean gzip = path != null && path.toLowerCase(java.util.Locale.ROOT).endsWith(".svgz");
 
 		// SAXSVGDocumentFactoryはスレッドセーフではないことに注意
 		SAXSVGDocumentFactory factory = new SAXSVGDocumentFactory(XMLResourceDescriptor.getXMLParserClassName());
@@ -146,11 +162,9 @@ public class SVGImageLoader implements ImageLoader {
 		}
 
 		if (path != null) {
-			int slash = path.lastIndexOf('/');
-			if (slash != -1) {
-				path = path.substring(slash + 1);
-			}
-			doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", path);
+			final int slash = path.lastIndexOf('/');
+			final String fileName = slash == -1 ? path : path.substring(slash + 1);
+			doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", fileName);
 		}
 		// pathがnull(data:等のopaque URI)のままxml:baseを設定してはならない。
 		// 空値のxml:baseは基底結合時にjava.net.URI#resolve("")の非RFC挙動で
@@ -188,6 +202,12 @@ public class SVGImageLoader implements ImageLoader {
 
 			String width = root.getAttribute("width");
 			String height = root.getAttribute("height");
+			// 固有寸法の判定は**生の属性**で行う(2026-08-27)。widthの既定は
+			// 100%で、viewBoxがあると下のgetCheckedValue()がviewBox寸法へ
+			// 解決してしまうため、解決後の値では「属性で寸法が決まっている」
+			// SVGと区別できない。パーセントは固有寸法にならない(SVG2/CSS)
+			final boolean attrWidthFixed = width != null && width.length() > 0 && !width.trim().endsWith("%");
+			final boolean attrHeightFixed = height != null && height.length() > 0 && !height.trim().endsWith("%");
 			if ((width == null || width.length() == 0) && (height != null && height.length() > 0)) {
 				root.setAttribute("width", height);
 			} else if ((height == null || height.length() == 0) && (width != null && width.length() > 0)) {
@@ -218,6 +238,27 @@ public class SVGImageLoader implements ImageLoader {
 			// 返すと背景描画のPattern生成(BufferedImage)が
 			// "Width (0) and height (0) cannot be <= 0"で変換ごと中断する
 			// (2026-08-07、yahoo.co.jpのviewBoxのみのアイコンで発覚)。
+			// 固有寸法の種別(Image.Intrinsic参照、2026-08-27)。属性で寸法が
+			// 決まればSIZE(片側+viewBox比率で導出できる場合も含む)。
+			// viewBoxの比率だけならRATIO、どちらも無ければNONE。背景描画の
+			// background-size:autoがこれで既定サイズ規則を分岐する——従来は
+			// 常に下の代用値を原寸として扱い、viewBoxのみのロゴSVGが背景で
+			// 原寸(数百px)のまま描かれて箱からはみ出していた
+			// (asahi.comフッターのRe:Ronロゴで発覚)
+			net.zamasoft.pdfg2d.gc.image.Image.Intrinsic intrinsic;
+			if (attrWidthFixed && attrHeightFixed) {
+				intrinsic = net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE;
+			} else if (vbWidth > 0 && vbHeight > 0) {
+				// 片側の固定属性+viewBox比率で寸法が決まる場合もSIZE
+				intrinsic = (attrWidthFixed || attrHeightFixed)
+						? net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE
+						: net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.RATIO;
+			} else if (attrWidthFixed || attrHeightFixed) {
+				// 片側のみ(viewBoxなし): 上の属性補完で正方形として扱う
+				intrinsic = net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE;
+			} else {
+				intrinsic = net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.NONE;
+			}
 			if (w <= 0 || h <= 0) {
 				if (vbWidth > 0 && vbHeight > 0) {
 					if (w > 0) {
@@ -239,7 +280,7 @@ public class SVGImageLoader implements ImageLoader {
 			}
 
 			ImageMap imageMap = ctx.imageMap;
-			Image image = new SVGImage(gvtRoot, w, h);
+			Image image = new SVGImage(gvtRoot, w, h, intrinsic);
 			ua.getUAContext().getImageMaps().put(image, imageMap);
 			return image;
 		} catch (BridgeException e) {

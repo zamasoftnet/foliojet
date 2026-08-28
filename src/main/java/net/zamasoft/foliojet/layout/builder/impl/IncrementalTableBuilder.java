@@ -676,7 +676,9 @@ public class IncrementalTableBuilder implements TableBuilder {
 						pageLimit -= this.tableBox.getTableBody(i).getPageSize();
 					}
 					byte flags = this.tableBox.getTableBodyCount() == 0 ? IPageBreakableBox.FLAGS_FIRST : (byte) 0;
-					if (this.pageBreak(BreakMode.DEFAULT_BREAK_MODE, pageLimit, flags)) {
+					// フラグメンテナ容量を渡す(2026-08-27。checkBreak側と同じ)
+					if (this.pageBreak(BreakMode.AutoBreakMode.withCapacity(this.builder.getPageLimit()), pageLimit,
+							flags)) {
 						continue;
 					}
 				}
@@ -747,7 +749,10 @@ public class IncrementalTableBuilder implements TableBuilder {
 			// System.out.println("OPT A:" + pageLimit + "/"
 			// + this.bindRowGroupBox.getHeight() + "/"
 			// + this.bindRowGroupBox.getTableRowCount());
-			if (this.pageBreak(BreakMode.DEFAULT_BREAK_MODE, pageLimit, flags)) {
+			// フラグメンテナ容量を渡す(2026-08-27)。行境界の切断の優先
+			// (TableCutter.rowPreDecide——切断線が掛かった行が新しいページに
+			// 丸ごと収まるなら行ごと持ち越す)がこの経路でも効くように
+			if (this.pageBreak(BreakMode.AutoBreakMode.withCapacity(this.builder.getPageLimit()), pageLimit, flags)) {
 				return true;
 			}
 		}

@@ -23,19 +23,21 @@ import net.zamasoft.foliojet.css.token.Unit;
 public final class CalcFontRelativeValue implements QuantityValue {
 	private final double absolute;
 	private final double ratio;
-	private final double em, ex, rem, ch;
+	private final double em, ex, rem, ch, lh;
 
-	public static Value create(double absolute, double ratio, double em, double ex, double rem, double ch) {
-		return new CalcFontRelativeValue(absolute, ratio, em, ex, rem, ch);
+	public static Value create(double absolute, double ratio, double em, double ex, double rem, double ch, double lh) {
+		return new CalcFontRelativeValue(absolute, ratio, em, ex, rem, ch, lh);
 	}
 
-	private CalcFontRelativeValue(double absolute, double ratio, double em, double ex, double rem, double ch) {
+	private CalcFontRelativeValue(double absolute, double ratio, double em, double ex, double rem, double ch,
+			double lh) {
 		this.absolute = absolute;
 		this.ratio = ratio;
 		this.em = em;
 		this.ex = ex;
 		this.rem = rem;
 		this.ch = ch;
+		this.lh = lh;
 	}
 
 	/**
@@ -47,7 +49,37 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		abs += unit(Unit.EX, this.ex, style);
 		abs += unit(Unit.REM, this.rem, style);
 		abs += unit(Unit.CH, this.ch, style);
+		abs += unit(Unit.LH, this.lh, style);
 		return CalcLengthValue.create(style.getUserAgent(), abs, this.ratio);
+	}
+
+	/** lh成分です(line-height自身の自己参照回避用)。 */
+	public double getLh() {
+		return this.lh;
+	}
+
+	/** {@code 100% - <unit値>}を表す値です(&lt;position&gt;の端オフセット用)。 */
+	public static Value fullMinus(Unit unit, double v) {
+		return new CalcFontRelativeValue(0, 1, unit == Unit.EM ? -v : 0, unit == Unit.EX ? -v : 0,
+				unit == Unit.REM ? -v : 0, unit == Unit.CH ? -v : 0, unit == Unit.LH ? -v : 0);
+	}
+
+	/** {@code 100% - この値}を返します(&lt;position&gt;の端オフセット用)。 */
+	public Value subtractedFromFull() {
+		return new CalcFontRelativeValue(-this.absolute, 1 - this.ratio, -this.em, -this.ex, -this.rem, -this.ch,
+				-this.lh);
+	}
+
+	/** lh成分を、与えられた基準line-heightで絶対成分へ畳んだ値を返します。 */
+	public Value resolveLh(net.zamasoft.foliojet.ua.UserAgent ua, double lineHeight) {
+		if (this.lh == 0) {
+			return this;
+		}
+		final double abs = this.absolute + this.lh * lineHeight;
+		if (this.em == 0 && this.ex == 0 && this.rem == 0 && this.ch == 0) {
+			return CalcLengthValue.create(ua, abs, this.ratio);
+		}
+		return new CalcFontRelativeValue(abs, this.ratio, this.em, this.ex, this.rem, this.ch, 0);
 	}
 
 	private static double unit(Unit unit, double value, CSSStyle style) {
@@ -71,7 +103,8 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	 */
 	public double approximateAbsolute(net.zamasoft.foliojet.ua.UserAgent ua) {
 		final double medium = ua.getFontSize(net.zamasoft.foliojet.ua.AbsoluteFontSize.MEDIUM);
-		return this.absolute + (this.em + this.rem) * medium + (this.ex + this.ch) * medium * 0.5;
+		return this.absolute + (this.em + this.rem) * medium + (this.ex + this.ch) * medium * 0.5
+				+ this.lh * ua.getNormalLineHeight() * medium;
 	}
 
 	/**
@@ -84,7 +117,8 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		if (factor == 1 || this.absolute == 0) {
 			return this;
 		}
-		return new CalcFontRelativeValue(this.absolute * factor, this.ratio, this.em, this.ex, this.rem, this.ch);
+		return new CalcFontRelativeValue(this.absolute * factor, this.ratio, this.em, this.ex, this.rem, this.ch,
+				this.lh);
 	}
 
 	/**
@@ -101,20 +135,22 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	 * 解決するまで決まらないので偽を返す(CalcLengthValueと同じ規約)。
 	 */
 	public boolean isNegative() {
-		if (this.absolute > 0 || this.ratio > 0 || this.em > 0 || this.ex > 0 || this.rem > 0 || this.ch > 0) {
+		if (this.absolute > 0 || this.ratio > 0 || this.em > 0 || this.ex > 0 || this.rem > 0 || this.ch > 0
+				|| this.lh > 0) {
 			return false;
 		}
-		return this.absolute < 0 || this.ratio < 0 || this.em < 0 || this.ex < 0 || this.rem < 0 || this.ch < 0;
+		return this.absolute < 0 || this.ratio < 0 || this.em < 0 || this.ex < 0 || this.rem < 0 || this.ch < 0
+				|| this.lh < 0;
 	}
 
 	private boolean hasFont() {
-		return this.em != 0 || this.ex != 0 || this.rem != 0 || this.ch != 0;
+		return this.em != 0 || this.ex != 0 || this.rem != 0 || this.ch != 0 || this.lh != 0;
 	}
 
 	public String toString() {
 		// 負のゼロ(-1を掛けた0成分)は0として書く。表示の揺れを避けるため
 		return "calc(" + z(this.absolute) + "pt + " + z(this.ratio * 100) + "% + " + z(this.em) + "em + "
-				+ z(this.ex) + "ex + " + z(this.rem) + "rem + " + z(this.ch) + "ch)";
+				+ z(this.ex) + "ex + " + z(this.rem) + "rem + " + z(this.ch) + "ch + " + z(this.lh) + "lh)";
 	}
 
 	private static double z(double v) {

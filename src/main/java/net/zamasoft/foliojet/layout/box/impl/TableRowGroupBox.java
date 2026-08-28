@@ -358,7 +358,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 						final Cell cell = beforeRow.getCell(j);
 						final BlockParams cellParams = cell.getCellBox().getBlockParams();
 						flowMatch[j] = cellParams.flow.isVertical() == tableVertical;
-						cuttable[j] = cellParams.pageBreakInside == PageBreakMode.AUTO && flowMatch[j];
+						// rowspan行間のavoid相当(説明書4550)からのオプトアウトは
+						// 著者が明示宣言したautoに限る(2026-08-27。UA既定の
+						// セルavoid撤去後は計算値AUTOが既定になったため)
+						cuttable[j] = cellParams.pageBreakInside == PageBreakMode.AUTO
+								&& cell.getCellBox().getTableCellPos().breakInsideDeclaredAuto && flowMatch[j];
 						extended[j] = cell.getNextExtendedCell() != null;
 					}
 					if (net.zamasoft.foliojet.layout.fragment.TableCutter.rowBreakAvoid(i,

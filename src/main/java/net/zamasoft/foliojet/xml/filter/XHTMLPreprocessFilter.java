@@ -40,6 +40,25 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 
 	private boolean useMetaInfo = true;
 
+	/**
+	 * viewportの数値寸法を読みます。device-width/device-heightは、印刷時の
+	 * 物理デバイス寸法を持たないため「指定なし」と同じ扱いにします。
+	 */
+	private static Double parseViewportDimension(final String value, final String deviceKeyword) {
+		if (value == null) {
+			return null;
+		}
+		final String normalized = value.trim();
+		if (normalized.isEmpty() || deviceKeyword.equalsIgnoreCase(normalized)) {
+			return null;
+		}
+		final double dimension = Double.parseDouble(normalized);
+		if (!Double.isFinite(dimension) || dimension <= 0) {
+			throw new NumberFormatException("viewport dimension must be finite and positive: " + value);
+		}
+		return dimension;
+	}
+
 	public XHTMLPreprocessFilter(UserAgent ua) {
 		this.ua = ua;
 		this.useMetaInfo = UAProps.OUTPUT_USE_META_INFO.getBoolean(ua);
@@ -229,10 +248,16 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 							AttributesImpl attsi = new AttributesImpl();
 							try {
 								XMLUtils.parsePseudoAttributes(content, attsi);
-								double width = Double.parseDouble(attsi.getValue("width"));
-								double height = Double.parseDouble(attsi.getValue("height"));
-								this.ua.setProperty(UAProps.OUTPUT_PAGE_WIDTH.name, width + "px");
-								this.ua.setProperty(UAProps.OUTPUT_PAGE_HEIGHT.name, height + "px");
+								final Double width = parseViewportDimension(attsi.getValue("width"), "device-width");
+								final Double height = parseViewportDimension(attsi.getValue("height"), "device-height");
+								// HTMLのviewportでは片方だけの指定が一般的。指定された軸だけを
+								// 上書きし、省略軸は既定ページ寸法を保つ。
+								if (width != null) {
+									this.ua.setProperty(UAProps.OUTPUT_PAGE_WIDTH.name, width + "px");
+								}
+								if (height != null) {
+									this.ua.setProperty(UAProps.OUTPUT_PAGE_HEIGHT.name, height + "px");
+								}
 							} catch (Exception e) {
 								// 不正なviewport指定は無視して既定のページ寸法で続行
 								LOG.log(java.util.logging.Level.WARNING, "Ignoring malformed viewport PI: " + content,

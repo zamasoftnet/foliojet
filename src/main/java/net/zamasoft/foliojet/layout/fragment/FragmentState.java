@@ -73,6 +73,18 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 	public static FragmentState of(final WritingMode flow, final boolean columnSpanning,
 			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
 			final double pageLimit, final double contentSize, final boolean specifiedPageSize) {
+		return of(flow, columnSpanning, frame, size, minSize, pageExtent, pageLimit, contentSize, specifiedPageSize,
+				false);
+	}
+
+	/**
+	 * {@link #of(WritingMode, boolean, AbsoluteRectFrame, Dimension, Dimension, double, double, double, boolean)}
+	 * の、先頭の不可分内容が丸ごと移動した固定寸法ボックス用です。
+	 */
+	public static FragmentState of(final WritingMode flow, final boolean columnSpanning,
+			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
+			final double pageLimit, final double contentSize, final boolean specifiedPageSize,
+			final boolean preserveSpecifiedPageSize) {
 		final boolean vertical = flow.isVertical();
 		double limit = Math.max(pageLimit, 0);
 
@@ -93,8 +105,11 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 
 		final Dimension nextSize;
 		if (specifiedPageSize) {
-			// 指定寸法のページ方向を残量に分割
-			final double rest = Math.max(0, pageExtent - limit);
+			// 先頭の不可分内容が丸ごと次へ移った場合、前断片は指定寸法を
+			// 消費していない。切断線を差し引くと、固定高サムネイルの画像が
+			// 残り数pxの継続箱へクリップされて消える。
+			final double consumed = preserveSpecifiedPageSize ? 0 : limit;
+			final double rest = Math.max(0, pageExtent - consumed);
 			// 行方向(ページ方向でない側)はtype/値をそのまま残すが、MIXED
 			// (calc()の絶対長さ+割合混在)の場合は割合成分も一緒に保存しないと
 			// 断片化後の解決でratio成分が消える(2026-07-19、外部レビューで発覚)。

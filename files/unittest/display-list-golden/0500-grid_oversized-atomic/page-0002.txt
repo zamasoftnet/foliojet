@@ -1,8 +1,8 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=48.11]
   x=110.00 y=0.00 AbsoluteRectFrame[w=100.00 h=48.11]
-  x=0.00 y=58.11 AbsoluteRectFrame[w=210.00 h=82.00]
-  x=110.00 y=58.11 AbsoluteRectFrame[w=210.00 h=82.00]
+  x=0.00 y=58.11 AbsoluteRectFrame[w=100.00 h=82.00]
+  x=110.00 y=58.11 AbsoluteRectFrame[w=100.00 h=82.00]
   x=1.00 y=59.11 Text["r10a" asc=10.31 desc=4.09]
   x=111.00 y=59.11 Text["r10b" asc=10.31 desc=4.09]
   x=0.00 y=140.11 Text["after" asc=10.31 desc=4.09]

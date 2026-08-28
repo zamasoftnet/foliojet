@@ -354,8 +354,10 @@ public class MyHttpSourceResolverTest extends TestCase {
 			});
 			assertEquals("資格情報があればキャッシュされないべき", 2, hits.get());
 
-			// Set-Cookie付き応答は保存されず、Cookieを送る要求は対象外。
-			// 同一リゾルバ(CookieManager共有)で2回取得する
+			// Set-Cookie付き応答は共有キャッシュへ保存されず、Cookieを送る
+			// 要求も対象外。ただし**同じ変換の中では**取り直さない
+			// (2026-08-28。セッション局所ストア——同じ資源を何度も取りに
+			// 行かないためで、変換をまたいだ再利用ではない)
 			HttpResponseCache.clear();
 			hits.set(0);
 			URI cookie = new URI("http", null, host, port, "/cookie.txt", null, null);
@@ -364,10 +366,19 @@ public class MyHttpSourceResolverTest extends TestCase {
 			try {
 				this.read(resolver, cookie);
 				this.read(resolver, cookie);
+				assertEquals("同一変換内では取り直さないべき", 1, hits.get());
 			} finally {
 				resolver.close();
 			}
-			assertEquals("Cookieが絡む取得はキャッシュされないべき", 2, hits.get());
+			// 別の変換(別リゾルバ)は共有キャッシュを当てにできない
+			MyHttpSourceResolver another = new MyHttpSourceResolver();
+			another.setCacheTtl(600);
+			try {
+				this.read(another, cookie);
+			} finally {
+				another.close();
+			}
+			assertEquals("Cookieが絡む取得は変換をまたいでキャッシュされないべき", 2, hits.get());
 
 			// no-store応答は保存されない
 			HttpResponseCache.clear();

@@ -45,6 +45,25 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		return net.zamasoft.foliojet.layout.box.params.BackgroundFit.NONE;
 	}
 
+	/**
+	 * 画像の固有寸法を考慮したfitです(css-backgrounds-3 §background-size、
+	 * 2026-08-27)。auto×autoで画像が縦横比しか持たない(viewBoxのみの
+	 * SVG等)ときはcontain制約で配置領域へ収める。従来は代用値
+	 * (viewBox寸法)を原寸扱いし、ロゴSVGが数百pxのまま箱からはみ出て
+	 * いた(asahi.comフッターのRe:Ronロゴ)。
+	 */
+	public static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style, Image image) {
+		final net.zamasoft.foliojet.layout.box.params.BackgroundFit declared = getFit(style);
+		if (declared != net.zamasoft.foliojet.layout.box.params.BackgroundFit.NONE) {
+			return declared;
+		}
+		if (style.get(INFO_WIDTH) == KeywordValue.AUTO && style.get(INFO_HEIGHT) == KeywordValue.AUTO
+				&& image.getIntrinsic() == Image.Intrinsic.RATIO) {
+			return net.zamasoft.foliojet.layout.box.params.BackgroundFit.CONTAIN;
+		}
+		return declared;
+	}
+
 	public static Dimension get(CSSStyle style, Image image) {
 		Value widthValue = style.get(INFO_WIDTH);
 		if (widthValue == KeywordValue.CONTAIN || widthValue == KeywordValue.COVER) {
@@ -83,11 +102,24 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		}
 
 		if (widthType == LengthType.AUTO && heightType == LengthType.AUTO) {
-			widthType = heightType = LengthType.ABSOLUTE;
-			width = image.getWidth();
-			height = image.getHeight();
+			switch (image.getIntrinsic()) {
+			case RATIO:
+				// 縦横比のみ: contain制約(getFit(style, image)がCONTAINを
+				// 返し、実寸は描画側が配置領域から計算する)
+				return Dimension.AUTO_DIMENSION;
+			case NONE:
+				// 寸法情報なし: 既定サイズ規則により配置領域いっぱい
+				widthType = heightType = LengthType.RELATIVE;
+				width = height = 1;
+				break;
+			default:
+				widthType = heightType = LengthType.ABSOLUTE;
+				width = image.getWidth();
+				height = image.getHeight();
+				break;
+			}
 		}
-		
+
 		Dimension size = Dimension.create(width, height, widthType, heightType);
 		return size;
 	}

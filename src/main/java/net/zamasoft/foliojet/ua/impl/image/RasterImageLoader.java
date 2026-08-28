@@ -236,12 +236,30 @@ public class RasterImageLoader implements ImageLoader {
 				System.err.println("[img] decoded " + decoded.getWidth() + "x" + decoded.getHeight() + " type="
 						+ decoded.getType());
 			}
-			final boolean keepOriginalJpeg = orientation == 1 && formatName != null
-					&& (formatName.equalsIgnoreCase("jpeg") || formatName.equalsIgnoreCase("jpg"))
-					&& "application/vnd.copper.paged-svg".equals(UAProps.OUTPUT_TYPE.getString(ua));
+				// **元のバイト列をそのまま外へ出せるなら、焼き直さない**
+			// (2026-08-28)。ブラウザが読める形式に限る。判定はUAの能力で
+			// 行う——output.typeの文字列比較は、画像を読む時点では
+			// application/pdfが返るため一度も成立していなかった(実測)
+			// uaはnullで呼ばれることがある(寸法だけを見る試験・経路)
+			final boolean keepEncoded = ua != null && ua.keepsEncodedImages();
+			String[] passThrough = keepEncoded && orientation == 1 ? browserFormat(formatName) : null;
+			byte[] encoded = null;
+			if (passThrough != null) {
+				encoded = readAll(imageIn);
+				if ("jpg".equals(passThrough[1]) && jpegComponents(encoded) > 3) {
+					// CMYKのJPEG。主要なブラウザが正しく描けないので画素を使う
+					passThrough = null;
+					encoded = null;
+				}
+			}
+			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+				System.err.println("[img] format=" + formatName + " orientation=" + orientation + " keepEncoded="
+						+ keepEncoded + " passThrough="
+						+ (passThrough == null ? "no" : passThrough[0]));
+			}
 			final Image image;
-			if (keepOriginalJpeg) {
-				image = new EncodedRasterImage(decoded, readAll(imageIn), "image/jpeg", "jpg");
+			if (passThrough != null) {
+				image = new EncodedRasterImage(decoded, encoded, passThrough[0], passThrough[1]);
 			} else {
 				image = new RasterImageImpl(decoded);
 			}
@@ -252,6 +270,54 @@ public class RasterImageLoader implements ImageLoader {
 		} finally {
 			imageIn.close();
 		}
+	}
+
+	/** ブラウザがそのまま表示できる形式なら{@code {MIME型, 拡張子}}を返します。 */
+	private static String[] browserFormat(final String formatName) {
+		if (formatName == null) {
+			return null;
+		}
+		return switch (formatName.toLowerCase(java.util.Locale.ROOT)) {
+		case "jpeg", "jpg" -> new String[] { "image/jpeg", "jpg" };
+		case "png" -> new String[] { "image/png", "png" };
+		case "gif" -> new String[] { "image/gif", "gif" };
+		case "webp" -> new String[] { "image/webp", "webp" };
+		default -> null;
+		};
+	}
+
+	/**
+	 * JPEGの成分数をSOFマーカから読みます(1=グレー、3=YCbCr、4=CMYK)。
+	 *
+	 * <p>
+	 * ImageIOの{@code getRawImageType}に訊く手もあるが、読み手によっては
+	 * 例外を投げたり{@code null}を返したりして<b>判定が読み手依存になる</b>
+	 * (実測: TwelveMonkeysのJPEG読み手で通常のYCbCrでも判定できず、
+	 * パススルーが全て落ちていた)。バイト列から直に読めば読み手に依らない。
+	 * </p>
+	 */
+	private static int jpegComponents(final byte[] jpeg) {
+		for (int i = 2; i + 9 < jpeg.length;) {
+			if ((jpeg[i] & 0xFF) != 0xFF) {
+				++i;
+				continue;
+			}
+			final int marker = jpeg[i + 1] & 0xFF;
+			if (marker == 0xD8 || marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
+				i += 2;
+				continue;
+			}
+			final int length = ((jpeg[i + 2] & 0xFF) << 8) | (jpeg[i + 3] & 0xFF);
+			// SOF0〜SOF15(DHT=0xC4・JPG=0xC8・DAC=0xCCを除く)に成分数がある
+			if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
+				return jpeg[i + 9] & 0xFF;
+			}
+			if (marker == 0xDA) {
+				break; // 画像本体。ここまでに無ければ判定できない
+			}
+			i += 2 + Math.max(length, 2);
+		}
+		return 3; // 判定できないときは通常のカラーとして扱う
 	}
 
 	private static byte[] readAll(final ImageInputStream imageIn) throws IOException {

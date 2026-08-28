@@ -1,0 +1,2 @@
+drawer z=0
+  x=2.25 y=128.25 Text["B" asc=7.59 desc=2.41]

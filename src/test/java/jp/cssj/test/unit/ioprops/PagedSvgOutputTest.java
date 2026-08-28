@@ -59,6 +59,8 @@ public class PagedSvgOutputTest extends TestCase {
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.default-font-family", "'Noto Serif JP'");
 			session.property("processing.pass-count", "2");
+			// 既定はgzip(2026-08-28)。ページの中身を直接読むので縮めない
+			session.property("output.paged-svg.compression", "none");
 			CTISessionHelper.transcodeStream(session,
 					new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
 					new File("files/unittest/1080-FONT/paged-svg-test.html").toURI(), "text/html", "UTF-8");
@@ -73,7 +75,7 @@ public class PagedSvgOutputTest extends TestCase {
 		assertTrue(results.data.containsKey("pages/0001.json"));
 		assertTrue(results.data.containsKey("pages/0002.svg"));
 		assertTrue(results.data.containsKey("pages/0002.json"));
-		assertFalse("compression belongs to the client, not the server",
+		assertFalse("compression=none must keep the plain names",
 				results.data.containsKey("pages/0001.svgz"));
 		assertEquals("the repeated PNG and one JPEG must be emitted once each", 2,
 				results.order.stream().filter(uri -> uri.startsWith("assets/images/")).count());
@@ -165,7 +167,7 @@ public class PagedSvgOutputTest extends TestCase {
 	 * 実ファイルの画像は寸法をmetrics.xmlに残し、それをinput.image-metricsで
 	 * 渡し直すと、寸法しか要らないパスでは画像を一度も開かずに同じ組版になる。
 	 */
-	public void testImageMetricsXmlRoundTrip() throws Exception {
+	public void testImageMetricsJsonRoundTrip() throws Exception {
 		final File image = new File("files/unittest/kappa.png").getAbsoluteFile();
 		assertTrue("test fixture is missing: " + image, image.isFile());
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
@@ -173,29 +175,29 @@ public class PagedSvgOutputTest extends TestCase {
 				+ "</style></head><body><p>ABC</p><img src=\"" + image.toURI() + "\"></body></html>";
 
 		final CapturingResults measured = run(html, Map.of());
-		final byte[] metrics = measured.data.get("metrics.xml").toByteArray();
-		final String xml = new String(metrics, StandardCharsets.UTF_8);
-		assertTrue("the metrics file must name the image " + image.toURI() + " but was:\n" + xml,
-				xml.contains(image.getName()));
-		assertTrue(xml.contains("<image-metrics"));
+		final byte[] metrics = measured.data.get("metrics.json").toByteArray();
+		final String json = new String(metrics, StandardCharsets.UTF_8);
+		assertTrue("the metrics file must name the image " + image.toURI() + " but was:\n" + json,
+				json.contains(image.getName()));
+		assertTrue("the metrics file must be JSON: " + json, json.trim().startsWith("{"));
 
 		// 記録は出力単位(pt)なので、依拠したoutput.resolutionを併記する。
 		// 別の解像度の寸法表を混ぜると誤った寸法で組んでしまうため
-		assertTrue("the resolution the sizes depend on must be recorded: " + xml,
-				xml.contains("resolution=\""));
+		assertTrue("the resolution the sizes depend on must be recorded: " + json,
+				json.contains("\"resolution\""));
 		final BufferedImage actual = ImageIO.read(image);
-		assertTrue("recorded sizes must be positive and proportional: " + xml,
-				xml.matches("(?s).*width=\"[0-9.]+\" height=\"[0-9.]+\".*"));
+		assertTrue("recorded sizes must be positive and proportional: " + json,
+				json.matches("(?s).*\"width\": [0-9.]+, \"height\": [0-9.]+.*"));
 		assertTrue("the fixture must be a real image", actual.getWidth() > 0);
 
 		// 寸法表を渡し直しても、ページの中身は1バイトも変わらない
-		final File file = Files.createTempFile("copper-metrics-", ".xml").toFile();
+		final File file = Files.createTempFile("copper-metrics-", ".json").toFile();
 		try {
 			Files.write(file.toPath(), metrics);
 			final CapturingResults reused = run(html,
 					Map.of("input.image-metrics", file.toURI().toString()));
 			assertEquals(measured.text("pages/0001.svg"), reused.text("pages/0001.svg"));
-			assertEquals(measured.text("metrics.xml"), reused.text("metrics.xml"));
+			assertEquals(measured.text("metrics.json"), reused.text("metrics.json"));
 		} finally {
 			Files.deleteIfExists(file.toPath());
 		}
@@ -207,13 +209,13 @@ public class PagedSvgOutputTest extends TestCase {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
 				+ "@page{size:200pt 160pt;margin:8pt}body{margin:0}"
 				+ "</style></head><body><img src=\"" + image.toURI() + "\"></body></html>";
-		final File file = Files.createTempFile("copper-metrics-broken-", ".xml").toFile();
+		final File file = Files.createTempFile("copper-metrics-broken-", ".json").toFile();
 		try {
-			Files.writeString(file.toPath(), "this is not XML");
+			Files.writeString(file.toPath(), "this is not JSON");
 			final CapturingResults results = run(html, Map.of("input.image-metrics", file.toURI().toString()));
 			assertTrue(results.ended);
 			assertTrue(results.data.containsKey("pages/0001.svg"));
-			assertEquals(run(html, Map.of()).text("metrics.xml"), results.text("metrics.xml"));
+			assertEquals(run(html, Map.of()).text("metrics.json"), results.text("metrics.json"));
 		} finally {
 			Files.deleteIfExists(file.toPath());
 		}
@@ -222,7 +224,7 @@ public class PagedSvgOutputTest extends TestCase {
 	/** data:の画像は寸法表に入れない——キーが画像本体と同じ大きさになるため。 */
 	public void testDataUriImagesAreNotRecordedAsMetrics() throws Exception {
 		final CapturingResults results = run(simpleHtml(), Map.of());
-		assertFalse("data: images must not produce a metrics file", results.data.containsKey("metrics.xml"));
+		assertFalse("data: images must not produce a metrics file", results.data.containsKey("metrics.json"));
 	}
 
 	private String simpleHtml() throws Exception {
@@ -242,6 +244,8 @@ public class PagedSvgOutputTest extends TestCase {
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.default-font-family", "'Noto Serif JP'");
 			session.property("processing.pass-count", "2");
+			// 既定はgzip(2026-08-28)。ページの中身を直接読むので縮めない
+			session.property("output.paged-svg.compression", "none");
 			for (final Map.Entry<String, String> entry : extraProps.entrySet()) {
 				session.property(entry.getKey(), entry.getValue());
 			}

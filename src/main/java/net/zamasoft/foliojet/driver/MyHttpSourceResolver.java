@@ -32,8 +32,12 @@ import java.util.Base64;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -116,6 +120,7 @@ class MySourceResolver implements SourceResolver {
 		CompositeSourceResolver resolver = CompositeSourceResolver.createGenericCompositeSourceResolver();
 		MyHttpSourceResolver httpResolver = new MyHttpSourceResolver();
 		this.httpResolver = httpResolver;
+		httpResolver.setMainUri(uri);
 		if (UAProps.INPUT_HTTP_REFERER.getBoolean(props, mh)) {
 			httpResolver.setReferer(uri);
 		}
@@ -251,8 +256,56 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	/**
+	 * 外部リソースの非同期先読みを要求します(input.prefetch、2026-08-27)。
+	 * 対象はhttp(s)のみで、同期経路と同じ判定を通す: クライアントが
+	 * CTIPで送ってきた資源(cachedResolver)はネットワーク不要なので
+	 * 対象外、ACL(input.include/exclude——httpは常にACL先行)を通過した
+	 * URLだけをhttpリゾルバへ渡す。拒否・失敗は黙って捨てる(実要求時に
+	 * 正規のSecurityException等が出る)。資源バイト・件数の予算は先読みでは
+	 * 計上しない——文書が実際に要求したときに従来どおり一度だけ計上する。
+	 */
+	public void prefetch(final URI uri) {
+		this.prefetch(uri, true);
+	}
+
+	/**
+	 * @param scanCss 取得したスタイルシートの{@code url()}/{@code @import}を
+	 *                深さ1だけ追って先読みするか(CSSから発見したURLの
+	 *                再帰を止めるためのフラグ)
+	 */
+	void prefetch(final URI uri, final boolean scanCss) {
+		final MyHttpSourceResolver http = this.httpResolver;
+		if (http == null || uri == null) {
+			return;
+		}
+		final String scheme = uri.getScheme();
+		if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+			return;
+		}
+		try {
+			final Source cached = this.cachedResolver.resolve(uri);
+			this.cachedResolver.release(cached);
+			return;
+		} catch (final FileNotFoundException e) {
+			// クライアント押し込み資源ではない——先読み対象
+		} catch (final IOException e) {
+			return;
+		}
+		if (!this.restrictedResolver.permits(uri)) {
+			PREFETCH_LOG.fine(() -> "prefetch ACL deny: " + uri);
+			return;
+		}
+		PREFETCH_LOG.fine(() -> "prefetch request: " + uri);
+		http.prefetch(uri, scanCss ? this : null);
+	}
+
+	/** 先読みの動きを追うためのロガー(FINEで各判定・合流を出す)。 */
+	static final java.util.logging.Logger PREFETCH_LOG = java.util.logging.Logger
+			.getLogger("net.zamasoft.foliojet.driver.prefetch");
+
+	/**
 	 * 次の順でリソースを探します。
-	 * 
+	 *
 	 * 1. キャッシュされたリソース 2. 設定されたリゾルバ 3. サーバー側リソース
 	 */
 	public Source resolve(URI uri) throws IOException, FileNotFoundException {
@@ -464,16 +517,310 @@ class MyHttpSourceResolver implements SourceResolver {
 		return this.httpClient;
 	}
 
+	/**
+	 * 同時に走らせる先読み取得の上限。HTTP/2なら1接続に多重化される。
+	 * 実測(wikipedia・画像約100点、素24.3s): 8で6.7〜7.4s、16で6.4〜6.7s
+	 * ——ここから先は帯域・RTT側が支配的。
+	 */
+	private static final int PREFETCH_PARALLELISM = 12;
+
+	/**
+	 * <b>同一ホストへの同時取得の上限</b>(2026-08-28)。全体だけを絞っても
+	 * 1つのサイトへ束で当たるため、配信側のレート制限に触れる。実測:
+	 * risuから{@code upload.wikimedia.org}へ16並列で当てると6本が
+	 * <b>HTTP 429</b>になり、巻き添えで本来のスタイルシート取得まで失敗して
+	 * 変換が中止した。ブラウザの同時接続数(6前後)に倣って抑える。
+	 */
+	private static final int PREFETCH_PARALLELISM_PER_HOST = 4;
+
+	/** close()後の遅延した先読み登録を止める(セッション跨ぎの汚染防止)。 */
+	private volatile boolean prefetchClosed;
+
+	/** 1変換セッションで先読みを試みるURIの上限(暴走・過剰取得の抑え)。 */
+	private static final int PREFETCH_MAX_URIS = 256;
+
+	/**
+	 * 取得中の先読み。キーは要求URI(リダイレクトはHttpClientが追従する
+	 * ため、同じ論理要求はここで合流する)。完了・失敗・中止で必ず除去し、
+	 * Futureを完了させる——resolve()がここでawaitするため、未完了のまま
+	 * 放置すると実要求が固まる。
+	 */
+	private final ConcurrentHashMap<URI, Inflight> prefetching = new ConcurrentHashMap<>();
+
+	/**
+	 * 取得中の先読み1件。{@code started}は<b>実際にHTTP要求を始めたか</b>で、
+	 * 順番待ちのものと区別するために要る。実要求が順番待ちの先読みに
+	 * 合流すると、直列より遅くなるうえ、待たされた末に失敗すると本来
+	 * 成功したはずの資源まで落ちる(2026-08-28、risuで実際に発生)。
+	 */
+	private record Inflight(CompletableFuture<Void> future, java.util.concurrent.atomic.AtomicBoolean started) {
+		Inflight() {
+			this(new CompletableFuture<>(), new java.util.concurrent.atomic.AtomicBoolean());
+		}
+	}
+
+	/** ホスト別の同時取得を絞る。 */
+	private final ConcurrentHashMap<String, Semaphore> hostSlots = new ConcurrentHashMap<>();
+
+	/**
+	 * レート制限(429/503)を返したホスト。以降そのホストの先読みをやめる。
+	 * 投機的な取得で配信側を怒らせて本来の取得まで失うのは本末転倒。
+	 */
+	private final java.util.Set<String> throttledHosts = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+	/**
+	 * セッション局所の先読み結果ストア(キーは要求URI)。プロセス共通の
+	 * {@link HttpResponseCache}とは別に持つ理由: 主文書応答のSet-Cookie
+	 * (例: wikipediaのGeoIP)で以降の同ドメイン要求が全て「要求側
+	 * キャッシュ対象外」になり、共有キャッシュ経由の受け渡しが成立しない
+	 * (実測: hit 0/miss 256)。ここは応答側の条件
+	 * (200・Set-Cookieなし・no-store/private/no-cacheなし)だけで保持し、
+	 * 同一変換内のresolveが最優先で使う。発見時点の取得を消費時点で使う
+	 * 意味論はChromeのpreload scannerと同じ。resolverのclose()
+	 * (=セッション終了)で破棄する。
+	 */
+	private final ConcurrentHashMap<URI, HttpResponseCache.Entry> prefetched = new ConcurrentHashMap<>();
+
+	/** セッション局所ストアの合計バイト上限(超過分は保持しない)。 */
+	private static final long PREFETCHED_MAX_TOTAL_BYTES = 64L * 1024 * 1024;
+
+	private final java.util.concurrent.atomic.AtomicLong prefetchedBytes = new java.util.concurrent.atomic.AtomicLong();
+
+	/**
+	 * 主文書のURI。<b>同じ資源を同一変換内で何度も取りに行かない</b>ための
+	 * 判定に使います(2026-08-28)。
+	 *
+	 * <p>
+	 * 共有キャッシュに載らない資源——Cookieを送るホストの画像・CSS背景など
+	 * ——は、実要求の経路が本文を控えないと参照のたびに外向き取得が起きます。
+	 * 実測: 寸法表を再利用した2回目のPaged SVG変換が同じ背景SVGを66回
+	 * 取りに行き、5.0秒の変換が13.4秒になっていました。そこで副資源の本文は
+	 * セッション局所ストアへ控えます。<b>主文書だけは控えません</b>——
+	 * 流し込みのまま組版を始める設計で、読み切ってから渡すと最初のページが
+	 * 出るまでが遅くなるためです。
+	 * </p>
+	 */
+	private volatile URI mainUri;
+
+	void setMainUri(final URI uri) {
+		this.mainUri = uri;
+	}
+
+	private final Semaphore prefetchSlots = new Semaphore(PREFETCH_PARALLELISM);
+
+	private final AtomicInteger prefetchStarted = new AtomicInteger();
+
+	/**
+	 * URIの非同期先読み(input.prefetch)。取得できた本文は同期経路と同じ
+	 * 条件で{@link HttpResponseCache}へ入り、後続の{@link #resolve(URI)}が
+	 * キャッシュ命中として受け取る。認証情報・Cookie・キャッシュ無効
+	 * (TTL=0)の要求は{@link #cacheKey}がnullを返すため先読みしない——
+	 * 並列取得が直列時と同値にならない(Cookie適用順・利用者固有応答)
+	 * リスクを避ける。失敗は静かに捨て、実要求が正規経路で取り直す。
+	 */
+	void prefetch(final URI uri, final MySourceResolver cssGate) {
+		if (this.prefetchClosed || this.prefetchStarted.get() >= PREFETCH_MAX_URIS) {
+			return;
+		}
+		if (this.prefetched.containsKey(uri)) {
+			return;
+		}
+		final HttpRequest request = this.createHttpRequest(uri);
+		// 認証情報が付く要求は先読みしない(並列化で認証・利用者固有応答の
+		// 意味論を変えない)。Cookieだけの要求は対象——主文書応答の
+		// Set-Cookie(例: wikipediaのGeoIP)で以降の全要求にCookieが付くのが
+		// 実サイトの通常で、発見時点の取得はChromeのpreload scannerと同じ
+		if (request.headers().firstValue("Authorization").isPresent()
+				|| this.findCredential(uri.getHost(), uri.getPort()) != null) {
+			MySourceResolver.PREFETCH_LOG.fine(() -> "prefetch auth skip: " + uri);
+			return;
+		}
+		final String cacheKey = this.cacheKey(uri, request);
+		if (cacheKey != null) {
+			final HttpResponseCache.Entry entry = HttpResponseCache.get(cacheKey, this.cacheTtl);
+			if (entry != null) {
+				// **共有キャッシュにあってもセッション局所ストアへ写す**
+				// (2026-08-28)。ここで単に打ち切ると、消費時点の
+				// {@link #cacheKey}がCookie付き要求でnullになり(主文書の
+				// Set-Cookie以降は同一ドメインの全要求にCookieが付く)、
+				// 共有キャッシュを参照できずに取り直しになる。実測では
+				// 2回目以降の変換で先読み合流が253件→約100件へ落ち、
+				// 変換時間が11秒→29秒に戻っていた
+				this.store(uri, entry);
+				return;
+			}
+		}
+		final String host = uri.getHost();
+		if (host != null && this.throttledHosts.contains(host)) {
+			MySourceResolver.PREFETCH_LOG.fine(() -> "prefetch throttled host, skip: " + uri);
+			return;
+		}
+		final Inflight inflight = new Inflight();
+		if (this.prefetching.putIfAbsent(uri, inflight) != null) {
+			return;
+		}
+		if (this.prefetchStarted.incrementAndGet() > PREFETCH_MAX_URIS) {
+			this.prefetching.remove(uri, inflight);
+			inflight.future().complete(null);
+			return;
+		}
+		final HttpClient client;
+		final ExecutorService executor;
+		synchronized (this) {
+			client = this.httpClient();
+			executor = this.executor;
+		}
+		try {
+			executor.execute(() -> {
+				Semaphore hostSlot = null;
+				try {
+					this.prefetchSlots.acquire();
+					try {
+						hostSlot = host == null ? null
+								: this.hostSlots.computeIfAbsent(host,
+										h -> new Semaphore(PREFETCH_PARALLELISM_PER_HOST));
+						if (hostSlot != null) {
+							hostSlot.acquire();
+						}
+						// 順番待ちのあいだに実要求がこのURIを取りに行ったら、
+						// 投機は降りる(二重取得と余計な負荷を避ける)
+						if (this.prefetching.get(uri) != inflight || this.prefetchClosed) {
+							return;
+						}
+						inflight.started().set(true);
+						final MyHttpSource source = new MyHttpSource(uri, client, request, cacheKey, false, false);
+						try {
+							// 本文を上限まで読み、応答側の条件を満たせば
+							// セッション局所ストアへ(共有キャッシュへも、
+							// 要求側条件を満たす場合のみ)。条件を満たさない
+							// 応答は使わず、実要求に任せる
+							final HttpResponseCache.Entry entry = source.readEntryForPrefetch();
+							if (entry != null) {
+								this.store(uri, entry);
+								if (cacheKey != null && source.isSharedCacheable()) {
+									HttpResponseCache.put(cacheKey, entry);
+								}
+								// 取得したのがスタイルシートなら、その中の
+								// url()/@importも先読みする(深さ1のみ——
+								// cssGate=nullで再帰を止める)。CSS背景画像は
+								// 消費点解決の繰り返しが特に高くつく
+								// (実測: wikipediaの虫めがねアイコン1つが
+								// 64回直列取得されていた)
+								if (cssGate != null && isCssEntry(uri, entry)) {
+									for (final URI found : extractCssUris(uri, entry)) {
+										cssGate.prefetch(found, false);
+									}
+								}
+							}
+							final boolean stored = entry != null;
+							MySourceResolver.PREFETCH_LOG.fine(() -> "prefetch done(" + stored + "): " + uri);
+						} finally {
+							source.close();
+						}
+					} finally {
+						if (hostSlot != null) {
+							hostSlot.release();
+						}
+						this.prefetchSlots.release();
+					}
+				} catch (final Throwable ignore) {
+					// 先読みは常に任意。失敗の報告も実要求の正規経路に任せる
+				} finally {
+					this.prefetching.remove(uri, inflight);
+					inflight.future().complete(null);
+				}
+			});
+		} catch (final RejectedExecutionException e) {
+			// close()直後など。先読みを断念する
+			this.prefetching.remove(uri, inflight);
+			inflight.future().complete(null);
+		}
+	}
+
+	/** 先読み結果がCSSか(url()/@import走査の対象か)を判定します。 */
+	private static boolean isCssEntry(final URI uri, final HttpResponseCache.Entry entry) {
+		final String mime = entry.mimeType();
+		if (mime != null) {
+			return mime.toLowerCase(java.util.Locale.ROOT).contains("css");
+		}
+		final String path = uri.getPath();
+		return path != null && path.toLowerCase(java.util.Locale.ROOT).endsWith(".css");
+	}
+
+	private static final java.util.regex.Pattern CSS_URL = java.util.regex.Pattern.compile(
+			"(?:url\\(\\s*(['\"]?)([^'\"()\\s]+)\\1\\s*\\))|(?:@import\\s+['\"]([^'\"]+)['\"])",
+			java.util.regex.Pattern.CASE_INSENSITIVE);
+
+	/** CSS本文からurl()/@importの参照先を取り出します(CSSのURI基準)。 */
+	private static java.util.List<URI> extractCssUris(final URI cssUri, final HttpResponseCache.Entry entry) {
+		final java.util.List<URI> result = new java.util.ArrayList<>();
+		final String text = new String(entry.body(), java.nio.charset.StandardCharsets.UTF_8);
+		final java.util.regex.Matcher m = CSS_URL.matcher(text);
+		while (m.find() && result.size() < 64) {
+			final String ref = m.group(2) != null ? m.group(2) : m.group(3);
+			if (ref == null || ref.isEmpty() || ref.startsWith("data:") || ref.startsWith("#")) {
+				continue;
+			}
+			try {
+				result.add(net.zamasoft.zstream.resolver.util.URIHelper.resolve(entry.encoding(), cssUri, ref));
+			} catch (final java.net.URISyntaxException | RuntimeException e) {
+				// 参照が読めないだけ——実要求の正規経路が正
+			}
+		}
+		return result;
+	}
+
+	/** セッション局所ストアへ入れます(合計上限を超える分は保持しない)。 */
+	private void store(final URI uri, final HttpResponseCache.Entry entry) {
+		final int length = entry.body().length;
+		if (this.prefetchedBytes.addAndGet(length) <= PREFETCHED_MAX_TOTAL_BYTES) {
+			this.prefetched.put(uri, entry);
+		} else {
+			this.prefetchedBytes.addAndGet(-length);
+		}
+	}
+
 	public Source resolve(URI uri) throws IOException {
+		// 同じURIの先読みが取得中なら合流する(二重取得しない)。先読みの
+		// 失敗・キャンセルはここでは無視し、以降の正規経路で取り直す
+		final Inflight inflight = this.prefetching.get(uri);
+		if (inflight != null) {
+			if (inflight.started().get()) {
+				// 取得中なら合流する(同じ往復を二度払わない)
+				try {
+					inflight.future().join();
+				} catch (final CancellationException | CompletionException ignore) {
+					// 正規経路へ
+				}
+			} else {
+				// **順番待ちには合流しない**(2026-08-28)。待たされたうえ、
+				// 先読みが失敗すると本来取れるはずの資源まで落ちる。
+				// mapから外して投機を降ろし、すぐ自分で取りに行く
+				this.prefetching.remove(uri, inflight);
+				inflight.future().complete(null);
+			}
+		}
+		// セッション局所の先読み結果が最優先(同一変換内の受け渡し)
+		final HttpResponseCache.Entry pre = this.prefetched.get(uri);
+		if (pre != null) {
+			MySourceResolver.PREFETCH_LOG.fine(() -> "resolve hit(session): " + uri);
+			return new CachedHttpSource(uri, pre);
+		}
 		final HttpRequest request = this.createHttpRequest(uri);
 		final String cacheKey = this.cacheKey(uri, request);
 		if (cacheKey != null) {
 			final HttpResponseCache.Entry entry = HttpResponseCache.get(cacheKey, this.cacheTtl);
 			if (entry != null) {
+				MySourceResolver.PREFETCH_LOG.fine(() -> "resolve hit(shared): " + uri);
 				return new CachedHttpSource(uri, entry);
 			}
 		}
-		return new MyHttpSource(uri, this.httpClient(), request, cacheKey);
+		MySourceResolver.PREFETCH_LOG.fine(() -> "resolve miss: " + uri);
+		// 副資源は本文を読み切ってから控える。主文書は**流しながら**控える
+		// ——読み切ってから渡すと組版の開始が遅れる(mainUriのjavadoc参照)
+		final boolean main = uri.equals(this.mainUri);
+		final boolean remember = !main;
+		return new MyHttpSource(uri, this.httpClient(), request, cacheKey, remember, main);
 	}
 
 	/**
@@ -524,11 +871,97 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	public synchronized void close() {
+		this.prefetchClosed = true;
 		if (this.executor != null) {
 			this.executor.shutdownNow();
 			this.executor = null;
 		}
 		this.httpClient = null;
+		// 実行前に破棄された先読みタスクはfinallyを通らない。resolve()が
+		// joinで固まらないよう、残ったFutureをここで完了させる
+		this.prefetching.forEach((uri, inflight) -> inflight.future().complete(null));
+		this.prefetching.clear();
+		this.hostSlots.clear();
+		this.throttledHosts.clear();
+		this.prefetched.clear();
+		this.prefetchedBytes.set(0);
+
+	}
+
+	/**
+	 * 読まれたバイトを写し取り、末尾まで読み切ったら渡します(2026-08-28)。
+	 *
+	 * <p>
+	 * 上限を超えたら写しを捨てます(控えないだけで、読み出しは素通し)。
+	 * 途中で捨てられた・読み切られなかった場合は何もしません——欠けた写しを
+	 * 次の変換で使うと、黙って壊れた結果が出るためです。
+	 * </p>
+	 */
+	static final class TeeInputStream extends InputStream {
+		private final InputStream in;
+		private final java.io.ByteArrayOutputStream copy = new java.io.ByteArrayOutputStream(1 << 16);
+		private final int limit;
+		private final java.util.function.Consumer<byte[]> sink;
+		private boolean overflow, done;
+
+		TeeInputStream(final InputStream in, final int limit, final java.util.function.Consumer<byte[]> sink) {
+			this.in = in;
+			this.limit = limit;
+			this.sink = sink;
+		}
+
+		@Override
+		public int read() throws IOException {
+			final int b = this.in.read();
+			if (b < 0) {
+				this.finish();
+			} else {
+				this.record(new byte[] { (byte) b }, 0, 1);
+			}
+			return b;
+		}
+
+		@Override
+		public int read(final byte[] buffer, final int off, final int len) throws IOException {
+			final int n = this.in.read(buffer, off, len);
+			if (n < 0) {
+				this.finish();
+			} else {
+				this.record(buffer, off, n);
+			}
+			return n;
+		}
+
+		private void record(final byte[] buffer, final int off, final int len) {
+			if (this.overflow) {
+				return;
+			}
+			if (this.copy.size() + len > this.limit) {
+				this.overflow = true;
+				this.copy.reset();
+				return;
+			}
+			this.copy.write(buffer, off, len);
+		}
+
+		private void finish() {
+			if (this.done || this.overflow) {
+				return;
+			}
+			this.done = true;
+			this.sink.accept(this.copy.toByteArray());
+			this.copy.reset();
+		}
+
+		@Override
+		public int available() throws IOException {
+			return this.in.available();
+		}
+
+		@Override
+		public void close() throws IOException {
+			this.in.close();
+		}
 	}
 
 	private static final String DEFAULT_USER_AGENT = "CopperPDF";
@@ -681,6 +1114,14 @@ class MyHttpSourceResolver implements SourceResolver {
 		private final HttpClient httpClient;
 		private final HttpRequest request;
 		private final String cacheKey;
+		/** 本文をセッション局所ストアへ控えるか(同一変換内の再取得防止)。 */
+		private final boolean remember;
+		/**
+		 * 主文書か。<b>流しながら</b>控えます(2026-08-28)。同じセッションで
+		 * もう一度変換するとき——webappの文字サイズ変更のように——
+		 * 取り直すとページの内容が変わりうるので、最初に読んだものを使う。
+		 */
+		private final boolean main;
 		private CompletableFuture<HttpResponse<InputStream>> responseFuture;
 		private HttpResponse<InputStream> response;
 		private InputStream in;
@@ -691,11 +1132,14 @@ class MyHttpSourceResolver implements SourceResolver {
 		private long lastModified = -1;
 		private long contentLength = -1;
 
-		MyHttpSource(URI uri, HttpClient httpClient, HttpRequest request, String cacheKey) {
+		MyHttpSource(URI uri, HttpClient httpClient, HttpRequest request, String cacheKey, boolean remember,
+				boolean main) {
 			super(uri);
 			this.httpClient = httpClient;
 			this.request = request;
 			this.cacheKey = cacheKey;
+			this.remember = remember;
+			this.main = main;
 			this.startConnection();
 		}
 
@@ -734,22 +1178,77 @@ class MyHttpSourceResolver implements SourceResolver {
 				this.startConnection();
 			}
 			this.tryConnect();
+			InputStream body = this.decodedBody();
+			// 応答側のキャッシュ判定(要求側は resolve() の cacheKey)。
+			// 本文を上限まで先読みして保存する——EOF検出契機の保存は
+			// GZIPInputStreamが下位ストリームを-1まで読み切るとは限らず
+			// (トレーラはバッファ内で消費され得る)、gzip配信のCSSという
+			// 主目的で不発になるため。上限超過時は読んだ分+残りを
+			// 連結して素通しする(設計は HttpResponseCache に集約)
+			// 共有キャッシュに載らない資源も、副資源と分かっていれば
+			// セッション局所ストアへ控える(2026-08-28。同一変換内で同じ
+			// 資源を何度も取りに行かない——{@link #discovered}のjavadoc)
+			final boolean shared = this.cacheKey != null && this.isCacheableResponse();
+			if (shared || (this.remember && this.response.statusCode() == 200)) {
+				final byte[] head = body.readNBytes(HttpResponseCache.MAX_ENTRY_BYTES + 1);
+				if (head.length <= HttpResponseCache.MAX_ENTRY_BYTES) {
+					final HttpResponseCache.Entry entry = new HttpResponseCache.Entry(head, this.mimeType,
+							this.encoding, this.lastModified, System.currentTimeMillis(),
+							parseMaxAge(this.response.headers().firstValue("Cache-Control").orElse(null)));
+					if (shared) {
+						HttpResponseCache.put(this.cacheKey, entry);
+					}
+					if (this.remember) {
+						store(this.getURI(), entry);
+					}
+					body.close();
+					body = new java.io.ByteArrayInputStream(head);
+				} else {
+					body = new java.io.SequenceInputStream(new java.io.ByteArrayInputStream(head), body);
+				}
+			}
+			if (this.main) {
+				// **流しながら控える**(2026-08-28)。同じセッションでもう一度
+				// 変換するとき、取り直すとページの内容が変わりうる(実サイトは
+				// 読み込むたびに違うHTMLを返す)。読み切ってから渡すと組版の
+				// 開始が遅れるので、渡しながら写しを取る。読み切らなかったら
+				// 控えない——中途半端な写しを次の変換で使うほうが害が大きい
+				final URI uri = this.getURI();
+				final String type = this.mimeType;
+				final String charset = this.encoding;
+				final long modified = this.lastModified;
+				final Long maxAge = parseMaxAge(this.response.headers().firstValue("Cache-Control").orElse(null));
+				body = new TeeInputStream(body, HttpResponseCache.MAX_ENTRY_BYTES, bytes -> store(uri,
+						new HttpResponseCache.Entry(bytes, type, charset, modified, System.currentTimeMillis(),
+								maxAge)));
+			}
+			this.in = body;
+			return this.in;
+		}
+
+		/**
+		 * 接続済み応答の復号ボディを返します(ストール時限+Content-Encoding
+		 * 解凍)。
+		 *
+		 * <p>
+		 * ストール時限(2026-08-08): HttpRequest.timeout()は応答ヘッダ到着
+		 * までしか守らず、ボディのストリーミングが止まるとレイアウト
+		 * スレッドが永久に固まる——kakaku.comの外部リソース1本で変換全体が
+		 * 2000秒超ハングした実バグ。input.http.socket.timeout
+		 * (requestTimeout)を読み取り毎のストール上限として使う。
+		 * 解凍: HttpClientはContent-Encodingを自動解凍しない。未対応の
+		 * ままだと圧縮バイト列がそのままパーサに渡り、大量の文字化けとして
+		 * 観測される。
+		 * </p>
+		 */
+		private InputStream decodedBody() throws IOException {
 			InputStream body = this.response.body();
 			if (body == null) {
 				throw new FileNotFoundException();
 			}
-			// 応答ボディの読み取り停止に時限を課す(2026-08-08)。
-			// HttpRequest.timeout()は応答ヘッダ到着までしか守らず、ボディの
-			// ストリーミングが止まるとレイアウトスレッドが永久に固まる
-			// ——kakaku.comの外部リソース1本で変換全体が2000秒超ハングした
-			// 実バグ。input.http.socket.timeout(requestTimeout)を
-			// 読み取り毎のストール上限として使う
 			if (requestTimeout > 0) {
 				body = new StallGuardInputStream(body, MyHttpSourceResolver.this.executor, requestTimeout);
 			}
-			// HttpClient は Content-Encoding を自動解凍しないため、ここで
-			// 明示的に解凍する(未対応のままだと圧縮バイト列がそのまま
-			// パーサに渡り、大量の文字化けとして観測される)。
 			if (this.contentEncoding != null) {
 				switch (this.contentEncoding.trim().toLowerCase()) {
 				case "gzip":
@@ -765,27 +1264,58 @@ class MyHttpSourceResolver implements SourceResolver {
 					break;
 				}
 			}
-			// 応答側のキャッシュ判定(要求側は resolve() の cacheKey)。
-			// 本文を上限まで先読みして保存する——EOF検出契機の保存は
-			// GZIPInputStreamが下位ストリームを-1まで読み切るとは限らず
-			// (トレーラはバッファ内で消費され得る)、gzip配信のCSSという
-			// 主目的で不発になるため。上限超過時は読んだ分+残りを
-			// 連結して素通しする(設計は HttpResponseCache に集約)
-			if (this.cacheKey != null && this.isCacheableResponse()) {
-				final byte[] head = body.readNBytes(HttpResponseCache.MAX_ENTRY_BYTES + 1);
-				if (head.length <= HttpResponseCache.MAX_ENTRY_BYTES) {
-					HttpResponseCache.put(this.cacheKey,
-							new HttpResponseCache.Entry(head, this.mimeType, this.encoding, this.lastModified,
-									System.currentTimeMillis(),
-									parseMaxAge(this.response.headers().firstValue("Cache-Control").orElse(null))));
-					body.close();
-					body = new java.io.ByteArrayInputStream(head);
-				} else {
-					body = new java.io.SequenceInputStream(new java.io.ByteArrayInputStream(head), body);
+			return body;
+		}
+
+		/**
+		 * 先読み用: 本文を上限まで読み切ってエントリにします。200以外・
+		 * 上限超過は{@code null}(その資源は実要求が正規経路で取り直す)。
+		 *
+		 * <p>
+		 * ここでは応答側のキャッシュ条件(Set-Cookie等)を課さない——
+		 * セッション局所の受け渡しは「同一変換内で同じ資源を2回取らない」
+		 * だけで、Chromeが同一ロード内のmemory cacheでヘッダに関わらず
+		 * 再利用するのと同じ意味論。Set-Cookieの副作用は応答受信時に
+		 * cookieManagerが処理済みで、本文の再利用とは独立している
+		 * (実例: upload.wikimedia.orgが画像応答の一部にWMF-Uniq追跡
+		 * Cookieを付け、厳格条件では画像の半数が保持できなかった)。
+		 * プロセス共通の{@link HttpResponseCache}への保存可否は、従来
+		 * どおり{@link #isCacheableResponse()}で別途判定する。
+		 * </p>
+		 */
+		HttpResponseCache.Entry readEntryForPrefetch() throws IOException {
+			this.tryConnect();
+			final int status = this.response.statusCode();
+			if (status != 200) {
+				if (status == 429 || status == 503) {
+					// レート制限。このホストの先読みは以降やめる(投機で
+					// 配信側を怒らせて本来の取得まで失うのは本末転倒)
+					final String host = this.getURI().getHost();
+					if (host != null && throttledHosts.add(host)) {
+						MySourceResolver.PREFETCH_LOG
+								.fine(() -> "prefetch disabled for throttled host: " + host + " (HTTP " + status + ")");
+					}
 				}
+				return null;
 			}
-			this.in = body;
-			return this.in;
+			final byte[] head;
+			final InputStream body = this.decodedBody();
+			try {
+				head = body.readNBytes(HttpResponseCache.MAX_ENTRY_BYTES + 1);
+			} finally {
+				body.close();
+			}
+			if (head.length > HttpResponseCache.MAX_ENTRY_BYTES) {
+				return null;
+			}
+			return new HttpResponseCache.Entry(head, this.getMimeType(), this.getEncoding(), this.lastModified,
+					System.currentTimeMillis(),
+					parseMaxAge(this.response.headers().firstValue("Cache-Control").orElse(null)));
+		}
+
+		/** 応答が共有キャッシュ条件を満たすか(先読みタスクからの判定用)。 */
+		boolean isSharedCacheable() {
+			return this.isCacheableResponse();
 		}
 
 		/**

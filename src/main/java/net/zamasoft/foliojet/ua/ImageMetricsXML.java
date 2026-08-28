@@ -109,6 +109,23 @@ public final class ImageMetricsXML {
 					return;
 				}
 				cache.putSize(href, w, h);
+				// 出力済み資源の同一性(2026-08-28)。属性が揃っているときだけ
+				// 読む。旧形式(寸法だけ)の寸法表もそのまま使える
+				final String sha256 = attributes.getValue("sha256");
+				final String mediaType = attributes.getValue("media-type");
+				final String extension = attributes.getValue("extension");
+				if (sha256 != null && mediaType != null && extension != null) {
+					int pw = 0, ph = 0;
+					try {
+						pw = Integer.parseInt(attributes.getValue("pixel-width"));
+						ph = Integer.parseInt(attributes.getValue("pixel-height"));
+					} catch (final NumberFormatException | NullPointerException e) {
+						pw = ph = 0;
+					}
+					if (pw > 0 && ph > 0) {
+						cache.putAsset(href, new ImageMetricsCache.Asset(sha256, mediaType, extension, pw, ph));
+					}
+				}
 				++count[0];
 			}
 		};
@@ -133,6 +150,21 @@ public final class ImageMetricsXML {
 				out.write(number(image.getWidth()));
 				out.write("\" height=\"");
 				out.write(number(image.getHeight()));
+				final ImageMetricsCache.Asset asset = cache.getAsset(entry.getKey());
+				if (asset != null) {
+					// 出力済み資源の同一性。これがあると再変換で画像を
+					// 一度も開かずに同じ参照を書ける(2026-08-28)
+					out.write("\" sha256=\"");
+					escape(out, asset.sha256());
+					out.write("\" media-type=\"");
+					escape(out, asset.mediaType());
+					out.write("\" extension=\"");
+					escape(out, asset.extension());
+					out.write("\" pixel-width=\"");
+					out.write(Integer.toString(asset.pixelWidth()));
+					out.write("\" pixel-height=\"");
+					out.write(Integer.toString(asset.pixelHeight()));
+				}
 				out.write("\"/>\n");
 			}
 			out.write("</" + ROOT + ">\n");

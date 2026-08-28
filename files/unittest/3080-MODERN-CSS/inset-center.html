@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* insetショートハンド(css-logical §4.4)と絶対配置センタリング
+   (2026-08-27)。未対応だと`inset:0; margin:auto`の中央寄せイディオムが
+   丸ごと落ち、要素が静的位置(左上)へ張り付いていた(asahi.comの
+   動画再生アイコン)。期待: b1は親の中央に20x20、b2はTRBL 4値展開で
+   top10/right20/bottom30/left40。 */
+@page { size: 300px 200px; margin: 0 }
+body { margin: 10px; font: 10px sans-serif }
+.holder { position: relative; width: 120px; height: 80px; background: #eee; margin-bottom: 10px }
+.b1 { position: absolute; inset: 0; width: 20px; height: 20px; margin: auto; background: #36c }
+.b2 { position: absolute; inset: 10px 20px 30px 40px; background: #c63 }
+</style>
+</head>
+<body>
+<div class="holder"><div class="b1"></div></div>
+<div class="holder"><div class="b2"></div></div>
+</body>
+</html>
