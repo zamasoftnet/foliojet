@@ -41,6 +41,21 @@ public class GridParams extends BlockParams {
 	/** {@code grid-auto-flow}に{@code dense}があるか(2026-08-29)。 */
 	public boolean autoFlowDense = false;
 
+	/**
+	 * {@code grid-template-columns: subgrid}か(css-grid-2、2026-08-29)。
+	 * trueのとき{@link #templateColumns}は空で、{@link #columnLineNames}は
+	 * {@code subgrid [a] [b] ...}の線名列(要素数は任意)。親の跨ぐトラックを
+	 * bind時に継ぐ({@code GridBuilder.bind})。
+	 */
+	public boolean columnsSubgrid = false;
+
+	/**
+	 * {@code grid-template-rows: subgrid}か(2026-08-29)。行軸は親の行が
+	 * item bind後に決まるため継げない——行gapだけ親のものにする
+	 * ({@code GridBuilder}のjavadoc)。
+	 */
+	public boolean rowsSubgrid = false;
+
 	/** 行間隔(絶対長)。 */
 	public double rowGap = 0;
 

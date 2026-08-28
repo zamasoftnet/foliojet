@@ -127,7 +127,8 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				continue;
 			}
 			try {
-				value = ValueUtils.toURI(ua, uri, lu);
+				// url()とimage-set()(2026-08-29)
+				value = ValueUtils.toImage(ua, uri, lu);
 				if (value != null) {
 					if (uriValue) {
 						throw new PropertyException("urlが2度指定されています");
@@ -136,9 +137,12 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					primitives.set(BackgroundImage.INFO, value);
 					continue;
 				}
+				if (ValueUtils.isImage(lu)) {
+					throw new PropertyException("image-set()に採れる候補がありません");
+				}
 			} catch (URISyntaxException e) {
 				uriValue = true;
-				ua.message(MessageCodes.WARN_BAD_LINK_URI, ((CssToken.Uri) lu).uri());
+				ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));
 				continue;
 			}
 			value = ColorValueUtils.toBackgroundRepeat(lu);

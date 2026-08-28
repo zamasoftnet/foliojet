@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid: minmax(min, max) の両端(css-grid-1 §11.5)</title>
+<!--
+  2026-08-29: minmax()は両端を保持し、track sizing algorithmで解く
+  (それまでは最大値だけの近似)。base size=min側、growth limit=max側。
+  100px=75pt、50px=37.5pt、120px=90pt、400px=300pt。
+
+  #m1 minmax(100px,1fr) 50px、幅300pt: 残余をfrへ → 262.5 / 37.5
+  #m2 同じ列、幅90pt: base 75+37.5=112.5 > 90 → 縮めず 75 / 37.5(はみ出す)。
+      旧近似(1fr扱い)では52.5になっていた
+  #m3 同じ列、幅90pt、1列目に幅112.5ptの分割不能な子: 固定min 100pxは
+      内容で膨らまない → 75 / 37.5(内容がはみ出す)。旧近似では
+      min-content床で112.5
+  #m4 minmax(auto,200px) 1fr、幅300pt、内容は狭い: maximize tracksで
+      1列目が上限150まで伸び、残り150がfr → 150 / 150
+  #m5 同じ列、1列目に幅225ptの子: base=min-content 225 > 上限150 →
+      上限は基礎幅へ揃う → 225 / 75。旧近似では150で内容がはみ出た
+  #m6 minmax(50px,100px)×2、幅90pt: base 37.5×2、残余15を均等に →
+      45 / 45(maximize tracks。旧近似では75/75ではみ出た)
+-->
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 10pt;
+	line-height: 12pt;
+	font-family: serif;
+}
+div {
+	margin: 0;
+}
+.g {
+	display: grid;
+	margin-bottom: 8pt;
+	background: #eee;
+}
+.g > div {
+	background: #ccf;
+}
+.g > div > div {
+	background: #fc9;
+	height: 10pt;
+}
+#m1 { width: 400px; grid-template-columns: minmax(100px, 1fr) 50px; }
+#m2 { width: 120px; grid-template-columns: minmax(100px, 1fr) 50px; }
+#m3 { width: 120px; grid-template-columns: minmax(100px, 1fr) 50px; }
+#m4 { width: 400px; grid-template-columns: minmax(auto, 200px) 1fr; }
+#m5 { width: 400px; grid-template-columns: minmax(auto, 200px) 1fr; }
+#m6 { width: 120px; grid-template-columns: minmax(50px, 100px) minmax(50px, 100px); }
+</style>
+</head>
+<body>
+<div class="g" id="m1"><div>a</div><div>b</div></div>
+<div class="g" id="m2"><div>a</div><div>b</div></div>
+<div class="g" id="m3"><div><div style="width: 150px"></div></div><div>b</div></div>
+<div class="g" id="m4"><div>a</div><div>b</div></div>
+<div class="g" id="m5"><div><div style="width: 300px"></div></div><div>b</div></div>
+<div class="g" id="m6"><div>a</div><div>b</div></div>
+<div id="after">after</div>
+</body>
+</html>

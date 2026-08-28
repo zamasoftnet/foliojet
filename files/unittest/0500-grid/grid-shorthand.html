@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid: grid-template / grid ショートハンド</title>
+<!--
+  2026-08-29: grid-template(areas+rows形式、rows / columns形式)と
+  grid(template形式、rows / auto-flow auto-columns形式、
+  auto-flow auto-rows / columns形式)。gridは grid-auto-* と grid-auto-flow
+  も初期値へ戻す。
+
+  #t1 grid-template: "a a" 20pt "b c" 30pt / 100pt 200pt
+      a: x0 y0 w300 h20、b: x0 y20 w100 h30、c: x100 y20 w200 h30
+  #t2 grid: 20pt 30pt / auto-flow 50pt(列フロー、暗黙列50pt)
+      1: x0 y0 w50 h20、2: x0 y20 w50 h30、3: x50 y0 w50 h20、4: x50 y20 w50 h30
+  #t3 grid: auto-flow dense 25pt / 100pt 100pt(行フロー、暗黙行25pt)
+      1: x0 y0 h25、2: x100 y0 h25、3: x0 y25 h25
+  #t4 先に書いた grid-auto-rows: 40pt と grid-template-areas を
+      grid: 100pt 100pt / 1fr が初期値へ戻す → 3番目の行は内容高12pt
+      (40ptなら戻し忘れ)
+-->
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 10pt;
+	line-height: 12pt;
+	font-family: serif;
+}
+div {
+	margin: 0;
+}
+.g {
+	display: grid;
+	width: 300pt;
+	margin-bottom: 8pt;
+	background: #eee;
+}
+.g > div {
+	background: #ccf;
+}
+#t1 { grid-template: "a a" 20pt "b c" 30pt / 100pt 200pt; }
+#t1 > .a { grid-area: a; }
+#t1 > .b { grid-area: b; }
+#t1 > .c { grid-area: c; }
+#t2 { grid: 20pt 30pt / auto-flow 50pt; }
+#t3 { grid: auto-flow dense 25pt / 100pt 100pt; }
+#t4 { grid-auto-rows: 40pt; grid-template-areas: "x y"; grid: 100pt 100pt / 1fr; }
+</style>
+</head>
+<body>
+<div class="g" id="t1"><div class="a">a</div><div class="b">b</div><div class="c">c</div></div>
+<div class="g" id="t2"><div>1</div><div>2</div><div>3</div><div>4</div></div>
+<div class="g" id="t3"><div>1</div><div>2</div><div>3</div></div>
+<div class="g" id="t4"><div>1</div><div>2</div><div>3</div></div>
+<div id="after">after</div>
+</body>
+</html>

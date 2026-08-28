@@ -225,6 +225,12 @@ public class DisplayListGoldenTest extends TestCase {
 			"0500-grid/percent-repeat-tracks.html", //
 			"0500-grid/auto-fill.html", //
 			"0500-grid/auto-flow-column.html", //
+			// minmax()の両端(css-grid-1 §11.5)・subgrid(css-grid-2)・
+			// grid-template/gridショートハンド・image-set()(2026-08-29)
+			"0500-grid/minmax.html", //
+			"0500-grid/subgrid.html", //
+			"0500-grid/grid-shorthand.html", //
+			"3080-MODERN-CSS/image-set.html", //
 			// aspect-ratio(2026-08-29): 幅確定→高さ、高さ確定→幅、置換要素、
 			// border-box、内容あふれ
 			"3080-MODERN-CSS/aspect-ratio.html", //

@@ -17,9 +17,35 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
  */
 public class GridItemBox extends FlowBlockBox {
 
+	/**
+	 * このitemが跨ぐ親gridのトラック(subgrid用、css-grid-2、2026-08-29)。
+	 * 親の{@code GridBuilder.bind}がitem本文のbind直前に設定し、item直下の
+	 * {@code grid-template-columns: subgrid}なgridが自分のトラックとして継ぐ。
+	 *
+	 * @param columnWidths    跨ぐ列の解決済み幅(ソース順、span本)
+	 * @param columnGap       親の列gap
+	 * @param columnLineNames 跨ぐ列線の名前(span+1要素。親の明示名+areasの暗黙名)
+	 * @param rowGap          親の行gap
+	 */
+	public record SubgridTracks(double[] columnWidths, double columnGap, java.util.List<java.util.List<String>> columnLineNames,
+			double rowGap) {
+	}
+
+	private SubgridTracks subgridTracks;
+
 	public GridItemBox(final BlockParams params, final FlowPos pos, final double trackWidth) {
 		super(params, pos);
 		this.width = trackWidth;
+	}
+
+	/** 跨ぐ親トラックを設定します(親の{@code GridBuilder.bind}、2026-08-29)。 */
+	public void setSubgridTracks(final SubgridTracks tracks) {
+		this.subgridTracks = tracks;
+	}
+
+	/** 跨ぐ親トラックです(親のトラック配置前・G0退行の親ではnull)。 */
+	public SubgridTracks getSubgridTracks() {
+		return this.subgridTracks;
 	}
 
 	/**

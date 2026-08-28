@@ -12,6 +12,8 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.css.impl.property.box.AspectRatio;
 import net.zamasoft.foliojet.css.impl.property.shorthand.GridAreaShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.GridShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.GridTemplateShorthand;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
@@ -202,13 +204,159 @@ public class GridShorthandParserTest extends TestCase {
 		assertTrue(v.getTracks().get(1) instanceof GridTrackListValue.Auto);
 		v = computedTracks(GridTemplateTracks.COLUMNS, "min-content minmax(0, auto) min-content");
 		assertEquals(3, v.getTracks().size());
-		assertTrue(v.getTracks().get(1) instanceof GridTrackListValue.Auto);
+		final GridTrackListValue.MinMax zeroAuto = (GridTrackListValue.MinMax) v.getTracks().get(1);
+		assertEquals(0.0, ((GridTrackListValue.Fixed) zeroAuto.min()).length(), 1e-9);
+		assertTrue(zeroAuto.max() instanceof GridTrackListValue.Auto);
 		v = computedTracks(GridTemplateTracks.COLUMNS, "max-content 1fr");
 		assertTrue(v.getTracks().get(0) instanceof GridTrackListValue.MaxContent);
-		// subgridは単一autoの近似
-		v = computedTracks(GridTemplateTracks.COLUMNS, "subgrid [a] [b]");
-		assertEquals(1, v.getTracks().size());
-		assertTrue(v.getTracks().get(0) instanceof GridTrackListValue.Auto);
+	}
+
+	/** subgrid(css-grid-2、2026-08-29): トラックは持たず線名列だけを運ぶ。 */
+	public void testSubgrid() throws Exception {
+		GridTrackListValue v = computedTracks(GridTemplateTracks.COLUMNS, "subgrid [a] [b]");
+		assertTrue(v.isSubgrid());
+		assertFalse(v.isNone());
+		assertTrue(v.getTracks().isEmpty());
+		assertEquals(List.of(List.of("a"), List.of("b")), v.getLineNames());
+		v = computedTracks(GridTemplateTracks.ROWS, "subgrid");
+		assertTrue(v.isSubgrid());
+		assertTrue(v.getLineNames().isEmpty());
+		assertFalse(computedTracks(GridTemplateTracks.COLUMNS, "none").isSubgrid());
+		for (final String bad : new String[] { "subgrid 10pt", "subgrid auto" }) {
+			try {
+				computedTracks(GridTemplateTracks.COLUMNS, bad);
+				fail("拒否されるべきtrack list: " + bad);
+			} catch (PropertyException e) {
+				// expected
+			}
+		}
+		try {
+			computedTracks(GridTemplateTracks.AUTO_COLUMNS, "subgrid");
+			fail("grid-auto-columnsでsubgridは拒否");
+		} catch (PropertyException e) {
+			// expected
+		}
+	}
+
+	/** minmax()の両端(2026-08-29): min∈{長さ,%,min-content,max-content,auto}、max∈{長さ,%,fr,...}。 */
+	public void testMinMaxTracks() throws Exception {
+		GridTrackListValue v = computedTracks(GridTemplateTracks.COLUMNS, "minmax(100pt, 1fr) minmax(auto, 200pt)");
+		assertEquals(2, v.getTracks().size());
+		GridTrackListValue.MinMax m = (GridTrackListValue.MinMax) v.getTracks().get(0);
+		assertEquals(100.0, ((GridTrackListValue.Fixed) m.min()).length(), 1e-9);
+		assertEquals(1.0, ((GridTrackListValue.Fr) m.max()).weight(), 1e-9);
+		m = (GridTrackListValue.MinMax) v.getTracks().get(1);
+		assertTrue(m.min() instanceof GridTrackListValue.Auto);
+		assertEquals(200.0, ((GridTrackListValue.Fixed) m.max()).length(), 1e-9);
+		v = computedTracks(GridTemplateTracks.COLUMNS, "minmax(min-content, 50%) minmax(20%, max-content)");
+		m = (GridTrackListValue.MinMax) v.getTracks().get(0);
+		assertTrue(m.min() instanceof GridTrackListValue.MinContent);
+		assertEquals(0.5, ((GridTrackListValue.Percentage) m.max()).ratio(), 1e-9);
+		m = (GridTrackListValue.MinMax) v.getTracks().get(1);
+		assertEquals(0.2, ((GridTrackListValue.Percentage) m.min()).ratio(), 1e-9);
+		assertTrue(m.max() instanceof GridTrackListValue.MaxContent);
+		// repeat内のminmaxも両端を保つ
+		v = computedTracks(GridTemplateTracks.COLUMNS, "repeat(2, minmax(0, 1fr))");
+		assertEquals(2, v.getTracks().size());
+		assertTrue(v.getTracks().get(1) instanceof GridTrackListValue.MinMax);
+		// grid-auto-rowsでも
+		v = computedTracks(GridTemplateTracks.AUTO_ROWS, "minmax(30pt, auto)");
+		assertTrue(v.getTracks().get(0) instanceof GridTrackListValue.MinMax);
+	}
+
+	private static GridTrackListValue computed(final java.util.Map<String, Value> map, final String name) {
+		return (GridTrackListValue) ((GridTemplateTracks) GridTemplateTracks.COLUMNS).getComputedValue(map.get(name),
+				null);
+	}
+
+	/** grid-templateショートハンド(css-grid-1 §7.4、2026-08-29)。 */
+	public void testGridTemplateShorthand() throws Exception {
+		// areas+rows形式
+		java.util.Map<String, Value> m = expand((AbstractShorthandPropertyInfo) GridTemplateShorthand.INFO,
+				"grid-template: [r1] \"a a\" 20pt [r2] \"b c\" 30pt [r3] / 100pt 1fr");
+		GridTrackListValue rows = computed(m, "grid-template-rows");
+		assertEquals(2, rows.getTracks().size());
+		assertEquals(20.0, ((GridTrackListValue.Fixed) rows.getTracks().get(0)).length(), 1e-9);
+		assertEquals(30.0, ((GridTrackListValue.Fixed) rows.getTracks().get(1)).length(), 1e-9);
+		assertEquals(List.of(List.of("r1"), List.of("r2"), List.of("r3")), rows.getLineNames());
+		GridTrackListValue columns = computed(m, "grid-template-columns");
+		assertEquals(2, columns.getTracks().size());
+		assertTrue(columns.getTracks().get(1) instanceof GridTrackListValue.Fr);
+		GridTemplateAreasValue areas = (GridTemplateAreasValue) m.get("grid-template-areas");
+		assertEquals(2, areas.getRowCount());
+		assertEquals(2, areas.getColumnCount());
+		assertEquals(3, areas.getAreas().size());
+		// 寸法省略はauto、線名は前後どちらにも置ける、columns省略はnone
+		m = expand((AbstractShorthandPropertyInfo) GridTemplateShorthand.INFO,
+				"grid-template: \"a\" [x] \"b\" 10pt [y z]");
+		rows = computed(m, "grid-template-rows");
+		assertEquals(2, rows.getTracks().size());
+		assertTrue(rows.getTracks().get(0) instanceof GridTrackListValue.Auto);
+		assertEquals(10.0, ((GridTrackListValue.Fixed) rows.getTracks().get(1)).length(), 1e-9);
+		assertEquals(List.of(List.of(), List.of("x"), List.of("y", "z")), rows.getLineNames());
+		assertTrue(computed(m, "grid-template-columns").isNone());
+		// rows / columns形式
+		m = expand((AbstractShorthandPropertyInfo) GridTemplateShorthand.INFO, "grid-template: 100pt / 1fr 1fr");
+		assertEquals(1, computed(m, "grid-template-rows").getTracks().size());
+		assertEquals(2, computed(m, "grid-template-columns").getTracks().size());
+		assertTrue(((GridTemplateAreasValue) m.get("grid-template-areas")).isNone());
+		// none
+		m = expand((AbstractShorthandPropertyInfo) GridTemplateShorthand.INFO, "grid-template: none");
+		assertTrue(computed(m, "grid-template-rows").isNone());
+		assertTrue(computed(m, "grid-template-columns").isNone());
+		assertTrue(((GridTemplateAreasValue) m.get("grid-template-areas")).isNone());
+		for (final String bad : new String[] { "100pt", "\"a\" / \"b\"", "100pt / 1fr / 1fr", "10pt \"a\"",
+				"\"a\" repeat(2, 10pt)" }) {
+			try {
+				expand((AbstractShorthandPropertyInfo) GridTemplateShorthand.INFO, "grid-template: " + bad);
+				fail("拒否されるべきgrid-template: " + bad);
+			} catch (PropertyException e) {
+				// expected
+			}
+		}
+	}
+
+	/** gridショートハンド(css-grid-1 §7.8、2026-08-29): grid-auto-*とauto-flowも戻す。 */
+	public void testGridShorthand() throws Exception {
+		// <rows> / auto-flow <auto-columns>
+		java.util.Map<String, Value> m = expand((AbstractShorthandPropertyInfo) GridShorthand.INFO,
+				"grid: 20pt 30pt / auto-flow dense 50pt");
+		assertEquals(2, computed(m, "grid-template-rows").getTracks().size());
+		assertTrue(computed(m, "grid-template-columns").isNone());
+		assertSame(GridAutoFlowValue.COLUMN_DENSE, m.get("grid-auto-flow"));
+		assertEquals(50.0, ((GridTrackListValue.Fixed) computed(m, "grid-auto-columns").getTracks().get(0)).length(),
+				1e-9);
+		assertTrue(computed(m, "grid-auto-rows").isNone());
+		assertTrue(((GridTemplateAreasValue) m.get("grid-template-areas")).isNone());
+		// auto-flow <auto-rows> / <columns>
+		m = expand((AbstractShorthandPropertyInfo) GridShorthand.INFO, "grid: dense auto-flow 25pt / 100pt 100pt");
+		assertTrue(computed(m, "grid-template-rows").isNone());
+		assertEquals(2, computed(m, "grid-template-columns").getTracks().size());
+		assertSame(GridAutoFlowValue.ROW_DENSE, m.get("grid-auto-flow"));
+		assertEquals(25.0, ((GridTrackListValue.Fixed) computed(m, "grid-auto-rows").getTracks().get(0)).length(),
+				1e-9);
+		assertTrue(computed(m, "grid-auto-columns").isNone());
+		m = expand((AbstractShorthandPropertyInfo) GridShorthand.INFO, "grid: auto-flow / 1fr");
+		assertSame(GridAutoFlowValue.ROW, m.get("grid-auto-flow"));
+		assertTrue(computed(m, "grid-auto-rows").isNone());
+		// <'grid-template'>形式: 暗黙側は初期値へ
+		m = expand((AbstractShorthandPropertyInfo) GridShorthand.INFO, "grid: \"a\" 10pt / 1fr");
+		assertEquals(1, computed(m, "grid-template-rows").getTracks().size());
+		assertEquals(1, ((GridTemplateAreasValue) m.get("grid-template-areas")).getAreas().size());
+		assertSame(GridAutoFlowValue.ROW, m.get("grid-auto-flow"));
+		assertTrue(computed(m, "grid-auto-rows").isNone());
+		assertTrue(computed(m, "grid-auto-columns").isNone());
+		m = expand((AbstractShorthandPropertyInfo) GridShorthand.INFO, "grid: none");
+		assertEquals(6, m.size());
+		for (final String bad : new String[] { "auto-flow / auto-flow", "10pt auto-flow / 100pt", "dense / 100pt",
+				"auto-flow auto-flow / 100pt", "auto-flow", "100pt / auto-flow 10pt / 1fr" }) {
+			try {
+				expand((AbstractShorthandPropertyInfo) GridShorthand.INFO, "grid: " + bad);
+				fail("拒否されるべきgrid: " + bad);
+			} catch (PropertyException e) {
+				// expected
+			}
+		}
 	}
 
 	public void testAutoRepeat() throws Exception {
@@ -219,7 +367,10 @@ public class GridShorthandParserTest extends TestCase {
 		assertFalse(repeat.fit());
 		assertEquals(100.0, repeat.unitMinLength(), 1e-9);
 		assertEquals(1, repeat.unit().size());
-		assertTrue(repeat.unit().get(0) instanceof GridTrackListValue.Fr);
+		// unitのminmax()は両端を保つ(2026-08-29)
+		final GridTrackListValue.MinMax unit = (GridTrackListValue.MinMax) repeat.unit().get(0);
+		assertEquals(100.0, ((GridTrackListValue.Fixed) unit.min()).length(), 1e-9);
+		assertTrue(unit.max() instanceof GridTrackListValue.Fr);
 		final GridTrackListValue fit = computedTracks(GridTemplateTracks.COLUMNS,
 				"10pt repeat(auto-fit, [col] minmax(20%, 50pt)) 10pt");
 		assertEquals(3, fit.getTracks().size());

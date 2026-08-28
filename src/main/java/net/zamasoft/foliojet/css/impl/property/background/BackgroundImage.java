@@ -90,12 +90,16 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 			return KeywordValue.NONE;
 		}
 		try {
-			final URIValue value = ValueUtils.toURI(ua, uri, lu);
+			// url()とimage-set()(2026-08-29、出力解像度に最も近い候補)
+			final URIValue value = ValueUtils.toImage(ua, uri, lu);
 			if (value != null) {
 				return value;
 			}
+			if (ValueUtils.isImage(lu)) {
+				throw new PropertyException(); // 採れる候補の無いimage-set()
+			}
 		} catch (URISyntaxException e) {
-			ua.message(MessageCodes.WARN_BAD_LINK_URI, ((CssToken.Uri) lu).uri());
+			ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));
 		}
 		// グラデーション(2026-08-29)。複数レイヤ(コンマ区切り)は最初の
 		// レイヤだけを採る(多層背景は未対応——記録済み)

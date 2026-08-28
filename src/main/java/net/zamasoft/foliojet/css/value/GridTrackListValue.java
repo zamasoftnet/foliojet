@@ -20,12 +20,12 @@ import java.util.List;
  */
 public final class GridTrackListValue implements Value {
 	/** {@code none}(明示トラックなし=1列のimplicit auto)。 */
-	public static final GridTrackListValue NONE_VALUE = new GridTrackListValue(List.of(), List.of(List.of()));
+	public static final GridTrackListValue NONE_VALUE = new GridTrackListValue(List.of(), List.of(List.of()), false);
 
 	/**
 	 * トラック1本の寸法です。
 	 */
-	public sealed interface TrackSize permits Fixed, Auto, Fr, ZeroMinFr, Percentage, MinContent, MaxContent,
+	public sealed interface TrackSize permits Fixed, Auto, Fr, MinMax, Percentage, MinContent, MaxContent,
 			AutoRepeat {
 	}
 
@@ -57,18 +57,34 @@ public final class GridTrackListValue implements Value {
 	}
 
 	/**
-	 * {@code minmax(0, <fr>)}(2026-08-19)。frと同じ残余分配をするが、
-	 * <b>最小値0が明示されている</b>ため内容のmin-contentで基礎幅が
-	 * 膨らまない。実物のWebで頻出(Tailwindの{@code grid-cols-N}は
-	 * {@code repeat(N, minmax(0,1fr))})で、これをただの{@code fr}へ
-	 * 潰すと、コードブロック等の分割不能な長い行がトラックを押し広げ、
-	 * <b>同じgrid内の本文の折り返し幅まで広がる</b>(tailwind-v4で実測:
-	 * 版面523ptに対しトラック680pt、本文が右へはみ出す)。
+	 * {@code minmax(min, max)}(2026-08-29——css-grid-1 §7.2.1/§11.5)。
+	 * 両端を保持し、{@code BasicGridTrackSizing}が仕様のtrack sizing
+	 * algorithmで解く: base sizeはmin側(固定長→その値、min-content/auto→
+	 * 内容のmin-content、max-content→内容のmax-content)、growth limitは
+	 * max側(固定長→その値、fr→∞=残余分配、auto/max-content→内容の
+	 * max-content、min-content→内容のmin-content)から初期化する。
+	 *
+	 * <p>
+	 * 2026-08-19の{@code ZeroMinFr}({@code minmax(0, <fr>)}——Tailwindの
+	 * {@code grid-cols-N}が展開する形で、最小値0を保たないと分割不能な
+	 * 長い行がトラックを押し広げ本文の折り返し幅まで広がる)はこの一般形へ
+	 * 畳んだ: {@code MinMax(Fixed(0), Fr(w))}。
+	 * </p>
+	 *
+	 * @param min Fixed/Percentage/MinContent/MaxContent/Auto
+	 * @param max Fixed/Percentage/Fr/MinContent/MaxContent/Auto
 	 */
-	public record ZeroMinFr(double weight) implements TrackSize {
+	public record MinMax(TrackSize min, TrackSize max) implements TrackSize {
+		public MinMax {
+			if (min instanceof Fr || min instanceof MinMax || min instanceof AutoRepeat || max instanceof MinMax
+					|| max instanceof AutoRepeat) {
+				throw new IllegalArgumentException("minmax(" + min + "," + max + ")");
+			}
+		}
+
 		@Override
 		public String toString() {
-			return "minmax(0," + this.weight + "fr)";
+			return "minmax(" + this.min + "," + this.max + ")";
 		}
 	}
 
@@ -128,12 +144,20 @@ public final class GridTrackListValue implements Value {
 
 	private final List<TrackSize> tracks;
 
-	/** 各線の名前(tracks.size()+1要素。名前の無い線は空リスト)。 */
+	/**
+	 * 各線の名前(tracks.size()+1要素。名前の無い線は空リスト)。subgridでは
+	 * {@code subgrid [a] [b] ...}の線名列(要素数は任意)。
+	 */
 	private final List<List<String>> lineNames;
 
-	private GridTrackListValue(final List<TrackSize> tracks, final List<List<String>> lineNames) {
+	/** {@code subgrid}(css-grid-2、2026-08-29)——親gridの跨ぐトラックを自分のトラックにする。 */
+	private final boolean subgrid;
+
+	private GridTrackListValue(final List<TrackSize> tracks, final List<List<String>> lineNames,
+			final boolean subgrid) {
 		this.tracks = List.copyOf(tracks);
 		this.lineNames = List.copyOf(lineNames);
+		this.subgrid = subgrid;
 	}
 
 	public static GridTrackListValue create(final List<TrackSize> tracks) {
@@ -151,7 +175,18 @@ public final class GridTrackListValue implements Value {
 		if (names == null || names.size() != tracks.size() + 1) {
 			names = emptyLineNames(tracks.size());
 		}
-		return new GridTrackListValue(tracks, names);
+		return new GridTrackListValue(tracks, names, false);
+	}
+
+	/**
+	 * {@code subgrid <line-name-list>?}です(2026-08-29)。トラックは持たず
+	 * (親の跨ぐトラックをレイアウト時に継ぐ——{@code GridBuilder.bind})、
+	 * 線名列だけを保持する。
+	 *
+	 * @param lineNames 線ごとの名前(先頭の線から順。nullなら無し)
+	 */
+	public static GridTrackListValue createSubgrid(final List<List<String>> lineNames) {
+		return new GridTrackListValue(List.of(), lineNames == null ? List.of() : lineNames, true);
 	}
 
 	/** {@code trackCount+1}本の空の線名リストです。 */
@@ -173,11 +208,23 @@ public final class GridTrackListValue implements Value {
 	}
 
 	public boolean isNone() {
-		return this.tracks.isEmpty();
+		return this.tracks.isEmpty() && !this.subgrid;
+	}
+
+	/** {@code subgrid}か(2026-08-29)。trueのとき{@link #getTracks}は空。 */
+	public boolean isSubgrid() {
+		return this.subgrid;
 	}
 
 	@Override
 	public String toString() {
+		if (this.subgrid) {
+			final StringBuilder buff = new StringBuilder("subgrid");
+			for (final List<String> names : this.lineNames) {
+				buff.append(" [").append(String.join(" ", names)).append(']');
+			}
+			return buff.toString();
+		}
 		if (this.isNone()) {
 			return "none";
 		}

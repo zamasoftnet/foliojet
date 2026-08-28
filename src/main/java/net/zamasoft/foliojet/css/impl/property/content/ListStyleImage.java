@@ -79,12 +79,13 @@ public class ListStyleImage extends AbstractPrimitivePropertyInfo {
 		}
 		URIValue value;
 		try {
-			value = ValueUtils.toURI(ua, uri, lu);
+			// url()とimage-set()(2026-08-29)
+			value = ValueUtils.toImage(ua, uri, lu);
 			if (value != null) {
 				return value;
 			}
 		} catch (URISyntaxException e) {
-			ua.message(MessageCodes.WARN_BAD_LINK_URI, ((CssToken.Uri) lu).uri());
+			ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));
 		}
 		throw new PropertyException();
 	}

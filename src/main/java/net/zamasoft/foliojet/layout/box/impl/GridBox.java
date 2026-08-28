@@ -97,6 +97,16 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	 */
 	private boolean trackLayout;
 
+	/**
+	 * 解決済みの列トラック幅({@code GridBuilder.bind}が設定。それまでnull)。
+	 * subgrid(css-grid-2、2026-08-29)の子gridが親の線位置を継ぐための
+	 * 公開点——子は自分のitem({@link GridItemBox#getSubgridTracks})経由で
+	 * 跨ぐ範囲だけを受け取るが、診断・テスト用に全列もここで読める。
+	 */
+	private double[] resolvedColumnWidths;
+
+	private double resolvedColumnGap;
+
 	public GridBox(final GridParams params, final FlowPos pos) {
 		super(params, pos);
 		// gridのitem配置(行方向トラック位置+行開始位置)は汎用のrestyle
@@ -110,6 +120,40 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 
 	public final GridParams getGridParams() {
 		return (GridParams) this.params;
+	}
+
+	/** 解決済み列トラックを記録します({@code GridBuilder.bind}、2026-08-29)。 */
+	public final void setResolvedColumnTracks(final double[] widths, final double columnGap) {
+		this.resolvedColumnWidths = widths.clone();
+		this.resolvedColumnGap = columnGap;
+	}
+
+	/**
+	 * 解決済み列トラック幅です(2026-08-29)。トラック配置がまだ走っていない
+	 * (またはG0退行の)gridではnull。
+	 */
+	public final double[] getResolvedColumnWidths() {
+		return this.resolvedColumnWidths == null ? null : this.resolvedColumnWidths.clone();
+	}
+
+	/** 解決済み列gapです({@link #getResolvedColumnWidths}がnullなら0)。 */
+	public final double getResolvedColumnGap() {
+		return this.resolvedColumnGap;
+	}
+
+	/**
+	 * 解決済みの列線位置です(content-box原点、列数+1要素。2026-08-29)。
+	 * 未解決ならnull。
+	 */
+	public final double[] getResolvedColumnLines() {
+		if (this.resolvedColumnWidths == null) {
+			return null;
+		}
+		final double[] lines = new double[this.resolvedColumnWidths.length + 1];
+		for (int i = 0; i < this.resolvedColumnWidths.length; ++i) {
+			lines[i + 1] = lines[i] + this.resolvedColumnWidths[i] + (i > 0 ? this.resolvedColumnGap : 0);
+		}
+		return lines;
 	}
 
 	protected GridBox(final GridParams params, final FlowPos pos,

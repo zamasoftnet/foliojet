@@ -133,17 +133,19 @@ public class MaskImage extends AbstractPrimitivePropertyInfo {
 			return KeywordValue.NONE;
 		}
 		try {
-			final URIValue uriValue = ValueUtils.toURI(ua, uri, first);
+			// url()とimage-set()(2026-08-29)
+			final URIValue uriValue = ValueUtils.toImage(ua, uri, first);
 			if (uriValue != null) {
 				if (tokens.hasNext()) {
 					throw new PropertyException();
 				}
 				return uriValue;
 			}
-		} catch (URISyntaxException e) {
-			if (first instanceof CssToken.Uri uriToken) {
-				ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
+			if (ValueUtils.isImage(first)) {
+				throw new PropertyException();
 			}
+		} catch (URISyntaxException e) {
+			ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(first));
 			throw new PropertyException();
 		}
 

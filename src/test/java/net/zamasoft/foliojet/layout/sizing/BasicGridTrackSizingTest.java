@@ -31,6 +31,73 @@ public class BasicGridTrackSizingTest extends TestCase {
 		return items;
 	}
 
+	private static GridTrackListValue.TrackSize minmax(final GridTrackListValue.TrackSize min,
+			final GridTrackListValue.TrackSize max) {
+		return new GridTrackListValue.MinMax(min, max);
+	}
+
+	/** minmax(固定, fr)(2026-08-29): 基礎幅は固定minで内容に膨らまず、残余はfrへ。 */
+	public void testMinMaxFixedMinFr() {
+		final List<GridTrackListValue.TrackSize> tracks = List.of(minmax(fixed(100), new GridTrackListValue.Fr(1)),
+				fixed(50));
+		double[] w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 10, 10 }, new double[] { 10, 10 }),
+				300, 0);
+		assertEquals(250.0, w[0], 0.001);
+		assertEquals(50.0, w[1], 0.001);
+		// 利用可能幅が基礎幅の合計を割っても縮めない(overflow)
+		w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 10, 10 }, new double[] { 10, 10 }), 120, 0);
+		assertEquals(100.0, w[0], 0.001);
+		assertEquals(50.0, w[1], 0.001);
+		// 内容のmin-content(150)は固定min 100を押し広げない
+		w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 150, 10 }, new double[] { 150, 10 }), 120,
+				0);
+		assertEquals(100.0, w[0], 0.001);
+		assertEquals(50.0, w[1], 0.001);
+		// 従来のminmax(0, <fr>)(ZeroMinFr)と同じ: 長い内容でも等分
+		final double[] zero = BasicGridTrackSizing.resolve(
+				List.of(minmax(fixed(0), new GridTrackListValue.Fr(1)), minmax(fixed(0), new GridTrackListValue.Fr(1))),
+				perColumn(new double[] { 500, 0 }, new double[] { 500, 0 }), 200, 0);
+		assertEquals(100.0, zero[0], 0.001);
+		assertEquals(100.0, zero[1], 0.001);
+	}
+
+	/** minmax(auto, 固定)(2026-08-29): 基礎幅は内容のmin-content、上限は固定max(基礎幅を下回れば基礎幅)。 */
+	public void testMinMaxAutoMinFixedMax() {
+		final List<GridTrackListValue.TrackSize> tracks = List.of(minmax(AUTO, fixed(200)),
+				new GridTrackListValue.Fr(1));
+		double[] w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 10, 10 }, new double[] { 10, 10 }),
+				300, 0);
+		assertEquals(200.0, w[0], 0.001); // maximize tracksで上限まで伸びてからfr
+		assertEquals(100.0, w[1], 0.001);
+		w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 250, 10 }, new double[] { 250, 10 }), 300,
+				0);
+		assertEquals(250.0, w[0], 0.001);
+		assertEquals(50.0, w[1], 0.001);
+		// max-content上限のminmax(auto, max-content)はautoと同じ成長だがstretchしない
+		final double[] mc = BasicGridTrackSizing.resolve(List.of(minmax(AUTO, GridTrackListValue.MaxContent.INSTANCE)),
+				perColumn(new double[] { 40 }, new double[] { 80 }), 150, 0);
+		assertEquals(80.0, mc[0], 0.001);
+	}
+
+	/** minmax(固定, 固定)(2026-08-29): 残余は上限まで均等に配り(maximize tracks)、その先はstretchしない。 */
+	public void testMinMaxFixedFixedMaximize() {
+		final List<GridTrackListValue.TrackSize> tracks = List.of(minmax(fixed(50), fixed(100)),
+				minmax(fixed(50), fixed(100)));
+		double[] w = BasicGridTrackSizing.resolve(tracks, List.of(), 120, 0);
+		assertEquals(60.0, w[0], 0.001);
+		assertEquals(60.0, w[1], 0.001);
+		w = BasicGridTrackSizing.resolve(tracks, List.of(), 300, 0);
+		assertEquals(100.0, w[0], 0.001);
+		assertEquals(100.0, w[1], 0.001);
+		// max<minは仕様どおりmaxを無視
+		w = BasicGridTrackSizing.resolve(List.of(minmax(fixed(100), fixed(50))), List.of(), 300, 0);
+		assertEquals(100.0, w[0], 0.001);
+		// 固有寸法: min=Σmin側、max=Σmax側
+		final BasicGridTrackSizing.Intrinsics in = BasicGridTrackSizing.intrinsics(tracks, List.of(), 10);
+		assertEquals(110.0, in.min(), 0.001);
+		assertEquals(210.0, in.max(), 0.001);
+	}
+
 	/** fixed+auto: 残余はstretchでauto列へ(80+gap10+auto→300なら210)。 */
 	public void testFixedAutoStretch() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(80), AUTO),

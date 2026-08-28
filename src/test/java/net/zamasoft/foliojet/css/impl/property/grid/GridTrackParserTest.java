@@ -75,13 +75,14 @@ public class GridTrackParserTest extends TestCase {
 		assertNotNull(parseTracks("repeat(3, 50pt 1fr)"));
 		assertNotNull(parseTracks("2em 0.5fr"));
 		assertNotNull(parseTracks("none"));
-		// minmax()/max()/min()は仕様外の近似対応(2026-08-06、
-		// GridTemplateTracks.javaのクラスjavadoc参照)。真のtrack sizing
-		// algorithmは実装せず、minmax()は最大値だけを採用し最小値は捨てる。
-		// yahoo.co.jpの実物CSSで発覚した未対応を埋める
+		// minmax()は2026-08-29から両端を保持する(GridShorthandParserTest.
+		// testMinMaxTracks)。max()/min()は仕様外の近似対応(2026-08-06、
+		// GridTemplateTracks.javaのクラスjavadoc参照)
 		assertNotNull(parseTracks("minmax(50pt, 1fr)"));
 		assertNotNull(parseTracks("minmax(0, 1fr)")); // Tailwindのgrid-cols-Nが常に使う形
 		assertNotNull(parseTracks("repeat(9, minmax(30pt, auto))")); // yahoo.co.jpの実物
+		assertNotNull(parseTracks("minmax(auto, 1fr)"));
+		assertNotNull(parseTracks("minmax(min-content, max-content)"));
 		assertNotNull(parseTracks("max(44px, 4.4rem)")); // yahoo.co.jpの実物
 		assertNotNull(parseTracks("min(44px, 4.4rem)"));
 	}
@@ -93,6 +94,9 @@ public class GridTrackParserTest extends TestCase {
 		assertTracksRejected("repeat(2, repeat(2, 50pt))"); // 入れ子repeat
 		assertTracksRejected("repeat(5000, 50pt)"); // 展開上限4096超
 		assertTracksRejected("minmax(50pt)"); // 引数不足(2引数必須)
+		assertTracksRejected("minmax(1fr, 100pt)"); // min側にfrは不可
+		assertTracksRejected("minmax(-10pt, 100pt)"); // 負の長さ
+		assertTracksRejected("minmax(auto, minmax(0, 1fr))"); // 入れ子
 		assertTracksRejected("max(50%, 1fr)"); // max()/min()の%引数は依然サブセット外
 		// %トラック・minmaxの%・線名[a]は2026-08-29から受理
 		// (GridShorthandParserTest参照)

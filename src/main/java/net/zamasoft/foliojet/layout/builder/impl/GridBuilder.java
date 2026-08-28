@@ -53,9 +53,29 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
  * </p>
  *
  * <p>
- * サブセット: 列はfixed/auto/fr・行はauto(行内item実高の最大)・
- * source-order row auto-placement。適格判定は
+ * サブセット: 列はfixed/auto/fr/minmax等・行はauto(行内item実高の最大)
+ * または固定高・source-order row auto-placement。適格判定は
  * {@link GridBuilderLifecycle#eligible}。
+ * </p>
+ *
+ * <p>
+ * <b>subgrid(css-grid-2、2026-08-29)</b>: {@code grid-template-columns:
+ * subgrid}のgridは、bind時に自分が直下にあるitem({@link GridItemBox})から
+ * 親gridの跨ぐ列の解決済み幅・gap・線名を受け取り({@link #resolveSubgrid})、
+ * それを固定トラックとして使う。親のbindは「トラック解決→item本文bind」の
+ * 順なので、item本文の中で再生される子gridのbindでは親の列は必ず確定して
+ * いる。自分のborder/padding/marginは先頭・末尾トラックから差し引く
+ * (仕様の「subgridの縁はトラックへ食い込む」)。
+ * <b>単一autoトラックの近似へ落ちる場合</b>: (a)子gridの固有寸法計測
+ * ({@link #getIntrinsicSizes}——録画時、親のトラック解決前。親への
+ * contributionだけがこの近似で、最終配置は本物のトラックで行う)、
+ * (b)子gridがitemの直下でない(divで包まれている、itemが匿名=直接テキスト、
+ * inline化されている等: bind時のhost builderのcontext flowがGridItemBoxで
+ * ないか、間に別のflowがある)、(c)親gridがトラック配置を走らせていない
+ * (縦書きのG0退行)、(d)親側の列解決が無い経路(親が{@code display:grid}で
+ * ないのに{@code subgrid}を書いた場合——仕様でも{@code none}相当)。
+ * {@code grid-template-rows: subgrid}は行軸を継がない(親の行高はitem bind後
+ * に決まるため)——行gapだけ親のものを使い、行は内容高。
  * </p>
  */
 public final class GridBuilder
@@ -103,7 +123,16 @@ public final class GridBuilder
 	/** {@link #placementPlan}を確定したときのコンテナ行幅(auto-repeatの再展開判定用)。 */
 	private double planAvailable = Double.NaN;
 
-	private final double columnGap, rowGap;
+	private double columnGap, rowGap;
+
+	/**
+	 * subgridで親から継いだ列トラック(bind時に{@link #resolveSubgrid}が
+	 * 設定。nullなら通常のテンプレート)。
+	 */
+	private List<GridTrackListValue.TrackSize> subgridColumns;
+
+	/** {@link #subgridColumns}の線名(列数+1要素。親の線名+自分の{@code subgrid [a]}名)。 */
+	private List<List<String>> subgridColumnLines;
 
 	private final List<GridItemContent> items = new ArrayList<>();
 
@@ -277,7 +306,15 @@ public final class GridBuilder
 		final List<List<String>> lines = new ArrayList<>();
 		lines.add(new ArrayList<>());
 		boolean autoFit = false;
-		if (params.templateColumns.isEmpty()) {
+		if (this.subgridColumns != null) {
+			// subgrid: 親から継いだ固定トラックと線名(2026-08-29)
+			cols.addAll(this.subgridColumns);
+			lines.clear();
+			for (final List<String> names : this.subgridColumnLines) {
+				lines.add(new ArrayList<>(names));
+			}
+			this.explicitColumns = cols.size();
+		} else if (params.templateColumns.isEmpty()) {
 			// 明示列0本: 最初の1列も暗黙列(grid-auto-columnsの寸法。無ければ
 			// 従来どおりauto)。列フローで暗黙列が増えるときに1列目だけ
 			// autoで残余を取ってしまわないため
@@ -374,15 +411,13 @@ public final class GridBuilder
 		double fixedSum = 0;
 		int fixedCount = 0;
 		for (final GridTrackListValue.TrackSize t : template) {
-			if (t instanceof GridTrackListValue.Fixed f) {
-				fixedSum += f.length();
-				++fixedCount;
-			} else if (t instanceof GridTrackListValue.Percentage p) {
-				fixedSum += p.ratio() * available;
-				++fixedCount;
-			} else if (!(t instanceof GridTrackListValue.AutoRepeat)) {
-				++fixedCount; // 内容依存トラックはgapだけ数える
+			if (t instanceof GridTrackListValue.AutoRepeat) {
+				continue;
 			}
+			// 仕様(§7.2.3.2): 回数判定では各トラックをmax側が確定ならその値、
+			// そうでなければmin側で数える(内容依存はgapだけ)
+			fixedSum += definiteExtent(t, available);
+			++fixedCount;
 		}
 		for (int i = 0; i < template.size(); ++i) {
 			final GridTrackListValue.TrackSize t = template.get(i);
@@ -417,6 +452,27 @@ public final class GridBuilder
 			lines.get(lines.size() - 1).addAll(templateLines.get(template.size()));
 		}
 		return autoFit;
+	}
+
+	/**
+	 * auto-repeatの回数判定に使うトラックの確定幅です(2026-08-29): 固定長・
+	 * %はその値、minmax()はmax側が確定ならmax、そうでなければmin側。
+	 * 内容依存は0。
+	 */
+	private static double definiteExtent(final GridTrackListValue.TrackSize t, final double available) {
+		if (t instanceof GridTrackListValue.Fixed f) {
+			return f.length();
+		}
+		if (t instanceof GridTrackListValue.Percentage p) {
+			return p.ratio() * available;
+		}
+		if (t instanceof GridTrackListValue.MinMax m) {
+			final double max = definiteExtent(m.max(), available);
+			return m.max() instanceof GridTrackListValue.Fixed || m.max() instanceof GridTrackListValue.Percentage
+					? max
+					: definiteExtent(m.min(), available);
+		}
+		return 0;
 	}
 
 	/** grid-auto-columnsの周期で暗黙列を1本足します(空ならauto)。 */
@@ -464,14 +520,100 @@ public final class GridBuilder
 		}
 		List<GridTrackListValue.TrackSize> resolved = null;
 		for (int i = 0; i < this.tracks.size(); ++i) {
-			if (this.tracks.get(i) instanceof GridTrackListValue.Percentage p) {
-				if (resolved == null) {
-					resolved = new ArrayList<>(this.tracks);
-				}
-				resolved.set(i, new GridTrackListValue.Fixed(p.ratio() * available));
+			final GridTrackListValue.TrackSize t = this.tracks.get(i);
+			final GridTrackListValue.TrackSize r;
+			if (t instanceof GridTrackListValue.Percentage p) {
+				r = new GridTrackListValue.Fixed(p.ratio() * available);
+			} else if (t instanceof GridTrackListValue.MinMax m
+					&& (m.min() instanceof GridTrackListValue.Percentage
+							|| m.max() instanceof GridTrackListValue.Percentage)) {
+				// minmax()の片側の%(2026-08-29)
+				r = new GridTrackListValue.MinMax(
+						m.min() instanceof GridTrackListValue.Percentage p
+								? new GridTrackListValue.Fixed(p.ratio() * available)
+								: m.min(),
+						m.max() instanceof GridTrackListValue.Percentage p
+								? new GridTrackListValue.Fixed(p.ratio() * available)
+								: m.max());
+			} else {
+				continue;
 			}
+			if (resolved == null) {
+				resolved = new ArrayList<>(this.tracks);
+			}
+			resolved.set(i, r);
 		}
 		return resolved == null ? this.tracks : resolved;
+	}
+
+	/**
+	 * subgridの列トラックを親から継ぎます(css-grid-2、2026-08-29。クラス
+	 * javadocの「単一autoトラックの近似へ落ちる場合」参照)。
+	 *
+	 * @param target bind先(context flowが自分のitemのGridItemBoxで、その上に
+	 *               自分のGridBoxだけが積まれているときに限り継ぐ)
+	 * @return 継いだか
+	 */
+	private boolean resolveSubgrid(final BlockBuilder target) {
+		final GridParams params = this.gridBox.getGridParams();
+		if (!params.columnsSubgrid && !params.rowsSubgrid) {
+			return false;
+		}
+		if (target.getFlowCount() != 2 || !(target.getFlow(0).box instanceof GridItemBox item)
+				|| target.getFlow(1).box != this.gridBox) {
+			return false;
+		}
+		final GridItemBox.SubgridTracks parent = item.getSubgridTracks();
+		if (parent == null) {
+			return false;
+		}
+		if (params.rowsSubgrid) {
+			this.rowGap = parent.rowGap();
+		}
+		if (!params.columnsSubgrid) {
+			return false;
+		}
+		final double[] widths = parent.columnWidths();
+		final int span = widths.length;
+		final double line = Math.max(0, this.gridBox.getLineSize());
+		final List<GridTrackListValue.TrackSize> cols = new ArrayList<>(span);
+		if (span == 1) {
+			cols.add(new GridTrackListValue.Fixed(line));
+		} else {
+			// 自分のborder/padding/marginは先頭・末尾トラックに食い込む。
+			// 末尾側は「親のarea幅−先頭側の縁−自分のcontent幅」で求める
+			// (justify-self:stretch以外でitem幅がarea幅より狭いときは末尾
+			// トラックがその分だけ狭くなる=内側の線は親と揃ったまま)
+			final double startInset = this.gridBox.getFrame().getFrameLineStart(params.flow);
+			double sum = parent.columnGap() * (span - 1);
+			for (final double w : widths) {
+				sum += w;
+			}
+			final double endInset = sum - startInset - line;
+			for (int i = 0; i < span; ++i) {
+				double w = widths[i];
+				if (i == 0) {
+					w -= startInset;
+				}
+				if (i == span - 1) {
+					w -= endInset;
+				}
+				cols.add(new GridTrackListValue.Fixed(Math.max(0, w)));
+			}
+		}
+		final List<List<String>> lines = new ArrayList<>(span + 1);
+		for (int i = 0; i <= span; ++i) {
+			final List<String> names = new ArrayList<>(parent.columnLineNames().get(i));
+			if (i < params.columnLineNames.size()) {
+				names.addAll(params.columnLineNames.get(i));
+			}
+			lines.add(names);
+		}
+		this.subgridColumns = cols;
+		this.subgridColumnLines = lines;
+		this.columnGap = parent.columnGap();
+		this.tracks = List.copyOf(cols);
+		return true;
 	}
 
 	/**
@@ -672,6 +814,11 @@ public final class GridBuilder
 		this.gridBox.markTrackLayout();
 		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final GridParams params = this.gridBox.getGridParams();
+		if (this.resolveSubgrid(target)) {
+			// 固有寸法計測で作った単一autoのplanは捨て、親の線で配置し直す
+			// (2026-08-29。plan共有の原則G4bは同じトラック集合の中でのみ)
+			this.placementPlan = null;
+		}
 		if (this.placementPlan != null && this.planAvailable != Math.max(0, this.gridBox.getLineSize())
 				&& hasAutoRepeat(params.templateColumns)) {
 			// auto-repeatの回数はコンテナ幅で決まる(2026-08-29)。固有寸法
@@ -692,6 +839,8 @@ public final class GridBuilder
 				this.columnContributions(plan, Math.max(0, this.gridBox.getLineSize())),
 				this.gridBox.getLineSize(), this.columnGap, justifyContent == BoxAlignment.STRETCH);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
+		// 解決済み列の公開(subgridの子・診断用、2026-08-29)
+		this.gridBox.setResolvedColumnTracks(widths, this.columnGap);
 		double trackLineExtent = this.columnGap * (this.tracks.size() - 1);
 		for (final double w : widths) {
 			trackLineExtent += w;
@@ -732,6 +881,12 @@ public final class GridBuilder
 		final double[] extents = new double[count];
 		for (int i = 0; i < count; ++i) {
 			final GridItemContent item = this.items.get(i);
+			// 跨ぐ列をitemへ渡す(item直下のsubgridがresolveSubgridで継ぐ。2026-08-29)
+			final GridPlacementResolver.GridArea area = plan.areas().get(i);
+			item.itemBox.setSubgridTracks(new GridItemBox.SubgridTracks(
+					java.util.Arrays.copyOfRange(widths, area.column(), area.column() + area.columnSpan()),
+					this.columnGap, this.columnLines.subList(area.column(), area.column() + area.columnSpan() + 1),
+					this.rowGap));
 			item.bind(target, itemWidths[i]);
 			GRID_ITEM_BINDS.incrementAndGet();
 			extents[i] = item.itemBox.getPageExtent(params.flow);

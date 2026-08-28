@@ -27,13 +27,13 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		List<List<String>> columnLineNames, List<List<String>> rowLineNames,
 		net.zamasoft.foliojet.css.value.GridTemplateAreasValue templateAreas,
 		List<GridTrackListValue.TrackSize> autoColumns, List<GridTrackListValue.TrackSize> autoRows,
-		boolean autoFlowColumn, boolean autoFlowDense) {
+		boolean autoFlowColumn, boolean autoFlowDense, boolean columnsSubgrid, boolean rowsSubgrid) {
 	public static GridParamsTemplate freeze(final GridParams source) {
 		return new GridParamsTemplate(BlockParamsFields.freeze(source), source.templateColumns,
 				source.templateRows, source.rowGap, source.columnGap, source.justifyItems, source.alignItems,
 				source.justifyContent, source.alignContent, source.columnLineNames, source.rowLineNames,
 				source.templateAreas, source.autoColumns, source.autoRows, source.autoFlowColumn,
-				source.autoFlowDense);
+				source.autoFlowDense, source.columnsSubgrid, source.rowsSubgrid);
 	}
 
 	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
@@ -62,6 +62,8 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		p.autoRows = this.autoRows;
 		p.autoFlowColumn = this.autoFlowColumn;
 		p.autoFlowDense = this.autoFlowDense;
+		p.columnsSubgrid = this.columnsSubgrid;
+		p.rowsSubgrid = this.rowsSubgrid;
 		return p;
 	}
 }

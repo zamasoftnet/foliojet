@@ -41,12 +41,16 @@ public class ListStyleShorthand extends AbstractShorthandPropertyInfo {
 
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
-			if (lu instanceof CssToken.Uri uriToken) {
+			if (ValueUtils.isImage(lu)) {
 				try {
-					final URIValue imageUri = ValueUtils.toURI(ua, uri, lu);
+					// url()とimage-set()(2026-08-29)
+					final URIValue imageUri = ValueUtils.toImage(ua, uri, lu);
+					if (imageUri == null) {
+						throw new PropertyException();
+					}
 					primitives.set(ListStyleImage.INFO, imageUri);
 				} catch (URISyntaxException e) {
-					ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
+					ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));
 				}
 			} else if (lu instanceof CssToken.Ident ident) {
 				final Value styleType = GeneratedValueUtils.toListStyleType(ident.name());

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>image-set(): 出力解像度に最も近い候補を選ぶ</title>
+<!--
+  css-images-4 §4.1 image-set()(2026-08-29)。出力解像度96dpi(1x)では、
+  1xを超えない最大の解像度の候補を選ぶ。表示リストには画像そのものは
+  出ないため、generated contentの画像の固有寸法で行箱(=divの高さ)が
+  変わることで選択を固定する。kappa.png=148x199px(111x149.25pt)、
+  red.png/blue.png=100x100px(75pt)、trans.png=48x48px(36pt)。
+
+  c1 image-set(kappa 1x, red 2x) → kappa(高さ149.25pt)
+  c2 -webkit-image-set(red 2x, trans 1x) → trans(36pt)
+  c3 image-set("blue" 1x, "kappa" 1.5x) → blue(75pt。1.5x=144dpiは超える)
+  c4 image-set(red 2x type("image/png"), "x.avif" type("image/avif")) →
+     avifは未対応形式なので飛ばし、超える中で最小のred(75pt)
+  c5 image-set(linear-gradient(red, blue) 1x, url(trans.png) 1x) →
+     グラデーション候補は飛ばしtrans(36pt)
+  c6 image-set()に採れる候補が無い → 宣言無効 → 前の content: "x" が残る
+-->
+<style>
+@page { size: 300pt 700pt; margin: 0 }
+body { margin: 0; font: 10pt/12pt serif }
+div { margin-bottom: 4pt; background: #eee }
+#c1::before { content: image-set(url(../kappa.png) 1x, url(../red.png) 2x) }
+#c2::before { content: -webkit-image-set(url("../red.png") 2x, url("../trans.png") 1x) }
+#c3::before { content: image-set("../blue.png" 1x, "../kappa.png" 1.5x) }
+#c4::before { content: image-set(url(../red.png) 2x type("image/png"), "../x.avif" 1x type("image/avif")) }
+#c5::before { content: image-set(linear-gradient(red, blue) 1x, url(../trans.png) 1x) }
+#c6::before { content: "x"; content: image-set(linear-gradient(red, blue) 1x) }
+</style>
+</head>
+<body>
+<div id="c1"></div>
+<div id="c2"></div>
+<div id="c3"></div>
+<div id="c4"></div>
+<div id="c5"></div>
+<div id="c6"></div>
+</body>
+</html>

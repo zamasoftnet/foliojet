@@ -80,11 +80,15 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			final CssToken lu = tokens.next();
 			if (lu instanceof CssToken.Str str) {// <string>
 				values.add(new StringValue(str.value()));
-			} else if (lu instanceof CssToken.Uri uriToken) {// <uri>
+			} else if (ValueUtils.isImage(lu)) {// <uri> | image-set()(2026-08-29)
 				try {
-					values.add(ValueUtils.toURI(ua, uri, lu));
+					final Value image = ValueUtils.toImage(ua, uri, lu);
+					if (image == null) {
+						throw new PropertyException();
+					}
+					values.add(image);
 				} catch (URISyntaxException e) {
-					ua.message(MessageCodes.WARN_BAD_LINK_URI, uriToken.uri());
+					ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));
 				}
 			} else if (lu instanceof CssToken.Ident ident) {// quote
 				switch (ident.lower()) {

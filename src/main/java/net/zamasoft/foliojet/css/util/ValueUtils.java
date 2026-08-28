@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.CssToken;
+import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
@@ -251,6 +252,101 @@ public final class ValueUtils {
 			return createURIValue(ua.getDocumentContext().getEncoding(), baseURI, uri.uri());
 		}
 		return null;
+	}
+
+	/** {@code url()}または{@code image-set()}のトークンか(2026-08-29)。 */
+	public static boolean isImage(CssToken token) {
+		return token instanceof CssToken.Uri || token instanceof CssToken.Func func
+				&& (func.is("image-set") || func.is("-webkit-image-set"));
+	}
+
+	/** 警告メッセージ用にトークンのURI文字列(image-set()は関数全体)を返します。 */
+	public static String uriText(CssToken token) {
+		return token instanceof CssToken.Uri uri ? uri.uri() : String.valueOf(token);
+	}
+
+	/**
+	 * &lt;image&gt;({@code url()}または{@code image-set()})を画像URIに変換します
+	 * (css-images-4 §4.1、2026-08-29)。
+	 *
+	 * <p>
+	 * {@code image-set(<image> <resolution>? type(<string>)?, ...)}
+	 * (接頭辞{@code -webkit-image-set(url() 1x, url() 2x)}も同じ)からは
+	 * 出力解像度({@code UAProps.OUTPUT_RESOLUTION}=
+	 * {@link UserAgent#getPixelsPerInch()}。1x=96dpi、2x=192dpi)に最も近い
+	 * 候補を選ぶ: 出力解像度を超えない最大の解像度、無ければ超える中で最小。
+	 * 解像度省略は1x。{@code image()}関数・グラデーション・未対応MIMEの
+	 * {@code type()}付き候補は飛ばす(候補が一つも無ければnull=宣言無効)。
+	 * </p>
+	 */
+	public static URIValue toImage(UserAgent ua, URI baseURI, CssToken token) throws URISyntaxException {
+		if (token instanceof CssToken.Uri) {
+			return toURI(ua, baseURI, token);
+		}
+		if (!isImage(token)) {
+			return null;
+		}
+		final double target = ua.getPixelsPerInch();
+		String bestBelow = null, bestAbove = null;
+		double belowDpi = -1, aboveDpi = Double.MAX_VALUE;
+		for (final TokenStream candidate : ((CssToken.Func) token).argStream().splitComma()) {
+			final CssToken image = candidate.next();
+			final String href;
+			if (image instanceof CssToken.Uri uri) {
+				href = uri.uri();
+			} else if (image instanceof CssToken.Str str) {
+				href = str.value();
+			} else {
+				continue; // image()・グラデーション等
+			}
+			double dpi = 96;
+			boolean supported = true;
+			while (candidate.hasNext()) {
+				final CssToken option = candidate.next();
+				if (option instanceof CssToken.Dim dim) {
+					final String unit = dim.unitText().toLowerCase(java.util.Locale.ROOT);
+					switch (unit) {
+					case "x", "dppx" -> dpi = dim.value() * 96;
+					case "dpi" -> dpi = dim.value();
+					case "dpcm" -> dpi = dim.value() * 2.54;
+					default -> supported = false;
+					}
+				} else if (option instanceof CssToken.Func func && func.is("type")) {
+					final String mime = func.argStream().string();
+					supported &= mime != null && isSupportedImageType(mime);
+				} else {
+					supported = false;
+				}
+			}
+			if (!supported || !(dpi > 0)) {
+				continue;
+			}
+			if (dpi <= target + 1e-6) {
+				if (dpi > belowDpi) {
+					belowDpi = dpi;
+					bestBelow = href;
+				}
+			} else if (dpi < aboveDpi) {
+				aboveDpi = dpi;
+				bestAbove = href;
+			}
+		}
+		final String chosen = bestBelow != null ? bestBelow : bestAbove;
+		if (chosen == null) {
+			return null;
+		}
+		return createURIValue(ua.getDocumentContext().getEncoding(), baseURI, chosen);
+	}
+
+	/** {@code type()}のMIMEが描画できる画像形式か(不明な形式の候補は飛ばす)。 */
+	private static boolean isSupportedImageType(final String mime) {
+		switch (mime.trim().toLowerCase(java.util.Locale.ROOT)) {
+		case "image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/svg+xml", "image/webp",
+				"image/tiff":
+			return true;
+		default:
+			return false;
+		}
 	}
 
 	/**

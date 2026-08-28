@@ -476,6 +476,9 @@ final class BoxStyleMapper {
 		// 2026-08-29: 線名・領域・implicitトラック・auto-flow
 		params.columnLineNames = columns.getLineNames();
 		params.rowLineNames = rows.getLineNames();
+		// subgrid(css-grid-2、2026-08-29): トラックは空、線名列だけ運ぶ
+		params.columnsSubgrid = columns.isSubgrid();
+		params.rowsSubgrid = rows.isSubgrid();
 		params.templateAreas = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateAreas.get(style);
 		params.autoColumns = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks
 				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.AUTO_COLUMNS).getTracks();

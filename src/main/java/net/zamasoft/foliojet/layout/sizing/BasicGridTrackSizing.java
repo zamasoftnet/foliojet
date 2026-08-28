@@ -15,7 +15,19 @@ import net.zamasoft.foliojet.css.value.GridTrackListValue;
  * <tr><td>fixed</td><td>指定長</td><td>指定長</td></tr>
  * <tr><td>auto</td><td>span1 itemの最大min-content+span不足分配</td><td>最大max-content+span不足分配</td></tr>
  * <tr><td>fr</td><td>同上(min-content床)</td><td>∞(残余分配)</td></tr>
+ * <tr><td>minmax(min,max)</td><td>min側: 固定長→その値/min-content・auto→内容min/max-content→内容max</td>
+ * <td>max側: 固定長→その値/fr→∞/auto・max-content→内容max/min-content→内容min</td></tr>
  * </table>
+ *
+ * <p>
+ * 2026-08-29: 全トラックを(min sizing function, max sizing function)の対へ
+ * 分解して扱う(css-grid-1 §11.5の表——{@code auto}={@code minmax(auto,auto)}、
+ * {@code <fr>}={@code minmax(auto,<fr>)}、固定長={@code minmax(L,L)}、
+ * {@code minmax()}はそのまま)。手順(2)の「growth limitまでの成長」は
+ * 仕様§12.6のmaximize tracks——上限が基礎幅より大きい全トラックへ均等に
+ * 配る(固定長・min-content・max-contentは上限=基礎幅なので変わらない)。
+ * 手順(4)のstretchはmax側が{@code auto}のトラックだけ(§12.8)。
+ * </p>
  *
  * <p>
  * span itemの不足分配(G4d、仕様§12.5の簡約): span1を先に集約し、
@@ -83,7 +95,7 @@ public final class BasicGridTrackSizing {
 			base += widths[i];
 		}
 		double free = available - base;
-		if (free <= 0 || (sized.autoCount == 0 && sized.frCount == 0)) {
+		if (free <= 0 || (sized.autoCount == 0 && sized.frCount == 0 && sized.growableCount == 0)) {
 			// (1)(5) 縮めない(overflow)。可変列が無ければ残余は末尾に残す。
 			//
 			// ただし**複数列を跨ぐitemのmin-contentで膨らんだ分は縮める**
@@ -131,15 +143,16 @@ public final class BasicGridTrackSizing {
 			return widths;
 		}
 		if (sized.frCount > 0) {
-			// (2') frと共存するauto列はgrowth limitまで成長してから残余をfrへ
-			growAutos(widths, sized.limit, sized.auto, sized.autoCount, free);
+			// (2') frと共存する上限つき列はgrowth limitまで成長してから残余をfrへ
+			growAutos(widths, sized.limit, sized.growable, sized.growableCount, free);
 			distributeFr(widths, sized.base, sized.fr, sized.frWeight, available, columnGap, n);
 			return widths;
 		}
-		// (2) auto列をgrowth limitまで均等成長→(4) なお残る分は均等stretch
-		// (justify-contentがpositionalのときはstretchせず残余を残す——G5c)
-		free -= growAutos(widths, sized.limit, sized.auto, sized.autoCount, free);
-		if (stretchAutoTracks && free > 1e-9) {
+		// (2) 上限つき列をgrowth limitまで均等成長(maximize tracks)→(4) なお
+		// 残る分はauto列へ均等stretch(justify-contentがpositionalのときは
+		// stretchせず残余を残す——G5c)
+		free -= growAutos(widths, sized.limit, sized.growable, sized.growableCount, free);
+		if (stretchAutoTracks && sized.autoCount > 0 && free > 1e-9) {
 			final double share = free / sized.autoCount;
 			for (int i = 0; i < n; ++i) {
 				if (sized.auto[i]) {
@@ -180,7 +193,7 @@ public final class BasicGridTrackSizing {
 		double max = min;
 		for (int i = 0; i < n; ++i) {
 			min += sized.base[i];
-			max += tracks.get(i) instanceof GridTrackListValue.Fixed fixed ? fixed.length() : sized.maxContrib[i];
+			max += sized.intrinsicMax[i];
 		}
 		return new Intrinsics(min, max);
 	}
@@ -194,21 +207,86 @@ public final class BasicGridTrackSizing {
 			final List<GridTrackListValue.TrackSize> tracks, final double available) {
 		List<GridTrackListValue.TrackSize> resolved = null;
 		for (int i = 0; i < tracks.size(); ++i) {
-			if (!(tracks.get(i) instanceof GridTrackListValue.Percentage percent)) {
+			final GridTrackListValue.TrackSize t = tracks.get(i);
+			final GridTrackListValue.TrackSize r;
+			if (t instanceof GridTrackListValue.Percentage percent) {
+				r = resolvePercent(percent, available);
+			} else if (t instanceof GridTrackListValue.MinMax minMax
+					&& (minMax.min() instanceof GridTrackListValue.Percentage
+							|| minMax.max() instanceof GridTrackListValue.Percentage)) {
+				// minmax()の片側の%も同じ規則で畳む(2026-08-29)
+				r = new GridTrackListValue.MinMax(
+						minMax.min() instanceof GridTrackListValue.Percentage p ? resolvePercent(p, available)
+								: minMax.min(),
+						minMax.max() instanceof GridTrackListValue.Percentage p ? resolvePercent(p, available)
+								: minMax.max());
+			} else {
 				continue;
 			}
 			if (resolved == null) {
 				resolved = new java.util.ArrayList<>(tracks);
 			}
-			resolved.set(i, Double.isNaN(available) ? GridTrackListValue.Auto.INSTANCE
-					: new GridTrackListValue.Fixed(Math.max(0, available * percent.ratio())));
+			resolved.set(i, r);
 		}
 		return resolved == null ? tracks : resolved;
 	}
 
-	/** base/limit/maxContribの集約結果(span不足分配込み)。 */
+	private static GridTrackListValue.TrackSize resolvePercent(final GridTrackListValue.Percentage percent,
+			final double available) {
+		return Double.isNaN(available) ? GridTrackListValue.Auto.INSTANCE
+				: new GridTrackListValue.Fixed(Math.max(0, available * percent.ratio()));
+	}
+
+	/**
+	 * base/limit/maxContribの集約結果(span不足分配込み)。
+	 *
+	 * @param auto         max側がautoのトラック(stretch対象)
+	 * @param fr           max側がfrのトラック
+	 * @param growable     上限が基礎幅より大きい有限上限のトラック(maximize
+	 *                     tracksの対象)
+	 * @param intrinsicMax Grid全体のmax-content寄与に使う各トラック幅
+	 */
 	private record Sized(double[] base, double[] limit, double[] maxContrib, boolean[] auto, boolean[] fr,
-			double[] frWeight, int autoCount, int frCount) {
+			double[] frWeight, int autoCount, int frCount, boolean[] growable, int growableCount,
+			double[] intrinsicMax) {
+	}
+
+	/** min側のsizing function(css-grid-1 §11.5)。 */
+	private enum MinKind {
+		FIXED, MIN_CONTENT, MAX_CONTENT
+	}
+
+	/** max側のsizing function。 */
+	private enum MaxKind {
+		FIXED, FR, MIN_CONTENT, MAX_CONTENT, AUTO
+	}
+
+	/** トラック1本の(min, max)分解(2026-08-29)。 */
+	private record Functions(MinKind min, double fixedMin, MaxKind max, double fixedMax, double frWeight) {
+		static Functions of(final GridTrackListValue.TrackSize track) {
+			return switch (track) {
+			case GridTrackListValue.Fixed f -> new Functions(MinKind.FIXED, f.length(), MaxKind.FIXED, f.length(), 0);
+			case GridTrackListValue.Auto ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.AUTO, 0, 0);
+			// 基準幅が未確定(固有寸法計測)の%はautoとして扱う(2026-08-29。
+			// bind時はGridBuilder.sizingTracksがFixedへ解決済み)
+			case GridTrackListValue.Percentage ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.AUTO, 0, 0);
+			// 展開前の形はここへ来ない(GridBuilder.placementPlanが展開する)。
+			// 万一来てもautoとして壊れないようにする
+			case GridTrackListValue.AutoRepeat ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.AUTO, 0, 0);
+			case GridTrackListValue.MinContent ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.MIN_CONTENT,
+					0, 0);
+			case GridTrackListValue.MaxContent ignore -> new Functions(MinKind.MAX_CONTENT, 0, MaxKind.MAX_CONTENT,
+					0, 0);
+			// 単独frは仕様のminmax(auto, fr)
+			case GridTrackListValue.Fr flex -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.FR, 0,
+					Math.max(0, flex.weight()));
+			case GridTrackListValue.MinMax minMax -> {
+				final Functions lo = of(minMax.min());
+				final Functions hi = of(minMax.max());
+				yield new Functions(lo.min, lo.fixedMin, hi.max, hi.fixedMax, hi.frWeight);
+			}
+			};
+		}
 	}
 
 	private static Sized size(final List<GridTrackListValue.TrackSize> tracks, final List<ItemContribution> items,
@@ -217,62 +295,43 @@ public final class BasicGridTrackSizing {
 		final double[] base = new double[n];
 		final double[] limit = new double[n];
 		final double[] maxContrib = new double[n];
+		final double[] minContrib = new double[n];
 		final boolean[] auto = new boolean[n];
 		final boolean[] fr = new boolean[n];
-		final boolean[] zeroMin = new boolean[n];
-		// 内容寄与を受けるトラック(auto/fr/min-content/max-content。2026-08-29)
+		// 内容寄与を受けるトラック(min側かmax側が内容依存。2026-08-29)
 		final boolean[] content = new boolean[n];
-		final boolean[] minContentTrack = new boolean[n];
-		final boolean[] maxContentTrack = new boolean[n];
+		// 基礎幅が固定(minmax(0,<fr>)等——内容のmin-contentで膨らまない。
+		// 2026-08-19のZeroMinFrをminmax一般形へ畳んだもの)
+		final boolean[] fixedMin = new boolean[n];
+		final Functions[] fn = new Functions[n];
 		final double[] frWeight = new double[n];
 		int autoCount = 0, frCount = 0;
 		for (int i = 0; i < n; ++i) {
-			switch (tracks.get(i)) {
-			case GridTrackListValue.Fixed f -> {
-				base[i] = f.length();
-				limit[i] = f.length();
-				maxContrib[i] = f.length();
+			fn[i] = Functions.of(tracks.get(i));
+			switch (fn[i].min) {
+			case FIXED -> {
+				fixedMin[i] = true;
+				base[i] = fn[i].fixedMin;
 			}
-			case GridTrackListValue.Auto ignore -> {
-				auto[i] = true;
-				++autoCount;
+			case MIN_CONTENT, MAX_CONTENT -> content[i] = true;
 			}
-			case GridTrackListValue.Percentage ignore -> {
-				// 基準幅が未確定(固有寸法計測)の%はautoとして扱う(2026-08-29。
-				// bind時はGridBuilder.sizingTracksがFixedへ解決済み)
-				auto[i] = true;
-				++autoCount;
+			switch (fn[i].max) {
+			case FIXED -> {
+				// max側が固定長でもmin側が内容依存なら寄与を受ける(上のcontent)
 			}
-			case GridTrackListValue.AutoRepeat ignore -> {
-				// 展開前の形はここへ来ない(GridBuilder.placementPlanが展開する)。
-				// 万一来てもautoとして壊れないようにする
-				auto[i] = true;
-				++autoCount;
-			}
-			case GridTrackListValue.MinContent ignore -> {
-				// 内容のmin-contentで固定(2026-08-29): 伸びず、stretchも受けない
-				minContentTrack[i] = true;
-			}
-			case GridTrackListValue.MaxContent ignore -> {
-				// 内容のmax-contentで固定(2026-08-29): 残余stretchを受けない
-				maxContentTrack[i] = true;
-			}
-			case GridTrackListValue.Fr flex -> {
+			case FR -> {
 				fr[i] = true;
-				frWeight[i] = Math.max(0, flex.weight());
+				frWeight[i] = fn[i].frWeight;
 				++frCount;
+				content[i] = true;
 			}
-			case GridTrackListValue.ZeroMinFr flex -> {
-				// minmax(0,<fr>): 残余分配はfrと同じだが、**最小値0が明示
-				// されている**ので内容のmin-contentでbaseを膨らませない
-				// (2026-08-19。zeroMin[i]で下のcontribution集約から外す)
-				fr[i] = true;
-				zeroMin[i] = true;
-				frWeight[i] = Math.max(0, flex.weight());
-				++frCount;
+			case AUTO -> {
+				auto[i] = true;
+				++autoCount;
+				content[i] = true;
 			}
+			case MIN_CONTENT, MAX_CONTENT -> content[i] = true;
 			}
-			content[i] = auto[i] || fr[i] || minContentTrack[i] || maxContentTrack[i];
 		}
 		// span1のcontributionを先に集約
 		int maxSpan = 1;
@@ -281,10 +340,18 @@ public final class BasicGridTrackSizing {
 			if (item.span() != 1 || !content[item.column()]) {
 				continue;
 			}
-			if (!zeroMin[item.column()]) {
-				base[item.column()] = Math.max(base[item.column()], Math.max(0, item.minContent()));
+			final int c = item.column();
+			final double itemMin = Math.max(0, item.minContent());
+			final double itemMax = Math.max(0, item.maxContent());
+			switch (fn[c].min) {
+			case MIN_CONTENT -> base[c] = Math.max(base[c], itemMin);
+			case MAX_CONTENT -> base[c] = Math.max(base[c], itemMax);
+			case FIXED -> {
+				// 固定minは内容で膨らまない
 			}
-			maxContrib[item.column()] = Math.max(maxContrib[item.column()], Math.max(0, item.maxContent()));
+			}
+			minContrib[c] = Math.max(minContrib[c], itemMin);
+			maxContrib[c] = Math.max(maxContrib[c], itemMax);
 		}
 		// span itemの不足分配(G4d): spanの小さい順・同一span長は
 		// planned increase(最大必要増分)へ蓄積してまとめて反映
@@ -335,7 +402,7 @@ public final class BasicGridTrackSizing {
 						shareMin = Math.max(0, deficitMin) / growable;
 						shareMax = Math.max(0, deficitMax) / growable;
 					}
-					if (!zeroMin[c]) {
+					if (!fixedMin[c]) {
 						plannedBase[c] = Math.max(plannedBase[c], shareMin);
 					}
 					plannedMax[c] = Math.max(plannedMax[c], shareMax);
@@ -346,26 +413,44 @@ public final class BasicGridTrackSizing {
 				maxContrib[c] += plannedMax[c];
 			}
 		}
+		// growth limit(§11.5の初期化+§12.5の内容解決後の「上限≧基礎幅」)
+		final boolean[] growable = new boolean[n];
+		final double[] intrinsicMax = new double[n];
+		int growableCount = 0;
 		for (int i = 0; i < n; ++i) {
-			if (auto[i]) {
-				limit[i] = Math.max(base[i], maxContrib[i]);
-			} else if (fr[i]) {
+			switch (fn[i].max) {
+			case FIXED -> {
+				// max<minのminmaxは仕様どおりmaxを無視(=minに揃う)
+				limit[i] = Math.max(base[i], fn[i].fixedMax);
+				intrinsicMax[i] = limit[i];
+			}
+			case FR -> {
 				limit[i] = Double.POSITIVE_INFINITY;
-			} else if (minContentTrack[i]) {
-				limit[i] = base[i];
-				maxContrib[i] = base[i];
-			} else if (maxContentTrack[i]) {
-				base[i] = Math.max(base[i], maxContrib[i]);
-				limit[i] = base[i];
+				intrinsicMax[i] = maxContrib[i];
+			}
+			case AUTO, MAX_CONTENT -> {
+				limit[i] = Math.max(base[i], maxContrib[i]);
+				intrinsicMax[i] = maxContrib[i];
+			}
+			case MIN_CONTENT -> {
+				limit[i] = Math.max(base[i], minContrib[i]);
+				intrinsicMax[i] = limit[i];
+			}
+			}
+			if (!fr[i] && limit[i] > base[i] + 1e-9) {
+				growable[i] = true;
+				++growableCount;
 			}
 		}
-		return new Sized(base, limit, maxContrib, auto, fr, frWeight, autoCount, frCount);
+		return new Sized(base, limit, maxContrib, auto, fr, frWeight, autoCount, frCount, growable, growableCount,
+				intrinsicMax);
 	}
 
 	/**
-	 * auto列をgrowth limitまで均等成長させ、消費した量を返します
+	 * 上限つき列をgrowth limitまで均等成長させ、消費した量を返します
 	 * (飽和列を凍結して反復——1passごとに少なくとも1列が飽和するか
-	 * 残余を使い切る)。
+	 * 残余を使い切る。仕様§12.6 maximize tracks。2026-08-29からauto列に
+	 * 限らずminmax(min, 固定長)等の有限上限を持つ列も対象)。
 	 */
 	private static double growAutos(final double[] widths, final double[] limits, final boolean[] auto,
 			final int autoCount, double free) {

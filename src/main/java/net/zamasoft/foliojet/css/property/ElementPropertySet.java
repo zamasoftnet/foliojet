@@ -366,6 +366,9 @@ public final class ElementPropertySet extends PropertySet {
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.COLUMN);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.ROW);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridAreaShorthand.INFO);
+		// grid-template / grid(2026-08-29)
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridTemplateShorthand.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.FlexShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.FlexFlowShorthand.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GapShorthand.INFO);
