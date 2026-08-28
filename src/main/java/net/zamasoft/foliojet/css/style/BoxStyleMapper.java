@@ -610,12 +610,9 @@ final class BoxStyleMapper {
 			params.opacity = 0f;
 		}
 		params.blendMode = net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.get(style);
-		params.transform = Transform.get(style);
-		params.transformTxRatio = Transform.getTxRatio(style);
-		params.transformTyRatio = Transform.getTyRatio(style);
-		params.transformTxRatioH = Transform.getTxRatioH(style);
-		params.transformTyRatioW = Transform.getTyRatioW(style);
+		this.setupTransform(params, style);
 		params.transformOrigin = TransformOrigin.get(style);
+		params.zoom = net.zamasoft.foliojet.css.impl.property.box.Zoom.get(style);
 		params.zIndexType = ZIndex.getType(style);
 		if (params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			params.zIndexValue = ZIndex.getValue(style);
@@ -623,8 +620,64 @@ final class BoxStyleMapper {
 	}
 
 	/**
+	 * 個別変換プロパティと{@code transform}を合成します(css-transforms-2
+	 * §7.3、2026-08-29)。順序は translate → rotate → scale → transform、
+	 * すなわち行列 P·M(P=T·R·S、Mは{@code transform})。
+	 *
+	 * <p>
+	 * {@code transform}の割合成分(W/H係数ベクトル4つ、{@code TransformValue})
+	 * は「Mの外側に足す平行移動」なので、前にPが掛かると P_lin で写る
+	 * (P·(M+v) = P·M + P_lin·v)。Tは純粋な平行移動なので P_lin = R·S。
+	 * {@code translate}自身の割合は先頭(前置が恒等)だから、W→x・H→yへ
+	 * そのまま加える。
+	 * </p>
+	 */
+	private void setupTransform(final Params params, final CSSStyle style) {
+		final AffineTransform ct = Transform.get(style);
+		double txRatio = Transform.getTxRatio(style);
+		double tyRatio = Transform.getTyRatio(style);
+		double txRatioH = Transform.getTxRatioH(style);
+		double tyRatioW = Transform.getTyRatioW(style);
+		final net.zamasoft.foliojet.css.value.css3.TransformValue translate = net.zamasoft.foliojet.css.impl.property.box.Translate
+				.get(style);
+		final net.zamasoft.foliojet.css.value.css3.TransformValue rotate = net.zamasoft.foliojet.css.impl.property.box.Rotate
+				.get(style);
+		final net.zamasoft.foliojet.css.value.css3.TransformValue scale = net.zamasoft.foliojet.css.impl.property.box.Scale
+				.get(style);
+		if (translate == net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
+				&& rotate == net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
+				&& scale == net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE) {
+			params.transform = ct;
+			params.transformTxRatio = txRatio;
+			params.transformTyRatio = tyRatio;
+			params.transformTxRatioH = txRatioH;
+			params.transformTyRatioW = tyRatioW;
+			return;
+		}
+		final AffineTransform pre = new AffineTransform(translate.getTransform());
+		pre.concatenate(rotate.getTransform());
+		pre.concatenate(scale.getTransform());
+		// transformの係数ベクトル(W→(x,y)、H→(x,y))をP_linで写す
+		final double m00 = pre.getScaleX(), m10 = pre.getShearY(), m01 = pre.getShearX(), m11 = pre.getScaleY();
+		final double wx = m00 * txRatio + m01 * tyRatioW;
+		final double wy = m10 * txRatio + m11 * tyRatioW;
+		final double hx = m00 * txRatioH + m01 * tyRatio;
+		final double hy = m10 * txRatioH + m11 * tyRatio;
+		txRatio = wx + translate.getTxRatio();
+		tyRatioW = wy;
+		txRatioH = hx;
+		tyRatio = hy + translate.getTyRatio();
+		pre.concatenate(ct);
+		params.transform = pre;
+		params.transformTxRatio = txRatio;
+		params.transformTyRatio = tyRatio;
+		params.transformTxRatioH = txRatioH;
+		params.transformTyRatioW = tyRatioW;
+	}
+
+	/**
 	 * テキストボックスのパラメータを設定します。
-	 * 
+	 *
 	 * @param params
 	 * @param style
 	 */
@@ -637,6 +690,9 @@ final class BoxStyleMapper {
 			params.wordWrap = AbstractTextParams.WORD_WRAP_BREAK_WORD;
 		}
 		params.textWrapStyle = TextWrapStyle.get(style);
+		// tab-size(css-text-3、2026-08-29)。倍数なら空白幅を掛ける(TextBuilder)
+		params.tabSize = net.zamasoft.foliojet.css.impl.property.text.TabSize.get(style);
+		params.tabSizeIsMultiple = net.zamasoft.foliojet.css.impl.property.text.TabSize.isMultiple(style);
 		params.color = TextFillColor.get(style);
 		params.decoration = TextDecoration.get(style);
 		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(AbsoluteFontSize.MEDIUM) / 2.0;

@@ -104,11 +104,19 @@ public abstract class AbstractBox implements IBox {
 		final double tyRatioW = this.getParams().transformTyRatioW;
 		final double isx = this.internalScaleX();
 		final double iox = this.internalOffsetX();
+		final double zoom = this.getParams().zoom;
 		if (ct.isIdentity() && txRatio == 0 && tyRatio == 0 && txRatioH == 0 && tyRatioW == 0 && isx == 1
-				&& iox == 0) {
+				&& iox == 0 && zoom == 1) {
 			return transform;
 		}
 		transform = new AffineTransform(transform);
+		if (zoom != 1) {
+			// zoom(2026-08-29)は境界箱の左上を原点に、作者のtransformの外側で
+			// 拡大する(Zoomのjavadoc: レイアウトには効かない近似)
+			transform.translate(x, y);
+			transform.scale(zoom, zoom);
+			transform.translate(-x, -y);
+		}
 		double ax = x;
 		double ay = y;
 		Offset offset = this.getParams().transformOrigin;

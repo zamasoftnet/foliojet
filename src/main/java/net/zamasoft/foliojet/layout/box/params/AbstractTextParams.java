@@ -124,6 +124,14 @@ public abstract class AbstractTextParams extends Params {
 	public TextBreakingRules lineBreakRules;
 
 	/**
+	 * {@code tab-size}(css-text-3、2026-08-29)。{@link #tabSizeIsMultiple}
+	 * なら空白1文字の送り幅の倍数、でなければ絶対長さ(pt)。
+	 */
+	public double tabSize = 8;
+
+	public boolean tabSizeIsMultiple = true;
+
+	/**
 	 * 文字間
 	 */
 	public Length letterSpacing = Length.ZERO_LENGTH;

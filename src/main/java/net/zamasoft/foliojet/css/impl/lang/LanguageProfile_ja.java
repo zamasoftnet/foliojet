@@ -12,8 +12,9 @@ import net.zamasoft.foliojet.css.impl.property.text.WordBreak;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJNoBreakCharacters;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
+import net.zamasoft.foliojet.css.impl.property.text.LineBreak;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
-import net.zamasoft.pdfg2d.gc.text.breaking.impl.JapaneseBreakingRules;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -22,11 +23,41 @@ public class LanguageProfile_ja implements LanguageProfile {
 	private static final ValueListValue QUOTES = new ValueListValue(
 			new Value[] { new QuotesValue("「", "」"), new QuotesValue("『", "』"), });
 
-	private final TextBreakingRules normalHyph = new JapaneseBreakingRules();
+	/**
+	 * {@code line-break}の強さ(strict/normal/loose)ごとの規則(2026-08-29)。
+	 * 添字は{@link #levelIndex}。{@code anywhere}は禁則を見ないので
+	 * {@code word-break}によらず1つ。
+	 */
+	private final TextBreakingRules[] normalHyph = { new JlreqBreakingRules(LineBreakValue.STRICT),
+			new JlreqBreakingRules(LineBreakValue.NORMAL), new JlreqBreakingRules(LineBreakValue.LOOSE) };
 
-	private final TextBreakingRules breakAllHyph = new BreakAllHyphenation();
+	private final TextBreakingRules[] breakAllHyph = { new BreakAllHyphenation(LineBreakValue.STRICT),
+			new BreakAllHyphenation(LineBreakValue.NORMAL), new BreakAllHyphenation(LineBreakValue.LOOSE) };
 
-	private final TextBreakingRules keepAllHyph = new JapaneseKeepAllHyphenation();
+	private final TextBreakingRules[] keepAllHyph = { new JapaneseKeepAllHyphenation(LineBreakValue.STRICT),
+			new JapaneseKeepAllHyphenation(LineBreakValue.NORMAL),
+			new JapaneseKeepAllHyphenation(LineBreakValue.LOOSE) };
+
+	private final TextBreakingRules anywhereHyph = new AnywhereBreakingRules();
+
+	/**
+	 * {@code line-break}の値をJLREQ規則の強さへ写します。{@code auto}は
+	 * {@code strict}相当(印刷物向けの既定——{@code LineBreak}のjavadoc)。
+	 */
+	static LineBreakValue effectiveLevel(final LineBreakValue value) {
+		return value == LineBreakValue.AUTO ? LineBreakValue.STRICT : value;
+	}
+
+	private static int levelIndex(final LineBreakValue level) {
+		switch (level) {
+		case NORMAL:
+			return 1;
+		case LOOSE:
+			return 2;
+		default:
+			return 0;
+		}
+	}
 
 	public String getLanguage() {
 		return "ja";
@@ -143,23 +174,29 @@ public class LanguageProfile_ja implements LanguageProfile {
 	}
 
 	public TextBreakingRules getTextBreakingRules(final CSSStyle style) {
-		// 禁則処理
+		// 禁則処理。line-break(css-text-3 §5.2)の強さをword-breakの
+		// 各規則へ重ねる(2026-08-29)。anywhereは禁則そのものを見ない
+		final LineBreakValue level = effectiveLevel(LineBreak.get(style));
+		if (level == LineBreakValue.ANYWHERE) {
+			return this.anywhereHyph;
+		}
+		final int index = levelIndex(level);
 		switch (WordBreak.get(style)) {
 		case WordBreakValue.NORMAL:
 		case WordBreakValue.BREAK_WORD:
 			final CSSJBreakRuleValue include = CSSJNoBreakCharacters.get(style);
 			final CSSJBreakRuleValue exclude = CSSJBreakCharacters.get(style);
 			if (include != CSSJBreakRuleValue.NONE_VALUE || exclude != CSSJBreakRuleValue.NONE_VALUE) {
-				return new CSSJHyphenation(include, exclude);
+				return new CSSJHyphenation(include, exclude, level);
 			}
 
-			return this.normalHyph;
+			return this.normalHyph[index];
 
 		case WordBreakValue.KEEP_ALL:
-			return this.keepAllHyph;
+			return this.keepAllHyph[index];
 
 		case WordBreakValue.BREAK_ALL:
-			return this.breakAllHyph;
+			return this.breakAllHyph[index];
 		default:
 			throw new IllegalStateException();
 		}

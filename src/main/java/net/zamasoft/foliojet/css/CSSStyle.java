@@ -397,10 +397,16 @@ public class CSSStyle {
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontKerning.featureSet(this))
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.get(this));
 
-		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features,
+		final FontStyleImpl base = new FontStyleImpl(family, size, style, weight, direction, policy, features,
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.get(this),
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this),
 				net.zamasoft.foliojet.css.impl.property.text.TextOrientation.get(this));
+		// font-stretch(2026-08-29)。normal以外のときだけ幅級を添えて運ぶ
+		// (照合に使われるのはpdfg2dの索引が幅級を持ってから——FontStretch参照)
+		final int widthClass = net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(this);
+		this.fontStyle = widthClass == net.zamasoft.foliojet.css.impl.property.font.FontStretch.NORMAL_WIDTH_CLASS
+				? base
+				: new net.zamasoft.foliojet.css.impl.property.font.StretchedFontStyle(base, widthClass);
 		return this.fontStyle;
 	}
 

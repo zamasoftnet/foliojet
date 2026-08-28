@@ -241,6 +241,13 @@ public class DisplayListGoldenTest extends TestCase {
 			// 割合translateと他関数の併用(2026-08-29)。translate(-50%,-50%)
 			// scale(1.1)が丸ごと無効になっていた。交差成分と3D縮退も固定する
 			"0490-transform/percent-translate-with-scale.html", //
+			// 個別変換プロパティ translate/rotate/scale と zoom(2026-08-29)。
+			// 合成順 T·R·S·transform と、transformの割合成分がR·Sで写ること、
+			// zoomが左上原点の拡大であることを固定する(期待行列はfixture内)
+			"0490-transform/individual-properties.html", //
+			// tab-size(2026-08-29)。数値=空白幅の倍数、長さ、0。2行目のタブが
+			// 1行目と同じタブ位置へそろうこと
+			"0050-white-space/tab-size.html", //
 			// dialog:not([open])のUA既定(2026-08-07)。open属性のない
 			// ネイティブダイアログが紙面に露出しないことを固定する
 			"0130-display/dialog-closed.html", //

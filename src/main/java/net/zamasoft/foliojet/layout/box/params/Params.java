@@ -70,6 +70,12 @@ public abstract class Params {
 	public double transformTxRatioH = 0, transformTyRatioW = 0;
 	public Offset transformOrigin = Offset.HALF_OFFSET;
 
+	/**
+	 * {@code zoom}(2026-08-29)。境界箱の左上を原点に要素と子孫の描画を
+	 * 拡大する近似({@code Zoom}のjavadoc)。{@code transform}の外側に掛かる。
+	 */
+	public double zoom = 1;
+
 	public abstract ParamsType getType();
 
 	public String toString() {

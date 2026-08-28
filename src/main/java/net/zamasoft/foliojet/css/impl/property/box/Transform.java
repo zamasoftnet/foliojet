@@ -268,9 +268,29 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	private double getAngle(TokenStream params) throws PropertyException {
-		final CssToken token = nextParam(params);
-		if (token instanceof CssToken.Dim dim && dim.unit() == net.zamasoft.foliojet.css.token.Unit.DEG) {
-			return dim.value() * Math.PI / 180.0;
+		return toAngle(nextParam(params));
+	}
+
+	/**
+	 * {@code <angle>}をラジアンにします。deg/grad/rad/turnの4単位
+	 * (css-values-4)と、単位なしの0(または数値。旧構文の互換)を受ける。
+	 * 個別プロパティ{@code rotate}と共有する(2026-08-29)。
+	 */
+	static double toAngle(final CssToken token) throws PropertyException {
+		if (token instanceof CssToken.Dim dim) {
+			switch (dim.unit()) {
+			case DEG:
+				return dim.value() * Math.PI / 180.0;
+			case GRAD:
+				return dim.value() * Math.PI / 200.0;
+			case RAD:
+				return dim.value();
+			default:
+				if ("turn".equalsIgnoreCase(dim.unitText())) {
+					return dim.value() * Math.PI * 2.0;
+				}
+				throw new PropertyException();
+			}
 		}
 		return toFloat(token);
 	}
@@ -279,7 +299,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		return toFloat(nextParam(params));
 	}
 
-	private static float toFloat(CssToken token) throws PropertyException {
+	static float toFloat(CssToken token) throws PropertyException {
 		if (token instanceof CssToken.Num num) {
 			return (float) num.value();
 		}
@@ -292,7 +312,15 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	 */
 	private double getLengthOrRatio(UserAgent ua, TokenStream params, double[] ratio, int axis)
 			throws PropertyException {
-		final CssToken token = nextParam(params);
+		return lengthOrRatio(ua, nextParam(params), ratio, axis);
+	}
+
+	/**
+	 * {@code <length-percentage>}の1トークンを、絶対長さ(戻り値)と割合
+	 * ({@code ratio[axis]}へ加算)に分けます。個別プロパティ
+	 * {@code translate}と共有する(2026-08-29)。
+	 */
+	static double lengthOrRatio(UserAgent ua, CssToken token, double[] ratio, int axis) throws PropertyException {
 		if (token instanceof CssToken.Percent percent) {
 			ratio[axis] += percent.value() / 100.0;
 			return 0;
@@ -327,7 +355,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		return toLength(ua, nextParam(params));
 	}
 
-	private double toLength(UserAgent ua, CssToken token) throws PropertyException {
+	static double toLength(UserAgent ua, CssToken token) throws PropertyException {
 		AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 		if (length == null) {
 			if (token instanceof CssToken.Num num) {

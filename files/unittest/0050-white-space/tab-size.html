@@ -1,0 +1,21 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+@page{size:300pt 200pt;margin:10pt}
+body{margin:0;font-family:serif;font-size:12pt;line-height:1.2}
+pre{margin:0 0 6pt 0;font-family:serif}
+.four{tab-size:4}
+.len{tab-size:30pt}
+.zero{tab-size:0}
+</style></head><body>
+<!-- tab-size(css-text-3、2026-08-29)。タブ位置は行頭からタブ幅の整数倍。
+     数値は空白1文字の送り幅の倍数(既定8)、長さはそのままタブ幅。
+     各preの2行目は先頭に文字を置いてから同じタブを打ち、次のタブ位置へ
+     そろうこと(1行目と同じxに"b"が来る)を固定する。-->
+<pre>a	b	c
+xx	b	c</pre>
+<pre class="four">a	b	c
+xx	b	c</pre>
+<pre class="len">a	b	c
+xx	b	c</pre>
+<pre class="zero">a	b	c</pre>
+</body></html>

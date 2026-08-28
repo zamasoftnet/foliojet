@@ -1,0 +1,28 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+@page{size:300pt 200pt;margin:10pt}
+body{margin:0;font-family:sans-serif;font-size:12px}
+.stage{position:relative;width:200px;height:120px;background:#eef}
+.a{position:absolute;top:20px;left:20px;width:80px;height:40px;background:#4070ff;
+  translate:50% 10px;rotate:45deg;scale:1.5}
+.b{position:absolute;top:80px;left:20px;width:40px;height:20px;background:#f70;
+  translate:10px 0;rotate:90deg;scale:2 1;transform:translateX(50%)}
+.c{position:absolute;top:20px;left:120px;width:40px;height:20px;background:#0a0;
+  zoom:1.5}
+.d{position:absolute;top:80px;left:120px;width:40px;height:20px;background:#a0a;
+  translate:10px;rotate:x 45deg;scale:none}
+</style></head><body>
+<!-- 個別変換プロパティ translate/rotate/scale(css-transforms-2)と zoom
+     (2026-08-29)。合成順は仕様どおり translate→rotate→scale→transform。
+     ダンプはpt(px×0.75)。変換原点は既定の中心。
+     .a: 箱(15,15) 60×30、原点(45,30)。P=T(30,7.5)·R45·S1.5、R·S=1.0607·[1 -1;1 1]。
+         p ↦ R·S·(p-o)+o+(30,7.5) → tf=[1.06 1.06 -1.06 1.06 59.09 -42.05]
+         (59.09=75-1.0607·(45-30)、-42.05=37.5-1.0607·(45+30))
+     .b: 箱(15,60) 30×15、原点(30,67.5)。P_lin=R90·S(2,1)=[0 -1;2 0]。
+         transformの割合W→x=0.5はP_linで(0,1.0)へ写り、幅30がyに足される。
+         p ↦ P_lin·(p-o)+o+(7.5,0)+(0,30) → tf=[0.00 2.00 -1.00 0.00 105.00 37.50]
+     .c: zoomは左上(90,15)原点の拡大 → tf=[1.50 0.00 0.00 1.50 -45.00 -7.50]
+     .d: rotate:x はz軸回転でないので恒等、scale:none。translate:10px だけ
+         → tf=[1.00 0.00 0.00 1.00 7.50 0.00] -->
+<div class="stage"><div class="a"></div><div class="b"></div><div class="c"></div><div class="d"></div></div>
+</body></html>

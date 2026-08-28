@@ -57,9 +57,28 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 public class TextBuilder {
 
 	/**
-	 * タブの幅です。
+	 * タブ1つの送り幅を返します(tab-size、2026-08-29)。行頭からの位置
+	 * {@code lineAxis}を次のタブ位置(タブ幅の整数倍)まで進める量。
+	 * タブ幅が0以下なら進めない(仕様: 0はタブを幅なしにする)。
 	 */
-	private static final double TAB_WIDTH = 24.0;
+	static double tabAdvance(final AbstractTextParams params, final double lineAxis) {
+		double width = params.tabSize;
+		if (params.tabSizeIsMultiple) {
+			width *= params.getFontListMetrics().getFontMetrics(0).getSpaceAdvance();
+		}
+		if (width <= 0) {
+			return 0;
+		}
+		return width - (lineAxis % width);
+	}
+
+	/** 制御文字が属する(最も内側の)テキストパラメータです。 */
+	private AbstractTextParams currentTextParams() {
+		if (this.textParamStack == null || this.textParamStack.isEmpty()) {
+			return this.lineBox.getTextParams();
+		}
+		return ((InlineBox) this.textParamStack.get(this.textParamStack.size() - 1)).getTextParams();
+	}
 
 	/**
 	 * 配置されたインラインボックスです。
@@ -1525,9 +1544,11 @@ public class TextBuilder {
 				break;
 
 			case '\t':
-				// タブ文字
+				// タブ文字。幅はtab-size(css-text-3、2026-08-29): 倍数なら
+				// 現在のフォントの空白1文字の送り幅×倍数、長さならそのまま。
+				// タブ位置は行頭からタブ幅の整数倍(2026-08-29までは固定24pt)
 				Tab tab = (Tab) control;
-				tab.advance = (TAB_WIDTH - (this.lineAxis % TAB_WIDTH));
+				tab.advance = tabAdvance(this.currentTextParams(), this.lineAxis);
 				break;
 
 			case '\u0020':

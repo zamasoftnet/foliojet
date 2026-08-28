@@ -172,7 +172,8 @@ public abstract class PropertySet {
 			"scroll-timeline", "view-transition-name", "accent-color", "field-sizing",
 			"box-orient", "box-direction", "box-pack", "box-align", "box-flex",
 			"box-ordinal-group", "box-lines", "font-optical-sizing", "text-underline-position",
-			"image-rendering", "zoom", "ime-mode", "font-smooth", "line-clamp-fallback");
+			// zoomは2026-08-29に描画時拡大として実装(Zoom)、無視リストから外した
+			"image-rendering", "ime-mode", "font-smooth", "line-clamp-fallback");
 
 	/** 接頭辞を外した名前が{@link #IGNORED_PROPERTIES}にあるか。 */
 	static boolean isIgnored(final String name) {

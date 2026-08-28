@@ -404,6 +404,17 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextWrapStyle.INFO);
 		put(TextWrapShorthand.INFO);
 		reg(Hyphens.INFO);
+		// line-break / tab-size(css-text-3)、font-stretch(css-fonts-4では
+		// font-width)、個別変換 translate/rotate/scale(css-transforms-2)、
+		// zoom(css-viewport)。2026-08-29
+		reg(net.zamasoft.foliojet.css.impl.property.text.LineBreak.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.TabSize.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontStretch.INFO);
+		alias("font-width", net.zamasoft.foliojet.css.impl.property.font.FontStretch.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.Translate.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.Rotate.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.Scale.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.Zoom.INFO);
 		reg(ColumnCount.INFO);
 		reg(ColumnWidth.INFO);
 		reg(ColumnGap.INFO);
@@ -567,8 +578,12 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-align-items", net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_ITEMS);
 		alias("-webkit-align-self", net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF);
 		alias("-webkit-align-content", net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT);
-		// -ms-flex-pack/-ms-flex-align等(2011年版)は値の語彙が違う(start/end)
-		// ので別名にしない——標準名が併記されるのが常で、そちらが効く
+		// -ms-flex-pack/-ms-flex-align等(2011年版)は値の語彙が違う(start/end/
+		// justify/distribute)ので、読み替えてから標準名へ落とす(2026-08-29)
+		for (final net.zamasoft.foliojet.css.impl.property.flex.LegacyFlexAlignmentAlias info : //
+				net.zamasoft.foliojet.css.impl.property.flex.LegacyFlexAlignmentAlias.all()) {
+			put(info);
+		}
 		// 論理角丸(css-logical-1)。横書き・ltrの物理角へ写す近似
 		alias("border-start-start-radius", BorderRadius.TOP_LEFT);
 		alias("border-start-end-radius", BorderRadius.TOP_RIGHT);

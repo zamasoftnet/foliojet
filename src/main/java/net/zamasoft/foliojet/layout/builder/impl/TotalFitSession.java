@@ -429,7 +429,7 @@ final class TotalFitSession {
 
 			case '\t':
 			default:
-				// タブは行位置依存幅(TextBuilder.control()のlineAxis%24)
+				// タブは行位置依存幅(TextBuilder.tabAdvance()、tab-size)
 				this.abortToLegacy();
 				return false;
 			}

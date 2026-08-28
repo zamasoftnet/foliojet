@@ -48,7 +48,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		net.zamasoft.foliojet.css.value.RubyPositionValue rubyPosition, byte textAutospace, boolean textSpacingTrimOff,
 		boolean textSpacingTrimStart, boolean textSpacingTrimEnd, boolean textSpacingSpaceFirst,
 		boolean hangingPunctuationEnd, boolean hangingPunctuationFirst, boolean hangingPunctuationForceEnd,
-		byte textCombine) {
+		byte textCombine, double tabSize, boolean tabSizeIsMultiple) {
 	TextParamsFields {
 		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
 		// TextShadowはfinalフィールドのみで実質不変)
@@ -66,7 +66,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.textSpacingTrimOff, source.textSpacingTrimStart, source.textSpacingTrimEnd,
 				source.textSpacingSpaceFirst, source.hangingPunctuationEnd, source.hangingPunctuationFirst,
 				source.hangingPunctuationForceEnd,
-				source.textCombine);
+				source.textCombine, source.tabSize, source.tabSizeIsMultiple);
 	}
 
 	/**
@@ -111,5 +111,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.hangingPunctuationFirst = this.hangingPunctuationFirst;
 		target.hangingPunctuationForceEnd = this.hangingPunctuationForceEnd;
 		target.textCombine = this.textCombine;
+		target.tabSize = this.tabSize;
+		target.tabSizeIsMultiple = this.tabSizeIsMultiple;
 	}
 }

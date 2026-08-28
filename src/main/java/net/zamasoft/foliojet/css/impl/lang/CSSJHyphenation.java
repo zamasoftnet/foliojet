@@ -1,14 +1,19 @@
 package net.zamasoft.foliojet.css.impl.lang;
 
+import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
 import net.zamasoft.foliojet.css.value.ext.CSSJBreakRuleValue;
 import net.zamasoft.pdfg2d.gc.text.breaking.impl.CharacterSet;
-import net.zamasoft.pdfg2d.gc.text.breaking.impl.JapaneseBreakingRules;
 
-public class CSSJHyphenation extends JapaneseBreakingRules {
+public class CSSJHyphenation extends JlreqBreakingRules {
 	final private CSSJBreakRuleValue include;
 	final private CSSJBreakRuleValue exclude;
 
-	public CSSJHyphenation(CSSJBreakRuleValue include, CSSJBreakRuleValue exclude) {
+	/**
+	 * 作者指定の禁則文字の追加・除外は{@code line-break}の緩和より優先する
+	 * (2026-08-29)。
+	 */
+	public CSSJHyphenation(CSSJBreakRuleValue include, CSSJBreakRuleValue exclude, final LineBreakValue level) {
+		super(level);
 		this.include = include;
 		this.exclude = exclude;
 	}

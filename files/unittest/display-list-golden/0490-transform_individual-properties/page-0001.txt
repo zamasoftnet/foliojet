@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=150.00 h=90.00]
+  x=15.00 y=15.00 AbsoluteRectFrame[w=60.00 h=30.00] tf=[1.06 1.06 -1.06 1.06 59.09 -42.05]
+  x=15.00 y=60.00 AbsoluteRectFrame[w=30.00 h=15.00] tf=[0.00 2.00 -1.00 0.00 105.00 37.50]
+  x=90.00 y=15.00 AbsoluteRectFrame[w=30.00 h=15.00] tf=[1.50 0.00 0.00 1.50 -45.00 -7.50]
+  x=90.00 y=60.00 AbsoluteRectFrame[w=30.00 h=15.00] tf=[1.00 0.00 0.00 1.00 7.50 0.00]
