@@ -189,6 +189,13 @@ public class RealSiteCssGapsTest extends TestCase {
 		assertNull(parse(new Probe(), "padding-inline: 1px 2px 3px"));
 	}
 
+	public void testSvgPresentationPropertiesAreAcceptedSilently() {
+		final Probe probe = new Probe();
+		assertNull(parse(probe, "fill: currentColor"));
+		assertNull(parse(probe, "stroke-width: 2px"));
+		assertTrue("SVGのfill/strokeは警告しない: " + probe.warnings, probe.warnings.isEmpty());
+	}
+
 	public void testRevertIsDroppedSilently() {
 		final Probe probe = new Probe();
 		assertNull(parse(probe, "height: revert-layer"));

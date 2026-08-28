@@ -100,10 +100,31 @@ public abstract class PropertySet {
 				return null;
 			}
 		}
+		if (SVG_PRESENTATION_PROPERTIES.contains(name.toLowerCase(java.util.Locale.ROOT))) {
+			// SVGのプレゼンテーション属性(fill/stroke等)は、HTML側の箱には
+			// 意味がないが、インラインSVGへは規則ごとBatikへ持ち込まれて
+			// 効いている(CSSStyleSheetBuilder.collectSVGStyleRule)。ここで
+			// 「未対応」と警告すると、実サイト50件中31件でfillが最頻の
+			// 誤警告になっていた(2026-08-29)。黙って受ける
+			return null;
+		}
 		ua.message(isIgnored(name) ? MessageCodes.WARN_IGNORED_CSS_PROPERTY
 				: MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, name);
 		return null;
 	}
+
+	/**
+	 * SVGのプレゼンテーション属性のうち、HTMLの箱には無くインラインSVGへ
+	 * 転送されるもの(2026-08-29)。{@code opacity}/{@code clip-path}/{@code mask}/
+	 * {@code filter}はHTML側の特性でもあるのでここには含めない。
+	 */
+	private static final Set<String> SVG_PRESENTATION_PROPERTIES = Set.of("fill", "fill-opacity", "fill-rule",
+			"stroke", "stroke-width", "stroke-opacity", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
+			"stroke-dasharray", "stroke-dashoffset", "stop-color", "stop-opacity", "marker-start", "marker-mid",
+			"marker-end", "marker", "text-anchor", "dominant-baseline", "baseline-shift", "alignment-baseline",
+			"vector-effect", "paint-order", "shape-rendering", "color-interpolation", "color-interpolation-filters",
+			"flood-color", "flood-opacity", "lighting-color", "clip-rule", "glyph-orientation-vertical",
+			"glyph-orientation-horizontal", "enable-background", "color-rendering");
 
 	/** 値が単独の{@code revert}/{@code revert-layer}か。 */
 	private static boolean isRevert(final List<CssToken> value) {
