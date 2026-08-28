@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=41.50 h=21.50]
+  x=0.75 y=0.75 Text["ABCDEFGH" asc=8.00 desc=2.00]
+  x=0.75 y=10.75 Text["IJK" asc=8.00 desc=2.00]
+  x=0.00 y=21.50 Text["AFTER" asc=8.00 desc=2.00]

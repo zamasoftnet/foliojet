@@ -66,7 +66,7 @@ public class BorderShorthand extends AbstractShorthandPropertyInfo {
 				if (ColorValueUtils.isTransparent(lu)) {
 					color = KeywordValue.TRANSPARENT;
 				} else {
-					color = ColorValueUtils.toColor(ua, lu);
+					color = ColorValueUtils.toColorOrCurrent(ua, lu);
 				}
 				if (color != null) {
 					continue;

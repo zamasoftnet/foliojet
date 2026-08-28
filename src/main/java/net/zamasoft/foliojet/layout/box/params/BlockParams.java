@@ -23,9 +23,45 @@ public class BlockParams extends AbstractLineParams {
 
 	public Dimension maxSize = Dimension.AUTO_DIMENSION;
 
+	/**
+	 * 行方向のwidth/min-width/max-width(縦書きはheight系)に書かれた
+	 * 固有寸法キーワード(2026-08-29)。無ければnull。あるとき対応する
+	 * {@code size}/{@code minSize}/{@code maxSize}の行方向はAUTO
+	 * ({@link IntrinsicSize}参照)。
+	 */
+	public IntrinsicSize intrinsicLine = null;
+
+	public IntrinsicSize intrinsicMinLine = null;
+
+	public IntrinsicSize intrinsicMaxLine = null;
+
 	public BoxSizingMode boxSizing = BoxSizingMode.CONTENT_BOX;
 
 	public OverflowMode overflow = OverflowMode.VISIBLE;
+
+	public static final byte TEXT_OVERFLOW_CLIP = 0;
+	public static final byte TEXT_OVERFLOW_ELLIPSIS = 1;
+
+	/**
+	 * {@code text-overflow}(css-overflow-3、2026-08-29)。overflowが
+	 * visible以外のときだけ意味を持つ(TextBuilder.applyTextOverflow)。
+	 */
+	public byte textOverflow = TEXT_OVERFLOW_CLIP;
+
+	/**
+	 * {@code display: flow-root}(2026-08-29)。overflow:hiddenと同じく
+	 * 独立BFCを作り、内側のfloatを親の排除域へ漏らさず、auto高さは
+	 * 内側のfloatの下端まで伸びる。描画クリップは掛けない。
+	 */
+	public boolean flowRoot = false;
+
+	/**
+	 * {@code aspect-ratio}の幅/高さ(0=指定なし。2026-08-29)。非置換
+	 * ボックスでは{@code auto}併記に意味が無いため比率だけを持つ。
+	 * 適用は{@code FlowBlockBox.calculateSize}/
+	 * {@code AbstractStaticBlockBox.shrinkToFit}。
+	 */
+	public double aspectRatio = 0;
 
 	/**
 	 * 通常ブロックコンテナの内容全体をブロック軸に配置する
@@ -45,6 +81,15 @@ public class BlockParams extends AbstractLineParams {
 
 	public Columns columns = Columns.NONE_COLUMNS;
 
+	/**
+	 * 行方向の寸法決定に内容の実測(固有寸法)が要るかどうか(2026-08-29)。
+	 * 通常フローのブロックでtrueなら、浮動体と同じ2パス経路
+	 * (TwoPassBlockBuilder → shrinkToFit)へ回す。
+	 */
+	public boolean hasIntrinsicLine() {
+		return this.intrinsicLine != null || this.intrinsicMinLine != null || this.intrinsicMaxLine != null;
+	}
+
 	public ParamsType getType() {
 		return ParamsType.BLOCK;
 	}
@@ -53,7 +98,8 @@ public class BlockParams extends AbstractLineParams {
 		return super.toString() + "[frame=" + this.frame + "[firstLineStyle=" + this.firstLineStyle
 				+ ",pageBreakInside=" + this.pageBreakInside + ",orphans=" + this.orphans + ",widows=" + this.widows
 				+ ",size=" + this.size + ",minSize=" + this.minSize + ",maxSize=" + this.maxSize + ",boxSizing="
-				+ this.boxSizing + ",overflow=" + this.overflow + ",blockAlignContent=" + this.blockAlignContent
+				+ this.boxSizing + ",overflow=" + this.overflow + ",textOverflow=" + this.textOverflow + ",aspectRatio=" + this.aspectRatio
+				+ ",blockAlignContent=" + this.blockAlignContent
 				+ ",paintClip=" + this.paintClip + ",columns="
 				+ this.columns + "]";
 	}

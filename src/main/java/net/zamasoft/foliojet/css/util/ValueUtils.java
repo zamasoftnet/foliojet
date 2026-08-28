@@ -180,6 +180,13 @@ public final class ValueUtils {
 			final Value resolved = attr.resolve(style);
 			return resolved == null ? KeywordValue.NONE : emExToAbsoluteLength(resolved, style);
 		}
+		// fit-content(<length-percentage>)の引数(2026-08-29)。calc()の
+		// フォント相対成分と同じく、要素のfont-sizeが分かるここで解く
+		if (value instanceof net.zamasoft.foliojet.css.value.FitContentValue fit) {
+			final Value argument = emExToAbsoluteLength(fit.argument(), style);
+			return argument == fit.argument() ? fit
+					: new net.zamasoft.foliojet.css.value.FitContentValue(argument);
+		}
 		return value;
 	}
 
@@ -196,6 +203,16 @@ public final class ValueUtils {
 			case PC:
 			case PX:
 				return AbsoluteLengthValue.create(ua, dim.value(), dim.unit());
+			case VW:
+			case VH:
+			case VMIN:
+			case VMAX:
+				// ビューポート単位(2026-08-29)。ページ媒体では版面寸法が
+				// 解析時に確定している(UAプロパティ由来)ので、rem等と
+				// 違って絶対長さへ即時に解決できる——calc()/min()/max()の
+				// 葉(CalcValueUtils.evaluateLeaf)もこの経路を通るため、
+				// 数式の中でも同じ値になる
+				return ViewportUnits.resolve(ua, dim.unit(), dim.value());
 			default:
 				return null;
 			}

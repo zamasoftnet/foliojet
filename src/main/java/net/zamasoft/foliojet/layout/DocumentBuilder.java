@@ -735,8 +735,12 @@ public class DocumentBuilder implements TableBuilderHost {
 			}
 			this.endContainer();
 			final Builder builder = this.containerBuilder().builder;
+			// 固有寸法キーワード(width:max-content等、2026-08-29)を持つ
+			// ブロックは内容を測ってから幅が決まるので、直交フローと同じ
+			// 2パス経路(newBuilder→TwoPass→shrinkToFit)へ回す。ストリーム
+			// 制約上、浮動体と同じく内容をいったん溜める
 			if (params.flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
-					&& !blockBox.isFixedMulticolumn()) {
+					&& !blockBox.isFixedMulticolumn() && !params.hasIntrinsicLine()) {
 				builder.startFlowBlock(blockBox);
 				// Grid本体の開始: 適格なら構築coordinatorを積み、以後の
 				// 直接子をitem化する(Grid G1b)。不適格ならBlockBox同然の

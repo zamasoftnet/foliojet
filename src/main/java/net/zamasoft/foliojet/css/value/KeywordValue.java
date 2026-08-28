@@ -26,6 +26,17 @@ public enum KeywordValue implements Value {
 	COVER("cover"),
 
 	/**
+	 * 固有寸法キーワード(css-sizing-3 §2.2、2026-08-29)。width/height/
+	 * min-/max-系(と論理版)が受け付ける。引数付きの
+	 * {@code fit-content(<length-percentage>)}は{@link FitContentValue}。
+	 */
+	MAX_CONTENT("max-content"),
+
+	MIN_CONTENT("min-content"),
+
+	FIT_CONTENT("fit-content"),
+
+	/**
 	 * mask-imageのグラデーション近似の内部マーカー(2026-08-09、MaskImage参照)。
 	 * CSSのキーワードではない。
 	 */

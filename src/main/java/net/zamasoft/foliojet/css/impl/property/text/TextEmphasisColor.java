@@ -48,7 +48,7 @@ public class TextEmphasisColor extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		final Value value = ColorValueUtils.toColor(ua, lu);
+		final Value value = ColorValueUtils.toColorOrCurrent(ua, lu);
 		if (value != null) {
 			return value;
 		}

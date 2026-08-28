@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>shape-outside: circle</title>
+<style>
+/*
+ * shape-outside: circle(50%)(css-shapes-1、2026-08-29)。
+ * 100pt角の左フロート(背景なし)に半径50ptの円を与え、本文が円の
+ * 周りを回り込むこと——マージンボックスの四隅(円の外)に行が入り、
+ * 円の内側には入らないこと——を固定する。1pt=1pxの72dpiで画素検査
+ * できるよう、紙は300pt角・余白0・行送り12pt。
+ *
+ * 期待する各行の開始x(円は中心(50,50)・半径50、行帯[y, y+12]の最大弦):
+ *   y=0:  82.5   y=12: 92.7   y=24: 98.0   y=36..60: ≈100
+ *   y=72: 94.9   y=84: 86.7   y=96: 69.6   y=108以降: 0(円の下)
+ */
+@page { size: 300pt 300pt; margin: 0; }
+body { margin: 0; font-size: 10pt; line-height: 12pt; }
+.f { float: left; width: 100pt; height: 100pt; shape-outside: circle(50%); }
+</style></head><body>
+<div class="f"></div>
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab
+</body></html>

@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>浮動体・inline-block・絶対配置の固有寸法キーワード</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+p { margin: 0; }
+div { border: 1px solid; }
+/* 浮動体は元来 shrink-to-fit。min-content は最長単語幅(48pt)で折り返す */
+#fl { float: left; width: min-content; }
+/* max-content は折り返さない */
+#fl2 { float: right; width: max-content; }
+/* inline-block の max-content */
+#ib { display: inline-block; width: max-content; }
+/* 絶対配置の max-content / fit-content(L) */
+#abs { position: absolute; left: 0; top: 100pt; width: max-content; }
+#abs2 { position: absolute; left: 0; top: 130pt; width: fit-content(40pt); }
+</style>
+</head>
+<body>
+<div id="fl">ABCDEFGH IJK</div>
+<div id="fl2">AB CD</div>
+<p id="line"><span id="ib" style="border:1px solid">IB IB</span> TEXT</p>
+<div id="abs">ABS ABS</div>
+<div id="abs2">AAAA BBBB CCCC</div>
+</body>
+</html>

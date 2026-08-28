@@ -4,6 +4,7 @@ import java.net.URI;
 
 import net.zamasoft.foliojet.css.impl.property.box.Overflow;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.value.Value;
@@ -22,6 +23,11 @@ public class OverflowShorthand extends AbstractShorthandPropertyInfo {
 
 	protected OverflowShorthand() {
 		super("overflow");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { Overflow.INFO_X, Overflow.INFO_Y };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

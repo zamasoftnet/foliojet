@@ -29,9 +29,10 @@ public final class GridBuilderLifecycle {
 		// 一切効かなかった(NHKニュースのボタンのアイコン中央寄せ)。
 		// GridBoxは不適格でもPageAtomicのため、適格化で改ページ特性は
 		// 変わらない。暗黙トラックの補完はGridBuilderのコンストラクタが行う
-		if (!params.templateRows.isEmpty()) {
-			return false;
-		}
+		// grid-template-rows有りも適格(2026-08-29)。従来はG0の単一列へ
+		// 落としていたが、grid-template-areasを使う実物のページはほぼ必ず
+		// 行テンプレートも書く。固定長の行はその高さ、auto/fr/%の行は内容高
+		// (GridBuilder.bind参照)
 		if (params.flow.isVertical()) {
 			return false;
 		}

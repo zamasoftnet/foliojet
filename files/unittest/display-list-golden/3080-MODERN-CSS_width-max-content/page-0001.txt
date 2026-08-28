@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=26.50 h=11.50]
+  x=0.00 y=11.50 AbsoluteRectFrame[w=326.50 h=11.50]
+  x=0.75 y=0.75 Text["ABCDE" asc=8.00 desc=2.00]
+  x=0.75 y=12.25 Text["AAAAAAAAAA" asc=8.00 desc=2.00]
+  x=55.75 y=12.25 Text["BBBBBBBBBB" asc=8.00 desc=2.00]
+  x=110.75 y=12.25 Text["CCCCCCCCCC" asc=8.00 desc=2.00]
+  x=165.75 y=12.25 Text["DDDDDDDDDD" asc=8.00 desc=2.00]
+  x=220.75 y=12.25 Text["EEEEEEEEEE" asc=8.00 desc=2.00]
+  x=275.75 y=12.25 Text["FFFFFFFFFF" asc=8.00 desc=2.00]
+  x=0.00 y=23.00 Text["AFTER" asc=8.00 desc=2.00]

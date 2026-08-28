@@ -246,6 +246,11 @@ public class Background {
 					case RELATIVE:
 						offX += pos.getX() * (paddingWidth - imageWidth);
 						break;
+					case MIXED:
+						// calc(100% - 10px)や4値構文(right 10px)の位置(2026-08-29)。
+						// 従来はここで例外になり変換全体が失敗していた
+						offX += pos.getX() + pos.getXRatio() * (paddingWidth - imageWidth);
+						break;
 					case AUTO:
 					default:
 						throw new IllegalStateException();
@@ -256,6 +261,9 @@ public class Background {
 						break;
 					case RELATIVE:
 						offY += pos.getY() * (paddingHeight - imageHeight);
+						break;
+					case MIXED:
+						offY += pos.getY() + pos.getYRatio() * (paddingHeight - imageHeight);
 						break;
 					case AUTO:
 					default:

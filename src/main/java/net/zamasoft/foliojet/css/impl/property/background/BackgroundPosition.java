@@ -81,6 +81,15 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
+	/**
+	 * ショートハンド({@code background}・{@code mask})から&lt;position&gt;の
+	 * トークン列を渡すための公開入口(2026-08-29)。4値構文
+	 * ({@code right 10px bottom 20px})もここで解ける。
+	 */
+	public Entry[] parsePositionValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		return this.parseValues(tokens, ua, uri);
+	}
+
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		// 派生特性(object-position)からも使うため、対象primitiveは
 		// getPrimitives()経由で決める

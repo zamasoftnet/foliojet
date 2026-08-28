@@ -132,7 +132,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 			overline = decoration.overlineColor;
 			lineThrough = decoration.lineThroughColor;
 		}
-		final Color color = this.getTextParams().color;
+		// text-decoration-color(2026-08-29): 指定があれば装飾線はその色、
+		// 無ければ従来どおり文字色
+		final Color color = this.getTextParams().decorationColor != null ? this.getTextParams().decorationColor
+				: this.getTextParams().color;
 		underline = ((flags & AbstractTextParams.DECORATION_UNDERLINE) != 0) ? color : underline;
 		overline = ((flags & AbstractTextParams.DECORATION_OVERLINE) != 0) ? color : overline;
 		lineThrough = ((flags & AbstractTextParams.DECORATION_LINE_THROUGH) != 0) ? color : lineThrough;
@@ -794,6 +797,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		public TextSequenceDrawable(PageBox pageBox, Shape clip, AffineTransform transform, List<Object> contents,
 				int off, int len, AbstractTextParams params, double ascent, double descent) {
 			super(pageBox, clip, params.opacity, transform);
+			this.blendMode = params.blendMode;
 			this.contents = contents;
 			this.off = off;
 			this.len = len;
@@ -912,6 +916,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		LeaderDrawable(PageBox pageBox, Shape clip, AffineTransform transform, AbstractTextParams params,
 				net.zamasoft.foliojet.layout.text.LeaderQuad leader, double ascent, double descent) {
 			super(pageBox, clip, params.opacity, transform);
+			this.blendMode = params.blendMode;
 			this.leader = leader;
 			this.params = params;
 			this.ascent = ascent;
@@ -976,6 +981,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		public TextDecorationDrawable(PageBox pageBox, Shape clip, AffineTransform transform, AbstractTextParams params,
 				Decoration decoration, double ascent, double descent, double width, double height) {
 			super(pageBox, clip, params.opacity, transform);
+			this.blendMode = params.blendMode;
 			this.params = params;
 			this.decoration = decoration;
 			this.ascent = ascent;

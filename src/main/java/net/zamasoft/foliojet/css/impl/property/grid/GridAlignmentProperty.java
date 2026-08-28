@@ -20,8 +20,12 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * <li>justify-self / align-self: auto+同上(既定auto)</li>
  * <li>justify-content / align-content: normal | start | center | end | stretch(既定normal)</li>
  * </ul>
- * baseline系・space-*・left/right・self-start/self-end・safe/unsafe prefixは
- * 宣言無効(startへ丸めない)。
+ * 2026-08-29(実サイト50件中22件・約300回が不受理だった): baseline系
+ * ({@code baseline}/{@code first baseline}/{@code last baseline})は
+ * {@code flex-start}へ、{@code self-start}/{@code self-end}は
+ * {@code start}/{@code end}へ、justify-*の{@code left}/{@code right}は
+ * {@code start}/{@code end}へ丸め、先頭の{@code safe}/{@code unsafe}は
+ * 読み捨てる(紙にはスクロールが無く、overflow時の挙動差は無い)。
  *
  * @author MIYABE Tatsuhiko
  */
@@ -100,11 +104,40 @@ public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 	 * (place-*ショートハンド用。2026-08-09)。無ければnull。
 	 */
 	public BoxAlignmentValue eatValue(final TokenStream tokens) {
+		final int mark = tokens.position();
+		// <overflow-position>(safe|unsafe)は読み捨てる(2026-08-29)
+		final boolean overflow = tokens.eat("safe") || tokens.eat("unsafe");
 		for (final BoxAlignmentValue value : this.accepted) {
 			if (tokens.eat(value.toString())) {
 				return value;
 			}
 		}
+		// <baseline-position>: [first|last]? baseline → flex-start近似
+		if (!overflow) {
+			final boolean firstLast = tokens.eat("first") || tokens.eat("last");
+			if (tokens.eat("baseline")) {
+				return BoxAlignmentValue.FLEX_START;
+			}
+			if (firstLast) {
+				tokens.rewind(mark);
+				return null;
+			}
+		}
+		if (tokens.eat("self-start")) {
+			return BoxAlignmentValue.START;
+		}
+		if (tokens.eat("self-end")) {
+			return BoxAlignmentValue.END;
+		}
+		if (this.getName().startsWith("justify-")) {
+			if (tokens.eat("left")) {
+				return BoxAlignmentValue.START;
+			}
+			if (tokens.eat("right")) {
+				return BoxAlignmentValue.END;
+			}
+		}
+		tokens.rewind(mark);
 		return null;
 	}
 }

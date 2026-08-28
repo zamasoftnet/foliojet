@@ -98,7 +98,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.currentPage = null;
 		this.page = 0;
 		this.metadata.clear();
-		this.resources = new PagedSVGResources(this::emit);
+		this.resources = new PagedSVGResources(this::emit, this.getUAContext().getPagedSvgFontCarry());
 		// 描いた画像の資源同一性を寸法表へ控える(2026-08-28)。次の
 		// 再変換はこれを渡されれば画像を開かずに同じ参照を書ける
 		this.resources.setAssetRecorder((uri, asset) -> this.getUAContext().getImageMetrics().putAsset(uri.toString(),
@@ -235,6 +235,14 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		if (number == 1) {
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
 			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
+			// 前回の変換のサブセットを**1ページ目より先に**出す(2026-08-29)。
+			// 同じ本を文字サイズだけ変えて組み直すとき、受け手は最初のページ
+			// から本来の書体で描ける
+			try {
+				this.resources.emitCarriedFonts();
+			} catch (final IOException e) {
+				throw new GraphicsException(e);
+			}
 		}
 		this.currentPage = new PagedSVGResources.PageData(number, this.pageWidth, this.pageHeight);
 		// DOMを作らず書き出す。ページの内容はここでは確定しないので、

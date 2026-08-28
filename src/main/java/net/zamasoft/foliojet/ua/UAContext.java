@@ -22,6 +22,8 @@ public class UAContext {
 
 	private final CounterStyles counterStyles = new CounterStyles();
 
+	private net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
+
 	private FontSourceManager fsm;
 	
 	private Map<Object, ImageMap> maps = new HashMap<Object, ImageMap> ();
@@ -75,6 +77,20 @@ public class UAContext {
 	
 	public Map<Object, ImageMap> getImageMaps() {
 		return this.maps;
+	}
+
+	/**
+	 * Paged SVGのフォントサブセットの持ち越し(2026-08-29)。UAは変換ごとに
+	 * 作り直されるので、実体はセッション({@code DirectSession})が持ち、
+	 * 変換の開始時にここへ渡す。同じ本を文字サイズだけ変えて組み直すときに、
+	 * 前回のサブセットを1ページ目より先に出すため。
+	 */
+	public net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry getPagedSvgFontCarry() {
+		return this.pagedSvgFontCarry;
+	}
+
+	public void setPagedSvgFontCarry(final net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry carry) {
+		this.pagedSvgFontCarry = carry;
 	}
 
 	/**

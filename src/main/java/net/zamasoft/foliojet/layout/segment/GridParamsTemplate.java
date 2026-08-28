@@ -23,11 +23,17 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment justifyItems,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignItems,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment justifyContent,
-		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignContent) {
+		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignContent,
+		List<List<String>> columnLineNames, List<List<String>> rowLineNames,
+		net.zamasoft.foliojet.css.value.GridTemplateAreasValue templateAreas,
+		List<GridTrackListValue.TrackSize> autoColumns, List<GridTrackListValue.TrackSize> autoRows,
+		boolean autoFlowColumn, boolean autoFlowDense) {
 	public static GridParamsTemplate freeze(final GridParams source) {
 		return new GridParamsTemplate(BlockParamsFields.freeze(source), source.templateColumns,
 				source.templateRows, source.rowGap, source.columnGap, source.justifyItems, source.alignItems,
-				source.justifyContent, source.alignContent);
+				source.justifyContent, source.alignContent, source.columnLineNames, source.rowLineNames,
+				source.templateAreas, source.autoColumns, source.autoRows, source.autoFlowColumn,
+				source.autoFlowDense);
 	}
 
 	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
@@ -47,6 +53,15 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		p.alignItems = this.alignItems;
 		p.justifyContent = this.justifyContent;
 		p.alignContent = this.alignContent;
+		// 2026-08-29のGrid拡張(線名・領域・implicitトラック・auto-flow)。
+		// 全て不変値なので参照共有でよい
+		p.columnLineNames = this.columnLineNames;
+		p.rowLineNames = this.rowLineNames;
+		p.templateAreas = this.templateAreas;
+		p.autoColumns = this.autoColumns;
+		p.autoRows = this.autoRows;
+		p.autoFlowColumn = this.autoFlowColumn;
+		p.autoFlowDense = this.autoFlowDense;
 		return p;
 	}
 }

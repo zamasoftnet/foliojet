@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css.impl.property.shorthand;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
@@ -21,6 +22,11 @@ public class MarginShorthand extends AbstractShorthandPropertyInfo {
 
 	protected MarginShorthand() {
 		super("margin");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { Margin.TOP, Margin.RIGHT, Margin.BOTTOM, Margin.LEFT };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

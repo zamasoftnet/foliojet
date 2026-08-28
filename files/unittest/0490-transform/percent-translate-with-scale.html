@@ -1,0 +1,19 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+@page{size:300pt 200pt;margin:10pt}
+body{margin:0;font-family:sans-serif;font-size:12px}
+.stage{position:relative;width:200px;height:120px;background:#eef}
+.center{position:absolute;top:50%;left:50%;width:80px;height:40px;background:#4070ff;
+  transform:translate(-50%,-50%) scale(1.1)}
+.rot{position:absolute;top:0;left:0;width:40px;height:20px;background:#f70;
+  transform:rotate(90deg) translateX(100%)}
+.three{position:absolute;bottom:0;right:0;width:30px;height:30px;background:#0a0;
+  transform:translate3d(-10px,0,0) translateZ(0)}
+</style></head><body>
+<!-- 割合translateと他関数の併用(2026-08-29)。translate(-50%,-50%) scale(1.1)
+     は中央寄せの定番書法で、従来は宣言全体が無効になり左上へ張り付いた。
+     期待: .center の中心が .stage の中心(100,60)に来る。rotate(90deg)
+     translateX(100%) は回転後のx方向=下向きへ自幅ぶん移る(交差成分)。
+     3D関数は2Dへ縮退して受ける。 -->
+<div class="stage"><div class="center"></div><div class="rot"></div><div class="three"></div></div>
+</body></html>

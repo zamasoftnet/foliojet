@@ -6,6 +6,7 @@ import net.zamasoft.foliojet.layout.box.content.BreakToken;
 
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -260,6 +261,26 @@ public class TextBuilder {
 	}
 
 	/**
+	 * 行が入らなかったとき、次に試すページ方向位置です。
+	 *
+	 * <p>
+	 * 矩形の浮動体は従来どおり下端へ飛ぶ(そこまで幅は変わらない)。
+	 * {@code shape-outside}の形状を持つ浮動体は行の高さぶんだけ下りて
+	 * 再探索する——円の下半分では帯が広がっていくので、下端まで飛ばすと
+	 * 円の周りを回り込めない(2026-08-29)。前進は必ず1pt以上かつ
+	 * 浮動体の下端が上限なので、再探索ループは有限回で終わる。
+	 * </p>
+	 */
+	private static double nextSearchPage(final FloatExclusion exclusion, final double pageStart,
+			final double lineHeight) {
+		final double pageEnd = exclusion.pageSpan().end();
+		if (exclusion.shape() == null) {
+			return pageEnd;
+		}
+		return Math.min(pageEnd, pageStart + Math.max(lineHeight, 1));
+	}
+
+	/**
 	 * 現在構築中の行の位置を調整します。
 	 */
 	private void locateLine() {
@@ -298,12 +319,12 @@ public class TextBuilder {
 					break;
 				}
 				if (found.endExclusion() == null) {
-					pageStart = found.startExclusion().pageSpan().end();
+					pageStart = nextSearchPage(found.startExclusion(), pageStart, lineHeight);
 				} else if (found.startExclusion() == null) {
-					pageStart = found.endExclusion().pageSpan().end();
+					pageStart = nextSearchPage(found.endExclusion(), pageStart, lineHeight);
 				} else {
-					double startEnd = found.startExclusion().pageSpan().end();
-					double endEnd = found.endExclusion().pageSpan().end();
+					double startEnd = nextSearchPage(found.startExclusion(), pageStart, lineHeight);
+					double endEnd = nextSearchPage(found.endExclusion(), pageStart, lineHeight);
 					if (startEnd > endEnd) {
 						pageStart = endEnd;
 					} else {
@@ -718,6 +739,7 @@ public class TextBuilder {
 			// System.out.println("endLine: " + this.maxLineAxis+"/"+text);
 
 			lineBox.align(this.textIndent, this.minLineAxis, this.maxLineSize, last);
+			this.applyTextOverflow(lineBox);
 			if (this.inlineStack != null && !this.inlineStack.isEmpty()) {
 				final AbstractTextParams lineParams = this.lineBox.getTextParams();
 				this.lineBox = newLineBox;
@@ -772,8 +794,82 @@ public class TextBuilder {
 	}
 
 	/**
+	 * {@code text-overflow: ellipsis}(css-overflow-3 §4、2026-08-29)。
+	 *
+	 * <p>
+	 * ブロックの{@code overflow}がvisible以外で、確定した行の内容が
+	 * 利用可能幅を超えるとき(nowrapの1行、または分割できない長い語の
+	 * 行)、行末を「利用可能幅−省略記号の幅」でクリップし、その位置に
+	 * 省略記号を追加描画する({@link AbstractLineBox#setEllipsis})。
+	 * テキストを組み直さずクリップで済ませるので、行の内容・グリフは
+	 * そのまま(PDFのテキスト抽出には切れた文字も残る)。省略記号の
+	 * フォントはブロックのfont-familyから"…"(U+2026)を持つ最初のもの、
+	 * 無ければ"..."。右横書き(direction: rtl)の行頭側省略は未対応
+	 * (何もしない)。行数で切る(line-clamp相当)機能ではない。
+	 * </p>
+	 */
+	private void applyTextOverflow(final AbstractLineBox lineBox) {
+		final BlockParams bp = this.textBlockBox.getBlockParams();
+		if (bp.textOverflow != BlockParams.TEXT_OVERFLOW_ELLIPSIS || !bp.overflow.clipsPaint()
+				|| bp.direction != AbstractTextParams.DIRECTION_LTR || bp.fontManager == null
+				|| bp.fontStyle == null) {
+			return;
+		}
+		final double avail = this.maxLineSize;
+		// align()の実効行幅と同じ定義(行末ぶら下げ分を除き、インデントを含む)
+		final double used = lineBox.getLineSize() - lineBox.getEndHangAdvance() + this.textIndent;
+		if (LayoutUtils.compare(used, avail) <= 0) {
+			return;
+		}
+		final TextImpl ellipsis = ellipsisText(bp);
+		if (ellipsis == null) {
+			return;
+		}
+		final double clipExtent = this.minLineAxis + avail - ellipsis.getAdvance();
+		lineBox.setEllipsis(ellipsis, Math.max(0, clipExtent));
+	}
+
+	/** 省略記号のグリフ列(U+2026、無ければ"...")。作れなければnull。 */
+	private static TextImpl ellipsisText(final BlockParams bp) {
+		final FontListMetrics flm = bp.fontManager.getFontListMetrics(bp.fontStyle);
+		String s = "…";
+		FontMetrics fm = ellipsisFont(flm, 0x2026);
+		if (fm == null) {
+			s = "...";
+			fm = ellipsisFont(flm, '.');
+		}
+		if (fm == null) {
+			return null;
+		}
+		final net.zamasoft.pdfg2d.font.Font font = fm instanceof net.zamasoft.pdfg2d.font.FontMetricsImpl impl
+				? impl.getFont()
+				: fm.getFontSource().createFont();
+		final TextImpl text = new TextImpl(-1, bp.fontStyle, fm);
+		for (int i = 0; i < s.length(); ++i) {
+			final char c = s.charAt(i);
+			text.appendGlyph(new char[] { c }, 0, (byte) 1, font.toGID(c));
+		}
+		text.pack();
+		return text;
+	}
+
+	private static FontMetrics ellipsisFont(final FontListMetrics flm, final int c) {
+		for (int i = 0; i < flm.getLength(); ++i) {
+			final FontMetrics fm = flm.getFontMetrics(i);
+			final net.zamasoft.pdfg2d.font.FontSource source = fm.getFontSource();
+			// 欠落グリフ用の代替フォントは何でも表示できると答えるので除く
+			if (source instanceof net.zamasoft.pdfg2d.pdf.font.cid.missing.MissingCIDFontSource
+					|| !source.canDisplay(c)) {
+				continue;
+			}
+			return fm;
+		}
+		return null;
+	}
+
+	/**
 	 * 行を生成します。
-	 * 
+	 *
 	 * @param last
 	 * @return
 	 */
@@ -1626,6 +1722,8 @@ public class TextBuilder {
 			return;
 		}
 		this.lineBox.align(this.textIndent, this.minLineAxis, this.maxLineSize, true);
+		// ブロック末尾の行(nowrapの1行はここだけを通る)にもtext-overflowを適用
+		this.applyTextOverflow(this.lineBox);
 		this.addLine(this.lineBox);
 	}
 }

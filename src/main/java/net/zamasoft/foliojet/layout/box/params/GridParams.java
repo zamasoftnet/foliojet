@@ -20,6 +20,27 @@ public class GridParams extends BlockParams {
 	/** 明示行トラック(空=全行implicit auto)。 */
 	public List<GridTrackListValue.TrackSize> templateRows = List.of();
 
+	/** 明示列の線名(templateColumns.size()+1要素。2026-08-29)。 */
+	public List<List<String>> columnLineNames = List.of(List.of());
+
+	/** 明示行の線名(templateRows.size()+1要素。2026-08-29)。 */
+	public List<List<String>> rowLineNames = List.of(List.of());
+
+	/** {@code grid-template-areas}(2026-08-29。noneはNONE_VALUE)。 */
+	public net.zamasoft.foliojet.css.value.GridTemplateAreasValue templateAreas = net.zamasoft.foliojet.css.value.GridTemplateAreasValue.NONE_VALUE;
+
+	/** {@code grid-auto-columns}(2026-08-29。空=auto)。 */
+	public List<GridTrackListValue.TrackSize> autoColumns = List.of();
+
+	/** {@code grid-auto-rows}(2026-08-29。空=auto)。 */
+	public List<GridTrackListValue.TrackSize> autoRows = List.of();
+
+	/** {@code grid-auto-flow}が{@code column}か(2026-08-29)。 */
+	public boolean autoFlowColumn = false;
+
+	/** {@code grid-auto-flow}に{@code dense}があるか(2026-08-29)。 */
+	public boolean autoFlowDense = false;
+
 	/** 行間隔(絶対長)。 */
 	public double rowGap = 0;
 

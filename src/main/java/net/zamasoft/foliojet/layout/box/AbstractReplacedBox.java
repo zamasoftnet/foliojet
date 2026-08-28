@@ -94,6 +94,22 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 	}
 
+	/** aspect-ratioによるcontent-box高さ(box-sizingの箱に比率が掛かる。2026-08-29)。 */
+	private double ratioHeight(final double contentWidth, final double ratio) {
+		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			return Math.max(0, (contentWidth + this.frame.getBorderWidth()) / ratio - this.frame.getBorderHeight());
+		}
+		return contentWidth / ratio;
+	}
+
+	/** aspect-ratioによるcontent-box幅({@link #ratioHeight}の逆。2026-08-29)。 */
+	private double ratioWidth(final double contentHeight, final double ratio) {
+		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			return Math.max(0, (contentHeight + this.frame.getBorderHeight()) * ratio - this.frame.getBorderWidth());
+		}
+		return contentHeight * ratio;
+	}
+
 	public final void calculateSize(final double refWidth, final double refHeight, final double refMaxWidth, final double refMaxHeight) {
 		double width = LayoutUtils.computeDimensionWidth(this.params.size, refWidth);
 		double height = LayoutUtils.computeDimensionHeight(this.params.size, refHeight);
@@ -101,11 +117,27 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		if (this.params.image instanceof ReplacedBoxImage) {
 			((ReplacedBoxImage) this.params.image).setReplacedBox(this, width, height);
 		}
+		// aspect-ratio(2026-08-29、css-sizing-4 §5): 指定比率が固有比率に
+		// 優先する。auto併記のときだけ固有比率(幅・高さとも正)を優先し、
+		// 固有比率の無い画像(壊れた画像・寸法なしSVG)で指定比率を使う
+		double ratio = 0;
+		if (this.params.aspectRatio > 0) {
+			final boolean natural = this.params.image.getWidth() > 0 && this.params.image.getHeight() > 0;
+			ratio = this.params.aspectRatioAuto && natural ? 0 : this.params.aspectRatio;
+		}
 		// SPEC CSS2.1 10.3.2
 		if (LayoutUtils.isNone(width) && LayoutUtils.isNone(height)) {
 			// 両方が不確定
 			width = this.params.image.getWidth();
 			height = this.params.image.getHeight();
+			if (ratio > 0) {
+				// 固有幅を保ち高さを比率で決める(幅が無ければ高さから逆算)
+				if (width > 0) {
+					height = this.ratioHeight(width, ratio);
+				} else if (height > 0) {
+					width = this.ratioWidth(height, ratio);
+				}
+			}
 		} else if (LayoutUtils.isNone(width)) {
 			// 幅が不確定
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
@@ -113,7 +145,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			}
 			double intrinsicWidth = this.params.image.getWidth();
 			double intrinsicHeight = this.params.image.getHeight();
-			if (intrinsicHeight != 0) {
+			if (ratio > 0) {
+				width = this.ratioWidth(height, ratio);
+			} else if (intrinsicHeight != 0) {
 				width = intrinsicWidth * height / intrinsicHeight;
 			} else {
 				// 元画像の高さがゼロの場合[最小のレイアウトにするポリシー]
@@ -126,7 +160,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			}
 			double intrinsicHeight = this.params.image.getHeight();
 			double intrinsicWidth = this.params.image.getWidth();
-			if (intrinsicWidth != 0) {
+			if (ratio > 0) {
+				height = this.ratioHeight(width, ratio);
+			} else if (intrinsicWidth != 0) {
 				height = intrinsicHeight * width / intrinsicWidth;
 			} else {
 				// 元画像の幅がゼロの場合[最小のレイアウトにするポリシー]
@@ -441,7 +477,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 			final Drawable drawable = new ReplacedBoxDrawable(pageBox, clip, this.params.opacity, transform, this.frame,
 					this.params.image, this.params.objectFit, this.params.objectPosition, this.getWidth(),
-					this.getHeight());
+					this.getHeight()).withBlendMode(this.params.blendMode);
 			drawer.visitDrawable(drawable, x, y);
 			pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 		}

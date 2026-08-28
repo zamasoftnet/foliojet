@@ -26,16 +26,29 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
  */
 public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 	protected final FloatPos pos;
+	/**
+	 * 改ページ分割の続き断片か(2026-08-29)。{@code shape-outside}の解決
+	 * ({@code FloatShapeResolver})が、元の寸法・位置を持たない続き断片で
+	 * 形状をマージンボックス矩形へ退避するために使う。続き断片は
+	 * {@link #fragmentRecipe}経由の保護コンストラクタでしか作られない。
+	 */
+	private final boolean continuation;
 
 	public FloatBlockBox(final BlockParams params, final FloatPos pos) {
 		super(params);
 		this.pos = pos;
+		this.continuation = false;
 	}
 
 	protected FloatBlockBox(final BlockParams params, final FloatPos pos, final Dimension size, final Dimension minSize,
 			final AbsoluteRectFrame frame, Container container) {
 		super(params, size, minSize, frame, container);
 		this.pos = pos;
+		this.continuation = true;
+	}
+
+	public final boolean isContinuationFragment() {
+		return this.continuation;
 	}
 
 	public final Pos getPos() {

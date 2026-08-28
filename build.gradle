@@ -259,6 +259,7 @@ tasks.named('test') {
     // フォーク数×maxHeapSize を上限に見積もること(30GB環境で8×1GB)。
     maxParallelForks = Math.min(8, Runtime.runtime.availableProcessors())
     jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
+    if (project.hasProperty('jfr')) { jvmArgs "-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile,dumponexit=true" }
     workingDir = rootProject.projectDir
     // 隔離中のテスト。`-PincludeQuarantined`で除外を解除して現状を確認できる。
     // 理由と再開条件は docs/history/2026-07-25-quarantined-tests.md を参照。

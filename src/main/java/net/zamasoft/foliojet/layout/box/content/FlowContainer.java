@@ -124,6 +124,7 @@ public class FlowContainer implements Container {
 			this.flows = new ArrayList<Flow>();
 		}
 		this.flows.add(flow);
+		this.adopt(box);
 	}
 
 	public final void addAbsolute(IAbsoluteBox box, double staticX, double staticY) {
@@ -131,6 +132,7 @@ public class FlowContainer implements Container {
 			this.absolutes = new Absolutes();
 		}
 		this.absolutes.addAbsolute(box, staticX, staticY);
+		this.adopt(box);
 	}
 
 	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis) {
@@ -139,6 +141,7 @@ public class FlowContainer implements Container {
 		}
 		final Floating floating = new Floating(++this.serial, box, lineAxis, pageAxis);
 		this.floatings.addFloating(floating);
+		this.adopt(box);
 	}
 
 	public boolean hasFlows() {
@@ -149,8 +152,61 @@ public class FlowContainer implements Container {
 		return this.flows == null ? 0 : this.flows.size();
 	}
 
+	/**
+	 * 「装飾でない内容があるか」のメモ(2026-08-29)。
+	 *
+	 * <p>
+	 * 改ページの分割は親から子へ1段ずつ降り、各段でこの問いを立てる。
+	 * 素朴に部分木を歩くと深さの二乗になり、深さ5000の正当な文書で
+	 * 1ページに120秒以上かかってテストハーネスの無進捗watchdogに
+	 * 「ハング」と誤認されていた(実測: 深さ1000で18秒、その93%が
+	 * この走査)。内容の追加・移動・除去をしたコンテナから
+	 * {@link #invalidateNonDecorationContent()}で<b>祖先だけ</b>を
+	 * 無効化する(箱は{@code AbstractBox.getContentParent()}で保持先を
+	 * 覚えている)ので、ある段の分割が下の段のメモを捨てることはなく、
+	 * 1段あたりO(1)になる。保持先を覚えられない箱(AbstractBoxでない
+	 * 実装)を受けたときは全体の版を進めて安全側に倒す。
+	 * </p>
+	 */
+	private boolean nonDecorationCached;
+	private boolean nonDecorationResult;
+	private long nonDecorationVersion;
+
+	/** 保持先を覚えられない箱の変更に備えた全体の版(AtomicLongは不要——単調増加なら十分)。 */
+	private static volatile long STRUCTURE_VERSION;
+
+	/** このコンテナとその祖先のメモを捨てる。既に捨ててある祖先で止まる。 */
+	public final void invalidateNonDecorationContent() {
+		FlowContainer c = this;
+		while (c != null && c.nonDecorationCached) {
+			c.nonDecorationCached = false;
+			c = c.box == null ? null : c.box.getContentParent();
+		}
+	}
+
+	/** 箱をこのコンテナの内容として受け入れ、祖先のメモを捨てる。 */
+	private void adopt(final IBox box) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.AbstractBox abstractBox) {
+			abstractBox.setContentParent(this);
+		} else {
+			++STRUCTURE_VERSION;
+		}
+		this.invalidateNonDecorationContent();
+	}
+
 	@Override
 	public final boolean hasNonDecorationContent() {
+		if (this.nonDecorationCached && this.nonDecorationVersion == STRUCTURE_VERSION) {
+			return this.nonDecorationResult;
+		}
+		final boolean result = this.computeNonDecorationContent();
+		this.nonDecorationVersion = STRUCTURE_VERSION;
+		this.nonDecorationResult = result;
+		this.nonDecorationCached = true;
+		return result;
+	}
+
+	private boolean computeNonDecorationContent() {
 		if (this.flows != null) {
 			for (int i = 0; i < this.flows.size(); ++i) {
 				if (hasNonDecorationContent(this.flows.get(i).box)) {
@@ -187,12 +243,13 @@ public class FlowContainer implements Container {
 		if (box.getType() == BoxType.TEXT_BLOCK) {
 			return LayoutUtils.compare(((TextBlockBox) box).getPageSize(), 0) > 0;
 		}
-		if (!box.paintsAnything()) {
-			return false;
-		}
 		if (box.getType() != BoxType.BLOCK) {
-			return true;
+			return box.paintsAnything();
 		}
+		// ブロック箱のpaintsAnything()は「枠が見える || 中身が描く」で、
+		// 中身に装飾でない内容があれば中身は描く。だから
+		// 「paintsAnything && (枠 || 中身の内容)」は「枠 || 中身の内容」に
+		// 等しく、部分木を二度歩く必要はない(2026-08-29)
 		final AbstractContainerBox containerBox = (AbstractContainerBox) box;
 		return containerBox.getFrame().isVisible() || containerBox.getContainer().hasNonDecorationContent();
 	}
@@ -206,6 +263,7 @@ public class FlowContainer implements Container {
 			dest.addFlow(flow.box, flow.pageAxis - crossShift);
 		}
 		this.flows = fromIndex <= 0 ? null : new ArrayList<Flow>(this.flows.subList(0, fromIndex));
+		this.invalidateNonDecorationContent();
 	}
 
 	public boolean hasFloatings() {
@@ -925,6 +983,7 @@ public class FlowContainer implements Container {
 				// ため、除去はその呼び出しの後に行う(先に除去すると
 				// FLAGS_LAST判定がずれる)
 				this.flows.remove(index);
+				this.invalidateNonDecorationContent();
 			}
 			this.attachAggregate(nextBox, aggregate);
 			assert nextBox != null;
@@ -1319,10 +1378,12 @@ public class FlowContainer implements Container {
 		}
 		for (int j = from; j < this.flows.size(); ++j) {
 			nextBox.flows.add(this.flows.get(j));
+			nextBox.adopt(this.flows.get(j).box);
 		}
 		for (int j = this.flows.size() - 1; j >= from; --j) {
 			this.flows.remove(j);
 		}
+		this.invalidateNonDecorationContent();
 		assert this.flows.size() == from : this.flows.size() + "/" + from;
 		return nextBox;
 	}
@@ -1401,6 +1462,7 @@ public class FlowContainer implements Container {
 		final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox tail = new net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox(
 				source, progression, sourcePageExtent, tailOffset, tailExtent);
 		this.flows.set(index, new Flow(prevFlow.serial, head, prevFlow.pageAxis));
+		this.adopt(head);
 		net.zamasoft.foliojet.layout.rescue.RescueStats.recordEnabled();
 		return tail;
 	}
@@ -1565,6 +1627,7 @@ public class FlowContainer implements Container {
 	 */
 	public FloatTransferResult splitFloatings(final FloatTransferTarget target, final double pageLimit,
 			final byte flags) {
+		this.invalidateNonDecorationContent();
 		assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0 || target instanceof FloatTransferTarget.Existing;
 		final int flowCount = this.flows == null ? 0 : this.flows.size();
 		return switch (this.aggregateFloatings(pageLimit, flags, flowCount)) {
@@ -1619,10 +1682,14 @@ public class FlowContainer implements Container {
 				? existing
 				: new FlowContainer();
 		container.floatings = moved;
+		for (int i = 0; i < moved.getCount(); ++i) {
+			container.adopt(moved.getFloating(i).box);
+		}
 		return new FloatTransferResult.Remainder(container);
 	}
 
 	public final java.util.Optional<Floatings> detachMovedFloatings(double pageLimit, byte flags) {
+		this.invalidateNonDecorationContent();
 		final int flowCount = this.flows == null ? 0 : this.flows.size();
 		return switch (this.aggregateFloatings(pageLimit, flags, flowCount)) {
 		case FloatAggregate.None none -> java.util.Optional.empty();
@@ -1777,6 +1844,10 @@ public class FlowContainer implements Container {
 		if (this.flows != null) {
 			nextBox.flows = this.flows;
 			this.flows = null;
+			for (int i = 0; i < nextBox.flows.size(); ++i) {
+				nextBox.adopt(nextBox.flows.get(i).box);
+			}
+			this.invalidateNonDecorationContent();
 		}
 		// flowsは先にnextBoxへ移送済みのため、集約対象は直接保持分のみ
 		// (index=0。this.flows==nullなのでLAST判定にも影響しない)
@@ -1862,6 +1933,7 @@ public class FlowContainer implements Container {
 			prefix.add(new net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange(flow.serial, range.fromId(),
 					range.toId()));
 			this.flows.remove(i);
+			this.invalidateNonDecorationContent();
 			--limit;
 		}
 		if (prefix == null) {
@@ -2228,6 +2300,7 @@ public class FlowContainer implements Container {
 		if (this.flows != null) {
 			List<Flow> flows = this.flows;
 			this.flows = null;
+			this.invalidateNonDecorationContent();
 			int size = flows.size();
 			if (size > 0) {
 				if (items == null) {

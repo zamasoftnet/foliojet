@@ -70,6 +70,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0120-float/nested-float-shrink.html", //
 			"0120-float/collapse-float-measure.html", //
 			"0120-float/float-in-moved-block.html", //
+			// shape-outside: circle(50%)(css-shapes-1、2026-08-29)。行が円の
+			// 弦に沿って始まり、円の下で左端へ戻ること
+			"0120-float/shape-outside-circle.html", //
 			"0460-segment-restyle/mid-paragraph.html", //
 			"0460-segment-restyle/moved-blocks.html", //
 			"0460-segment-restyle/text-tail-avoid.html", //
@@ -99,6 +102,17 @@ public class DisplayListGoldenTest extends TestCase {
 			"3080-MODERN-CSS/layer-important.html", //
 			// content-visibility(2026-08-11): hiddenは中身だけ省く
 			"3080-MODERN-CSS/content-visibility.html", //
+			// 固有寸法キーワード max-content/min-content/fit-content(L)
+			// (2026-08-29)。通常フローのブロックが内容幅で止まること、
+			// 浮動体・inline-block・絶対配置・改ページ継続断片での幅を固定する
+			"3080-MODERN-CSS/width-max-content.html", //
+			"3080-MODERN-CSS/width-min-content.html", //
+			"3080-MODERN-CSS/width-fit-content.html", //
+			"3080-MODERN-CSS/width-intrinsic-float-inline-abs.html", //
+			"3080-MODERN-CSS/width-intrinsic-page-split.html", //
+			// ビューポート単位・env()・display別名・%グリッドトラック・
+			// currentColor(2026-08-29)
+			"3080-MODERN-CSS/viewport-env-aliases.html", //
 			"0242-table-height/percent-rowspan-groups.html", //
 			"0242-table-height/group-size-empty-rows.html", //
 			"0242-table-height/zero-percent-row-rowspan.html", //
@@ -201,6 +215,16 @@ public class DisplayListGoldenTest extends TestCase {
 			// NHKナビのボタンのplace-items:centerが宣言無効でアイコンが
 			// 左上に寄っていた
 			"0500-grid/place-shorthand.html", //
+			// Grid拡張(2026-08-29、50サイト掃過): grid-area+grid-template-areas+
+			// 線名+grid-template-rows、%とrepeat(N,%)トラック、auto-fill/auto-fit、
+			// grid-auto-flow:column+grid-auto-columns+grid-gap別名
+			"0500-grid/area-template.html", //
+			"0500-grid/percent-repeat-tracks.html", //
+			"0500-grid/auto-fill.html", //
+			"0500-grid/auto-flow-column.html", //
+			// aspect-ratio(2026-08-29): 幅確定→高さ、高さ確定→幅、置換要素、
+			// border-box、内容あふれ
+			"3080-MODERN-CSS/aspect-ratio.html", //
 			"0470-margin-boxes/margin-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
@@ -211,6 +235,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 固定する(ダンプ座標はGC変換前のため、tf=出力が無いと
 			// transform退行は一切見えない)
 			"0490-transform/percent-translate-inline-context.html", //
+			// 割合translateと他関数の併用(2026-08-29)。translate(-50%,-50%)
+			// scale(1.1)が丸ごと無効になっていた。交差成分と3D縮退も固定する
+			"0490-transform/percent-translate-with-scale.html", //
 			// dialog:not([open])のUA既定(2026-08-07)。open属性のない
 			// ネイティブダイアログが紙面に露出しないことを固定する
 			"0130-display/dialog-closed.html", //
@@ -251,6 +278,15 @@ public class DisplayListGoldenTest extends TestCase {
 			"0025-selector/invalid-list.html", //
 			"0040-overflow/scroll-clip.html", //
 			"0040-overflow/axis-properties.html", //
+			// text-overflow: ellipsis(2026-08-29)。nowrap行の行末クリップと
+			// 省略記号の追加描画、clip既定・overflow:visibleでの不適用を固定
+			"0040-overflow/text-overflow-ellipsis.html", //
+			// clip-path: path()(2026-08-29)。px座標のSVGパスがptへ換算され
+			// 参照ボックス左上を原点にクリップ矩形へ現れること
+			"3080-MODERN-CSS/clip-path-path.html", //
+			// mix-blend-mode(2026-08-29)。描画要素単位の近似——表示リストには
+			// 出ないので幾何の固定のみ(合成結果はMixBlendModeTestの画素検査)
+			"3080-MODERN-CSS/mix-blend-mode.html", //
 			// flex/gridコンテナのbuttonへUAのZWSP(::before)を注入しない
 			// (2026-08-09)。ZWSPが独立itemになりアイコンを箱外へ押し出していた
 			"3080-MODERN-CSS/button-flex-grid-content.html", //
@@ -290,6 +326,14 @@ public class DisplayListGoldenTest extends TestCase {
 			// viewBoxのみのSVG背景のcontain制約(2026-08-27。asahi.com
 			// フッターのRe:Ronロゴが原寸のまま箱からはみ出ていた)
 			"3080-MODERN-CSS/bg-svg-intrinsic.html", //
+			// 実サイトの警告から拾った穴の一括固定(2026-08-29): flow-root、
+			// 8桁hex、padding:inherit、word-break:break-word、margin-inline、
+			// -webkit-mask、background 4値position、font-kerning、isolate、
+			// ベンダ接頭辞の段組
+			"3080-MODERN-CSS/real-site-gaps.html", //
+			// box-shadow(外側・内側・複数・角丸)とoutline(offset・auto)の
+			// 描画物の有無と付記(2026-08-29。塗りの段数はBoxDecorationTest)
+			"3080-MODERN-CSS/box-shadow-outline.html", //
 			// flex/gridコンテナのfloat回避(2026-08-27。独立整形文脈は
 			// floatと重ならない——asahi.comフッターのラベル重なり)
 			"0510-flex/container-avoids-float.html", //

@@ -393,6 +393,8 @@ public class CSSStyle {
 		// 上書きしてOpenType feature列へ正規化する(css-fonts-3の優先順)
 		final var features = net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.get(this).featureSet()
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.get(this).featureSet())
+				// font-kerning:noneはkern明示off(2026-08-29)。font-feature-settingsが優先
+				.override(net.zamasoft.foliojet.css.impl.property.font.FontKerning.featureSet(this))
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.get(this));
 
 		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features,

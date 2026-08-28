@@ -148,7 +148,7 @@ public class ColumnsContainer implements Container {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
 		if (params.columns.rule.isVisible()) {
-			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y);
+			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y).withBlendMode(params.blendMode);
 			drawer.visitDrawable(drawable, x, y);
 		}
 		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)。

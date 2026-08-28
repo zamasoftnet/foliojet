@@ -49,9 +49,11 @@ public class CSSFloat extends AbstractPrimitivePropertyInfo {
 				return CSSFloatValue.LEFT_VALUE;
 			} else if (ident.equals("right")) {
 				return CSSFloatValue.RIGHT_VALUE;
-			} else if (ident.equals("start")) {
+			} else if (ident.equals("start") || ident.equals("inline-start")) {
+				// inline-startはcss-logical-1の正式名(2026-08-29)。directionで
+				// 左右を決める既存のstartと同じ
 				return CSSFloatValue.START_VALUE;
-			} else if (ident.equals("end")) {
+			} else if (ident.equals("end") || ident.equals("inline-end")) {
 				return CSSFloatValue.END_VALUE;
 			} else if (ident.equals("top")) {
 				// ページフロート(GCPM/Prince系、2026-08-02)

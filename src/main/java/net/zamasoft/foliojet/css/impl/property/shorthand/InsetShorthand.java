@@ -4,6 +4,7 @@ import java.net.URI;
 
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -30,6 +31,11 @@ public class InsetShorthand extends AbstractShorthandPropertyInfo {
 
 	protected InsetShorthand() {
 		super("inset");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { Inset.TOP, Inset.RIGHT, Inset.BOTTOM, Inset.LEFT };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

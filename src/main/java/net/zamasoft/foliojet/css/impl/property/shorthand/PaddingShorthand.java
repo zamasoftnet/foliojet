@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css.impl.property.shorthand;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
@@ -21,6 +22,11 @@ public class PaddingShorthand extends AbstractShorthandPropertyInfo {
 
 	protected PaddingShorthand() {
 		super("padding");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { Padding.TOP, Padding.RIGHT, Padding.BOTTOM, Padding.LEFT };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

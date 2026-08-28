@@ -51,7 +51,7 @@ public abstract class PropertySet {
 	 * 踏んだ「名前登録だけしてコード未割当→set()が黙って落ちる」罠の
 	 * 再発防止、2026-08-01)。
 	 */
-	final java.util.Collection<PropertyInfo> registeredInfos() {
+	public final java.util.Collection<PropertyInfo> registeredInfos() {
 		return java.util.Collections.unmodifiableCollection(this.nameToInfo.values());
 	}
 
@@ -64,11 +64,31 @@ public abstract class PropertySet {
 		}
 		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
 		if (ph != null) {
+			if (VarSubstitution.containsEnvReference(value)) {
+				// env()は要素に依存しないので解析時に置換する(2026-08-29)。
+				// 未知の名前でフォールバックも無ければ宣言全体が無効(仕様)
+				final List<CssToken> substituted = VarSubstitution.substituteEnv(value);
+				if (substituted == null) {
+					ua.message(MessageCodes.WARN_BAD_CSS_ARGMENTS, name, new TokenStream(value).toString(),
+							"env()");
+					return null;
+				}
+				value = substituted;
+			}
 			if (VarSubstitution.containsVarReference(value)) {
 				// var()の実際の値はカスケード適用時(要素ごと)に異なりうるため、
 				// ここ(スタイルシート解析時、文書全体で1回)では解析を確定
 				// できない。要素ごとの適用時まで遅延する(DeferredProperty参照)。
 				return new DeferredProperty(name, ph, value, ua, uri, important);
+			}
+			if (isRevert(value)) {
+				// revert/revert-layer(css-cascade-4/5、2026-08-29)。宣言を
+				// 無かったことにするのが最も近い——revert-layerは前の層の
+				// 値へ、revertはUA/ユーザー起源の値へ戻す指定で、どちらも
+				// 「この宣言が無い場合のカスケード結果」に一致するか近い
+				// (同じ層・同じ起源に別の宣言がある場合だけ差が出る)。
+				// 以前は不正値として警告していたが、結果は同じだった
+				return null;
 			}
 			TokenStream tokens = new TokenStream(value);
 			try {
@@ -83,6 +103,12 @@ public abstract class PropertySet {
 		ua.message(isIgnored(name) ? MessageCodes.WARN_IGNORED_CSS_PROPERTY
 				: MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, name);
 		return null;
+	}
+
+	/** 値が単独の{@code revert}/{@code revert-layer}か。 */
+	private static boolean isRevert(final List<CssToken> value) {
+		return value.size() == 1 && value.get(0) instanceof CssToken.Ident ident
+				&& (ident.is("revert") || ident.is("revert-layer"));
 	}
 
 	/**
@@ -109,7 +135,23 @@ public abstract class PropertySet {
 			"transition-timing-function", "transition-delay",
 			"animation", "animation-name", "animation-duration", "animation-timing-function",
 			"animation-delay", "animation-iteration-count", "animation-direction",
-			"animation-fill-mode", "animation-play-state", "will-change");
+			"animation-fill-mode", "animation-play-state", "will-change",
+			// 2026-08-29、50サイトの実測で加えた分。画面のレンダリング・
+			// スクロール・GPU合成・入力機器の制御で、紙面には現れない
+			"text-size-adjust", "font-smoothing", "osx-font-smoothing", "overflow-scrolling",
+			"backface-visibility", "overflow-style", "touch-callout", "text-rendering",
+			"color-scheme", "transform-style", "perspective", "perspective-origin",
+			"backdrop-filter", "interpolation-mode", "text-decoration-skip",
+			"text-decoration-skip-ink", "scrollbar-gutter", "khtml-user-select", "speak",
+			"contain-intrinsic-size", "contain", "filter", "ms-filter", "print-color-adjust",
+			"scroll-snap-stop", "scroll-margin-top", "scroll-margin-bottom", "scroll-margin-left",
+			"scroll-margin-right", "scroll-padding-top", "scroll-padding-bottom",
+			"scroll-padding-left", "scroll-padding-right", "scroll-margin-block",
+			"scroll-margin-inline", "scroll-padding-block", "scroll-padding-inline",
+			"scroll-timeline", "view-transition-name", "accent-color", "field-sizing",
+			"box-orient", "box-direction", "box-pack", "box-align", "box-flex",
+			"box-ordinal-group", "box-lines", "font-optical-sizing", "text-underline-position",
+			"image-rendering", "zoom", "ime-mode", "font-smooth", "line-clamp-fallback");
 
 	/** 接頭辞を外した名前が{@link #IGNORED_PROPERTIES}にあるか。 */
 	static boolean isIgnored(final String name) {
@@ -117,7 +159,7 @@ public abstract class PropertySet {
 			return false;
 		}
 		String bare = name.toLowerCase(java.util.Locale.ROOT);
-		for (final String prefix : new String[] { "-webkit-", "-moz-", "-ms-", "-o-" }) {
+		for (final String prefix : new String[] { "-webkit-", "-moz-", "-ms-", "-o-", "-khtml-" }) {
 			if (bare.startsWith(prefix)) {
 				bare = bare.substring(prefix.length());
 				break;
@@ -146,6 +188,12 @@ public abstract class PropertySet {
 		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
 		if (ph == null) {
 			return false;
+		}
+		if (VarSubstitution.containsEnvReference(value)) {
+			value = VarSubstitution.substituteEnv(value);
+			if (value == null) {
+				return false;
+			}
 		}
 		if (VarSubstitution.containsVarReference(value)) {
 			// var()の実際の値は要素ごとに異なりうるため、ここでは評価せず

@@ -17,12 +17,23 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid-template-columns}/{@code grid-template-rows}です(Grid G0、
+ * {@code grid-template-columns}/{@code grid-template-rows}および
+ * {@code grid-auto-columns}/{@code grid-auto-rows}です(Grid G0、
  * consult-codex-2026-07-31-grid.txt §2)。
  * {@code none | <track-size>+}——track-sizeは固定長・{@code auto}・
- * {@code <number>fr}のみ。{@code repeat(<正整数>, <track-size>+)}は解析時に
+ * {@code <number>fr}。{@code repeat(<正整数>, <track-size>+)}は解析時に
  * 展開する(展開後4096トラック上限=資源防御。超過は宣言無効)。
- * named line・auto-fill/fit・%は初期サブセット外(宣言無効)。
+ *
+ * <p>
+ * 2026-08-29の拡張(50サイト掃過で見つかった未対応値):
+ * {@code %}(コンテナ内容幅基準、{@link GridTrackListValue.Percentage})、
+ * {@code min-content}/{@code max-content}、線名{@code [a b]}、
+ * {@code repeat(auto-fill|auto-fit, ...)}(コンテナ幅が決まるレイアウト時に
+ * 展開、{@link GridTrackListValue.AutoRepeat})、{@code fit-content(x)}
+ * (→{@code auto}の近似)、{@code subgrid}(→単一{@code auto}トラックの
+ * 近似——親のトラックは継がない)。{@code grid-auto-*}(implicit)では
+ * 線名・{@code none}・{@code subgrid}・{@code repeat()}を受理しない。
+ * </p>
  *
  * <p>
  * <b>{@code minmax()}・{@code max()}/{@code min()}は仕様外の近似対応</b>
@@ -32,7 +43,8 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * yahoo.co.jpの{@code minmax(30px,auto)}に対し、厳密な仕様準拠より
  * 「見た目が近い」ことを優先する現実的な割り切り。詳細は
  * {@code docs/PLAN.md}ではなく本クラスのjavadocのみに記録——正式な
- * サブセット定義には含めない)。{@code max()}/{@code min()}は長さの
+ * サブセット定義には含めない)。ただし{@code repeat(auto-fill, minmax(min, max))}
+ * の回数判定にはminを使う(2026-08-29)。{@code max()}/{@code min()}は長さの
  * 引数だけを対象に、比較して1本の固定長トラックへ畳み込む
  * (yahoo.co.jpの{@code max(44px,4.4rem)}のような単純な用途のみ)。
  * </p>
@@ -40,9 +52,15 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * @author MIYABE Tatsuhiko
  */
 public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
-	public static final PrimitivePropertyInfo COLUMNS = new GridTemplateTracks("grid-template-columns");
+	public static final PrimitivePropertyInfo COLUMNS = new GridTemplateTracks("grid-template-columns", false);
 
-	public static final PrimitivePropertyInfo ROWS = new GridTemplateTracks("grid-template-rows");
+	public static final PrimitivePropertyInfo ROWS = new GridTemplateTracks("grid-template-rows", false);
+
+	/** {@code grid-auto-columns}(2026-08-29)。既定{@code auto}(=NONE_VALUE)。 */
+	public static final PrimitivePropertyInfo AUTO_COLUMNS = new GridTemplateTracks("grid-auto-columns", true);
+
+	/** {@code grid-auto-rows}(2026-08-29)。既定{@code auto}(=NONE_VALUE)。 */
+	public static final PrimitivePropertyInfo AUTO_ROWS = new GridTemplateTracks("grid-auto-rows", true);
 
 	/** 展開後トラック数の上限(資源防御——レイアウト仕様ではない)。 */
 	public static final int MAX_TRACKS = 4096;
@@ -55,8 +73,16 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		return (GridTrackListValue) style.get(ROWS);
 	}
 
-	protected GridTemplateTracks(final String name) {
+	public static GridTrackListValue get(CSSStyle style, PrimitivePropertyInfo info) {
+		return (GridTrackListValue) style.get(info);
+	}
+
+	/** implicitトラック用({@code grid-auto-*})か。 */
+	private final boolean implicit;
+
+	protected GridTemplateTracks(final String name, final boolean implicit) {
 		super(name);
+		this.implicit = implicit;
 	}
 
 	public Value getDefault(CSSStyle style) {
@@ -72,22 +98,42 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		if (!(value instanceof RawTrackList raw)) {
 			return value;
 		}
-		final List<GridTrackListValue.TrackSize> tracks = new ArrayList<>(raw.tracks.size());
-		for (final Object t : raw.tracks) {
+		return GridTrackListValue.create(resolveTracks(raw.tracks, style), raw.lineNames);
+	}
+
+	private static List<GridTrackListValue.TrackSize> resolveTracks(final List<Object> rawTracks,
+			final CSSStyle style) {
+		final List<GridTrackListValue.TrackSize> tracks = new ArrayList<>(rawTracks.size());
+		for (final Object t : rawTracks) {
 			if (t instanceof GridTrackListValue.TrackSize sized) {
 				tracks.add(sized);
 			} else if (t instanceof RawMinMaxFunc minMaxFunc) {
 				tracks.add(new GridTrackListValue.Fixed(minMaxFunc.resolve(style)));
+			} else if (t instanceof RawAutoRepeat autoRepeat) {
+				double minLength = 0, minRatio = 0;
+				for (final Object min : autoRepeat.mins) {
+					if (min instanceof Double ratio) {
+						minRatio += ratio;
+					} else {
+						minLength += toAbsolute((Value) min, style);
+					}
+				}
+				tracks.add(new GridTrackListValue.AutoRepeat(resolveTracks(autoRepeat.unit, style),
+						autoRepeat.unitLineNames, minLength, minRatio, autoRepeat.fit));
 			} else {
-				final Value abs = ValueUtils.emExToAbsoluteLength((Value) t, style);
-				tracks.add(new GridTrackListValue.Fixed(((AbsoluteLengthValue) abs).getLength()));
+				tracks.add(new GridTrackListValue.Fixed(toAbsolute((Value) t, style)));
 			}
 		}
-		return GridTrackListValue.create(tracks);
+		return tracks;
+	}
+
+	private static double toAbsolute(final Value raw, final CSSStyle style) {
+		final Value abs = ValueUtils.emExToAbsoluteLength(raw, style);
+		return ((AbsoluteLengthValue) abs).getLength();
 	}
 
 	/** 解析結果の中間形(固定長トラックはValueのまま=computedで絶対化)。 */
-	private record RawTrackList(List<Object> tracks) implements Value {
+	private record RawTrackList(List<Object> tracks, List<List<String>> lineNames) implements Value {
 	}
 
 	/**
@@ -99,8 +145,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		double resolve(CSSStyle style) {
 			double best = this.isMax ? -Double.MAX_VALUE : Double.MAX_VALUE;
 			for (final Value arg : this.args) {
-				final Value abs = ValueUtils.emExToAbsoluteLength(arg, style);
-				final double len = ((AbsoluteLengthValue) abs).getLength();
+				final double len = toAbsolute(arg, style);
 				if (this.isMax ? len > best : len < best) {
 					best = len;
 				}
@@ -109,22 +154,80 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		if (tokens.size() == 1 && tokens.eat("none")) {
-			return GridTrackListValue.NONE_VALUE;
-		}
-		final List<Object> tracks = new ArrayList<>();
-		while (tokens.hasNext()) {
-			this.parseTrack(tokens, ua, tracks, true);
-		}
-		if (tracks.isEmpty()) {
-			throw new PropertyException();
-		}
-		return new RawTrackList(tracks);
+	/**
+	 * {@code repeat(auto-fill|auto-fit, ...)}の中間形(2026-08-29)。
+	 * {@code mins}は回数判定用の各unitトラックの最小幅
+	 * (長さ{@code Value}または%比{@code Double})。
+	 */
+	private record RawAutoRepeat(List<Object> unit, List<List<String>> unitLineNames, List<Object> mins,
+			boolean fit) implements Value {
 	}
 
-	/** 1トラック(またはrepeat())を読み取ってtracksへ追加します。 */
-	private void parseTrack(final TokenStream tokens, final UserAgent ua, final List<Object> tracks,
+	/** 解析中のトラック列と線名列(names.size()==tracks.size()+1を保つ)。 */
+	private static final class Accumulator {
+		final List<Object> tracks = new ArrayList<>();
+		final List<List<String>> names = new ArrayList<>();
+		/** auto-repeat内での最小幅収集先(auto-repeat外ではnull)。 */
+		final List<Object> mins;
+		boolean hasAutoRepeat;
+
+		Accumulator(final List<Object> mins) {
+			this.mins = mins;
+			this.names.add(new ArrayList<>());
+		}
+
+		void addTrack(final Object track, final Object min) throws PropertyException {
+			if (this.mins != null) {
+				if (min == null) {
+					// auto-repeatのunitは固定幅(またはminmaxの片側が固定)のみ
+					throw new PropertyException();
+				}
+				this.mins.add(min);
+			}
+			this.tracks.add(track);
+			this.names.add(new ArrayList<>());
+			if (this.tracks.size() > MAX_TRACKS) {
+				throw new PropertyException();
+			}
+		}
+
+		void addNames(final List<String> lineNames) {
+			this.names.get(this.names.size() - 1).addAll(lineNames);
+		}
+	}
+
+	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		if (!this.implicit && tokens.size() == 1 && tokens.eat("none")) {
+			return GridTrackListValue.NONE_VALUE;
+		}
+		if (!this.implicit && tokens.peek() instanceof CssToken.Ident ident && ident.is("subgrid")) {
+			// subgridは親のトラックを継ぐ仕様だが未対応——単一autoトラックの
+			// 近似で受理する(宣言無効にして単一列フローへ落とすより近い)。
+			// 続く線名列は捨てる
+			tokens.restIgnoringCommas();
+			return new RawTrackList(List.of(GridTrackListValue.Auto.INSTANCE),
+					GridTrackListValue.emptyLineNames(1));
+		}
+		final Accumulator acc = new Accumulator(null);
+		while (tokens.hasNext()) {
+			if (tokens.peek() instanceof CssToken.LineNames lineNames) {
+				if (this.implicit) {
+					throw new PropertyException();
+				}
+				tokens.next();
+				acc.addNames(lineNames.names());
+				continue;
+			}
+			this.parseTrack(tokens, ua, acc, !this.implicit);
+		}
+		if (acc.tracks.isEmpty()) {
+			throw new PropertyException();
+		}
+		return new RawTrackList(acc.tracks, acc.names);
+	}
+
+	/** 1トラック(またはrepeat())を読み取ってaccへ追加します。 */
+	private void parseTrack(final TokenStream tokens, final UserAgent ua, final Accumulator acc,
 			final boolean allowRepeat) throws PropertyException {
 		final CssToken token = tokens.peek();
 		if (token instanceof CssToken.Func func && func.is("repeat")) {
@@ -134,27 +237,58 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			tokens.next();
 			final TokenStream inner = func.argStream();
 			final CssToken.Num count = inner.number();
-			if (count == null || !count.integer() || count.intValue() < 1 || !inner.eatComma()) {
+			boolean autoRepeat = false, fit = false;
+			if (count == null) {
+				if (inner.eat("auto-fill")) {
+					autoRepeat = true;
+				} else if (inner.eat("auto-fit")) {
+					autoRepeat = true;
+					fit = true;
+				} else {
+					throw new PropertyException();
+				}
+				if (acc.hasAutoRepeat || acc.mins != null) {
+					throw new PropertyException(); // auto-repeatは1つまで・入れ子不可
+				}
+			} else if (!count.integer() || count.intValue() < 1) {
 				throw new PropertyException();
 			}
-			final List<Object> unit = new ArrayList<>();
+			if (!inner.eatComma()) {
+				throw new PropertyException();
+			}
+			final Accumulator unit = new Accumulator(autoRepeat ? new ArrayList<>() : null);
 			while (inner.hasNext()) {
+				if (inner.peek() instanceof CssToken.LineNames lineNames) {
+					inner.next();
+					unit.addNames(lineNames.names());
+					continue;
+				}
 				this.parseTrack(inner, ua, unit, false);
 			}
-			if (unit.isEmpty()) {
+			if (unit.tracks.isEmpty()) {
 				throw new PropertyException();
 			}
-			if ((long) count.intValue() * unit.size() + tracks.size() > MAX_TRACKS) {
+			if (autoRepeat) {
+				acc.hasAutoRepeat = true;
+				acc.addTrack(new RawAutoRepeat(unit.tracks, unit.names, unit.mins, fit), null);
+				return;
+			}
+			if ((long) count.intValue() * unit.tracks.size() + acc.tracks.size() > MAX_TRACKS) {
 				throw new PropertyException();
 			}
 			for (int i = 0; i < count.intValue(); ++i) {
-				tracks.addAll(unit);
+				acc.addNames(unit.names.get(0));
+				for (int k = 0; k < unit.tracks.size(); ++k) {
+					acc.addTrack(unit.tracks.get(k), null);
+					acc.addNames(unit.names.get(k + 1));
+				}
 			}
 			return;
 		}
 		if (token instanceof CssToken.Func func && func.is("minmax")) {
 			// 仕様外の近似: 最小値は捨て、最大値だけをトラックサイズとして
-			// 採用する(クラスjavadoc参照)
+			// 採用する(クラスjavadoc参照)。auto-repeat内では最小値を
+			// 回数判定に使う(2026-08-29)
 			tokens.next();
 			final List<TokenStream> args = func.argStream().splitComma();
 			if (args.size() != 2) {
@@ -162,7 +296,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			}
 			final CssToken minToken = args.get(0).next();
 			final CssToken maxToken = args.get(1).next();
-			if (maxToken == null || args.get(1).hasNext()) {
+			if (minToken == null || args.get(0).hasNext() || maxToken == null || args.get(1).hasNext()) {
 				throw new PropertyException();
 			}
 			// **minmax(0, <fr>)だけは最小値0を保つ**(2026-08-19)。
@@ -170,13 +304,20 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			// ただのfrへ潰すと内容のmin-contentがトラックを押し広げ、
 			// 同じgrid内の本文の折り返し幅まで広がる(ZeroMinFrのjavadoc)。
 			// それ以外のminmax()は従来どおり最大値だけの近似
-			if (minToken instanceof CssToken.Num zero && zero.value() == 0 && !args.get(0).hasNext()
+			if (minToken instanceof CssToken.Num zero && zero.value() == 0
 					&& maxToken instanceof CssToken.Dim flex && flex.unitText().equalsIgnoreCase("fr")
 					&& flex.value() >= 0) {
-				tracks.add(new GridTrackListValue.ZeroMinFr(flex.value()));
+				acc.addTrack(new GridTrackListValue.ZeroMinFr(flex.value()), acc.mins != null ? 0.0 : null);
 				return;
 			}
-			this.parseLeafToken(maxToken, ua, tracks);
+			Object min = null;
+			if (acc.mins != null) {
+				min = fixedExtent(ua, minToken);
+				if (min == null) {
+					min = fixedExtent(ua, maxToken);
+				}
+			}
+			this.parseLeafToken(maxToken, ua, acc, min);
 			return;
 		}
 		if (token instanceof CssToken.Func func && (func.is("max") || func.is("min"))) {
@@ -200,39 +341,62 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 				}
 				lengths.add(length);
 			}
-			tracks.add(new RawMinMaxFunc(isMax, lengths));
-			if (tracks.size() > MAX_TRACKS) {
-				throw new PropertyException();
-			}
+			final RawMinMaxFunc raw = new RawMinMaxFunc(isMax, lengths);
+			acc.addTrack(raw, acc.mins != null ? lengths.get(0) : null);
+			return;
+		}
+		if (token instanceof CssToken.Func func && func.is("fit-content")) {
+			// fit-content(x)はautoの近似(2026-08-29。引数の上限は捨てる)
+			tokens.next();
+			acc.addTrack(GridTrackListValue.Auto.INSTANCE, null);
 			return;
 		}
 		tokens.next();
-		this.parseLeafToken(token, ua, tracks);
+		this.parseLeafToken(token, ua, acc, null);
 	}
 
-	/** {@code auto}・{@code <flex>}・{@code <length>}の単一トラック片を読み取ってtracksへ追加します。 */
-	private void parseLeafToken(final CssToken token, final UserAgent ua, final List<Object> tracks)
-			throws PropertyException {
+	/** 固定幅トークン(長さ・%)の回数判定用の値です(長さValueまたは%比Double。それ以外null)。 */
+	private static Object fixedExtent(final UserAgent ua, final CssToken token) {
+		if (token instanceof CssToken.Percent percent) {
+			return percent.value() / 100.0;
+		}
+		if (token instanceof CssToken.Ident || token instanceof CssToken.Dim dim && dim.unitText().equalsIgnoreCase("fr")) {
+			return null;
+		}
+		return ValueUtils.toLength(ua, token);
+	}
+
+	/**
+	 * {@code auto}・{@code <flex>}・{@code min-content}・{@code max-content}・
+	 * {@code %}・{@code <length>}の単一トラック片を読み取ってaccへ追加します。
+	 *
+	 * @param minOverride auto-repeat内で使う最小幅(nullなら自身の固定幅)
+	 */
+	private void parseLeafToken(final CssToken token, final UserAgent ua, final Accumulator acc,
+			final Object minOverride) throws PropertyException {
 		if (token instanceof CssToken.Ident ident && ident.is("auto")) {
-			tracks.add(GridTrackListValue.Auto.INSTANCE);
+			acc.addTrack(GridTrackListValue.Auto.INSTANCE, minOverride);
+		} else if (token instanceof CssToken.Ident ident && ident.is("min-content")) {
+			acc.addTrack(GridTrackListValue.MinContent.INSTANCE, minOverride);
+		} else if (token instanceof CssToken.Ident ident && ident.is("max-content")) {
+			acc.addTrack(GridTrackListValue.MaxContent.INSTANCE, minOverride);
 		} else if (token instanceof CssToken.Dim dim && dim.unitText().equalsIgnoreCase("fr")) {
 			if (dim.value() < 0) {
 				throw new PropertyException();
 			}
-			tracks.add(new GridTrackListValue.Fr(dim.value()));
-		} else {
-			if (token instanceof CssToken.Percent) {
-				// %トラックは初期サブセット外(consult §2)
+			acc.addTrack(new GridTrackListValue.Fr(dim.value()), minOverride);
+		} else if (token instanceof CssToken.Percent percent) {
+			if (percent.value() < 0) {
 				throw new PropertyException();
 			}
+			final double ratio = percent.value() / 100.0;
+			acc.addTrack(new GridTrackListValue.Percentage(ratio), minOverride != null ? minOverride : ratio);
+		} else {
 			final Value length = ValueUtils.toLength(ua, token);
 			if (length == null) {
 				throw new PropertyException();
 			}
-			tracks.add(length);
-		}
-		if (tracks.size() > MAX_TRACKS) {
-			throw new PropertyException();
+			acc.addTrack(length, minOverride != null ? minOverride : length);
 		}
 	}
 }

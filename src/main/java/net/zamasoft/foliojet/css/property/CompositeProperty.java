@@ -53,6 +53,11 @@ public class CompositeProperty implements Property {
 		return this.name;
 	}
 
+	/** 展開された最小単位の特性と値(テスト・検査用、2026-08-29)。 */
+	public Entry[] getEntries() {
+		return this.entries.clone();
+	}
+
 	public URI getURI() {
 		return this.uri;
 	}

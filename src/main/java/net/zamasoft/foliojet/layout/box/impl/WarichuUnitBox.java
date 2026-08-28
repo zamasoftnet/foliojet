@@ -283,6 +283,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		WarichuDrawable(final PageBox pageBox, final Shape clip, final AffineTransform transform,
 				final WarichuUnitBox box) {
 			super(pageBox, clip, box.params.opacity, transform);
+			this.blendMode = box.params.blendMode;
 			this.box = box;
 		}
 

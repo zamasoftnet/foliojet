@@ -4,6 +4,7 @@ import java.awt.Shape;
 
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.util.BoxDecorationRenderer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -157,8 +158,15 @@ public class AbsoluteRectFrame {
 		y += this.margin.top;
 		width -= this.margin.getFrameWidth();
 		height -= this.margin.getFrameHeight();
+		// 描画順(CSS Backgrounds 3 §7.1 / CSS UI 3 §4、2026-08-29):
+		// 外側の影は背景の下、内側の影は背景の上で境界の下、アウトラインは
+		// 境界の上。アウトラインは本来内容より上だが、この枠drawableの中で
+		// 境界の直後に描く(内容に重なる負のoffsetでは内容の下になる)
+		BoxDecorationRenderer.drawOuterShadows(gc, this.frame, x, y, width, height);
 		this.frame.background.draw(gc, x, y, width, height, this.frame.border, this.frame.padding, textClip);
+		BoxDecorationRenderer.drawInsetShadows(gc, this.frame, x, y, width, height);
 		this.frame.border.draw(gc, x, y, width, height);
+		BoxDecorationRenderer.drawOutline(gc, this.frame, x, y, width, height);
 	}
 
 	public AbsoluteRectFrame cut(boolean top, boolean right, boolean bottom, boolean left) {

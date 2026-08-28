@@ -311,7 +311,7 @@ public class TableCellBox extends AbstractContainerBox {
 		if (this.draw()) {
 			Drawable drawable = new TableCellBoxDrawable(clip, pageBox, this.params.opacity, transform,
 					this.frame.frame.background, this.frame.frame.border, this.frame.frame.padding, this.collapse, this.frame.margin,
-					this.getWidth(), this.getHeight());
+					this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode);
 			drawer.visitDrawable(drawable, x, y);
 		}
 

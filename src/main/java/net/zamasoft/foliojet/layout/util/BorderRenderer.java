@@ -891,7 +891,16 @@ public class BorderRenderer {
 		final Radius topRight = border.getTopRight().resolve(w, h);
 		final Radius bottomLeft = border.getBottomLeft().resolve(w, h);
 		final Radius bottomRight = border.getBottomRight().resolve(w, h);
+		return this.getRoundedShape(x, y, w, h, topLeft, topRight, bottomLeft, bottomRight);
+	}
 
+	/**
+	 * 解決済みの角丸半径で矩形の形を返します。box-shadow/outlineが境界箱を
+	 * 広げ縮めした形を同じ角丸の作り方で得るために切り出した(2026-08-29)。
+	 * 半径にパーセント成分が残っていてはいけない。
+	 */
+	public Shape getRoundedShape(double x, double y, double w, double h, Radius topLeft, Radius topRight,
+			Radius bottomLeft, Radius bottomRight) {
 		/* NoAndroid begin */
 		if (topLeft == Radius.ZERO_RADIUS && topRight == Radius.ZERO_RADIUS && bottomLeft == Radius.ZERO_RADIUS
 				&& bottomRight == Radius.ZERO_RADIUS) {

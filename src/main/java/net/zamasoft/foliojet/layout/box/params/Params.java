@@ -46,6 +46,12 @@ public abstract class Params {
 	 */
 	public float opacity = 1f;
 
+	/**
+	 * {@code mix-blend-mode}(compositing-1、2026-08-29)。描画要素ごとに
+	 * {@code GC.setBlendMode}へ渡す(MixBlendMode参照)。
+	 */
+	public net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
+
 	private static final AffineTransform IDENTITY_TRANSFORM = new AffineTransform();
 	public AffineTransform transform = IDENTITY_TRANSFORM;
 
@@ -55,6 +61,13 @@ public abstract class Params {
 	 * 解析時には行列へ畳めない。
 	 */
 	public double transformTxRatio = 0, transformTyRatio = 0;
+
+	/**
+	 * 割合の平行移動が回転・拡大の後ろに来たときの交差成分(2026-08-29、
+	 * {@code TransformValue}参照)。{@code transformTxRatioH}は高さに掛けて
+	 * xへ、{@code transformTyRatioW}は幅に掛けてyへ足す。
+	 */
+	public double transformTxRatioH = 0, transformTyRatioW = 0;
 	public Offset transformOrigin = Offset.HALF_OFFSET;
 
 	public abstract ParamsType getType();

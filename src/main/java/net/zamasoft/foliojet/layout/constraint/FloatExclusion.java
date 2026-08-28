@@ -14,8 +14,17 @@ import net.zamasoft.foliojet.layout.box.params.FloatSide;
  * (同じ{@code pageEnd}の浮動体は追加順)を、この値型だけでも再現
  * できるように保持する挿入通し番号。
  * </p>
+ *
+ * <p>
+ * {@code shape}は{@code shape-outside}で解決済みの排除形状
+ * (2026-08-29)。nullなら従来どおりマージンボックス矩形。形状は
+ * 行ボックスの配置({@link ExclusionSpace#scanLineBand})だけが
+ * {@link #lineSpanAt}経由で見る——浮動体同士の配置とBFCを作るブロックの
+ * 回避は仕様(css-shapes-1 §4.1)どおり矩形{@code lineSpan}のまま。
+ * </p>
  */
-public record FloatExclusion(long order, FloatSide side, AxisSpan pageSpan, AxisSpan lineSpan) {
+public record FloatExclusion(long order, FloatSide side, AxisSpan pageSpan, AxisSpan lineSpan,
+		ExclusionShape shape) {
 	public FloatExclusion {
 		if (side == null) {
 			throw new IllegalArgumentException("side must not be null");
@@ -23,5 +32,22 @@ public record FloatExclusion(long order, FloatSide side, AxisSpan pageSpan, Axis
 		if (pageSpan == null || lineSpan == null) {
 			throw new IllegalArgumentException("pageSpan/lineSpan must not be null");
 		}
+	}
+
+	/** 形状なし(マージンボックス矩形)の排除帯。 */
+	public FloatExclusion(final long order, final FloatSide side, final AxisSpan pageSpan, final AxisSpan lineSpan) {
+		this(order, side, pageSpan, lineSpan, null);
+	}
+
+	/**
+	 * ページ方向の帯[pageStart, pageEnd]でこの浮動体が占める行方向の
+	 * 範囲です。形状なしなら常に{@link #lineSpan}。形状ありで帯と形状が
+	 * 交わらなければnull(その帯では行を狭めない)。
+	 */
+	public AxisSpan lineSpanAt(final double pageStart, final double pageEnd) {
+		if (this.shape == null) {
+			return this.lineSpan;
+		}
+		return this.shape.lineSpanAt(pageStart, pageEnd);
 	}
 }

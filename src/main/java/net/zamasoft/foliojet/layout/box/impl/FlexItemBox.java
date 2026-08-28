@@ -108,6 +108,34 @@ public class FlexItemBox extends FlowBlockBox {
 		return vertical ? this.baseOffsetY : this.baseOffsetX;
 	}
 
+	/**
+	 * {@code aspect-ratio}で、確定した行方向内寸からページ方向内寸を決めます
+	 * (2026-08-29。{@link #setFlexMainSize}の直後、本文bindの前に呼ぶ)。
+	 * ページ方向が絶対長で指定されているとき・比率指定が無いときは何も
+	 * しない。内容が比率高より高いときは{@code overflow:visible}なら伸びる
+	 * ({@code minPageAxis}=比率高、{@code maxPageAxis}は可視のとき無制限)。
+	 */
+	public void applyAspectRatio(final double lineExtent) {
+		final BlockParams params = this.getBlockParams();
+		if (!(params.aspectRatio > 0) || this.size.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			return;
+		}
+		final double page = this.aspectRatioPageExtent(lineExtent);
+		if (net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(page)) {
+			return;
+		}
+		if (params.flow.isVertical()) {
+			this.width = page;
+		} else {
+			this.height = page;
+		}
+		this.minPageAxis = page;
+		if (params.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+			this.maxPageAxis = page;
+		}
+		this.specifiedPageAxis = true;
+	}
+
 	/** 確定した線方向内寸(content-box)を設定します(bind直前に呼ぶ。縦書き=高さ)。 */
 	public void setFlexMainSize(final double mainSize, final boolean vertical) {
 		if (vertical) {

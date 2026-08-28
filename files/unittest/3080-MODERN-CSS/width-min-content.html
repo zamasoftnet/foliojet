@@ -1,0 +1,20 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>width: min-content は最長の分割不能ラン(単語)の幅</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+p { margin: 0; }
+/* 箱は最長の単語 ABCDEFGH(48pt)の幅+枠。文字列は折り返す */
+div { width: min-content; border: 1px solid; }
+</style>
+</head>
+<body>
+<div id="a">ABCDEFGH IJK</div>
+<p id="after">AFTER</p>
+</body>
+</html>

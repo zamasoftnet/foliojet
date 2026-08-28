@@ -1183,10 +1183,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					System.err.println("START_FLOW");
 				}
 				final FlowBlockBox flow = startFlow.box();
-				if (flow.getBlockParams().flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()) {
+				if (flow.getBlockParams().flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
+						&& !flow.getBlockParams().hasIntrinsicLine()) {
 					builder.startFlowBlock(flow);
 				} else {
-					// 書字方向が違う場合
+					// 書字方向が違う場合、または固有寸法キーワード付き
+					// (2026-08-29、DocumentBuilder.startBoxと同じ振り分け)
 					builder = (BlockBuilder) builder.newBuilder(flow);
 				}
 			}

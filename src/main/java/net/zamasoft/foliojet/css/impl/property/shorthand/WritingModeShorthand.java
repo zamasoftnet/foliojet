@@ -4,6 +4,7 @@ package net.zamasoft.foliojet.css.impl.property.shorthand;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.value.BlockFlowValue;
@@ -22,6 +23,11 @@ public class WritingModeShorthand extends AbstractShorthandPropertyInfo {
 
 	protected WritingModeShorthand() {
 		super("-cssj-writing-mode");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { Direction.INFO, BlockFlow.INFO };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

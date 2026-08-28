@@ -135,23 +135,92 @@ public class PagedSvgOutputTest extends TestCase {
 	 * 共有資源の抑止。同じ本を文字サイズだけ変えて組み直すとき、前回と同じ
 	 * フォントサブセットと画像を出し直さないための指定。参照とmanifestの
 	 * 記載は残るので、受け手は前回の出力から拾える。
+	 *
+	 * <p>
+	 * フォントは<b>受け手が持っているはずの版だけ</b>省く(2026-08-29)。
+	 * セッションの最初の変換では持っていないので出す。同じセッションの
+	 * 2回目は持ち越した版で足りるので出さず、manifestにomittedで記す。
+	 * </p>
 	 */
 	public void testResourceSuppression() throws Exception {
-		final CapturingResults results = run(simpleHtml(),
-				Map.of("output.paged-svg.resources", "omit"));
-		assertTrue("no font or image bytes may be emitted",
-				results.order.stream().noneMatch(uri -> uri.startsWith("assets/")));
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+		try {
+			final CapturingResults first = run(session, simpleHtml(),
+					Map.of("output.paged-svg.resources", "omit"));
+			assertTrue("no image bytes may be emitted",
+					first.order.stream().noneMatch(uri -> uri.startsWith("assets/images/")));
+			assertTrue("the first conversion must still emit the font the receiver cannot have",
+					first.order.stream().anyMatch(uri -> uri.startsWith("assets/fonts/")));
+			final String page = first.text("pages/0001.svg");
+			assertTrue("the page must still reference the shared subset", page.contains("../assets/fonts/"));
+			assertTrue("the page must still reference the shared image", page.contains("../assets/images/"));
+			final String manifest = first.text("manifest.json");
+			assertTrue("the manifest must still list the fonts", manifest.contains("assets/fonts/"));
+			assertTrue("the manifest must still list the images", manifest.contains("assets/images/"));
+			assertTrue("omitted images must be marked as such", manifest.contains("\"omitted\":true"));
+			assertFalse(manifest.contains("\"sha256\":\"null\""));
 
-		final String page = results.text("pages/0001.svg");
-		assertTrue("the page must still reference the shared subset", page.contains("../assets/fonts/"));
-		assertTrue("the page must still reference the shared image", page.contains("../assets/images/"));
+			final CapturingResults second = run(session, simpleHtml(),
+					Map.of("output.paged-svg.resources", "omit"));
+			assertTrue("the second conversion must emit no shared resource at all: " + second.order,
+					second.order.stream().noneMatch(uri -> uri.startsWith("assets/")));
+			assertEquals("the page must be byte-identical to the first conversion", page,
+					second.text("pages/0001.svg"));
+			final String manifest2 = second.text("manifest.json");
+			assertTrue("the carried font must be listed as omitted with its hash: " + manifest2,
+					manifest2.matches("(?s).*\"uri\":\"assets/fonts/font-0001.woff2\",\"sha256\":\"[0-9a-f]{64}\",\"bytes\":[0-9]+,\"omitted\":true.*"));
+		} finally {
+			session.close();
+		}
+	}
 
-		final String manifest = results.text("manifest.json");
-		assertTrue("the manifest must still list the fonts", manifest.contains("assets/fonts/"));
-		assertTrue("the manifest must still list the images", manifest.contains("assets/images/"));
-		assertTrue("omitted resources must be marked as such", manifest.contains("\"omitted\":true"));
-		assertFalse("no hash can be reported for a subset that was never built",
-				manifest.contains("\"sha256\":\"null\""));
+	/**
+	 * フォントサブセットの持ち越し(2026-08-29)。同じセッションで同じ本を
+	 * 組み直すと、前回のサブセットが<b>1ページ目より先に</b>そのまま出る。
+	 * 前回に無い字形が現れたときだけ、版を進めた別URIで末尾に出し直す。
+	 */
+	public void testFontSubsetCarriedOverToNextConversion() throws Exception {
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+		try {
+			final CapturingResults first = run(session, simpleHtml(), Map.of());
+			final List<String> firstFonts = first.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).toList();
+			assertEquals(List.of("assets/fonts/font-0001.woff2"), firstFonts);
+			assertTrue("without a carry the font can only come after the pages",
+					first.order.indexOf("assets/fonts/font-0001.woff2") > first.order.indexOf("pages/0001.svg"));
+			final byte[] firstBytes = first.data.get("assets/fonts/font-0001.woff2").toByteArray();
+
+			// 同じ本を文字サイズだけ変えて組み直す
+			final CapturingResults second = run(session, simpleHtml(), Map.of("output.text-size", "150%"));
+			assertTrue("the carried subset must precede the first page: " + second.order,
+					second.order.indexOf("assets/fonts/font-0001.woff2") < second.order.indexOf("pages/0001.svg"));
+			assertTrue("the carried subset is the same bytes", java.util.Arrays.equals(firstBytes,
+					second.data.get("assets/fonts/font-0001.woff2").toByteArray()));
+			assertEquals("no other font may be emitted when the glyph set did not change", 1,
+					second.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).count());
+			assertTrue(second.text("pages/0001.svg").contains("../assets/fonts/font-0001.woff2"));
+
+			// 新しい字形が現れると版が進み、前の版に加えて育った版が末尾に出る
+			final CapturingResults third = run(session, simpleHtml().replace("ABC", "ABC XYZ"), Map.of());
+			final List<String> thirdFonts = third.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).toList();
+			assertEquals(List.of("assets/fonts/font-0001.woff2", "assets/fonts/font-0001-2.woff2"), thirdFonts);
+			assertTrue("the grown version comes after the pages",
+					third.order.indexOf("assets/fonts/font-0001-2.woff2") > third.order.indexOf("pages/0001.svg"));
+			assertTrue("pages closed after growth reference the grown version",
+					third.text("pages/0001.svg").contains("../assets/fonts/font-0001-2.woff2"));
+			assertTrue(third.data.get("assets/fonts/font-0001-2.woff2").size() > 0);
+			assertWoff2CanBeRead(third.data.get("assets/fonts/font-0001-2.woff2").toByteArray());
+			final String manifest = third.text("manifest.json");
+			assertTrue(manifest.contains("assets/fonts/font-0001.woff2"));
+			assertTrue(manifest.contains("assets/fonts/font-0001-2.woff2"));
+
+			// 育った版が次の持ち越しになる
+			final CapturingResults fourth = run(session, simpleHtml().replace("ABC", "ABC XYZ"), Map.of());
+			assertEquals(List.of("assets/fonts/font-0001-2.woff2"),
+					fourth.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).toList());
+			assertTrue(fourth.order.indexOf("assets/fonts/font-0001-2.woff2") < fourth.order.indexOf("pages/0001.svg"));
+		} finally {
+			session.close();
+		}
 	}
 
 	/** 抑止しても参照先のURIは変わらないこと——変われば受け手の再利用が壊れる。 */
@@ -235,9 +304,19 @@ public class PagedSvgOutputTest extends TestCase {
 	}
 
 	private CapturingResults run(final String html, final Map<String, String> extraProps) throws Exception {
-		final CapturingResults results = new CapturingResults();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 		try {
+			return run(session, html, extraProps);
+		} finally {
+			session.close();
+		}
+	}
+
+	/** 同じセッションで続けて変換する(持ち越しの検証用)。 */
+	private CapturingResults run(final DirectSession session, final String html,
+			final Map<String, String> extraProps) throws Exception {
+		final CapturingResults results = new CapturingResults();
+		{
 			session.setResults(results);
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 			session.property("input.include", "**");
@@ -252,8 +331,6 @@ public class PagedSvgOutputTest extends TestCase {
 			CTISessionHelper.transcodeStream(session,
 					new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
 					new File("files/unittest/1080-FONT/paged-svg-test.html").toURI(), "text/html", "UTF-8");
-		} finally {
-			session.close();
 		}
 		return results;
 	}

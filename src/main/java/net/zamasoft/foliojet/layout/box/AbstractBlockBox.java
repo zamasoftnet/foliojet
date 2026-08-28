@@ -16,6 +16,8 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.IntrinsicSize;
+import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.draw.AbsoluteRectFrameDrawable;
@@ -72,6 +74,39 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		return this.params;
 	}
 
+	/**
+	 * 固有寸法キーワード(2026-08-29)を行方向の使用寸法(content-box)へ
+	 * 解きます。
+	 *
+	 * <p>
+	 * {@code fit-content(L)}の引数Lはborder-box指定ならボーダー・
+	 * パディングを差し引いてから上限にする。max-content/min-contentは
+	 * 内容の実測値そのものなので{@code box-sizing}の影響を受けない
+	 * (css-sizing-3 §4.1)。
+	 * </p>
+	 *
+	 * @param intrinsic   キーワード
+	 * @param minContent  最小内容寸法
+	 * @param maxContent  最大内容寸法
+	 * @param available   引数無しfit-contentの上限(利用可能寸法)
+	 * @param percentBase 引数Lの%の基準
+	 * @return 使用寸法
+	 */
+	protected final double resolveIntrinsicLine(final IntrinsicSize intrinsic, final double minContent,
+			final double maxContent, final double available, final double percentBase) {
+		double bound = available;
+		if (intrinsic.hasArgument()) {
+			final double argument = LayoutUtils.computeLength(intrinsic.argument(), percentBase);
+			if (!LayoutUtils.isNone(argument)) {
+				bound = argument;
+				if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+					bound -= this.frame.getBorderLineExtent(this.params.flow);
+				}
+			}
+		}
+		return intrinsic.resolve(minContent, maxContent, bound);
+	}
+
 	public void firstPassLayout(AbstractContainerBox containerBox) {
 		BlockParams containerParams = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
@@ -88,19 +123,32 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		//
 		// ■ 幅と高さの計算
 		//
+		// width/min/max-width は box-sizing のスケールで書かれている。ここで
+		// 決めるのは内容幅なので、border-box なら境界+パディングを引く
+		// (2026-08-29)。この基底版は行幅0の計測パスでも使われ、従来は引いて
+		// いなかったため `min-width:100px; padding-inline:8px;
+		// box-sizing:border-box` のピルが116pxで計測されていた
+		// (padding-inlineの対応で顕在化)
+		final double borderBoxLine = params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+				? this.frame.getBorderLineExtent(containerParams.flow)
+				: 0;
 		switch (containerParams.flow) {
 		case WritingMode.TB:
 			// 横書き
 			this.width = LayoutUtils.computeDimensionWidth(this.size, lineSize);
 			if (LayoutUtils.isNone(this.width)) {
 				this.width = 0;
+			} else {
+				this.width = Math.max(0, this.width - borderBoxLine);
 			}
 			double maxWidth = LayoutUtils.computeDimensionWidth(params.maxSize, lineSize);
 			if (!LayoutUtils.isNone(maxWidth)) {
-				this.width = Math.min(this.width, maxWidth);
+				this.width = Math.min(this.width, Math.max(0, maxWidth - borderBoxLine));
 			}
 			double minWidth = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
-			this.width = Math.max(this.width, minWidth);
+			if (!LayoutUtils.isNone(minWidth)) {
+				this.width = Math.max(this.width, Math.max(0, minWidth - borderBoxLine));
+			}
 			break;
 		case WritingMode.RL:
 		case WritingMode.LR:
@@ -108,13 +156,17 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			this.height = LayoutUtils.computeDimensionHeight(this.size, lineSize);
 			if (LayoutUtils.isNone(this.height)) {
 				this.height = 0;
+			} else {
+				this.height = Math.max(0, this.height - borderBoxLine);
 			}
 			double maxHeight = LayoutUtils.computeDimensionWidth(params.maxSize, lineSize);
 			if (!LayoutUtils.isNone(maxHeight)) {
-				this.height = Math.min(this.height, maxHeight);
+				this.height = Math.min(this.height, Math.max(0, maxHeight - borderBoxLine));
 			}
 			double minHeight = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
-			this.height = Math.max(this.height, minHeight);
+			if (!LayoutUtils.isNone(minHeight)) {
+				this.height = Math.max(this.height, Math.max(0, minHeight - borderBoxLine));
+			}
 			break;
 		default:
 			throw new IllegalStateException();
@@ -149,7 +201,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			// clip-pathは自箱の背景・境界も切る(overflowと違う)
 			final Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, this.clipWithClipPath(clip, x, y),
 					this.params.opacity, transform, this.frame,
-					this.getWidth(), this.getHeight(), textClip);
+					this.getWidth(), this.getHeight(), textClip).withBlendMode(this.params.blendMode);
 			drawer.visitDrawable(drawable, x, y);
 		}
 

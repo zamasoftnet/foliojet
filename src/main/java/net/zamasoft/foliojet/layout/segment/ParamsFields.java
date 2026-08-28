@@ -30,7 +30,8 @@ import net.zamasoft.foliojet.layout.box.params.Params;
  * </p>
  */
 record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, byte zIndexType, float opacity,
-		AffineTransform transform, double transformTxRatio, double transformTyRatio, Offset transformOrigin) {
+		AffineTransform transform, double transformTxRatio, double transformTyRatio, double transformTxRatioH,
+		double transformTyRatioW, Offset transformOrigin, net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode) {
 	ParamsFields {
 		transform = new AffineTransform(transform);
 	}
@@ -38,7 +39,7 @@ record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, 
 	static ParamsFields freeze(final Params source) {
 		return new ParamsFields(StructureToken.freeze(source.element), source.footnoteId, source.zIndexValue,
 				source.zIndexType, source.opacity, source.transform, source.transformTxRatio, source.transformTyRatio,
-				source.transformOrigin);
+				source.transformTxRatioH, source.transformTyRatioW, source.transformOrigin, source.blendMode);
 	}
 
 	void materializeInto(final Params target) {
@@ -55,6 +56,9 @@ record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, 
 		// (::beforeのtranslateY(-50%))が半個ぶん下にずれた実バグ
 		target.transformTxRatio = this.transformTxRatio;
 		target.transformTyRatio = this.transformTyRatio;
+		target.transformTxRatioH = this.transformTxRatioH;
+		target.transformTyRatioW = this.transformTyRatioW;
 		target.transformOrigin = this.transformOrigin;
+		target.blendMode = this.blendMode;
 	}
 }

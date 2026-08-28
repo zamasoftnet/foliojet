@@ -35,7 +35,13 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	private static final PrimitivePropertyInfo[] PRIMITIVES = { INFO_WIDTH, INFO_HEIGHT };
 
 	public static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style) {
-		Value widthValue = style.get(INFO_WIDTH);
+		return getFit(style, INFO_WIDTH);
+	}
+
+	/** 対象primitiveを指定する版(mask-sizeが共有する、2026-08-29)。 */
+	protected static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style,
+			PrimitivePropertyInfo infoWidth) {
+		Value widthValue = style.get(infoWidth);
 		if (widthValue == KeywordValue.CONTAIN) {
 			return net.zamasoft.foliojet.layout.box.params.BackgroundFit.CONTAIN;
 		}
@@ -53,11 +59,16 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	 * いた(asahi.comフッターのRe:Ronロゴ)。
 	 */
 	public static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style, Image image) {
-		final net.zamasoft.foliojet.layout.box.params.BackgroundFit declared = getFit(style);
+		return getFit(style, image, INFO_WIDTH, INFO_HEIGHT);
+	}
+
+	protected static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style, Image image,
+			PrimitivePropertyInfo infoWidth, PrimitivePropertyInfo infoHeight) {
+		final net.zamasoft.foliojet.layout.box.params.BackgroundFit declared = getFit(style, infoWidth);
 		if (declared != net.zamasoft.foliojet.layout.box.params.BackgroundFit.NONE) {
 			return declared;
 		}
-		if (style.get(INFO_WIDTH) == KeywordValue.AUTO && style.get(INFO_HEIGHT) == KeywordValue.AUTO
+		if (style.get(infoWidth) == KeywordValue.AUTO && style.get(infoHeight) == KeywordValue.AUTO
 				&& image.getIntrinsic() == Image.Intrinsic.RATIO) {
 			return net.zamasoft.foliojet.layout.box.params.BackgroundFit.CONTAIN;
 		}
@@ -65,12 +76,17 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	public static Dimension get(CSSStyle style, Image image) {
-		Value widthValue = style.get(INFO_WIDTH);
+		return get(style, image, INFO_WIDTH, INFO_HEIGHT);
+	}
+
+	protected static Dimension get(CSSStyle style, Image image, PrimitivePropertyInfo infoWidth,
+			PrimitivePropertyInfo infoHeight) {
+		Value widthValue = style.get(infoWidth);
 		if (widthValue == KeywordValue.CONTAIN || widthValue == KeywordValue.COVER) {
 			// 実寸はgetFit()を見た描画側が計算する
 			return Dimension.AUTO_DIMENSION;
 		}
-		Value heightValue = style.get(INFO_HEIGHT);
+		Value heightValue = style.get(infoHeight);
 		LengthType widthType;
 		double width;
 		if (widthValue instanceof AbsoluteLengthValue length) {
@@ -125,7 +141,17 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	protected BackgroundSize() {
-		super("-cssj-background-size");
+		this("-cssj-background-size");
+	}
+
+	/** mask-size等、同じ文法を使う特性のための派生用(2026-08-29)。 */
+	protected BackgroundSize(String name) {
+		super(name);
+	}
+
+	/** ショートハンドから値列を渡すための公開入口(2026-08-29)。 */
+	public Entry[] parseSizeValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
+		return this.parseValues(tokens, ua, uri);
 	}
 
 	public Value getDefault(CSSStyle style) {
@@ -149,8 +175,8 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.isInherit()) {
-			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, KeywordValue.INHERIT),
-					new Entry(BackgroundSize.INFO_HEIGHT, KeywordValue.INHERIT) };
+			return new Entry[] { new Entry(this.getPrimitives()[0], KeywordValue.INHERIT),
+					new Entry(this.getPrimitives()[1], KeywordValue.INHERIT) };
 		}
 		Value w, h;
 
@@ -166,15 +192,15 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 			if (tokens.hasNext()) {
 				throw new PropertyException();
 			}
-			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, KeywordValue.CONTAIN),
-					new Entry(BackgroundSize.INFO_HEIGHT, KeywordValue.CONTAIN) };
+			return new Entry[] { new Entry(this.getPrimitives()[0], KeywordValue.CONTAIN),
+					new Entry(this.getPrimitives()[1], KeywordValue.CONTAIN) };
 		}
 		if (ValueUtils.isKeyword(lu, "cover")) {
 			if (tokens.hasNext()) {
 				throw new PropertyException();
 			}
-			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, KeywordValue.COVER),
-					new Entry(BackgroundSize.INFO_HEIGHT, KeywordValue.COVER) };
+			return new Entry[] { new Entry(this.getPrimitives()[0], KeywordValue.COVER),
+					new Entry(this.getPrimitives()[1], KeywordValue.COVER) };
 		}
 		if (ValueUtils.isAuto(lu)) {
 			w = KeywordValue.AUTO;
@@ -192,7 +218,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 
 		if (!tokens.hasNext()) {
 			h = KeywordValue.AUTO;
-			return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, w), new Entry(BackgroundSize.INFO_HEIGHT, h) };
+			return new Entry[] { new Entry(this.getPrimitives()[0], w), new Entry(this.getPrimitives()[1], h) };
 		}
 
 		final CssToken hToken = tokens.next();
@@ -212,7 +238,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		if (h == null) {
 			h = KeywordValue.AUTO;
 		}
-		return new Entry[] { new Entry(BackgroundSize.INFO_WIDTH, w), new Entry(BackgroundSize.INFO_HEIGHT, h) };
+		return new Entry[] { new Entry(this.getPrimitives()[0], w), new Entry(this.getPrimitives()[1], h) };
 	}
 
 }

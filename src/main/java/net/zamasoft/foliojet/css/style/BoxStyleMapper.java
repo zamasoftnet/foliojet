@@ -51,6 +51,7 @@ import net.zamasoft.foliojet.css.value.CounterSetValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
+import net.zamasoft.foliojet.css.value.css3.WordBreakValue;
 import net.zamasoft.foliojet.css.value.ListStylePositionValue;
 import net.zamasoft.foliojet.css.value.PageBreakValue;
 import net.zamasoft.foliojet.css.value.PaintValue;
@@ -449,6 +450,9 @@ final class BoxStyleMapper {
 		pos.clear = Clear.get(style);
 		pos.pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), rightSide);
 		pos.pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), rightSide);
+		// shape-outside(css-shapes-1、2026-08-29)。左右floatだけが対象
+		// (脚注・ページフロートは別のPosを通るのでここへ来ない)
+		pos.shapeOutside = net.zamasoft.foliojet.css.impl.property.box.ShapeOutside.toParams(style);
 	}
 
 	/**
@@ -463,10 +467,24 @@ final class BoxStyleMapper {
 	void setupGridParams(net.zamasoft.foliojet.layout.box.params.GridParams params, CSSStyle style,
 			CSSStyle parentStyle, boolean inBody, PageSequence pageSequence) {
 		this.setupBlockParams(params, style, parentStyle, inBody, pageSequence);
-		params.templateColumns = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.getColumns(style)
-				.getTracks();
-		params.templateRows = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.getRows(style)
-				.getTracks();
+		final net.zamasoft.foliojet.css.value.GridTrackListValue columns = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks
+				.getColumns(style);
+		final net.zamasoft.foliojet.css.value.GridTrackListValue rows = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks
+				.getRows(style);
+		params.templateColumns = columns.getTracks();
+		params.templateRows = rows.getTracks();
+		// 2026-08-29: 線名・領域・implicitトラック・auto-flow
+		params.columnLineNames = columns.getLineNames();
+		params.rowLineNames = rows.getLineNames();
+		params.templateAreas = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateAreas.get(style);
+		params.autoColumns = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks
+				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.AUTO_COLUMNS).getTracks();
+		params.autoRows = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks
+				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.AUTO_ROWS).getTracks();
+		final net.zamasoft.foliojet.css.value.GridAutoFlowValue autoFlow = net.zamasoft.foliojet.css.impl.property.grid.GridAutoFlow
+				.get(style);
+		params.autoFlowColumn = autoFlow.isColumn();
+		params.autoFlowDense = autoFlow.isDense();
 		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
 		// G5a: コンテナ側alignment 4値(used value解決はbind時——再生決定性)
@@ -591,9 +609,12 @@ final class BoxStyleMapper {
 		} else {
 			params.opacity = 0f;
 		}
+		params.blendMode = net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.get(style);
 		params.transform = Transform.get(style);
 		params.transformTxRatio = Transform.getTxRatio(style);
 		params.transformTyRatio = Transform.getTyRatio(style);
+		params.transformTxRatioH = Transform.getTxRatioH(style);
+		params.transformTyRatioW = Transform.getTyRatioW(style);
 		params.transformOrigin = TransformOrigin.get(style);
 		params.zIndexType = ZIndex.getType(style);
 		if (params.zIndexType == Params.Z_INDEX_SPECIFIED) {
@@ -611,10 +632,15 @@ final class BoxStyleMapper {
 		this.setupParams(params, style);
 		params.whiteSpace = WhiteSpace.get(style);
 		params.wordWrap = WordWrap.get(style);
+		if (net.zamasoft.foliojet.css.impl.property.text.WordBreak.get(style) == WordBreakValue.BREAK_WORD) {
+			// css-text-3 §5.2: break-word = normal + overflow-wrap:anywhere(2026-08-29)
+			params.wordWrap = AbstractTextParams.WORD_WRAP_BREAK_WORD;
+		}
 		params.textWrapStyle = TextWrapStyle.get(style);
 		params.color = TextFillColor.get(style);
 		params.decoration = TextDecoration.get(style);
 		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(AbsoluteFontSize.MEDIUM) / 2.0;
+		params.decorationColor = net.zamasoft.foliojet.css.impl.property.text.TextDecorationColor.get(style);
 		params.textStrokeWidth = TextStrokeWidth.get(style);
 		params.textStrokeColor = TextStrokeColor.get(style);
 		params.textShadows = TextShadow.get(style);
@@ -688,11 +714,16 @@ final class BoxStyleMapper {
 		params.image = image;
 
 		params.size = BoxValueUtils.toDimension(Width.get(style), Height.get(style));
-		params.minSize = BoxValueUtils.toDimension(MinWidth.get(style), MinHeight.get(style));
+		params.minSize = BoxValueUtils.toMinDimension(MinWidth.get(style), MinHeight.get(style));
 		params.maxSize = BoxValueUtils.toDimension(MaxWidth.get(style), MaxHeight.get(style));
 		params.boxSizing = BoxSizing.get(style);
 		params.objectFit = ObjectFit.get(style);
 		params.objectPosition = ObjectPosition.get(style);
+		// aspect-ratio(2026-08-29)。auto併記は固有比率優先(AbstractReplacedBox)
+		final net.zamasoft.foliojet.css.value.AspectRatioValue aspectRatio = net.zamasoft.foliojet.css.impl.property.box.AspectRatio
+				.get(style);
+		params.aspectRatio = aspectRatio.getRatio();
+		params.aspectRatioAuto = aspectRatio.isAuto();
 
 		params.frame = this.createRectFrame(style, inBody, pageSequence);
 		params.color = CSSColor.get(style);
@@ -746,11 +777,51 @@ final class BoxStyleMapper {
 		}
 
 		params.size = BoxValueUtils.toDimension(Width.get(style), Height.get(style));
-		params.minSize = BoxValueUtils.toDimension(MinWidth.get(style), MinHeight.get(style));
+		params.minSize = BoxValueUtils.toMinDimension(MinWidth.get(style), MinHeight.get(style));
 		params.maxSize = BoxValueUtils.toDimension(MaxWidth.get(style), MaxHeight.get(style));
+		{
+			// 固有寸法キーワード(2026-08-29)は行方向だけ別枠で運ぶ。
+			// ブロック軸のmax-content/min-content/fit-contentは仕様どおり
+			// 内容高さ(=auto)、min/maxならそれぞれ0/noneと同じなので、
+			// Dimension側のAUTO化(BoxValueUtils.lengthType)だけで足りる
+			final boolean vertical = params.flow.isVertical();
+			params.intrinsicLine = BoxValueUtils.toIntrinsicSize(vertical ? Height.get(style) : Width.get(style));
+			params.intrinsicMinLine = BoxValueUtils
+					.toIntrinsicSize(vertical ? MinHeight.get(style) : MinWidth.get(style));
+			params.intrinsicMaxLine = BoxValueUtils
+					.toIntrinsicSize(vertical ? MaxHeight.get(style) : MaxWidth.get(style));
+		}
 		params.boxSizing = BoxSizing.get(style);
+		// aspect-ratio(2026-08-29)。非置換ボックスではauto併記に意味が無い
+		params.aspectRatio = net.zamasoft.foliojet.css.impl.property.box.AspectRatio.get(style).getRatio();
 
 		params.overflow = Overflow.get(style);
+		params.flowRoot = style.get(Display.INFO) == DisplayValue.FLOW_ROOT_VALUE;
+		// -webkit-line-clamp: N は「N行で切り、以降を隠す」(2026-08-29)。
+		// 行数で切る機構は無いので、高さの上限=N×line-height と
+		// overflow:hidden へ近似する。実サイトの抜粋・見出しの省略に使われ、
+		// 捨てると本文が丸ごと露出して後続へ重なる
+		final int lineClamp = net.zamasoft.foliojet.css.impl.property.box.LineClamp.get(style);
+		if (lineClamp > 0) {
+			final double lineHeight = net.zamasoft.foliojet.css.impl.property.font.LineHeight.get(style);
+			final double clampHeight = lineHeight * lineClamp;
+			final net.zamasoft.foliojet.layout.box.params.Dimension max = params.maxSize;
+			final boolean vertical = params.flow.isVertical();
+			final double current = vertical ? max.getWidth() : max.getHeight();
+			final net.zamasoft.foliojet.layout.box.params.LengthType currentType = vertical ? max.getWidthType()
+					: max.getHeightType();
+			if (currentType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE || current > clampHeight) {
+				params.maxSize = vertical
+						? net.zamasoft.foliojet.layout.box.params.Dimension.create(clampHeight, max.getHeight(),
+								net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE, max.getHeightType())
+						: net.zamasoft.foliojet.layout.box.params.Dimension.create(max.getWidth(), clampHeight,
+								max.getWidthType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE);
+			}
+			if (params.overflow == net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+				params.overflow = net.zamasoft.foliojet.layout.box.params.OverflowMode.HIDDEN;
+			}
+		}
+		params.textOverflow = net.zamasoft.foliojet.css.impl.property.text.TextOverflow.get(style);
 		params.blockAlignContent = toBlockContentAlignment(
 				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT));
@@ -958,6 +1029,14 @@ final class BoxStyleMapper {
 		Image image = BackgroundImage.get(style);
 		final Image maskImage = MaskImage.getImage(style);
 		PaintValue backgroundPaint = BackgroundColor.get(style);
+		// background-imageのグラデーションは背景色の上に塗られる層。単層の
+		// 塗りしか持てないので、グラデーションがあればそれを採る(背景色は
+		// 透けないものとして捨てる——半透明グラデーションでは記録済みの近似、
+		// 2026-08-29)
+		final PaintValue gradient = BackgroundImage.getPaint(style);
+		if (gradient != null) {
+			backgroundPaint = gradient;
+		}
 		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
 		if (image != null) {
 			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image, BackgroundRepeat.get(style),
@@ -965,11 +1044,27 @@ final class BoxStyleMapper {
 					BackgroundSize.getFit(style, image));
 		} else if (maskImage != null) {
 			// 単色SVGのURLマスクは、背景色をSVGのcurrentColorへ焼き込み、
-			// 箱いっぱいに直接描く。背景色の矩形は残さない。
-			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(maskImage,
-					net.zamasoft.foliojet.layout.box.params.BackgroundImage.REPEAT_NO,
-					net.zamasoft.foliojet.layout.box.params.BackgroundImage.ATTACHMENT_SCROLL,
-					BackgroundPosition.get(style), BackgroundSize.get(style, maskImage), BackgroundFit.COVER);
+			// 直接描く。背景色の矩形は残さない。
+			// mask-size/position/repeatが指定されていればそれに従う
+			// (2026-08-29)。無指定なら従来どおり箱いっぱい・繰り返しなしで
+			// 描く——仕様の既定(原寸・repeat)より、アイコン型抜きの実例に
+			// 合う(MDN等で実測済みの近似)
+			final boolean declared = !net.zamasoft.foliojet.css.impl.property.box.MaskSize.isDefault(style)
+					|| !net.zamasoft.foliojet.css.impl.property.box.MaskPosition.isDefault(style)
+					|| !net.zamasoft.foliojet.css.impl.property.box.MaskRepeat.isDefault(style);
+			if (declared) {
+				backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(maskImage,
+						net.zamasoft.foliojet.css.impl.property.box.MaskRepeat.get(style),
+						net.zamasoft.foliojet.layout.box.params.BackgroundImage.ATTACHMENT_SCROLL,
+						net.zamasoft.foliojet.css.impl.property.box.MaskPosition.get(style),
+						net.zamasoft.foliojet.css.impl.property.box.MaskSize.get(style, maskImage),
+						net.zamasoft.foliojet.css.impl.property.box.MaskSize.getFit(style, maskImage));
+			} else {
+				backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(maskImage,
+						net.zamasoft.foliojet.layout.box.params.BackgroundImage.REPEAT_NO,
+						net.zamasoft.foliojet.layout.box.params.BackgroundImage.ATTACHMENT_SCROLL,
+						BackgroundPosition.get(style), BackgroundSize.get(style, maskImage), BackgroundFit.COVER);
+			}
 			backgroundPaint = null;
 		} else {
 			backgroundImage = null;
@@ -1046,8 +1141,20 @@ final class BoxStyleMapper {
 			Value left = Padding.get(style, Side.LEFT);
 			padding = BoxValueUtils.toInsets(top, right, bottom, left);
 		}
-		RectFrame frame = RectFrame.create(margin, border, background, padding);
+		RectFrame frame = RectFrame.create(margin, border, background, padding,
+				net.zamasoft.foliojet.css.impl.property.box.BoxShadow.get(style), createOutline(style));
 		return frame;
+	}
+
+	/**
+	 * アウトラインを構築します(2026-08-29)。見えないものはnull。
+	 */
+	static net.zamasoft.foliojet.layout.box.params.Outline createOutline(CSSStyle style) {
+		return net.zamasoft.foliojet.layout.box.params.Outline.create(
+				net.zamasoft.foliojet.css.impl.property.border.OutlineStyle.get(style),
+				net.zamasoft.foliojet.css.impl.property.border.OutlineWidth.get(style),
+				net.zamasoft.foliojet.css.impl.property.border.OutlineColor.get(style),
+				net.zamasoft.foliojet.css.impl.property.border.OutlineOffset.get(style));
 	}
 
 	/**

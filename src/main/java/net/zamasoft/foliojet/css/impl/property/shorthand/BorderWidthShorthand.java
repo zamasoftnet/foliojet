@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css.impl.property.shorthand;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.BorderValueUtils;
@@ -21,6 +22,11 @@ public class BorderWidthShorthand extends AbstractShorthandPropertyInfo {
 
 	protected BorderWidthShorthand() {
 		super("border-width");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { BorderWidth.TOP, BorderWidth.RIGHT, BorderWidth.BOTTOM, BorderWidth.LEFT };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

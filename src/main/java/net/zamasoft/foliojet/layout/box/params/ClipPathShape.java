@@ -22,8 +22,9 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * <p>
  * <b>第1弾の範囲</b>: {@code inset()}(roundつき、コーナー半径はx=y)・
  * {@code circle()}・{@code ellipse()}・{@code polygon()}と参照ボックス
- * 4種。{@code path()}・{@code url()}参照・インライン要素への適用は
- * 未対応(マニュアル5300参照)。ページ跨ぎで分割されたボックスは
+ * 4種。{@code path()}は2026-08-29に追加({@link Path})。{@code url()}
+ * 参照・インライン要素への適用は未対応(マニュアル5300参照)。
+ * ページ跨ぎで分割されたボックスは
  * 断片ごとに自身の参照ボックスで解決する(仕様の「ボックス全体で1つの
  * 形状」とは異なる割り切り)。
  * </p>
@@ -205,6 +206,34 @@ public abstract class ClipPathShape {
 				}
 			}
 			p.closePath();
+			return p;
+		}
+	}
+
+	/**
+	 * {@code path("...")}(2026-08-29)。SVGパスデータをpx座標のまま保持し、
+	 * 描画時に参照ボックス左上へ平行移動しpx→pt倍率を掛ける。
+	 */
+	public static final class Path extends ClipPathShape {
+		private final boolean evenOdd;
+		private final Path2D.Double path;
+		private final double pxToPt;
+
+		public Path(final ReferenceBox referenceBox, final boolean evenOdd, final Path2D.Double path,
+				final double pxToPt) {
+			super(referenceBox);
+			this.evenOdd = evenOdd;
+			this.path = path;
+			this.pxToPt = pxToPt;
+		}
+
+		@Override
+		public Shape resolve(final double x, final double y, final double w, final double h) {
+			final java.awt.geom.AffineTransform at = new java.awt.geom.AffineTransform(this.pxToPt, 0, 0,
+					this.pxToPt, x, y);
+			final Path2D.Double p = new Path2D.Double(
+					this.evenOdd ? Path2D.WIND_EVEN_ODD : Path2D.WIND_NON_ZERO);
+			p.append(this.path.getPathIterator(at), false);
 			return p;
 		}
 	}

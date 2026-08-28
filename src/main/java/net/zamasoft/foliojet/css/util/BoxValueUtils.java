@@ -17,6 +17,9 @@ import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.FitContentValue;
+import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.layout.box.params.IntrinsicSize;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -105,6 +108,26 @@ public final class BoxValueUtils {
 	}
 
 	/**
+	 * min-width/min-heightのValueからLengthを生成します(2026-08-29)。
+	 * 固有寸法キーワードはmin側の既定と同じ0({@link #toMinDimension}と同じ理由)。
+	 */
+	public static Length toMinLength(Value value) {
+		return isIntrinsic(value) ? Length.ZERO_LENGTH : toLength(value);
+	}
+
+	/**
+	 * min-width/min-heightのValueからDimensionとして取得します(2026-08-29)。
+	 * 固有寸法キーワードは{@link #toDimension}だとAUTOになるが、min-*で
+	 * AUTO型は従来あり得ず(初期値は0)、firstPassLayout等がNONE扱いして
+	 * 寸法がNONEに化ける。min側の既定と同じ0にしておき、実体は
+	 * BlockParams.intrinsicMinLineが運ぶ。
+	 */
+	public static Dimension toMinDimension(Value widthValue, Value heightValue) {
+		return toDimension(isIntrinsic(widthValue) ? AbsoluteLengthValue.ZERO : widthValue,
+				isIntrinsic(heightValue) ? AbsoluteLengthValue.ZERO : heightValue);
+	}
+
+	/**
 	 * Value(AbsoluteLengthValue/PercentageValue/CalcLengthValue/AUTO系キーワード)から
 	 * 対応するLengthTypeを求めます。Dimension/Insets/Offsetのtype判定で共用します。
 	 */
@@ -118,17 +141,88 @@ public final class BoxValueUtils {
 		if (value instanceof PercentageValue) {
 			return LengthType.RELATIVE;
 		}
-		if (value == KeywordValue.NONE || value == KeywordValue.AUTO) {
+		if (value == KeywordValue.NONE || value == KeywordValue.AUTO || isIntrinsic(value)) {
+			// 固有寸法キーワードはDimension上ではAUTO(2026-08-29)。実体は
+			// BlockParams.intrinsicLine等が別枠で運び、shrinkToFitで解く。
+			// 行方向以外・ブロック以外の消費者はautoとして扱えばよい
 			return LengthType.AUTO;
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	/**
+	 * 固有寸法キーワード(max-content/min-content/fit-content/
+	 * fit-content(L))であればtrueを返します(2026-08-29)。
+	 */
+	public static boolean isIntrinsic(Value value) {
+		return value == KeywordValue.MAX_CONTENT || value == KeywordValue.MIN_CONTENT
+				|| value == KeywordValue.FIT_CONTENT || value instanceof FitContentValue;
+	}
+
+	/**
+	 * 固有寸法キーワードをレイアウト側の{@link IntrinsicSize}へ変換します
+	 * (2026-08-29)。キーワードでなければnull。
+	 */
+	public static IntrinsicSize toIntrinsicSize(Value value) {
+		if (value == KeywordValue.MAX_CONTENT) {
+			return IntrinsicSize.MAX_CONTENT;
+		}
+		if (value == KeywordValue.MIN_CONTENT) {
+			return IntrinsicSize.MIN_CONTENT;
+		}
+		if (value == KeywordValue.FIT_CONTENT) {
+			return IntrinsicSize.FIT_CONTENT;
+		}
+		if (value instanceof FitContentValue fit) {
+			final Value argument = fit.argument();
+			// attr()の解決失敗等で長さでなくなった引数は引数無しと同じ
+			final Length bound = (argument instanceof AbsoluteLengthValue || argument instanceof PercentageValue
+					|| argument instanceof CalcLengthValue) ? toLength(argument) : Length.AUTO_LENGTH;
+			return IntrinsicSize.fitContent(bound);
+		}
+		return null;
+	}
+
+	/**
+	 * 固有寸法キーワードを解析します(css-sizing-3、2026-08-29)。
+	 * {@code max-content}/{@code min-content}/{@code fit-content}/
+	 * {@code fit-content(<length-percentage>)}。該当しなければnull
+	 * (呼び出し側が通常の長さ解析へ進む)。
+	 *
+	 * @param ua    ユーザーエージェント
+	 * @param token トークン
+	 * @return キーワード値。該当しなければnull
+	 * @throws PropertyException fit-content()の引数が不正
+	 */
+	public static Value toIntrinsicSize(UserAgent ua, CssToken token) throws PropertyException {
+		if (ValueUtils.isKeyword(token, "max-content")) {
+			return KeywordValue.MAX_CONTENT;
+		}
+		if (ValueUtils.isKeyword(token, "min-content")) {
+			return KeywordValue.MIN_CONTENT;
+		}
+		if (ValueUtils.isKeyword(token, "fit-content")) {
+			return KeywordValue.FIT_CONTENT;
+		}
+		if (token instanceof CssToken.Func func && func.is("fit-content")) {
+			final TokenStream args = func.argStream();
+			if (!args.hasNext()) {
+				throw new PropertyException();
+			}
+			final QuantityValue bound = toPositiveLength(ua, args.next());
+			if (bound == null || args.hasNext()) {
+				throw new PropertyException();
+			}
+			return new FitContentValue(bound);
+		}
+		return null;
+	}
+
+	/**
 	 * ValueからLengthを生成します。
 	 */
 	public static Length toLength(Value value) {
-		if (value == KeywordValue.NONE || value == KeywordValue.AUTO) {
+		if (value == KeywordValue.NONE || value == KeywordValue.AUTO || isIntrinsic(value)) {
 			return Length.AUTO_LENGTH;
 		}
 		if (value instanceof PercentageValue percentage) {

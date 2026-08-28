@@ -38,7 +38,14 @@ public enum DisplayValue implements Value {
 
 	FLEX_VALUE(DisplayValue.FLEX),
 
-	CONTENTS_VALUE(DisplayValue.CONTENTS);
+	CONTENTS_VALUE(DisplayValue.CONTENTS),
+
+	/**
+	 * {@code display: flow-root}(css-display-3、2026-08-29)。箱の種別は
+	 * blockと同じで、独立BFCを作る点だけが違う。種別コードはBLOCKを共有し、
+	 * BFCの有無は{@code BlockParams.flowRoot}で運ぶ。
+	 */
+	FLOW_ROOT_VALUE(DisplayValue.BLOCK);
 	public static final byte NONE = 0;
 
 	public static final byte BLOCK = 1;

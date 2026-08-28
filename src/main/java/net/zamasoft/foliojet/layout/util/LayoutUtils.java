@@ -171,6 +171,12 @@ public final class LayoutUtils {
 	 */
 	public static boolean needsIntrinsicSizing(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
 		final BlockParams params = blockBox.getBlockParams();
+		if (params.hasIntrinsicLine()) {
+			// width/min-width/max-widthのいずれかが固有寸法キーワード
+			// (2026-08-29): width:10pt; min-width:max-content のように幅が
+			// 確定していても、min/maxの実測が要る
+			return true;
+		}
 		final LengthType lineType = params.size.getLineType(params.flow);
 		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
 			return lineType != LengthType.ABSOLUTE;

@@ -78,7 +78,7 @@ public class TableColumnBox extends AbstractInnerTableBox {
 			return;
 		}
 		Drawable drawable = new BackgroundBorderDrawable(pageBox, clip, this.params.opacity, transform,
-				this.params.background, this.params.border, null, this.getWidth(), this.getHeight());
+				this.params.background, this.params.border, null, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode);
 		drawer.visitDrawable(drawable, x, y);
 	}
 

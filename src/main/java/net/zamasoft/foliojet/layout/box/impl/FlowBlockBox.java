@@ -21,6 +21,7 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Params;
@@ -318,6 +319,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(this.height)) {
 				this.height -= this.frame.getBorderHeight();
 			}
+			if (LayoutUtils.isNone(this.height) && !neutralLineFill && this.params.aspectRatio > 0) {
+				// aspect-ratio: 行方向(高さ)autoでページ方向(幅)が確定なら
+				// 比率で高さを決める(2026-08-29)
+				final double definite = this.definitePageExtentForRatio(
+						this.isSpecifiedPageSize() ? containerBox.getInnerWidth() : LayoutUtils.NONE);
+				if (!LayoutUtils.isNone(definite)) {
+					this.height = this.aspectRatioLineExtent(definite);
+				}
+			}
 			marginTop = marginBottom = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.height)) {
@@ -490,6 +500,19 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			default:
 				throw new IllegalStateException();
 			}
+			if (!this.specifiedPageAxis && this.params.aspectRatio > 0) {
+				// aspect-ratio: ページ方向(幅)がautoなら高さから比率で決める
+				// (2026-08-29。横書き側の同名処理と対)
+				double page = this.aspectRatioPageExtent(this.height);
+				page = Math.max(page, minWidth);
+				page = Math.min(page, maxWidth);
+				this.width = page;
+				minWidth = page;
+				if (this.params.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+					maxWidth = page;
+				}
+				this.specifiedPageAxis = true;
+			}
 			marginTop += xmargin;
 		} else {
 			// 横書きのフロー
@@ -499,6 +522,16 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					: LayoutUtils.computeDimensionWidth(this.size, lineSize);
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(this.width)) {
 				this.width -= this.frame.getBorderWidth();
+			}
+			if (LayoutUtils.isNone(this.width) && !neutralLineFill && this.params.aspectRatio > 0) {
+				// aspect-ratio: 幅autoで高さが確定なら幅=高さ×比率(2026-08-29、
+				// css-sizing-4 §5.1。height:40px;aspect-ratio:2のブロックは
+				// 幅80pxになり、残りはmargin側へ)
+				final double definite = this.definitePageExtentForRatio(
+						this.isSpecifiedPageSize() ? containerBox.getInnerHeight() : LayoutUtils.NONE);
+				if (!LayoutUtils.isNone(definite)) {
+					this.width = this.aspectRatioLineExtent(definite);
+				}
 			}
 			marginLeft = marginRight = 0;
 			for (int state = 0; state < 2; ++state) {
@@ -685,6 +718,23 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			default:
 				throw new IllegalStateException();
 			}
+			if (!this.specifiedPageAxis && this.params.aspectRatio > 0) {
+				// aspect-ratio: 高さがauto(または基準未確定の%)なら幅から比率で
+				// 決める(2026-08-29)。通常フローのブロックの幅は常に確定
+				// しているので、これがサムネイルの16:9を決める本線。内容が
+				// 比率高より高いときはoverflow:visibleなら内容に合わせて伸びる
+				// (min-height:auto=内容寸法の近似。setPageAxisはminPageAxis
+				// 以上・maxPageAxis以下へ丸める)
+				double page = this.aspectRatioPageExtent(this.width);
+				page = Math.max(page, minHeight);
+				page = Math.min(page, maxHeight);
+				this.height = page;
+				minHeight = page;
+				if (this.params.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+					maxHeight = page;
+				}
+				this.specifiedPageAxis = true;
+			}
 			marginLeft += xmargin;
 		}
 		if (this.params.flow.isVertical()) {
@@ -717,6 +767,42 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		return this.contentSize;
 	}
 
+	/**
+	 * aspect-ratioの逆算(ページ方向確定→行方向)に使う、ページ方向の
+	 * 確定content-box寸法です(2026-08-29)。絶対長、または基準が確定した
+	 * %・混合値のときだけ値を返し、それ以外はNONE。
+	 *
+	 * @param percentBase %の基準(未確定ならNONE)
+	 */
+	private double definitePageExtentForRatio(final double percentBase) {
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.params.flow;
+		final LengthType type = this.size.getPageType(flow);
+		double page;
+		switch (type) {
+		case ABSOLUTE:
+			page = this.size.getPageLength(flow);
+			break;
+		case RELATIVE:
+			if (LayoutUtils.isNone(percentBase)) {
+				return LayoutUtils.NONE;
+			}
+			page = this.size.getPageLength(flow) * percentBase;
+			break;
+		case MIXED:
+			if (LayoutUtils.isNone(percentBase)) {
+				return LayoutUtils.NONE;
+			}
+			page = this.size.getPageLength(flow) + this.size.getPageRatio(flow) * percentBase;
+			break;
+		default:
+			return LayoutUtils.NONE;
+		}
+		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			page -= this.frame.getBorderPageExtent(flow);
+		}
+		return Math.max(0, page);
+	}
+
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		if (DEBUG) {
@@ -742,12 +828,40 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		// 解決済み整列は断片間で共有される状態(旧実装の pos 書き戻し相当)。
 		// レシピは値をキャプチャし、this を保持しない
 		final Align resolvedAlign = this.resolvedAlign;
+		// 固有寸法キーワードで決めた行方向幅は継続断片へ確定値として渡す
+		// (2026-08-29)。断片のsizeは行方向AUTOのままなので、restyle→
+		// startFlowBlock→calculateSizeが包含ブロック幅へ再解決してしまう。
+		// 解決値は内容全体の実測で断片間で共通なので、ABSOLUTEに固定する
+		final Dimension resolvedLine = params.hasIntrinsicLine() ? this.resolvedLineSize() : null;
 		return (state, container) -> {
-			final FlowBlockBox next = new FlowBlockBox(params, pos, state.nextSize(), state.nextMinSize(),
+			final Dimension nextSize = resolvedLine == null ? state.nextSize()
+					: withLine(state.nextSize(), resolvedLine, params.flow);
+			final FlowBlockBox next = new FlowBlockBox(params, pos, nextSize, state.nextMinSize(),
 					state.nextFrame(), container);
 			next.resolvedAlign = resolvedAlign;
 			return next;
 		};
+	}
+
+	/**
+	 * 行方向の使用寸法を指定寸法(ABSOLUTE)として表したDimensionを返します
+	 * (2026-08-29、{@link #fragmentRecipe}用)。border-box指定なら
+	 * calculateSizeが差し引くぶんを足しておく。
+	 */
+	private Dimension resolvedLineSize() {
+		final WritingMode flow = this.params.flow;
+		final double line = (flow.isVertical() ? this.height : this.width)
+				+ (this.params.boxSizing == BoxSizingMode.BORDER_BOX ? this.frame.getBorderLineExtent(flow) : 0);
+		return Dimension.create(line, line, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
+	}
+
+	/** {@code page}のページ方向に{@code line}の行方向を合成します。 */
+	private static Dimension withLine(final Dimension page, final Dimension line, final WritingMode flow) {
+		return flow.isVertical()
+				? Dimension.create(page.getWidth(), page.getWidthRatio(), line.getHeight(), 0, page.getWidthType(),
+						LengthType.ABSOLUTE)
+				: Dimension.create(line.getWidth(), 0, page.getHeight(), page.getHeightRatio(), LengthType.ABSOLUTE,
+						page.getHeightType());
 	}
 
 	public final void restyle(final BlockBuilder builder, final net.zamasoft.foliojet.layout.fragment.OpenShape shape) {

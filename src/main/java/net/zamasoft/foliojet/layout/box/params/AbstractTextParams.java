@@ -231,6 +231,11 @@ public abstract class AbstractTextParams extends Params {
 	public double decorationThickness = 0;
 
 	/**
+	 * 文字装飾の色(text-decoration-color、2026-08-29)。nullなら文字色。
+	 */
+	public Color decorationColor = null;
+
+	/**
 	 * 文字の枠の太さ
 	 */
 	public double textStrokeWidth = 0;

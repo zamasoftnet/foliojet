@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.css.impl.property.shorthand;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
+import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.util.ValueUtils;
@@ -23,6 +24,11 @@ public class ColumnsShorthand extends AbstractShorthandPropertyInfo {
 
 	protected ColumnsShorthand() {
 		super("-cssj-columns");
+	}
+
+	@Override
+	protected PrimitivePropertyInfo[] longhands() {
+		return new PrimitivePropertyInfo[] { ColumnWidth.INFO, ColumnCount.INFO };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {

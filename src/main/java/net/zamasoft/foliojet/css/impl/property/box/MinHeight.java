@@ -41,7 +41,7 @@ public class MinHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static Length getLength(CSSStyle style) {
-		return BoxValueUtils.toLength(MinHeight.get(style));
+		return BoxValueUtils.toMinLength(MinHeight.get(style));
 	}
 
 	private MinHeight() {
@@ -62,6 +62,16 @@ public class MinHeight extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
+		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
+		if (intrinsic != null) {
+			return intrinsic;
+		}
+		if (ValueUtils.isAuto(lu)) {
+			// auto(css-sizing-3の初期値)は通常フローでは0と等価。flex/grid
+			// itemの「自動最小寸法」はレイアウト側が別途持つ(2026-08-29)
+			return AbsoluteLengthValue.ZERO;
+		}
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);
 		if (value == null) {
 			throw new PropertyException();

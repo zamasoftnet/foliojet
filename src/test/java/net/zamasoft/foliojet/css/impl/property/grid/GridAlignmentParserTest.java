@@ -54,17 +54,19 @@ public class GridAlignmentParserTest extends TestCase {
 		assertEquals(BoxAlignmentValue.START, parse(GridAlignmentProperty.ALIGN_SELF, "start"));
 	}
 
-	/** autoはself系のみ。baseline・space-*・safe/unsafeは宣言無効。 */
+	/** autoはself系のみ。space-*はitems/self系で宣言無効。 */
 	public void testRejected() {
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_ITEMS, "auto") instanceof PropertyException);
-		assertTrue(parse(GridAlignmentProperty.ALIGN_ITEMS, "baseline") instanceof PropertyException);
+		// baseline・safe/unsafeは2026-08-29から受理(flex-start等へ丸める)。
+		// ModernCssValuesTest参照
+		assertSame(BoxAlignmentValue.FLEX_START, parse(GridAlignmentProperty.ALIGN_ITEMS, "baseline"));
 		// space-*はFlex F3aでcontent系の受理値になった(Grid mapperがNORMALへ
 		// 縮退)。self/items系では引き続き宣言無効
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_ITEMS, "space-between") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.ALIGN_SELF, "space-evenly") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_CONTENT, "auto") instanceof PropertyException);
-		assertTrue(parse(GridAlignmentProperty.ALIGN_SELF, "safe center") instanceof PropertyException);
-		assertTrue(parse(GridAlignmentProperty.JUSTIFY_SELF, "unsafe end") instanceof PropertyException);
+		assertSame(BoxAlignmentValue.CENTER, parse(GridAlignmentProperty.ALIGN_SELF, "safe center"));
+		assertSame(BoxAlignmentValue.END, parse(GridAlignmentProperty.JUSTIFY_SELF, "unsafe end"));
 		assertTrue(parse(GridAlignmentProperty.ALIGN_ITEMS, "center extra") instanceof PropertyException);
 	}
 

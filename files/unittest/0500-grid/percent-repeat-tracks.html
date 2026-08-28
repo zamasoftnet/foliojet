@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid: percent / repeat(N, %) / min-content tracks</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 10pt;
+	line-height: 12pt;
+	font-family: serif;
+}
+div {
+	margin: 0;
+}
+.g {
+	display: grid;
+	width: 200pt;
+	margin-bottom: 8pt;
+	background: #eee;
+}
+.g > div {
+	background: #ccf;
+}
+/* 100%: 1列200pt、2行 */
+#p1 { grid-template-columns: 100%; }
+/* repeat(4, 25%): 4列50pt */
+#p2 { grid-template-columns: repeat(4, 25%); }
+/* min-content auto: 1列目は"ab"のmin-content、2列目が残り */
+#p3 { grid-template-columns: min-content auto; column-gap: 4pt; }
+/* min-content minmax(0, auto) min-content */
+#p4 { grid-template-columns: min-content minmax(0, auto) min-content; column-gap: 4pt; }
+/* %とgapの併用: 40%+40%+gap 10 = 170、残り30は末尾 */
+#p5 { grid-template-columns: 40% 40%; column-gap: 10pt; }
+</style>
+</head>
+<body>
+<div class="g" id="p1"><div>one</div><div>two</div></div>
+<div class="g" id="p2"><div>a</div><div>b</div><div>c</div><div>d</div></div>
+<div class="g" id="p3"><div>ab</div><div>the rest of the row goes here and wraps if needed</div></div>
+<div class="g" id="p4"><div>ab</div><div>middle text that can wrap freely</div><div>cd</div></div>
+<div class="g" id="p5"><div>x</div><div>y</div></div>
+<div id="after">after</div>
+</body>
+</html>

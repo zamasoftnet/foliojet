@@ -61,6 +61,29 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(BackgroundSize.INFO_WIDTH, KeywordValue.AUTO);
 		primitives.set(BackgroundSize.INFO_HEIGHT, KeywordValue.AUTO);
 		primitives.set(BackgroundClip.INFO, BackgroundClipValue.BORDER_BOX_VALUE);
+		// 多層背景(コンマ区切り、2026-08-29): 最初のレイヤだけを採る。
+		// 最終レイヤにだけ許される<color>は拾って背景色にする
+		final java.util.List<TokenStream> layers = tokens.splitComma();
+		if (layers.isEmpty()) {
+			throw new PropertyException();
+		}
+		if (layers.size() > 1) {
+			final TokenStream last = layers.get(layers.size() - 1);
+			while (last.hasNext()) {
+				final CssToken lu = last.next();
+				if (ColorValueUtils.isTransparent(lu)) {
+					primitives.set(BackgroundColor.INFO, KeywordValue.TRANSPARENT);
+				} else if (ColorValueUtils.isCurrentColor(lu)) {
+					primitives.set(BackgroundColor.INFO, KeywordValue.DEFAULT);
+				} else {
+					final Value c = ColorValueUtils.toColor(ua, lu);
+					if (c != null) {
+						primitives.set(BackgroundColor.INFO, c);
+					}
+				}
+			}
+		}
+		tokens = layers.get(0);
 		boolean color = false, none = false, uriValue = false, repeat = false, attachment = false, position = false, size = false, clip = false;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
@@ -68,7 +91,24 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(BackgroundColor.INFO, KeywordValue.TRANSPARENT);
 				continue;
 			}
-			Value value = ColorValueUtils.toPaint(ua, lu);
+			if (ColorValueUtils.isCurrentColor(lu)) {
+				// currentcolor(2026-08-29)。BackgroundColorと同じDEFAULT番兵
+				primitives.set(BackgroundColor.INFO, KeywordValue.DEFAULT);
+				continue;
+			}
+			Value value = ColorValueUtils.toGradient(ua, lu);
+			if (value != null) {
+				// グラデーションは画像レイヤ(BackgroundImage.getPaint)。従来は
+				// 背景色の枠に入れていたが、`linear-gradient(...), #fff` のように
+				// 色と共存させるため分ける(2026-08-29)
+				if (uriValue) {
+					throw new PropertyException("urlが2度指定されています");
+				}
+				uriValue = true;
+				primitives.set(BackgroundImage.INFO, value);
+				continue;
+			}
+			value = ColorValueUtils.toPaint(ua, lu);
 			if (value != null) {
 				if (color) {
 					throw new PropertyException("colorが2度指定されています");
@@ -200,138 +240,36 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 			}
 			position = true;
 
-			Value x, y;
-			if (lu instanceof CssToken.Ident ident1) {
-				String kw1 = ident1.lower();
-				if (!isPositionKeyword(kw1)) {
-					throw new PropertyException();
-				}
-				String kw2 = null;
-				final CssToken nextlu = tokens.peek();
-				if (nextlu == null) {
-					kw2 = null;
-				} else if (nextlu instanceof CssToken.Ident ident2) {
-					kw2 = ident2.lower();
-					if (!isPositionKeyword(kw2)) {
-						kw2 = null;
-					} else {
-						tokens.next();
-					}
-				} else {
-					y = ValueUtils.toPercentage(nextlu);
-					if (y == null) {
-						y = ValueUtils.toLength(ua, nextlu);
-					}
-					if (y == null) {
-						kw2 = null;
-					} else {
-						tokens.next();
-
-						if (kw1.equals("left")) {
-							x = PercentageValue.ZERO;
-						} else if (kw1.equals("center")) {
-							x = PercentageValue.HALF;
-						} else if (kw1.equals("right")) {
-							x = PercentageValue.FULL;
-						} else {
-							throw new PropertyException();
-						}
-
-						primitives.set(BackgroundPosition.INFO_X, x);
-						primitives.set(BackgroundPosition.INFO_Y, y);
-						continue;
-					}
-				}
-
-				if (("top".equals(kw1) && "left".equals(kw2)) || ("left".equals(kw1) && "top".equals(kw2))) {
-					x = y = PercentageValue.ZERO;
-				} else if (("top".equals(kw1) && kw2 == null) || ("top".equals(kw1) && "center".equals(kw2))
-						|| ("center".equals(kw1) && "top".equals(kw2))) {
-					x = PercentageValue.HALF;
-					y = PercentageValue.ZERO;
-				} else if (("right".equals(kw1) && "top".equals(kw2)) || ("top".equals(kw1) && "right".equals(kw2))) {
-					x = PercentageValue.FULL;
-					y = PercentageValue.ZERO;
-				} else if (("left".equals(kw1) && kw2 == null) || ("left".equals(kw1) && "center".equals(kw2))
-						|| ("center".equals(kw1) && "left".equals(kw2))) {
-					x = PercentageValue.ZERO;
-					y = PercentageValue.HALF;
-				} else if (("center".equals(kw1) && kw2 == null) || ("center".equals(kw1) && "center".equals(kw2))) {
-					x = y = PercentageValue.HALF;
-				} else if (("right".equals(kw1) && kw2 == null) || ("right".equals(kw1) && "center".equals(kw2))
-						|| ("center".equals(kw1) && "right".equals(kw2))) {
-					x = PercentageValue.FULL;
-					y = PercentageValue.HALF;
-				} else if (("left".equals(kw1) && "bottom".equals(kw2))
-						|| ("bottom".equals(kw1) && "left".equals(kw2))) {
-					x = PercentageValue.ZERO;
-					y = PercentageValue.FULL;
-				} else if (("bottom".equals(kw1) && kw2 == null) || ("bottom".equals(kw1) && "center".equals(kw2))
-						|| ("center".equals(kw1) && "bottom".equals(kw2))) {
-					x = PercentageValue.HALF;
-					y = PercentageValue.FULL;
-				} else if (("bottom".equals(kw1) && "right".equals(kw2))
-						|| ("right".equals(kw1) && "bottom".equals(kw2))) {
-					x = y = PercentageValue.FULL;
-				} else {
-					throw new PropertyException();
-				}
-
-				primitives.set(BackgroundPosition.INFO_X, x);
-				primitives.set(BackgroundPosition.INFO_Y, y);
-				continue;
-			}
-
-			x = ValueUtils.toPercentage(lu);
-			if (x == null) {
-				x = ValueUtils.toLength(ua, lu);
-			}
-			if (x == null) {
+			// <position>はlonghandのパーサに任せる(2026-08-29)。従来は
+			// 1〜2値だけを手で解いており、css-values-3の4値構文
+			// (right 10px bottom 20px)や3値構文でbackground宣言全体が
+			// 捨てられていた(実サイトで4件)。位置に使えるトークンが続く
+			// 限り、最大4つまで集めて渡す
+			if (!isPositionToken(ua, lu)) {
 				throw new PropertyException();
 			}
-
-			final CssToken nextlu = tokens.peek();
-			if (nextlu == null) {
-				// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
-				// (2026-08-27。longhand側の修正と対)
-				y = PercentageValue.HALF;
-				primitives.set(BackgroundPosition.INFO_X, x);
-				primitives.set(BackgroundPosition.INFO_Y, y);
-				continue;
+			final java.util.List<CssToken> pos = new java.util.ArrayList<>();
+			pos.add(lu);
+			while (pos.size() < 4 && tokens.hasNext() && isPositionToken(ua, tokens.peek())) {
+				pos.add(tokens.next());
 			}
-
-			if (nextlu instanceof CssToken.Ident ident2) {
-				String kw2 = ident2.lower();
-				if (kw2.equals("top")) {
-					tokens.next();
-					y = PercentageValue.ZERO;
-				} else if (kw2.equals("center")) {
-					tokens.next();
-					y = PercentageValue.HALF;
-				} else if (kw2.equals("bottom")) {
-					tokens.next();
-					y = PercentageValue.FULL;
-				} else {
-					// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
-				// (2026-08-27。longhand側の修正と対)
-				y = PercentageValue.HALF;
-				}
-			} else {
-				y = ValueUtils.toPercentage(nextlu);
-				if (y == null) {
-					y = ValueUtils.toLength(ua, nextlu);
-				}
-				if (y == null) {
-					// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
-				// (2026-08-27。longhand側の修正と対)
-				y = PercentageValue.HALF;
-				} else {
-					tokens.next();
-				}
+			for (final net.zamasoft.foliojet.css.property.CompositeProperty.Entry entry : ((BackgroundPosition) BackgroundPosition.INFO_X)
+					.parsePositionValues(new TokenStream(pos), ua, uri)) {
+				primitives.set(entry.getPrimitivePropertyInfo(), entry.getValue());
 			}
-			primitives.set(BackgroundPosition.INFO_X, x);
-			primitives.set(BackgroundPosition.INFO_Y, y);
 		}
+	}
+
+	/** &lt;position&gt;の成分になれるトークン(キーワードまたは長さ・割合)か。 */
+	static boolean isPositionToken(final UserAgent ua, final CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			return isPositionKeyword(ident.lower());
+		}
+		if (token instanceof CssToken.Func) {
+			// calc()等
+			return ValueUtils.toPercentage(token) != null || ValueUtils.toLength(ua, token) != null;
+		}
+		return token instanceof CssToken.Percent || token instanceof CssToken.Dim || token instanceof CssToken.Num;
 	}
 
 	private static boolean isPositionKeyword(String kw) {

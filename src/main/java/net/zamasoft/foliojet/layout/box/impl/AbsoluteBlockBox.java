@@ -141,10 +141,30 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(size)) {
 			size -= this.frame.getBorderLineExtent(flow);
 		}
+		// 固有寸法キーワード(2026-08-29)。引数無しfit-contentはautoの
+		// shrink-to-fit(CSS2.1 §10.3.7)そのものなのでAbsoluteSizingに任せ、
+		// それ以外はここで長さへ解いて指定幅として渡す。min/maxの
+		// fit-contentの上限は包含ブロック幅からフレームを引いた近似
+		final double availableLine = cLine - this.frame.getFrameLineExtent(flow);
+		final net.zamasoft.foliojet.layout.box.params.IntrinsicSize intrinsic = this.params.intrinsicLine;
+		if (intrinsic != null && (intrinsic.kind() != net.zamasoft.foliojet.layout.box.params.IntrinsicSize.Kind.FIT_CONTENT
+				|| intrinsic.hasArgument())) {
+			size = this.resolveIntrinsicLine(intrinsic, minLineAxis, maxLineAxis, availableLine, cLine);
+		}
+		double maxLine = LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
+		if (this.params.intrinsicMaxLine != null) {
+			maxLine = this.resolveIntrinsicLine(this.params.intrinsicMaxLine, minLineAxis, maxLineAxis, availableLine,
+					cLine);
+		}
+		double minLine = LayoutUtils.computeDimensionLine(this.minSize, flow, cLine);
+		if (this.params.intrinsicMinLine != null) {
+			minLine = this.resolveIntrinsicLine(this.params.intrinsicMinLine, minLineAxis, maxLineAxis, availableLine,
+					cLine);
+		}
 		final AbsoluteSizing.Result result = AbsoluteSizing.resolve(new AbsoluteSizing.Input( //
 				cLine, size, //
-				LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine), //
-				LayoutUtils.computeDimensionLine(this.minSize, flow, cLine), //
+				maxLine, //
+				minLine, //
 				vertical ? LayoutUtils.computeInsetsTop(pos.location, cLine)
 						: LayoutUtils.computeInsetsLeft(pos.location, cLine), //
 				vertical ? LayoutUtils.computeInsetsBottom(pos.location, cLine)

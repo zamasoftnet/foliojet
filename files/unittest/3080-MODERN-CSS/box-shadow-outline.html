@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><style>
+@page { size: 200pt 200pt; margin: 0; }
+body { margin: 0; }
+div { position: absolute; width: 60pt; height: 40pt; }
+/* 背景無し+ぼかし無しの硬い影: 影は箱の外だけ(箱の下は透ける) */
+#hollow { left: 20pt; top: 20pt; box-shadow: 10pt 10pt 0 rgb(0,0,200); }
+/* よくあるカードの影 */
+#card { left: 100pt; top: 20pt; background: #fff; border-radius: 6pt; box-shadow: 0 2pt 8pt rgba(0,0,0,.5); }
+/* 境界の外側2pt空けて3ptのアウトライン */
+#outlined { left: 20pt; top: 110pt; border: 1pt solid #000; outline: 3pt solid rgb(0,160,0); outline-offset: 2pt; }
+/* 内側の影(広がりだけ=6ptの赤い縁) */
+#inset { left: 100pt; top: 110pt; background: #fff; box-shadow: inset 0 0 0 6pt rgb(200,0,0); }
+/* 角丸+複数の影+outline:auto(solid扱い)+負のoffset */
+#multi { left: 20pt; top: 165pt; width: 140pt; height: 25pt; background: #eef; border: 2pt solid #446;
+  border-radius: 10pt; box-shadow: 2pt 2pt 0 rgb(255,0,0), 4pt 4pt 0 rgb(0,0,255), inset 0 0 4pt rgba(0,0,0,.4);
+  outline: auto 1pt #0a0; outline-offset: -6pt; }
+</style></head><body>
+<div id="hollow"></div>
+<div id="card"></div>
+<div id="outlined"></div>
+<div id="inset"></div>
+<div id="multi"></div>
+</body></html>

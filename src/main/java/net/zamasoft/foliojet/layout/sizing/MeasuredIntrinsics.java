@@ -243,6 +243,7 @@ public final class MeasuredIntrinsics {
 				inner = Math.min(inner, Math.max(0, bp.maxSize.getLineLength(flow) - bb)
 						+ block.getFrame().getBorderLineExtent(flow));
 			}
+
 			if (bp.minSize.getLineType(flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				inner = Math.max(inner, Math.max(0, bp.minSize.getLineLength(flow) - bb)
 						+ block.getFrame().getBorderLineExtent(flow));

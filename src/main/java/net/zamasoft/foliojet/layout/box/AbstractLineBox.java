@@ -83,6 +83,25 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	 */
 	private double endHangAdvance;
 
+	/**
+	 * {@code text-overflow: ellipsis}の省略記号(なければnull。2026-08-29、
+	 * TextBuilder.applyTextOverflow)。行の内容とは別に持ち、描画時に
+	 * 行末をクリップして追加描画する。
+	 */
+	private net.zamasoft.pdfg2d.gc.text.Text ellipsis;
+
+	/** 行原点(lineAlign適用前)から測った、内容を描く行方向の長さ。 */
+	private double ellipsisClipExtent;
+
+	public void setEllipsis(final net.zamasoft.pdfg2d.gc.text.Text ellipsis, final double clipExtent) {
+		this.ellipsis = ellipsis;
+		this.ellipsisClipExtent = clipExtent;
+	}
+
+	public net.zamasoft.pdfg2d.gc.text.Text getEllipsis() {
+		return this.ellipsis;
+	}
+
 	public void setEndHangAdvance(final double endHangAdvance) {
 		this.endHangAdvance = endHangAdvance;
 	}
@@ -258,6 +277,31 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
+		if (this.ellipsis != null) {
+			// text-overflow: ellipsis(2026-08-29)。内容は行末側を
+			// ellipsisClipExtentで切り、省略記号を元のクリップで最後に描く
+			// (worklistはLIFOなので先にpushすると子の後で実行される)
+			final boolean vertical = this.getLineParams().flow.isVertical();
+			final double pw = pageBox.getWidth(), ph = pageBox.getHeight();
+			final java.awt.geom.Rectangle2D.Double keep = vertical
+					? new java.awt.geom.Rectangle2D.Double(x - pw, y - ph, pw * 3, ph + this.ellipsisClipExtent)
+					: new java.awt.geom.Rectangle2D.Double(x - pw, y - ph, pw + this.ellipsisClipExtent, ph * 3);
+			final Shape outerClip = clip;
+			final double ex = vertical ? x : x + this.ellipsisClipExtent;
+			final double ey = vertical ? y + this.ellipsisClipExtent : y;
+			final List<Object> run = java.util.Collections.singletonList(this.ellipsis);
+			worklist.push(w -> drawer.visitDrawable(new TextSequenceDrawable(pageBox, outerClip, transform, run, 0, 1,
+					this.getTextParams(), this.ascent, this.descent), ex, ey));
+			if (clip == null) {
+				clip = keep;
+			} else if (clip instanceof java.awt.geom.Rectangle2D rc) {
+				clip = rc.createIntersection(keep);
+			} else {
+				final java.awt.geom.Area area = new java.awt.geom.Area(clip);
+				area.intersect(new java.awt.geom.Area(keep));
+				clip = area;
+			}
+		}
 		switch (this.getLineParams().flow) {
 		case WritingMode.TB:
 			// 横書き

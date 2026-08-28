@@ -125,6 +125,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			if (alpha < 1f) {
 				w.attr("opacity", alpha);
 			}
+			this.writeBlendMode(w);
 			w.closeEmpty();
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
@@ -230,7 +231,6 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			return;
 		}
 		this.page.useFont(subset);
-		this.writer.addFontFace(subset.family(), subset.uri());
 
 		final int glyphCount = text.getGlyphCount();
 		final int[] gids = text.getGlyphIds();
@@ -272,6 +272,10 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			minY = Math.min(minY, gy - (vertical ? 0 : metrics.getAscent()));
 			maxY = Math.max(maxY, gy + (vertical ? size : metrics.getDescent()));
 		}
+		// 符号を割り当てた**後**に@font-faceを登録する。持ち越したサブセットは
+		// 新しい字形で版が進みURIが変わるので、割り当て前に登録すると
+		// このrunで育った分だけ前の版を指してしまう(2026-08-29)
+		this.writer.addFontFace(subset.family(), subset.uri());
 
 		try {
 			final SVGWriter w = this.writer;
@@ -289,6 +293,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			}
 			w.attr("font-family", subset.family());
 			w.attr("font-size", size);
+			this.writeBlendMode(w);
 			// 字送りは組版側で確定済み。閲覧側が詰めたり合字にしたりすると崩れる
 			w.attr("font-kerning", "none");
 			w.attr("font-variant-ligatures", "none");
@@ -384,6 +389,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			}
 			w.attr("font-family", family);
 			w.attr("font-size", size);
+			this.writeBlendMode(w);
 			if (style.getStyle() != FontStyle.Style.NORMAL) {
 				w.attr("font-style", "italic");
 			}

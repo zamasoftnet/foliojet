@@ -54,6 +54,11 @@ public final class BlockSize extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isAuto(lu)) {
 			return KeywordValue.AUTO;
 		}
+		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
+		if (intrinsic != null) {
+			return intrinsic;
+		}
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);
 		if (value == null) {
 			throw new PropertyException();

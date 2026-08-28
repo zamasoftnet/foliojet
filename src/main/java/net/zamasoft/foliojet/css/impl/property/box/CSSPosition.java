@@ -51,7 +51,8 @@ public class CSSPosition extends AbstractPrimitivePropertyInfo {
 				return PositionValue.ABSOLUTE_VALUE;
 			} else if (ident.equals("fixed")) {
 				return PositionValue.FIXED_VALUE;
-			} else if (ident.equals("sticky")) {
+			} else if (ident.equals("sticky") || ident.equals("-webkit-sticky")) {
+				// -webkit-stickyはSafari向けの別名(2026-08-29)
 				// 紙にはスクロールポートが無いため、relativeと同じ包含ブロックを
 				// 作る一方でinsetによる移動量は0とする。RELATIVE_VALUEへ潰すと
 				// bottom等が通常の相対移動として効き、改ページ後の断片が版面外へ

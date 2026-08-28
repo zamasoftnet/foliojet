@@ -39,6 +39,16 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		return ((TransformValue) style.get(INFO)).getTyRatio();
 	}
 
+	/** 交差成分(高さ→x)。{@link TransformValue#getTxRatioH()} */
+	public static double getTxRatioH(CSSStyle style) {
+		return ((TransformValue) style.get(INFO)).getTxRatioH();
+	}
+
+	/** 交差成分(幅→y)。{@link TransformValue#getTyRatioW()} */
+	public static double getTyRatioW(CSSStyle style) {
+		return ((TransformValue) style.get(INFO)).getTyRatioW();
+	}
+
 	protected Transform() {
 		super("-cssj-transform");
 	}
@@ -61,9 +71,12 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		AffineTransform at = null;
 		// translate()の割合成分。要素の寸法が要るので行列へ畳めない
-		// (TransformValueのjavadoc参照)。平行移動だけの指定に限り持ち越す
-		final double[] ratio = new double[2];
-		boolean translateOnly = true;
+		// (TransformValueのjavadoc参照)。割合が回転・拡大の後ろに来ても
+		// 線形分解して係数ベクトルへ足し込む(2026-08-29): 割合つき平行移動
+		// T(v)の前に合成済みの行列Aがあるとき、A·T(v)·B = A·B + A_lin·v
+		// なので、v=(px·W, py·H)の係数 px·A_lin·e1 と py·A_lin·e2 を積む
+		// ratio[0]=W→x, ratio[1]=H→y, ratio[2]=H→x, ratio[3]=W→y
+		final double[] ratio = new double[4];
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
 			if (lu instanceof CssToken.Ident) {
@@ -89,22 +102,35 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 				} else {
 					at.concatenate(t);
 				}
-			} else if (func.is("rotate")) {
-				translateOnly = false;
+			} else if (func.is("matrix3d")) {
+				// 4x4のうち2D成分(a b / c d / tx ty)だけを使う。zは無視
+				final double[] m = new double[16];
+				for (int i = 0; i < 16; ++i) {
+					m[i] = getFloatValue(params);
+				}
+				AffineTransform t = new AffineTransform(m[0], m[1], m[4], m[5], m[12], m[13]);
+				if (at == null) {
+					at = t;
+				} else {
+					at.concatenate(t);
+				}
+			} else if (func.is("rotate") || func.is("rotateZ")) {
 				double angle = getAngle(params);
 				if (at == null) {
 					at = AffineTransform.getRotateInstance(angle);
 				} else {
 					at.rotate(angle);
 				}
-			} else if (func.is("scale")) {
-				translateOnly = false;
+			} else if (func.is("scale") || func.is("scale3d")) {
 				double sx = getFloatValue(params);
 				double sy;
 				if (!params.hasNext()) {
 					sy = sx;
 				} else {
 					sy = getFloatValue(params);
+					if (params.hasNext()) {
+						getFloatValue(params); // scale3dのz
+					}
 				}
 				if (at == null) {
 					at = AffineTransform.getScaleInstance(sx, sy);
@@ -112,7 +138,6 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.scale(sx, sy);
 				}
 			} else if (func.is("scaleX")) {
-				translateOnly = false;
 				double sx = getFloatValue(params);
 				if (at == null) {
 					at = AffineTransform.getScaleInstance(sx, 1);
@@ -120,7 +145,6 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.scale(sx, 1);
 				}
 			} else if (func.is("scaleY")) {
-				translateOnly = false;
 				double sy = getFloatValue(params);
 				if (at == null) {
 					at = AffineTransform.getScaleInstance(1, sy);
@@ -128,7 +152,6 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.scale(1, sy);
 				}
 			} else if (func.is("skew")) {
-				translateOnly = false;
 				double shx = getAngle(params);
 				double shy;
 				if (!params.hasNext()) {
@@ -142,7 +165,6 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.shear(Math.tan(shx), Math.tan(shy));
 				}
 			} else if (func.is("skewX")) {
-				translateOnly = false;
 				double shx = getAngle(params);
 				if (at == null) {
 					at = AffineTransform.getShearInstance(Math.tan(shx), 0);
@@ -150,56 +172,90 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.shear(Math.tan(shx), 0);
 				}
 			} else if (func.is("skewY")) {
-				translateOnly = false;
 				double shy = getAngle(params);
 				if (at == null) {
 					at = AffineTransform.getShearInstance(0, Math.tan(shy));
 				} else {
 					at.shear(0, Math.tan(shy));
 				}
-			} else if (func.is("translate")) {
-				double tx = getLengthOrRatio(ua, params, ratio, 0);
+			} else if (func.is("translate") || func.is("translate3d")) {
+				final double[] pct = new double[2];
+				double tx = getLengthOrRatio(ua, params, pct, 0);
 				double ty;
 				if (!params.hasNext()) {
 					ty = 0;
 				} else {
-					ty = getLengthOrRatio(ua, params, ratio, 1);
+					ty = getLengthOrRatio(ua, params, pct, 1);
+					if (params.hasNext()) {
+						getLengthValue(ua, params); // translate3dのz
+					}
 				}
+				accumulateRatio(at, pct, ratio);
 				if (at == null) {
 					at = AffineTransform.getTranslateInstance(tx, ty);
 				} else {
 					at.translate(tx, ty);
 				}
 			} else if (func.is("translateX")) {
-				double tx = getLengthOrRatio(ua, params, ratio, 0);
+				final double[] pct = new double[2];
+				double tx = getLengthOrRatio(ua, params, pct, 0);
+				accumulateRatio(at, pct, ratio);
 				if (at == null) {
 					at = AffineTransform.getTranslateInstance(tx, 0);
 				} else {
 					at.translate(tx, 0);
 				}
 			} else if (func.is("translateY")) {
-				double ty = getLengthOrRatio(ua, params, ratio, 1);
+				final double[] pct = new double[2];
+				double ty = getLengthOrRatio(ua, params, pct, 1);
+				accumulateRatio(at, pct, ratio);
 				if (at == null) {
 					at = AffineTransform.getTranslateInstance(0, ty);
 				} else {
 					at.translate(0, ty);
 				}
+			} else if (func.is("translateZ") || func.is("perspective") || func.is("rotateX")
+					|| func.is("rotateY") || func.is("rotate3d") || func.is("scaleZ")) {
+				// 3D変換は紙面に射影できない。GPU合成のヒント(translateZ(0)等)
+				// として書かれることが大半なので、他の関数を活かすために
+				// この関数だけを無視する(2026-08-29)。rotateX/Yは真の3D回転
+				// なので近似しない
+				while (params.hasNext()) {
+					params.next();
+				}
 			} else {
 				throw new PropertyException();
 			}
 		}
-		if (ratio[0] != 0 || ratio[1] != 0) {
-			if (!translateOnly) {
-				// 回転・拡大と混ざると順序が効くので畳めない。従来どおり
-				// 指定全体を無効にする(黙って0にしない)
-				throw new PropertyException();
-			}
-			return TransformValue.create(at == null ? new AffineTransform() : at, ratio[0], ratio[1]);
+		if (ratio[0] != 0 || ratio[1] != 0 || ratio[2] != 0 || ratio[3] != 0) {
+			return TransformValue.create(at == null ? new AffineTransform() : at, ratio[0], ratio[1], ratio[2],
+					ratio[3]);
 		}
 		if (at == null) {
 			return KeywordValue.NONE;
 		}
 		return TransformValue.create(at);
+	}
+
+	/**
+	 * 割合つき平行移動 (px·W, py·H) を、ここまでの合成行列の線形部で
+	 * 写して係数ベクトルへ足します。{@code ratio}は
+	 * [W→x, H→y, H→x, W→y]。
+	 */
+	private static void accumulateRatio(final AffineTransform prefix, final double[] pct, final double[] ratio) {
+		if (pct[0] == 0 && pct[1] == 0) {
+			return;
+		}
+		final double m00 = prefix == null ? 1 : prefix.getScaleX();
+		final double m10 = prefix == null ? 0 : prefix.getShearY();
+		final double m01 = prefix == null ? 0 : prefix.getShearX();
+		final double m11 = prefix == null ? 1 : prefix.getScaleY();
+		// W成分: px·A_lin·e1 = px·(m00, m10)
+		ratio[0] += pct[0] * m00;
+		ratio[3] += pct[0] * m10;
+		// H成分: py·A_lin·e2 = py·(m01, m11)
+		ratio[2] += pct[1] * m01;
+		ratio[1] += pct[1] * m11;
 	}
 
 	private static CssToken nextParam(TokenStream params) throws PropertyException {

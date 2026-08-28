@@ -77,6 +77,21 @@ public abstract class AbstractBox implements IBox {
 	}
 
 	/** 内部圧縮後に内容を中央へ寄せる物理Xのずれです(既定0)。 */
+	/**
+	 * この箱を内容として保持している{@code FlowContainer}(2026-08-29)。
+	 * {@code hasNonDecorationContent}のメモを、変更のあった箱の祖先だけ
+	 * 無効化するために使う。保持先が変わるたびに付け直される。
+	 */
+	private net.zamasoft.foliojet.layout.box.content.FlowContainer contentParent;
+
+	public final net.zamasoft.foliojet.layout.box.content.FlowContainer getContentParent() {
+		return this.contentParent;
+	}
+
+	public final void setContentParent(final net.zamasoft.foliojet.layout.box.content.FlowContainer parent) {
+		this.contentParent = parent;
+	}
+
 	protected double internalOffsetX() {
 		return 0;
 	}
@@ -85,9 +100,12 @@ public abstract class AbstractBox implements IBox {
 		AffineTransform ct = this.getParams().transform;
 		final double txRatio = this.getParams().transformTxRatio;
 		final double tyRatio = this.getParams().transformTyRatio;
+		final double txRatioH = this.getParams().transformTxRatioH;
+		final double tyRatioW = this.getParams().transformTyRatioW;
 		final double isx = this.internalScaleX();
 		final double iox = this.internalOffsetX();
-		if (ct.isIdentity() && txRatio == 0 && tyRatio == 0 && isx == 1 && iox == 0) {
+		if (ct.isIdentity() && txRatio == 0 && tyRatio == 0 && txRatioH == 0 && tyRatioW == 0 && isx == 1
+				&& iox == 0) {
 			return transform;
 		}
 		transform = new AffineTransform(transform);
@@ -125,13 +143,16 @@ public abstract class AbstractBox implements IBox {
 		}
 
 		transform.translate(ax, ay);
-		transform.concatenate(ct);
-		if (txRatio != 0 || tyRatio != 0) {
+		if (txRatio != 0 || tyRatio != 0 || txRatioH != 0 || tyRatioW != 0) {
 			// **割合の平行移動はここで解く**(2026-08-03)。基準はこの箱自身の
-			// 寸法。平行移動だけの指定に限って持ち越しているので、行列との
-			// 順序は問わない(平行移動どうしは可換)
-			transform.translate(this.getWidth() * txRatio, this.getHeight() * tyRatio);
+			// 寸法。関数列の中の位置は解析時に線形分解して係数へ畳んであり
+			// (TransformValue、2026-08-29)、その結果は合成行列の**外側**
+			// (concatenateの前)に足す1回の平行移動になる
+			final double w = this.getWidth();
+			final double h = this.getHeight();
+			transform.translate(w * txRatio + h * txRatioH, w * tyRatioW + h * tyRatio);
 		}
+		transform.concatenate(ct);
 		transform.translate(-ax, -ay);
 		if (isx != 1 || iox != 0) {
 			// 内部圧縮は箱の左端(x)を基準に掛ける。内容は自然幅で組まれて

@@ -250,6 +250,8 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				return DisplayValue.LIST_ITEM_VALUE;
 			} else if (ident.equals("contents")) {
 				return DisplayValue.CONTENTS_VALUE;
+			} else if (ident.equals("flow-root")) {
+				return DisplayValue.FLOW_ROOT_VALUE;
 				// run-in は非対応(4で廃止。CSS Display 3 でも at-risk)。
 				// 未対応値として宣言ごと無効にする(モダンブラウザと同じ)
 			} else {
@@ -293,6 +295,32 @@ public class Display extends AbstractPrimitivePropertyInfo {
 					return DisplayValue.GRID_VALUE;
 				} else if (ident.equals("table-caption")) {
 					return DisplayValue.TABLE_CAPTION_VALUE;
+				}
+				// 接頭辞つきの別名(2026-08-29)。実サイト50件中33件・4777回
+				// と、未対応値の中で群を抜いて多かった
+				switch (ident) {
+				case "-webkit-flex":
+				case "-moz-flex":
+				case "-ms-flexbox":
+				case "-webkit-inline-flex":
+				case "-ms-inline-flexbox":
+					// 2012年版flexbox。現行のflexと同じ(inline-*は上の
+					// inline-flexと同じ近似)
+					return DisplayValue.FLEX_VALUE;
+				case "-ms-grid":
+					return DisplayValue.GRID_VALUE;
+				case "-webkit-box":
+				case "-moz-box":
+				case "-webkit-inline-box":
+					// 2009年版flexbox。**flexへは写さない**——
+					// `display:-webkit-box; -webkit-line-clamp:N` の行数
+					// 切り詰め慣用句は箱がブロックであることに依存し、
+					// flexにすると中身が1行に並ぶ。実サイトは必ず直後に
+					// 現行の `display:flex` を重ねて書くので、flexが要る
+					// 場面ではカスケード順でそちらが勝つ
+					return DisplayValue.BLOCK_VALUE;
+				default:
+					break;
 				}
 			}
 		}

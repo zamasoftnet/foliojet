@@ -88,7 +88,7 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 					if (color != null) {
 						throw new PropertyException();
 					}
-					color = ColorValueUtils.toColor(ua, lu);
+					color = ColorValueUtils.toColorOrCurrent(ua, lu);
 					if (color == null) {
 						throw new PropertyException();
 					}
@@ -102,7 +102,7 @@ public class TextEmphasisShorthand extends AbstractShorthandPropertyInfo {
 				if (color != null) {
 					throw new PropertyException();
 				}
-				color = ColorValueUtils.toColor(ua, lu);
+				color = ColorValueUtils.toColorOrCurrent(ua, lu);
 				if (color == null) {
 					throw new PropertyException();
 				}

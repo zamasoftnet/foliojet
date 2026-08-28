@@ -87,7 +87,7 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 		if (ColorValueUtils.isTransparent(lu)) {
 			return KeywordValue.TRANSPARENT;
 		}
-		Value value = ColorValueUtils.toColor(ua, lu);
+		Value value = ColorValueUtils.toColorOrCurrent(ua, lu);
 		if (value == null) {
 			throw new PropertyException();
 		}

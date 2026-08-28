@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid: grid-auto-flow column/dense, grid-auto-columns/rows, grid-gap aliases, implicit columns</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 10pt;
+	line-height: 12pt;
+	font-family: serif;
+}
+div {
+	margin: 0;
+}
+.g {
+	display: grid;
+	width: 300pt;
+	margin-bottom: 8pt;
+	background: #eee;
+}
+.g > div {
+	background: #ffc;
+}
+/* 列フロー: 明示行なし=1行、4itemが4本の暗黙列(grid-auto-columns 50pt)。grid-gap別名 */
+#c1 { grid-auto-flow: column; grid-auto-columns: 50pt; grid-gap: 10pt 5pt; }
+/* 列フロー+明示2行(20pt): 5itemは3列(2+2+1)。grid-row-gap/grid-column-gap別名 */
+#c2 { grid-auto-flow: column; grid-template-rows: 20pt 20pt; grid-auto-columns: 60pt; grid-row-gap: 2pt; grid-column-gap: 6pt; }
+/* dense: a(span2) b(span2) c → cは行0の列2の空きへ戻る */
+#c3 { grid-auto-flow: row dense; grid-template-columns: repeat(3, 60pt); grid-auto-rows: 15pt; }
+#c3 .w { grid-column: span 2; }
+/* 行フローの暗黙列: grid-column: 4 は明示2列の外→暗黙列3・4(grid-auto-columns 30pt) */
+#c4 { grid-template-columns: 50pt 50pt; grid-auto-columns: 30pt; column-gap: 5pt; }
+#c4 .far { grid-column: 4; background: #fcc; }
+/* grid-auto-rows: 暗黙行の固定高(1行目20pt、2行目以降は周期で20/40) */
+#c5 { grid-template-columns: 100pt 100pt; grid-auto-rows: 20pt 40pt; }
+</style>
+</head>
+<body>
+<div class="g" id="c1"><div>1</div><div>2</div><div>3</div><div>4</div></div>
+<div class="g" id="c2"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div></div>
+<div class="g" id="c3"><div class="w">a</div><div class="w">b</div><div>c</div></div>
+<div class="g" id="c4"><div>1</div><div class="far">far</div><div>3</div></div>
+<div class="g" id="c5"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div></div>
+<div id="after">after</div>
+</body>
+</html>

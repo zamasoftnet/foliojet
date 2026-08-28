@@ -1,0 +1,23 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>width: max-content は内容の最大幅(折り返しなし)</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+p { margin: 0; }
+/* 箱は文字列の幅(6pt×5=30pt)+枠。包含ブロック(300pt)いっぱいにはならない */
+div { width: max-content; border: 1px solid; }
+/* 長い内容は包含ブロックを超えてもよい(仕様どおり溢れる) */
+div.long { border-color: red; }
+</style>
+</head>
+<body>
+<div id="a">ABCDE</div>
+<div id="b" class="long">AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE FFFFFFFFFF</div>
+<p id="after">AFTER</p>
+</body>
+</html>

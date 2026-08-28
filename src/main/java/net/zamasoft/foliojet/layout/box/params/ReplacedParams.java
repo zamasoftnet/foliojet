@@ -25,6 +25,15 @@ public class ReplacedParams extends AbstractTextParams {
 	 */
 	public double lineHeight = LayoutUtils.NONE;
 
+	/** {@code aspect-ratio}の幅/高さ(0=指定なし。2026-08-29)。 */
+	public double aspectRatio = 0;
+
+	/**
+	 * {@code aspect-ratio: auto <ratio>}か(2026-08-29)。trueなら画像の
+	 * 固有比率があるときはそちらを優先し、無いときだけ指定比率を使う。
+	 */
+	public boolean aspectRatioAuto = false;
+
 	public ParamsType getType() {
 		return ParamsType.REPLACED;
 	}
@@ -33,6 +42,6 @@ public class ReplacedParams extends AbstractTextParams {
 		return super.toString() + "[image=" + this.image + ",size=" + this.size + ",minSize=" + this.minSize
 				+ ",maxSize=" + this.maxSize + ",boxSizing=" + this.boxSizing + ",objectFit=" + this.objectFit
 				+ ",objectPosition=" + this.objectPosition + ",frame=" + this.frame + ",lineHeight="
-				+ this.lineHeight + "]";
+				+ this.lineHeight + ",aspectRatio=" + this.aspectRatio + (this.aspectRatioAuto ? "(auto)" : "") + "]";
 	}
 }

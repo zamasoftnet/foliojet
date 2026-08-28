@@ -71,9 +71,10 @@ public final class BasicGridTrackSizing {
 	 *                          成長で止め、残余をcontent offsetに残す)
 	 * @return 各列の確定幅(NaN・負値を返さない)
 	 */
-	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks,
+	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks0,
 			final List<ItemContribution> items, final double available, final double columnGap,
 			final boolean stretchAutoTracks) {
+		final List<GridTrackListValue.TrackSize> tracks = resolvePercents(tracks0, available);
 		final int n = tracks.size();
 		final Sized sized = size(tracks, items, columnGap);
 		final double[] widths = sized.base.clone();
@@ -170,8 +171,9 @@ public final class BasicGridTrackSizing {
 	 * min=gap+Σbase(span不足分配込み)、max=gap+Σ(fixed長|max
 	 * contribution)。
 	 */
-	public static Intrinsics intrinsics(final List<GridTrackListValue.TrackSize> tracks,
+	public static Intrinsics intrinsics(final List<GridTrackListValue.TrackSize> tracks0,
 			final List<ItemContribution> items, final double columnGap) {
+		final List<GridTrackListValue.TrackSize> tracks = resolvePercents(tracks0, Double.NaN);
 		final int n = tracks.size();
 		final Sized sized = size(tracks, items, columnGap);
 		double min = columnGap * (n - 1);
@@ -181,6 +183,27 @@ public final class BasicGridTrackSizing {
 			max += tracks.get(i) instanceof GridTrackListValue.Fixed fixed ? fixed.length() : sized.maxContrib[i];
 		}
 		return new Intrinsics(min, max);
+	}
+
+	/**
+	 * %トラック(2026-08-29)を畳みます。利用可能幅が定まっていれば
+	 * {@code Fixed}(幅×割合)、未定(固有寸法の計算、NaN)なら{@code Auto}
+	 * (css-grid-1 §11.1: 不定寸法に対する%はautoとして扱う)。
+	 */
+	private static List<GridTrackListValue.TrackSize> resolvePercents(
+			final List<GridTrackListValue.TrackSize> tracks, final double available) {
+		List<GridTrackListValue.TrackSize> resolved = null;
+		for (int i = 0; i < tracks.size(); ++i) {
+			if (!(tracks.get(i) instanceof GridTrackListValue.Percentage percent)) {
+				continue;
+			}
+			if (resolved == null) {
+				resolved = new java.util.ArrayList<>(tracks);
+			}
+			resolved.set(i, Double.isNaN(available) ? GridTrackListValue.Auto.INSTANCE
+					: new GridTrackListValue.Fixed(Math.max(0, available * percent.ratio())));
+		}
+		return resolved == null ? tracks : resolved;
 	}
 
 	/** base/limit/maxContribの集約結果(span不足分配込み)。 */
@@ -197,6 +220,10 @@ public final class BasicGridTrackSizing {
 		final boolean[] auto = new boolean[n];
 		final boolean[] fr = new boolean[n];
 		final boolean[] zeroMin = new boolean[n];
+		// 内容寄与を受けるトラック(auto/fr/min-content/max-content。2026-08-29)
+		final boolean[] content = new boolean[n];
+		final boolean[] minContentTrack = new boolean[n];
+		final boolean[] maxContentTrack = new boolean[n];
 		final double[] frWeight = new double[n];
 		int autoCount = 0, frCount = 0;
 		for (int i = 0; i < n; ++i) {
@@ -209,6 +236,26 @@ public final class BasicGridTrackSizing {
 			case GridTrackListValue.Auto ignore -> {
 				auto[i] = true;
 				++autoCount;
+			}
+			case GridTrackListValue.Percentage ignore -> {
+				// 基準幅が未確定(固有寸法計測)の%はautoとして扱う(2026-08-29。
+				// bind時はGridBuilder.sizingTracksがFixedへ解決済み)
+				auto[i] = true;
+				++autoCount;
+			}
+			case GridTrackListValue.AutoRepeat ignore -> {
+				// 展開前の形はここへ来ない(GridBuilder.placementPlanが展開する)。
+				// 万一来てもautoとして壊れないようにする
+				auto[i] = true;
+				++autoCount;
+			}
+			case GridTrackListValue.MinContent ignore -> {
+				// 内容のmin-contentで固定(2026-08-29): 伸びず、stretchも受けない
+				minContentTrack[i] = true;
+			}
+			case GridTrackListValue.MaxContent ignore -> {
+				// 内容のmax-contentで固定(2026-08-29): 残余stretchを受けない
+				maxContentTrack[i] = true;
 			}
 			case GridTrackListValue.Fr flex -> {
 				fr[i] = true;
@@ -225,12 +272,13 @@ public final class BasicGridTrackSizing {
 				++frCount;
 			}
 			}
+			content[i] = auto[i] || fr[i] || minContentTrack[i] || maxContentTrack[i];
 		}
 		// span1のcontributionを先に集約
 		int maxSpan = 1;
 		for (final ItemContribution item : items) {
 			maxSpan = Math.max(maxSpan, item.span());
-			if (item.span() != 1 || !(auto[item.column()] || fr[item.column()])) {
+			if (item.span() != 1 || !content[item.column()]) {
 				continue;
 			}
 			if (!zeroMin[item.column()]) {
@@ -255,12 +303,12 @@ public final class BasicGridTrackSizing {
 				double curBase = 0, curMax = 0;
 				for (int c = from; c < to; ++c) {
 					curBase += base[c] + plannedBase[c];
-					curMax += (auto[c] || fr[c] ? maxContrib[c] : base[c]) + plannedMax[c];
+					curMax += (content[c] ? maxContrib[c] : base[c]) + plannedMax[c];
 					if (fr[c]) {
 						spansFr = true;
 						frWeightSum += frWeight[c];
 					}
-					if (auto[c] || fr[c]) {
+					if (content[c]) {
 						++growable;
 					}
 				}
@@ -270,7 +318,7 @@ public final class BasicGridTrackSizing {
 				final double deficitMin = item.minContent() - gaps - curBase;
 				final double deficitMax = item.maxContent() - gaps - curMax;
 				for (int c = from; c < to; ++c) {
-					if (!(auto[c] || fr[c])) {
+					if (!content[c]) {
 						continue;
 					}
 					final double shareMin;
@@ -303,6 +351,12 @@ public final class BasicGridTrackSizing {
 				limit[i] = Math.max(base[i], maxContrib[i]);
 			} else if (fr[i]) {
 				limit[i] = Double.POSITIVE_INFINITY;
+			} else if (minContentTrack[i]) {
+				limit[i] = base[i];
+				maxContrib[i] = base[i];
+			} else if (maxContentTrack[i]) {
+				base[i] = Math.max(base[i], maxContrib[i]);
+				limit[i] = base[i];
 			}
 		}
 		return new Sized(base, limit, maxContrib, auto, fr, frWeight, autoCount, frCount);

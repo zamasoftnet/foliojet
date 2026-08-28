@@ -28,7 +28,12 @@ public class BackgroundRepeat extends AbstractPrimitivePropertyInfo {
 	}
 
 	protected BackgroundRepeat() {
-		super("background-repeat");
+		this("background-repeat");
+	}
+
+	/** mask-repeat等、同じ文法を使う特性のための派生用(2026-08-29)。 */
+	protected BackgroundRepeat(String name) {
+		super(name);
 	}
 
 	public Value getDefault(CSSStyle style) {

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>TEST</title>
+    <style type="text/css">
+/* 2026-08-29: ビューポート単位・env()・displayの接頭辞別名・
+   currentColor・%グリッドトラック・text-decoration短縮形の表示リスト固定。
+   ビューポート単位は「UAプロパティの既定ページ(A4)から既定余白12.7mmを
+   除いた版面」の1% = 100vw:523.28pt / 100vh:769.89pt(下の各注釈参照)。
+   @page余白を既定と同じにして、版面=ビューポートの状態にする。 */
+@page {
+	size: A4;
+	margin: 12.7mm;
+}
+html {
+	font-size: 10pt;
+}
+body {
+	margin: 0;
+	font: 10pt monospace;
+}
+div {
+	display: block;
+}
+#vw100 {
+	/* 100vw = 523.28pt(版面いっぱい) */
+	width: 100vw;
+	background-color: #f00;
+}
+#vw50 {
+	/* 50vw = 261.64pt */
+	width: 50vw;
+	background-color: #0f0;
+}
+#vh10 {
+	/* 10vh = 76.99pt */
+	width: 100pt;
+	height: 10vh;
+	background-color: #00f;
+}
+#minvh {
+	/* min(200px, 50vh) = min(150pt, 384.94pt) = 150pt */
+	width: min(200px, 50vh);
+	background-color: #ff0;
+}
+#calcvw {
+	/* calc(100vw - 2rem) = 523.28 - 20 = 503.28pt */
+	width: calc(100vw - 2rem);
+	background-color: #f0f;
+}
+#env1 {
+	/* env(safe-area-inset-left)=0 なので padding-left は 20pt */
+	padding-left: calc(env(safe-area-inset-left) + 20pt);
+	width: 100pt;
+	background-color: #0ff;
+}
+#env2 {
+	/* margin-left: max(10pt, 0) = 10pt、width: フォールバック 100pt */
+	margin-left: max(10pt, env(safe-area-inset-left));
+	width: env(unknown-thing, 100pt);
+	background-color: #888;
+}
+#flex {
+	/* -webkit-flex は flex: 子2つが横に並ぶ(x=0, x=100) */
+	display: -webkit-flex;
+	display: -ms-flexbox;
+	align-items: baseline;
+	width: 300pt;
+}
+#flex div {
+	width: 100pt;
+	background-color: #fcc;
+}
+#box {
+	/* -webkit-box は block: 子2つが縦に積まれる */
+	display: -webkit-box;
+	width: 300pt;
+}
+#box div {
+	width: 100pt;
+	background-color: #cfc;
+}
+#grid {
+	/* repeat(4, 25%) の4列: x=0,100,200,300 */
+	display: -ms-grid;
+	display: grid;
+	grid-template-columns: repeat(4, 25%);
+	width: 400pt;
+}
+#grid div {
+	background-color: #ccf;
+}
+#cc {
+	/* currentColor の罫線(2pt)と下線(dotted は実線で近似) */
+	color: #f00;
+	border: 2pt solid currentColor;
+	width: 200pt;
+}
+#cc span {
+	color: currentColor;
+	text-decoration: underline dotted currentColor;
+}
+#shadow {
+	/* ぼかし半径つき・複数の影(ぼかしは無視、影は2つ) */
+	text-shadow: 0 1px 4px rgb(0 0 0 / 50%), 0 -1px 0 rgba(0,0,0,.3);
+	width: 200pt;
+}
+#minauto {
+	min-width: auto;
+	min-height: auto;
+	width: 100pt;
+	background-color: #fc8;
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="vw100">VW100</div>
+    <div id="vw50">VW50</div>
+    <div id="vh10">VH10</div>
+    <div id="minvh">MINVH</div>
+    <div id="calcvw">CALCVW</div>
+    <div id="env1">ENV1</div>
+    <div id="env2">ENV2</div>
+    <div id="flex"><div>F1</div><div>F2</div></div>
+    <div id="box"><div>B1</div><div>B2</div></div>
+    <div id="grid"><div>G1</div><div>G2</div><div>G3</div><div>G4</div></div>
+    <div id="cc"><span>CURRENTCOLOR</span></div>
+    <div id="shadow">SHADOW</div>
+    <div id="minauto">MINAUTO</div>
+  </body>
+
+</html>

@@ -14,7 +14,9 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code grid-column}/{@code grid-row}ショートハンドです(Grid G0)。
- * {@code <grid-line> [/ <grid-line>]}——endを省略すると{@code auto}。
+ * {@code <grid-line> [/ <grid-line>]}——endを省略すると{@code auto}、
+ * ただしstartが線名単独ならendも同じ名前(css-grid-1 §8.4、2026-08-29
+ * ——{@code grid-column: content}は{@code content-start / content-end})。
  *
  * @author MIYABE Tatsuhiko
  */
@@ -46,7 +48,7 @@ public class GridLineShorthand extends AbstractShorthandPropertyInfo {
 		if (startLine == null) {
 			throw new PropertyException();
 		}
-		GridLineValue endLine = GridLineValue.AUTO_VALUE;
+		GridLineValue endLine = GridAreaShorthand.sameName(startLine);
 		if (tokens.eatSlash()) {
 			endLine = GridPlacement.parseLine(tokens);
 			if (endLine == null) {

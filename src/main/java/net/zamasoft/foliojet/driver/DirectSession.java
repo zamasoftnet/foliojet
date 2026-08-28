@@ -116,6 +116,12 @@ public class DirectSession extends AbstractCTISession
 
 	private UserAgent ua;
 
+	/**
+	 * Paged SVGのフォントサブセットをセッション内の次の変換へ持ち越す控え
+	 * (2026-08-29)。UAは変換ごとに作り直すので、ここで寿命を保つ。
+	 */
+	private net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
+
 	private boolean continuous = false;
 
 	private boolean aborted = false;
@@ -582,6 +588,7 @@ public class DirectSession extends AbstractCTISession
 		this.ua.setSourceResolver(this.resolver);
 		this.ua.setMessageHandler(this);
 		this.ua.setProperties(this.props);
+		this.ua.getUAContext().setPagedSvgFontCarry(this.pagedSvgFontCarry);
 
 		final FontSourceManager fsm = this.getFontSourceManager();
 		this.ua.getUAContext().setFontSourceManager(fsm);
@@ -798,6 +805,8 @@ public class DirectSession extends AbstractCTISession
 			this.ua = null;
 			this.middlePath = false;
 			this.props.clear();
+			// セッションの状態を捨てる指示なので、持ち越しも捨てる
+			this.pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
 			this.prepareDefaultProperties();
 			this.resolver.reset();
 		}

@@ -275,6 +275,14 @@ public final class ExclusionSpace {
 	 * 1対1で移した実装)。他3消費者とは異なり{@code ascendingByPageEnd}
 	 * (昇順)で走査する——既存コードの{@code for (i = 0; i <
 	 * floatings.size(); ++i)}と同じ順序。
+	 *
+	 * <p>
+	 * 4つの照会のうちこれだけが{@code shape-outside}の形状
+	 * ({@link FloatExclusion#lineSpanAt})を見る(2026-08-29)。
+	 * css-shapes-1 §4.1は形状の影響をインライン内容の折返しに限定し、
+	 * 浮動体の配置・BFCを作るブロックの回避はマージンボックスのまま
+	 * (Chromeも同じ)なので、他3照会は矩形{@code lineSpan}を読み続ける。
+	 * </p>
 	 */
 	public LineScan scanLineBand(final double pageStart, final double lineHeight, final double lineStart0,
 			final double lineEnd0) {
@@ -292,16 +300,23 @@ public final class ExclusionSpace {
 				maxPageSize = exclusion.pageSpan().start() - pageStart;
 				break;
 			}
+			// shape-outside(2026-08-29): 行の高さ全体の帯で形状が占める範囲。
+			// 形状なしは従来どおりマージンボックス。帯と形状が交わらない
+			// 浮動体はこの行を狭めない(円の上下の空白へ行が入り込める)
+			final AxisSpan band = exclusion.lineSpanAt(pageStart, pageStart + lineHeight);
+			if (band == null) {
+				continue;
+			}
 			switch (exclusion.side()) {
 			case START:
-				final double tempStart = exclusion.lineSpan().end();
+				final double tempStart = band.end();
 				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
 					startExclusion = exclusion;
 					lineStart = tempStart;
 				}
 				continue;
 			case END:
-				final double tempEnd = exclusion.lineSpan().start();
+				final double tempEnd = band.start();
 				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
 					endExclusion = exclusion;
 					lineEnd = tempEnd;

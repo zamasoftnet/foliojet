@@ -87,6 +87,20 @@ public sealed interface CssToken {
 		}
 	}
 
+	/**
+	 * Gridの行名{@code [name1 name2]}です(2026-08-29)。ph-cssは角括弧を
+	 * {@code CSSExpressionMemberLineNames}として式木に載せるが、従来の
+	 * {@link Tokens}は未知メンバーとして黙って捨てていた——
+	 * {@code grid-template-columns: [full-start] 1fr [full-end]}が
+	 * {@code 1fr}として受理され、{@code grid-column: full-start / full-end}
+	 * (線名の参照)が解決不能になっていた。空の{@code []}は空リスト。
+	 */
+	record LineNames(List<String> names) implements CssToken {
+		public String toString() {
+			return "[" + String.join(" ", this.names) + "]";
+		}
+	}
+
 	/** unicode-range(U+xxxx 形式のテキストを保持)。 */
 	record UnicodeRange(String text) implements CssToken {
 		public String toString() {

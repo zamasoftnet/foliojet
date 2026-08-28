@@ -168,11 +168,13 @@ final class PagedSVGResources {
 		}
 	}
 
-	/** sha256がnull・bytesが-1なら、実体を出力せず参照だけ残した資源です。 */
-	private record FontAsset(WebFontSubset subset, String sha256, int bytes) {
-		boolean omitted() {
-			return this.sha256 == null;
-		}
+	/**
+	 * manifestへ書くフォント資源1件。同じサブセットが育つと、持ち越した版と
+	 * 育った版の2件になる(ページは閉じた時点の版を指している)。
+	 * {@code omitted}は、受け手が前回の変換から既に持っている版を出さなかった印
+	 * ({@code resources=omit})。
+	 */
+	private record FontAsset(WebFontSubset subset, String uri, String sha256, int bytes, boolean omitted) {
 	}
 
 	private static final class FontEntry {
@@ -193,6 +195,8 @@ final class PagedSVGResources {
 	}
 
 	private final ResultEmitter emitter;
+	/** セッションをまたぐサブセットの控え。nullなら持ち越さない。 */
+	private final PagedSvgFontCarry carry;
 	private PagedSvgResourceMode resourceMode = PagedSvgResourceMode.REFERENCE;
 
 	/**
@@ -215,7 +219,12 @@ final class PagedSVGResources {
 	private final List<OutlineData> outlineStack = new ArrayList<>();
 
 	PagedSVGResources(final ResultEmitter emitter) {
+		this(emitter, null);
+	}
+
+	PagedSVGResources(final ResultEmitter emitter, final PagedSvgFontCarry carry) {
 		this.emitter = emitter;
+		this.carry = carry;
 	}
 
 	void setResourceMode(final PagedSvgResourceMode mode) {
@@ -237,9 +246,42 @@ final class PagedSVGResources {
 				return entry.subset;
 			}
 		}
-		final WebFontSubset subset = new WebFontSubset(this.fonts.size() + 1, source, font, mode, oblique);
+		final WebFontSubset subset;
+		if (this.carry == null) {
+			subset = new WebFontSubset(this.fonts.size() + 1, source, font, mode, oblique);
+		} else {
+			final PagedSvgFontCarry.Key key = new PagedSvgFontCarry.Key(source.getFontName(), mode.name(), oblique);
+			final PagedSvgFontCarry.Entry carried = this.carry.get(key);
+			if (carried == null) {
+				subset = new WebFontSubset(this.carry.allocateId(), source, font, mode, oblique);
+			} else {
+				// 前回と同じ並びで符号を割り当てる。前回の字形で足りる限り、
+				// 1ページ目より先に出した前回のバイト列がそのまま使える
+				subset = new WebFontSubset(carried.id(), carried.version(), source, font, mode, oblique);
+				subset.seed(carried.gids(), carried.bytes(), carried.sha256());
+			}
+		}
 		this.fonts.add(new FontEntry(source, font, mode, oblique, subset));
 		return subset;
+	}
+
+	/**
+	 * 持ち越したサブセットを、<b>1ページ目より先に</b>出します(2026-08-29)。
+	 *
+	 * <p>
+	 * どのフォントを使うかは描いてみるまで分からないが、同じ本を組み直す
+	 * 典型では前回と同じ集合になる。使われなかった分は小さい(実測0.1MB/件)
+	 * ので、全部を先に出す。{@code resources=omit}では受け手が前回の変換から
+	 * 持っているので出さず、manifestに{@code omitted}で記す。
+	 * </p>
+	 */
+	void emitCarriedFonts() throws IOException {
+		if (this.carry == null || this.resourceMode == PagedSvgResourceMode.OMIT) {
+			return;
+		}
+		for (final PagedSvgFontCarry.Entry entry : this.carry.entries()) {
+			this.emitter.emit(WebFontSubset.uri(entry.id(), entry.version()), "font/woff2", entry.bytes());
+		}
 	}
 
 	void rememberOriginal(final RenderedImage image, final byte[] bytes, final String mediaType,
@@ -351,14 +393,16 @@ final class PagedSVGResources {
 	 * サブセットを書き出します。
 	 *
 	 * <p>
-	 * <b>{@code omit}でもフォントは出します</b>(2026-08-28)。ページSVGが
-	 * 参照する名前({@code assets/fonts/font-0001.woff2}と
-	 * {@code CopperSubset0001})は<b>変換ごとの連番</b>で、同じ番号が別の
-	 * 変換では別のサブセットになります。出さずに前回の変換の資源を指すと、
-	 * 字形が入れ替わって描かれる——実測では文字サイズを変えた再変換で
-	 * 数字が消えたり別の位置に出たりしました。画像は内容ハッシュで名前が
-	 * 決まるので従来どおり省けます。フォントは小さい(実測0.1MB)ので、
-	 * 出す代償より取り違える害のほうが大きい。
+	 * 持ち越した版で足りたサブセットは、1ページ目より先に出してあるので
+	 * ここでは出さない({@link #emitCarriedFonts()})。育ったサブセットと
+	 * 初めてのサブセットは組み上げて出す——{@code omit}でも出す。受け手が
+	 * 持っているはずのない字形だからで、名前が版付きなので前回のものと
+	 * 取り違えることもない(2026-08-28の実測では、連番名のまま省くと文字
+	 * サイズを変えた再変換で数字が消えたり別の位置に出たりした)。
+	 * </p>
+	 *
+	 * <p>
+	 * 書き終えた並びは{@link PagedSvgFontCarry}へ控え、次の変換で先に出す。
 	 * </p>
 	 */
 	void emitFonts() throws IOException {
@@ -370,7 +414,8 @@ final class PagedSVGResources {
 		try {
 			built = this.fonts.parallelStream().map(entry -> {
 				try {
-					return entry.subset.build(quality);
+					final WebFontSubset subset = entry.subset;
+					return subset.seeded() && !subset.grown() ? null : subset.build(quality);
 				} catch (final IOException e) {
 					throw new UncheckedIOException(e);
 				}
@@ -379,10 +424,29 @@ final class PagedSVGResources {
 			throw e.getCause();
 		}
 		for (int i = 0; i < this.fonts.size(); ++i) {
-			final FontEntry entry = this.fonts.get(i);
+			final WebFontSubset subset = this.fonts.get(i).subset;
+			if (subset.seeded()) {
+				// 持ち越した版。先に出してある(omitなら出していない)
+				this.emittedFonts.add(new FontAsset(subset, subset.seededUri(), subset.seededSha256(),
+						subset.seededBytes().length, this.resourceMode == PagedSvgResourceMode.OMIT));
+			}
 			final byte[] bytes = built.get(i);
-			this.emitter.emit(entry.subset.uri(), "font/woff2", bytes);
-			this.emittedFonts.add(new FontAsset(entry.subset, sha256(bytes), bytes.length));
+			if (bytes == null) {
+				continue;
+			}
+			this.emitter.emit(subset.uri(), "font/woff2", bytes);
+			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length, false));
+		}
+		if (this.carry != null) {
+			for (int i = 0; i < this.fonts.size(); ++i) {
+				final WebFontSubset subset = this.fonts.get(i).subset;
+				final byte[] bytes = built.get(i);
+				this.carry.put(subset.carryKey(), bytes == null
+						? new PagedSvgFontCarry.Entry(subset.id(), subset.version(), subset.gids(),
+								subset.seededBytes(), subset.seededSha256())
+						: new PagedSvgFontCarry.Entry(subset.id(), subset.version(), subset.gids(), bytes,
+								sha256(bytes)));
+			}
 		}
 	}
 
@@ -416,11 +480,10 @@ final class PagedSVGResources {
 			json.append(",\"source\":");
 			quote(json, font.subset.sourceName());
 			json.append(",\"uri\":");
-			quote(json, font.subset.uri());
-			if (font.omitted()) {
+			quote(json, font.uri);
+			json.append(",\"sha256\":\"").append(font.sha256).append("\",\"bytes\":").append(font.bytes);
+			if (font.omitted) {
 				json.append(",\"omitted\":true");
-			} else {
-				json.append(",\"sha256\":\"").append(font.sha256).append("\",\"bytes\":").append(font.bytes);
 			}
 			json.append(",\"glyphs\":").append(font.subset.glyphCount() - 1)
 					.append(",\"fsType\":").append(font.subset.embeddingLicenseFlags()).append('}');

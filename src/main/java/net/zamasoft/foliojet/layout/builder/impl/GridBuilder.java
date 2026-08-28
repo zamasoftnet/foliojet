@@ -83,8 +83,25 @@ public final class GridBuilder
 
 	private final GridBox gridBox;
 
-	/** 列テンプレート(fixed/auto。frは適格判定で除外——G3c)。 */
-	private final List<GridTrackListValue.TrackSize> tracks;
+	/**
+	 * 列トラック(fixed/auto/fr/%/min-content/max-content)。
+	 * {@link #placementPlan}で確定する——auto-repeatの展開・暗黙列の
+	 * 補完・auto-fitの末尾潰しを含む(2026-08-29)。それまでは
+	 * テンプレートそのまま(%は{@link #sizingTracks}が解決する)。
+	 */
+	private List<GridTrackListValue.TrackSize> tracks;
+
+	/** 列軸の線名表(zero-based線index→名前。areasの暗黙名込み。2026-08-29)。 */
+	private List<List<String>> columnLines = List.of();
+
+	/** 明示行数(grid-template-rowsとgrid-template-areasの大きいほう。2026-08-29)。 */
+	private int explicitRows;
+
+	/** 展開後の明示列数(grid-auto-columnsの周期の基準。2026-08-29)。 */
+	private int explicitColumns;
+
+	/** {@link #placementPlan}を確定したときのコンテナ行幅(auto-repeatの再展開判定用)。 */
+	private double planAvailable = Double.NaN;
 
 	private final double columnGap, rowGap;
 
@@ -251,25 +268,246 @@ public final class GridBuilder
 		if (this.placementPlan != null) {
 			return this.placementPlan;
 		}
-		final int n = this.tracks.size();
-		final List<net.zamasoft.foliojet.layout.box.params.GridItemSpec> specs = new ArrayList<>(this.items.size());
+		final GridParams params = this.gridBox.getGridParams();
+		final double available = Math.max(0, this.gridBox.getLineSize());
+		this.planAvailable = available;
+		// (1) 明示列の展開(2026-08-29): auto-repeatは「収まるだけ」の回数、
+		// 線名はトラックと並走させる。テンプレート無しは暗黙の単一autoカラム
+		final List<GridTrackListValue.TrackSize> cols = new ArrayList<>();
+		final List<List<String>> lines = new ArrayList<>();
+		lines.add(new ArrayList<>());
+		boolean autoFit = false;
+		if (params.templateColumns.isEmpty()) {
+			// 明示列0本: 最初の1列も暗黙列(grid-auto-columnsの寸法。無ければ
+			// 従来どおりauto)。列フローで暗黙列が増えるときに1列目だけ
+			// autoで残余を取ってしまわないため
+			this.explicitColumns = 0;
+			this.addImplicitColumn(cols, lines);
+		} else {
+			autoFit = expandTracks(params.templateColumns, params.columnLineNames, available, this.columnGap, cols,
+					lines);
+			this.explicitColumns = cols.size();
+		}
+		// (2) grid-template-areasが定める列数・暗黙線名(name-start/name-end)
+		final net.zamasoft.foliojet.css.value.GridTemplateAreasValue areas = params.templateAreas;
+		while (cols.size() < areas.getColumnCount()) {
+			this.addImplicitColumn(cols, lines);
+		}
+		final List<List<String>> rowLines = new ArrayList<>();
+		for (final List<String> names : params.rowLineNames) {
+			rowLines.add(new ArrayList<>(names));
+		}
+		while (rowLines.size() < areas.getRowCount() + 1) {
+			rowLines.add(new ArrayList<>());
+		}
+		for (final net.zamasoft.foliojet.css.value.GridTemplateAreasValue.Area area : areas.getAreas()) {
+			lines.get(area.columnStart()).add(area.name() + "-start");
+			lines.get(area.columnEnd()).add(area.name() + "-end");
+			rowLines.get(area.rowStart()).add(area.name() + "-start");
+			rowLines.get(area.rowEnd()).add(area.name() + "-end");
+		}
+		this.explicitRows = Math.max(params.templateRows.size(), areas.getRowCount());
+		// (3) 線名の数値化
+		final List<GridItemSpec> specs = new ArrayList<>(this.items.size());
 		for (final GridItemContent item : this.items) {
-			specs.add(item.spec);
+			specs.add(net.zamasoft.foliojet.layout.sizing.GridLineNameResolver.resolve(item.spec, lines, rowLines));
+		}
+		// (4) 行フローで明示列の外を指す線・spanには暗黙列を足す
+		// (grid-auto-columnsの寸法。従来はfail closedでsource-order配置へ
+		// 戻していた——1件だけauto化しない原則はそのまま、列を増やして
+		// 解決可能にする)
+		if (!params.autoFlowColumn) {
+			final int needed = Math.min(GridPlacementResolver.LIMIT, requiredColumns(specs));
+			while (cols.size() < needed) {
+				this.addImplicitColumn(cols, lines);
+			}
 		}
 		GridPlacementResolver.Plan plan = null;
-		if (GridPlacementResolver.resolve(specs, n) instanceof GridPlacementResolver.Result.Resolved resolved) {
+		if (GridPlacementResolver.resolve(specs, cols.size(), this.explicitRows, params.autoFlowColumn,
+				params.autoFlowDense) instanceof GridPlacementResolver.Result.Resolved resolved) {
 			plan = resolved.plan(); // rowSpanはGridRowSizingの不足分配で対応(G4d)
+			// 列フローが作った暗黙列
+			while (cols.size() < plan.columnCount()) {
+				this.addImplicitColumn(cols, lines);
+			}
 		}
 		if (plan == null) {
 			GRID_PLACEMENT_FALLBACKS.incrementAndGet();
-			final GridPlacementResolver.GridArea[] areas = new GridPlacementResolver.GridArea[this.items.size()];
-			for (int i = 0; i < areas.length; ++i) {
-				areas[i] = new GridPlacementResolver.GridArea(i % n, i / n, 1, 1);
+			final int n = cols.size();
+			final GridPlacementResolver.GridArea[] fallback = new GridPlacementResolver.GridArea[this.items.size()];
+			for (int i = 0; i < fallback.length; ++i) {
+				fallback[i] = new GridPlacementResolver.GridArea(i % n, i / n, 1, 1);
 			}
-			plan = new GridPlacementResolver.Plan(List.of(areas), n, (areas.length + n - 1) / n);
+			plan = new GridPlacementResolver.Plan(List.of(fallback), n,
+					Math.max((fallback.length + n - 1) / n, this.explicitRows));
 		}
+		// (5) auto-fit: itemの無い末尾トラックを(gapごと)潰す
+		if (autoFit) {
+			int used = 1;
+			for (final GridPlacementResolver.GridArea area : plan.areas()) {
+				used = Math.max(used, area.column() + area.columnSpan());
+			}
+			if (used < cols.size()) {
+				cols.subList(used, cols.size()).clear();
+				lines.subList(used + 1, lines.size()).clear();
+				plan = new GridPlacementResolver.Plan(plan.areas(), used, plan.rowCount());
+			}
+		}
+		this.tracks = List.copyOf(cols);
+		this.columnLines = lines;
 		this.placementPlan = plan;
 		return plan;
+	}
+
+	/**
+	 * 明示列テンプレートを展開します(2026-08-29)。auto-repeatは
+	 * 「他の固定幅トラックとgapを引いた残りに収まるだけ」の回数(最低1回。
+	 * 基準幅が未確定なら1回=仕様の固有寸法計測時の扱い)。
+	 *
+	 * @return auto-fitを含むか
+	 */
+	private static boolean expandTracks(final List<GridTrackListValue.TrackSize> template,
+			final List<List<String>> templateLines, final double available, final double gap,
+			final List<GridTrackListValue.TrackSize> cols, final List<List<String>> lines) {
+		boolean autoFit = false;
+		// auto-repeat以外の固定幅の合計(回数判定の残り幅)
+		double fixedSum = 0;
+		int fixedCount = 0;
+		for (final GridTrackListValue.TrackSize t : template) {
+			if (t instanceof GridTrackListValue.Fixed f) {
+				fixedSum += f.length();
+				++fixedCount;
+			} else if (t instanceof GridTrackListValue.Percentage p) {
+				fixedSum += p.ratio() * available;
+				++fixedCount;
+			} else if (!(t instanceof GridTrackListValue.AutoRepeat)) {
+				++fixedCount; // 内容依存トラックはgapだけ数える
+			}
+		}
+		for (int i = 0; i < template.size(); ++i) {
+			final GridTrackListValue.TrackSize t = template.get(i);
+			if (i < templateLines.size()) {
+				lines.get(lines.size() - 1).addAll(templateLines.get(i));
+			}
+			if (t instanceof GridTrackListValue.AutoRepeat repeat) {
+				final int unitSize = repeat.unit().size();
+				final double unitMin = repeat.unitMinLength() + repeat.unitMinRatio() * available;
+				int reps = 1;
+				if (available > 0 && unitMin > 0) {
+					final double room = available - fixedSum - gap * fixedCount;
+					reps = (int) Math.floor((room + gap) / (unitMin + gap * unitSize) + 1e-9);
+					reps = Math.max(1, reps);
+				}
+				reps = Math.min(reps, Math.max(1, (net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.MAX_TRACKS
+						- cols.size() - template.size()) / unitSize));
+				autoFit |= repeat.fit();
+				for (int r = 0; r < reps; ++r) {
+					lines.get(lines.size() - 1).addAll(repeat.unitLineNames().get(0));
+					for (int k = 0; k < unitSize; ++k) {
+						cols.add(repeat.unit().get(k));
+						lines.add(new ArrayList<>(repeat.unitLineNames().get(k + 1)));
+					}
+				}
+				continue;
+			}
+			cols.add(t);
+			lines.add(new ArrayList<>());
+		}
+		if (templateLines.size() > template.size()) {
+			lines.get(lines.size() - 1).addAll(templateLines.get(template.size()));
+		}
+		return autoFit;
+	}
+
+	/** grid-auto-columnsの周期で暗黙列を1本足します(空ならauto)。 */
+	private void addImplicitColumn(final List<GridTrackListValue.TrackSize> cols, final List<List<String>> lines) {
+		final List<GridTrackListValue.TrackSize> autoColumns = this.gridBox.getGridParams().autoColumns;
+		final int implicitIndex = cols.size() - this.explicitColumns;
+		cols.add(autoColumns.isEmpty() ? GridTrackListValue.Auto.INSTANCE
+				: autoColumns.get(Math.max(0, implicitIndex) % autoColumns.size()));
+		lines.add(new ArrayList<>());
+	}
+
+	/**
+	 * 行フローで各itemの列指定が要求する列数です(正の線番号とspanのみ。
+	 * 負番号は明示末端基準なので数えない)。
+	 */
+	private static int requiredColumns(final List<GridItemSpec> specs) {
+		int needed = 1;
+		for (final GridItemSpec spec : specs) {
+			final net.zamasoft.foliojet.css.value.GridLineValue s = spec.columnStart(), e = spec.columnEnd();
+			final int startLine = !s.isAuto() && !s.isSpan() && !s.isNamed() && s.getNumber() > 0 ? s.getNumber() : 0;
+			final int endLine = !e.isAuto() && !e.isSpan() && !e.isNamed() && e.getNumber() > 0 ? e.getNumber() : 0;
+			final int startSpan = s.isSpan() ? s.getNumber() : 0;
+			final int endSpan = e.isSpan() ? e.getNumber() : 0;
+			if (startLine > 0 && endLine > 0) {
+				needed = Math.max(needed, Math.max(startLine, endLine) - 1);
+			} else if (startLine > 0) {
+				needed = Math.max(needed, startLine - 1 + Math.max(1, endSpan));
+			} else if (endLine > 0) {
+				needed = Math.max(needed, endLine - 1);
+			} else {
+				needed = Math.max(needed, Math.max(startSpan, endSpan));
+			}
+		}
+		return needed;
+	}
+
+	/**
+	 * トラック解決に渡す列です(2026-08-29): %はコンテナ行幅で絶対化する
+	 * (基準幅が未確定=固有寸法計測ではautoとして扱う——
+	 * {@code BasicGridTrackSizing}側)。
+	 */
+	private List<GridTrackListValue.TrackSize> sizingTracks(final double available) {
+		if (!(available > 0)) {
+			return this.tracks;
+		}
+		List<GridTrackListValue.TrackSize> resolved = null;
+		for (int i = 0; i < this.tracks.size(); ++i) {
+			if (this.tracks.get(i) instanceof GridTrackListValue.Percentage p) {
+				if (resolved == null) {
+					resolved = new ArrayList<>(this.tracks);
+				}
+				resolved.set(i, new GridTrackListValue.Fixed(p.ratio() * available));
+			}
+		}
+		return resolved == null ? this.tracks : resolved;
+	}
+
+	/**
+	 * 行rのテンプレート寸法です(明示行は{@code grid-template-rows}、暗黙行は
+	 * {@code grid-auto-rows}の周期。無ければnull=内容高。2026-08-29)。
+	 */
+	private GridTrackListValue.TrackSize rowTrack(final int r) {
+		final GridParams params = this.gridBox.getGridParams();
+		if (r < params.templateRows.size()) {
+			return params.templateRows.get(r);
+		}
+		if (params.autoRows.isEmpty()) {
+			return null;
+		}
+		return params.autoRows.get((r - params.templateRows.size()) % params.autoRows.size());
+	}
+
+	private static boolean hasAutoRepeat(final List<GridTrackListValue.TrackSize> template) {
+		for (final GridTrackListValue.TrackSize t : template) {
+			if (t instanceof GridTrackListValue.AutoRepeat) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** 行rの固定高(fixedまたは基準確定の%。それ以外=内容高ならNONE)。 */
+	private double fixedRowHeight(final int r) {
+		final GridTrackListValue.TrackSize track = this.rowTrack(r);
+		if (track instanceof GridTrackListValue.Fixed f) {
+			return f.length();
+		}
+		if (track instanceof GridTrackListValue.Percentage p && this.gridBox.isSpecifiedPageSize()) {
+			return p.ratio() * this.gridBox.getInnerPageExtent(this.gridBox.getGridParams().flow);
+		}
+		return net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
 	}
 
 	/** 全itemがrowSpan=1か(G6行分割の適格条件)。 */
@@ -360,8 +598,8 @@ public final class GridBuilder
 	@Override
 	public IntrinsicSizes getIntrinsicSizes() {
 		final GridPlacementResolver.Plan plan = this.placementPlan();
-		final BasicGridTrackSizing.Intrinsics line = BasicGridTrackSizing.intrinsics(this.tracks,
-				this.columnContributions(plan), this.columnGap);
+		final BasicGridTrackSizing.Intrinsics line = BasicGridTrackSizing.intrinsics(
+				this.sizingTracks(this.gridBox.getLineSize()), this.columnContributions(plan), this.columnGap);
 		boolean columnInflated = false;
 		final double[] rowMinPage = new double[Math.max(1, plan.rowCount())];
 		for (int i = 0; i < this.items.size(); ++i) {
@@ -377,7 +615,9 @@ public final class GridBuilder
 		}
 		double minPage = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
 		for (int r = 0; r < rowMinPage.length; ++r) {
-			minPage += rowMinPage[r];
+			// 固定高の明示・暗黙行はその高さ(2026-08-29)
+			final double fixed = this.fixedRowHeight(r);
+			minPage += net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(fixed) ? rowMinPage[r] : fixed;
 		}
 		return new IntrinsicSizes(line.min(), line.max(), minPage, columnInflated);
 	}
@@ -432,6 +672,14 @@ public final class GridBuilder
 		this.gridBox.markTrackLayout();
 		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final GridParams params = this.gridBox.getGridParams();
+		if (this.placementPlan != null && this.planAvailable != Math.max(0, this.gridBox.getLineSize())
+				&& hasAutoRepeat(params.templateColumns)) {
+			// auto-repeatの回数はコンテナ幅で決まる(2026-08-29)。固有寸法
+			// 計測(幅未確定=1回)で作ったplanは、幅確定後のbindで作り直す
+			// ——仕様でも不確定幅の計測時は1回、確定幅では収まるだけ、と
+			// 別の値になる。plan共有の原則(G4b)は同一幅の中でのみ成り立つ
+			this.placementPlan = null;
+		}
 		final GridPlacementResolver.Plan plan = this.placementPlan();
 		// トラック幅解決(G3b/c): planに基づく列contribution(G4b)から、
 		// fixed=指定長・auto=base/growth limit+stretch・fr=find-frで
@@ -440,7 +688,7 @@ public final class GridBuilder
 		// G5c: justify-contentのused value。positional(start/center/end)の
 		// ときauto列の残余stretchを止め、残余をトラック群のoffsetへ回す
 		final BoxAlignment justifyContent = BoxAlignment.resolve(BoxAlignment.AUTO, params.justifyContent);
-		final double[] widths = BasicGridTrackSizing.resolve(this.tracks,
+		final double[] widths = BasicGridTrackSizing.resolve(this.sizingTracks(this.gridBox.getLineSize()),
 				this.columnContributions(plan, Math.max(0, this.gridBox.getLineSize())),
 				this.gridBox.getLineSize(), this.columnGap, justifyContent == BoxAlignment.STRETCH);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
@@ -492,6 +740,18 @@ public final class GridBuilder
 		// 空行は高さ0だが隣接rowGapは残る=仕様のgutter挙動)
 		final double[] rowHeights = net.zamasoft.foliojet.layout.sizing.GridRowSizing.resolve(plan.areas(),
 				extents, plan.rowCount(), this.rowGap);
+		// 固定高の行(grid-template-rows/grid-auto-rowsの絶対長・基準確定の%)
+		// はその高さに固定する(2026-08-29。内容が高ければitemがはみ出す=
+		// 仕様どおり。auto/fr/min-content等は内容高のまま——高さautoの
+		// Gridではfr行もautoに等しい)
+		final boolean[] fixedRow = new boolean[rowHeights.length];
+		for (int r = 0; r < rowHeights.length; ++r) {
+			final double fixed = this.fixedRowHeight(r);
+			if (!net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(fixed)) {
+				rowHeights[r] = fixed;
+				fixedRow[r] = true;
+			}
+		}
 		// G5e: align-content——明示高Gridの余白。content distributionが先、
 		// item self alignmentは後(調整後の行高を参照する)
 		double trackPageExtent = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
@@ -505,13 +765,21 @@ public final class GridBuilder
 					this.gridBox.getInnerPageExtent(params.flow) - trackPageExtent);
 			if (freePage > 0) {
 				final BoxAlignment alignContent = BoxAlignment.resolve(BoxAlignment.AUTO, params.alignContent);
-				if (alignContent == BoxAlignment.STRETCH) {
-					// 現サブセットの行は全implicit auto——均等分配(空行も対象)
-					final double share = freePage / rowHeights.length;
-					for (int r = 0; r < rowHeights.length; ++r) {
-						rowHeights[r] += share;
+				int stretchable = 0;
+				for (final boolean fixed : fixedRow) {
+					if (!fixed) {
+						++stretchable;
 					}
-				} else {
+				}
+				if (alignContent == BoxAlignment.STRETCH && stretchable > 0) {
+					// auto行へ均等分配(空行も対象。固定高の行は伸ばさない——2026-08-29)
+					final double share = freePage / stretchable;
+					for (int r = 0; r < rowHeights.length; ++r) {
+						if (!fixedRow[r]) {
+							rowHeights[r] += share;
+						}
+					}
+				} else if (alignContent != BoxAlignment.STRETCH) {
 					contentY = alignContent == BoxAlignment.CENTER ? freePage / 2
 							: alignContent == BoxAlignment.END ? freePage : 0;
 				}

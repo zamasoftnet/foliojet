@@ -13,6 +13,11 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
+ * {@code text-decoration-line}です。2026-08-29までは{@code text-decoration}
+ * (線種だけを受ける旧CSS2の形)だった——短縮形は
+ * {@code TextDecorationShorthand}へ分離し、こちらは線種の個別指定になった
+ * (レイアウトが読むのは従来どおりこのフラグ)。
+ *
  * @author MIYABE Tatsuhiko
  */
 public class TextDecoration extends AbstractPrimitivePropertyInfo {
@@ -23,8 +28,24 @@ public class TextDecoration extends AbstractPrimitivePropertyInfo {
 		return value.getFlags();
 	}
 
+	/** 線種キーワード(小文字)のフラグ。該当しなければ0。 */
+	public static byte flagOf(final String ident) {
+		switch (ident) {
+		case "underline":
+			return TextDecorationValue.UNDERLINE;
+		case "overline":
+			return TextDecorationValue.OVERLINE;
+		case "line-through":
+			return TextDecorationValue.LINE_THROUGH;
+		case "blink":
+			return TextDecorationValue.BLINK;
+		default:
+			return 0;
+		}
+	}
+
 	protected TextDecoration() {
-		super("text-decoration");
+		super("text-decoration-line");
 	}
 
 	public Value getDefault(CSSStyle style) {

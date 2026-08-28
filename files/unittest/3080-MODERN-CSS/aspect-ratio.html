@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>aspect-ratio</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 10pt;
+	line-height: 12pt;
+	font-family: serif;
+}
+div {
+	margin: 0 0 4pt 0;
+}
+/* 幅確定→高さ: 120px=90pt、高さ 67.5px=50.625pt */
+#a {
+	width: 120px;
+	aspect-ratio: 16 / 9;
+	background: #ccc;
+}
+/* 置換要素: 固有比率(148x199)より指定比率が優先——45pt角 */
+#img1 {
+	aspect-ratio: 1;
+	width: 60px;
+}
+/* auto併記: 固有比率が優先——幅45pt、高さ45*199/148 */
+#img2 {
+	aspect-ratio: auto 1;
+	width: 60px;
+}
+/* 高さ確定→幅: 40px=30pt、幅 80px=60pt(残りは右margin) */
+#b {
+	height: 40px;
+	aspect-ratio: 2;
+	background: #cfc;
+}
+/* border-box: 外形100px角、content 70px角 */
+#c {
+	width: 100px;
+	aspect-ratio: 1;
+	box-sizing: border-box;
+	padding: 10px;
+	border: 5px solid #000;
+	background: #ffc;
+}
+/* content-box+padding: content 100x50px、外形120x70px */
+#c2 {
+	width: 100px;
+	aspect-ratio: 2;
+	padding: 10px;
+	background: #fcf;
+}
+/* 内容が比率高(25px)より高い: overflow:visibleなら内容に合わせて伸びる */
+#d {
+	width: 100px;
+	aspect-ratio: 4;
+	background: #fcc;
+}
+/* overflow:hiddenなら比率高ちょうど */
+#e {
+	width: 100px;
+	aspect-ratio: 4;
+	overflow: hidden;
+	background: #ccf;
+}
+/* float(shrink-to-fit): 高さ確定→幅 30px*3=90px */
+#f {
+	float: left;
+	height: 30px;
+	aspect-ratio: 3;
+	background: #cff;
+}
+/* inline-block: 幅確定→高さ 60px/2=30px */
+#g {
+	display: inline-block;
+	width: 60px;
+	aspect-ratio: 2;
+	background: #fcc;
+}
+/* min/max: 比率高50pxをmax-height:30pxが抑える */
+#h {
+	width: 100px;
+	aspect-ratio: 2;
+	max-height: 30px;
+	background: #cfc;
+}
+/* 両方確定: 比率は無視 */
+#i {
+	width: 100px;
+	height: 20px;
+	aspect-ratio: 1;
+	background: #ccc;
+}
+.after {
+	clear: both;
+}
+/* flex item: 主軸で100px幅に伸びた後、比率で高さ50px=37.5pt */
+#flex {
+	display: flex;
+	width: 200px;
+}
+#flex > div {
+	flex: 1;
+	aspect-ratio: 2;
+	background: #cfc;
+}
+/* grid item: 50ptトラック幅→比率1で50pt高 */
+#grid {
+	display: grid;
+	grid-template-columns: 50pt 50pt;
+	width: 100pt;
+}
+#grid > div {
+	aspect-ratio: 1;
+	background: #ffc;
+}
+</style>
+</head>
+<body>
+<div id="a"></div>
+<div><img id="img1" src="../kappa.png" alt="" /><img id="img2" src="../kappa.png" alt="" /></div>
+<div id="b"></div>
+<div id="c"></div>
+<div id="c2"></div>
+<div id="d">one<br />two<br />three</div>
+<div id="e">one<br />two<br />three</div>
+<div id="f"></div>
+<div id="g"></div>
+<div class="after" id="h"></div>
+<div id="i"></div>
+<div id="flex"><div>x</div><div>y</div></div>
+<div id="grid"><div>p</div><div>q</div></div>
+<div id="after">after</div>
+</body>
+</html>

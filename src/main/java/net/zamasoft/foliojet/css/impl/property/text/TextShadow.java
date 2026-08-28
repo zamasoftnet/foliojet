@@ -87,33 +87,34 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 		List<Shadow> shadows = null;
 		LengthValue x = null;
 		LengthValue y = null;
+		LengthValue blur = null;
 		Value color = null;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
 			if (lu == CssToken.Op.COMMA) {
+				if (x == null || y == null) {
+					throw new PropertyException();
+				}
 				if (color == null || color != KeywordValue.TRANSPARENT) {
 					if (shadows == null) {
 						shadows = new ArrayList<Shadow>();
 					}
-					shadows.add(new Shadow(x, y, (ColorValue) color));
+					shadows.add(new Shadow(x, y, color instanceof ColorValue cv ? cv : null));
 				}
-				x = y = null;
+				x = y = blur = null;
 				color = null;
 				continue;
 			}
-			if (x == null) {
-				x = ValueUtils.toLength(ua, lu);
-				if (x != null) {
-					continue;
-				}
+			// 色は長さの前後どちらにも書ける(css-text-decoration-3)。
+			// 2026-08-29: 実サイトの `0 -1px 0 rgba(0,0,0,.3)` は3つ目の長さ
+			// (ぼかし半径)で解析失敗していた。ぼかしは受理して無視する
+			// (影はぼかさず描く——記録済みの近似)。currentcolorは
+			// 色なし(=描画時にその要素のcolor)と同じ
+			if (color == null && ColorValueUtils.isCurrentColor(lu)) {
+				color = KeywordValue.DEFAULT;
+				continue;
 			}
-			if (y == null) {
-				y = ValueUtils.toLength(ua, lu);
-				if (y != null) {
-					continue;
-				}
-			}
-			if (color == null) {
+			if (color == null && !(lu instanceof CssToken.Dim) && !(lu instanceof CssToken.Num)) {
 				if (ColorValueUtils.isTransparent(lu)) {
 					color = KeywordValue.TRANSPARENT;
 				} else {
@@ -123,13 +124,33 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 					continue;
 				}
 			}
+			if (x == null) {
+				x = ValueUtils.toLength(ua, lu);
+				if (x != null) {
+					continue;
+				}
+			} else if (y == null) {
+				y = ValueUtils.toLength(ua, lu);
+				if (y != null) {
+					continue;
+				}
+			} else if (blur == null) {
+				blur = ValueUtils.toLength(ua, lu);
+				if (blur != null && !blur.isNegative()) {
+					continue;
+				}
+			}
+			throw new PropertyException();
+		}
+		if (x == null || y == null) {
+			// 影にはx/yの2つの長さが要る(色だけ・長さ1つは無効)
 			throw new PropertyException();
 		}
 		if (color == null || color != KeywordValue.TRANSPARENT) {
 			if (shadows == null) {
 				shadows = new ArrayList<Shadow>();
 			}
-			shadows.add(new Shadow(x, y, (ColorValue) color));
+			shadows.add(new Shadow(x, y, color instanceof ColorValue cv ? cv : null));
 		}
 		if (shadows == null) {
 			return TextShadowValue.EMPTY_TEXT_SHADOW;

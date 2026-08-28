@@ -1,0 +1,20 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="60pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>fit-content の箱が改ページで分割されても継続断片の幅を保つ</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+p { margin: 0; }
+/* 60pt の紙に 10 行(100pt)の内容+枠 → 2 ページに割れる。
+   継続断片も内容幅(40pt)・中央寄せのまま——包含ブロック幅(300pt)へ戻らない */
+div { width: fit-content(40pt); border: 1px solid; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div id="a">AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ</div>
+</body>
+</html>

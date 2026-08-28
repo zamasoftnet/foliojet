@@ -146,6 +146,7 @@ public class LanguageProfile_ja implements LanguageProfile {
 		// 禁則処理
 		switch (WordBreak.get(style)) {
 		case WordBreakValue.NORMAL:
+		case WordBreakValue.BREAK_WORD:
 			final CSSJBreakRuleValue include = CSSJNoBreakCharacters.get(style);
 			final CSSJBreakRuleValue exclude = CSSJBreakCharacters.get(style);
 			if (include != CSSJBreakRuleValue.NONE_VALUE || exclude != CSSJBreakRuleValue.NONE_VALUE) {

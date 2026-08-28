@@ -52,6 +52,10 @@ final class FlexItemContent {
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
 				insetBase);
 		this.itemBox.setFlexMainSize(mainSize, this.itemBox.getBlockParams().flow.isVertical());
+		// aspect-ratio(2026-08-29): flex itemはcalculateSizeを通らないので、
+		// 行方向寸法が入ったここでページ方向を比率で決める(内容が高ければ
+		// overflow:visibleに限り伸びる——FlowBlockBox.calculateSizeと同じ規則)
+		this.itemBox.applyAspectRatio(mainSize);
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		this.body.bind(target);
 		target.close();

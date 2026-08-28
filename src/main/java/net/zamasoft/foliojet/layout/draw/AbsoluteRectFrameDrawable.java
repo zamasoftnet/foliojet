@@ -32,7 +32,20 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 
 	@Override
 	public String describe() {
-		return this.describeTransform(
+		final StringBuilder s = new StringBuilder(
 				String.format(java.util.Locale.ROOT, "AbsoluteRectFrame[w=%.2f h=%.2f]", this.width, this.height));
+		// 影・アウトラインは持つ箱だけに付記する(無い箱のgoldenを変えない)
+		final net.zamasoft.foliojet.layout.box.params.RectFrame f = this.frame.frame;
+		if (f.shadows != null) {
+			for (final net.zamasoft.foliojet.layout.box.params.BoxShadow sh : f.shadows) {
+				s.append(String.format(java.util.Locale.ROOT, " shadow[%s%.2f,%.2f,%.2f,%.2f]", sh.inset ? "inset " : "",
+						sh.x, sh.y, sh.blur, sh.spread));
+			}
+		}
+		if (f.outline != null) {
+			s.append(String.format(java.util.Locale.ROOT, " outline[style=%d w=%.2f offset=%.2f]",
+					f.outline.border.style, f.outline.border.width, f.outline.offset));
+		}
+		return this.describeTransform(s.toString());
 	}
 }

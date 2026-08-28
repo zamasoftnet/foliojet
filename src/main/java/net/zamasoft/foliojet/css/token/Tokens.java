@@ -9,6 +9,7 @@ import java.util.List;
 
 import com.helger.css.decl.CSSExpression;
 import com.helger.css.decl.CSSExpressionMemberFunction;
+import com.helger.css.decl.CSSExpressionMemberLineNames;
 import com.helger.css.decl.CSSExpressionMemberMath;
 import com.helger.css.decl.CSSExpressionMemberMathProduct;
 import com.helger.css.decl.CSSExpressionMemberMathUnitProduct;
@@ -83,6 +84,11 @@ public final class Tokens {
 			default:
 				return new CssToken.Ident("=");
 			}
+		}
+		if (member instanceof CSSExpressionMemberLineNames lineNames) {
+			// Gridの行名[a b](2026-08-29。従来は未知メンバーとして捨てていた
+			// ——CssToken.LineNamesのjavadoc参照)
+			return new CssToken.LineNames(List.copyOf(lineNames.getAllMembers()));
 		}
 		if (member instanceof CSSExpressionMemberMath math) {
 			List<CssToken> rpn = convertCalc(math, depth);
@@ -234,23 +240,43 @@ public final class Tokens {
 		return new CssToken.Ident(value);
 	}
 
+	/**
+	 * 16進の色。3桁・6桁に加えて、CSS Color 4の<b>4桁・8桁(透明度つき)</b>
+	 * を受ける(2026-08-29)。{@code #RRGGBBAA}は実サイトで広く使われ、
+	 * 落とすと背景色・文字色の宣言が丸ごと無効になっていた。
+	 */
 	private static CssToken parseHexColor(String value) {
 		String hex = value.substring(1);
 		int r, g, b;
+		int a = -1;
 		try {
-			if (hex.length() == 3) {
+			if (hex.length() == 3 || hex.length() == 4) {
 				r = Integer.parseInt(hex.substring(0, 1), 16) * 17;
 				g = Integer.parseInt(hex.substring(1, 2), 16) * 17;
 				b = Integer.parseInt(hex.substring(2, 3), 16) * 17;
-			} else if (hex.length() == 6) {
+				if (hex.length() == 4) {
+					a = Integer.parseInt(hex.substring(3, 4), 16) * 17;
+				}
+			} else if (hex.length() == 6 || hex.length() == 8) {
 				r = Integer.parseInt(hex.substring(0, 2), 16);
 				g = Integer.parseInt(hex.substring(2, 4), 16);
 				b = Integer.parseInt(hex.substring(4, 6), 16);
+				if (hex.length() == 8) {
+					a = Integer.parseInt(hex.substring(6, 8), 16);
+				}
 			} else {
 				return null;
 			}
 		} catch (NumberFormatException e) {
 			return null;
+		}
+		if (a >= 0) {
+			// 実数表記のアルファは0〜1として読まれる(ColorValueUtils.toColorComponent)
+			return new CssToken.Func("rgba", List.of(
+					new CssToken.Num(r, true),
+					new CssToken.Num(g, true),
+					new CssToken.Num(b, true),
+					new CssToken.Num(a / 255.0, false)));
 		}
 		return new CssToken.Func("rgb", List.of(
 				new CssToken.Num(r, true),

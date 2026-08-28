@@ -81,6 +81,7 @@ public class BorderColorShorthand extends AbstractShorthandPropertyInfo {
 		if (ColorValueUtils.isTransparent(token)) {
 			return KeywordValue.TRANSPARENT;
 		}
-		return ColorValueUtils.toColor(ua, token);
+		// currentcolor は DEFAULT 番兵(2026-08-29)
+		return ColorValueUtils.toColorOrCurrent(ua, token);
 	}
 }

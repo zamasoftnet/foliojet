@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid: repeat(auto-fill / auto-fit, minmax())</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 12pt;
+	line-height: 14pt;
+	font-family: serif;
+}
+div {
+	margin: 0;
+}
+.g {
+	display: grid;
+	width: 300pt;
+	margin-bottom: 8pt;
+	background: #eee;
+}
+.g > div {
+	background: #cfc;
+}
+/* auto-fill: floor((300+10)/(60+10))=4列、各(300-30)/4=67.5pt。6itemで2行 */
+#f1 { grid-template-columns: repeat(auto-fill, minmax(60pt, 1fr)); column-gap: 10pt; row-gap: 4pt; }
+/* auto-fit: 4列分収まるが2itemなので2列に潰す→各145pt */
+#f2 { grid-template-columns: repeat(auto-fit, minmax(60pt, 1fr)); column-gap: 10pt; }
+/* auto-fillは空列を残す: 2itemでも4列、各67.5pt */
+#f3 { grid-template-columns: repeat(auto-fill, minmax(60pt, 1fr)); column-gap: 10pt; }
+/* rem(12pt基準): 12.5rem=150pt → 2列 */
+#f4 { grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); }
+/* 固定幅との併用: 100pt + auto-fill 50pt → (300-100-10+10)/(50+10)=3列 */
+#f5 { grid-template-columns: 100pt repeat(auto-fill, 50pt); column-gap: 10pt; }
+</style>
+</head>
+<body>
+<div class="g" id="f1"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div></div>
+<div class="g" id="f2"><div>1</div><div>2</div></div>
+<div class="g" id="f3"><div>1</div><div>2</div></div>
+<div class="g" id="f4"><div>1</div><div>2</div><div>3</div></div>
+<div class="g" id="f5"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div></div>
+<div id="after">after</div>
+</body>
+</html>

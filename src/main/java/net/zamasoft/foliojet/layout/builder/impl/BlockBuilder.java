@@ -646,12 +646,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return this.cachedExclusions;
 		}
 		final List<FloatExclusion> exclusions = new ArrayList<>(count);
+		// shape-outside(2026-08-29)の解決に要る文脈。書字方向は根ボックス、
+		// shape-marginの%基準は包含ブロックの行方向幅。台帳が変わらない限り
+		// キャッシュに乗るので、行ごとに形状を作り直すことはない
+		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final double containingLineSize = this.getFlowBox().getLineSize();
 		for (int i = 0; i < count; ++i) {
 			final LayoutContext.Floating floating = this.getFloating(i);
 			final FloatPos floatingPos = floating.box.getFloatPos();
+			final net.zamasoft.foliojet.layout.constraint.ExclusionShape shape = floatingPos.shapeOutside == null
+					? null
+					: FloatShapeResolver.resolve(floating.box, floating.lineStart, floating.pageStart, progression,
+							containingLineSize);
 			exclusions.add(new FloatExclusion(i, floatingPos.floating,
 					new AxisSpan(floating.pageStart, floating.pageEnd),
-					new AxisSpan(floating.lineStart, floating.lineEnd)));
+					new AxisSpan(floating.lineStart, floating.lineEnd), shape));
 		}
 		final ExclusionSpace snapshot = ExclusionSpace.copyOfSorted(exclusions);
 		this.cachedExclusions = snapshot;
@@ -1437,7 +1446,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 	private static boolean establishesIndependentFloatScope(final FlowBlockBox flowBox,
 			final BlockParams parentParams) {
 		final BlockParams params = flowBox.getBlockParams();
-		return params.overflow == OverflowMode.HIDDEN
+		// display:flow-rootは独立BFC(2026-08-29)。overflow:hiddenと同じ扱い
+		return params.overflow == OverflowMode.HIDDEN || params.flowRoot
 				|| (params.flow.isVertical() == parentParams.flow.isVertical()
 						&& params.flow != parentParams.flow);
 	}

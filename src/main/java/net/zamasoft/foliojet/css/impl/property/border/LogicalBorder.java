@@ -154,7 +154,7 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 			value = BorderValueUtils.toBorderStyle(lu);
 			break;
 		case COLOR:
-			value = ColorValueUtils.toColor(ua, lu);
+			value = ColorValueUtils.toColorOrCurrent(ua, lu);
 			break;
 		default: {
 			final LengthValue width = BorderValueUtils.toBorderWidth(ua, lu);

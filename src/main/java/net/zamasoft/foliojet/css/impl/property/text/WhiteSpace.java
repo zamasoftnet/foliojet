@@ -53,6 +53,15 @@ public class WhiteSpace extends AbstractPrimitivePropertyInfo {
 				value = WhiteSpaceValue.PRE_WRAP_VALUE;
 			} else if (ident.equals("pre-line")) {
 				value = WhiteSpaceValue.PRE_LINE_VALUE;
+			} else if (ident.equals("break-spaces") || ident.equals("-moz-pre-wrap") || ident.equals("-pre-wrap")
+					|| ident.equals("-o-pre-wrap")) {
+				// break-spaces(css-text-3)は行末の連続空白の扱いだけが
+				// pre-wrapと違う——pre-wrapで近似。接頭辞つきはIE/旧Firefox/
+				// Opera向けのpre-wrap別名(2026-08-29)
+				value = WhiteSpaceValue.PRE_WRAP_VALUE;
+			} else if (ident.equals("wrap")) {
+				// css-text-4のwhite-space短縮形の折り返し指定。normalと同じ
+				value = WhiteSpaceValue.NORMAL_VALUE;
 			} else {
 				throw new PropertyException();
 			}

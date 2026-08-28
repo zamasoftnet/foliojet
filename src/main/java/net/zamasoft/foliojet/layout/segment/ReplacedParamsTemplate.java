@@ -64,10 +64,13 @@ public final class ReplacedParamsTemplate {
 	private final RectFrame frame;
 	private final double lineHeight;
 	private final Image image;
+	private final double aspectRatio;
+	private final boolean aspectRatioAuto;
 
 	private ReplacedParamsTemplate(final TextParamsFields common, final Dimension size, final Dimension minSize,
 			final Dimension maxSize, final BoxSizingMode boxSizing, final ObjectFitMode objectFit,
-			final Offset objectPosition, final RectFrame frame, final double lineHeight, final Image image) {
+			final Offset objectPosition, final RectFrame frame, final double lineHeight, final Image image,
+			final double aspectRatio, final boolean aspectRatioAuto) {
 		this.common = common;
 		this.size = size;
 		this.minSize = minSize;
@@ -78,6 +81,8 @@ public final class ReplacedParamsTemplate {
 		this.frame = frame;
 		this.lineHeight = lineHeight;
 		this.image = image;
+		this.aspectRatio = aspectRatio;
+		this.aspectRatioAuto = aspectRatioAuto;
 	}
 
 	/**
@@ -91,7 +96,7 @@ public final class ReplacedParamsTemplate {
 		final Image image = source.image instanceof ReplacedBoxImage unsafe ? unsafe.duplicate() : source.image;
 		return new ReplacedParamsTemplate(TextParamsFields.freeze(source), source.size, source.minSize,
 				source.maxSize, source.boxSizing, source.objectFit, source.objectPosition, source.frame,
-				source.lineHeight, image);
+				source.lineHeight, image, source.aspectRatio, source.aspectRatioAuto);
 	}
 
 	/** 呼び出しごとに新品の{@code ReplacedParams}を返す(複数回呼んでも互いに影響しない)。 */
@@ -106,6 +111,8 @@ public final class ReplacedParamsTemplate {
 		params.objectPosition = this.objectPosition;
 		params.frame = this.frame;
 		params.lineHeight = this.lineHeight;
+		params.aspectRatio = this.aspectRatio; // 2026-08-29
+		params.aspectRatioAuto = this.aspectRatioAuto;
 		// ReplacedBoxImageはmaterializeごとに複製を配る——凍結済み複製自体を
 		// 共有すると、複数の再生ボックスが
 		// setReplacedBoxのback-referenceを取り合い「materialize結果は互いに

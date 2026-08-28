@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>width: fit-content / fit-content(L) と min/max の固有寸法</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: normal 10pt/1 monospace; }
+p { margin: 0; }
+div { border: 1px solid; }
+/* 短い内容: 内容幅(30pt) */
+#short { width: fit-content; }
+/* 長い内容: 包含ブロック幅(298pt)で折り返す */
+#long { width: fit-content; }
+/* 上限付き: 60pt で折り返す */
+#bounded { width: fit-content(60pt); }
+/* 上限が最長単語より小さい: 最長単語(48pt)まで広がる */
+#tight { width: fit-content(20pt); }
+/* 中央寄せの常套句 */
+#center { width: fit-content; margin: 0 auto; }
+/* width:auto に max-width: max-content — 内容幅で止まる */
+#maxc { max-width: max-content; }
+/* 固定幅より広い min-width: max-content — 内容幅(90pt)まで広がる */
+#minc { width: 10pt; min-width: max-content; }
+/* box-sizing: border-box の fit-content(L) は L がborder-box幅 */
+#bb { width: fit-content(62pt); box-sizing: border-box; padding: 0 5pt; }
+/* ブロック軸の固有寸法キーワードは auto と同じ(内容高さ) */
+#h { width: max-content; height: min-content; min-height: max-content; max-height: fit-content; }
+/* 論理プロパティ経由 */
+#logical { inline-size: fit-content(36pt); }
+</style>
+</head>
+<body>
+<div id="short">ABCDE</div>
+<div id="long">AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE FFFFFFFFFF</div>
+<div id="bounded">AAAA BBBB CCCC DDDD EEEE</div>
+<div id="tight">ABCDEFGH IJK</div>
+<div id="center">CENTER</div>
+<div id="maxc">MAXC</div>
+<div id="minc">MINC MINC MINC</div>
+<div id="bb">AAAA BBBB CCCC DDDD</div>
+<div id="h">HEIGHT</div>
+<div id="logical">AAAA BBBB CCCC</div>
+<p id="after">AFTER</p>
+</body>
+</html>

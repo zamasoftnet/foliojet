@@ -43,6 +43,7 @@ class DirectSVGGC implements GC {
 		private final AffineTransform transform;
 		private final Paint fillPaint, strokePaint;
 		private final float fillAlpha, strokeAlpha;
+		private final net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode;
 		private final double lineWidth;
 		private final double[] linePattern;
 		private final LineJoin lineJoin;
@@ -58,6 +59,7 @@ class DirectSVGGC implements GC {
 			this.strokePaint = gc.strokePaint;
 			this.fillAlpha = gc.fillAlpha;
 			this.strokeAlpha = gc.strokeAlpha;
+			this.blendMode = gc.blendMode;
 			this.lineWidth = gc.lineWidth;
 			this.linePattern = gc.linePattern;
 			this.lineJoin = gc.lineJoin;
@@ -79,6 +81,7 @@ class DirectSVGGC implements GC {
 			this.gc.strokePaint = this.strokePaint;
 			this.gc.fillAlpha = this.fillAlpha;
 			this.gc.strokeAlpha = this.strokeAlpha;
+			this.gc.blendMode = this.blendMode;
 			this.gc.lineWidth = this.lineWidth;
 			this.gc.linePattern = this.linePattern;
 			this.gc.lineJoin = this.lineJoin;
@@ -97,6 +100,8 @@ class DirectSVGGC implements GC {
 	private Paint fillPaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 	private Paint strokePaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 	private float fillAlpha = 1f, strokeAlpha = 1f;
+	/** mix-blend-mode(2026-08-29)。各要素のstyle属性で出す。 */
+	private net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 	private double lineWidth = 1.0;
 	private double[] linePattern = null;
 	private LineJoin lineJoin = LineJoin.MITER;
@@ -133,6 +138,7 @@ class DirectSVGGC implements GC {
 		this.fillPaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 		this.strokePaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 		this.fillAlpha = this.strokeAlpha = 1f;
+		this.blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 		this.lineWidth = 1.0;
 		this.linePattern = null;
 		this.lineJoin = LineJoin.MITER;
@@ -184,6 +190,26 @@ class DirectSVGGC implements GC {
 	@Override
 	public void setFillAlpha(final float fillAlpha) {
 		this.fillAlpha = fillAlpha;
+	}
+
+	@Override
+	public void setBlendMode(final net.zamasoft.pdfg2d.gc.paint.BlendMode mode) {
+		this.blendMode = mode == null ? net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL : mode;
+	}
+
+	@Override
+	public net.zamasoft.pdfg2d.gc.paint.BlendMode getBlendMode() {
+		return this.blendMode;
+	}
+
+	/**
+	 * 現在のブレンドモードを描画要素の{@code style}属性として書きます
+	 * (normalなら何も書かない。2026-08-29)。
+	 */
+	protected final void writeBlendMode(final SVGWriter w) throws IOException {
+		if (this.blendMode != net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL) {
+			w.attr("style", "mix-blend-mode:" + this.blendMode.cssName);
+		}
 	}
 
 	@Override
@@ -293,6 +319,7 @@ class DirectSVGGC implements GC {
 			this.openTransformGroup();
 			this.writer.open("path");
 			this.writer.attr("d", SVGPathWriter.toPathData(shape, this.transform));
+			this.writeBlendMode(this.writer);
 			final String rule = SVGPathWriter.fillRule(shape);
 			if (doFill && rule != null) {
 				this.writer.attr("fill-rule", rule);

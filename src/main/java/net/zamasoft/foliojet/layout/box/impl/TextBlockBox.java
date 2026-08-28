@@ -235,6 +235,10 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final void addLine(AbstractLineBox lineBox, double pageAxis) {
+		// 行が増えると「内容がある」の答えが変わりうる(FlowContainerのメモ)
+		if (this.getContentParent() != null) {
+			this.getContentParent().invalidateNonDecorationContent();
+		}
 		assert !LayoutUtils.isNone(pageAxis);
 		this.lines.add(new Line(lineBox, pageAxis));
 		// この拡張はIE互換モードでなければ、あまり意味はない

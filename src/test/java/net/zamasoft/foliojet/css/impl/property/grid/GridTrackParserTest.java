@@ -86,18 +86,27 @@ public class GridTrackParserTest extends TestCase {
 		assertNotNull(parseTracks("min(44px, 4.4rem)"));
 	}
 
-	public void testTrackListRejected() {
+	public void testTrackListRejected() throws Exception {
 		assertTracksRejected("-1fr"); // 負のfr
-		assertTracksRejected("50%"); // %トラックはサブセット外
+		assertTracksRejected("-50%"); // 負の%
 		assertTracksRejected("repeat(0, 50pt)"); // 0回
 		assertTracksRejected("repeat(2, repeat(2, 50pt))"); // 入れ子repeat
 		assertTracksRejected("repeat(5000, 50pt)"); // 展開上限4096超
 		assertTracksRejected("minmax(50pt)"); // 引数不足(2引数必須)
-		assertTracksRejected("minmax(50pt, 50%)"); // 最大値が%は依然サブセット外
-		assertTracksRejected("max(50%, 1fr)"); // %引数は依然サブセット外
-		// named line("[a] 100pt")はトークン化層が角括弧を落とすため
-		// このプロパティ層には届かない(=100ptとして受理される)。
-		// 拒否したい場合はトークン層の対応が要る——現状は容認(記録)
+		assertTracksRejected("max(50%, 1fr)"); // max()/min()の%引数は依然サブセット外
+		// %トラック・minmaxの%・線名[a]は2026-08-29から受理
+		// (GridShorthandParserTest参照)
+		assertNotNull(parseTracksSafe("50%"));
+		assertNotNull(parseTracksSafe("minmax(50pt, 50%)"));
+		assertNotNull(parseTracksSafe("[a] 100pt [b]"));
+	}
+
+	private static Value parseTracksSafe(final String value) {
+		try {
+			return parseTracks(value);
+		} catch (PropertyException e) {
+			return null;
+		}
 	}
 
 	public void testGridLine() throws Exception {
@@ -114,7 +123,9 @@ public class GridTrackParserTest extends TestCase {
 
 	public void testGridLineRejected() {
 		final GridPlacement info = (GridPlacement) GridPlacement.ROW_START;
-		for (final String bad : new String[] { "0", "span 0", "span -1", "1.5", "a" }) {
+		// "span 0"は2026-08-29からspan 1として受理(GridShorthandParserTest)。
+		// "a"(線名)も受理
+		for (final String bad : new String[] { "0", "span -1", "1.5", "auto auto", "span" }) {
 			try {
 				info.parseValue(tokens("grid-row-start: " + bad), ua(), null);
 				fail("拒否されるべきgrid-line: " + bad);

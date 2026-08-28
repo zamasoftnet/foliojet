@@ -315,7 +315,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			Drawable drawable = new BorderDrawable(pageBox, clip, this.params.opacity, transform,
 					this.frame.frame.border,
 					this.width + this.frame.padding.getFrameWidth() + this.frame.frame.border.getFrameWidth(),
-					this.height + this.frame.padding.getFrameHeight() + this.frame.frame.border.getFrameHeight());
+					this.height + this.frame.padding.getFrameHeight() + this.frame.frame.border.getFrameHeight()).withBlendMode(this.params.blendMode);
 			drawer.visitDrawable(drawable, x + this.frame.margin.left, y + this.frame.margin.top);
 		}
 			break;
@@ -323,7 +323,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		case TableParams.BORDER_COLLAPSE: {
 			// つぶし境界
 			Drawable drawable = new CollapsedBordersDrawable(pageBox, clip, this.params.opacity, transform,
-					this.borders, this.params.flow.isVertical());
+					this.borders, this.params.flow.isVertical()).withBlendMode(this.params.blendMode);
 			drawer.visitDrawable(drawable, xx, yy);
 		}
 			break;
@@ -359,7 +359,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		if (this.params.frame.background.isVisible()) {
 			Drawable drawable = new BackgroundBorderDrawable(pageBox, clip, this.params.opacity, transform,
 					this.params.frame.background, this.params.frame.border, this.params.frame.padding,
-					this.getWidth() - this.frame.getFrameWidth(), this.getHeight() - this.frame.getFrameHeight());
+					this.getWidth() - this.frame.getFrameWidth(), this.getHeight() - this.frame.getFrameHeight()).withBlendMode(this.params.blendMode);
 			drawer.visitDrawable(drawable, xx, yy);
 		}
 

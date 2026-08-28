@@ -48,6 +48,8 @@ public class WordBreak extends AbstractPrimitivePropertyInfo {
 				return WordBreakValue.BREAK_ALL_VALUE;
 			} else if (ident.equals("keep-all")) {
 				return WordBreakValue.KEEP_ALL_VALUE;
+			} else if (ident.equals("break-word")) {
+				return WordBreakValue.BREAK_WORD_VALUE;
 			}
 		}
 		throw new PropertyException();

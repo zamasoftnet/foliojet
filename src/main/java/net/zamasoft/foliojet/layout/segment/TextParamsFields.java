@@ -40,7 +40,8 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow, byte direction,
 		FontManager fontManager, TextBreakingRules lineBreakRules, Length letterSpacing, double wordSpacing,
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
-		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, double textStrokeWidth,
+		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, Color decorationColor,
+		double textStrokeWidth,
 		Color textStrokeColor,
 		TextShadow[] textShadows, byte rubyRole, boolean warichu, net.zamasoft.foliojet.css.value.RubyAlignValue rubyAlign,
 		net.zamasoft.foliojet.css.value.RubyMergeValue rubyMerge, boolean rubyOverhang,
@@ -59,7 +60,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
-				source.textStrokeWidth,
+				source.decorationColor, source.textStrokeWidth,
 				source.textStrokeColor, source.textShadows, source.rubyRole, source.warichu, source.rubyAlign, source.rubyMerge,
 				source.rubyOverhang, source.rubyPosition, source.textAutospace,
 				source.textSpacingTrimOff, source.textSpacingTrimStart, source.textSpacingTrimEnd,
@@ -91,6 +92,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.color = this.color;
 		target.decoration = this.decoration;
 		target.decorationThickness = this.decorationThickness;
+		target.decorationColor = this.decorationColor;
 		target.textStrokeWidth = this.textStrokeWidth;
 		target.textStrokeColor = this.textStrokeColor;
 		target.textShadows = this.textShadows == null ? null : this.textShadows.clone();

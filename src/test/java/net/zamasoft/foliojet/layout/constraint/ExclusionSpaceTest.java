@@ -421,4 +421,69 @@ public class ExclusionSpaceTest extends TestCase {
 		assertEquals(100.0, scan.startExclusion().pageSpan().end(), 0);
 		assertEquals(80.0, scan.lineStart(), 0);
 	}
+	/** 半径50・中心(50,50)の円形状(マージンボックス100×100、pageSpan 0..100)。 */
+	private static ExclusionShape circleShape() {
+		return ExclusionShape.ofShape(new java.awt.geom.Ellipse2D.Double(0, 0, 100, 100), new AxisSpan(0, 100),
+				new AxisSpan(0, 100));
+	}
+
+	public void testScanLineBandShapedStartFloatUsesChordOfBand() {
+		// shape-outside(2026-08-29): 行帯[0,12]では円の弦(v=12で≈82.5)まで
+		// 狭める。矩形なら100まで狭まる
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(new FloatExclusion(0, FloatSide.START, new AxisSpan(0, 100), new AxisSpan(0, 100),
+				circleShape()));
+		final ExclusionSpace.LineScan scan = space.scanLineBand(0, 12, 0, 500);
+		assertNotNull(scan.startExclusion());
+		assertEquals(50 + Math.sqrt(2500 - 38 * 38), scan.lineStart(), 0.5);
+		assertEquals(500.0, scan.lineEnd(), 0);
+		// 円の中央の帯では矩形と同じ100
+		assertEquals(100.0, space.scanLineBand(44, 12, 0, 500).lineStart(), 0.5);
+	}
+
+	public void testScanLineBandShapedEndFloatUsesChordOfBand() {
+		// END側は形状の開始端(円の左の弦)まで狭める
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(new FloatExclusion(0, FloatSide.END, new AxisSpan(0, 100), new AxisSpan(400, 500),
+				ExclusionShape.ofShape(new java.awt.geom.Ellipse2D.Double(400, 0, 100, 100), new AxisSpan(400, 500),
+						new AxisSpan(0, 100))));
+		final ExclusionSpace.LineScan scan = space.scanLineBand(0, 12, 0, 500);
+		assertNotNull(scan.endExclusion());
+		assertEquals(450 - Math.sqrt(2500 - 38 * 38), scan.lineEnd(), 0.5);
+		assertEquals(0.0, scan.lineStart(), 0);
+	}
+
+	public void testScanLineBandShapeEmptyInBandDoesNotNarrow() {
+		// 形状が帯と交わらなければ、その浮動体は行を狭めない(円の上下の
+		// 空白部分へ行が入り込める)。矩形ならpageSpan内の全帯で狭める
+		final double[] min = new double[100], max = new double[100];
+		java.util.Arrays.fill(min, Double.NaN);
+		java.util.Arrays.fill(max, Double.NaN);
+		for (int k = 40; k < 60; ++k) {
+			min[k] = 0;
+			max[k] = 100;
+		}
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(new FloatExclusion(0, FloatSide.START, new AxisSpan(0, 100), new AxisSpan(0, 100),
+				ExclusionShape.ofProfile(0, 1, min, max)));
+		final ExclusionSpace.LineScan above = space.scanLineBand(0, 12, 0, 500);
+		assertNull(above.startExclusion());
+		assertEquals(0.0, above.lineStart(), 0);
+		final ExclusionSpace.LineScan middle = space.scanLineBand(40, 12, 0, 500);
+		assertNotNull(middle.startExclusion());
+		assertEquals(100.0, middle.lineStart(), 0);
+		// maxPageSize(次の浮動体の上端)の扱いは形状の有無に関わらず同じ
+		assertFalse(middle.maxPageSizeSet());
+	}
+
+	public void testFloatPlacementBandIgnoresShape() {
+		// css-shapes-1 §4.1: 浮動体同士の配置は形状の影響を受けない
+		ExclusionSpace space = ExclusionSpace.EMPTY;
+		space = space.plus(new FloatExclusion(0, FloatSide.START, new AxisSpan(0, 100), new AxisSpan(0, 100),
+				circleShape()));
+		final ExclusionSpace.FloatPlacementScan scan = space.scanFloatPlacementBand(0, 0, 500, ClearMode.NONE);
+		assertEquals(100.0, scan.lineStart(), 0);
+		final AxisSpan band = space.narrowLineBandForMulticol(0, new AxisSpan(0, 500));
+		assertEquals(100.0, band.start(), 0);
+	}
 }

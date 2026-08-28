@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.value.ColorValue;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
@@ -52,6 +53,11 @@ public class CSSColor extends AbstractPrimitivePropertyInfo {
 				net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR);
 		if (attr != null) {
 			return attr;
+		}
+		if (ColorValueUtils.isCurrentColor(lu)) {
+			// color自身のcurrentcolorは親の(継承した)色(CSS Color 4 §7.1)。
+			// CSSStyle.getはINHERITの生値を親への委譲として扱う(2026-08-29)
+			return KeywordValue.INHERIT;
 		}
 		final Value value = ColorValueUtils.toColor(ua, lu);
 		if (value != null) {

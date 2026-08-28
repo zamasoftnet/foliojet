@@ -1,0 +1,7 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=300.00 h=50.75]
+  x=130.00 y=0.00 Text["FFFF" asc=8.00 desc=2.00]
+  x=130.00 y=10.00 Text["GGGG" asc=8.00 desc=2.00]
+  x=130.00 y=20.00 Text["HHHH" asc=8.00 desc=2.00]
+  x=130.00 y=30.00 Text["IIII" asc=8.00 desc=2.00]
+  x=130.00 y=40.00 Text["JJJJ" asc=8.00 desc=2.00]

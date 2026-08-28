@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid: grid-area + grid-template-areas + named lines + template rows</title>
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-size: 10pt;
+	line-height: 12pt;
+	font-family: serif;
+}
+div {
+	margin: 0;
+}
+/* 列: 60 / 1fr(=190) / 40、gap 5。行: 20pt固定 / auto / auto(暗黙、full用) */
+#g {
+	display: grid;
+	width: 300pt;
+	grid-template-columns: [full-start] 60pt [main-start] 1fr [main-end] 40pt [full-end];
+	grid-template-rows: 20pt auto;
+	grid-template-areas:
+		"head head head"
+		"nav  main side";
+	gap: 5pt;
+	background: #eee;
+}
+#head { grid-area: head; background: #fcc; }
+#nav { grid-area: nav; background: #cfc; }
+#main { grid-area: main; background: #ccf; }
+#side { grid-area: side; background: #ffc; }
+/* 線名で列全域: 自動配置で行3(暗黙、auto高) */
+#full { grid-column: full-start / full-end; background: #cff; }
+/* 領域名の-start/-end解決: main-start/main-endを行4で */
+#named { grid-column: main; background: #fcf; }
+/* 明示行数(2)基準の負番号: -1=線3=行2の末尾 → 行2に置く(rowは指定、列はauto→残り無しで暗黙列は作らず先頭行の空きへは戻らない) */
+#neg { grid-row: 1 / -1; grid-column: 3; background: #ddd; }
+</style>
+</head>
+<body>
+<div id="g">
+<div id="head">head</div>
+<div id="nav">nav<br />nav</div>
+<div id="main">main</div>
+<div id="side">side</div>
+<div id="full">full</div>
+<div id="named">named</div>
+</div>
+<div id="g2" style="display: grid; width: 200pt; grid-template-columns: 50pt 50pt 50pt; grid-template-rows: 15pt 15pt; row-gap: 2pt; background: #eee; margin-top: 10pt">
+<div id="neg">neg</div>
+<div style="background: #fcc">a</div>
+<div style="background: #cfc">b</div>
+</div>
+<div id="after">after</div>
+</body>
+</html>

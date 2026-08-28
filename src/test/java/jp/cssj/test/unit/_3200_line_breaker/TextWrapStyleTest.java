@@ -91,7 +91,8 @@ public class TextWrapStyleTest extends TestCase {
 		// 不正値は宣言ごと無視(継承値=初期値autoのまま)
 		AUTO.put("invalid", "body { text-wrap-style: no-such-value; }");
 		// mode側の値は短縮形text-wrapでは受理しない(折り返しはwhite-space)
-		AUTO.put("mode-value", "body { text-wrap: nowrap; }");
+		// text-wrap: nowrap は2026-08-29からwhite-space:nowrap相当として有効になった
+		// (折り返さないので貪欲法との一致検証の対象外)
 	}
 
 	public TextWrapStyleTest(String name) {

@@ -14,6 +14,12 @@ public abstract class AbstractDrawable implements Drawable {
 	protected final PageBox pageBox;
 	protected final float opacity;
 	protected final AffineTransform transform;
+	/**
+	 * {@code mix-blend-mode}(2026-08-29)。描画要素ごとに適用する近似
+	 * (MixBlendMode参照)。paramsを受けない具象クラスは
+	 * {@link #withBlendMode}で生成直後に設定する。
+	 */
+	protected net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 
 	public AbstractDrawable(final PageBox pageBox, final Shape clip, final float opacity,
 			final AffineTransform transform) {
@@ -21,6 +27,12 @@ public abstract class AbstractDrawable implements Drawable {
 		this.clip = clip;
 		this.opacity = opacity;
 		this.transform = transform;
+	}
+
+	/** ブレンドモードを設定して自身を返します(生成直後に呼ぶ)。 */
+	public final AbstractDrawable withBlendMode(final net.zamasoft.pdfg2d.gc.paint.BlendMode mode) {
+		this.blendMode = mode == null ? net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL : mode;
+		return this;
 	}
 
 	/**
@@ -69,6 +81,12 @@ public abstract class AbstractDrawable implements Drawable {
 				gc.transform(this.transform);
 			}
 		}
+		// mix-blend-mode(2026-08-29)。透明化グループの外側で設定するので、
+		// グループ画像のDoにもモードが効く。終了時に元の値へ戻す
+		final net.zamasoft.pdfg2d.gc.paint.BlendMode outerBlend = gc.getBlendMode();
+		if (this.blendMode != outerBlend) {
+			gc.setBlendMode(this.blendMode);
+		}
 
 		/* NoAndroid begin */
 		final GC xgc;
@@ -99,6 +117,9 @@ public abstract class AbstractDrawable implements Drawable {
 			gc.setFillAlpha(alpha);
 		}
 		/* NoAndroid end */
+		if (this.blendMode != outerBlend) {
+			gc.setBlendMode(outerBlend);
+		}
 
 		if (state != null) {
 			state.close();

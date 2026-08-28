@@ -13,15 +13,25 @@ import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
  * Grid itemの配置解決です(Grid G4a、2026-07-31——
  * consult-codex-2026-07-31-grid-g4.txt Q2/Q3)。boxに依存しない純粋計算。
  * 明示線番号(正負)・span・autoの混在をCSS Grid §8.3.1(競合の正規化)+
- * §8.5(auto-placement、既定のsparseのみ——grid-auto-flow未実装のため
- * denseは実装しない)のサブセットで解決する。
+ * §8.5(auto-placement)のサブセットで解決する。
  *
  * <p>
- * fail closed(答申Q5): 未対応指定(implicit columnが要る線・span、
- * 上限超過等)は例外ではなく{@link Result.Unsupported}を返す——
- * <b>1件だけauto化してはならない</b>(occupancyとcursorを通じて後続全
+ * 2026-08-29の拡張: {@code grid-auto-flow}の{@code column}
+ * (列方向カーソル——行を埋めてから次の列へ。必要な列は暗黙に増える)
+ * と{@code dense}(各itemの探索をグリッド先頭から始める)、
+ * {@code grid-template-rows}/{@code grid-template-areas}による明示行数
+ * (負の行番号の基準)。線名は{@link GridLineNameResolver}で数値化済みの
+ * ものを受け取る。
+ * </p>
+ *
+ * <p>
+ * fail closed(答申Q5): 未対応指定(行フローでexplicit columnの外へ出る
+ * 線・span、上限超過等)は例外ではなく{@link Result.Unsupported}を返す
+ * ——<b>1件だけauto化してはならない</b>(occupancyとcursorを通じて後続全
  * itemへ伝播する)。呼び出し側はcontainer単位でsource-order配置
- * (G3: col=i%n、row=i/n)へ戻す。
+ * (G3: col=i%n、row=i/n)へ戻す。行フローの暗黙列は呼び出し側
+ * ({@code GridBuilder})が事前にトラックを足して{@code columnCount}へ
+ * 含める。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -58,7 +68,7 @@ public final class GridPlacementResolver {
 		NEEDS_IMPLICIT_COLUMN,
 		/** 行・列・spanの上限超過。 */
 		LIMIT_EXCEEDED,
-		/** 負の行番号(G4サブセット外)。 */
+		/** 負の行番号(明示行が無いGridではサブセット外)。 */
 		NEGATIVE_ROW
 	}
 
@@ -67,13 +77,28 @@ public final class GridPlacementResolver {
 	}
 
 	/**
-	 * 全itemの配置を解決します。
+	 * 全itemの配置を解決します(行フロー・sparse——従来互換)。
 	 *
 	 * @param items       source-orderの各item指定
 	 * @param columnCount explicit列数(正)
 	 * @return 解決結果
 	 */
 	public static Result resolve(final List<GridItemSpec> items, final int columnCount) {
+		return resolve(items, columnCount, 0, false, false);
+	}
+
+	/**
+	 * 全itemの配置を解決します(2026-08-29)。
+	 *
+	 * @param items        source-orderの各item指定(線名は数値化済み)
+	 * @param columnCount  explicit列数(正。行フローの暗黙列は含めて渡す)
+	 * @param explicitRows explicit行数(0なら明示行なし=負の行番号は不可)
+	 * @param columnFlow   {@code grid-auto-flow: column}か
+	 * @param dense        {@code dense}か
+	 * @return 解決結果(列フローでは{@code Plan.columnCount}が使った列数)
+	 */
+	public static Result resolve(final List<GridItemSpec> items, final int columnCount, final int explicitRows,
+			final boolean columnFlow, final boolean dense) {
 		final int n = columnCount;
 		final AxisPlacement[] cols = new AxisPlacement[items.size()];
 		final AxisPlacement[] rows = new AxisPlacement[items.size()];
@@ -84,16 +109,22 @@ public final class GridPlacementResolver {
 				return new Result.Unsupported(i, reason);
 			}
 			cols[i] = (AxisPlacement) col;
-			// 行はexplicit track数0(implicit auto rows)。負番号は不可
-			final Object row = normalizeAxis(spec.rowStart(), spec.rowEnd(), -1);
+			// 行: 明示行があれば負番号はその末端基準、無ければ不可
+			final Object row = normalizeAxis(spec.rowStart(), spec.rowEnd(), explicitRows > 0 ? explicitRows : -1);
 			if (row instanceof Reason reason) {
 				return new Result.Unsupported(i, reason);
 			}
 			rows[i] = (AxisPlacement) row;
-			// 列の範囲検証(implicit column未対応——答申Q5: clamp禁止)
 			final AxisPlacement c = cols[i];
-			if (c.span > n || (c.definiteStart != null && (c.definiteStart < 0 || c.definiteStart + c.span > n))) {
+			if (c.definiteStart != null && c.definiteStart < 0) {
 				return new Result.Unsupported(i, Reason.NEEDS_IMPLICIT_COLUMN);
+			}
+			if (!columnFlow && (c.span > n || (c.definiteStart != null && c.definiteStart + c.span > n))) {
+				// 列の範囲検証(implicit columnは呼び出し側が事前に足す——答申Q5: clamp禁止)
+				return new Result.Unsupported(i, Reason.NEEDS_IMPLICIT_COLUMN);
+			}
+			if (c.span > LIMIT || (c.definiteStart != null && c.definiteStart + c.span > LIMIT)) {
+				return new Result.Unsupported(i, Reason.LIMIT_EXCEEDED);
 			}
 			final AxisPlacement r = rows[i];
 			if (r.definiteStart != null && r.definiteStart < 0) {
@@ -115,12 +146,15 @@ public final class GridPlacementResolver {
 				mark(occupancy, areas[i]);
 			}
 		}
-		// (2) 行definite・列auto: 指定行内のsparse cursor(行ごとに前進のみ)
+		if (columnFlow) {
+			return resolveColumnFlow(items.size(), cols, rows, areas, occupancy, n, explicitRows, dense);
+		}
+		// (2) 行definite・列auto: 指定行内のsparse cursor(行ごとに前進のみ。denseは常に先頭から)
 		final Map<Integer, Integer> rowCursor = new HashMap<>();
 		for (int i = 0; i < items.size(); ++i) {
 			if (cols[i].definiteStart == null && rows[i].definiteStart != null) {
 				final int row = rows[i].definiteStart;
-				int col = rowCursor.getOrDefault(row, 0);
+				int col = dense ? 0 : rowCursor.getOrDefault(row, 0);
 				while (col + cols[i].span <= n && occupied(occupancy, row, rows[i].span, col, cols[i].span)) {
 					++col;
 				}
@@ -134,11 +168,15 @@ public final class GridPlacementResolver {
 			}
 		}
 		// (3)(4) 残り(列definite・行auto/両軸auto)をsource orderで
-		// auto-placement cursor(sparse: 戻らない)により配置
+		// auto-placement cursor(sparse: 戻らない。dense: 毎回先頭から)により配置
 		int curRow = 0, curCol = 0;
 		for (int i = 0; i < items.size(); ++i) {
 			if (areas[i] != null) {
 				continue;
+			}
+			if (dense) {
+				curRow = 0;
+				curCol = 0;
 			}
 			if (cols[i].definiteStart != null) {
 				// 列definite: cursor列より戻るなら次行へ
@@ -185,7 +223,94 @@ public final class GridPlacementResolver {
 		for (final GridArea area : areas) {
 			rowCount = Math.max(rowCount, area.row() + area.rowSpan());
 		}
-		return new Result.Resolved(new Plan(List.of(areas), n, rowCount));
+		return new Result.Resolved(new Plan(List.of(areas), n, Math.max(rowCount, explicitRows)));
+	}
+
+	/**
+	 * 列フロー({@code grid-auto-flow: column})の自動配置です(2026-08-29、
+	 * css-grid-1 §8.5を列方向に読み替え)。行数は明示行数と確定配置の
+	 * 行末端の大きいほう(最低1)で固定し、列は必要なだけ暗黙に増える
+	 * ({@code Plan.columnCount}=使った列数)。
+	 */
+	private static Result resolveColumnFlow(final int count, final AxisPlacement[] cols,
+			final AxisPlacement[] rows, final GridArea[] areas, final List<BitSet> occupancy, final int n,
+			final int explicitRows, final boolean dense) {
+		int rowCount = Math.max(1, explicitRows);
+		for (final GridArea area : areas) {
+			if (area != null) {
+				rowCount = Math.max(rowCount, area.row() + area.rowSpan());
+			}
+		}
+		// (2') 列definite・行auto: 指定列内のカーソル(行方向へ前進。足りなければ暗黙行)
+		final Map<Integer, Integer> colCursor = new HashMap<>();
+		for (int i = 0; i < count; ++i) {
+			if (cols[i].definiteStart != null && rows[i].definiteStart == null) {
+				final int col = cols[i].definiteStart;
+				int row = dense ? 0 : colCursor.getOrDefault(col, 0);
+				while (occupied(occupancy, row, rows[i].span, col, cols[i].span)) {
+					++row;
+					if (row + rows[i].span > LIMIT) {
+						return new Result.Unsupported(i, Reason.LIMIT_EXCEEDED);
+					}
+				}
+				areas[i] = new GridArea(col, row, cols[i].span, rows[i].span);
+				mark(occupancy, areas[i]);
+				colCursor.put(col, row + rows[i].span);
+				rowCount = Math.max(rowCount, row + rows[i].span);
+			}
+		}
+		// (3')(4') 残り(行definite・列auto/両軸auto)を列方向カーソルで配置
+		int curRow = 0, curCol = 0, usedColumns = n;
+		for (int i = 0; i < count; ++i) {
+			if (areas[i] != null) {
+				usedColumns = Math.max(usedColumns, areas[i].column() + areas[i].columnSpan());
+				continue;
+			}
+			if (dense) {
+				curRow = 0;
+				curCol = 0;
+			}
+			if (rows[i].definiteStart != null) {
+				// 行definite: cursor行より戻るなら次列へ
+				final int row = rows[i].definiteStart;
+				if (row < curRow) {
+					++curCol;
+				}
+				int col = curCol;
+				while (occupied(occupancy, row, rows[i].span, col, cols[i].span)) {
+					++col;
+					if (col + cols[i].span > LIMIT) {
+						return new Result.Unsupported(i, Reason.LIMIT_EXCEEDED);
+					}
+				}
+				areas[i] = new GridArea(col, row, cols[i].span, rows[i].span);
+				mark(occupancy, areas[i]);
+				curCol = col;
+				curRow = row + rows[i].span;
+			} else {
+				int row = curRow, col = curCol;
+				while (true) {
+					if (row + rows[i].span > rowCount) {
+						++col;
+						row = 0;
+						if (col + cols[i].span > LIMIT) {
+							return new Result.Unsupported(i, Reason.LIMIT_EXCEEDED);
+						}
+						continue;
+					}
+					if (!occupied(occupancy, row, rows[i].span, col, cols[i].span)) {
+						break;
+					}
+					++row;
+				}
+				areas[i] = new GridArea(col, row, cols[i].span, rows[i].span);
+				mark(occupancy, areas[i]);
+				curCol = col;
+				curRow = row + rows[i].span;
+			}
+			usedColumns = Math.max(usedColumns, areas[i].column() + areas[i].columnSpan());
+		}
+		return new Result.Resolved(new Plan(List.of(areas), usedColumns, rowCount));
 	}
 
 	/**
@@ -238,12 +363,12 @@ public final class GridPlacementResolver {
 	}
 
 	/**
-	 * 線番号のzero-based線indexです(auto/spanはnull)。負番号は
+	 * 線番号のzero-based線indexです(auto/span/未解決の線名はnull)。負番号は
 	 * explicit末端基準(-1→N)。{@code explicitTracks<0}の軸(行)で
 	 * 負番号なら{@code MIN_VALUE}(番兵——呼び出し側がReasonへ変換)。
 	 */
 	private static Integer lineIndex(final GridLineValue value, final int explicitTracks) {
-		if (value.isAuto() || value.isSpan()) {
+		if (value.isAuto() || value.isSpan() || value.isNamed()) {
 			return null;
 		}
 		final int number = value.getNumber();

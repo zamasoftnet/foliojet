@@ -49,20 +49,34 @@ final class WebFontSubset {
 	private final Mode mode;
 	private final boolean syntheticOblique;
 	private final String family;
-	private final String uri;
 	private final Map<Integer, Integer> sourceGidToSubset = new LinkedHashMap<>();
 	private final List<Shape> shapes = new ArrayList<>();
 	private final List<Short> widths = new ArrayList<>();
+	/**
+	 * 版。前回の変換から持ち越した字形の並びに無い字形が現れると1つ進み、
+	 * URIが変わる({@link PagedSvgFontCarry})。
+	 */
+	private int version;
+	/** 持ち越した字形の数(サブセットGID 1..seededCount)。0なら持ち越し無し。 */
+	private int seededCount;
+	/** 持ち越した版のバイト列とSHA-256。育っていなければこれをそのまま出す。 */
+	private byte[] seededBytes;
+	private String seededSha256;
 
 	WebFontSubset(final int id, final FontSource source, final ShapedFont font, final Mode mode,
 			final boolean syntheticOblique) {
+		this(id, 1, source, font, mode, syntheticOblique);
+	}
+
+	WebFontSubset(final int id, final int version, final FontSource source, final ShapedFont font,
+			final Mode mode, final boolean syntheticOblique) {
 		this.id = id;
+		this.version = version;
 		this.source = source;
 		this.font = font;
 		this.mode = mode;
 		this.syntheticOblique = syntheticOblique;
 		this.family = String.format("CopperSubset%04d", id);
-		this.uri = String.format("assets/fonts/font-%04d.woff2", id);
 		// GID 0 is .notdef. Display characters start at subset GID 1.
 		this.shapes.add(null);
 		this.widths.add((short) FontSource.DEFAULT_UNITS_PER_EM);
@@ -72,8 +86,85 @@ final class WebFontSubset {
 		return this.family;
 	}
 
+	/**
+	 * 現在の版のURI。初版は{@code assets/fonts/font-0001.woff2}、育った版は
+	 * {@code assets/fonts/font-0001-2.woff2}のように版を添える。ページSVGは
+	 * 閉じる時点の値を書くので、育つ前に閉じたページは前の版を指したままで
+	 * よい(前の版でそのページの字形は揃っている)。
+	 */
 	String uri() {
-		return this.uri;
+		return uri(this.id, this.version);
+	}
+
+	static String uri(final int id, final int version) {
+		return version <= 1 ? String.format("assets/fonts/font-%04d.woff2", id)
+				: String.format("assets/fonts/font-%04d-%d.woff2", id, version);
+	}
+
+	int id() {
+		return this.id;
+	}
+
+	int version() {
+		return this.version;
+	}
+
+	/** 持ち越した版のURI。持ち越しが無ければnull。 */
+	String seededUri() {
+		return this.seededCount == 0 ? null : uri(this.id, this.grown() ? this.version - 1 : this.version);
+	}
+
+	boolean seeded() {
+		return this.seededCount != 0;
+	}
+
+	/** 持ち越した字形の並びに無い字形が加わったか。 */
+	boolean grown() {
+		return this.shapes.size() - 1 > this.seededCount;
+	}
+
+	byte[] seededBytes() {
+		return this.seededBytes;
+	}
+
+	String seededSha256() {
+		return this.seededSha256;
+	}
+
+	PagedSvgFontCarry.Key carryKey() {
+		return new PagedSvgFontCarry.Key(this.source.getFontName(), this.mode.name(), this.syntheticOblique);
+	}
+
+	/**
+	 * 前回の変換の字形の並びを先に割り当てます。同じ順に並べるので、前回の
+	 * ページSVGと同じ私用領域符号になり、前回のバイト列がそのまま使えます。
+	 * 字形そのものは育って組み直すときにだけ取り出す({@link #build(int)})。
+	 */
+	void seed(final int[] gids, final byte[] bytes, final String sha256) {
+		if (this.shapes.size() != 1 || gids.length > MAX_MAPPED_GLYPHS) {
+			throw new IllegalStateException("seed must precede any glyph mapping");
+		}
+		for (final int gid : gids) {
+			if (this.sourceGidToSubset.containsKey(gid)) {
+				continue;
+			}
+			this.sourceGidToSubset.put(gid, this.shapes.size());
+			this.shapes.add(null);
+			this.widths.add(this.font.getWidth(gid));
+		}
+		this.seededCount = this.shapes.size() - 1;
+		this.seededBytes = bytes;
+		this.seededSha256 = sha256;
+	}
+
+	/** サブセットGID順の元フォントGID。次の変換へ持ち越す。 */
+	int[] gids() {
+		final int[] gids = new int[this.sourceGidToSubset.size()];
+		int i = 0;
+		for (final Integer gid : this.sourceGidToSubset.keySet()) {
+			gids[i++] = gid;
+		}
+		return gids;
 	}
 
 	String sourceName() {
@@ -115,6 +206,10 @@ final class WebFontSubset {
 				throw new IllegalStateException("A single XML-safe webfont subset cannot exceed "
 						+ MAX_MAPPED_GLYPHS + " glyphs");
 			}
+			if (this.seededCount != 0 && subsetGid == this.seededCount + 1) {
+				// 持ち越した並びに無い字形。版を進め、以後のページは育った版を指す
+				++this.version;
+			}
 			this.sourceGidToSubset.put(sourceGid, subsetGid);
 			this.shapes.add(this.transform(this.font.getShapeByGID(sourceGid), sourceGid));
 			this.widths.add(this.font.getWidth(sourceGid));
@@ -153,6 +248,19 @@ final class WebFontSubset {
 	 *                ({@code output.paged-svg.font-compression}参照)
 	 */
 	byte[] build(final int quality) throws IOException {
+		if (this.seededCount != 0) {
+			// 持ち越した字形は符号だけ先に決めてある。組み直すときに取り出す
+			int i = 1;
+			for (final Integer gid : this.sourceGidToSubset.keySet()) {
+				if (i > this.seededCount) {
+					break;
+				}
+				if (this.shapes.get(i) == null) {
+					this.shapes.set(i, this.transform(this.font.getShapeByGID(gid), gid));
+				}
+				++i;
+			}
+		}
 		final SubsetFont subset = new SubsetFont();
 		final BBox bbox = CFFGenerator.calculateSubsetBBox(subset);
 		final ByteArrayOutputStream cffBytes = new ByteArrayOutputStream(1 << 14);
