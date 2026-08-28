@@ -50,7 +50,7 @@ public class FirstLineBox extends AbstractLineBox {
 		// 背景は最初の行だけ描画する
 		if (this.params.opacity != 0 && this.params.background.isVisible()) {
 			Drawable drawable = new BackgroundDrawable(pageBox, clip, this.params.opacity, transform,
-					this.params.background, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode);
+					this.params.background, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
 			drawer.visitDrawable(drawable, x, y);
 		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);

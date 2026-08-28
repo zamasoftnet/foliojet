@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+/* radial/conic/repeating gradient と多層背景(2026-08-29)。
+   紙300pt角・margin 0。GradientFilterTest が画素で検査する箱:
+   #radial 中心(60,60)=赤・角(13,13)=青、#conic 4象限、#over-color 左端=黄・右端=青 */
+@page { size: 300pt 300pt; margin: 0; }
+body { margin: 0; }
+div { position: absolute; }
+#radial { left: 10pt; top: 10pt; width: 100pt; height: 100pt;
+  background: radial-gradient(circle closest-side at 50% 50%, red, blue); }
+#ellipse { left: 120pt; top: 10pt; width: 100pt; height: 60pt;
+  background: radial-gradient(ellipse farthest-corner at 30% 40%, #ff0 0%, #0f0 100%); }
+#explicit { left: 120pt; top: 75pt; width: 100pt; height: 35pt;
+  background-image: radial-gradient(40pt 12pt at 30pt 15pt, #fff, #000 80%); }
+#conic { left: 120pt; top: 120pt; width: 100pt; height: 100pt;
+  background: conic-gradient(from 0deg at 50% 50%, red 0deg 90deg, lime 90deg 180deg, blue 180deg 270deg, yellow 270deg 360deg); }
+#conic-smooth { left: 230pt; top: 230pt; width: 60pt; height: 60pt; border-radius: 30pt;
+  background: conic-gradient(from 45deg, #f00, #0f0, #00f, #f00); }
+#repeating { left: 230pt; top: 10pt; width: 60pt; height: 100pt;
+  background: repeating-linear-gradient(to bottom, #000 0, #000 5pt, #fff 5pt, #fff 10pt); }
+#repeating-radial { left: 10pt; top: 120pt; width: 100pt; height: 100pt;
+  background: repeating-radial-gradient(circle at center, #000 0 4pt, #fff 4pt 8pt); }
+#over-image { left: 230pt; top: 120pt; width: 60pt; height: 60pt;
+  background: linear-gradient(rgba(255,0,0,.5), rgba(255,0,0,.5)), url(../kappa.png) no-repeat 0 0 / 60pt 60pt; }
+#over-color { left: 10pt; top: 230pt; width: 100pt; height: 50pt;
+  background: linear-gradient(to right, rgba(0,0,255,0), rgba(0,0,255,1)) #ff0; }
+#legacy { left: 120pt; top: 230pt; width: 50pt; height: 50pt;
+  background: -webkit-radial-gradient(center, circle cover, #fff, #000); }
+#legacy2 { left: 175pt; top: 230pt; width: 50pt; height: 50pt;
+  background: -webkit-gradient(radial, center center, 0, center center, 30, from(#fff), to(#000)); }
+</style></head><body>
+<div id="radial"></div>
+<div id="ellipse"></div>
+<div id="explicit"></div>
+<div id="conic"></div>
+<div id="conic-smooth"></div>
+<div id="repeating"></div>
+<div id="repeating-radial"></div>
+<div id="over-image"></div>
+<div id="over-color"></div>
+<div id="legacy"></div>
+<div id="legacy2"></div>
+</body></html>

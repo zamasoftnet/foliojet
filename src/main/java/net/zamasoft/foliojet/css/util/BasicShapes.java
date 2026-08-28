@@ -320,7 +320,7 @@ public final class BasicShapes {
 	 * {@code at}の後の位置(1〜2値)。キーワード(center/left/right/top/
 	 * bottom)と長さ・%を受け、[x, y]で返す。
 	 */
-	private static QuantityValue[] parsePosition(final TokenStream args, final UserAgent ua)
+	static QuantityValue[] parsePosition(final TokenStream args, final UserAgent ua)
 			throws PropertyException {
 		QuantityValue x = null, y = null;
 		final List<CssToken> ts = new ArrayList<>(2);

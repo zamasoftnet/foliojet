@@ -164,7 +164,7 @@ public abstract class PropertySet {
 			"color-scheme", "transform-style", "perspective", "perspective-origin",
 			"backdrop-filter", "interpolation-mode", "text-decoration-skip",
 			"text-decoration-skip-ink", "scrollbar-gutter", "khtml-user-select", "speak",
-			"contain-intrinsic-size", "contain", "filter", "ms-filter", "print-color-adjust",
+			"contain-intrinsic-size", "contain", "ms-filter", "print-color-adjust",
 			"scroll-snap-stop", "scroll-margin-top", "scroll-margin-bottom", "scroll-margin-left",
 			"scroll-margin-right", "scroll-padding-top", "scroll-padding-bottom",
 			"scroll-padding-left", "scroll-padding-right", "scroll-margin-block",

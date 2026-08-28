@@ -313,6 +313,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// mix-blend-mode(2026-08-29)。描画要素単位の近似——表示リストには
 			// 出ないので幾何の固定のみ(合成結果はMixBlendModeTestの画素検査)
 			"3080-MODERN-CSS/mix-blend-mode.html", //
+			// radial/conic/repeating gradient・多層背景・filter(2026-08-29)。
+			// 塗りの要約(bg=)とフィルタの字面(filter=)が枠の描画要素に出る
+			"3080-MODERN-CSS/gradients.html", //
+			"3080-MODERN-CSS/filter.html", //
 			// flex/gridコンテナのbuttonへUAのZWSP(::before)を注入しない
 			// (2026-08-09)。ZWSPが独立itemになりアイコンを箱外へ押し出していた
 			"3080-MODERN-CSS/button-flex-grid-content.html", //

@@ -264,7 +264,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 
 			if (this.frame.isVisible()) {
 				Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, clip, this.params.opacity, transform,
-						this.frame, this.getWidth(), this.getHeight(), null).withBlendMode(this.params.blendMode); // TODO textClip
+						this.frame, this.getWidth(), this.getHeight(), null).withBlendMode(this.params.blendMode).withFilter(this.params.filter); // TODO textClip
 				drawer.visitDrawable(drawable, x, y);
 			}
 			if (this.getTextParams().flow.isVertical()) {

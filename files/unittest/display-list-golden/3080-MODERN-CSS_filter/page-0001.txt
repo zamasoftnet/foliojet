@@ -1,0 +1,12 @@
+drawer z=0
+  x=10.00 y=10.00 AbsoluteRectFrame[w=60.00 h=60.00] filter=[grayscale(1.00)]
+  x=230.00 y=10.00 AbsoluteRectFrame[w=60.00 h=60.00] filter=[blur(2.00pt)]
+  x=230.00 y=100.00 AbsoluteRectFrame[w=60.00 h=60.00] filter=[drop-shadow(4.00 4.00 2.00)]
+  x=120.00 y=10.00 AbsoluteRectFrame[w=100.00 h=60.00] filter=[drop-shadow(5.00 5.00 3.00)]
+  x=10.00 y=100.00 AbsoluteRectFrame[w=100.00 h=50.00] filter=[opacity(0.50)]
+  x=120.00 y=100.00 AbsoluteRectFrame[w=100.00 h=50.00] filter=[brightness(2.00)]
+  x=10.00 y=170.00 AbsoluteRectFrame[w=108.00 h=58.00]
+  x=120.00 y=170.00 AbsoluteRectFrame[w=100.00 h=50.00] filter=[sepia(0.60) contrast(1.20) saturate(1.50) hue-rotate(90deg) invert(0.10)]
+  x=120.00 y=170.00 Text["filter" asc=10.31 desc=4.09]
+  x=230.00 y=170.00 AbsoluteRectFrame[w=60.00 h=60.00] bg=linear(90deg;#ff0000,#0000ff) filter=[grayscale(1.00)]
+  x=10.00 y=230.00 AbsoluteRectFrame[w=100.00 h=50.00] filter=[invert(1.00)]

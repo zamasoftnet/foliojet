@@ -613,6 +613,7 @@ final class BoxStyleMapper {
 			params.opacity = 0f;
 		}
 		params.blendMode = net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.get(style);
+		params.filter = net.zamasoft.foliojet.css.impl.property.box.Filter.get(style);
 		this.setupTransform(params, style);
 		params.transformOrigin = TransformOrigin.get(style);
 		params.zoom = net.zamasoft.foliojet.css.impl.property.box.Zoom.get(style);
@@ -1096,22 +1097,29 @@ final class BoxStyleMapper {
 	 * @return
 	 */
 	static Background createBackground(CSSStyle style) {
-		Image image = BackgroundImage.get(style);
 		final Image maskImage = MaskImage.getImage(style);
 		PaintValue backgroundPaint = BackgroundColor.get(style);
-		// background-imageのグラデーションは背景色の上に塗られる層。単層の
-		// 塗りしか持てないので、グラデーションがあればそれを採る(背景色は
-		// 透けないものとして捨てる——半透明グラデーションでは記録済みの近似、
-		// 2026-08-29)
-		final PaintValue gradient = BackgroundImage.getPaint(style);
-		if (gradient != null) {
-			backgroundPaint = gradient;
+		// background-imageのレイヤ(2026-08-29に多層化)。先頭が最前面。
+		// グラデーションは塗り(PaintLayer)、url()は画像として、背景色の上に
+		// 末尾から順に重ねる——半透明のグラデーションから下の色・画像が透ける
+		final net.zamasoft.foliojet.css.value.Value[] values = BackgroundImage.getLayers(style);
+		final java.util.List<Background.Layer> layers = new java.util.ArrayList<Background.Layer>(values.length);
+		for (final net.zamasoft.foliojet.css.value.Value value : values) {
+			if (value instanceof PaintValue paint) {
+				layers.add(new Background.PaintLayer(paint));
+			} else if (value instanceof net.zamasoft.foliojet.css.value.URIValue uri) {
+				final Image image = BackgroundImage.load(style, uri);
+				if (image != null) {
+					layers.add(net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image,
+							BackgroundRepeat.get(style), BackgroundAttachment.get(style), BackgroundPosition.get(style),
+							BackgroundSize.get(style, image), BackgroundSize.getFit(style, image)));
+				}
+			}
 		}
 		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
-		if (image != null) {
-			backgroundImage = net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image, BackgroundRepeat.get(style),
-					BackgroundAttachment.get(style), BackgroundPosition.get(style), BackgroundSize.get(style, image),
-					BackgroundSize.getFit(style, image));
+		if (!layers.isEmpty()) {
+			return Background.create(backgroundPaint, layers.toArray(new Background.Layer[layers.size()]),
+					BackgroundClip.get(style));
 		} else if (maskImage != null) {
 			// 単色SVGのURLマスクは、背景色をSVGのcurrentColorへ焼き込み、
 			// 直接描く。背景色の矩形は残さない。

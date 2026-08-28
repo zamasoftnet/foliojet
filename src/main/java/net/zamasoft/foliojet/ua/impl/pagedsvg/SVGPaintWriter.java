@@ -138,7 +138,9 @@ final class SVGPaintWriter {
 		def.append("<linearGradient id=\"").append(id).append("\" gradientUnits=\"userSpaceOnUse\" x1=\"")
 				.append(SVGWriter.number(g.x1())).append("\" y1=\"").append(SVGWriter.number(g.y1()))
 				.append("\" x2=\"").append(SVGWriter.number(g.x2())).append("\" y2=\"")
-				.append(SVGWriter.number(g.y2())).append("\">");
+				.append(SVGWriter.number(g.y2())).append('"');
+		appendGradientTransform(def, g.transform());
+		def.append('>');
 		appendStops(def, g.fractions(), g.colors());
 		def.append("</linearGradient>");
 		this.writer.addDef(def.toString());
@@ -150,11 +152,24 @@ final class SVGPaintWriter {
 		final StringBuilder def = new StringBuilder(160);
 		def.append("<radialGradient id=\"").append(id).append("\" gradientUnits=\"userSpaceOnUse\" cx=\"")
 				.append(SVGWriter.number(g.cx())).append("\" cy=\"").append(SVGWriter.number(g.cy()))
-				.append("\" r=\"").append(SVGWriter.number(g.radius())).append("\">");
+				.append("\" r=\"").append(SVGWriter.number(g.radius())).append('"');
+		appendGradientTransform(def, g.transform());
+		def.append('>');
 		appendStops(def, g.fractions(), g.colors());
 		def.append("</radialGradient>");
 		this.writer.addDef(def.toString());
 		return "url(#" + id + ")";
+	}
+
+	/**
+	 * 塗りの変換行列(2026-08-29)。楕円の放射グラデーションは円を縦に
+	 * 伸縮する行列で表す({@code RadialGradientValue}参照)ので、これが
+	 * 無いと真円になる。
+	 */
+	private static void appendGradientTransform(final StringBuilder def, final java.awt.geom.AffineTransform at) {
+		if (at != null && !at.isIdentity()) {
+			def.append(" gradientTransform=\"").append(matrix(at)).append('"');
+		}
 	}
 
 	private static void appendStops(final StringBuilder def, final double[] fractions, final Color[] colors) {

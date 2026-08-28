@@ -83,6 +83,24 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				}
 			}
 		}
+		// 2層目以降は画像・グラデーション・noneだけを拾う(2026-08-29)。
+		// レイヤごとの繰り返し・位置・寸法は先頭レイヤの値を共有する
+		// (Background参照——記録済みの近似)
+		final java.util.List<Value> extraLayers = new java.util.ArrayList<Value>();
+		for (int i = 1; i < layers.size(); ++i) {
+			final TokenStream layer = layers.get(i);
+			while (layer.hasNext()) {
+				final CssToken lu = layer.next();
+				if (i == layers.size() - 1 && (ColorValueUtils.isTransparent(lu) || ColorValueUtils.isCurrentColor(lu)
+						|| ColorValueUtils.toColor(ua, lu) != null)) {
+					continue;
+				}
+				final Value image = BackgroundImage.parseLayer(ua, uri, lu);
+				if (image != null && image != KeywordValue.NONE) {
+					extraLayers.add(image);
+				}
+			}
+		}
 		tokens = layers.get(0);
 		boolean color = false, none = false, uriValue = false, repeat = false, attachment = false, position = false, size = false, clip = false;
 		while (tokens.hasNext()) {
@@ -261,6 +279,15 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					.parsePositionValues(new TokenStream(pos), ua, uri)) {
 				primitives.set(entry.getPrimitivePropertyInfo(), entry.getValue());
 			}
+		}
+		if (!extraLayers.isEmpty()) {
+			// 先頭レイヤの画像の後ろへ2層目以降を並べる(先頭が最前面)
+			final Value first = primitives.get(BackgroundImage.INFO);
+			if (first != null && first != KeywordValue.NONE) {
+				extraLayers.add(0, first);
+			}
+			primitives.set(BackgroundImage.INFO, extraLayers.size() == 1 ? extraLayers.get(0)
+					: new BackgroundImage.LayersValue(extraLayers.toArray(new Value[extraLayers.size()])));
 		}
 	}
 

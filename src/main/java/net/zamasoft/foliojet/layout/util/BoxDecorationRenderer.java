@@ -93,6 +93,26 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
+	 * {@code filter: drop-shadow()}の影を箱の境界形状で描きます(2026-08-29)。
+	 * 本来は要素の不透明部分のシルエットの影だが、箱の枠を影の形とする
+	 * (背景が透明な箱でも箱全体の影になる——記録済みの近似)。
+	 * ぼかしはbox-shadowと同じ階段状の近似。
+	 */
+	public static void drawDropShadow(GC gc, RectFrame frame, double x, double y, double w, double h, double dx,
+			double dy, double blur, net.zamasoft.pdfg2d.gc.paint.Color color) throws GraphicsException {
+		if (w <= 0 || h <= 0 || color == null) {
+			return;
+		}
+		final Radius[] radii = resolvedRadii(frame.border, w, h);
+		// drop-shadowのぼかしは標準偏差そのもの(box-shadowはblur/2)なので
+		// BoxShadowのblurへ2倍で渡す
+		final BoxShadow s = new BoxShadow(dx, dy, blur * 2, 0, color, false);
+		try (final var state = gc.begin()) {
+			fillLayers(gc, s, d -> expandedShape(x + s.x, y + s.y, w, h, radii, d));
+		}
+	}
+
+	/**
 	 * 内側の影を描きます。背景の後、境界の前に呼ぶこと。パディング箱に
 	 * クリップし、パディング箱から「広がりぶん縮めてずらした穴」を
 	 * even-oddで抜いた帯を塗る。

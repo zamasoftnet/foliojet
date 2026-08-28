@@ -28,14 +28,43 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundImage();
 	private static final Logger LOG = Logger.getLogger(BackgroundImage.class.getName());
 
-	public static Image get(CSSStyle style) {
-		Value value = style.get(INFO);
-		if (value == KeywordValue.NONE || !(value instanceof URIValue)) {
-			// グラデーション(PaintValue)は画像ではなく塗り——getPaint()
-			return null;
+	/**
+	 * 多層背景の値(2026-08-29)。各レイヤは{@link URIValue}か
+	 * {@link PaintValue}(グラデーション)で、先頭が最前面。単層は
+	 * 値をそのまま持つのでこの型にならない。
+	 */
+	public record LayersValue(Value[] layers) implements Value {
+		@Override
+		public String toString() {
+			return java.util.Arrays.toString(this.layers);
 		}
+	}
+
+	/** 最前面の画像を返します(単層時代からの窓口)。 */
+	public static Image get(CSSStyle style) {
+		for (final Value layer : getLayers(style)) {
+			if (layer instanceof URIValue uri) {
+				return load(style, uri);
+			}
+		}
+		return null;
+	}
+
+	/** 全レイヤ(先頭が最前面)。noneなら空。 */
+	public static Value[] getLayers(CSSStyle style) {
+		final Value value = style.get(INFO);
+		if (value instanceof LayersValue layers) {
+			return layers.layers();
+		}
+		if (value == KeywordValue.NONE || value == null) {
+			return new Value[0];
+		}
+		return new Value[] { value };
+	}
+
+	/** レイヤの画像を読み込みます。読めなければnull。 */
+	public static Image load(CSSStyle style, URIValue uriValue) {
 		UserAgent ua = style.getUserAgent();
-		URIValue uriValue = (URIValue) value;
 		URI uri = uriValue.getURI();
 		try {
 			// 記録済みの寸法があれば解決しない(2026-08-16)。解決が取得を伴う
@@ -64,8 +93,12 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	 * が背景色の代わりに塗る。画像・none のときは null。
 	 */
 	public static PaintValue getPaint(CSSStyle style) {
-		Value value = style.get(INFO);
-		return value instanceof PaintValue paint ? paint : null;
+		for (final Value layer : getLayers(style)) {
+			if (layer instanceof PaintValue paint) {
+				return paint;
+			}
+		}
+		return null;
 	}
 
 	protected BackgroundImage() {
@@ -85,7 +118,32 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		final CssToken lu = tokens.next();
+		// 多層(コンマ区切り、2026-08-29)。noneのレイヤは落とす
+		final java.util.List<Value> layers = new java.util.ArrayList<Value>();
+		for (final TokenStream layer : tokens.splitComma()) {
+			final CssToken lu = layer.next();
+			if (lu == null || layer.hasNext()) {
+				throw new PropertyException();
+			}
+			final Value value = parseLayer(ua, uri, lu);
+			if (value == null) {
+				throw new PropertyException();
+			}
+			if (value != KeywordValue.NONE) {
+				layers.add(value);
+			}
+		}
+		if (layers.isEmpty()) {
+			return KeywordValue.NONE;
+		}
+		if (layers.size() == 1) {
+			return layers.get(0);
+		}
+		return new LayersValue(layers.toArray(new Value[layers.size()]));
+	}
+
+	/** 1レイヤ({@code none}・url()・グラデーション)。読めなければnull。 */
+	public static Value parseLayer(UserAgent ua, URI uri, CssToken lu) {
 		if (ValueUtils.isNone(lu)) {
 			return KeywordValue.NONE;
 		}
@@ -96,18 +154,12 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 				return value;
 			}
 			if (ValueUtils.isImage(lu)) {
-				throw new PropertyException(); // 採れる候補の無いimage-set()
+				return null; // 採れる候補の無いimage-set()(呼び出し側で宣言無効)
 			}
 		} catch (URISyntaxException e) {
 			ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));
 		}
-		// グラデーション(2026-08-29)。複数レイヤ(コンマ区切り)は最初の
-		// レイヤだけを採る(多層背景は未対応——記録済み)
-		final PaintValue gradient = net.zamasoft.foliojet.css.util.ColorValueUtils.toGradient(ua, lu);
-		if (gradient != null) {
-			return gradient;
-		}
-		throw new PropertyException();
+		return net.zamasoft.foliojet.css.util.ColorValueUtils.toGradient(ua, lu);
 	}
 
 }

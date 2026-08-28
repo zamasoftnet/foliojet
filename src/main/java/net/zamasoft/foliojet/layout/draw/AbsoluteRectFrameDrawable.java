@@ -30,6 +30,19 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 		this.frame.draw(gc, x, y, this.width, this.height, this.textClip);
 	}
 
+	/**
+	 * {@code filter: drop-shadow()}: 境界箱(マージンの内側)の形で影を
+	 * 描きます(2026-08-29)。
+	 */
+	@Override
+	protected void drawFilterShadow(GC gc, double x, double y) throws GraphicsException {
+		final net.zamasoft.foliojet.css.value.css3.FilterValue.DropShadow s = this.filter.shadow;
+		final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = this.frame.margin;
+		net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.drawDropShadow(gc, this.frame.frame,
+				x + margin.left, y + margin.top, this.width - margin.getFrameWidth(),
+				this.height - margin.getFrameHeight(), s.x(), s.y(), s.blur(), s.color());
+	}
+
 	@Override
 	public String describe() {
 		final StringBuilder s = new StringBuilder(
@@ -46,6 +59,9 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 			s.append(String.format(java.util.Locale.ROOT, " outline[style=%d w=%.2f offset=%.2f]",
 					f.outline.border.style, f.outline.border.width, f.outline.offset));
 		}
+		// グラデーションの背景は塗りの要約を付記する(2026-08-29。無い箱の
+		// goldenは不変)
+		s.append(f.background.describeGradients());
 		return this.describeTransform(s.toString());
 	}
 }

@@ -336,6 +336,38 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			return super.describe();
 		}
 
+		/**
+		 * {@code filter: drop-shadow()}: ラスタ画像なら不透明度のシルエットを
+		 * ぼかした影を、画像と同じ位置・寸法でずらして描く(2026-08-29)。
+		 * ラスタでなければ箱の形の影(AbsoluteRectFrameDrawable)。
+		 */
+		@Override
+		protected void drawFilterShadow(GC gc, double x, double y) throws GraphicsException {
+			final net.zamasoft.foliojet.css.value.css3.FilterValue.DropShadow s = this.filter.shadow;
+			final double left = x + this.frame.getFrameLeft(), top = y + this.frame.getFrameTop();
+			final double width = this.width - this.frame.getFrameWidth();
+			final double height = this.height - this.frame.getFrameHeight();
+			if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
+				final double[] r = this.fitRect(width, height);
+				final double sx = r[2] / this.image.getWidth(), sy = r[3] / this.image.getHeight();
+				// ぼかしの標準偏差を画像の論理単位へ換算
+				final double sigma = s.blur() > 0 ? s.blur() / Math.sqrt(sx * sy) : 0;
+				final net.zamasoft.foliojet.layout.util.FilterOps.Shadow shadow = net.zamasoft.foliojet.layout.util.FilterOps
+						.shadowOf(this.image, s.color(), sigma);
+				if (shadow != null) {
+					final AffineTransform at = AffineTransform.getTranslateInstance(
+							left + r[0] + s.x() - shadow.padX() * sx, top + r[1] + s.y() - shadow.padY() * sy);
+					at.scale(sx, sy);
+					try (final var gcState = gc.begin()) {
+						gc.transform(at);
+						gc.drawImage(shadow.image());
+					}
+					return;
+				}
+			}
+			super.drawFilterShadow(gc, x, y);
+		}
+
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			super.innerDraw(gc, x, y);
 			x += this.frame.getFrameLeft();
@@ -477,7 +509,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
 			final Drawable drawable = new ReplacedBoxDrawable(pageBox, clip, this.params.opacity, transform, this.frame,
 					this.params.image, this.params.objectFit, this.params.objectPosition, this.getWidth(),
-					this.getHeight()).withBlendMode(this.params.blendMode);
+					this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
 			drawer.visitDrawable(drawable, x, y);
 			pageBox.endStruct(drawer, this.params.element, structCount, x, y);
 		}

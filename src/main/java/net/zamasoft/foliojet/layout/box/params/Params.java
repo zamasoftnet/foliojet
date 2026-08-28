@@ -52,6 +52,12 @@ public abstract class Params {
 	 */
 	public net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 
+	/**
+	 * {@code filter}(filter-effects-1、2026-08-29)。描画要素ごとに
+	 * 適用する(AbstractDrawable参照)。親の効果は計算値で合成済み。
+	 */
+	public net.zamasoft.foliojet.css.value.css3.FilterValue filter = net.zamasoft.foliojet.css.value.css3.FilterValue.NONE;
+
 	private static final AffineTransform IDENTITY_TRANSFORM = new AffineTransform();
 	public AffineTransform transform = IDENTITY_TRANSFORM;
 

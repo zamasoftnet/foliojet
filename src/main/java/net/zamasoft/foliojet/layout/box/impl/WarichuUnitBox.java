@@ -284,6 +284,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 				final WarichuUnitBox box) {
 			super(pageBox, clip, box.params.opacity, transform);
 			this.blendMode = box.params.blendMode;
+			this.filter = box.params.filter;
 			this.box = box;
 		}
 

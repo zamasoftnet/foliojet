@@ -13,8 +13,14 @@ import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BackgroundClipValue;
+import net.zamasoft.foliojet.css.value.css3.ConicGradientValue;
+import net.zamasoft.foliojet.css.value.css3.GradientStops;
 import net.zamasoft.foliojet.css.value.css3.LinearGradientValue;
+import net.zamasoft.foliojet.css.value.css3.RadialGradientValue;
+import net.zamasoft.foliojet.css.value.PercentageValue;
+import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.layout.util.DoubleList;
+import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.CMYKColor;
 import net.zamasoft.pdfg2d.gc.paint.SpotColor;
@@ -1200,6 +1206,10 @@ public final class ColorValueUtils {
 	 *               反時計回り(現行=90deg−旧)
 	 */
 	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args, boolean legacy) {
+		return toLinearGradient(ua, args, legacy, false);
+	}
+
+	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args, boolean legacy, boolean repeating) {
 		try {
 			double angle = 180 * Math.PI * 2 / 360;
 			// 方向指定(<angle> | to <side> [<side>])
@@ -1234,118 +1244,9 @@ public final class ColorValueUtils {
 				args.eatComma();
 			}
 
-			List<Color> colors = new ArrayList<Color>();
-			DoubleList fracs = new DoubleList();
-
-			for (TokenStream group : args.splitComma()) {
-				// 色の前に位置が書かれる形(旧実装の寛容さ)は読み飛ばす
-				while (group.peek() != null && !(group.peek() instanceof CssToken.Ident)
-						&& toColor(ua, group.peek()) == null && toStopPosition(ua, group.peek()) != null) {
-					group.next();
-				}
-				CssToken colorToken = group.next();
-				if (colorToken == null) {
-					continue;
-				}
-				ColorValue cv = toColor(ua, colorToken);
-				if (cv == null) {
-					throw new IllegalArgumentException();
-				}
-				Color color = cv.getColor();
-				if (!group.hasNext()) {
-					colors.add(color);
-					fracs.add(-1);
-				} else {
-					while (group.hasNext()) {
-						CssToken stop = group.next();
-						final Double position = toStopPosition(ua, stop);
-						if (position == null) {
-							throw new IllegalArgumentException();
-						}
-						colors.add(color);
-						fracs.add(position);
-					}
-				}
-			}
-			if (colors.isEmpty()) {
-				throw new IllegalArgumentException();
-			}
-			double[] ds = fracs.toArray();
-			if (ds[0] == -1) {
-				ds[0] = 0;
-			}
-			ds[ds.length - 1] = 1;
-			double a = ds[0];
-			for (int i = 1; i < ds.length; ++i) {
-				if (ds[i] == -1) {
-					int j = i + 1;
-					for (; ds[j] == -1; ++j) ;
-					double b = ds[j];
-					double step = (b - a) / (j - i);
-					for(; i < j; ++i) {
-						a += step;
-						ds[i] = a;
-					}
-				}
-				a = ds[i];
-			}
-			normalizeGradientStops(ds);
-
-			return new LinearGradientValue(angle, ds, colors.toArray(new Color[colors.size()]));
+			return new LinearGradientValue(angle, parseStops(ua, args.splitComma(), false), repeating);
 		} catch (IllegalArgumentException e) {
 			return null;
-		}
-	}
-
-	/**
-	 * カラーストップの位置を<b>厳密な単調増加</b>へ正規化します(2026-08-16)。
-	 *
-	 * <p>
-	 * CSSでは前のストップより小さい位置は前の位置まで引き上げられ、
-	 * <b>同じ位置を重ねることも正当</b>です(いわゆるハードストップ——
-	 * {@code linear-gradient(red 50%, blue 50%)}で境界をくっきり切る書き方)。
-	 * ところが実際に塗る{@code java.awt.MultipleGradientPaint}は位置が
-	 * 厳密に増加していることを要求し、そうでなければ
-	 * {@code IllegalArgumentException: Keyframe fractions must be increasing}
-	 * を投げます。これは描画の失敗では済まず、<b>そのページの変換ごと
-	 * 中断させて内容を全て失わせていました</b>(実サイトのコーパスで
-	 * elife-art・shadcn-docsの2件が丸ごと変換不能だった原因)。
-	 * </p>
-	 *
-	 * <p>
-	 * そこで、重なった位置には表現可能な最小の差だけを与えて追い出します。
-	 * 差は{@code 1e-5}で、幅1000ptの版面でも0.01pt未満——見た目の
-	 * ハードストップは保ったまま、AWTの要求を満たせます。
-	 * </p>
-	 */
-	private static void normalizeGradientStops(final double[] ds) {
-		final double epsilon = 1e-5;
-		for (int i = 0; i < ds.length; ++i) {
-			if (Double.isNaN(ds[i])) {
-				ds[i] = i == 0 ? 0 : ds[i - 1];
-			}
-			if (ds[i] < 0) {
-				ds[i] = 0;
-			} else if (ds[i] > 1) {
-				ds[i] = 1;
-			}
-			if (i > 0 && ds[i] <= ds[i - 1]) {
-				// CSSは後退を許さない(前の位置まで引き上げる)。その上で
-				// AWTのために最小差を空ける
-				ds[i] = ds[i - 1] + epsilon;
-			}
-		}
-		// 末尾が1を超えたら、後ろから詰め直して1以下に収める
-		if (ds[ds.length - 1] > 1) {
-			ds[ds.length - 1] = 1;
-			for (int i = ds.length - 2; i >= 0; --i) {
-				if (ds[i] >= ds[i + 1]) {
-					ds[i] = ds[i + 1] - epsilon;
-				}
-			}
-			if (ds[0] < 0) {
-				ds[0] = 0;
-			}
 		}
 	}
 
@@ -1764,78 +1665,304 @@ public final class ColorValueUtils {
 
 	/**
 	 * グラデーション関数を塗りに変換します(2026-08-29に対応範囲を拡張——
-	 * 実サイト50件中31件・約1100回が不受理だった)。対応外のトークンは null。
+	 * 実サイト50件中31件・約1100回が不受理だった。同日夜に放射・円錐・
+	 * 繰り返しを本実装にした)。対応外のトークンは null。
 	 *
 	 * <ul>
 	 * <li>{@code linear-gradient()}: 現行構文</li>
-	 * <li>{@code repeating-linear-gradient()}: 繰り返さず1回分として近似</li>
 	 * <li>{@code -webkit-}/{@code -moz-}/{@code -o-linear-gradient()}:
 	 * 旧構文({@code to}無しの向きは<b>開始辺</b>、角度は東から反時計回り)</li>
-	 * <li>{@code -webkit-gradient(linear, 始点, 終点, from()/to()/color-stop())}:
-	 * 2008年版のSafari構文。2点から角度を出して線形へ写す</li>
-	 * <li>{@code radial-gradient()}/{@code conic-gradient()}(接頭辞・
-	 * repeating-つき、{@code -webkit-gradient(radial,...)}を含む):
-	 * <b>最後の色停止の色による単色塗り</b>で近似(記録済み)</li>
+	 * <li>{@code -webkit-gradient(linear|radial, ...)}: 2008年版のSafari構文。
+	 * 2点から角度を出して線形へ、2円から中心と半径を出して放射へ写す</li>
+	 * <li>{@code radial-gradient()}: 形状(circle/ellipse)・寸法(4つの
+	 * キーワード・長さ・長さ2つ)・{@code at <position>}。接頭辞つき旧構文
+	 * ({@code -webkit-radial-gradient(center, ellipse cover, ...)})も受ける</li>
+	 * <li>{@code conic-gradient()}: {@code from <angle>}・{@code at <position>}。
+	 * 角度の色停止(deg/turn/%)</li>
+	 * <li>{@code repeating-*}: 周期を箱を覆うまで展開({@link GradientStops})</li>
 	 * </ul>
 	 */
 	public static PaintValue toGradient(UserAgent ua, CssToken token) {
 		if (!(token instanceof CssToken.Func func)) {
 			return null;
 		}
-		final String name = func.name().toLowerCase();
+		String name = func.name().toLowerCase();
+		boolean legacy = false;
+		for (final String prefix : new String[] { "-webkit-", "-moz-", "-o-", "-ms-" }) {
+			if (name.startsWith(prefix)) {
+				name = name.substring(prefix.length());
+				legacy = true;
+				break;
+			}
+		}
+		if (legacy && name.equals("gradient")) {
+			return toWebkitGradient(ua, func.argStream());
+		}
+		boolean repeating = false;
+		if (name.startsWith("repeating-")) {
+			name = name.substring("repeating-".length());
+			repeating = true;
+		}
 		switch (name) {
 		case "linear-gradient":
-		case "repeating-linear-gradient":
-			return toLinearGradient(ua, func.argStream(), false);
-		case "-webkit-linear-gradient":
-		case "-moz-linear-gradient":
-		case "-o-linear-gradient":
-		case "-ms-linear-gradient":
-		case "-webkit-repeating-linear-gradient":
-		case "-moz-repeating-linear-gradient":
-		case "-o-repeating-linear-gradient":
-			return toLinearGradient(ua, func.argStream(), true);
-		case "-webkit-gradient":
-			return toWebkitGradient(ua, func.argStream());
+			return toLinearGradient(ua, func.argStream(), legacy, repeating);
 		case "radial-gradient":
-		case "repeating-radial-gradient":
-		case "-webkit-radial-gradient":
-		case "-moz-radial-gradient":
-		case "-o-radial-gradient":
-		case "-webkit-repeating-radial-gradient":
-		case "-moz-repeating-radial-gradient":
+			return toRadialGradient(ua, func.argStream(), legacy, repeating);
 		case "conic-gradient":
-		case "repeating-conic-gradient":
-			return toLastStopColor(ua, func.argStream());
+			return toConicGradient(ua, func.argStream(), repeating);
 		default:
 			return null;
 		}
 	}
 
 	/**
-	 * 放射・円錐グラデーションの近似: コンマ区切りの各引数を後ろから見て、
-	 * 最初に色として読める項の色を返す(形状・位置の引数は色ではないので
-	 * 自然に読み飛ばされる)。
+	 * 色停止列を読みます(css-images-3 §3.4.1 / css-images-4の色ヒントは
+	 * 読み飛ばす)。各項は{@code <color> [<pos> [<pos>]]?}。旧実装の寛容さで
+	 * 位置が色の前に書かれた形も受ける。
+	 *
+	 * @param angular 円錐(位置は角度か%)
 	 */
-	private static PaintValue toLastStopColor(UserAgent ua, TokenStream args) {
-		final List<TokenStream> groups = args.splitComma();
-		for (int i = groups.size() - 1; i >= 0; --i) {
-			final TokenStream group = groups.get(i);
-			while (group.hasNext()) {
-				CssToken token = group.next();
-				if (token instanceof CssToken.Func stop
-						&& (stop.is("from") || stop.is("to") || stop.is("color-stop"))) {
-					// -webkit-gradient(radial, ...) の色停止関数は引数の色を見る
-					final List<CssToken> inner = stop.args();
-					token = inner.isEmpty() ? null : inner.get(inner.size() - 1);
+	private static GradientStops parseStops(final UserAgent ua, final List<TokenStream> groups,
+			final boolean angular) {
+		final List<Color> colors = new ArrayList<Color>();
+		final DoubleList ratios = new DoubleList();
+		final DoubleList abs = new DoubleList();
+		final List<Boolean> autos = new ArrayList<Boolean>();
+		for (final TokenStream group : groups) {
+			double[] leading = null;
+			while (group.peek() != null && !(group.peek() instanceof CssToken.Ident)
+					&& toColor(ua, group.peek()) == null) {
+				final double[] pos = toStopPosition(ua, group.peek(), angular);
+				if (pos == null) {
+					break;
 				}
-				final ColorValue color = token == null ? null : toColor(ua, token);
-				if (color != null) {
-					return color;
+				leading = pos;
+				group.next();
+			}
+			final CssToken colorToken = group.next();
+			if (colorToken == null) {
+				// 色ヒント(`red, 30%, blue`)の項。補間の中点は未対応——読み飛ばす
+				continue;
+			}
+			final ColorValue cv = toColor(ua, colorToken);
+			if (cv == null) {
+				throw new IllegalArgumentException();
+			}
+			final Color color = cv.getColor();
+			if (!group.hasNext()) {
+				colors.add(color);
+				if (leading != null) {
+					ratios.add(leading[0]);
+					abs.add(leading[1]);
+					autos.add(leading[2] != 0);
+				} else {
+					ratios.add(0);
+					abs.add(0);
+					autos.add(Boolean.TRUE);
 				}
+				continue;
+			}
+			int count = 0;
+			while (group.hasNext() && count < 2) {
+				final double[] pos = toStopPosition(ua, group.next(), angular);
+				if (pos == null) {
+					throw new IllegalArgumentException();
+				}
+				colors.add(color);
+				ratios.add(pos[0]);
+				abs.add(pos[1]);
+				autos.add(pos[2] != 0);
+				++count;
+			}
+			if (group.hasNext()) {
+				throw new IllegalArgumentException();
 			}
 		}
-		return null;
+		if (colors.isEmpty()) {
+			throw new IllegalArgumentException();
+		}
+		final boolean[] auto = new boolean[autos.size()];
+		for (int i = 0; i < auto.length; ++i) {
+			auto[i] = autos.get(i);
+		}
+		return new GradientStops(colors.toArray(new Color[colors.size()]), ratios.toArray(), abs.toArray(), auto);
+	}
+
+	/**
+	 * {@code radial-gradient([ <ending-shape> || <size> ]? [ at <position> ]?, <color-stop-list>)}
+	 * および旧構文{@code -webkit-radial-gradient([<position>,]? [<shape> || <size>,]? <stops>)}
+	 * (寸法キーワード{@code contain}/{@code cover}を含む)。
+	 */
+	private static PaintValue toRadialGradient(final UserAgent ua, final TokenStream args, final boolean legacy,
+			final boolean repeating) {
+		try {
+			final List<TokenStream> groups = args.splitComma();
+			if (groups.isEmpty()) {
+				return null;
+			}
+			boolean circle = false;
+			boolean shapeGiven = false;
+			RadialGradientValue.Size size = RadialGradientValue.Size.FARTHEST_CORNER;
+			QuantityValue sizeX = null, sizeY = null;
+			QuantityValue[] position = null;
+			int first = 0;
+			if (legacy && isPositionGroup(groups.get(0))) {
+				position = BasicShapes.parsePosition(groups.get(0), ua);
+				first = 1;
+			}
+			final TokenStream prelude = first < groups.size() ? groups.get(first) : null;
+			if (prelude != null && prelude.peek() != null && toColor(ua, prelude.peek()) == null) {
+				final List<QuantityValue> lengths = new ArrayList<QuantityValue>();
+				boolean any = false;
+				while (prelude.hasNext()) {
+					final CssToken t = prelude.peek();
+					if (t instanceof CssToken.Ident ident) {
+						switch (ident.lower()) {
+						case "circle":
+							circle = true;
+							shapeGiven = true;
+							break;
+						case "ellipse":
+							circle = false;
+							shapeGiven = true;
+							break;
+						case "closest-side":
+						case "contain":
+							size = RadialGradientValue.Size.CLOSEST_SIDE;
+							break;
+						case "farthest-side":
+							size = RadialGradientValue.Size.FARTHEST_SIDE;
+							break;
+						case "closest-corner":
+							size = RadialGradientValue.Size.CLOSEST_CORNER;
+							break;
+						case "farthest-corner":
+						case "cover":
+							size = RadialGradientValue.Size.FARTHEST_CORNER;
+							break;
+						case "at":
+							prelude.next();
+							position = BasicShapes.parsePosition(prelude, ua);
+							any = true;
+							continue;
+						default:
+							throw new IllegalArgumentException();
+						}
+						prelude.next();
+						any = true;
+					} else {
+						lengths.add(BasicShapes.lengthOrPercentage(ua, t));
+						prelude.next();
+						any = true;
+					}
+				}
+				if (!lengths.isEmpty()) {
+					size = RadialGradientValue.Size.EXPLICIT;
+					sizeX = lengths.get(0);
+					if (lengths.size() >= 2) {
+						sizeY = lengths.get(1);
+						if (!shapeGiven) {
+							circle = false;
+						}
+					} else if (!shapeGiven) {
+						// 長さ1つは円の半径
+						circle = true;
+					}
+					if (circle && sizeX instanceof PercentageValue) {
+						// 円の半径に%は不可(仕様)
+						throw new IllegalArgumentException();
+					}
+					if (!circle && sizeY == null) {
+						sizeY = sizeX;
+					}
+				}
+				if (any) {
+					++first;
+				}
+			}
+			if (position == null) {
+				position = new QuantityValue[] { PercentageValue.HALF, PercentageValue.HALF };
+			}
+			final GradientStops stops = parseStops(ua, groups.subList(first, groups.size()), false);
+			return new RadialGradientValue(circle, size, sizeX, sizeY, position[0], position[1], stops, repeating);
+		} catch (IllegalArgumentException | PropertyException e) {
+			return null;
+		}
+	}
+
+	/** 旧構文の先頭項が位置(center/left/...・長さ・%だけ)か。 */
+	private static boolean isPositionGroup(final TokenStream group) {
+		final int mark = group.position();
+		try {
+			boolean any = false;
+			while (group.hasNext()) {
+				final CssToken t = group.next();
+				if (t instanceof CssToken.Ident ident) {
+					switch (ident.lower()) {
+					case "center":
+					case "left":
+					case "right":
+					case "top":
+					case "bottom":
+						break;
+					default:
+						return false;
+					}
+				} else if (!(t instanceof CssToken.Percent) && !(t instanceof CssToken.Dim)
+						&& !(t instanceof CssToken.Num num && num.value() == 0)) {
+					return false;
+				}
+				any = true;
+			}
+			return any;
+		} finally {
+			group.rewind(mark);
+		}
+	}
+
+	/**
+	 * {@code conic-gradient([ from <angle> ]? [ at <position> ]?, <angular-color-stop-list>)}。
+	 */
+	private static PaintValue toConicGradient(final UserAgent ua, final TokenStream args, final boolean repeating) {
+		try {
+			final List<TokenStream> groups = args.splitComma();
+			if (groups.isEmpty()) {
+				return null;
+			}
+			double from = 0;
+			QuantityValue[] position = null;
+			int first = 0;
+			final TokenStream prelude = groups.get(0);
+			boolean any = false;
+			while (prelude.hasNext()) {
+				if (prelude.eat("from")) {
+					final Double angle = toAngleRadians(prelude.next());
+					if (angle == null) {
+						throw new IllegalArgumentException();
+					}
+					from = angle;
+					any = true;
+				} else if (prelude.eat("at")) {
+					position = BasicShapes.parsePosition(prelude, ua);
+					any = true;
+				} else {
+					break;
+				}
+			}
+			if (any) {
+				if (prelude.hasNext()) {
+					throw new IllegalArgumentException();
+				}
+				first = 1;
+			}
+			if (position == null) {
+				position = new QuantityValue[] { PercentageValue.HALF, PercentageValue.HALF };
+			}
+			final GradientStops stops = parseStops(ua, groups.subList(first, groups.size()), true);
+			return new ConicGradientValue(from, position[0], position[1], stops, repeating);
+		} catch (IllegalArgumentException | PropertyException e) {
+			return null;
+		}
 	}
 
 	/**
@@ -1851,9 +1978,11 @@ public final class ColorValueUtils {
 		if (type == null) {
 			return null;
 		}
+		if (type.equalsIgnoreCase("radial")) {
+			return toWebkitRadialGradient(ua, groups);
+		}
 		if (!type.equalsIgnoreCase("linear")) {
-			// radialは単色近似
-			return toLastStopColor(ua, new TokenStream(rejoin(groups.subList(3, groups.size()))));
+			return null;
 		}
 		final double[] p0 = toWebkitPoint(groups.get(1));
 		final double[] p1 = toWebkitPoint(groups.get(2));
@@ -1864,56 +1993,11 @@ public final class ColorValueUtils {
 		final double dx = p1[0] - p0[0];
 		final double dy = p1[1] - p0[1];
 		final double angle = (dx == 0 && dy == 0) ? Math.PI : Math.atan2(dx, -dy);
-		final List<Color> colors = new ArrayList<Color>();
-		final DoubleList fracs = new DoubleList();
-		for (int i = 3; i < groups.size(); ++i) {
-			final TokenStream group = groups.get(i);
-			final CssToken token = group.next();
-			if (!(token instanceof CssToken.Func stop)) {
-				return null;
-			}
-			final TokenStream inner = stop.argStream();
-			final double position;
-			if (stop.is("from")) {
-				position = 0;
-			} else if (stop.is("to")) {
-				position = 1;
-			} else if (stop.is("color-stop")) {
-				final CssToken pos = nextComponent(inner);
-				if (pos instanceof CssToken.Percent percent) {
-					position = percent.value() / 100;
-				} else if (pos instanceof CssToken.Num num) {
-					position = num.value();
-				} else {
-					return null;
-				}
-			} else {
-				return null;
-			}
-			final ColorValue color = toColor(ua, nextComponent(inner));
-			if (color == null) {
-				return null;
-			}
-			colors.add(color.getColor());
-			fracs.add(position);
-		}
-		if (colors.isEmpty()) {
+		final GradientStops stops = toWebkitStops(ua, groups.subList(3, groups.size()));
+		if (stops == null) {
 			return null;
 		}
-		final double[] ds = fracs.toArray();
-		normalizeGradientStops(ds);
-		return new LinearGradientValue(angle, ds, colors.toArray(new Color[colors.size()]));
-	}
-
-	private static List<CssToken> rejoin(final List<TokenStream> groups) {
-		final List<CssToken> tokens = new ArrayList<CssToken>();
-		for (int i = 0; i < groups.size(); ++i) {
-			if (i > 0) {
-				tokens.add(CssToken.Op.COMMA);
-			}
-			tokens.addAll(groups.get(i).restIgnoringCommas());
-		}
-		return tokens;
+		return new LinearGradientValue(angle, stops, false);
 	}
 
 	/** -webkit-gradientの点(left/center/right・top/center/bottom・%・数)を0..1へ。 */
@@ -1949,7 +2033,7 @@ public final class ColorValueUtils {
 	}
 
 	/** 角度トークンをラジアンで返します(deg/rad/grad/turn)。角度でなければnull。 */
-	private static Double toAngleRadians(final CssToken token) {
+	public static Double toAngleRadians(final CssToken token) {
 		if (!(token instanceof CssToken.Dim dim)) {
 			return null;
 		}
@@ -1966,30 +2050,114 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * 色停止の位置を0..1で返します。{@code %}はそのまま。絶対長さは
-	 * グラデーション線の長さが解析時に不明なので<b>未指定(-1=等間隔補間)</b>
-	 * として近似し、calc()は割合成分だけを使う({@code calc(100% - 1px)}→1.0。
-	 * 2026-08-29、記録済みの近似)。位置として読めなければnull。
+	 * 色停止の位置を{@code [割合, 絶対長pt, 自動なら1]}で返します(2026-08-29に
+	 * 絶対長を保持するよう変更——それまでは長さの位置を等間隔補間に落として
+	 * いたので、{@code repeating-linear-gradient(#fff, #000 10px)}の周期が
+	 * 消えていた)。em等のフォント相対長は計算値の段階で解決されないため
+	 * 自動として近似する。calc()は割合と絶対の両成分を使う。
+	 * 位置として読めなければnull。
+	 *
+	 * @param angular 円錐の停止(角度を1周=1の割合へ写す)
 	 */
-	private static Double toStopPosition(final UserAgent ua, final CssToken token) {
+	private static double[] toStopPosition(final UserAgent ua, final CssToken token, final boolean angular) {
 		if (token instanceof CssToken.Percent percent) {
-			return percent.value() / 100.0;
+			return new double[] { percent.value() / 100.0, 0, 0 };
+		}
+		if (angular) {
+			final Double angle = toAngleRadians(token);
+			if (angle != null) {
+				return new double[] { angle / (Math.PI * 2), 0, 0 };
+			}
+			if (token instanceof CssToken.Num num && num.value() == 0) {
+				return new double[] { 0, 0, 0 };
+			}
+			return null;
 		}
 		if (token instanceof CssToken.Dim || (token instanceof CssToken.Num num && num.value() == 0)) {
-			return ValueUtils.toLength(ua, token) != null ? -1.0 : null;
+			final Value length = ValueUtils.toLength(ua, token);
+			if (length instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue abs) {
+				return new double[] { 0, abs.getLength(), 0 };
+			}
+			return length != null ? new double[] { 0, 0, 1 } : null;
 		}
 		final Value calc = CalcValueUtils.toCalc(ua, token);
 		if (calc instanceof net.zamasoft.foliojet.css.value.CalcLengthValue mixed) {
-			return mixed.getRatio() != 0 || mixed.getAbsolute() == 0 ? mixed.getRatio() : -1.0;
+			return new double[] { mixed.getRatio(), mixed.getAbsolute(), 0 };
 		}
 		if (calc instanceof net.zamasoft.foliojet.css.value.PercentageValue p) {
-			return p.getRatio();
+			return new double[] { p.getRatio(), 0, 0 };
 		}
-		if (calc instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue
-				|| calc instanceof net.zamasoft.foliojet.css.value.CalcFontRelativeValue) {
-			return -1.0;
+		if (calc instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue abs) {
+			return new double[] { 0, abs.getLength(), 0 };
+		}
+		if (calc instanceof net.zamasoft.foliojet.css.value.CalcFontRelativeValue) {
+			return new double[] { 0, 0, 1 };
 		}
 		return null;
+	}
+
+	/**
+	 * {@code -webkit-gradient(radial, x0 y0, r0, x1 y1, r1, stops)}。外側の円
+	 * (中心x1 y1・半径r1)を終了形状にし、内側の円は無視する(焦点は
+	 * PDFのType 3で表せるが、旧構文の実例はほぼ同心なので使わない)。
+	 * 半径の数はCSS px。
+	 */
+	private static PaintValue toWebkitRadialGradient(final UserAgent ua, final List<TokenStream> groups) {
+		if (groups.size() < 6) {
+			return null;
+		}
+		final double[] center = toWebkitPoint(groups.get(3));
+		final CssToken r1 = groups.get(4).next();
+		if (center == null || !(r1 instanceof CssToken.Num radius)) {
+			return null;
+		}
+		final GradientStops stops = toWebkitStops(ua, groups.subList(5, groups.size()));
+		if (stops == null) {
+			return null;
+		}
+		final QuantityValue r = ValueUtils.toAbsoluteLength(ua, new CssToken.Dim(radius.value(), Unit.PX, "px"));
+		return new RadialGradientValue(true, RadialGradientValue.Size.EXPLICIT, r, r,
+				PercentageValue.create(center[0] * 100), PercentageValue.create(center[1] * 100), stops, false);
+	}
+
+	/** {@code from()/to()/color-stop()}の列を停止列にします。読めなければnull。 */
+	private static GradientStops toWebkitStops(final UserAgent ua, final List<TokenStream> groups) {
+		final List<Color> colors = new ArrayList<Color>();
+		final DoubleList fracs = new DoubleList();
+		for (final TokenStream group : groups) {
+			final CssToken token = group.next();
+			if (!(token instanceof CssToken.Func stop)) {
+				return null;
+			}
+			final TokenStream inner = stop.argStream();
+			final double position;
+			if (stop.is("from")) {
+				position = 0;
+			} else if (stop.is("to")) {
+				position = 1;
+			} else if (stop.is("color-stop")) {
+				final CssToken pos = nextComponent(inner);
+				if (pos instanceof CssToken.Percent percent) {
+					position = percent.value() / 100;
+				} else if (pos instanceof CssToken.Num num) {
+					position = num.value();
+				} else {
+					return null;
+				}
+			} else {
+				return null;
+			}
+			final ColorValue color = toColor(ua, nextComponent(inner));
+			if (color == null) {
+				return null;
+			}
+			colors.add(color.getColor());
+			fracs.add(position);
+		}
+		if (colors.isEmpty()) {
+			return null;
+		}
+		return GradientStops.ofFractions(fracs.toArray(), colors.toArray(new Color[colors.size()]));
 	}
 
 	/**

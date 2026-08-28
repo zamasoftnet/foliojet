@@ -126,7 +126,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 		if (this.params.background.isVisible()) {
 			Drawable drawable = new BackgroundBorderDrawable(pageBox, clip, this.params.opacity, transform,
-					this.params.background, this.params.border, null, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode);
+					this.params.background, this.params.border, null, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
 			drawer.visitDrawable(drawable, x, y);
 		}
 		if (this.rows == null) {

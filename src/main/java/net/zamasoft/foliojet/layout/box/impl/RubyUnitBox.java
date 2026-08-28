@@ -303,6 +303,7 @@ public class RubyUnitBox extends InlineBlockBox {
 		params.element = null;
 		params.opacity = bp.opacity;
 		params.blendMode = bp.blendMode;
+		params.filter = bp.filter;
 		params.fontStyle = baseFs;
 		params.fontManager = bp.fontManager;
 		params.lineBreakRules = bp.lineBreakRules;
@@ -431,6 +432,7 @@ public class RubyUnitBox extends InlineBlockBox {
 				final RubyUnitBox box) {
 			super(pageBox, clip, box.params.opacity, transform);
 			this.blendMode = box.params.blendMode;
+			this.filter = box.params.filter;
 			this.box = box;
 		}
 

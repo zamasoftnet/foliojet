@@ -435,6 +435,8 @@ public final class ElementPropertySet extends PropertySet {
 		// mix-blend-mode/isolation(compositing-1)とtext-overflow(css-overflow-3)、2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.box.Isolation.INFO);
+		// filter(filter-effects-1)、2026-08-29
+		reg(net.zamasoft.foliojet.css.impl.property.box.Filter.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextOverflow.INFO);
 		// @container G2(2026-08-15段2、docs/history/2026-08-15-container-queries-design.md)
 		reg(ContainerType.INFO);
@@ -472,6 +474,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextShadow.INFO);
 
 		alias("-webkit-transform", Transform.INFO);
+		alias("-webkit-filter", net.zamasoft.foliojet.css.impl.property.box.Filter.INFO);
 		alias("-webkit-transform-origin", TransformOrigin.INFO_X);
 		alias("-moz-transform", Transform.INFO);
 		alias("-moz-transform-origin", TransformOrigin.INFO_X);

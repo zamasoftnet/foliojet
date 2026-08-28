@@ -33,6 +33,20 @@ public class CenteredImage extends WrappedImage {
 		this.at = new AffineTransform(s, 0, 0, s, tx, ty);
 	}
 
+	/** 収める箱の幅(2026-08-29、filterの包み直し用)。 */
+	public double getBoxWidth() {
+		return this.width;
+	}
+
+	public double getBoxHeight() {
+		return this.height;
+	}
+
+	/** 中身への拡大率。 */
+	public double getScale() {
+		return this.at.getScaleX();
+	}
+
 	public void drawTo(GC gc) {
 		try (final var gcState = gc.begin()) {
 			gc.transform(this.at);

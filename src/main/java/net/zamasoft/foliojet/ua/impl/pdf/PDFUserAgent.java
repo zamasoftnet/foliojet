@@ -278,6 +278,23 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		Image image;
 		try {
 			image = this.pdfWriter.loadImage(source);
+			// filterの画素変換に備えて、復号は遅延させたまま画素への道を
+			// 添える(PixelBackedImage参照、2026-08-29)
+			final URI uri = source.getURI();
+			if (uri != null) {
+				image = new PixelBackedImage(image, () -> {
+					try {
+						final Source s = this.resolve(uri);
+						try {
+							return this.loadImage(s);
+						} finally {
+							this.release(s);
+						}
+					} catch (IOException e) {
+						return null;
+					}
+				});
+			}
 		} catch (IOException e) {
 			image = this.loadImage(source);
 		}

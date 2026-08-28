@@ -8,7 +8,7 @@ import net.zamasoft.pdfg2d.gc.image.Image;
  * @author MIYABE Tatsuhiko
  * @version $Id: BackgroundImage.java 1552 2018-04-26 01:43:24Z miyabe $
  */
-public class BackgroundImage {
+public class BackgroundImage implements Background.Layer {
 	/**
 	 * 背景を繰り返しません。
 	 */

@@ -41,6 +41,16 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 			this.entries.add(entry);
 		}
 
+		/** 設定済みの値。無ければnull(2026-08-29、多層背景の合成に使う)。 */
+		public Value get(PrimitivePropertyInfo info) {
+			for (final Entry e : this.entries) {
+				if (e.getPrimitivePropertyInfo() == info) {
+					return e.getValue();
+				}
+			}
+			return null;
+		}
+
 		public String toString() {
 			StringBuilder buff = new StringBuilder();
 			for (int i = 0; i < this.entries.size(); ++i) {

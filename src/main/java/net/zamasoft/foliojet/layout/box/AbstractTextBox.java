@@ -800,6 +800,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				int off, int len, AbstractTextParams params, double ascent, double descent) {
 			super(pageBox, clip, params.opacity, transform);
 			this.blendMode = params.blendMode;
+			this.filter = params.filter;
 			this.contents = contents;
 			this.off = off;
 			this.len = len;
@@ -965,6 +966,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				net.zamasoft.foliojet.layout.text.LeaderQuad leader, double ascent, double descent) {
 			super(pageBox, clip, params.opacity, transform);
 			this.blendMode = params.blendMode;
+			this.filter = params.filter;
 			this.leader = leader;
 			this.params = params;
 			this.ascent = ascent;
@@ -1030,6 +1032,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				Decoration decoration, double ascent, double descent, double width, double height) {
 			super(pageBox, clip, params.opacity, transform);
 			this.blendMode = params.blendMode;
+			this.filter = params.filter;
 			this.params = params;
 			this.decoration = decoration;
 			this.ascent = ascent;

@@ -1,0 +1,12 @@
+drawer z=0
+  x=10.00 y=10.00 AbsoluteRectFrame[w=100.00 h=100.00] bg=radial(circle closest-side at 50% 50%;#ff0000,#0000ff)
+  x=120.00 y=10.00 AbsoluteRectFrame[w=100.00 h=60.00] bg=radial(ellipse farthest-corner at 30% 40%;#ffff00 0%,#00ff00 100%)
+  x=120.00 y=75.00 AbsoluteRectFrame[w=100.00 h=35.00] bg=radial(ellipse 40.00pt 12.00pt at 30.00pt 15.00pt;#ffffff,#000000 80%)
+  x=120.00 y=120.00 AbsoluteRectFrame[w=100.00 h=100.00] bg=conic(from 0deg at 50% 50%;#ff0000 0%,#ff0000 25%,#00ff00 25%,#00ff00 50%,#0000ff 50%,#0000ff 75%,#ffff00 75%,#ffff00 100%)
+  x=230.00 y=230.00 AbsoluteRectFrame[w=60.00 h=60.00] bg=conic(from 45deg at 50% 50%;#ff0000,#00ff00,#0000ff,#ff0000)
+  x=230.00 y=10.00 AbsoluteRectFrame[w=60.00 h=100.00] bg=repeating-linear(180deg;#000000 0%,#000000 5.00pt,#ffffff 5.00pt,#ffffff 10.00pt)
+  x=10.00 y=120.00 AbsoluteRectFrame[w=100.00 h=100.00] bg=repeating-radial(circle farthest-corner at 50% 50%;#000000 0%,#000000 4.00pt,#ffffff 4.00pt,#ffffff 8.00pt)
+  x=230.00 y=120.00 AbsoluteRectFrame[w=60.00 h=60.00] bg=linear(180deg;#ff000080,#ff000080)
+  x=10.00 y=230.00 AbsoluteRectFrame[w=100.00 h=50.00] bg=linear(90deg;#0000ff00,#0000ff)
+  x=120.00 y=230.00 AbsoluteRectFrame[w=50.00 h=50.00] bg=radial(circle farthest-corner at 50% 50%;#ffffff,#000000)
+  x=175.00 y=230.00 AbsoluteRectFrame[w=50.00 h=50.00] bg=radial(circle 22.50pt at 50% 50%;#ffffff 0%,#000000 100%)

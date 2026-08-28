@@ -38,7 +38,10 @@ import net.zamasoft.foliojet.css.value.TextDecorationValue;
 import net.zamasoft.foliojet.css.value.UnicodeBidiValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.WhiteSpaceValue;
+import net.zamasoft.foliojet.css.value.css3.ConicGradientValue;
+import net.zamasoft.foliojet.css.value.css3.FilterValue;
 import net.zamasoft.foliojet.css.value.css3.LinearGradientValue;
+import net.zamasoft.foliojet.css.value.css3.RadialGradientValue;
 import net.zamasoft.foliojet.css.value.css3.TextShadowValue;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -112,6 +115,14 @@ public class ModernCssValuesTest extends TestCase {
 		assertTrue(name + ": " + value + " で警告 " + this.warnings, this.warnings.isEmpty());
 		assertTrue(property instanceof CompositeProperty);
 		return ((CompositeProperty) property).getEntries();
+	}
+
+	/** 宣言が不受理(無効化か警告)になることを確かめます。 */
+	private void rejected(final String name, final String value) {
+		this.warnings.clear();
+		final Property property = ElementPropertySet.getInstance().parseDeclaration(name, tokens(name + ": " + value),
+				this.ua(), null, false);
+		assertTrue(name + ": " + value + " が受理された", property == null || !this.warnings.isEmpty());
 	}
 
 	private Value single(final String name, final String value) {
@@ -292,16 +303,77 @@ public class ModernCssValuesTest extends TestCase {
 				instanceof LinearGradientValue);
 	}
 
-	public void testRadialGradientApproximatedByLastColor() {
+	public void testRadialConicRepeatingGradients() {
+		// 放射(2026-08-29に本実装)。形状・寸法・位置と色停止を持つ
 		final Value radial = this.single("background-image", "radial-gradient(circle at center, #fff, #000)");
-		assertTrue(radial instanceof ColorValue);
-		assertEquals(0f, ((ColorValue) radial).getColor().getRed(), 1e-6f);
-		assertTrue(this.single("background-image", "-webkit-radial-gradient(center, ellipse cover, #fff, #123)")
-				instanceof ColorValue);
-		assertTrue(this.single("background-image", "conic-gradient(from 90deg, red, blue)") instanceof ColorValue);
+		assertTrue(radial instanceof RadialGradientValue);
+		assertTrue(((RadialGradientValue) radial).isCircle());
+		assertEquals(RadialGradientValue.Size.FARTHEST_CORNER, ((RadialGradientValue) radial).getSize());
+		final RadialGradientValue sized = (RadialGradientValue) this.single("background-image",
+				"radial-gradient(ellipse closest-side at 20% 80%, red 10%, blue 90%)");
+		assertFalse(sized.isCircle());
+		assertEquals(RadialGradientValue.Size.CLOSEST_SIDE, sized.getSize());
+		final RadialGradientValue explicit = (RadialGradientValue) this.single("background-image",
+				"radial-gradient(40px 20px at 10px 10px, #fff, #000)");
+		assertEquals(RadialGradientValue.Size.EXPLICIT, explicit.getSize());
+		assertFalse(explicit.isCircle());
+		assertTrue(((RadialGradientValue) this.single("background-image", "radial-gradient(30px, #fff, #000)"))
+				.isCircle());
+		assertTrue(this.single("background-image", "radial-gradient(farthest-side circle, #fff, #000)")
+				instanceof RadialGradientValue);
+		assertTrue(this.single("background-image", "radial-gradient(#fff, #000)") instanceof RadialGradientValue);
+		// 旧構文: 位置, 形状 寸法(contain/cover)
+		final RadialGradientValue legacy = (RadialGradientValue) this.single("background-image",
+				"-webkit-radial-gradient(center, ellipse cover, #fff, #123)");
+		assertFalse(legacy.isCircle());
+		assertEquals(RadialGradientValue.Size.FARTHEST_CORNER, legacy.getSize());
+		assertTrue(this.single("background-image", "-moz-radial-gradient(circle closest-side, #fff, #000)")
+				instanceof RadialGradientValue);
 		assertTrue(this.single("background-image",
 				"-webkit-gradient(radial, center center, 0, center center, 100, from(#fff), to(#000))")
-				instanceof ColorValue);
+				instanceof RadialGradientValue);
+		// 円錐
+		final Value conic = this.single("background-image", "conic-gradient(from 90deg, red, blue)");
+		assertTrue(conic instanceof ConicGradientValue);
+		assertEquals(Math.PI / 2, ((ConicGradientValue) conic).getFromAngle(), 1e-9);
+		assertTrue(this.single("background-image",
+				"conic-gradient(from 0.25turn at 25% 75%, red 0deg 90deg, lime 90deg 180deg, blue)")
+				instanceof ConicGradientValue);
+		assertTrue(this.single("background-image", "conic-gradient(red 25%, blue 75%)") instanceof ConicGradientValue);
+		// 繰り返し
+		assertTrue(((LinearGradientValue) this.single("background-image",
+				"repeating-linear-gradient(45deg, #fff, #000 10px)")).isRepeating());
+		assertTrue(((RadialGradientValue) this.single("background-image",
+				"repeating-radial-gradient(circle, #fff 0 4px, #000 4px 8px)")).isRepeating());
+		assertTrue(((ConicGradientValue) this.single("background-image",
+				"repeating-conic-gradient(red 0 15deg, blue 15deg 30deg)")).isRepeating());
+		// 色停止の長さは保持される(周期に要る)
+		assertEquals("#ffffff,#000000 10.00pt", ((LinearGradientValue) this.single("background-image",
+				"linear-gradient(#fff, #000 10pt)")).getStops().toString());
+		// 不正: 円の半径に%
+		this.rejected("background-image", "radial-gradient(circle 50%, #fff, #000)");
+	}
+
+	public void testFilter() {
+		assertTrue(this.single("filter", "none") instanceof FilterValue);
+		assertTrue(((FilterValue) this.single("filter", "none")).isNone());
+		final FilterValue gray = (FilterValue) this.single("filter", "grayscale(100%)");
+		assertNotNull(gray.matrix);
+		assertNull(gray.shadow);
+		final FilterValue multi = (FilterValue) this.single("filter",
+				"blur(2px) brightness(1.2) contrast(80%) drop-shadow(2px 4px 6px rgba(0,0,0,.5)) opacity(50%) "
+						+ "saturate(2) sepia(1) hue-rotate(90deg) invert(1)");
+		assertEquals(0.5f, multi.opacity, 1e-6f);
+		assertTrue(multi.blur > 0);
+		assertNotNull(multi.shadow);
+		assertEquals(6 * 0.75, multi.shadow.blur(), 1e-6);
+		assertNotNull(multi.matrix);
+		assertTrue(((FilterValue) this.single("filter", "drop-shadow(#f00 1px 1px)")).shadow.color().getRed() > 0.9f);
+		// url()は受理して無視
+		assertTrue(this.single("filter", "url(#blur)") instanceof FilterValue);
+		this.rejected("filter", "foo(1)");
+		this.rejected("filter", "grayscale(-1)");
+		this.rejected("filter", "drop-shadow(1px)");
 	}
 
 	public void testMultiLayerBackgroundTakesFirstLayer() {

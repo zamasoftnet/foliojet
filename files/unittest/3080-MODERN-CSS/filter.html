@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+/* filter(filter-effects-1、2026-08-29)。紙300pt角・margin 0。
+   GradientFilterTest が画素で検査する箱: #gray (40,40)は r≈g≈b、
+   #shadow の右下外(224,40)は灰、#opacity (60,125)≈(255,128,128)、
+   #bright (170,125)≈(200,200,200)、#nest の子 (60,195)は r≈g≈b */
+@page { size: 300pt 300pt; margin: 0; }
+body { margin: 0; }
+div, img { position: absolute; }
+#gray { left: 10pt; top: 10pt; width: 60pt; height: 60pt; filter: grayscale(100%); }
+#shadow { left: 120pt; top: 10pt; width: 100pt; height: 60pt; background: #0f0;
+  filter: drop-shadow(5pt 5pt 3pt rgba(0,0,0,.6)); }
+#opacity { left: 10pt; top: 100pt; width: 100pt; height: 50pt; background: #f00; filter: opacity(.5); }
+#bright { left: 120pt; top: 100pt; width: 100pt; height: 50pt; background: rgb(100,100,100);
+  filter: brightness(2); }
+#nest { left: 10pt; top: 170pt; width: 100pt; height: 50pt; filter: grayscale(1); }
+#nest div { left: 0; top: 0; width: 100pt; height: 50pt; background: red; border: 4pt solid blue; }
+#sepia { left: 120pt; top: 170pt; width: 100pt; height: 50pt; background: #08f; color: #fff;
+  filter: sepia(60%) contrast(1.2) saturate(1.5) hue-rotate(90deg) invert(10%); }
+#blur { left: 230pt; top: 10pt; width: 60pt; height: 60pt; filter: blur(2pt); }
+#img-shadow { left: 230pt; top: 100pt; width: 60pt; height: 60pt; filter: drop-shadow(4pt 4pt 2pt #00f); }
+#gradient { left: 230pt; top: 170pt; width: 60pt; height: 60pt;
+  background: linear-gradient(to right, red, blue); filter: grayscale(1); }
+#webkit { left: 10pt; top: 230pt; width: 100pt; height: 50pt; background: #f00; -webkit-filter: invert(1); }
+</style></head><body>
+<img id="gray" src="../red.png" alt="">
+<div id="shadow"></div>
+<div id="opacity"></div>
+<div id="bright"></div>
+<div id="nest"><div></div></div>
+<div id="sepia">filter</div>
+<img id="blur" src="../kappa.png" alt="">
+<img id="img-shadow" src="../kappa.png" alt="">
+<div id="gradient"></div>
+<div id="webkit"></div>
+</body></html>
