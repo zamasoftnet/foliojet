@@ -84,15 +84,23 @@ public class NUpImposition extends AbstractImposition {
 		if (this.clip) {
 			this.gc.clip(new Rectangle2D.Double(cellX, cellY, cellWidth, cellHeight));
 		}
-		// セルに合わせて縦横比を維持したまま拡縮し、中央に配置する
-		double scale = Math.min(cellWidth / this.pageWidth, cellHeight / this.pageHeight);
+		// セルに合わせて縦横比を維持したまま拡縮し、中央に配置する。
+		// 収めるのは仕上りサイズで、塗り足し(trimInset)はその外へはみ出す
+		// ——セルのクリップで隣へ流れないようにしてある
+		final double trimWidth = this.getTrimWidth();
+		final double trimHeight = this.getTrimHeight();
+		double scale = Math.min(cellWidth / trimWidth, cellHeight / trimHeight);
 		if (scale <= 0 || Double.isNaN(scale) || Double.isInfinite(scale)) {
 			scale = 1;
 		}
-		this.gc.transform(AffineTransform.getTranslateInstance(cellX + (cellWidth - scale * this.pageWidth) / 2.0,
-				cellY + (cellHeight - scale * this.pageHeight) / 2.0));
+		this.gc.transform(AffineTransform.getTranslateInstance(cellX + (cellWidth - scale * trimWidth) / 2.0,
+				cellY + (cellHeight - scale * trimHeight) / 2.0));
 		if (scale != 1) {
 			this.gc.transform(AffineTransform.getScaleInstance(scale, scale));
+		}
+		if (this.trimInset != 0) {
+			// 原点を印刷面(内容の座標系)の左上へ戻す
+			this.gc.transform(AffineTransform.getTranslateInstance(-this.trimInset, -this.trimInset));
 		}
 		return this.gc;
 	}

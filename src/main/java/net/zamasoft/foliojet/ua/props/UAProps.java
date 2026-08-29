@@ -243,6 +243,13 @@ public final class UAProps {
 	public static final StringPropManager OUTPUT_TRIMS = new StringPropManager("output.trims", null);
 
 	/**
+	 * 印刷面の外周のうち、<b>塗り足しとして扱う帯の幅</b>です
+	 * (仕上り線は印刷面の外周からこの幅だけ内側)。塗り足し込みで
+	 * 作られた既存データを、CSSを書き換えずにトンボ付きで出せます。
+	 */
+	public static final StringPropManager OUTPUT_TRIM_INSET = new StringPropManager("output.trim-inset", null);
+
+	/**
 	 * 内容を用紙に合わせて拡大します。
 	 */
 	public static final CodePropManager<OutputFitToPaper> OUTPUT_FIT_TO_PAPER = new CodePropManager<>("output.fit-to-paper", OutputFitToPaper.class, OutputFitToPaper.FALSE);
@@ -731,6 +738,15 @@ public final class UAProps {
 	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(
 			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.GZIP);
 
+	/**
+	 * 単一SVG出力({@code image/svg+xml})で文字をどう書くかです
+	 * (B-1、2026-08-29)。既定は従来どおりアウトライン。
+	 * {@code keep}にすると{@code <text>}のまま残し、サブセットした
+	 * WOFF2と画像を{@code data:}でSVGへ埋め込んで1枚で完結させます。
+	 */
+	public static final CodePropManager<SvgTextMode> OUTPUT_SVG_TEXT = new CodePropManager<>(
+			"output.svg.text", SvgTextMode.class, SvgTextMode.OUTLINE);
+
 	private static final java.util.List<PropManager> ALL = java.util.List.of(
 			INPUT_PROPERTY_PI,
 			INPUT_FILTERS,
@@ -764,6 +780,7 @@ public final class UAProps {
 			OUTPUT_HTRIM,
 			OUTPUT_VTRIM,
 			OUTPUT_TRIMS,
+			OUTPUT_TRIM_INSET,
 			OUTPUT_FIT_TO_PAPER,
 			OUTPUT_AUTO_ROTATE,
 			OUTPUT_CLIP,
@@ -852,7 +869,8 @@ public final class UAProps {
 			OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT,
 			OUTPUT_USE_META_INFO,
 			OUTPUT_PAGED_SVG_RESOURCES,
-			OUTPUT_PAGED_SVG_COMPRESSION);
+			OUTPUT_PAGED_SVG_COMPRESSION,
+			OUTPUT_SVG_TEXT);
 
 	/**
 	 * 定義済みの全プロパティを返します。

@@ -67,6 +67,18 @@ public interface Imposition {
 	public double getCuttingMargin();
 
 	/**
+	 * 印刷面の外周のうち、<b>塗り足しとして扱う帯の幅</b>です
+	 * (2026-08-29、利用者報告B-3)。ここが0でなければ、仕上り線は
+	 * 印刷面の外周からこの幅だけ内側にあるとみなします——つまり
+	 * 塗り足し込みで作られた既存データを、CSSを書き換えずに
+	 * トンボ付きで出力できます。
+	 */
+	public double getTrimInset();
+
+	/** @see #getTrimInset() */
+	public void setTrimInset(double trimInset);
+
+	/**
 	 * ドブの幅を設定します。
 	 * 
 	 * @param cuttingMargin

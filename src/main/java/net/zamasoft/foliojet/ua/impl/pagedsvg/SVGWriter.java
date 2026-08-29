@@ -52,6 +52,13 @@ final class SVGWriter {
 		final java.util.Map<String, String> defIds = new java.util.HashMap<>();
 		/** {@code @font-face}の並び。共有WOFF2を参照する。 */
 		final java.util.Map<String, String> fontFaces = new java.util.LinkedHashMap<>();
+		/**
+		 * {@code @font-face}の{@code src}に書くURIの決め方
+		 * (B-1、2026-08-29)。ページ分割SVGは{@code pages/}の下から
+		 * 共有WOFF2を相対で指す。1枚で完結させるSVGは{@code data:}を
+		 * 差し込むので、ここを差し替える。
+		 */
+		java.util.function.UnaryOperator<String> fontSrc = uri -> "../" + uri;
 		int nextId = 0;
 	}
 
@@ -102,6 +109,11 @@ final class SVGWriter {
 		this.shared.fontFaces.put(family, uri);
 	}
 
+	/** @see Shared#fontSrc */
+	void setFontSrc(final java.util.function.UnaryOperator<String> fontSrc) {
+		this.shared.fontSrc = fontSrc;
+	}
+
 	/**
 	 * 集めた定義を書き出します。{@code defs}は文書のどこに置いてもよく、
 	 * それより前の要素からも参照できるので、末尾で構いません。
@@ -115,8 +127,9 @@ final class SVGWriter {
 			target.write("<style type=\"text/css\">");
 			final StringBuilder css = new StringBuilder();
 			for (final java.util.Map.Entry<String, String> face : this.shared.fontFaces.entrySet()) {
-				css.append("@font-face{font-family:'").append(face.getKey()).append("';src:url('../")
-						.append(face.getValue()).append("') format('woff2');font-display:block;}");
+				css.append("@font-face{font-family:'").append(face.getKey()).append("';src:url('")
+						.append(this.shared.fontSrc.apply(face.getValue()))
+						.append("') format('woff2');font-display:block;}");
 			}
 			escapeText(target, css.toString());
 			target.write("</style>");

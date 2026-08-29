@@ -56,7 +56,30 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private int page;
 	private final Map<String, String> metadata = new LinkedHashMap<>();
 
+	/**
+	 * <b>1本のZIPにまとめて返すか</b>(B-2、2026-08-29)。結果が複数になる
+	 * ふつうのバンドルは、セッションを使わない一発のREST
+	 * ({@code POST /transcode})では受け取れない(4001になる)。ZIPなら
+	 * 結果1件なのでRESTでもそのまま返せる。
+	 */
+	/** ZIPで返すときの結果URIとメディア型。 */
+	static final String BUNDLE_URI = "paged-svg.zip";
+
+	static final String BUNDLE_MEDIA_TYPE = "application/zip";
+
+	private final boolean zipBundle;
+
+	/** ZIPで返すときの唯一の結果。最初のemitで開く。 */
+	private java.util.zip.ZipOutputStream zip;
+
+	private FragmentedOutput zipBuilder;
+
 	public PagedSVGUserAgent() {
+		this(false);
+	}
+
+	public PagedSVGUserAgent(final boolean zipBundle) {
+		this.zipBundle = zipBundle;
 		this.resetOutput();
 	}
 
@@ -234,7 +257,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final int number = ++this.page;
 		if (number == 1) {
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
-			this.compression = UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
+			// ZIPで返すときは中身を縮めない——ZIP側が縮めるので二重になるし、
+			// 受け手が展開してそのまま開ける名前(.svg/.json)であるべき
+			this.compression = this.zipBundle ? PagedSvgCompression.NONE
+					: UAProps.OUTPUT_PAGED_SVG_COMPRESSION.get(this);
 			// 前回の変換のサブセットを**1ページ目より先に**出す(2026-08-29)。
 			// 同じ本を文字サイズだけ変えて組み直すとき、受け手は最初のページ
 			// から本来の書体で描ける
@@ -339,6 +365,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		if (this.results == null) {
 			throw new IOException("Results is not set");
 		}
+		if (this.zipBundle) {
+			return this.emitZipEntry(uri, content);
+		}
 		if (!this.results.hasNext()) {
 			throw new AbortException(CTISession.ABORT_NORMAL);
 		}
@@ -388,6 +417,71 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	 * {@code manifest.json}は読み口なので、そのままにします。
 	 * </p>
 	 */
+	/**
+	 * ZIPの1エントリとして書き出します(B-2、2026-08-29)。
+	 *
+	 * <p>
+	 * 名前はふつうのバンドルと同じURI({@code pages/0001.svg}、
+	 * {@code assets/fonts/font-0001.woff2}…)。展開すればディレクトリ出力と
+	 * 同じ形になり、{@code manifest.json}の参照もそのまま解決する。
+	 * SHA-256は<b>エントリの中身</b>(圧縮前)に対して取るので、受け手は
+	 * 展開したファイルへそのまま当てられる。
+	 * </p>
+	 */
+	private String emitZipEntry(final String uri, final ContentWriter content) throws IOException {
+		final java.util.zip.ZipOutputStream out = this.requireZip();
+		final MessageDigest digest;
+		try {
+			digest = MessageDigest.getInstance("SHA-256");
+		} catch (final NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
+		out.putNextEntry(new java.util.zip.ZipEntry(uri));
+		try {
+			content.write(new DigestOutputStream(new UnclosableOutputStream(out), digest));
+		} finally {
+			out.closeEntry();
+		}
+		return HexFormat.of().formatHex(digest.digest());
+	}
+
+	/** ZIPの結果を必要になった時点で1件だけ開きます。 */
+	private java.util.zip.ZipOutputStream requireZip() throws IOException {
+		if (this.zip != null) {
+			return this.zip;
+		}
+		if (!this.results.hasNext()) {
+			throw new AbortException(CTISession.ABORT_NORMAL);
+		}
+		final var metadata = new SimpleSourceMetadata(URI.create(BUNDLE_URI), BUNDLE_MEDIA_TYPE, null, -1);
+		this.zipBuilder = this.results.nextBuilder(metadata);
+		final OutputStream raw;
+		if (this.zipBuilder instanceof SequentialOutput sequential) {
+			raw = new SequentialOutputAdapter(sequential);
+		} else {
+			this.zipBuilder.addFragment();
+			raw = new FragmentOutputAdapter(this.zipBuilder, 0);
+		}
+		this.zip = new java.util.zip.ZipOutputStream(raw);
+		return this.zip;
+	}
+
+	private void closeZip() throws IOException {
+		if (this.zip == null) {
+			return;
+		}
+		try {
+			this.zip.finish();
+			this.zip.close();
+		} finally {
+			this.zip = null;
+			if (this.zipBuilder != null) {
+				this.zipBuilder.close();
+				this.zipBuilder = null;
+			}
+		}
+	}
+
 	private boolean isCompressed(final String uri) {
 		return this.compression == PagedSvgCompression.GZIP
 				&& (uri.endsWith(".svgz") || uri.endsWith(".json.gz"));
@@ -437,6 +531,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);
 		this.emit("manifest.json", "application/json", this.resources.manifest(this.metadata, binding));
+		this.closeZip();
 		this.results.end();
 	}
 

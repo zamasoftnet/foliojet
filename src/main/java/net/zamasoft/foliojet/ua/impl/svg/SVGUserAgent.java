@@ -34,6 +34,9 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.PrepareMode;
+import net.zamasoft.foliojet.ua.impl.pagedsvg.SelfContainedSVGPage;
+import net.zamasoft.foliojet.ua.props.SvgTextMode;
+import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 
 public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private Results results, xresults;
@@ -42,6 +45,14 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 	private FontManagerImpl fontManager;
 
 	private SVGGraphics2D svgGen;
+
+	/**
+	 * {@code output.svg.text: keep}のときだけ使う、1枚で完結するSVGの
+	 * 書き出し先(B-1、2026-08-29)。Batikを通さない。
+	 */
+	private java.io.StringWriter directBuffer;
+
+	private SelfContainedSVGPage directPage;
 
 	private int page = 0;
 
@@ -77,8 +88,39 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 
 	private void reset() {
 		this.svgGen = null;
+		this.directBuffer = null;
+		this.directPage = null;
 		this.fontManager = null;
 		this.page = 0;
+	}
+
+	/** 文字を{@code <text>}のまま残すかどうか(B-1、2026-08-29)。 */
+	private boolean keepsText() {
+		return UAProps.OUTPUT_SVG_TEXT.get(this) == SvgTextMode.KEEP;
+	}
+
+	/**
+	 * 文字を残すときは<b>埋め込み</b>を既定にします(B-1、2026-08-29——
+	 * ページ分割SVGと同じ理由)。共通の既定{@code cid-keyed}はPDFの外部
+	 * CIDフォントを参照する方針で、SVGには存在しない仕組みなので、
+	 * そのままだと字形がすべてアウトラインへ落ちて{@code <text>}が
+	 * 1つも残らない。利用者が明示した場合はそちらに従う。
+	 */
+	@Override
+	public CSSJFontPolicyValue getDefaultFontPolicy() {
+		if (!this.keepsText() || this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
+			return super.getDefaultFontPolicy();
+		}
+		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
+	}
+
+	/**
+	 * 文字を残すときは画像を<b>元のバイト列のまま</b>受け取ります。
+	 * {@code data:}で埋めるので、JPEGをPNGへ焼き直す必要がない。
+	 */
+	@Override
+	public boolean keepsEncodedImages() {
+		return this.keepsText() || super.keepsEncodedImages();
 	}
 
 	public FontManager getFontManager() {
@@ -97,6 +139,16 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 		if (this.isMeasurePass() || this.isStructureScanPass()) {
 			this.noteProgress();
 			return null;
+		}
+		if (this.keepsText()) {
+			try {
+				this.directBuffer = new java.io.StringWriter(1 << 14);
+				this.directPage = new SelfContainedSVGPage(this.directBuffer, this.pageWidth, this.pageHeight,
+						this.getFontManager());
+			} catch (IOException e) {
+				throw new GraphicsException(e);
+			}
+			return this.directPage.gc();
 		}
 		Dimension dim = new Dimension((int) this.pageWidth, (int) this.pageHeight);
 
@@ -125,11 +177,19 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 				out = new FragmentOutputAdapter(builder, 0);
 			}
 			try (Writer writer = new OutputStreamWriter(out, "UTF-8")) {
-				this.svgGen.stream(writer, true);
+				if (this.directPage != null) {
+					// サブセットの組み立ては close の中。閉じてから流す
+					this.directPage.close();
+					writer.write(this.directBuffer.toString());
+				} else {
+					this.svgGen.stream(writer, true);
+				}
 			}
 		} catch (IOException e) {
 			throw new GraphicsException(e);
 		} finally {
+			this.directBuffer = null;
+			this.directPage = null;
 			builder.close();
 		}
 		if (!this.results.hasNext()) {

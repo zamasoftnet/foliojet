@@ -907,6 +907,23 @@ public final class LayoutUtils {
 		default:
 			throw new IllegalStateException();
 		}
+		// 塗り足し込みデータの仕上り位置(2026-08-29、利用者報告B-3)。
+		// output.marksがnoneのときにドブを0にする分岐より**後**に置く
+		// ——外周の帯はそのままドブ(塗り足し)なので、ここで入れ直す
+		{
+			String s = UAProps.OUTPUT_TRIM_INSET.getString(ua);
+			if (s != null) {
+				AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, s);
+				if (length != null && length.getLength() >= 0) {
+					final double l = length.getLength();
+					imposition.setTrimInset(l);
+					imposition.setCuttingMargin(l);
+				} else {
+					ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_TRIM_INSET.name, s);
+				}
+			}
+		}
+
 		imposition.setClip(UAProps.OUTPUT_CLIP.getBoolean(ua));
 
 		// 背表紙

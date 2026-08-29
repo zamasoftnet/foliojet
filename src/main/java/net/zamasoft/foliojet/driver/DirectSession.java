@@ -88,6 +88,15 @@ public class DirectSession extends AbstractCTISession
 	/** 利用可能なフォント情報のURIです。 */
 	private static final URI FONTS_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/fonts");
 
+	/**
+	 * <b>フォント一覧の軽量版</b>(B-4、2026-08-29)。{@link #FONTS_INFO_URI}は
+	 * 1書体ごとに別名まで並べるので、書体選択のUIを作るには重すぎる
+	 * (内蔵フォントを載せた構成で4MB超)。こちらは<b>利用者が
+	 * {@code font-family}へ書ける名前</b>(本名と別名)ごとに1件へ畳み、
+	 * ウェイト・斜体・書体分類・対応スクリプトをまとめて返す。
+	 */
+	private static final URI FONT_FAMILIES_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/fonts/families");
+
 	private static final int PIPE_BUFFER_SIZE = 64 * 1024;
 
 	private Results results = null;
@@ -218,6 +227,9 @@ public class DirectSession extends AbstractCTISession
 				}
 				handler.endElement("", "output-types", "output-types");
 				handler.endDocument();
+			} else if (uri.equals(FONT_FAMILIES_INFO_URI)) {
+				// フォント(ファミリ単位に畳んだ軽量版)
+				this.writeFontFamilies(handler, atts);
 			} else if (uri.equals(FONTS_INFO_URI)) {
 				// フォント
 				final FontSourceManager fsm = this.getFontSourceManager();
@@ -284,6 +296,102 @@ public class DirectSession extends AbstractCTISession
 			throw new RuntimeException(e);
 		}
 		return new ByteArrayInputStream(out.toByteArray());
+	}
+
+	/**
+	 * ファミリ単位に畳んだフォント一覧を書き出します(B-4、2026-08-29)。
+	 *
+	 * <p>
+	 * 畳む鍵は<b>利用者が{@code font-family}へ書ける名前</b>——書体の本名と
+	 * 別名の両方。別名で畳むのはCSSの照合と同じ考え方で、
+	 * {@code font-family: Arial}がHelveticaに当たる関係をそのまま出す。
+	 * ウェイトは昇順、斜体は「その名前に斜体があるか」、
+	 * 書体分類と対応スクリプトは合併。
+	 * </p>
+	 */
+	private void writeFontFamilies(final TransformerHandler handler, final AttributesImpl atts)
+			throws IOException, SAXException {
+		// 軽量版なので整形しない——属性1つごとに改行と字下げが付くと、
+		// 中身より空白のほうが大きくなる(実測4.4MB→1.9MB→0.5MB)
+		handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
+		final FontSourceManager fsm = this.getFontSourceManager();
+		final FontSource[] fonts = fsm.lookup(null);
+		record Family(java.util.TreeSet<Short> weights, boolean[] italic, java.util.TreeSet<String> scripts,
+				String[] generic, int[] faces) {
+		}
+		final Map<String, Family> families = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		for (final FontSource font : fonts) {
+			// 畳む鍵は**別名**——別名がファミリ名(「Noto Sans JP」)で、
+			// 本名は面ごとの名前(「NotoSansJP-Bold」)だから、本名まで鍵に
+			// すると畳めない(実測: 14,959面が13,738件にしかならなかった)。
+			// 別名を持たない書体だけ本名で立てる
+			final java.util.List<String> names = new java.util.ArrayList<>();
+			for (final String alias : font.getAliases()) {
+				names.add(alias);
+			}
+			if (names.isEmpty()) {
+				names.add(font.getFontName());
+			}
+			final String generic = genericOf(font);
+			final String scripts = scriptsOf(font);
+			for (final String name : names) {
+				if (name == null || name.isEmpty()) {
+					continue;
+				}
+				if (name.indexOf(';') >= 0) {
+					// 壊れたname表から来た版数の文字列(「0.000;NONE;…」)。
+					// CSSのfont-familyへは書けない(宣言が途中で終わる)ので、
+					// 選択UI向けの一覧からは落とす。素の一覧には残る
+					continue;
+				}
+				final Family family = families.computeIfAbsent(name,
+						k -> new Family(new java.util.TreeSet<>(), new boolean[1], new java.util.TreeSet<>(),
+								new String[1], new int[1]));
+				family.weights().add(font.getWeight().w);
+				family.italic()[0] |= font.isItalic();
+				++family.faces()[0];
+				if (generic != null && family.generic()[0] == null) {
+					family.generic()[0] = generic;
+				}
+				if (!scripts.isEmpty()) {
+					// scriptsOfは空白区切り。畳むときに重複を落とす
+					for (final String script : scripts.split("\s+")) {
+						if (!script.isEmpty()) {
+							family.scripts().add(script);
+						}
+					}
+				}
+			}
+		}
+		handler.startDocument();
+		handler.startElement("", "font-families", "font-families", atts);
+		for (final Map.Entry<String, Family> e : families.entrySet()) {
+			final Family family = e.getValue();
+			atts.addAttribute("", "name", "name", "CDATA", e.getKey());
+			final StringBuilder weights = new StringBuilder();
+			for (final Short w : family.weights()) {
+				if (weights.length() != 0) {
+					weights.append(' ');
+				}
+				weights.append(w);
+			}
+			atts.addAttribute("", "weights", "weights", "CDATA", weights.toString());
+			if (family.italic()[0]) {
+				atts.addAttribute("", "italic", "italic", "CDATA", "true");
+			}
+			if (family.generic()[0] != null) {
+				atts.addAttribute("", "generic", "generic", "CDATA", family.generic()[0]);
+			}
+			if (!family.scripts().isEmpty()) {
+				atts.addAttribute("", "scripts", "scripts", "CDATA", String.join(" ", family.scripts()));
+			}
+			atts.addAttribute("", "faces", "faces", "CDATA", String.valueOf(family.faces()[0]));
+			handler.startElement("", "family", "family", atts);
+			atts.clear();
+			handler.endElement("", "family", "family");
+		}
+		handler.endElement("", "font-families", "font-families");
+		handler.endDocument();
 	}
 
 	/**

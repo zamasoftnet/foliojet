@@ -366,7 +366,9 @@ final class PageSequence {
 			}
 		}
 		final double bleed = PageBleed.get(pageStyle);
-		if (bleed >= 0) {
+		// output.trim-insetが指定されているときは、塗り足しの実体はもう
+		// 印刷面の中にある(B-3)。CSSのbleedで裁ち口を広げ直すと二重になる
+		if (bleed >= 0 && this.imposition.getTrimInset() == 0) {
 			// CSSで塗り足しを宣言したなら、その分だけ仕上り線の外へ描く意思が
 			// あるということ(2026-08-29の利用者報告)。断ち代を同じ幅にして、
 			// 内容が仕上り線で切り落とされないようにする——以前は断ち代が0のまま

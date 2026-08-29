@@ -65,8 +65,10 @@ public class SinglePageImposition extends AbstractImposition {
 	public GC nextPage() throws GraphicsException {
 		++this.pageNumber;
 		final Trims trims = this.trims();
-		final PagePlacement placement = PagePlacement.compute(this.paperWidth, this.paperHeight, this.pageWidth,
-				this.pageHeight, trims, this.alignValue(), this.autoRotateValue());
+		// 面付けが扱うのは仕上りサイズ(印刷面からtrimInsetだけ内側)。
+		// trimInsetが0なら印刷面そのもの——既定はここを通っても値が変わらない
+		final PagePlacement placement = PagePlacement.compute(this.paperWidth, this.paperHeight, this.getTrimWidth(),
+				this.getTrimHeight(), trims, this.alignValue(), this.autoRotateValue());
 		this.actualPageWidth = placement.actualPageWidth();
 		this.actualPageHeight = placement.actualPageHeight();
 
@@ -94,16 +96,23 @@ public class SinglePageImposition extends AbstractImposition {
 					this.actualPageWidth, trims);
 		}
 
-		// トンボのためにずらす
-		if (this.trimLeft != 0 || this.trimTop != 0) {
-			this.gc.transform(AffineTransform.getTranslateInstance(this.trimLeft, this.trimTop));
+		// トンボのためにずらす。trimInsetがあるときは、印刷面の左上が
+		// 仕上り線よりtrimInsetだけ外側に来るように更にずらす
+		// ——原点は常に印刷面(内容の座標系)の左上
+		final double ox = this.trimLeft - this.trimInset;
+		final double oy = this.trimTop - this.trimInset;
+		if (ox != 0 || oy != 0) {
+			this.gc.transform(AffineTransform.getTranslateInstance(ox, oy));
 		}
 
-		// クリッピング領域
-		double bgX = -this.cuttingMargin;
-		double bgY = -this.cuttingMargin;
-		double bgW = this.pageWidth + this.cuttingMargin * 2.0;
-		double bgH = this.pageHeight + this.cuttingMargin * 2.0;
+		// クリッピング領域。原点は印刷面の左上なので、trimInsetがあるときは
+		// 仕上り線基準の -cuttingMargin をその分だけ右下へずらす
+		// ——これが無いと**右下側の塗り足しだけが切り落とされる**
+		// (実測: 156pt幅の用紙で左の帯5ptは出るのに右の帯が消えた)
+		double bgX = this.trimInset - this.cuttingMargin;
+		double bgY = this.trimInset - this.cuttingMargin;
+		double bgW = this.getTrimWidth() + this.cuttingMargin * 2.0;
+		double bgH = this.getTrimHeight() + this.cuttingMargin * 2.0;
 
 		switch (this.align) {
 		case FALSE: {

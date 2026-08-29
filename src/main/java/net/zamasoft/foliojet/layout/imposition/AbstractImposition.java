@@ -40,6 +40,12 @@ public abstract class AbstractImposition implements Imposition {
 	/** 断ちしろのうちドブの幅。 */
 	protected double cuttingMargin = PDFUtils.CUTTING_MARGIN_MM * PDFUtils.POINTS_PER_MM;
 
+	/**
+	 * 印刷面の外周のうち塗り足しとして扱う帯の幅
+	 * (2026-08-29、利用者報告B-3。既定0=印刷面がそのまま仕上りサイズ)。
+	 */
+	protected double trimInset = 0;
+
 	/** 背表紙幅。 */
 	protected double spineWidth = 0;
 
@@ -192,6 +198,27 @@ public abstract class AbstractImposition implements Imposition {
 		this.cuttingMargin = cuttingMargin;
 	}
 
+	public final double getTrimInset() {
+		return this.trimInset;
+	}
+
+	public final void setTrimInset(double trimInset) {
+		this.trimInset = trimInset;
+	}
+
+	/**
+	 * 仕上りサイズの幅です。印刷面から{@link #getTrimInset()}だけ内側
+	 * ——トンボはここに引き、用紙はここに断ち代を足した大きさになります。
+	 */
+	public final double getTrimWidth() {
+		return Math.max(0, this.pageWidth - this.trimInset * 2.0);
+	}
+
+	/** @see #getTrimWidth() */
+	public final double getTrimHeight() {
+		return Math.max(0, this.pageHeight - this.trimInset * 2.0);
+	}
+
 	public final double getSpineWidth() {
 		return this.spineWidth;
 	}
@@ -209,7 +236,7 @@ public abstract class AbstractImposition implements Imposition {
 	}
 
 	public void fitPaperWidth() {
-		this.paperWidth = this.pageWidth + this.trimLeft + this.trimRight;
+		this.paperWidth = this.getTrimWidth() + this.trimLeft + this.trimRight;
 	}
 
 	public final double getPageHeight() {
@@ -221,7 +248,7 @@ public abstract class AbstractImposition implements Imposition {
 	}
 
 	public void fitPaperHeight() {
-		this.paperHeight = this.pageHeight + this.trimTop + this.trimBottom;
+		this.paperHeight = this.getTrimHeight() + this.trimTop + this.trimBottom;
 	}
 
 	public final double getPaperWidth() {

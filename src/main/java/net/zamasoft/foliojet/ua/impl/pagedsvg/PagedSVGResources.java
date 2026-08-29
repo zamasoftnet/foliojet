@@ -450,6 +450,22 @@ final class PagedSVGResources {
 		}
 	}
 
+	/**
+	 * サブセットを組み立て、{@code data:}のURIの表({@code サブセットのURI → data:})を
+	 * 返します(B-1、2026-08-29)。1枚で完結するSVG用で、資源は結果として
+	 * 出さずSVGの中へ入ります。
+	 */
+	Map<String, String> inlineFontSources() throws IOException {
+		final Map<String, String> sources = new LinkedHashMap<>();
+		for (final FontEntry entry : this.fonts) {
+			final WebFontSubset subset = entry.subset;
+			final byte[] bytes = subset.build(FONT_COMPRESSION);
+			sources.put(subset.uri(), "data:font/woff2;base64,"
+					+ java.util.Base64.getEncoder().encodeToString(bytes));
+		}
+		return sources;
+	}
+
 	byte[] manifest(final Map<String, String> metadata, final String binding) {
 		final StringBuilder json = new StringBuilder(1024 + this.pages.size() * 180);
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")

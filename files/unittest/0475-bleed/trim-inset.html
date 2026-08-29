@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>
+@page { size: 110pt 110pt; margin: 0; }
+body { margin: 0 }
+/* 塗り足し込みで作られた既存データ。外周5ptが塗り足しで、
+   仕上りサイズは中央の100pt角。CSSには何も書いていない */
+.bleed { position: absolute; left: 0; top: 0; width: 110pt; height: 110pt; background: rgb(0,0,200); }
+.trim { position: absolute; left: 5pt; top: 5pt; width: 100pt; height: 100pt; background: rgb(200,0,0); }
+</style></head><body><div class="bleed"></div><div class="trim"></div></body></html>
