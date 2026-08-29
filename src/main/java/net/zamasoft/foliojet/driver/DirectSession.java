@@ -572,12 +572,31 @@ public class DirectSession extends AbstractCTISession
 		synchronized (FONT_CACHE) {
 			fsm = FONT_CACHE.get(fontSource);
 			if (fsm == null) {
-				File fontDb = new File(dir, systemFonts + ".db");
-				fsm = new ConfigurablePDFFontSourceManager(new FileSource(fontSource), fontDb);
+				fsm = new ConfigurablePDFFontSourceManager(new FileSource(fontSource), fontIndexFile(dir, systemFonts));
 				FONT_CACHE.put(fontSource, fsm);
 			}
 		}
 		return fsm;
+	}
+
+	/**
+	 * フォント索引({@code fonts-print.xml.db})の置き場所。既定は設定ファイルの隣だが、
+	 * {@code jp.cssj.font.index.dir}を指定するとそのディレクトリへ置く(2026-08-29)。
+	 * フォントを読み取り専用でマウントするコンテナ構成では設定ファイルの隣に書けず、
+	 * 索引が保存できないまま毎回の起動で全フォントを読み直していた。
+	 */
+	static File fontIndexFile(final File profileDir, final String systemFonts) throws IOException {
+		final String indexDir = System.getProperty("jp.cssj.font.index.dir");
+		if (indexDir == null || indexDir.isEmpty()) {
+			return new File(profileDir, systemFonts + ".db");
+		}
+		final File dir = new File(indexDir);
+		if (!dir.isDirectory() && !dir.mkdirs()) {
+			throw new IOException("cannot create the font index directory: " + dir);
+		}
+		// 設定ファイル名だけでは fonts/fonts-print.xml と別の設定が衝突しうるので、
+		// 区切りを畳んだ相対パス(system.fontsの値)をそのまま名前にする。
+		return new File(dir, systemFonts.replace('/', '-') + ".db");
 	}
 
 	public void transcode(Source source) throws IOException, TranscoderException {
