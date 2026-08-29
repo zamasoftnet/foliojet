@@ -355,10 +355,31 @@ final class PageSequence {
 		if (marks != net.zamasoft.foliojet.css.value.PageMarksValue.UNSPECIFIED) {
 			this.imposition.setCrop(marks.isCrop());
 			this.imposition.setCross(marks.isCross());
+			if ((marks.isCrop() || marks.isCross()) && this.imposition.getTrimTop() == 0
+					&& this.imposition.getTrimRight() == 0 && this.imposition.getTrimBottom() == 0
+					&& this.imposition.getTrimLeft() == 0) {
+				// output.marksがnoneのままだと裁ち口が0にされているので、
+				// CSSでトンボを宣言したときは既定(1cm)へ戻す(2026-08-29)。
+				// トンボは裁ち口の中に引くので、幅が0だと用紙の外へ出て消える
+				final double d = net.zamasoft.pdfg2d.pdf.util.PDFUtils.POINTS_PER_CM;
+				this.imposition.setTrims(d, d, d, d);
+			}
 		}
 		final double bleed = PageBleed.get(pageStyle);
 		if (bleed >= 0) {
-			this.imposition.setTrims(bleed, bleed, bleed, bleed);
+			// CSSで塗り足しを宣言したなら、その分だけ仕上り線の外へ描く意思が
+			// あるということ(2026-08-29の利用者報告)。断ち代を同じ幅にして、
+			// 内容が仕上り線で切り落とされないようにする——以前は断ち代が0のまま
+			// だったので、bleedを書いても塗り足しが白いまま出ていた。
+			// 裁ち口は塗り足しより狭くしない。ただし**今より狭めない**のも大事で、
+			// トンボは裁ち口の中に、塗り足しのさらに外側へ引かれる
+			// (PrinterMarksはcuttingMarginの2倍を使う)。裁ち口を塗り足しと
+			// 同じ幅まで詰めるとトンボが用紙の外へ出て消える
+			final double trim = Math.max(bleed, Math.max(Math.max(this.imposition.getTrimTop(),
+					this.imposition.getTrimRight()),
+					Math.max(this.imposition.getTrimBottom(), this.imposition.getTrimLeft())));
+			this.imposition.setTrims(trim, trim, trim, trim);
+			this.imposition.setCuttingMargin(bleed);
 		}
 
 		final PageSizeValue pageSize = PageSize.get(pageStyle);
