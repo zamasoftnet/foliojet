@@ -36,6 +36,21 @@ public class GridItemBox extends FlowBlockBox {
 	public GridItemBox(final BlockParams params, final FlowPos pos, final double trackWidth) {
 		super(params, pos);
 		this.width = trackWidth;
+		this.markSpecifiedPageAxisFromSize();
+	}
+
+	/**
+	 * grid itemは寸法を{@code GridBuilder}が注入するため、
+	 * {@code specifiedPageAxis}を立てる{@code calculateSize}の分岐を
+	 * 通らない(G7、2026-08-29——{@code FlexItemBox}の同名メソッドと同じ理由)。
+	 * 立てないと、ページ跨ぎの残量計算({@code FragmentState.of})が
+	 * 「指定寸法なし」と誤認して継続断片が指定高をフルに再解決する
+	 * (row-split-carryの2ページ目が56ptでなく91ptになった)。
+	 * <b>継続断片の構築子でも立てる</b>——3ページ以上の再分割で再発するため。
+	 */
+	private void markSpecifiedPageAxisFromSize() {
+		this.specifiedPageAxis = this.size
+				.getPageType(this.getBlockParams().flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
 	}
 
 	/** 跨ぐ親トラックを設定します(親の{@code GridBuilder.bind}、2026-08-29)。 */
@@ -87,12 +102,29 @@ public class GridItemBox extends FlowBlockBox {
 		this.width = trackWidth;
 	}
 
+	/**
+	 * takeover item(authoredな箱をitem箱そのものにした)かどうか
+	 * (G7、2026-08-29)。subgridの「itemの直下か」判定に要る——takeoverでは
+	 * この箱がauthoredな要素そのものなので、その中のgridは<b>item直下では
+	 * ない</b>(包み箱時代はflow段数だけで区別できていた)。
+	 */
+	private boolean takeover;
+
+	public void setTakeover(final boolean takeover) {
+		this.takeover = takeover;
+	}
+
+	public boolean isTakeover() {
+		return this.takeover;
+	}
+
 	protected GridItemBox(final BlockParams params, final FlowPos pos,
 			final net.zamasoft.foliojet.layout.box.params.Dimension size,
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSize,
 			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame,
 			final net.zamasoft.foliojet.layout.box.content.Container container) {
 		super(params, pos, size, minSize, frame, container);
+		this.markSpecifiedPageAxisFromSize();
 	}
 
 	/**

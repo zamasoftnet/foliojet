@@ -44,15 +44,23 @@ final class GridItemContent {
 	 */
 	final double minContributionCap;
 
+	/**
+	 * takeover item(authoredな箱をitem箱そのものにした)かどうか
+	 * (G7、2026-08-29)。takeoverでは<b>authored rootの枠と宣言寸法が
+	 * 録画本文の外にある</b>ため、固有寸法の寄与へ足し直す必要がある。
+	 */
+	final boolean takeover;
+
 	GridItemContent(final GridItemBox itemBox, final TwoPassBlockBuilder body, final IntrinsicSizes sizes,
 			final boolean anonymous, final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
-			final double minContributionCap) {
+			final double minContributionCap, final boolean takeover) {
 		this.itemBox = itemBox;
 		this.body = body;
 		this.sizes = sizes;
 		this.anonymous = anonymous;
 		this.spec = spec;
 		this.minContributionCap = minContributionCap;
+		this.takeover = takeover;
 	}
 
 	/**
@@ -61,9 +69,32 @@ final class GridItemContent {
 	 * {@code contentBuilder.bind(floatBuilder); floatBuilder.close()}と同型)。
 	 */
 	void bind(final BlockBuilder host, final double trackWidth) {
+		// 枠の実寸解決はGridBuilderの幅決定と同じ場所で済ませてある
+		// (基準はグリッド領域の幅。G7、2026-08-29)
 		this.itemBox.setTrackWidth(trackWidth);
+		if (this.takeover) {
+			// aspect-ratio(G7、2026-08-29——FlexItemContent.bindと同じ理由)。
+			// takeoverしたitem箱はcalculateSizeを通らないので、トラック幅が
+			// 入ったここでページ方向を比率で決める。これが無いと
+			// 3080-MODERN-CSS/aspect-ratioのgrid itemが内容高へ潰れる
+			this.itemBox.applyAspectRatio(trackWidth);
+		}
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		this.body.bind(target);
 		target.close();
+		// takeover item(authored paramsを引き継いだ根box)は指定高を
+		// 自己適用する(G7、2026-08-29——FlexItemContent.bindと同型)。
+		// 通常フローでは親のstartFlowBlockが適用するが、bind builderの
+		// 根には適用者がいない。これが無いと、takeoverしたitemの
+		// height指定が丸ごと落ちる(実測: height:20mmが内容高2.7mmになった)
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
+		final boolean vertical = params.flow.isVertical();
+		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
+				? params.size.getWidthType()
+				: params.size.getHeightType();
+		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			this.itemBox.applySpecifiedPageAxis(
+					Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
+		}
 	}
 }

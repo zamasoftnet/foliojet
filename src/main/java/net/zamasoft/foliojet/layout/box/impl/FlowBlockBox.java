@@ -247,6 +247,51 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		this.resolvedAlign = align;
 	}
 
+	/**
+	 * {@code aspect-ratio}で、確定した行方向内寸からページ方向内寸を決めます
+	 * (2026-08-29。flex/gridのitemが行方向の確定寸法を受け取った直後、本文bindの前に呼ぶ——G7でFlexItemBoxから引き上げた)。
+	 * ページ方向が絶対長で指定されているとき・比率指定が無いときは何も
+	 * しない。内容が比率高より高いときは{@code overflow:visible}なら伸びる
+	 * ({@code minPageAxis}=比率高、{@code maxPageAxis}は可視のとき無制限)。
+	 */
+	public void applyAspectRatio(final double lineExtent) {
+		final BlockParams params = this.getBlockParams();
+		if (!(params.aspectRatio > 0) || this.size.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			return;
+		}
+		final double page = this.aspectRatioPageExtent(lineExtent);
+		if (net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(page)) {
+			return;
+		}
+		if (params.flow.isVertical()) {
+			this.width = page;
+		} else {
+			this.height = page;
+		}
+		this.minPageAxis = page;
+		if (params.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+			this.maxPageAxis = page;
+		}
+		this.specifiedPageAxis = true;
+	}
+
+	/**
+	 * <b>指定されたページ方向内寸を自己適用します</b>(G7、2026-08-29)。
+	 *
+	 * <p>
+	 * takeoverしたitem箱({@code GridItemBox})は{@code calculateSize}を
+	 * 通らないので、{@code specifiedPageAxis}が立たない。立てずに高さだけ
+	 * 入れると、断片化({@link net.zamasoft.foliojet.layout.fragment.FragmentState})が
+	 * 「指定寸法ではない」と見なして<b>継続断片へ元の指定高をそのまま
+	 * 渡す</b>——行分割された固定高itemの継続が残余でなく全高になる
+	 * (files/unittest/0500-grid/row-split-carry.htmlの2ページ目で実測)。
+	 * </p>
+	 */
+	public final void applySpecifiedPageAxis(final double pageExtent) {
+		this.setPageAxis(pageExtent);
+		this.specifiedPageAxis = true;
+	}
+
 	public final void setPageAxis(final double newSize) {
 		this.contentSize = Math.max(this.contentSize, newSize);
 

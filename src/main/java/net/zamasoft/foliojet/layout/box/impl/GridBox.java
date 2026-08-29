@@ -294,7 +294,12 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			}
 			final SplitResult[] probed = new SplitResult[boundaryItems.length];
 			boolean anySplit = (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
-			if (!anySplit) {
+			// **slack判定は分割の試行より先**(2026-08-29、G7)。itemが行高まで
+			// 伸びるようになったので、後に置くと無装飾のitemまで先にSplitを
+			// 返し、min-height由来の空白で切る経路へ入れなくなる
+			final boolean slack = !anySplit
+					&& LayoutUtils.compare(boundaryRow.itemsEnd(), remaining) <= 0;
+			if (!anySplit && !slack) {
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					final SplitResult r = boundaryItems[k].split(remaining, mode, xflags);
 					probed[k] = r;
@@ -303,7 +308,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					}
 				}
 			}
-			if (!anySplit && LayoutUtils.compare(boundaryRow.itemsEnd(), remaining) <= 0) {
+			if (slack) {
 				// 境界行のitemは全て切断線の手前に収まり、はみ出しているのは
 				// 行末尾の空白(min-height由来のalign-content:stretch分配等)
 				// だけ——itemを切らず空白の中で切る(slack split)。

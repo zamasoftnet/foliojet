@@ -423,6 +423,20 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
 	 * そのFlexBuilderを返します(Flex F1d——authored boxのendBox対応付け)。
 	 */
+	/**
+	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
+	 * そのGridBuilderを返します(G7、2026-08-29——{@link #flexItemEndingAt}と同型)。
+	 */
+	private GridBuilder gridItemEndingAt(final IBox box) {
+		final int index = this.builderStack.size() - 1;
+		if (index > 0 && this.builderStack.get(index) instanceof ContainerBuilderEntry
+				&& this.builderStack.get(index - 1) instanceof GridBuilder grid //
+				&& grid.isElementItemSource(box)) {
+			return grid;
+		}
+		return null;
+	}
+
 	private FlexBuilder flexItemEndingAt(final IBox box) {
 		// takeover(authored boxをitem boxへ引き継ぐ)はFlex固有のため
 		// coordinator一般化の対象外
@@ -603,6 +617,25 @@ public class DocumentBuilder implements TableBuilderHost {
 		// grid itemだが、固定トラックのG1では位置決めが未定義)
 		switch (box.getPos().getType()) {
 		case FLOW:
+			// plainなブロック直下子はtakeover(G7、2026-08-29): authoredの
+			// params/posをGridItemBoxへ引き継ぎ、元の外箱は構築しない。
+			// これでitemがauthoredな箱そのものになり、行高までのstretchに
+			// 背景・枠が追随する(Flexが先に採った形と同じ)
+			if (this.coordinatorAwaitingDirectChild() instanceof GridBuilder gridHost
+					&& box.getClass() == FlowBlockBox.class
+					&& ((FlowBlockBox) box).getBlockParams().flow == gridHost.getGridBox().getGridParams().flow) {
+				final FlowBlockBox sourceBox = (FlowBlockBox) box;
+				this.closeInlines(sourceBox.getBlockParams());
+				this.closeAnonymousItem(gridHost);
+				this.endContainer();
+				this.startContainerBuilder(gridHost.startElementItem(sourceBox, gridItemSpecOf(box),
+						gridItemMinContributionCap(box)));
+				this.startContainer();
+				this.boxStack.add(box);
+				return;
+			}
+			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box));
+			break;
 		case TABLE:
 			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box));
 			break;
@@ -904,6 +937,15 @@ public class DocumentBuilder implements TableBuilderHost {
 		case FLOW: {
 			// Flexのtakeover element item終端(Flex F1d): authored boxは
 			// 構築されていないため、通常のendFlowBlockではなくitemを畳む
+			final GridBuilder gridItemHost = this.gridItemEndingAt(box);
+			if (gridItemHost != null) {
+				this.endContainer();
+				this.endContainerBuilder();
+				gridItemHost.itemClosed();
+				this.startContainer();
+				this.restoreInlines(box.getParams());
+				break;
+			}
 			final FlexBuilder flexItemHost = this.flexItemEndingAt(box);
 			if (flexItemHost != null) {
 				this.endContainer();

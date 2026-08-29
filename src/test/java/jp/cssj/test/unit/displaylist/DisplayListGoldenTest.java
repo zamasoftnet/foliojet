@@ -230,6 +230,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0500-grid/minmax.html", //
 			"0500-grid/subgrid.html", //
 			"0500-grid/grid-shorthand.html", //
+			"0500-grid/row-stretch.html", //
 			"3080-MODERN-CSS/image-set.html", //
 			// aspect-ratio(2026-08-29): 幅確定→高さ、高さ確定→幅、置換要素、
 			// border-box、内容あふれ

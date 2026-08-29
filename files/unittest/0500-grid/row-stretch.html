@@ -1,0 +1,38 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>grid G7: itemは行(spanするときは跨ぐ範囲)の高さまで伸びる</title>
+<!--
+  2026-08-29、利用者報告A-7の回帰。takeover(authoredな箱をitem箱に
+  する)により、既定のalign-items:stretchが背景・枠まで届く。
+  Chromeで実測した値を固定する:
+    #a  grid-template-rows: 40pt 40pt の1行目  → 100x40(内容12ptでも40pt)
+    #b  同じ行の右列                            → 100x40
+    #c  grid-row: span 2                        → 100x90(40+gap10+40)
+    #d  align-self: start                       → 内容高12ptのまま
+    #e  height: 20pt(明示)                     → stretchより優先で20pt
+-->
+<style type="text/css">
+@page { margin: 0; }
+body { margin: 0; font: 10pt/12pt serif; }
+#g { display: grid; grid-template-columns: 100pt 100pt; grid-template-rows: 40pt 40pt;
+     row-gap: 10pt; column-gap: 10pt; width: 210pt; }
+#g > div { background: #ccf; }
+#a { }
+#b { }
+#c { grid-row: span 2; background: #cfc; }
+#d { align-self: start; background: #fcc; }
+#e { height: 20pt; background: #ffc; }
+</style>
+</head>
+<body>
+<div id="g"><div id="a">a</div><div id="b">b</div><div id="d">d</div><div id="e">e</div></div>
+<div id="g2" style="display: grid; grid-template-columns: 100pt 100pt; grid-template-rows: 40pt 40pt; row-gap: 10pt; width: 200pt">
+<div id="c">c</div><div style="background:#ccf">x</div><div style="background:#ccf">y</div>
+</div>
+<p id="after">after</p>
+</body>
+</html>

@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.params.BoxAlignment;
 import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
@@ -192,10 +193,48 @@ public final class GridBuilder
 		params.zIndexValue = 0;
 		params.transform = new AffineTransform();
 		params.columns = Columns.NONE_COLUMNS;
+		// コンテナのalign-contentを引き継がない(2026-08-29)。itemの箱は
+		// コンテナのparamsから作るので、そのままではコンテナの
+		// align-content: centerがitem自身の内容整列として効いてしまう。
+		// itemが行の高さまで伸びるようになって表面化した(Chromeでは
+		// itemは30ptへ伸びるが中身は上端のまま)
+		params.blockAlignContent = BoxAlignment.NORMAL;
 		params.size = Dimension.AUTO_DIMENSION;
 		params.minSize = Dimension.ZERO_DIMENSION;
 		params.maxSize = Dimension.AUTO_DIMENSION;
 		return params;
+	}
+
+	/** takeover元のauthored box(endBoxの対応付け用。中立/匿名itemではnull)。 */
+	private net.zamasoft.foliojet.layout.box.impl.FlowBlockBox openItemSource;
+
+	/**
+	 * {@code box}を元とするtakeover element itemが開いているかを返します
+	 * (2026-08-29、G7——FlexBuilder.isElementItemSourceと同型)。
+	 */
+	public boolean isElementItemSource(final net.zamasoft.foliojet.layout.box.IBox box) {
+		return this.openItemSource != null && this.openItemSource == box;
+	}
+
+	/**
+	 * <b>takeover</b>でelement itemを開きます(2026-08-29、G7)。
+	 *
+	 * <p>
+	 * authoredなブロックのparams/posを{@link GridItemBox}へ引き継ぎ、
+	 * <b>元の外箱は構築しない</b>——itemがauthoredな箱そのものになるので、
+	 * 行高までのstretchに背景・枠が追随する。包み箱のままではstretchが
+	 * 中の子へ届かず、{@code grid-template-rows}や{@code grid-row: span}が
+	 * 「効かない」ように見えていた(利用者報告A-7)。Flexが同じ形で先に
+	 * 解いている({@link FlexBuilder#startElementItem})。
+	 * </p>
+	 */
+	public TwoPassBlockBuilder startElementItem(final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox source,
+			final GridItemSpec spec, final double minContributionCap) {
+		final GridItemBox itemBox = new GridItemBox(source.getBlockParams(), (FlowPos) source.getPos(), 0);
+		itemBox.setTakeover(true);
+		final TwoPassBlockBuilder builder = this.startItem(itemBox, false, spec, minContributionCap);
+		this.openItemSource = source;
+		return builder;
 	}
 
 	/** 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。 */
@@ -221,10 +260,15 @@ public final class GridBuilder
 
 	private TwoPassBlockBuilder startItem(final boolean anonymous, final GridItemSpec spec,
 			final double minContributionCap) {
-		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		// 幅は暫定(auto列は未解決)。録画・計測は幅非依存で、確定幅は
 		// finish()のbind直前にsetTrackWidthで入る(G3b)
-		final GridItemBox itemBox = new GridItemBox(this.itemParams(), new FlowPos(), 0);
+		return this.startItem(new GridItemBox(this.itemParams(), new FlowPos(), 0), anonymous, spec,
+				minContributionCap);
+	}
+
+	private TwoPassBlockBuilder startItem(final GridItemBox itemBox, final boolean anonymous,
+			final GridItemSpec spec, final double minContributionCap) {
+		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
 		// census origin分離(2026-08-01): grid item由来のrecords bindを
 		// TOPLEVELから分ける(診断の健全化。records bind運用自体は
@@ -250,17 +294,19 @@ public final class GridBuilder
 		final GridItemBox itemBox = this.openItemBox;
 		final boolean anonymous = this.openItemAnonymous;
 		final GridItemSpec spec = this.openItemSpec;
+		final boolean takeover = this.openItemSource != null;
 		this.openItemBuilder = null;
 		this.openItemBox = null;
 		this.openItemAnonymous = false;
 		this.openItemSpec = GridItemSpec.AUTO;
+		this.openItemSource = null;
 		if (anonymous && builder.hasEmptyRecordedBody() && !itemBox.paintsAnything()) {
 			GRID_ITEM_EMPTY_ANON_DROPS.incrementAndGet();
 			return;
 		}
 		GRID_ITEM_RECORDS.incrementAndGet();
 		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous, spec,
-				this.openItemMinCap));
+				this.openItemMinCap, takeover));
 	}
 
 	/**
@@ -563,6 +609,13 @@ public final class GridBuilder
 				|| target.getFlow(1).box != this.gridBox) {
 			return false;
 		}
+		if (item.isTakeover()) {
+			// takeover itemはauthoredな要素そのもの。その中のgridは
+			// **item直下ではない**ので親の列は継げない(G7、2026-08-29。
+			// 包み箱のころはflow段数だけで区別できていた。
+			// files/unittest/0500-grid/subgrid.htmlの#s3が回帰)
+			return false;
+		}
 		final GridItemBox.SubgridTracks parent = item.getSubgridTracks();
 		if (parent == null) {
 			return false;
@@ -638,6 +691,34 @@ public final class GridBuilder
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * itemのauthoredな行方向寸法(content-box)です。auto・未指定はNaN
+	 * (G7、2026-08-29)。{@code box-sizing: border-box}は枠を引いて内寸へ直す。
+	 */
+	private static double authoredLineSize(final GridItemBox itemBox,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow,
+			final double areaWidth) {
+		final BlockParams p = itemBox.getBlockParams();
+		final double value;
+		switch (p.size.getLineType(flow)) {
+		case ABSOLUTE:
+			value = p.size.getLineLength(flow);
+			break;
+		case RELATIVE:
+			value = p.size.getLineLength(flow) * areaWidth;
+			break;
+		case MIXED:
+			value = p.size.getLineLength(flow) + p.size.getLineRatio(flow) * areaWidth;
+			break;
+		default:
+			return Double.NaN;
+		}
+		final double borderBoxAdjust = p.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+				? itemBox.getFrame().getBorderLineExtent(flow)
+				: 0;
+		return Math.max(0, value - borderBoxAdjust);
 	}
 
 	/** 行rの固定高(fixedまたは基準確定の%。それ以外=内容高ならNONE)。 */
@@ -723,8 +804,30 @@ public final class GridBuilder
 			if (inflatedCap >= 0 && item.sizes.columnInflated() && itemMin > inflatedCap) {
 				itemMin = inflatedCap;
 			}
+			double itemMax = item.sizes.maxContent();
+			if (item.takeover) {
+				// takeoverではauthored rootの枠と宣言幅が録画本文の外にある
+				// (G7、2026-08-29)。足し直さないと、幅を持つitemのトラックが
+				// 内容だけの細さで解決される(place-shorthandのDで実測)
+				final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.gridBox.getGridParams().flow;
+				final BlockParams ip = item.itemBox.getBlockParams();
+				final double declared = ip.size.getLineType(flow) == LengthType.ABSOLUTE
+						? ip.size.getLineLength(flow)
+						: Double.NaN;
+				final double extras = item.itemBox.getFrame().getBorderLineExtent(flow);
+				if (!Double.isNaN(declared)) {
+					final double used = ip.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+							? Math.max(declared, extras)
+							: declared + extras;
+					itemMin = used;
+					itemMax = used;
+				} else {
+					itemMin += extras;
+					itemMax += extras;
+				}
+			}
 			contributions.add(new BasicGridTrackSizing.ItemContribution(area.column(), area.columnSpan(),
-					itemMin, item.sizes.maxContent()));
+					itemMin, itemMax));
 		}
 		return contributions;
 	}
@@ -866,14 +969,32 @@ public final class GridBuilder
 			}
 			final BoxAlignment justify = BoxAlignment.resolve(item.spec.justifySelf(), params.justifyItems);
 			aligns[i] = BoxAlignment.resolve(item.spec.alignSelf(), params.alignItems);
-			if (justify == BoxAlignment.STRETCH) {
-				itemWidths[i] = areaWidth;
-			} else {
-				itemWidths[i] = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(), areaWidth);
-				final double free = Math.max(0, areaWidth - itemWidths[i]);
-				itemXOffsets[i] = justify == BoxAlignment.CENTER ? free / 2
-						: justify == BoxAlignment.END ? free : 0;
+			// takeover item(G7、2026-08-29)は**自分の枠**を持つ。areaWidthは
+			// マージン箱の幅、setTrackWidthが受け取るのは内寸なので、枠の分を
+			// 引いてから渡す。枠の%・emもここで実寸へ直す(基準はグリッド領域)
+			double lineExtras = 0;
+			if (item.takeover) {
+				final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = item.itemBox.getFrame();
+				net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding,
+						areaWidth);
+				net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin,
+						frame.frame.margin, areaWidth);
+				lineExtras = frame.getFrameLineExtent(params.flow);
 			}
+			final double innerArea = Math.max(0, areaWidth - lineExtras);
+			// 明示幅はstretchにも優先する(css-grid §6.6)——包み箱のころは
+			// 中の子が自分で適用していたので、ここで見なければ落ちる
+			final double authoredLine = authoredLineSize(item.itemBox, params.flow, innerArea);
+			if (!Double.isNaN(authoredLine)) {
+				itemWidths[i] = authoredLine;
+			} else if (justify == BoxAlignment.STRETCH) {
+				itemWidths[i] = innerArea;
+			} else {
+				itemWidths[i] = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(), innerArea);
+			}
+			final double freeLineInArea = Math.max(0, areaWidth - (itemWidths[i] + lineExtras));
+			itemXOffsets[i] = justify == BoxAlignment.CENTER ? freeLineInArea / 2
+					: justify == BoxAlignment.END ? freeLineInArea : 0;
 			assert itemWidths[i] >= 0 && !Double.isNaN(itemWidths[i]) : "不正なitem幅: " + itemWidths[i];
 		}
 		// 幅確定→本文bind。PageAtomicBox契約によりGrid flowがactiveな間に
@@ -982,12 +1103,25 @@ public final class GridBuilder
 			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
 				areaHeight += rowHeights[r];
 			}
+			// 既定のstretch: itemを行(spanするときは跨ぐ範囲)の高さまで伸ばす
+			// (G7、2026-08-29の利用者報告A-7)。takeoverでitemはauthoredな箱
+			// そのものなので、背景・枠がここで伸びる。列側のjustify: stretchが
+			// itemWidths=areaWidthとするのと対称
+			if (aligns[i] == BoxAlignment.STRETCH && areaHeight > extents[i]
+					&& itemBox.getBlockParams().size.getPageType(params.flow) == LengthType.AUTO) {
+				// 不足分を**内寸**へ足す(codexの指摘)。areaHeightをそのまま
+				// 内容高にすると、枠のあるitemでpadding/borderが上積みされる
+				final double deficit = areaHeight - itemBox.getPageExtent(params.flow);
+				itemBox.setPageAxis(itemBox.getInnerPageExtent(params.flow) + deficit);
+			}
 			final double free = Math.max(0, areaHeight - extents[i]);
 			final double yOffset = aligns[i] == BoxAlignment.CENTER ? free / 2
 					: aligns[i] == BoxAlignment.END ? free : 0;
 			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
-			// 行分割(G6)のslack判定用: 行開始からのitem実端
-			itemPageEnds[i] = yOffset + extents[i];
+			// 行分割(G6)のslack判定用: 行開始からのitemが**実際に描く**端
+			// (2026-08-29、G7)。背景・枠が無ければ内容末端、あれば伸ばした
+			// 箱全体——後者を空白扱いで切ると背景の継続が消える
+			itemPageEnds[i] = yOffset + itemBox.paintedPageExtent(params.flow);
 		}
 		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
 		// **改ページ用の行境界の記録**(2026-08-10、G6行分割——
