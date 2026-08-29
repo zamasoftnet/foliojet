@@ -28,6 +28,13 @@ public class UAContext {
 	
 	private Map<Object, ImageMap> maps = new HashMap<Object, ImageMap> ();
 
+	/**
+	 * この変換で既に報告した近似描画の鍵(2026-08-29、
+	 * {@code ApproximationGC}参照)。同じ文書で同じ近似(プロパティ×内容)を
+	 * 何度も警告しないためで、変換1回(=UA1つ)の寿命で持つ。
+	 */
+	private final java.util.Set<String> reportedApproximations = new java.util.HashSet<String>();
+
 	public FontSourceManager getFontSourceManager() {
 		return this.fsm;
 	}
@@ -77,6 +84,11 @@ public class UAContext {
 	
 	public Map<Object, ImageMap> getImageMaps() {
 		return this.maps;
+	}
+
+	/** 報告済みの近似描画の鍵({@code ApproximationGC.report}が使う)。 */
+	public java.util.Set<String> getReportedApproximations() {
+		return this.reportedApproximations;
 	}
 
 	/**

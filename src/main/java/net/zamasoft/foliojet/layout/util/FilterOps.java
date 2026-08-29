@@ -15,6 +15,7 @@ import net.zamasoft.pdfg2d.g2d.image.RasterImageImpl;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 import net.zamasoft.pdfg2d.gc.paint.Color;
+import net.zamasoft.pdfg2d.gc.paint.ConicGradient;
 import net.zamasoft.pdfg2d.gc.paint.LinearGradient;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
@@ -75,10 +76,13 @@ public final class FilterOps {
 		case Color color -> apply(filter, color);
 		case LinearGradient g -> filter.matrix == null ? g
 				: new LinearGradient(g.x1(), g.y1(), g.x2(), g.y2(), g.fractions(), apply(filter, g.colors()),
-						g.transform());
+						g.transform(), g.spread());
 		case RadialGradient g -> filter.matrix == null ? g
 				: new RadialGradient(g.cx(), g.cy(), g.radius(), g.fx(), g.fy(), g.fractions(),
-						apply(filter, g.colors()), g.transform());
+						apply(filter, g.colors()), g.transform(), g.spread());
+		case ConicGradient g -> filter.matrix == null ? g
+				: new ConicGradient(g.cx(), g.cy(), g.startAngle(), g.fractions(), apply(filter, g.colors()),
+						g.transform(), g.spread());
 		case Pattern p -> {
 			final Image image = apply(filter, p.getImage(), pixelScale);
 			yield image == p.getImage() ? p : new Pattern(image, p.getTransform());

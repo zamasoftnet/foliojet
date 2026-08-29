@@ -577,7 +577,8 @@ final class PageSequence {
 		// PDFでは描画処理は非常に早く終わる
 		if (gc != null) {
 			DisplayListDumper.dumpPage(drawer, this.pageNumber);
-			drawer.draw(gc);
+			// 近似描画の報告経路(2822)を載せて描く(2026-08-29)
+			drawer.draw(net.zamasoft.foliojet.layout.util.ApproximationGC.wrap(gc, this.ua));
 			if (marginState != null) {
 				marginState.close();
 			}

@@ -24,6 +24,8 @@ public class UnprintBrokenImage extends BrokenImage {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
+		// 包み紙(ApproximationGC等)越しでもPDFへ辿る(2026-08-29)
+		gc = net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc);
 		if (!(gc instanceof PDFGC)) {
 			return;
 		}

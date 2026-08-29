@@ -1,6 +1,11 @@
 package net.zamasoft.foliojet.css.value.css3;
 
 import java.awt.geom.AffineTransform;
+import net.zamasoft.pdfg2d.gc.paint.SpreadMethod;
+import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.foliojet.layout.util.ApproximationGC;
+import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.foliojet.css.value.PaintValue;
@@ -69,6 +74,17 @@ public class RadialGradientValue implements PaintValue {
 	}
 
 	public Paint getPaint(Rectangle2D box) {
+		return this.paint(box, null);
+	}
+
+	/**
+	 * 塗りを作ります。繰り返しは、出力先が周期の繰り返しを持てば
+	 * 1周期+{@code SpreadMethod.REPEAT}(厳密)、持たなければ最遠の角まで
+	 * 展開する(64周期で打ち切ったときだけ2822を報告。2026-08-29)。
+	 *
+	 * @param gc 描画先(能力の問い合わせと報告用。nullなら展開)
+	 */
+	private Paint paint(final Rectangle2D box, final GC gc) {
 		final double w = box.getWidth(), h = box.getHeight();
 		final double cx = box.getX() + GradientGeometry.resolve(this.posX, w);
 		final double cy = box.getY() + GradientGeometry.resolve(this.posY, h);
@@ -78,6 +94,19 @@ public class RadialGradientValue implements PaintValue {
 			// 仕様: 半径0は極小の形として扱い、端の色で全面が塗られる
 			return this.stops.lastColor();
 		}
+		final AffineTransform at = new AffineTransform();
+		if (Math.abs(rx - ry) > 1e-9) {
+			at.translate(cx, cy);
+			at.scale(1, ry / rx);
+			at.translate(-cx, -cy);
+		}
+		if (this.repeating && gc != null && gc.supports(GC.Capability.REPEATING_GRADIENT)) {
+			final GradientStops.Period p = this.stops.resolvePeriod(rx);
+			if (p != null) {
+				return new RadialGradient(cx, cy, rx * p.length(), cx, cy, p.fractions(), p.colors(), at,
+						SpreadMethod.REPEAT);
+			}
+		}
 		double cover = 1;
 		if (this.repeating) {
 			// 最遠の角まで周期を展開する。楕円は縦をrx/ry倍して円の
@@ -85,13 +114,16 @@ public class RadialGradientValue implements PaintValue {
 			cover = Math.max(1, farthestCorner(box, cx, cy, rx / ry) / rx);
 		}
 		final GradientStops.Resolved r = this.stops.resolve(rx, this.repeating, cover);
-		final AffineTransform at = new AffineTransform();
-		if (Math.abs(rx - ry) > 1e-9) {
-			at.translate(cx, cy);
-			at.scale(1, ry / rx);
-			at.translate(-cx, -cy);
+		if (r.capped()) {
+			ApproximationGC.report(gc, "background-image", "repeating-radial-gradient() の繰り返しを64周期で打ち切り");
 		}
 		return new RadialGradient(cx, cy, rx * cover, cx, cy, r.fractions(), r.colors(), at);
+	}
+
+	@Override
+	public void fill(final GC gc, final Shape shape, final Rectangle2D box) throws GraphicsException {
+		gc.setFillPaint(this.paint(box, gc));
+		gc.fill(shape);
 	}
 
 	/** 中心から箱の最遠の角までの距離(縦を{@code k}倍した座標系)。 */

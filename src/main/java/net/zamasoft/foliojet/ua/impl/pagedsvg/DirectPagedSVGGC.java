@@ -14,8 +14,10 @@ import net.zamasoft.pdfg2d.font.FontMetricsImpl;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.GroupEffects;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
+import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 import net.zamasoft.pdfg2d.gc.paint.Color;
@@ -64,6 +66,11 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 
 	@Override
 	public void drawImage(final Image image) throws GraphicsException {
+		if (image instanceof final SVGFragmentImage fragment) {
+			// 層はベクタのまま<g>で置く(不透明度は状態のアルファ)
+			this.writeFragment(fragment, null, this.getFillAlpha());
+			return;
+		}
 		Image original = image;
 		while (original instanceof final WrappedImage wrapped) {
 			original = wrapped.getImage();
@@ -97,6 +104,125 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			this.writeImageRef(image, asset.href());
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
+		}
+	}
+
+	/**
+	 * 層に効果を掛けて置きます(2026-08-29)。効果は{@code <filter>}にして
+	 * {@code <g filter=..>}で包む。SVGの断片ならベクタのまま流し込み、
+	 * ラスタなら{@code <image>}を同じ{@code <g>}で包む。
+	 */
+	@Override
+	public void drawImage(final Image image, final GroupEffects effects) throws GraphicsException {
+		if (effects == null || effects.isIdentity()) {
+			this.drawImage(image);
+			return;
+		}
+		final String filterId = this.effectsFilter(effects, image.getWidth(), image.getHeight());
+		final float opacity = (float) Math.max(0, Math.min(1, effects.opacity())) * this.getFillAlpha();
+		if (image instanceof final SVGFragmentImage fragment) {
+			this.writeFragment(fragment, filterId, opacity);
+			return;
+		}
+		try {
+			final SVGWriter w = this.writer;
+			w.open("g");
+			if (filterId != null) {
+				w.attr("filter", "url(#" + filterId + ")");
+			}
+			if (opacity < 1f) {
+				w.attr("opacity", opacity);
+			}
+			this.writeBlendMode(w);
+			w.closeStart();
+			// 不透明度とブレンドは<g>に出したので、中の<image>には出さない
+			try (final State state = this.begin()) {
+				this.setFillAlpha(1f);
+				this.setBlendMode(net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL);
+				this.drawImage(image);
+			}
+			w.end("g");
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
+		}
+	}
+
+	/**
+	 * SVGの断片の層を{@code <g>}で包んで流し込みます。層の座標系は
+	 * 作ったときの利用者空間なので、現在の変換を{@code transform}に出す
+	 * (フィルタ領域・σもこの座標系で解決される)。層の中で記録した
+	 * 文字位置は、同じ変換を掛けてページへ移す。
+	 */
+	private void writeFragment(final SVGFragmentImage fragment, final String filterId, final float opacity)
+			throws GraphicsException {
+		final AffineTransform ctm = this.currentTransform();
+		try {
+			final SVGWriter w = this.writer;
+			w.open("g");
+			if (!ctm.isIdentity()) {
+				w.attr("transform", matrix(ctm));
+			}
+			if (filterId != null) {
+				w.attr("filter", "url(#" + filterId + ")");
+			}
+			if (opacity < 1f) {
+				w.attr("opacity", opacity);
+			}
+			this.writeBlendMode(w);
+			w.closeStart();
+			w.raw(fragment.svg());
+			w.end("g");
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
+		}
+		for (final PagedSVGResources.TextRun run : fragment.textRuns()) {
+			final AffineTransform at = new AffineTransform(ctm);
+			at.concatenate(new AffineTransform(run.transform));
+			this.page.textRuns.add(new PagedSVGResources.TextRun(run.text, run.font, run.fontSize, at, run.minX,
+					run.minY, run.maxX, run.maxY));
+		}
+	}
+
+	/**
+	 * 層(グループ画像)。ラスタにせず、SVGの断片として別のバッファへ書く
+	 * (2026-08-29)。{@code defs}・id・{@code @font-face}はページと共有する。
+	 */
+	@Override
+	public GroupImageGC createGroupImage(final double width, final double height) throws GraphicsException {
+		return new FragmentGroup(this, width, height);
+	}
+
+	/** {@link #createGroupImage}が返す層。中身は同じ書き方で別のバッファへ書く。 */
+	private static final class FragmentGroup extends net.zamasoft.foliojet.layout.util.AbstractDelegatingGC
+			implements GroupImageGC {
+		private final java.io.StringWriter buffer;
+		private final PagedSVGResources.PageData page;
+		private final double width, height;
+		/** 作った時点の文字列の数。これ以降に増えた分がこの層の文字。 */
+		private final int textRunStart;
+
+		FragmentGroup(final DirectPagedSVGGC parent, final double width, final double height) {
+			this(parent, new java.io.StringWriter(), width, height);
+		}
+
+		private FragmentGroup(final DirectPagedSVGGC parent, final java.io.StringWriter buffer, final double width,
+				final double height) {
+			super(new DirectPagedSVGGC(new SVGWriter(buffer, parent.writer), parent.getFontManager(), parent.resources,
+					parent.page));
+			this.buffer = buffer;
+			this.page = parent.page;
+			this.width = width;
+			this.height = height;
+			this.textRunStart = parent.page.textRuns.size();
+		}
+
+		@Override
+		public Image finish() throws GraphicsException {
+			final java.util.List<PagedSVGResources.TextRun> runs = this.page.textRuns;
+			final java.util.List<PagedSVGResources.TextRun> mine = new java.util.ArrayList<>(
+					runs.subList(this.textRunStart, runs.size()));
+			runs.subList(this.textRunStart, runs.size()).clear();
+			return new SVGFragmentImage(this.buffer.toString(), this.width, this.height, mine);
 		}
 	}
 

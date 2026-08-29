@@ -139,6 +139,7 @@ final class SVGPaintWriter {
 				.append(SVGWriter.number(g.x1())).append("\" y1=\"").append(SVGWriter.number(g.y1()))
 				.append("\" x2=\"").append(SVGWriter.number(g.x2())).append("\" y2=\"")
 				.append(SVGWriter.number(g.y2())).append('"');
+		appendSpread(def, g.spread());
 		appendGradientTransform(def, g.transform());
 		def.append('>');
 		appendStops(def, g.fractions(), g.colors());
@@ -153,6 +154,7 @@ final class SVGPaintWriter {
 		def.append("<radialGradient id=\"").append(id).append("\" gradientUnits=\"userSpaceOnUse\" cx=\"")
 				.append(SVGWriter.number(g.cx())).append("\" cy=\"").append(SVGWriter.number(g.cy()))
 				.append("\" r=\"").append(SVGWriter.number(g.radius())).append('"');
+		appendSpread(def, g.spread());
 		appendGradientTransform(def, g.transform());
 		def.append('>');
 		appendStops(def, g.fractions(), g.colors());
@@ -169,6 +171,18 @@ final class SVGPaintWriter {
 	private static void appendGradientTransform(final StringBuilder def, final java.awt.geom.AffineTransform at) {
 		if (at != null && !at.isIdentity()) {
 			def.append(" gradientTransform=\"").append(matrix(at)).append('"');
+		}
+	}
+
+	/**
+	 * 定義域の外の塗り方(2026-08-29)。{@code repeating-*-gradient}は1周期を
+	 * {@code spreadMethod="repeat"}で繰り返す(ブラウザが厳密に描く)。
+	 */
+	private static void appendSpread(final StringBuilder def, final net.zamasoft.pdfg2d.gc.paint.SpreadMethod spread) {
+		if (spread == net.zamasoft.pdfg2d.gc.paint.SpreadMethod.REPEAT) {
+			def.append(" spreadMethod=\"repeat\"");
+		} else if (spread == net.zamasoft.pdfg2d.gc.paint.SpreadMethod.REFLECT) {
+			def.append(" spreadMethod=\"reflect\"");
 		}
 	}
 

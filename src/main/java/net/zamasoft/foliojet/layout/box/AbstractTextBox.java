@@ -35,6 +35,7 @@ import net.zamasoft.pdfg2d.font.FontMetricsImpl;
 import net.zamasoft.pdfg2d.font.ShapedFont;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.GroupEffects;
 import net.zamasoft.pdfg2d.gc.font.util.FontUtils;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
@@ -886,6 +887,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 			if (alpha <= 0) {
 				return;
 			}
+			if (gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
+				this.drawExactBlurredShadow(gc, shadow, x, y);
+				return;
+			}
+			net.zamasoft.foliojet.layout.util.ApproximationGC.report(gc, "text-shadow", "ぼかしを12段の縁取りで近似");
 			final double[] steps = net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.BLUR_STEPS;
 			final int n = steps.length;
 			// 不透明な影(α=1)では1段あたりのアルファも1になり、外縁まで
@@ -908,6 +914,39 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setTextMode(GC.TextMode.FILL);
 				}
 				this.drawText(gc, x, y);
+			}
+		}
+
+		/**
+		 * 厳密なぼかし付きの影(2026-08-29)。出力先がガウスぼかしを持つ
+		 * (Java2D・SVG)ときは、影の文字を文字の範囲+3σの余白ぶんのグループ
+		 * 画像へ描き、{@link GroupEffects}のぼかしを掛けて置く。
+		 */
+		private void drawExactBlurredShadow(GC gc, TextShadow shadow, double x, double y) throws GraphicsException {
+			final double sigma = shadow.blur / 2;
+			double advance = 0;
+			for (int i = 0; i < this.len; ++i) {
+				if (this.contents.get(i + this.off) instanceof Text t) {
+					advance += t.getAdvance();
+				}
+			}
+			final double thickness = this.ascent + this.descent;
+			final boolean vertical = this.params.flow.isVertical();
+			final double minX = x, minY = vertical ? y : y - this.ascent;
+			final double w = vertical ? thickness : advance, h = vertical ? advance : thickness;
+			// 字形のはみ出し(斜体・アクセント)ぶんも余白に含める
+			final double pad = sigma * 3 + thickness * 0.5 + 1;
+			final double ox = minX - pad, oy = minY - pad;
+			final net.zamasoft.pdfg2d.gc.image.GroupImageGC ggc = gc.createGroupImage(w + pad * 2, h + pad * 2);
+			try (final var groupState = ggc.begin()) {
+				ggc.transform(AffineTransform.getTranslateInstance(-ox, -oy));
+				ggc.setFillPaint(shadow.color);
+				this.drawText(ggc, x, y);
+			}
+			final net.zamasoft.pdfg2d.gc.image.Image image = ggc.finish();
+			try (final var gcState = gc.begin()) {
+				gc.transform(AffineTransform.getTranslateInstance(ox, oy));
+				gc.drawImage(image, new GroupEffects(null, sigma, null, 1));
 			}
 		}
 

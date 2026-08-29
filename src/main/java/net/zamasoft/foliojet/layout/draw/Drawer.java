@@ -62,7 +62,9 @@ public class Drawer {
 		}
 
 		public void draw(GC gc) throws GraphicsException {
-			final PDFPageOutput structOut = (this.structRef != null && gc instanceof PDFGC pdfgc
+			// 包み紙(ApproximationGC等)越しでもPDFの構造出力へ辿る
+			final PDFPageOutput structOut = (this.structRef != null
+					&& net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc) instanceof PDFGC pdfgc
 					&& pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out) ? out : null;
 			if (structOut != null) {
 				structOut.beginStructContent(this.structRef);

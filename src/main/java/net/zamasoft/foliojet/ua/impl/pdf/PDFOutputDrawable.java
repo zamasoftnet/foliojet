@@ -32,7 +32,8 @@ final class PDFOutputDrawable implements Drawable {
 
 	@Override
 	public void draw(final GC gc, final double x, final double y) throws GraphicsException {
-		if (gc instanceof PDFGC pdfgc && pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out) {
+		if (net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc) instanceof PDFGC pdfgc
+				&& pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out) {
 			try {
 				this.action.run(out);
 			} catch (IOException e) {

@@ -40,30 +40,66 @@ final class SVGWriter {
 
 	private final Writer out;
 
-	/** 先頭へ回す定義。ページを閉じるときにまとめて書く。 */
-	private final List<String> defs = new ArrayList<>();
+	/**
+	 * ページで共有する定義(2026-08-29)。層(グループ画像)の中身は別の
+	 * バッファへ書く{@link SVGWriter}が受け持つが、{@code defs}・id・
+	 * {@code @font-face}はページで1つなので、ここにまとめて親子で共有する。
+	 */
+	private static final class Shared {
+		/** 先頭へ回す定義。ページを閉じるときにまとめて書く。 */
+		final List<String> defs = new ArrayList<>();
+		/** 内容が同じ定義(フィルタ)のid。同じ効果を何度も定義しない。 */
+		final java.util.Map<String, String> defIds = new java.util.HashMap<>();
+		/** {@code @font-face}の並び。共有WOFF2を参照する。 */
+		final java.util.Map<String, String> fontFaces = new java.util.LinkedHashMap<>();
+		int nextId = 0;
+	}
 
-	private int nextId = 0;
+	private final Shared shared;
 
 	SVGWriter(final Writer out) {
 		this.out = out;
+		this.shared = new Shared();
+	}
+
+	/** 定義・idを{@code parent}と共有する、別の出力先への書き手(層の中身用)。 */
+	SVGWriter(final Writer out, final SVGWriter parent) {
+		this.out = out;
+		this.shared = parent.shared;
 	}
 
 	/** 定義を1つ登録し、参照用のidを返します。 */
 	String addDef(final String element) {
-		this.defs.add(element);
+		this.shared.defs.add(element);
 		return null;
 	}
 
-	String nextId(final String prefix) {
-		return prefix + (++this.nextId);
+	/**
+	 * 内容で重複を除いて定義を登録し、そのidを返します(2026-08-29)。
+	 * {@code content}はid属性を除いた要素の中身・属性で、同じ内容なら
+	 * 既存のidを返す。
+	 *
+	 * @param prefix  idの接頭辞
+	 * @param name    要素名
+	 * @param content {@code <name id=".."}の後ろに続ける文字列(属性と中身、閉じタグは含めない)
+	 */
+	String defId(final String prefix, final String name, final String content) {
+		final String key = name + '\u0000' + content;
+		String id = this.shared.defIds.get(key);
+		if (id == null) {
+			id = this.nextId(prefix);
+			this.shared.defIds.put(key, id);
+			this.addDef("<" + name + " id=\"" + id + "\"" + content + "</" + name + ">");
+		}
+		return id;
 	}
 
-	/** {@code @font-face}の並び。共有WOFF2を参照する。 */
-	private final java.util.Map<String, String> fontFaces = new java.util.LinkedHashMap<>();
+	String nextId(final String prefix) {
+		return prefix + (++this.shared.nextId);
+	}
 
 	void addFontFace(final String family, final String uri) {
-		this.fontFaces.put(family, uri);
+		this.shared.fontFaces.put(family, uri);
 	}
 
 	/**
@@ -71,21 +107,21 @@ final class SVGWriter {
 	 * それより前の要素からも参照できるので、末尾で構いません。
 	 */
 	void writeDefs(final Writer target) throws IOException {
-		if (this.defs.isEmpty() && this.fontFaces.isEmpty()) {
+		if (this.shared.defs.isEmpty() && this.shared.fontFaces.isEmpty()) {
 			return;
 		}
 		target.write("<defs>");
-		if (!this.fontFaces.isEmpty()) {
+		if (!this.shared.fontFaces.isEmpty()) {
 			target.write("<style type=\"text/css\">");
 			final StringBuilder css = new StringBuilder();
-			for (final java.util.Map.Entry<String, String> face : this.fontFaces.entrySet()) {
+			for (final java.util.Map.Entry<String, String> face : this.shared.fontFaces.entrySet()) {
 				css.append("@font-face{font-family:'").append(face.getKey()).append("';src:url('../")
 						.append(face.getValue()).append("') format('woff2');font-display:block;}");
 			}
 			escapeText(target, css.toString());
 			target.write("</style>");
 		}
-		for (final String def : this.defs) {
+		for (final String def : this.shared.defs) {
 			target.write(def);
 		}
 		target.write("</defs>");

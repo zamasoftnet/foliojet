@@ -50,6 +50,15 @@ public interface MessageCodes {
 	 * 実装候補を選ぶとき、この2つが混ざっていると候補を絞れない。
 	 */
 	public static final short WARN_IGNORED_CSS_PROPERTY = 0x2821;
+	/**
+	 * 現在の出力形式では厳密に描けず<b>近似で描画した</b>機能(2026-08-29)。
+	 * 引数は {0}=CSSプロパティ名、{1}=出力のMIME型、{2}=近似の内容。
+	 * 描画時に、近似経路を実際に通ったときだけ、文書ごと・機能ごとに
+	 * 1回出す。PDFではぼかしや円錐グラデーションが近似になるが、Java2Dや
+	 * ブラウザが描くSVGでは厳密に出るので、同じ文書でも出力形式によって
+	 * 警告が変わる。
+	 */
+	public static final short WARN_APPROXIMATED_RENDERING = 0x2822;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;

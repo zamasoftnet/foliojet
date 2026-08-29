@@ -301,24 +301,122 @@ class DirectSVGGC implements GC {
 
 	@Override
 	public void draw(final Shape shape) throws GraphicsException {
-		this.path(shape, false, true);
+		this.path(shape, false, true, null);
 	}
 
 	@Override
 	public void fill(final Shape shape) throws GraphicsException {
-		this.path(shape, true, false);
+		this.path(shape, true, false, null);
 	}
 
 	@Override
 	public void fillDraw(final Shape shape) throws GraphicsException {
-		this.path(shape, true, true);
+		this.path(shape, true, true, null);
 	}
 
-	private void path(final Shape shape, final boolean doFill, final boolean doStroke) throws GraphicsException {
+	/**
+	 * ブラウザが描くSVGなので、PDFで近似になる機能のほとんどを厳密に
+	 * 書けます(2026-08-29): ぼかしと層への効果は{@code <filter>}、
+	 * 繰り返しは{@code spreadMethod}、層のブレンドは{@code <g>}の
+	 * {@code mix-blend-mode}。円錐グラデーションだけはSVGのpaint serverに
+	 * 無いので扇形の近似のまま。
+	 */
+	@Override
+	public boolean supports(final Capability capability) {
+		return switch (capability) {
+		case GAUSSIAN_BLUR, REPEATING_GRADIENT, GROUP_FILTER, DROP_SHADOW, BLEND_GROUP -> true;
+		case CONIC_GRADIENT -> false;
+		};
+	}
+
+	/**
+	 * ガウスぼかし付きの塗り(2026-08-29)。{@code <path filter="url(#..)">}で、
+	 * フィルタ領域は形の外接矩形を3σ広げた範囲(既定の10%ではぼかしが
+	 * 大きいと切れる)。座標には現在の変換を畳み込んでいるので、σも同じ
+	 * 倍率で換算する。
+	 */
+	@Override
+	public void fillBlurred(final Shape shape, final double sigma) throws GraphicsException {
+		if (!(sigma > 0)) {
+			this.fill(shape);
+			return;
+		}
+		final double det = Math.abs(this.transform.getDeterminant());
+		final double s = sigma * (det > 0 ? Math.sqrt(det) : 1);
+		final java.awt.geom.Rectangle2D b = this.transform.createTransformedShape(shape).getBounds2D();
+		final double pad = s * 3 + 1;
+		final String id = this.writer.defId("fb", "filter",
+				" filterUnits=\"userSpaceOnUse\" x=\"" + SVGWriter.number(b.getX() - pad) + "\" y=\""
+						+ SVGWriter.number(b.getY() - pad) + "\" width=\"" + SVGWriter.number(b.getWidth() + pad * 2)
+						+ "\" height=\"" + SVGWriter.number(b.getHeight() + pad * 2)
+						+ "\"><feGaussianBlur stdDeviation=\"" + SVGWriter.number(s) + "\"/>");
+		this.path(shape, true, false, id);
+	}
+
+	/**
+	 * 層(グループ画像)に掛ける効果を{@code <filter>}にして、そのidを返します
+	 * (効果が無ければnull。2026-08-29)。色行列はCSSのfilter関数と同じ
+	 * sRGBで計算させる(SVGの既定はlinearRGB)。適用順は{@link GroupEffects}
+	 * どおり色行列→ぼかし→落とし影。不透明度は呼び出し側が{@code opacity}
+	 * 属性で出す。
+	 *
+	 * @param w 層の幅(層の座標系。フィルタ領域の算出用)
+	 * @param h 層の高さ
+	 */
+	protected final String effectsFilter(final net.zamasoft.pdfg2d.gc.GroupEffects effects, final double w,
+			final double h) {
+		final float[] m = effects.colorMatrix();
+		final double blur = effects.blurSigma() > 0 ? effects.blurSigma() : 0;
+		final net.zamasoft.pdfg2d.gc.GroupEffects.DropShadow shadow = effects.dropShadow();
+		if (m == null && blur <= 0 && shadow == null) {
+			return null;
+		}
+		double pad = blur * 3 + 1;
+		if (shadow != null) {
+			pad += Math.abs(shadow.dx()) + Math.abs(shadow.dy()) + Math.max(0, shadow.sigma()) * 3;
+		}
+		final StringBuilder f = new StringBuilder(256);
+		f.append(" filterUnits=\"userSpaceOnUse\" color-interpolation-filters=\"sRGB\" x=\"")
+				.append(SVGWriter.number(-pad)).append("\" y=\"").append(SVGWriter.number(-pad))
+				.append("\" width=\"").append(SVGWriter.number(w + pad * 2)).append("\" height=\"")
+				.append(SVGWriter.number(h + pad * 2)).append("\">");
+		if (m != null) {
+			f.append("<feColorMatrix type=\"matrix\" values=\"");
+			for (int i = 0; i < m.length; ++i) {
+				if (i != 0) {
+					f.append(' ');
+				}
+				f.append(SVGWriter.number(m[i]));
+			}
+			f.append("\"/>");
+		}
+		if (blur > 0) {
+			f.append("<feGaussianBlur stdDeviation=\"").append(SVGWriter.number(blur)).append("\"/>");
+		}
+		if (shadow != null) {
+			f.append("<feDropShadow dx=\"").append(SVGWriter.number(shadow.dx())).append("\" dy=\"")
+					.append(SVGWriter.number(shadow.dy())).append("\" stdDeviation=\"")
+					.append(SVGWriter.number(Math.max(0, shadow.sigma()))).append('"');
+			if (shadow.color() != null) {
+				f.append(" flood-color=\"").append(SVGPaintWriter.toHex(shadow.color())).append('"');
+				if (shadow.color().getAlpha() < 1f) {
+					f.append(" flood-opacity=\"").append(SVGWriter.number(shadow.color().getAlpha())).append('"');
+				}
+			}
+			f.append("/>");
+		}
+		return this.writer.defId("fx", "filter", f.toString());
+	}
+
+	private void path(final Shape shape, final boolean doFill, final boolean doStroke, final String filterId)
+			throws GraphicsException {
 		try {
 			this.openTransformGroup();
 			this.writer.open("path");
 			this.writer.attr("d", SVGPathWriter.toPathData(shape, this.transform));
+			if (filterId != null) {
+				this.writer.attr("filter", "url(#" + filterId + ")");
+			}
 			this.writeBlendMode(this.writer);
 			final String rule = SVGPathWriter.fillRule(shape);
 			if (doFill && rule != null) {

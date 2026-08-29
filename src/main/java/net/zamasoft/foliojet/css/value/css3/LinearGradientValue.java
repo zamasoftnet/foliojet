@@ -1,6 +1,11 @@
 package net.zamasoft.foliojet.css.value.css3;
 
 import java.awt.geom.AffineTransform;
+import net.zamasoft.pdfg2d.gc.paint.SpreadMethod;
+import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.foliojet.layout.util.ApproximationGC;
+import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.foliojet.css.value.PaintValue;
@@ -49,6 +54,17 @@ public class LinearGradientValue implements PaintValue {
 	}
 
 	public Paint getPaint(Rectangle2D box) {
+		return this.paint(box, null);
+	}
+
+	/**
+	 * 塗りを作ります。繰り返しは、出力先が周期の繰り返しを持てば
+	 * 1周期+{@code SpreadMethod.REPEAT}(厳密)、持たなければ勾配線の範囲へ
+	 * 展開する(64周期で打ち切ったときだけ2822を報告。2026-08-29)。
+	 *
+	 * @param gc 描画先(能力の問い合わせと報告用。nullなら展開)
+	 */
+	private Paint paint(final Rectangle2D box, final GC gc) {
 		final double w = box.getWidth(), h = box.getHeight();
 		final double sin = Math.sin(this.angle), cos = Math.cos(this.angle);
 		final double length = Math.abs(w * sin) + Math.abs(h * cos);
@@ -57,9 +73,26 @@ public class LinearGradientValue implements PaintValue {
 		}
 		final double cx = box.getCenterX(), cy = box.getCenterY();
 		final double dx = sin * length / 2, dy = -cos * length / 2;
+		if (this.repeating && gc != null && gc.supports(GC.Capability.REPEATING_GRADIENT)) {
+			final GradientStops.Period p = this.stops.resolvePeriod(length);
+			if (p != null) {
+				final double x1 = cx - dx, y1 = cy - dy;
+				return new LinearGradient(x1, y1, x1 + dx * 2 * p.length(), y1 + dy * 2 * p.length(), p.fractions(),
+						p.colors(), new AffineTransform(), SpreadMethod.REPEAT);
+			}
+		}
 		final GradientStops.Resolved r = this.stops.resolve(length, this.repeating, 1);
+		if (r.capped()) {
+			ApproximationGC.report(gc, "background-image", "repeating-linear-gradient() の繰り返しを64周期で打ち切り");
+		}
 		return new LinearGradient(cx - dx, cy - dy, cx + dx, cy + dy, r.fractions(), r.colors(),
 				new AffineTransform());
+	}
+
+	@Override
+	public void fill(final GC gc, final Shape shape, final Rectangle2D box) throws GraphicsException {
+		gc.setFillPaint(this.paint(box, gc));
+		gc.fill(shape);
 	}
 
 	@Override

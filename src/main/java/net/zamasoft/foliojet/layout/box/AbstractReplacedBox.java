@@ -350,8 +350,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
 				final double[] r = this.fitRect(width, height);
 				final double sx = r[2] / this.image.getWidth(), sy = r[3] / this.image.getHeight();
-				// ぼかしの標準偏差を画像の論理単位へ換算
-				final double sigma = s.blur() > 0 ? s.blur() / Math.sqrt(sx * sy) : 0;
+				// ぼかし半径の半分が標準偏差(filter-effects-1 §9.2)。画像の
+				// 論理単位へ換算する
+				final double sigma = s.blur() > 0 ? s.blur() / 2 / Math.sqrt(sx * sy) : 0;
 				final net.zamasoft.foliojet.layout.util.FilterOps.Shadow shadow = net.zamasoft.foliojet.layout.util.FilterOps
 						.shadowOf(this.image, s.color(), sigma);
 				if (shadow != null) {

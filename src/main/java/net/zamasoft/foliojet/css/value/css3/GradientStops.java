@@ -22,7 +22,11 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
  * <b>繰り返し</b>({@code repeating-*-gradient})はPDFのシェーディングに
  * 無いので、周期(最初と最後の停止の間隔)を勾配線が覆う範囲まで展開した
  * 停止列にする。展開は{@link #MAX_REPEATS}周期で打ち切る(周期が極端に
- * 短い指定で停止が爆発するのを防ぐ。それより細かい縞は印刷でも見えない)。
+ * 短い指定で停止が爆発するのを防ぐ。それより細かい縞は印刷でも見えない。
+ * 打ち切ったときだけ近似——{@link Resolved#capped()}で知らせる)。
+ * 出力先が周期の繰り返し({@code REPEATING_GRADIENT}——Java2D・SVG)を
+ * 持つなら、{@link #resolvePeriod}で1周期だけを作り{@code SpreadMethod.REPEAT}
+ * で塗るのが厳密(2026-08-29)。
  * </p>
  */
 public final class GradientStops {
@@ -41,8 +45,26 @@ public final class GradientStops {
 	private final double[] abs;
 	private final boolean[] auto;
 
-	/** 解決済みの停止列(位置は0..1で厳密に増加)。 */
-	public record Resolved(double[] fractions, Color[] colors) {
+	/**
+	 * 解決済みの停止列(位置は0..1で厳密に増加)。{@code capped}は繰り返しの
+	 * 展開が{@link #MAX_REPEATS}で打ち切られた(=覆いきれず近似になった)こと。
+	 */
+	public record Resolved(double[] fractions, Color[] colors, boolean capped) {
+		public Resolved(final double[] fractions, final Color[] colors) {
+			this(fractions, colors, false);
+		}
+	}
+
+	/**
+	 * 繰り返しの1周期ぶんの停止列(2026-08-29)。位置は周期を0..1へ写した
+	 * もので、勾配線の始点(位相0)から始まる——元の停止が0以外から
+	 * 始まっていても、周期で折り返して位相を合わせてある。
+	 *
+	 * @param fractions 0..1(厳密に増加)
+	 * @param colors    各位置の色
+	 * @param length    周期の長さ(勾配線の長さに対する割合)
+	 */
+	public record Period(double[] fractions, Color[] colors, double length) {
 	}
 
 	public GradientStops(final Color[] colors, final double[] ratio, final double[] abs, final boolean[] auto) {
@@ -90,6 +112,98 @@ public final class GradientStops {
 	 */
 	public Resolved resolve(final double length, final boolean repeating, final double cover) {
 		final int n = this.colors.length;
+		final double[] pos = this.positions(length);
+		final double span = Math.max(1.0, cover);
+		final List<double[]> positions = new ArrayList<double[]>();
+		final List<Color> colorList = new ArrayList<Color>();
+		final double period = pos[n - 1] - pos[0];
+		boolean capped = false;
+		if (repeating && period > 1e-6) {
+			// 周期を0以下から始めてcoverを越えるまで並べる
+			int first = (int) Math.floor(-pos[0] / period);
+			int last = (int) Math.ceil((span - pos[0]) / period);
+			if (last - first > MAX_REPEATS) {
+				last = first + MAX_REPEATS;
+				capped = true;
+			}
+			for (int k = first; k <= last; ++k) {
+				final double offset = k * period;
+				// 周期の継ぎ目では前の周期の末尾と同じ位置に先頭の色が並ぶ
+				// (ハードストップとして折り返る)。normalizeが最小差を空ける
+				for (int i = 0; i < n; ++i) {
+					positions.add(new double[] { pos[i] + offset });
+					colorList.add(this.colors[i]);
+				}
+			}
+		} else {
+			for (int i = 0; i < n; ++i) {
+				positions.add(new double[] { pos[i] });
+				colorList.add(this.colors[i]);
+			}
+		}
+		final double[] ps = new double[positions.size()];
+		for (int i = 0; i < ps.length; ++i) {
+			ps[i] = positions.get(i)[0];
+		}
+		final Resolved r = clip(ps, colorList.toArray(new Color[colorList.size()]), 0, span);
+		return capped ? new Resolved(r.fractions(), r.colors(), true) : r;
+	}
+
+	/**
+	 * 繰り返しの1周期を、勾配線の始点から始まる位相で返します。周期が
+	 * 潰れている(全停止が同じ位置)ならnull——呼び出し側は{@link #resolve}の
+	 * 展開へ落とす。
+	 *
+	 * @param length 勾配線の長さ(pt)
+	 */
+	public Period resolvePeriod(final double length) {
+		final int n = this.colors.length;
+		final double[] pos = this.positions(length);
+		final double period = pos[n - 1] - pos[0];
+		if (!(period > 1e-6)) {
+			return null;
+		}
+		// 元の停止の周期内の位置(先頭を0とする)
+		final double[] offset = new double[n];
+		for (int i = 0; i < n; ++i) {
+			offset[i] = pos[i] - pos[0];
+		}
+		// 勾配線の始点(絶対位置0)は周期内のどこか: shift = pos[0] mod period
+		final double shift = pos[0] - Math.floor(pos[0] / period) * period;
+		// 各停止を「始点から始まる周期」の位置へ折り返す。同じ位置の停止
+		// (ハードストップ)は同じ側へ折れるので順序が保たれる
+		final List<double[]> folded = new ArrayList<double[]>(n + 2);
+		for (int i = 0; i < n; ++i) {
+			double t = offset[i] + shift;
+			if (t >= period) {
+				t -= period;
+			}
+			folded.add(new double[] { t, i });
+		}
+		folded.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(a[1], b[1]));
+		// 両端は周期関数としての始点の色(shift=0なら先頭色と末尾色)
+		final double u = shift > 0 ? period - shift : 0;
+		final List<Double> outPos = new ArrayList<Double>(n + 2);
+		final List<Color> outColors = new ArrayList<Color>(n + 2);
+		outPos.add(0.0);
+		outColors.add(colorAt(offset, this.colors, u));
+		for (final double[] f : folded) {
+			outPos.add(f[0] / period);
+			outColors.add(this.colors[(int) f[1]]);
+		}
+		outPos.add(1.0);
+		outColors.add(colorAt(offset, this.colors, shift > 0 ? period - shift : period));
+		final double[] fractions = new double[outPos.size()];
+		for (int i = 0; i < fractions.length; ++i) {
+			fractions[i] = outPos.get(i);
+		}
+		normalize(fractions);
+		return new Period(fractions, outColors.toArray(new Color[outColors.size()]), period);
+	}
+
+	/** 停止位置を確定します(css-images-3 §3.4.3の補正込み、繰り返し展開前)。 */
+	private double[] positions(final double length) {
+		final int n = this.colors.length;
 		final double[] pos = new double[n];
 		for (int i = 0; i < n; ++i) {
 			if (this.auto[i]) {
@@ -129,38 +243,7 @@ public final class GradientStops {
 				i = j;
 			}
 		}
-
-		final double span = Math.max(1.0, cover);
-		final List<double[]> positions = new ArrayList<double[]>();
-		final List<Color> colorList = new ArrayList<Color>();
-		final double period = pos[n - 1] - pos[0];
-		if (repeating && period > 1e-6) {
-			// 周期を0以下から始めてcoverを越えるまで並べる
-			int first = (int) Math.floor(-pos[0] / period);
-			int last = (int) Math.ceil((span - pos[0]) / period);
-			if (last - first > MAX_REPEATS) {
-				last = first + MAX_REPEATS;
-			}
-			for (int k = first; k <= last; ++k) {
-				final double offset = k * period;
-				// 周期の継ぎ目では前の周期の末尾と同じ位置に先頭の色が並ぶ
-				// (ハードストップとして折り返る)。normalizeが最小差を空ける
-				for (int i = 0; i < n; ++i) {
-					positions.add(new double[] { pos[i] + offset });
-					colorList.add(this.colors[i]);
-				}
-			}
-		} else {
-			for (int i = 0; i < n; ++i) {
-				positions.add(new double[] { pos[i] });
-				colorList.add(this.colors[i]);
-			}
-		}
-		final double[] ps = new double[positions.size()];
-		for (int i = 0; i < ps.length; ++i) {
-			ps[i] = positions.get(i)[0];
-		}
-		return clip(ps, colorList.toArray(new Color[colorList.size()]), 0, span);
+		return pos;
 	}
 
 	/**

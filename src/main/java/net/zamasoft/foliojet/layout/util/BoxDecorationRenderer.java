@@ -35,9 +35,18 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
  * わずかに詰まる。
  * </p>
  *
+ * <p>
+ * <b>厳密経路(2026-08-29)。</b>出力先がガウスぼかしを持つ
+ * ({@link GC.Capability#GAUSSIAN_BLUR}——Java2D・ブラウザが描くSVG)なら、
+ * 近似せず{@link GC#fillBlurred}で1回塗る。近似したときは
+ * {@link ApproximationGC#report}で利用者へ知らせる(文書ごとに1回)。
+ * </p>
+ *
  * @author MIYABE Tatsuhiko
  */
 public final class BoxDecorationRenderer {
+	/** 2822の近似内容: box-shadowのぼかし。 */
+	static final String BLUR_DETAIL = "ぼかしを12段の同心塗りで近似";
 	/**
 	 * ぼかしの各段の縁の位置(σ単位)。N=12の標準正規分布の分位点
 	 * ((k+0.5)/N)を外側から並べたもの。外側ほど薄くなる階段の縁が、
@@ -87,7 +96,8 @@ public final class BoxDecorationRenderer {
 				if (s.inset) {
 					continue;
 				}
-				fillLayers(gc, s, d -> expandedShape(x + s.x, y + s.y, w, h, radii, s.spread + d));
+				fillLayers(gc, s, "box-shadow", BLUR_DETAIL,
+						d -> expandedShape(x + s.x, y + s.y, w, h, radii, s.spread + d));
 			}
 		}
 	}
@@ -95,8 +105,10 @@ public final class BoxDecorationRenderer {
 	/**
 	 * {@code filter: drop-shadow()}の影を箱の境界形状で描きます(2026-08-29)。
 	 * 本来は要素の不透明部分のシルエットの影だが、箱の枠を影の形とする
-	 * (背景が透明な箱でも箱全体の影になる——記録済みの近似)。
-	 * ぼかしはbox-shadowと同じ階段状の近似。
+	 * (背景が透明な箱でも箱全体の影になる——記録済みの近似。背景の無い
+	 * 箱では2822で知らせる)。ぼかしはbox-shadowと同じ(厳密か階段状の近似)。
+	 * 出力先が{@code GROUP_FILTER}と{@code DROP_SHADOW}に対応するときは
+	 * ここは呼ばれず、{@code AbstractDrawable}が要素全体の影を掛ける。
 	 */
 	public static void drawDropShadow(GC gc, RectFrame frame, double x, double y, double w, double h, double dx,
 			double dy, double blur, net.zamasoft.pdfg2d.gc.paint.Color color) throws GraphicsException {
@@ -104,11 +116,15 @@ public final class BoxDecorationRenderer {
 			return;
 		}
 		final Radius[] radii = resolvedRadii(frame.border, w, h);
-		// drop-shadowのぼかしは標準偏差そのもの(box-shadowはblur/2)なので
-		// BoxShadowのblurへ2倍で渡す
-		final BoxShadow s = new BoxShadow(dx, dy, blur * 2, 0, color, false);
+		// drop-shadowのぼかし半径もbox-shadowと同じ換算(σ=blur/2、
+		// filter-effects-1 §9.2。2026-08-29にJava2D側と揃えて訂正)
+		final BoxShadow s = new BoxShadow(dx, dy, blur, 0, color, false);
+		if (!frame.background.isVisible()) {
+			ApproximationGC.report(gc, "filter", "drop-shadow() を箱の形の影で近似");
+		}
 		try (final var state = gc.begin()) {
-			fillLayers(gc, s, d -> expandedShape(x + s.x, y + s.y, w, h, radii, d));
+			fillLayers(gc, s, "filter", "drop-shadow() のぼかしを12段の同心塗りで近似",
+					d -> expandedShape(x + s.x, y + s.y, w, h, radii, d));
 		}
 	}
 
@@ -150,14 +166,24 @@ public final class BoxDecorationRenderer {
 				if (!s.inset) {
 					continue;
 				}
-				fillLayers(gc, s, d -> {
+				// 厳密なぼかしでは帯の外縁をパディング箱より十分外に置く
+				// (外縁がパディング箱と一致すると、ぼかしで縁が薄れてしまう。
+				// クリップで切るので外縁の形は結果に出ない)
+				final Shape band0;
+				if (s.blur > 0 && gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
+					final double reach = Math.abs(s.x) + Math.abs(s.y) + Math.abs(s.spread) + s.blur * 2 + 1;
+					band0 = new Rectangle2D.Double(px - reach, py - reach, pw + reach * 2, ph + reach * 2);
+				} else {
+					band0 = paddingShape;
+				}
+				fillLayers(gc, s, "box-shadow", BLUR_DETAIL, d -> {
 					final Shape hole = expandedShape(px + s.x, py + s.y, pw, ph, radii, -(s.spread + d));
 					if (hole == null) {
 						// 穴が潰れた=パディング箱全面が影
 						return paddingShape;
 					}
 					final Path2D.Double band = new Path2D.Double(Path2D.WIND_EVEN_ODD);
-					band.append(paddingShape, false);
+					band.append(band0, false);
 					band.append(hole, false);
 					return band;
 				});
@@ -192,10 +218,13 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * 1つの影を段階塗りします。{@code shapeAt}は縁の位置のずれ(外向き正)から
-	 * 塗る形を返す(nullなら潰れていて塗らない)。
+	 * 1つの影を塗ります。{@code shapeAt}は縁の位置のずれ(外向き正)から
+	 * 塗る形を返す(nullなら潰れていて塗らない)。ぼかしは出力先が描ければ
+	 * {@link GC#fillBlurred}で厳密に、描けなければ段階塗りで近似し
+	 * {@code property}/{@code blurDetail}で2822を報告する。
 	 */
-	private static void fillLayers(GC gc, BoxShadow s, DoubleFunction<Shape> shapeAt) throws GraphicsException {
+	private static void fillLayers(GC gc, BoxShadow s, String property, String blurDetail,
+			DoubleFunction<Shape> shapeAt) throws GraphicsException {
 		final float alpha = s.color.getAlpha();
 		if (alpha <= 0) {
 			return;
@@ -210,10 +239,22 @@ public final class BoxDecorationRenderer {
 				}
 				return;
 			}
-			final int n = BLUR_STEPS.length;
-			// 全段が重なる中心で合成アルファがalphaになる1段あたりの値
-			gc.setFillAlpha((float) (1 - Math.pow(1 - alpha, 1.0 / n)));
 			final double sigma = s.blur / 2;
+			if (gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
+				// 厳密: 指定色のままガウスぼかしで1回塗る(σ=blur/2)
+				gc.setFillAlpha(alpha);
+				final Shape shape = shapeAt.apply(0);
+				if (shape != null) {
+					gc.fillBlurred(shape, sigma);
+				}
+				return;
+			}
+			ApproximationGC.report(gc, property, blurDetail);
+			final int n = BLUR_STEPS.length;
+			// 全段が重なる中心で合成アルファがalphaになる1段あたりの値。
+			// 不透明な影(α=1)では1段あたりも1になり外縁までべた塗りの塊に
+			// なるので、text-shadowと同じく0.98で頭打ちにする
+			gc.setFillAlpha((float) (1 - Math.pow(1 - Math.min(alpha, 0.98), 1.0 / n)));
 			for (int k = 0; k < n; ++k) {
 				final Shape shape = shapeAt.apply(BLUR_STEPS[k] * sigma);
 				if (shape != null) {

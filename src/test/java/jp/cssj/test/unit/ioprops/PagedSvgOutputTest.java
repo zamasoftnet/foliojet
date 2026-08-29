@@ -296,6 +296,73 @@ public class PagedSvgOutputTest extends TestCase {
 		assertFalse("data: images must not produce a metrics file", results.data.containsKey("metrics.json"));
 	}
 
+	/**
+	 * ブラウザが描くSVGでは、PDFで近似になる効果を厳密に書く(2026-08-29):
+	 * box-shadow/text-shadowのぼかしはfeGaussianBlur、filterは層への
+	 * feColorMatrix/feDropShadow、繰り返しグラデーションはspreadMethod、
+	 * mix-blend-modeは層の<g>のstyle。層はラスタにせずベクタのまま残る。
+	 */
+	public void testExactEffectsAreWrittenAsSvgFilters() throws Exception {
+		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
+				+ "@page{size:200pt 200pt;margin:8pt}body{margin:0;font-size:12pt}"
+				+ ".s{width:60pt;height:20pt;background:#fff;box-shadow:2pt 2pt 6pt rgba(0,0,0,.5)}"
+				+ ".t{text-shadow:1pt 1pt 4pt #f00}"
+				+ ".f{width:60pt;height:20pt;background:#0f0;filter:grayscale(100%) drop-shadow(1pt 2pt 4pt #000)}"
+				+ ".r{width:60pt;height:20pt;background:repeating-linear-gradient(90deg,#fff,#000 10pt)}"
+				+ ".c{width:60pt;height:20pt;background:conic-gradient(#f00,#00f)}"
+				+ ".m{width:60pt;height:20pt;background:#ff0;mix-blend-mode:multiply}"
+				+ "</style></head><body><div class=\"s\"></div><p class=\"t\">ABC</p><div class=\"f\"></div>"
+				+ "<div class=\"r\"></div><div class=\"c\"></div><div class=\"m\"></div></body></html>";
+		final List<String[]> messages = new ArrayList<>();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+		final CapturingResults results;
+		try {
+			session.setMessageHandler((code, args, mes) -> {
+				final String[] m = new String[(args == null ? 0 : args.length) + 1];
+				m[0] = Integer.toString(code & 0xFFFF);
+				if (args != null) {
+					System.arraycopy(args, 0, m, 1, args.length);
+				}
+				messages.add(m);
+			});
+			results = run(session, html, Map.of());
+		} finally {
+			session.close();
+		}
+		final String page = results.text("pages/0001.svg");
+		assertWellFormedXml(results.data.get("pages/0001.svg").toByteArray());
+		assertTrue("box-shadow blur -> feGaussianBlur on the path: " + page,
+				page.matches("(?s).*<path [^>]*filter=\"url\\(#fb[0-9]+\\)\".*"));
+		assertTrue(page.contains("<feGaussianBlur stdDeviation=\"3\"/>"));
+		assertTrue("text-shadow blur -> a vector layer with a blur filter (sigma 2)",
+				page.contains("<feGaussianBlur stdDeviation=\"2\"/>"));
+		assertTrue("filter -> feColorMatrix in sRGB", page.contains("color-interpolation-filters=\"sRGB\""));
+		assertTrue(page.contains("<feColorMatrix type=\"matrix\" values=\""));
+		assertTrue("drop-shadow -> feDropShadow with sigma = radius / 2",
+				page.contains("<feDropShadow dx=\"1\" dy=\"2\" stdDeviation=\"2\" flood-color=\"#000000\"/>"));
+		assertTrue("repeating gradient -> one period with spreadMethod=repeat",
+				page.contains("spreadMethod=\"repeat\""));
+		assertTrue("blend group -> <g style=\"mix-blend-mode:multiply\">: " + page,
+				page.matches("(?s).*<g[^>]*style=\"mix-blend-mode:multiply\">.*"));
+		assertFalse("layers stay vector (no rasterized group image)", page.contains("<image"));
+		assertTrue("the text inside the layer keeps its page position", results.text("pages/0001.json").contains("ABC"));
+		// 円錐グラデーションだけはSVGに無いので扇形のまま。それだけが2822で報告される
+		final List<String[]> approximated = messages.stream()
+				.filter(m -> m[0].equals(Integer.toString(0x2822))).toList();
+		assertEquals("only conic-gradient is approximated for paged SVG: " + describe(messages), 1,
+				approximated.size());
+		assertEquals("background-image", approximated.get(0)[1]);
+		assertEquals("application/vnd.copper.paged-svg", approximated.get(0)[2]);
+	}
+
+	private static String describe(final List<String[]> messages) {
+		final StringBuilder s = new StringBuilder();
+		for (final String[] m : messages) {
+			s.append(String.join("|", m)).append('\n');
+		}
+		return s.toString();
+	}
+
 	private String simpleHtml() throws Exception {
 		return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
 				+ "@page{size:100pt 80pt;margin:8pt}body{margin:0;font-size:12pt}img{width:10pt;height:10pt}"

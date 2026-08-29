@@ -1,16 +1,20 @@
 package net.zamasoft.foliojet.css.value.css3;
 
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.TreeSet;
 
 import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
+import net.zamasoft.foliojet.layout.util.ApproximationGC;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.paint.Color;
+import net.zamasoft.pdfg2d.gc.paint.ConicGradient;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
+import net.zamasoft.pdfg2d.gc.paint.SpreadMethod;
 
 /**
  * {@code conic-gradient()}/{@code repeating-conic-gradient()}です
@@ -20,6 +24,9 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
  * <b>PDFに円錐シェーディングは無い</b>(Type 4〜7のメッシュで作れるが、
  * 補間色を頂点に置くだけでも扇形ごとの三角形メッシュになり、ベクタの
  * 単純さが失われる)。そこで{@code Paint}ではなく{@link #fill}を上書きし、
+ * 出力先が円錐グラデーション({@code CONIC_GRADIENT}——Java2D)を持てば
+ * {@link ConicGradient}で厳密に塗り、持たなければ(PDF・SVG——SVGの
+ * paint serverに円錐は無い)2822を報告して
  * 中心から放射する扇形を色停止の補間色で塗り分ける。扇形は
  * {@link #MAX_WEDGE}(2°)以下に刻み、色停止の位置には必ず境界を置く
  * (ハードストップがぼやけない)。180枚の扇形は1枚40バイト程度の
@@ -86,7 +93,21 @@ public class ConicGradientValue implements PaintValue {
 			radius = Math.max(radius, Math.sqrt(dx * dx + dy * dy));
 		}
 		radius = radius / Math.cos(MAX_WEDGE / 2) + 1;
+		// 1周は有限なので繰り返しも1周ぶん展開する(64周期の打ち切りに
+		// 掛かったときだけ近似)
 		final GradientStops.Resolved r = this.stops.resolve(1, this.repeating, 1);
+		if (r.capped()) {
+			ApproximationGC.report(gc, "background-image", "repeating-conic-gradient() の繰り返しを64周期で打ち切り");
+		}
+		if (gc.supports(GC.Capability.CONIC_GRADIENT)) {
+			try (final var state = gc.begin()) {
+				gc.setFillPaint(new ConicGradient(cx, cy, this.fromAngle, r.fractions(), r.colors(),
+						new AffineTransform(), SpreadMethod.PAD));
+				gc.fill(shape);
+			}
+			return;
+		}
+		ApproximationGC.report(gc, "background-image", "conic-gradient() を扇形で近似");
 		final double[] pos = r.fractions();
 		final Color[] colors = r.colors();
 		// 扇形の境界: 色停止の位置と、2°刻み
