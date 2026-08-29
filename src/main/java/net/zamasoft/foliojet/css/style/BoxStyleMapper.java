@@ -786,6 +786,10 @@ final class BoxStyleMapper {
 		params.boxSizing = BoxSizing.get(style);
 		params.objectFit = ObjectFit.get(style);
 		params.objectPosition = ObjectPosition.get(style);
+		// clip-path(2026-08-29)。ブロックと同じ形状を置換要素へも渡す。
+		// 以前は BlockParams だけが持っていたため <img> では黙って無視されていた
+		params.clipPath = net.zamasoft.foliojet.css.impl.property.box.ClipPath
+				.toShape(net.zamasoft.foliojet.css.impl.property.box.ClipPath.get(style));
 		// aspect-ratio(2026-08-29)。auto併記は固有比率優先(AbstractReplacedBox)
 		final net.zamasoft.foliojet.css.value.AspectRatioValue aspectRatio = net.zamasoft.foliojet.css.impl.property.box.AspectRatio
 				.get(style);

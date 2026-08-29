@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.box;
 
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
+import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
@@ -487,6 +488,42 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		// ignore
 	}
 
+	/**
+	 * {@code clip-path}を合成したクリップです(2026-08-29)。置換要素は
+	 * {@link net.zamasoft.foliojet.layout.box.AbstractContainerBox}を通らないため、
+	 * 同じ規則(参照ボックスの実寸で形状を解決し、既存のクリップと交差)を
+	 * ここに置く。{@code <img>}の背景・枠・画像すべてを切る(css-masking-1)。
+	 */
+	private Shape clipWithClipPath(final Shape clip, final double x, final double y) {
+		final ClipPathShape clipPath = this.params.clipPath;
+		if (clipPath == null) {
+			return clip;
+		}
+		final double ml = this.frame.margin.left, mt = this.frame.margin.top;
+		final double bl = this.frame.frame.border.getLeft().width, bt = this.frame.frame.border.getTop().width;
+		final double pl = this.frame.padding.left, pt = this.frame.padding.top;
+		final double mw = this.frame.margin.getFrameWidth(), mh = this.frame.margin.getFrameHeight();
+		final double bw = this.frame.frame.border.getFrameWidth(), bh = this.frame.frame.border.getFrameHeight();
+		final double pw = this.frame.padding.getFrameWidth(), ph = this.frame.padding.getFrameHeight();
+		// 置換要素のwidth/heightはマージン箱の実寸(innerDrawがframeを引いて
+		// 内容箱にしている)。参照ボックスごとにそこから削る
+		final Rectangle2D.Double ref = switch (clipPath.referenceBox) {
+		case MARGIN_BOX -> new Rectangle2D.Double(x, y, this.width, this.height);
+		case BORDER_BOX -> new Rectangle2D.Double(x + ml, y + mt, this.width - mw, this.height - mh);
+		case PADDING_BOX -> new Rectangle2D.Double(x + ml + bl, y + mt + bt, this.width - mw - bw,
+				this.height - mh - bh);
+		case CONTENT_BOX -> new Rectangle2D.Double(x + ml + bl + pl, y + mt + bt + pt, this.width - mw - bw - pw,
+				this.height - mh - bh - ph);
+		};
+		final Shape shape = clipPath.resolve(ref.x, ref.y, ref.width, ref.height);
+		if (clip == null) {
+			return shape;
+		}
+		final java.awt.geom.Area area = new java.awt.geom.Area(shape);
+		area.intersect(new java.awt.geom.Area(clip));
+		return area;
+	}
+
 	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
@@ -508,6 +545,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			// text attaches to the figure rather than the enclosing block.
 			// No-op for non-image replaced content and when untagged.
 			final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
+			clip = this.clipWithClipPath(clip, x, y);
 			final Drawable drawable = new ReplacedBoxDrawable(pageBox, clip, this.params.opacity, transform, this.frame,
 					this.params.image, this.params.objectFit, this.params.objectPosition, this.getWidth(),
 					this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);

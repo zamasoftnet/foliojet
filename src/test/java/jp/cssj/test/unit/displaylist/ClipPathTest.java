@@ -58,6 +58,40 @@ public class ClipPathTest extends TestCase {
 		}
 	}
 
+	/**
+	 * <b>置換要素({@code <img>})の{@code clip-path}</b>(2026-08-29)。
+	 *
+	 * <p>
+	 * 利用者報告で「divでは効くが{@code <img>}では効かない」と指摘された経路。
+	 * 置換要素は{@code AbstractContainerBox}を通らないため、clip-pathが
+	 * {@code BlockParams}にしか無く黙って捨てられていた。100pt角の赤い画像を
+	 * 同じ円で切り抜き、中心は赤・四隅は白であることを画素で固定する。
+	 * </p>
+	 */
+	public void testCircleClipOnImage() throws Exception {
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+				null);
+		try {
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.include", "**");
+			CTISessionHelper.transcodeFile(session,
+					new File("files/unittest/3080-MODERN-CSS/clip-path-image.html"), "text/html", null);
+		} finally {
+			session.close();
+		}
+		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
+			final java.awt.image.BufferedImage img = new PDFRenderer(doc).renderImageWithDPI(0, 72);
+			assertTrue("円の中心に画像が出ていません", isRed(img.getRGB(60, 60)));
+			assertTrue("円の内側(中心+20pt)に画像が出ていません", isRed(img.getRGB(60, 80)));
+			assertFalse("円の外(画像の左上)が切り抜かれていません", isRed(img.getRGB(15, 15)));
+			assertFalse("円の外(画像の右下)が切り抜かれていません", isRed(img.getRGB(105, 105)));
+			assertFalse("円の外(画像の右上)が切り抜かれていません", isRed(img.getRGB(105, 15)));
+		}
+	}
+
 	private static boolean isRed(final int rgb) {
 		final int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
 		return r > 150 && g < 80 && b < 80;
