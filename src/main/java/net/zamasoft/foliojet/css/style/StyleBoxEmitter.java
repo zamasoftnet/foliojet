@@ -260,6 +260,12 @@ final class StyleBoxEmitter {
 	private final PageSequence pageSequence;
 	private final UserAgent ua;
 	private final Imposition imposition;
+	/**
+	 * 「効かない組み合わせ」の告知(2823)を出したかどうか(2026-08-29)。
+	 * 文書に同じ書き方が並ぶのが普通なので、種類ごとに1回だけ知らせる。
+	 */
+	private boolean flexFallbackReported = false;
+	private boolean gridFallbackReported = false;
 
 	StyleBoxEmitter(final StyleBuildContext context, final RecordingLayoutSink sink, final BoxStyleMapper mapper,
 			final PageSequence pageSequence, final UserAgent ua, final Imposition imposition) {
@@ -774,6 +780,14 @@ final class StyleBoxEmitter {
 				}
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.FlexBox(params, pos);
 			} else {
+				// 黙って落とさない(2026-08-29の利用者報告): 宣言は読めているのに
+				// 文脈のせいで効かないことを2823で知らせる
+				if (!this.flexFallbackReported) {
+					this.flexFallbackReported = true;
+					this.ua.message(net.zamasoft.foliojet.message.MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION,
+							"display: flex",
+							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.flex-not-in-flow"));
+				}
 				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
 			}
 			this.requireRoot(params.direction, params.flow);
@@ -801,6 +815,12 @@ final class StyleBoxEmitter {
 				}
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.GridBox(params, pos);
 			} else {
+				if (!this.gridFallbackReported) {
+					this.gridFallbackReported = true;
+					this.ua.message(net.zamasoft.foliojet.message.MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION,
+							"display: grid",
+							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.grid-not-in-flow"));
+				}
 				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
 			}
 			this.requireRoot(params.direction, params.flow);

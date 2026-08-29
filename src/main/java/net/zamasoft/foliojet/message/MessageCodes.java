@@ -59,6 +59,15 @@ public interface MessageCodes {
 	 * 警告が変わる。
 	 */
 	public static final short WARN_APPROXIMATED_RENDERING = 0x2822;
+	/**
+	 * 宣言は解釈できたが、<b>この組み合わせでは効かない</b>指定(2026-08-29)。
+	 * 引数は {0}=CSSプロパティ名、{1}=効かない理由。
+	 * {@link #WARN_UNSUPPORTED_CSS_PROPERTY}(プロパティ自体が未実装)や
+	 * {@link #WARN_IGNORED_CSS_PROPERTY}(静的組版では無意味)と違い、
+	 * <b>単体なら効くのに文脈のせいで落ちる</b>ものを知らせる——利用者が
+	 * 最も時間を溶かすのは「書いたのに効かない」なので、黙って捨てない。
+	 */
+	public static final short WARN_INEFFECTIVE_CSS_COMBINATION = 0x2823;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;
