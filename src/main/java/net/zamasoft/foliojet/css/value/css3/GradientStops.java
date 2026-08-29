@@ -170,26 +170,41 @@ public final class GradientStops {
 		}
 		// 勾配線の始点(絶対位置0)は周期内のどこか: shift = pos[0] mod period
 		final double shift = pos[0] - Math.floor(pos[0] / period) * period;
-		// 各停止を「始点から始まる周期」の位置へ折り返す。同じ位置の停止
-		// (ハードストップ)は同じ側へ折れるので順序が保たれる
+		if (shift <= 1e-9) {
+			// 位相がそろっている(勾配線の始点が周期の始点)。折り返さず
+			// そのまま1周期にする——折り返すと末尾の停止が位置0へ回り込み、
+			// ハードストップの前後関係が壊れる(2026-08-29に実測で発見)
+			final double[] direct = new double[n];
+			for (int i = 0; i < n; ++i) {
+				direct[i] = offset[i] / period;
+			}
+			normalize(direct);
+			return new Period(direct, this.colors.clone(), period);
+		}
+		// 各停止を「始点から始まる周期」の位置へ折り返す。回り込んだ停止は
+		// 同じ位置では回り込んでいない停止より前に置く——回り込んだ側は
+		// その位置へ「左から」入ってくる色(=直前の色)を表すため
 		final List<double[]> folded = new ArrayList<double[]>(n + 2);
 		for (int i = 0; i < n; ++i) {
 			double t = offset[i] + shift;
-			if (t >= period) {
+			final boolean wrapped = t >= period;
+			if (wrapped) {
 				t -= period;
 			}
-			folded.add(new double[] { t, i });
+			folded.add(new double[] { t, wrapped ? 0 : 1, i });
 		}
-		folded.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0]) : Double.compare(a[1], b[1]));
+		folded.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0])
+				: a[1] != b[1] ? Double.compare(a[1], b[1]) : Double.compare(a[2], b[2]));
 		// 両端は周期関数としての始点の色(shift=0なら先頭色と末尾色)
 		final double u = shift > 0 ? period - shift : 0;
 		final List<Double> outPos = new ArrayList<Double>(n + 2);
 		final List<Color> outColors = new ArrayList<Color>(n + 2);
 		outPos.add(0.0);
-		outColors.add(colorAt(offset, this.colors, u));
+		// 始点は「そこから先へ進む色」——ハードストップの上では右側の色
+		outColors.add(colorAtRight(offset, this.colors, u));
 		for (final double[] f : folded) {
 			outPos.add(f[0] / period);
-			outColors.add(this.colors[(int) f[1]]);
+			outColors.add(this.colors[(int) f[2]]);
 		}
 		outPos.add(1.0);
 		outColors.add(colorAt(offset, this.colors, shift > 0 ? period - shift : period));
@@ -305,6 +320,20 @@ public final class GradientStops {
 			}
 		}
 		return colors[n - 1];
+	}
+
+	/**
+	 * ハードストップの上では<b>右側</b>(そこから先へ進む方)の色を返します。
+	 * {@link #colorAt}は左側(そこへ入ってくる方)を返すので、周期の始点の
+	 * ように「ここから先の色」が要るときはこちらを使う(2026-08-29)。
+	 */
+	private static Color colorAtRight(final double[] pos, final Color[] colors, final double t) {
+		for (int i = colors.length - 1; i >= 0; --i) {
+			if (pos[i] == t) {
+				return colors[i];
+			}
+		}
+		return colorAt(pos, colors, t);
 	}
 
 	/** 2色を{@code f}(0で前者、1で後者)で混ぜます(プリマルチプライド補間)。 */

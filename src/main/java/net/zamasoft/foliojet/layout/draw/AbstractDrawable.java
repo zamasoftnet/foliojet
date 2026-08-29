@@ -130,7 +130,7 @@ public abstract class AbstractDrawable implements Drawable {
 		final boolean blends = this.blendMode != outerBlend;
 		final boolean blendGroup = blends && gc.supports(GC.Capability.BLEND_GROUP);
 		if (blends && !blendGroup) {
-			ApproximationGC.report(gc, "mix-blend-mode", "描画要素ごとに適用");
+			ApproximationGC.report(gc, "mix-blend-mode", "2822.per-drawable");
 			gc.setBlendMode(this.blendMode);
 		}
 
@@ -139,7 +139,7 @@ public abstract class AbstractDrawable implements Drawable {
 		final float opacity = this.opacity * this.filter.opacity;
 		final boolean groupFilter = this.groupFilterSupported(gc);
 		if (!groupFilter && (this.filter.hasColorOps() || this.filter.shadow != null)) {
-			ApproximationGC.report(gc, "filter", "描画要素ごとに適用");
+			ApproximationGC.report(gc, "filter", "2822.per-drawable");
 		}
 
 		/* NoAndroid begin */

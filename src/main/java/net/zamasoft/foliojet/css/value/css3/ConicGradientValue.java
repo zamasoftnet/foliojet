@@ -97,7 +97,7 @@ public class ConicGradientValue implements PaintValue {
 		// 掛かったときだけ近似)
 		final GradientStops.Resolved r = this.stops.resolve(1, this.repeating, 1);
 		if (r.capped()) {
-			ApproximationGC.report(gc, "background-image", "repeating-conic-gradient() の繰り返しを64周期で打ち切り");
+			ApproximationGC.report(gc, "background-image", "2822.repeat-capped-conic");
 		}
 		if (gc.supports(GC.Capability.CONIC_GRADIENT)) {
 			try (final var state = gc.begin()) {
@@ -107,7 +107,7 @@ public class ConicGradientValue implements PaintValue {
 			}
 			return;
 		}
-		ApproximationGC.report(gc, "background-image", "conic-gradient() を扇形で近似");
+		ApproximationGC.report(gc, "background-image", "2822.conic-wedges");
 		final double[] pos = r.fractions();
 		final Color[] colors = r.colors();
 		// 扇形の境界: 色停止の位置と、2°刻み

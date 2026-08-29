@@ -83,7 +83,7 @@ public class LinearGradientValue implements PaintValue {
 		}
 		final GradientStops.Resolved r = this.stops.resolve(length, this.repeating, 1);
 		if (r.capped()) {
-			ApproximationGC.report(gc, "background-image", "repeating-linear-gradient() の繰り返しを64周期で打ち切り");
+			ApproximationGC.report(gc, "background-image", "2822.repeat-capped-linear");
 		}
 		return new LinearGradient(cx - dx, cy - dy, cx + dx, cy + dy, r.fractions(), r.colors(),
 				new AffineTransform());

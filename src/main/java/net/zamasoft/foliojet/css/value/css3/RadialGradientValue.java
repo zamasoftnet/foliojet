@@ -115,7 +115,7 @@ public class RadialGradientValue implements PaintValue {
 		}
 		final GradientStops.Resolved r = this.stops.resolve(rx, this.repeating, cover);
 		if (r.capped()) {
-			ApproximationGC.report(gc, "background-image", "repeating-radial-gradient() の繰り返しを64周期で打ち切り");
+			ApproximationGC.report(gc, "background-image", "2822.repeat-capped-radial");
 		}
 		return new RadialGradient(cx, cy, rx * cover, cx, cy, r.fractions(), r.colors(), at);
 	}

@@ -58,22 +58,24 @@ public final class ApproximationGC extends AbstractDelegatingGC {
 	 * (単体テストの素のGCなど)何もしない。
 	 *
 	 * @param gc       描画先(包み紙でもよい)
-	 * @param property CSSのプロパティ名({@code box-shadow}など、字面のまま)
-	 * @param detail   近似の内容(利用者向けの短い説明)
+	 * @param property  CSSのプロパティ名({@code box-shadow}など、字面のまま)
+	 * @param detailKey 近似の内容を表すメッセージカタログの鍵
+	 *                  ({@code 2822.blur-rings}など。文面は利用者の言語で出す)
 	 */
-	public static void report(GC gc, final String property, final String detail) {
+	public static void report(GC gc, final String property, final String detailKey) {
 		while (gc != null) {
 			if (gc instanceof ApproximationGC a) {
-				a.approximated(property, detail);
+				a.approximated(property, detailKey);
 				return;
 			}
 			gc = gc instanceof DelegatingGC d ? d.delegate() : null;
 		}
 	}
 
-	private void approximated(final String property, final String detail) {
-		if (this.reported.add(property + ' ' + detail)) {
-			this.ua.message(MessageCodes.WARN_APPROXIMATED_RENDERING, property, this.outputType, detail);
+	private void approximated(final String property, final String detailKey) {
+		if (this.reported.add(property + ' ' + detailKey)) {
+			this.ua.message(MessageCodes.WARN_APPROXIMATED_RENDERING, property, this.outputType,
+					net.zamasoft.foliojet.message.MessageCodeUtils.detail(detailKey));
 		}
 	}
 

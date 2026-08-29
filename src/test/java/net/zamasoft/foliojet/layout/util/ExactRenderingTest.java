@@ -22,6 +22,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
+import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UAContext;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -252,6 +253,42 @@ public class ExactRenderingTest extends TestCase {
 		assertEquals("始点は赤と青の中間", 0.5f, first.getRed(), 1e-3);
 	}
 
+	public void testPeriodKeepsHardStops() {
+		// repeating-linear-gradient(#036 0 50%, #9cf 50% 100%): 位相がそろって
+		// いるので周期は元の停止そのまま。末尾の停止が位置0へ回り込んで
+		// 縞がぼやける欠陥の回帰(2026-08-29、PNG出力の実測で発見)
+		final Color dark = RGBColor.create(0, 0.2f, 0.4f), light = RGBColor.create(0.6f, 0.8f, 1f);
+		final GradientStops.Period p = GradientStops
+				.ofFractions(new double[] { 0, 0.5, 0.5, 1 }, new Color[] { dark, dark, light, light })
+				.resolvePeriod(100);
+		assertEquals(1.0, p.length(), 1e-9);
+		assertEquals(4, p.colors().length);
+		assertEquals("周期の先頭は暗い色", dark.getBlue(), p.colors()[0].getBlue(), 1e-6);
+		assertEquals("周期の末尾は明るい色", light.getBlue(), p.colors()[3].getBlue(), 1e-6);
+		// 前半は暗い色のまま(境目まで明るくならない)
+		assertEquals(dark.getRed(), p.colors()[1].getRed(), 1e-6);
+		assertEquals(light.getRed(), p.colors()[2].getRed(), 1e-6);
+		assertTrue("ハードストップの位置はほぼ同じ", Math.abs(p.fractions()[2] - p.fractions()[1]) < 1e-4);
+		for (int i = 1; i < p.fractions().length; ++i) {
+			assertTrue(p.fractions()[i] > p.fractions()[i - 1]);
+		}
+	}
+
+	public void testPeriodKeepsHardStopsWhenShifted() {
+		// 位相がずれている場合(25%から始まる周期50%)も、回り込んだ停止が
+		// 同じ位置の停止より前に来て、進行方向の色が入れ替わらない
+		final Color dark = RGBColor.create(0, 0, 0), light = RGBColor.create(1f, 1f, 1f);
+		final GradientStops.Period p = GradientStops
+				.ofFractions(new double[] { 0.25, 0.5, 0.5, 0.75 }, new Color[] { dark, dark, light, light })
+				.resolvePeriod(100);
+		assertEquals(0.5, p.length(), 1e-9);
+		// 位相0(=勾配線の始点)は周期の後半にあたるので明るい色
+		assertEquals("始点は明るい色", 1f, p.colors()[0].getRed(), 1e-3);
+		for (int i = 1; i < p.fractions().length; ++i) {
+			assertTrue(p.fractions()[i] > p.fractions()[i - 1]);
+		}
+	}
+
 	public void testRepeatUnrollingReportsOnlyWhenCapped() {
 		assertFalse(stops(0, 0.1).resolve(100, true, 1).capped());
 		assertTrue(stops(0, 0.001).resolve(100, true, 1).capped());
@@ -366,7 +403,9 @@ public class ExactRenderingTest extends TestCase {
 		assertEquals("同じ近似は文書ごとに1回", 1, this.messages.size());
 		assertEquals("box-shadow", this.messages.get(0)[0]);
 		assertEquals("既定の出力形式", "application/pdf", this.messages.get(0)[1]);
-		assertEquals(BoxDecorationRenderer.BLUR_DETAIL, this.messages.get(0)[2]);
+		// 近似の内容は鍵ではなく利用者の言語の文面で入る
+		assertEquals(MessageCodeUtils.detail(BoxDecorationRenderer.BLUR_DETAIL), this.messages.get(0)[2]);
+		assertFalse("鍵がそのまま出ない", BoxDecorationRenderer.BLUR_DETAIL.equals(this.messages.get(0)[2]));
 
 		// 別の機能は別に数える。FilterGCの内側からでも届く
 		final GC filtered = new FilterGC(gc, FilterValue.NONE);

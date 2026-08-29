@@ -46,7 +46,7 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
  */
 public final class BoxDecorationRenderer {
 	/** 2822の近似内容: box-shadowのぼかし。 */
-	static final String BLUR_DETAIL = "ぼかしを12段の同心塗りで近似";
+	static final String BLUR_DETAIL = "2822.blur-rings";
 	/**
 	 * ぼかしの各段の縁の位置(σ単位)。N=12の標準正規分布の分位点
 	 * ((k+0.5)/N)を外側から並べたもの。外側ほど薄くなる階段の縁が、
@@ -120,10 +120,10 @@ public final class BoxDecorationRenderer {
 		// filter-effects-1 §9.2。2026-08-29にJava2D側と揃えて訂正)
 		final BoxShadow s = new BoxShadow(dx, dy, blur, 0, color, false);
 		if (!frame.background.isVisible()) {
-			ApproximationGC.report(gc, "filter", "drop-shadow() を箱の形の影で近似");
+			ApproximationGC.report(gc, "filter", "2822.drop-shadow-box");
 		}
 		try (final var state = gc.begin()) {
-			fillLayers(gc, s, "filter", "drop-shadow() のぼかしを12段の同心塗りで近似",
+			fillLayers(gc, s, "filter", "2822.drop-shadow-blur-rings",
 					d -> expandedShape(x + s.x, y + s.y, w, h, radii, d));
 		}
 	}

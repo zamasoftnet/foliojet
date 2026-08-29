@@ -39,6 +39,20 @@ public class MessageCodeUtils {
 	}
 
 	/**
+	 * メッセージの引数に埋める補足文(「近似の内容」など)を、コードと同じ
+	 * カタログから引きます。見つからなければ鍵をそのまま返す(2026-08-29)。
+	 *
+	 * @param key カタログの鍵(例 {@code 2822.blur-rings})
+	 */
+	public static String detail(final String key) {
+		try {
+			return BUNDLE.getString(key);
+		} catch (Exception e) {
+			return key;
+		}
+	}
+
+	/**
 	 * メッセージを文字列化します。
 	 * 
 	 * @param code

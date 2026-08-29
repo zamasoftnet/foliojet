@@ -891,7 +891,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				this.drawExactBlurredShadow(gc, shadow, x, y);
 				return;
 			}
-			net.zamasoft.foliojet.layout.util.ApproximationGC.report(gc, "text-shadow", "ぼかしを12段の縁取りで近似");
+			net.zamasoft.foliojet.layout.util.ApproximationGC.report(gc, "text-shadow", "2822.text-blur-rings");
 			final double[] steps = net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.BLUR_STEPS;
 			final int n = steps.length;
 			// 不透明な影(α=1)では1段あたりのアルファも1になり、外縁まで
