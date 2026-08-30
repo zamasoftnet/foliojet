@@ -76,6 +76,29 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builder.RetainedTable {
+
+	/**
+	 * キャプションを表の外周(margin)ぶんだけ内側へ寄せる幅です(行方向先頭側)。
+	 *
+	 * <p>
+	 * CSS 2.1 §17.4: 表要素の{@code margin}は表そのものではなくラッパー箱に付き、
+	 * キャプションの包含ブロックはラッパーの内容箱、すなわち<b>表のborder box</b>。
+	 * copper4はラッパーの内容幅を表のmargin box({@code tableInnerSize + tableFrame}、
+	 * {@code tableFrame}にはmarginが入る)にしているため、差し込まないと
+	 * キャプションが表のマージンぶん外へ広がる(2026-08-30)。
+	 * </p>
+	 */
+	private double captionInsetStart() {
+		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
+		return this.vertical ? margin.top : margin.left;
+	}
+
+	/** キャプションの行方向末尾側の差し込み幅。理由はcaptionInsetStartと同じ。 */
+	private double captionInsetEnd() {
+		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
+		return this.vertical ? margin.bottom : margin.right;
+	}
+
 	/**
 	 * 構築中のテーブルセルです。
 	 * 
@@ -990,7 +1013,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		for (int i = 0; i < this.topCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.topCaptions.get(i);
 			FlowBlockBox captionBox = (FlowBlockBox) captionBuilder.getRootBox();
-			anonBuilder.startFlowBlock(captionBox);
+			anonBuilder.startFlowBlock(captionBox, this.captionInsetStart(), this.captionInsetEnd());
 			captionBuilder.bind(anonBuilder);
 			anonBuilder.endFlowBlock();
 		}
@@ -1427,7 +1450,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		for (int i = 0; i < this.bottomCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.bottomCaptions.get(i);
 			FlowBlockBox captionBox = (FlowBlockBox) captionBuilder.getRootBox();
-			anonBuilder.startFlowBlock(captionBox);
+			anonBuilder.startFlowBlock(captionBox, this.captionInsetStart(), this.captionInsetEnd());
 			captionBuilder.bind(anonBuilder);
 			anonBuilder.endFlowBlock();
 		}

@@ -516,6 +516,26 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void startFlowBlock(final FlowBlockBox flowBox) {
+		this.startFlowBlock(flowBox, 0, 0);
+	}
+
+	/**
+	 * 行方向の内側への差し込みを与えて通常フローのブロックを開きます。
+	 *
+	 * <p>
+	 * 表のキャプション専用の入口です。CSS 2.1 §17.4のとおり、表要素の
+	 * {@code margin}は表そのものではなく<b>ラッパー箱</b>に付き、キャプションの
+	 * 包含ブロックはラッパーの内容箱——つまり<b>表のborder box</b>です。
+	 * copper4はラッパーの内容幅を表のmargin boxにしているので、そのまま並べると
+	 * キャプションが表のマージンぶんだけ外側へはみ出す(2026-08-30、
+	 * Wikipediaのサムネイルの説明文が図の左へずれる欠陥)。ここで差し込んで
+	 * 表のborder boxに合わせる。
+	 * </p>
+	 *
+	 * @param insetStart 行方向先頭側の差し込み幅
+	 * @param insetEnd   行方向末尾側の差し込み幅
+	 */
+	public void startFlowBlock(final FlowBlockBox flowBox, final double insetStart, final double insetEnd) {
 		this.requireNoOpenTextBuilder("(no context)");
 		AbstractContainerBox containerBox = this.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
@@ -535,6 +555,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 					new AxisSpan(this.lineAxis, this.lineAxis + lineSize));
 			xmargin = band.start() - this.lineAxis;
 			lineSize = band.extent();
+		}
+		if (insetStart != 0 || insetEnd != 0) {
+			final double inset = insetStart + insetEnd;
+			if (inset < lineSize) {
+				xmargin += insetStart;
+				lineSize -= inset;
+			}
 		}
 		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();

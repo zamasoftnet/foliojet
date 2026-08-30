@@ -1,0 +1,46 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<title>caption box is the table border box, not the margin box</title>
+<style>
+/*
+  CSS 2.1 §17.4: 表要素の margin は表そのものではなくラッパー箱に付き、
+  キャプションの包含ブロックはラッパーの内容箱 = 表の border box。
+  つまり **キャプションの箱は表のマージンぶん外へ広がってはいけない**。
+
+  copper4 はラッパーの内容幅を表の margin box にしているため、
+  差し込みを入れないとキャプションが左マージンぶん左へずれて広がっていた
+  (2026-08-30、Wikipedia のサムネイルの説明文が図の左へ出る欠陥)。
+*/
+@page { margin: 0 }
+body { font: 10pt/1 monospace; margin: 0; width: 300pt }
+
+table { border-collapse: collapse; border: 2pt solid Blue; margin-left: 40pt }
+td { border: 1pt solid Gray; padding: 2pt 4pt }
+caption { background: Yellow; text-align: left; padding: 1pt 3pt }
+caption.bottom { caption-side: bottom; background: Aqua }
+
+/* display:table + table-caption(figure のサムネイルと同じ形) */
+.fig { display: table; margin-left: 60pt; border: 2pt solid Green }
+.fig > div { display: block; padding: 3pt }
+.fig > .cap { display: table-caption; caption-side: bottom; background: Fuchsia;
+              text-align: left; padding: 1pt 3pt }
+</style>
+</head>
+<body>
+<table>
+<caption>TOP CAPTION</caption>
+<caption class="bottom">BOTTOM CAPTION</caption>
+<tr><td>cell</td></tr>
+</table>
+
+<div class="fig">
+<div>figure content</div>
+<div class="cap">caption</div>
+</div>
+</body>
+</html>

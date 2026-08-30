@@ -89,6 +89,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0390-writing-mode/text-orientation.html", //
 			// 直交ブロックのページ軸%は親の線軸基準(2026-08-10修正の固定)
 			"0390-writing-mode/orthogonal-page-axis-percent.html", //
+			// キャプションの箱は表の border box(margin box ではない)。
+			// 左マージンのある表でキャプションが外へ広がっていた(2026-08-30)
+			"0240-table/caption-table-margin.html", //
 			"0240-table/z-order.html", //
 			// 1行だけの縦長ラッパー表は先頭ページの残量で行の内容を分割する
 			// (2026-08-27)。UA既定のセルpage-break-inside:avoid撤去の回帰。
