@@ -38,6 +38,12 @@ public class ImageOutputTest extends TestCase {
 
 	private static final File DOCUMENT = new File("files/unittest/ioprops/two-pages.html");
 
+	/**
+	 * 正体しか持たない書体へ{@code font-weight: bold}を指定した文書。太字は
+	 * 輪郭を太らせて作られる({@code FontUtils.drawText}の enlargement 経路)。
+	 */
+	private static final File SYNTHESIZED_BOLD = new File("files/unittest/ioprops/synthesized-bold.html");
+
 	/** PNGとして出力できること。 */
 	public void testPng() throws Exception {
 		final File out = this.convert(props("output.type", "image/png",
@@ -75,6 +81,33 @@ public class ImageOutputTest extends TestCase {
 		assertTrue("紙面が広いほど画素数が多いこと", width(wide) > width(narrow));
 	}
 
+	/**
+	 * 擬似ボールドが画像出力で描けること(2026-08-30)。
+	 *
+	 * <p>
+	 * 擬似ボールドは線種と線の色を保存してから塗りつぶし＋線描きへ切り替え、
+	 * 終わったら元へ戻す。Java2D出力の{@code G2DGC}は実線の線種を{@code null}で
+	 * 返し、線の色も設定前は{@code null}だったので、<b>この復元が必ず落ちて</b>
+	 * PNG・JPEG・単一SVGが4001で失敗していた。PDF出力は同じ文書で成功するため、
+	 * 出力形式ごとに確かめないと見つからない。
+	 * </p>
+	 */
+	public void testSynthesizedBoldPng() throws Exception {
+		final File out = this.convert(SYNTHESIZED_BOLD, props("output.type", "image/png",
+				"output.pdf.fonts.policy", "embedded cid-keyed",
+				"output.page-width", "300pt", "output.page-height", "300pt"));
+		assertTrue("PNGとして読めること", isReadableImage(out));
+	}
+
+	/** 擬似ボールドが単一SVG出力(既定=outline、Batik経路)でも描けること。 */
+	public void testSynthesizedBoldSvg() throws Exception {
+		final File out = this.convert(SYNTHESIZED_BOLD, props("output.type", "image/svg+xml",
+				"output.pdf.fonts.policy", "embedded cid-keyed",
+				"output.page-width", "300pt", "output.page-height", "300pt"));
+		final String svg = Files.readString(out.toPath());
+		assertTrue("SVGとして書き出されていること", svg.contains("<svg"));
+	}
+
 	private static boolean isReadableImage(final File file) throws Exception {
 		return file.isFile() && file.length() > 0 && ImageIO.read(file) != null;
 	}
@@ -94,6 +127,10 @@ public class ImageOutputTest extends TestCase {
 	}
 
 	private File convert(final Map<String, String> properties) throws Exception {
+		return this.convert(DOCUMENT, properties);
+	}
+
+	private File convert(final File document, final Map<String, String> properties) throws Exception {
 		final File out = File.createTempFile("image-output", ".bin");
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
@@ -104,7 +141,7 @@ public class ImageOutputTest extends TestCase {
 				for (final Map.Entry<String, String> e : properties.entrySet()) {
 					session.property(e.getKey(), e.getValue());
 				}
-				CTISessionHelper.transcodeFile(session, DOCUMENT, "text/html", null);
+				CTISessionHelper.transcodeFile(session, document, "text/html", null);
 			} finally {
 				session.close();
 			}
