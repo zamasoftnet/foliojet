@@ -92,6 +92,7 @@ import net.zamasoft.foliojet.css.impl.property.table.EmptyCells;
 import net.zamasoft.foliojet.css.impl.property.font.FontSize;
 import net.zamasoft.foliojet.css.impl.property.box.BlockSize;
 import net.zamasoft.foliojet.css.impl.property.box.Height;
+import net.zamasoft.foliojet.css.impl.property.text.HyphenateCharacter;
 import net.zamasoft.foliojet.css.impl.property.text.Hyphens;
 import net.zamasoft.foliojet.css.impl.property.text.LetterSpacing;
 import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
@@ -121,7 +122,9 @@ import net.zamasoft.foliojet.css.impl.property.page.Widows;
 import net.zamasoft.foliojet.css.impl.property.box.Width;
 import net.zamasoft.foliojet.css.impl.property.text.WordSpacing;
 import net.zamasoft.foliojet.css.impl.property.box.ZIndex;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundBlendMode;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundOrigin;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.box.BoxSizing;
@@ -744,6 +747,7 @@ final class BoxStyleMapper {
 				.getLanguageProfile(style.getCSSElement().lang);
 		params.lineBreakRules = lang.getTextBreakingRules(style);
 		params.hyphens = Hyphens.get(style);
+		params.hyphenateCharacter = HyphenateCharacter.get(style);
 		if (params.hyphens == AbstractTextParams.HYPHENS_AUTO) {
 			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getCSSElement().lang);
 		}
@@ -1108,22 +1112,36 @@ final class BoxStyleMapper {
 		// 末尾から順に重ねる——半透明のグラデーションから下の色・画像が透ける
 		final net.zamasoft.foliojet.css.value.Value[] values = BackgroundImage.getLayers(style);
 		final java.util.List<Background.Layer> layers = new java.util.ArrayList<Background.Layer>(values.length);
-		for (final net.zamasoft.foliojet.css.value.Value value : values) {
+		final java.util.List<Integer> sourceLayerIndexes = new java.util.ArrayList<Integer>(values.length);
+		for (int layerIndex = 0; layerIndex < values.length; ++layerIndex) {
+			final net.zamasoft.foliojet.css.value.Value value = values[layerIndex];
 			if (value instanceof PaintValue paint) {
 				layers.add(new Background.PaintLayer(paint));
+				sourceLayerIndexes.add(layerIndex);
 			} else if (value instanceof net.zamasoft.foliojet.css.value.URIValue uri) {
 				final Image image = BackgroundImage.load(style, uri);
 				if (image != null) {
 					layers.add(net.zamasoft.foliojet.layout.box.params.BackgroundImage.create(image,
 							BackgroundRepeat.get(style), BackgroundAttachment.get(style), BackgroundPosition.get(style),
 							BackgroundSize.get(style, image), BackgroundSize.getFit(style, image)));
+					sourceLayerIndexes.add(layerIndex);
 				}
 			}
 		}
 		net.zamasoft.foliojet.layout.box.params.BackgroundImage backgroundImage;
 		if (!layers.isEmpty()) {
+			final byte[] declaredOrigins = BackgroundOrigin.get(style);
+			final net.zamasoft.pdfg2d.gc.paint.BlendMode[] declaredBlendModes = BackgroundBlendMode.get(style);
+			final byte[] origins = new byte[layers.size()];
+			final net.zamasoft.pdfg2d.gc.paint.BlendMode[] blendModes = new net.zamasoft.pdfg2d.gc.paint.BlendMode[layers
+					.size()];
+			for (int i = 0; i < sourceLayerIndexes.size(); ++i) {
+				final int source = sourceLayerIndexes.get(i);
+				origins[i] = declaredOrigins[source % declaredOrigins.length];
+				blendModes[i] = declaredBlendModes[source % declaredBlendModes.length];
+			}
 			return Background.create(backgroundPaint, layers.toArray(new Background.Layer[layers.size()]),
-					BackgroundClip.get(style));
+					BackgroundClip.get(style), origins, blendModes);
 		} else if (maskImage != null) {
 			// 単色SVGのURLマスクは、背景色をSVGのcurrentColorへ焼き込み、
 			// 直接描く。背景色の矩形は残さない。
@@ -1151,8 +1169,25 @@ final class BoxStyleMapper {
 		} else {
 			backgroundImage = null;
 		}
-		Background background = Background.create(backgroundPaint, backgroundImage, BackgroundClip.get(style));
-		return background;
+		if (maskImage != null) {
+			byte clip = BackgroundClip.get(style);
+			final net.zamasoft.foliojet.css.impl.property.box.MaskClip.ClipValue maskClip = net.zamasoft.foliojet.css.impl.property.box.MaskClip
+					.get(style);
+			if (maskClip != net.zamasoft.foliojet.css.impl.property.box.MaskClip.ClipValue.BORDER_BOX
+					&& maskClip.isPaintSupported()) {
+				clip = maskClip.getBackgroundClip();
+			}
+			final net.zamasoft.foliojet.css.impl.property.box.MaskOrigin.OriginValue maskOrigin = net.zamasoft.foliojet.css.impl.property.box.MaskOrigin
+					.get(style);
+			if (maskOrigin != net.zamasoft.foliojet.css.impl.property.box.MaskOrigin.OriginValue.BORDER_BOX
+					&& maskOrigin.isPaintSupported()) {
+				return Background.create(backgroundPaint, backgroundImage, clip,
+						new byte[] { maskOrigin.getBackgroundOrigin() });
+			}
+			// mask-originの初期値では従来の配置経路を保ち、既存出力を変えない。
+			return Background.create(backgroundPaint, backgroundImage, clip);
+		}
+		return Background.create(backgroundPaint, backgroundImage, BackgroundClip.get(style));
 	}
 
 	/**
@@ -1176,9 +1211,104 @@ final class BoxStyleMapper {
 		final Radius bottomLeft = BorderRadius.get(style, Corner.BOTTOM_LEFT);
 		final Radius bottomRight = BorderRadius.get(style, Corner.BOTTOM_RIGHT);
 
+		final net.zamasoft.foliojet.layout.box.params.BorderImage borderImage = createBorderImage(style);
 		final RectBorder border = RectBorder.create(top, right, bottom, left, topLeft, topRight, bottomLeft,
-				bottomRight);
+				bottomRight, borderImage);
 		return border;
+	}
+
+	/** border-imageの計算値を描画層向けの単位付きパラメータへ写します。 */
+	private static net.zamasoft.foliojet.layout.box.params.BorderImage createBorderImage(CSSStyle style) {
+		final Value declaredSource = net.zamasoft.foliojet.css.impl.property.border.BorderImageSource.get(style);
+		final net.zamasoft.foliojet.layout.box.params.BorderImage.Source source;
+		if (declaredSource instanceof URIValue uri) {
+			final Image image = BackgroundImage.load(style, uri);
+			if (image == null) {
+				return null;
+			}
+			source = new net.zamasoft.foliojet.layout.box.params.BorderImage.ImageSource(image);
+		} else if (declaredSource instanceof PaintValue paint) {
+			source = new net.zamasoft.foliojet.layout.box.params.BorderImage.PaintSource(paint);
+		} else {
+			// none。ここをnullのまま保つことで既存の境界線パラメータと描画経路を
+			// まったく変えない。
+			return null;
+		}
+
+		final net.zamasoft.foliojet.css.value.BorderImageSliceValue slice = net.zamasoft.foliojet.css.impl.property.border.BorderImageSlice
+				.get(style);
+		final net.zamasoft.foliojet.css.value.BorderImageWidthValue width = net.zamasoft.foliojet.css.impl.property.border.BorderImageWidth
+				.get(style);
+		final net.zamasoft.foliojet.css.value.BorderImageOutsetValue outset = net.zamasoft.foliojet.css.impl.property.border.BorderImageOutset
+				.get(style);
+		final net.zamasoft.foliojet.css.value.BorderImageRepeatValue repeat = net.zamasoft.foliojet.css.impl.property.border.BorderImageRepeat
+				.get(style);
+		return new net.zamasoft.foliojet.layout.box.params.BorderImage(source,
+				borderImageSliceQuad(style, slice.top(), slice.right(), slice.bottom(), slice.left()), slice.fill(),
+				borderImageQuad(width.top(), width.right(), width.bottom(), width.left()),
+				borderImageQuad(outset.top(), outset.right(), outset.bottom(), outset.left()),
+				borderImageRepeat(repeat.horizontal()), borderImageRepeat(repeat.vertical()));
+	}
+
+	/**
+	 * {@code border-image-slice}の4値です。
+	 *
+	 * <p>
+	 * 数値は<b>画像のピクセル数</b>なので、ここでptへ換算しておく——描画層は
+	 * {@code Image#getWidth()}(pt)としか比較できず、UAの解像度を知らないため。
+	 * 換算後は割合と同じく「画像座標系での位置」として一様に扱える。
+	 */
+	private static net.zamasoft.foliojet.layout.box.params.BorderImage.Quad borderImageSliceQuad(CSSStyle style,
+			Value top, Value right, Value bottom, Value left) {
+		return new net.zamasoft.foliojet.layout.box.params.BorderImage.Quad(borderImageSlice(style, top),
+				borderImageSlice(style, right), borderImageSlice(style, bottom), borderImageSlice(style, left));
+	}
+
+	private static net.zamasoft.foliojet.layout.box.params.BorderImage.Component borderImageSlice(CSSStyle style,
+			Value value) {
+		if (value instanceof net.zamasoft.foliojet.css.value.RealValue number) {
+			return net.zamasoft.foliojet.layout.box.params.BorderImage.Component
+					.absolute(net.zamasoft.foliojet.css.util.LengthUtils.convert(style.getUserAgent(),
+							number.getReal(), net.zamasoft.foliojet.css.token.Unit.PX,
+							net.zamasoft.foliojet.css.token.Unit.PT));
+		}
+		return borderImageComponent(value);
+	}
+
+	private static net.zamasoft.foliojet.layout.box.params.BorderImage.Quad borderImageQuad(Value top, Value right,
+			Value bottom, Value left) {
+		return new net.zamasoft.foliojet.layout.box.params.BorderImage.Quad(borderImageComponent(top),
+				borderImageComponent(right), borderImageComponent(bottom), borderImageComponent(left));
+	}
+
+	private static net.zamasoft.foliojet.layout.box.params.BorderImage.Component borderImageComponent(Value value) {
+		if (value instanceof net.zamasoft.foliojet.css.value.RealValue number) {
+			return net.zamasoft.foliojet.layout.box.params.BorderImage.Component.number(number.getReal());
+		}
+		if (value instanceof AbsoluteLengthValue length) {
+			return net.zamasoft.foliojet.layout.box.params.BorderImage.Component.absolute(length.getLength());
+		}
+		if (value instanceof PercentageValue percentage) {
+			return net.zamasoft.foliojet.layout.box.params.BorderImage.Component.relative(percentage.getRatio());
+		}
+		if (value instanceof CalcLengthValue calc) {
+			return net.zamasoft.foliojet.layout.box.params.BorderImage.Component.mixed(calc.getAbsolute(),
+					calc.getRatio());
+		}
+		if (value == KeywordValue.AUTO) {
+			return net.zamasoft.foliojet.layout.box.params.BorderImage.Component.auto();
+		}
+		throw new IllegalStateException(String.valueOf(value));
+	}
+
+	private static net.zamasoft.foliojet.layout.box.params.BorderImage.Repeat borderImageRepeat(
+			net.zamasoft.foliojet.css.value.BorderImageRepeatValue.Mode repeat) {
+		return switch (repeat) {
+		case STRETCH -> net.zamasoft.foliojet.layout.box.params.BorderImage.Repeat.STRETCH;
+		case REPEAT -> net.zamasoft.foliojet.layout.box.params.BorderImage.Repeat.REPEAT;
+		case ROUND -> net.zamasoft.foliojet.layout.box.params.BorderImage.Repeat.ROUND;
+		case SPACE -> net.zamasoft.foliojet.layout.box.params.BorderImage.Repeat.SPACE;
+		};
 	}
 
 	/**

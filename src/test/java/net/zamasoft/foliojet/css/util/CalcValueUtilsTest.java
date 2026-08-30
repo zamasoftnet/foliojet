@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.AngleValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
@@ -238,7 +239,7 @@ public class CalcValueUtilsTest extends TestCase {
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue("フォント相対成分を持つ値になる: " + value, value instanceof CalcFontRelativeValue);
 		// 2px は 1.5pt。em の係数は解決前なので値そのものが残る
-		assertEquals("calc(1.5pt + 0.0% + 1.0em + 0.0ex + 0.0rem + 0.0ch + 0.0lh)", value.toString());
+		assertEquals("calc(1.5pt + 0.0% + 1.0em + 0.0ex + 0.0rem + 0.0ch + 0.0lh + 0.0cap + 0.0rlh)", value.toString());
 	}
 
 	/** 数との乗算はフォント相対成分にも効く(線形なので後で寸法を掛けても等価)。 */
@@ -246,7 +247,7 @@ public class CalcValueUtilsTest extends TestCase {
 		CssToken token = parseCalcToken("width: calc(-1 * (3.5rem - 26px))");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue(value instanceof CalcFontRelativeValue);
-		assertEquals("calc(19.5pt + 0.0% + 0.0em + 0.0ex + -3.5rem + 0.0ch + 0.0lh)", value.toString());
+		assertEquals("calc(19.5pt + 0.0% + 0.0em + 0.0ex + -3.5rem + 0.0ch + 0.0lh + 0.0cap + 0.0rlh)", value.toString());
 	}
 
 	public void testCalcWithVarReturnsNull() {
@@ -254,5 +255,102 @@ public class CalcValueUtilsTest extends TestCase {
 		CssToken token = parseCalcToken("width: calc(var(--x) + 2px)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertNull(value);
+	}
+
+	// --- css-values-4 の数学関数12種(2026-08-30) ---
+
+	/** {@code calc()}を通して長さ(pt)を取り出します。 */
+	private static double lengthPt(String declaration) {
+		Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
+		assertNotNull(declaration + " が無効になった", value);
+		if (value instanceof AbsoluteLengthValue abs) {
+			return abs.getLength();
+		}
+		assertTrue(declaration + " が長さでない: " + value, value instanceof CalcLengthValue);
+		CalcLengthValue calc = (CalcLengthValue) value;
+		assertEquals("割合成分が残っている: " + value, 0.0, calc.getRatio(), DELTA);
+		return calc.getAbsolute();
+	}
+
+	/** {@code calc()}を通して素の数値を取り出します。 */
+	private static double number(String declaration) {
+		Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
+		assertNotNull(declaration + " が無効になった", value);
+		assertTrue(declaration + " が数値でない: " + value, value instanceof RealValue);
+		return ((RealValue) value).getReal();
+	}
+
+	private static void assertInvalidCalc(String declaration) {
+		assertNull(declaration + " が受理された",
+				CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration)));
+	}
+
+	public void testSqrtExpPowLogHypot() {
+		assertEquals(4.0, lengthPt("width: calc(sqrt(16) * 1pt)"), DELTA);
+		assertEquals(1024.0, lengthPt("width: calc(pow(2, 10) * 1pt)"), DELTA);
+		assertEquals(5.0, lengthPt("width: calc(hypot(3, 4) * 1pt)"), DELTA);
+		// exp(0)=1、log(e)=1、log(8,2)=3
+		assertEquals(1.0, lengthPt("width: calc(exp(0) * 1pt)"), DELTA);
+		assertEquals(3.0, lengthPt("width: calc(log(8, 2) * 1pt)"), DELTA);
+		assertEquals(Math.log(10), lengthPt("width: calc(log(10) * 1pt)"), 1e-9);
+	}
+
+	public void testTrigTakesAngles() {
+		// 角度単位を取る。sin(90deg)=1、cos(0)=1、tan(45deg)=1
+		assertEquals(10.0, lengthPt("width: calc(sin(90deg) * 10pt)"), 1e-9);
+		assertEquals(10.0, lengthPt("width: calc(cos(0) * 10pt)"), 1e-9);
+		assertEquals(10.0, lengthPt("width: calc(tan(45deg) * 10pt)"), 1e-9);
+		// 単位違いでも同じ角度なら同じ値(0.25turn = 90deg = π/2 rad)
+		assertEquals(10.0, lengthPt("width: calc(sin(0.25turn) * 10pt)"), 1e-9);
+		assertEquals(10.0, lengthPt("width: calc(sin(1.5707963267948966rad) * 10pt)"), 1e-9);
+		// SPEC css-values-4: 裸の数値はラジアンとして扱う
+		assertEquals(10.0, lengthPt("width: calc(sin(1.5707963267948966) * 10pt)"), 1e-9);
+	}
+
+	/** {@code calc()}を通して角度(度)を取り出します。 */
+	private static double degrees(String declaration) {
+		Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
+		assertNotNull(declaration + " が無効になった", value);
+		assertTrue(declaration + " が角度でない: " + value, value instanceof AngleValue);
+		return ((AngleValue) value).getDegrees();
+	}
+
+	public void testInverseTrigReturnsAngles() {
+		// 逆三角は<number>を取って<angle>を返す
+		assertEquals(90.0, degrees("width: calc(asin(1))"), 1e-9);
+		assertEquals(0.0, degrees("width: calc(acos(1))"), 1e-9);
+		assertEquals(45.0, degrees("width: calc(atan(1))"), 1e-9);
+		assertEquals(45.0, degrees("width: calc(atan2(1, 1))"), 1e-9);
+		assertEquals(-45.0, degrees("width: calc(atan2(-1, 1))"), 1e-9);
+		// 返した角度を三角関数へ食わせて往復できること
+		assertEquals(10.0, lengthPt("width: calc(sin(asin(1)) * 10pt)"), 1e-9);
+		assertEquals(10.0, lengthPt("width: calc(cos(acos(1)) * 10pt)"), 1e-9);
+	}
+
+	/**
+	 * <b>角度÷角度は未対応</b>です(2026-08-30時点)。
+	 *
+	 * <p>
+	 * SPEC css-values-4 では{@code calc(45deg / 1deg)}は無次元の1を返すが、
+	 * この実装の除算は「数で割る」場合しか扱わない。実文書での出現がまず
+     * 無いので追っていない——できないことを黙って忘れないための表明である。
+	 */
+	public void testAngleDividedByAngleIsNotSupported() {
+		assertInvalidCalc("width: calc(atan2(1, 1) / 1deg)");
+	}
+
+	public void testMathFunctionsOutOfDomainAreInvalid() {
+		// 定義域外は無効値。NaNを黙って通すと版面が壊れる
+		assertInvalidCalc("width: calc(sqrt(-1) * 1pt)");
+		assertInvalidCalc("width: calc(log(0) * 1pt)");
+		assertInvalidCalc("width: calc(asin(2) * 1pt)");
+		assertInvalidCalc("width: calc(acos(-2) * 1pt)");
+	}
+
+	public void testMathFunctionsNest() {
+		// 入れ子と四則の混在
+		assertEquals(5.0, lengthPt("width: calc(sqrt(pow(5, 2)) * 1pt)"), DELTA);
+		assertEquals(13.0, lengthPt("width: calc((hypot(3, 4) + 8) * 1pt)"), DELTA);
+		assertEquals(2.0, lengthPt("width: calc(max(sqrt(4), 1) * 1pt)"), DELTA);
 	}
 }

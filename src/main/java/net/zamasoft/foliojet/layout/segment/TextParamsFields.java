@@ -39,7 +39,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  */
 record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow, byte direction,
 		FontManager fontManager, TextBreakingRules lineBreakRules, Length letterSpacing, double wordSpacing,
-		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens,
+		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens, String hyphenateCharacter,
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, Color decorationColor,
 		byte decorationStyle, double decorationThicknessLength, double underlineOffset, byte underlinePosition,
 		double textStrokeWidth,
@@ -60,6 +60,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		return new TextParamsFields(ParamsFields.freeze(source), source.fontStyle, source.flow, source.direction,
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
+				source.hyphenateCharacter,
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
 				source.decorationColor, source.decorationStyle, source.decorationThicknessLength,
 				source.underlineOffset, source.underlinePosition, source.textStrokeWidth,
@@ -90,6 +91,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.wordWrap = this.wordWrap;
 		target.textWrapStyle = this.textWrapStyle;
 		target.hyphens = this.hyphens;
+		target.hyphenateCharacter = this.hyphenateCharacter;
 		target.hyphenator = this.hyphenator;
 		target.color = this.color;
 		target.decoration = this.decoration;

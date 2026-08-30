@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 import net.zamasoft.foliojet.layout.box.params.Length;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -55,6 +56,27 @@ public final class BasicShapes {
 		}
 
 		/**
+		 * {@code rect(<top> <right> <bottom> <left>)}(css-shapes-1、2026-08-30)。
+		 *
+		 * <p>
+		 * {@code inset()}と違い<b>4値すべてが参照ボックスの左上を原点とする座標</b>
+		 * である(右辺・下辺は「右端からの差し込み」ではなく原点からの距離)。
+		 * {@code auto}はその辺が参照ボックスの辺に一致することを表す。
+		 * {@link #toShape}で{@code inset()}相当へ畳む。
+		 */
+		record Rect(QuantityValue top, QuantityValue right, QuantityValue bottom, QuantityValue left,
+				QuantityValue[] radii) implements ShapeSpec {
+		}
+
+		/**
+		 * {@code xywh(<x> <y> <width> <height>)}(css-shapes-1、2026-08-30)。
+		 * 左上を原点とする位置と大きさ。{@link #toShape}で{@code inset()}相当へ畳む。
+		 */
+		record Xywh(QuantityValue x, QuantityValue y, QuantityValue width, QuantityValue height,
+				QuantityValue[] radii) implements ShapeSpec {
+		}
+
+		/**
 		 * {@code path([fill-rule,] "svg path data")}(2026-08-29)。座標はpx
 		 * なので解析時にpt換算係数を添えておく(長さ値を持たないため
 		 * computed value段階の処理は不要)。
@@ -82,6 +104,8 @@ public final class BasicShapes {
 		final TokenStream args = func.argStream();
 		return switch (func.name().toLowerCase()) {
 		case "inset" -> parseInset(args, ua);
+		case "rect" -> parseRect(args, ua);
+		case "xywh" -> parseXywh(args, ua);
 		case "circle" -> parseCircle(args, ua);
 		case "ellipse" -> parseEllipse(args, ua);
 		case "polygon" -> parsePolygon(args, ua);
@@ -139,6 +163,10 @@ public final class BasicShapes {
 			}
 			yield new ShapeSpec.Polygon(p.evenOdd(), pts);
 		}
+		case ShapeSpec.Rect r -> new ShapeSpec.Rect(abs(r.top(), style), abs(r.right(), style),
+				abs(r.bottom(), style), abs(r.left(), style), absAll(r.radii(), style));
+		case ShapeSpec.Xywh x -> new ShapeSpec.Xywh(abs(x.x(), style), abs(x.y(), style), abs(x.width(), style),
+				abs(x.height(), style), absAll(x.radii(), style));
 		case ShapeSpec.Path p -> p;
 		};
 	}
@@ -162,7 +190,48 @@ public final class BasicShapes {
 			}
 			yield new ClipPathShape.Polygon(box, pg.evenOdd(), pts);
 		}
+		case ShapeSpec.Rect r -> new ClipPathShape.Inset(box, edge(r.top(), false), edge(r.right(), true),
+				edge(r.bottom(), true), edge(r.left(), false), lens(r.radii()));
+		case ShapeSpec.Xywh x -> new ClipPathShape.Inset(box, edge(x.y(), false),
+				fullMinus(sum(x.x(), x.width())), fullMinus(sum(x.y(), x.height())), edge(x.x(), false),
+				lens(x.radii()));
 		case ShapeSpec.Path p -> new ClipPathShape.Path(box, p.evenOdd(), p.path(), p.pxToPt());
+		};
+	}
+
+	/**
+	 * {@code rect()}/{@code xywh()}の座標1つを{@code inset()}の差し込み量へ
+	 * 変換します。{@code fromFar}が真なら「原点からの距離」を反対側の辺からの
+	 * 差し込み({@code 100% - 値})へ反転する。{@code auto}(null)は差し込み0。
+	 */
+	private static Length edge(final QuantityValue q, final boolean fromFar) {
+		if (q == null) {
+			return Length.ZERO_LENGTH;
+		}
+		return fromFar ? fullMinus(len(q)) : len(q);
+	}
+
+	/** {@code 100% - 長さ}を返します。 */
+	private static Length fullMinus(final Length l) {
+		return Length.createMixed(-absoluteOf(l), 1 - ratioOf(l));
+	}
+
+	/** 2つの{@code <length-percentage>}の和を長さとして返します(nullは0)。 */
+	private static Length sum(final QuantityValue a, final QuantityValue b) {
+		final Length la = a == null ? Length.ZERO_LENGTH : len(a);
+		final Length lb = b == null ? Length.ZERO_LENGTH : len(b);
+		return Length.createMixed(absoluteOf(la) + absoluteOf(lb), ratioOf(la) + ratioOf(lb));
+	}
+
+	private static double absoluteOf(final Length l) {
+		return l.getType() == LengthType.RELATIVE ? 0 : l.getLength();
+	}
+
+	private static double ratioOf(final Length l) {
+		return switch (l.getType()) {
+		case RELATIVE -> l.getLength();
+		case MIXED -> l.getRatio();
+		default -> 0;
 		};
 	}
 
@@ -242,6 +311,78 @@ public final class BasicShapes {
 		final QuantityValue bottom = edges.get(edges.size() > 2 ? 2 : 0);
 		final QuantityValue left = edges.get(edges.size() > 3 ? 3 : edges.size() > 1 ? 1 : 0);
 		return new ShapeSpec.Inset(top, right, bottom, left, radii);
+	}
+
+	/**
+	 * {@code rect(<top> <right> <bottom> <left> [round <radii>])}を解析します
+	 * (css-shapes-1、2026-08-30)。各値は{@code auto}を取れる。
+	 */
+	private static ShapeSpec parseRect(final TokenStream args, final UserAgent ua) throws PropertyException {
+		final Coordinates c = parseFourCoordinates(args, ua);
+		return new ShapeSpec.Rect(c.values()[0], c.values()[1], c.values()[2], c.values()[3], c.radii());
+	}
+
+	/**
+	 * {@code xywh(<x> <y> <width> <height> [round <radii>])}を解析します
+	 * (css-shapes-1、2026-08-30)。{@code rect()}と違い{@code auto}は取れず、
+	 * 幅・高さは負にできない。
+	 */
+	private static ShapeSpec parseXywh(final TokenStream args, final UserAgent ua) throws PropertyException {
+		final Coordinates c = parseFourCoordinates(args, ua);
+		final QuantityValue[] v = c.values();
+		for (final QuantityValue q : v) {
+			if (q == null) {
+				// xywh()にautoは無い
+				throw new PropertyException();
+			}
+		}
+		if (v[2].isNegative() || v[3].isNegative()) {
+			throw new PropertyException();
+		}
+		return new ShapeSpec.Xywh(v[0], v[1], v[2], v[3], c.radii());
+	}
+
+	/** {@code rect()}/{@code xywh()}の4値と、任意の{@code round <radii>}です。 */
+	private record Coordinates(QuantityValue[] values, QuantityValue[] radii) {
+	}
+
+	/**
+	 * {@code rect()}/{@code xywh()}の4値と、任意の{@code round <radii>}を
+	 * 読みます。{@code auto}はnullで返します。
+	 */
+	private static Coordinates parseFourCoordinates(final TokenStream args, final UserAgent ua)
+			throws PropertyException {
+		final List<QuantityValue> values = new ArrayList<>(4);
+		QuantityValue[] radii = null;
+		while (args.hasNext()) {
+			final CssToken t = args.next();
+			if (t instanceof CssToken.Ident ident && ident.is("round")) {
+				radii = parseRadii(args, ua);
+				break;
+			}
+			if (t instanceof CssToken.Ident ident && ident.is("auto")) {
+				values.add(null);
+				continue;
+			}
+			values.add(lengthOrPercentage(ua, t));
+		}
+		if (values.size() != 4) {
+			throw new PropertyException();
+		}
+		return new Coordinates(values.toArray(new QuantityValue[4]), radii);
+	}
+
+	/** {@code round}に続く1〜4個の半径をborder-radius式に展開します。 */
+	private static QuantityValue[] parseRadii(final TokenStream args, final UserAgent ua) throws PropertyException {
+		final List<QuantityValue> rs = new ArrayList<>(4);
+		while (args.hasNext()) {
+			rs.add(lengthOrPercentage(ua, args.next()));
+		}
+		if (rs.isEmpty() || rs.size() > 4) {
+			throw new PropertyException();
+		}
+		return new QuantityValue[] { rs.get(0), rs.get(rs.size() > 1 ? 1 : 0), rs.get(rs.size() > 2 ? 2 : 0),
+				rs.get(rs.size() > 3 ? 3 : rs.size() > 1 ? 1 : 0) };
 	}
 
 	/** 半径1つ+at位置。 */

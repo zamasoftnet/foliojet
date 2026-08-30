@@ -63,6 +63,8 @@ public final class LengthUtils {
 			return 1 / 2.54;
 		case MM:
 			return 1 / 25.4;
+		case Q:
+			return 1 / (25.4 * 4);
 		case PT:
 			return 1 / 72.0;
 		case PC:
@@ -77,6 +79,10 @@ public final class LengthUtils {
 	public static AbsoluteLengthValue parseLength(UserAgent ua, String s)
 			throws NumberFormatException, IllegalArgumentException {
 		s = s.toLowerCase().trim();
+		if (s.endsWith("q")) {
+			double len = NumberUtils.parseDouble(s.substring(0, s.length() - 1));
+			return AbsoluteLengthValue.create(ua, len, Unit.Q);
+		}
 		double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
 		if (s.endsWith("mm")) {
 			return AbsoluteLengthValue.create(ua, len, Unit.MM);

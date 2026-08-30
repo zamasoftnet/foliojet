@@ -23,10 +23,19 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 public class CSSJInternalImage extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSJInternalImage();
 
+	/**
+	 * 置換ボックスの画像です。
+	 *
+	 * <p>
+	 * ここは<b>置換画像を使う経路が必ず通る一点</b>なので、
+	 * {@code image-orientation}(2026-08-30)の適用もここで行う。読み込みの
+	 * 時点ではまだカスケードが済んでおらず、描画の時点では固有寸法の決定に
+	 * 間に合わない——固有寸法を読むのがこの入口だからここが正しい。
+	 */
 	public static Image getImage(CSSStyle style) {
 		Value value = style.get(INFO);
 		if (value instanceof CSSJImageValue image) {
-			return image.getImage();
+			return net.zamasoft.foliojet.css.impl.property.image.ImageOrientation.apply(style, image.getImage());
 		}
 		return null;
 	}

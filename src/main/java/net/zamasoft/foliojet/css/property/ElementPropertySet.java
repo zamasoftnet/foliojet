@@ -68,7 +68,9 @@ import net.zamasoft.foliojet.css.impl.property.page.Widows;
 import net.zamasoft.foliojet.css.impl.property.box.Width;
 import net.zamasoft.foliojet.css.impl.property.text.WordSpacing;
 import net.zamasoft.foliojet.css.impl.property.box.ZIndex;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundBlendMode;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundOrigin;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.shorthand.BorderRadiusShorthand;
@@ -92,6 +94,7 @@ import net.zamasoft.foliojet.css.impl.property.font.Src;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
 import net.zamasoft.foliojet.css.impl.property.shorthand.TextCombineShorthand;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisColor;
+import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisPosition;
 import net.zamasoft.foliojet.css.impl.property.shorthand.TextEmphasisShorthand;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisStyle;
 import net.zamasoft.foliojet.css.impl.property.text.TextFillColor;
@@ -217,6 +220,11 @@ public final class ElementPropertySet extends PropertySet {
 		reg(BorderWidth.LEFT);
 		reg(BorderWidth.RIGHT);
 		reg(BorderWidth.BOTTOM);
+		reg(net.zamasoft.foliojet.css.impl.property.border.BorderImageSource.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.border.BorderImageSlice.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.border.BorderImageWidth.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.border.BorderImageOutset.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.border.BorderImageRepeat.INFO);
 		reg(Margin.TOP);
 		reg(Margin.LEFT);
 		reg(Margin.RIGHT);
@@ -239,15 +247,22 @@ public final class ElementPropertySet extends PropertySet {
 		reg(ContentVisibility.INFO);
 		reg(Overflow.INFO_X);
 		reg(Overflow.INFO_Y);
+		// 論理軸(css-overflow-3、2026-08-30)
+		reg(Overflow.INFO_BLOCK);
+		reg(Overflow.INFO_INLINE);
 		reg(Clip.INFO);
 		reg(MaskImage.INFO);
-		// mask-position/size/repeat と mask ショートハンド(2026-08-29)。
-		// mask-imageだけあって残りを落とすと、意図と逆の見た目に倒れる
+		// maskの各longhandとショートハンド。mask-imageだけあって残りを
+		// 落とすと、意図と逆の見た目に倒れる。
 		reg(net.zamasoft.foliojet.css.impl.property.box.MaskPosition.INFO_X);
 		regCode(net.zamasoft.foliojet.css.impl.property.box.MaskPosition.INFO_Y);
 		reg(net.zamasoft.foliojet.css.impl.property.box.MaskSize.INFO_WIDTH);
 		regCode(net.zamasoft.foliojet.css.impl.property.box.MaskSize.INFO_HEIGHT);
 		reg(net.zamasoft.foliojet.css.impl.property.box.MaskRepeat.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.MaskOrigin.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.MaskClip.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.MaskMode.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.MaskComposite.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.MaskShorthand.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.box.ClipPath.INFO);
 		// css-shapes-1(2026-08-29)
@@ -256,14 +271,18 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.box.ShapeImageThreshold.INFO);
 		reg(CSSFontFamily.INFO);
 		reg(CSSFontStyle.INFO);
-		reg(FontVariant.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantCaps.INFO);
 		reg(FontWeight.INFO);
 		reg(FontSize.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantLigatures.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantAlternates.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontPalette.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.font.FontSynthesisSmallCaps.INFO);
 		// Grid G0(consult-codex-2026-07-31-grid.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.COLUMNS);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.ROWS);
@@ -323,6 +342,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(BackgroundAttachment.INFO);
 		reg(BackgroundPosition.INFO_X);
 		regCode(BackgroundPosition.INFO_Y);
+		reg(net.zamasoft.foliojet.css.impl.property.background.BackgroundPositionX.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.background.BackgroundPositionY.INFO);
 		reg(Content.INFO);
 		reg(Quotes.INFO);
 		reg(CounterReset.INFO);
@@ -358,11 +379,13 @@ public final class ElementPropertySet extends PropertySet {
 		put(BorderColorShorthand.INFO);
 		put(BorderStyleShorthand.INFO);
 		put(BorderWidthShorthand.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.shorthand.BorderImageShorthand.INFO);
 		put(MarginShorthand.INFO);
 		put(InsetShorthand.INFO);
 		put(PaddingShorthand.INFO);
 		put(OverflowShorthand.INFO);
 		put(FontShorthand.INFO);
+		put(FontVariant.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.COLUMN);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridLineShorthand.ROW);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.GridAreaShorthand.INFO);
@@ -387,7 +410,9 @@ public final class ElementPropertySet extends PropertySet {
 		alias("break-inside", PageBreakInside.INFO);
 
 		// CSS3
+		reg(BackgroundBlendMode.INFO);
 		reg(BackgroundClip.INFO);
+		reg(BackgroundOrigin.INFO);
 		reg(BackgroundSize.INFO_WIDTH);
 		regCode(BackgroundSize.INFO_HEIGHT);
 		reg(BlockFlow.INFO);
@@ -408,6 +433,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextWrapStyle.INFO);
 		put(TextWrapShorthand.INFO);
 		reg(Hyphens.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.text.HyphenateCharacter.INFO);
 		// line-break / tab-size(css-text-3)、font-stretch(css-fonts-4では
 		// font-width)、個別変換 translate/rotate/scale(css-transforms-2)、
 		// zoom(css-viewport)。2026-08-29
@@ -429,8 +455,10 @@ public final class ElementPropertySet extends PropertySet {
 		reg(ColumnSpan.INFO);
 		put(ColumnRuleShorthand.INFO);
 		put(ColumnsShorthand.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.image.ImageOrientation.INFO);
 		reg(TextEmphasisStyle.INFO);
 		reg(TextEmphasisColor.INFO);
+		reg(TextEmphasisPosition.INFO);
 		reg(Opacity.INFO);
 		// mix-blend-mode/isolation(compositing-1)とtext-overflow(css-overflow-3)、2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.INFO);
@@ -535,7 +563,11 @@ public final class ElementPropertySet extends PropertySet {
 				net.zamasoft.foliojet.css.impl.property.shorthand.LogicalBorderShorthand.all()) {
 			put(info);
 		}
-
+		// 論理境界の両側まとめ border-block / border-inline 等(2026-08-30)
+		for (final net.zamasoft.foliojet.css.property.ShorthandPropertyInfo info : //
+				net.zamasoft.foliojet.css.impl.property.shorthand.LogicalBorderAxisShorthand.all()) {
+			put(info);
+		}
 		// ベンダ接頭辞つきの別名(2026-08-29、50サイトの実測)。標準名は実装済みで、
 		// サイトは後方互換のために接頭辞つきを併記する。別名を受けるだけ
 		alias("-webkit-box-sizing", BoxSizing.INFO);

@@ -389,9 +389,17 @@ public class CSSStyle {
 		Weight weight = FontWeight.get(this);
 		Direction direction = net.zamasoft.foliojet.css.impl.property.text.Direction.getFontDirection(this);
 		FontPolicyList policy = CSSJFontPolicy.get(this);
+		final var alternates = net.zamasoft.foliojet.css.impl.property.font.FontVariantAlternates.get(this);
+		final var featureValues = this.ua.getUAContext().getFontFeatureValues();
+		// @font-feature-valuesの無い文書は従来と同じメソッドを通し、既定経路を変えない。
+		final var alternateFeatures = featureValues.isEmpty() ? alternates.featureSet()
+				: alternates.featureSet(featureValues, family.get(0).getName());
 		// font-variant-*由来のタグをfont-feature-settingsの明示タグで
 		// 上書きしてOpenType feature列へ正規化する(css-fonts-3の優先順)
-		final var features = net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.get(this).featureSet()
+		final var features = net.zamasoft.foliojet.css.impl.property.font.FontVariantCaps.get(this).featureSet()
+				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantLigatures.get(this).featureSet())
+				.override(alternateFeatures)
+				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.get(this).featureSet())
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.get(this).featureSet())
 				// font-kerning:noneはkern明示off(2026-08-29)。font-feature-settingsが優先
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontKerning.featureSet(this))

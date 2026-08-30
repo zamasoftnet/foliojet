@@ -6,7 +6,16 @@ import java.util.Locale;
  * 寸法トークンの単位です。
  */
 public enum Unit {
-	EM, EX, REM, CH, LH, PX, IN, CM, MM, PT, PC, DEG, GRAD, RAD, MS, S, HZ, KHZ,
+	EM, EX, REM, CH, LH, PX, IN, CM, MM, Q, PT, PC, DEG, GRAD, RAD, MS, S, HZ, KHZ,
+	/**
+	 * フォント相対単位の追加分(2026-08-30——css-values-4)。
+	 * {@code cap}は第一利用可能フォントのcap-height、{@code rlh}は根要素の
+	 * 計算済みline-height。{@code ic}(表意文字「水」U+6C34の送り幅)は
+	 * <b>仕様の代替値どおり{@code em}へ畳む</b>——全角の表意文字の送りは
+	 * 事実上1emであり、{@link #of}で{@code ic}/{@code ric}を
+	 * {@link #EM}/{@link #REM}へ写す。
+	 */
+	CAP, RLH,
 	/** コンテナクエリ単位(段6、2026-08-15——css-contain-3)。 */
 	CQW, CQI,
 	/**
@@ -35,6 +44,14 @@ public enum Unit {
 			return CH;
 		case "lh":
 			return LH;
+		case "cap":
+			return CAP;
+		case "rlh":
+			return RLH;
+		case "ic":
+			return EM;
+		case "ric":
+			return REM;
 		case "px":
 			return PX;
 		case "in":
@@ -43,6 +60,8 @@ public enum Unit {
 			return CM;
 		case "mm":
 			return MM;
+		case "q":
+			return Q;
 		case "pt":
 			return PT;
 		case "pc":

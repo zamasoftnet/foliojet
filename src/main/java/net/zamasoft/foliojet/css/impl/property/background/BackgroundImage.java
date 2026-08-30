@@ -29,8 +29,8 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	private static final Logger LOG = Logger.getLogger(BackgroundImage.class.getName());
 
 	/**
-	 * 多層背景の値(2026-08-29)。各レイヤは{@link URIValue}か
-	 * {@link PaintValue}(グラデーション)で、先頭が最前面。単層は
+	 * 多層背景の値(2026-08-29)。各レイヤは{@link URIValue}、
+	 * {@link PaintValue}(グラデーション)、または位置合わせ用のnoneで、先頭が最前面。単層は
 	 * 値をそのまま持つのでこの型にならない。
 	 */
 	public record LayersValue(Value[] layers) implements Value {
@@ -62,8 +62,18 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 		return new Value[] { value };
 	}
 
-	/** レイヤの画像を読み込みます。読めなければnull。 */
+	/**
+	 * レイヤの画像を読み込みます。読めなければnull。
+	 *
+	 * <p>
+	 * 読み込んだ画像には{@code image-orientation}(2026-08-30)を適用する。
+	 * 背景・マスク・{@code border-image}はいずれもこの入口を通る。
+	 */
 	public static Image load(CSSStyle style, URIValue uriValue) {
+		return net.zamasoft.foliojet.css.impl.property.image.ImageOrientation.apply(style, loadRaw(style, uriValue));
+	}
+
+	private static Image loadRaw(CSSStyle style, URIValue uriValue) {
 		UserAgent ua = style.getUserAgent();
 		URI uri = uriValue.getURI();
 		try {
@@ -118,8 +128,10 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		// 多層(コンマ区切り、2026-08-29)。noneのレイヤは落とす
+		// 多層(コンマ区切り、2026-08-29)。noneもレイヤ位置の対応を
+		// 保つためリスト内には残す(全レイヤnoneのときだけ単一noneへ畳む)
 		final java.util.List<Value> layers = new java.util.ArrayList<Value>();
+		boolean hasImage = false;
 		for (final TokenStream layer : tokens.splitComma()) {
 			final CssToken lu = layer.next();
 			if (lu == null || layer.hasNext()) {
@@ -129,11 +141,10 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 			if (value == null) {
 				throw new PropertyException();
 			}
-			if (value != KeywordValue.NONE) {
-				layers.add(value);
-			}
+			layers.add(value);
+			hasImage |= value != KeywordValue.NONE;
 		}
-		if (layers.isEmpty()) {
+		if (layers.isEmpty() || !hasImage) {
 			return KeywordValue.NONE;
 		}
 		if (layers.size() == 1) {

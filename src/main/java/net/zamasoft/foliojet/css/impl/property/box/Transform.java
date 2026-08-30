@@ -7,8 +7,11 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
+import net.zamasoft.foliojet.css.util.CalcValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.AngleValue;
+import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.TransformValue;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -292,6 +295,10 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 				throw new PropertyException();
 			}
 		}
+		Value calc = CalcValueUtils.toCalc(null, token);
+		if (calc instanceof AngleValue angle) {
+			return angle.getRadians();
+		}
 		return toFloat(token);
 	}
 
@@ -302,6 +309,10 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	static float toFloat(CssToken token) throws PropertyException {
 		if (token instanceof CssToken.Num num) {
 			return (float) num.value();
+		}
+		Value calc = CalcValueUtils.toCalc(null, token);
+		if (calc instanceof RealValue real) {
+			return (float) real.getReal();
 		}
 		throw new PropertyException();
 	}

@@ -988,6 +988,12 @@ public class BorderRenderer {
 	 */
 	public void drawRectBorder(GC gc, RectBorder border, double x, double y, double w, double h)
 			throws GraphicsException {
+		// SPEC css-backgrounds-3 §6: 描ける境界画像があれば border-style の
+		// 描画を完全に置き換える。下の「4辺が同一なら一筆で描く」近道より前に
+		// 判定しないと素通りする
+		if (BorderImageRenderer.INSTANCE.draw(gc, border, x, y, w, h)) {
+			return;
+		}
 		final Border left = border.getLeft();
 		final Border top = border.getTop();
 		final Border right = border.getRight();

@@ -994,7 +994,11 @@ public class TextBuilder {
 					final TextControl quad = (TextControl) e;
 					if (!last && i == count - 1 && this.opportunity.hyphen() != null) {
 						// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する
-						this.addElement(this.opportunity.hyphen().getText());
+						final TextImpl hyphen = this.opportunity.hyphen().getText();
+						if (hyphen.getGlyphCount() > 0) {
+							// hyphenate-character:""は分割だけ行い文字を表示しない
+							this.addElement(hyphen);
+						}
 					} else if (quad instanceof InlineQuad) {
 						// インラインボックス
 						final InlineQuad inlineQuad = (InlineQuad) quad;

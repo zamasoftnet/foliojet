@@ -12,6 +12,7 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.layout.part.CenteredImage;
+import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
 
 /**
@@ -60,30 +61,63 @@ public class Background {
 	 */
 	private final byte backgroundClip;
 
+	/** 背景画像の配置基準。値がレイヤ数より少ない場合は循環させる。 */
+	private final byte[] backgroundOrigins;
+
+	/** 背景レイヤの合成モード。値がレイヤ数より少ない場合は循環させる。 */
+	private final BlendMode[] backgroundBlendModes;
+
 	/**
 	 * 無地の背景です。
 	 */
-	public static final Background NULL_BACKGROUND = new Background(null, null, BORDER_BOX);
+	public static final Background NULL_BACKGROUND = new Background(null, null, BORDER_BOX,
+			new byte[] { PADDING_BOX }, new BlendMode[] { BlendMode.NORMAL });
 
 	public static Background create(PaintValue backgroundPaint, BackgroundImage backgroundImage, byte backgroundClip) {
 		return create(backgroundPaint, backgroundImage == null ? null : new Layer[] { backgroundImage },
-				backgroundClip);
+				backgroundClip, new byte[] { PADDING_BOX });
 	}
 
 	public static Background create(PaintValue backgroundPaint, Layer[] layers, byte backgroundClip) {
+		return create(backgroundPaint, layers, backgroundClip, new byte[] { PADDING_BOX });
+	}
+
+	public static Background create(PaintValue backgroundPaint, BackgroundImage backgroundImage, byte backgroundClip,
+			byte[] backgroundOrigins) {
+		return create(backgroundPaint, backgroundImage == null ? null : new Layer[] { backgroundImage },
+				backgroundClip, backgroundOrigins);
+	}
+
+	public static Background create(PaintValue backgroundPaint, Layer[] layers, byte backgroundClip,
+			byte[] backgroundOrigins) {
+		return create(backgroundPaint, layers, backgroundClip, backgroundOrigins,
+				new BlendMode[] { BlendMode.NORMAL });
+	}
+
+	public static Background create(PaintValue backgroundPaint, Layer[] layers, byte backgroundClip,
+			byte[] backgroundOrigins, BlendMode[] backgroundBlendModes) {
 		if (layers != null && layers.length == 0) {
 			layers = null;
 		}
 		if (backgroundPaint == null && layers == null) {
 			return NULL_BACKGROUND;
 		}
-		return new Background(backgroundPaint, layers, backgroundClip);
+		return new Background(backgroundPaint, layers, backgroundClip, backgroundOrigins, backgroundBlendModes);
 	}
 
-	private Background(PaintValue backgroundPaint, Layer[] layers, byte backgroundClip) {
+	private Background(PaintValue backgroundPaint, Layer[] layers, byte backgroundClip, byte[] backgroundOrigins,
+			BlendMode[] backgroundBlendModes) {
 		this.backgroundPaint = backgroundPaint;
 		this.layers = layers;
 		this.backgroundClip = backgroundClip;
+		if (backgroundOrigins == null || backgroundOrigins.length == 0) {
+			throw new IllegalArgumentException("backgroundOrigins");
+		}
+		this.backgroundOrigins = backgroundOrigins.clone();
+		if (backgroundBlendModes == null || backgroundBlendModes.length == 0) {
+			throw new IllegalArgumentException("backgroundBlendModes");
+		}
+		this.backgroundBlendModes = backgroundBlendModes.clone();
 	}
 
 	/**
@@ -140,6 +174,16 @@ public class Background {
 	 */
 	public byte getBackgroundClip() {
 		return this.backgroundClip;
+	}
+
+	/** 指定レイヤの背景画像配置基準を返します。 */
+	public byte getBackgroundOrigin(int layer) {
+		return this.backgroundOrigins[layer % this.backgroundOrigins.length];
+	}
+
+	/** 指定レイヤの合成モードをCSSのリスト繰り返し規則で返します。 */
+	public BlendMode getBackgroundBlendMode(int layer) {
+		return this.backgroundBlendModes[layer % this.backgroundBlendModes.length];
 	}
 
 	/**
@@ -223,10 +267,23 @@ public class Background {
 				for (int i = this.layers.length - 1; i >= 0; --i) {
 					final Layer layer = this.layers[i];
 					try (final var layerState = gc.begin()) {
-						if (layer instanceof PaintLayer paint) {
-							paint.paint().fill(gc, shape, shape.getBounds2D());
-						} else if (layer instanceof BackgroundImage image) {
-							drawImageLayer(gc, image, shape, x, y, width, height, pbLeft, pbTop, pbRight, pbBottom);
+						final BlendMode previousBlend = gc.getBlendMode();
+						final BlendMode layerBlend = this.getBackgroundBlendMode(i);
+						final boolean blendChanged = layerBlend != BlendMode.NORMAL && layerBlend != previousBlend;
+						if (blendChanged) {
+							gc.setBlendMode(layerBlend);
+						}
+						try {
+							if (layer instanceof PaintLayer paint) {
+								paint.paint().fill(gc, shape, shape.getBounds2D());
+							} else if (layer instanceof BackgroundImage image) {
+								drawImageLayer(gc, image, shape, x, y, width, height, pbLeft, pbTop, pbRight,
+										pbBottom, ppLeft, ppTop, ppRight, ppBottom, this.getBackgroundOrigin(i));
+							}
+						} finally {
+							if (blendChanged) {
+								gc.setBlendMode(previousBlend);
+							}
 						}
 					}
 				}
@@ -235,11 +292,36 @@ public class Background {
 	}
 
 	private static void drawImageLayer(GC gc, BackgroundImage backgroundImage, Shape shape, double x, double y,
-			double width, double height, double pbLeft, double pbTop, double pbRight, double pbBottom)
+			double width, double height, double pbLeft, double pbTop, double pbRight, double pbBottom, double ppLeft,
+			double ppTop, double ppRight, double ppBottom, byte backgroundOrigin)
 			throws GraphicsException {
 		// 背景画像描画
-		double paddingWidth = width - pbLeft - pbRight;
-		double paddingHeight = height - pbTop - pbBottom;
+		final double originX;
+		final double originY;
+		final double originWidth;
+		final double originHeight;
+		switch (backgroundOrigin) {
+		case BORDER_BOX:
+			originX = x;
+			originY = y;
+			originWidth = width;
+			originHeight = height;
+			break;
+		case PADDING_BOX:
+			originX = x + pbLeft;
+			originY = y + pbTop;
+			originWidth = width - pbLeft - pbRight;
+			originHeight = height - pbTop - pbBottom;
+			break;
+		case CONTENT_BOX:
+			originX = x + pbLeft + ppLeft;
+			originY = y + pbTop + ppTop;
+			originWidth = width - pbLeft - pbRight - ppLeft - ppRight;
+			originHeight = height - pbTop - pbBottom - ppTop - ppBottom;
+			break;
+		default:
+			throw new IllegalStateException(Byte.toString(backgroundOrigin));
+		}
 
 		// サイズ
 		double imageWidth = 0, imageHeight = 0;
@@ -251,8 +333,8 @@ public class Background {
 			double natH = backgroundImage.image.getHeight();
 			if (natW > 0 && natH > 0) {
 				double scale = backgroundImage.fit == BackgroundFit.CONTAIN
-						? Math.min(paddingWidth / natW, paddingHeight / natH)
-						: Math.max(paddingWidth / natW, paddingHeight / natH);
+						? Math.min(originWidth / natW, originHeight / natH)
+						: Math.max(originWidth / natW, originHeight / natH);
 				imageWidth = natW * scale;
 				imageHeight = natH * scale;
 			}
@@ -263,7 +345,7 @@ public class Background {
 				imageWidth = size.getWidth();
 				break;
 			case RELATIVE:
-				imageWidth = size.getWidth() * paddingWidth;
+				imageWidth = size.getWidth() * originWidth;
 				break;
 			case AUTO:
 				break;
@@ -275,7 +357,7 @@ public class Background {
 				imageHeight = size.getHeight();
 				break;
 			case RELATIVE:
-				imageHeight = size.getHeight() * paddingHeight;
+				imageHeight = size.getHeight() * originHeight;
 				break;
 			case AUTO:
 				break;
@@ -299,8 +381,8 @@ public class Background {
 				&& backgroundImage.image.getHeight() > 0)) {
 			return;
 		}
-		double offX = pbLeft;
-		double offY = pbTop;
+		double offX = originX;
+		double offY = originY;
 		if (backgroundImage.attachment == BackgroundImage.ATTACHMENT_FIXED) {
 			// 固定位置
 			offX -= x;
@@ -314,12 +396,12 @@ public class Background {
 			offX += pos.getX();
 			break;
 		case RELATIVE:
-			offX += pos.getX() * (paddingWidth - imageWidth);
+			offX += pos.getX() * (originWidth - imageWidth);
 			break;
 		case MIXED:
 			// calc(100% - 10px)や4値構文(right 10px)の位置(2026-08-29)。
 			// 従来はここで例外になり変換全体が失敗していた
-			offX += pos.getX() + pos.getXRatio() * (paddingWidth - imageWidth);
+			offX += pos.getX() + pos.getXRatio() * (originWidth - imageWidth);
 			break;
 		case AUTO:
 		default:
@@ -330,10 +412,10 @@ public class Background {
 			offY += pos.getY();
 			break;
 		case RELATIVE:
-			offY += pos.getY() * (paddingHeight - imageHeight);
+			offY += pos.getY() * (originHeight - imageHeight);
 			break;
 		case MIXED:
-			offY += pos.getY() + pos.getYRatio() * (paddingHeight - imageHeight);
+			offY += pos.getY() + pos.getYRatio() * (originHeight - imageHeight);
 			break;
 		case AUTO:
 		default:
@@ -360,8 +442,8 @@ public class Background {
 		switch (backgroundImage.repeat) {
 		case BackgroundImage.REPEAT_NO: {
 			// 繰り返しなし
-			double tx = x + offX;
-			double ty = y + offY;
+			double tx = offX;
+			double ty = offY;
 			AffineTransform at = new AffineTransform(sx, 0, 0, sy, tx, ty);
 			try (final var gcState2 = gc.begin()) {
 				gc.transform(at);
@@ -373,8 +455,8 @@ public class Background {
 		case BackgroundImage.REPEAT_X: {
 			// 横方法繰り返し
 			try (final var gcState2 = gc.begin()) {
-				double tx = (x + offX) % imageWidth;
-				double ty = y + offY;
+				double tx = offX % imageWidth;
+				double ty = offY;
 				AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
 				at.scale(sx, sy);
 
@@ -389,8 +471,8 @@ public class Background {
 		case BackgroundImage.REPEAT_Y: {
 			// 縦方向繰り返し
 			try (final var gcState2 = gc.begin()) {
-				double tx = x + offX;
-				double ty = (y + offY) % imageHeight;
+				double tx = offX;
+				double ty = offY % imageHeight;
 				AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
 				at.scale(sx, sy);
 
@@ -405,8 +487,8 @@ public class Background {
 		case BackgroundImage.REPEAT: {
 			// タイリング
 			try (final var gcState2 = gc.begin()) {
-				double tx = (x + offX) % imageWidth;
-				double ty = (y + offY) % imageHeight;
+				double tx = offX % imageWidth;
+				double ty = offY % imageHeight;
 				AffineTransform at = AffineTransform.getTranslateInstance(tx, ty);
 				at.scale(sx, sy);
 

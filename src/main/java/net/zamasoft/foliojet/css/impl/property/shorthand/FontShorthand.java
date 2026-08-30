@@ -11,7 +11,10 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontFeatureSettingsValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
+import net.zamasoft.foliojet.css.value.FontPaletteValue;
+import net.zamasoft.foliojet.css.value.FontVariantAlternatesValue;
 import net.zamasoft.foliojet.css.value.FontVariantEastAsianValue;
+import net.zamasoft.foliojet.css.value.FontVariantLigaturesValue;
 import net.zamasoft.foliojet.css.value.FontVariantNumericValue;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
@@ -20,8 +23,11 @@ import net.zamasoft.foliojet.css.impl.property.font.CSSFontFamily;
 import net.zamasoft.foliojet.css.impl.property.font.CSSFontStyle;
 import net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings;
 import net.zamasoft.foliojet.css.impl.property.font.FontSize;
-import net.zamasoft.foliojet.css.impl.property.font.FontVariant;
+import net.zamasoft.foliojet.css.impl.property.font.FontPalette;
+import net.zamasoft.foliojet.css.impl.property.font.FontVariantAlternates;
+import net.zamasoft.foliojet.css.impl.property.font.FontVariantCaps;
 import net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian;
+import net.zamasoft.foliojet.css.impl.property.font.FontVariantLigatures;
 import net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric;
 import net.zamasoft.foliojet.css.impl.property.font.FontWeight;
 import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
@@ -45,14 +51,17 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 		KeywordValue global = tokens.globalKeyword();
 		if (global != null) {
 			primitives.set(CSSFontStyle.INFO, global);
-			primitives.set(FontVariant.INFO, global);
+			primitives.set(FontVariantCaps.INFO, global);
 			primitives.set(FontWeight.INFO, global);
 			primitives.set(FontSize.INFO, global);
 			primitives.set(LineHeight.INFO, global);
 			primitives.set(CSSFontFamily.INFO, global);
 			primitives.set(FontFeatureSettings.INFO, global);
+			primitives.set(FontVariantLigatures.INFO, global);
+			primitives.set(FontVariantAlternates.INFO, global);
 			primitives.set(FontVariantEastAsian.INFO, global);
 			primitives.set(FontVariantNumeric.INFO, global);
+			primitives.set(FontPalette.INFO, global);
 			return;
 		} else if (tokens.peek() instanceof CssToken.Ident systemFont) {
 			String ident = systemFont.lower();
@@ -61,15 +70,18 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 				// あまり重要ではない
 				final FontFamilyValue defaultFamily = ua.getDefaultFontFamily();
 				primitives.set(CSSFontStyle.INFO, FontStyleValue.NORMAL_VALUE);
-				primitives.set(FontVariant.INFO, FontVariantValue.NORMAL_VALUE);
+				primitives.set(FontVariantCaps.INFO, FontVariantValue.NORMAL_VALUE);
 				primitives.set(FontWeight.INFO, FontWeightValue.NORMAL_VALUE);
 				primitives.set(FontSize.INFO,
 						AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 				primitives.set(LineHeight.INFO, KeywordValue.NORMAL);
 				primitives.set(CSSFontFamily.INFO, defaultFamily);
 				primitives.set(FontFeatureSettings.INFO, FontFeatureSettingsValue.NORMAL_VALUE);
+				primitives.set(FontVariantLigatures.INFO, FontVariantLigaturesValue.NORMAL_VALUE);
+				primitives.set(FontVariantAlternates.INFO, FontVariantAlternatesValue.NORMAL_VALUE);
 				primitives.set(FontVariantEastAsian.INFO, FontVariantEastAsianValue.NORMAL_VALUE);
 				primitives.set(FontVariantNumeric.INFO, FontVariantNumericValue.NORMAL_VALUE);
+				primitives.set(FontPalette.INFO, FontPaletteValue.NORMAL_VALUE);
 				return;
 			}
 		}
@@ -87,8 +99,9 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 				}
 			}
 			if (fontVariant == null) {
-				fontVariant = FontValueUtils.toFontVariant(lu);
-				if (fontVariant != null) {
+				final FontVariantValue candidate = FontValueUtils.toFontVariant(lu);
+				if (candidate == FontVariantValue.NORMAL_VALUE || candidate == FontVariantValue.SMALL_CAPS_VALUE) {
+					fontVariant = candidate;
 					tokens.next();
 					continue;
 				}
@@ -134,19 +147,22 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 		}
 		primitives.set(CSSFontStyle.INFO, fontStyle);
 		if (fontVariant == null) {
-			fontVariant = (FontVariantValue) FontVariant.INFO.getDefault(null);
+			fontVariant = (FontVariantValue) FontVariantCaps.INFO.getDefault(null);
 		}
-		primitives.set(FontVariant.INFO, fontVariant);
+		primitives.set(FontVariantCaps.INFO, fontVariant);
 		if (fontWeight == null) {
 			fontWeight = (FontWeightValue) FontWeight.INFO.getDefault(null);
 		}
 		primitives.set(FontWeight.INFO, fontWeight);
 		primitives.set(CSSFontFamily.INFO, fontFamily);
-		// css-fonts-3: fontショートハンドは対象外のfont系プロパティも
-		// 初期値へリセットする
+		// css-fonts-4 §5.9: fontショートハンドは対象外のfont系プロパティも
+		// 初期値へリセットする(font-paletteはLevel 4で加わった。2026-08-30)
 		primitives.set(FontFeatureSettings.INFO, FontFeatureSettingsValue.NORMAL_VALUE);
+		primitives.set(FontVariantLigatures.INFO, FontVariantLigaturesValue.NORMAL_VALUE);
+		primitives.set(FontVariantAlternates.INFO, FontVariantAlternatesValue.NORMAL_VALUE);
 		primitives.set(FontVariantEastAsian.INFO, FontVariantEastAsianValue.NORMAL_VALUE);
 		primitives.set(FontVariantNumeric.INFO, FontVariantNumericValue.NORMAL_VALUE);
+		primitives.set(FontPalette.INFO, FontPaletteValue.NORMAL_VALUE);
 	}
 
 }

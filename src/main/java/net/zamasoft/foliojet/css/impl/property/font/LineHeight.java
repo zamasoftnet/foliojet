@@ -66,6 +66,19 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
+	/**
+	 * この単位がline-height自身の値として自己参照になるかを返します。
+	 * {@code lh}は常に、{@code rlh}は根要素のline-heightに書かれたときだけ
+	 * 自己参照になる(子孫からは計算済みの根の値を安全に読める)。
+	 */
+	private static boolean isSelfReferentialLineHeightUnit(net.zamasoft.foliojet.css.token.Unit unit,
+			CSSStyle style) {
+		if (unit == net.zamasoft.foliojet.css.token.Unit.LH) {
+			return true;
+		}
+		return unit == net.zamasoft.foliojet.css.token.Unit.RLH && style.getRootStyle() == style;
+	}
+
 	private Value computeValue(Value value, CSSStyle style) {
 		if (value == KeywordValue.NORMAL || value instanceof RealValue) {
 			return value;
@@ -75,7 +88,7 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 		// (SPEC css-values-4 §6.1.2)。ここで畳んでおくことで、他プロパティの
 		// lh解決(RelativeLengthValue.toAbsoluteLength→LineHeight.get)が
 		// 再帰しないことが保証される
-		if (value instanceof RelativeLengthValue rel && rel.getUnit() == net.zamasoft.foliojet.css.token.Unit.LH) {
+		if (value instanceof RelativeLengthValue rel && isSelfReferentialLineHeightUnit(rel.getUnit(), style)) {
 			return AbsoluteLengthValue.create(style.getUserAgent(), inheritedLineHeight(style) * rel.getValue());
 		}
 		if (value instanceof CalcFontRelativeValue lhCalc && lhCalc.getLh() != 0) {

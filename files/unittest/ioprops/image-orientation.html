@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<title>image-orientation</title>
+<style>
+/*
+ * EXIFの向き(2026-08-30)。exif-orientation-6.jpg は 40x80 で
+ * orientation=6(時計回り90度)なので、尊重すると 80x40 に見える。
+ * PDF出力はPDFWriterが画像を直に読むためEXIFを見ておらず、
+ * 携帯で撮った写真が寝たまま出ていた。
+ */
+@page { size: 300pt 300pt; margin: 0; }
+body { margin: 0; }
+img { display: block; margin: 10pt; }
+#none { image-orientation: none; }
+</style>
+</head>
+<body>
+<img id="from-image" src="exif-orientation-6.jpg"/>
+<img id="none" src="exif-orientation-6.jpg"/>
+</body>
+</html>

@@ -848,7 +848,16 @@ public abstract class AbstractTextBox extends AbstractBox {
 						if (shadow.blur > 0) {
 							this.drawBlurredShadow(gc, shadow, x + shadow.x, y + shadow.y);
 						} else {
-							this.drawText(gc, x + shadow.x, y + shadow.y);
+							final GeneralPath outline = this.textOutline(x + shadow.x, y + shadow.y);
+							try (final var artifact = gc.beginArtifactScope()) {
+								if (outline != null) {
+									gc.fill(outline);
+								} else {
+									// 字形データが手元に無いフォント。テキストで
+									// 描くしかないが、せめて装飾として印を付ける
+									this.drawText(gc, x + shadow.x, y + shadow.y);
+								}
+							}
 						}
 					}
 				}
@@ -905,15 +914,28 @@ public abstract class AbstractTextBox extends AbstractBox {
 			gc.setLineJoin(GC.LineJoin.ROUND);
 			gc.setLineCap(GC.LineCap.ROUND);
 			gc.setLinePattern(GC.STROKE_SOLID);
-			for (int k = 0; k < n; ++k) {
-				final double d = steps[k] * sigma;
-				if (d > 0) {
-					gc.setLineWidth(d * 2);
-					gc.setTextMode(GC.TextMode.FILL_STROKE);
-				} else {
-					gc.setTextMode(GC.TextMode.FILL);
+			final GeneralPath outline = this.textOutline(x, y);
+			try (final var artifact = gc.beginArtifactScope()) {
+				for (int k = 0; k < n; ++k) {
+					final double d = steps[k] * sigma;
+					if (d > 0) {
+						gc.setLineWidth(d * 2);
+						gc.setTextMode(GC.TextMode.FILL_STROKE);
+					} else {
+						gc.setTextMode(GC.TextMode.FILL);
+					}
+					if (outline != null) {
+						// 段ごとに塗り(+縁取り)。テキストで12回描くと
+						// 本文がPDFへ12重に入ってしまう(下のtextOutline参照)
+						if (d > 0) {
+							gc.fillDraw(outline);
+						} else {
+							gc.fill(outline);
+						}
+					} else {
+						this.drawText(gc, x, y);
+					}
 				}
-				this.drawText(gc, x, y);
 			}
 		}
 
@@ -948,6 +970,54 @@ public abstract class AbstractTextBox extends AbstractBox {
 				gc.transform(AffineTransform.getTranslateInstance(ox, oy));
 				gc.drawImage(image, new GroupEffects(null, sigma, null, 1));
 			}
+		}
+
+		/**
+		 * この描画単位のテキストを<b>字形の輪郭(パス)</b>として組み立てます
+		 * (2026-08-30)。輪郭を取れないフォントが1つでも混ざっていたら
+		 * {@code null}を返し、呼び出し側は従来どおりテキストで描きます。
+		 *
+		 * <p>
+		 * <b>影をテキストで描くと、そのままPDFの抽出テキストへ入る。</b>
+		 * 鮮明な影なら本文が2回、ぼかし付きの影は12段の重ね描きなので13回、
+		 * さらに圏点({@code text-emphasis})が付くと描画単位が1文字ごとに
+		 * 割れるため「減減税税と と…」と1文字ずつ交互に出る——縦組みの
+		 * 実文書で報告された(2026-08-30)。影は装飾であって本文ではないので、
+		 * 字形情報を持たないパスで描き、さらにタグ付きPDFでは
+		 * {@code /Artifact}で囲う。
+		 *
+		 * <p>
+		 * 座標の取り方は{@link #drawText}と同じ(縦書きは{@code x+descent}を
+		 * 基準に送り、横書きは{@code y+ascent})。輪郭の組み立て自体は
+		 * {@code FontUtils.addTextPath}が字送り・カーニング・字間・縦書きの
+		 * 回転までまとめて行う。
+		 *
+		 * <p>
+		 * <b>取れない場合</b>: Core-14のType1フォント({@code ShapedFont}を
+		 * 実装しない)、画像字形・カラー字形のフォント。いずれも従来の
+		 * テキスト描画へ落とす——影が消えるより二重に入る方がまだよい。
+		 */
+		private GeneralPath textOutline(double x, double y) {
+			final GeneralPath path = new GeneralPath();
+			final boolean vertical = this.params.flow.isVertical();
+			double xx = x, yy = y;
+			for (int i = 0; i < this.len; ++i) {
+				final Text text = (Text) this.contents.get(i + this.off);
+				final Font font = ((FontMetricsImpl) text.getFontMetrics()).getFont();
+				if (!(font instanceof ShapedFont shaped)) {
+					return null;
+				}
+				if (vertical) {
+					FontUtils.addTextPath(path, shaped, text,
+							AffineTransform.getTranslateInstance(x + this.descent, yy));
+					yy += text.getAdvance();
+				} else {
+					FontUtils.addTextPath(path, shaped, text,
+							AffineTransform.getTranslateInstance(xx, y + this.ascent));
+					xx += text.getAdvance();
+				}
+			}
+			return path.getCurrentPoint() == null ? null : path;
 		}
 
 		private void drawText(GC gc, double x, double y) {

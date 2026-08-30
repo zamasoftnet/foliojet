@@ -250,6 +250,11 @@ public final class SelectorConverter {
 						requireValidPseudoElement(pseudoElement);
 					} else {
 						String name = unescapeCssIdent(value.substring(1));
+						// 静的組版では訪問状態を持たないため、:any-linkは
+						// hrefを持つ要素に一致する:linkと同じ条件へ畳む。
+						if (name.equalsIgnoreCase("any-link")) {
+							name = "link";
+						}
 						if (isLegacyPseudoElement(name)) {
 							pseudoElement = name;
 						} else if (name.equalsIgnoreCase("first-of-type")) {

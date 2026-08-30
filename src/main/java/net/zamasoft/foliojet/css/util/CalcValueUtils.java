@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
+import net.zamasoft.foliojet.css.value.AngleValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
@@ -17,9 +18,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * calc()・min()・max()・clamp() を評価します。
+ * calc()・min()・max()・clamp()とCSS Values 4の数学関数を評価します。
  * <p>
- * 対応する被演算子は {@code <number>}・絶対単位の{@code <length>}(px/pt/in/cm/mm/pc)・
+ * 対応する被演算子は {@code <number>}・絶対単位の{@code <length>}(px/pt/in/cm/mm/Q/pc)・
  * {@code <percentage>}です。絶対長さと割合が混在する結果(例:
  * {@code calc(50% + 10px)})は{@link CalcLengthValue}として返し、実際の解決は
  * レイアウト時({@link net.zamasoft.foliojet.layout.box.params.LengthType#MIXED}経由)
@@ -52,7 +53,7 @@ public final class CalcValueUtils {
 
 	/**
 	 * トークンがcalc()/min()/max()/clamp()関数呼び出しであれば評価し、その結果の
-	 * Value(RealValue/AbsoluteLengthValue/PercentageValue/CalcLengthValueの
+	 * Value(RealValue/AngleValue/AbsoluteLengthValue/PercentageValue/CalcLengthValueの
 	 * いずれか)を返します。それ以外のトークン、または評価に失敗した場合はnullを
 	 * 返します(呼び出し側は「解釈できないトークン」として通常のフォールバック
 	 * 処理を続行できる)。
@@ -74,67 +75,100 @@ public final class CalcValueUtils {
 	 * ——どちらもフォント寸法に対して線形なので、後で寸法を掛けても等価である。
 	 */
 	private static final class Quantity {
-		final boolean isNumber;
+		private enum Kind {
+			NUMBER, LENGTH, ANGLE
+		}
+
+		final Kind kind;
 		final double number;
 		final double absolute;
 		final double ratio;
-		final double em, ex, rem, ch, lh;
+		/** フォント相対成分。{@link CalcFontRelativeValue#UNITS}と同じ並び。 */
+		final double[] font;
 
 		static Quantity number(double v) {
-			return new Quantity(true, v, 0, 0, 0, 0, 0, 0, 0);
+			return Double.isFinite(v) ? new Quantity(Kind.NUMBER, v, 0, 0, CalcFontRelativeValue.newComponents())
+					: null;
+		}
+
+		static Quantity angle(double degrees) {
+			return Double.isFinite(degrees)
+					? new Quantity(Kind.ANGLE, degrees, 0, 0, CalcFontRelativeValue.newComponents())
+					: null;
 		}
 
 		static Quantity length(double absolute, double ratio) {
-			return new Quantity(false, 0, absolute, ratio, 0, 0, 0, 0, 0);
+			return length(absolute, ratio, CalcFontRelativeValue.newComponents());
 		}
 
-		static Quantity length(double absolute, double ratio, double em, double ex, double rem, double ch, double lh) {
-			return new Quantity(false, 0, absolute, ratio, em, ex, rem, ch, lh);
+		static Quantity length(double absolute, double ratio, double[] font) {
+			if (!Double.isFinite(absolute) || !Double.isFinite(ratio)) {
+				return null;
+			}
+			for (final double v : font) {
+				if (!Double.isFinite(v)) {
+					return null;
+				}
+			}
+			return new Quantity(Kind.LENGTH, 0, absolute, ratio, font);
 		}
 
 		/** フォント相対単位1つ分。 */
 		static Quantity font(Unit unit, double v) {
-			switch (unit) {
-			case EM:
-				return length(0, 0, v, 0, 0, 0, 0);
-			case EX:
-				return length(0, 0, 0, v, 0, 0, 0);
-			case REM:
-				return length(0, 0, 0, 0, v, 0, 0);
-			case CH:
-				return length(0, 0, 0, 0, 0, v, 0);
-			case LH:
-				return length(0, 0, 0, 0, 0, 0, v);
-			default:
+			final int i = CalcFontRelativeValue.indexOf(unit);
+			if (i < 0) {
 				return null;
 			}
+			final double[] font = CalcFontRelativeValue.newComponents();
+			font[i] = v;
+			return length(0, 0, font);
 		}
 
-		private Quantity(boolean isNumber, double number, double absolute, double ratio, double em, double ex,
-				double rem, double ch, double lh) {
-			this.isNumber = isNumber;
+		private Quantity(Kind kind, double number, double absolute, double ratio, double[] font) {
+			this.kind = kind;
 			this.number = number;
 			this.absolute = absolute;
 			this.ratio = ratio;
-			this.em = em;
-			this.ex = ex;
-			this.rem = rem;
-			this.ch = ch;
-			this.lh = lh;
+			this.font = font;
 		}
 
 		boolean hasFont() {
-			return this.em != 0 || this.ex != 0 || this.rem != 0 || this.ch != 0 || this.lh != 0;
+			for (final double v : this.font) {
+				if (v != 0) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/** 成分ごとに二項演算した配列を返します。 */
+		static double[] zip(double[] a, double[] b, java.util.function.DoubleBinaryOperator op) {
+			final double[] result = new double[a.length];
+			for (int i = 0; i < a.length; ++i) {
+				result[i] = op.applyAsDouble(a[i], b[i]);
+			}
+			return result;
+		}
+
+		/** 全成分を定数倍(除算はfactorに逆数を渡す)した配列を返します。 */
+		double[] scaled(double factor) {
+			final double[] result = new double[this.font.length];
+			for (int i = 0; i < this.font.length; ++i) {
+				result[i] = this.font[i] * factor;
+			}
+			return result;
 		}
 
 		Value toValue(UserAgent ua) {
-			if (this.isNumber) {
+			if (this.kind == Kind.NUMBER) {
 				return RealValue.create(this.number);
+			}
+			if (this.kind == Kind.ANGLE) {
+				return AngleValue.create(this.number);
 			}
 			if (this.hasFont()) {
 				// フォント寸法が定まる計算値の段階で解く
-				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.em, this.ex, this.rem, this.ch,
-						this.lh);
+				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.font);
 			}
 			return CalcLengthValue.create(ua, this.absolute, this.ratio);
 		}
@@ -154,9 +188,179 @@ public final class CalcValueUtils {
 			return evaluateMinMax(ua, func, depth, false);
 		case "clamp":
 			return evaluateClamp(ua, func, depth);
+		case "sqrt":
+		case "exp":
+		case "sin":
+		case "cos":
+		case "tan":
+			return evaluateMath1(ua, func, depth, name);
+		case "pow":
+			return evaluateMath2(ua, func, depth, name);
+		case "log":
+			return evaluateLog(ua, func, depth);
+		case "hypot":
+			return evaluateHypot(ua, func, depth);
+		case "asin":
+		case "acos":
+		case "atan":
+		case "atan2":
+			return evaluateInverseTrig(ua, func, depth, name);
 		default:
 			return null;
 		}
+	}
+
+	/**
+	 * 数値を返す1引数の数学関数(css-values-4)です。
+	 *
+	 * <p>
+	 * {@code sqrt()} {@code exp()} は{@code <number>}を取って{@code <number>}を返し、
+	 * {@code sin()} {@code cos()} {@code tan()} は{@code <angle>}または
+	 * {@code <number>}(ラジアン)を取って{@code <number>}を返します。
+	 * 定義域外(例: {@code sqrt(-1)})やオーバーフローは、既存の評価失敗と同じく
+	 * {@code null}(＝不正値)にします——NaN/Infinityを版面の寸法へ流さないため。
+	 * </p>
+	 */
+	private static Quantity evaluateMath1(UserAgent ua, CssToken.Func func, int depth, String name) {
+		List<TokenStream> groups = func.argStream().splitComma();
+		if (groups.size() != 1) {
+			return null;
+		}
+		final Double a = switch (name) {
+		case "sin", "cos", "tan" -> radiansArg(ua, groups.get(0), depth);
+		default -> numberArg(ua, groups.get(0), depth);
+		};
+		if (a == null) {
+			return null;
+		}
+		final double r = switch (name) {
+		case "sqrt" -> Math.sqrt(a);
+		case "exp" -> Math.exp(a);
+		case "sin" -> Math.sin(a);
+		case "cos" -> Math.cos(a);
+		case "tan" -> Math.tan(a);
+		default -> Double.NaN;
+		};
+		return finite(r);
+	}
+
+	/** 数値を返す2引数の数学関数({@code pow()})です。 */
+	private static Quantity evaluateMath2(UserAgent ua, CssToken.Func func, int depth, String name) {
+		List<TokenStream> groups = func.argStream().splitComma();
+		if (groups.size() != 2) {
+			return null;
+		}
+		final Double a = numberArg(ua, groups.get(0), depth);
+		final Double b = numberArg(ua, groups.get(1), depth);
+		if (a == null || b == null) {
+			return null;
+		}
+		return finite("pow".equals(name) ? Math.pow(a, b) : Double.NaN);
+	}
+
+	/** 逆三角関数で、結果はdegの{@code <angle>}として保持する。 */
+	private static Quantity evaluateInverseTrig(UserAgent ua, CssToken.Func func, int depth, String name) {
+		List<TokenStream> groups = func.argStream().splitComma();
+		int expected = "atan2".equals(name) ? 2 : 1;
+		if (groups.size() != expected) {
+			return null;
+		}
+		Double a = numberArg(ua, groups.get(0), depth);
+		Double b = expected == 2 ? numberArg(ua, groups.get(1), depth) : null;
+		if (a == null || expected == 2 && b == null) {
+			return null;
+		}
+		double radians = switch (name) {
+		case "asin" -> Math.asin(a);
+		case "acos" -> Math.acos(a);
+		case "atan" -> Math.atan(a);
+		case "atan2" -> Math.atan2(a, b);
+		default -> Double.NaN;
+		};
+		return Quantity.angle(Math.toDegrees(radians));
+	}
+
+	/** {@code log(A)}(自然対数)と{@code log(A, B)}(底B)です。 */
+	private static Quantity evaluateLog(UserAgent ua, CssToken.Func func, int depth) {
+		List<TokenStream> groups = func.argStream().splitComma();
+		if (groups.isEmpty() || groups.size() > 2) {
+			return null;
+		}
+		final Double a = numberArg(ua, groups.get(0), depth);
+		if (a == null) {
+			return null;
+		}
+		if (groups.size() == 1) {
+			return finite(Math.log(a));
+		}
+		final Double b = numberArg(ua, groups.get(1), depth);
+		if (b == null) {
+			return null;
+		}
+		return finite(Math.log(a) / Math.log(b));
+	}
+
+	/**
+	 * {@code hypot()}です。引数は{@code <number>}のみ受け付けます
+	 * (仕様は同じ型の長さ等も取れますが、Quantityの各成分ごとの二乗和は
+	 * 型変換が必要になるため、数値に限っています)。
+	 */
+	private static Quantity evaluateHypot(UserAgent ua, CssToken.Func func, int depth) {
+		List<TokenStream> groups = func.argStream().splitComma();
+		if (groups.isEmpty()) {
+			return null;
+		}
+		double result = 0;
+		for (TokenStream group : groups) {
+			final Double v = numberArg(ua, group, depth);
+			if (v == null) {
+				return null;
+			}
+			result = Math.hypot(result, v);
+		}
+		return finite(result);
+	}
+
+	/** 引数を{@code <number>}として評価します。数値でなければnull。 */
+	private static Double numberArg(UserAgent ua, TokenStream group, int depth) {
+		final Quantity q = evaluateSingleArg(ua, group, depth);
+		if (q == null || q.kind != Quantity.Kind.NUMBER) {
+			return null;
+		}
+		return q.number;
+	}
+
+	/**
+	 * 三角関数の引数をラジアンとして評価します。{@code <number>}はそのまま
+	 * ラジアン、{@code deg}/{@code grad}/{@code rad}は換算します。
+	 */
+	private static Double radiansArg(UserAgent ua, TokenStream group, int depth) {
+		final CssToken token = group.next();
+		if (token == null || group.hasNext()) {
+			return null;
+		}
+		if (token instanceof CssToken.Dim dim) {
+			Double radians = switch (dim.unit()) {
+			case DEG -> Math.toRadians(dim.value());
+			case GRAD -> dim.value() * Math.PI / 200.0;
+			case RAD -> (double) dim.value();
+			default -> "turn".equalsIgnoreCase(dim.unitText()) ? dim.value() * Math.PI * 2.0 : null;
+			};
+			return radians != null && Double.isFinite(radians) ? radians : null;
+		}
+		final Quantity q = evaluateLeaf(ua, token, depth);
+		if (q == null) {
+			return null;
+		}
+		if (q.kind == Quantity.Kind.NUMBER) {
+			return q.number;
+		}
+		return q.kind == Quantity.Kind.ANGLE ? Math.toRadians(q.number) : null;
+	}
+
+	/** 有限値だけをQuantityにします。NaN/Infinityは評価失敗(null)。 */
+	private static Quantity finite(double v) {
+		return Double.isFinite(v) ? Quantity.number(v) : null;
 	}
 
 	/**
@@ -196,51 +400,57 @@ public final class CalcValueUtils {
 	private static Quantity applyOp(CssToken.Op op, Quantity a, Quantity b) {
 		switch (op) {
 		case PLUS:
-			if (a.isNumber != b.isNumber) {
+			if (a.kind != b.kind) {
 				// CSSでは単位なしの0はどちらの側でも中立元として扱ってよい
 				// (例: calc(0 + 10px)・calc(10px + 0))。それ以外の型混在は無効。
-				if (a.isNumber && a.number == 0) {
+				if (a.kind == Quantity.Kind.NUMBER && a.number == 0) {
 					return b;
 				}
-				if (b.isNumber && b.number == 0) {
+				if (b.kind == Quantity.Kind.NUMBER && b.number == 0) {
 					return a;
 				}
 				return null;
 			}
-			return a.isNumber ? Quantity.number(a.number + b.number)
-					: Quantity.length(a.absolute + b.absolute, a.ratio + b.ratio, a.em + b.em, a.ex + b.ex,
-							a.rem + b.rem, a.ch + b.ch, a.lh + b.lh);
+			return a.kind == Quantity.Kind.NUMBER ? Quantity.number(a.number + b.number)
+					: a.kind == Quantity.Kind.ANGLE ? Quantity.angle(a.number + b.number)
+					: Quantity.length(a.absolute + b.absolute, a.ratio + b.ratio,
+							Quantity.zip(a.font, b.font, (x, y) -> x + y));
 		case MINUS:
-			if (a.isNumber != b.isNumber) {
-				if (b.isNumber && b.number == 0) {
+			if (a.kind != b.kind) {
+				if (b.kind == Quantity.Kind.NUMBER && b.number == 0) {
 					return a;
 				}
 				return null;
 			}
-			return a.isNumber ? Quantity.number(a.number - b.number)
-					: Quantity.length(a.absolute - b.absolute, a.ratio - b.ratio, a.em - b.em, a.ex - b.ex,
-							a.rem - b.rem, a.ch - b.ch, a.lh - b.lh);
+			return a.kind == Quantity.Kind.NUMBER ? Quantity.number(a.number - b.number)
+					: a.kind == Quantity.Kind.ANGLE ? Quantity.angle(a.number - b.number)
+					: Quantity.length(a.absolute - b.absolute, a.ratio - b.ratio,
+							Quantity.zip(a.font, b.font, (x, y) -> x - y));
 		case TIMES:
-			if (a.isNumber && b.isNumber) {
+			if (a.kind == Quantity.Kind.NUMBER && b.kind == Quantity.Kind.NUMBER) {
 				return Quantity.number(a.number * b.number);
 			}
-			if (a.isNumber) {
-				return Quantity.length(b.absolute * a.number, b.ratio * a.number, b.em * a.number, b.ex * a.number,
-						b.rem * a.number, b.ch * a.number, b.lh * a.number);
+			if (a.kind == Quantity.Kind.NUMBER) {
+				if (b.kind == Quantity.Kind.ANGLE) {
+					return Quantity.angle(b.number * a.number);
+				}
+				return Quantity.length(b.absolute * a.number, b.ratio * a.number, b.scaled(a.number));
 			}
-			if (b.isNumber) {
-				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.em * b.number, a.ex * b.number,
-						a.rem * b.number, a.ch * b.number, a.lh * b.number);
+			if (b.kind == Quantity.Kind.NUMBER) {
+				if (a.kind == Quantity.Kind.ANGLE) {
+					return Quantity.angle(a.number * b.number);
+				}
+				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.scaled(b.number));
 			}
 			// length同士の掛け算はCSS仕様上も無効
 			return null;
 		case SLASH:
-			if (!b.isNumber || b.number == 0) {
+			if (b.kind != Quantity.Kind.NUMBER || b.number == 0) {
 				return null;
 			}
-			return a.isNumber ? Quantity.number(a.number / b.number)
-					: Quantity.length(a.absolute / b.number, a.ratio / b.number, a.em / b.number, a.ex / b.number,
-							a.rem / b.number, a.ch / b.number, a.lh / b.number);
+			return a.kind == Quantity.Kind.NUMBER ? Quantity.number(a.number / b.number)
+					: a.kind == Quantity.Kind.ANGLE ? Quantity.angle(a.number / b.number)
+					: Quantity.length(a.absolute / b.number, a.ratio / b.number, a.scaled(1 / b.number));
 		default:
 			return null;
 		}
@@ -255,6 +465,10 @@ public final class CalcValueUtils {
 			return Quantity.length(0, percent.value() / 100.0);
 		}
 		if (token instanceof CssToken.Dim dim) {
+			Quantity angle = toAngle(dim);
+			if (angle != null) {
+				return angle;
+			}
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 			if (length == null) {
 				// **フォント相対単位は係数として持ち越す**(2026-08-03)。
@@ -267,6 +481,15 @@ public final class CalcValueUtils {
 			return evaluateFunc(ua, func, depth + 1);
 		}
 		return null;
+	}
+
+	private static Quantity toAngle(CssToken.Dim dim) {
+		return switch (dim.unit()) {
+		case DEG -> Quantity.angle(dim.value());
+		case GRAD -> Quantity.angle(dim.value() * 0.9);
+		case RAD -> Quantity.angle(Math.toDegrees(dim.value()));
+		default -> "turn".equalsIgnoreCase(dim.unitText()) ? Quantity.angle(dim.value() * 360.0) : null;
+		};
 	}
 
 	private static Quantity evaluateMinMax(UserAgent ua, CssToken.Func func, int depth, boolean isMin) {
@@ -342,10 +565,10 @@ public final class CalcValueUtils {
 	 * 大小が確定しないため、現時点では非対応としてnullを返す。
 	 */
 	private static Integer compare(Quantity a, Quantity b) {
-		if (a.isNumber != b.isNumber) {
+		if (a.kind != b.kind) {
 			return null;
 		}
-		if (a.isNumber) {
+		if (a.kind == Quantity.Kind.NUMBER || a.kind == Quantity.Kind.ANGLE) {
 			return Double.compare(a.number, b.number);
 		}
 		// フォント相対成分(em/ex/rem/ch/lh)が残っている値は、フォント寸法が

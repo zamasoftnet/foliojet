@@ -367,6 +367,126 @@ public class RasterImageLoader implements ImageLoader {
 		default: // 通常
 			return image;
 		}
-		return new TransformedImage(image, at);
+		return new OrientedImage(image, at);
+	}
+
+	/**
+	 * EXIFの向きを読み取るために先読みするバイト数です。
+	 *
+	 * <p>
+	 * JPEGのEXIFはAPP1セグメント(最大64KB)に入り、必ず先頭付近にある。
+	 * 余裕を見て256KBまで覗けば、実用上取りこぼさない。
+	 */
+	private static final int ORIENTATION_HEADER = 256 * 1024;
+
+	/**
+	 * 先頭のバイト列からEXIFの向きを読みます。読めなければ1(通常)。
+	 *
+	 * <p>
+	 * 途中で切れたバイト列を渡されることを前提にしており、解析に失敗しても
+	 * 例外は投げない——向きが読めないことは、画像が読めないことではない。
+	 */
+	public static int readOrientation(final byte[] header) {
+		try {
+			final Metadata metadata = ImageMetadataReader
+					.readMetadata(new java.io.ByteArrayInputStream(header));
+			final Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+			if (directory != null && directory.containsTag(ExifIFD0Directory.TAG_ORIENTATION)) {
+				return directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
+			}
+		} catch (final Exception e) {
+			// 向きが読めないものは通常の向きとして扱う
+		}
+		return 1;
+	}
+
+	/**
+	 * 資源の先頭を覗いてEXIFの向きを読み、<b>同じストリームを頭出しした状態で
+	 * 返す資源</b>と一緒に返します(2026-08-30)。
+	 *
+	 * <p>
+	 * {@code Source#getInputStream}は呼び直せば先頭から読み直せる契約だが、
+	 * HTTPの資源では<b>もう一度取りに行く</b>ことになる。ここでは1本の
+	 * ストリームを{@code mark}/{@code reset}で覗くだけにして、取得を二度
+	 * 起こさない。
+	 *
+	 * @return {@code {向き, 資源}}。覗けなかったときは向き1と元の資源
+	 */
+	public static Object[] peekOrientation(final Source source) {
+		try {
+			final java.io.BufferedInputStream in = new java.io.BufferedInputStream(source.getInputStream(),
+					ORIENTATION_HEADER);
+			in.mark(ORIENTATION_HEADER);
+			final byte[] header = in.readNBytes(ORIENTATION_HEADER);
+			in.reset();
+			final int orientation = readOrientation(header);
+			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+				System.err.println("[img] peek orientation=" + orientation + " header=" + header.length
+						+ " source=" + source.getURI());
+			}
+			if (orientation == 1) {
+				// 向きが無いなら包まない(既存の経路をそのまま通す)
+				in.close();
+				return new Object[] { Integer.valueOf(1), source };
+			}
+			return new Object[] { Integer.valueOf(orientation),
+					new net.zamasoft.zstream.resolver.util.SourceWrapper(source) {
+						private boolean taken = false;
+
+						@Override
+						public java.io.InputStream getInputStream() throws IOException {
+							if (this.taken) {
+								return super.getInputStream();
+							}
+							this.taken = true;
+							return in;
+						}
+					} };
+		} catch (final IOException e) {
+			return new Object[] { Integer.valueOf(1), source };
+		}
+	}
+
+	/**
+	 * 読み込み済みの画像へEXIFの向きを適用します。向き1(通常)なら
+	 * 同じ実体をそのまま返します。
+	 */
+	public static Image orient(final Image image, final int orientation) {
+		return orientation == 1 ? image : applyOrientation(image, orientation);
+	}
+
+	/**
+	 * EXIFの向きを適用した画像です(2026-08-30)。
+	 *
+	 * <p>
+	 * ただの{@link TransformedImage}にすると、px→pt換算で掛かる同型の包みと
+	 * 見分けが付かない。{@code image-orientation: none}のときに<b>向きだけを
+	 * 外す</b>ために、専用の型で印を付けておく。
+	 */
+	public static final class OrientedImage extends TransformedImage {
+		OrientedImage(final Image image, final AffineTransform at) {
+			super(image, at);
+		}
+	}
+
+	/**
+	 * 包みの連なりから<b>EXIFの向きだけ</b>を外した画像を返します
+	 * ({@code image-orientation: none})。向きが掛かっていなければ同じ実体を
+	 * そのまま返すので、呼び出し側は無条件に通してよい。
+	 *
+	 * <p>
+	 * 向きの包みはpx→pt換算の包みの内側にあるので、外側の包みは作り直して
+	 * 掛け直す。固有寸法もこれで元へ戻る(90度回転なら縦横が入れ替わる)。
+	 */
+	public static Image withoutOrientation(final Image image) {
+		if (image instanceof OrientedImage oriented) {
+			return oriented.getImage();
+		}
+		if (image instanceof TransformedImage transformed) {
+			final Image inner = withoutOrientation(transformed.getImage());
+			return inner == transformed.getImage() ? transformed
+					: new TransformedImage(inner, transformed.getTransform());
+		}
+		return image;
 	}
 }

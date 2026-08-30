@@ -1,0 +1,42 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>font-relative units</title>
+<style>
+/*
+ * cap / ic / rlh の計算値を固定する(2026-08-30)。
+ *
+ * この3単位は実フォントのメトリクスと根要素の line-height が要るので、
+ * 宣言の解析テストでは押さえられない——ここで表示リストの実寸として固定する。
+ *
+ * 根: font-size 20pt / line-height 2 なので 1rlh = 40pt。
+ * 本文も 20pt なので 1em = 20pt、1ic は仕様の代替値どおり 1em = 20pt。
+ * cap だけは先頭フォント(serif)の cap-height 比で決まる。
+ */
+@page { margin: 0; }
+html { font: 20pt/2 serif; }
+body { margin: 0; font: 20pt/2 serif; }
+div { height: 6pt; background: Black; margin: 2pt 0; }
+
+div.cap { width: 10cap; }
+div.ic { width: 10ic; }
+div.ric { width: 10ric; }
+div.rlh { width: 2rlh; }
+div.em { width: 10em; }
+div.calc-cap { width: calc(5cap + 10pt); }
+div.calc-rlh { width: calc(1rlh + 1cap); }
+</style>
+</head>
+<body>
+<div class="cap"></div>
+<div class="ic"></div>
+<div class="ric"></div>
+<div class="rlh"></div>
+<div class="em"></div>
+<div class="calc-cap"></div>
+<div class="calc-rlh"></div>
+</body>
+</html>

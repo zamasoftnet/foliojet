@@ -665,6 +665,11 @@ public final class ColorValueUtils {
 	public static final ColorValue POWDERBLUE = fromRGBOctets(176, 224, 230);
 
 	/**
+	 * {@code rebeccapurple}のRGB色です。
+	 */
+	public static final ColorValue REBECCAPURPLE = fromRGBOctets(102, 51, 153);
+
+	/**
 	 * The 'rosybrown' RGB color.
 	 */
 	public static final ColorValue ROSYBROWN = fromRGBOctets(188, 143, 143);
@@ -965,6 +970,7 @@ public final class ColorValueUtils {
 		map.put("pink", PINK);
 		map.put("plum", PLUM);
 		map.put("powderblue", POWDERBLUE);
+		map.put("rebeccapurple", REBECCAPURPLE);
 		map.put("rosybrown", ROSYBROWN);
 		map.put("royalblue", ROYALBLUE);
 		map.put("saddlebrown", SADDLEBROWN);
@@ -1212,36 +1218,55 @@ public final class ColorValueUtils {
 	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args, boolean legacy, boolean repeating) {
 		try {
 			double angle = 180 * Math.PI * 2 / 360;
-			// 方向指定(<angle> | to <side> [<side>])
-			CssToken first = args.peek();
-			final Double radians = toAngleRadians(first);
-			if (radians != null) {
-				args.next();
-				angle = legacy ? Math.PI / 2 - radians : radians;
-				args.eatComma();
-			} else if (args.eat("to") || (legacy && first instanceof CssToken.Ident side
-					&& isGradientSide(side.name()))) {
-				final boolean startSide = first instanceof CssToken.Ident firstIdent && !firstIdent.is("to");
-				String a = args.ident();
-				if (a == null) {
-					throw new IllegalArgumentException();
+			boolean prelude = false;
+			boolean direction = false;
+			boolean interpolation = false;
+			while (true) {
+				if (!interpolation && consumeGradientInterpolation(args)) {
+					interpolation = true;
+					prelude = true;
+					continue;
 				}
-				String b = null;
-				int mark = args.position();
-				String cand = args.ident();
-				if (cand != null) {
-					if (isGradientSide(cand)) {
-						b = cand;
-					} else {
-						args.rewind(mark);
+				// 方向指定(<angle> | to <side> [<side>])。補間指定とは順不同。
+				final CssToken first = args.peek();
+				final Double radians = direction ? null : toAngleRadians(first);
+				if (radians != null) {
+					args.next();
+					angle = legacy ? Math.PI / 2 - radians : radians;
+					direction = true;
+					prelude = true;
+					continue;
+				}
+				if (!direction && (args.eat("to") || (legacy && first instanceof CssToken.Ident side
+						&& isGradientSide(side.name())))) {
+					final boolean startSide = first instanceof CssToken.Ident firstIdent && !firstIdent.is("to");
+					String a = args.ident();
+					if (a == null || !isGradientSide(a)) {
+						throw new IllegalArgumentException();
 					}
+					String b = null;
+					int mark = args.position();
+					String cand = args.ident();
+					if (cand != null) {
+						if (isGradientSide(cand)) {
+							b = cand;
+						} else {
+							args.rewind(mark);
+						}
+					}
+					angle = gradientAngle(a, b);
+					if (startSide) {
+						// 旧構文の「開始辺」→現行の「終了辺」は正反対
+						angle += Math.PI;
+					}
+					direction = true;
+					prelude = true;
+					continue;
 				}
-				angle = gradientAngle(a, b);
-				if (startSide) {
-					// 旧構文の「開始辺」→現行の「終了辺」は正反対
-					angle += Math.PI;
-				}
-				args.eatComma();
+				break;
+			}
+			if (prelude && !args.eatComma()) {
+				throw new IllegalArgumentException();
 			}
 
 			return new LinearGradientValue(angle, parseStops(ua, args.splitComma(), false), repeating);
@@ -1324,7 +1349,12 @@ public final class ColorValueUtils {
 			case DEG -> dim.value();
 			case GRAD -> dim.value() * 0.9;
 			case RAD -> Math.toDegrees(dim.value());
-			default -> throw new IllegalArgumentException();
+			default -> {
+				if (dim.unitText().equalsIgnoreCase("turn")) {
+					yield dim.value() * 360;
+				}
+				throw new IllegalArgumentException();
+			}
 			};
 		}
 		throw new IllegalArgumentException();
@@ -1368,18 +1398,52 @@ public final class ColorValueUtils {
 			} else if (args.hasNext()) {
 				alpha = toUnitNumber(nextComponent(args));
 			}
-			final double c = (1 - Math.abs(2 * light - 1)) * sat;
-			final double x = c * (1 - Math.abs((h / 60) % 2 - 1));
-			final double m = light - c / 2;
-			final double[] rgb = switch ((int) (h / 60)) {
-			case 0 -> new double[] { c, x, 0 };
-			case 1 -> new double[] { x, c, 0 };
-			case 2 -> new double[] { 0, c, x };
-			case 3 -> new double[] { 0, x, c };
-			case 4 -> new double[] { x, 0, c };
-			default -> new double[] { c, 0, x };
-			};
-			return fromMaybeAlpha((float) (rgb[0] + m), (float) (rgb[1] + m), (float) (rgb[2] + m), alpha);
+			final double[] rgb = hslToSRGB(h, sat, light);
+			return fromMaybeAlpha((float) rgb[0], (float) rgb[1], (float) rgb[2], alpha);
+		} catch (final IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	/** HSLをsRGB成分へ変換します。hueは0以上360未満の度数です。 */
+	private static double[] hslToSRGB(final double hue, final double saturation, final double lightness) {
+		final double c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+		final double x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+		final double m = lightness - c / 2;
+		final double[] rgb = switch ((int) (hue / 60)) {
+		case 0 -> new double[] { c, x, 0 };
+		case 1 -> new double[] { x, c, 0 };
+		case 2 -> new double[] { 0, c, x };
+		case 3 -> new double[] { 0, x, c };
+		case 4 -> new double[] { x, 0, c };
+		default -> new double[] { c, 0, x };
+		};
+		return new double[] { rgb[0] + m, rgb[1] + m, rgb[2] + m };
+	}
+
+	/**
+	 * hwbです(CSS Color 4)。HSLの純色をwhiteness/blacknessでsRGBへ写します。
+	 */
+	private static ColorValue toHWBColorValue(final TokenStream args) {
+		try {
+			final double hue = ((toHueDegrees(nextComponent(args)) % 360) + 360) % 360;
+			final CssToken whitenessToken = nextComponent(args);
+			final CssToken blacknessToken = nextComponent(args);
+			if (!(whitenessToken instanceof CssToken.Percent whitenessPercent)
+					|| !(blacknessToken instanceof CssToken.Percent blacknessPercent)) {
+				return null;
+			}
+			final double whiteness = Math.min(1, Math.max(0, whitenessPercent.value() / 100.0));
+			final double blackness = Math.min(1, Math.max(0, blacknessPercent.value() / 100.0));
+			final float alpha = toOptionalAlpha(args);
+			if (whiteness + blackness >= 1) {
+				final float gray = (float) (whiteness / (whiteness + blackness));
+				return fromMaybeAlpha(gray, gray, gray, alpha);
+			}
+			final double[] rgb = hslToSRGB(hue, 1, 0.5);
+			final double factor = 1 - whiteness - blackness;
+			return fromMaybeAlpha((float) (rgb[0] * factor + whiteness),
+					(float) (rgb[1] * factor + whiteness), (float) (rgb[2] * factor + whiteness), alpha);
 		} catch (final IllegalArgumentException e) {
 			return null;
 		}
@@ -1431,6 +1495,213 @@ public final class ColorValueUtils {
 		throw new IllegalArgumentException();
 	}
 
+	/**
+	 * lab/lchです(CSS Color 4)。D50のCIE LabをBradford変換でD65へ順応し、
+	 * sRGBへ変換して保持します。Labのa/bは100%=125、LCHのCは100%=150です。
+	 */
+	private static ColorValue toLabColorValue(final TokenStream args, final boolean lch) {
+		try {
+			final double lightness = toLabLightness(nextComponent(args));
+			final double a;
+			final double b;
+			if (lch) {
+				final double chroma = Math.max(0, toLabComponent(nextComponent(args), 150));
+				final double hue = Math.toRadians(toHueDegrees(nextComponent(args)));
+				a = chroma * Math.cos(hue);
+				b = chroma * Math.sin(hue);
+			} else {
+				a = toLabComponent(nextComponent(args), 125);
+				b = toLabComponent(nextComponent(args), 125);
+			}
+			final float alpha = toOptionalAlpha(args);
+			final double[] rgb = labToSRGB(lightness, a, b);
+			return fromMaybeAlpha((float) rgb[0], (float) rgb[1], (float) rgb[2], alpha);
+		} catch (final IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	/** lab/lchのL軸(数値は0..100、100%=100)。範囲外は仕様どおりクリップ。 */
+	private static double toLabLightness(final CssToken token) throws IllegalArgumentException {
+		final double lightness;
+		if (token instanceof CssToken.Percent percent) {
+			lightness = percent.value();
+		} else if (token instanceof CssToken.Num num) {
+			lightness = num.value();
+		} else {
+			throw new IllegalArgumentException();
+		}
+		return Math.min(100, Math.max(0, lightness));
+	}
+
+	/** Lab/LCH成分。percentageScaleは100%に対応する値です。 */
+	private static double toLabComponent(final CssToken token, final double percentageScale)
+			throws IllegalArgumentException {
+		if (token instanceof CssToken.Percent percent) {
+			return percent.value() / 100.0 * percentageScale;
+		}
+		if (token instanceof CssToken.Num num) {
+			return num.value();
+		}
+		throw new IllegalArgumentException();
+	}
+
+	/** CIE Lab(D50)→XYZ(D50)→XYZ(D65)→sRGB(ガンマ符号化+0..1クリップ)。 */
+	private static double[] labToSRGB(final double lightness, final double a, final double b) {
+		final double epsilon = 216.0 / 24389.0;
+		final double kappa = 24389.0 / 27.0;
+		final double fy = (lightness + 16) / 116;
+		final double fx = fy + a / 500;
+		final double fz = fy - b / 200;
+		final double x50 = labToXYZComponent(fx, epsilon, kappa) * (0.3457 / 0.3585);
+		final double y50 = (lightness > kappa * epsilon ? fy * fy * fy : lightness / kappa);
+		final double z50 = labToXYZComponent(fz, epsilon, kappa)
+				* ((1 - 0.3457 - 0.3585) / 0.3585);
+		final double[] xyz65 = d50ToD65(x50, y50, z50);
+		return xyzD65ToSRGB(xyz65[0], xyz65[1], xyz65[2]);
+	}
+
+	private static double labToXYZComponent(final double value, final double epsilon, final double kappa) {
+		final double cube = value * value * value;
+		return cube > epsilon ? cube : (116 * value - 16) / kappa;
+	}
+
+	/**
+	 * CSS Color 4の{@code color()}です。定義済みRGB色空間とXYZ(D50/D65)を
+	 * sRGBへ変換して保持します。出力色域外の成分は単純にsRGBの0..1へ
+	 * クランプします。
+	 */
+	private static ColorValue toColorFunction(final TokenStream args) {
+		try {
+			final String colorSpace = args.ident();
+			if (colorSpace == null) {
+				return null;
+			}
+			final double c1 = toColorFunctionComponent(args.next());
+			final double c2 = toColorFunctionComponent(args.next());
+			final double c3 = toColorFunctionComponent(args.next());
+			final float alpha = toOptionalAlpha(args);
+			if (args.hasNext()) {
+				return null;
+			}
+
+			final double[] rgb;
+			switch (colorSpace.toLowerCase(java.util.Locale.ROOT)) {
+			case "srgb":
+				rgb = new double[] { c1, c2, c3 };
+				break;
+			case "srgb-linear":
+				rgb = linearSRGBToSRGB(c1, c2, c3);
+				break;
+			case "display-p3": {
+				final double r = gammaDecodeExtended(c1);
+				final double g = gammaDecodeExtended(c2);
+				final double b = gammaDecodeExtended(c3);
+				rgb = xyzD65ToSRGB(0.4865709486482162 * r + 0.26566769316909306 * g
+						+ 0.1982172852343625 * b,
+						0.2289745640697488 * r + 0.6917385218365064 * g + 0.079286914093745 * b,
+						0.04511338185890264 * g + 1.043944368900976 * b);
+				break;
+			}
+			case "a98-rgb": {
+				final double r = a98Decode(c1);
+				final double g = a98Decode(c2);
+				final double b = a98Decode(c3);
+				rgb = xyzD65ToSRGB(0.5766690429101305 * r + 0.1855582379065463 * g
+						+ 0.1882286462349947 * b,
+						0.29734497525053605 * r + 0.6273635662554661 * g + 0.07529145849399788 * b,
+						0.02703136138641234 * r + 0.07068885253582723 * g + 0.9913375368376388 * b);
+				break;
+			}
+			case "prophoto-rgb": {
+				final double r = proPhotoDecode(c1);
+				final double g = proPhotoDecode(c2);
+				final double b = proPhotoDecode(c3);
+				final double[] xyz65 = d50ToD65(0.7977666449006423 * r + 0.13518129740053308 * g
+						+ 0.0313477341283922 * b,
+						0.2880748288194013 * r + 0.711835234241873 * g + 0.00008993693872564 * b,
+						0.8251046025104602 * b);
+				rgb = xyzD65ToSRGB(xyz65[0], xyz65[1], xyz65[2]);
+				break;
+			}
+			case "rec2020": {
+				final double r = rec2020Decode(c1);
+				final double g = rec2020Decode(c2);
+				final double b = rec2020Decode(c3);
+				rgb = xyzD65ToSRGB(63426534.0 / 99577255.0 * r + 20160776.0 / 139408157.0 * g
+						+ 47086771.0 / 278816314.0 * b,
+						26158966.0 / 99577255.0 * r + 472592308.0 / 697040785.0 * g
+								+ 8267143.0 / 139408157.0 * b,
+						19567812.0 / 697040785.0 * g + 295819943.0 / 278816314.0 * b);
+				break;
+			}
+			case "xyz":
+			case "xyz-d65":
+				rgb = xyzD65ToSRGB(c1, c2, c3);
+				break;
+			case "xyz-d50": {
+				final double[] xyz65 = d50ToD65(c1, c2, c3);
+				rgb = xyzD65ToSRGB(xyz65[0], xyz65[1], xyz65[2]);
+				break;
+			}
+			default:
+				return null;
+			}
+			return fromMaybeAlpha((float) rgb[0], (float) rgb[1], (float) rgb[2], alpha);
+		} catch (final IllegalArgumentException e) {
+			return null;
+		}
+	}
+
+	/** {@code color()}の色成分です。数値はそのまま、%は0..1へ正規化します。 */
+	private static double toColorFunctionComponent(final CssToken token) throws IllegalArgumentException {
+		if (token instanceof CssToken.Percent percent) {
+			return percent.value() / 100.0;
+		}
+		if (token instanceof CssToken.Num num) {
+			return num.value();
+		}
+		throw new IllegalArgumentException();
+	}
+
+	private static double[] linearSRGBToSRGB(final double red, final double green, final double blue) {
+		return new double[] { gammaEncode(red), gammaEncode(green), gammaEncode(blue) };
+	}
+
+	private static double a98Decode(final double encoded) {
+		return Math.copySign(Math.pow(Math.abs(encoded), 563.0 / 256.0), encoded);
+	}
+
+	private static double proPhotoDecode(final double encoded) {
+		final double absolute = Math.abs(encoded);
+		return absolute <= 16.0 / 512.0 ? encoded / 16.0
+				: Math.copySign(Math.pow(absolute, 1.8), encoded);
+	}
+
+	private static double rec2020Decode(final double encoded) {
+		final double alpha = 1.09929682680944;
+		final double beta = 0.018053968510807;
+		final double absolute = Math.abs(encoded);
+		return absolute < beta * 4.5 ? encoded / 4.5
+				: Math.copySign(Math.pow((absolute + alpha - 1) / alpha, 1 / 0.45), encoded);
+	}
+
+	/** Bradford色順応(D50→D65)。 */
+	private static double[] d50ToD65(final double x50, final double y50, final double z50) {
+		return new double[] { 0.955473421488075 * x50 - 0.02309845494876471 * y50
+				+ 0.06325924320057072 * z50,
+				-0.0283697093338637 * x50 + 1.0099953980813041 * y50 + 0.021041441191917323 * z50,
+				0.012314014864481998 * x50 - 0.020507649298898964 * y50 + 1.330365926242124 * z50 };
+	}
+
+	/** XYZ(D65)→sRGB。色域外は各成分を0..1へクランプします。 */
+	private static double[] xyzD65ToSRGB(final double x65, final double y65, final double z65) {
+		return linearSRGBToSRGB(3.2409699419045226 * x65 - 1.537383177570094 * y65
+				- 0.4986107602930034 * z65,
+				-0.9692436362808796 * x65 + 1.8759675015077202 * y65 + 0.04155505740717559 * z65,
+				0.05563007969699366 * x65 - 0.20397695888897652 * y65 + 1.0569715142428786 * z65);
+	}
+
 	/** OKLab→sRGB(標準行列。ガンマ符号化+0..1クリップ)。 */
 	private static double[] oklabToSRGB(final double lightness, final double a, final double b) {
 		final double l_ = lightness + 0.3963377774 * a + 0.2158037573 * b;
@@ -1465,6 +1736,13 @@ public final class ColorValueUtils {
 
 	private static double gammaDecode(final double encoded) {
 		return encoded <= 0.04045 ? encoded / 12.92 : Math.pow((encoded + 0.055) / 1.055, 2.4);
+	}
+
+	/** sRGBの拡張伝達関数です({@code color()}の範囲外成分を変換途中まで保持)。 */
+	private static double gammaDecodeExtended(final double encoded) {
+		final double absolute = Math.abs(encoded);
+		return absolute <= 0.04045 ? encoded / 12.92
+				: Math.copySign(Math.pow((absolute + 0.055) / 1.055, 2.4), encoded);
 	}
 
 	private static ColorValue fromMaybeAlpha(final float red, final float green, final float blue,
@@ -1627,11 +1905,23 @@ public final class ColorValueUtils {
 			if (func.is("hsl") || func.is("hsla")) {
 				return toHSLColorValue(func.argStream());
 			}
+			if (func.is("hwb")) {
+				return toHWBColorValue(func.argStream());
+			}
 			if (func.is("oklch")) {
 				return toOKColorValue(func.argStream(), true);
 			}
 			if (func.is("oklab")) {
 				return toOKColorValue(func.argStream(), false);
+			}
+			if (func.is("lch")) {
+				return toLabColorValue(func.argStream(), true);
+			}
+			if (func.is("lab")) {
+				return toLabColorValue(func.argStream(), false);
+			}
+			if (func.is("color")) {
+				return toColorFunction(func.argStream());
 			}
 			if (func.is("color-mix")) {
 				return toColorMix(ua, func.argStream());
@@ -1680,6 +1970,8 @@ public final class ColorValueUtils {
 	 * <li>{@code conic-gradient()}: {@code from <angle>}・{@code at <position>}。
 	 * 角度の色停止(deg/turn/%)</li>
 	 * <li>{@code repeating-*}: 周期を箱を覆うまで展開({@link GradientStops})</li>
+	 * <li>{@code in <color-space>}と任意のhue補間指定は構文として受理する。
+	 * 現在の描画値は既存形式を保つため、指定にかかわらずsRGB補間へフォールバックする</li>
 	 * </ul>
 	 */
 	public static PaintValue toGradient(UserAgent ua, CssToken token) {
@@ -1789,6 +2081,47 @@ public final class ColorValueUtils {
 	}
 
 	/**
+	 * CSS Images 4の{@code in <color-space> [<hue-interpolation-method> hue]?}を
+	 * 消費します。指定は構文互換のため受理し、実際の色停止補間は既存のsRGBへ
+	 * フォールバックします。
+	 */
+	private static boolean consumeGradientInterpolation(final TokenStream tokens) {
+		if (!tokens.eat("in")) {
+			return false;
+		}
+		final String colorSpace = tokens.ident();
+		if (colorSpace == null || !isGradientColorSpace(colorSpace)) {
+			throw new IllegalArgumentException();
+		}
+		final int mark = tokens.position();
+		final String hueMethod = tokens.ident();
+		if (hueMethod != null) {
+			switch (hueMethod.toLowerCase(java.util.Locale.ROOT)) {
+			case "shorter":
+			case "longer":
+			case "increasing":
+			case "decreasing":
+				if (!tokens.eat("hue")) {
+					throw new IllegalArgumentException();
+				}
+				break;
+			default:
+				tokens.rewind(mark);
+				break;
+			}
+		}
+		return true;
+	}
+
+	private static boolean isGradientColorSpace(final String colorSpace) {
+		return switch (colorSpace.toLowerCase(java.util.Locale.ROOT)) {
+		case "srgb", "srgb-linear", "display-p3", "a98-rgb", "prophoto-rgb", "rec2020", "lab", "lch",
+				"oklab", "oklch", "xyz", "xyz-d50", "xyz-d65", "hsl", "hwb" -> true;
+		default -> false;
+		};
+	}
+
+	/**
 	 * {@code radial-gradient([ <ending-shape> || <size> ]? [ at <position> ]?, <color-stop-list>)}
 	 * および旧構文{@code -webkit-radial-gradient([<position>,]? [<shape> || <size>,]? <stops>)}
 	 * (寸法キーワード{@code contain}/{@code cover}を含む)。
@@ -1815,6 +2148,10 @@ public final class ColorValueUtils {
 				final List<QuantityValue> lengths = new ArrayList<QuantityValue>();
 				boolean any = false;
 				while (prelude.hasNext()) {
+					if (consumeGradientInterpolation(prelude)) {
+						any = true;
+						continue;
+					}
 					final CssToken t = prelude.peek();
 					if (t instanceof CssToken.Ident ident) {
 						switch (ident.lower()) {
@@ -1935,7 +2272,9 @@ public final class ColorValueUtils {
 			final TokenStream prelude = groups.get(0);
 			boolean any = false;
 			while (prelude.hasNext()) {
-				if (prelude.eat("from")) {
+				if (consumeGradientInterpolation(prelude)) {
+					any = true;
+				} else if (prelude.eat("from")) {
 					final Double angle = toAngleRadians(prelude.next());
 					if (angle == null) {
 						throw new IllegalArgumentException();
@@ -2034,19 +2373,20 @@ public final class ColorValueUtils {
 
 	/** 角度トークンをラジアンで返します(deg/rad/grad/turn)。角度でなければnull。 */
 	public static Double toAngleRadians(final CssToken token) {
-		if (!(token instanceof CssToken.Dim dim)) {
-			return null;
+		if (token instanceof CssToken.Dim dim) {
+			switch (dim.unit()) {
+			case DEG:
+				return dim.value() * Math.PI / 180;
+			case RAD:
+				return dim.value();
+			case GRAD:
+				return dim.value() * Math.PI / 200;
+			default:
+				return dim.unitText().equalsIgnoreCase("turn") ? dim.value() * Math.PI * 2 : null;
+			}
 		}
-		switch (dim.unit()) {
-		case DEG:
-			return dim.value() * Math.PI / 180;
-		case RAD:
-			return dim.value();
-		case GRAD:
-			return dim.value() * Math.PI / 200;
-		default:
-			return dim.unitText().equalsIgnoreCase("turn") ? dim.value() * Math.PI * 2 : null;
-		}
+		Value calc = CalcValueUtils.toCalc(null, token);
+		return calc instanceof net.zamasoft.foliojet.css.value.AngleValue angle ? angle.getRadians() : null;
 	}
 
 	/**
@@ -2208,6 +2548,23 @@ public final class ColorValueUtils {
 				return BackgroundClipValue.CONTENT_BOX_VALUE;
 			case "text":
 				return BackgroundClipValue.TEXT_VALUE;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * &lt;background-origin&gt; を値に変換します。
+	 */
+	public static net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue toBackgroundOrigin(CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			switch (ident.lower()) {
+			case "border-box":
+				return net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue.BORDER_BOX_VALUE;
+			case "padding-box":
+				return net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue.PADDING_BOX_VALUE;
+			case "content-box":
+				return net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue.CONTENT_BOX_VALUE;
 			}
 		}
 		return null;

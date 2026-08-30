@@ -92,6 +92,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// キャプションの箱は表の border box(margin box ではない)。
 			// 左マージンのある表でキャプションが外へ広がっていた(2026-08-30)
 			"0240-table/caption-table-margin.html", //
+			// フォント相対単位 cap / ic / ric / rlh の計算値(2026-08-30)。
+			// 実フォントのcap-heightと根のline-heightが要るので、宣言の
+			// 解析テストでは押さえられない
+			"3020-VALUE/font-relative-units.html", //
 			"0240-table/z-order.html", //
 			// 1行だけの縦長ラッパー表は先頭ページの残量で行の内容を分割する
 			// (2026-08-27)。UA既定のセルpage-break-inside:avoid撤去の回帰。

@@ -14,6 +14,8 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.imposition.PagePlacement;
 import net.zamasoft.pdfg2d.gc.imposition.PrinterMarks;
 import net.zamasoft.pdfg2d.gc.imposition.Trims;
+import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
+import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
 /**
  * 1面付けの実装です。配置計算とトンボ描画は pdfg2d の
@@ -88,6 +90,11 @@ public class SinglePageImposition extends AbstractImposition {
 
 		this.gc.transform(AffineTransform.getTranslateInstance(placement.centerX(), placement.centerY()));
 
+		// 仕上り位置(TrimBox)と塗り足し込みの位置(BleedBox)をPDFへ書く
+		// (2026-08-30、利用者報告E-6)。面付け側が仕上り線を機械的に
+		// 判別できるようにするため、トンボの有無によらず常に設定する
+		this.setPageBoxes(placement);
+
 		// トンボとノンブルの描画
 		this.drawMarks(trims);
 		if (this.note != null) {
@@ -154,6 +161,53 @@ public class SinglePageImposition extends AbstractImposition {
 		} finally {
 			this.gc = null;
 			this.gcState = null;
+		}
+	}
+
+	/**
+	 * 仕上り位置を{@code TrimBox}、塗り足し込みの位置を{@code BleedBox}として
+	 * PDFのページへ設定します(2026-08-30、利用者報告E-6)。
+	 *
+	 * <p>
+	 * 設定しないと、面付けや印刷所の工程で「どこが仕上り線か」を機械的に
+	 * 判別できず、利用者が後からPyMuPDF等で書き足すことになっていた。
+	 * 座標は{@link net.zamasoft.pdfg2d.pdf.PDFPageOutput}の約束どおり
+	 * <b>左上原点</b>で渡す(PDFの左下原点への変換は書き出し側が行う)。
+	 * </p>
+	 *
+	 * <p>
+	 * 内容を回転して配置する{@code output.auto-rotate}のときは、紙面座標と
+	 * 内容座標の対応が単純でないため設定しない。PDF 1.3以下は
+	 * TrimBox/BleedBoxを持てないので、その場合も黙って見送る。
+	 * </p>
+	 */
+	private void setPageBoxes(final PagePlacement placement) {
+		if (placement.rotateContent()) {
+			return;
+		}
+		if (!(net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(this.gc) instanceof PDFGC pdfgc)
+				|| !(pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out)) {
+			return;
+		}
+		final double trimWidth = this.getTrimWidth(), trimHeight = this.getTrimHeight();
+		if (!(trimWidth > 0 && trimHeight > 0)) {
+			return;
+		}
+		final double paperWidth = placement.actualPaperWidth(), paperHeight = placement.actualPaperHeight();
+		final double trimX = placement.centerX() + this.trimLeft;
+		final double trimY = placement.centerY() + this.trimTop;
+		final Rectangle2D trim = new Rectangle2D.Double(trimX, trimY, trimWidth, trimHeight);
+		// 塗り足しは仕上りの外側へドブのぶん。用紙からはみ出さないよう詰める
+		final double bleedX = Math.max(0, trimX - this.cuttingMargin);
+		final double bleedY = Math.max(0, trimY - this.cuttingMargin);
+		final Rectangle2D bleed = new Rectangle2D.Double(bleedX, bleedY,
+				Math.min(paperWidth, trimX + trimWidth + this.cuttingMargin) - bleedX,
+				Math.min(paperHeight, trimY + trimHeight + this.cuttingMargin) - bleedY);
+		try {
+			out.setBleedBox(bleed);
+			out.setTrimBox(trim);
+		} catch (final UnsupportedOperationException e) {
+			// PDF 1.3以下。仕上り位置は表現できないので何もしない
 		}
 	}
 

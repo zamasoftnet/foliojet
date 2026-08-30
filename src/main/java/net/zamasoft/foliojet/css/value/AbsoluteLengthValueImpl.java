@@ -16,6 +16,7 @@ class AbsoluteLengthValueImpl extends AbsoluteLengthValue {
 		case IN:
 		case CM:
 		case MM:
+		case Q:
 		case PT:
 		case PC:
 		case PX:

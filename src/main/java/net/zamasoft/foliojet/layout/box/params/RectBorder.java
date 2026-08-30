@@ -11,9 +11,12 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 public class RectBorder {
 	public static final RectBorder NONE_RECT_BORDER = new RectBorder(Border.NONE_BORDER, Border.NONE_BORDER,
 			Border.NONE_BORDER, Border.NONE_BORDER, Radius.ZERO_RADIUS, Radius.ZERO_RADIUS, Radius.ZERO_RADIUS,
-			Radius.ZERO_RADIUS);
+			Radius.ZERO_RADIUS, null);
 
 	private final Border top, right, bottom, left;
+
+	/** 計算済みborder-image。sourceがnoneまたは画像取得失敗ならnull。 */
+	private final BorderImage borderImage;
 
 	public static class Radius {
 		public static final Radius ZERO_RADIUS = new Radius(0, 0);
@@ -70,16 +73,21 @@ public class RectBorder {
 
 	public static RectBorder create(Border top, Border right, Border bottom, Border left, Radius topLeft,
 			Radius topRight, Radius bottomLeft, Radius bottomRight) {
+		return create(top, right, bottom, left, topLeft, topRight, bottomLeft, bottomRight, null);
+	}
+
+	public static RectBorder create(Border top, Border right, Border bottom, Border left, Radius topLeft,
+			Radius topRight, Radius bottomLeft, Radius bottomRight, BorderImage borderImage) {
 		if (top.style == Border.NONE && right.style == Border.NONE && bottom.style == Border.NONE
 				&& left.style == Border.NONE && topLeft == Radius.ZERO_RADIUS && topRight == Radius.ZERO_RADIUS
-				&& bottomLeft == Radius.ZERO_RADIUS && bottomRight == Radius.ZERO_RADIUS) {
+				&& bottomLeft == Radius.ZERO_RADIUS && bottomRight == Radius.ZERO_RADIUS && borderImage == null) {
 			return RectBorder.NONE_RECT_BORDER;
 		}
-		return new RectBorder(top, right, bottom, left, topLeft, topRight, bottomLeft, bottomRight);
+		return new RectBorder(top, right, bottom, left, topLeft, topRight, bottomLeft, bottomRight, borderImage);
 	}
 
 	private RectBorder(Border top, Border right, Border bottom, Border left, Radius topLeft, Radius topRight,
-			Radius bottomLeft, Radius bottomRight) {
+			Radius bottomLeft, Radius bottomRight, BorderImage borderImage) {
 		this.top = top;
 		this.right = right;
 		this.bottom = bottom;
@@ -88,6 +96,7 @@ public class RectBorder {
 		this.topRight = topRight;
 		this.bottomLeft = bottomLeft;
 		this.bottomRight = bottomRight;
+		this.borderImage = borderImage;
 	}
 
 	public Border getTop() {
@@ -122,6 +131,10 @@ public class RectBorder {
 		return this.bottomRight;
 	}
 
+	public BorderImage getBorderImage() {
+		return this.borderImage;
+	}
+
 	public void draw(GC gc, double x, double y, double width, double height) throws GraphicsException {
 		BorderRenderer.INSTANCE.drawRectBorder(gc, this, x, y, width, height);
 	}
@@ -135,8 +148,11 @@ public class RectBorder {
 	}
 
 	public boolean isVisible() {
-		return this.getTop().isVisible() || this.getRight().isVisible() || this.getBottom().isVisible()
-				|| this.getLeft().isVisible();
+		// 境界画像だけが指定された箱(border-style:noneのまま border-image を
+		// 出す書き方)は、4辺のスタイルを見るだけでは不可視と判定されて
+		// 描画そのものが省かれてしまう
+		return this.borderImage != null || this.getTop().isVisible() || this.getRight().isVisible()
+				|| this.getBottom().isVisible() || this.getLeft().isVisible();
 	}
 
 	public boolean isNull() {
@@ -155,7 +171,8 @@ public class RectBorder {
 				left ? this.getLeft() : Border.NONE_BORDER, (top && left) ? this.getTopLeft() : Radius.ZERO_RADIUS,
 				(top && right) ? this.getTopRight() : Radius.ZERO_RADIUS,
 				(bottom && left) ? this.getBottomLeft() : Radius.ZERO_RADIUS,
-				(bottom && right) ? this.getBottomRight() : Radius.ZERO_RADIUS);
+				(bottom && right) ? this.getBottomRight() : Radius.ZERO_RADIUS,
+				this.borderImage == null ? null : this.borderImage.cut(top, right, bottom, left));
 		return newBorder;
 	}
 

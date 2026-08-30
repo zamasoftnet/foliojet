@@ -258,7 +258,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * font-variantを値に変換します。SPEC CSS2.1 15.5
+	 * font-variant-caps(およびfontショートハンド内のCSS2互換caps値)を
+	 * 値に変換します。
 	 * 
 	 * @param lu
 	 * @return
@@ -270,6 +271,16 @@ public final class FontValueUtils {
 				return FontVariantValue.NORMAL_VALUE;
 			case "small-caps":
 				return FontVariantValue.SMALL_CAPS_VALUE;
+			case "all-small-caps":
+				return FontVariantValue.ALL_SMALL_CAPS_VALUE;
+			case "petite-caps":
+				return FontVariantValue.PETITE_CAPS_VALUE;
+			case "all-petite-caps":
+				return FontVariantValue.ALL_PETITE_CAPS_VALUE;
+			case "unicase":
+				return FontVariantValue.UNICASE_VALUE;
+			case "titling-caps":
+				return FontVariantValue.TITLING_CAPS_VALUE;
 			}
 		}
 		return null;
@@ -356,6 +367,10 @@ public final class FontValueUtils {
 				// SPEC css-values-4: font-sizeのlhは親のline-height基準
 				// (FontSize.getComputedValueがparentStyleで解決する)
 				return RelativeLengthValue.lh(dim.value());
+			case CAP:
+				return RelativeLengthValue.cap(dim.value());
+			case RLH:
+				return RelativeLengthValue.rlh(dim.value());
 			default:
 				// 絶対長さはフォント倍率を適用する
 				return ValueUtils.toAbsoluteLength(ua,

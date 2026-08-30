@@ -271,6 +271,46 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 		return new Entry[] { new Entry(infoX, x), new Entry(infoY, y) };
 	}
 
+	/**
+	 * 個別軸プロパティの値を読みます。多層背景は既存の描画モデルに合わせ、
+	 * 全レイヤを検証した上で先頭レイヤの値を全画像で共有します。
+	 */
+	static Value parseAxisValues(final TokenStream tokens, final UserAgent ua, final boolean horizontal)
+			throws PropertyException {
+		Value first = null;
+		for (final TokenStream layer : tokens.splitComma()) {
+			final CssToken token = layer.next();
+			if (token == null || layer.hasNext()) {
+				throw new PropertyException();
+			}
+			final Value value;
+			if (token instanceof CssToken.Ident ident) {
+				final String keyword = ident.lower();
+				if (keyword.equals("center")) {
+					value = PercentageValue.HALF;
+				} else if ((horizontal && keyword.equals("left")) || (!horizontal && keyword.equals("top"))) {
+					value = PercentageValue.ZERO;
+				} else if ((horizontal && keyword.equals("right")) || (!horizontal && keyword.equals("bottom"))) {
+					value = PercentageValue.FULL;
+				} else {
+					throw new PropertyException();
+				}
+			} else {
+				value = toOffsetValue(ua, token);
+				if (value == null) {
+					throw new PropertyException();
+				}
+			}
+			if (first == null) {
+				first = value;
+			}
+		}
+		if (first == null) {
+			throw new PropertyException();
+		}
+		return first;
+	}
+
 	/** 2値構文でのキーワードの軸解決です。horizontal軸にtop/bottomは書けません。 */
 	private static Value keywordAxis(String keyword, boolean horizontal) throws PropertyException {
 		switch (keyword) {
@@ -322,7 +362,11 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 			return CalcLengthValue.create(ua, -c.getAbsolute(), 1 - c.getRatio());
 		}
 		if (off instanceof RelativeLengthValue r) {
-			return CalcFontRelativeValue.fullMinus(r.getUnit(), r.getValue());
+			final Value flipped = CalcFontRelativeValue.fullMinus(r.getUnit(), r.getValue());
+			if (flipped == null) {
+				throw new PropertyException();
+			}
+			return flipped;
 		}
 		if (off instanceof CalcFontRelativeValue f) {
 			return f.subtractedFromFull();

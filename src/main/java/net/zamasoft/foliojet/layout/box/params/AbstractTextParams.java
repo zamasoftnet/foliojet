@@ -242,6 +242,12 @@ public abstract class AbstractTextParams extends Params {
 	public byte hyphens = HYPHENS_MANUAL;
 
 	/**
+	 * 分綴時に行末へ表示する文字列(CSS {@code hyphenate-character})。
+	 * nullは{@code auto}で、従来のU+2010を使う。
+	 */
+	public String hyphenateCharacter;
+
+	/**
 	 * hyphens:auto時の言語別分綴器。パターンが無い言語ではnull。
 	 */
 	public Hyphenator hyphenator;

@@ -15,6 +15,8 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.css.util.CalcValueUtils;
+import net.zamasoft.foliojet.css.value.LengthValue;
 
 /**
  * {@code grid-template-columns}/{@code grid-template-rows}および
@@ -412,7 +414,23 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		if (token instanceof CssToken.Dim dim && dim.value() < 0 || token instanceof CssToken.Num num && num.value() < 0) {
 			throw new PropertyException();
 		}
-		return ValueUtils.toLength(ua, token);
+		return toTrackLength(ua, token);
+	}
+
+	/**
+	 * トラック片の長さを解決します。{@code calc()}等の数式も他の長さ
+	 * プロパティと同じ窓口({@link CalcValueUtils#toCalc})へ通します
+	 * (2026-08-30。以前は{@code ValueUtils.toLength}だけを見ていたため
+	 * {@code grid-template-columns: calc(20mm - 5mm) …}が宣言ごと捨てられ、
+	 * 余白列が0になって版面が横へずれた——利用者報告E-2)。
+	 */
+	private static Value toTrackLength(final UserAgent ua, final CssToken token) {
+		final Value length = ValueUtils.toLength(ua, token);
+		if (length != null) {
+			return length;
+		}
+		final Value calc = CalcValueUtils.toCalc(ua, token);
+		return calc instanceof LengthValue ? calc : null;
 	}
 
 	/** 固定幅トークン(長さ・%)の回数判定用の値です(長さValueまたは%比Double。それ以外null)。 */
@@ -423,7 +441,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		if (token instanceof CssToken.Ident || token instanceof CssToken.Dim dim && dim.unitText().equalsIgnoreCase("fr")) {
 			return null;
 		}
-		return ValueUtils.toLength(ua, token);
+		return toTrackLength(ua, token);
 	}
 
 	/**
@@ -452,7 +470,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			final double ratio = percent.value() / 100.0;
 			acc.addTrack(new GridTrackListValue.Percentage(ratio), minOverride != null ? minOverride : ratio);
 		} else {
-			final Value length = ValueUtils.toLength(ua, token);
+			final Value length = toTrackLength(ua, token);
 			if (length == null) {
 				throw new PropertyException();
 			}

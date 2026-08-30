@@ -276,8 +276,15 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		}
 		this.preparePDFWriter();
 		Image image;
+		// EXIFの向き(2026-08-30)。PDFの画像経路はPDFWriterが直に読むので
+		// RasterImageLoaderを通らず、**携帯で撮った横向きの写真が寝たまま
+		// 出ていた**。資源の先頭だけ覗いて向きを読み、同じストリームを
+		// 頭出しした状態でPDFWriterへ渡す(HTTPの資源を二度取りに行かない)
+		final Object[] peeked = net.zamasoft.foliojet.ua.impl.image.RasterImageLoader.peekOrientation(source);
+		final int orientation = ((Integer) peeked[0]).intValue();
+		final Source imageSource = (Source) peeked[1];
 		try {
-			image = this.pdfWriter.loadImage(source);
+			image = this.pdfWriter.loadImage(imageSource);
 			// filterの画素変換に備えて、復号は遅延させたまま画素への道を
 			// 添える(PixelBackedImage参照、2026-08-29)
 			final URI uri = source.getURI();
@@ -296,8 +303,13 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				});
 			}
 		} catch (IOException e) {
+			// ここはRasterImageLoaderを通るので向きは適用済み。二重に
+			// 掛けないよう、この経路では下の orient を通さない
 			image = this.loadImage(source);
+			AffineTransform fallbackPixelToUnit = this.getPixelToUnit();
+			return fallbackPixelToUnit.isIdentity() ? image : new TransformedImage(image, fallbackPixelToUnit);
 		}
+		image = net.zamasoft.foliojet.ua.impl.image.RasterImageLoader.orient(image, orientation);
 		AffineTransform pixelToUnit = this.getPixelToUnit();
 		if (!pixelToUnit.isIdentity()) {
 			image = new TransformedImage(image, pixelToUnit);

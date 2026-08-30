@@ -117,6 +117,9 @@ public class WordHyphenator implements FilterGlyphHandler {
 
 	private Hyphenator hyphenator = null;
 
+	/** バッファ開始時のhyphenate-character。nullはauto。 */
+	private String hyphenateCharacter;
+
 	/**
 	 * バッファ開始時点のフォント(単語の先頭にマーカーが来た場合の字形用)。
 	 */
@@ -204,7 +207,8 @@ public class WordHyphenator implements FilterGlyphHandler {
 				this.manualBreaks = true;
 			} else if (this.fontMetrics != null) {
 				this.out.control(new SoftHyphen(marker.charOffset,
-						hyphenText(marker.charOffset, this.fontStyle, this.fontMetrics)));
+						hyphenText(marker.charOffset, this.fontStyle, this.fontMetrics,
+								this.getParams().hyphenateCharacter)));
 				this.out.flush();
 			}
 			return;
@@ -240,6 +244,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 			this.autoBreaks = true;
 			this.manualBreaks = false;
 			this.hyphenator = params.hyphenator;
+			this.hyphenateCharacter = params.hyphenateCharacter;
 			this.bufFontStyle = this.fontStyle;
 			this.bufFontMetrics = this.fontMetrics;
 		}
@@ -297,7 +302,8 @@ public class WordHyphenator implements FilterGlyphHandler {
 						this.out.endTextRun();
 						this.outRunOpen = false;
 					}
-					this.out.control(new SoftHyphen(g.charOffset(), hyphenText(g.charOffset(), fs, fm)));
+					this.out.control(new SoftHyphen(g.charOffset(),
+							hyphenText(g.charOffset(), fs, fm, this.hyphenateCharacter)));
 					this.out.flush();
 				}
 				if (!this.outRunOpen) {
@@ -309,7 +315,8 @@ public class WordHyphenator implements FilterGlyphHandler {
 			} else if (ev instanceof Marker) {
 				final Marker marker = (Marker) ev;
 				if (fm != null) {
-					this.out.control(new SoftHyphen(marker.charOffset, hyphenText(marker.charOffset, fs, fm)));
+					this.out.control(new SoftHyphen(marker.charOffset,
+							hyphenText(marker.charOffset, fs, fm, this.hyphenateCharacter)));
 					this.out.flush();
 				}
 			} else {
@@ -340,10 +347,14 @@ public class WordHyphenator implements FilterGlyphHandler {
 	 * 分割点で行末に実体化するハイフン字形を作ります。
 	 * TextImplは可変(xadvances等)のため分割点ごとに新しいインスタンスを返します。
 	 */
-	private static TextImpl hyphenText(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) {
-		char hc = '\u2010'; // HYPHEN
-		if (!fontMetrics.getFontSource().canDisplay(hc)) {
-			hc = '-';
+	private static TextImpl hyphenText(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics,
+			String hyphenateCharacter) {
+		if (hyphenateCharacter == null) {
+			char hc = '\u2010'; // HYPHEN
+			if (!fontMetrics.getFontSource().canDisplay(hc)) {
+				hc = '-';
+			}
+			hyphenateCharacter = String.valueOf(hc);
 		}
 		final Font font;
 		if (fontMetrics instanceof FontMetricsImpl) {
@@ -352,8 +363,16 @@ public class WordHyphenator implements FilterGlyphHandler {
 			font = fontMetrics.getFontSource().createFont();
 		}
 		final TextImpl text = new TextImpl(charOffset, fontStyle, fontMetrics);
-		text.appendGlyph(new char[] { hc }, 0, (byte) 1, font.toGID(hc));
-		text.pack();
+		final char[] chars = hyphenateCharacter.toCharArray();
+		for (int i = 0; i < chars.length;) {
+			final int codePoint = Character.codePointAt(chars, i);
+			final byte length = (byte) Character.charCount(codePoint);
+			text.appendGlyph(chars, i, length, font.toGID(codePoint));
+			i += length;
+		}
+		if (text.getGlyphCount() > 0) {
+			text.pack();
+		}
 		return text;
 	}
 }

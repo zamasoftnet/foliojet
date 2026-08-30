@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
+import net.zamasoft.foliojet.css.font.FontFeatureValues;
+import net.zamasoft.foliojet.css.font.FontPaletteValues;
 import net.zamasoft.pdfg2d.font.FontSourceManager;
 
 /**
@@ -21,6 +23,10 @@ public class UAContext {
 	private final ImageMetricsCache imageMetrics = new ImageMetricsCache();
 
 	private final CounterStyles counterStyles = new CounterStyles();
+
+	private final FontFeatureValues fontFeatureValues = new FontFeatureValues();
+
+	private final FontPaletteValues fontPaletteValues = new FontPaletteValues();
 
 	private net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
 
@@ -80,6 +86,19 @@ public class UAContext {
 	 */
 	public CounterStyles getCounterStyles() {
 		return this.counterStyles;
+	}
+
+	/** 複数の組版パスで共有する{@code @font-feature-values}登録簿です。 */
+	public FontFeatureValues getFontFeatureValues() {
+		return this.fontFeatureValues;
+	}
+
+	/**
+	 * 複数の組版パスで共有する{@code @font-palette-values}登録簿です。
+	 * 定義は名前解決にだけ使い、描画には反映しません。
+	 */
+	public FontPaletteValues getFontPaletteValues() {
+		return this.fontPaletteValues;
 	}
 	
 	public Map<Object, ImageMap> getImageMaps() {

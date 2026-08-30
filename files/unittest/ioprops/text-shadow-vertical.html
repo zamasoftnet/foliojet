@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<title>text-shadow</title>
+<style>
+/*
+ * 影がPDFの抽出テキストへ混入しないことの検査(2026-08-30)。
+ * 縦組み+圏点だと描画単位が1文字ごとに割れ、影と本体が交互に出ていた。
+ */
+@page { size: 300pt 400pt; margin: 10pt; }
+body { margin: 0; font-family: serif; font-size: 16pt; }
+p { margin: 0 0 6pt 0; }
+#sharp { text-shadow: 1pt 1pt #ff0000; }
+#blurred { text-shadow: 1pt 1pt 2pt #ff0000; }
+#vertical-emphasis {
+	writing-mode: vertical-rl;
+	text-emphasis: "●";
+	text-shadow: 1pt 1pt #ff0000;
+}
+</style>
+</head>
+<body>
+<p id="sharp">減税</p>
+<p id="blurred">社会</p>
+<p id="vertical-emphasis">保障</p>
+</body>
+</html>

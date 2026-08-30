@@ -26,6 +26,23 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_Y = new Overflow("overflow-y");
 
 	/**
+	 * 論理軸の{@code overflow-block} / {@code overflow-inline}(css-overflow-3、
+	 * 2026-08-30)。
+	 *
+	 * <p>
+	 * 印刷では{@code hidden}/{@code scroll}/{@code auto}はどれも「クリップする」で
+	 * 等価で、{@link #get(CSSStyle)}が最後に軸をまとめてしまうため、
+	 * <b>writing-modeによる物理軸への割り当ては見ていない</b>——4つのうち
+	 * ひとつでも非visibleならクリップ、という単純化にしている
+	 * (軸ごとに「クリップする/しない」を混在させられないのは物理版と同じ)。
+	 * </p>
+	 */
+	public static final PrimitivePropertyInfo INFO_BLOCK = new Overflow("overflow-block");
+
+	/** @see #INFO_BLOCK */
+	public static final PrimitivePropertyInfo INFO_INLINE = new Overflow("overflow-inline");
+
+	/**
 	 * 両軸を単一の描画モードへ畳みます。
 	 *
 	 * <p>
@@ -37,8 +54,10 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 	 * </p>
 	 */
 	public static OverflowMode get(CSSStyle style) {
-		final OverflowMode x = ((OverflowValue) style.get(INFO_X)).getOverflow();
-		final OverflowMode y = ((OverflowValue) style.get(INFO_Y)).getOverflow();
+		final OverflowMode x = strongest(((OverflowValue) style.get(INFO_X)).getOverflow(),
+				((OverflowValue) style.get(INFO_INLINE)).getOverflow());
+		final OverflowMode y = strongest(((OverflowValue) style.get(INFO_Y)).getOverflow(),
+				((OverflowValue) style.get(INFO_BLOCK)).getOverflow());
 		if (x == y) {
 			return x;
 		}
@@ -51,6 +70,20 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 		// 両軸とも非visibleで種類が異なる場合、描画はどれもクリップで
 		// 等価。強い方(hidden)を優先する
 		return (x == OverflowMode.HIDDEN || y == OverflowMode.HIDDEN) ? OverflowMode.HIDDEN : x;
+	}
+
+	/**
+	 * 物理軸と論理軸のうち「クリップする方」を採ります(2026-08-30)。
+	 * 印刷ではvisible以外はすべてクリップなので、visibleでない方が勝つ。
+	 */
+	private static OverflowMode strongest(final OverflowMode physical, final OverflowMode logical) {
+		if (physical == OverflowMode.VISIBLE) {
+			return logical;
+		}
+		if (logical == OverflowMode.VISIBLE) {
+			return physical;
+		}
+		return (physical == OverflowMode.HIDDEN || logical == OverflowMode.HIDDEN) ? OverflowMode.HIDDEN : physical;
 	}
 
 	private Overflow(String name) {

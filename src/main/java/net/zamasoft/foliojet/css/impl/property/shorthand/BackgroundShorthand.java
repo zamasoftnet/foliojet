@@ -14,12 +14,14 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BackgroundClipValue;
+import net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundImage;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundPosition;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundRepeat;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
+import net.zamasoft.foliojet.css.impl.property.background.BackgroundOrigin;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -49,6 +51,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 			primitives.set(BackgroundSize.INFO_WIDTH, global);
 			primitives.set(BackgroundSize.INFO_HEIGHT, global);
 			primitives.set(BackgroundClip.INFO, global);
+			primitives.set(BackgroundOrigin.INFO, global);
 			return;
 		}
 
@@ -61,6 +64,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(BackgroundSize.INFO_WIDTH, KeywordValue.AUTO);
 		primitives.set(BackgroundSize.INFO_HEIGHT, KeywordValue.AUTO);
 		primitives.set(BackgroundClip.INFO, BackgroundClipValue.BORDER_BOX_VALUE);
+		primitives.set(BackgroundOrigin.INFO, BackgroundOriginValue.PADDING_BOX_VALUE);
 		// 多層背景(コンマ区切り、2026-08-29): 最初のレイヤだけを採る。
 		// 最終レイヤにだけ許される<color>は拾って背景色にする
 		final java.util.List<TokenStream> layers = tokens.splitComma();
@@ -69,6 +73,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		}
 		if (layers.size() > 1) {
 			final TokenStream last = layers.get(layers.size() - 1);
+			final int mark = last.position();
 			while (last.hasNext()) {
 				final CssToken lu = last.next();
 				if (ColorValueUtils.isTransparent(lu)) {
@@ -82,27 +87,51 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					}
 				}
 			}
+			// 続く画像・origin解析でも同じ最終レイヤを読む。
+			last.rewind(mark);
 		}
 		// 2層目以降は画像・グラデーション・noneだけを拾う(2026-08-29)。
 		// レイヤごとの繰り返し・位置・寸法は先頭レイヤの値を共有する
 		// (Background参照——記録済みの近似)
 		final java.util.List<Value> extraLayers = new java.util.ArrayList<Value>();
+		final java.util.List<BackgroundOriginValue> extraOrigins = new java.util.ArrayList<BackgroundOriginValue>();
 		for (int i = 1; i < layers.size(); ++i) {
 			final TokenStream layer = layers.get(i);
+			BackgroundOriginValue layerOrigin = BackgroundOriginValue.PADDING_BOX_VALUE;
+			int layerBoxes = 0;
 			while (layer.hasNext()) {
 				final CssToken lu = layer.next();
 				if (i == layers.size() - 1 && (ColorValueUtils.isTransparent(lu) || ColorValueUtils.isCurrentColor(lu)
 						|| ColorValueUtils.toColor(ua, lu) != null)) {
 					continue;
 				}
+				final BackgroundOriginValue originValue = ColorValueUtils.toBackgroundOrigin(lu);
+				final BackgroundClipValue clipValue = ColorValueUtils.toBackgroundClip(lu);
+				if (originValue != null) {
+					if (++layerBoxes > 2) {
+						throw new PropertyException("boxが3度指定されています");
+					}
+					if (layerBoxes == 1) {
+						layerOrigin = originValue;
+					}
+					continue;
+				} else if (clipValue != null) {
+					if (layerBoxes > 1) {
+						throw new PropertyException("clipが2度指定されています");
+					}
+					layerBoxes = 2;
+					continue;
+				}
 				final Value image = BackgroundImage.parseLayer(ua, uri, lu);
-				if (image != null && image != KeywordValue.NONE) {
+				if (image != null) {
 					extraLayers.add(image);
 				}
 			}
+			extraOrigins.add(layerOrigin);
 		}
 		tokens = layers.get(0);
-		boolean color = false, none = false, uriValue = false, repeat = false, attachment = false, position = false, size = false, clip = false;
+		boolean color = false, none = false, uriValue = false, repeat = false, attachment = false, position = false, size = false;
+		int boxes = 0;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
 			if (ColorValueUtils.isTransparent(lu)) {
@@ -182,13 +211,23 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				continue;
 			}
 
-			value = ColorValueUtils.toBackgroundClip(lu);
-			if (value != null) {
-				if (clip) {
+			final BackgroundOriginValue originValue = ColorValueUtils.toBackgroundOrigin(lu);
+			final BackgroundClipValue clipValue = ColorValueUtils.toBackgroundClip(lu);
+			if (originValue != null) {
+				if (++boxes > 2) {
+					throw new PropertyException("boxが3度指定されています");
+				}
+				if (boxes == 1) {
+					primitives.set(BackgroundOrigin.INFO, originValue);
+				}
+				primitives.set(BackgroundClip.INFO, clipValue);
+				continue;
+			} else if (clipValue != null) {
+				if (boxes > 1) {
 					throw new PropertyException("clipが2度指定されています");
 				}
-				clip = true;
-				primitives.set(BackgroundClip.INFO, value);
+				boxes = 2;
+				primitives.set(BackgroundClip.INFO, clipValue);
 				continue;
 			}
 
@@ -283,11 +322,20 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		if (!extraLayers.isEmpty()) {
 			// 先頭レイヤの画像の後ろへ2層目以降を並べる(先頭が最前面)
 			final Value first = primitives.get(BackgroundImage.INFO);
-			if (first != null && first != KeywordValue.NONE) {
+			if (first != null) {
 				extraLayers.add(0, first);
 			}
-			primitives.set(BackgroundImage.INFO, extraLayers.size() == 1 ? extraLayers.get(0)
-					: new BackgroundImage.LayersValue(extraLayers.toArray(new Value[extraLayers.size()])));
+			final boolean hasImage = extraLayers.stream().anyMatch(v -> v != KeywordValue.NONE);
+			primitives.set(BackgroundImage.INFO, hasImage
+					? new BackgroundImage.LayersValue(extraLayers.toArray(new Value[extraLayers.size()]))
+					: KeywordValue.NONE);
+		}
+		if (!extraOrigins.isEmpty()) {
+			final java.util.List<BackgroundOriginValue> origins = new java.util.ArrayList<BackgroundOriginValue>(
+					extraOrigins.size() + 1);
+			origins.add((BackgroundOriginValue) primitives.get(BackgroundOrigin.INFO));
+			origins.addAll(extraOrigins);
+			primitives.set(BackgroundOrigin.INFO, BackgroundOrigin.toValue(origins));
 		}
 	}
 

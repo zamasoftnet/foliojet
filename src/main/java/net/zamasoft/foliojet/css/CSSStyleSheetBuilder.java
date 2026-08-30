@@ -7,7 +7,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,6 +39,9 @@ import com.helger.css.reader.CSSReader;
 
 import net.zamasoft.foliojet.css.counterstyle.CounterStyleDef;
 import net.zamasoft.foliojet.css.counterstyle.CounterStyleParser;
+import net.zamasoft.foliojet.css.font.FontFeatureValues;
+import net.zamasoft.foliojet.css.font.FontPaletteValues;
+import net.zamasoft.foliojet.css.font.FontPaletteValues.BasePalette;
 import com.helger.css.writer.CSSWriterSettings;
 
 import net.zamasoft.foliojet.css.parser.CSSException;
@@ -47,8 +53,10 @@ import net.zamasoft.foliojet.css.property.PagePropertySet;
 import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.Tokens;
+import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.impl.property.font.CSSFontFamily;
 import net.zamasoft.foliojet.css.impl.property.font.CSSFontStyle;
 import net.zamasoft.foliojet.css.impl.property.font.FontWeight;
@@ -167,12 +175,16 @@ public class CSSStyleSheetBuilder {
 		} else if (rule instanceof CSSLayerRule layerRule) {
 			this.layer(layerRule, uri, mediaOk, layerNamePrefix, containerQuery);
 		} else if (rule instanceof CSSUnknownRule unknownRule) {
-			// ph-cssは@counter-style/@containerを未知のat-ruleとして本文ごと渡す
+			// ph-cssは未専用化のat-ruleを名前・引数・本文に分けて渡す
 			final String decl = unknownRule.getDeclaration();
 			if (mediaOk && "@counter-style".equalsIgnoreCase(decl)) {
 				this.counterStyle(unknownRule);
 			} else if (mediaOk && "@container".equalsIgnoreCase(decl)) {
 				this.container(unknownRule, uri, mediaOk, layer, layerNamePrefix);
+			} else if (mediaOk && "@font-feature-values".equalsIgnoreCase(decl)) {
+				this.fontFeatureValues(unknownRule);
+			} else if (mediaOk && "@font-palette-values".equalsIgnoreCase(decl)) {
+				this.fontPaletteValues(unknownRule);
 			}
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
@@ -214,6 +226,327 @@ public class CSSStyleSheetBuilder {
 		if (def != null) {
 			this.ua.getUAContext().getCounterStyles().define(name.trim(), def);
 		}
+	}
+
+	/** {@code @font-feature-values}を文書単位の名前表へ登録します。 */
+	private void fontFeatureValues(final CSSUnknownRule rule) {
+		final List<String> families = parseNamedFontFamilies(rule.getParameterList());
+		final String body = rule.getBody();
+		if (families == null || body == null) {
+			return;
+		}
+		final CascadingStyleSheet inner = CSSReader.readFromStringReader(body, DeclarationParser.settings());
+		if (inner == null) {
+			return;
+		}
+		final FontFeatureValues definitions = this.ua.getUAContext().getFontFeatureValues();
+		for (final ICSSTopLevelRule member : inner.getAllRules()) {
+			if (!(member instanceof CSSUnknownRule block)) {
+				continue;
+			}
+			String blockName = block.getDeclaration();
+			if (blockName == null) {
+				continue;
+			}
+			blockName = blockName.startsWith("@") ? blockName.substring(1) : blockName;
+			final FontFeatureValues.Type type = FontFeatureValues.Type.fromCssName(blockName);
+			final String blockBody = block.getBody();
+			final CSSStyleRule holder = type == null ? null : declarationHolder(blockBody);
+			if (holder == null) {
+				continue;
+			}
+			for (final CSSDeclaration declaration : holder.getAllDeclarations()) {
+				final String featureName = originalDeclarationName(blockBody, declaration);
+				if (declaration.isImportant() || isReservedFeatureName(featureName)) {
+					continue;
+				}
+				final int[] indexes = parseFeatureIndexes(type, Tokens.fromExpression(declaration.getExpression()));
+				if (indexes != null) {
+					definitions.define(families, type, featureName, indexes);
+				}
+			}
+		}
+	}
+
+	/**
+	 * {@code @font-palette-values}を解析して登録します。解決結果は
+	 * {@code font-palette}から参照できますが、描画には反映しません。
+	 */
+	private void fontPaletteValues(final CSSUnknownRule rule) {
+		final String name = parseDashedIdent(rule.getParameterList());
+		final CSSStyleRule holder = name == null ? null : declarationHolder(rule.getBody());
+		if (holder == null) {
+			return;
+		}
+		List<String> families = null;
+		BasePalette basePalette = BasePalette.index(0);
+		Map<Integer, ColorValue> overrideColors = Map.of();
+		for (final CSSDeclaration declaration : holder.getAllDeclarations()) {
+			if (declaration.isImportant()) {
+				continue;
+			}
+			final List<CssToken> tokens = Tokens.fromExpression(declaration.getExpression());
+			switch (declaration.getProperty().toLowerCase(Locale.ROOT)) {
+			case "font-family": {
+				final List<String> parsed = parseNamedFontFamilies(tokens);
+				if (parsed != null) {
+					families = parsed;
+				}
+				break;
+			}
+			case "base-palette": {
+				final BasePalette parsed = parseBasePalette(tokens);
+				if (parsed != null) {
+					basePalette = parsed;
+				}
+				break;
+			}
+			case "override-colors": {
+				final Map<Integer, ColorValue> parsed = this.parseOverrideColors(tokens);
+				if (parsed != null) {
+					overrideColors = parsed;
+				}
+				break;
+			}
+			default:
+				break;
+			}
+		}
+		if (families != null) {
+			this.ua.getUAContext().getFontPaletteValues().define(name,
+					new FontPaletteValues.Definition(families, basePalette, overrideColors));
+		}
+	}
+
+	private static CSSStyleRule declarationHolder(final String body) {
+		if (body == null) {
+			return null;
+		}
+		final CascadingStyleSheet sheet = CSSReader.readFromStringReader("*{" + body + "}",
+				DeclarationParser.settings());
+		return sheet != null && sheet.getRuleCount() == 1
+				&& sheet.getRuleAtIndex(0) instanceof CSSStyleRule holder ? holder : null;
+	}
+
+	private static List<String> parseNamedFontFamilies(final String text) {
+		if (text == null || text.trim().isEmpty()) {
+			return null;
+		}
+		final CSSStyleRule holder = declarationHolder("font-family:" + text + ";");
+		if (holder == null || holder.getAllDeclarations().size() != 1) {
+			return null;
+		}
+		final CSSDeclaration declaration = holder.getAllDeclarations().get(0);
+		return "font-family".equalsIgnoreCase(declaration.getProperty())
+				? parseNamedFontFamilies(Tokens.fromExpression(declaration.getExpression())) : null;
+	}
+
+	private static List<String> parseNamedFontFamilies(final List<CssToken> tokens) {
+		final List<List<CssToken>> groups = splitStrictComma(tokens);
+		if (groups == null) {
+			return null;
+		}
+		final List<String> families = new ArrayList<>(groups.size());
+		for (final List<CssToken> group : groups) {
+			if (group.size() == 1 && group.get(0) instanceof CssToken.Str str) {
+				if (str.value().isEmpty()) {
+					return null;
+				}
+				families.add(str.value());
+				continue;
+			}
+			final StringBuilder family = new StringBuilder();
+			for (final CssToken token : group) {
+				if (!(token instanceof CssToken.Ident ident)) {
+					return null;
+				}
+				if (family.length() > 0) {
+					family.append(' ');
+				}
+				family.append(ident.name());
+			}
+			if (group.size() == 1 && isGenericFamily(family.toString())) {
+				return null;
+			}
+			families.add(family.toString());
+		}
+		return families.isEmpty() ? null : List.copyOf(families);
+	}
+
+	private static boolean isGenericFamily(final String name) {
+		return switch (name.toLowerCase(Locale.ROOT)) {
+		case "serif", "sans-serif", "cursive", "fantasy", "monospace", "system-ui", "emoji", "math",
+				"fangsong", "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded" -> true;
+		default -> false;
+		};
+	}
+
+	private static boolean isReservedFeatureName(final String name) {
+		return switch (name.toLowerCase(Locale.ROOT)) {
+		case "initial", "inherit", "unset", "default", "revert", "revert-layer" -> true;
+		default -> false;
+		};
+	}
+
+	/** ph-cssが小文字化する宣言名を、元ソース位置から大小文字を保って復元します。 */
+	private static String originalDeclarationName(final String body, final CSSDeclaration declaration) {
+		final com.helger.css.CSSSourceLocation location = declaration.getSourceLocation();
+		if (location == null || !location.hasFirstTokenArea()) {
+			return declaration.getProperty();
+		}
+		final String wrapped = "*{" + body + "}";
+		final int start = sourceOffset(wrapped, location.getFirstTokenBeginLineNumber(),
+				location.getFirstTokenBeginColumnNumber());
+		final int end = sourceOffset(wrapped, location.getFirstTokenEndLineNumber(),
+				location.getFirstTokenEndColumnNumber()) + 1;
+		if (start < 0 || end <= start || end > wrapped.length()) {
+			return declaration.getProperty();
+		}
+		return decodeCssIdentifier(wrapped.substring(start, end));
+	}
+
+	private static int sourceOffset(final String source, final int line, final int column) {
+		if (line < 1 || column < 1) {
+			return -1;
+		}
+		int offset = 0;
+		for (int currentLine = 1; currentLine < line; ++currentLine) {
+			offset = source.indexOf('\n', offset);
+			if (offset < 0) {
+				return -1;
+			}
+			++offset;
+		}
+		final int result = offset + column - 1;
+		return result <= source.length() ? result : -1;
+	}
+
+	private static String decodeCssIdentifier(final String source) {
+		if (source.indexOf('\\') < 0) {
+			return source;
+		}
+		final StringBuilder decoded = new StringBuilder(source.length());
+		for (int i = 0; i < source.length(); ++i) {
+			final char c = source.charAt(i);
+			if (c != '\\' || i + 1 >= source.length()) {
+				decoded.append(c);
+				continue;
+			}
+			int end = i + 1;
+			while (end < source.length() && end - i <= 6 && isHexDigit(source.charAt(end))) {
+				++end;
+			}
+			if (end > i + 1) {
+				final int codePoint = Integer.parseInt(source.substring(i + 1, end), 16);
+				decoded.appendCodePoint(codePoint == 0 || !Character.isValidCodePoint(codePoint) ? 0xFFFD : codePoint);
+				if (end < source.length() && Character.isWhitespace(source.charAt(end))) {
+					++end;
+				}
+				i = end - 1;
+			} else {
+				decoded.append(source.charAt(++i));
+			}
+		}
+		return decoded.toString();
+	}
+
+	private static boolean isHexDigit(final char c) {
+		return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
+	}
+
+	private static int[] parseFeatureIndexes(final FontFeatureValues.Type type, final List<CssToken> tokens) {
+		final int[] indexes = new int[tokens.size()];
+		for (int i = 0; i < tokens.size(); ++i) {
+			if (!(tokens.get(i) instanceof CssToken.Num num) || !num.integer() || num.value() < 0
+					|| num.value() > Integer.MAX_VALUE) {
+				return null;
+			}
+			indexes[i] = num.intValue();
+		}
+		return switch (type) {
+		case STYLESET -> indexes.length > 0 && java.util.Arrays.stream(indexes).allMatch(index -> index <= 20)
+				? indexes : null;
+		case CHARACTER_VARIANT -> indexes.length >= 1 && indexes.length <= 2 && indexes[0] <= 99 ? indexes : null;
+		default -> indexes.length == 1 ? indexes : null;
+		};
+	}
+
+	private static String parseDashedIdent(final String text) {
+		if (text == null) {
+			return null;
+		}
+		final CSSStyleRule holder = declarationHolder("font-palette:" + text + ";");
+		if (holder == null || holder.getAllDeclarations().size() != 1) {
+			return null;
+		}
+		final List<CssToken> tokens = Tokens.fromExpression(holder.getAllDeclarations().get(0).getExpression());
+		return tokens.size() == 1 && tokens.get(0) instanceof CssToken.Ident ident
+				&& ident.name().startsWith("--") && ident.name().length() > 2 ? ident.name() : null;
+	}
+
+	private static BasePalette parseBasePalette(final List<CssToken> tokens) {
+		if (tokens.size() != 1) {
+			return null;
+		}
+		final CssToken token = tokens.get(0);
+		if (token instanceof CssToken.Ident ident) {
+			if (ident.is("light")) {
+				return BasePalette.light();
+			}
+			if (ident.is("dark")) {
+				return BasePalette.dark();
+			}
+			return null;
+		}
+		if (token instanceof CssToken.Num num && num.integer() && num.value() >= 0
+				&& num.value() <= Integer.MAX_VALUE) {
+			return BasePalette.index(num.intValue());
+		}
+		return null;
+	}
+
+	private Map<Integer, ColorValue> parseOverrideColors(final List<CssToken> tokens) {
+		final List<List<CssToken>> groups = splitStrictComma(tokens);
+		if (groups == null) {
+			return null;
+		}
+		final Map<Integer, ColorValue> colors = new LinkedHashMap<>();
+		for (final List<CssToken> group : groups) {
+			if (group.size() != 2 || !(group.get(0) instanceof CssToken.Num index) || !index.integer()
+					|| index.value() < 0 || index.value() > Integer.MAX_VALUE) {
+				return null;
+			}
+			final ColorValue color = ColorValueUtils.toColor(this.ua, group.get(1));
+			if (color == null) {
+				return null;
+			}
+			colors.put(index.intValue(), color);
+		}
+		return colors.isEmpty() ? null : colors;
+	}
+
+	private static List<List<CssToken>> splitStrictComma(final List<CssToken> tokens) {
+		if (tokens.isEmpty()) {
+			return null;
+		}
+		final List<List<CssToken>> groups = new ArrayList<>();
+		List<CssToken> group = new ArrayList<>();
+		for (final CssToken token : tokens) {
+			if (token == CssToken.Op.COMMA) {
+				if (group.isEmpty()) {
+					return null;
+				}
+				groups.add(group);
+				group = new ArrayList<>();
+			} else {
+				group.add(token);
+			}
+		}
+		if (group.isEmpty()) {
+			return null;
+		}
+		groups.add(group);
+		return groups;
 	}
 
 	/**

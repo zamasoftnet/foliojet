@@ -73,6 +73,10 @@ public final class ValueUtils {
 				return RelativeLengthValue.ch(dim.value());
 			case LH:
 				return RelativeLengthValue.lh(dim.value());
+			case CAP:
+				return RelativeLengthValue.cap(dim.value());
+			case RLH:
+				return RelativeLengthValue.rlh(dim.value());
 			case CQW:
 			case CQI:
 				// コンテナクエリ単位(段6、2026-08-15)。RelativeLengthValueと
@@ -124,7 +128,10 @@ public final class ValueUtils {
 		}
 		s = s.toLowerCase().trim();
 		try {
-			if (s.endsWith("mm")) {
+			if (s.endsWith("q")) {
+				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 1));
+				return AbsoluteLengthValue.create(ua, len, Unit.Q);
+			} else if (s.endsWith("mm")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
 				return AbsoluteLengthValue.create(ua, len, Unit.MM);
 			} else if (s.endsWith("cm")) {
@@ -200,6 +207,7 @@ public final class ValueUtils {
 			case IN:
 			case CM:
 			case MM:
+			case Q:
 			case PT:
 			case PC:
 			case PX:

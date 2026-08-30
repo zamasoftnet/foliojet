@@ -144,6 +144,7 @@ public final class SourceReplayer {
 		wrapperParams.wordWrap = template.wordWrap;
 		wrapperParams.textWrapStyle = template.textWrapStyle;
 		wrapperParams.hyphens = template.hyphens;
+		wrapperParams.hyphenateCharacter = template.hyphenateCharacter;
 		wrapperParams.hyphenator = template.hyphenator;
 		wrapperParams.textAutospace = template.textAutospace;
 		wrapperParams.textSpacingTrimOff = template.textSpacingTrimOff;

@@ -4,6 +4,7 @@ import java.net.URI;
 
 import net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle;
 import net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight;
+import net.zamasoft.foliojet.css.impl.property.font.FontSynthesisSmallCaps;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
@@ -36,9 +37,10 @@ public class FontSynthesisShorthand extends AbstractShorthandPropertyInfo {
 		if (global != null) {
 			primitives.set(FontSynthesisWeight.INFO, global);
 			primitives.set(FontSynthesisStyle.INFO, global);
+			primitives.set(FontSynthesisSmallCaps.INFO, global);
 			return;
 		}
-		boolean weight = false, style = false, any = false;
+		boolean weight = false, style = false, smallCaps = false, any = false;
 		boolean first = true;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
@@ -51,6 +53,7 @@ public class FontSynthesisShorthand extends AbstractShorthandPropertyInfo {
 				}
 				primitives.set(FontSynthesisWeight.INFO, KeywordValue.NONE);
 				primitives.set(FontSynthesisStyle.INFO, KeywordValue.NONE);
+				primitives.set(FontSynthesisSmallCaps.INFO, KeywordValue.NONE);
 				return;
 			}
 			first = false;
@@ -64,7 +67,9 @@ public class FontSynthesisShorthand extends AbstractShorthandPropertyInfo {
 					throw new PropertyException();
 				}
 				style = true;
-			} else if (ident.is("small-caps") || ident.is("position")) {
+			} else if (ident.is("small-caps")) {
+				smallCaps = true;
+			} else if (ident.is("position")) {
 				// 受理のみ(対応する合成機構なし)
 			} else {
 				throw new PropertyException();
@@ -76,5 +81,6 @@ public class FontSynthesisShorthand extends AbstractShorthandPropertyInfo {
 		}
 		primitives.set(FontSynthesisWeight.INFO, weight ? KeywordValue.AUTO : KeywordValue.NONE);
 		primitives.set(FontSynthesisStyle.INFO, style ? KeywordValue.AUTO : KeywordValue.NONE);
+		primitives.set(FontSynthesisSmallCaps.INFO, smallCaps ? KeywordValue.AUTO : KeywordValue.NONE);
 	}
 }

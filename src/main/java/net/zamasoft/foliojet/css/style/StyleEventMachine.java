@@ -135,6 +135,7 @@ import net.zamasoft.foliojet.css.impl.property.column.ColumnWidth;
 import net.zamasoft.foliojet.css.impl.property.box.Opacity;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisColor;
+import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisPosition;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisStyle;
 import net.zamasoft.foliojet.css.impl.property.text.TextFillColor;
 import net.zamasoft.foliojet.css.impl.property.text.TextShadow;
@@ -1181,6 +1182,7 @@ final class StyleEventMachine {
 				// 圏点
 				final char[] emc = em.toCharArray();
 				final boolean vert = BlockFlow.get(this.context.getCurrentStyle()).isVertical();
+				final var emPosition = TextEmphasisPosition.get(this.context.getCurrentStyle());
 				Value color = this.context.getCurrentStyle().get(TextEmphasisColor.INFO);
 				if (color == KeywordValue.DEFAULT) {
 					color = this.context.getCurrentStyle().get(CSSColor.INFO);
@@ -1204,10 +1206,10 @@ final class StyleEventMachine {
 					et.set(FontSize.INFO, PercentageValue.HALF);
 					if (vert) {
 						et.set(Height.INFO, PercentageValue.FULL);
-						et.set(Inset.LEFT, EM_1_4);
+						et.set(emPosition.isLeft() ? Inset.RIGHT : Inset.LEFT, EM_1_4);
 					} else {
 						et.set(Width.INFO, PercentageValue.FULL);
-						et.set(Inset.BOTTOM, EM_1_4);
+						et.set(emPosition.isUnder() ? Inset.TOP : Inset.BOTTOM, EM_1_4);
 					}
 					et.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
 					this.emitter._startStyle(et);

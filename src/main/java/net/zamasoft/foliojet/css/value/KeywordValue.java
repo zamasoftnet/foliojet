@@ -36,6 +36,9 @@ public enum KeywordValue implements Value {
 
 	FIT_CONTENT("fit-content"),
 
+	/** image-orientationの初期値(css-images-3、2026-08-30)。 */
+	FROM_IMAGE("from-image"),
+
 	/**
 	 * mask-imageのグラデーション近似の内部マーカー(2026-08-09、MaskImage参照)。
 	 * CSSのキーワードではない。

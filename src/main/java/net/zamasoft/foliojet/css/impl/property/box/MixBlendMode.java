@@ -44,6 +44,17 @@ public class MixBlendMode extends AbstractPrimitivePropertyInfo {
 
 	private static final BlendModeValue NORMAL = new BlendModeValue(BlendMode.NORMAL);
 
+	/**
+	 * {@code <blend-mode>} 1個を解析します。背景レイヤのブレンドも同じ
+	 * キーワード集合を使うため、値変換をここで共有します。
+	 */
+	public static BlendMode parseBlendMode(final CssToken token) {
+		if (token instanceof CssToken.Ident ident) {
+			return BlendMode.fromCssName(ident.lower());
+		}
+		return null;
+	}
+
 	public static BlendMode get(final CSSStyle style) {
 		return ((BlendModeValue) style.get(INFO)).mode();
 	}
@@ -71,11 +82,9 @@ public class MixBlendMode extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(final TokenStream tokens, final UserAgent ua, final URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		if (lu instanceof CssToken.Ident ident && !tokens.hasNext()) {
-			final BlendMode mode = BlendMode.fromCssName(ident.lower());
-			if (mode != null) {
-				return mode == BlendMode.NORMAL ? NORMAL : new BlendModeValue(mode);
-			}
+		final BlendMode mode = parseBlendMode(lu);
+		if (mode != null && !tokens.hasNext()) {
+			return mode == BlendMode.NORMAL ? NORMAL : new BlendModeValue(mode);
 		}
 		throw new PropertyException();
 	}
