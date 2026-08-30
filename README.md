@@ -1,5 +1,70 @@
 # FolioJet
 
+**A streaming HTML/CSS-to-PDF layout engine for print, with CSS Paged Media and
+JLREQ Japanese typesetting.** Apache-2.0, Java 21, no browser required.
+
+FolioJet is the layout engine behind Copper PDF, a server-side document
+converter that Japanese companies and publishers have used in production to
+print invoices, statements, tickets, catalogs and books. This fourth-generation
+engine was rewritten and open-sourced in 2026.
+
+## What it does
+
+- **Paged layout.** CSS Paged Media: page boxes and margin boxes, page-break
+  control, running headers and footers, footnotes, page floats and multi-column.
+- **Japanese typesetting to JLREQ.** Vertical writing, kinsoku line-breaking
+  driven by the JLREQ character-class tables, ruby (mono, group and jukugo),
+  warichu, tate-chu-yoko, line-adjustment priority, and font fallback with
+  kerning across CID-keyed and OpenType fonts.
+- **Streaming.** Pages are laid out and emitted while the document is still
+  arriving, so a long report generated from a slow cursor starts printing after
+  the first page and runs in bounded memory.
+- **Several output formats** from one layout: PDF, PNG/JPEG, a single SVG, and
+  page-split SVG.
+
+## What it is not
+
+- **Not a browser.** JavaScript is not executed, by design. `<noscript>` content
+  is rendered.
+- **Not a general-purpose renderer.** The target is print. CSS that only affects
+  interactive presentation is accepted and ignored rather than emulated.
+
+## How it is tested
+
+- 1,693 unit tests, plus display-list golden comparisons.
+- A randomized document sweep whose generator, oracle and automatic shrinker all
+  live in this repository (`RandomDocumentFuzzTest`, `FuzzOraclePredicateTest`,
+  `FuzzShrinker`). Every defect it has found is committed as a minimal
+  fixed-seed regression under [`files/fuzz-repro/`](./files/fuzz-repro).
+- Hard invariants the suite exists to protect: never hang, never drop content,
+  never emit an unintended blank page.
+
+## Build
+
+Java 21 and Gradle. FolioJet uses a Gradle composite build and expects four
+sibling repositories to be checked out next to it; see the Japanese section
+below for the exact layout, or run:
+
+```sh
+git clone https://github.com/zamasoftnet/cti.java.git
+git clone https://github.com/zamasoftnet/html-balancer.git
+git clone https://github.com/zamasoftnet/pdfg2d.git
+git clone https://github.com/zamasoftnet/zstream.git
+git clone https://github.com/zamasoftnet/foliojet.git
+cd foliojet
+./gradlew build
+```
+
+## License
+
+[Apache License 2.0](./LICENSE)
+
+---
+
+以下は日本語の説明です。
+
+# FolioJet
+
 HTML/CSS などのページング処理を担う公開ライブラリです。
 
 Gradle ベースの単一プロジェクト構成です。ビルドは `./gradlew build` を使います。
