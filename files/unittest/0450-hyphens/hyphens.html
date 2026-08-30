@@ -38,5 +38,16 @@
     <div id="c" class="none">hy&shy;phen&shy;ation al&shy;go&shy;rithm</div>
     <div id="d" class="auto justify">hyphenation algorithm typography computer</div>
     <div id="e" class="auto">supercalifragilistic&shy;expialidocious</div>
+    <!--
+      f/g は分綴パターンの集合そのものを押さえる。上の a〜e が使う4語
+      (hyphenation algorithm typography computer)は、2026-08-31まで同梱して
+      いた280件の手作りパターンが名指しで対応していた語で、集合が壊れていても
+      この4語だけは通ってしまう。名指しされていない語を置いて、
+      man-age-ment ではなく ma-na-g-e-m-ent のような分割が出たら落ちるようにする。
+      g の present / project は hyph-en-us.tex の \hyphenation が
+      「分割しない」と明示している語。
+    -->
+    <div id="f" class="auto">management development opportunity information</div>
+    <div id="g" class="auto">present project separate dictionary</div>
   </body>
 </html>
