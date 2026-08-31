@@ -411,7 +411,11 @@ public class CSSStyle {
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.get(this),
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this),
 				net.zamasoft.foliojet.css.impl.property.text.TextOrientation.get(this),
-				net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(this));
+				net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(this),
+				// 内容の言語(2026-08-31)。汎用ファミリの連鎖を言語別に選ぶために
+				// 運ぶ。既定の連鎖は日本語向けなので、これが無いと中国語に
+				// 日本語の字形が、韓国語のsans-serifに明朝が出る
+				this.ce == null ? null : this.ce.lang);
 		return this.fontStyle;
 	}
 

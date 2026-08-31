@@ -566,7 +566,12 @@ public class CSSProcessor implements XMLHandler {
 		} else if (lang.equals("en")) {
 			loca = Locale.ENGLISH;
 		} else {
-			loca = new Locale(lang);
+			// BCP-47として解釈する(2026-08-31)。`new Locale("zh-hans")`は
+			// タグを分解せず言語を"zh-hans"にしてしまうため、`:lang(zh)`も
+			// 言語別のフォント連鎖も`en-US`の分綴も当たらなかった。
+			// 解釈できない値は従来どおりそのまま言語として扱う
+			final Locale tagged = Locale.forLanguageTag(lang);
+			loca = tagged.getLanguage().isEmpty() ? new Locale(lang) : tagged;
 		}
 
 		// :dir() 用の方向性。dir="auto" の一次強方向文字判定は先読みを要する

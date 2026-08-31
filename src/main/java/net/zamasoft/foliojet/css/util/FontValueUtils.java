@@ -73,6 +73,9 @@ public final class FontValueUtils {
 					case "sans-serif":
 						list.add(FontFamily.SANS_SERIF_VALUE);
 						break;
+					case "fangsong":
+						list.add(FontFamily.FANGSONG_VALUE);
+						break;
 					case "serif":
 						list.add(FontFamily.SERIF_VALUE);
 						break;
