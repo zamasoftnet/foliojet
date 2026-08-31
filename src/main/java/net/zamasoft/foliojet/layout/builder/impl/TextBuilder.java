@@ -779,6 +779,13 @@ public class TextBuilder {
 			// lineBox.getText(text);
 			// System.out.println("endLine: " + this.maxLineAxis+"/"+text);
 
+			// 改頁で組み直された行に、前の組みで実体化したハイフンが残ることが
+			// ある(2026-08-31)。ハイフンは行末にしか意味を持たないので、
+			// 揃える前に落とす。詳細はAbstractTextBox#removeStrayHyphens
+			final double strayHyphen = lineBox.removeStrayHyphens();
+			if (strayHyphen != 0) {
+				lineBox.addAdvance(-strayHyphen);
+			}
 			lineBox.align(this.textIndent, this.minLineAxis, this.maxLineSize, last);
 			this.applyTextOverflow(lineBox);
 			if (this.inlineStack != null && !this.inlineStack.isEmpty()) {
@@ -937,6 +944,7 @@ public class TextBuilder {
 	 * @param last
 	 * @return
 	 */
+
 	private boolean drawLine(boolean last) {
 		if (this.firstUnit) {
 			this.locateLine();
@@ -992,8 +1000,19 @@ public class TextBuilder {
 					trimEndCandidate = (TextImpl) e;
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
-					if (!last && i == count - 1 && this.opportunity.hyphen() != null) {
-						// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する
+					if (!last && i == count - 1 && quad == this.opportunity.hyphen()) {
+						// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する。
+						//
+						// **バッファに続きが残っていることまで見る**(2026-08-31)。
+						// count == textBuffer.size() は「配達された分がちょうど軟ハイフンで
+						// 終わっている」状態で、語の残りはまだ来ていない。ここで行を切るのは
+						// 版面の都合(改頁で溢れた等)であって語中の分割が確定したわけではなく、
+						// 実際その行は次頁で組み直される。ところが実体化したハイフンは組み直し
+						// 後の内容に残るため、**折らなかった位置のハイフンが語の途中に出る**。
+						// 226頁の書籍で10箇所——`Bu-reau`が行頭に出て、`or/ganiza-tions`は
+						// 折れた側にハイフンが無く折らなかった側に出ていた。計測では、残った
+						// ハイフンは全て count == size、正しいハイフンは全て count < size だった。
+						// 行末の要素がその軟ハイフン自身であることも併せて確かめる。
 						final TextImpl hyphen = this.opportunity.hyphen().getText();
 						if (hyphen.getGlyphCount() > 0) {
 							// hyphenate-character:""は分割だけ行い文字を表示しない

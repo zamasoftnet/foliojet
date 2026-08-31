@@ -347,11 +347,35 @@ public class WordHyphenator implements FilterGlyphHandler {
 	 * 分割点で行末に実体化するハイフン字形を作ります。
 	 * TextImplは可変(xadvances等)のため分割点ごとに新しいインスタンスを返します。
 	 */
+	/**
+	 * 分割記号の字形が全角かどうかを見ます。欧文の行末に置く記号なので、
+	 * 送り幅が0.5emを超えるものはCJK用の全角の面が選ばれたとみなします。
+	 */
+	private static boolean isFullWidth(final FontStyle fontStyle, final FontMetrics fontMetrics, final char c) {
+		final double size = fontStyle.getSize();
+		if (size <= 0) {
+			return false;
+		}
+		final Font font;
+		if (fontMetrics instanceof FontMetricsImpl) {
+			font = ((FontMetricsImpl) fontMetrics).getFont();
+		} else {
+			font = fontMetrics.getFontSource().createFont();
+		}
+		final TextImpl probe = new TextImpl(0, fontStyle, fontMetrics);
+		probe.appendGlyph(new char[] { c }, 0, (byte) 1, font.toGID(c));
+		return probe.getAdvance() > size * 0.5;
+	}
+
 	private static TextImpl hyphenText(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics,
 			String hyphenateCharacter) {
 		if (hyphenateCharacter == null) {
 			char hc = '\u2010'; // HYPHEN
-			if (!fontMetrics.getFontSource().canDisplay(hc)) {
+			if (!fontMetrics.getFontSource().canDisplay(hc) || isFullWidth(fontStyle, fontMetrics, hc)) {
+				// **U+2010が全角のフォントではU+002Dへ落とす**(2026-08-31)。
+				// 和文フォント(NotoSerifJPなど)はこの符号位置を全角(1em)で持つため、
+				// 既定のままだと欧文の行末で語とハイフンの間が1em近く空く。
+				// U+002Dは0.35em程度で正しく収まる
 				hc = '-';
 			}
 			hyphenateCharacter = String.valueOf(hc);
@@ -373,6 +397,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 		if (text.getGlyphCount() > 0) {
 			text.pack();
 		}
+		text.materializedHyphen = true;
 		return text;
 	}
 }

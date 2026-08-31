@@ -43,6 +43,7 @@ import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
+import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 import net.zamasoft.pdfg2d.pdf.font.cid.missing.MissingCIDFontSource;
 
@@ -143,6 +144,57 @@ public abstract class AbstractTextBox extends AbstractBox {
 		overline = ((flags & AbstractTextParams.DECORATION_OVERLINE) != 0) ? own : overline;
 		lineThrough = ((flags & AbstractTextParams.DECORATION_LINE_THROUGH) != 0) ? own : lineThrough;
 		this.decoration = new Decoration(underline, overline, lineThrough);
+	}
+
+	/**
+	 * 行末に実体化した分綴ハイフンのうち、**その行の最後の内容になっていない
+	 * もの**を取り除きます(2026-08-31)。
+	 *
+	 * <p>
+	 * 分綴の分割機会でハイフンを実体化した行が、改頁で溢れて組み直されると、
+	 * 実体化済みのハイフンが組み直し後の内容へ残ることがある。結果として
+	 * 「折らなかった位置のハイフンが語の途中に出る」——226頁の書籍で10箇所
+	 * ({@code Bu-reau}が行頭に、{@code orga-}/{@code niza-tions}は続きの側にも)。
+	 * ハイフンは行の最後にしか意味を持たないので、そうでないものは誤植であり
+	 * 落として構わない。実体化を止める方向で直そうとすると、正しい位置の
+	 * ハイフンまで消えて「ハイフン無しで語が割れる」欠陥に化ける(実測149箇所)。
+	 * </p>
+	 *
+	 * @return 取り除いた幅の合計
+	 */
+	public final double removeStrayHyphens() {
+		if (this.contents == null) {
+			return 0;
+		}
+		double removed = 0;
+		// 末尾から見て、最後の可視内容より前にあるハイフンだけを落とす。
+		boolean seenVisible = false;
+		for (int i = this.contents.size() - 1; i >= 0; --i) {
+			final Object content = this.contents.get(i);
+			if (content instanceof AbstractTextBox nested) {
+				removed += nested.removeStrayHyphens();
+				seenVisible = true;
+				continue;
+			}
+			if (content instanceof TextImpl text && text.materializedHyphen) {
+				if (seenVisible) {
+					this.contents.remove(i);
+					removed += text.getAdvance();
+				} else {
+					seenVisible = true;
+				}
+				continue;
+			}
+			if (content instanceof Control control) {
+				// 幅0の境界・つぶれた空白はハイフンが行末であることを妨げない
+				if (control.getAdvance() != 0) {
+					seenVisible = true;
+				}
+				continue;
+			}
+			seenVisible = true;
+		}
+		return removed;
 	}
 
 	protected final void add(Object content) {
@@ -1779,6 +1831,16 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Text text -> {
 				// テキスト
 				assert text.getGlyphCount() > 0;
+				if (text instanceof TextImpl impl && impl.materializedHyphen) {
+					// **行末に実体化した分綴ハイフンは再生しない**(2026-08-31)。
+					// 改頁で捨てた行をイベント列へ書き戻すこの経路は、組版の
+					// 決定ではなくソース相当の内容を運ぶ約束になっている。
+					// ハイフンを混ぜると、組み直し後に折らなかった位置へ
+					// ハイフンが残る——226頁の書籍で10箇所、`Bu-reau`が行頭に、
+					// `orga-`/`niza-tions`は続きの側にも出ていた。分割機会は
+					// 直後のSoftHyphen(制御)が運ぶので、再生しなくても失われない
+					break;
+				}
 				text.toGlyphs(gh);
 			}
 

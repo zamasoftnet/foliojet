@@ -1,5 +1,4 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=45.00 h=34.80]
-  x=0.00 y=0.00 Text["dic" asc=10.31 desc=4.09]
-  x=14.66 y=0.00 Text["tio-" asc=10.31 desc=4.09]
-  x=0.00 y=14.40 Text["nary" asc=10.31 desc=4.09]
+  x=0.00 y=0.00 Text["dic-" asc=10.31 desc=4.09]
+  x=0.00 y=14.40 Text["tionary" asc=10.31 desc=4.09]
