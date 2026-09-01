@@ -32,13 +32,15 @@ final class PagedSVGResources {
 			String jsonSha256) {
 	}
 
-	record ImageAsset(String uri, String sha256, String mediaType, int width, int height, boolean omitted) {
+	record ImageAsset(String uri, String sha256, String mediaType, int width, int height, boolean omitted,
+			String baseUri) {
 		/**
-		 * ページSVGから書く参照先。共有資源は{@code pages/}から見た相対URIに、
+		 * ページSVGから書く参照先。共有資源には
+		 * {@code output.paged-svg.base-uri}の前置きを付け、
 		 * 埋め込みはdata:をそのまま使います。
 		 */
 		String href() {
-			return this.uri.startsWith("data:") ? this.uri : "../" + this.uri;
+			return this.uri.startsWith("data:") ? this.uri : this.baseUri + this.uri;
 		}
 	}
 
@@ -227,6 +229,17 @@ final class PagedSVGResources {
 		this.carry = carry;
 	}
 
+	/** 共有資源を指すときの前置き({@code output.paged-svg.base-uri})。 */
+	private String baseUri = "../";
+
+	void setBaseUri(final String baseUri) {
+		this.baseUri = baseUri;
+	}
+
+	String getBaseUri() {
+		return this.baseUri;
+	}
+
 	void setResourceMode(final PagedSvgResourceMode mode) {
 		this.resourceMode = mode;
 	}
@@ -302,12 +315,13 @@ final class PagedSVGResources {
 				// ページSVGだけで完結させる。実体は別ファイルにしない
 				final String data = "data:" + mediaType + ";base64,"
 						+ java.util.Base64.getEncoder().encodeToString(bytes);
-				image = new ImageAsset(data, hash, mediaType, width, height, false);
+				image = new ImageAsset(data, hash, mediaType, width, height, false, this.baseUri);
 				this.images.put(hash, image);
 				return image;
 			}
 			final boolean omit = this.resourceMode == PagedSvgResourceMode.OMIT;
-			image = new ImageAsset("assets/images/" + hash + '.' + extension, hash, mediaType, width, height, omit);
+			image = new ImageAsset("assets/images/" + hash + '.' + extension, hash, mediaType, width, height, omit,
+					this.baseUri);
 			if (!omit) {
 				this.emitter.emit(image.uri, mediaType, bytes);
 			}
@@ -352,7 +366,7 @@ final class PagedSVGResources {
 			return existing;
 		}
 		final ImageAsset image = new ImageAsset("assets/images/" + known.sha256() + '.' + known.extension(),
-				known.sha256(), known.mediaType(), known.pixelWidth(), known.pixelHeight(), true);
+				known.sha256(), known.mediaType(), known.pixelWidth(), known.pixelHeight(), true, this.baseUri);
 		this.images.put(known.sha256(), image);
 		return image;
 	}

@@ -257,6 +257,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final int number = ++this.page;
 		if (number == 1) {
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
+			this.resources.setBaseUri(normaliseBaseUri(UAProps.OUTPUT_PAGED_SVG_BASE_URI.getString(this)));
 			// ZIPで返すときは中身を縮めない——ZIP側が縮めるので二重になるし、
 			// 受け手が展開してそのまま開ける名前(.svg/.json)であるべき
 			this.compression = this.zipBundle ? PagedSvgCompression.NONE
@@ -277,6 +278,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		try {
 			this.directBuffer = new java.io.StringWriter(1 << 14);
 			this.directPage = new SVGPageOutput(this.directBuffer, this.pageWidth, this.pageHeight);
+			final String base = this.resources.getBaseUri();
+			this.directPage.writer().setFontSrc(uri -> base + uri);
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		}
@@ -334,6 +337,17 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		});
 		this.resources.addPage(new PagedSVGResources.PageAsset(this.currentPage.number, this.currentPage.width,
 				this.currentPage.height, svgUri, svgSha, jsonUri, jsonSha));
+	}
+
+	/**
+	 * {@code output.paged-svg.base-uri}を前置きとして使える形に整えます。
+	 * 空(または未指定)はそのまま前置き無し、末尾の{@code /}は無ければ補う。
+	 */
+	private static String normaliseBaseUri(final String value) {
+		if (value == null || value.isEmpty()) {
+			return "";
+		}
+		return value.endsWith("/") ? value : value + "/";
 	}
 
 	/** 結果1件の中身を書きます。溜めずに、渡された出力へ直接書くこと。 */

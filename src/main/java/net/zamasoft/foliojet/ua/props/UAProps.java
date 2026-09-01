@@ -725,6 +725,26 @@ public final class UAProps {
 
 
 	/**
+	 * ページSVGから共有資源(フォントのサブセットと画像)を指すときの前置きです。
+	 *
+	 * <p>
+	 * 既定は{@code ../}で、{@code pages/}から見た相対になります。
+	 * <b>複数のページSVGを1つのHTML文書へ取り込む読み器では、これが解決
+	 * できません</b>——基底が取り込み先の文書になるためで、本文は私用領域の
+	 * 符号なので字形が来ないと<b>丸ごと空白</b>に見えます(2026-09-01、
+	 * cti.liの読み器からの報告)。
+	 * </p>
+	 *
+	 * <p>
+	 * 絶対URLの前置き({@code https://example.com/book/})を与えれば、
+	 * 取り込み先がどこでも解決します。末尾の{@code /}は無ければ補います。
+	 * フォントのサブセットにも画像にも同じ前置きが付きます。
+	 * </p>
+	 */
+	public static final StringPropManager OUTPUT_PAGED_SVG_BASE_URI = new StringPropManager(
+			"output.paged-svg.base-uri", "../");
+
+	/**
 	 * ページSVGとページJSONをgzipで縮めて返すかどうかです。
 	 *
 	 * <p>
