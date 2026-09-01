@@ -397,25 +397,41 @@ public class DirectSession extends AbstractCTISession
 	/**
 	 * 代表コードポイントによるスクリプト判定表(ctip/fontsのscripts属性、
 	 * 2026-08-27)。ラベルは言語でなく文字体系。cmap照会だけなので
-	 * フォントあたり十数回のルックアップで済む。
+	 * フォントあたり数十回のルックアップで済む。
+	 *
+	 * <p>
+	 * 体系ごとに複数字を並べ、**すべて表示できるときだけ**その体系を
+	 * 名乗ります(2026-09-01)。1字だけの判定では、その体系の一部しか
+	 * 持たないフォントが「対応」を名乗り、実際に組むと字が抜けたり
+	 * 別のフォントが混ざったりしました——Gothic A1はΩを持つのに
+	 * ά(アクセント付き)を持たず、JejuGothicは漢を含む漢字の字形が
+	 * 空でした。選ぶ字はその文字体系で日常的に出るものにしています。
+	 * </p>
 	 */
 	private static final Object[][] SCRIPT_PROBES = { //
-			{ "latin", 0x41 }, // A
-			{ "cyrillic", 0x416 }, // Ж
-			{ "greek", 0x3A9 }, // Ω
-			{ "arabic", 0x627 }, // ا
-			{ "hebrew", 0x5D0 }, // א
-			{ "devanagari", 0x905 }, // अ
-			{ "thai", 0xE01 }, // ก
-			{ "kana", 0x3042 }, // あ
-			{ "cjk", 0x6F22 }, // 漢
-			{ "hangul", 0xAC00 }, // 가
+			{ "latin", new int[] { 0x41, 0x7A, 0x30 } }, // A z 0
+			{ "cyrillic", new int[] { 0x416, 0x449, 0x451, 0x44A } }, // Ж щ ё ъ
+			{ "greek", new int[] { 0x3A9, 0x3BC, 0x3AC } }, // Ω μ ά
+			{ "arabic", new int[] { 0x627, 0x628, 0x647 } }, // ا ب ه
+			{ "hebrew", new int[] { 0x5D0, 0x5DE, 0x5E0 } }, // א מ נ
+			{ "devanagari", new int[] { 0x905, 0x913, 0x918 } }, // अ ओ घ
+			{ "thai", new int[] { 0xE01, 0xE40, 0xE47 } }, // ก เ ็
+			{ "kana", new int[] { 0x3042, 0x306C, 0x30F3 } }, // あ ぬ ン
+			{ "cjk", new int[] { 0x6F22, 0x6C38, 0x6771 } }, // 漢 永 東
+			{ "hangul", new int[] { 0xAC00, 0xC950, 0xD034 } }, // 가 쥐 퀴
 	};
 
 	private static String scriptsOf(final FontSource font) {
 		final StringBuilder sb = new StringBuilder();
 		for (final Object[] probe : SCRIPT_PROBES) {
-			if (font.canDisplay((Integer) probe[1])) {
+			boolean all = true;
+			for (final int c : (int[]) probe[1]) {
+				if (!font.canDisplay(c)) {
+					all = false;
+					break;
+				}
+			}
+			if (all) {
 				if (sb.length() > 0) {
 					sb.append(' ');
 				}
