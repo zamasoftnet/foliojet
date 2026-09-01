@@ -258,6 +258,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		if (number == 1) {
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
 			this.resources.setBaseUri(normaliseBaseUri(UAProps.OUTPUT_PAGED_SVG_BASE_URI.getString(this)));
+			this.resources.setFontPerPage(UAProps.OUTPUT_PAGED_SVG_FONT_SCOPE
+					.get(this) == net.zamasoft.foliojet.ua.props.PagedSvgFontScope.PAGE);
 			// ZIPで返すときは中身を縮めない——ZIP側が縮めるので二重になるし、
 			// 受け手が展開してそのまま開ける名前(.svg/.json)であるべき
 			this.compression = this.zipBundle ? PagedSvgCompression.NONE
@@ -320,6 +322,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final String svg = this.directBuffer.toString();
 		this.directBuffer = null;
 		this.directPage = null;
+
+		// **ページSVGより先にそのページの書体を出す**(2026-09-02、
+		// font-scope: page)。受け手はページが届いた時点で字形を持っている
+		this.resources.emitPageFonts();
 
 		final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
 		final String svgUri = this.pageUri(stem, ".svg");

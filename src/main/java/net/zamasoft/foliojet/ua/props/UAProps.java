@@ -725,6 +725,28 @@ public final class UAProps {
 
 
 	/**
+	 * フォントのサブセットを<b>文書全体で1つにするか、ページごとに作るか</b>です。
+	 *
+	 * <p>
+	 * 既定の{@code document}は文書全体で共有するので総量が最も小さい。ただし
+	 * <b>全ページを書き終えるまでサブセットが出せない</b>ので、受け手は変換が
+	 * 終わるまで1文字も描けない(本文は私用領域の文字で、字形は書体の中に
+	 * しかない)。
+	 * </p>
+	 *
+	 * <p>
+	 * {@code page}にすると、<b>ページを閉じるたびにそのページ分だけを出す</b>。
+	 * 1ページ目とその書体が届いた時点で描き始められ、見えている頁の前後だけを
+	 * 取り寄せる読み器なら落とす量も減る。代償は総量——和文で実測すると
+     * 1ページ分が約20KBで、350ページの書籍ではフォント合計が0.25MB→7.1MB、
+	 * 出力全体では11.8MB→18.6MB(1.6倍)になる。**通読すると重く、拾い読みだと軽い**
+	 * (分岐点は12〜13ページ)。欧文だけの文書では誤差。
+	 * </p>
+	 */
+	public static final CodePropManager<PagedSvgFontScope> OUTPUT_PAGED_SVG_FONT_SCOPE = new CodePropManager<>(
+			"output.paged-svg.font-scope", PagedSvgFontScope.class, PagedSvgFontScope.DOCUMENT);
+
+	/**
 	 * ページSVGから共有資源(フォントのサブセットと画像)を指すときの前置きです。
 	 *
 	 * <p>

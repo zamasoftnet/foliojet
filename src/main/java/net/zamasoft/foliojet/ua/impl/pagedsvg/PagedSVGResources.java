@@ -212,6 +212,15 @@ final class PagedSVGResources {
 	 */
 	private static final int FONT_COMPRESSION = 5;
 	private final List<FontEntry> fonts = new ArrayList<>();
+
+	/**
+	 * サブセットの範囲({@code output.paged-svg.font-scope})。
+	 * {@code true}なら<b>ページごと</b>に作り、ページを閉じるたびに出す。
+	 */
+	private boolean fontPerPage = false;
+
+	/** ページごとのとき、いま組んでいるページで作ったサブセットの開始位置。 */
+	private int pageFontsFrom = 0;
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
 	private final Map<RenderedImage, OriginalImage> originalImages = new IdentityHashMap<>();
@@ -244,6 +253,40 @@ final class PagedSVGResources {
 		this.resourceMode = mode;
 	}
 
+	void setFontPerPage(final boolean fontPerPage) {
+		this.fontPerPage = fontPerPage;
+	}
+
+	boolean isFontPerPage() {
+		return this.fontPerPage;
+	}
+
+	/**
+	 * ページを閉じるときに、そのページで作ったサブセットを組んで出します
+	 * (2026-09-02、{@code font-scope: page})。
+	 *
+	 * <p>
+	 * <b>ページSVGより先に出す。</b>受け手はページが届いた時点で字形を
+	 * 持っているので、そのまま描ける。文書全体で1つにする既定では、
+	 * どの字形が要るかが最後まで確定しないのでこれができない。
+	 * </p>
+	 */
+	void emitPageFonts() throws IOException {
+		if (!this.fontPerPage || this.pageFontsFrom >= this.fonts.size()) {
+			return;
+		}
+		for (int i = this.pageFontsFrom; i < this.fonts.size(); ++i) {
+			final WebFontSubset subset = this.fonts.get(i).subset;
+			final byte[] bytes = subset.build(FONT_COMPRESSION);
+			if (this.resourceMode != PagedSvgResourceMode.OMIT) {
+				this.emitter.emit(subset.uri(), "font/woff2", bytes);
+			}
+			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length,
+					this.resourceMode == PagedSvgResourceMode.OMIT));
+		}
+		this.pageFontsFrom = this.fonts.size();
+	}
+
 	boolean isEmbedding() {
 		return this.resourceMode == PagedSvgResourceMode.EMBED;
 	}
@@ -254,7 +297,10 @@ final class PagedSVGResources {
 
 	WebFontSubset font(final FontSource source, final ShapedFont font, final WebFontSubset.Mode mode,
 			final boolean oblique) {
-		for (final FontEntry entry : this.fonts) {
+		// ページごとのときは**このページで作った分だけ**から探す。前のページの
+		// サブセットは既に出してしまっているので、育てられない
+		for (final FontEntry entry : this.fonts.subList(this.fontPerPage ? this.pageFontsFrom : 0,
+				this.fonts.size())) {
 			if (entry.source == source && entry.font == font && entry.mode == mode && entry.oblique == oblique) {
 				return entry.subset;
 			}
@@ -420,6 +466,10 @@ final class PagedSVGResources {
 	 * </p>
 	 */
 	void emitFonts() throws IOException {
+		if (this.fontPerPage) {
+			// ページを閉じるたびに出してある(emitPageFonts)
+			return;
+		}
 		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
 		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
 		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す
