@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
+import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
@@ -23,6 +24,7 @@ import net.zamasoft.foliojet.layout.box.params.PagePos;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
+import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -37,6 +39,9 @@ import net.zamasoft.foliojet.ua.UserAgent;
  */
 public class PageBox extends AbstractBlockBox {
 	protected final UserAgent ua;
+
+	/** {@code @page}の背景。通常のframe背景(canvas背景)とは別に用紙全面へ描く。 */
+	private final Background pageBackground;
 
 	/**
 	 * 固定配置ブロックです。
@@ -68,15 +73,24 @@ public class PageBox extends AbstractBlockBox {
 	protected double visualWidth = 0, visualHeight = 0;
 
 	public PageBox(BlockParams params, UserAgent ua) {
-		this(params, ua, new FlowContainer());
+		this(params, ua, Background.NULL_BACKGROUND);
 	}
 
 	public PageBox(BlockParams params, UserAgent ua, Container container) {
+		this(params, ua, Background.NULL_BACKGROUND, container);
+	}
+
+	public PageBox(BlockParams params, UserAgent ua, Background pageBackground) {
+		this(params, ua, pageBackground, new FlowContainer());
+	}
+
+	private PageBox(BlockParams params, UserAgent ua, Background pageBackground, Container container) {
 		super(params, params.size, params.minSize, new AbsoluteRectFrame(params.frame), container);
 		assert !this.size.getWidthType().needsReference();
 		assert !this.size.getHeightType().needsReference();
 
 		this.ua = ua;
+		this.pageBackground = pageBackground == null ? Background.NULL_BACKGROUND : pageBackground;
 
 		double lineWidth;
 		switch (params.flow) {
@@ -455,6 +469,9 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	@Override
 	public boolean paintsAnything() {
+		if (this.pageBackground.isVisible()) {
+			return true;
+		}
 		if (this.fixeds != null && !this.fixeds.isEmpty()) {
 			return true;
 		}
@@ -462,6 +479,11 @@ public class PageBox extends AbstractBlockBox {
 			return true;
 		}
 		return super.paintsAnything();
+	}
+
+	@Override
+	public double paintedPageExtent(final WritingMode flow) {
+		return this.pageBackground.isVisible() ? this.getPageExtent(flow) : super.paintedPageExtent(flow);
 	}
 
 	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis) {
@@ -537,12 +559,19 @@ public class PageBox extends AbstractBlockBox {
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
 		final net.zamasoft.foliojet.ua.UserAgent ua = this.ua;
-		return (state, container) -> new PageBox(params, ua, container);
+		final Background pageBackground = this.pageBackground;
+		return (state, container) -> new PageBox(params, ua, pageBackground, container);
 	}
 
 	public final void drawFlow(Drawer drawer, Visitor visitor) {
 		double x = -this.frame.margin.left;
 		double y = -this.frame.margin.top;
+		if (this.pageBackground.isVisible()) {
+			// PageSequenceはGCを余白分だけ平行移動するので、この座標が用紙原点。
+			// frame.drawと違ってmarginを控除せず、@page背景を用紙全面へ描く。
+			drawer.visitDrawable(new BackgroundBorderDrawable(this, null, 1f, new AffineTransform(),
+					this.pageBackground, null, null, this.getWidth(), this.getHeight()), x, y);
+		}
 		this.frames(this, drawer, null, new AffineTransform(), x, y);
 		this.draw(this, drawer, visitor, null, new AffineTransform(), x, y, x, y);
 	}

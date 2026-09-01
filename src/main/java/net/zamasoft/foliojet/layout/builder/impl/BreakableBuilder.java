@@ -685,7 +685,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				continue;
 			}
 
-			super.endTextBlock();
+			// 本文の終端ではなく、版面が満杯になったため現在の断片を閉じる。
+			// SoftHyphen がこの断片の行末なら、通常の折返しと同じく
+			// hyphenate-character を実体化する必要がある。
+			super.endTextBlock(true);
 
 			if (LOG.isLoggable(Level.FINE)) {
 				LOG.fine("page break [interline]/" + pageAxis + "/" + this.widows);

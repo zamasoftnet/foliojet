@@ -152,6 +152,9 @@ public class DisplayListGoldenTest extends TestCase {
 			// 読み込みが非同期なので、失敗しても次の候補へ落ちていなかった
 			"1080-FONT/font-face-format.html", //
 			"0450-hyphens/hyphens.html", //
+			// 版面が埋まってブロックが閉じられる行の分綴ハイフン(2026-09-01)。
+			// 通常の行溢れと違い drawLine(true) を通るため実体化が止まっていた
+			"0450-hyphens/hyphen-at-page-break.html", //
 			"0450-hyphens/word-then-paren.html", //
 			// 入れ子のフレックス(2026-08-05)。項目自身が宣言した幅を内在寸法に
 			// 数えておらず、空きが負になって中の項目が幅0へ潰れていた

@@ -770,7 +770,7 @@ public class TextBuilder {
 			this.pendingEndHang = 0;
 		}
 		boolean lineAdded = false;
-		if (this.drawLine(last)) {
+		if (this.drawLine(last, !last)) {
 			this.firstFormattedLine = false;
 			final AbstractLineBox lineBox = this.lineBox;
 			final LineBox newLineBox = lineBox.splitLine(this.textBlockBox.getBlockParams());
@@ -941,11 +941,13 @@ public class TextBuilder {
 	/**
 	 * 行を生成します。
 	 *
-	 * @param last
+	 * @param last 最終行として揃え、バッファ全体を消費する場合は {@code true}
+	 * @param materializeBreakHyphen 確定した分断位置のソフトハイフンを
+	 *                               実体化する場合は {@code true}
 	 * @return
 	 */
 
-	private boolean drawLine(boolean last) {
+	private boolean drawLine(final boolean last, final boolean materializeBreakHyphen) {
 		if (this.firstUnit) {
 			this.locateLine();
 			this.firstUnit = false;
@@ -1000,19 +1002,11 @@ public class TextBuilder {
 					trimEndCandidate = (TextImpl) e;
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
-					if (!last && i == count - 1 && quad == this.opportunity.hyphen()) {
+					if (materializeBreakHyphen && i == count - 1 && quad == this.opportunity.hyphen()) {
 						// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する。
 						//
-						// **バッファに続きが残っていることまで見る**(2026-08-31)。
-						// count == textBuffer.size() は「配達された分がちょうど軟ハイフンで
-						// 終わっている」状態で、語の残りはまだ来ていない。ここで行を切るのは
-						// 版面の都合(改頁で溢れた等)であって語中の分割が確定したわけではなく、
-						// 実際その行は次頁で組み直される。ところが実体化したハイフンは組み直し
-						// 後の内容に残るため、**折らなかった位置のハイフンが語の途中に出る**。
-						// 226頁の書籍で10箇所——`Bu-reau`が行頭に出て、`or/ganiza-tions`は
-						// 折れた側にハイフンが無く折らなかった側に出ていた。計測では、残った
-						// ハイフンは全て count == size、正しいハイフンは全て count < size だった。
-						// 行末の要素がその軟ハイフン自身であることも併せて確かめる。
+						// ページ分割で閉じたブロック終端は last=true でここを通るため、
+						// !last だけでは拾えない。確定した分断かを引数で渡して実体化する。
 						final TextImpl hyphen = this.opportunity.hyphen().getText();
 						if (hyphen.getGlyphCount() > 0) {
 							// hyphenate-character:""は分割だけ行い文字を表示しない
@@ -1802,10 +1796,12 @@ public class TextBuilder {
 		return this.newLine(false);
 	}
 
-	void finish() {
+	void finish(final boolean fragmentBreak) {
 		// テキストブロックの末尾
 		// assert this.textParamStack == null || this.textParamStack.isEmpty();
-		if (!this.drawLine(true)) {
+		// fragmentBreak=true は本文の終端ではなく、版面が満杯になって
+		// 後続断片へテキストが続くことを呼び出し側が確定した状態。
+		if (!this.drawLine(true, fragmentBreak)) {
 			// 開始のないINLINE_ENDだけを回復的に捨てたTextBuilderは、
 			// 1行も持たずに終了してよい。
 			return;

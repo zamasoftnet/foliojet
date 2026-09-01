@@ -409,25 +409,12 @@ final class PageSequence {
 		Value marginLeft = Margin.get(pageStyle, Side.LEFT);
 		Insets margin = BoxValueUtils.toInsets(marginTop, marginRight, marginBottom, marginLeft);
 
-		// ページ箱の背景(css-page-3 §3、2026-09-01)。以前はhtml/bodyから昇格した
-		// もの(promoteRootBackground)しか見ておらず、`@page { background: … }`は
-		// **紙が白いまま**だった——全面裁ち落としの表紙を作る標準的な手段なので、
-		// 書籍用途では回避策(版面の実寸をmmで計算して絶対配置の箱を敷く)まで
-		// 必要になっていた。
-		//
-		// **昇格した背景が先**。仕様上は両方描く(ページ箱の背景の上に
-		// キャンバスの背景)が、ページの枠は背景を1つしか持てないので、
-		// 従来から塗られていた昇格分を優先し、それが無いときだけ`@page`の
-		// 背景で塗る。`files/misc/tounittest/0010-page/031-background-image.html`
-		// (背景の競合)がこの順序を押さえている。
-		//
-		// 塗る範囲はマージンの内側(ボーダーボックス)。**全面裁ち落としには
-		// `@page { margin: 0 }`が要る**。枠線は今も引かない(`@page`のborderは未対応)。
-		Background pageBackground = this.background;
-		if (pageBackground == Background.NULL_BACKGROUND) {
-			pageBackground = BoxStyleMapper.createBackground(pageStyle);
-		}
-		params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER, pageBackground, Insets.NULL_INSETS);
+		// ページ箱の背景(css-page-3 §3、2026-09-01)。ページ固有の背景は
+		// PageBoxが用紙全面へ先に描き、html/bodyから昇格したcanvas背景は
+		// 通常のframe背景として余白の内側へ重ねる。枠線は今も引かない
+		// (`@page`のborderは未対応)。
+		final Background pageBackground = BoxStyleMapper.createBackground(pageStyle);
+		params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER, this.background, Insets.NULL_INSETS);
 
 		this.pageNumber++;
 		if (this.maxPageNumber != -1 && this.pageNumber > this.maxPageNumber) {
@@ -440,7 +427,7 @@ final class PageSequence {
 			throw new AbortException(AbortException.ABORT_FORCE);
 		}
 		this.ua.message(MessageCodes.INFO_PAGE_NUMBER, String.valueOf(this.pageNumber));
-		return new PageBox(params, this.ua);
+		return new PageBox(params, this.ua, pageBackground);
 	}
 
 	/**

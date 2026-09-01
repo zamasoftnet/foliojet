@@ -1774,6 +1774,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void endTextBlock() {
+		this.endTextBlock(false);
+	}
+
+	/**
+	 * テキストブロックを閉じます。
+	 *
+	 * @param fragmentBreak 本文の終端ではなく、断片の容量超過によって
+	 *                      テキストが後続断片へ継続する場合は {@code true}
+	 */
+	protected final void endTextBlock(final boolean fragmentBreak) {
 		// テキストブロックの終了。内容が空(control()が一度も呼ばれず
 		// requireTextBlock()でtextBuilderが生成されない)場合はnullのまま
 		// ここに達することがある(2026-07-18、空のテーブルセルで
@@ -1785,7 +1795,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				// 同一のverbatim再生)。再生中の再入では何もしない
 				this.textSession.finishSession();
 			}
-			this.textBuilder.finish();
+			this.textBuilder.finish(fragmentBreak);
 			this.pageAxis += this.textBuilder.getFlowPageAdvance();
 			this.textBuilder = null;
 		}

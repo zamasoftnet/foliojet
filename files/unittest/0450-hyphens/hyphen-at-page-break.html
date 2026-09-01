@@ -1,0 +1,28 @@
+<?jp.cssj.property name="output.page-width" value="150pt"?>
+<?jp.cssj.property name="output.page-height" value="96pt"?>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>hyphen at a page-forced break</title>
+    <style type="text/css">
+      @page { margin: 0; }
+      body { margin: 0; font: normal 10pt/1.2 serif; text-align: justify; hyphens: auto; }
+    </style>
+  </head>
+  <!--
+    版面が埋まってテキストブロックが閉じられるとき、その最後の行が分綴点で
+    切れてもハイフンが出ない欠陥(2026-09-01、docs/history/
+    2026-09-01-hyphen-block-end-root-cause.md)。通常の行溢れは
+    newLine(false) を通るが、改頁による終端は drawLine(true) を通るため、
+    実体化が `!last` に阻まれていた。段落を複数ページに跨がせて、
+    ページ末尾の行のハイフンを押さえる。
+  -->
+  <body>
+    <p>Elizabeth was extremely gratified by the establishment of her sister,
+    and the improvements which necessarily followed the reconciliation
+    appeared uncommonly comfortable and altogether reasonable. Charlotte
+    considered the arrangement of her accommodation an extraordinary
+    achievement, and the acknowledgement of that understanding produced
+    considerable satisfaction throughout the neighbourhood.</p>
+  </body>
+</html>
