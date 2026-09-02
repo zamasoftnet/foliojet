@@ -131,8 +131,10 @@ final class WebFontSubset {
 		return this.seededSha256;
 	}
 
-	PagedSvgFontCarry.Key carryKey() {
-		return new PagedSvgFontCarry.Key(this.source.getFontName(), this.mode.name(), this.syntheticOblique);
+	/** 持ち越しの鍵。{@code document}はこのサブセットの範囲になる文書(単一なら空)。 */
+	PagedSvgFontCarry.Key carryKey(final String document) {
+		return new PagedSvgFontCarry.Key(document, this.source.getFontName(), this.mode.name(),
+				this.syntheticOblique);
 	}
 
 	/**
@@ -169,6 +171,17 @@ final class WebFontSubset {
 
 	String sourceName() {
 		return this.source.getFontName();
+	}
+
+	/**
+	 * 組み上げた後に字形の輪郭を捨てます(2026-09-02)。ページごとの範囲では
+	 * 出したサブセットを二度と組まないので、輪郭を持ち続ける理由が無い。
+	 * 字形の数・幅・符号の並び(manifestと持ち越しに要る)は残す。
+	 */
+	void releaseShapes() {
+		for (int i = 1; i < this.shapes.size(); ++i) {
+			this.shapes.set(i, null);
+		}
 	}
 
 	int glyphCount() {
@@ -229,7 +242,7 @@ final class WebFontSubset {
 		if (this.mode == Mode.VERTICAL_UPRIGHT) {
 			final double width = this.font.getWidth(gid);
 			final double dx = -500.0 + (FontSource.DEFAULT_UNITS_PER_EM - width) / 2.0;
-			return AffineTransform.getTranslateInstance(dx, 880).createTransformedShape(shape);
+			return AffineTransform.getTranslateInstance(dx, FontSource.DEFAULT_VERTICAL_ORIGIN).createTransformedShape(shape);
 		}
 		if (this.mode == Mode.VERTICAL_SIDEWAYS) {
 			final BBox bbox = this.source.getBBox();

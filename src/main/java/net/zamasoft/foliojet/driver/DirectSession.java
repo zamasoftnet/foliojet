@@ -15,10 +15,12 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -42,6 +44,8 @@ import jp.cssj.cti2.progress.ProgressListener;
 import jp.cssj.cti2.results.Results;
 import net.zamasoft.foliojet.FolioJetVersion;
 import net.zamasoft.foliojet.formatter.Formatter;
+import net.zamasoft.foliojet.formatter.MultiDocumentFormatter;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.AbortException;
@@ -123,7 +127,11 @@ public class DirectSession extends AbstractCTISession
 	private static final Map<File, FontSourceManager> FONT_CACHE = Collections
 			.synchronizedMap(new LRUCache<File, FontSourceManager>(32));
 
-	private UserAgent ua;
+	/**
+	 * 変換のUA。結果集合を受け取れる({@link RandomResultUserAgent})ことを型で
+	 * 言う(2026-09-02)。以前は{@code UserAgent}で持ち、使うたびにキャストしていた。
+	 */
+	private RandomResultUserAgent ua;
 
 	/**
 	 * Paged SVGのフォントサブセットをセッション内の次の変換へ持ち越す控え
@@ -528,7 +536,15 @@ public class DirectSession extends AbstractCTISession
 
 	public void setUserAgent(UserAgent ua) {
 		assert ua != null;
-		this.ua = ua;
+		this.ua = asResultUserAgent(ua);
+	}
+
+	private static RandomResultUserAgent asResultUserAgent(final UserAgent ua) {
+		if (ua instanceof RandomResultUserAgent results) {
+			return results;
+		}
+		throw new IllegalArgumentException("the user agent must accept results (RandomResultUserAgent): "
+				+ ua.getClass().getName());
 	}
 
 	public void setProgressListener(ProgressListener progressListener) {
@@ -540,6 +556,23 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	public void property(String name, String value) throws IOException {
+		if (name != null && name.startsWith(SERVER_PROPERTY_PREFIX)) {
+			// **サーバ側の設定はクライアントから触らせない**(2026-09-02の
+			// 設計レビュー)。system.fontsはプロファイルからの相対パスとして
+			// 任意のファイルをフォント設定として読み、隣に索引(.db)まで
+			// 書くので、要求側が指定できると経路になる。プロファイルは
+			// profileProperty()で入れる
+			this.message(MessageCodes.WARN_CANNOT_OVERRIDE_PROPERTY, new String[] { name });
+			return;
+		}
+		this.profileProperty(name, value);
+	}
+
+	/** 要求側が設定してはならない、サーバ側の設定の接頭辞。 */
+	private static final String SERVER_PROPERTY_PREFIX = "system.";
+
+	/** プロファイル(サーバ側の設定ファイル)からの設定。{@code system.*}も受け付ける。 */
+	private void profileProperty(String name, String value) {
 		if (SPECIAL_PROPERTIES.contains(name)) {
 			this.specialProperty(name, value);
 		} else {
@@ -620,6 +653,7 @@ public class DirectSession extends AbstractCTISession
 		// と、ローカルファイル変換後もOSのファイルロックが残り続けた
 		// (webappでfile:のHTMLを変換すると削除できなくなる実害)
 		InputStream progressIn = null;
+		final List<InputStream> progressStreams = new ArrayList<>();
 		try {
 			Source xsource = source;
 			if (this.progressListener != null) {
@@ -628,10 +662,31 @@ public class DirectSession extends AbstractCTISession
 					if (srcLength != -1) {
 						this.progressListener.sourceLength(srcLength);
 					}
-					InputStream in = source.getInputStream();
-					in = new BufferedInputStream(new ProgressInputStream(in, this.progressListener));
-					progressIn = in;
-					xsource = new StreamSource(uri, in, source.getMimeType(), source.getEncoding());
+					if (source.isFile()) {
+						// **ファイルの読み直せる性質を保つ**(2026-09-02)。以前は
+						// 進捗を数えるためにStreamSourceへ包み直していたが、それは
+						// getInputStream()の呼び直しを8KiBのmarkに縛る契約なので、
+						// 主文書が画像だと先頭を覗いた後の読み直しで落ちた
+						// (cti.liの報告、2026-09-01)。ファイルは開き直せば
+						// 先頭から読めるので、開くたびに進捗を数える包みにする
+						final ProgressListener listener = this.progressListener;
+						xsource = new net.zamasoft.zstream.resolver.util.SourceWrapper(source) {
+							@Override
+							public InputStream getInputStream() throws IOException {
+								final InputStream in = new BufferedInputStream(
+										new ProgressInputStream(super.getInputStream(), listener));
+								synchronized (progressStreams) {
+									progressStreams.add(in);
+								}
+								return in;
+							}
+						};
+					} else {
+						InputStream in = source.getInputStream();
+						in = new BufferedInputStream(new ProgressInputStream(in, this.progressListener));
+						progressIn = in;
+						xsource = new StreamSource(uri, in, source.getMimeType(), source.getEncoding());
+					}
 				} catch (IOException e) {
 					throw new FileNotFoundException();
 				}
@@ -649,6 +704,16 @@ public class DirectSession extends AbstractCTISession
 					progressIn.close();
 				} catch (IOException e) {
 					// closeの失敗は変換結果に影響しない
+				}
+			}
+			// 開き直した分も閉じる。閉じ漏れるとWindowsでファイルロックが残る
+			synchronized (progressStreams) {
+				for (final InputStream in : progressStreams) {
+					try {
+						in.close();
+					} catch (IOException e) {
+						// 同上
+					}
 				}
 			}
 			this.resolver.release(source);
@@ -839,7 +904,7 @@ public class DirectSession extends AbstractCTISession
 			// 持つ場合、output.pdf.fonts.policy=outlines が無視されていた。
 			// include/exclude は累積指定なので従来どおり追加する。
 			if (SPECIAL_PROPERTIES.contains(name) || !this.props.containsKey(name)) {
-				this.property(name, value);
+				this.profileProperty(name, value);
 			}
 		}
 	}
@@ -877,7 +942,7 @@ public class DirectSession extends AbstractCTISession
 		UserAgentFactory factory = PluginRegistry.getInstance().search(UserAgentFactory.class,
 				outputType);
 		if (factory != null) {
-			this.ua = factory.createUserAgent();
+			this.ua = asResultUserAgent(factory.createUserAgent());
 		} else {
 			throw new IllegalStateException("UnsupportedType: " + outputType);
 		}
@@ -1013,7 +1078,7 @@ public class DirectSession extends AbstractCTISession
 	 * なので相対的には無視できます。
 	 * </p>
 	 */
-	private static final int LAYOUT_STACK_SIZE = 64 * 1024 * 1024;
+	private static final int LAYOUT_STACK_SIZE = net.zamasoft.foliojet.layout.util.LayoutThreadContext.LAYOUT_STACK_SIZE;
 
 	/**
 	 * {@code task}(実際には{@code formatter.format(...)}の1呼び出し)を、
@@ -1025,17 +1090,12 @@ public class DirectSession extends AbstractCTISession
 		// 別スレッドで走らせるので、**呼び出し側スレッドのThreadLocalは
 		// 引き継がない**。外から設定される方針だけを明示的に渡す
 		// (2026-07-26に常時有効化した際、RescuePolicyの引き継ぎ漏れで
-		// テストが4件落ちて発覚。ThreadLocalを増やしたらここも増やすこと)。
-		final net.zamasoft.foliojet.layout.rescue.RescuePolicy rescuePolicy = net.zamasoft.foliojet.layout.rescue.RescuePolicy
-				.current();
-		final String displayListDir = net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDir();
-		final boolean detailedDisplayListGeometry = net.zamasoft.foliojet.layout.draw.DisplayListDumper
-				.currentDetailedGeometry();
+		// テストが4件落ちて発覚)。何を運ぶかはLayoutThreadContextが1箇所で
+		// 決める(2026-09-02)——EPUBの項目のワーカーも同じものを運ぶ
+		final net.zamasoft.foliojet.layout.util.LayoutThreadContext context = net.zamasoft.foliojet.layout.util.LayoutThreadContext
+				.capture();
 		final Thread worker = new Thread(null, () -> {
-			try (var policy = rescuePolicy.scoped();
-					var dump = net.zamasoft.foliojet.layout.draw.DisplayListDumper.scopedDir(displayListDir);
-					var geometry = net.zamasoft.foliojet.layout.draw.DisplayListDumper
-							.scopedDetailedGeometry(detailedDisplayListGeometry)) {
+			try (var scope = context.apply()) {
 				task.run();
 			} catch (Throwable t) {
 				failure[0] = t;
@@ -1125,6 +1185,21 @@ public class DirectSession extends AbstractCTISession
 		}
 		int passCount = UAProps.PROCESSING_PASS_COUNT.getInteger(this.ua);
 		try {
+			if (formatter instanceof MultiDocumentFormatter multi
+					&& this.ua instanceof MultiDocumentOutput multiOut) {
+				// 複数の文書(EPUBのspine項目)を独立した単位として組める組み合わせ
+				// (2026-09-02)。パス駆動は項目ごとにフォーマッタの中で回るので、
+				// ここでは親を1回準備するだけ。項目は並列に組まれ、結果は
+				// spine順に解放される
+				this.ua.setResults(results);
+				this.middlePath = false;
+				this.ua.prepare(PrepareMode.DOCUMENT);
+				this.ua.getDocumentContext().setBaseURI(source.getURI());
+				this.ua.getUAContext().setPassCount(passCount);
+				final Source formatSource = source;
+				this.runOnLargeStack(() -> multi.formatDocuments(formatSource, multiOut, passCount));
+				return;
+			}
 			if (passCount == 1) {
 				// 1パス
 				PrepareMode mode = PrepareMode.DOCUMENT;
@@ -1132,11 +1207,11 @@ public class DirectSession extends AbstractCTISession
 				if (this.middlePath != middlePath) {
 					mode = middlePath ? PrepareMode.MIDDLE_PASS : PrepareMode.LAST_PASS;
 					if (middlePath) {
-						((RandomResultUserAgent) this.ua).setResults(results);
+						this.ua.setResults(results);
 					}
 				}
 				if (!middlePath) {
-					((RandomResultUserAgent) this.ua).setResults(results);
+					this.ua.setResults(results);
 				}
 				this.middlePath = middlePath;
 				this.ua.prepare(mode);
@@ -1152,7 +1227,7 @@ public class DirectSession extends AbstractCTISession
 				this.runOnLargeStack(() -> formatter.format(formatSource, this.ua));
 			} else {
 				// 複数パス
-				((RandomResultUserAgent) this.ua).setResults(results);
+				this.ua.setResults(results);
 				File tmpFile = null;
 				try {
 					tmpFile = File.createTempFile("copper", ".tmp");

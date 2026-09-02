@@ -60,6 +60,25 @@ public final class UAProps {
 	public static final StringPropManager INPUT_IMAGE_METRICS = new StringPropManager("input.image-metrics", null);
 
 	/**
+	 * EPUBのどのspine項目を組むかです(2026-09-02)。
+	 *
+	 * <p>
+	 * 空(既定)なら全項目。値は空白または{@code ,}で区切った並びで、各要素は
+	 * OPFの{@code idref}、項目のパス({@code OEBPS/ch3.xhtml}または{@code ch3.xhtml})、
+	 * 1起点の番号、番号の範囲({@code 3-5})のどれか。
+	 * </p>
+	 *
+	 * <p>
+	 * 電子書籍の読み器が文字サイズを変えたとき、<b>いま読んでいる章だけを
+	 * 組み直す</b>ための入口。項目は互いに独立に組まれるので、1章だけ組んだ
+	 * 結果は全体を通したときのその章と同一になる。Paged SVGでは項目の番号が
+	 * spine内の位置で固定されている({@code items/0003/})ので、部分の出力を
+	 * 全体の出力へそのまま重ねられる。
+	 * </p>
+	 */
+	public static final StringPropManager INPUT_EPUB_SPINE = new StringPropManager("input.epub.spine", null);
+
+	/**
 	 * デフォルトのXSLTスタイルシートです。
 	 */
 	public static final StringPropManager INPUT_XSLT_DEFAULT_STYLESHEET = new StringPropManager(
@@ -520,6 +539,20 @@ public final class UAProps {
 	 */
 	public static final BooleanPropManager PROCESSING_MIDDLE_PASS = new BooleanPropManager("processing.middle-pass",
 			false);
+
+	/**
+	 * 独立に組める単位を同時にいくつ組むかです(2026-09-02)。
+	 *
+	 * <p>
+	 * いま効くのはEPUBのspine項目を{@code MultiDocumentOutput}(Paged SVG)へ
+	 * 出すときだけ。{@code 0}(既定)は自動で、CPUコア数と4の小さいほう。
+	 * {@code 1}で逐次。<b>いくつにしても出力は同一</b>——項目は互いに独立で、
+	 * 結果はspine順に解放されるため。変わるのは所要時間とメモリ
+	 * (同時に組む項目の数だけレイアウトを保持する)だけ。
+	 * </p>
+	 */
+	public static final IntegerPropManager PROCESSING_CONCURRENCY = new IntegerPropManager("processing.concurrency",
+			0);
 	/**
 	 * ページ参照を行います。
 	 */
@@ -798,6 +831,7 @@ public final class UAProps {
 			INPUT_DEFAULT_ENCODING,
 			INPUT_DEFAULT_STYLESHEET,
 			INPUT_IMAGE_METRICS,
+			INPUT_EPUB_SPINE,
 			INPUT_XSLT_DEFAULT_STYLESHEET,
 			INPUT_HTTP_REFERER,
 			INPUT_HTTP_CONNECTION_TIMEOUT,
@@ -873,6 +907,7 @@ public final class UAProps {
 			OUTPUT_PDF_PLATFORM_ENCODING,
 			PROCESSING_PASS_COUNT,
 			PROCESSING_MIDDLE_PASS,
+			PROCESSING_CONCURRENCY,
 			PROCESSING_PAGE_REFERENCES,
 			PROCESSING_FAIL_ON_FATAL_ERROR,
 			PROCESSING_TEXT_SPILL_BUDGET,

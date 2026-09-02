@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.zamasoft.foliojet.ua.props.PagedSvgFontScope;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourceMode;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
@@ -215,12 +216,17 @@ final class PagedSVGResources {
 
 	/**
 	 * サブセットの範囲({@code output.paged-svg.font-scope})。
-	 * {@code true}なら<b>ページごと</b>に作り、ページを閉じるたびに出す。
+	 * {@code PAGE}なら<b>ページごと</b>に作り、ページを閉じるたびに出す。
+	 * {@code DOCUMENT}は文書全体——ただしEPUBでは項目(含まれるXHTML)が
+	 * 文書の単位なので、項目ごとに1つになる(2026-09-02)。
 	 */
-	private boolean fontPerPage = false;
+	private PagedSvgFontScope fontScope = PagedSvgFontScope.DOCUMENT;
 
-	/** ページごとのとき、いま組んでいるページで作ったサブセットの開始位置。 */
-	private int pageFontsFrom = 0;
+	/** いま開いている範囲(ページまたは文書)で作ったサブセットの開始位置。 */
+	private int scopeFontsFrom = 0;
+
+	/** 持ち越しの鍵に入れる文書の名前。EPUBの項目のパス。単一の文書なら空。 */
+	private String document = "";
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
 	private final Map<RenderedImage, OriginalImage> originalImages = new IdentityHashMap<>();
@@ -253,38 +259,106 @@ final class PagedSVGResources {
 		this.resourceMode = mode;
 	}
 
-	void setFontPerPage(final boolean fontPerPage) {
-		this.fontPerPage = fontPerPage;
+	void setFontScope(final PagedSvgFontScope scope) {
+		this.fontScope = scope;
 	}
 
-	boolean isFontPerPage() {
-		return this.fontPerPage;
+	PagedSvgFontScope getFontScope() {
+		return this.fontScope;
+	}
+
+	/** 持ち越しの鍵に入れる文書の名前(EPUBの項目のパス)。 */
+	void setDocument(final String document) {
+		this.document = document == null ? "" : document;
 	}
 
 	/**
-	 * ページを閉じるときに、そのページで作ったサブセットを組んで出します
-	 * (2026-09-02、{@code font-scope: page})。
+	 * 開いている範囲(ページまたは文書)のサブセットを組んで出し、範囲を閉じます
+	 * (2026-09-02)。
 	 *
 	 * <p>
-	 * <b>ページSVGより先に出す。</b>受け手はページが届いた時点で字形を
-	 * 持っているので、そのまま描ける。文書全体で1つにする既定では、
-	 * どの字形が要るかが最後まで確定しないのでこれができない。
+	 * {@code font-scope: page}では<b>ページSVGより先に</b>呼ぶ。受け手はページが
+	 * 届いた時点で字形を持っているので、そのまま描ける。{@code document}では
+	 * 文書の終わり({@link #emitFonts()})で呼ばれ、EPUBの項目ならその項目の
+	 * ページのあと、次の項目のページより前に出る。
+	 * </p>
+	 *
+	 * <p>
+	 * 持ち越した版で足りたサブセットは、1ページ目より先に出してあるので
+	 * ここでは出さない({@link #emitCarriedFonts()})。育ったサブセットと
+	 * 初めてのサブセットは組み上げて出す——{@code omit}でも出す。受け手が
+	 * 持っているはずのない字形だからで、名前が版付きなので前回のものと
+	 * 取り違えることもない(2026-08-28の実測では、連番名のまま省くと文字
+	 * サイズを変えた再変換で数字が消えたり別の位置に出たりした)。
+	 * 書き終えた並びは{@link PagedSvgFontCarry}へ控え、次の変換で先に出す。
+	 * 持ち越しは{@code document}の範囲でだけ意味がある(ページごとの
+	 * サブセットは次の変換でページ割りが変わると使えない)。
 	 * </p>
 	 */
-	void emitPageFonts() throws IOException {
-		if (!this.fontPerPage || this.pageFontsFrom >= this.fonts.size()) {
+	void closeFontScope() throws IOException {
+		final int from = this.scopeFontsFrom;
+		final int to = this.fonts.size();
+		this.scopeFontsFrom = to;
+		if (from >= to) {
 			return;
 		}
-		for (int i = this.pageFontsFrom; i < this.fonts.size(); ++i) {
-			final WebFontSubset subset = this.fonts.get(i).subset;
-			final byte[] bytes = subset.build(FONT_COMPRESSION);
-			if (this.resourceMode != PagedSvgResourceMode.OMIT) {
-				this.emitter.emit(subset.uri(), "font/woff2", bytes);
-			}
-			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length,
-					this.resourceMode == PagedSvgResourceMode.OMIT));
+		final List<FontEntry> scope = this.fonts.subList(from, to);
+		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
+		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
+		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す
+		final int quality = FONT_COMPRESSION;
+		final List<byte[]> built;
+		try {
+			built = scope.parallelStream().map(entry -> {
+				try {
+					final WebFontSubset subset = entry.subset;
+					return subset.seeded() && !subset.grown() ? null : subset.build(quality);
+				} catch (final IOException e) {
+					throw new UncheckedIOException(e);
+				}
+			}).toList();
+		} catch (final UncheckedIOException e) {
+			throw e.getCause();
 		}
-		this.pageFontsFrom = this.fonts.size();
+		for (int i = 0; i < scope.size(); ++i) {
+			final WebFontSubset subset = scope.get(i).subset;
+			if (subset.seeded()) {
+				// 持ち越した版。先に出してある(omitなら出していない)
+				this.emittedFonts.add(new FontAsset(subset, subset.seededUri(), subset.seededSha256(),
+						subset.seededBytes().length, this.resourceMode == PagedSvgResourceMode.OMIT));
+			}
+			final byte[] bytes = built.get(i);
+			if (bytes == null) {
+				continue;
+			}
+			this.emitter.emit(subset.uri(), "font/woff2", bytes);
+			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length, false));
+			if (this.fontScope == PagedSvgFontScope.PAGE) {
+				// ページごとの範囲では出したサブセットを二度と組まない。輪郭を
+				// 持ち続けるとページ数×フォント数で膨らむ(設計レビュー §3-6)
+				subset.releaseShapes();
+			}
+		}
+		if (this.carriesFonts()) {
+			for (int i = 0; i < scope.size(); ++i) {
+				final WebFontSubset subset = scope.get(i).subset;
+				final byte[] bytes = built.get(i);
+				this.carry.put(subset.carryKey(this.document), bytes == null
+						? new PagedSvgFontCarry.Entry(subset.id(), subset.version(), subset.gids(),
+								subset.seededBytes(), subset.seededSha256())
+						: new PagedSvgFontCarry.Entry(subset.id(), subset.version(), subset.gids(), bytes,
+								sha256(bytes)));
+			}
+		}
+	}
+
+	/**
+	 * 持ち越しを使うか。{@code document}の範囲でだけ。ページごとのサブセットを
+	 * 持ち越すと、同じ鍵でページごとに種を蒔いて同じURIを毎ページ出してしまう
+	 * (2026-09-02の設計レビューで指摘)。
+	 */
+	private boolean carriesFonts() {
+		return this.carry != null && this.fontScope == PagedSvgFontScope.DOCUMENT;
 	}
 
 	boolean isEmbedding() {
@@ -297,10 +371,9 @@ final class PagedSVGResources {
 
 	WebFontSubset font(final FontSource source, final ShapedFont font, final WebFontSubset.Mode mode,
 			final boolean oblique) {
-		// ページごとのときは**このページで作った分だけ**から探す。前のページの
+		// **開いている範囲で作った分だけ**から探す。前の範囲(ページ・項目)の
 		// サブセットは既に出してしまっているので、育てられない
-		for (final FontEntry entry : this.fonts.subList(this.fontPerPage ? this.pageFontsFrom : 0,
-				this.fonts.size())) {
+		for (final FontEntry entry : this.fonts.subList(this.scopeFontsFrom, this.fonts.size())) {
 			if (entry.source == source && entry.font == font && entry.mode == mode && entry.oblique == oblique) {
 				return entry.subset;
 			}
@@ -308,11 +381,15 @@ final class PagedSVGResources {
 		final WebFontSubset subset;
 		if (this.carry == null) {
 			subset = new WebFontSubset(this.fonts.size() + 1, source, font, mode, oblique);
+		} else if (!this.carriesFonts()) {
+			// 番号だけは変換をまたいで重ならないものを使う
+			subset = new WebFontSubset(this.carry.allocateId(this.document), source, font, mode, oblique);
 		} else {
-			final PagedSvgFontCarry.Key key = new PagedSvgFontCarry.Key(source.getFontName(), mode.name(), oblique);
+			final PagedSvgFontCarry.Key key = new PagedSvgFontCarry.Key(this.document, source.getFontName(),
+					mode.name(), oblique);
 			final PagedSvgFontCarry.Entry carried = this.carry.get(key);
 			if (carried == null) {
-				subset = new WebFontSubset(this.carry.allocateId(), source, font, mode, oblique);
+				subset = new WebFontSubset(this.carry.allocateId(this.document), source, font, mode, oblique);
 			} else {
 				// 前回と同じ並びで符号を割り当てる。前回の字形で足りる限り、
 				// 1ページ目より先に出した前回のバイト列がそのまま使える
@@ -335,10 +412,10 @@ final class PagedSVGResources {
 	 * </p>
 	 */
 	void emitCarriedFonts() throws IOException {
-		if (this.carry == null || this.resourceMode == PagedSvgResourceMode.OMIT) {
+		if (!this.carriesFonts() || this.resourceMode == PagedSvgResourceMode.OMIT) {
 			return;
 		}
-		for (final PagedSvgFontCarry.Entry entry : this.carry.entries()) {
+		for (final PagedSvgFontCarry.Entry entry : this.carry.entries(this.document)) {
 			this.emitter.emit(WebFontSubset.uri(entry.id(), entry.version()), "font/woff2", entry.bytes());
 		}
 	}
@@ -450,68 +527,11 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * サブセットを書き出します。
-	 *
-	 * <p>
-	 * 持ち越した版で足りたサブセットは、1ページ目より先に出してあるので
-	 * ここでは出さない({@link #emitCarriedFonts()})。育ったサブセットと
-	 * 初めてのサブセットは組み上げて出す——{@code omit}でも出す。受け手が
-	 * 持っているはずのない字形だからで、名前が版付きなので前回のものと
-	 * 取り違えることもない(2026-08-28の実測では、連番名のまま省くと文字
-	 * サイズを変えた再変換で数字が消えたり別の位置に出たりした)。
-	 * </p>
-	 *
-	 * <p>
-	 * 書き終えた並びは{@link PagedSvgFontCarry}へ控え、次の変換で先に出す。
-	 * </p>
+	 * 文書の終わりに、まだ出していないサブセットを書き出します。
+	 * ページごとのときはページを閉じるたびに出してあるので、ここでは何も残っていない。
 	 */
 	void emitFonts() throws IOException {
-		if (this.fontPerPage) {
-			// ページを閉じるたびに出してある(emitPageFonts)
-			return;
-		}
-		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
-		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
-		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す
-		final int quality = FONT_COMPRESSION;
-		final List<byte[]> built;
-		try {
-			built = this.fonts.parallelStream().map(entry -> {
-				try {
-					final WebFontSubset subset = entry.subset;
-					return subset.seeded() && !subset.grown() ? null : subset.build(quality);
-				} catch (final IOException e) {
-					throw new UncheckedIOException(e);
-				}
-			}).toList();
-		} catch (final UncheckedIOException e) {
-			throw e.getCause();
-		}
-		for (int i = 0; i < this.fonts.size(); ++i) {
-			final WebFontSubset subset = this.fonts.get(i).subset;
-			if (subset.seeded()) {
-				// 持ち越した版。先に出してある(omitなら出していない)
-				this.emittedFonts.add(new FontAsset(subset, subset.seededUri(), subset.seededSha256(),
-						subset.seededBytes().length, this.resourceMode == PagedSvgResourceMode.OMIT));
-			}
-			final byte[] bytes = built.get(i);
-			if (bytes == null) {
-				continue;
-			}
-			this.emitter.emit(subset.uri(), "font/woff2", bytes);
-			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length, false));
-		}
-		if (this.carry != null) {
-			for (int i = 0; i < this.fonts.size(); ++i) {
-				final WebFontSubset subset = this.fonts.get(i).subset;
-				final byte[] bytes = built.get(i);
-				this.carry.put(subset.carryKey(), bytes == null
-						? new PagedSvgFontCarry.Entry(subset.id(), subset.version(), subset.gids(),
-								subset.seededBytes(), subset.seededSha256())
-						: new PagedSvgFontCarry.Entry(subset.id(), subset.version(), subset.gids(), bytes,
-								sha256(bytes)));
-			}
-		}
+		this.closeFontScope();
 	}
 
 	/**

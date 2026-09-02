@@ -37,8 +37,16 @@ import java.util.Map;
  * </p>
  */
 public final class PagedSvgFontCarry {
-	/** 元フォント・向き・合成斜体で1つのサブセット。 */
-	public record Key(String fontName, String mode, boolean oblique) {
+	/**
+	 * 元フォント・向き・合成斜体で1つのサブセット。
+	 *
+	 * <p>
+	 * {@code document}はサブセットの範囲になる文書(EPUBのspine項目のパス、
+	 * 単一の文書なら空)。項目ごとにサブセットを持つ(2026-09-02)ので、
+	 * 持ち越しも項目ごとに引く——同じフォントでも章が違えば字形の並びが違う。
+	 * </p>
+	 */
+	public record Key(String document, String fontName, String mode, boolean oblique) {
 	}
 
 	/** 前回組み上げた1サブセットの控え。 */
@@ -46,7 +54,13 @@ public final class PagedSvgFontCarry {
 	}
 
 	private final Map<Key, Entry> entries = new LinkedHashMap<>();
-	private int nextId = 1;
+	/**
+	 * 文書ごとの次の番号。<b>番号の空間は文書(EPUBの項目)ごと</b>である
+	 * (2026-09-02)——項目は自分の{@code assets/fonts/}を持つので、重ならなければ
+	 * ならないのはその中だけ。全体で1つの採番にすると、並列に組んだとき
+	 * 項目のフォントの番号が走った順で変わり、出力が非決定的になる。
+	 */
+	private final Map<String, Integer> nextIds = new java.util.HashMap<>();
 
 	public synchronized Entry get(final Key key) {
 		return this.entries.get(key);
@@ -54,16 +68,29 @@ public final class PagedSvgFontCarry {
 
 	public synchronized void put(final Key key, final Entry entry) {
 		this.entries.put(key, entry);
-		this.nextId = Math.max(this.nextId, entry.id() + 1);
+		this.nextIds.merge(key.document(), entry.id() + 1, Math::max);
 	}
 
-	/** 変換をまたいで重複しない番号を払い出します。 */
-	public synchronized int allocateId() {
-		return this.nextId++;
+	/** その文書の中で、変換をまたいで重複しない番号を払い出します。 */
+	public synchronized int allocateId(final String document) {
+		final int id = this.nextIds.getOrDefault(document, 1);
+		this.nextIds.put(document, id + 1);
+		return id;
 	}
 
 	public synchronized List<Entry> entries() {
 		return new ArrayList<>(this.entries.values());
+	}
+
+	/** 文書(EPUBの項目、単一なら空)の控えだけ。 */
+	public synchronized List<Entry> entries(final String document) {
+		final List<Entry> list = new ArrayList<>();
+		for (final Map.Entry<Key, Entry> e : this.entries.entrySet()) {
+			if (e.getKey().document().equals(document)) {
+				list.add(e.getValue());
+			}
+		}
+		return list;
 	}
 
 	public synchronized boolean isEmpty() {
@@ -72,6 +99,6 @@ public final class PagedSvgFontCarry {
 
 	public synchronized void clear() {
 		this.entries.clear();
-		this.nextId = 1;
+		this.nextIds.clear();
 	}
 }

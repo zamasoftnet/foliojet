@@ -157,6 +157,14 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.props.get(name);
 	}
 
+	/**
+	 * 現在の入出力プロパティの写しです(2026-09-02)。EPUBの項目を組む子のUAへ
+	 * 親と同じ設定を渡すために使う。
+	 */
+	public final Map<String, String> getProperties() {
+		return this.props == null ? new HashMap<>() : new HashMap<>(this.props);
+	}
+
 	public final void setProperty(String name, String value) {
 		// @setProperty
 		if (this.props == null) {

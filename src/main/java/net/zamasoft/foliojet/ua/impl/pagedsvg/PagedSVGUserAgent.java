@@ -9,40 +9,52 @@ import java.nio.charset.StandardCharsets;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HexFormat;
-import java.util.zip.GZIPOutputStream;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
+import java.util.TreeMap;
+import java.util.zip.GZIPOutputStream;
 
 import jp.cssj.cti2.CTISession;
-import jp.cssj.cti2.results.NopResults;
+import jp.cssj.cti2.message.MessageHandler;
 import jp.cssj.cti2.results.Results;
+import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.foliojet.ua.AbortException;
+import net.zamasoft.foliojet.ua.BoundSide;
 import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.ImageMetricsIO;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
+import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.ua.props.PagedSvgCompression;
-import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
+import net.zamasoft.foliojet.ua.props.PagedSvgFontScope;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
-import net.zamasoft.zstream.io.FragmentedOutput;
-import net.zamasoft.zstream.io.SequentialOutput;
-import net.zamasoft.zstream.io.util.FragmentOutputAdapter;
-import net.zamasoft.zstream.io.util.SequentialOutputAdapter;
-import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
 
-/** Produces stable URI-addressed pages, shared WOFF2 subsets and image assets. */
-public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
-	private Results results, savedResults;
+/**
+ * Produces stable URI-addressed pages, shared WOFF2 subsets and image assets.
+ *
+ * <p>
+ * <b>EPUBは項目(spineのXHTML)ごとに独立した出力にする</b>(2026-09-02、
+ * {@link MultiDocumentOutput})。親のUAは項目ごとに子のUAを開き、子は
+ * {@code items/NNNN/}の下へ単一の文書と同じ形のバンドル(自分の
+ * {@code manifest.json}・フォント・画像)を出す。親は最後に
+ * {@code index.json}(項目の並び・累積のページ番号・目次)だけを書く。
+ * 結果は{@link DocumentRelease}がspine順に解放するので、項目を並列に
+ * 組んでも受け手に届く列は逐次と同じ。
+ * </p>
+ */
+public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent, MultiDocumentOutput {
+	private ResultSink sink, savedSink;
 	private boolean middleStateSaved;
 	private FontManagerImpl fontManager;
 	private PagedSVGResources.PageData currentPage;
@@ -62,17 +74,30 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	 * ({@code POST /transcode})では受け取れない(4001になる)。ZIPなら
 	 * 結果1件なのでRESTでもそのまま返せる。
 	 */
-	/** ZIPで返すときの結果URIとメディア型。 */
-	static final String BUNDLE_URI = "paged-svg.zip";
-
-	static final String BUNDLE_MEDIA_TYPE = "application/zip";
-
 	private final boolean zipBundle;
 
-	/** ZIPで返すときの唯一の結果。最初のemitで開く。 */
-	private java.util.zip.ZipOutputStream zip;
+	/** ZIPで返すときの結果URIとメディア型。 */
+	static final String BUNDLE_URI = ResultSink.ZipSink.BUNDLE_URI;
 
-	private FragmentedOutput zipBuilder;
+	static final String BUNDLE_MEDIA_TYPE = ResultSink.ZipSink.BUNDLE_MEDIA_TYPE;
+
+	// ---- 複数文書(EPUB)の親としての状態
+	/** セッションのメッセージの受け手。子のメッセージは解放段を通ってここへ届く。 */
+	private MessageHandler sessionMessages;
+	private DocumentRelease release;
+	private DocumentSet documents;
+	private final List<PagedSVGUserAgent> children = new ArrayList<>();
+	/** 組み終えた項目の位置→ページ数。 */
+	private final Map<Integer, Integer> pageCounts = new TreeMap<>();
+	/** 組み終えた項目の位置→綴じ方向。index.jsonには最初の項目のものを書く。 */
+	private final Map<Integer, BoundSide> bindings = new TreeMap<>();
+	/** 親に届いた中断要求。後から開く子にも伝える。 */
+	private volatile byte abortRequested = 0;
+
+	// ---- 子(項目)としての状態
+	private final PagedSVGUserAgent parent;
+	private final DocumentUnit unit;
+	private final DocumentRelease.Unit releaseUnit;
 
 	public PagedSVGUserAgent() {
 		this(false);
@@ -80,13 +105,33 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 
 	public PagedSVGUserAgent(final boolean zipBundle) {
 		this.zipBundle = zipBundle;
+		this.parent = null;
+		this.unit = null;
+		this.releaseUnit = null;
+		this.resetOutput();
+	}
+
+	/** EPUBの項目を組む子。結果は親の解放段へ。 */
+	private PagedSVGUserAgent(final PagedSVGUserAgent parent, final DocumentUnit unit,
+			final DocumentRelease.Unit releaseUnit) {
+		this.zipBundle = parent.zipBundle;
+		this.parent = parent;
+		this.unit = unit;
+		this.releaseUnit = releaseUnit;
+		this.sink = new ChildSink(releaseUnit);
 		this.resetOutput();
 	}
 
 	@Override
 	public void setResults(final Results results) {
-		this.results = results;
+		this.sink = this.zipBundle ? new ResultSink.ZipSink(results) : new ResultSink.ResultsSink(results);
 		this.resetOutput();
+	}
+
+	@Override
+	public void setMessageHandler(final MessageHandler messageHandler) {
+		super.setMessageHandler(messageHandler);
+		this.sessionMessages = messageHandler;
 	}
 
 	@Override
@@ -95,16 +140,16 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		switch (mode) {
 		case MIDDLE_PASS -> {
 			if (!this.middleStateSaved) {
-				this.savedResults = this.results;
+				this.savedSink = this.sink;
 				this.middleStateSaved = true;
 			}
-			this.results = NopResults.SHARED_INSTANCE;
+			this.sink = ResultSink.NopSink.INSTANCE;
 			this.resetOutput();
 		}
 		case LAST_PASS -> {
 			if (this.middleStateSaved) {
-				this.results = this.savedResults;
-				this.savedResults = null;
+				this.sink = this.savedSink;
+				this.savedSink = null;
 				this.middleStateSaved = false;
 			}
 			this.resetOutput();
@@ -122,6 +167,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.page = 0;
 		this.metadata.clear();
 		this.resources = new PagedSVGResources(this::emit, this.getUAContext().getPagedSvgFontCarry());
+		if (this.unit != null && this.unit.uri() != null) {
+			// 持ち越しの鍵は項目ごと。同じフォントでも章が違えば字形の並びが違う
+			this.resources.setDocument(this.unit.uri().toString());
+		}
 		// 描いた画像の資源同一性を寸法表へ控える(2026-08-28)。次の
 		// 再変換はこれを渡されれば画像を開かずに同じ参照を書ける
 		this.resources.setAssetRecorder((uri, asset) -> this.getUAContext().getImageMetrics().putAsset(uri.toString(),
@@ -135,6 +184,82 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final int dot = uri.lastIndexOf('.');
 		return dot < 0 ? "bin" : uri.substring(dot + 1);
 	}
+
+	// ---- 複数文書(EPUB)の親
+
+	@Override
+	public void describeDocuments(final DocumentSet documents) {
+		if (this.sink == null) {
+			throw new IllegalStateException("Results is not set");
+		}
+		this.documents = documents;
+		this.release = new DocumentRelease(this.sink, this.sessionMessages);
+	}
+
+	@Override
+	public UserAgent openDocument(final DocumentUnit unit) {
+		if (this.release == null) {
+			throw new IllegalStateException("describeDocuments() must precede openDocument()");
+		}
+		final DocumentRelease.Unit releaseUnit = this.release.open(PagedSvgIndex.itemPrefix(unit.index()));
+		final PagedSVGUserAgent child = new PagedSVGUserAgent(this, unit, releaseUnit);
+		// 親と同じ設定・資源の解決・フォント。プロパティは写しを渡す
+		// (文書内のPIが書き換えるので、項目ごとに別の表でなければならない)
+		child.setProperties(this.getProperties());
+		child.setSourceResolver(this.getSourceResolver());
+		child.setMessageHandler(releaseUnit::message);
+		child.getUAContext().setFontSourceManager(this.getUAContext().getFontSourceManager());
+		child.getUAContext().setPagedSvgFontCarry(this.getUAContext().getPagedSvgFontCarry());
+		// 持ち越しの控えを差し替えたので、台帳を作り直す
+		child.resetOutput();
+		synchronized (this.children) {
+			this.children.add(child);
+			if (this.abortRequested != 0) {
+				child.abort(this.abortRequested);
+			}
+		}
+		return child;
+	}
+
+	/** 子が組み終えた。index.jsonのために項目のページ数と綴じ方向を控える。 */
+	private void childFinished(final PagedSVGUserAgent child) {
+		synchronized (this.children) {
+			this.pageCounts.put(child.unit.index(), child.page);
+			this.bindings.put(child.unit.index(), child.getBoundSide());
+		}
+	}
+
+	@Override
+	public void abort(final byte mode) {
+		super.abort(mode);
+		this.abortRequested = mode;
+		synchronized (this.children) {
+			for (final PagedSVGUserAgent child : this.children) {
+				child.abort(mode);
+			}
+		}
+	}
+
+	/** 子の結果とメッセージの行き先。項目の完了は{@link #end()}で親へ伝える。 */
+	private final class ChildSink implements ResultSink {
+		private final DocumentRelease.Unit unit;
+
+		ChildSink(final DocumentRelease.Unit unit) {
+			this.unit = unit;
+		}
+
+		@Override
+		public OutputStream open(final String uri, final String mimeType) throws IOException {
+			return this.unit.open(uri, mimeType);
+		}
+
+		@Override
+		public void end() throws IOException {
+			this.unit.done(PagedSVGUserAgent.this.page);
+		}
+	}
+
+	// ---- 画像
 
 	/**
 	 * 画像に取得元URIを添えます(2026-08-28)。描画時に決まる資源の同一性を
@@ -247,6 +372,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		}
 	}
 
+	// ---- ページ
+
 	@Override
 	protected GC nextPage() {
 		this.checkAbort(CTISession.ABORT_FORCE);
@@ -257,9 +384,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final int number = ++this.page;
 		if (number == 1) {
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
-			this.resources.setBaseUri(normaliseBaseUri(UAProps.OUTPUT_PAGED_SVG_BASE_URI.getString(this)));
-			this.resources.setFontPerPage(UAProps.OUTPUT_PAGED_SVG_FONT_SCOPE
-					.get(this) == net.zamasoft.foliojet.ua.props.PagedSvgFontScope.PAGE);
+			this.resources.setBaseUri(this.baseUri());
+			this.resources.setFontScope(UAProps.OUTPUT_PAGED_SVG_FONT_SCOPE.get(this));
 			// ZIPで返すときは中身を縮めない——ZIP側が縮めるので二重になるし、
 			// 受け手が展開してそのまま開ける名前(.svg/.json)であるべき
 			this.compression = this.zipBundle ? PagedSvgCompression.NONE
@@ -287,6 +413,24 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		}
 		return new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
 				this.currentPage);
+	}
+
+	/**
+	 * ページSVGから共有資源を指す前置き。
+	 *
+	 * <p>
+	 * 既定の{@code ../}は{@code pages/}から自分のバンドルの根へ上がる相対で、
+	 * EPUBの項目({@code items/NNNN/pages/})でもそのまま項目の根に着く。
+	 * 絶対URLの前置きを与えられたときは、項目の分を足す
+	 * ({@code https://example.com/book/}→{@code https://example.com/book/items/0003/})。
+	 * </p>
+	 */
+	private String baseUri() {
+		final String base = normaliseBaseUri(UAProps.OUTPUT_PAGED_SVG_BASE_URI.getString(this));
+		if (this.releaseUnit == null || base.isEmpty() || base.startsWith(".")) {
+			return base;
+		}
+		return base + this.releaseUnit.prefix;
 	}
 
 	@Override
@@ -325,7 +469,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 
 		// **ページSVGより先にそのページの書体を出す**(2026-09-02、
 		// font-scope: page)。受け手はページが届いた時点で字形を持っている
-		this.resources.emitPageFonts();
+		if (this.resources.getFontScope() == PagedSvgFontScope.PAGE) {
+			this.resources.closeFontScope();
+		}
 
 		final String stem = String.format(Locale.ROOT, "pages/%04d", this.currentPage.number);
 		final String svgUri = this.pageUri(stem, ".svg");
@@ -356,6 +502,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		return value.endsWith("/") ? value : value + "/";
 	}
 
+	// ---- 結果の書き出し
+
 	/** 結果1件の中身を書きます。溜めずに、渡された出力へ直接書くこと。 */
 	@FunctionalInterface
 	interface ContentWriter {
@@ -378,52 +526,35 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	 *
 	 * <p>
 	 * 返すSHA-256は<b>実際に書いたバイト列</b>に対する値なので、
-	 * manifestの記載と実体が食い違いません。
+	 * manifestの記載と実体が食い違いません。行き先(結果集合・ZIP・EPUBの
+	 * 解放段)は{@link ResultSink}が隠し、ここはハッシュとgzipだけを受け持つ。
 	 * </p>
 	 */
 	private String emit(final String uri, final String mimeType, final ContentWriter content) throws IOException {
-		if (this.results == null) {
+		if (this.sink == null) {
 			throw new IOException("Results is not set");
 		}
-		if (this.zipBundle) {
-			return this.emitZipEntry(uri, content);
-		}
-		if (!this.results.hasNext()) {
-			throw new AbortException(CTISession.ABORT_NORMAL);
-		}
-		final var metadata = new SimpleSourceMetadata(URI.create(uri), mimeType, null, -1);
-		final FragmentedOutput builder = this.results.nextBuilder(metadata);
 		final MessageDigest digest;
 		try {
 			digest = MessageDigest.getInstance("SHA-256");
 		} catch (final NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e);
 		}
-		try {
-			final OutputStream raw;
-			if (builder instanceof SequentialOutput sequential) {
-				raw = new SequentialOutputAdapter(sequential);
-			} else {
-				builder.addFragment();
-				raw = new FragmentOutputAdapter(builder, 0);
-			}
-			try (raw) {
-				// SHA-256は**実際に渡すバイト**に対して取る。だから縮める場合は
-				// digestを外側(gzipの出口)に置く。受け手はmanifestの値を
-				// 保存したファイルへそのまま当てられる
-				final OutputStream digested = new DigestOutputStream(raw, digest);
-				if (this.isCompressed(uri)) {
-					// GZIPOutputStreamはcloseでトレーラを書くので閉じる必要があるが、
-					// 下位まで閉じさせない
-					try (var gzip = new GZIPOutputStream(new UnclosableOutputStream(digested))) {
-						content.write(new UnclosableOutputStream(gzip));
-					}
-				} else {
-					content.write(new UnclosableOutputStream(digested));
+		try (OutputStream raw = this.sink.open(uri, mimeType)) {
+			// SHA-256は**実際に渡すバイト**に対して取る。だから縮める場合は
+			// digestを外側(gzipの出口)に置く。受け手はmanifestの値を
+			// 保存したファイルへそのまま当てられる
+			final OutputStream digested = new DigestOutputStream(raw, digest);
+			if (this.isCompressed(uri)) {
+				// GZIPOutputStreamはcloseでトレーラを書くので閉じる必要があるが、
+				// 下位まで閉じさせない
+				try (var gzip = new GZIPOutputStream(new UnclosableOutputStream(digested))) {
+					content.write(new UnclosableOutputStream(gzip));
 				}
+			} else {
+				content.write(new UnclosableOutputStream(digested));
 			}
-		} finally {
-			builder.close();
+			digested.flush();
 		}
 		return HexFormat.of().formatHex(digest.digest());
 	}
@@ -437,71 +568,6 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	 * {@code manifest.json}は読み口なので、そのままにします。
 	 * </p>
 	 */
-	/**
-	 * ZIPの1エントリとして書き出します(B-2、2026-08-29)。
-	 *
-	 * <p>
-	 * 名前はふつうのバンドルと同じURI({@code pages/0001.svg}、
-	 * {@code assets/fonts/font-0001.woff2}…)。展開すればディレクトリ出力と
-	 * 同じ形になり、{@code manifest.json}の参照もそのまま解決する。
-	 * SHA-256は<b>エントリの中身</b>(圧縮前)に対して取るので、受け手は
-	 * 展開したファイルへそのまま当てられる。
-	 * </p>
-	 */
-	private String emitZipEntry(final String uri, final ContentWriter content) throws IOException {
-		final java.util.zip.ZipOutputStream out = this.requireZip();
-		final MessageDigest digest;
-		try {
-			digest = MessageDigest.getInstance("SHA-256");
-		} catch (final NoSuchAlgorithmException e) {
-			throw new IllegalStateException(e);
-		}
-		out.putNextEntry(new java.util.zip.ZipEntry(uri));
-		try {
-			content.write(new DigestOutputStream(new UnclosableOutputStream(out), digest));
-		} finally {
-			out.closeEntry();
-		}
-		return HexFormat.of().formatHex(digest.digest());
-	}
-
-	/** ZIPの結果を必要になった時点で1件だけ開きます。 */
-	private java.util.zip.ZipOutputStream requireZip() throws IOException {
-		if (this.zip != null) {
-			return this.zip;
-		}
-		if (!this.results.hasNext()) {
-			throw new AbortException(CTISession.ABORT_NORMAL);
-		}
-		final var metadata = new SimpleSourceMetadata(URI.create(BUNDLE_URI), BUNDLE_MEDIA_TYPE, null, -1);
-		this.zipBuilder = this.results.nextBuilder(metadata);
-		final OutputStream raw;
-		if (this.zipBuilder instanceof SequentialOutput sequential) {
-			raw = new SequentialOutputAdapter(sequential);
-		} else {
-			this.zipBuilder.addFragment();
-			raw = new FragmentOutputAdapter(this.zipBuilder, 0);
-		}
-		this.zip = new java.util.zip.ZipOutputStream(raw);
-		return this.zip;
-	}
-
-	private void closeZip() throws IOException {
-		if (this.zip == null) {
-			return;
-		}
-		try {
-			this.zip.finish();
-			this.zip.close();
-		} finally {
-			this.zip = null;
-			if (this.zipBuilder != null) {
-				this.zipBuilder.close();
-				this.zipBuilder = null;
-			}
-		}
-	}
-
 	private boolean isCompressed(final String uri) {
 		return this.compression == PagedSvgCompression.GZIP
 				&& (uri.endsWith(".svgz") || uri.endsWith(".json.gz"));
@@ -539,6 +605,20 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	@Override
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
+		if (this.release != null) {
+			// 複数文書の親。項目はそれぞれ自分のmanifestを書いてあるので、
+			// 上位のindex.jsonだけを書く。全項目は解放済み(呼び出し側が
+			// 子の完了を待ってから finish() に来る)
+			final String binding;
+			synchronized (this.children) {
+				final BoundSide first = this.bindings.isEmpty() ? null : this.bindings.values().iterator().next();
+				binding = first == null ? "single" : first.name().toLowerCase(Locale.ROOT);
+				this.emit("index.json", "application/json",
+						PagedSvgIndex.json(this.documents, new TreeMap<>(this.pageCounts), binding));
+			}
+			this.sink.end();
+			return;
+		}
 		this.resources.emitFonts();
 		// 測った画像の寸法を残す。次に同じ本を別の文字サイズ・画面サイズで
 		// 組むとき input.image-metrics に渡せば、寸法しか要らないパスで
@@ -551,8 +631,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);
 		this.emit("manifest.json", "application/json", this.resources.manifest(this.metadata, binding));
-		this.closeZip();
-		this.results.end();
+		this.sink.end();
+		if (this.parent != null) {
+			this.parent.childFinished(this);
+		}
 	}
 
 	@Override
@@ -569,6 +651,15 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 
 	@Override
 	public void dispose() {
+		synchronized (this.children) {
+			for (final PagedSVGUserAgent child : this.children) {
+				child.dispose();
+			}
+			this.children.clear();
+		}
+		if (this.release != null) {
+			this.release.close();
+		}
 		if (this.fontManager != null) {
 			this.fontManager.close();
 			this.fontManager = null;

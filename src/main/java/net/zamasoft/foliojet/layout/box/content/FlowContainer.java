@@ -172,8 +172,17 @@ public class FlowContainer implements Container {
 	private boolean nonDecorationResult;
 	private long nonDecorationVersion;
 
-	/** 保持先を覚えられない箱の変更に備えた全体の版(AtomicLongは不要——単調増加なら十分)。 */
-	private static volatile long STRUCTURE_VERSION;
+	/**
+	 * 保持先を覚えられない箱の変更に備えた全体の版。
+	 *
+	 * <p>
+	 * プロセス全体で1つなので、変換が並列に走ると複数スレッドが進める。
+	 * {@code volatile long}の{@code ++}は読み・足し・書きの3手で、同時に
+	 * 進めると片方が失われ、古い版と一致した記憶が生き残る(2026-09-02の
+	 * 設計レビューで指摘)。EPUBの項目を並列に組む前提として原子的にする。
+	 * </p>
+	 */
+	private static final java.util.concurrent.atomic.AtomicLong STRUCTURE_VERSION = new java.util.concurrent.atomic.AtomicLong();
 
 	/** このコンテナとその祖先のメモを捨てる。既に捨ててある祖先で止まる。 */
 	public final void invalidateNonDecorationContent() {
@@ -189,18 +198,19 @@ public class FlowContainer implements Container {
 		if (box instanceof net.zamasoft.foliojet.layout.box.AbstractBox abstractBox) {
 			abstractBox.setContentParent(this);
 		} else {
-			++STRUCTURE_VERSION;
+			STRUCTURE_VERSION.incrementAndGet();
 		}
 		this.invalidateNonDecorationContent();
 	}
 
 	@Override
 	public final boolean hasNonDecorationContent() {
-		if (this.nonDecorationCached && this.nonDecorationVersion == STRUCTURE_VERSION) {
+		final long version = STRUCTURE_VERSION.get();
+		if (this.nonDecorationCached && this.nonDecorationVersion == version) {
 			return this.nonDecorationResult;
 		}
 		final boolean result = this.computeNonDecorationContent();
-		this.nonDecorationVersion = STRUCTURE_VERSION;
+		this.nonDecorationVersion = version;
 		this.nonDecorationResult = result;
 		this.nonDecorationCached = true;
 		return result;
@@ -606,6 +616,15 @@ public class FlowContainer implements Container {
 		if (this.floatings != null) {
 			for (int i = 0; i < this.floatings.getCount(); ++i) {
 				consumer.accept(this.floatings.getFloating(i).box);
+			}
+		}
+	}
+
+	@Override
+	public void eachAbsoluteBox(final java.util.function.Consumer<IAbsoluteBox> consumer) {
+		if (this.absolutes != null) {
+			for (int i = 0; i < this.absolutes.getCount(); ++i) {
+				consumer.accept(this.absolutes.getAbsolute(i).box);
 			}
 		}
 	}

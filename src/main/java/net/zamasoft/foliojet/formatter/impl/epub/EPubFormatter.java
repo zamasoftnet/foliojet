@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.formatter.impl.epub;
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -8,8 +7,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipFile;
@@ -19,10 +28,17 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.formatter.Formatter;
+import net.zamasoft.foliojet.formatter.MultiDocumentFormatter;
 import net.zamasoft.foliojet.formatter.impl.document.TranscoderHandler;
+import net.zamasoft.foliojet.layout.util.LayoutThreadContext;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.AbortException;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput.DocumentSet;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput.DocumentUnit;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput.TocEntry;
+import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.BooleanPropManager;
 import net.zamasoft.foliojet.ua.props.OutputPrintMode;
@@ -40,7 +56,10 @@ import net.zamasoft.foliojet.epub.Contents;
 import net.zamasoft.foliojet.epub.EPubFile;
 import net.zamasoft.foliojet.epub.Item;
 import net.zamasoft.foliojet.epub.ItemRef;
+import net.zamasoft.foliojet.epub.NavPoint;
+import net.zamasoft.foliojet.epub.PropertiedString;
 import net.zamasoft.foliojet.epub.ResolvedArchiveFile;
+import net.zamasoft.foliojet.epub.Toc;
 import net.zamasoft.foliojet.epub.ZipArchiveFile;
 import net.zamasoft.foliojet.epub.util.WritingModeHandler;
 import net.zamasoft.zstream.resolver.Source;
@@ -57,9 +76,20 @@ import org.xml.sax.helpers.AttributesImpl;
 
 /**
  * EPubをフォーマットします。
+ *
+ * <p>
+ * 出力が{@link MultiDocumentOutput}(Paged SVG)なら、spine項目を<b>独立した
+ * 文書として</b>組む({@link #formatDocuments})。項目ごとに子のUAを開いて
+ * 自分のパス駆動を回し、並列に走らせられる。結果は親がspine順に解放する。
+ * それ以外の出力(PDF・画像)は従来どおり1つのUAへ全項目を順に流す
+ * ({@link #format})。どちらでも項目は必ず新しいページから始まる
+ * (各項目の最後のページはその項目の終わりで閉じられる——2026-09-02に実測)。
+ * </p>
  */
-public class EPubFormatter implements Formatter {
+public class EPubFormatter implements MultiDocumentFormatter {
 	private static final Logger LOG = Logger.getLogger(EPubFormatter.class.getName());
+
+	private static final String PLUGIN_NAME = "net.zamasoft.foliojet.plugins.epub";
 
 	public static final BooleanPropManager REPLACE_NUMBERS = new BooleanPropManager(
 			"x.net.zamasoft.foliojet.formatter.impl.epub.replace-numbers", false);
@@ -144,12 +174,49 @@ public class EPubFormatter implements Formatter {
 		Source open(URI path, String mediaType) throws IOException;
 	}
 
+	/** 開いたEPUBに対して行う処理。 */
+	private interface Body {
+		void run(EPubFile epub, Contents contents, EntryOpener opener) throws Exception;
+	}
+
 	public void format(final Source source, final UserAgent ua) throws AbortException, TranscoderException {
-		if (isDirectory(source)) {
-			this.formatDirectory(source, ua);
-			return;
-		}
+		this.withArchive(source, ua, (epub, contents, opener) -> this.formatSequential(contents, opener, ua));
+	}
+
+	@Override
+	public void formatDocuments(final Source source, final MultiDocumentOutput ua, final int passCount)
+			throws AbortException, TranscoderException {
+		this.withArchive(source, ua,
+				(epub, contents, opener) -> this.formatIndependent(epub, contents, opener, ua, passCount));
+	}
+
+	/**
+	 * EPUBを開き(ZIPまたはディレクトリ)、資源の解決をUAへ据えてから本体を走らせます。
+	 * 失敗は種類を保って伝えます——中断と変換例外はそのまま、それ以外はプラグインの
+	 * 失敗として包む。
+	 */
+	private void withArchive(final Source source, final UserAgent ua, final Body body)
+			throws AbortException, TranscoderException {
 		try {
+			if (isDirectory(source)) {
+				final URI base = toDirectoryURI(source.getURI());
+				// EPUB内部は相対URIで参照し合う。ZIPの zip: スキームと同じ役目を
+				// 「基底URIへの相対解決」が果たす
+				final BaseURISourceResolver entries = new BaseURISourceResolver(ua.getSourceResolver(), base);
+				final CompositeSourceResolver resolver = new CompositeSourceResolver();
+				resolver.setDefaultSourceResolver(entries);
+				ua.setSourceResolver(resolver);
+				this.open(new ResolvedArchiveFile(entries), (path, mediaType) -> {
+					final Source entry = entries.resolve(path);
+					return mediaType == null ? entry : new SourceWrapper(entry) {
+						@Override
+						public String getMimeType() {
+							return mediaType;
+						}
+					};
+				}, body);
+				return;
+			}
 			final File epubFile;
 			if (source.isFile()) {
 				epubFile = source.getFile();
@@ -168,164 +235,426 @@ public class EPubFormatter implements Formatter {
 					resolver.setDefaultSourceResolver(ua.getSourceResolver());
 					resolver.setDefaultScheme("zip");
 					ua.setSourceResolver(resolver);
-
-					this.formatEPub(new ZipArchiveFile(epubFile, zip),
-							(path, mediaType) -> new ZIPFileSource(zip, path, mediaType), ua);
+					this.open(new ZipArchiveFile(epubFile, zip),
+							(path, mediaType) -> new ZIPFileSource(zip, path, mediaType), body);
 				}
 			} finally {
 				if (!source.isFile()) {
 					epubFile.delete();
 				}
 			}
-		} catch (Exception e) {
-			short code = MessageCodes.ERROR_PLUGIN;
-			String[] args = new String[] { "net.zamasoft.foliojet.plugins.epub", e.getLocalizedMessage() };
-			String mes = MessageCodeUtils.toString(code, args);
-			ua.message(code, args);
-			LOG.log(Level.WARNING, mes, e);
-			throw new TranscoderException(code, args, mes);
+		} catch (final AbortException | TranscoderException e) {
+			throw e;
+		} catch (final Exception e) {
+			throw pluginFailure(ua, e);
+		}
+	}
+
+	private static TranscoderException pluginFailure(final UserAgent ua, final Throwable e) {
+		final short code = MessageCodes.ERROR_PLUGIN;
+		final String[] args = new String[] { PLUGIN_NAME, e.getLocalizedMessage() };
+		final String mes = MessageCodeUtils.toString(code, args);
+		ua.message(code, args);
+		LOG.log(Level.WARNING, mes, e);
+		return new TranscoderException(code, args, mes);
+	}
+
+	private void open(final ArchiveFile archive, final EntryOpener opener, final Body body) throws Exception {
+		// メタ情報解析
+		final EPubFile epub = new EPubFile(archive);
+		final Container container = epub.readContainer();
+		final Rootfile root = container.rootfiles[0];
+		final Contents contents = epub.readContents(root);
+		body.run(epub, contents, opener);
+	}
+
+	/** ページ進行方向を{@code output.print-mode}へ写し、横綴じかどうかを返します。 */
+	private static boolean applyProgression(final UserAgent ua, final Contents contents) {
+		boolean leftBind = true;
+		switch (contents.pageProgressionDirection) {
+		case Contents.PAGE_PROGRESSION_DIRECTION_LTR:
+			ua.setProperty(UAProps.OUTPUT_PRINT_MODE.getName(), "left-side");
+			break;
+		case Contents.PAGE_PROGRESSION_DIRECTION_RTL:
+			ua.setProperty(UAProps.OUTPUT_PRINT_MODE.getName(), "right-side");
+			leftBind = false;
+			break;
+		}
+		return leftBind;
+	}
+
+	private static Map<URI, Item> fullPathToItem(final Contents contents) {
+		final Map<URI, Item> fullPathToItem = new HashMap<URI, Item>();
+		for (int i = 0; i < contents.spine.length; ++i) {
+			final ItemRef ir = contents.spine[i];
+			fullPathToItem.put(URI.create(ir.item.fullPath), ir.item);
+		}
+		return fullPathToItem;
+	}
+
+	// ---- 従来どおり: 1つのUAへ全項目を順に流す
+
+	private void formatSequential(final Contents contents, final EntryOpener opener, final UserAgent ua)
+			throws Exception {
+		final boolean leftBind = applyProgression(ua, contents);
+		final Map<URI, Item> fullPathToItem = fullPathToItem(contents);
+		final boolean[] included = selectSpine(ua, contents);
+		for (int i = 0; i < contents.spine.length; ++i) {
+			if (!included[i]) {
+				continue;
+			}
+			this.formatItem(ua, contents.spine[i], fullPathToItem, opener, leftBind);
+		}
+	}
+
+	// ---- 項目ごとに独立: 子のUAで並列に組み、spine順に解放する
+
+	private void formatIndependent(final EPubFile epub, final Contents contents, final EntryOpener opener,
+			final MultiDocumentOutput ua, final int passCount) throws Exception {
+		final boolean leftBind = applyProgression(ua, contents);
+		final Map<URI, Item> fullPathToItem = fullPathToItem(contents);
+		final boolean[] included = selectSpine(ua, contents);
+		final List<DocumentUnit> units = new ArrayList<>();
+		int includedCount = 0;
+		for (int i = 0; i < contents.spine.length; ++i) {
+			final ItemRef ir = contents.spine[i];
+			units.add(new DocumentUnit(i + 1, ir.item.id, URIHelper.create("UTF-8", ir.item.fullPath), included[i]));
+			if (included[i]) {
+				++includedCount;
+			}
+		}
+		ua.describeDocuments(new DocumentSet(Collections.unmodifiableList(units), progressionName(contents),
+				metadata(contents), toc(epub, contents)));
+		if (includedCount == 0) {
+			return;
+		}
+
+		// 項目はspine順に投入する。先頭から先に走るので、解放も早く始まる
+		final int concurrency = Math.min(includedCount, concurrency(ua));
+		final LayoutThreadContext context = LayoutThreadContext.capture();
+		final ExecutorService pool = Executors.newFixedThreadPool(concurrency, r -> {
+			final Thread t = new Thread(null, r, "foliojet-epub-item", LayoutThreadContext.LAYOUT_STACK_SIZE);
+			t.setDaemon(true);
+			return t;
+		});
+		final List<Future<?>> futures = new ArrayList<>();
+		try {
+			for (int i = 0; i < contents.spine.length; ++i) {
+				if (!included[i]) {
+					continue;
+				}
+				final ItemRef ir = contents.spine[i];
+				final UserAgent child = ua.openDocument(units.get(i));
+				futures.add(pool.submit(() -> {
+					try (AutoCloseable scope = context.apply()) {
+						this.formatItemPasses(child, ir, fullPathToItem, opener, leftBind, passCount);
+					} catch (final TranscoderException | RuntimeException | Error e) {
+						// AbortExceptionはRuntimeException。そのまま通す
+						throw e;
+					} catch (final Exception e) {
+						throw pluginFailure(child, e);
+					}
+					return null;
+				}));
+			}
+			awaitAll(ua, futures);
+		} finally {
+			// 誰も書いていない状態でしか戻らない。中断でも、子がすべて
+			// 止まるまで待つ(呼び出し側がセッションを閉じたあとに書き続けさせない)
+			pool.shutdownNow();
+			boolean interrupted = false;
+			while (true) {
+				try {
+					if (pool.awaitTermination(1, TimeUnit.SECONDS)) {
+						break;
+					}
+				} catch (final InterruptedException e) {
+					interrupted = true;
+					ua.abort(AbortException.ABORT_FORCE);
+				}
+			}
+			if (interrupted) {
+				Thread.currentThread().interrupt();
+			}
 		}
 	}
 
 	/**
-	 * EPUBの中身がディレクトリとして与えられる場合。ZIPを取得も展開もせず、
-	 * 必要な項目だけを基底URIの下から取ります。
+	 * 全項目の完了を待ちます。最初の失敗で残りを中断し、全部が止まってから
+	 * その失敗を投げる。割り込み(締切)も中断に写し、待ち続ける。
 	 */
-	private void formatDirectory(final Source source, final UserAgent ua)
+	private static void awaitAll(final MultiDocumentOutput ua, final List<Future<?>> futures)
 			throws AbortException, TranscoderException {
-		try {
-			final URI base = toDirectoryURI(source.getURI());
-			// EPUB内部は相対URIで参照し合う。ZIPの zip: スキームと同じ役目を
-			// 「基底URIへの相対解決」が果たす
-			final BaseURISourceResolver entries = new BaseURISourceResolver(ua.getSourceResolver(), base);
-			final CompositeSourceResolver resolver = new CompositeSourceResolver();
-			resolver.setDefaultSourceResolver(entries);
-			ua.setSourceResolver(resolver);
-
-			this.formatEPub(new ResolvedArchiveFile(entries), (path, mediaType) -> {
-				final Source entry = entries.resolve(path);
-				return mediaType == null ? entry : new SourceWrapper(entry) {
-					@Override
-					public String getMimeType() {
-						return mediaType;
+		Throwable failure = null;
+		boolean interrupted = false;
+		for (final Future<?> future : futures) {
+			for (;;) {
+				try {
+					future.get();
+					break;
+				} catch (final InterruptedException e) {
+					interrupted = true;
+					ua.abort(AbortException.ABORT_FORCE);
+				} catch (final ExecutionException e) {
+					final Throwable cause = e.getCause();
+					if (failure == null) {
+						failure = cause;
+						ua.abort(cause instanceof AbortException abort ? abort.getState()
+								: AbortException.ABORT_FORCE);
 					}
-				};
-			}, ua);
-		} catch (Exception e) {
-			short code = MessageCodes.ERROR_PLUGIN;
-			String[] args = new String[] { "net.zamasoft.foliojet.plugins.epub", e.getLocalizedMessage() };
-			String mes = MessageCodeUtils.toString(code, args);
-			ua.message(code, args);
-			LOG.log(Level.WARNING, mes, e);
-			throw new TranscoderException(code, args, mes);
-		}
-	}
-
-	private void formatEPub(final ArchiveFile archive, final EntryOpener opener, final UserAgent ua)
-			throws Exception {
-		{
-			{
-				{
-					// メタ情報解析
-					final EPubFile epub = new EPubFile(archive);
-					Container container = epub.readContainer();
-
-					final Rootfile root = container.rootfiles[0];
-					Contents contents = epub.readContents(root);
-
-					// ページ進行方向
-					boolean leftBind = true;
-					switch (contents.pageProgressionDirection) {
-					case Contents.PAGE_PROGRESSION_DIRECTION_LTR:
-						ua.setProperty(UAProps.OUTPUT_PRINT_MODE.getName(), "left-side");
-						break;
-					case Contents.PAGE_PROGRESSION_DIRECTION_RTL:
-						ua.setProperty(UAProps.OUTPUT_PRINT_MODE.getName(), "right-side");
-						leftBind = false;
-						break;
-					}
-
-					// ファイルパスと項目の関係を取得
-					final Map<URI, Item> fullPathToItem = new HashMap<URI, Item>();
-					for (int i = 0; i < contents.spine.length; ++i) {
-						final ItemRef ir = contents.spine[i];
-						fullPathToItem.put(URI.create(ir.item.fullPath), ir.item);
-					}
-
-					// 各項目のフォーマット
-					for (int i = 0; i < contents.spine.length; ++i) {
-						final ItemRef ir = contents.spine[i];
-						switch (ir.pageSpread) {
-						case ItemRef.PAGE_SPREAD_LEFT: {
-							CSSElement e = this.getPageSide(ua, leftBind);
-							if (e.isPseudoClass(CSSElement.PC_LEFT)) {
-								String ws = UAProps.OUTPUT_PAGE_WIDTH.getString(ua);
-								AbsoluteLengthValue wl = ValueUtils.toAbsoluteLength(ua, false, ws);
-								String hs = UAProps.OUTPUT_PAGE_HEIGHT.getString(ua);
-								AbsoluteLengthValue hl = ValueUtils.toAbsoluteLength(ua, false, hs);
-								ws = UAProps.OUTPUT_PAPER_WIDTH.getString(ua);
-								if (ws != null) {
-									wl = ValueUtils.toAbsoluteLength(ua, false, ws);
-								}
-								hs = UAProps.OUTPUT_PAPER_HEIGHT.getString(ua);
-								if (hs != null) {
-									hl = ValueUtils.toAbsoluteLength(ua, false, hs);
-								}
-								GC gc = ua.nextPage(wl.getLength(), hl.getLength());
-								ua.closePage(gc);
-							}
-						}
-							break;
-						case ItemRef.PAGE_SPREAD_RIGHT:
-							CSSElement e = this.getPageSide(ua, leftBind);
-							if (e.isPseudoClass(CSSElement.PC_RIGHT)) {
-								String ws = UAProps.OUTPUT_PAGE_WIDTH.getString(ua);
-								AbsoluteLengthValue wl = ValueUtils.toAbsoluteLength(ua, false, ws);
-								String hs = UAProps.OUTPUT_PAGE_HEIGHT.getString(ua);
-								AbsoluteLengthValue hl = ValueUtils.toAbsoluteLength(ua, false, hs);
-								ws = UAProps.OUTPUT_PAPER_WIDTH.getString(ua);
-								if (ws != null) {
-									wl = ValueUtils.toAbsoluteLength(ua, false, ws);
-								}
-								hs = UAProps.OUTPUT_PAPER_HEIGHT.getString(ua);
-								if (hs != null) {
-									hl = ValueUtils.toAbsoluteLength(ua, false, hs);
-								}
-								GC gc = ua.nextPage(wl.getLength(), hl.getLength());
-								ua.closePage(gc);
-							}
-							break;
-						}
-
-						ua.getPassContext().resetNonPageCounters();
-						final URI path = URIHelper.create("UTF-8", ir.item.fullPath);
-						ua.getDocumentContext().setBaseURI(path);
-						final Source zSource = opener.open(path, ir.item.mediaType);
-						final String mimeType = zSource.getMimeType();
-						if (mimeType.equals("application/xhtml+xml")) {
-							ParserFactory pf = PluginRegistry.getInstance()
-									.search(ParserFactory.class, mimeType);
-							Parser parser = pf.createParser();
-							TranscoderHandler transcoderHandler = new TranscoderHandler(ua);
-							XMLHandler entryPoint = new LinkHandler(transcoderHandler, ir.item, fullPathToItem);
-							boolean replaceNumbers = REPLACE_NUMBERS.getBoolean(ua);
-							WritingModeHandler xhandler = new WritingModeHandler(entryPoint, ir.item, replaceNumbers);
-							entryPoint = XMLHandler.of(xhandler, null);
-							try {
-								parser.parse(ua, zSource, entryPoint);
-							} finally {
-								// E-6増分3b-2: spill一時ファイルの清算(冪等)
-								transcoderHandler.dispose();
-							}
-						} else {
-							Formatter formatter = PluginRegistry.getInstance().search(Formatter.class,
-									zSource);
-							formatter.format(zSource, ua);
-						}
-					}
+					break;
+				} catch (final CancellationException e) {
+					break;
 				}
 			}
 		}
+		if (interrupted) {
+			Thread.currentThread().interrupt();
+		}
+		if (failure instanceof AbortException e) {
+			throw e;
+		}
+		if (failure instanceof TranscoderException e) {
+			throw e;
+		}
+		if (failure instanceof RuntimeException e) {
+			throw e;
+		}
+		if (failure instanceof Error e) {
+			throw e;
+		}
+		if (failure != null) {
+			throw pluginFailure(ua, failure);
+		}
+		if (interrupted) {
+			throw new AbortException(AbortException.ABORT_FORCE);
+		}
+	}
+
+	/** 同時に組む項目の数。{@code 0}(既定)はコア数と4の小さいほう。 */
+	private static int concurrency(final UserAgent ua) {
+		final int configured = UAProps.PROCESSING_CONCURRENCY.getInteger(ua);
+		if (configured > 0) {
+			return configured;
+		}
+		return Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors()));
+	}
+
+	/**
+	 * 項目1つのパス駆動。{@code DirectSession.format}と同じ順
+	 * (構造走査→中間×n→最終)で、入力はZIPの項目を開き直すので一時ファイルは要らない。
+	 */
+	private void formatItemPasses(final UserAgent child, final ItemRef ir, final Map<URI, Item> fullPathToItem,
+			final EntryOpener opener, final boolean leftBind, final int passCount) throws Exception {
+		if (passCount <= 1) {
+			child.prepare(PrepareMode.DOCUMENT);
+			child.getUAContext().setPassCount(1);
+			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
+			this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+		} else {
+			child.prepare(PrepareMode.STRUCTURE_SCAN);
+			this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+			for (int remaining = passCount; remaining > 1; --remaining) {
+				child.prepare(PrepareMode.MIDDLE_PASS);
+				child.getUAContext().setPassCount(remaining);
+				child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
+				this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+			}
+			child.prepare(PrepareMode.LAST_PASS);
+			child.getUAContext().setPassCount(1);
+			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
+			this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+		}
+		child.finish();
+	}
+
+	/** 項目1つを、いま準備されているパスで組みます。 */
+	private void formatItem(final UserAgent ua, final ItemRef ir, final Map<URI, Item> fullPathToItem,
+			final EntryOpener opener, final boolean leftBind) throws Exception {
+		switch (ir.pageSpread) {
+		case ItemRef.PAGE_SPREAD_LEFT: {
+			CSSElement e = this.getPageSide(ua, leftBind);
+			if (e.isPseudoClass(CSSElement.PC_LEFT)) {
+				this.blankPage(ua);
+			}
+		}
+			break;
+		case ItemRef.PAGE_SPREAD_RIGHT:
+			CSSElement e = this.getPageSide(ua, leftBind);
+			if (e.isPseudoClass(CSSElement.PC_RIGHT)) {
+				this.blankPage(ua);
+			}
+			break;
+		}
+
+		ua.getPassContext().resetNonPageCounters();
+		final URI path = URIHelper.create("UTF-8", ir.item.fullPath);
+		ua.getDocumentContext().setBaseURI(path);
+		final Source zSource = opener.open(path, ir.item.mediaType);
+		final String mimeType = zSource.getMimeType();
+		if (mimeType.equals("application/xhtml+xml")) {
+			ParserFactory pf = PluginRegistry.getInstance().search(ParserFactory.class, mimeType);
+			Parser parser = pf.createParser();
+			TranscoderHandler transcoderHandler = new TranscoderHandler(ua);
+			XMLHandler entryPoint = new LinkHandler(transcoderHandler, ir.item, fullPathToItem);
+			boolean replaceNumbers = REPLACE_NUMBERS.getBoolean(ua);
+			WritingModeHandler xhandler = new WritingModeHandler(entryPoint, ir.item, replaceNumbers);
+			entryPoint = XMLHandler.of(xhandler, null);
+			try {
+				parser.parse(ua, zSource, entryPoint);
+			} finally {
+				// E-6増分3b-2: spill一時ファイルの清算(冪等)
+				transcoderHandler.dispose();
+			}
+		} else {
+			Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, zSource);
+			formatter.format(zSource, ua);
+		}
+	}
+
+	/** 見開きの合わせのための白紙。 */
+	private void blankPage(final UserAgent ua) throws IOException {
+		String ws = UAProps.OUTPUT_PAGE_WIDTH.getString(ua);
+		AbsoluteLengthValue wl = ValueUtils.toAbsoluteLength(ua, false, ws);
+		String hs = UAProps.OUTPUT_PAGE_HEIGHT.getString(ua);
+		AbsoluteLengthValue hl = ValueUtils.toAbsoluteLength(ua, false, hs);
+		ws = UAProps.OUTPUT_PAPER_WIDTH.getString(ua);
+		if (ws != null) {
+			wl = ValueUtils.toAbsoluteLength(ua, false, ws);
+		}
+		hs = UAProps.OUTPUT_PAPER_HEIGHT.getString(ua);
+		if (hs != null) {
+			hl = ValueUtils.toAbsoluteLength(ua, false, hs);
+		}
+		GC gc = ua.nextPage(wl.getLength(), hl.getLength());
+		ua.closePage(gc);
+	}
+
+	// ---- spine の絞り込みと全体の記述
+
+	/**
+	 * {@code input.epub.spine}で組む項目を選びます。空なら全部。要素は
+	 * idref・パス・1起点の番号・番号の範囲。どれにも当たらない要素は警告して無視する。
+	 */
+	static boolean[] selectSpine(final UserAgent ua, final Contents contents) {
+		final boolean[] included = new boolean[contents.spine.length];
+		final String value = UAProps.INPUT_EPUB_SPINE.getString(ua);
+		if (value == null || value.isBlank()) {
+			java.util.Arrays.fill(included, true);
+			return included;
+		}
+		for (final String token : value.trim().split("[\\s,]+")) {
+			if (token.isEmpty()) {
+				continue;
+			}
+			boolean matched = false;
+			final java.util.regex.Matcher range = java.util.regex.Pattern.compile("(\\d+)(?:-(\\d+))?")
+					.matcher(token);
+			if (range.matches()) {
+				final int from = Integer.parseInt(range.group(1));
+				final int to = range.group(2) == null ? from : Integer.parseInt(range.group(2));
+				for (int i = Math.max(1, from); i <= Math.min(contents.spine.length, to); ++i) {
+					included[i - 1] = true;
+					matched = true;
+				}
+			} else {
+				for (int i = 0; i < contents.spine.length; ++i) {
+					final Item item = contents.spine[i].item;
+					if (token.equals(item.id) || token.equals(item.href) || token.equals(item.fullPath)
+							|| (item.fullPath != null && item.fullPath.endsWith("/" + token))) {
+						included[i] = true;
+						matched = true;
+					}
+				}
+			}
+			if (!matched) {
+				ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.INPUT_EPUB_SPINE.getName(), token);
+			}
+		}
+		return included;
+	}
+
+	private static String progressionName(final Contents contents) {
+		return switch (contents.pageProgressionDirection) {
+		case Contents.PAGE_PROGRESSION_DIRECTION_LTR -> "ltr";
+		case Contents.PAGE_PROGRESSION_DIRECTION_RTL -> "rtl";
+		default -> "default";
+		};
+	}
+
+	private static Map<String, String> metadata(final Contents contents) {
+		final Map<String, String> metadata = new LinkedHashMap<>();
+		put(metadata, "title", contents.title);
+		put(metadata, "description", contents.description);
+		put(metadata, "identifier", contents.identifier);
+		put(metadata, "language", contents.language);
+		put(metadata, "author", contents.author);
+		put(metadata, "publisher", contents.publisher);
+		put(metadata, "rights", contents.rights);
+		return metadata;
+	}
+
+	private static void put(final Map<String, String> metadata, final String key, final PropertiedString value) {
+		if (value != null && value.text != null && !value.text.isEmpty()) {
+			metadata.put(key, value.text);
+		}
+	}
+
+	private static void put(final Map<String, String> metadata, final String key,
+			final List<PropertiedString> values) {
+		if (values == null || values.isEmpty()) {
+			return;
+		}
+		final StringBuilder joined = new StringBuilder();
+		for (final PropertiedString value : values) {
+			if (value == null || value.text == null || value.text.isEmpty()) {
+				continue;
+			}
+			if (joined.length() != 0) {
+				joined.append(", ");
+			}
+			joined.append(value.text);
+		}
+		if (joined.length() != 0) {
+			metadata.put(key, joined.toString());
+		}
+	}
+
+	/** 目次(nav/ncx)。読めなければ空。 */
+	private static List<TocEntry> toc(final EPubFile epub, final Contents contents) {
+		try {
+			final Toc toc = epub.readToc(contents);
+			if (toc == null || toc.navPoints == null) {
+				return List.of();
+			}
+			return tocEntries(toc.navPoints);
+		} catch (final Exception e) {
+			LOG.log(Level.FINE, "EPUBの目次を読めませんでした", e);
+			return List.of();
+		}
+	}
+
+	private static List<TocEntry> tocEntries(final NavPoint[] points) {
+		final List<TocEntry> entries = new ArrayList<>();
+		if (points == null) {
+			return entries;
+		}
+		for (final NavPoint point : points) {
+			if (point == null) {
+				continue;
+			}
+			URI uri = point.uri;
+			if (point.item != null) {
+				try {
+					uri = URIHelper.create("UTF-8", point.item.fullPath);
+				} catch (final URISyntaxException e) {
+					// 項目のパスが壊れているなら、nav が指すURIのまま
+				}
+			}
+			final String fragment = point.uri == null ? null : point.uri.getFragment();
+			entries.add(new TocEntry(point.label, uri, fragment, tocEntries(point.children)));
+		}
+		return entries;
 	}
 
 	/** EPUBの中身がディレクトリとして与えられているか。 */
