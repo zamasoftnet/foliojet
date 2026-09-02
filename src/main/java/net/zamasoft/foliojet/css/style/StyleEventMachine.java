@@ -520,6 +520,24 @@ final class StyleEventMachine {
 			style.footnoteId = this.nextFootnoteId++;
 			this.ua.getPassContext().getCounterScope(0, true).increment("footnote", 1);
 			this.footnotePseudo(style, CSSElement.FOOTNOTE_CALL);
+			// **注の本文は頁の脚注領域の書字方向で組む**(2026-09-03、cti.li の
+			// 報告)。縦組みの本の横組みの図(直交フロー)の説明に注があると、
+			// 注は図の向き(横組み)を継いで横に組まれ、その横幅が頁方向の
+			// 占有量になって版面の大半(実文書で 232pt/202pt)を予約していた。
+			// 図と注が同じ頁に入らず図は送られ続け、停滞の安全弁が注を
+			// 呼び出しの無い頁に置いて番号も通番に落ちた。脚注領域は頁の
+			// ものなので、注の向きは元の位置ではなく頁に従う(呼び出しは
+			// 上で合成済みなので元の位置の向きのまま)。作者が注に別の
+			// writing-mode を書いても無視する——横組みの注を縦組みの地に
+			// 置く形は footnote-area-position-design.md の見送り事項
+			final WritingMode page = this.pageSequence.getProgression();
+			if (BlockFlow.get(style) != page) {
+				style.set(BlockFlow.INFO, switch (page) {
+				case RL -> net.zamasoft.foliojet.css.value.BlockFlowValue.RL_VALUE;
+				case LR -> net.zamasoft.foliojet.css.value.BlockFlowValue.LR_VALUE;
+				default -> net.zamasoft.foliojet.css.value.BlockFlowValue.TB_VALUE;
+				}, CSSStyle.MODE_IMPORTANT);
+			}
 		}
 		return footnote;
 	}

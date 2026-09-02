@@ -1319,14 +1319,30 @@ public class RootBuilder extends BreakableBuilder {
 		// ページに置かれるが、呼び出しが「入れ子の段組の中で毎回次ページへ
 		// 送られる」内容にあると、予約(版面を狭める)だけが残り、狭いせいで
 		// 内容がまた送られる——同じ形のページが上限まで積み上がる。
-		// 予約を保持したまま配置が2ページ連続で進まなければ、EOFドレインと
-		// 同じ強制配置(forceFootnoteAttach)へ切り替えて前進させる
+		// 予約を保持したまま、中身の無いページが2ページ連続したら、先頭の
+		// 注の予約を外して(deferred)呼び出しが確定する頁を待つ。
+		//
+		// **2026-09-03 に変えた**(cti.li の報告、[[2026-09-02-cti-li-footnote-
+		// numbering.md]])。以前は EOF ドレインと同じ強制配置
+		// (forceFootnoteAttach)へ切り替えていたが、①その旗は二度と戻らず、
+		// 以後の注が全部「登録された頁」に呼び出し抜きで置かれて番号が通番に
+		// 落ちた。②改頁を避ける大きな図が数頁ぶん溜まって順に頁へ割られる
+		// 間(各頁に中身はある)にも発火し、注が呼び出しの 2 頁前に出た。
+		// 「中身の無い頁」の条件は掃過 seed 439857 の形(空の段組枠だけの頁が
+		// 積み上がる)を残し、図が順に置かれていく形を除く。予約を外せば
+		// 内容が収まって呼び出しが確定し、注は F4 の carry-in で次頁の先頭に
+		// 置かれる(番号は呼び出しの頁のもの)
 		final boolean hadReservation = this.footnoteReservedCount > 0;
 		this.footnoteProgressed = false;
+		this.pageHadContent = false;
 		final double notesExtent = this.attachFootnotes();
-		if (hadReservation && !this.footnoteProgressed) {
+		if (hadReservation && !this.footnoteProgressed && !this.pageHadContent) {
 			if (++this.footnoteStallPages >= 2) {
-				this.forceFootnoteAttach = true;
+				final FootnoteEntry head = this.pendingFootnotes.peekFirst();
+				if (head != null && !head.committed) {
+					head.deferred = true;
+				}
+				this.footnoteStallPages = 0;
 			}
 		} else {
 			this.footnoteStallPages = 0;
@@ -1337,6 +1353,9 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** 予約を保持したまま脚注配置が進まなかった連続ページ数。 */
 	private int footnoteStallPages = 0;
+
+	/** 直近の走査で、ページに行か置換要素があったか(停滞の安全弁の判定材料)。 */
+	private boolean pageHadContent = false;
 
 	public void finish() {
 		this.finishLayout();
@@ -1399,6 +1418,14 @@ public class RootBuilder extends BreakableBuilder {
 		 * carry-inされたnoteは後続ページでもcallページの番号を保つ。
 		 */
 		int assignedNumber = -1;
+
+		/**
+		 * 予約を外して呼び出しの頁を待つ注です(2026-09-03)。予約が内容を
+		 * 押し出し続けて呼び出しが確定しない停滞のときに立つ。呼び出しが
+		 * 確定した頁では予約が無いので置けず、carry-in(committed)で次頁の
+		 * 先頭に置かれる。
+		 */
+		boolean deferred = false;
 
 		FootnoteEntry(final long id, final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
 			this.id = id;
@@ -1472,6 +1499,10 @@ public class RootBuilder extends BreakableBuilder {
 		int i = 0;
 		for (final FootnoteEntry entry : this.pendingFootnotes) {
 			if (i >= this.footnoteReservedCount) {
+				if (entry.deferred && !entry.committed && !this.forceFootnoteAttach) {
+					// 予約を外して呼び出しを待つ注(FIFO なので後続も待つ)
+					break;
+				}
 				final double cost = (this.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
 						+ this.footnoteExtent(entry.noteBox);
 				if (this.footnoteReservation + cost > maxArea) {
@@ -1715,6 +1746,7 @@ public class RootBuilder extends BreakableBuilder {
 			return 0;
 		}
 		final FootnoteCallScan scan = this.scanFootnoteCalls(this.pageBox);
+		this.pageHadContent = scan.contentful();
 		final java.util.Set<Long> retained = scan.ids();
 
 		// F5: 採番——このページにcallが残った未採番entryへ、FIFO(文書順)で
@@ -1815,9 +1847,9 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private boolean forceFootnoteAttach = false;
 
-	/** 走査結果: callのID集合と、見つかった脚注ラベル(call/marker両方)。 */
+	/** 走査結果: callのID集合と、見つかった脚注ラベル(call/marker両方)、中身(行・置換要素)の有無。 */
 	private record FootnoteCallScan(java.util.Set<Long> ids,
-			java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels) {
+			java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels, boolean contentful) {
 	}
 
 	/**
@@ -1834,9 +1866,14 @@ public class RootBuilder extends BreakableBuilder {
 		final java.util.Set<Long> ids = new java.util.HashSet<>();
 		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels = new java.util.ArrayList<>();
 		final java.util.ArrayDeque<Object> work = new java.util.ArrayDeque<>();
+		boolean contentful = false;
 		work.push(root);
 		while (!work.isEmpty()) {
 			final Object node = work.pop();
+			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractReplacedBox
+					|| node instanceof net.zamasoft.foliojet.layout.box.AbstractLineBox) {
+				contentful = true;
+			}
 			if (node instanceof net.zamasoft.foliojet.layout.box.IBox box) {
 				final net.zamasoft.foliojet.layout.box.params.Params params = box.getParams();
 				if (params != null && params.element == net.zamasoft.foliojet.css.CSSElement.FOOTNOTE_CALL
@@ -1891,7 +1928,7 @@ public class RootBuilder extends BreakableBuilder {
 				textBox.forEachInlineBox(work::push);
 			}
 		}
-		return new FootnoteCallScan(ids, labels);
+		return new FootnoteCallScan(ids, labels, contentful);
 	}
 
 }
