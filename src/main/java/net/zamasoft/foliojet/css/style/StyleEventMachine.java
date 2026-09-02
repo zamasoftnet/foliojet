@@ -1298,6 +1298,9 @@ final class StyleEventMachine {
 	/** 表構造内の脚注の警告は1文書に1回。 */
 	private boolean warnedFootnoteInTableStructure = false;
 
+	/** 脚注ラベルの未対応の内容の警告は1文書に1回。 */
+	private boolean warnedFootnoteLabelContent = false;
+
 	private void footnotePseudo(final CSSStyle style, final CSSElement pseudoCe) {
 		this.styleContext.startElement(pseudoCe);
 		final Declaration declaration = this.styleContext.merge(null);
@@ -1349,10 +1352,12 @@ final class StyleEventMachine {
 				} else if (v instanceof CounterValue cv && !seenCounter && cv.getName().equals("footnote")
 						&& cv.getStyle() == net.zamasoft.foliojet.css.value.ListStyleTypeValue.DECIMAL) {
 					seenCounter = true;
-				} else {
-					throw new net.zamasoft.foliojet.layout.builder.impl.FootnoteOverflowException(
-							"unsupported footnote label content (only literals and counter(footnote) are supported): "
-									+ v);
+				} else if (!this.warnedFootnoteLabelContent) {
+					// 仕様の制限は変換の失敗ではなく警告にする(設計レビュー 2026-09-02
+					// §1-6)。対応していない内容は無視して、番号と文字列だけで組む
+					this.warnedFootnoteLabelContent = true;
+					this.ua.message(MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION, "::footnote-call content",
+							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.footnote-label"));
 				}
 			}
 			if (!seenCounter) {

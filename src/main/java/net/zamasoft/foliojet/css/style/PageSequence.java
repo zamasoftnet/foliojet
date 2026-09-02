@@ -38,7 +38,7 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.ua.impl.Impositions;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.AbortException;
@@ -152,7 +152,7 @@ final class PageSequence {
 				this.ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PAGE_HEIGHT.name, s);
 			}
 		}
-		LayoutUtils.setupImposition(this.ua, this.imposition);
+		Impositions.setupImposition(this.ua, this.imposition);
 
 		// マージン
 		{

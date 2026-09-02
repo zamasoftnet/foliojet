@@ -62,9 +62,24 @@ public final class RescueStats {
 		return decision;
 	}
 
-	/** 実際に断片を作ったことを記録します。 */
+	private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RescueStats.class.getName());
+	private static final java.util.concurrent.atomic.AtomicBoolean WARNED = new java.util.concurrent.atomic.AtomicBoolean();
+
+	/**
+	 * 実際に断片を作ったことを記録します。
+	 *
+	 * <p>
+	 * 救済分割は意図した fail-open だが、以前は誰にも知らせなかった
+	 * (設計レビュー 2026-09-02 §1-6)。プロセスで1回だけ WARNING を残す——
+	 * 掃過で大量に出さないため。
+	 * </p>
+	 */
 	public static void recordEnabled() {
 		ENABLED_SLICES.incrementAndGet();
+		if (WARNED.compareAndSet(false, true)) {
+			LOG.warning("rescue slicing was used to make progress at a non-advancing break;"
+					+ " the layout continues with a fallback fragment (reported once per process)");
+		}
 	}
 
 	public static void reset() {

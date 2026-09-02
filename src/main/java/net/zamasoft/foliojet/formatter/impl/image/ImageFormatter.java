@@ -10,7 +10,7 @@ import net.zamasoft.foliojet.formatter.Formatter;
 import net.zamasoft.foliojet.ua.impl.image.RasterImageLoader;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.ua.impl.Impositions;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.ImageLoader;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -45,10 +45,10 @@ public class ImageFormatter implements Formatter {
 			double iw = image.getWidth();
 			double ih = image.getHeight();
 
-			Imposition imposition = LayoutUtils.createImposition(ua);
+			Imposition imposition = Impositions.createImposition(ua);
 			imposition.setPageWidth(iw);
 			imposition.setPageHeight(ih);
-			LayoutUtils.setupImposition(ua, imposition);
+			Impositions.setupImposition(ua, imposition);
 
 			final GC gc = imposition.nextPage();
 			if (gc != null) {
