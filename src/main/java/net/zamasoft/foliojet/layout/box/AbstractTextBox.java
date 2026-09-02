@@ -472,6 +472,86 @@ public abstract class AbstractTextBox extends AbstractBox {
 		return count;
 	}
 
+	/**
+	 * 語間(空白の直後)の伸長点の数({@code text-justify: inter-word}と韓国語の
+	 * 既定、2026-09-02)。空白は{@code Control}で、その次の字形の手前のアキ
+	 * ({@code xadvance})を伸ばす。
+	 */
+	protected final int countWordSpaceJustificationPoints(final JustificationState state) {
+		if (this.contents == null) {
+			return 0;
+		}
+		int count = 0;
+		for (int i = 0; i < this.contents.size(); ++i) {
+			switch (this.contents.get(i)) {
+			case Text text -> {
+				if (text.getGlyphCount() > 0) {
+					if (state.prevCodePoint == ' ') {
+						++count;
+					}
+					final char[] chars = text.getChars();
+					state.prevCodePoint = Character.codePointBefore(chars, text.getCharCount());
+				}
+			}
+			case Inline inline -> {
+				if (inline.box.getType() == BoxType.INLINE) {
+					count += ((InlineBox) inline.box).countWordSpaceJustificationPoints(state);
+				}
+			}
+			case Control ctrl -> {
+				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
+					state.prevCodePoint = ctrl.getControlChar();
+				}
+			}
+			default -> {
+				// 配置物・leaderは伸長点を作らない。
+			}
+			}
+		}
+		return count;
+	}
+
+	/** 語間の各伸長点へ同じアキを加える({@link #countWordSpaceJustificationPoints}と対)。 */
+	protected final void justifyWordSpaces(final double unitSpacing, final JustificationState state) {
+		if (this.contents == null) {
+			return;
+		}
+		for (int i = 0; i < this.contents.size(); ++i) {
+			double advance = 0;
+			switch (this.contents.get(i)) {
+			case Text text -> {
+				if (text.getGlyphCount() > 0) {
+					if (state.prevCodePoint == ' ') {
+						((net.zamasoft.pdfg2d.gc.text.TextImpl) text).addXAdvance(0, unitSpacing);
+						advance += unitSpacing;
+					}
+					final char[] chars = text.getChars();
+					state.prevCodePoint = Character.codePointBefore(chars, text.getCharCount());
+				}
+			}
+			case Inline inline -> {
+				if (inline.box.getType() == BoxType.INLINE) {
+					final InlineBox inlineBox = (InlineBox) inline.box;
+					advance = inlineBox.getLineSize();
+					inlineBox.justifyWordSpaces(unitSpacing, state);
+					advance = inlineBox.getLineSize() - advance;
+				}
+			}
+			case Control ctrl -> {
+				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
+					state.prevCodePoint = ctrl.getControlChar();
+				}
+			}
+			default -> {
+				// 配置物・leaderは伸長しない。
+			}
+			}
+			if (advance != 0) {
+				this.addAdvance(advance);
+			}
+		}
+	}
+
 	/** 純欧文・一般文字列の各justify候補へ同じアキを加える。 */
 	protected final void justifyGeneral(final double unitSpacing, final JustificationState state) {
 		if (this.contents == null) {

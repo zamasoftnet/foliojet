@@ -697,6 +697,7 @@ final class BoxStyleMapper {
 			params.wordWrap = AbstractTextParams.WORD_WRAP_BREAK_WORD;
 		}
 		params.textWrapStyle = TextWrapStyle.get(style);
+		params.textJustify = net.zamasoft.foliojet.css.impl.property.text.TextJustify.get(style);
 		// tab-size(css-text-3、2026-08-29)。倍数なら空白幅を掛ける(TextBuilder)
 		params.tabSize = net.zamasoft.foliojet.css.impl.property.text.TabSize.get(style);
 		params.tabSizeIsMultiple = net.zamasoft.foliojet.css.impl.property.text.TabSize.isMultiple(style);

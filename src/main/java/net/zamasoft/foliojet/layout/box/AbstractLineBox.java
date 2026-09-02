@@ -186,10 +186,34 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		super.verticalAlign(this, 0);
 	}
 
-	/** 和文行はJLREQ、純欧文・一般文字列は従来の分離可能境界で両端揃えする。 */
+	/**
+	 * 行の余りを配ります。配り方は{@code text-justify}(2026-09-02):
+	 * {@code none}は配らない、{@code inter-word}は語間だけ、
+	 * {@code inter-character}は文字間へ(和文行は JLREQ の段階、他は分離可能境界)、
+	 * {@code auto}は言語で決める——和文行は JLREQ、韓国語({@code lang=ko})は
+	 * 語間だけ(Chrome の実測: 空白だけが伸び、音節の送りは動かない)、
+	 * それ以外は従来の分離可能境界。
+	 */
 	private void justifyByWritingSystem(final double remainder) {
 		if (remainder <= 0) {
 			return;
+		}
+		final byte mode = this.getTextParams().textJustify;
+		if (mode == AbstractTextParams.TEXT_JUSTIFY_NONE) {
+			return;
+		}
+		if (mode == AbstractTextParams.TEXT_JUSTIFY_INTER_WORD
+				|| mode == AbstractTextParams.TEXT_JUSTIFY_AUTO && this.isKorean()) {
+			final int spaces = this.countWordSpaceJustificationPoints(new JustificationState());
+			if (spaces > 0) {
+				this.justifyWordSpaces(remainder / spaces, new JustificationState());
+				return;
+			}
+			if (mode == AbstractTextParams.TEXT_JUSTIFY_INTER_WORD) {
+				// 語間が無い行は動かさない(css-text-3 §7.3)
+				return;
+			}
+			// 韓国語の auto で語間が無い行だけ、文字間へ落とす
 		}
 		if (this.containsJapaneseComposition()) {
 			this.justifyByJlreqPriorities(remainder);
@@ -199,6 +223,13 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		if (count > 0) {
 			this.justifyGeneral(remainder / count, new JustificationState());
 		}
+	}
+
+	/** この行の言語が韓国語か({@code lang}が{@code ko})。 */
+	private boolean isKorean() {
+		final java.util.Locale lang = this.getTextParams().fontStyle == null ? null
+				: this.getTextParams().fontStyle.getLang();
+		return lang != null && "ko".equals(lang.getLanguage());
 	}
 
 	/** JLREQ 3.8.4の4段階で行の余りを配分する。 */

@@ -22,9 +22,10 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  *
  * <p>
  * 利用者報告(日本自由党川崎)の「書いたのに効かないのが一番時間を溶かす」を
- * 受けた告知。浮動体・絶対配置の{@code display:flex}/{@code display:grid}は
+ * 受けた告知。浮動体の{@code display:flex}/{@code display:grid}は
  * 恒久的な部分集合の外で通常ブロックへ落ちるが、以前は何も知らせずに
- * itemが縦に積まれるだけだった。
+ * itemが縦に積まれるだけだった。絶対配置のコンテナは 2026-09-02(E-3)に
+ * 対応したので、もう知らせない({@code AbsoluteGridTest}が動作を固定する)。
  * </p>
  */
 public class IneffectiveCombinationWarningTest extends TestCase {
@@ -37,14 +38,13 @@ public class IneffectiveCombinationWarningTest extends TestCase {
 	private static final String HEAD = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
 			+ "@page{size:200pt 200pt;margin:10pt}body{margin:0}</style></head><body>";
 
-	/** 絶対配置のflexコンテナは2823で知らせる。 */
-	public void testAbsoluteFlexIsReported() throws Exception {
+	/** 絶対配置のflexコンテナは効くようになった(E-3)ので、何も言わない。 */
+	public void testAbsoluteFlexIsSilent() throws Exception {
 		final List<String[]> messages = convert(HEAD
 				+ "<div style=\"position:absolute;left:0;right:0;display:flex;justify-content:space-between\">"
 				+ "<span>L</span><span>R</span></div></body></html>");
-		final List<String[]> reported = select(messages);
-		assertEquals("absolute flex must be reported once: " + describe(messages), 1, reported.size());
-		assertEquals("display: flex", reported.get(0)[1]);
+		assertEquals("an absolutely positioned flex container works since 2026-09-02, so it must not warn: "
+				+ describe(messages), 0, select(messages).size());
 	}
 
 	/** 浮動体のgridコンテナも同じ。 */
@@ -70,8 +70,7 @@ public class IneffectiveCombinationWarningTest extends TestCase {
 	public void testReportedOnlyOnce() throws Exception {
 		final StringBuilder html = new StringBuilder(HEAD);
 		for (int i = 0; i < 5; ++i) {
-			html.append("<div style=\"position:absolute;top:").append(i * 20)
-					.append("pt;display:flex\"><span>A</span><span>B</span></div>");
+			html.append("<div style=\"float:left;clear:left;display:flex\"><span>A</span><span>B</span></div>");
 		}
 		final List<String[]> messages = convert(html.append("</body></html>").toString());
 		assertEquals("five identical fallbacks are one message: " + describe(messages), 1, select(messages).size());

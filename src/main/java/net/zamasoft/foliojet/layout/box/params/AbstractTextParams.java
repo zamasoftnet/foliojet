@@ -45,6 +45,15 @@ public abstract class AbstractTextParams extends Params {
 	 */
 	public static final byte TEXT_WRAP_STYLE_PRETTY = 2;
 
+	/** {@code text-justify: auto}——言語で決める(和文=JLREQ、韓国語=語間、他=従来)。 */
+	public static final byte TEXT_JUSTIFY_AUTO = 1;
+	/** {@code text-justify: none}——両端揃えをしない。 */
+	public static final byte TEXT_JUSTIFY_NONE = 2;
+	/** {@code text-justify: inter-word}——語間だけを伸ばす。 */
+	public static final byte TEXT_JUSTIFY_INTER_WORD = 3;
+	/** {@code text-justify: inter-character}({@code distribute})——文字間にも配る。 */
+	public static final byte TEXT_JUSTIFY_INTER_CHARACTER = 4;
+
 	public static final byte HYPHENS_NONE = 1;
 
 	public static final byte HYPHENS_MANUAL = 2;
@@ -235,6 +244,12 @@ public abstract class AbstractTextParams extends Params {
 	 * 段落を確立するブロック({@code BlockParams})の値だけです。
 	 */
 	public byte textWrapStyle = TEXT_WRAP_STYLE_AUTO;
+
+	/**
+	 * 両端揃えの配分(CSS {@code text-justify})です(2026-09-02)。
+	 * {@link #TEXT_JUSTIFY_AUTO}は言語で決める。
+	 */
+	public byte textJustify = TEXT_JUSTIFY_AUTO;
 
 	/**
 	 * 単語内分綴(CSS hyphens)。

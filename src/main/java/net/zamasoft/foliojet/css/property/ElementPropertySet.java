@@ -92,6 +92,7 @@ import net.zamasoft.foliojet.css.impl.property.shorthand.ColumnsShorthand;
 import net.zamasoft.foliojet.css.impl.property.box.Opacity;
 import net.zamasoft.foliojet.css.impl.property.font.Src;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
+import net.zamasoft.foliojet.css.impl.property.text.TextJustify;
 import net.zamasoft.foliojet.css.impl.property.shorthand.TextCombineShorthand;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisColor;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisPosition;
@@ -427,6 +428,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.box.ObjectPosition.INFO_X);
 		regCode(net.zamasoft.foliojet.css.impl.property.box.ObjectPosition.INFO_Y);
 		reg(TextAlignLast.INFO);
+		reg(TextJustify.INFO);
 		put(WritingModeShorthand.INFO);
 		reg(WordWrap.INFO);
 		reg(WordBreak.INFO);

@@ -642,6 +642,26 @@ final class StyleBoxEmitter {
 		}
 	}
 
+	/**
+	 * 絶対配置のグリッド/Flexで、外側の絶対配置の箱と内側の匿名コンテナの
+	 * 2つを開いた要素のスタイル(2026-09-02、E-3)。閉じるときに2つ閉じる。
+	 */
+	private final java.util.Set<CSSStyle> wrappedContainers = java.util.Collections
+			.newSetFromMap(new java.util.IdentityHashMap<>());
+
+	/**
+	 * 包まれる内側の匿名コンテナの箱パラメータから、外側の箱が受け持つ
+	 * 枠・背景・寸法を外します。トラック・アイテム整列などのコンテナ固有の
+	 * 値はそのまま残る。
+	 */
+	private static void anonymizeWrappedParams(final BlockParams inner) {
+		inner.frame = net.zamasoft.foliojet.layout.box.params.RectFrame.NULL_FRAME;
+		inner.size = net.zamasoft.foliojet.layout.box.params.Dimension.AUTO_DIMENSION;
+		inner.minSize = net.zamasoft.foliojet.layout.box.params.Dimension.ZERO_DIMENSION;
+		inner.maxSize = net.zamasoft.foliojet.layout.box.params.Dimension.AUTO_DIMENSION;
+		inner.boxSizing = net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX;
+	}
+
 	/** 開く1レベル分の捕捉(補正時点のdisplay/position/htmlRoot)。 */
 	private record OpenStep(CSSStyle style, boolean htmlRoot, byte display, byte position) {
 	}
@@ -779,6 +799,16 @@ final class StyleBoxEmitter {
 					pos.align = CSSJHtmlAlign.get(parentStyle);
 				}
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.FlexBox(params, pos);
+			} else if ((position == PositionValue.ABSOLUTE || position == PositionValue.FIXED)
+					&& floating == CSSFloatValue.NONE) {
+				// 絶対配置のFlexコンテナもグリッドと同じ包み(2026-09-02)
+				final net.zamasoft.foliojet.layout.box.params.FlexParams inner = new net.zamasoft.foliojet.layout.box.params.FlexParams();
+				this.mapper.setupFlexParams(inner, style, this.context.getCurrentStyle(), this.context.isInBody(),
+						this.pageSequence);
+				anonymizeWrappedParams(inner);
+				this.sink.start(this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating));
+				this.wrappedContainers.add(style);
+				blockBox = new net.zamasoft.foliojet.layout.box.impl.FlexBox(inner, new FlowPos());
 			} else {
 				// 黙って落とさない(2026-08-29の利用者報告): 宣言は読めているのに
 				// 文脈のせいで効かないことを2823で知らせる
@@ -814,6 +844,20 @@ final class StyleBoxEmitter {
 					pos.align = CSSJHtmlAlign.get(parentStyle);
 				}
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.GridBox(params, pos);
+			} else if ((position == PositionValue.ABSOLUTE || position == PositionValue.FIXED)
+					&& floating == CSSFloatValue.NONE) {
+				// E-3(2026-09-02): 絶対配置のグリッドコンテナ。印刷では用紙の中に
+				// 版面を絶対配置するのが定型なので、対象外にしておけない。
+				// 絶対配置の箱(枠・背景・寸法はこちら)の中に**匿名の静的な
+				// グリッド箱**を1つ作って包む。insetで寸法が決まるので包含
+				// ブロックは確定していて素直に組める。要素の終わりで2つ閉じる
+				final net.zamasoft.foliojet.layout.box.params.GridParams inner = new net.zamasoft.foliojet.layout.box.params.GridParams();
+				this.mapper.setupGridParams(inner, style, this.context.getCurrentStyle(), this.context.isInBody(),
+						this.pageSequence);
+				anonymizeWrappedParams(inner);
+				this.sink.start(this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating));
+				this.wrappedContainers.add(style);
+				blockBox = new net.zamasoft.foliojet.layout.box.impl.GridBox(inner, new FlowPos());
 			} else {
 				if (!this.gridFallbackReported) {
 					this.gridFallbackReported = true;
@@ -979,6 +1023,10 @@ final class StyleBoxEmitter {
 		// 閉じる箱もない
 		if (CSSJInternalImage.getImage(style) == null && endDisplay != DisplayValue.CONTENTS) {
 			this.sink.end();
+			if (this.wrappedContainers.remove(style)) {
+				// 絶対配置のグリッド/Flex: 内側の匿名箱の次に外側の絶対配置の箱を閉じる
+				this.sink.end();
+			}
 		}
 		switch (endDisplay) {
 		case DisplayValue.TABLE:
