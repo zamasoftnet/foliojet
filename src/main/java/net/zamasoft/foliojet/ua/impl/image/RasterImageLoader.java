@@ -424,11 +424,14 @@ public class RasterImageLoader implements ImageLoader {
 				System.err.println("[img] peek orientation=" + orientation + " header=" + header.length
 						+ " source=" + source.getURI());
 			}
-			if (orientation == 1) {
-				// 向きが無いなら包まない(既存の経路をそのまま通す)
-				in.close();
-				return new Object[] { Integer.valueOf(1), source };
-			}
+			// **向きが無くても、覗いたストリームを持つ資源を返す**(2026-09-02)。
+			// 以前は向き1なら元の資源をそのまま返していたが、CTIPで主文書として
+			// 流れてくる資源はStreamSourceで、getInputStream()を呼び直すと
+			// 8KiBのmarkへresetする契約になっている。ここで256KiBを読んだ後に
+			// 元の資源を読み直すと"Resetting to invalid mark"で落ち、**8KiBを
+			// 超える画像を主文書にすると変換できなかった**(cti.liの報告、
+			// 2026-09-01: 8,022Bは通り9,108Bで落ちる)。覗いた分は手元の
+			// バッファに残っているので、それを頭出しして渡せば読み直しが起きない
 			return new Object[] { Integer.valueOf(orientation),
 					new net.zamasoft.zstream.resolver.util.SourceWrapper(source) {
 						private boolean taken = false;

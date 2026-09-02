@@ -241,6 +241,25 @@ public class DocumentBuilder implements TableBuilderHost {
 		return (BlockBuilder) ((ContainerBuilderEntry) this.builderStack.get(0)).builder;
 	}
 
+	/**
+	 * ページ台帳({@code RootBuilder})を返します。無ければ{@code null}。
+	 *
+	 * <p>
+	 * live構築ではスタックの根がそのまま{@code RootBuilder}だが、
+	 * <b>表のセルや絶対配置の箱の内容はソース再生で組み直され</b>、そのときの
+	 * 根はセルのbind先の{@code BlockBuilder}になる。以前は根が
+	 * {@code RootBuilder}でなければ脚注・ページフロート・並列注を台帳へ渡さず
+	 * 黙って捨てていたので、<b>表のセルの中の脚注は本文がどこにも出ず、
+	 * 呼び出しの番号も文書通番のままだった</b>(cti.liの報告、2026-09-01)。
+	 * 根から{@code LayoutStack}を辿れば本物の台帳に着く。scratch計測は
+	 * 呼び出し側が先に除いている。
+	 * </p>
+	 */
+	private RootBuilder pageContext() {
+		final BlockBuilder root = this.pageContextBuilder();
+		return root instanceof RootBuilder r ? r : root.getPageContext();
+	}
+
 	private ContainerBuilderEntry endContainerBuilder() {
 		ContainerBuilderEntry entry = this.containerBuilder();
 		if (!entry.builder.isTwoPass()) {
@@ -1034,7 +1053,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					contentBuilder.bind(pageFloatBuilder, this.scratchMeasurement);
 					pageFloatBuilder.close();
 				}
-				if (this.pageContextBuilder() instanceof RootBuilder root) {
+				if (this.pageContext() instanceof RootBuilder root) {
 					root.addPageFloat(pageFloatBox, pageFloatPos.top);
 				}
 				break;
@@ -1053,7 +1072,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					contentBuilder.bind(noteBuilder, this.scratchMeasurement);
 					noteBuilder.close();
 				}
-				if (this.pageContextBuilder() instanceof RootBuilder root) {
+				if (this.pageContext() instanceof RootBuilder root) {
 					root.addPageMarginNote(noteBox, notePos.start);
 				}
 				break;
@@ -1080,7 +1099,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					contentBuilder.bind(noteBuilder, this.scratchMeasurement);
 					noteBuilder.close();
 				}
-				if (this.pageContextBuilder() instanceof RootBuilder root) {
+				if (this.pageContext() instanceof RootBuilder root) {
 					root.addFootnote(noteBox);
 				}
 				break;

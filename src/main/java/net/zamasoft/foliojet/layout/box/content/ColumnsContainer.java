@@ -91,6 +91,13 @@ public class ColumnsContainer implements Container {
 		this.getLastColumn().addAbsolute(box, staticX, staticY);
 	}
 
+	@Override
+	public void eachAbsoluteBox(final java.util.function.Consumer<IAbsoluteBox> consumer) {
+		for (final Container column : this.columns) {
+			column.eachAbsoluteBox(consumer);
+		}
+	}
+
 	public boolean avoidBreakAfter() {
 		return false;
 	}

@@ -69,6 +69,16 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 		case CSSVerticalAlignPolicy.SUPER: {
 			// 上添え字
+			if (parentBox.getTextParams().flow.isVertical()) {
+				// **縦組み**(2026-09-02): 字は中央線に置かれ、字面は左右に
+				// サイズの半分ずつしか無い。横組みの式(箱の中央を親のフォントの
+				// 上辺=右端へ)をそのまま使うと、上付きの箱の中央が字面の右端に
+				// 来て**丸ごと列の外へ張り出す**(利用者の報告: 縦書きで脚注の
+				// 番号が右にずれる)。Chrome(Blink)は上付きを親のフォントサイズの
+				// 1/3だけ寄せるので、それに合わせる。横組みの式は触らない
+				v = parentBox.getTextParams().fontStyle.getSize() / 3.0;
+				break;
+			}
 			// フォントの中央を親ボックスのフォントの上辺に揃える(SPEC なし)。
 			// -フォントの下辺を親ボックスの中央に揃える(SPEC なし)。
 			// -ベースラインを親ボックスのフォントの上辺に揃える(SPEC なし)。
@@ -80,6 +90,12 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 		case CSSVerticalAlignPolicy.SUB: {
 			// 下添え字
+			if (parentBox.getTextParams().flow.isVertical()) {
+				// 縦組み: 上付きと同じ理由で、Chromeの下付き(親のフォントサイズの
+				// 1/5)に合わせる(2026-09-02)
+				v = -parentBox.getTextParams().fontStyle.getSize() / 5.0;
+				break;
+			}
 			// ベースラインを親ボックスのフォント下辺に揃える(SPEC なし)。
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = -flm.getMaxDescent();

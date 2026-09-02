@@ -216,6 +216,14 @@ public interface Container {
 	 * 浮動ボックスを順に渡します(読み取り専用。脚注F4のcall走査用——
 	 * float内に置かれた脚注呼び出しも数えられるように)。
 	 */
+	/**
+	 * 配置された絶対配置の箱を順に渡します(2026-09-02、脚注の呼び出し走査用)。
+	 * 既定は何も渡さない。
+	 */
+	public default void eachAbsoluteBox(java.util.function.Consumer<IAbsoluteBox> consumer) {
+		// 絶対配置を持たない容れ物
+	}
+
 	public default void eachFloatingBox(java.util.function.Consumer<IFloatBox> consumer) {
 		// 既定は浮動なし
 	}

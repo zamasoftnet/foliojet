@@ -1408,6 +1408,8 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** 未配置の脚注(文書順が正本。箱木の走査順はbidi等で崩れるため)。 */
 	private final java.util.ArrayDeque<FootnoteEntry> pendingFootnotes = new java.util.ArrayDeque<>();
+	/** 台帳へ届いた脚注の論理ID。同じ注を二度受け取らないため(2026-09-02)。 */
+	private final java.util.Set<Long> registeredFootnotes = new java.util.HashSet<>();
 
 	/**
 	 * 現ページに予約済みのpending先頭prefixの件数と、その予約量
@@ -1438,6 +1440,11 @@ public class RootBuilder extends BreakableBuilder {
 	 * 容量で行われる。容量を超えた分は予約されず次ページへ送られる(F4)。
 	 */
 	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
+		if (!this.registeredFootnotes.add(noteBox.getParams().footnoteId)) {
+			// 同じ注が二度届いた(two-passの記録と、ソース再生の両方から)。
+			// 台帳は1件でよい
+			return;
+		}
 		final double noteExtent = this.footnoteExtent(noteBox);
 		final double maxArea = super.getPageLimit() - MIN_PAGE_LIMIT;
 		if (FOOTNOTE_GAP + noteExtent > maxArea && !this.warnedOversizedFootnote) {
@@ -1816,8 +1823,12 @@ public class RootBuilder extends BreakableBuilder {
 	/**
 	 * 箱木から脚注のcall ID集合とラベル原子を採取します(F4答申の候補A改+
 	 * F5のラベル解決)。行跨ぎで同一callのインライン断片が複製されても
-	 * 集合なので1件に畳まれる。走査は明示worklistの反復DFS(flow・float・
-	 * 行・インラインのみ。表・絶対配置内のcallは初期サブセット外)。
+	 * 集合なので1件に畳まれる。走査は明示worklistの反復DFS。flow・float・
+	 * 行・インラインに加えて、<b>表(行グループ→行→セル)と絶対配置の箱</b>へも
+	 * 降りる(2026-09-02)。以前はこの2つが走査の外で、表のセルの中の脚注は
+	 * 呼び出しが見つからないまま最後まで保留され、EOFで「諦めて」本文が
+	 * 消え、呼び出しの番号も文書通番のままだった(cti.liの報告、2026-09-01:
+	 * 2頁目のセルの注が本文なし・番号6)。
 	 */
 	private FootnoteCallScan scanFootnoteCalls(final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
 		final java.util.Set<Long> ids = new java.util.HashSet<>();
@@ -1840,6 +1851,40 @@ public class RootBuilder extends BreakableBuilder {
 			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox container) {
 				container.getContainer().eachFlowBox(work::push);
 				container.getContainer().eachFloatingBox(work::push);
+				container.getContainer().eachAbsoluteBox(box -> {
+					if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute) {
+						// position:absolute の本文はページのfinishLayoutまで保留される
+						// (DeferredBind)。走査はその前に走るので、ここで先に結び付けて
+						// おかないと中の呼び出しが見えない。finishLayoutSelfは結び
+						// 付け済みなら飛ばすので二重にはならない
+						absolute.bindDeferredContent(container);
+					}
+					work.push(box);
+				});
+			} else if (node instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table) {
+				// 表: ヘッダ→本体→フッタの行グループ、行、元のセル(拡張セルは
+				// 同じ箱を指すので飛ばす)
+				final java.util.List<net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox> groups = new java.util.ArrayList<>();
+				if (table.getTableHeader() != null) {
+					groups.add(table.getTableHeader());
+				}
+				for (int i = 0; i < table.getTableBodyCount(); ++i) {
+					groups.add(table.getTableBody(i));
+				}
+				if (table.getTableFooter() != null) {
+					groups.add(table.getTableFooter());
+				}
+				for (final net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox group : groups) {
+					for (int r = 0; r < group.getTableRowCount(); ++r) {
+						final net.zamasoft.foliojet.layout.box.impl.TableRowBox row = group.getTableRow(r);
+						for (int c = 0; c < row.getCellCount(); ++c) {
+							final net.zamasoft.foliojet.layout.box.impl.TableRowBox.Cell cell = row.getCell(c);
+							if (cell.isSource() && cell.getCellBox() != null) {
+								work.push(cell.getCellBox());
+							}
+						}
+					}
+				}
 			} else if (node instanceof net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock) {
 				textBlock.forEachLine(work::push);
 			} else if (node instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox textBox) {
@@ -1848,4 +1893,5 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		return new FootnoteCallScan(ids, labels);
 	}
+
 }

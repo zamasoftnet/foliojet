@@ -204,7 +204,14 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		assert !LayoutUtils.isNone(this.height);
 	}
 
-	public final void finishLayoutSelf(final IFramedBox containerBox) {
+	/**
+	 * 保留していた本文を結び付けます。{@link #finishLayoutSelf}が呼ぶほか、
+	 * ページ確定時の脚注の呼び出し走査({@code RootBuilder.scanFootnoteCalls})が
+	 * <b>finishLayoutより先に</b>呼ぶ(2026-09-02)——走査はページのfinishLayoutの
+	 * 前に走るので、そのままでは絶対配置の中の呼び出しが見えず、注が次の
+	 * ページへ送られていた。結び付け済みなら何もしない。
+	 */
+	public final void bindDeferredContent(final IFramedBox containerBox) {
 		if (this.deferredBind != null) {
 			// E-6増分4e: seal済み範囲からのSegmentExecutor駆動bind。
 			// sizesは模倣計測のスナップショット(現行のintrinsicSizesMeasured()
@@ -222,6 +229,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			absoluteBuilder.close();
 			this.builder = null;
 		}
+	}
+
+	public final void finishLayoutSelf(final IFramedBox containerBox) {
+		this.bindDeferredContent(containerBox);
 
 		double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
 		double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
