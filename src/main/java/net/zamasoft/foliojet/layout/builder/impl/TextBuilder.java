@@ -247,7 +247,72 @@ public class TextBuilder {
 	/**
 	 * テキストブロックに行を追加します。
 	 */
+	/** いまの行に文字(Text・目に見える Control・leader)が入ったか。 */
+	private boolean lineHasText = false;
+
+	/** いまの行に画像・インラインブロック(atomic inline)が入ったか。 */
+	private boolean lineHasAtomic = false;
+
+	/**
+	 * 文字の無い行(画像やインラインブロックだけの行)へ、ブロックのフォントと
+	 * line-height の strut(CSS 2.1 §10.8)を入れます(2026-09-02)。
+	 *
+	 * <p>
+	 * 標準モード(DOCTYPE あり)の文書だけ。quirks はブラウザと同じく省く。
+	 * 文字のある行は、文字がブロックのフォントの高さを既に持ち込んでいるので触らない
+	 * (全行に入れる実装は 77 件の試験を動かした——文字の行の高さの式と strut の式が
+	 * 一致しないため。この限定なら文字の行は 1 つも変わらない)。Acid2 の
+	 * image-height-test: {@code font: 20em} の行に置いた画像が、strut が無いために
+	 * 行の上端に来ていた。
+	 * </p>
+	 */
+	private void addStrutIfTextless(final AbstractLineBox line) {
+		if (this.lineHasText || !this.lineHasAtomic) {
+			return;
+		}
+		final AbstractTextParams params = line.getTextParams();
+		final double lineHeight = line.getLineParams().lineHeight;
+		if (params == null || !params.strictLineBox || LayoutUtils.isNone(lineHeight) || params.fontStyle == null) {
+			// quirks(DOCTYPE の無い HTML)はブラウザと同じく strut を省く
+			return;
+		}
+		final AbstractContainerBox flowBox = this.builder.getFlowBox();
+		if (flowBox instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox) {
+			// リストマーカーの箱の中の行(点の画像だけ)は本文の行ではない
+			return;
+		}
+		double ascent, descent;
+		if (params.flow.isVertical()) {
+			// 縦組み: 字面は中央線の左右にサイズの半分ずつ
+			ascent = descent = params.fontStyle.getSize() / 2.0;
+		} else {
+			// CSS 2.1 の strut は「最初に使えるフォント」の計量。一覧全体の最大
+			// (getMaxAscent)は、フォント索引が温まる途中の並列実行で一覧が欠けると
+			// 値が変わりうる(imageTest の msn.htm が 4 回に 1 回だけ違った)ので使わない
+			final net.zamasoft.pdfg2d.gc.font.FontListMetrics flm = params.getFontListMetrics();
+			final net.zamasoft.pdfg2d.gc.font.FontMetrics[] metrics = flm.metrics();
+			if (metrics != null && metrics.length > 0) {
+				ascent = metrics[0].getAscent();
+				descent = metrics[0].getDescent();
+			} else {
+				ascent = flm.getMaxAscent();
+				descent = flm.getMaxDescent();
+			}
+		}
+		final double textHeight = ascent + descent;
+		if (lineHeight != textHeight) {
+			final double half = (lineHeight - textHeight) / 2.0;
+			ascent += half;
+			descent += half;
+		}
+		line.addAscentDescent(ascent, descent);
+	}
+
 	private void addLine(AbstractLineBox lineBox) {
+		this.addStrutIfTextless(lineBox);
+		this.lineHasText = false;
+		this.lineHasAtomic = false;
 		if (this.lineClamp != null) {
 			if (this.lineClamp.exhausted()) {
 				// line-clamp(2026-08-29): N行を超えた行は捨てる(高さにも
@@ -510,6 +575,16 @@ public class TextBuilder {
 			this.inlineStack.add(null);
 
 			final InlinePos pos = box.getInlinePos();
+			if (pos.verticalAlign instanceof net.zamasoft.foliojet.layout.box.content.CSSVerticalAlignPolicy va
+					&& va.getVerticalAlignType() == net.zamasoft.foliojet.layout.box.content.CSSVerticalAlignPolicy.BASELINE
+					&& !(box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox)
+					&& !(box instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox)) {
+				// strut の対象(addStrutIfTextless)。基底線揃えの箱は、後から行の
+				// ascent/descent が伸びても基底線の上に留まるので位置が変わらない。
+				// top/bottom/middle 揃えは「その時点の行の高さ」を基準に置かれる
+				// ため後からの strut でずれる——対象にしない。リストマーカーの箱も除く
+				this.lineHasAtomic = true;
+			}
 			double descent, ascent;
 			if (box.getType() == BoxType.BLOCK) {
 				// インラインブロック・テーブルの基底線
@@ -642,6 +717,7 @@ public class TextBuilder {
 			ascent = text.getAscent();
 			descent = text.getDescent();
 			assert !LayoutUtils.isNone(ascent + descent);
+			this.lineHasText = true;
 		} else if (e instanceof Control) {
 			final Control control = (Control) e;
 			textBox.addControl(control);
@@ -652,12 +728,14 @@ public class TextBuilder {
 			ascent = control.getAscent();
 			descent = control.getDescent();
 			assert !LayoutUtils.isNone(ascent + descent);
+			this.lineHasText = true;
 		} else if (e instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
 			// leader() L1: パターンの寸法で行高さに参加する
 			textBox.addLeader(leader);
 			ascent = leader.runs[0].getAscent();
 			descent = leader.runs[0].getDescent();
 			assert !LayoutUtils.isNone(ascent + descent);
+			this.lineHasText = true;
 		} else {
 			throw new IllegalStateException();
 		}

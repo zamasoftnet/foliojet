@@ -252,6 +252,14 @@ public abstract class AbstractTextParams extends Params {
 	public byte textJustify = TEXT_JUSTIFY_AUTO;
 
 	/**
+	 * 行ボックスに strut(ブロックのフォントと line-height の幅 0 のインライン箱、
+	 * CSS 2.1 §10.8)を必ず含めるか(2026-09-02)。ブラウザと同じく、DOCTYPE のある
+	 * 標準モードの文書だけ真。quirks(DOCTYPE 無し)では画像だけの行は画像の高さに
+	 * 縮む(従来の挙動)。{@code DocumentContext.getCompatibleMode()} から写す。
+	 */
+	public boolean strictLineBox = false;
+
+	/**
 	 * 単語内分綴(CSS hyphens)。
 	 */
 	public byte hyphens = HYPHENS_MANUAL;

@@ -22,7 +22,10 @@ public class FloatMaxSizeHTest extends AbstractTestCase {
 			System.out.println(box.getWidth());
 			assertEquals(284, box.getWidth(), 1);
 			System.out.println(box.getHeight());
-			assertEquals(86, box.getHeight(), 1);
+			// 2026-09-02: 標準モード(DOCTYPE あり)では画像だけの行にも strut が
+			// 入るので、画像の下に descent+半行送りの隙間(4.7pt)が付く(CSS 2.1
+			// §10.8。ブラウザの標準モードと同じ。quirks なら従来どおり 86)
+			assertEquals(90.73, box.getHeight(), 1);
 			return true;
 		}
 		return false;

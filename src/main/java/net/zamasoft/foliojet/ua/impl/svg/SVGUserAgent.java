@@ -108,9 +108,15 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 	 */
 	@Override
 	public CSSJFontPolicyValue getDefaultFontPolicy() {
-		if (!this.keepsText() || this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
+		if (this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
 			return super.getDefaultFontPolicy();
 		}
+		// outline モードも同じ既定にする(2026-09-02)。以前は keep だけで、outline は
+		// 共通の既定(print では cid-keyed 優先)のまま組んでいた。SVG に CID-keyed の
+		// 実体は無いので AWT の代替フォント(別の面・ヒント済みの輪郭)で描かれ、
+		// 「日」が本物より 6% 広く縦画が太い字形になっていた(PLAN の「単一SVGの
+		// outline 経路の字形が本物より大きい」)。埋め込み方針なら pdfg2d 自身の
+		// 輪郭で、PDF と 1/100pt まで一致する
 		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
 	}
 

@@ -23,11 +23,12 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像出力で見えていた 2 つの欠陥を固定します(NEXT-SESSION §5-3、2026-09-02)。
+ * 画像出力で見えていた 3 つの欠陥を固定します(NEXT-SESSION §5-3、2026-09-02)。
  *
  * <ol>
  * <li>{@code @page} の背景が塗り足し(bleed)の帯まで届かず白い縁が出る</li>
  * <li>隣り合う矩形の塗り(表のセル・1×1 タイル)の境目に下地が 1px 覗く</li>
+ * <li>画像だけの行に strut が無く、{@code font: 20em} の行の画像が上へ寄る(Acid2)</li>
  * </ol>
  */
 public class RasterDefectsTest extends TestCase {
@@ -80,6 +81,30 @@ public class RasterDefectsTest extends TestCase {
 			}
 		}
 		assertEquals("no lighter pixels along the cell boundaries:" + bad, 0, bad.length());
+	}
+
+	public void testImageOnlyLineKeepsTheStrut() throws Exception {
+		// Acid2 の image-height-test: 20em の行に置いた 64px の画像は、行の上端から
+		// 10px の帯の中に見えてはならない(基底線は strut で行のずっと下にある)
+		final BufferedImage img = render("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
+				+ "@page{size:100mm 40mm;margin:0}body{margin:0}"
+				+ ".t{height:10px;overflow:hidden;font:20em serif;background:#DDDDFF}"
+				+ "table{margin:0;border-spacing:0}td{padding:0}"
+				+ "</style></head><body><div class=\"t\"><table><tr><td>"
+				+ "<img src=\"trans.png\" width=\"64\" height=\"64\" alt=\"\"></td></tr></table></div></body></html>");
+		final StringBuilder bad = new StringBuilder();
+		for (int y = 0; y < 9; ++y) {
+			for (int x = 0; x < 80; ++x) {
+				final int c = rgb(img, x, y);
+				if (c != 0xDDDDFF) {
+					bad.append(String.format(" (%d,%d)=%06X", x, y, c));
+					if (bad.length() > 200) {
+						break;
+					}
+				}
+			}
+		}
+		assertEquals("only the strip above the image may be visible:" + bad, 0, bad.length());
 	}
 
 	private static int rgb(final BufferedImage img, final int x, final int y) {

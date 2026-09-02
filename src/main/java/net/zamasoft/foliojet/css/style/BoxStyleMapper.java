@@ -698,6 +698,8 @@ final class BoxStyleMapper {
 		}
 		params.textWrapStyle = TextWrapStyle.get(style);
 		params.textJustify = net.zamasoft.foliojet.css.impl.property.text.TextJustify.get(style);
+		params.strictLineBox = this.ua.getDocumentContext()
+				.getCompatibleMode() == net.zamasoft.foliojet.ua.CompatibleMode.STRICT;
 		// tab-size(css-text-3、2026-08-29)。倍数なら空白幅を掛ける(TextBuilder)
 		params.tabSize = net.zamasoft.foliojet.css.impl.property.text.TabSize.get(style);
 		params.tabSizeIsMultiple = net.zamasoft.foliojet.css.impl.property.text.TabSize.isMultiple(style);

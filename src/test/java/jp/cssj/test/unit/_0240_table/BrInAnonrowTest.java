@@ -22,7 +22,9 @@ public class BrInAnonrowTest extends AbstractTestCase {
 			System.err.println("x/" + x);
 			System.err.println("y/" + y);
 			assertEquals(6, x, 0);
-			assertEquals(21, y, 1);
+			// 2026-09-02: 標準モード(DOCTYPE あり)では匿名 inline-table だけの行にも
+			// strut が入り、表の基底線の下に descent+半行送りが付く(第7陣)
+			assertEquals(23.89, y, 1);
 			return true;
 		}
 		return false;
