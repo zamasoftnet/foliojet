@@ -115,6 +115,14 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	private BoundSide boundSide = BoundSide.SINGLE;
 
+	/**
+	 * ページの進む向きを決める根の書字方向(2026-09-02)。{@code PageSequence} が
+	 * 根の {@code writing-mode} から設定する。読み器が要るのは綴じ方向ではなく
+	 * 「頁がどちらへ進むか」で、綴じが {@code single} でも縦組みなら右から読む
+	 * (cti.li の要望)
+	 */
+	private net.zamasoft.foliojet.layout.box.params.WritingMode pageProgression = net.zamasoft.foliojet.layout.box.params.WritingMode.TB;
+
 	protected double pageWidth, pageHeight;
 
 	public AbstractUserAgent() {
@@ -647,6 +655,19 @@ public abstract class AbstractUserAgent implements UserAgent {
 	private boolean isMetricsCacheable(final URI uri) {
 		return uri != null && (this.isMeasurePass() || this.isStructureScanPass())
 				&& !"data".equalsIgnoreCase(uri.getScheme());
+	}
+
+	public void setPageProgression(final net.zamasoft.foliojet.layout.box.params.WritingMode progression) {
+		this.pageProgression = progression;
+	}
+
+	public net.zamasoft.foliojet.layout.box.params.WritingMode getPageProgression() {
+		return this.pageProgression;
+	}
+
+	/** 頁の進む向き({@code ltr} / {@code rtl})。{@code vertical-rl} だけ {@code rtl}。 */
+	public String getPageProgressionDirection() {
+		return this.pageProgression == net.zamasoft.foliojet.layout.box.params.WritingMode.RL ? "rtl" : "ltr";
 	}
 
 	public void setBoundSide(BoundSide boundSide) {

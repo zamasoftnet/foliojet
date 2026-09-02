@@ -630,7 +630,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		}
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);
-		this.emit("manifest.json", "application/json", this.resources.manifest(this.metadata, binding));
+		this.emit("manifest.json", "application/json",
+				this.resources.manifest(this.metadata, binding, this.getPageProgressionDirection()));
 		this.sink.end();
 		if (this.parent != null) {
 			this.parent.childFinished(this);

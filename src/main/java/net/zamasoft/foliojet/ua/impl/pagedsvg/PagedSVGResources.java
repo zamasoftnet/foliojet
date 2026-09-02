@@ -550,11 +550,15 @@ final class PagedSVGResources {
 		return sources;
 	}
 
-	byte[] manifest(final Map<String, String> metadata, final String binding) {
+	byte[] manifest(final Map<String, String> metadata, final String binding, final String pageProgression) {
 		final StringBuilder json = new StringBuilder(1024 + this.pages.size() * 180);
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")
 				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"binding\":");
 		quote(json, binding);
+		// 頁の進む向き(2026-09-02)。binding が single でも縦組みなら rtl——
+		// 読み器は綴じではなくこれで並べる(cti.li の要望)
+		json.append(",\n  \"pageProgressionDirection\":");
+		quote(json, pageProgression);
 		json.append(",\n  \"metadata\":{");
 		int index = 0;
 		for (final var entry : metadata.entrySet()) {

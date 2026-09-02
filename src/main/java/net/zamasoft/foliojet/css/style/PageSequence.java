@@ -196,6 +196,10 @@ final class PageSequence {
 
 	void setProgression(final WritingMode progression) {
 		this.progression = progression;
+		if (this.ua instanceof net.zamasoft.foliojet.ua.impl.AbstractUserAgent aua) {
+			// 出力側(ページ分割SVGの manifest)が頁の進む向きを書けるように
+			aua.setPageProgression(progression);
+		}
 	}
 
 	/**
