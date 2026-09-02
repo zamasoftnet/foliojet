@@ -34,13 +34,22 @@ final class PagedSVGResources {
 	}
 
 	record ImageAsset(String uri, String sha256, String mediaType, int width, int height, boolean omitted,
-			String baseUri) {
+			String baseUri, String source) {
+		ImageAsset(String uri, String sha256, String mediaType, int width, int height, boolean omitted,
+				String baseUri) {
+			this(uri, sha256, mediaType, width, height, omitted, baseUri, null);
+		}
+
 		/**
 		 * ページSVGから書く参照先。共有資源には
 		 * {@code output.paged-svg.base-uri}の前置きを付け、
-		 * 埋め込みはdata:をそのまま使います。
+		 * 埋め込みはdata:を、取得元参照({@code resources=source})は取得元の
+		 * 絶対 URL をそのまま使います。
 		 */
 		String href() {
+			if (this.source != null) {
+				return this.source;
+			}
 			return this.uri.startsWith("data:") ? this.uri : this.baseUri + this.uri;
 		}
 	}
@@ -365,6 +374,31 @@ final class PagedSVGResources {
 		return this.resourceMode == PagedSvgResourceMode.EMBED;
 	}
 
+	/** 取得元の URL をそのまま参照する設定か({@code resources=source})。 */
+	boolean referencesSources() {
+		return this.resourceMode == PagedSvgResourceMode.SOURCE;
+	}
+
+	/**
+	 * 取得元の URL をそのまま参照する画像です(2026-09-02、{@code resources=source})。
+	 * 実体は出さず、manifest には取得元を {@code source} として書く。同一性(sha256)は
+	 * 受け取ったバイト列から取る(取得元が同じでも内容が違えば別の資源)。
+	 */
+	ImageAsset sourceImage(final URI source, final RenderedImage rendered, final byte[] fallbackPng,
+			final int width, final int height) throws IOException {
+		final OriginalImage original = this.originalImages.get(rendered);
+		final byte[] bytes = original == null ? fallbackPng : original.bytes;
+		final String mediaType = original == null ? "image/png" : original.mediaType;
+		final String hash = sha256(bytes);
+		ImageAsset image = this.images.get(hash);
+		if (image == null) {
+			image = new ImageAsset(source.toString(), hash, mediaType, width, height, true, this.baseUri,
+					source.toString());
+			this.images.put(hash, image);
+		}
+		return image;
+	}
+
 	boolean hasOriginal(final RenderedImage image) {
 		return this.originalImages.containsKey(image);
 	}
@@ -606,6 +640,10 @@ final class PagedSVGResources {
 					.append(",\"height\":").append(image.height);
 			if (image.omitted) {
 				json.append(",\"omitted\":true");
+			}
+			if (image.source != null) {
+				json.append(",\"source\":");
+				quote(json, image.source);
 			}
 			json.append('}');
 		}

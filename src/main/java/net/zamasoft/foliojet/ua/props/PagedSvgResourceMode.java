@@ -56,5 +56,25 @@ public enum PagedSvgResourceMode implements PropCode {
 	 * 初回は{@link #REFERENCE}で全部を受け取り、2回目以降にこれを使ってください。
 	 * </p>
 	 */
-	OMIT;
+	OMIT,
+
+	/**
+	 * ウェブ上の画像は複写せず、取得元の URL をそのまま参照します(2026-09-02)。
+	 *
+	 * <p>
+	 * ウェブの内容を SVG にして同じウェブで見せる用途のためのものです。取得元が
+	 * {@code http:}・{@code https:}・{@code file:} の画像(そのまま出せるバイト列を
+	 * 持つラスタ画像)は、ページ SVG が {@code <image href="取得元の URL">} と書き、
+	 * 実体は出しません。manifest の {@code images[]} には {@code source} が付きます。
+	 * 取得元の無い画像({@code data:}、生成した絵、SVG をラスタ化したもの)とフォントは
+	 * {@code reference} と同じく共有資源に出します。
+	 * </p>
+	 *
+	 * <p>
+	 * 注意: 元のサーバーへの直接参照になります。非公開の URL や認証付きの資源は
+	 * 読み器から取れません。Copper 側で選び直した画像({@code image-set()})や
+	 * 加工した画像は、元画像と見た目が変わることがあります。
+	 * </p>
+	 */
+	SOURCE;
 }

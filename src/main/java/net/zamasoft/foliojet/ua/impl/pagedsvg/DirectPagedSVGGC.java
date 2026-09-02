@@ -58,7 +58,39 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			return null;
 		}
 		final byte[] png = this.resources.hasOriginal(raster) ? null : encodePng(raster);
-		return this.resources.image(raster, png, raster.getWidth(), raster.getHeight()).href();
+		return this.imageAsset(image, raster, png).href();
+	}
+
+	/**
+	 * 画素になった絵を共有資源(または取得元参照)にします。{@code resources=source} で
+	 * 取得元がウェブ上の URL なら、複写せずその URL を参照する(2026-09-02)。
+	 */
+	private PagedSVGResources.ImageAsset imageAsset(final Image image, final BufferedImage raster, final byte[] png)
+			throws IOException {
+		if (this.resources.referencesSources()) {
+			final java.net.URI source = webSourceOf(image);
+			if (source != null) {
+				return this.resources.sourceImage(source, raster, png, raster.getWidth(), raster.getHeight());
+			}
+		}
+		return this.resources.image(raster, png, raster.getWidth(), raster.getHeight());
+	}
+
+	/** 絵の取得元が {@code http:}/{@code https:}/{@code file:} の URL なら返します。 */
+	private static java.net.URI webSourceOf(final Image image) {
+		Image i = image;
+		while (i != null) {
+			if (i instanceof final SourcedImage sourced) {
+				final String scheme = sourced.uri == null ? null : sourced.uri.getScheme();
+				if (scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")
+						|| scheme.equalsIgnoreCase("file"))) {
+					return sourced.uri;
+				}
+				return null;
+			}
+			i = i instanceof final WrappedImage wrapped ? wrapped.getImage() : null;
+		}
+		return null;
 	}
 
 	/** ベクタ画像を画素へ落とすときの倍率。等倍では拡大時に粗くなる。 */
@@ -96,8 +128,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		final BufferedImage raster = this.toRaster(image);
 		try {
 			final byte[] png = this.resources.hasOriginal(raster) ? null : encodePng(raster);
-			final PagedSVGResources.ImageAsset asset = this.resources.image(raster, png, raster.getWidth(),
-					raster.getHeight());
+			final PagedSVGResources.ImageAsset asset = this.imageAsset(image, raster, png);
 			// 次の再変換で画像を開かずに済むよう、資源の同一性を寸法表へ
 			// 控える(2026-08-28)。URIはUAが画像に添えている
 			this.resources.rememberAssetOf(image, asset);
