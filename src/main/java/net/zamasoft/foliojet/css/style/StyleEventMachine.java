@@ -325,6 +325,44 @@ final class StyleEventMachine {
 			// 本流のセグメント記録(M6a)
 			this.segment.startStyle(style);
 		}
+		this.closeAnonymousStyles(style, explDisplay);
+
+		this.emitBrClearance(style, ce);
+
+		final boolean footnote = this.startFootnote(style, ce, explDisplay);
+
+		this.settleMarkerBeforeTable(explDisplay);
+
+		this.emitter._startStyle(style);
+
+		this.firstLetter = true;
+		if (!ce.isPseudoElement()) {
+			++this.depth;
+		}
+		int depth = this.depth;
+
+		this.applyCounterProperties(style, depth);
+
+		this.applyStringSets(style, ce, depth);
+
+		this.startListMarker(style, explDisplay, depth);
+
+		this.emitGeneratedContent(style, ce, depth);
+
+		// 脚注F1: 本文先頭へ::footnote-marker(番号)を合成する。
+		// リストマーカー→footnote-marker→::beforeの順で本文頭に並ぶ
+		if (footnote) {
+			this.footnotePseudo(style, CSSElement.FOOTNOTE_MARKER);
+		}
+
+		this.synthesizeBefore(style, ce);
+	}
+
+	/**
+	 * 匿名スタイル(表の匿名箱)を、始まる要素の display に応じて閉じます。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void closeAnonymousStyles(final CSSStyle style, final short explDisplay) {
 		if (this.context.getCurrentStyle() != null) {
 			WHILE: while (this.context.getCurrentStyle().isAnonStyle()) {
 				// 匿名スタイルの終了
@@ -392,7 +430,13 @@ final class StyleEventMachine {
 				this.emitter._endStyle();
 			}
 		}
+	}
 
+	/**
+	 * {@code <br>} のクリアランス・強制改ページを空のブロックで実行します。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void emitBrClearance(final CSSStyle style, final CSSElement ce) {
 		// BR
 		if (XHTML.BR_ELEM.equalsElement(ce)) {
 			// クリアランス、強制改ページは後にブロックを生成する
@@ -424,7 +468,15 @@ final class StyleEventMachine {
 				this.sink.end();
 			}
 		}
+	}
 
+	/**
+	 * {@code float: footnote} の要素なら脚注番号を進め、呼び出し(::footnote-call)を親のインライン流へ合成します。
+	 *
+	 * @return 脚注として扱うなら {@code true}
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private boolean startFootnote(final CSSStyle style, final CSSElement ce, final short explDisplay) {
 		// 脚注F1(2026-07-31、consult-codex-2026-07-31-footnote.txt §3):
 		// float:footnoteの要素は開始時に脚注番号(engine-ownedの文書通番、
 		// globalスコープの"footnote"カウンタ)を進め、呼び出し位置=親の
@@ -469,7 +521,14 @@ final class StyleEventMachine {
 			this.ua.getPassContext().getCounterScope(0, true).increment("footnote", 1);
 			this.footnotePseudo(style, CSSElement.FOOTNOTE_CALL);
 		}
+		return footnote;
+	}
 
+	/**
+	 * 表を開く前に外置きリストマーカーを確定させます(セル内容への混入を防ぐ)。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void settleMarkerBeforeTable(final short explDisplay) {
 		// 外置きリストマーカーは通常、最初の文字が作る行へ遅延して置く。
 		// ただし最初の子が表なら、その文字は最初のセルの中で初めて現れる。
 		// そこまで遅延するとマーカーがセル内容に混入し、行分割時に
@@ -483,15 +542,13 @@ final class StyleEventMachine {
 			}
 			this.checkMarker();
 		}
+	}
 
-		this.emitter._startStyle(style);
-
-		this.firstLetter = true;
-		if (!ce.isPseudoElement()) {
-			++this.depth;
-		}
-		int depth = this.depth;
-
+	/**
+	 * {@code counter-reset} / {@code counter-set} / {@code counter-increment} を適用します。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void applyCounterProperties(final CSSStyle style, final int depth) {
 		// カウンターリセット
 		Value[] resets = CounterReset.get(style);
 		if (resets != null) {
@@ -566,7 +623,13 @@ final class StyleEventMachine {
 				pc.getCounterScope(level, true).increment(name, delta);
 			}
 		}
+	}
 
+	/**
+	 * {@code string-set}(GCPM)を文書順に確定し、{@code content()} を含むものは draw 時まで保留します。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void applyStringSets(final CSSStyle style, final CSSElement ce, final int depth) {
 		// string-set(GCPM)。counter()/attr()/文字列は文書順=build時に確定させる
 		// (呼び出しタイミングではなくelementKeyで先後を判定するNamedStringStateの
 		// 契約を守るため)。content()を含むエントリのみ、要素のボックスが確定する
@@ -605,7 +668,13 @@ final class StyleEventMachine {
 				}
 			}
 		}
+	}
 
+	/**
+	 * {@code display: list-item} のマーカー(::marker)を作ります。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void startListMarker(final CSSStyle style, final short explDisplay, final int depth) {
 		// マーカー
 		if (explDisplay == DisplayValue.LIST_ITEM) {
 			int[] counter = null;
@@ -717,7 +786,13 @@ final class StyleEventMachine {
 				}
 			}
 		}
+	}
 
+	/**
+	 * ::before / ::after の {@code content} を発行します。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void emitGeneratedContent(final CSSStyle style, final CSSElement ce, final int depth) {
 		// コンテンツ生成(脚注のcall/markerはF5でfootnotePseudo側の
 		// ラベルコンパイルへ移った——番号を文字として焼き込まないため)
 		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
@@ -904,13 +979,13 @@ final class StyleEventMachine {
 				}
 			}
 		}
+	}
 
-		// 脚注F1: 本文先頭へ::footnote-marker(番号)を合成する。
-		// リストマーカー→footnote-marker→::beforeの順で本文頭に並ぶ
-		if (footnote) {
-			this.footnotePseudo(style, CSSElement.FOOTNOTE_MARKER);
-		}
-
+	/**
+	 * 要素の ::before を合成します(合成擬似要素自身には作らない)。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
+	private void synthesizeBefore(final CSSStyle style, final CSSElement ce) {
 		// before(合成擬似要素自身には::before/::afterを作らない)
 		if (!ce.isPseudoElement()
 				&& CSSJInternalImage.getImage(style) == null) {
