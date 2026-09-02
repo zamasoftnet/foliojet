@@ -116,10 +116,45 @@ public class EPubFormatter implements MultiDocumentFormatter {
 					&& (mimeType.equals("application/epub+zip") || mimeType.equals(DIRECTORY_MEDIA_TYPE))) {
 				return true;
 			}
+			// 拡張子も型も EPUB を名乗らない入力(URL 入力で application/octet-stream 等)は、
+			// 中身が ZIP で先頭項目 mimetype が application/epub+zip なら EPUB と見る
+			// (2026-09-02、cti.li の申し送り——HTML として読み続けて終わらなかった)。
+			// 覗けるのはファイルに実体のある入力だけ(ストリームは消費してしまう)
+			if (source.isFile() && looksLikeEpub(source.getFile())) {
+				return true;
+			}
 		} catch (IOException e) {
 			LOG.log(Level.WARNING, "変換元文書のMIME型を取得できませんでした", e);
 		}
 		return false;
+	}
+
+	/** ZIP のローカルヘッダと、OCF が先頭に置く {@code mimetype} 項目(無圧縮)を見ます。 */
+	static boolean looksLikeEpub(final java.io.File file) {
+		if (file == null || !file.isFile()) {
+			return false;
+		}
+		final byte[] head = new byte[64];
+		int n = 0;
+		try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+			for (int r; n < head.length && (r = in.read(head, n, head.length - n)) != -1;) {
+				n += r;
+			}
+		} catch (IOException e) {
+			return false;
+		}
+		if (n < 40 || head[0] != 0x50 || head[1] != 0x4B || head[2] != 0x03 || head[3] != 0x04) {
+			return false;
+		}
+		// ローカルヘッダ: 名前の長さ(26-27)・拡張の長さ(28-29)、名前(30-)、拡張、データ
+		final int nameLen = (head[26] & 0xFF) | ((head[27] & 0xFF) << 8);
+		final int extraLen = (head[28] & 0xFF) | ((head[29] & 0xFF) << 8);
+		final String s = new String(head, 0, n, java.nio.charset.StandardCharsets.ISO_8859_1);
+		if (nameLen != 8 || !s.startsWith("mimetype", 30)) {
+			return false;
+		}
+		final int data = 30 + nameLen + extraLen;
+		return data + 20 <= n && s.startsWith("application/epub+zip", data);
 	}
 
 	private CSSElement getPageSide(UserAgent ua, boolean leftBind) {
@@ -698,6 +733,35 @@ class LinkHandler extends DefaultXMLHandlerFilter {
 		this.fullPathToItem = fullPathToItem;
 	}
 
+	/**
+	 * {@code href} が指す項目です。無ければ {@code null}。
+	 *
+	 * <p>
+	 * 2026-09-02(cti.li の申し送り): 目次の {@code href="3260.xhtml#ix_ACCS 不正アクセス事件"}
+	 * のように空白や日本語を含む断片で {@code URISyntaxException} になり、以前は
+	 * {@code SAXException} で**本全体**が I/O error に落ちていた(PDF でも)。断片は
+	 * 項目の特定に要らないので、まず断片を捨てて解決し直し、それでも駄目なら
+	 * その href だけ書き換えずに続行する。
+	 * </p>
+	 */
+	private Item itemOf(final String ref) {
+		try {
+			return this.fullPathToItem.get(URIHelper.resolve("UTF-8", this.base, ref));
+		} catch (URISyntaxException e) {
+			final int hash = ref.indexOf('#');
+			if (hash >= 0) {
+				try {
+					return this.fullPathToItem.get(URIHelper.resolve("UTF-8", this.base, ref.substring(0, hash)));
+				} catch (URISyntaxException e2) {
+					// 下へ
+				}
+			}
+			java.util.logging.Logger.getLogger(LinkHandler.class.getName()).log(Level.FINE,
+					"EPUB link left as written (not a URI): " + ref, e);
+			return null;
+		}
+	}
+
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		if (lName.equals("body")) {
 			super.startElement(uri, lName, qName, atts);
@@ -712,16 +776,11 @@ class LinkHandler extends DefaultXMLHandlerFilter {
 			int href = atts.getIndex("href");
 			if (href != -1) {
 				String ref = atts.getValue(href);
-				try {
-					URI fullPath = URIHelper.resolve("UTF-8", this.base, ref);
-					Item item = this.fullPathToItem.get(fullPath);
+				Item item = this.itemOf(ref);
+				if (item != null) {
 					this.attsi.setAttributes(atts);
-					if (item != null) {
-						atts = this.attsi;
-						this.attsi.setValue(href, "#x-epub-" + item.fullPath);
-					}
-				} catch (URISyntaxException e) {
-					throw new SAXException(e);
+					atts = this.attsi;
+					this.attsi.setValue(href, "#x-epub-" + item.fullPath);
 				}
 			}
 		}

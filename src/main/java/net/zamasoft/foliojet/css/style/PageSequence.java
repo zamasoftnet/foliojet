@@ -431,7 +431,11 @@ final class PageSequence {
 			throw new AbortException(AbortException.ABORT_FORCE);
 		}
 		this.ua.message(MessageCodes.INFO_PAGE_NUMBER, String.valueOf(this.pageNumber));
-		return new PageBox(params, this.ua, pageBackground);
+		final PageBox pageBox = new PageBox(params, this.ua, pageBackground);
+		// @page の背景を塗り足しまで伸ばす。塗り足しの幅は CSS の bleed か、
+		// 面付け側で決めた裁ち代(output.cutting-margin 等)の大きい方
+		pageBox.setBleed(Math.max(bleed, this.imposition.getCuttingMargin()));
+		return pageBox;
 	}
 
 	/**

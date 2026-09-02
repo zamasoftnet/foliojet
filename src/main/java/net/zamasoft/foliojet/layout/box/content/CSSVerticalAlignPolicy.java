@@ -61,6 +61,14 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 			break;
 
 		case CSSVerticalAlignPolicy.MIDDLE: {
+			if (parentBox.getTextParams().flow.isVertical()) {
+				// **縦組み**(2026-09-02): 行は中央線揃えなので、箱の中央を親の中央線に
+				// 置く(横組みの x-height の項は無い——それを使うと半 x-height 右へ
+				// 寄っていた)。文字の箱は左右対称で 0、inline-table 等の非対称な箱は
+				// 中央が来るぶんだけずれる
+				v = -((ascent + descent) / 2.0 - descent);
+				break;
+			}
 			// ボックスの中央線を親ボックスの基底線から親のx-heightの半分だけ上に揃える。
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = flm.getMaxXHeight() / 2.0 - ((ascent + descent) / 2.0 - descent);
@@ -103,6 +111,12 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		}
 
 		case CSSVerticalAlignPolicy.TEXT_TOP: {
+			if (parentBox.getTextParams().flow.isVertical()) {
+				// 縦組み(2026-09-02): 親のフォントの「上辺」は字面の右辺=サイズの半分。
+				// 横組みの ascent(約 0.88 倍)を使うと右へはみ出していた
+				v = parentBox.getTextParams().fontStyle.getSize() / 2.0 - ascent;
+				break;
+			}
 			// ボックスのフォントの上辺を親ボックスのフォントの上辺に揃える。
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = flm.getMaxAscent() - ascent;
@@ -110,6 +124,11 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		}
 
 		case CSSVerticalAlignPolicy.TEXT_BOTTOM: {
+			if (parentBox.getTextParams().flow.isVertical()) {
+				// 縦組み: 親のフォントの「下辺」は字面の左辺=サイズの半分
+				v = -(parentBox.getTextParams().fontStyle.getSize() / 2.0 - descent);
+				break;
+			}
 			// ボックスのフォントの下辺を親要素のフォントの下辺に揃える。
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = -flm.getMaxDescent() + descent;

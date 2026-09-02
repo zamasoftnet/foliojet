@@ -40,6 +40,17 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class PageBox extends AbstractBlockBox {
 	protected final UserAgent ua;
 
+	/**
+	 * 塗り足し(bleed)の幅です(2026-09-02)。{@code @page} の背景は仕上り線で
+	 * 止めず、この幅だけ外へ描く——裁ち落としで白い縁が出ないように。
+	 * {@code PageSequence} がページ生成時に与える。
+	 */
+	private double bleed = 0;
+
+	public void setBleed(final double bleed) {
+		this.bleed = Math.max(0, bleed);
+	}
+
 	/** {@code @page}の背景。通常のframe背景(canvas背景)とは別に用紙全面へ描く。 */
 	private final Background pageBackground;
 
@@ -569,8 +580,11 @@ public class PageBox extends AbstractBlockBox {
 		if (this.pageBackground.isVisible()) {
 			// PageSequenceはGCを余白分だけ平行移動するので、この座標が用紙原点。
 			// frame.drawと違ってmarginを控除せず、@page背景を用紙全面へ描く。
+			// 塗り足しがあれば、その幅だけ仕上り線の外まで塗る(2026-09-02——以前は
+			// 仕上り線で止まり、裁ち口の帯が白いまま出ていた)
+			final double b = this.bleed;
 			drawer.visitDrawable(new BackgroundBorderDrawable(this, null, 1f, new AffineTransform(),
-					this.pageBackground, null, null, this.getWidth(), this.getHeight()), x, y);
+					this.pageBackground, null, null, this.getWidth() + b * 2, this.getHeight() + b * 2), x - b, y - b);
 		}
 		this.frames(this, drawer, null, new AffineTransform(), x, y);
 		this.draw(this, drawer, visitor, null, new AffineTransform(), x, y, x, y);
