@@ -1,0 +1,75 @@
+<?jp.cssj.property name="output.page-width" value="100pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>text-align: match-parent</title>
+    <!-- ::first-line には text-align が適用されない(css-pseudo-4)ので case にしない -->
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+html {
+	text-align: match-parent;
+}
+body {
+	margin: 0;
+	width: 100pt;
+	font: 10pt/10pt monospace;
+}
+.sample {
+	width: 100pt;
+}
+.rtl-start {
+	direction: rtl;
+	text-align: start;
+}
+.rtl-start > div {
+	direction: ltr;
+	text-align: match-parent;
+}
+.ltr-end {
+	direction: ltr;
+	text-align: end;
+}
+.ltr-end > div, .center-parent > div {
+	text-align: match-parent;
+}
+.center-parent {
+	text-align: center;
+}
+.last-parent {
+	text-align: left;
+	text-align-last: right;
+}
+.last-parent > div {
+	text-align: left;
+	text-align-last: match-parent;
+}
+table {
+	border-collapse: collapse;
+	table-layout: fixed;
+	width: 100pt;
+}
+td {
+	padding: 0;
+}
+tr {
+	direction: rtl;
+	text-align: start;
+}
+td {
+	direction: ltr;
+	text-align: match-parent;
+}
+    </style>
+  </head>
+  <body>
+    <div class="sample"><span id="root_start">X</span></div>
+    <div class="sample rtl-start"><div><span id="rtl_start">X</span></div></div>
+    <div class="sample ltr-end"><div><span id="ltr_end">X</span></div></div>
+    <div class="sample center-parent"><div><span id="center">X</span></div></div>
+    <div class="sample last-parent"><div><span id="align_last">X</span></div></div>
+    <table><tr><td><span id="table_cell">X</span></td></tr></table>
+  </body>
+</html>

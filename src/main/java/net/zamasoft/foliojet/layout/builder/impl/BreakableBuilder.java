@@ -21,6 +21,7 @@ import net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.TableForceBreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
+import net.zamasoft.foliojet.layout.box.content.FloatMeasurement;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
@@ -629,6 +630,24 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// 前のpage-break-afterによる改ページ
 			this.forceBreak(this.breakAfter);
 		}
+		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
+			for (;;) {
+				final double pageLimit = this.getPageLimit();
+				if (TextBuilder.hasFirstLineBandInFragment(this, pageLimit) || !this.canFragmentFurther()) {
+					break;
+				}
+				this.checkAbort();
+				// ページフロートの排除で最初の行が版面内に作れない。
+				// 空のTextBlockBoxを作る前に通常のフラグメント切断へ送り、
+				// 次ページでは交換済みのページ排除域で再判定する。
+				final double savedPageAxis = this.pageAxis;
+				this.pageAxis = pageLimit + 1;
+				if (!this.autoBreak()) {
+					this.pageAxis = savedPageAxis;
+					break;
+				}
+			}
+		}
 		super.requireTextBlock();
 	}
 
@@ -958,6 +977,39 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
+	 * このfloatが現在のページ/段の実効先頭にあるかを返します。
+	 *
+	 * <p>
+	 * float自身がowner内の先頭にあるだけでは足りません。開いている各ownerが
+	 * 親断片の先頭flowであることを外側から合成し、分割時の
+	 * {@code FLAGS_FIRST && fragmentHead}と同じ条件にします(2026-09-04)。
+	 * </p>
+	 */
+	final boolean isFloatAtFragmentStart(final double pageStart) {
+		boolean ancestorsFirst = true;
+		for (int i = 1; i < this.getFlowCount(); ++i) {
+			final Flow parent = this.getFlow(i - 1);
+			final Flow child = this.getFlow(i);
+			// flowStackの箱はAbstractContainerBox型だが、flowとして積まれる
+			// ものはIFlowBox(FlowBlockBox)——それ以外は先頭とみなさない
+			ancestorsFirst = FloatMeasurement.isFragmentStart(ancestorsFirst,
+					child.box instanceof net.zamasoft.foliojet.layout.box.IFlowBox childFlow
+							&& parent.box.getContainer().isFirstFlow(childFlow));
+			if (!ancestorsFirst) {
+				return false;
+			}
+		}
+		final Flow owner = this.getFlow();
+		return FloatMeasurement.isFragmentStart(ancestorsFirst,
+				LayoutUtils.compare(pageStart - owner.pageAxis, 0) <= 0);
+	}
+
+	/** 分割不能floatだけに適用する実効終端。通常は断片終端そのもの。 */
+	protected double getUnsplittableFloatPageLimit() {
+		return this.getPageLimit();
+	}
+
+	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>
@@ -971,9 +1023,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	@Override
 	FloatCommitKind classifyFloatPlacement(final IFloatBox box, double pageStart) {
 		if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
+			if (LOG.isLoggable(Level.FINE)) {
+				LOG.fine("float placed unconditionally (no-break scope): " + box.getParams().element
+						+ " mode=" + this.mode + " breakDepth=" + this.breakDepth + " builder=" + this.getClass().getSimpleName());
+			}
 			return FloatCommitKind.PLACED;
 		}
 		if (this.findColumnBreak() != null) {
+			if (LOG.isLoggable(Level.FINE)) {
+				LOG.fine("float placed unconditionally (column band): " + box.getParams().element + " builder="
+						+ this.getClass().getSimpleName());
+			}
 			// 段組の中の浮動体(2026-07-26)。ここでのページ軸は
 			// **段に分割される前の「帯」の座標**なので、ページの上限と
 			// 比べても意味がない——帯は段の数だけ長くなるのが正常である。
@@ -1005,41 +1065,55 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// なりうる正しい実測で、旧・幾何判定はこの実測が幾何と一致する
 		// 場合の重複でしかなかった(幾何>上限・実測<=上限は下の判定が、
 		// 幾何<=上限・実測<=上限は同じくPLACEDを返す)。
-		if (this.paintsNothingBeyondPage(box, pageStart)) {
-			return FloatCommitKind.PLACED;
-		}
-		pageStart -= this.getFlow().box.getFrame().getFramePageStart(this.getRootBox().getBlockParams().flow);
-		switch (box.getType()) {
-		case BLOCK:
-			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
-			if (containerBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID
-					&& LayoutUtils.compare(pageStart, 0) > 0) {
-				// avoid指定でページ先頭でない場合は丸ごと移動
+		final WritingMode ownerFlow = this.getFlow().box.getBlockParams().flow;
+		final double localStart = pageStart - this.getFlow().pageAxis;
+		final boolean first = this.isFloatAtFragmentStart(pageStart);
+		final BoxType boxType = box.getType();
+		final PageBreakMode pageBreakInside = boxType == BoxType.BLOCK
+				? ((AbstractContainerBox) box).getBlockParams().pageBreakInside
+				: null;
+		if (FloatMeasurement.isUnsplittable(boxType,
+				FloatMeasurement.sameWritingAxis(ownerFlow, box), pageBreakInside, first)) {
+			final double physicalPageLimit = this.getPageLimit();
+			final double pageLimit = this.getUnsplittableFloatPageLimit();
+			final double occupiedEnd = pageStart + FloatMeasurement.occupiedPageExtent(box, ownerFlow);
+			if (LOG.isLoggable(Level.FINE)) {
+				LOG.fine("unsplittable float: " + box.getParams().element + " pageStart=" + pageStart + " localStart="
+						+ localStart + " first=" + first + " occupiedEnd=" + occupiedEnd + " pageLimit=" + pageLimit + " builder="
+						+ this.getClass().getSimpleName());
+			}
+			if (LayoutUtils.compare(pageLimit, physicalPageLimit) < 0
+					&& LayoutUtils.compare(occupiedEnd, pageLimit) > 0) {
+				// 2-D bottomの実配置帯にはpainted-sliver許容を適用しない。
+				// atomic floatは途中で切れないため、少しでも入れば丸ごと送る。
+				if (LOG.isLoggable(Level.FINE)) {
+					LOG.fine("transfer unsplittable float before reserved bottom band: " + box.getParams().element);
+				}
 				return FloatCommitKind.MOVE_TO_NEXT;
 			}
-			// 切断(avoid指定でもページ先頭なら切断——§5.11の物理位置優先)
-			return FloatCommitKind.SPLIT_AT_BREAK;
-
-		case RESCUE:
-			// 2026-07-25(救済分割・増分7): 救済断片の残余。置換要素と同じ
-			// atomic扱いにする。フラグメント先頭なら残し(=この場では
-			// はみ出させ)、実際の切断はフラグメント境界の
-			// Floatings.splitPageAxisが救済判定として行う——断片を
-			// さらに切るのはあちら一か所だけ、という設計を保つ
-			//$FALL-THROUGH$
-		case REPLACED:
-			if (LayoutUtils.compare(pageStart, 0) <= 0) {
-				// ページ先頭の場合残す
+			if (first) {
+				// 分割不能でもページ先頭ならはみ出しを許して残す
+				return FloatCommitKind.PLACED;
+			}
+			// 分割不能な浮動体は、改ページ時の{@code FloatSplitPlan.classify}と
+			// **同じ測度**(占有寸法=幾何と描画実測の大きい方)で判定する
+			// (2026-09-04)。描画実測だけで見ると、margin だけが紙の外へ
+			// 出る図版(実文書 cti.li: `margin: 0 1.5em 1.2em` の直交 figure)が
+			// ここでは PLACED になり、排除域で行を短くした後に改ページで
+			// 丸ごと Move されて跡地が残る。
+			if (FloatMeasurement.fitsPageUnsplittable(occupiedEnd, pageLimit)) {
 				return FloatCommitKind.PLACED;
 			}
 			if (LOG.isLoggable(Level.FINE)) {
-				LOG.fine("transfer float replaced: " + box.getParams().element);
+				LOG.fine("transfer unsplittable float: " + box.getParams().element);
 			}
-			// 丸ごと移動
 			return FloatCommitKind.MOVE_TO_NEXT;
-		default:
-			throw new IllegalStateException();
 		}
+		if (this.paintsNothingBeyondPage(box, pageStart)) {
+			return FloatCommitKind.PLACED;
+		}
+		// 同軸のBLOCKだけを切断する(avoidもページ先頭なら分割可能)
+		return FloatCommitKind.SPLIT_AT_BREAK;
 	}
 
 	/**

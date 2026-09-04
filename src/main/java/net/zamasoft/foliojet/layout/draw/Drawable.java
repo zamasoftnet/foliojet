@@ -24,6 +24,13 @@ public interface Drawable {
 	}
 
 	/**
+	 * 描画位置を含む詳細な幾何情報です。通常の表示リストを変えない描画物は空文字列を返します。
+	 */
+	public default String describeGeometry(final double x, final double y) {
+		return "";
+	}
+
+	/**
 	 * 表示リストダンプ用に、描画時クリップの1行表現を返します(2026-08-09)。
 	 * クリップ無しは空文字列。ダンプの座標はクリップ前の値のため、クリップを
 	 * 含む回帰はこれが無いとgoldenに一切現れない({@code tf=}と同じ穴)。

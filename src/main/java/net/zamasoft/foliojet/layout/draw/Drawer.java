@@ -1,17 +1,31 @@
 package net.zamasoft.foliojet.layout.draw;
 
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import net.zamasoft.foliojet.css.value.css3.FilterValue;
+import net.zamasoft.foliojet.layout.box.params.Params;
+import net.zamasoft.foliojet.layout.util.ApproximationGC;
+import net.zamasoft.foliojet.layout.util.DelegatingGC;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.GroupEffects;
+import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
+import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
 import net.zamasoft.pdfg2d.pdf.StructureRef;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
-import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
  * 1つのstacking contextの表示リストです。paint command列と、子の
@@ -61,7 +75,13 @@ public class Drawer {
 			return this.artifact;
 		}
 
-		public void draw(GC gc) throws GraphicsException {
+		public void draw(GC gc, final Map<Long, LineTextScope> lineScopes) throws GraphicsException {
+			if (!this.artifact && this.drawable instanceof LogicalTextDrawable text
+					&& text.getLogicalLineEmission() != null) {
+				text.drawLogicalText(gc, this.x, this.y, this.structRef,
+						lineScopes.get(text.getLogicalLineEmission().lineId()));
+				return;
+			}
 			// 包み紙(ApproximationGC等)越しでもPDFの構造出力へ辿る
 			final PDFPageOutput structOut = (this.structRef != null
 					&& net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc) instanceof PDFGC pdfgc
@@ -88,6 +108,36 @@ public class Drawer {
 		}
 	}
 
+	private static final class LinePlan {
+		private final net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission emission;
+		private int count;
+		private int firstPosition = -1;
+		private int lastPosition = -1;
+		private Object stream;
+		private boolean suppressed;
+
+		LinePlan(final net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission emission) {
+			this.emission = emission;
+		}
+
+		void add(final int position, final Object stream, final boolean rasterized) {
+			if (this.count++ == 0) {
+				this.firstPosition = position;
+				this.stream = stream;
+			} else if (this.stream != stream) {
+				this.suppressed = true;
+			}
+			this.lastPosition = position;
+			this.suppressed |= rasterized;
+		}
+
+		LineTextScope build() {
+			// Marked-content scopes cannot cross another line's text or an output-stream boundary.
+			final boolean interleaved = this.lastPosition - this.firstPosition + 1 != this.count;
+			return new LineTextScope(this.emission, this.count, this.suppressed || interleaved);
+		}
+	}
+
 	/** 子stacking contextと、その挿入順(同zの順序キー)です。 */
 	private static final class StackingContextEntry implements Comparable<StackingContextEntry> {
 		private final Drawer drawer;
@@ -104,6 +154,67 @@ public class Drawer {
 				return this.drawer.z < o.drawer.z ? -1 : 1;
 			}
 			return Integer.compare(this.insertionOrdinal, o.insertionOrdinal);
+		}
+	}
+
+	/** filter層を要素座標へ置くための、検証済みの変換と寸法です(2026-09-03)。 */
+	private record FilterPlacement(AffineTransform outerTransform, AffineTransform groupTransform, double width,
+			double height) {
+		private static final double MAX_PAGE_EXTENT = 64;
+
+		static FilterPlacement create(final AffineTransform transform, final double pageWidth,
+				final double pageHeight) {
+			final FilterPlacement page = page(pageWidth, pageHeight);
+			if (!Double.isFinite(pageWidth) || !Double.isFinite(pageHeight) || pageWidth <= 0 || pageHeight <= 0
+					|| transform == null || !isFinite(transform)) {
+				return page;
+			}
+			try {
+				final AffineTransform inverse = transform.createInverse();
+				if (!isFinite(inverse)) {
+					return page;
+				}
+				final Rectangle2D bounds = inverse
+						.createTransformedShape(new Rectangle2D.Double(0, 0, pageWidth, pageHeight)).getBounds2D();
+				if (!isFinite(bounds) || bounds.getWidth() <= 0 || bounds.getHeight() <= 0
+						|| bounds.getWidth() / pageWidth > MAX_PAGE_EXTENT
+						|| bounds.getHeight() / pageHeight > MAX_PAGE_EXTENT) {
+					return page;
+				}
+
+				final AffineTransform outerTransform = new AffineTransform(transform);
+				outerTransform.translate(bounds.getX(), bounds.getY());
+				final AffineTransform groupTransform = AffineTransform.getTranslateInstance(-bounds.getX(),
+						-bounds.getY());
+				groupTransform.concatenate(inverse);
+				if (!isFinite(outerTransform) || !isFinite(groupTransform)) {
+					return page;
+				}
+				return new FilterPlacement(outerTransform, groupTransform, bounds.getWidth(), bounds.getHeight());
+			} catch (final NoninvertibleTransformException e) {
+				return page;
+			}
+		}
+
+		private static FilterPlacement page(final double pageWidth, final double pageHeight) {
+			return new FilterPlacement(new AffineTransform(), new AffineTransform(), pageWidth, pageHeight);
+		}
+
+		private static boolean isFinite(final AffineTransform transform) {
+			final double[] matrix = new double[6];
+			transform.getMatrix(matrix);
+			for (final double value : matrix) {
+				if (!Double.isFinite(value)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		private static boolean isFinite(final Rectangle2D bounds) {
+			return Double.isFinite(bounds.getMinX()) && Double.isFinite(bounds.getMinY())
+					&& Double.isFinite(bounds.getMaxX()) && Double.isFinite(bounds.getMaxY())
+					&& Double.isFinite(bounds.getWidth()) && Double.isFinite(bounds.getHeight());
 		}
 	}
 
@@ -133,9 +244,24 @@ public class Drawer {
 	 * 更新する。untaggedでは常にnull。
 	 */
 	private StructureRef currentStructRef = null;
+	/** filter層のFigureを所属させる、この要素自身の構造参照。 */
+	private StructureRef structRef = null;
+	/** このstacking context全体へ掛ける、この要素自身のfilter。 */
+	private FilterValue filter = null;
+	/** このstacking contextを作った要素。adopt時の同一性判定にも使う。 */
+	private final Params params;
+	/** 生成時点で分かっている祖先の合成変換(防御的コピー)。 */
+	private final AffineTransform fallbackTransform;
+	/** 自要素まで含めた合成変換(防御的コピー)。 */
+	private AffineTransform adoptedTransform = null;
+	/** nullのadoptも最初の1回として扱うための印。 */
+	private boolean transformAdopted = false;
 
 	public void setCurrentStructRef(final StructureRef ref) {
 		this.currentStructRef = ref;
+		if (this.filter != null && this.structRef == null && ref != null) {
+			this.structRef = ref;
+		}
 	}
 
 	public StructureRef getCurrentStructRef() {
@@ -144,6 +270,35 @@ public class Drawer {
 
 	public Drawer(int z) {
 		this.z = z;
+		this.params = null;
+		this.fallbackTransform = null;
+	}
+
+	public Drawer(final Params params) {
+		this(params, null);
+	}
+
+	public Drawer(final Params params, final AffineTransform fallbackTransform) {
+		this.z = params.zIndexValue;
+		this.params = params;
+		this.fallbackTransform = fallbackTransform == null ? null : new AffineTransform(fallbackTransform);
+		final FilterValue own = params.filter.own();
+		if (own.needsGroup()) {
+			this.filter = own;
+		}
+	}
+
+	/** 同じ要素が計算した合成変換を最初の1回だけ採用します(2026-09-03)。 */
+	public void adoptTransform(final Params owner, final AffineTransform transform) {
+		if (owner != this.params || this.transformAdopted) {
+			return;
+		}
+		this.adoptedTransform = transform == null ? null : new AffineTransform(transform);
+		this.transformAdopted = true;
+	}
+
+	private AffineTransform elementTransform() {
+		return this.transformAdopted ? this.adoptedTransform : this.fallbackTransform;
 	}
 
 	/**
@@ -251,7 +406,7 @@ public class Drawer {
 		}
 		// 子stacking contextへ現在の構造参照を引き継ぐ(B-3)——z順で描かれても
 		// 子の内容は文書順の親要素に属する
-		drawer.setCurrentStructRef(this.currentStructRef);
+		drawer.currentStructRef = this.currentStructRef;
 		this.stackingContexts.add(new StackingContextEntry(drawer, this.stackingContexts.size()));
 	}
 
@@ -264,22 +419,197 @@ public class Drawer {
 	}
 
 	public void draw(GC gc) throws GraphicsException {
-		// 前順走査(自分のpaint command→z順の子)。反復化(B-1、2026-07-30)
-		final Deque<Drawer> work = new ArrayDeque<>();
-		work.push(this);
+		this.draw(gc, Double.NaN, Double.NaN);
+	}
+
+	/**
+	 * 前順走査し、filterを持つstacking contextは部分木を1つの層へ
+	 * まとめてから効果を掛けます(2026-09-03)。
+	 */
+	public void draw(final GC gc, final double pageWidth, final double pageHeight) throws GraphicsException {
+		record GroupFrame(GC outer, FilterScope outerScope, FilterScope scope, FilterValue filter,
+				FilterPlacement placement, StructureRef structRef, boolean artifact) {
+		}
+		record Step(Drawer drawer, GroupFrame end) {
+		}
+		final Map<Long, LineTextScope> lineScopes = this.prepareLineTextScopes(gc, pageWidth, pageHeight);
+		final Deque<Step> work = new ArrayDeque<>();
+		work.push(new Step(this, null));
+		GC current = gc;
+		FilterScope currentScope = null;
+		try {
+			while (!work.isEmpty()) {
+				final Step step = work.pop();
+				if (step.end != null) {
+					final GroupFrame frame = step.end;
+					final Image image = frame.scope.finish();
+					current = frame.outer;
+					currentScope = frame.outerScope;
+					try (final GC.State state = current.begin()) {
+						if (!frame.placement.outerTransform.isIdentity()) {
+							current.transform(frame.placement.outerTransform);
+						}
+						final PDFPageOutput structOut = (frame.structRef != null
+								&& DelegatingGC.unwrap(current) instanceof PDFGC pdfgc
+								&& pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out) ? out : null;
+						if (structOut != null) {
+							structOut.beginStructContent(frame.structRef);
+						}
+						try {
+							if (frame.artifact) {
+								try (final GC.State scope = current.beginArtifactScope()) {
+									drawGroupEffects(current, image, frame.filter);
+								}
+							} else {
+								drawGroupEffects(current, image, frame.filter);
+							}
+						} finally {
+							if (structOut != null) {
+								structOut.endStructContent();
+							}
+						}
+					}
+					continue;
+				}
+
+				final Drawer drawer = step.drawer;
+				if (drawer.filter != null && Double.isFinite(pageWidth) && Double.isFinite(pageHeight) && pageWidth > 0
+						&& pageHeight > 0 && !FilterScope.effective(current, drawer.filter).isNone()
+						&& groupsFilters(current, drawer.filter)) {
+					final FilterPlacement placement = FilterPlacement.create(drawer.elementTransform(), pageWidth,
+							pageHeight);
+					final GC outer = current;
+					final GroupImageGC group;
+					try (final GC.State state = outer.begin()) {
+						if (!placement.outerTransform.isIdentity()) {
+							outer.transform(placement.outerTransform);
+						}
+						group = outer.createFilterGroup(placement.width, placement.height);
+					}
+					if (!placement.groupTransform.isIdentity()) {
+						group.transform(placement.groupTransform);
+					}
+					final FilterScope scope = new FilterScope(group, currentScope, drawer.filter);
+					final StructureRef structRef = drawer.structRef == null ? drawer.currentStructRef : drawer.structRef;
+					final GroupFrame frame = new GroupFrame(outer, currentScope, scope, drawer.filter, placement,
+							structRef, drawer.artifact);
+					work.push(new Step(null, frame));
+					current = scope;
+					currentScope = scope;
+				}
+				if (drawer.paintCommands != null) {
+					for (int i = 0; i < drawer.paintCommands.size(); ++i) {
+						final PaintCommand command = drawer.paintCommands.get(i);
+						command.draw(command.drawable instanceof PageOutputDrawable ? gc : current, lineScopes);
+					}
+				}
+				if (drawer.stackingContexts != null) {
+					final List<StackingContextEntry> sorted = drawer.sortedContexts();
+					for (int i = sorted.size() - 1; i >= 0; --i) {
+						work.push(new Step(sorted.get(i).drawer, null));
+					}
+				}
+			}
+		} finally {
+			for (final LineTextScope scope : lineScopes.values()) {
+				scope.close();
+			}
+		}
+	}
+
+	/**
+	 * Counts all fragments before painting so the first/last fragment can share one
+	 * replacement. PDF filter groups that rasterize are deliberately suppressed:
+	 * rasterized text is non-searchable (bidi logical-output spike section 3).
+	 */
+	private Map<Long, LineTextScope> prepareLineTextScopes(final GC gc, final double pageWidth,
+			final double pageHeight) {
+		record PlanStep(Drawer drawer, Object stream, boolean rasterized, Set<FilterValue> grouped) {
+		}
+		final Map<Long, LinePlan> plans = new LinkedHashMap<>();
+		final Deque<PlanStep> work = new ArrayDeque<>();
+		work.push(new PlanStep(this, DelegatingGC.unwrap(gc), false,
+				Collections.newSetFromMap(new IdentityHashMap<FilterValue, Boolean>())));
+		int textPosition = 0;
 		while (!work.isEmpty()) {
-			final Drawer drawer = work.pop();
+			final PlanStep step = work.pop();
+			final Drawer drawer = step.drawer;
+			Object stream = step.stream;
+			boolean rasterized = step.rasterized;
+			Set<FilterValue> grouped = step.grouped;
+			final boolean group = drawer.filter != null && Double.isFinite(pageWidth) && Double.isFinite(pageHeight)
+					&& pageWidth > 0 && pageHeight > 0 && !drawer.filter.isNone()
+					&& groupsFilters(gc, drawer.filter);
+			if (group) {
+				stream = drawer;
+				// PDF keeps an opacity-only capture as a vector Form, but rasterizes
+				// blur, drop-shadow and color matrices. Preserve semantics for the
+				// vector replay and suppress them only for the bitmap path.
+				rasterized |= gc.rasterizesGroupEffects()
+						&& (drawer.filter.matrix != null || drawer.filter.blur > 0 || drawer.filter.shadow != null);
+				grouped = Collections.newSetFromMap(new IdentityHashMap<FilterValue, Boolean>());
+				grouped.addAll(step.grouped);
+				grouped.add(drawer.filter);
+			}
 			if (drawer.paintCommands != null) {
-				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
-					drawer.paintCommands.get(i).draw(gc);
+				for (final PaintCommand command : drawer.paintCommands) {
+					if (!(command.drawable instanceof LogicalTextDrawable text)) {
+						continue;
+					}
+					final int position = textPosition++;
+					if (command.artifact || text.getLogicalLineEmission() == null) {
+						continue;
+					}
+					final Object commandStream = command.drawable instanceof AbstractDrawable drawable
+							&& drawable.createsOwnGroup(gc, grouped) ? command : stream;
+					final var emission = text.getLogicalLineEmission();
+					plans.computeIfAbsent(emission.lineId(), key -> new LinePlan(emission))
+							.add(position, commandStream, rasterized);
 				}
 			}
 			if (drawer.stackingContexts != null) {
 				final List<StackingContextEntry> sorted = drawer.sortedContexts();
 				for (int i = sorted.size() - 1; i >= 0; --i) {
-					work.push(sorted.get(i).drawer);
+					work.push(new PlanStep(sorted.get(i).drawer, stream, rasterized, grouped));
 				}
 			}
+		}
+		final Map<Long, LineTextScope> scopes = new LinkedHashMap<>();
+		for (final Map.Entry<Long, LinePlan> entry : plans.entrySet()) {
+			scopes.put(entry.getKey(), entry.getValue().build());
+		}
+		return scopes;
+	}
+
+	/** このDrawerの実際の効果だけを出力先がまとめて扱えるか。 */
+	private static boolean groupsFilters(final GC gc, final FilterValue filter) {
+		return gc.supports(GC.Capability.GROUP_FILTER)
+				&& (filter.blur <= 0 || gc.supports(GC.Capability.GAUSSIAN_BLUR))
+				&& (filter.shadow == null || gc.supports(GC.Capability.DROP_SHADOW));
+	}
+
+	/** 捕捉した層へfilterを掛け、実際の出力経路を報告します。 */
+	private static void drawGroupEffects(final GC outer, final Image image, final FilterValue filter)
+			throws GraphicsException {
+		final GroupEffects.DropShadow shadow = filter.shadow == null ? null
+				: new GroupEffects.DropShadow(filter.shadow.x(), filter.shadow.y(), filter.shadow.blur() / 2,
+						filter.shadow.color());
+		final GC.GroupEffectsResult result = outer.drawGroupEffects(image,
+				new GroupEffects(filter.matrix, filter.blur, shadow, filter.opacity));
+		switch (result) {
+		case RASTERIZED:
+			ApproximationGC.report(outer, "filter", "2822.filter-rasterized");
+			break;
+		case LIMIT_FALLBACK:
+			ApproximationGC.report(outer, "filter", "2822.filter-limit");
+			break;
+		case UNSUPPORTED:
+			assert false : "GROUP_FILTER was advertised but drawGroupEffects returned UNSUPPORTED";
+			outer.drawImage(image);
+			ApproximationGC.report(outer, "filter", "2822.per-drawable");
+			break;
+		case VECTOR:
+			break;
 		}
 	}
 
@@ -287,6 +617,8 @@ public class Drawer {
 	 * 表示リストをテキストとしてダンプします。draw()と同じ順序で出力します。
 	 */
 	public void dump(StringBuilder sb, String indent) {
+		final Map<Long, String> visualText = this.collectLogicalVisualText();
+		final Set<Long> dumpedLines = new java.util.HashSet<>();
 		// draw()と同じ前順走査の反復化。インデントだけ階層に追随する
 		record DumpStep(Drawer drawer, String indent) {
 		}
@@ -296,6 +628,9 @@ public class Drawer {
 			final DumpStep step = work.pop();
 			final Drawer drawer = step.drawer;
 			sb.append(step.indent).append("drawer z=").append(drawer.z);
+			if (drawer.filter != null) {
+				sb.append(" filter=[").append(drawer.filter.declared).append(']');
+			}
 			if (drawer.artifact) {
 				// 通常の描画では立たないため、既存のgoldenは不変
 				sb.append(" artifact");
@@ -304,12 +639,28 @@ public class Drawer {
 			if (drawer.paintCommands != null) {
 				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
 					final PaintCommand command = drawer.paintCommands.get(i);
+					if (!command.artifact && command.drawable instanceof LogicalTextDrawable text
+							&& text.getLogicalLineEmission() != null) {
+						final var emission = text.getLogicalLineEmission();
+						if (!dumpedLines.add(emission.lineId())) {
+							continue;
+						}
+						final String visual = visualText.get(emission.lineId());
+						sb.append(step.indent).append("  ")
+								.append(String.format(java.util.Locale.ROOT, "x=%.2f y=%.2f ", command.x, command.y))
+								.append("text logical=\"").append(escapeDump(emission.logicalText()))
+								.append("\" visual=\"").append(escapeDump(visual == null ? "" : visual))
+								.append('\"').append(command.drawable.describeGeometry(command.x, command.y))
+								.append(command.drawable.describeClip()).append('\n');
+						continue;
+					}
 					sb.append(step.indent).append("  ")
 							.append(String.format(java.util.Locale.ROOT, "x=%.2f y=%.2f ", command.x, command.y));
 					if (command.artifact) {
 						sb.append("artifact ");
 					}
-					sb.append(command.drawable.describe()).append(command.drawable.describeClip()).append('\n');
+					sb.append(command.drawable.describe()).append(command.drawable.describeGeometry(command.x, command.y))
+							.append(command.drawable.describeClip()).append('\n');
 				}
 			}
 			if (drawer.stackingContexts != null) {
@@ -319,6 +670,35 @@ public class Drawer {
 				}
 			}
 		}
+	}
+
+	private Map<Long, String> collectLogicalVisualText() {
+		final Map<Long, String> text = new LinkedHashMap<>();
+		final Deque<Drawer> work = new ArrayDeque<>();
+		work.push(this);
+		while (!work.isEmpty()) {
+			final Drawer drawer = work.pop();
+			if (drawer.paintCommands != null) {
+				for (final PaintCommand command : drawer.paintCommands) {
+					if (!command.artifact && command.drawable instanceof LogicalTextDrawable logical
+							&& logical.getLogicalLineEmission() != null) {
+						text.putIfAbsent(logical.getLogicalLineEmission().lineId(), logical.getLineVisualText());
+					}
+				}
+			}
+			if (drawer.stackingContexts != null) {
+				final List<StackingContextEntry> sorted = drawer.sortedContexts();
+				for (int i = sorted.size() - 1; i >= 0; --i) {
+					work.push(sorted.get(i).drawer);
+				}
+			}
+		}
+		return text;
+	}
+
+	private static String escapeDump(final String value) {
+		return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "\\r")
+				.replace("\n", "\\n");
 	}
 
 	/**

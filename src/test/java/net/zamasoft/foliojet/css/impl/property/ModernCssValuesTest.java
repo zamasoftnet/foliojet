@@ -495,11 +495,14 @@ public class ModernCssValuesTest extends TestCase {
 		assertSame(PositionValue.STICKY_VALUE, this.single("position", "-webkit-sticky"));
 		assertSame(CSSFloatValue.START_VALUE, this.single("float", "inline-start"));
 		assertSame(CSSFloatValue.END_VALUE, this.single("float", "inline-end"));
-		assertSame(UnicodeBidiValue.EMBED_VALUE, this.single("unicode-bidi", "isolate"));
-		assertSame(UnicodeBidiValue.EMBED_VALUE, this.single("unicode-bidi", "-moz-isolate"));
-		assertSame(UnicodeBidiValue.EMBED_VALUE, this.single("unicode-bidi", "-webkit-isolate"));
-		assertSame(UnicodeBidiValue.BIDI_OVERRIDE_VALUE, this.single("unicode-bidi", "-webkit-isolate-override"));
-		assertSame(UnicodeBidiValue.NORMAL_VALUE, this.single("unicode-bidi", "-webkit-plaintext"));
+		// 2026-09-04: isolate系は値のまま保つ(段落単位UBAのflag OFFではレイアウト側が従来どおり扱う)
+		assertSame(UnicodeBidiValue.ISOLATE_VALUE, this.single("unicode-bidi", "isolate"));
+		assertSame(UnicodeBidiValue.ISOLATE_VALUE, this.single("unicode-bidi", "-moz-isolate"));
+		assertSame(UnicodeBidiValue.ISOLATE_VALUE, this.single("unicode-bidi", "-webkit-isolate"));
+		assertSame(UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE, this.single("unicode-bidi", "-webkit-isolate-override"));
+		assertSame(UnicodeBidiValue.PLAINTEXT_VALUE, this.single("unicode-bidi", "-webkit-plaintext"));
+		assertEquals("isolate", UnicodeBidiValue.ISOLATE_VALUE.toString());
+		assertEquals("plaintext", UnicodeBidiValue.PLAINTEXT_VALUE.toString());
 	}
 
 	public void testGridTracks() {

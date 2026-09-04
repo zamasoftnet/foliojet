@@ -129,10 +129,17 @@ public class FlowCutterTest extends TestCase {
 
 	private static FlowCutter.MoveResolution resolveMove(final byte positionMask, final byte outerFlags,
 			final int index, final int lastOrphan, final boolean ignoreAvoid) {
+		return resolveMove(positionMask, outerFlags, index, lastOrphan, ignoreAvoid, -1, 100);
+	}
+
+	private static FlowCutter.MoveResolution resolveMove(final byte positionMask, final byte outerFlags,
+			final int index, final int lastOrphan, final boolean ignoreAvoid, final int relaxInsideIndex,
+			final double fragmentCapacity) {
 		// FLOW_STARTS等のフィクスチャ(2フロー、[1]がavoid-beforeで接続)を
 		// pushback入力に流用する。pageLimit=100
-		return FlowCutter.resolveMove(positionMask, outerFlags, index, lastOrphan, ignoreAvoid, 90, 100, FLOW_STARTS,
-				FLOW_EXTENTS, AVOID_BEFORE, AVOID_AFTER, FLOW_END_FRAMES, null, null, null);
+		return FlowCutter.resolveMove(positionMask, outerFlags, index, lastOrphan, ignoreAvoid, relaxInsideIndex,
+				90, 100, fragmentCapacity, FLOW_STARTS, FLOW_EXTENTS, AVOID_BEFORE, AVOID_AFTER, FLOW_END_FRAMES,
+				null, null, null);
 	}
 
 	public void testResolveMovePhysicalFirstWithOuterSplitCutsHead() {
@@ -146,6 +153,18 @@ public class FlowCutterTest extends TestCase {
 		final FlowCutter.MoveResolution r = resolveMove(FIRST, FIRST, 0, 2, false);
 		assertTrue(r instanceof FlowCutter.MoveResolution.RestartIgnoringAvoid restart
 				&& restart.nextIndex() == 2);
+	}
+
+	public void testResolveMovePhysicalFirstTowedRelaxesInsideWhenChainExceedsEmptyFragmentainer() {
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, FIRST, 0, 1, false, 1, 70);
+		assertTrue(r instanceof FlowCutter.MoveResolution.RelaxInside relax && relax.index() == 1
+				&& relax.fallbackIndex() == 1);
+	}
+
+	public void testResolveMovePhysicalFirstTowedKeepsBoundaryFallbackWhenChainFitsEmptyFragmentainer() {
+		final FlowCutter.MoveResolution r = resolveMove(FIRST, FIRST, 0, 1, false, 1, 100);
+		assertTrue(r instanceof FlowCutter.MoveResolution.RestartIgnoringAvoid restart
+				&& restart.nextIndex() == 1);
 	}
 
 	public void testResolveMovePhysicalFirstAtPageHeadTailCutsTail() {

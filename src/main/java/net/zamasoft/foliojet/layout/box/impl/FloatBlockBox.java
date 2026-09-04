@@ -67,7 +67,7 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(this.params.zIndexValue);
+			final Drawer newDrawer = new Drawer(this.params, transform);
 			drawer.visitDrawer(newDrawer);
 			drawer = newDrawer;
 		}

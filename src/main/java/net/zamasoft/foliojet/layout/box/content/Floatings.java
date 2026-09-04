@@ -34,12 +34,19 @@ public class Floatings {
 	public static class Floating extends BoxHolder {
 		public final IFloatBox box;
 		public final double lineAxis, pageAxis;
+		/** 2-D bottom帯との交差で確定した、一回限りの次断片移送。 */
+		boolean moveToNext;
 
 		public Floating(int serial, IFloatBox box, double lineAxis, double pageAxis) {
+			this(serial, box, lineAxis, pageAxis, false);
+		}
+
+		Floating(int serial, IFloatBox box, double lineAxis, double pageAxis, boolean moveToNext) {
 			super(serial);
 			this.box = box;
 			this.lineAxis = lineAxis;
 			this.pageAxis = pageAxis;
+			this.moveToNext = moveToNext;
 		}
 
 		public IBox getBox() {
@@ -123,12 +130,15 @@ public class Floatings {
 		// (2026-07-25、vertical-lr対応。従来はRL専用式を手書きしていた)
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = box.getBlockParams().flow;
 		final double parentPageExtent = box.getInnerWidth();
+		final double parentLineExtent = box.getInnerHeight();
 		for (int i = this.floatings.size() - 1; i >= 0; --i) {
 			Floating floating = (Floating) this.floatings.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(box.getBlockParams(), parentLineExtent,
+					floating.lineAxis, floating.lineAxis + floating.box.getHeight());
 			worklist.push(IBox.drawStep(floating.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
 					LayoutUtils.drawX(flow, x, parentPageExtent, floating.pageAxis,
 							floating.pageAxis + floating.box.getWidth(), floating.lineAxis),
-					LayoutUtils.drawY(flow, y, floating.pageAxis, floating.lineAxis)));
+					LayoutUtils.drawY(flow, y, floating.pageAxis, lineStart)));
 		}
 	}
 
@@ -216,9 +226,12 @@ public class Floatings {
 				sourceSide.add(floating);
 				allWholeMoves = false;
 			}
-			case FloatSplitPlan.FloatItemPlan.Move move ->
-				// 分岐表2、および4→5フォールスルーの非first: 丸ごと送る
+			case FloatSplitPlan.FloatItemPlan.Move move -> {
+				// 分岐表2、および4→5フォールスルーの非first: 丸ごと送る。
+				// 配置時から渡された強制移送はここで一度だけ消費する。
+				floating.moveToNext = false;
 				remainderSide.add(floating);
+			}
 			case FloatSplitPlan.FloatItemPlan.RescueOnCommit(final FloatMeasurement rescued,
 					final net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice) -> {
 				// 分岐表5-R(2026-07-25、救済分割・増分7): 元台帳をhead、

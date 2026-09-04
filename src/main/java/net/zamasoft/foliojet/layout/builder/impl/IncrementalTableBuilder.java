@@ -563,9 +563,10 @@ public class IncrementalTableBuilder implements TableBuilder {
 					final TableCellBox cellBox = cell.getCellBox();
 					cellBox.baseline(rowAscent);
 					final BlockParams cellParams = cellBox.getBlockParams();
-					// 要求寸法は共有核へ(A-4)。この窓経路は従来どおり高さ軸固定
-					final double cellSize = RowLayoutEngine.demandPageSize(cellBox.getHeight(), cellParams, cellBox,
-							false);
+					// 要求寸法は共有核へ(A-4)。縦書きのページ軸は物理幅
+					final double cellSize = RowLayoutEngine.demandPageSize(
+							RowLayoutEngine.measuredRowspanPageSize(cellBox, this.vertical), cellParams, cellBox,
+							this.vertical);
 
 					int cellRowspan = Math.min(this.cellsUnit.size() - row, cell.rowspan);
 					if (cellRowspan <= 1) {
@@ -687,13 +688,13 @@ public class IncrementalTableBuilder implements TableBuilder {
 					// + this.bindRowGroupBox.getTableRowCount());
 					double pageLimit = this.builder.getPageLimit();
 					pageLimit -= this.builder.getPageAxis();
-					pageLimit -= this.tableBox.getFrame().getFrameTop();
+					pageLimit -= this.tableBox.getFrame().getFramePageStart(this.tableBox.getTableParams().flow);
 					if (this.tableBox.getTableHeader() != null) {
 						pageLimit -= this.tableBox.getTableHeader().getPageSize();
 					}
 					if (this.tableBox.getTableFooter() != null) {
 						pageLimit -= this.tableBox.getTableFooter().getPageSize();
-						pageLimit -= this.tableBox.getFrame().getFrameBottom();
+						pageLimit -= this.tableBox.getFrame().getFramePageEnd(this.tableBox.getTableParams().flow);
 					}
 					for (int i = 0; i < this.tableBox.getTableBodyCount(); ++i) {
 						pageLimit -= this.tableBox.getTableBody(i).getPageSize();

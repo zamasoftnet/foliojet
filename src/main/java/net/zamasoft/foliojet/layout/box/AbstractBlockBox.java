@@ -187,6 +187,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		y += this.offsetY;
 
 		transform = this.transform(transform, x, y);
+		drawer.adoptTransform(this.params, transform);
 
 		if (this.params.opacity != 0f && this.frame.isVisible()) {
 			final Shape textClip;
@@ -223,6 +224,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		assert !LayoutUtils.isNone(y);
 
 		transform = this.transform(transform, x, y);
+		drawer.adoptTransform(this.params, transform);
 
 		visitor.visitBox(transform, this, drawer, x, y);
 

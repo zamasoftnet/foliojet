@@ -38,6 +38,7 @@ import net.zamasoft.foliojet.layout.sizing.FlexLengthResolver;
 import net.zamasoft.foliojet.layout.sizing.FlexLineBreaker;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.sizing.Sizing;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * Flexの構築coordinatorです(Flex F1d〜F6、2026-08-02——
@@ -586,7 +587,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 					lineCursor += dist.autoShare();
 				}
 				// 自然位置は自margin込みのため、offsetは先行分の累積
-				item.itemBox.setFlexLineOffset(lineCursor, params.flow.isVertical());
+				final double physicalLine = LayoutUtils.inlineToPhysical(params, axis.mainBase, lineCursor,
+						lineCursor + item.itemBox.getLineExtent(params.flow));
+				item.itemBox.setFlexLineOffset(physicalLine, params.flow.isVertical());
 				lineCursor += item.itemBox.getLineExtent(params.flow)
 						+ (this.mainMarginAuto(item, true) ? dist.autoShare() : 0)
 						+ (k < line.to() - 1 ? dist.between() : 0);
@@ -764,7 +767,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				final BoxAlignment align = this.resolveAlign(item, crossReversed);
 				final double crossOffset = align == BoxAlignment.CENTER ? freeCross / 2
 						: align == BoxAlignment.END ? freeCross : 0;
-				item.itemBox.setFlexLineOffset(crossCursor + crossOffset, params.flow.isVertical());
+				final double logicalLine = crossCursor + crossOffset;
+				final double physicalLine = LayoutUtils.inlineToPhysical(params, innerLine, logicalLine,
+						logicalLine + item.itemBox.getLineExtent(params.flow));
+				item.itemBox.setFlexLineOffset(physicalLine, params.flow.isVertical());
 				this.flexBox.getContainer().addFlow(item.itemBox, mainCursor);
 				if (singleColStarts != null) {
 					singleColStarts[singleColItems.size()] = mainCursor;

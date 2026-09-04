@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<style>
+@page {
+	size: 600pt 600pt;
+	margin: 20pt;
+}
+html, body {
+	margin: 0;
+	padding: 0;
+}
+body {
+	font: 16pt/24pt serif;
+}
+.sideways {
+	position: absolute;
+	writing-mode: sideways-lr;
+	width: 32pt;
+	height: 100pt;
+	white-space: nowrap;
+}
+#basic {
+	left: 20pt;
+	top: 20pt;
+}
+#align_start {
+	left: 70pt;
+	top: 20pt;
+	text-align: start;
+}
+#align_end {
+	left: 120pt;
+	top: 20pt;
+	text-align: end;
+}
+#surface {
+	left: 170pt;
+	top: 20pt;
+	height: 150pt;
+	text-decoration: underline overline line-through;
+	text-underline-position: under;
+	text-underline-offset: 2pt;
+	text-shadow: 3pt 5pt 2pt #777;
+}
+#framed {
+	margin-inline-start: 8pt;
+	padding-inline-start: 3pt;
+	border-left: 2pt solid #000;
+	border-right: 4pt solid #000;
+}
+#upright_image {
+	width: 12pt;
+	height: 20pt;
+}
+#emphasis {
+	left: 240pt;
+	top: 20pt;
+	text-emphasis: filled circle;
+	text-emphasis-position: over left;
+}
+#leader {
+	left: 290pt;
+	top: 20pt;
+}
+#leader .fill::after {
+	content: leader(dotted);
+}
+#ellipsis {
+	left: 340pt;
+	top: 20pt;
+	height: 54pt;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+#clip_text {
+	left: 390pt;
+	top: 20pt;
+	background: linear-gradient(red, blue);
+	background-clip: text;
+	color: transparent;
+	filter: blur(0.5pt);
+}
+#ruby {
+	left: 440pt;
+	top: 20pt;
+}
+#warichu {
+	left: 500pt;
+	top: 20pt;
+}
+#warichu .note {
+	-cssj-warichu: auto;
+}
+#logical_host {
+	left: 20pt;
+	top: 210pt;
+	height: 120pt;
+	position: absolute;
+}
+#logical_absolute {
+	position: absolute;
+	inset-inline-start: 0;
+	width: 12pt;
+	height: 20pt;
+	background: #f00;
+}
+#float_host {
+	left: 70pt;
+	top: 210pt;
+	height: 120pt;
+}
+#inline_float {
+	float: inline-start;
+	width: 12pt;
+	height: 20pt;
+	background: #080;
+	shape-outside: circle(50%);
+	shape-margin: 2pt;
+}
+#table {
+	left: 130pt;
+	top: 210pt;
+	width: 64pt;
+	height: 120pt;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+#table td {
+	border: 1pt solid #000;
+	width: 28pt;
+	height: 40pt;
+}
+#flex {
+	left: 230pt;
+	top: 210pt;
+	width: 40pt;
+	height: 120pt;
+	display: flex;
+	flex-direction: row;
+}
+#grid {
+	left: 320pt;
+	top: 210pt;
+	width: 40pt;
+	height: 120pt;
+	display: grid;
+	grid-template-columns: 40pt 40pt;
+}
+.layout_item {
+	width: 36pt;
+	height: 40pt;
+	border: 1pt solid #555;
+}
+#reset_host {
+	left: 410pt;
+	top: 210pt;
+	height: 130pt;
+}
+#reset {
+	writing-mode: horizontal-tb;
+	width: 100pt;
+	height: 28pt;
+	white-space: nowrap;
+}
+#svg_probe {
+	left: 540pt;
+	top: 210pt;
+}
+#static_host {
+	left: 500pt;
+	top: 210pt;
+	height: 120pt;
+}
+#static_block {
+	position: absolute;
+	width: 12pt;
+	height: 20pt;
+	background: #00f;
+}
+#align_left {
+	left: 20pt;
+	top: 380pt;
+	text-align: left;
+}
+#align_right {
+	left: 70pt;
+	top: 380pt;
+	text-align: right;
+}
+#align_center {
+	left: 120pt;
+	top: 380pt;
+	text-align: center;
+}
+#align_justify {
+	left: 170pt;
+	top: 380pt;
+	text-align: justify;
+	text-align-last: justify;
+}
+#indent {
+	left: 220pt;
+	top: 380pt;
+	text-indent: 10pt;
+}
+#orientation_mixed {
+	left: 280pt;
+	top: 380pt;
+	text-orientation: mixed;
+}
+#orientation_upright {
+	left: 330pt;
+	top: 380pt;
+	text-orientation: upright;
+}
+#orientation_sideways {
+	left: 380pt;
+	top: 380pt;
+	text-orientation: sideways;
+}
+#flex_reverse {
+	left: 430pt;
+	top: 380pt;
+	width: 40pt;
+	height: 120pt;
+	display: flex;
+	flex-direction: row-reverse;
+}
+#columns {
+	left: 500pt;
+	top: 380pt;
+	width: 60pt;
+	height: 120pt;
+	column-count: 2;
+	column-gap: 10pt;
+	column-rule: 1pt solid #000;
+	column-fill: auto;
+}
+#column_2 {
+	page-break-before: column;
+}
+#cw_rtl {
+	position: absolute;
+	left: 280pt;
+	top: 510pt;
+	width: 32pt;
+	height: 40pt;
+	writing-mode: sideways-rl;
+	direction: rtl;
+	text-align: start;
+	white-space: nowrap;
+}
+#ccw_rtl {
+	position: absolute;
+	left: 330pt;
+	top: 510pt;
+	width: 32pt;
+	height: 40pt;
+	writing-mode: sideways-lr;
+	direction: rtl;
+	text-align: start;
+	white-space: nowrap;
+}
+#cw_rtl_indent {
+	position: absolute;
+	left: 380pt;
+	top: 510pt;
+	width: 32pt;
+	height: 40pt;
+	writing-mode: sideways-rl;
+	direction: rtl;
+	text-align: start;
+	text-indent: 10pt;
+	white-space: nowrap;
+}
+.page_probe {
+	writing-mode: sideways-lr;
+	width: 32pt;
+	height: 80pt;
+	white-space: nowrap;
+}
+#page_two, #page_three {
+	break-before: page;
+}
+</style>
+</head>
+<body>
+<div id="basic" class="sideways">AB</div>
+<div id="align_start" class="sideways">START</div>
+<div id="align_end" class="sideways">END</div>
+
+<div id="surface" class="sideways">S<span id="framed">F</span><span id="combine" style="text-combine-upright: all">89</span><img id="upright_image" src="../red.png" alt="" />E</div>
+<div id="emphasis" class="sideways">&#x5727;&#x70B9;</div>
+<div id="leader" class="sideways">L<span class="fill"></span>R</div>
+<div id="ellipsis" class="sideways">ELLIPSIS-LONG</div>
+<div id="clip_text" class="sideways">CLIP</div>
+<div id="ruby" class="sideways"><ruby><rb id="ruby_base">&#x89AA;</rb><rt id="ruby_text">&#x304A;&#x3084;</rt></ruby></div>
+<div id="warichu" class="sideways">W<span class="note">&#x5272;&#x6CE8;&#x672C;&#x6587;</span>Z</div>
+
+<div id="logical_host" class="sideways">P<div id="logical_absolute"></div>Q</div>
+<div id="float_host" class="sideways"><div id="inline_float"></div>FLOAT</div>
+<table id="table" class="sideways"><tbody><tr><td><span id="cell_11">11</span></td><td><span id="cell_12">12</span></td></tr><tr><td><span id="cell_21">21</span></td><td><span id="cell_22">22</span></td></tr></tbody></table>
+<div id="flex" class="sideways"><div class="layout_item"><span id="flex_1">F1</span></div><div class="layout_item"><span id="flex_2">F2</span></div></div>
+<div id="grid" class="sideways"><div class="layout_item"><span id="grid_1">G1</span></div><div class="layout_item"><span id="grid_2">G2</span></div></div>
+<div id="reset_host" class="sideways">P<div id="reset">RESET</div>Q</div>
+<div id="static_host" class="sideways"><div id="static_block">AS</div></div>
+<div id="svg_probe" class="sideways">XYZ</div>
+<div id="align_left" class="sideways">LEFT</div>
+<div id="align_right" class="sideways">RIGHT</div>
+<div id="align_center" class="sideways">CENTER</div>
+<div id="align_justify" class="sideways">J U S T</div>
+<div id="indent" class="sideways">INDENT</div>
+<div id="orientation_mixed" class="sideways">A&#x6F22;B</div>
+<div id="orientation_upright" class="sideways">A&#x6F22;B</div>
+<div id="orientation_sideways" class="sideways">A&#x6F22;B</div>
+<div id="flex_reverse" class="sideways"><div class="layout_item"><span id="flex_reverse_1">F3</span></div><div class="layout_item"><span id="flex_reverse_2">F4</span></div></div>
+<div id="columns" class="sideways"><div id="column_1">C1</div><div id="column_2">C2</div></div>
+<div id="cw_rtl">CWRTL</div>
+<div id="ccw_rtl">CCWRTL</div>
+<div id="cw_rtl_indent">I</div>
+
+<div id="page_one" class="page_probe">PAGEONE</div>
+<div id="page_two" class="page_probe">PAGETWO</div>
+<div id="page_three" class="page_probe">PAGETHREE</div>
+</body>
+</html>

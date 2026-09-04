@@ -14,6 +14,7 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
@@ -48,6 +49,7 @@ public class MessageCodeTest extends TestCase {
 	private final List<Short> codes = new ArrayList<>();
 
 	private final List<String> args0 = new ArrayList<>();
+	private final List<String[]> messageArgs = new ArrayList<>();
 
 	/** 1801: ページの開始が通知されること。 */
 	public void testPageNumber() throws Exception {
@@ -95,7 +97,22 @@ public class MessageCodeTest extends TestCase {
 	 */
 	public void testBrokenResourceWarning() throws Exception {
 		this.convert(MISSING_IMAGE, props());
-		assertFalse("何らかの警告が通知されること: " + this.codes, warnings().isEmpty());
+		boolean found = false;
+		for (int i = 0; i < this.codes.size(); ++i) {
+			if (this.codes.get(i).shortValue() != MessageCodes.WARN_MISSING_IMAGE) {
+				continue;
+			}
+			found = true;
+			final String[] args = this.messageArgs.get(i);
+			assertNotNull("2811に引数があること", args);
+			assertEquals("2811の引数はURIと段階の2個であること", 2, args.length);
+			assertNotNull("2811に失敗段階があること", args[1]);
+			assertTrue("2811の段階が固定語であること: " + args[1],
+					"resolve".equals(args[1]) || "fetch".equals(args[1]) || "decode".equals(args[1])
+							|| "decode: unsupported or corrupt image".equals(args[1])
+							|| args[1].matches("fetch: HTTP [1-5][0-9][0-9]"));
+		}
+		assertTrue("画像警告(2811)が通知されること: " + this.codes, found);
 	}
 
 	/** 不正な入出力プロパティは警告になること(値が壊れていても変換は続く)。 */
@@ -127,12 +144,14 @@ public class MessageCodeTest extends TestCase {
 		out.getParentFile().mkdirs();
 		this.codes.clear();
 		this.args0.clear();
+		this.messageArgs.clear();
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setMessageHandler((code, args, mes) -> {
 					this.codes.add(code);
 					this.args0.add(args != null && args.length > 0 ? args[0] : null);
+					this.messageArgs.add(args == null ? null : args.clone());
 				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

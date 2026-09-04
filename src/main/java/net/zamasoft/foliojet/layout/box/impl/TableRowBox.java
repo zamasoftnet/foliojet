@@ -22,11 +22,14 @@ import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
+import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
@@ -48,6 +51,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	private static final boolean DEBUG = false;
 
 	protected final TableRowPos pos;
+	private Drawer pendingDrawer = null;
 
 	public static interface Cell {
 		public boolean isSource();
@@ -221,6 +225,12 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.params.opacity == 0) {
 			return;
 		}
+		if (this.params.isStackingContext()) {
+			final Drawer newDrawer = new Drawer(this.params, transform);
+			drawer.visitDrawer(newDrawer);
+			drawer = newDrawer;
+			this.pendingDrawer = newDrawer;
+		}
 		if (this.params.background.isVisible()) {
 			Drawable drawable = new BackgroundBorderDrawable(pageBox, clip, this.params.opacity, transform,
 					this.params.background, this.params.border, null, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
@@ -238,6 +248,12 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		int count = 0;
 		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
+			final boolean bottomToTop = this.tableParams.writingModeVariant != WritingModeVariant.NORMAL
+					&& TypesettingMode.inlineProgression(this.tableParams.flow,
+							this.tableParams.writingModeVariant,
+							this.tableParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+			final double lineOrigin = y;
+			double logicalLine = 0;
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
@@ -249,10 +265,14 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					// 通常セルは幅==行のページ寸法なので誤りが相殺され、
 					// rowspan セルでだけ現れる。2026-07-25、独立レビューで発見)
 					xs[count] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
-					ys[count] = y;
+					ys[count] = bottomToTop
+							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
+									logicalLine + cellBox.getHeight())
+							: y;
 					++count;
 				}
 				y += cellBox.getHeight();
+				logicalLine += cellBox.getHeight();
 			}
 		} else {
 			// 横書き
@@ -283,16 +303,27 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			return;
 		}
 		if (this.tableParams.flow.isVertical()) {
+			final boolean bottomToTop = this.tableParams.writingModeVariant != WritingModeVariant.NORMAL
+					&& TypesettingMode.inlineProgression(this.tableParams.flow,
+							this.tableParams.writingModeVariant,
+							this.tableParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+			final double lineOrigin = y;
+			double logicalLine = 0;
 			for (int i = 0; i < this.cells.size(); ++i) {
 				// 縦書き
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
+					final double drawY = bottomToTop
+							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
+									logicalLine + cellBox.getHeight())
+							: y;
 					cellBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY,
-							LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0), y);
+							LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0), drawY);
 
 				}
 				y += cellBox.getHeight();
+				logicalLine += cellBox.getHeight();
 			}
 		} else {
 			// 横書き
@@ -332,9 +363,14 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			}, x, y);
 		}
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(this.params.zIndexValue);
-			drawer.visitDrawer(newDrawer);
-			drawer = newDrawer;
+			if (this.pendingDrawer != null) {
+				drawer = this.pendingDrawer;
+				this.pendingDrawer = null;
+			} else {
+				final Drawer newDrawer = new Drawer(this.params, transform);
+				drawer.visitDrawer(newDrawer);
+				drawer = newDrawer;
+			}
 		}
 		if (this.cells == null) {
 			return;
@@ -349,16 +385,26 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		int sourceCount = 0;
 		if (this.tableParams.flow.isVertical()) {
 			// 縦書き
+			final boolean bottomToTop = this.tableParams.writingModeVariant != WritingModeVariant.NORMAL
+					&& TypesettingMode.inlineProgression(this.tableParams.flow,
+							this.tableParams.writingModeVariant,
+							this.tableParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+			final double lineOrigin = y;
+			double logicalLine = 0;
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource()) {
 					sourceCells[sourceCount] = cellBox;
 					drawXs[sourceCount] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
-					drawYs[sourceCount] = y;
+					drawYs[sourceCount] = bottomToTop
+							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
+									logicalLine + cellBox.getHeight())
+							: y;
 					++sourceCount;
 				}
 				y += cellBox.getHeight();
+				logicalLine += cellBox.getHeight();
 			}
 		} else {
 			// 横書き
@@ -428,6 +474,57 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	/**
+	 * この行に割り当てられる切断区間が、セル内容の切断可能な単位を少なくとも
+	 * 1つ取るかを、セルを変異させずに調べます。セル自身のフレーム・padding
+	 * だけは進捗に数えません。
+	 */
+	private static boolean cellFragmentTakesContent(final Cell cell, final double pageLimit) {
+		final TableCellBox cellBox = cell.getCellBox();
+		final Container container = cellBox.getContainer();
+		if (!container.hasNonDecorationContent()) {
+			return false;
+		}
+
+		final double fragmentEnd = cellCutPageAxis(cell, pageLimit);
+		final double fragmentStart = fragmentEnd - pageLimit;
+		final double frameStart = cellBox.getFrame().getFramePageStart(cellBox.getBlockParams().flow);
+		double alignment = cellBox.verticalAlign;
+		if (alignment > 0) {
+			final double fragmentInner = fragmentEnd - frameStart;
+			final double firstUnitEnd = container.getCutPoint(0);
+			if (LayoutUtils.compare(alignment + firstUnitEnd, fragmentInner) > 0) {
+				alignment = Math.max(0, fragmentInner - firstUnitEnd);
+			}
+		}
+		final double contentStart = Math.max(0, fragmentStart - frameStart - alignment);
+		final double contentEnd = fragmentEnd - frameStart - alignment;
+		if (LayoutUtils.compare(contentEnd, contentStart) <= 0) {
+			return false;
+		}
+
+		// 位置を純粋問い合わせできない浮動・絶対配置は、内容消失を避けるため
+		// 安全側(進捗あり)に倒す。
+		if (container.hasFloatings()) {
+			return true;
+		}
+		final boolean[] hasAbsolute = new boolean[1];
+		container.eachAbsoluteBox(box -> hasAbsolute[0] = true);
+		if (hasAbsolute[0]) {
+			return true;
+		}
+		return LayoutUtils.compare(container.getCutPointBelow(contentEnd), contentStart) > 0;
+	}
+
+	private boolean fragmentTakesContent(final double pageLimit) {
+		for (int i = 0; i < this.cells.size(); ++i) {
+			if (cellFragmentTakesContent(this.cells.get(i), pageLimit)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * FLAGS_SPLIT付きセル分割の契約(必ず{@code Split}を返し、残余は
 	 * {@code TableCellBox})を明示検査して残余セルを返します。従来は
 	 * uncheckedなcastで、契約違反が{@code ClassCastException}として
@@ -460,14 +557,24 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				cellCollapsedAtStart[i] = cellBox.getFrame().getFramePageStart(this.tableParams.flow) <= 0
 						&& LayoutUtils.compare(cellBox.getInnerPageExtent(this.tableParams.flow), 0) <= 0;
 			}
-			final SplitResult pre = net.zamasoft.foliojet.layout.fragment.TableCutter.rowPreDecide(
-					(flags & IPageBreakableBox.FLAGS_FIRST) != 0,
-					(flags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0, pageLimit, this.getPageSize(),
+			final boolean pageFirst = (flags & IPageBreakableBox.FLAGS_FIRST) != 0;
+			final boolean firstRow = (flags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0;
+			final double fragmentCapacity = mode instanceof BreakMode.AutoBreakMode auto ? auto.fragmentCapacity : -1;
+			final SplitResult pre = net.zamasoft.foliojet.layout.fragment.TableCutter.rowPreDecide(pageFirst,
+					firstRow, pageLimit, this.getPageSize(),
 					this.params.pageBreakInside == PageBreakMode.AVOID, cellPageExtents, cellFlowMatch,
-					cellInsideAvoid, cellCollapsedAtStart,
-					mode instanceof BreakMode.AutoBreakMode auto ? auto.fragmentCapacity : -1);
+					cellInsideAvoid, cellCollapsedAtStart, fragmentCapacity);
 			if (pre != null) {
 				return pre;
+			}
+			// 縦書きでrowspanにより先頭行と連結した行はFIRST_ROWにより通常の
+			// 行単位MOVEを免除される。その行が次のフラグメンテナへ丸ごと
+			// 収まり、ここで内容を1単位も取れないなら、枠だけの先頭断片を
+			// 作らず行ごと送る。横書きの既存分割順は変えない。
+			if (vertical && !pageFirst && firstRow && fragmentCapacity > 0
+					&& LayoutUtils.compare(this.getPageSize(), fragmentCapacity) <= 0
+					&& !this.fragmentTakesContent(pageLimit)) {
+				return SplitResult.MOVE;
 			}
 		}
 		// System.err.println("TR B/flags=" + flags + "/" + pageLimit);

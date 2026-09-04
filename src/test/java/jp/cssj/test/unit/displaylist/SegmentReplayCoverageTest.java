@@ -9,9 +9,12 @@ import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
-import net.zamasoft.foliojet.layout.SourceReplayer;
+import net.zamasoft.foliojet.css.value.UnicodeBidiValue;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.SourceReplayer;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
@@ -30,6 +33,22 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	private static final URI COPPER_URI = URI.create("copper:direct:");
+
+	public void testUnicodeBidiSurvivesParamsReplay() {
+		final BlockParams source = new BlockParams();
+		source.unicodeBidi = UnicodeBidiValue.ISOLATE_OVERRIDE;
+		source.paragraphBidi = true;
+		final BlockParams restored = BlockParamsTemplate.freeze(source).materialize();
+		assertEquals(UnicodeBidiValue.ISOLATE_OVERRIDE, restored.unicodeBidi);
+		assertTrue(restored.paragraphBidi);
+	}
+
+	public void testBidiSemanticAliasSurvivesParamsTemplateRoundTrip() {
+		final BlockParams source = new BlockParams();
+		source.bidiSemanticAlias = true;
+		final BlockParams restored = BlockParamsTemplate.freeze(source).materialize();
+		assertTrue(restored.bidiSemanticAlias);
+	}
 
 	public void testSubtreeReplayFires() throws Exception {
 		if (Boolean.getBoolean("foliojet.noSegmentRestyle")) {

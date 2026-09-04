@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.box.params.ClearMode;
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 import java.awt.geom.AffineTransform;
 import java.net.URI;
@@ -277,7 +278,7 @@ final class StyleBoxEmitter {
 		this.imposition = imposition;
 	}
 
-	void requireRoot(byte direction, WritingMode progression) {
+	void requireRoot(byte direction, WritingMode progression, WritingModeVariant writingModeVariant) {
 		// 保留されたHTMLのルートを出力する
 		if (!this.context.isInBody()) {
 			this.context.setInBody(true);
@@ -286,6 +287,7 @@ final class StyleBoxEmitter {
 				final BlockParams params = this.context.getHtmlRootBlock().getBlockParams();
 				params.direction = direction;
 				params.flow = progression;
+				params.writingModeVariant = writingModeVariant;
 			}
 			this.pageSequence.setProgression(progression);
 			// 名前付きページN1b: root(html)のpage used valueを全ページへ
@@ -303,7 +305,8 @@ final class StyleBoxEmitter {
 			} else if (printMode == OutputPrintMode.RIGHT_SIDE) {
 				right = true;
 			} else {
-				right = direction == AbstractTextParams.DIRECTION_RTL || progression == WritingMode.RL;
+				right = progression == WritingMode.RL
+						|| (progression == WritingMode.TB && direction == AbstractTextParams.DIRECTION_RTL);
 			}
 			if (right) {
 				this.imposition.setBoundSide(BoundSide.RIGHT);
@@ -374,7 +377,7 @@ final class StyleBoxEmitter {
 		} else if (floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BOTTOM) {
 			// ページフロート(2026-08-02): 脚注と同じくPosType=FLOATのまま
 			// 分離builderのライフサイクルへ流し、終了時にページ台帳
-			// (RootBuilder)へ渡す。回り込み幾何には関与しない
+			// (RootBuilder)へ渡す。topは配置後にRoot行走査の排除域になる
 			final PageFloatPos pos = new PageFloatPos(floating == CSSFloatValue.PAGE_TOP);
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
@@ -719,7 +722,7 @@ final class StyleBoxEmitter {
 					}
 					replacedBox = new FlowReplacedBox(params, pos);
 				}
-				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
+				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB, WritingModeVariant.NORMAL);
 				if (inline) {
 					this.context.checkMarker();
 				}
@@ -734,7 +737,7 @@ final class StyleBoxEmitter {
 					this.context.setHtmlRootBlock((FlowBlockBox) blockBox);
 					break;
 				}
-				this.requireRoot(params.direction, params.flow);
+				this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 				if (blockBox.getPos().getType() == PosType.INLINE) {
 					this.context.checkMarker();
 				}
@@ -756,7 +759,7 @@ final class StyleBoxEmitter {
 				this.mapper.setupReplacedParams(image, params, style, this.context.isInBody(), this.pageSequence);
 				this.mapper.setupInlinePos(pos, style);
 				AbstractReplacedBox replaced = new InlineReplacedBox(params, pos);
-				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
+				this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB, WritingModeVariant.NORMAL);
 				this.context.checkMarker();
 				this.sink.replaced(replaced);
 			} else {
@@ -765,7 +768,7 @@ final class StyleBoxEmitter {
 				this.mapper.setupInlineParams(params, style, this.context.isInBody(), this.pageSequence);
 				this.mapper.setupInlinePos(pos, style);
 				InlineBox inline = new InlineBox(params, pos);
-				this.requireRoot(params.direction, params.flow);
+				this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 				this.sink.start(inline);
 			}
 		}
@@ -775,7 +778,7 @@ final class StyleBoxEmitter {
 			final BlockParams params = new BlockParams();
 			this.mapper.setupBlockParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(), this.pageSequence);
 			final AbstractBlockBox listItem = this.createBlockBox(style, params, position, display, floating);
-			this.requireRoot(params.direction, params.flow);
+			this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 			this.sink.start(listItem);
 		}
 			break;
@@ -820,7 +823,7 @@ final class StyleBoxEmitter {
 				}
 				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
 			}
-			this.requireRoot(params.direction, params.flow);
+			this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 			this.sink.start(blockBox);
 		}
 			break;
@@ -867,7 +870,7 @@ final class StyleBoxEmitter {
 				}
 				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
 			}
-			this.requireRoot(params.direction, params.flow);
+			this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 			this.sink.start(blockBox);
 		}
 			break;
@@ -884,7 +887,7 @@ final class StyleBoxEmitter {
 				}
 			}
 			TableBox table = new TableBox(params, blockBox);
-			this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB);
+			this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB, WritingModeVariant.NORMAL);
 			this.sink.start(table);
 			this.context.setInTextBlock(false);
 		}
@@ -908,7 +911,7 @@ final class StyleBoxEmitter {
 				throw new IllegalStateException();
 			}
 			final FlowBlockBox caption = new FlowBlockBox(params, pos);
-			this.requireRoot(params.direction, params.flow);
+			this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 			this.sink.start(caption);
 			this.context.setInTextBlock(false);
 		}

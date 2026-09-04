@@ -16,6 +16,7 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.Length;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
@@ -367,6 +368,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 	}
 
+	@Override
+	protected net.zamasoft.foliojet.layout.part.AbsoluteInsets transformReferenceMargin() {
+		return this.frame == null ? null : this.frame.margin;
+	}
+
 	public final AbsoluteRectFrame getFrame() {
 		return this.frame;
 	}
@@ -455,6 +461,16 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	public final void addAbsolute(IAbsoluteBox box, double staticX, double staticY) {
+		final BlockParams params = this.getBlockParams();
+		if (params.flow.isVertical()
+				&& params.writingModeVariant != net.zamasoft.foliojet.layout.box.params.WritingModeVariant.NORMAL
+				&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+						params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
+			final double logicalLine = staticX, logicalPage = staticY;
+			staticX = LayoutUtils.drawX(params.flow, 0, this.getInnerWidth(), logicalPage, logicalPage,
+					logicalLine);
+			staticY = LayoutUtils.inlineToPhysical(params, this.getInnerHeight(), logicalLine, logicalLine);
+		}
 		this.container.addAbsolute(box, staticX, staticY);
 	}
 

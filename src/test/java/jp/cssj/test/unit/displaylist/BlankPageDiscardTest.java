@@ -122,7 +122,7 @@ public class BlankPageDiscardTest extends TestCase {
 			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 			<style>
 			@page{margin:5pt}
-			body{margin:0;font:normal 9pt/1.2 serif;writing-mode:vertical-lr}
+			body{margin:0;font:normal 9pt/1.2 serif;writing-mode:vertical-rl}
 			p,div,td{margin:0;padding:0}
 			</style></head><body>
 			<div style="page-break-inside:avoid;margin:3pt">
@@ -199,7 +199,7 @@ public class BlankPageDiscardTest extends TestCase {
 			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 			<style>
 			@page{margin:10pt}
-			body{font:normal 11pt/1.2 serif;writing-mode:vertical-lr}
+			body{font:normal 11pt/1.2 serif;writing-mode:vertical-rl}
 			</style></head><body>
 			<div style="width:502pt">T0</div>
 			<div style="display:table;width:74pt"><div></div></div>
@@ -210,7 +210,7 @@ public class BlankPageDiscardTest extends TestCase {
 	 * 境界4: 境界2と同じ文書に、<b>面の目印</b>だけを足したもの。
 	 *
 	 * <p>
-	 * この文書は縦組みなので右綴じ(1ページ目が verso)です。
+	 * この文書は縦組み(vertical-rl)なので右綴じ(1ページ目が verso)です。2026-09-04 に標準 writing-mode が direction と分離され vertical-lr は左綴じになったため、旧 fixture の vertical-lr を vertical-rl へ改めた。
 	 * {@code @page:left} のマージンボックスは verso のページにだけ "VERSO" を
 	 * 刷るので、<b>どのページが verso か</b>が表示リストに直接現れます。
 	 * マージンボックスは版面(内容領域)を変えないため、境界2の

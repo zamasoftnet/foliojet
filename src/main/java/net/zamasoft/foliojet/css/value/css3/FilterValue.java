@@ -1,5 +1,9 @@
 package net.zamasoft.foliojet.css.value.css3;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Set;
+
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
@@ -39,14 +43,25 @@ public final class FilterValue implements Value {
 	public final DropShadow shadow;
 	/** 宣言の字面(自身に宣言があるとき)。継承だけの値ではnull。 */
 	public final String declared;
+	/** この要素自身の宣言値。解析直後の値ではnull(={@code this})。 */
+	private final FilterValue own;
+	/** 親要素の合成値。根ではnull。 */
+	private final FilterValue inherited;
 
 	public FilterValue(final float opacity, final float[] matrix, final double blur, final DropShadow shadow,
 			final String declared) {
+		this(opacity, matrix, blur, shadow, declared, null, null);
+	}
+
+	private FilterValue(final float opacity, final float[] matrix, final double blur, final DropShadow shadow,
+			final String declared, final FilterValue own, final FilterValue inherited) {
 		this.opacity = opacity;
 		this.matrix = matrix;
 		this.blur = blur;
 		this.shadow = shadow;
 		this.declared = declared;
+		this.own = own;
+		this.inherited = inherited;
 	}
 
 	public boolean isNone() {
@@ -58,21 +73,58 @@ public final class FilterValue implements Value {
 		return this.matrix != null || this.blur > 0;
 	}
 
+	/** 要素全体を1つの層にまとめる必要があるか。 */
+	public boolean needsGroup() {
+		return this.hasColorOps() || this.shadow != null;
+	}
+
+	/** この要素自身の宣言値を返します。 */
+	public FilterValue own() {
+		return this.own == null ? this : this.own;
+	}
+
+	/** 共有された解析値を、要素固有の同一性を持つ値へ複写します。 */
+	public FilterValue forElement() {
+		return this.isNone() ? NONE
+				: new FilterValue(this.opacity, this.matrix, this.blur, this.shadow, this.declared, null, null);
+	}
+
 	/**
 	 * 親の効果に子の効果を重ねます。子の描画に子の効果を掛け、その結果に
 	 * 親の効果が掛かる順。
 	 */
 	public FilterValue compose(final FilterValue child) {
-		if (child == null || child.isNone()) {
-			return this.declared == null && this.shadow == null ? this
-					: new FilterValue(this.opacity, this.matrix, this.blur, null, null);
+		if (child == null) {
+			return this;
+		}
+		if (child.isNone()) {
+			return new FilterValue(this.opacity, this.matrix, this.blur, null, null, child.own(), this);
 		}
 		if (this.isNone()) {
-			return child;
+			return new FilterValue(child.opacity, child.matrix, child.blur, child.shadow, child.declared, child.own(),
+					this);
 		}
 		final float[] m = this.matrix == null ? child.matrix
 				: child.matrix == null ? this.matrix : multiply(this.matrix, child.matrix);
-		return new FilterValue(this.opacity * child.opacity, m, this.blur + child.blur, child.shadow, child.declared);
+		return new FilterValue(this.opacity * child.opacity, m, this.blur + child.blur, child.shadow, child.declared,
+				child.own(), this);
+	}
+
+	/** 囲んでいる要素層ですでに掛けた宣言を除いた合成値を返します。 */
+	public FilterValue excluding(final Set<FilterValue> grouped) {
+		if (grouped == null || grouped.isEmpty()) {
+			return this;
+		}
+		final Deque<FilterValue> values = new ArrayDeque<>();
+		for (FilterValue value = this; value != null; value = value.inherited) {
+			values.push(value.own());
+		}
+		FilterValue result = NONE;
+		while (!values.isEmpty()) {
+			final FilterValue value = values.pop();
+			result = result.compose(grouped.contains(value) ? NONE : value);
+		}
+		return result.isNone() ? NONE : result;
 	}
 
 	/** 行列の積 {@code a × b}(bを先に掛ける)。 */

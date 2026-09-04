@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 /**
  * 破断時の{@code flowStack}(開いた祖先チェーン、またはCOLUMN継続の
@@ -19,15 +20,22 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  *
  * @param anchorFlow  index 0(anchor)の書字方向。PAGEでは文書rootの、
  *                    COLUMNでは段組ownerの書字方向
+ * @param anchorWritingModeVariant index 0(anchor)の字形回転種別
  * @param levels      open pathの各レベル(index 0 = anchor)
  * @param firstBarrier 最初に収集不能と判定されたレベル(全レベルが
  *                     収集可能なら空)
  */
-public record OpenPathSnapshot(WritingMode anchorFlow, List<OpenLevelDescriptor> levels,
-		Optional<CapabilityBarrier> firstBarrier) {
+public record OpenPathSnapshot(WritingMode anchorFlow, WritingModeVariant anchorWritingModeVariant,
+		List<OpenLevelDescriptor> levels, Optional<CapabilityBarrier> firstBarrier) {
 
 	public OpenPathSnapshot {
 		levels = List.copyOf(levels);
+	}
+
+	/** 既存の通常 writing-mode 用コンストラクタです。 */
+	public OpenPathSnapshot(final WritingMode anchorFlow, final List<OpenLevelDescriptor> levels,
+			final Optional<CapabilityBarrier> firstBarrier) {
+		this(anchorFlow, WritingModeVariant.NORMAL, levels, firstBarrier);
 	}
 
 	/** open pathの深さ(全レベル数、anchorを含む)。 */
@@ -59,6 +67,7 @@ public record OpenPathSnapshot(WritingMode anchorFlow, List<OpenLevelDescriptor>
 	 * @param index       flowStack上の位置(0 = root)
 	 * @param boxClass    実行時クラス(段組等のサブタイプ判定に使う)
 	 * @param flow        書字方向
+	 * @param writingModeVariant 字形回転種別
 	 * @param columnCount 段組数
 	 * @param sourceAnchor split前のソースアンカー(診断用。resume後の新
 	 *                     fragmentは旧anchorを継承しないため、照合の主キー
@@ -66,25 +75,38 @@ public record OpenPathSnapshot(WritingMode anchorFlow, List<OpenLevelDescriptor>
 	 * @param role        rootか分類済み祖先か
 	 */
 	public record OpenLevelDescriptor(int index, Class<? extends AbstractContainerBox> boxClass,
-			WritingMode flow, int columnCount, long sourceAnchor, OpenLevelRole role) {
+			WritingMode flow, WritingModeVariant writingModeVariant, int columnCount, long sourceAnchor,
+			OpenLevelRole role) {
+
+		/** 既存の通常 writing-mode 用コンストラクタです。 */
+		public OpenLevelDescriptor(final int index, final Class<? extends AbstractContainerBox> boxClass,
+				final WritingMode flow, final int columnCount, final long sourceAnchor, final OpenLevelRole role) {
+			this(index, boxClass, flow, WritingModeVariant.NORMAL, columnCount, sourceAnchor, role);
+		}
 
 		/** resume時の実fragmentと照合するための署名。 */
 		public FragmentSignature fragmentSignature() {
-			return new FragmentSignature(this.boxClass, this.flow, this.columnCount);
+			return new FragmentSignature(this.boxClass, this.flow, this.writingModeVariant, this.columnCount);
 		}
 	}
 
 	/**
-	 * fragment identityの照合キーです(class/flow/columnCount。実行時
+	 * fragment identityの照合キーです(class/flow/variant/columnCount。実行時
 	 * クラスがサブタイプ——段組——も区別する)。{@code sourceAnchor}は
 	 * 含めない(新fragmentは旧anchorを継承しないため)。
 	 */
 	public record FragmentSignature(Class<? extends AbstractContainerBox> boxClass,
-			WritingMode flow, int columnCount) {
+			WritingMode flow, WritingModeVariant writingModeVariant, int columnCount) {
+
+		/** 既存の通常 writing-mode 用コンストラクタです。 */
+		public FragmentSignature(final Class<? extends AbstractContainerBox> boxClass, final WritingMode flow,
+				final int columnCount) {
+			this(boxClass, flow, WritingModeVariant.NORMAL, columnCount);
+		}
 
 		public static FragmentSignature from(final AbstractContainerBox box) {
 			return new FragmentSignature(box.getClass(), box.getBlockParams().flow,
-					box.getColumnCount());
+					box.getBlockParams().writingModeVariant, box.getColumnCount());
 		}
 	}
 }

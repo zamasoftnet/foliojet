@@ -117,7 +117,10 @@ public class RealSiteCssGapsTest extends TestCase {
 		assertEquals(KeywordValue.INITIAL, parseOk("inset: initial").get(Inset.TOP.getName()));
 		assertEquals(2, parseOk("overflow: inherit").size());
 		assertEquals(2, parseOk("columns: inherit").size());
+		// 2026-09-04: 標準 `writing-mode` は BlockFlow+variant の 2 longhand(direction を変えない)、
+		// legacy `-cssj-writing-mode` は Direction+BlockFlow+variant の 3(sideways-writing-mode-design.md 追補 A)
 		assertEquals(2, parseOk("writing-mode: inherit").size());
+		assertEquals(3, parseOk("-cssj-writing-mode: inherit").size());
 		assertEquals(4, parseOk("border-style: inherit").size());
 		assertEquals(4, parseOk("border-width: inherit").size());
 		assertEquals(1, parseOk("text-wrap: inherit").size());
@@ -164,10 +167,10 @@ public class RealSiteCssGapsTest extends TestCase {
 	}
 
 	public void testUnicodeBidiIsolate() {
-		assertSame(UnicodeBidiValue.EMBED_VALUE, parseOk("unicode-bidi: isolate").get(UnicodeBidi.INFO.getName()));
-		assertSame(UnicodeBidiValue.BIDI_OVERRIDE_VALUE,
+		assertSame(UnicodeBidiValue.ISOLATE_VALUE, parseOk("unicode-bidi: isolate").get(UnicodeBidi.INFO.getName()));
+		assertSame(UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE,
 				parseOk("unicode-bidi: isolate-override").get(UnicodeBidi.INFO.getName()));
-		assertSame(UnicodeBidiValue.NORMAL_VALUE, parseOk("unicode-bidi: plaintext").get(UnicodeBidi.INFO.getName()));
+		assertSame(UnicodeBidiValue.PLAINTEXT_VALUE, parseOk("unicode-bidi: plaintext").get(UnicodeBidi.INFO.getName()));
 	}
 
 	public void testFontKerning() {

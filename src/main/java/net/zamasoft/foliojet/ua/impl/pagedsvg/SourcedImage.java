@@ -19,6 +19,13 @@ import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 final class SourcedImage extends WrappedImage {
 	final URI uri;
 
+	/**
+	 * 随伴の PDF が同じ取得元から作った絵(2026-09-03、PDF の同時出力)。PDF は
+	 * 取得元 URI で画像を重複排除し、JPEG は元のバイト列のまま埋めるので、
+	 * 従へはこちらを渡す。無ければ主の絵をそのまま。
+	 */
+	Image companion;
+
 	SourcedImage(final Image image, final URI uri) {
 		super(image);
 		this.uri = uri;

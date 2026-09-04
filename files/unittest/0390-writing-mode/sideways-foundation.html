@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>sideways typesetting foundation</title>
+<style>
+@page { size: 520pt 300pt; margin: 0 }
+html, body { margin: 0; padding: 0 }
+body { font: 16pt/20pt serif }
+.probe {
+	position: absolute;
+	top: 10pt;
+	width: 70pt;
+	height: 220pt;
+	margin: 0;
+	white-space: nowrap;
+}
+#sw_rl { left: 20pt; writing-mode: sideways-rl; text-orientation: upright }
+#sw_lr { left: 110pt; writing-mode: sideways-lr; text-orientation: sideways }
+#vertical { left: 200pt; writing-mode: vertical-rl; text-orientation: mixed }
+#sw_em { left: 310pt; writing-mode: sideways-rl; text-emphasis: filled }
+#vertical_em { left: 400pt; writing-mode: vertical-rl; text-emphasis: filled }
+</style>
+</head>
+<body>
+<p class="probe" id="sw_rl">ABC <span dir="rtl">אבג</span></p>
+<p class="probe" id="sw_lr">ABC <span dir="rtl">אבג</span></p>
+<p class="probe" id="vertical">ABC <span dir="rtl">אבג</span></p>
+<p class="probe" id="sw_em">基</p>
+<p class="probe" id="vertical_em">基</p>
+</body>
+</html>

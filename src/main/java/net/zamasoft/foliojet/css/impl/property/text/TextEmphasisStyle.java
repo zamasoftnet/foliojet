@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -57,13 +58,13 @@ public class TextEmphasisStyle extends AbstractPrimitivePropertyInfo {
 
 	public Value getComputedValue(Value value, CSSStyle style) {
 		if (value == AUTO_FILLED) {
-			if (BlockFlow.get(style).isVertical()) {
+			if (TypesettingMode.isVertical(BlockFlow.get(style), WritingModeVariant.get(style))) {
 				value = FILLED_SESAME;
 			} else {
 				value = FILLED_CIRCLE;
 			}
 		} else if (value == AUTO_OPEN) {
-			if (BlockFlow.get(style).isVertical()) {
+			if (TypesettingMode.isVertical(BlockFlow.get(style), WritingModeVariant.get(style))) {
 				value = OPEN_SESAME;
 			} else {
 				value = OPEN_CIRCLE;

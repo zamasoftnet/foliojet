@@ -126,12 +126,32 @@ public final class SourceReplayer {
 		// 子範囲を裸のまま scratch ページ直下へ流すと、フロート等が
 		// ページボックスに係留されようとして壊れる。元のブロックに相当する
 		// ラッパーブロックで包んで、係留文脈を通常構築と同型にする
+		final BlockParams wrapperParams = createMeasureWrapperParams(template);
+		doc.startBox(new FlowBlockBox(wrapperParams, new FlowPos()));
+		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
+		if (slice == null) {
+			// 計測はフォールバック経路を持たない(範囲は呼び出し側が
+			// 生きているうちに確定させる契約)
+			throw new IllegalStateException("measure range is not intact: [" + fromId + ", " + toId + "]");
+		}
+		drive(doc, slice);
+		doc.endBox();
+		doc.end();
+		return pg;
+	}
+
+	/** scratch 再生を包む匿名ブロックへ、元のテキスト文脈を写します。 */
+	static BlockParams createMeasureWrapperParams(final BlockParams template) {
 		final BlockParams wrapperParams = new BlockParams();
 		wrapperParams.fontStyle = template.fontStyle;
 		wrapperParams.fontManager = template.fontManager;
 		wrapperParams.lineBreakRules = template.lineBreakRules;
 		wrapperParams.flow = template.flow;
+		wrapperParams.writingModeVariant = template.writingModeVariant;
 		wrapperParams.direction = template.direction;
+		wrapperParams.unicodeBidi = template.unicodeBidi;
+		wrapperParams.paragraphBidi = template.paragraphBidi;
+		wrapperParams.bidiSemanticAlias = template.bidiSemanticAlias;
 		// ラッパー直下へ裸のテキストが流れると、そのテキスト状態は行頭で
 		// ラッパーの params から取り直される(BuilderGlyphHandler)。元
 		// ブロックのテキスト組版パラメータを写さないと autospace や
@@ -165,17 +185,7 @@ public final class SourceReplayer {
 		wrapperParams.textIndent = template.textIndent;
 		wrapperParams.lineHeight = template.lineHeight;
 		wrapperParams.firstLineStyle = template.firstLineStyle;
-		doc.startBox(new FlowBlockBox(wrapperParams, new FlowPos()));
-		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
-		if (slice == null) {
-			// 計測はフォールバック経路を持たない(範囲は呼び出し側が
-			// 生きているうちに確定させる契約)
-			throw new IllegalStateException("measure range is not intact: [" + fromId + ", " + toId + "]");
-		}
-		drive(doc, slice);
-		doc.endBox();
-		doc.end();
-		return pg;
+		return wrapperParams;
 	}
 
 	/**

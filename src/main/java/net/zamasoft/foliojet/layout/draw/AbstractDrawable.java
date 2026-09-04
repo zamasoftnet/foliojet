@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.layout.util.ApproximationGC;
 import net.zamasoft.foliojet.layout.util.FilterGC;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
-import net.zamasoft.pdfg2d.gc.GroupEffects;
 import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
@@ -27,11 +26,10 @@ public abstract class AbstractDrawable implements Drawable {
 	 */
 	protected net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 	/**
-	 * {@code filter}(2026-08-29)。出力先が層へのフィルタ合成
-	 * ({@link GC.Capability#GROUP_FILTER})を持てばこの描画要素を1つの層に
-	 * して{@link GroupEffects}で掛け、持たなければ塗りと画像を
-	 * すり替える{@link FilterGC}で描画命令ごとに掛ける近似
-	 * (Filter/FilterValue参照)。{@link #withFilter}で設定する。
+	 * {@code filter}(2026-08-29)。要素全体の効果は{@link Drawer}が層に
+	 * まとめる。層を持てない描画要素では、塗りと画像をすり替える
+	 * {@link FilterGC}で描画命令ごとに掛ける近似へ戻す。
+	 * {@link #withFilter}で設定する。
 	 */
 	protected FilterValue filter = FilterValue.NONE;
 
@@ -53,6 +51,13 @@ public abstract class AbstractDrawable implements Drawable {
 	public final AbstractDrawable withFilter(final FilterValue filter) {
 		this.filter = filter == null ? FilterValue.NONE : filter;
 		return this;
+	}
+
+	/** Whether this drawable's main pass is redirected to its own output stream. */
+	final boolean createsOwnGroup(final GC gc, final java.util.Set<FilterValue> groupedFilters) {
+		final FilterValue f = this.filter.excluding(groupedFilters);
+		final boolean blendGroup = this.blendMode != gc.getBlendMode() && gc.supports(GC.Capability.BLEND_GROUP);
+		return blendGroup || this.opacity * f.opacity != 1f;
 	}
 
 	/**
@@ -95,22 +100,8 @@ public abstract class AbstractDrawable implements Drawable {
 				b.getHeight());
 	}
 
-	/**
-	 * この描画要素のfilterを、層にまとめてから{@link GroupEffects}で
-	 * 掛けられるか(2026-08-29)。色行列・ぼかし・落とし影のそれぞれに
-	 * 出力先の対応が要る——どれか欠ければ全部を描画命令ごとの近似に
-	 * 落とす(混ぜると順序が崩れる)。
-	 */
-	private boolean groupFilterSupported(final GC gc) {
-		final FilterValue f = this.filter;
-		if (!f.hasColorOps() && f.shadow == null) {
-			return false;
-		}
-		return gc.supports(GC.Capability.GROUP_FILTER) && (f.blur <= 0 || gc.supports(GC.Capability.GAUSSIAN_BLUR))
-				&& (f.shadow == null || gc.supports(GC.Capability.DROP_SHADOW));
-	}
-
 	public final void draw(GC gc, double x, double y) throws GraphicsException {
+		final FilterValue f = FilterScope.effective(gc, this.filter);
 		GC.State state = null;
 		if (this.clip != null || !this.transform.isIdentity()) {
 			state = gc.begin();
@@ -136,9 +127,8 @@ public abstract class AbstractDrawable implements Drawable {
 
 		// filter: opacity()はグループ不透明度に掛ける(仕様の順序は
 		// filter→opacityだが、どちらも同じグループへの掛け算なので同じ)
-		final float opacity = this.opacity * this.filter.opacity;
-		final boolean groupFilter = this.groupFilterSupported(gc);
-		if (!groupFilter && (this.filter.hasColorOps() || this.filter.shadow != null)) {
+		final float opacity = this.opacity * f.opacity;
+		if (f.needsGroup()) {
 			ApproximationGC.report(gc, "filter", "2822.per-drawable");
 		}
 
@@ -146,8 +136,8 @@ public abstract class AbstractDrawable implements Drawable {
 		final GC xgc;
 		final GroupImageGC ggc;
 		float alpha = gc.getFillAlpha();
-		if (groupFilter || blendGroup || opacity != 1f) {
-			// 透明化開始(層にまとめる。filter/blendの厳密経路も同じ層を使う)
+		if (blendGroup || opacity != 1f) {
+			// 透明化開始(層にまとめる)
 			xgc = gc;
 			ggc = gc.createGroupImage(this.pageBox.getWidth(), this.pageBox.getHeight());
 			gc = ggc;
@@ -157,22 +147,7 @@ public abstract class AbstractDrawable implements Drawable {
 		}
 		/* NoAndroid end */
 
-		if (groupFilter) {
-			// 厳密: 内容をそのまま層へ描き、色行列→ぼかし→落とし影→
-			// 不透明度をまとめて掛ける
-			this.innerDraw(gc, x, y);
-		} else {
-			// drop-shadow()は内容の下、色変換の外(影の色は指定どおり)
-			if (this.filter.shadow != null) {
-				this.drawFilterShadow(gc, x, y);
-			}
-			if (this.filter.hasColorOps()) {
-				// 色行列・ぼかしは塗りと画像をすり替えるGCで内容全体に掛ける
-				this.innerDraw(new FilterGC(gc, this.filter), x, y);
-			} else {
-				this.innerDraw(gc, x, y);
-			}
-		}
+		this.drawFilterApproximation(gc, x, y, f);
 
 		/* NoAndroid begin */
 		if (ggc != null) {
@@ -181,16 +156,9 @@ public abstract class AbstractDrawable implements Drawable {
 			if (blendGroup) {
 				xgc.setBlendMode(this.blendMode);
 			}
-			if (groupFilter) {
-				final FilterValue f = this.filter;
-				final GroupEffects.DropShadow shadow = f.shadow == null ? null
-						: new GroupEffects.DropShadow(f.shadow.x(), f.shadow.y(), f.shadow.blur() / 2, f.shadow.color());
-				xgc.drawImage(gi, new GroupEffects(f.matrix, f.blur, shadow, opacity));
-			} else {
-				xgc.setFillAlpha(opacity);
-				xgc.drawImage(gi);
-				xgc.setFillAlpha(alpha);
-			}
+			xgc.setFillAlpha(opacity);
+			xgc.drawImage(gi);
+			xgc.setFillAlpha(alpha);
 			gc = xgc;
 		} else {
 			gc.setFillAlpha(alpha);
@@ -205,13 +173,29 @@ public abstract class AbstractDrawable implements Drawable {
 		}
 	}
 
+	/** filterを描画命令ごとに掛ける従来の近似経路。 */
+	private void drawFilterApproximation(final GC gc, final double x, final double y, final FilterValue f)
+			throws GraphicsException {
+		// drop-shadow()は内容の下、色変換の外(影の色は指定どおり)
+		if (f.shadow != null) {
+			this.drawFilterShadow(gc, x, y, f.shadow);
+		}
+		if (f.hasColorOps()) {
+			// 色行列・ぼかしは塗りと画像をすり替えるGCで内容全体に掛ける
+			this.innerDraw(new FilterGC(gc, f), x, y);
+		} else {
+			this.innerDraw(gc, x, y);
+		}
+	}
+
 	/**
 	 * {@code filter: drop-shadow()}の影を描きます(内容の前に呼ばれる。
 	 * 出力先が層への落とし影を持つときは呼ばれない)。
 	 * 既定は何もしない——形を知る具象クラス(枠・置換要素)が上書きする。
 	 * 文字列の描画要素には効かない({@code text-shadow}を使うこと、記録済み)。
 	 */
-	protected void drawFilterShadow(final GC gc, final double x, final double y) throws GraphicsException {
+	protected void drawFilterShadow(final GC gc, final double x, final double y,
+			final FilterValue.DropShadow shadow) throws GraphicsException {
 		// no-op
 	}
 

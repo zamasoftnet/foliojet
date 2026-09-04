@@ -42,6 +42,88 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 
 	private final PagedSVGResources.PageData page;
 
+	/**
+	 * 段落 bidi の論理行 scope({@link #beginTextReplacement})。視覚順の leaf を描いている間だけ
+	 * 非 null。最初の leaf にだけ論理文字列の aria-label/data-copper-text を付け、後続は
+	 * aria-hidden、TextRun は行全体の union を閉じるときに 1 つ(bidi-logical-output-spike.md §4)。
+	 */
+	private LineReplacement replacement;
+
+	private static final class LineReplacement {
+		final String logicalText;
+		boolean labelled;
+		String font;
+		double fontSize;
+		AffineTransform transform;
+		double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+
+		LineReplacement(final String logicalText) {
+			this.logicalText = logicalText;
+		}
+	}
+
+	@Override
+	public State beginTextReplacement(final String logicalText) throws GraphicsException {
+		if (this.replacement != null || logicalText == null) {
+			return NO_OP_STATE;
+		}
+		final LineReplacement scope = new LineReplacement(logicalText);
+		this.replacement = scope;
+		return () -> {
+			this.replacement = null;
+			if (scope.font != null) {
+				this.page.textRuns.add(new PagedSVGResources.TextRun(scope.logicalText, scope.font, scope.fontSize,
+						scope.transform, scope.minX, scope.minY, scope.maxX, scope.maxY));
+			}
+		};
+	}
+
+	/**
+	 * 文字要素の意味属性。scope 外では従来どおり({@code defaultLabel} のときだけ role/aria-label/
+	 * data-copper-text)。scope 内では最初の leaf に論理文字列、後続は aria-hidden。
+	 */
+	private void writeSemanticAttributes(final SVGWriter w, final String sourceText, final boolean defaultLabel)
+			throws IOException {
+		final LineReplacement scope = this.replacement;
+		if (scope == null) {
+			if (defaultLabel) {
+				w.attr("role", "img");
+				w.attr("aria-label", sourceText);
+				w.attr("data-copper-text", sourceText);
+			}
+			return;
+		}
+		if (!scope.labelled) {
+			scope.labelled = true;
+			w.attr("role", "img");
+			w.attr("aria-label", scope.logicalText);
+			w.attr("data-copper-text", scope.logicalText);
+		} else {
+			w.attr("aria-hidden", "true");
+		}
+	}
+
+	/** TextRun の記録。scope 内では union だけ育て、閉じるときに 1 つ出す。 */
+	private void recordTextRun(final String text, final String font, final double size, final double minX,
+			final double minY, final double maxX, final double maxY) {
+		final LineReplacement scope = this.replacement;
+		if (scope == null) {
+			this.page.textRuns.add(new PagedSVGResources.TextRun(text, font, size,
+					new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY));
+			return;
+		}
+		if (scope.font == null) {
+			scope.font = font;
+			scope.fontSize = size;
+			scope.transform = new AffineTransform(this.currentTransform());
+		}
+		scope.minX = Math.min(scope.minX, minX);
+		scope.minY = Math.min(scope.minY, minY);
+		scope.maxX = Math.max(scope.maxX, maxX);
+		scope.maxY = Math.max(scope.maxY, maxY);
+	}
+
 	DirectPagedSVGGC(final SVGWriter writer, final FontManager fonts, final PagedSVGResources resources,
 			final PagedSVGResources.PageData page) {
 		super(writer, fonts);
@@ -456,9 +538,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			w.attr("font-variant-ligatures", "none");
 			w.attr("font-feature-settings", "'kern' 0, 'liga' 0");
 			w.attr("text-rendering", "geometricPrecision");
-			w.attr("role", "img");
-			w.attr("aria-label", sourceText);
-			w.attr("data-copper-text", sourceText);
+			this.writeSemanticAttributes(w, sourceText, true);
 			this.writeTextPaint(w, style, source);
 			w.closeStart();
 			w.text(chars.toString());
@@ -467,8 +547,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			throw new GraphicsException(e);
 		}
 
-		this.page.textRuns.add(new PagedSVGResources.TextRun(sourceText, subset.family(), size,
-				new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY));
+		this.recordTextRun(sourceText, subset.family(), size, minX, minY, maxX, maxY);
 	}
 
 	/**
@@ -558,6 +637,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			w.attr("font-variant-ligatures", "none");
 			w.attr("font-feature-settings", "'kern' 0, 'liga' 0");
 			w.attr("text-rendering", "geometricPrecision");
+			this.writeSemanticAttributes(w, value, false);
 			this.writeTextPaint(w, style, text.getFontMetrics().getFontSource());
 			w.closeStart();
 			w.text(value);
@@ -565,8 +645,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		}
-		this.page.textRuns.add(new PagedSVGResources.TextRun(value, family, size,
-				new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY));
+		this.recordTextRun(value, family, size, minX, minY, maxX, maxY);
 	}
 
 	/**
@@ -581,8 +660,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 
 	private void recordText(final Text text, final String value, final String font, final double x, final double y) {
 		final double size = text.getFontStyle().getSize();
-		this.page.textRuns.add(new PagedSVGResources.TextRun(value, font, size,
-				new AffineTransform(this.currentTransform()), x, y - size, x + size * value.length(), y));
+		this.recordTextRun(value, font, size, x, y - size, x + size * value.length(), y);
 	}
 
 	/**

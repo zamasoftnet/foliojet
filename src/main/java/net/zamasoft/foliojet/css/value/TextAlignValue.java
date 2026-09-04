@@ -16,6 +16,8 @@ public enum TextAlignValue implements Value {
 
 	END_VALUE(TextAlignValue.END),
 
+	MATCH_PARENT_VALUE(TextAlignValue.MATCH_PARENT),
+
 	X_JUSTIFY_CENTER_VALUE(TextAlignValue.X_JUSTIFY_CENTER);
 	public static final byte LEFT = 1;
 
@@ -28,6 +30,8 @@ public enum TextAlignValue implements Value {
 	public static final byte START = 5;
 
 	public static final byte END = 6;
+
+	public static final byte MATCH_PARENT = 7;
 
 	public static final byte X_JUSTIFY_CENTER = 101;
 
@@ -60,6 +64,9 @@ public enum TextAlignValue implements Value {
 
 		case END:
 			return "end";
+
+		case MATCH_PARENT:
+			return "match-parent";
 
 		case X_JUSTIFY_CENTER:
 			return "-cssj-justify-center";

@@ -4,12 +4,8 @@ import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
-import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -65,14 +61,13 @@ import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlCellPadding;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlTableBorder;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.ImageMap.Area;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputBrokenImage;
 import net.zamasoft.foliojet.ua.props.OutputPdfVersion;
 import net.zamasoft.foliojet.ua.props.UAProps;
-import net.zamasoft.zstream.resolver.Source;
-import net.zamasoft.zstream.resolver.util.SourceWrapper;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.util.NumberUtils;
@@ -89,8 +84,6 @@ import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.CompatibleMode;
 public class HTMLStyle {
-	private static final Logger LOG = Logger.getLogger(HTMLStyle.class.getName());
-
 	private static final RelativeLengthValue EX_20 = RelativeLengthValue.ex(20);
 	private static final RelativeLengthValue EM_4 = RelativeLengthValue.em(4);
 	private static final RelativeLengthValue EM_1_12 = RelativeLengthValue.em(1.12);
@@ -365,36 +358,12 @@ public class HTMLStyle {
 			boolean fallbackContent) {
 		if (src != null) {
 			final UserAgent ua = style.getUserAgent();
-			final URI uri;
-			try {
-				uri = URIHelper.resolve(ua.getDocumentContext().getEncoding(), ua.getDocumentContext().getBaseURI(),
-						src);
-				// 寸法しか要らないパスで既に測ってあるなら、資源を解決しない。
-				// 解決した時点で取得が起きる経路(CTIPのクライアント要求)では、
-				// ここで止めないと使わない画像を転送してしまう(2026-08-16)
-				final Image known = ua.getImageMetrics(uri);
-				if (known != null) {
-					CSSJInternalImage.setImage(style, known);
-					return;
-				}
-				final Source source = ua.resolve(uri);
-				try {
-					Source wrappedSource = new SourceWrapper(source) {
-						public String getMimeType() throws IOException {
-							return type == null ? super.getMimeType() : type;
-						}
-					};
-					final Image image = ua.getImage(uri, wrappedSource);
-					if (image != null) {
-						CSSJInternalImage.setImage(style, image);
-						return;
-					}
-				} finally {
-					ua.release(source);
-				}
-			} catch (Exception e) {
-				LOG.log(Level.FINE, "Missing image", e);
-				ua.message(MessageCodes.WARN_MISSING_IMAGE, src);
+			final Image image = ImageLoadDiagnostics.loadImage(ua, src,
+					() -> URIHelper.resolve(ua.getDocumentContext().getEncoding(),
+							ua.getDocumentContext().getBaseURI(), src), type, true);
+			if (image != null) {
+				CSSJInternalImage.setImage(style, image);
+				return;
 			}
 			HTMLStyle.applyBrokenImage(style, alt, fallbackContent);
 			if (fallbackContent && CSSJInternalImage.getImage(style) == null) {
@@ -655,11 +624,13 @@ public class HTMLStyle {
 			String dir = ce.atts.getValue("dir");
 			if (dir != null) {
 				if (dir.equalsIgnoreCase("ltr")) {
-					style.set(UnicodeBidi.INFO, UnicodeBidiValue.EMBED_VALUE);
+					style.set(UnicodeBidi.INFO, UnicodeBidiValue.ISOLATE_VALUE);
 					style.set(Direction.INFO, DirectionValue.LTR_VALUE);
 				} else if (dir.equalsIgnoreCase("rtl")) {
-					style.set(UnicodeBidi.INFO, UnicodeBidiValue.EMBED_VALUE);
+					style.set(UnicodeBidi.INFO, UnicodeBidiValue.ISOLATE_VALUE);
 					style.set(Direction.INFO, DirectionValue.RTL_VALUE);
+				} else if (dir.equalsIgnoreCase("auto")) {
+					style.set(UnicodeBidi.INFO, UnicodeBidiValue.PLAINTEXT_VALUE);
 				} else {
 					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "*", "dir", dir);
 				}
@@ -762,8 +733,13 @@ public class HTMLStyle {
 			break;
 		// HTML5セクショニング/フローコンテンツ要素・メタデータ非表示要素の
 		// display既定値はUAデフォルトスタイルシート(html-ua.css)に移行した
-		// (2026-07-18)。BDIのみ、専用の自動方向判定(dir="auto")は先読みが
-		// 要るため対象外(継承カスケードに委ねる、CSSでは表現不要)。
+		// (2026-07-18)。
+		case HTMLCodes.BDI:
+			// dir省略時のbdiは先頭のstrong文字から方向を決める独立範囲。
+			if (ce.atts.getValue("dir") == null) {
+				style.set(UnicodeBidi.INFO, UnicodeBidiValue.PLAINTEXT_VALUE);
+			}
+			break;
 		// B/BASE: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.BASEFONT: {
 			// <BASEFONT size color face>
@@ -774,7 +750,8 @@ public class HTMLStyle {
 			break;
 		// BGSOUND: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
 		case HTMLCodes.BDO:
-			// <BDO dir> は html-ua.css へ移送済み(2026-08-03)
+			// dir属性のisolateよりbdo固有のoverrideを優先する。
+			style.set(UnicodeBidi.INFO, UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE);
 			break;
 		case HTMLCodes.BODY: {
 			// <BODY background bgproperties link -vlink -alink>

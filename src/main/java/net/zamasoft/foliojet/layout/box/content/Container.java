@@ -34,12 +34,26 @@ public interface Container {
 
 	public boolean hasFloatings();
 
+	/** この断片で、指定した通常フローが先頭ならtrue。 */
+	public default boolean isFirstFlow(final IFlowBox box) {
+		return false;
+	}
+
 	/**
 	 * 固定寸法箱の断片化で、前断片が実内容を取ったかを返します。
 	 * {@code ::before}/{@code ::after}だけの装飾は内容の消費に数えません。
 	 */
 	public default boolean hasNonDecorationContent() {
 		return this.paintsAnything();
+	}
+
+	/**
+	 * 指定した配置済みfloatだけを除き、装飾でない内容があるかを返します。
+	 * PageBoxのページフロート台帳による空ページ判定用です。
+	 */
+	public default boolean hasNonDecorationContentExcludingFloatings(
+			final java.util.Set<? extends IFloatBox> excluded) {
+		return this.hasNonDecorationContent();
 	}
 
 	public double getFirstAscent();

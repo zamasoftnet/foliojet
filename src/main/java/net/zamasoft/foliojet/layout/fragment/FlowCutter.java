@@ -337,6 +337,16 @@ public final class FlowCutter {
 		record RestartIgnoringAvoid(int nextIndex) implements MoveResolution {
 		}
 
+		/**
+		 * 境界のavoidを保ったまま、空のフラグメンテナにも収まらない
+		 * avoid連鎖の末尾ボックス内部を救済分割する。
+		 *
+		 * @param index         救済分割するフローのインデックス
+		 * @param fallbackIndex 救済できない場合にavoid無視で再走するインデックス
+		 */
+		record RelaxInside(int index, int fallbackIndex) implements MoveResolution {
+		}
+
 		/** ブロック間の改ページ禁止による押し戻し。 */
 		record Pushback(int resumeIndex, double newPageLimit) implements MoveResolution {
 		}
@@ -361,8 +371,11 @@ public final class FlowCutter {
 	 * @param index        現在のフローインデックス
 	 * @param lastOrphan   切断線以下に収まる最後のフローの直後のインデックス
 	 * @param ignoreAvoid  改ページ禁止無視の再走中か
+	 * @param relaxInsideIndex avoid連鎖を保つため内部を緩和できる末尾ボックスの
+	 *                         インデックス(なければ-1)
 	 * @param prevPageSize 調整前の切断線(終端行動の実行に使う)
 	 * @param pageLimit    現在の切断線(pushback判定に使う)
+	 * @param fragmentCapacity 空のフラグメンテナのページ方向容量
 	 * @param flowPageStarts    {@link #avoidPushback}に渡す計測値
 	 * @param flowPageExtents   同上
 	 * @param avoidBefore       同上
@@ -374,7 +387,8 @@ public final class FlowCutter {
 	 * @return 解決結果
 	 */
 	public static MoveResolution resolveMove(final byte positionMask, final byte outerFlags, final int index,
-			final int lastOrphan, final boolean ignoreAvoid, final double prevPageSize, final double pageLimit,
+			final int lastOrphan, final boolean ignoreAvoid, final int relaxInsideIndex, final double prevPageSize,
+			final double pageLimit, final double fragmentCapacity,
 			final double[] flowPageStarts, final double[] flowPageExtents, final boolean[] avoidBefore,
 			final boolean[] avoidAfter, final double[] flowPageEndFrames, final double[] floatPageStarts,
 			final double[] floatPageExtents, final boolean[] floatUncut) {
@@ -387,7 +401,14 @@ public final class FlowCutter {
 			if ((outerFlags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 				// ページの先頭
 				if (index < lastOrphan) {
-					// 改ページ禁止を無視する
+					// 最後の手段では境界avoidより先に、空のfragmentainerにも
+					// 収まらない連鎖の末尾ボックスのbreak-insideを緩和する
+					if (relaxInsideIndex == lastOrphan
+							&& avoidChainExceedsCapacity(index, relaxInsideIndex, fragmentCapacity, flowPageStarts,
+									flowPageExtents)) {
+						return new MoveResolution.RelaxInside(relaxInsideIndex, lastOrphan);
+					}
+					// 通常は改ページ禁止を無視する
 					return new MoveResolution.RestartIgnoringAvoid(lastOrphan);
 				}
 				if ((outerFlags & IPageBreakableBox.FLAGS_LAST) != 0) {
@@ -432,6 +453,18 @@ public final class FlowCutter {
 			}
 		}
 		return new MoveResolution.Partition();
+	}
+
+	/** 空のフラグメンテナに移してもavoid連鎖全体が収まらないかを判定します。 */
+	private static boolean avoidChainExceedsCapacity(final int firstIndex, final int lastIndex,
+			final double fragmentCapacity, final double[] flowPageStarts, final double[] flowPageExtents) {
+		if (!(fragmentCapacity > 0) || firstIndex < 0 || lastIndex < firstIndex
+				|| lastIndex >= flowPageStarts.length || lastIndex >= flowPageExtents.length) {
+			return false;
+		}
+		final double chainExtent = flowPageStarts[lastIndex] + flowPageExtents[lastIndex]
+				- flowPageStarts[firstIndex];
+		return LayoutUtils.compare(chainExtent, fragmentCapacity) > 0;
 	}
 
 	/**

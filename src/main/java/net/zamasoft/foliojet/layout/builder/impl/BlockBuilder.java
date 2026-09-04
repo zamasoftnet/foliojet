@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.content.BreakToken;
+import net.zamasoft.foliojet.layout.box.content.FloatMeasurement;
 
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
@@ -78,6 +79,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected List<Flow> flowStack = null;
 
 	protected TextBuilder textBuilder = null;
+
+	/** 有効時だけ生成する、container 所有の段落イベント queue。 */
+	private net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session bidiParagraph;
 
 	/**
 	 * 上流の {@code GlyphHandler} で現在開いているテキストランです。
@@ -363,6 +367,58 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 */
 	public RootBuilder getPageContext() {
 		return this.layoutStack == null ? null : this.layoutStack.getPageContext();
+	}
+
+	final boolean paragraphBidiEnabled() {
+		return this.getFlowBox().getBlockParams().paragraphBidi;
+	}
+
+	final void noteBidiLine(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox block,
+			final net.zamasoft.foliojet.layout.box.AbstractLineBox line) {
+		if (!this.paragraphBidiEnabled()) {
+			return;
+		}
+		if (this.bidiParagraph == null) {
+			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
+		}
+		this.bidiParagraph.line(block, line);
+	}
+
+	final void seedBidiReplayPrefix(
+			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix prefix) {
+		if (!this.paragraphBidiEnabled() || prefix.isEmpty()) {
+			return;
+		}
+		if (this.bidiParagraph == null) {
+			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
+		}
+		this.bidiParagraph.replayPrefix(prefix);
+	}
+
+	/** float/absolute/bound などの外側の順序境界を段落 queue へ残す。 */
+	public final void noteBidiBarrier(final Object payload) {
+		if (!this.paragraphBidiEnabled()) {
+			return;
+		}
+		if (this.bidiParagraph == null) {
+			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
+		}
+		this.bidiParagraph.barrier(payload);
+	}
+
+	final void resolveBidiParagraph(final BlockParams params) {
+		if (this.bidiParagraph == null) {
+			return;
+		}
+		this.bidiParagraph.resolve(params);
+		this.bidiParagraph = null;
+	}
+
+	/** 改ページは段落終端にせず、確定ページの描画用 tree だけ先行生成する。 */
+	final void previewBidiParagraph(final BlockParams params) {
+		if (this.bidiParagraph != null) {
+			this.bidiParagraph.preview(params);
+		}
 	}
 
 	/**
@@ -676,14 +732,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// shape-outside(2026-08-29)の解決に要る文脈。書字方向は根ボックス、
 		// shape-marginの%基準は包含ブロックの行方向幅。台帳が変わらない限り
 		// キャッシュに乗るので、行ごとに形状を作り直すことはない
-		final WritingMode progression = this.getRootBox().getBlockParams().flow;
+		final BlockParams rootParams = this.getRootBox().getBlockParams();
+		final WritingMode progression = rootParams.flow;
 		final double containingLineSize = this.getFlowBox().getLineSize();
 		for (int i = 0; i < count; ++i) {
 			final LayoutContext.Floating floating = this.getFloating(i);
 			final FloatPos floatingPos = floating.box.getFloatPos();
 			final net.zamasoft.foliojet.layout.constraint.ExclusionShape shape = floatingPos.shapeOutside == null
 					? null
-					: FloatShapeResolver.resolve(floating.box, floating.lineStart, floating.pageStart, progression,
+					: FloatShapeResolver.resolve(floating.box, floating.lineStart, floating.pageStart, rootParams,
 							containingLineSize);
 			exclusions.add(new FloatExclusion(i, floatingPos.floating,
 					new AxisSpan(floating.pageStart, floating.pageEnd),
@@ -693,6 +750,75 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.cachedExclusions = snapshot;
 		this.cachedExclusionsGeneration = this.floatingsGeneration;
 		return snapshot;
+	}
+
+	/**
+	 * 行組み用に通常フロートとページフロートを別々に走査し、共通の
+	 * 利用可能帯へ合成します。
+	 *
+	 * <p>
+	 * bottomページフロートは現在位置より未来から始まるため、通常floatの
+	 * 「最初の未来開始で打ち切る」スナップショットへ混ぜない。通常集合は
+	 * 従来の{@link ExclusionSpace#scanLineBand}、ページ集合だけは全件走査し、
+	 * lineStartの最大、lineEndとmaxPageSizeの最小を採る。clear、BFC回避、
+	 * 通常float配置は従来どおり{@link #snapshotExclusions()}だけを見る。
+	 * </p>
+	 */
+	final ExclusionSpace.LineScan scanLineBandForLineLayout(final double pageStart, final double lineHeight,
+			final double lineStart0, final double lineEnd0) {
+		final ExclusionSpace ordinarySpace = this.snapshotExclusions();
+		final ExclusionSpace.LineScan ordinary = ordinarySpace.scanLineBand(pageStart, lineHeight, lineStart0,
+				lineEnd0);
+		final ExclusionSpace pageSpace = this.pageFloatExclusionsForLineLayout();
+		if (pageSpace.isEmpty()) {
+			// 通常floatだけの文書は結果オブジェクトも含め従来経路をそのまま返す。
+			return ordinary;
+		}
+		final ExclusionSpace.LineScan page = pageSpace.scanLineBandFully(pageStart, lineHeight, lineStart0, lineEnd0);
+		final int startOrder = LayoutUtils.compare(page.lineStart(), ordinary.lineStart());
+		final int endOrder = LayoutUtils.compare(page.lineEnd(), ordinary.lineEnd());
+		final boolean maxPageSizeSet = ordinary.maxPageSizeSet() || page.maxPageSizeSet();
+		final double maxPageSize;
+		if (!ordinary.maxPageSizeSet()) {
+			maxPageSize = page.maxPageSize();
+		} else if (!page.maxPageSizeSet()) {
+			maxPageSize = ordinary.maxPageSize();
+		} else {
+			maxPageSize = Math.min(ordinary.maxPageSize(), page.maxPageSize());
+		}
+		return new ExclusionSpace.LineScan(
+				startOrder > 0 ? page.startExclusion()
+						: startOrder < 0 ? ordinary.startExclusion()
+								: laterEnding(ordinary.startExclusion(), page.startExclusion()),
+				endOrder < 0 ? page.endExclusion()
+						: endOrder > 0 ? ordinary.endExclusion()
+								: laterEnding(ordinary.endExclusion(), page.endExclusion()),
+				Math.max(ordinary.lineStart(), page.lineStart()), Math.min(ordinary.lineEnd(), page.lineEnd()),
+				maxPageSizeSet, maxPageSize);
+	}
+
+	/** 同じ行境界を作る排除域のうち、境界が最後まで残る方を返す。 */
+	private static FloatExclusion laterEnding(final FloatExclusion a, final FloatExclusion b) {
+		if (a == null) {
+			return b;
+		}
+		if (b == null) {
+			return a;
+		}
+		final int endOrder = Double.compare(a.pageSpan().end(), b.pageSpan().end());
+		if (endOrder != 0) {
+			return endOrder > 0 ? a : b;
+		}
+		return a.order() >= b.order() ? a : b;
+	}
+
+	final boolean hasLineExclusions() {
+		return !this.snapshotExclusions().isEmpty() || !this.pageFloatExclusionsForLineLayout().isEmpty();
+	}
+
+	/** Root座標の行組みだけが別走査するページフロート排除域。 */
+	protected ExclusionSpace pageFloatExclusionsForLineLayout() {
+		return ExclusionSpace.EMPTY;
 	}
 
 	public void endFlowBlock() {
@@ -881,6 +1007,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null) {
 			this.textSession.abortToLegacy();
 		}
+		this.noteBidiBarrier(box);
 		switch (box.getPos().getType()) {
 		case FLOW:
 		case TABLE: {
@@ -1249,7 +1376,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double lineOffset = delta.lineSpan().start();
 		final double pageStart = delta.pageSpan().start();
 		final Flow flow = this.getFlow();
-		flow.box.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis);
+		final boolean forceMoveFromBottomBand = delta.kind() == FloatCommitKind.MOVE_TO_NEXT
+				&& this instanceof RootBuilder root && root.hasTwoDimensionalBottomFloatLimit();
+		if (forceMoveFromBottomBand
+				&& flow.box.getContainer() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer container) {
+			container.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis, true);
+		} else {
+			flow.box.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis);
+		}
 		if (delta.kind() == FloatCommitKind.MOVE_BY_CLEAR) {
 			// clear先送りは現行のroot-only extent規則を保存する(通常の
 			// extendParentsと同じではない——ネスト中は親extentを更新しない。
@@ -1262,6 +1396,20 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (delta.kind() != FloatCommitKind.MOVE_TO_NEXT) {
 			final WritingMode progression = this.getRootBox().getBlockParams().flow;
 			this.addFloating(new LayoutContext.Floating(delta.box(), lineOffset, pageStart, progression));
+		}
+		// 2026-09-04: 配置を確定するこの一か所からだけatomic floorを通知する。
+		if ((delta.kind() == FloatCommitKind.PLACED || delta.kind() == FloatCommitKind.SPLIT_AT_BREAK)
+				&& this instanceof RootBuilder root) {
+			final WritingMode ownerFlow = flow.box.getBlockParams().flow;
+			final boolean first = root.isFloatAtFragmentStart(pageStart);
+			final BoxType boxType = delta.box().getType();
+			final net.zamasoft.foliojet.layout.box.params.PageBreakMode pageBreakInside = boxType == BoxType.BLOCK
+					? ((AbstractContainerBox) delta.box()).getBlockParams().pageBreakInside
+					: null;
+			if (FloatMeasurement.isUnsplittable(boxType,
+					FloatMeasurement.sameWritingAxis(ownerFlow, delta.box()), pageBreakInside, first)) {
+				root.reportAtomicFloatPlacement(delta.box(), ownerFlow, pageStart);
+			}
 		}
 		// 上位ボックスの幅の拡張
 		this.extendParents(pageStart, delta.pageSpan().extent());
@@ -1340,14 +1488,18 @@ public class BlockBuilder implements Builder, LayoutContext {
 			lineEnd = found.lineEnd();
 		}
 		final double lineOffset = lineEnd - lineWidth;
-		// 現在行の既存内容(textIndent+確定・未確定アドバンス)がフロートの
-		// 手前に収まるなら、行の使用可能幅をその場で狭める
-		if (!this.textBuilder.narrowCurrentLine(lineOffset)) {
-			return false;
+		// 2026-09-04: MOVE_TO_NEXTの行を狭めて跡地を残さないよう、先に分類する。
+		final FloatCommitKind kind = this.classifyFloatPlacement(box, lineTop);
+		if (kind == FloatCommitKind.PLACED || kind == FloatCommitKind.SPLIT_AT_BREAK) {
+			// 実際に現断片へ残す場合だけ、現在行の既存内容
+			// (textIndent+確定・未確定アドバンス)の手前へ狭める。
+			if (!this.textBuilder.narrowCurrentLine(lineOffset)) {
+				return false;
+			}
 		}
 		this.commitFloatPlacement(new FloatPlacementDelta(box, FloatSide.END,
 				new AxisSpan(lineOffset, lineOffset + lineWidth), new AxisSpan(lineTop, lineTop + pageWidth),
-				this.classifyFloatPlacement(box, lineTop)));
+				kind));
 		if (this.floatings != null) {
 			// 台帳の底辺昇順を回復する(addFloating(IFloatBox)と同じ。
 			// 現在行の上端は既存フロートの底辺より上のことがある)

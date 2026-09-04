@@ -122,6 +122,17 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		return (GridParams) this.params;
 	}
 
+	/**
+	 * row subgridが親から受けた使用寸法を、作者指定のheight/min/max-height・
+	 * aspect-ratioに拘束されず正確に設定します(2026-09-03)。
+	 */
+	public final void setExactUsedPageSize(final double pageSize) {
+		this.restoreContentExtent(Math.max(0, pageSize));
+		this.minPageAxis = 0;
+		this.maxPageAxis = Double.MAX_VALUE;
+		this.specifiedPageAxis = false;
+	}
+
 	/** 解決済み列トラックを記録します({@code GridBuilder.bind}、2026-08-29)。 */
 	public final void setResolvedColumnTracks(final double[] widths, final double columnGap) {
 		this.resolvedColumnWidths = widths.clone();

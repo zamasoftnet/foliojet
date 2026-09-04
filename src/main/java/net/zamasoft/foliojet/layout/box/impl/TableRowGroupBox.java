@@ -46,6 +46,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	private static final boolean DEBUG = false;
 
 	protected final TableRowGroupPos pos;
+	private Drawer pendingDrawer = null;
 
 	protected List<TableRowBox> rows = null;
 
@@ -124,6 +125,12 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.params.opacity == 0) {
 			return;
 		}
+		if (this.params.isStackingContext()) {
+			final Drawer newDrawer = new Drawer(this.params, transform);
+			drawer.visitDrawer(newDrawer);
+			drawer = newDrawer;
+			this.pendingDrawer = newDrawer;
+		}
 		if (this.params.background.isVisible()) {
 			Drawable drawable = new BackgroundBorderDrawable(pageBox, clip, this.params.opacity, transform,
 					this.params.background, this.params.border, null, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
@@ -181,9 +188,14 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			return;
 		}
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(params.zIndexValue);
-			drawer.visitDrawer(newDrawer);
-			drawer = newDrawer;
+			if (this.pendingDrawer != null) {
+				drawer = this.pendingDrawer;
+				this.pendingDrawer = null;
+			} else {
+				final Drawer newDrawer = new Drawer(params, transform);
+				drawer.visitDrawer(newDrawer);
+				drawer = newDrawer;
+			}
 		}
 		if (DEBUG) {
 			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(.7f, .7f, 1));

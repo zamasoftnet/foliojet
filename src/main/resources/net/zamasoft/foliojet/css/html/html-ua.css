@@ -509,8 +509,13 @@ br[clear=all], br[clear=both] { clear: both; }
 br[clear=left]  { clear: left; }
 br[clear=right] { clear: right; }
 
-bdo[dir=ltr] { unicode-bidi: bidi-override; direction: ltr; }
-bdo[dir=rtl] { unicode-bidi: bidi-override; direction: rtl; }
+/* HTML の描画節(15.3.x): dir は isolate、dir=auto と bdi は plaintext、bdo は isolate-override
+   (2026-09-04、段落 UBA の既定 ON に合わせて embed/bidi-override から改めた) */
+[dir] { unicode-bidi: isolate; }
+[dir=auto], bdi { unicode-bidi: plaintext; }
+bdo, bdo[dir] { unicode-bidi: isolate-override; }
+bdo[dir=ltr] { direction: ltr; }
+bdo[dir=rtl] { direction: rtl; }
 
 /* CAPTION: 既定は下側への改ページ回避。align/valign=bottom で表の下へ */
 caption { page-break-after: avoid; }

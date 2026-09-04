@@ -18,8 +18,7 @@ drawer z=0
   x=112.50 y=135.00 Text["center" asc=7.89 desc=2.91]
   x=0.00 y=250.38 Text["AVAWAY" asc=7.89 desc=2.91]
   x=41.01 y=250.38 Text["Tokyo" asc=7.89 desc=2.91]
-  x=0.00 y=271.41 Text["abc" asc=7.74 desc=2.17]
-  x=17.01 y=271.26 Text["def" asc=7.89 desc=2.91]
+  x=0.00 y=271.41 text logical="abc def" visual="abc def"
   x=0.75 y=292.89 Text["one" asc=7.89 desc=2.91]
   x=18.26 y=292.89 Text["two" asc=7.89 desc=2.91]
   x=34.86 y=292.89 Text["three" asc=7.89 desc=2.91]

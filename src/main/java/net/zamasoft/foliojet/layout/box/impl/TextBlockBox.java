@@ -443,7 +443,17 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			// slice+breakToken だけを運ぶ(切断は live、運搬は不変、
 			// 再開で再構築 — grok 裁定 docs/consult-p3-resplit-grok.txt。
 			// resume 前に残余の行・寸法を読む経路はない)
-			nextTextBlock.slice = nextTextBlock.recordSlice();
+			final AbstractLineBox firstLine = ((Line) this.lines.get(0)).box;
+			net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiPrefix =
+					net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix.EMPTY;
+			if (firstLine.isParagraphBidiEnabled()) {
+				final List<AbstractLineBox> bidiPrefixLines = new ArrayList<>();
+				for (int i = 0; i <= lastLine; ++i) {
+					bidiPrefixLines.add(((Line) this.lines.get(i)).box);
+				}
+				bidiPrefix = firstLine.getBidiReplayPrefix().append(bidiPrefixLines);
+			}
+			nextTextBlock.slice = nextTextBlock.recordSlice(bidiPrefix);
 			nextTextBlock.lines.clear();
 			return new SplitResult.Split(nextTextBlock);
 		}
@@ -488,6 +498,15 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * BuilderGlyphHandler へ配達するのと同一の列。
 	 */
 	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice recordSlice() {
+		final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiPrefix = this.lines.isEmpty()
+				|| !((Line) this.lines.get(0)).box.isParagraphBidiEnabled()
+				? net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix.EMPTY
+				: ((Line) this.lines.get(0)).box.getBidiReplayPrefix();
+		return this.recordSlice(bidiPrefix);
+	}
+
+	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice recordSlice(
+			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiPrefix) {
 		return net.zamasoft.foliojet.layout.fragment.TextReplaySlice.record(gh -> {
 			final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(this.params);
 			textUnitizer.setGlyphHandler(gh);
@@ -496,7 +515,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 				line.box.restyle(textUnitizer, i == 0);
 			}
 			textUnitizer.close();
-		});
+		}, bidiPrefix);
 	}
 
 	public final boolean avoidBreakAfter() {

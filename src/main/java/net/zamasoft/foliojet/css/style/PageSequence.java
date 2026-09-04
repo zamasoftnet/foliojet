@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.Declaration;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
+import net.zamasoft.foliojet.css.impl.property.box.Padding;
 import net.zamasoft.foliojet.css.impl.property.page.PageBleed;
 import net.zamasoft.foliojet.css.impl.property.page.PageMarks;
 import net.zamasoft.foliojet.css.impl.property.page.PageSize;
@@ -415,10 +416,15 @@ final class PageSequence {
 
 		// ページ箱の背景(css-page-3 §3、2026-09-01)。ページ固有の背景は
 		// PageBoxが用紙全面へ先に描き、html/bodyから昇格したcanvas背景は
-		// 通常のframe背景として余白の内側へ重ねる。枠線は今も引かない
-		// (`@page`のborderは未対応)。
+		// 通常のframe背景として余白の内側へ重ねる。
+		// 枠線と内側余白(css-page-3 §3.1、2026-09-03): `@page`のborder/paddingは
+		// 要素と同じ規則で余白の内側に取り、版面(page area)はその内側になる。
+		// 描くのはPageBox.drawFlowのframes()(要素の枠と同じ経路)
 		final Background pageBackground = BoxStyleMapper.createBackground(pageStyle);
-		params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER, this.background, Insets.NULL_INSETS);
+		final RectBorder pageBorder = BoxStyleMapper.createRectBorder(pageStyle);
+		final Insets pagePadding = BoxValueUtils.toInsets(Padding.get(pageStyle, Side.TOP),
+				Padding.get(pageStyle, Side.RIGHT), Padding.get(pageStyle, Side.BOTTOM), Padding.get(pageStyle, Side.LEFT));
+		params.frame = RectFrame.create(margin, pageBorder, this.background, pagePadding);
 
 		this.pageNumber++;
 		if (this.maxPageNumber != -1 && this.pageNumber > this.maxPageNumber) {
@@ -614,7 +620,8 @@ final class PageSequence {
 		if (gc != null) {
 			DisplayListDumper.dumpPage(drawer, this.pageNumber);
 			// 近似描画の報告経路(2822)を載せて描く(2026-08-29)
-			drawer.draw(net.zamasoft.foliojet.layout.util.ApproximationGC.wrap(gc, this.ua));
+			drawer.draw(net.zamasoft.foliojet.layout.util.ApproximationGC.wrap(gc, this.ua), pageBox.getWidth(),
+					pageBox.getHeight());
 			if (marginState != null) {
 				marginState.close();
 			}

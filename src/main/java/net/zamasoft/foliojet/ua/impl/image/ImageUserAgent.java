@@ -18,6 +18,7 @@ import javax.imageio.stream.FileCacheImageOutputStream;
 import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.results.NopResults;
 import jp.cssj.cti2.results.Results;
+import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
@@ -39,6 +40,27 @@ import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class ImageUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
+	/**
+	 * ラスタ画像出力の既定のフォント方針は<b>埋め込み</b>です(2026-09-03、
+	 * ユーザー判断。単一SVG・ページ分割SVGと同じ)。
+	 *
+	 * <p>
+	 * 共通の既定{@code cid-keyed}はPDFの外部参照CIDフォントを前提にした方針で、
+	 * 画像にはその仕組みが無い。字形データを持たないCID-keyedフォントは
+	 * AWTのシステムフォント({@code SystemCIDFont})の代替に落ち、別の面の
+	 * ヒント済み輪郭で描かれていた(単一SVGで実測: 「日」が本物より6%広く
+	 * 縦画が太い)。埋め込み方針ならpdfg2d自身の輪郭で、PDFと同じ字形になる。
+	 * 利用者が{@code output.pdf.fonts.policy}を明示した場合はそちらに従う。
+	 * </p>
+	 */
+	@Override
+	public CSSJFontPolicyValue getDefaultFontPolicy() {
+		if (this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
+			return super.getDefaultFontPolicy();
+		}
+		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
+	}
+
 	private Results results, xresults;
 	private boolean middleStateSaved = false;
 

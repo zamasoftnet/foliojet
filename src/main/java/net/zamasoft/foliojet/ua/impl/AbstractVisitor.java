@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
+import net.zamasoft.foliojet.layout.box.impl.InlineFragmentView;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.draw.Drawer;
@@ -66,6 +67,14 @@ public abstract class AbstractVisitor implements Visitor {
 			return false;
 		}
 		return true;
+	}
+
+	private static void appendSemanticText(final IBox box, final StringBuilder text) {
+		if (box instanceof InlineFragmentView fragment) {
+			fragment.appendSemanticText(text);
+		} else {
+			box.getText(text);
+		}
 	}
 
 	protected final UserAgent ua;
@@ -270,7 +279,7 @@ public abstract class AbstractVisitor implements Visitor {
 				}
 				// The link text becomes the annotation's alt description (PDF/UA).
 				final StringBuilder tb = new StringBuilder();
-				box.getText(tb);
+				appendSemanticText(box, tb);
 				String contents = tb.toString().trim();
 				this.addLink(s, uri, ce, contents.isEmpty() ? null : contents);
 			}
@@ -352,6 +361,12 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 		}
 
+		// bidi の視覚断片は各 fragment のリンク矩形を残す一方、ID・参照文字列・
+		// string-set・bookmark 等の意味副作用は論理始端を含む断片で一度だけ行う。
+		if (box instanceof InlineFragmentView fragment && !fragment.hasLineStartEdge()) {
+			return;
+		}
+
 		// フォーム部品を対話フォームフィールドとして出力
 		if (this.forms && (type == BoxType.REPLACED || type == BoxType.BLOCK) && ce.lName() != null
 				&& this.emittedControls.add(ce)) {
@@ -382,7 +397,7 @@ public abstract class AbstractVisitor implements Visitor {
 								this.ua.getDocumentContext().getBaseURI(), "#" + id);
 						// target-text()用にテキストも捕捉する
 						StringBuilder textBuff = new StringBuilder();
-						box.getText(textBuff);
+						appendSemanticText(box, textBuff);
 						String text = textBuff.length() == 0 ? null : textBuff.toString();
 						pageRef.addFragment(uri, this.getCounters(), text);
 					} catch (URISyntaxException e) {
@@ -407,7 +422,7 @@ public abstract class AbstractVisitor implements Visitor {
 						if (part == PendingStringSet.CONTENT) {
 							if (textBuff == null) {
 								textBuff = new StringBuilder();
-								box.getText(textBuff);
+								appendSemanticText(box, textBuff);
 							}
 							resolved.append(textBuff);
 						} else {
@@ -429,7 +444,7 @@ public abstract class AbstractVisitor implements Visitor {
 					SectionState state = this.ua.getPassContext().getSectionState();
 
 					StringBuilder textBuff = new StringBuilder();
-					box.getText(textBuff);
+					appendSemanticText(box, textBuff);
 					String title;
 					if (textBuff.length() == 0) {
 						title = null;

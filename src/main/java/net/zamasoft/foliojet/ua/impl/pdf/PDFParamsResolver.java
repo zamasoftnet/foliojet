@@ -354,6 +354,9 @@ final class PDFParamsResolver {
 		if (UAProps.OUTPUT_PDF_BOOKMARKS.getBoolean(ua)) {
 			params = params.withBookmarks(true);
 		}
+		if (UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(ua)) {
+			params = params.withActualTextReplacement(true);
+		}
 
 		// JPEG画像
 		switch (UAProps.OUTPUT_PDF_JPEG_IMAGE.get(ua)) {
@@ -389,6 +392,11 @@ final class PDFParamsResolver {
 		// 最大画像サイズ
 		params = params.withMaxImageWidth(UAProps.OUTPUT_PDF_IMAGE_MAX_WIDTH.getInteger(ua));
 		params = params.withMaxImageHeight(UAProps.OUTPUT_PDF_IMAGE_MAX_HEIGHT.getInteger(ua));
+
+		// box-shadow/text-shadowの影だけをラスタ化するときの解像度
+		params = params.withBlurRasterDpi(UAProps.OUTPUT_PDF_BLUR_RESOLUTION.getInteger(ua));
+		// filter付き要素だけをラスタ化するときの解像度
+		params = params.withFilterRasterDpi(UAProps.OUTPUT_PDF_FILTER_RESOLUTION.getInteger(ua));
 
 		// プラットフォームエンコーディング
 		params = params.withPlatformEncoding(UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getString(ua));

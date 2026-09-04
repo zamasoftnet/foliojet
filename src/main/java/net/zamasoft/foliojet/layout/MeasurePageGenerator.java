@@ -47,7 +47,11 @@ public final class MeasurePageGenerator implements PageGenerator {
 		params.fontManager = template.fontManager;
 		params.lineBreakRules = template.lineBreakRules;
 		params.flow = template.flow;
+		params.writingModeVariant = template.writingModeVariant;
 		params.direction = template.direction;
+		params.unicodeBidi = template.unicodeBidi;
+		params.paragraphBidi = template.paragraphBidi;
+		params.bidiSemanticAlias = template.bidiSemanticAlias;
 		params.size = Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 		this.pageParams = params;
 	}

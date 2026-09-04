@@ -52,6 +52,7 @@ public class TableCellBox extends AbstractContainerBox {
 	private static final boolean DEBUG = false;
 
 	protected final BlockParams params;
+	private Drawer pendingDrawer = null;
 
 	protected final TableCellPos pos;
 
@@ -303,10 +304,17 @@ public class TableCellBox extends AbstractContainerBox {
 		if (this.params.opacity == 0) {
 			return;
 		}
+		if (this.params.isStackingContext()) {
+			final Drawer newDrawer = new Drawer(this.params, transform);
+			drawer.visitDrawer(newDrawer);
+			drawer = newDrawer;
+			this.pendingDrawer = newDrawer;
+		}
 		x += this.offsetX;
 		y += this.offsetY;
 
 		transform = this.transform(transform, x, y);
+		drawer.adoptTransform(this.params, transform);
 
 		if (this.draw()) {
 			Drawable drawable = new TableCellBoxDrawable(clip, pageBox, this.params.opacity, transform,
@@ -374,10 +382,16 @@ public class TableCellBox extends AbstractContainerBox {
 		}
 
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(this.params.zIndexValue);
-			drawer.visitDrawer(newDrawer);
-			drawer = newDrawer;
+			if (this.pendingDrawer != null) {
+				drawer = this.pendingDrawer;
+				this.pendingDrawer = null;
+			} else {
+				final Drawer newDrawer = new Drawer(this.params, transform);
+				drawer.visitDrawer(newDrawer);
+				drawer = newDrawer;
+			}
 		}
+		drawer.adoptTransform(this.params, transform);
 		clip = this.clip(clip, x, y);
 
 		x += this.frame.getFrameLeft();

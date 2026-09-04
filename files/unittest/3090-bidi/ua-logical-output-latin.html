@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bidi logical output PDF/UA test (Latin override)</title>
+<style>
+@font-face { font-family: ua; src: url('../1080-FONT/MinionPro-Regular.otf') }
+body { font: 12pt ua }
+</style>
+</head>
+<body>
+<!-- PDF/UA-1 は .notdef 参照を禁じる(7.21.8)ので、埋め込む MinionPro に無い Hebrew 字形は使わず、
+     bidi-override の Latin で視覚順(321 CBA)と論理順(ABC 123)を分ける -->
+<p id="rtl" dir="rtl"><span style="unicode-bidi: bidi-override">ABC 123</span></p>
+</body>
+</html>

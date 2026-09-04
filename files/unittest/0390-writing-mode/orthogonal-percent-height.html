@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Percentage sizes in nested orthogonal flows</title>
+<style>
+@page { size: 280mm 220mm; margin: 10mm; }
+html, body { margin: 0; font: normal 10pt/1 sans-serif; }
+body.vertical-page { writing-mode: vertical-rl; }
+body.horizontal-page { writing-mode: horizontal-tb; }
+body.vertical-page .horizontal-suite,
+body.horizontal-page .vertical-suite { display: none; }
+figure, .level { display: block; margin: 0; }
+.horizontal, .map { writing-mode: horizontal-tb; }
+.map, .vertical-map {
+	display: block;
+	position: relative;
+	width: 60mm;
+	height: 40mm;
+}
+.map img, .vertical-map img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	max-height: none;
+}
+.mirror { writing-mode: vertical-rl; }
+.vertical-map { writing-mode: vertical-rl; }
+</style>
+</head>
+<body class="vertical-page">
+<section class="vertical-suite">
+	<!-- The first two figures are the reported one-line-difference pair. -->
+	<figure class="horizontal">
+		<div class="map"><img id="with_figure_mode" src="../red.png" alt=""></div>
+	</figure>
+	<figure>
+		<div class="map"><img id="without_figure_mode" src="../red.png" alt=""></div>
+	</figure>
+	<!-- Keep the positioned containing block below two same-mode flow boxes. -->
+	<figure class="horizontal">
+		<div class="level horizontal">
+			<div class="map"><img id="three_level" src="../red.png" alt=""></div>
+		</div>
+	</figure>
+</section>
+<section class="horizontal-suite">
+	<!-- The test reruns this fixture with a horizontal-tb page for the mirror. -->
+	<figure class="mirror">
+		<div class="level horizontal">
+			<div class="map"><img id="mirror" src="../red.png" alt=""></div>
+		</div>
+		<div class="level">
+			<div class="vertical-map"><img id="mirror_width" src="../red.png" alt=""></div>
+		</div>
+	</figure>
+</section>
+</body>
+</html>

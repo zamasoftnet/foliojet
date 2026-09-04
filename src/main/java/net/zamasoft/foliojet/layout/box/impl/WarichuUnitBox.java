@@ -15,9 +15,11 @@ import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
+import net.zamasoft.foliojet.layout.util.SidewaysGeometry;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -90,6 +92,12 @@ public final class WarichuUnitBox extends InlineBlockBox {
 
 	public static WarichuUnitBox create(final InlineParams container, final String text,
 			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd) {
+		return create(container, text, textParams, charOffset, sourceStart, sourceEnd, false);
+	}
+
+	public static WarichuUnitBox create(final InlineParams container, final String text,
+			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd,
+			final boolean paragraphBidi) {
 		if (text.isEmpty()) {
 			return null;
 		}
@@ -103,8 +111,9 @@ public final class WarichuUnitBox extends InlineBlockBox {
 				srcFs.getWeight(), srcFs.getDirection(), srcFs.getPolicy(), srcFs.getFeatures(),
 				srcFs.getSynthesisWeight(), srcFs.getSynthesisStyle(), srcFs.getTextOrientation(),
 				srcFs.getWidthClass());
-		final TextImpl[] firstTexts = shape(tp, smallFs, first, charOffset);
-		final TextImpl[] secondTexts = shape(tp, smallFs, second, charOffset < 0 ? -1 : charOffset + split);
+		final TextImpl[] firstTexts = shape(tp, smallFs, first, charOffset, paragraphBidi);
+		final TextImpl[] secondTexts = shape(tp, smallFs, second, charOffset < 0 ? -1 : charOffset + split,
+				paragraphBidi);
 		final double firstAdvance = totalAdvance(firstTexts);
 		final double secondAdvance = totalAdvance(secondTexts);
 		final double lineExtent = Math.max(firstAdvance, secondAdvance);
@@ -130,7 +139,11 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		params.fontManager = container.fontManager;
 		params.lineBreakRules = container.lineBreakRules;
 		params.direction = container.direction;
+		params.unicodeBidi = container.unicodeBidi;
+		params.paragraphBidi = container.paragraphBidi;
+		params.bidiSemanticAlias = container.bidiSemanticAlias;
 		params.flow = container.flow;
+		params.writingModeVariant = container.writingModeVariant;
 		params.color = tp.color;
 		params.whiteSpace = AbstractTextParams.WHITE_SPACE_NOWRAP;
 		params.lineHeight = 0;
@@ -147,6 +160,12 @@ public final class WarichuUnitBox extends InlineBlockBox {
 	 */
 	public static List<WarichuUnitBox> createFragments(final InlineParams container, final String text,
 			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd) {
+		return createFragments(container, text, textParams, charOffset, sourceStart, sourceEnd, false);
+	}
+
+	public static List<WarichuUnitBox> createFragments(final InlineParams container, final String text,
+			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd,
+			final boolean paragraphBidi) {
 		if (text.isEmpty()) {
 			return List.of();
 		}
@@ -159,7 +178,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 			final int fragmentSourceEnd = sourceEnd < 0 ? -1
 					: to == text.length() ? sourceEnd : Math.min(sourceEnd, sourceStart + to);
 			final WarichuUnitBox box = create(container, text.substring(from, to), tp,
-					charOffset < 0 ? -1 : charOffset + from, fragmentSourceStart, fragmentSourceEnd);
+					charOffset < 0 ? -1 : charOffset + from, fragmentSourceStart, fragmentSourceEnd, paragraphBidi);
 			if (box != null) {
 				result.add(box);
 			}
@@ -219,10 +238,12 @@ public final class WarichuUnitBox extends InlineBlockBox {
 	}
 
 	private static TextImpl[] shape(final InlineParams src, final FontStyle fontStyle, final String text,
-			final int charOffset) {
-		return text.isEmpty() ? new TextImpl[0]
+			final int charOffset, final boolean paragraphBidi) {
+		final TextImpl[] runs = text.isEmpty() ? new TextImpl[0]
 				: net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle, text,
 						charOffset, src.textSpacingTrimOff);
+		return paragraphBidi ? net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.reorderAtomicRuns(runs,
+				src.direction, src.unicodeBidi, src.bidiSemanticAlias) : runs;
 	}
 
 	private static double totalAdvance(final TextImpl[] texts) {
@@ -294,13 +315,32 @@ public final class WarichuUnitBox extends InlineBlockBox {
 					this.box.text, this.box.first, this.box.second, this.box.getWidth(), this.box.getHeight());
 		}
 
+		@Override
+		public String describeGeometry(final double x, final double y) {
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()
+					|| this.box.params.writingModeVariant == WritingModeVariant.NORMAL) {
+				return "";
+			}
+			final AffineTransform at = SidewaysGeometry.runTransform(this.box.params.writingModeVariant, x, y,
+					this.box.baseAscent, this.box.baseDescent, this.box.getHeight());
+			final double[] m = new double[6];
+			at.getMatrix(m);
+			return String.format(java.util.Locale.ROOT, " warichu-tf=[%.2f %.2f %.2f %.2f %.2f %.2f]",
+					m[0], m[1], m[2], m[3], m[4], m[5]);
+		}
+
 		public void innerDraw(final GC gc, final double x, final double y) throws GraphicsException {
 			final WarichuUnitBox box = this.box;
 			try (final var state = gc.begin()) {
 				if (box.color != null) {
 					gc.setFillPaint(box.color);
 				}
-				if (box.flow.isVertical()) {
+				if (box.params.writingModeVariant != WritingModeVariant.NORMAL) {
+					gc.transform(SidewaysGeometry.runTransform(box.params.writingModeVariant, x, y,
+							box.baseAscent, box.baseDescent, box.getHeight()));
+					drawRun(gc, box.firstTexts, 0, -box.baseAscent + box.firstAscent, false);
+					drawRun(gc, box.secondTexts, 0, box.baseDescent - box.secondDescent, false);
+				} else if (box.flow.isVertical()) {
 					drawRun(gc, box.firstTexts, x + box.baseAscent + box.baseDescent - box.firstAscent, y, true);
 					drawRun(gc, box.secondTexts, x + box.secondDescent, y, true);
 				} else {

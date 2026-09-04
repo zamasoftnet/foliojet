@@ -417,6 +417,18 @@ public final class UAProps {
 			"output.pdf.image.max-height", 0);
 
 	/**
+	 * PDFへ生成するぼかし影画像の解像度(dpi)です。
+	 */
+	public static final IntegerPropManager OUTPUT_PDF_BLUR_RESOLUTION = new IntegerPropManager(
+			"output.pdf.blur-resolution", 150);
+
+	/**
+	 * PDFでfilter付き要素だけをラスタ化するときの解像度(dpi)です。
+	 */
+	public static final IntegerPropManager OUTPUT_PDF_FILTER_RESOLUTION = new IntegerPropManager(
+			"output.pdf.filter-resolution", 300);
+
+	/**
 	 * 添付ファイル設定です。
 	 */
 	public static final String OUTPUT_PDF_ATTACHMENTS = "output.pdf.attachments.";
@@ -435,6 +447,11 @@ public final class UAProps {
 	 * タグ付き PDF（論理構造）を出力するかどうか。
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_TAGGED = new BooleanPropManager("output.pdf.tagged", false);
+
+	/**
+	 * bidi 行の論理テキストを ActualText として出力するかどうか。
+	 */
+	public static final BooleanPropManager OUTPUT_PDF_BIDI_ACTUAL_TEXT = new BooleanPropManager("output.pdf.bidi.actual-text", false);
 
 	/**
 	 * タグ付き PDF / PDF/UA の言語（BCP 47、例 "ja"）。
@@ -495,6 +512,13 @@ public final class UAProps {
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_HYPERLINKS = new BooleanPropManager("output.pdf.hyperlinks",
 			false);
+
+	/**
+	 * 段落単位のUnicode双方向アルゴリズム(2026-09-04。bidi-isolation-design.md)。
+	 * {@code false}では従来の行単位・LTR基底の並べ替えへ戻す。
+	 */
+	public static final BooleanPropManager LAYOUT_BIDI_PARAGRAPH = new BooleanPropManager("layout.bidi.paragraph",
+			true);
 
 	/**
 	 * リンクの方法です。
@@ -814,6 +838,47 @@ public final class UAProps {
 			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.GZIP);
 
 	/**
+	 * ページ分割SVGの共有画像の圧縮方針です(2026-09-03、cti.li の要望)。
+	 * 既定はそのまま。{@code jpeg} で透明部分の無い大きなラスタ画像を
+	 * JPEG に再圧縮します。閾値と縮小は PDF の
+	 * {@code output.pdf.image.*} と同じ意味の鍵で指定します。
+	 */
+	public static final CodePropManager<PagedSvgImageCompression> OUTPUT_PAGED_SVG_IMAGE_COMPRESSION = new CodePropManager<>(
+			"output.paged-svg.image.compression", PagedSvgImageCompression.class, PagedSvgImageCompression.NONE);
+
+	/** 非可逆圧縮を適用する画像サイズ(幅+高さの画素数)の閾値です。 */
+	public static final IntegerPropManager OUTPUT_PAGED_SVG_IMAGE_COMPRESSION_LOSSLESS = new IntegerPropManager(
+			"output.paged-svg.image.compression.lossless", 200);
+
+	/** 共有画像の最大幅(画素数)です。0 は無制限。 */
+	public static final IntegerPropManager OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH = new IntegerPropManager(
+			"output.paged-svg.image.max-width", 0);
+
+	/** 共有画像の最大高さ(画素数)です。0 は無制限。 */
+	public static final IntegerPropManager OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT = new IntegerPropManager(
+			"output.paged-svg.image.max-height", 0);
+
+	/**
+	 * {@code manifest.json} の {@code pages[]} に各ページの SHA-256
+	 * ({@code svgSha256}・{@code dataSha256})を書くかです(2026-09-03)。
+	 * 受け手が使わないなら {@code false} で manifest が縮む(310 頁で 143KB の
+	 * 大半がこれ)。共有資源(フォント・画像)の {@code sha256} は URI と
+	 * 同一性の鍵なので常に書きます。
+	 */
+	public static final BooleanPropManager OUTPUT_PAGED_SVG_PAGE_CHECKSUMS = new BooleanPropManager(
+			"output.paged-svg.page-checksums", true);
+
+	/**
+	 * ページ分割SVGと同じ組版から PDF も出すかです(2026-09-03、cti.li の要望)。
+	 * {@code true} で結果集合に {@code document.pdf} が加わる(ZIP なら ZIP の中に、
+	 * manifest の {@code pdf})。組版は1回で、各ページの描画をページSVGと PDF の
+	 * 両方へ流す。PDF の書き方は {@code output.pdf.*} に従う。EPUB(項目ごとの
+	 * バンドル)では効かない。
+	 */
+	public static final BooleanPropManager OUTPUT_PAGED_SVG_PDF = new BooleanPropManager("output.paged-svg.pdf",
+			false);
+
+	/**
 	 * 単一SVG出力({@code image/svg+xml})で文字をどう書くかです
 	 * (B-1、2026-08-29)。既定は従来どおりアウトライン。
 	 * {@code keep}にすると{@code <text>}のまま残し、サブセットした
@@ -882,9 +947,12 @@ public final class UAProps {
 			OUTPUT_PDF_IMAGE_COMPRESSION_LOSSLESS,
 			OUTPUT_PDF_IMAGE_MAX_WIDTH,
 			OUTPUT_PDF_IMAGE_MAX_HEIGHT,
+			OUTPUT_PDF_BLUR_RESOLUTION,
+			OUTPUT_PDF_FILTER_RESOLUTION,
 			OUTPUT_PDF_VERSION,
 			OUTPUT_PDF_ENCRYPTION,
 			OUTPUT_PDF_TAGGED,
+			OUTPUT_PDF_BIDI_ACTUAL_TEXT,
 			OUTPUT_PDF_TAGGED_LANG,
 			OUTPUT_PDF_FORMS,
 			OUTPUT_PDF_ENCRYPTION_USER_PASSWORD,
@@ -900,6 +968,7 @@ public final class UAProps {
 			OUTPUT_PDF_ENCRYPTION_LENGTH,
 			OUTPUT_PDF_BOOKMARKS,
 			OUTPUT_PDF_HYPERLINKS,
+			LAYOUT_BIDI_PARAGRAPH,
 			OUTPUT_PDF_HYPERLINKS_HREF,
 			OUTPUT_PDF_HYPERLINKS_BASE,
 			OUTPUT_PDF_HYPERLINKS_FRAGMENT,
@@ -947,6 +1016,12 @@ public final class UAProps {
 			OUTPUT_USE_META_INFO,
 			OUTPUT_PAGED_SVG_RESOURCES,
 			OUTPUT_PAGED_SVG_COMPRESSION,
+			OUTPUT_PAGED_SVG_IMAGE_COMPRESSION,
+			OUTPUT_PAGED_SVG_IMAGE_COMPRESSION_LOSSLESS,
+			OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH,
+			OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT,
+			OUTPUT_PAGED_SVG_PAGE_CHECKSUMS,
+			OUTPUT_PAGED_SVG_PDF,
 			OUTPUT_SVG_TEXT);
 
 	/**

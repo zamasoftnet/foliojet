@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>writing-mode and direction separation</title>
+<style>
+@page { size: 520pt 300pt; margin: 0 }
+html, body { margin: 0; padding: 0 }
+body { font: 10pt/12pt monospace }
+.family {
+	position: absolute;
+	top: 0;
+	width: 96pt;
+	height: 300pt;
+}
+#std_family { left: 0; writing-mode: vertical-lr }
+#rtl_family { left: 104pt; writing-mode: vertical-lr; direction: rtl }
+#legacy_family { left: 208pt; -cssj-writing-mode: tb-lr }
+#svg_family { left: 312pt; writing-mode: rl-tb }
+#epub_family { left: 416pt; -epub-writing-mode: vertical-lr }
+.probe { position: absolute; padding: 0; border: 0 } /* margin は物理宣言すると論理 margin より優先されるので書かない */
+.margin-probe {
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	inline-size: 10pt;
+	block-size: 10pt;
+	margin-inline-start: 10pt;
+	background: #ccc;
+}
+.align-probe { left: 0; inline-size: 50pt; block-size: 12pt; white-space: nowrap }
+.start-probe { top: 30pt; text-align: start }
+.left-probe { top: 90pt; text-align: left }
+.overflow-probe {
+	left: 0;
+	top: 150pt;
+	inline-size: 30pt;
+	block-size: 12pt;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.clamp-probe {
+	left: 0;
+	top: 200pt;
+	inline-size: 30pt;
+	block-size: 36pt;
+	overflow: hidden;
+}
+.standard-clamp { line-clamp: 2 }
+.webkit-clamp { -webkit-line-clamp: 2 }
+#bidi_start {
+	left: 60pt;
+	top: 240pt;
+	inline-size: 50pt;
+	block-size: 12pt;
+	text-align: start;
+	white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<section class="family" id="std_family">
+	<div class="probe margin-probe" id="std_margin"></div>
+	<div class="probe align-probe start-probe" id="std_start">X</div>
+	<div class="probe align-probe left-probe" id="std_left">X</div>
+	<div class="probe overflow-probe" id="std_overflow">MMMMMMMM</div>
+	<div class="probe clamp-probe webkit-clamp" id="std_clamp">A A A A A A A A A A A A</div>
+	<div class="probe" id="bidi_start">X</div>
+</section>
+<section class="family" id="rtl_family">
+	<div class="probe margin-probe" id="rtl_margin"></div>
+	<div class="probe align-probe start-probe" id="rtl_start">X</div>
+	<div class="probe align-probe left-probe" id="rtl_left">X</div>
+	<div class="probe overflow-probe" id="rtl_overflow">MMMMMMMM</div>
+	<div class="probe clamp-probe standard-clamp" id="rtl_clamp">A A A A A A A A A A A A</div>
+</section>
+<section class="family" id="legacy_family">
+	<div class="probe margin-probe" id="legacy_margin"></div>
+	<div class="probe align-probe start-probe" id="legacy_start">X</div>
+	<div class="probe align-probe left-probe" id="legacy_left">X</div>
+	<div class="probe overflow-probe" id="legacy_overflow">MMMMMMMM</div>
+	<div class="probe clamp-probe webkit-clamp" id="legacy_clamp">A A A A A A A A A A A A</div>
+</section>
+<section class="family" id="svg_family">
+	<div class="probe margin-probe" id="svg_margin"></div>
+	<div class="probe align-probe start-probe" id="svg_start">X</div>
+	<div class="probe align-probe left-probe" id="svg_left">X</div>
+	<div class="probe overflow-probe" id="svg_overflow">MMMMMMMM</div>
+	<div class="probe clamp-probe standard-clamp" id="svg_clamp">A A A A A A A A A A A A</div>
+</section>
+<section class="family" id="epub_family">
+	<div class="probe margin-probe" id="epub_margin"></div>
+	<div class="probe align-probe start-probe" id="epub_start">X</div>
+	<div class="probe align-probe left-probe" id="epub_left">X</div>
+	<div class="probe overflow-probe" id="epub_overflow">MMMMMMMM</div>
+	<div class="probe clamp-probe webkit-clamp" id="epub_clamp">A A A A A A A A A A A A</div>
+</section>
+</body>
+</html>

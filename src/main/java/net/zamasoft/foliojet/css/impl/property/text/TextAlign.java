@@ -38,7 +38,25 @@ public class TextAlign extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return value;
+		TextAlignValue textAlign = (TextAlignValue)value;
+		if (textAlign != TextAlignValue.MATCH_PARENT_VALUE) {
+			return textAlign;
+		}
+		CSSStyle parent = style.getParentStyle();
+		if (parent == null) {
+			return TextAlignValue.START_VALUE;
+		}
+		textAlign = (TextAlignValue)parent.get(TextAlign.INFO);
+		switch (textAlign.getTextAlign()) {
+		case TextAlignValue.START:
+			return TextValueUtils.usesLegacyRtlAlignment(parent)
+					? TextAlignValue.RIGHT_VALUE : TextAlignValue.LEFT_VALUE;
+		case TextAlignValue.END:
+			return TextValueUtils.usesLegacyRtlAlignment(parent)
+					? TextAlignValue.LEFT_VALUE : TextAlignValue.RIGHT_VALUE;
+		default:
+			return textAlign;
+		}
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

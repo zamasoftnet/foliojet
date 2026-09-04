@@ -18,9 +18,10 @@ import net.zamasoft.pdfg2d.gc.text.Text;
  * (2026-08-29)。包み紙は必要な操作だけを上書きする。
  *
  * <p>
- * 出力先の能力({@link #supports})・ぼかし塗り・効果付き画像描画・
- * ブレンドモード・artifactスコープも必ず委譲する——どれか1つでも既定
- * (何もしない)へ落ちると、包んだ途端に厳密経路が近似へ化ける。
+ * 出力先の能力({@link #supports})・ぼかし塗り({@link #tryFillBlurred}を含む)・効果付き画像描画・
+ * filter捕捉群・ブレンドモード・artifactスコープも必ず委譲する。特に
+ * {@code tryFillBlurred}をGCの既定実装へ落とすと、delegate固有の「falseなら
+ * 何も描かない」判定を飛ばして通常塗りへ縮退するため、明示的な委譲が必要。
  * </p>
  */
 public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
@@ -48,6 +49,11 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	@Override
 	public State beginArtifactScope() throws GraphicsException {
 		return this.gc.beginArtifactScope();
+	}
+
+	@Override
+	public State beginTextReplacement(final String logicalText) throws GraphicsException {
+		return this.gc.beginTextReplacement(logicalText);
 	}
 
 	@Override
@@ -108,6 +114,11 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	@Override
 	public boolean supports(final Capability capability) {
 		return this.gc.supports(capability);
+	}
+
+	@Override
+	public boolean rasterizesGroupEffects() {
+		return this.gc.rasterizesGroupEffects();
 	}
 
 	@Override
@@ -196,6 +207,11 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	}
 
 	@Override
+	public boolean tryFillBlurred(final Shape shape, final double sigma) throws GraphicsException {
+		return this.gc.tryFillBlurred(shape, sigma);
+	}
+
+	@Override
 	public void drawImage(final Image image) throws GraphicsException {
 		this.gc.drawImage(image);
 	}
@@ -206,6 +222,12 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	}
 
 	@Override
+	public GroupEffectsResult drawGroupEffects(final Image image, final GroupEffects effects)
+			throws GraphicsException {
+		return this.gc.drawGroupEffects(image, effects);
+	}
+
+	@Override
 	public void drawText(final Text text, final double x, final double y) throws GraphicsException {
 		this.gc.drawText(text, x, y);
 	}
@@ -213,5 +235,10 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	@Override
 	public GroupImageGC createGroupImage(final double width, final double height) throws GraphicsException {
 		return this.gc.createGroupImage(width, height);
+	}
+
+	@Override
+	public GroupImageGC createFilterGroup(final double width, final double height) throws GraphicsException {
+		return this.gc.createFilterGroup(width, height);
 	}
 }

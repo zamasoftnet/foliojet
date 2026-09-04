@@ -73,7 +73,9 @@ import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundOrigin;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
+import net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant;
 import net.zamasoft.foliojet.css.impl.property.shorthand.BorderRadiusShorthand;
+import net.zamasoft.foliojet.css.impl.property.shorthand.WritingModeStandard;
 import net.zamasoft.foliojet.css.impl.property.box.BoxSizing;
 import net.zamasoft.foliojet.css.impl.property.font.CSSUnicodeRange;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnCount;
@@ -417,6 +419,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(BackgroundSize.INFO_WIDTH);
 		regCode(BackgroundSize.INFO_HEIGHT);
 		reg(BlockFlow.INFO);
+		reg(WritingModeVariant.INFO);
 		reg(TextOrientation.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.RubyAlign.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.RubyMerge.INFO);
@@ -430,6 +433,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextAlignLast.INFO);
 		reg(TextJustify.INFO);
 		put(WritingModeShorthand.INFO);
+		put(WritingModeStandard.INFO);
 		reg(WordWrap.INFO);
 		reg(WordBreak.INFO);
 		reg(TextWrapStyle.INFO);
@@ -633,7 +637,7 @@ public final class ElementPropertySet extends PropertySet {
 		alias("border-end-end-radius", BorderRadius.BOTTOM_RIGHT);
 
 		alias("oeb-column-number", ColumnCount.INFO);
-		alias("-epub-writing-mode", WritingModeShorthand.INFO);
+		alias("-epub-writing-mode", WritingModeStandard.INFO);
 		alias("-epub-text-align-last", TextAlignLast.INFO);
 		alias("-epub-text-emphasis-style", TextEmphasisStyle.INFO);
 		alias("-epub-text-emphasis-color", TextEmphasisColor.INFO);
@@ -655,7 +659,7 @@ public final class ElementPropertySet extends PropertySet {
 		alias("background-size", BackgroundSize.INFO_WIDTH);
 		alias("block-flow", BlockFlow.INFO);
 		alias("text-align-last", TextAlignLast.INFO);
-		alias("writing-mode", WritingModeShorthand.INFO);
+		alias("writing-mode", WritingModeStandard.INFO);
 		alias("word-wrap", WordWrap.INFO);
 		alias("overflow-wrap", WordWrap.INFO);
 		alias("text-combine-upright", TextCombineShorthand.INFO);

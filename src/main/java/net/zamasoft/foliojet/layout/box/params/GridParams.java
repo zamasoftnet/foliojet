@@ -50,17 +50,22 @@ public class GridParams extends BlockParams {
 	public boolean columnsSubgrid = false;
 
 	/**
-	 * {@code grid-template-rows: subgrid}か(2026-08-29)。行軸は親の行が
-	 * item bind後に決まるため継げない——行gapだけ親のものにする
-	 * ({@code GridBuilder}のjavadoc)。
+	 * {@code grid-template-rows: subgrid}か(2026-08-29/09-03)。子孫の寄与を
+	 * 親へ渡し、親の行解決後に行幾何を継ぐ({@code GridBuilder}のjavadoc)。
 	 */
 	public boolean rowsSubgrid = false;
 
 	/** 行間隔(絶対長)。 */
 	public double rowGap = 0;
 
+	/** {@code row-gap}が{@code normal}または未指定か(2026-09-03)。 */
+	public boolean rowGapNormal = true;
+
 	/** 列間隔(絶対長。columnGapのnormalはGridでは0)。 */
 	public double columnGap = 0;
+
+	/** {@code column-gap}が{@code normal}または未指定か(2026-09-03)。 */
+	public boolean columnGapNormal = true;
 
 	/** itemの行方向既定配置(G5a。normalはGridではstretch)。 */
 	public BoxAlignment justifyItems = BoxAlignment.NORMAL;

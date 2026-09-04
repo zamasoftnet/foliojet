@@ -13,8 +13,6 @@ import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.TranscoderException;
@@ -25,6 +23,7 @@ import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.pdfg2d.util.IntList;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.BrokenResultException;
@@ -75,8 +74,6 @@ import net.zamasoft.foliojet.ua.BoundSide;
 import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
-	private static final Logger LOG = Logger.getLogger(PDFUserAgent.class.getName());
-
 	private Results results, xresults;
 	private FragmentedOutput builder, xbuilder;
 	private PDFWriter pdfWriter = null, xpdfWriter = null;
@@ -353,17 +350,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				String uri = UAProps.OUTPUT_PDF_WATERMARK_URI.getString(this);
 				if (uri != null) {
 					if (this.pdfWriter.getParams().version().v >= PDFParams.Version.V_1_4.v) {
-						try {
-							Source source = this.resolve(URIHelper.create("UTF-8", uri));
-							try {
-								Image image = this.getImage(source);
-								this.watermark = new Pattern(image, null);
-							} finally {
-								this.release(source);
-							}
-						} catch (Exception e) {
-							LOG.log(Level.FINE, "Missing image", e);
-							this.message(MessageCodes.WARN_MISSING_IMAGE, uri);
+						Image image = ImageLoadDiagnostics.load(this, uri,
+								() -> URIHelper.create("UTF-8", uri),
+								(resolvedUri, source) -> this.getImage(source));
+						if (image != null) {
+							this.watermark = new Pattern(image, null);
 						}
 					} else {
 						this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,

@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: 360pt 500pt; margin: 20pt }
+body { margin: 0; font: 16pt serif }
+p { margin: 0 0 8pt; width: 300pt }
+.frame { border: 1pt solid; text-decoration: underline }
+.narrow { width: 110pt; white-space: pre-wrap }
+.warichu { -cssj-warichu: auto }
+#semantic_result::before { content: "TARGET[" target-text(attr(data-target)) "]" }
+</style>
+</head>
+<body>
+<p id="rtl" dir="rtl">אבג ABC</p>
+<p id="embed">abc <span style="direction:rtl;unicode-bidi:embed">אבג DEF</span> xyz</p>
+<p id="override"><span style="direction:rtl;unicode-bidi:bidi-override">ABC-12</span></p>
+<p id="nested" dir="rtl">אב<a class="frame" href="#nested">ג<span>ד</span>ה</a>ו</p>
+<p id="trailing" class="narrow" dir="rtl">אבג ABC  </p>
+<p id="mirror" dir="rtl">(אבג) [אבג] {ABC} «דהו»</p>
+<p id="atomic" dir="rtl">אב <img src="../red.png" alt="" width="12" height="12"> גד</p>
+<p id="ruby" dir="rtl">前<ruby>אב<rt>גד</rt></ruby>後</p>
+<p id="warichu" dir="rtl">前<span class="warichu">אבגד</span>後</p>
+<p id="fragment_edges" dir="rtl" style="width:80pt">אב <a class="frame" href="#fragment_edges">גדה ABC וזח DEF טיך</a> כל</p>
+<div id="fragment_edges_after">end</div>
+<p id="ltr_fast">Pure LTR fast path.</p>
+<p id="relative" dir="rtl" style="width:90pt">אב <span id="relative_span" style="position:relative;top:5pt;left:-5pt;border:1pt solid">גדה ABC וזח DEF טיך JKL</span> כל</p>
+<div id="relative_after">end</div>
+<p dir="rtl" style="width:90pt"><a id="semantic_anchor" href="https://example.test/bidi-semantic">אבג-ABC-דהו-DEF-וזח-GHI-טיך-JKL</a></p>
+<p id="semantic_result" data-target="#semantic_anchor"></p>
+<p id="mirror_reference">MIRRORREF()[]{}«»</p>
+</body>
+</html>

@@ -39,6 +39,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import net.zamasoft.foliojet.ua.HttpStatusSource;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.SourceResolver;
 import net.zamasoft.zstream.resolver.SourceValidity;
@@ -576,7 +577,7 @@ class MyHttpSourceResolver implements SourceResolver {
 		return null;
 	}
 
-	class MyHttpSource extends AbstractSource {
+	class MyHttpSource extends AbstractSource implements HttpStatusSource {
 		private final HttpClient httpClient;
 		private final HttpRequest request;
 		private final String cacheKey;
@@ -595,6 +596,7 @@ class MyHttpSourceResolver implements SourceResolver {
 		private String contentEncoding;
 		private String encoding;
 		private boolean exists;
+		private int status = -1;
 		private long lastModified = -1;
 		private long contentLength = -1;
 
@@ -627,6 +629,11 @@ class MyHttpSourceResolver implements SourceResolver {
 		public boolean exists() throws IOException {
 			this.tryConnect();
 			return this.exists;
+		}
+
+		@Override
+		public int httpStatus() {
+			return this.status;
 		}
 
 		public boolean isInputStream() throws IOException {
@@ -851,7 +858,8 @@ class MyHttpSourceResolver implements SourceResolver {
 			} catch (CancellationException | CompletionException e) {
 				throw this.toIOException(e);
 			}
-			this.exists = this.response.statusCode() != 404;
+			this.status = this.response.statusCode();
+			this.exists = this.status != 404;
 			this.mimeType = this.response.headers().firstValue("Content-Type").orElse(null);
 			this.contentEncoding = this.response.headers().firstValue("Content-Encoding").orElse(null);
 			this.encoding = parseCharset(this.mimeType);
@@ -864,6 +872,7 @@ class MyHttpSourceResolver implements SourceResolver {
 		}
 
 		private void startConnection() {
+			this.status = -1;
 			this.responseFuture = this.httpClient.sendAsync(this.request, HttpResponse.BodyHandlers.ofInputStream());
 		}
 

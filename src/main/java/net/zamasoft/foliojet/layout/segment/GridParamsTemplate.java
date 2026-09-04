@@ -19,7 +19,8 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * </p>
  */
 public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListValue.TrackSize> templateColumns,
-		List<GridTrackListValue.TrackSize> templateRows, double rowGap, double columnGap,
+		List<GridTrackListValue.TrackSize> templateRows, double rowGap, boolean rowGapNormal, double columnGap,
+		boolean columnGapNormal,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment justifyItems,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment alignItems,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment justifyContent,
@@ -30,7 +31,8 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		boolean autoFlowColumn, boolean autoFlowDense, boolean columnsSubgrid, boolean rowsSubgrid) {
 	public static GridParamsTemplate freeze(final GridParams source) {
 		return new GridParamsTemplate(BlockParamsFields.freeze(source), source.templateColumns,
-				source.templateRows, source.rowGap, source.columnGap, source.justifyItems, source.alignItems,
+				source.templateRows, source.rowGap, source.rowGapNormal, source.columnGap, source.columnGapNormal,
+				source.justifyItems, source.alignItems,
 				source.justifyContent, source.alignContent, source.columnLineNames, source.rowLineNames,
 				source.templateAreas, source.autoColumns, source.autoRows, source.autoFlowColumn,
 				source.autoFlowDense, source.columnsSubgrid, source.rowsSubgrid);
@@ -48,7 +50,9 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		p.templateColumns = this.templateColumns;
 		p.templateRows = this.templateRows;
 		p.rowGap = this.rowGap;
+		p.rowGapNormal = this.rowGapNormal;
 		p.columnGap = this.columnGap;
+		p.columnGapNormal = this.columnGapNormal;
 		p.justifyItems = this.justifyItems;
 		p.alignItems = this.alignItems;
 		p.justifyContent = this.justifyContent;

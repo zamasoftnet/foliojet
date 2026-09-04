@@ -26,16 +26,80 @@ public class GridItemBox extends FlowBlockBox {
 	 * @param columnGap       親の列gap
 	 * @param columnLineNames 跨ぐ列線の名前(span+1要素。親の明示名+areasの暗黙名)
 	 * @param rowGap          親の行gap
+	 * @param rowLineNames    跨ぐ行線の名前(span+1要素)
+	 * @param link            row subgridの一時接続。使わないときはnull
 	 */
-	public record SubgridTracks(double[] columnWidths, double columnGap, java.util.List<java.util.List<String>> columnLineNames,
-			double rowGap) {
+	public static final class SubgridTracks {
+		private final double[] columnWidths;
+		private final double columnGap;
+		private final java.util.List<java.util.List<String>> columnLineNames;
+		private final double rowGap;
+		private final java.util.List<java.util.List<String>> rowLineNames;
+		private RowSubgridLink link;
+
+		/** 列軸だけを渡していた従来の呼び出しとの互換構築子。 */
+		public SubgridTracks(final double[] columnWidths, final double columnGap,
+				final java.util.List<java.util.List<String>> columnLineNames, final double rowGap) {
+			this(columnWidths, columnGap, columnLineNames, rowGap, java.util.List.of(), null);
+		}
+
+		public SubgridTracks(final double[] columnWidths, final double columnGap,
+				final java.util.List<java.util.List<String>> columnLineNames, final double rowGap,
+				final java.util.List<java.util.List<String>> rowLineNames,
+				final RowSubgridLink link) {
+			this.columnWidths = columnWidths;
+			this.columnGap = columnGap;
+			this.columnLineNames = columnLineNames;
+			this.rowGap = rowGap;
+			this.rowLineNames = rowLineNames;
+			this.link = link;
+		}
+
+		public double[] columnWidths() {
+			return this.columnWidths;
+		}
+
+		public double columnGap() {
+			return this.columnGap;
+		}
+
+		public java.util.List<java.util.List<String>> columnLineNames() {
+			return this.columnLineNames;
+		}
+
+		public double rowGap() {
+			return this.rowGap;
+		}
+
+		public java.util.List<java.util.List<String>> rowLineNames() {
+			return this.rowLineNames;
+		}
+
+		/** 未消費の一時接続です。消費後はnull。 */
+		public synchronized RowSubgridLink link() {
+			return this.link;
+		}
+
+		/**
+		 * 一時接続を一度だけ取り出し、永続boxからsink closureを切ります。
+		 * 2回目以降はnullを返します。
+		 */
+		public synchronized RowSubgridLink consumeRowSubgridLink() {
+			final RowSubgridLink consumed = this.link;
+			this.link = null;
+			return consumed;
+		}
 	}
 
 	private SubgridTracks subgridTracks;
 
 	public GridItemBox(final BlockParams params, final FlowPos pos, final double trackWidth) {
 		super(params, pos);
-		this.width = trackWidth;
+		if (params.flow.isVertical()) {
+			this.height = trackWidth;
+		} else {
+			this.width = trackWidth;
+		}
 		this.markSpecifiedPageAxisFromSize();
 	}
 
@@ -64,6 +128,17 @@ public class GridItemBox extends FlowBlockBox {
 	}
 
 	/**
+	 * row subgridが確定したトラック寸法を、作者指定のheight/min/max-height・
+	 * aspect-ratioに拘束されず正確に設定します(2026-09-03)。
+	 */
+	public final void setExactUsedPageSize(final double pageSize) {
+		this.restoreContentExtent(Math.max(0, pageSize));
+		this.minPageAxis = 0;
+		this.maxPageAxis = Double.MAX_VALUE;
+		this.specifiedPageAxis = false;
+	}
+
+	/**
 	 * 行方向のトラック開始位置(Gridコンテナ内辺原点)を設定します。
 	 *
 	 * <p>
@@ -75,8 +150,13 @@ public class GridItemBox extends FlowBlockBox {
 	 * </p>
 	 */
 	public void setGridLineOffset(final double lineOffset) {
-		this.baseOffsetX = lineOffset;
-		this.offsetX = lineOffset;
+		if (this.getBlockParams().flow.isVertical()) {
+			this.baseOffsetY = lineOffset;
+			this.offsetY = lineOffset;
+		} else {
+			this.baseOffsetX = lineOffset;
+			this.offsetX = lineOffset;
+		}
 	}
 
 	/**
@@ -91,7 +171,7 @@ public class GridItemBox extends FlowBlockBox {
 	 * </p>
 	 */
 	public double getGridLineOffset() {
-		return this.baseOffsetX;
+		return this.getBlockParams().flow.isVertical() ? this.baseOffsetY : this.baseOffsetX;
 	}
 
 	/**
@@ -99,7 +179,11 @@ public class GridItemBox extends FlowBlockBox {
 	 * 固定列では構築時の値と同じ。auto/fr列=G3b/cで解決値が入る)。
 	 */
 	public void setTrackWidth(final double trackWidth) {
-		this.width = trackWidth;
+		if (this.getBlockParams().flow.isVertical()) {
+			this.height = trackWidth;
+		} else {
+			this.width = trackWidth;
+		}
 	}
 
 	/**

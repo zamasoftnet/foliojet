@@ -61,7 +61,7 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 			break;
 
 		case CSSVerticalAlignPolicy.MIDDLE: {
-			if (parentBox.getTextParams().flow.isVertical()) {
+			if (parentBox.getTextParams().isVerticalTypesetting()) {
 				// **縦組み**(2026-09-02): 行は中央線揃えなので、箱の中央を親の中央線に
 				// 置く(横組みの x-height の項は無い——それを使うと半 x-height 右へ
 				// 寄っていた)。文字の箱は左右対称で 0、inline-table 等の非対称な箱は
@@ -77,7 +77,7 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 		case CSSVerticalAlignPolicy.SUPER: {
 			// 上添え字
-			if (parentBox.getTextParams().flow.isVertical()) {
+			if (parentBox.getTextParams().isVerticalTypesetting()) {
 				// **縦組み**(2026-09-02): 字は中央線に置かれ、字面は左右に
 				// サイズの半分ずつしか無い。横組みの式(箱の中央を親のフォントの
 				// 上辺=右端へ)をそのまま使うと、上付きの箱の中央が字面の右端に
@@ -98,7 +98,7 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 		case CSSVerticalAlignPolicy.SUB: {
 			// 下添え字
-			if (parentBox.getTextParams().flow.isVertical()) {
+			if (parentBox.getTextParams().isVerticalTypesetting()) {
 				// 縦組み: 上付きと同じ理由で、Chromeの下付き(親のフォントサイズの
 				// 1/5)に合わせる(2026-09-02)
 				v = -parentBox.getTextParams().fontStyle.getSize() / 5.0;
@@ -111,7 +111,7 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		}
 
 		case CSSVerticalAlignPolicy.TEXT_TOP: {
-			if (parentBox.getTextParams().flow.isVertical()) {
+			if (parentBox.getTextParams().isVerticalTypesetting()) {
 				// 縦組み(2026-09-02): 親のフォントの「上辺」は字面の右辺=サイズの半分。
 				// 横組みの ascent(約 0.88 倍)を使うと右へはみ出していた
 				v = parentBox.getTextParams().fontStyle.getSize() / 2.0 - ascent;
@@ -124,7 +124,7 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		}
 
 		case CSSVerticalAlignPolicy.TEXT_BOTTOM: {
-			if (parentBox.getTextParams().flow.isVertical()) {
+			if (parentBox.getTextParams().isVerticalTypesetting()) {
 				// 縦組み: 親のフォントの「下辺」は字面の左辺=サイズの半分
 				v = -(parentBox.getTextParams().fontStyle.getSize() / 2.0 - descent);
 				break;

@@ -492,7 +492,9 @@ final class BoxStyleMapper {
 		params.autoFlowColumn = autoFlow.isColumn();
 		params.autoFlowDense = autoFlow.isDense();
 		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
+		params.rowGapNormal = net.zamasoft.foliojet.css.impl.property.grid.RowGap.isNormal(style);
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
+		params.columnGapNormal = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.isNormal(style);
 		// G5a: コンテナ側alignment 4値(used value解決はbind時——再生決定性)
 		params.justifyItems = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
 				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_ITEMS));
@@ -623,6 +625,11 @@ final class BoxStyleMapper {
 		params.zIndexType = ZIndex.getType(style);
 		if (params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			params.zIndexValue = ZIndex.getValue(style);
+		} else if (params.filter.own().needsGroup()) {
+			// filter-effects-1 §3: none以外のfilterはstacking contextを作る。
+			// opacity()だけは従来どおり描画要素の透明化層で扱う。
+			params.zIndexType = Params.Z_INDEX_SPECIFIED;
+			params.zIndexValue = 0;
 		}
 	}
 
@@ -755,7 +762,11 @@ final class BoxStyleMapper {
 			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getCSSElement().lang);
 		}
 		params.direction = Direction.get(style);
+		params.unicodeBidi = net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi.get(style);
+		params.paragraphBidi = UAProps.LAYOUT_BIDI_PARAGRAPH.getBoolean(this.ua);
+		params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(this.ua);
 		params.flow = BlockFlow.get(style);
+		params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
 		// ルビ役割マーカーをparamsへ載せ、文字処理層(StyledTextUnitizer)へ
 		// 配達する(注釈付きテキスト方式、2026-07-25仕様裁定)。
 		switch (CSSJRuby.get(style)) {

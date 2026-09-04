@@ -68,6 +68,15 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private int page;
 	private final Map<String, String> metadata = new LinkedHashMap<>();
 
+	// ---- PDF の同時出力(2026-09-03、cti.li の要望「1回の変換で PDF と Paged SVG を両方」)
+
+	/** 同じ組版から PDF も書く随伴の UA。{@code output.paged-svg.pdf=true} の最初のページで作る。 */
+	private net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent pdfCompanion;
+	/** 随伴の PDF の一時置き場(結果集合へは最後に1件で出す。途中で2件を開いたままにしない)。 */
+	private java.io.File pdfSpool;
+	/** 結果に書く PDF の名前。 */
+	static final String PDF_URI = "document.pdf";
+
 	/**
 	 * <b>1本のZIPにまとめて返すか</b>(B-2、2026-08-29)。結果が複数になる
 	 * ふつうのバンドルは、セッションを使わない一発のREST
@@ -233,6 +242,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	public void abort(final byte mode) {
 		super.abort(mode);
 		this.abortRequested = mode;
+		if (this.pdfCompanion != null) {
+			this.pdfCompanion.abort(mode);
+		}
 		synchronized (this.children) {
 			for (final PagedSVGUserAgent child : this.children) {
 				child.abort(mode);
@@ -281,7 +293,18 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		if (!"data".equalsIgnoreCase(uri.getScheme())) {
 			this.getUAContext().getImageMetrics().putSize(uri.toString(), image.getWidth(), image.getHeight());
 		}
-		return new SourcedImage(image, uri);
+		final SourcedImage sourced = new SourcedImage(image, uri);
+		if (this.parent == null && UAProps.OUTPUT_PAGED_SVG_PDF.getBoolean(this)) {
+			// PDF の同時出力: 従にも同じ取得元から画像を作らせる(PDF は URI で重複排除し、
+			// JPEG は元のバイト列のまま埋める。主の画素を渡すと使うたびに再圧縮して
+			// 埋め、実文書で 2.0MB→6.7MB になった)
+			try {
+				sourced.companion = this.pdfCompanion().getImage(uri, source);
+			} catch (final IOException | RuntimeException e) {
+				sourced.companion = null;
+			}
+		}
+		return sourced;
 	}
 
 	/**
@@ -330,7 +353,18 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	@Override
 	public FontManager getFontManager() {
 		if (this.fontManager == null) {
-			this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
+			if (this.parent == null && UAProps.OUTPUT_PAGED_SVG_PDF.getBoolean(this)
+					&& this.pdfCompanion().getFontManager() instanceof final FontManagerImpl pdfFonts) {
+				// PDF の同時出力(2026-09-03): フォント倉庫を随伴の PDF と共有する。PDF は
+				// フォントの資源名を自分の倉庫で付け、埋め込みフォントの字形 ID は
+				// サブセット内の通し番号なので、倉庫が別だと文字を PDF へ流せない
+				// (資源名が無く NPE、字形 ID がずれて文字化け)。同じ倉庫なら
+				// 整形した Text をそのまま両方に描ける
+				this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager(),
+						pdfFonts.getFontStore());
+			} else {
+				this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
+			}
 		}
 		return this.fontManager;
 	}
@@ -369,6 +403,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	public void meta(final String name, final String content) {
 		if (name != null && content != null) {
 			this.metadata.put(name, content);
+			if (this.pdfCompanion != null) {
+				this.pdfCompanion.meta(name, content);
+			}
 		}
 	}
 
@@ -386,6 +423,11 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.resources.setResourceMode(UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this));
 			this.resources.setBaseUri(this.baseUri());
 			this.resources.setFontScope(UAProps.OUTPUT_PAGED_SVG_FONT_SCOPE.get(this));
+			this.resources.setImagePolicy(UAProps.OUTPUT_PAGED_SVG_IMAGE_COMPRESSION.get(this),
+					UAProps.OUTPUT_PAGED_SVG_IMAGE_COMPRESSION_LOSSLESS.getInteger(this),
+					UAProps.OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH.getInteger(this),
+					UAProps.OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT.getInteger(this));
+			this.resources.setPageChecksums(UAProps.OUTPUT_PAGED_SVG_PAGE_CHECKSUMS.getBoolean(this));
 			// ZIPで返すときは中身を縮めない——ZIP側が縮めるので二重になるし、
 			// 受け手が展開してそのまま開ける名前(.svg/.json)であるべき
 			this.compression = this.zipBundle ? PagedSvgCompression.NONE
@@ -411,8 +453,90 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		}
-		return new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
+		final GC svgGc = new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
 				this.currentPage);
+		if (this.parent == null && UAProps.OUTPUT_PAGED_SVG_PDF.getBoolean(this)) {
+			final GC pdfGc = this.pdfCompanion().nextPage(this.pageWidth, this.pageHeight);
+			if (pdfGc != null) {
+				return new TeeGC(svgGc, pdfGc);
+			}
+		}
+		return svgGc;
+	}
+
+	/**
+	 * 随伴の PDF の UA を(初回に)作ります。入力側の状態(資源解決・プロパティ・
+	 * フォント源・基底 URI・メタデータ・綴じ)を写し、結果は一時ファイルへ。
+	 * フォント源は共有なので、ページSVG用に整形した文字を PDF もそのまま
+	 * 文字として書ける(フォント方針はページSVGと同じ埋め込みが既定)。
+	 */
+	private net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent pdfCompanion() {
+		if (this.pdfCompanion != null) {
+			return this.pdfCompanion;
+		}
+		final net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent pdf = (net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent) new net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgentFactory()
+				.createUserAgent();
+		pdf.setSourceResolver(this.getSourceResolver());
+		pdf.setMessageHandler(this.sessionMessages);
+		final Map<String, String> props = new java.util.HashMap<>(this.getProperties());
+		props.putIfAbsent(UAProps.OUTPUT_PDF_FONTS_POLICY.name, "core,embedded");
+		pdf.setProperties(props);
+		pdf.getUAContext().setFontSourceManager(this.getUAContext().getFontSourceManager());
+		try {
+			this.pdfSpool = java.io.File.createTempFile("copper-paged-svg-", ".pdf");
+			this.pdfSpool.deleteOnExit();
+			final net.zamasoft.zstream.io.FragmentedOutput spool = new net.zamasoft.zstream.io.impl.FileFragmentedOutput(
+					this.pdfSpool);
+			pdf.setResults(new Results() {
+				@Override
+				public boolean hasNext() {
+					return true;
+				}
+
+				@Override
+				public net.zamasoft.zstream.io.FragmentedOutput nextBuilder(final net.zamasoft.zstream.resolver.SourceMetadata metadata) {
+					return spool;
+				}
+
+				@Override
+				public void end() {
+					// 呼び出し側(finish)が結果集合へ移す
+				}
+			});
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
+		}
+		pdf.prepare(PrepareMode.DOCUMENT);
+		pdf.getDocumentContext().setBaseURI(this.getDocumentContext().getBaseURI());
+		pdf.setBoundSide(this.getBoundSide());
+		pdf.setPageProgression(this.getPageProgression());
+		for (final var e : this.metadata.entrySet()) {
+			pdf.meta(e.getKey(), e.getValue());
+		}
+		this.pdfCompanion = pdf;
+		return pdf;
+	}
+
+	/** 随伴の PDF を閉じて、結果集合へ1件({@link #PDF_URI})として移します。 */
+	private void finishPdfCompanion() throws BrokenResultException, IOException {
+		final net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent pdf = this.pdfCompanion;
+		if (pdf == null) {
+			return;
+		}
+		this.pdfCompanion = null;
+		try {
+			pdf.finish();
+		} finally {
+			pdf.dispose();
+		}
+		try (var in = new java.io.FileInputStream(this.pdfSpool);
+				var out = this.sink.open(PDF_URI, "application/pdf")) {
+			in.transferTo(out);
+		} finally {
+			this.pdfSpool.delete();
+			this.pdfSpool = null;
+		}
+		this.resources.setPdfUri(PDF_URI);
 	}
 
 	/**
@@ -438,6 +562,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		super.closePage(gc);
 		if (gc == null) {
 			return;
+		}
+		if (gc instanceof final TeeGC tee && this.pdfCompanion != null) {
+			this.pdfCompanion.closePage(tee.secondary());
 		}
 		try {
 			this.closeDirectPage();
@@ -628,6 +755,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.emit(ImageMetricsIO.FILE_NAME, ImageMetricsIO.MEDIA_TYPE,
 					ImageMetricsIO.write(imageMetrics, UAProps.OUTPUT_RESOLUTION.getDouble(this)));
 		}
+		this.finishPdfCompanion();
 		final String binding = this.getBoundSide() == null ? "single"
 				: this.getBoundSide().name().toLowerCase(Locale.ROOT);
 		this.emit("manifest.json", "application/json",
@@ -652,6 +780,14 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 
 	@Override
 	public void dispose() {
+		if (this.pdfCompanion != null) {
+			this.pdfCompanion.dispose();
+			this.pdfCompanion = null;
+		}
+		if (this.pdfSpool != null) {
+			this.pdfSpool.delete();
+			this.pdfSpool = null;
+		}
 		synchronized (this.children) {
 			for (final PagedSVGUserAgent child : this.children) {
 				child.dispose();

@@ -24,12 +24,20 @@ import net.zamasoft.foliojet.layout.box.params.Decoration;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
+import net.zamasoft.foliojet.layout.draw.LineTextScope;
+import net.zamasoft.foliojet.layout.draw.LogicalTextDrawable;
+import net.zamasoft.foliojet.layout.text.bidi.BidiSlice;
+import net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.util.SidewaysGeometry;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
+import net.zamasoft.pdfg2d.font.ColorGlyphFont;
 import net.zamasoft.pdfg2d.font.Font;
 import net.zamasoft.pdfg2d.font.FontMetricsImpl;
 import net.zamasoft.pdfg2d.font.ShapedFont;
@@ -78,6 +86,31 @@ public abstract class AbstractTextBox extends AbstractBox {
 	 * 内部に含まれるテキストとインラインボックスです。 要素は Text, Control, Inline, IAbsoluteBox のいずれかです。
 	 */
 	protected List<Object> contents = null;
+
+	/** bidi 解決が論理 tree を平坦化するための読み取り専用 view。 */
+	public final List<Object> getLogicalContents() {
+		return this.contents == null ? java.util.Collections.emptyList()
+				: java.util.Collections.unmodifiableList(this.contents);
+	}
+
+	/** 描画に使う内容。通常は論理 tree、bidi 行だけ視覚 tree。 */
+	protected List<Object> getDrawingContents() {
+		return this.contents;
+	}
+
+	/** Reordered lines override this to attach their logical output sidecar. */
+	protected LogicalLineEmission getLogicalLineEmission() {
+		return null;
+	}
+
+	protected String getLogicalLineVisualText() {
+		return null;
+	}
+
+	/** Folio-side logical range for one visual leaf. */
+	protected BidiSlice getBidiSlice(final Object visualContent) {
+		return null;
+	}
 
 	/**
 	 * 直接の子インラインボックスを列挙します(読み取り専用。脚注F4の
@@ -923,14 +956,25 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
-	protected static class TextSequenceDrawable extends AbstractDrawable {
+	protected static class TextSequenceDrawable extends AbstractDrawable implements LogicalTextDrawable {
 		protected final List<Object> contents;
 		protected final int off, len;
 		protected final AbstractTextParams params;
 		protected final double ascent, descent;
+		private final LogicalLineEmission logicalLine;
+		private final String lineVisualText;
+		private final BidiSlice[] bidiSlices;
+		private net.zamasoft.pdfg2d.pdf.StructureRef structRef;
+		private LineTextScope lineScope;
 
 		public TextSequenceDrawable(PageBox pageBox, Shape clip, AffineTransform transform, List<Object> contents,
 				int off, int len, AbstractTextParams params, double ascent, double descent) {
+			this(pageBox, clip, transform, contents, off, len, params, ascent, descent, null, null, null);
+		}
+
+		public TextSequenceDrawable(PageBox pageBox, Shape clip, AffineTransform transform, List<Object> contents,
+				int off, int len, AbstractTextParams params, double ascent, double descent,
+				final LogicalLineEmission logicalLine, final String lineVisualText, final BidiSlice[] bidiSlices) {
 			super(pageBox, clip, params.opacity, transform);
 			this.blendMode = params.blendMode;
 			this.filter = params.filter;
@@ -940,6 +984,33 @@ public abstract class AbstractTextBox extends AbstractBox {
 			this.params = params;
 			this.ascent = ascent;
 			this.descent = descent;
+			this.logicalLine = logicalLine;
+			this.lineVisualText = lineVisualText;
+			this.bidiSlices = bidiSlices;
+		}
+
+		@Override
+		public LogicalLineEmission getLogicalLineEmission() {
+			return this.logicalLine;
+		}
+
+		@Override
+		public String getLineVisualText() {
+			return this.lineVisualText;
+		}
+
+		@Override
+		public void drawLogicalText(final GC gc, final double x, final double y,
+				final net.zamasoft.pdfg2d.pdf.StructureRef structRef, final LineTextScope lineScope)
+				throws GraphicsException {
+			this.structRef = structRef;
+			this.lineScope = lineScope;
+			try {
+				super.draw(gc, x, y);
+			} finally {
+				this.structRef = null;
+				this.lineScope = null;
+			}
 		}
 
 		private void missingFont(Text text) {
@@ -968,6 +1039,33 @@ public abstract class AbstractTextBox extends AbstractBox {
 			final boolean vertical = this.params.flow.isVertical();
 			return basic + String.format(java.util.Locale.ROOT, " w=%.2f h=%.2f", vertical ? this.ascent + this.descent : advance,
 					vertical ? advance : this.ascent + this.descent);
+		}
+
+		@Override
+		public String describeGeometry(final double x, final double y) {
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()
+					|| this.params.writingModeVariant == WritingModeVariant.NORMAL) {
+				return "";
+			}
+			final double advance = this.advance();
+			final AffineTransform at = SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
+					this.ascent, this.descent, advance);
+			final double[] m = new double[6];
+			at.getMatrix(m);
+			final Rectangle2D bounds = SidewaysGeometry.bounds(this.params.writingModeVariant, x, y,
+					this.ascent, this.descent, advance);
+			return String.format(java.util.Locale.ROOT,
+					" run-tf=[%.2f %.2f %.2f %.2f %.2f %.2f] run-bounds=[%.2f %.2f %.2f %.2f]",
+					m[0], m[1], m[2], m[3], m[4], m[5], bounds.getX(), bounds.getY(), bounds.getWidth(),
+					bounds.getHeight());
+		}
+
+		private double advance() {
+			double advance = 0;
+			for (int i = 0; i < this.len; ++i) {
+				advance += ((Text) this.contents.get(this.off + i)).getAdvance();
+			}
+			return advance;
 		}
 
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
@@ -1007,15 +1105,29 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setStrokePaint(this.params.textStrokeColor);
 					gc.setTextMode(GC.TextMode.FILL_STROKE);
 				}
-				this.drawText(gc, x, y);
+				if (this.logicalLine == null) {
+					this.drawText(gc, x, y);
+				} else {
+					if (this.lineScope != null) {
+						this.lineScope.beforeMainText(gc);
+					}
+					try {
+						this.drawText(gc, x, y, true);
+					} finally {
+						if (this.lineScope != null) {
+							this.lineScope.afterMainText();
+						}
+					}
+				}
 			}
 		}
 
 		/**
-		 * ぼかし付きの影(2026-08-29)。PDFにぼかしのプリミティブが無いので、
-		 * {@code box-shadow}と同じ12段の半透明近似
+		 * ぼかし付きの影(2026-08-29)。Java2D・SVGは従来どおり文字を群画像へ
+		 * 描いて効果を掛け、透明を使えるPDFは字形の輪郭から影だけをラスタ化する。
+		 * どちらも使えない場合は{@code box-shadow}と同じ12段の半透明近似
 		 * ({@link net.zamasoft.foliojet.layout.util.BoxDecorationRenderer#BLUR_STEPS})
-		 * をテキストで行う: 字形を段ごとに「塗り+外側へ2d幅の縁取り」
+		 * を行う: 字形を段ごとに「塗り+外側へ2d幅の縁取り」
 		 * (d=段の縁の位置、σ=blur/2)で重ね描きし、各段のアルファは全段が
 		 * 重なる中心で指定色のアルファ(0.98で頭打ち)になる{@code 1-(1-α)^(1/N)}。内側へ
 		 * 縮めた段は字形を縮められないので塗りだけ(=中心は常に指定の濃さ、
@@ -1028,9 +1140,23 @@ public abstract class AbstractTextBox extends AbstractBox {
 			if (alpha <= 0) {
 				return;
 			}
-			if (gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
+			final double sigma = shadow.blur / 2;
+			if (gc.supports(GC.Capability.GROUP_FILTER) && gc.supports(GC.Capability.GAUSSIAN_BLUR)
+					&& !gc.rasterizesGroupEffects()) {
 				this.drawExactBlurredShadow(gc, shadow, x, y);
 				return;
+			}
+			if (gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
+				final GeneralPath outline = this.textOutline(x, y);
+				if (outline != null) {
+					gc.setFillPaint(shadow.color);
+					gc.setFillAlpha(alpha);
+					try (final var artifact = gc.beginArtifactScope()) {
+						if (gc.tryFillBlurred(outline, sigma)) {
+							return;
+						}
+					}
+				}
 			}
 			net.zamasoft.foliojet.layout.util.ApproximationGC.report(gc, "text-shadow", "2822.text-blur-rings");
 			final double[] steps = net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.BLUR_STEPS;
@@ -1039,7 +1165,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 			// べた塗りの塊になってしまう。中心の合成アルファを0.98で頭打ちに
 			// して、不透明色でも縁が薄れるようにする(1段あたり約0.28)
 			final float layerAlpha = (float) (1 - Math.pow(1 - Math.min(alpha, 0.98), 1.0 / n));
-			final double sigma = shadow.blur / 2;
 			gc.setStrokePaint(shadow.color);
 			gc.setFillAlpha(layerAlpha);
 			gc.setStrokeAlpha(layerAlpha);
@@ -1086,8 +1211,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 			final double thickness = this.ascent + this.descent;
 			final boolean vertical = this.params.flow.isVertical();
-			final double minX = x, minY = vertical ? y : y - this.ascent;
-			final double w = vertical ? thickness : advance, h = vertical ? advance : thickness;
+			final double minX, minY, w, h;
+			if (this.params.writingModeVariant != WritingModeVariant.NORMAL) {
+				final Rectangle2D bounds = SidewaysGeometry.bounds(this.params.writingModeVariant, x, y,
+						this.ascent, this.descent, advance);
+				minX = bounds.getX();
+				minY = bounds.getY();
+				w = bounds.getWidth();
+				h = bounds.getHeight();
+			} else {
+				minX = x;
+				minY = vertical ? y : y - this.ascent;
+				w = vertical ? thickness : advance;
+				h = vertical ? advance : thickness;
+			}
 			// 字形のはみ出し(斜体・アクセント)ぶんも余白に含める
 			final double pad = sigma * 3 + thickness * 0.5 + 1;
 			final double ox = minX - pad, oy = minY - pad;
@@ -1126,12 +1263,19 @@ public abstract class AbstractTextBox extends AbstractBox {
 		 *
 		 * <p>
 		 * <b>取れない場合</b>: Core-14のType1フォント({@code ShapedFont}を
-		 * 実装しない)、画像字形・カラー字形のフォント。いずれも従来の
-		 * テキスト描画へ落とす——影が消えるより二重に入る方がまだよい。
+		 * 実装しない)、輪郭がnullの字形、画像字形・カラー字形のフォント。
+		 * {@link FontUtils#addTextPath}は欠けた字形を黙って省くため、全GIDを
+		 * 事前検査し、1つでも該当すればテキスト描画の近似へ落とす。
 		 */
 		private GeneralPath textOutline(double x, double y) {
 			final GeneralPath path = new GeneralPath();
+			final boolean sideways = this.params.writingModeVariant != WritingModeVariant.NORMAL;
 			final boolean vertical = this.params.flow.isVertical();
+			final AffineTransform runTransform = sideways
+					? SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y, this.ascent, this.descent,
+							this.advance())
+					: null;
+			double localX = 0;
 			double xx = x, yy = y;
 			for (int i = 0; i < this.len; ++i) {
 				final Text text = (Text) this.contents.get(i + this.off);
@@ -1139,7 +1283,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (!(font instanceof ShapedFont shaped)) {
 					return null;
 				}
-				if (vertical) {
+				final int[] gids = text.getGlyphIds();
+				for (int j = 0; j < text.getGlyphCount(); ++j) {
+					final int gid = gids[j];
+					if (shaped.getShapeByGID(gid) == null
+							|| (font instanceof ColorGlyphFont colorFont && colorFont.isColorGlyph(gid))) {
+						return null;
+					}
+				}
+				if (sideways) {
+					final AffineTransform at = AffineTransform.getTranslateInstance(localX, 0);
+					at.preConcatenate(runTransform);
+					FontUtils.addTextPath(path, shaped, text, at);
+					localX += text.getAdvance();
+				} else if (vertical) {
 					FontUtils.addTextPath(path, shaped, text,
 							AffineTransform.getTranslateInstance(x + this.descent, yy));
 					yy += text.getAdvance();
@@ -1152,16 +1309,38 @@ public abstract class AbstractTextBox extends AbstractBox {
 			return path.getCurrentPoint() == null ? null : path;
 		}
 
-		private void drawText(GC gc, double x, double y) {
+		private void drawText(final GC gc, final double x, final double y) {
+			this.drawText(gc, x, y, false);
+		}
+
+		private void drawText(GC gc, double x, double y, final boolean mainText) {
 			double xx = x, yy = y;
-			if (this.params.flow.isVertical()) {
+			if (this.params.writingModeVariant != WritingModeVariant.NORMAL) {
+				try (final var gcState = gc.begin()) {
+					gc.transform(SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
+							this.ascent, this.descent, this.advance()));
+					double localX = 0;
+					for (int i = 0; i < this.len; ++i) {
+						final Text text = (Text) this.contents.get(i + this.off);
+						if (text.getFontMetrics().getFontSource() == MissingCIDFontSource.INSTANCES_LTR) {
+							this.missingFont(text);
+						}
+						this.drawTextLeaf(gc, text, localX, 0, i, mainText);
+						localX += text.getAdvance();
+					}
+					if (DEBUG) {
+						gc.setStrokePaint(RGBColor.create(63, 63, 63));
+						gc.draw(new Rectangle2D.Double(0, -this.ascent, localX, this.ascent + this.descent));
+					}
+				}
+			} else if (this.params.flow.isVertical()) {
 				// 縦書き
 				for (int i = 0; i < this.len; ++i) {
 					final Text text = (Text) this.contents.get(i + this.off);
 					if (text.getFontMetrics().getFontSource() == MissingCIDFontSource.INSTANCES_TB) {
 						this.missingFont(text);
 					}
-					gc.drawText(text, x + this.descent, y);
+					this.drawTextLeaf(gc, text, x + this.descent, y, i, mainText);
 					y += text.getAdvance();
 					if (DEBUG) {
 						try (final var gcState = gc.begin()) {
@@ -1177,7 +1356,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					if (text.getFontMetrics().getFontSource() == MissingCIDFontSource.INSTANCES_LTR) {
 						this.missingFont(text);
 					}
-					gc.drawText(text, x, y + this.ascent);
+					this.drawTextLeaf(gc, text, x, y + this.ascent, i, mainText);
 					x += text.getAdvance();
 					if (DEBUG) {
 						try (final var gcState = gc.begin()) {
@@ -1186,6 +1365,35 @@ public abstract class AbstractTextBox extends AbstractBox {
 						}
 					}
 				}
+			}
+		}
+
+		private void drawTextLeaf(final GC gc, final Text text, final double x, final double y,
+				final int index, final boolean mainText) throws GraphicsException {
+			if (!mainText || this.structRef == null) {
+				gc.drawText(text, x, y);
+				return;
+			}
+			final net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut =
+					net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc) instanceof net.zamasoft.pdfg2d.pdf.gc.PDFGC pdfgc
+							&& pdfgc.getPDFGraphicsOutput() instanceof net.zamasoft.pdfg2d.pdf.PDFPageOutput out
+									? out : null;
+			if (structOut == null) {
+				gc.drawText(text, x, y);
+				return;
+			}
+			final BidiSlice slice = this.bidiSlices == null ? null : this.bidiSlices[index];
+			if (slice == null) {
+				structOut.beginStructContent(this.structRef);
+			} else {
+				structOut.beginStructContent(this.structRef,
+						new net.zamasoft.pdfg2d.pdf.StructureOrder(slice.paragraphId(), slice.syntheticStart(),
+								this.lineScope == null ? index : this.lineScope.nextPaintSequence()));
+			}
+			try {
+				gc.drawText(text, x, y);
+			} finally {
+				structOut.endStructContent();
 			}
 		}
 	}
@@ -1236,6 +1444,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 					this.leader.advance, this.leader.endOffset, copies);
 		}
 
+		@Override
+		public String describeGeometry(final double x, final double y) {
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()
+					|| this.params.writingModeVariant == WritingModeVariant.NORMAL) {
+				return "";
+			}
+			final AffineTransform at = SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
+					this.ascent, this.descent, this.leader.advance);
+			final double[] m = new double[6];
+			at.getMatrix(m);
+			return String.format(java.util.Locale.ROOT, " leader-tf=[%.2f %.2f %.2f %.2f %.2f %.2f]",
+					m[0], m[1], m[2], m[3], m[4], m[5]);
+		}
+
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			final double p = this.leader.minAdvance;
 			final double gridOrigin = this.leader.advance + this.leader.endOffset;
@@ -1247,11 +1469,18 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (this.params.color != null) {
 					gc.setFillPaint(this.params.color);
 				}
+				final boolean sideways = this.params.writingModeVariant != WritingModeVariant.NORMAL;
 				final boolean vertical = this.params.flow.isVertical();
+				if (sideways) {
+					gc.transform(SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
+							this.ascent, this.descent, this.leader.advance));
+				}
 				for (long k = range[0]; k <= range[1]; ++k) {
 					double cell = gridOrigin - (k + 1) * p;
 					for (final Text run : this.leader.runs) {
-						if (vertical) {
+						if (sideways) {
+							gc.drawText(run, cell, 0);
+						} else if (vertical) {
 							gc.drawText(run, x + this.descent, y + cell);
 						} else {
 							gc.drawText(run, x + cell, y + this.ascent);
@@ -1282,6 +1511,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 			this.height = height;
 		}
 
+		@Override
+		public String describeGeometry(final double x, final double y) {
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()
+					|| this.params.writingModeVariant == WritingModeVariant.NORMAL) {
+				return "";
+			}
+			final AffineTransform at = SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
+					this.ascent, this.descent, this.height);
+			final double[] m = new double[6];
+			at.getMatrix(m);
+			return String.format(java.util.Locale.ROOT, " decoration-tf=[%.2f %.2f %.2f %.2f %.2f %.2f]",
+					m[0], m[1], m[2], m[3], m[4], m[5]);
+		}
+
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			try (final var gcState = gc.begin()) {
 
@@ -1296,7 +1539,37 @@ public abstract class AbstractTextBox extends AbstractBox {
 				final double fontSize = this.params.fontStyle.getSize();
 				final double autoThickness = fontSize * this.params.decorationThickness;
 				final net.zamasoft.pdfg2d.gc.font.FontListMetrics flm = this.params.getFontListMetrics();
-				if (this.params.flow.isVertical()) {
+				if (this.params.writingModeVariant != WritingModeVariant.NORMAL) {
+					gc.transform(SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
+							this.ascent, this.descent, this.height));
+					final double lineAxis = this.height;
+					final Decoration.Line underline = this.decoration.underline;
+					if (underline != null) {
+						final double t = thicknessOf(underline, autoThickness);
+						final double descent = flm.getMaxDescent();
+						double lineY;
+						if (underline.position() == AbstractTextParams.UNDERLINE_POSITION_UNDER) {
+							lineY = descent + t / 2 + (Double.isNaN(underline.offset()) ? 0 : underline.offset());
+						} else if (!Double.isNaN(underline.offset())) {
+							lineY = underline.offset() + t / 2;
+						} else {
+							lineY = Math.min(this.descent - t, descent);
+						}
+						drawDecorationLine(gc, underline, t, 0, lineY, lineAxis, lineY, false);
+					}
+					final Decoration.Line overline = this.decoration.overline;
+					if (overline != null) {
+						final double t = thicknessOf(overline, autoThickness);
+						final double lineY = Math.max(-this.ascent + t, -flm.getMaxAscent());
+						drawDecorationLine(gc, overline, t, 0, lineY, lineAxis, lineY, false);
+					}
+					final Decoration.Line lineThrough = this.decoration.lineThrough;
+					if (lineThrough != null) {
+						final double lineY = -flm.getMaxXHeight() / 2.0;
+						drawDecorationLine(gc, lineThrough, thicknessOf(lineThrough, autoThickness),
+								0, lineY, lineAxis, lineY, false);
+					}
+				} else if (this.params.flow.isVertical()) {
 					// 縦書き進行
 					x += this.descent;
 					final double lineAxis = this.height;
@@ -1442,11 +1715,21 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
-	private final Drawable createTextSequenceDrawable(PageBox pageBox, Shape clip, AffineTransform transform, int off,
-			int len) {
+	private final Drawable createTextSequenceDrawable(PageBox pageBox, Shape clip, AffineTransform transform,
+			List<Object> drawingContents, int off, int len) {
 		AbstractTextParams params = this.getTextParams();
-		return new TextSequenceDrawable(pageBox, clip, transform, this.contents, off, len, params, this.ascent,
-				this.descent);
+		final LogicalLineEmission logicalLine = this.getLogicalLineEmission();
+		final BidiSlice[] slices;
+		if (logicalLine == null) {
+			slices = null;
+		} else {
+			slices = new BidiSlice[len];
+			for (int i = 0; i < len; ++i) {
+				slices[i] = this.getBidiSlice(drawingContents.get(off + i));
+			}
+		}
+		return new TextSequenceDrawable(pageBox, clip, transform, drawingContents, off, len, params, this.ascent,
+				this.descent, logicalLine, this.getLogicalLineVisualText(), slices);
 	}
 
 	public final void pushGetTextSteps(final StringBuilder textBuff, final java.util.Deque<GetTextStep> worklist) {
@@ -1479,7 +1762,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
-		if (this.contents == null || this.contents.isEmpty()) {
+		final List<Object> drawingContents = this.getDrawingContents();
+		if (drawingContents == null || drawingContents.isEmpty()) {
 			return;
 		}
 		// 局所描画(テキストラン・装飾)と子(インライン・絶対配置)の描画が
@@ -1498,9 +1782,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 		double dx = 0, dy = 0;
 		final AbstractTextParams lineParams = this.getTextParams();
 		final boolean vertical = lineParams.flow.isVertical();
+		final boolean bottomToTop = vertical && lineParams.writingModeVariant != WritingModeVariant.NORMAL
+				&& TypesettingMode.inlineProgression(lineParams.flow, lineParams.writingModeVariant,
+						lineParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+		final double inlineExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 		// テキストとインラインの描画
-		for (int i = 0; i < this.contents.size(); ++i) {
-			switch (this.contents.get(i)) {
+		for (int i = 0; i < drawingContents.size(); ++i) {
+			switch (drawingContents.get(i)) {
 			case Text text -> {
 				// テキスト
 				if (len == 0) {
@@ -1527,9 +1815,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// インライン
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
-					final double ftx = tx, fty = ty;
+					final double ftx = tx;
+					final double fty = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, ty - y, yy - y)
+							: ty;
 					localSteps.add(w -> drawer.visitDrawable(
-							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
+							this.createTextSequenceDrawable(pageBox, clip, transform, drawingContents, foff, flen), ftx, fty));
 					len = 0;
 				}
 				if (decoration) {
@@ -1538,7 +1829,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 						final double width = xx - dx;
 						final double height = yy - dy;
 						if ((vertical && height > 0) || (!vertical && width > 0)) {
-							final double fdx = dx, fdy = dy;
+							final double fdx = dx;
+							final double fdy = bottomToTop
+									? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, dy - y, yy - y)
+									: dy;
 							localSteps.add(w -> {
 								Drawable drawable = new TextDecorationDrawable(pageBox, clip, transform, lineParams,
 										this.decoration, this.ascent, this.descent, width, height);
@@ -1612,8 +1906,18 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// + inline.verticalAlign);
 				if (vertical) {
 					// 縦書き(日本)
-					voffset += (this.getWidth() - inlineBox.getWidth());
-					final double drawX = xx + voffset + inline.verticalAlign, drawY = yy;
+					final double drawX;
+					if (lineParams.writingModeVariant == WritingModeVariant.SIDEWAYS_CCW) {
+						drawX = xx + this.ascent - ascent - inline.verticalAlign;
+					} else {
+						voffset += (this.getWidth() - inlineBox.getWidth());
+						drawX = xx + voffset + inline.verticalAlign;
+					}
+					final double inlineStart = yy - y;
+					final double drawY = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, inlineStart,
+									inlineStart + inlineBox.getHeight())
+							: yy;
 					localSteps.add(IBox.drawStep(inlineBox, pageBox, drawer, visitor, clip, transform, contextX,
 							contextY, drawX, drawY));
 					yy += inlineBox.getHeight();
@@ -1630,9 +1934,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// 絶対配置
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
-					final double ftx = tx, fty = ty;
+					final double ftx = tx;
+					final double fty = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, ty - y, yy - y)
+							: ty;
 					localSteps.add(w -> drawer.visitDrawable(
-							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
+							this.createTextSequenceDrawable(pageBox, clip, transform, drawingContents, foff, flen), ftx, fty));
 					len = 0;
 				}
 				double xxx, yyy;
@@ -1645,7 +1952,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 				if (pos.location.getTopType() != LengthType.AUTO || pos.location.getBottomType() != LengthType.AUTO) {
 					yyy = contextY;
 				} else {
-					yyy = yy;
+					yyy = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y, yy - y)
+							: yy;
 				}
 				localSteps.add(IBox.drawStep(absoluteBox, pageBox, drawer, visitor, clip, transform, contextX,
 						contextY, xxx, yyy));
@@ -1655,9 +1964,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// 空白
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
-					final double ftx = tx, fty = ty;
+					final double ftx = tx;
+					final double fty = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, ty - y, yy - y)
+							: ty;
 					localSteps.add(w -> drawer.visitDrawable(
-							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
+							this.createTextSequenceDrawable(pageBox, clip, transform, drawingContents, foff, flen), ftx, fty));
 					len = 0;
 				}
 				if (!decoration) {
@@ -1679,9 +1991,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// しない——行末原点の固定グリッドで位相を揃える)
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
-					final double ftx = tx, fty = ty;
+					final double ftx = tx;
+					final double fty = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, ty - y, yy - y)
+							: ty;
 					localSteps.add(w -> drawer.visitDrawable(
-							this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
+							this.createTextSequenceDrawable(pageBox, clip, transform, drawingContents, foff, flen), ftx, fty));
 					len = 0;
 				}
 				if (!decoration) {
@@ -1690,7 +2005,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 					decoration = true;
 				}
 				if (lineParams.opacity != 0) {
-					final double fx = xx, fy = yy;
+					final double fx = xx;
+					final double leaderStart = yy - y;
+					final double fy = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, leaderStart,
+									leaderStart + leader.getAdvance())
+							: yy;
 					localSteps.add(w -> drawer.visitDrawable(new LeaderDrawable(pageBox, clip, transform,
 							this.getTextParams(), leader, this.ascent, this.descent), fx, fy));
 				}
@@ -1706,16 +2026,22 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 		if (lineParams.opacity != 0 && len > 0) {
 			final int foff = off, flen = len;
-			final double ftx = tx, fty = ty;
+			final double ftx = tx;
+			final double fty = bottomToTop
+					? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, ty - y, yy - y)
+					: ty;
 			localSteps.add(w -> drawer.visitDrawable(
-					this.createTextSequenceDrawable(pageBox, clip, transform, foff, flen), ftx, fty));
+					this.createTextSequenceDrawable(pageBox, clip, transform, drawingContents, foff, flen), ftx, fty));
 			len = 0;
 		}
 		if (decoration && this.decoration != null) {
 			final double width = xx - dx;
 			final double height = yy - dy;
 			if ((vertical && height > 0) || (!vertical && width > 0)) {
-				final double fdx = dx, fdy = dy;
+				final double fdx = dx;
+				final double fdy = bottomToTop
+						? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, dy - y, yy - y)
+						: dy;
 				localSteps.add(w -> {
 					Drawable drawable = new TextDecorationDrawable(pageBox, clip, transform, lineParams,
 							this.decoration, this.ascent, this.descent, width, height);
@@ -1740,7 +2066,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
 			java.util.Deque<TextShapeStep> worklist) {
-		if (this.contents == null || this.contents.isEmpty()) {
+		final List<Object> drawingContents = this.getDrawingContents();
+		if (drawingContents == null || drawingContents.isEmpty()) {
 			return;
 		}
 		// クリップ用のpathへの追記は描画順に意味がないため、テキストは
@@ -1750,17 +2077,40 @@ public abstract class AbstractTextBox extends AbstractBox {
 		double xx = x, yy = y;
 
 		final AbstractTextParams lineParams = this.getTextParams();
+		final boolean sideways = lineParams.writingModeVariant != WritingModeVariant.NORMAL;
 		final boolean vertical = lineParams.flow.isVertical();
+		final boolean bottomToTop = vertical && lineParams.writingModeVariant != WritingModeVariant.NORMAL
+				&& TypesettingMode.inlineProgression(lineParams.flow, lineParams.writingModeVariant,
+						lineParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+		final double inlineExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 		// テキストとインラインの描画
-		for (int i = 0; i < this.contents.size(); ++i) {
-			switch (this.contents.get(i)) {
+		for (int i = 0; i < drawingContents.size(); ++i) {
+			switch (drawingContents.get(i)) {
 			case Text text -> {
 				// テキスト
 				Font font = ((FontMetricsImpl) text.getFontMetrics()).getFont();
-				if (vertical) {
+				if (sideways) {
+					if (font instanceof ShapedFont) {
+						final double drawY = bottomToTop
+								? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
+										yy - y + text.getAdvance())
+								: yy;
+						AffineTransform at = SidewaysGeometry.runTransform(lineParams.writingModeVariant, xx, drawY,
+								this.ascent, this.descent, text.getAdvance());
+						at.preConcatenate(transform);
+						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
+					} else {
+						this.missingFontOutline(pageBox, text);
+					}
+					yy += text.getAdvance();
+				} else if (vertical) {
 					// 縦書き
 					if (font instanceof ShapedFont) {
-						AffineTransform at = AffineTransform.getTranslateInstance(xx + this.descent, yy);
+						final double drawY = bottomToTop
+								? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
+										yy - y + text.getAdvance())
+								: yy;
+						AffineTransform at = AffineTransform.getTranslateInstance(xx + this.descent, drawY);
 						at.preConcatenate(transform);
 						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
 					}
@@ -1848,8 +2198,18 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// + inline.verticalAlign);
 				if (vertical) {
 					// 縦書き(日本)
-					voffset += (this.getWidth() - inlineBox.getWidth());
-					final double sx = xx + voffset + inline.verticalAlign, sy = yy;
+					final double sx;
+					if (lineParams.writingModeVariant == WritingModeVariant.SIDEWAYS_CCW) {
+						sx = xx + this.ascent - ascent - inline.verticalAlign;
+					} else {
+						voffset += (this.getWidth() - inlineBox.getWidth());
+						sx = xx + voffset + inline.verticalAlign;
+					}
+					final double inlineStart = yy - y;
+					final double sy = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, inlineStart,
+									inlineStart + inlineBox.getHeight())
+							: yy;
 					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
 					yy += inlineBox.getHeight();
 				} else {

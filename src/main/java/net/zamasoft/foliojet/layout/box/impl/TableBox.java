@@ -349,7 +349,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		double yy = y + this.frame.getFrameTop();
 
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(params.zIndexValue);
+			final Drawer newDrawer = new Drawer(params, transform);
 			drawer.visitDrawer(newDrawer);
 			drawer = newDrawer;
 		}

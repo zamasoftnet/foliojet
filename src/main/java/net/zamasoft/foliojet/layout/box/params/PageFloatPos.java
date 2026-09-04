@@ -9,8 +9,8 @@ package net.zamasoft.foliojet.layout.box.params;
  * {@code PosType.FLOAT}のまま流し、分離builderのライフサイクル
  * (container builderのpush/pop・rangeのseal)を再利用する。終了時に
  * 親への{@code addBound}ではなくページ台帳({@code RootBuilder})へ
- * 渡る点だけが左右floatと異なり、回り込み幾何(ExclusionSpace)には
- * 関与しない。
+ * 渡る点だけが左右floatと異なる。上端フロートは配置後、Root座標の
+ * 行走査に限って二次元排除域として使われる。
  * </p>
  */
 public final class PageFloatPos extends FloatPos {

@@ -5,6 +5,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+import net.zamasoft.foliojet.layout.box.AbstractLineBox;
+import net.zamasoft.foliojet.layout.builder.impl.BuilderGlyphHandler;
+import net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
@@ -22,12 +25,14 @@ import net.zamasoft.pdfg2d.gc.text.TextControl;
  */
 public final class TextReplaySlice {
 	private final List<TextReplayEvent> events;
+	private final BidiReplayPrefix bidiReplayPrefix;
 
 	/** consume-once: 再生済みなら true(P0 の ranges と同じ規約)。 */
 	private boolean consumed;
 
-	private TextReplaySlice(final List<TextReplayEvent> events) {
+	private TextReplaySlice(final List<TextReplayEvent> events, final BidiReplayPrefix bidiReplayPrefix) {
 		this.events = events;
+		this.bidiReplayPrefix = bidiReplayPrefix;
 	}
 
 	/** イベント数を返します。 */
@@ -39,6 +44,17 @@ public final class TextReplaySlice {
 	 * producer が GlyphHandler へ配達する列を捕捉します(close まで)。
 	 */
 	public static TextReplaySlice record(final Consumer<GlyphHandler> producer) {
+		return record(producer, BidiReplayPrefix.EMPTY);
+	}
+
+	/** 段落途中の再生では、既に配置済みの先行行も UBA 文脈として保持する。 */
+	public static TextReplaySlice record(final Consumer<GlyphHandler> producer,
+			final List<AbstractLineBox> bidiReplayPrefix) {
+		return record(producer, BidiReplayPrefix.EMPTY.append(bidiReplayPrefix));
+	}
+
+	public static TextReplaySlice record(final Consumer<GlyphHandler> producer,
+			final BidiReplayPrefix bidiReplayPrefix) {
 		final List<TextReplayEvent> events = new ArrayList<>();
 		producer.accept(new GlyphHandler() {
 			public void startTextRun(final int charOffset, final FontStyle fontStyle,
@@ -68,7 +84,7 @@ public final class TextReplaySlice {
 				// 終端は replay 側の close で再現する
 			}
 		});
-		return new TextReplaySlice(Collections.unmodifiableList(events));
+		return new TextReplaySlice(Collections.unmodifiableList(events), bidiReplayPrefix);
 	}
 
 	/**
@@ -84,6 +100,9 @@ public final class TextReplaySlice {
 			throw new IllegalStateException("TextReplaySlice は consume-once");
 		}
 		this.consumed = true;
+		if (gh instanceof BuilderGlyphHandler builderGlyphHandler) {
+			builderGlyphHandler.seedBidiReplayPrefix(this.bidiReplayPrefix);
+		}
 		for (final TextReplayEvent event : this.events) {
 			switch (event) {
 			case TextReplayEvent.RunStart(final int charOffset, final FontStyle fontStyle,

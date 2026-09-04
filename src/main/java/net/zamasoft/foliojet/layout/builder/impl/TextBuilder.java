@@ -26,6 +26,8 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineAbsoluteQuad;
@@ -96,6 +98,8 @@ public class TextBuilder {
 	}
 
 	private final BlockBuilder builder;
+	private final boolean paragraphBidiEnabled;
+	private final byte paragraphDirection;
 
 	/**
 	 * 最も近い祖先の{@code line-clamp}の状態(無ければnull。2026-08-29)。
@@ -171,6 +175,8 @@ public class TextBuilder {
 		this.lineClamp = net.zamasoft.foliojet.layout.builder.LineClampState.find(builder);
 		final Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
+		this.paragraphBidiEnabled = builder.paragraphBidiEnabled();
+		this.paragraphDirection = params.direction;
 		this.textBlockBox = new TextBlockBox(params, breakToken);
 
 		if (!breakToken.midFlow()) {
@@ -188,6 +194,7 @@ public class TextBuilder {
 		this.last = !breakToken.midLine();
 		this.firstFormattedLine = !breakToken.midFlow();
 		this.lineBox = lineBox;
+		this.lineBox.setParagraphBidi(this.paragraphBidiEnabled, this.paragraphDirection);
 		this.lineHead = this.firstUnit = true;
 		this.lastSpaceAdvance = 0;
 		this.changeTextState(params);
@@ -283,7 +290,7 @@ public class TextBuilder {
 			return;
 		}
 		double ascent, descent;
-		if (params.flow.isVertical()) {
+		if (params.isVerticalTypesetting()) {
 			// 縦組み: 字面は中央線の左右にサイズの半分ずつ
 			ascent = descent = params.fontStyle.getSize() / 2.0;
 		} else {
@@ -329,6 +336,7 @@ public class TextBuilder {
 			}
 		}
 		this.textBlockBox.addLine(lineBox, this.pageAxis);
+		this.builder.noteBidiLine(this.textBlockBox, lineBox);
 		final double pageAdvance = lineBox.getAscent() + lineBox.getDescent();
 		this.pageAxis += pageAdvance;
 		assert !LayoutUtils.isNone(this.pageAxis);
@@ -387,6 +395,50 @@ public class TextBuilder {
 	}
 
 	/**
+	 * 現在のフラグメントに、ページフロートを避けて最初の1行を置けるか。
+	 * ページフロートが無い文脈では従来の行配置へ委ねて常にtrueを返す。
+	 */
+	static boolean hasFirstLineBandInFragment(final BlockBuilder builder, final double fragmentLimit) {
+		if (builder.pageFloatExclusionsForLineLayout().isEmpty()) {
+			return true;
+		}
+		final BlockParams params = builder.getFlowBox().getBlockParams();
+		final double lineHeight = !builder.breakToken.midFlow() && params.firstLineStyle != null
+				? params.firstLineStyle.lineHeight
+				: params.lineHeight;
+		if (LayoutUtils.compare(lineHeight, 0) <= 0) {
+			return true;
+		}
+		double pageStart = builder.pageAxis;
+		final double lineStart0 = builder.lineAxis;
+		final double lineEnd0 = lineStart0 + builder.getFlowBox().getLineSize();
+		for (;;) {
+			final ExclusionSpace.LineScan found = builder.scanLineBandForLineLayout(pageStart, lineHeight,
+					lineStart0, lineEnd0);
+			double maxPageSize = fragmentLimit - pageStart;
+			if (found.maxPageSizeSet()) {
+				maxPageSize = Math.min(maxPageSize, found.maxPageSize());
+			}
+			if (LayoutUtils.compare(found.lineEnd() - found.lineStart(), lineHeight) >= 0) {
+				return LayoutUtils.compare(maxPageSize, lineHeight) >= 0;
+			}
+			if (found.startExclusion() == null && found.endExclusion() == null) {
+				// 包含ブロック自体が1行高より狭い場合は、ページフロートを
+				// 理由に改ページし続けず従来のoverflow処理へ委ねる。
+				return true;
+			}
+			if (found.endExclusion() == null) {
+				pageStart = nextSearchPage(found.startExclusion(), pageStart, lineHeight);
+			} else if (found.startExclusion() == null) {
+				pageStart = nextSearchPage(found.endExclusion(), pageStart, lineHeight);
+			} else {
+				pageStart = Math.min(nextSearchPage(found.startExclusion(), pageStart, lineHeight),
+						nextSearchPage(found.endExclusion(), pageStart, lineHeight));
+			}
+		}
+	}
+
+	/**
 	 * 現在構築中の行の位置を調整します。
 	 */
 	private void locateLine() {
@@ -395,17 +447,16 @@ public class TextBuilder {
 		this.maxPageSize = Double.MAX_VALUE;
 
 		this.maxLineSize = this.builder.getFlowBox().getLineSize();
-		if (this.builder.floatings != null) {
+		if (this.builder.hasLineExclusions()) {
 			final double lineHeight = this.lineBox.getLineParams().lineHeight;
 			// System.out.println("TB-locateLine1:" + pageStart + "/"
 			// + this.builder.floatings.size() + "/" + lineHeight);
 			final double lineEnd0 = this.builder.lineAxis + this.maxLineSize;
-			// floatingsはこのループ中不変なのでスナップショットはループ外で
-			// 1回だけ取る。
-			final ExclusionSpace snapshot = this.snapshotExclusions();
+			// 通常floatとページフロートは別々の不変スナップショットとして
+			// 各反復で走査される。
 			for (;;) {
 				// ラインを入れるスペースがある部分の左右
-				final ExclusionSpace.LineScan found = snapshot.scanLineBand(pageStart, lineHeight,
+				final ExclusionSpace.LineScan found = this.builder.scanLineBandForLineLayout(pageStart, lineHeight,
 						this.builder.lineAxis, lineEnd0);
 				lineStart = found.lineStart();
 				if (found.maxPageSizeSet()) {
@@ -485,15 +536,6 @@ public class TextBuilder {
 		}
 	}
 
-				/**
-	 * {@link BlockBuilder#snapshotExclusions}への委譲です(2026-07-23、
-	 * codexレビュー指摘——変換処理が両クラスに重複していると将来の
-	 * 変換規則ずれを生むため一本化した)。
-	 */
-	private ExclusionSpace snapshotExclusions() {
-		return this.builder.snapshotExclusions();
-	}
-
 	/**
 	 * 現在のテキストボックスを返します。
 	 * 
@@ -535,7 +577,11 @@ public class TextBuilder {
 			inlineBox.addAscentDescent(ascent, descent);
 
 			AbstractTextParams textParams = textBox.getTextParams();
-			double start = inlineBox.getFrame().getFrameLineStart(textParams.flow);
+			double start = textParams.flow.isVertical() && textParams.writingModeVariant != WritingModeVariant.NORMAL
+					&& TypesettingMode.inlineProgression(textParams.flow, textParams.writingModeVariant,
+							textParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP
+						? inlineBox.getFrame().getFrameBottom()
+						: inlineBox.getFrame().getFrameLineStart(textParams.flow);
 			this.lineBox.addAdvance(start);
 			inlineBox.addAdvance(start);
 			Inline inline = new Inline(inlineBox);
@@ -694,7 +740,11 @@ public class TextBuilder {
 			inlineBox.closeInline();
 
 			AbstractLineParams params = this.lineBox.getLineParams();
-			final double end = inlineBox.getFrame().getFrameLineEnd(params.flow);
+			final double end = params.flow.isVertical() && params.writingModeVariant != WritingModeVariant.NORMAL
+					&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+							params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP
+						? inlineBox.getFrame().getFrameTop()
+						: inlineBox.getFrame().getFrameLineEnd(params.flow);
 			final double advance = inlineBox.getLineExtent(params.flow) + end;
 			inlineBox.addAdvance(end);
 			this.lineBox.addAdvance(end);
@@ -852,6 +902,7 @@ public class TextBuilder {
 			this.firstFormattedLine = false;
 			final AbstractLineBox lineBox = this.lineBox;
 			final LineBox newLineBox = lineBox.splitLine(this.textBlockBox.getBlockParams());
+			newLineBox.setParagraphBidi(this.paragraphBidiEnabled, this.paragraphDirection);
 
 			// StringBuilder text = new StringBuilder();
 			// lineBox.getText(text);
@@ -889,6 +940,9 @@ public class TextBuilder {
 				this.lineBox = newLineBox;
 			}
 			this.addLine(lineBox);
+			if (last && this.paragraphBidiEnabled) {
+				this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
+			}
 			lineAdded = true;
 		}
 
@@ -1882,11 +1936,25 @@ public class TextBuilder {
 		if (!this.drawLine(true, fragmentBreak)) {
 			// 開始のないINLINE_ENDだけを回復的に捨てたTextBuilderは、
 			// 1行も持たずに終了してよい。
+			if (this.paragraphBidiEnabled) {
+				if (fragmentBreak) {
+					this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
+				} else {
+					this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
+				}
+			}
 			return;
 		}
 		this.lineBox.align(this.textIndent, this.minLineAxis, this.maxLineSize, true);
 		// ブロック末尾の行(nowrapの1行はここだけを通る)にもtext-overflowを適用
 		this.applyTextOverflow(this.lineBox);
 		this.addLine(this.lineBox);
+		if (this.paragraphBidiEnabled) {
+			if (fragmentBreak) {
+				this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
+			} else {
+				this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
+			}
+		}
 	}
 }

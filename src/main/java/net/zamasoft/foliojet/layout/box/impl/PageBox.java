@@ -192,6 +192,13 @@ public class PageBox extends AbstractBlockBox {
 			this.frame.margin.right = right;
 			this.frame.margin.bottom = bottom;
 			this.frame.margin.left = left;
+			// 内側余白(`@page`のpadding、2026-09-03)。余白と同じ規則で絶対値にする
+			// (以前は解決されず0のままで、枠線だけが引かれていた)
+			final double[] padding = resolveInsets(frame.padding, lineWidth);
+			this.frame.padding.top = padding[0];
+			this.frame.padding.right = padding[1];
+			this.frame.padding.bottom = padding[2];
+			this.frame.padding.left = padding[3];
 			if (this.size.getWidthType() == LengthType.ABSOLUTE) {
 				this.visualWidth = this.width = this.size.getWidth() - this.frame.getFrameWidth();
 			}
@@ -572,6 +579,26 @@ public class PageBox extends AbstractBlockBox {
 		final net.zamasoft.foliojet.ua.UserAgent ua = this.ua;
 		final Background pageBackground = this.pageBackground;
 		return (state, container) -> new PageBox(params, ua, pageBackground, container);
+	}
+
+	/** 余白・内側余白の指定値を行幅を基準に絶対値へ(上・右・下・左)。AUTOは0。 */
+	private static double[] resolveInsets(final Insets insets, final double lineWidth) {
+		final double[] out = new double[4];
+		final LengthType[] types = { insets.getTopType(), insets.getRightType(), insets.getBottomType(),
+				insets.getLeftType() };
+		final double[] values = { insets.getTop(), insets.getRight(), insets.getBottom(), insets.getLeft() };
+		final double[] ratios = { insets.getTopRatio(), insets.getRightRatio(), insets.getBottomRatio(),
+				insets.getLeftRatio() };
+		for (int i = 0; i < 4; ++i) {
+			out[i] = switch (types[i]) {
+			case ABSOLUTE -> values[i];
+			case RELATIVE -> values[i] * lineWidth;
+			case MIXED -> values[i] + ratios[i] * lineWidth;
+			case AUTO -> 0;
+			default -> throw new IllegalStateException();
+			};
+		}
+		return out;
 	}
 
 	public final void drawFlow(Drawer drawer, Visitor visitor) {

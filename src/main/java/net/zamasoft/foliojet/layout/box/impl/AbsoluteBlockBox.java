@@ -397,7 +397,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			clip = clip == null ? icb : icb.createIntersection((java.awt.geom.Rectangle2D) clip);
 		}
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(this.params.zIndexValue);
+			final Drawer newDrawer = new Drawer(this.params, transform);
 			drawer.visitDrawer(newDrawer);
 			drawer = newDrawer;
 		}

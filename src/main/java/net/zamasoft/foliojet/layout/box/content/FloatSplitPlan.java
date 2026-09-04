@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
-import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
@@ -175,25 +174,33 @@ public record FloatSplitPlan(
 		// ライブロック確定時は物理位置を問わずfirst扱いにして、
 		// 「はみ出させてでも置く」逃げ道(分岐表5・5-R)へ到達させる
 		// (2026-07-29、{@link IPageBreakableBox#FLAGS_LIVELOCK})
-		final boolean first = ((flags & IPageBreakableBox.FLAGS_FIRST) != 0 && m.fragmentHead())
+		final boolean first = FloatMeasurement.isFragmentStart(
+				(flags & IPageBreakableBox.FLAGS_FIRST) != 0, m.fragmentHead())
 				|| (flags & IPageBreakableBox.FLAGS_LIVELOCK) != 0;
+		if (m.moveToNext()) {
+			// 配置時に2-D bottom帯との交差が確定済み。物理ページ端で
+			// Keepへ戻さず、この分割で一度だけ次断片へ送る。
+			return new FloatItemPlan.Move(m);
+		}
 		if (LayoutUtils.compare(m.pageEnd(), pageLimit) <= 0) {
-			// 分岐表1: 全体が切断線以前
+			// 分岐表1: 全体が切断線以前(従来の比較を変更しない)
 			return new FloatItemPlan.Keep(m);
 		}
 		if (!first && LayoutUtils.compare(pageLimit, m.pageStart()) < 0) {
 			// 分岐表2: 全体が切断線より後
 			return new FloatItemPlan.Move(m);
 		}
+		if (!FloatMeasurement.isUnsplittable(m.boxType(), m.sameWritingAxis(), m.pageBreakInside(), first)) {
+			// 分岐表3: commit時に一度だけsplitする印(結果は予言しない)
+			final byte splitFlags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
+			return new FloatItemPlan.SplitOnCommit(m, pageLimit - m.pageStart(), splitFlags);
+		}
+		if (FloatMeasurement.fitsPageUnsplittable(m.pageEnd(), pageLimit)) {
+			// 分岐表4→5: 分割不能floatだけは1pt未満のpainted sliverを残す。
+			return new FloatItemPlan.Keep(m);
+		}
 		switch (m.boxType()) {
 		case BLOCK:
-			if ((m.pageBreakInside() != PageBreakMode.AVOID || first) && m.sameWritingAxis()) {
-				// 分岐表3: commit時に一度だけsplitする印(結果は予言しない)
-				final byte splitFlags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
-				return new FloatItemPlan.SplitOnCommit(m, pageLimit - m.pageStart(), splitFlags);
-			}
-			// 分岐表4: avoid非first・書字軸不一致はREPLACED扱いへフォールスルー
-			//$FALL-THROUGH$
 		case REPLACED:
 		case RESCUE:
 			// 分岐表5: firstならはみ出し許容で残し、非firstなら丸ごと送る

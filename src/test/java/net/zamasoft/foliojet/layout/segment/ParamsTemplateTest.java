@@ -35,12 +35,14 @@ public class ParamsTemplateTest extends TestCase {
 		source.transform = AffineTransform.getTranslateInstance(3, 4);
 		source.textShadows = new TextShadow[] { new TextShadow(1, 2, RGBColor.create(0, 0, 0)) };
 		source.orphans = 3;
+		source.unicodeBidi = net.zamasoft.foliojet.css.value.UnicodeBidiValue.ISOLATE;
 
 		final BlockParamsTemplate template = BlockParamsTemplate.freeze(source);
 		final BlockParams m1 = template.materialize();
 		final BlockParams m2 = template.materialize();
 
-		// 値は等しい
+		// 値は等しい(unicode-bidi は 2026-09-04 に追加。凍結から漏れると再生で消える)
+		assertEquals(net.zamasoft.foliojet.css.value.UnicodeBidiValue.ISOLATE, m1.unicodeBidi);
 		assertEquals(source.transform, m1.transform);
 		assertEquals(source.transform, m2.transform);
 		assertEquals(3, m1.orphans);

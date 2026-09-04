@@ -21,12 +21,10 @@ import net.zamasoft.pdfg2d.gc.paint.SpreadMethod;
  * (css-images-4 §3.3、2026-08-29新設)。
  *
  * <p>
- * <b>PDFに円錐シェーディングは無い</b>(Type 4〜7のメッシュで作れるが、
- * 補間色を頂点に置くだけでも扇形ごとの三角形メッシュになり、ベクタの
- * 単純さが失われる)。そこで{@code Paint}ではなく{@link #fill}を上書きし、
- * 出力先が円錐グラデーション({@code CONIC_GRADIENT}——Java2D)を持てば
- * {@link ConicGradient}で厳密に塗り、持たなければ(PDF・SVG——SVGの
- * paint serverに円錐は無い)2822を報告して
+ * {@code Paint}ではなく{@link #fill}を上書きし、出力先が円錐グラデーション
+ * ({@code CONIC_GRADIENT}——Java2D・PDFのType 4メッシュ)を持てば
+ * {@link ConicGradient}で厳密に塗る。持たなければ(SVGのpaint serverなど)
+ * 2822を報告して
  * 中心から放射する扇形を色停止の補間色で塗り分ける。扇形は
  * {@link #MAX_WEDGE}(2°)以下に刻み、色停止の位置には必ず境界を置く
  * (ハードストップがぼやけない)。180枚の扇形は1枚40バイト程度の

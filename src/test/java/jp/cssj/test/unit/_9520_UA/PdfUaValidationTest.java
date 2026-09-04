@@ -96,6 +96,33 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		this.validate("files/unittest/9520-UA/ua2-roles.html", PDFAFlavour.PDFUA_2, "PDF/UA-2");
 	}
 
+	/** filter 付き要素(層を画像にする)を含む文書も PDF/UA-1 に適合すること(2026-09-03)。 */
+	public void testPdfUa1WithFilteredElement() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.session.property("output.pdf.hyperlinks", "true");
+		this.validateUa("files/unittest/9520-UA/ua-filter.html");
+	}
+
+	/** A reordered bidi fixture with logical /K order remains PDF/UA-1 without ActualText. */
+	public void testPdfUa1WithLogicalBidiOutput() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.session.property("layout.bidi.paragraph", "true");
+		// Hebrew 版(ua-logical-output.html)は埋め込みフォントに字形が無く .notdef 参照で 7.21.8 に落ちるので、
+		// PDF/UA の検証は bidi-override の Latin 版で行う(視覚順 321 CBA / 論理順 ABC 123)
+		this.validateUa("files/unittest/3090-bidi/ua-logical-output-latin.html");
+	}
+
+	/** The opt-in line ActualText path also remains PDF/UA-1. */
+	public void testPdfUa1WithLogicalBidiOutputAndActualText() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.session.property("layout.bidi.paragraph", "true");
+		this.session.property("output.pdf.bidi.actual-text", "true");
+		this.validateUa("files/unittest/3090-bidi/ua-logical-output-latin.html");
+	}
+
 	private void validateUa(final String path) throws Exception {
 		this.validate(path, PDFAFlavour.PDFUA_1, "PDF/UA-1");
 	}

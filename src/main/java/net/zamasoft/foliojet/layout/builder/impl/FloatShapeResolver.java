@@ -10,8 +10,11 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
 import net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 import net.zamasoft.foliojet.layout.constraint.ExclusionShape;
@@ -48,12 +51,13 @@ final class FloatShapeResolver {
 	 * @param box                配置済み浮動体
 	 * @param lineStart          排除帯の行方向開始(論理座標)
 	 * @param pageStart          排除帯のページ方向開始(論理座標)
-	 * @param flow               書字方向
+	 * @param ownerParams        包含ブロックの組版方向
 	 * @param containingLineSize 包含ブロックの行方向幅(shape-marginの%基準)
 	 * @return 解決した形状。矩形と等価・解決不能ならnull
 	 */
 	static ExclusionShape resolve(final IFloatBox box, final double lineStart, final double pageStart,
-			final WritingMode flow, final double containingLineSize) {
+			final AbstractTextParams ownerParams, final double containingLineSize) {
+		final WritingMode flow = ownerParams.flow;
 		final ShapeOutsideParams params = box.getFloatPos().shapeOutside;
 		if (params == null) {
 			return null;
@@ -82,9 +86,9 @@ final class FloatShapeResolver {
 		final AxisSpan lineSpan = new AxisSpan(lineStart, lineStart + box.getLineExtent(flow));
 		final AxisSpan pageSpan = new AxisSpan(pageStart, pageStart + box.getPageExtent(flow));
 		final AffineTransform toLogical = AffineTransform.getTranslateInstance(lineStart, pageStart - offset);
-		toLogical.concatenate(physicalToLogical(flow, width));
+		toLogical.concatenate(physicalToLogical(ownerParams, width, height));
 		if (params.image != null) {
-			return imageProfile(params.image, frame, width, height, margin, flow, lineStart, pageStart - offset,
+			return imageProfile(params.image, frame, width, height, margin, ownerParams, lineStart, pageStart - offset,
 					lineSpan, pageSpan);
 		}
 		final ClipPathShape shape = params.shape;
@@ -129,6 +133,23 @@ final class FloatShapeResolver {
 		case TB -> new AffineTransform();
 		case LR -> new AffineTransform(0, 1, 1, 0, 0, 0);
 		case RL -> new AffineTransform(0, -1, 1, 0, 0, width);
+		};
+	}
+
+	/** 行内進行を含む物理座標→論理座標変換。 */
+	static AffineTransform physicalToLogical(final AbstractTextParams params, final double width,
+			final double height) {
+		final boolean bottomToTop = params.flow.isVertical()
+				&& params.writingModeVariant != WritingModeVariant.NORMAL
+				&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+						params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+		if (!bottomToTop) {
+			return physicalToLogical(params.flow, width);
+		}
+		return switch (params.flow) {
+		case TB -> new AffineTransform();
+		case LR -> new AffineTransform(0, 1, -1, 0, height, 0);
+		case RL -> new AffineTransform(0, -1, -1, 0, height, width);
 		};
 	}
 
@@ -255,8 +276,13 @@ final class FloatShapeResolver {
 	 */
 	private static ExclusionShape imageProfile(final ShapeOutsideParams.ShapeImage image,
 			final AbsoluteRectFrame frame, final double width, final double height, final double margin,
-			final WritingMode flow, final double uOrigin, final double vOrigin, final AxisSpan lineSpan,
+			final AbstractTextParams ownerParams, final double uOrigin, final double vOrigin, final AxisSpan lineSpan,
 			final AxisSpan pageSpan) {
+		final WritingMode flow = ownerParams.flow;
+		final boolean bottomToTop = flow.isVertical()
+				&& ownerParams.writingModeVariant != WritingModeVariant.NORMAL
+				&& TypesettingMode.inlineProgression(flow, ownerParams.writingModeVariant,
+						ownerParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
 		final Rectangle2D.Double content = referenceRect(ClipPathShape.ReferenceBox.CONTENT_BOX, frame, width,
 				height);
 		if (content.width <= 0 || content.height <= 0) {
@@ -296,8 +322,13 @@ final class FloatShapeResolver {
 				if (image.colMin()[col] < 0) {
 					minU[k] = maxU[k] = Double.NaN;
 				} else {
-					minU[k] = content.y + image.colMin()[col] * sy;
-					maxU[k] = content.y + (image.colMax()[col] + 1) * sy;
+					if (bottomToTop) {
+						minU[k] = height - content.y - (image.colMax()[col] + 1) * sy;
+						maxU[k] = height - content.y - image.colMin()[col] * sy;
+					} else {
+						minU[k] = content.y + image.colMin()[col] * sy;
+						maxU[k] = content.y + (image.colMax()[col] + 1) * sy;
+					}
 				}
 			}
 		}

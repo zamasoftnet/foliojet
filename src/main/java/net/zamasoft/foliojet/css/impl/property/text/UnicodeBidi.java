@@ -50,34 +50,26 @@ public class UnicodeBidi extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("bidi-override")) {
 				return UnicodeBidiValue.BIDI_OVERRIDE_VALUE;
 			} else if (ident.equals("isolate")) {
-				// css-writing-modes-3 §2.2。isolateは外側の双方向解決から
-				// 中身を隔離する。静的組版では埋め込み(embed)で近似する
-				// (2026-08-29)——捨てると要素ごとの方向指定が丸ごと失われる
-				return UnicodeBidiValue.EMBED_VALUE;
+				// css-writing-modes-3 §2.2。段落単位のUBA(2026-09-04、
+				// bidi-isolation-design.md)まで値をそのまま保つ。旧近似(embed
+				// への潰し込み)はレイアウト側のflag OFF経路が担う
+				return UnicodeBidiValue.ISOLATE_VALUE;
 			} else if (ident.equals("isolate-override")) {
-				return UnicodeBidiValue.BIDI_OVERRIDE_VALUE;
+				return UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE;
 			} else if (ident.equals("plaintext")) {
-				// 段落ごとの一次方向の自動判定は先読みを要するため未対応。
-				// normalへ退化させる
-				return UnicodeBidiValue.NORMAL_VALUE;
+				return UnicodeBidiValue.PLAINTEXT_VALUE;
 			}
-			// css-writing-modes-3の値と接頭辞つき別名(2026-08-29)。isolateは
-			// embedで近似(隣接テキストへの影響の遮断は未対応)、
-			// isolate-overrideはbidi-override、plaintextは段落方向の自動判定
-			// が無いのでnormalで近似
+			// 接頭辞つき別名(2026-08-29)は標準の値と同じ
 			switch (ident) {
-			case "isolate":
 			case "-moz-isolate":
 			case "-webkit-isolate":
-				return UnicodeBidiValue.EMBED_VALUE;
-			case "isolate-override":
+				return UnicodeBidiValue.ISOLATE_VALUE;
 			case "-moz-isolate-override":
 			case "-webkit-isolate-override":
-				return UnicodeBidiValue.BIDI_OVERRIDE_VALUE;
-			case "plaintext":
+				return UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE;
 			case "-moz-plaintext":
 			case "-webkit-plaintext":
-				return UnicodeBidiValue.NORMAL_VALUE;
+				return UnicodeBidiValue.PLAINTEXT_VALUE;
 			default:
 				break;
 			}

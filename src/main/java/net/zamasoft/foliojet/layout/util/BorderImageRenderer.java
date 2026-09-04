@@ -1,9 +1,9 @@
 package net.zamasoft.foliojet.layout.util;
 
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 
+import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.layout.box.params.Border;
 import net.zamasoft.foliojet.layout.box.params.BorderImage;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
@@ -25,13 +25,14 @@ import net.zamasoft.pdfg2d.gc.image.Image;
  * 実際にタイルする(2026-08-30)。{@code GC}には画像の部分矩形をタイルする
  * 基本操作が無い({@code Pattern}は画像全体をタイルする)ので、<b>目的の辺で
  * クリップしてから、スライス1枚ぶんの描画をタイルの数だけ繰り返す</b>。
- *
- * <p>
- * <b>近似</b>: 画像源がグラデーション({@code PaintSource})のときはスライスせず、
- * 境界領域全体にそのグラデーションを塗る。{@code border-image:
- * linear-gradient(...) 1}(実際に最も多い書き方)はこれで見た目が一致する。
  */
 public final class BorderImageRenderer {
+	@FunctionalInterface
+	private interface Tile {
+		void draw(GC gc, double sx, double sy, double sw, double sh, double dx, double dy, double dw, double dh)
+				throws GraphicsException;
+	}
+
 	public static final BorderImageRenderer INSTANCE = new BorderImageRenderer();
 
 	private BorderImageRenderer() {
@@ -65,12 +66,25 @@ public final class BorderImageRenderer {
 			return false;
 		}
 
-		if (borderImage.getSource() instanceof BorderImage.PaintSource paintSource) {
-			return drawPaint(gc, borderImage, paintSource, border, ax, ay, aw, ah);
+		final double iw, ih;
+		final boolean paintSource;
+		final Tile tile;
+		if (borderImage.getSource() instanceof BorderImage.ImageSource imageSource) {
+			final Image image = imageSource.image();
+			iw = image.getWidth();
+			ih = image.getHeight();
+			paintSource = false;
+			tile = (tileGc, sx, sy, sw, sh, dx, dy, dw, dh) ->
+				slice(tileGc, image, sx, sy, sw, sh, dx, dy, dw, dh);
+		} else {
+			final PaintValue paint = ((BorderImage.PaintSource) borderImage.getSource()).paint();
+			final Rectangle2D virtualSource = new Rectangle2D.Double(0, 0, aw, ah);
+			iw = aw;
+			ih = ah;
+			paintSource = true;
+			tile = (tileGc, sx, sy, sw, sh, dx, dy, dw, dh) ->
+				paintSlice(tileGc, paint, virtualSource, sx, sy, sw, sh, dx, dy, dw, dh);
 		}
-		final Image image = ((BorderImage.ImageSource) borderImage.getSource()).image();
-		final double iw = image.getWidth();
-		final double ih = image.getHeight();
 		if (iw <= 0 || ih <= 0) {
 			return false;
 		}
@@ -81,11 +95,15 @@ public final class BorderImageRenderer {
 		final double[] sliceH = fitSlices(slice(borderImage.getSlice().left(), iw),
 				slice(borderImage.getSlice().right(), iw), iw);
 
-		// 描画先の枠幅。autoは対応するスライス寸法をそのまま使う
-		double wTop = width(borderImage.getWidth().top(), border.getTop(), ah, sliceV[0]);
-		double wBottom = width(borderImage.getWidth().bottom(), border.getBottom(), ah, sliceV[1]);
-		double wLeft = width(borderImage.getWidth().left(), border.getLeft(), aw, sliceH[0]);
-		double wRight = width(borderImage.getWidth().right(), border.getRight(), aw, sliceH[1]);
+		// 描画先の枠幅。autoは画像ならスライス寸法、自然寸法の無いpaintならborder-width
+		double wTop = width(borderImage.getWidth().top(), border.getTop(), ah,
+				paintSource ? border.getTop().width : sliceV[0]);
+		double wBottom = width(borderImage.getWidth().bottom(), border.getBottom(), ah,
+				paintSource ? border.getBottom().width : sliceV[1]);
+		double wLeft = width(borderImage.getWidth().left(), border.getLeft(), aw,
+				paintSource ? border.getLeft().width : sliceH[0]);
+		double wRight = width(borderImage.getWidth().right(), border.getRight(), aw,
+				paintSource ? border.getRight().width : sliceH[1]);
 		// SPEC §6.3: 対辺の和が領域を超えたら、両軸で最小の比率を4辺すべてへ掛ける
 		final double f = Math.min(ratio(aw, wLeft + wRight), ratio(ah, wTop + wBottom));
 		if (f < 1) {
@@ -108,16 +126,16 @@ public final class BorderImageRenderer {
 
 		// 四隅(伸縮しない指定でも目的の枠幅へは合わせる。仕様どおり)
 		if (top && left) {
-			slice(gc, image, 0, 0, sliceH[0], sliceV[0], ax, ay, wLeft, wTop);
+			tile.draw(gc, 0, 0, sliceH[0], sliceV[0], ax, ay, wLeft, wTop);
 		}
 		if (top && right) {
-			slice(gc, image, iw - sliceH[1], 0, sliceH[1], sliceV[0], ax + aw - wRight, ay, wRight, wTop);
+			tile.draw(gc, iw - sliceH[1], 0, sliceH[1], sliceV[0], ax + aw - wRight, ay, wRight, wTop);
 		}
 		if (bottom && left) {
-			slice(gc, image, 0, ih - sliceV[1], sliceH[0], sliceV[1], ax, ay + ah - wBottom, wLeft, wBottom);
+			tile.draw(gc, 0, ih - sliceV[1], sliceH[0], sliceV[1], ax, ay + ah - wBottom, wLeft, wBottom);
 		}
 		if (bottom && right) {
-			slice(gc, image, iw - sliceH[1], ih - sliceV[1], sliceH[1], sliceV[1], ax + aw - wRight,
+			tile.draw(gc, iw - sliceH[1], ih - sliceV[1], sliceH[1], sliceV[1], ax + aw - wRight,
 					ay + ah - wBottom, wRight, wBottom);
 		}
 		// タイル1枚の自然な寸法。反対軸を枠幅へ合わせたときの寸法になる
@@ -132,24 +150,24 @@ public final class BorderImageRenderer {
 
 		// 4辺(送り方向だけタイルし、交差方向は枠幅いっぱいへ伸縮する)
 		if (top) {
-			this.tiled(gc, image, sliceH[0], 0, srcMidW, sliceV[0], ax + wLeft, ay, midW, wTop, hRepeat,
+			this.tiled(gc, tile, sliceH[0], 0, srcMidW, sliceV[0], ax + wLeft, ay, midW, wTop, hRepeat,
 					BorderImage.Repeat.STRETCH, tileTop, wTop);
 		}
 		if (bottom) {
-			this.tiled(gc, image, sliceH[0], ih - sliceV[1], srcMidW, sliceV[1], ax + wLeft, ay + ah - wBottom,
+			this.tiled(gc, tile, sliceH[0], ih - sliceV[1], srcMidW, sliceV[1], ax + wLeft, ay + ah - wBottom,
 					midW, wBottom, hRepeat, BorderImage.Repeat.STRETCH, tileBottom, wBottom);
 		}
 		if (left) {
-			this.tiled(gc, image, 0, sliceV[0], sliceH[0], srcMidH, ax, ay + wTop, wLeft, midH,
+			this.tiled(gc, tile, 0, sliceV[0], sliceH[0], srcMidH, ax, ay + wTop, wLeft, midH,
 					BorderImage.Repeat.STRETCH, vRepeat, wLeft, tileLeft);
 		}
 		if (right) {
-			this.tiled(gc, image, iw - sliceH[1], sliceV[0], sliceH[1], srcMidH, ax + aw - wRight, ay + wTop,
+			this.tiled(gc, tile, iw - sliceH[1], sliceV[0], sliceH[1], srcMidH, ax + aw - wRight, ay + wTop,
 					wRight, midH, BorderImage.Repeat.STRETCH, vRepeat, wRight, tileRight);
 		}
 		// 中央(fill指定時のみ)。両軸ともタイルし、寸法は上辺・左辺の倍率に従う
 		if (borderImage.isFill()) {
-			this.tiled(gc, image, sliceH[0], sliceV[0], srcMidW, srcMidH, ax + wLeft, ay + wTop, midW, midH,
+			this.tiled(gc, tile, sliceH[0], sliceV[0], srcMidW, srcMidH, ax + wLeft, ay + wTop, midW, midH,
 					hRepeat, vRepeat, tileTop, tileLeft);
 		}
 		return true;
@@ -172,7 +190,7 @@ public final class BorderImageRenderer {
 	 * {@link #slice}へ落とす——<b>既定の出力を1ビットも変えないため</b>に、
 	 * 分岐だけでなく描画の呼び出しも同じ経路にしてある。
 	 */
-	private void tiled(final GC gc, final Image image, final double sx, final double sy, final double sw,
+	private void tiled(final GC gc, final Tile tile, final double sx, final double sy, final double sw,
 			final double sh, final double dx, final double dy, final double dw, final double dh,
 			final BorderImage.Repeat hRepeat, final BorderImage.Repeat vRepeat, final double naturalW,
 			final double naturalH) throws GraphicsException {
@@ -187,7 +205,7 @@ public final class BorderImageRenderer {
 		}
 		if (xs.length == 1 && ys.length == 1 && xs[0][0] == 0 && ys[0][0] == 0 && xs[0][1] == dw
 				&& ys[0][1] == dh) {
-			slice(gc, image, sx, sy, sw, sh, dx, dy, dw, dh);
+			tile.draw(gc, sx, sy, sw, sh, dx, dy, dw, dh);
 			return;
 		}
 		// repeat は中央揃えで敷き詰めるので両端がはみ出す。外側で切る
@@ -195,7 +213,7 @@ public final class BorderImageRenderer {
 			gc.clip(new Rectangle2D.Double(dx, dy, dw, dh));
 			for (final double[] xt : xs) {
 				for (final double[] yt : ys) {
-					slice(gc, image, sx, sy, sw, sh, dx + xt[0], dy + yt[0], xt[1], yt[1]);
+					tile.draw(gc, sx, sy, sw, sh, dx + xt[0], dy + yt[0], xt[1], yt[1]);
 				}
 			}
 		}
@@ -279,33 +297,21 @@ public final class BorderImageRenderer {
 		}
 	}
 
-	/**
-	 * グラデーションの境界画像です。スライスせず、境界領域(中央を除く)全体を
-	 * そのグラデーションで塗ります({@link BorderImageRenderer}冒頭の近似)。
-	 */
-	private static boolean drawPaint(final GC gc, final BorderImage borderImage,
-			final BorderImage.PaintSource paintSource, final RectBorder border, final double ax, final double ay,
-			final double aw, final double ah) throws GraphicsException {
-		final double wTop = width(borderImage.getWidth().top(), border.getTop(), ah, border.getTop().width);
-		final double wBottom = width(borderImage.getWidth().bottom(), border.getBottom(), ah,
-				border.getBottom().width);
-		final double wLeft = width(borderImage.getWidth().left(), border.getLeft(), aw, border.getLeft().width);
-		final double wRight = width(borderImage.getWidth().right(), border.getRight(), aw, border.getRight().width);
-		final Rectangle2D.Double outer = new Rectangle2D.Double(ax, ay, aw, ah);
-		final Area area = new Area(outer);
-		if (!borderImage.isFill()) {
-			final double midW = aw - wLeft - wRight;
-			final double midH = ah - wTop - wBottom;
-			if (midW <= 0 || midH <= 0) {
-				return false;
-			}
-			area.subtract(new Area(new Rectangle2D.Double(ax + wLeft, ay + wTop, midW, midH)));
+	/** 仮想画像の部分矩形を、描画先へ引き伸ばしてpaintで塗ります。 */
+	private static void paintSlice(final GC gc, final PaintValue paint, final Rectangle2D virtualSource,
+			final double sx, final double sy, final double sw, final double sh, final double dx, final double dy,
+			final double dw, final double dh) throws GraphicsException {
+		if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) {
+			return;
 		}
-		if (area.isEmpty()) {
-			return false;
+		final AffineTransform at = AffineTransform.getTranslateInstance(dx, dy);
+		at.scale(dw / sw, dh / sh);
+		at.translate(-sx, -sy);
+		try (final var gcState = gc.begin()) {
+			gc.clip(new Rectangle2D.Double(dx, dy, dw, dh));
+			gc.transform(at);
+			paint.fill(gc, new Rectangle2D.Double(sx, sy, sw, sh), virtualSource);
 		}
-		paintSource.paint().fill(gc, area, outer);
-		return true;
 	}
 
 	/** {@code border-image-outset}の1辺。数値は対応する境界線幅の倍数。 */

@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.ua.impl.pdf;
 
 import java.io.IOException;
 
-import net.zamasoft.foliojet.layout.draw.Drawable;
+import net.zamasoft.foliojet.layout.draw.PageOutputDrawable;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
@@ -17,7 +17,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
  *
  * @author MIYABE Tatsuhiko
  */
-final class PDFOutputDrawable implements Drawable {
+final class PDFOutputDrawable implements PageOutputDrawable {
 
 	/** An action performed against the page output during painting. */
 	interface Action {

@@ -2,6 +2,8 @@ package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.builder.Builder;
 
 /**
@@ -34,7 +36,11 @@ public final class GridBuilderLifecycle {
 		// 行テンプレートも書く。固定長の行はその高さ、auto/fr/%の行は内容高
 		// (GridBuilder.bind参照)
 		if (params.flow.isVertical()) {
-			return false;
+			if (params.writingModeVariant == WritingModeVariant.NORMAL
+					|| TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+							params.direction) != TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
+				return false;
+			}
 		}
 		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
 	}

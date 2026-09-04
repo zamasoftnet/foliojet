@@ -96,6 +96,15 @@ public abstract class AbstractBox implements IBox {
 		return 0;
 	}
 
+	/**
+	 * {@code transform-origin}・割合の{@code translate()}の基準箱(border box)を
+	 * 得るための margin です。margin を持たない箱は null(=(x, y) と
+	 * getWidth()/getHeight() がそのまま基準箱)。
+	 */
+	protected net.zamasoft.foliojet.layout.part.AbsoluteInsets transformReferenceMargin() {
+		return null;
+	}
+
 	protected final AffineTransform transform(AffineTransform transform, double x, double y) {
 		AffineTransform ct = this.getParams().transform;
 		final double txRatio = this.getParams().transformTxRatio;
@@ -110,6 +119,16 @@ public abstract class AbstractBox implements IBox {
 			return transform;
 		}
 		transform = new AffineTransform(transform);
+		// transform-origin と translate() の割合の基準箱は border box
+		// (css-transforms-1 §3: reference box は border-box)。(x, y) は margin box
+		// の原点、getWidth()/getHeight() は margin 込みなので、margin を除いて
+		// 基準箱を取る(2026-09-03。margin 付きの箱で原点が margin box 基準に
+		// ずれていた——filter 層の配置試験で発見)
+		final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = this.transformReferenceMargin();
+		final double bx = margin == null ? x : x + margin.left;
+		final double by = margin == null ? y : y + margin.top;
+		final double bw = margin == null ? this.getWidth() : this.getWidth() - margin.getFrameWidth();
+		final double bh = margin == null ? this.getHeight() : this.getHeight() - margin.getFrameHeight();
 		if (zoom != 1) {
 			// zoom(2026-08-29)は境界箱の左上を原点に、作者のtransformの外側で
 			// 拡大する(Zoomのjavadoc: レイアウトには効かない近似)
@@ -117,18 +136,18 @@ public abstract class AbstractBox implements IBox {
 			transform.scale(zoom, zoom);
 			transform.translate(-x, -y);
 		}
-		double ax = x;
-		double ay = y;
+		double ax = bx;
+		double ay = by;
 		Offset offset = this.getParams().transformOrigin;
 		switch (offset.getXType()) {
 		case ABSOLUTE:
 			ax += offset.getX();
 			break;
 		case RELATIVE:
-			ax += this.getWidth() * offset.getX();
+			ax += bw * offset.getX();
 			break;
 		case MIXED:
-			ax += offset.getX() + this.getWidth() * offset.getXRatio();
+			ax += offset.getX() + bw * offset.getXRatio();
 			break;
 		default:
 			throw new IllegalStateException();
@@ -141,10 +160,10 @@ public abstract class AbstractBox implements IBox {
 			ay += offset.getY();
 			break;
 		case RELATIVE:
-			ay += this.getHeight() * offset.getY();
+			ay += bh * offset.getY();
 			break;
 		case MIXED:
-			ay += offset.getY() + this.getHeight() * offset.getYRatio();
+			ay += offset.getY() + bh * offset.getYRatio();
 			break;
 		default:
 			throw new IllegalStateException();
@@ -156,8 +175,8 @@ public abstract class AbstractBox implements IBox {
 			// 寸法。関数列の中の位置は解析時に線形分解して係数へ畳んであり
 			// (TransformValue、2026-08-29)、その結果は合成行列の**外側**
 			// (concatenateの前)に足す1回の平行移動になる
-			final double w = this.getWidth();
-			final double h = this.getHeight();
+			final double w = bw;
+			final double h = bh;
 			transform.translate(w * txRatio + h * txRatioH, w * tyRatioW + h * tyRatio);
 		}
 		transform.concatenate(ct);

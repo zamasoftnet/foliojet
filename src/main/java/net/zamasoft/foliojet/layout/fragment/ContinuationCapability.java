@@ -31,8 +31,9 @@ public enum ContinuationCapability {
 	MULTICOL,
 
 	/**
-	 * ルートと同じ軸(横書き/縦書き)だが、方向が異なる
-	 * (例: {@code vertical-rl}祖先の途中に{@code vertical-lr})。
+	 * ルートと同じ軸(横書き/縦書き)だが、方向または字形回転種別が異なる
+	 * (例: {@code vertical-rl}祖先の途中に{@code vertical-lr}、または
+	 * 同じRLフローでnormalとsideways-rlが切り替わる場合)。
 	 * 2026-07-22の改ページ契約(docs/history/2026-07-22-pagination
 	 * -contract-consultation.md参照)により、この分類は{@link
 	 * #ORTHOGONAL_FLOW}と同じく非収集(atomic)対象——収集可能に一時
@@ -123,6 +124,20 @@ public enum ContinuationCapability {
 	 */
 	public static ContinuationCapability classify(final net.zamasoft.foliojet.layout.box.AbstractContainerBox b,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode anchorFlow) {
+		return classify(b, anchorFlow,
+				net.zamasoft.foliojet.layout.box.params.WritingModeVariant.NORMAL);
+	}
+
+	/**
+	 * boxをanchorの書字方向と字形回転種別との関係で分類します。
+	 *
+	 * @param b 分類対象(open pathの1レベル)
+	 * @param anchorFlow anchorの書字方向
+	 * @param anchorWritingModeVariant anchorの字形回転種別
+	 */
+	public static ContinuationCapability classify(final net.zamasoft.foliojet.layout.box.AbstractContainerBox b,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode anchorFlow,
+			final net.zamasoft.foliojet.layout.box.params.WritingModeVariant anchorWritingModeVariant) {
 		if (!(b instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox)) {
 			return UNSUPPORTED_BOX;
 		}
@@ -132,9 +147,10 @@ public enum ContinuationCapability {
 		// 誤分類されていた——codexへの設計相談で発見)。全FlowBlockBox
 		// サブタイプに対し、まず軸の一致・不一致を一律に判定してから、
 		// 一致する場合のみサブタイプ固有の分類へ進む。
-		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = ((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) b)
-				.getBlockParams().flow;
-		if (flow != anchorFlow) {
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params = ((net.zamasoft.foliojet.layout.box.impl.FlowBlockBox) b)
+				.getBlockParams();
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = params.flow;
+		if (flow != anchorFlow || params.writingModeVariant != anchorWritingModeVariant) {
 			return flow.isVertical() != anchorFlow.isVertical() ? ORTHOGONAL_FLOW : SAME_AXIS_DIRECTION_CHANGE;
 		}
 		// FlowBlockBoxのサブタイプは現在MulticolumnBlockBox(段組)のみ

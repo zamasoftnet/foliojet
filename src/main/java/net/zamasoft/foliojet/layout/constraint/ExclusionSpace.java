@@ -85,6 +85,40 @@ public final class ExclusionSpace {
 		return new ExclusionSpace(Collections.unmodifiableList(next));
 	}
 
+	/**
+	 * 2つの不変スナップショットを{@code pageSpan.end, order}順にマージします。
+	 * 両方の入力が既に整列済みなので、要素ごとの挿入を行わずO(N+M)で
+	 * 新しいスナップショットを作る。
+	 */
+	public ExclusionSpace mergedWith(final ExclusionSpace other) {
+		if (other == null) {
+			throw new IllegalArgumentException("other must not be null");
+		}
+		if (this.isEmpty()) {
+			return other;
+		}
+		if (other.isEmpty()) {
+			return this;
+		}
+		final List<FloatExclusion> merged = new ArrayList<>(this.size() + other.size());
+		int i = 0, j = 0;
+		while (i < this.ascendingByPageEnd.size() && j < other.ascendingByPageEnd.size()) {
+			final FloatExclusion a = this.ascendingByPageEnd.get(i);
+			final FloatExclusion b = other.ascendingByPageEnd.get(j);
+			final int endOrder = Double.compare(a.pageSpan().end(), b.pageSpan().end());
+			if (endOrder < 0 || endOrder == 0 && a.order() <= b.order()) {
+				merged.add(a);
+				++i;
+			} else {
+				merged.add(b);
+				++j;
+			}
+		}
+		merged.addAll(this.ascendingByPageEnd.subList(i, this.ascendingByPageEnd.size()));
+		merged.addAll(other.ascendingByPageEnd.subList(j, other.ascendingByPageEnd.size()));
+		return copyOfSorted(merged);
+	}
+
 	/** 空かどうかです。 */
 	public boolean isEmpty() {
 		return this.ascendingByPageEnd.isEmpty();
@@ -303,6 +337,62 @@ public final class ExclusionSpace {
 			// shape-outside(2026-08-29): 行の高さ全体の帯で形状が占める範囲。
 			// 形状なしは従来どおりマージンボックス。帯と形状が交わらない
 			// 浮動体はこの行を狭めない(円の上下の空白へ行が入り込める)
+			final AxisSpan band = exclusion.lineSpanAt(pageStart, pageStart + lineHeight);
+			if (band == null) {
+				continue;
+			}
+			switch (exclusion.side()) {
+			case START:
+				final double tempStart = band.end();
+				if (LayoutUtils.compare(tempStart, lineStart) >= 0) {
+					startExclusion = exclusion;
+					lineStart = tempStart;
+				}
+				continue;
+			case END:
+				final double tempEnd = band.start();
+				if (LayoutUtils.compare(tempEnd, lineEnd) <= 0) {
+					endExclusion = exclusion;
+					lineEnd = tempEnd;
+				}
+				continue;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		return new LineScan(startExclusion, endExclusion, lineStart, lineEnd, maxPageSizeSet, maxPageSize);
+	}
+
+	/**
+	 * ページフロート用に、未来から始まる排除域で打ち切らず全件を走査します。
+	 *
+	 * <p>
+	 * 通常フロートは「登録済みの排除域は現在位置以前から始まる」という
+	 * 不変条件を持つため、{@link #scanLineBand}は最初の未来開始で走査を
+	 * 打ち切る。ページ末へ置くbottomフロートは登録時点では未来から
+	 * 始まるので、その集合だけをこの走査へ分離する。通常フロートの
+	 * 走査順・比較・早期終了は変更しない。
+	 * </p>
+	 */
+	public LineScan scanLineBandFully(final double pageStart, final double lineHeight, final double lineStart0,
+			final double lineEnd0) {
+		FloatExclusion startExclusion = null, endExclusion = null;
+		double lineStart = lineStart0;
+		double lineEnd = lineEnd0;
+		boolean maxPageSizeSet = false;
+		double maxPageSize = 0;
+		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
+			if (LayoutUtils.compare(pageStart, exclusion.pageSpan().end()) >= 0) {
+				continue;
+			}
+			if (LayoutUtils.compare(exclusion.pageSpan().start(), pageStart + lineHeight) >= 0) {
+				final double candidate = exclusion.pageSpan().start() - pageStart;
+				if (!maxPageSizeSet || LayoutUtils.compare(candidate, maxPageSize) < 0) {
+					maxPageSizeSet = true;
+					maxPageSize = candidate;
+				}
+				continue;
+			}
 			final AxisSpan band = exclusion.lineSpanAt(pageStart, pageStart + lineHeight);
 			if (band == null) {
 				continue;

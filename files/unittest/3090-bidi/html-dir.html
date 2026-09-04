@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: 300pt 220pt; margin: 20pt }
+body { margin: 0; font: 16pt serif }
+p { margin: 0 0 8pt; white-space: nowrap }
+</style>
+</head>
+<body>
+<p id="dir_rtl" dir="rtl">אב<span dir="ltr">ABC</span>גד</p>
+<p id="dir_auto">L<span dir="auto">12-אב</span>R</p>
+<p id="bdi_isolate">L<bdi>12-אב</bdi>R</p>
+<p id="bdo_override">L<bdo dir="rtl">ABC-12</bdo>R</p>
+<p id="ltr_default">Pure LTR default.</p>
+</body>
+</html>

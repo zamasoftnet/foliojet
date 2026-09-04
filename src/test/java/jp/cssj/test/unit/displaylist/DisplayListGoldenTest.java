@@ -239,6 +239,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// grid-template/gridショートハンド・image-set()(2026-08-29)
 			"0500-grid/minmax.html", //
 			"0500-grid/subgrid.html", //
+			"0500-grid/subgrid-rows.html", //
 			"0500-grid/grid-shorthand.html", //
 			"0500-grid/row-stretch.html", //
 			"3080-MODERN-CSS/image-set.html", //

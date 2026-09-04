@@ -84,6 +84,11 @@ public final class ApproximationGC extends AbstractDelegatingGC {
 		return new Group(this.gc.createGroupImage(width, height), this);
 	}
 
+	@Override
+	public GroupImageGC createFilterGroup(final double width, final double height) throws GraphicsException {
+		return new Group(this.gc.createFilterGroup(width, height), this);
+	}
+
 	/** グループ画像のGCにも同じ報告経路を載せる包み紙。 */
 	private static final class Group extends AbstractDelegatingGC implements GroupImageGC {
 		private final GroupImageGC group;

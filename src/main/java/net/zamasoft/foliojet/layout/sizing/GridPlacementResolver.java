@@ -99,6 +99,26 @@ public final class GridPlacementResolver {
 	 */
 	public static Result resolve(final List<GridItemSpec> items, final int columnCount, final int explicitRows,
 			final boolean columnFlow, final boolean dense) {
+		return resolve(items, columnCount, explicitRows, columnFlow, dense, null);
+	}
+
+	/**
+	 * 行軸を固定範囲へ制限するsubgrid用の配置です(2026-09-03)。通常どおり
+	 * 仮想implicit行へ配置した後、完成したareaだけを{@code boundRows}行へ
+	 * clampします。
+	 *
+	 * @param boundRows 返却する行数(1以上)
+	 */
+	public static Result resolve(final List<GridItemSpec> items, final int columnCount, final int explicitRows,
+			final boolean columnFlow, final boolean dense, final int boundRows) {
+		if (boundRows <= 0 || boundRows > LIMIT) {
+			throw new IllegalArgumentException("boundRows: " + boundRows);
+		}
+		return resolve(items, columnCount, explicitRows, columnFlow, dense, Integer.valueOf(boundRows));
+	}
+
+	private static Result resolve(final List<GridItemSpec> items, final int columnCount, final int explicitRows,
+			final boolean columnFlow, final boolean dense, final Integer boundRows) {
 		final int n = columnCount;
 		final AxisPlacement[] cols = new AxisPlacement[items.size()];
 		final AxisPlacement[] rows = new AxisPlacement[items.size()];
@@ -127,7 +147,7 @@ public final class GridPlacementResolver {
 				return new Result.Unsupported(i, Reason.LIMIT_EXCEEDED);
 			}
 			final AxisPlacement r = rows[i];
-			if (r.definiteStart != null && r.definiteStart < 0) {
+			if (boundRows == null && r.definiteStart != null && r.definiteStart < 0) {
 				// span/lineの逆算等で行頭より前へ出た(implicit先頭行は未対応)
 				return new Result.Unsupported(i, Reason.NEGATIVE_ROW);
 			}
@@ -137,7 +157,7 @@ public final class GridPlacementResolver {
 		}
 
 		final GridArea[] areas = new GridArea[items.size()];
-		final List<BitSet> occupancy = new ArrayList<>();
+		final Map<Integer, BitSet> occupancy = new HashMap<>();
 
 		// (1) 両軸definite: そのまま配置(重複は許可、source order描画)
 		for (int i = 0; i < items.size(); ++i) {
@@ -147,7 +167,8 @@ public final class GridPlacementResolver {
 			}
 		}
 		if (columnFlow) {
-			return resolveColumnFlow(items.size(), cols, rows, areas, occupancy, n, explicitRows, dense);
+			final Result result = resolveColumnFlow(items.size(), cols, rows, areas, occupancy, n, explicitRows, dense);
+			return boundRows == null ? result : clampRows(result, boundRows);
 		}
 		// (2) 行definite・列auto: 指定行内のsparse cursor(行ごとに前進のみ。denseは常に先頭から)
 		final Map<Integer, Integer> rowCursor = new HashMap<>();
@@ -223,7 +244,26 @@ public final class GridPlacementResolver {
 		for (final GridArea area : areas) {
 			rowCount = Math.max(rowCount, area.row() + area.rowSpan());
 		}
-		return new Result.Resolved(new Plan(List.of(areas), n, Math.max(rowCount, explicitRows)));
+		final Result result = new Result.Resolved(new Plan(List.of(areas), n, Math.max(rowCount, explicitRows)));
+		return boundRows == null ? result : clampRows(result, boundRows);
+	}
+
+	/** 配置後のareaをbounded row axisへclampします。 */
+	private static Result clampRows(final Result result, final int boundRows) {
+		if (!(result instanceof Result.Resolved resolved)) {
+			return result;
+		}
+		final List<GridArea> clamped = new ArrayList<>(resolved.plan().areas().size());
+		for (final GridArea area : resolved.plan().areas()) {
+			final int start = Math.max(0, Math.min(boundRows, area.row()));
+			final int end = Math.max(0, Math.min(boundRows, area.row() + area.rowSpan()));
+			if (start >= end) {
+				clamped.add(new GridArea(area.column(), boundRows - 1, area.columnSpan(), 1));
+			} else {
+				clamped.add(new GridArea(area.column(), start, area.columnSpan(), end - start));
+			}
+		}
+		return new Result.Resolved(new Plan(List.copyOf(clamped), resolved.plan().columnCount(), boundRows));
 	}
 
 	/**
@@ -233,7 +273,7 @@ public final class GridPlacementResolver {
 	 * ({@code Plan.columnCount}=使った列数)。
 	 */
 	private static Result resolveColumnFlow(final int count, final AxisPlacement[] cols,
-			final AxisPlacement[] rows, final GridArea[] areas, final List<BitSet> occupancy, final int n,
+			final AxisPlacement[] rows, final GridArea[] areas, final Map<Integer, BitSet> occupancy, final int n,
 			final int explicitRows, final boolean dense) {
 		int rowCount = Math.max(1, explicitRows);
 		for (final GridArea area : areas) {
@@ -382,22 +422,19 @@ public final class GridPlacementResolver {
 		return explicitTracks + 1 + number;
 	}
 
-	private static void mark(final List<BitSet> occupancy, final GridArea area) {
+	private static void mark(final Map<Integer, BitSet> occupancy, final GridArea area) {
 		for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
-			while (occupancy.size() <= r) {
-				occupancy.add(new BitSet());
-			}
-			occupancy.get(r).set(area.column(), area.column() + area.columnSpan());
+			occupancy.computeIfAbsent(r, key -> new BitSet()).set(area.column(), area.column() + area.columnSpan());
 		}
 	}
 
-	private static boolean occupied(final List<BitSet> occupancy, final int row, final int rowSpan, final int col,
+	private static boolean occupied(final Map<Integer, BitSet> occupancy, final int row, final int rowSpan, final int col,
 			final int colSpan) {
 		for (int r = row; r < row + rowSpan; ++r) {
-			if (r >= occupancy.size()) {
+			final BitSet bits = occupancy.get(r);
+			if (bits == null) {
 				continue;
 			}
-			final BitSet bits = occupancy.get(r);
 			final int next = bits.nextSetBit(col);
 			if (next >= 0 && next < col + colSpan) {
 				return true;

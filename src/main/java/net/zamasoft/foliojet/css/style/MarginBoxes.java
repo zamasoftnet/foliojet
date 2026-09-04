@@ -32,6 +32,7 @@ import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
 import net.zamasoft.foliojet.css.impl.property.text.TextFillColor;
+import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
 import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
 import net.zamasoft.foliojet.css.impl.property.text.WordSpacing;
 import net.zamasoft.foliojet.css.lang.LanguageProfileBundle;
@@ -50,6 +51,7 @@ import net.zamasoft.foliojet.layout.sizing.MeasuredIntrinsics;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
  * ページマージンボックス(css-page-3 §7)の組版と描画です。
@@ -299,6 +301,9 @@ final class MarginBoxes {
 			params.lineBreakRules = LanguageProfileBundle.getLanguageProfile(style.getCSSElement().lang)
 					.getTextBreakingRules(style);
 			params.direction = Direction.get(style);
+			params.unicodeBidi = UnicodeBidi.get(style);
+			params.paragraphBidi = UAProps.LAYOUT_BIDI_PARAGRAPH.getBoolean(ua);
+			params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(ua);
 			params.flow = WritingMode.TB;
 			params.textAlign = TextAlign.get(style);
 			params.textAlignLast = TextAlignLast.get(style);

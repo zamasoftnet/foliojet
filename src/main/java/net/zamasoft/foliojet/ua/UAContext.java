@@ -41,6 +41,12 @@ public class UAContext {
 	 */
 	private final java.util.Set<String> reportedApproximations = new java.util.HashSet<String>();
 
+	/**
+	 * この変換で既に報告した「効かないCSSの組み合わせ」のdetail key。
+	 * layout中に同じフォールバックが繰り返されても、利用者へは1回だけ知らせる。
+	 */
+	private final java.util.Set<String> reportedIneffectiveCombinationDetails = new java.util.HashSet<String>();
+
 	public FontSourceManager getFontSourceManager() {
 		return this.fsm;
 	}
@@ -108,6 +114,11 @@ public class UAContext {
 	/** 報告済みの近似描画の鍵({@code ApproximationGC.report}が使う)。 */
 	public java.util.Set<String> getReportedApproximations() {
 		return this.reportedApproximations;
+	}
+
+	/** 報告済みの「効かないCSSの組み合わせ」のdetail key。 */
+	public java.util.Set<String> getReportedIneffectiveCombinationDetails() {
+		return this.reportedIneffectiveCombinationDetails;
 	}
 
 	/**

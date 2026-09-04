@@ -2,8 +2,6 @@ package net.zamasoft.foliojet.css.impl.property.box;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
@@ -20,10 +18,10 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 import net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.WrappedImage;
-import net.zamasoft.zstream.resolver.Source;
 
 /**
  * {@code shape-outside}です(css-shapes-1 §4.1、2026-08-29新設)。
@@ -48,7 +46,6 @@ import net.zamasoft.zstream.resolver.Source;
  */
 public class ShapeOutside extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ShapeOutside();
-	private static final Logger LOG = Logger.getLogger(ShapeOutside.class.getName());
 
 	/**
 	 * パース済みの値です。{@code image}が非nullなら画像指定で、
@@ -102,17 +99,8 @@ public class ShapeOutside extends AbstractPrimitivePropertyInfo {
 			final double threshold) {
 		final UserAgent ua = style.getUserAgent();
 		final URI uri = uriValue.getURI();
-		final Image image;
-		try {
-			final Source source = ua.resolve(uri);
-			try {
-				image = ua.getImage(uri, source);
-			} finally {
-				ua.release(source);
-			}
-		} catch (Exception e) {
-			LOG.log(Level.FINE, "Missing shape image", e);
-			ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
+		final Image image = ImageLoadDiagnostics.loadImage(ua, uri, false);
+		if (image == null) {
 			return null;
 		}
 		Image original = image;

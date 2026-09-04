@@ -1,0 +1,367 @@
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>grid-template-rows: subgrid</title>
+<style>
+@page { margin: 0; }
+body { margin: 0; font: 6pt/6pt serif; }
+div, p { margin: 0; }
+.new-page { page-break-before: always; }
+.probe { min-width: 1pt; min-height: 1pt; background: #bde; }
+
+/* rows=20/30/25、gap=5。子の上frame=3、下frame=6。 */
+#main_parent {
+	display: grid;
+	grid-template-columns: 100pt 100pt;
+	grid-template-rows: [r1] 20pt [r2] 30pt [r3] 25pt [r4];
+	column-gap: 10pt;
+	row-gap: 5pt;
+	width: 210pt;
+}
+#main_head { grid-column: 1 / 3; grid-row: r1 / r2; }
+#main_subgrid {
+	display: grid;
+	grid-column: 1;
+	grid-row: r2 / r4;
+	grid-template-rows: subgrid [local-start] [local-middle] [local-end];
+	border-top: 2pt solid #246;
+	border-bottom: 2pt solid #246;
+	padding-top: 1pt;
+	padding-bottom: 4pt;
+}
+#main_first { grid-row: r2 / r3; }
+#main_second { grid-row: r3 / r4; }
+#main_parent_row2 { grid-column: 2; grid-row: r2 / r3; }
+#main_parent_row3 { grid-column: 2; grid-row: r3 / r4; }
+
+/* autoを含むsliceも子孫寄与で親行を解決して継ぐ。 */
+#indef_parent {
+	display: grid;
+	grid-template-rows: 20pt auto 25pt;
+	row-gap: 5pt;
+	width: 100pt;
+}
+#indef_head { grid-row: 1; }
+#indef_subgrid { display: grid; grid-row: 2 / 4; grid-template-rows: subgrid; }
+#indef_subgrid > .probe { height: 6pt; }
+
+/* 親の指定高100ptに対する20%/30%/50%。子の負行番号は2行を基準にする。 */
+#percent_parent {
+	display: grid;
+	grid-template-rows: 20% 30% 50%;
+	height: 100pt;
+	width: 100pt;
+}
+#percent_head { grid-row: 1; }
+#percent_subgrid { display: grid; grid-row: 2 / 4; grid-template-rows: subgrid; }
+#percent_first { grid-row: -3 / -2; }
+#percent_last { grid-row: -2 / -1; }
+
+/* subgrid軸に暗黙行は作らず、範囲外3件とも最終行へclampする。 */
+#implicit_parent {
+	display: grid;
+	grid-template-rows: 10pt 20pt 30pt;
+	row-gap: 2pt;
+	width: 100pt;
+}
+#implicit_subgrid {
+	display: grid;
+	grid-row: 1 / 4;
+	grid-template-rows: subgrid;
+	grid-auto-rows: 7pt 11pt;
+}
+#implicit_0 { grid-row: 4; }
+#implicit_1 { grid-row: 5; }
+#implicit_2 { grid-row: 6; }
+
+/* subgrid自身の非stretchと指定高は無視し、親の2行へstretchする。 */
+.restriction-parent {
+	display: grid;
+	grid-template-rows: 20pt 30pt;
+	row-gap: 4pt;
+	width: 100pt;
+}
+.restriction-parent > .row-subgrid { display: grid; grid-row: 1 / 3; grid-template-rows: subgrid; }
+.restriction-parent .probe { height: 6pt; }
+#start_subgrid { align-self: start; }
+#fixed_subgrid { height: 100pt; }
+#restriction_spacer { height: 10pt; }
+
+/* span=1では上下frameを同じ行から引き、範囲外itemも同じ行へclampする。 */
+#single_frame_parent {
+	display: grid;
+	grid-template-rows: 40pt;
+	width: 100pt;
+}
+#single_frame_subgrid {
+	display: grid;
+	grid-template-rows: subgrid;
+	grid-auto-rows: 5pt;
+	row-gap: 2pt;
+	border-top: 2pt solid #624;
+	border-bottom: 3pt solid #624;
+	padding-top: 1pt;
+	padding-bottom: 4pt;
+}
+#single_frame_first { grid-row: 1; }
+#single_frame_implicit { grid-row: 2; }
+
+/* y=200から内容で160ptになるautoのspan=1行。物理境界y=300で100pt/60ptに分割する。 */
+#split_spacer { height: 200pt; }
+#split_parent { display: grid; grid-template-rows: auto; width: 200pt; }
+#split_subgrid { display: grid; grid-template-rows: subgrid; }
+#split_content p { height: 20pt; line-height: 20pt; }
+
+/* Stage 2 (a): auto行で子孫寄与30ptと親の通常item 20ptを競合させる。 */
+#auto_compete_parent { display:grid; grid-template-columns:50pt 50pt; grid-template-rows:auto; width:100pt; }
+#auto_compete_subgrid { display:grid; grid-template-rows:subgrid; }
+#auto_compete_child { height:30pt; }
+#auto_compete_sibling { grid-column:2; height:20pt; }
+
+/* Stage 2 (b): 子の2行span寄与50ptを親のauto 2行へ逆流する。 */
+#span_parent { display:grid; grid-template-rows:auto auto; row-gap:4pt; width:100pt; }
+#span_subgrid { display:grid; grid-row:1 / 3; grid-template-rows:subgrid; }
+#span_child { grid-row:1 / 3; height:50pt; }
+
+/* Stage 2 (c) + 独立試験: 3段subgridでframeと親4pt/子10ptのgap差を各境界一度だけ加える。 */
+#three_parent { display:grid; grid-template-rows:auto auto auto; row-gap:4pt; width:100pt; }
+#three_outer { display:grid; grid-row:1 / 4; grid-template-rows:subgrid; row-gap:10pt;
+	border-top:1pt solid; padding-top:1pt; border-bottom:1pt solid; padding-bottom:2pt; }
+#three_inner { display:grid; grid-row:1 / 4; grid-template-rows:subgrid;
+	border-top:1pt solid; border-bottom:1pt solid; }
+#three_0 { grid-row:1; height:10pt; }
+#three_1 { grid-row:2; height:20pt; }
+#three_2 { grid-row:3; height:12pt; }
+
+/* Stage 2 (d): normal gapと親4ptに対する明示10pt(d=3pt)。 */
+#gap_parent { display:grid; grid-template-columns:50pt 50pt; grid-template-rows:auto auto;
+	row-gap:4pt; width:100pt; }
+.gap-subgrid { display:grid; grid-row:1 / 3; grid-template-rows:subgrid; }
+#gap_explicit { grid-column:2; row-gap:10pt; }
+.gap-subgrid > div { height:10pt; }
+.gap-second { grid-row:2; }
+
+/* Stage 2 (e): frame付きで先頭・末尾が空。中央itemを両端へ仮想複製する。 */
+#edge_parent { display:grid; grid-template-rows:auto auto auto; row-gap:2pt; width:100pt; }
+#edge_subgrid { display:grid; grid-row:1 / 4; grid-template-rows:subgrid;
+	border-top:1pt solid; padding-top:2pt; border-bottom:1pt solid; padding-bottom:3pt; }
+#edge_item { grid-row:2; height:10pt; }
+#empty_frame_parent { display:grid; grid-template-rows:auto auto; row-gap:5pt; width:100pt; }
+#empty_frame_subgrid { display:grid; grid-row:1 / 3; grid-template-rows:subgrid;
+	border-top:1pt solid; padding-top:2pt; border-bottom:1pt solid; padding-bottom:3pt; }
+
+/* Stage 2 (f): definite高でauto/fr/minmaxを現行FolioJetと同じくstretchする。 */
+#mixed_parent { display:grid; grid-template-rows:auto 1fr minmax(10pt,1fr); row-gap:5pt;
+	height:100pt; width:100pt; }
+#mixed_subgrid { display:grid; grid-row:1 / 4; grid-template-rows:subgrid; }
+#mixed_0 { grid-row:1; height:10pt; }
+#mixed_1 { grid-row:2; height:20pt; }
+#mixed_2 { grid-row:3; height:15pt; }
+
+/* Stage 2 (g): 負番号・名前付き線・正側範囲外を配置後にclampする。 */
+#clamp_parent { display:grid; grid-template-rows:[a] 10pt [b] 20pt [c] 30pt [d];
+	row-gap:2pt; width:100pt; }
+#clamp_subgrid { display:grid; grid-row:1 / 4; grid-template-rows:subgrid; }
+#clamp_negative { grid-row:-4 / -3; }
+#clamp_named { grid-row:b / c; }
+#clamp_over { grid-row:9; }
+
+/* §0-11 独立試験: 指定50ptのsubgridを、親の最終第2行10ptへ縮める。 */
+#shrink_parent { display:grid; grid-template-rows:auto auto; width:100pt; }
+#shrink_sibling { grid-row:1; height:80pt; }
+#shrink_subgrid { display:grid; grid-row:2; grid-template-rows:subgrid; height:50pt; }
+#shrink_child { height:10pt; }
+
+/* §0-8: 並列注は元のbind位置へ残し、専用2823 detailを一度だけ出す。 */
+#margin_note_parent { display:grid; grid-template-rows:auto; width:100pt; }
+#margin_note_subgrid { display:grid; grid-template-rows:subgrid; }
+#margin_note_probe { height:12pt; }
+#subgrid_margin_note { float:-cssj-note-end; width:20pt; height:6pt; }
+
+/* 受入の核心: subgrid版と親へ平坦化した版を同じ頁で比較する。 */
+#eq_pair, #eq_frame_pair { display:grid; grid-template-columns:150pt 150pt; column-gap:20pt; width:320pt; }
+.eq-parent { display:grid; grid-template-rows:auto 1fr minmax(10pt,1fr) 25%;
+	row-gap:4pt; height:120pt; width:150pt; }
+#eq_sub_outer { display:grid; grid-row:1 / 5; grid-template-rows:subgrid; }
+#eq_sub_nested { display:grid; grid-row:2 / 4; grid-template-rows:subgrid; }
+#eq_sub_a, #eq_flat_a { grid-row:1; height:12pt; }
+#eq_sub_span { grid-row:1 / 3; height:34pt; }
+#eq_flat_span { grid-row:2 / 4; height:34pt; }
+#eq_sub_pct, #eq_flat_pct { grid-row:4; height:10pt; }
+#eq_frame_pair { margin-top:10pt; }
+.eq-frame-parent { display:grid; grid-template-rows:auto auto auto; grid-template-columns:150pt 0 0; row-gap:2pt; width:150pt; }
+#eq_frame_subgrid { display:grid; grid-row:1 / 4; grid-column:1; grid-template-rows:subgrid; row-gap:2pt;
+	border-top:1pt solid; padding-top:2pt; border-bottom:1pt solid; padding-bottom:3pt; }
+#eq_frame_sub, #eq_frame_flat { grid-row:2; grid-column:1; height:10pt; }
+.eq-hypo { visibility:hidden; }
+#eq_flat_leading { grid-row:1 / 3; grid-column:2; height:13pt; }
+#eq_flat_trailing { grid-row:2 / 4; grid-column:3; height:14pt; }
+</style>
+</head>
+<body>
+<div id="main_parent">
+	<div id="main_head" class="probe">head</div>
+	<div id="main_subgrid">
+		<div id="main_first" class="probe">first</div>
+		<div id="main_second" class="probe">second</div>
+	</div>
+	<div id="main_parent_row2" class="probe">parent row 2</div>
+	<div id="main_parent_row3" class="probe">parent row 3</div>
+</div>
+<div id="main_after" class="probe">after</div>
+
+<div id="indef_parent" class="new-page">
+	<div id="indef_head" class="probe">head</div>
+	<div id="indef_subgrid">
+		<div id="indef_first" class="probe">first</div>
+		<div id="indef_second" class="probe">second</div>
+	</div>
+</div>
+<div id="indef_after" class="probe">after</div>
+
+<div id="percent_parent" class="new-page">
+	<div id="percent_head" class="probe">head</div>
+	<div id="percent_subgrid">
+		<div id="percent_last" class="probe">last</div>
+		<div id="percent_first" class="probe">first</div>
+	</div>
+</div>
+<div id="percent_after" class="probe">after</div>
+
+<div id="implicit_parent" class="new-page">
+	<div id="implicit_subgrid">
+		<div id="implicit_0" class="probe">implicit 0</div>
+		<div id="implicit_1" class="probe">implicit 1</div>
+		<div id="implicit_2" class="probe">implicit 2</div>
+	</div>
+</div>
+
+<div id="start_parent" class="restriction-parent new-page">
+	<div id="start_subgrid" class="row-subgrid">
+		<div id="start_first" class="probe">first</div>
+		<div id="start_second" class="probe">second</div>
+	</div>
+</div>
+<div id="restriction_spacer"></div>
+<div id="fixed_parent" class="restriction-parent">
+	<div id="fixed_subgrid" class="row-subgrid">
+		<div id="fixed_first" class="probe">first</div>
+		<div id="fixed_second" class="probe">second</div>
+	</div>
+</div>
+
+<div id="single_frame_parent" class="new-page">
+	<div id="single_frame_subgrid">
+		<div id="single_frame_first" class="probe">first</div>
+		<div id="single_frame_implicit" class="probe">implicit</div>
+	</div>
+</div>
+
+<div id="split_spacer" class="new-page"></div>
+<div id="split_parent">
+	<div id="split_subgrid">
+		<div id="split_content">
+			<p>1</p><p>2</p><p>3</p><p>4</p>
+			<p>5</p><p>6</p><p>7</p><p>8</p>
+		</div>
+	</div>
+</div>
+<div id="split_after" class="probe">after</div>
+
+<div id="auto_compete_parent" class="new-page">
+	<div id="auto_compete_subgrid"><div id="auto_compete_child" class="probe">child</div></div>
+	<div id="auto_compete_sibling" class="probe">sibling</div>
+</div>
+<div id="auto_compete_after" class="probe">after</div>
+
+<div id="span_parent" class="new-page">
+	<div id="span_subgrid"><div id="span_child" class="probe">span</div></div>
+</div>
+<div id="span_after" class="probe">after</div>
+
+<div id="three_parent" class="new-page">
+	<div id="three_outer"><div id="three_inner">
+		<div id="three_0" class="probe">0</div>
+		<div id="three_1" class="probe">1</div>
+		<div id="three_2" class="probe">2</div>
+	</div></div>
+</div>
+<div id="three_after" class="probe">after</div>
+
+<div id="gap_parent" class="new-page">
+	<div id="gap_normal" class="gap-subgrid">
+		<div id="gap_normal_0" class="probe">n0</div><div id="gap_normal_1" class="probe gap-second">n1</div>
+	</div>
+	<div id="gap_explicit" class="gap-subgrid">
+		<div id="gap_explicit_0" class="probe">e0</div><div id="gap_explicit_1" class="probe gap-second">e1</div>
+	</div>
+</div>
+<div id="gap_after" class="probe">after</div>
+
+<div id="edge_parent" class="new-page">
+	<div id="edge_subgrid"><div id="edge_item" class="probe">middle</div></div>
+</div>
+<div id="edge_after" class="probe">after</div>
+
+<div id="empty_frame_parent" class="new-page">
+	<div id="empty_frame_subgrid"></div>
+</div>
+<div id="empty_frame_after" class="probe">after</div>
+
+<div id="mixed_parent" class="new-page">
+	<div id="mixed_subgrid">
+		<div id="mixed_0" class="probe">0</div><div id="mixed_1" class="probe">1</div>
+		<div id="mixed_2" class="probe">2</div>
+	</div>
+</div>
+<div id="mixed_after" class="probe">after</div>
+
+<div id="clamp_parent" class="new-page">
+	<div id="clamp_subgrid">
+		<div id="clamp_negative" class="probe">negative</div>
+		<div id="clamp_named" class="probe">named</div>
+		<div id="clamp_over" class="probe">over</div>
+	</div>
+</div>
+
+<div id="shrink_parent" class="new-page">
+	<div id="shrink_sibling" class="probe">80</div>
+	<div id="shrink_subgrid"><div id="shrink_child" class="probe">10</div></div>
+</div>
+<div id="shrink_after" class="probe">after</div>
+
+<div id="margin_note_parent" class="new-page">
+	<div id="margin_note_subgrid">
+		<div id="margin_note_probe" class="probe">probe<div id="subgrid_margin_note">note</div></div>
+	</div>
+</div>
+
+<div id="eq_pair" class="new-page">
+	<div id="eq_sub_parent" class="eq-parent">
+		<div id="eq_sub_outer">
+			<div id="eq_sub_a" class="probe">a</div>
+			<div id="eq_sub_nested"><div id="eq_sub_span" class="probe">span</div></div>
+			<div id="eq_sub_pct" class="probe">pct</div>
+		</div>
+	</div>
+	<div id="eq_flat_parent" class="eq-parent">
+		<div id="eq_flat_a" class="probe">a</div>
+		<div id="eq_flat_span" class="probe">span</div>
+		<div id="eq_flat_pct" class="probe">pct</div>
+	</div>
+</div>
+<div id="eq_frame_pair">
+	<div id="eq_frame_sub_parent" class="eq-frame-parent">
+		<div id="eq_frame_subgrid"><div id="eq_frame_sub" class="probe">middle</div></div>
+	</div>
+	<div id="eq_frame_flat_parent" class="eq-frame-parent">
+		<div id="eq_frame_flat" class="probe">middle</div>
+		<div id="eq_flat_leading" class="eq-hypo"></div>
+		<div id="eq_flat_trailing" class="eq-hypo"></div>
+	</div>
+</div>
+</body>
+</html>

@@ -207,6 +207,15 @@ public final class RowLayoutEngine {
 	}
 
 	/**
+	 * Incremental の rowspan 窓で、確定セル外寸からページ軸の実測値を
+	 * 取り出します。縦書きのページ軸は物理幅、横書きは物理高さです。
+	 */
+	public static double measuredRowspanPageSize(final net.zamasoft.foliojet.layout.box.impl.TableCellBox cellBox,
+			final boolean vertical) {
+		return vertical ? cellBox.getWidth() : cellBox.getHeight();
+	}
+
+	/**
 	 * rowspan で連結された行の高さを分配します(両ビルダーの同一
 	 * アルゴリズムの統合)。各連結について、連結範囲の行高合計が連結
 	 * セルの要求(min)に足りなければ、不足分を (1) %指定行に比率適用 →
@@ -220,6 +229,7 @@ public final class RowLayoutEngine {
 	 * @param autoRows    自動高さの行
 	 * @param rowRatios   %指定行の比率(なければ 0)
 	 */
+
 	/**
 	 * セルのページ軸要求寸法です(A-4、2026-07-30。両ビルダーの同型計算の
 	 * 統合): 実測値と、ABSOLUTE指定(content-boxなら枠を加算)の大きい方。

@@ -49,6 +49,11 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 		return ((AbsoluteLengthValue) value).getLength();
 	}
 
+	/** computed valueが{@code normal}か。Gridの使用値0とは区別して保持する。 */
+	public static boolean isNormal(final CSSStyle style) {
+		return style.get(INFO) == net.zamasoft.foliojet.css.value.KeywordValue.NORMAL;
+	}
+
 	protected ColumnGap() {
 		super("-cssj-column-gap");
 	}

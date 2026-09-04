@@ -1,9 +1,7 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=24.00]
   x=0.00 y=0.00 Text["TOP" asc=9.00 desc=3.00]
-  x=0.00 y=24.00 Text["L07" asc=9.00 desc=3.00]
-  x=0.00 y=36.00 Text["L08" asc=9.00 desc=3.00]
-  x=0.00 y=48.00 Text["L09" asc=9.00 desc=3.00]
-  x=0.00 y=60.00 Text["L10" asc=9.00 desc=3.00]
-  x=0.00 y=72.00 Text["L11" asc=9.00 desc=3.00]
-  x=0.00 y=84.00 Text["L12" asc=9.00 desc=3.00]
+  x=100.00 y=0.00 Text["L09" asc=9.00 desc=3.00]
+  x=100.00 y=12.00 Text["L10" asc=9.00 desc=3.00]
+  x=0.00 y=24.00 Text["L11" asc=9.00 desc=3.00]
+  x=0.00 y=36.00 Text["L12" asc=9.00 desc=3.00]

@@ -63,11 +63,9 @@ body {
 	inset-inline-start: 20pt;
 }
 /* vertical-lr・LTR: block-start=left, inline-start=top
-   -> left:10 top:20 -> x=10, y=20
-   注: writing-modeは-cssj-writing-modeショートハンドに展開され、
-   vertical-lr(tb-lr)は歴史的経緯によりdirectionの既定値をrtlに
-   設定する(WritingModeShorthand参照)。LTRケースを検証するには
-   direction:ltrで明示的に上書きする必要がある。 */
+   -> left:10 top:20 -> x=10, y=20。
+   標準writing-modeはdirectionを変更しない。direction:ltrは
+   この組合せを明示するために残している。 */
 #b5 {
 	writing-mode: vertical-lr;
 	direction: ltr;
@@ -77,9 +75,8 @@ body {
 	inset-inline-start: 20pt;
 }
 /* vertical-lr・RTL: block-start=left, inline-start=bottom(反転)
-   -> left:10 bottom:20 -> x=10, y=200-20-30=150
-   (direction未指定でもvertical-lrショートハンドの既定でrtlになるが、
-   意図を明示するためdirection:rtlを明記する) */
+   -> left:10 bottom:20 -> x=10, y=200-20-30=150。
+   directionはwriting-modeと独立なので、RTLケースとして明示する。 */
 #b6 {
 	writing-mode: vertical-lr;
 	direction: rtl;

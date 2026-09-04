@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=200.00 Text["1" asc=11.55 desc=8.45]
+  x=0.00 y=220.00 Text["2" asc=11.55 desc=8.45]
+  x=0.00 y=240.00 Text["3" asc=11.55 desc=8.45]
+  x=0.00 y=260.00 Text["4" asc=11.55 desc=8.45]
+  x=0.00 y=280.00 Text["5" asc=11.55 desc=8.45]

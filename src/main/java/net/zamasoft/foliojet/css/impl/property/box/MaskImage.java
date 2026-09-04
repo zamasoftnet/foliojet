@@ -3,8 +3,6 @@ package net.zamasoft.foliojet.css.impl.property.box;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.util.ValueUtils;
@@ -21,11 +19,11 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
 import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.zstream.resolver.Source;
 
 /**
  * <b>mask-imageのグラデーション形の近似</b>です(2026-08-09新設)。
@@ -53,7 +51,6 @@ import net.zamasoft.zstream.resolver.Source;
  */
 public class MaskImage extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskImage();
-	private static final Logger LOG = Logger.getLogger(MaskImage.class.getName());
 
 	/** グラデーションマスクの近似としてペイントをボックスへクリップするか。 */
 	public static boolean isClip(CSSStyle style) {
@@ -88,24 +85,14 @@ public class MaskImage extends AbstractPrimitivePropertyInfo {
 		if (image != null) {
 			return image;
 		}
-		try {
-			final Source source = ua.resolve(uri);
-			try {
-				final SVGImageLoader loader = new SVGImageLoader();
-				if (!loader.match(source)) {
-					return null;
-				}
-				image = loader.loadImage(ua, source, color);
-				ua.getDocumentContext().putMaskImage(key, image);
-				return image;
-			} finally {
-				ua.release(source);
-			}
-		} catch (Exception e) {
-			LOG.log(Level.FINE, "Missing mask image", e);
-			ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
-			return null;
+		image = ImageLoadDiagnostics.load(ua, uri, (resolvedUri, source) -> {
+			final SVGImageLoader loader = new SVGImageLoader();
+			return loader.match(source) ? loader.loadImage(ua, source, color) : null;
+		});
+		if (image != null) {
+			ua.getDocumentContext().putMaskImage(key, image);
 		}
+		return image;
 	}
 
 	private MaskImage() {

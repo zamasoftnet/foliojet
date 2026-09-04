@@ -143,7 +143,54 @@ public abstract class AbstractTextParams extends Params {
 
 	public WritingMode flow = WritingMode.TB;
 
+	/** 書字方向の字形回転種別。進行方向と独立して保持します。 */
+	public WritingModeVariant writingModeVariant = WritingModeVariant.NORMAL;
+
+	/** 水平組版(sideways を含む)なら {@code true}。 */
+	public final boolean isHorizontalTypesetting() {
+		return TypesettingMode.isHorizontal(this.flow, this.writingModeVariant);
+	}
+
+	/** 通常の {@code vertical-*} による縦組版だけなら {@code true}。 */
+	public final boolean isVerticalTypesetting() {
+		return TypesettingMode.isVertical(this.flow, this.writingModeVariant);
+	}
+
+	/** sideways 行へ適用する字形列の回転です。 */
+	public final WritingModeVariant getGlyphRotation() {
+		return TypesettingMode.glyphRotation(this.writingModeVariant);
+	}
+
+	/** flow・direction・sideways 回転から導いた物理的な行内進行です。 */
+	public final TypesettingMode.InlineProgression getInlineProgression() {
+		return TypesettingMode.inlineProgression(this.flow, this.writingModeVariant, this.direction);
+	}
+
+	/** 行内進行が物理軸の正方向(右または下)なら {@code 1}、負方向なら {@code -1}。 */
+	public final int getInlineProgressionSign() {
+		return TypesettingMode.inlineProgressionSign(this.flow, this.writingModeVariant, this.direction);
+	}
+
+	/** 回転後の水平組版 baseline に対する over(ascent)側の物理辺です。 */
+	public final TypesettingMode.PhysicalSide getTypesettingOverSide() {
+		return TypesettingMode.overSide(this.flow, this.writingModeVariant);
+	}
+
 	public byte direction = DIRECTION_LTR;
+
+	/**
+	 * {@code unicode-bidi}(css-writing-modes-3 §2.2、2026-09-04)。値は
+	 * {@link net.zamasoft.foliojet.css.value.UnicodeBidiValue}の6値。段落単位の
+	 * UBA(bidi-isolation-design.md、flag {@code layout.bidi.paragraph})が使う。
+	 * flag OFFの旧経路は参照しない。
+	 */
+	public byte unicodeBidi = net.zamasoft.foliojet.css.value.UnicodeBidiValue.NORMAL;
+
+	/** {@code layout.bidi.paragraph} の計算時スナップショット。 */
+	public boolean paragraphBidi = true;
+
+	/** {@code output.pdf.bidi.actual-text} の計算時スナップショット。 */
+	public boolean bidiSemanticAlias = false;
 
 	/**
 	 * フォント管理オブジェクト。

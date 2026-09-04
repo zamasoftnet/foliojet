@@ -10,6 +10,7 @@ import net.zamasoft.foliojet.css.value.BlockFlowValue;
 import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.TextCombineValue;
+import net.zamasoft.foliojet.css.value.WritingModeVariantValue;
 import net.zamasoft.foliojet.css.impl.property.text.TextCombineMode;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
@@ -20,6 +21,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
+import net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -38,9 +40,14 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 			// -cssj-text-combine/-epub-text-combine の値(2026-08-02)。
 			// 縦中横として同じ意味なので同じ処理へ寄せる。仕様の
 			// digits <integer> は未対応
-			if (ident.is("horizontal") || ident.is("all")) {
+			if (ident.is("none")) {
+				// 初期値 none(2026-09-04、利用者報告: `body.horizontal .tcy { text-combine-upright: none }` が
+				// 2816 で落ちていた)。縦中横を解除するだけで、方向・行送り等の longhand は触らない
+				primitives.set(TextCombineMode.INFO, TextCombineValue.NONE_VALUE);
+			} else if (ident.is("horizontal") || ident.is("all")) {
 				primitives.set(Direction.INFO, DirectionValue.LTR_VALUE);
 				primitives.set(BlockFlow.INFO, BlockFlowValue.TB_VALUE);
+				primitives.set(WritingModeVariant.INFO, WritingModeVariantValue.NORMAL_VALUE);
 				primitives.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 				primitives.set(LineHeight.INFO, PercentageValue.FULL);
 				// **縦中横の中では字間・語間を無効にする**(2026-08-11)。

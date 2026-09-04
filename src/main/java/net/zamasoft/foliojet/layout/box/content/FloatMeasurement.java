@@ -36,6 +36,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  *                        分岐表の「first」はこれと{@code FLAGS_FIRST}の
  *                        論理積(flagsは呼び出しごとに変わるため
  *                        ここでは固定しない)
+ * @param moveToNext      配置時に2-D bottom帯との交差で確定した一回限りの移送
  * @param boxType         {@link BoxType#BLOCK}か{@link BoxType#REPLACED}
  * @param pageBreakInside BLOCKの{@code page-break-inside}。REPLACEDは
  *                        概念が無いためnull
@@ -49,6 +50,7 @@ public record FloatMeasurement(
 		double pageExtent,
 		boolean sameWritingAxis,
 		boolean fragmentHead,
+		boolean moveToNext,
 		BoxType boxType,
 		PageBreakMode pageBreakInside) {
 
@@ -70,7 +72,7 @@ public record FloatMeasurement(
 		final PageBreakMode pageBreakInside;
 		if (boxType == BoxType.BLOCK) {
 			final var params = ((AbstractContainerBox) floating.box).getBlockParams();
-			sameWritingAxis = ownerFlow.isVertical() == params.flow.isVertical();
+			sameWritingAxis = sameWritingAxis(ownerFlow, floating.box);
 			pageBreakInside = params.pageBreakInside;
 		} else {
 			sameWritingAxis = true;
@@ -78,7 +80,30 @@ public record FloatMeasurement(
 		}
 		return new FloatMeasurement(ordinal, floating.serial, floating.box, floating.pageAxis,
 				floating.pageAxis + pageExtent, pageExtent, sameWritingAxis,
-				LayoutUtils.compare(floating.pageAxis, 0) <= 0, boxType, pageBreakInside);
+				LayoutUtils.compare(floating.pageAxis, 0) <= 0, floating.moveToNext, boxType, pageBreakInside);
+	}
+
+	/**
+	 * 親までの{@code FIRST}とfloat自身のfragment先頭を合成します。
+	 *
+	 * <p>
+	 * 入れ子の内容箱ではfloatのローカル開始位置が0でも、その箱自身が親の
+	 * 先頭でなければページ/段の先頭ではありません。配置時と分割時は必ず
+	 * この合成を通し、同じfloatの{@code first}を一致させます(2026-09-04)。
+	 * </p>
+	 */
+	public static boolean isFragmentStart(final boolean ancestorsFirst, final boolean fragmentHead) {
+		return ancestorsFirst && fragmentHead;
+	}
+
+	/**
+	 * 分割不能floatの占有終端を、painted-sliver規則で判定します。
+	 * 1pt未満の超過だけを収まるものとして扱い、ちょうど1pt以上は送り
+	 * ます(2026-08-10/2026-09-04)。分割可能floatの分岐表1はこの許容を
+	 * 使わず、従来どおり{@link LayoutUtils#compare}で判定します。
+	 */
+	public static boolean fitsPageUnsplittable(final double pageEnd, final double pageLimit) {
+		return pageEnd - pageLimit < 1.0;
 	}
 
 	/**
@@ -107,8 +132,44 @@ public record FloatMeasurement(
 	 * @param ownerFlow ページ軸を決めるownerの書字方向
 	 * @return 幾何寸法と描画が及ぶ寸法の大きいほう
 	 */
-	private static double occupiedPageExtent(final net.zamasoft.foliojet.layout.box.IFloatBox box,
+	public static double occupiedPageExtent(final net.zamasoft.foliojet.layout.box.IFloatBox box,
 			final WritingMode ownerFlow) {
 		return Math.max(box.getPageExtent(ownerFlow), box.paintedPageExtent(ownerFlow));
+	}
+
+	/** ownerと浮動体内部の実書字軸(縦/横)が一致するかを返します(2026-09-04)。 */
+	public static boolean sameWritingAxis(final WritingMode ownerFlow, final IFloatBox box) {
+		if (box.getType() != BoxType.BLOCK) {
+			return true;
+		}
+		final WritingMode floatFlow = ((AbstractContainerBox) box).getBlockParams().flow;
+		return ownerFlow.isVertical() == floatFlow.isVertical();
+	}
+
+	/**
+	 * 浮動体をページ軸で分割できないかを返します(2026-09-04)。
+	 *
+	 * <p>
+	 * 配置時と断片化時で同じ述語を使うための唯一の入口です。BLOCKは
+	 * ownerとの書字軸不一致、または非先頭の{@code break-inside:avoid}で
+	 * 分割不能になり、REPLACED/RESCUEは常にatomicです。
+	 * </p>
+	 *
+	 * @param boxType         対象のbox種別
+	 * @param sameWritingAxis 実際のownerと浮動体の書字軸が一致するか
+	 * @param pageBreakInside BLOCKのbreak-inside。その他のbox種別ではnull
+	 * @param first           物理的なフラグメント先頭として扱うならtrue
+	 */
+	public static boolean isUnsplittable(final BoxType boxType, final boolean sameWritingAxis,
+			final PageBreakMode pageBreakInside, final boolean first) {
+		switch (boxType) {
+		case BLOCK:
+			return !sameWritingAxis || (pageBreakInside == PageBreakMode.AVOID && !first);
+		case REPLACED:
+		case RESCUE:
+			return true;
+		default:
+			throw new IllegalStateException(boxType.toString());
+		}
 	}
 }

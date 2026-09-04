@@ -16,10 +16,13 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.LinePos;
 import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.util.SidewaysGeometry;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 
@@ -31,16 +34,32 @@ import net.zamasoft.pdfg2d.gc.paint.GrayColor;
  */
 public abstract class AbstractLineBox extends AbstractTextBox {
 	private static final boolean DEBUG = false;
+	private static final java.util.concurrent.atomic.AtomicLong NEXT_LINE_ID =
+			new java.util.concurrent.atomic.AtomicLong();
 
 	/**
 	 * 行方向アラインメントです。
 	 */
 	protected double lineAlign = 0;
+	/** alignに渡された行内軸の物理寸法。 */
+	private double inlineExtent;
 
 	/**
 	 * 行末またはブロックの末です。
 	 */
 	protected boolean last = false;
+
+	/** 段落 UBA が有効なときの描画専用 tree。論理 contents は不変。 */
+	private List<Object> visualContents;
+	private java.util.Map<Object, net.zamasoft.foliojet.layout.text.bidi.BidiSlice> bidiSlices = java.util.Map.of();
+	private boolean paragraphBidiEnabled;
+	private byte bidiBaseDirection = AbstractTextParams.DIRECTION_LTR;
+	private long bidiParagraphId;
+	private net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission logicalLineEmission;
+	private String logicalLineVisualText;
+	/** TextReplaySlice が段落途中から再開するときの、先行行の論理文脈。 */
+	private net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiReplayPrefix =
+			net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix.EMPTY;
 
 	public abstract AbstractLineParams getLineParams();
 
@@ -54,6 +73,119 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 	public boolean isLast() {
 		return this.last;
+	}
+
+	public final void setParagraphBidi(final boolean enabled, final byte baseDirection) {
+		this.paragraphBidiEnabled = enabled;
+		this.bidiBaseDirection = baseDirection;
+	}
+
+	public final boolean isParagraphBidiEnabled() {
+		return this.paragraphBidiEnabled;
+	}
+
+	public final void setVisualContents(final List<Object> visualContents,
+			final java.util.Map<Object, net.zamasoft.foliojet.layout.text.bidi.BidiSlice> bidiSlices) {
+		this.visualContents = java.util.Collections.unmodifiableList(new ArrayList<Object>(visualContents));
+		this.bidiSlices = java.util.Collections.unmodifiableMap(new java.util.IdentityHashMap<>(bidiSlices));
+		final StringBuilder visual = new StringBuilder();
+		appendVisualText(this.visualContents, visual);
+		this.logicalLineVisualText = visual.toString();
+		this.prepareLogicalLineEmission();
+	}
+
+	public final List<Object> getVisualContents() {
+		return this.visualContents == null ? java.util.Collections.emptyList() : this.visualContents;
+	}
+
+	@Override
+	public final net.zamasoft.foliojet.layout.text.bidi.BidiSlice getBidiSlice(final Object visualContent) {
+		return this.bidiSlices.get(visualContent);
+	}
+
+	@Override
+	public final net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission getLogicalLineEmission() {
+		return this.logicalLineEmission;
+	}
+
+	@Override
+	public final String getLogicalLineVisualText() {
+		return this.logicalLineVisualText;
+	}
+
+	/**
+	 * Creates the sidecar before visual inline fragments are built. Atomic inlines
+	 * use U+FFFC because alternative text is not uniformly available at this layer.
+	 */
+	public final net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission prepareLogicalLineEmission() {
+		final StringBuilder logical = new StringBuilder();
+		appendLogicalText(this.contents, logical);
+		final String text = logical.toString();
+		if (this.logicalLineEmission == null || !this.logicalLineEmission.logicalText().equals(text)) {
+			final long lineId = this.logicalLineEmission == null ? NEXT_LINE_ID.incrementAndGet()
+					: this.logicalLineEmission.lineId();
+			this.logicalLineEmission = new net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission(lineId, text);
+		}
+		return this.logicalLineEmission;
+	}
+
+	private static void appendLogicalText(final List<Object> contents, final StringBuilder logical) {
+		if (contents == null) {
+			return;
+		}
+		for (final Object content : contents) {
+			if (content instanceof net.zamasoft.pdfg2d.gc.text.Text text) {
+				logical.append(text.getChars(), 0, text.getCharCount());
+			} else if (content instanceof net.zamasoft.pdfg2d.gc.text.layout.control.Control control) {
+				logical.append(control.getControlChar());
+			} else if (content instanceof Inline inline) {
+				if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.InlineBox box) {
+					appendLogicalText(box.getLogicalContents(), logical);
+				} else {
+					logical.append('\uFFFC');
+				}
+			} else if (content instanceof net.zamasoft.foliojet.layout.text.LeaderQuad) {
+				logical.append('\uFFFC');
+			}
+		}
+	}
+
+	private static void appendVisualText(final List<Object> contents, final StringBuilder visual) {
+		if (contents == null) {
+			return;
+		}
+		for (final Object content : contents) {
+			if (content instanceof net.zamasoft.pdfg2d.gc.text.Text text) {
+				visual.append(text.getChars(), 0, text.getCharCount());
+			} else if (content instanceof net.zamasoft.pdfg2d.gc.text.layout.control.Control control) {
+				visual.append(control.getControlChar());
+			} else if (content instanceof Inline inline
+					&& inline.box instanceof net.zamasoft.foliojet.layout.box.impl.InlineBox box) {
+				appendVisualText(box.getLogicalContents(), visual);
+			}
+		}
+	}
+
+	public final void setBidiReplayPrefix(
+			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix prefix) {
+		this.bidiReplayPrefix = prefix;
+	}
+
+	public final void setBidiParagraphId(final long paragraphId) {
+		this.bidiParagraphId = paragraphId;
+	}
+
+	public final long getBidiParagraphId() {
+		return this.bidiParagraphId;
+	}
+
+	public final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix getBidiReplayPrefix() {
+		return this.bidiReplayPrefix;
+	}
+
+	@Override
+	protected List<Object> getDrawingContents() {
+		return this.visualContents == null ? super.getDrawingContents() : this.visualContents;
 	}
 
 	public void addAscentDescent(double ascent, double descent) {
@@ -118,15 +250,28 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	public void align(double textIndent, double offset, double maxLineAxis, boolean last) {
 		// 行方向アラインメント
 		assert this.contents != null && !this.contents.isEmpty();
-		// Unicode 双方向テキスト(UAX #9)の視覚順並べ替え。純 LTR 行では
-		// no-op となり既存の出力を変えない。
-		this.reorderBidi();
+		// OFF は従来の行単位経路をそのまま保つ。ON は段落終端で
+		// 別の visualContents を構成するので、論理 contents に触れない。
+		if (!this.paragraphBidiEnabled) {
+			this.reorderBidi();
+		}
 		this.last = last;
+		this.inlineExtent = maxLineAxis;
 		AbstractLineParams params = this.getLineParams();
 		// T2/H1: 実効行幅(行末の詰め/ぶら下げ分を除く)
 		double lineWidth = this.lineSize - this.endHangAdvance + textIndent;
 		textIndent += offset;
-		final byte textAlign = last ? params.textAlignLast : params.textAlign;
+		byte textAlign = last ? params.textAlignLast : params.textAlign;
+		// sideways は LTR と同じ論理 offset を作り、描画時の inlineToPhysical で
+		// 一度だけ物理化する。通常組版の RTL だけ従来の start/end 交換を残す。
+		if (this.paragraphBidiEnabled && this.bidiBaseDirection == AbstractTextParams.DIRECTION_RTL
+				&& !TypesettingMode.usesSidewaysInlineAxis(params.flow, params.writingModeVariant)) {
+			if (textAlign == AbstractLineParams.TEXT_ALIGN_START) {
+				textAlign = AbstractLineParams.TEXT_ALIGN_END;
+			} else if (textAlign == AbstractLineParams.TEXT_ALIGN_END) {
+				textAlign = AbstractLineParams.TEXT_ALIGN_START;
+			}
+		}
 		switch (textAlign) {
 		case AbstractLineParams.TEXT_ALIGN_CENTER:
 			// 中央合わせ
@@ -269,8 +414,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		if (this.contents == null || this.contents.isEmpty()) {
 			return;
 		}
-		// 横書きのみを対象とする(縦書きの双方向は将来対応)。
-		if (this.getLineParams().flow.isVertical()) {
+		// 水平組版(horizontal-tb と sideways-*)のみを対象とする。
+		if (this.getLineParams().isVerticalTypesetting()) {
 			return;
 		}
 		final int n = this.contents.size();
@@ -317,14 +462,42 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			// text-overflow: ellipsis(2026-08-29)。内容は行末側を
 			// ellipsisClipExtentで切り、省略記号を元のクリップで最後に描く
 			// (worklistはLIFOなので先にpushすると子の後で実行される)
-			final boolean vertical = this.getLineParams().flow.isVertical();
+			final AbstractLineParams lineParams = this.getLineParams();
+			final boolean sideways = lineParams.writingModeVariant != WritingModeVariant.NORMAL;
+			final boolean vertical = lineParams.flow.isVertical();
+			final boolean bottomToTop = vertical && lineParams.writingModeVariant != WritingModeVariant.NORMAL
+					&& TypesettingMode.inlineProgression(lineParams.flow, lineParams.writingModeVariant,
+							lineParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+			final double keepStart = vertical
+					? LayoutUtils.inlineToPhysical(lineParams, this.inlineExtent, this.lineAlign,
+							this.lineAlign + this.ellipsisClipExtent)
+					: this.lineAlign;
 			final double pw = pageBox.getWidth(), ph = pageBox.getHeight();
-			final java.awt.geom.Rectangle2D.Double keep = vertical
-					? new java.awt.geom.Rectangle2D.Double(x - pw, y - ph, pw * 3, ph + this.ellipsisClipExtent)
-					: new java.awt.geom.Rectangle2D.Double(x - pw, y - ph, pw + this.ellipsisClipExtent, ph * 3);
+			final java.awt.geom.Rectangle2D.Double keep;
+			if (sideways) {
+				final java.awt.geom.Rectangle2D bounds = SidewaysGeometry.bounds(lineParams.writingModeVariant, x,
+						y + (bottomToTop ? keepStart : 0),
+						this.ascent, this.descent, this.ellipsisClipExtent);
+				keep = bottomToTop
+						? new java.awt.geom.Rectangle2D.Double(bounds.getX() - pw, bounds.getY(),
+								bounds.getWidth() + pw * 2, bounds.getHeight() + ph)
+						: new java.awt.geom.Rectangle2D.Double(bounds.getX() - pw, bounds.getY() - ph,
+								bounds.getWidth() + pw * 2, bounds.getHeight() + ph);
+			} else {
+				keep = bottomToTop
+						? new java.awt.geom.Rectangle2D.Double(x - pw, y + keepStart, pw * 3,
+								ph + this.ellipsisClipExtent)
+						: vertical
+						? new java.awt.geom.Rectangle2D.Double(x - pw, y - ph, pw * 3, ph + this.ellipsisClipExtent)
+						: new java.awt.geom.Rectangle2D.Double(x - pw, y - ph, pw + this.ellipsisClipExtent, ph * 3);
+			}
 			final Shape outerClip = clip;
 			final double ex = vertical ? x : x + this.ellipsisClipExtent;
-			final double ey = vertical ? y + this.ellipsisClipExtent : y;
+			final double ey = bottomToTop
+					? y + LayoutUtils.inlineToPhysical(lineParams, this.inlineExtent,
+							this.lineAlign + this.ellipsisClipExtent,
+							this.lineAlign + this.ellipsisClipExtent + this.ellipsis.getAdvance())
+					: vertical ? y + this.ellipsisClipExtent : y;
 			final List<Object> run = java.util.Collections.singletonList(this.ellipsis);
 			worklist.push(w -> drawer.visitDrawable(new TextSequenceDrawable(pageBox, outerClip, transform, run, 0, 1,
 					this.getTextParams(), this.ascent, this.descent), ex, ey));
@@ -347,7 +520,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		case WritingMode.LR:
 		case WritingMode.RL:
 			// 縦書き
-			y += this.lineAlign;
+			y += LayoutUtils.inlineToPhysical(this.getLineParams(), this.inlineExtent, this.lineAlign,
+					this.lineAlign + this.lineSize);
 			break;
 
 		default:
@@ -377,7 +551,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		case WritingMode.LR:
 		case WritingMode.RL:
 			// 縦書き
-			y += this.lineAlign;
+			y += LayoutUtils.inlineToPhysical(this.getLineParams(), this.inlineExtent, this.lineAlign,
+					this.lineAlign + this.lineSize);
 			break;
 
 		default:

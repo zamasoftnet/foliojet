@@ -113,6 +113,8 @@ public class PdfIoPropertyTest extends TestCase {
 		// タグ付きPDF(論理構造)
 		cases.add(of("output.pdf.tagged", props("output.pdf.tagged", "true", "output.pdf.tagged.lang", "ja"),
 				"/StructTreeRoot"));
+		cases.add(of("output.pdf.bidi.actual-text", new File("files/unittest/3090-bidi/logical-output.html"),
+				props("layout.bidi.paragraph", "true", "output.pdf.bidi.actual-text", "true"), "/ActualText"));
 
 		// 表示設定(ビューア)
 		cases.add(of("output.pdf.viewer-preferences.hide-menubar",

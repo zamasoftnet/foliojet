@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=40.00]
+  x=0.00 y=3.00 AbsoluteRectFrame[w=100.00 h=30.00]
+  x=0.00 y=3.00 AbsoluteRectFrame[w=100.00 h=30.00]
+  x=0.00 y=3.00 Text["first" asc=4.55 desc=1.45]
+  x=0.00 y=3.00 Text["implicit" asc=4.55 desc=1.45]

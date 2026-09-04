@@ -166,12 +166,15 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2行目topセルの8行目: 2行目全体が4ページ目へ送られるため4ページ目(x=20)。 */
+	/**
+	 * 2行目topセルの8行目: 2026-09-04 に rowspan 経路の縦書き軸取り違えを直し、横書きと同じく
+	 * 3ページ目に収まる分(タ〜ニ)を残すようになったので、8行目ヌは4ページ目の継続先頭(x=90)。
+	 */
 	public boolean check_rca(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("rca: " + x);
 			assertEquals(4, pageNumber);
-			assertEquals(20, x, 1);
+			assertEquals(90, x, 1);
 			return true;
 		}
 		return false;

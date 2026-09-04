@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=12.00]
+  x=406.00 y=0.00 Text["note" asc=4.55 desc=1.45]
+  x=0.00 y=0.00 Text["probe" asc=4.55 desc=1.45]

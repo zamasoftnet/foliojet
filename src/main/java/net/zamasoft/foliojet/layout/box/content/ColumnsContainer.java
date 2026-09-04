@@ -19,6 +19,8 @@ import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
@@ -44,10 +46,22 @@ public class ColumnsContainer implements Container {
 			final BlockParams params = ColumnsContainer.this.box.getBlockParams();
 			final double columnSize = ColumnsContainer.this.box.getLineSize() + params.columns.gap;
 			if (params.flow.isVertical()) {
-				for (int i = 1; i < ColumnsContainer.this.getColumnCount(); ++i) {
-					y += columnSize;
-					BorderRenderer.INSTANCE.drawHorizontalBorder(gc, params.columns.rule, x,
-							y - params.columns.gap / 2, ColumnsContainer.this.box.getInnerWidth());
+				if (params.writingModeVariant != WritingModeVariant.NORMAL
+						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+								params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
+					for (int i = 1; i < ColumnsContainer.this.getColumnCount(); ++i) {
+						final double logicalRule = i * columnSize - params.columns.gap / 2;
+						final double physicalRule = LayoutUtils.inlineToPhysical(params,
+								ColumnsContainer.this.box.getInnerHeight(), logicalRule, logicalRule);
+						BorderRenderer.INSTANCE.drawHorizontalBorder(gc, params.columns.rule, x,
+								y + physicalRule, ColumnsContainer.this.box.getInnerWidth());
+					}
+				} else {
+					for (int i = 1; i < ColumnsContainer.this.getColumnCount(); ++i) {
+						y += columnSize;
+						BorderRenderer.INSTANCE.drawHorizontalBorder(gc, params.columns.rule, x,
+								y - params.columns.gap / 2, ColumnsContainer.this.box.getInnerWidth());
+					}
 				}
 			} else {
 				for (int i = 1; i < ColumnsContainer.this.getColumnCount(); ++i) {
@@ -158,13 +172,15 @@ public class ColumnsContainer implements Container {
 			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y).withBlendMode(params.blendMode).withFilter(params.filter);
 			drawer.visitDrawable(drawable, x, y);
 		}
-		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)。
+		// カラムは行軸に沿って並び、下から上への行内進行だけ物理化時に反転する。
 		// カラム数は小さく固定なので直接呼び出してよい(走査順を保つため
 		// 逆順で処理する)
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
+					i * columnSize + this.box.getLineSize());
 			container.pushFramesSteps(pageBox, drawer, clip, transform, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, lineStart), worklist);
 		}
 	}
 
@@ -172,13 +188,15 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)。
+		// カラムは行軸に沿って並び、下から上への行内進行だけ物理化時に反転する。
 		// カラム数は小さく固定なので、直接呼び出しても(逆順にせずとも)
 		// スタック深さは問題にならないが、走査順を保つため逆順で処理する
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
+					i * columnSize + this.box.getLineSize());
 			container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, lineStart), worklist);
 		}
 	}
 
@@ -187,11 +205,13 @@ public class ColumnsContainer implements Container {
 			Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
+		// 行内進行が下から上なら物理化時に反転する
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
+					i * columnSize + this.box.getLineSize());
 			container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, lineStart), worklist);
 		}
 	}
 
@@ -200,11 +220,13 @@ public class ColumnsContainer implements Container {
 			Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// カラムは書字方向によらず行軸に沿って並ぶ(ページ方向の反転は不要)
+		// 行内進行が下から上なら物理化時に反転する
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
+					i * columnSize + this.box.getLineSize());
 			container.pushDrawAbsolutes(pageBox, drawer, visitor, clip, transform, contextX, contextY, LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
-					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, i * columnSize), worklist);
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, lineStart), worklist);
 		}
 	}
 

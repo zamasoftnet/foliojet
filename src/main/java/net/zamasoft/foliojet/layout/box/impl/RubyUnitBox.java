@@ -15,9 +15,11 @@ import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
+import net.zamasoft.foliojet.layout.util.SidewaysGeometry;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.css.value.RubyAlignValue;
 import net.zamasoft.pdfg2d.gc.GC;
@@ -234,12 +236,19 @@ public class RubyUnitBox extends InlineBlockBox {
 	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
 			final int baseOffset, final List<AnnotationInput> annotationInputs, final int sourceStart,
 			final int sourceEnd) {
+		return create(container, baseText, baseParams, baseOffset, annotationInputs, sourceStart, sourceEnd, false);
+	}
+
+	/** 段落 bidi 有効時は親文字・各注釈を独立した小段落として視覚順にする。 */
+	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
+			final int baseOffset, final List<AnnotationInput> annotationInputs, final int sourceStart,
+			final int sourceEnd, final boolean paragraphBidi) {
 		if (baseText.isEmpty() && annotationInputs.isEmpty()) {
 			return null;
 		}
 		final InlineParams bp = baseParams == null ? container : baseParams;
 		final FontStyle baseFs = bp.fontStyle;
-		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset);
+		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset, paragraphBidi);
 		final double baseAdvance = totalAdvance(baseTexts);
 
 		final List<RubyAnnotation> built = new ArrayList<RubyAnnotation>();
@@ -254,7 +263,7 @@ public class RubyUnitBox extends InlineBlockBox {
 					rubyBaseFs.getFeatures(), rubyBaseFs.getSynthesisWeight(), rubyBaseFs.getSynthesisStyle(),
 					rubyBaseFs.getTextOrientation(), rubyBaseFs.getWidthClass());
 			final TextImpl[] texts = input.text().isEmpty() ? new TextImpl[0]
-					: shape(rp, rubyFs, input.text(), input.charOffset());
+					: shape(rp, rubyFs, input.text(), input.charOffset(), paragraphBidi);
 			final boolean interCharacter = !container.flow.isVertical() && rp.rubyPosition.isInterCharacter();
 			final RubyAnnotation annotation = new RubyAnnotation(texts, rp.color,
 					interCharacter || rp.rubyPosition.isOver(input.level()), interCharacter);
@@ -308,7 +317,11 @@ public class RubyUnitBox extends InlineBlockBox {
 		params.fontManager = bp.fontManager;
 		params.lineBreakRules = bp.lineBreakRules;
 		params.direction = bp.direction;
+		params.unicodeBidi = bp.unicodeBidi;
+		params.paragraphBidi = bp.paragraphBidi;
+		params.bidiSemanticAlias = bp.bidiSemanticAlias;
 		params.flow = container.flow;
+		params.writingModeVariant = container.writingModeVariant;
 		params.color = bp.color;
 		params.whiteSpace = AbstractTextParams.WHITE_SPACE_NOWRAP;
 		params.lineHeight = 0;
@@ -323,9 +336,11 @@ public class RubyUnitBox extends InlineBlockBox {
 
 	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
 	private static TextImpl[] shape(final InlineParams src, final FontStyle fontStyle, final String text,
-			final int charOffset) {
-		return net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle, text,
-				charOffset, src.textSpacingTrimOff);
+			final int charOffset, final boolean paragraphBidi) {
+		final TextImpl[] runs = net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle,
+				text, charOffset, src.textSpacingTrimOff);
+		return paragraphBidi ? net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.reorderAtomicRuns(runs,
+				src.direction, src.unicodeBidi, src.bidiSemanticAlias) : runs;
 	}
 
 
@@ -457,6 +472,20 @@ public class RubyUnitBox extends InlineBlockBox {
 					ruby, extra, this.box.getWidth(), this.box.getHeight());
 		}
 
+		@Override
+		public String describeGeometry(final double x, final double y) {
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()
+					|| this.box.params.writingModeVariant == WritingModeVariant.NORMAL) {
+				return "";
+			}
+			final AffineTransform at = SidewaysGeometry.runTransform(this.box.params.writingModeVariant, x, y,
+					this.box.baseAscent, this.box.baseDescent, this.box.getHeight());
+			final double[] m = new double[6];
+			at.getMatrix(m);
+			return String.format(java.util.Locale.ROOT, " ruby-tf=[%.2f %.2f %.2f %.2f %.2f %.2f]",
+					m[0], m[1], m[2], m[3], m[4], m[5]);
+		}
+
 		private static void appendText(final StringBuilder buff, final TextImpl[] texts) {
 			for (final TextImpl text : texts) {
 				buff.append(text.getChars(), 0, text.getCharCount());
@@ -466,7 +495,25 @@ public class RubyUnitBox extends InlineBlockBox {
 		public void innerDraw(final GC gc, final double x, final double y) throws GraphicsException {
 			final RubyUnitBox box = this.box;
 			try (final var gcState = gc.begin()) {
-				if (box.flow.isVertical()) {
+				if (box.params.writingModeVariant != WritingModeVariant.NORMAL) {
+					gc.transform(SidewaysGeometry.runTransform(box.params.writingModeVariant, x, y,
+							box.baseAscent, box.baseDescent, box.getHeight()));
+					double over = 0, under = 0;
+					for (final RubyAnnotation annotation : box.annotations) {
+						if (annotation.over) {
+							this.drawRun(gc, annotation.texts, annotation.color,
+									box.contentShift + box.annotationOrigin,
+									-box.baseAscent - over - annotation.descent, false);
+							over += annotation.ascent + annotation.descent;
+						} else {
+							this.drawRun(gc, annotation.texts, annotation.color,
+									box.contentShift + box.annotationOrigin,
+									box.baseDescent + under + annotation.ascent, false);
+							under += annotation.ascent + annotation.descent;
+						}
+					}
+					this.drawRun(gc, box.baseTexts, box.baseColor, box.contentShift, 0, false);
+				} else if (box.flow.isVertical()) {
 					// 縦書き: over=右、under=左。複数段は外側へ積む。
 					final double baseX = x + box.baseDescent;
 					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y + box.contentShift, true);

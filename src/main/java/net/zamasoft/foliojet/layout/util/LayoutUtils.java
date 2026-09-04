@@ -531,6 +531,34 @@ public final class LayoutUtils {
 		return flow.isVertical() ? y + childLineStart : y + childPageStart;
 	}
 
+	/**
+	 * 論理行内区間 {@code [start, end]} の物理始端を返します。
+	 *
+	 * <p>
+	 * sideways の行内進行が下から上なら、論理位置はそのまま保ち、物理化するときだけ
+	 * {@code lineExtent - end} へ反転します。通常の縦組版は従来座標を保ちます。点を写す場合は
+	 * {@code start == end} として呼び出します。この写像は逆写像も同じです。
+	 * </p>
+	 *
+	 * @param params     行の組版方向
+	 * @param lineExtent 行内軸の物理寸法
+	 * @param start      論理区間の始端
+	 * @param end        論理区間の終端
+	 * @return 物理上端からの位置
+	 */
+	public static double inlineToPhysical(final AbstractTextParams params, final double lineExtent,
+			final double start, final double end) {
+		if (params.flow.isVertical()
+				&& net.zamasoft.foliojet.layout.box.params.TypesettingMode.isHorizontal(params.flow,
+						params.writingModeVariant)
+				&& net.zamasoft.foliojet.layout.box.params.TypesettingMode.inlineProgression(params.flow,
+						params.writingModeVariant, params.direction)
+						== net.zamasoft.foliojet.layout.box.params.TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
+			return lineExtent - end;
+		}
+		return start;
+	}
+
 	public static double computeInsetsTop(Insets insets, double ref) {
 		switch (insets.getTopType()) {
 		case ABSOLUTE:
@@ -633,11 +661,17 @@ public final class LayoutUtils {
 		final AbstractContainerBox containerBox = builder.getFlowBox();
 		final BlockParams params = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
+		// position:relativeの内側フローは絶対配置用のcontext boxにもなるが、
+		// 通常フローの置換要素の包含ブロックであることは変わらない。
+		// builder境界のroot自身がcontextの場合だけcontext側を検索し、入れ子の
+		// contextが持つ確定寸法をflow検索から落とさない。
+		final boolean rootContext = containerBox == builder.getRootBox()
+				&& containerBox == builder.getContextBox();
 		replacedBox.calculateFrame(lineSize);
 		if (params.flow.isVertical()) {
 			// 縦書き
 			AbstractContainerBox box;
-			if (containerBox == builder.getContextBox()) {
+			if (rootContext) {
 				box = builder.getFixedWidthContextBox();
 			} else {
 				box = builder.getFixedWidthFlowBox();
@@ -658,7 +692,7 @@ public final class LayoutUtils {
 				} else if (containerBox.getPos().getType() != PosType.FLOW
 						&& containerBox.getPos().getType() != PosType.FLOAT
 						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
-					if (containerBox == builder.getContextBox()) {
+					if (rootContext) {
 						box = builder.getFixedHeightContextBox();
 					} else {
 						box = builder.getFixedHeightFlowBox();
@@ -675,7 +709,7 @@ public final class LayoutUtils {
 		} else {
 			// 横書き
 			AbstractContainerBox box;
-			if (containerBox == builder.getContextBox()) {
+			if (rootContext) {
 				box = builder.getFixedHeightContextBox();
 			} else {
 				box = builder.getFixedHeightFlowBox();
@@ -696,7 +730,7 @@ public final class LayoutUtils {
 				} else if (containerBox.getPos().getType() != PosType.FLOW
 						&& containerBox.getPos().getType() != PosType.FLOAT
 						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
-					if (containerBox == builder.getContextBox()) {
+					if (rootContext) {
 						box = builder.getFixedWidthContextBox();
 					} else {
 						box = builder.getFixedWidthFlowBox();

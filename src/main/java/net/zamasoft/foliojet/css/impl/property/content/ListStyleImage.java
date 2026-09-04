@@ -2,8 +2,6 @@ package net.zamasoft.foliojet.css.impl.property.content;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
@@ -13,8 +11,8 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -24,8 +22,6 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
  * @author MIYABE Tatsuhiko
  */
 public class ListStyleImage extends AbstractPrimitivePropertyInfo {
-	private static final Logger LOG = Logger.getLogger(ListStyleImage.class.getName());
-
 	public static final PrimitivePropertyInfo INFO = new ListStyleImage();
 
 	public static Image get(CSSStyle style) {
@@ -36,24 +32,7 @@ public class ListStyleImage extends AbstractPrimitivePropertyInfo {
 		UserAgent ua = style.getUserAgent();
 		URIValue uriValue = (URIValue) value;
 		URI uri = uriValue.getURI();
-		try {
-			// 記録済みの寸法があれば解決しない(2026-08-16)。解決が取得を伴う
-			// 経路では、ここで止めないと使わない画像を転送してしまう
-			Image known = ua.getImageMetrics(uri);
-			if (known != null) {
-				return known;
-			}
-			Source source = ua.resolve(uri);
-			try {
-				return ua.getImage(uri, source);
-			} finally {
-				ua.release(source);
-			}
-		} catch (Exception e) {
-			LOG.log(Level.FINE, "Missing image", e);
-			ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
-			return null;
-		}
+		return ImageLoadDiagnostics.loadImage(ua, uri, true);
 	}
 
 	protected ListStyleImage() {

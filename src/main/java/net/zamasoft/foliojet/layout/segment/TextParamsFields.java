@@ -4,6 +4,7 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.paint.Color;
@@ -37,7 +38,9 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  * 新品の{@code clone()}を書き戻す(2026-07-22 Stage2、不変recordへ置換)。
  * </p>
  */
-record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow, byte direction,
+record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow,
+		WritingModeVariant writingModeVariant, byte direction, byte unicodeBidi, boolean paragraphBidi,
+		boolean bidiSemanticAlias,
 		FontManager fontManager, TextBreakingRules lineBreakRules, Length letterSpacing, double wordSpacing,
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens, String hyphenateCharacter,
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, Color decorationColor,
@@ -57,7 +60,9 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 	}
 
 	static TextParamsFields freeze(final AbstractTextParams source) {
-		return new TextParamsFields(ParamsFields.freeze(source), source.fontStyle, source.flow, source.direction,
+		return new TextParamsFields(ParamsFields.freeze(source), source.fontStyle, source.flow,
+				source.writingModeVariant, source.direction, source.unicodeBidi, source.paragraphBidi,
+				source.bidiSemanticAlias,
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
 				source.hyphenateCharacter,
@@ -81,7 +86,11 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		this.common.materializeInto(target);
 		target.fontStyle = this.fontStyle;
 		target.flow = this.flow;
+		target.writingModeVariant = this.writingModeVariant;
 		target.direction = this.direction;
+		target.unicodeBidi = this.unicodeBidi;
+		target.paragraphBidi = this.paragraphBidi;
+		target.bidiSemanticAlias = this.bidiSemanticAlias;
 		target.fontManager = this.fontManager;
 		target.lineBreakRules = this.lineBreakRules;
 		target.letterSpacing = this.letterSpacing;

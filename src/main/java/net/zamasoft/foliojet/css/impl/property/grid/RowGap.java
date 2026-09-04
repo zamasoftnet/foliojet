@@ -33,6 +33,11 @@ public class RowGap extends AbstractPrimitivePropertyInfo {
 		return ((AbsoluteLengthValue) value).getLength();
 	}
 
+	/** computed valueが{@code normal}か。使用値0とは区別して保持する。 */
+	public static boolean isNormal(final CSSStyle style) {
+		return style.get(INFO) == KeywordValue.NORMAL;
+	}
+
 	protected RowGap() {
 		super("row-gap");
 	}

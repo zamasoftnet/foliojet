@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bidi mirroring with an embedded font</title>
+<style>
+@font-face { font-family: ua; src: url('../1080-FONT/MinionPro-Regular.otf') }
+@page { size: 360pt 200pt; margin: 20pt }
+body { margin: 0; font: 12pt ua }
+p { margin: 0 0 12pt; width: 300pt }
+</style>
+</head>
+<body>
+<!-- 鏡像 glyph の CID alias(ToUnicode を論理文字に)は埋め込み subset でだけ働く。Hebrew は MinionPro に無く
+     .notdef で出るが、約物の検査には差し支えない -->
+<p id="mirror" dir="rtl">(אבג) [אבג] {ABC} «דהו»</p>
+<p id="mirror_reference">MIRRORREF()[]{}«»</p>
+</body>
+</html>

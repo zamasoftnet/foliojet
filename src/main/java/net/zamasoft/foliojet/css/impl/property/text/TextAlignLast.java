@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
+import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -28,7 +29,7 @@ public class TextAlignLast extends AbstractPrimitivePropertyInfo {
 		if (value == KeywordValue.AUTO) {
 			final byte align = TextAlign.get(style);
 			switch (align) {
-			case TextAlignValue.JUSTIFY:
+			case AbstractLineParams.TEXT_ALIGN_JUSTIFY:
 				value = TextAlignValue.START_VALUE;
 				break;
 			default:
@@ -52,7 +53,28 @@ public class TextAlignLast extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		return value;
+		if (value != TextAlignValue.MATCH_PARENT_VALUE) {
+			return value;
+		}
+		CSSStyle parent = style.getParentStyle();
+		if (parent == null) {
+			return TextAlignValue.START_VALUE;
+		}
+		value = parent.get(TextAlignLast.INFO);
+		if (value == KeywordValue.AUTO) {
+			return value;
+		}
+		TextAlignValue textAlign = (TextAlignValue)value;
+		switch (textAlign.getTextAlign()) {
+		case TextAlignValue.START:
+			return TextValueUtils.usesLegacyRtlAlignment(parent)
+					? TextAlignValue.RIGHT_VALUE : TextAlignValue.LEFT_VALUE;
+		case TextAlignValue.END:
+			return TextValueUtils.usesLegacyRtlAlignment(parent)
+					? TextAlignValue.LEFT_VALUE : TextAlignValue.RIGHT_VALUE;
+		default:
+			return textAlign;
+		}
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

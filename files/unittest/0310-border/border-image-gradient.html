@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+	size: 100mm 80mm;
+	margin: 10mm;
+	background: white;
+}
+html, body {
+	margin: 0;
+	padding: 0;
+}
+.box {
+	box-sizing: content-box;
+	width: 60mm;
+	height: 40mm;
+	border: 10mm solid black;
+	border-image: linear-gradient(135deg, red, blue) 30;
+}
+.auto {
+	page-break-before: always;
+	border-image-width: auto;
+}
+</style>
+</head>
+<body>
+<div class="box"></div>
+<div class="box auto"></div>
+</body>
+</html>

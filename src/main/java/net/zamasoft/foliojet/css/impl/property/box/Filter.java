@@ -60,16 +60,17 @@ public class Filter extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(final Value value, final CSSStyle style) {
+		final FilterValue own = ((FilterValue) value).forElement();
 		final CSSStyle parent = style.getParentStyle();
 		if (parent == null) {
-			return value;
+			return own;
 		}
 		final FilterValue inherited = get(parent);
 		if (inherited.isNone()) {
-			return value;
+			return own;
 		}
 		// 子孫の描画要素へ親の効果を届ける(FilterValue冒頭の近似の説明参照)
-		return inherited.compose((FilterValue) value);
+		return inherited.compose(own);
 	}
 
 	public Value parseValue(final TokenStream tokens, final UserAgent ua, final URI uri) throws PropertyException {

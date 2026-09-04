@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 /**
  * {@code flowStack}の収集可能プレフィックススキャンの結果です
@@ -78,6 +79,7 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 		}
 
 		final WritingMode anchorFlow = boxes.get(0).getBlockParams().flow;
+		final WritingModeVariant anchorWritingModeVariant = boxes.get(0).getBlockParams().writingModeVariant;
 		final List<OpenPathSnapshot.OpenLevelDescriptor> descriptors = new ArrayList<>(boxes.size());
 		final List<AbstractContainerBox> approved = new ArrayList<>();
 		OpenPathSnapshot.CapabilityBarrier firstBarrier = null;
@@ -89,7 +91,8 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 			if (i == 0) {
 				role = new OpenPathSnapshot.OpenLevelRole.Anchor(anchorKind);
 			} else {
-				final ContinuationCapability capability = ContinuationCapability.classify(box, anchorFlow);
+				final ContinuationCapability capability = ContinuationCapability.classify(box, anchorFlow,
+						anchorWritingModeVariant);
 				role = new OpenPathSnapshot.OpenLevelRole.Ancestor(capability);
 				if (firstBarrier == null) {
 					if (admission.supports(capability, mode)) {
@@ -101,10 +104,11 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 			}
 
 			descriptors.add(new OpenPathSnapshot.OpenLevelDescriptor(i, box.getClass(),
-					box.getBlockParams().flow, box.getColumnCount(), box.getSourceAnchor(), role));
+					box.getBlockParams().flow, box.getBlockParams().writingModeVariant, box.getColumnCount(),
+					box.getSourceAnchor(), role));
 		}
 
-		final OpenPathSnapshot snapshot = new OpenPathSnapshot(anchorFlow, descriptors,
+		final OpenPathSnapshot snapshot = new OpenPathSnapshot(anchorFlow, anchorWritingModeVariant, descriptors,
 				Optional.ofNullable(firstBarrier));
 		return new OpenPathScan(snapshot, approved);
 	}

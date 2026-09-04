@@ -22,6 +22,7 @@ import com.drew.metadata.exif.ExifIFD0Directory;
 import com.twelvemonkeys.imageio.plugins.jpeg.JPEGImageReader;
 
 import net.zamasoft.foliojet.ua.ImageLoader;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.Source;
@@ -43,7 +44,7 @@ public class RasterImageLoader implements ImageLoader {
 	public boolean available(Source source) throws IOException {
 		ImageInputStream imageIn;
 		if (source.isFile()) {
-			imageIn = new FileImageInputStream(source.getFile());
+			imageIn = openFileImageInputStream(source, false);
 		} else {
 			imageIn = ImageIO.createImageInputStream(source.getInputStream());
 		}
@@ -64,11 +65,7 @@ public class RasterImageLoader implements ImageLoader {
 	public Image loadImageForLayout(final Source source) throws IOException {
 		final ImageInputStream imageIn;
 		if (source.isFile()) {
-			imageIn = new FileImageInputStream(source.getFile()) {
-				public void flushBefore(long pos) {
-					// EXIF走査のため先頭へ戻れる状態を保つ。
-				}
-			};
+			imageIn = openFileImageInputStream(source, true);
 		} else {
 			imageIn = new FileCacheImageInputStream(source.getInputStream(), null) {
 				public void flushBefore(long pos) {
@@ -133,11 +130,7 @@ public class RasterImageLoader implements ImageLoader {
 	public Image loadImage(UserAgent ua, Source source) throws IOException {
 		ImageInputStream imageIn;
 		if (source.isFile()) {
-			imageIn = new FileImageInputStream(source.getFile()) {
-				public void flushBefore(long pos) throws IOException {
-					// 再読み込み不可能になることを防止するため、flushを無視する
-				}
-			};
+			imageIn = openFileImageInputStream(source, true);
 		} else {
 			imageIn = new FileCacheImageInputStream(source.getInputStream(), null) {
 				public void flushBefore(long pos) throws IOException {
@@ -269,6 +262,43 @@ public class RasterImageLoader implements ImageLoader {
 			return applyOrientation(image, orientation);
 		} finally {
 			imageIn.close();
+		}
+	}
+
+	private static ImageInputStream openFileImageInputStream(final Source source, final boolean preserveHead)
+			throws IOException {
+		try {
+			return new FileImageInputStream(source.getFile()) {
+				@Override
+				public int read() throws IOException {
+					try {
+						return super.read();
+					} catch (final IOException e) {
+						ImageLoadDiagnostics.recordFetchFailure(source, e);
+						throw e;
+					}
+				}
+
+				@Override
+				public int read(final byte[] bytes, final int off, final int len) throws IOException {
+					try {
+						return super.read(bytes, off, len);
+					} catch (final IOException e) {
+						ImageLoadDiagnostics.recordFetchFailure(source, e);
+						throw e;
+					}
+				}
+
+				@Override
+				public void flushBefore(final long pos) throws IOException {
+					if (!preserveHead) {
+						super.flushBefore(pos);
+					}
+				}
+			};
+		} catch (final IOException e) {
+			ImageLoadDiagnostics.recordFetchFailure(source, e);
+			throw e;
 		}
 	}
 

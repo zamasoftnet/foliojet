@@ -29,6 +29,11 @@ public interface MessageCodes {
 	public static final short WARN_MISSING_XSLT_STYLESHEET = 0x280E;
 	public static final short WARN_CANNOT_OVERRIDE_PROPERTY = 0x280F;
 	public static final short WARN_MISSING_ATTACHMENT = 0x2810;
+	/**
+	 * 画像を読み込めない警告です。引数は {0}=userinfoを除いたURI、
+	 * {1}=失敗段階({@code resolve}、{@code fetch}、
+	 * {@code fetch: HTTP nnn}、{@code decode})です。
+	 */
 	public static final short WARN_MISSING_IMAGE = 0x2811;
 	public static final short WARN_UNSUPPORTED_PDF_CAPABILITY = 0x2812;
 	public static final short WARN_BAD_INLINE_OBJECT = 0x2813;
@@ -54,8 +59,9 @@ public interface MessageCodes {
 	 * 現在の出力形式では厳密に描けず<b>近似で描画した</b>機能(2026-08-29)。
 	 * 引数は {0}=CSSプロパティ名、{1}=出力のMIME型、{2}=近似の内容。
 	 * 描画時に、近似経路を実際に通ったときだけ、文書ごと・機能ごとに
-	 * 1回出す。PDFではぼかしや円錐グラデーションが近似になるが、Java2Dや
-	 * ブラウザが描くSVGでは厳密に出るので、同じ文書でも出力形式によって
+	 * 1回出す。透明を使える通常PDFでは影だけをラスタ化して厳密にぼかすが、
+	 * PDF/A-1など透明を使えないプロファイルやラスタ化を拒否した場合は近似へ
+	 * 戻る。円錐グラデーション等も含め、同じ文書でも出力形式・プロファイルで
 	 * 警告が変わる。
 	 */
 	public static final short WARN_APPROXIMATED_RENDERING = 0x2822;

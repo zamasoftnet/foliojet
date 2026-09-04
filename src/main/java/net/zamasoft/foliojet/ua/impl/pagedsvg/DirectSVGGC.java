@@ -423,7 +423,7 @@ class DirectSVGGC implements GC {
 				this.writer.attr("fill-rule", rule);
 			}
 			if (doFill) {
-				final String paint = this.paints.toSVGPaint(this.fillPaint);
+				final String paint = this.paints.toSVGPaint(this.fillPaint, this.transform);
 				this.writer.attr("fill", paint == null ? "none" : paint);
 				final float alpha = SVGPaintWriter.alphaOf(this.fillPaint, this.fillAlpha);
 				if (alpha < 1f) {
@@ -433,7 +433,7 @@ class DirectSVGGC implements GC {
 				this.writer.attr("fill", "none");
 			}
 			if (doStroke) {
-				final String paint = this.paints.toSVGPaint(this.strokePaint);
+				final String paint = this.paints.toSVGPaint(this.strokePaint, this.transform);
 				this.writer.attr("stroke", paint == null ? "none" : paint);
 				final float alpha = SVGPaintWriter.alphaOf(this.strokePaint, this.strokeAlpha);
 				if (alpha < 1f) {

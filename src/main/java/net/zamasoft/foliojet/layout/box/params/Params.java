@@ -41,6 +41,11 @@ public abstract class Params {
 
 	public byte zIndexType = Z_INDEX_AUTO;
 
+	/** このボックスがstacking contextを作るならtrueを返します。 */
+	public boolean isStackingContext() {
+		return this.zIndexType == Z_INDEX_SPECIFIED;
+	}
+
 	/**
 	 * ボックスの可視性です。
 	 */

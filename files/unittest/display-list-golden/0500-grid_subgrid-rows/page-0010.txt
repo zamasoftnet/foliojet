@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=100.00 h=50.00]
+  x=0.00 y=50.00 AbsoluteRectFrame[w=400.00 h=6.00]
+  x=0.00 y=0.00 Text["span" asc=4.55 desc=1.45]
+  x=0.00 y=50.00 Text["after" asc=4.55 desc=1.45]

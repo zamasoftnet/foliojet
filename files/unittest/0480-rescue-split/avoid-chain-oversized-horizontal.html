@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>救済分割: 横組みavoid連鎖末尾の版面より高い直交図版</title>
+<style>
+@page {
+	size: 103.2mm 206.4mm;
+	margin: 6.3mm 5.6mm;
+}
+html, body {
+	margin: 0;
+	font: normal 3.3mm/1.7 serif;
+	writing-mode: horizontal-tb;
+}
+p {
+	margin: 0;
+}
+.before {
+	height: 150mm;
+}
+h2, h3 {
+	font-weight: normal;
+	text-indent: 0;
+	page-break-after: avoid;
+	break-after: avoid;
+	page-break-inside: avoid;
+	break-inside: avoid;
+}
+h2 {
+	font-size: 1.2em;
+	margin: 1.6em 0 0.5em;
+}
+h3 {
+	font-size: 1.07em;
+	margin: 1.3em 0 0.4em;
+}
+figure {
+	margin: 1.5em 0;
+	writing-mode: vertical-rl;
+	page-break-inside: avoid;
+	break-inside: avoid;
+}
+figure div {
+	width: 55mm;
+	height: 240mm;
+	background: #dddddd;
+}
+figcaption {
+	font-size: 0.7em;
+}
+</style>
+</head>
+<body>
+<p class="before">横組み前置き本文。</p>
+<h2>横組み大見出し</h2>
+<h3>横組み小見出し</h3>
+<figure>
+	<div></div>
+	<figcaption>横組み図版</figcaption>
+</figure>
+<p>横組み後続本文。</p>
+</body>
+</html>

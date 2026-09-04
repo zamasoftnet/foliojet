@@ -5,6 +5,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
@@ -31,7 +32,12 @@ public enum LogicalSide {
 	 */
 	public Side toPhysical(CSSStyle style) {
 		WritingMode flow = BlockFlow.get(style);
-		boolean rtl = Direction.get(style) == AbstractTextParams.DIRECTION_RTL;
+		final byte direction = Direction.get(style);
+		boolean rtl = direction == AbstractTextParams.DIRECTION_RTL;
+		final boolean bottomToTop = flow.isVertical()
+				&& TypesettingMode.inlineProgression(flow,
+						net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style), direction)
+						== TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
 		switch (flow) {
 		case TB:
 			// 横書き: block軸=上下、inline軸=左右
@@ -55,9 +61,9 @@ public enum LogicalSide {
 			case BLOCK_END:
 				return Side.LEFT;
 			case INLINE_START:
-				return rtl ? Side.BOTTOM : Side.TOP;
+				return bottomToTop ? Side.BOTTOM : Side.TOP;
 			case INLINE_END:
-				return rtl ? Side.TOP : Side.BOTTOM;
+				return bottomToTop ? Side.TOP : Side.BOTTOM;
 			default:
 				throw new IllegalStateException();
 			}
@@ -70,9 +76,9 @@ public enum LogicalSide {
 			case BLOCK_END:
 				return Side.RIGHT;
 			case INLINE_START:
-				return rtl ? Side.BOTTOM : Side.TOP;
+				return bottomToTop ? Side.BOTTOM : Side.TOP;
 			case INLINE_END:
-				return rtl ? Side.TOP : Side.BOTTOM;
+				return bottomToTop ? Side.TOP : Side.BOTTOM;
 			default:
 				throw new IllegalStateException();
 			}

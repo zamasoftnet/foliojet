@@ -8,6 +8,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.impl.GridItemBox;
+import net.zamasoft.foliojet.layout.box.impl.RowContributionSink;
+import net.zamasoft.foliojet.layout.box.impl.RowGeometryFinalizer;
+import net.zamasoft.foliojet.layout.box.impl.RowSubgridLink;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.BoxAlignment;
 import net.zamasoft.foliojet.layout.box.params.Columns;
@@ -26,7 +29,9 @@ import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
 import net.zamasoft.foliojet.layout.sizing.GridPlacementResolver;
+import net.zamasoft.foliojet.layout.sizing.GridRowSizing;
 import net.zamasoft.foliojet.layout.sizing.Sizing;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * Gridの構築coordinatorです(Grid G1b、2026-07-31——
@@ -60,13 +65,13 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
  * </p>
  *
  * <p>
- * <b>subgrid(css-grid-2、2026-08-29)</b>: {@code grid-template-columns:
+ * <b>subgrid(css-grid-2、2026-08-29/09-03)</b>: {@code grid-template-columns:
  * subgrid}のgridは、bind時に自分が直下にあるitem({@link GridItemBox})から
  * 親gridの跨ぐ列の解決済み幅・gap・線名を受け取り({@link #resolveSubgrid})、
- * それを固定トラックとして使う。親のbindは「トラック解決→item本文bind」の
- * 順なので、item本文の中で再生される子gridのbindでは親の列は必ず確定して
- * いる。自分のborder/padding/marginは先頭・末尾トラックから差し引く
- * (仕様の「subgridの縁はトラックへ食い込む」)。
+ * それを固定トラックとして使う。行軸は子孫itemの寄与を親へ逆流させ、
+ * 親の行解決後に子の配置・寸法・行台帳を最終化する。子自身は親itemで
+ * 常にstretchし、指定高とalign-self/align-contentは無視する。自分の
+ * border/padding/marginは端の寄与と使用可能な行高へ反映する。
  * <b>単一autoトラックの近似へ落ちる場合</b>: (a)子gridの固有寸法計測
  * ({@link #getIntrinsicSizes}——録画時、親のトラック解決前。親への
  * contributionだけがこの近似で、最終配置は本物のトラックで行う)、
@@ -75,8 +80,8 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
  * ないか、間に別のflowがある)、(c)親gridがトラック配置を走らせていない
  * (縦書きのG0退行)、(d)親側の列解決が無い経路(親が{@code display:grid}で
  * ないのに{@code subgrid}を書いた場合——仕様でも{@code none}相当)。
- * {@code grid-template-rows: subgrid}は行軸を継がない(親の行高はitem bind後
- * に決まるため)——行gapだけ親のものを使い、行は内容高。
+ * 縦書きは適格判定でG0へ退行するため対象外。row subgrid内の並列注はbind
+ * 時点のページ位置から後で動かせないため、2823で検出して元の位置へ残す。
  * </p>
  */
 public final class GridBuilder
@@ -115,6 +120,9 @@ public final class GridBuilder
 	/** 列軸の線名表(zero-based線index→名前。areasの暗黙名込み。2026-08-29)。 */
 	private List<List<String>> columnLines = List.of();
 
+	/** 行軸の線名表(zero-based線index→名前。areasの暗黙名・暗黙行込み)。 */
+	private List<List<String>> rowLines = List.of();
+
 	/** 明示行数(grid-template-rowsとgrid-template-areasの大きいほう。2026-08-29)。 */
 	private int explicitRows;
 
@@ -134,6 +142,28 @@ public final class GridBuilder
 
 	/** {@link #subgridColumns}の線名(列数+1要素。親の線名+自分の{@code subgrid [a]}名)。 */
 	private List<List<String>> subgridColumnLines;
+
+	/** subgridで親から継いだ行トラック。nullなら通常の行テンプレート。 */
+	private List<GridTrackListValue.TrackSize> subgridRows;
+
+	/** {@link #subgridRows}の線名(行数+1要素)。 */
+	private List<List<String>> subgridRowLines;
+
+	/** 親row subgridとの一回限りの接続。nullなら通常grid。 */
+	private RowSubgridLink rowSubgridLink;
+
+	/** {@link #rowSubgridLink}を所有する合成item。最終寸法もここへ書く。 */
+	private GridItemBox rowSubgridOwner;
+
+	/** 親gapとの差の半分。子itemの内側辺へ寄与・配置ともに適用する。 */
+	private double rowSubgridGapShim;
+
+	/** 構築時にこのGridの部分木でpage-margin-noteを見つけたか。 */
+	private boolean containsPageMarginNote;
+
+	/** 子row subgridの最終化登録です(座標はこのGridのローカル行)。 */
+	private record PendingRowFinalizer(int rowStart, int span, RowGeometryFinalizer finalizer) {
+	}
 
 	private final List<GridItemContent> items = new ArrayList<>();
 
@@ -377,7 +407,9 @@ public final class GridBuilder
 			this.addImplicitColumn(cols, lines);
 		}
 		final List<List<String>> rowLines = new ArrayList<>();
-		for (final List<String> names : params.rowLineNames) {
+		final List<List<String>> initialRowLines = this.subgridRowLines != null ? this.subgridRowLines
+				: params.rowLineNames;
+		for (final List<String> names : initialRowLines) {
 			rowLines.add(new ArrayList<>(names));
 		}
 		while (rowLines.size() < areas.getRowCount() + 1) {
@@ -389,7 +421,8 @@ public final class GridBuilder
 			rowLines.get(area.rowStart()).add(area.name() + "-start");
 			rowLines.get(area.rowEnd()).add(area.name() + "-end");
 		}
-		this.explicitRows = Math.max(params.templateRows.size(), areas.getRowCount());
+		this.explicitRows = this.subgridRows != null ? this.subgridRows.size()
+				: Math.max(params.templateRows.size(), areas.getRowCount());
 		// (3) 線名の数値化
 		final List<GridItemSpec> specs = new ArrayList<>(this.items.size());
 		for (final GridItemContent item : this.items) {
@@ -406,8 +439,12 @@ public final class GridBuilder
 			}
 		}
 		GridPlacementResolver.Plan plan = null;
-		if (GridPlacementResolver.resolve(specs, cols.size(), this.explicitRows, params.autoFlowColumn,
-				params.autoFlowDense) instanceof GridPlacementResolver.Result.Resolved resolved) {
+		final GridPlacementResolver.Result placement = this.rowSubgridLink == null
+				? GridPlacementResolver.resolve(specs, cols.size(), this.explicitRows, params.autoFlowColumn,
+						params.autoFlowDense)
+				: GridPlacementResolver.resolve(specs, cols.size(), this.explicitRows, params.autoFlowColumn,
+						params.autoFlowDense, this.rowSubgridLink.span());
+		if (placement instanceof GridPlacementResolver.Result.Resolved resolved) {
 			plan = resolved.plan(); // rowSpanはGridRowSizingの不足分配で対応(G4d)
 			// 列フローが作った暗黙列
 			while (cols.size() < plan.columnCount()) {
@@ -419,10 +456,13 @@ public final class GridBuilder
 			final int n = cols.size();
 			final GridPlacementResolver.GridArea[] fallback = new GridPlacementResolver.GridArea[this.items.size()];
 			for (int i = 0; i < fallback.length; ++i) {
-				fallback[i] = new GridPlacementResolver.GridArea(i % n, i / n, 1, 1);
+				final int row = this.rowSubgridLink == null ? i / n
+						: Math.min(this.rowSubgridLink.span() - 1, i / n);
+				fallback[i] = new GridPlacementResolver.GridArea(i % n, row, 1, 1);
 			}
-			plan = new GridPlacementResolver.Plan(List.of(fallback), n,
-					Math.max((fallback.length + n - 1) / n, this.explicitRows));
+			plan = new GridPlacementResolver.Plan(List.of(fallback), n, this.rowSubgridLink == null
+					? Math.max((fallback.length + n - 1) / n, this.explicitRows)
+					: this.rowSubgridLink.span());
 		}
 		// (5) auto-fit: itemの無い末尾トラックを(gapごと)潰す
 		if (autoFit) {
@@ -438,6 +478,10 @@ public final class GridBuilder
 		}
 		this.tracks = List.copyOf(cols);
 		this.columnLines = lines;
+		while (rowLines.size() < plan.rowCount() + 1) {
+			rowLines.add(new ArrayList<>());
+		}
+		this.rowLines = rowLines;
 		this.placementPlan = plan;
 		return plan;
 	}
@@ -593,7 +637,8 @@ public final class GridBuilder
 	}
 
 	/**
-	 * subgridの列トラックを親から継ぎます(css-grid-2、2026-08-29。クラス
+	 * subgridの列トラックとrow subgrid接続を親から継ぎます(css-grid-2、
+	 * 2026-08-29/09-03。クラス
 	 * javadocの「単一autoトラックの近似へ落ちる場合」参照)。
 	 *
 	 * @param target bind先(context flowが自分のitemのGridItemBoxで、その上に
@@ -620,53 +665,92 @@ public final class GridBuilder
 		if (parent == null) {
 			return false;
 		}
+		boolean rowsResolved = false;
 		if (params.rowsSubgrid) {
-			this.rowGap = parent.rowGap();
-		}
-		if (!params.columnsSubgrid) {
-			return false;
-		}
-		final double[] widths = parent.columnWidths();
-		final int span = widths.length;
-		final double line = Math.max(0, this.gridBox.getLineSize());
-		final List<GridTrackListValue.TrackSize> cols = new ArrayList<>(span);
-		if (span == 1) {
-			cols.add(new GridTrackListValue.Fixed(line));
-		} else {
-			// 自分のborder/padding/marginは先頭・末尾トラックに食い込む。
-			// 末尾側は「親のarea幅−先頭側の縁−自分のcontent幅」で求める
-			// (justify-self:stretch以外でitem幅がarea幅より狭いときは末尾
-			// トラックがその分だけ狭くなる=内側の線は親と揃ったまま)
-			final double startInset = this.gridBox.getFrame().getFrameLineStart(params.flow);
-			double sum = parent.columnGap() * (span - 1);
-			for (final double w : widths) {
-				sum += w;
-			}
-			final double endInset = sum - startInset - line;
-			for (int i = 0; i < span; ++i) {
-				double w = widths[i];
-				if (i == 0) {
-					w -= startInset;
+			final RowSubgridLink link = parent.consumeRowSubgridLink();
+			if (link != null) {
+				this.rowSubgridLink = link;
+				this.rowSubgridOwner = item;
+				final double childGap = params.rowGapNormal ? link.parentRowGap() : this.rowGap;
+				this.rowSubgridGapShim = (childGap - link.parentRowGap()) / 2;
+				this.rowGap = childGap;
+				final int span = link.span();
+				final List<GridTrackListValue.TrackSize> rows = new ArrayList<>(span);
+				for (int i = 0; i < span; ++i) {
+					rows.add(GridTrackListValue.Auto.INSTANCE);
 				}
-				if (i == span - 1) {
-					w -= endInset;
+				final List<List<String>> lines = new ArrayList<>(span + 1);
+				for (int i = 0; i <= span; ++i) {
+					final List<String> names = new ArrayList<>(link.rowLineNames().get(i));
+					if (i < params.rowLineNames.size()) {
+						names.addAll(params.rowLineNames.get(i));
+					}
+					lines.add(names);
 				}
-				cols.add(new GridTrackListValue.Fixed(Math.max(0, w)));
+				this.subgridRows = List.copyOf(rows);
+				this.subgridRowLines = lines;
+				rowsResolved = true;
+				if (this.containsPageMarginNote && target.getPageContext() != null) {
+					final String detailKey = "2823.subgrid-rows-margin-note";
+					final net.zamasoft.foliojet.ua.UserAgent ua = target.getPageContext().getPageGenerator()
+							.getUserAgent();
+					if (ua.getUAContext().getReportedIneffectiveCombinationDetails().add(detailKey)) {
+						ua.message(net.zamasoft.foliojet.message.MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION,
+								"float", net.zamasoft.foliojet.message.MessageCodeUtils.detail(detailKey));
+					}
+				}
 			}
 		}
-		final List<List<String>> lines = new ArrayList<>(span + 1);
-		for (int i = 0; i <= span; ++i) {
-			final List<String> names = new ArrayList<>(parent.columnLineNames().get(i));
-			if (i < params.columnLineNames.size()) {
-				names.addAll(params.columnLineNames.get(i));
+		boolean columnsResolved = false;
+		if (params.columnsSubgrid) {
+			final double[] widths = parent.columnWidths();
+			final int span = widths.length;
+			final double line = Math.max(0, this.gridBox.getLineSize());
+			final List<GridTrackListValue.TrackSize> cols = new ArrayList<>(span);
+			if (span == 1) {
+				cols.add(new GridTrackListValue.Fixed(line));
+			} else {
+				// 自分のborder/padding/marginは先頭・末尾トラックに食い込む。
+				// 末尾側は「親のarea幅−先頭側の縁−自分のcontent幅」で求める
+				// (justify-self:stretch以外でitem幅がarea幅より狭いときは末尾
+				// トラックがその分だけ狭くなる=内側の線は親と揃ったまま)
+				final double startInset = this.gridBox.getFrame().getFrameLineStart(params.flow);
+				double sum = parent.columnGap() * (span - 1);
+				for (final double w : widths) {
+					sum += w;
+				}
+				final double endInset = sum - startInset - line;
+				for (int i = 0; i < span; ++i) {
+					double w = widths[i];
+					if (i == 0) {
+						w -= startInset;
+					}
+					if (i == span - 1) {
+						w -= endInset;
+					}
+					cols.add(new GridTrackListValue.Fixed(Math.max(0, w)));
+				}
 			}
-			lines.add(names);
+			final List<List<String>> lines = new ArrayList<>(span + 1);
+			for (int i = 0; i <= span; ++i) {
+				final List<String> names = new ArrayList<>(parent.columnLineNames().get(i));
+				if (i < params.columnLineNames.size()) {
+					names.addAll(params.columnLineNames.get(i));
+				}
+				lines.add(names);
+			}
+			this.subgridColumns = cols;
+			this.subgridColumnLines = lines;
+			this.columnGap = parent.columnGap();
+			this.tracks = List.copyOf(cols);
+			columnsResolved = true;
 		}
-		this.subgridColumns = cols;
-		this.subgridColumnLines = lines;
-		this.columnGap = parent.columnGap();
-		this.tracks = List.copyOf(cols);
-		return true;
+		return columnsResolved || rowsResolved;
+	}
+
+	/** row subgrid化した場合に2823を出すため、並列注の存在を記録します。 */
+	public void notePageMarginNote() {
+		this.containsPageMarginNote = true;
 	}
 
 	/**
@@ -675,6 +759,12 @@ public final class GridBuilder
 	 */
 	private GridTrackListValue.TrackSize rowTrack(final int r) {
 		final GridParams params = this.gridBox.getGridParams();
+		if (this.subgridRows != null && r < this.subgridRows.size()) {
+			return this.subgridRows.get(r);
+		}
+		if (this.subgridRows != null) {
+			return null;
+		}
 		if (r < params.templateRows.size()) {
 			return params.templateRows.get(r);
 		}
@@ -731,6 +821,19 @@ public final class GridBuilder
 			return p.ratio() * this.gridBox.getInnerPageExtent(this.gridBox.getGridParams().flow);
 		}
 		return net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
+	}
+
+	/**
+	 * item bind前に確定している行高だけを控えます。未確定行はNONEのままにし、
+	 * bind後の{@code GridRowSizing.resolve}へseedとして渡さない。
+	 */
+	private double[] preResolvedRowHeights(final GridPlacementResolver.Plan plan) {
+		final double[] heights = new double[Math.max(1, plan.rowCount())];
+		java.util.Arrays.fill(heights, net.zamasoft.foliojet.layout.util.LayoutUtils.NONE);
+		for (int r = 0; r < heights.length; ++r) {
+			heights[r] = this.fixedRowHeight(r);
+		}
+		return heights;
 	}
 
 	/** 全itemがrowSpan=1か(G6行分割の適格条件)。 */
@@ -897,6 +1000,200 @@ public final class GridBuilder
 		return true;
 	}
 
+	/** frame調整済みstartsを持つrow subgrid内の行群寸法です。 */
+	private static double rowAreaExtent(final GridPlacementResolver.GridArea area, final double[] rowHeights,
+			final double[] rowStarts) {
+		final int last = area.row() + area.rowSpan() - 1;
+		return rowStarts[last] + rowHeights[last] - rowStarts[area.row()];
+	}
+
+	/**
+	 * 子finalizerへ、このGridのローカル行sliceを渡します。row subgrid内から
+	 * 呼ぶ場合は、そのitemの内側辺へ現在のgap shimも一度だけ適用します。
+	 */
+	private static void runRowFinalizers(final List<PendingRowFinalizer> finalizers, final double[] rowHeights,
+			final double[] rowStarts, final double rowGap, final double gapShim) {
+		for (final PendingRowFinalizer pending : finalizers) {
+			final double[] heights = new double[pending.span()];
+			final double[] starts = new double[pending.span()];
+			final double baseShim = pending.rowStart() == 0 ? 0 : gapShim;
+			final double base = rowStarts[pending.rowStart()] + baseShim;
+			for (int i = 0; i < starts.length; ++i) {
+				final int row = pending.rowStart() + i;
+				final double startShim = row == 0 ? 0 : gapShim;
+				final double endShim = row + 1 == rowHeights.length ? 0 : gapShim;
+				heights[i] = Math.max(0, rowHeights[row] - startShim - endShim);
+				starts[i] = i == 0 ? 0 : rowStarts[row] + startShim - base;
+			}
+			pending.finalizer().finalizeRows(heights, starts, rowGap);
+		}
+	}
+
+	/**
+	 * このrow subgridの子孫寄与を一段上へ渡します。frame/gapはこの境界で
+	 * 一度だけ足し、空の端行には最寄り占有行の寄与をspan拡張して複製します。
+	 */
+	private void forwardRowSubgridContributions(final List<GridRowSizing.Contribution> local) {
+		final RowSubgridLink link = this.rowSubgridLink;
+		final int rowCount = link.span();
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = this.gridBox.getFrame();
+		final double startFrame = frame.getFramePageStart(this.gridBox.getGridParams().flow);
+		final double endFrame = frame.getFramePageEnd(this.gridBox.getGridParams().flow);
+		if (local.isEmpty()) {
+			// 完全に空ならframeだけ。子gapやhypothetical itemは作らない。
+			link.sink().contribute(0, rowCount, Math.max(0, startFrame + endFrame));
+			return;
+		}
+
+		final List<GridRowSizing.Contribution> expanded = new ArrayList<>(local);
+		int firstOccupied = rowCount, lastOccupied = -1;
+		for (final GridRowSizing.Contribution contribution : local) {
+			firstOccupied = Math.min(firstOccupied, contribution.row());
+			lastOccupied = Math.max(lastOccupied, contribution.row() + contribution.span() - 1);
+		}
+		if (firstOccupied > 0) {
+			for (final GridRowSizing.Contribution contribution : local) {
+				if (contribution.row() <= firstOccupied
+						&& contribution.row() + contribution.span() > firstOccupied) {
+					expanded.add(new GridRowSizing.Contribution(0,
+							contribution.row() + contribution.span(), contribution.extent()));
+				}
+			}
+		}
+		if (lastOccupied < rowCount - 1) {
+			for (final GridRowSizing.Contribution contribution : local) {
+				if (contribution.row() <= lastOccupied
+						&& contribution.row() + contribution.span() > lastOccupied) {
+					expanded.add(new GridRowSizing.Contribution(contribution.row(),
+							rowCount - contribution.row(), contribution.extent()));
+				}
+			}
+		}
+		for (final GridRowSizing.Contribution contribution : expanded) {
+			double extent = contribution.extent();
+			if (contribution.row() == 0) {
+				extent += startFrame;
+			} else {
+				extent += this.rowSubgridGapShim;
+			}
+			if (contribution.row() + contribution.span() == rowCount) {
+				extent += endFrame;
+			} else {
+				extent += this.rowSubgridGapShim;
+			}
+			link.sink().contribute(contribution.row(), contribution.span(), Math.max(0, extent));
+		}
+	}
+
+	/** 親行確定後にrow subgridの直接item、孫、行台帳の順で最終化します。 */
+	private void finalizeRowSubgrid(final GridPlacementResolver.Plan plan, final FixedGridLayout layout,
+			final double contentX, final double[] itemXOffsets, final BoxAlignment[] aligns,
+			final double[] boundExtents, final boolean[] rowSubgridItems,
+			final List<PendingRowFinalizer> childFinalizers, final double[] parentHeights,
+			final double[] parentStarts, final double parentRowGap) {
+		final GridParams params = this.gridBox.getGridParams();
+		assert Double.doubleToLongBits(parentRowGap) == Double
+				.doubleToLongBits(this.rowSubgridLink.parentRowGap()) : "row subgridの親gapが不一致";
+		final int count = this.items.size();
+		final double startFrame = this.gridBox.getFrame().getFramePageStart(params.flow);
+		final double endFrame = this.gridBox.getFrame().getFramePageEnd(params.flow);
+		final double[] rowHeights = parentHeights.clone();
+		if (rowHeights.length == 1) {
+			rowHeights[0] = Math.max(0, rowHeights[0] - startFrame - endFrame);
+		} else {
+			rowHeights[0] = Math.max(0, rowHeights[0] - startFrame);
+			rowHeights[rowHeights.length - 1] = Math.max(0,
+					rowHeights[rowHeights.length - 1] - endFrame);
+		}
+		final double[] rowStarts = new double[rowHeights.length];
+		for (int r = 0; r < rowHeights.length; ++r) {
+			rowStarts[r] = r == 0 ? 0 : parentStarts[r] - startFrame;
+		}
+		final int lastRow = rowHeights.length - 1;
+		final double ownerOuter = parentStarts[lastRow] + parentHeights[lastRow];
+		final double cursor = Math.max(0, ownerOuter - startFrame - endFrame);
+		this.gridBox.setExactUsedPageSize(cursor);
+		final double ownerFrame = this.rowSubgridOwner.getFrame().getFramePageExtent(params.flow);
+		this.rowSubgridOwner.setExactUsedPageSize(Math.max(0, ownerOuter - ownerFrame));
+
+		final boolean ledgerEligible = count > 0 && !params.flow.isVertical() && allSingleRowSpan(plan, count);
+		final Integer[] order = new Integer[count];
+		for (int i = 0; i < count; ++i) {
+			order[i] = i;
+		}
+		boolean rowMajor = ledgerEligible && isRowMajor(plan, count);
+		if (ledgerEligible && !rowMajor && !hasOverlap(plan, count)) {
+			java.util.Arrays.sort(order, java.util.Comparator.comparingInt(i -> plan.areas().get(i).row()));
+			rowMajor = true;
+		}
+		final double[] yOffsets = new double[count];
+		for (int idx = 0; idx < count; ++idx) {
+			final int i = order[idx];
+			final GridItemBox itemBox = this.items.get(i).itemBox;
+			final GridPlacementResolver.GridArea area = plan.areas().get(i);
+			final double logicalLine = contentX + layout.columnStart(area.column()) + itemXOffsets[i];
+			itemBox.setGridLineOffset(LayoutUtils.inlineToPhysical(params, this.gridBox.getLineSize(), logicalLine,
+					logicalLine + itemBox.getLineExtent(params.flow)));
+			final double startShim = area.row() == 0 ? 0 : this.rowSubgridGapShim;
+			final double endShim = area.row() + area.rowSpan() == rowHeights.length ? 0
+					: this.rowSubgridGapShim;
+			final double areaHeight = Math.max(0,
+					rowAreaExtent(area, rowHeights, rowStarts) - startShim - endShim);
+			if (!rowSubgridItems[i] && aligns[i] == BoxAlignment.STRETCH
+					&& areaHeight > itemBox.getPageExtent(params.flow)
+					&& itemBox.getBlockParams().size.getPageType(params.flow) == LengthType.AUTO) {
+				final double deficit = areaHeight - itemBox.getPageExtent(params.flow);
+				itemBox.setPageAxis(itemBox.getInnerPageExtent(params.flow) + deficit);
+			}
+			final double free = Math.max(0, areaHeight - itemBox.getPageExtent(params.flow));
+			final double yOffset = startShim + (aligns[i] == BoxAlignment.CENTER ? free / 2
+					: aligns[i] == BoxAlignment.END ? free : 0);
+			yOffsets[i] = yOffset;
+			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
+		}
+
+		// 直接itemを最終位置へ登録してから、孫の正確な寸法・幾何を確定する。
+		runRowFinalizers(childFinalizers, rowHeights, rowStarts, this.rowGap, this.rowSubgridGapShim);
+		for (int i = 0; i < count; ++i) {
+			boundExtents[i] = this.items.get(i).itemBox.getPageExtent(params.flow);
+		}
+		if (rowMajor) {
+			final double[] ledgerRowStarts = new double[rowStarts.length];
+			final double[] ledgerRowHeights = new double[rowHeights.length];
+			for (int r = 0; r < rowStarts.length; ++r) {
+				final double startShim = r == 0 ? 0 : this.rowSubgridGapShim;
+				final double endShim = r + 1 == rowStarts.length ? 0 : this.rowSubgridGapShim;
+				ledgerRowStarts[r] = rowStarts[r] + startShim;
+				ledgerRowHeights[r] = Math.max(0, rowHeights[r] - startShim - endShim);
+			}
+			final List<GridBox.Row> gridRows = new ArrayList<>();
+			final List<GridItemBox> gridRowItems = new ArrayList<>(count);
+			int rowStartFlow = 0;
+			double itemsEnd = 0;
+			int currentRow = plan.areas().get(order[0]).row();
+			for (int idx = 0; idx < count; ++idx) {
+				final int i = order[idx];
+				final int r = plan.areas().get(i).row();
+				if (r != currentRow) {
+					gridRows.add(new GridBox.Row(rowStartFlow, idx - rowStartFlow,
+							ledgerRowStarts[currentRow], ledgerRowHeights[currentRow], itemsEnd));
+					rowStartFlow = idx;
+					itemsEnd = 0;
+					currentRow = r;
+				}
+				final double startShim = r == 0 ? 0 : this.rowSubgridGapShim;
+				itemsEnd = Math.max(itemsEnd, yOffsets[i] - startShim
+						+ this.items.get(i).itemBox.paintedPageExtent(params.flow));
+				gridRowItems.add(this.items.get(i).itemBox);
+			}
+			gridRows.add(new GridBox.Row(rowStartFlow, count - rowStartFlow, ledgerRowStarts[currentRow],
+					ledgerRowHeights[currentRow], itemsEnd));
+			this.gridBox.setGridRows(gridRows, gridRowItems);
+		}
+		this.rowSubgridLink = null;
+		this.rowSubgridOwner = null;
+	}
+
 	/** bindは一度きり(二重bindはLegacyRecordsのlive box変異——答申Q5)。 */
 	private boolean bound;
 
@@ -931,6 +1228,7 @@ public final class GridBuilder
 			this.placementPlan = null;
 		}
 		final GridPlacementResolver.Plan plan = this.placementPlan();
+		final double[] preResolvedRowHeights = this.preResolvedRowHeights(plan);
 		// トラック幅解決(G3b/c): planに基づく列contribution(G4b)から、
 		// fixed=指定長・auto=base/growth limit+stretch・fr=find-frで
 		// 確定する。基準幅はGridコンテナのcontent-box行幅
@@ -1000,29 +1298,110 @@ public final class GridBuilder
 		// 幅確定→本文bind。PageAtomicBox契約によりGrid flowがactiveな間に
 		// 全bindが完了する(ページbreakは走らない)
 		final double[] extents = new double[count];
-		for (int i = 0; i < count; ++i) {
-			final GridItemContent item = this.items.get(i);
-			// 跨ぐ列をitemへ渡す(item直下のsubgridがresolveSubgridで継ぐ。2026-08-29)
-			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			item.itemBox.setSubgridTracks(new GridItemBox.SubgridTracks(
-					java.util.Arrays.copyOfRange(widths, area.column(), area.column() + area.columnSpan()),
-					this.columnGap, this.columnLines.subList(area.column(), area.column() + area.columnSpan() + 1),
-					this.rowGap));
-			item.bind(target, itemWidths[i]);
-			GRID_ITEM_BINDS.incrementAndGet();
-			extents[i] = item.itemBox.getPageExtent(params.flow);
+		final boolean[] rowSubgridItems = new boolean[count];
+		final List<GridRowSizing.Contribution> rowContributions = new ArrayList<>();
+		final List<PendingRowFinalizer> rowFinalizers = new ArrayList<>();
+		final RootBuilder pageContext = target.getPageContext();
+		if (this.rowSubgridLink != null && pageContext != null) {
+			pageContext.beginRowSubgridBind();
+		}
+		try {
+			for (int i = 0; i < count; ++i) {
+				final int itemIndex = i;
+				final GridItemContent item = this.items.get(i);
+				// 列トラックと、行寄与を親座標へ一度だけ変換する一時linkを渡す。
+				final GridPlacementResolver.GridArea area = plan.areas().get(i);
+				final RowContributionSink sink = new RowContributionSink() {
+					@Override
+					public void contribute(final int row, final int span, final double extent) {
+						if (row < 0 || span <= 0 || row + span > area.rowSpan()) {
+							throw new IllegalArgumentException("row subgrid contribution: " + row + "/" + span);
+						}
+						rowContributions.add(new GridRowSizing.Contribution(area.row() + row, span, extent));
+					}
+
+					@Override
+					public void whenRowsResolved(final RowGeometryFinalizer finalizer) {
+						if (rowSubgridItems[itemIndex]) {
+							throw new IllegalStateException("row subgrid finalizerの二重登録");
+						}
+						rowSubgridItems[itemIndex] = true;
+						aligns[itemIndex] = BoxAlignment.STRETCH;
+						rowFinalizers.add(new PendingRowFinalizer(area.row(), area.rowSpan(), finalizer));
+					}
+				};
+				final RowSubgridLink link = new RowSubgridLink(area.row(), area.rowSpan(), this.rowGap,
+						this.rowLines.subList(area.row(), area.row() + area.rowSpan() + 1), sink);
+				item.itemBox.setSubgridTracks(new GridItemBox.SubgridTracks(
+						java.util.Arrays.copyOfRange(widths, area.column(), area.column() + area.columnSpan()),
+						this.columnGap,
+						this.columnLines.subList(area.column(), area.column() + area.columnSpan() + 1),
+						this.rowGap, this.rowLines.subList(area.row(), area.row() + area.rowSpan() + 1), link));
+				item.bind(target, itemWidths[i]);
+				GRID_ITEM_BINDS.incrementAndGet();
+				extents[i] = item.itemBox.getPageExtent(params.flow);
+				// row subgridでなかったitemのclosureも永続boxへ残さない。
+				item.itemBox.getSubgridTracks().consumeRowSubgridLink();
+			}
+		} finally {
+			if (this.rowSubgridLink != null && pageContext != null) {
+				pageContext.endRowSubgridBind();
+			}
+		}
+
+		if (this.rowSubgridLink != null) {
+			for (int i = 0; i < count; ++i) {
+				if (!rowSubgridItems[i]) {
+					final GridPlacementResolver.GridArea area = plan.areas().get(i);
+					rowContributions.add(new GridRowSizing.Contribution(area.row(), area.rowSpan(), extents[i]));
+				}
+			}
+			this.forwardRowSubgridContributions(rowContributions);
+			final boolean[] finalized = new boolean[1];
+			this.rowSubgridLink.sink().whenRowsResolved((rowHeights, rowStarts, inheritedGap) -> {
+				if (finalized[0]) {
+					throw new IllegalStateException("row subgrid finalizerの二重実行");
+				}
+				finalized[0] = true;
+				this.finalizeRowSubgrid(plan, layout, contentX, itemXOffsets, aligns, extents,
+						rowSubgridItems, rowFinalizers, rowHeights, rowStarts, inheritedGap);
+			});
+			final LayoutContext.Flow active = target.getFlow();
+			assert active.box == this.gridBox : "Grid bindでactive flowがGridではない: " + active.box;
+			return;
 		}
 		// 行高解決(G4d: rowSpanの不足分配込み——GridRowSizing。
 		// 空行は高さ0だが隣接rowGapは残る=仕様のgutter挙動)
-		final double[] rowHeights = net.zamasoft.foliojet.layout.sizing.GridRowSizing.resolve(plan.areas(),
-				extents, plan.rowCount(), this.rowGap);
+		List<GridPlacementResolver.GridArea> sizingAreas = plan.areas();
+		double[] sizingExtents = extents;
+		int ordinaryCount = 0;
+		for (final boolean rowSubgrid : rowSubgridItems) {
+			if (!rowSubgrid) {
+				++ordinaryCount;
+			}
+		}
+		if (ordinaryCount != count) {
+			final List<GridPlacementResolver.GridArea> ordinaryAreas = new ArrayList<>(ordinaryCount);
+			final double[] ordinaryExtents = new double[ordinaryCount];
+			int ordinary = 0;
+			for (int i = 0; i < count; ++i) {
+				if (!rowSubgridItems[i]) {
+					ordinaryAreas.add(plan.areas().get(i));
+					ordinaryExtents[ordinary++] = extents[i];
+				}
+			}
+			sizingAreas = ordinaryAreas;
+			sizingExtents = ordinaryExtents;
+		}
+		final double[] rowHeights = GridRowSizing.resolve(sizingAreas, sizingExtents, plan.rowCount(), this.rowGap,
+				rowContributions);
 		// 固定高の行(grid-template-rows/grid-auto-rowsの絶対長・基準確定の%)
 		// はその高さに固定する(2026-08-29。内容が高ければitemがはみ出す=
 		// 仕様どおり。auto/fr/min-content等は内容高のまま——高さautoの
 		// Gridではfr行もautoに等しい)
 		final boolean[] fixedRow = new boolean[rowHeights.length];
 		for (int r = 0; r < rowHeights.length; ++r) {
-			final double fixed = this.fixedRowHeight(r);
+			final double fixed = preResolvedRowHeights[r];
 			if (!net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(fixed)) {
 				rowHeights[r] = fixed;
 				fixedRow[r] = true;
@@ -1070,6 +1449,11 @@ public final class GridBuilder
 				cursor += this.rowGap;
 			}
 		}
+		// 親の行が確定してから、直接itemの配置より先に子subgridを最終化する。
+		runRowFinalizers(rowFinalizers, rowHeights, rowStarts, this.rowGap, 0);
+		for (int i = 0; i < count; ++i) {
+			extents[i] = this.items.get(i).itemBox.getPageExtent(params.flow);
+		}
 		// G5d: align used valueによるページ方向オフセット(areaは
 		// span行群+内側gap。stretchは現行互換の上詰め近似——真の
 		// used-height stretchは後続。負余白は0へ丸める)
@@ -1098,7 +1482,9 @@ public final class GridBuilder
 			final int i = order[idx];
 			final GridItemBox itemBox = this.items.get(i).itemBox;
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			itemBox.setGridLineOffset(contentX + layout.columnStart(area.column()) + itemXOffsets[i]);
+			final double logicalLine = contentX + layout.columnStart(area.column()) + itemXOffsets[i];
+			itemBox.setGridLineOffset(LayoutUtils.inlineToPhysical(params, this.gridBox.getLineSize(), logicalLine,
+					logicalLine + itemBox.getLineExtent(params.flow)));
 			double areaHeight = this.rowGap * (area.rowSpan() - 1);
 			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
 				areaHeight += rowHeights[r];

@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="103.2mm"?>
+<?jp.cssj.property name="output.page-height" value="206.4mm"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>縦書きのrowspan表を改頁したとき枠だけの頁を作らない</title>
+<style>
+@page {
+	margin: 9.7mm 5.6mm;
+	@bottom-center { content: "PAGE-" counter(page); font: normal 8pt/1 serif; }
+}
+body { margin: 0; font: normal 8pt/1 serif; writing-mode: vertical-rl; }
+p { margin: 0; }
+p.before { page-break-after: always; }
+table { table-layout: fixed; inline-size: 100%; border-collapse: collapse; }
+td { border: 1pt solid black; padding: 3pt; vertical-align: middle; }
+</style></head>
+<body>
+<p class="before">BEFORE</p>
+<table>
+<col span="4" />
+<tbody>
+<tr><td rowspan="2">S01</td><td>R01</td><td>A01</td><td>B01</td></tr>
+<tr><td>R02</td><td>A02</td><td>B02</td></tr>
+<tr><td rowspan="2">S02</td><td>R03</td><td>A03</td><td>B03</td></tr>
+<tr><td>R04</td><td>A04</td><td>B04</td></tr>
+</tbody>
+</table>
+<p>AFTER</p>
+</body></html>

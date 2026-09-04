@@ -9,6 +9,8 @@ import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.impl.RubyUnitBox;
 import net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
@@ -56,6 +58,14 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	public BuilderGlyphHandler(Builder builder) {
 		this.builder = builder;
 		this.changeTextState(this.builder.getFlowBox().getBlockParams());
+	}
+
+	/** TextReplaySlice が保持した段落先行行を、再生先の resolver へ渡す。 */
+	public void seedBidiReplayPrefix(
+			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix prefix) {
+		if (this.builder instanceof BlockBuilder blockBuilder) {
+			blockBuilder.seedBidiReplayPrefix(prefix);
+		}
 	}
 
 	public void startTextBox(AbstractTextParams params) {
@@ -194,9 +204,13 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				final InlineBox inlineBox = inlineStartQuad.box;
 
-				inlineStartQuad.advance = inlineStartQuad.box.getFrame().getFrameLineStart(this.progression);
-
 				AbstractTextParams params = inlineBox.getTextParams();
+				inlineStartQuad.advance = params.flow.isVertical()
+						&& params.writingModeVariant != WritingModeVariant.NORMAL
+						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+								params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP
+							? inlineStartQuad.box.getFrame().getFrameBottom()
+							: inlineStartQuad.box.getFrame().getFrameLineStart(this.progression);
 				this.startTextBox(params);
 			}
 				break;
@@ -208,7 +222,13 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				this.boundaryWrap = Boolean.valueOf(this.wrap);
 				consumesBoundary = false;
 
-				inlineEndQuad.advance = inlineEndQuad.box.getFrame().getFrameLineEnd(this.progression);
+				final AbstractTextParams endParams = inlineEndQuad.box.getTextParams();
+				inlineEndQuad.advance = endParams.flow.isVertical()
+						&& endParams.writingModeVariant != WritingModeVariant.NORMAL
+						&& TypesettingMode.inlineProgression(endParams.flow, endParams.writingModeVariant,
+								endParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP
+							? inlineEndQuad.box.getFrame().getFrameTop()
+							: inlineEndQuad.box.getFrame().getFrameLineEnd(this.progression);
 				break;
 
 			case InlineQuad.INLINE_REPLACED: {

@@ -9,8 +9,10 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.property.ShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.value.BlockFlowValue;
 import net.zamasoft.foliojet.css.value.DirectionValue;
+import net.zamasoft.foliojet.css.value.WritingModeVariantValue;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
+import net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -27,7 +29,7 @@ public class WritingModeShorthand extends AbstractShorthandPropertyInfo {
 
 	@Override
 	protected PrimitivePropertyInfo[] longhands() {
-		return new PrimitivePropertyInfo[] { Direction.INFO, BlockFlow.INFO };
+		return new PrimitivePropertyInfo[] { Direction.INFO, BlockFlow.INFO, WritingModeVariant.INFO };
 	}
 
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
@@ -49,6 +51,8 @@ public class WritingModeShorthand extends AbstractShorthandPropertyInfo {
 			} else {
 				throw new PropertyException();
 			}
+			// legacy shorthand の既存値は、sideways 状態を必ず解除する。
+			primitives.set(WritingModeVariant.INFO, WritingModeVariantValue.NORMAL_VALUE);
 			return;
 		}
 		throw new PropertyException();

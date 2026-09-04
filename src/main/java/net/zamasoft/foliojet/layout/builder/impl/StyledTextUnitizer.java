@@ -83,6 +83,10 @@ public class StyledTextUnitizer {
 		return (AbstractTextParams) this.textParamsStack.get(this.textParamsStack.size() - 1);
 	}
 
+	private boolean paragraphBidiEnabled() {
+		return this.getTextParams().paragraphBidi;
+	}
+
 	public void requireTextShaper() {
 		if (this.textShaper != null) {
 			return;
@@ -343,7 +347,8 @@ public class StyledTextUnitizer {
 			}
 		}
 		final RubyUnitBox box = RubyUnitBox.create(container, baseText, base == null ? null : base.params(),
-				base == null ? -1 : base.charOffset(), annotations, sourceStart, sourceEnd);
+				base == null ? -1 : base.charOffset(), annotations, sourceStart, sourceEnd,
+				this.paragraphBidiEnabled());
 		if (box == null) {
 			return;
 		}
@@ -361,7 +366,7 @@ public class StyledTextUnitizer {
 	private void emitWarichu(final InlineParams container, final WarichuCollector.Segment segment) {
 		this.resolvePendingRubyEnd(false);
 		final List<WarichuUnitBox> boxes = WarichuUnitBox.createFragments(container, segment.text(), segment.params(),
-				segment.sourceStart(), segment.sourceStart(), segment.sourceEnd());
+				segment.sourceStart(), segment.sourceStart(), segment.sourceEnd(), this.paragraphBidiEnabled());
 		if (boxes.isEmpty()) {
 			return;
 		}

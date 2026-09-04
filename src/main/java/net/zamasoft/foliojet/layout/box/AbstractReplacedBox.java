@@ -64,6 +64,11 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		return this.params;
 	}
 
+	@Override
+	protected net.zamasoft.foliojet.layout.part.AbsoluteInsets transformReferenceMargin() {
+		return this.frame == null ? null : this.frame.margin;
+	}
+
 	public final AbsoluteRectFrame getFrame() {
 		return this.frame;
 	}
@@ -343,8 +348,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		 * ラスタでなければ箱の形の影(AbsoluteRectFrameDrawable)。
 		 */
 		@Override
-		protected void drawFilterShadow(GC gc, double x, double y) throws GraphicsException {
-			final net.zamasoft.foliojet.css.value.css3.FilterValue.DropShadow s = this.filter.shadow;
+		protected void drawFilterShadow(GC gc, double x, double y,
+				final net.zamasoft.foliojet.css.value.css3.FilterValue.DropShadow filterShadow)
+				throws GraphicsException {
 			final double left = x + this.frame.getFrameLeft(), top = y + this.frame.getFrameTop();
 			final double width = this.width - this.frame.getFrameWidth();
 			final double height = this.height - this.frame.getFrameHeight();
@@ -353,12 +359,13 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				final double sx = r[2] / this.image.getWidth(), sy = r[3] / this.image.getHeight();
 				// ぼかし半径の半分が標準偏差(filter-effects-1 §9.2)。画像の
 				// 論理単位へ換算する
-				final double sigma = s.blur() > 0 ? s.blur() / 2 / Math.sqrt(sx * sy) : 0;
+				final double sigma = filterShadow.blur() > 0 ? filterShadow.blur() / 2 / Math.sqrt(sx * sy) : 0;
 				final net.zamasoft.foliojet.layout.util.FilterOps.Shadow shadow = net.zamasoft.foliojet.layout.util.FilterOps
-						.shadowOf(this.image, s.color(), sigma);
+						.shadowOf(this.image, filterShadow.color(), sigma);
 				if (shadow != null) {
 					final AffineTransform at = AffineTransform.getTranslateInstance(
-							left + r[0] + s.x() - shadow.padX() * sx, top + r[1] + s.y() - shadow.padY() * sy);
+							left + r[0] + filterShadow.x() - shadow.padX() * sx,
+							top + r[1] + filterShadow.y() - shadow.padY() * sy);
 					at.scale(sx, sy);
 					try (final var gcState = gc.begin()) {
 						gc.transform(at);
@@ -367,7 +374,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 					return;
 				}
 			}
-			super.drawFilterShadow(gc, x, y);
+			super.drawFilterShadow(gc, x, y, filterShadow);
 		}
 
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
@@ -528,7 +535,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(this.params.zIndexValue);
+			final Drawer newDrawer = new Drawer(this.params, transform);
 			drawer.visitDrawer(newDrawer);
 			drawer = newDrawer;
 		}
@@ -537,6 +544,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		y += this.offsetY;
 
 		transform = this.transform(transform, x, y);
+		drawer.adoptTransform(this.params, transform);
 
 		visitor.visitBox(transform, this, drawer, x, y);
 

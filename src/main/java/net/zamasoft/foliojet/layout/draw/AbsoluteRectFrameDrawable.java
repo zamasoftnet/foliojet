@@ -35,12 +35,12 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 	 * 描きます(2026-08-29)。
 	 */
 	@Override
-	protected void drawFilterShadow(GC gc, double x, double y) throws GraphicsException {
-		final net.zamasoft.foliojet.css.value.css3.FilterValue.DropShadow s = this.filter.shadow;
+	protected void drawFilterShadow(GC gc, double x, double y,
+			final net.zamasoft.foliojet.css.value.css3.FilterValue.DropShadow shadow) throws GraphicsException {
 		final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = this.frame.margin;
 		net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.drawDropShadow(gc, this.frame.frame,
 				x + margin.left, y + margin.top, this.width - margin.getFrameWidth(),
-				this.height - margin.getFrameHeight(), s.x(), s.y(), s.blur(), s.color());
+				this.height - margin.getFrameHeight(), shadow.x(), shadow.y(), shadow.blur(), shadow.color());
 	}
 
 	@Override

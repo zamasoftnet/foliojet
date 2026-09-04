@@ -23,9 +23,8 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
  * </p>
  *
  * <p>
- * <b>ぼかしの近似。</b>PDFにはぼかしのプリミティブが無い(ソフトマスク+
- * 画像で作れるが、ベクタ出力・ファイルサイズ・決定性の全てで損)。そこで
- * 影の縁を{@link #BLUR_STEPS}個の同心の塗りで階段状に再現する。各段は
+ * <b>ぼかしの近似。</b>出力先が厳密なぼかしを使えない場合は、影の縁を
+ * {@link #BLUR_STEPS}個の同心の塗りで階段状に再現する。各段は
  * ガウス分布の分位点の位置(σ=blur/2、Chrome/Skiaと同じ換算)に置き、
  * 各段のアルファは全段が重なった中心で指定色のアルファに一致するよう
  * {@code 1-(1-α)^(1/N)}にする。単一の半透明帯より縁の減衰が滑らかで、
@@ -36,9 +35,11 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
  * </p>
  *
  * <p>
- * <b>厳密経路(2026-08-29)。</b>出力先がガウスぼかしを持つ
- * ({@link GC.Capability#GAUSSIAN_BLUR}——Java2D・ブラウザが描くSVG)なら、
- * 近似せず{@link GC#fillBlurred}で1回塗る。近似したときは
+ * <b>厳密経路(2026-09-03更新)。</b>出力先がガウスぼかしを持つ
+ * ({@link GC.Capability#GAUSSIAN_BLUR}——Java2D・ブラウザが描くSVG・
+ * 透明を使えるPDF)なら、近似せず{@link GC#tryFillBlurred}で1回塗る。
+ * PDFは影だけを画像化し、本文や箱そのものはベクタのまま保つ。厳密描画を
+ * 拒否された場合は上の段階塗りへ戻り、
  * {@link ApproximationGC#report}で利用者へ知らせる(文書ごとに1回)。
  * </p>
  *
@@ -48,12 +49,13 @@ public final class BoxDecorationRenderer {
 	/** 2822の近似内容: box-shadowのぼかし。 */
 	static final String BLUR_DETAIL = "2822.blur-rings";
 	/**
-	 * ぼかしの各段の縁の位置(σ単位)。N=12の標準正規分布の分位点
+	 * 厳密なぼかしを使えない場合の各段の縁の位置(σ単位)。N=12の標準正規分布の分位点
 	 * ((k+0.5)/N)を外側から並べたもの。外側ほど薄くなる階段の縁が、
 	 * ガウス減衰の等確率区間に対応する。8段では濃い影(α=.5)の4倍拡大で
 	 * 段差が見えたので12段にした(1段あたりα=.15なら約1.3%、α=.5でも約6%)。
-	 * {@code text-shadow}のぼかし({@code AbstractTextBox})も同じ段を使う
-	 * (2026-08-29)。
+	 * {@code text-shadow}のぼかし({@code AbstractTextBox})も同じ段を使う。
+	 * 透明を使えるPDFでは影だけをラスタ化するため、この近似は出力先が
+	 * 厳密描画を拒否した場合のフォールバックになる(2026-09-03)。
 	 */
 	public static final double[] BLUR_STEPS = { 1.7317, 1.1503, 0.8122, 0.5485, 0.3186, 0.1046, -0.1046, -0.3186,
 			-0.5485, -0.8122, -1.1503, -1.7317 };
@@ -76,7 +78,8 @@ public final class BoxDecorationRenderer {
 		double extent = 0;
 		for (final BoxShadow s : shadows) {
 			if (!s.inset) {
-				extent = Math.max(extent, Math.abs(s.x) + Math.abs(s.y) + Math.max(0, s.spread) + s.blur);
+				extent = Math.max(extent,
+						Math.abs(s.x) + Math.abs(s.y) + Math.max(0, s.spread) + 1.5 * s.blur);
 			}
 		}
 		if (extent <= 0) {
@@ -171,7 +174,7 @@ public final class BoxDecorationRenderer {
 				// クリップで切るので外縁の形は結果に出ない)
 				final Shape band0;
 				if (s.blur > 0 && gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
-					final double reach = Math.abs(s.x) + Math.abs(s.y) + Math.abs(s.spread) + s.blur * 2 + 1;
+					final double reach = Math.abs(s.x) + Math.abs(s.y) + Math.abs(s.spread) + 1.5 * s.blur + 1;
 					band0 = new Rectangle2D.Double(px - reach, py - reach, pw + reach * 2, ph + reach * 2);
 				} else {
 					band0 = paddingShape;
@@ -220,7 +223,7 @@ public final class BoxDecorationRenderer {
 	/**
 	 * 1つの影を塗ります。{@code shapeAt}は縁の位置のずれ(外向き正)から
 	 * 塗る形を返す(nullなら潰れていて塗らない)。ぼかしは出力先が描ければ
-	 * {@link GC#fillBlurred}で厳密に、描けなければ段階塗りで近似し
+	 * {@link GC#tryFillBlurred}で厳密に、描けなければ段階塗りで近似し
 	 * {@code property}/{@code blurDetail}で2822を報告する。
 	 */
 	private static void fillLayers(GC gc, BoxShadow s, String property, String blurDetail,
@@ -240,13 +243,11 @@ public final class BoxDecorationRenderer {
 				return;
 			}
 			final double sigma = s.blur / 2;
-			if (gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
-				// 厳密: 指定色のままガウスぼかしで1回塗る(σ=blur/2)
-				gc.setFillAlpha(alpha);
-				final Shape shape = shapeAt.apply(0);
-				if (shape != null) {
-					gc.fillBlurred(shape, sigma);
-				}
+			// 厳密: 指定色のままガウスぼかしで1回塗る(σ=blur/2)。falseなら
+			// 何も描かれていない契約なので、そのまま従来の近似へ落とせる。
+			gc.setFillAlpha(alpha);
+			final Shape exact = shapeAt.apply(0);
+			if (exact != null && gc.tryFillBlurred(exact, sigma)) {
 				return;
 			}
 			ApproximationGC.report(gc, property, blurDetail);

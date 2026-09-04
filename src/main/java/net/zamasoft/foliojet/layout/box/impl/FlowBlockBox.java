@@ -904,12 +904,12 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		}
 
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			Drawer newDrawer = new Drawer(this.params.zIndexValue);
+			final Drawer newDrawer = new Drawer(this.params, transform);
 			drawer.visitDrawer(newDrawer);
 			drawer = newDrawer;
 		}
 
-		if (this.getFlowPos().offset != null) {
+		if (this.getFlowPos().offset != null || this.params.isStackingContext()) {
 			this.frames(pageBox, drawer, clip, transform, x, y);
 		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);

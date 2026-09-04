@@ -49,17 +49,43 @@ final class SVGPaintWriter {
 	 * {@code url(#id)}で、defsへ定義を登録します。
 	 */
 	String toSVGPaint(final Paint paint) throws IOException {
+		return this.toSVGPaint(paint, null);
+	}
+
+	/**
+	 * 現在の変換{@code ctm}の下で使う塗りの指定を返します(2026-09-03)。
+	 * パスと切り抜きは座標へ変換を畳み込んで書くので、勾配・敷き詰めの
+	 * 座標系も同じ変換で頁座標へ写さないと、変換付きの箱(transform、
+	 * border-imageの9分割のタイル等)で図形と色がずれる。恒等なら従来と
+	 * 同じ出力。
+	 */
+	String toSVGPaint(final Paint paint, final java.awt.geom.AffineTransform ctm) throws IOException {
 		if (paint == null) {
 			return "none";
 		}
 		return switch (paint.getPaintType()) {
 		case COLOR -> toHex((Color) paint);
-		case LINEAR_GRADIENT -> this.linearGradient((LinearGradient) paint);
-		case RADIAL_GRADIENT -> this.radialGradient((RadialGradient) paint);
-		case PATTERN -> this.pattern((net.zamasoft.pdfg2d.gc.paint.Pattern) paint);
+		case LINEAR_GRADIENT -> this.linearGradient((LinearGradient) paint, ctm);
+		case RADIAL_GRADIENT -> this.radialGradient((RadialGradient) paint, ctm);
+		case PATTERN -> this.pattern((net.zamasoft.pdfg2d.gc.paint.Pattern) paint, ctm);
 		// 知らない種類。塗らない
 		default -> null;
 		};
+	}
+
+	/** 塗り自身の変換の外側に現在の変換を掛けた行列(どちらも無ければnull)。 */
+	private static java.awt.geom.AffineTransform compose(final java.awt.geom.AffineTransform ctm,
+			final java.awt.geom.AffineTransform paintTransform) {
+		final boolean hasCtm = ctm != null && !ctm.isIdentity();
+		final boolean hasPaint = paintTransform != null && !paintTransform.isIdentity();
+		if (!hasCtm) {
+			return hasPaint ? paintTransform : null;
+		}
+		final java.awt.geom.AffineTransform at = new java.awt.geom.AffineTransform(ctm);
+		if (hasPaint) {
+			at.concatenate(paintTransform);
+		}
+		return at;
 	}
 
 	/**
@@ -78,7 +104,8 @@ final class SVGPaintWriter {
 	 * そうしません。
 	 * </p>
 	 */
-	private String pattern(final net.zamasoft.pdfg2d.gc.paint.Pattern pattern) throws IOException {
+	private String pattern(final net.zamasoft.pdfg2d.gc.paint.Pattern pattern,
+			final java.awt.geom.AffineTransform ctm) throws IOException {
 		if (this.images == null) {
 			return null;
 		}
@@ -96,8 +123,8 @@ final class SVGPaintWriter {
 		final StringBuilder def = new StringBuilder(200);
 		def.append("<pattern id=\"").append(id).append("\" patternUnits=\"userSpaceOnUse\" width=\"")
 				.append(SVGWriter.number(width)).append("\" height=\"").append(SVGWriter.number(height)).append('"');
-		final java.awt.geom.AffineTransform at = pattern.getTransform();
-		if (at != null && !at.isIdentity()) {
+		final java.awt.geom.AffineTransform at = compose(ctm, pattern.getTransform());
+		if (at != null) {
 			def.append(" patternTransform=\"").append(matrix(at)).append('"');
 		}
 		def.append("><image x=\"0\" y=\"0\" width=\"").append(SVGWriter.number(width)).append("\" height=\"")
@@ -132,7 +159,8 @@ final class SVGPaintWriter {
 		return i < 0 ? 0 : i > 255 ? 255 : i;
 	}
 
-	private String linearGradient(final LinearGradient g) throws IOException {
+	private String linearGradient(final LinearGradient g, final java.awt.geom.AffineTransform ctm)
+			throws IOException {
 		final String id = this.writer.nextId("lg");
 		final StringBuilder def = new StringBuilder(160);
 		def.append("<linearGradient id=\"").append(id).append("\" gradientUnits=\"userSpaceOnUse\" x1=\"")
@@ -140,7 +168,7 @@ final class SVGPaintWriter {
 				.append("\" x2=\"").append(SVGWriter.number(g.x2())).append("\" y2=\"")
 				.append(SVGWriter.number(g.y2())).append('"');
 		appendSpread(def, g.spread());
-		appendGradientTransform(def, g.transform());
+		appendGradientTransform(def, compose(ctm, g.transform()));
 		def.append('>');
 		appendStops(def, g.fractions(), g.colors());
 		def.append("</linearGradient>");
@@ -148,14 +176,15 @@ final class SVGPaintWriter {
 		return "url(#" + id + ")";
 	}
 
-	private String radialGradient(final RadialGradient g) throws IOException {
+	private String radialGradient(final RadialGradient g, final java.awt.geom.AffineTransform ctm)
+			throws IOException {
 		final String id = this.writer.nextId("rg");
 		final StringBuilder def = new StringBuilder(160);
 		def.append("<radialGradient id=\"").append(id).append("\" gradientUnits=\"userSpaceOnUse\" cx=\"")
 				.append(SVGWriter.number(g.cx())).append("\" cy=\"").append(SVGWriter.number(g.cy()))
 				.append("\" r=\"").append(SVGWriter.number(g.radius())).append('"');
 		appendSpread(def, g.spread());
-		appendGradientTransform(def, g.transform());
+		appendGradientTransform(def, compose(ctm, g.transform()));
 		def.append('>');
 		appendStops(def, g.fractions(), g.colors());
 		def.append("</radialGradient>");

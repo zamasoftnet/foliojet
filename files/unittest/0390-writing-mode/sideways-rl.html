@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<style>
+@page {
+	size: 600pt 600pt;
+	margin: 20pt;
+}
+html, body {
+	margin: 0;
+	padding: 0;
+}
+body {
+	font: 16pt/24pt serif;
+}
+.sideways {
+	position: absolute;
+	writing-mode: sideways-rl;
+	width: 32pt;
+	height: 100pt;
+	white-space: nowrap;
+}
+#mixed {
+	left: 20pt;
+	top: 20pt;
+	text-orientation: mixed;
+}
+#upright {
+	left: 70pt;
+	top: 20pt;
+	text-orientation: upright;
+}
+#sideways {
+	left: 120pt;
+	top: 20pt;
+	text-orientation: sideways;
+}
+#surface {
+	left: 180pt;
+	top: 20pt;
+	height: 150pt;
+	text-decoration: underline overline line-through;
+	text-underline-position: under;
+	text-underline-offset: 2pt;
+	text-shadow: 3pt 5pt 2pt #777;
+}
+#upright_image {
+	width: 12pt;
+	height: 20pt;
+}
+#framed {
+	border-left: 2pt solid #000;
+	border-right: 4pt solid #000;
+}
+#emphasis {
+	left: 240pt;
+	top: 20pt;
+	text-emphasis: filled circle;
+	text-emphasis-position: over right;
+}
+#leader {
+	left: 290pt;
+	top: 20pt;
+}
+#leader .fill::after {
+	content: leader(dotted);
+}
+#ellipsis {
+	left: 340pt;
+	top: 20pt;
+	height: 54pt;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+#clip_text {
+	left: 390pt;
+	top: 20pt;
+	background: linear-gradient(red, blue);
+	background-clip: text;
+	color: transparent;
+	filter: blur(0.5pt);
+}
+#ruby {
+	left: 440pt;
+	top: 20pt;
+}
+#warichu {
+	left: 500pt;
+	top: 20pt;
+}
+#warichu .note {
+	-cssj-warichu: auto;
+}
+#reset_host {
+	left: 20pt;
+	top: 220pt;
+	height: 130pt;
+}
+#reset {
+	writing-mode: horizontal-tb;
+	width: 100pt;
+	height: 28pt;
+	white-space: nowrap;
+}
+#vertical_regression {
+	position: absolute;
+	left: 180pt;
+	top: 220pt;
+	width: 32pt;
+	height: 150pt;
+	writing-mode: vertical-rl;
+	text-orientation: sideways;
+	white-space: nowrap;
+}
+#svg_probe {
+	left: 240pt;
+	top: 220pt;
+}
+</style>
+</head>
+<body>
+<div id="mixed" class="sideways">A&#x6F22;B</div>
+<div id="upright" class="sideways">A&#x6F22;B</div>
+<div id="sideways" class="sideways">A&#x6F22;B</div>
+
+<div id="surface" class="sideways">S<span id="framed">F</span><span id="combine" style="text-combine-upright: all">12</span><img id="upright_image" src="../red.png" alt="" />E</div>
+<div id="emphasis" class="sideways">&#x5727;&#x70B9;</div>
+<div id="leader" class="sideways">L<span class="fill"></span>R</div>
+<div id="ellipsis" class="sideways">ELLIPSIS-LONG</div>
+<div id="clip_text" class="sideways">CLIP</div>
+<div id="ruby" class="sideways"><ruby><rb>&#x89AA;</rb><rt>&#x304A;&#x3084;</rt></ruby></div>
+<div id="warichu" class="sideways">W<span class="note">&#x5272;&#x6CE8;&#x672C;&#x6587;</span>Z</div>
+
+<div id="reset_host" class="sideways">P<div id="reset">RESET</div>Q</div>
+<div id="vertical_regression">VERTICALREG</div>
+<div id="svg_probe" class="sideways">XYZ</div>
+</body>
+</html>

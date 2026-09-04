@@ -86,4 +86,31 @@ public class FontFeaturesTest extends AbstractTestCase {
 		}
 		return false;
 	}
+
+	/** font-variant-ligatures: none(+kern 0): 標準合字が止まり素の幅(2026-09-03。CSS-SUPPORTの旧記述の訂正)。 */
+	public boolean check_h(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertEquals(14.20, box.getWidth(), 0.01);
+			return true;
+		}
+		return false;
+	}
+
+	/** font-variant-ligatures: no-common-ligatures(+kern 0): 同上。 */
+	public boolean check_i(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertEquals(14.20, box.getWidth(), 0.01);
+			return true;
+		}
+		return false;
+	}
+
+	/** font-variant-ligatures: common-ligatures: 既定どおり合字が効く。 */
+	public boolean check_j(IBox box, int pageNumber, double x, double y) {
+		if (box.getType() == BoxType.INLINE) {
+			assertTrue("ligated width must be narrower: " + box.getWidth(), box.getWidth() < 14.20 - 0.001);
+			return true;
+		}
+		return false;
+	}
 }

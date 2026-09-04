@@ -22,6 +22,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
+import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UAContext;
@@ -328,10 +329,25 @@ public class ExactRenderingTest extends TestCase {
 				"grayscale(100%) blur(2pt) drop-shadow(1pt 2pt 6pt #000) opacity(50%)");
 	}
 
+	/**
+	 * filter を持つ要素は stacking context({@link Drawer})になり、層は Drawer が
+	 * 部分木ごとに 1 つ作る(2026-09-03。描画要素単体では層を作らない)。
+	 */
+	private static void drawInStackingContext(final GC gc, final AbstractDrawable box, final FilterValue filter)
+			throws GraphicsException {
+		final BlockParams params = new BlockParams();
+		params.filter = filter;
+		final Drawer root = new Drawer(0);
+		final Drawer element = new Drawer(params);
+		root.visitDrawer(element);
+		element.visitDrawable(box.withFilter(filter), 0, 0);
+		root.draw(gc, 200, 100);
+	}
+
 	public void testFilterUsesGroupEffectsWhenSupported() throws GraphicsException {
 		final FakeGC gc = exact();
-		new Box(pageBox(null)).withFilter(grayBlur()).draw(gc, 0, 0);
-		assertEquals(1, gc.groups);
+		drawInStackingContext(gc, new Box(pageBox(null)), grayBlur());
+		assertEquals("要素の層が1つ(描画要素は自分では層を作らない)", 1, gc.groups);
 		assertEquals(1, gc.effects.size());
 		final GroupEffects e = gc.effects.get(0);
 		assertNotNull(e);
@@ -420,8 +436,8 @@ public class ExactRenderingTest extends TestCase {
 		final GC gc = ApproximationGC.wrap(exact(), this.ua("image/png"));
 		BoxDecorationRenderer.drawOuterShadows(gc, shadowFrame(false), 0, 0, 100, 50);
 		new LinearGradientValue(0, stops(0, 0.1), true).fill(gc, BOX, BOX);
-		new Box(pageBox(null)).withFilter(grayBlur()).withBlendMode(BlendMode.MULTIPLY).draw(gc, 0, 0);
-		assertTrue(this.messages.isEmpty());
+		drawInStackingContext(gc, new Box(pageBox(null)).withBlendMode(BlendMode.MULTIPLY), grayBlur());
+		assertTrue(this.messages.toString(), this.messages.isEmpty());
 	}
 
 	public void testOutputTypeAppearsInMessage() throws GraphicsException {

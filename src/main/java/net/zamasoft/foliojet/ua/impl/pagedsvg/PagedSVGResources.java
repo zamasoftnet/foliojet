@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.zamasoft.foliojet.ua.props.PagedSvgFontScope;
+import net.zamasoft.foliojet.ua.props.PagedSvgImageCompression;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourceMode;
 import net.zamasoft.pdfg2d.font.FontSource;
 import net.zamasoft.pdfg2d.font.ShapedFont;
@@ -260,6 +261,123 @@ final class PagedSVGResources {
 		this.baseUri = baseUri;
 	}
 
+	// ---- 画像の方針(2026-09-03、cti.li の要望: 版面で小さくしか描かれない写真も原寸で入っていた)
+
+	private PagedSvgImageCompression imageCompression = PagedSvgImageCompression.NONE;
+	private int imageCompressionLossless = 200;
+	private int imageMaxWidth = 0;
+	private int imageMaxHeight = 0;
+	private boolean pageChecksums = true;
+
+	void setImagePolicy(final PagedSvgImageCompression compression, final int lossless, final int maxWidth,
+			final int maxHeight) {
+		this.imageCompression = compression;
+		this.imageCompressionLossless = lossless;
+		this.imageMaxWidth = Math.max(0, maxWidth);
+		this.imageMaxHeight = Math.max(0, maxHeight);
+	}
+
+	void setPageChecksums(final boolean pageChecksums) {
+		this.pageChecksums = pageChecksums;
+	}
+
+	/** 同じ組版から出した PDF の結果 URI(無ければ null)。manifest の {@code pdf}。 */
+	private String pdfUri;
+
+	void setPdfUri(final String pdfUri) {
+		this.pdfUri = pdfUri;
+	}
+
+	/** 方針を当てた後の画像。 */
+	private record Encoded(byte[] bytes, String mediaType, String extension, int width, int height) {
+	}
+
+	/**
+	 * 画像の方針(縮小・JPEG 再圧縮)を当てます。何もしないなら null。PDF の
+	 * {@code output.pdf.image.*} と同じ判定: 幅+高さが閾値を超え、透明部分が
+	 * 無いものだけ非可逆に。既に JPEG の画像は縮小しない限り再圧縮しない。
+	 */
+	private Encoded applyImagePolicy(final RenderedImage rendered, final String mediaType, final int width,
+			final int height) throws IOException {
+		double scale = 1;
+		if (this.imageMaxWidth > 0 && width > this.imageMaxWidth) {
+			scale = Math.min(scale, (double) this.imageMaxWidth / width);
+		}
+		if (this.imageMaxHeight > 0 && height > this.imageMaxHeight) {
+			scale = Math.min(scale, (double) this.imageMaxHeight / height);
+		}
+		final boolean alpha = rendered.getColorModel() != null && rendered.getColorModel().hasAlpha();
+		final boolean jpegWanted = this.imageCompression == PagedSvgImageCompression.JPEG && !alpha
+				&& width + height > this.imageCompressionLossless;
+		final boolean alreadyJpeg = "image/jpeg".equals(mediaType);
+		if (scale >= 1 && (!jpegWanted || alreadyJpeg)) {
+			return null;
+		}
+		final java.awt.image.BufferedImage source = toBuffered(rendered);
+		java.awt.image.BufferedImage out = source;
+		int w = width;
+		int h = height;
+		if (scale < 1) {
+			w = Math.max(1, (int) Math.round(width * scale));
+			h = Math.max(1, (int) Math.round(height * scale));
+			out = new java.awt.image.BufferedImage(w, h, alpha ? java.awt.image.BufferedImage.TYPE_INT_ARGB
+					: java.awt.image.BufferedImage.TYPE_INT_RGB);
+			final java.awt.Graphics2D g = out.createGraphics();
+			try {
+				g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+						java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				g.drawImage(source, 0, 0, w, h, null);
+			} finally {
+				g.dispose();
+			}
+		}
+		final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+		// 縮小した JPEG も JPEG のまま(可逆に膨らませない)
+		if (jpegWanted || (alreadyJpeg && !alpha)) {
+			if (out.getType() != java.awt.image.BufferedImage.TYPE_INT_RGB) {
+				final java.awt.image.BufferedImage rgb = new java.awt.image.BufferedImage(w, h,
+						java.awt.image.BufferedImage.TYPE_INT_RGB);
+				final java.awt.Graphics2D g = rgb.createGraphics();
+				try {
+					g.setColor(java.awt.Color.WHITE);
+					g.fillRect(0, 0, w, h);
+					g.drawImage(out, 0, 0, null);
+				} finally {
+					g.dispose();
+				}
+				out = rgb;
+			}
+			final javax.imageio.ImageWriter writer = javax.imageio.ImageIO.getImageWritersByFormatName("jpeg").next();
+			try (javax.imageio.stream.ImageOutputStream ios = javax.imageio.ImageIO.createImageOutputStream(buffer)) {
+				final javax.imageio.ImageWriteParam params = writer.getDefaultWriteParam();
+				params.setCompressionMode(javax.imageio.ImageWriteParam.MODE_EXPLICIT);
+				params.setCompressionQuality(.8f);
+				writer.setOutput(ios);
+				writer.write(null, new javax.imageio.IIOImage(out, null, null), params);
+			} finally {
+				writer.dispose();
+			}
+			return new Encoded(buffer.toByteArray(), "image/jpeg", "jpg", w, h);
+		}
+		javax.imageio.ImageIO.write(out, "png", buffer);
+		return new Encoded(buffer.toByteArray(), "image/png", "png", w, h);
+	}
+
+	private static java.awt.image.BufferedImage toBuffered(final RenderedImage rendered) {
+		if (rendered instanceof final java.awt.image.BufferedImage buffered) {
+			return buffered;
+		}
+		final java.awt.image.BufferedImage buffered = new java.awt.image.BufferedImage(rendered.getWidth(),
+				rendered.getHeight(), java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		final java.awt.Graphics2D g = buffered.createGraphics();
+		try {
+			g.drawRenderedImage(rendered, new AffineTransform());
+		} finally {
+			g.dispose();
+		}
+		return buffered;
+	}
+
 	String getBaseUri() {
 		return this.baseUri;
 	}
@@ -459,12 +577,22 @@ final class PagedSVGResources {
 		this.originalImages.put(image, new OriginalImage(bytes, mediaType, extension));
 	}
 
-	ImageAsset image(final RenderedImage rendered, final byte[] fallbackPng, final int width, final int height)
-			throws IOException {
+	ImageAsset image(final RenderedImage rendered, final byte[] fallbackPng, final int inputWidth,
+			final int inputHeight) throws IOException {
 		final OriginalImage original = this.originalImages.get(rendered);
-		final byte[] bytes = original == null ? fallbackPng : original.bytes;
-		final String mediaType = original == null ? "image/png" : original.mediaType;
-		final String extension = original == null ? "png" : original.extension;
+		byte[] bytes = original == null ? fallbackPng : original.bytes;
+		String mediaType = original == null ? "image/png" : original.mediaType;
+		String extension = original == null ? "png" : original.extension;
+		int width = inputWidth;
+		int height = inputHeight;
+		final Encoded encoded = this.applyImagePolicy(rendered, mediaType, inputWidth, inputHeight);
+		if (encoded != null) {
+			bytes = encoded.bytes;
+			mediaType = encoded.mediaType;
+			extension = encoded.extension;
+			width = encoded.width;
+			height = encoded.height;
+		}
 		final String hash = sha256(bytes);
 		ImageAsset image = this.images.get(hash);
 		if (image == null) {
@@ -593,6 +721,10 @@ final class PagedSVGResources {
 		// 読み器は綴じではなくこれで並べる(cti.li の要望)
 		json.append(",\n  \"pageProgressionDirection\":");
 		quote(json, pageProgression);
+		if (this.pdfUri != null) {
+			json.append(",\n  \"pdf\":");
+			quote(json, this.pdfUri);
+		}
 		json.append(",\n  \"metadata\":{");
 		int index = 0;
 		for (final var entry : metadata.entrySet()) {
@@ -672,9 +804,15 @@ final class PagedSVGResources {
 			json.append("\n    {\"number\":").append(page.number).append(",\"width\":")
 					.append(number(page.width)).append(",\"height\":").append(number(page.height)).append(",\"svg\":");
 			quote(json, page.svgUri);
-			json.append(",\"svgSha256\":\"").append(page.svgSha256).append("\",\"data\":");
+			if (this.pageChecksums) {
+				json.append(",\"svgSha256\":\"").append(page.svgSha256).append('"');
+			}
+			json.append(",\"data\":");
 			quote(json, page.jsonUri);
-			json.append(",\"dataSha256\":\"").append(page.jsonSha256).append("\"}");
+			if (this.pageChecksums) {
+				json.append(",\"dataSha256\":\"").append(page.jsonSha256).append('"');
+			}
+			json.append('}');
 		}
 		json.append("\n  ]\n}\n");
 		return json.toString().getBytes(StandardCharsets.UTF_8);

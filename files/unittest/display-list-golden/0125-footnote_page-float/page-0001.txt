@@ -10,4 +10,6 @@ drawer z=0
   x=0.00 y=44.32 Text["L04" asc=9.00 desc=3.00]
   x=0.00 y=56.32 Text["L05" asc=9.00 desc=3.00]
   x=0.00 y=68.32 Text["L06" asc=9.00 desc=3.00]
+  x=80.00 y=80.32 Text["L07" asc=9.00 desc=3.00]
+  x=80.00 y=92.32 Text["L08" asc=9.00 desc=3.00]
   x=0.00 y=113.75 artifact FootnoteSeparator[w=60.00 h=0.50]

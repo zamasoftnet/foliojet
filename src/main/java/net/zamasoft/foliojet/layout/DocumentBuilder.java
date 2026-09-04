@@ -215,6 +215,13 @@ public class DocumentBuilder implements TableBuilderHost {
 		return (ContainerBuilderEntry) o;
 	}
 
+	/** 段落 UBA 有効時だけ、外側の配置イベントを container の queue へ記録する。 */
+	private void noteBidiBarrier(final Object payload) {
+		if (!this.builderStack.isEmpty() && this.containerBuilder().builder instanceof BlockBuilder blockBuilder) {
+			blockBuilder.noteBidiBarrier(payload);
+		}
+	}
+
 	private ContainerBuilderEntry contextBuilder() {
 		for (int i = this.builderStack.size() - 1; i >= 0; --i) {
 			Object entry = this.builderStack.get(i);
@@ -342,6 +349,15 @@ public class DocumentBuilder implements TableBuilderHost {
 			return c;
 		}
 		return null;
+	}
+
+	/** 開いている全Gridへ、部分木内のpage-margin-noteを記録します。 */
+	private void notePageMarginNoteInGrids() {
+		for (final Object entry : this.builderStack) {
+			if (entry instanceof GridBuilder grid) {
+				grid.notePageMarginNote();
+			}
+		}
 	}
 
 	/** 開いている匿名item(直接テキスト用)を畳みます。element itemは対象外。 */
@@ -828,6 +844,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		case ABSOLUTE: {
 			// 絶対位置指定
 			final AbstractBlockBox stfBox = (AbstractBlockBox) box;
+			this.noteBidiBarrier(stfBox);
 			final Builder builder = this.contextBuilder().builder;
 			if (box.getPos().getType() == PosType.ABSOLUTE) {
 				final AbsolutePos pos = (AbsolutePos) stfBox.getPos();
@@ -1035,6 +1052,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				sealable.sealBodyForRangeBind();
 			}
 			final Builder parentBuilder = this.containerBuilder().builder;
+			this.noteBidiBarrier(box);
 			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloatPos) {
 				// ページフロート(2026-08-02): 脚注と同じ経路で本文から
 				// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
@@ -1061,6 +1079,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos notePos) {
 				// JLREQ 4.2.7の並列注。ページフロートと同じ分離builderで
 				// 組み、本文の現在位置に近い版面外の注領域へ渡す。
+				this.notePageMarginNoteInGrids();
 				final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
 				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
 					break;
@@ -1269,6 +1288,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			} else {
 				this.containerBuilder().getStyledTextUnitizer().flushText();
 			}
+			this.noteBidiBarrier(replacedBox);
 			context.addBound(replacedBox);
 			if (pageBreak) {
 				this.startContainer();
@@ -1280,6 +1300,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 絶対位置指定
 			final Builder context = this.containerBuilder().builder;
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) replacedBox;
+			this.noteBidiBarrier(replacedBox);
 			switch (absoluteBox.getAbsolutePos().autoPosition) {
 			case AutoPosition.BLOCK:
 				context.addBound(replacedBox);

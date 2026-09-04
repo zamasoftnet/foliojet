@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css.impl.property.text;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
@@ -12,6 +10,7 @@ import net.zamasoft.foliojet.css.value.DirectionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -24,9 +23,8 @@ public class Direction extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Direction();
 
 	public static FontStyle.Direction getFontDirection(CSSStyle style) {
-		switch (BlockFlow.get(style)) {
-		case WritingMode.TB:
-			// 横書き
+		if (TypesettingMode.isHorizontal(BlockFlow.get(style), WritingModeVariant.get(style))) {
+			// 横組版(horizontal-tb と sideways-*)
 			switch (Direction.get(style)) {
 			case AbstractTextParams.DIRECTION_LTR:
 				return FontStyle.Direction.LTR;
@@ -35,13 +33,9 @@ public class Direction extends AbstractPrimitivePropertyInfo {
 			default:
 				throw new IllegalStateException();
 			}
-		case WritingMode.RL:
-		case WritingMode.LR:
-			// 縦書き
-			return FontStyle.Direction.TB;
-		default:
-			throw new IllegalStateException();
 		}
+		// 通常の vertical-* だけが縦組版。
+		return FontStyle.Direction.TB;
 	}
 
 	public static byte get(CSSStyle style) {

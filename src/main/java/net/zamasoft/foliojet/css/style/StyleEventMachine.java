@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSElement;
@@ -150,6 +149,7 @@ import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
 import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
@@ -225,7 +225,6 @@ import net.zamasoft.foliojet.ua.props.OutputPageLimitAbort;
 import net.zamasoft.foliojet.ua.props.OutputPrintMode;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
-import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
@@ -457,6 +456,7 @@ final class StyleEventMachine {
 						.getLanguageProfile(style.getCSSElement().lang).getTextBreakingRules(style);
 				params.direction = Direction.get(style);
 				params.flow = BlockFlow.get(style);
+				params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
 				params.element = ce;
 				final Insets margin = Insets.create(0, 0, -LineHeight.get(style), 0, LengthType.ABSOLUTE,
 						LengthType.ABSOLUTE, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
@@ -832,23 +832,16 @@ final class StyleEventMachine {
 					case URIValue uriValue: {
 						// 画像
 						URI uri = uriValue.getURI();
-						try {
-							Source source = this.ua.resolve(uri);
-							try {
-								Image image = this.ua.getImage(source);
-								ReplacedParams rparams = new ReplacedParams();
-								this.mapper.setupParams(rparams, style);
-								rparams.image = image;
-								AbstractReplacedBox replaced = new InlineReplacedBox(rparams,
-										new InlinePos());
-								this.checkMarker();
-								this.sink.replaced(replaced);
-							} finally {
-								this.ua.release(source);
-							}
-						} catch (Exception e) {
-							LOG.log(Level.FINE, "Missing image", e);
-							this.ua.message(MessageCodes.WARN_MISSING_IMAGE, uri.toString());
+						Image image = ImageLoadDiagnostics.load(this.ua, uri,
+								(resolvedUri, source) -> this.ua.getImage(source));
+						if (image != null) {
+							ReplacedParams rparams = new ReplacedParams();
+							this.mapper.setupParams(rparams, style);
+							rparams.image = image;
+							AbstractReplacedBox replaced = new InlineReplacedBox(rparams,
+									new InlinePos());
+							this.checkMarker();
+							this.sink.replaced(replaced);
 						}
 					}
 						break;
@@ -1274,7 +1267,14 @@ final class StyleEventMachine {
 			} else {
 				// 圏点
 				final char[] emc = em.toCharArray();
-				final boolean vert = BlockFlow.get(this.context.getCurrentStyle()).isVertical();
+				final net.zamasoft.foliojet.layout.box.params.WritingMode flow =
+						BlockFlow.get(this.context.getCurrentStyle());
+				final net.zamasoft.foliojet.layout.box.params.WritingModeVariant variant =
+						net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant
+								.get(this.context.getCurrentStyle());
+				final boolean vert = net.zamasoft.foliojet.layout.box.params.TypesettingMode.isVertical(flow, variant);
+				final boolean sideways = variant
+						!= net.zamasoft.foliojet.layout.box.params.WritingModeVariant.NORMAL;
 				final var emPosition = TextEmphasisPosition.get(this.context.getCurrentStyle());
 				Value color = this.context.getCurrentStyle().get(TextEmphasisColor.INFO);
 				if (color == KeywordValue.DEFAULT) {
@@ -1297,9 +1297,14 @@ final class StyleEventMachine {
 					et.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 					et.set(CSSColor.INFO, color);
 					et.set(FontSize.INFO, PercentageValue.HALF);
-					if (vert) {
+					if (vert || sideways) {
 						et.set(Height.INFO, PercentageValue.FULL);
-						et.set(emPosition.isLeft() ? Inset.RIGHT : Inset.LEFT, EM_1_4);
+						if (variant
+								== net.zamasoft.foliojet.layout.box.params.WritingModeVariant.SIDEWAYS_CCW) {
+							et.set(emPosition.isUnder() ? Inset.LEFT : Inset.RIGHT, EM_1_4);
+						} else {
+							et.set(emPosition.isLeft() ? Inset.RIGHT : Inset.LEFT, EM_1_4);
+						}
 					} else {
 						et.set(Width.INFO, PercentageValue.FULL);
 						et.set(emPosition.isUnder() ? Inset.TOP : Inset.BOTTOM, EM_1_4);

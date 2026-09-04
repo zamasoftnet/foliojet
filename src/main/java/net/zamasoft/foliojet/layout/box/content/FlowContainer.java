@@ -136,10 +136,15 @@ public class FlowContainer implements Container {
 	}
 
 	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis) {
+		this.addFloating(box, lineAxis, pageAxis, false);
+	}
+
+	/** 配置時に確定した一回限りの次断片移送を伴ってfloatを保持します。 */
+	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis, boolean moveToNext) {
 		if (this.floatings == null) {
 			this.floatings = new Floatings();
 		}
-		final Floating floating = new Floating(++this.serial, box, lineAxis, pageAxis);
+		final Floating floating = new Floating(++this.serial, box, lineAxis, pageAxis, moveToNext);
 		this.floatings.addFloating(floating);
 		this.adopt(box);
 	}
@@ -150,6 +155,11 @@ public class FlowContainer implements Container {
 
 	public final int getFlowCount() {
 		return this.flows == null ? 0 : this.flows.size();
+	}
+
+	@Override
+	public final boolean isFirstFlow(final IFlowBox box) {
+		return this.flows != null && !this.flows.isEmpty() && this.flows.get(0).box == box;
 	}
 
 	/**
@@ -227,6 +237,38 @@ public class FlowContainer implements Container {
 		if (this.floatings != null) {
 			for (int i = 0; i < this.floatings.getCount(); ++i) {
 				if (hasNonDecorationContent(this.floatings.getFloating(i).box)) {
+					return true;
+				}
+			}
+		}
+		if (this.absolutes != null) {
+			for (int i = 0; i < this.absolutes.getCount(); ++i) {
+				final IAbsoluteBox box = this.absolutes.getAbsolute(i).box;
+				final net.zamasoft.foliojet.css.StructureElement element = box.getParams().element;
+				final boolean generatedDecoration = element != null && element.elementKey() < 0
+						&& ("before".equals(element.lName()) || "after".equals(element.lName()));
+				if (!generatedDecoration && hasNonDecorationContent(box)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public final boolean hasNonDecorationContentExcludingFloatings(
+			final java.util.Set<? extends IFloatBox> excluded) {
+		if (this.flows != null) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				if (hasNonDecorationContent(this.flows.get(i).box)) {
+					return true;
+				}
+			}
+		}
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				final IFloatBox floating = this.floatings.getFloating(i).box;
+				if (!excluded.contains(floating) && hasNonDecorationContent(floating)) {
 					return true;
 				}
 			}
@@ -795,7 +837,8 @@ public class FlowContainer implements Container {
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			final Flow c = (Flow) this.flows.get(i);
 			final boolean rescued = isRescuedFrameOwner(c.box);
-			if (!rescued && !(c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null)) {
+			if (!rescued && !(c.box.getType() == BoxType.BLOCK && ((FlowPos) c.box.getPos()).offset == null
+					&& !c.box.getParams().isStackingContext())) {
 				continue;
 			}
 			final double cx = LayoutUtils.drawX(flow, x, parentPageExtent, c.pageAxis,
@@ -893,12 +936,18 @@ public class FlowContainer implements Container {
 	 * のため型に含めない。
 	 */
 	private sealed interface ProbeOutcome {
+		enum MoveReason {
+			NORMAL,
+			MONOLITHIC_AVOID,
+			UNFULFILLABLE_AVOID
+		}
+
 		/** ボックス全体をthis側に残す(暫定)。 */
 		record Keep() implements ProbeOutcome {
 		}
 
 		/** ボックス全体を次断片へ送る。 */
-		record Move() implements ProbeOutcome {
+		record Move(MoveReason reason) implements ProbeOutcome {
 		}
 
 		/** 切断され、残余を次断片へ送る(変異済み先頭はthis側に残る)。 */
@@ -906,7 +955,9 @@ public class FlowContainer implements Container {
 		}
 
 		ProbeOutcome KEEP = new Keep();
-		ProbeOutcome MOVE = new Move();
+		Move MOVE = new Move(MoveReason.NORMAL);
+		Move MONOLITHIC_AVOID_MOVE = new Move(MoveReason.MONOLITHIC_AVOID);
+		Move UNFULFILLABLE_AVOID_MOVE = new Move(MoveReason.UNFULFILLABLE_AVOID);
 	}
 
 	/**
@@ -1104,6 +1155,7 @@ public class FlowContainer implements Container {
 
 		FlowContainer nextBox = null;
 		boolean ignoreAvoid = false;
+		int relaxInsideIndex = -1;
 		double savePageLimit = pageLimit;
 		// B5c-2 Step3(自動改ページ主ループ、2026-07-22再挑戦): plan選択
 		// 済みチェーンメンバー(常にthis.flowsの末尾)が一度でも検分され
@@ -1135,6 +1187,21 @@ public class FlowContainer implements Container {
 			// + "/this.box=" + this.box.getParams().element
 			// + "/prevFlow=" + prevFlow.box.getParams().element);
 
+			final boolean monolithicAvoid;
+			final boolean unfulfillableAvoid;
+			if (prevFlow.box.getType() == BoxType.BLOCK) {
+				final BlockParams childParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
+				monolithicAvoid = childParams.pageBreakInside == PageBreakMode.AVOID;
+				unfulfillableAvoid = monolithicAvoid
+						&& mode instanceof BreakMode.AutoBreakMode auto && auto.fragmentCapacity > 0
+						&& LayoutUtils.compare(prevFlow.box.getPageExtent(this.box.getBlockParams().flow),
+								auto.fragmentCapacity) > 0;
+			} else {
+				monolithicAvoid = false;
+				unfulfillableAvoid = false;
+			}
+			final ProbeOutcome.Move moveOutcome = unfulfillableAvoid ? ProbeOutcome.UNFULFILLABLE_AVOID_MOVE
+					: monolithicAvoid ? ProbeOutcome.MONOLITHIC_AVOID_MOVE : ProbeOutcome.MOVE;
 			ProbeOutcome outcome;
 			switch (prevFlow.box.getType()) {
 			case TABLE:
@@ -1163,7 +1230,7 @@ public class FlowContainer implements Container {
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 				outcome = switch (prevFlowBox.split(splitLine, mode, xflags)) {
 				case SplitResult.Keep keep -> ProbeOutcome.KEEP;
-				case SplitResult.Move move -> ProbeOutcome.MOVE;
+				case SplitResult.Move move -> moveOutcome;
 				case SplitResult.Split(final IPageBreakableBox remainder) -> new ProbeOutcome.Split(
 						(IFlowBox) remainder);
 				case SplitResult.Frame frame -> throw new IllegalStateException(
@@ -1173,14 +1240,11 @@ public class FlowContainer implements Container {
 				break;
 			case BLOCK:
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
-				// **フラグメンテナ丸ごとでも収まらないavoidは無視する**
+				// **フラグメンテナ丸ごとでも収まらないavoidは履行不能**
 				// (2026-08-20、css-break)。送っても結局内部で切ることになり、
 				// 送り元のページに大きな空白だけが残る(w3c-jlreqの
-				// 二重言語の巨大figure——版面756ptに対し760pt超——で実測)
-				final boolean unfulfillableAvoid = cParams.pageBreakInside == PageBreakMode.AVOID
-						&& mode instanceof BreakMode.AutoBreakMode auto && auto.fragmentCapacity > 0
-						&& LayoutUtils.compare(prevFlow.box.getPageExtent(this.box.getBlockParams().flow),
-								auto.fragmentCapacity) > 0;
+				// 二重言語の巨大figure——版面756ptに対し760pt超——で実測)。
+				// 同軸ならその場で内部を切り、直交フローのMoveには理由を残す
 				// 改ページ禁止でかつページの頭でない場合(§5.11)、または軸が
 				// 食い違う場合(PaginationContract.splitsInPageAxis=false、
 				// §5.10ルール3)は内部で改ページせずREPLACEDと同じatomic経路へ
@@ -1199,7 +1263,7 @@ public class FlowContainer implements Container {
 						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
 								plan)) {
 						case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
-						case SplitResult.Move move -> outcome = ProbeOutcome.MOVE;
+						case SplitResult.Move move -> outcome = moveOutcome;
 						case SplitResult.Frame(
 								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
 							// Existing指定では結果は常にcollectedNext自身
@@ -1217,7 +1281,7 @@ public class FlowContainer implements Container {
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
 					switch (prevFlowBox.split(splitLine, mode, xflags)) {
 					case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
-					case SplitResult.Move move -> outcome = ProbeOutcome.MOVE;
+					case SplitResult.Move move -> outcome = moveOutcome;
 					case SplitResult.Split(final IPageBreakableBox remainder) -> outcome = new ProbeOutcome.Split(
 							(IFlowBox) remainder);
 					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
@@ -1226,7 +1290,7 @@ public class FlowContainer implements Container {
 				}
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {
 					// 末尾の場合、改ページ禁止は必ず送る
-					outcome = ProbeOutcome.MOVE;
+					outcome = moveOutcome;
 					break;
 				}
 			case RESCUE:
@@ -1258,7 +1322,7 @@ public class FlowContainer implements Container {
 					outcome = ProbeOutcome.KEEP;
 				} else {
 					// 次ページに送る
-					outcome = ProbeOutcome.MOVE;
+					outcome = moveOutcome;
 				}
 			}
 				break;
@@ -1283,12 +1347,16 @@ public class FlowContainer implements Container {
 					break;
 				}
 			}
-			if (outcome instanceof ProbeOutcome.Move) {
+			if (outcome instanceof ProbeOutcome.Move move) {
+				if (move.reason() == ProbeOutcome.MoveReason.UNFULFILLABLE_AVOID) {
+					relaxInsideIndex = Math.max(relaxInsideIndex, i);
+				}
 				// 分割不可能な場合。解決規則はFlowCutterに純化(二相分離・
 				// 増分4)——ここは決定の適用だけを行う
 				final FlowCutter.MoveResolution resolution = FlowCutter.resolveMove(lflags, flags, i, lastOrphan,
-						ignoreAvoid, prevPageSize, pageLimit, flowPageStarts, flowPageExtents, avoidBefore,
-						avoidAfter, flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
+						ignoreAvoid, relaxInsideIndex, prevPageSize, pageLimit, ((AutoBreakMode) mode).fragmentCapacity,
+						flowPageStarts, flowPageExtents, avoidBefore, avoidAfter,
+						flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
 				switch (resolution) {
 				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
 					// **開いたままの末尾フローは前ページに置き去りにできない**
@@ -1323,6 +1391,25 @@ public class FlowContainer implements Container {
 					i = nextIndex - 1; // forの++i前提
 					ignoreAvoid = true;
 					continue;
+				case FlowCutter.MoveResolution.RelaxInside(final int index, final int fallbackIndex): {
+					// 境界avoidは保ったまま、末尾のモノリシックなボックスだけを
+					// 幾何分割する。target.pageAxisには新しいfragmentainer上で
+					// 先行する見出しが消費した量が含まれるため、先頭からの容量
+					// ではなく見出し後の残量で切る
+					final Flow target = this.flows.get(index);
+					final double available = savePageLimit - target.pageAxis;
+					final IFlowBox rescued = this.rescueSplit(index, target, available,
+							((AutoBreakMode) mode).fragmentCapacity, false, true);
+					if (rescued != null) {
+						nextBox = this.applyPartition(index, new ProbeOutcome.Split(rescued));
+						break;
+					}
+					// 有用な断片を作れない場合は従来どおり境界avoidを緩和する
+					pageLimit = savePageLimit;
+					i = fallbackIndex - 1;
+					ignoreAvoid = true;
+					continue;
+				}
 				case FlowCutter.MoveResolution.Pushback(final int resumeIndex, final double newPageLimit):
 					// ブロック間の改ページ禁止の場合
 					i = resumeIndex;
@@ -1435,6 +1522,15 @@ public class FlowContainer implements Container {
 	 * @return 次フラグメンテナへ送る残余断片。救済しないなら{@code null}
 	 */
 	private IFlowBox rescueSplit(final int index, final Flow prevFlow, final double available, final double capacity) {
+		return this.rescueSplit(index, prevFlow, available, capacity, true, false);
+	}
+
+	/**
+	 * 通常のフラグメント先頭判定と、履行不能なavoidだけに許す例外を
+	 * 明示して救済分割します。
+	 */
+	private IFlowBox rescueSplit(final int index, final Flow prevFlow, final double available, final double capacity,
+			final boolean atFragmentStart, final boolean relaxUnfulfillableAvoid) {
 		final IFlowBox box = prevFlow.box;
 		final WritingMode progression = this.box.getBlockParams().flow;
 		final IFlowBox source;
@@ -1453,7 +1549,8 @@ public class FlowContainer implements Container {
 		}
 		final net.zamasoft.foliojet.layout.rescue.RescueDecision decision = net.zamasoft.foliojet.layout.rescue.RescueStats
 				.record(net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner.planInFragmentainer(
-						box.getPos().getType(), true, capacity, available, sourcePageExtent, offset));
+						box.getPos().getType(), atFragmentStart || relaxUnfulfillableAvoid, capacity, available,
+						sourcePageExtent, offset));
 		if (!(decision instanceof net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice)) {
 			return null;
 		}

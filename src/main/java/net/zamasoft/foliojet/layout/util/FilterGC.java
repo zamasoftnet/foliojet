@@ -19,7 +19,8 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
  * {@link #setStrokePaint}で設定し、画像を{@link #drawImage}で描く。
  * この2箇所で{@link FilterOps}を通せば、描画要素の実装を一切触らずに
  * 効果が掛かる。文字の色も塗りなので同じ経路で変わる。
- * {@link #fillBlurred}は設定済みの(=変換済みの)塗りで塗るので素通し。
+ * {@link #fillBlurred}と{@link #tryFillBlurred}は設定済みの
+ * (=変換済みの)塗りで塗るので素通し。
  * </p>
  *
  * <p>
@@ -69,8 +70,19 @@ public final class FilterGC extends AbstractDelegatingGC {
 	}
 
 	@Override
+	public GroupEffectsResult drawGroupEffects(final Image image, final GroupEffects effects)
+			throws GraphicsException {
+		return this.gc.drawGroupEffects(FilterOps.apply(this.filter, image, this.pixelScale()), effects);
+	}
+
+	@Override
 	public GroupImageGC createGroupImage(final double width, final double height) throws GraphicsException {
 		return new Group(this.gc.createGroupImage(width, height), this.filter);
+	}
+
+	@Override
+	public GroupImageGC createFilterGroup(final double width, final double height) throws GraphicsException {
+		return new Group(this.gc.createFilterGroup(width, height), this.filter);
 	}
 
 	/** 入れ子のグループにも効果を届ける包み紙。 */

@@ -12,13 +12,14 @@ import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IInlineBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
+import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.draw.AbsoluteRectFrameDrawable;
 import net.zamasoft.foliojet.layout.draw.DebugDrawable;
@@ -43,7 +44,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 
 	protected final AbsoluteRectFrame frame;
 
-	protected final boolean cutHead;
+	protected boolean cutHead;
 
 	protected boolean cutTail = true;
 
@@ -92,6 +93,32 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		return this.frame;
 	}
 
+	/** bidi 視覚断片が論理始端 edge を引き継げるか。 */
+	public final boolean hasLineStartEdge() {
+		return !this.cutHead;
+	}
+
+	/** bidi 視覚断片が論理終端 edge を引き継げるか。 */
+	public final boolean hasLineEndEdge() {
+		return !this.cutTail;
+	}
+
+	/** bidi 描画断片だけが、論理始端を含むか確定した後に使う。 */
+	protected final void setFragmentCutHead(final boolean cutHead) {
+		this.cutHead = cutHead;
+	}
+
+	/** bidi 描画断片へ、継承分を含む実効 text-decoration を渡す。 */
+	final void copyDecorationTo(final InlineBox target) {
+		target.setDecoration(this.decoration);
+	}
+
+	/** finishLayoutSelf 後の相対配置量を bidi 描画断片へ渡す。 */
+	final void copyResolvedOffsetTo(final InlineBox target) {
+		target.offsetX = this.offsetX;
+		target.offsetY = this.offsetY;
+	}
+
 	public double getInnerWidth() {
 		return this.getWidth() - this.getFrame().getFrameWidth();
 	}
@@ -108,8 +135,13 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		// アセントディセントの拡大
 		if (this.params.flow.isVertical()) {
 			// 縦書き(日本)
-			ascent += this.frame.getFrameRight();
-			descent += this.frame.getFrameLeft();
+			if (this.params.writingModeVariant == WritingModeVariant.SIDEWAYS_CCW) {
+				ascent += this.frame.getFrameLeft();
+				descent += this.frame.getFrameRight();
+			} else {
+				ascent += this.frame.getFrameRight();
+				descent += this.frame.getFrameLeft();
+			}
 		} else {
 			// 横書き
 			ascent += this.frame.getFrameTop();
@@ -138,8 +170,14 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 	}
 
 	public final void fixLineAxis(AbstractContainerBox containerBox) {
-		final BlockParams params = containerBox.getBlockParams();
-		final double lineSize = containerBox.getLineSize();
+		this.fixLineAxis(containerBox.getBlockParams().flow.isVertical(), containerBox.getLineSize());
+	}
+
+	/**
+	 * 行方向の margin/padding を現在の {@code frame.frame} から絶対値にする。bidi の視覚 fragment
+	 * (2026-09-04)が未切断の frame から再計算するために、コンテナ無しでも呼べる形に分けた。
+	 */
+	public final void fixLineAxis(final boolean vertical, final double lineSize) {
 		RectFrame rframe = this.frame.frame;
 		//
 		// ■ パディングの計算
@@ -150,7 +188,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		// ■ マージンの計算
 		//
 		// ページ方向のマージンは適用しません
-		if (params.flow.isVertical()) {
+		if (vertical) {
 			// 縦書き
 			double top, bottom;
 			switch (rframe.margin.getTopType()) {
@@ -243,7 +281,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		}
 	}
 
-	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
+	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
 		if (DEBUG) {
@@ -257,7 +295,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 
 		if (this.params.opacity != 0) {
 			if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-				Drawer newDrawer = new Drawer(this.params.zIndexValue);
+				final Drawer newDrawer = new Drawer(this.params, transform);
 				drawer.visitDrawer(newDrawer);
 				drawer = newDrawer;
 			}
@@ -297,8 +335,15 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			RectFrame nextFrame;
 			if (params.flow.isVertical()) {
 				// 縦書き
-				previousFrame = this.frame.frame.cut(true, true, false, true);
-				nextFrame = this.frame.frame.cut(false, true, true, true);
+				if (params.writingModeVariant != WritingModeVariant.NORMAL
+						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+						params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
+					previousFrame = this.frame.frame.cut(false, true, true, true);
+					nextFrame = this.frame.frame.cut(true, true, false, true);
+				} else {
+					previousFrame = this.frame.frame.cut(true, true, false, true);
+					nextFrame = this.frame.frame.cut(false, true, true, true);
+				}
 			} else {
 				// 横書き
 				previousFrame = this.frame.frame.cut(true, false, true, true);
@@ -331,9 +376,17 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			final AbsoluteInsets nextPadding;
 			if (params.flow.isVertical()) {
 				// 縦書き
-				nextFrame = this.frame.frame.cut(false, true, true, true);
-				nextMargin = this.frame.margin.cut(false, true, true, true);
-				nextPadding = this.frame.padding.cut(false, true, true, true);
+				if (params.writingModeVariant != WritingModeVariant.NORMAL
+						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+						params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
+					nextFrame = this.frame.frame.cut(true, true, false, true);
+					nextMargin = this.frame.margin.cut(true, true, false, true);
+					nextPadding = this.frame.padding.cut(true, true, false, true);
+				} else {
+					nextFrame = this.frame.frame.cut(false, true, true, true);
+					nextMargin = this.frame.margin.cut(false, true, true, true);
+					nextPadding = this.frame.padding.cut(false, true, true, true);
+				}
 			} else {
 				// 横書き
 				nextFrame = params.frame.cut(true, true, true, false);

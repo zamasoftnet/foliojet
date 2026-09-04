@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>救済分割: 縦組みavoid連鎖と単体では版面に収まる直交図版</title>
+<style>
+@page {
+	size: 103.2mm 206.4mm;
+	margin: 6.3mm 5.6mm;
+}
+html, body {
+	margin: 0;
+	font: normal 3.3mm/1.7 serif;
+	writing-mode: vertical-rl;
+}
+p {
+	margin: 0;
+}
+.before {
+	width: 70mm;
+}
+h2, h3 {
+	font-weight: normal;
+	text-indent: 0;
+	page-break-after: avoid;
+	break-after: avoid;
+	page-break-inside: avoid;
+	break-inside: avoid;
+}
+h2 {
+	font-size: 1.2em;
+	margin: 1.6em 0 0.5em;
+}
+h3 {
+	font-size: 1.07em;
+	margin: 1.3em 0 0.4em;
+}
+figure {
+	margin: 0 1.5em;
+	writing-mode: horizontal-tb;
+	page-break-inside: avoid;
+	break-inside: avoid;
+	max-inline-size: 73.6mm;
+}
+figure div {
+	inline-size: 73.6mm;
+	block-size: 240mm;
+	background: #dddddd;
+}
+figcaption {
+	font-size: 0.7em;
+}
+</style>
+</head>
+<body>
+<p class="before">単体では収まる縦組み図版の前置き本文。</p>
+<h2>単体収容縦組み大見出し</h2>
+<h3>単体収容縦組み小見出し</h3>
+<figure>
+	<div></div>
+	<figcaption>単体収容縦組み図版</figcaption>
+</figure>
+<p>単体収容縦組み後続本文。</p>
+</body>
+</html>
