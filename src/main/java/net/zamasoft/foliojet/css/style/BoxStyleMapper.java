@@ -139,6 +139,7 @@ import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleWidth;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnSpan;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnWidth;
 import net.zamasoft.foliojet.css.impl.property.box.Opacity;
+import net.zamasoft.foliojet.css.impl.property.text.PaintOrder;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisColor;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisStyle;
@@ -178,6 +179,7 @@ import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
 import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
+import net.zamasoft.foliojet.layout.box.params.LayoutFontStyle;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
@@ -723,6 +725,8 @@ final class BoxStyleMapper {
 		params.underlinePosition = net.zamasoft.foliojet.css.impl.property.text.TextUnderlinePosition.get(style);
 		params.textStrokeWidth = TextStrokeWidth.get(style);
 		params.textStrokeColor = TextStrokeColor.get(style);
+		final net.zamasoft.foliojet.css.value.PaintOrderValue paintOrder = PaintOrder.get(style);
+		params.strokeBeforeFill = paintOrder.isStrokeBeforeFill();
 		params.textShadows = TextShadow.get(style);
 		params.letterSpacing = LetterSpacing.get(style);
 		params.wordSpacing = WordSpacing.get(style);
@@ -751,7 +755,8 @@ final class BoxStyleMapper {
 				.get(style) == net.zamasoft.foliojet.css.value.RubyOverhangValue.AUTO;
 		params.rubyPosition = net.zamasoft.foliojet.css.impl.property.text.RubyPosition.get(style);
 		params.warichu = net.zamasoft.foliojet.css.impl.property.ext.CSSJWarichu.isEnabled(style);
-		params.fontStyle = style.getFontStyle();
+		params.fontStyle = LayoutFontStyle.withPaintOrder(style.getFontStyle(),
+				paintOrder.isNormal() ? null : paintOrder.toString());
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle
 				.getLanguageProfile(style.getCSSElement().lang);

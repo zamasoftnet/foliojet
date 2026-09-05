@@ -18,11 +18,28 @@ public interface LayoutContext extends LayoutStack {
 		public final double lineStart, pageStart, lineEnd, pageEnd;
 
 		public Floating(IFloatBox box, double lineStart, double pageStart, WritingMode progression) {
+			this(box, lineStart, pageStart, lineStart + box.getLineExtent(progression),
+					pageStart + box.getPageExtent(progression));
+		}
+
+		private Floating(final IFloatBox box, final double lineStart, final double pageStart,
+				final double lineEnd, final double pageEnd) {
 			this.box = box;
 			this.lineStart = lineStart;
 			this.pageStart = pageStart;
-			this.lineEnd = lineStart + box.getLineExtent(progression);
-			this.pageEnd = pageStart + box.getPageExtent(progression);
+			this.lineEnd = lineEnd;
+			this.pageEnd = pageEnd;
+		}
+
+		/**
+		 * ボックスと行軸範囲を保ったまま、ページ軸範囲だけを平行移動した
+		 * 不変値を返します。
+		 *
+		 * @param dy ページ軸方向の移動量
+		 * @return 移動後の浮動体台帳要素
+		 */
+		public Floating shiftedPageAxis(final double dy) {
+			return new Floating(this.box, this.lineStart, this.pageStart + dy, this.lineEnd, this.pageEnd + dy);
 		}
 	}
 
@@ -66,6 +83,19 @@ public interface LayoutContext extends LayoutStack {
 			this.lineAxis = lineAxis;
 			this.pageAxis = pageAxis;
 			this.frameHead = frameHead;
+		}
+
+		/**
+		 * ボックス、行軸位置、積載時の枠量と{@code line-clamp}の可変状態を
+		 * 保ったまま、ページ軸位置だけを平行移動したフローを返します。
+		 *
+		 * @param dy ページ軸方向の移動量
+		 * @return 移動後のフロー
+		 */
+		public Flow shiftedPageAxis(final double dy) {
+			final Flow shifted = new Flow(this.box, this.lineAxis, this.pageAxis + dy, this.frameHead);
+			shifted.lineClamp = this.lineClamp;
+			return shifted;
 		}
 	}
 

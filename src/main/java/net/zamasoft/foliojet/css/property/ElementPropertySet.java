@@ -93,6 +93,7 @@ import net.zamasoft.foliojet.css.impl.property.shorthand.ContainerShorthand;
 import net.zamasoft.foliojet.css.impl.property.shorthand.ColumnsShorthand;
 import net.zamasoft.foliojet.css.impl.property.box.Opacity;
 import net.zamasoft.foliojet.css.impl.property.font.Src;
+import net.zamasoft.foliojet.css.impl.property.text.PaintOrder;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
 import net.zamasoft.foliojet.css.impl.property.text.TextJustify;
 import net.zamasoft.foliojet.css.impl.property.shorthand.TextCombineShorthand;
@@ -499,6 +500,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextStrokeWidth.INFO);
 		reg(TextStrokeColor.INFO);
 		reg(TextFillColor.INFO);
+		reg(PaintOrder.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.InitialLetter.INFO);
 		// font-variation-settings: 適用は@font-faceディスクリプタのみ
 		// (FontVariationSettingsのjavadoc)。要素側はカスケード用コードの

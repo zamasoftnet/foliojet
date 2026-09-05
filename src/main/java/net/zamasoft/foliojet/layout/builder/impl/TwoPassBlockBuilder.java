@@ -266,12 +266,21 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		 * リースは完了・失敗を問わず解放する)。
 		 */
 		public void bind(final BlockBuilder builder) {
+			if (this.pageContext != null) {
+				this.pageContext.enterTranslateBlockScope();
+			}
 			try {
-				net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(this.source, this.fromId, this.toId,
-						builder, this.pageGenerator);
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassRangeBind();
+				try {
+					net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(this.source, this.fromId, this.toId,
+							builder, this.pageGenerator);
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassRangeBind();
+				} finally {
+					this.lease.close();
+				}
 			} finally {
-				this.lease.close();
+				if (this.pageContext != null) {
+					this.pageContext.exitTranslateBlockScope();
+				}
 			}
 		}
 
@@ -1079,38 +1088,49 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	 * </p>
 	 */
 	public void bind(BlockBuilder builder, boolean scratch) {
-		switch (this.body) {
-		case ReplayBody.SourceRangeBody range -> {
-			if (scratch) {
-				net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(range.source(), range.fromId(),
-						range.toId(), builder, range.pageGenerator(), true);
-				break;
-			}
-			// E-6増分4b: seal済み範囲からのSegmentExecutor駆動bind。
-			// リースはbindの完了・失敗を問わず解放する(取り残すと以後の
-			// compactが永久にclampされる——LayoutSource.ReplaySliceと同じ規約)
-			try {
-				net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(range.source(), range.fromId(),
-						range.toId(), builder, range.pageGenerator());
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassRangeBind();
-			} finally {
-				range.lease().close();
-			}
+		final RootBuilder root = builder.getPageContext();
+		if (root != null) {
+			root.enterTranslateBlockScope();
 		}
-		case ReplayBody.LegacyRecords legacy -> {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassLegacyRecordBind(this.legacyBindOrigin);
-			this.bindRecords(builder, legacy.records, scratch);
-		}
-		case ReplayBody.Empty empty ->
-			// DP増分2: 空本文のbindはno-op(旧来も空recordsのループで
-			// 何も再演しなかった——BlockBuilderのopen/closeは呼び出し側)
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptyBind();
-		case ReplayBody.Detached detached ->
-			// E-6増分4e: DeferredBindへ持ち出し済み。bindはDeferredBindが担う
-			throw new IllegalStateException("DeferredBindへ持ち出し済みのビルダーへのbind");
-		case ReplayBody.Subsumed subsumed ->
-			// DP増分3: 親の範囲再生が内容ごと再構築する。個別bindは契約違反
-			throw new IllegalStateException("親のrange化に吸収済みのビルダーへのbind");
+		try {
+			switch (this.body) {
+			case ReplayBody.SourceRangeBody range -> {
+				if (scratch) {
+					net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(range.source(), range.fromId(),
+							range.toId(), builder, range.pageGenerator(), true);
+					break;
+				}
+				// E-6増分4b: seal済み範囲からのSegmentExecutor駆動bind。
+				// リースはbindの完了・失敗を問わず解放する(取り残すと以後の
+				// compactが永久にclampされる——LayoutSource.ReplaySliceと同じ規約)
+				try {
+					net.zamasoft.foliojet.layout.SourceReplayer.bindTwoPassRange(range.source(), range.fromId(),
+							range.toId(), builder, range.pageGenerator());
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassRangeBind();
+				} finally {
+					range.lease().close();
+				}
+			}
+			case ReplayBody.LegacyRecords legacy -> {
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats
+						.recordTwoPassLegacyRecordBind(this.legacyBindOrigin);
+				this.bindRecords(builder, legacy.records, scratch);
+			}
+			case ReplayBody.Empty empty ->
+				// DP増分2: 空本文のbindはno-op(旧来も空recordsのループで
+				// 何も再演しなかった——BlockBuilderのopen/closeは呼び出し側)
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptyBind();
+			case ReplayBody.Detached detached ->
+				// E-6増分4e: DeferredBindへ持ち出し済み。bindはDeferredBindが担う
+				throw new IllegalStateException("DeferredBindへ持ち出し済みのビルダーへのbind");
+			case ReplayBody.Subsumed subsumed ->
+				// DP増分3: 親の範囲再生が内容ごと再構築する。個別bindは契約違反
+				throw new IllegalStateException("親のrange化に吸収済みのビルダーへのbind");
+			}
+		} finally {
+			if (root != null) {
+				root.exitTranslateBlockScope();
+			}
 		}
 	}
 
@@ -1387,7 +1407,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void startTextRun(int charOffset, final FontStyle fontStyle, final FontMetrics fontMetrics) {
 		this.text = new TextImpl(charOffset, fontStyle, fontMetrics);
+		this.lastRunFontStyle = fontStyle;
+		this.lastRunFontMetrics = fontMetrics;
 	}
+
+	/** 直近の run の書体(run が閉じた後に届く glyph の遅延再開用)。 */
+	private FontStyle lastRunFontStyle;
+	private FontMetrics lastRunFontMetrics;
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
 		// 和文詰めA2/T1a: gap・trimは計測値にだけ効かせ、記録textは変異させ
@@ -1400,6 +1426,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					(net.zamasoft.foliojet.layout.box.params.AbstractTextParams) this.getRootBox().getParams();
 			this.autospace.setFlags(params.textAutospace);
 			this.autospace.setTrimOff(params.textSpacingTrimOff);
+		}
+		if (this.text == null) {
+			// run が閉じた後に glyph が届く(表の caption の中の ::before/::after の生成
+			// 内容で実測、2026-09-05: CharacterHandler が endRun した後に保留 glyph が
+			// flush される)。BlockBuilder(:1927)と同じく直近の書体で run を遅延再開する。
+			if (this.lastRunFontStyle == null) {
+				throw new IllegalStateException("glyph before any text run");
+			}
+			this.startTextRun(charOffset, this.lastRunFontStyle, this.lastRunFontMetrics);
 		}
 		final double fontSize = this.text.getFontStyle().getSize();
 		final double gap = this.autospace.gapBefore(ch, coff, fontSize);

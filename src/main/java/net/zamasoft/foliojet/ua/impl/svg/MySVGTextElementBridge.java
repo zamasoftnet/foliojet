@@ -104,28 +104,10 @@ public class MySVGTextElementBridge extends SVGTextElementBridge {
 		} else {
 			style = FontStyle.Style.NORMAL;
 		}
-		FontStyle.Weight weight;
-		if (weightFloat.equals(TextAttribute.WEIGHT_EXTRA_LIGHT)) {
-			weight = FontStyle.Weight.W_100;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_LIGHT)) {
-			weight = FontStyle.Weight.W_200;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_DEMILIGHT)) {
-			weight = FontStyle.Weight.W_300;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_REGULAR)) {
-			weight = FontStyle.Weight.W_400;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_SEMIBOLD)) {
-			weight = FontStyle.Weight.W_500;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_BOLD)) {
-			weight = FontStyle.Weight.W_600;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_HEAVY)) {
-			weight = FontStyle.Weight.W_700;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_EXTRABOLD)) {
-			weight = FontStyle.Weight.W_800;
-		} else if (weightFloat.equals(TextAttribute.WEIGHT_BOLD)) {
-			weight = FontStyle.Weight.W_900;
-		} else {
-			weight = FontStyle.Weight.W_400;
-		}
+		final int cssWeight = Math.round(
+				CSSUtilities.getComputedStyle(element, SVGCSSEngine.FONT_WEIGHT_INDEX).getFloatValue());
+		final int weightIndex = Math.max(0, Math.min(8, cssWeight / 100 - 1));
+		final FontStyle.Weight weight = FontStyle.Weight.values()[weightIndex];
 
 		FontStyle fontStyle = new FontStyleImpl(new FontFamilyList(families), fontSize, style, weight, direction,
 				this.defaultPolicy);

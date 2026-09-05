@@ -323,19 +323,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 名前付きページN2a: 名前を先に切り替える(以降の改ページは
 				// どれも新しい名前でページを作る)
 				final boolean namedTransition = this.resolveNamedPageTransition(flowBox);
+				boolean forcedBreak = false;
 				if (this.breakAfter != null && canBreakAfter) {
 					// 前のpage-break-afterによる改ページ
 					this.forceBreak(this.breakAfter);
+					forcedBreak = true;
 				}
 				final PageBreakMode forced = this.resolveForcedBreakBefore(pos.pageBreakBefore);
 				if (forced != null) {
 					this.forceBreak(forced);
+					forcedBreak = true;
 				} else if (pos.pageBreakBefore == PageBreakMode.AVOID) {
 					this.interflowBreak = false;
 				}
-				if (namedTransition) {
-					// 明示改ページが無ければ遷移自身が1回送る(forceBreak後は
-					// canBreakBefore=falseのため二重には送らない)。ページ先頭
+				if (namedTransition && !forcedBreak) {
+					// 明示改ページが無ければ遷移自身が1回送る。ページ先頭
 					// (canBreakBefore=false)でも送る——旧ページは白紙なら
 					// drawPageのnamedTransition判定で落ち、面もカウンタも
 					// 消費しない=旧名の未確定ページを新名で作り直す差し替えと
@@ -477,15 +479,18 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.mode == MODE_PAGE_BREAK) {
 			// 名前付きページN2a: startFlowBlockと同じ裁定(float/表/置換)
 			final boolean namedTransition = this.resolveNamedPageTransition(box);
+			boolean forcedBreak = false;
 			if (this.breakAfter != null) {
 				// 前のpage-break-afterによる改ページ
 				this.forceBreak(this.breakAfter);
+				forcedBreak = true;
 			}
 			final PageBreakMode forced = this.resolveForcedBreakBefore(pageBreakBefore);
 			if (forced != null) {
 				this.forceBreak(forced);
+				forcedBreak = true;
 			}
-			if (namedTransition) {
+			if (namedTransition && !forcedBreak) {
 				this.namedTransitionBreak();
 			}
 		}
@@ -864,6 +869,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.breakDepth != -1) {
 			--this.breakDepth;
 		}
+		this.afterFlowBlockClosed();
 
 		// System.out.println(this.nobreak);
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
@@ -922,6 +928,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				this.applyBreakAfter(pos.pageBreakAfter);
 			}
 		}
+	}
+
+	/**
+	 * flow blockを閉じ、{@link #breakDepth}を戻した直後のフックです。
+	 * 既定では何もしません。RootBuilderは、ブロック間のoverflow検査より前に
+	 * 現ページ上端フロートの平行移動を試します。
+	 */
+	protected void afterFlowBlockClosed() {
+		// ColumnBuilderなど、ページ全体を所有しないbuilderでは何もしない。
 	}
 
 	protected void addStartFloat(IFloatBox box) {

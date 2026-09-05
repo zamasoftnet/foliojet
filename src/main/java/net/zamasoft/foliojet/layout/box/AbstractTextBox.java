@@ -1103,21 +1103,36 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setLinePattern(GC.STROKE_SOLID);
 					gc.setLineWidth(this.params.textStrokeWidth);
 					gc.setStrokePaint(this.params.textStrokeColor);
-					gc.setTextMode(GC.TextMode.FILL_STROKE);
-				}
-				if (this.logicalLine == null) {
-					this.drawText(gc, x, y);
-				} else {
-					if (this.lineScope != null) {
-						this.lineScope.beforeMainText(gc);
-					}
-					try {
-						this.drawText(gc, x, y, true);
-					} finally {
-						if (this.lineScope != null) {
-							this.lineScope.afterMainText();
+					if (this.params.strokeBeforeFill) {
+						gc.setTextMode(GC.TextMode.STROKE);
+						// 先行する輪郭は装飾です。タグ付きPDFの論理文字列へ
+						// 同じ本文を二重に入れないようartifactとして描く。
+						try (final var artifact = gc.beginArtifactScope()) {
+							this.drawText(gc, x, y);
 						}
+						gc.setTextMode(GC.TextMode.FILL);
+					} else {
+						gc.setTextMode(GC.TextMode.FILL_STROKE);
 					}
+				}
+				this.drawMainText(gc, x, y);
+			}
+		}
+
+		/** 本文を論理行のscopeへ1回だけ出します。 */
+		private void drawMainText(final GC gc, final double x, final double y) throws GraphicsException {
+			if (this.logicalLine == null) {
+				this.drawText(gc, x, y);
+				return;
+			}
+			if (this.lineScope != null) {
+				this.lineScope.beforeMainText(gc);
+			}
+			try {
+				this.drawText(gc, x, y, true);
+			} finally {
+				if (this.lineScope != null) {
+					this.lineScope.afterMainText();
 				}
 			}
 		}
@@ -2100,7 +2115,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 						at.preConcatenate(transform);
 						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
 					} else {
-						this.missingFontOutline(pageBox, text);
+						if (TextShapeContext.warnIfMissing()) {
+							this.missingFontOutline(pageBox, text);
+						}
 					}
 					yy += text.getAdvance();
 				} else if (vertical) {
@@ -2115,7 +2132,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
 					}
 					else {
-						this.missingFontOutline(pageBox, text);
+						if (TextShapeContext.warnIfMissing()) {
+							this.missingFontOutline(pageBox, text);
+						}
 					}
 					yy += text.getAdvance();
 				} else {
@@ -2126,7 +2145,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
 					}
 					else {
-						this.missingFontOutline(pageBox, text);
+						if (TextShapeContext.warnIfMissing()) {
+							this.missingFontOutline(pageBox, text);
+						}
 					}
 					xx += text.getAdvance();
 				}

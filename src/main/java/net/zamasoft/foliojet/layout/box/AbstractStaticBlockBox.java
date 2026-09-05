@@ -63,7 +63,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * 縦中横の内容を1emのセルへ収めます(css-writing-modes-3 §9.1、
+	 * 縦中横の内容を1emのセルへ収めます(css-writing-modes-4 §9.1.3、
 	 * 2026-08-11)。
 	 *
 	 * <p>
@@ -71,6 +71,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	 * {@code cellExtent}(=1em)へ差し替え、内容には
 	 * {@code min(1, cellExtent/W)}の水平アフィンを掛ける。先に幅を1emにして
 	 * 組むと数字が折り返してしまうため、この順序でなければならない。
+	 * 2〜4文字では字形化前に{@code hwid/twid/qwid}を要求しており、ここで
+	 * 見る自然幅はその再計量結果です。featureが無いフォントだけが
+	 * アフィン圧縮へフォールバックする。
 	 * 自然幅が1emより狭いときは等倍のままセル内で中央へ寄せる。
 	 * </p>
 	 *

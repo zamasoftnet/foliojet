@@ -325,6 +325,19 @@ public interface IBox {
 	}
 
 	/**
+	 * 輪郭を計測目的で収集します。字形輪郭を提供しないフォントは無視し、
+	 * {@code background-clip:text}用の警告を出しません。
+	 */
+	public default void textShapeQuiet(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
+		TextShapeContext.beginQuiet();
+		try {
+			this.textShape(pageBox, path, transform, x, d);
+		} finally {
+			TextShapeContext.endQuiet();
+		}
+	}
+
+	/**
 	 * {@code box}の{@link #pushTextShapeSteps}を実行する1つの
 	 * {@link TextShapeStep}を作ります。
 	 */

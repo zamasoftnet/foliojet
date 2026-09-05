@@ -403,6 +403,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		}
 
 		this.frames(pageBox, drawer, clip, transform, x, y);
+		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
+			// 負の z-index の子はここまで(自分の背景・枠)の後、残りの内容の前に描く(Appendix E ③)
+			drawer.markOwnDecorationEnd();
+		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 

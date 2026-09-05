@@ -56,13 +56,17 @@ public class TopFloatNoOverlapTest extends TestCase {
 		super(name);
 	}
 
-	/** 部分幅topでは同じページの脇へ流れ、帯を過ぎた行は全幅へ戻る。 */
+	/**
+	 * 部分幅topが頁先頭に置かれると同じページの脇へ流れ、帯を過ぎた行は全幅へ戻る。
+	 * 2026-09-05 translate: 本文の後の部分幅topは帯として現頁の上端へ移る(脇には回り込まない)ので、
+	 * 二次元排除の検査は先頭に置いたtop(page-break-before の直後)で行う。
+	 */
 	public void testPartialWidthTopFloatWrapsOnSamePage() throws Exception {
 		final String html = document("horizontal-tb", "width:100pt;height:24pt;padding:2pt;border:1pt solid black",
-				"", "<p class='body'>" + words("BODY", 180) + "</p>");
+				"body > p:first-child { page-break-after:always }", "<p class='body'>" + words("BODY", 180) + "</p>");
 		final Capture capture = transcode("partial-width", html, 1, null);
 		final BoxBounds floating = only(capture.topFloats(), "部分幅top");
-		assertEquals("top-nextは次ページ", 2, floating.page());
+		assertEquals("改頁直後のtopは新しい頁の先頭", 2, floating.page());
 
 		final List<BoxBounds> lines = linesOnPage(capture, "BODY", floating.page());
 		assertTrue("部分幅topのページに本文行が必要", !lines.isEmpty());
@@ -76,6 +80,21 @@ public class TopFloatNoOverlapTest extends TestCase {
 			}
 		}
 		assertTrue("topのblock帯を過ぎた本文行は180ptの全幅へ戻る", fullLengthLines > 0);
+	}
+
+	/** 2026-09-05 translate: 本文の後の部分幅topは帯として現頁の上端へ移り、先行本文は帯の下へ。 */
+	public void testPartialWidthTopFloatAfterBodyBecomesBandOnCurrentPage() throws Exception {
+		final String html = document("horizontal-tb", "width:100pt;height:24pt;padding:2pt;border:1pt solid black",
+				"", "<p class='body'>" + words("BODY", 180) + "</p>");
+		final Capture capture = transcode("partial-width-band", html, 1, null);
+		final BoxBounds floating = only(capture.topFloats(), "部分幅top");
+		assertEquals("本文後の部分幅topは帯として現頁", 1, floating.page());
+		final List<BoxBounds> pre = linesOnPage(capture, "PRE", 1);
+		assertTrue("先行本文は現頁に残る", !pre.isEmpty());
+		assertNoIntersections("部分幅top帯", floating, pre);
+		for (final BoxBounds line : pre) {
+			assertTrue("先行本文は帯の下(脇には回り込まない)", line.bounds().getMinY() >= floating.bounds().getMaxY() - 0.75);
+		}
 	}
 
 	/** 行方向・block方向とも全面を塞ぐtopはfloat-onlyページを1枚だけ作る。 */
@@ -127,11 +146,19 @@ public class TopFloatNoOverlapTest extends TestCase {
 				"<p class='body'>" + words("BODYH", 220) + "</p>");
 		final Capture capture = transcode("horizontal-tb-mirror", html, 1, null);
 		final BoxBounds floating = only(capture.topFloats(), "horizontal-tb top");
-		final List<BoxBounds> lines = linesOnPage(capture, "BODYH", floating.page());
-		assertTrue("台紙のページに横組本文が必要", !lines.isEmpty());
+		// 2026-09-05 translate: 全幅で収まる台紙は先行本文と同じ現頁上端へ移る。
+		assertEquals("全幅topは現頁", 1, floating.page());
+		final List<BoxBounds> lines = linesOnPage(capture, "PRE", floating.page());
+		// 2026-09-05 translate: 既配置のPRE行を台紙の高さだけ下へ平行移動する。
+		assertTrue("台紙のページに先行本文が必要", !lines.isEmpty());
+		// 2026-09-05 translate: 現頁へ移った台紙と平行移動後のPRE行は交差しない。
 		assertNoIntersections("horizontal-tb mirror", floating, lines);
+		// 2026-09-05 translate: 移動した先行行は台紙の直下から始まる。
 		assertEquals("最初の横組行は台紙の直下", floating.bounds().getMaxY(), lines.get(0).bounds().getMinY(), 0.75);
-		assertEquals("横組行は92mmの全幅", 92 * PT_PER_MM, lines.get(0).bounds().getWidth(), 1.0);
+		// 2026-09-05 translate: 移動した先行行(PRE の 1 語)は台紙と同じ左端から始まる(狭められていない)。
+		assertEquals("横組行は台紙と同じ左端", floating.bounds().getMinX(), lines.get(0).bounds().getMinX(), 0.75);
+		// 2026-09-05 translate: page-break-before付き後続本文は従来どおり次頁に置く。
+		assertTrue("強制改頁後の本文は2頁目", !linesOnPage(capture, "BODYH", 2).isEmpty());
 	}
 
 	/** 複数topはFIFOでpageAxis方向へ積み、各実配置矩形が本文を排除する。 */
@@ -143,6 +170,8 @@ public class TopFloatNoOverlapTest extends TestCase {
 				.top-a { float:top; width:40pt; height:18pt; background:#ccc }
 				.top-b { float:top; width:60pt; height:24pt; background:#aaa }
 				.body { page-break-before:always; text-align:justify }
+				/* 2026-09-05 translate: 二次元排除の検査なので top は改頁直後(空の頁先頭)に置く */
+				body > p:first-child { page-break-after:always }
 				</style></head><body><p>PRE</p><div class='top-a'></div><div class='top-b'></div>
 				<p class='body'>%s</p></body></html>
 				""".formatted(words("FIFO", 100));
@@ -271,6 +300,8 @@ public class TopFloatNoOverlapTest extends TestCase {
 				.body { page-break-before:always }
 				.outer,.inner { display:flow-root }
 				.orth { writing-mode:vertical-rl; width:30pt; height:50pt; margin-top:50pt }
+				/* 2026-09-05 translate: 二次元排除の検査なので top は改頁直後(空の頁先頭)に置く */
+				body > p:first-child { page-break-after:always }
 				</style></head><body><p>PRE</p><div class='top'></div>
 				<section class='body outer'><section class='inner'><p>BFC-LINE</p></section></section>
 				<section class='orth'><p>ORTH-LINE</p></section>
@@ -529,12 +560,13 @@ public class TopFloatNoOverlapTest extends TestCase {
 						&& Math.abs(line.bounds().getMinY() - floating.bounds().getMaxY()) <= 0.75));
 	}
 
-	/** B-1: 本文が一度でも置かれた後のtopは従来どおり次頁へ送る。 */
+	/** B-1→translate(2026-09-05): 本文の後のtopは、収まれば帯として現頁の上端へ移る。 */
 	public void testTopFloatAfterContentStillUsesNextPage() throws Exception {
 		final String html = document("horizontal-tb", "width:70pt;height:24pt", "",
 				"<p class='body'>" + words("AFTER-CONTENT", 60) + "</p>");
 		final Capture capture = transcode("top-after-content", html, 1, null);
-		assertEquals("本文後のtopはtop-next", 2, only(capture.topFloats(), "本文後のtop").page());
+		// 2026-09-05 translate: 先行本文(PRE)と一緒に収まるので現頁
+		assertEquals("本文後のtopは現頁(translate)", 1, only(capture.topFloats(), "本文後のtop").page());
 	}
 
 	/** B-1: 強制改頁直後なら、新しい空PageBoxへtopを即時配置する。 */

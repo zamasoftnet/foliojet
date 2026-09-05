@@ -17,11 +17,14 @@ import net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
+import net.zamasoft.foliojet.layout.box.params.LayoutFontStyle;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
+import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
+import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 import net.zamasoft.foliojet.layout.text.Quad;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
@@ -60,6 +63,13 @@ public class StyledTextUnitizer {
 	private double wordSpacing;
 
 	private TextShaper textShaper = null;
+
+	/** 縦中横の文字数が確定するまで保持する文字イベントです。 */
+	private record TextCombineChars(int charOffset, char[] chars, boolean lineFeed) {
+	}
+
+	private List<TextCombineChars> textCombineChars = null;
+	private int textCombineCharCount;
 
 	/**
 	 * ルビ単位バッファです(注釈付きテキスト方式、2026-07-25仕様裁定)。
@@ -151,6 +161,12 @@ public class StyledTextUnitizer {
 			}
 		}
 		this.changeTextState(params);
+		if (params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL) {
+			// hwid/twid/qwidの選択にはrun全体の文字数が必要なので、
+			// SAXの文字イベント境界を越えてコンテナ終端まで保持する。
+			this.textCombineChars = new ArrayList<TextCombineChars>();
+			this.textCombineCharCount = 0;
+		}
 	}
 
 	/**
@@ -161,12 +177,16 @@ public class StyledTextUnitizer {
 	}
 
 	public void flushText() {
+		if (this.textCombineChars != null) {
+			return;
+		}
 		if (this.textShaper != null) {
 			this.textShaper.flush();
 		}
 	}
 
 	public void endContainer() {
+		this.emitTextCombineChars();
 		if (this.warichuCollector != null) {
 			this.warichuCollector.drain();
 		}
@@ -195,6 +215,7 @@ public class StyledTextUnitizer {
 	}
 
 	public void startInline(InlineBox inlineBox) {
+		this.disableTextCombineWidthVariant();
 		final InlineParams inlineParams = inlineBox.getInlineParams();
 		if (this.warichuCollector != null) {
 			this.warichuCollector.startInline(inlineParams);
@@ -258,6 +279,7 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineReplaced(AbstractReplacedBox inlineReplacedBox) {
+		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)——置換要素は捨てる(F-1)
 			return;
@@ -270,6 +292,7 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineBlock(InlineBlockBox inlineBlockBox) {
+		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)——インラインブロックは捨てる(F-1)
 			return;
@@ -282,6 +305,7 @@ public class StyledTextUnitizer {
 	}
 
 	public void addInlineAbsolute(final IAbsoluteBox absoluteBox) {
+		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)——絶対配置は捨てる(F-1)
 			return;
@@ -301,6 +325,7 @@ public class StyledTextUnitizer {
 	 * しない)。
 	 */
 	public void leader(final String pattern) {
+		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
 			// ルビ単位内は文字のみ(仕様)
 			return;
@@ -379,6 +404,15 @@ public class StyledTextUnitizer {
 
 	public void characters(int charOffset, char[] ch, final int off, final int len, boolean lineFeed) {
 		assert len > 0;
+		if (this.textCombineChars != null) {
+			final char[] copy = java.util.Arrays.copyOfRange(ch, off, off + len);
+			this.textCombineChars.add(new TextCombineChars(charOffset, copy, lineFeed));
+			this.textCombineCharCount += Character.codePointCount(copy, 0, copy.length);
+			if (this.textCombineCharCount > 4) {
+				this.disableTextCombineWidthVariant();
+			}
+			return;
+		}
 		if (this.warichuCollector != null) {
 			this.warichuCollector.characters(charOffset, ch, off, len);
 			return;
@@ -536,6 +570,54 @@ public class StyledTextUnitizer {
 		}
 		this.requireTextShaper();
 		this.textShaper.characters(charOffset, ch, off, len);
+	}
+
+	/**
+	 * 縦中横の文字数に対応するOpenType幅字形を優先して字形化します。
+	 * フォントがfeatureを持たない場合は送りが変わらないため、後段の
+	 * {@code compressTextCombine}が従来どおり1emへ圧縮します。
+	 */
+	private void emitTextCombineChars() {
+		if (this.textCombineChars == null) {
+			return;
+		}
+		final List<TextCombineChars> chars = this.textCombineChars;
+		this.textCombineChars = null;
+		if (chars.isEmpty()) {
+			return;
+		}
+		this.requireTextShaper();
+		this.textShaper.fontStyle(textCombineFontStyle(this.getTextParams().fontStyle, this.textCombineCharCount));
+		for (final TextCombineChars text : chars) {
+			this.characters(text.charOffset, text.chars, 0, text.chars.length, text.lineFeed);
+		}
+	}
+
+	/** 複雑な子要素を含む縦中横は従来のアフィン圧縮へ戻します。 */
+	private void disableTextCombineWidthVariant() {
+		if (this.textCombineChars == null) {
+			return;
+		}
+		final List<TextCombineChars> chars = this.textCombineChars;
+		this.textCombineChars = null;
+		for (final TextCombineChars text : chars) {
+			this.characters(text.charOffset, text.chars, 0, text.chars.length, text.lineFeed);
+		}
+	}
+
+	/** 文字数に対応する幅字形を追加した縦中横用スタイルを構築します。 */
+	static FontStyle textCombineFontStyle(final FontStyle base, final int charCount) {
+		final String tag = switch (charCount) {
+		case 2 -> "hwid";
+		case 3 -> "twid";
+		case 4 -> "qwid";
+		default -> null;
+		};
+		if (tag == null) {
+			return base;
+		}
+		final FontFeatureSet width = FontFeatureSet.of(new int[] { FontFeatureSet.packTag(tag) }, new int[] { 1 });
+		return LayoutFontStyle.withFeatures(base, base.getFeatures().override(width));
 	}
 
 }

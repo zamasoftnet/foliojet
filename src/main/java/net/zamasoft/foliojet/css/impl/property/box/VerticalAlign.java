@@ -89,6 +89,10 @@ public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 				return VerticalAlignValue.BASELINE_VALUE;
 			} else if (ident.equals("middle")) {
 				return VerticalAlignValue.MIDDLE_VALUE;
+			} else if (ident.equals("central")) {
+				// central baselineを独立して持たないため、行の中央軸に
+				// 揃える既存のmiddleへ写す(css-inline-3)。
+				return VerticalAlignValue.MIDDLE_VALUE;
 			} else if (ident.equals("sub")) {
 				return VerticalAlignValue.SUB_VALUE;
 			} else if (ident.equals("super")) {

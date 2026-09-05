@@ -164,9 +164,13 @@ class MyTextPainter extends StrokingTextPainter {
 				? FontStyle.Style.ITALIC
 				: FontStyle.Style.NORMAL;
 		Float weightAttr = (Float) aci.getAttribute(TextAttribute.WEIGHT);
-		FontStyle.Weight weight = weightAttr != null && weightAttr.floatValue() >= TextAttribute.WEIGHT_BOLD.floatValue()
-				? FontStyle.Weight.W_600
-				: FontStyle.Weight.W_400;
+		final float weightValue = weightAttr == null ? TextAttribute.WEIGHT_REGULAR.floatValue()
+				: weightAttr.floatValue();
+		final FontStyle.Weight weight = weightValue >= 2.75f ? FontStyle.Weight.W_900
+				: weightValue >= 2.25f ? FontStyle.Weight.W_800
+						: weightValue >= 2.0f ? FontStyle.Weight.W_700
+								: weightValue >= 1.5f ? FontStyle.Weight.W_600
+										: weightValue >= 1.25f ? FontStyle.Weight.W_500 : FontStyle.Weight.W_400;
 		return new FontStyleImpl(this.ua.getDefaultFontFamily().asFontFamilyList(), size, style, weight,
 				FontStyle.Direction.LTR, this.ua.getDefaultFontPolicy().asFontPolicyList());
 	}

@@ -470,6 +470,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 			staticX = LayoutUtils.drawX(params.flow, 0, this.getInnerWidth(), logicalPage, logicalPage,
 					logicalLine);
 			staticY = LayoutUtils.inlineToPhysical(params, this.getInnerHeight(), logicalLine, logicalLine);
+		} else if (params.flow.isVertical()) {
+			final double logicalLine = staticX, logicalPage = staticY;
+			// absolute台帳は物理座標を保持するため、縦組みの論理line/pageを
+			// ここでY/Xへ写す。LRでは物理X=論理page位置。RLでは右端からの
+			// 論理page位置をそのまま持ち、描画時に所有箱の幅と絶対配置箱の幅から
+			// 物理Xへ写す(登録時点ではどちらの幅も未確定のため。
+			// Absolutes.pushDraw の blockStartAnchored、2026-09-05)。
+			staticX = logicalPage;
+			staticY = logicalLine;
+			this.container.addAbsolute(box, staticX, staticY,
+					params.flow == net.zamasoft.foliojet.layout.box.params.WritingMode.RL);
+			return;
 		}
 		this.container.addAbsolute(box, staticX, staticY);
 	}

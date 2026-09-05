@@ -47,6 +47,18 @@ public class RootBuilder extends BreakableBuilder {
 	private record BreakFingerprint(long ingest, int depth, long pageAxisBits, int target) {
 	}
 
+	/** 上端ページフロートのFIFO-prefix配置計画です。 */
+	static final class TopFloatPlan {
+		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> boxes;
+		final double dy;
+
+		TopFloatPlan(final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> boxes,
+				final double dy) {
+			this.boxes = java.util.List.copyOf(boxes);
+			this.dy = dy;
+		}
+	}
+
 	private final java.util.Map<BreakFingerprint, Integer> breakFingerprintCounts = new java.util.HashMap<>();
 	/**
 	 * 深さを含めない第二指紋の計数(2026-08-23)。再開処理の途中で同じ
@@ -63,6 +75,14 @@ public class RootBuilder extends BreakableBuilder {
 	private int stalledBreakRun = 0;
 	/** LayoutSourceを持たないscratch用の自動改ページ打切り状態。 */
 	private boolean autoBreaksAbandoned = false;
+
+	/** 強制改ページまたは実進捗の確定後に、自動改ページの停滞履歴を捨てます。 */
+	private void clearBreakProgressHistory() {
+		this.stalledBreakRun = 0;
+		this.breakFingerprintCounts.clear();
+		this.depthFreeBreakCounts.clear();
+		this.breakHistoryIngest = Long.MIN_VALUE;
+	}
 
 	/**
 	 * 自動改ページが1回転しても状態が全く変わっていないかを検査します。
@@ -81,10 +101,7 @@ public class RootBuilder extends BreakableBuilder {
 		if (!(mode instanceof BreakMode.AutoBreakMode auto)) {
 			// 強制改ページは進捗で測らない。次の再開チェーンへ指紋も
 			// 持ち越さない
-			this.stalledBreakRun = 0;
-			this.breakFingerprintCounts.clear();
-			this.depthFreeBreakCounts.clear();
-			this.breakHistoryIngest = Long.MIN_VALUE;
+			this.clearBreakProgressHistory();
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource source = this.pageGenerator.getLayoutSource();
@@ -308,22 +325,27 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			this.state = State.RESUMING;
 			RootBuilder.this.sessions.push(this);
-			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("PAGE");
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(false);
-			RootBuilder.this.beginBreakRestyle(this.continuation.ranges());
+			RootBuilder.this.enterTranslateBlockScope();
 			try {
-				net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
-						"depth=" + this.continuation.depth());
-				RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.snapshot);
-				this.state = State.CONSUMED;
-			} catch (RuntimeException | Error e) {
-				this.state = State.FAILED;
-				throw e;
+				net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("PAGE");
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(false);
+				RootBuilder.this.beginBreakRestyle(this.continuation.ranges());
+				try {
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(0, "root-fragment",
+							"depth=" + this.continuation.depth());
+					RootBuilder.this.resumeFrame(this.continuation.root(), 0, this.continuation.depth(), this.snapshot);
+					this.state = State.CONSUMED;
+				} catch (RuntimeException | Error e) {
+					this.state = State.FAILED;
+					throw e;
+				} finally {
+					RootBuilder.this.endBreakRestyle();
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
+					RootBuilder.this.sessions.pop();
+				}
 			} finally {
-				RootBuilder.this.endBreakRestyle();
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
-				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
-				RootBuilder.this.sessions.pop();
+				RootBuilder.this.exitTranslateBlockScope();
 			}
 		}
 
@@ -507,39 +529,44 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			this.state = State.RESUMING;
 			RootBuilder.this.sessions.push(this);
-			net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
-			this.target.beginRestyling();
-			RootBuilder.this.beginBreakRestyle(this.continuation.ranges());
+			RootBuilder.this.enterTranslateBlockScope();
 			try {
-				if (this.continuation.childFrame() != null) {
-					RootBuilder.this.restyleFrame(this.target, this.continuation.anchor().remainder(),
-							this.continuation.anchor().prefixItems(),
-							net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
-					RootBuilder.this.resumeFragmentChain(this.continuation.childFrame(), 1,
-							this.continuation.snapshot().depth(), this.continuation.snapshot(), this.target);
-				} else {
-					assert this.continuation.anchor().prefixItems().isEmpty();
-					// E-3増分5: 終端の開き形はpathShape.terminalShape()が
-					// 正本(旧program.tail().openDepth()と同値——
-					// childFrame==nullではvalidateColumnが
-					// OpenShape.of(snapshot.depth())を返し、旧compilerの
-					// OpenText(1)/LegacyOpen(1, snapshotDepth)と一致する)。
-					// 2026-07-30(増分4d): worklist適格判定とoverrideは退役
-					// ——restyle()自体が無条件にworklist executorで駆動する。
-					this.continuation.anchor().remainder().restyle(this.target,
-							this.continuation.pathShape().terminalShape(), false);
+				net.zamasoft.foliojet.layout.fragment.ResumeTrace.begin("COLUMN");
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.beginContinuationPath(true);
+				this.target.beginRestyling();
+				RootBuilder.this.beginBreakRestyle(this.continuation.ranges());
+				try {
+					if (this.continuation.childFrame() != null) {
+						RootBuilder.this.restyleFrame(this.target, this.continuation.anchor().remainder(),
+								this.continuation.anchor().prefixItems(),
+								net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
+						RootBuilder.this.resumeFragmentChain(this.continuation.childFrame(), 1,
+								this.continuation.snapshot().depth(), this.continuation.snapshot(), this.target);
+					} else {
+						assert this.continuation.anchor().prefixItems().isEmpty();
+						// E-3増分5: 終端の開き形はpathShape.terminalShape()が
+						// 正本(旧program.tail().openDepth()と同値——
+						// childFrame==nullではvalidateColumnが
+						// OpenShape.of(snapshot.depth())を返し、旧compilerの
+						// OpenText(1)/LegacyOpen(1, snapshotDepth)と一致する)。
+						// 2026-07-30(増分4d): worklist適格判定とoverrideは退役
+						// ——restyle()自体が無条件にworklist executorで駆動する。
+						this.continuation.anchor().remainder().restyle(this.target,
+								this.continuation.pathShape().terminalShape(), false);
+					}
+					this.state = State.CONSUMED;
+				} catch (RuntimeException | Error e) {
+					this.state = State.FAILED;
+					throw e;
+				} finally {
+					RootBuilder.this.endBreakRestyle();
+					this.target.endRestyling();
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
+					net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
+					RootBuilder.this.sessions.pop();
 				}
-				this.state = State.CONSUMED;
-			} catch (RuntimeException | Error e) {
-				this.state = State.FAILED;
-				throw e;
 			} finally {
-				RootBuilder.this.endBreakRestyle();
-				this.target.endRestyling();
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.endContinuationPath();
-				net.zamasoft.foliojet.layout.fragment.ResumeTrace.end();
-				RootBuilder.this.sessions.pop();
+				RootBuilder.this.exitTranslateBlockScope();
 			}
 		}
 
@@ -687,6 +714,36 @@ public class RootBuilder extends BreakableBuilder {
 
 	private PageBox pageBox;
 
+	/** 子ビルダー・再生・継続処理がRootの外側で開いている深さです。 */
+	private int translateBlockDepth = 0;
+
+	/** 現在のPageBoxが描画前の確定処理へ入った後ならtrue。 */
+	private boolean pageFinished = false;
+
+	/**
+	 * 現ページの平行移動を禁止する子スコープへ入ります。入れ子の
+	 * DocumentBuilder、TwoPass bind、ソース再生、継続再開で共有します。
+	 */
+	public final void enterTranslateBlockScope() {
+		++this.translateBlockDepth;
+	}
+
+	/** 現ページの平行移動を禁止する子スコープから出ます。 */
+	public final void exitTranslateBlockScope() {
+		assert this.translateBlockDepth > 0 : "translate block scope depth became negative";
+		--this.translateBlockDepth;
+	}
+
+	/** 現在開いている平行移動禁止スコープの深さです。 */
+	public final int getTranslateBlockDepth() {
+		return this.translateBlockDepth;
+	}
+
+	/** 現在のPageBoxが描画前の確定処理へ入った後ならtrue。 */
+	public final boolean isPageFinished() {
+		return this.pageFinished;
+	}
+
 	/** 新しいPageBoxごとに作り直す、当該ページのtopフロート排除域。 */
 	private java.util.List<FloatExclusion> topPageFloatExclusions;
 
@@ -711,6 +768,13 @@ public class RootBuilder extends BreakableBuilder {
 	/** pendingへ登録したboxと、その登録を行ったページ世代。 */
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> pendingTopFloatGenerations =
 			new java.util.IdentityHashMap<>();
+
+	/** 現ページで登録され、まだ現ページ上端への配置資格を持つtop floatです。 */
+	private record CurrentTopFloat(net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box, long generation) {
+	}
+
+	/** boxの登録順を保つ、現ページtop floatの世代付き台帳です。 */
+	private final java.util.List<CurrentTopFloat> pendingCurrentTopFloats = new java.util.ArrayList<>();
 
 	/** 当該ページに既に置いたboxと世代。addPageFloatの再生重複と配置反復を防ぐ。 */
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> placedTopFloatGenerations =
@@ -755,6 +819,8 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		final PageBox next = this.pageGenerator.nextPage();
 		++this.pageGeneration;
+		this.pendingCurrentTopFloats.removeIf(entry -> entry.generation() != this.pageGeneration);
+		this.pageFinished = false;
 		this.pageFloatSequence = 0;
 		this.topPageFloatExclusions = new java.util.ArrayList<>();
 		this.topPageFloatStackEnd = 0;
@@ -766,6 +832,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.bottomFloatOrders.clear();
 		this.bottomFloatOneDimensionalFallback = false;
 		this.atomicFloatFloor = 0;
+		this.narrowTopPlacedWithTextBeside = false;
 		return next;
 	}
 
@@ -1087,7 +1154,8 @@ public class RootBuilder extends BreakableBuilder {
 		// 置き、本文はページ先頭から二次元排除する。
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
 		this.reserveBottomFloats();
-		this.placeTopPageFloats();
+		this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
+				super.getPageLimit() - this.footnoteReservation - this.bottomFloatReservation, true));
 		this.resetFragmentCursor(0, 0);
 		this.beginRestyling();
 
@@ -1449,6 +1517,7 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	protected void finishLayout() {
+		this.pageFinished = true;
 		// **予約したまま置かれない脚注は、ページを無限に作る**
 		// (2026-08-21、掃過seed 439857ほか)。脚注は呼び出しが確定した
 		// ページに置かれるが、呼び出しが「入れ子の段組の中で毎回次ページへ
@@ -1503,11 +1572,13 @@ public class RootBuilder extends BreakableBuilder {
 			this.pageFloatProgressed = false;
 			this.pageGenerator.drawPage(this.pageBox, false, false);
 			this.pageBox = this.nextPage();
+			this.pendingCurrentTopFloats.removeIf(entry -> entry.generation() != this.pageGeneration);
 			this.resetPageMarginNoteCursors();
 			this.contextFlow = new Flow(this.pageBox, 0, 0);
 			this.reserveFootnotes();
 			this.reserveBottomFloats();
-			this.placeTopPageFloats();
+			this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
+					super.getPageLimit() - this.footnoteReservation - this.bottomFloatReservation, true));
 			this.resetFragmentCursor(0, 0);
 			this.finishLayout();
 			// 前進の無い回は、呼び出しがどのページにも残らなかった脚注
@@ -1826,7 +1897,11 @@ public class RootBuilder extends BreakableBuilder {
 			this.pendingTopFloats.addLast(floatBox);
 			this.pendingTopFloatGenerations.put(floatBox, this.pageGeneration);
 			if (placeOnCurrentPage) {
-				this.placeTopPageFloats();
+				this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
+						super.getPageLimit() - this.footnoteReservation - this.bottomFloatReservation, true));
+			} else {
+				this.pendingCurrentTopFloats.add(new CurrentTopFloat(floatBox, this.pageGeneration));
+				this.tryTranslateForTopFloats();
 			}
 		} else {
 			final Long placedGeneration = this.placedBottomFloatGenerations.get(floatBox);
@@ -1844,6 +1919,193 @@ public class RootBuilder extends BreakableBuilder {
 	/** 版面に未配置のページフロートが残っているか(finish()の駆動条件)。 */
 	private boolean hasPendingPageFloats() {
 		return !this.pendingTopFloats.isEmpty() || !this.pendingBottomFloats.isEmpty();
+	}
+
+	/** 現ページで登録され、まだ現ページ上端への配置資格を持つtop floatがあるか。 */
+	public final boolean hasCurrentTopFloats() {
+		for (final CurrentTopFloat entry : this.pendingCurrentTopFloats) {
+			if (entry.generation() == this.pageGeneration) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * flow block終端で子スコープとbreak禁止深さが戻った後、interflowの
+	 * overflow検査より先に現ページ上端への平行移動を試します。
+	 */
+	@Override
+	protected void afterFlowBlockClosed() {
+		this.tryTranslateForTopFloats();
+	}
+
+	/**
+	 * 現ページで登録された全行幅topを、配置済み内容と一緒に収まる範囲で
+	 * ページ上端へ置きます。判定はすべて変異前に完了し、条件を満たさない
+	 * 場合は待ち行列をそのまま次ページへ持ち越します。
+	 */
+	public final void tryTranslateForTopFloats() {
+		if (!this.hasCurrentTopFloats() || !this.canTranslateNow()) {
+			return;
+		}
+
+		final double used = this.currentTranslateUsedPageEnd();
+		final double limit = this.getUnsplittableFloatPageLimit();
+		final double maxArea = limit - (used - this.topPageFloatStackEnd);
+		final TopFloatPlan plan = this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
+				maxArea, false);
+		if (plan.boxes.isEmpty()) {
+			this.logTranslateSkip("capacity: used=" + used + " limit=" + limit);
+			return;
+		}
+		if (!this.hasFullWidthTopFloatPlan(plan)) {
+			return;
+		}
+		this.translateForTopFloats(plan);
+	}
+
+	/** 平行移動を安全に行えるRootの静止点かを読み取りだけで判定します。 */
+	private boolean canTranslateNow() {
+		if (this.textBuilder != null) {
+			return this.logTranslateSkip("text builder is open");
+		}
+		if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
+			return this.logTranslateSkip("no-break scope: mode=" + this.mode + " breakDepth=" + this.breakDepth);
+		}
+		if (this.breakAfter != null) {
+			// 直前のブロックの page-break-after が保留中: この float は次頁に属する
+			return this.logTranslateSkip("forced break pending: " + this.breakAfter);
+		}
+		if (this.isRestyling()) {
+			return this.logTranslateSkip("restyling");
+		}
+		if (!this.sessions.isEmpty()) {
+			return this.logTranslateSkip("resume session");
+		}
+		if (!this.resumeScopes.isEmpty()) {
+			return this.logTranslateSkip("resume scope");
+		}
+		if (this.rowSubgridBindDepth != 0) {
+			return this.logTranslateSkip("row subgrid bind");
+		}
+		if (this.translateBlockDepth != 0) {
+			return this.logTranslateSkip("child builder/replay scope depth=" + this.translateBlockDepth);
+		}
+		if (this.findColumnBreak() != null) {
+			return this.logTranslateSkip("column break path");
+		}
+		if (this.getMulticolumnBox() != null) {
+			return this.logTranslateSkip("multicolumn flow");
+		}
+		if (!this.hasRootWritingModePath()) {
+			return this.logTranslateSkip("mixed writing-mode path");
+		}
+		if (this.pageFinished) {
+			return this.logTranslateSkip("page already finished");
+		}
+		return true;
+	}
+
+	/** FINEでfallback理由を記録し、条件式からそのまま返せるfalseを返します。 */
+	private boolean logTranslateSkip(final String reason) {
+		if (LOG.isLoggable(Level.FINE)) {
+			LOG.fine("top float translate skipped: " + reason);
+		}
+		return false;
+	}
+
+	/**
+	 * top追加後に必ず占有されるページ軸終端です。開いているflowの終端枠、
+	 * 通常/独立BFCのfloat、分割不能float、配置済み並列注を含みます。
+	 */
+	private double currentTranslateUsedPageEnd() {
+		final double normalEnd = this.pageAxis - (this.poLastMargin + this.neLastMargin);
+		double used = Math.max(normalEnd, this.maxActiveFloatingPageEnd());
+		if (this.atomicFloatFloor > 0) {
+			used = Math.max(used, this.atomicFloatFloor);
+		}
+		final net.zamasoft.foliojet.layout.box.content.FlowContainer pageContainer =
+				(net.zamasoft.foliojet.layout.box.content.FlowContainer) this.pageBox.getContainer();
+		used = Math.max(used,
+				pageContainer.maxPageMarginNotePageEnd(this.pageBox.getBlockParams().flow));
+		if (this.hasOpenFlow()) {
+			used = Math.max(used, normalEnd + this.lastFrame(this.getFlow(), 1));
+		}
+		return used;
+	}
+
+	/**
+	 * 既配置topが、shapeなしの全行幅だけならtrue。
+	 *
+	 * <p>
+	 * 新しく置くtopは幅を問わない: 平行移動は既存の内容を図版のblock寸法だけ
+	 * 送るので、狭幅の図版は帯として置かれ、脇には文字が回り込まない
+	 * (css-page-floats §3「内容はblock-end側に流れる」。頁先頭の二次元排除とは
+	 * 異なる意図した近似。cti.liの縦組み写真のように頁の高さに満たない図版が
+	 * 実例の大半なので、全行幅に限ると動機の事例が救えない、2026-09-05)。
+	 * 既配置topは脇に文字が入っている可能性があるので全行幅のときだけ許す
+	 * (移動した行が新しい帯と重なるため)。
+	 * </p>
+	 */
+	private boolean hasFullWidthTopFloatPlan(final TopFloatPlan plan) {
+		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box : plan.boxes) {
+			if (box.getFloatPos().shapeOutside != null) {
+				return this.logTranslateSkip("shape-outside top float");
+			}
+		}
+		if (this.narrowTopPlacedWithTextBeside) {
+			return this.logTranslateSkip("partial-width top placed at page start (text may sit beside it)");
+		}
+		return true;
+	}
+
+	/** 計画済みtopを配置し、既存のページ局所状態を同量だけ平行移動します。 */
+	private void translateForTopFloats(final TopFloatPlan plan) {
+		final int flowDepth = this.flowStack == null ? 0 : this.flowStack.size();
+		this.placingTopByTranslate = true;
+		try {
+			this.placeTopPageFloats(plan);
+		} finally {
+			this.placingTopByTranslate = false;
+		}
+		final double dy = plan.dy;
+		final java.util.Set<net.zamasoft.foliojet.layout.box.IBox> keep = java.util.Collections
+				.newSetFromMap(new java.util.IdentityHashMap<>());
+		keep.addAll(this.placedTopFloatGenerations.keySet());
+		final net.zamasoft.foliojet.layout.box.content.FlowContainer pageContainer =
+				(net.zamasoft.foliojet.layout.box.content.FlowContainer) this.pageBox.getContainer();
+		pageContainer.shiftPageAxis(dy, keep);
+		this.shiftFlowStack(dy);
+		this.shiftFloatLedgers(dy);
+		if (this.atomicFloatFloor > 0) {
+			this.atomicFloatFloor += dy;
+		}
+		if (this.pageMarginNoteStartCursor > 0) {
+			this.pageMarginNoteStartCursor += dy;
+		}
+		if (this.pageMarginNoteEndCursor > 0) {
+			this.pageMarginNoteEndCursor += dy;
+		}
+		this.pageBox.setPageAxis(this.maxNormalFlowPageEnd(pageContainer));
+		this.clearBreakProgressHistory();
+
+		final java.util.Set<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> placed = java.util.Collections
+				.newSetFromMap(new java.util.IdentityHashMap<>());
+		placed.addAll(plan.boxes);
+		this.pendingCurrentTopFloats.removeIf(entry -> placed.contains(entry.box()));
+		assert flowDepth == (this.flowStack == null ? 0 : this.flowStack.size())
+				: "top float translate changed flowStack depth";
+	}
+
+	/** 平行移動後のカーソル・終端枠・PageBox直下flowが示す通常フロー終端。 */
+	private double maxNormalFlowPageEnd(
+			final net.zamasoft.foliojet.layout.box.content.FlowContainer pageContainer) {
+		double pageEnd = this.pageAxis - (this.poLastMargin + this.neLastMargin);
+		if (this.hasOpenFlow()) {
+			pageEnd += this.lastFrame(this.getFlow(), 1);
+		}
+		return Math.max(pageEnd, pageContainer.maxNormalFlowPageEnd(this.pageBox.getBlockParams().flow));
 	}
 
 	/**
@@ -2028,26 +2290,68 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 新ページの先頭へ上端フロートを置き、実配置矩形を当該ページの
-	 * 行走査用排除域へ登録します。本文カーソルは進めない。
+	 * 上端フロート待ち行列を変更せず、先頭から配置できる連続prefixを
+	 * 計画します。途中の要素を飛ばさず、{@code atPageStart == false}では
+	 * 先頭が収まらなければ空計画を返します。ページ先頭では従来どおり、
+	 * {@code stackEnd == 0}の最初の1件を容量にかかわらず採り、その後は
+	 * 収まる間だけ採ります。
+	 *
+	 * @param queue       上端フロートのFIFO待ち行列(読み取り専用)
+	 * @param stackEnd    配置済みtop prefixの終端
+	 * @param maxArea     topを積めるページ軸終端
+	 * @param atPageStart ページ先頭の前進保証を適用するならtrue
+	 * @return 採用したprefixと、その占有量の合計
 	 */
-	private void placeTopPageFloats() {
-		if (this.pendingTopFloats.isEmpty()) {
-			return;
-		}
-		final double pageLimit = super.getPageLimit();
-		// MIN_PAGE_LIMITは基底の改ページ・脚注予約に残す。top配置は本文を
-		// 押し下げないため、実際に空いている頁末まで積める。
-		final double maxArea = pageLimit - this.footnoteReservation - this.bottomFloatReservation;
-		final double fragmentLimit = this.getPageLimit();
-		double pageAxis = this.topPageFloatStackEnd;
-		while (!this.pendingTopFloats.isEmpty()) {
-			final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox = this.pendingTopFloats.peekFirst();
-			final double extent = this.footnoteExtent(floatBox);
-			if (pageAxis > 0 && pageAxis + extent > maxArea) {
-				// 入らない分は次ページへ送る(FIFO——途中を飛ばさない)
+	final TopFloatPlan planTopFloats(
+			final java.util.Deque<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> queue,
+			final double stackEnd, final double maxArea, final boolean atPageStart) {
+		return planTopFloats(queue, this::footnoteExtent, stackEnd, maxArea, atPageStart);
+	}
+
+	/**
+	 * {@link #planTopFloats(java.util.Deque, double, double, boolean)}の純粋な核です。
+	 * 占有量の測り方を注入できるので、builder を組み立てずに単体で検査できる。
+	 */
+	static TopFloatPlan planTopFloats(
+			final Iterable<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> queue,
+			final java.util.function.ToDoubleFunction<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> extentOf,
+			final double stackEnd, final double maxArea, final boolean atPageStart) {
+		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> boxes = new java.util.ArrayList<>();
+		double pageAxis = stackEnd;
+		double dy = 0;
+		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox : queue) {
+			final double extent = extentOf.applyAsDouble(floatBox);
+			if ((!atPageStart || pageAxis > 0) && pageAxis + extent > maxArea) {
 				break;
 			}
+			boxes.add(floatBox);
+			pageAxis += extent;
+			dy += extent;
+			if (atPageStart && pageAxis > maxArea) {
+				break;
+			}
+		}
+		return new TopFloatPlan(boxes, dy);
+	}
+
+	/**
+	 * 計画済みの上端フロートだけをFIFO順に配置し、実配置矩形を当該ページの
+	 * 行走査用排除域へ登録します。本文カーソルは進めません。
+	 *
+	 * @param plan {@link #planTopFloats}が返した配置計画
+	 */
+	private void placeTopPageFloats(final TopFloatPlan plan) {
+		if (plan.boxes.isEmpty() && this.pendingTopFloats.isEmpty()) {
+			return;
+		}
+		// MIN_PAGE_LIMITは基底の改ページ・脚注予約に残す。top配置は本文を
+		// 押し下げないため、実際に空いている頁末まで積める。
+		final double maxArea = super.getPageLimit() - this.footnoteReservation - this.bottomFloatReservation;
+		final double fragmentLimit = this.getPageLimit();
+		double pageAxis = this.topPageFloatStackEnd;
+		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox : plan.boxes) {
+			assert this.pendingTopFloats.peekFirst() == floatBox : "top float plan/queue order mismatch";
+			final double extent = this.footnoteExtent(floatBox);
 			this.pendingTopFloats.removeFirst();
 			this.pendingTopFloatGenerations.remove(floatBox);
 			final Long previous = this.placedTopFloatGenerations.put(floatBox, this.pageGeneration);
@@ -2064,9 +2368,13 @@ public class RootBuilder extends BreakableBuilder {
 			// 交換しても空ページが何枚も残る。
 			final double exclusionEnd = Math.min(placedEnd, fragmentLimit);
 			this.pageBox.getContainer().addFloating(floatBox, 0, pageAxis);
+			final double lineExtent = floatBox.getLineExtent(this.pageBox.getBlockParams().flow);
+			if (!this.placingTopByTranslate && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(lineExtent,
+					this.pageBox.getLineSize()) != 0) {
+				this.narrowTopPlacedWithTextBeside = true;
+			}
 			this.topPageFloatExclusions.add(new FloatExclusion(this.nextPageFloatOrder(), FloatSide.START,
-					new AxisSpan(placedStart, exclusionEnd),
-					new AxisSpan(0, floatBox.getLineExtent(this.pageBox.getBlockParams().flow))));
+					new AxisSpan(placedStart, exclusionEnd), new AxisSpan(0, lineExtent)));
 			pageAxis = placedEnd;
 			this.topPageFloatStackEnd = pageAxis;
 			this.pageFloatProgressed = true;
@@ -2074,7 +2382,6 @@ public class RootBuilder extends BreakableBuilder {
 				// 単独でページに収まらないフロートは溢れたまま置く
 				// (クラッシュ排除方針。警告して続行)
 				LOG.warning("page float too large for the page: " + extent + "pt");
-				break;
 			}
 		}
 		this.topPageFloatExclusionSnapshot = ExclusionSpace.copyOfSorted(this.topPageFloatExclusions);
@@ -2083,6 +2390,16 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** 直近のページでフロートの配置が進んだか(finish()の前進性ガード)。 */
 	private boolean pageFloatProgressed = false;
+
+	/**
+	 * 現ページに、頁先頭(二次元排除)で置いた狭幅 top があるか。脇に本文が
+	 * 入り得るので、以後の平行移動は禁止する(移動した行が新しい帯と重なる)。
+	 * 平行移動で帯として置いた狭幅 top は脇に本文が無いので数えない。
+	 */
+	private boolean narrowTopPlacedWithTextBeside = false;
+
+	/** {@link #placeTopPageFloats}が平行移動(帯)から呼ばれている間 true。 */
+	private boolean placingTopByTranslate = false;
 
 	/**
 	 * ページ確定時の脚注の清算です(finishLayoutから=分割完了後・描画前)。

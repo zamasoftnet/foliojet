@@ -120,4 +120,28 @@ public class FontSynthesisTest extends TestCase {
 			assertFalse("font-synthesis:noneでも疑似イタリックが入っています", p2.shearItalic());
 		}
 	}
+
+	/** SVGの900がimg経路でも背景画像経路でも疑似ボールドになります。 */
+	public void testSvgFontWeight900IsBoldForImageAndBackground() throws Exception {
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+				null);
+		try {
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.include", "**");
+			CTISessionHelper.transcodeFile(session,
+					new File("files/unittest/1080-FONT/svg-font-weight.html"), "text/html", null);
+		} finally {
+			session.close();
+		}
+		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
+			assertEquals(2, doc.getNumberOfPages());
+			// この前提が崩れたら、テスト構成のserifに実ウェイト900が
+			// 入ったため、単ウェイトのフォント指定へ変える。
+			assertTrue("img内のfont-weight:900が太字になっていません", scan(doc.getPage(0)).strokeBold());
+			assertTrue("背景SVG内のfont-weight:900が太字になっていません", scan(doc.getPage(1)).strokeBold());
+		}
+	}
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
+  <text x="4" y="20" font-family="serif" font-size="14" font-weight="900">BOLD</text>
+  <text x="4" y="40" font-family="serif" font-size="14" font-weight="400">REGULAR</text>
+</svg>

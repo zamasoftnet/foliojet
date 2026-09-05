@@ -32,10 +32,13 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
  * stacking context(z-index順に描く)を保持します。
  *
  * <p>
- * 描画順は「自分のpaint command→子contextを(z, 挿入順)で整列して順に」
- * ——以前は{@code Collections.sort}の安定性へ暗黙に依存していたが、
+ * 描画順は「負のz-indexの子context→自分のpaint command→0以上の
+ * 子context」です(CSS 2.1 Appendix E)。子context内は(z, 挿入順)で
+ * 整列します。以前は{@code Collections.sort}の安定性へ暗黙に依存していたが、
  * 挿入順を明示の順序キーに昇格した(B-1、2026-07-30。全順序なので
  * 何度整列しても同じ結果になり、dump/drawが同じ順序を共有する)。
+ * Appendix Eがさらに分ける親自身の背景とインライン内容の間への配置は
+ * paint commandの分類が必要なため、この変更の範囲外です。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -220,6 +223,29 @@ public class Drawer {
 
 	protected final int z;
 	protected List<PaintCommand> paintCommands = null;
+
+	/**
+	 * 自分の背景・枠(stacking context の根の箱が最初に積む装飾)が終わる
+	 * paint command の位置です。負の z-index の子 context は、CSS 2.1
+	 * Appendix E ③のとおり**この位置の後・残りの内容の前**に描きます。
+	 * 印が無い(0)場合は負の子を自分の command 全部より先に描く。
+	 */
+	private int ownDecorationEnd = 0;
+
+	/** stacking context の根の箱が自分の背景・枠を積み終えた直後に呼びます。 */
+	public void markOwnDecorationEnd() {
+		this.ownDecorationEnd = this.paintCommands == null ? 0 : this.paintCommands.size();
+	}
+
+	/** paint command の件数です。 */
+	private int paintCount() {
+		return this.paintCommands == null ? 0 : this.paintCommands.size();
+	}
+
+	/** 負の子を挟む位置(装飾の終端、command 件数で頭打ち)です。 */
+	private int decorationSplit() {
+		return Math.min(this.ownDecorationEnd, this.paintCount());
+	}
 	private List<StackingContextEntry> stackingContexts = null;
 
 	/**
@@ -314,8 +340,8 @@ public class Drawer {
 	 *
 	 * <p>
 	 * 重要: ラッパーDrawerを<b>子として</b>追加してはいけません。現在の
-	 * {@link #draw(GC)}は通常のDrawableを先に描き、子Drawerをz順(同zは
-	 * 挿入順)で整列してから描くため、子を1段増やすと既存の重なり順が
+	 * {@link #draw(GC)}は負の子、自身、0以上の子の順で描くため、子を1段
+	 * 増やすと既存の重なり順が
 	 * 変わってしまいます(答申§3)。このビューは新しいz階層を作らず、
 	 * 追加をそのままこのDrawerの表示リストへ流し、PaintCommandに
 	 * 印だけを付けます。
@@ -418,6 +444,15 @@ public class Drawer {
 		return this.stackingContexts;
 	}
 
+	/** 整列済み子contextのうち、最初のz-index 0以上の位置です。 */
+	private static int firstNonNegative(final List<StackingContextEntry> sorted) {
+		int i = 0;
+		while (i < sorted.size() && sorted.get(i).drawer.z < 0) {
+			++i;
+		}
+		return i;
+	}
+
 	public void draw(GC gc) throws GraphicsException {
 		this.draw(gc, Double.NaN, Double.NaN);
 	}
@@ -430,11 +465,11 @@ public class Drawer {
 		record GroupFrame(GC outer, FilterScope outerScope, FilterScope scope, FilterValue filter,
 				FilterPlacement placement, StructureRef structRef, boolean artifact) {
 		}
-		record Step(Drawer drawer, GroupFrame end) {
+		record Step(Drawer drawer, GroupFrame end, boolean paint, int from, int to) {
 		}
 		final Map<Long, LineTextScope> lineScopes = this.prepareLineTextScopes(gc, pageWidth, pageHeight);
 		final Deque<Step> work = new ArrayDeque<>();
-		work.push(new Step(this, null));
+		work.push(new Step(this, null, false, 0, 0));
 		GC current = gc;
 		FilterScope currentScope = null;
 		try {
@@ -473,6 +508,15 @@ public class Drawer {
 				}
 
 				final Drawer drawer = step.drawer;
+				if (step.paint) {
+					if (drawer.paintCommands != null) {
+						for (int i = step.from; i < Math.min(step.to, drawer.paintCommands.size()); ++i) {
+							final PaintCommand command = drawer.paintCommands.get(i);
+							command.draw(command.drawable instanceof PageOutputDrawable ? gc : current, lineScopes);
+						}
+					}
+					continue;
+				}
 				if (drawer.filter != null && Double.isFinite(pageWidth) && Double.isFinite(pageHeight) && pageWidth > 0
 						&& pageHeight > 0 && !FilterScope.effective(current, drawer.filter).isNone()
 						&& groupsFilters(current, drawer.filter)) {
@@ -493,21 +537,24 @@ public class Drawer {
 					final StructureRef structRef = drawer.structRef == null ? drawer.currentStructRef : drawer.structRef;
 					final GroupFrame frame = new GroupFrame(outer, currentScope, scope, drawer.filter, placement,
 							structRef, drawer.artifact);
-					work.push(new Step(null, frame));
+					work.push(new Step(null, frame, false, 0, 0));
 					current = scope;
 					currentScope = scope;
 				}
-				if (drawer.paintCommands != null) {
-					for (int i = 0; i < drawer.paintCommands.size(); ++i) {
-						final PaintCommand command = drawer.paintCommands.get(i);
-						command.draw(command.drawable instanceof PageOutputDrawable ? gc : current, lineScopes);
-					}
-				}
 				if (drawer.stackingContexts != null) {
 					final List<StackingContextEntry> sorted = drawer.sortedContexts();
-					for (int i = sorted.size() - 1; i >= 0; --i) {
-						work.push(new Step(sorted.get(i).drawer, null));
+					final int split = firstNonNegative(sorted);
+					final int deco = drawer.decorationSplit();
+					for (int i = sorted.size() - 1; i >= split; --i) {
+						work.push(new Step(sorted.get(i).drawer, null, false, 0, 0));
 					}
+					work.push(new Step(drawer, null, true, deco, drawer.paintCount()));
+					for (int i = split - 1; i >= 0; --i) {
+						work.push(new Step(sorted.get(i).drawer, null, false, 0, 0));
+					}
+					work.push(new Step(drawer, null, true, 0, deco));
+				} else {
+					work.push(new Step(drawer, null, true, 0, drawer.paintCount()));
 				}
 			}
 		} finally {
@@ -524,12 +571,13 @@ public class Drawer {
 	 */
 	private Map<Long, LineTextScope> prepareLineTextScopes(final GC gc, final double pageWidth,
 			final double pageHeight) {
-		record PlanStep(Drawer drawer, Object stream, boolean rasterized, Set<FilterValue> grouped) {
+		record PlanStep(Drawer drawer, Object stream, boolean rasterized, Set<FilterValue> grouped, boolean paint, int from,
+				int to) {
 		}
 		final Map<Long, LinePlan> plans = new LinkedHashMap<>();
 		final Deque<PlanStep> work = new ArrayDeque<>();
 		work.push(new PlanStep(this, DelegatingGC.unwrap(gc), false,
-				Collections.newSetFromMap(new IdentityHashMap<FilterValue, Boolean>())));
+				Collections.newSetFromMap(new IdentityHashMap<FilterValue, Boolean>()), false, 0, 0));
 		int textPosition = 0;
 		while (!work.isEmpty()) {
 			final PlanStep step = work.pop();
@@ -537,8 +585,8 @@ public class Drawer {
 			Object stream = step.stream;
 			boolean rasterized = step.rasterized;
 			Set<FilterValue> grouped = step.grouped;
-			final boolean group = drawer.filter != null && Double.isFinite(pageWidth) && Double.isFinite(pageHeight)
-					&& pageWidth > 0 && pageHeight > 0 && !drawer.filter.isNone()
+			final boolean group = !step.paint && drawer.filter != null && Double.isFinite(pageWidth)
+					&& Double.isFinite(pageHeight) && pageWidth > 0 && pageHeight > 0 && !drawer.filter.isNone()
 					&& groupsFilters(gc, drawer.filter);
 			if (group) {
 				stream = drawer;
@@ -551,8 +599,9 @@ public class Drawer {
 				grouped.addAll(step.grouped);
 				grouped.add(drawer.filter);
 			}
-			if (drawer.paintCommands != null) {
-				for (final PaintCommand command : drawer.paintCommands) {
+			if (step.paint && drawer.paintCommands != null) {
+				for (int i = step.from; i < Math.min(step.to, drawer.paintCommands.size()); ++i) {
+					final PaintCommand command = drawer.paintCommands.get(i);
 					if (!(command.drawable instanceof LogicalTextDrawable text)) {
 						continue;
 					}
@@ -567,11 +616,20 @@ public class Drawer {
 							.add(position, commandStream, rasterized);
 				}
 			}
-			if (drawer.stackingContexts != null) {
+			if (!step.paint && drawer.stackingContexts != null) {
 				final List<StackingContextEntry> sorted = drawer.sortedContexts();
-				for (int i = sorted.size() - 1; i >= 0; --i) {
-					work.push(new PlanStep(sorted.get(i).drawer, stream, rasterized, grouped));
+				final int split = firstNonNegative(sorted);
+				final int deco = drawer.decorationSplit();
+				for (int i = sorted.size() - 1; i >= split; --i) {
+					work.push(new PlanStep(sorted.get(i).drawer, stream, rasterized, grouped, false, 0, 0));
 				}
+				work.push(new PlanStep(drawer, stream, rasterized, grouped, true, deco, drawer.paintCount()));
+				for (int i = split - 1; i >= 0; --i) {
+					work.push(new PlanStep(sorted.get(i).drawer, stream, rasterized, grouped, false, 0, 0));
+				}
+				work.push(new PlanStep(drawer, stream, rasterized, grouped, true, 0, deco));
+			} else if (!step.paint) {
+				work.push(new PlanStep(drawer, stream, rasterized, grouped, true, 0, drawer.paintCount()));
 			}
 		}
 		final Map<Long, LineTextScope> scopes = new LinkedHashMap<>();
@@ -620,24 +678,26 @@ public class Drawer {
 		final Map<Long, String> visualText = this.collectLogicalVisualText();
 		final Set<Long> dumpedLines = new java.util.HashSet<>();
 		// draw()と同じ前順走査の反復化。インデントだけ階層に追随する
-		record DumpStep(Drawer drawer, String indent) {
+		record DumpStep(Drawer drawer, String indent, boolean paint, int from, int to) {
 		}
 		final Deque<DumpStep> work = new ArrayDeque<>();
-		work.push(new DumpStep(this, indent));
+		work.push(new DumpStep(this, indent, false, 0, 0));
 		while (!work.isEmpty()) {
 			final DumpStep step = work.pop();
 			final Drawer drawer = step.drawer;
-			sb.append(step.indent).append("drawer z=").append(drawer.z);
-			if (drawer.filter != null) {
-				sb.append(" filter=[").append(drawer.filter.declared).append(']');
+			if (!step.paint) {
+				sb.append(step.indent).append("drawer z=").append(drawer.z);
+				if (drawer.filter != null) {
+					sb.append(" filter=[").append(drawer.filter.declared).append(']');
+				}
+				if (drawer.artifact) {
+					// 通常の描画では立たないため、既存のgoldenは不変
+					sb.append(" artifact");
+				}
+				sb.append('\n');
 			}
-			if (drawer.artifact) {
-				// 通常の描画では立たないため、既存のgoldenは不変
-				sb.append(" artifact");
-			}
-			sb.append('\n');
-			if (drawer.paintCommands != null) {
-				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
+			if (step.paint && drawer.paintCommands != null) {
+				for (int i = step.from; i < Math.min(step.to, drawer.paintCommands.size()); ++i) {
 					final PaintCommand command = drawer.paintCommands.get(i);
 					if (!command.artifact && command.drawable instanceof LogicalTextDrawable text
 							&& text.getLogicalLineEmission() != null) {
@@ -663,34 +723,56 @@ public class Drawer {
 							.append(command.drawable.describeClip()).append('\n');
 				}
 			}
-			if (drawer.stackingContexts != null) {
+			if (!step.paint && drawer.stackingContexts != null) {
 				final List<StackingContextEntry> sorted = drawer.sortedContexts();
-				for (int i = sorted.size() - 1; i >= 0; --i) {
-					work.push(new DumpStep(sorted.get(i).drawer, step.indent + "  "));
+				final int split = firstNonNegative(sorted);
+				final int deco = drawer.decorationSplit();
+				for (int i = sorted.size() - 1; i >= split; --i) {
+					work.push(new DumpStep(sorted.get(i).drawer, step.indent + "  ", false, 0, 0));
 				}
+				work.push(new DumpStep(drawer, step.indent, true, deco, drawer.paintCount()));
+				for (int i = split - 1; i >= 0; --i) {
+					work.push(new DumpStep(sorted.get(i).drawer, step.indent + "  ", false, 0, 0));
+				}
+				work.push(new DumpStep(drawer, step.indent, true, 0, deco));
+			} else if (!step.paint) {
+				work.push(new DumpStep(drawer, step.indent, true, 0, drawer.paintCount()));
 			}
 		}
 	}
 
 	private Map<Long, String> collectLogicalVisualText() {
 		final Map<Long, String> text = new LinkedHashMap<>();
-		final Deque<Drawer> work = new ArrayDeque<>();
-		work.push(this);
+		record CollectStep(Drawer drawer, boolean paint, int from, int to) {
+		}
+		final Deque<CollectStep> work = new ArrayDeque<>();
+		work.push(new CollectStep(this, false, 0, 0));
 		while (!work.isEmpty()) {
-			final Drawer drawer = work.pop();
-			if (drawer.paintCommands != null) {
-				for (final PaintCommand command : drawer.paintCommands) {
+			final CollectStep step = work.pop();
+			final Drawer drawer = step.drawer;
+			if (step.paint && drawer.paintCommands != null) {
+				for (int i = step.from; i < Math.min(step.to, drawer.paintCommands.size()); ++i) {
+					final PaintCommand command = drawer.paintCommands.get(i);
 					if (!command.artifact && command.drawable instanceof LogicalTextDrawable logical
 							&& logical.getLogicalLineEmission() != null) {
 						text.putIfAbsent(logical.getLogicalLineEmission().lineId(), logical.getLineVisualText());
 					}
 				}
 			}
-			if (drawer.stackingContexts != null) {
+			if (!step.paint && drawer.stackingContexts != null) {
 				final List<StackingContextEntry> sorted = drawer.sortedContexts();
-				for (int i = sorted.size() - 1; i >= 0; --i) {
-					work.push(sorted.get(i).drawer);
+				final int split = firstNonNegative(sorted);
+				final int deco = drawer.decorationSplit();
+				for (int i = sorted.size() - 1; i >= split; --i) {
+					work.push(new CollectStep(sorted.get(i).drawer, false, 0, 0));
 				}
+				work.push(new CollectStep(drawer, true, deco, drawer.paintCount()));
+				for (int i = split - 1; i >= 0; --i) {
+					work.push(new CollectStep(sorted.get(i).drawer, false, 0, 0));
+				}
+				work.push(new CollectStep(drawer, true, 0, deco));
+			} else if (!step.paint) {
+				work.push(new CollectStep(drawer, true, 0, drawer.paintCount()));
 			}
 		}
 		return text;

@@ -183,7 +183,7 @@ public class DrawerArtifactViewTest extends TestCase {
 		root.visitDrawer(low);
 		root.draw(new NoOpGC(null));
 
-		// 自分のDrawableが先、子はz順(-5 → 5)
-		assertEquals(List.of("own", "low", "high"), viaView);
+		// 負のz-indexの子(-5)は自分のDrawableより先、正の子(5)は後(CSS 2.1 Appendix E ③→④…⑦、2026-09-05)
+		assertEquals(List.of("low", "own", "high"), viaView);
 	}
 }

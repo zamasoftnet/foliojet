@@ -122,7 +122,7 @@ public abstract class PropertySet {
 			"stroke", "stroke-width", "stroke-opacity", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
 			"stroke-dasharray", "stroke-dashoffset", "stop-color", "stop-opacity", "marker-start", "marker-mid",
 			"marker-end", "marker", "text-anchor", "dominant-baseline", "baseline-shift", "alignment-baseline",
-			"vector-effect", "paint-order", "shape-rendering", "color-interpolation", "color-interpolation-filters",
+			"vector-effect", "shape-rendering", "color-interpolation", "color-interpolation-filters",
 			"flood-color", "flood-opacity", "lighting-color", "clip-rule", "glyph-orientation-vertical",
 			"glyph-orientation-horizontal", "enable-background", "color-rendering");
 

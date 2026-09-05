@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>named page transition with painted page backgrounds</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+p, div { margin: 0; }
+@page { margin: 30pt; background: #eeeeee; }
+@page chapter { background: #ddddff; }
+</style>
+</head>
+<body>
+<p>intro</p>
+<div style="page: chapter; page-break-before: always"><p>chapter body</p></div>
+<p>outro</p>
+</body>
+</html>

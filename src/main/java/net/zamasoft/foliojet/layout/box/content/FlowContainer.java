@@ -128,10 +128,15 @@ public class FlowContainer implements Container {
 	}
 
 	public final void addAbsolute(IAbsoluteBox box, double staticX, double staticY) {
+		this.addAbsolute(box, staticX, staticY, false);
+	}
+
+	@Override
+	public final void addAbsolute(IAbsoluteBox box, double staticX, double staticY, boolean blockStartAnchored) {
 		if (this.absolutes == null) {
 			this.absolutes = new Absolutes();
 		}
-		this.absolutes.addAbsolute(box, staticX, staticY);
+		this.absolutes.addAbsolute(box, staticX, staticY, blockStartAnchored);
 		this.adopt(box);
 	}
 
@@ -147,6 +152,74 @@ public class FlowContainer implements Container {
 		final Floating floating = new Floating(++this.serial, box, lineAxis, pageAxis, moveToNext);
 		this.floatings.addFloating(floating);
 		this.adopt(box);
+	}
+
+	/**
+	 * このコンテナが直接持つページ座標を{@code dy}だけ平行移動します。
+	 * 通常フローはserialとボックスを保った新しい要素へ置き換え、浮動体は
+	 * serial、行軸位置、{@code moveToNext}を保って作り直します。絶対配置は
+	 * ページコンテナの書字方向に従う物理的な静的位置だけを動かします
+	 * ({@link Absolutes#shiftPageAxis(double, WritingMode, java.util.Set)}参照)。
+	 * いずれもリスト順を変えず、{@code keep}に含まれるボックスは元の要素と
+	 * 座標をそのまま残します。
+	 *
+	 * @param dy   ページ軸方向の移動量
+	 * @param keep 移動せず現在位置に留めるボックスの集合
+	 */
+	public final void shiftPageAxis(final double dy, final java.util.Set<IBox> keep) {
+		if (this.flows != null) {
+			for (int i = 0; i < this.flows.size(); ++i) {
+				final Flow flow = this.flows.get(i);
+				if (!keep.contains(flow.box)) {
+					this.flows.set(i, new Flow(flow.serial, flow.box, flow.pageAxis + dy));
+				}
+			}
+		}
+		if (this.floatings != null) {
+			this.floatings.shiftPageAxis(dy, keep);
+		}
+		if (this.absolutes != null) {
+			this.absolutes.shiftPageAxis(dy, this.box.getBlockParams().flow, keep);
+		}
+	}
+
+	/**
+	 * このコンテナが直接持つ通常フローのページ軸終端の最大値を返します。
+	 * リスト末尾が幾何上も最後とは限らないため、全要素を走査します。
+	 *
+	 * @param flow このコンテナのページ軸を決める書字方向
+	 * @return 通常フローがなければ0、あればその終端の最大値
+	 */
+	public final double maxNormalFlowPageEnd(final WritingMode flow) {
+		double pageEnd = 0;
+		if (this.flows != null) {
+			for (final Flow child : this.flows) {
+				pageEnd = Math.max(pageEnd, child.pageAxis + child.box.getPageExtent(flow));
+			}
+		}
+		return pageEnd;
+	}
+
+	/**
+	 * このコンテナへ並列注として登録された浮動体のページ軸終端の最大値を
+	 * 返します。通常floatやページフロートは対象に含めません。
+	 *
+	 * @param flow このコンテナのページ軸を決める書字方向
+	 * @return 配置済み並列注がなければ0、あればその終端の最大値
+	 */
+	public final double maxPageMarginNotePageEnd(final WritingMode flow) {
+		double pageEnd = 0;
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				final Floating floating = this.floatings.getFloating(i);
+				if (floating.box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) {
+					final double extent = Math.max(floating.box.getPageExtent(flow),
+							floating.box.paintedPageExtent(flow));
+					pageEnd = Math.max(pageEnd, floating.pageAxis + extent);
+				}
+			}
+		}
+		return pageEnd;
 	}
 
 	public boolean hasFlows() {
@@ -923,7 +996,8 @@ public class FlowContainer implements Container {
 		if (this.absolutes == null) {
 			return;
 		}
-		this.absolutes.pushDraw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
+		this.absolutes.pushDraw(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
+				this.box.getInnerWidth(), worklist);
 	}
 
 	/**

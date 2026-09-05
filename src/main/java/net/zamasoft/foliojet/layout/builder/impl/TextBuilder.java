@@ -639,14 +639,14 @@ public class TextBuilder {
 				if (params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL
 						&& lineParams.flow.isVertical() && !params.flow.isVertical()
 						&& inlineBlockBox instanceof net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox stf) {
-					// **縦中横(all)は1emのセルへ収める**(css-writing-modes-3
-					// §9.1、2026-08-11)。自然幅で組み終えたこの時点で幅を
+					// **縦中横(all)は1emのセルへ収める**(css-writing-modes-4
+					// §9.1.3、2026-08-11)。自然幅で組み終えたこの時点で幅を
 					// 1emへ差し替え、内容に水平アフィンを掛ける。行が使う
 					// 見かけ幅(=下のascent/descent)もこれで1emになる
 					final java.awt.geom.GeneralPath ink = new java.awt.geom.GeneralPath();
 					final RootBuilder root = this.builder.getPageContext();
 					if (root != null) {
-						stf.textShape(root.getCurrentPageBox(), ink, new java.awt.geom.AffineTransform(), 0, 0);
+						stf.textShapeQuiet(root.getCurrentPageBox(), ink, new java.awt.geom.AffineTransform(), 0, 0);
 					}
 					stf.compressTextCombine(params.fontStyle.getSize(), ink.getCurrentPoint() == null ? null
 							: ink.getBounds2D());

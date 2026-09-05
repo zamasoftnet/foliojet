@@ -378,6 +378,9 @@ public abstract class AbstractTextParams extends Params {
 	 */
 	public Color textStrokeColor = null;
 
+	/** {@code paint-order}でストロークを塗りより先に描くか。 */
+	public boolean strokeBeforeFill = false;
+
 	/**
 	 * 文字の影
 	 */
@@ -395,6 +398,7 @@ public abstract class AbstractTextParams extends Params {
 				+ ",decorationStyle=" + this.decorationStyle + ",decorationThicknessLength="
 				+ this.decorationThicknessLength + ",underlineOffset=" + this.underlineOffset
 				+ ",underlinePosition=" + this.underlinePosition
-				+ ",textStrokeWidth=" + this.textStrokeWidth + ",textStrokeColor=" + this.textStrokeColor + "]";
+				+ ",textStrokeWidth=" + this.textStrokeWidth + ",textStrokeColor=" + this.textStrokeColor
+				+ ",strokeBeforeFill=" + this.strokeBeforeFill + "]";
 	}
 }

@@ -46,7 +46,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		Hyphenator hyphenator, Color color, byte decoration, double decorationThickness, Color decorationColor,
 		byte decorationStyle, double decorationThicknessLength, double underlineOffset, byte underlinePosition,
 		double textStrokeWidth,
-		Color textStrokeColor,
+		Color textStrokeColor, boolean strokeBeforeFill,
 		TextShadow[] textShadows, byte rubyRole, boolean warichu, net.zamasoft.foliojet.css.value.RubyAlignValue rubyAlign,
 		net.zamasoft.foliojet.css.value.RubyMergeValue rubyMerge, boolean rubyOverhang,
 		net.zamasoft.foliojet.css.value.RubyPositionValue rubyPosition, byte textAutospace, boolean textSpacingTrimOff,
@@ -69,7 +69,8 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.hyphenator, source.color, source.decoration, source.decorationThickness,
 				source.decorationColor, source.decorationStyle, source.decorationThicknessLength,
 				source.underlineOffset, source.underlinePosition, source.textStrokeWidth,
-				source.textStrokeColor, source.textShadows, source.rubyRole, source.warichu, source.rubyAlign, source.rubyMerge,
+				source.textStrokeColor, source.strokeBeforeFill, source.textShadows, source.rubyRole, source.warichu,
+				source.rubyAlign, source.rubyMerge,
 				source.rubyOverhang, source.rubyPosition, source.textAutospace,
 				source.textSpacingTrimOff, source.textSpacingTrimStart, source.textSpacingTrimEnd,
 				source.textSpacingSpaceFirst, source.hangingPunctuationEnd, source.hangingPunctuationFirst,
@@ -114,6 +115,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.underlinePosition = this.underlinePosition;
 		target.textStrokeWidth = this.textStrokeWidth;
 		target.textStrokeColor = this.textStrokeColor;
+		target.strokeBeforeFill = this.strokeBeforeFill;
 		target.textShadows = this.textShadows == null ? null : this.textShadows.clone();
 		target.rubyRole = this.rubyRole;
 		target.warichu = this.warichu;

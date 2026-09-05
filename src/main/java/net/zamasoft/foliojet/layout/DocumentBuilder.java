@@ -109,6 +109,9 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private final List<Object> builderStack = new ArrayList<Object>();
 
+	/** builderStack上の非root entryと、平行移動禁止スコープを所有するRootの対応。 */
+	private final java.util.IdentityHashMap<Object, RootBuilder> translateScopeRoots = new java.util.IdentityHashMap<>();
+
 	private final List<Object> inlineStack = new ArrayList<Object>();
 
 	private final List<Object> columnSpanStack = new ArrayList<Object>();
@@ -195,7 +198,35 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	private void startContainerBuilder(Builder builder) {
-		this.builderStack.add(new ContainerBuilderEntry(builder));
+		final ContainerBuilderEntry entry = new ContainerBuilderEntry(builder);
+		if (this.builderStack.isEmpty()) {
+			this.builderStack.add(entry);
+			return;
+		}
+		this.pushScopedBuilder(entry);
+	}
+
+	/** 非root builderを積み、同じ寿命の平行移動禁止スコープを開始します。 */
+	private void pushScopedBuilder(final Object entry) {
+		final RootBuilder root = this.pageContext();
+		if (root != null) {
+			root.enterTranslateBlockScope();
+			this.translateScopeRoots.put(entry, root);
+		}
+		try {
+			this.builderStack.add(entry);
+		} catch (RuntimeException | Error e) {
+			this.finishTranslateBlockScope(entry);
+			throw e;
+		}
+	}
+
+	/** finish/bindまで完了した非root builderのスコープを必ず閉じます。 */
+	private void finishTranslateBlockScope(final Object entry) {
+		final RootBuilder root = this.translateScopeRoots.remove(entry);
+		if (root != null) {
+			root.exitTranslateBlockScope();
+		}
 	}
 
 	private ContainerBuilderEntry containerBuilder() {
@@ -269,18 +300,23 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private ContainerBuilderEntry endContainerBuilder() {
 		ContainerBuilderEntry entry = this.containerBuilder();
-		if (!entry.builder.isTwoPass()) {
-			((BlockBuilder) entry.builder).close();
+		try {
+			if (!entry.builder.isTwoPass()) {
+				((BlockBuilder) entry.builder).close();
+			}
+			// 不変条件: containerBuilder() が探し当てたエントリは builderStack の
+			// 末尾でなければならない(末尾に TableBuilder が残ったまま末尾要素を
+			// 取り除くと、containerBuilder() が返した entry とは別物を消してしまい、
+			// スタックが静かに壊れる — 表キャプション単独再生クラッシュ
+			// (2026-07-18)の調査で発見した builderStack 系の脆さの類例)。
+			assert this.builderStack.get(this.builderStack.size() - 1) == entry : //
+			"containerBuilder() の結果が末尾要素と一致しません: entry=" + entry + ", stack=" + this.builderStack;
+			this.builderStack.remove(this.builderStack.size() - 1);
+			return entry;
+		} catch (RuntimeException | Error e) {
+			this.finishTranslateBlockScope(entry);
+			throw e;
 		}
-		// 不変条件: containerBuilder() が探し当てたエントリは builderStack の
-		// 末尾でなければならない(末尾に TableBuilder が残ったまま末尾要素を
-		// 取り除くと、containerBuilder() が返した entry とは別物を消してしまい、
-		// スタックが静かに壊れる — 表キャプション単独再生クラッシュ
-		// (2026-07-18)の調査で発見した builderStack 系の脆さの類例)。
-		assert this.builderStack.get(this.builderStack.size() - 1) == entry : //
-		"containerBuilder() の結果が末尾要素と一致しません: entry=" + entry + ", stack=" + this.builderStack;
-		this.builderStack.remove(this.builderStack.size() - 1);
-		return entry;
 	}
 
 	private TableBuilder tableBuilder() {
@@ -303,11 +339,17 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	private TableBuilder endTableBuilder() {
-		assert !this.builderStack.isEmpty() && this.builderStack
-				.get(this.builderStack.size() - 1) instanceof TableBuilder : //
-		"閉じるべき TableBuilder が builderStack の末尾にありません: " + this.builderStack;
-		TableBuilder builder = (TableBuilder) this.builderStack.remove(this.builderStack.size() - 1);
-		return builder;
+		final Object top = this.builderStack.isEmpty() ? null : this.builderStack.get(this.builderStack.size() - 1);
+		try {
+			assert top instanceof TableBuilder : //
+			"閉じるべき TableBuilder が builderStack の末尾にありません: " + this.builderStack;
+			return (TableBuilder) this.builderStack.remove(this.builderStack.size() - 1);
+		} catch (RuntimeException | Error e) {
+			if (top != null) {
+				this.finishTranslateBlockScope(top);
+			}
+			throw e;
+		}
 	}
 
 	/**
@@ -364,8 +406,12 @@ public class DocumentBuilder implements TableBuilderHost {
 	private void closeAnonymousItem(final net.zamasoft.foliojet.layout.builder.ItemCoordinator c) {
 		if (c.hasOpenItem() && !c.hasOpenElementItem()) {
 			this.endContainer();
-			this.endContainerBuilder();
-			c.itemClosed();
+			final ContainerBuilderEntry entry = this.endContainerBuilder();
+			try {
+				c.itemClosed();
+			} finally {
+				this.finishTranslateBlockScope(entry);
+			}
 		}
 	}
 
@@ -450,8 +496,12 @@ public class DocumentBuilder implements TableBuilderHost {
 	/** element itemの一件分を畳みます(one-shot経路と子endBox後の共通処理)。 */
 	private void endCoordinatorElementItem(final net.zamasoft.foliojet.layout.builder.ItemCoordinator c) {
 		this.endContainer();
-		this.endContainerBuilder();
-		c.itemClosed();
+		final ContainerBuilderEntry entry = this.endContainerBuilder();
+		try {
+			c.itemClosed();
+		} finally {
+			this.finishTranslateBlockScope(entry);
+		}
 	}
 
 	/**
@@ -731,7 +781,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			// TableBuilderLifecycle(旧TableLayout、C4準備の継ぎ目、2026-07-19。2026-07-21命名訂正)へ委譲。挙動は不変。
 			final TableBuilder tableBuilder = net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.start(builder,
 					tableBox);
-			this.builderStack.add(tableBuilder);
+			this.pushScopedBuilder(tableBuilder);
 		}
 			break;
 
@@ -814,13 +864,13 @@ public class DocumentBuilder implements TableBuilderHost {
 				// 直接子をitem化する(Grid G1b)。不適格ならBlockBox同然の
 				// フォールバック(G0)のまま
 				if (blockBox instanceof GridBox gridBox && GridBuilderLifecycle.eligible(gridBox, builder)) {
-					this.builderStack.add(GridBuilderLifecycle.start(builder, gridBox));
+					this.pushScopedBuilder(GridBuilderLifecycle.start(builder, gridBox));
 				}
 				// Flex本体の開始(Flex F1d——Gridと同じ形。不適格はF0の
 				// 単一列フローのまま)
 				if (blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flexBox
 						&& FlexBuilderLifecycle.eligible(flexBox, builder)) {
-					this.builderStack.add(FlexBuilderLifecycle.start(builder, flexBox));
+					this.pushScopedBuilder(FlexBuilderLifecycle.start(builder, flexBox));
 				}
 			} else {
 				// ページ進行方向が違う場合
@@ -831,7 +881,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				// shrinkToFit後のbindでrow/column配置される)
 				if (blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox orthoFlex
 						&& FlexBuilderLifecycle.eligible(orthoFlex, newBuilder)) {
-					this.builderStack.add(FlexBuilderLifecycle.start(newBuilder, orthoFlex));
+					this.pushScopedBuilder(FlexBuilderLifecycle.start(newBuilder, orthoFlex));
 				}
 			}
 			this.startContainer();
@@ -874,35 +924,40 @@ public class DocumentBuilder implements TableBuilderHost {
 		case TABLE: {
 			// テーブル
 			final TableBuilder tableBuilder = this.endTableBuilder();
-			final TableBox tableBox = tableBuilder.getTableBox();
-			final TableParams tableParams = tableBox.getTableParams();
-			switch (tableBox.getBlockBox().getPos().getType()) {
-			case FLOW:
-				this.closeInlines(tableBox.getBlockBox().getParams());
-				this.endContainer();
-				break;
-			case FLOAT:
-				this.containerBuilder().getStyledTextUnitizer().flushText();
-				break;
-			}
-			final Builder builder = this.containerBuilder().builder;
-			// 終了処理もTableBuilderLifecycleへ委譲(開始側のルーティング結果と一致させるため、
-			// 条件を再計算せずtableBuilder自身に問うのは従来どおり)。挙動は不変。
-			net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.finish(tableBuilder, builder);
-			switch (tableBox.getBlockBox().getPos().getType()) {
-			case FLOW:
-				this.startContainer();
-				this.restoreInlines(tableParams);
-				break;
-			case INLINE:
-				this.containerBuilder().getStyledTextUnitizer().addInlineBlock((InlineBlockBox) tableBox.getBlockBox());
-				break;
-			case ABSOLUTE:
-				final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) tableBox.getBlockBox();
-				if (absoluteBox.getAbsolutePos().autoPosition == AutoPosition.INLINE) {
-					this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
+			try {
+				final TableBox tableBox = tableBuilder.getTableBox();
+				final TableParams tableParams = tableBox.getTableParams();
+				switch (tableBox.getBlockBox().getPos().getType()) {
+				case FLOW:
+					this.closeInlines(tableBox.getBlockBox().getParams());
+					this.endContainer();
+					break;
+				case FLOAT:
+					this.containerBuilder().getStyledTextUnitizer().flushText();
+					break;
 				}
-				break;
+				final Builder builder = this.containerBuilder().builder;
+				// 終了処理もTableBuilderLifecycleへ委譲(開始側のルーティング結果と一致させるため、
+				// 条件を再計算せずtableBuilder自身に問うのは従来どおり)。挙動は不変。
+				net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.finish(tableBuilder, builder);
+				switch (tableBox.getBlockBox().getPos().getType()) {
+				case FLOW:
+					this.startContainer();
+					this.restoreInlines(tableParams);
+					break;
+				case INLINE:
+					this.containerBuilder().getStyledTextUnitizer()
+							.addInlineBlock((InlineBlockBox) tableBox.getBlockBox());
+					break;
+				case ABSOLUTE:
+					final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) tableBox.getBlockBox();
+					if (absoluteBox.getAbsolutePos().autoPosition == AutoPosition.INLINE) {
+						this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
+					}
+					break;
+				}
+			} finally {
+				this.finishTranslateBlockScope(tableBuilder);
 			}
 		}
 			break;
@@ -912,24 +967,28 @@ public class DocumentBuilder implements TableBuilderHost {
 			// キャプション
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
-			if (box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.TABLE_CAPTION
-					&& entry.builder instanceof TwoPassBlockBuilder sealable) {
-				// caption recipe化C3(2026-08-01、consult-codex-2026-08-01-
-				// caption-recipe.txt): キャプション本文の録画完了点での
-				// range seal(float/inline-blockのclose時sealと同型)。
-				// C1のrecipe記録化でendOf(anchor)が引けるようになり、body
-				// レンジ[anchor+1, endId-1]は箱自身のStartを含まないため
-				// 単独CAPTION再生(G-1)の形にはならない。caption builder
-				// 自身はtop/bottomCaptionsに保持され、後で通常どおり
-				// bind(anonBuilder)される——そのbindがrange駆動になる
-				sealable.sealBodyForRangeBind();
-			} else {
-				// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
-				// (Retained実装のみ。適格ならCellContentがrecords解放+
-				// range+lease保持へ切り替わる)
-				this.tableBuilder().sealCellContext(entry.builder);
+			try {
+				if (box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.TABLE_CAPTION
+						&& entry.builder instanceof TwoPassBlockBuilder sealable) {
+					// caption recipe化C3(2026-08-01、consult-codex-2026-08-01-
+					// caption-recipe.txt): キャプション本文の録画完了点での
+					// range seal(float/inline-blockのclose時sealと同型)。
+					// C1のrecipe記録化でendOf(anchor)が引けるようになり、body
+					// レンジ[anchor+1, endId-1]は箱自身のStartを含まないため
+					// 単独CAPTION再生(G-1)の形にはならない。caption builder
+					// 自身はtop/bottomCaptionsに保持され、後で通常どおり
+					// bind(anonBuilder)される——そのbindがrange駆動になる
+					sealable.sealBodyForRangeBind();
+				} else {
+					// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
+					// (Retained実装のみ。適格ならCellContentがrecords解放+
+					// range+lease保持へ切り替わる)
+					this.tableBuilder().sealCellContext(entry.builder);
+				}
+				assert this.builderStack.size() != 1;
+			} finally {
+				this.finishTranslateBlockScope(entry);
 			}
-			assert this.builderStack.size() != 1;
 		}
 			break;
 		case TABLE_COLUMN:
@@ -951,21 +1010,25 @@ public class DocumentBuilder implements TableBuilderHost {
 				// インラインブロック
 				this.endContainer();
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
-				if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-					// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
-					sealable.sealBodyForRangeBind();
+				try {
+					if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+						// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
+						sealable.sealBodyForRangeBind();
+					}
+					final InlineBlockBox inlineBlockBox = (InlineBlockBox) entry.builder.getRootBox();
+					final Builder parentBuilder = this.containerBuilder().builder;
+					if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
+						// インラインブロックボックスの幅が明示されてなかった場合
+						final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
+						inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.intrinsicSizesMeasured(), false);
+						final BlockBuilder inlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
+						stfBuilder.bind(inlineBlockBuilder);
+						inlineBlockBuilder.close();
+					}
+					this.containerBuilder().getStyledTextUnitizer().addInlineBlock(inlineBlockBox);
+				} finally {
+					this.finishTranslateBlockScope(entry);
 				}
-				final InlineBlockBox inlineBlockBox = (InlineBlockBox) entry.builder.getRootBox();
-				final Builder parentBuilder = this.containerBuilder().builder;
-				if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
-					// インラインブロックボックスの幅が明示されてなかった場合
-					final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
-					inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.intrinsicSizesMeasured(), false);
-					final BlockBuilder inlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
-					stfBuilder.bind(inlineBlockBuilder);
-					inlineBlockBuilder.close();
-				}
-				this.containerBuilder().getStyledTextUnitizer().addInlineBlock(inlineBlockBox);
 			}
 		}
 			break;
@@ -976,8 +1039,12 @@ public class DocumentBuilder implements TableBuilderHost {
 			final GridBuilder gridItemHost = this.gridItemEndingAt(box);
 			if (gridItemHost != null) {
 				this.endContainer();
-				this.endContainerBuilder();
-				gridItemHost.itemClosed();
+				final ContainerBuilderEntry entry = this.endContainerBuilder();
+				try {
+					gridItemHost.itemClosed();
+				} finally {
+					this.finishTranslateBlockScope(entry);
+				}
 				this.startContainer();
 				this.restoreInlines(box.getParams());
 				break;
@@ -985,8 +1052,12 @@ public class DocumentBuilder implements TableBuilderHost {
 			final FlexBuilder flexItemHost = this.flexItemEndingAt(box);
 			if (flexItemHost != null) {
 				this.endContainer();
-				this.endContainerBuilder();
-				flexItemHost.itemClosed();
+				final ContainerBuilderEntry entry = this.endContainerBuilder();
+				try {
+					flexItemHost.itemClosed();
+				} finally {
+					this.finishTranslateBlockScope(entry);
+				}
 				this.startContainer();
 				this.restoreInlines(box.getParams());
 				break;
@@ -998,9 +1069,13 @@ public class DocumentBuilder implements TableBuilderHost {
 			final net.zamasoft.foliojet.layout.builder.ItemCoordinator ending = this.coordinatorEndingAt(box);
 			if (ending != null) {
 				this.closeAnonymousItem(ending);
-				final Object popped = this.builderStack.remove(this.builderStack.size() - 1);
-				assert popped == ending : "coordinator終端でbuilderStack末尾が一致しません: " + popped;
-				ending.finish();
+				try {
+					final Object popped = this.builderStack.remove(this.builderStack.size() - 1);
+					assert popped == ending : "coordinator終端でbuilderStack末尾が一致しません: " + popped;
+					ending.finish();
+				} finally {
+					this.finishTranslateBlockScope(ending);
+				}
 			}
 			// 通常のフロー
 			this.endContainer();
@@ -1011,22 +1086,26 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.startContainer();
 			} else {
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
-				final Builder parentBuilder = this.containerBuilder().builder;
-				if (!parentBuilder.isTwoPass()) {
-					if (entry.builder.isTwoPass()) {
-						// ビルド
-						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						blockBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
-						final BlockBuilder bindBuilder = new BlockBuilder(this.pageContextBuilder(), blockBox);
-						contentBuilder.bind(bindBuilder);
-						bindBuilder.close();
+				try {
+					final Builder parentBuilder = this.containerBuilder().builder;
+					if (!parentBuilder.isTwoPass()) {
+						if (entry.builder.isTwoPass()) {
+							// ビルド
+							final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+							blockBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+							final BlockBuilder bindBuilder = new BlockBuilder(this.pageContextBuilder(), blockBox);
+							contentBuilder.bind(bindBuilder);
+							bindBuilder.close();
+						}
+						parentBuilder.addBound(blockBox);
+					} else if (entry.builder.isTwoPass()) {
+						// 親も計測中なら、再生イベントの記録だけでなく子のouter
+						// contributionを親の固有寸法へ渡す。特に直交フローでは
+						// 子ページ軸→親行軸の変換が必要になる。
+						((TwoPassBlockBuilder) parentBuilder).fitBlock((TwoPassBlockBuilder) entry.builder);
 					}
-					parentBuilder.addBound(blockBox);
-				} else if (entry.builder.isTwoPass()) {
-					// 親も計測中なら、再生イベントの記録だけでなく子のouter
-					// contributionを親の固有寸法へ渡す。特に直交フローでは
-					// 子ページ軸→親行軸の変換が必要になる。
-					((TwoPassBlockBuilder) parentBuilder).fitBlock((TwoPassBlockBuilder) entry.builder);
+				} finally {
+					this.finishTranslateBlockScope(entry);
 				}
 				this.startContainer();
 			}
@@ -1047,115 +1126,122 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 浮動体
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
-			if (!this.scratchMeasurement && entry.builder instanceof TwoPassBlockBuilder sealable) {
-				// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
-				sealable.sealBodyForRangeBind();
-			}
-			final Builder parentBuilder = this.containerBuilder().builder;
-			this.noteBidiBarrier(box);
-			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloatPos) {
-				// ページフロート(2026-08-02): 脚注と同じ経路で本文から
-				// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
-				// 再生)ではどこにも置かれない=測定等価
-				final FloatBlockBox pageFloatBox = (FloatBlockBox) entry.builder.getRootBox();
-				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
-					// TwoPass本文では専用recordへ保留し、bind時に一度だけページ台帳へ
-					// 渡す。scratchではページ外要素なので計測へ寄与せず破棄する。
+			try {
+				if (!this.scratchMeasurement && entry.builder instanceof TwoPassBlockBuilder sealable) {
+					// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
+					sealable.sealBodyForRangeBind();
+				}
+				final Builder parentBuilder = this.containerBuilder().builder;
+				this.noteBidiBarrier(box);
+				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloatPos) {
+					// ページフロート(2026-08-02): 脚注と同じ経路で本文から
+					// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
+					// 再生)ではどこにも置かれない=測定等価
+					final FloatBlockBox pageFloatBox = (FloatBlockBox) entry.builder.getRootBox();
+					if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+						// TwoPass本文では専用recordへ保留し、bind時に一度だけページ台帳へ
+						// 渡す。scratchではページ外要素なので計測へ寄与せず破棄する。
+						break;
+					}
+					if (entry.builder.isTwoPass()) {
+						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+						pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
+						// 浮動体・脚注と同じ理由で、使い捨て計測の最中は消費しない
+						contentBuilder.bind(pageFloatBuilder, this.scratchMeasurement);
+						pageFloatBuilder.close();
+					}
+					this.finishTranslateBlockScope(entry);
+					if (this.pageContext() instanceof RootBuilder root) {
+						root.addPageFloat(pageFloatBox, pageFloatPos.top);
+					}
 					break;
 				}
-				if (entry.builder.isTwoPass()) {
-					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
-					final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
-					// 浮動体・脚注と同じ理由で、使い捨て計測の最中は消費しない
-					contentBuilder.bind(pageFloatBuilder, this.scratchMeasurement);
-					pageFloatBuilder.close();
-				}
-				if (this.pageContext() instanceof RootBuilder root) {
-					root.addPageFloat(pageFloatBox, pageFloatPos.top);
-				}
-				break;
-			}
-			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos notePos) {
-				// JLREQ 4.2.7の並列注。ページフロートと同じ分離builderで
-				// 組み、本文の現在位置に近い版面外の注領域へ渡す。
-				this.notePageMarginNoteInGrids();
-				final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
-				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos notePos) {
+					// JLREQ 4.2.7の並列注。ページフロートと同じ分離builderで
+					// 組み、本文の現在位置に近い版面外の注領域へ渡す。
+					this.notePageMarginNoteInGrids();
+					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
+					if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+						break;
+					}
+					if (entry.builder.isTwoPass()) {
+						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+						noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
+						contentBuilder.bind(noteBuilder, this.scratchMeasurement);
+						noteBuilder.close();
+					}
+					this.finishTranslateBlockScope(entry);
+					if (this.pageContext() instanceof RootBuilder root) {
+						root.addPageMarginNote(noteBox, notePos.start);
+					}
 					break;
 				}
-				if (entry.builder.isTwoPass()) {
-					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
-					final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
-					contentBuilder.bind(noteBuilder, this.scratchMeasurement);
-					noteBuilder.close();
-				}
-				if (this.pageContext() instanceof RootBuilder root) {
-					root.addPageMarginNote(noteBox, notePos.start);
-				}
-				break;
-			}
-			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
-				// 脚注F2/F3(2026-07-31、consult-codex-2026-07-31-footnote.txt
-				// §3): 本文は親のflowへ入れない(呼び出し位置にはF1の
-				// ::footnote-callだけが残る)。組み上がった本文ボックスを
-				// ページ脚注台帳(RootBuilder)へ渡し、ページ下端領域に
-				// 描かれる。scratch計測・再生等でRootBuilderが根に無い
-				// 文脈では台帳が無い=どこにも置かれない(本文はflow外
-				// なので測定等価。two-passのseal→bindは通常どおり対に
-				// なりリースは孤児化しない)
-				final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
-				if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
-					// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
+				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
+					// 脚注F2/F3(2026-07-31、consult-codex-2026-07-31-footnote.txt
+					// §3): 本文は親のflowへ入れない(呼び出し位置にはF1の
+					// ::footnote-callだけが残る)。組み上がった本文ボックスを
+					// ページ脚注台帳(RootBuilder)へ渡し、ページ下端領域に
+					// 描かれる。scratch計測・再生等でRootBuilderが根に無い
+					// 文脈では台帳が無い=どこにも置かれない(本文はflow外
+					// なので測定等価。two-passのseal→bindは通常どおり対に
+					// なりリースは孤児化しない)
+					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
+					if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+						// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
+						break;
+					}
+					if (entry.builder.isTwoPass()) {
+						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+						noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
+						// 浮動体と同じ理由で、使い捨て計測の最中は消費しない
+						contentBuilder.bind(noteBuilder, this.scratchMeasurement);
+						noteBuilder.close();
+					}
+					this.finishTranslateBlockScope(entry);
+					if (this.pageContext() instanceof RootBuilder root) {
+						root.addFootnote(noteBox);
+					}
 					break;
 				}
-				if (entry.builder.isTwoPass()) {
-					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
-					final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
-					// 浮動体と同じ理由で、使い捨て計測の最中は消費しない
-					contentBuilder.bind(noteBuilder, this.scratchMeasurement);
-					noteBuilder.close();
+				if (!parentBuilder.isTwoPass()) {
+					final BlockBuilder boundBuilder = (BlockBuilder) parentBuilder;
+					final FloatBlockBox floatBox = (FloatBlockBox) entry.builder.getRootBox();
+					if (entry.builder.isTwoPass()) {
+						// ビルド
+						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+						floatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
+						// **使い捨て計測の最中は本文を消費しない**(2026-08-03)。
+						// ここで本番のbindをすると使用権が閉じ、あとの本番では
+						// 空になる(内容消失。TwoPassBlockBuilder.bindのjavadoc参照)
+						contentBuilder.bind(floatBuilder, this.scratchMeasurement);
+						floatBuilder.close();
+					}
+					final FloatPos pos = (FloatPos) box.getPos();
+					final boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != PageBreakMode.AUTO
+							&& pos.pageBreakBefore != PageBreakMode.AVOID)
+							|| (pos.pageBreakAfter != PageBreakMode.AUTO
+									&& pos.pageBreakAfter != PageBreakMode.AVOID)));
+					if (pageBreak) {
+						this.closeInlines(box.getParams());
+						this.endContainer();
+					}
+					boundBuilder.addBound(floatBox);
+					if (pageBreak) {
+						this.startContainer();
+						this.restoreInlines(box.getParams());
+					}
+				} else if (entry.builder.isTwoPass()) {
+					// STFコンテキスト内
+					TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) parentBuilder;
+					TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+					stfBuilder.fitFloating(contentBuilder);
 				}
-				if (this.pageContext() instanceof RootBuilder root) {
-					root.addFootnote(noteBox);
-				}
-				break;
-			}
-			if (!parentBuilder.isTwoPass()) {
-				final BlockBuilder boundBuilder = (BlockBuilder) parentBuilder;
-				final FloatBlockBox floatBox = (FloatBlockBox) entry.builder.getRootBox();
-				if (entry.builder.isTwoPass()) {
-					// ビルド
-					final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					floatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
-					final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
-					// **使い捨て計測の最中は本文を消費しない**(2026-08-03)。
-					// ここで本番のbindをすると使用権が閉じ、あとの本番では
-					// 空になる(内容消失。TwoPassBlockBuilder.bindのjavadoc参照)
-					contentBuilder.bind(floatBuilder, this.scratchMeasurement);
-					floatBuilder.close();
-				}
-				final FloatPos pos = (FloatPos) box.getPos();
-				final boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != PageBreakMode.AUTO
-						&& pos.pageBreakBefore != PageBreakMode.AVOID)
-						|| (pos.pageBreakAfter != PageBreakMode.AUTO
-								&& pos.pageBreakAfter != PageBreakMode.AVOID)));
-				if (pageBreak) {
-					this.closeInlines(box.getParams());
-					this.endContainer();
-				}
-				boundBuilder.addBound(floatBox);
-				if (pageBreak) {
-					this.startContainer();
-					this.restoreInlines(box.getParams());
-				}
-			} else if (entry.builder.isTwoPass()) {
-				// STFコンテキスト内
-				TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) parentBuilder;
-				TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-				stfBuilder.fitFloating(contentBuilder);
+			} finally {
+				this.finishTranslateBlockScope(entry);
 			}
 		}
 			break;
@@ -1164,49 +1250,53 @@ public class DocumentBuilder implements TableBuilderHost {
 			// 絶対位置指定
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
-			if (this.scratchMeasurement) {
-				// 使い捨て計測(表Pass B)駆動: seal・prepareBind・係留を
-				// スキップし、子builderをreplicaごと破棄する(sealすると
-				// 本物のリースを取得したまま破棄されリース孤児化する。
-				// 絶対配置はflow外で計測値に寄与しないため計測等価——
-				// absolute吸収=codex増分9、2026-07-30)
-				break;
-			}
-			if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-				// E-6増分4a/4b: 録画完了点でのrange seal。E-6増分4eの
-				// recipe記録化により絶対配置も適格になる(旧NO_RANGE=81の解消)。
-				// 適格な本文は下のprepareBindでDeferredBindへ持ち出される
-				sealable.sealBodyForRangeBind();
-			}
-			Builder builder = this.contextBuilder().builder;
-			if (!builder.isTwoPass()) {
-				BlockBuilder boundBuilder = (BlockBuilder) builder;
-				AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) entry.builder.getRootBox();
-				if (entry.builder.isTwoPass()) {
-					// ビルド
-					TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-					if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
-						// position: fixed; の場合、ここで構築
-						IFramedBox containerBox = this.pageContextBuilder().getRootBox();
-						absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
-						BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
-						contentBuilder.bind(absoluteBuilder);
-						absoluteBuilder.close();
-					} else {
-						// position: absolute; は後で構築
-						absoluteBox.prepareBind(contentBuilder);
+			try {
+				if (this.scratchMeasurement) {
+					// 使い捨て計測(表Pass B)駆動: seal・prepareBind・係留を
+					// スキップし、子builderをreplicaごと破棄する(sealすると
+					// 本物のリースを取得したまま破棄されリース孤児化する。
+					// 絶対配置はflow外で計測値に寄与しないため計測等価——
+					// absolute吸収=codex増分9、2026-07-30)
+					break;
+				}
+				if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+					// E-6増分4a/4b: 録画完了点でのrange seal。E-6増分4eの
+					// recipe記録化により絶対配置も適格になる(旧NO_RANGE=81の解消)。
+					// 適格な本文は下のprepareBindでDeferredBindへ持ち出される
+					sealable.sealBodyForRangeBind();
+				}
+				Builder builder = this.contextBuilder().builder;
+				if (!builder.isTwoPass()) {
+					BlockBuilder boundBuilder = (BlockBuilder) builder;
+					AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) entry.builder.getRootBox();
+					if (entry.builder.isTwoPass()) {
+						// ビルド
+						TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
+						if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
+							// position: fixed; の場合、ここで構築
+							IFramedBox containerBox = this.pageContextBuilder().getRootBox();
+							absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
+							BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
+							contentBuilder.bind(absoluteBuilder);
+							absoluteBuilder.close();
+						} else {
+							// position: absolute; は後で構築
+							absoluteBox.prepareBind(contentBuilder);
+						}
+					}
+					switch (absoluteBox.getAbsolutePos().autoPosition) {
+					case AutoPosition.BLOCK:
+						boundBuilder.addBound(absoluteBox);
+						break;
+					case AutoPosition.INLINE:
+						this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
+						break;
+					default:
+						throw new IllegalStateException();
 					}
 				}
-				switch (absoluteBox.getAbsolutePos().autoPosition) {
-				case AutoPosition.BLOCK:
-					boundBuilder.addBound(absoluteBox);
-					break;
-				case AutoPosition.INLINE:
-					this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
-					break;
-				default:
-					throw new IllegalStateException();
-				}
+			} finally {
+				this.finishTranslateBlockScope(entry);
 			}
 		}
 			break;
@@ -1367,7 +1457,9 @@ public class DocumentBuilder implements TableBuilderHost {
 			this.endBox();
 		}
 		this.endContainer();
-		this.endContainerBuilder();
+		final ContainerBuilderEntry entry = this.endContainerBuilder();
+		this.finishTranslateBlockScope(entry);
 		assert this.builderStack.isEmpty() : "document end後もbuilderStackが残っています: " + this.builderStack;
+		assert this.translateScopeRoots.isEmpty() : "document end後もtranslate scopeが残っています";
 	}
 }

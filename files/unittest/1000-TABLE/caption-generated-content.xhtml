@@ -1,0 +1,997 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head><meta charset="UTF-8"/><title>Schistosomiasis</title>
+<style type="text/css">/*<![CDATA[*/
+@charset "utf-8";
+
+/*
+ * 書籍レイアウト
+ *
+ * 『ドキュメント全国部落調査事件』(示現舎)の本文組版が土台。単体記事へ
+ * 流用するにあたり、部・章のカウンタ、ページ番号付きの印刷目次、中扉・
+ * 奥付・全頁図版・末尾の無地ページ、EPUB固有の指定は落とした。
+ *
+ * 書体はサーバーに入っているものを名前で参照する。実在する名前は
+ * Copper の info アクション(http://www.cssj.jp/ns/ctip/fonts/families)で
+ * 引ける。6,752ファミリ、うち日本語対応が731。
+ *
+ * 疑似ボールド・疑似イタリックは使わない(font-synthesis: none)。
+ * 太さは実在する面だけを使う。源暎ゴシックNは300〜900を持つ。
+ */
+
+/* ---------------- 書体の割り当て ---------------- */
+
+:root {
+	/* 本文の明朝。組版指定で差し替わる */
+	--font-mincho: "源暎ちくご明朝 v3", "Noto Serif JP", serif;
+	/* 見出し・柱のゴシック */
+	--font-gothic: "源暎ゴシックN", "Noto Sans JP", sans-serif;
+	/* ノンブル。本文の数字と見分けるため別書体にする */
+	--font-nombre: "源暎ノンブル Roman", "Noto Serif JP", serif;
+	/* 表紙の題名。仮名に表情のある書体を当てる */
+	--font-display: "源暎ラテミン v2", "源暎ちくご明朝 v3", serif;
+	/* 欧文の見出し・ワードマーク */
+	--font-sans: "源暎ユニバーサンズ", "Noto Sans JP", sans-serif;
+	/* 引用。本文よりわずかに小ぶりの明朝 */
+	--font-quote: "源暎こぶり明朝 v6", "源暎ちくご明朝 v3", serif;
+	/* 注記・キャプション */
+	--font-note: "源暎エムゴv2", "Noto Sans JP", sans-serif;
+	/* 等幅 */
+	--font-mono: "源暎モノコード", monospace;
+
+	--ink: #000000;
+	--ink-soft: #444444;
+	--ink-faint: #6A7078;
+	/* 表紙。cti.li のライムグリーンをそのまま全面に敷くと目に痛いので、
+	   地は沈めた深緑にし、ライムグリーンは細い罫と地の帯だけに使う。
+	   字は白。三色に絞ると印刷でも濁らない。 */
+	--accent: #32CD32;
+	--ground: #123D1E;
+	--ground-deep: #0C2A14;
+}
+
+/* ---------------- 判型と柱・ノンブル ---------------- */
+
+@page {
+	size: 106mm 173mm;                /* 新書判。組版指定で上書きされる */
+	margin: 22mm 13.8mm 19mm 13.8mm;  /* 天 / 小口 / 地 / ノド */
+	counter-increment: page;
+}
+
+/* 柱は左右どちらの頁にも、欄外の上、ノンブルと同じ小口側に置く。
+   string() の第2引数は first(既定)。first-except だと章の始まりの頁で
+   空になるので使わない——柱はすべての頁に出す。 */
+@page :left {
+	@top-left {
+		content: string(chapter);
+		font-family: var(--font-gothic);
+		font-weight: 300;
+		font-size: 6pt;
+		letter-spacing: 0.1em;
+		color: var(--ink-soft);
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+	@bottom-left {
+		content: counter(page);
+		font-family: var(--font-nombre);
+		font-weight: 400;
+		font-size: 7.5pt;
+		letter-spacing: 0.12em;
+		color: var(--ink-soft);
+		vertical-align: middle;
+	}
+}
+@page :right {
+	@top-right {
+		content: string(chapter);
+		font-family: var(--font-gothic);
+		font-weight: 300;
+		font-size: 6pt;
+		letter-spacing: 0.1em;
+		color: var(--ink-soft);
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+	@bottom-right {
+		content: counter(page);
+		font-family: var(--font-nombre);
+		font-weight: 400;
+		font-size: 7.5pt;
+		letter-spacing: 0.12em;
+		color: var(--ink-soft);
+		vertical-align: middle;
+	}
+}
+
+/* ---------------- 本文 ---------------- */
+
+html {
+	writing-mode: vertical-rl;
+	/* 疑似ボールド(輪郭太らせ)・疑似イタリック(機械傾斜)を禁止する。
+	   実フォントにあるウェイト・字形だけを使う。 */
+	font-synthesis: none;
+}
+
+body {
+	writing-mode: vertical-rl;
+	margin: 0;
+	font-family: var(--font-mincho);
+	font-weight: 400;
+	font-size: 3mm;
+	line-height: 1.633;
+	text-align: justify;
+	color: var(--ink);
+	/* 和欧間・和数字間の空き、約物の詰め、行末のぶら下げ。
+	   いずれも日本語組版の要で、Copperが面倒を見る。 */
+	text-autospace: normal;
+	text-spacing-trim: normal;
+	hanging-punctuation: allow-end;
+}
+
+/* ---------------- 画面で読むための版 ----------------
+
+   文芸作品を画面で読むときの推奨値にもとづく。紙と違って綴じ代も
+   断ち落としも要らず、画面の面積は限られているので、余白は薄く取り、
+   本文は大きく組む。判型は「画面サイズ」を選んだときだけ効く。
+
+   | 本文    | 17〜18px       |
+   | 字間    | 0(ベタ組み)     |
+   | 行間=列間 | 0.6〜0.8em     |
+   | 上下余白 | 20〜28px       |
+   | 左右余白 | 18〜24px       |
+   | 段落    | 1字下げ、間は空けない |
+
+   用紙の寸法と余白は組版側が画面の実寸から出す。ここは字の側だけ。 */
+body.screen {
+	font-size: 17.5px;
+	/* 行間0.75em ぶんを行の高さへ足す */
+	line-height: 1.75;
+	letter-spacing: 0;
+}
+body.screen figcaption { font-size: 0.74em; }
+body.screen h1, body.screen h2 { font-size: 1.14em; }
+body.screen h3, body.screen h4 { font-size: 1.03em; }
+body.screen blockquote { margin: 1.6em 1em 1em; }
+
+
+p {
+	margin: 0;
+	text-indent: 1em;
+	orphans: 1;
+	widows: 1;
+}
+
+/* ---------------- 段組み ---------------- */
+
+.main {
+	column-gap: 5mm;
+	column-rule: 0.25pt solid #999999;
+	column-fill: balance;
+}
+body.col2 .main { column-count: 2; }
+body.col1 .main { column-count: 1; }
+
+/* ---------------- 見出し ---------------- */
+
+/* note や Wikipedia の節見出しは h2 / h3 で来る。段抜きはしない。
+   段抜きすると短い記事では段組みが崩れて読みにくくなる。 */
+h1, h2, h3, h4 {
+	font-family: var(--font-gothic);
+	font-weight: 500;
+	letter-spacing: 0.1em;
+	text-indent: 0;
+	/* 見出しの後で改頁しない。図版のように割れない箱が続く場合も、
+	   見出しごと次の頁へ送られることを実測で確かめてある。 */
+	page-break-after: avoid;
+	break-after: avoid;
+	/* 見出し自身が頁をまたいで割れるのも防ぐ。Wikipediaの節名は
+	   長いものがあり、二行になると割れる余地ができる。 */
+	page-break-inside: avoid;
+	break-inside: avoid;
+}
+/* 見出し・キャプション・注の大きさは本文からの比で書く。本文の大きさは
+   読み手が選べる(BookRenderer::bodySizes)ので、絶対値で書くと本文だけが
+   大きくなって釣り合いが崩れる。 */
+h1, h2 {
+	font-size: 1.2em;
+	margin: 1.6em 0 0.5em;
+}
+h3, h4 {
+	font-size: 1.07em;
+	font-weight: 400;
+	margin: 1.3em 0 0.4em;
+}
+
+/* ---------------- 引用・区切り ---------------- */
+
+blockquote {
+	font-family: var(--font-quote);
+	margin: 2em 1.2em 1em;
+}
+blockquote p {
+	text-indent: 0;
+	margin-block-end: 0.9em;
+}
+
+hr {
+	border: none;
+	height: 0;
+	margin: 0 2.45mm;
+	padding: 0;
+}
+hr + p { margin-block-start: 1.2em; }
+
+/* ---------------- 縦組み固有 ---------------- */
+
+/* 縦中横。二桁の数字などを横に倒さず組む */
+/* 縦中横。1桁は正立、2桁は組み合わせて1文字ぶんに収める。
+   min-width を掛けるのは2桁のときだけでよい。1桁に掛けると
+   前後の字送りが不揃いに見える。 */
+.tcy {
+	text-combine-upright: all;
+	text-align: center;
+}
+
+ruby > rt { font-size: 0.5em; }
+
+/* 青空文庫式の傍点。note には傍点の機能が無いので、小説の書き手は
+   `｜変《﹅》｜わ《﹅》` のようにゴマ点をルビとして打ち込む。取得側で
+   これを拾ってこの印を付ける(BookDoc::applyAozoraRuby)。
+   強調の指定(ゴシック体/ゴマ圏点)とは別で、書き手が明示した傍点は
+   どちらを選んでいても傍点として組む。 */
+.kenten {
+	-cssj-text-emphasis: filled sesame;
+	text-emphasis: filled sesame;
+}
+
+/* ---------------- 強調 ---------------- */
+
+/* 既定はゴシック。note や Wikipedia の strong は「太字」の意味で使われ、
+   添付ファイル名などにも付く。一律に圏点へ変えると意図しない箇所に付く。 */
+strong {
+	font-family: var(--font-gothic);
+	font-weight: 500;
+}
+em {
+	font-style: normal;
+	-cssj-text-emphasis: filled sesame;
+	text-emphasis: filled sesame;
+}
+/* 書籍と同じく強調をゴマ圏点にしたい場合 */
+body.emph-sesame strong {
+	font-family: inherit;
+	font-weight: 400;
+	-cssj-text-emphasis: filled sesame;
+	text-emphasis: filled sesame;
+}
+
+/* ---------------- 図版・表・注記 ---------------- */
+
+/* 図版はひとまとまりの独立した塊として置く。
+
+   **縦組みでも図版の中だけは横組みにする。** キャプションは数字・欧字・
+   単位が多く、縦に組むと縦中横だらけになって読みにくい。横に流せば
+   写真の下へ一行か二行で収まる。
+
+   キャプションだけを横組みにする手も試したが、Copperは縦組みの流れの
+   中に置いた横組みの塊を原子的に扱うため、キャプションが行送り方向を
+   丸ごと占めて次の頁へ送られ、後ろの本文ごと消えた。図版全体を横組みに
+   すれば、図版が一つの原子として収まり、本文はその脇を流れる。
+
+   横幅は組版側が版面から計算して上書きする(BookRenderer::overrideCss)。
+   直交する流れでは幅が決まっていないと落ち着かない。
+
+   縦組みでの行内方向は上下なので、text-align は上下の寄せになる。
+   上へ寄せると図版の天が本文の行頭と揃う。 */
+/* **中身を見ずに figure を横組みにしてはいけない。** note は引用の囲みも
+   figure で包むので、本文の引用まで向きが変わる(『【情報①】今年は北海道
+   命名150年の…』が横組みになっていた)。画像を含む figure にだけ
+   `fig-image` の印が付く(BookDoc::normalize)。印の無い figure は本文の
+   向きのままにし、中の blockquote などに間隔を任せる。 */
+figure {
+	margin: 0;
+	text-indent: 0;
+	page-break-inside: avoid;
+	break-inside: avoid;
+}
+
+figure.fig-image {
+	/* **図版はページの端へ寄せる(ページフロート)。**
+	   本文の流れの中に割れない大きな箱があると、見出しの直後で行き場が
+	   無くなり、見出しだけの頁ができる(実測: スマホ画面・縦組みで
+	   「甲府盆地の奇病」「水腫脹満」「写真」が3頁に分かれ、どの頁にも
+	   本文が1行も無かった)。流れから外すと、見出しと本文は続けて流れる。
+	   **行の始まる側へ寄せる(float: inline-start)。** 縦組みでは行が上から
+	   下へ進むので、図版は段の天に付き、本文がその下へ回り込む。頁の帯を
+	   丸ごと取る float: top(ページフロート)では、図版の下が空いたままになる。
+	   横組みでは左に付き、本文が右へ回り込む。
+	   送り方向の大きさは版面の半分まで(BookRenderer::imageLimits)。 */
+	float: inline-start;
+	writing-mode: horizontal-tb;
+	/* **空きは、本文が接する三方に取る。** 縦組みの本では図版は段の天に付き、
+	   本文は図版の下と、その左右の段へ回り込む。本文が接するのは
+	   左・右・下の三面で、上は版面の天だから空きは要らない。
+	   下を空けないと、キャプションの直後の行が字面に接する。
+
+	   論理プロパティ(margin-block)は使えない。この箱自身は横組みなので、
+	   margin-block が上下に解決してしまい、向きを取り違える。物理で書く。 */
+	margin: 0 1.5em 1.2em;
+	text-align: start;
+}
+/* 横組みの本では図版は段の左に付き、本文は右と下へ回り込む。
+   本文が接するのは右と下の二面。 */
+body.horizontal figure.fig-image {
+	margin: 0 1.5em 1.2em 0;
+	text-align: center;
+}
+/* ================================================================
+   印と地名を載せた地図(Kartographer)
+
+   台紙のタイル画像の上に、印(赤丸)と地名が位置を持って載る。地名を
+   キャプションへ並べただけでは「どこが宮沢村か」が読めないので、
+   Wikipedia が緯度経度から計算した位置ごと紙へ持ち込む。
+
+   位置と字の大きさは、判型が決まってから同じ倍率で mm へ直す
+   (BookRenderer::scaleMaps)。ここには倍率に依らない姿だけを書く。
+   ================================================================ */
+
+/* 台紙は写真より大きく取る(版面の送り方向の68%、BookRenderer::mapWidth)。
+   写真と同じ半分では地名が5ptほどになって読めない(実測: 台紙46mmで
+   地名1.8mm)。68%なら地名が7pt = 注と同じ大きさになり、残る3割に
+   本文が3段ぶん流れる。
+
+   版面いっぱい(100%)は試して捨てた。送り方向が埋まると本文の置き場が
+   無くなり、ページフロート(float: top)では本文が台紙の上に重なって
+   刷られ、流れの中(float: none)では地図だけの頁ができて前の頁も
+   3段で終わった。回り込みの効く大きさに留めるのが結局いちばん詰まる。
+
+   置き方は写真と同じ。段の天に付き、本文がその下と脇へ回り込む。 */
+figure.fig-map {
+	float: inline-start;
+	margin: 0 1.5em 1.2em;
+}
+.map {
+	display: block;
+	position: relative;
+	writing-mode: horizontal-tb;
+}
+/* 台紙は倍の画素で取ってある(@2x)。寸法は scaleMaps が実寸で書き込む。
+   百分率にはしない。縦組みでは height:100% が版面の高さに解決して、
+   台紙が頁いっぱいに伸びた(60.9mm のはずが 193.8mm)。
+   img の寸法の上限(下の img 規則)はここでは効かせない */
+.map img {
+	display: block;
+	max-width: none;
+	max-height: none;
+}
+/* 印は赤い丸。Red_pog.svg を地点の数だけ取りに行かせない
+   (1点ごとにHTTPが要る。紙では丸で足りる) */
+.map-mark {
+	position: absolute;
+	display: block;
+	background-color: #DB3123;
+	border: 0.3pt solid #FFFFFF;
+	border-radius: 50%;
+}
+/* 地名は台紙の上に載るので、地を白く敷いて字を浮かせる。
+   敷かないと道や等高線に紛れて読めない */
+.map-label {
+	position: absolute;
+	display: block;
+	white-space: nowrap;
+	font-family: var(--font-gothic);
+	font-weight: 500;
+	line-height: 1.2;
+	color: #111111;
+	background-color: rgba(255, 255, 255, 0.78);
+	padding: 0 0.15em;
+}
+
+/* Copperは版面より広い内容を縮めない。はみ出したまま組む。
+   figure の中だけでなく、本文中のインライン画像(数式など)にも
+   寸法の上限を掛ける。掛けないと大きな画像がそのまま紙を突き抜ける。
+
+   上限の実際の値は、版面と段組みから組版側が計算して上書きする
+   (BookRenderer::imageLimits)。ここに書くのは、その指定が届かない
+   場合に紙を突き抜けないための保険。 */
+img {
+	max-width: 60mm;
+	max-height: 60mm;
+}
+/* キャプションは本文より小ぶりにする。図版の従属物であることが形で
+   分かるうえ、横書きの一行が写真の幅に収まりやすくなる。 */
+figcaption {
+	font-family: var(--font-note);
+	font-size: 0.7em;
+	line-height: 1.45;
+	text-align: start;
+	text-indent: 0;
+	margin-block-start: 0.5em;
+	color: #333333;
+}
+
+/* 自動レイアウトの表は、列の最小幅の合計が版面を大きく超えると
+   列幅を保ったまま表ごとはみ出す(Copperの仕様。ブラウザと同じ)。
+   table-layout: fixed で列を版面に割り付け、セルの中で折り返す。 */
+table {
+	table-layout: fixed;
+	inline-size: 100%;
+	border-collapse: collapse;
+	font-size: 0.8em;
+	margin: 1em 0;
+}
+th, td {
+	border: 0.25pt solid #999999;
+	padding: 0.2em 0.4em;
+	text-indent: 0;
+	text-align: start;
+	/* 折り返せない語で列を押し広げさせない */
+	word-break: break-all;
+}
+th { font-family: var(--font-gothic); font-weight: 500; }
+caption {
+	font-family: var(--font-note);
+	font-size: 0.86em;
+	text-indent: 0;
+	margin-block-end: 0.3em;
+}
+
+/* 脚注の参照番号 */
+sup {
+	font-size: 0.7em;
+	vertical-align: super;
+	line-height: 1;
+}
+
+/* 注は、引かれた頁の下に置く。
+   後ろの一覧は紙ではめくれないので、その頁で読み切れるようにする。
+   番号はCopperが頁ごとに1から振り直す(::footnote-call が本文側、
+   ::footnote-marker が注の頭に付く)。 */
+.note {
+	float: footnote;
+	font-family: var(--font-note);
+	font-size: 0.74em;
+	line-height: 1.5;
+	text-indent: 0;
+	text-align: start;
+}
+/* 注の番号(本文側の呼び出しと、注の頭)。縦組みでは算用数字が既定で寝る
+   (text-orientation: mixed)ので、番号付きリストと同じく縦中横で立てる */
+.note::footnote-call, .note::footnote-marker {
+	-cssj-text-combine: all;
+	text-combine-upright: all;
+}
+/* 注の中の行き先は紙では踏めない。地の文と同じ姿にする */
+.note a { color: inherit; text-decoration: none; }
+/* 出典は巻末にまとめる。脚注にすると注だけで埋まる頁ができて
+   本文が読めなくなる(実測: 地方病の記事で出典368件)。本文には番号だけを
+   残し(.ref-mark)、中身はここへ並べる。番号は ol が数える。 */
+.references {
+	page-break-before: always;
+	break-before: page;
+}
+.references h2 {
+	font-size: 1.2em;
+	margin: 0 0 1em;
+}
+.references ol {
+	font-family: var(--font-note);
+	font-size: 0.8em;
+	line-height: 1.6;
+}
+.references li { margin-block-end: 0.4em; }
+/* 本文に残す出典の番号は [1] の形にする。頁の下に出る脚注の番号も
+   同じ算用数字なので、括弧が無いとどちらの注か見分けが付かない。
+
+   括弧はCSSで足す。本文の文字列に入れると、読み器のリンクの層や
+   巻末との突き合わせで括弧まで拾ってしまう。 */
+.ref-mark {
+	font-family: var(--font-note);
+	font-size: 0.7em;
+	vertical-align: super;
+	line-height: 1;
+}
+.ref-mark a::before { content: "["; }
+.ref-mark a::after { content: "]"; }
+/* 縦組みでは括弧ごと一つの縦中横にする。数字だけを縦中横にして括弧を
+   外に出すと、括弧が寝て上下に付き、三行ぶんの高さを取ってしまう。
+   applyTcy はこの中の数字に触らない(Doc.php)。入れ子の縦中横は効かない。 */
+.ref-mark a {
+	-cssj-text-combine: all;
+	text-combine-upright: all;
+}
+/* 横組みでは効かない指定なので、打ち消しは書かない
+   (text-combine-upright に none を渡すと Copper が 2816 の警告を出す) */
+/* 番号は巻末への行き先だが、紙では踏めないので地の文と同じ姿にする
+   (画面の読み器では、リンクの層が青と下線を重ねる) */
+.ref-mark a { color: inherit; text-decoration: none; }
+
+/* 巻末の項目から本文へ戻る印。番号から巻末へは飛べても、戻る道が無いと
+   出典一覧を読んでいて「これはどこの話だったか」が引けない。
+   本文の姿を邪魔しないよう小ぶりの灰色にする。 */
+.ref-back {
+	font-size: 0.85em;
+	color: var(--ink-faint);
+	text-decoration: none;
+	margin-inline-start: 0.4em;
+}
+
+dl { margin: 1em 0; }
+dt { font-family: var(--font-gothic); font-weight: 400; text-indent: 0; }
+dd { margin-inline-start: 1em; text-indent: 0; }
+ul, ol { margin: 0.8em 0; padding-inline-start: 1.4em; }
+li { text-indent: 0; }
+
+/* 番号付きリストの番号は縦組みで寝てしまう。text-orientation が
+   ラテン数字を倒すからで、本文の数字を縦中横にしても直らない。
+   マーカーはCSSが作る内容で、本文の文字列ではないためである。
+
+   ::marker に text-combine-upright を掛けても駄目だった。倒れなく
+   なる代わりに1em幅へ詰める処理が通らず、桁数のぶん行から食み出す。
+   マーカーを消して ::before の生成内容へ置き換えると、本文と同じ
+   経路を通るので詰めまで効く。二桁三桁は自動で1emに詰まる。 */
+ol {
+	list-style: none;
+	padding-inline-start: 0;
+	counter-reset: cti-item;
+}
+ol > li {
+	counter-increment: cti-item;
+}
+ol > li::before {
+	content: counter(cti-item) ".";
+	-cssj-text-combine: all;
+	text-combine-upright: all;
+}
+
+code { font-family: var(--font-mono); font-size: 0.9em; }
+
+/* 埋め込み(添付ファイル・外部記事・ツイートなど)は紙では開けないので、
+   何があったかだけを角括弧で示す */
+.embed {
+	font-family: var(--font-note);
+	font-size: 0.87em;
+	line-height: 1.5;
+	text-indent: 0;
+	margin: 1.2em 1.2em;
+	padding: 0.4em 0.6em;
+	border: 0.25pt solid #999999;
+	color: #333333;
+	word-break: break-all;
+	/* 折り返しを禁じない。長い注記が一枚に収まらないとき、Copperは
+	   縮めずにそのまま置くので版面を割る。実測で88mm(版面78.4mm)の
+	   箱が出た。ページをまたいでよい。 */
+	break-inside: auto;
+}
+.embed .embed-label { color: #777777; }
+
+/* 紙に出す以上リンクは開けないので、下線も色も付けない。
+   本文に残るURLは折り返せないと行から溢れるので、途中で割る。 */
+a {
+	color: inherit;
+	text-decoration: none;
+	word-break: break-all;
+}
+
+/* ================================================================
+   横組み
+   ================================================================ */
+
+body.horizontal,
+body.horizontal .main {
+	writing-mode: horizontal-tb;
+}
+body.horizontal {
+	line-height: 1.72;
+	/* 欧文の泣き別れを避ける。CopperはTeXのハイフネーションパターンを
+	   持っているので、英単語を音節で割れる。 */
+	hyphens: auto;
+}
+body.horizontal .main { column-gap: 6mm; }
+/* 縦中横は横組みでは初めから効かない。打ち消しは書かない
+   (text-combine-upright に none を渡すと Copper が 2816 の警告を出す。
+   CSS の初期値は none なので値としては妥当だが、通らないものは
+   書いても実害しかない)。min-width の打ち消しだけ残す。 */
+body.horizontal .tcy {
+	min-width: 0;
+}
+/* 横組みでは番号は寝ないので、ブラウザ既定のマーカーへ戻す。
+   生成内容のままだと行頭の位置が本来のマーカーとずれる。 */
+body.horizontal ol {
+	list-style: decimal;
+	padding-inline-start: 1.4em;
+}
+body.horizontal ol > li::before { content: none; }
+
+/* ================================================================
+   横組み二段 = 論文の体裁
+   ================================================================ */
+
+body.paper .main {
+	column-count: 2;
+	column-gap: 8mm;
+	column-rule: none;
+	column-fill: balance;
+}
+body.paper {
+	font-size: 2.9mm;
+	line-height: 1.6;
+	text-align: justify;
+}
+body.paper p { text-indent: 1em; orphans: 2; widows: 2; }
+/* 見出しの直後の段落は字下げしない。論文の慣例 */
+body.paper h1 + p, body.paper h2 + p,
+body.paper h3 + p, body.paper h4 + p { text-indent: 0; }
+body.paper h1, body.paper h2 {
+	font-size: 3.1mm; letter-spacing: 0.04em; margin: 1.4em 0 0.5em;
+}
+body.paper h3, body.paper h4 {
+	font-size: 2.9mm; letter-spacing: 0.04em; margin: 1.2em 0 0.4em;
+}
+body.paper blockquote { margin: 0.8em 1.5em; font-size: 2.7mm; }
+body.paper .embed { font-size: 2.4mm; margin: 0.8em 0; }
+body.paper figure.fig-image img { max-block-size: 70mm; max-inline-size: 100%; }
+
+/* ================================================================
+   表紙
+
+   cti.li の見た目(ライムグリーンと白)を紙へ持ち込む。地は暗く沈め、
+   緑は帯として一本だけ使う。
+
+   塗り足しの作り: .cover に margin:-6mm と padding:6mm を掛け、
+   padding box の縁を仕上り線に一致させる。背景は border box
+   (仕上り+6mm)まで塗られるので塗り足しになり、はみ出しは
+   output.clip が落とす。絶対配置の子は padding box が基準なので、
+   bottom:0 はちょうど仕上り線の位置に来る。
+   ================================================================ */
+
+@page cover {
+	margin: 0;
+	@top-left { content: none; }
+	@top-right { content: none; }
+	@bottom-left { content: none; }
+	@bottom-right { content: none; }
+}
+
+.cover {
+	page: cover;
+	page-break-after: always;
+	column-span: all;
+	position: relative;
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+	margin: -6mm;
+	padding: 6mm;
+	/* 色空間を指定したグラデーション。sRGBでの補間より濁らない。
+	   深緑から更に沈めた緑へ、下へ向かって落とす。 */
+	background-color: var(--ground);
+	background-image: linear-gradient(in oklch to bottom,
+		#16482332 0%, #123D1E 42%, #0C2A14 100%);
+	color: #FFFFFF;
+	text-indent: 0;
+}
+
+/* 罫は border-image で引く。9分割の伸縮なので、辺だけに階調を持たせられる。
+   絶対配置の子の基準は .cover の border box なので、塗り足しの6mmを
+   足した位置に置かないと紙の端へ寄ってしまう。 */
+.cover-frame {
+	position: absolute;
+	left: 13mm;
+	right: 13mm;
+	top: 13mm;
+	bottom: 25mm;
+	border: 0.4mm solid transparent;
+	border-image: linear-gradient(in oklch to bottom,
+		#7BE87B 0%, #32CD32 50%, #32CD3200 100%) 1;
+}
+
+.cover-title {
+	font-family: var(--font-display);
+	/* 級数は字数に応じて組版側が入れ替える。既定は短い題名向け */
+	font-size: 7.2mm;
+	font-weight: 500;
+	line-height: 1.62;
+	letter-spacing: 0.16em;
+	color: #FFFFFF;
+	padding: 0;
+	text-indent: 0;
+	/* 縦組みでは行の進む向き(inline)が縦。物理の margin では縦の
+	   範囲が抑えられず、長い題名が地の帯の裏へ潜り込んだ。
+	   論理プロパティで、天に20mm、地に23mm(帯13mm + 逃げ)を空ける。 */
+	margin-inline-start: 20mm;
+	margin-inline-end: 23mm;
+	margin-block-start: 7mm;
+	margin-block-end: 0;
+	/* 柱には記事タイトルを出す */
+	string-set: chapter attr(data-head);
+}
+
+.cover-author {
+	font-family: var(--font-sans);
+	font-size: 2.9mm;
+	font-weight: 500;
+	letter-spacing: 0.14em;
+	line-height: 1.6;
+	color: #CFF3CF;
+	margin-inline-start: 20mm;
+	margin-inline-end: 23mm;
+	margin-block-start: 10mm;
+	margin-block-end: 0;
+	text-indent: 0;
+	/* 著者の前に細い罫を一本。題名との間を切る */
+	padding-block-start: 5mm;
+	border-block-start: 0.3mm solid #2E6B3A;
+}
+
+/* 表紙の中身は絶対配置で留める。
+   縦組みでは行の進む向きが縦なので、上下を留めないと行が伸び続け、
+   長い題名が紙の下へ突き抜ける(実測: 38字の題名が地の帯の裏へ潜った)。
+   物理・論理いずれの margin でも縦の範囲は抑えられなかった。
+   絶対配置なら上下を留めた時点で行の長さが決まり、必ず折り返す。
+
+   基準は .cover の border box。塗り足しの6mmを含むので、
+   紙の端からの寸法に6mmを足した値を書く。 */
+
+/* 出典の名前。生のURLは奥付へ回した。表紙にURLを置くと、
+   本の顔であるべき面が事務的な文字列に食われる。 */
+.cover-imprint {
+	position: absolute;
+	top: 24mm;
+	right: 14mm;
+	font-family: var(--font-sans);
+	font-size: 2.6mm;
+	font-weight: 500;
+	letter-spacing: 0.42em;
+	line-height: 1;
+	color: #8FC79A;
+	margin: 0;
+	text-indent: 0;
+}
+
+.cover-title {
+	position: absolute;
+	top: 24mm;
+	bottom: 40mm;
+	right: 24mm;
+	left: 34mm;
+	font-family: var(--font-display);
+	/* 級数は字数に応じて組版側が入れ替える。既定は短い題名向け */
+	font-size: 7.2mm;
+	font-weight: 500;
+	line-height: 1.62;
+	letter-spacing: 0.16em;
+	color: #FFFFFF;
+	margin: 0;
+	padding: 0;
+	text-indent: 0;
+	/* 柱には記事タイトルを出す */
+	string-set: chapter attr(data-head);
+}
+
+.cover-author {
+	position: absolute;
+	top: 24mm;
+	bottom: 40mm;
+	left: 14mm;
+	width: 14mm;
+	font-family: var(--font-sans);
+	font-size: 2.9mm;
+	font-weight: 500;
+	letter-spacing: 0.14em;
+	line-height: 1.6;
+	color: #CFF3CF;
+	margin: 0;
+	text-indent: 0;
+}
+
+/* 地に置く緑の帯。ワードマークと日付を載せる */
+.cover-foot {
+	position: absolute;
+	left: 6mm;
+	right: 6mm;
+	bottom: 6mm;
+	height: 13mm;
+	background-color: var(--accent);
+	color: var(--ground-deep);
+	/* ワードマークは横に読ませる。本文が縦組みでもここは横組み */
+	writing-mode: horizontal-tb;
+}
+.cover-foot .cover-mark {
+	position: absolute;
+	left: 8mm;
+	bottom: 3.4mm;
+	font-family: var(--font-sans);
+	font-size: 5.4mm;
+	font-weight: 900;
+	font-style: italic;
+	letter-spacing: -0.01em;
+	line-height: 1;
+}
+.cover-foot .cover-date {
+	position: absolute;
+	right: 8mm;
+	bottom: 4.4mm;
+	font-family: var(--font-nombre);
+	font-size: 3mm;
+	letter-spacing: 0.1em;
+	line-height: 1;
+}
+.cover-hair {
+	position: absolute;
+	left: 6mm;
+	right: 6mm;
+	bottom: 19mm;
+	height: 0.5mm;
+	background-color: #7BE87B;
+}
+
+/* 横組みの表紙は、縦に流れる題名を横に倒すだけでよい。
+   絶対配置の帯とワードマークは物理方向なのでそのまま効く。 */
+body.horizontal .cover-title,
+body.horizontal .cover-author,
+body.horizontal .cover-source {
+	writing-mode: horizontal-tb;
+}
+
+/* ================================================================
+   奥付
+
+   何をどう組んだかを最後の一枚に残す。紙になった後から辿れるように
+   するためで、書籍の奥付と同じ役割。
+   ================================================================ */
+
+/* 奥付は必ず一枚を起こす。段組みの途中に紛れ込ませない。
+   本文が縦組みでも奥付は横組みにする。書名・発行日・書体といった
+   短い項目の並びなので、横に読ませたほうが早い。日本の書籍でも
+   奥付だけ横組みにする例は多い。 */
+/* 奥付は一枚を起こして地に付ける。日本の書籍の作法。
+   改頁する箱と、その中で下づけする中身を分ける。絶対配置の箱は
+   流れの外に出るので、それ自体に page-break-before を掛けても
+   効かない(実測)。外側は流れの中に置いて改頁だけを担い、
+   版面と同じ大きさを持たせて、中身をその下端へ留める。
+   寸法は判型から組版側が入れる。 */
+/* 奥付の頁には柱もノンブルも置かない */
+@page colophon {
+	@top-left { content: none; }
+	@top-right { content: none; }
+	@bottom-left { content: none; }
+	@bottom-right { content: none; }
+}
+.colophon {
+	page: colophon;
+	page-break-before: always;
+	break-before: page;
+	column-span: all;
+	position: relative;
+	margin: 0;
+	padding: 0;
+}
+.colophon-body {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	writing-mode: horizontal-tb;
+	text-align: start;
+	font-family: var(--font-note);
+	font-size: 2.5mm;
+	line-height: 1.75;
+	text-indent: 0;
+}
+.colophon-body h2 {
+	font-family: var(--font-gothic);
+	font-weight: 400;
+	font-size: 3mm;
+	letter-spacing: 0.2em;
+	margin: 0 0 1.4em;
+	padding-block-end: 0.5em;
+	border-block-end: 0.25pt solid #BBBBBB;
+}
+.colophon-body dl { margin: 0; }
+.colophon-body dt {
+	font-family: var(--font-gothic);
+	font-weight: 400;
+	font-size: 2.3mm;
+	color: var(--ink-faint);
+	margin-block-start: 0.8em;
+}
+.colophon-body dd { margin: 0; word-break: break-all; }
+.colophon-body .colophon-mark {
+	font-family: var(--font-sans);
+	font-weight: 900;
+	font-style: italic;
+	font-size: 4mm;
+	letter-spacing: -0.01em;
+}
+
+/* ================================================================
+   ペーパーバックの中扉
+
+   入稿する本文に全面の色の表紙は入れない。表紙は別ファイルで
+   入稿するもので、本文の1ページ目にはならない。
+   ================================================================ */
+
+body.kdp .halftitle {
+	page-break-after: always;
+	column-span: all;
+	text-align: center;
+	text-indent: 0;
+}
+body.kdp .halftitle-title {
+	font-family: var(--font-display);
+	font-size: 5mm;
+	font-weight: 500;
+	letter-spacing: 0.16em;
+	line-height: 1.6;
+	margin: 18mm 0 0;
+	text-indent: 0;
+	string-set: chapter attr(data-head);
+}
+body.kdp .halftitle-author {
+	font-family: var(--font-sans);
+	font-size: 3.2mm;
+	letter-spacing: 0.12em;
+	margin: 6em 0 0;
+	text-indent: 0;
+}
+body.kdp .halftitle-source {
+	font-family: var(--font-note);
+	font-size: 2.4mm;
+	margin: 2em 0 0;
+	text-indent: 0;
+	color: var(--ink-soft);
+	word-break: break-all;
+}
+
+/* ページ数を満たすための白紙 */
+.blank-page { column-span: all; }
+
+
+/* ---- 指定に応じた上書き ---- */
+:root { --font-mincho: '源暎ちくご明朝 v3', "Noto Serif JP", serif; }
+@page { size: 103.2mm 206.4mm; margin: 6.3mm 5.6mm 6.3mm 5.6mm; }
+img { max-width: 92mm; max-height: 75.6mm; }
+figure.fig-map { max-inline-size: none; }
+.cover { width: 115.2mm; height: 218.4mm; }
+.colophon { width: 92mm; height: 193.8mm; }
+
+
+/*]]>*/</style>
+</head>
+<body class="col1 emph-bold screen horizontal">
+<div class="main"><section><p>Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. </p>
+<table>
+<caption>Schistosoma species and endemic regions<sup class="ref-mark"><a href="#ref-14">14</a></sup></caption>
+<tbody><tr><th>Type of infection</th>
+<th>Species</th>
+<th>Location</th></tr>
+<tr>
+<td>Intestinal</td>
+<td>Schistosoma mansoni</td>
+<td>Africa, Middle East, Caribbean, Brazil, Venezuela, Suriname</td></tr>
+<tr>
+<td>Intestinal</td>
+<td>Schistosoma japonicum</td>
+<td>China, Indonesia, Philippines</td></tr>
+<tr>
+<td>Intestinal</td>
+<td>Schistosoma mekongi</td>
+<td>Cambodia, Laos</td></tr>
+<tr>
+<td>Intestinal</td>
+<td>Schistosoma guineensis</td>
+<td>Central Africa rain forest</td></tr>
+<tr>
+<td>Intestinal</td>
+<td>Schistosoma intercalatum</td>
+<td>Central Africa rain forest</td></tr>
+<tr>
+<td>Urogenital</td>
+<td>Schistosoma haematobium</td>
+<td>Africa, Middle East, Corsica</td></tr>
+</tbody></table><p>Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. Schistosomiasis is a disease caused by parasitic flatworms. </p></section></div>
+</body>
+</html>

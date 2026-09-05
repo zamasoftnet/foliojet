@@ -28,6 +28,14 @@ public interface Container {
 
 	public void addAbsolute(IAbsoluteBox box, double staticX, double staticY);
 
+	/**
+	 * 縦組みRLで{@code staticX}が箱の右端(block-start辺)を指す静的位置として登録します。
+	 * 既定では通常の{@link #addAbsolute(IAbsoluteBox, double, double)}へ委ねます。
+	 */
+	public default void addAbsolute(IAbsoluteBox box, double staticX, double staticY, boolean blockStartAnchored) {
+		this.addAbsolute(box, staticX, staticY);
+	}
+
 	public void addFloating(IFloatBox box, double lineAxis, double pageAxis);
 
 	public boolean hasFlows();

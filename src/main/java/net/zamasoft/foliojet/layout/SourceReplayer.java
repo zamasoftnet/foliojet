@@ -7,6 +7,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.layout.segment.LayoutSourceEventConverter;
 import net.zamasoft.foliojet.layout.segment.SegmentEvent;
@@ -29,6 +30,25 @@ import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
  * @author MIYABE Tatsuhiko
  */
 public final class SourceReplayer {
+	/** 再生の全期間にわたりRootの平行移動を禁止する例外安全なスコープです。 */
+	private static final class TranslateBlockScope implements AutoCloseable {
+		private final RootBuilder root;
+
+		TranslateBlockScope(final BlockBuilder target) {
+			this.root = target instanceof RootBuilder r ? r : target.getPageContext();
+			if (this.root != null) {
+				this.root.enterTranslateBlockScope();
+			}
+		}
+
+		@Override
+		public void close() {
+			if (this.root != null) {
+				this.root.exitTranslateBlockScope();
+			}
+		}
+	}
+
 	/**
 	 * 閉部分木のソース再生の発火計測です(移行カバレッジの証明・診断用)。
 	 */
@@ -233,41 +253,44 @@ public final class SourceReplayer {
 			// 範囲が欠けていれば box-restyle へフォールバック
 			return false;
 		}
-		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
-		// E-6増分3b-1: 駆動本体は共有の SegmentExecutor へ。Chars だけは
-		// 尾部特有のトリミング(先頭 skip・配達済み終端での打ち切り)を
-		// ここで計算し、部分範囲プリミティブで駆動する(それ以外は
-		// 3b-6以降 drive と同じオンザフライ変換の単一 execute)
-		final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
-		final boolean[] first = { true };
-		slice.replay(event -> {
-			switch (event) {
-			case LayoutSource.Chars(final int off, final LayoutSource.TextPayload payload, final boolean fixed) -> {
-				// E-6増分3b-2: payloadはspill済みのことがある。freshChars()は
-				// 毎回freshな配列(Inline=clone、Spilled=decode)を返す
-				final char[] ch = payload.freshChars();
-				int skip = 0;
-				if (first[0]) {
-					first[0] = false;
-					skip = charOffset - off;
+		try (TranslateBlockScope scope = new TranslateBlockScope(rootBuilder)) {
+			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
+			// E-6増分3b-1: 駆動本体は共有の SegmentExecutor へ。Chars だけは
+			// 尾部特有のトリミング(先頭 skip・配達済み終端での打ち切り)を
+			// ここで計算し、部分範囲プリミティブで駆動する(それ以外は
+			// 3b-6以降 drive と同じオンザフライ変換の単一 execute)
+			final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
+			final boolean[] first = { true };
+			slice.replay(event -> {
+				switch (event) {
+				case LayoutSource.Chars(final int off, final LayoutSource.TextPayload payload,
+						final boolean fixed) -> {
+					// E-6増分3b-2: payloadはspill済みのことがある。freshChars()は
+					// 毎回freshな配列(Inline=clone、Spilled=decode)を返す
+					final char[] ch = payload.freshChars();
+					int skip = 0;
+					if (first[0]) {
+						first[0] = false;
+						skip = charOffset - off;
+					}
+					int len = ch.length - skip;
+					if (off >= 0 && off + skip + len > charEndExclusive) {
+						// 配達済み終端で打ち切り(以降は live が供給)
+						len = charEndExclusive - off - skip;
+					}
+					executor.executeCharsRange(off + skip, ch, skip, len, fixed);
 				}
-				int len = ch.length - skip;
-				if (off >= 0 && off + skip + len > charEndExclusive) {
-					// 配達済み終端で打ち切り(以降は live が供給)
-					len = charEndExclusive - off - skip;
+				default -> executor.execute(LayoutSourceEventConverter.convert(event));
 				}
-				executor.executeCharsRange(off + skip, ch, skip, len, fixed);
+			});
+			if (keepTextOpen) {
+				doc.finishReplayKeepText();
+			} else {
+				doc.finishReplay();
 			}
-			default -> executor.execute(LayoutSourceEventConverter.convert(event));
-			}
-		});
-		if (keepTextOpen) {
-			doc.finishReplayKeepText();
-		} else {
-			doc.finishReplay();
+			TEXT_TAIL_REPLAYS.incrementAndGet();
+			return true;
 		}
-		TEXT_TAIL_REPLAYS.incrementAndGet();
-		return true;
 	}
 
 	/**
@@ -329,9 +352,11 @@ public final class SourceReplayer {
 			// 範囲が欠けていればボックス再生へフォールバック
 			return false;
 		}
-		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
-		drive(doc, slice);
-		doc.finishReplay();
+		try (TranslateBlockScope scope = new TranslateBlockScope(target)) {
+			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target);
+			drive(doc, slice);
+			doc.finishReplay();
+		}
 		BALANCE_REPLAYS.incrementAndGet();
 		return true;
 	}
@@ -392,9 +417,11 @@ public final class SourceReplayer {
 			System.err.println("[float] === 2パス再駆動 scratch=" + scratch + " 範囲=[" + fromId + "," + toId + "]"
 					+ where);
 		}
-		final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, scratch);
-		drive(doc, slice);
-		doc.finishReplay();
+		try (TranslateBlockScope scope = new TranslateBlockScope(target)) {
+			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, scratch);
+			drive(doc, slice);
+			doc.finishReplay();
+		}
 	}
 
 	/**
@@ -444,9 +471,11 @@ public final class SourceReplayer {
 		final ActiveReplay replay = new ActiveReplay(log, fromId, toId);
 		active.push(replay);
 		try {
-			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
-			drive(doc, slice);
-			doc.finishReplay();
+			try (TranslateBlockScope scope = new TranslateBlockScope(rootBuilder)) {
+				final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
+				drive(doc, slice);
+				doc.finishReplay();
+			}
 			SUBTREE_REPLAYS.incrementAndGet();
 			return true;
 		} finally {

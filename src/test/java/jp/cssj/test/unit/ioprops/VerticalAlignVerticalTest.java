@@ -20,7 +20,7 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みの {@code vertical-align: middle / text-top / text-bottom}(2026-09-02)。
+ * 縦組みの {@code vertical-align: middle / central / text-top / text-bottom}(2026-09-02)。
  *
  * <p>
  * 縦組みの行は中央線揃えで、字面は列の左右にサイズの半分ずつ。以前は横組みの
@@ -54,6 +54,18 @@ public class VerticalAlignVerticalTest extends TestCase {
 		final double parentCentre = (r[0].x1 + r[0].x2) / 2, childCentre = (r[1].x1 + r[1].x2) / 2;
 		assertEquals("middle: the small column must be centred on the parent's column: " + r[0] + " " + r[1],
 				parentCentre, childCentre, 0.6);
+	}
+
+	public void testCentralCentresHorizontalInlineBlock() throws Exception {
+		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"
+				+ "@page{size:100mm 150mm;margin:10mm}html{writing-mode:vertical-rl}"
+				+ "body{margin:0;font-size:24pt}span{display:inline-block;writing-mode:horizontal-tb;"
+				+ "width:1em;font-size:12pt;vertical-align:central}"
+				+ "</style></head><body><p>親<span>子</span>親</p></body></html>";
+		final Run[] r = runs(html);
+		final double parentCentre = (r[0].x1 + r[0].x2) / 2, childCentre = (r[1].x1 + r[1].x2) / 2;
+		assertEquals("central: 横組みinline-blockを縦組み行の中央軸へ置く: " + r[0] + " " + r[1],
+				parentCentre, childCentre, 0.5);
 	}
 
 	public void testTextTopAlignsTheRightEdges() throws Exception {

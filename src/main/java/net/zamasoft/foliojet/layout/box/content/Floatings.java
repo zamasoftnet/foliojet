@@ -53,6 +53,14 @@ public class Floatings {
 			return this.box;
 		}
 
+		/**
+		 * serial、ボックス、行軸位置と一回限りの移送状態を保ったまま、
+		 * ページ軸位置だけを平行移動した不変値を返します。
+		 */
+		Floating shiftedPageAxis(final double dy) {
+			return new Floating(this.serial, this.box, this.lineAxis, this.pageAxis + dy, this.moveToNext);
+		}
+
 		public void restyle(BlockBuilder builder) {
 			switch (this.box.getType()) {
 			case BLOCK: {
@@ -148,6 +156,23 @@ public class Floatings {
 
 	public Floating getFloating(int i) {
 		return (Floating) this.floatings.get(i);
+	}
+
+	/**
+	 * 全浮動体のページ軸位置を平行移動します。リスト順、serial、ボックス、
+	 * 行軸位置と{@link Floating#moveToNext}は保ち、{@code keep}に含まれる
+	 * ボックスの要素は同じインスタンスのまま残します。
+	 *
+	 * @param dy   ページ軸方向の移動量
+	 * @param keep 移動せず現在位置に留めるボックス(identityで判定する集合)
+	 */
+	public void shiftPageAxis(final double dy, final java.util.Set<IBox> keep) {
+		for (int i = 0; i < this.floatings.size(); ++i) {
+			final Floating floating = this.floatings.get(i);
+			if (!keep.contains(floating.box)) {
+				this.floatings.set(i, floating.shiftedPageAxis(dy));
+			}
+		}
 	}
 
 	/**

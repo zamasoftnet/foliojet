@@ -197,6 +197,91 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
+	 * 通常の浮動体台帳と、各独立BFCが共有する浮動体台帳をページ軸方向へ
+	 * 平行移動します。同じ{@link Floating}は複数の台帳に同一identityで
+	 * 現れるため、identityによるold→new対応を一度だけ作り、すべての
+	 * 参照を同じ新インスタンスへ置き換えます。これにより台帳間のaliasを
+	 * 保ったまま、排除域スナップショットのキャッシュも無効化します。
+	 *
+	 * @param dy ページ軸方向の移動量
+	 */
+	public final void shiftFloatLedgers(final double dy) {
+		final java.util.IdentityHashMap<Floating, Floating> shifted = new java.util.IdentityHashMap<>();
+		if (this.floatings != null) {
+			for (final Floating floating : this.floatings) {
+				shifted.put(floating, floating.shiftedPageAxis(dy));
+			}
+		}
+		if (this.noOverflowFloatings != null) {
+			for (final List<Floating> ledger : this.noOverflowFloatings) {
+				for (final Floating floating : ledger) {
+					shifted.computeIfAbsent(floating, key -> key.shiftedPageAxis(dy));
+				}
+			}
+		}
+		if (this.floatings != null) {
+			this.replaceShiftedFloatings(this.floatings, shifted);
+		}
+		if (this.noOverflowFloatings != null) {
+			for (final List<Floating> ledger : this.noOverflowFloatings) {
+				this.replaceShiftedFloatings(ledger, shifted);
+			}
+		}
+		this.noteFloatingsChanged();
+	}
+
+	/**
+	 * 現在有効な通常float台帳と、開いている独立BFCの台帳が持つ
+	 * ページ軸終端の最大値を返します。同じ要素が両方へ現れても最大値だけを
+	 * 求めるため、identityの重複は結果に影響しません。
+	 *
+	 * @return 配置済みfloatがなければ0、あればそのページ軸終端の最大値
+	 */
+	protected final double maxActiveFloatingPageEnd() {
+		double pageEnd = 0;
+		if (this.floatings != null) {
+			for (final Floating floating : this.floatings) {
+				pageEnd = Math.max(pageEnd, floating.pageEnd);
+			}
+		}
+		if (this.noOverflowFloatings != null) {
+			for (final List<Floating> ledger : this.noOverflowFloatings) {
+				for (final Floating floating : ledger) {
+					pageEnd = Math.max(pageEnd, floating.pageEnd);
+				}
+			}
+		}
+		return pageEnd;
+	}
+
+	private void replaceShiftedFloatings(final List<Floating> ledger,
+			final java.util.IdentityHashMap<Floating, Floating> shifted) {
+		for (int i = 0; i < ledger.size(); ++i) {
+			final Floating replacement = shifted.get(ledger.get(i));
+			if (replacement != null) {
+				ledger.set(i, replacement);
+			}
+		}
+	}
+
+	/**
+	 * 開いている通常フローのページ軸位置と現在のカーソルを同量だけ
+	 * 平行移動します。各フローのボックス、行軸位置、枠量と
+	 * {@code line-clamp}状態は保ちます。{@link #contextFlow}はflowStackの
+	 * 外にあるページ自身の{@code (0, 0)}基準なので移動しません。
+	 *
+	 * @param dy ページ軸方向の移動量
+	 */
+	public final void shiftFlowStack(final double dy) {
+		if (this.flowStack != null) {
+			for (int i = 0; i < this.flowStack.size(); ++i) {
+				this.flowStack.set(i, this.flowStack.get(i).shiftedPageAxis(dy));
+			}
+		}
+		this.pageAxis += dy;
+	}
+
+	/**
 	 * 浮動ボックスをページ方向の底辺がページ開始位置にあるものから順に整列します。
 	 */
 	private static Comparator<Object> FLOAT_COMP = new Comparator<Object>() {
@@ -1166,11 +1251,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 					assert pos.autoPosition == AutoPosition.BLOCK : box.getParams();
 					staticY += this.textBuilder.getActualPageAxis();
 				}
+				if (box.getType() == BoxType.REPLACED) {
+					// 縦組みRLの静的位置を物理化するには、箱のページ方向寸法が
+					// 必要なのでabsolute台帳へ渡す前に確定する。
+					((AbstractReplacedBox) box).calculateFrame(contextBox.getLineSize());
+				}
 				contextBox.addAbsolute(absoluteBox, staticX, staticY);
-			}
-			if (box.getType() == BoxType.REPLACED) {
-				final AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
-				replacedBox.calculateFrame(contextBox.getLineSize());
 			}
 		}
 			break;
