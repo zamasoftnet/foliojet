@@ -56,8 +56,11 @@ import net.zamasoft.foliojet.layout.box.INonReplacedBox;
  * </p>
  */
 public final class SegmentExecutor {
+	/** 主ソースの系譜を付けるか、独立した反復内容として組むかを指定します。 */
+	public enum AnchorMode { SOURCE, NONE }
 
 	private final DocumentBuilder doc;
+	private final AnchorMode anchorMode;
 
 	/**
 	 * 次に駆動するイベントのordinal(= EventId)。再生インスタンスへ
@@ -93,8 +96,24 @@ public final class SegmentExecutor {
 	 * @param fromId 範囲先頭のEventId(sliceのordinalと1:1)
 	 */
 	public SegmentExecutor(final DocumentBuilder doc, final long fromId) {
+		this(doc, fromId, AnchorMode.SOURCE);
+	}
+
+	public SegmentExecutor(final DocumentBuilder doc, final AnchorMode anchorMode) {
+		this(doc, 0, anchorMode);
+	}
+
+	private SegmentExecutor(final DocumentBuilder doc, final long fromId, final AnchorMode anchorMode) {
 		this.doc = doc;
 		this.eventId = fromId;
+		this.anchorMode = java.util.Objects.requireNonNull(anchorMode);
+	}
+
+	/** 独立したイベント列を順に駆動します。イベント番号の更新はexecuteだけが行います。 */
+	public void drive(final Iterable<? extends SegmentEvent> events) {
+		for (final SegmentEvent event : events) {
+			this.execute(event);
+		}
 	}
 
 	/**
@@ -118,6 +137,9 @@ public final class SegmentExecutor {
 	 */
 	public void execute(final SegmentEvent event) {
 		switch (event) {
+		case SegmentEvent.Assignment assignment -> {
+			// 配置だけを組み直す。代入は確定頁の元アンカーから一度だけ実行する。
+		}
 		case SegmentEvent.BeginBox(final BoxRecipe recipe) -> {
 			final BoxKind kind = recipe.kind();
 			if (kind == BoxKind.CAPTION && this.openTables == 0) {
@@ -132,7 +154,9 @@ public final class SegmentExecutor {
 			this.openKinds.push(kind);
 			final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
 			this.internStructureToken(box.getParams());
-			box.setSourceAnchor(this.eventId);
+			if (this.anchorMode == AnchorMode.SOURCE) {
+				box.setSourceAnchor(this.eventId);
+			}
 			this.doc.startBox(box);
 		}
 		case SegmentEvent.EndBox end -> {
@@ -149,7 +173,9 @@ public final class SegmentExecutor {
 		case SegmentEvent.Replaced(final ReplacedRecipe recipe) -> {
 			final AbstractReplacedBox box = BoxRecipeBoxFactory.createReplaced(recipe);
 			this.internStructureToken(box.getParams());
-			box.setSourceAnchor(this.eventId);
+			if (this.anchorMode == AnchorMode.SOURCE) {
+				box.setSourceAnchor(this.eventId);
+			}
 			this.doc.addReplacedBox(box);
 		}
 		case SegmentEvent.Barrier barrier -> throw new IllegalStateException("barrier event in replay range: " + barrier);

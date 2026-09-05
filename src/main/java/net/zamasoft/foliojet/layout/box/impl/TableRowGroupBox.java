@@ -79,6 +79,13 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 	}
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		for (int i = 0; i < this.getTableRowCount(); ++i) {
+			action.accept(this.getTableRow(i));
+		}
+	}
+
 	public final int getTableRowCount() {
 		if (this.rows == null) {
 			return 0;

@@ -242,6 +242,24 @@ public class Drawer {
 		return this.paintCommands == null ? 0 : this.paintCommands.size();
 	}
 
+	/** 空のstacking contextだけでは描画内容と数えません。 */
+	public boolean hasPaintCommands() {
+		final Deque<Drawer> work = new ArrayDeque<>();
+		work.push(this);
+		while (!work.isEmpty()) {
+			final Drawer drawer = work.pop();
+			if (drawer.paintCount() != 0) {
+				return true;
+			}
+			if (drawer.stackingContexts != null) {
+				for (final StackingContextEntry entry : drawer.stackingContexts) {
+					work.push(entry.drawer);
+				}
+			}
+		}
+		return false;
+	}
+
 	/** 負の子を挟む位置(装飾の終端、command 件数で頭打ち)です。 */
 	private int decorationSplit() {
 		return Math.min(this.ownDecorationEnd, this.paintCount());

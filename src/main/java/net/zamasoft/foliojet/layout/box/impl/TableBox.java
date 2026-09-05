@@ -206,6 +206,19 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		if (this.headerGroupBox != null) {
+			action.accept(this.headerGroupBox);
+		}
+		for (int i = 0; i < this.getTableBodyCount(); ++i) {
+			action.accept(this.getTableBody(i));
+		}
+		if (this.footerGroupBox != null) {
+			action.accept(this.footerGroupBox);
+		}
+	}
+
 	public final TableRowGroupBox getTableHeader() {
 		return this.headerGroupBox;
 	}

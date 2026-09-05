@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Legacy nested capture and clear</title>
+<style>
+/* 3.2 020: nested a/b, regeneratable alias, image c and clear.
+   Page-context :left/:right recoloring is excluded: R3 does not recascade. */
+@page { size: 300pt 200pt; margin: 25pt }
+html,body { margin: 0; font: 10pt serif }
+p { margin: 0 }
+section + section { break-before: page }
+.outer { -cssj-regeneratable: a; right: 0; top: 0; width: 90pt }
+.inner { -cssj-page-content: b right; left: 0; bottom: 0; width: 90pt }
+img { -cssj-page-content: c; right: 0; bottom: 0; width: 12pt; height: 6pt }
+.clear { -cssj-page-content-clear: c }
+</style></head><body>
+<section><div class="outer">OUTER<span>SPAN</span><div class="inner">INNER</div></div>
+<img alt="IMAGE" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8'%3E%3Crect width='16' height='8' fill='blue'/%3E%3C/svg%3E"><p>BODY1</p></section>
+<section><p>BODY2</p></section>
+<section><p class="clear">BODY3</p></section>
+</body></html>

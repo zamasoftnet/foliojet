@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Vertical legacy side column</title>
+<style>
+/* print.cssj.jp: negative left/top and full page-area height in vertical-rl. */
+@page { size: 100mm 100mm; margin: 15mm }
+html,body { margin: 0; font: 10pt serif; writing-mode: vertical-rl }
+p { margin: 0 }
+section + section { break-before: page }
+.header { top: -5mm; height: 100%; width: 8mm; background: #ddd }
+#nombre-left { -cssj-page-content: nombre-left left; left: -11mm }
+#nombre-left::before { content: 'SIDE/' counter(page) }
+.bp-special { -cssj-page-content-clear: nombre-left }
+</style></head><body>
+<section><div id="nombre-left" class="header"></div><p>BODY1</p></section>
+<section><p>BODY2</p></section>
+<section><p>BODY3</p></section>
+<section><p class="bp-special">BODY4</p></section>
+</body></html>

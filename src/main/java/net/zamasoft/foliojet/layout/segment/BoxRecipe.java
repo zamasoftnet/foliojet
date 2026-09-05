@@ -51,6 +51,21 @@ public sealed interface BoxRecipe {
 	BoxKind kind();
 
 	/**
+	 * 反復内容のinline/float/absolute表です。SOURCEの範囲再生適格性は拡張しません。
+	 * placementは外側ブロックの配置を保持し、再構築時のTableParamsは内外で共有します。
+	 */
+	record PlacedTable(TableParamsTemplate params, BoxRecipe placement) implements BoxRecipe {
+		public PlacedTable {
+			if (!(placement instanceof InlineBlock || placement instanceof FloatBlock || placement instanceof Absolute)) {
+				throw new IllegalArgumentException("table placement: " + placement.kind());
+			}
+		}
+
+		public BoxKind kind() { return BoxKind.TABLE; }
+		public WritingMode flowOrNull() { return this.placement.flowOrNull(); }
+	}
+
+	/**
 	 * 凍結済みparamsの書字方向を返します(E-6増分3b-4——
 	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
 	 * {@code InnerTableParams}系({@code AbstractTextParams}を継承せず

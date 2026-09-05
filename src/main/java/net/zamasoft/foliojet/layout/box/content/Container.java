@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.FramesStep;
 import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
@@ -22,6 +23,10 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 public interface Container {
+
+	/** 頁割当のcommit用に、配置済みの直接の子を論理順で列挙します。 */
+	public void forEachAssignmentChild(java.util.function.Consumer<IBox> action);
+
 	public void setBox(AbstractContainerBox box);
 
 	public void addFlow(IFlowBox box, double pageAxis);

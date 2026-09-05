@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Legacy fixed coordinates and page counter</title>
+<style>
+/* 3.2 021: bottom outside the page area, full width, centered page counter. */
+@page { size: 300pt 200pt; margin: 20pt 40pt 30pt; counter-increment: page }
+html,body { margin: 0; font: 10pt serif }
+p { margin: 0 }
+section + section { break-before: page }
+#footer { -cssj-page-content: footer; left: 0; bottom: -10pt; width: 100%; height: 12pt;
+  text-align: center; background: #eee }
+#footer::before { content: 'PAGE=' counter(page) }
+</style></head><body>
+<section><div id="footer"></div><p>BODY1</p></section>
+<section><p>BODY2</p></section>
+<section><p>BODY3</p></section>
+</body></html>

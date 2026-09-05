@@ -222,7 +222,6 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
-import net.zamasoft.foliojet.ua.NamedStringState;
 import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PageRef.Fragment;
 import net.zamasoft.foliojet.ua.PassContext;

@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-import net.zamasoft.foliojet.ua.NamedStringState;
+import net.zamasoft.foliojet.ua.PageAssignmentState.Mode;
 
 /**
  * GCPM {@code string(name[, first|start|last|first-except])}。
@@ -10,9 +10,9 @@ import net.zamasoft.foliojet.ua.NamedStringState;
 public class StringFunctionValue implements Value {
 	private final String name;
 
-	private final byte mode;
+	private final Mode mode;
 
-	public StringFunctionValue(String name, byte mode) {
+	public StringFunctionValue(final String name, final Mode mode) {
 		this.name = name;
 		this.mode = mode;
 	}
@@ -21,8 +21,8 @@ public class StringFunctionValue implements Value {
 		return this.name;
 	}
 
-	/** {@link NamedStringState#FIRST}/{@link NamedStringState#START}/{@link NamedStringState#LAST}/{@link NamedStringState#FIRST_EXCEPT} */
-	public byte getMode() {
+	/** 頁内代入の解決方針です。 */
+	public Mode getMode() {
 		return this.mode;
 	}
 }

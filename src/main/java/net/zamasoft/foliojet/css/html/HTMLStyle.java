@@ -4,6 +4,7 @@ import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 
@@ -84,6 +85,29 @@ import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.CompatibleMode;
 public class HTMLStyle {
+	/**
+	 * 画像参照を URI にします。data: は文書基底に依存しない。従来どおりまず素の
+	 * URI として解釈し(base64 の + / = をそのまま保つ——imageTest の
+	 * legacy/0070-image/040-DATA と 070-TRANSPARENT が壊れた 2026-09-05)、
+	 * 空白入りの SVG data: URI のように解釈できないときだけ符号化する。
+	 *
+	 * @param encoding 多バイト文字の符号化
+	 * @param baseURI  文書の基底 URI
+	 * @param src      参照文字列
+	 * @return URI
+	 * @throws URISyntaxException 解釈できない場合
+	 */
+	public static URI imageURI(final String encoding, final URI baseURI, final String src) throws URISyntaxException {
+		if (src.regionMatches(true, 0, "data:", 0, 5)) {
+			try {
+				return new URI(src);
+			} catch (final URISyntaxException e) {
+				return URIHelper.create(encoding, src);
+			}
+		}
+		return URIHelper.resolve(encoding, baseURI, src);
+	}
+
 	private static final RelativeLengthValue EX_20 = RelativeLengthValue.ex(20);
 	private static final RelativeLengthValue EM_4 = RelativeLengthValue.em(4);
 	private static final RelativeLengthValue EM_1_12 = RelativeLengthValue.em(1.12);
@@ -359,8 +383,8 @@ public class HTMLStyle {
 		if (src != null) {
 			final UserAgent ua = style.getUserAgent();
 			final Image image = ImageLoadDiagnostics.loadImage(ua, src,
-					() -> URIHelper.resolve(ua.getDocumentContext().getEncoding(),
-							ua.getDocumentContext().getBaseURI(), src), type, true);
+					() -> imageURI(ua.getDocumentContext().getEncoding(), ua.getDocumentContext().getBaseURI(), src),
+					type, true);
 			if (image != null) {
 				CSSJInternalImage.setImage(style, image);
 				return;

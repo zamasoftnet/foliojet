@@ -7,7 +7,7 @@ import java.util.Map;
  * 構造化された{@code @page}規則です(名前付きページN1a、2026-07-31——
  * consult-codex-2026-07-31-named-pages.txt Q1)。従来の4バケット
  * (無名/first/left/right)を置き換える順序付き規則列の1要素。
- * 特異性はCSS Page 3の(f,g,h)=(ページ名, :first, :left/:right)。
+ * 特異性はCSS Page 3の(f,g,h)=(ページ名, :first, :left/:right/:single)。
  *
  * @author MIYABE Tatsuhiko
  */
@@ -18,6 +18,9 @@ public final class PageRule {
 	public static final byte PSEUDO_LEFT = 2;
 
 	public static final byte PSEUDO_RIGHT = 4;
+
+	/** 見開きでない頁を選択する Copper 拡張です。 */
+	public static final byte PSEUDO_SINGLE = 8;
 
 	/** ページ名(null=無名。CSS識別子として大文字小文字を区別)。 */
 	final String name;
@@ -45,7 +48,7 @@ public final class PageRule {
 	int specificity() {
 		final int f = this.name != null ? 1 : 0;
 		final int g = (this.pseudoMask & PSEUDO_FIRST) != 0 ? 1 : 0;
-		final int h = Integer.bitCount(this.pseudoMask & (PSEUDO_LEFT | PSEUDO_RIGHT));
+		final int h = Integer.bitCount(this.pseudoMask & (PSEUDO_LEFT | PSEUDO_RIGHT | PSEUDO_SINGLE));
 		return (f << 16) | (g << 8) | h;
 	}
 

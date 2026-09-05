@@ -112,6 +112,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.container;
 	}
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		this.container.forEachAssignmentChild(action);
+	}
+
 	/**
 	 * {@inheritDoc}
 	 *

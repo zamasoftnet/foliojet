@@ -108,6 +108,26 @@ public class CSSStyle {
 		return style;
 	}
 
+	/** 計算済みの値を再計算せず設定します。不変テンプレートの復元専用です。 */
+	public void restoreComputed(final PrimitivePropertyInfo info, final Value value, final boolean declared) {
+		final short code = ElementPropertySet.getCode(info);
+		if (code < 0) {
+			throw new IllegalArgumentException(info.getName());
+		}
+		if (this.computedValues == null) {
+			this.computedValues = new Value[ElementPropertySet.getCodeSize()];
+		}
+		this.computedValues[code] = value;
+		if (this.values != null) {
+			this.values[code] = null;
+		}
+		if (this.consumedDeclared == null) {
+			this.consumedDeclared = new java.util.BitSet(ElementPropertySet.getCodeSize());
+		}
+		this.consumedDeclared.set(code, declared);
+		this.fontStyle = null;
+	}
+
 	private static CSSStyle getAnonStyle(CSSElement anone, UserAgent ua, CSSStyle parentStyle, boolean inserted) {
 		final AnonStyle style;
 		if (inserted) {

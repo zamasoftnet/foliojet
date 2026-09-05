@@ -240,6 +240,19 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.contents.add(content);
 	}
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		if (this.contents != null) {
+			for (final Object content : this.contents) {
+				if (content instanceof Inline inline) {
+					action.accept(inline.box);
+				} else if (content instanceof IAbsoluteBox absolute) {
+					action.accept(absolute);
+				}
+			}
+		}
+	}
+
 	/**
 	 * 内部の最後のテキストのソース文字終端(オフセット+文字数)を
 	 * 返します(M6b v3)。切断で前断片に残った内容の終端=残余の再開
@@ -284,6 +297,22 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 		}
 		return -1;
+	}
+
+	@Override
+	public boolean hasTextBeforeAssignmentChild(final IBox child) {
+		boolean text = false;
+		if (this.contents != null) {
+			for (final Object content : this.contents) {
+				if (content instanceof Inline inline && inline.box == child || content == child) {
+					return text;
+				}
+				if (content instanceof Text value && value.getCharCount() > 0) {
+					text = true;
+				}
+			}
+		}
+		return text;
 	}
 
 	/**

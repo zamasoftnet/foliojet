@@ -148,6 +148,9 @@ public class StyleContext {
 		if (page.isPseudoClass(CSSElement.PC_RIGHT)) {
 			pseudo |= PageRule.PSEUDO_RIGHT;
 		}
+		if (page == CSSElement.PAGE_SINGLE_FIRST || page == CSSElement.PAGE_SINGLE) {
+			pseudo |= PageRule.PSEUDO_SINGLE;
+		}
 		final List<PageRule> matched = new ArrayList<PageRule>();
 		for (final PageRule rule : this.styleSheet.pageRules) {
 			if (rule.matches(pageName, pseudo)) {

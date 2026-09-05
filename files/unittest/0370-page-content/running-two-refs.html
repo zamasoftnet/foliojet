@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Two references on one page</title>
+<style>
+@page { size: 320pt 220pt; margin: 30pt;
+	@top-left { content: element(h); }
+	@top-right { content: element(h); }
+}
+html, body { margin: 0; font: 10pt serif; }
+header { position: running(h); font-size: 10pt; }
+</style></head>
+<body><header>SHARED</header><p>One source, two margin boxes.</p></body></html>

@@ -26,6 +26,13 @@ public class VisitorWrapper implements Visitor {
 		this.visitor.endPage();
 	}
 
+	@Override
+	public void visitAssignment(final net.zamasoft.foliojet.css.style.running.RunningRegistry.Placement placement) {
+		if (this.visitor != null) {
+			this.visitor.visitAssignment(placement);
+		}
+	}
+
 	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
 		if (this.visitor == null) {
 			return;

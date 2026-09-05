@@ -465,6 +465,15 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return this.split(pageLimit, flags);
 	}
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		if (this.lines != null) {
+			for (final Line line : this.lines) {
+				action.accept(line.box);
+			}
+		}
+	}
+
 	public final int getLineCount() {
 		return this.lines.size();
 	}

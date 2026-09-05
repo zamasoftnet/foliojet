@@ -143,6 +143,9 @@ dependencies {
     // 出力PDFの名前付き宛先(id断片・しおり)を読むため(2026-08-03)。
     // 宛先は表示リストの描画命令ではないので、goldenのダンプには出てこない
     testImplementation 'org.apache.pdfbox:pdfbox:3.0.3'
+    // PDF/X の回帰プリフライト(2026-09-05、色管理 I4)。veraPDF は PDF/X を検証できないので
+    // pdfg2d の testFixtures にある PdfXPreflight を composite build 越しに共有する(コピーしない)
+    testImplementation testFixtures("io.github.mimidesunya:pdfg2d-pdf:${dependencyVersions.pdfg2d}")
 }
 
 // ---------------------------------------------------------------------------

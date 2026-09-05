@@ -7,6 +7,7 @@ import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.PositionValue;
+import net.zamasoft.foliojet.css.value.RunningPositionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -19,8 +20,9 @@ public class CSSPosition extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new CSSPosition();
 
 	public static byte get(CSSStyle style) {
-		PositionValue value = (PositionValue) style.get(INFO);
-		return value.getPosition();
+		final Value value = style.get(INFO);
+		// R1a では running の値を保持し、レイアウトは static として扱う。
+		return value instanceof PositionValue position ? position.getPosition() : PositionValue.STATIC;
 	}
 
 	private CSSPosition() {
@@ -41,6 +43,16 @@ public class CSSPosition extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Func func && func.is("running")) {
+			final TokenStream params = func.argStream();
+			final String name = params.ident();
+			if (name == null || params.hasNext() || tokens.hasNext()
+					|| java.util.Set.of("none", "default", "initial", "inherit", "unset", "revert", "revert-layer")
+							.contains(name.toLowerCase(java.util.Locale.ROOT))) {
+				throw new PropertyException();
+			}
+			return new RunningPositionValue(name);
+		}
 		if (lu instanceof CssToken.Ident) {
 			String ident = ((CssToken.Ident) lu).lower();
 			if (ident.equals("static")) {

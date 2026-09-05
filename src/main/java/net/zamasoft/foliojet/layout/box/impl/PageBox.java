@@ -40,6 +40,29 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class PageBox extends AbstractBlockBox {
 	protected final UserAgent ua;
 
+	/** この表示頁だけに属する再生木。通常のfixed台帳へは渡しません。 */
+	private final List<PageBox> pageContents = new ArrayList<PageBox>();
+
+	public void addPageContent(final PageBox content) {
+		this.pageContents.add(content);
+	}
+
+	public boolean hasPageContents() {
+		return !this.pageContents.isEmpty();
+	}
+
+	/** 本文/fixedのz-indexから独立した頁固定層です。 */
+	public void drawPageContents(final Drawer drawer) {
+		if (this.pageContents.isEmpty()) {
+			return;
+		}
+		final Drawer layer = new Drawer(Integer.MAX_VALUE);
+		drawer.visitDrawer(layer);
+		for (final PageBox content : this.pageContents) {
+			net.zamasoft.foliojet.css.style.running.RunningRenderer.draw(content, layer, 0, 0);
+		}
+	}
+
 	/**
 	 * 塗り足し(bleed)の幅です(2026-09-02)。{@code @page} の背景は仕上り線で
 	 * 止めず、この幅だけ外へ描く——裁ち落としで白い縁が出ないように。
@@ -82,6 +105,20 @@ public class PageBox extends AbstractBlockBox {
 	 * 表示上のサイズ。
 	 */
 	protected double visualWidth = 0, visualHeight = 0;
+
+	private boolean replayPage;
+	private double replayX, replayY;
+
+	/** 独立ミニ頁の配置原点です。fixedの基準もここへ移し、余白寸法では切りません。 */
+	public void setReplayOrigin(final double x, final double y) {
+		this.replayPage = true;
+		this.replayX = x;
+		this.replayY = y;
+	}
+
+	public boolean isReplayPage() {
+		return this.replayPage;
+	}
 
 	public PageBox(BlockParams params, UserAgent ua) {
 		this(params, ua, Background.NULL_BACKGROUND);
@@ -549,10 +586,10 @@ public class PageBox extends AbstractBlockBox {
 	public final void addFixed(Drawer drawer, Visitor visitor, IAbsoluteBox box, double x, double y) {
 		AbsolutePos pos = box.getAbsolutePos();
 		if (pos.location.getLeftType() != LengthType.AUTO || pos.location.getRightType() != LengthType.AUTO) {
-			x = 0;
+			x = this.replayX;
 		}
 		if (pos.location.getTopType() != LengthType.AUTO || pos.location.getBottomType() != LengthType.AUTO) {
-			y = 0;
+			y = this.replayY;
 		}
 		box.finishLayout(this);
 		Fixed fixed = new Fixed(box, x, y);
@@ -561,8 +598,8 @@ public class PageBox extends AbstractBlockBox {
 		}
 		this.toAddFixeds.add(fixed);
 
-		x = this.offsetX + this.frame.getFrameLeft() - this.frame.margin.left;
-		y = this.offsetY + this.frame.getFrameTop() - this.frame.margin.top;
+		x = this.replayX + this.offsetX + this.frame.getFrameLeft() - this.frame.margin.left;
+		y = this.replayY + this.offsetY + this.frame.getFrameTop() - this.frame.margin.top;
 		fixed.box.draw(this, drawer, visitor, null, new AffineTransform(), x, y, fixed.x, fixed.y);
 	}
 

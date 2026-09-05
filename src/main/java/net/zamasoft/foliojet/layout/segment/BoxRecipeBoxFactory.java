@@ -95,6 +95,16 @@ public final class BoxRecipeBoxFactory {
 		// Tableのparams共有(alias)はカーネル側で行うため、ここは
 		// materializeを1回ずつ呼ぶだけでよい
 		case BoxRecipe.Table r -> create(LayoutSource.BoxKind.TABLE, r.params().materialize(), r.pos().materialize());
+		case BoxRecipe.PlacedTable r -> {
+			final var params = r.params().materialize();
+			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = switch (r.placement()) {
+			case BoxRecipe.InlineBlock p -> new InlineBlockBox(params, p.pos().materialize());
+			case BoxRecipe.FloatBlock p -> new FloatBlockBox(params, p.pos().materialize());
+			case BoxRecipe.Absolute p -> new AbsoluteBlockBox(params, p.pos().materialize());
+			default -> throw new IllegalArgumentException("table placement: " + r.placement().kind());
+			};
+			yield new TableBox(params, block);
+		}
 		case BoxRecipe.TableRowGroup r ->
 			create(LayoutSource.BoxKind.TABLE_ROW_GROUP, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.TableRow r ->

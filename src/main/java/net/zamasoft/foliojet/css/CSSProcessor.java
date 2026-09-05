@@ -741,6 +741,11 @@ public class CSSProcessor implements XMLHandler {
 				}
 				if (image != null) {
 					CSSJInternalImage.setImage(this.inlineObjectStyle, image);
+					if (this.inlineObject instanceof net.zamasoft.foliojet.objects.svg.SVGInlineObject svg
+							&& svg.getRunningSource() != null) {
+						this.inlineObjectStyle.set(CSSJInternalImage.INFO,
+								new net.zamasoft.foliojet.css.value.internal.CSSJImageValue(image, svg.getRunningSource()));
+					}
 					this.builder.startStyle(this.inlineObjectStyle);
 					this.builder.endStyle();
 				} else {

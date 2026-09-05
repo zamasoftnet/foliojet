@@ -104,6 +104,28 @@ public class FlowContainer implements Container {
 
 	protected Absolutes absolutes = null;
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		final List<BoxHolder> children = new ArrayList<BoxHolder>();
+		if (this.flows != null) {
+			children.addAll(this.flows);
+		}
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				children.add(this.floatings.getFloating(i));
+			}
+		}
+		children.sort(java.util.Comparator.comparingInt(child -> child.serial));
+		for (final BoxHolder child : children) {
+			action.accept(child.getBox());
+		}
+		if (this.absolutes != null) {
+			for (int i = 0; i < this.absolutes.getCount(); ++i) {
+				action.accept(this.absolutes.getAbsolute(i).box);
+			}
+		}
+	}
+
 	public FlowContainer() {
 		// default
 	}

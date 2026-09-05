@@ -207,6 +207,15 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	public final void finishLayoutSelf(IFramedBox containerBox) {
 	}
 
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		for (final Cell cell : this.cells) {
+			if (cell.isSource()) {
+				action.accept(cell.getCellBox());
+			}
+		}
+	}
+
 	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
 		if (this.cells == null) {
 			return;

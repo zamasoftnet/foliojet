@@ -43,6 +43,7 @@ public final class LayoutSourceEventConverter {
 	/** 単一の{@link LayoutSource.Event}を対応する{@link SegmentEvent}へ変換する。 */
 	public static SegmentEvent convert(final LayoutSource.Event event) {
 		return switch (event) {
+		case LayoutSource.Assignment(final long order) -> new SegmentEvent.Assignment(order);
 		// E-6増分3b-4: 記録時(StyleBuilder.startBox)にfreeze済みの
 		// recipeをそのまま包む(変換時freezeは記録時freezeへ前倒しされた)
 		case LayoutSource.Start(final BoxRecipe recipe) -> new SegmentEvent.BeginBox(recipe);

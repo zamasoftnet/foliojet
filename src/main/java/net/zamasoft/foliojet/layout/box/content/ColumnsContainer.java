@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.FramesStep;
 import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
@@ -32,6 +33,13 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 public class ColumnsContainer implements Container {
+
+	@Override
+	public void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+		for (final Container column : this.columns) {
+			column.forEachAssignmentChild(action);
+		}
+	}
 	protected class ColumnRuleDrawable extends AbstractDrawable {
 		protected final double x, y;
 

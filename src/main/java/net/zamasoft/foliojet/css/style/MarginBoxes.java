@@ -16,6 +16,8 @@ import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.StringFunctionValue;
+import net.zamasoft.foliojet.css.value.ElementFunctionValue;
+import net.zamasoft.foliojet.ua.PageAssignmentState;
 import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -52,6 +54,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
+import net.zamasoft.foliojet.css.style.running.RunningRenderer;
 
 /**
  * ページマージンボックス(css-page-3 §7)の組版と描画です。
@@ -67,7 +70,7 @@ import net.zamasoft.foliojet.ua.props.UAProps;
  * <p>
  * 現段階の対応: content の文字列・counter()/counters()(ページレベルの
  * カウンタ=page/pages と @page の counter-* によるもの)・
- * string()(GCPM、NamedStringStateを読む)、フォント・色・text-align・
+ * string()(GCPM、PageAssignmentStateを読む)、フォント・色・text-align・
  * vertical-align(top/middle/bottom)、margin/border/padding/background。
  * 未対応(FINE ログ): url() 画像・引用符・attr()・page-ref、縦書きの側面
  * ボックス。幅配分は css-page-3 §7.3 の基本形(センター優先、なければ
@@ -97,14 +100,15 @@ final class MarginBoxes {
 	 * @param visitor      ビジタ
 	 */
 	static void draw(final UserAgent ua, final StyleContext styleContext, final CSSElement pageElement,
-			final String pageName, final PageBox pageBox, final Drawer drawer, final Visitor visitor) {
+			final String pageName, final PageBox pageBox, final Drawer drawer, final Visitor visitor,
+			final RunningRenderer running) {
 		final Map<MarginBoxName, Declaration> declarations = styleContext.pageMarginBoxes(pageElement, pageName);
 		if (declarations.isEmpty()) {
 			return;
 		}
 		final Map<MarginBoxName, Box> boxes = new EnumMap<MarginBoxName, Box>(MarginBoxName.class);
 		for (final Map.Entry<MarginBoxName, Declaration> e : declarations.entrySet()) {
-			final Box box = Box.create(ua, e.getKey(), e.getValue());
+			final Box box = Box.create(ua, e.getKey(), e.getValue(), running);
 			if (box != null) {
 				boxes.put(e.getKey(), box);
 			}
@@ -217,23 +221,31 @@ final class MarginBoxes {
 		if (mini == null) {
 			return;
 		}
+		final boolean vertical = box.params.flow.isVertical();
 		final double contentH = mini.getContainer().getContentSize();
+		final double available = vertical ? w : h;
 		final double dy;
 		switch (box.verticalAlign) {
 		case START:
 			dy = 0;
 			break;
 		case END:
-			dy = Math.max(0, h - contentH);
+			dy = Math.max(0, available - contentH);
 			break;
 		default:
 			// MIDDLE / BASELINE(マージンボックスでは middle 扱い)
-			dy = Math.max(0, (h - contentH) / 2);
+			dy = Math.max(0, (available - contentH) / 2);
 			break;
 		}
 		// frames が背景・ボーダー層、draw が内容層(PageBox.drawFlow と同じ二層)
-		mini.frames(mini, drawer, null, new AffineTransform(), x, y + dy);
-		mini.draw(mini, drawer, visitor, null, new AffineTransform(), x, y + dy, x, y + dy);
+		final double drawX = x + (vertical ? (box.params.flow == WritingMode.RL ? -dy : dy) : 0);
+		final double drawY = y + (vertical ? 0 : dy);
+		if (box.running != null) {
+			RunningRenderer.draw(mini, drawer, drawX, drawY);
+		} else {
+			mini.frames(mini, drawer, null, new AffineTransform(), drawX, drawY);
+			mini.draw(mini, drawer, visitor, null, new AffineTransform(), drawX, drawY, drawX, drawY);
+		}
 	}
 
 	/**
@@ -243,21 +255,24 @@ final class MarginBoxes {
 		final BlockParams params;
 
 		final String text;
+		final RunningRenderer.Content running;
 
 		final CellAlign verticalAlign;
 
 		private double preferredWidth = -1;
 
-		private Box(BlockParams params, String text, CellAlign verticalAlign) {
+		private Box(BlockParams params, String text, CellAlign verticalAlign, RunningRenderer.Content running) {
 			this.params = params;
 			this.text = text;
 			this.verticalAlign = verticalAlign;
+			this.running = running;
 		}
 
 		/**
 		 * 宣言からボックスを合成します。内容が生成されない場合は null。
 		 */
-		static Box create(final UserAgent ua, final MarginBoxName name, final Declaration declaration) {
+		static Box create(final UserAgent ua, final MarginBoxName name, final Declaration declaration,
+				final RunningRenderer renderer) {
 			final CSSStyle style = CSSStyle.getCSSStyle(ua, null, CSSElement.BEFORE);
 			// ボックス位置ごとの UA 既定(css-page-3 Appendix A 相当)。
 			// 宣言が上書きできるよう applyProperties より先に設定する
@@ -270,6 +285,7 @@ final class MarginBoxes {
 				return null;
 			}
 			final StringBuilder text = new StringBuilder();
+			RunningRenderer.Content running = null;
 			for (final Value v : contents) {
 				switch (v) {
 				case StringValue str -> text.append(str.getString());
@@ -278,9 +294,16 @@ final class MarginBoxes {
 				case CountersValue counters -> text.append(
 						CounterStyles.of(ua).format(counterValue(ua, counters.getName()), counters.getStyle()));
 				case StringFunctionValue sf -> {
-					final String str = ua.getPassContext().getNamedStringState().get(sf.getName(), sf.getMode());
-					if (str != null) {
-						text.append(str);
+					final PageAssignmentState.Resolution<String> result = ua.getPassContext().getStringState()
+							.resolve(sf.getName(), sf.getMode());
+					if (result.presence() == PageAssignmentState.Presence.VALUE) {
+						text.append(result.value());
+					}
+				}
+				case ElementFunctionValue element -> {
+					running = renderer.prepare(element, style);
+					if (running == null) {
+						return null;
 					}
 				}
 				default -> LOG.log(Level.FINE, "マージンボックスで未対応のcontent値: {0}", v);
@@ -304,14 +327,15 @@ final class MarginBoxes {
 			params.unicodeBidi = UnicodeBidi.get(style);
 			params.paragraphBidi = UAProps.LAYOUT_BIDI_PARAGRAPH.getBoolean(ua);
 			params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(ua);
-			params.flow = WritingMode.TB;
+			params.flow = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style);
+			params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
 			params.textAlign = TextAlign.get(style);
 			params.textAlignLast = TextAlignLast.get(style);
 			params.lineHeight = LineHeight.get(style);
 			params.whiteSpace = WhiteSpace.get(style);
 			params.letterSpacing = LetterSpacing.get(style);
 			params.wordSpacing = WordSpacing.get(style);
-			return new Box(params, text.toString(), VerticalAlign.getForTableCell(style));
+			return new Box(params, text.toString(), VerticalAlign.getForTableCell(style), running);
 		}
 
 		/**
@@ -320,7 +344,8 @@ final class MarginBoxes {
 		double preferredWidth(final UserAgent ua) {
 			if (this.preferredWidth < 0) {
 				final PageBox wide = this.layout(ua, INFINITE, INFINITE);
-				this.preferredWidth = wide == null ? 0
+				this.preferredWidth = wide == null ? 0 : this.params.flow.isVertical()
+						? wide.getContainer().getContentSize()
 						: MeasuredIntrinsics.usedLineExtent(wide.getContainer(), this.params.flow);
 			}
 			return this.preferredWidth;
@@ -331,13 +356,18 @@ final class MarginBoxes {
 		 */
 		double preferredHeight(final UserAgent ua, final double width) {
 			final PageBox mini = this.layout(ua, width, INFINITE);
-			return mini == null ? 0 : mini.getContainer().getContentSize();
+			return mini == null ? 0 : this.params.flow.isVertical()
+					? MeasuredIntrinsics.usedLineExtent(mini.getContainer(), this.params.flow)
+					: mini.getContainer().getContentSize();
 		}
 
 		/**
 		 * 隔離ミニレイアウトで内容を組みます。
 		 */
 		PageBox layout(final UserAgent ua, final double width, final double height) {
+			if (this.running != null) {
+				return this.running.layout(this.params, width, height);
+			}
 			final MeasurePageGenerator pg = new MeasurePageGenerator(ua, this.params, width, height);
 			final DocumentBuilder doc = new DocumentBuilder(pg);
 			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);

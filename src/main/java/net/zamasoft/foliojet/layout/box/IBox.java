@@ -15,11 +15,25 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 public interface IBox {
 
+	/** 頁割当のcommit用に、配置済みの直接の子を論理順で列挙します。 */
+	public default void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
+	}
+
+	/** インライン内容で、この子より前に実際の文字があるかを返します。 */
+	public default boolean hasTextBeforeAssignmentChild(final IBox child) {
+		return false;
+	}
+
 	/**
 	 * この内容を生んだ LayoutSource のイベントIDを返します
 	 * (SourceAnchor。記録時に一度だけ付与され不変。断片・未記録は -1)。
 	 */
 	public long getSourceAnchor();
+
+	/** 再組版で箱を作り直しても維持する、代入元の論理アンカーです。 */
+	public default long getAssignmentAnchor() {
+		return this.getSourceAnchor();
+	}
 
 	/**
 	 * SourceAnchor を付与します(記録時・再生時のドライバ専用。

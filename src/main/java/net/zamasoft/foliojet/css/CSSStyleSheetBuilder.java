@@ -122,6 +122,7 @@ public class CSSStyleSheetBuilder {
 		// 未閉鎖コメントは終端で暗黙に閉じる(DeclarationParser参照——
 		// ph-cssの字句解析はここで回復できず、シート全体が破棄されてしまう)
 		css = DeclarationParser.closeUnterminatedComment(css);
+		css = net.zamasoft.foliojet.css.style.running.PageContentAtRules.preprocess(css);
 		CascadingStyleSheet sheet = CSSReader.readFromStringReader(css, DeclarationParser.settings());
 		if (sheet == null) {
 			throw new CSSException("スタイルシートを解析できません");
@@ -185,9 +186,37 @@ public class CSSStyleSheetBuilder {
 				this.fontFeatureValues(unknownRule);
 			} else if (mediaOk && "@font-palette-values".equalsIgnoreCase(decl)) {
 				this.fontPaletteValues(unknownRule);
+			} else if (mediaOk && "@-cssj-page-content".equalsIgnoreCase(decl)) {
+				this.pageContent(unknownRule, uri);
 			}
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+	}
+
+	private void pageContent(final CSSUnknownRule rule, final URI uri) {
+		if (rule.getParameterList() == null || rule.getBody() == null) {
+			return;
+		}
+		try {
+			final CSSStyle naming = CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE);
+			final Declaration nameDeclaration = DeclarationParser.parseInline(
+					"-cssj-page-content:" + rule.getParameterList() + ";", null,
+					ElementPropertySet.getInstance(), this.ua, uri);
+			if (nameDeclaration == null) {
+				return;
+			}
+			nameDeclaration.applyProperties(naming);
+			final String name = net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.getName(naming);
+			if (name == null) {
+				return;
+			}
+			final Declaration declaration = DeclarationParser.parseInline(rule.getBody(), null,
+					ElementPropertySet.getInstance(), this.ua, uri);
+			this.cssStyleSheet.addPageContent(net.zamasoft.foliojet.css.style.running.PageContentAtRules.synthesize(
+					this.ua, name, net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.getPages(naming), declaration));
+		} catch (final CSSException | IllegalArgumentException e) {
+			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(), "@-cssj-page-content: " + e.getMessage());
+		}
 	}
 
 	/**
@@ -1038,6 +1067,8 @@ public class CSSStyleSheetBuilder {
 						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_LEFT;
 					} else if ("right".equalsIgnoreCase(pseudo)) {
 						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_RIGHT;
+					} else if ("single".equalsIgnoreCase(pseudo)) {
+						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_SINGLE;
 					} else if ("-cssj-page-content".equalsIgnoreCase(pseudo)) {
 						// 4で廃止された独自機能(3.xの@page :-cssj-page-content)
 						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),

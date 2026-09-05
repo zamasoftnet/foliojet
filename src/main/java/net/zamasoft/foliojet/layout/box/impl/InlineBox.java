@@ -355,6 +355,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		} else {
 			newInline = new InlineBox(params, this.getInlinePos());
 		}
+		newInline.setAssignmentAnchor(this.getAssignmentAnchor());
 		return newInline;
 	}
 
@@ -366,6 +367,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		final InlineParams params = this.getInlineParams();
 		if (!this.cutHead) {
 			final InlineBox inlineBox = new InlineBox(params, this.getInlinePos());
+			inlineBox.setAssignmentAnchor(this.getAssignmentAnchor());
 			inlineBox.frame.margin = this.frame.margin;
 			inlineBox.frame.padding = this.frame.padding;
 			final InlineQuad quad = InlineQuad.createInlineBoxStartQuad(inlineBox);
@@ -394,6 +396,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 				nextPadding = this.frame.padding.cut(true, true, true, false);
 			}
 			final InlineBox inlineBox = new InlineBox(params, this.getInlinePos(), nextFrame, true);
+			inlineBox.setAssignmentAnchor(this.getAssignmentAnchor());
 			inlineBox.frame.margin = nextMargin;
 			inlineBox.frame.padding = nextPadding;
 			final InlineQuad quad = InlineQuad.createInlineBoxStartQuad(inlineBox);

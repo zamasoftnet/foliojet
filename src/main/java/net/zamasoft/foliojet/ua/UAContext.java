@@ -111,6 +111,28 @@ public class UAContext {
 		return this.maps;
 	}
 
+	/** 反復描画用の画像登録を一時マップへ隔離します。入れ子の画像読込も対象です。 */
+	public ImageMapScope isolateImageMaps() {
+		return new ImageMapScope();
+	}
+
+	public final class ImageMapScope implements AutoCloseable {
+		private final Map<Object, ImageMap> previous = maps;
+		private boolean closed;
+
+		private ImageMapScope() {
+			maps = new HashMap<Object, ImageMap>();
+		}
+
+		@Override
+		public void close() {
+			if (!this.closed) {
+				maps = this.previous;
+				this.closed = true;
+			}
+		}
+	}
+
 	/** 報告済みの近似描画の鍵({@code ApproximationGC.report}が使う)。 */
 	public java.util.Set<String> getReportedApproximations() {
 		return this.reportedApproximations;

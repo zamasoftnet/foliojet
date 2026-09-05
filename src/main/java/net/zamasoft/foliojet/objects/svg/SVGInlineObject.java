@@ -29,6 +29,52 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 
 	/** ホスト文書側のsvg要素のスタイル(著者CSSのvar()解決の文脈)。 */
 	private net.zamasoft.foliojet.css.CSSStyle hostStyle;
+	private net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource runningSource;
+
+	public net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource getRunningSource() {
+		return this.runningSource;
+	}
+
+	private boolean isRunning() {
+		for (var style = this.hostStyle; style != null; style = style.getParentStyle()) {
+			if (style.get(net.zamasoft.foliojet.css.impl.property.box.CSSPosition.INFO)
+					instanceof net.zamasoft.foliojet.css.value.RunningPositionValue) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** シリアライズ中から上限を守り、巨大SVGを一旦丸ごとコピーしない。 */
+	private void snapshotRunningSource(final org.w3c.dom.Document document, final String baseURI) {
+		final StringBuilder xml = new StringBuilder();
+		final int limit = net.zamasoft.foliojet.css.style.running.RunningCapture.MAX_TEXT_BYTES / 2 - baseURI.length();
+		try {
+			final java.io.Writer writer = new java.io.Writer() {
+				@Override
+				public void write(final char[] chars, final int offset, final int length) throws IOException {
+					if (length > limit - xml.length()) {
+						throw new IOException("running SVG text bytes");
+					}
+					xml.append(chars, offset, length);
+				}
+
+				@Override
+				public void flush() {
+				}
+
+				@Override
+				public void close() {
+				}
+			};
+			javax.xml.transform.TransformerFactory.newInstance().newTransformer().transform(
+					new javax.xml.transform.dom.DOMSource(document), new javax.xml.transform.stream.StreamResult(writer));
+			this.runningSource = new net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource(xml.toString(), baseURI);
+		} catch (final javax.xml.transform.TransformerException e) {
+			// 通常の画像化は続行する。runningの捕捉側が警告して登録を拒否する。
+			this.runningSource = new net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource(null, baseURI);
+		}
+	}
 
 	public void setHostStyle(net.zamasoft.foliojet.css.CSSStyle style) {
 		this.hostStyle = style;
@@ -143,6 +189,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		// ルートの先頭へ入れるのは、SVG内の既存<style>や style属性が
 		// あとから重なって勝てるようにするため(カスケードの出現順)
 		final String svgAuthorCss = ua.getDocumentContext().getSVGAuthorCss().toCssText(this.hostStyle);
+		final boolean running = this.isRunning();
 		this.hostStyle = null;
 		if (!svgAuthorCss.isEmpty()) {
 			// **規則ごとに別々の<style>にする**(2026-08-07)。Batikは
@@ -164,6 +211,9 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 			}
 		}
 
+		if (running) {
+			this.snapshotRunningSource(doc, uri.toString());
+		}
 		Image image = this.loader.getImage(uri.toString(), doc, ua);
 		double scale = LengthUtils.convert(ua, 1.0, Unit.PX, Unit.PT);
 		if (scale != 1) {

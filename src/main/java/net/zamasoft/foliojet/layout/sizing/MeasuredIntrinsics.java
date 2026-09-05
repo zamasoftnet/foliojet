@@ -217,14 +217,17 @@ public final class MeasuredIntrinsics {
 		final boolean vertical = flow.isVertical();
 		switch (box.getType()) {
 		case TEXT_BLOCK:
-			return ((TextBlockBox) box).getLineSize();
+			final TextBlockBox text = (TextBlockBox) box;
+			return text.getBlockParams().flow.isVertical() == vertical ? text.getLineSize()
+					: vertical ? text.getHeight() : text.getWidth();
 		case BLOCK: {
 			final AbstractContainerBox block = (AbstractContainerBox) box;
 			// マージンは使用値ではなく指定値から復元する: scratch 上の
 			// ブロックは利用可能幅の解決(制限しすぎの調整)で終端側の
 			// 使用マージンが吸収されるため。%・auto は固有寸法では 0 扱い
 			final double margins = specifiedLineMargins(block, flow);
-			if (!block.isAutoLineSize()) {
+			if (block.getBlockParams().flow.isVertical() != vertical || !block.isAutoLineSize()) {
+				// 異方向の子では親の行軸が子の頁軸になるため、組版後の物理寸法を使う。
 				// 幅指定のブロックは指定幅がそのまま使用幅
 				return margins + (vertical ? block.getHeight() : block.getWidth());
 			}

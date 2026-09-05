@@ -87,6 +87,14 @@ final class PageSequence {
 	 * 実際に出力したページ数(2026-07-28、css-break-3 §4.4)。
 	 */
 	private int emittedPages = 0;
+	private long installedPageContents = 0;
+
+	/** headや途中のstylesheetで追加された規則を、後続markerより先の文書順で登録します。 */
+	void installPageContents() {
+		final var registry = this.ua.getPassContext().getRunningRegistry();
+		this.installedPageContents = this.styleContext.styleSheet.installPageContents(this.installedPageContents,
+				template -> registry.state().assign(template.name(), template, registry.nextOrder(), false));
+	}
 
 	/**
 	 * タグ付きPDF構造要素のページ横断レジストリです(欠陥②の修正、
@@ -447,8 +455,8 @@ final class PageSequence {
 	/**
 	 * このページが<b>紙に何も描かない</b>ので出力しないでよいかを返します
 	 * (2026-07-28新設、css-break-3 §4.4。判定の全文はStyleBuilderからの
-	 * 移動——本文・{@code @page}背景・固定配置・マージンボックス宣言の
-	 * 4種すべてを見る。トンボ・ノンブルは数えない)。
+	 * 移動——本文・{@code @page}背景・固定配置・legacy・マージンボックス宣言の
+	 * 5種すべてを見る。トンボ・ノンブルは数えない)。
 	 */
 	private boolean paintsNothing(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak) {
 		if (pageBox.isNamedTransitionClosed() && !pageBox.paintsAnything()) {
@@ -488,6 +496,12 @@ final class PageSequence {
 		if (pageBox.paintsAnything()) {
 			return false;
 		}
+		// 登録だけでは可視内容とは限らない。差し替え/本文/強制改頁の判定後に、
+		// legacyを隔離再生して表示リストを調べる。空文字列や空の箱では頁を残さない。
+		if (net.zamasoft.foliojet.css.style.running.LegacyPageContents.paintsAnything(this.ua, this.pageElement,
+				this.pageName, pageBox, this.ua.getPassContext().getRunningRegistry().previewPage(pageBox))) {
+			return false;
+		}
 		// ページマージンボックス(柱・ノンブル)は宣言があれば描くとみなす
 		return this.styleContext.pageMarginBoxes(this.pageElement, this.pageName).isEmpty();
 	}
@@ -522,13 +536,23 @@ final class PageSequence {
 
 	boolean drawPage(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak)
 			throws GraphicsException {
+		this.installPageContents();
 		// 何も描かないページは出力しない(css-break-3 §4.4)。判定は
 		// imposition.nextPage()(=PDFのページを作る地点)より前に済ませる
 		// ——作ってしまってから取り消すのではなく、作らない
 		if (this.paintsNothing(pageBox, lastPage, closedByForcedBreak)) {
+			// 紙を捨てても代入元の文書順は失わない。空要素のclear/string-setを
+			// 一度だけ確定して次頁へ継承する。描画・PDF登録は行わない。
+			final Visitor assignmentVisitor = new net.zamasoft.foliojet.ua.impl.NopVisitor(this.ua);
+			for (final var assignment : this.ua.getPassContext().getRunningRegistry().commitPage(pageBox)) {
+				assignmentVisitor.visitAssignment(assignment);
+			}
+			assignmentVisitor.endPage();
 			this.discardPage();
 			return false;
 		}
+		// RootBuilderから渡された切断・移送済みの木で、代入の所属頁をcommitする。
+		final var assignments = this.ua.getPassContext().getRunningRegistry().commitPage(pageBox);
 		// ページサイズ決定
 		if (UAProps.OUTPUT_EXPAND_WITH_CONTENT.getBoolean(ua)) {
 			this.imposition.setPageWidth(pageBox.getVisualWidth());
@@ -600,6 +624,9 @@ final class PageSequence {
 
 		// フロー
 		pageBox.drawFlow(drawer, visitor);
+		for (final var assignment : assignments) {
+			visitor.visitAssignment(assignment);
+		}
 
 		if (gc != null) {
 			// 脚注separator罫線(flow後・fixed前。装飾なのでartifact)
@@ -609,7 +636,19 @@ final class PageSequence {
 			pageBox.drawFixed(drawer, visitor);
 
 			// ページマージンボックス(css-page-3。本文の後に描く=仕様の描画順)
-			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor);
+			final var values = new net.zamasoft.foliojet.css.style.running.PageValueSnapshot(
+					this.ua, this.pageElement, this.pageName);
+			final var running = new net.zamasoft.foliojet.css.style.running.RunningRenderer(this.ua, values);
+			net.zamasoft.foliojet.css.style.running.LegacyPageContents.layout(this.ua, this.pageElement, pageBox, running);
+			pageBox.drawPageContents(drawer);
+			final Drawer margins;
+			if (pageBox.hasPageContents()) {
+				margins = new Drawer(Integer.MAX_VALUE);
+				drawer.visitDrawer(margins);
+			} else {
+				margins = drawer;
+			}
+			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, margins, visitor, running);
 
 		}
 		// NopVisitorもstring-set/named-stringのページ状態を確定する。

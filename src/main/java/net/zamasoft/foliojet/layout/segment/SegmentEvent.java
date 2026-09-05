@@ -26,6 +26,9 @@ package net.zamasoft.foliojet.layout.segment;
  * </ul>
  */
 public sealed interface SegmentEvent {
+	/** 本流の代入位置です。再生時もレイアウト入力を発生させません。 */
+	record Assignment(long order) implements SegmentEvent {
+	}
 	/**
 	 * ボックスの開始です。子コンテンツの構造(子への参照)はここには
 	 * 含めない——構造は{@link EndBox}までの並びが表現する。

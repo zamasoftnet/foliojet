@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Running assignment mode matrix</title>
+<style>
+@page { size: 320pt 220pt; margin: 30pt;
+	@top-left { content: element(h, first); }
+	@top-center { content: element(h, start); }
+	@top-right { content: element(h, last); }
+	@bottom-center { content: element(h, first-except); }
+}
+html, body { margin: 0; font: 10pt serif; }
+.running { position: running(h); }
+section + section { break-before: page; }
+</style></head>
+<body>
+<!-- first/start/last/first-except: A/A/B/empty, B/B/B/B, C/B/D/empty, D/D/D/D -->
+<section><span class="running">A</span><p>First assignment begins the page.</p><span class="running">B</span><p>Second assignment.</p></section>
+<section><p>No assignment; carry B.</p></section>
+<section><p>Content before assignments.</p><span class="running">C</span><p>Middle.</p><span class="running">D</span><p>Last.</p></section>
+<section><p>No assignment; carry D.</p></section>
+<!-- R2 clear/tombstone order is tested directly against RunningRenderer in RunningRenderTest.
+     CSS legacy clear capture is enabled by R3. An empty running element is a VALUE, not a tombstone. -->
+</body></html>

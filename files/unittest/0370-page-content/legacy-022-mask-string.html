@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Legacy page masks and named strings</title>
+<style>
+/* 3.2 022: left/right names, string-set and display-page counter. */
+@page { size: 300pt 200pt; margin: 25pt }
+html,body { margin: 0; font: 10pt serif }
+p { margin: 0 }
+h1 { margin: 0; font: 10pt serif; string-set: heading content() }
+section + section { break-before: page }
+#left { -cssj-page-content: nombre-left left; left: 0; bottom: -10pt; width: 100%; text-align: left }
+#right { -cssj-page-content: nombre-right right; left: 0; bottom: -10pt; width: 100%; text-align: right }
+#left::before { content: 'LEFT/' counter(page) '/' string(heading,last) }
+#right::after { content: 'RIGHT/' counter(page) '/' string(heading,last) }
+</style></head><body>
+<section><div id="left"></div><div id="right"></div><h1>ALPHA</h1><p>BODY1</p></section>
+<section><h1>BETA</h1><p>BODY2</p><h1>GAMMA</h1></section>
+<section><p>BODY3</p></section>
+</body></html>

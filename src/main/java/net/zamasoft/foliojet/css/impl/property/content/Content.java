@@ -23,7 +23,8 @@ import net.zamasoft.foliojet.css.value.TargetTextValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.message.MessageCodes;
-import net.zamasoft.foliojet.ua.NamedStringState;
+import net.zamasoft.foliojet.ua.PageAssignmentState.Mode;
+import net.zamasoft.foliojet.css.value.ElementFunctionValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -124,6 +125,19 @@ public class Content extends AbstractPrimitivePropertyInfo {
 					values.add(parseTargetText(func.argStream()));
 				} else if (func.is("string")) {
 					values.add(parseStringFunc(func.argStream()));
+				} else if (func.is("element")) {
+					// element() は content の唯一の値でなければならない。
+					if (!values.isEmpty() || tokens.hasNext()) {
+						throw new PropertyException();
+					}
+					final TokenStream params = func.argStream();
+					final String name = params.ident();
+					if (name == null
+							|| java.util.Set.of("none", "default", "initial", "inherit", "unset", "revert", "revert-layer")
+									.contains(name.toLowerCase(java.util.Locale.ROOT))) {
+						throw new PropertyException();
+					}
+					values.add(new ElementFunctionValue(name, parseAssignmentMode(params)));
 				} else if (func.is("leader")) {
 					values.add(parseLeader(func.argStream()));
 				} else {
@@ -221,7 +235,12 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		if (name == null) {
 			throw new PropertyException();
 		}
-		byte mode = NamedStringState.FIRST;
+		return new StringFunctionValue(name, parseAssignmentMode(params));
+	}
+
+	/** string()/element() に共通する頁内解決方針です。 */
+	private static Mode parseAssignmentMode(final TokenStream params) throws PropertyException {
+		Mode mode = Mode.FIRST;
 		if (params.hasNext()) {
 			if (!params.eatComma()) {
 				throw new PropertyException();
@@ -230,18 +249,18 @@ public class Content extends AbstractPrimitivePropertyInfo {
 			if (modeStr == null) {
 				throw new PropertyException();
 			}
-			switch (modeStr) {
+			switch (modeStr.toLowerCase(java.util.Locale.ROOT)) {
 			case "first":
-				mode = NamedStringState.FIRST;
+				mode = Mode.FIRST;
 				break;
 			case "start":
-				mode = NamedStringState.START;
+				mode = Mode.START;
 				break;
 			case "last":
-				mode = NamedStringState.LAST;
+				mode = Mode.LAST;
 				break;
 			case "first-except":
-				mode = NamedStringState.FIRST_EXCEPT;
+				mode = Mode.FIRST_EXCEPT;
 				break;
 			default:
 				throw new PropertyException();
@@ -250,7 +269,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 				throw new PropertyException();
 			}
 		}
-		return new StringFunctionValue(name, mode);
+		return mode;
 	}
 
 	/**

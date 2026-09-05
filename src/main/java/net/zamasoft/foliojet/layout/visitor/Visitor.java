@@ -12,6 +12,11 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
  * @version $Id: Visitor.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface Visitor {
+	/** ページビルダーがcommitした、非描画の代入アンカーを訪問します。 */
+	public default void visitAssignment(
+			net.zamasoft.foliojet.css.style.running.RunningRegistry.Placement placement) {
+	}
+
 	public void startPage();
 
 	/**

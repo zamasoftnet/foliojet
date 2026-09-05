@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.css.CSSElement;
@@ -215,7 +216,8 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
-import net.zamasoft.foliojet.ua.NamedStringState;
+import net.zamasoft.foliojet.ua.PageAssignmentState;
+import net.zamasoft.foliojet.css.value.ElementFunctionValue;
 import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PageRef.Fragment;
 import net.zamasoft.foliojet.ua.PassContext;
@@ -285,6 +287,7 @@ final class StyleEventMachine {
 	private final List<int[]> listCounterStack = new ArrayList<int[]>();
 	private Marker marker = null;
 	private boolean firstLetter = false;
+	private final net.zamasoft.foliojet.css.style.running.RunningCapture runningCapture;
 
 	StyleEventMachine(final StyleBuildContext context, final Segment segment, final RecordingLayoutSink sink,
 			final BoxStyleMapper mapper, final StyleBoxEmitter emitter, final PageSequence pageSequence,
@@ -298,15 +301,25 @@ final class StyleEventMachine {
 		this.ua = ua;
 		this.generated = new GeneratedContentResolver(ua);
 		this.styleContext = styleContext;
+		this.runningCapture = new net.zamasoft.foliojet.css.style.running.RunningCapture(ua, styleContext,
+				sink::assignment, this::warnElementFunction);
+	}
+
+	CSSStyle capturedStyle() {
+		return this.runningCapture.currentStyle();
 	}
 
 	void startStyle(CSSStyle style) {
+		this.pageSequence.installPageContents();
 		if (DEBUG) {
 			System.err.println(style.path());
 		}
 		final CSSElement ce = style.getCSSElement();
 
 		short explDisplay = Display.get(style);
+		if (this.runningCapture.start(style)) {
+			return;
+		}
 
 		// @container G4(2026-08-15段4、docs/history/2026-08-15-container-queries-design.md §2):
 		// container-type: inline-sizeの要素は、この時点(スタイル確定・
@@ -333,6 +346,13 @@ final class StyleEventMachine {
 		this.settleMarkerBeforeTable(explDisplay);
 
 		this.emitter._startStyle(style);
+		if (explDisplay != DisplayValue.NONE) {
+			final String[] clears = net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContentClear.get(style);
+			if (clears.length != 0) {
+				this.sink.clearAssignments(List.of(clears),
+						Display.get(style) == DisplayValue.CONTENTS ? null : this.sink.sourceBox());
+			}
+		}
 
 		this.firstLetter = true;
 		if (!ce.isPseudoElement()) {
@@ -644,46 +664,47 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code string-set}(GCPM)を文書順に確定し、{@code content()} を含むものは draw 時まで保留します。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * counter/attr等は入力時に解決し、全代入を配置アンカーへ渡します。
+	 * 本文の生成内容からの先行参照は、確定頁の状態と別のbuildStringStateで扱います。
 	 */
 	private void applyStringSets(final CSSStyle style, final CSSElement ce, final int depth) {
-		// string-set(GCPM)。counter()/attr()/文字列は文書順=build時に確定させる
-		// (呼び出しタイミングではなくelementKeyで先後を判定するNamedStringStateの
-		// 契約を守るため)。content()を含むエントリのみ、要素のボックスが確定する
-		// draw時(AbstractVisitor.visitBox)まで解決を保留する。
 		final Value[] stringSets = StringSet.get(style);
 		if (stringSets != null) {
-			final long elementKey = ce.elementKey;
+			final long order = this.ua.getPassContext().getRunningRegistry().nextOrder();
+			final List<PendingStringSet> assignments = new ArrayList<PendingStringSet>();
+			// 同一要素の同名指定は後の値で置換し、同じ (name, order) を二重登録しない
+			final java.util.LinkedHashMap<String, List<Object>> byName = new java.util.LinkedHashMap<String, List<Object>>();
 			for (int i = 0; i < stringSets.length; ++i) {
 				final StringSetEntryValue entry = (StringSetEntryValue) stringSets[i];
 				final Value[] parts = entry.getParts();
 				final List<Object> resolvedParts = new ArrayList<Object>(parts.length);
-				boolean needsContent = false;
 				for (int j = 0; j < parts.length; ++j) {
 					final Value part = parts[j];
 					if (part instanceof ContentFunctionValue) {
 						resolvedParts.add(PendingStringSet.CONTENT);
-						needsContent = true;
 					} else {
 						resolvedParts.add(this.generated.stringSetPart(part, ce, depth));
 					}
 				}
-				final String name = entry.getName();
-				if (!needsContent) {
+				byName.put(entry.getName(), resolvedParts);
+			}
+			for (final Map.Entry<String, List<Object>> e : byName.entrySet()) {
+				final String name = e.getKey();
+				final List<Object> resolvedParts = e.getValue();
+				assignments.add(new PendingStringSet(name, resolvedParts, order));
+				this.ua.getPassContext().getBuildStringState().begin(name, order);
+				if (!resolvedParts.contains(PendingStringSet.CONTENT)) {
+					// 同じ頁の本文側 string() が読めるよう build 時にも即時登録する
 					final StringBuilder buff = new StringBuilder();
-					for (int j = 0; j < resolvedParts.size(); ++j) {
-						buff.append((String) resolvedParts.get(j));
+					for (final Object part : resolvedParts) {
+						buff.append((String) part);
 					}
-					this.ua.getPassContext().getNamedStringState().set(name, buff.toString(), elementKey);
-				} else {
-					List<PendingStringSet> pending = this.ua.getPassContext().getPendingStringSets().get(elementKey);
-					if (pending == null) {
-						pending = new ArrayList<PendingStringSet>();
-						this.ua.getPassContext().getPendingStringSets().put(elementKey, pending);
-					}
-					pending.add(new PendingStringSet(name, resolvedParts));
+					this.ua.getPassContext().getBuildStringState().assign(name, buff.toString(), order, false);
 				}
+			}
+			if (!assignments.isEmpty()) {
+				this.sink.stringAssignments(assignments, style,
+						Display.get(style) == DisplayValue.CONTENTS ? null : this.sink.sourceBox());
 			}
 		}
 	}
@@ -811,10 +832,19 @@ final class StyleEventMachine {
 	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
 	 */
 	private void emitGeneratedContent(final CSSStyle style, final CSSElement ce, final int depth) {
+		// element() はマージンボックス専用。通常要素・疑似要素の宣言は警告して捨てる。
+		final Value[] contents = Content.get(style);
+		if (contents != null) {
+			for (final Value value : contents) {
+				if (value instanceof ElementFunctionValue) {
+					this.warnElementFunction();
+					return;
+				}
+			}
+		}
 		// コンテンツ生成(脚注のcall/markerはF5でfootnotePseudo側の
 		// ラベルコンパイルへ移った——番号を文字として焼き込まないため)
 		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
-			final Value[] contents = Content.get(style);
 			if (contents != null) {
 				for (int i = 0; i < contents.length; ++i) {
 					final Value v = contents[i];
@@ -953,7 +983,9 @@ final class StyleEventMachine {
 						break;
 					case StringFunctionValue sf: {
 						// string()(GCPM)
-						String str = this.ua.getPassContext().getNamedStringState().get(sf.getName(), sf.getMode());
+						final PageAssignmentState.Resolution<String> result = this.ua.getPassContext().getBuildStringState()
+								.resolve(sf.getName(), sf.getMode());
+						final String str = result.presence() == PageAssignmentState.Presence.VALUE ? result.value() : null;
 						if (str != null && str.length() > 0) {
 							char[] ch = str.toCharArray();
 							this.checkMarker();
@@ -996,6 +1028,37 @@ final class StyleEventMachine {
 	 * 要素の ::before を合成します(合成擬似要素自身には作らない)。
 	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
 	 */
+	/** {@code content: element()} の警告は文書ごとに 1 回。 */
+	private boolean elementFunctionWarned = false;
+
+	/**
+	 * 疑似要素の {@code content} が生成に使えるかを返します。{@code element()} は
+	 * マージンボックス専用なので、含む宣言は警告して疑似要素ごと作らない
+	 * (箱・counter・string-set の副作用を残さない。codex レビュー 2026-09-05 R1a #4)。
+	 */
+	private boolean usableGeneratedContent(final CSSStyle pseudoStyle) {
+		final Value[] contents = Content.get(pseudoStyle);
+		if (contents == null) {
+			return false;
+		}
+		for (final Value value : contents) {
+			if (value instanceof ElementFunctionValue) {
+				this.warnElementFunction();
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void warnElementFunction() {
+		if (!this.elementFunctionWarned) {
+			this.elementFunctionWarned = true;
+			this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX,
+					String.valueOf(this.ua.getDocumentContext().getBaseURI()),
+					"content: element() はマージンボックスでのみ使用できます");
+		}
+	}
+
 	private void synthesizeBefore(final CSSStyle style, final CSSElement ce) {
 		// before(合成擬似要素自身には::before/::afterを作らない)
 		if (!ce.isPseudoElement()
@@ -1010,7 +1073,7 @@ final class StyleEventMachine {
 				if (beforeDeclaration != null) {
 					beforeDeclaration.applyProperties(beforeStyle);
 				}
-				if (Content.get(beforeStyle) != null && Display.get(beforeStyle) != DisplayValue.NONE) {
+				if (this.usableGeneratedContent(beforeStyle) && Display.get(beforeStyle) != DisplayValue.NONE) {
 					this.startStyle(beforeStyle);
 					this.endStyle();
 				}
@@ -1157,6 +1220,10 @@ final class StyleEventMachine {
 
 	void characters(int charOffset, char[] ch, int off, int len) {
 		assert len > 0;
+		if (this.runningCapture.isCapturing()) {
+			this.runningCapture.characters(ch, off, len);
+			return;
+		}
 		if (this.context.getHtmlRootBlock() == null && this.context.getCurrentStyle() != null) {
 			// 本文の中
 			this.segment.characters(charOffset, ch, off, len); // 本流のセグメント記録(M6a)
@@ -1215,8 +1282,12 @@ final class StyleEventMachine {
 						final LanguageProfile lang = LanguageProfileBundle
 								.getLanguageProfile(this.context.getCurrentStyle().getCSSElement().lang);
 						int first = lang.countFirstLetter(ch, off, len);
-						this.checkMarker();
-						this.sink.characters(charOffset, ch, off, first, false);
+						if (this.runningCapture.isCapturing()) {
+							this.runningCapture.characters(ch, off, first);
+						} else {
+							this.checkMarker();
+							this.sink.characters(charOffset, ch, off, first, false);
+						}
 						len -= first;
 						off += first;
 						charOffset += first;
@@ -1489,6 +1560,10 @@ final class StyleEventMachine {
 
 
 	void endStyle() {
+		if (this.runningCapture.isCapturing()) {
+			this.runningCapture.end();
+			return;
+		}
 		CSSStyle style = this.context.getCurrentStyle();
 		if (DEBUG) {
 			System.err.println("/" + style.path());
@@ -1523,7 +1598,7 @@ final class StyleEventMachine {
 						afterStyle.set(Display.INFO, DisplayValue.BLOCK_VALUE);
 					}
 				}
-				if (Content.get(afterStyle) != null && Display.get(afterStyle) != DisplayValue.NONE) {
+				if (this.usableGeneratedContent(afterStyle) && Display.get(afterStyle) != DisplayValue.NONE) {
 					this.startStyle(afterStyle);
 					this.endStyle();
 				}

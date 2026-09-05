@@ -208,6 +208,37 @@ public abstract class AbstractVisitor implements Visitor {
 
 	protected abstract void startBookmark(String title, Point2D location);
 
+	/** 確定頁のアンカーから、runningと全string-setを一度だけ登録します。 */
+	@Override
+	public void visitAssignment(final net.zamasoft.foliojet.css.style.running.RunningRegistry.Placement placement) {
+		this.ua.getPassContext().getRunningRegistry().assign(placement);
+		StringBuilder text = null;
+		for (final PendingStringSet assignment : placement.strings()) {
+			final StringBuilder resolved = new StringBuilder();
+			for (final Object part : assignment.parts) {
+				if (part == PendingStringSet.CONTENT) {
+					if (text == null) {
+						text = new StringBuilder();
+						if (placement.sourceText() != null) {
+							text.append(placement.sourceText());
+						} else {
+							appendSemanticText(placement.box(), text);
+						}
+					}
+					resolved.append(text);
+				} else {
+					resolved.append((String) part);
+				}
+			}
+			this.ua.getPassContext().getStringState().assign(assignment.name, resolved.toString(),
+					assignment.order, placement.beginsPage());
+			// content() で完成した値は build 側の先行参照(本文の string())にも届ける。
+			// 文字列/counter だけの代入は build 時に同じ order で登録済み(後勝ちで同値)
+			this.ua.getPassContext().getBuildStringState().complete(assignment.name, resolved.toString(),
+					assignment.order);
+		}
+	}
+
 	public void startPage() {
 		// ignore
 	}
@@ -217,7 +248,9 @@ public abstract class AbstractVisitor implements Visitor {
 			this.flushForms();
 		}
 		// string-set(GCPM)は特定機能に相乗りしない独立機構のため無条件で処理する。
-		this.ua.getPassContext().getNamedStringState().endPage();
+		this.ua.getPassContext().getStringState().endPage();
+		this.ua.getPassContext().getBuildStringState().endPage();
+		this.ua.getPassContext().getRunningRegistry().endPage();
 	}
 
 	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
@@ -407,32 +440,6 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 		}
 
-		// string-set(GCPM)のcontent()未完成分をdraw時に解決する。
-		// bookmarks/page-referencesとは無関係の独立機構のため無条件で処理する。
-		if (isMarkupBox(type)) {
-			Map<Long, List<PendingStringSet>> pendingMap = this.ua.getPassContext().getPendingStringSets();
-			List<PendingStringSet> pending = pendingMap.remove(ce.elementKey());
-			if (pending != null) {
-				StringBuilder textBuff = null;
-				for (int i = 0; i < pending.size(); ++i) {
-					PendingStringSet p = pending.get(i);
-					StringBuilder resolved = new StringBuilder();
-					for (int j = 0; j < p.parts.size(); ++j) {
-						Object part = p.parts.get(j);
-						if (part == PendingStringSet.CONTENT) {
-							if (textBuff == null) {
-								textBuff = new StringBuilder();
-								appendSemanticText(box, textBuff);
-							}
-							resolved.append(textBuff);
-						} else {
-							resolved.append((String) part);
-						}
-					}
-					this.ua.getPassContext().getNamedStringState().set(p.name, resolved.toString(), ce.elementKey());
-				}
-			}
-		}
 
 		// ブックマーク
 		if ((this.bookmarks || pageRef != null) && isMarkupBox(type)) {

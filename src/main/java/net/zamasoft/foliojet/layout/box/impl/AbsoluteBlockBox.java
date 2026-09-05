@@ -384,7 +384,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
 		this.resolveUnfinishedMargins();
-		if (this.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
+		if (this.getAbsolutePos().fiducial != Fiducial.CONTEXT && !pageBox.isReplayPage()) {
 			// position:fixedはビューポート(=版面)に貼り付き、ビューポートの
 			// 外はスクロールしても到達できないためブラウザは4辺とも描かない。
 			// クリップしないと、負座標へ退避したoff-canvas UI(kanaloco.jpの

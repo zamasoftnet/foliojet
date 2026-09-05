@@ -172,6 +172,38 @@ public class PageRef {
 	}
 
 	/**
+	 * 反復内容用の読み取りビューです。古い参照を削除せず、最終パスの収束確認だけを記録します。
+	 * 可変なFragmentやCounterを呼び出し側へ渡しません。
+	 */
+	public CounterView counterView(final boolean lastPass) {
+		return (uri, name, all) -> {
+			final List<Integer> values = new ArrayList<Integer>();
+			final List<Fragment> fragments = this.uriToFragments.get(uri);
+			if (fragments != null) {
+				for (final Fragment fragment : fragments) {
+					if (fragment.generation < this.generation - 1) {
+						continue;
+					}
+					if (lastPass && fragment.generation < this.generation) {
+						fragment.staleConsumed = true;
+					}
+					values.add(fragment.getCounterValue(name));
+					if (!all) {
+						break;
+					}
+				}
+			}
+			return List.copyOf(values);
+		};
+	}
+
+	/** 最初の参照、または全参照のカウンタ値だけを読みます。 */
+	@FunctionalInterface
+	public interface CounterView {
+		List<Integer> counters(URI uri, String name, boolean all);
+	}
+
+	/**
 	 * 追加済みの全てのフラグメントを返します。2世代以上前の(重複idの
 	 * 出現数がパスをまたいで減った等でstaleになった)フラグメントは
 	 * ここで遅延プルーニングして除去する。

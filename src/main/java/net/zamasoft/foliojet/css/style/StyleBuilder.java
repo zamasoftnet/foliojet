@@ -210,7 +210,6 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
-import net.zamasoft.foliojet.ua.NamedStringState;
 import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PageRef.Fragment;
 import net.zamasoft.foliojet.ua.PassContext;
@@ -358,6 +357,7 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		this.doc = new DocumentBuilder(this);
 		// E-6増分3b-2: text payloadのspill予算(bytes)はsinkが注入する
 		this.sink = new RecordingLayoutSink(this.doc, UAProps.PROCESSING_TEXT_SPILL_BUDGET.getLong(ua));
+		this.sink.setAssignments(ua.getPassContext().getRunningRegistry());
 
 		byte pageMode = 0;
 		// 自動高さ
@@ -394,7 +394,8 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 
 
 	public CSSStyle getCurrentStyle() {
-		return this.currentStyle;
+		final CSSStyle captured = this.eventMachine == null ? null : this.eventMachine.capturedStyle();
+		return captured == null ? this.currentStyle : captured;
 	}
 
 	public void startStyle(final CSSStyle style) {

@@ -214,7 +214,6 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
-import net.zamasoft.foliojet.ua.NamedStringState;
 import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PageRef.Fragment;
 import net.zamasoft.foliojet.ua.PassContext;
@@ -254,7 +253,72 @@ import net.zamasoft.foliojet.ua.BoundSide;
  * 同一の順序を保存している({@link #_startStyle}のコメント参照)。
  * </p>
  */
-final class StyleBoxEmitter {
+public final class StyleBoxEmitter {
+	/**
+	 * 計算済みスタイルから組版イベントだけを生成する、反復内容専用の入口です。
+	 * カスケード・counter・string-set・主ソースの記録処理には入りません。
+	 */
+	public static final class Replay implements StyleBuildContext {
+		private CSSStyle current;
+		private final StyleBoxEmitter emitter;
+		private final java.util.function.Consumer<net.zamasoft.foliojet.layout.segment.SegmentEvent> events;
+		private boolean inTextBlock;
+		private boolean rightSide;
+
+		public Replay(final UserAgent ua, final CSSStyle root, final boolean rightSide,
+				final java.util.function.Consumer<net.zamasoft.foliojet.layout.segment.SegmentEvent> events) {
+			this.current = root;
+			this.rightSide = rightSide;
+			this.events = events;
+			final StyleContext empty = new StyleContext(new net.zamasoft.foliojet.css.CSSStyleSheet(), null, null);
+			this.emitter = new StyleBoxEmitter(this, new RecordingLayoutSink(events),
+					new BoxStyleMapper(ua, empty), null, ua, null);
+		}
+
+		public void start(final CSSStyle style) {
+			this.emitter._startStyle(style);
+		}
+
+		/** 明示要素と、それに補完された匿名箱を元の親まで閉じます。 */
+		public void end(final CSSStyle parent) {
+			while (this.current != parent) {
+				this.emitter._endStyle();
+			}
+		}
+
+		public void text(final String text, final boolean fixed) {
+			if (text.isEmpty()) {
+				return;
+			}
+			final byte display = Display.get(this.current);
+			final boolean table = display == DisplayValue.TABLE || display == DisplayValue.INLINE_TABLE
+					|| display == DisplayValue.TABLE_ROW || display == DisplayValue.TABLE_ROW_GROUP
+					|| display == DisplayValue.TABLE_HEADER_GROUP || display == DisplayValue.TABLE_FOOTER_GROUP;
+			if (table && text.isBlank()) {
+				return;
+			}
+			final CSSStyle parent = this.current;
+			if (table || display == DisplayValue.CONTENTS) {
+				final CSSStyle inline = parent.inheritAnonStyle(CSSElement.ANON);
+				inline.set(Display.INFO, DisplayValue.INLINE_VALUE);
+				this.start(inline);
+			}
+			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.Text(-1, text, fixed));
+			this.end(parent);
+		}
+
+		public CSSStyle getCurrentStyle() { return this.current; }
+		public void setCurrentStyle(final CSSStyle style) { this.current = style; }
+		public FlowBlockBox getHtmlRootBlock() { return null; }
+		public void setHtmlRootBlock(final FlowBlockBox box) { throw new IllegalStateException(); }
+		public boolean isInBody() { return true; }
+		public void setInBody(final boolean inBody) { throw new IllegalStateException(); }
+		public boolean isInTextBlock() { return this.inTextBlock; }
+		public void setInTextBlock(final boolean inTextBlock) { this.inTextBlock = inTextBlock; }
+		public boolean isRightSide() { return this.rightSide; }
+		public void setRightSide(final boolean rightSide) { this.rightSide = rightSide; }
+		public void checkMarker() { /* 反復内容から本文のリスト番号を変更しません。 */ }
+	}
 	private final StyleBuildContext context;
 	private final RecordingLayoutSink sink;
 	private final BoxStyleMapper mapper;
@@ -671,6 +735,7 @@ final class StyleBoxEmitter {
 
 	/** 1レベル分のボックス送出(旧_startStyleのdispatch部を逐語移動)。 */
 	private void openBox(final OpenStep step) {
+		this.sink.beginSource(step.style().getCSSElement());
 		// startColumns(段組ラッパー)がstyleを差し替えるため非final(旧コードと同じ)
 		CSSStyle style = step.style();
 		final boolean htmlRoot = step.htmlRoot();
@@ -1016,6 +1081,7 @@ final class StyleBoxEmitter {
 
 	void _endStyle() {
 		final CSSStyle style = this.context.getCurrentStyle();
+		this.sink.endContentsSource(style);
 		// System.out.println("/" + style.path());
 		if (!this.context.isInBody()) {
 			this.context.setInBody(true);

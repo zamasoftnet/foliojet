@@ -164,6 +164,11 @@ public final class ElementPropertySet extends PropertySet {
 		return CODE_SIZE;
 	}
 
+	/** 計算済みスタイルの値コピーに使う、登録済みの基本特性です。 */
+	public static java.util.Set<PrimitivePropertyInfo> getPrimitiveProperties() {
+		return PRIMITIVE_PROPERTIES;
+	}
+
 	public static short getCode(PrimitivePropertyInfo info) {
 		Short s = (Short) CODES.get(info);
 		if (s == null) {
@@ -691,6 +696,11 @@ public final class ElementPropertySet extends PropertySet {
 		// Extensions
 		reg(CSSJFontPolicy.INFO);
 		reg(CSSJRuby.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.INFO);
+		regCode(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.INFO_NAME);
+		regCode(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.INFO_PAGES);
+		reg(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContentClear.INFO);
+		put(net.zamasoft.foliojet.css.impl.property.ext.CSSJRegeneratable.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.ext.CSSJWarichu.INFO);
 		reg(CSSJBreakCharacters.INFO);
 		reg(CSSJNoBreakCharacters.INFO);
@@ -710,6 +720,7 @@ public final class ElementPropertySet extends PropertySet {
 	}
 
 	private static final PropertySet INSTANCE = new ElementPropertySet();
+	private static final java.util.Set<PrimitivePropertyInfo> PRIMITIVE_PROPERTIES = java.util.Set.copyOf(CODES.keySet());
 
 	public static PropertySet getInstance() {
 		return INSTANCE;

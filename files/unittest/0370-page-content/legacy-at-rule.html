@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Legacy page-content at-rule</title>
+<style>
+@page { size: 300pt 200pt; margin: 20pt 40pt 30pt; @top-center { content: 'MARGIN' } }
+@page :first { margin-top: 20pt }
+@page :left { @-cssj-page-content footer {
+  content: 'FOOT/' counter(page); left: 0; bottom: -10pt; width: 100%; height: 12pt;
+  text-align: center; font: 10pt serif; background: #eee;
+} }
+html,body { margin: 0; font: 10pt serif }
+p { margin: 0 }
+section + section { break-before: page }
+</style></head><body>
+<section><p>BODY1</p></section><section><p>BODY2</p></section><section><p>BODY3</p></section>
+</body></html>

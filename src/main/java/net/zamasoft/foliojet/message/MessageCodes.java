@@ -88,6 +88,8 @@ public interface MessageCodes {
 	public static final short ERROR_EXPIRED_LICENSE = 0x380B;
 	public static final short ERROR_UNLICENSED = 0x380C;
 	public static final short ERROR_NO_CONTENT = 0x380D;
+	/** PDF/Xの出力インテント指定が不正なため変換を中断したエラーです。 */
+	public static final short ERROR_PDFX_OUTPUT_INTENT = 0x380E;
 	public static final short ERROR_PLUGIN = 0x38FF;
 
 	public static final short FATAL_XSLT_FATAL = 0x4801;

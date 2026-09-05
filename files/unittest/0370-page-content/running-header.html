@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Running headings and display page counters</title>
+<style>
+@page { size: 320pt 220pt; margin: 30pt;
+	@top-center { content: element(h, first); }
+	@top-right { content: element(h, last); }
+}
+html, body { margin: 0; font: 10pt serif; }
+h2 { position: running(h); margin: 0; font: 10pt serif; }
+h2::after { content: '/' counter(page); }
+section + section { break-before: page; }
+</style></head>
+<body>
+<section><h2>ALPHA</h2><p>Page one.</p></section>
+<section><h2>BETA</h2><p>Page two starts.</p><h2>GAMMA</h2><p>Page two ends.</p></section>
+<section><p>Page three carries the last heading.</p></section>
+</body></html>

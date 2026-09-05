@@ -53,6 +53,9 @@ import net.zamasoft.foliojet.layout.segment.TextSpill;
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource implements AutoCloseable {
+	/** ゼロadvance・非構造・非描画の代入位置です。payloadは頁registryが所有します。 */
+	public record Assignment(long order) implements Event {
+	}
 	/** 文書内で一度でも自動改ページのライブロックが確定したか。 */
 	private boolean autoBreaksAbandoned = false;
 
@@ -66,7 +69,7 @@ public final class LayoutSource implements AutoCloseable {
 		this.autoBreaksAbandoned = true;
 	}
 
-	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque, Leader {
+	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque, Leader, Assignment {
 	}
 
 	/**
@@ -664,6 +667,8 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			case Replaced replaced -> {
 			}
+			case Assignment assignment -> {
+			}
 			case Leader leader -> {
 			}
 			}
@@ -705,6 +710,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case Assignment assignment -> {
 			}
 			case Leader leader -> {
 			}
@@ -779,6 +786,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case Assignment assignment -> {
 			}
 			case Leader leader -> {
 			}
@@ -958,6 +967,8 @@ public final class LayoutSource implements AutoCloseable {
 			case Chars chars -> {
 			}
 			case Replaced replaced -> {
+			}
+			case Assignment assignment -> {
 			}
 			case Leader leader -> {
 			}

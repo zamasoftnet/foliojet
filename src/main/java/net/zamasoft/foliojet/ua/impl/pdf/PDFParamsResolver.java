@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.ua.impl.pdf;
 
+import java.awt.color.ColorSpace;
+import java.awt.color.ICC_Profile;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
@@ -266,32 +268,83 @@ final class PDFParamsResolver {
 		// 出力インテント(PDF/X適合の実質要件——PLAN §2の2位、2026-08-02。
 		// WeasyPrint v67のPDF/X+ICC出荷で無償エンジンに並ばれた項目)
 		final String oiIdentifier = UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.getString(ua);
+		final String iccUri = UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.getString(ua);
+		final boolean pdfX = params.version().isPdfX();
+		if (oiIdentifier == null && iccUri != null && pdfX) {
+			// 識別子が無ければOutputIntentを作らない従来仕様は維持するが、
+			// PDF/XでICCだけを指定してもそのICCは使われないことを黙らせない。
+			ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
+					UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name, "");
+		}
 		if (oiIdentifier != null) {
+			if (pdfX && oiIdentifier.isBlank()) {
+				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name,
+						oiIdentifier, "380E.identifier");
+			}
 			byte[] icc = null;
 			int components = 4;
-			final String iccUri = UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.getString(ua);
 			if (iccUri != null) {
+				byte[] candidate = null;
 				try {
 					final net.zamasoft.zstream.resolver.Source source = ua
 							.resolve(URIHelper.create("UTF-8", iccUri));
 					try (java.io.InputStream in = source.getInputStream();
 							java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream()) {
 						in.transferTo(buffer);
-						icc = buffer.toByteArray();
+						candidate = buffer.toByteArray();
 					} finally {
 						ua.release(source);
 					}
-					components = iccColorComponents(icc);
-					if (components == -1) {
-						ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
-								UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
-						icc = null;
-						components = 4;
-					}
 				} catch (final Exception e) {
+					if (pdfX) {
+						throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name,
+								iccUri, "380E.unreadable");
+					}
 					ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
 							UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
-					icc = null;
+				}
+				if (candidate != null) {
+					ICC_Profile profile = null;
+					int profileClass = 0;
+					int colorSpaceType = 0;
+					int profileComponents = 0;
+					try {
+						profile = ICC_Profile.getInstance(candidate);
+						profileClass = profile.getProfileClass();
+						colorSpaceType = profile.getColorSpaceType();
+						profileComponents = profile.getNumComponents();
+					} catch (final RuntimeException e) {
+						profile = null;
+						if (pdfX) {
+							throw pdfXOutputIntentError(ua,
+									UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri,
+									"380E.unreadable");
+						}
+						ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
+								UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
+					}
+					if (profile != null) {
+						String errorDetail = null;
+						if (profileClass != ICC_Profile.CLASS_OUTPUT) {
+							errorDetail = "380E.profile-class";
+						} else if (pdfX && colorSpaceType != ColorSpace.TYPE_CMYK) {
+							errorDetail = "380E.color-space";
+						} else if ((profileComponents != 1 && profileComponents != 3 && profileComponents != 4)
+								|| (pdfX && profileComponents != 4)) {
+							errorDetail = "380E.component-count";
+						}
+						if (errorDetail != null) {
+							if (pdfX) {
+								throw pdfXOutputIntentError(ua,
+										UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri, errorDetail);
+							}
+							ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
+									UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
+						} else {
+							icc = candidate;
+							components = profileComponents;
+						}
+					}
 				}
 			}
 			params = params.withOutputIntent(new OutputIntent(oiIdentifier,
@@ -669,20 +722,11 @@ final class PDFParamsResolver {
 		r3p.setPrintHigh(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_PRINT_HIGH.getBoolean(ua));
 	}
 
-	/**
-	 * ICCプロファイルヘッダの色空間シグネチャ(オフセット16..19)から
-	 * 色成分数を判別します(CMYK=4、RGB=3、GRAY=1。判別不能は-1)。
-	 */
-	private static int iccColorComponents(final byte[] icc) {
-		if (icc == null || icc.length < 20) {
-			return -1;
-		}
-		final String sig = new String(icc, 16, 4, java.nio.charset.StandardCharsets.US_ASCII);
-		return switch (sig) {
-		case "CMYK" -> 4;
-		case "RGB " -> 3;
-		case "GRAY" -> 1;
-		default -> -1;
-		};
+	private static IOException pdfXOutputIntentError(final PDFUserAgent ua, final String property,
+			final String value, final String detailKey) {
+		final short code = MessageCodes.ERROR_PDFX_OUTPUT_INTENT;
+		final String[] args = new String[] { property, value, MessageCodeUtils.detail(detailKey) };
+		ua.message(code, args);
+		return new IOException(MessageCodeUtils.toString(code, args));
 	}
 }

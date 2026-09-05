@@ -15,6 +15,17 @@ public abstract class AbstractBox implements IBox {
 	 * 再付与する(SourceReplayer.drive)。
 	 */
 	private long sourceAnchor = -1;
+	private long assignmentAnchor = -1;
+
+	@Override
+	public final long getAssignmentAnchor() {
+		return this.assignmentAnchor >= 0 ? this.assignmentAnchor : this.sourceAnchor;
+	}
+
+	/** 元のソース再生適格性には触れず、配置の代入元だけを引き継ぎます。 */
+	public final void setAssignmentAnchor(final long anchor) {
+		this.assignmentAnchor = anchor;
+	}
 
 	/**
 	 * この箱が既に切断され、内容の一部を継続断片へ渡したかどうかです
