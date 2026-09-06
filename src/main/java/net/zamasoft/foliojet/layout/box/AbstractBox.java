@@ -58,6 +58,10 @@ public abstract class AbstractBox implements IBox {
 	}
 
 	public final boolean isSourceReplayable() {
+		if (this instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table && table.isIncomplete()) {
+			// 未完断片のアンカーは全表を指すため、全表ソース再生の対象にしない。
+			return false;
+		}
 		return this.sourceAnchor >= 0 && !this.fragmented && !this.sourceReplayInvalidated;
 	}
 

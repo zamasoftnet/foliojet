@@ -74,6 +74,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	 */
 	private boolean tableContinuation = false;
 
+	/** 後続の本文行を待っている表断片です。production からの有効化は B-2。 */
+	private boolean incomplete = false;
+
+	/** 終端フレームを復元できるのは、これを所有する最終残余だけです。 */
+	private AbsoluteRectFrame completionFrame = null;
+
 	protected List<TableRowGroupBox> bodyGroups = null;
 
 	protected TableRowGroupBox footerGroupBox = null;
@@ -120,6 +126,40 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final AbsoluteRectFrame getFrame() {
 		return this.frame;
+	}
+
+	/**
+	 * フレーム計算後、親への初回配置前に未完表にします。
+	 * 反復フッタは各断片の終端フレームを必要とするため、この契約の対象外です。
+	 */
+	public final void markIncomplete() {
+		if (this.incomplete || this.isFragmented()) {
+			throw new IllegalStateException("Only an unsplit table can be marked incomplete");
+		}
+		final AbsoluteRectFrame openFrame = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.incompleteFrame(this.params.flow.isVertical(), this.footerGroupBox != null, this.frame);
+		this.completionFrame = this.frame;
+		this.frame = openFrame;
+		this.incomplete = true;
+		// 完了後も、全表ソースの再生で送出済みの行を復活させない。
+		this.invalidateSourceReplay();
+	}
+
+	public final boolean isIncomplete() {
+		return this.incomplete;
+	}
+
+	/**
+	 * 最終残余の終端フレームを一度だけ復元します。
+	 * 親のカーソル・末尾マージンの確定は B-2 の完了操作が行います。
+	 */
+	public final void complete() {
+		if (!this.incomplete || this.completionFrame == null) {
+			throw new IllegalStateException("Only the final incomplete table remainder can be completed");
+		}
+		this.frame = this.completionFrame;
+		this.completionFrame = null;
+		this.incomplete = false;
 	}
 
 	public final double getInnerWidth() {
@@ -224,6 +264,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final void setTableFooter(TableRowGroupBox footerGroup) {
+		if (this.incomplete) {
+			throw new IllegalStateException("Incomplete tables do not support a repeated footer");
+		}
 		this.footerGroupBox = footerGroup;
 		if (this.params.flow.isVertical()) {
 			this.width += footerGroup.getWidth();
@@ -657,7 +700,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		// (判定は TableCutter に純化)
 		final double headerSize = this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1;
 		final double footerSize = this.footerGroupBox != null ? this.footerGroupBox.getPageSize() : -1;
-		if (vertical) {
+		if (this.incomplete) {
+			// 見えている末行は論理終端ではない。末尾マージンによる切断を保留する。
+			// FLAGS_LAST は分割位置の契約なので、未完印で変更しない。
+			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveIncompleteNonBreakable(pageLimit,
+					this.frame.getFramePageStart(this.params.flow), headerSize);
+		} else if (vertical) {
 			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveNonBreakable(pageLimit,
 					this.getWidth(), this.frame.getFrameRight(), this.frame.getFrameLeft(), this.frame.margin.left,
 					headerSize, footerSize);
@@ -784,6 +832,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final TableBox splitTableBox() {
+		if (this.incomplete && this.completionFrame == null) {
+			throw new IllegalStateException("Only the final incomplete table remainder can be split");
+		}
 		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TABLE_FRAGMENTS.incrementAndGet();
 		// 表セット T-b(2026-07-30): 前断片(this)はアンカーを保持し続けるが、
 		// その範囲は継続断片が持っている残り(row切断の進捗)も含む——
@@ -797,6 +848,14 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
 		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
 		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
+		if (this.incomplete) {
+			nextTable.incomplete = true;
+			nextTable.invalidateSourceReplay();
+			// 元の終端を保持し、反復ヘッダがなければ始端だけを落として渡す。
+			nextTable.completionFrame = net.zamasoft.foliojet.layout.fragment.TableCutter
+					.tableFragmentFrames(vertical, this.headerGroupBox != null, false, this.completionFrame).nextFrame();
+			this.completionFrame = null;
+		}
 		// タグ付きPDF欠陥②(2026-07-30): 継続断片のヘッダは「反復表示」
 		// (isRepeatedGroup参照)
 		nextTable.tableContinuation = true;

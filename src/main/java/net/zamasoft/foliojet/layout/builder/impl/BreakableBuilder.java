@@ -129,7 +129,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		double last = this.pageAxis;
 		final WritingMode tableFlow = tableBox.getTableParams().flow;
-		last -= tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow);
+		if (tableBox.isIncomplete()) {
+			// 未完表の配置では終端フレームを積んでいない。
+			last -= tableBox.getInnerPageExtent(tableFlow);
+		} else {
+			last -= tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow);
+		}
 		if (tableBox.getTableHeader() != null) {
 			last += tableBox.getTableHeader().getPageSize();
 		}
@@ -508,10 +513,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// (実測では実害なしを確認済みだったが、今後同種の条件が
 				// 増えるたびに再発するリスクがあるため解消する)。単一の
 				// 判定点(TableBuildPlanner.plan())へ統一する。
-				if (TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
+				if (!tableBox.isIncomplete()
+						&& TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
 					// Incremental(fixedレイアウト等)の場合は
 					// IncrementalTableBuilderが再配置する
 					break;
+				}
+				if (tableBox.isIncomplete()) {
+					// 無分割でも現在の残余を保持する。分割時の更新は既存の再配置側が行う。
+					this.lastTableBox = tableBox;
 				}
 				for (;;) {
 					this.checkAbort();
@@ -536,6 +546,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					this.lastTableBox = null;
 					if (!this.autoBreak()) {
 						// テーブルのヘッダとフッタがおさまらないケースがある
+						if (tableBox.isIncomplete()) {
+							this.lastTableBox = tableBox;
+						}
 						break;
 					}
 					if (this.lastTableBox == null) {
@@ -584,6 +597,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 
+		if (box instanceof TableBox tableBox && tableBox.isIncomplete()) {
+			// 後続行が未受理なので、表の直後の境界・avoid はまだ確定しない。
+			this.interflowBreak = false;
+			return;
+		}
 		this.canBreakBefore = true;
 		this.interflowBreak = true;
 

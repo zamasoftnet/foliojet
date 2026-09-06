@@ -85,6 +85,16 @@ public final class TableCutter {
 		return pageLimit;
 	}
 
+	/** 未完表は末尾マージン・終端フレームを予約せず、始端とヘッダだけを引きます。 */
+	public static double reserveIncompleteNonBreakable(double pageLimit, final double framePageStart,
+			final double headerSize) {
+		pageLimit -= framePageStart;
+		if (headerSize >= 0) {
+			pageLimit -= headerSize;
+		}
+		return pageLimit;
+	}
+
 	/**
 	 * 行グループ境界の改ページ禁止です。前グループの break-after /
 	 * 当グループの break-before に加え、境界に接する行(前グループ末尾
@@ -256,6 +266,18 @@ public final class TableCutter {
 	 */
 	public record TableFragmentFrames(net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame,
 			net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame) {
+	}
+
+	/**
+	 * 未完表の有効フレームです。元のフレームは最終残余が complete() まで保持します。
+	 * フッタ付き表の終端予約は別契約なので、未完表としては受け付けません。
+	 */
+	public static net.zamasoft.foliojet.layout.part.AbsoluteRectFrame incompleteFrame(final boolean vertical,
+			final boolean repeatFooter, final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
+		if (repeatFooter) {
+			throw new IllegalStateException("Incomplete tables do not support a repeated footer");
+		}
+		return vertical ? frame.cut(true, true, true, false) : frame.cut(true, true, false, true);
 	}
 
 	/**

@@ -1245,14 +1245,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 					this.pageAxis -= amargin.top;
 				}
 			}
-			if (vertical) {
+			if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
+				this.poLastMargin = this.neLastMargin = 0;
+			} else if (vertical) {
 				this.poLastMargin = this.neLastMargin = amargin.left;
 			} else {
 				this.poLastMargin = this.neLastMargin = amargin.bottom;
 			}
 			flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
 
-			this.pageAxis += flowBox.getPageExtent(params.flow);
+			if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
+				// getFrame() は終端を保留した有効フレーム。通常経路の演算順は維持する。
+				this.pageAxis += tableBox.getInnerPageExtent(params.flow) + frame.getFramePageExtent(params.flow);
+			} else {
+				this.pageAxis += flowBox.getPageExtent(params.flow);
+			}
 			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		}
 			break;
