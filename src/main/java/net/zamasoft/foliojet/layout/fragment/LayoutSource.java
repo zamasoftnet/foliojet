@@ -69,7 +69,8 @@ public final class LayoutSource implements AutoCloseable {
 		this.autoBreaksAbandoned = true;
 	}
 
-	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque, Leader, Assignment {
+	public sealed interface Event permits Start, Replaced, Chars, EndBlock, Opaque, Leader, Assignment,
+			AnonymousItemStart, AnonymousItemEnd {
 	}
 
 	/**
@@ -98,7 +99,7 @@ public final class LayoutSource implements AutoCloseable {
 		 * 配置種別を持たない)。G-1調査(2026-07-25)後に一旦撤去、表セット
 		 * 実装のユーザー承認(2026-07-30、G-1裁定の更新)で復活。記録適格は
 		 * {@code RecordingLayoutSink.boxKind}のTableBox分岐(exact class+
-		 * params alias、fail closed)。
+		 * params alias、fail closed)。PlacedTableも同じTABLE kindのStart/Endを使う。
 		 */
 		TABLE,
 		/** テーブル行グループ(TableRowGroupBox)。 */
@@ -246,6 +247,14 @@ public final class LayoutSource implements AutoCloseable {
 	public record EndBlock() implements Event {
 	}
 
+	/** 匿名Grid/Flex項目の合成開始。anchorはこのイベント自身のEventIdです。 */
+	public record AnonymousItemStart(long anchor) implements Event {
+	}
+
+	/** 匿名項目の合成終了。本文範囲はこの対の境界を含みません。 */
+	public record AnonymousItemEnd() implements Event {
+	}
+
 	/**
 	 * 範囲replay不能マーカーです(recipe化に対応していないボックス種別
 	 * ——{@code StyleBuilder.boxKind}がnullを返すもの、および未知の
@@ -277,7 +286,19 @@ public final class LayoutSource implements AutoCloseable {
 	public record Opaque() implements Event {
 	}
 
-	private record Entry(long id, Event event) {
+	private static final class Entry {
+		private final long id;
+		private final Event event;
+		/** 本体とseal済みsliceの共有数。inline payloadの予算を二重計上しない。 */
+		private int owners = 1;
+
+		Entry(final long id, final Event event) {
+			this.id = id;
+			this.event = event;
+		}
+
+		long id() { return this.id; }
+		Event event() { return this.event; }
 	}
 
 	private final List<Entry> entries = new ArrayList<Entry>();
@@ -296,9 +317,9 @@ public final class LayoutSource implements AutoCloseable {
 	private final long textSpillBudgetBytes;
 
 	/**
-	 * 現在entriesが保持しているinline text payloadの累積bytes
-	 * (UTF-16見積り: char数×2)。append時に加算し、compactでinline
-	 * Charsが破棄されたとき減算する——判定はこの値と設定予算のみで行う
+	 * 現在entriesまたはseal済みsliceが保持しているinline text payloadの累積bytes
+	 * (UTF-16見積り: char数×2)。append時に加算し、inline Charsの
+	 * 最後の所有が終わったとき減算する——判定はこの値と設定予算のみで行う
 	 * 決定的なもの(heap残量参照は禁止——codex設計§2.1)。
 	 */
 	private long liveInlineTextBytes = 0;
@@ -313,6 +334,19 @@ public final class LayoutSource implements AutoCloseable {
 	 * スレッドで走る構成(large stack)があるためvolatile。
 	 */
 	static volatile java.util.function.Consumer<Event> appendObserver;
+	/** 終了清算が隠していた所有の取り残しを、解放前に観測する(試験専用)。 */
+	static volatile java.util.function.Consumer<LayoutSource> beforeCloseObserver;
+	/** T5aのcompact直後の観測(試験専用)。 */
+	static volatile java.util.function.Consumer<LayoutSource> compactObserver;
+
+	public record RetentionSnapshot(long leases, int openRanges, int retainedEvents, long oldestWatermark, long nextId,
+			int slicedRanges, int slicedEvents) { }
+
+	public RetentionSnapshot retentionSnapshot() {
+		return new RetentionSnapshot(this.retentionLeaseCount, this.openRanges.size(), this.entries.size(),
+				this.retentionLeases.isEmpty() ? -1 : this.retentionLeases.firstKey(), this.nextId,
+				this.textSlices.size(), this.slicedEvents);
+	}
 
 	/** 既定予算({@link #DEFAULT_TEXT_SPILL_BUDGET_BYTES})で作ります。 */
 	public LayoutSource() {
@@ -342,6 +376,7 @@ public final class LayoutSource implements AutoCloseable {
 		}
 		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
+		this.reportRetention();
 		// E-6増分2(2026-07-24): shadow観測のみ(挙動不変)
 		final java.util.function.Consumer<Event> observer = appendObserver;
 		if (observer != null) {
@@ -392,13 +427,25 @@ public final class LayoutSource implements AutoCloseable {
 	 * text payloadのspillストアを閉じ、一時ファイルを削除します(冪等。
 	 * E-6増分3b-2)。LayoutSourceの寿命の終端——変換の終了経路
 	 * (StyleBuilder.finish、および例外時も通るformatterのfinally→
-	 * CSSProcessor.dispose)——で必ず呼ばれる。close後にSpilled payloadを
-	 * decodeすることはできない(最終ページ確定後は再生が発生しない)。
+	 * CSSProcessor.dispose)——で必ず呼ばれる。close後の新規再生はできない。
+	 * 既に取得した文字ReplaySliceがある場合だけ、
+	 * その最後のcloseまでspillの削除を遅らせる。
 	 */
 	@Override
 	public void close() {
-		if (this.textSpill != null) {
-			this.textSpill.close();
+		if (this.closed) return;
+		try {
+			final var observer = beforeCloseObserver;
+			if (observer != null) observer.accept(this);
+		} finally {
+			// 中断・不適格でも、主ソースに残った本文の所有を終端する。
+			for (final RangeHandle handle : java.util.List.copyOf(this.openRanges)) handle.abandon();
+			this.closed = true;
+			this.retentionLeases.clear();
+			this.retentionLeaseCount = 0;
+			if (this.textSpill != null && this.textSlices.isEmpty()) {
+				this.textSpill.close();
+			}
 		}
 	}
 
@@ -499,6 +546,11 @@ public final class LayoutSource implements AutoCloseable {
 			switch (recipe) {
 			case BoxRecipe.Caption c -> this.captionIds.add(id);
 			case BoxRecipe.Table t -> this.tableIds.add(id);
+			case BoxRecipe.PlacedTable t -> {
+				this.tableIds.add(id);
+				if (t.placement() instanceof BoxRecipe.FloatBlock) this.floatIds.add(id);
+				if (t.placement() instanceof BoxRecipe.Absolute) this.absoluteIds.add(id);
+			}
 			case BoxRecipe.Multicol m -> this.multicolIds.add(id);
 			// **auto高さの段組(column-countつきFlow)も段組として索引する**
 			// (2026-08-21、掃過seed 615921)。従来は固定寸法段組
@@ -507,13 +559,22 @@ public final class LayoutSource implements AutoCloseable {
 			// フォールバックを素通りしていた。M2c実測はスクラッチ側で
 			// 段組が再現されず、段数倍に膨らんだ幅がcolumnInflatedフラグ
 			// なしで返り、縦書きの段組内float:rightが紙面の外へ置かれた
-			case BoxRecipe.Flow f when f.params().hasMultipleColumns() -> this.multicolIds.add(id);
+			case BoxRecipe.Flow f -> {
+				if (f.params().hasMultipleColumns()) this.multicolIds.add(id);
+			}
 			case BoxRecipe.Grid g -> this.gridIds.add(id);
 			case BoxRecipe.Flex f -> this.flexIds.add(id);
 			case BoxRecipe.Absolute a -> this.absoluteIds.add(id);
 			case BoxRecipe.FloatBlock f -> this.floatIds.add(id);
-			default -> {
-			}
+			case BoxRecipe.Inline inline -> { }
+			case BoxRecipe.Marker marker -> { }
+			case BoxRecipe.InlineBlock inline -> { }
+			case BoxRecipe.InsideMarker marker -> { }
+			case BoxRecipe.TableRowGroup group -> { }
+			case BoxRecipe.TableRow row -> { }
+			case BoxRecipe.TableCell cell -> { }
+			case BoxRecipe.TableColumnGroup group -> { }
+			case BoxRecipe.TableColumn column -> { }
 			}
 			if (recipe.flowOrNull() instanceof net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
 				(flow.isVertical() ? this.verticalFlowIds : this.horizontalFlowIds).add(id);
@@ -524,8 +585,12 @@ public final class LayoutSource implements AutoCloseable {
 				this.floatIds.add(id);
 			}
 		}
-		default -> {
-		}
+		case AnonymousItemStart start -> { }
+		case AnonymousItemEnd end -> { }
+		case EndBlock end -> { }
+		case Chars chars -> { }
+		case Leader leader -> { }
+		case Assignment assignment -> { }
 		}
 	}
 
@@ -597,16 +662,35 @@ public final class LayoutSource implements AutoCloseable {
 	 * (単純な集合では一方の解放が他方の pin を消す — 外部レビュー指摘)。
 	 */
 	private final java.util.TreeMap<Long, Integer> retentionLeases = new java.util.TreeMap<>();
+	private long retentionLeaseCount;
+	private boolean closed;
+	private final java.util.Set<RangeHandle> openRanges =
+			java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+	void registerRange(final RangeHandle handle) { this.openRanges.add(handle); }
+	void releaseRange(final RangeHandle handle) { this.openRanges.remove(handle); }
+
+	private void reportRetention() {
+		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.reportSourceRetention(
+				this.retentionLeaseCount, this.entries.size(),
+				this.retentionLeases.isEmpty() ? -1 : this.retentionLeases.firstKey(), this.nextId);
+	}
 
 	/**
 	 * fromId 以降のイベントを保持するリースを取得します。
 	 */
 	public RetentionLease retainFrom(final long fromId) {
+		if (this.closed) throw new IllegalStateException("終了済みソースの保持");
 		this.retentionLeases.merge(fromId, 1, Integer::sum);
-		return new RetentionLease(fromId);
+		++this.retentionLeaseCount;
+		this.reportRetention();
+		final RetentionLease lease = new RetentionLease(fromId);
+		ScratchReplayScope.register(lease);
+		return lease;
 	}
 
 	private void release(final long fromId) {
+		if (this.closed) return;
 		final Integer count = this.retentionLeases.get(fromId);
 		if (count == null) {
 			throw new IllegalStateException("リースの対応が壊れています: " + fromId);
@@ -616,6 +700,7 @@ public final class LayoutSource implements AutoCloseable {
 		} else {
 			this.retentionLeases.put(fromId, count - 1);
 		}
+		--this.retentionLeaseCount;
 	}
 
 	/**
@@ -630,19 +715,54 @@ public final class LayoutSource implements AutoCloseable {
 	 * (初版ではdisk領域の途中回収はしない——codex裁定)。これは
 	 * recordIdへのheap参照が消えるだけであり、リークではない: 一時
 	 * ファイル全体が{@link #close()}(変換終了経路のfinally)で削除される。
-	 * inline payloadの破棄は予算会計({@code liveInlineTextBytes})から
-	 * 減算され、以降の追記が再びinlineに戻れる。
+	 * inline payloadは本体と文字sliceの最後の所有が終わった時に予算会計
+	 * ({@code liveInlineTextBytes})から減算され、以降の追記が再びinlineに戻れる。
 	 * </p>
 	 *
 	 * @param watermark これより前(id &lt; watermark)が破棄対象
 	 */
 	public void compact(final long watermark) {
+		this.compact(0, watermark);
+	}
+
+	/**
+	 * 即時配置されるRetained表の、収集済み部分だけを回収する。
+	 * 表より前の未配置内容を守り、OPENリースの最小fromIdより先へは進まない。
+	 * 記録中は水位が1024イベント進むごと、Pass B/Cの境界はforceで呼ぶ。
+	 */
+	public boolean compactRetainedTable(final long tableId, final long watermark, final boolean force) {
+		final long clamped = this.retentionLeases.isEmpty() ? watermark
+				: Math.min(watermark, this.retentionLeases.firstKey());
+		if (tableId < 0 || clamped <= tableId || clamped <= this.retainedTableWatermark
+				|| (!force && clamped - Math.max(tableId, this.retainedTableWatermark) < 1024)) return false;
+		this.compact(tableId, clamped);
+		this.retainedTableWatermark = clamped;
+		return true;
+	}
+
+	private long retainedTableWatermark = -1;
+
+	private void releaseEntry(final Entry entry) {
+		if (--entry.owners == 0) this.releaseText(entry.event());
+	}
+
+	private void releaseText(final Event event) {
+		if (event instanceof Chars chars && chars.payload() instanceof TextPayload.Inline inline) {
+			this.liveInlineTextBytes -= (long) inline.utf16Length() * 2;
+		}
+	}
+
+	private void compact(final long fromId, final long watermark) {
 		final long clamped = this.retentionLeases.isEmpty() ? watermark
 				: Math.min(watermark, this.retentionLeases.firstKey());
 		final List<Entry> kept = new ArrayList<Entry>();
 		// 破棄対象範囲の「未対応 Start」のスタックを求める
 		final List<Entry> open = new ArrayList<Entry>();
 		for (final Entry entry : this.entries) {
+			if (entry.id() < fromId) {
+				kept.add(entry);
+				continue;
+			}
 			if (entry.id() >= clamped) {
 				break;
 			}
@@ -652,24 +772,31 @@ public final class LayoutSource implements AutoCloseable {
 			// Opaque の対の EndBlock が祖先の Start を誤って pop し、
 			// compaction の反復で開チェーンが崩壊する(2026-07-17 修正)
 			case Start start -> open.add(entry);
+			case AnonymousItemStart start -> open.add(entry);
 			case Opaque opaque -> open.add(entry);
+			case AnonymousItemEnd end -> {
+				if (!open.isEmpty()) {
+					this.releaseEntry(open.remove(open.size() - 1));
+				}
+				this.releaseEntry(entry);
+			}
 			case EndBlock end -> {
 				if (!open.isEmpty()) {
-					open.remove(open.size() - 1);
+					this.releaseEntry(open.remove(open.size() - 1));
 				}
+				this.releaseEntry(entry);
 			}
 			case Chars chars -> {
-				// E-6増分3b-2: 破棄されるinline payloadを予算会計から除く
-				// (Spilledのrecordは残るがリークではない——メソッドjavadoc)
-				if (chars.payload() instanceof TextPayload.Inline inline) {
-					this.liveInlineTextBytes -= (long) inline.utf16Length() * 2;
-				}
+				this.releaseEntry(entry);
 			}
 			case Replaced replaced -> {
+				this.releaseEntry(entry);
 			}
 			case Assignment assignment -> {
+				this.releaseEntry(entry);
 			}
 			case Leader leader -> {
+				this.releaseEntry(entry);
 			}
 			}
 		}
@@ -685,15 +812,18 @@ public final class LayoutSource implements AutoCloseable {
 		// 生きているリースの範囲は compact 後も保持されている
 		assert this.retentionLeases.isEmpty() || this.indexOf(this.retentionLeases.firstKey()) >= 0
 				|| this.retentionLeases.firstKey() >= this.nextId : this.retentionLeases.firstKey();
+		final var observer = compactObserver;
+		if (observer != null) observer.accept(this);
 	}
 
 	/**
-	 * id の Start に対応する EndBlock の id を返します。
-	 * 部分木がまだ閉じていなければ -1。
+	 * id の Start/AnonymousItemStart に対応する終了イベントの id を返します。
+	 * PlacedTableもStartを1個だけ積む。部分木がまだ閉じていなければ -1。
 	 */
 	public long endOf(final long startId) {
 		int index = this.indexOf(startId);
-		if (index < 0 || !(this.entries.get(index).event() instanceof Start)) {
+		if (index < 0 || !(this.entries.get(index).event() instanceof Start
+				|| this.entries.get(index).event() instanceof AnonymousItemStart)) {
 			return -1;
 		}
 		int depth = 0;
@@ -701,7 +831,13 @@ public final class LayoutSource implements AutoCloseable {
 			switch (this.entries.get(i).event()) {
 			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
 			case Start start -> ++depth;
+			case AnonymousItemStart start -> ++depth;
 			case Opaque opaque -> ++depth;
+			case AnonymousItemEnd end -> {
+				if (--depth == 0) {
+					return this.entries.get(i).id();
+				}
+			}
 			case EndBlock end -> {
 				if (--depth == 0) {
 					return this.entries.get(i).id();
@@ -777,6 +913,18 @@ public final class LayoutSource implements AutoCloseable {
 				++depth;
 			}
 			case Opaque opaque -> ++depth;
+			case AnonymousItemStart start -> {
+				if (depth == 0) {
+					return entry.id();
+				}
+				++depth;
+			}
+			case AnonymousItemEnd end -> {
+				if (depth == 0) {
+					return entry.id();
+				}
+				--depth;
+			}
 			case EndBlock end -> {
 				if (depth == 0) {
 					return entry.id();
@@ -931,7 +1079,7 @@ public final class LayoutSource implements AutoCloseable {
 			return false;
 		}
 		// 範囲内で開いたkind列(CAPTIONに対するTABLEの確立を問う)
-		final java.util.ArrayDeque<net.zamasoft.foliojet.layout.segment.BoxKind> stack = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Event> stack = new java.util.ArrayDeque<>();
 		int tableDepth = 0;
 		for (; index < this.entries.size(); ++index) {
 			final Entry entry = this.entries.get(index);
@@ -948,7 +1096,13 @@ public final class LayoutSource implements AutoCloseable {
 				if (kind == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
 					++tableDepth;
 				}
-				stack.push(kind);
+				stack.push(entry.event());
+			}
+			case AnonymousItemStart start -> stack.push(start);
+			case AnonymousItemEnd end -> {
+				if (stack.isEmpty() || !(stack.pop() instanceof AnonymousItemStart)) {
+					return false;
+				}
 			}
 			case Opaque opaque -> {
 				// 未知の開始イベントはスタック対応を保証できない——fail
@@ -956,11 +1110,11 @@ public final class LayoutSource implements AutoCloseable {
 				return false;
 			}
 			case EndBlock end -> {
-				if (stack.isEmpty()) {
+				if (stack.isEmpty() || !(stack.peek() instanceof Start)) {
 					// 範囲外で開いたboxを閉じるEndBlock(範囲がboxを跨ぐ)
 					return false;
 				}
-				if (stack.pop() == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
+				if (((Start) stack.pop()).recipe().kind() == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
 					--tableDepth;
 				}
 			}
@@ -978,13 +1132,7 @@ public final class LayoutSource implements AutoCloseable {
 		return stack.isEmpty();
 	}
 
-	/**
-	 * [fromId, toId] の範囲に Grid の Start が含まれていれば true を
-	 * 返します(Grid G1d、2026-07-31)。TwoPass計測はGridBuilder不活性
-	 * (G0)、DocumentBuilder経由の範囲再生は活性のため、両者が混ざる
-	 * 消費側(range seal・実測計測)はGridを含む範囲をフォールバック
-	 * させる({@code ContinuationStats.TwoPassSealReject.GRID_RANGE})。
-	 */
+	/** GridのStartが含まれるか。範囲先頭が欠けている場合もtrue。 */
 	public boolean containsGrid(final long fromId, final long toId) {
 		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
 		// fromId不在時のfail closed(true)は従来どおり
@@ -994,13 +1142,7 @@ public final class LayoutSource implements AutoCloseable {
 		return this.gridIds.anyInRange(fromId, toId);
 	}
 
-	/**
-	 * [fromId, toId] の範囲に Flex の Start が含まれていれば true を
-	 * 返します(Flex F0c、2026-08-02)。F0時点ではFlexBuilderが存在せず
-	 * 再生は挙動同一だが、F1d以降scratch再生でFlexBuilderが活性化する
-	 * 一方TwoPass本経路は縮退のまま——Grid G1dと同じ機序を先回りで
-	 * fail closedに塞ぐ。
-	 */
+	/** FlexのStartが含まれるか。範囲先頭が欠けている場合もtrue。 */
 	public boolean containsFlex(final long fromId, final long toId) {
 		// fromId不在時のfail closed(true)はcontainsGridと同じ
 		if (this.indexOf(fromId) < 0) {
@@ -1117,13 +1259,13 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲内の全絶対配置Start({@code BoxRecipe.Absolute})が
+	 * [fromId, toId] の範囲内の全絶対配置Start(AbsoluteおよびabsoluteなPlacedTable)が
 	 * {@code ownedAnchors}と<b>完全一致</b>するかを返します(absolute吸収=
 	 * codex増分9、2026-07-30。副作用なし)。
 	 *
 	 * <p>
 	 * {@code containsAbsolute}(1件でもあればfalse=fail closed)の
-	 * 「全件owned(親recordsが排他所有を証明済み)なら許可、1件でも
+	 * 「全件owned(ownership ledgerが排他所有を証明済み)なら許可、1件でも
 	 * unmatchedならreject」への置換に使う。unmatchedなStartは「外側
 	 * contextまたは別実行計画(表セル等)に属するabsolute」の兆候であり、
 	 * 吸収すると係留の二重化またはリースの孤児化を生む。範囲先頭が
@@ -1142,7 +1284,8 @@ public final class LayoutSource implements AutoCloseable {
 			if (entry.id() > toId) {
 				break;
 			}
-			if (entry.event() instanceof Start(final BoxRecipe recipe) && recipe instanceof BoxRecipe.Absolute) {
+			if (entry.event() instanceof Start(final BoxRecipe recipe) && (recipe instanceof BoxRecipe.Absolute
+					|| recipe instanceof BoxRecipe.PlacedTable table && table.placement() instanceof BoxRecipe.Absolute)) {
 				if (!ownedAnchors.contains(entry.id())) {
 					return false;
 				}
@@ -1171,6 +1314,8 @@ public final class LayoutSource implements AutoCloseable {
 	 * backing list が組み直されてもずれない(silent skip しない——
 	 * 外部レビュー指摘の保証も維持)。
 	 * </p>
+	 * <p>切り出し済み文字本文は不変配列を共有して読む。本体のリースは不要で、
+	 * 配列の共有数が本文とspillの寿命を再生完了まで守る。</p>
 	 *
 	 * <p>
 	 * <b>consume-once</b>: {@link #replay} は一度だけ呼べ、完了時
@@ -1183,12 +1328,22 @@ public final class LayoutSource implements AutoCloseable {
 		private final long fromId;
 		private final long toId;
 		private final RetentionLease lease;
+		private final SealedTextSlice textSlice;
 		private boolean consumed = false;
 
 		private ReplaySlice(final long fromId, final long toId) {
 			this.fromId = fromId;
 			this.toId = toId;
 			this.lease = LayoutSource.this.retainFrom(fromId);
+			this.textSlice = null;
+		}
+
+		private ReplaySlice(final SealedTextSlice textSlice, final long fromId, final long toId) {
+			this.fromId = fromId;
+			this.toId = toId;
+			this.lease = null;
+			this.textSlice = textSlice;
+			++textSlice.readers;
 		}
 
 		public long fromId() {
@@ -1212,6 +1367,12 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			this.consumed = true;
 			try {
+				if (this.textSlice != null) {
+					final int first = Math.toIntExact(this.fromId - this.textSlice.fromId);
+					final int length = Math.toIntExact(this.toId - this.fromId + 1);
+					for (int i = first; i < first + length; ++i) visitor.accept(this.textSlice.chars[i]);
+					return;
+				}
 				final List<Entry> entries = LayoutSource.this.entries;
 				int hint = -1;
 				for (long id = this.fromId; id <= this.toId; ++id) {
@@ -1230,7 +1391,7 @@ public final class LayoutSource implements AutoCloseable {
 					visitor.accept(event);
 				}
 			} finally {
-				this.lease.close();
+				this.release();
 			}
 		}
 
@@ -1239,9 +1400,97 @@ public final class LayoutSource implements AutoCloseable {
 		 */
 		@Override
 		public void close() {
+			if (this.consumed) return;
 			this.consumed = true;
-			this.lease.close();
+			this.release();
 		}
+
+		private void release() {
+			if (this.lease != null) this.lease.close();
+			else this.textSlice.release();
+		}
+	}
+
+	/**
+	 * 親TwoPassへ吸収されないセルの文字本文。連続EventIdは先頭+配列位置で復元する。
+	 * 構造イベントを含むセルは本体のリースを維持するので、入れ子sealが行う
+	 * endOf/範囲検証や親captureが、本体から消えた構造を読むことはない。
+	 * ReplaySliceも共有数を持ち、再生中にハンドルが終端してもpayloadを保つ。
+	 * Spilledの実体はLayoutSource.closeまで生存し、closeは全ハンドルを先に終端する。
+	 */
+	final class SealedTextSlice {
+		private final long fromId;
+		private Chars[] chars;
+		private int readers = 1;
+
+		private SealedTextSlice(final long fromId, final Chars[] chars) {
+			this.fromId = fromId;
+			this.chars = chars;
+			LayoutSource.this.textSlices.put(fromId, this);
+			LayoutSource.this.slicedEvents += chars.length;
+		}
+
+		ReplaySlice capture() {
+			if (this.readers == 0) throw new IllegalStateException("終了済みの本文slice");
+			return new ReplaySlice(this, this.fromId, this.toId());
+		}
+
+		private long toId() { return this.fromId + this.chars.length - 1; }
+
+		void release() {
+			if (--this.readers == 0) {
+				for (int i = 0; i < this.chars.length; ++i) {
+					final int index = LayoutSource.this.indexOf(this.fromId + i);
+					// 本体がまだあれば予算の所有を戻す。compact済みならsliceが最後の所有者。
+					if (index >= 0) LayoutSource.this.releaseEntry(LayoutSource.this.entries.get(index));
+					else LayoutSource.this.releaseText(this.chars[i]);
+				}
+				LayoutSource.this.textSlices.remove(this.fromId);
+				LayoutSource.this.slicedEvents -= this.chars.length;
+				this.chars = null;
+				if (LayoutSource.this.closed && LayoutSource.this.textSlices.isEmpty()
+						&& LayoutSource.this.textSpill != null) LayoutSource.this.textSpill.close();
+			}
+		}
+	}
+
+	private final java.util.TreeMap<Long, SealedTextSlice> textSlices = new java.util.TreeMap<>();
+	private int slicedEvents;
+
+	private SealedTextSlice textSliceContaining(final long fromId, final long toId) {
+		final var entry = this.textSlices.floorEntry(fromId);
+		if (entry == null || toId < fromId) return null;
+		final SealedTextSlice slice = entry.getValue();
+		return toId <= slice.toId() ? slice : null;
+	}
+
+	/** 同じ本文を独立に再生する所有者も、EventIdを変えず配列を共有する。 */
+	SealedTextSlice retainTextSlice(final long fromId, final long toId) {
+		final SealedTextSlice slice = this.textSlices.get(fromId);
+		if (slice == null || slice.toId() != toId) return null;
+		++slice.readers;
+		return slice;
+	}
+
+	/** 文字だけの閉区間をsealする。構造を含む本文はリースのまま保持する。 */
+	SealedTextSlice sealTextSlice(final long fromId, final long toId) {
+		if (!this.isIntact(fromId, toId)) throw new IllegalStateException("seal本文の欠落");
+		// 同一範囲はretainTextSliceで共有する。部分的な重なりは通常リースで守る。
+		// 各Entryの予算を担うsliceは高々一つにし、sliceからEntry自体は保持しない。
+		final var previous = this.textSlices.floorEntry(toId);
+		if (previous != null && previous.getValue().toId() >= fromId) return null;
+		final int first = this.indexOf(fromId);
+		final int length = Math.toIntExact(toId - fromId + 1);
+		for (int i = 0; i < length; ++i) {
+			if (!(this.entries.get(first + i).event() instanceof Chars)) return null;
+		}
+		final Chars[] chars = new Chars[length];
+		for (int i = 0; i < length; ++i) {
+			final Entry entry = this.entries.get(first + i);
+			chars[i] = (Chars) entry.event();
+			++entry.owners;
+		}
+		return new SealedTextSlice(fromId, chars);
 	}
 
 	/**
@@ -1251,6 +1500,9 @@ public final class LayoutSource implements AutoCloseable {
 	 * 場合は null(呼び出し側の契約に応じてフォールバックまたは失敗)。
 	 */
 	public ReplaySlice capture(final long fromId, final long toId) {
+		if (this.closed) throw new IllegalStateException("終了済みソースの再生");
+		final SealedTextSlice slice = this.textSliceContaining(fromId, toId);
+		if (slice != null) return new ReplaySlice(slice, fromId, toId);
 		if (!this.isIntact(fromId, toId)) {
 			return null;
 		}
@@ -1259,7 +1511,8 @@ public final class LayoutSource implements AutoCloseable {
 
 	/**
 	 * [fromId, toId] が欠落なく保持されているかを返します
-	 * ({@link #capture}の可否判定そのもの。リースを取らずに問い合わせる
+	 * (本体の連続性の判定。captureは切り出し済み文字sliceも読める。
+	 * リースを取らずに問い合わせる
 	 * ためのもので、再生範囲を<b>記録する側</b>
 	 * ({@code RootBuilder.stampRanges})が使います)。
 	 *

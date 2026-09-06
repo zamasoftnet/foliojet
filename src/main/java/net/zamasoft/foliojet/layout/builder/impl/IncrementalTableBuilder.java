@@ -972,8 +972,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			// キャプション
 			FlowBlockBox caption = (FlowBlockBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, caption);
-			((TwoPassBlockBuilder) builder).tagLegacyBindOrigin(
-					net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.INCREMENTAL_CAPTION);
+			((TwoPassBlockBuilder) builder).tagRootKind(
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.INCREMENTAL_CAPTION);
 			switch (((TableCaptionPos) caption.getPos()).captionSide) {
 			case CaptionSideMode.BEFORE:
 				this.topCaptions.add(builder);
@@ -993,8 +993,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			// セル
 			TableCellBox cellBox = (TableCellBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, cellBox);
-			((TwoPassBlockBuilder) builder).tagLegacyBindOrigin(
-					net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.INCREMENTAL_CELL);
+			((TwoPassBlockBuilder) builder).tagRootKind(
+					net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.INCREMENTAL_CELL);
 			int colspan = cellBox.getTableCellPos().colspan;
 			if (this.columnSizes != null) {
 				int remainder = this.columnSizes.length - this.cells.size();

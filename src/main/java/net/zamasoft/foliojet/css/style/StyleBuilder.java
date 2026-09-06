@@ -275,11 +275,8 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 
 
 	/**
-	 * 本流のスタイルイベント窓です(M6a)。改ページ再開をボックス再生から
-	 * セグメント再駆動へ置き換えるための記録で、現段階では記録のみ
-	 * (消費者なし)。疑似要素(::before/::after/::first-letter 等)の
-	 * 合成イベントは再生時に再合成されるため記録しません(ソース純度)。
-	 * 窓はページ境界で開いている要素の Start だけに刈り込まれます。
+	 * 本流のスタイル窓の件数です。スタイルと文字への参照は保持しません。
+	 * 再生にはsinkのLayoutSourceを使い、疑似要素・生成内容も凍結済みです。
 	 */
 	private final Segment segment = new Segment();
 

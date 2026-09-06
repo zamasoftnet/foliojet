@@ -2,8 +2,11 @@ package net.zamasoft.foliojet.layout.fragment;
 
 import java.util.ArrayDeque;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+
+import net.zamasoft.foliojet.layout.segment.BarrierReason;
 
 /**
  * 継続(改ページ運搬)の種別カウンタです(P4: OpenTailShape 縮小の
@@ -257,13 +260,6 @@ public final class ContinuationStats {
 	public static final AtomicLong RANGE_FIRST_BINDS = new AtomicLong();
 
 	/**
-	 * {@code TwoPassBlockBuilder}のbindが{@code LegacyRecords}
-	 * (records再演)で行われた回数です(表セル・キャプション等、seal
-	 * 対象外のビルダーも含む全records bindの分母)。
-	 */
-	public static final AtomicLong LEGACY_RECORD_BINDS = new AtomicLong();
-
-	/**
 	 * 表外float/absolute/inline-blockの録画完了(close)時sealが適格で、
 	 * {@code SourceRangeBody}へ切り替わった回数です(E-6増分4a/4b)。
 	 * 不適格の内訳は{@link #twoPassSealRejects(TwoPassSealReject)}。
@@ -291,63 +287,20 @@ public final class ContinuationStats {
 	 */
 	public static final AtomicLong CAPTION_CONTEXT_ACCEPTS = new AtomicLong();
 
-	/**
-	 * TwoPass range seal({@code TwoPassBlockBuilder.sealBodyForRangeBind})の
-	 * 不適格理由です(E-6増分4a/4b)。判定はfail closed——少しでも怪しい
-	 * 範囲は{@code LegacyRecords}を継続する。
-	 */
+	/** TwoPassのseal不適格。呼び出し側は不変条件例外で変換を失敗させる。 */
 	public enum TwoPassSealReject {
-		/** ページ文脈なし・segment-restyle無効・LayoutSourceなし(scratch計測等)。 */
+		/** 主ソースまたはページ文脈がない。 */
 		NO_SOURCE,
-		/**
-		 * root boxのSourceAnchorがない、またはStartでないか未閉。増分4e以前は
-		 * 絶対配置(Opaque記録)が全てここに計上されていた(4b実測131件中81件)
-		 * ——4eのrecipe記録化で絶対配置は適格判定の土俵に乗る。
-		 */
+		/** アンカー・終端がない、または空範囲に計測内容がある。 */
 		NO_RANGE,
-		/** 子イベント範囲が空(空のfloat等。records解放の益がない)。 */
-		EMPTY_RANGE,
-		/**
-		 * 範囲にOpaqueを含む。表セット(2026-07-30)以降のOpaque発生源は
-		 * <b>非適格な表(float/inline-table/absolute配置等)と表キャプション
-		 * のみ</b>(通常フロー配置の適格な表はTABLE_RANGEへ分類が移った。
-		 * ルビ由来のOpaqueは注釈付きテキスト化で160→0)。
-		 */
+		/** recipeで再生できないイベントまたは表文脈がある。 */
 		OPAQUE_RANGE,
-		/**
-		 * 範囲に絶対配置ブロックのStartを含む(E-6増分4e)。増分4e以前は
-		 * 絶対配置がOpaque記録だったためOPAQUE_RANGEに含まれていた分類の
-		 * 分離——絶対配置はcontext builderへ係留済み+deferred bindを持つ
-		 * ため、範囲再生による再構築は二重登録・リース取り残しを生む
-		 * ({@code LayoutSource.containsAbsolute}のjavadoc参照)。
-		 */
+		/** 範囲内の絶対配置と排他所有の証明が一致しない。 */
 		ABSOLUTE_RANGE,
-		/**
-		 * recordsにネストしたビルダー(StfBlock/AbsoluteBlock/InlineBlockEvent/
-		 * TableEvent)を含む。ネストした子が既にsealしたリースを親のrange化で
-		 * 破棄するとリース解放の再帰配線が必要になるため、4a/4bでは
-		 * 「ネストなし(leaf)」のみを適格とする——子ビルダー自身は自分の
-		 * bindで独立にrange化される。
-		 */
+		/** 子または実行計画の所有を親範囲へ移せない。 */
 		NESTED_BUILDER,
-		/** 範囲の完全性検証(capture)に失敗(compact済みの穴)。 */
-		RANGE_NOT_INTACT,
-		/**
-		 * 範囲にGridのStartを含む(Grid G1d、2026-07-31)。G3d1の
-		 * RetainedGrid/GridEventでrecords側もGridBuilderの実トラック配置を
-		 * 通るようになり、範囲再生との幾何一致(パリティ)が確立したため
-		 * <b>G3d3(同日)でrejectは撤去済み</b>——現在この理由は発火しない
-		 * (GridEventのitem本文は通常のネスト子として親rangeへ吸収される)。
-		 */
-		GRID_RANGE,
-		/**
-		 * 範囲にFlexのStartを含む(Flex F1d、2026-08-02)。F1fの
-		 * RetainedFlex/FlexEventによりrecords側もFlexBuilderのrow配置を
-		 * 通るようになり、範囲再生との幾何一致が確立したため
-		 * <b>F1f(同日)でrejectは撤去済み</b>——現在この理由は発火しない
-		 * (FlexEventのitem本文は通常のネスト子として親rangeへ吸収される)。
-		 */
-		FLEX_RANGE
+		/** 範囲がcompact等で欠落している。 */
+		RANGE_NOT_INTACT
 	}
 
 	private static final Map<TwoPassSealReject, AtomicLong> TWO_PASS_SEAL_REJECTS = new EnumMap<>(
@@ -358,48 +311,135 @@ public final class ContinuationStats {
 		}
 	}
 
-	/**
-	 * legacy records bindの由来分類です(DP増分0、2026-07-30——codex相談
-	 * consult-codex-2026-07-30-dualpath-endgame.txt 増分0)。
-	 * {@code LEGACY_RECORD_BINDS}は全records bindの総数で由来を
-	 * 区別しないため、縮退の進捗を由来別に固定する。
-	 */
-	public enum LegacyBindOrigin {
-		/** 表外のfloat/absolute/inline-block等(DocumentBuilder駆動)。 */
-		TOPLEVEL,
-		/** Incremental表のセル。 */
-		INCREMENTAL_CELL,
-		/** Incremental表のキャプション。 */
-		INCREMENTAL_CAPTION,
-		/** Retained表のセル(seal不適格)。 */
-		RETAINED_CELL,
-		/** Retained表のキャプション。 */
-		RETAINED_CAPTION,
-		/** ネストした実測ビルダー(shrink-to-fit内のfloat等)。 */
-		NESTED,
-		/**
-		 * Gridアイテム(GridBuilderのTwoPass録画。2026-08-01に分離——
-		 * それまでTOPLEVELへ合算されcensusの診断を濁していた)。Gridは
-		 * 断片化なし限定でアイテムのrecordsは同一ページ内で完結する
-		 * 短命保持のため、records bind運用は**恒久的に正当な終着形**
-		 * (オーナー裁定2026-08-01。range化はしない——parityはG3d3で
-		 * byte一致証明済み、利益はcensus数字とピークメモリ僅少のみで
-		 * GridBuilder文脈へのrange replay配管のリスクに見合わない)。
-		 */
-		GRID_ITEM
+	/** 範囲censusの根の分類。 */
+	public enum TwoPassRootKind {
+		TOPLEVEL, NESTED, GRID_ITEM, FLEX_ITEM, INCREMENTAL_CELL, INCREMENTAL_CAPTION,
+		RETAINED_CELL, RETAINED_CAPTION
 	}
 
-	private static final Map<LegacyBindOrigin, AtomicLong> LEGACY_RECORD_BINDS_BY_ORIGIN = new EnumMap<>(
-			LegacyBindOrigin.class);
-	static {
-		for (final LegacyBindOrigin o : LegacyBindOrigin.values()) {
-			LEGACY_RECORD_BINDS_BY_ORIGIN.put(o, new AtomicLong());
+	/** BINDは範囲再生の総数に対応する。他は補助観測。 */
+	public enum TwoPassCensusEvent {
+		BIND, SEAL, MEASURE_RANGE, EMPTY_BIND
+	}
+
+	/** Grid/Flex項目の構築種別。NONEは項目以外。 */
+	public enum TwoPassItemKind { NONE, ANONYMOUS, TAKEOVER, ELEMENT }
+
+	/** 文書名は試験側でreset/snapshotの単位に付ける。barrierReasonのnullはNONE。 */
+	public record TwoPassCensusKey(TwoPassRootKind rootKind,
+			boolean sealAttempted, String sealOutcome, boolean measurement, BarrierReason barrierReason,
+			TwoPassItemKind itemKind) {
+	}
+
+	/**
+	 * 全域の census(既存の AtomicLong カウンタと同じく static)。DirectSession の変換は
+	 * 試験とは別スレッドで走るので ThreadLocal では計上が届かない(2026-09-05 実測: 0 件)。
+	 * 同時に 1 つの census しか開けない。
+	 */
+	private static volatile TwoPassCensus twoPassCensus;
+
+	/**
+	 * 文書単位の範囲クロス集計。試験が明示的に開始した期間だけ有効。
+	 * 通常変換ではmap/タグ/文字列を作らず、ログの追加走査もしない。
+	 * 従来のAtomicLongカウンタを変更せず、同じ計上点で独立に突き合わせる。
+	 */
+	public static final class TwoPassCensus implements AutoCloseable {
+		private final Map<TwoPassCensusEvent, Map<TwoPassCensusKey, AtomicLong>> counts = new EnumMap<>(
+				TwoPassCensusEvent.class);
+		private volatile boolean measurement;
+
+		private TwoPassCensus() {
+			for (final TwoPassCensusEvent event : TwoPassCensusEvent.values()) {
+				this.counts.put(event, new java.util.concurrent.ConcurrentHashMap<>());
+			}
+		}
+
+		public Map<TwoPassCensusKey, Long> snapshot(final TwoPassCensusEvent event) {
+			final Map<TwoPassCensusKey, Long> result = new HashMap<>();
+			this.counts.get(event).forEach((key, count) -> result.put(key, count.get()));
+			return Map.copyOf(result);
+		}
+
+		private void reset() {
+			this.counts.values().forEach(Map::clear);
+		}
+
+		@Override
+		public void close() {
+			twoPassCensus = null;
 		}
 	}
 
-	/** {@code origin}由来のlegacy records bind回数です(DP増分0)。 */
-	public static long legacyRecordBinds(final LegacyBindOrigin origin) {
-		return LEGACY_RECORD_BINDS_BY_ORIGIN.get(origin).get();
+	/** 同期DirectSession変換を囲む。文書ごとに既存のreset()を呼ぶ。 */
+	public static TwoPassCensus beginTwoPassCensus() {
+		if (twoPassCensus != null) {
+			throw new IllegalStateException("TwoPass census is already active");
+		}
+		final TwoPassCensus census = new TwoPassCensus();
+		twoPassCensus = census;
+		return census;
+	}
+
+	/** 再生意図に対応するcensusのphaseスコープ。本体の伝播はReplayIntentが担います。 */
+	public static final class TwoPassMeasurement implements AutoCloseable {
+		private final TwoPassCensus census;
+		private final boolean previous;
+
+		private TwoPassMeasurement(final TwoPassCensus census, final ReplayIntent intent) {
+			this.census = census;
+			this.previous = census.measurement;
+			census.measurement |= intent == ReplayIntent.MEASURE;
+		}
+
+		@Override
+		public void close() {
+			this.census.measurement = this.previous;
+		}
+	}
+
+	public static TwoPassMeasurement twoPassMeasurement(final ReplayIntent intent) {
+		final TwoPassCensus census = twoPassCensus;
+		return census == null ? null : new TwoPassMeasurement(census, intent);
+	}
+
+	/** builderからDeferredBindへ引き継ぐ診断タグ。箱・ログは保持しない。 */
+	public static final class TwoPassCensusTag {
+		private final TwoPassCensus census;
+		private TwoPassRootKind rootKind = TwoPassRootKind.TOPLEVEL;
+		private boolean attempted;
+		private String outcome = "NOT_ATTEMPTED";
+		private BarrierReason barrier;
+		private TwoPassItemKind itemKind = TwoPassItemKind.NONE;
+
+		private TwoPassCensusTag(final TwoPassCensus census) {
+			this.census = census;
+		}
+
+		public void rootKind(final TwoPassRootKind kind) {
+			this.rootKind = kind;
+		}
+
+		public void itemKind(final TwoPassItemKind kind) {
+			this.itemKind = kind;
+		}
+
+		public void seal(final boolean attempted, final String outcome, final BarrierReason barrier) {
+			this.attempted = attempted;
+			this.outcome = outcome;
+			this.barrier = barrier;
+			this.record(TwoPassCensusEvent.SEAL);
+		}
+
+		public void record(final TwoPassCensusEvent event) {
+			final TwoPassCensusKey key = new TwoPassCensusKey(this.rootKind, this.attempted,
+					this.outcome, this.census.measurement, this.barrier, this.itemKind);
+			this.census.counts.get(event).computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet();
+		}
+	}
+
+	public static TwoPassCensusTag newTwoPassCensusTag() {
+		final TwoPassCensus census = twoPassCensus;
+		return census == null ? null : new TwoPassCensusTag(census);
 	}
 
 	/** range bind(SourceRangeBody)の発火の集計です(E-6増分4a/4b)。 */
@@ -407,15 +447,9 @@ public final class ContinuationStats {
 		RANGE_FIRST_BINDS.incrementAndGet();
 	}
 
-	/** records bind(LegacyRecords)の発火の集計です(E-6増分4a/4b。DP増分0で由来別集計を追加)。 */
-	public static void recordTwoPassLegacyRecordBind(final LegacyBindOrigin origin) {
-		LEGACY_RECORD_BINDS.incrementAndGet();
-		LEGACY_RECORD_BINDS_BY_ORIGIN.get(origin).incrementAndGet();
-	}
-
 	/**
-	 * 空本文seal(records経路からの切り離し)の回数です(DP増分2、
-	 * 2026-07-30)。ソース範囲もrecordsも空のビルダーがclose時に
+	 * 空本文sealの回数です(DP増分2、
+	 * 2026-07-30)。ソース範囲も計測内容も空のビルダーがclose時に
 	 * {@code ReplayBody.Empty}へ切り替わった回数。
 	 */
 	public static final AtomicLong TWO_PASS_EMPTY_SEALS = new AtomicLong();
@@ -426,10 +460,22 @@ public final class ContinuationStats {
 	/**
 	 * seal済み(適格計上済み)ビルダーが親のrange化に吸収され、bindされずに
 	 * リースを手放した回数です(DP増分3、2026-07-30)。seal:bind 1:1検出の
-	 * 完了条件は{@code TWO_PASS_SEALS_ELIGIBLE == RANGE_FIRST_BINDS +
-	 * TWO_PASS_SEALS_SUBSUMED}——DisplayListGoldenTestが固定する。
+	 * T1の収支観測は{@code TWO_PASS_SEALS_ELIGIBLE == TWO_PASS_RANGES_CONSUMED +
+	 * TWO_PASS_SEALS_SUBSUMED + TWO_PASS_SEALS_ABANDONED}。保証はハンドルの状態機械が担う。
 	 */
 	public static final AtomicLong TWO_PASS_SEALS_SUBSUMED = new AtomicLong();
+
+	/** ハンドルが本配置で消費された数。例外による消費も含む収支観測です。 */
+	public static final AtomicLong TWO_PASS_RANGES_CONSUMED = new AtomicLong();
+
+	/** 主ソースを持たない独立イベント再生の回数です。 */
+	public static final AtomicLong TWO_PASS_REPLAY_ONLY_BINDS = new AtomicLong();
+
+	/** 再生せず破棄したハンドル数。一時計測で取得した本文も含みます。 */
+	public static final AtomicLong TWO_PASS_SEALS_ABANDONED = new AtomicLong();
+
+	/** 破棄したハンドルのうち表セルの数です。 */
+	public static final AtomicLong CELL_RANGE_SEALS_ABANDONED = new AtomicLong();
 
 	/** 親range化への吸収の集計です(DP増分3)。 */
 	public static void recordTwoPassSealSubsumed() {
@@ -441,8 +487,7 @@ public final class ContinuationStats {
 	 * bindされずにリースを手放した回数です(表吸収=codex増分5、
 	 * 2026-07-30)。セル側のリース収支の完了条件は
 	 * {@code CELL_RANGE_SEALS == CELL_RANGE_BINDS +
-	 * CELL_RANGE_SEALS_SUBSUMED}——DisplayListGoldenTest/
-	 * TwoPassRangeBindParityTestが固定する。
+	 * CELL_RANGE_SEALS_SUBSUMED + CELL_RANGE_SEALS_ABANDONED}として観測する。
 	 */
 	public static final AtomicLong CELL_RANGE_SEALS_SUBSUMED = new AtomicLong();
 
@@ -492,14 +537,7 @@ public final class ContinuationStats {
 	 */
 	public static final AtomicLong CELL_RANGE_BINDS = new AtomicLong();
 
-	/**
-	 * seal不適格のままのRetained表セルのbind(従来のrecords再演)の回数
-	 * です(E-6増分5a。適格率の分母側。Incremental表のセルはこの経路も
-	 * 通らず対象外——保持窓が行単位で短いため別増分)。
-	 */
-	public static final AtomicLong CELL_LEGACY_BINDS = new AtomicLong();
-
-	/** セルrange seal(records解放)の集計です(E-6増分5a)。 */
+	/** セルrange sealの集計です(E-6増分5a)。 */
 	public static void recordCellRangeSeal() {
 		CELL_RANGE_SEALS.incrementAndGet();
 	}
@@ -509,17 +547,12 @@ public final class ContinuationStats {
 		CELL_RANGE_BINDS.incrementAndGet();
 	}
 
-	/** 不適格セルのrecords bindの集計です(E-6増分5a)。 */
-	public static void recordCellLegacyBind() {
-		CELL_LEGACY_BINDS.incrementAndGet();
-	}
-
 	// ---- E-6増分5b-2(2026-07-24): 表Pass C(行単位逐次bind)の発火カウンタ群 ----
 
 	/**
 	 * Retained表のbindRowsがPass B/C(全セルscratch計測→行高確定→行単位
 	 * 逐次bind)で走った表の数です(2026-07-24新設、E-6増分5b-2)。適格条件は
-	 * 表単位のfail closed——全実セルがrange化(またはrecords空)済み・
+	 * 表単位のfail closed——全実セルがrange化(またはEmpty)済み・
 	 * キャプションなし・全セルが計測複製可能({@code
 	 * RetainedTableBuilder.isRowSequentialBindEligible})。
 	 */
@@ -737,6 +770,10 @@ public final class ContinuationStats {
 	}
 
 	public static void reset() {
+		final TwoPassCensus census = twoPassCensus;
+		if (census != null) {
+			census.reset();
+		}
 		CHILD_FRAMES.set(0);
 		COLUMNS_SPLIT_ATTEMPTS.set(0);
 		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.set(0);
@@ -758,10 +795,13 @@ public final class ContinuationStats {
 		MAX_STALLED_AUTO_BREAK_RUN.set(0);
 		STALLED_AUTO_BREAK_ALARMS.set(0);
 		RANGE_FIRST_BINDS.set(0);
-		LEGACY_RECORD_BINDS.set(0);
 		TWO_PASS_EMPTY_SEALS.set(0);
 		TWO_PASS_EMPTY_BINDS.set(0);
 		TWO_PASS_SEALS_SUBSUMED.set(0);
+		TWO_PASS_RANGES_CONSUMED.set(0);
+		TWO_PASS_REPLAY_ONLY_BINDS.set(0);
+		TWO_PASS_SEALS_ABANDONED.set(0);
+		CELL_RANGE_SEALS_ABANDONED.set(0);
 		CELL_RANGE_SEALS_SUBSUMED.set(0);
 		TWO_PASS_SEALS_ELIGIBLE.set(0);
 		CAPTION_OPAQUE_RECORDS.set(0);
@@ -769,14 +809,10 @@ public final class ContinuationStats {
 		CAPTION_CONTEXT_ACCEPTS.set(0);
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);
-		CELL_LEGACY_BINDS.set(0);
 		TABLE_PASS_C_TABLES.set(0);
 		TABLE_LEGACY_BINDROWS.set(0);
 		TABLE_PASS_B_CELL_MEASURES.set(0);
 		for (final AtomicLong counter : TWO_PASS_SEAL_REJECTS.values()) {
-			counter.set(0);
-		}
-		for (final AtomicLong counter : LEGACY_RECORD_BINDS_BY_ORIGIN.values()) {
 			counter.set(0);
 		}
 		for (final AtomicLong counter : CAPABILITY_SCAN_STOPS.values()) {

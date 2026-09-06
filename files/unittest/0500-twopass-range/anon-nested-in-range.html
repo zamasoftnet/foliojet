@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Anonymous item: nested-in-range</title>
+<style>
+@page{size:360pt 420pt;margin:20pt}
+body{margin:0;font:10pt/14pt serif}
+.grid{display:grid;grid-template-columns:100pt 100pt;gap:5pt;width:205pt}
+.flex{display:flex;gap:5pt;width:280pt}
+.host{position:relative;border:1pt solid #246;margin:0 0 12pt;padding:3pt}
+.item{border:1pt solid #684;padding:2pt;background:#edf}
+.outer{float:left;width:290pt;border:1pt solid #840;margin-bottom:8pt}table{clear:both;border-collapse:collapse;width:300pt}td{border:1pt solid #840;padding:3pt}
+</style></head><body>
+<div class="outer"><div class="grid host">FLOAT GRID<div class="item">FG ITEM</div>FG TAIL</div><div class="flex host">FLOAT FLEX<div class="item">FF ITEM</div>FF TAIL</div></div>
+<table><tr><td><div class="grid host">CELL GRID<div class="item">CG ITEM</div>CG TAIL</div><div class="flex host">CELL FLEX<div class="item">CF ITEM</div>CF TAIL</div></td></tr></table>
+<div class="flex host" style="width:max-content">ROOT FLEX<div class="item">MAX</div>TAIL</div>
+<div class="flex host" style="width:fit-content">ROOT FLEX<div class="item">FIT</div>TAIL</div>
+<div class="grid host" style="width:max-content">ROOT GRID<div class="item">MAX</div>TAIL</div>
+<div class="grid host" style="width:fit-content">ROOT GRID<div class="item">FIT</div>TAIL</div>
+</body></html>

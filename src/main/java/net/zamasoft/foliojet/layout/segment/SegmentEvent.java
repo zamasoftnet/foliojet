@@ -32,12 +32,20 @@ public sealed interface SegmentEvent {
 	/**
 	 * ボックスの開始です。子コンテンツの構造(子への参照)はここには
 	 * 含めない——構造は{@link EndBox}までの並びが表現する。
+	 * PlacedTableの配置宿主もこの1個のBeginBoxに含み、終了はEndBoxを1個使う。
 	 */
 	record BeginBox(BoxRecipe recipe) implements SegmentEvent {
 	}
 
 	/** ボックスの終了です(旧{@code EndBlock}、実態に合わせて改名)。 */
 	record EndBox() implements SegmentEvent {
+	}
+
+	/** LayoutSourceの合成境界と1:1。authored boxのrecipeは持ちません。 */
+	record AnonymousItemStart(long anchor) implements SegmentEvent {
+	}
+
+	record AnonymousItemEnd() implements SegmentEvent {
 	}
 
 	/**

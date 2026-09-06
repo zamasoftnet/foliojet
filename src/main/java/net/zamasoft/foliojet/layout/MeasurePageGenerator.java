@@ -6,6 +6,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
+import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -26,6 +27,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 	private final UserAgent ua;
 
 	private final BlockParams pageParams;
+	private final LayoutSource layoutSource;
 
 	private PageBox lastPage;
 
@@ -41,7 +43,14 @@ public final class MeasurePageGenerator implements PageGenerator {
 	 */
 	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
 			final double height) {
+		this(ua, template, width, height, null);
+	}
+
+	/** 再生元を借用します。scratch側から追記・compact・closeはしません。 */
+	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
+			final double height, final LayoutSource layoutSource) {
 		this.ua = ua;
+		this.layoutSource = layoutSource;
 		final BlockParams params = new BlockParams();
 		params.fontStyle = template.fontStyle;
 		params.fontManager = template.fontManager;
@@ -58,6 +67,11 @@ public final class MeasurePageGenerator implements PageGenerator {
 
 	public UserAgent getUserAgent() {
 		return this.ua;
+	}
+
+	@Override
+	public LayoutSource getLayoutSource() {
+		return this.layoutSource;
 	}
 
 	public PageBreakMode getPageSide() {

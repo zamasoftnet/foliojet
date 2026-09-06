@@ -86,7 +86,7 @@ public final class SegmentExecutor {
 	 * 検証)をすり抜けた場合でも型付き例外で止める——G-1の単独replay根
 	 * クラッシュ(ClassCastException)を仕様化された失敗に変える。
 	 */
-	private final java.util.ArrayDeque<BoxKind> openKinds = new java.util.ArrayDeque<>();
+	private final java.util.ArrayDeque<SegmentEvent> openKinds = new java.util.ArrayDeque<>();
 
 	/** {@link #openKinds}中のTABLEの数(CAPTIONの文脈判定用)。 */
 	private int openTables;
@@ -136,6 +136,20 @@ public final class SegmentExecutor {
 	 * 事前に検証している契約のため、ここでは失敗にする。
 	 */
 	public void execute(final SegmentEvent event) {
+		if (this.anchorMode == AnchorMode.NONE) {
+			this.doc.startReplayOnlyEvent(event, this.eventId);
+		}
+		try {
+			this.dispatch(event);
+		} finally {
+			if (this.anchorMode == AnchorMode.NONE) {
+				this.doc.finishReplayOnlyEvent();
+			}
+		}
+		++this.eventId;
+	}
+
+	private void dispatch(final SegmentEvent event) {
 		switch (event) {
 		case SegmentEvent.Assignment assignment -> {
 			// 配置だけを組み直す。代入は確定頁の元アンカーから一度だけ実行する。
@@ -151,8 +165,11 @@ public final class SegmentExecutor {
 			if (kind == BoxKind.TABLE) {
 				++this.openTables;
 			}
-			this.openKinds.push(kind);
+			this.openKinds.push(event);
+			// strictLineBoxを含む記録値は、初回bind・計測・改頁・反復内容の再生で共通に使う。
 			final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
+			// PlacedTableも1個のTableBoxとして渡す。宿主はTableBuilderLifecycleが
+			// liveと同じ配置で組むため、ここで追加のBeginBox/EndBoxは生成しない。
 			this.internStructureToken(box.getParams());
 			if (this.anchorMode == AnchorMode.SOURCE) {
 				box.setSourceAnchor(this.eventId);
@@ -160,10 +177,25 @@ public final class SegmentExecutor {
 			this.doc.startBox(box);
 		}
 		case SegmentEvent.EndBox end -> {
-			if (!this.openKinds.isEmpty() && this.openKinds.pop() == BoxKind.TABLE) {
-				--this.openTables;
+			if (!this.openKinds.isEmpty()) {
+				if (!(this.openKinds.pop() instanceof SegmentEvent.BeginBox begin)) {
+					throw new IllegalStateException("匿名項目をEndBoxで閉じようとしました: eventId=" + this.eventId);
+				}
+				if (begin.recipe().kind() == BoxKind.TABLE) {
+					--this.openTables;
+				}
 			}
 			this.doc.endBox();
+		}
+		case SegmentEvent.AnonymousItemStart(final long anchor) -> {
+			this.openKinds.push(event);
+			this.doc.startAnonymousItem(this.anchorMode == AnchorMode.SOURCE ? anchor : -1);
+		}
+		case SegmentEvent.AnonymousItemEnd end -> {
+			if (this.openKinds.isEmpty() || !(this.openKinds.pop() instanceof SegmentEvent.AnonymousItemStart)) {
+				throw new IllegalStateException("対応する匿名項目Startがありません: eventId=" + this.eventId);
+			}
+			this.doc.endAnonymousItem();
 		}
 		case SegmentEvent.Text(final int sourceOffset, final String text, final boolean fixed) -> {
 			// toCharArray()は毎回freshな配列(下流のin-place変換に安全)
@@ -183,7 +215,6 @@ public final class SegmentExecutor {
 		// 共有しない——LeaderQuadはaddLeaderが新規生成する)
 		case SegmentEvent.Leader(final String pattern) -> this.doc.addLeader(pattern);
 		}
-		++this.eventId;
 	}
 
 	/**

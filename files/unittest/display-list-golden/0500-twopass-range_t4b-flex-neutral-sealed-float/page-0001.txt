@@ -1,0 +1,7 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=70.00 h=24.00]
+  x=5.00 y=5.00 Text["child" asc=9.59 desc=4.41]
+  x=27.50 y=5.00 Text["text" asc=9.59 desc=4.41]
+  x=5.00 y=5.00 Text["absolute" asc=9.59 desc=4.41]
+  x=5.00 y=19.00 Text["grandchild" asc=9.59 desc=4.41]
+  x=74.00 y=0.00 Text["next" asc=9.59 desc=4.41]

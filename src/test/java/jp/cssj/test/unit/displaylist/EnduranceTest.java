@@ -62,8 +62,8 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 無限ループしない(既存保護: {@code TableCutter.keepOrMoveAll}——
  * ヘッダ+フッタが収まらないときページ先頭ならKEEP(はみ出し確定)、
  * そうでなければMOVE(次ページ先頭では必ずKEEP)で常に有限)。</li>
- * <li>-Xmx128m別JVM(perfゲート): 巨大単一セルauto表の完走+kill switch
- * (全legacy)対照、10万行短セルauto表の完走規模の実測。</li>
+ * <li>-Xmx128m別JVM(perfゲート): 巨大単一セルauto表と
+ * 10万行短セルauto表の完走規模の実測。</li>
  * <li>救済分割(2026-07-25、増分8): 20,000pt浮動体+20,000pt書字方向
  * 不一致ブロック+3,000pt行の同居fixtureで、クラッシュ・無限ループ・
  * 停滞がないこと、ページ数が有限で妥当なこと、意図しない白紙ページが
@@ -477,9 +477,8 @@ public class EnduranceTest extends TestCase {
 	 *
 	 * <p>
 	 * assertするのは「保証」の下限のみ: (a)はE-6経路でセル本文4MB
-	 * (payload換算、UTF-16)の完走、(b)はE-6経路で6,000行の完走。それ以上の到達規模と、
-	 * kill switch(全legacy: {@code -Dfoliojet.noTwoPassRangeBind=true}+
-	 * spill予算実質無効)との対比は実測レポート(stderr)に出力する——
+	 * (payload換算、UTF-16)の完走、(b)は8,000行の完走。それ以上の到達規模と、
+	 * 範囲再生の保持量を実測レポート(stderr)に出力する——
 	 * (b)の上限は完成TableBoxの全行box木保持(既知の残存——行単位親
 	 * コミットはIncremental統合の将来増分)が支配するため、assertでは
 	 * 固定しない。
@@ -493,79 +492,80 @@ public class EnduranceTest extends TestCase {
 		WORK_DIR.mkdirs();
 		final StringBuilder report = new StringBuilder("[E-6 endurance -Xmx128m]\n");
 		try {
+			// 必須2ケースを診断ladderより先に、heap overrideとは独立に実行する。
+			final ChildResult requiredRows;
+			final File rowsDoc = generateManyRowsTable("many-rows-required-8000", 8000);
+			try {
+				requiredRows = this.runChild(rowsDoc, "rows-required-8000-128m", null, 300_000, "128m");
+			} finally {
+				rowsDoc.delete();
+			}
+			report.append("  required rows=8000 heap=128m -> ").append(requiredRows).append('\n');
+			final ChildResult requiredCell;
+			final File cellDoc = generateBigCellTable("big-cell-required-4m", (4L << 20) / 2);
+			try {
+				requiredCell = this.runChild(cellDoc, "bigcell-required-4m-128m", null, 420_000, "128m");
+			} finally {
+				cellDoc.delete();
+			}
+			report.append("  required bigcell payload=4MB heap=128m -> ").append(requiredCell).append('\n');
+			assertTrue("E-6: セル本文4MB(payload)を-Xmx128mで完走できません: " + requiredCell, requiredCell.ok);
+			assertTrue("T5a: 8,000行の短セルauto表を-Xmx128mで完走できません: " + requiredRows, requiredRows.ok);
+			final boolean sameHeap = "128m".equals(System.getProperty("foliojet.enduranceHeap", "128m"));
 			// ---- (a) 巨大単一セルauto表(セル本文payload bytes = chars×2) ----
-			// 2026-07-24実測: 4MBはOK・5MBでOOM(上限はspillではなくclose前の
-			// capture records——range-first capture(4c)見送りの既知の残存)
+			// 本文4MBの完走を下限とし、範囲再生での到達規模を測る。
 			final long[] cellPayloadLadder = { 4L << 20, 5L << 20, 6L << 20, 8L << 20 };
 			long maxCellPayload = -1;
-			ChildResult firstCell = null;
 			for (final long payload : cellPayloadLadder) {
-				final File doc = generateBigCellTable("big-cell-" + (payload >> 20) + "m", payload / 2);
-				final ChildResult result = this.runChild(doc, "bigcell-new-" + (payload >> 20) + "m", false, null,
-						420_000);
-				doc.delete();
+				final ChildResult result;
+				if (payload == (4L << 20) && sameHeap) {
+					result = requiredCell;
+				} else {
+					final File doc = generateBigCellTable("big-cell-" + (payload >> 20) + "m", payload / 2);
+					try {
+						result = this.runChild(doc, "bigcell-new-" + (payload >> 20) + "m", null, 420_000);
+					} finally {
+						doc.delete();
+					}
+				}
 				report.append("  bigcell new payload=").append(payload >> 20).append("MB -> ").append(result)
 						.append('\n');
-				if (firstCell == null) {
-					firstCell = result;
-				}
 				if (!result.ok) {
 					break;
 				}
 				maxCellPayload = payload;
 			}
-			assertNotNull(firstCell);
-			assertTrue("E-6経路がセル本文4MB(payload)の単一セルauto表を-Xmx128mで完走できません: " + firstCell,
-					firstCell.ok);
-			// kill switch(全legacy)の対照実験: E-6経路の完走最大サイズを
-			// legacy(range bindなし+spill実質無効)でtranscode
-			if (maxCellPayload > 0) {
-				final File doc = generateBigCellTable("big-cell-legacy", maxCellPayload / 2);
-				final ChildResult legacy = this.runChild(doc, "bigcell-legacy-" + (maxCellPayload >> 20) + "m", true,
-						String.valueOf(Long.MAX_VALUE), 420_000);
-				doc.delete();
-				report.append("  bigcell legacy payload=").append(maxCellPayload >> 20).append("MB -> ").append(legacy)
-						.append('\n');
-			}
-
 			// ---- (b) 大量行の短セルauto表(降順ladder、最初の完走が到達規模) ----
-			// 2026-07-24実測: E-6経路は8,000行OK・9,000行OOM、legacyは7,000行OK・
-			// 8,000行OOM(上限は完成TableBoxの全行box木保持が支配——既知の残存)
+			// 上限は完成TableBoxの全行box木保持にも制約される。
 			final int[] rowsLadder = { 100_000, 50_000, 25_000, 12_000, 9_000, 8_000, 7_000, 6_000 };
+			final int[] rowsLadderOverride = System.getProperty("foliojet.enduranceRows") == null ? rowsLadder
+					: java.util.Arrays.stream(System.getProperty("foliojet.enduranceRows").split(","))
+							.mapToInt(Integer::parseInt).toArray();
 			int maxRowsNew = -1;
-			for (final int rows : rowsLadder) {
-				final File doc = generateManyRowsTable("many-rows-" + rows, rows);
-				final ChildResult result = this.runChild(doc, "rows-new-" + rows, false, null, 300_000);
-				doc.delete();
+			for (final int rows : rowsLadderOverride) {
+				final ChildResult result;
+				if (rows == 8000 && sameHeap) {
+					result = requiredRows;
+				} else {
+					final File doc = generateManyRowsTable("many-rows-" + rows, rows);
+					try {
+						result = this.runChild(doc, "rows-new-" + rows, null, 300_000);
+					} finally {
+						doc.delete();
+					}
+				}
 				report.append("  rows new rows=").append(rows).append(" -> ").append(result).append('\n');
 				if (result.ok) {
 					maxRowsNew = rows;
 					break;
 				}
 			}
-			assertTrue("E-6経路が6,000行の短セルauto表を-Xmx128mで完走できません", maxRowsNew > 0);
-			// legacy対照(同じ降順ladderをE-6経路の到達点から)
-			int maxRowsLegacy = -1;
-			for (final int rows : rowsLadder) {
-				if (rows > maxRowsNew) {
-					continue;
-				}
-				final File doc = generateManyRowsTable("many-rows-legacy-" + rows, rows);
-				final ChildResult result = this.runChild(doc, "rows-legacy-" + rows, true,
-						String.valueOf(Long.MAX_VALUE), 300_000);
-				doc.delete();
-				report.append("  rows legacy rows=").append(rows).append(" -> ").append(result).append('\n');
-				if (result.ok) {
-					maxRowsLegacy = rows;
-					break;
-				}
-			}
 			report.append("  SUMMARY maxCellPayloadMB(new)=").append(maxCellPayload > 0 ? (maxCellPayload >> 20) : -1)
-					.append(" maxRows(new)=").append(maxRowsNew).append(" maxRows(legacy)=").append(maxRowsLegacy)
+					.append(" maxRows(range)=").append(maxRowsNew)
 					.append('\n');
 		} finally {
 			System.err.print(report);
-			deleteRecursively(new File(WORK_DIR, "pdf"));
+			if (System.getProperty("foliojet.enduranceKeepLogs") == null) deleteRecursively(new File(WORK_DIR, "pdf"));
 		}
 	}
 
@@ -597,8 +597,13 @@ public class EnduranceTest extends TestCase {
 	 * 現テストJVMのclasspath・設定を引き継いだ別JVM({@code -Xmx128m})で
 	 * {@link Child}を実行する。
 	 */
-	private ChildResult runChild(final File doc, final String name, final boolean legacy, final String budget,
+	private ChildResult runChild(final File doc, final String name, final String budget,
 			final long timeoutMs) throws Exception {
+		return this.runChild(doc, name, budget, timeoutMs, System.getProperty("foliojet.enduranceHeap", "128m"));
+	}
+
+	private ChildResult runChild(final File doc, final String name, final String budget,
+			final long timeoutMs, final String heap) throws Exception {
 		final File pdfDir = new File(WORK_DIR, "pdf");
 		pdfDir.mkdirs();
 		final File pdf = new File(pdfDir, name + ".pdf");
@@ -607,15 +612,13 @@ public class EnduranceTest extends TestCase {
 				System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java").getPath();
 		final List<String> command = new ArrayList<>();
 		command.add(javaExe);
-		command.add("-Xmx128m");
-		command.add("-XX:+ExitOnOutOfMemoryError");
+		command.add("-Xmx" + heap);
+		// ExitOnOutOfMemoryErrorはChildのcatch/finallyを飛ばしてスタックを
+		// 消す。通常のOOM伝播で原因をログへ残す(停止しない場合は親のwatchdog)。
 		command.add("-Djava.awt.headless=true");
 		command.add("-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"));
 		command.add("-Djp.cssj.copper.config=" + System.getProperty("jp.cssj.copper.config"));
 		command.add("-Djp.cssj.driver.default=" + System.getProperty("jp.cssj.driver.default"));
-		if (legacy) {
-			command.add("-Dfoliojet.noTwoPassRangeBind=true");
-		}
 		command.add("-cp");
 		command.add(System.getProperty("java.class.path"));
 		command.add(Child.class.getName());
@@ -668,6 +671,7 @@ public class EnduranceTest extends TestCase {
 						session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 						session.property("input.include", "**");
 						session.property("input.property-pi", "true");
+						session.property("processing.fail-on-fatal-error", "true");
 						if (!"-".equals(budget)) {
 							session.property("processing.text-spill-budget", budget);
 						}
@@ -676,23 +680,29 @@ public class EnduranceTest extends TestCase {
 						session.close();
 					}
 				}
-				System.out.println("ENDURANCE-OK maxMemMB=" + (Runtime.getRuntime().maxMemory() >> 20)
+				System.out.println("ENDURANCE-OK " + retentionStats());
+				System.exit(0);
+			} catch (final Throwable t) {
+				t.printStackTrace();
+				System.err.println("ENDURANCE-FAIL " + retentionStats());
+				System.exit(3);
+			}
+		}
+
+		private static String retentionStats() {
+			return "maxMemMB=" + (Runtime.getRuntime().maxMemory() >> 20)
 						+ " spilledBytes=" + ContinuationStats.SPILLED_TEXT_BYTES.get() + " spilledRecords="
 						+ ContinuationStats.SPILLED_TEXT_RECORDS.get() + " livePayloadHW="
 						+ ContinuationStats.LIVE_TEXT_PAYLOAD_BYTES.get() + " sourceEventHW="
 						+ ContinuationStats.SOURCE_EVENT_HIGH_WATER.get() + " retainedRowHW="
-						+ TableBuildStats.RETAINED_ROW_HIGH_WATER.get() + " twoPassRecordHW="
-						+ TableBuildStats.TWO_PASS_RECORD_HIGH_WATER.get() + " twoPassGlyphHW="
-						+ TableBuildStats.TWO_PASS_GLYPH_HIGH_WATER.get() + " cellRangeSeals="
-						+ ContinuationStats.CELL_RANGE_SEALS.get() + " cellLegacyBinds="
-						+ ContinuationStats.CELL_LEGACY_BINDS.get() + " passCTables="
+						+ TableBuildStats.RETAINED_ROW_HIGH_WATER.get() + " sourceLeaseHW="
+						+ TableBuildStats.SOURCE_LEASE_HIGH_WATER.get() + " retainedEventHW="
+						+ TableBuildStats.SOURCE_RETAINED_EVENT_HIGH_WATER.get() + " cellRangeSeals="
+						+ ContinuationStats.CELL_RANGE_SEALS.get() + " passCTables="
 						+ ContinuationStats.TABLE_PASS_C_TABLES.get() + " legacyBindRows="
-						+ ContinuationStats.TABLE_LEGACY_BINDROWS.get());
-				System.exit(0);
-			} catch (final Throwable t) {
-				t.printStackTrace();
-				System.exit(3);
-			}
+						+ ContinuationStats.TABLE_LEGACY_BINDROWS.get() + " oldestWatermark="
+						+ TableBuildStats.SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER.get() + " watermarkLagHW="
+						+ TableBuildStats.SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get();
 		}
 	}
 
@@ -760,7 +770,7 @@ public class EnduranceTest extends TestCase {
 	}
 
 	/** 短セル({@code r{i}c{j}})×3列のauto表(thead 1行つき)。 */
-	private static File generateManyRowsTable(final String name, final int rows) throws IOException {
+	static File generateManyRowsTable(final String name, final int rows) throws IOException {
 		WORK_DIR.mkdirs();
 		final File file = new File(WORK_DIR, name + ".html");
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {

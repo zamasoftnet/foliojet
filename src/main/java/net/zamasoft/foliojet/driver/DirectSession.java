@@ -42,6 +42,7 @@ import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.message.MessageHandler;
 import jp.cssj.cti2.progress.ProgressListener;
 import jp.cssj.cti2.results.Results;
+import net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException;
 import net.zamasoft.foliojet.FolioJetVersion;
 import net.zamasoft.foliojet.formatter.Formatter;
 import net.zamasoft.foliojet.formatter.MultiDocumentFormatter;
@@ -834,6 +835,9 @@ public class DirectSession extends AbstractCTISession
 			}
 		} catch (TranscoderException e) {
 			this.continuous = false;
+			if (ContinuationInvariantViolationException.findIn(e) != null) {
+				throw failure(e.getCode(), e.getMessage(), e);
+			}
 			// 中断
 			if (e.getState() == TranscoderException.STATE_READABLE) {
 				try {
@@ -858,7 +862,8 @@ public class DirectSession extends AbstractCTISession
 			LOG.log(Level.SEVERE, "予期しないエラー", t);
 			short code = CTIMessageCodes.FATAL_UNEXPECTED;
 			String mes = MessageCodeUtils.toString(code, new String[] { t.getMessage() });
-			if (!UAProps.PROCESSING_FAIL_ON_FATAL_ERROR.getBoolean(this.ua)) {
+			if (ContinuationInvariantViolationException.findIn(t) == null
+					&& !UAProps.PROCESSING_FAIL_ON_FATAL_ERROR.getBoolean(this.ua)) {
 				try {
 					this.ua.finish();
 				} catch (BrokenResultException e1) {
@@ -1307,12 +1312,16 @@ public class DirectSession extends AbstractCTISession
 				}
 			}
 		} catch (IOException e) {
+			final ContinuationInvariantViolationException invariant = ContinuationInvariantViolationException.findIn(e);
+			if (invariant != null) throw invariant;
 			short code = CTIMessageCodes.ERROR_IO;
 			String[] args = new String[] { e.getMessage() };
 			String mes = MessageCodeUtils.toString(code, args);
 			this.ua.message(code, args);
 			LOG.log(Level.WARNING, mes, e);
-			throw new TranscoderException(code, args, mes);
+			final TranscoderException failure = new TranscoderException(code, args, mes);
+			failure.initCause(e);
+			throw failure;
 		}
 	}
 }

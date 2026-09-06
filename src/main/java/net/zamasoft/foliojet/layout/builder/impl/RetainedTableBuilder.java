@@ -107,6 +107,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 */
 
 	private final boolean vertical, fixed;
+	private final boolean sliceCellText;
 	private final LayoutStack layoutStack;
 	private final TableBox tableBox;
 	private final List<AbstractInnerTableBox> innerTableStack = new ArrayList<AbstractInnerTableBox>();
@@ -156,6 +157,17 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	/** テスト専用shadow観測フック(production=null)。 */
 	static CellBindShadow cellBindShadow = null;
 
+	/** T5aの段階別観測。DirectSessionの変換スレッドから呼ぶ(試験専用)。 */
+	static volatile java.util.function.BiConsumer<String, net.zamasoft.foliojet.layout.fragment.LayoutSource> retentionObserver;
+
+	private void observeRetention(final String stage) {
+		final var observer = retentionObserver;
+		if (observer != null && this.layoutStack.getPageContext() != null) {
+			final var source = this.layoutStack.getPageContext().getPageGenerator().getLayoutSource();
+			if (source != null) observer.accept(stage, source);
+		}
+	}
+
 	private static final byte PARAM_COUNT = 3;
 
 	public RetainedTableBuilder(LayoutStack layoutStack, TableBox tableBox) {
@@ -166,6 +178,16 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		this.fixed = tableParams.layout == TableParams.LAYOUT_FIXED
 				&& ((this.vertical ? tableParams.size.getHeightType()
 						: tableParams.size.getWidthType()) != LengthType.AUTO);
+		// RootBuilder直下の通常フロー表は親TwoPassに吸収されず、その場でbindする。
+		// 段組・配置付き表・セル内/浮動体内の表は従来のリースを維持する。
+		this.sliceCellText = layoutStack instanceof RootBuilder && layoutStack.getMulticolumnBox() == null
+				&& tableBox.getBlockBox() instanceof FlowBlockBox;
+	}
+
+	private void compactCellText(final boolean force) {
+		if (!this.sliceCellText) return;
+		final var source = this.layoutStack.getPageContext().getPageGenerator().getLayoutSource();
+		if (source != null) source.compactRetainedTable(this.tableBox.getSourceAnchor(), source.nextId(), force);
 	}
 
 	public IntrinsicSizes getIntrinsicSizes() {
@@ -267,6 +289,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		case TABLE_ROW_GROUP: {
 			// 行グループ
 			this.upperRow = null;
+			this.observeRetention("before-table-end");
 		}
 			break;
 
@@ -277,6 +300,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			this.upperRow = rowBox;
 			if (this.firstRowBox == null) {
 				this.firstRowBox = rowBox;
+			}
+			// 表終端より前の生存数を同じ変換スレッドで採る(試験時のみ)。
+			if (retentionObserver != null && this.rowToCells.size() % 2000 == 0) {
+				this.observeRetention("after-input-rows-" + this.rowToCells.size());
 			}
 		}
 			break;
@@ -294,9 +321,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 	public final Builder newContext(AbstractContainerBox box) {
 		final Builder builder = new TwoPassBlockBuilder(this.layoutStack, box);
-		((TwoPassBlockBuilder) builder).tagLegacyBindOrigin(box.getType() == BoxType.TABLE_CELL
-				? net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.RETAINED_CELL
-				: net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.RETAINED_CAPTION);
+		((TwoPassBlockBuilder) builder).tagRootKind(box.getType() == BoxType.TABLE_CELL
+				? net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.RETAINED_CELL
+				: net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.RETAINED_CAPTION);
 		switch (box.getType()) {
 		case BLOCK: {
 			// キャプション
@@ -359,6 +386,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 */
 	boolean collectAbsorbableInto(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
 			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final List<net.zamasoft.foliojet.layout.fragment.RangeHandle> outRanges,
 			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
 		if (this.abandoned) {
 			return false;
@@ -370,13 +398,13 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		// subsumed後のcaption bindは発生しない)
 		for (int c = 0; c < this.topCaptions.size(); ++c) {
 			if (!(this.topCaptions.get(c) instanceof TwoPassBlockBuilder caption)
-					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
 				return false;
 			}
 		}
 		for (int c = 0; c < this.bottomCaptions.size(); ++c) {
 			if (!(this.bottomCaptions.get(c) instanceof TwoPassBlockBuilder caption)
-					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
 				return false;
 			}
 		}
@@ -391,13 +419,13 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					}
 					final TwoPassBlockBuilder.DeferredBind sealed = cell.sealedBodyOrNull();
 					if (sealed != null) {
-						if (!sealed.within(log, fromId, toId)) {
+						if (!sealed.collectAbsorbableInto(log, fromId, toId, ownedAbsoluteAnchors)) {
 							return false;
 						}
 						continue;
 					}
 					final TwoPassBlockBuilder unsealed = cell.unsealedBuilderOrNull();
-					if (unsealed == null || !unsealed.collectAbsorbableSelf(log, fromId, toId, out, outTables,
+					if (unsealed == null || !unsealed.collectAbsorbableSelf(log, fromId, toId, out, outTables, outRanges,
 							ownedAbsoluteAnchors, seen)) {
 						return false;
 					}
@@ -450,7 +478,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// 構造的には起きない(セルは逐次)が、fail closedで無視する
 			return;
 		}
-		cell.sealForRangeBind();
+		cell.sealForRangeBind(this.sliceCellText);
+		this.compactCellText(false);
 	}
 
 	/**
@@ -531,6 +560,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// 表吸収(codex増分5): 親の範囲再生が表を再構築するため到達しない
 			throw new IllegalStateException("親のrange化に吸収済みの表計画へのprepareLayout");
 		}
+		this.observeRetention("before-pass-b");
+		this.compactCellText(true);
 		TableParams tableParams = this.tableBox.getTableParams();
 
 		// 行の順番をならす
@@ -772,22 +803,17 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		// E-6増分1(2026-07-24): 保持形状のhigh-water観測。spill閾値・
 		// 対象選定の実測基盤(読み取り・max更新のみ、挙動には影響しない)
 		int realCellCount = 0;
-		long retainedCellGlyphs = 0;
 		for (int i = 0; i < cellLists.size(); ++i) {
 			final List<CellContent> cells = cellLists.get(i);
 			for (int j = 0; j < cells.size(); ++j) {
 				final CellContent cell = cells.get(j);
 				if (!cell.isExtended()) {
 					++realCellCount;
-					// E-6増分5a: 表終端時点でrecordsが保持しているglyph数の
-					// 1表合計(seal済みセルは0)。セルrange化の効果の実測
-					retainedCellGlyphs += cell.retainedGlyphs();
 				}
 			}
 		}
 		TableBuildStats.reportRetainedTableShape(rowCount, realCellCount, (long) rowCount * columnCount, headerRowCount,
 				footerRowCount, widths.colspanConstraintCount());
-		TableBuildStats.reportRetainedCellGlyphRetention(retainedCellGlyphs);
 	}
 
 	/**
@@ -814,6 +840,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		final TableShape shape = this.resolveShape(builder);
 		final int rowCount = this.bindRows(shape);
 		this.assemble(builder, shape, rowCount);
+		this.observeRetention("after-table-end");
+		this.compactCellText(true);
 	}
 
 	/**
@@ -1271,6 +1299,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
+		this.observeRetention("after-pass-b");
+		this.compactCellText(true);
 		// セル高さ確定(共有核 — P2-5 (c))
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			TableRowGroupBox rowGroup = this.rowGroups.get(i);
@@ -1296,6 +1326,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				}
 				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
 						this.vertical);
+				this.compactCellText(false);
+				if (j == rows.size() / 2) this.observeRetention("during-pass-c");
 			}
 		}
 		return rowCount;

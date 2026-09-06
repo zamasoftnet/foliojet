@@ -1,51 +1,34 @@
 package net.zamasoft.foliojet.css.style;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import net.zamasoft.foliojet.css.CSSStyle;
 
 /**
- * スタイルイベント列(セグメント)です。
+ * 本流のスタイル窓の件数・深さ・世代です。
  *
  * <p>
- * レイアウト前・スタイル適用後のソースイベント(Start/Chars/End の3語彙)を
- * 保持します(旧名 StyleBuffer。run-in / PageContent の再生成バッファ用途は
- * 4で廃止)。M6 では本流の再レイアウト源です(ARCHITECTURE.md §5.4):
- * 改ページ時の再開を「構築済みボックスの再生」から「セグメント+
- * BreakToken からの再駆動」へ置き換えるための土台です。
+ * 再レイアウトは凍結済みの {@code LayoutSource/BoxRecipe} を使います。
+ * この旧M6a窓に閉じた要素のスタイルや文字を読む消費者はありません。
+ * ページ境界までStart/Endを残すと、auto表ではPass B開始まで全td/trの
+ * {@code CSSStyle.values/computedValues}を保持してしまいます。
  * </p>
  *
  * <p>
- * <b>窓の不変条件</b>: 本流の記録はページ境界ごとに
- * {@link #trimToOpenElements()} で刈り込まれ、保持量は
- * O(現在ページのイベント+開いている要素スタック)に保たれます
- * (ストリーミング不変条件)。M6b では刈り込みの起点が BreakToken
- * (切断位置に対応するイベント位置)に精密化されます。
+ * <b>保持の不変条件</b>: スタイルと文字への参照を持たず、数値だけを更新します。
+ * CSSStyle自体の計算値は変更しないので、
+ * ::afterの評価・匿名箱の終了処理など、呼び出し側の残りの処理は影響を受けません。
+ * 再スタイルは入力の再走査、running/page-contentは独立したStyleSnapshotを
+ * 使い、この窓へ閉じたスタイルを残す必要はありません。
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public class Segment {
-	sealed interface Item permits Start, Chars, End {
-	}
-
-	record Start(CSSStyle style) implements Item {
-	}
-
-	record Chars(int charOffset, char[] ch) implements Item {
-	}
-
-	record End(CSSStyle style) implements Item {
-	}
-
-	protected final List<Item> items = new ArrayList<Item>();
+	private int eventCount = 0;
 
 	protected int depth = 0;
 
 	/**
-	 * 窓の世代です。刈り込みのたびに進み、旧世代のソースアンカー
-	 * (Params.sourceEpoch/sourceIndex)を無効として識別できます。
+	 * ページ境界ごとに進む窓の世代です。再生アンカーはLayoutSourceが所有します。
 	 */
 	protected int epoch = 0;
 
@@ -61,51 +44,33 @@ public class Segment {
 	}
 
 	/**
-	 * 保持しているイベント数を返します。
+	 * 現在の窓のイベント数を返します。イベント本体は保持しません。
 	 */
 	public int size() {
-		return this.items.size();
+		return this.eventCount;
 	}
 
 	public void startStyle(CSSStyle style) {
-		this.items.add(new Start(style));
+		++this.eventCount;
 		++this.depth;
 	}
 
 	public void characters(int offset, char[] ch, int off, int len) {
-		char[] chars = new char[len];
-		System.arraycopy(ch, off, chars, 0, len);
-		this.items.add(new Chars(offset, chars));
+		// 文字の唯一の再生元はRecordingLayoutSinkが記録するLayoutSource。
+		++this.eventCount;
 	}
 
 	public void endStyle(CSSStyle style) {
-		this.items.add(new End(style));
+		++this.eventCount;
 		--this.depth;
 	}
 
 	/**
-	 * 閉じられていない(開いている)要素の Start イベントだけを残して
-	 * 刈り込みます。ページ境界での窓の更新に使います(M6a)。
-	 * depth は変化しません。
+	 * ページ境界で窓を開要素のStart件数だけに戻し、世代を更新します。
+	 * depthは変化しません。
 	 */
 	public void trimToOpenElements() {
-		// open は常に「未対応の Start」のスタックになる
-		final List<Item> open = new ArrayList<Item>();
-		for (final Item item : this.items) {
-			switch (item) {
-			case Start start -> open.add(start);
-			case End end -> {
-				if (!open.isEmpty()) {
-					open.remove(open.size() - 1);
-				}
-			}
-			case Chars chars -> {
-				// 文字は保持しない
-			}
-			}
-		}
-		this.items.clear();
-		this.items.addAll(open);
+		this.eventCount = this.depth;
 		++this.epoch;
 	}
 }

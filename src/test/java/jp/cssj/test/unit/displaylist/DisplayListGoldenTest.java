@@ -14,6 +14,7 @@ import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
+import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
@@ -431,6 +432,56 @@ public class DisplayListGoldenTest extends TestCase {
 			// Grid総高(後続ブロックの位置)と、不適格Grid(1fr)のG0
 			// フォールバック+atomicページ送りを固定する
 			"0500-grid/fixed-2x2.html", //
+			"0500-twopass-range/t4b-cell-parent.html",
+			"0500-twopass-range/t4b-flex-anonymous.html",
+			"0500-twopass-range/t4b-flex-column-nowrap.html",
+			"0500-twopass-range/t4b-flex-column-wrap.html",
+			"0500-twopass-range/t4b-flex-middle-normal.html",
+			"0500-twopass-range/t4b-flex-middle-pushed.html",
+			"0500-twopass-range/t4b-flex-neutral-column.html",
+			"0500-twopass-range/t4b-flex-neutral-row.html",
+			"0500-twopass-range/t4b-flex-neutral-sealed-float.html",
+			"0500-twopass-range/t4b-flex-neutral-sealed-inline-block.html",
+			"0500-twopass-range/t4b-flex-row-nowrap.html",
+			"0500-twopass-range/t4b-flex-row-wrap.html",
+			"0500-twopass-range/t4b-flex-sealed-float.html",
+			"0500-twopass-range/t4b-flex-sealed-inline-block.html",
+			"0500-twopass-range/t4b-flex-takeover-content.html",
+			"0500-twopass-range/t4b-float-parent.html",
+			"0500-twopass-range/t4b-grid-anonymous.html",
+			"0500-twopass-range/t4b-grid-neutral-roots.html",
+			"0500-twopass-range/t4b-grid-neutral-sealed-float.html",
+			"0500-twopass-range/t4b-grid-neutral-sealed-inline-block.html",
+			"0500-twopass-range/t4b-grid-sealed-float.html",
+			"0500-twopass-range/t4b-grid-sealed-inline-block.html",
+			"0500-twopass-range/t4b-grid-span-areas.html",
+			"0500-twopass-range/t4b-grid-takeover-content.html",
+			"0500-twopass-range/t4b-grid-tracks-column.html",
+			"0500-twopass-range/t4b-grid-tracks-fixed.html",
+			"0500-twopass-range/t4b-grid-tracks-fr.html",
+			"0500-twopass-range/t4b-item-lifecycle.html",
+			"0500-twopass-range/t4b-anon-flex-fit-content-mixed.html",
+			"0500-twopass-range/t4b-anon-flex-fit-content-text.html",
+			"0500-twopass-range/t4b-anon-flex-max-content-mixed.html",
+			"0500-twopass-range/t4b-anon-flex-max-content-text.html",
+			"0500-twopass-range/t4b-anon-grid-fit-content-mixed.html",
+			"0500-twopass-range/t4b-anon-grid-fit-content-text.html",
+			"0500-twopass-range/t4b-anon-grid-max-content-mixed.html",
+			"0500-twopass-range/t4b-anon-grid-max-content-text.html",
+			"0500-twopass-range/t4b-table-absolute-in-table.html",
+			"0500-twopass-range/t4b-table-absolute-table.html",
+			"0500-twopass-range/t4b-table-float-across-pages.html",
+			"0500-twopass-range/t4b-table-float-in-fixed-cell.html",
+			"0500-twopass-range/t4b-table-float-in-table.html",
+			"0500-twopass-range/t4b-table-inline-table.html",
+			"0500-twopass-range/huge-grid.html", // T2: 巨大Gridの保持・改頁
+			"0500-twopass-range/t4b-ledger-owners.html",
+			"0500-twopass-range/anon-whitespace.html", // T3b: 匿名項目の合成イベント
+			"0500-twopass-range/anon-text-absolute.html", // T3b: 匿名項目の合成イベント
+			"0500-twopass-range/anon-float-text.html", // T3b: 匿名項目の合成イベント
+			"0500-twopass-range/anon-generated.html", // T3b: 匿名項目の合成イベント
+			"0500-twopass-range/anon-before.html", // T3b: 匿名項目の合成イベント
+			"0500-twopass-range/anon-nested-in-range.html", // T3b: 匿名項目の合成イベント
 			// minmax()/max()/min()の仕様外の近似対応(2026-08-06)。
 			// GridTemplateTracks.javaのクラスjavadoc参照——最大値だけ採用し
 			// 最小値は捨てる。yahoo.co.jpの実物CSSで発覚した未対応を埋める
@@ -568,20 +619,24 @@ public class DisplayListGoldenTest extends TestCase {
 			"3000-SELECTOR/has.html", //
 	};
 
+	record CorpusDocument(String path, int passCount) { }
+
+	/** 他の全件観測試験でもgoldenの対象文書とpass数を共有する。 */
+	static List<CorpusDocument> corpusDocuments() {
+		final List<CorpusDocument> documents = new ArrayList<>();
+		for (final String doc : DOCUMENTS) documents.add(new CorpusDocument(doc, 1));
+		for (final String doc : MULTI_PASS_DOCUMENTS) documents.add(new CorpusDocument(doc, 2));
+		return List.copyOf(documents);
+	}
+
 	public void testDisplayLists() throws Exception {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.reset();
 		List<String> failures = new ArrayList<>();
-		for (String doc : DOCUMENTS) {
-			if (!selectedByFilter(doc)) {
+		for (final CorpusDocument doc : corpusDocuments()) {
+			if (!selectedByFilter(doc.path())) {
 				continue;
 			}
-			checkDocument(doc, 1, failures);
-		}
-		for (String doc : MULTI_PASS_DOCUMENTS) {
-			if (!selectedByFilter(doc)) {
-				continue;
-			}
-			checkDocument(doc, 2, failures);
+			checkDocument(doc.path(), doc.passCount(), failures);
 		}
 		if (System.getProperty("foliojet.displayListFilter") == null) {
 			reportTwoPassRangeBind(failures);
@@ -607,16 +662,12 @@ public class DisplayListGoldenTest extends TestCase {
 
 	/**
 	 * TwoPass range化(E-6増分4b、production default-on)のコーパス実測
-	 * レポートと配線検証です。golden一致だけでは「常にLegacyRecordsへ
-	 * フォールバックしている」空虚な緑と区別できないため、(a)range bind
-	 * がこのコーパスで実際に発火していること、(b)seal適格数とrange bind数が
-	 * 一致すること(sealで取得したRetentionLeaseが全てbindのfinallyで解放
-	 * された証拠——取り残しはcompactを永久にclampする)を固定する。
+	 * レポートと配線検証です。golden一致だけでは範囲再生の未発火を見逃すため、range bind
+	 * がこのコーパスで実際に発火していることを固定する。
+	 * T1以降のseal・消費・吸収・破棄の収支はstderrへ出し、未終端を検査する。
+	 * 二重終端の防止はRangeHandleの状態機械が担う。
 	 */
 	private static void reportTwoPassRangeBind(List<String> failures) {
-		if (Boolean.getBoolean("foliojet.noTwoPassRangeBind")) {
-			return; // kill switch下では対象経路が無効
-		}
 		final long seals = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get();
 		final long rangeBinds = net.zamasoft.foliojet.layout.fragment.ContinuationStats.RANGE_FIRST_BINDS.get();
 		final long cellSeals = net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_RANGE_SEALS.get();
@@ -624,13 +675,11 @@ public class DisplayListGoldenTest extends TestCase {
 		final StringBuilder s = new StringBuilder();
 		s.append("[E-6 two-pass range bind / golden corpus]\n");
 		s.append("  RANGE_FIRST_BINDS=").append(rangeBinds).append('\n');
-		s.append("  LEGACY_RECORD_BINDS=")
-				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.LEGACY_RECORD_BINDS.get()).append('\n');
+
 		s.append("  TWO_PASS_SEALS_ELIGIBLE=").append(seals).append('\n');
 		s.append("  CELL_RANGE_SEALS=").append(cellSeals).append('\n');
 		s.append("  CELL_RANGE_BINDS=").append(cellRangeBinds).append('\n');
-		s.append("  CELL_LEGACY_BINDS=")
-				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_LEGACY_BINDS.get()).append('\n');
+
 		// E-6増分5b-2: 表Pass C(行単位逐次bind)の表単位採用率
 		final long passCTables = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_PASS_C_TABLES.get();
 		final long legacyBindRows = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_LEGACY_BINDROWS.get();
@@ -652,13 +701,20 @@ public class DisplayListGoldenTest extends TestCase {
 			failures.add("TwoPass range bindがgoldenコーパスで一度も発火していません(空虚な緑)");
 		}
 		// DP増分3: 親range化に吸収された子seal(SUBSUMED)はbindされずに
-		// リースを手放すため、完了条件はseals == binds + subsumed
+		// リースを手放す。T1のscratch破棄も含めseals == consumed + subsumed + abandoned。
 		final long subsumed = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TWO_PASS_SEALS_SUBSUMED.get();
 		System.err.println("  TWO_PASS_SEALS_SUBSUMED=" + subsumed);
-		if (seals != rangeBinds + subsumed) {
-			failures.add("seal適格数とrange bind+吸収数が一致しません(リース取り残しの疑い): seals=" + seals
-					+ ", rangeBinds=" + rangeBinds + ", subsumed=" + subsumed);
+		final long consumed = ContinuationStats.TWO_PASS_RANGES_CONSUMED.get();
+		final long abandoned = ContinuationStats.TWO_PASS_SEALS_ABANDONED.get();
+		System.err.println("  TWO_PASS_RANGES_CONSUMED=" + consumed);
+		System.err.println("  TWO_PASS_SEALS_ABANDONED=" + abandoned);
+		// T1: 収支は必要条件の観測。二重終端はRangeHandle自身が拒否する。
+		System.err.println("  RANGE_BALANCE_DELTA=" + (seals - consumed - subsumed - abandoned));
+		if (seals != consumed + subsumed + abandoned) {
+			failures.add("未終端のRangeHandle: seals=" + seals + " consumed=" + consumed
+					+ " subsumed=" + subsumed + " abandoned=" + abandoned);
 		}
+
 		// E-6増分5a: 表セルのrange化の配線検証+リース1:1検出。コーパスは
 		// auto表(0240/0242/0330等)を含むためセルsealが実際に発火する
 		if (cellSeals == 0) {
@@ -669,22 +725,22 @@ public class DisplayListGoldenTest extends TestCase {
 		final long cellSubsumed = net.zamasoft.foliojet.layout.fragment.ContinuationStats.CELL_RANGE_SEALS_SUBSUMED
 				.get();
 		System.err.println("  CELL_RANGE_SEALS_SUBSUMED=" + cellSubsumed);
-		if (cellSeals != cellRangeBinds + cellSubsumed) {
-			failures.add("セルseal数とセルrange bind+吸収数が一致しません(セルのリース取り残しの疑い): cellSeals="
-					+ cellSeals + ", cellRangeBinds=" + cellRangeBinds + ", cellSubsumed=" + cellSubsumed);
+		final long cellAbandoned = ContinuationStats.CELL_RANGE_SEALS_ABANDONED.get();
+		System.err.println("  CELL_RANGE_SEALS_ABANDONED=" + cellAbandoned);
+		System.err.println("  CELL_RANGE_BALANCE_DELTA="
+				+ (cellSeals - cellRangeBinds - cellSubsumed - cellAbandoned));
+		if (cellSeals != cellRangeBinds + cellSubsumed + cellAbandoned) {
+			failures.add("未終端のセルリース: seals=" + cellSeals + " binds=" + cellRangeBinds
+					+ " subsumed=" + cellSubsumed + " abandoned=" + cellAbandoned);
 		}
+
 		// E-6増分5b-2: 表Pass C(行単位逐次bind)の配線検証。コーパスは全実セル
 		// 適格のRetained表を含むため、Pass Cが一度も発火しないのは空虚な緑
 		if (passCTables == 0) {
 			failures.add("表Pass C(E-6増分5b-2)がgoldenコーパスで一度も発火していません(空虚な緑)");
 		}
-		// 増分10(2026-07-30): 表の全セル先行bind(旧経路)はこのコーパスで
-		// 0を固定する。表吸収(codex増分5)・absolute吸収(増分9)により
-		// 全Retained表がPass C適格になった——旧経路はseal不適格セル
-		// (キャプション付き表入りセル等、野生文書で発生しうる)向けの
-		// 安全fallbackとして残す(bindRecordsと同じ終着形。物理撤去は
-		// 「不適格を変換失敗にする」仕様変更を伴うため不採用——
-		// クラッシュ排除・変換失敗排除の絶対要件)
+		// 行単位bindと全セル先行bindは表の計測可否で分かれる別の契約。
+		// このコーパスで全セル先行bindが発火しない性質を引き続き固定する。
 		if (legacyBindRows != 0) {
 			failures.add("表の全セル先行bind(旧経路)がgoldenコーパスで発火しました(増分10の0固定の退行): "
 					+ legacyBindRows);

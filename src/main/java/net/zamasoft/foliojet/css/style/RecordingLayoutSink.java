@@ -98,7 +98,9 @@ final class RecordingLayoutSink {
 				this.contentsSources.put(style, text);
 				this.assignments.strings(order, strings, buffer -> {
 					buffer.append(text);
-					this.contentsSources.remove(style);
+					// 配置待ちは完成テキストだけを必要とする。閉じたstyleと親の
+					// 計算値配列をlambdaから保持しない(StringBuilderはidentity比較)。
+					this.contentsSources.values().remove(text);
 				});
 			} else {
 				this.assignments.strings(order, strings);
@@ -160,6 +162,15 @@ final class RecordingLayoutSink {
 		return this.layoutSource;
 	}
 
+	/** 境界判定 → 合成境界追記 → 実イベント追記 → dispatchのlive専用プロトコル。 */
+	private void preDispatch(final DocumentBuilder.DispatchEvent event,
+			final net.zamasoft.foliojet.layout.box.IBox box) {
+		final LayoutSource.Event boundary = this.doc.preDispatch(event, box, this.layoutSource.nextId());
+		if (boundary != null) {
+			this.layoutSource.append(boundary);
+		}
+	}
+
 	void compact(final long watermark) {
 		this.layoutSource.compact(watermark == Long.MAX_VALUE ? this.layoutSource.nextId() : watermark);
 	}
@@ -188,56 +199,24 @@ final class RecordingLayoutSink {
 	 * ログに残さない。params/posの変異は全てこの記録前のStyleBuilder
 	 * フェーズに閉じる(codex設計§1.1・独立cross-check済み)ため、
 	 * 記録時freezeは従来の再生時共有と同値。freezeは
-	 * {@link #boxKind}が非nullを返す全13 kindをカバーする総関数で、
+	 * {@link #boxKind}で列挙する既知kindを網羅し、未知の箱は例外にする。
 	 * {@code ReplacedRecipe.freeze}と違い失敗変種({@code StartLive})は
 	 * 必要ない。
 	 * </p>
 	 */
 	void start(final INonReplacedBox box) {
 		if (this.events != null) {
-			final LayoutSource.BoxKind kind = boxKind(box);
-			if (kind == null && box instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table) {
-				final var block = table.getBlockBox();
-				final var placement = boxKind(block);
-				if (placement != null) {
-					this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.BeginBox(new BoxRecipe.PlacedTable(
-							net.zamasoft.foliojet.layout.segment.TableParamsTemplate.freeze(table.getTableParams()),
-							BoxRecipe.freeze(placement, block.getParams(), block.getPos()))));
-					return;
-				}
-			}
-			if (kind == null) {
-				throw new IllegalArgumentException("running: unsupported box " + box.getClass().getSimpleName());
-			}
-			final var pos = kind == LayoutSource.BoxKind.TABLE
-					? ((net.zamasoft.foliojet.layout.box.impl.TableBox) box).getBlockBox().getPos() : box.getPos();
-			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.BeginBox(
-					BoxRecipe.freeze(kind, box.getParams(), pos)));
+			final BoxRecipe recipe = this.recordRecipe(box);
+			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.BeginBox(recipe));
 			return;
 		}
 		if (this.sourceBox == null && box.getParams().element == this.sourceElement) {
 			this.sourceBox = box;
 		}
-		// recipe化できる種別は Start(recipe) として記録し、未対応の種別
-		// (表キャプション・非適格な表等)は Opaque として位置だけ占有する
-		// (範囲に Opaque を含む再生はフォールバック)
-		final LayoutSource.BoxKind kind = boxKind(box);
-		if (kind != null) {
-			// TABLEだけは「外側TableBoxのTablePos」ではなく「内側blockBoxの
-			// FlowPos」を凍結する(G-1の記録契約の是正、2026-07-30復活)。
-			// TableBox.getPos()はfinalで常にTablePos.POSを返し配置種別を
-			// 持たない——配置(FLOW/FLOAT/INLINE/ABSOLUTE)は内側blockBox側に
-			// ある。再生側(BoxRecipeBoxFactoryのTABLE分岐)がparamsを共有して
-			// new TableBox(params, new FlowBlockBox(params, pos))を作る構造と
-			// 対になる。外側posのままだと(FlowPos)キャストでCCEになる
-			final net.zamasoft.foliojet.layout.box.params.Pos pos = kind == LayoutSource.BoxKind.TABLE
-					? ((net.zamasoft.foliojet.layout.box.impl.TableBox) box).getBlockBox().getPos()
-					: box.getPos();
-			box.setSourceAnchor(this.layoutSource
-					.append(new LayoutSource.Start(BoxRecipe.freeze(kind, box.getParams(), pos))));
-		} else {
-			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Opaque()));
-		}
+		// 主ログもrunningも同じ凍結契約。未知の箱・配置は明確に失敗させる。
+		this.preDispatch(DocumentBuilder.DispatchEvent.START_BOX, box);
+		final BoxRecipe recipe = this.recordRecipe(box);
+		box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Start(recipe)));
 		this.bindWaitingBox(box.getSourceAnchor());
 		this.anchors.push(new AnchorFrame(box.getSourceAnchor()));
 		if (box.getParams() instanceof AbstractTextParams params) {
@@ -263,7 +242,7 @@ final class RecordingLayoutSink {
 	 * replay不能マーカー({@code Opaque}+対の{@code EndBlock}——
 	 * {@code Opaque}は開始イベントとして{@code EndBlock}と対を成す規約
 	 * のため単独では積めない)として位置を占有し、範囲にこれを含む
-	 * 再生はフォールバックする。
+	 * TwoPassのsealは変換失敗になる。
 	 * </p>
 	 */
 	void replaced(final AbstractReplacedBox box) {
@@ -278,6 +257,7 @@ final class RecordingLayoutSink {
 		for (final StringBuilder text : this.contentsSources.values()) {
 			box.getText(text);
 		}
+		this.preDispatch(DocumentBuilder.DispatchEvent.REPLACED, box);
 		final java.util.Optional<ReplacedRecipe> recipe = ReplacedRecipe.freeze(box);
 		if (recipe.isPresent()) {
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Replaced(recipe.get())));
@@ -319,6 +299,7 @@ final class RecordingLayoutSink {
 				this.anchors.peek().tailChar = frame.tailChar;
 			}
 		}
+		this.preDispatch(DocumentBuilder.DispatchEvent.END_BOX, null);
 		this.layoutSource.append(new LayoutSource.EndBlock());
 		this.doc.endBox();
 	}
@@ -327,6 +308,11 @@ final class RecordingLayoutSink {
 	 * {@code leader()}をログに記録してから doc に渡します(leader() L1)。
 	 */
 	void leader(final String pattern) {
+		if (this.events != null) {
+			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.Leader(pattern));
+			return;
+		}
+		this.preDispatch(DocumentBuilder.DispatchEvent.LEADER, null);
 		this.layoutSource.append(new LayoutSource.Leader(pattern));
 		this.doc.addLeader(pattern);
 	}
@@ -335,6 +321,11 @@ final class RecordingLayoutSink {
 	 * テキストをログに記録してから doc に渡します(M6b v3)。
 	 */
 	void characters(final int charOffset, final char[] ch, final int off, final int len, final boolean fixed) {
+		if (this.events != null) {
+			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.Text(
+					charOffset, new String(ch, off, len), fixed));
+			return;
+		}
 		for (final StringBuilder text : this.contentsSources.values()) {
 			text.append(ch, off, len);
 		}
@@ -371,6 +362,7 @@ final class RecordingLayoutSink {
 			}
 		}
 		// E-6増分3b-2: 防御コピー・spill判定(予算制)はLayoutSourceが行う
+		this.preDispatch(DocumentBuilder.DispatchEvent.TEXT, null);
 		this.layoutSource.appendChars(charOffset, ch, off, len, fixed);
 		this.doc.characters(charOffset, ch, off, len, fixed);
 	}
@@ -381,126 +373,97 @@ final class RecordingLayoutSink {
 				|| c == '\n' && (fixed || whiteSpace == AbstractTextParams.WHITE_SPACE_PRE_LINE);
 	}
 
-	/**
-	 * ソース再生で再インスタンス化できるボックス種別を返します
-	 * (未対応なら null = Opaque 記録)。SourceReplayer.newBox と対。
-	 * 完全一致比較を維持する——未知のsubclassはfail-closedでOpaqueにする。
-	 */
+
+	/** 主ログと独立再生で共有する総関数。未知の箱・配置は変換失敗。 */
+	private BoxRecipe recordRecipe(final INonReplacedBox box) {
+		try {
+			return boxRecipe(box);
+		} catch (final net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException cause) {
+			final long eventId = this.layoutSource == null ? -1 : this.layoutSource.nextId();
+			final var failure = new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+					cause.getMessage() + " " + (this.doc == null ? "uri=<unknown> owner state=RECORDING" : this.doc.sourceOwnerContext())
+							+ " EventId=[" + eventId + "," + eventId + "]");
+			failure.initCause(cause);
+			throw failure;
+		}
+	}
+
+	private static BoxRecipe boxRecipe(final INonReplacedBox box) {
+		final LayoutSource.BoxKind kind = boxKind(box);
+		return switch (kind) {
+		case TABLE -> {
+			final var table = (net.zamasoft.foliojet.layout.box.impl.TableBox) box;
+			final var block = table.getBlockBox();
+			if (block.getParams() != table.getTableParams()) throw unsupportedBox(box);
+			final LayoutSource.BoxKind placement = boxKind(block);
+			final boolean supported = switch (placement) {
+			case FLOW -> block.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class;
+			case FLOAT_BLOCK -> block.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FloatPos.class;
+			case INLINE_BLOCK -> block.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.InlinePos.class;
+			case ABSOLUTE -> block.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.AbsolutePos.class;
+			case MULTICOL, INLINE, MARKER, INSIDE_MARKER, TABLE, TABLE_ROW_GROUP, TABLE_ROW,
+					TABLE_CELL, TABLE_COLUMN_GROUP, TABLE_COLUMN, GRID, CAPTION, FLEX -> false;
+			};
+			if (!supported) throw unsupportedBox(box);
+			yield placement == LayoutSource.BoxKind.FLOW ? BoxRecipe.freeze(kind, box)
+					: new BoxRecipe.PlacedTable(
+							net.zamasoft.foliojet.layout.segment.TableParamsTemplate.freeze(table.getTableParams()),
+							BoxRecipe.freeze(placement, block));
+		}
+		case FLOW, MULTICOL, INLINE, MARKER, FLOAT_BLOCK, INLINE_BLOCK, INSIDE_MARKER, TABLE_ROW_GROUP,
+				TABLE_ROW, TABLE_CELL, TABLE_COLUMN_GROUP, TABLE_COLUMN, GRID, CAPTION, FLEX, ABSOLUTE ->
+				BoxRecipe.freeze(kind, box);
+		};
+	}
+
+	/** 非sealed階層なので既知の実クラスを列挙し、未知のsubclassも拒否する。 */
 	private static LayoutSource.BoxKind boxKind(final INonReplacedBox box) {
-		final Class<?> type = box.getClass();
-		if (type == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class) {
-			if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.TableCaptionPos) {
-				// 表キャプションは実行時クラスこそ FlowBlockBox だが、再生時に
-				// TableBuilder.newContext() を経由しないと正しく配置できず、
-				// 単独(表を伴わない)再生では DocumentBuilder.tableBuilder() が
-				// 例外を投げる(builderStack の先頭が TableBuilder でない)。
-				// 表本体と同じく Opaque とし、単独再生の対象から外す。
-				//
-				// F-4(2026-07-25): キャプションの recipe 化を単独で行っても
-				// 得るものはない。キャプションは必ず表要素の内側にあり
-				// (DocumentBuilder の TABLE_CAPTION 分岐が tableBuilder() を
-				// 要求する)、その表自身が下の TableBox 分岐で Opaque として
-				// 記録されるため、キャプションを含む範囲は表の Opaque で
-				// 既に containsOpaque=true になる。実測の内訳も表310に対し
-				// キャプション9で、後者は前者の真部分集合。
-				//
-				// G-1(2026-07-25): キャプションの recipe 化を実際に試作して
-				// 実測したところ【クラッシュした】(実測2文書)。原因は
-				// 「キャプションが単独 replay 範囲の根になれてしまう」こと
-				// ——replay の適格判定は範囲が Opaque/float/absolute/multicol/
-				// mixed-flow を含むかしか見ておらず、「囲みビルダーなしで
-				// startBox できない種別か」を見ていないため、moved caption が
-				// そのまま SourceReplayer.replay へ渡り
-				// DocumentBuilder.tableBuilder() が「表構造の外」で落ちる。
-				// caption recipe化C1(2026-08-01、consult-codex-2026-08-01-
-				// caption-recipe.txt): G-1の単独replay根クラッシュは「根禁止」
-				// ではなく「同一範囲内に対応するTABLE Startの確立を要求する
-				// context-complete検証」で防ぐ設計が確定した。C1ではrecipe
-				// 記録に切り替えつつ、routing不変のため再生側の全ゲート
-				// (stampRanges/TwoPass seal/canReplayChildren)へ
-				// containsCaptionの一律拒否を敷く——C2でcontext-complete検証へ
-				// 置換するまでキャプションを含む範囲は従来どおりbox-restyle。
-				// CAPTION_OPAQUE_RECORDSは0になる(C0の観測値9→0が
-				// recipe化の証明)
-				return LayoutSource.BoxKind.CAPTION;
-			}
-			return LayoutSource.BoxKind.FLOW;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class) {
-			return LayoutSource.BoxKind.MULTICOL;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.GridBox.class) {
-			// Grid G0c: exact class+素のFlowPosのみ(他のサブクラス・posは
-			// fail closedでOpaqueへ)
-			if (box.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class) {
-				return LayoutSource.BoxKind.GRID;
-			}
-			return null;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.FlexBox.class) {
-			// Flex F0c: Gridと同じくexact class+素のFlowPosのみ
-			if (box.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class) {
-				return LayoutSource.BoxKind.FLEX;
-			}
-			return null;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBox.class) {
-			return LayoutSource.BoxKind.INLINE;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class) {
-			return LayoutSource.BoxKind.MARKER;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.FloatBlockBox.class) {
-			return LayoutSource.BoxKind.FLOAT_BLOCK;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.InlineBlockBox.class) {
-			return LayoutSource.BoxKind.INLINE_BLOCK;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox.class) {
-			return LayoutSource.BoxKind.INSIDE_MARKER;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.TableBox.class) {
-			// 表セット(2026-07-30、G-1裁定のユーザー承認による更新):
-			// 内側blockBoxが素のFlowBlockBox+素のFlowPos(通常フロー配置)
-			// かつparams alias成立の表だけをrecipe記録する。再生側
-			// (BoxRecipeBoxFactoryのTABLE分岐)が作れるのは
-			// new TableBox(params, new FlowBlockBox(params, FlowPos))だけの
-			// ため、float/inline-table/absolute配置の表・非aliasはfail
-			// closedでOpaqueのまま。記録側は内側posを渡す契約(start参照)。
-			final net.zamasoft.foliojet.layout.box.impl.TableBox tableBox = (net.zamasoft.foliojet.layout.box.impl.TableBox) box;
-			final net.zamasoft.foliojet.layout.box.AbstractBlockBox blockBox = tableBox.getBlockBox();
-			if (blockBox.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class
-					&& blockBox.getPos().getClass() == net.zamasoft.foliojet.layout.box.params.FlowPos.class
-					&& blockBox.getParams() == tableBox.getTableParams()) {
-				return LayoutSource.BoxKind.TABLE;
-			}
-			return null;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox.class) {
-			return LayoutSource.BoxKind.TABLE_ROW_GROUP;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.TableRowBox.class) {
-			return LayoutSource.BoxKind.TABLE_ROW;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.TableCellBox.class) {
-			return LayoutSource.BoxKind.TABLE_CELL;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox.class) {
-			return LayoutSource.BoxKind.TABLE_COLUMN_GROUP;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.TableColumnBox.class) {
-			return LayoutSource.BoxKind.TABLE_COLUMN;
-		}
-		if (type == net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox.class) {
-			// 絶対配置ブロック(E-6増分4e、2026-07-24)。記録の主目的は
-			// 絶対配置ビルダー自身の本文range seal(旧Opaque記録では
-			// endOfが引けずTwoPassSealReject.NO_RANGE——4b実測131件中81件の
-			// 最大残件)。絶対配置を「含む」範囲の再生可否は
-			// LayoutSource.containsAbsoluteゲートが従来どおり
-			// フォールバックさせる(係留・deferred bindの二重化防止)。
-			// 絶対配置の「表」はTableBoxで記録されるため従来どおりOpaque
-			return LayoutSource.BoxKind.ABSOLUTE;
-		}
-		return null;
+		return switch (box) {
+		case net.zamasoft.foliojet.layout.box.impl.FlowBlockBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.FlowBlockBox.class -> box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.TableCaptionPos
+				? LayoutSource.BoxKind.CAPTION : LayoutSource.BoxKind.FLOW;
+		case net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox.class -> LayoutSource.BoxKind.MULTICOL;
+		case net.zamasoft.foliojet.layout.box.impl.GridBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.GridBox.class -> plainItemHost(box, LayoutSource.BoxKind.GRID);
+		case net.zamasoft.foliojet.layout.box.impl.FlexBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.FlexBox.class -> plainItemHost(box, LayoutSource.BoxKind.FLEX);
+		case net.zamasoft.foliojet.layout.box.impl.InlineBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.InlineBox.class -> LayoutSource.BoxKind.INLINE;
+		case net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox.class -> LayoutSource.BoxKind.MARKER;
+		case net.zamasoft.foliojet.layout.box.impl.FloatBlockBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.FloatBlockBox.class -> LayoutSource.BoxKind.FLOAT_BLOCK;
+		case net.zamasoft.foliojet.layout.box.impl.InlineBlockBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.InlineBlockBox.class -> LayoutSource.BoxKind.INLINE_BLOCK;
+		case net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox.class -> LayoutSource.BoxKind.INSIDE_MARKER;
+		case net.zamasoft.foliojet.layout.box.impl.TableBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.TableBox.class -> LayoutSource.BoxKind.TABLE;
+		case net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox.class -> LayoutSource.BoxKind.TABLE_ROW_GROUP;
+		case net.zamasoft.foliojet.layout.box.impl.TableRowBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.TableRowBox.class -> LayoutSource.BoxKind.TABLE_ROW;
+		case net.zamasoft.foliojet.layout.box.impl.TableCellBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.TableCellBox.class -> LayoutSource.BoxKind.TABLE_CELL;
+		case net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox.class -> LayoutSource.BoxKind.TABLE_COLUMN_GROUP;
+		case net.zamasoft.foliojet.layout.box.impl.TableColumnBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.TableColumnBox.class -> LayoutSource.BoxKind.TABLE_COLUMN;
+		case net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox known
+				when known.getClass() == net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox.class -> LayoutSource.BoxKind.ABSOLUTE;
+		default -> throw unsupportedBox(box);
+		};
+	}
+
+	private static LayoutSource.BoxKind plainItemHost(final INonReplacedBox box, final LayoutSource.BoxKind kind) {
+		if (box.getPos().getClass() != net.zamasoft.foliojet.layout.box.params.FlowPos.class) throw unsupportedBox(box);
+		return kind;
+	}
+
+	private static net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException unsupportedBox(
+			final INonReplacedBox box) {
+		return new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+				"Unsupported box recipe: box kind=" + box.getClass().getName() + " pos=" + box.getPos().getClass().getName());
 	}
 }

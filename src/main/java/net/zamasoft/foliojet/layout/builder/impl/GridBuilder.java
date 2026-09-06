@@ -54,7 +54,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * G3d1(RetainedGrid化): 宿主がBlockBuilderなら{@code finish()}→
  * {@code addGrid}が即時{@link #bind}を呼ぶ。TwoPass宿主(幅なし
  * float等)では録画の{@code GridEvent}に保持され、幅確定後の
- * records bindで同じ{@link #bind}を通る——両経路の幾何は単一実装。
+ * 範囲再生では計画を再構築して同じ{@link #bind}を通る。
  * 固有寸法contribution({@link #getIntrinsicSizes})はG3d2。
  * </p>
  *
@@ -87,7 +87,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 public final class GridBuilder
 		implements net.zamasoft.foliojet.layout.builder.RetainedGrid, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
-	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
+	/** 録画されたitem数(空匿名破棄を除く)。親rangeへの吸収・再構築も含み、bind数とは異なる。 */
+	/** 構築した項目の総数。TwoPassの本文記録数ではない。 */
 	public static final AtomicLong GRID_ITEM_RECORDS = new AtomicLong();
 
 	/** bindされたitem数。 */
@@ -237,6 +238,7 @@ public final class GridBuilder
 
 	/** takeover元のauthored box(endBoxの対応付け用。中立/匿名itemではnull)。 */
 	private net.zamasoft.foliojet.layout.box.impl.FlowBlockBox openItemSource;
+	private long openItemAnchor = -1;
 
 	/**
 	 * {@code box}を元とするtakeover element itemが開いているかを返します
@@ -264,6 +266,7 @@ public final class GridBuilder
 		itemBox.setTakeover(true);
 		final TwoPassBlockBuilder builder = this.startItem(itemBox, false, spec, minContributionCap);
 		this.openItemSource = source;
+		this.openItemAnchor = source.getSourceAnchor();
 		return builder;
 	}
 
@@ -277,15 +280,25 @@ public final class GridBuilder
 	 * ({@link GridItemContent#minContributionCap}参照。負=無制限)。
 	 */
 	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec, final double minContributionCap) {
-		return this.startItem(false, spec, minContributionCap);
+		return this.startElementItem(spec, minContributionCap, -1);
+	}
+
+	/** 中立wrapperのauthored childのアンカーを保持します。 */
+	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec, final double minContributionCap,
+			final long sourceAnchor) {
+		final TwoPassBlockBuilder builder = this.startItem(false, spec, minContributionCap);
+		this.openItemAnchor = sourceAnchor;
+		return builder;
 	}
 
 	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
-	public TwoPassBlockBuilder requireAnonymousItem() {
+	public TwoPassBlockBuilder requireAnonymousItem(final long sourceAnchor) {
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
 			return null; // 既に開いている(積み直し不要)
 		}
-		return this.startItem(true, GridItemSpec.AUTO, -1);
+		final TwoPassBlockBuilder builder = this.startItem(true, GridItemSpec.AUTO, -1);
+		this.openItemAnchor = sourceAnchor;
+		return builder;
 	}
 
 	private TwoPassBlockBuilder startItem(final boolean anonymous, final GridItemSpec spec,
@@ -300,24 +313,22 @@ public final class GridBuilder
 			final GridItemSpec spec, final double minContributionCap) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
-		// census origin分離(2026-08-01): grid item由来のrecords bindを
-		// TOPLEVELから分ける(診断の健全化。records bind運用自体は
-		// 恒久的に正当な終着形——LegacyBindOrigin.GRID_ITEMのjavadoc参照)
-		builder.tagLegacyBindOrigin(
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.LegacyBindOrigin.GRID_ITEM);
+		// Grid/Flex項目由来のbindをTOPLEVELから分ける。
+		builder.tagRootKind(
+				net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.GRID_ITEM);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
 		this.openItemMinCap = minContributionCap;
 		this.openItemAnonymous = anonymous;
 		this.openItemSpec = spec;
+		this.openItemAnchor = -1;
 		return builder;
 	}
 
 	/**
 	 * 開いているitemを確定します(録画完了点)。空の匿名item(空白のみ等)は
-	 * slotを消費させず破棄する。合成itemはLayoutSource非記録
-	 * (sourceAnchor=-1)のためrange sealは行わない——本文はGrid終端の
-	 * bindまでLegacyRecordsのまま(答申Q1)。
+	 * slotを消費させず破棄する。要素項目はauthored範囲を、匿名項目は
+	 * 合成境界内の本文をsealする。
 	 */
 	public void itemClosed() {
 		final TwoPassBlockBuilder builder = this.openItemBuilder;
@@ -325,23 +336,31 @@ public final class GridBuilder
 		final boolean anonymous = this.openItemAnonymous;
 		final GridItemSpec spec = this.openItemSpec;
 		final boolean takeover = this.openItemSource != null;
+		final long anchor = this.openItemAnchor;
 		this.openItemBuilder = null;
 		this.openItemBox = null;
 		this.openItemAnonymous = false;
 		this.openItemSpec = GridItemSpec.AUTO;
 		this.openItemSource = null;
-		if (anonymous && builder.hasEmptyRecordedBody() && !itemBox.paintsAnything()) {
+		this.openItemAnchor = -1;
+		if (anonymous && !builder.hasLayoutContent() && !itemBox.paintsAnything()) {
 			GRID_ITEM_EMPTY_ANON_DROPS.incrementAndGet();
 			return;
 		}
 		GRID_ITEM_RECORDS.incrementAndGet();
+		builder.tagItemKind(anonymous, takeover);
+		builder.sealBodyForRangeBind(anchor, anonymous
+				? net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.ANONYMOUS_CHILDREN
+				: takeover
+					? net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.CHILDREN_ONLY
+					: net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.ROOTED_SUBTREE);
 		this.items.add(new GridItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous, spec,
 				this.openItemMinCap, takeover));
 	}
 
 	/**
 	 * Grid終端です(G3d1): 実行計画としてホストへ渡す。BlockBuilderは
-	 * 即時{@link #bind}、TwoPassは録画のGridEventに保持して幅確定後に
+	 * 即時{@link #bind}、TwoPassはownership ledgerに保持して幅確定後に
 	 * bindする。
 	 */
 	public void finish() {
@@ -972,10 +991,8 @@ public final class GridBuilder
 
 	@Override
 	public void abandonForParentRange() {
-		// 親rangeの範囲再生がGrid全体を再構築する(G3d3)。item録画への
-		// 参照を手放すだけでよい——合成itemはLayoutSource非記録のため
-		// リースを持たない(item本文内のseal済み子リースは検証相で
-		// 列挙され、親のコミット相がsubsumeで解放する)
+		// 検証相で列挙した項目・子のリースは親のコミット相がsubsumeする。
+		// その後、親の範囲再生がGrid全体を再構築する。
 		this.items.clear();
 	}
 
@@ -988,12 +1005,13 @@ public final class GridBuilder
 	 */
 	boolean collectAbsorbableItems(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
 			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final List<net.zamasoft.foliojet.layout.fragment.RangeHandle> outRanges,
 			final java.util.Set<Long> ownedAbsoluteAnchors, final java.util.Set<TwoPassBlockBuilder> seen) {
 		if (this.bound) {
 			return false;
 		}
 		for (final GridItemContent item : this.items) {
-			if (!item.body.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+			if (!item.collectAbsorbable(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
 				return false;
 			}
 		}
@@ -1194,7 +1212,7 @@ public final class GridBuilder
 		this.rowSubgridOwner = null;
 	}
 
-	/** bindは一度きり(二重bindはLegacyRecordsのlive box変異——答申Q5)。 */
+	/** 実行計画のbindは一度きり。 */
 	private boolean bound;
 
 	/**
@@ -1203,7 +1221,7 @@ public final class GridBuilder
 	 * カーソルを同期する(独立item builderは親カーソルを進めないため、
 	 * 同期しないと後続ブロックが重なる——G1答申の補正点)。ホストの
 	 * active flowが当のGridBoxである間に呼ぶこと(liveはDocumentBuilder
-	 * のFLOW終端、records bindはStartFlow(GridBox)とEndFlowの間)。
+	 * のFLOW終端、範囲再生もStartFlow(GridBox)とEndFlowの間)。
 	 */
 	@Override
 	public void bind(final Builder hostBuilder) {

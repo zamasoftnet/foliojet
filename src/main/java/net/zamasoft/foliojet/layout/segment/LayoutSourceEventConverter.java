@@ -46,8 +46,11 @@ public final class LayoutSourceEventConverter {
 		case LayoutSource.Assignment(final long order) -> new SegmentEvent.Assignment(order);
 		// E-6増分3b-4: 記録時(StyleBuilder.startBox)にfreeze済みの
 		// recipeをそのまま包む(変換時freezeは記録時freezeへ前倒しされた)
+		// PlacedTableも同じ1:1変換で、表の宿主のためにordinalを増やさない。
 		case LayoutSource.Start(final BoxRecipe recipe) -> new SegmentEvent.BeginBox(recipe);
 		case LayoutSource.EndBlock endBlock -> new SegmentEvent.EndBox();
+		case LayoutSource.AnonymousItemStart(final long anchor) -> new SegmentEvent.AnonymousItemStart(anchor);
+		case LayoutSource.AnonymousItemEnd end -> new SegmentEvent.AnonymousItemEnd();
 		case LayoutSource.Chars(final int charOffset, final LayoutSource.TextPayload payload, final boolean fixed) ->
 			// freshChars()はInline=clone、Spilled=storeからのdecode(E-6増分3b-2)
 			new SegmentEvent.Text(charOffset, new String(payload.freshChars()), fixed);

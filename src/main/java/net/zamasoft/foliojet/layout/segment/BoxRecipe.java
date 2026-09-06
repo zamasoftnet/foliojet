@@ -51,8 +51,9 @@ public sealed interface BoxRecipe {
 	BoxKind kind();
 
 	/**
-	 * 反復内容のinline/float/absolute表です。SOURCEの範囲再生適格性は拡張しません。
-	 * placementは外側ブロックの配置を保持し、再構築時のTableParamsは内外で共有します。
+	 * 主ログと反復内容のinline/float/absolute表です。kindはTABLEのまま、
+	 * Start/Endを1対だけ持ちます。TABLEのfreezeと同じく配置は内側blockBoxのposから凍結し、
+	 * 再構築時のTableParamsは内外で共有します。宿主の配置処理は表ビルダーが担います。
 	 */
 	record PlacedTable(TableParamsTemplate params, BoxRecipe placement) implements BoxRecipe {
 		public PlacedTable {
@@ -73,6 +74,18 @@ public sealed interface BoxRecipe {
 	 * {@code params instanceof AbstractTextParams}判定と同値。
 	 */
 	WritingMode flowOrNull();
+
+	/** params/pos以外のレイアウト属性も、箱を記録する時点で凍結します。 */
+	static BoxRecipe freeze(final LayoutSource.BoxKind kind,
+			final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox marker) {
+			return new Marker(BlockParamsTemplate.freeze(marker.getBlockParams()),
+					InlinePosTemplate.freeze(marker.getInlinePos()), marker.overlaysFollowingBlock());
+		}
+		final Pos pos = kind == LayoutSource.BoxKind.TABLE
+				? ((net.zamasoft.foliojet.layout.box.impl.TableBox) box).getBlockBox().getPos() : box.getPos();
+		return freeze(kind, box.getParams(), pos);
+	}
 
 	/**
 	 * kindとlive params/posから対応するvariantを凍結します(E-6増分3b-4、
@@ -193,7 +206,11 @@ public sealed interface BoxRecipe {
 	 * 外置きリストマーカー({@code OutsideMarkerBox})——
 	 * {@code BlockParams}/{@code InlinePos}を使う(既存コード確認済み)。
 	 */
-	record Marker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
+	record Marker(BlockParamsTemplate params, InlinePosTemplate pos, boolean overlaysFollowingBlock) implements BoxRecipe {
+		public Marker(final BlockParamsTemplate params, final InlinePosTemplate pos) {
+			this(params, pos, false);
+		}
+
 		public BoxKind kind() {
 			return BoxKind.MARKER;
 		}

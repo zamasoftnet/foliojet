@@ -1,0 +1,6 @@
+drawer z=0
+  x=5.00 y=5.00 Text["BEFORE" asc=20.00 desc=4.41]
+  x=45.84 y=5.00 TableBorder[w=74.97 h=20.00]
+  x=48.84 y=8.00 Text["INLINE" asc=9.59 desc=4.41]
+  x=84.66 y=8.00 Text["TABLE" asc=9.59 desc=4.41]
+  x=123.31 y=5.00 Text["AFTER" asc=20.00 desc=4.41]

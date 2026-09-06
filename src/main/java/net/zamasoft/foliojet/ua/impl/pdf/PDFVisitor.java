@@ -81,7 +81,7 @@ public class PDFVisitor extends AbstractVisitor {
 				} catch (UnsupportedOperationException e) {
 					this.formsSupported = false;
 				}
-			});
+			}, fieldName, group);
 		}
 	}
 
@@ -144,7 +144,7 @@ public class PDFVisitor extends AbstractVisitor {
 		// Emit at paint time and in document order so that, when tagged, the
 		// annotation nests in a Link structure element under the enclosing block
 		// rather than at the document root. No-op when untagged.
-		this.visitStructContent("Link", out -> out.addAnnotation(link));
+		this.visitStructContent("Link", out -> out.addAnnotation(link), link);
 	}
 
 	@Override
@@ -251,7 +251,7 @@ public class PDFVisitor extends AbstractVisitor {
 			} catch (UnsupportedOperationException e) {
 				this.formsSupported = false;
 			}
-		});
+		}, select);
 	}
 
 	@Override
@@ -290,7 +290,7 @@ public class PDFVisitor extends AbstractVisitor {
 	 * {@code action}を実行するdrawableを積みます(4箇所で重複していた
 	 * 定型の集約、2026-07-30)。
 	 */
-	private void visitStructContent(final String role, final PDFOutputDrawable.Action action) {
+	private void visitStructContent(final String role, final PDFOutputDrawable.Action action, final Object... digestValues) {
 		final var ref = this.declareStruct(role);
 		this.drawer.visitDrawable(new PDFOutputDrawable(out -> {
 			out.beginStructContent(ref);
@@ -299,7 +299,7 @@ public class PDFVisitor extends AbstractVisitor {
 			} finally {
 				out.endStructContent();
 			}
-		}), 0, 0);
+		}, new Object[] { role, ref, digestValues }), 0, 0);
 	}
 
 	private void emit(FormField field) {
@@ -315,7 +315,7 @@ public class PDFVisitor extends AbstractVisitor {
 				// The target profile forbids interactive forms; stop trying.
 				this.formsSupported = false;
 			}
-		});
+		}, field);
 	}
 
 	protected void addFragment(String id, Point2D location) {

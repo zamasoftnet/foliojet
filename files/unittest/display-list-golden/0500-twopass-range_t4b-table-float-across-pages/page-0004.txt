@@ -1,0 +1,2 @@
+drawer z=0
+  x=0.00 y=0.00 Text["AFTER" asc=9.59 desc=4.41]

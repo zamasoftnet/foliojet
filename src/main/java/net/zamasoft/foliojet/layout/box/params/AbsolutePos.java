@@ -26,6 +26,13 @@ public class AbsolutePos implements Pos {
 		return PosType.ABSOLUTE;
 	}
 
+	/** 静的位置が必要な論理ブロック軸。縦組みでは左右の inset を調べる。 */
+	public boolean usesStaticPageAxis(final WritingMode flow) {
+		return flow.isVertical()
+				? this.location.getLeftType() == LengthType.AUTO && this.location.getRightType() == LengthType.AUTO
+				: this.location.getTopType() == LengthType.AUTO && this.location.getBottomType() == LengthType.AUTO;
+	}
+
 	public String toString() {
 		return super.toString() + "[location=" + this.location + ",fixed=" + this.fiducial + ",autoPosition="
 				+ this.autoPosition + "]";

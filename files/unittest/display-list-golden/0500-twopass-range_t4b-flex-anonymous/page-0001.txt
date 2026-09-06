@@ -1,0 +1,8 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=320.00 h=24.00]
+  x=5.00 y=5.00 Text["element" asc=9.59 desc=4.41]
+  x=0.00 y=24.00 Text["anonymous" asc=9.59 desc=4.41]
+  x=51.76 y=24.00 Text["inline" asc=9.59 desc=4.41]
+  x=77.54 y=24.00 AbsoluteRectFrame[w=226.68 h=24.00]
+  x=82.54 y=29.00 Text["element" asc=9.59 desc=4.41]
+  x=307.22 y=24.00 Text["tail" asc=9.59 desc=4.41]

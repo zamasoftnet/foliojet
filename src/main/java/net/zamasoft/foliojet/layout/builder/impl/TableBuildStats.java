@@ -108,32 +108,37 @@ public final class TableBuildStats {
 	}
 
 	/**
-	 * Retained 1表あたりの、表終端(prepareLayout)時点でセルのrecordsが
-	 * 現に保持しているglyph数合計のhigh-water(E-6増分5a、2026-07-24)。
-	 * セルrange化(seal)の効果の直接の実測——sealされたセルは0を寄与する
-	 * ため、全セル適格ならこの値は0のまま。挙動には影響しない。
-	 */
-	public static final AtomicLong RETAINED_CELL_GLYPH_HIGH_WATER = new AtomicLong();
-
-	/**
-	 * TwoPassBlockBuilder 1ビルダーあたりのrecords要素数のhigh-water。
-	 * E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤。挙動には影響しない。
-	 */
-	public static final AtomicLong TWO_PASS_RECORD_HIGH_WATER = new AtomicLong();
-
-	/**
-	 * TwoPassBlockBuilder 1ビルダーあたりのglyphイベント数合計(recordsに
-	 * 保持されるTextImplのglyph総量の概算)のhigh-water。
-	 * E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤。挙動には影響しない。
-	 */
-	public static final AtomicLong TWO_PASS_GLYPH_HIGH_WATER = new AtomicLong();
-
-	/**
 	 * TwoPassBlockBuilderのネスト深さ(layoutStack鎖上の連続する
 	 * TwoPassBlockBuilder数、自身を含む)のhigh-water。
 	 * E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤。挙動には影響しない。
 	 */
 	public static final AtomicLong TWO_PASS_NEST_DEPTH_HIGH_WATER = new AtomicLong();
+
+	/** 1つのLayoutSourceが同時に持つリース数の最大値(同じfromIdも別々に数える)。 */
+	public static final AtomicLong SOURCE_LEASE_HIGH_WATER = new AtomicLong();
+
+	/** LayoutSourceの保持Event数の最大値。リース以外による保持も含む。 */
+	public static final AtomicLong SOURCE_RETAINED_EVENT_HIGH_WATER = new AtomicLong();
+
+	/** nextId - 最古リースfromIdの最大値。最古watermarkが止まる長さをEventId単位で測る。 */
+	public static final AtomicLong SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER = new AtomicLong();
+
+	/** 上の最大遅れを最初に観測したときの最古watermark。リース未観測は-1。 */
+	public static final AtomicLong SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER = new AtomicLong(-1);
+
+	/** 観測のみ。保持量の上限による抑制・強制解放は行いません。 */
+	public static synchronized void reportSourceRetention(final long leases, final long events,
+			final long oldestWatermark, final long nextId) {
+		SOURCE_LEASE_HIGH_WATER.accumulateAndGet(leases, Math::max);
+		SOURCE_RETAINED_EVENT_HIGH_WATER.accumulateAndGet(events, Math::max);
+		if (leases > 0) {
+			final long lag = Math.max(0, nextId - oldestWatermark);
+			if (lag > SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get()) {
+				SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.set(lag);
+				SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER.set(oldestWatermark);
+			}
+		}
+	}
 
 	private TableBuildStats() {
 		// stats
@@ -182,24 +187,6 @@ public final class TableBuildStats {
 	/** {@code reason}によるRetainedルーティングの発生回数(E-6増分1)。 */
 	public static long retentionReasonCount(final TableRetentionReason reason) {
 		return RETENTION_REASON_COUNTS.get(reason).get();
-	}
-
-	/**
-	 * Retained表の表終端時点のセルrecords保持glyph数合計を報告します
-	 * (E-6増分5a、最大値を保持)。
-	 */
-	public static void reportRetainedCellGlyphRetention(final long glyphs) {
-		RETAINED_CELL_GLYPH_HIGH_WATER.accumulateAndGet(glyphs, Math::max);
-	}
-
-	/** TwoPassBlockBuilderのrecords保持数を報告します(E-6増分1、最大値を保持)。 */
-	public static void reportTwoPassRecordRetention(final int records) {
-		TWO_PASS_RECORD_HIGH_WATER.accumulateAndGet(records, Math::max);
-	}
-
-	/** TwoPassBlockBuilderのglyphイベント数合計を報告します(E-6増分1、最大値を保持)。 */
-	public static void reportTwoPassGlyphRetention(final long glyphs) {
-		TWO_PASS_GLYPH_HIGH_WATER.accumulateAndGet(glyphs, Math::max);
 	}
 
 	/** TwoPassBlockBuilderのネスト深さを報告します(E-6増分1、最大値を保持)。 */

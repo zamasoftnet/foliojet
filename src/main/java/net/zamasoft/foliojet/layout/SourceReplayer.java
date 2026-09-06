@@ -3,13 +3,23 @@ package net.zamasoft.foliojet.layout;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
+import net.zamasoft.foliojet.layout.box.impl.FlexBox;
+import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.FlexParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
+import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
+import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
+import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.segment.LayoutSourceEventConverter;
+import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
+import net.zamasoft.foliojet.layout.segment.FlexParamsTemplate;
+import net.zamasoft.foliojet.layout.segment.GridParamsTemplate;
 import net.zamasoft.foliojet.layout.segment.SegmentEvent;
 import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
 
@@ -138,7 +148,17 @@ public final class SourceReplayer {
 	public static MeasurePageGenerator measure(final LayoutSource log, final long fromId, final long toId,
 			final BlockParams template, final net.zamasoft.foliojet.ua.UserAgent ua, final double width,
 			final double height, final boolean paginate) {
-		final MeasurePageGenerator pg = new MeasurePageGenerator(ua, template, width, height);
+		try (ReplayIntent.Scope replay = ReplayIntent.MEASURE.enter();
+				ScratchReplayScope scratch = new ScratchReplayScope();
+				ContinuationStats.TwoPassMeasurement measurement = ContinuationStats.twoPassMeasurement(ReplayIntent.MEASURE)) {
+			return measureRange(log, fromId, toId, template, ua, width, height, paginate);
+		}
+	}
+
+	private static MeasurePageGenerator measureRange(final LayoutSource log, final long fromId, final long toId,
+			final BlockParams template, final net.zamasoft.foliojet.ua.UserAgent ua, final double width,
+			final double height, final boolean paginate) {
+		final MeasurePageGenerator pg = new MeasurePageGenerator(ua, template, width, height, log);
 		final DocumentBuilder doc = new DocumentBuilder(pg);
 		if (!paginate) {
 			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);
@@ -146,18 +166,45 @@ public final class SourceReplayer {
 		// 子範囲を裸のまま scratch ページ直下へ流すと、フロート等が
 		// ページボックスに係留されようとして壊れる。元のブロックに相当する
 		// ラッパーブロックで包んで、係留文脈を通常構築と同型にする
-		final BlockParams wrapperParams = createMeasureWrapperParams(template);
-		doc.startBox(new FlowBlockBox(wrapperParams, new FlowPos()));
+		doc.startBox(createMeasureWrapper(template));
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
 			// 計測はフォールバック経路を持たない(範囲は呼び出し側が
 			// 生きているうちに確定させる契約)
 			throw new IllegalStateException("measure range is not intact: [" + fromId + ", " + toId + "]");
 		}
-		drive(doc, slice);
-		doc.endBox();
-		doc.end();
+		try (slice) {
+			drive(doc, slice);
+			doc.endBox();
+			doc.end();
+		}
 		return pg;
+	}
+
+	/** 子範囲の外にあるGrid/FlexのStartに相当する配置文脈も復元します。 */
+	private static FlowBlockBox createMeasureWrapper(final BlockParams template) {
+		final BlockParams common = createMeasureWrapperParams(template);
+		if (template instanceof GridParams grid) {
+			final GridParams params = GridParamsTemplate.freeze(grid).materialize();
+			BlockParamsTemplate.freeze(common).materializeInto(params);
+			return new GridBox(params, new FlowPos());
+		}
+		if (template instanceof FlexParams flex) {
+			final FlexParams params = FlexParamsTemplate.freeze(flex).materialize();
+			BlockParamsTemplate.freeze(common).materializeInto(params);
+			// columnの適格性と配置に必要な主軸寸法は保持する。行寸法・枠は中立。
+			params.size = net.zamasoft.foliojet.layout.box.params.Dimension.create(
+					flex.flow.isVertical() ? flex.size.getWidth() : 0,
+					flex.flow.isVertical() ? 0 : flex.size.getHeight(),
+					flex.flow.isVertical() ? flex.size.getWidthType() : net.zamasoft.foliojet.layout.box.params.LengthType.AUTO,
+					flex.flow.isVertical() ? net.zamasoft.foliojet.layout.box.params.LengthType.AUTO : flex.size.getHeightType());
+			if (!flex.flexDirection.isRow() && flex.flexWrap.isWrap()) {
+				// column wrapは両軸definiteが適格条件。中立化でcoordinatorを失わない。
+				params.size = flex.size;
+			}
+			return new FlexBox(params, new FlowPos());
+		}
+		return new FlowBlockBox(common, new FlowPos());
 	}
 
 	/** scratch 再生を包む匿名ブロックへ、元のテキスト文脈を写します。 */
@@ -183,6 +230,10 @@ public final class SourceReplayer {
 		wrapperParams.whiteSpace = template.whiteSpace;
 		wrapperParams.wordWrap = template.wordWrap;
 		wrapperParams.textWrapStyle = template.textWrapStyle;
+		// T5b(2026-09-06): strut 規約も写す。写さないとラッパー直下の atomic 行が MAIN と違う高さで実測される(codex レビュー P2)
+		wrapperParams.strictLineBox = template.strictLineBox;
+		wrapperParams.tabSize = template.tabSize;
+		wrapperParams.tabSizeIsMultiple = template.tabSizeIsMultiple;
 		wrapperParams.hyphens = template.hyphens;
 		wrapperParams.hyphenateCharacter = template.hyphenateCharacter;
 		wrapperParams.hyphenator = template.hyphenator;
@@ -309,6 +360,11 @@ public final class SourceReplayer {
 		if (log == null || selfId < 0) {
 			return false;
 		}
+		if (log.get(selfId) instanceof LayoutSource.Start start
+				&& start.recipe() instanceof net.zamasoft.foliojet.layout.segment.BoxRecipe.PlacedTable) {
+			// 配置宿主の子は表構造。TABLE Startを含めて表ビルダーを開く必要がある。
+			return false;
+		}
 		final long endId = log.endOf(selfId);
 		if (endId < 0 || endId <= selfId + 1) {
 			return false;
@@ -361,49 +417,29 @@ public final class SourceReplayer {
 		return true;
 	}
 
-	/**
-	 * seal済みTwoPassビルダーの本文範囲を bind 先ビルダーへ再駆動します
-	 * (E-6増分4a/4b、2026-07-24: TwoPass range化)。
-	 *
-	 * <p>
-	 * 範囲は録画完了(close)時に検証済み(Opaque/段組/縦横混在なし、
-	 * capture可能)で、seal時に取得した{@code RetentionLease}が compact
-	 * から守っている契約のため、ここにフォールバックはない——範囲が
-	 * 欠けていたら実装バグとして失敗する(silent holeを作らない)。
-	 * 駆動は{@code replayChildren}と同型(新品の{@code DocumentBuilder}を
-	 * targetへ向け、{@code SegmentExecutor}でボックスを再インスタンス化)。
-	 * bind先の{@code BlockBuilder}配下で行分割(TotalFitSession含む)が
-	 * 通常構築と同じに再駆動される。
-	 * </p>
-	 *
-	 * @param log           ソースログ
-	 * @param fromId        本文範囲の先頭 EventId(root boxのStartの次)
-	 * @param toId          本文範囲の末尾 EventId(対応するEndBlockの手前)
-	 * @param target        bind 先ビルダー(root boxの上に作られたもの)
-	 * @param pageGenerator ページ生成器
-	 */
+	/** 子範囲を直接指定する既存の再生入口。リースの所有・終端は呼び出し側が担います。 */
 	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder target, final PageGenerator pageGenerator) {
-		bindTwoPassRange(log, fromId, toId, target, pageGenerator, false);
+		bindTwoPassRange(log, fromId, toId, target, pageGenerator, ReplayIntent.current());
 	}
 
 	/**
-	 * {@code scratch}=trueは使い捨て計測(表Pass Bの複製セル計測——
-	 * {@code CellPassBMeasurer})用の再駆動です(absolute吸収=codex増分9、
-	 * 2026-07-30)。再構築される絶対配置ブロックのseal・prepareBind・係留を
-	 * スキップする——scratch再生でsealすると本物のリースを取得したまま
-	 * replicaごと破棄され、リース孤児化とseal:bind収支の破れになる
-	 * (TwoPassRangeBindParityTestの収支検出器が実際に検出した)。
-	 * 絶対配置はflow外でセルの計測値(使用ページ方向寸法・first ascent)に
-	 * 寄与しないため、スキップは計測等価(Pass B shadowのbit一致が固定)。
+	 * MEASUREでは新品のDocumentBuilderを駆動し、その間に取得した一時リースを
+	 * finallyで破棄します。呼び出し元のセルハンドルのリースは所有しません。
 	 */
 	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
-			final BlockBuilder target, final PageGenerator pageGenerator, final boolean scratch) {
+			final BlockBuilder target, final PageGenerator pageGenerator, final ReplayIntent intent) {
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
 			throw new IllegalStateException(
 					"seal済みTwoPass範囲が失われました(リースが守っているはずの範囲): [" + fromId + ", " + toId + "]");
 		}
+		bindTwoPassRange(slice, target, pageGenerator, intent);
+	}
+
+	/** 本体のリース付きビューと、セルの不変文字sliceを同じドライバで再生する。 */
+	public static void bindTwoPassRange(final LayoutSource.ReplaySlice slice,
+			final BlockBuilder target, final PageGenerator pageGenerator, final ReplayIntent intent) {
 		// -Dfoliojet.debug.floatTrace=1 で浮動体の一生を追う(2026-08-03新設)。
 		// 「入れ子の浮動体で内容が消える」
 		// (files/fuzz-repro/nested-float-content-loss.html)の切り分けに使った
@@ -414,11 +450,15 @@ public final class SourceReplayer {
 			for (int k = 1; k < Math.min(st.length, 9); ++k) {
 				where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
 			}
-			System.err.println("[float] === 2パス再駆動 scratch=" + scratch + " 範囲=[" + fromId + "," + toId + "]"
+			System.err.println("[float] === 2パス再駆動 intent=" + intent + " 範囲=[" + slice.fromId() + "," + slice.toId() + "]"
 					+ where);
 		}
-		try (TranslateBlockScope scope = new TranslateBlockScope(target)) {
-			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, scratch);
+		try (slice;
+				ReplayIntent.Scope replay = intent.enter();
+				ScratchReplayScope scratch = ReplayIntent.current() == ReplayIntent.MEASURE ? new ScratchReplayScope() : null;
+				TranslateBlockScope scope = new TranslateBlockScope(target);
+				ContinuationStats.TwoPassMeasurement measurement = ContinuationStats.twoPassMeasurement(intent)) {
+			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, target, ReplayIntent.current());
 			drive(doc, slice);
 			doc.finishReplay();
 		}

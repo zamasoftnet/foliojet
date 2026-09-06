@@ -42,6 +42,7 @@ import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.Element;
+import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
@@ -289,6 +290,15 @@ public class TextBuilder {
 			// リストマーカーの箱の中の行(点の画像だけ)は本文の行ではない
 			return;
 		}
+		final double[] strut = strutAscentDescent(params, lineHeight);
+		line.addAscentDescent(strut[0], strut[1]);
+	}
+
+	/**
+	 * ブロックのフォントと line-height から strut の ascent/descent を求めます
+	 * ({@link #addStrutIfTextless} と {@link #getVirtualClosedPageAxis} で共用)。
+	 */
+	private static double[] strutAscentDescent(final AbstractTextParams params, final double lineHeight) {
 		double ascent, descent;
 		if (params.isVerticalTypesetting()) {
 			// 縦組み: 字面は中央線の左右にサイズの半分ずつ
@@ -308,12 +318,252 @@ public class TextBuilder {
 			}
 		}
 		final double textHeight = ascent + descent;
-		if (lineHeight != textHeight) {
+		if (!LayoutUtils.isNone(lineHeight) && lineHeight != textHeight) {
 			final double half = (lineHeight - textHeight) / 2.0;
 			ascent += half;
 			descent += half;
 		}
-		line.addAscentDescent(ascent, descent);
+		return new double[] { ascent, descent };
+	}
+
+	/** 計量用の行では atomic の圧縮など、入力の箱を書き換える処理を行わない。 */
+	private boolean measuringLine;
+
+	/**
+	 * 先行内容だけで行を閉じた仮想位置。本文の行・run・inline は変更しない。
+	 * 確定時と同じ startInline/addElement を計量用の箱に適用し、ascent/descent を
+	 * 個別に最大化する。分綴待ちの単語は字形の計量だけを借り、確定・消費しない。
+	 */
+	double getVirtualClosedPageAxis(final java.util.function.Consumer<GlyphHandler> pending) {
+		final TextBuilder measure = new TextBuilder(this.builder, BreakToken.NONE);
+		measure.measuringLine = true;
+		measure.lineBox = this.lineBox instanceof FirstLineBox
+				? new FirstLineBox((net.zamasoft.foliojet.layout.box.params.FirstLineParams) this.lineBox.getLineParams())
+				: new LineBox((BlockParams) this.lineBox.getLineParams());
+		measure.lineBox.addAscentDescent(this.lineBox.getAscent(), this.lineBox.getDescent());
+		measure.lineHasText = this.lineHasText;
+		measure.lineHasAtomic = this.lineHasAtomic;
+		measure.pageAxis = this.pageAxis;
+		measure.lineAxis = this.lineAxis;
+		measure.textIndent = this.textIndent;
+		measure.maxLineSize = this.maxLineSize;
+		measure.maxPageSize = this.maxPageSize;
+		measure.minLineAxis = this.minLineAxis;
+		measure.firstUnit = this.firstUnit;
+		measure.last = this.last;
+		measure.firstFormattedLine = this.firstFormattedLine;
+		measure.lineHead = this.lineHead;
+		measure.lastSpaceAdvance = this.lastSpaceAdvance;
+		measure.opportunity = this.opportunity;
+		measure.unitAdvance = this.unitAdvance;
+		measure.fontStyle = this.fontStyle == null ? this.builder.getOpenRunFontStyle() : this.fontStyle;
+		measure.fontMetrics = this.fontMetrics == null ? this.builder.getOpenRunFontMetrics() : this.fontMetrics;
+		measure.textParamStack = this.textParamStack == null ? null : new ArrayList<>(this.textParamStack);
+		measure.changeTextState(this.currentTextParams());
+		if (this.inlineStack != null) {
+			measure.inlineStack = new ArrayList<>();
+			for (final Inline inline : this.inlineStack) {
+				final Inline copy = new Inline(copyInlineForMeasurement(inline.box));
+				copy.baseline = inline.baseline;
+				measure.inlineStack.add(copy);
+			}
+		}
+		final List<Element> buffer = new ArrayList<>(this.textBuffer);
+		if (this.text != null) {
+			measure.text = measureTextSlice(this.text, 0, this.text.getGlyphCount());
+			buffer.set(buffer.indexOf(this.text), measure.text);
+		}
+		measure.textBuffer = buffer;
+		measure.autospace.copyFrom(this.autospace, this.text, measure.text);
+		pending.accept(new GlyphHandler() {
+			public void startTextRun(final int offset, final FontStyle style, final FontMetrics metrics) {
+				measure.startTextRun(style, metrics);
+			}
+			public void glyph(final int offset, final char[] chars, final int off, final byte len, final int gid) {
+				measure.glyph(offset, chars, off, len, gid);
+			}
+			public void endTextRun() {
+				if (measure.text != null) measure.endTextRun();
+			}
+			public void control(final TextControl control) {
+				measure.control(measure.copyPendingControl(control));
+			}
+			public void flush() {
+				// 正規の字間の候補だけを記録する。本文や親 builder へ行は追加しない。
+				if (!measure.wrap || buffer.isEmpty()) return;
+				if (measure.firstUnit && measure.lineAxis > 0) {
+					measure.locateLine();
+					measure.firstUnit = false;
+				}
+				if (measure.opportunity.elementCount() == 0
+						|| LayoutUtils.compare(measure.lineAxis - measure.lastSpaceAdvance,
+								measure.maxLineSize - measure.textIndent) <= 0) {
+					measure.opportunity = measure.captureOpportunity();
+				}
+			}
+			public void close() { }
+		});
+		final double trailingSpace = measure.lastSpaceAdvance;
+		// 末尾の配達で溢れが判明しても、本文の行は確定しない。既存の分割候補だけで
+		// 仮想的に先行行を閉じる(absolute の位置は新たな候補にならない)。
+		int from = 0;
+		boolean locate = measure.firstUnit;
+		final double overflow = measure.lineAxis - trailingSpace - (measure.maxLineSize - measure.textIndent);
+		if (!measure.firstUnit && measure.opportunity.elementCount() > 0 && LayoutUtils.compare(overflow, 0) > 0
+				&& !measure.tryJlreqLineShrink(overflow, false)) {
+			from = measure.opportunity.elementCount();
+			final int glyphs = measure.opportunity.glyphCount();
+			if (glyphs > 0 && buffer.get(from - 1) instanceof Text run && glyphs < run.getGlyphCount()) {
+				buffer.set(from - 1, measureTextSlice(run, 0, glyphs));
+				buffer.add(from, measureTextSlice(run, glyphs, run.getGlyphCount()));
+			}
+			for (int i = 0; i < from; ++i) {
+				measure.measureElement(buffer.get(i));
+			}
+			measure.addStrutIfTextless(measure.lineBox);
+			measure.pageAxis += measure.lineBox.getPageSize();
+			measure.lineBox = new LineBox(this.textBlockBox.getBlockParams());
+			measure.lineHasText = measure.lineHasAtomic = false;
+			final List<Inline> inlines = measure.inlineStack;
+			measure.inlineStack = null;
+			if (inlines != null) {
+				for (final Inline inline : inlines) {
+					final InlineBox continued = inline.box.splitLine(true);
+					continued.fixLineAxis(this.builder.getFlowBox());
+					measure.startInline(continued);
+				}
+			}
+			if (measure.collapseSpaces) {
+				while (from < buffer.size() && buffer.get(from) instanceof WhiteSpace) {
+					++from;
+				}
+			}
+			measure.lineAxis = 0;
+			for (int i = from; i < buffer.size(); ++i) {
+				measure.lineAxis += buffer.get(i).getAdvance();
+			}
+			locate = true;
+		}
+		for (int i = from; i < buffer.size(); ++i) {
+			measure.measureElement(buffer.get(i));
+		}
+		measure.addStrutIfTextless(measure.lineBox);
+		if (measure.lineBox.getPageSize() == 0) {
+			return measure.pageAxis;
+		}
+		if (locate) {
+			// nowrap/pre はまだ locateLine を通っていない。排除域も同じ探索で読む。
+			measure.textBuffer = buffer.subList(from, buffer.size());
+			measure.locateLine();
+		}
+		return measure.pageAxis + measure.lineBox.getPageSize();
+	}
+
+	/** 未配達 control は下流で幅が設定されるため、可変なものを複製して計量する。 */
+	private TextControl copyPendingControl(final TextControl control) {
+		if (control instanceof InlineQuad quad) {
+			final WritingMode flow = this.currentTextParams().flow;
+			final InlineQuad copy;
+			switch (quad.getType()) {
+			case InlineQuad.INLINE_START:
+			case InlineQuad.INLINE_END: {
+				final InlineBox box = copyInlineForMeasurement((InlineBox) quad.getBox());
+				final boolean start = quad.getType() == InlineQuad.INLINE_START;
+				copy = start ? InlineQuad.createInlineBoxStartQuad(box) : InlineQuad.createInlineBoxEndQuad(box);
+				final AbstractTextParams params = box.getTextParams();
+				final boolean reverse = params.flow.isVertical() && params.writingModeVariant != WritingModeVariant.NORMAL
+						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant, params.direction)
+								== TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+				copy.advance = start ? (reverse ? box.getFrame().getFrameBottom() : box.getFrame().getFrameLineStart(flow))
+						: (reverse ? box.getFrame().getFrameTop() : box.getFrame().getFrameLineEnd(flow));
+				break;
+			}
+			case InlineQuad.INLINE_REPLACED:
+				copy = InlineQuad.createReplacedBoxQuad(((InlineReplacedQuad) quad).box);
+				copy.advance = quad.getBox().getLineExtent(flow);
+				break;
+			case InlineQuad.INLINE_BLOCK:
+				copy = InlineQuad.createInlineBlockBoxQuad(((InlineQuad.InlineBlockQuad) quad).box);
+				copy.advance = quad.getBox().getLineExtent(flow);
+				break;
+			case InlineQuad.INLINE_ABSOLUTE:
+				copy = InlineQuad.createInlineAbsoluteBoxQuad(((InlineAbsoluteQuad) quad).box);
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+			return copy;
+		}
+		if (control instanceof WhiteSpace space) {
+			final var metrics = this.currentTextParams().getFontListMetrics();
+			final WhiteSpace copy = new WhiteSpace(metrics, space.getCharOffset());
+			copy.setWordSpacing(space.getAdvance() - metrics.getFontMetrics(0).getSpaceAdvance());
+			return copy;
+		}
+		if (control instanceof Tab tab) {
+			return new Tab(this.currentTextParams().getFontListMetrics(), tab.getCharOffset());
+		}
+		return control;
+	}
+
+	private static TextImpl measureTextSlice(final Text run, final int from, final int to) {
+		final TextImpl copy = new TextImpl(run.getCharOffset(), run.getFontStyle(), run.getFontMetrics());
+		copy.setLetterSpacing(run.getLetterSpacing());
+		int charOffset = 0;
+		for (int i = 0; i < to; ++i) {
+			final byte length = run.getClusterLengths()[i];
+			if (i >= from) {
+				copy.appendGlyph(run.getChars(), charOffset, length, run.getGlyphIds()[i]);
+				if (run.xAdvances() != null) {
+					copy.addXAdvance(i - from, run.xAdvances().get(i));
+				}
+			}
+			charOffset += length;
+		}
+		return copy;
+	}
+
+	private static InlineBox copyInlineForMeasurement(final InlineBox box) {
+		final InlineBox copy = new InlineBox(box.getInlineParams(), box.getInlinePos());
+		copy.getFrame().frame = box.getFrame().frame;
+		copy.getFrame().margin.set(box.getFrame().margin);
+		copy.getFrame().padding.set(box.getFrame().padding);
+		// addAscentDescent は枠を加えるので、元の外寸から同じ枠を一度引く。
+		final var frame = box.getFrame();
+		if (box.getTextParams().flow.isVertical()) {
+			final boolean sideways = box.getTextParams().writingModeVariant == WritingModeVariant.SIDEWAYS_CCW;
+			copy.addAscentDescent(box.getAscent() - (sideways ? frame.getFrameLeft() : frame.getFrameRight()),
+					box.getDescent() - (sideways ? frame.getFrameRight() : frame.getFrameLeft()));
+		} else {
+			copy.addAscentDescent(box.getAscent() - frame.getFrameTop(), box.getDescent() - frame.getFrameBottom());
+		}
+		return copy;
+	}
+
+	private void measureElement(final Element element) {
+		if (element instanceof InlineQuad quad) {
+			switch (quad.getType()) {
+			case InlineQuad.INLINE_START:
+				this.startInline(copyInlineForMeasurement((InlineBox) quad.getBox()));
+				break;
+			case InlineQuad.INLINE_END:
+				this.endInline();
+				break;
+			case InlineQuad.INLINE_BLOCK:
+			case InlineQuad.INLINE_REPLACED:
+				this.startInline((IInlineBox) quad.getBox());
+				this.endInline();
+				break;
+			case InlineQuad.INLINE_ABSOLUTE:
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+		} else if (element instanceof Control control && control.getControlChar() == '\n') {
+			// 処理済み br の後に新たな行を作らない。保存空白・tab・leader は addElement へ。
+		} else {
+			this.addElement(element);
+		}
 	}
 
 	private void addLine(AbstractLineBox lineBox) {
@@ -636,7 +886,7 @@ public class TextBuilder {
 				// インラインブロック・テーブルの基底線
 				final AbstractContainerBox inlineBlockBox = (AbstractContainerBox) box;
 				final BlockParams params = inlineBlockBox.getBlockParams();
-				if (params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL
+				if (!this.measuringLine && params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL
 						&& lineParams.flow.isVertical() && !params.flow.isVertical()
 						&& inlineBlockBox instanceof net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox stf) {
 					// **縦中横(all)は1emのセルへ収める**(css-writing-modes-4
@@ -1380,8 +1630,13 @@ public class TextBuilder {
 	 * 内部中点→括弧・読点→和欧間）で追い込む。全容量で収まらない場合は
 	 * 一切変更せず、従来どおり直前候補へ追い出す。
 	 */
-	@SuppressWarnings("unchecked")
 	private boolean tryJlreqLineShrink(final double overflow) {
+		return this.tryJlreqLineShrink(overflow, true);
+	}
+
+	/** 静的位置の仮想閉鎖では、追込みの可否だけを調べて字送りを変更しない。 */
+	@SuppressWarnings("unchecked")
+	private boolean tryJlreqLineShrink(final double overflow, final boolean apply) {
 		if (!(overflow > 0)) {
 			return true;
 		}
@@ -1450,6 +1705,9 @@ public class TextBuilder {
 		}
 		if (LayoutUtils.compare(total, overflow) < 0) {
 			return false;
+		}
+		if (!apply) {
+			return true;
 		}
 
 		double remainder = overflow;
@@ -1644,7 +1902,7 @@ public class TextBuilder {
 		double autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
 		double punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
 				this.fontStyle.getDirection());
-		if (this.breakWord == AbstractTextParams.WORD_WRAP_BREAK_WORD && this.unitAdvance > 0) {
+		if (!this.measuringLine && this.breakWord == AbstractTextParams.WORD_WRAP_BREAK_WORD && this.unitAdvance > 0) {
 			if (this.firstUnit) {
 				this.locateLine();
 				this.firstUnit = false;

@@ -68,39 +68,25 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	}
 
 	/**
-	 * 実測ビルダーの保持(fail closed経路)。seal不適格な本文のみ——適格な
-	 * 本文は{@link #deferredBind}へ持ち出され、ビルダー(layoutStack鎖・
-	 * 計測器)をページ末のbindまで引き留めない(E-6増分4e、2026-07-24)。
-	 */
-	private TwoPassBlockBuilder builder;
-
-	/**
 	 * seal済み本文の持ち出し形(E-6増分4e)。{@code IntrinsicSizes}の
 	 * スナップショット+LayoutSource範囲+保持リースのみを持つ。
 	 */
 	private TwoPassBlockBuilder.DeferredBind deferredBind;
 
 	public final void prepareBind(TwoPassBlockBuilder builder) {
-		// E-6増分4e: 適格(seal済み)ならDeferredBindへ置換、不適格は
-		// 従来どおりビルダー保持(fail closed)
-		final TwoPassBlockBuilder.DeferredBind deferred = builder.detachDeferredBind();
-		if (deferred != null) {
-			this.deferredBind = deferred;
-		} else {
-			this.builder = builder;
-		}
+		this.deferredBind = builder.detachDeferredBind();
 	}
 
 	/**
 	 * このボックスがどのcontext builderにも係留されておらず、bind予約
-	 * (ビルダー保持/DeferredBind)も持たないかを返します(absolute吸収=
+	 * (DeferredBind)も持たないかを返します(absolute吸収=
 	 * codex増分9、2026-07-30)。TwoPass録画中のabsoluteはcontextがTwoPassの
 	 * ためprepareBind/addBound/inline登録を一切通らず、常にこの状態——
 	 * 親のrange化はこの証明の上でのみボックスを吸収できる(deferredBind
 	 * 保持中のボックスを吸収するとリースが誰にもbind/closeされなくなる)。
 	 */
 	public final boolean isUnattachedForParentRange() {
-		return this.builder == null && this.deferredBind == null;
+		return this.deferredBind == null;
 	}
 
 	public final void shrinkToFit(IFramedBox containerBox, IntrinsicSizes sizes) {
@@ -222,12 +208,6 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			this.deferredBind.bind(absoluteBuilder);
 			absoluteBuilder.close();
 			this.deferredBind = null;
-		} else if (this.builder != null) {
-			this.shrinkToFit(containerBox, this.builder.intrinsicSizesMeasured());
-			final BlockBuilder absoluteBuilder = new BlockBuilder(this.builder.getPageContext(), this);
-			this.builder.bind(absoluteBuilder);
-			absoluteBuilder.close();
-			this.builder = null;
 		}
 	}
 

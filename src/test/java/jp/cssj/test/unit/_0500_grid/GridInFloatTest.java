@@ -6,14 +6,9 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
-import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 
 /**
- * TwoPass宿主内Gridのテストです。G1dでは幅なしfloat内のGridは
- * G0(単一列積み)、G3d1でLegacyRecords bind経路の実トラック配置
- * (2列)になり、G3d3でrange sealが解禁された——floatの本文は
- * SourceRangeBodyへseal(records解放)され、bindは範囲再生
- * (DocumentBuilder駆動の新品GridBuilder=GRIDレシピ再構築)を通る。
+ * 幅なしfloat内のGridを範囲から再構築し、配置座標とrecipe再生の発火を検証する。
  */
 public class GridInFloatTest extends AbstractTestCase {
 	public GridInFloatTest(String name) {
@@ -23,15 +18,9 @@ public class GridInFloatTest extends AbstractTestCase {
 	private double baseX = Double.NaN, baseY = Double.NaN;
 
 	protected void transcode() throws Exception {
-		final long rejectsBefore = ContinuationStats
-				.twoPassSealRejects(ContinuationStats.TwoPassSealReject.GRID_RANGE);
 		final long replaysBefore = net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.GRID_REPLAYS.get();
 		File file = new File("files/unittest/0500-grid/grid-in-float.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
-		// G3d3: GRID_RANGE rejectは解除され、floatのbindは範囲再生が
-		// GRIDレシピからGridBoxを再構築する(空虚な緑の防止)
-		assertEquals("GRID_RANGE rejectは発火しないこと", rejectsBefore,
-				ContinuationStats.twoPassSealRejects(ContinuationStats.TwoPassSealReject.GRID_RANGE));
 		assertTrue("範囲再生がGridBoxを再構築すること",
 				net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.GRID_REPLAYS.get() > replaysBefore);
 	}

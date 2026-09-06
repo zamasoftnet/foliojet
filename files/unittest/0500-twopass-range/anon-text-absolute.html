@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Anonymous item: text-absolute</title>
+<style>
+@page{size:360pt 420pt;margin:20pt}
+body{margin:0;font:10pt/14pt serif}
+.grid{display:grid;grid-template-columns:100pt 100pt;gap:5pt;width:205pt}
+.flex{display:flex;gap:5pt;width:280pt}
+.host{position:relative;border:1pt solid #246;margin:0 0 12pt;padding:3pt}
+.item{border:1pt solid #684;padding:2pt;background:#edf}
+.absolute{position:absolute;left:2pt;top:1pt;color:#840}
+</style></head><body>
+<!-- Explicit coordinates keep the existing static-absolute-order exception out of this parity fixture. -->
+<div class="grid host">GRID TEXT<span class="absolute">ABS G</span> GRID TAIL<div class="item">NEXT G</div>END G</div>
+<div class="flex host">FLEX TEXT<span class="absolute">ABS F</span> FLEX TAIL<div class="item">NEXT F</div>END F</div>
+</body></html>

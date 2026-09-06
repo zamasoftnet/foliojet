@@ -31,7 +31,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  *
  * @author MIYABE Tatsuhiko
  */
-public class WordHyphenator implements FilterGlyphHandler {
+public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	/**
 	 * ソース中の U+00AD を表すマーカーです。StyledTextUnitizer が字形化の前に
 	 * 発行し、WordHyphenator が SoftHyphen に変換して消費します(下流には流れません)。
@@ -85,9 +85,9 @@ public class WordHyphenator implements FilterGlyphHandler {
 	/**
 	 * バッファ中の単語。flush()間のイベント列(RunStart/Glyph/RUN_END/TextControl)。
 	 */
-	private final List<Object> events = new ArrayList<Object>();
+	private List<Object> events = new ArrayList<Object>();
 
-	private final StringBuilder word = new StringBuilder();
+	private StringBuilder word = new StringBuilder();
 
 	private boolean buffering = false;
 
@@ -231,6 +231,25 @@ public class WordHyphenator implements FilterGlyphHandler {
 	}
 
 	/**
+	 * 計量側にも通常の glyph/control を送る。CSS の幅計算は TextBuilder に任せる。
+	 * 単語・分綴候補・配達状態を複製してから未確定クラスタを受け取り、
+	 * 末尾の単語だけは自動分綴点を確定せずに配達する。
+	 */
+	void deliverPending(final GlyphHandler measurement,
+			final java.util.function.Consumer<GlyphHandler> pending) {
+		try {
+			final WordHyphenator copy = (WordHyphenator) this.clone();
+			copy.events = new ArrayList<>(this.events);
+			copy.word = new StringBuilder(this.word);
+			copy.out = measurement;
+			pending.accept(copy);
+			copy.processBuffer(false);
+		} catch (final CloneNotSupportedException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	/**
 	 * バッファリングの開始判定。単語(flush()区切り)の先頭のグリフ/ランで
 	 * hyphens:auto なら以降のイベントをバッファします。
 	 */
@@ -256,6 +275,10 @@ public class WordHyphenator implements FilterGlyphHandler {
 	 * バッファした単語を分割点(SoftHyphen+flush)を挿入しながら再生します。
 	 */
 	private void processBuffer() {
+		this.processBuffer(true);
+	}
+
+	private void processBuffer(final boolean completeWord) {
 		if (!this.buffering) {
 			return;
 		}
@@ -264,7 +287,7 @@ public class WordHyphenator implements FilterGlyphHandler {
 			return;
 		}
 		int[] breaks = NO_BREAKS;
-		if (!this.manualBreaks && this.autoBreaks && this.word.length() >= MIN_WORD_LENGTH) {
+		if (completeWord && !this.manualBreaks && this.autoBreaks && this.word.length() >= MIN_WORD_LENGTH) {
 			breaks = this.hyphenator.hyphenate(this.word.toString());
 		}
 		FontStyle fs = this.bufFontStyle;

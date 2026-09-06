@@ -78,6 +78,9 @@ public final class BoxRecipeBoxFactory {
 	/** 再生で{@code FlexBox}を再構築した回数です(Flex F0c——非空振り観測点)。 */
 	public static final java.util.concurrent.atomic.AtomicLong FLEX_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
+	/** 試験用: DirectSessionの変換スレッドからも通知する。保存・復元は試験側で行う。 */
+	static volatile java.util.function.Consumer<BoxRecipe.PlacedTable> placedTableReplayObserver;
+
 	/** {@code recipe}のテンプレートをmaterializeし、対応する新品の{@code IBox}を返す。 */
 	public static INonReplacedBox create(final BoxRecipe recipe) {
 		return switch (recipe) {
@@ -85,7 +88,12 @@ public final class BoxRecipeBoxFactory {
 		case BoxRecipe.Multicol r ->
 			create(LayoutSource.BoxKind.MULTICOL, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.Inline r -> create(LayoutSource.BoxKind.INLINE, r.params().materialize(), r.pos().materialize());
-		case BoxRecipe.Marker r -> create(LayoutSource.BoxKind.MARKER, r.params().materialize(), r.pos().materialize());
+		case BoxRecipe.Marker r -> {
+			final OutsideMarkerBox marker = (OutsideMarkerBox) create(LayoutSource.BoxKind.MARKER,
+					r.params().materialize(), r.pos().materialize());
+			marker.setOverlaysFollowingBlock(r.overlaysFollowingBlock());
+			yield marker;
+		}
 		case BoxRecipe.FloatBlock r ->
 			create(LayoutSource.BoxKind.FLOAT_BLOCK, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.InlineBlock r ->
@@ -96,6 +104,7 @@ public final class BoxRecipeBoxFactory {
 		// materializeを1回ずつ呼ぶだけでよい
 		case BoxRecipe.Table r -> create(LayoutSource.BoxKind.TABLE, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.PlacedTable r -> {
+			TABLE_REPLAYS.incrementAndGet();
 			final var params = r.params().materialize();
 			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = switch (r.placement()) {
 			case BoxRecipe.InlineBlock p -> new InlineBlockBox(params, p.pos().materialize());
@@ -103,7 +112,10 @@ public final class BoxRecipeBoxFactory {
 			case BoxRecipe.Absolute p -> new AbsoluteBlockBox(params, p.pos().materialize());
 			default -> throw new IllegalArgumentException("table placement: " + r.placement().kind());
 			};
-			yield new TableBox(params, block);
+			final TableBox table = new TableBox(params, block);
+			final var observer = placedTableReplayObserver;
+			if (observer != null) observer.accept(r);
+			yield table;
 		}
 		case BoxRecipe.TableRowGroup r ->
 			create(LayoutSource.BoxKind.TABLE_ROW_GROUP, r.params().materialize(), r.pos().materialize());

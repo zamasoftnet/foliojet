@@ -1,15 +1,17 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.impl.GridItemBox;
+import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
+import net.zamasoft.foliojet.layout.fragment.RangeHandle;
+import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 /**
  * Gridのitem 1件分の保持です(Grid G3a、2026-07-31——
  * consult-codex-2026-07-31-grid-g3.txt Q1)。本文(TwoPass録画)・
  * close時点の固有寸法スナップショット・最終item boxを所有する。
- * 表セルの{@code CellContent}と同じ考え方だが、合成itemは
- * LayoutSourceに記録されない(sourceAnchor=-1)ためrange seal・
- * リースは持たない——本文はGrid終端までLegacyRecordsのまま。
+	 * closeで要素項目のauthored範囲・匿名項目の子範囲をsealし、Grid終端のbindまでリースを持つ。
+	 * 不適格は変換を失敗させる。
  *
  * <p>
  * 固有寸法は{@code getIntrinsicSizes()}(IntrinsicMeasurer模倣計測)を
@@ -21,7 +23,14 @@ final class GridItemContent {
 
 	final GridItemBox itemBox;
 
-	final TwoPassBlockBuilder body;
+	final RangeHandle body;
+
+	/** 空本文・独立再生も確定本文だけを持ち、実測builderは手放す。 */
+	private final TwoPassBlockBuilder.DeferredBind content;
+
+	private final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator;
+	private final ContinuationStats.TwoPassCensusTag censusTag;
+	private final java.util.Set<Long> ownedAbsoluteAnchors;
 
 	/** close時点の固有寸法(G3aではshadow観測のみ。auto/fr列=G3b/cで使用)。 */
 	final IntrinsicSizes sizes;
@@ -55,7 +64,11 @@ final class GridItemContent {
 			final boolean anonymous, final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
 			final double minContributionCap, final boolean takeover) {
 		this.itemBox = itemBox;
-		this.body = body;
+		this.content = body.detachDeferredBind();
+		this.body = this.content.handle();
+		this.pageGenerator = this.body == null ? null : body.getPageContext().getPageGenerator();
+		this.censusTag = body.itemCensusTag();
+		this.ownedAbsoluteAnchors = body.rangeOwnedAbsoluteAnchors();
 		this.sizes = sizes;
 		this.anonymous = anonymous;
 		this.spec = spec;
@@ -80,7 +93,19 @@ final class GridItemContent {
 			this.itemBox.applyAspectRatio(trackWidth);
 		}
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
-		this.body.bind(target);
+		if (this.body == null) {
+			this.content.bind(target);
+		} else {
+			if (ReplayIntent.current() == ReplayIntent.MEASURE) {
+				this.body.measure(target, this.pageGenerator);
+			} else {
+				this.body.bind(target, this.pageGenerator);
+			}
+			if (this.censusTag != null) {
+				this.censusTag.record(ReplayIntent.current() == ReplayIntent.MEASURE
+						? ContinuationStats.TwoPassCensusEvent.MEASURE_RANGE : ContinuationStats.TwoPassCensusEvent.BIND);
+			}
+		}
 		target.close();
 		// takeover item(authored paramsを引き継いだ根box)は指定高を
 		// 自己適用する(G7、2026-08-29——FlexItemContent.bindと同型)。
@@ -96,5 +121,28 @@ final class GridItemContent {
 			this.itemBox.applySpecifiedPageAxis(
 					Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
 		}
+	}
+
+	/** 検証だけを行い、親リース取得後に終端する一覧へ列挙します。 */
+	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
+			final long fromId, final long toId, final java.util.List<TwoPassBlockBuilder> out,
+			final java.util.List<RetainedTableBuilder> outTables, final java.util.List<RangeHandle> outRanges,
+			final java.util.Set<Long> anchors, final java.util.Set<TwoPassBlockBuilder> seen) {
+		if (this.body == null) {
+			return this.content.collectAbsorbableInto(log, fromId, toId, anchors);
+		}
+		if (this.body.state() != RangeHandle.State.OPEN || this.body.source() != log
+				|| this.body.fromId() < fromId || this.body.toId() > toId) {
+			return false;
+		}
+		if (!outRanges.contains(this.body)) {
+			for (final long anchor : this.ownedAbsoluteAnchors) {
+				if (!anchors.add(anchor)) {
+					return false;
+				}
+			}
+			outRanges.add(this.body);
+		}
+		return true;
 	}
 }

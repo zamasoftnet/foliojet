@@ -67,7 +67,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  */
 public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
-	/** 録画されたitem数(空匿名破棄を除く)。bind数と一致すること。 */
+	/** 録画されたitem数(空匿名破棄を除く)。親rangeへの吸収・再構築も含み、bind数とは異なる。 */
+	/** 構築した項目の総数。TwoPassの本文記録数ではない。 */
 	public static final AtomicLong FLEX_ITEM_RECORDS = new AtomicLong();
 
 	/** bindされたitem数(fallback経路も数える)。 */
@@ -102,6 +103,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 
 	/** takeover元のauthored box(endBoxの対応付け用。中立/匿名itemではnull)。 */
 	private FlowBlockBox openItemSource;
+	private long openItemAnchor = -1;
 
 	/** bindは一度きり。 */
 	private boolean bound;
@@ -167,6 +169,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final TwoPassBlockBuilder builder = this.startItem(
 				new FlexItemBox(source.getBlockParams(), (FlowPos) source.getPos()), false, spec);
 		this.openItemSource = source;
+		this.openItemAnchor = source.getSourceAnchor();
 		return builder;
 	}
 
@@ -211,6 +214,12 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * </p>
 	 */
 	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final NeutralTransfer authored) {
+		return this.startNeutralElementItem(spec, authored, -1);
+	}
+
+	/** 中立wrapperのauthored childのアンカーを保持します。 */
+	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final NeutralTransfer authored,
+			final long sourceAnchor) {
 		final BlockParams wrapper = this.itemParams();
 		final boolean transfer = authored != null;
 		if (transfer) {
@@ -240,7 +249,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		if (transfer) {
 			itemBox.markNeutralLineFill();
 		}
-		return this.startItem(itemBox, false, spec);
+		final TwoPassBlockBuilder builder = this.startItem(itemBox, false, spec);
+		this.openItemAnchor = sourceAnchor;
+		return builder;
 	}
 
 	/** 行方向成分だけ残したDimension(page方向はauto。縦書きの行方向=高さ)。 */
@@ -251,23 +262,27 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
-	public TwoPassBlockBuilder requireAnonymousItem() {
+	public TwoPassBlockBuilder requireAnonymousItem(final long sourceAnchor) {
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
 			return null; // 既に開いている(積み直し不要)
 		}
-		return this.startItem(new FlexItemBox(this.itemParams(), new FlowPos()), true, FlexItemSpec.DEFAULT);
+		final TwoPassBlockBuilder builder = this.startItem(new FlexItemBox(this.itemParams(), new FlowPos()), true,
+				FlexItemSpec.DEFAULT);
+		this.openItemAnchor = sourceAnchor;
+		return builder;
 	}
 
 	private TwoPassBlockBuilder startItem(final FlexItemBox itemBox, final boolean anonymous,
 			final FlexItemSpec spec) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
-		builder.tagLegacyBindOrigin(ContinuationStats.LegacyBindOrigin.GRID_ITEM);
+		builder.tagRootKind(ContinuationStats.TwoPassRootKind.FLEX_ITEM);
 		this.openItemBuilder = builder;
 		this.openItemBox = itemBox;
 		this.openItemAnonymous = anonymous;
 		this.openItemSpec = spec;
 		this.openItemSource = null;
+		this.openItemAnchor = -1;
 		return builder;
 	}
 
@@ -277,22 +292,31 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final FlexItemBox itemBox = this.openItemBox;
 		final boolean anonymous = this.openItemAnonymous;
 		final FlexItemSpec spec = this.openItemSpec;
+		final boolean takeover = this.openItemSource != null;
+		final long anchor = this.openItemAnchor;
 		this.openItemBuilder = null;
 		this.openItemBox = null;
 		this.openItemAnonymous = false;
 		this.openItemSpec = FlexItemSpec.DEFAULT;
 		this.openItemSource = null;
-		if (anonymous && builder.hasEmptyRecordedBody() && !itemBox.paintsAnything()) {
+		this.openItemAnchor = -1;
+		if (anonymous && !builder.hasLayoutContent() && !itemBox.paintsAnything()) {
 			FLEX_ITEM_EMPTY_ANON_DROPS.incrementAndGet();
 			return;
 		}
 		FLEX_ITEM_RECORDS.incrementAndGet();
+		builder.tagItemKind(anonymous, takeover);
+		builder.sealBodyForRangeBind(anchor, anonymous
+				? net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.ANONYMOUS_CHILDREN
+				: takeover
+					? net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.CHILDREN_ONLY
+					: net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.ROOTED_SUBTREE);
 		this.items.add(new FlexItemContent(itemBox, builder, builder.getIntrinsicSizes(), anonymous, spec));
 	}
 
 	/**
 	 * Flex終端です(F1f): 実行計画としてホストへ渡す。BlockBuilderは
-	 * 即時{@link #bind}、TwoPassは録画のFlexEventに保持して幅確定後に
+	 * 即時{@link #bind}、TwoPassはownership ledgerに保持して幅確定後に
 	 * bindする。
 	 */
 	public void finish() {
@@ -377,7 +401,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * Flexの組み立てです(全itemをFlexItemMetricsResolverで数値化し、
 	 * §9.7=FlexLengthResolverで主軸寸法を解決して配置)。ホストの
 	 * active flowが当のFlexBoxである間に呼ぶこと(liveはDocumentBuilderの
-	 * FLOW終端、records bindはStartFlow(FlexBox)とEndFlowの間)。
+	 * FLOW終端、範囲再生もStartFlow(FlexBox)とEndFlowの間)。
 	 */
 	@Override
 	public void bind(final Builder hostBuilder) {
@@ -903,7 +927,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	@Override
 	public void abandonForParentRange() {
 		// 親rangeの範囲再生がFlex全体を再構築する(GridBuilderと同型)。
-		// 合成itemはLayoutSource非記録のためリースを持たない
+		// 検証相で列挙した項目・子のリースは親のコミット相がsubsumeする。
 		this.items.clear();
 	}
 
@@ -914,12 +938,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 */
 	boolean collectAbsorbableItems(final LayoutSource log, final long fromId, final long toId,
 			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
+			final List<net.zamasoft.foliojet.layout.fragment.RangeHandle> outRanges,
 			final Set<Long> ownedAbsoluteAnchors, final Set<TwoPassBlockBuilder> seen) {
 		if (this.bound) {
 			return false;
 		}
 		for (final FlexItemContent item : this.items) {
-			if (!item.body.collectAbsorbableSelf(log, fromId, toId, out, outTables, ownedAbsoluteAnchors, seen)) {
+			if (!item.collectAbsorbable(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
 				return false;
 			}
 		}

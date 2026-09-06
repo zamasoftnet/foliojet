@@ -8,11 +8,7 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * TwoPass宿主(幅なしfloat)内のFlexコンテナのテストです(Flex F1f)。
- * RetainedFlex/FlexEventによりTwoPass宿主でもFlexBuilderが活性化し
- * (row配置)、floatの本文はSourceRangeBodyへseal(records解放)されて
- * bindは範囲再生(FLEXレシピからFlexBoxを再構築)を通る——
- * FLEX_REPLAYSの増加で空虚な緑を防ぐ({@code GridInFloatTest}のG3d3形)。
+ * 幅なしfloat内のFlexを範囲から再構築し、配置座標とrecipe再生の発火を検証する。
  */
 public class FlexInFloatTest extends AbstractTestCase {
 	public FlexInFloatTest(String name) {
@@ -22,16 +18,9 @@ public class FlexInFloatTest extends AbstractTestCase {
 	private double baseX = Double.NaN, baseY = Double.NaN;
 
 	protected void transcode() throws Exception {
-		final long rejectsBefore = net.zamasoft.foliojet.layout.fragment.ContinuationStats
-				.twoPassSealRejects(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE);
 		final long replaysBefore = net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.FLEX_REPLAYS.get();
 		File file = new File("files/unittest/0510-flex/flex-in-float.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
-		// F1f: FLEX_RANGE rejectは解除され、floatのbindは範囲再生が
-		// FLEXレシピからFlexBoxを再構築する(空虚な緑の防止)
-		assertEquals("FLEX_RANGE rejectは発火しないこと", rejectsBefore,
-				net.zamasoft.foliojet.layout.fragment.ContinuationStats.twoPassSealRejects(
-						net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.FLEX_RANGE));
 		assertTrue("範囲再生がFlexBoxを再構築すること",
 				net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory.FLEX_REPLAYS.get() > replaysBefore);
 	}

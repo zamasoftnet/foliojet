@@ -30,6 +30,16 @@ public final class AutospaceTracker {
 
 	private boolean trimOff;
 
+	/** 仮想計量へ pair 状態を渡す。開いている run の同一性も複製側へ付け替える。 */
+	public void copyFrom(final AutospaceTracker source, final TextImpl openText, final TextImpl copyText) {
+		this.flags = source.flags;
+		this.trimOff = source.trimOff;
+		this.prevText = source.prevText == openText ? copyText : source.prevText;
+		this.prevCodePoint = source.prevCodePoint;
+		this.prevFontSize = source.prevFontSize;
+		this.prevGid = source.prevGid;
+	}
+
 	/** 実効フラグを設定します(インライン境界でのparams切替に追従)。 */
 	public void setFlags(final byte flags) {
 		this.flags = flags;

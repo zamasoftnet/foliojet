@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=194.00 h=24.00]
+  x=5.00 y=5.00 Text["header" asc=9.59 desc=4.41]
+  x=0.00 y=28.00 AbsoluteRectFrame[w=90.00 h=24.00]
+  x=5.00 y=33.00 Text["sidebar" asc=9.59 desc=4.41]
+  x=94.00 y=28.00 AbsoluteRectFrame[w=100.00 h=24.00]
+  x=99.00 y=33.00 Text["main" asc=9.59 desc=4.41]
+  x=0.00 y=56.00 AbsoluteRectFrame[w=194.00 h=24.00]
+  x=5.00 y=61.00 Text["spanning" asc=9.59 desc=4.41]

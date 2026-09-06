@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.ua.impl.pdf;
 
+import java.net.URI;
 import java.util.function.Supplier;
 
 import net.zamasoft.pdfg2d.gc.GC;
@@ -21,12 +22,23 @@ import net.zamasoft.pdfg2d.gc.image.WrappedImage;
  */
 public final class PixelBackedImage extends WrappedImage {
 	private final Supplier<Image> pixels;
+	private final URI sourceURI;
 	private Image loaded;
 	private boolean tried;
 
 	public PixelBackedImage(final Image image, final Supplier<Image> pixels) {
+		this(image, pixels, null);
+	}
+
+	public PixelBackedImage(final Image image, final Supplier<Image> pixels, final URI sourceURI) {
 		super(image);
 		this.pixels = pixels;
+		this.sourceURI = sourceURI;
+	}
+
+	/** 復号器がない形式も内容を識別できるよう、元資源への参照を保持する。 */
+	public URI getSourceURI() {
+		return this.sourceURI;
 	}
 
 	/** 復号した画素つきの画像({@code RasterImage})。読めなければnull。 */

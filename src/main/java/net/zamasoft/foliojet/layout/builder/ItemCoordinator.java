@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
  *
  * <p>
  * 実装は{@code DocumentBuilder.builderStack}に積まれるが{@code Builder}
- * ではない。itemの中身は{@code requireAnonymousItem()}等が返すitem builder
+ * ではない。itemの中身は{@code requireAnonymousItem(anchor)}等が返すitem builder
  * (通常は{@code TwoPassBlockBuilder})が受け、coordinator自身は録画の
  * 保持と終端の配置だけを担う。
  * </p>
@@ -30,8 +30,9 @@ public interface ItemCoordinator {
 	/**
 	 * 直接テキスト/インライン用の匿名itemを開きます。既に匿名itemが
 	 * 開いていればnull(積み直し不要)。
+	 * sourceAnchorは合成StartのEventId。独立再生では-1です。
 	 */
-	public Builder requireAnonymousItem();
+	public Builder requireAnonymousItem(long sourceAnchor);
 
 	/** 開いているitemを確定します(録画完了点)。 */
 	public void itemClosed();

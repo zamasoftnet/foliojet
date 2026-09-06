@@ -1,0 +1,4 @@
+drawer z=0
+  x=6.00 y=6.00 Text["HEAD" asc=9.59 desc=4.41]
+  x=40.77 y=6.00 Text["ITEM" asc=9.59 desc=4.41]
+  x=72.21 y=6.00 Text["TAIL" asc=9.59 desc=4.41]

@@ -17,6 +17,16 @@ public final class DisplayListDumper {
 
 	public static final String DIR_PROPERTY = "net.zamasoft.foliojet.debug.display-list.dir";
 
+	// DirectSession の変換スレッドにも届く、D7 用の独立した観測口。
+	private static volatile java.util.function.BiConsumer<Drawer, Integer> pageObserver;
+
+	/** 直列の検証用。golden の書式・出力先とは独立し、close で必ず復元する。 */
+	public static AutoCloseable observePages(final java.util.function.BiConsumer<Drawer, Integer> observer) {
+		final var saved = pageObserver;
+		pageObserver = observer;
+		return () -> pageObserver = saved;
+	}
+
 	/**
 	 * スレッドごとの出力先(システムプロパティより優先)。
 	 *
@@ -103,6 +113,10 @@ public final class DisplayListDumper {
 	 * ダンプが有効な場合、ページの表示リストを書き出します。
 	 */
 	public static void dumpPage(Drawer drawer, int pageNumber) {
+		final var observer = pageObserver;
+		if (observer != null) {
+			observer.accept(drawer, pageNumber);
+		}
 		String dir = DIR_OVERRIDE.get();
 		if (dir == null) {
 			dir = System.getProperty(DIR_PROPERTY);

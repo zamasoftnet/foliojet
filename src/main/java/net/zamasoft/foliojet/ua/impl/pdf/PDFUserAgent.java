@@ -297,7 +297,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 					} catch (IOException e) {
 						return null;
 					}
-				});
+				}, uri);
 			}
 		} catch (IOException e) {
 			// ここはRasterImageLoaderを通るので向きは適用済み。二重に

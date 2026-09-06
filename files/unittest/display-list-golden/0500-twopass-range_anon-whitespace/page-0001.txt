@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=213.00 h=40.00]
+  x=4.00 y=4.00 AbsoluteRectFrame[w=100.00 h=20.00]
+  x=7.00 y=7.00 Text["GRID" asc=9.59 desc=4.41]
+  x=33.94 y=7.00 Text["ELEMENT" asc=9.59 desc=4.41]
+  x=0.00 y=40.00 AbsoluteRectFrame[w=288.00 h=40.00]
+  x=4.00 y=44.00 AbsoluteRectFrame[w=80.16 h=20.00]
+  x=7.00 y=47.00 Text["FLEX" asc=9.59 desc=4.41]
+  x=34.50 y=47.00 Text["ELEMENT" asc=9.59 desc=4.41]

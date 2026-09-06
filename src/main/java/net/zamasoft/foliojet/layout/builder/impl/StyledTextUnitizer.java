@@ -25,7 +25,6 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 import net.zamasoft.foliojet.layout.text.Quad;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextShaper;
@@ -63,6 +62,7 @@ public class StyledTextUnitizer {
 	private double wordSpacing;
 
 	private TextShaper textShaper = null;
+	private CSSJTextUnitizer textUnitizer;
 
 	/** 縦中横の文字数が確定するまで保持する文字イベントです。 */
 	private record TextCombineChars(int charOffset, char[] chars, boolean lineFeed) {
@@ -103,8 +103,12 @@ public class StyledTextUnitizer {
 		}
 		final AbstractTextParams params = this.getTextParams();
 		final InlineParamsStack inlineContext = new InlineParamsStack(params);
-		final FilterGlyphHandler textUnitizer = new CSSJTextUnitizer(inlineContext);
-		final FilterGlyphHandler wordHyphenator = new WordHyphenator(inlineContext);
+		final CSSJTextUnitizer textUnitizer = new CSSJTextUnitizer(inlineContext);
+		final WordHyphenator wordHyphenator = new WordHyphenator(inlineContext);
+		this.textUnitizer = textUnitizer;
+		if (this.builder instanceof BlockBuilder blockBuilder) {
+			blockBuilder.pendingText = measurement -> wordHyphenator.deliverPending(measurement, textUnitizer::deliverText);
+		}
 		wordHyphenator.setGlyphHandler(this.gh);
 		textUnitizer.setGlyphHandler(wordHyphenator);
 		this.textShaper = params.fontManager.getTextShaper();
@@ -204,6 +208,9 @@ public class StyledTextUnitizer {
 		if (this.textShaper != null) {
 			this.textShaper.close();
 			this.textShaper = null;
+			if (this.builder instanceof BlockBuilder blockBuilder) {
+				blockBuilder.pendingText = measurement -> { };
+			}
 			this.gh.builder.endTextBlock();
 		}
 		if (DEBUG) {
@@ -569,7 +576,7 @@ public class StyledTextUnitizer {
 			throw new IllegalStateException();
 		}
 		this.requireTextShaper();
-		this.textShaper.characters(charOffset, ch, off, len);
+		this.textUnitizer.characters(this.textShaper, charOffset, ch, off, len);
 	}
 
 	/**

@@ -1,0 +1,22 @@
+# TwoPass T4a exceptions v1; UTF-8, escaped TSV
+# docPath	page	reason	legacySha256	rangeSha256
+# reason = LEGACY_STRUT_REUSE / LEGACY_STATIC_ABSOLUTE_ORDER (人が分類する)
+# page は1起点。digest は小文字の SHA-256 (16進64桁)。頁数不一致は免除しない。
+# 未分類・登録 digest からの変化・両経路が一致した例外・消失した頁は失敗。
+# 初回は空台帳。不一致は build/reports/twopass-digest/unclassified.tsv へ出る。
+# 差分を確認して理由を記入し、先頭5列だけ転記する。包括免除や自動分類はしない。
+# regenerate でもこのファイルは書き換えず、登録済み例外を必ず照合する。
+# legacySha256 は T4b(旧経路削除)後、履歴証拠として凍結する。
+# 分類は差分の数値一致に基づく推定。代替候補 LEGACY_VERTICAL_LINE_METRICS(縦組み行の ascent/descent)・
+# LEGACY_FOOTNOTE_EXTENT(脚注の予約高さ)は、strut 条件を揃える診断で差が残ったときに分離する。
+# 以下9頁の digest は旧 golden ダンプ由来で、新 D7 直列化では無効。regenerate 後に同じ頁か確認し、再分類・再登録する。
+# 2026-09-06 01:31 初回分類(依頼側): 022-NEST p1 は旧 records が absolute を先行文字より先に記録する型。
+# それ以外は旧 records が原箱の行高(strut/descent)を再利用する型(asahi/yahoo=セル内アイコン行 16.39 vs 13.50、
+# vertical-table=縦組み表で desc 4.43 分、nested-flex-in-page-float-footnote=脚注区切り 2.39pt)。範囲側は golden/imageTest 基準と一致。
+# 2026-09-06 T5b(recipe 再生の strut 規約統一)で範囲側が旧経路と一致した頁を削除: fuzz-repro/nested-flex-in-page-float-footnote.html p3, imageTest/legacy/0600-misc/asahi.html p1, imageTest/legacy/0600-misc/asahi.html p2, imageTest/legacy/0600-misc/asahi.html p3, imageTest/legacy/0600-misc/yahoo.html p1
+# vertical-table-first-cell-reading-order p2-4 は範囲側が変わったが旧経路とは不一致のまま。残差の原因は未確定(候補: 横書きの空 inline-block 行の descent、救済分割の元箱高さ・clip、縦組み行 metrics)。
+# 2026-09-06 T5c(block-level absolute の静的位置=先行行の後)で 022-NEST p1 の範囲側 digest を更新。旧経路(absolute を先行文字より先に記録)とは依然不一致。
+fuzz-repro/vertical-table-first-cell-reading-order.html	2	LEGACY_STRUT_REUSE	945399d8f7ce34204f16c67c1a89e65ded9f62ce6981c61ea74f3702c2eaf4d9	4a6871f10fb10cab8d8a77ab9c86049e5fc5b5344d09155d035837f16bc1a9ac
+fuzz-repro/vertical-table-first-cell-reading-order.html	3	LEGACY_STRUT_REUSE	74031c2ff4c07d429b72de2c23ab09d8098f726003f617416d6cc3850f47275d	e61c1661076c9eb6cc53a50b9041b13f938a01e7be52c4fe20f4cf56ca1fedfa
+fuzz-repro/vertical-table-first-cell-reading-order.html	4	LEGACY_STRUT_REUSE	2dd61fae06837e58ae0dfa44371acf69f67e3b38cf5cb7929e0ac1b7cd9985cc	5ce2ea416e0f986adb37737b9b010fd716bb7854e8f37b853bc71dabaa7e5807
+imageTest/legacy/0110-absolute/022-NEST.html	1	LEGACY_STATIC_ABSOLUTE_ORDER	f831403be50a008a1e11f3a28df9b7c700aef1129f64b8d0f2f978577c4dadc7	4c8662e2a46ef4d64bbd90921b38c88cab65c5b16de66464f76ec5c2aa024123

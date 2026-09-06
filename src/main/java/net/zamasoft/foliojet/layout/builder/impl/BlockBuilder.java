@@ -1086,6 +1086,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
+	/** shaper/分綴待ちの文字。静的位置を読むときだけ計量用に配達する。 */
+	java.util.function.Consumer<net.zamasoft.pdfg2d.gc.text.GlyphHandler> pendingText = measurement -> { };
+
 	public void addBound(IBox box) {
 		// M3c: float・絶対配置はTextBuilderの実状態(lineAxis/pageAxis)を
 		// 読むため、K-P蓄積中なら先にlegacyへ確定させる
@@ -1247,9 +1250,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 				contextBox = flow.box;
 				double staticX = this.lineAxis - flow.lineAxis;
 				double staticY = this.pageAxis - flow.pageAxis;
-				if (this.textBuilder != null) {
+				if (pos.usesStaticPageAxis(flow.box.getBlockParams().flow)) {
 					assert pos.autoPosition == AutoPosition.BLOCK : box.getParams();
-					staticY += this.textBuilder.getActualPageAxis();
+					if (this.textBuilder != null) {
+						staticY += this.textBuilder.getVirtualClosedPageAxis(this.pendingText);
+					} else {
+						staticY += new TextBuilder(this, this.breakToken).getVirtualClosedPageAxis(this.pendingText);
+					}
 				}
 				if (box.getType() == BoxType.REPLACED) {
 					// 縦組みRLの静的位置を物理化するには、箱のページ方向寸法が

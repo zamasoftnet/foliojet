@@ -41,4 +41,9 @@ public record BlockParamsTemplate(BlockParamsFields fields) {
 		this.fields.materializeInto(p);
 		return p;
 	}
+
+	/** Grid/Flex固有フィールドを保ち、計測ラッパー等の共通フィールドだけを復元します。 */
+	public void materializeInto(final BlockParams target) {
+		this.fields.materializeInto(target);
+	}
 }

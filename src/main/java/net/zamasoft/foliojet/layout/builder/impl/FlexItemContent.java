@@ -1,20 +1,29 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.impl.FlexItemBox;
+import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
+import net.zamasoft.foliojet.layout.fragment.RangeHandle;
+import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 /**
  * Flexのitem 1件分の保持です(Flex F1d、2026-08-02——
  * {@code GridItemContent}と同型)。本文(TwoPass録画)・close時点の
- * 固有寸法スナップショット・item boxを所有する。itemは
- * LayoutSourceに記録されない(sourceAnchor=-1)ためrange seal・
- * リースは持たない——本文はFlex終端のbindまでLegacyRecordsのまま。
+	 * 固有寸法スナップショット・item boxを所有する。要素・匿名項目の範囲リースは
+	 * closeからFlex終端bindまで保持する。不適格は変換を失敗させる。
  */
 final class FlexItemContent {
 
 	final FlexItemBox itemBox;
 
-	final TwoPassBlockBuilder body;
+	final RangeHandle body;
+
+	/** 空本文・独立再生も確定本文だけを持ち、実測builderは手放す。 */
+	private final TwoPassBlockBuilder.DeferredBind content;
+
+	private final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator;
+	private final ContinuationStats.TwoPassCensusTag censusTag;
+	private final java.util.Set<Long> ownedAbsoluteAnchors;
 
 	/** close時点の固有寸法(F1dでは未使用。auto/content basis=F1eで使用)。 */
 	final IntrinsicSizes sizes;
@@ -27,7 +36,11 @@ final class FlexItemContent {
 	FlexItemContent(final FlexItemBox itemBox, final TwoPassBlockBuilder body, final IntrinsicSizes sizes,
 			final boolean anonymous, final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec) {
 		this.itemBox = itemBox;
-		this.body = body;
+		this.content = body.detachDeferredBind();
+		this.body = this.content.handle();
+		this.pageGenerator = this.body == null ? null : body.getPageContext().getPageGenerator();
+		this.censusTag = body.itemCensusTag();
+		this.ownedAbsoluteAnchors = body.rangeOwnedAbsoluteAnchors();
 		this.sizes = sizes;
 		this.anonymous = anonymous;
 		this.spec = spec;
@@ -57,7 +70,19 @@ final class FlexItemContent {
 		// overflow:visibleに限り伸びる——FlowBlockBox.calculateSizeと同じ規則)
 		this.itemBox.applyAspectRatio(mainSize);
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
-		this.body.bind(target);
+		if (this.body == null) {
+			this.content.bind(target);
+		} else {
+			if (ReplayIntent.current() == ReplayIntent.MEASURE) {
+				this.body.measure(target, this.pageGenerator);
+			} else {
+				this.body.bind(target, this.pageGenerator);
+			}
+			if (this.censusTag != null) {
+				this.censusTag.record(ReplayIntent.current() == ReplayIntent.MEASURE
+						? ContinuationStats.TwoPassCensusEvent.MEASURE_RANGE : ContinuationStats.TwoPassCensusEvent.BIND);
+			}
+		}
 		target.close();
 		// takeover item(authored paramsを引き継いだ根box)は指定高を
 		// 自己適用する——通常flowでは親のstartFlowBlockが適用するが、
@@ -71,5 +96,28 @@ final class FlexItemContent {
 		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			this.itemBox.setPageAxis(Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
 		}
+	}
+
+	/** 検証だけを行い、親リース取得後に終端する一覧へ列挙します。 */
+	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
+			final long fromId, final long toId, final java.util.List<TwoPassBlockBuilder> out,
+			final java.util.List<RetainedTableBuilder> outTables, final java.util.List<RangeHandle> outRanges,
+			final java.util.Set<Long> anchors, final java.util.Set<TwoPassBlockBuilder> seen) {
+		if (this.body == null) {
+			return this.content.collectAbsorbableInto(log, fromId, toId, anchors);
+		}
+		if (this.body.state() != RangeHandle.State.OPEN || this.body.source() != log
+				|| this.body.fromId() < fromId || this.body.toId() > toId) {
+			return false;
+		}
+		if (!outRanges.contains(this.body)) {
+			for (final long anchor : this.ownedAbsoluteAnchors) {
+				if (!anchors.add(anchor)) {
+					return false;
+				}
+			}
+			outRanges.add(this.body);
+		}
+		return true;
 	}
 }

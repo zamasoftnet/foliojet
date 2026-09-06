@@ -22,4 +22,12 @@ public class ContinuationInvariantViolationException extends RuntimeException {
 	public ContinuationInvariantViolationException(final String message) {
 		super(message);
 	}
+	/** パーサーやformatterが包んだ不変条件違反を取り出す。 */
+	public static ContinuationInvariantViolationException findIn(final Throwable failure) {
+		final java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
+			if (cause instanceof ContinuationInvariantViolationException invariant) return invariant;
+		}
+		return null;
+	}
 }

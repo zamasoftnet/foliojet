@@ -15,6 +15,7 @@ def dependencyVersions = [
     batik            : '1.19',
     metadataExtractor: '2.20.0',
     imageioJpeg      : '3.13.1',
+    imageioJpeg2000  : '1.4.0',
     phCss            : '8.2.1',
     htmlBalancer     : '1.1.0',
     saxon            : '12.9',
@@ -138,6 +139,8 @@ dependencies {
     runtimeOnly "com.aayushatharva.brotli4j:native-osx-x86_64:${dependencyVersions.brotli4j}"
     runtimeOnly "com.aayushatharva.brotli4j:native-osx-aarch64:${dependencyVersions.brotli4j}"
     testImplementation 'junit:junit:4.13.2'
+    // imageTestと同じJPEG2000 encoderをcensusの変換にも使う。
+    testRuntimeOnly "com.github.jai-imageio:jai-imageio-jpeg2000:${dependencyVersions.imageioJpeg2000}"
     // veraPDF (greenfield parser) for automated PDF/UA conformance validation
     testImplementation 'org.verapdf:validation-model:1.26.5'
     // 出力PDFの名前付き宛先(id断片・しおり)を読むため(2026-08-03)。

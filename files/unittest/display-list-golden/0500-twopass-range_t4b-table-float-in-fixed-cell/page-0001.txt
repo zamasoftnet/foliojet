@@ -1,0 +1,5 @@
+drawer z=0
+  x=0.00 y=0.00 TableBorder[w=210.00 h=26.00]
+  x=3.00 y=3.00 TableBorder[w=85.00 h=20.00]
+  x=6.00 y=6.00 Text["FLOAT" asc=9.59 desc=4.41]
+  x=42.18 y=6.00 Text["TABLE" asc=9.59 desc=4.41]

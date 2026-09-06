@@ -1,0 +1,2 @@
+drawer z=0
+  x=6.00 y=6.00 Text["TEXT" asc=9.59 desc=4.41]

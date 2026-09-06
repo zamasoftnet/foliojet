@@ -14,6 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
+import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
+import net.zamasoft.foliojet.layout.segment.SegmentEvent;
+
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
@@ -68,6 +71,8 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  */
 public class DocumentBuilder implements TableBuilderHost {
 	private static final boolean DEBUG = false;
+	/** absolute 表が TABLE 入口を通ったことを確認する試験用観測点。 */
+	static volatile java.util.function.Consumer<TableBox> absoluteTableObserver;
 
 	private static final Logger LOG = Logger.getLogger(DocumentBuilder.class.getName());
 
@@ -103,6 +108,14 @@ public class DocumentBuilder implements TableBuilderHost {
 	 */
 	private final PageGenerator pageGenerator;
 
+	/** recipe構築時の失敗にも、seal拒否と同じ文書・所有状態を付ける。 */
+	public String sourceOwnerContext() {
+		final Builder builder = this.builderStack.isEmpty() ? null : this.containerBuilder().builder;
+		return "uri=" + this.pageGenerator.getUserAgent().getDocumentContext().getBaseURI()
+				+ " owner state=" + (builder instanceof TwoPassBlockBuilder twoPass ? twoPass.ownershipState()
+						: builder == null ? "NO_BUILDER" : builder.getClass().getSimpleName());
+	}
+
 	private byte pageMode = 0;
 
 	private final List<INonReplacedBox> boxStack = new ArrayList<INonReplacedBox>();
@@ -116,20 +129,41 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private final List<Object> columnSpanStack = new ArrayList<Object>();
 
+	/** 一時計測では入れ子の本文も消費せず、ページ外への係留を省きます。 */
+	private final ReplayIntent replayIntent;
+
+	/** AnchorMode.NONE専用。主文書のアンカーやLayoutSourceとは共有しません。 */
+	private boolean replayOnly;
+	private SegmentEvent replayEvent;
+	private long replayOrdinal = -1;
+	/** 子範囲だけを再生するとき、Start/Endが範囲外にあるGrid/Flexの根。 */
+	private AbstractContainerBox replayItemHost;
+
 	/**
-	 * 使い捨て計測(表Pass Bの複製セル計測)駆動か(absolute吸収=codex
-	 * 増分9、2026-07-30)。trueのとき、再構築される絶対配置ブロックの
-	 * seal・prepareBind・係留をスキップする——scratchでsealすると本物の
-	 * リースを取得したままreplicaごと破棄されリース孤児化する。絶対配置は
-	 * flow外でセルの計測値に寄与しないためスキップは計測等価
-	 * ({@code SourceReplayer.bindTwoPassRange}のscratch引数参照)。
+	 * 独立再生の一イベントを開始します。既存の本文には先に追記し、
+	 * このイベントで開閉する本文はstart/endContainerBuilderで境界を補正します。
 	 */
-	private final boolean scratchMeasurement;
+	public void startReplayOnlyEvent(final SegmentEvent event, final long ordinal) {
+		this.replayOnly = true;
+		this.replayEvent = event;
+		this.replayOrdinal = ordinal;
+		for (final Object item : this.builderStack) {
+			if (item instanceof ContainerBuilderEntry entry && entry.builder instanceof TwoPassBlockBuilder body) {
+				body.recordReplayOnlyEvent(event, ordinal);
+			}
+		}
+	}
+
+	/** executor以外からの終了処理を、直前イベントの境界と混同しないための対称終了です。 */
+	public void finishReplayOnlyEvent() {
+		this.replayEvent = null;
+		this.replayOrdinal = -1;
+	}
 
 	public DocumentBuilder(PageGenerator pageGenerator) {
 		this.pageGenerator = pageGenerator;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
-		this.scratchMeasurement = false;
+		this.replayIntent = ReplayIntent.current();
 	}
 
 	/**
@@ -139,15 +173,19 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * プロトコルを再駆動するためのものです。
 	 */
 	public DocumentBuilder(PageGenerator pageGenerator, BlockBuilder existingRoot) {
-		this(pageGenerator, existingRoot, false);
+		this(pageGenerator, existingRoot, ReplayIntent.current());
 	}
 
-	/** {@code scratch}については{@link #scratchMeasurement}参照。 */
-	public DocumentBuilder(PageGenerator pageGenerator, BlockBuilder existingRoot, boolean scratch) {
+	/** 本配置と一時計測の意図を明示した再生用ビルダーです。 */
+	public DocumentBuilder(final PageGenerator pageGenerator, final BlockBuilder existingRoot, final ReplayIntent intent) {
 		this.pageGenerator = pageGenerator;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
-		this.scratchMeasurement = scratch;
+		this.replayIntent = java.util.Objects.requireNonNull(intent);
 		this.startContainerBuilder(existingRoot);
+		if (this.startItemCoordinator(existingRoot, existingRoot.getRootBox())) {
+			this.replayItemHost = existingRoot.getRootBox();
+			this.boxStack.add(this.replayItemHost);
+		}
 		this.startContainer();
 	}
 
@@ -155,6 +193,12 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * ソース再生を終了し、テキスト文脈を対称に閉じます(M6b v3)。
 	 */
 	public void finishReplay() {
+		if (this.replayItemHost != null) {
+			this.finishItemCoordinator(this.replayItemHost);
+			final INonReplacedBox popped = this.boxStack.remove(this.boxStack.size() - 1);
+			assert popped == this.replayItemHost : "再生根の終端でboxStack末尾が一致しません";
+			this.replayItemHost = null;
+		}
 		this.endContainer();
 	}
 
@@ -197,7 +241,17 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.startContainer();
 	}
 
-	private void startContainerBuilder(Builder builder) {
+	private void startContainerBuilder(final Builder builder) {
+		this.startContainerBuilder(builder, false);
+	}
+
+	private void startContainerBuilder(final Builder builder, final boolean includeOpeningEvent) {
+		if (this.replayOnly && builder instanceof TwoPassBlockBuilder body) {
+			body.startReplayOnly(this.pageGenerator);
+			if (includeOpeningEvent && this.replayEvent != null) {
+				body.recordReplayOnlyEvent(this.replayEvent, this.replayOrdinal);
+			}
+		}
 		final ContainerBuilderEntry entry = new ContainerBuilderEntry(builder);
 		if (this.builderStack.isEmpty()) {
 			this.builderStack.add(entry);
@@ -299,8 +353,15 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	private ContainerBuilderEntry endContainerBuilder() {
+		return this.endContainerBuilder(false);
+	}
+
+	private ContainerBuilderEntry endContainerBuilder(final boolean includeClosingEvent) {
 		ContainerBuilderEntry entry = this.containerBuilder();
 		try {
+			if (this.replayOnly && entry.builder instanceof TwoPassBlockBuilder body) {
+				body.finishReplayOnly(this.replayOrdinal, includeClosingEvent);
+			}
 			if (!entry.builder.isTwoPass()) {
 				((BlockBuilder) entry.builder).close();
 			}
@@ -393,6 +454,36 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
+	/** live構築と、Startを含まない子範囲再生で同じcoordinatorを積みます。 */
+	private boolean startItemCoordinator(final Builder builder, final AbstractContainerBox box) {
+		if (box instanceof GridBox grid && GridBuilderLifecycle.eligible(grid, builder)) {
+			this.pushScopedBuilder(GridBuilderLifecycle.start(builder, grid));
+			return true;
+		}
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flex
+				&& FlexBuilderLifecycle.eligible(flex, builder)) {
+			this.pushScopedBuilder(FlexBuilderLifecycle.start(builder, flex));
+			return true;
+		}
+		return false;
+	}
+
+	/** hostのflowが有効な間に項目を閉じて配置し、開始時のscopeを解放します。 */
+	private void finishItemCoordinator(final IBox box) {
+		final net.zamasoft.foliojet.layout.builder.ItemCoordinator ending = this.coordinatorEndingAt(box);
+		if (ending == null) {
+			return;
+		}
+		this.closeAnonymousItem(ending);
+		try {
+			final Object popped = this.builderStack.remove(this.builderStack.size() - 1);
+			assert popped == ending : "coordinator終端でbuilderStack末尾が一致しません: " + popped;
+			ending.finish();
+		} finally {
+			this.finishTranslateBlockScope(ending);
+		}
+	}
+
 	/** 開いている全Gridへ、部分木内のpage-margin-noteを記録します。 */
 	private void notePageMarginNoteInGrids() {
 		for (final Object entry : this.builderStack) {
@@ -400,6 +491,71 @@ public class DocumentBuilder implements TableBuilderHost {
 				grid.notePageMarginNote();
 			}
 		}
+	}
+
+	/** live入力の種別。位置種別はfreeze前の実boxから判定する(Opaqueにも対応)。 */
+	public enum DispatchEvent { START_BOX, REPLACED, TEXT, LEADER, END_BOX }
+
+	/** live記録の第1段階で確保した合成Start。実際の開閉は従来のdispatch内で行う。 */
+	private long pendingAnonymousAnchor = -1;
+
+	/**
+	 * 実イベントの追記前に匿名境界だけを判定します。ログには書かず、sinkが返値を
+	 * 実イベントより先に追記する。SegmentExecutorはこのlive専用入口を呼びません。
+	 */
+	public net.zamasoft.foliojet.layout.fragment.LayoutSource.Event preDispatch(
+			final DispatchEvent event, final IBox box, final long nextId) {
+		final net.zamasoft.foliojet.layout.builder.ItemCoordinator c = this.coordinatorAwaitingDirectChild();
+		if (c == null) {
+			return null;
+		}
+		final boolean opens = switch (event) {
+		case TEXT, LEADER -> true;
+		case START_BOX, REPLACED -> box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.INLINE;
+		case END_BOX -> false;
+		};
+		if (opens && !c.hasOpenItem()) {
+			this.pendingAnonymousAnchor = nextId;
+			return new net.zamasoft.foliojet.layout.fragment.LayoutSource.AnonymousItemStart(nextId);
+		}
+		final boolean closes = switch (event) {
+		case START_BOX -> switch (box.getPos().getType()) {
+			case FLOW, TABLE -> true;
+			default -> false;
+		};
+		case REPLACED -> box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOW;
+		case END_BOX -> c.getItemHostBox() == this.boxStack.get(this.boxStack.size() - 1);
+		case TEXT, LEADER -> false;
+		};
+		return closes && c.hasOpenItem() && !c.hasOpenElementItem()
+				? new net.zamasoft.foliojet.layout.fragment.LayoutSource.AnonymousItemEnd() : null;
+	}
+
+	/** 合成境界の再生。項目単独bindでは既存の項目箱が根なので開き直さない。 */
+	public void startAnonymousItem(final long anchor) {
+		if (this.coordinatorAwaitingDirectChild() == null && !this.isItemReplayTarget()) {
+			throw new IllegalStateException("coordinatorのない匿名項目Start: anchor=" + anchor);
+		}
+		this.requireCoordinatorAnonymousItem(anchor, false);
+	}
+
+	public void endAnonymousItem() {
+		final net.zamasoft.foliojet.layout.builder.ItemCoordinator c = this.coordinatorAwaitingDirectChild();
+		if (c != null) {
+			this.closeAnonymousItem(c);
+		} else if (!this.isItemReplayTarget()) {
+			throw new IllegalStateException("coordinatorのない匿名項目End");
+		}
+	}
+
+	private boolean isItemReplayTarget() {
+		if (!this.boxStack.isEmpty() || this.builderStack.size() != 1
+				|| !(this.builderStack.get(0) instanceof ContainerBuilderEntry entry)
+				|| !(entry.builder instanceof BlockBuilder)) {
+			return false;
+		}
+		return entry.builder.getRootBox() instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox
+				|| entry.builder.getRootBox() instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox;
 	}
 
 	/** 開いている匿名item(直接テキスト用)を畳みます。element itemは対象外。 */
@@ -417,9 +573,18 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/** coordinator直下の直接テキスト/インライン用に匿名itemを用意します。 */
 	private void requireCoordinatorAnonymousItem() {
+		final long anchor = this.pendingAnonymousAnchor;
+		this.pendingAnonymousAnchor = -1;
+		this.requireCoordinatorAnonymousItem(anchor, true);
+	}
+
+	private void requireCoordinatorAnonymousItem(final long anchor, final boolean includeOpeningEvent) {
 		final net.zamasoft.foliojet.layout.builder.ItemCoordinator c = this.coordinatorAwaitingDirectChild();
 		if (c != null && !c.hasOpenItem()) {
-			this.startContainerBuilder((Builder) c.requireAnonymousItem());
+			// 合成anchorは本文同定専用。wrapperへ付けると改頁時のstampRangesが
+			// coordinatorを欠く匿名項目単体を通常の部分木として吸収してしまう。
+			final Builder builder = c.requireAnonymousItem(anchor);
+			this.startContainerBuilder(builder, includeOpeningEvent);
 			this.startContainer();
 		}
 	}
@@ -429,15 +594,16 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * {@code spec}はauthored childのFlowPosからの明示配置スナップショット
 	 * (G4a——consult-codex-2026-07-31-grid-g4.txt Q1)。
 	 */
-	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec) {
-		return this.startGridElementItem(spec, -1);
+	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
+			final long sourceAnchor) {
+		return this.startGridElementItem(spec, -1, sourceAnchor);
 	}
 
 	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
-			final double minContributionCap) {
+			final double minContributionCap, final long sourceAnchor) {
 		if (this.coordinatorAwaitingDirectChild() instanceof GridBuilder grid) {
 			this.closeAnonymousItem(grid);
-			this.startContainerBuilder(grid.startElementItem(spec, minContributionCap));
+			this.startContainerBuilder(grid.startElementItem(spec, minContributionCap, sourceAnchor), true);
 			this.startContainer();
 			return grid;
 		}
@@ -496,7 +662,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	/** element itemの一件分を畳みます(one-shot経路と子endBox後の共通処理)。 */
 	private void endCoordinatorElementItem(final net.zamasoft.foliojet.layout.builder.ItemCoordinator c) {
 		this.endContainer();
-		final ContainerBuilderEntry entry = this.endContainerBuilder();
+		final ContainerBuilderEntry entry = this.endContainerBuilder(true);
 		try {
 			c.itemClosed();
 		} finally {
@@ -540,10 +706,10 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * wrapperが引き取る({@link FlexBuilder#startNeutralElementItem}参照)。
 	 */
 	private FlexBuilder startFlexNeutralElementItem(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec,
-			final FlexBuilder.NeutralTransfer authored) {
+			final FlexBuilder.NeutralTransfer authored, final long sourceAnchor) {
 		if (this.coordinatorAwaitingDirectChild() instanceof FlexBuilder flex) {
 			this.closeAnonymousItem(flex);
-			this.startContainerBuilder(flex.startNeutralElementItem(spec, authored));
+			this.startContainerBuilder(flex.startNeutralElementItem(spec, authored, sourceAnchor), true);
 			this.startContainer();
 			return flex;
 		}
@@ -719,10 +885,10 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.boxStack.add(box);
 				return;
 			}
-			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box));
+			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box), box.getSourceAnchor());
 			break;
 		case TABLE:
-			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box));
+			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box), box.getSourceAnchor());
 			break;
 		case INLINE:
 			// 直接インラインの匿名item化はGrid/Flex共通(coordinator一般化)
@@ -754,11 +920,11 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.startFlexNeutralElementItem(flexItemSpecOf(box),
 						box instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox acb
 								? FlexBuilder.NeutralTransfer.of(acb.getBlockParams())
-								: null);
+								: null, box.getSourceAnchor());
 				break;
 			case TABLE:
 				// 表の寸法解決は表側の機構が担うため引き取らない
-				this.startFlexNeutralElementItem(flexItemSpecOf(box), null);
+				this.startFlexNeutralElementItem(flexItemSpecOf(box), null, box.getSourceAnchor());
 				break;
 			default:
 				break;
@@ -768,6 +934,16 @@ public class DocumentBuilder implements TableBuilderHost {
 		case TABLE: {
 			// テーブル
 			final TableBox tableBox = (TableBox) box;
+			// absolute宿主の所有証明は、live/SegmentExecutorの双方で表のStartに揃える。
+			// float/inlineの合成宿主には本文再生用のanchorを付けない(子は表構造)。
+			if (tableBox.getBlockBox() instanceof AbsoluteBlockBox absolute) {
+				absolute.setSourceAnchor(tableBox.getSourceAnchor());
+				final var observer = absoluteTableObserver;
+				if (observer != null && this.replayIntent == ReplayIntent.MAIN
+						&& this.containerBuilder().builder instanceof BlockBuilder) {
+					observer.accept(tableBox);
+				}
+			}
 			final TableParams tableParams = tableBox.getTableParams();
 			final Builder builder = this.containerBuilder().builder;
 			switch (tableBox.getBlockBox().getPos().getType()) {
@@ -863,35 +1039,23 @@ public class DocumentBuilder implements TableBuilderHost {
 				// Grid本体の開始: 適格なら構築coordinatorを積み、以後の
 				// 直接子をitem化する(Grid G1b)。不適格ならBlockBox同然の
 				// フォールバック(G0)のまま
-				if (blockBox instanceof GridBox gridBox && GridBuilderLifecycle.eligible(gridBox, builder)) {
-					this.pushScopedBuilder(GridBuilderLifecycle.start(builder, gridBox));
-				}
-				// Flex本体の開始(Flex F1d——Gridと同じ形。不適格はF0の
-				// 単一列フローのまま)
-				if (blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flexBox
-						&& FlexBuilderLifecycle.eligible(flexBox, builder)) {
-					this.pushScopedBuilder(FlexBuilderLifecycle.start(builder, flexBox));
-				}
+				this.startItemCoordinator(builder, blockBox);
 			} else {
 				// ページ進行方向が違う場合
 				final Builder newBuilder = builder.newBuilder(blockBox);
 				this.startContainerBuilder(newBuilder);
-				// F6: 直交フローのFlexコンテナにもcoordinatorを付ける
-				// (容れ物はnewBuilder——TwoPassならFlexEventとして録画され、
-				// shrinkToFit後のbindでrow/column配置される)
-				if (blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox orthoFlex
-						&& FlexBuilderLifecycle.eligible(orthoFlex, newBuilder)) {
-					this.pushScopedBuilder(FlexBuilderLifecycle.start(newBuilder, orthoFlex));
-				}
+				// 直交フロー・固有寸法キーワードでもGrid/Flex自身がTwoPass根になる。
+				this.startItemCoordinator(newBuilder, blockBox);
 			}
 			this.startContainer();
 		}
 			break;
 
 		case FLOAT:
-			// 浮動体
-			this.containerBuilder().getStyledTextUnitizer().flushText();
 		case ABSOLUTE: {
+			if (box.getPos().getType() == PosType.FLOAT) {
+				this.containerBuilder().getStyledTextUnitizer().flushText();
+			}
 			// 絶対位置指定
 			final AbstractBlockBox stfBox = (AbstractBlockBox) box;
 			this.noteBidiBarrier(stfBox);
@@ -981,7 +1145,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					sealable.sealBodyForRangeBind();
 				} else {
 					// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
-					// (Retained実装のみ。適格ならCellContentがrecords解放+
+					// (Retained実装のみ。CellContentが計測builderを解放し、
 					// range+lease保持へ切り替わる)
 					this.tableBuilder().sealCellContext(entry.builder);
 				}
@@ -1012,7 +1176,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
 				try {
 					if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-						// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
+						// 入力完了点でrange seal。不適格は変換を失敗させる
 						sealable.sealBodyForRangeBind();
 					}
 					final InlineBlockBox inlineBlockBox = (InlineBlockBox) entry.builder.getRootBox();
@@ -1022,7 +1186,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
 						inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.intrinsicSizesMeasured(), false);
 						final BlockBuilder inlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
-						stfBuilder.bind(inlineBlockBuilder);
+						stfBuilder.bind(inlineBlockBuilder, this.replayIntent);
 						inlineBlockBuilder.close();
 					}
 					this.containerBuilder().getStyledTextUnitizer().addInlineBlock(inlineBlockBox);
@@ -1066,17 +1230,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			// coordinatorを外して配置を確定する。finish()はhostのactive
 			// flowがまだ当のコンテナである間——下のendFlowBlockより前——に
 			// 呼ぶ(itemの配置と親カーソル同期はそのflowに対して行うため)
-			final net.zamasoft.foliojet.layout.builder.ItemCoordinator ending = this.coordinatorEndingAt(box);
-			if (ending != null) {
-				this.closeAnonymousItem(ending);
-				try {
-					final Object popped = this.builderStack.remove(this.builderStack.size() - 1);
-					assert popped == ending : "coordinator終端でbuilderStack末尾が一致しません: " + popped;
-					ending.finish();
-				} finally {
-					this.finishTranslateBlockScope(ending);
-				}
-			}
+			this.finishItemCoordinator(box);
 			// 通常のフロー
 			this.endContainer();
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
@@ -1088,13 +1242,16 @@ public class DocumentBuilder implements TableBuilderHost {
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
 				try {
 					final Builder parentBuilder = this.containerBuilder().builder;
+					if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+						sealable.sealBodyForRangeBind();
+					}
 					if (!parentBuilder.isTwoPass()) {
 						if (entry.builder.isTwoPass()) {
 							// ビルド
 							final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 							blockBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 							final BlockBuilder bindBuilder = new BlockBuilder(this.pageContextBuilder(), blockBox);
-							contentBuilder.bind(bindBuilder);
+							contentBuilder.bind(bindBuilder, this.replayIntent);
 							bindBuilder.close();
 						}
 						parentBuilder.addBound(blockBox);
@@ -1127,8 +1284,8 @@ public class DocumentBuilder implements TableBuilderHost {
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
 			try {
-				if (!this.scratchMeasurement && entry.builder instanceof TwoPassBlockBuilder sealable) {
-					// E-6増分4a/4b: 録画完了点でのrange seal(適格ならrecords解放)
+				if (entry.builder instanceof TwoPassBlockBuilder sealable) {
+					// 入力完了点でrange seal。不適格は変換を失敗させる
 					sealable.sealBodyForRangeBind();
 				}
 				final Builder parentBuilder = this.containerBuilder().builder;
@@ -1138,7 +1295,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
 					// 再生)ではどこにも置かれない=測定等価
 					final FloatBlockBox pageFloatBox = (FloatBlockBox) entry.builder.getRootBox();
-					if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
 						// TwoPass本文では専用recordへ保留し、bind時に一度だけページ台帳へ
 						// 渡す。scratchではページ外要素なので計測へ寄与せず破棄する。
 						break;
@@ -1148,7 +1305,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 						final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
 						// 浮動体・脚注と同じ理由で、使い捨て計測の最中は消費しない
-						contentBuilder.bind(pageFloatBuilder, this.scratchMeasurement);
+						contentBuilder.bind(pageFloatBuilder, this.replayIntent);
 						pageFloatBuilder.close();
 					}
 					this.finishTranslateBlockScope(entry);
@@ -1162,14 +1319,14 @@ public class DocumentBuilder implements TableBuilderHost {
 					// 組み、本文の現在位置に近い版面外の注領域へ渡す。
 					this.notePageMarginNoteInGrids();
 					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
-					if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
 						break;
 					}
 					if (entry.builder.isTwoPass()) {
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 						noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
-						contentBuilder.bind(noteBuilder, this.scratchMeasurement);
+						contentBuilder.bind(noteBuilder, this.replayIntent);
 						noteBuilder.close();
 					}
 					this.finishTranslateBlockScope(entry);
@@ -1188,7 +1345,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					// なので測定等価。two-passのseal→bindは通常どおり対に
 					// なりリースは孤児化しない)
 					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
-					if (parentBuilder.isTwoPass() || this.scratchMeasurement) {
+					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
 						// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
 						break;
 					}
@@ -1197,7 +1354,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
 						// 浮動体と同じ理由で、使い捨て計測の最中は消費しない
-						contentBuilder.bind(noteBuilder, this.scratchMeasurement);
+						contentBuilder.bind(noteBuilder, this.replayIntent);
 						noteBuilder.close();
 					}
 					this.finishTranslateBlockScope(entry);
@@ -1217,7 +1374,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						// **使い捨て計測の最中は本文を消費しない**(2026-08-03)。
 						// ここで本番のbindをすると使用権が閉じ、あとの本番では
 						// 空になる(内容消失。TwoPassBlockBuilder.bindのjavadoc参照)
-						contentBuilder.bind(floatBuilder, this.scratchMeasurement);
+						contentBuilder.bind(floatBuilder, this.replayIntent);
 						floatBuilder.close();
 					}
 					final FloatPos pos = (FloatPos) box.getPos();
@@ -1251,7 +1408,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
 			try {
-				if (this.scratchMeasurement) {
+				if (this.replayIntent == ReplayIntent.MEASURE) {
 					// 使い捨て計測(表Pass B)駆動: seal・prepareBind・係留を
 					// スキップし、子builderをreplicaごと破棄する(sealすると
 					// 本物のリースを取得したまま破棄されリース孤児化する。
@@ -1277,7 +1434,7 @@ public class DocumentBuilder implements TableBuilderHost {
 							IFramedBox containerBox = this.pageContextBuilder().getRootBox();
 							absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
 							BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
-							contentBuilder.bind(absoluteBuilder);
+							contentBuilder.bind(absoluteBuilder, this.replayIntent);
 							absoluteBuilder.close();
 						} else {
 							// position: absolute; は後で構築
@@ -1323,14 +1480,14 @@ public class DocumentBuilder implements TableBuilderHost {
 		net.zamasoft.foliojet.layout.builder.ItemCoordinator oneShot = null;
 		switch (replacedBox.getPos().getType()) {
 		case FLOW:
-			oneShot = this.startGridElementItem(gridItemSpecOf(replacedBox));
+			oneShot = this.startGridElementItem(gridItemSpecOf(replacedBox), replacedBox.getSourceAnchor());
 			if (oneShot == null) {
 				// 行方向の寸法指定はwrapperへ引き取る(FlexBuilder.NeutralTransfer
 				// 参照——%幅のsvg等は二パス計測で0になるため、wrapperが引き取ら
 				// ないとflex base sizeが0へ潰れる)。寸法解決自体は従来どおり
 				// 置換側の機構(calculateReplacedSize)が担う
 				oneShot = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox),
-						FlexBuilder.NeutralTransfer.of(replacedBox.getReplacedParams()));
+						FlexBuilder.NeutralTransfer.of(replacedBox.getReplacedParams()), replacedBox.getSourceAnchor());
 			}
 			break;
 		case INLINE:

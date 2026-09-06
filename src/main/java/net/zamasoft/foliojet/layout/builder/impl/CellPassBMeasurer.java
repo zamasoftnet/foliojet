@@ -2,6 +2,7 @@ package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
+import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
 
 /**
  * 表Pass B(行計測)の計測プリミティブです(E-6増分5b-1、2026-07-24——
@@ -75,12 +76,14 @@ final class CellPassBMeasurer {
 		if (replica == null) {
 			return null;
 		}
-		final BlockBuilder builder = new BlockBuilder(layoutStack, replica);
-		if (body != null) {
-			body.measureInto(builder);
+		try (ScratchReplayScope scope = new ScratchReplayScope()) {
+			final BlockBuilder builder = new BlockBuilder(layoutStack, replica);
+			if (body != null) {
+				body.measureInto(builder);
+			}
+			// bodyがnullの適格セルはrecords空(bindが何も再演しない)——close-only
+			builder.close();
 		}
-		// bodyがnullの適格セルはrecords空(bindが何も再演しない)——close-only
-		builder.close();
 		return new Result(vertical ? replica.getWidth() : replica.getHeight(), replica.getFirstAscent());
 	}
 }

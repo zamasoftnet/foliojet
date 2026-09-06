@@ -1,0 +1,4 @@
+drawer z=0
+  x=5.00 y=3.00 TableBorder[w=80.00 h=20.00]
+  x=8.00 y=6.00 Text["ABS" asc=9.59 desc=4.41]
+  x=29.95 y=6.00 Text["TABLE" asc=9.59 desc=4.41]

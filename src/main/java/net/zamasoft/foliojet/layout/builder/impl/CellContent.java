@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
+import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 /**
  * 構築中のセル内容です(P2-2: §5.2b 表ビルダー統一の共通 model 第一片。
@@ -8,44 +9,25 @@ import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
  * 引数で受けるか pos から読むかのコンストラクタだけだった)。
  *
  * <p>
- * 実体は次の3態のどれか(E-6増分5a、2026-07-24で第3態を追加——
+ * 実体は次の4態のどれか(E-6増分5a、2026-07-24で第3態を追加——
  * {@code docs/consultations/consult-e6b-remaining-increments-codex.md}
  * §4.2/§4.3)。
  * </p>
  * <ol>
  * <li>実測ビルダー({@link TwoPassBlockBuilder}、未確定内容)</li>
  * <li>連結の続き(rowspan の2行目以降 = extended、確定済みセルボックス)</li>
- * <li>seal済み本文({@link RangeContent}: IntrinsicSizes数値+
- * SourceRange(+lease)。Retained表のセルclose時にrecordsを解放した形)</li>
+ * <li>seal済み本文({@link TwoPassBlockBuilder.DeferredBind}: IntrinsicSizes数値+
+ * SourceRange(+lease)。Retained表のセルclose時に計測器を手放した形)</li>
+ * <li>MAIN後の固有寸法({@link IntrinsicSizes}。本文の所有は終了済み)</li>
  * </ol>
  *
- * <p>
- * <b>seal済みセルのリース寿命(E-6増分5a)</b>: セルは
- * 「seal(セルclose)→bind(表終端の列幅確定後)」の窓が表全体の入力期間に
- * わたる。リースはbindのfinally({@code TwoPassBlockBuilder.DeferredBind
- * .bind})で解放される。正常系でbindされない実セルは存在しない——
- * {@code RetainedTableBuilder}のnewContext(TABLE_CELL)は必ず行の
- * セル列へCellContentを追加し、bindRows()は全行・全非extendedセルを
- * 一度ずつbindする(空セルはseal適格判定のEMPTY_RANGEで最初から
- * sealされない。Incremental側の「cols制約でCellContentを作らない」
- * 早期returnはIncremental専用でRetainedには存在しない)。変換中断・
- * 例外時はformatter finallyの{@code LayoutSource.close()}がリース
- * マップごと破棄する。1:1はCELL_RANGE_SEALS == CELL_RANGE_BINDS
- * (DisplayListGoldenTest)が監視する。
- * </p>
+ * <p>セルcloseで確定本文を持ち出す。範囲の所有はMAIN bind・親への吸収・
+ * 文書終了時の破棄で終端する。空セルはリースを持たないEmptyとしてsealする。
+ * CELL_RANGE_SEALSと各終端カウンタの収支はRangeOnlyInvariantTestで検査する。</p>
  */
 class CellContent {
-	/**
-	 * seal済みセル本文です(E-6増分5a)。sizesスナップショットと
-	 * range+leaseは{@link TwoPassBlockBuilder.DeferredBind}が運ぶ
-	 * (列幅計算が読む固有寸法は既存IntrinsicMeasurerの模倣値の
-	 * スナップショット——「列幅のためのtape再読はしない」codex裁定
-	 * §4.3。計測器は録画完了後不変のためclose時スナップショットは
-	 * 従来のbind時読みと同値)。
-	 */
-	private record RangeContent(TableCellBox cellBox, TwoPassBlockBuilder.DeferredBind body) {
-	}
-
+	/** 根箱は全状態で同じ。状態ごとの根箱+本文のラッパーを割り当てない。 */
+	private final TableCellBox cellBox;
 	private Object cell;
 
 	public final int rowspan, colspan;
@@ -61,8 +43,9 @@ class CellContent {
 	 * 実測ビルダーから(colspan を明示。固定レイアウトの列切り詰め用)。
 	 */
 	public CellContent(TwoPassBlockBuilder cellBuilder, int colspan) {
+		this.cellBox = (TableCellBox) cellBuilder.getRootBox();
 		this.cell = cellBuilder;
-		this.rowspan = ((TableCellBox) cellBuilder.getRootBox()).getTableCellPos().rowspan;
+		this.rowspan = this.cellBox.getTableCellPos().rowspan;
 		this.colspan = colspan;
 	}
 
@@ -72,6 +55,7 @@ class CellContent {
 	public CellContent(TableCellBox cell, int rowspan, int colspan) {
 		assert rowspan >= 1;
 		assert colspan >= 1;
+		this.cellBox = cell;
 		this.cell = cell;
 		this.rowspan = rowspan;
 		this.colspan = colspan;
@@ -163,146 +147,102 @@ class CellContent {
 	 * seal({@link #sealForRangeBind()})されビルダーを手放しうるため、
 	 * Retained側はこれを使わず{@link #getIntrinsicSizes()}/
 	 * {@link #bind(BlockBuilder)}を使うこと(現在の呼び出しは
-	 * sealが起きないIncremental表のみ)。
+	 * 列計測中のIncremental表のみ)。
 	 */
 	public TwoPassBlockBuilder getBuilder() {
 		return (TwoPassBlockBuilder) this.cell;
 	}
 
-	/**
-	 * セルclose(録画完了)時のrange sealです(E-6増分5a)。適格
-	 * (fail closed判定は{@code TwoPassBlockBuilder.sealBodyForRangeBind}
-	 * ——Opaque/絶対配置/multicol/mixed-flow/ネストビルダー(セル内の表は
-	 * ここに入る)/範囲穴あき等は不適格)なら、IntrinsicSizes数値を確定して
-	 * recordsを解放し、本文をSourceRange(+lease)参照へ切り替える。
-	 * 不適格ならビルダー保持を継続する(従来と同一)。
-	 */
+	/** セルcloseで確定本文を持ち出し、実測builderを手放す。 */
 	void sealForRangeBind() {
+		this.sealForRangeBind(false);
+	}
+
+	void sealForRangeBind(final boolean sliceText) {
 		if (!(this.cell instanceof TwoPassBlockBuilder builder)) {
 			return;
 		}
-		builder.sealBodyForRangeBind();
+		builder.sealCellBodyForRangeBind(sliceText);
 		final TwoPassBlockBuilder.DeferredBind body = builder.detachDeferredBind();
-		if (body == null) {
-			return; // 不適格: ビルダー保持を継続(fail closed)
-		}
-		this.cell = new RangeContent((TableCellBox) builder.getRootBox(), body);
-		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellRangeSeal();
+		this.cell = body;
+		if (body.handle() != null) body.handle().markCell();
 	}
 
 	/**
 	 * 列幅計算・直交セル寸法が読む固有寸法です(既存IntrinsicMeasurerの
-	 * 模倣値。seal済みセルはclose時のスナップショット——同値性は
-	 * {@link RangeContent}のjavadoc)。
+	 * 模倣値。計測器はclose後不変なので、seal時の数値は従来のbind時読みと同値)。
 	 */
 	public net.zamasoft.foliojet.layout.sizing.IntrinsicSizes getIntrinsicSizes() {
-		if (this.cell instanceof RangeContent range) {
-			return range.body().sizes();
+		if (this.cell instanceof IntrinsicSizes sizes) return sizes;
+		if (this.cell instanceof TwoPassBlockBuilder.DeferredBind body) {
+			return body.sizes();
 		}
 		return this.getBuilder().getIntrinsicSizes();
 	}
 
-	/**
-	 * セル本文を{@code cellBindBuilder}(セルボックス上のBlockBuilder)へ
-	 * 構築します(E-6増分5a)。seal済みセルはSegmentExecutor範囲駆動
-	 * (4bのbindTwoPassRangeと同経路)、不適格セルは従来のrecords再演。
-	 * bindのタイミング・順序は呼び出し側(表終端の列幅確定後の一括bind)の
-	 * まま——変わるのは再生元だけ。
-	 */
+	/** 確定本文を配置する。未確定のままの配置は契約違反。 */
 	public void bind(final BlockBuilder cellBindBuilder) {
-		if (this.cell instanceof RangeContent range) {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellRangeBind();
-			range.body().bind(cellBindBuilder);
-		} else if (this.getBuilder().hasEmptyRecordedBody()) {
-			// DP増分2: 空本文セル(Empty seal済み、または records空のまま)。
-			// bindは何も再演しないため、legacy records経路としては数えない
-			this.getBuilder().bind(cellBindBuilder);
-		} else {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellLegacyBind();
-			this.getBuilder().bind(cellBindBuilder);
+		if (this.cell instanceof IntrinsicSizes) throw new IllegalStateException("消費済みセル本文のbind");
+		if (!(this.cell instanceof TwoPassBlockBuilder.DeferredBind body)) {
+			throw this.getBuilder().invariant("未sealセルのbind");
+		}
+		body.bind(cellBindBuilder);
+		if (net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
+				== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN) {
+			this.cell = body.sizes();
 		}
 	}
 
 	/**
 	 * seal済み本文のDeferredBindを返します(E-6増分5b-1、表Pass B計測
-	 * プリミティブ{@link CellPassBMeasurer}用)。未seal(records保持)・
+	 * プリミティブ{@link CellPassBMeasurer}用)。未seal(計測中)・
 	 * extendedはnull(Pass B対象外)。
 	 */
 	TwoPassBlockBuilder.DeferredBind rangeBody() {
-		return this.cell instanceof RangeContent range ? range.body() : null;
+		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body && body.handle() != null ? body : null;
 	}
 
 	/**
 	 * 親range化への吸収です(表吸収=codex増分5のコミット相、2026-07-30)。
-	 * seal済み(RangeContent)のセルだけを処理する——DeferredBindのリースを
+	 * seal済みのセルだけを処理する——DeferredBindのリースを
 	 * 解放し、セル側のSUBSUMED収支を計上した上で、実セル参照だけの保持
 	 * (extended相当。bind経路は{@code isExtended}スキップで到達しない)へ
-	 * 落とす。未seal(records保持)のセルビルダーは検証相
-	 * ({@code TwoPassBlockBuilder.collectAbsorbableNested})が吸収一覧へ
+	 * 落とす。未seal(計測中)のセルビルダーは検証相
+	 * ({@code TwoPassBlockBuilder.collectAbsorbableSelf})が吸収一覧へ
 	 * 直接列挙し、コミット相が{@code subsumeIntoParentRange}するため
 	 * ここではno-op。extendedも実セル側が処理するためno-op。
 	 */
 	void abandonForParentRange() {
-		if (this.cell instanceof RangeContent range) {
-			range.body().abandonForParentRange();
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordCellRangeSealSubsumed();
-			this.cell = range.cellBox();
+		if (this.cell instanceof TwoPassBlockBuilder.DeferredBind body) {
+			body.abandonForParentRange();
+			this.cell = this.cellBox;
 		}
 	}
 
 	/**
 	 * 表吸収の検証相(副作用なし)がseal済みセルの範囲包含を検査するための
-	 * 読み取りです(codex増分5)。RangeContentでなければnull。
+	 * 読み取りです(codex増分5)。seal済み本文でなければnull。
 	 */
 	TwoPassBlockBuilder.DeferredBind sealedBodyOrNull() {
-		return this.cell instanceof RangeContent range ? range.body() : null;
+		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body ? body : null;
 	}
 
 	/**
-	 * 未seal(records保持)のセルビルダーを返します(表吸収の検証相用。
+	 * 未seal(計測中)のセルビルダーを返します(表吸収の検証相用。
 	 * seal済み・extendedはnull)。
 	 */
 	TwoPassBlockBuilder unsealedBuilderOrNull() {
 		return this.cell instanceof TwoPassBlockBuilder builder ? builder : null;
 	}
 
-	/**
-	 * 表Pass B(行計測)がこのセルをscratch計測できるかを返します
-	 * (E-6増分5b-2、2026-07-24——表単位のPass C適格判定の部品。
-	 * fail closed)。適格は次の2態:
-	 * <ol>
-	 * <li>seal済み({@link RangeContent}: 範囲再生で計測)</li>
-	 * <li>records空の未sealビルダー(空セル{@code <td></td>}等。
-	 * EMPTY_RANGEでsealされないが、bindが何も再演しない本文非依存の
-	 * セルのため、複製box上のclose-onlyで計測できる)</li>
-	 * </ol>
-	 * どちらも段組セル(計測複製不能——
-	 * {@link TableCellBox#canMeasureReplica})は不適格。extendedは
-	 * 呼び出し側でスキップされる前提。
-	 */
+	/** 範囲本文・空本文だけをscratch計測できる。 */
 	boolean isPassBMeasurable() {
-		if (this.cell instanceof RangeContent) {
-			return this.getCellBox().canMeasureReplica();
-		}
-		return this.cell instanceof TwoPassBlockBuilder builder && builder.hasEmptyRecordedBody()
+		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body
+				&& (body.handle() != null || body.isEmpty())
 				&& this.getCellBox().canMeasureReplica();
 	}
 
-	/**
-	 * recordsが現に保持しているglyph数の概算です(E-6増分5a、保持量観測
-	 * 専用——seal済み・extendedは0)。挙動には影響しない。
-	 */
-	long retainedGlyphs() {
-		return this.cell instanceof TwoPassBlockBuilder builder ? builder.retainedGlyphs() : 0;
-	}
-
 	public TableCellBox getCellBox() {
-		if (this.isExtended()) {
-			return (TableCellBox) this.cell;
-		}
-		if (this.cell instanceof RangeContent range) {
-			return range.cellBox();
-		}
-		return (TableCellBox) this.getBuilder().getRootBox();
+		return this.cellBox;
 	}
 }
