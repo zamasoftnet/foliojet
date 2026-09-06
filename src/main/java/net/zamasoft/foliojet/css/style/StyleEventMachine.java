@@ -548,15 +548,38 @@ final class StyleEventMachine {
 			// 呼び出しの無い頁に置いて番号も通番に落ちた。脚注領域は頁の
 			// ものなので、注の向きは元の位置ではなく頁に従う(呼び出しは
 			// 上で合成済みなので元の位置の向きのまま)。作者が注に別の
-			// writing-mode を書いても無視する——横組みの注を縦組みの地に
-			// 置く形は footnote-area-position-design.md の見送り事項
-			final WritingMode page = this.pageSequence.getProgression();
+			// writing-mode を書いても無視する。@footnoteで領域の向きを
+			// 指定したときだけ、頁に代えてその向きで組む(F-1)。
+			final net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
+			final WritingMode page = area.flow == null ? this.pageSequence.getProgression() : area.flow;
 			if (BlockFlow.get(style) != page) {
 				style.set(BlockFlow.INFO, switch (page) {
 				case RL -> net.zamasoft.foliojet.css.value.BlockFlowValue.RL_VALUE;
 				case LR -> net.zamasoft.foliojet.css.value.BlockFlowValue.LR_VALUE;
 				default -> net.zamasoft.foliojet.css.value.BlockFlowValue.TB_VALUE;
 				}, CSSStyle.MODE_IMPORTANT);
+			}
+			if (area.position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
+					&& this.pageSequence.getProgression().isVertical() && page == WritingMode.TB) {
+				// 箱と再生用recipeが寸法を捕捉する前に、横書きの行長を版面幅へ。
+				// 縦組み本文の行長や、図・表など元の宿主の幅は使わない。
+				// 帯の行長は用紙の横方向の内寸(物理)。ページ箱の flow で軸を
+				// 選ぶと、進行方向が確定する前に作られた最初のページ箱(TB)で
+				// 縦方向の内寸を拾う
+				// 幅は注の border-box として与え、左右の margin は 0(帯は用紙の
+				// 幅いっぱいなので、作者の padding/border を足して帯からはみ出さ
+				// ない——codex F-1 レビュー)。持ち越し先のページの幅が違う
+				// (名前付きページ)場合は呼び出しのページの幅のまま置く(F-1 の
+				// 制限。ページごとの再計測は F-2 で)
+				final PageBox pageBox = this.pageSequence.getCurrentPage();
+				if (pageBox != null) {
+					style.set(Width.INFO, AbsoluteLengthValue.create(this.ua, pageBox.getInnerWidth()),
+							CSSStyle.MODE_IMPORTANT);
+					style.set(BoxSizing.INFO, net.zamasoft.foliojet.css.value.css3.BoxSizingValue.BORDER_BOX_VALUE,
+							CSSStyle.MODE_IMPORTANT);
+					style.set(Margin.LEFT, AbsoluteLengthValue.ZERO, CSSStyle.MODE_IMPORTANT);
+					style.set(Margin.RIGHT, AbsoluteLengthValue.ZERO, CSSStyle.MODE_IMPORTANT);
+				}
 			}
 		}
 		return footnote;

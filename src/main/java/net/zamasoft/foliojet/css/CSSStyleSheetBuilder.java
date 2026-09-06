@@ -188,9 +188,59 @@ public class CSSStyleSheetBuilder {
 				this.fontPaletteValues(unknownRule);
 			} else if (mediaOk && "@-cssj-page-content".equalsIgnoreCase(decl)) {
 				this.pageContent(unknownRule, uri);
+			} else if (mediaOk && "@footnote".equalsIgnoreCase(decl)) {
+				// 仕様の@page内に加え、トップレベルの記述も寛容に受ける。
+				final CSSStyleRule holder = declarationHolder(unknownRule.getBody());
+				if (holder != null) {
+					this.footnoteArea(holder.getAllDeclarations(), uri);
+				}
 			}
 		}
 		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+	}
+
+	/** @footnoteの対応済み記述子を文書共通の領域へ適用します(F-1)。 */
+	private void footnoteArea(final List<CSSDeclaration> declarations, final URI uri) {
+		net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
+		for (final CSSDeclaration declaration : declarations) {
+			final String property = declaration.getProperty().toLowerCase(Locale.ROOT);
+			final List<CssToken> tokens = Tokens.fromExpression(declaration.getExpression());
+			final String value = tokens.size() == 1 && tokens.get(0) instanceof CssToken.Ident ident
+					? ident.lower() : "";
+			boolean supported = true;
+			switch (property) {
+			case "float":
+				if ("bottom".equals(value)) {
+					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM);
+				} else {
+					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BLOCK_END);
+					supported = "block-end".equals(value);
+				}
+				break;
+			case "writing-mode":
+				final net.zamasoft.foliojet.layout.box.params.WritingMode flow = switch (value) {
+				case "horizontal-tb" -> net.zamasoft.foliojet.layout.box.params.WritingMode.TB;
+				case "vertical-rl" -> net.zamasoft.foliojet.layout.box.params.WritingMode.RL;
+				case "vertical-lr" -> net.zamasoft.foliojet.layout.box.params.WritingMode.LR;
+				default -> null;
+				};
+				if (flow != null) {
+					area = area.withFlow(flow);
+				} else {
+					supported = false;
+				}
+				break;
+			default:
+				supported = false;
+				break;
+			}
+			if (!supported) {
+				this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+						"未対応の脚注領域の記述子です: " + property + ": "
+								+ declaration.getExpression().getAsCSSString(MEDIA_WRITER_SETTINGS, 0));
+			}
+		}
+		this.ua.getUAContext().setFootnoteArea(area);
 	}
 
 	private void pageContent(final CSSUnknownRule rule, final URI uri) {
@@ -1096,6 +1146,13 @@ public class CSSStyleSheetBuilder {
 			// ページマージンボックス(@top-center等、css-page-3 §7)
 			for (ICSSPageRuleMember member : pageRule.getAllMembers()) {
 				if (member instanceof CSSPageMarginBlock marginBlock) {
+					if ("@footnote".equalsIgnoreCase(marginBlock.getPageMarginSymbol())) {
+						// 領域は文書に一つ。セレクタリストの二件目以降では重ねない。
+						if (s == 0) {
+							this.footnoteArea(marginBlock.getAllDeclarations(), uri);
+						}
+						continue;
+					}
 					final MarginBoxName box = MarginBoxName.fromSymbol(marginBlock.getPageMarginSymbol());
 					if (box == null) {
 						if (s == 0) {

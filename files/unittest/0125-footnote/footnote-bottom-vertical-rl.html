@@ -1,0 +1,44 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>footnote F-1: vertical-rl with horizontal bottom band</title>
+<style>
+@page {
+  margin: 24pt;
+  @footnote { float: bottom; writing-mode: horizontal-tb }
+  @bottom-center { content: counter(page); writing-mode: horizontal-tb; font-size: 10pt }
+}
+body { margin: 0; font-size: 12pt; line-height: 18pt; writing-mode: vertical-rl; }
+p { margin: 0; }
+.note { float: footnote; font-size: 10pt; line-height: 14pt; }
+</style>
+</head>
+<body>
+<p>縦一<span id="v1" class="note">横書きの注一。次のページの地に置く。</span>本文<span id="v2" class="note">横書きの注二。番号は呼び出し順を保つ。</span>続き</p>
+<p>本文の行は帯の手前で折り返します。</p>
+<p>縦の本文を読み進めます。</p>
+<p>脚注の向きは横書きです。</p>
+<p>呼び出しは一ページ目にあります。</p>
+<p>注の本文は次のページへ送ります。</p>
+<p>用紙の余白の広さは変えません。</p>
+<p>ノンブルは余白の中央に置きます。</p>
+<p>本文の行は帯の手前で折り返します。</p>
+<p>縦の本文を読み進めます。</p>
+<p>脚注の向きは横書きです。</p>
+<p>呼び出しは一ページ目にあります。</p>
+<p>注の本文は次のページへ送ります。</p>
+<p>用紙の余白の広さは変えません。</p>
+<p>ノンブルは余白の中央に置きます。</p>
+<p>本文の行は帯の手前で折り返します。</p>
+<p>縦の本文を読み進めます。</p>
+<p>脚注の向きは横書きです。</p>
+<p>呼び出しは一ページ目にあります。</p>
+<p>注の本文は次のページへ送ります。</p>
+<p>用紙の余白の広さは変えません。</p>
+<p>ノンブルは余白の中央に置きます。</p>
+<p>本文の終わりです。</p>
+</body>
+</html>

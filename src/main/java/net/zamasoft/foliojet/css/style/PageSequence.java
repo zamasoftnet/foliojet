@@ -72,6 +72,13 @@ final class PageSequence {
 	private final Segment segment;
 	private final AbsoluteLengthValue[] margins;
 
+	/** 脚注の構築前の幅決定に使う、現在の本文ページです。 */
+	private PageBox currentPage;
+
+	PageBox getCurrentPage() {
+		return this.currentPage;
+	}
+
 	/**
 	 * 予約カウンタ({@code pages})の警告。author側のカウンタ処理
 	 * (StyleBuilder)と「1文書につき1回」のフラグを共有するため、
@@ -449,6 +456,7 @@ final class PageSequence {
 		// @page の背景を塗り足しまで伸ばす。塗り足しの幅は CSS の bleed か、
 		// 面付け側で決めた裁ち代(output.cutting-margin 等)の大きい方
 		pageBox.setBleed(Math.max(bleed, this.imposition.getCuttingMargin()));
+		this.currentPage = pageBox;
 		return pageBox;
 	}
 

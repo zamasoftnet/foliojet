@@ -106,6 +106,37 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	protected double visualWidth = 0, visualHeight = 0;
 
+	/** 地の脚注帯。用紙の余白と外寸を保ち、本文の内寸だけを縮めます。 */
+	private double footInset = 0;
+	private double footAreaPageHeight, footAreaVisualHeight;
+
+	/** ページ開始時、子の寸法を決める前に一度だけ呼びます。 */
+	public void reserveFootArea(final double inset) {
+		assert this.footInset == 0;
+		if (inset == 0) {
+			return;
+		}
+		assert inset > 0 && inset <= this.height;
+		// 引いた量の足し戻しではなく元の外寸を保存し、丸め誤差も持ち込まない。
+		this.footAreaPageHeight = super.getHeight();
+		this.footAreaVisualHeight = this.getVisualHeight();
+		this.footInset = inset;
+		this.height -= inset;
+		this.visualHeight -= inset;
+	}
+
+	public double getFootInset() {
+		return this.footInset;
+	}
+
+	@Override
+	public final double getHeight() {
+		if (this.footInset != 0) {
+			return this.footAreaPageHeight;
+		}
+		return super.getHeight();
+	}
+
 	private boolean replayPage;
 	private double replayX, replayY;
 
@@ -580,6 +611,9 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	public double getVisualHeight() {
+		if (this.footInset != 0) {
+			return this.footAreaVisualHeight;
+		}
 		return this.visualHeight + this.frame.getFrameHeight();
 	}
 
@@ -665,6 +699,15 @@ public class PageBox extends AbstractBlockBox {
 		this.footnoteSeparatorAxis = pageAxis;
 	}
 
+	/** 地の帯の罫線位置(本文内辺原点の行方向)と、領域の向きです。 */
+	private double footnoteSeparatorLineAxis = -1;
+	private WritingMode footnoteSeparatorFlow;
+
+	public void setFootnoteSeparatorLineAxis(final double lineAxis, final WritingMode flow) {
+		this.footnoteSeparatorLineAxis = lineAxis;
+		this.footnoteSeparatorFlow = flow;
+	}
+
 	/** separator罫線の太さと、版面行方向幅に対する長さの割合(UA固定)。 */
 	private static final double FOOTNOTE_SEPARATOR_THICKNESS = 0.5;
 
@@ -675,6 +718,17 @@ public class PageBox extends AbstractBlockBox {
 	 * (答申の座標対応)。
 	 */
 	public void drawFootnoteSeparator(final Drawer drawer) {
+		if (this.footnoteSeparatorLineAxis >= 0) {
+			final double length = this.getInnerWidth() / 3;
+			final double x = this.frame.getFrameLeft() - this.frame.margin.left
+					+ (this.footnoteSeparatorFlow == WritingMode.RL ? this.getInnerWidth() - length : 0);
+			final double y = this.frame.getFrameTop() - this.frame.margin.top
+					+ this.footnoteSeparatorLineAxis - FOOTNOTE_SEPARATOR_THICKNESS / 2;
+			final java.awt.geom.Rectangle2D.Double rect = new java.awt.geom.Rectangle2D.Double(
+					x, y, length, FOOTNOTE_SEPARATOR_THICKNESS);
+			drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
+			return;
+		}
 		if (this.footnoteSeparatorAxis < 0) {
 			return;
 		}

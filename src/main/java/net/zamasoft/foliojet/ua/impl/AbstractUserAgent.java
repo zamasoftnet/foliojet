@@ -743,6 +743,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// (UAContext.getCarriedStyleSheetのjavadoc参照)。中間・最終
 			// パスは前のパスの収集を引き継ぐ
 			this.getUAContext().setCarriedStyleSheet(null);
+			// 脚注領域も文書ごとに戻す。規則は各パスのCSS解析で再設定される。
+			this.getUAContext().setFootnoteArea(null);
 			// 画像寸法も同じ寿命。別の文書では同じURIが違う内容を指しうる
 			this.getUAContext().getImageMetrics().reset();
 			this.loadImageMetrics();

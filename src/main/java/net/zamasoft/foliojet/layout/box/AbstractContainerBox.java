@@ -399,7 +399,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.width + this.frame.getFrameWidth();
 	}
 
-	public final double getHeight() {
+	public double getHeight() {
 		return this.height + this.frame.getFrameHeight();
 	}
 

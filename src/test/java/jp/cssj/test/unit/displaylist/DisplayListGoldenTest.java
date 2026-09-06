@@ -426,6 +426,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0125-footnote/footnote-pagelimit.html", //
 			"0125-footnote/footnote-carryin.html", //
 			"0125-footnote/footnote-vertical-rl.html", //
+			"0125-footnote/footnote-bottom-vertical-rl.html", // F-1: 持ち越し注を地の横書き帯へ
 			// ページフロート(2026-08-02)。float: bottomが版面下端(脚注が
 			// あればその上)へ、float: topが次ページ先頭へ置かれ、以後の
 			// フローがその下から始まることを座標で固定する

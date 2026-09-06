@@ -28,6 +28,16 @@ public class UAContext {
 
 	private final FontPaletteValues fontPaletteValues = new FontPaletteValues();
 
+	private FootnoteArea footnoteArea = FootnoteArea.DEFAULT;
+
+	public FootnoteArea getFootnoteArea() {
+		return this.footnoteArea;
+	}
+
+	public void setFootnoteArea(final FootnoteArea footnoteArea) {
+		this.footnoteArea = footnoteArea == null ? FootnoteArea.DEFAULT : footnoteArea;
+	}
+
 	private net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
 
 	private FontSourceManager fsm;
