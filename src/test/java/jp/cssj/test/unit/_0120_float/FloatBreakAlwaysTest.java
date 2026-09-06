@@ -21,7 +21,8 @@ public class FloatBreakAlwaysTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(pageNumber);
-			assertEquals(7, pageNumber);
+			// 2026-09-06: 文書先頭の page-break-before:always は白紙を作らない(Chrome と同じ)ので 1 頁前へ
+			assertEquals(6, pageNumber);
 			return true;
 		}
 		return false;
@@ -30,7 +31,7 @@ public class FloatBreakAlwaysTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(pageNumber);
-			assertEquals(13, pageNumber);
+			assertEquals(12, pageNumber);
 			return true;
 		}
 		return false;

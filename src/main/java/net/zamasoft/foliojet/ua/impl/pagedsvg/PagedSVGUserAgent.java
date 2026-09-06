@@ -235,6 +235,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		synchronized (this.children) {
 			this.pageCounts.put(child.unit.index(), child.page);
 			this.bindings.put(child.unit.index(), child.getBoundSide());
+			// 溜め込みの上限の high-water を冊全体の診断値として親へ集約(B3、2026-09-06)
+			this.getRetainedTextLimit().mergeHighWater(child.getRetainedTextLimit());
 		}
 	}
 

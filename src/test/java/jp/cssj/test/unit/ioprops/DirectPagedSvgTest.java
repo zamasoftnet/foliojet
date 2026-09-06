@@ -285,6 +285,68 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	private CapturingResults run(final Map<String, String> extraProps) throws Exception {
+		return this.run(extraProps, html());
+	}
+
+	/**
+	 * ページJSONの字箱(bounds)が字形の送りで閉じること(2026-09-06、利用者報告「縦中横リンクの字箱」)。
+	 * 以前は最後の字形の位置+font-size(1em)で右端(縦書きは下端)を決めていたので、半角数字の
+	 * 字箱が 0.5em はみ出し、読み器の文字層・リンク層が行幅を越えた。
+	 * 同じ字形 N 個の run では、正しい幅は (最後−最初)×N/(N−1)。
+	 */
+	public void testTextRunBoundsFollowGlyphAdvances() throws Exception {
+		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
+				+ "@page{size:200pt 200pt;margin:10pt}body{margin:0;font-size:10pt}"
+				+ ".v{writing-mode:vertical-rl;height:150pt}.tcy{text-combine-upright:all}"
+				+ "</style></head><body>"
+				+ "<p>0000000000</p>"
+				+ "<div class=\"v\"><p>縦<span class=\"tcy\">00</span>縦</p><p>横倒し0000000000</p></div>"
+				+ "</body></html>";
+		final CapturingResults r = this.run(Map.of(), html);
+		// 縦書きの div は 2 頁目へ送られることがあるので全頁を連結して探す
+		final StringBuilder jsonAll = new StringBuilder();
+		final StringBuilder svgAll = new StringBuilder();
+		for (int i = 1; i <= pageCount(r); ++i) {
+			jsonAll.append(r.text(String.format("pages/%04d.json", i)));
+			svgAll.append(r.text(String.format("pages/%04d.svg", i)));
+		}
+		final String json = jsonAll.toString();
+		final String svg = svgAll.toString();
+		// 横書き 10 桁
+		assertRunBoundsFollowAdvances(json, svg, "0000000000", false);
+		// 縦書きの縦中横 2 桁(横に並ぶ)
+		assertRunBoundsFollowAdvances(json, svg, "00", false);
+		// 縦書きの横倒し数字(縦に並ぶ)
+		assertRunBoundsFollowAdvances(json, svg, "0000000000", true);
+	}
+
+	private static void assertRunBoundsFollowAdvances(final String json, final String svg, final String value,
+			final boolean vertical) {
+		final java.util.regex.Matcher tm = java.util.regex.Pattern
+				.compile("<text x=\"([^\"]*)\" y=\"([^\"]*)\"[^>]*data-copper-text=\"" + value + "\"")
+				.matcher(svg);
+		assertTrue("SVG must contain the run " + value, tm.find());
+		// 横倒しの数字は回転変換の下で x が進む run なので、座標の広がる軸を選ぶ
+		final String[] xsRaw = tm.group(1).trim().split(" ");
+		final String[] ysRaw = tm.group(2).trim().split(" ");
+		final int n = xsRaw.length;
+		assertEquals(value.length(), n);
+		final double xSpread = Math.abs(Double.parseDouble(xsRaw[n - 1]) - Double.parseDouble(xsRaw[0]));
+		final double ySpread = Math.abs(Double.parseDouble(ysRaw[n - 1]) - Double.parseDouble(ysRaw[0]));
+		final boolean alongY = ySpread > xSpread;
+		final double expected = Math.max(xSpread, ySpread) * n / (n - 1);
+		final java.util.regex.Matcher jm = java.util.regex.Pattern
+				.compile("\\{\"value\":\"" + value + "\",\"font\":\"[^\"]*\",\"size\":([0-9.]+),\"transform\":\\[[^\\]]*\\],\"bounds\":\\[([^\\]]*)\\]")
+				.matcher(json);
+		assertTrue("JSON must contain the run " + value, jm.find());
+		final String[] b = jm.group(2).split(",");
+		final double extent = alongY ? Double.parseDouble(b[3]) - Double.parseDouble(b[1])
+				: Double.parseDouble(b[2]) - Double.parseDouble(b[0]);
+		assertEquals("bounds of " + value + (vertical ? " (vertical)" : "") + " must close on the glyph advances",
+				expected, extent, 0.05);
+	}
+
+	private CapturingResults run(final Map<String, String> extraProps, final String html) throws Exception {
 		final CapturingResults results = new CapturingResults();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 		try {
@@ -301,7 +363,7 @@ public class DirectPagedSvgTest extends TestCase {
 				session.property(e.getKey(), e.getValue());
 			}
 			CTISessionHelper.transcodeStream(session,
-					new ByteArrayInputStream(html().getBytes(StandardCharsets.UTF_8)),
+					new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
 					new File("files/unittest/1080-FONT/direct-svg-test.html").toURI(), "text/html", "UTF-8");
 		} finally {
 			session.close();

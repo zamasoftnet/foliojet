@@ -2,7 +2,7 @@
 # 増えた=エンジンが余分な白紙を作った疑い、減った=意図した白紙が消えた疑い。
 # !conversion-failed=変換が例外で終わる文書、!no-pages=1ページも出ない文書。
 # 更新は差分を目視確認してから行うこと。
-0120-float/float-break-always.html	0001,0010,0012
+0120-float/float-break-always.html	0009,0011
 0120-float/inline-float-break.html	0001
 0130-display/all-none.html	0001
 1000-TABLE/root-table.html	0001

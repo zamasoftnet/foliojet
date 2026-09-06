@@ -466,7 +466,7 @@ final class PageSequence {
 			// 遷移先の内容が続くため、0ページのPDFにはならない)
 			return true;
 		}
-		if (this.emittedPages == 0 && (lastPage || closedByForcedBreak)) {
+		if (this.emittedPages == 0 && lastPage) {
 			// **0ページのPDFは作らない**。ただし「まだ1枚も出していない」
 			// だけでは落とさない理由にならない(2026-07-29)——後続の
 			// ページに内容があるなら、先頭の白紙は落として構わない。
@@ -480,13 +480,15 @@ final class PageSequence {
 			// 改ページで確定したページなので**後続がある**(false)、
 			// `RootBuilder.finish`は文書の最後(true)。
 			//
-			// `closedByForcedBreak`も残す理由になる——先頭要素の
-			// {@code page-break-before:always}は「その前に紙を1枚」という
-			// 作者の要求であり、生じた白紙は意図されたものである
-			// (`files/unittest/0120-float/float-break-always.html`)。
-			// {@code isForcedBreakOrigin}は「強制改ページで**始まった**
-			// ページ」を見るので、強制改ページで**閉じられた**先頭ページは
-			// そちらでは拾えない。
+			// 2026-07-29〜09-06 は `closedByForcedBreak` も残す理由にしていた
+			// (先頭要素の {@code page-break-before:always} は「その前に紙を
+			// 1枚」という作者の要求、と解釈)。**撤回**(2026-09-06、利用者報告
+			// 「縦中横リンクの字箱」の併記): 文書先頭に改ページ点は無く、
+			// Chrome も Prince も白紙を作らない(css-break-3 §3.1、改ページは
+			// 箱と箱の間にしか置けない)。記事ごとに先頭 section へ
+			// {@code break-before: page} を書く書籍 CSS で毎回 1 頁目が白紙に
+			// なっていた。何も描かない先頭ページは強制改ページで閉じられて
+			// いても落とす(後続に内容があるので 0 ページにはならない)。
 			return false;
 		}
 		if (pageBox.isForcedBreakOrigin()) {

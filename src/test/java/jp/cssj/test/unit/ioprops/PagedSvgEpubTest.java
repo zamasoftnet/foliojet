@@ -17,6 +17,9 @@ import jp.cssj.cti2.results.Results;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.ua.MultiDocumentOutput.DocumentUnit;
+import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSVGUserAgent;
 import net.zamasoft.zstream.io.FragmentedOutput;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.SourceMetadata;
@@ -46,6 +49,10 @@ public class PagedSvgEpubTest extends TestCase {
 	private static final String[] CHAPTERS = { "第一章 甲乙丙", "第二章 丁戊己", "第三章 庚辛壬", "第四章 癸子丑" };
 
 	private static byte[] epub(final int chapters) throws Exception {
+		return epub(chapters, false);
+	}
+
+	private static byte[] epub(final int chapters, final boolean retained) throws Exception {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
 			entry(zip, "mimetype", "application/epub+zip");
@@ -79,7 +86,10 @@ public class PagedSvgEpubTest extends TestCase {
 			nav.append("</ol></nav></body></html>");
 			entry(zip, "OEBPS/nav.xhtml", nav.toString());
 			for (int i = 1; i <= chapters; ++i) {
-				entry(zip, "OEBPS/ch" + i + ".xhtml", xhtml(CHAPTERS[i - 1]));
+				// 保持量は先頭の章が最大、末尾が最小。通常の本文だけではhigh-waterが0になる。
+				final String text = retained ? "<span style=\"display:inline-block\">"
+						+ CHAPTERS[i - 1].repeat(chapters - i + 1) + "</span>" : CHAPTERS[i - 1];
+				entry(zip, "OEBPS/ch" + i + ".xhtml", xhtml(text));
 			}
 		}
 		return bytes.toByteArray();
@@ -185,6 +195,41 @@ public class PagedSvgEpubTest extends TestCase {
 		assertEquals(4, (int) sequential.order.stream().filter(u -> u.endsWith("/manifest.json")).count());
 	}
 
+	/** 子の保持量は合算せず、逐次・並列とも冊全体の最大値を親へ残す。 */
+	public void testRetainedTextHighWaterAggregatesChildren() throws Exception {
+		for (final String concurrency : new String[] { "1", "4" }) {
+			final List<UserAgent> children = new ArrayList<>();
+			final PagedSVGUserAgent ua = new PagedSVGUserAgent() {
+				@Override
+				public UserAgent openDocument(final DocumentUnit unit) {
+					final UserAgent child = super.openDocument(unit);
+					children.add(child);
+					return child;
+				}
+			};
+			final CapturingResults results = this.run(epub(4, true),
+					Map.of("processing.concurrency", concurrency, "processing.retained-text-limit", "64"), ua);
+			assertEquals(4, children.size());
+			assertTrue(results.data.containsKey("index.json"));
+			long maximum = 0;
+			long total = 0;
+			for (final UserAgent child : children) {
+				final var accounting = child.getRetainedTextLimit();
+				assertEquals("子にも同じ上限を渡すこと", 64L, accounting.getLimit());
+				assertTrue("各項目で実際に保持すること", accounting.getHighWater() > 0);
+				maximum = Math.max(maximum, accounting.getHighWater());
+				total += accounting.getHighWater();
+			}
+			assertTrue("末尾の子の値で上書きしてはならないfixtureであること",
+					children.get(0).getRetainedTextLimit().getHighWater()
+							> children.get(3).getRetainedTextLimit().getHighWater());
+			assertTrue("子の合計は上限を超えるfixtureであること", total > 64);
+			assertEquals("親に子の最大high-waterを集約すること", maximum, ua.getRetainedTextLimit().getHighWater());
+			assertEquals("子の会計を親の累計へ持ち越さないこと", 0L, ua.getRetainedTextLimit().getCurrentBytes());
+			assertEquals(64L, ua.getRetainedTextLimit().getLimit());
+		}
+	}
+
 	/** ページSVGが最初に参照するサブセットのURI({@code assets/fonts/...})。 */
 	private static String fontHref(final String svg) {
 		final java.util.regex.Matcher m = java.util.regex.Pattern.compile("(assets/fonts/[^)\"' ]+)").matcher(svg);
@@ -196,9 +241,15 @@ public class PagedSvgEpubTest extends TestCase {
 	}
 
 	private CapturingResults run(final int chapters, final Map<String, String> extraProps) throws Exception {
+		return this.run(epub(chapters), extraProps, null);
+	}
+
+	private CapturingResults run(final byte[] document, final Map<String, String> extraProps,
+			final PagedSVGUserAgent ua) throws Exception {
 		final CapturingResults results = new CapturingResults();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 		try {
+			if (ua != null) session.setUserAgent(ua);
 			session.setResults(results);
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 			session.property("input.include", "**");
@@ -208,7 +259,7 @@ public class PagedSvgEpubTest extends TestCase {
 			for (final Map.Entry<String, String> e : extraProps.entrySet()) {
 				session.property(e.getKey(), e.getValue());
 			}
-			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(epub(chapters)),
+			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(document),
 					URI.create("file:///paged-svg-epub.epub"), "application/epub+zip", null);
 		} finally {
 			session.close();

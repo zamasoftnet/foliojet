@@ -417,6 +417,7 @@
 0460-segment-restyle/nested-break-in-replay.html	files/unittest/0460-segment-restyle/nested-break-in-replay.html	1	text/html	input.include=**	input.property-pi=true
 0460-segment-restyle/text-tail-avoid.html	files/unittest/0460-segment-restyle/text-tail-avoid.html	1	text/html	input.include=**	input.property-pi=true
 0470-margin-boxes/margin-boxes.html	files/unittest/0470-margin-boxes/margin-boxes.html	1	text/html	input.include=**	input.property-pi=true
+0470-margin-boxes/vertical-side-boxes.html	files/unittest/0470-margin-boxes/vertical-side-boxes.html	1	text/html	input.include=**	input.property-pi=true
 0475-bleed/bleed-full.html	files/unittest/0475-bleed/bleed-full.html	1	text/html	input.include=**	input.property-pi=true
 0475-bleed/bleed-marks.html	files/unittest/0475-bleed/bleed-marks.html	1	text/html	input.include=**	input.property-pi=true
 0475-bleed/trim-inset.html	files/unittest/0475-bleed/trim-inset.html	1	text/html	input.include=**	input.property-pi=true
@@ -1411,6 +1412,10 @@ ioprops/image-orientation.html	files/unittest/ioprops/image-orientation.html	1	t
 ioprops/japanese.html	files/unittest/ioprops/japanese.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/link-and-image.html	files/unittest/ioprops/link-and-image.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/missing-image.html	files/unittest/ioprops/missing-image.html	1	text/html	input.include=**	input.property-pi=true
+ioprops/retained-float-table.html	files/unittest/ioprops/retained-float-table.html	1	text/html	input.include=**	input.property-pi=true
+ioprops/retained-prose-4x.html	files/unittest/ioprops/retained-prose-4x.html	1	text/html	input.include=**	input.property-pi=true
+ioprops/retained-prose.html	files/unittest/ioprops/retained-prose.html	1	text/html	input.include=**	input.property-pi=true
+ioprops/retained-table.html	files/unittest/ioprops/retained-table.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/synthesized-bold.html	files/unittest/ioprops/synthesized-bold.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/text-shadow-vertical-none.html	files/unittest/ioprops/text-shadow-vertical-none.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/text-shadow-vertical.html	files/unittest/ioprops/text-shadow-vertical.html	1	text/html	input.include=**	input.property-pi=true

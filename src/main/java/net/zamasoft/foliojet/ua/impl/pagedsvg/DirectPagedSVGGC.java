@@ -506,10 +506,14 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			}
 			xs.append(SVGWriter.number(gx));
 			ys.append(SVGWriter.number(gy));
+			// 字箱の進行方向の端は字形の送り(pen と同じ getAdvance)で決める。1em 固定だと
+			// 半角数字(縦中横の 2 桁、横倒しの数字)の字箱が 0.5em はみ出す
+			// (利用者報告「縦中横リンクの字箱」2026-09-06: 読み器の文字層が行幅を越えた)
+			final double advance = metrics.getAdvance(gid);
 			minX = Math.min(minX, gx - (vertical ? size / 2.0 : 0));
-			maxX = Math.max(maxX, gx + (vertical ? size / 2.0 : size));
+			maxX = Math.max(maxX, gx + (vertical ? size / 2.0 : advance));
 			minY = Math.min(minY, gy - (vertical ? 0 : metrics.getAscent()));
-			maxY = Math.max(maxY, gy + (vertical ? size : metrics.getDescent()));
+			maxY = Math.max(maxY, gy + (vertical ? advance : metrics.getDescent()));
 		}
 		// 符号を割り当てた**後**に@font-faceを登録する。持ち越したサブセットは
 		// 新しい字形で版が進みURIが変わるので、割り当て前に登録すると
@@ -608,10 +612,12 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			}
 			xs.append(SVGWriter.number(gx));
 			ys.append(SVGWriter.number(gy));
+			// 字箱は字形の送りで(上の writeSubsetText と同じ。2026-09-06)
+			final double advance = metrics.getAdvance(gids[i]);
 			minX = Math.min(minX, gx - (vertical ? size / 2.0 : 0));
-			maxX = Math.max(maxX, gx + (vertical ? size / 2.0 : size));
+			maxX = Math.max(maxX, gx + (vertical ? size / 2.0 : advance));
 			minY = Math.min(minY, gy - (vertical ? 0 : metrics.getAscent()));
-			maxY = Math.max(maxY, gy + (vertical ? size : metrics.getDescent()));
+			maxY = Math.max(maxY, gy + (vertical ? advance : metrics.getDescent()));
 		}
 		try {
 			final SVGWriter w = this.writer;
@@ -660,7 +666,8 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 
 	private void recordText(final Text text, final String value, final String font, final double x, final double y) {
 		final double size = text.getFontStyle().getSize();
-		this.recordTextRun(value, font, size, x, y - size, x + size * value.length(), y);
+		// アウトライン描画でも字箱は実際の送り(text.getAdvance())で(2026-09-06)
+		this.recordTextRun(value, font, size, x, y - size, x + text.getAdvance(), y);
 	}
 
 	/**

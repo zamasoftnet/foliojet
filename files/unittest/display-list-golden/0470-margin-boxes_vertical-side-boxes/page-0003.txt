@@ -1,6 +1,6 @@
 drawer z=0
   x=271.46 y=0.00 Text["ページ3の本文。さしすせそ。" asc=6.00 desc=6.00]
   x=-22.93 y=0.00 Text["アイヌ利権とは何か十五文字の柱です" asc=4.50 desc=4.50]
-  x=-27.89 y=154.52 AbsoluteRectFrame[w=18.92 h=141.67]
+  x=-36.85 y=154.52 AbsoluteRectFrame[w=36.85 h=141.67]
   x=-17.96 y=157.85 Text["中アイヌ利権とは何か十五文字の柱です" asc=4.50 desc=4.50]
   x=-20.43 y=441.11 Text["3" asc=6.87 desc=2.73]

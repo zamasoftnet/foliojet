@@ -162,7 +162,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	/** T5aの段階別観測。DirectSessionの変換スレッドから呼ぶ(試験専用)。 */
 	static volatile java.util.function.BiConsumer<String, net.zamasoft.foliojet.layout.fragment.LayoutSource> retentionObserver;
 
+	/** 同じ観測点で計画参照の解放を検査する(試験専用、保存・復元して使う)。 */
+	static volatile java.util.function.BiConsumer<String, RetainedTableBuilder> retentionPlanObserver;
+
 	private void observeRetention(final String stage) {
+		final var planObserver = retentionPlanObserver;
+		if (planObserver != null) planObserver.accept(stage, this);
 		final var observer = retentionObserver;
 		if (observer != null && this.layoutStack.getPageContext() != null) {
 			final var source = this.layoutStack.getPageContext().getPageGenerator().getLayoutSource();
@@ -304,7 +309,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				this.firstRowBox = rowBox;
 			}
 			// 表終端より前の生存数を同じ変換スレッドで採る(試験時のみ)。
-			if (retentionObserver != null && this.rowToCells.size() % 2000 == 0) {
+			if ((retentionObserver != null || retentionPlanObserver != null) && this.rowToCells.size() % 2000 == 0) {
 				this.observeRetention("after-input-rows-" + this.rowToCells.size());
 			}
 		}
@@ -843,8 +848,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		final RetainedTextLimit limit = RetainedTextLimit.get(builder);
 		try (var retained = limit == null ? null
 				: limit.enter(RetainedTextLimit.elementName(this.tableBox.getParams(), "table"))) {
-			final int rowCount = this.bindRows(shape);
-			this.assemble(builder, shape, rowCount, retained);
+			final double[] rowSizes = this.bindRows(shape);
+			this.assemble(builder, shape, rowSizes, retained);
 		}
 		this.observeRetention("after-table-end");
 		this.compactCellText(true);
@@ -1035,9 +1040,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	/**
 	 * キャプションと行群をバインドし、行高を確定します(bind 第2段)。
 	 *
-	 * @return 行数
+	 * @return 境界寸法の適用まで保持する確定行高(ヘッダ・内容・フッタ順)
 	 */
-	private int bindRows(final TableShape shape) {
+	private double[] bindRows(final TableShape shape) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final BlockBuilder anonBuilder = shape.anonBuilder();
 		final double[] columnSizes = shape.columnSizes();
@@ -1072,7 +1077,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTableLegacyBindRows();
 		}
 		// Pass B計測値(実セルboxごとの使用ページ方向寸法)。従来経路ではnull
-		final Map<TableCellBox, Double> measuredPageAxis = rowSequentialBind
+		Map<TableCellBox, Double> measuredPageAxis = rowSequentialBind
 				? new IdentityHashMap<TableCellBox, Double>()
 				: null;
 
@@ -1236,6 +1241,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
+		// 全行のsource/extended構築が完了。以後は行自身のCell連鎖だけを読む。
+		this.cellToSource.clear();
+
 		// 行のパーセント高さ計算(共有エンジン — P2-4)
 		{
 			final double[] rowSizes = new double[rowCount];
@@ -1282,8 +1290,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		// 指定型の直判定(%0 指定行を自動行に数えた旧 autoRowCount とは
 		// 分岐条件が異なり得るが、分配対象の選別とは元々不整合だった —
 		// 一貫した直判定へ正規化)
+		final double[] rowSizes = new double[rowCount];
 		{
-			final double[] rowSizes = new double[rowCount];
 			final boolean[] autoRows = new boolean[rowCount];
 			int rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
@@ -1305,7 +1313,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
-		if (measuredPageAxis != null
+		// Pass Cのbind・行高適用は計測mapを読まない。経路判定だけを残す。
+		measuredPageAxis = null;
+		if (rowSequentialBind
 				&& net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
 						== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN) {
 			final var observer = RetainedTextLimit.beforeTableMainBind;
@@ -1315,6 +1325,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		this.observeRetention("after-pass-b");
 		this.compactCellText(true);
 		// セル高さ確定(共有核 — P2-5 (c))
+		final boolean releaseRowPlans = net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
+				== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN;
+		int boundRows = 0;
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			TableRowGroupBox rowGroup = this.rowGroups.get(i);
 			List<TableRowBox> rows = this.rowGroupToRows.get(rowGroup);
@@ -1329,7 +1342,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
 				this.noteTableProgress();
 				final List<CellContent> cells = this.rowToCells.get(rowBox);
-				if (measuredPageAxis != null) {
+				if (rowSequentialBind) {
 					// E-6増分5b-2 Pass C: 行単位の逐次bind。確定行高の適用
 					// (applyCellExtents)・baseline整列(maxFirstAscent)の直前に
 					// 当行の実セルをbindする——bind後のセル実寸・firstAscentは
@@ -1339,11 +1352,24 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				}
 				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
 						this.vertical);
+				// assembleのborder-collapseは行高だけを読む。完成した行・本文木は
+				// rowGroupが保持し、後続行のrowspanはgroupRowSizesとCell連鎖を使う。
+				rowSizes[boundRows++] = rowBox.getPageSize();
+				if (releaseRowPlans) {
+					// MEASUREでは本文所有が残り、親の吸収・終端処理が計画を読む。
+					this.rowToCells.remove(rowBox);
+					cells.clear();
+					rows.set(j, null);
+				}
 				this.compactCellText(false);
 				if (j == rows.size() / 2) this.observeRetention("during-pass-c");
+				if ((retentionObserver != null || retentionPlanObserver != null) && boundRows % 2000 == 0) {
+					this.observeRetention("after-row-" + boundRows);
+				}
 			}
+			if (releaseRowPlans) this.rowGroupToRows.remove(rowGroup);
 		}
-		return rowCount;
+		return rowSizes;
 	}
 
 	/**
@@ -1433,7 +1459,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	/**
 	 * 行グループを表に組み付け、列・境界寸法を適用して閉じます(bind 第3段)。
 	 */
-	private void assemble(final BlockBuilder builder, final TableShape shape, final int rowCount,
+	private void assemble(final BlockBuilder builder, final TableShape shape, final double[] rowSizes,
 			final RetainedTextLimit.Scope retained) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final BlockBuilder anonBuilder = shape.anonBuilder();
@@ -1451,7 +1477,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		if (this.footerGroup != null) {
 			this.tableBox.setTableFooter(this.footerGroup);
 		}
-		if (rowCount == 0 || columnCount == 0) {
+		if (rowSizes.length == 0 || columnCount == 0) {
 			if (this.vertical) {
 				this.tableBox.setSize(specifiedPageSize, tableSize - this.tableBox.getFrame().getFrameHeight());
 			} else {
@@ -1480,13 +1506,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				assert !LayoutUtils.isNone(columnSizes[i]);
 				this.borders.setColumnSize(i, columnSizes[i]);
 			}
-			int row = 0;
-			for (int i = 0; i < this.rowGroups.size(); ++i) {
-				List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
-				for (int j = 0; j < rows.size(); ++j) {
-					double rowHeight = rows.get(j).getPageSize();
-					this.borders.setRowSize(row++, rowHeight);
-				}
+			for (int row = 0; row < rowSizes.length; ++row) {
+				this.borders.setRowSize(row, rowSizes[row]);
 			}
 		}
 

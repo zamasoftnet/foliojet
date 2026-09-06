@@ -25,6 +25,9 @@ public final class RetainedTextLimit implements AutoCloseable {
 	/** 診断・試験用。制限の判定には使いません。 */
 	public static final AtomicLong HIGH_WATER = new AtomicLong();
 
+	/** 診断・試験用。再生中の加算保留に入った回数です。 */
+	public static final AtomicLong SUSPEND_ENTRIES = new AtomicLong();
+
 	/** Pass B終了後・MAIN開始前の観測だけに使います。試験は保存・復元すること。 */
 	public static volatile java.util.function.Consumer<RetainedTextLimit> beforeTableMainBind;
 
@@ -100,6 +103,11 @@ public final class RetainedTextLimit implements AutoCloseable {
 
 	public long getHighWater() {
 		return this.highWater;
+	}
+
+	/** 独立した子UAの診断値だけを集約します。累計と上限は変更しません。呼び出し側で排他します。 */
+	public void mergeHighWater(final RetainedTextLimit child) {
+		this.highWater = Math.max(this.highWater, child.getHighWater());
 	}
 
 	public long getLimit() {
@@ -178,6 +186,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 
 		private Suspension() {
 			++this.accounting.suspensions;
+			SUSPEND_ENTRIES.incrementAndGet();
 		}
 
 		@Override

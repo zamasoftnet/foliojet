@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -68,9 +69,15 @@ public class RetentionHighWaterReportTest extends TestCase {
 		final var afterPassB = new AtomicReference<RetentionSnapshot>();
 		final var compacted = new AtomicReference<RetentionSnapshot>();
 		final var beforeClose = new ArrayList<RetentionSnapshot>();
+		final var afterTableRows = new AtomicReference<Integer>();
 		try (final AutoCloseable stages = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
 				"retentionObserver", (BiConsumer<String, LayoutSource>) (stage, source) -> {
 			if (stage.equals("after-pass-b")) afterPassB.set(source.retentionSnapshot());
+		}); final AutoCloseable plans = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
+				"retentionPlanObserver", (BiConsumer<String, RetainedTableBuilder>) (stage, table) -> {
+			if (stage.equals("after-table-end") && ReplayIntent.current() == ReplayIntent.MAIN) {
+				afterTableRows.set(((Map<?, ?>) RangeOnlyInvariantTest.field(table, "rowToCells")).size());
+			}
 		}); final AutoCloseable compact = RangeOnlyInvariantTest.observe(LayoutSource.class,
 				"compactObserver", (Consumer<LayoutSource>) source -> {
 			final var snapshot = source.retentionSnapshot();
@@ -82,6 +89,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 		} finally {
 			Files.deleteIfExists(file.toPath());
 		}
+		assertEquals("MAIN適用後に行計画が残っている(または未観測)", Integer.valueOf(0), afterTableRows.get());
 		final var measured = afterPassB.get();
 		assertNotNull("Pass B後の観測なし", measured);
 		assertTrue("計測後も全本文セルのslice所有を保持", measured.slicedRanges() >= rows * 3);
@@ -105,11 +113,13 @@ public class RetentionHighWaterReportTest extends TestCase {
 	 * 6,000行の変換・明示GC・histogramは{@code -Dfoliojet.perf}または
 	 * {@code -Dfoliojet.retentionDiag}指定時だけ実行する。行数の上書きは
 	 * {@code -Dfoliojet.retentionRows}で行う。
+	 * 表の観測段階はbefore-table-end、after-input-rows-N、before-pass-b、
+	 * after-pass-b、during-pass-c、after-row-N(全グループ通算2,000行ごと)、after-table-end。
 	 *
 	 * <p>追加課題: 5MB単一セルがOOM(18秒)からTIMEOUT(420秒)になった原因は未確定で、
 	 * 完走の改善実績には数えない。次はPass B/C別時間・GC時間・compact走査件数を観測する。
 	 * 10,000行に向けては全体寸法確定後の行単位配置と、全行木・配置済み木・
-	 * 計画参照({@code rowToCells}等)の寿命短縮が追加課題となる。</p>
+	 * 計画参照を分けて観測する。R1-liteではMAIN適用済みの行計画だけを解放する。</p>
 	 */
 	public void testShortCellManyRowsRetention() throws Exception {
 		if (System.getProperty("foliojet.perf") == null
@@ -128,6 +138,12 @@ public class RetentionHighWaterReportTest extends TestCase {
 		try (final AutoCloseable stages = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
 				"retentionObserver", (BiConsumer<String, LayoutSource>)
 						(stage, source) -> reportStage(stage, source));
+				final AutoCloseable plans = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
+						"retentionPlanObserver", (BiConsumer<String, RetainedTableBuilder>) (stage, table) -> {
+					System.err.println("[R1-lite row plans] stage=" + stage + " intent=" + ReplayIntent.current()
+							+ " rows=" + ((Map<?, ?>) RangeOnlyInvariantTest.field(table, "rowToCells")).size()
+							+ " rowGroups=" + ((Map<?, ?>) RangeOnlyInvariantTest.field(table, "rowGroupToRows")).size());
+				});
 				final AutoCloseable compact = RangeOnlyInvariantTest.observe(LayoutSource.class,
 						"compactObserver", (Consumer<LayoutSource>) source -> {
 					lastCompact.set(source.retentionSnapshot());
@@ -174,7 +190,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 		System.err.println("[T5a short cells] stage=" + stage + " heapUsed=" + used
 				+ " heapUsedAfterGc=" + usedAfterGc + " " + source.retentionSnapshot());
 		if (stage.startsWith("after-input-rows-") || stage.equals("before-pass-b")
-				|| stage.equals("after-table-end")) reportClassHistogram(stage);
+				|| stage.equals("after-pass-b") || stage.equals("during-pass-c")
+				|| stage.startsWith("after-row-") || stage.equals("after-table-end")) reportClassHistogram(stage);
 	}
 
 	/** 変換スレッドを止めた同じ時点のlive histogram。JDKがない環境では観測だけ省略する。 */
@@ -191,7 +208,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 			System.err.println(prefix + "skipped: jcmd unavailable: " + e.getMessage());
 			return;
 		}
-		// 上位25クラスと、順位が下がったCSSStyle/Value[]も必ず出す。
+		// 上位25クラスと、順位が下がったCSSStyle/Value[]・行計画/行箱も必ず出す。
 		// 全行を読んでpipeを詰まらせず、行数増加中の生存数を同じ書式で比較する。
 		final Thread reader = Thread.startVirtualThread(() -> {
 			try (var input = process.inputReader(StandardCharsets.UTF_8)) {
@@ -205,6 +222,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 						final boolean style = type.equals("net.zamasoft.foliojet.css.CSSStyle")
 								|| type.startsWith("net.zamasoft.foliojet.css.CSSStyle$");
 						final boolean values = type.equals("[Lnet.zamasoft.foliojet.css.value.Value;");
+						final boolean table = type.equals("net.zamasoft.foliojet.layout.builder.impl.CellContent")
+								|| type.equals("net.zamasoft.foliojet.layout.box.impl.TableRowBox");
 						if (style) styles += count;
 						if (values) {
 							valueArrays += count;
@@ -212,7 +231,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 						}
 						if (type.equals("java.util.TreeMap$Entry")) treeEntries += count;
 						if (type.equals("java.lang.Integer")) integers += count;
-						if (++rows <= 25 || style || values) System.err.println(prefix + line);
+						if (++rows <= 25 || style || values || table) System.err.println(prefix + line);
 					} else if (rows == 0) {
 						System.err.println(prefix + line);
 					}

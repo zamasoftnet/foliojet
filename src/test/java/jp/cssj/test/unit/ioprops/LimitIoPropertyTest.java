@@ -24,6 +24,7 @@ import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.foliojet.layout.RetainedTextLimit;
 import net.zamasoft.foliojet.layout.RetainedTextLimitException;
+import net.zamasoft.foliojet.layout.SourceReplayer;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
@@ -231,26 +232,38 @@ public class LimitIoPropertyTest extends TestCase {
 	}
 
 	public void testRetainedTextLimitBalancedColumns() throws Exception {
-		this.checkRetainedBalancedColumns("");
+		this.checkRetainedBalancedColumns("", false);
 	}
 
 	public void testRetainedTextLimitBalancedInlineBlock() throws Exception {
-		this.checkRetainedBalancedColumns("display:inline-block;");
+		this.checkRetainedBalancedColumns("display:inline-block;", true);
 	}
 
-	private void checkRetainedBalancedColumns(final String display) throws Exception {
+	private void checkRetainedBalancedColumns(final String display, final boolean boxReplay) throws Exception {
 		final String text = "abcdefghij".repeat(60);
 		final long payload = text.length() * 2L;
+		// 絶対配置の子があるとcanReplayChildrenのcontainsAbsoluteでボックス再生へ分岐する。
+		// 空の子なので、本文600文字のpayloadは変わらない。
+		final String child = boxReplay ? "<span style='position:absolute; width:1pt; height:1pt'></span>" : "";
 		final String document = "<html><style>@page { size:400pt 600pt; margin:20pt }"
 				+ "body { margin:0; font:10pt/12pt serif } div { " + display
 				+ "width:240pt; column-count:2; column-fill:balance; column-gap:12pt; word-break:break-all }"
-				+ "</style><body><div>" + text + "</div></body></html>";
-		final RetainedResult unlimited = this.convertRetained(document, 0);
-		assertNull(unlimited.failure());
-		assertEquals("balance再生は文字数×2を二重計数しないこと", payload, unlimited.highWater());
-		final RetainedResult between = this.convertRetained(document, payload + payload / 2);
-		assertNull("1回分<上限<2回分で完走すること", between.failure());
-		assertEquals(payload, between.highWater());
+				+ "</style><body><div>" + text + child + "</div></body></html>";
+		for (final long limit : new long[] { 0, payload + payload / 2 }) {
+			final long suspensionsBefore = RetainedTextLimit.SUSPEND_ENTRIES.get();
+			final long sourceReplaysBefore = SourceReplayer.BALANCE_REPLAYS.get();
+			final RetainedResult result = this.convertRetained(document, limit);
+			assertNull("無制限と1回分<上限<2回分で完走すること", result.failure());
+			final long suspensions = RetainedTextLimit.SUSPEND_ENTRIES.get() - suspensionsBefore;
+			final long sourceReplays = SourceReplayer.BALANCE_REPLAYS.get() - sourceReplaysBefore;
+			assertTrue("balance再生でsuspendに入ること", suspensions > 0);
+			if (boxReplay) {
+				assertEquals("ソース再生が不適格となりボックス再生へ進むこと", 0L, sourceReplays);
+			} else {
+				assertEquals("suspendしたbalanceがソース再生を通ること", suspensions, sourceReplays);
+			}
+			assertEquals("balance再生は文字数×2を二重計数しないこと", payload, result.highWater());
+		}
 	}
 
 	public void testRetainedTextLimitContinuousReloadsLimit() throws Exception {
@@ -358,6 +371,35 @@ public class LimitIoPropertyTest extends TestCase {
 			}
 			limit.add(200);
 			assertEquals(800L, limit.getCurrentBytes());
+		}
+	}
+
+	public void testRetainedTextLimitSuspensionResumesAfterException() {
+		final PDFUserAgent ua = new PDFUserAgent() {
+		};
+		ua.setProperty("processing.retained-text-limit", "1024");
+		try (final RetainedTextLimit limit = ua.getRetainedTextLimit(); var outer = limit.enter("div")) {
+			limit.add(600);
+			final RuntimeException failure = new IllegalStateException("replay failed");
+			try {
+				try (var suspended = limit.suspend()) {
+					limit.add(800);
+					throw failure;
+				}
+			} catch (final RuntimeException expected) {
+				assertSame("suspendのスコープ外まで例外が伝播すること", failure, expected);
+			}
+			assertEquals(600L, limit.getCurrentBytes());
+			assertEquals(600L, limit.getHighWater());
+			limit.add(200);
+			assertEquals("例外でsuspendを抜けても加算が再開すること", 800L, limit.getCurrentBytes());
+			assertEquals(800L, limit.getHighWater());
+			try {
+				limit.add(226);
+				fail("復帰後も上限を検査すること");
+			} catch (final RetainedTextLimitException expected) {
+				assertEquals(MessageCodes.ERROR_RETAINED_TEXT_LIMIT, expected.getCode());
+			}
 		}
 	}
 

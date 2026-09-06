@@ -42,7 +42,13 @@ import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.MeasurePageGenerator;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
+import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
+import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.Insets;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.CellAlign;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
@@ -219,7 +225,8 @@ final class MarginBoxes {
 		if (box == null || w <= 0 || h <= 0) {
 			return;
 		}
-		final PageBox mini = box.layout(ua, w, h);
+		final boolean text = box.running == null;
+		final PageBox mini = box.layout(ua, w, h, text);
 		if (mini == null) {
 			return;
 		}
@@ -236,10 +243,19 @@ final class MarginBoxes {
 		// 行頭が物理下端(sideways-lr、縦書き rtl)なら内容は既に地側にあるので
 		// dy は余りの分だけ天側へ。running テンプレートは自身の text-align で
 		// 行方向に寄るので dy は付けない(内部の寄せと二重にならないように)
-		final double blockSize = mini.getContainer().getContentSize();
+		// 文字列ボックスは箱を領域に固定してあるので、寄せは padding の内側(内容箱)で
+		// 内側の container の実寸から決める。running テンプレートは従来どおり
+		// (箱は内容の大きさ、ミニページの外寸で寄せる)
+		final RectFrame frame = box.params.frame;
+		final Container inner = text ? innerContainer(mini) : null;
+		final double innerW = text ? Math.max(0, w - frame.margin.getLeft() - frame.margin.getRight()
+				- frame.border.getFrameWidth() - frame.padding.getLeft() - frame.padding.getRight()) : w;
+		final double innerH = text ? Math.max(0, h - frame.margin.getTop() - frame.margin.getBottom()
+				- frame.border.getFrameHeight() - frame.padding.getTop() - frame.padding.getBottom()) : h;
+		final double blockSize = inner != null ? inner.getContentSize() : mini.getContainer().getContentSize();
 		final double extent = !vertical ? blockSize
-				: box.running != null ? h : MeasuredIntrinsics.usedLineExtent(mini.getContainer(), box.params.flow);
-		final double slack = Math.max(0, h - extent);
+				: box.running != null ? h : MeasuredIntrinsics.usedLineExtent(inner, box.params.flow);
+		final double slack = Math.max(0, innerH - extent);
 		double dy;
 		switch (box.verticalAlign) {
 		case START:
@@ -256,7 +272,7 @@ final class MarginBoxes {
 		if (vertical && inlineStartsAtBottom(box.params)) {
 			dy -= slack;
 		}
-		final double dx = vertical ? Math.max(0, (w - blockSize) / 2) : 0;
+		final double dx = vertical ? Math.max(0, (innerW - blockSize) / 2) : 0;
 		// frames が背景・ボーダー層、draw が内容層(PageBox.drawFlow と同じ二層)。
 		// 縦書き RL のミニページは右端から行を積むので x は左へ寄せる
 		final double drawX = x + (box.params.flow == WritingMode.RL ? -dx : dx);
@@ -264,9 +280,21 @@ final class MarginBoxes {
 		if (box.running != null) {
 			RunningRenderer.draw(mini, drawer, drawX, drawY);
 		} else {
-			mini.frames(mini, drawer, null, new AffineTransform(), drawX, vertical ? y : drawY);
+			// 枠(背景・罫線)は領域に固定した箱をそのまま、内容だけを寄せて描く
+			mini.frames(mini, drawer, null, new AffineTransform(), x, y);
 			mini.draw(mini, drawer, visitor, null, new AffineTransform(), drawX, drawY, drawX, drawY);
 		}
+	}
+
+	/** ミニページの最初のブロック箱(マージンボックス本体)の内側 container。 */
+	private static Container innerContainer(final PageBox mini) {
+		final AbstractContainerBox[] found = { null };
+		mini.getContainer().eachFlowBox(b -> {
+			if (found[0] == null && b instanceof AbstractContainerBox c) {
+				found[0] = c;
+			}
+		});
+		return found[0] == null ? mini.getContainer() : found[0].getContainer();
 	}
 
 	/**
@@ -412,8 +440,29 @@ final class MarginBoxes {
 		 * 隔離ミニレイアウトで内容を組みます。
 		 */
 		PageBox layout(final UserAgent ua, final double width, final double height) {
+			return this.layout(ua, width, height, false);
+		}
+
+		/**
+		 * 隔離ミニレイアウトで内容を組みます。{@code fill} なら箱を領域(width×height、
+		 * margin を除く)の大きさに固定する——背景・罫線が領域全体に描かれ、内容の
+		 * 寄せは {@link MarginBoxes#place} が行う(Vivliostyle 実測 2026-09-06: マージン
+		 * ボックスの背景は縦横とも割り当て領域いっぱい)。測定(preferredWidth/Height)は
+		 * 自然な寸法が要るので固定しない。
+		 */
+		PageBox layout(final UserAgent ua, final double width, final double height, final boolean fill) {
 			if (this.running != null) {
 				return this.running.layout(this.params, width, height);
+			}
+			if (fill) {
+				final Insets margin = this.params.frame.margin;
+				this.params.boxSizing = BoxSizingMode.BORDER_BOX;
+				this.params.size = Dimension.create(Math.max(0, width - margin.getLeft() - margin.getRight()),
+						Math.max(0, height - margin.getTop() - margin.getBottom()), LengthType.ABSOLUTE,
+						LengthType.ABSOLUTE);
+			} else {
+				this.params.boxSizing = BoxSizingMode.CONTENT_BOX;
+				this.params.size = Dimension.AUTO_DIMENSION;
 			}
 			final MeasurePageGenerator pg = new MeasurePageGenerator(ua, this.params, width, height, null, false);
 			final DocumentBuilder doc = new DocumentBuilder(pg);
