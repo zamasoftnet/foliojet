@@ -46,6 +46,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.CellAlign;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
+import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
@@ -72,8 +73,9 @@ import net.zamasoft.foliojet.css.style.running.RunningRenderer;
  * カウンタ=page/pages と @page の counter-* によるもの)・
  * string()(GCPM、PageAssignmentStateを読む)、フォント・色・text-align・
  * vertical-align(top/middle/bottom)、margin/border/padding/background。
- * 未対応(FINE ログ): url() 画像・引用符・attr()・page-ref、縦書きの側面
- * ボックス。幅配分は css-page-3 §7.3 の基本形(センター優先、なければ
+ * 縦書き(writing-mode)は 2026-09-06 から: vertical-align は天地、行の束は帯の中央、
+ * 背景は領域全体(Vivliostyle 実測に一致)。未対応(FINE ログ): url() 画像・引用符・
+ * attr()・page-ref・width/height。幅配分は css-page-3 §7.3 の基本形(センター優先、なければ
  * max-content 比例)。
  * </p>
  *
@@ -191,14 +193,14 @@ final class MarginBoxes {
 			return;
 		}
 		if (middle != null) {
-			final double ch = Math.min(middle.preferredHeight(ua, w), h);
+			final double ch = Math.min(middle.preferredHeight(ua, w, h), h);
 			final double side = (h - ch) / 2;
 			place(ua, top, x, y, w, side, drawer, visitor);
 			place(ua, middle, x, y + side, w, ch, drawer, visitor);
 			place(ua, bottom, x, y + h - side, w, side, drawer, visitor);
 		} else if (top != null && bottom != null) {
-			final double pt = top.preferredHeight(ua, w);
-			final double pb = bottom.preferredHeight(ua, w);
+			final double pt = top.preferredHeight(ua, w, h);
+			final double pb = bottom.preferredHeight(ua, w, h);
 			final double th = (pt + pb) <= 0 ? h / 2 : Math.min(h * pt / (pt + pb), h);
 			place(ua, top, x, y, w, th, drawer, visitor);
 			place(ua, bottom, x, y + th, w, h - th, drawer, visitor);
@@ -222,30 +224,65 @@ final class MarginBoxes {
 			return;
 		}
 		final boolean vertical = box.params.flow.isVertical();
-		final double contentH = mini.getContainer().getContentSize();
-		final double available = vertical ? w : h;
-		final double dy;
+		// 寄せは物理軸で行う(2026-09-06、利用者申し送り §4、Vivliostyle 実測):
+		// vertical-align は横書き・縦書きとも天地(y)の寄せ。縦書きでは行が x に
+		// 積まれるので、行の束は帯の中央に置く(text-align は行方向の寄せとして
+		// 縦書きでは使わない。Box.create で start に固定してある)。padding・margin は
+		// 左右方向の padding・margin は内容箱を狭めるだけで折り返しには影響しない
+		// (天地方向のものは行長を削る)。
+		// 縦書きのミニページは行長=領域高で 1 回だけ組む(百分率 padding の基準が
+		// 配置と同じになる)。枠(背景・罫線)は領域全体に置いたまま、内容だけを
+		// dy でずらす(Vivliostyle と同じ: マージンボックスの背景は領域いっぱい)。
+		// 行頭が物理下端(sideways-lr、縦書き rtl)なら内容は既に地側にあるので
+		// dy は余りの分だけ天側へ。running テンプレートは自身の text-align で
+		// 行方向に寄るので dy は付けない(内部の寄せと二重にならないように)
+		final double blockSize = mini.getContainer().getContentSize();
+		final double extent = !vertical ? blockSize
+				: box.running != null ? h : MeasuredIntrinsics.usedLineExtent(mini.getContainer(), box.params.flow);
+		final double slack = Math.max(0, h - extent);
+		double dy;
 		switch (box.verticalAlign) {
 		case START:
 			dy = 0;
 			break;
 		case END:
-			dy = Math.max(0, available - contentH);
+			dy = slack;
 			break;
 		default:
 			// MIDDLE / BASELINE(マージンボックスでは middle 扱い)
-			dy = Math.max(0, (available - contentH) / 2);
+			dy = slack / 2;
 			break;
 		}
-		// frames が背景・ボーダー層、draw が内容層(PageBox.drawFlow と同じ二層)
-		final double drawX = x + (vertical ? (box.params.flow == WritingMode.RL ? -dy : dy) : 0);
-		final double drawY = y + (vertical ? 0 : dy);
+		if (vertical && inlineStartsAtBottom(box.params)) {
+			dy -= slack;
+		}
+		final double dx = vertical ? Math.max(0, (w - blockSize) / 2) : 0;
+		// frames が背景・ボーダー層、draw が内容層(PageBox.drawFlow と同じ二層)。
+		// 縦書き RL のミニページは右端から行を積むので x は左へ寄せる
+		final double drawX = x + (box.params.flow == WritingMode.RL ? -dx : dx);
+		final double drawY = y + dy;
 		if (box.running != null) {
 			RunningRenderer.draw(mini, drawer, drawX, drawY);
 		} else {
-			mini.frames(mini, drawer, null, new AffineTransform(), drawX, drawY);
+			mini.frames(mini, drawer, null, new AffineTransform(), drawX, vertical ? y : drawY);
 			mini.draw(mini, drawer, visitor, null, new AffineTransform(), drawX, drawY, drawX, drawY);
 		}
+	}
+
+	/**
+	 * 縦書きのミニページで行頭が物理下端に来るか(内容が既に地側に寄っているか)。
+	 * 条件は行ボックスの実際の反転と同じにする: sideways は
+	 * {@code LayoutUtils.inlineToPhysical} が進行方向 BOTTOM_TO_TOP で無条件に反転、
+	 * 通常の縦書き rtl は {@code AbstractLineBox} が段落 bidi 有効時だけ start/end を
+	 * 交換する(codex レビュー 3 回目、2026-09-06)。
+	 */
+	private static boolean inlineStartsAtBottom(final BlockParams params) {
+		if (TypesettingMode.usesSidewaysInlineAxis(params.flow, params.writingModeVariant)) {
+			return TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
+					params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
+		}
+		return params.paragraphBidi
+				&& params.direction == net.zamasoft.foliojet.layout.box.params.AbstractTextParams.DIRECTION_RTL;
 	}
 
 	/**
@@ -329,8 +366,16 @@ final class MarginBoxes {
 			params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(ua);
 			params.flow = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style);
 			params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
-			params.textAlign = TextAlign.get(style);
-			params.textAlignLast = TextAlignLast.get(style);
+			if (params.flow.isVertical()) {
+				// 縦書きの行方向(天地)の寄せは place() が vertical-align で行う。
+				// ミニページの行長は帯の高さそのものなので、ここで center に
+				// すると vertical-align: top の柱が天地中央へ行ってしまう
+				params.textAlign = net.zamasoft.foliojet.layout.box.params.AbstractLineParams.TEXT_ALIGN_START;
+				params.textAlignLast = net.zamasoft.foliojet.layout.box.params.AbstractLineParams.TEXT_ALIGN_START;
+			} else {
+				params.textAlign = TextAlign.get(style);
+				params.textAlignLast = TextAlignLast.get(style);
+			}
 			params.lineHeight = LineHeight.get(style);
 			params.whiteSpace = WhiteSpace.get(style);
 			params.letterSpacing = LetterSpacing.get(style);
@@ -352,10 +397,12 @@ final class MarginBoxes {
 		}
 
 		/**
-		 * 与えられた幅で組んだときの内容高さを測ります。
+		 * 与えられた幅で組んだときの内容高さを測ります。縦書きは行長=利用可能な高さで
+		 * 組む(百分率 padding の基準を配置時と揃える。無限高だと padding だけで
+		 * 領域を占有する——codex レビュー 3 回目)。横書きは高さ無限で自然な高さ
 		 */
-		double preferredHeight(final UserAgent ua, final double width) {
-			final PageBox mini = this.layout(ua, width, INFINITE);
+		double preferredHeight(final UserAgent ua, final double width, final double availableHeight) {
+			final PageBox mini = this.layout(ua, width, this.params.flow.isVertical() ? availableHeight : INFINITE);
 			return mini == null ? 0 : this.params.flow.isVertical()
 					? MeasuredIntrinsics.usedLineExtent(mini.getContainer(), this.params.flow)
 					: mini.getContainer().getContentSize();

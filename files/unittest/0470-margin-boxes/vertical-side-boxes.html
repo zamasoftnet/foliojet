@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="cid-keyed"?>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>縦書きの左右マージンボックス(利用者申し送り 2026-09-06 §4)</title>
+<style>
+/* 19056 まで params.flow が TB 固定で、縦書きの側面ボックスは行長=帯幅・行は y に積まれた
+   (5字で折り返し、折り返した行が同じ x に重なる、padding-right で折り返す)。
+   19057 で流れを宣言から取るようになり、行長は帯の高さになった。
+   本 fixture が固定する配置(Vivliostyle 実測、2026-09-06):
+   vertical-align は天地(y)の寄せ、行の束は帯の内容箱の x 中央、text-align は縦書きでは無視、
+   padding/margin は内容箱を狭めるだけ、背景・罫線はボックスの領域全体(内容と一緒には動かない)。 */
+@page {
+	size: 128mm 182mm;
+	margin: 12mm 13mm 11mm 13mm;
+}
+@page :left {
+	margin-right: 15mm; margin-left: 13mm;
+	/* 既定: 天付き(vertical-align: top)、x は帯の中央 */
+	@left-top { content: string(chapter); font-size: 7.5pt; writing-mode: vertical-rl; text-orientation: upright; }
+	/* 天地中央。padding-left+margin-left で内容箱が狭まり x 中央が右へ。背景と上下罫線は領域(middle 領域=自然寸法)いっぱい */
+	@left-middle { content: "中" string(chapter); font-size: 7.5pt; writing-mode: vertical-rl; padding: 1mm 0 1mm 2.5mm; margin-left: 1mm; background: #ddd; border-top: 0.5pt solid black; border-bottom: 0.5pt solid black; }
+	@left-bottom { content: counter(page); font-size: 8pt; }
+}
+@page :right {
+	margin-right: 13mm; margin-left: 15mm;
+	/* 地付き(領域に余りがある top 領域で vertical-align: bottom)。内容だけが地側へ寄り、背景は top 領域全体。
+	   padding-top は内容箱を狭める(地付きの位置には影響しない)。text-align は無視される(start でも end でも同じ位置) */
+	@right-top { content: "短い柱"; font-size: 7.5pt; writing-mode: vertical-rl; text-orientation: upright; vertical-align: bottom; text-align: end; padding-top: 3mm; background: #ddd; }
+	/* 天地中央(既定)。padding-right で内容箱が狭まり x 中央が左へ。折り返さない */
+	@right-middle { content: "中" string(chapter); font-size: 7.5pt; writing-mode: vertical-rl; padding-right: 2.5mm; }
+	@right-bottom { content: counter(page); font-size: 8pt; }
+}
+html { writing-mode: vertical-rl; }
+body { font-size: 10pt; margin: 0; }
+div.a { page-break-after: always; string-set: chapter "アイヌ利権とは何か十五文字の柱です"; }
+</style>
+</head>
+<body>
+<div class="a">ページ1の本文。あいうえお。</div>
+<div class="a">ページ2の本文。かきくけこ。</div>
+<div class="a">ページ3の本文。さしすせそ。</div>
+</body>
+</html>

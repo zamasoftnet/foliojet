@@ -248,6 +248,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// border-box、内容あふれ
 			"3080-MODERN-CSS/aspect-ratio.html", //
 			"0470-margin-boxes/margin-boxes.html", //
+			// 縦書きの左右マージンボックス(2026-09-06、利用者申し送り §4)。19056 まで
+			// 流れが TB 固定で柱が帯幅で折り返し同じ x に重なった。vertical-align は
+			// 天地(y)、x は帯の中央、padding/margin で折り返さない(Vivliostyle 実測)
+			"0470-margin-boxes/vertical-side-boxes.html", //
 			// 属性の前方/後方/部分一致の大文字小文字(2026-08-05)。両辺を
 			// 小文字化しており li[type^="a"] と li[type^="A"] が共に当たっていた
 			"3000-SELECTOR/attr-prefix-case.html", //
