@@ -415,7 +415,7 @@ final class MarginBoxes {
 			if (this.running != null) {
 				return this.running.layout(this.params, width, height);
 			}
-			final MeasurePageGenerator pg = new MeasurePageGenerator(ua, this.params, width, height);
+			final MeasurePageGenerator pg = new MeasurePageGenerator(ua, this.params, width, height, null, false);
 			final DocumentBuilder doc = new DocumentBuilder(pg);
 			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);
 			doc.startBox(new FlowBlockBox(this.params, new FlowPos()));

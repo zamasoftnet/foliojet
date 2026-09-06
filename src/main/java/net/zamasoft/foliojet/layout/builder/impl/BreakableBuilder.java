@@ -761,6 +761,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void endFlowBlock() {
+		try (var retained = this.takeRetainedFlow()) {
+			this.endBreakableFlowBlock();
+		}
+	}
+
+	private void endBreakableFlowBlock() {
 		this.requireNoOpenTextBuilder("(no context)");
 		assert !this.flowStack.isEmpty();
 		Flow flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);

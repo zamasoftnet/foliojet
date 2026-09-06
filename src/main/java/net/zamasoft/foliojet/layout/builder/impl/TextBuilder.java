@@ -171,8 +171,11 @@ public class TextBuilder {
 	 */
 	TotalFitProjection.Plan totalFitPlan = null;
 
+	private final net.zamasoft.foliojet.layout.RetainedTextLimit retainedTextLimit;
+
 	public TextBuilder(BlockBuilder builder, BreakToken breakToken) {
 		this.builder = builder;
+		this.retainedTextLimit = net.zamasoft.foliojet.layout.RetainedTextLimit.get(builder);
 		this.lineClamp = net.zamasoft.foliojet.layout.builder.LineClampState.find(builder);
 		final Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
@@ -1005,6 +1008,12 @@ public class TextBuilder {
 		}
 	}
 
+	private void addRetainedText(final long payloadBytes) {
+		if (!this.measuringLine && this.retainedTextLimit != null) {
+			this.retainedTextLimit.add(payloadBytes);
+		}
+	}
+
 	private void addElement(Element e) {
 		final AbstractTextBox textBox = this.getTextBox();
 
@@ -1013,6 +1022,7 @@ public class TextBuilder {
 		double descent;
 		if (e instanceof Text) {
 			final Text text = (Text) e;
+			this.addRetainedText(2L * text.getCharCount());
 			textBox.addText(text);
 			ascent = text.getAscent();
 			descent = text.getDescent();
@@ -1020,6 +1030,8 @@ public class TextBuilder {
 			this.lineHasText = true;
 		} else if (e instanceof Control) {
 			final Control control = (Control) e;
+			// ControlはgetCharCountを持たず、getControlChar()のUTF-16文字1個を表す。
+			this.addRetainedText(2L);
 			textBox.addControl(control);
 			if ((control.getControlChar() == ' ' || control.getControlChar() == SoftHyphen.CHAR)
 					&& control.getAdvance() == 0) {

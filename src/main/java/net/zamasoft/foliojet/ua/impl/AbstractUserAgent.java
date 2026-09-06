@@ -152,6 +152,15 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.passContext;
 	}
 
+	private net.zamasoft.foliojet.layout.RetainedTextLimit retainedTextLimit;
+
+	public net.zamasoft.foliojet.layout.RetainedTextLimit getRetainedTextLimit() {
+		if (this.retainedTextLimit == null) {
+			this.retainedTextLimit = new net.zamasoft.foliojet.layout.RetainedTextLimit(this);
+		}
+		return this.retainedTextLimit;
+	}
+
 	public DocumentContext getDocumentContext() {
 		return this.documentContext;
 	}
@@ -776,6 +785,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	public void dispose() {
-		// ignore
+		if (this.retainedTextLimit != null) this.retainedTextLimit.close();
 	}
 }

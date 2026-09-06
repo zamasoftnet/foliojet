@@ -8,6 +8,7 @@ import jp.cssj.cti2.TranscoderException;
 import jp.cssj.cti2.helpers.CTIMessageCodes;
 import net.zamasoft.foliojet.formatter.Formatter;
 import net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException;
+import net.zamasoft.foliojet.layout.RetainedTextLimitException;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.AbortException;
@@ -44,6 +45,8 @@ public class DocumentFormatter implements Formatter {
 				entryPoint.dispose();
 			}
 		} catch (IOException e) {
+			final var retained = RetainedTextLimitException.findIn(e);
+			if (retained != null) throw retained;
 			final var invariant = ContinuationInvariantViolationException.findIn(e);
 			if (invariant != null) throw invariant;
 			short code = CTIMessageCodes.ERROR_IO;
@@ -53,6 +56,8 @@ public class DocumentFormatter implements Formatter {
 			LOG.log(Level.WARNING, mes, e);
 			throw new TranscoderException(code, args, mes);
 		} catch (SAXException e) {
+			final var retained = RetainedTextLimitException.findIn(e);
+			if (retained != null) throw retained;
 			final var invariant = ContinuationInvariantViolationException.findIn(e);
 			if (invariant != null) throw invariant;
 			short code = MessageCodes.ERROR_BAD_XML_SYNTAX;

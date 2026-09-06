@@ -42,7 +42,7 @@ public final class RunningRenderer {
 		}
 
 		public PageBox layout(final BlockParams params, final double width, final double height) {
-			final MeasurePageGenerator generator = new MeasurePageGenerator(ua, params, width, height);
+			final MeasurePageGenerator generator = new MeasurePageGenerator(ua, params, width, height, null, false);
 			final DocumentBuilder doc = new DocumentBuilder(generator);
 			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);
 			doc.startBox(new FlowBlockBox(params, new FlowPos()));

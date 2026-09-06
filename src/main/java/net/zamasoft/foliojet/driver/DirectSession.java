@@ -43,6 +43,7 @@ import jp.cssj.cti2.message.MessageHandler;
 import jp.cssj.cti2.progress.ProgressListener;
 import jp.cssj.cti2.results.Results;
 import net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException;
+import net.zamasoft.foliojet.layout.RetainedTextLimitException;
 import net.zamasoft.foliojet.FolioJetVersion;
 import net.zamasoft.foliojet.formatter.Formatter;
 import net.zamasoft.foliojet.formatter.MultiDocumentFormatter;
@@ -802,6 +803,8 @@ public class DirectSession extends AbstractCTISession
 		final FontSourceManager fsm = this.getFontSourceManager();
 		this.ua.getUAContext().setFontSourceManager(fsm);
 
+		// continuousでも変換ごとに上限を読み直し、high-waterを初期化する。
+		this.ua.getRetainedTextLimit().reset();
 		// 変換を実行。締切は複数パス全体で共有し、各パスごとに
 		// リセットしない。
 		final long timeLimitMillis = UAProps.PROCESSING_TIME_LIMIT.getLong(this.ua);
@@ -835,6 +838,8 @@ public class DirectSession extends AbstractCTISession
 			}
 		} catch (TranscoderException e) {
 			this.continuous = false;
+			final RetainedTextLimitException retained = RetainedTextLimitException.findIn(e);
+			if (retained != null) throw failure(retained.getCode(), retained.getMessage(), e);
 			if (ContinuationInvariantViolationException.findIn(e) != null) {
 				throw failure(e.getCode(), e.getMessage(), e);
 			}
@@ -858,6 +863,8 @@ public class DirectSession extends AbstractCTISession
 					MessageCodeUtils.toString(code, args));
 		} catch (Throwable t) {
 			this.continuous = false;
+			final RetainedTextLimitException retained = RetainedTextLimitException.findIn(t);
+			if (retained != null) throw failure(retained.getCode(), retained.getMessage(), t);
 			this.ua.message(CTIMessageCodes.FATAL_UNEXPECTED, t.getMessage());
 			LOG.log(Level.SEVERE, "予期しないエラー", t);
 			short code = CTIMessageCodes.FATAL_UNEXPECTED;
@@ -887,7 +894,9 @@ public class DirectSession extends AbstractCTISession
 
 	/** 予期しない失敗を、原因を保ったまま包みます。 */
 	private static TranscoderException failure(final short code, final String mes, final Throwable cause) {
-		final TranscoderException e = new TranscoderException(TranscoderException.STATE_BROKEN, code, null, mes);
+		final RetainedTextLimitException retained = RetainedTextLimitException.findIn(cause);
+		final TranscoderException e = new TranscoderException(TranscoderException.STATE_BROKEN, code,
+				retained == null ? null : retained.getArgs(), mes);
 		e.initCause(cause);
 		return e;
 	}
@@ -1312,6 +1321,8 @@ public class DirectSession extends AbstractCTISession
 				}
 			}
 		} catch (IOException e) {
+			final RetainedTextLimitException retained = RetainedTextLimitException.findIn(e);
+			if (retained != null) throw retained;
 			final ContinuationInvariantViolationException invariant = ContinuationInvariantViolationException.findIn(e);
 			if (invariant != null) throw invariant;
 			short code = CTIMessageCodes.ERROR_IO;

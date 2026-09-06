@@ -24,6 +24,9 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 
 	public PassContext getPassContext();
 
+	/** パスをまたいで保持する、このUAの溜め込み会計です。 */
+	public net.zamasoft.foliojet.layout.RetainedTextLimit getRetainedTextLimit();
+
 	public DocumentContext getDocumentContext();
 
 	/**

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
@@ -76,7 +78,10 @@ final class CellPassBMeasurer {
 		if (replica == null) {
 			return null;
 		}
-		try (ScratchReplayScope scope = new ScratchReplayScope()) {
+		final RetainedTextLimit limit = RetainedTextLimit.get(layoutStack);
+		try (var retained = limit == null ? null
+				: limit.measurement(RetainedTextLimit.elementName(replica.getParams(), "table-cell"));
+				ScratchReplayScope scope = new ScratchReplayScope()) {
 			final BlockBuilder builder = new BlockBuilder(layoutStack, replica);
 			if (body != null) {
 				body.measureInto(builder);

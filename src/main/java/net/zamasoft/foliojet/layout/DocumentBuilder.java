@@ -277,6 +277,9 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/** finish/bindまで完了した非root builderのスコープを必ず閉じます。 */
 	private void finishTranslateBlockScope(final Object entry) {
+		if (entry instanceof ContainerBuilderEntry container && container.builder instanceof BlockBuilder block) {
+			block.finishRetainedContext();
+		}
 		final RootBuilder root = this.translateScopeRoots.remove(entry);
 		if (root != null) {
 			root.exitTranslateBlockScope();
@@ -1434,8 +1437,12 @@ public class DocumentBuilder implements TableBuilderHost {
 							IFramedBox containerBox = this.pageContextBuilder().getRootBox();
 							absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
 							BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
-							contentBuilder.bind(absoluteBuilder, this.replayIntent);
-							absoluteBuilder.close();
+							final RetainedTextLimit limit = RetainedTextLimit.get(absoluteBuilder);
+							try (var retained = limit == null ? null
+									: limit.enter(RetainedTextLimit.elementName(absoluteBox.getParams(), "fixed"))) {
+								contentBuilder.bind(absoluteBuilder, this.replayIntent);
+								absoluteBuilder.close();
+							}
 						} else {
 							// position: absolute; は後で構築
 							absoluteBox.prepareBind(contentBuilder);

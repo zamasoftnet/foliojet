@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.sizing.AutoColumnWidths;
@@ -838,8 +840,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		// Builder化)はA-2bとしてPLAN.md §1.5に記録済み
 		final BlockBuilder builder = (BlockBuilder) host;
 		final TableShape shape = this.resolveShape(builder);
-		final int rowCount = this.bindRows(shape);
-		this.assemble(builder, shape, rowCount);
+		final RetainedTextLimit limit = RetainedTextLimit.get(builder);
+		try (var retained = limit == null ? null
+				: limit.enter(RetainedTextLimit.elementName(this.tableBox.getParams(), "table"))) {
+			final int rowCount = this.bindRows(shape);
+			this.assemble(builder, shape, rowCount, retained);
+		}
 		this.observeRetention("after-table-end");
 		this.compactCellText(true);
 	}
@@ -1299,6 +1305,13 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
+		if (measuredPageAxis != null
+				&& net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
+						== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN) {
+			final var observer = RetainedTextLimit.beforeTableMainBind;
+			final RetainedTextLimit limit = RetainedTextLimit.get(this.layoutStack);
+			if (observer != null && limit != null) observer.accept(limit);
+		}
 		this.observeRetention("after-pass-b");
 		this.compactCellText(true);
 		// セル高さ確定(共有核 — P2-5 (c))
@@ -1420,7 +1433,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	/**
 	 * 行グループを表に組み付け、列・境界寸法を適用して閉じます(bind 第3段)。
 	 */
-	private void assemble(final BlockBuilder builder, final TableShape shape, final int rowCount) {
+	private void assemble(final BlockBuilder builder, final TableShape shape, final int rowCount,
+			final RetainedTextLimit.Scope retained) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final BlockBuilder anonBuilder = shape.anonBuilder();
 		final AbstractBlockBox blockBox = shape.blockBox();
@@ -1477,6 +1491,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 
 		anonBuilder.addBound(this.tableBox);
+		if (retained != null) retained.close();
 
 		// 下部キャプション
 		for (int i = 0; i < this.bottomCaptions.size(); ++i) {

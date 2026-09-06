@@ -28,6 +28,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 
 	private final BlockParams pageParams;
 	private final LayoutSource layoutSource;
+	private final boolean countRetainedText;
 
 	private PageBox lastPage;
 
@@ -49,8 +50,15 @@ public final class MeasurePageGenerator implements PageGenerator {
 	/** 再生元を借用します。scratch側から追記・compact・closeはしません。 */
 	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
 			final double height, final LayoutSource layoutSource) {
+		this(ua, template, width, height, layoutSource, true);
+	}
+
+	/** マージンボックス・runningのミニレイアウトだけは文字会計から除外します。 */
+	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
+			final double height, final LayoutSource layoutSource, final boolean countRetainedText) {
 		this.ua = ua;
 		this.layoutSource = layoutSource;
+		this.countRetainedText = countRetainedText;
 		final BlockParams params = new BlockParams();
 		params.fontStyle = template.fontStyle;
 		params.fontManager = template.fontManager;
@@ -67,6 +75,10 @@ public final class MeasurePageGenerator implements PageGenerator {
 
 	public UserAgent getUserAgent() {
 		return this.ua;
+	}
+
+	public boolean isRetainedTextCounted() {
+		return this.countRetainedText;
 	}
 
 	@Override

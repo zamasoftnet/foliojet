@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+
 import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
@@ -142,7 +144,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			if (this.pageContext != null) {
 				this.pageContext.enterTranslateBlockScope();
 			}
-			try {
+			final RetainedTextLimit limit = RetainedTextLimit.get(builder);
+			try (var retained = limit == null ? null
+					: limit.enter(RetainedTextLimit.elementName(builder.getRootBox().getParams(), "two-pass"))) {
 				if (this.handle == null) {
 					bindWithoutRange(this.body, builder, this.censusTag);
 					return;
@@ -172,7 +176,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		 * (seal:bind 1:1検証を汚さない)。
 		 */
 		public void measureInto(final BlockBuilder builder) {
-			try (ContinuationStats.TwoPassMeasurement measurement =
+			final RetainedTextLimit limit = RetainedTextLimit.get(builder);
+			try (var retained = limit == null || ReplayIntent.current() == ReplayIntent.MEASURE ? null
+					: limit.measurement(RetainedTextLimit.elementName(builder.getRootBox().getParams(), "measure"));
+					ContinuationStats.TwoPassMeasurement measurement =
 					ContinuationStats.twoPassMeasurement(ReplayIntent.MEASURE)) {
 				if (this.handle == null) {
 					try (ReplayIntent.Scope intent = ReplayIntent.MEASURE.enter();
@@ -954,7 +961,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (root != null) {
 			root.enterTranslateBlockScope();
 		}
-		try (ReplayIntent.Scope replay = intent.enter();
+		final RetainedTextLimit limit = RetainedTextLimit.get(builder);
+		try (var replica = limit == null || intent != ReplayIntent.MEASURE
+				|| ReplayIntent.current() == ReplayIntent.MEASURE ? null
+				: limit.measurement(RetainedTextLimit.elementName(this.getRootBox().getParams(), "measure"));
+				var retained = limit == null ? null
+				: limit.enter(RetainedTextLimit.elementName(this.getRootBox().getParams(), "two-pass"));
+				ReplayIntent.Scope replay = intent.enter();
 				ScratchReplayScope scratch = ReplayIntent.current() == ReplayIntent.MEASURE ? new ScratchReplayScope() : null;
 				ContinuationStats.TwoPassMeasurement measurement = ContinuationStats.twoPassMeasurement(ReplayIntent.current())) {
 			switch (this.body) {

@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
@@ -363,6 +365,15 @@ public class IncrementalTableBuilder implements TableBuilder {
 	 * @param lastRow
 	 */
 	private void bindTableRow(boolean lastRow) {
+		final RetainedTextLimit limit = RetainedTextLimit.get(this.builder);
+		// rowspan・行グループの指定高がある場合、cellsUnitが不可分な配置単位。
+		try (var retained = limit == null || this.rowsUnit.isEmpty() ? null
+				: limit.enter(RetainedTextLimit.elementName(this.rowsUnit.get(0).getParams(), "table-row"))) {
+			this.bindTableRowContent(lastRow);
+		}
+	}
+
+	private void bindTableRowContent(boolean lastRow) {
 		// System.out.println(this.cellsUnit.size());
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final InnerTableParams rowGroupParams = this.bindRowGroupBox.getInnerTableParams();

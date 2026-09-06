@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+
 import net.zamasoft.foliojet.layout.box.content.BreakToken;
 import net.zamasoft.foliojet.layout.box.content.FloatMeasurement;
 
@@ -79,6 +81,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected List<Flow> flowStack = null;
 
 	protected TextBuilder textBuilder = null;
+
+	private RetainedTextLimit.Scope retainedContext;
+	private RetainedTextLimit.Scope retainedRoot;
+	private java.util.Map<Integer, RetainedTextLimit.Scope> retainedFlows;
 
 	/** 有効時だけ生成する、container 所有の段落イベント queue。 */
 	private net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session bidiParagraph;
@@ -309,6 +315,33 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.layoutStack = layoutStack;
 		if (contextBox != null) {
 			this.contextFlow = new Flow(contextBox, 0, 0);
+			if (!(this instanceof ColumnBuilder) && retainsFlowContent(contextBox)) {
+				this.retainedRoot = this.enterRetained(contextBox);
+			}
+		}
+	}
+
+	private static boolean retainsFlowContent(final AbstractContainerBox box) {
+		return box instanceof net.zamasoft.foliojet.layout.box.impl.GridBox
+				|| box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+				|| (box.getColumnCount() > 1 && box.getBlockParams().columns.fill == Columns.FILL_BALANCE);
+	}
+
+	private RetainedTextLimit.Scope enterRetained(final AbstractContainerBox box) {
+		final RetainedTextLimit limit = RetainedTextLimit.get(this);
+		return limit == null ? null : limit.enter(RetainedTextLimit.elementName(box.getParams(), "block"));
+	}
+
+	private void beginRetainedContext(final AbstractContainerBox box) {
+		this.retainedContext = this.retainedRoot == null ? this.enterRetained(box) : this.retainedRoot;
+		this.retainedRoot = null;
+	}
+
+	/** 固定幅の独立ビルダーは、親への配置後に呼び側のfinallyで閉じます。 */
+	public void finishRetainedContext() {
+		if (this.retainedContext != null) {
+			this.retainedContext.close();
+			this.retainedContext = null;
 		}
 	}
 
@@ -787,6 +820,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		final Flow flow = new Flow(flowBox, this.lineAxis, this.pageAxis, frameHead);
 		this.flowStack.add(flow);
+		if (retainsFlowContent(flowBox)) {
+			if (this.retainedFlows == null) this.retainedFlows = new java.util.HashMap<>();
+			if (!this.retainedFlows.containsKey(this.flowStack.size())) {
+				this.retainedFlows.put(this.flowStack.size(), this.enterRetained(flowBox));
+			}
+		}
 		this.breakToken = BreakToken.NONE;
 	}
 
@@ -906,7 +945,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return ExclusionSpace.EMPTY;
 	}
 
+	protected final RetainedTextLimit.Scope takeRetainedFlow() {
+		return this.retainedFlows == null ? null
+				: this.retainedFlows.remove(this.flowStack == null ? 0 : this.flowStack.size());
+	}
+
 	public void endFlowBlock() {
+		final var retained = this.takeRetainedFlow();
+		try (retained) {
+			this.endFlowBlockContent();
+		}
+	}
+
+	private void endFlowBlockContent() {
 		this.requireNoOpenTextBuilder("(no context)");
 		final Flow flow = (Flow) this.flowStack.remove(this.flowStack.size() - 1);
 		final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
@@ -1749,7 +1800,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 				final FlowBlockBox flowBox = (FlowBlockBox) blockBox;
 				containerBox = this.getFlowBox();
 				flowBox.calculateSize(this, 0, containerBox.getLineSize());
-				return new ColumnBuilder(this, blockBox);
+				final BlockBuilder columns = new ColumnBuilder(this, blockBox);
+				if (retainsFlowContent(blockBox)) columns.beginRetainedContext(blockBox);
+				return columns;
 			}
 			// フロー（ページ進行方向が違う場合）
 		case FLOAT:
@@ -1801,10 +1854,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 		default:
 			throw new IllegalStateException();
 		}
+		if (builder instanceof BlockBuilder retained) {
+			retained.beginRetainedContext(blockBox);
+		}
 		return builder;
 	}
 
 	public void finish() {
+		try (var retained = this.retainedRoot) {
+			this.finishContent();
+		} finally {
+			this.retainedRoot = null;
+		}
+	}
+
+	private void finishContent() {
 		assert this.flowStack == null || this.flowStack.isEmpty();
 		this.requireNoOpenTextBuilder("(no context)");
 

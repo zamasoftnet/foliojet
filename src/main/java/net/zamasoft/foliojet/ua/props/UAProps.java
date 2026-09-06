@@ -553,6 +553,10 @@ public final class UAProps {
 	 */
 	public static final IntegerPropManager PROCESSING_PASS_COUNT = new IntegerPropManager("processing.pass-count", 1);
 
+	/** 溜める要素1つの文字payload上限。0以下で無制限。 */
+	public static final LongPropManager PROCESSING_RETAINED_TEXT_LIMIT = new LongPropManager(
+			"processing.retained-text-limit", 8L << 20);
+
 	/**
 	 * 1文書の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。
 	 */
@@ -980,6 +984,7 @@ public final class UAProps {
 			PROCESSING_PAGE_REFERENCES,
 			PROCESSING_FAIL_ON_FATAL_ERROR,
 			PROCESSING_TEXT_SPILL_BUDGET,
+			PROCESSING_RETAINED_TEXT_LIMIT,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,

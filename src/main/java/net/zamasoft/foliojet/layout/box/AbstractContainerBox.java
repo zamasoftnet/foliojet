@@ -364,12 +364,17 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// multicol を子範囲から組み直すと、継続断片が持っている残りまで
 		// この断片に入り、内容が二重になる)
 		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
-		final boolean replayed = root != null && root.isSegmentRestyle() && this.isSourceReplayable()
-				&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
-						root.getPageGenerator().getLayoutSource(), this.getSourceAnchor(), columnBuilder,
-						root.getPageGenerator());
-		if (!replayed) {
-			oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
+		final net.zamasoft.foliojet.layout.RetainedTextLimit limit =
+				net.zamasoft.foliojet.layout.RetainedTextLimit.get(builder);
+		// 内容は初回の組版で数え済み。ソース・ボックスのどちらの再生も加算しない。
+		try (var suspended = limit == null ? null : limit.suspend()) {
+			final boolean replayed = root != null && root.isSegmentRestyle() && this.isSourceReplayable()
+					&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
+							root.getPageGenerator().getLayoutSource(), this.getSourceAnchor(), columnBuilder,
+							root.getPageGenerator());
+			if (!replayed) {
+				oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
+			}
 		}
 	}
 

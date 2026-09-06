@@ -108,6 +108,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 			final String elapsed = elapsed(started);
 			System.err.println("[D7] elapsed=" + elapsed + " documents=" + report.converted + "/" + report.candidates
 					+ " pages=" + report.pages + " failures=" + report.failures.size());
+			System.err.println("[D7] retainedTextHighWater=" + net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get()
+					+ " bytes (processing.retained-text-limit の既定 8MiB=8388608 に対するコーパス最大。B1、2026-09-06)");
 		}
 		assertTrue("TwoPass digest parity: " + report.failures.size() + " 件。" + REPORT_DIR.resolve("summary.md")
 				+ "\n" + String.join("\n", report.failures.stream().limit(20).toList()), report.failures.isEmpty());
@@ -162,10 +164,16 @@ public final class TwoPassDigestParityTest extends TestCase {
 					report.fail(doc + " MISSING manifest 文書が列挙にない、または保存条件の入力がない");
 					continue;
 				}
+				final long retainedBefore = net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get();
 				try (final Rendered range = render(entry.getValue())) {
 					compareDocument(doc, range.pages(), baseline, writeDigests, exceptions,
 							visitedExceptions, actual, report);
 					++report.converted;
+					final long retainedAfter = net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get();
+					if (retainedAfter > retainedBefore) {
+						// 溜め込み(processing.retained-text-limit)のコーパス最大を更新した文書(B1、2026-09-06)
+						System.err.println("[D7] retainedTextHighWater=" + retainedAfter + " bytes at " + doc);
+					}
 				} catch (final Exception | AssertionError e) {
 					// 部分出力を基準にせず、失敗文書も分母に残して全件の診断を続ける。
 					report.fail(doc + " CONVERSION " + causeChain(e));

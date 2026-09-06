@@ -1,5 +1,7 @@
 package jp.cssj.test.unit.ioprops;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -11,11 +13,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.text.PDFTextStripper;
+
+import jp.cssj.cti2.TranscoderException;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+import net.zamasoft.foliojet.layout.RetainedTextLimitException;
+import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.PrepareMode;
+import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
@@ -113,6 +124,323 @@ public class LimitIoPropertyTest extends TestCase {
 	public void testIncludeAllowsResources() throws Exception {
 		final String allowed = this.convert(WITH_IMAGE, props("input.include", "**"));
 		assertTrue("全許可なら画像が埋め込まれること", allowed.contains("/Subtype /Image"));
+	}
+
+
+	private static final File RETAINED_TABLE = new File("files/unittest/ioprops/retained-table.html");
+	private static final File RETAINED_FLOAT = new File("files/unittest/ioprops/retained-float-table.html");
+
+	public void testRetainedTextLimitFailure() throws Exception {
+		final RetainedResult result = this.convertRetained(RETAINED_TABLE, 1024,
+				"processing.fail-on-fatal-error", "false");
+		assertRetainedFailure(result, 1024);
+	}
+
+	public void testRetainedTextLimitBoundary() throws Exception {
+		final RetainedResult unlimited = this.convertRetained(RETAINED_TABLE, 0);
+		assertNull(unlimited.failure());
+		final long highWater = unlimited.highWater();
+		assertTrue("fixtureが小さい上限を超えること", highWater > 1024);
+		final RetainedResult exact = this.convertRetained(RETAINED_TABLE, highWater);
+		assertNull("high-waterと同じ上限では完走すること", exact.failure());
+		assertEquals(highWater, exact.highWater());
+		assertRetainedFailure(this.convertRetained(RETAINED_TABLE, highWater - 2), highWater - 2);
+	}
+
+	public void testRetainedTextLimitUnlimited() throws Exception {
+		final RetainedResult result = this.convertRetained(RETAINED_TABLE, 0);
+		assertNull(result.failure());
+		assertTrue(result.highWater() > 1024);
+		assertFalse(result.messages().contains(MessageCodes.ERROR_RETAINED_TEXT_LIMIT));
+	}
+
+	public void testRetainedTextLimitOrdinaryProse() throws Exception {
+		final RetainedResult small = this.convertRetained(
+				new File("files/unittest/ioprops/retained-prose.html"), 1024);
+		final RetainedResult large = this.convertRetained(
+				new File("files/unittest/ioprops/retained-prose-4x.html"), 1024);
+		assertNull(small.failure());
+		assertNull(large.failure());
+		// 表も独立した宿主もない本文では両方0。0/0の比は計算しない。
+		assertEquals(0L, small.highWater());
+		assertEquals(0L, large.highWater());
+	}
+
+	public void testRetainedTextLimitNestedHost() throws Exception {
+		final RetainedResult flat = this.convertRetained(RETAINED_TABLE, 0);
+		final RetainedResult nested = this.convertRetained(RETAINED_FLOAT, 0);
+		assertNull(flat.failure());
+		assertNull(nested.failure());
+		assertTrue(flat.highWater() > 1024);
+		assertEquals("内側の表と外側のfloatへ二重に足さないこと", flat.highWater(), nested.highWater());
+		final long between = flat.highWater() + flat.highWater() / 2;
+		assertNull(this.convertRetained(RETAINED_TABLE, between).failure());
+		assertNull(this.convertRetained(RETAINED_FLOAT, between).failure());
+	}
+
+	public void testRetainedTextLimitPassBReleased() throws Exception {
+		final var previous = RetainedTextLimit.beforeTableMainBind;
+		final var samples = new java.util.concurrent.atomic.AtomicLong();
+		final var current = new java.util.concurrent.atomic.AtomicLong(-1);
+		final var measured = new java.util.concurrent.atomic.AtomicLong();
+		try {
+			RetainedTextLimit.beforeTableMainBind = limit -> {
+				samples.incrementAndGet();
+				current.accumulateAndGet(limit.getCurrentBytes(), Math::max);
+				measured.accumulateAndGet(limit.getHighWater(), Math::max);
+			};
+			assertNull(this.convertRetained(RETAINED_TABLE, 0).failure());
+			assertTrue("MAIN前の観測点を通ること", samples.get() > 0);
+			assertTrue("Pass B中も数えていること", measured.get() > 1024);
+			assertEquals("破棄したPass Bの量はMAINへ残らないこと", 0L, current.get());
+		} finally {
+			RetainedTextLimit.beforeTableMainBind = previous;
+		}
+	}
+
+	public void testRetainedTextLimitMarginBoxesIsolated() throws Exception {
+		this.checkRetainedMarginBoxes(false);
+	}
+
+	public void testRetainedTextLimitRunningIsolated() throws Exception {
+		this.checkRetainedMarginBoxes(true);
+	}
+
+	private void checkRetainedMarginBoxes(final boolean running) throws Exception {
+		final String rows = ("<tr><td>" + "abcdefghij".repeat(4) + "</td></tr>").repeat(30);
+		final String css = "@page { size:300pt 200pt; margin:40pt } body { margin:0; font:10pt serif }"
+				+ "table { table-layout:auto; width:200pt; border-spacing:0 } td { padding:0; height:20pt }";
+		final String header = "HEADER ".repeat(24).trim();
+		final String marginCss = "@page { @top-center { content:"
+				+ (running ? "element(heading)" : "'" + header + "'") + " } }"
+				+ "#heading { position:running(heading) } #heading span { display:inline-block; width:180pt }";
+		final String template = running ? "<div id='heading'><span>" + header + "</span></div>" : "";
+		final RetainedResult plain = this.convertRetained(
+				"<html><style>" + css + "</style><body><table>" + rows + "</table></body></html>", 0);
+		assertNull(plain.failure());
+		assertTrue("表のaddBound中に改頁するfixtureであること", plain.pages() > 1);
+		assertTrue(plain.highWater() > 1024);
+		final RetainedResult withHeader = this.convertRetained("<html><style>" + css + marginCss
+				+ "</style><body>" + template + "<table>" + rows + "</table></body></html>", plain.highWater());
+		assertNull("柱の計測・描画が本文の上限を超えさせないこと", withHeader.failure());
+		assertEquals(plain.pages(), withHeader.pages());
+		assertEquals("柱の文字量を本文の表へ加算しないこと", plain.highWater(), withHeader.highWater());
+		try (final var pdf = Loader.loadPDF(withHeader.pdf())) {
+			assertTrue("柱の再生経路を実際に通ること", new PDFTextStripper().getText(pdf).contains("HEADER"));
+		}
+	}
+
+	public void testRetainedTextLimitBalancedColumns() throws Exception {
+		this.checkRetainedBalancedColumns("");
+	}
+
+	public void testRetainedTextLimitBalancedInlineBlock() throws Exception {
+		this.checkRetainedBalancedColumns("display:inline-block;");
+	}
+
+	private void checkRetainedBalancedColumns(final String display) throws Exception {
+		final String text = "abcdefghij".repeat(60);
+		final long payload = text.length() * 2L;
+		final String document = "<html><style>@page { size:400pt 600pt; margin:20pt }"
+				+ "body { margin:0; font:10pt/12pt serif } div { " + display
+				+ "width:240pt; column-count:2; column-fill:balance; column-gap:12pt; word-break:break-all }"
+				+ "</style><body><div>" + text + "</div></body></html>";
+		final RetainedResult unlimited = this.convertRetained(document, 0);
+		assertNull(unlimited.failure());
+		assertEquals("balance再生は文字数×2を二重計数しないこと", payload, unlimited.highWater());
+		final RetainedResult between = this.convertRetained(document, payload + payload / 2);
+		assertNull("1回分<上限<2回分で完走すること", between.failure());
+		assertEquals(payload, between.highWater());
+	}
+
+	public void testRetainedTextLimitContinuousReloadsLimit() throws Exception {
+		final PDFUserAgent ua = new PDFUserAgent() {
+		};
+		final List<Short> messages = new ArrayList<>();
+		try (final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				final ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+			session.setUserAgent(ua);
+			session.setMessageHandler((code, args, message) -> messages.add(code));
+			session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
+			session.setContinuous(true);
+			session.property("processing.retained-text-limit", "0");
+			CTISessionHelper.transcodeFile(session, RETAINED_TABLE, "text/html", null);
+			final RetainedTextLimit accounting = ua.getRetainedTextLimit();
+			assertTrue(accounting.getHighWater() > 1024);
+			final long previousHighWater = RetainedTextLimit.HIGH_WATER.get();
+			messages.clear();
+			session.property("processing.retained-text-limit", "1024");
+			TranscoderException failure = null;
+			try {
+				CTISessionHelper.transcodeFile(session, RETAINED_TABLE, "text/html", null);
+			} catch (final TranscoderException e) {
+				failure = e;
+			}
+			assertSame(accounting, ua.getRetainedTextLimit());
+			assertEquals(1024L, accounting.getLimit());
+			assertRetainedFailure(new RetainedResult(failure, accounting.getHighWater(), List.copyOf(messages), 0,
+					new byte[0]), 1024);
+			assertEquals("超過の通知は1回だけ", 1,
+					java.util.Collections.frequency(messages, MessageCodes.ERROR_RETAINED_TEXT_LIMIT));
+			assertTrue("staticの最大値は変換開始で戻さないこと",
+					RetainedTextLimit.HIGH_WATER.get() >= previousHighWater);
+		}
+	}
+
+	public void testRetainedTextLimitContinuousResetsHighWater() throws Exception {
+		final PDFUserAgent ua = new PDFUserAgent() {
+		};
+		try (final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				final ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+			session.setUserAgent(ua);
+			session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
+			session.setContinuous(true);
+			session.property("processing.retained-text-limit", "0");
+			CTISessionHelper.transcodeFile(session, RETAINED_TABLE, "text/html", null);
+			final RetainedTextLimit accounting = ua.getRetainedTextLimit();
+			assertTrue(accounting.getHighWater() > 1024);
+			session.property("processing.retained-text-limit", "1024");
+			CTISessionHelper.transcodeFile(session, new File("files/unittest/ioprops/retained-prose.html"),
+					"text/html", null);
+			assertSame(accounting, ua.getRetainedTextLimit());
+			assertEquals(1024L, accounting.getLimit());
+			assertEquals(0L, accounting.getHighWater());
+			session.join();
+		}
+	}
+
+	public void testRetainedTextLimitSharedAcrossPasses() throws Exception {
+		final var middleHighWater = new java.util.concurrent.atomic.AtomicLong();
+		final PDFUserAgent ua = new PDFUserAgent() {
+			@Override
+			public void prepare(final PrepareMode mode) {
+				super.prepare(mode);
+				if (mode == PrepareMode.LAST_PASS) middleHighWater.set(this.getRetainedTextLimit().getHighWater());
+			}
+		};
+		try (final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				final ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+			session.setUserAgent(ua);
+			session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
+			session.property("processing.retained-text-limit", "0");
+			session.property("processing.pass-count", "2");
+			CTISessionHelper.transcodeFile(session, RETAINED_TABLE, "text/html", null);
+			assertTrue("中間パスのhigh-waterが最終パス開始時にも残ること", middleHighWater.get() > 1024);
+			assertEquals(middleHighWater.get(), ua.getRetainedTextLimit().getHighWater());
+		}
+	}
+
+	public void testRetainedTextLimitNestedSuspensionAndMeasurement() {
+		final PDFUserAgent ua = new PDFUserAgent() {
+		};
+		ua.setProperty("processing.retained-text-limit", "1024");
+		try (final RetainedTextLimit limit = ua.getRetainedTextLimit(); var outer = limit.enter("table")) {
+			limit.add(600);
+			try (var suspended = limit.suspend()) {
+				limit.add(800);
+				try (var nested = limit.suspend()) {
+					limit.add(800);
+				}
+				limit.add(800);
+				assertEquals(600L, limit.getCurrentBytes());
+				try (var measurement = limit.measurement("td")) {
+					limit.add(800);
+					assertEquals("加算保留中でもPass B自身は数えること", 800L, limit.getCurrentBytes());
+					try {
+						limit.add(226);
+						fail("計測用複製にも上限を適用すること");
+					} catch (final RetainedTextLimitException expected) {
+						assertEquals(MessageCodes.ERROR_RETAINED_TEXT_LIMIT, expected.getCode());
+					}
+				}
+				limit.add(800);
+				assertEquals("計測後も親の累計と加算保留を復元すること", 600L, limit.getCurrentBytes());
+			}
+			limit.add(200);
+			assertEquals(800L, limit.getCurrentBytes());
+		}
+	}
+
+	public void testRetainedTextLimitScopeOwnership() {
+		try (final RetainedTextLimit limit = new PDFUserAgent() {
+		}.getRetainedTextLimit()) {
+			final var outer = limit.enter("table");
+			limit.add(600);
+			try (var measurement = limit.measurement("td")) {
+				limit.add(800);
+				outer.close();
+				outer.close();
+				assertEquals("親Scopeのcloseで計測スタックを畳まないこと", 800L, limit.getCurrentBytes());
+			}
+			assertEquals("閉じた親の累計を復活させないこと", 0L, limit.getCurrentBytes());
+			try (var parent = limit.enter("div")) {
+				limit.add(200);
+				final var first = limit.measurement("table");
+				limit.add(400);
+				final var second = limit.measurement("td");
+				limit.add(800);
+				first.close();
+				assertEquals(800L, limit.getCurrentBytes());
+				second.close();
+				first.close();
+				assertEquals("閉じた計測を飛ばして親へ戻ること", 200L, limit.getCurrentBytes());
+			}
+		}
+	}
+
+	private static void assertRetainedFailure(final RetainedResult result, final long limit) {
+		final TranscoderException failure = result.failure();
+		assertNotNull("上限超過で変換を失敗させること", failure);
+		assertEquals(MessageCodes.ERROR_RETAINED_TEXT_LIMIT, failure.getCode());
+		assertEquals(TranscoderException.STATE_BROKEN, failure.getState());
+		final String[] args = failure.getArgs();
+		assertNotNull(args);
+		assertEquals(3, args.length);
+		assertEquals("table", args[0]);
+		assertEquals(Long.toString(limit), args[1]);
+		assertEquals(result.highWater(), Long.parseLong(args[2]));
+		assertTrue(Long.parseLong(args[2]) > limit);
+		assertNotNull("causeをformatter/workerで落とさないこと", RetainedTextLimitException.findIn(failure));
+		assertTrue(result.messages().contains(MessageCodes.ERROR_RETAINED_TEXT_LIMIT));
+	}
+
+	private record RetainedResult(TranscoderException failure, long highWater, List<Short> messages, int pages, byte[] pdf) {
+	}
+
+	/** 想定外の例外は潰さず、CTIの最終code/args/stateを観測します。 */
+	private RetainedResult convertRetained(final File document, final long limit, final String... extra)
+			throws Exception {
+		return this.convertRetained(Files.readString(document.toPath()), limit, extra);
+	}
+
+	/** fixtureを文字列でも渡せるようにし、境界試験のためのファイルを増やしません。 */
+	private RetainedResult convertRetained(final String document, final long limit, final String... extra)
+			throws Exception {
+		final long previousHighWater = RetainedTextLimit.HIGH_WATER.getAndSet(0);
+		final List<Short> messages = new ArrayList<>();
+		TranscoderException failure = null;
+		try (final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+				final ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
+			session.setMessageHandler((code, args, message) -> messages.add(code));
+			session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.include", "**");
+			session.property("processing.retained-text-limit", Long.toString(limit));
+			for (final var entry : props(extra).entrySet()) {
+				session.property(entry.getKey(), entry.getValue());
+			}
+			try {
+				CTISessionHelper.transcodeStream(session,
+						new ByteArrayInputStream(document.getBytes(StandardCharsets.UTF_8)), RETAINED_TABLE.toURI(),
+						"text/html", "UTF-8");
+			} catch (final TranscoderException e) {
+				failure = e;
+			}
+			return new RetainedResult(failure, RetainedTextLimit.HIGH_WATER.get(), List.copyOf(messages),
+					pageCount(stream.toString(StandardCharsets.ISO_8859_1)), stream.toByteArray());
+		} finally {
+			RetainedTextLimit.HIGH_WATER.accumulateAndGet(previousHighWater, Math::max);
+		}
 	}
 
 	private static int pageCount(final String pdf) {

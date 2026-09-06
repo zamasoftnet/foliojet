@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
+import net.zamasoft.foliojet.layout.RetainedTextLimit;
+
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 import net.zamasoft.foliojet.layout.sizing.AbsoluteSizing;
@@ -205,8 +207,12 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			// 解放される
 			this.shrinkToFit(containerBox, this.deferredBind.sizes());
 			final BlockBuilder absoluteBuilder = new BlockBuilder(this.deferredBind.pageContext(), this);
-			this.deferredBind.bind(absoluteBuilder);
-			absoluteBuilder.close();
+			final RetainedTextLimit limit = RetainedTextLimit.get(absoluteBuilder);
+			try (var retained = limit == null ? null
+					: limit.enter(RetainedTextLimit.elementName(this.getParams(), "absolute"))) {
+				this.deferredBind.bind(absoluteBuilder);
+				absoluteBuilder.close();
+			}
 			this.deferredBind = null;
 		}
 	}

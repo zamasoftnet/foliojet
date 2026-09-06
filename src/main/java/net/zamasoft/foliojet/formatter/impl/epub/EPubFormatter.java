@@ -31,6 +31,7 @@ import net.zamasoft.foliojet.formatter.Formatter;
 import net.zamasoft.foliojet.formatter.MultiDocumentFormatter;
 import net.zamasoft.foliojet.formatter.impl.document.TranscoderHandler;
 import net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException;
+import net.zamasoft.foliojet.layout.RetainedTextLimitException;
 import net.zamasoft.foliojet.layout.util.LayoutThreadContext;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
@@ -287,6 +288,8 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 
 	private static TranscoderException pluginFailure(final UserAgent ua, final Throwable e) {
+		final RetainedTextLimitException retained = RetainedTextLimitException.findIn(e);
+		if (retained != null) throw retained;
 		final ContinuationInvariantViolationException invariant = ContinuationInvariantViolationException.findIn(e);
 		if (invariant != null) throw invariant;
 		final short code = MessageCodes.ERROR_PLUGIN;

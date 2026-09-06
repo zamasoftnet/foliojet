@@ -148,7 +148,8 @@ public final class SourceReplayer {
 	public static MeasurePageGenerator measure(final LayoutSource log, final long fromId, final long toId,
 			final BlockParams template, final net.zamasoft.foliojet.ua.UserAgent ua, final double width,
 			final double height, final boolean paginate) {
-		try (ReplayIntent.Scope replay = ReplayIntent.MEASURE.enter();
+		try (var retained = ua.getRetainedTextLimit().measurement(RetainedTextLimit.elementName(template, "measure"));
+				ReplayIntent.Scope replay = ReplayIntent.MEASURE.enter();
 				ScratchReplayScope scratch = new ScratchReplayScope();
 				ContinuationStats.TwoPassMeasurement measurement = ContinuationStats.twoPassMeasurement(ReplayIntent.MEASURE)) {
 			return measureRange(log, fromId, toId, template, ua, width, height, paginate);
