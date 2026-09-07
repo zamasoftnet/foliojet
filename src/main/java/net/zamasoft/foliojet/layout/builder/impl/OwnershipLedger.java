@@ -59,7 +59,7 @@ final class OwnershipLedger {
 	private static long anchorOf(final TwoPass identity) {
 		return switch (identity) {
 		case TwoPassBlockBuilder child -> child.getRootBox().getSourceAnchor();
-		case RetainedTable table -> table.getTableBox().getSourceAnchor();
+		case RetainedTable table -> table.getSourceAnchor();
 		case RetainedGrid grid -> grid.getGridBox().getSourceAnchor();
 		case RetainedFlex flex -> flex.getFlexBox().getSourceAnchor();
 		default -> throw new IllegalArgumentException("Unknown ownership identity: " + identity);

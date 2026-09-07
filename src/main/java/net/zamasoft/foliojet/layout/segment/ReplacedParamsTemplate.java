@@ -3,6 +3,7 @@ package net.zamasoft.foliojet.layout.segment;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.ObjectFitMode;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
@@ -97,6 +98,16 @@ public final class ReplacedParamsTemplate {
 		return new ReplacedParamsTemplate(TextParamsFields.freeze(source), source.size, source.minSize,
 				source.maxSize, source.boxSizing, source.objectFit, source.objectPosition, source.frame,
 				source.lineHeight, image, source.aspectRatio, source.aspectRatioAuto);
+	}
+
+	/** 幅・高さと上下限に、包含ブロックを参照する割合寸法が残っているか。 */
+	public boolean hasRelativeSize() {
+		return hasRelativeSize(this.size) || hasRelativeSize(this.minSize) || hasRelativeSize(this.maxSize);
+	}
+
+	private static boolean hasRelativeSize(final Dimension size) {
+		return size.getWidthType() == LengthType.RELATIVE || size.getWidthType() == LengthType.MIXED
+				|| size.getHeightType() == LengthType.RELATIVE || size.getHeightType() == LengthType.MIXED;
 	}
 
 	/** 呼び出しごとに新品の{@code ReplacedParams}を返す(複数回呼んでも互いに影響しない)。 */

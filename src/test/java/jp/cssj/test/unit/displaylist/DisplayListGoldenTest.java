@@ -104,6 +104,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// (kawasaki-ombuds)
 			"0240-table/single-row-split-after-line.html", //
 			"0240-table/rowspan-after-empty-row.html", //
+			// Retained行送出。発火と保持上限はRetentionHighWaterReportTestで固定。
+			"0240-table/row-streaming-emit.html", //
 			// 表の属性(frame/rules/align/valign/bordercolor)をCSSへ移した際の
 			// 罫線の座標を固定する(2026-08-04)
 			"0240-table/frame-rules.html", //
@@ -427,6 +429,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0125-footnote/footnote-carryin.html", //
 			"0125-footnote/footnote-vertical-rl.html", //
 			"0125-footnote/footnote-bottom-vertical-rl.html", // F-1: 持ち越し注を地の横書き帯へ
+			"0125-footnote/footnote-bottom-columns.html", // F-4: 縦組み二段とページ共通の地の帯
 			// ページフロート(2026-08-02)。float: bottomが版面下端(脚注が
 			// あればその上)へ、float: topが次ページ先頭へ置かれ、以後の
 			// フローがその下から始まることを座標で固定する

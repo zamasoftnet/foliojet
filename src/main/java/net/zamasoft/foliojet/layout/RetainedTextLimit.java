@@ -66,6 +66,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 	public Scope enter(final String elementName) {
 		final Scope scope = new Scope(elementName);
 		this.accounting.elements.addLast(scope);
+		net.zamasoft.foliojet.layout.fragment.ScratchReplayScope.register(scope);
 		return scope;
 	}
 
@@ -83,22 +84,63 @@ public final class RetainedTextLimit implements AutoCloseable {
 		}
 		accounting.currentBytes = payloadBytes > Long.MAX_VALUE - accounting.currentBytes
 				? Long.MAX_VALUE : accounting.currentBytes + payloadBytes;
-		if (accounting.currentBytes > this.highWater) {
-			this.highWater = accounting.currentBytes;
+		this.check(accounting, accounting.elements.getFirst().elementName);
+	}
+
+	private void check(final Accounting accounting, final String owner) {
+		final long bytes = accounting.windowBytes > Long.MAX_VALUE - accounting.currentBytes
+				? Long.MAX_VALUE : accounting.currentBytes + accounting.windowBytes;
+		if (bytes > this.highWater) {
+			this.highWater = bytes;
 			if (this.highWater > HIGH_WATER.get()) {
 				HIGH_WATER.accumulateAndGet(this.highWater, Math::max);
 			}
 		}
-		if (this.limit > 0 && accounting.currentBytes > this.limit) {
-			final String[] args = { accounting.elements.getFirst().elementName, Long.toString(this.limit),
-					Long.toString(accounting.currentBytes) };
+		if (this.limit > 0 && bytes > this.limit) {
+			final String[] args = { owner, Long.toString(this.limit), Long.toString(bytes) };
 			this.ua.message(MessageCodes.ERROR_RETAINED_TEXT_LIMIT, args);
 			throw new RetainedTextLimitException(MessageCodes.ERROR_RETAINED_TEXT_LIMIT, args);
 		}
 	}
 
 	public long getCurrentBytes() {
-		return this.accounting.currentBytes;
+		return this.accounting.currentBytes + this.accounting.windowBytes;
+	}
+
+	/** 宿主スタックを開かずに、未配達文字だけを所有するpage-windowです。 */
+	public PageWindow pageWindow() {
+		return new PageWindow();
+	}
+
+	public final class PageWindow implements AutoCloseable {
+		private final Accounting accounting = RetainedTextLimit.this.accounting;
+		private long bytes;
+		private boolean closed;
+
+		/** 保持する前に呼ぶ。Bの独立会計の接続外でだけ使用します。 */
+		public void add(final long bytes) {
+			if (this.closed || bytes < 0) throw new IllegalStateException("不正なpage-window加算");
+			this.bytes = Math.addExact(this.bytes, bytes);
+			this.accounting.windowBytes = Math.addExact(this.accounting.windowBytes, bytes);
+			RetainedTextLimit.this.check(this.accounting, "page-window");
+		}
+
+		public void remove(final long bytes) {
+			if (this.closed || bytes < 0 || bytes > this.bytes) throw new IllegalStateException("不正なpage-window減算");
+			this.bytes -= bytes;
+			this.accounting.windowBytes -= bytes;
+		}
+
+		public long currentBytes() {
+			return this.bytes;
+		}
+
+		@Override
+		public void close() {
+			if (this.closed) return;
+			this.remove(this.bytes);
+			this.closed = true;
+		}
 	}
 
 	public long getHighWater() {
@@ -123,6 +165,11 @@ public final class RetainedTextLimit implements AutoCloseable {
 		return new Measurement(elementName);
 	}
 
+	/** 接続を外しても累計・スコープ・加算保留を保持する、scratch専用の会計です。 */
+	public MeasurementAccount measurementAccount(final String elementName) {
+		return new MeasurementAccount(elementName);
+	}
+
 	/** 数え済みの内容の再生中だけ加算を保留します。入れ子可、独立計測には引き継ぎません。 */
 	public Suspension suspend() {
 		return new Suspension();
@@ -137,11 +184,13 @@ public final class RetainedTextLimit implements AutoCloseable {
 
 	/** スタック・累計・加算保留を同じ会計に所属させます。 */
 	private static final class Accounting {
-		private final Accounting previous;
+		private Accounting previous;
 		private final Deque<Scope> elements = new ArrayDeque<>();
 		private long currentBytes;
+		private long windowBytes;
 		private int suspensions;
 		private boolean closed;
+		private boolean attached;
 
 		private Accounting(final Accounting previous) {
 			this.previous = previous;
@@ -174,7 +223,80 @@ public final class RetainedTextLimit implements AutoCloseable {
 		public void close() {
 			this.accounting.close();
 			// 外側の計測が先に閉じても、現在の別会計を畳まない。
-			while (RetainedTextLimit.this.accounting.closed && RetainedTextLimit.this.accounting.previous != null) {
+			while (RetainedTextLimit.this.accounting.closed && !RetainedTextLimit.this.accounting.attached
+					&& RetainedTextLimit.this.accounting.previous != null) {
+				RetainedTextLimit.this.accounting = RetainedTextLimit.this.accounting.previous;
+			}
+		}
+	}
+
+	/** 同一スレッドで、MAINの会計と交互に接続します。上限・high-waterは従来どおり共有します。 */
+	public final class MeasurementAccount implements AutoCloseable {
+		private final Accounting accounting = new Accounting(null);
+		private MeasurementAttachment attachment;
+
+		private MeasurementAccount(final String elementName) {
+			final Accounting previous = RetainedTextLimit.this.accounting;
+			final String owner = previous.elements.isEmpty() ? elementName : previous.elements.getFirst().elementName;
+			this.accounting.elements.addLast(new Scope(this.accounting, owner));
+		}
+
+		public MeasurementAttachment attach() {
+			if (this.accounting.closed || this.attachment != null) {
+				throw new IllegalStateException("計測会計は未解放・未接続の間だけ接続できます");
+			}
+			this.attachment = new MeasurementAttachment(this);
+			return this.attachment;
+		}
+
+		/** 連続probeではページを最外要素相当とし、子スコープを保ったまま累計を区切ります。 */
+		public long finishPage() {
+			if (this.accounting.closed) throw new IllegalStateException("解放済みの計測会計");
+			final long bytes = this.accounting.currentBytes;
+			this.accounting.currentBytes = 0;
+			return bytes;
+		}
+
+		public long currentBytes() {
+			return this.accounting.currentBytes;
+		}
+
+		/** 累計はMAINへ加算せずに捨て、共有high-waterは残します。冪等。 */
+		public void release() {
+			this.accounting.close();
+		}
+
+		@Override
+		public void close() {
+			this.release();
+		}
+	}
+
+	/** 計測会計への一時接続。closeで前の会計へ戻し、計測会計自体は畳みません。 */
+	public final class MeasurementAttachment implements AutoCloseable {
+		private final MeasurementAccount owner;
+		private boolean closed;
+
+		private MeasurementAttachment(final MeasurementAccount owner) {
+			this.owner = owner;
+			owner.accounting.previous = RetainedTextLimit.this.accounting;
+			owner.accounting.attached = true;
+			RetainedTextLimit.this.accounting = owner.accounting;
+		}
+
+		@Override
+		public void close() {
+			if (this.closed || RetainedTextLimit.this.accounting != this.owner.accounting) {
+				throw new IllegalStateException("計測会計の接続は取得と逆順に一度だけ閉じます");
+			}
+			this.closed = true;
+			RetainedTextLimit.this.accounting = this.owner.accounting.previous;
+			this.owner.accounting.previous = null;
+			this.owner.accounting.attached = false;
+			this.owner.attachment = null;
+			// 外側の従来型Measurementが先に閉じられていたら、その会計は復活させない。
+			while (RetainedTextLimit.this.accounting.closed && !RetainedTextLimit.this.accounting.attached
+					&& RetainedTextLimit.this.accounting.previous != null) {
 				RetainedTextLimit.this.accounting = RetainedTextLimit.this.accounting.previous;
 			}
 		}
@@ -199,12 +321,21 @@ public final class RetainedTextLimit implements AutoCloseable {
 
 	/** SAXの途中で失敗した場合も、未完の子要素とともにfinallyで閉じます。 */
 	public final class Scope implements AutoCloseable {
-		private final Accounting accounting = RetainedTextLimit.this.accounting;
+		private final Accounting accounting;
 		private final String elementName;
 		private boolean closed;
 
 		private Scope(final String elementName) {
+			this(RetainedTextLimit.this.accounting, elementName);
+		}
+
+		private Scope(final Accounting accounting, final String elementName) {
+			this.accounting = accounting;
 			this.elementName = elementName;
+		}
+
+		public boolean isClosed() {
+			return this.closed;
 		}
 
 		@Override

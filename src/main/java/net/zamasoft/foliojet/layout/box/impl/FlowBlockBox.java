@@ -102,6 +102,21 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
+	 * 未完表の末尾だけを更新します。未完時の暫定高が contentSize の最大値に
+	 * 残らないよう、表配置前の会計から setPageAxis を一度適用し直します。
+	 * 負の末尾マージンによる縮小も、指定高・min/max の規則を保って確定します。
+	 */
+	public final void updateIncompleteTableExtent(final double pageSize, final double beforeContentSize,
+			final double beforePageSize) {
+		if (this.params.flow.isVertical()) {
+			throw new IllegalStateException("Incomplete table intake requires horizontal flow");
+		}
+		this.contentSize = beforeContentSize;
+		this.height = beforePageSize;
+		this.setPageAxis(pageSize);
+	}
+
+	/**
 	 * restyle再構築で潰れた確定寸法を復元します(2026-08-08、
 	 * {@code RowSplitContainer.restyle}専用。flexからflex/grid共通へ
 	 * 一般化——2026-08-10)。itemの寸法はitem coordinator(FlexBuilder/

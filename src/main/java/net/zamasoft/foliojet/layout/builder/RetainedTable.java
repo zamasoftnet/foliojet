@@ -16,6 +16,11 @@ package net.zamasoft.foliojet.layout.builder;
  * @see TableBuilder#finish(Builder) 実行計画ごとの終端処理の入口
  */
 public interface RetainedTable extends TableBuilder, TwoPass {
+	/** 行送出後も参照できる、表計画のソース識別子です。 */
+	public default long getSourceAnchor() {
+		return this.getTableBox().getSourceAnchor();
+	}
+
 	/**
 	 * 全行の読み取りが終わったあと、bindに先立って寸法・列幅を確定します。
 	 */

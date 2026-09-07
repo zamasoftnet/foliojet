@@ -107,6 +107,9 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * ページ生成オブジェクト。
 	 */
 	private final PageGenerator pageGenerator;
+	/** 途中破棄できるscratchは、この所有者を接続して生成・入力します。 */
+	private final net.zamasoft.foliojet.layout.fragment.ScratchOwner scratchOwner;
+	private boolean discarded;
 
 	/** recipe構築時の失敗にも、seal拒否と同じ文書・所有状態を付ける。 */
 	public String sourceOwnerContext() {
@@ -144,6 +147,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * このイベントで開閉する本文はstart/endContainerBuilderで境界を補正します。
 	 */
 	public void startReplayOnlyEvent(final SegmentEvent event, final long ordinal) {
+		this.requireNotDiscarded();
 		this.replayOnly = true;
 		this.replayEvent = event;
 		this.replayOrdinal = ordinal;
@@ -156,12 +160,15 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/** executor以外からの終了処理を、直前イベントの境界と混同しないための対称終了です。 */
 	public void finishReplayOnlyEvent() {
+		this.requireNotDiscarded();
 		this.replayEvent = null;
 		this.replayOrdinal = -1;
 	}
 
 	public DocumentBuilder(PageGenerator pageGenerator) {
 		this.pageGenerator = pageGenerator;
+		this.scratchOwner = pageGenerator instanceof MeasurePageGenerator
+				? net.zamasoft.foliojet.layout.fragment.ScratchReplayScope.currentOwner() : null;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
 		this.replayIntent = ReplayIntent.current();
 	}
@@ -179,6 +186,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	/** 本配置と一時計測の意図を明示した再生用ビルダーです。 */
 	public DocumentBuilder(final PageGenerator pageGenerator, final BlockBuilder existingRoot, final ReplayIntent intent) {
 		this.pageGenerator = pageGenerator;
+		this.scratchOwner = pageGenerator instanceof MeasurePageGenerator
+				? net.zamasoft.foliojet.layout.fragment.ScratchReplayScope.currentOwner() : null;
 		this.normalizeText = UAProps.INPUT_NORMALIZE_TEXT.getBoolean(pageGenerator.getUserAgent());
 		this.replayIntent = java.util.Objects.requireNonNull(intent);
 		this.startContainerBuilder(existingRoot);
@@ -193,6 +202,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * ソース再生を終了し、テキスト文脈を対称に閉じます(M6b v3)。
 	 */
 	public void finishReplay() {
+		this.requireNotDiscarded();
 		if (this.replayItemHost != null) {
 			this.finishItemCoordinator(this.replayItemHost);
 			final INonReplacedBox popped = this.boxStack.remove(this.boxStack.size() - 1);
@@ -219,10 +229,12 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * テキストブロックへ流れ込む — box-restyle と同じ継ぎ目意味論)。
 	 */
 	public void finishReplayKeepText() {
+		this.requireNotDiscarded();
 		this.containerBuilder().getStyledTextUnitizer().flushText();
 	}
 
 	public void setPageMode(byte pageMode) {
+		this.requireNotDiscarded();
 		this.pageMode = pageMode;
 	}
 
@@ -231,6 +243,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	private void requirePage() {
+		this.requireNotDiscarded();
 		if (!this.builderStack.isEmpty()) {
 			return;
 		}
@@ -239,6 +252,20 @@ public class DocumentBuilder implements TableBuilderHost {
 		BlockBuilder builder = new RootBuilder(this.pageGenerator, mode);
 		this.startContainerBuilder(builder);
 		this.startContainer();
+	}
+
+	/** 先読みする文書は、子の箱を開く前に初回ページの幾何だけを確保します。 */
+	public void prepareFootnotePage() {
+		if (this.pageGenerator.isFootnotePageProbeEnabled()) this.requirePage();
+	}
+
+	public long getPageGeneration() {
+		return this.builderStack.isEmpty() ? 1 : this.pageContext().getPageGeneration();
+	}
+
+	/** キューの最初の配達直前。ここまでは初回ページに子の寸法を確定していません。 */
+	public void startFootnoteInput() {
+		this.pageContext().startFootnoteInput();
 	}
 
 	private void startContainerBuilder(final Builder builder) {
@@ -508,6 +535,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	 */
 	public net.zamasoft.foliojet.layout.fragment.LayoutSource.Event preDispatch(
 			final DispatchEvent event, final IBox box, final long nextId) {
+		this.requireNotDiscarded();
 		final net.zamasoft.foliojet.layout.builder.ItemCoordinator c = this.coordinatorAwaitingDirectChild();
 		if (c == null) {
 			return null;
@@ -534,8 +562,20 @@ public class DocumentBuilder implements TableBuilderHost {
 				? new net.zamasoft.foliojet.layout.fragment.LayoutSource.AnonymousItemEnd() : null;
 	}
 
+	/** Bの境界予測だけを観測し、Cから転送する境界用の状態を汚しません。 */
+	public net.zamasoft.foliojet.layout.fragment.LayoutSource.Event observeDispatchBoundary(
+			final DispatchEvent event, final IBox box, final long nextId) {
+		final long saved = this.pendingAnonymousAnchor;
+		try {
+			return this.preDispatch(event, box, nextId);
+		} finally {
+			this.pendingAnonymousAnchor = saved;
+		}
+	}
+
 	/** 合成境界の再生。項目単独bindでは既存の項目箱が根なので開き直さない。 */
 	public void startAnonymousItem(final long anchor) {
+		this.requireNotDiscarded();
 		if (this.coordinatorAwaitingDirectChild() == null && !this.isItemReplayTarget()) {
 			throw new IllegalStateException("coordinatorのない匿名項目Start: anchor=" + anchor);
 		}
@@ -543,6 +583,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	public void endAnonymousItem() {
+		this.requireNotDiscarded();
 		final net.zamasoft.foliojet.layout.builder.ItemCoordinator c = this.coordinatorAwaitingDirectChild();
 		if (c != null) {
 			this.closeAnonymousItem(c);
@@ -738,6 +779,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	 */
 	@Override
 	public void closeInlines(Params params) {
+		this.requireNotDiscarded();
 		int count = 0;
 
 		for (int i = this.boxStack.size() - 1; i >= 0; --i) {
@@ -849,17 +891,20 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	@Override
 	public void startContainer() {
+		this.requireNotDiscarded();
 		final ContainerBuilderEntry cbe = this.containerBuilder();
 		cbe.getStyledTextUnitizer().startContainer();
 	}
 
 	@Override
 	public void endContainer() {
+		this.requireNotDiscarded();
 		final ContainerBuilderEntry cbe = this.containerBuilder();
 		cbe.getStyledTextUnitizer().endContainer();
 	}
 
 	public void startBox(final INonReplacedBox box) {
+		this.requireNotDiscarded();
 		if (DEBUG) {
 			System.err.println("startBox: " + box.getParams().element);
 		}
@@ -1083,7 +1128,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	public void endBox() {
-		final IBox box = (IBox) this.boxStack.remove(this.boxStack.size() - 1);
+		this.requireNotDiscarded();
+		IBox box = (IBox) this.boxStack.remove(this.boxStack.size() - 1);
 		if (DEBUG) {
 			System.err.println("endBox: " + box.getParams().element);
 		}
@@ -1092,32 +1138,38 @@ public class DocumentBuilder implements TableBuilderHost {
 			// テーブル
 			final TableBuilder tableBuilder = this.endTableBuilder();
 			try {
-				final TableBox tableBox = tableBuilder.getTableBox();
+				TableBox tableBox = tableBuilder.getTableBox();
 				final TableParams tableParams = tableBox.getTableParams();
-				switch (tableBox.getBlockBox().getPos().getType()) {
+				AbstractBlockBox tableBlock = tableBox.getBlockBox();
+				final PosType tablePosition = tableBlock.getPos().getType();
+				switch (tablePosition) {
 				case FLOW:
-					this.closeInlines(tableBox.getBlockBox().getParams());
+					this.closeInlines(tableBlock.getParams());
 					this.endContainer();
 					break;
 				case FLOAT:
 					this.containerBuilder().getStyledTextUnitizer().flushText();
 					break;
 				}
+				// FLOWのfinishは行送出中に改頁する。終端に要らない元の表・ラッパーを手放す。
+				tableBox = null;
+				box = null;
+				if (tablePosition == PosType.FLOW) tableBlock = null;
 				final Builder builder = this.containerBuilder().builder;
 				// 終了処理もTableBuilderLifecycleへ委譲(開始側のルーティング結果と一致させるため、
 				// 条件を再計算せずtableBuilder自身に問うのは従来どおり)。挙動は不変。
 				net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.finish(tableBuilder, builder);
-				switch (tableBox.getBlockBox().getPos().getType()) {
+				switch (tablePosition) {
 				case FLOW:
 					this.startContainer();
 					this.restoreInlines(tableParams);
 					break;
 				case INLINE:
 					this.containerBuilder().getStyledTextUnitizer()
-							.addInlineBlock((InlineBlockBox) tableBox.getBlockBox());
+							.addInlineBlock((InlineBlockBox) tableBlock);
 					break;
 				case ABSOLUTE:
-					final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) tableBox.getBlockBox();
+					final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) tableBlock;
 					if (absoluteBox.getAbsolutePos().autoPosition == AutoPosition.INLINE) {
 						this.containerBuilder().getStyledTextUnitizer().addInlineAbsolute(absoluteBox);
 					}
@@ -1348,6 +1400,21 @@ public class DocumentBuilder implements TableBuilderHost {
 					// なので測定等価。two-passのseal→bindは通常どおり対に
 					// なりリースは孤児化しない)
 					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
+					if (this.replayIntent == ReplayIntent.MEASURE
+							&& this.pageGenerator instanceof MeasurePageGenerator measure && measure.isFootnoteProbe()) {
+						// TwoPass親の中では、その親のMEASURE再生時に本文を完成させる。
+						if (!parentBuilder.isTwoPass()) {
+							if (entry.builder instanceof TwoPassBlockBuilder contentBuilder) {
+								noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+								final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
+								contentBuilder.bind(noteBuilder, ReplayIntent.MEASURE);
+								noteBuilder.close();
+							}
+							measure.measureFootnote(noteBox);
+							if (this.pageContext() instanceof RootBuilder root) root.addFootnote(noteBox);
+						}
+						break;
+					}
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
 						// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
 						break;
@@ -1480,6 +1547,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	public void addReplacedBox(AbstractReplacedBox replacedBox) {
+		this.requireNotDiscarded();
 		this.requirePage();
 
 		// Grid直下の置換要素はitem化する(Grid G1b): ブロックレベルは
@@ -1584,6 +1652,7 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	public void characters(int charOffset, char[] ch, int off, int len, boolean lineFeed) {
+		this.requireNotDiscarded();
 		if (this.normalizeText) {
 			String s = new String(ch, off, len);
 			s = Normalizer.normalize(s, Form.NFC);
@@ -1625,5 +1694,80 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.finishTranslateBlockScope(entry);
 		assert this.builderStack.isEmpty() : "document end後もbuilderStackが残っています: " + this.builderStack;
 		assert this.translateScopeRoots.isEmpty() : "document end後もtranslate scopeが残っています";
+	}
+
+	/** Bのpin用。入力中と、pop後まだbind中のTwoPass宿主の最古の開始IDです。 */
+	public long oldestUnfinishedSourceId() {
+		long oldest = Long.MAX_VALUE;
+		for (final Object entry : this.builderStack) oldest = Math.min(oldest, unfinishedSourceId(entry));
+		for (final Object entry : this.translateScopeRoots.keySet()) oldest = Math.min(oldest, unfinishedSourceId(entry));
+		return oldest;
+	}
+
+	private static long unfinishedSourceId(final Object entry) {
+		final long anchor;
+		if (entry instanceof ContainerBuilderEntry container && container.builder instanceof TwoPassBlockBuilder body) {
+			anchor = body.getRootBox().getSourceAnchor();
+		} else if (entry instanceof RetainedTableBuilder table) {
+			anchor = table.getSourceAnchor();
+		} else {
+			return Long.MAX_VALUE;
+		}
+		return anchor < 0 ? Long.MAX_VALUE : anchor;
+	}
+
+	/** 途中破棄時の報告用。終了処理を呼ばずに未完のRetained表だけを数えます。 */
+	public int getOpenRetainedTableCount() {
+		int count = 0;
+		for (final Object entry : this.builderStack) {
+			if (entry instanceof net.zamasoft.foliojet.layout.builder.impl.RetainedTableBuilder) ++count;
+		}
+		return count;
+	}
+
+	/**
+	 * dispatchから戻った後、未完のscratchを破棄します。生成時の所有者に登録した
+	 * 全ビルダーのハンドル・リース・会計スコープを解放し、seal/bind/配置はしません。
+	 * 長寿命の文書ごとに専用のScratchOwnerを使い、生成と入力の間だけ接続してください。
+	 * 所有者の接続が外れた状態でも呼べます。本番のページ生成器では使えません。
+	 * 実文字を保持するGrid/Flexの未完項目やReplayOnlyも正常終端せず、参照を外します。
+	 * 解放通知が失敗しても残りの資源を清算し、以後の入力・end・再discardは拒否します。
+	 */
+	public void discard() {
+		this.requireNotDiscarded();
+		if (!(this.pageGenerator instanceof MeasurePageGenerator) || this.scratchOwner == null) {
+			throw new IllegalStateException("discardはScratchReplayScope内で生成した計測文書専用です");
+		}
+		this.discarded = true;
+		Throwable failure = null;
+		while (!this.builderStack.isEmpty()) {
+			final Object entry = this.builderStack.remove(this.builderStack.size() - 1);
+			try {
+				this.finishTranslateBlockScope(entry);
+			} catch (final RuntimeException | Error e) {
+				if (failure == null) failure = e;
+				else if (failure != e) failure.addSuppressed(e);
+			}
+		}
+		try {
+			this.scratchOwner.release();
+		} catch (final RuntimeException | Error e) {
+			if (failure == null) failure = e;
+			else if (failure != e) failure.addSuppressed(e);
+		} finally {
+			this.boxStack.clear();
+			this.inlineStack.clear();
+			this.columnSpanStack.clear();
+			this.translateScopeRoots.clear();
+			this.replayItemHost = null;
+			this.replayEvent = null;
+			this.replayOrdinal = -1;
+		}
+		if (failure instanceof Error error) throw error;
+		if (failure instanceof RuntimeException exception) throw exception;
+	}
+
+	private void requireNotDiscarded() {
+		if (this.discarded) throw new IllegalStateException("破棄済み文書への入力");
 	}
 }

@@ -58,7 +58,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	protected final TableParams params;
 
-	protected final AbstractBlockBox block;
+	protected AbstractBlockBox block;
 
 	protected AbsoluteRectFrame frame;
 
@@ -79,6 +79,11 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	/** 終端フレームを復元できるのは、これを所有する最終残余だけです。 */
 	private AbsoluteRectFrame completionFrame = null;
+
+	/** 未完受理由来の数値計画。complete 後の最終分割にも必要です。 */
+	private IncompleteTablePlan incompletePlan;
+
+	private boolean incompleteColumnsSplit;
 
 	protected List<TableRowGroupBox> bodyGroups = null;
 
@@ -149,6 +154,56 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		return this.incomplete;
 	}
 
+	/** 初回受理前にだけ全行高の計画を取り付けます。通常の完成表には取り付けません。 */
+	public final void setIncompletePlan(final IncompleteTablePlan plan) {
+		if (!this.incomplete || this.isFragmented() || this.incompletePlan != null
+				|| this.params.flow.isVertical() || this.getTableBodyCount() != 1
+				|| this.footerGroupBox != null || this.params.borderCollapse != TableParams.BORDER_SEPARATE
+				|| plan.start() != 0 || plan.visibleEnd() != 0
+				|| Double.doubleToLongBits(plan.headerSize()) != Double.doubleToLongBits(
+						this.headerGroupBox == null ? 0 : this.headerGroupBox.getPageSize())) {
+			throw new IllegalStateException("Expected a new horizontal incomplete table and plan");
+		}
+		final TableRowGroupBox body = this.getTableBody(0);
+		plan.rowsAppended(body);
+		this.incompletePlan = plan;
+		body.incompletePlan = plan;
+		body.updateIncompleteSize();
+		this.height = plan.visibleTableSize();
+		this.updateIncompleteColumns();
+		// 通常フローのラッパーは前頁の本文を所有する。数値計画で送出する表は
+		// 配置メタデータだけを引き継ぎ、継続表→元ラッパー→前断片の参照を切る。
+		if (this.block instanceof FlowBlockBox flow) {
+			this.block = new FlowBlockBox(flow.getBlockParams(), flow.getFlowPos());
+		}
+	}
+
+	public final IncompleteTablePlan getIncompletePlan() {
+		return this.incompletePlan;
+	}
+
+	/**
+	 * 親の改頁・描画・残余再開が済んだ送出断片から本文の所有を外します。
+	 * 旧ラッパーや直近の描画器が前頁のTableBoxを参照していても、行木を残さない。
+	 * 本文1グループ・rowspanなしの数値計画だけが対象。残余と反復ヘッダには触れず、
+	 * 親フローの寸法会計が読む高さ・幅・フレームはそのまま保ちます。
+	 */
+	public final void releaseDrawnRowFragment() {
+		if (this.incompletePlan != null && this.incompletePlan.cut() != null) {
+			this.bodyGroups = null;
+		}
+	}
+
+	/** 実箱を膨らませず、完成表の配置→内寸と終端の減算の丸めを再現します。 */
+	public final double incompleteForceBreakStart(final double pageStart) {
+		if (!this.incomplete || this.incompletePlan == null || this.completionFrame == null) {
+			throw new IllegalStateException("Expected an active incomplete numeric plan");
+		}
+		final double size = this.incompletePlan.tableSize();
+		return (pageStart + (size + this.completionFrame.getFrameHeight()))
+				- (size + this.completionFrame.getFrameBottom());
+	}
+
 	/**
 	 * 最終残余の終端フレームを一度だけ復元します。
 	 * 親のカーソル・末尾マージンの確定は B-2 の完了操作が行います。
@@ -157,9 +212,13 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		if (!this.incomplete || this.completionFrame == null) {
 			throw new IllegalStateException("Only the final incomplete table remainder can be completed");
 		}
+		if (this.incompletePlan != null && this.incompletePlan.visibleEnd() != this.incompletePlan.end()) {
+			throw new IllegalStateException("All planned rows must be visible before completion");
+		}
 		this.frame = this.completionFrame;
 		this.completionFrame = null;
 		this.incomplete = false;
+		this.updateIncompleteColumns();
 	}
 
 	public final double getInnerWidth() {
@@ -300,6 +359,62 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			if (rowGroupBox.getWidth() > this.width) {
 				this.width = rowGroupBox.getWidth();
 			}
+		}
+	}
+
+	/**
+	 * 親が受理した最終残余の本文1グループへの行追記を寸法へ反映します。
+	 * 呼び出しは親の未完表ハンドルに限ります。行は既に addTableRow 済みで、
+	 * previousRowCount / previousPageSize は前回受理時のグループの値です。
+	 * グループ高の行順の加算をそのまま使い、header + body の組付け順を保ちます。
+	 * height += newBodySize - oldBodySize では丸めが変わるため、差分を再加算しません。
+	 * 計画がある場合は、その全残余の演算履歴を使います。
+	 */
+	public final void updateIncompleteBody(final TableRowGroupBox body, final int previousRowCount,
+			final double previousPageSize) {
+		if (!this.incomplete || this.completionFrame == null || this.params.flow.isVertical()
+				|| this.getTableBodyCount() != 1 || this.getTableBody(0) != body
+				|| previousRowCount < 0 || body.getTableRowCount() <= previousRowCount) {
+			throw new IllegalStateException("Expected appended rows in the current incomplete table body");
+		}
+		double pageSize = previousPageSize;
+		for (int i = previousRowCount; i < body.getTableRowCount(); ++i) {
+			pageSize += body.getTableRow(i).getPageSize();
+		}
+		if (Double.doubleToLongBits(pageSize) != Double.doubleToLongBits(body.getPageSize())) {
+			throw new IllegalStateException("The incomplete table body was changed beyond appending rows");
+		}
+		if (this.incompletePlan != null) {
+			this.incompletePlan.rowsAppended(body);
+			body.updateIncompleteSize();
+			this.height = this.incompletePlan.visibleTableSize();
+			if (body.getWidth() > this.width) {
+				this.width = body.getWidth();
+			}
+			this.updateIncompleteColumns();
+			return;
+		}
+		this.height = 0;
+		if (this.headerGroupBox != null) {
+			this.height += this.headerGroupBox.getHeight();
+		}
+		this.height += body.getHeight();
+		if (body.getWidth() > this.width) {
+			this.width = body.getWidth();
+		}
+		this.updateIncompleteColumns();
+	}
+
+	/** 未完表の追記・完了時だけ、完成表の組付けと同じ内寸を現在の列木へ設定します。 */
+	private void updateIncompleteColumns() {
+		if (this.columnGroupBox != null) {
+			// RetainedTableBuilder.assemble と同じく、フレームを含めず eachColumn で設定する。
+			final double pageSize = this.params.flow.isVertical() ? this.getInnerWidth() : this.getInnerHeight();
+			if (this.incompleteColumnsSplit) {
+				// 自動 splitPageAxis は走査用の根にも寸法を設定する。
+				this.columnGroupBox.setPageSize(pageSize);
+			}
+			this.columnGroupBox.eachColumn((column, col, span) -> column.setPageSize(pageSize));
 		}
 	}
 
@@ -641,6 +756,36 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
+		if (this.incompletePlan != null) {
+			return this.splitIncomplete(pageLimit, mode, flags);
+		}
+		return this.splitTable(pageLimit, mode, flags);
+	}
+
+	/** 保持側の数値は親が寸法を読む前・pageBreak が前頁を描く前に確定します。 */
+	private SplitResult splitIncomplete(final double pageLimit, final BreakMode mode, final byte flags) {
+		if (mode instanceof BreakMode.ForceBreakMode && this.columnGroupBox != null) {
+			throw new IllegalStateException("Forced breaks with columns are outside the numeric plan");
+		}
+		final SplitResult result = this.splitTable(pageLimit, mode, flags);
+		if (result instanceof SplitResult.Split(final IPageBreakableBox remainder)) {
+			final TableBox next = (TableBox) remainder;
+			next.incompletePlan = next.getTableBody(0).incompletePlan;
+			if (this.incompletePlan.cut() == null || next.incompletePlan == null) {
+				throw new IllegalStateException("Expected a planned body cut");
+			}
+			this.height = this.incompletePlan.visibleTableSize();
+			next.height = next.incompletePlan.visibleTableSize();
+			if (mode instanceof BreakMode.AutoBreakMode) {
+				this.incompleteColumnsSplit = next.incompleteColumnsSplit = true;
+				this.updateIncompleteColumns();
+				next.updateIncompleteColumns();
+			}
+		}
+		return result;
+	}
+
+	private SplitResult splitTable(double pageLimit, BreakMode mode, byte flags) {
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// System.err.println("TABLE A: flags=" + flags + "/pageLimit=" +
 		// pageLimit

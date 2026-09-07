@@ -62,6 +62,19 @@ public class RetentionHighWaterReportTest extends TestCase {
 
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
+	/** golden/D7と同じ永続文書で、実断片の送出ゼロを検出する。 */
+	public void testRowStreamingFixtureEmitsAndBoundsRows() throws Exception {
+		final RowRetentionReport report = new RowRetentionReport();
+		try (final AutoCloseable observer = report.observe()) {
+			TwoPassDigestParityTest.transcode(new TwoPassDigestParityTest.CorpusInput(
+					"files/unittest/0240-table/row-streaming-emit.html", 1, "text/html",
+					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true")));
+		}
+		// 最大100pt頁、本文行は少なくとも9.1pt。0.5pt同値幅と次の1行を含める。
+		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
+		System.err.println("[B-2c permanent fixture] " + report);
+	}
+
 	/** 通常CI: 短セル40行のslice所有、compact、終了清算前の解放を固定する。 */
 	public void testShortCellOwnershipAndRelease() throws Exception {
 		final int rows = 40;
@@ -114,7 +127,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 	 * {@code -Dfoliojet.retentionDiag}指定時だけ実行する。行数の上書きは
 	 * {@code -Dfoliojet.retentionRows}で行う。
 	 * 表の観測段階はbefore-table-end、after-input-rows-N、before-pass-b、
-	 * after-pass-b、during-pass-c、after-row-N(全グループ通算2,000行ごと)、after-table-end。
+	 * after-pass-b、during-pass-c、after-row-N(全グループ通算2,000行ごと)、
+	 * before-row-emission、after-row-emission、after-row-completion、after-table-end。
 	 *
 	 * <p>追加課題: 5MB単一セルがOOM(18秒)からTIMEOUT(420秒)になった原因は未確定で、
 	 * 完走の改善実績には数えない。次はPass B/C別時間・GC時間・compact走査件数を観測する。
@@ -140,9 +154,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 						(stage, source) -> reportStage(stage, source));
 				final AutoCloseable plans = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
 						"retentionPlanObserver", (BiConsumer<String, RetainedTableBuilder>) (stage, table) -> {
-					System.err.println("[R1-lite row plans] stage=" + stage + " intent=" + ReplayIntent.current()
-							+ " rows=" + ((Map<?, ?>) RangeOnlyInvariantTest.field(table, "rowToCells")).size()
-							+ " rowGroups=" + ((Map<?, ?>) RangeOnlyInvariantTest.field(table, "rowGroupToRows")).size());
+					System.err.println("[B-2 row retention] stage=" + stage + " intent=" + ReplayIntent.current()
+							+ " " + table.rowRetention() + " exclusions=" + table.rowEmissionExclusions());
 				});
 				final AutoCloseable compact = RangeOnlyInvariantTest.observe(LayoutSource.class,
 						"compactObserver", (Consumer<LayoutSource>) source -> {
@@ -182,7 +195,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 		// 観測値の閾値は固定しない。変換の正常終了だけを受け入れる。
 	}
 
-	private static void reportStage(final String stage, final LayoutSource source) {
+	static LiveTableBoxes reportStage(final String stage, final LayoutSource source) {
 		final Runtime runtime = Runtime.getRuntime();
 		final long used = runtime.totalMemory() - runtime.freeMemory();
 		System.gc();
@@ -190,12 +203,18 @@ public class RetentionHighWaterReportTest extends TestCase {
 		System.err.println("[T5a short cells] stage=" + stage + " heapUsed=" + used
 				+ " heapUsedAfterGc=" + usedAfterGc + " " + source.retentionSnapshot());
 		if (stage.startsWith("after-input-rows-") || stage.equals("before-pass-b")
+				|| stage.equals("before-first-row-emission")
 				|| stage.equals("after-pass-b") || stage.equals("during-pass-c")
-				|| stage.startsWith("after-row-") || stage.equals("after-table-end")) reportClassHistogram(stage);
+				|| stage.startsWith("after-row-") || stage.equals("after-table-end")) return reportClassHistogram(stage);
+		return null;
+	}
+
+	/** 箱を保持せず、同時点のlive histogramの個数だけを返す。nullは採取未完了。 */
+	record LiveTableBoxes(long rows, long cells) {
 	}
 
 	/** 変換スレッドを止めた同じ時点のlive histogram。JDKがない環境では観測だけ省略する。 */
-	private static void reportClassHistogram(final String stage) {
+	private static LiveTableBoxes reportClassHistogram(final String stage) {
 		final String prefix = "[T5a histogram stage=" + stage + "] ";
 		final String executable = File.separatorChar == '\\' ? "jcmd.exe" : "jcmd";
 		final Path bundled = Path.of(System.getProperty("java.home"), "bin", executable);
@@ -206,24 +225,32 @@ public class RetentionHighWaterReportTest extends TestCase {
 					.redirectErrorStream(true).start();
 		} catch (IOException e) {
 			System.err.println(prefix + "skipped: jcmd unavailable: " + e.getMessage());
-			return;
+			return null;
 		}
+		final java.util.concurrent.atomic.AtomicReference<LiveTableBoxes> live = new java.util.concurrent.atomic.AtomicReference<>();
 		// 上位25クラスと、順位が下がったCSSStyle/Value[]・行計画/行箱も必ず出す。
 		// 全行を読んでpipeを詰まらせず、行数増加中の生存数を同じ書式で比較する。
 		final Thread reader = Thread.startVirtualThread(() -> {
 			try (var input = process.inputReader(StandardCharsets.UTF_8)) {
 				int rows = 0;
 				long styles = 0, valueArrays = 0, valueArrayBytes = 0, treeEntries = 0, integers = 0;
+				long tableRows = 0, tableCells = 0;
+				boolean complete = false;
 				for (String line; (line = input.readLine()) != null;) {
 					if (line.stripLeading().matches("[0-9]+:\\s+[0-9]+\\s+[0-9]+\\s+.*")) {
 						final String[] columns = line.strip().split("\\s+");
 						final String type = columns[3];
 						final long count = Long.parseLong(columns[1]);
+						if (type.equals("net.zamasoft.foliojet.layout.box.impl.TableRowBox")) tableRows += count;
+						if (type.equals("net.zamasoft.foliojet.layout.box.impl.TableCellBox")) tableCells += count;
 						final boolean style = type.equals("net.zamasoft.foliojet.css.CSSStyle")
 								|| type.startsWith("net.zamasoft.foliojet.css.CSSStyle$");
 						final boolean values = type.equals("[Lnet.zamasoft.foliojet.css.value.Value;");
 						final boolean table = type.equals("net.zamasoft.foliojet.layout.builder.impl.CellContent")
-								|| type.equals("net.zamasoft.foliojet.layout.box.impl.TableRowBox");
+								|| type.equals("net.zamasoft.foliojet.layout.box.impl.TableRowBox")
+								|| type.equals("net.zamasoft.foliojet.layout.box.impl.TableCellBox")
+								|| type.equals("net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox")
+								|| type.equals("net.zamasoft.foliojet.layout.box.impl.TableBox");
 						if (style) styles += count;
 						if (values) {
 							valueArrays += count;
@@ -232,6 +259,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 						if (type.equals("java.util.TreeMap$Entry")) treeEntries += count;
 						if (type.equals("java.lang.Integer")) integers += count;
 						if (++rows <= 25 || style || values || table) System.err.println(prefix + line);
+					} else if (line.stripLeading().startsWith("Total ")) {
+						complete = true;
 					} else if (rows == 0) {
 						System.err.println(prefix + line);
 					}
@@ -241,6 +270,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 							+ " valueArrays=" + valueArrays + " valueArrayBytes=" + valueArrayBytes
 							+ " treeEntries=" + treeEntries + " integers=" + integers);
 				}
+				if (complete && rows != 0) live.set(new LiveTableBoxes(tableRows, tableCells));
 			} catch (IOException e) {
 				System.err.println(prefix + "output unavailable: " + e.getMessage());
 			}
@@ -249,14 +279,19 @@ public class RetentionHighWaterReportTest extends TestCase {
 			if (!process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
 				System.err.println(prefix + "skipped: jcmd timed out");
 				process.destroyForcibly();
+				return null;
 			} else if (process.exitValue() != 0) {
 				System.err.println(prefix + "jcmd exit=" + process.exitValue());
+				return null;
 			}
 			reader.join(5000);
+			if (reader.isAlive()) return null;
 		} catch (InterruptedException e) {
 			process.destroyForcibly();
 			Thread.currentThread().interrupt();
+			return null;
 		}
+		return live.get();
 	}
 
 	/** T3a: huge-gridをTwoPass宿主へ入れ、吸収済み計画の追加保持がゼロであることを確認する。 */

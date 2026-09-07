@@ -477,7 +477,10 @@ public final class StyleBoxEmitter {
 
 	CSSStyle startColumns(CSSStyle style, AbstractContainerBox box) {
 		int c = LayoutUtils.getColumnCount(box);
-		if (c > 1) {
+		// Cの遅延中はboxがまだ未構築。column-widthの使用段数をここで
+		// 1に固定せず、ラッパーを発行して予約後の包含寸法で決める。
+		if (c > 1 || (this.sink.isFootnoteInputDelayed()
+				&& !LayoutUtils.isNone(box.getBlockParams().columns.width))) {
 			final BlockParams params = box.getBlockParams();
 			final BlockParams mcParams = new BlockParams();
 			final FlowPos mcPos = new FlowPos();

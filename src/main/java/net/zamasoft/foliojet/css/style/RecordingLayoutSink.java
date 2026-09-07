@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.css.style;
 
 import net.zamasoft.foliojet.layout.DocumentBuilder;
+import net.zamasoft.foliojet.layout.FootnotePageProbe;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
@@ -11,13 +12,13 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
 
 /**
  * M6b v3 のレイアウトソースプロトコルtee——doc入力プロトコル
- * (StartBlock/Chars/EndBlock)を{@link LayoutSource}へ記録した<b>直後に</b>
- * 同じイベントを{@link DocumentBuilder}へ渡します(StyleBuilder解体・
- * 増分1で抽出、2026-07-30。挙動は抽出前と同一)。
+ * (StartBlock/Chars/EndBlock)を{@link LayoutSource}へ記録し、
+ * {@link DocumentBuilder}へ渡します。既定文書は記録直後に直通し、
+ * bottom+縦組みだけBへ即時配達してCを待ち行列で遅らせます。
  *
  * <p>
  * 記録と引き渡しの<b>順序とfreeze時点が契約</b>である——記録は
- * {@code LayoutSource.append/freeze}の直後に{@code doc}へ渡す。
+ * {@code LayoutSource.append/freeze}で入力を凍結してから配達する。
  * 改ページ残余の再生はこのログから、ライブ状態に無干渉な専用ドライバ
  * ({@code SourceReplayer})が行う。
  * </p>
@@ -138,6 +139,149 @@ final class RecordingLayoutSink {
 	 * text payloadのspill予算(processing.text-spill-budget)を注入する。
 	 */
 	private final LayoutSource layoutSource;
+	private FootnotePageProbe probe;
+	private boolean inputDelivered;
+	private boolean closed;
+	private boolean probeFinished;
+	private long reportEnd, deliveredEventEnd, consumedWatermark;
+	private long resolvedReportGeneration;
+	private long reportEventId = -1, windowEventId = -1;
+	private long windowDeliveries;
+	/** B/Cの世代がずれても入力窓・主ログの保持量を観測できる値だけのhook。 */
+	static volatile java.util.function.Consumer<FootnotePageProbe.WindowRetention> windowObserver;
+	private final java.util.NavigableMap<Long, net.zamasoft.foliojet.layout.FootnotePageProbeReport> reports = new java.util.TreeMap<>();
+	private record Delivery(DocumentBuilder.DispatchEvent type, long id, LayoutSource.Event boundary,
+			net.zamasoft.foliojet.layout.box.IBox box, Runnable dispatch, long textBytes) {
+		long fromId() { return this.boundary == null ? this.id : this.id - 1; }
+	}
+	private final java.util.ArrayDeque<Delivery> deliveries = new java.util.ArrayDeque<>();
+	private LayoutSource.RetentionLease deliveryLease;
+	private net.zamasoft.foliojet.layout.RetainedTextLimit.PageWindow pageWindow;
+	private boolean splitCharacters;
+
+	/** Cの初回ページは子を開く前に幾何とpinを確保し、Bの入力から駆動します。 */
+	void pageStarted(final net.zamasoft.foliojet.layout.box.impl.PageBox page,
+			final double width, final double height, final String pageName,
+			final java.util.function.BiFunction<String, Integer, FootnotePageProbe.PageGeometry> geometry) {
+		if (this.closed || this.inputDelivered || this.probe != null
+				|| !page.getBlockParams().flow.isVertical()
+				|| page.getUserAgent().getUAContext().getFootnoteArea().position
+						!= net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM) return;
+		this.pageWindow = page.getUserAgent().getRetainedTextLimit().pageWindow();
+		this.deliveryLease = this.layoutSource.retainFrom(0);
+		// NFCは入力呼び出し単位で適用されるので、その場合だけ元の文字境界を保つ。
+		this.splitCharacters = !net.zamasoft.foliojet.ua.props.UAProps.INPUT_NORMALIZE_TEXT.getBoolean(page.getUserAgent());
+		final net.zamasoft.foliojet.ua.UserAgent ua = page.getUserAgent();
+		this.probe = new FootnotePageProbe(FootnotePageProbe.PageStart.capture(page, width, height, pageName), this.layoutSource, report -> {
+			this.windowEventId = this.reportEventId;
+			this.reportEventId = report.eventId();
+			this.reportEnd = report.generation();
+			if (report.generation() > this.resolvedReportGeneration
+					&& report.generation() >= this.doc.getPageGeneration()) this.reports.put(report.generation(), report);
+			final var listener = ua.getUAContext().getFootnotePageProbeListener();
+			if (listener != null) listener.accept(report);
+		});
+		this.probe.setPageGeometry(geometry);
+		this.probe.observeReports(this.doc::getPageGeneration, this.reports::size);
+	}
+
+	private void deliver(final DocumentBuilder.DispatchEvent type, final long id,
+			final LayoutSource.Event boundary, final net.zamasoft.foliojet.layout.box.IBox box,
+			final Runnable dispatch, final long textBytes) {
+		this.inputDelivered = true;
+		if (this.probe == null) {
+			dispatch.run();
+			return;
+		}
+		this.deliveries.addLast(new Delivery(type, id, boundary, box, dispatch, textBytes));
+		this.probe.deliver(type, this.layoutSource.get(id), id, boundary);
+		this.observeWindow();
+		this.drain(false);
+	}
+
+	/**
+	 * 世代対応で待てない場合も、Bの一つ前の確定ページの入力までは配達する。
+	 * 名前付きページの幾何差でCが多く改頁しても窓を文書全体へ広げない。
+	 * 1配達内の複数改頁は止めず、報告のないbeginPageは持ち越しだけで進む。
+	 */
+	private void drain(final boolean endOfInput) {
+		while (!this.deliveries.isEmpty()
+				&& (endOfInput || this.reportEnd >= this.doc.getPageGeneration() + 1
+						|| this.deliveries.peekFirst().id() <= this.windowEventId)) {
+			if (!endOfInput && this.reportEnd < this.doc.getPageGeneration() + 1) ++this.windowDeliveries;
+			this.doc.startFootnoteInput();
+			final Delivery delivery = this.deliveries.peekFirst();
+			this.deliveredEventEnd = delivery.id() + 1;
+			// 記録済み境界の元IDで、C自身のlive境界を判定する。再追記はしない。
+			final LayoutSource.Event boundary = this.doc.preDispatch(delivery.type(), delivery.box(), delivery.fromId());
+			if (!java.util.Objects.equals(delivery.boundary(), boundary)) {
+				throw new IllegalStateException("B/Cの匿名境界が一致しません: " + delivery.fromId());
+			}
+			delivery.dispatch().run();
+			this.pageWindow.remove(delivery.textBytes());
+			this.deliveries.removeFirst();
+			final long from = Math.min(this.deliveries.isEmpty() ? this.deliveredEventEnd : this.deliveries.peekFirst().fromId(),
+					this.doc.oldestUnfinishedSourceId());
+			final LayoutSource.RetentionLease lease = this.layoutSource.retainFrom(from);
+			final boolean retryCompaction = this.deliveryLease.fromId() < this.consumedWatermark
+					&& from > this.deliveryLease.fromId();
+			this.deliveryLease.close();
+			this.deliveryLease = lease;
+			if (retryCompaction) this.layoutSource.compact(this.consumedWatermark);
+		}
+		this.observeWindow();
+	}
+
+	private void observeWindow() {
+		final var observer = windowObserver;
+		if (observer != null && this.pageWindow != null) observer.accept(new FootnotePageProbe.WindowRetention(
+				this.pageWindow.currentBytes(), this.deliveries.size(), this.reportEnd, this.doc.getPageGeneration(),
+				this.windowDeliveries, this.layoutSource.retentionSnapshot(), this.layoutSource.retainedInlineTextBytes(), this.reports.size()));
+	}
+
+	boolean isFootnoteInputDelayed() {
+		return this.pageWindow != null;
+	}
+
+	double footnoteLineWidth(final net.zamasoft.foliojet.layout.box.impl.PageBox page) {
+		final double width = this.probe == null ? Double.NaN : this.probe.namedPageWidth();
+		return Double.isNaN(width) ? page.getInnerWidth() : width;
+	}
+
+	long deliveredEventEnd() {
+		return this.pageWindow == null ? Long.MAX_VALUE : this.deliveredEventEnd;
+	}
+
+	/**
+	 * Cの開始時に一度だけ消費します。採用・幾何不一致等の不採用とも以後は不要です。
+	 * 報告なしで計画を固定した世代への後着報告も保持しません。
+	 */
+	net.zamasoft.foliojet.layout.FootnotePageProbeReport report(final long generation) {
+		this.resolvedReportGeneration = Math.max(this.resolvedReportGeneration, generation);
+		this.reports.headMap(generation, false).clear();
+		return this.reports.remove(generation);
+	}
+
+	boolean probeFinished() {
+		return this.probeFinished;
+	}
+
+	private void discardProbe() {
+		final FootnotePageProbe probe = this.probe;
+		this.probe = null;
+		if (probe != null) probe.discard();
+	}
+
+	void finishProbes() {
+		try {
+			final boolean complete = this.anchors.stream().noneMatch(frame -> frame.source >= 0);
+			if (this.probe != null) this.probe.finishInput(complete);
+			this.probeFinished = complete;
+			this.drain(true);
+		} finally {
+			this.discardProbe();
+		}
+	}
 
 	/**
 	 * @param doc 構築<b>完了済み</b>のDocumentBuilder——StyleBuilderは
@@ -163,16 +307,25 @@ final class RecordingLayoutSink {
 	}
 
 	/** 境界判定 → 合成境界追記 → 実イベント追記 → dispatchのlive専用プロトコル。 */
-	private void preDispatch(final DocumentBuilder.DispatchEvent event,
+	private LayoutSource.Event preDispatch(final DocumentBuilder.DispatchEvent event,
 			final net.zamasoft.foliojet.layout.box.IBox box) {
-		final LayoutSource.Event boundary = this.doc.preDispatch(event, box, this.layoutSource.nextId());
+		if (!this.inputDelivered) this.doc.prepareFootnotePage();
+		final LayoutSource.Event boundary = this.probe == null
+				? this.doc.preDispatch(event, box, this.layoutSource.nextId())
+				: this.probe.preDispatch(event, box, this.layoutSource.nextId());
 		if (boundary != null) {
 			this.layoutSource.append(boundary);
 		}
+		return boundary;
 	}
 
 	void compact(final long watermark) {
-		this.layoutSource.compact(watermark == Long.MAX_VALUE ? this.layoutSource.nextId() : watermark);
+		if (this.pageWindow == null) {
+			this.layoutSource.compact(watermark == Long.MAX_VALUE ? this.layoutSource.nextId() : watermark);
+			return;
+		}
+		this.consumedWatermark = Math.max(this.consumedWatermark, Math.min(watermark, this.deliveredEventEnd));
+		this.layoutSource.compact(this.consumedWatermark);
 	}
 
 	/**
@@ -180,13 +333,27 @@ final class RecordingLayoutSink {
 	 * (E-6増分3b-2)。冪等。
 	 */
 	void close() {
-		this.layoutSource.close();
-		this.anchors.clear();
-		this.contentsSources.clear();
-		this.sourceBox = null;
-		this.sourceElement = null;
-		if (this.assignments != null) {
-			this.assignments.discardPending();
+		// 入力の停止(以後 B を作らない)と清算を分ける。清算が例外で途中終了しても
+		// 後続の dispose の再呼び出しで残りを続けられるよう、`closed` で清算を
+		// 省かない(discardProbe は probe を先に null にし、layoutSource.close は
+		// 冪等——codex F-2a-2 レビューの必須 1)
+		this.closed = true;
+		try {
+			this.discardProbe();
+		} finally {
+			try {
+				if (this.deliveryLease != null) this.deliveryLease.close();
+				if (this.pageWindow != null) this.pageWindow.close();
+				this.deliveries.clear();
+				this.reports.clear();
+				this.layoutSource.close();
+			} finally {
+				this.anchors.clear();
+				this.contentsSources.clear();
+				this.sourceBox = null;
+				this.sourceElement = null;
+				if (this.assignments != null) this.assignments.discardPending();
+			}
 		}
 	}
 
@@ -214,7 +381,7 @@ final class RecordingLayoutSink {
 			this.sourceBox = box;
 		}
 		// 主ログもrunningも同じ凍結契約。未知の箱・配置は明確に失敗させる。
-		this.preDispatch(DocumentBuilder.DispatchEvent.START_BOX, box);
+		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.START_BOX, box);
 		final BoxRecipe recipe = this.recordRecipe(box);
 		box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Start(recipe)));
 		this.bindWaitingBox(box.getSourceAnchor());
@@ -222,7 +389,8 @@ final class RecordingLayoutSink {
 		if (box.getParams() instanceof AbstractTextParams params) {
 			this.anchors.peek().whiteSpace = params.whiteSpace;
 		}
-		this.doc.startBox(box);
+		this.deliver(DocumentBuilder.DispatchEvent.START_BOX, box.getSourceAnchor(), boundary, box,
+				() -> this.doc.startBox(box), 0);
 	}
 
 	/**
@@ -257,7 +425,7 @@ final class RecordingLayoutSink {
 		for (final StringBuilder text : this.contentsSources.values()) {
 			box.getText(text);
 		}
-		this.preDispatch(DocumentBuilder.DispatchEvent.REPLACED, box);
+		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.REPLACED, box);
 		final java.util.Optional<ReplacedRecipe> recipe = ReplacedRecipe.freeze(box);
 		if (recipe.isPresent()) {
 			box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Replaced(recipe.get())));
@@ -271,7 +439,8 @@ final class RecordingLayoutSink {
 			this.anchors.peek().lastChar = -1;
 			this.anchors.peek().tailChar = -1;
 		}
-		this.doc.addReplacedBox(box);
+		this.deliver(DocumentBuilder.DispatchEvent.REPLACED, box.getSourceAnchor(), boundary, box,
+				() -> this.doc.addReplacedBox(box), 0);
 	}
 
 	/**
@@ -299,9 +468,9 @@ final class RecordingLayoutSink {
 				this.anchors.peek().tailChar = frame.tailChar;
 			}
 		}
-		this.preDispatch(DocumentBuilder.DispatchEvent.END_BOX, null);
-		this.layoutSource.append(new LayoutSource.EndBlock());
-		this.doc.endBox();
+		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.END_BOX, null);
+		final long id = this.layoutSource.append(new LayoutSource.EndBlock());
+		this.deliver(DocumentBuilder.DispatchEvent.END_BOX, id, boundary, null, this.doc::endBox, 0);
 	}
 
 	/**
@@ -312,9 +481,9 @@ final class RecordingLayoutSink {
 			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.Leader(pattern));
 			return;
 		}
-		this.preDispatch(DocumentBuilder.DispatchEvent.LEADER, null);
-		this.layoutSource.append(new LayoutSource.Leader(pattern));
-		this.doc.addLeader(pattern);
+		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.LEADER, null);
+		final long id = this.layoutSource.append(new LayoutSource.Leader(pattern));
+		this.deliver(DocumentBuilder.DispatchEvent.LEADER, id, boundary, null, () -> this.doc.addLeader(pattern), 0);
 	}
 
 	/**
@@ -324,6 +493,17 @@ final class RecordingLayoutSink {
 		if (this.events != null) {
 			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.Text(
 					charOffset, new String(ch, off, len), fixed));
+			return;
+		}
+		if (!this.inputDelivered) this.doc.prepareFootnotePage();
+		if (this.probe != null && this.splitCharacters && len > 256) {
+			for (int offset = 0; offset < len;) {
+				int size = Math.min(256, len - offset);
+				if (offset + size < len && Character.isHighSurrogate(ch[off + offset + size - 1])
+						&& Character.isLowSurrogate(ch[off + offset + size])) --size;
+				this.characters(charOffset < 0 ? charOffset : charOffset + offset, ch, off + offset, size, fixed);
+				offset += size;
+			}
 			return;
 		}
 		for (final StringBuilder text : this.contentsSources.values()) {
@@ -362,9 +542,18 @@ final class RecordingLayoutSink {
 			}
 		}
 		// E-6増分3b-2: 防御コピー・spill判定(予算制)はLayoutSourceが行う
-		this.preDispatch(DocumentBuilder.DispatchEvent.TEXT, null);
-		this.layoutSource.appendChars(charOffset, ch, off, len, fixed);
-		this.doc.characters(charOffset, ch, off, len, fixed);
+		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.TEXT, null);
+		final long bytes = this.probe == null ? 0 : 2L * len;
+		if (this.pageWindow != null) this.pageWindow.add(bytes);
+		final long id = this.layoutSource.appendChars(charOffset, ch, off, len, fixed);
+		if (this.probe == null) {
+			this.deliver(DocumentBuilder.DispatchEvent.TEXT, id, boundary, null,
+					() -> this.doc.characters(charOffset, ch, off, len, fixed), 0);
+		} else {
+			final char[] copy = java.util.Arrays.copyOfRange(ch, off, off + len);
+			this.deliver(DocumentBuilder.DispatchEvent.TEXT, id, boundary, null,
+					() -> this.doc.characters(charOffset, copy, 0, copy.length, fixed), bytes);
+		}
 	}
 
 	private static boolean preserved(final char c, final byte whiteSpace, final boolean fixed) {

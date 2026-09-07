@@ -111,14 +111,14 @@ public class FootnoteAreaRuleTest extends TestCase {
 				transcode(html.replace(AREA, "@footnote { float: block-end }")));
 		assertEquals("本文と注を二ページで出す", 2, capture.pages().size());
 		assertEquals("注を欠落・重複させない", 2, capture.notes().size());
-		assertEquals(0.0, capture.pages().get(0).inset(), 0.0);
-		final PageMetrics second = capture.pages().get(1);
-		assertTrue("持ち越し分を本文の行長から予約する", second.inset() > 0);
+		assertEquals(0.0, capture.pages().get(1).inset(), 0.0);
+		final PageMetrics second = capture.pages().get(0);
+		assertTrue("同頁の二件を本文の行長から予約する", second.inset() > 0);
 		assertTrue(second.inset() <= 252 * 0.6);
 		assertEquals(252.0, second.innerHeight() + second.inset(), EPSILON);
 		for (int i = 0; i < capture.notes().size(); ++i) {
 			final Placement note = capture.notes().get(i);
-			assertEquals("一頁目の呼び出しの注は二頁目へ", 2, note.page());
+			assertEquals("一頁目の呼び出しの注を同じ頁へ", 1, note.page());
 			assertEquals(WritingMode.TB, note.flow());
 			assertEquals("箱の構築時から横書きの版面幅を使う", 252.0, note.width(), EPSILON);
 			assertEquals("横書き帯の左端", 0.0, note.x(), EPSILON);
@@ -139,7 +139,7 @@ public class FootnoteAreaRuleTest extends TestCase {
 		assertTrue("二頁目にも本文がある", capture.lines().stream()
 				.anyMatch(line -> line.page() == 2 && line.flow() == WritingMode.RL));
 		for (final Placement line : capture.lines()) {
-			if (line.page() == 2 && line.flow() == WritingMode.RL) {
+			if (line.page() == 1 && line.flow() == WritingMode.RL) {
 				assertTrue("本文の行を帯の前で閉じる", line.y() + line.height() <= second.innerHeight() + EPSILON);
 			}
 		}

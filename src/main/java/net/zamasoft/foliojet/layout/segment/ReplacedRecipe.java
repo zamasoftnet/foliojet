@@ -38,6 +38,8 @@ package net.zamasoft.foliojet.layout.segment;
 public sealed interface ReplacedRecipe {
 	GenerationKind generationKind();
 
+	ReplacedParamsTemplate params();
+
 	/**
 	 * live boxからrecipeを組み立てます(E-6増分3b-3で
 	 * {@code LayoutSourceEventConverter}の変換ロジックを移設——記録時

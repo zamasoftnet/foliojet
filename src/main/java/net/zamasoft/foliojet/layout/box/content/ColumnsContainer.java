@@ -114,6 +114,14 @@ public class ColumnsContainer implements Container {
 	}
 
 	@Override
+	public void eachFloatingBox(final java.util.function.Consumer<IFloatBox> consumer) {
+		// 段順と各段内の列挙順を保つ。絶対配置のbindは呼び出し側に任せる。
+		for (final Container column : this.columns) {
+			column.eachFloatingBox(consumer);
+		}
+	}
+
+	@Override
 	public void eachAbsoluteBox(final java.util.function.Consumer<IAbsoluteBox> consumer) {
 		for (final Container column : this.columns) {
 			column.eachAbsoluteBox(consumer);

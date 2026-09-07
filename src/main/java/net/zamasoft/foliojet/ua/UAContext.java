@@ -30,6 +30,28 @@ public class UAContext {
 
 	private FootnoteArea footnoteArea = FootnoteArea.DEFAULT;
 
+	private java.util.function.Consumer<net.zamasoft.foliojet.layout.FootnotePageProbeReport> footnotePageProbeListener;
+	private long footnotePageProbeCount;
+
+	/** Bの確定報告の観測だけを有効にします。nullでもbottom+縦組みの計測は動きます。 */
+	public void setFootnotePageProbeListener(
+			final java.util.function.Consumer<net.zamasoft.foliojet.layout.FootnotePageProbeReport> listener) {
+		this.footnotePageProbeListener = listener;
+	}
+
+	public java.util.function.Consumer<net.zamasoft.foliojet.layout.FootnotePageProbeReport> getFootnotePageProbeListener() {
+		return this.footnotePageProbeListener;
+	}
+
+	/** UAの寿命中に生成したprobe数です。報告未発火との区別に使います。 */
+	public long getFootnotePageProbeCount() {
+		return this.footnotePageProbeCount;
+	}
+
+	public void footnotePageProbeCreated() {
+		++this.footnotePageProbeCount;
+	}
+
 	public FootnoteArea getFootnoteArea() {
 		return this.footnoteArea;
 	}

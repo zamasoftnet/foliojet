@@ -87,7 +87,12 @@ final class PageSequence {
 	private final Consumer<String> reservedCounterWarner;
 
 	private CSSElement pageElement = null;
+	private CSSElement firstPageElement;
 	private int pageNumber = 0;
+
+	int getPageNumber() {
+		return this.pageNumber;
+	}
 	private int maxPageNumber = Integer.MAX_VALUE;
 
 	/**
@@ -264,18 +269,9 @@ final class PageSequence {
 		return this.pendingPageName;
 	}
 
-	PageBox nextPage() {
-		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
-		this.segment.trimToOpenElements();
-		// 名前付きページN2a: このページの名前を確定
-		this.pageName = this.pendingPageName;
-		// ページスタイル
-		// 面(recto/verso)は nextPageSide() が進める。落としたページは面を
-		// 消費しないので、進める前の値を覚えておく(discardPage が戻す)
-		this.previousPageSide = this.ua.getPassContext().getPageSide();
-		this.pageElement = this.imposition.nextPageSide();
-		Declaration declaration = this.styleContext.nextPage(this.pageElement, this.pageName);
-		CSSStyle pageStyle = CSSStyle.getCSSStyle(this.ua, null, this.pageElement);
+	private CSSStyle pageStyle(final CSSElement element, final String name) {
+		Declaration declaration = this.styleContext.nextPage(element, name);
+		CSSStyle pageStyle = CSSStyle.getCSSStyle(this.ua, null, element);
 
 		// デフォルトのマージン
 		if (this.margins != null) {
@@ -308,6 +304,94 @@ final class PageSequence {
 		}
 
 		declaration.applyProperties(pageStyle);
+		return pageStyle;
+	}
+
+	private BlockParams pageParams(final CSSStyle pageStyle) {
+		final BlockParams params = new BlockParams();
+		params.flow = this.progression;
+		params.fontStyle = pageStyle.getFontStyle();
+		params.fontManager = this.ua.getFontManager();
+		final LanguageProfile lang = LanguageProfileBundle.getLanguageProfile(pageStyle.getCSSElement().lang);
+		params.lineBreakRules = lang.getTextBreakingRules(pageStyle);
+		return params;
+	}
+
+	private Dimension pageSize(final CSSStyle pageStyle) {
+		final PageSizeValue pageSize = PageSize.get(pageStyle);
+		final double[] resolvedSize = pageSize.resolve(this.defaultPageWidth, this.defaultPageHeight);
+		double width = resolvedSize[0];
+		double height = resolvedSize[1];
+
+		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
+			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
+				// 横書き
+				return Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.AUTO);
+			} else {
+				// 縦書き
+				return Dimension.create(width, height, LengthType.AUTO, LengthType.ABSOLUTE);
+			}
+		} else {
+			return Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
+		}
+	}
+
+	private Insets pageMargin(final CSSStyle pageStyle) {
+		// マージン
+		Value marginTop = Margin.get(pageStyle, Side.TOP);
+		Value marginRight = Margin.get(pageStyle, Side.RIGHT);
+		Value marginBottom = Margin.get(pageStyle, Side.BOTTOM);
+		Value marginLeft = Margin.get(pageStyle, Side.LEFT);
+		return BoxValueUtils.toInsets(marginTop, marginRight, marginBottom, marginLeft);
+	}
+
+	private RectFrame pageFrame(final CSSStyle pageStyle, final Insets margin, final Background background) {
+		final RectBorder pageBorder = BoxStyleMapper.createRectBorder(pageStyle);
+		final Insets pagePadding = BoxValueUtils.toInsets(Padding.get(pageStyle, Side.TOP),
+				Padding.get(pageStyle, Side.RIGHT), Padding.get(pageStyle, Side.BOTTOM), Padding.get(pageStyle, Side.LEFT));
+		return RectFrame.create(margin, pageBorder, background, pagePadding);
+	}
+
+	private CSSElement footnotePageElement(final int emitted) {
+		CSSElement element = this.firstPageElement;
+		if (emitted > 0) {
+			element = this.imposition.getNextPageSide(element);
+			// 初回遷移後は固定面か2面の周期。本番の規則で仮想面を進め、
+			// EPUBの途中面・片面開始も扱う。照会ごとの全頁再走査はしない。
+			if ((emitted & 1) == 0) element = this.imposition.getNextPageSide(element);
+		}
+		return element;
+	}
+
+	/**
+	 * Bの名前と出力済み枚数だけで予約前の版面を照会します。スタイル・寸法の
+	 * 解決は本番と共通ですが、segment、カウンタ、面付け、現在ページは進めません。
+	 * Bが白紙を落とした場合は同じ面のまま、生成世代だけが進みます。
+	 */
+	net.zamasoft.foliojet.layout.FootnotePageProbe.PageGeometry footnotePageGeometry(final String name, final int emitted) {
+		final CSSElement element = this.footnotePageElement(emitted);
+		final CSSStyle style = this.pageStyle(element, name);
+		final BlockParams params = this.pageParams(style);
+		params.size = this.pageSize(style);
+		params.frame = this.pageFrame(style, this.pageMargin(style), Background.NULL_BACKGROUND);
+		// %余白・border・paddingの内寸演算もPageBoxと共有する。描画・登録はしない。
+		final PageBox geometry = new PageBox(params, this.ua);
+		return new net.zamasoft.foliojet.layout.FootnotePageProbe.PageGeometry(
+				geometry.getInnerWidth(), geometry.getInnerHeight(), params.flow);
+	}
+
+	PageBox nextPage() {
+		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
+		this.segment.trimToOpenElements();
+		// 名前付きページN2a: このページの名前を確定
+		this.pageName = this.pendingPageName;
+		// ページスタイル
+		// 面(recto/verso)は nextPageSide() が進める。落としたページは面を
+		// 消費しないので、進める前の値を覚えておく(discardPage が戻す)
+		this.previousPageSide = this.ua.getPassContext().getPageSide();
+		this.pageElement = this.imposition.nextPageSide();
+		if (this.firstPageElement == null) this.firstPageElement = this.pageElement;
+		CSSStyle pageStyle = this.pageStyle(this.pageElement, this.pageName);
 
 		// ページカウンターリセット
 		Value[] resets = CounterReset.get(pageStyle);
@@ -355,12 +439,7 @@ final class PageSequence {
 			this.background = Background.NULL_BACKGROUND;
 		}
 
-		final BlockParams params = new BlockParams();
-		params.flow = this.progression;
-		params.fontStyle = pageStyle.getFontStyle();
-		params.fontManager = this.ua.getFontManager();
-		final LanguageProfile lang = LanguageProfileBundle.getLanguageProfile(pageStyle.getCSSElement().lang);
-		params.lineBreakRules = lang.getTextBreakingRules(pageStyle);
+		final BlockParams params = this.pageParams(pageStyle);
 
 		// ページのサイズ(N3/N4: @page sizeがoutput既定を上書きする。
 		// size:autoの既定は初回に捕捉した文書既定へ必ず戻す——impositionの
@@ -404,30 +483,9 @@ final class PageSequence {
 			this.imposition.setCuttingMargin(bleed);
 		}
 
-		final PageSizeValue pageSize = PageSize.get(pageStyle);
-		final double[] resolvedSize = pageSize.resolve(this.defaultPageWidth, this.defaultPageHeight);
-		double width = resolvedSize[0];
-		double height = resolvedSize[1];
-
-		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
-			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
-				// 横書き
-				params.size = Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.AUTO);
-			} else {
-				// 縦書き
-				params.size = Dimension.create(width, height, LengthType.AUTO, LengthType.ABSOLUTE);
-			}
-		} else {
-			params.size = Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
-		}
+		params.size = this.pageSize(pageStyle);
 		params.overflow = OverflowMode.VISIBLE;
-
-		// マージン
-		Value marginTop = Margin.get(pageStyle, Side.TOP);
-		Value marginRight = Margin.get(pageStyle, Side.RIGHT);
-		Value marginBottom = Margin.get(pageStyle, Side.BOTTOM);
-		Value marginLeft = Margin.get(pageStyle, Side.LEFT);
-		Insets margin = BoxValueUtils.toInsets(marginTop, marginRight, marginBottom, marginLeft);
+		Insets margin = this.pageMargin(pageStyle);
 
 		// ページ箱の背景(css-page-3 §3、2026-09-01)。ページ固有の背景は
 		// PageBoxが用紙全面へ先に描き、html/bodyから昇格したcanvas背景は
@@ -436,10 +494,7 @@ final class PageSequence {
 		// 要素と同じ規則で余白の内側に取り、版面(page area)はその内側になる。
 		// 描くのはPageBox.drawFlowのframes()(要素の枠と同じ経路)
 		final Background pageBackground = BoxStyleMapper.createBackground(pageStyle);
-		final RectBorder pageBorder = BoxStyleMapper.createRectBorder(pageStyle);
-		final Insets pagePadding = BoxValueUtils.toInsets(Padding.get(pageStyle, Side.TOP),
-				Padding.get(pageStyle, Side.RIGHT), Padding.get(pageStyle, Side.BOTTOM), Padding.get(pageStyle, Side.LEFT));
-		params.frame = RectFrame.create(margin, pageBorder, this.background, pagePadding);
+		params.frame = this.pageFrame(pageStyle, margin, this.background);
 
 		this.pageNumber++;
 		if (this.maxPageNumber != -1 && this.pageNumber > this.maxPageNumber) {

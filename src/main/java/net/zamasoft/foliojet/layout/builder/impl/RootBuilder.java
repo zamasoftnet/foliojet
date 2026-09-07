@@ -44,7 +44,8 @@ public class RootBuilder extends BreakableBuilder {
 	 * 周期2以上のライブロックを検出できないためです。詳細は
 	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationStats#STALLED_AUTO_BREAK_LIMIT}。
 	 */
-	private record BreakFingerprint(long ingest, int depth, long pageAxisBits, int target) {
+	private record BreakFingerprint(long ingest, long boundTableRows, long emittedTableFragments,
+			int depth, long pageAxisBits, int target) {
 	}
 
 	/** 上端ページフロートのFIFO-prefix配置計画です。 */
@@ -72,6 +73,18 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private final java.util.Map<BreakFingerprint, Integer> depthFreeBreakCounts = new java.util.HashMap<>();
 	private long breakHistoryIngest = Long.MIN_VALUE;
+	private long boundTableRows, emittedTableFragments;
+	private long breakHistoryTableRows, breakHistoryTableFragments;
+
+	/** Pass C送出対象の実行消費だけを数える。入力収集・MEASURE・追記通知は数えない。 */
+	final void noteRetainedTableRowsBound(final int rows) {
+		this.boundTableRows += rows;
+	}
+
+	/** 親が前頁へ切り離した実断片。表全体の移動では進めない。 */
+	final void noteRetainedTableFragmentEmitted() {
+		++this.emittedTableFragments;
+	}
 	private int stalledBreakRun = 0;
 	/** LayoutSourceを持たないscratch用の自動改ページ打切り状態。 */
 	private boolean autoBreaksAbandoned = false;
@@ -105,7 +118,9 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource source = this.pageGenerator.getLayoutSource();
-		final long ingest = (source == null) ? -1L : source.nextId();
+		// Cはキューを消費している間も入力が前進する。Bが追記したログ末尾を
+		// 指紋にすると、EOFの一括配達を停滞と誤認してしまう。
+		final long ingest = (source == null) ? -1L : Math.min(source.nextId(), this.pageGenerator.getDeliveredEventEnd());
 		final int depth = this.flowStack.size();
 		// 継続再構築のたびにboxもparams.elementも新しいインスタンスになる。
 		// identityHashCodeでは論理的に同じtbodyを毎ページ別物と見なし、
@@ -129,25 +144,32 @@ public class RootBuilder extends BreakableBuilder {
 		if (source != null ? source.areAutoBreaksAbandoned() : this.autoBreaksAbandoned) {
 			return true;
 		}
-		// 入力イベントが進んだ場合は、以前の反復は進捗済みなので捨てる。
+		// 入力イベントまたはPass Cの実行消費が進んだら、以前の反復は捨てる。
+		// 表の送出がない文書では両カウンタは0のままで、従来の指紋と同じ判定になる。
 		// sessions が一旦空になっても履歴は捨てない。seed 7662 の周期1は
 		// 各ページの再開を終えてから次の同一改ページへ進むため、そこで
 		// 区切ると従来検出できていたライブロックを見逃してしまう。
-		if (ingest != this.breakHistoryIngest) {
+		if (ingest != this.breakHistoryIngest || this.boundTableRows != this.breakHistoryTableRows
+				|| this.emittedTableFragments != this.breakHistoryTableFragments) {
 			this.breakFingerprintCounts.clear();
 			this.depthFreeBreakCounts.clear();
 			this.breakHistoryIngest = ingest;
+			this.breakHistoryTableRows = this.boundTableRows;
+			this.breakHistoryTableFragments = this.emittedTableFragments;
 		}
-		final BreakFingerprint fingerprint = new BreakFingerprint(ingest, depth,
+		final BreakFingerprint fingerprint = new BreakFingerprint(ingest, this.boundTableRows,
+				this.emittedTableFragments, depth,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int occurrences = this.breakFingerprintCounts.merge(fingerprint, 1, Integer::sum);
 		// 深さ非依存の第二指紋(depth=-1固定。フィールドコメント参照)
-		final BreakFingerprint depthFree = new BreakFingerprint(ingest, -1,
+		final BreakFingerprint depthFree = new BreakFingerprint(ingest, this.boundTableRows,
+				this.emittedTableFragments, -1,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int depthFreeOccurrences = this.depthFreeBreakCounts.merge(depthFree, 1, Integer::sum);
 		this.stalledBreakRun = Math.max(occurrences, depthFreeOccurrences) - 1;
 		if (DEBUG_BREAK_FINGERPRINT) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis
+					+ " boundTableRows=" + this.boundTableRows + " emittedTableFragments=" + this.emittedTableFragments
 					+ " target=" + target + " resumeDepth=" + this.sessions.size() + " stalled="
 					+ this.stalledBreakRun);
 		}
@@ -691,7 +713,8 @@ public class RootBuilder extends BreakableBuilder {
 				// ——表根の範囲(tableCheckFrom=startId+1)でも内容の
 				// キャプションを弾く。C2のcontext-complete検証で解禁するまで
 				// routing不変
-				if (endId >= 0 && log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
+				if (endId >= 0 && endId < this.pageGenerator.getDeliveredEventEnd()
+						&& log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
 						&& !log.observeCaptionGate(startId, endId)
 						&& !log.containsTable(tableCheckFrom, endId)
 						&& !log.containsAbsolute(startId, endId)
@@ -761,6 +784,10 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** PageBox生成ごとの世代。ページフロートの通常floatと別のorder名前空間にも使う。 */
 	private long pageGeneration = 0;
+
+	public long getPageGeneration() {
+		return this.pageGeneration;
+	}
 
 	/** 同一ページ内のページフロート安定連番。 */
 	private int pageFloatSequence = 0;
@@ -909,7 +936,12 @@ public class RootBuilder extends BreakableBuilder {
 	@Override
 	protected final void setNextPageName(final String pageName) {
 		this.pageGenerator.setPageName(pageName);
+		final var observer = pageNameObserver;
+		if (observer != null) observer.accept(this, pageName);
 	}
+
+	/** 名前遷移の裁定回数をC/B別に観測する試験用。通常はnullです。 */
+	static volatile java.util.function.BiConsumer<RootBuilder, String> pageNameObserver;
 
 	public final RootBuilder getPageContext() {
 		return this;
@@ -1538,7 +1570,7 @@ public class RootBuilder extends BreakableBuilder {
 		// 積み上がる)を残し、図が順に置かれていく形を除く。予約を外せば
 		// 内容が収まって呼び出しが確定し、注は F4 の carry-in で次頁の先頭に
 		// 置かれる(番号は呼び出しの頁のもの)
-		final boolean hadReservation = this.footnoteReservedCount > 0;
+		final boolean hadReservation = this.footnoteReservedCount > 0 || !this.footnotePlan.isEmpty();
 		this.footnoteProgressed = false;
 		this.pageHadContent = false;
 		final double notesExtent = this.attachFootnotes();
@@ -1564,6 +1596,7 @@ public class RootBuilder extends BreakableBuilder {
 	private boolean pageHadContent = false;
 
 	public void finish() {
+		this.requireNoIncompleteTable();
 		this.finishLayout();
 		// 脚注F4: 容量送りされた脚注が残っていれば、note-onlyページを
 		// pendingが空になるまで生成する。前進しない回(1件も配置できない)は
@@ -1618,7 +1651,9 @@ public class RootBuilder extends BreakableBuilder {
 	private static final class FootnoteEntry {
 		final long id;
 
-		final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox;
+		net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox;
+		/** 本文が未到着でも、Bの計測高とcallページの採番を保持できます。 */
+		double measuredHeight = Double.NaN;
 
 		boolean committed = false;
 
@@ -1647,6 +1682,65 @@ public class RootBuilder extends BreakableBuilder {
 	private final java.util.ArrayDeque<FootnoteEntry> pendingFootnotes = new java.util.ArrayDeque<>();
 	/** 台帳へ届いた脚注の論理ID。同じ注を二度受け取らないため(2026-09-02)。 */
 	private final java.util.Set<Long> registeredFootnotes = new java.util.HashSet<>();
+	/** Bだけが使う後着本文の採番と、再生可能な登録の寿命です。MAINとは共有しません。 */
+	private java.util.Map<Long, Integer> probeCallNumbers;
+	private java.util.Map<Long, Long> probeFootnoteAnchors;
+	/** Cの未配置ID台帳。予約だけのID・後着本文待ちもFIFOに含めます。 */
+	private final java.util.Map<Long, FootnoteEntry> bottomFootnotes = new java.util.HashMap<>();
+	private record FootnoteReservation(double height, boolean oversized) { }
+	/** ID別の予約資格。pendingの先頭prefix件数とは独立です。 */
+	private final java.util.Map<Long, FootnoteReservation> footnotePlan = new java.util.HashMap<>();
+	private boolean initialFootnotePagePending;
+
+	private boolean hasFootnotePlan() {
+		return this.isBottomFootnoteArea() && this.pageGenerator.isFootnotePageProbeEnabled();
+	}
+
+	private FootnoteEntry bottomFootnote(final long id) {
+		FootnoteEntry entry = this.bottomFootnotes.get(id);
+		if (entry == null) {
+			entry = new FootnoteEntry(id, null);
+			this.bottomFootnotes.put(id, entry);
+			this.pendingFootnotes.addLast(entry);
+			// TwoPass本文の完成順と文書順は別。IDだけの先行登録も同じFIFOへ統合する。
+			final java.util.List<FootnoteEntry> sorted = new java.util.ArrayList<>(this.pendingFootnotes);
+			sorted.sort(java.util.Comparator.comparingLong(value -> value.id));
+			this.pendingFootnotes.clear();
+			this.pendingFootnotes.addAll(sorted);
+		}
+		return entry;
+	}
+
+	private boolean isFootnoteProbe() {
+		return this.pageGenerator instanceof net.zamasoft.foliojet.layout.MeasurePageGenerator measure
+				&& measure.isFootnoteProbe();
+	}
+
+	/** 配置済みかつBの再生水位より前の登録・計測高を解放します。 */
+	public void reclaimProbeFootnotes(final long fromId) {
+		if (this.probeFootnoteAnchors == null) return;
+		final java.util.Set<Long> pending = new java.util.HashSet<>();
+		for (final FootnoteEntry entry : this.pendingFootnotes) pending.add(entry.id);
+		// 継続表は配置済みヘッダーのcallを再利用する。現在木から消えるまでは
+		// 登録も残し、次の確定ページで後着本文用の番号を再登録させない。
+		final java.util.Set<Long> retained = collectFootnoteCalls(this.pageBox);
+		final var iterator = this.probeFootnoteAnchors.entrySet().iterator();
+		while (iterator.hasNext()) {
+			final var entry = iterator.next();
+			if (entry.getValue() < fromId && !pending.contains(entry.getKey()) && !retained.contains(entry.getKey())) {
+				this.registeredFootnotes.remove(entry.getKey());
+				if (this.probeCallNumbers != null) this.probeCallNumbers.remove(entry.getKey());
+				((net.zamasoft.foliojet.layout.MeasurePageGenerator) this.pageGenerator).forgetFootnote(entry.getKey());
+				iterator.remove();
+			}
+		}
+	}
+
+	/** Bの長文試験用。後着番号と再生可能な登録の回収後件数です。 */
+	public int probeFootnoteLedgerSize() {
+		return (this.probeCallNumbers == null ? 0 : this.probeCallNumbers.size())
+				+ (this.probeFootnoteAnchors == null ? 0 : this.probeFootnoteAnchors.size());
+	}
 
 	/**
 	 * 現ページに予約済みのpending先頭prefixの件数と、その予約量
@@ -1681,41 +1775,113 @@ public class RootBuilder extends BreakableBuilder {
 	 * 脚注帯の用紙縦方向の占有量です。領域が横書きならblock方向、縦書きなら
 	 * inline方向を測るため、物理高さを返すTB軸を使います。上下浮動体の測度とは別。
 	 */
-	private double footnoteBandExtent(final net.zamasoft.foliojet.layout.box.IBox box) {
+	public static double footnoteBandExtent(final net.zamasoft.foliojet.layout.box.IBox box) {
 		return Math.max(box.getPageExtent(WritingMode.TB), box.paintedPageExtent(WritingMode.TB));
 	}
 
 	private static final double MAX_FOOT_AREA_RATIO = 0.6;
 
 	/**
-	 * F-1はページ開始時のpendingだけをFIFOで予約します。当該ページで新たに
-	 * 届いた注は行長を変えず、確定時にcommittedにして次の帯へ送ります(F4)。
+	 * Bは持ち越しだけ、Cは対応するB報告の計測済みIDも加えて一度だけ予約します。
+	 * 未予約・実高超過の注は行長を変えず、callを確定して次の帯へ送ります(F4)。
 	 * block軸のfootnoteReservationは0のままなので、上下浮動体の容量も不変です。
 	 */
 	private void beginPage() {
 		if (!this.isBottomFootnoteArea()) {
 			return;
 		}
+		final double innerWidth = this.pageBox.getInnerWidth();
+		final double innerHeight = this.pageBox.getInnerHeight();
+		if (this.pageGeneration == 1 && this.hasFootnotePlan()) {
+			// 最初だけは幾何を先に渡してBを起動し、Cの最初の生入力まで予約を待つ。
+			this.initialFootnotePagePending = true;
+			this.pageGenerator.pageStarted(this.pageBox, innerWidth, innerHeight);
+			return;
+		}
+		this.reserveBottomFootnotes();
+		this.pageGenerator.pageStarted(this.pageBox, innerWidth, innerHeight);
+	}
+
+	public void startFootnoteInput() {
+		if (!this.initialFootnotePagePending) return;
+		this.initialFootnotePagePending = false;
+		this.reserveBottomFootnotes();
+	}
+
+	private void reserveBottomFootnotes() {
+		this.footnotePlan.clear();
+		this.footnoteReservedCount = 0;
+		final boolean planned = this.hasFootnotePlan();
 		final double maxArea = Math.max(0, this.pageBox.getInnerLineExtent(this.pageBox.getBlockParams().flow))
 				* MAX_FOOT_AREA_RATIO;
 		double inset = 0;
+		boolean blocked = false;
 		for (final FootnoteEntry entry : this.pendingFootnotes) {
 			if (entry.deferred && !entry.committed && !this.forceFootnoteAttach) {
+				blocked = true;
 				break;
 			}
-			final double cost = (inset == 0 ? FOOTNOTE_GAP : 0) + this.footnoteBandExtent(entry.noteBox);
+			final double height = entry.noteBox == null ? entry.measuredHeight : footnoteBandExtent(entry.noteBox);
+			if (!Double.isFinite(height)) {
+				blocked = true;
+				break;
+			}
+			final double cost = (this.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + height;
 			if (inset + cost > maxArea) {
 				// 巨大注はcallの確定を待ち、持ち越しの先頭なら上限まで予約して溢れさせる。
 				if (this.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
 					inset = maxArea;
 					this.footnoteReservedCount = 1;
+					if (planned) this.footnotePlan.put(entry.id, new FootnoteReservation(height, true));
 				}
+				blocked = true;
 				break;
 			}
 			inset += cost;
 			++this.footnoteReservedCount;
+			if (planned) this.footnotePlan.put(entry.id, new FootnoteReservation(height, false));
+		}
+		if (planned) {
+			final var report = this.pageGenerator.getFootnotePageProbeReport(this.pageGeneration);
+			// 未確定・B正常終端後とも持ち越しだけで固定する。後着報告でHは更新しない。
+			final boolean finished = this.pageGenerator.isFootnotePageProbeFinished();
+			final boolean usable = report != null && report.generation() == this.pageGeneration && report.emitted()
+					&& java.util.Objects.equals(report.pageName(), this.pageGenerator.getPageName())
+					&& report.flow() == this.pageBox.getBlockParams().flow
+					&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(report.innerWidth(), this.pageBox.getInnerWidth()) == 0
+					&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(report.innerHeight(), this.pageBox.getInnerHeight()) == 0;
+			if (!blocked && usable) {
+				for (final long id : new java.util.TreeSet<>(report.callIds())) {
+					if (this.registeredFootnotes.contains(id) || this.bottomFootnotes.containsKey(id)
+							|| this.footnotePlan.containsKey(id)) continue;
+					final Double height = report.measuredHeights().get(id);
+					if (height == null || report.unmeasuredIds().contains(id) || !Double.isFinite(height) || height < 0) continue;
+					final double cost = (this.footnotePlan.isEmpty() ? FOOTNOTE_GAP : 0) + height;
+					if (inset + cost > maxArea) break;
+					inset += cost;
+					this.bottomFootnote(id).measuredHeight = height;
+					this.footnotePlan.put(id, new FootnoteReservation(height, false));
+				}
+			}
+			this.updateFootnotePrefix();
+			final var observer = footnotePlanObserver;
+			if (observer != null) observer.accept(new FootnotePlanSnapshot(this.pageGeneration, report != null, usable, finished,
+					inset, java.util.Set.copyOf(this.footnotePlan.keySet())));
 		}
 		this.pageBox.reserveFootArea(inset);
+	}
+
+	/** 試験には可変台帳やページ木を渡さず、開始時に固定した計画だけを渡します。 */
+	public record FootnotePlanSnapshot(long generation, boolean reported, boolean usable, boolean inputFinished,
+			double inset, java.util.Set<Long> reservedIds) { }
+	static volatile java.util.function.Consumer<FootnotePlanSnapshot> footnotePlanObserver;
+
+	private void updateFootnotePrefix() {
+		this.footnoteReservedCount = 0;
+		for (final FootnoteEntry entry : this.pendingFootnotes) {
+			if (entry.noteBox == null || !this.footnotePlan.containsKey(entry.id)) break;
+			++this.footnoteReservedCount;
+		}
 	}
 
 	/**
@@ -1730,6 +1896,10 @@ public class RootBuilder extends BreakableBuilder {
 			// 台帳は1件でよい
 			return;
 		}
+		if (this.isFootnoteProbe()) {
+			if (this.probeFootnoteAnchors == null) this.probeFootnoteAnchors = new java.util.HashMap<>();
+			this.probeFootnoteAnchors.put(noteBox.getParams().footnoteId, noteBox.getSourceAnchor());
+		}
 		if (this.isBottomFootnoteArea()) {
 			final double noteExtent = this.footnoteBandExtent(noteBox);
 			final double maxArea = Math.max(0, this.pageBox.getInnerHeight() + this.pageBox.getFootInset())
@@ -1739,7 +1909,27 @@ public class RootBuilder extends BreakableBuilder {
 				LOG.warning("footnote larger than the bottom band; placing it anyway: " + noteExtent
 						+ "pt (max footnote area " + maxArea + "pt)");
 			}
-			this.pendingFootnotes.addLast(new FootnoteEntry(noteBox.getParams().footnoteId, noteBox));
+			if (this.hasFootnotePlan()) {
+				final FootnoteEntry entry = this.bottomFootnote(noteBox.getParams().footnoteId);
+				entry.noteBox = noteBox;
+				entry.measuredHeight = noteExtent;
+				final FootnoteReservation reservation = this.footnotePlan.get(entry.id);
+				if (reservation != null && !reservation.oversized() && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(noteExtent, reservation.height()) > 0) {
+					// Hは変更しない。実高超過は予約資格だけを外してF4へ送る。
+					this.footnotePlan.remove(entry.id);
+				}
+				this.updateFootnotePrefix();
+				return;
+			}
+			final FootnoteEntry entry = new FootnoteEntry(noteBox.getParams().footnoteId, noteBox);
+			if (this.probeCallNumbers != null) {
+				final Integer number = this.probeCallNumbers.remove(entry.id);
+				if (number != null) {
+					entry.committed = true;
+					entry.assignedNumber = number;
+				}
+			}
+			this.pendingFootnotes.addLast(entry);
 			return;
 		}
 		final double noteExtent = this.footnoteExtent(noteBox);
@@ -2479,12 +2669,40 @@ public class RootBuilder extends BreakableBuilder {
 	 * 台帳状態は配置ゼロ件でも必ず清算する(次ページへ漏らさない)。
 	 */
 	private double attachFootnotes() {
+		final boolean probe = this.isFootnoteProbe();
+		final boolean planned = this.hasFootnotePlan();
+		final FootnoteCallScan probeScan = probe ? scanFootnoteCalls(this.pageBox, false)
+				: planned ? this.scanFootnoteCalls(this.pageBox) : null;
+		if (planned) {
+			// callが先にページを閉じても、本文を待つID・所属・採番を失わない。
+			for (final long id : new java.util.TreeSet<>(probeScan.ids())) {
+				if (!this.registeredFootnotes.contains(id)) this.bottomFootnote(id);
+			}
+			this.pageHadContent = probeScan.contentful();
+			this.updateFootnotePrefix();
+		}
+		if (probe) {
+			if (this.probeCallNumbers == null) this.probeCallNumbers = new java.util.HashMap<>();
+			int number = 1;
+			for (final long id : new java.util.TreeSet<>(probeScan.ids())) {
+				boolean committed = false;
+				boolean pending = false;
+				for (final FootnoteEntry entry : this.pendingFootnotes) {
+					if (entry.id == id) {
+						pending = true;
+						committed = entry.committed;
+					}
+				}
+				if (!pending && this.registeredFootnotes.contains(id)) continue;
+				if (!committed && !this.probeCallNumbers.containsKey(id)) this.probeCallNumbers.put(id, number++);
+			}
+		}
 		if (this.pendingFootnotes.isEmpty()) {
 			this.footnoteReservedCount = 0;
 			this.footnoteReservation = 0;
 			return 0;
 		}
-		final FootnoteCallScan scan = this.scanFootnoteCalls(this.pageBox);
+		final FootnoteCallScan scan = probe || planned ? probeScan : this.scanFootnoteCalls(this.pageBox);
 		this.pageHadContent = scan.contentful();
 		final java.util.Set<Long> retained = scan.ids();
 
@@ -2495,7 +2713,7 @@ public class RootBuilder extends BreakableBuilder {
 			int nextNumber = 1;
 			for (final FootnoteEntry entry : this.pendingFootnotes) {
 				if (!entry.committed && retained.contains(entry.id)) {
-					entry.assignedNumber = nextNumber++;
+					entry.assignedNumber = probe ? this.probeCallNumbers.remove(entry.id) : nextNumber++;
 				}
 			}
 		}
@@ -2509,6 +2727,14 @@ public class RootBuilder extends BreakableBuilder {
 				if (i >= this.footnoteReservedCount
 						|| (!entry.committed && !retained.contains(entry.id) && !forced)) {
 					break;
+				}
+				if (planned) {
+					final FootnoteReservation reservation = this.footnotePlan.get(entry.id);
+					if (entry.noteBox == null || reservation == null) break;
+					final double height = footnoteBandExtent(entry.noteBox);
+					if (!(i == 0 && reservation.oversized())
+							&& (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(height, reservation.height()) > 0
+									|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(FOOTNOTE_GAP + attachedExtent + height, this.pageBox.getFootInset()) > 0)) break;
 				}
 				++attachCount;
 				if (this.isBottomFootnoteArea()) {
@@ -2532,7 +2758,7 @@ public class RootBuilder extends BreakableBuilder {
 		// F5: このページの確定木に残ったcallラベルを解決する(markerは
 		// note側なのでattach時)。pendingに居ないIDのラベル(過去に配置済み
 		// のnote内marker等)はスキップ
-		{
+		if (!probe) {
 			final java.util.Map<Long, Integer> numbers = new java.util.HashMap<>();
 			for (final FootnoteEntry entry : this.pendingFootnotes) {
 				if (entry.assignedNumber > 0) {
@@ -2557,16 +2783,19 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		for (int i = 0; i < attachCount; ++i) {
 			final FootnoteEntry entry = this.pendingFootnotes.removeFirst();
+			if (planned) this.bottomFootnotes.remove(entry.id);
 			if (entry.assignedNumber < 0) {
 				// 呼び出しが走査で見つからなかった脚注(表のセル等)。
 				// 変換を失敗させず、文書順の通番で採番する(§5.13)
 				entry.assignedNumber = (int) (entry.id + 1);
 			}
 			// note本文先頭の::footnote-markerラベルをcallページの番号で解決
-			for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
-					.scanFootnoteCalls(entry.noteBox).labels()) {
-				if (label.isMarker()) {
-					label.resolve(entry.assignedNumber);
+			if (!probe) {
+				for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
+						.scanFootnoteCalls(entry.noteBox).labels()) {
+					if (label.isMarker()) {
+						label.resolve(entry.assignedNumber);
+					}
 				}
 			}
 			if (this.isBottomFootnoteArea()) {
@@ -2636,6 +2865,17 @@ public class RootBuilder extends BreakableBuilder {
 	 * 2頁目のセルの注が本文なし・番号6)。
 	 */
 	private FootnoteCallScan scanFootnoteCalls(final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
+		return scanFootnoteCalls(root, true);
+	}
+
+	/** 計測用の読み取り走査。絶対配置のdeferred bind・脚注番号の解決を行いません。 */
+	public static java.util.Set<Long> collectFootnoteCalls(
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
+		return java.util.Set.copyOf(scanFootnoteCalls(root, false).ids());
+	}
+
+	private static FootnoteCallScan scanFootnoteCalls(
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root, final boolean bindAbsolute) {
 		final java.util.Set<Long> ids = new java.util.HashSet<>();
 		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels = new java.util.ArrayList<>();
 		final java.util.ArrayDeque<Object> work = new java.util.ArrayDeque<>();
@@ -2660,8 +2900,13 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox container) {
 				container.getContainer().eachFlowBox(work::push);
+				// 段組の中の浮動体も ColumnsContainer.eachFloatingBox が段順に列挙する
+				// (F-5b で実装。以前は空実装で、段内 float の呼び出しを本番が確定できず
+				// EOF 救済まで残っていた。B 専用の迂回は F-5b レビューの任意項目で共有化)
 				container.getContainer().eachFloatingBox(work::push);
 				container.getContainer().eachAbsoluteBox(box -> {
+					// F-2aのBは排除域を復元しない。絶対配置中のcallはF4へ回す。
+					if (!bindAbsolute) return;
 					if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute) {
 						// position:absolute の本文はページのfinishLayoutまで保留される
 						// (DeferredBind)。走査はその前に走るので、ここで先に結び付けて

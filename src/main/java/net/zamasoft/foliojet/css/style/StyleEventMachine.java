@@ -527,7 +527,11 @@ final class StyleEventMachine {
 			// ページ容量を縮めても組済みの段は再配分されない)。型付き失敗に
 			// せず警告して続行(クラッシュ排除方針。脚注領域自体はページ
 			// 全幅で置かれる——consult-codex-2026-07-31-footnote-f6f7.txt §4)
-			for (CSSStyle ancestor = style.getParentStyle(); ancestor != null; ancestor = ancestor
+			final net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
+			final boolean bottomBand = area.position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
+					&& this.pageSequence.getProgression().isVertical();
+			// 地の帯はページ開始時に一度予約するので、段ごとの容量差を作らない。
+			for (CSSStyle ancestor = style.getParentStyle(); !bottomBand && ancestor != null; ancestor = ancestor
 					.getParentStyle()) {
 				if (ColumnCount.get(ancestor) > 1) {
 					java.util.logging.Logger.getLogger(StyleEventMachine.class.getName())
@@ -550,7 +554,6 @@ final class StyleEventMachine {
 			// 上で合成済みなので元の位置の向きのまま)。作者が注に別の
 			// writing-mode を書いても無視する。@footnoteで領域の向きを
 			// 指定したときだけ、頁に代えてその向きで組む(F-1)。
-			final net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
 			final WritingMode page = area.flow == null ? this.pageSequence.getProgression() : area.flow;
 			if (BlockFlow.get(style) != page) {
 				style.set(BlockFlow.INFO, switch (page) {
@@ -569,11 +572,11 @@ final class StyleEventMachine {
 				// 幅は注の border-box として与え、左右の margin は 0(帯は用紙の
 				// 幅いっぱいなので、作者の padding/border を足して帯からはみ出さ
 				// ない——codex F-1 レビュー)。持ち越し先のページの幅が違う
-				// (名前付きページ)場合は呼び出しのページの幅のまま置く(F-1 の
-				// 制限。ページごとの再計測は F-2 で)
+				// (名前付きページ)場合も呼び出しのページの幅のまま置く。
+				// 入力が先行する名前付きページはBの現在幅を使い、遅れているCの幅を凍結しない。
 				final PageBox pageBox = this.pageSequence.getCurrentPage();
 				if (pageBox != null) {
-					style.set(Width.INFO, AbsoluteLengthValue.create(this.ua, pageBox.getInnerWidth()),
+					style.set(Width.INFO, AbsoluteLengthValue.create(this.ua, this.sink.footnoteLineWidth(pageBox)),
 							CSSStyle.MODE_IMPORTANT);
 					style.set(BoxSizing.INFO, net.zamasoft.foliojet.css.value.css3.BoxSizingValue.BORDER_BOX_VALUE,
 							CSSStyle.MODE_IMPORTANT);

@@ -348,6 +348,11 @@ public final class LayoutSource implements AutoCloseable {
 				this.textSlices.size(), this.slicedEvents);
 	}
 
+	/** 主ログとseal済みsliceが共有する、未解放のinline文字payloadのバイト数。 */
+	public long retainedInlineTextBytes() {
+		return this.liveInlineTextBytes;
+	}
+
 	/** 既定予算({@link #DEFAULT_TEXT_SPILL_BUDGET_BYTES})で作ります。 */
 	public LayoutSource() {
 		this(DEFAULT_TEXT_SPILL_BUDGET_BYTES);
@@ -646,6 +651,10 @@ public final class LayoutSource implements AutoCloseable {
 			return this.fromId;
 		}
 
+		public boolean isClosed() {
+			return this.closed;
+		}
+
 		@Override
 		public void close() {
 			if (this.closed) {
@@ -680,12 +689,17 @@ public final class LayoutSource implements AutoCloseable {
 	 * fromId 以降のイベントを保持するリースを取得します。
 	 */
 	public RetentionLease retainFrom(final long fromId) {
+		return this.retainFrom(fromId, true);
+	}
+
+	/** 明示したscratch所有者が取得する場合は、現在の接続には登録しません。 */
+	RetentionLease retainFrom(final long fromId, final boolean registerScratch) {
 		if (this.closed) throw new IllegalStateException("終了済みソースの保持");
 		this.retentionLeases.merge(fromId, 1, Integer::sum);
 		++this.retentionLeaseCount;
 		this.reportRetention();
 		final RetentionLease lease = new RetentionLease(fromId);
-		ScratchReplayScope.register(lease);
+		if (registerScratch) ScratchReplayScope.register(lease);
 		return lease;
 	}
 
@@ -722,7 +736,71 @@ public final class LayoutSource implements AutoCloseable {
 	 * @param watermark これより前(id &lt; watermark)が破棄対象
 	 */
 	public void compact(final long watermark) {
+		if (this.compactionCheckpoint != null) this.compactionCheckpoint.request(0, watermark);
 		this.compact(0, watermark);
+	}
+
+	private CompactionCheckpoint compactionCheckpoint;
+
+	/**
+	 * teeの保護リースで抑止されたCの回収範囲を、Bのpin前進後に再適用します。
+	 * 重なる要求は区間へ集約し、適用済み区間は忘れます。入力・文字は保持しません。
+	 */
+	public CompactionCheckpoint checkpointCompaction() {
+		if (this.compactionCheckpoint != null) throw new IllegalStateException("compact観測の重複");
+		return this.compactionCheckpoint = new CompactionCheckpoint();
+	}
+
+	public final class CompactionCheckpoint implements AutoCloseable {
+		private final java.util.TreeMap<Long, Long> requests = new java.util.TreeMap<>();
+		private boolean closed;
+
+		private CompactionCheckpoint() { }
+
+		private void request(final long fromId, final long watermark) {
+			if (watermark <= fromId) return;
+			long from = fromId, to = watermark;
+			final var previous = this.requests.floorEntry(from);
+			if (previous != null && previous.getValue() >= from) {
+				from = previous.getKey();
+				to = Math.max(to, previous.getValue());
+				this.requests.remove(previous.getKey());
+			}
+			for (var next = this.requests.ceilingEntry(from); next != null && next.getKey() <= to;
+					next = this.requests.ceilingEntry(from)) {
+				to = Math.max(to, next.getValue());
+				this.requests.remove(next.getKey());
+			}
+			this.requests.put(from, to);
+		}
+
+		public int pendingRequestCount() {
+			return this.requests.size();
+		}
+
+		/** Cが要求した区間だけを再適用する。B自身の水位で主ログをcompactしない。 */
+		public void reapply() {
+			final long retained = LayoutSource.this.retentionLeases.isEmpty() ? Long.MAX_VALUE
+					: LayoutSource.this.retentionLeases.firstKey();
+			final var iterator = this.requests.entrySet().iterator();
+			while (iterator.hasNext()) {
+				final var request = iterator.next();
+				if (retained > request.getKey()) LayoutSource.this.compact(request.getKey(), request.getValue());
+				if (retained >= request.getValue()) iterator.remove();
+			}
+		}
+
+		@Override
+		public void close() {
+			if (this.closed) return;
+			this.closed = true;
+			LayoutSource.this.compactionCheckpoint = null;
+			try {
+				this.reapply();
+			} finally {
+				this.requests.clear();
+			}
+		}
 	}
 
 	/**
@@ -731,6 +809,10 @@ public final class LayoutSource implements AutoCloseable {
 	 * 記録中は水位が1024イベント進むごと、Pass B/Cの境界はforceで呼ぶ。
 	 */
 	public boolean compactRetainedTable(final long tableId, final long watermark, final boolean force) {
+		if (this.compactionCheckpoint != null && tableId >= 0
+				&& (force || watermark - Math.max(tableId, this.retainedTableWatermark) >= 1024)) {
+			this.compactionCheckpoint.request(tableId, watermark);
+		}
 		final long clamped = this.retentionLeases.isEmpty() ? watermark
 				: Math.min(watermark, this.retentionLeases.firstKey());
 		if (tableId < 0 || clamped <= tableId || clamped <= this.retainedTableWatermark

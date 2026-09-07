@@ -282,7 +282,8 @@ public final class SourceReplayer {
 		}
 		// 尾部は囲みブロックの EndBlock(=このテキストの終わり)または
 		// 次の兄弟アイテムの手前まで
-		final long cap = endIdExclusive < 0 ? log.nextId() : endIdExclusive;
+		final long cap = Math.min(endIdExclusive < 0 ? log.nextId() : endIdExclusive,
+				pageGenerator.getDeliveredEventEnd());
 		final long toId = log.tailBound(fromId, cap) - 1;
 		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsTable(fromId, toId)
 				|| log.containsFloat(fromId, toId) || log.containsAbsolute(fromId, toId)) {
@@ -305,7 +306,7 @@ public final class SourceReplayer {
 			// 範囲が欠けていれば box-restyle へフォールバック
 			return false;
 		}
-		try (TranslateBlockScope scope = new TranslateBlockScope(rootBuilder)) {
+		try (slice; TranslateBlockScope scope = new TranslateBlockScope(rootBuilder)) {
 			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
 			// E-6増分3b-1: 駆動本体は共有の SegmentExecutor へ。Chars だけは
 			// 尾部特有のトリミング(先頭 skip・配達済み終端での打ち切り)を
@@ -404,6 +405,7 @@ public final class SourceReplayer {
 			return false;
 		}
 		final long endId = log.endOf(selfId);
+		if (endId >= pageGenerator.getDeliveredEventEnd()) return false;
 		final LayoutSource.ReplaySlice slice = log.capture(selfId + 1, endId - 1);
 		if (slice == null) {
 			// 範囲が欠けていればボックス再生へフォールバック
@@ -480,6 +482,7 @@ public final class SourceReplayer {
 	 */
 	public static boolean replay(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
+		if (toId >= pageGenerator.getDeliveredEventEnd()) return false;
 		java.util.ArrayDeque<ActiveReplay> active = ACTIVE_REPLAYS.get();
 		if (active != null) {
 			for (final ActiveReplay replay : active) {

@@ -80,6 +80,7 @@ public final class RangeHandle {
 	public IntrinsicSizes sizes() { return this.sizes; }
 	public ReplayMode replayMode() { return this.replayMode; }
 	public State state() { return this.state; }
+	public boolean isReplaying() { return this.replaying; }
 	public boolean hasTextSlice() { return this.textSlice != null; }
 
 	/** 宿主のownership ledgerへ終端を通知する。detach時はnullで関連を切る。 */
@@ -184,7 +185,10 @@ public final class RangeHandle {
 		}
 	}
 
-	/** 一時ビルダー等、再生しない本文を破棄します。 */
+	/**
+	 * 一時ビルダー等、再生しない本文を破棄します。終了通知が失敗しても終端状態を保ち、
+	 * リース・textSliceを解放します。通知の例外は呼び出し側へ伝えます。
+	 */
 	public void abandon() {
 		this.terminate(State.ABANDONED);
 		ContinuationStats.TWO_PASS_SEALS_ABANDONED.incrementAndGet();
@@ -196,9 +200,13 @@ public final class RangeHandle {
 	private void terminate(final State terminal) {
 		this.requireOpen();
 		this.state = terminal;
-		this.notifyOwnerState();
-		this.source.releaseRange(this);
-		this.releaseBody();
+		try {
+			this.notifyOwnerState();
+		} finally {
+			// 所有状態の通知が失敗しても、終端した範囲と本文の所有は残さない。
+			this.source.releaseRange(this);
+			this.releaseBody();
+		}
 	}
 
 	private void requireOpen() {

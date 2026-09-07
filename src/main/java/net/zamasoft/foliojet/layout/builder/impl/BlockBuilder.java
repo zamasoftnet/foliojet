@@ -1256,6 +1256,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 			if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
 				// getFrame() は終端を保留した有効フレーム。通常経路の演算順は維持する。
+				this.incompleteTablePlaced(tableBox, this.pageAxis);
 				this.pageAxis += tableBox.getInnerPageExtent(params.flow) + frame.getFramePageExtent(params.flow);
 			} else {
 				this.pageAxis += flowBox.getPageExtent(params.flow);
@@ -1865,6 +1866,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 			retained.beginRetainedContext(blockBox);
 		}
 		return builder;
+	}
+
+	/** 未完表の初回配置・残余再配置で、マージン相殺後の始点を親へ渡します。 */
+	protected void incompleteTablePlaced(final TableBox tableBox, final double pageStart) {
 	}
 
 	public void finish() {

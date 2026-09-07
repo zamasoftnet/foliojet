@@ -1,0 +1,35 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>footnote F-4: vertical columns sharing one bottom band</title>
+<style>
+@page {
+  margin: 24pt;
+  @footnote { float: bottom; writing-mode: horizontal-tb }
+  @bottom-center { content: counter(page); writing-mode: horizontal-tb; font-size: 10pt }
+}
+body { margin: 0; font-size: 12pt; line-height: 18pt; writing-mode: vertical-rl; }
+.columns { column-count: 2; column-gap: 12pt; column-fill: balance; }
+.next { break-before: page; }
+p { margin: 0; }
+.note { float: footnote; font-size: 10pt; line-height: 14pt; }
+</style>
+</head>
+<body>
+<div class="columns">
+<p>第一頁<span class="note">第一頁の横書きの注。</span>本文。</p>
+<p>段の行長を揃える。</p>
+<p>地に一つの脚注帯。</p>
+<p>余白にノンブル。</p>
+</div>
+<div class="columns next">
+<p>第二頁<span class="note">第二頁も注番号は一から。</span>本文。</p>
+<p>二段で本文を組む。</p>
+<p>帯は段の下を通る。</p>
+<p>本文の終わり。</p>
+</div>
+</body>
+</html>

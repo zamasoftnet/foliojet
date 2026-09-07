@@ -326,6 +326,27 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		return this.doc.getDeliveredCharEnd();
 	}
 
+	@Override
+	public long getDeliveredEventEnd() {
+		return this.sink.deliveredEventEnd();
+	}
+
+	@Override
+	public boolean isFootnotePageProbeEnabled() {
+		return this.ua.getUAContext().getFootnoteArea().position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
+				&& this.pageSequence.getProgression().isVertical();
+	}
+
+	@Override
+	public net.zamasoft.foliojet.layout.FootnotePageProbeReport getFootnotePageProbeReport(final long generation) {
+		return this.sink.report(generation);
+	}
+
+	@Override
+	public boolean isFootnotePageProbeFinished() {
+		return this.sink.probeFinished();
+	}
+
 	public void compactLayoutSource(final long watermark) {
 		this.sink.compact(watermark);
 	}
@@ -428,6 +449,11 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 	}
 
 	@Override
+	public void pageStarted(final PageBox page, final double innerWidth, final double innerHeight) {
+		this.sink.pageStarted(page, innerWidth, innerHeight, this.pageSequence.getPageName(), this.pageSequence::footnotePageGeometry);
+	}
+
+	@Override
 	public String getPageName() {
 		return this.pageSequence.getPageName();
 	}
@@ -443,6 +469,7 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 	}
 
 	public void finish() throws GraphicsException {
+		this.sink.finishProbes();
 		this.doc.end();
 		this.pageSequence.finish();
 		// E-6増分3b-2: 最終ページ確定後はソース再生が発生しないため、

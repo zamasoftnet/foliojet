@@ -51,6 +51,33 @@ public sealed interface BoxRecipe {
 	BoxKind kind();
 
 	/**
+	 * 包含ブロックの高さがautoでも、固定ページ軸まで探して割合寸法を解決する形です。
+	 * 通常Flowのheight/min-heightは直近の親を参照するため、ここには含めません。
+	 * 実際の祖先で解決できる場合も保守的にtrueとし、箱の生成・bindは行いません。
+	 */
+	default boolean hasPageRelativeSize() {
+		final BlockParamsFields fields = switch (this) {
+		case InlineBlock box -> box.params().fields();
+		case Marker box -> box.params().fields();
+		case InsideMarker box -> box.params().fields();
+		case FloatBlock box -> box.params().fields();
+		case Absolute box -> box.params().fields();
+		case Table box -> box.params().common();
+		case PlacedTable box -> box.params().common();
+		default -> null;
+		};
+		if (fields == null) return false;
+		// 直交する子では物理高さが行軸になる。両軸を検査し、包含セルで
+		// 解ける割合幅も保守的に含める(Replacedの検査と同じ方針)。
+		return hasRelativeSize(fields.size()) || hasRelativeSize(fields.minSize()) || hasRelativeSize(fields.maxSize())
+				|| (this instanceof PlacedTable box && box.placement().hasPageRelativeSize());
+	}
+
+	private static boolean hasRelativeSize(final net.zamasoft.foliojet.layout.box.params.Dimension size) {
+		return size.getWidthType().needsReference() || size.getHeightType().needsReference();
+	}
+
+	/**
 	 * 主ログと反復内容のinline/float/absolute表です。kindはTABLEのまま、
 	 * Start/Endを1対だけ持ちます。TABLEのfreezeと同じく配置は内側blockBoxのposから凍結し、
 	 * 再構築時のTableParamsは内外で共有します。宿主の配置処理は表ビルダーが担います。

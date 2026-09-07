@@ -50,6 +50,13 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	protected List<TableRowBox> rows = null;
 
+	/** TableBox と同じ計画。完成表には設定しません。 */
+	IncompleteTablePlan incompletePlan;
+
+	void updateIncompleteSize() {
+		this.pageSize = this.incompletePlan.visibleGroupSize();
+	}
+
 	public TableRowGroupBox(final InnerTableParams params, final TableRowGroupPos pos) {
 		super(params);
 		this.pos = pos;
@@ -246,6 +253,22 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, final byte flags) {
+		if (this.incompletePlan != null) {
+			final SplitResult result = this.splitRows(pageLimit, mode, flags);
+			if (result instanceof SplitResult.Split split) {
+				final TableRowGroupBox next = (TableRowGroupBox) split.remainder();
+				next.incompletePlan = this.incompletePlan.split(this, next,
+						mode instanceof BreakMode.ForceBreakMode ? IncompleteTablePlan.SplitKind.FORCED
+								: IncompleteTablePlan.SplitKind.AUTO);
+				this.pageSize = this.incompletePlan.visibleGroupSize();
+				next.pageSize = next.incompletePlan.visibleGroupSize();
+			}
+			return result;
+		}
+		return this.splitRows(pageLimit, mode, flags);
+	}
+
+	private SplitResult splitRows(double pageLimit, BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		if (System.getProperty("fj.trgtrace") != null) {
 			System.err.println("TRG id=" + System.identityHashCode(this) + " rows="

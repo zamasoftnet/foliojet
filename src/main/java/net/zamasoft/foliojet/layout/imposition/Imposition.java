@@ -179,6 +179,9 @@ public interface Imposition {
 
 	public CSSElement nextPageSide();
 
+	/** 現在の面付け規則で次面を求めます。UAの面・ページ番号は更新しません。 */
+	public CSSElement getNextPageSide(CSSElement pageElement);
+
 	public void closePage() throws GraphicsException;
 
 	public void finish() throws GraphicsException;

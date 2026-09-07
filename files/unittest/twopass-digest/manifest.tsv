@@ -146,6 +146,8 @@
 0120-float/sliver-overflow-stays.html	files/unittest/0120-float/sliver-overflow-stays.html	1	text/html	input.include=**	input.property-pi=true
 0120-float/table-beside-start-float.html	files/unittest/0120-float/table-beside-start-float.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-avoidmove.html	files/unittest/0125-footnote/footnote-avoidmove.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-bottom-columns.html	files/unittest/0125-footnote/footnote-bottom-columns.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-bottom-vertical-rl.html	files/unittest/0125-footnote/footnote-bottom-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-carryin.html	files/unittest/0125-footnote/footnote-carryin.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-f1.html	files/unittest/0125-footnote/footnote-f1.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-oversized.html	files/unittest/0125-footnote/footnote-oversized.html	1	text/html	input.include=**	input.property-pi=true
@@ -288,6 +290,7 @@
 0240-table/frame-rules.html	files/unittest/0240-table/frame-rules.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/header-footer-colspan-limit.html	files/unittest/0240-table/header-footer-colspan-limit.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/image-in-cell.html	files/unittest/0240-table/image-in-cell.html	1	text/html	input.include=**	input.property-pi=true
+0240-table/row-streaming-emit.html	files/unittest/0240-table/row-streaming-emit.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/rowspan-after-empty-row.html	files/unittest/0240-table/rowspan-after-empty-row.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/single-row-split-after-line.html	files/unittest/0240-table/single-row-split-after-line.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/table-limit-empty-body.html	files/unittest/0240-table/table-limit-empty-body.html	1	text/html	input.include=**	input.property-pi=true
@@ -840,6 +843,7 @@ imageTest/2090-border-radius/border-radius.html	../copperpdf4/dev/files/visual/2
 imageTest/2100-text-emphasis/h-text-emphasis.html	../copperpdf4/dev/files/visual/2100-text-emphasis/h-text-emphasis.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/2100-text-emphasis/v-text-emphasis.html	../copperpdf4/dev/files/visual/2100-text-emphasis/v-text-emphasis.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/2110-border-image/border-image.html	../copperpdf4/dev/files/visual/2110-border-image/border-image.html	1	text/html	input.include=**	input.property-pi=true
+imageTest/2120-footnote/bottom-vertical-rl.html	../copperpdf4/dev/files/visual/2120-footnote/bottom-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/acid2.html	../copperpdf4/dev/files/visual/acid2.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/barcode/barcode.html	../copperpdf4/dev/files/visual/barcode/barcode.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/barcode/isbn.html	../copperpdf4/dev/files/visual/barcode/isbn.html	1	text/html	input.include=**	input.property-pi=true

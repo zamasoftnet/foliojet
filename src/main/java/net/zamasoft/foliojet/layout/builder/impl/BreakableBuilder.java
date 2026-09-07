@@ -111,6 +111,266 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	protected TableBox lastTableBox;
 
+	private IncompleteTableResult incompleteTable;
+
+	/** 直近の受理・追記・完了操作の結果。分割後にも溢れが残れば UNSPLITTABLE。 */
+	public enum IncompleteTableStatus {
+		UNSUPPORTED, UNSPLIT, MOVED, SPLIT, UNSPLITTABLE
+	}
+
+	/**
+	 * 親が配置済みの最終残余を所有するハンドルです。
+	 * 呼び側は remainder() を addBound し直したり splitTableBox() したりしません。
+	 * body() に addTableRow した後、rowsAppended() を一度呼びます。
+	 * 最後の追記は rowsAppended() を省いて complete() で計上できます。
+	 * 各操作で残余・本文グループが替わるので、次の追記先は必ず取り直してください。
+	 * complete() まで他のフロー内容を挟まず、表を直接 complete() しません。
+	 * 負の終端フレームが改頁結果を変える最終追記は、必ず complete() へ渡します。
+	 * 大きな負マージンがそれ以前の分割にも影響する場合、受理・追記通知の送出を
+	 * 保留する条件は B-2b の呼び側が全体計画から判定します。送出済みの分割は戻せません。
+	 */
+	public final class IncompleteTableResult {
+		private IncompleteTableStatus status;
+		private TableBox remainder;
+		private TableRowGroupBox body;
+		private int rowCount;
+		private int emittedFragments;
+		private double bodySize, pageStart, placedPageAxis, beforeContentSize, beforePageSize;
+		private Flow flow;
+		private boolean completed;
+
+		private IncompleteTableResult(final IncompleteTableStatus status) {
+			this.status = status;
+		}
+
+		public IncompleteTableStatus status() {
+			return this.status;
+		}
+
+		/** 直近の受理・追記・完了で改頁時に前頁へ送った実断片数。全体移動は数えません。 */
+		public int emittedFragments() {
+			return this.emittedFragments;
+		}
+
+		public boolean isAccepted() {
+			return this.status != IncompleteTableStatus.UNSUPPORTED;
+		}
+
+		/** 対象外の場合だけ null。完了後は最後に配置した完成断片です。 */
+		public TableBox remainder() {
+			return this.remainder;
+		}
+
+		public TableRowGroupBox body() {
+			return this.body;
+		}
+
+		/** 現在の残余の仮想全行計画。B-2a 単独の受理では null です。 */
+		public net.zamasoft.foliojet.layout.box.impl.IncompleteTablePlan plan() {
+			return this.remainder == null ? null : this.remainder.getIncompletePlan();
+		}
+
+		private void requireActive() {
+			if (BreakableBuilder.this.incompleteTable != this || this.completed || this.remainder == null
+					|| !this.remainder.isIncomplete() || BreakableBuilder.this.lastTableBox != this.remainder
+					|| BreakableBuilder.this.getFlow() != this.flow
+					|| Double.doubleToLongBits(BreakableBuilder.this.pageAxis) != Double.doubleToLongBits(this.placedPageAxis)
+					|| BreakableBuilder.this.isRestyling() || BreakableBuilder.this.textSession != null
+					|| BreakableBuilder.this.textBuilder != null) {
+				throw new IllegalStateException("The incomplete table handle is not the active flow tail");
+			}
+		}
+
+		/**
+		 * 追加済みの行だけを計上し、親が必要な改頁と残余の再配置を行います。
+		 * 終端フレーム復元前に判定するので、それが分割結果を変える最終追記には
+		 * この操作を使わず complete() を呼びます。
+		 * 新しい行のない二重通知、受理前・完了後の通知は IllegalStateException。
+		 */
+		public IncompleteTableStatus rowsAppended() {
+			this.requireActive();
+			this.remainder.updateIncompleteBody(this.body, this.rowCount, this.bodySize);
+			this.updateExtent();
+			this.status = BreakableBuilder.this.breakIncompleteTable(this);
+			this.rememberBody();
+			BreakableBuilder.this.interflowBreak = false;
+			return this.status;
+		}
+
+		/**
+		 * 未通知の最終追記を計上し、終端フレーム・末尾会計を復元してから、
+		 * 最終の改頁判定を一度だけ行います。追記は rowsAppended() と同じ条件で検査します。
+		 * 全行を通知済みでも呼べ、その行を二重計上しません。先行通知による分割が
+		 * 完了時の結果を変えない場合、直接 complete() と rowsAppended() 後の complete()
+		 * は同値です。負の終端フレームが分割を取り消す場合は直接呼んでください。
+		 */
+		public IncompleteTableStatus complete() {
+			this.requireActive();
+			if (this.body.getTableRowCount() != this.rowCount
+					|| Double.doubleToLongBits(this.body.getPageSize()) != Double.doubleToLongBits(this.bodySize)) {
+				this.remainder.updateIncompleteBody(this.body, this.rowCount, this.bodySize);
+			}
+			this.remainder.complete();
+			this.completed = true;
+			this.updateExtent();
+			BreakableBuilder.this.poLastMargin = BreakableBuilder.this.neLastMargin = this.remainder.getFrame().margin.bottom;
+			this.status = BreakableBuilder.this.breakIncompleteTable(this);
+			this.rememberBody();
+			BreakableBuilder.this.canBreakBefore = true;
+			BreakableBuilder.this.interflowBreak = true;
+			BreakableBuilder.this.applyBreakAfter(PageBreakMode.AUTO);
+			BreakableBuilder.this.incompleteTable = null;
+			return this.status;
+		}
+
+		private void updateExtent() {
+			// 初回配置で相殺・浮動体回避を済ませた始点から外寸を置き換える。
+			// (oldCursor + (newExtent - oldExtent)) の丸めと二重配置を避ける。
+			BreakableBuilder.this.pageAxis = this.pageStart + this.remainder.getHeight();
+			if (this.flow.box instanceof FlowBlockBox flowBox) {
+				flowBox.updateIncompleteTableExtent(BreakableBuilder.this.pageAxis - this.flow.pageAxis,
+						this.beforeContentSize, this.beforePageSize);
+			} else {
+				this.flow.box.setPageAxis(BreakableBuilder.this.pageAxis - this.flow.pageAxis);
+			}
+			this.placedPageAxis = BreakableBuilder.this.pageAxis;
+		}
+
+		private void rememberBody() {
+			this.body = this.remainder.getTableBody(0);
+			this.rowCount = this.body.getTableRowCount();
+			this.bodySize = this.body.getPageSize();
+			this.placedPageAxis = BreakableBuilder.this.pageAxis;
+		}
+	}
+
+	/** Pass B 後の判定と受理入口で共有する、実宿主の状態です。 */
+	final boolean supportsIncompleteTableIntake() {
+		return this.mode == MODE_PAGE_BREAK && this.breakDepth == -1 && !this.isRestyling()
+				&& this.textSession == null && this.textBuilder == null && this.canFragmentFurther();
+	}
+
+	/**
+	 * 未完表の専用入口です。初回のマージン相殺・浮動体回避は BlockBuilder、
+	 * 強制・自動分割は完成 Retained 表と同じ firstTableForceBreak / autoBreak
+	 * (その下の TableBox.split) が担当します。残余は親が再配置まで済ませます。
+	 * 呼び側は splitTableBox() を呼ばず、返されたハンドルで追記・完了してください。
+	 *
+	 * MODE_PAGE_BREAK の横組み通常フローだけを受理します。continuous は
+	 * DocumentBuilder が MODE_NO_BREAK にするため対象外です。本文は1グループ、
+	 * フッタ・collapse は対象外。Pass C の計画適格性の判定・呼び出しは B-2b。
+	 * 本文高以外の指定高を積んだ箱も対象外です。対象外なら配置せず UNSUPPORTED
+	 * を返します。呼び側は未受理の箱を complete() してから従来経路へ戻せます。
+	 */
+	public final IncompleteTableResult acceptIncompleteTable(final TableBox tableBox) {
+		if (!this.supportsIncompleteTableIntake() || this.getRootBox().getBlockParams().flow.isVertical()
+				|| this.getFlowBox().getBlockParams().flow.isVertical() || tableBox.getTableParams().flow.isVertical()
+				|| tableBox.getBlockBox().getPos().getType() != PosType.FLOW
+				|| tableBox.getTableBodyCount() != 1 || tableBox.getTableFooter() != null
+				|| tableBox.getTableParams().borderCollapse != net.zamasoft.foliojet.layout.box.params.TableParams.BORDER_SEPARATE
+				|| Double.doubleToLongBits(tableBox.getInnerHeight()) != Double.doubleToLongBits(
+						(tableBox.getTableHeader() == null ? 0 : tableBox.getTableHeader().getHeight())
+								+ tableBox.getTableBody(0).getHeight())) {
+			return new IncompleteTableResult(IncompleteTableStatus.UNSUPPORTED);
+		}
+		if (this.incompleteTable != null || (this.lastTableBox != null && this.lastTableBox.isIncomplete())
+				|| !tableBox.isIncomplete() || tableBox.isFragmented()
+				|| this.lastTableBox == tableBox) {
+			throw new IllegalStateException("Expected a new incomplete table with no active intake");
+		}
+		// TablePos の before/after は AUTO。既存入口と同じく、先行する強制改頁を先に処理する。
+		final boolean namedTransition = this.resolveNamedPageTransition(tableBox);
+		final boolean forcedBreak = this.breakAfter != null;
+		if (forcedBreak) {
+			this.forceBreak(this.breakAfter);
+		}
+		if (namedTransition && !forcedBreak) {
+			this.namedTransitionBreak();
+		}
+		final IncompleteTableResult result = new IncompleteTableResult(IncompleteTableStatus.UNSPLIT);
+		this.incompleteTable = result;
+		super.addBound(tableBox);
+		this.lastTableBox = tableBox;
+		result.status = this.breakIncompleteTable(result);
+		result.rememberBody();
+		this.interflowBreak = false;
+		return result;
+	}
+
+	@Override
+	protected void incompleteTablePlaced(final TableBox tableBox, final double pageStart) {
+		if (this.incompleteTable != null) {
+			this.incompleteTable.remainder = tableBox;
+			this.incompleteTable.pageStart = pageStart;
+			this.incompleteTable.flow = this.getFlow();
+			this.incompleteTable.beforePageSize = this.getFlowBox().getInnerHeight();
+			if (this.getFlowBox() instanceof FlowBlockBox flowBox) {
+				this.incompleteTable.beforeContentSize = flowBox.getContentSize();
+			}
+		}
+	}
+
+	/** 既存 addBound の Retained ループを変更せず、未完表操作の結果を捕捉します。 */
+	private IncompleteTableStatus breakIncompleteTable(final IncompleteTableResult result) {
+		result.emittedFragments = 0;
+		IncompleteTableStatus status = IncompleteTableStatus.UNSPLIT;
+		for (;;) {
+			this.checkAbort();
+			final TableBox tableBox = result.remainder;
+			final TableForceBreakMode force = this.firstTableForceBreak(tableBox);
+			if (force != null) {
+				this.lastTableBox = null;
+				this.forceBreak(force);
+			} else {
+				if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
+					return status;
+				}
+				this.lastTableBox = null;
+				if (!this.autoBreak()) {
+					this.lastTableBox = tableBox;
+					return IncompleteTableStatus.UNSPLITTABLE;
+				}
+			}
+			if (this.lastTableBox == null) {
+				if (result.completed) {
+					// 完成表が前頁に残り、次頁に表残余を持たない場合は従来ループ同様ここで終える。
+					++result.emittedFragments;
+					if (this.getPageContext() != null) this.getPageContext().noteRetainedTableFragmentEmitted();
+					return status;
+				}
+				throw new IllegalStateException("The parent lost the incomplete table remainder during a break");
+			}
+			if (this.lastTableBox != tableBox) {
+				++result.emittedFragments;
+				if (this.getPageContext() != null) {
+					this.getPageContext().noteRetainedTableFragmentEmitted();
+					// RootのpageBreakは前頁の描画と残余の再開を終えてから返る。
+					// MOVEでは同じ箱が次頁に必要なので、異なる残余が返った場合だけ手放す。
+					tableBox.releaseDrawnRowFragment();
+				}
+				status = IncompleteTableStatus.SPLIT;
+			} else if (force != null) {
+				// 強制の行間切断で残余が替わらなければ進捗なし。再試行し続けない。
+				return IncompleteTableStatus.UNSPLITTABLE;
+			} else if (status == IncompleteTableStatus.UNSPLIT) {
+				status = IncompleteTableStatus.MOVED;
+			}
+			result.remainder = this.lastTableBox;
+		}
+	}
+
+	protected final void requireNoIncompleteTable() {
+		if (this.incompleteTable != null || (this.lastTableBox != null && this.lastTableBox.isIncomplete())) {
+			throw new IllegalStateException("The incomplete table must be completed before finish");
+		}
+	}
+
+	@Override
+	public void finish() {
+		this.requireNoIncompleteTable();
+		super.finish();
+	}
+
 	public BreakableBuilder(LayoutStack layoutStack, AbstractContainerBox contextBox, byte mode) {
 		super(layoutStack, contextBox);
 		this.mode = mode;
@@ -129,7 +389,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		double last = this.pageAxis;
 		final WritingMode tableFlow = tableBox.getTableParams().flow;
-		if (tableBox.isIncomplete()) {
+		if (tableBox.isIncomplete() && tableBox.getIncompletePlan() != null) {
+			last = tableBox.incompleteForceBreakStart(this.incompleteTable.pageStart);
+		} else if (tableBox.isIncomplete()) {
 			// 未完表の配置では終端フレームを積んでいない。
 			last -= tableBox.getInnerPageExtent(tableFlow);
 		} else {

@@ -1,4 +1,8 @@
 drawer z=0
+  x=0.00 y=224.00 FootnoteLabel["1. " w=15.00 h=10.00]
+  x=15.00 y=224.00 Text["横書きの注一。次のページの地に置く。" asc=10.00 desc=4.00]
+  x=0.00 y=238.00 FootnoteLabel["2. " w=15.00 h=10.00]
+  x=15.00 y=238.00 Text["横書きの注二。番号は呼び出し順を保つ。" asc=10.00 desc=4.00]
   x=234.00 y=0.00 Text["縦一" asc=9.00 desc=9.00]
   x=247.69 y=24.00 FootnoteLabel["1" w=4.15 h=8.30]
   x=234.00 y=32.30 Text["本文" asc=9.00 desc=9.00]
@@ -17,4 +21,5 @@ drawer z=0
   x=36.00 y=0.00 Text["呼び出しは一ページ目にあります。" asc=9.00 desc=9.00]
   x=18.00 y=0.00 Text["注の本文は次のページへ送ります。" asc=9.00 desc=9.00]
   x=0.00 y=0.00 Text["用紙の余白の広さは変えません。" asc=9.00 desc=9.00]
+  x=0.00 y=220.75 artifact FootnoteSeparator[w=84.00 h=0.50]
   x=123.50 y=258.00 Text["1" asc=8.59 desc=3.41]

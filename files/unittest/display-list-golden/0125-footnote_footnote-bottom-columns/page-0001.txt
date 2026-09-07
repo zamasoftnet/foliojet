@@ -1,0 +1,11 @@
+drawer z=0
+  x=0.00 y=238.00 FootnoteLabel["1. " w=15.00 h=10.00]
+  x=15.00 y=238.00 Text["第一頁の横書きの注。" asc=10.00 desc=4.00]
+  x=234.00 y=0.00 Text["第一頁" asc=9.00 desc=9.00]
+  x=247.69 y=36.00 FootnoteLabel["1" w=4.15 h=8.30]
+  x=234.00 y=44.30 Text["本文。" asc=9.00 desc=9.00]
+  x=216.00 y=0.00 Text["段の行長を揃える。" asc=9.00 desc=9.00]
+  x=234.00 y=122.00 Text["地に一つの脚注帯。" asc=9.00 desc=9.00]
+  x=216.00 y=122.00 Text["余白にノンブル。" asc=9.00 desc=9.00]
+  x=0.00 y=234.75 artifact FootnoteSeparator[w=84.00 h=0.50]
+  x=123.50 y=258.00 Text["1" asc=8.59 desc=3.41]

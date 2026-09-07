@@ -13,6 +13,10 @@ public interface PageGenerator {
 
 	public PageBox nextPage();
 
+	/** ページ開始の幾何を通知します。Cの初回だけは予約・子の入力より先に呼びます。 */
+	public default void pageStarted(final PageBox page, final double innerWidth, final double innerHeight) {
+	}
+
 	/**
 	 * 現在のページ名です(名前付きページN2。null=無名)。
 	 */
@@ -63,6 +67,26 @@ public interface PageGenerator {
 	 */
 	public default int getDeliveredCharEnd() {
 		return Integer.MAX_VALUE;
+	}
+
+	/** 生入力として配達中のイベントを含む可視終端(排他的)。先読みログの末尾とは別です。 */
+	public default long getDeliveredEventEnd() {
+		return Long.MAX_VALUE;
+	}
+
+	/** bottom+縦組みの本番だけが、初回入力前からキューと予約計画を使います。 */
+	public default boolean isFootnotePageProbeEnabled() {
+		return false;
+	}
+
+	/** ページ開始で一度だけ受け取り、採用・不採用とも生成器側の保持を消費します。 */
+	public default net.zamasoft.foliojet.layout.FootnotePageProbeReport getFootnotePageProbeReport(final long generation) {
+		return null;
+	}
+
+	/** 報告なしでも、未確定と正常終端後を区別できます。いずれも持ち越しだけで進めます。 */
+	public default boolean isFootnotePageProbeFinished() {
+		return true;
 	}
 
 	/**

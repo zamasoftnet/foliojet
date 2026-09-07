@@ -76,7 +76,13 @@ public abstract class AbstractImposition implements Imposition {
 	}
 
 	public CSSElement nextPageSide() {
-		CSSElement pageElement = this.ua.getPassContext().getPageSide();
+		final CSSElement pageElement = this.getNextPageSide(this.ua.getPassContext().getPageSide());
+		this.ua.getPassContext().setPageSide(pageElement);
+		return pageElement;
+	}
+
+	@Override
+	public CSSElement getNextPageSide(CSSElement pageElement) {
 		switch (this.printMode) {
 		case DOUBLE_SIDE:
 		case LEFT_SIDE:
@@ -119,7 +125,6 @@ public abstract class AbstractImposition implements Imposition {
 		default:
 			throw new IllegalStateException();
 		}
-		this.ua.getPassContext().setPageSide(pageElement);
 		return pageElement;
 	}
 
