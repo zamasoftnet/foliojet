@@ -1,0 +1,3 @@
+drawer z=0
+  x=234.00 y=0.00 Text["後乙。" asc=9.00 desc=9.00]
+  x=216.00 y=0.00 Text["後丙。" asc=9.00 desc=9.00]

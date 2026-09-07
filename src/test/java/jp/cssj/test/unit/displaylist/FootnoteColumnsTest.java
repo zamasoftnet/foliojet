@@ -35,10 +35,23 @@ import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.FootnotePos;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.Border;
+import net.zamasoft.foliojet.layout.box.params.Columns;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
+import net.zamasoft.foliojet.layout.box.params.LengthType;
+import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.builder.PageGenerator;
+import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder;
+import net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.RootBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
+import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
+import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
+import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
@@ -47,7 +60,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** F-4: 段組の包含寸法・ページ共通の帯・例外経路と長文の保持窓。 */
+/** F-4/F-8: 段組の包含寸法・ページ共通の帯・配置座標・長文の保持窓。 */
 public final class FootnoteColumnsTest extends TestCase {
 	static {
 		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
@@ -57,6 +70,307 @@ public final class FootnoteColumnsTest extends TestCase {
 
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
 	private static final double EPSILON = 0.01;
+
+	public void testVerticalColumnBlockEndFootnotes() throws Exception {
+		assertColumnBlockEnd("footnote-columns-block-end.html");
+	}
+
+	public void testHorizontalColumnBlockEndFootnotes() throws Exception {
+		assertColumnBlockEnd("footnote-columns-block-end-horizontal.html");
+	}
+
+	private static void assertColumnBlockEnd(final String fixtureName) throws Exception {
+		final String html = Files.readString(Path.of("files/unittest/0125-footnote", fixtureName), StandardCharsets.UTF_8);
+		final Capture capture = transcode(html);
+		assertEquals("注の欠落・重複なし", 3, capture.notes.size());
+		assertEquals("callの欠落・重複なし", 3, capture.calls.size());
+		assertFalse("図版を含む", capture.floats.isEmpty());
+		assertEquals("全注を改段済みの容器へ添付", 3,
+				capture.columnNotes.stream().mapToInt(value -> value.attachedIds().size()).sum());
+		for (final Column column : capture.columns) {
+			final boolean vertical = column.bounds().flow().isVertical();
+			final Page page = capture.page(column.page());
+			assertEquals("段組ownerは頁容量を保つ", vertical ? page.innerWidth() : page.innerHeight(),
+					vertical ? column.bounds().width() : column.bounds().height(), EPSILON);
+		}
+		for (final Note note : capture.notes) {
+			final Label call = capture.calls.stream().filter(value -> value.id() == note.id()).findFirst().orElseThrow();
+			final Column column = capture.columns.stream().filter(value -> value.page() == call.page()
+					&& columnIndex(value, call.x(), call.y()) >= 0).findFirst().orElseThrow();
+			final Placement box = note.placement();
+			final boolean vertical = column.bounds().flow().isVertical();
+			assertEquals("短い注は呼び出しと同頁", call.page(), box.page());
+			assertEquals("呼び出しと同じ段", columnIndex(column, call.x(), call.y()), columnIndex(column, box.x(), box.y()));
+			final int index = columnIndex(column, call.x(), call.y());
+			final double origin = (vertical ? column.bounds().y() : column.bounds().x()) + index * (column.lineSize() + column.gap());
+			assertEquals("注の行軸先頭は段の先頭", origin, vertical ? box.y() : box.x(), EPSILON);
+			assertEquals("狭いcaptionの注も段の行長", column.lineSize(), vertical ? box.height() : box.width(), EPSILON);
+			final RootBuilder.ColumnFootnotePlacement placed = capture.columnNotes.stream()
+					.filter(value -> value.attachedIds().contains(note.id())).findFirst().orElseThrow();
+			assertTrue("旧段にcallが残った", placed.retainedIds().contains(note.id()));
+			assertEquals("内容限界を占有量+gapだけ縮める", placed.attachedExtent() + 6, placed.reservation(), EPSILON);
+			double offset = 0;
+			for (final long id : placed.attachedIds()) {
+				if (id == note.id()) break;
+				final Placement preceding = capture.notes.stream().filter(value -> value.id() == id).findFirst().orElseThrow().placement();
+				offset += vertical ? preceding.width() : preceding.height();
+			}
+			final double start = placed.capacity() - placed.attachedExtent() + offset;
+			assertEquals("C-EからFIFO順に段のblock-endへ", vertical
+					? column.bounds().x() + column.bounds().width() - start - box.width() : column.bounds().y() + start,
+					vertical ? box.x() : box.y(), EPSILON);
+			for (final Placement line : bodyLines(capture)) {
+				assertFalse("本文と注を重ねない", overlaps(box, line));
+				if (line.page() == box.page() && columnIndex(column, line.x(), line.y()) == index) {
+					final double end = vertical ? column.bounds().x() + column.bounds().width() - line.x()
+							: line.y() + line.height() - column.bounds().y();
+					assertTrue("本文は段の内容限界内", end <= placed.capacity() - placed.reservation() + EPSILON);
+				}
+			}
+			for (final Placement floating : capture.floats) assertFalse("図版と注を重ねない", overlaps(box, floating));
+			assertTrue("markerもcall頁の番号で解決", box.text().startsWith(call.text().trim() + ". "));
+		}
+		for (final Placement line : bodyLines(capture)) {
+			for (final Placement floating : capture.floats) assertFalse("本文と図版を重ねない", overlaps(line, floating));
+		}
+		final var nextNumbers = new java.util.HashMap<Integer, Integer>();
+		for (final Label call : capture.calls.stream().sorted(java.util.Comparator.comparingLong(Label::id)).toList()) {
+			assertEquals("頁内で文書順に通番", Integer.toString(nextNumbers.merge(call.page(), 1, Integer::sum)), call.text().trim());
+		}
+		final StringBuilder expected = new StringBuilder();
+		final var paragraphs = java.util.regex.Pattern.compile("<p(?:\\s[^>]*)?>(.*?)</p>", java.util.regex.Pattern.DOTALL).matcher(html);
+		while (paragraphs.find()) expected.append(paragraphs.group(1).replaceAll("<span class=\"note\">.*?</span>", "").replaceAll("<[^>]+>", ""));
+		final StringBuilder actual = new StringBuilder();
+		bodyLines(capture).stream().sorted(java.util.Comparator.comparingInt(Placement::page)
+				.thenComparingDouble(line -> line.flow().isVertical() ? line.y() : line.x())
+				.thenComparingDouble(line -> line.flow().isVertical() ? -line.x() : line.y()))
+				.forEach(line -> actual.append(line.text()));
+		assertEquals("全段の本文を文書順に連結して欠落・重複なし", expected.toString().replaceAll("\\s", ""),
+				actual.toString().replaceAll("[\\s0-9]", ""));
+		assertTrue("EOF救済で注を捨てない", capture.footnoteWarnings.isEmpty());
+		assertTrue("EOFの全pendingを回収", capture.traces.stream().anyMatch(value -> value.event().equals("finish") && value.pendingCount() == 0));
+		final String display = capture.displayLists.stream().map(value -> new String(value, StandardCharsets.UTF_8)).collect(java.util.stream.Collectors.joining());
+		assertEquals("注のある段だけに罫線", capture.columnNotes.stream().filter(value -> !value.attachedIds().isEmpty()).count(),
+				(long) (display.split("FootnoteSeparator\\[", -1).length - 1));
+	}
+
+	/** 増分5: 段組が頁をまたぐ。旧頁の最後の段に添付するか、次頁で最初に開く段へ持ち越す。 */
+	public void testColumnNotesCarryAcrossPageBreak() throws Exception {
+		final String html = Files.readString(Path.of("files/unittest/0125-footnote", "footnote-columns-block-end-carry.html"), StandardCharsets.UTF_8);
+		final Capture capture = transcode(html);
+		assertEquals("注の欠落・重複なし", 3, capture.notes.size());
+		assertEquals("callの欠落・重複なし", 3, capture.calls.size());
+		assertTrue("段組が頁をまたぐ", capture.columns.stream().mapToInt(Column::page).max().orElse(0) > 1);
+		for (final Note note : capture.notes) {
+			final Label call = capture.calls.stream().filter(value -> value.id() == note.id()).findFirst().orElseThrow();
+			final Placement box = note.placement();
+			assertTrue("注は呼び出しの頁か次頁", box.page() == call.page() || box.page() == call.page() + 1);
+			final Column column = capture.columns.stream().filter(value -> value.page() == box.page()
+					&& columnIndex(value, box.x(), box.y()) >= 0).findFirst().orElseThrow();
+			final boolean vertical = column.bounds().flow().isVertical();
+			final int index = columnIndex(column, box.x(), box.y());
+			final double origin = (vertical ? column.bounds().y() : column.bounds().x()) + index * (column.lineSize() + column.gap());
+			assertEquals("注の行軸先頭は段の先頭", origin, vertical ? box.y() : box.x(), EPSILON);
+			assertEquals("注の幅は段の行長", column.lineSize(), vertical ? box.height() : box.width(), EPSILON);
+			if (box.page() == call.page()) {
+				assertEquals("同頁なら呼び出しの段", columnIndex(column, call.x(), call.y()), index);
+			} else {
+				assertEquals("次頁へ持ち越した注は最初の段", 0, index);
+				assertTrue("持ち越しは呼び出し確定後(番号は呼び出しの頁)", capture.traces.stream()
+						.anyMatch(value -> value.event().equals("column-carry") && value.id() == note.id()));
+			}
+			assertTrue("番号は呼び出しの頁の通番", box.text().startsWith(call.text().trim() + ". "));
+			for (final Placement line : bodyLines(capture)) assertFalse("本文と注を重ねない", overlaps(box, line));
+		}
+		for (final Column column : capture.columns) {
+			final Page page = capture.page(column.page());
+			final boolean vertical = column.bounds().flow().isVertical();
+			assertEquals("段組ownerは頁容量を保つ", vertical ? page.innerWidth() : page.innerHeight(),
+					vertical ? column.bounds().width() : column.bounds().height(), EPSILON);
+		}
+		assertTrue("EOF救済で注を捨てない: " + capture.footnoteWarnings, capture.footnoteWarnings.isEmpty());
+		assertTrue("EOFの全pendingを回収", capture.traces.stream().anyMatch(value -> value.event().equals("finish") && value.pendingCount() == 0));
+	}
+
+	/** 増分6: 頁の途中で閉じるbalance段組。段の注はbalance前に回収して頁のblock-endへ。 */
+	public void testBalancedColumnsHandNotesToPage() throws Exception {
+		final String html = Files.readString(Path.of("files/unittest/0125-footnote", "footnote-columns-block-end-balance.html"), StandardCharsets.UTF_8);
+		final Capture capture = transcode(html);
+		assertEquals("注の欠落・重複なし", 3, capture.notes.size());
+		assertEquals("callの欠落・重複なし", 3, capture.calls.size());
+		assertEquals("1頁に収まる", 1, capture.calls.stream().mapToInt(Label::page).max().orElse(0));
+		assertTrue("段の添付を回収した", capture.traces.stream().anyMatch(value -> value.event().equals("column-recover")));
+		final Column column = capture.columns.get(0);
+		final boolean vertical = column.bounds().flow().isVertical();
+		for (final Note note : capture.notes) {
+			final Placement box = note.placement();
+			assertEquals(1, box.page());
+			final double columnEnd = vertical ? column.bounds().x() : column.bounds().y() + column.bounds().height();
+			assertTrue("注は段組の後(頁のblock-end)", vertical ? box.x() + box.width() <= columnEnd + EPSILON : box.y() >= columnEnd - EPSILON);
+			for (final Placement line : bodyLines(capture)) assertFalse("本文と注を重ねない", overlaps(box, line));
+			final Label call = capture.calls.stream().filter(value -> value.id() == note.id()).findFirst().orElseThrow();
+			assertTrue("番号は頁内通番", box.text().startsWith(call.text().trim() + ". "));
+		}
+		final String display = capture.displayLists.stream().map(value -> new String(value, StandardCharsets.UTF_8)).collect(java.util.stream.Collectors.joining());
+		assertEquals("段の罫線は外し、頁の罫線だけ", 1, display.split("FootnoteSeparator\\[", -1).length - 1);
+		assertTrue("EOF救済で注を捨てない: " + capture.footnoteWarnings, capture.footnoteWarnings.isEmpty());
+	}
+
+	private static int columnIndex(final Column column, final double x, final double y) {
+		final boolean vertical = column.bounds().flow().isVertical();
+		final double relative = (vertical ? y - column.bounds().y() : x - column.bounds().x());
+		final int index = (int) Math.floor((relative + EPSILON) / (column.lineSize() + column.gap()));
+		return relative >= -EPSILON && index < column.count() ? index : -1;
+	}
+
+	private static boolean overlaps(final Placement a, final Placement b) {
+		return a.page() == b.page() && Math.min(a.x() + a.width(), b.x() + b.width()) > Math.max(a.x(), b.x()) + EPSILON
+				&& Math.min(a.y() + a.height(), b.y() + b.height()) > Math.max(a.y(), b.y()) + EPSILON;
+	}
+
+	private static List<Placement> bodyLines(final Capture capture) {
+		return capture.lines.stream().filter(line -> capture.notes.stream().noneMatch(note -> overlaps(note.placement(), line))
+				&& capture.floats.stream().noneMatch(floating -> overlaps(floating, line))).toList();
+	}
+
+	/** 増分3の単体試験。変換・宿主の開閉とは独立して判定を固定する。 */
+	public void testVariableFootnoteOwnerAndPageContinuationAreEligible() {
+		try (final HostPages pages = new HostPages()) {
+			final HostRoot root = pages.root();
+			final FlowBlockBox owner = hostColumns(false);
+			root.path(owner);
+			assertTrue(root.isEligibleFootnoteColumnOwner(root, owner));
+			final FlowBlockBox continued = hostColumns(false);
+			root.path(continued);
+			assertTrue(root.isEligibleFootnoteColumnOwner(root, continued));
+			assertFalse(root.isEligibleFootnoteColumnOwner(root, owner));
+		}
+	}
+
+	public void testFixedHeightFootnoteOwnerIsIneligible() {
+		try (final HostPages pages = new HostPages()) {
+			final HostRoot root = pages.root();
+			final FlowBlockBox owner = hostColumns(true);
+			root.path(owner);
+			assertFalse(root.isEligibleFootnoteColumnOwner(root, owner));
+		}
+	}
+
+	public void testNestedFootnoteOwnerIsIneligible() {
+		try (final HostPages pages = new HostPages()) {
+			final HostRoot root = pages.root();
+			final FlowBlockBox outer = hostColumns(false), inner = hostColumns(false);
+			root.path(outer, inner);
+			assertSame(inner, RootBuilder.footnoteColumnOwner(root));
+			assertFalse(root.isEligibleFootnoteColumnOwner(root, inner));
+			assertFalse(root.isEligibleFootnoteColumnOwner(root, outer));
+		}
+	}
+
+	public void testColumnReplayFootnoteOwnerIsIneligible() {
+		try (final HostPages pages = new HostPages()) {
+			final HostRoot root = pages.root();
+			final FlowBlockBox owner = hostColumns(false);
+			root.path(owner);
+			final ColumnBuilder replay = new ColumnBuilder(root, owner);
+			final BlockBuilder child = new BlockBuilder(replay, hostBlock(WritingMode.TB, 30));
+			assertFalse(root.isEligibleFootnoteColumnOwner(replay, owner));
+			assertFalse(root.isEligibleFootnoteColumnOwner(child, owner));
+		}
+	}
+
+	public void testFootnoteOwnerAcrossNarrowChildAndLocalMulticolumn() {
+		try (final HostPages pages = new HostPages()) {
+			final HostRoot root = pages.root();
+			final FlowBlockBox owner = hostColumns(false);
+			root.path(owner);
+			final BlockBuilder child = new BlockBuilder(root, hostBlock(WritingMode.TB, 30));
+			assertSame(owner, RootBuilder.footnoteColumnOwner(child));
+			assertTrue(root.isEligibleFootnoteColumnOwner(child, owner));
+			final FlowBlockBox inner = hostColumns(true);
+			final BlockBuilder local = new BlockBuilder(root, inner);
+			assertSame(inner, RootBuilder.footnoteColumnOwner(local));
+			assertFalse(root.isEligibleFootnoteColumnOwner(local, inner));
+			assertFalse(root.isEligibleFootnoteColumnOwner(local, owner));
+		}
+	}
+
+	public void testAbsentColumnHostKeepsPageMeasurementAndCapacity() {
+		try (final HostPages pages = new HostPages()) {
+			final HostRoot root = pages.root();
+			final FlowBlockBox owner = hostColumns(false);
+			root.path(owner);
+			assertTrue(LayoutUtils.isNone(root.getFootnoteLineSize(root, owner)));
+			assertEquals(root.getPageOwnerLimit(), root.getPageLimit(), 0.0);
+		}
+	}
+
+	public void testFootnoteColumnLineSizeOverridesNarrowParentAndInlineMax() {
+		for (final WritingMode flow : new WritingMode[] { WritingMode.TB, WritingMode.RL }) {
+			final BlockBuilder parent = new BlockBuilder(null, hostBlock(flow, 30));
+			final BlockParams params = hostParams(flow);
+			params.maxSize = flow.isVertical()
+					? Dimension.create(0, 10, LengthType.AUTO, LengthType.ABSOLUTE)
+					: Dimension.create(10, 0, LengthType.ABSOLUTE, LengthType.AUTO);
+			final FloatBlockBox pageNote = new FloatBlockBox(params, new FootnotePos());
+			final FloatBlockBox columnNote = new FloatBlockBox(params, new FootnotePos());
+			final IntrinsicSizes sizes = new IntrinsicSizes(5, 20, 0);
+			pageNote.shrinkToFit(parent, sizes, false);
+			columnNote.shrinkToFit(parent, sizes, false, 90);
+			assertEquals(10.0, pageNote.getInnerLineExtent(flow), 0.0);
+			assertEquals(90.0, columnNote.getInnerLineExtent(flow), 0.0);
+		}
+	}
+
+	private static FlowBlockBox hostColumns(final boolean fixed) {
+		final BlockParams params = hostParams(WritingMode.TB);
+		params.columns = new Columns((byte) 2, LayoutUtils.NONE, 10, Border.NONE_BORDER, Columns.FILL_AUTO);
+		if (fixed) params.size = Dimension.create(0, 100, LengthType.AUTO, LengthType.ABSOLUTE);
+		return new MulticolumnBlockBox(params, new FlowPos());
+	}
+
+	private static FlowBlockBox hostBlock(final WritingMode flow, final double lineSize) {
+		final BlockParams params = hostParams(flow);
+		params.size = flow.isVertical() ? Dimension.create(0, lineSize, LengthType.AUTO, LengthType.ABSOLUTE)
+				: Dimension.create(lineSize, 0, LengthType.ABSOLUTE, LengthType.AUTO);
+		return new FlowBlockBox(params, new FlowPos()) {
+			{ this.width = flow.isVertical() ? 200 : lineSize; this.height = flow.isVertical() ? lineSize : 200; }
+		};
+	}
+
+	private static BlockParams hostParams(final WritingMode flow) {
+		final BlockParams params = new BlockParams();
+		params.flow = flow;
+		params.fontStyle = new net.zamasoft.pdfg2d.gc.font.FontStyleImpl(
+				net.zamasoft.pdfg2d.gc.font.FontFamilyList.SERIF, 12,
+				net.zamasoft.pdfg2d.gc.font.FontStyle.Style.NORMAL, net.zamasoft.pdfg2d.gc.font.FontStyle.Weight.W_400,
+				net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.LTR,
+				net.zamasoft.pdfg2d.gc.font.FontPolicyList.FONT_POLICY_CORE_CID_KEYED_VALUE);
+		params.lineHeight = 14;
+		return params;
+	}
+
+	private static final class HostRoot extends RootBuilder {
+		HostRoot(final HostPages pages) { super(pages, BreakableBuilder.MODE_PAGE_BREAK); }
+		void path(final FlowBlockBox... boxes) {
+			this.flowStack = new ArrayList<>();
+			for (final FlowBlockBox box : boxes) this.flowStack.add(new Flow(box, 0, 0));
+		}
+	}
+
+	private static final class HostPages implements PageGenerator, AutoCloseable {
+		private final PDFUserAgent ua = new PDFUserAgent() { };
+		HostRoot root() { return new HostRoot(this); }
+		public UserAgent getUserAgent() { return this.ua; }
+		public PageBreakMode getPageSide() { return PageBreakMode.AUTO; }
+		public PageBox nextPage() {
+			final BlockParams params = hostParams(WritingMode.TB);
+			params.size = Dimension.create(200, 200, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
+			return new PageBox(params, this.ua);
+		}
+		public boolean drawPage(final PageBox page, final boolean last, final boolean forced) { return true; }
+		public void close() { this.ua.dispose(); }
+	}
 
 	public void testCountAndBalanceUseReservedContainingHeight() throws Exception {
 		for (final String fill : List.of("auto", "balance")) {
@@ -182,10 +496,11 @@ public final class FootnoteColumnsTest extends TestCase {
 
 	public void testColumnWarningOnlyChangesForVerticalBottom() throws Exception {
 		final Logger logger = Logger.getLogger("net.zamasoft.foliojet.css.style.StyleEventMachine");
-		final AtomicLong warnings = new AtomicLong();
+		final AtomicLong warnings = new AtomicLong(), infos = new AtomicLong();
 		final Handler handler = new Handler() {
 			public void publish(final LogRecord record) {
 				if (record.getMessage().contains("footnote inside a multi-column ancestor")) warnings.incrementAndGet();
+				if (record.getMessage().contains("placed at the end of the column containing the call")) infos.incrementAndGet();
 			}
 			public void flush() { }
 			public void close() { }
@@ -193,12 +508,16 @@ public final class FootnoteColumnsTest extends TestCase {
 		logger.addHandler(handler);
 		try {
 			transcode(fixture());
-			assertEquals(0L, warnings.get());
+			assertEquals("縦組みbottomの帯は頁のもの: 段の警告も情報も出ない", 0L, warnings.get() + infos.get());
+			// F-8e: 既定block-endの段組の注は呼び出しの段の末尾へ。警告ではなく情報ログ。
 			transcode(fixture().replace("float: bottom", "float: block-end"));
-			assertTrue("既定の警告は残す", warnings.get() > 0);
-			warnings.set(0);
+			assertEquals("段ごとの配置では従来の警告を出さない", 0L, warnings.get());
+			assertTrue("段ごとの配置の情報ログ", infos.get() > 0);
+			infos.set(0);
+			// 横組みのbottomは従来のblock-end経路(段ごとの配置)なので同じ情報ログ。
 			transcode(fixture().replace("writing-mode: vertical-rl", "writing-mode: horizontal-tb"));
-			assertTrue("横組みbottomの警告も従来どおり", warnings.get() > 0);
+			assertEquals(0L, warnings.get());
+			assertTrue("横組みbottomも段ごとの配置", infos.get() > 0);
 		} finally {
 			logger.removeHandler(handler);
 		}
@@ -462,10 +781,10 @@ public final class FootnoteColumnsTest extends TestCase {
 	}
 
 	private record Page(double height, double innerWidth, double innerHeight, double inset, double marginBottom) { }
-	private record Column(int page, double innerHeight, double lineSize, int count, int actual, double gap) { }
+	private record Column(int page, double innerHeight, double lineSize, int count, int actual, double gap, Placement bounds) { }
 	private record Placement(int page, double x, double y, double width, double height, WritingMode flow, String text) { }
 	private record Note(long id, Placement placement) { }
-	private record Label(int page, long id, String text) { }
+	private record Label(int page, long id, String text, double x, double y, double width, double height) { }
 
 	/** 可変木を残さず、変換スレッドで値だけを採る。DirectSession終了後に検査する。 */
 	private static final class Capture {
@@ -474,6 +793,10 @@ public final class FootnoteColumnsTest extends TestCase {
 		final List<String> footnoteWarnings = new ArrayList<>();
 		final List<Column> columns = new ArrayList<>();
 		final List<Placement> lines = new ArrayList<>(), spans = new ArrayList<>();
+		final List<Placement> floats = new ArrayList<>();
+		final List<RootBuilder.FootnoteTrace> traces = new ArrayList<>();
+		final List<RootBuilder.ColumnFootnotePlacement> columnNotes = new ArrayList<>();
+		final List<byte[]> displayLists = new ArrayList<>();
 		final List<Note> notes = new ArrayList<>();
 		final List<Label> calls = new ArrayList<>();
 		final List<FootnotePageProbeReport> reports = new ArrayList<>();
@@ -539,7 +862,16 @@ public final class FootnoteColumnsTest extends TestCase {
 			public void close() { }
 		};
 		logger.addHandler(warnings);
-		try (final Hook window = new Hook(Class.forName("net.zamasoft.foliojet.css.style.RecordingLayoutSink"), "windowObserver",
+		try (final Hook trace = new Hook(RootBuilder.class, "footnoteTraceObserver",
+				(Consumer<RootBuilder.FootnoteTrace>) capture.traces::add);
+				final Hook columns = new Hook(RootBuilder.class, "columnFootnoteObserver",
+						(Consumer<RootBuilder.ColumnFootnotePlacement>) capture.columnNotes::add);
+				final AutoCloseable display = DisplayListDumper.observePages((drawer, number) -> {
+					final StringBuilder text = new StringBuilder();
+					drawer.dump(text, "");
+					capture.displayLists.add(text.toString().getBytes(StandardCharsets.UTF_8));
+				});
+				final Hook window = new Hook(Class.forName("net.zamasoft.foliojet.css.style.RecordingLayoutSink"), "windowObserver",
 				(Consumer<FootnotePageProbe.WindowRetention>) capture::window);
 				final Hook plan = new Hook(RootBuilder.class, "footnotePlanObserver",
 						(Consumer<RootBuilder.FootnotePlanSnapshot>) capture.plans::add);
@@ -586,16 +918,19 @@ public final class FootnoteColumnsTest extends TestCase {
 						pageBox.getFootInset(), pageBox.getFrame().margin.bottom));
 			} else if (box instanceof MulticolumnBlockBox column) {
 				this.capture.columns.add(new Column(this.page, column.getInnerHeight(), column.getLineSize(), column.getColumnCount(),
-						column.getContainer() instanceof ColumnsContainer columns ? columns.getColumnCount() : 1, column.getBlockParams().columns.gap));
+						column.getContainer() instanceof ColumnsContainer columns ? columns.getColumnCount() : 1, column.getBlockParams().columns.gap,
+						this.placement(box, column.getBlockParams().flow, x, y)));
 			} else if (box instanceof FlowBlockBox flow && flow.getFlowPos().columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.capture.spans.add(this.placement(box, flow.getBlockParams().flow, x, y));
 			} else if (box instanceof FloatBlockBox note && box.getPos() instanceof FootnotePos) {
 				this.capture.notes.add(new Note(note.getParams().footnoteId, this.placement(box, note.getBlockParams().flow, x, y)));
+			} else if (box instanceof FloatBlockBox floating) {
+				this.capture.floats.add(this.placement(box, floating.getBlockParams().flow, x, y));
 			} else if (box instanceof AbstractLineBox line) {
 				this.capture.lines.add(this.placement(box, line.getLineParams().flow, x, y));
 			} else if (box instanceof AbstractReplacedBox replaced
 					&& replaced.getReplacedParams().image instanceof FootnoteLabelImage label && !label.isMarker()) {
-				this.capture.calls.add(new Label(this.page, label.getFootnoteId(), label.getAltString()));
+				this.capture.calls.add(new Label(this.page, label.getFootnoteId(), label.getAltString(), x, y, box.getWidth(), box.getHeight()));
 			}
 		}
 		private Placement placement(final IBox box, final WritingMode flow, final double x, final double y) {

@@ -209,6 +209,27 @@ public class CSSStyleSheetBuilder {
 					? ident.lower() : "";
 			boolean supported = true;
 			switch (property) {
+			case "height":
+			case "min-height":
+				if ("height".equals(property) && "auto".equals(value)) {
+					area = area.withHeight(null);
+					break;
+				}
+				final net.zamasoft.foliojet.css.value.LengthValue length = tokens.size() == 1
+						? ValueUtils.toLength(this.ua, tokens.get(0)) : null;
+				if (length == null || length.isNegative()) {
+					supported = false;
+					break;
+				}
+				// 文書共通の領域には要素スタイルが無い。相対長はUAの既定フォントで解決する。
+				final double points = length.toAbsoluteLength(CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE))
+						.getLength();
+				if (!Double.isFinite(points) || points < 0) {
+					supported = false;
+				} else {
+					area = "height".equals(property) ? area.withHeight(points) : area.withMinHeight(points);
+				}
+				break;
 			case "float":
 				if ("bottom".equals(value)) {
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM);

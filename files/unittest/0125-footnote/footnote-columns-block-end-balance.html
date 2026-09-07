@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>F-8e: balanced columns closing mid-page hand their notes to the page</title>
+<style>
+@page { size: 300pt 300pt; margin: 24pt; }
+html, body { writing-mode: vertical-rl; }
+body { margin: 0; font-size: 12pt; line-height: 18pt; }
+.columns { column-count: 2; column-gap: 12pt; column-fill: balance; }
+p { margin: 0; }
+.lower { break-before: column; }
+.next { break-before: page; }
+figure { float: inline-start; width: 54pt; height: 60pt; margin: 0; }
+img { width: 36pt; height: 36pt; }
+figcaption { font-size: 8pt; line-height: 10pt; }
+.note { float: footnote; font-size: 10pt; line-height: 14pt; }
+</style>
+</head>
+<body>
+<!-- 増分6: 頁の途中で閉じるbalance段組。段に添付した注はbalanceの前に回収し、頁のblock-endへ。 -->
+<p>前置き本文。</p>
+<div class="columns">
+<p>上段呼出<span class="note">段の注。</span>本文。</p>
+<p>段甲。</p>
+<p>段乙。</p>
+<p>段丙。</p>
+<p class="lower">下段呼出<span class="note">下段の注。</span>本文。</p>
+<p>下甲。</p>
+<p>下乙。</p>
+</div>
+<p>段組の後の本文<span class="note">段組の後の注。</span>。</p>
+<p>後甲。</p>
+<p>後乙。</p>
+<p>後丙。</p>
+</body>
+</html>

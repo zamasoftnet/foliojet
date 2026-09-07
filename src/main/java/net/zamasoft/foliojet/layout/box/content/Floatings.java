@@ -150,6 +150,17 @@ public class Floatings {
 		}
 	}
 
+	/** 段の脚注をbalance前に回収するための取り外し(増分6)。見つからなければfalse。 */
+	public boolean removeFloating(final IFloatBox box) {
+		for (int i = 0; i < this.floatings.size(); ++i) {
+			if (this.floatings.get(i).box == box) {
+				this.floatings.remove(i);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public int getCount() {
 		return this.floatings.size();
 	}

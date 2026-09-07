@@ -68,11 +68,48 @@ public class RetentionHighWaterReportTest extends TestCase {
 		try (final AutoCloseable observer = report.observe()) {
 			TwoPassDigestParityTest.transcode(new TwoPassDigestParityTest.CorpusInput(
 					"files/unittest/0240-table/row-streaming-emit.html", 1, "text/html",
-					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true")));
+					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true",
+							"processing.table-row-emission", "true")));
 		}
 		// 最大100pt頁、本文行は少なくとも9.1pt。0.5pt同値幅と次の1行を含める。
 		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
 		System.err.println("[B-2c permanent fixture] " + report);
+	}
+
+	public void testRowStreamingCaptionFixtureEmitsOnlyBottomSide() throws Exception {
+		final RowRetentionReport report = streamingFixture("caption");
+		// 上だけ・下だけ・両方の3表。下だけの1表が送出し、両方の表はCAPTIONで除外。
+		report.assertFeature(RowRetentionReport.Feature.TOP_CAPTION, 2, 0);
+		report.assertFeature(RowRetentionReport.Feature.BOTTOM_CAPTION, 2, 1);
+		// captionのbreak-before指定だけから、その配置中に改頁したとは断定しない。
+		report.assertTableCounts(3, 1);
+		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
+		assertEquals(2, report.exclusionCount(
+				net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.RowEmissionExclusion.CAPTION));
+	}
+
+	public void testRowStreamingGroupHeightFixtureActuallyDistributesHeight() throws Exception {
+		final RowRetentionReport report = streamingFixture("group-height");
+		// 配分は2表とも行うが、ABSOLUTE指定は親の寸法会計が未対応なので送出しない。
+		report.assertFeature(RowRetentionReport.Feature.ABSOLUTE_GROUP_SIZE, 2, 0);
+		report.assertFeature(RowRetentionReport.Feature.GROUP_SIZE_GROWTH, 2, 0);
+		report.assertFeature(RowRetentionReport.Feature.ZERO_GROUP_SIZE_GROWTH, 1, 0);
+		report.assertFeature(RowRetentionReport.Feature.TABLE_SIZE_AFTER_GROUP, 2, 0);
+		report.assertTableCounts(2, 0);
+		assertEquals(2, report.exclusionCount(
+				net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.RowEmissionExclusion.GROUP_PAGE_SIZE));
+	}
+
+	private static RowRetentionReport streamingFixture(final String name) throws Exception {
+		final RowRetentionReport report = new RowRetentionReport();
+		try (final AutoCloseable observer = report.observe()) {
+			TwoPassDigestParityTest.transcode(new TwoPassDigestParityTest.CorpusInput(
+					"files/unittest/0240-table/row-streaming-" + name + ".html", 1, "text/html",
+					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true",
+							"processing.table-row-emission", "true")));
+		}
+		System.err.println("[B-3-1 permanent fixture " + name + "] " + report);
+		return report;
 	}
 
 	/** 通常CI: 短セル40行のslice所有、compact、終了清算前の解放を固定する。 */
@@ -545,6 +582,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
+				session.property("processing.table-row-emission", "true");
 				if (passCount > 1) {
 					session.property("processing.pass-count", String.valueOf(passCount));
 				}

@@ -292,7 +292,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.getActualColumnCount() < columnCount;
 	}
 
-	protected int getActualColumnCount() {
+	public int getActualColumnCount() {
 		if (this.container instanceof ColumnsContainer columns) {
 			return columns.getColumnCount();
 		}
@@ -595,6 +595,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	protected abstract AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning);
 
+	protected AbstractContainerBox splitPage(final Container container, final double contentLimit,
+			final double ownerExtent, final boolean columnSpanning) {
+		return this.splitPage(container, ownerExtent, columnSpanning);
+	}
+
 	/**
 	 * 改段の切断だけを行い、ownerへの新column追加・builder resume開始は
 	 * まだcommitしません(2026-07-21新設、M6b Phase B4-Step2)。
@@ -609,19 +614,21 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * 経路へrollbackして再実行してはいけない。
 	 * </p>
 	 *
-	 * @param pageLimit 内辺から始まる改段位置
+	 * @param contentLimit 内辺から始まる内容の切断限界
+	 * @param ownerExtent 段予約を引く前のownerのページ軸寸法
 	 * @param mode      改段モード
 	 * @param flags     {@code IPageBreakableBox.FLAGS_*}
 	 * @param plan      収集可能プレフィックスの計画(未対応の間はnull)
 	 */
-	public ColumnCutResult prepareColumnCut(final double pageLimit, final BreakMode mode, final byte flags,
+	public ColumnCutResult prepareColumnCut(final double contentLimit, final double ownerExtent,
+			final BreakMode mode, final byte flags,
 			final BreakPlan plan) {
 		final Container ownerContainer = this.container;
 		final Container activeColumn = ownerContainer instanceof ColumnsContainer columns ? columns.getLastColumn()
 				: ownerContainer;
 		final int actualColumns = this.getActualColumnCount();
 
-		final ContainerCut cut = ownerContainer.splitPageAxis(pageLimit, mode, flags, plan);
+		final ContainerCut cut = ownerContainer.splitPageAxis(contentLimit, mode, flags, plan);
 		final Container remainder;
 		final Continuation.ContinuationFrame childFrame;
 		if (cut instanceof ContainerCut.PlainWithChainStop(final Container chainStopContainer,
@@ -658,7 +665,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 
 		return new ColumnCutResult.Cut(
-				new PreparedColumnCut(this, ownerContainer, activeColumn, actualColumns, pageLimit, remainder, childFrame));
+				new PreparedColumnCut(this, ownerContainer, activeColumn, actualColumns, ownerExtent, remainder, childFrame));
 	}
 
 	/**
@@ -740,13 +747,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
+		return this.split(pageLimit, mode, flags, null);
+	}
+
+	/** 通常分割にも対象段の内容限界を伝える。planの継続チェーンは空。 */
+	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags, final BreakPlan plan) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final BreakMode xmode = BreakMode.absorbColumn(mode, this.getColumnCount());
 		// コンテナ側の三義的返値の解釈はここに集約(コンテナ内部の型付けは M4-A3b)。
 		// planなし切断は常にPlain——旧3引数splitPageAxisはこのPlain写像の
 		// wrapperだった(増分5で一本化)
 		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
-				.splitPageAxis(pageLimit, xmode, flags, null)).container();
+				.splitPageAxis(pageLimit, xmode, flags, plan)).container();
 		if (nextContainer == null) {
 			return SplitResult.KEEP;
 		}
@@ -754,7 +766,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 			return SplitResult.MOVE;
 		}
 		return new SplitResult.Split(
-				this.splitPage(nextContainer, pageLimit, mode instanceof BreakMode.ColumnBreakMode));
+				this.splitPage(nextContainer, plan == null ? pageLimit : plan.contentLimit(this, pageLimit),
+						pageLimit, mode instanceof BreakMode.ColumnBreakMode));
 	}
 
 	/**

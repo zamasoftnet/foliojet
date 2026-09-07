@@ -1,0 +1,6 @@
+drawer z=0
+  x=0.00 y=218.00 FootnoteLabel["2. " w=15.00 h=10.00]
+  x=15.00 y=218.00 Text["次へ送る注。" asc=10.00 desc=4.00]
+  x=234.00 y=0.00 Text["二頁目。持ち越した注を地の帯に置く。" asc=9.00 desc=9.00]
+  x=0.00 y=214.75 artifact FootnoteSeparator[w=84.00 h=0.50]
+  x=123.50 y=258.00 Text["2" asc=8.59 desc=3.41]

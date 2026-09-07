@@ -694,6 +694,20 @@ public class PageBox extends AbstractBlockBox {
 	 * (0,pageAxis)と同じ座標系)。脚注の無いページは-1。
 	 */
 	private double footnoteSeparatorAxis = -1;
+	private record ColumnFootnoteSeparator(Object owner, WritingMode flow, double lineOrigin, double pageOrigin,
+			double lineSize, double pageAxis) { }
+	private java.util.List<ColumnFootnoteSeparator> columnFootnoteSeparators;
+
+	public void addColumnFootnoteSeparator(final Object owner, final WritingMode flow, final double lineOrigin,
+			final double pageOrigin, final double lineSize, final double pageAxis) {
+		if (this.columnFootnoteSeparators == null) this.columnFootnoteSeparators = new ArrayList<>();
+		this.columnFootnoteSeparators.add(new ColumnFootnoteSeparator(owner, flow, lineOrigin, pageOrigin, lineSize, pageAxis));
+	}
+
+	/** balance前に段の脚注を回収した段組の罫線を外します(増分6)。 */
+	public void removeColumnFootnoteSeparators(final Object owner) {
+		if (this.columnFootnoteSeparators != null) this.columnFootnoteSeparators.removeIf(separator -> separator.owner() == owner);
+	}
 
 	public void setFootnoteSeparatorAxis(final double pageAxis) {
 		this.footnoteSeparatorAxis = pageAxis;
@@ -718,6 +732,21 @@ public class PageBox extends AbstractBlockBox {
 	 * (答申の座標対応)。
 	 */
 	public void drawFootnoteSeparator(final Drawer drawer) {
+		if (this.columnFootnoteSeparators != null) {
+			for (final ColumnFootnoteSeparator separator : this.columnFootnoteSeparators) {
+				final double length = separator.lineSize() / 3;
+				final double axis = separator.pageOrigin() + separator.pageAxis() - FOOTNOTE_SEPARATOR_THICKNESS / 2;
+				final java.awt.geom.Rectangle2D.Double rect;
+				if (!separator.flow().isVertical()) {
+					rect = new java.awt.geom.Rectangle2D.Double(separator.lineOrigin(), axis, length, FOOTNOTE_SEPARATOR_THICKNESS);
+				} else {
+					final double x = separator.flow() == WritingMode.RL
+							? this.getInnerWidth() - axis - FOOTNOTE_SEPARATOR_THICKNESS : axis;
+					rect = new java.awt.geom.Rectangle2D.Double(x, separator.lineOrigin(), FOOTNOTE_SEPARATOR_THICKNESS, length);
+				}
+				drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
+			}
+		}
 		if (this.footnoteSeparatorLineAxis >= 0) {
 			final double length = this.getInnerWidth() / 3;
 			final double x = this.frame.getFrameLeft() - this.frame.margin.left

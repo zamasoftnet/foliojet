@@ -14,9 +14,36 @@ package net.zamasoft.foliojet.layout.fragment;
  * @param chain 承認されたチェーン(外→内。chain.get(i) = flowStack[i+1])
  * @param depth 継続全体の深さ(破断時の flowStack の要素数)
  * @param index 現在の降下位置(chain のインデックス)
+ * @param columnLimit 対象段だけの内容限界。段宿主がなければnull
  */
 public record BreakPlan(java.util.List<net.zamasoft.foliojet.layout.box.AbstractContainerBox> chain, int depth,
-		int index) {
+		int index, ColumnLimit columnLimit) {
+	/** 頁切断で、現在段の内容だけに適用する予約。owner寸法には適用しない。 */
+	public record ColumnLimit(net.zamasoft.foliojet.layout.box.AbstractContainerBox owner, double reservation) {
+		public double contentLimit(final net.zamasoft.foliojet.layout.box.AbstractContainerBox box,
+				final double ownerExtent) {
+			return box == this.owner && this.reservation != 0 ? ownerExtent - this.reservation : ownerExtent;
+		}
+	}
+
+	public BreakPlan(final java.util.List<net.zamasoft.foliojet.layout.box.AbstractContainerBox> chain,
+			final int depth, final int index) {
+		this(chain, depth, index, null);
+	}
+
+	public BreakPlan withColumnLimit(final ColumnLimit limit) {
+		return new BreakPlan(this.chain, this.depth, this.index, limit);
+	}
+
+	/** 通常の箱分割へは継続チェーンを渡さず、内容限界だけを伝える。 */
+	public BreakPlan withoutChain() {
+		return this.columnLimit == null ? null : new BreakPlan(java.util.List.of(), 0, 0, this.columnLimit);
+	}
+
+	public double contentLimit(final net.zamasoft.foliojet.layout.box.AbstractContainerBox box,
+			final double ownerExtent) {
+		return this.columnLimit == null ? ownerExtent : this.columnLimit.contentLimit(box, ownerExtent);
+	}
 	/**
 	 * box が現在の降下対象(チェーンの次のメンバー)なら true。
 	 */
@@ -28,7 +55,7 @@ public record BreakPlan(java.util.List<net.zamasoft.foliojet.layout.box.Abstract
 	 * 一段内側へ降下した計画を返します。
 	 */
 	public BreakPlan next() {
-		return new BreakPlan(this.chain, this.depth, this.index + 1);
+		return new BreakPlan(this.chain, this.depth, this.index + 1, this.columnLimit);
 	}
 
 	/**

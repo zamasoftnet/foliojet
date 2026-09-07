@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>F-8e: notes carried across the page break of continuing columns</title>
+<style>
+@page { size: 300pt 300pt; margin: 24pt; }
+html, body { writing-mode: vertical-rl; }
+body { margin: 0; font-size: 12pt; line-height: 18pt; }
+.columns { column-count: 2; column-gap: 12pt; column-fill: auto; }
+p { margin: 0; }
+.lower { break-before: column; }
+.next { break-before: page; }
+figure { float: inline-start; width: 54pt; height: 60pt; margin: 0; }
+img { width: 36pt; height: 36pt; }
+figcaption { font-size: 8pt; line-height: 10pt; }
+.note { float: footnote; font-size: 10pt; line-height: 14pt; }
+</style>
+</head>
+<body>
+<!-- 増分5: 段組が頁をまたぐ。頁末近くの下段の呼び出しの注は、旧頁の下段に残るか次頁の最初の段へ持ち越される。 -->
+<div class="columns">
+<p>上段呼出<span class="note">上段の注。</span>本文。</p>
+<p>上段甲。</p>
+<p>上段乙。</p>
+<p>上段丙。</p>
+<p>上段丁。</p>
+<p class="lower">下段開始。</p>
+<p>下段甲。</p>
+<p>下段乙。</p>
+<p>下段丙。</p>
+<p>下段丁。</p>
+<p>下段戊。</p>
+<p>下段己。</p>
+<p>末尾呼出<span class="note">頁末の注。頁末の注。頁末の注。</span>本文。</p>
+<p>続き甲。</p>
+<p>続き乙。</p>
+<p>続き丙。</p>
+<p>続き丁。</p>
+<p>続き戊。</p>
+<p>続き己。</p>
+<p>続き庚。</p>
+<p>続き辛。</p>
+<p>続き壬。</p>
+<p>続き癸。</p>
+<p>続き甲。</p>
+<p>続き乙。</p>
+<p>続き丙。</p>
+<p>続き丁。</p>
+<p>後段呼出<span class="note">後の注。</span>本文。</p>
+<p>終盤甲。</p>
+<p>終盤乙。</p>
+<p>終盤丙。</p>
+<p>終盤丁。</p>
+<p>終盤戊。</p>
+<p>終盤己。</p>
+</div>
+</body>
+</html>

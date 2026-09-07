@@ -158,6 +158,12 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table) {
+		this.shrinkToFit(layoutStack, sizes, table, LayoutUtils.NONE);
+	}
+
+	/** 段注専用の包含ブロック行長。NONEなら頁注を含む従来の計測。 */
+	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table, final double hostLineSize) {
+		final boolean columnFootnote = !LayoutUtils.isNone(hostLineSize);
 		final double minLineAxis = sizes.minContent(), maxLineAxis = sizes.maxContent();
 		final AbstractContainerBox containerBox;
 		if (this.getPos().getType() == PosType.FLOW) {
@@ -172,11 +178,11 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		} else {
 			containerBox = layoutStack.getFlowBox();
 		}
-		if (!table && containerBox.getType() == BoxType.TABLE_CELL) {
+		if (!columnFootnote && !table && containerBox.getType() == BoxType.TABLE_CELL) {
 			table = true;
 		}
 		final BlockParams cParams = containerBox.getBlockParams();
-		final double lineSize = containerBox.getLineSize();
+		final double lineSize = columnFootnote ? hostLineSize : containerBox.getLineSize();
 		final WritingMode flow = this.params.flow;
 		{
 			final LengthType pageType = this.params.size.getPageType(flow);
@@ -212,7 +218,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		// 浮動体用のgetFixedWidth()ではない
 		final boolean sameAxisFlow = !table && this.getPos().getType() == PosType.FLOW
 				&& cParams.flow.isVertical() == flow.isVertical();
-		final double cLine = sameAxisFlow ? lineSize : context.availableLine();
+		final double cLine = columnFootnote ? hostLineSize : sameAxisFlow ? lineSize : context.availableLine();
 
 		// 行方向: fit-content と min/max クランプ
 		double lineExtent = LayoutUtils.computeDimensionLine(this.size, flow, cLine);
@@ -236,7 +242,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				lineExtent -= this.frame.getBorderLineExtent(flow);
 			}
 		}
-		final double limitLine = this.availableLineExtent(layoutStack, containerBox, cLine);
+		final double limitLine = columnFootnote ? Math.max(0, hostLineSize - this.frame.getFrameLineExtent(flow))
+				: this.availableLineExtent(layoutStack, containerBox, cLine);
 		if (this.size.getLineType(flow) == LengthType.AUTO && !ratioLine) {
 			final IntrinsicSize intrinsic = table ? null : this.params.intrinsicLine;
 			if (intrinsic != null) {
@@ -317,6 +324,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		if (!LayoutUtils.isNone(minLine) && lineExtent < minLine) {
 			lineExtent = minLine;
 		}
+
+		// 段注は短文・作者のinline min/maxによらず、宿主の行長を満たす。
+		if (columnFootnote) lineExtent = limitLine;
 
 		// ページ方向: min/max と指定寸法。%は percentBasePage が確定している場合のみ解決する
 		double minPage;

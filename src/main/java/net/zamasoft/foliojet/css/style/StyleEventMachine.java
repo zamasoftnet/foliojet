@@ -523,10 +523,6 @@ final class StyleEventMachine {
 			footnote = false;
 		}
 		if (footnote) {
-			// F7: 段組祖先内の脚注は段の高さが不揃いになり得る(予約が
-			// ページ容量を縮めても組済みの段は再配分されない)。型付き失敗に
-			// せず警告して続行(クラッシュ排除方針。脚注領域自体はページ
-			// 全幅で置かれる——consult-codex-2026-07-31-footnote-f6f7.txt §4)
 			final net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
 			final boolean bottomBand = area.position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
 					&& this.pageSequence.getProgression().isVertical();
@@ -534,8 +530,11 @@ final class StyleEventMachine {
 			for (CSSStyle ancestor = style.getParentStyle(); !bottomBand && ancestor != null; ancestor = ancestor
 					.getParentStyle()) {
 				if (ColumnCount.get(ancestor) > 1) {
-					java.util.logging.Logger.getLogger(StyleEventMachine.class.getName())
-							.warning("footnote inside a multi-column ancestor: column heights may become uneven");
+					if (!area.isHeightFixed() && this.sink.isEligibleFootnoteColumnOwner()) {
+						LOG.info("footnotes inside a multi-column element are placed at the end of the column containing the call");
+					} else {
+						LOG.warning("footnote inside a multi-column ancestor: column heights may become uneven");
+					}
 					break;
 				}
 			}

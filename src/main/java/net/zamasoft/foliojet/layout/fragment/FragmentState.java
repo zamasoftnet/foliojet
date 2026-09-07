@@ -85,11 +85,20 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
 			final double pageLimit, final double contentSize, final boolean specifiedPageSize,
 			final boolean preserveSpecifiedPageSize) {
+		return of(flow, columnSpanning, frame, size, minSize, pageExtent, pageLimit, pageLimit, contentSize,
+				specifiedPageSize, preserveSpecifiedPageSize);
+	}
+
+	/** 段予約は内容限界だけを縮め、前断片・継続断片の寸法はownerExtentから求める。 */
+	public static FragmentState of(final WritingMode flow, final boolean columnSpanning,
+			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
+			final double contentLimit, final double ownerExtent, final double contentSize, final boolean specifiedPageSize,
+			final boolean preserveSpecifiedPageSize) {
 		final boolean vertical = flow.isVertical();
-		double limit = Math.max(pageLimit, 0);
+		double limit = Math.max(ownerExtent, 0);
 
 		final AbsoluteRectFrame prevFrame, nextFrame;
-		if (columnSpanning && LayoutUtils.compare(pageLimit, 0) > 0) {
+		if (columnSpanning && LayoutUtils.compare(contentLimit, 0) > 0) {
 			// 複数カラムの場合は境界を残し、高さを内容に合わせる
 			prevFrame = nextFrame = frame;
 			limit = Math.max(limit, contentSize);

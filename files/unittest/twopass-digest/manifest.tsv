@@ -147,8 +147,14 @@
 0120-float/table-beside-start-float.html	files/unittest/0120-float/table-beside-start-float.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-avoidmove.html	files/unittest/0125-footnote/footnote-avoidmove.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-bottom-columns.html	files/unittest/0125-footnote/footnote-bottom-columns.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-bottom-fixed-height.html	files/unittest/0125-footnote/footnote-bottom-fixed-height.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-bottom-nested-hosts.html	files/unittest/0125-footnote/footnote-bottom-nested-hosts.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-bottom-vertical-rl.html	files/unittest/0125-footnote/footnote-bottom-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-carryin.html	files/unittest/0125-footnote/footnote-carryin.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-columns-block-end-balance.html	files/unittest/0125-footnote/footnote-columns-block-end-balance.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-columns-block-end-carry.html	files/unittest/0125-footnote/footnote-columns-block-end-carry.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-columns-block-end-horizontal.html	files/unittest/0125-footnote/footnote-columns-block-end-horizontal.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-columns-block-end.html	files/unittest/0125-footnote/footnote-columns-block-end.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-f1.html	files/unittest/0125-footnote/footnote-f1.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-oversized.html	files/unittest/0125-footnote/footnote-oversized.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-pagelimit.html	files/unittest/0125-footnote/footnote-pagelimit.html	1	text/html	input.include=**	input.property-pi=true
@@ -290,7 +296,9 @@
 0240-table/frame-rules.html	files/unittest/0240-table/frame-rules.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/header-footer-colspan-limit.html	files/unittest/0240-table/header-footer-colspan-limit.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/image-in-cell.html	files/unittest/0240-table/image-in-cell.html	1	text/html	input.include=**	input.property-pi=true
+0240-table/row-streaming-caption.html	files/unittest/0240-table/row-streaming-caption.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/row-streaming-emit.html	files/unittest/0240-table/row-streaming-emit.html	1	text/html	input.include=**	input.property-pi=true
+0240-table/row-streaming-group-height.html	files/unittest/0240-table/row-streaming-group-height.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/rowspan-after-empty-row.html	files/unittest/0240-table/rowspan-after-empty-row.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/single-row-split-after-line.html	files/unittest/0240-table/single-row-split-after-line.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/table-limit-empty-body.html	files/unittest/0240-table/table-limit-empty-body.html	1	text/html	input.include=**	input.property-pi=true

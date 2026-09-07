@@ -729,6 +729,7 @@ public class EnduranceTest extends TestCase {
 						session.property("input.include", "**");
 						session.property("input.property-pi", "true");
 						session.property("processing.fail-on-fatal-error", "true");
+						if (streaming) session.property("processing.table-row-emission", "true");
 						if (!"-".equals(budget)) {
 							session.property("processing.text-spill-budget", budget);
 						}

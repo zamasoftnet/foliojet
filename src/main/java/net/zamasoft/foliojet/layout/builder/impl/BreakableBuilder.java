@@ -165,6 +165,18 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return this.body;
 		}
 
+		/**
+		 * 未通知行を含む本文が切断線+0.5ptを確実に超えたか。B-2bの送出前保留用。
+		 * pageAxisは通知済み外寸を含むため残り容量の始点には使わず、配置時のpageStartを使います。
+		 * 正の枠・HEADERは容量から引かず保守的に待ち、負の始端枠は容量へ戻します。
+		 */
+		public boolean hasRowEmissionOverflow() {
+			this.requireActive();
+			return TableBuildPlanner.hasRowEmissionOverflow(this.body.getPageSize(),
+					BreakableBuilder.this.getPageLimit() - this.pageStart
+							- Math.min(0, this.remainder.getFrame().getFrameTop()));
+		}
+
 		/** 現在の残余の仮想全行計画。B-2a 単独の受理では null です。 */
 		public net.zamasoft.foliojet.layout.box.impl.IncompleteTablePlan plan() {
 			return this.remainder == null ? null : this.remainder.getIncompletePlan();
@@ -628,6 +640,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			++this.breakDepth;
 		}
 		super.startFlowBlock(flowBox);
+		final RootBuilder footnoteRoot = this.getPageContext();
+		if (footnoteRoot != null) footnoteRoot.openFootnoteColumn(this, this.getFlow());
 		if (canBreakAfter) {
 			this.canBreakBefore = true;
 			this.interflowBreak = true;
@@ -1058,8 +1072,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			final double lastFrame = this.lastFrame(flow, 1);
 			// System.err.println(columnLimit+"/"+
 			// this.getPageLimit()+"/"+this.flowStack.size());
-			if (LayoutUtils.compare(columnLimit, this.getPageLimit() - lastFrame) > 0) {
-				final BreakMode mode = new AutoBreakMode(flow.box, this.getPageLimit());
+			if (LayoutUtils.compare(columnLimit, this.getPageOwnerLimit() - lastFrame) > 0) {
+				final BreakMode mode = new AutoBreakMode(flow.box, this.getPageOwnerLimit());
 				final byte flags = IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_LAST;
 				this.columnBreak(flow, mode, flags, lastFrame, 1);
 			}
@@ -1151,7 +1165,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 
+		final RootBuilder footnoteRoot = this.getPageContext();
+		final boolean closesColumnOwner = footnoteRoot != null
+				&& footnoteRoot.isEligibleFootnoteColumnOwner(this, flow.box);
+		if (footnoteRoot != null) footnoteRoot.closeFootnoteColumn(flow.box);
 		super.endFlowBlock();
+		// balance 後に段組の高さが決まってから、回収した段の注の収容を判定する(増分6)。
+		if (footnoteRoot != null && closesColumnOwner) footnoteRoot.settleRecoveredFootnotes(this.pageAxis);
 		if (this.breakDepth != -1) {
 			--this.breakDepth;
 		}
@@ -1159,7 +1179,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		// System.out.println(this.nobreak);
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
-			final double pageLimit = this.getPageLimit();
+			final double pageLimit = closesColumnOwner ? this.getPageOwnerLimit() : this.getPageLimit();
 			FlowBlockBox flowBox = (FlowBlockBox) flow.box;
 
 			final FlowPos pos = (FlowPos) flowBox.getPos();
@@ -1185,7 +1205,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				for (;;) {
 					final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
 					// System.err.println(pageAxis+"/"+pageLimit);
-					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0 || !this.paintsBeyondPage(flow, flowBox)) {
+					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0 || !this.paintsBeyondPage(flow, flowBox, pageLimit)) {
 						break;
 					}
 					if (LOG.isLoggable(Level.FINE)) {
@@ -1496,14 +1516,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * (安全側=改ページする)。
 	 * </p>
 	 */
-	private boolean paintsBeyondPage(final Flow flow, final FlowBlockBox flowBox) {
+	private boolean paintsBeyondPage(final Flow flow, final FlowBlockBox flowBox, final double pageLimit) {
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
 		final double painted = flowBox.paintedPageExtent(progression);
 		if (LayoutUtils.compare(painted, 0) <= 0) {
 			// 何も描かない箱。位置によらず改ページの理由にならない
 			return false;
 		}
-		return LayoutUtils.compare(flow.pageAxis + painted, this.getPageLimit()) > 0;
+		return LayoutUtils.compare(flow.pageAxis + painted, pageLimit) > 0;
 	}
 
 	@Override
@@ -1517,6 +1537,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	public static final double MIN_PAGE_LIMIT = 20;
 
+	/** 内容の溢れ・切断・表の残容量。Rootでは現在段の予約も含みます。 */
 	public double getPageLimit() {
 		final AbstractContainerBox rootBox = this.getRootBox();
 		final BlockParams params = rootBox.getBlockParams();
@@ -1526,6 +1547,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			pageLimit = MIN_PAGE_LIMIT;
 		}
 		return pageLimit;
+	}
+
+	/** 箱寸法・owner閉鎖検査の基点。局所ColumnBuilderでは自身の容量です。 */
+	public double getPageOwnerLimit() {
+		return this.getPageLimit();
 	}
 
 	public void forceBreak(PageBreakMode breakType) {
@@ -1771,7 +1797,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 							.recordColumnCapabilityScanStop(barrier.reason()));
 		}
 
-		final double pageAxis = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
+		final double contentLimit = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
+		final double ownerExtent = this.getPageOwnerLimit() - breakFlow.pageAxis - lastFrame;
 
 		// ページの先頭かどうかの判断
 		if (LayoutUtils.compare(
@@ -1788,8 +1815,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// 継続として切断する。強制改段では常に空チェーンになるため、
 		// この呼び出しはmode問わず安全(旧plan=nullと同じ結果になる)。
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan relativePlan = columnScan.toBreakPlan();
-		final net.zamasoft.foliojet.layout.fragment.ColumnCutResult cutResult = breakFlow.box.prepareColumnCut(pageAxis,
-				mode, flags, relativePlan);
+		final net.zamasoft.foliojet.layout.fragment.ColumnCutResult cutResult = breakFlow.box.prepareColumnCut(contentLimit,
+				ownerExtent, mode, flags, relativePlan);
 		if (!(cutResult instanceof net.zamasoft.foliojet.layout.fragment.ColumnCutResult.Cut(
 				final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared))) {
 			// Keep/Move: 改段ポイントがない(旧newColumn()のnull相当)
@@ -1801,6 +1828,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation = root.prepareColumnContinuation(
 				breakFlow.box.getBlockParams().flow, prepared, columnScan.snapshot());
 		breakFlow.box.commitPreparedColumn(prepared);
+		// balance・固定高さ段組の局所ColumnBuilderは頁の改段履歴に含めない。
+		boolean pageColumn = true;
+		for (LayoutStack stack = this; stack != null; stack = stack.getParentBuilder()) {
+			if (stack instanceof ColumnBuilder) {
+				pageColumn = false;
+				break;
+			}
+		}
+		if (pageColumn) root.columnCommitted(this, breakFlow, prepared);
 
 		this.pruneFlowStackTo(breakFlow);
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);

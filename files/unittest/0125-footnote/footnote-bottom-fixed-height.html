@@ -1,0 +1,25 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>footnote F-7: fixed bottom band on every page</title>
+<style>
+@page {
+  margin: 24pt;
+  @footnote { float: bottom; writing-mode: horizontal-tb; height: 40pt }
+  @bottom-center { content: counter(page); writing-mode: horizontal-tb; font-size: 10pt }
+}
+body { margin: 0; font-size: 12pt; line-height: 18pt; writing-mode: vertical-rl; }
+p { margin: 0; }
+.next { page-break-before: always; }
+.note { float: footnote; height: 24pt; font-size: 10pt; line-height: 14pt; }
+</style>
+</head>
+<body>
+<p>一頁目<span class="note">最初の注。</span>本文<span class="note">次へ送る注。</span>続き。</p>
+<p class="next">二頁目。持ち越した注を地の帯に置く。</p>
+<p class="next">三頁目。注がなくても同じ高さの帯を確保する。</p>
+</body>
+</html>

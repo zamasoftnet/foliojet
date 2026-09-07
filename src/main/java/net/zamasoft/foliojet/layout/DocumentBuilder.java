@@ -382,6 +382,14 @@ public class DocumentBuilder implements TableBuilderHost {
 		return root instanceof RootBuilder r ? r : root.getPageContext();
 	}
 
+	/** 注の開始時に、配置と同じ適格判定で段組の案内を選ぶ。 */
+	public boolean isEligibleFootnoteColumnOwner() {
+		if (this.builderStack.isEmpty()) return false;
+		final Builder parent = this.containerBuilder().builder;
+		final RootBuilder root = this.pageContext();
+		return root != null && root.isEligibleFootnoteColumnOwner(parent, RootBuilder.footnoteColumnOwner(parent));
+	}
+
 	private ContainerBuilderEntry endContainerBuilder() {
 		return this.endContainerBuilder(false);
 	}
@@ -1417,7 +1425,9 @@ public class DocumentBuilder implements TableBuilderHost {
 								noteBuilder.close();
 							}
 							measure.measureFootnote(noteBox);
-							if (this.pageContext() instanceof RootBuilder root) root.addFootnote(noteBox);
+							if (this.pageContext() instanceof RootBuilder root) {
+								root.addFootnote(noteBox, parentBuilder, RootBuilder.footnoteColumnOwner(parentBuilder));
+							}
 						}
 						break;
 					}
@@ -1428,9 +1438,16 @@ public class DocumentBuilder implements TableBuilderHost {
 						}
 						break;
 					}
+					final AbstractContainerBox footnoteOwner = RootBuilder.footnoteColumnOwner(parentBuilder);
 					if (entry.builder.isTwoPass()) {
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						final double hostLineSize = this.pageContext() instanceof RootBuilder root
+								? root.getFootnoteLineSize(parentBuilder, footnoteOwner) : LayoutUtils.NONE;
+						if (LayoutUtils.isNone(hostLineSize)) {
+							noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						} else {
+							noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false, hostLineSize);
+						}
 						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
 						// 浮動体と同じ理由で、使い捨て計測の最中は消費しない
 						contentBuilder.bind(noteBuilder, this.replayIntent);
@@ -1438,7 +1455,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					}
 					this.finishTranslateBlockScope(entry);
 					if (this.pageContext() instanceof RootBuilder root) {
-						root.addFootnote(noteBox);
+						root.addFootnote(noteBox, parentBuilder, footnoteOwner);
 					}
 					break;
 				}

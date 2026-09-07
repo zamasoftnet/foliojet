@@ -32,6 +32,10 @@ import net.zamasoft.foliojet.layout.util.TextUtils;
  */
 final class RecordingLayoutSink {
 	private final DocumentBuilder doc;
+
+	boolean isEligibleFootnoteColumnOwner() {
+		return this.doc.isEligibleFootnoteColumnOwner();
+	}
 	private final java.util.function.Consumer<net.zamasoft.foliojet.layout.segment.SegmentEvent> events;
 	private net.zamasoft.foliojet.layout.box.IBox sourceBox;
 	private net.zamasoft.foliojet.css.CSSElement sourceElement;
@@ -164,6 +168,7 @@ final class RecordingLayoutSink {
 			final double width, final double height, final String pageName,
 			final java.util.function.BiFunction<String, Integer, FootnotePageProbe.PageGeometry> geometry) {
 		if (this.closed || this.inputDelivered || this.probe != null
+				|| page.getUserAgent().getUAContext().getFootnoteArea().isHeightFixed()
 				|| !page.getBlockParams().flow.isVertical()
 				|| page.getUserAgent().getUAContext().getFootnoteArea().position
 						!= net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM) return;

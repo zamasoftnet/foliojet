@@ -93,12 +93,14 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 * </p>
 	 */
 	private double captionInsetStart() {
+		if (this.tableBox == null) return this.rowEmissionCaptionInsetStart;
 		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
 		return this.vertical ? margin.top : margin.left;
 	}
 
 	/** キャプションの行方向末尾側の差し込み幅。理由はcaptionInsetStartと同じ。 */
 	private double captionInsetEnd() {
+		if (this.tableBox == null) return this.rowEmissionCaptionInsetEnd;
 		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
 		return this.vertical ? margin.bottom : margin.right;
 	}
@@ -114,6 +116,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private final boolean sliceCellText;
 	private final LayoutStack layoutStack;
 	private TableBox tableBox;
+	/** 送出後の下部captionが使う行方向の差し込み幅。表・フレームの所有は残さない。 */
+	private double rowEmissionCaptionInsetStart, rowEmissionCaptionInsetEnd;
 	private long tableSourceAnchor = -1;
 	private BreakableBuilder.IncompleteTableResult rowEmission;
 	private java.util.EnumSet<TableBuildPlanner.RowEmissionExclusion> rowEmissionExclusions;
@@ -1117,6 +1121,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		final double specifiedPageSize = shape.specifiedPageSize();
 		final double tableInnerSize = shape.tableInnerSize();
 		// 上部キャプション
+		this.observeRetention("before-top-captions");
 		for (int i = 0; i < this.topCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.topCaptions.get(i);
 			FlowBlockBox captionBox = (FlowBlockBox) captionBuilder.getRootBox();
@@ -1124,6 +1129,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			captionBuilder.bind(anonBuilder);
 			anonBuilder.endFlowBlock();
 		}
+
+		this.observeRetention("after-top-captions");
 
 		// ヘッダ・内容・フッタ
 		int rowCount = 0; // 行数
@@ -1334,6 +1341,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 
 		// 行グループ高さを適用(共有エンジン — P2-4)
+		this.observeRetention("before-group-page-size");
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
 			InnerTableParams params = rowGroupBox.getInnerTableParams();
@@ -1353,6 +1361,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				rows.get(j).setPageSize(rowSizes[j]);
 			}
 		}
+
+		this.observeRetention("after-group-page-size");
 
 		// テーブル高さを適用(共有エンジン — P2-4)。自動行の判定は
 		// 指定型の直判定(%0 指定行を自動行に数えた旧 autoRowCount とは
@@ -1442,20 +1452,25 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					rows.set(j, null);
 				}
 				if (emitBody) {
+					boolean notified = false;
 					if (this.rowEmission != null) {
 						anonBuilder.getPageContext().noteRetainedTableRowsBound(1);
-						// 容量内でも行間の強制改頁で切れる。親への全通知の直前を採取する。
-						this.observeRetention("before-row-emission");
-						if (j == rows.size() - 1) this.rowEmission.complete();
-						else this.rowEmission.rowsAppended();
-					} else if (j < rows.size() - 1 && rowGroup.getPageSize()
-							> ((BreakableBuilder) anonBuilder).getPageLimit() - anonBuilder.getPageAxis()) {
+						// 通知後の切断は戻せない。境界内の可視末尾は、後続行かcompleteまで保留する。
+						if (j == rows.size() - 1 || this.rowEmission.hasRowEmissionOverflow()) {
+							this.observeRetention("before-row-emission");
+							if (j == rows.size() - 1) this.rowEmission.complete();
+							else this.rowEmission.rowsAppended();
+							notified = true;
+						}
+					} else if (j < rows.size() - 1 && TableBuildPlanner.hasRowEmissionOverflow(
+							rowGroup.getPageSize(), ((BreakableBuilder) anonBuilder).getPageLimit()
+									- anonBuilder.getPageAxis() - Math.min(0, this.tableBox.getFrame().getFrameTop()))) {
 						// bind後の宿主状態も、終端を抑止する前に確認する。
 						if (!((BreakableBuilder) anonBuilder).supportsIncompleteTableIntake()) {
 							this.rowEmissionExclusions.add(TableBuildPlanner.RowEmissionExclusion.UNSUPPORTED_HOST);
 							emitBody = false;
 						} else {
-							// 高さ超過は通知の目安だけ。切断・移動・終端の判断は親が行う。
+							// 切断に必要な後続行まで見えた。切断・移動・終端の判断は親が行う。
 							this.observeRetention("before-row-emission");
 							this.attachGroups();
 							this.sizeColumns(columnSizes);
@@ -1470,9 +1485,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 							// 受理へ渡す初回のbind済み本文行。送出を始めない短表では進めない。
 							anonBuilder.getPageContext().noteRetainedTableRowsBound(j + 1);
 							this.rowEmission = this.acceptRows((BreakableBuilder) anonBuilder);
+							notified = true;
 						}
 					}
-					if (this.rowEmission != null && (j == rows.size() - 1
+					if (notified && (j == rows.size() - 1
 							|| this.rowEmission.emittedFragments() > 0
 							|| this.rowEmission.status() == BreakableBuilder.IncompleteTableStatus.SPLIT
 							|| this.rowEmission.status() == BreakableBuilder.IncompleteTableStatus.MOVED)) {
@@ -1491,6 +1507,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 	private BreakableBuilder.IncompleteTableResult acceptRows(final BreakableBuilder host) {
 		final TableBox table = this.tableBox;
+		// 受理中に改頁・描画まで進むため、所有を渡す前に必要な数値だけ保存する。
+		// 行方向のマージンは表の分割で変わらない。完成表は従来どおり自身の枠を読む。
+		this.rowEmissionCaptionInsetStart = this.captionInsetStart();
+		this.rowEmissionCaptionInsetEnd = this.captionInsetEnd();
 		this.tableBox = null;
 		final var result = host.acceptIncompleteTable(table);
 		if (!result.isAccepted()) {
@@ -1503,7 +1523,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			final TableShape shape, final boolean passCEligible) {
 		return TableBuildPlanner.rowEmissionExclusionsAfterPassB(this.tableBox, shape.anonBuilder(),
 				passCEligible, this.bodyGroups.size(), this.footerGroup != null,
-				!this.topCaptions.isEmpty() || !this.bottomCaptions.isEmpty(), shape.columnSizes().length,
+				!this.topCaptions.isEmpty(), shape.columnSizes().length,
 				this.columnGroupBox != null, this.headerGroup, this.rowGroups, this.rowGroupToRows, this.rowToCells);
 	}
 

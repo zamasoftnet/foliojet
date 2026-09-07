@@ -166,6 +166,14 @@ public class FlowContainer implements Container {
 		this.addFloating(box, lineAxis, pageAxis, false);
 	}
 
+	/**
+	 * 段の末尾に最終添付した脚注を、段組のbalance(容器の再生)より前に取り外します
+	 * (増分6)。再生は添付物を保たないので、頁の宿主へ移してから再生する。
+	 */
+	public final boolean removeFloating(final IFloatBox box) {
+		return this.floatings != null && this.floatings.removeFloating(box);
+	}
+
 	/** 配置時に確定した一回限りの次断片移送を伴ってfloatを保持します。 */
 	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis, boolean moveToNext) {
 		if (this.floatings == null) {
@@ -1056,6 +1064,15 @@ public class FlowContainer implements Container {
 		Move UNFULFILLABLE_AVOID_MOVE = new Move(MoveReason.UNFULFILLABLE_AVOID);
 	}
 
+	private static SplitResult splitFlow(final IPageBreakableBox box, final double pageLimit,
+			final BreakMode mode, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
+		if (plan != null && plan.columnLimit() != null && box instanceof FlowBlockBox block
+				&& !(box instanceof net.zamasoft.foliojet.layout.box.RowSplitBox)) {
+			return block.split(pageLimit, mode, flags, plan.withoutChain());
+		}
+		return box.split(pageLimit, mode, flags);
+	}
+
 	/**
 	 * 継続化計画付きのページ方向切断です(C1d-C)。単一実装(旧3引数版
 	 * =Plain写像のwrapperは増分5で撤去し、呼び出し側がPlainを直接
@@ -1063,7 +1080,12 @@ public class FlowContainer implements Container {
 	 * 断片は WithFrame の返り値で親へ伝播する。
 	 */
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, final BreakMode mode,
-			final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
+			final byte flags, net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
+		if (plan != null && plan.columnLimit() != null && plan.columnLimit().owner() == this.box) {
+			pageLimit = plan.contentLimit(this.box, pageLimit);
+			// ColumnsContainerは最終段へ委譲する。対象段で一度だけ引き、子には渡さない。
+			plan = plan.withColumnLimit(null);
+		}
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
 		final double frameStart = this.box.getFrame().getFramePageStart(this.box.getBlockParams().flow);
 		final double pageSize = this.box.getPageExtent(this.box.getBlockParams().flow);
@@ -1122,8 +1144,8 @@ public class FlowContainer implements Container {
 					}
 				} else {
 					IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
-					final SplitResult forceResult = flowBox.split(pageLimit - flow.pageAxis, mode,
-							(byte) (lflags & flags));
+					final SplitResult forceResult = splitFlow(flowBox, pageLimit - flow.pageAxis, mode,
+							(byte) (lflags & flags), plan);
 					switch (forceResult) {
 					case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
 							(IFlowBox) remainder, 0);
@@ -1375,7 +1397,7 @@ public class FlowContainer implements Container {
 						break;
 					}
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-					switch (prevFlowBox.split(splitLine, mode, xflags)) {
+					switch (splitFlow(prevFlowBox, splitLine, mode, xflags, plan)) {
 					case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
 					case SplitResult.Move move -> outcome = moveOutcome;
 					case SplitResult.Split(final IPageBreakableBox remainder) -> outcome = new ProbeOutcome.Split(

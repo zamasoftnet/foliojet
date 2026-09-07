@@ -1,0 +1,10 @@
+drawer z=0
+  x=0.00 y=238.00 FootnoteLabel["1. " w=15.00 h=10.00]
+  x=15.00 y=238.00 Text["末尾の注。" asc=10.00 desc=4.00]
+  x=0.00 y=0.00 Text["次頁呼出" asc=19.04 desc=5.40]
+  x=48.00 y=0.00 FootnoteLabel["1" w=4.15 h=8.30]
+  x=52.15 y=0.00 Text["本文。" asc=19.04 desc=5.40]
+  x=0.00 y=24.44 Text["次頁上段甲。" asc=12.60 desc=5.40]
+  x=132.00 y=0.00 Text["次頁下段甲。" asc=12.60 desc=5.40]
+  x=132.00 y=18.00 Text["次頁下段乙。" asc=12.60 desc=5.40]
+  x=0.00 y=234.75 artifact FootnoteSeparator[w=40.00 h=0.50]

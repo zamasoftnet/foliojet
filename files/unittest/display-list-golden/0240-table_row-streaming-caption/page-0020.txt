@@ -1,0 +1,4 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=200.00 h=16.20]
+  x=0.10 y=1.70 Text["after" asc=4.55 desc=1.45]
+  x=12.59 y=1.70 Text["both" asc=4.55 desc=1.45]

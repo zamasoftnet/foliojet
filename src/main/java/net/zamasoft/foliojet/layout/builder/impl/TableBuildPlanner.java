@@ -17,6 +17,7 @@ import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
  * 表の実行計画(Incremental/Retained)を単一の判定点で決定します(C4-B、
@@ -33,6 +34,8 @@ public final class TableBuildPlanner {
 
 	/** Pass B 後にだけ判定できる、行送出を従来の assemble へ戻す理由です。 */
 	public enum RowEmissionExclusion {
+		/** processing.table-row-emission は既定falseのopt-inです。 */
+		DISABLED,
 		/** MAIN 以外では計測・再配置とページ副作用の順序を変えられません。 */
 		NOT_MAIN,
 		/** Pass C の行高適用が安定しない表には、固定した h[] を使えません。 */
@@ -47,15 +50,29 @@ public final class TableBuildPlanner {
 		ROWSPAN,
 		/** 反復フッタは全断片に終端フレームを予約します。 */
 		FOOTER,
-		/** キャプションの一度だけの配置・匿名ラッパー終端は別途接続が必要です。 */
+		/**
+		 * 上部captionは除外を維持します。非ゼロ始点での親の超過判定と局所切断線の
+		 * 丸め差により、未完側だけ可視グループKEEP→非先頭の表全体MOVEとなる反例があります。
+		 * 原因はcaption固有ではなく、先行内容だけでも起こるため、送出全般で可視範囲を保留します。
+		 * 下部だけならcomplete・retained.close後の共通経路で配置し、最後にラッパーを閉じます。
+		 */
 		CAPTION,
 		/** collapse の全行境界配列の断片所有をまだ分離していません。 */
 		COLLAPSED_BORDERS,
-		/** グループ指定高は単純な行順加算以外の高さを持ちます。 */
+		/**
+		 * ABSOLUTEも含め指定高は完成経路へ戻します(既定のmin=0は除く)。
+		 * 配分後のh[]の数値shadowだけでは親の断片寸法まで保証できません。
+		 * グループ高と表高を併用した実fixtureで、完成表配置と未完表の寸法更新から
+		 * ラッパー終端までの会計が一致せず、祖先枠高・後続本文のD7座標が変わりました。
+		 */
 		GROUP_PAGE_SIZE,
 		/** 行内分割の保持・残余高はセル再配置で変わり、元の h[] では再現できません。 */
 		ROW_SPLITTING,
-		/** 直交セルは行境界の KEEP/MOVE 規則が同方向セルと異なります。 */
+		/**
+		 * 直交セルは行のMOVEをグループのKEEPへ変え、ページ先頭でもKEEPを保存します。
+		 * ROW_SPLITTING除外だけではこの分岐の同値を保証できません。
+		 * 独立shadowと実Root・D7の合格が未確認のためB-3-1でも除外を維持します。
+		 */
 		ORTHOGONAL_CELL,
 		/** 負の終端マージンは、最終追記より前の分割まで取り消すことがあります。 */
 		NEGATIVE_END_MARGIN,
@@ -82,15 +99,17 @@ public final class TableBuildPlanner {
 	 */
 	public record RowEmissionFacts(boolean main, boolean passCEligible, boolean hostSupportsIntake,
 			boolean horizontalHost, int bodyGroupCount, int rowCount, int columnCount,
-			boolean hasRowspan, boolean hasFooter, boolean hasCaption, boolean hasGroupPageSize,
+			boolean hasRowspan, boolean hasFooter, boolean hasTopCaption, boolean hasGroupPageSize,
 			boolean maySplitRows, boolean hasOrthogonalCell, boolean hasPageSideEffects,
 			boolean complexAncestor, boolean hasForcedBreak, boolean hasColumnTree) {
 	}
 
 	/**
-	 * Pass B 後の送出適格判定(第1段)。空集合のときだけ送出候補です。
+	 * Pass B 後の送出適格判定。空集合のときだけ送出候補です。
 	 * 表フレーム計算後・markIncomplete 前に
 	 * 判定し、終端マージンを抑止する前の値を使います。
+	 * キャプションは下部だけの形に限定します。上部がある形はCAPTIONで除外し、
+	 * Pass B前の配置から親の切断・寸法会計まで完成経路に任せます。
 	 */
 	public static EnumSet<RowEmissionExclusion> rowEmissionExclusionsAfterPassB(final TableBox table,
 			final RowEmissionFacts facts) {
@@ -116,7 +135,7 @@ public final class TableBuildPlanner {
 		if (facts.hasFooter()) {
 			reasons.add(RowEmissionExclusion.FOOTER);
 		}
-		if (facts.hasCaption()) {
+		if (facts.hasTopCaption()) {
 			reasons.add(RowEmissionExclusion.CAPTION);
 		}
 		if (table.getTableParams().borderCollapse != TableParams.BORDER_SEPARATE) {
@@ -152,10 +171,14 @@ public final class TableBuildPlanner {
 	/** 実際の匿名フローと、まだ解放していない Pass B の計画から材料を集めます。 */
 	static EnumSet<RowEmissionExclusion> rowEmissionExclusionsAfterPassB(final TableBox table,
 			final BlockBuilder host, final boolean passCEligible, final int bodyGroupCount,
-			final boolean footer, final boolean caption, final int columnCount, final boolean columns,
+			final boolean footer, final boolean topCaption, final int columnCount, final boolean columns,
 			final TableRowGroupBox header, final List<TableRowGroupBox> groups,
 			final Map<TableRowGroupBox, ? extends List<TableRowBox>> groupRows,
 			final Map<TableRowBox, ? extends List<CellContent>> rowCells) {
+		if (host.getPageContext() == null || !UAProps.PROCESSING_TABLE_ROW_EMISSION
+				.getBoolean(host.getPageContext().getPageGenerator().getUserAgent())) {
+			return EnumSet.of(RowEmissionExclusion.DISABLED);
+		}
 		final BreakableBuilder intake = host instanceof BreakableBuilder b ? b : null;
 		boolean horizontal = true, complex = false, floating = false;
 		boolean forced = intake != null && intake.breakAfter != null;
@@ -261,11 +284,24 @@ public final class TableBuildPlanner {
 		final EnumSet<RowEmissionExclusion> reasons = rowEmissionExclusionsAfterPassB(table, new RowEmissionFacts(
 				ReplayIntent.current() == ReplayIntent.MAIN && host.isMain(), passCEligible,
 				intake != null && intake.supportsIncompleteTableIntake(), horizontal, bodyGroupCount,
-				rowCount, columnCount, rowspan, footer, caption, groupSize, splitRows, orthogonal, effects,
+				rowCount, columnCount, rowspan, footer, topCaption, groupSize, splitRows, orthogonal, effects,
 				complex, forced, columns));
 		if (floating) reasons.add(RowEmissionExclusion.FLOATING_HOST);
 		if (pageDependent) reasons.add(RowEmissionExclusion.PAGE_DEPENDENT_CELL_CONTENT);
 		return reasons;
+	}
+
+	/**
+	 * 未完表の初回受理・追記通知に必要な可視本文の下限です(B-2b-5)。
+	 * capacityは本文に使える切断線以上の値を渡します。正の枠・HEADER分を
+	 * 差し引かない保守的な容量でも構いません。
+	 * 親の加算と局所切断線の減算が0.5pt境界の反対側へ丸まるため、
+	 * compareが正になるだけでは足りません。加算・減算の両方で厳密に
+	 * THRESHOLDを超えるまで保留します。最終行はこの判定を使わず完成へ進めます。
+	 */
+	public static boolean hasRowEmissionOverflow(final double visibleBodySize, final double capacity) {
+		return visibleBodySize > capacity + LayoutUtils.THRESHOLD
+				&& visibleBodySize - capacity > LayoutUtils.THRESHOLD;
 	}
 
 	private static boolean forced(final PageBreakMode mode) {

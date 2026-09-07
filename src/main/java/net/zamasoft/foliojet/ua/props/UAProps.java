@@ -557,6 +557,10 @@ public final class UAProps {
 	public static final LongPropManager PROCESSING_RETAINED_TEXT_LIMIT = new LongPropManager(
 			"processing.retained-text-limit", 8L << 20);
 
+	/** Retained表の行単位送出を有効にします。既定は完成表を配置する従来経路です。 */
+	public static final BooleanPropManager PROCESSING_TABLE_ROW_EMISSION = new BooleanPropManager(
+			"processing.table-row-emission", false);
+
 	/**
 	 * 1文書の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。
 	 */
@@ -985,6 +989,7 @@ public final class UAProps {
 			PROCESSING_FAIL_ON_FATAL_ERROR,
 			PROCESSING_TEXT_SPILL_BUDGET,
 			PROCESSING_RETAINED_TEXT_LIMIT,
+			PROCESSING_TABLE_ROW_EMISSION,
 			OUTPUT_PDF_FILE_ID,
 			OUTPUT_PDF_META_CREATION_DATE,
 			OUTPUT_PDF_META_MOD_DATE,
