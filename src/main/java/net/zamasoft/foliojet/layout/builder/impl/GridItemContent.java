@@ -107,6 +107,7 @@ final class GridItemContent {
 			}
 		}
 		target.close();
+		if (ReplayIntent.current() == ReplayIntent.MEASURE && this.body != null) this.body.completeScratchHost();
 		// takeover item(authored paramsを引き継いだ根box)は指定高を
 		// 自己適用する(G7、2026-08-29——FlexItemContent.bindと同型)。
 		// 通常フローでは親のstartFlowBlockが適用するが、bind builderの

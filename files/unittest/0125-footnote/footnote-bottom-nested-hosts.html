@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>地の脚注と入れ子宿主の寿命</title>
+<style>
+@page {
+  size: 180pt 220pt;
+  margin: 18pt;
+  @footnote { float: bottom; writing-mode: horizontal-tb }
+}
+html { writing-mode: vertical-rl; font: 10pt/1.4 serif; }
+body { margin: 0; }
+p { margin: 0 0 8pt; }
+.note { float: footnote; writing-mode: horizontal-tb; font-size: 8pt; }
+.stf { float: left; writing-mode: horizontal-tb; width: auto; }
+.figure { float: top; writing-mode: horizontal-tb; width: auto; }
+table { writing-mode: horizontal-tb; border-spacing: 0; }
+td { padding: 2pt; border: 0.5pt solid; }
+.fixed { table-layout: fixed; width: 110pt; }
+.references { break-before: page; }
+.section { break-before: page; }
+</style>
+</head>
+<body>
+<p>本文開始。<span class="note">最初の脚注。</span>本文を最後まで組む。</p>
+<!-- width:autoのTwoPass浮動体。セルclose後も親sealまで子を所有する。 -->
+<div class="stf"><table><tr><td>
+  浮動体外表。
+  <table><tr><td>浮動体内表。</td></tr></table>
+</td></tr></table></div>
+<p>浮動体後本文。<span class="note">浮動体後の脚注。</span></p>
+<section class="section">
+<!-- Incremental表のcaptionはcaption closeではbindされず、最初の行まで待つ。 -->
+<table class="fixed">
+<caption>外表見出し。</caption>
+<tr><td><table class="fixed">
+  <caption>内表見出し。</caption>
+  <tr><td>入れ子セル。<span class="note">表の中の脚注。</span></td></tr>
+</table></td></tr>
+<tr><td>外表最終行。</td></tr>
+</table>
+<p>表後本文。</p>
+</section>
+<section class="section">
+<div class="figure"><table><tr><td>図版説明。</td></tr></table>
+<img alt="図版" width="12" height="12" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Crect width='12' height='12' fill='navy'/%3E%3C/svg%3E">
+</div>
+<p>図版後本文。<span class="note">図版後の脚注。</span>ここまで本文。</p>
+</section>
+<section class="references">
+<p>出典一覧。</p>
+<dl><dt>出典見出し。</dt><dd>出典末尾。</dd></dl>
+<p>文書最終本文。</p>
+</section>
+</body>
+</html>

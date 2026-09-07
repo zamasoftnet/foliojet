@@ -2,6 +2,8 @@ package jp.cssj.test.unit.displaylist;
 
 import java.awt.geom.AffineTransform;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -16,6 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.zip.GZIPInputStream;
 
 import junit.framework.TestCase;
 import jp.cssj.cti2.TranscoderException;
@@ -41,8 +44,10 @@ import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSVGUserAgent;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFVisitor;
+import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
@@ -56,6 +61,99 @@ public final class FootnotePageProbeTest extends TestCase {
 	}
 
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
+
+	public void testBottomNestedHostsKeepAllBodyThroughLastPage() throws Exception {
+		final String html = Files.readString(Path.of("files/unittest/0125-footnote/footnote-bottom-nested-hosts.html"));
+		final Capture control = transcode(html.replace(AREA, ""), true, Map.of());
+		final Capture actual = transcode(html, true, Map.of());
+		assertFalse("対照は正常終了", control.failed());
+		assertFalse("浮動体・入れ子表・ページ浮動体を含むBも正常終了", actual.failed());
+		assertProbeRan(actual);
+		assertTrue("最終ページまで出力", actual.pages().size() >= control.pages().size());
+		final String expectedText = String.join("", control.pageTexts());
+		final String actualText = String.join("", actual.pageTexts());
+		// PageBox.getTextは通常フローだけを辿るため、浮動体・ページ浮動体内の文字は含まない。
+		// その中の表セルはこのfixtureのdisplay-list goldenで検査する。
+		for (final String marker : List.of("本文開始。", "本文を最後まで組む。",
+				"浮動体後本文。", "外表見出し。", "内表見出し。", "入れ子セル。", "外表最終行。", "表後本文。",
+				"図版後本文。", "ここまで本文。", "出典一覧。", "出典見出し。", "出典末尾。", "文書最終本文。")) {
+			assertEquals("対照の本文: " + marker, 1, occurrences(expectedText, marker));
+			assertEquals("本文の欠落・重複なし: " + marker, 1, occurrences(actualText, marker));
+		}
+		assertTrue(actual.pageTexts().get(actual.pageTexts().size() - 1).contains("文書最終本文。"));
+		assertEquals("各注も最後まで出る", control.notes().size(), actual.notes().size());
+	}
+
+	private static int occurrences(final String text, final String marker) {
+		return text.split(java.util.regex.Pattern.quote(marker), -1).length - 1;
+	}
+
+	public void testPagedSvgProbeFailureDoesNotPublishManifestOrCompleteResults() throws Exception {
+		final var uris = new ConcurrentLinkedQueue<String>();
+		final var writtenPages = new ConcurrentLinkedQueue<byte[]>();
+		final AtomicLong closedPages = new AtomicLong();
+		final AtomicLong pagesAtFailure = new AtomicLong();
+		final AtomicLong completed = new AtomicLong();
+		final var ua = new PagedSVGUserAgent() {
+			@Override
+			public void closePage(final GC gc) throws IOException {
+				super.closePage(gc);
+				if (gc != null) closedPages.incrementAndGet();
+			}
+		};
+		ua.getUAContext().setFootnotePageProbeListener(report -> {
+			// 世代数ではなく、Resultsへの実書込みとclosePageの完了を待つ。
+			if (closedPages.get() > 0 && !writtenPages.isEmpty()
+					&& pagesAtFailure.compareAndSet(0, writtenPages.size())) {
+				throw new IllegalStateException("F-6 paged-svg late failure");
+			}
+		});
+		try (final var session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"), null)) {
+			session.setUserAgent(ua);
+			session.setResults(new jp.cssj.cti2.results.Results() {
+				public boolean hasNext() { return true; }
+				public net.zamasoft.zstream.io.FragmentedOutput nextBuilder(
+						final net.zamasoft.zstream.resolver.SourceMetadata metadata) {
+					final String uri = metadata.getURI().toString();
+					uris.add(uri);
+					if (uri.startsWith("pages/") && uri.endsWith(".svgz")) {
+						return new StreamFragmentedOutput(new ByteArrayOutputStream() {
+							@Override
+							public void close() throws IOException {
+								super.close();
+								writtenPages.add(this.toByteArray());
+							}
+						});
+					}
+					return new StreamFragmentedOutput(OutputStream.nullOutputStream());
+				}
+				public void end() { completed.incrementAndGet(); }
+			});
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("processing.fail-on-fatal-error", "false");
+			session.property("processing.pass-count", "1");
+			final String html = document("", "<p style='break-before:page'>本文。</p>".repeat(8));
+			try {
+				CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
+						URI.create("file:///probe-paged-svg.html"), "text/html", "UTF-8");
+				fail("Bの失敗を正常終了した");
+			} catch (final TranscoderException expected) {
+				assertEquals(TranscoderException.STATE_BROKEN, expected.getState());
+				assertEquals(jp.cssj.cti2.helpers.CTIMessageCodes.FATAL_UNEXPECTED, expected.getCode());
+				assertNotNull(net.zamasoft.foliojet.layout.FootnoteProbeException.findIn(expected));
+			}
+		}
+		assertTrue("closePage完了後にBの失敗を注入した", closedPages.get() >= 1 && pagesAtFailure.get() >= 1);
+		assertTrue("失敗前にResultsへ書き込まれたページがある", writtenPages.size() >= pagesAtFailure.get());
+		// 既定の.svgzを最後まで展開し、URIだけでなく実ページの書込みを確認する。
+		for (final byte[] page : writtenPages) {
+			try (final var gzip = new GZIPInputStream(new ByteArrayInputStream(page))) {
+				assertTrue("ページ結果にSVG本文がある", new String(gzip.readAllBytes(), StandardCharsets.UTF_8).contains("<svg"));
+			}
+		}
+		assertFalse("部分ページのmanifestを成功として出さない", uris.stream().anyMatch(uri -> uri.endsWith("manifest.json")));
+		assertEquals("Results.endは成功時だけ", 0L, completed.get());
+	}
 
 	public void testDefaultAndHorizontalDoNotCreateProbe() throws Exception {
 		final String fixture = fixture();
@@ -253,7 +351,7 @@ public final class FootnotePageProbeTest extends TestCase {
 				assertFalse(child.isClosed());
 				limit.add(30);
 			}
-			owner.reclaimBefore(Long.MAX_VALUE);
+			owner.reclaimCompleted();
 			assertFalse("未終了のスコープは回収しない", child.isClosed());
 			assertEquals(1, owner.registeredResourceCount());
 			assertEquals(17L, limit.getCurrentBytes());
@@ -262,7 +360,7 @@ public final class FootnotePageProbeTest extends TestCase {
 				child.close();
 				assertEquals(30L, owner.finishPage());
 			}
-			owner.reclaimBefore(Long.MAX_VALUE);
+			owner.reclaimCompleted();
 			assertEquals(0, owner.registeredResourceCount());
 			assertEquals(17L, limit.getCurrentBytes());
 		}
@@ -337,15 +435,20 @@ public final class FootnotePageProbeTest extends TestCase {
 	}
 
 	public void testProbeAndListenerFailuresUseConversionFailurePolicy() throws Exception {
-		for (final String failure : List.of("probe", "listener")) {
+		for (final String failure : List.of("probe", "listener", "late-listener")) {
+		for (final String failOnFatal : List.of("true", "false")) {
 			final String html = document("table { writing-mode:horizontal-tb }",
-					"<p>本文。</p><table><tr><td>実文字を含むセル。</td></tr></table>");
-			final Capture actual = transcode(html, true, Map.of("processing.fail-on-fatal-error", "true"), failure);
+					"<p style='break-before:page'>本文。</p>".repeat(8)
+					+ "<table><tr><td>実文字を含むセル。</td></tr></table>");
+			final Capture actual = transcode(html, true, Map.of("processing.fail-on-fatal-error", failOnFatal), failure);
 			assertTrue(failure + "の例外は変換失敗", actual.failed());
 			assertTrue(actual.messages().contains(jp.cssj.cti2.helpers.CTIMessageCodes.FATAL_UNEXPECTED));
+			assertEquals("途中の結果を正常終了しない", 0L, actual.completedResults());
+			if (failure.equals("late-listener")) assertFalse("失敗前にCのページ出力がある", actual.pages().isEmpty());
 			assertEquals("例外を投げる経路を実際に通った", 1L, actual.injectedFailures());
 			assertProbeRan(actual);
 			assertTrue(actual.retention().stream().anyMatch(state -> state.closed() && !state.inputFinished()));
+		}
 		}
 	}
 
@@ -465,8 +568,8 @@ public final class FootnotePageProbeTest extends TestCase {
 						net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode.CHILDREN_ONLY);
 				try (final var lease = source.retainFrom(1)) { }
 			}
-			owner.reclaimBefore(handle.toId());
-			assertEquals("境界以降のハンドルは回収しない",
+			owner.reclaimCompleted();
+			assertEquals("宿主が完了していないハンドルは回収しない",
 					net.zamasoft.foliojet.layout.fragment.RangeHandle.State.OPEN, handle.state());
 			assertEquals("保護中のハンドル・リースと移動pinを残す", 3, owner.registeredResourceCount());
 			try (final var checkpoint = source.checkpointCompaction()) {
@@ -474,7 +577,13 @@ public final class FootnotePageProbeTest extends TestCase {
 				assertEquals(1, checkpoint.pendingRequestCount());
 				assertEquals(128, source.size());
 				owner.retainFrom(source, 64);
-				owner.reclaimBefore(64);
+				owner.reclaimCompleted();
+				checkpoint.reapply();
+				assertEquals("pinが進んでも未bindのcaption/セルは自身のリースで残る", 128, source.size());
+				try (final var attachment = owner.attach()) {
+					handle.completeScratchHost();
+				}
+				owner.reclaimCompleted();
 				assertEquals(net.zamasoft.foliojet.layout.fragment.RangeHandle.State.ABANDONED, handle.state());
 				assertEquals(1, owner.registeredResourceCount());
 				checkpoint.reapply();
@@ -549,7 +658,8 @@ public final class FootnotePageProbeTest extends TestCase {
 			List<LayoutSource.RetentionSnapshot> sources, List<Boolean> mainScopes, List<Input> pageInputs,
 			List<TableStage> tables, long anonymousBoundaries, List<PageMetrics> metrics, List<Note> notes,
 			boolean failed, List<Short> messages, List<FootnotePageProbe.Retention> retention, List<NameChange> names,
-			List<RootBuilder.FootnotePlanSnapshot> plans, long maxChars, long injectedFailures) { }
+			List<RootBuilder.FootnotePlanSnapshot> plans, long maxChars, long injectedFailures,
+			List<String> pageTexts, long completedResults) { }
 
 	private static Field hook(final Class<?> type, final String name) throws Exception {
 		final Field field = type.getDeclaredField(name);
@@ -580,8 +690,12 @@ public final class FootnotePageProbeTest extends TestCase {
 		final AtomicReference<Input> input = new AtomicReference<>(new Input(0, 0));
 		final AtomicLong boundaries = new AtomicLong();
 		final AtomicLong injected = new AtomicLong();
+		final AtomicLong completedResults = new AtomicLong();
 		ua.getUAContext().setFootnotePageProbeListener(observe ? report -> {
 			reports.add(report);
+			if (failure.equals("late-listener") && report.generation() >= 4 && injected.compareAndSet(0, 1)) {
+				throw new IllegalStateException("F-6 listener failure after output");
+			}
 			if (failure.equals("listener") && injected.getAndIncrement() == 0) throw new IllegalStateException("F-5 listener failure");
 		} : null);
 		final Field append = hook(LayoutSource.class, "appendObserver");
@@ -637,7 +751,15 @@ public final class FootnotePageProbeTest extends TestCase {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"), null);
 			try {
 				session.setUserAgent(ua);
-				session.setResults(new SingleResult(new StreamFragmentedOutput(OutputStream.nullOutputStream())));
+				final var result = new SingleResult(new StreamFragmentedOutput(OutputStream.nullOutputStream()));
+				session.setResults(new jp.cssj.cti2.results.Results() {
+					public boolean hasNext() { return result.hasNext(); }
+					public net.zamasoft.zstream.io.FragmentedOutput nextBuilder(
+							final net.zamasoft.zstream.resolver.SourceMetadata metadata) throws java.io.IOException {
+						return result.nextBuilder(metadata);
+					}
+					public void end() throws java.io.IOException { completedResults.incrementAndGet(); result.end(); }
+				});
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.setMessageHandler((code, args, message) -> messages.add(code));
 				session.property("input.property-pi", "true");
@@ -647,6 +769,7 @@ public final class FootnotePageProbeTest extends TestCase {
 					CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
 							URI.create("file:///footnote-probe.html"), "text/html", "UTF-8");
 				} catch (final TranscoderException expected) {
+					assertEquals("失敗結果はSTATE_BROKEN", TranscoderException.STATE_BROKEN, expected.getState());
 					failed = true;
 				}
 			} finally {
@@ -664,12 +787,13 @@ public final class FootnotePageProbeTest extends TestCase {
 		return new Capture(List.copyOf(pages), List.copyOf(reports), ua.getUAContext().getFootnotePageProbeCount(),
 				List.copyOf(sources), List.copyOf(mainScopes), List.copyOf(pageInputs), List.copyOf(tables), boundaries.get(),
 				List.copyOf(ua.metrics), List.copyOf(ua.notes), failed, List.copyOf(messages), List.copyOf(retention), List.copyOf(names),
-				List.copyOf(plans), maxChars.get(), injected.get());
+				List.copyOf(plans), maxChars.get(), injected.get(), List.copyOf(ua.pageTexts), completedResults.get());
 	}
 
 	private static final class CaptureUserAgent extends PDFUserAgent {
 		private final ConcurrentLinkedQueue<PageMetrics> metrics = new ConcurrentLinkedQueue<>();
 		private final ConcurrentLinkedQueue<Note> notes = new ConcurrentLinkedQueue<>();
+		private final ConcurrentLinkedQueue<String> pageTexts = new ConcurrentLinkedQueue<>();
 
 		@Override
 		public void prepare(final PrepareMode mode) {
@@ -701,6 +825,9 @@ public final class FootnotePageProbeTest extends TestCase {
 			if (this.mainPage && box instanceof PageBox pageBox) {
 				this.mainPage = false;
 				this.capture.metrics.add(new PageMetrics(this.page, pageBox.getFootInset()));
+				final StringBuilder text = new StringBuilder();
+				pageBox.getText(text);
+				this.capture.pageTexts.add(text.toString());
 			}
 			if (box instanceof FloatBlockBox note && box.getPos() instanceof FootnotePos) {
 				final StringBuilder text = new StringBuilder();

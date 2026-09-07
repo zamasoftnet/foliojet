@@ -1353,6 +1353,9 @@ public class DocumentBuilder implements TableBuilderHost {
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
 						// TwoPass本文では専用recordへ保留し、bind時に一度だけページ台帳へ
 						// 渡す。scratchではページ外要素なので計測へ寄与せず破棄する。
+						if (!parentBuilder.isTwoPass() && entry.builder instanceof TwoPassBlockBuilder body) {
+							body.completeScratchHost();
+						}
 						break;
 					}
 					if (entry.builder.isTwoPass()) {
@@ -1375,6 +1378,9 @@ public class DocumentBuilder implements TableBuilderHost {
 					this.notePageMarginNoteInGrids();
 					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
+						if (!parentBuilder.isTwoPass() && entry.builder instanceof TwoPassBlockBuilder body) {
+							body.completeScratchHost();
+						}
 						break;
 					}
 					if (entry.builder.isTwoPass()) {
@@ -1417,6 +1423,9 @@ public class DocumentBuilder implements TableBuilderHost {
 					}
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
 						// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
+						if (!parentBuilder.isTwoPass() && entry.builder instanceof TwoPassBlockBuilder body) {
+							body.completeScratchHost();
+						}
 						break;
 					}
 					if (entry.builder.isTwoPass()) {
@@ -1479,6 +1488,14 @@ public class DocumentBuilder implements TableBuilderHost {
 			ContainerBuilderEntry entry = this.endContainerBuilder();
 			try {
 				if (this.replayIntent == ReplayIntent.MEASURE) {
+					if (this.pageGenerator instanceof MeasurePageGenerator measure && measure.isFootnoteProbe()
+							&& entry.builder instanceof TwoPassBlockBuilder body) {
+						// 長寿命Bでは捨てる絶対配置の子範囲も親に集約して寿命を閉じる。
+						// TwoPass親が残る場合は、そのsealによる吸収まで所有を保つ。
+						body.sealBodyForRangeBind();
+						if (!this.contextBuilder().builder.isTwoPass()) body.completeScratchHost();
+						break;
+					}
 					// 使い捨て計測(表Pass B)駆動: seal・prepareBind・係留を
 					// スキップし、子builderをreplicaごと破棄する(sealすると
 					// 本物のリースを取得したまま破棄されリース孤児化する。
@@ -1707,6 +1724,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	private static long unfinishedSourceId(final Object entry) {
 		final long anchor;
 		if (entry instanceof ContainerBuilderEntry container && container.builder instanceof TwoPassBlockBuilder body) {
+			// seal前の本文だけをpinで保護する。TwoPassはBlockBuilderの派生ではない。
+			// seal後に表等へ預けた本文はRangeHandle自身のリースと寿命通知で保護する。
 			anchor = body.getRootBox().getSourceAnchor();
 		} else if (entry instanceof RetainedTableBuilder table) {
 			anchor = table.getSourceAnchor();

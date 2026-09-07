@@ -31,6 +31,8 @@ public final class RangeHandle {
 	private State state = State.OPEN;
 	private boolean replaying;
 	private boolean cell;
+	private ScratchOwner scratchOwner = ScratchReplayScope.currentOwner();
+	private boolean scratchComplete;
 	private java.util.function.Consumer<State> ownerStateObserver;
 
 	/** 試験専用の観測点。通常変換ではnullで、ハンドルを全域に保持しません。 */
@@ -82,6 +84,20 @@ public final class RangeHandle {
 	public State state() { return this.state; }
 	public boolean isReplaying() { return this.replaying; }
 	public boolean hasTextSlice() { return this.textSlice != null; }
+
+	/**
+	 * 宿主の最後のbind、または配置しない宿主のcloseから呼ぶ寿命終端通知。
+	 * MEASUREによる借用は終端ではない。他のscratchやMAINの本文には触れない。
+	 * 実際のabandonは配達・再生から戻った所有者の安全点で行う。
+	 */
+	public void completeScratchHost() {
+		if (this.scratchOwner != null && this.scratchOwner == ScratchReplayScope.currentOwner()) {
+			this.requireOpen();
+			this.scratchComplete = true;
+		}
+	}
+
+	boolean isScratchComplete() { return this.scratchComplete; }
 
 	/** 宿主のownership ledgerへ終端を通知する。detach時はnullで関連を切る。 */
 	public void observeOwnerState(final java.util.function.Consumer<State> observer) {
@@ -161,6 +177,7 @@ public final class RangeHandle {
 	}
 
 	private void releaseBody() {
+		this.scratchOwner = null;
 		if (this.textSlice != null) {
 			this.textSlice.release();
 			this.textSlice = null;

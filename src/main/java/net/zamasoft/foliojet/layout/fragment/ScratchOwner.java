@@ -69,11 +69,15 @@ public final class ScratchOwner implements AutoCloseable {
 		this.pin = next;
 	}
 
-	/** 配達・再生から戻った安全点で、完成済み宿主のMEASUREハンドルと終了済み登録を回収します。 */
-	public void reclaimBefore(final long fromId) {
+	/**
+	 * 配達・再生から戻った安全点。宿主が最後のbind/closeを通知した本文だけを破棄する。
+	 * IDやページ水位は宿主の寿命を証明しない。未bindの表セル・captionは自身のリースで
+	 * 主ログを保護し、MEASUREで借用したMAIN/別scratchの本文は通知の対象外となる。
+	 */
+	public void reclaimCompleted() {
 		this.requireOpen();
 		for (final RangeHandle handle : this.handles) {
-			if (handle.state() == RangeHandle.State.OPEN && !handle.isReplaying() && handle.toId() < fromId) {
+			if (handle.state() == RangeHandle.State.OPEN && !handle.isReplaying() && handle.isScratchComplete()) {
 				handle.abandon();
 			}
 		}
@@ -84,6 +88,17 @@ public final class ScratchOwner implements AutoCloseable {
 
 	public long retainedFrom() {
 		return this.pin == null ? -1 : this.pin.fromId();
+	}
+
+	/** seal済みで、まだ宿主のbind/closeを待っている本文の下限。 */
+	public long oldestOpenSourceId(final LayoutSource source) {
+		long oldest = Long.MAX_VALUE;
+		for (final RangeHandle handle : this.handles) {
+			if (handle.source() == source && handle.state() == RangeHandle.State.OPEN) {
+				oldest = Math.min(oldest, handle.fromId());
+			}
+		}
+		return oldest;
 	}
 
 	public int registeredResourceCount() {

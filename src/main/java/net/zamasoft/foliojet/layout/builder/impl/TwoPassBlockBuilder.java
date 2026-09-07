@@ -139,6 +139,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		public void bind(final BlockBuilder builder) {
 			if (ReplayIntent.current() == ReplayIntent.MEASURE) {
 				this.measureInto(builder);
+				if (this.handle != null) this.handle.completeScratchHost();
 				return;
 			}
 			if (this.pageContext != null) {
@@ -935,6 +936,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.bind(builder, ReplayIntent.current());
 	}
 
+	/** Bで配置を終えた宿主、またはflow外として破棄する宿主の本文を回収可にする。 */
+	public void completeScratchHost() {
+		if (this.body instanceof ReplayBody.SourceRangeBody range) range.handle().completeScratchHost();
+	}
+
 	/**
 	 * 記録した本文を{@code builder}へ再生します。
 	 *
@@ -1004,6 +1010,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				root.exitTranslateBlockScope();
 			}
 		}
+		// bind内の一時scratch接続を戻してから、呼び側が所有する本文の終端を通知する。
+		// measureIntoとは異なり、bindはこの宿主の最終配置。MAINの借用は通知しない。
+		if (intent == ReplayIntent.MEASURE) this.completeScratchHost();
 	}
 
 	/** leaseなし本文の共通駆動。通常ソースの不適格時には到達しない。 */

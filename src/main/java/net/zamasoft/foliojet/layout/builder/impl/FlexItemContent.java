@@ -84,6 +84,7 @@ final class FlexItemContent {
 			}
 		}
 		target.close();
+		if (ReplayIntent.current() == ReplayIntent.MEASURE && this.body != null) this.body.completeScratchHost();
 		// takeover item(authored paramsを引き継いだ根box)は指定高を
 		// 自己適用する——通常flowでは親のstartFlowBlockが適用するが、
 		// bind builderの根には適用者がいない(F1d: 絶対長のみ。

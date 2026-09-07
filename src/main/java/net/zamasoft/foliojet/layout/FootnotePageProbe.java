@@ -115,6 +115,8 @@ public final class FootnotePageProbe {
 		try (final ScratchReplayScope scope = this.owner.attach()) {
 			if (this.doc == null) this.start();
 			return this.doc.preDispatch(type, box, nextId);
+		} catch (final RuntimeException failure) {
+			throw new FootnoteProbeException(failure);
 		}
 	}
 
@@ -130,6 +132,8 @@ public final class FootnotePageProbe {
 			// preDispatchが確保した元anchorを使い、Bも生イベントの通常経路で開閉する。
 			this.dispatch(event, id, fresh);
 			this.charOffset = Math.max(this.charOffset, this.doc.getDeliveredCharEnd());
+		} catch (final RuntimeException failure) {
+			throw new FootnoteProbeException(failure);
 		}
 		this.reclaim();
 	}
@@ -147,11 +151,19 @@ public final class FootnotePageProbe {
 
 	/** 未完宿主・改頁残余・配達中イベントを残し、終了したMEASURE所有だけを回収します。 */
 	private void reclaim() {
+		try {
+			this.reclaimResources();
+		} catch (final RuntimeException failure) {
+			throw new FootnoteProbeException(failure);
+		}
+	}
+
+	private void reclaimResources() {
 		final long unfinished = this.doc.oldestUnfinishedSourceId();
-		final long from = Math.min(this.pageFrom, unfinished);
-		this.owner.retainFrom(this.source, from);
 		final int resourcesBeforeReclaim = this.owner.registeredResourceCount();
-		this.owner.reclaimBefore(Math.min(this.deliveryStart, unfinished));
+		this.owner.reclaimCompleted();
+		final long from = Math.min(Math.min(this.pageFrom, unfinished), this.owner.oldestOpenSourceId(this.source));
+		this.owner.retainFrom(this.source, from);
 		this.root.reclaimProbeFootnotes(this.owner.retainedFrom());
 		this.compaction.reapply();
 		this.observeRetention(unfinished, this.doc.getOpenRetainedTableCount(), resourcesBeforeReclaim);
@@ -219,6 +231,8 @@ public final class FootnotePageProbe {
 				if (this.doc == null) this.start();
 				this.doc.end();
 				this.inputFinished = true;
+			} catch (final RuntimeException failure) {
+				throw new FootnoteProbeException(failure);
 			}
 			this.reclaim();
 		}

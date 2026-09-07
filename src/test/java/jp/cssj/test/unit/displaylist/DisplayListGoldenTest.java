@@ -42,6 +42,7 @@ public class DisplayListGoldenTest extends TestCase {
 
 	/** 対象文書。ブロック・フロート・テーブル・縦書き・段組・生成内容をカバーする。 */
 	private static final String[] DOCUMENTS = { //
+			"0125-footnote/footnote-bottom-nested-hosts.html", //
 			// 固定幅の子が兄弟の内在寸法を消していた欠陥(2026-08-04)。
 			// フロート/セル/絶対/フレックス/inline-block を横に並べて押さえる
 			"0080-width/intrinsic-fixed-sibling.html", //

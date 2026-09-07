@@ -51,6 +51,30 @@ import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /** BとCを同じスレッドで交互に駆動したときの、資源・会計・借用ログの境界です。 */
 public final class ScratchOwnerTest extends TestCase {
+	public void testHostCompletionCannotRetireBorrowedMainOrOtherScratchBody() throws Exception {
+		try (final LayoutSource source = source(); final ScratchOwner owner = new ScratchOwner()) {
+			final RangeHandle main = handle(source);
+			final RangeHandle local;
+			try (final var attachment = owner.attach()) {
+				local = handle(source);
+				try (final var nested = new ScratchReplayScope()) {
+					local.completeScratchHost();
+					main.completeScratchHost();
+				}
+				owner.reclaimCompleted();
+				assertEquals("別scratchの計測では所有元の寿命は閉じない", RangeHandle.State.OPEN, local.state());
+				local.completeScratchHost();
+				main.completeScratchHost();
+			}
+			assertEquals("完了通知だけでは安全点前に破棄しない", RangeHandle.State.OPEN, local.state());
+			owner.reclaimCompleted();
+			assertEquals(RangeHandle.State.ABANDONED, local.state());
+			assertEquals(RangeHandle.State.OPEN, main.state());
+			assertEquals(0, owner.registeredResourceCount());
+			main.abandon();
+		}
+	}
+
 	public void testOneShotScopeStillReleasesNewResources() throws Exception {
 		try (final LayoutSource source = source()) {
 			final RangeHandle main = handle(source);

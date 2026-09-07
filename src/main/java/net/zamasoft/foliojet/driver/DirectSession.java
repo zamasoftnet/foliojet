@@ -840,7 +840,8 @@ public class DirectSession extends AbstractCTISession
 			this.continuous = false;
 			final RetainedTextLimitException retained = RetainedTextLimitException.findIn(e);
 			if (retained != null) throw failure(retained.getCode(), retained.getMessage(), e);
-			if (ContinuationInvariantViolationException.findIn(e) != null) {
+			if (ContinuationInvariantViolationException.findIn(e) != null
+					|| net.zamasoft.foliojet.layout.FootnoteProbeException.findIn(e) != null) {
 				throw failure(e.getCode(), e.getMessage(), e);
 			}
 			// 中断
@@ -870,6 +871,7 @@ public class DirectSession extends AbstractCTISession
 			short code = CTIMessageCodes.FATAL_UNEXPECTED;
 			String mes = MessageCodeUtils.toString(code, new String[] { t.getMessage() });
 			if (ContinuationInvariantViolationException.findIn(t) == null
+					&& net.zamasoft.foliojet.layout.FootnoteProbeException.findIn(t) == null
 					&& !UAProps.PROCESSING_FAIL_ON_FATAL_ERROR.getBoolean(this.ua)) {
 				try {
 					this.ua.finish();
