@@ -1073,6 +1073,15 @@ public class RootBuilder extends BreakableBuilder {
 			// `getPageOwnerLimit()` が変わるので、最後の段の容量は切断前に固定する。
 			this.columnFootnoteCutCapacity = this.columnFootnoteHost == null ? Double.NaN
 					: this.columnFootnoteHost.capacityBase.getAsDouble();
+			this.columnFootnoteCarryChainIndex = -1;
+			if (this.columnFootnoteHost != null) {
+				for (int i = 0; i < this.flowStack.size(); ++i) {
+					if (((Flow) this.flowStack.get(i)).box == this.columnFootnoteHost.owner) {
+						this.columnFootnoteCarryChainIndex = i;
+						break;
+					}
+				}
+			}
 		}
 
 		// ルートブロックの分割(C1a: 断片ボックスは split では構築せず、
@@ -1345,9 +1354,10 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 		this.endRestyling();
-		// 増分5: 継続の再生で段の宿主が開かなかった(段組が続かない)なら、
-		// 持ち越しは本文が組まれる前に頁の宿主へ返す。
-		if (this.columnFootnoteHost == null) this.flushColumnFootnoteCarry();
+		// 増分5: 継続の再生で owner の継続が持ち越しを受け取らなかった(段組が続かない、
+		// 別の段組が別の位置で開いた、継続が入れ子で不適格になった)なら、本文が
+		// 組まれる前に頁の宿主へ返す(codex レビュー 2026-09-08 必須 2)。
+		this.flushColumnFootnoteCarry();
 
 		return true;
 	}
@@ -1815,6 +1825,12 @@ public class RootBuilder extends BreakableBuilder {
 	private final java.util.ArrayDeque<FootnoteEntry> columnFootnoteCarry = new java.util.ArrayDeque<>();
 	/** 頁分割の切断前に固定した最後の段の容量(切断後の root 内寸に依存しない)。 */
 	private double columnFootnoteCutCapacity = Double.NaN;
+	/**
+	 * 持ち越しを渡す継続 owner の識別: 切断時の open chain(flowStack)での owner の
+	 * 位置。継続の再生は同じ順序で箱を作り直すので、再生中に同じ位置で開いた
+	 * 段組だけを owner の継続とみなす(grok レビュー任意、2026-09-07)。
+	 */
+	private int columnFootnoteCarryChainIndex = -1;
 	/** balance 前に回収した段の注。balance 後に収容判定してから頁の宿主へ移す(増分6)。 */
 	private FootnoteHost recoveredColumnFootnotes;
 	/** 段添付でFIFOを離れたentryも、頁の文書順採番が終わるまで保持する。 */
@@ -1844,9 +1860,11 @@ public class RootBuilder extends BreakableBuilder {
 		this.columnFootnoteHost = new FootnoteHost(() -> column,
 				() -> this.getPageOwnerLimit() - flow.pageAxis - lastFrame, owner::getLineSize,
 				owner, lineOrigin, flow.pageAxis);
-		if (!this.columnFootnoteCarry.isEmpty()) {
-			// 前頁の最後の段から持ち越した注は、この頁で最初に開く段へ
-			// (継続本文の再生より前なので、段は予約済みの容量で組まれる)。
+		if (!this.columnFootnoteCarry.isEmpty() && builder == this && this.isRestyling()
+				&& this.flowStack.size() - 1 == this.columnFootnoteCarryChainIndex) {
+			// 前頁の最後の段から持ち越した注は、継続の再生で同じ位置に開いた
+			// owner の継続の最初の段へ(継続本文の再生より前なので、段は予約済みの
+			// 容量で組まれる)。継続でなければ再生の終わりに頁の宿主へ返す。
 			for (final FootnoteEntry entry : this.columnFootnoteCarry) {
 				this.columnPageEntries.put(entry.id, entry);
 				this.traceFootnote("column-carry", entry, 0, java.util.Set.of());

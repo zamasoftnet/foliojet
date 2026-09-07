@@ -422,6 +422,36 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		return (TableRowGroupBox) this.bodyGroups.get(i);
 	}
 
+	/**
+	 * 未完表の可視行だけで切断が確定するか(B-2b-6)。{@code splitTable} が未完表に行う
+	 * 控除(始端枠・ヘッダ)を同じ関数で行い、ヘッダが収まらなければ表ごとの移動で確定、
+	 * それ以外は本文群の切断走査の dry-run に委ねます。
+	 *
+	 * @param tableLimit 親が表に渡す切断限界(表の開始位置からの容量)
+	 */
+	public final boolean emissionCutDetermined(final double tableLimit) {
+		if (this.bodyGroups == null || this.bodyGroups.isEmpty()) return false;
+		return this.emissionCutDetermined(tableLimit, this.getTableBody(0));
+	}
+
+	/**
+	 * 本文群を明示する形。描画後に {@code bodyGroups} を解放した残余表でも、送出中の本文群
+	 * (親が別に保持)で判定できます。
+	 */
+	public final boolean emissionCutDetermined(final double tableLimit, final TableRowGroupBox body) {
+		return this.emissionCutDetermined(tableLimit, body,
+				this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1);
+	}
+
+	/** ヘッダ群がまだ装着されていない受理前(Pass C)は、ヘッダ高を明示します。 */
+	public final boolean emissionCutDetermined(final double tableLimit, final TableRowGroupBox body,
+			final double headerSize) {
+		final double limit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveIncompleteNonBreakable(tableLimit,
+				this.frame.getFramePageStart(this.params.flow), headerSize);
+		if (LayoutUtils.compare(limit, 0) <= 0) return true;
+		return body.emissionCutDetermined(limit);
+	}
+
 	public final int getTableBodyCount() {
 		return this.bodyGroups == null ? 0 : this.bodyGroups.size();
 	}

@@ -216,6 +216,30 @@ public final class FootnoteColumnsTest extends TestCase {
 		assertTrue("EOF救済で注を捨てない: " + capture.footnoteWarnings, capture.footnoteWarnings.isEmpty());
 	}
 
+	/**
+	 * codex レビュー 2026-09-08 必須 2: 持ち越し先の owner が次頁で入れ子になって不適格になり、
+	 * 別の段組が別の位置で開く。持ち越しは受け取られず、再生の終わりに頁の宿主へ返る(捨てない)。
+	 */
+	public void testCarryReturnsToPageWhenContinuationBecomesIneligible() throws Exception {
+		final StringBuilder html = new StringBuilder("<!doctype html><html><head><style>"
+				+ "@page{size:400pt 100pt;margin:0}@page:first{size:200pt 100pt}"
+				+ "body{margin:0;font-size:8pt;line-height:10pt}"
+				+ ".a{column-width:150pt;column-gap:0;column-fill:auto}"
+				+ ".b{column-count:2;column-gap:12pt;column-fill:auto}"
+				+ "p{margin:0}.note{float:footnote;font-size:6pt;line-height:8pt}"
+				+ "</style></head><body><div class='a'><div class='b'>");
+		for (int i = 0; i < 17; ++i) html.append("<p>本文").append(i).append("。</p>");
+		html.append("<p>末尾の呼出<span class='note'>持ち越される注。</span>本文。</p>");
+		for (int i = 0; i < 12; ++i) html.append("<p>続き").append(i).append("。</p>");
+		html.append("</div></div></body></html>");
+		final Capture capture = transcode(html.toString());
+		assertEquals(1, capture.calls.size());
+		assertEquals("持ち越した注を捨てない", 1, capture.notes.size());
+		assertTrue("注は呼び出しの頁以降", capture.notes.get(0).placement().page() >= capture.calls.get(0).page());
+		assertTrue("EOF救済で注を捨てない: " + capture.footnoteWarnings, capture.footnoteWarnings.isEmpty());
+		assertTrue("EOFの全pendingを回収", capture.traces.stream().anyMatch(value -> value.event().equals("finish") && value.pendingCount() == 0));
+	}
+
 	private static int columnIndex(final Column column, final double x, final double y) {
 		final boolean vertical = column.bounds().flow().isVertical();
 		final double relative = (vertical ? y - column.bounds().y() : x - column.bounds().x());

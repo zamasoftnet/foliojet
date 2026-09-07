@@ -852,6 +852,7 @@ imageTest/2100-text-emphasis/h-text-emphasis.html	../copperpdf4/dev/files/visual
 imageTest/2100-text-emphasis/v-text-emphasis.html	../copperpdf4/dev/files/visual/2100-text-emphasis/v-text-emphasis.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/2110-border-image/border-image.html	../copperpdf4/dev/files/visual/2110-border-image/border-image.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/2120-footnote/bottom-vertical-rl.html	../copperpdf4/dev/files/visual/2120-footnote/bottom-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
+imageTest/2120-footnote/columns-block-end-vertical-rl.html	../copperpdf4/dev/files/visual/2120-footnote/columns-block-end-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/acid2.html	../copperpdf4/dev/files/visual/acid2.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/barcode/barcode.html	../copperpdf4/dev/files/visual/barcode/barcode.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/barcode/isbn.html	../copperpdf4/dev/files/visual/barcode/isbn.html	1	text/html	input.include=**	input.property-pi=true

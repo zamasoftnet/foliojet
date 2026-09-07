@@ -166,15 +166,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		/**
-		 * 未通知行を含む本文が切断線+0.5ptを確実に超えたか。B-2bの送出前保留用。
+		 * 未通知行を含む可視範囲で通知後の切断が確定するか(B-2b-6)。B-2bの送出前保留用。
 		 * pageAxisは通知済み外寸を含むため残り容量の始点には使わず、配置時のpageStartを使います。
-		 * 正の枠・HEADERは容量から引かず保守的に待ち、負の始端枠は容量へ戻します。
+		 * TableBoxが枠・ヘッダの控除後に実装と同じ切断走査をdry-runします。
 		 */
 		public boolean hasRowEmissionOverflow() {
 			this.requireActive();
-			return TableBuildPlanner.hasRowEmissionOverflow(this.body.getPageSize(),
-					BreakableBuilder.this.getPageLimit() - this.pageStart
-							- Math.min(0, this.remainder.getFrame().getFrameTop()));
+			return this.remainder.emissionCutDetermined(BreakableBuilder.this.getPageLimit() - this.pageStart);
 		}
 
 		/** 現在の残余の仮想全行計画。B-2a 単独の受理では null です。 */
@@ -640,8 +638,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			++this.breakDepth;
 		}
 		super.startFlowBlock(flowBox);
-		final RootBuilder footnoteRoot = this.getPageContext();
-		if (footnoteRoot != null) footnoteRoot.openFootnoteColumn(this, this.getFlow());
+		// 段組でない箱(本文・セルの大多数)は宿主の候補にならない。ここで抜けて
+		// 8,000 行の表で毎セルの適格判定を走らせない。
+		if (flowBox.getColumnCount() > 1) {
+			final RootBuilder footnoteRoot = this.getPageContext();
+			if (footnoteRoot != null) footnoteRoot.openFootnoteColumn(this, this.getFlow());
+		}
 		if (canBreakAfter) {
 			this.canBreakBefore = true;
 			this.interflowBreak = true;
@@ -1165,7 +1167,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 
-		final RootBuilder footnoteRoot = this.getPageContext();
+		final RootBuilder footnoteRoot = flow.box.getColumnCount() > 1 ? this.getPageContext() : null;
 		final boolean closesColumnOwner = footnoteRoot != null
 				&& footnoteRoot.isEligibleFootnoteColumnOwner(this, flow.box);
 		if (footnoteRoot != null) footnoteRoot.closeFootnoteColumn(flow.box);

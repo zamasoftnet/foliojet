@@ -1462,9 +1462,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 							else this.rowEmission.rowsAppended();
 							notified = true;
 						}
-					} else if (j < rows.size() - 1 && TableBuildPlanner.hasRowEmissionOverflow(
-							rowGroup.getPageSize(), ((BreakableBuilder) anonBuilder).getPageLimit()
-									- anonBuilder.getPageAxis() - Math.min(0, this.tableBox.getFrame().getFrameTop()))) {
+					} else if (j < rows.size() - 1 && this.tableBox.emissionCutDetermined(
+							((BreakableBuilder) anonBuilder).getPageLimit() - anonBuilder.getPageAxis(), rowGroup,
+							this.headerGroup == null ? -1 : this.headerGroup.getPageSize())) {
 						// bind後の宿主状態も、終端を抑止する前に確認する。
 						if (!((BreakableBuilder) anonBuilder).supportsIncompleteTableIntake()) {
 							this.rowEmissionExclusions.add(TableBuildPlanner.RowEmissionExclusion.UNSUPPORTED_HOST);

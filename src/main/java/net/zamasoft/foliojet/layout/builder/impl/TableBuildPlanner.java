@@ -304,6 +304,53 @@ public final class TableBuildPlanner {
 				&& visibleBodySize - capacity > LayoutUtils.THRESHOLD;
 	}
 
+	/**
+	 * 可視行だけで切断が確定するか(B-2b-6、切断契約)。
+	 *
+	 * <p>
+	 * {@code TableRowGroupBox.splitPageAxis} の前段と走査本体を<b>同じ値・同じ順・同じ比較</b>で
+	 * 写した dry-run です。合計高の比較({@link #hasRowEmissionOverflow})や限界からの逐次減算では、
+	 * 括弧の違い({@code C−(a+b)} と {@code (C−a)−b})で 0.5pt 同値のどちら側に落ちるかが
+	 * 完成経路と食い違う(2026-09-08 の 0.5pt 反例)。
+	 * </p>
+	 * <ul>
+	 * <li>群全体が KEEP({@code compare(limit, groupPageSize) >= 0})なら未確定(後続行が要る)。</li>
+	 * <li>走査: 最終行でない行で {@code compare(limit, size) > 0} なら {@code limit -= size} で進む。
+	 * 止まった行の判定は {@code TableCutter}: {@code compare(limit, 0) < 0} なら MOVE(確定)、
+	 * {@code compare(limit, size) >= 0} なら KEEP——<b>実装は KEEP の後も走査を続ける</b>
+	 * ({@code TableRowGroupBox.splitPageAxis} の {@code pageLimit -= prevRowSize; continue})ので、
+	 * KEEP が可視範囲の末尾まで続けば未確定(codex レビュー 2026-09-08 の反例: 微小行
+	 * [4.9,0.5,1.4,0.3,0.1,0.2,…] が同値幅の中で KEEP し続け、最終残 −0.4999…)。
+	 * それ以外(切断線が行を横断)は行の分割か MOVE で確定。</li>
+	 * </ul>
+	 *
+	 * @param rowPageSizes  可視行のページ方向寸法(行順)
+	 * @param groupPageSize 群の累積 pageSize(完成経路が比較に使う値そのもの)
+	 * @param pageLimit     群に渡される切断限界(表の枠・ヘッダの控除後)
+	 */
+	public static boolean cutDetermined(final double[] rowPageSizes, final double groupPageSize,
+			double pageLimit) {
+		if (rowPageSizes.length == 0) return false;
+		if (LayoutUtils.compare(pageLimit, 0) < 0) return true;
+		if (LayoutUtils.compare(pageLimit, groupPageSize) >= 0) return false;
+		final int last = rowPageSizes.length - 1;
+		for (int i = 0; i < rowPageSizes.length; ++i) {
+			final double size = rowPageSizes[i];
+			if (i < last && LayoutUtils.compare(pageLimit, size) > 0) {
+				pageLimit -= size;
+				continue;
+			}
+			if (LayoutUtils.compare(pageLimit, 0) < 0) return true;
+			if (LayoutUtils.compare(pageLimit, size) >= 0) {
+				// KEEP: 実装は次の行へ進む。可視範囲の末尾まで KEEP なら後続行が要る。
+				pageLimit -= size;
+				continue;
+			}
+			return true;
+		}
+		return false;
+	}
+
 	private static boolean forced(final PageBreakMode mode) {
 		return mode != PageBreakMode.AUTO && mode != PageBreakMode.AVOID;
 	}

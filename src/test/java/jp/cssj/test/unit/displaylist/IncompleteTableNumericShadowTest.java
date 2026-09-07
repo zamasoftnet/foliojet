@@ -387,6 +387,35 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
+	/** B-2b-6: 合計高は容量+0.5pt を超えるのに、切断走査の逐次減算では −0.4999… で KEEP になる反例。 */
+	public void testDeferredEmissionSequentialSubtractionRounding() throws Exception {
+		final double[] sizes = { 4.9, 13.2, 4.3, 12.3, 14.7, 10.1 };
+		final double capacity = 44.4 - 22.5;
+		assertTrue("合計高の比較は通る", TableBuildPlanner.hasRowEmissionOverflow(4.9 + 13.2 + 4.3, capacity));
+		assertEquals("逐次減算は同値幅の中", 0, LayoutUtils.compare(((capacity - 4.9) - 13.2) - 4.3, 0));
+		assertFalse("切断契約は第3行で保留", TableBuildPlanner.cutDetermined(new double[] { 4.9, 13.2, 4.3 }, (4.9 + 13.2) + 4.3, capacity));
+		assertTrue("第4行が見えれば確定", TableBuildPlanner.cutDetermined(new double[] { 4.9, 13.2, 4.3, 12.3 }, ((4.9 + 13.2) + 4.3) + 12.3, capacity));
+		for (final boolean caption : new boolean[] { false, true }) {
+			final List<Integer> notifications = deferredBoundaryShadow(sizes, 22.5,
+					new double[] { 44.4, 55.5, 120.1 }, caption, 2);
+			assertEquals("第3行は保留し、第4行で初回受理、最終行で完了", List.of(4, 6), notifications);
+		}
+	}
+
+	/** codex レビュー 2026-09-08 の反例: 微小行が同値幅の中で KEEP し続け、切断は後続行に依存する。 */
+	public void testDeferredEmissionHoldsWhileTinyRowsKeepWithinThreshold() throws Exception {
+		final double[] sizes = { 4.9, 0.5, 1.4, 0.3, 0.1, 0.2, 10, 10 };
+		final double limit = 20 - 13.1;
+		assertFalse("第3行で止まり KEEP が続く間は保留", TableBuildPlanner.cutDetermined(
+				new double[] { 4.9, 0.5, 1.4 }, (4.9 + 0.5) + 1.4, limit));
+		assertFalse("第6行まで KEEP が続いても保留(最終残 −0.4999…)", TableBuildPlanner.cutDetermined(
+				new double[] { 4.9, 0.5, 1.4, 0.3, 0.1, 0.2 }, ((((4.9 + 0.5) + 1.4) + 0.3) + 0.1) + 0.2, limit));
+		assertTrue("第7行が見えれば確定", TableBuildPlanner.cutDetermined(
+				new double[] { 4.9, 0.5, 1.4, 0.3, 0.1, 0.2, 10 }, (((((4.9 + 0.5) + 1.4) + 0.3) + 0.1) + 0.2) + 10, limit));
+		final List<Integer> notifications = deferredBoundaryShadow(sizes, 13.1, new double[] { 20, 20, 120.1 }, false, 2);
+		assertEquals("第7行で初回受理、最終行で完了、完成側と同じ 2 ページ", List.of(7, 8), notifications);
+	}
+
 	/** 初回受理だけを修正しても通らない、追記通知のちょうど+0.5pt。 */
 	public void testDeferredAppendAtHalfPointAndAdjacentDoubles() throws Exception {
 		for (final double boundary : new double[] { 50, 51 }) {
@@ -395,7 +424,10 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				final List<Integer> notifications = deferredBoundaryShadow(
 						new double[] { 20, 20, 20, 20, 10.5, 10, 10 }, 0,
 						new double[] { 50, capacity, 120 }, false, 3);
-				assertEquals(List.of(3, capacity < 50 ? 5 : 6, 7), notifications);
+				// B-2b-6: 逐次減算の残りがちょうど −0.5(容量 50.0)は実走査でも KEEP に
+				// ならない(compare は ±0.5 を同値に含めない)ので第5行で受理できる。
+				// 残りが −0.4999…(nextUp(50))と 51 系は第6行まで保留。
+				assertEquals(List.of(3, capacity <= 50 ? 5 : 6, 7), notifications);
 			}
 		}
 	}
@@ -439,8 +471,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				if (i == sizes.length - 1) {
 					shadow.complete();
 					actual.addBound(shadow);
-				} else if (TableBuildPlanner.hasRowEmissionOverflow(shadow.getTableBody(0).getPageSize(),
-						actual.getPageLimit() - actual.getPageAxis())) {
+				} else if (shadow.emissionCutDetermined(actual.getPageLimit() - actual.getPageAxis())) {
 					handle = actual.acceptIncompleteTable(shadow);
 					assertTrue(handle.isAccepted());
 					notifications.add(i + 1);
@@ -895,16 +926,39 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		expected.addBound(oracle);
 		final List<IncompleteTableStatus> statuses = new ArrayList<>();
 		if (emit) {
-			final IncompleteTableResult handle = actual.acceptIncompleteTable(shadow);
-			assertTrue(handle.isAccepted());
-			statuses.add(handle.status());
-			for (int i = 1; i < sizes.length; ++i) {
-				final TableRowBox row = row(shadow.getTableParams(), sizes[i]);
-				if (forced && i % 7 == 6) {
-					row.getTableRowPos().pageBreakAfter = PageBreakMode.PAGE;
+			// 実装(RetainedTableBuilder)と同じ切断契約で受理・追記を通知する(B-2b-6):
+			// 可視行だけで切断が確定するまで受理せず、追記通知も確定するまで保留する。
+			IncompleteTableResult handle = null;
+			for (int i = 0; i < sizes.length; ++i) {
+				if (i > 0) {
+					final TableRowBox row = row(shadow.getTableParams(), sizes[i]);
+					if (forced && i % 7 == 6) {
+						row.getTableRowPos().pageBreakAfter = PageBreakMode.PAGE;
+					}
+					if (handle == null) {
+						final var body = shadow.getTableBody(0);
+						final int count = body.getTableRowCount();
+						final double size = body.getPageSize();
+						body.addTableRow(row);
+						shadow.updateIncompleteBody(body, count, size);
+					} else {
+						handle.body().addTableRow(row);
+					}
 				}
-				handle.body().addTableRow(row);
-				statuses.add(i == sizes.length - 1 ? handle.complete() : handle.rowsAppended());
+				if (handle == null) {
+					if (i == sizes.length - 1) {
+						shadow.complete();
+						actual.addBound(shadow);
+					} else if (shadow.emissionCutDetermined(actual.getPageLimit() - actual.getPageAxis())) {
+						handle = actual.acceptIncompleteTable(shadow);
+						assertTrue(handle.isAccepted());
+						statuses.add(handle.status());
+					}
+				} else if (i == sizes.length - 1) {
+					statuses.add(handle.complete());
+				} else if (handle.hasRowEmissionOverflow()) {
+					statuses.add(handle.rowsAppended());
+				}
 			}
 		} else {
 			actual.addBound(shadow);

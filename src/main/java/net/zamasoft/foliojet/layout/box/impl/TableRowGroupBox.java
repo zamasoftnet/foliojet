@@ -50,6 +50,20 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	protected List<TableRowBox> rows = null;
 
+	/** 自動切断の dry-run(B-2b-6)。表の枠・ヘッダの控除は {@code TableBox} が行います。 */
+	public boolean emissionCutDetermined(final double pageLimit) {
+		return net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.cutDetermined(this.rowPageSizes(),
+				this.getPageSize(), pageLimit);
+	}
+
+	/** 各行のページ方向寸法を切断走査と同じ順で返す。行が無ければ空配列。 */
+	public double[] rowPageSizes() {
+		if (this.rows == null) return new double[0];
+		final double[] sizes = new double[this.rows.size()];
+		for (int i = 0; i < sizes.length; ++i) sizes[i] = this.rows.get(i).getPageSize();
+		return sizes;
+	}
+
 	/** TableBox と同じ計画。完成表には設定しません。 */
 	IncompleteTablePlan incompletePlan;
 
