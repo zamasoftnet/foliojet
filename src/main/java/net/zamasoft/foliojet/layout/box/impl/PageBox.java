@@ -40,29 +40,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class PageBox extends AbstractBlockBox {
 	protected final UserAgent ua;
 
-	/** この表示頁だけに属する再生木。通常のfixed台帳へは渡しません。 */
-	private final List<PageBox> pageContents = new ArrayList<PageBox>();
-
-	public void addPageContent(final PageBox content) {
-		this.pageContents.add(content);
-	}
-
-	public boolean hasPageContents() {
-		return !this.pageContents.isEmpty();
-	}
-
-	/** 本文/fixedのz-indexから独立した頁固定層です。 */
-	public void drawPageContents(final Drawer drawer) {
-		if (this.pageContents.isEmpty()) {
-			return;
-		}
-		final Drawer layer = new Drawer(Integer.MAX_VALUE);
-		drawer.visitDrawer(layer);
-		for (final PageBox content : this.pageContents) {
-			net.zamasoft.foliojet.css.style.running.RunningRenderer.draw(content, layer, 0, 0);
-		}
-	}
-
 	/**
 	 * 塗り足し(bleed)の幅です(2026-09-02)。{@code @page} の背景は仕上り線で
 	 * 止めず、この幅だけ外へ描く——裁ち落としで白い縁が出ないように。

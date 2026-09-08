@@ -130,18 +130,6 @@ public final class RunningCaptureTest extends TestCase {
 		}
 	}
 
-	public void testLegacyAndAbsoluteAnchors() throws Exception {
-		final Conversion result = convert(".legacy{-cssj-page-content:legacy single}.absolute{position:absolute}"
-				+ ".running{position:running(absolute)}",
-				"<div class='absolute'><span class='running'>A</span><span>X</span></div>"
-				+ "<div class='legacy'>L</div><p>BODY</p>", false, true, true);
-		assertEquals(2L, result.context().getRunningRegistry().assignedCount());
-		assertTrue(result.assignments().stream().anyMatch(
-				assignment -> "absolute".equals(assignment.name()) && !assignment.beginsPage()));
-		assertTrue(result.context().getRunningState().snapshot("legacy").entry().value().legacy());
-		assertFalse("既定の両面印刷ではsingleのLを描かない", result.pages().toString().contains("Text[\"L\""));
-	}
-
 	public void testRunningPseudoInsideRunningIsIndependent() throws Exception {
 		final Conversion result = convert(".outer{position:running(outer)}"
 				+ ".outer::before{position:running(inner);content:'INNER'}",

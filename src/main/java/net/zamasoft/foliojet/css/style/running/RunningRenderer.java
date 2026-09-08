@@ -59,17 +59,17 @@ public final class RunningRenderer {
 		if (value.presence() != Presence.VALUE) {
 			return null;
 		}
-		return this.prepare(value.value(), container, false);
+		return this.prepare(value.value(), container);
 	}
 
-	/** 解決済みテンプレートを展開します。fixedは頁固定層への配置にだけ使います。 */
-	public Content prepare(final RunningTemplate template, final CSSStyle container, final boolean fixed) {
+	/** 解決済みテンプレートを展開します。 */
+	public Content prepare(final RunningTemplate template, final CSSStyle container) {
 		if (!this.active.add(template)) {
 			this.warn("recursive element(" + template.name() + ")");
 			return null;
 		}
 		try {
-			return new Content(this.expander.expand(template, container, fixed));
+			return new Content(this.expander.expand(template, container));
 		} catch (final IllegalArgumentException e) {
 			this.warn("element(" + template.name() + "): " + e.getMessage());
 			return null;

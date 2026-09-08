@@ -53,8 +53,6 @@ public class EffectiveIoPropertyTest extends TestCase {
 	private record Case(String name, File document, Map<String, String> a, Map<String, String> b) {
 	}
 
-	private final List<String> licenseBlocked = new ArrayList<>();
-
 	private static List<Case> cases() {
 		final List<Case> cases = new ArrayList<>();
 		final String watermark = new File("files/unittest/red.png").toURI().toString();
@@ -102,13 +100,8 @@ public class EffectiveIoPropertyTest extends TestCase {
 
 	public void testPropertiesChangeTheOutput() throws Exception {
 		final List<String> noEffect = new ArrayList<>();
-		int skipped = 0;
 		for (final Case c : cases()) {
 			final String a = this.convert(c.document(), c.a());
-			if (!this.licenseBlocked.isEmpty()) {
-				++skipped;
-				continue;
-			}
 			final String b = this.convert(c.document(), c.b());
 			if (a.equals(b)) {
 				noEffect.add(c.name());
@@ -131,14 +124,10 @@ public class EffectiveIoPropertyTest extends TestCase {
 	private String convert(final File document, final Map<String, String> properties) throws Exception {
 		final File out = new File("local/unittest/pdf/" + this.getClass().getName() + ".pdf");
 		out.getParentFile().mkdirs();
-		this.licenseBlocked.clear();
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setMessageHandler((code, args, mes) -> {
-					if (code == net.zamasoft.foliojet.message.MessageCodes.WARN_LICENSE_CONSTRAINT_IO) {
-						this.licenseBlocked.add(args != null && args.length > 0 ? args[0] : "?");
-					}
 				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

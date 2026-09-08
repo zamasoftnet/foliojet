@@ -6,9 +6,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,8 +42,6 @@ public class InputIoPropertyTest extends TestCase {
 
 	private static final File PLAIN = new File("files/unittest/ioprops/two-pages.html");
 
-	private final List<String> licenseBlocked = new ArrayList<>();
-
 	/**
 	 * {@code input.default-encoding}: 宣言のない文書の既定エンコーディング。
 	 *
@@ -64,9 +60,6 @@ public class InputIoPropertyTest extends TestCase {
 	public void testDefaultStylesheet() throws Exception {
 		final String pdf = this.convert(PLAIN, props("input.default-stylesheet",
 				new File("files/unittest/ioprops/default.css").toURI().toString()));
-		if (this.skipped()) {
-			return;
-		}
 		// 既定スタイルシートの生成内容(content)が出力に現れる
 		assertTrue("既定スタイルシートが適用されること", pdf.contains("PROBE-DEFAULT-CSS")
 				|| this.textLooksGenerated(pdf));
@@ -92,9 +85,6 @@ public class InputIoPropertyTest extends TestCase {
 		final File doc = new File("files/unittest/ioprops/viewport.html");
 		final String on = this.convert(doc, props("input.viewport", "true"));
 		final String off = this.convert(doc, props("input.viewport", "false"));
-		if (this.skipped()) {
-			return;
-		}
 		assertFalse("viewportの解釈の有無で出力が変わること", on.equals(off));
 	}
 
@@ -102,9 +92,6 @@ public class InputIoPropertyTest extends TestCase {
 	public void testViewportWidthOnly() throws Exception {
 		final File doc = new File("files/unittest/ioprops/viewport-width-only.html");
 		final String pdf = this.convert(doc, props("input.viewport", "true"));
-		if (this.skipped()) {
-			return;
-		}
 		final Matcher mediaBox = Pattern.compile(
 				"/MediaBox\\s*\\[\\s*0(?:\\.0+)?\\s+0(?:\\.0+)?\\s+([0-9.]+)\\s+([0-9.]+)\\s*\\]")
 				.matcher(pdf);
@@ -121,10 +108,6 @@ public class InputIoPropertyTest extends TestCase {
 		return pdf.length() > 3000;
 	}
 
-	private boolean skipped() {
-		return !this.licenseBlocked.isEmpty();
-	}
-
 	private static Map<String, String> props(final String... kv) {
 		final Map<String, String> map = new LinkedHashMap<>();
 		for (int i = 0; i < kv.length; i += 2) {
@@ -136,14 +119,10 @@ public class InputIoPropertyTest extends TestCase {
 	private String convert(final File document, final Map<String, String> properties) throws Exception {
 		final File out = new File("local/unittest/pdf/" + this.getClass().getName() + ".pdf");
 		out.getParentFile().mkdirs();
-		this.licenseBlocked.clear();
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setMessageHandler((code, args, mes) -> {
-					if (code == net.zamasoft.foliojet.message.MessageCodes.WARN_LICENSE_CONSTRAINT_IO) {
-						this.licenseBlocked.add(args != null && args.length > 0 ? args[0] : "?");
-					}
 				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

@@ -38,11 +38,9 @@ public interface MessageCodes {
 	public static final short WARN_UNSUPPORTED_PDF_CAPABILITY = 0x2812;
 	public static final short WARN_BAD_INLINE_OBJECT = 0x2813;
 	public static final short WARN_BLOCKED_RESOURCE = 0x2814;
-	public static final short WARN_LICENSE_CONSTRAINT_CSS = 0x2815;
 	public static final short WARN_BAD_CSS_ARGMENTS = 0x2816;
 	public static final short WARN_BAD_INLINE_CSS = 0x2817;
 	public static final short WARN_UNSUPPORTED_IO_PROPERTY = 0x2818;
-	public static final short WARN_LICENSE_CONSTRAINT_IO = 0x281B;
 	public static final short WARN_MISSING_PROFILE = 0x281C;
 	public static final short WARN_UNSUPPORTED_ENCODING = 0x281D;
 	public static final short WARN_MISSING_FONT_FILE = 0x281E;
@@ -82,11 +80,8 @@ public interface MessageCodes {
 	public static final short ERROR_OUTPUT_FILE_TOO_LARGE = 0x3804;
 	public static final short ERROR_OUT_OF_PAGE_LIMIT = 0x3805;
 	public static final short ERROR_MISSING_SERVERSIDE_DOCUMENT = 0x3806;
-	public static final short ERROR_INVALID_LICENSE = 0x3807;
 	public static final short ERROR_XSLT_WARN = 0x3808;
 	public static final short ERROR_XSLT_ERROR = 0x3809;
-	public static final short ERROR_EXPIRED_LICENSE = 0x380B;
-	public static final short ERROR_UNLICENSED = 0x380C;
 	public static final short ERROR_NO_CONTENT = 0x380D;
 	/** PDF/Xの出力インテント指定が不正なため変換を中断したエラーです。 */
 	public static final short ERROR_PDFX_OUTPUT_INTENT = 0x380E;

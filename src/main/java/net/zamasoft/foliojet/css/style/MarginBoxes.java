@@ -70,8 +70,7 @@ import net.zamasoft.foliojet.css.style.running.RunningRenderer;
  * ページ確定(drawPage)時に呼ばれます。ライブの StyleBuilder /
  * DocumentBuilder / LayoutSource には一切触れず、ボックスごとに新品の
  * DocumentBuilder による隔離ミニレイアウトで組みます(M6b v3 の
- * SourceReplayer と同じ隔離原則)。旧 -cssj-page-content(drawPage 時に
- * ライブ StyleBuilder へ再入)の後継です。
+ * SourceReplayer と同じ隔離原則)。
  * </p>
  *
  * <p>

@@ -25,8 +25,6 @@ import net.zamasoft.foliojet.css.PageRule;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.impl.property.box.CSSPosition;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContentClear;
 import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.property.CompositeProperty;
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
@@ -136,61 +134,6 @@ public class RunningValueParseTest extends TestCase {
 		assertTrue(result.messages().toString(), result.messages().stream()
 				.anyMatch(message -> message.code() == MessageCodes.WARN_BAD_CSS_SYNTAX
 						&& message.detail().contains("element()")));
-	}
-
-	/** 裸の none は無効化、引用した 'none' は名前(3.2 と同じ)。 */
-	public void testLegacyBareNoneDisables() {
-		assertNull(CSSJPageContent.getName(this.style("-cssj-page-content:none")));
-		assertNull(CSSJPageContent.getName(this.style("-cssj-page-content:NONE")));
-		assertEquals("none", CSSJPageContent.getName(this.style("-cssj-page-content:'none'")));
-		assertNull(CSSJPageContent.getName(this.style("-cssj-regeneratable:none")));
-		final CSSStyle style = this.style("-cssj-page-content:old left");
-		this.parse("-cssj-page-content:none").applyProperty(style);
-		assertNull(CSSJPageContent.getName(style));
-		assertEquals(0, CSSJPageContent.getPages(style));
-		assertTrue(this.warnings.toString(), this.warnings.isEmpty());
-		// none に頁条件は付けられない(不正値の警告が出る)
-		assertNull(this.parse("-cssj-page-content:none left"));
-	}
-
-	public void testLegacyPageContentDecomposition() {
-		final CompositeProperty property = (CompositeProperty) this.parse(
-				"-cssj-page-content:'header-left' left single");
-		assertNotNull(property);
-		assertEquals(2, property.getEntries().length);
-		assertSame(CSSJPageContent.INFO_NAME, property.getEntries()[0].getPrimitivePropertyInfo());
-		assertSame(CSSJPageContent.INFO_PAGES, property.getEntries()[1].getPrimitivePropertyInfo());
-		assertEquals("-cssj-page-content-name", CSSJPageContent.INFO_NAME.getName());
-		assertEquals("-cssj-page-content-pages", CSSJPageContent.INFO_PAGES.getName());
-		final CSSStyle quoted = CSSStyle.getCSSStyle(this.ua, null, CSSElement.ANON);
-		property.applyProperty(quoted);
-		assertEquals("header-left", CSSJPageContent.getName(quoted));
-		assertEquals(PageRule.PSEUDO_LEFT | PageRule.PSEUDO_SINGLE, CSSJPageContent.getPages(quoted));
-		final CSSStyle bare = this.style("-cssj-page-content:nombre-left left");
-		assertEquals("nombre-left", CSSJPageContent.getName(bare));
-		assertEquals(PageRule.PSEUDO_LEFT, CSSJPageContent.getPages(bare));
-		final CSSStyle all = this.style("-cssj-page-content:Header");
-		assertEquals("Header", CSSJPageContent.getName(all));
-		assertEquals(0, CSSJPageContent.getPages(all));
-		System.err.println("[running R1a] legacy entries=" + Arrays.toString(property.getEntries()));
-		assertTrue(this.warnings.toString(), this.warnings.isEmpty());
-	}
-
-	public void testClearNamesAndRegeneratableAlias() {
-		assertEquals(List.of("a", "b"),
-				Arrays.asList(CSSJPageContentClear.get(this.style("-cssj-page-content-clear:a b"))));
-		assertEquals(List.of("a", "b"),
-				Arrays.asList(CSSJPageContentClear.get(this.style("-cssj-page-content-clear:'a' \"b\""))));
-		final CSSStyle style = this.style("-cssj-page-content:old left single");
-		this.parse("-cssj-regeneratable:x").applyProperty(style);
-		assertEquals("x", CSSJPageContent.getName(style));
-		assertEquals(0, CSSJPageContent.getPages(style));
-		this.parse("-cssj-regeneratable:initial").applyProperty(style);
-		assertNull(CSSJPageContent.getName(style));
-		assertEquals(0, CSSJPageContent.getPages(style));
-		assertTrue(this.warnings.toString(), this.warnings.isEmpty());
-		assertNull(this.parse("-cssj-regeneratable:x left"));
-		assertNull(this.parse("-cssj-page-content:x bogus"));
 	}
 
 	public void testSinglePageParsingMatchingAndSpecificity() throws Exception {

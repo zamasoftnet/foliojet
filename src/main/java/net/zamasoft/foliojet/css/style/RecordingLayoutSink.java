@@ -116,18 +116,6 @@ final class RecordingLayoutSink {
 		}
 	}
 
-	/** clearは直前の文字でなく、宣言を持つ要素自身の配置へ結びます。 */
-	void clearAssignments(final java.util.List<String> names, final net.zamasoft.foliojet.layout.box.IBox source) {
-		final long order = this.assignments.nextOrder();
-		this.assignments.clear(order, names);
-		this.layoutSource.append(new LayoutSource.Assignment(order));
-		if (source != null) {
-			this.assignments.bindBox(order, source.getAssignmentAnchor());
-		} else if (!this.anchors.isEmpty()) {
-			this.anchors.peek().waiting.add(order);
-		}
-	}
-
 	private void bindWaitingBox(final long source) {
 		if (!this.anchors.isEmpty()) {
 			final AnchorFrame frame = this.anchors.peek();

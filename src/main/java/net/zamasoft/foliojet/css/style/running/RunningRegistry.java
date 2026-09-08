@@ -23,7 +23,6 @@ public final class RunningRegistry {
 		final long order;
 		RunningTemplate template;
 		List<PendingStringSet> strings = List.of();
-		List<String> clears = List.of();
 		java.util.function.Consumer<StringBuilder> stringSource;
 		boolean before = true;
 
@@ -34,15 +33,9 @@ public final class RunningRegistry {
 
 	/** ページビルダーが確定した所属頁・先頭の事実をvisitorへ渡すメタデータです。 */
 	public record Placement(long order, RunningTemplate template, List<PendingStringSet> strings,
-			IBox box, boolean beginsPage, String sourceText, List<String> clears) {
+			IBox box, boolean beginsPage, String sourceText) {
 		public Placement {
 			strings = List.copyOf(strings);
-			clears = List.copyOf(clears);
-		}
-
-		public Placement(final long order, final RunningTemplate template, final List<PendingStringSet> strings,
-				final IBox box, final boolean beginsPage, final String sourceText) {
-			this(order, template, strings, box, beginsPage, sourceText, List.of());
 		}
 
 		public Placement(final long order, final RunningTemplate template, final List<PendingStringSet> strings,
@@ -84,11 +77,6 @@ public final class RunningRegistry {
 		this.pending.computeIfAbsent(order, Pending::new).strings = List.copyOf(strings);
 	}
 
-	/** 配置された頁で削除する名前を、通常の代入と同じアンカーへ載せます。 */
-	public void clear(final long order, final List<String> names) {
-		this.pending.computeIfAbsent(order, Pending::new).clears = List.copyOf(names);
-	}
-
 	/** 代入元のテキストと配置先を分離します。参照はpendingの寿命内だけ保持します。 */
 	public void strings(final long order, final List<PendingStringSet> strings,
 			final java.util.function.Consumer<StringBuilder> source) {
@@ -112,20 +100,9 @@ public final class RunningRegistry {
 	 * 文書のラッパー(html/body)と匿名箱は先頭判定を消費しません。
 	 */
 	public List<Placement> commitPage(final IBox page) {
-		return this.placements(page, true);
-	}
-
-	/** 白紙判定用。pendingや文字範囲を消費せず、配置された代入だけを返します。 */
-	public List<Placement> previewPage(final IBox page) {
-		return this.placements(page, false);
-	}
-
-	private List<Placement> placements(final IBox page, final boolean commit) {
 		if (this.pending.isEmpty()) {
-			if (commit) {
-				this.boxes.clear();
-				this.characters.clear();
-			}
+			this.boxes.clear();
+			this.characters.clear();
 			return List.of();
 		}
 		final List<Placement> placements = new ArrayList<Placement>();
@@ -143,11 +120,9 @@ public final class RunningRegistry {
 							step.offset() + step.count(), false);
 					for (final var entry : range.entrySet()) {
 						this.place(entry.getValue(), box,
-								!outside && !content && entry.getKey() == step.offset(), placements, commit);
+								!outside && !content && entry.getKey() == step.offset(), placements);
 					}
-					if (commit) {
-						range.clear();
-					}
+					range.clear();
 				}
 				if (!outside && step.count() > 0) {
 					content = true;
@@ -163,8 +138,7 @@ public final class RunningRegistry {
 				}
 				continue;
 			}
-			this.place(commit ? this.boxes.remove(box.getAssignmentAnchor()) : this.boxes.get(box.getAssignmentAnchor()),
-					box, !outside && !content, placements, commit);
+			this.place(this.boxes.remove(box.getAssignmentAnchor()), box, !outside && !content, placements);
 			work.push(new Step(box, outside, true, -1, -1));
 			if (box instanceof AbstractTextBox text) {
 				final List<Object> contents = text.getLogicalContents();
@@ -197,30 +171,27 @@ public final class RunningRegistry {
 	}
 
 	private void place(final List<Long> orders, final IBox box, final boolean beginsPage,
-			final List<Placement> placements, final boolean commit) {
+			final List<Placement> placements) {
 		if (orders == null) {
 			return;
 		}
 		for (final long order : orders) {
-			final Pending value = commit ? this.pending.remove(order) : this.pending.get(order);
-			if (value != null && (value.template != null || !value.strings.isEmpty() || !value.clears.isEmpty())) {
+			final Pending value = this.pending.remove(order);
+			if (value != null && (value.template != null || !value.strings.isEmpty())) {
 				String sourceText = null;
-				if (commit && value.stringSource != null) {
+				if (value.stringSource != null) {
 					final StringBuilder text = new StringBuilder();
 					value.stringSource.accept(text);
 					sourceText = text.toString();
 				}
 				placements.add(new Placement(order, value.template, value.strings, box,
-						beginsPage && value.before, sourceText, value.clears));
+						beginsPage && value.before, sourceText));
 			}
 		}
 	}
 
 	/** visitorから、配置を確定したテンプレートを登録します。 */
 	public void assign(final Placement placement) {
-		for (final String name : placement.clears()) {
-			this.state.clear(name, placement.order(), placement.beginsPage());
-		}
 		if (placement.template() != null) {
 			this.state.assign(placement.template().name(), placement.template(),
 					placement.order(), placement.beginsPage());

@@ -63,35 +63,6 @@ public class CSSStyleSheet {
 	 */
 	final List<PageRule> pageRules = new ArrayList<PageRule>();
 
-	private record PageContent(long order, net.zamasoft.foliojet.css.style.running.RunningTemplate template) {
-	}
-
-	/** 同名の旧スナップショットを解放し、最後の指定順で現行候補だけを保持します。 */
-	private final Map<String, PageContent> pageContents = new LinkedHashMap<>();
-	private long pageContentOrder;
-
-	public void addPageContent(final net.zamasoft.foliojet.css.style.running.RunningTemplate template) {
-		this.pageContents.remove(template.name());
-		this.pageContents.put(template.name(), new PageContent(++this.pageContentOrder, template));
-	}
-
-	public List<net.zamasoft.foliojet.css.style.running.RunningTemplate> getPageContents() {
-		return this.pageContents.values().stream().map(PageContent::template).toList();
-	}
-
-	/** 読み手ごとの登録位置から増分を渡します。共有stylesheetを消費しません。 */
-	public long installPageContents(final long after,
-			final java.util.function.Consumer<net.zamasoft.foliojet.css.style.running.RunningTemplate> install) {
-		if (after != this.pageContentOrder) {
-			for (final PageContent content : this.pageContents.values()) {
-				if (content.order() > after) {
-					install.accept(content.template());
-				}
-			}
-		}
-		return this.pageContentOrder;
-	}
-
 	/**
 	 * cascadeレイヤーの出現順を登録する台帳です(2026-07-21新設、CSS
 	 * Cascade Layers)。名前つきレイヤーは同じ名前が再度現れても最初の

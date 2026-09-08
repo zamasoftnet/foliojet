@@ -44,7 +44,7 @@ public class PassContext {
 			final Candidates c = this.names.computeIfAbsent(name, key -> new Candidates());
 			c.pending.put(order, value);
 			if (c.latest == null || order >= c.latest.order()) {
-				c.latest = new PageAssignmentState.Assignment<String>(order, value, false, false);
+				c.latest = new PageAssignmentState.Assignment<String>(order, value, false);
 			}
 		}
 
@@ -54,7 +54,7 @@ public class PassContext {
 			final Candidates c = this.names.get(name);
 			c.committed.add(order);
 			if (c.pageLast == null || order >= c.pageLast.order()) {
-				c.pageLast = new PageAssignmentState.Assignment<String>(order, value, false, false);
+				c.pageLast = new PageAssignmentState.Assignment<String>(order, value, false);
 			}
 		}
 

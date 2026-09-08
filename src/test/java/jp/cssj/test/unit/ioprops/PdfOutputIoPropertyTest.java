@@ -52,8 +52,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 	/** 書籍JAN二段を規格位置へ絶対配置した文書。 */
 	private static final File ABSOLUTE_BOOK_JAN = new File("files/unittest/ioprops/book-jan-absolute.html");
 
-	private final List<String> licenseBlocked = new ArrayList<>();
-
 	/** {@code output.pdf.hyperlinks}: リンク注釈が出ること。 */
 	public void testHyperlinks() throws Exception {
 		final String pdf = this.convert(props("output.pdf.hyperlinks", "true"));
@@ -67,9 +65,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		final String pdf = this.convert(props("output.pdf.hyperlinks", "true",
 				"output.pdf.hyperlinks.href", "absolute",
 				"output.pdf.hyperlinks.base", "https://probe.example/base/"));
-		if (this.skipped()) {
-			return;
-		}
 		assertTrue("基点からのURIになること", pdf.contains("probe.example"));
 	}
 
@@ -91,18 +86,12 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		// **コアフォント(Times-Roman等)は仕様上埋め込まない**ので、
 		// 欧文だけの文書では FontFile は出ない。和文を含む文書で見る
 		final String pdf = this.convert(JAPANESE, props("output.pdf.fonts.policy", "embedded"));
-		if (this.skipped()) {
-			return;
-		}
 		assertTrue("フォントが埋め込まれること(FontFile)", pdf.contains("/FontFile"));
 	}
 
 	/** {@code output.pdf.fonts.policy=cid-keyed}: 埋め込まないこと。 */
 	public void testFontsPolicyCidKeyed() throws Exception {
 		final String pdf = this.convert(JAPANESE, props("output.pdf.fonts.policy", "cid-keyed"));
-		if (this.skipped()) {
-			return;
-		}
 		assertFalse("cid-keyedではフォントを埋め込まない", pdf.contains("/FontFile"));
 	}
 
@@ -120,9 +109,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 			final File out = this.convertToFile(JAPANESE,
 					props("output.pdf.fonts.policy", "outlines", "output.marks", "crop", "output.trims", "10mm"),
 					profile);
-			if (this.skipped()) {
-				return;
-			}
 			try (PDDocument pdf = Loader.loadPDF(out)) {
 				assertEquals("本文とトンボ注記が抽出可能なPDFテキストとして残らないこと", "",
 						new PDFTextStripper().getText(pdf).trim());
@@ -135,9 +121,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 	/** バーコードの人間可読行も通常文字と同じoutlines方針に従うこと。 */
 	public void testFontsPolicyOutlinesAppliesToBarcodeText() throws Exception {
 		final File out = this.convertToFile(BARCODE, props("output.pdf.fonts.policy", "outlines"), null);
-		if (this.skipped()) {
-			return;
-		}
 		try (PDDocument pdf = Loader.loadPDF(out)) {
 			assertEquals("バーコード数字が抽出可能なPDFテキストとして残らないこと", "",
 					new PDFTextStripper().getText(pdf).trim());
@@ -149,9 +132,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 	/** 書籍JANの0.33mm/moduleをPDFのcm精度で0.94ptへ太らせないこと。 */
 	public void testBookJanKeepsExactPhysicalWidth() throws Exception {
 		final String pdf = this.convert(BARCODE, props("output.pdf.fonts.policy", "outlines"));
-		if (this.skipped()) {
-			return;
-		}
 		assertFalse("0.33mm/moduleを0.94ptの拡大行列へ丸めないこと", pdf.contains("0.94 0 0 0.94"));
 		final Pattern rect = Pattern.compile("(-?[0-9.]+) (-?[0-9.]+) ([0-9.]+) ([0-9.]+) re");
 		final Matcher matcher = rect.matcher(pdf);
@@ -181,9 +161,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		final File out;
 		try (AutoCloseable ignored = DisplayListDumper.scopedDir(dumpDir.getPath())) {
 			out = this.convertToFile(ABSOLUTE_BOOK_JAN, props("output.pdf.fonts.policy", "outlines"), null);
-		}
-		if (this.skipped()) {
-			return;
 		}
 		final String displayList = Files.readString(dump.toPath(), StandardCharsets.UTF_8);
 		final Pattern box = Pattern.compile("x=([0-9.]+) y=([0-9.]+) AbsoluteRectFrame\\[w=([0-9.]+) h=([0-9.]+)\\]");
@@ -243,9 +220,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		// 画像は非可逆にしないので、閾値を下げてから見る
 		final String pdf = this.convert(props("output.pdf.image.compression", "jpeg",
 				"output.pdf.image.compression.lossless", "10"));
-		if (this.skipped()) {
-			return;
-		}
 		assertTrue("JPEG(DCTDecode)で圧縮されること", pdf.contains("/DCTDecode"));
 	}
 
@@ -254,16 +228,8 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		final Map<String, String> props = props("output.pdf.watermark.uri",
 				new File("files/unittest/red.png").toURI().toString());
 		final String pdf = this.convert(props);
-		if (this.skipped()) {
-			return;
-		}
 		// すかしは透明グループ(/Group)を持つ形で置かれる
 		assertTrue("すかしが置かれること", pdf.contains("/Group") || pdf.contains("Watermark"));
-	}
-
-	/** ライセンスで使えないプロパティが混じったか。 */
-	private boolean skipped() {
-		return !this.licenseBlocked.isEmpty();
 	}
 
 	private static Map<String, String> props(final String... kv) {
@@ -288,7 +254,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		final File out = new File("local/unittest/pdf/" + this.getClass().getName() + '-'
 				+ document.getName() + ".pdf");
 		out.getParentFile().mkdirs();
-		this.licenseBlocked.clear();
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
@@ -296,9 +261,6 @@ public class PdfOutputIoPropertyTest extends TestCase {
 					session.setProfileFile(profile);
 				}
 				session.setMessageHandler((code, args, mes) -> {
-					if (code == net.zamasoft.foliojet.message.MessageCodes.WARN_LICENSE_CONSTRAINT_IO) {
-						this.licenseBlocked.add(args != null && args.length > 0 ? args[0] : "?");
-					}
 				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

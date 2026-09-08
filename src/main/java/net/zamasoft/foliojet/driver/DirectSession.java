@@ -1180,7 +1180,6 @@ public class DirectSession extends AbstractCTISession
 	 * @throws TranscoderException
 	 */
 	protected void format(Source source) throws AbortException, TranscoderException {
-		// @format
 		final long inputLimit = UAProps.INPUT_SIZE_LIMIT.getLong(this.ua);
 		if (inputLimit >= 0) {
 			source = new InputLimitedSource(source,
@@ -1234,11 +1233,8 @@ public class DirectSession extends AbstractCTISession
 				this.ua.getDocumentContext().setBaseURI(source.getURI());
 				this.ua.getUAContext().setPassCount(passCount);
 				this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
-				// source をラムダで直接捕捉しない: このメソッドはproduct側の
-				// ライセンスチェック拡張で source を再代入する変種が存在し
-				// (copperpdf4/product、期限切れ時にexpired.htmlへ差し替える)、
-				// 再代入されるとeffectively finalでなくなりコンパイルできない
-				// (2026-07-23、imageTestのfresh jarビルドで実際に検出)。
+				// source はこのメソッドの中で入力上限のラッパへ再代入されるので
+				// effectively final ではない。ラムダで直接捕捉できないため写しを取る
 				final Source formatSource = source;
 				this.runOnLargeStack(() -> formatter.format(formatSource, this.ua));
 			} else {

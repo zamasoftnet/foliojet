@@ -243,7 +243,7 @@ public final class RunningSideEffectTest extends TestCase {
 		final PageValueSnapshot snapshot = new PageValueSnapshot(ua, CSSElement.PAGE_FIRST_LEFT, "chapter");
 		assertEquals(before, fingerprint(ua.getPassContext()));
 		ua.getPassContext().getCounterScope(0, true).increment("page", 1);
-		ua.getPassContext().getStringState().clear("title", 2, true);
+		ua.getPassContext().getStringState().assign("title", "LATER", 2, true);
 		assertEquals(4, snapshot.counter("page"));
 		assertEquals(List.of(12), snapshot.counters("pages"));
 		assertEquals("TITLE", snapshot.string("title", Mode.START));

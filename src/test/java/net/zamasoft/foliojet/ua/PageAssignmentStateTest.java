@@ -77,64 +77,20 @@ public class PageAssignmentStateTest extends TestCase {
 		}
 	}
 
-	/** assign→clear/clear→assign の文書順と呼び出し順の両方を交差させます。 */
-	public void testAssignAndClearInEitherOrder() {
-		for (final boolean clearLast : new boolean[] { false, true }) {
-			for (final boolean reverse : new boolean[] { false, true }) {
-				final PageAssignmentState<String> state = withEntry();
-				for (int i = 0; i < 2; ++i) {
-					final boolean last = reverse ? i == 0 : i == 1;
-					final long order = last ? 20 : 10;
-					if (last == clearLast) {
-						state.clear("h", order, !last);
-					} else {
-						state.assign("h", "value", order, !last);
-					}
-				}
-				if (clearLast) {
-					assertValue(state, Mode.FIRST, "value");
-					assertValue(state, Mode.START, "value");
-					assertPresence(state, Mode.LAST, Presence.TOMBSTONE);
-				} else {
-					assertPresence(state, Mode.FIRST, Presence.TOMBSTONE);
-					assertPresence(state, Mode.START, Presence.TOMBSTONE);
-					assertValue(state, Mode.LAST, "value");
-				}
-				assertPresence(state, Mode.FIRST_EXCEPT, Presence.SUPPRESSED);
-				state.endPage();
-				for (final Mode mode : Mode.values()) {
-					if (clearLast) {
-						assertPresence(state, mode, Presence.TOMBSTONE);
-					} else {
-						assertValue(state, mode, "value");
-					}
-				}
-			}
-		}
-	}
-
-	public void testMidPageClearPreservesStartAndSuppressesFirstExcept() {
-		final PageAssignmentState<String> state = withEntry();
-		state.clear("h", 10, false);
-		assertValue(state, Mode.START, "entry");
-		assertPresence(state, Mode.FIRST, Presence.TOMBSTONE);
-		assertPresence(state, Mode.FIRST_EXCEPT, Presence.SUPPRESSED);
-	}
-
 	public void testSnapshotAndEndPageReleasePageCandidates() {
 		final PageAssignmentState<String> state = withEntry();
 		state.assign("h", "A", 10, true);
-		state.clear("h", 20, false);
+		state.assign("h", "B", 20, false);
 		final Snapshot<String> snapshot = state.snapshot("h");
 		assertEquals("entry", snapshot.entry().value());
 		assertEquals("A", snapshot.first().value());
-		assertTrue(snapshot.last().tombstone());
+		assertEquals("B", snapshot.last().value());
 		state.endPage();
 		assertEquals(snapshot.last(), state.snapshot("h").entry());
 		assertNull(state.snapshot("h").first());
 		assertNull(state.snapshot("h").last());
 		state.endPage();
-		assertPresence(state, Mode.FIRST, Presence.TOMBSTONE);
+		assertValue(state, Mode.FIRST, "B");
 		assertEquals("A", snapshot.first().value());
 	}
 
@@ -154,24 +110,15 @@ public class PageAssignmentStateTest extends TestCase {
 		state.assign("h", "B2", 20, false);
 		assertValue(state, Mode.FIRST, "A2");
 		assertValue(state, Mode.LAST, "C");
-		state.clear("h", 30, false);
-		assertPresence(state, Mode.LAST, Presence.TOMBSTONE);
+		state.assign("h", "C2", 30, false);
+		assertValue(state, Mode.LAST, "C2");
 		// 疑似要素: 全部 order=-1 でも落ちない
 		state.assign("h", "P1", -1, false);
 		state.assign("h", "P2", -1, false);
 		assertValue(state, Mode.FIRST, "P2");
 	}
 
-	public void testAssignmentAfterClearWithSameOrderWins() {
-		final PageAssignmentState<String> state = new PageAssignmentState<String>();
-		state.clear("h", 10, false);
-		assertPresence(state, Mode.LAST, Presence.TOMBSTONE);
-		state.assign("h", "value", 10, false);
-		assertValue(state, Mode.LAST, "value");
-		assertValue(state, Mode.FIRST, "value");
-	}
-
-	public void testResetAndEmptyValueAreDistinctFromTombstone() {
+	public void testResetAndEmptyValueAreDistinct() {
 		final PageAssignmentState<String> state = withEntry();
 		state.assign("h", "", 10, false);
 		assertValue(state, Mode.FIRST, "");
@@ -180,15 +127,6 @@ public class PageAssignmentStateTest extends TestCase {
 		state.assign("h", "reused", 10, true);
 		state.clear();
 		assertEquals(new Snapshot<String>(null, null, null), state.snapshot("h"));
-	}
-
-	public void testTombstoneCannotCarryValue() {
-		try {
-			new PageAssignmentState.Assignment<String>(1, "value", false, true);
-			fail("値を持つ tombstone を受理しました");
-		} catch (IllegalArgumentException expected) {
-			// コンストラクタの契約。
-		}
 	}
 
 	/** build 時に登録した代入へ、配置確定時に頁先頭の事実を後付けできる(R1b の配線先)。 */

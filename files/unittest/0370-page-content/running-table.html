@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Running header holding a table (replay-only two-pass body)</title>
+<style>
+@page { size: 320pt 220pt; margin: 40pt 30pt;
+	@top-center { content: element(h); }
+}
+html, body { margin: 0; font: 10pt serif; }
+.rh { position: running(h); margin: 0; font: 8pt serif; }
+.rh table { border-collapse: collapse; }
+.rh td { border: 0.5pt solid #000; padding: 1pt 4pt; }
+.rh .page::after { content: counter(page); }
+section + section { break-before: page; }
+</style></head>
+<body>
+<div class="rh"><table><tr><td>Chapter</td><td>ALPHA</td><td class="page"></td></tr></table></div>
+<section><p>Page one.</p></section>
+<section><p>Page two.</p></section>
+<section><p>Page three.</p></section>
+</body></html>

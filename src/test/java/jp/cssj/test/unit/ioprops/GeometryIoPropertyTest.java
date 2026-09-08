@@ -6,9 +6,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -145,19 +143,13 @@ public class GeometryIoPropertyTest extends TestCase {
 		return map;
 	}
 
-	private final List<String> licenseBlocked = new ArrayList<>();
-
 	private String convert(final Map<String, String> properties) throws Exception {
 		final File out = new File("local/unittest/pdf/" + this.getClass().getName() + ".pdf");
 		out.getParentFile().mkdirs();
-		this.licenseBlocked.clear();
 		try (OutputStream stream = new FileOutputStream(out)) {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setMessageHandler((code, args, mes) -> {
-					if (code == net.zamasoft.foliojet.message.MessageCodes.WARN_LICENSE_CONSTRAINT_IO) {
-						this.licenseBlocked.add(args != null && args.length > 0 ? args[0] : "?");
-					}
 				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

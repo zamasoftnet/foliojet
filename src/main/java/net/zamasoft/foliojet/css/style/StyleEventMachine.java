@@ -310,7 +310,6 @@ final class StyleEventMachine {
 	}
 
 	void startStyle(CSSStyle style) {
-		this.pageSequence.installPageContents();
 		if (DEBUG) {
 			System.err.println(style.path());
 		}
@@ -346,13 +345,6 @@ final class StyleEventMachine {
 		this.settleMarkerBeforeTable(explDisplay);
 
 		this.emitter._startStyle(style);
-		if (explDisplay != DisplayValue.NONE) {
-			final String[] clears = net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContentClear.get(style);
-			if (clears.length != 0) {
-				this.sink.clearAssignments(List.of(clears),
-						Display.get(style) == DisplayValue.CONTENTS ? null : this.sink.sourceBox());
-			}
-		}
 
 		this.firstLetter = true;
 		if (!ce.isPseudoElement()) {

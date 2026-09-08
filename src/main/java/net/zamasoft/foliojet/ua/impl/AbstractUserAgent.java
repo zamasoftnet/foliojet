@@ -111,8 +111,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	private CSSJFontPolicyValue fontPolicy = null;
 
-	// *Watermark
-
 	private BoundSide boundSide = BoundSide.SINGLE;
 
 	/**
@@ -140,8 +138,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 		this.setDefaultColor(ColorValueUtils.BLACK);
 		this.setMatColor(ColorValueUtils.WHITE);
-
-		// @AbstractUserAgent
 	}
 
 	public UAContext getUAContext() {
@@ -165,8 +161,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.documentContext;
 	}
 
-	// @Limited
-
 	public final String getProperty(String name) {
 		if (this.props == null) {
 			return null;
@@ -183,7 +177,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	public final void setProperty(String name, String value) {
-		// @setProperty
 		if (this.props == null) {
 			if (value == null || value.length() == 0) {
 				return;
@@ -696,7 +689,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 	protected abstract GC nextPage();
 
 	public void closePage(final GC gc) throws IOException {
-		// *closePage
 	}
 
 	public void finish() throws BrokenResultException, IOException {

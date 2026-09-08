@@ -76,17 +76,12 @@ public final class TemplateExpander {
 	}
 
 	public List<SegmentEvent> expand(final RunningTemplate template, final CSSStyle container) {
-		return this.expand(template, container, false);
-	}
-
-	/** legacyの根だけをfixedへ写し、子孫の配置指定は保存します。 */
-	public List<SegmentEvent> expand(final RunningTemplate template, final CSSStyle container, final boolean fixed) {
 		try (final var scope = this.ua.getUAContext().isolateImageMaps()) {
-			return this.expandTemplate(template, container, fixed);
+			return this.expandTemplate(template, container);
 		}
 	}
 
-	private List<SegmentEvent> expandTemplate(final RunningTemplate template, final CSSStyle container, final boolean fixed) {
+	private List<SegmentEvent> expandTemplate(final RunningTemplate template, final CSSStyle container) {
 		this.quoteLevel = 0;
 		final List<SegmentEvent> events = new ArrayList<SegmentEvent>();
 		final StyleBoxEmitter.Replay replay = new StyleBoxEmitter.Replay(this.ua, container, this.page.right(), events::add);
@@ -101,10 +96,6 @@ public final class TemplateExpander {
 					continue;
 				}
 				final CSSStyle style = this.restore(start.style(), parent, start.pseudo());
-				if (fixed && stack.isEmpty()) {
-					style.restoreComputed(CSSPosition.INFO, PositionValue.FIXED_VALUE, true);
-					style.restoreComputed(Display.INFO, DisplayValue.BLOCK_VALUE, true);
-				}
 				if (!stack.isEmpty()) {
 					// 層で適用済みの効果をidentityで除外できるよう、復元した親へ結び直す。
 					final var info = net.zamasoft.foliojet.css.impl.property.box.Filter.INFO;

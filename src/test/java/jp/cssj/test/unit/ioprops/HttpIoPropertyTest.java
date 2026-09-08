@@ -48,13 +48,6 @@ public class HttpIoPropertyTest extends TestCase {
 	/** 直近のリクエストのパス。 */
 	private final List<String> paths = Collections.synchronizedList(new ArrayList<String>());
 
-	/**
-	 * 現ライセンスで使えないと警告されたプロパティ(2026-08-02)。
-	 * 検査環境のライセンスによって使える範囲が変わるため、無視された
-	 * ものは<b>失敗にせず飛ばす</b>——エンジンの配線とは別の話である。
-	 */
-	private final List<String> licenseBlocked = Collections.synchronizedList(new ArrayList<String>());
-
 	protected void setUp() throws Exception {
 		this.received.clear();
 		this.paths.clear();
@@ -138,11 +131,6 @@ public class HttpIoPropertyTest extends TestCase {
 				"input.http.authentication.0.port", String.valueOf(this.server.getAddress().getPort()),
 				"input.http.authentication.0.user", "u", "input.http.authentication.0.password", "p",
 				"input.http.authentication.preemptive", "true"));
-		if (!this.licenseBlocked.isEmpty()) {
-			// 現ライセンスでは認証プロパティが使えない(警告2815/281B)。
-			// 環境差で赤くしない——使える環境でだけ検査する
-			return;
-		}
 		// 401を返す口へ変換して成功すること=Authorizationが実際に届いている
 		assertTrue("認証が要る資源を取得できること(受信: " + this.received + ")",
 				this.received.stream().anyMatch(h -> h.startsWith("Authorization: Basic")));
@@ -175,9 +163,6 @@ public class HttpIoPropertyTest extends TestCase {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setMessageHandler((code, args, mes) -> {
-					if (code == net.zamasoft.foliojet.message.MessageCodes.WARN_LICENSE_CONSTRAINT_IO) {
-						this.licenseBlocked.add(args != null && args.length > 0 ? args[0] : "?");
-					}
 				});
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

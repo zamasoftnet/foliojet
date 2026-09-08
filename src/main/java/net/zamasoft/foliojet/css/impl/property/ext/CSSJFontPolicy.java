@@ -43,8 +43,6 @@ public class CSSJFontPolicy extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		// @parseProperty
-
 		final CSSJFontPolicyValue fontPolicy = FontValueUtils.toFontPolicy(tokens);
 		if (fontPolicy == null) {
 			throw new PropertyException();

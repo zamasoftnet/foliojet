@@ -63,12 +63,12 @@ public final class TwoPassFlowSealTest extends TestCase {
 			"0070-table-layout/float-in-auto.html",
 			"0240-table/absolute-in-float-in-cell.html");
 
-	/** T0のNO_SOURCE全4文書(9 bind)。 */
+	/**
+	 * テンプレートの中に表(TwoPass 本文)を持つ running element。主ソースを持たない独立イベント再生
+	 * (ReplayOnly)を通る文書はこれだけ(旧 T0 の NO_SOURCE 4 文書は 3.2 互換層の撤去で消えた、2026-09-08)。
+	 */
 	static final List<String> RUNNING_DOCUMENTS = List.of(
-			"0370-page-content/legacy-021-fixed-counter.html",
-			"0370-page-content/legacy-022-mask-string.html",
-			"0370-page-content/legacy-at-rule.html",
-			"0370-page-content/legacy-vertical-side.html");
+			"0370-page-content/running-table.html");
 
 	public void testT0FlowDocumentsUseRanges() throws Exception {
 		for (final String doc : FLOW_DOCUMENTS) {

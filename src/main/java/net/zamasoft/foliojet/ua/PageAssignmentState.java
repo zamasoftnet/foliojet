@@ -18,18 +18,13 @@ public final class PageAssignmentState<T> {
 
 	public enum Mode { FIRST, START, LAST, FIRST_EXCEPT }
 
-	public enum Presence { ABSENT, VALUE, TOMBSTONE, SUPPRESSED }
+	public enum Presence { ABSENT, VALUE, SUPPRESSED }
 
 	/** order は安定な文書順、beginsPage は配置確定時の事実です。 */
-	public record Assignment<T>(long order, T value, boolean beginsPage, boolean tombstone) {
-		public Assignment {
-			if (tombstone && value != null) {
-				throw new IllegalArgumentException("tombstone cannot carry a value");
-			}
-		}
+	public record Assignment<T>(long order, T value, boolean beginsPage) {
 	}
 
-	/** 未登録・値・削除・抑止を区別した解決結果です。 */
+	/** 未登録・値・抑止を区別した解決結果です。 */
 	public record Resolution<T>(Presence presence, T value) {
 	}
 
@@ -45,12 +40,7 @@ public final class PageAssignmentState<T> {
 
 	/** 解決済みの値を登録します。 */
 	public void assign(final String name, final T value, final long order, final boolean beginsPage) {
-		this.register(name, new Assignment<T>(order, Objects.requireNonNull(value), beginsPage, false));
-	}
-
-	/** 名前の削除を文書順つきの tombstone として登録します。 */
-	public void clear(final String name, final long order, final boolean beginsPage) {
-		this.register(name, new Assignment<T>(order, null, beginsPage, true));
+		this.register(name, new Assignment<T>(order, Objects.requireNonNull(value), beginsPage));
 	}
 
 	private void register(final String name, final Assignment<T> assignment) {
@@ -79,10 +69,10 @@ public final class PageAssignmentState<T> {
 			return;
 		}
 		if (candidates.first != null && candidates.first.order() == order && !candidates.first.beginsPage()) {
-			candidates.first = new Assignment<T>(order, candidates.first.value(), true, candidates.first.tombstone());
+			candidates.first = new Assignment<T>(order, candidates.first.value(), true);
 		}
 		if (candidates.last != null && candidates.last.order() == order && !candidates.last.beginsPage()) {
-			candidates.last = new Assignment<T>(order, candidates.last.value(), true, candidates.last.tombstone());
+			candidates.last = new Assignment<T>(order, candidates.last.value(), true);
 		}
 	}
 
@@ -103,8 +93,7 @@ public final class PageAssignmentState<T> {
 		if (assignment == null) {
 			return new Resolution<T>(Presence.ABSENT, null);
 		}
-		return new Resolution<T>(assignment.tombstone() ? Presence.TOMBSTONE : Presence.VALUE,
-				assignment.value());
+		return new Resolution<T>(Presence.VALUE, assignment.value());
 	}
 
 	/** 診断や頁スナップショットの作成用に三候補を返します。 */

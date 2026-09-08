@@ -76,8 +76,8 @@ public final class RunningRenderTest extends TestCase {
 		assertNoReplayWarnings(result);
 	}
 
-	public void testFourModeClearMatrixAndEmptyTemplate() throws Exception {
-		// clearのCSS配線はR3。ここでは捕捉した実テンプレートを頁状態へ代入して再生を確かめる。
+	public void testFourModeMatrixAndEmptyTemplate() throws Exception {
+		// 捕捉した実テンプレートを頁状態へ代入して再生を確かめる(3.2 互換の clear は 2026-09-08 に撤去)。
 		final var ua = new RunningSideEffectTest.AuditUA(false, agent -> {
 			final var state = agent.getPassContext().getRunningState();
 			final var a = state.resolve("a", net.zamasoft.foliojet.ua.PageAssignmentState.Mode.LAST).value();
@@ -86,15 +86,11 @@ public final class RunningRenderTest extends TestCase {
 			assertNotNull(a);
 			assertNotNull(b);
 			assertNotNull(empty);
-			// 操作列、first、先頭start、途中start、last、first-except。Cはclear。
+			// 操作列、first、先頭start、途中start、last、first-except。
 			final String[][] cases = {
 					{ "", "A", "A", "A", "A", "A" },
 					{ "B", "B", "B", "A", "B", "" },
-					{ "C", "", "", "A", "", "" },
-					{ "BC", "B", "B", "A", "", "" },
-					{ "CB", "", "", "A", "B", "" },
-					{ "BCB", "B", "B", "A", "B", "" },
-					{ "CBC", "", "", "A", "", "" }
+					{ "BB", "B", "B", "A", "B", "" }
 			};
 			for (final boolean begins : new boolean[] { true, false }) {
 				for (final String[] row : cases) {
@@ -102,17 +98,13 @@ public final class RunningRenderTest extends TestCase {
 					state.assign("pick", a, 0, true);
 					state.endPage();
 					for (int i = 0; i < row[0].length(); ++i) {
-						if (row[0].charAt(i) == 'C') {
-							state.clear("pick", i + 1, begins && i == 0);
-						} else {
-							state.assign("pick", b, i + 1, begins && i == 0);
-						}
+						state.assign("pick", b, i + 1, begins && i == 0);
 					}
 					final String[] expected = { row[1], row[begins ? 2 : 3], row[4], row[5] };
 					int index = 0;
 					for (final var mode : net.zamasoft.foliojet.ua.PageAssignmentState.Mode.values()) {
 						final String actual = renderResolved(agent, "pick", mode);
-						System.err.println("[running R2] clear matrix: " + row[0] + ", begins=" + begins + ", " + mode + "=" + actual);
+						System.err.println("[running R2] mode matrix: " + row[0] + ", begins=" + begins + ", " + mode + "=" + actual);
 						assertEquals(expected[index++], actual);
 					}
 					state.endPage();
@@ -129,7 +121,7 @@ public final class RunningRenderTest extends TestCase {
 			assertNull(renderer.prepare(new net.zamasoft.foliojet.css.value.ElementFunctionValue("pick", first), container));
 			state.assign("pick", empty, 1, true);
 			final var content = renderer.prepare(new net.zamasoft.foliojet.css.value.ElementFunctionValue("pick", first), container);
-			assertNotNull("空内容はtombstoneではない", content);
+			assertNotNull("空内容も値として再生する", content);
 			final var drawer = new net.zamasoft.foliojet.layout.draw.Drawer(0);
 			net.zamasoft.foliojet.css.style.running.RunningRenderer.draw(
 					content.layout(RunningSideEffectTest.params(agent, container), 100, 30), drawer, 0, 0);

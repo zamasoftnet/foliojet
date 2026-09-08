@@ -696,11 +696,6 @@ public final class ElementPropertySet extends PropertySet {
 		// Extensions
 		reg(CSSJFontPolicy.INFO);
 		reg(CSSJRuby.INFO);
-		put(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.INFO);
-		regCode(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.INFO_NAME);
-		regCode(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent.INFO_PAGES);
-		reg(net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContentClear.INFO);
-		put(net.zamasoft.foliojet.css.impl.property.ext.CSSJRegeneratable.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.ext.CSSJWarichu.INFO);
 		reg(CSSJBreakCharacters.INFO);
 		reg(CSSJNoBreakCharacters.INFO);

@@ -22,17 +22,12 @@ public final class RunningTemplate {
 	}
 
 	private final String name;
-	private final byte pages;
-	private final boolean legacy;
 	private final List<Event> events;
 	private final int textBytes;
 	private final int imageReferences;
 
-	RunningTemplate(final String name, final byte pages, final boolean legacy, final List<Event> events,
-			final int textBytes, final int imageReferences) {
+	RunningTemplate(final String name, final List<Event> events, final int textBytes, final int imageReferences) {
 		this.name = name;
-		this.pages = pages;
-		this.legacy = legacy;
 		this.events = List.copyOf(events);
 		this.textBytes = textBytes;
 		this.imageReferences = imageReferences;
@@ -40,15 +35,6 @@ public final class RunningTemplate {
 
 	public String name() {
 		return this.name;
-	}
-
-	public byte pages() {
-		return this.pages;
-	}
-
-	/** 頁固定配置のlegacyテンプレートかを返します。 */
-	public boolean legacy() {
-		return this.legacy;
 	}
 
 	public List<Event> events() {

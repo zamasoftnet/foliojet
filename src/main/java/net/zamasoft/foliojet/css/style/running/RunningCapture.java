@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.css.html.HTMLStyle;
 import net.zamasoft.foliojet.css.impl.property.box.CSSPosition;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContent;
 import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.ElementFunctionValue;
 import net.zamasoft.foliojet.css.value.KeywordValue;
@@ -25,9 +24,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /** 部分木の捕捉状態です。深さは通常のスタイル状態機械と独立に管理します。 */
 public final class RunningCapture {
-	/** legacyも捕捉し、確定頁のpageContents層で再生します。 */
-	static final boolean CAPTURE_LEGACY = true;
-
 	public static final int MAX_EVENTS = 10_000;
 	public static final int MAX_TEXT_BYTES = 100 * 1024;
 	public static final int MAX_IMAGE_REFERENCES = 50;
@@ -35,19 +31,15 @@ public final class RunningCapture {
 	private static final class Frame {
 		final String name;
 		final long order;
-		final byte pages;
-		final boolean legacy;
 		final List<RunningTemplate.Event> events = new ArrayList<RunningTemplate.Event>();
 		int depth;
 		int textBytes;
 		int images;
 		boolean rejected;
 
-		Frame(final String name, final long order, final byte pages, final boolean legacy) {
+		Frame(final String name, final long order) {
 			this.name = name;
 			this.order = order;
-			this.pages = pages;
-			this.legacy = legacy;
 		}
 	}
 
@@ -90,26 +82,16 @@ public final class RunningCapture {
 					CSSStyle.MODE_IMPORTANT);
 		}
 		final String name = style.get(CSSPosition.INFO) instanceof RunningPositionValue running
-				? running.name() : (CAPTURE_LEGACY ? CSSJPageContent.getName(style) : null);
-		if (name != null && !(style.get(CSSPosition.INFO) instanceof RunningPositionValue)) {
-			style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
-		}
+				? running.name() : null;
 		if (this.frames.isEmpty() && (name == null || Display.get(style) == DisplayValue.NONE)) {
 			return false;
 		}
 		if (name != null) {
-			final String[] clears = net.zamasoft.foliojet.css.impl.property.ext.CSSJPageContentClear.get(style);
-			if (clears.length != 0) {
-				final long clearOrder = this.registry.nextOrder();
-				this.registry.clear(clearOrder, List.of(clears));
-				this.token.accept(clearOrder);
-			}
 			final long order = this.registry.nextOrder();
 			if (!this.frames.isEmpty()) {
 				this.add(new RunningTemplate.Token(name, order));
 			}
-			this.frames.push(new Frame(name, order, CSSJPageContent.getPages(style),
-					!(style.get(CSSPosition.INFO) instanceof RunningPositionValue)));
+			this.frames.push(new Frame(name, order));
 			// 全ての入れ子を同じ原位置の非描画アンカーへ渡す。
 			this.token.accept(order);
 		}
@@ -148,8 +130,8 @@ public final class RunningCapture {
 		}
 		this.frames.pop();
 		if (!frame.rejected) {
-			this.registry.complete(frame.order, new RunningTemplate(frame.name, frame.pages, frame.legacy,
-					frame.events, frame.textBytes, frame.images));
+			this.registry.complete(frame.order, new RunningTemplate(frame.name, frame.events, frame.textBytes,
+					frame.images));
 		} else {
 			this.registry.reject(frame.order);
 		}
