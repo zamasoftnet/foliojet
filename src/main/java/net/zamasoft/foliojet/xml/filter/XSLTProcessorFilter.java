@@ -235,6 +235,14 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 		}
 
 		tf.setURIResolver(this);
+		// **Saxon 12 の統一の差し込み口。**旧来の URIResolver は
+		// document()・xsl:import/include しか受け持たず、unparsed-text() は
+		// 別の担当(UnparsedTextURIResolver)になる。Saxon が URIResolver で
+		// 代用するときは相対URIを null で渡してくるため、
+		// URIHelper が NullPointerException で落ちていた(2026-09-08 に実測。
+		// unparsed-text() は成功も失敗もせず、ただ変換が壊れていた)。
+		// ResourceResolver は絶対URIを渡すので、この不整合が起きない
+		XSLTUtils.setResourceResolver(tf, this.ua);
 		tf.setErrorListener(this);
 		Source source = this.ua.resolve(uri);
 		TransformerHandler th;

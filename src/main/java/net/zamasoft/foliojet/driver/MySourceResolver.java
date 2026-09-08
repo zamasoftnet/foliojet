@@ -66,6 +66,90 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	/**
+	 * ローカル資源を許していない利用者に対して、このURIを拒むかどうかです。
+	 *
+	 * <p>
+	 * スキームで「遠隔かどうか」を見るだけでは足りません。{@code http:}でも
+	 * <b>宛先がサーバー自身やその隣のネットワークなら、サーバーを踏み台にして
+	 * 内側へ届いてしまう</b>からです(2026-09-08)。名前を解決して、
+	 * ループバック・リンクローカル・私設アドレスなら拒みます。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>公開アドレスは通します。</b>許可されている外部の資源は今までどおり取れます。
+	 * </p>
+	 *
+	 * <p>
+	 * 判定した時刻と実際に接続する時刻は違うので、その間に名前解決の結果が
+	 * 変われば擦り抜けます(DNSリバインディング)。それを塞ぐには解決した
+	 * アドレスを固定して接続する必要があり、ここでは扱いません。
+	 * </p>
+	 */
+	boolean resolvesToLocalNetwork(final URI uri) {
+		// **ホストを持つネットワークのスキームだけが対象**。data: のように
+		// ホストの無いものは、そもそもどこへも接続しないので判定しない
+		// (ここを「内側」と誤判定して埋め込み画像を拒む回帰を出した。2026-09-08)
+		final String scheme = uri.getScheme();
+		if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+			return false;
+		}
+		final String host = uri.getHost();
+		if (host == null || host.isEmpty()) {
+			// http(s) なのにホストを取り出せない形は通さない
+			return true;
+		}
+		final java.net.InetAddress[] addresses;
+		try {
+			addresses = java.net.InetAddress.getAllByName(host);
+		} catch (final java.net.UnknownHostException e) {
+			// **確かめられないものは内側とみなす。** かつては「解決できない
+			// ものは取得しても失敗する」として通していたが、判定の時刻と
+			// 接続の時刻は違う。ここで解決できなくても、接続の時点では
+			// 解決できることがある(DNSのキャッシュ、split-horizon)。
+			// 検証が失敗したら拒むのがこの判定の筋(2026-09-08)
+			return true;
+		}
+		for (final java.net.InetAddress address : addresses) {
+			if (address.isLoopbackAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()
+					|| address.isSiteLocalAddress() || address.isMulticastAddress()) {
+				return true;
+			}
+			// IPv4射影・変換アドレスで私設アドレスを包んだ形も見る
+			final byte[] raw = address.getAddress();
+			if (raw.length == 16 && isUniqueLocalIPv6(raw)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** IPv6のユニークローカル(fc00::/7)かどうかです。 */
+	private static boolean isUniqueLocalIPv6(final byte[] raw) {
+		return (raw[0] & 0xFE) == 0xFC;
+	}
+
+	/**
+	 * <b>この URL へ実際に接続してよいか</b>を返します。
+	 *
+	 * <p>
+	 * 押し込み資源や差し込まれたリゾルバを
+	 * <b>考慮しません</b>。転送先のように「これから網へ出る宛先」を判定するための
+	 * もので、そこは呼び出し側が供給しうる余地がないからです。
+	 * 「差し込まれたリゾルバがあるから許す」という緩い判定を使うと、
+	 * 何でも許してしまいます(2026-09-08に実測)。
+	 * </p>
+	 */
+	boolean permitsNetworkTarget(final URI uri) {
+		if (uri == null) {
+			return false;
+		}
+		if (!this.localAccessAllowed && (!isRemoteScheme(uri) || this.resolvesToLocalNetwork(uri))) {
+			return false;
+		}
+		return this.restrictedResolver.permits(uri);
+	}
+
+	/**
 	 * 遠隔から取ってよいスキームか。スキームを持たないURIは現在の作業
 	 * ディレクトリのファイルを指しうるので「ローカル」として扱います。
 	 */
@@ -84,6 +168,12 @@ class MySourceResolver implements SourceResolver {
 		CompositeSourceResolver resolver = CompositeSourceResolver.createGenericCompositeSourceResolver();
 		MyHttpSourceResolver httpResolver = new MyHttpSourceResolver();
 		this.httpResolver = httpResolver;
+		// **転送先も同じ判定に掛ける**(2026-09-08)。HttpClient に追従を任せると、
+		// 許可した公開ホストがサーバーの内側へ 302 したときに判定を通らない。
+		// ローカル資源を許している利用者は従来どおり HttpClient に任せる
+		// ACL は要求の設定が進んでから決まるので、判定するかどうかは遅延評価にする
+		httpResolver.setRedirectGuard(target -> this.permitsNetworkTarget(target),
+				() -> !this.localAccessAllowed || this.restricted);
 		httpResolver.setMainUri(uri);
 		if (UAProps.INPUT_HTTP_REFERER.getBoolean(props, mh)) {
 			httpResolver.setReferer(uri);
@@ -259,6 +349,10 @@ class MySourceResolver implements SourceResolver {
 			PREFETCH_LOG.fine(() -> "prefetch ACL deny: " + uri);
 			return;
 		}
+		if (!this.localAccessAllowed && this.resolvesToLocalNetwork(uri)) {
+			PREFETCH_LOG.fine(() -> "prefetch local target deny: " + uri);
+			return;
+		}
 		PREFETCH_LOG.fine(() -> "prefetch request: " + uri);
 		http.prefetch(uri, scanCss ? this : null);
 	}
@@ -314,6 +408,13 @@ class MySourceResolver implements SourceResolver {
 			// 差し込まれたリゾルバ(CTIPでは「サーバーから要求された資源を
 			// クライアントが都度送る」経路)は**クライアント自身の資源**なので
 			// 塞がず、そちらだけを試す
+			// **遠隔スキームだが宛先がサーバーの内側**。ここで確定して拒む。
+			// 差し込まれたリゾルバへ回してはいけない——汎用リゾルバなら
+			// そのままネットワークへ取りに行ってしまう(2026-09-08に実測)
+			if (!this.localAccessAllowed && this.resolvesToLocalNetwork(uri)) {
+				throw new SecurityException(
+						"Access to the server's own network is not permitted for this user: " + uri);
+			}
 			if (!this.localAccessAllowed && !isRemoteScheme(uri)) {
 				if (this.userResolver != null) {
 					try {

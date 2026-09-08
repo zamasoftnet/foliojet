@@ -107,18 +107,57 @@ class MyHttpSourceResolver implements SourceResolver {
 		this.cookieManager.getCookieStore().add(URI.create("http://" + domain), cookie);
 	}
 
+	/**
+	 * 転送先を取ってよいかの判定です。{@code null}なら再判定しません。
+	 *
+	 * <p>
+	 * これがあるとき、3xxは{@link HttpClient}に追従させず<b>自分で追い、
+	 * ホップごとに同じ判定を掛けます</b>。任せてしまうと、許可した公開ホストが
+	 * サーバーの内側へ転送したときに、判定を一度も通らずに届いてしまいます
+	 * (2026-09-08)。
+	 * </p>
+	 */
+	private java.util.function.Predicate<URI> redirectGuard = null;
+
+	/**
+	 * 転送先を再判定するかどうか。<b>遅延評価</b>します——ACLは要求の設定が
+	 * 進んだ後に決まるので、リゾルバを作った時点では分かりません。
+	 */
+	private java.util.function.BooleanSupplier revalidateRedirects = () -> false;
+
+	void setRedirectGuard(final java.util.function.Predicate<URI> guard,
+			final java.util.function.BooleanSupplier revalidate) {
+		this.redirectGuard = guard;
+		this.revalidateRedirects = revalidate;
+	}
+
+	private boolean revalidating() {
+		return this.redirectGuard != null && this.revalidateRedirects.getAsBoolean();
+	}
+
+	/** 追う転送の上限です。輪を作られても止まるようにします。 */
+	private static final int MAX_REDIRECTS = 5;
+
 	protected HttpClient createHttpClient(ExecutorService executor) {
 		HttpClient.Builder builder = HttpClient.newBuilder();
 		builder.executor(executor);
-		// HttpClient は既定で Redirect.NEVER(3xx をリダイレクト先に追従せず
-		// そのまま応答として返す)。HTTPS→HTTP への格下げだけは追従しない
-		// NORMAL を明示する
-		builder.followRedirects(HttpClient.Redirect.NORMAL);
+		// **常に自分で追う。** ここは HttpClient を1つ作って使い回すので、
+		// 生成の時点の判定で NORMAL / NEVER を作り分けると、あとから ACL を
+		// 足しても既に NORMAL のクライアントが転送を追ってしまう。
+		// 自分で追えば、ホップごとに判定を掛けられる(followRedirects())
+		builder.followRedirects(HttpClient.Redirect.NEVER);
 		if (this.connectionTimeout > 0) {
 			builder.connectTimeout(Duration.ofMillis(this.connectionTimeout));
 		}
 		if (this.proxyHost != null) {
 			builder.proxy(ProxySelector.of(new InetSocketAddress(this.proxyHost, this.proxyPort)));
+		} else {
+			// **明示しないと JVM 既定のプロキシを使う。** 2026-09-08 に実測した:
+			// http.proxyHost を立てておくと newBuilder().build() でも経由する
+			// (しかも client.proxy() は空を返すので getter では気づけない)。
+			// ACL は要求 URI のホストを見るので、既定プロキシがあると
+			// 判定と実際の接続先が食い違う
+			builder.proxy(HttpClient.Builder.NO_PROXY);
 		}
 		builder.cookieHandler(this.cookieManager);
 		if (!this.credentials.isEmpty()) {
@@ -529,7 +568,50 @@ class MyHttpSourceResolver implements SourceResolver {
 		return false;
 	}
 
+	/** 転送を指す状態かどうかです。 */
+	private static boolean isRedirect(final int status) {
+		return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+	}
+
+	/**
+	 * 2つのURIが同じオリジンかどうかです。
+	 *
+	 * <p>
+	 * scheme・host・portのどれかが違えば別オリジンとします。fetchの規定や
+	 * {@code curl}の既定({@code --location-trusted}を付けない)と同じ扱いで、
+	 * 世の標準動向に合わせています。
+	 * </p>
+	 */
+	static boolean sameOrigin(final URI a, final URI b) {
+		if (a == null || b == null) {
+			return false;
+		}
+		return equalsIgnoreCaseOrNull(a.getScheme(), b.getScheme())
+				&& equalsIgnoreCaseOrNull(a.getHost(), b.getHost()) && a.getPort() == b.getPort();
+	}
+
+	private static boolean equalsIgnoreCaseOrNull(final String a, final String b) {
+		return a == null ? b == null : a.equalsIgnoreCase(b);
+	}
+
+	/**
+	 * <b>別オリジンへは送らない</b>ヘッダです。
+	 *
+	 * <p>
+	 * 呼び出し側が{@code input.http.header.N}で付けたものも対象です。
+	 * 特定のサイト向けに付けた資格情報が、転送で別のホストへ渡ってしまうためです。
+	 * </p>
+	 */
+	private static boolean isCredentialHeader(final String name) {
+		return name.equalsIgnoreCase("Authorization") || name.equalsIgnoreCase("Proxy-Authorization")
+				|| name.equalsIgnoreCase("Cookie") || name.equalsIgnoreCase("Cookie2");
+	}
+
 	private HttpRequest createHttpRequest(URI uri) {
+		return this.createHttpRequest(uri, true);
+	}
+
+	private HttpRequest createHttpRequest(URI uri, boolean sameOrigin) {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(uri).GET();
 		// java.net.http.HttpClient は Accept-Encoding を自動送信せず、応答の
 		// Content-Encoding も自動で解凍しない(帯域節約のため明示的に要求し、
@@ -562,6 +644,10 @@ class MyHttpSourceResolver implements SourceResolver {
 		if (headers != null) {
 			for (int i = 0; i < headers.size(); ++i) {
 				Entry<String, String> header = headers.get(i);
+				if (!sameOrigin && isCredentialHeader(header.getKey())) {
+					// 転送で別オリジンへ来た。資格情報になりうるものは送らない
+					continue;
+				}
 				builder.header(header.getKey(), header.getValue());
 			}
 		}
@@ -859,6 +945,7 @@ class MyHttpSourceResolver implements SourceResolver {
 				throw this.toIOException(e);
 			}
 			this.status = this.response.statusCode();
+			this.followRedirects();
 			this.exists = this.status != 404;
 			this.mimeType = this.response.headers().firstValue("Content-Type").orElse(null);
 			this.contentEncoding = this.response.headers().firstValue("Content-Encoding").orElse(null);
@@ -869,6 +956,72 @@ class MyHttpSourceResolver implements SourceResolver {
 			this.contentLength = this.contentEncoding != null ? -1
 					: this.response.headers().firstValueAsLong("Content-Length").orElse(-1);
 			this.lastModified = parseLastModified(this.response.headers().firstValue("Last-Modified").orElse(null));
+		}
+
+		/**
+		 * 3xxを自分で追います。
+		 *
+		 * <p>
+		 * {@link HttpClient}は常に{@code Redirect.NEVER}で作るので、
+		 * <b>ここが唯一の転送処理</b>です。生成時の状態で
+		 * {@code NORMAL}/{@code NEVER}を作り分けると、あとから判定を足しても
+		 * 既存のクライアントが先に追ってしまうためです。
+		 * </p>
+		 *
+		 * <p>
+		 * <b>判定を掛けるのはセッションが制限しているときだけ</b>です。
+		 * ACLを一度も設定していないセッションで
+		 * {@code restrictedResolver.permits()}を引くと、既定が
+		 * <b>{@code data:}以外は拒否</b>なので、すべての転送が止まります。
+		 * 判定しないときも、ホップ数の上限とHTTPS→HTTPの格下げ拒否は掛けます
+		 * ({@code Redirect.NORMAL}と同じ扱い)。
+		 * </p>
+		 */
+		private void followRedirects() throws IOException {
+			final java.util.function.Predicate<URI> guard = MyHttpSourceResolver.this.revalidating()
+					? MyHttpSourceResolver.this.redirectGuard
+					: null;
+			URI current = this.request.uri();
+			for (int hop = 0; isRedirect(this.status); ++hop) {
+				if (hop >= MAX_REDIRECTS) {
+					throw new IOException("too many redirects: " + current);
+				}
+				final String location = this.response.headers().firstValue("Location").orElse(null);
+				if (location == null || location.isEmpty()) {
+					return;
+				}
+				final URI next;
+				try {
+					next = current.resolve(location);
+				} catch (final IllegalArgumentException e) {
+					throw new IOException("bad redirect target: " + location);
+				}
+				// HttpClient の NORMAL と同じく、HTTPS から HTTP への格下げは追わない
+				if ("https".equalsIgnoreCase(current.getScheme())
+						&& !"https".equalsIgnoreCase(next.getScheme())) {
+					throw new IOException("refusing to follow a redirect from https to " + next.getScheme());
+				}
+				if (guard != null && !guard.test(next)) {
+					throw new SecurityException("Access to the redirect target is not permitted: " + next);
+				}
+				// 本文は使わないので閉じる
+				try {
+					this.response.body().close();
+				} catch (final IOException e) {
+					// ignore
+				}
+				current = next;
+				this.responseFuture = this.httpClient.sendAsync(
+						MyHttpSourceResolver.this.createHttpRequest(next,
+								sameOrigin(this.request.uri(), next)),
+						HttpResponse.BodyHandlers.ofInputStream());
+				try {
+					this.response = this.responseFuture.join();
+				} catch (CancellationException | CompletionException e) {
+					throw this.toIOException(e);
+				}
+				this.status = this.response.statusCode();
+			}
 		}
 
 		private void startConnection() {

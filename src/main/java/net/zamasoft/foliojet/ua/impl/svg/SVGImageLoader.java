@@ -177,6 +177,20 @@ public class SVGImageLoader implements ImageLoader {
 	private static final Dimension2D VIEWPORT = new Dimension2DImpl(400, 400);
 
 	public Image getImage(String docURI, final Document doc, final UserAgent ua) throws IOException {
+		// **Batikが自分で取りに行く資源をFolioJetのリゾルバへ回す。**
+		// SVGの中のCSS(@import・<?xml-stylesheet?>)・色プロファイル等は
+		// ParsedURL.openStream()を直に呼ぶため、ここで束ねないと
+		// input.include/input.excludeを通らない。
+		// MyParsedURLDefaultProtocolHandlerの説明を見ること
+		final UserAgent previousUA = MyParsedURLDefaultProtocolHandler.enter(ua);
+		try {
+			return this.buildImage(docURI, doc, ua);
+		} finally {
+			MyParsedURLDefaultProtocolHandler.leave(previousUA);
+		}
+	}
+
+	private Image buildImage(String docURI, final Document doc, final UserAgent ua) throws IOException {
 		try {
 			SVGOMSVGElement root = (SVGOMSVGElement) doc.getDocumentElement();
 			Dimension2D viewport = VIEWPORT;
