@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="contents/xslt/join.xslt" type="text/xsl"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:cssj="http://www.cssj.jp/ns/cssjml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<title>FolioJet 説明書 @date@</title>
+	</head>
+	<body>
+		<div class="toctitle">目次</div>
+		<cssj:make-toc counter="page" />
+
+		<ol>
+			<h1 id="first-section">文書とスタイル</h1>
+			<li>4000_style.html</li>
+			<li>4010_io.html</li>
+			<li>4020_input.html</li>
+			<li>4030_performance.html</li>
+			<li>4040_font-selection.html</li>
+			<li>4050_output.html</li>
+			<li>4060_legacy.html</li>
+			<li>4070_xml.html</li>
+		</ol>
+
+		<ol>
+			<h1>CSS</h1>
+			<li>4100_css.html</li>
+			<li>4150_css-ext.html</li>
+			<li>4400_page-content.html</li>
+			<li>4450_prepress.html</li>
+			<li>4500_page-break.html</li>
+			<li>4550_page-break-in-table.html</li>
+			<li>4600_webfont.html</li>
+			<li>4700_vertical.html</li>
+			<li>4800_columns.html</li>
+			<li>4900_barcode.html</li>
+			<li>4910_mathml.html</li>
+		</ol>
+
+		<ol>
+			<h1>信頼できない入力を扱う</h1>
+			<li>3600_limit.html</li>
+			<li>3700_troubleshooting.html</li>
+		</ol>
+
+		<ol>
+			<h1>資料集</h1>
+			<li>5100_io-properties.html</li>
+			<li>5200_messages.html</li>
+			<li>5300_css-properties.html</li>
+			<li>5400_html.html</li>
+			<li>5500_extension.html</li>
+			<li>5700_glossary.html</li>
+		</ol>
+	</body>
+</html>

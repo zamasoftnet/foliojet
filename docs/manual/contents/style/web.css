@@ -1,0 +1,307 @@
+@charset 'UTF-8';
+
+/*
+ * ウェブ公開用のスタイルです。印刷用の book.css とは別に持ちます
+ * (book.css は @page とマージンボックスが中心で、画面では使えないため)。
+ */
+
+:root {
+	--ink: #1a1a1a;
+	--muted: #6b7785;
+	--accent: #1f3a5f;
+	--accent-soft: #2c4a70;
+	--rule: #d7dee6;
+	--surface: #f5f6f8;
+	--note: #fdf7ec;
+	--note-rule: #d98c1f;
+	--page: #ffffff;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--page);
+	color: var(--ink);
+	font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Meiryo', sans-serif;
+	font-size: 16px;
+	line-height: 1.8;
+	text-align: left;
+}
+
+.site {
+	display: flex;
+	align-items: flex-start;
+	gap: 2rem;
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 1rem;
+}
+
+/* 目次 */
+.toc {
+	position: sticky;
+	top: 0;
+	flex: 0 0 17rem;
+	max-height: 100vh;
+	overflow-y: auto;
+	padding: 1.5rem 0.5rem 3rem 0;
+	border-right: 1px solid var(--rule);
+	font-size: 0.85rem;
+	line-height: 1.5;
+}
+
+.toc-title {
+	font-weight: 700;
+	color: var(--accent);
+	margin-bottom: 1rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 2px solid var(--accent);
+}
+
+.toc ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.toc li {
+	margin: 0.1rem 0;
+}
+
+.toc-h2 > a {
+	font-weight: 600;
+	color: var(--accent);
+	margin-top: 0.6rem;
+}
+
+.toc-h3 > a {
+	padding-left: 1.1rem;
+	font-size: 0.95em;
+}
+
+.toc a {
+	display: block;
+	padding: 0.2rem 0.4rem;
+	color: var(--muted);
+	text-decoration: none;
+	border-radius: 3px;
+}
+
+.toc a:hover {
+	background: var(--surface);
+	color: var(--accent);
+}
+
+/* 本文 */
+.doc {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 1.5rem 0 6rem 0;
+	max-width: 46rem;
+}
+
+.doc h1 {
+	font-size: 1.9rem;
+	line-height: 1.3;
+	color: var(--accent);
+	margin: 3rem 0 1.5rem;
+	padding-bottom: 0.4rem;
+	border-bottom: 3px solid var(--accent);
+}
+
+.doc h2 {
+	font-size: 1.4rem;
+	line-height: 1.4;
+	color: var(--accent);
+	margin: 2.5rem 0 1rem;
+	padding-bottom: 0.3rem;
+	border-bottom: 1px solid var(--rule);
+	scroll-margin-top: 1rem;
+}
+
+.doc h3 {
+	font-size: 1.15rem;
+	color: var(--accent-soft);
+	margin: 2rem 0 0.75rem;
+}
+
+.doc h4, .doc h5, .doc h6 {
+	font-size: 1rem;
+	color: var(--accent-soft);
+	margin: 1.5rem 0 0.5rem;
+}
+
+p, ul, ol, dl {
+	margin: 0.9rem 0;
+}
+
+/* 印刷版の字下げ(20mm等)は画面では効かせない */
+p, ul, ol {
+	margin-left: 0;
+}
+
+a {
+	color: var(--accent-soft);
+}
+
+/* コード */
+pre {
+	background: var(--surface);
+	border-left: 3px solid var(--rule);
+	border-radius: 3px;
+	padding: 0.8rem 1rem;
+	/* 横スクロールに頼らず折り返す(印刷版と揃える) */
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+	overflow-x: auto;
+	font-size: 0.85rem;
+	line-height: 1.6;
+	margin: 1rem 0;
+}
+
+code, tt {
+	font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+	font-size: 0.9em;
+}
+
+/* プロパティ名 */
+.cssprop, .cssdecl, .ioprop {
+	font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+.cssdecl:before { content: "{"; }
+.cssdecl:after { content: "}"; }
+
+.since {
+	font-size: 0.75em;
+	color: var(--muted);
+	vertical-align: super;
+}
+
+/* 表 */
+table {
+	border-collapse: collapse;
+	margin: 1rem 0;
+	font-size: 0.9rem;
+	display: block;
+	overflow-x: auto;
+	max-width: 100%;
+}
+
+th, td {
+	border: 1px solid var(--rule);
+	padding: 0.4rem 0.6rem;
+	text-align: left;
+	vertical-align: top;
+}
+
+thead, th {
+	background: #eef2f6;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+caption {
+	text-align: left;
+	font-weight: 700;
+	color: var(--accent-soft);
+	margin-bottom: 0.4rem;
+}
+
+/* 定義リスト */
+dl {
+	border-left: 2px solid var(--rule);
+	padding-left: 0.9rem;
+}
+
+dt {
+	font-weight: 700;
+	margin-top: 0.8rem;
+}
+
+dd {
+	margin: 0 0 0 1.2rem;
+}
+
+/* 注意 */
+.note {
+	background: var(--note);
+	border-left: 4px solid var(--note-rule);
+	border-radius: 3px;
+	padding: 0.8rem 1rem;
+	margin: 1.2rem 0;
+	font-size: 0.95rem;
+}
+
+.note:before {
+	content: none;
+}
+
+/* 図・例 */
+.figure, .example {
+	margin: 1.2rem 0;
+}
+
+.figure img, .figure object {
+	max-width: 100%;
+	height: auto;
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+}
+
+img {
+	max-width: 100%;
+	height: auto;
+}
+
+.invisible {
+	display: none;
+}
+
+/* 画面では改ページ指定を無視する */
+h1, h2 {
+	page-break-before: auto;
+}
+
+/* 狭い画面 */
+@media (max-width: 860px) {
+	.site {
+		display: block;
+		padding: 0 1rem;
+	}
+	.toc {
+		position: static;
+		max-height: none;
+		flex: none;
+		border-right: 0;
+		border-bottom: 1px solid var(--rule);
+		padding-bottom: 1rem;
+		margin-bottom: 1rem;
+	}
+	.doc {
+		max-width: none;
+		padding-top: 0;
+	}
+}
+
+/* 画面のダークテーマ */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--ink: #e6e8ea;
+		--muted: #9aa5b1;
+		--accent: #8ab4e8;
+		--accent-soft: #a8c8f0;
+		--rule: #33393f;
+		--surface: #1c2126;
+		--note: #2a2317;
+		--page: #14181c;
+	}
+	thead, th {
+		background: #1c2126;
+	}
+}

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  なぜ2パスが要るのかの図。
+  1パス目は「どのページに何が来たか」を集めるだけで捨て、
+  2パス目でその表を見ながら組み直す、という流れを示します。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400">
+	<style>
+		.doc   { fill: #ffffff; stroke: #333333; stroke-width: 1.5; }
+		.step  { fill: #eef2f6; stroke: #8fa3b8; stroke-width: 1.2; }
+		.keep  { fill: #fdf7ec; stroke: #d98c1f; stroke-width: 1.5; }
+		.drop  { fill: #f4f4f4; stroke: #b0b0b0; stroke-width: 1; stroke-dasharray: 4 3; }
+		.lbl   { font-family: sans-serif; font-size: 14px; fill: #1f3a5f; text-anchor: middle; }
+		.small { font-family: sans-serif; font-size: 12px; fill: #555555; text-anchor: middle; }
+		.pass  { font-family: sans-serif; font-size: 15px; fill: #1f3a5f; font-weight: bold; }
+		.mono  { font-family: monospace; font-size: 12px; fill: #333333; text-anchor: middle; }
+		.flow  { stroke: #1f3a5f; stroke-width: 1.8; fill: none; marker-end: url(#t); }
+		.back  { stroke: #d98c1f; stroke-width: 2; fill: none; marker-end: url(#o);
+		         stroke-dasharray: 6 4; }
+	</style>
+	<defs>
+		<marker id="t" viewBox="0 0 10 10" refX="9" refY="5"
+			markerWidth="7" markerHeight="7" orient="auto">
+			<path d="M0,0 L10,5 L0,10 z" fill="#1f3a5f" />
+		</marker>
+		<marker id="o" viewBox="0 0 10 10" refX="9" refY="5"
+			markerWidth="7" markerHeight="7" orient="auto">
+			<path d="M0,0 L10,5 L0,10 z" fill="#d98c1f" />
+		</marker>
+	</defs>
+
+	<!-- 1パス目 -->
+	<text class="pass" x="20" y="34">1パス目</text>
+	<rect class="doc"  x="20"  y="48" width="90" height="70" />
+	<text class="lbl"  x="65"  y="78">文書</text>
+	<text class="small" x="65" y="98">はじめから</text>
+	<path class="flow" d="M114,83 L150,83" />
+
+	<rect class="step" x="154" y="48" width="120" height="70" />
+	<text class="lbl"  x="214" y="76">組んでみる</text>
+	<text class="small" x="214" y="96">ページに割る</text>
+	<path class="flow" d="M278,83 L314,83" />
+
+	<rect class="drop" x="318" y="48" width="110" height="70" />
+	<text class="lbl"  x="373" y="78">結果は</text>
+	<text class="lbl"  x="373" y="98">捨てる</text>
+
+	<!-- 集めた表 -->
+	<rect class="keep" x="454" y="48" width="166" height="130" />
+	<text class="lbl"  x="537" y="72">集めておく表</text>
+	<text class="mono" x="537" y="98">見出しA → 3ページ</text>
+	<text class="mono" x="537" y="118">見出しB → 8ページ</text>
+	<text class="mono" x="537" y="138">総ページ数 → 24</text>
+	<text class="small" x="537" y="162">これだけが次へ渡る</text>
+	<path class="flow" d="M432,83 L450,83" />
+
+	<!-- 2パス目 -->
+	<text class="pass" x="20" y="212">2パス目</text>
+	<rect class="doc"  x="20"  y="226" width="90" height="70" />
+	<text class="lbl"  x="65"  y="256">同じ文書</text>
+	<text class="small" x="65" y="276">もう一度</text>
+	<path class="flow" d="M114,261 L150,261" />
+
+	<rect class="step" x="154" y="226" width="120" height="70" />
+	<text class="lbl"  x="214" y="254">組み直す</text>
+	<text class="small" x="214" y="274">表を見ながら</text>
+	<path class="flow" d="M278,261 L314,261" />
+
+	<rect class="keep" x="318" y="226" width="110" height="70" />
+	<text class="lbl"  x="373" y="256">これが</text>
+	<text class="lbl"  x="373" y="276">出力される</text>
+
+	<!-- 表 → 2パス目 -->
+	<path class="back" d="M537,182 L537,204 L214,204 L214,222" />
+
+	<text class="small" x="320" y="340">1パス目には、まだ「総ページ数」も「見出しが何ページ目か」も分かりません。</text>
+	<text class="small" x="320" y="362">最後まで読んで初めて分かるので、分かった後にもう一度組み直します。</text>
+	<text class="small" x="320" y="384">1パス目の紙面は使われないため、処理時間はおおよそ2倍になります。</text>
+</svg>

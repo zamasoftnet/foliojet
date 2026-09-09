@@ -1,0 +1,514 @@
+@charset 'UTF-8';
+
+/* 版面。ノド(綴じ側)を広めに取り、小口に柱とノンブルを置く */
+@page {
+	margin: 24mm 20mm 22mm 20mm;
+}
+
+@page :left {
+	margin: 24mm 20mm 22mm 26mm;
+}
+
+@page :right {
+	margin: 24mm 26mm 22mm 20mm;
+}
+
+@page :first {
+	margin: 0;
+}
+
+/* 全体 */
+body {
+	line-height: 1.7;
+	font-size: 10pt;
+	font-family: serif;
+	text-align: justify;
+	text-wrap: pretty;
+	orphans: 2;
+	widows: 3;
+	color: #1a1a1a;
+}
+
+p,ul,ol {
+	margin-left: 12mm;
+}
+
+b,strong {
+	font-family: sans-serif;
+	font-weight: bold;
+}
+
+pre {
+	font-family: monospace;
+	font-size: 9pt;
+	line-height: 1.5;
+	background-color: #f5f6f8;
+	border-left: 3pt solid #b8c4d0;
+	border-radius: 2pt;
+	padding: 6pt 8pt;
+	/* 字下げはしない。コードは1行が長く、下げるとその分はみ出す */
+	margin: 0.8em 0 0.8em 4mm;
+	orphans: 4;
+	widows: 4;
+	/*
+	 * 折り返す。既定の white-space: pre は改行しないので、紙面より長い行が
+	 * そのまま外へ出る(2026-07-29に実際にはみ出していた)。
+	 * URLや長い識別子は語の途中でも折る。
+	 */
+	white-space: pre-wrap;
+	-cssj-word-wrap: break-word;
+}
+
+code {
+	font-family: monospace;
+	font-size: 0.92em;
+}
+
+tt {
+	white-space: nowrap;
+}
+.invisible {
+	display: none;
+}
+
+/* 見出し */
+h1,h2,h3,h4,h5,h6 {
+	font-family: sans-serif;
+}
+
+h1 {
+	page-break-before: always;
+	font-size: 26pt;
+	line-height: 1.25;
+	margin-bottom: 1.2em;
+	padding-bottom: 6pt;
+	border-bottom: 4pt solid #1f3a5f;
+	color: #1f3a5f;
+}
+
+h2 {
+	page-break-before: always;
+	padding-bottom: 3pt;
+	border-bottom: 1pt solid #b8c4d0;
+	font-size: 15pt;
+	line-height: 1.35;
+	margin-top: 0;
+	color: #1f3a5f;
+}
+h1 + h2 {
+	page-break-before: auto;
+}
+
+h3 {
+	padding-bottom: 2pt;
+	border-bottom: 1pt dotted #b8c4d0;
+	color: #2c4a70;
+}
+
+h3,h4,h5,h6 {
+	margin-left: 12mm;
+	font-size: 11.5pt;
+	line-height: 1.4;
+}
+
+@media print {
+	h1:before {
+		content: counter(chapter) '.';
+		counter-increment: chapter;
+		counter-reset: section subsection example table;
+	}
+	
+	h2:before {
+		content: counter(chapter) '.' counter(section) '\A0';
+		counter-increment: section;
+		counter-reset: subsection;
+	}
+	
+	h3:before {
+		content: counter(chapter) '.' counter(section) '.' counter(subsection)
+			'\A0';
+		counter-increment: subsection;
+	}
+}
+
+/* リスト */
+ul {
+	margin: 1em 0 1em 12mm;
+}
+
+ul > li {
+	list-style-type: square;
+	list-style-position: inside;
+}
+
+dl {
+	border-left: 2pt solid #b8c4d0;
+	padding-left: 8pt;
+	margin-left: 12mm;
+}
+dt {
+	font-weight: bold;
+	font-family: sans-serif;
+	white-space: nowrap;
+	margin: 1em 0 0 0;
+}
+
+dd {
+	margin: 0 0 0 8mm;
+}
+
+/* テーブル */
+caption {
+	font-size: 10pt;
+	font-weight: bold;
+	font-family: sans-serif;
+	white-space: nowrap;
+	text-align: left;
+	margin: 1em 0 4pt 0;
+}
+
+table {
+	border-collapse: collapse;
+	margin-bottom: 1em;
+}
+
+th,td {
+	padding: 4pt 6pt;
+	border: 0.5pt solid #c9d2db;
+	text-align: justify;
+	font-size: 9.5pt;
+	line-height: 1.5;
+}
+
+thead {
+	font-weight: bold;
+	font-family: sans-serif;
+	white-space: nowrap;
+	border-top: 1pt solid #1f3a5f;
+	border-bottom: 1pt solid #1f3a5f;
+	background-color: #eef2f6;
+}
+
+td.nowrap {
+	white-space: nowrap;
+}
+
+tr {
+	page-break-inside: avoid;
+}
+
+@media print {
+	caption:before {
+		counter-increment: table;
+		content: '表 ' counter(chapter) '.' counter(table) ' ';
+	}
+}
+
+/* 例 */
+div.example pre {
+	white-space: pre-wrap;
+	-cssj-word-wrap: break-word;
+	font-size: 9pt;
+	margin: 0 0 1em 4mm;
+	widows: 10;
+	orphans: 10;
+	background-color: #f5f6f8;
+}
+
+/* 図 */
+div.figure {
+	page-break-inside: avoid;
+	margin: 5px auto;
+}
+div.figure > * {
+	display: block;
+	border: 0.5pt solid #c9d2db;
+	border-radius: 2pt;
+	margin: 5px auto;
+	padding: 5px;
+}
+div.figure:before, div.example:before {
+	border-bottom: 1pt solid #b8c4d0;
+	padding-left: 5em;
+	font: bold 9pt/1.6 sans-serif;
+	color: #2c4a70;
+	white-space: nowrap;
+}
+
+div.figure *, div.example * {
+	page-break-before: avoid;
+}
+
+@media print {
+	div.example:before {
+		counter-increment: example;
+		content: '例 ' counter(chapter) '.' counter(example) ' ' attr(title);
+	}
+	
+	div.figure:before {
+		counter-increment: figure;
+		content: '図 ' counter(chapter) '.' counter(figure) ' ' attr(title);
+	}
+}
+
+@media screen {
+	div.example:before {
+		content: '例 ' attr(title);
+	}
+	
+	div.figure:before {
+		content: '図 ' attr(title);
+	}
+}
+
+
+/* 注意 */
+.note {
+	font-family: sans-serif;
+	font-size: 9.5pt;
+	padding: 8pt 10pt;
+	margin: 1em 0 1em 12mm;
+	border: 0;
+	border-left: 4pt solid #d98c1f;
+	border-radius: 2pt;
+	background-color: #fdf7ec;
+	min-height: 3em;
+}
+.note:before {
+	float: left;
+	margin: 0 5px 5px 0;
+}
+@media screen {
+	.note:before {
+		content: url(../images/note.png);
+	}
+}
+@media print {
+	.note {
+		page-break-inside: avoid;
+	}
+	.note:before {
+		content: url(../images/note.svg);
+	}
+}
+
+/* ノンブル・柱(GCPM string-set/string() + @pageマージンボックス)
+ *
+ * ノンブルは counter(page) をマージンボックスへ直接書く。string-set 経由に
+ * すると counter() が「その要素を組んだ時点」で1回だけ解決されるため、
+ * 以降のページが同じ番号のまま固定される(2026-07-29に実測して修正)。
+ */
+h1 {
+	string-set: heading1 content();
+}
+h2 {
+	string-set: heading2 content();
+}
+#first-section {
+	counter-reset: page 1;
+}
+
+@page {
+	counter-increment: page;
+}
+
+/* 柱は小口側の上、ノンブルは小口側の下。左右で入れ替える */
+@page :left {
+	@top-left {
+		font: normal 8.5pt/1.4 sans-serif;
+		color: #6b7785;
+		content: string(heading1);
+	}
+	@top-right {
+		font: normal 8.5pt/1.4 sans-serif;
+		color: #6b7785;
+		text-align: right;
+		content: string(heading2);
+	}
+	@bottom-left {
+		font: bold 10pt/1 sans-serif;
+		color: #1f3a5f;
+		content: counter(page);
+	}
+}
+
+@page :right {
+	@top-left {
+		font: normal 8.5pt/1.4 sans-serif;
+		color: #6b7785;
+		content: string(heading2);
+	}
+	@top-right {
+		font: normal 8.5pt/1.4 sans-serif;
+		color: #6b7785;
+		text-align: right;
+		content: string(heading1);
+	}
+	@bottom-right {
+		font: bold 10pt/1 sans-serif;
+		color: #1f3a5f;
+		text-align: right;
+		content: counter(page);
+	}
+}
+
+/* 扉(章の1ページ目)には柱を出さない */
+@page :first {
+	@top-left { content: none; }
+	@top-right { content: none; }
+	@bottom-left { content: none; }
+	@bottom-right { content: none; }
+}
+
+/* 目次 */
+div.toctitle {
+	page-break-before: right;
+	font: bold x-large sans-serif;
+}
+ul.cssj-toc {
+	page-break-after: right;
+	margin: 0;
+	font-family: sans-serif;
+	line-height: 1.2;
+}
+
+ul.cssj-toc li {
+	list-style-type: none;
+	font-size: 16pt;
+	margin: 1.5em 0 0.6em 0;
+	height: 0.5em;
+	border-bottom: 1pt dotted;
+}
+
+ul.cssj-toc ul {
+	margin: 0 0 0 1em;
+}
+
+ul.cssj-toc ul li {
+	margin: 0.6em 0 0.6em 0;
+	font-size: 11pt;
+}
+
+ul.cssj-toc ul ul li {
+	margin: 0.6em 0 0.6em 1em;
+}
+
+ul.cssj-toc ul ul ul li {
+	margin: 0.6em 0 0.6em 1em;
+}
+
+ul.cssj-toc span {
+	background-color: White;
+}
+
+ul.cssj-toc span.cssj-page {
+	width: 2em;
+	position: absolute;
+	right: 0;
+	font-family: serif;
+	text-align: right;
+}
+
+/* そのほか */
+.cssprop, .cssdecl, .ioprop {
+	font-family: monospace;
+}
+.cssprop, .ioprop {
+	white-space: nowrap;
+}
+.cssprop:after {
+	font: normal 8pt serif;
+	vertical-align: super;
+	content: " [css]";
+}
+.cssdecl:before {
+	content: "{";
+}
+.cssdecl:after {
+	content: "}";
+}
+.ioprop:after {
+	font: normal 8pt serif;
+	vertical-align: super;
+	content: ' [io]';
+}
+.negative {
+	background-color: LightGray;
+}
+.notice {
+	background-color: Yellow;
+}
+.check {
+	white-space: nowrap;
+}
+.check:before {
+	font-family: 'ZapfDingbats';
+	content: '\2714';
+}
+.since {
+	font: italic 8pt serif;
+}
+.since:before {
+	content: "[";
+}
+.since:after {
+	content: "]";
+}
+table.chartable td:first-letter {
+	font-size: 16pt;
+}
+table.chartable td {
+	padding: 2px;
+	text-align: center;
+}
+table.chartable td.code,
+table.chartable tr.code td {
+	font: bold 12pt sans-serif;
+}
+
+table.spec td,
+table.spec th {
+	font-size: 8pt;
+}
+
+@media screen {
+	div.figure > .for-print,
+	.for-print {
+		display: none;
+	}
+	div.toc h1.big {
+		font-weight: bold;
+		text-align: center;
+		font-size: 24pt;
+	}
+	div.toc h1,
+	div.toc h2,
+	div.toc h3 {
+		font-weight: normal;
+		margin: 0;
+		border: none;
+	}
+	div.toc h1 {
+		font-size: 18pt;
+		margin-top: 1em;
+	}
+	div.toc h2 {
+		font-size: 12pt;
+		margin-left: 20pt;
+	}
+	div.toc h3 {
+		font-size: 10pt;
+		margin-left: 40pt;
+	}
+}
+
+@media print {
+	div.figure > .for-screen,
+	.for-screen {
+		display: none;
+	}
+	a.pageref:after,
+	.pageref a:after {
+		content: ' (' target-counter(attr(href),page) 'ページ)';
+	}
+}

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  @page のマージンボックス16個の配置。
+  紙の余白を16個の箱に切り分けた図です。数字は箱の名前と対応します。
+  手で書いています。座標を変えるときは、隣り合う箱の境界を揃えること。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 780" width="660" height="780">
+	<style>
+		.paper { fill: #ffffff; stroke: #333333; stroke-width: 2; }
+		.box   { fill: #eef2f6; stroke: #8fa3b8; stroke-width: 1; }
+		.area  { fill: #ffffff; stroke: #333333; stroke-width: 1.5; stroke-dasharray: 6 4; }
+		.name  { font-family: monospace; font-size: 12px; fill: #1f3a5f; text-anchor: middle; }
+		.note  { font-family: sans-serif; font-size: 15px; fill: #444444; text-anchor: middle; }
+		.small { font-family: sans-serif; font-size: 12px; fill: #6b7785; text-anchor: middle; }
+	</style>
+
+	<!-- 紙 -->
+	<rect class="paper" x="10" y="10" width="640" height="760" />
+
+	<!-- 上の帯: 角 / 左 / 中央 / 右 / 角 -->
+	<rect class="box" x="10"  y="10" width="120" height="90" />
+	<rect class="box" x="130" y="10" width="133" height="90" />
+	<rect class="box" x="263" y="10" width="134" height="90" />
+	<rect class="box" x="397" y="10" width="133" height="90" />
+	<rect class="box" x="530" y="10" width="120" height="90" />
+	<text class="name" x="70"  y="48">@top-left</text>
+	<text class="name" x="70"  y="66">-corner</text>
+	<text class="name" x="196" y="60">@top-left</text>
+	<text class="name" x="330" y="60">@top-center</text>
+	<text class="name" x="463" y="60">@top-right</text>
+	<text class="name" x="590" y="48">@top-right</text>
+	<text class="name" x="590" y="66">-corner</text>
+
+	<!-- 下の帯 -->
+	<rect class="box" x="10"  y="680" width="120" height="90" />
+	<rect class="box" x="130" y="680" width="133" height="90" />
+	<rect class="box" x="263" y="680" width="134" height="90" />
+	<rect class="box" x="397" y="680" width="133" height="90" />
+	<rect class="box" x="530" y="680" width="120" height="90" />
+	<text class="name" x="70"  y="718">@bottom-left</text>
+	<text class="name" x="70"  y="736">-corner</text>
+	<text class="name" x="196" y="730">@bottom-left</text>
+	<text class="name" x="330" y="730">@bottom-center</text>
+	<text class="name" x="463" y="730">@bottom-right</text>
+	<text class="name" x="590" y="718">@bottom-right</text>
+	<text class="name" x="590" y="736">-corner</text>
+
+	<!-- 左の列 -->
+	<rect class="box" x="10" y="100" width="120" height="193" />
+	<rect class="box" x="10" y="293" width="120" height="194" />
+	<rect class="box" x="10" y="487" width="120" height="193" />
+	<text class="name" x="70" y="202">@left-top</text>
+	<text class="name" x="70" y="396">@left-middle</text>
+	<text class="name" x="70" y="590">@left-bottom</text>
+
+	<!-- 右の列 -->
+	<rect class="box" x="530" y="100" width="120" height="193" />
+	<rect class="box" x="530" y="293" width="120" height="194" />
+	<rect class="box" x="530" y="487" width="120" height="193" />
+	<text class="name" x="590" y="202">@right-top</text>
+	<text class="name" x="590" y="396">@right-middle</text>
+	<text class="name" x="590" y="590">@right-bottom</text>
+
+	<!-- 版面 -->
+	<rect class="area" x="130" y="100" width="400" height="580" />
+	<text class="note" x="330" y="380">版面(本文が入る領域)</text>
+	<text class="small" x="330" y="404">margin を除いた内側</text>
+</svg>
