@@ -1,0 +1,2 @@
+legacy/0600-misc/asahi.html source=../../../copperpdf4/dev/files/misc/tounittest/0600-misc/asahi.html
+legacy/0600-misc/yahoo.html source=../../../copperpdf4/dev/files/misc/tounittest/0600-misc/yahoo.html

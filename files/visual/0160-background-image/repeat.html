@@ -1,0 +1,32 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>ブロックの背景画像</title>
+    <style type="text/css">
+      div {
+        color: Red;
+        border: dashed Blue 8px;
+        margin: 8px;
+        width: 200px;
+        height: 200px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>ブロックの背景画像</h1>
+    <p>画像の縦横100pxに対してボックスの内部は縦横200pxです。画像の四角形は境界の内辺に接します。</p>
+    <div style="background-image: url(../blue.png);">
+      繰り返し
+    </div>
+    <div style="background-image: url(../blue.png); background-repeat: no-repeat;">
+      繰り返しなし
+    </div>
+    <div style="background-image: url(../blue.png); background-repeat: repeat-x;">
+      横方向繰り返し
+    </div>
+    <div style="background-image: url(../blue.png); background-repeat: repeat-y;">
+      縦方向繰り返し
+    </div>
+  </body>
+</html>

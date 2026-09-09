@@ -1,0 +1,3 @@
+legacy/0200-pagebreak-force/081-page-break-before_ALWAYS.html source=../../../copperpdf4/dev/files/misc/tounittest/0200-pagebreak-force/081-page-break-before_ALWAYS.html
+legacy/0200-pagebreak-force/082-page-break-before_ALWAYS.html source=../../../copperpdf4/dev/files/misc/tounittest/0200-pagebreak-force/082-page-break-before_ALWAYS.html
+legacy/0200-pagebreak-force/161-page-break-before_RIGHT.html source=../../../copperpdf4/dev/files/misc/tounittest/0200-pagebreak-force/161-page-break-before_RIGHT.html

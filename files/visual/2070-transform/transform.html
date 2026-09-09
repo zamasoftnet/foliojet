@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="600pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style type="text/css">
+body {
+	border: 1px solid Black;
+	padding: 50pt;
+}
+div {
+	border: 1px solid Red;
+	-webkit-transform: rotate(20deg) translate(50px,50px);
+	-moz-transform: rotate(20deg) translate(50px,50px);
+}
+p {
+  position: relative;
+  left: -50px;
+}
+p a {
+  position: relative;
+  top: -50px;
+}
+a {
+  border: 1px solid Blue;
+}
+</style>
+</head>
+<body>
+<p>
+<a href="#anchor">リンクテスト</a>
+</p>
+<div>
+<ruby>変形<rt>へんけい</rt></ruby>は、<a href="#anchor">要素の見た目</a>だけを動かし、版面の流れは動かさない。
+回転・拡大・傾きを重ねたとき、行の高さや折り返しが変形前のまま保たれるかを見る。
+<ruby>変形前<rt>へんけいまえ</rt></ruby>の位置を基準にする。
+<div>入れ子のブロックにも同じ変形が掛かり、親の変形と重なることを確かめる。</div>
+</div>
+
+</body>
+</html>

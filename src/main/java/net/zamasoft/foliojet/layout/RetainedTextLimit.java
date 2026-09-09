@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.ua.props.UAProps;
  * 寸法が決まるまで中身を溜める要素(auto 表・TwoPass 宿主・計測用複製・grid/flex 宿主・
  * balance 段組・絶対配置・固定幅 float/inline-block/直交ブロック)が開いている間、
  * 最も外側の要素の累計に組版済み文字の payload(2×charCount)を足す。閉じたら忘れる。
- * 設計: copperpdf4/docs/design/retained-layout-budget-design.md §3 D1。
+ * 保持量の上限の設計（D1）による。
  * </p>
  */
 public final class RetainedTextLimit implements AutoCloseable {

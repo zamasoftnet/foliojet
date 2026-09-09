@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>transform の割合指定</title>
+<style>
+  /*
+    **translate() の割合が効くこと**(2026-08-03、PLAN §3の第1波で発見)。
+
+    CSS Transforms の translate() の割合は「その要素自身の境界箱」を基準に
+    するので、解析時には解けない。2026-08-03まで解析時に行列へ畳んでいたため、
+    割合を含む指定は**丸ごと無効**になっていた——translate(-50%,-50%)(中央
+    寄せ)や translateX(-100%)(画面外へ逃がすメニュー)という、実地で最も
+    使われる形が効かなかった。Foundationの公式ドキュメントを取り込んで発覚。
+
+    箱は幅200pt・高さ30pt。50%=100pt、-100%=200pt。
+    表示リストには変形が出ない(描画時に適用される)ので、回帰は基準画像で持つ。
+    2026-08-29: 割合translateと他関数の併用を線形分解で実装したので、Gは
+    「指定全体が無効」ではなく回転した軸に沿った移動になる(基準画像を更新)。
+  */
+  body { margin: 20pt; font: 10pt/1.3 serif; }
+  .row { height: 34pt; }
+  .b { background: #ddd; width: 200pt; }
+</style>
+</head><body>
+<div class="row"><div class="b">A 変形なし</div></div>
+<div class="row"><div class="b" style="transform: translateX(100pt)">B 絶対長100pt右</div></div>
+<div class="row"><div class="b" style="transform: translateX(50%)">C 割合50%右(=100pt)</div></div>
+<div class="row"><div class="b" style="transform: translate(50%, 0)">D translate(50%,0)</div></div>
+<div class="row"><div class="b" style="transform: translateY(50%)">E 割合50%下</div></div>
+<div class="row"><div class="b" style="transform: translate(-100%, 0)">F 割合100%左(紙の外へ)</div></div>
+<div class="row"><div class="b" style="transform: rotate(10deg) translateX(50%)">G 回転と混在(2026-08-29から有効: 回転した軸に沿って50%移動)</div></div>
+</body></html>

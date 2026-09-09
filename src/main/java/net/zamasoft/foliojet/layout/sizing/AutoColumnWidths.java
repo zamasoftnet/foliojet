@@ -120,7 +120,7 @@ public final class AutoColumnWidths {
 			// paddingが潰れを吸収して重なりは実質出ず(w3c-jlreqの比1.02〜1.09
 			// の表群で実測)、Chromeのように数ptだけ紙端で文字を切るより
 			// 印刷品質が高い。意図的なChromeとの差(印刷向けの品質判断)。
-			// 詳細は copperpdf4/docs/history/2026-08-20-auto-table-min-guarantee.md
+			// 自動表幅の最小保証（2026-08-20）による
 			if (tableSize > maxTableSize) {
 				tableSize = maxTableSize;
 			}

@@ -25,7 +25,7 @@ import jp.cssj.test.unit.displaylist.RandomDocumentFuzzTest.Generated;
  * <p>
  * 掃過は数分で終わるのに、<b>1件の診断に数時間かかる</b>。今季見つかった欠陥は
  * すべて人間かエージェントが手で縮小しており、その過程で<b>偽の最小形を5回</b>
- * 掴んでいる(`copperpdf4/docs/LESSONS.md` §3.15)。縮小は機械にやらせるべき
+ * 掴んでいる。縮小は機械にやらせるべき
  * 作業で、かつ<b>機械にやらせるなら述語を正しく書くこと自体が本体</b>である。
  * </p>
  *

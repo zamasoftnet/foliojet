@@ -10,7 +10,7 @@ import net.zamasoft.pdfg2d.pdf.StructureRef;
 /**
  * タグ付きPDFの構造要素のページ横断レジストリです(欠陥②の修正、
  * 2026-07-30——codex相談
- * copperpdf4/docs/consultations/consult-codex-2026-07-30-structelem-split.txt)。
+ * 分割時の構造要素の扱いを検討した結果)。
  *
  * <p>
  * <b>何の欠陥か</b>: StructElemの重複抑止は従来{@code PageBox}単位

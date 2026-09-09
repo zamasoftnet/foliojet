@@ -268,7 +268,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 * <p>
 	 * <b>ハングアップ検出は主にテストハーネスの用途</b>(掃過・CIで
 	 * ライブロックを失敗として検出する——実績はseed 213026等)のため、
-	 * foliojet4のtestタスク・copperpdf4/devのデーモン/CLI起動が
+	 * 単体試験やサーバー製品のデーモン・CLI 起動が
 	 * {@code -Dfoliojet.noProgressSeconds=120}を明示設定する。本番でも
 	 * SLA上必要ならこのプロパティで有効化できる(0以下=無制限)。
 	 * 残存リスクとして「エンジンが真にハングし、かつクライアントが

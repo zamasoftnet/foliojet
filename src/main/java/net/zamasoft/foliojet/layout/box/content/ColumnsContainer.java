@@ -361,7 +361,7 @@ public class ColumnsContainer implements Container {
 	 * <p>
 	 * 実測(2026-07-27、10万文書の掃過で発見。20,000文書に1件):
 	 * 3重に入れ子にした段組で、内側の内容が丸ごと消えていた。
-	 * 経緯は`copperpdf4/docs/consultations/consult-nested-multicol-content-loss-2026-07-27.md`。
+	 * 入れ子の多段組で内容が消える不具合（2026-07-27）への対応。
 	 * </p>
 	 */
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,

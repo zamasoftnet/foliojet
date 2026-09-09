@@ -1,0 +1,36 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <style type="text/css">
+      @page {
+        margin: 0;
+      }
+      body {
+        font-size: 24pt;
+      }
+      #a {
+        -epub-text-emphasis: filled dot Red;
+      }
+      #b {
+        -epub-text-emphasis-style: filled;
+      }
+      #c {
+        -epub-text-emphasis-style: filled triangle;
+        -epub-text-emphasis-color: Green;
+      }
+      #d {
+        -epub-text-emphasis: '※' Black;
+      }
+      #e {
+        -epub-text-emphasis: filled Purple;
+      }
+  </style>
+</head>
+<body>
+う<span id="a">12</span>あう<span id="b">お</span>あ<span id="c">ばば</span>ば<span id="d">123</span>ー
+<ruby>！！<rt>※※※※</rt></ruby>
+あ<span id="e">あ<ruby>あああ<rt>おおお</rt></ruby>あ</span>あ
+</body>
+</html>

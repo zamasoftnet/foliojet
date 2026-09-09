@@ -11,7 +11,7 @@ import java.util.stream.Stream;
  * ディレクトリ内のMarkdownファイル(*.md)を一括でHTMLへ変換するコマンドライン
  * ツールです。
  * <p>
- * 各種ドキュメントビルド(copperpdf4のユーザーマニュアル等)がMarkdownを
+ * 各種ドキュメントビルド（説明書等）がMarkdownを
  * 章のソースとして採用しつつ、既存のXSLT結合(XSLT 1.0の{@code document()}は
  * XMLしか読めない)をそのまま使い続けられるよう、ビルド時にHTMLへ事前変換する
  * ために用いる。変換そのものは{@link MarkdownParser#toHtml(String)}に委譲する

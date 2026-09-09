@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * <p>
  * <b>{@code balance}と{@code stable}は構文としては受理しますが
  * {@code auto}として扱います}</b>(未対応。この制限は
- * copperpdf4の{@code docs/CSS-SUPPORT.md}に明記されます)。
+ * 対応表に明記されます)。
  * {@code balance}は行数の均等化、{@code stable}は再組版時の先頭行安定を
  * 求めるもので、いずれも本エンジンの2系統(貪欲法/K-P)には
  * 対応物がありません。

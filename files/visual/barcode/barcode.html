@@ -1,0 +1,296 @@
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+body,td {
+	font: normal 10pt/1 serif;
+}
+
+body {
+	margin: 0;
+}
+div {
+	border: 1pt dashed Black;
+	padding: 5px;
+	margin: 5px;
+	float: left;
+}
+h2 {
+	font-size: 12pt;
+	text-align: center;
+}
+barcode {
+	font-family: 'ocrb10';
+}
+</style>
+</head>
+<body xmlns:bc="http://barcode4j.krysalis.org/ns">
+<h1>バーコードの出力例</h1>
+<div>
+<h2>ISBN</h2>
+<bc:barcode message="9784003101018">
+  <bc:isbn>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.21mm</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:isbn>
+</bc:barcode>
+</div>
+
+<div>
+<h2>Interleaved 2 of 5</h2>
+<bc:barcode message="0123456789">
+  <bc:intl2of5>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.21mm</bc:module-width>
+      <bc:wide-factor>3.0</bc:wide-factor>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>ignore</bc:checksum>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+        <bc:display-checksum>false</display-checksum>
+      </bc:human-readable>
+  </bc:intl2of5>
+</bc:barcode>
+</div>
+
+<div>
+<h2>Codabar</h2>
+<bc:barcode message="0123456789">
+  <bc:codabar>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.21mm</bc:module-width>
+      <bc:wide-factor>3.0</bc:wide-factor>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:codabar>
+</bc:barcode>
+</div>
+
+<div>
+<h2>Code 39</h2>
+<bc:barcode message="0123456789">
+  <bc:code39>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.19mm</bc:module-width>
+      <bc:wide-factor>2.5</bc:wide-factor>
+      <bc:interchar-gap-width>1mw</bc:interchar-gap-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>ignore</bc:checksum>
+      <bc:extended-charset>false</bc:extended-charset>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+        <bc:display-start-stop>false</bc:display-start-stop>
+        <bc:display-checksum>false</display-checksum>
+      </bc:human-readable>
+  </bc:code39>
+</bc:barcode>
+</div>
+
+<div>
+<h2>Code 128</h2>
+<bc:barcode message="0123456789">
+  <bc:code128>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.21mm</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:code128>
+</bc:barcode>
+</div>
+
+<div>
+<h2>UPC-A</h2>
+<bc:barcode message="00123456789">
+  <bc:upc-a>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.33mm</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>add</bc:checksum>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:upc-a>
+</bc:barcode>
+</div>
+
+<div>
+<h2>UPC-E</h2>
+<bc:barcode message="0123413">
+  <bc:upc-e>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.33mm</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>add</bc:checksum>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:upc-e>
+</bc:barcode>
+</div>
+
+<div>
+<h2>EAN-13(JAN-13)</h2>
+<bc:barcode message="200123456789">
+  <bc:ean-13>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.33mm</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>add</bc:checksum>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:ean-13>
+</bc:barcode>
+</div>
+
+<div>
+<h2>EAN-8(JAN-13)</h2>
+<bc:barcode message="2012345">
+  <bc:ean-8>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.33mm</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>add</bc:checksum>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:ean-8>
+</bc:barcode>
+</div>
+
+<div>
+<h2>EAN-128(JAN-128)</h2>
+<bc:barcode message="42012345&#xF1;910112345678912345678&#xF0;">
+  <bc:ean-128>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.21mm</bc:module-width>
+      <bc:check-digit-marker>&#xf0;</bc:check-digit-marker>
+      <bc:group-separator>&#xf1;</bc:group-separator>
+      <bc:template>(420)n5(91)n2+n9+n2-8+cd0</bc:template>
+      <bc:quiet-zone enabled="true">60mw</bc:quiet-zone>
+      <bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+        <bc:omit-brackets>false</bc:omit-brackets>
+      </bc:human-readable>
+  </bc:ean-128>
+</bc:barcode>
+</div>
+
+<div>
+<h2>POSTNET</h2>
+<bc:barcode message="2012345">
+  <bc:postnet>
+      <bc:height>15mm</bc:height>
+      <bc:module-width>0.02in</bc:module-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>ignore</bc:checksum>
+      <bc:interchar-gap-width>0.026in</bc:interchar-gap-width>
+      <bc:tall-bar-height>0.125in</bc:tall-bar-height>
+      <bc:short-bar-height>0.050in</bc:short-bar-height>
+      <bc:baseline-alignment>bottom</bc:baseline-alignment>
+      <bc:bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+        <bc:display-checksum>false</bc:display-checksum>
+      </bc:human-readable>
+  </bc:postnet>
+</bc:barcode>
+</div>
+
+<div>
+<h2>Royal Mail CBC</h2>
+<bc:barcode message="2012345">
+  <bc:royal-mail-cbc>
+      <bc:module-width>0.53mm</bc:module-width>
+      <bc:track-height>1.25mm</bc:track-height>
+      <bc:ascender-height>1.25mm</bc:ascender-height>
+      <bc:interchar-gap-width>1mw</bc:interchar-gap-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:checksum>add</bc:checksum>
+  </bc:royal-mail-cbc>
+</bc:barcode>
+</div>
+
+<div>
+<h2>USPS Intelligent Mail</h2>
+<bc:barcode message="01234567094987654321012345678">
+  <bc:usps4cb>
+      <bc:module-width>0.02in</bc:module-width>
+      <bc:track-height>0.050in</bc:track-height>
+      <bc:ascender-height>0.050in</bc:ascender-height>
+      <bc:interchar-gap-width>0.025in</bc:interchar-gap-width>
+      <bc:quiet-zone enabled="true">10mw</bc:quiet-zone>
+      <bc:vertical-quiet-zone>0.028in</bc:vertical-quiet-zone>
+      <bc:bc:human-readable>
+        <bc:placement>bottom</bc:placement>
+        <bc:font-size>8pt</bc:font-size>
+      </bc:human-readable>
+  </bc:usps4cb>
+</bc:barcode>
+</div>
+
+<div>
+<h2>PDF 417</h2>
+<bc:barcode message="2012345">
+  <bc:pdf417>
+      <bc:module-width>0.352777mm</bc:module-width> <!-- 1 pixel at 72dpi -->
+      <bc:row-height>3mw</bc:row-height>
+      <bc:columns>2</bc:columns>
+      <bc:min-columns>2</bc:min-columns>
+      <bc:max-columns>2</bc:max-columns>
+      <bc:min-rows>3</bc:min-rows>
+      <bc:max-rows>90</bc:max-rows>
+      <bc:ec-level>0</bc:ec-level>
+      <bc:quiet-zone enabled="true">2mw</bc:quiet-zone>
+      <bc:vertical-quiet-zone>2mw</bc:vertical-quiet-zone>
+      <bc:width-to-height-ratio>3.0</bc:width-to-height-ratio>
+  </bc:pdf417>
+</bc:barcode>
+</div>
+
+<div>
+<h2>DataMatrix</h2>
+<bc:barcode message="2012345">
+  <bc:datamatrix>
+      <bc:module-width>0.5mm</bc:module-width> <!-- 1 pixel at 72dpi -->
+      <bc:quiet-zone enabled="true">1mw</bc:quiet-zone>
+      <bc:shape>force-none</bc:shape>
+  </bc:datamatrix>
+</bc:barcode>
+</div>
+
+<div>
+<h2>QRCode</h2>
+<bc:barcode message="2012345"
+xmlns:html="http://www.w3.org/1999/xhtml">
+  <bc:qrcode>
+      <bc:version>0</bc:version>
+      <bc:encmode>B</bc:quiet-zone>
+      <bc:ecc>M</bc:shape>
+      <bc:module-width>0.5mm</bc:module-width>
+      <bc:quiet-zone enabled="true">1mw</bc:quiet-zone>
+  </bc:qrcode>
+</bc:barcode>
+</div>
+
+</body>
+</html>

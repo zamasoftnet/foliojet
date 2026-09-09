@@ -78,7 +78,7 @@ public class BaselineCssPropertyTest extends TestCase {
 						return 1.0;
 					case "getDefaultFontFamily":
 						// font 短縮形は既定ファミリを暗黙に足す
-						// ([[copperpdf4-font-family-css-asymmetry]])
+						// font-family の CSS/Java 非対称による
 						return net.zamasoft.foliojet.css.value.FontFamilyValue.SERIF;
 					case "getDocumentContext":
 						return new DocumentContext();

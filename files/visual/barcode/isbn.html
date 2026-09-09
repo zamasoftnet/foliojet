@@ -1,0 +1,46 @@
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+	font-family: Helvetica;
+}
+barcode {
+	font-family: 'ocrb10';
+	display: block;
+}
+div#margin {
+	height: 6.3mm;
+}
+div#barcodes {
+	float: left;
+	padding: 5mm 0mm;
+	background-color: White;
+}
+span#price {
+	border: .2mm solid Black;
+	padding: .5mm;
+}
+</style>
+</head>
+<body xmlns:bc="http://barcode4j.krysalis.org/ns">
+
+<div id="barcodes">
+<bc:barcode message="978499057871">
+  <bc:isbn/>
+</bc:barcode>
+<div id="margin"></div>
+<bc:barcode message="192003600905">
+  <bc:isbn/>
+</bc:barcode>
+</div>
+ISBN 978-4-9905787-0-1<br/>
+C0036 &#xA5;905E<br/>
+定価：<span id="price">本体 905円</span>＋税
+</body>
+</html>

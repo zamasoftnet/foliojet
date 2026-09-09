@@ -90,7 +90,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		final List<String> failures = new ArrayList<>();
 		final List<String> drift = new ArrayList<>();
 		final Map<Reason, Set<String>> accepted = new EnumMap<>(Reason.class);
-		int candidates, converted, pages, acceptedPages, missing;
+		int candidates, converted, pages, acceptedPages, missing, externalMissing;
 		boolean manifestWritten, digestsWritten;
 
 		void fail(final String message) {
@@ -130,9 +130,11 @@ public final class TwoPassDigestParityTest extends TestCase {
 		final Map<String, CorpusInput> saved = readManifest(manifestTable);
 		// 列挙側に参照が残った既知入力の削除も REMOVED として検出する。
 		// 通常実行では失敗。regenerate だけが削除を候補へ反映する。
+		// **ただしリポジトリの外を指す入力は別**(external を見よ)。
 		discovered.entrySet().removeIf(entry -> saved.containsKey(entry.getKey())
 				&& saved.get(entry.getKey()).source().equals(entry.getValue().source())
-				&& !Files.isRegularFile(Path.of(entry.getValue().source())));
+				&& !Files.isRegularFile(Path.of(entry.getValue().source()))
+				&& !external(entry.getValue().source()));
 		if (!manifestTable.bootstrap()) report.drift.addAll(manifestDiff(saved, discovered));
 		for (final String line : report.drift) System.err.println("[D7 MANIFEST] " + line);
 		checkManifestDrift(report, mode);
@@ -161,7 +163,14 @@ public final class TwoPassDigestParityTest extends TestCase {
 				++report.candidates;
 				if (!discovered.containsKey(doc) || !Files.isRegularFile(Path.of(entry.getValue().source()))) {
 					++report.missing;
-					report.fail(doc + " MISSING manifest 文書が列挙にない、または保存条件の入力がない");
+					if (external(entry.getValue().source())) {
+						// **公開できない取り込み資料。**開発用の作業ツリーにだけあり、
+						// このリポジトリ単独の checkout では存在しない。無いことを
+						// 失敗にすると、単独 checkout でこの試験が常に赤くなる
+						++report.externalMissing;
+					} else {
+						report.fail(doc + " MISSING manifest 文書が列挙にない、または保存条件の入力がない");
+					}
 					continue;
 				}
 				final long retainedBefore = net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get();
@@ -260,9 +269,24 @@ public final class TwoPassDigestParityTest extends TestCase {
 				Map.of("input.default-stylesheet", "files/unittest/3200-line-breaker/text-wrap-pretty.css")));
 		addHtmlTree(documents, Path.of("files/fuzz-repro"), "fuzz-repro/");
 		addHtmlTree(documents, Path.of("tmp"), "tmp/");
-		final Path visual = Path.of("../copperpdf4/dev/files/visual");
+		final Path visual = Path.of("files/visual");
 		addImageTestManifest(documents, visual, visual.resolve("MANIFEST.txt"), new HashSet<>());
 		return documents;
+	}
+
+	/**
+	 * その入力がこのリポジトリの外にあるかどうかです。
+	 *
+	 * <p>
+	 * 台帳には、公開できない取り込み資料(実サイトのスナップショット等)を
+	 * 指す項目が含まれます。それらは開発用の作業ツリーにだけあるので、
+	 * <b>単独 checkout では欠けていてよい</b>。リポジトリの中を指す入力が
+	 * 欠けているのは削除であり、これまでどおり失敗にします。
+	 * </p>
+	 */
+	private static boolean external(final String source) {
+		final String s = source.replace('\\', '/');
+		return s.startsWith("../") || s.startsWith("/") || (s.length() > 1 && s.charAt(1) == ':');
 	}
 
 	private static void addHtmlTree(final Map<String, CorpusInput> documents, final Path root, final String prefix)
@@ -1582,6 +1606,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		md.append("mode: ").append(mode).append(" / elapsed: ").append(elapsed(started)).append("\n\n")
 				.append("manifest: ").append(manifestSize).append(" 文書 / 変換・比較完了: ").append(report.converted)
 				.append('/').append(report.candidates).append(" / 入力不在: ").append(report.missing)
+				.append("(うちリポジトリ外: ").append(report.externalMissing).append(')')
 				.append(" / 範囲側頁数: ").append(report.pages).append("\n\n")
 				.append("履歴台帳の範囲側照合: ").append(report.acceptedPages)
 				.append(" 頁 / 失敗: ").append(report.failures.size()).append("\n\n")

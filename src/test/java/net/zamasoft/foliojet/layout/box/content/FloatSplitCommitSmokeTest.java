@@ -26,16 +26,15 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
  * P2-3のplan駆動commit({@code Floatings.splitPageAxis}の
- * plan整合assert・identity anchor assertを含む)を、copperpdf4のSMOKE
+ * plan整合assert・identity anchor assertを含む)を、SMOKE
  * マニフェスト(51文書——float・表・改ページ・縦書きの代表集合)へ
  * in-process({@code DirectSession}経由)で走らせ、assert有効のまま
  * 1文書も失敗しないことを検証します(2026-07-24。P2-2の
  * {@code FloatSplitPlanShadowSmokeTest}をshadow撤去にあわせて改修)。
  *
  * <p>
- * imageTest本体(基準画像比較)はcopperpdf4/devのgradleタスクが担う——
- * こちらはassertが観測できる同一JVM内での補助証拠。copperpdf4リポジトリ
- * が隣に無い環境(単独checkout)ではスキップする。
+ * 基準画像との比較そのものは別の仕組み(サーバー製品側のgradleタスク)が
+ * 担う——こちらはassertが観測できる同一JVM内での補助証拠。
  * </p>
  */
 public class FloatSplitCommitSmokeTest extends TestCase {
@@ -47,8 +46,8 @@ public class FloatSplitCommitSmokeTest extends TestCase {
 
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** foliojet4作業ディレクトリから見たcopperpdf4のSMOKEマニフェスト。 */
-	private static final Path SMOKE_MANIFEST = Path.of("../copperpdf4/dev/files/visual/SMOKE-MANIFEST.txt");
+	/** 中間サニティ用の絞り込みコーパス。 */
+	private static final Path SMOKE_MANIFEST = Path.of("files/visual/SMOKE-MANIFEST.txt");
 
 	public void testSmokeCorpusCommitsWithoutAssertionFailures() throws Exception {
 		if (!Files.isRegularFile(SMOKE_MANIFEST)) {
@@ -63,16 +62,31 @@ public class FloatSplitCommitSmokeTest extends TestCase {
 		final List<String> failures = new ArrayList<>();
 		final File scratch = File.createTempFile("float-split-commit-smoke", ".pdf");
 		scratch.deleteOnExit();
+		int missing = 0;
 		for (final String sourcePath : sourcePaths) {
+			final File input = docsDir.resolve(sourcePath).normalize().toFile();
+			if (!input.isFile()) {
+				// **入力が無いものは飛ばす。**マニフェストの一部は、公開できない
+				// 取り込み資料(実サイトのスナップショット)を指している。それらは
+				// 開発用の作業ツリーにだけあり、このリポジトリ単独では存在しない。
+				// 無いことを失敗にすると、単独 checkout でこの試験が常に赤くなる
+				++missing;
+				continue;
+			}
 			try {
-				this.transcode(docsDir.resolve(sourcePath).normalize().toFile(), scratch);
+				this.transcode(input, scratch);
 			} catch (final Exception | AssertionError e) {
 				failures.add(sourcePath + ": " + e);
 			}
 		}
 		scratch.delete();
 
-		System.out.println("SMOKE documents: total=" + sourcePaths.size() + " failed=" + failures.size());
+		final int ran = sourcePaths.size() - missing;
+		System.out.println("SMOKE documents: total=" + sourcePaths.size() + " ran=" + ran
+				+ " missing=" + missing + " failed=" + failures.size());
+		// **1件も走らなかったなら緑にしない。**「入力が無いので全部飛ばした」を
+		// 「全部通った」と読み違えるのが、この形の試験のいちばんの危険
+		assertTrue("走った文書が1件も無い(マニフェストの入力がすべて欠けている)", ran > 0);
 		assertTrue("変換失敗: " + failures, failures.isEmpty());
 	}
 

@@ -30,7 +30,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code RandomDocumentFuzzTest}の<b>不変条件6</b>(説明のつかない紙面外への
  * 配置)で最後まで残っていた欠陥種別です。50,000シードで8件、いずれも
  * <b>縦書き</b>と<b>段組</b>を含んでいました
- * (`copperpdf4/docs/REVIEW-STATISTICS.md` §12)。実測すると<b>独立した2つの
+ * 。実測すると<b>独立した2つの
  * 機序</b>で、6件が機序1、2件が機序2でした。ここで固定するのは<b>機序1だけ</b>
  * です。
  * </p>

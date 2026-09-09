@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>footnote F-8e: notes at the block-end of the column containing the call (visual corpus; page size in @page)</title>
+<style>
+@page { size: 300pt 300pt; margin: 24pt; @bottom-center { content: counter(page); writing-mode: horizontal-tb; font-size: 10pt } }
+html, body { writing-mode: vertical-rl; }
+body { margin: 0; font-size: 12pt; line-height: 18pt; }
+.columns { column-count: 2; column-gap: 12pt; column-fill: auto; }
+p { margin: 0; }
+.lower { break-before: column; }
+.next { break-before: page; }
+figure { float: inline-start; width: 54pt; height: 60pt; margin: 0; }
+img { width: 36pt; height: 36pt; }
+figcaption { font-size: 8pt; line-height: 10pt; }
+.note { float: footnote; font-size: 10pt; line-height: 14pt; }
+</style>
+</head>
+<body>
+<!-- 増分4: 注のある段を改段commitで閉じる。頁末の最終段は増分5で検証する。 -->
+<div class="columns">
+<p>上段呼出<span class="note">最初の注。</span>本文。</p>
+<figure><img src="../red.png" alt=""><figcaption>図版説明<span class="note">次の注。</span>。</figcaption></figure>
+<p>上段甲。</p>
+<p>上段乙。</p>
+<p>上段丙。</p>
+<p class="lower">下段開始本文。</p>
+<p>下段甲。</p>
+<p>下段乙。</p>
+<p>下段丙。</p>
+<p>下段丁。</p>
+<p>下段戊。</p>
+<p>下段己。</p>
+<p>下段庚。</p>
+<p>下段辛。</p>
+<p>下段壬。</p>
+<p class="next">次頁呼出<span class="note">末尾の注。</span>本文。</p>
+<p>次頁上段甲。</p>
+<p class="lower">次頁下段甲。</p>
+<p>次頁下段乙。</p>
+</div>
+</body>
+</html>

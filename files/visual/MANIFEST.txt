@@ -1,0 +1,61 @@
+# 基準画像テストの対象文書。
+# 書式: <files/visual からの相対パス> [key=value ...]
+#   skip=true          対象外にする
+#   xfail=true         既知差分として比較は実行するがビルド失敗にしない(2026-07-24の再基準化以降 0件)
+#   source=...         変換入力のパス(既定は先頭の論理パス)
+#   password=...       暗号化PDFを開くユーザーパスワード
+#   maxDiffRatio=0.01  許容する差分ピクセル率(既定 0.02)
+#   @file              別マニフェストを読み込む
+
+0040-overflow/absolute-in-hidden.html
+0080-border-collapse/auto-pagebreak-headerfooter.html
+0080-border-collapse/fixed-pagebreak-headerfooter.html
+0080-border-collapse/fixed-pagebreak-incell.html
+0160-background-image/padding.htm
+0160-background-image/repeat.html
+0220-font-family/default-font-family.html
+1010-TABLE-ROWSPAN/border.html
+2000-input.encoding.ms-compatible/shift_jis.html
+2000-input.encoding.ms-compatible/utf-8.html
+2000-input.encoding.ms-compatible/windows-31j.html
+2020-jpeg/raw-jpeg2000.html
+2020-jpeg/to-jpeg.html
+2020-jpeg/to-jpeg2000.html
+2020-jpeg/to-jpeg2000gray.html
+2040-page/clip.html
+2040-page/marks.html
+2050-font/cid-identity-font.html
+2050-font/cid-keyed-font.html
+2050-font/embedded-font.html
+2060-opacity/opacity.html
+2070-transform/fan.html
+2070-transform/transform.html
+2070-transform/translate-percentage.html
+2080-text-stroke/text-stroke.html
+2090-border-radius/border-radius.html
+2100-text-emphasis/h-text-emphasis.html
+2100-text-emphasis/v-text-emphasis.html
+2110-border-image/border-image.html
+2120-footnote/bottom-vertical-rl.html
+2120-footnote/columns-block-end-vertical-rl.html
+acid2.html
+barcode/barcode.html
+barcode/isbn.html
+bp/watermark.html
+first-line.html
+form.html
+image/icc.html
+opentype/cff-vertical.html
+opentype/cff.html
+opentype/thai.html
+security/v1-upw-user-opw-owner.html password=user
+security/v2-no-copy.html
+security/v2-upw--opw-owner.html
+security/v2-upw-user-opw-owner.html password=user
+security/v4-aes-upw--opw-owner.html
+security/v4-aes-upw-user-opw-owner.html password=user
+security/v4-arcfour-upw-user-opw-owner.html password=user
+legacy-table-form.html
+text-decoration.html
+
+@LEGACY-MANIFEST.txt

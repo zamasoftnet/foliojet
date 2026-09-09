@@ -39,7 +39,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 原理的に踏めませんでした。本テストは入力空間を直接サンプリングします。
  * レビューが推定するのは「レビューで見つかりうる欠陥」だけなので、
  * これは<b>別の母集団</b>を測る手段です
- * (`copperpdf4/docs/REVIEW-STATISTICS.md` の観点一覧を参照)。
+ * 。
  * </p>
  *
  * <h2>検査する不変条件</h2>
@@ -625,7 +625,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * fail closed化する前は実際に内容が消えていた(seed 890で
 	 * {@code column-count:3}のブロックが丸ごと落ちた)。どちらも改ページ・
 	 * 継続機構の中枢なので、原因を特定してから直す。
-	 * 再現手順は`copperpdf4/docs/PLAN.md`。
 	 * </p>
 	 */
 	private static final java.util.Set<Integer> KNOWN_INVARIANT_VIOLATION = java.util.Set.of();
@@ -634,7 +633,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 統計用の集計モード({@code -Dfoliojet.fuzzReport})。早期打ち切りを
 	 * せず全シードを走らせ、<b>失敗の種別ごとの件数と初出シード</b>を
 	 * 出力する。これが「あと何件残っているか」「次の失敗まで何回か」の
-	 * 推定の入力になる(`copperpdf4/docs/REVIEW-STATISTICS.md` §8)。
+	 * 推定の入力になる。
 	 */
 	/**
 	 * watchdogを超えて生き残ったスレッドの数。<b>止められないので数える</b>。
@@ -2804,7 +2803,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 文書中の最大の明示サイズの2倍以内なら、指定の帰結として説明できる
 	 * ものとして見逃す。この基準で切ると<b>横書きは1件も残らず、縦書きだけ
 	 * 19件残った</b>(3000文書)。詳細は
-	 * `copperpdf4/docs/REVIEW-STATISTICS.md` §12。
 	 * </p>
 	 *
 	 * <p>

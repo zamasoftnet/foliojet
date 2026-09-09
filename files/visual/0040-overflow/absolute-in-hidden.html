@@ -1,0 +1,59 @@
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+@page {
+	margin: 0;
+}
+
+body,td {
+	font: 10pt/ 1 monospace;
+	padding: 0;
+}
+
+body {
+	margin: 0;
+}
+
+table {
+	border: 1pt solid Red;
+	border-spacing: 5pt;
+}
+td {
+	border: 1pt solid Blue;
+	overflow: hidden;
+}
+div.a {
+	margin: 5pt;
+	border: 1pt solid Green;
+	float: left;
+	overflow: hidden;
+}
+</style>
+</head>
+<body>
+
+<table id="a">
+<tr>
+<td><div style="position: relative; top: 5pt; right: 5pt;">テキスト</div></td>
+</tr>
+</table>
+<table>
+<tr>
+<td><div style="position: absolute; left: 0;">テキスト</div></td>
+</tr>
+</table>
+
+<div class="a">
+<div style="position: relative; top: 5pt; right: 5pt;">テキスト</div>
+</div>
+<br clear="all">
+<div class="a">
+<div style="position: absolute; left: 0;">テキスト</div>
+</div>
+
+</body>
+</html>

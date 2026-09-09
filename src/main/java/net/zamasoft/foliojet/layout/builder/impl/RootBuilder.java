@@ -243,7 +243,6 @@ public class RootBuilder extends BreakableBuilder {
 	 * <b>再有効化するなら上限を与えること</b>——断片に「自分の内容が
 	 * 終わるソース文字位置」を持たせ、event-id ではなく<b>文字レベル</b>の
 	 * 上限として {@code replayTextTail} へ渡す。詳細は
-	 * {@code copperpdf4/docs/NEXT-SESSION.md}。
 	 * </p>
 	 */
 	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");

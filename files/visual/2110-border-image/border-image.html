@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<title>TEST</title>
+<style type="text/css">
+/* 9スライスの検査。frame.png は 90x90px を 3x3 に割った試験画像で、
+   四隅=赤・上下辺=緑・左右辺=青・中央=黄。どのスライスがどこへ出るかが
+   色だけで分かるので、伸縮・fill・枠幅・outset の誤りが一目で出る。 */
+body { margin: 10px; font-family: serif; }
+div {
+	width: 120px;
+	height: 60px;
+	margin: 0 0 14px 14px;
+	border: 10px solid #cccccc;
+	background-color: #ffffff;
+}
+p { margin: 0 0 2px 14px; font-size: 9px; }
+
+/* 既定(border-image-width:1 = 境界線幅、repeat は stretch) */
+div#stretch { border-image: url(frame.png) 30 stretch; }
+/* 中央も描く */
+div#fill { border-image: url(frame.png) 30 fill stretch; }
+/* 枠幅を境界線幅と変える(レイアウトは変わらない) */
+div#width { border-image: url(frame.png) 30 / 20px stretch; }
+/* 枠を外へ張り出す */
+div#outset { border-image: url(frame.png) 30 / 10px / 6px stretch; }
+/* 割合スライス */
+div#percent { border-image: url(frame.png) 33.3333% stretch; }
+/* repeat/round/space は実際にタイルする(2026-08-30) */
+div#repeat { border-image: url(frame.png) 30 repeat; }
+div#round { border-image: url(frame.png) 30 round; }
+div#space { border-image: url(frame.png) 30 space; }
+/* グラデーションはスライスせず境界領域全体を塗る(記録済み) */
+div#gradient { border-image: linear-gradient(to right, #ff0000, #0000ff) 1; }
+/* border-style:none のままでも境界画像は出る */
+div#nostyle { border-style: none; border-image: url(frame.png) 30 / 10px stretch; }
+</style>
+</head>
+<body>
+<p>stretch</p><div id="stretch"></div>
+<p>fill</p><div id="fill"></div>
+<p>width 20px</p><div id="width"></div>
+<p>outset 6px</p><div id="outset"></div>
+<p>slice 33.3333%</p><div id="percent"></div>
+<p>repeat</p><div id="repeat"></div>
+<p>round</p><div id="round"></div>
+<p>space</p><div id="space"></div>
+<p>gradient</p><div id="gradient"></div>
+<p>border-style:none</p><div id="nostyle"></div>
+</body>
+</html>

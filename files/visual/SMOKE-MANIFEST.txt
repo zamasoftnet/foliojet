@@ -1,0 +1,61 @@
+# SMOKE-MANIFEST.txt — 中間サニティ用の絞り込みコーパス(2026-07-24新設)
+#
+# 挙動不変増分の開発中サニティチェック用。float・表・改ページ・縦書きの
+# 代表文書をMANIFEST/LEGACY-MANIFESTから逐語コピーした部分集合
+# (オプション指定は元と同一)。段組(multicol)は視覚コーパスに
+# 存在しないため、foliojet4側の `--tests` フィルタで担保する。
+# 実行: dev$ ./gradlew imageTest -PimageManifest=files/visual/SMOKE-MANIFEST.txt [-PforceRelease -PbuildFolioJet]
+# 注意: これはコミットゲートではない——コミット前のフル3層検証
+# (591文書)の代替にはならない(docs/NEXT-SESSION.md「テストの3段構え」参照)。
+#
+0080-border-collapse/auto-pagebreak-headerfooter.html
+0080-border-collapse/fixed-pagebreak-incell.html
+1010-TABLE-ROWSPAN/border.html
+acid2.html
+legacy/0100-float/000-LEFT.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/000-LEFT.html
+legacy/0100-float/001-LEFT_clear.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/001-LEFT_clear.html
+legacy/0100-float/002-LEFT.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/002-LEFT.html
+legacy/0100-float/010-LEFT_IMG.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/010-LEFT_IMG.html
+legacy/0100-float/020-RIGHT.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/020-RIGHT.html
+legacy/0100-float/021-RIGHT_clear.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/021-RIGHT_clear.html
+legacy/0100-float/022-RIGHT.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/022-RIGHT.html
+legacy/0100-float/030-RIGHT_IMG.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/030-RIGHT_IMG.html
+legacy/0100-float/040-LEFT_text-align.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/040-LEFT_text-align.html
+legacy/0100-float/050-RIGHT_text-align.html source=../../../copperpdf4/dev/files/misc/tounittest/0100-float/050-RIGHT_text-align.html
+legacy/0110-absolute/010-FLOW.html source=../../../copperpdf4/dev/files/misc/tounittest/0110-absolute/010-FLOW.html
+legacy/0110-absolute/011-FLOW.html source=../../../copperpdf4/dev/files/misc/tounittest/0110-absolute/011-FLOW.html
+legacy/0120-flow/010-margin.html source=../../../copperpdf4/dev/files/misc/tounittest/0120-flow/010-margin.html
+legacy/0120-flow/011-margin.html source=../../../copperpdf4/dev/files/misc/tounittest/0120-flow/011-margin.html
+legacy/0120-flow/012-margin.html source=../../../copperpdf4/dev/files/misc/tounittest/0120-flow/012-margin.html
+legacy/0140-table-separate/010-border-collapse_SEPARATE.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/010-border-collapse_SEPARATE.html
+legacy/0140-table-separate/011-border-collapse_SEPARATE.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/011-border-collapse_SEPARATE.html
+legacy/0140-table-separate/020-empty-cells.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/020-empty-cells.html
+legacy/0140-table-separate/030-caption-side.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/030-caption-side.html
+legacy/0140-table-separate/040-HEADER_FOOTER.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/040-HEADER_FOOTER.html
+legacy/0140-table-separate/050-TABLE_WIDTH.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/050-TABLE_WIDTH.html
+legacy/0140-table-separate/051-TABLE_WIDTH.html source=../../../copperpdf4/dev/files/misc/tounittest/0140-table-separate/051-TABLE_WIDTH.html
+legacy/0141-table-collapse/000-border-collapse_COLLAPSE.html source=../../../copperpdf4/dev/files/misc/tounittest/0141-table-collapse/000-border-collapse_COLLAPSE.html
+legacy/0141-table-collapse/010-CELL.html source=../../../copperpdf4/dev/files/misc/tounittest/0141-table-collapse/010-CELL.html
+legacy/0141-table-collapse/020-ROWGROUP.html source=../../../copperpdf4/dev/files/misc/tounittest/0141-table-collapse/020-ROWGROUP.html
+legacy/0141-table-collapse/030-ROW.html source=../../../copperpdf4/dev/files/misc/tounittest/0141-table-collapse/030-ROW.html
+legacy/0141-table-collapse/040-COLGROUP.html source=../../../copperpdf4/dev/files/misc/tounittest/0141-table-collapse/040-COLGROUP.html
+legacy/0190-tbrl/010-BODY.html source=../../../copperpdf4/dev/files/misc/tounittest/0190-tbrl/010-BODY.html
+legacy/0190-tbrl/015-DIV.html source=../../../copperpdf4/dev/files/misc/tounittest/0190-tbrl/015-DIV.html
+legacy/0190-tbrl/020-TD.html source=../../../copperpdf4/dev/files/misc/tounittest/0190-tbrl/020-TD.html
+legacy/0190-tbrl/030-ABSOLUTE.html source=../../../copperpdf4/dev/files/misc/tounittest/0190-tbrl/030-ABSOLUTE.html
+legacy/0211-pagebreak-flow/040-orphans_windows.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/040-orphans_windows.html
+legacy/0211-pagebreak-flow/041-orphans_windows.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/041-orphans_windows.html
+legacy/0211-pagebreak-flow/042-orphans_windows.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/042-orphans_windows.html
+legacy/0211-pagebreak-flow/050-CUT_TAIL.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/050-CUT_TAIL.html
+legacy/0211-pagebreak-flow/051-CUT_TAIL.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/051-CUT_TAIL.html
+legacy/0211-pagebreak-flow/090-page-break-inside_AVOID.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/090-page-break-inside_AVOID.html
+legacy/0211-pagebreak-flow/091-page-break-inside_AVOID.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/091-page-break-inside_AVOID.html
+legacy/0211-pagebreak-flow/100-REPLACED_BLOCK.html source=../../../copperpdf4/dev/files/misc/tounittest/0211-pagebreak-flow/100-REPLACED_BLOCK.html
+legacy/0213-pagebreak-float/000-ROOT_FLOW_BLOCK.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/000-ROOT_FLOW_BLOCK.html
+legacy/0213-pagebreak-float/001-ROOT_FLOW_BLOCK.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/001-ROOT_FLOW_BLOCK.html
+legacy/0213-pagebreak-float/010-ROOT_FLOW_REPLACED.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/010-ROOT_FLOW_REPLACED.html
+legacy/0213-pagebreak-float/011-ROOT_FLOW_REPLACED.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/011-ROOT_FLOW_REPLACED.html
+legacy/0213-pagebreak-float/020-FLOAT_IN_FLOAT.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/020-FLOAT_IN_FLOAT.html
+legacy/0213-pagebreak-float/030-ROOT_FLOW_CLEAR.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/030-ROOT_FLOW_CLEAR.html
+legacy/0213-pagebreak-float/040-FLOAT_IN_FLOAT_CLEAR.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/040-FLOAT_IN_FLOAT_CLEAR.html
+legacy/0213-pagebreak-float/041-FLOAT_IN_FLOAT_CLEAR.html source=../../../copperpdf4/dev/files/misc/tounittest/0213-pagebreak-float/041-FLOAT_IN_FLOAT_CLEAR.html

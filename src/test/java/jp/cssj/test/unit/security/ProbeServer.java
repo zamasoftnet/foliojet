@@ -34,7 +34,7 @@ import com.sun.net.httpserver.HttpServer;
  * </p>
  *
  * @see <a href=
- *      "file:../../../../../../../../../copperpdf4/docs/design/resource-access-policy-design.md">設計(第3版)</a>
+ *      "https://github.com/zamasoftnet/foliojet">設計(第3版)</a>
  */
 public class ProbeServer implements AutoCloseable {
 
