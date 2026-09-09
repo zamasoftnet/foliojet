@@ -12,6 +12,7 @@ import java.net.URI;
 import java.util.Iterator;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.FileCacheImageOutputStream;
 
@@ -25,6 +26,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.RandomResultUserAgent;
+import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
@@ -126,12 +128,17 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		at.transform(size, size);
 		final int w = (int) size.getX();
 		final int h = (int) size.getY();
-		this.image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+		final boolean transparent = this.transparentBackground();
+		this.image = new BufferedImage(w, h,
+				transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
 		final Graphics2D g2d = (Graphics2D) this.image.getGraphics();
 
-		// 背景クリア
-		g2d.setColor(Color.WHITE);
-		g2d.fillRect(0, 0, w, h);
+		if (!transparent) {
+			// 背景クリア。透明のときは**塗らない**ので、何も描かれなかった
+			// ところはアルファ0のまま残る
+			g2d.setColor(Color.WHITE);
+			g2d.fillRect(0, 0, w, h);
+		}
 		g2d.setColor(Color.BLACK);
 		g2d.setTransform(at);
 
@@ -144,6 +151,53 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 			g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
 		}
 		return new G2DGC(g2d, this.getFontManager());
+	}
+
+	/** 透明にすると決めたかどうか。1文書につき1回だけ判定し、警告も1回だけ出す。 */
+	private Boolean transparent = null;
+
+	/**
+	 * 背景を透明にするかどうかです。
+	 *
+	 * <p>
+	 * 求められていても、<b>書き出す形式がアルファを持てなければ白のまま</b>にし、
+	 * {@code 2824}で知らせます。持てるかどうかは形式表の決め打ちではなく、
+	 * {@link ImageWriter}に問い合わせます——利用できるライタは実行環境で
+	 * 変わるためです(Java Image I/Oのライタを足せば形式は増える)。
+	 * </p>
+	 */
+	private boolean transparentBackground() {
+		if (this.transparent != null) {
+			return this.transparent.booleanValue();
+		}
+		boolean value = false;
+		if (UAProps.OUTPUT_IMAGE_TRANSPARENT.getBoolean(this)) {
+			final String mimeType = UAProps.OUTPUT_TYPE.getString(this);
+			if (canStoreAlpha(mimeType)) {
+				value = true;
+			} else {
+				this.message(MessageCodes.WARN_NO_ALPHA_IN_IMAGE_FORMAT, mimeType);
+			}
+		}
+		this.transparent = Boolean.valueOf(value);
+		return value;
+	}
+
+	/** その形式がアルファを保てるかを、書き出す側に問い合わせます。 */
+	private static boolean canStoreAlpha(final String mimeType) {
+		final Iterator<ImageWriter> i = ImageIO.getImageWritersByMIMEType(mimeType);
+		if (!i.hasNext()) {
+			return false;
+		}
+		final ImageWriter writer = i.next();
+		try {
+			return writer.getOriginatingProvider().canEncodeImage(
+					ImageTypeSpecifier.createFromBufferedImageType(BufferedImage.TYPE_INT_ARGB));
+		} catch (final RuntimeException e) {
+			return false;
+		} finally {
+			writer.dispose();
+		}
 	}
 
 	public void closePage(GC gc) throws IOException {

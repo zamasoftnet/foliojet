@@ -72,6 +72,14 @@ public interface MessageCodes {
 	 * 最も時間を溶かすのは「書いたのに効かない」なので、黙って捨てない。
 	 */
 	public static final short WARN_INEFFECTIVE_CSS_COMBINATION = 0x2823;
+	/**
+	 * 透明な画像を求められたが、その形式はアルファを持てない。
+	 *
+	 * <p>
+	 * 黙って白にすると「透明にしたのに白い」と悩ませる。何が起きたかを言う。
+	 * </p>
+	 */
+	public static final short WARN_NO_ALPHA_IN_IMAGE_FORMAT = 0x2824;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;

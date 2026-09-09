@@ -378,6 +378,26 @@ public final class UAProps {
 			true);
 
 	/**
+	 * 画像出力の背景を透明にするかです。
+	 *
+	 * <p>
+	 * 既定の{@code false}では白で塗ってから描きます。{@code true}にすると
+	 * <b>塗らずに描く</b>ので、何も描かれなかったところは透明のまま残ります
+	 * (ページやその中の要素に背景色を指定していれば、そこは不透明になります)。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>アルファを持てる形式でだけ効きます。</b>PNG・GIF・TIFFは持てますが、
+	 * JPEG・BMP・WBMPは持てません。持てない形式で指定したときは白のまま描き、
+	 * {@code 2824}で知らせます——黙って無視すると「透明にしたのに白い」と
+	 * 悩ませることになるためです。判定は形式表の決め打ちではなく、
+	 * 書き出す側({@code ImageWriter})に問い合わせます。
+	 * </p>
+	 */
+	public static final BooleanPropManager OUTPUT_IMAGE_TRANSPARENT = new BooleanPropManager(
+			"output.image.transparent", false);
+
+	/**
 	 * メタ情報です。
 	 */
 	public static final String OUTPUT_META = "output.meta.";
@@ -949,6 +969,7 @@ public final class UAProps {
 			OUTPUT_RESOLUTION,
 			OUTPUT_IMAGE_RESOLUTION,
 			OUTPUT_IMAGE_ANTIALIAS,
+			OUTPUT_IMAGE_TRANSPARENT,
 			OUTPUT_PDF_FONTS_POLICY,
 			OUTPUT_PDF_COMPRESSION,
 			OUTPUT_PDF_IMAGE_COMPRESSION,
