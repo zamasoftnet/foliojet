@@ -193,7 +193,7 @@ class MyHttpSourceResolver implements SourceResolver {
 	/**
 	 * <b>同一ホストへの同時取得の上限</b>(2026-08-28)。全体だけを絞っても
 	 * 1つのサイトへ束で当たるため、配信側のレート制限に触れる。実測:
-	 * risuから{@code upload.wikimedia.org}へ16並列で当てると6本が
+	 * 実運用のサーバーから{@code upload.wikimedia.org}へ16並列で当てると6本が
 	 * <b>HTTP 429</b>になり、巻き添えで本来のスタイルシート取得まで失敗して
 	 * 変換が中止した。ブラウザの同時接続数(6前後)に倣って抑える。
 	 */
@@ -217,7 +217,7 @@ class MyHttpSourceResolver implements SourceResolver {
 	 * 取得中の先読み1件。{@code started}は<b>実際にHTTP要求を始めたか</b>で、
 	 * 順番待ちのものと区別するために要る。実要求が順番待ちの先読みに
 	 * 合流すると、直列より遅くなるうえ、待たされた末に失敗すると本来
-	 * 成功したはずの資源まで落ちる(2026-08-28、risuで実際に発生)。
+	 * 成功したはずの資源まで落ちる(2026-08-28、実運用で発生)。
 	 */
 	private record Inflight(CompletableFuture<Void> future, java.util.concurrent.atomic.AtomicBoolean started) {
 		Inflight() {
